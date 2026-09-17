@@ -1,0 +1,75 @@
+{
+  "species": "Velociraptor",
+  "clade": "Dromaeosauridae",
+  "period": "Late Cretaceous",
+  "real_length_m": 2.0,
+  "height_meters": 0.8,
+  "rig": "biped",
+  "tier": 25,
+  "climate": "temperate",
+  "archetype": "pack_raptor",
+  "tameable": true,
+  "capture_tier": 2,
+  "verb": "pounce knockdown from off-screen",
+  "status_applied": [
+    "bleed_2",
+    "knockdown"
+  ],
+  "stats": {
+    "hp": 640,
+    "attack": 95,
+    "defense": 40,
+    "speed": 700
+  },
+  "tamed_role": [
+    "mount",
+    "scout"
+  ],
+  "variants": [
+    "velociraptor_snow",
+    "velociraptor_crested",
+    "velociraptor_juvenile"
+  ],
+  "prompt": "Velociraptor, 2 meter dromaeosaur dinosaur the size of a large turkey, slender lightweight build, long low snout with small serrated teeth, large eyes, S-curved neck, arms folded like wings with long clawed fingers and palms facing inward, single curved sickle claw on second toe of each foot, long stiff tail held straight out for balance, fully feathered body with pennaceous wing feathers on the forearms and a fan of feathers at the tail tip, bare scaly feet, sandy tan with dark brown stripes and a rufous head crest, alert crouched posture with spine horizontal, stylized realism, game-ready low-poly creature, clean topology, neutral stance facing forward, no base, no scenery",
+  "texture_prompt": "sandy tan feathers with dark brown barred stripes, rufous red head and crest, cream throat, bare yellow-grey scaly feet, black claws, matte surface",
+  "clips": {
+    "attack_primary": "Small agile feathered dinosaur darts in, slashes with one foot claw, and hops back",
+    "attack_heavy": "Small agile feathered dinosaur crouches low, coils, then leaps forward through the air with both feet extended claws first, slamming into the target and riding it to the ground",
+    "knockdown": "Small agile feathered dinosaur is knocked off its feet, tumbles once and lands sprawled on its side",
+    "alert": "Small feathered dinosaur raises its head sharply, cocks it to one side birdlike, then crouches ready to spring"
+  },
+  "pipeline": {
+    "stage": "C2_blocked_rig_pose_estimation",
+    "reference": "01a0b17d-8fc2-7493-aaec-d11213e1fcf0",
+    "i2m": "01a0b17e-628c-74f6-9f88-b6e289c93bbc",
+    "reference_file": "res://assets/creatures/velociraptor/ref/velociraptor_side.png",
+    "mesh_file": "res://assets/creatures/velociraptor/work/velociraptor_i2m_v1.glb",
+    "sheet_file": "res://assets/creatures/velociraptor/sheet.png",
+    "c2_credits_spent": 24,
+    "c2_balance_before": 3871,
+    "c2_balance_after": 3823,
+    "preset_actions": {
+      "idle": 0,
+      "hit_react": 178,
+      "death": 8
+    },
+    "rig_failure": {
+      "http_status": 422,
+      "message": "Pose estimation failed, please provide a valid model",
+      "task_id": null,
+      "attempts": 1
+    },
+    "accepted_final_files": [],
+    "missing_clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert"
+    ]
+  }
+}

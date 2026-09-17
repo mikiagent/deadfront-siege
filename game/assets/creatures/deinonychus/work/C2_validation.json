@@ -1,0 +1,112 @@
+{
+  "model": "/Users/milankinzy/Documents/deadfront-siege/game/assets/creatures/deinonychus/work/deinonychus_i2m_v1.glb",
+  "rig": {
+    "bones": [
+      "Fingers1_l",
+      "Fingers1_r",
+      "Fingers2_l",
+      "Fingers2_r",
+      "Fingers3_l",
+      "Fingers3_r",
+      "Fingers4_l",
+      "Fingers4_r",
+      "HeadEnd",
+      "Neck1",
+      "Neck4",
+      "Tail0",
+      "Tail1",
+      "Tail2",
+      "Tail3",
+      "Tail4",
+      "Tail5",
+      "Tail6",
+      "Toes1_l",
+      "Toes1_r",
+      "Toes2_l",
+      "Toes2_r",
+      "Toes3_l",
+      "Toes3_r",
+      "Toes4_l",
+      "Toes4_r",
+      "calf_l",
+      "calf_r",
+      "clavicle_l",
+      "clavicle_r",
+      "ear_L1",
+      "ear_L2",
+      "ear_L3",
+      "ear_R1",
+      "ear_R2",
+      "ear_R3",
+      "foot_l",
+      "foot_r",
+      "hand_l",
+      "hand_r",
+      "head",
+      "ik_foot_back",
+      "ik_foot_back_l",
+      "ik_foot_back_r",
+      "ik_foot_front",
+      "ik_foot_front_l",
+      "ik_foot_front_r",
+      "lowerarm_l",
+      "lowerarm_r",
+      "neck_01",
+      "pelvis",
+      "root",
+      "spine_01",
+      "spine_02",
+      "spine_03",
+      "spine_04",
+      "spine_05",
+      "spine_06",
+      "thigh_l",
+      "thigh_r",
+      "upperarm_l",
+      "upperarm_r"
+    ],
+    "roots": [
+      "root"
+    ],
+    "clips": []
+  },
+  "clips": {
+    "idle": {
+      "pass": false,
+      "error": "missing"
+    },
+    "walk": {
+      "pass": false,
+      "error": "missing"
+    },
+    "run": {
+      "pass": false,
+      "error": "missing"
+    },
+    "attack_primary": {
+      "pass": false,
+      "error": "missing"
+    },
+    "attack_heavy": {
+      "pass": false,
+      "error": "missing"
+    },
+    "hit_react": {
+      "pass": false,
+      "error": "missing"
+    },
+    "knockdown": {
+      "pass": false,
+      "error": "missing"
+    },
+    "death": {
+      "pass": false,
+      "error": "missing"
+    },
+    "alert": {
+      "pass": false,
+      "error": "missing"
+    }
+  },
+  "pass": false
+}

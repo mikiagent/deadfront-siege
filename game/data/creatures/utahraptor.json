@@ -33,7 +33,7 @@
     "alert": "Large predatory dinosaur snaps its head up, scans left and right, then lowers into a crouched hunting stance"
   },
   "pipeline": {
-    "stage": "C1_silhouette_pass",
+    "stage": "C2_blocked_rig_pose_estimation",
     "preview": "01a0b154-f2ac-746c-9437-931104d6a615",
     "reference": "01a0b175-73e3-70d1-9fdc-cca7041aa146",
     "i2m": "01a0b176-5fef-720d-b1ba-017c28587335",
@@ -47,6 +47,32 @@
       "Repair neck/chest artifacts",
       "Correct facing from -X to contract +Z before rigging with orchestrator agreement",
       "Set rig height to 2.0 metres"
+    ],
+    "c2_credits_spent": 0,
+    "c2_balance_before": 3871,
+    "c2_balance_after": 3823,
+    "preset_actions": {
+      "idle": 0,
+      "hit_react": 178,
+      "death": 8
+    },
+    "rig_failure": {
+      "http_status": 422,
+      "message": "Pose estimation failed, please provide a valid model",
+      "task_id": null,
+      "attempts": 1
+    },
+    "accepted_final_files": [],
+    "missing_clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert"
     ]
   }
 }

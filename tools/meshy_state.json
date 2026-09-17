@@ -1,6 +1,15 @@
 {
   "utahraptor": {
     "preview": "01a0b154-f2ac-746c-9437-931104d6a615",
-    "i2m": "01a0b176-5fef-720d-b1ba-017c28587335"
+    "i2m": "01a0b176-5fef-720d-b1ba-017c28587335",
+    "reference": "01a0b175-73e3-70d1-9fdc-cca7041aa146"
+  },
+  "deinonychus": {
+    "reference": "01a0b17b-1fad-7691-9116-53e883622c01",
+    "i2m": "01a0b17b-ab48-721c-8493-0ff19ff49bf3"
+  },
+  "velociraptor": {
+    "reference": "01a0b17d-8fc2-7493-aaec-d11213e1fcf0",
+    "i2m": "01a0b17e-628c-74f6-9f88-b6e289c93bbc"
   }
 }

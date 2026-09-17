@@ -1,0 +1,73 @@
+{
+  "species": "Deinonychus",
+  "clade": "Dromaeosauridae",
+  "period": "Early Cretaceous",
+  "real_length_m": 3.4,
+  "height_meters": 1.2,
+  "rig": "biped",
+  "tier": 35,
+  "climate": "tropical",
+  "archetype": "pack_flanker",
+  "tameable": true,
+  "capture_tier": 3,
+  "verb": "pack flank, sickle-claw rake",
+  "status_applied": [
+    "bleed_3"
+  ],
+  "stats": {
+    "hp": 1450,
+    "attack": 165,
+    "defense": 70,
+    "speed": 660
+  },
+  "tamed_role": [
+    "combat",
+    "mount"
+  ],
+  "variants": [
+    "deinonychus_juvenile",
+    "deinonychus_swamp"
+  ],
+  "prompt": "Deinonychus, 3.4 meter dromaeosaur dinosaur, athletic mid-sized build, narrow deep skull with recurved serrated teeth, muscular S-curved neck, long arms with three clawed fingers and palms facing inward, large curved sickle claw on second toe of each foot, long stiff tail bound straight by bony rods, body covered in dense filamentous feathers with longer pennaceous feathers on arms and tail, bare scaly feet, olive green with dark grey dorsal mottling and a pale striped throat, poised hunting stance with spine horizontal and head forward, stylized realism, game-ready low-poly creature, clean topology, neutral stance facing forward, no base, no scenery",
+  "texture_prompt": "olive green feathers with dark grey dorsal mottling, pale cream striped throat, bare olive scaly feet, black curved claws, matte surface",
+  "clips": {
+    "attack_primary": "Mid-sized feathered predatory dinosaur steps in and bites, twisting its head as it pulls away",
+    "attack_heavy": "Mid-sized feathered predatory dinosaur springs onto the target, grips with both forelimbs, and rakes downward repeatedly with both foot claws before kicking off backward",
+    "knockdown": "Mid-sized feathered predatory dinosaur is hit hard in the flank, skids, and drops onto its side stunned",
+    "alert": "Mid-sized feathered dinosaur snaps to attention, head low and forward, tail raised stiff, scanning for the pack"
+  },
+  "pipeline": {
+    "stage": "C2_blocked_rig_pose_estimation",
+    "reference": "01a0b17b-1fad-7691-9116-53e883622c01",
+    "i2m": "01a0b17b-ab48-721c-8493-0ff19ff49bf3",
+    "reference_file": "res://assets/creatures/deinonychus/ref/deinonychus_side.png",
+    "mesh_file": "res://assets/creatures/deinonychus/work/deinonychus_i2m_v1.glb",
+    "sheet_file": "res://assets/creatures/deinonychus/sheet.png",
+    "c2_credits_spent": 24,
+    "c2_balance_before": 3871,
+    "c2_balance_after": 3823,
+    "preset_actions": {
+      "idle": 0,
+      "hit_react": 178,
+      "death": 8
+    },
+    "rig_failure": {
+      "http_status": 422,
+      "message": "Pose estimation failed, please provide a valid model",
+      "task_id": null,
+      "attempts": 1
+    },
+    "accepted_final_files": [],
+    "missing_clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert"
+    ]
+  }
+}

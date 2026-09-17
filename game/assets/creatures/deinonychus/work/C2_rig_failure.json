@@ -1,0 +1,9 @@
+{
+  "stage": "rig",
+  "input_task_id": "01a0b17b-ab48-721c-8493-0ff19ff49bf3",
+  "height_meters": 1.2,
+  "http_status": 422,
+  "message": "Pose estimation failed, please provide a valid model",
+  "task_id": null,
+  "attempts": 1
+}

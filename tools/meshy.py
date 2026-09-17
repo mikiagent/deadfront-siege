@@ -5,7 +5,7 @@ Reads the roster from game/data/creatures/<species>.json and walks each species
 through: text-to-3d preview -> refine -> rig -> animate -> download.
 
 State lives in tools/meshy_state.json. The i2m command resumes recorded tasks;
-legacy generation commands submit a new task each time.
+rig, animation and motion commands also resume recorded task IDs.
 
 Usage:
   MESHY_API_KEY=... python3 tools/meshy.py balance
@@ -19,7 +19,7 @@ Usage:
   MESHY_API_KEY=... python3 tools/meshy.py status  [species]
   MESHY_API_KEY=... python3 tools/meshy.py fetch   <species>
 """
-import argparse, base64, json, os, pathlib, sys, time, urllib.request, urllib.error
+import argparse, base64, copy, json, os, pathlib, struct, sys, time, urllib.request, urllib.error, urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SPEC = ROOT / "game" / "data" / "creatures"
@@ -49,7 +49,7 @@ def call(method, path, body=None):
         data=json.dumps(body).encode() if body is not None else None,
         headers={"Authorization": f"Bearer {key()}", "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=90) as r:
             raw = r.read()
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as e:
@@ -61,7 +61,9 @@ def state():
 
 
 def save(s):
-    STATE.write_text(json.dumps(s, indent=2) + "\n")
+    temporary = STATE.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(s, indent=2) + "\n")
+    temporary.replace(STATE)
 
 
 def spec(name):
@@ -98,7 +100,7 @@ def cmd_balance(a):
 
 def cmd_library(a):
     q = []
-    if a.search: q.append(f"search={a.search}")
+    if a.search: q.append("search=" + urllib.parse.quote(a.search))
     if a.category: q.append(f"category={a.category}")
     lib = call("GET", "/v1/animations/library" + ("?" + "&".join(q) if q else ""))
     for x in lib:
@@ -110,8 +112,7 @@ def cmd_library(a):
 def cmd_preview(a):
     sp = spec(a.species)
     body = dict(GEN, mode="preview", prompt=sp["prompt"])
-    tid = call("POST", "/v2/text-to-3d", body)["result"]
-    record(a.species, "preview", tid)
+    tid = submit(a.species, "preview", "/v2/text-to-3d", body)
     wait("/v2/text-to-3d", tid, "preview")
 
 
@@ -151,9 +152,16 @@ def cmd_refine(a):
             "texture_resolution": "2k"}
     if sp.get("texture_prompt"):
         body["texture_prompt"] = sp["texture_prompt"]
-    tid = call("POST", "/v2/text-to-3d", body)["result"]
-    record(a.species, "refine", tid)
+    tid = submit(a.species, "refine", "/v2/text-to-3d", body)
     wait("/v2/text-to-3d", tid, "refine")
+
+
+def submit(name, stage, path, body):
+    tid = state().get(name, {}).get(stage)
+    if not tid:
+        tid = call("POST", path, body)["result"]
+        record(name, stage, tid)
+    return tid
 
 
 def cmd_rig(a):
@@ -162,12 +170,11 @@ def cmd_rig(a):
         sys.exit(f"{a.species} is a quadruped. The rigging API only supports "
                  f"bipeds - rig this one in the Meshy web UI, then drop the "
                  f"rigged GLB into {OUT / a.species}.")
-    ref = state().get(a.species, {}).get("refine")
+    ref = state().get(a.species, {}).get("i2m") or state().get(a.species, {}).get("refine")
     if not ref:
-        sys.exit("run refine first")
+        sys.exit("run i2m or refine first")
     body = {"input_task_id": ref, "height_meters": sp.get("height_meters", 1.7)}
-    tid = call("POST", "/v1/rigging", body)["result"]
-    record(a.species, "rig", tid)
+    tid = submit(a.species, "rig", "/v1/rigging", body)
     wait("/v1/rigging", tid, "rig")
 
 
@@ -176,9 +183,8 @@ def cmd_animate(a):
     if not rig:
         sys.exit("run rig first")
     ids = [int(x) for x in a.actions.split(",")]
-    tid = call("POST", "/v1/animations",
-               {"rig_task_id": rig, "action_ids": ids})["result"]
-    record(a.species, f"anim_{'_'.join(map(str, ids))}", tid)
+    tid = submit(a.species, f"anim_{'_'.join(map(str, ids))}", "/v1/animations",
+                 {"rig_task_id": rig, "action_ids": ids})
     wait("/v1/animations", tid, "animate")
     print(f"  {len(ids)} actions x 3 credits = {len(ids) * 3} credits")
 
@@ -187,16 +193,18 @@ def cmd_motion(a):
     sp = spec(a.species)
     if sp.get("rig") == "quadruped":
         sys.exit("Text to Motion rejects quadruped rigs. Biped only.")
+    rig = state().get(a.species, {}).get("rig")
+    if not rig:
+        sys.exit("run rig successfully before spending on motion")
     prompt = sp["clips"][a.clip]
-    tid = call("POST", "/v1/text-to-motion",
-               {"prompt": prompt, "mode": "prime"})["result"]
-    record(a.species, f"motion_{a.clip}", tid)
+    # ASSUMPTION: four seconds allows anticipation, strike, and recovery/hold.
+    tid = submit(a.species, f"motion_{a.clip}", "/v1/text-to-motion",
+                 {"prompt": prompt, "mode": "prime", "duration": 4})
     d = wait("/v1/text-to-motion", tid, "motion")
     rig = state().get(a.species, {}).get("rig")
     if rig:
-        at = call("POST", "/v1/animations",
-                  {"rig_task_id": rig, "motion_task_id": tid})["result"]
-        record(a.species, f"anim_{a.clip}", at)
+        at = submit(a.species, f"anim_{a.clip}", "/v1/animations",
+                    {"rig_task_id": rig, "motion_task_id": tid})
         wait("/v1/animations", at, "apply")
 
 
@@ -208,31 +216,84 @@ def cmd_status(a):
             print(f"  {stage:<22} {tid}")
 
 
+def split_glb(source, destination, clip, index=0):
+    """Select/rename animation JSON only; preserve binary mesh and transforms."""
+    raw = source.read_bytes()
+    magic, version, length = struct.unpack_from("<4sII", raw)
+    if magic != b"glTF" or version != 2 or length != len(raw):
+        raise ValueError(f"Invalid GLB: {source}")
+    size, kind = struct.unpack_from("<II", raw, 12)
+    if kind != 0x4e4f534a:
+        raise ValueError("First GLB chunk is not JSON")
+    doc = json.loads(raw[20:20+size])
+    animations = doc.get("animations", [])
+    if index >= len(animations):
+        raise ValueError(f"Missing animation {index}: {source}")
+    animation = copy.deepcopy(animations[index])
+    animation["name"] = clip
+    doc["animations"] = [animation]
+    encoded = json.dumps(doc, separators=(",", ":")).encode()
+    encoded += b" " * (-len(encoded) % 4)
+    tail = raw[20+size:]
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(struct.pack("<4sII", b"glTF", 2, 20+len(encoded)+len(tail)) +
+                           struct.pack("<II", len(encoded), kind) + encoded + tail)
+
+
 def cmd_fetch(a):
-    """Download every GLB this species has produced."""
-    d = OUT / a.species
-    d.mkdir(parents=True, exist_ok=True)
-    for stage, tid in state().get(a.species, {}).items():
-        path = ("/v2/text-to-3d" if stage in ("preview", "refine")
-                else "/v1/image-to-3d" if stage.startswith("i2m")
-                else "/v1/rigging" if stage == "rig"
-                else "/v1/text-to-motion" if stage.startswith("motion_")
-                else "/v1/animations")
-        t = call("GET", f"{path}/{tid}")
-        urls = t.get("model_urls") or {}
-        for fmt, url in urls.items():
-            if fmt != "glb" or not url:
-                continue
-            if stage.startswith("i2m"):
-                work = d / "work"
-                work.mkdir(exist_ok=True)
-                (work / ".gdignore").touch()
-                suffix = "i2m_v1" if stage == "i2m" else stage
-                dest = work / f"{a.species}_{suffix}.glb"
-            else:
-                dest = d / f"{a.species}_{stage}.glb"
+    """Fetch recorded stages into the contract layout without changing geometry."""
+    directory = OUT / a.species
+    work = directory / "work"
+    work.mkdir(parents=True, exist_ok=True)
+    (work / ".gdignore").touch()
+    presets = spec(a.species).get("pipeline", {}).get("preset_actions", {})
+
+    def download(url, dest):
+        if not url:
+            raise ValueError(f"Task has no GLB for {dest}")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if not dest.exists():
             urllib.request.urlretrieve(url, dest)
-            print(f"  {dest.relative_to(ROOT)}  {dest.stat().st_size // 1024} KB")
+        return dest
+
+    for stage, tid in state().get(a.species, {}).items():
+        if stage == "rig":
+            task = call("GET", f"/v1/rigging/{tid}")
+        elif stage.startswith("anim_"):
+            task = call("GET", f"/v1/animations/{tid}")
+        elif stage.startswith("i2m") or stage in ("preview", "refine"):
+            endpoint = "/v1/image-to-3d" if stage.startswith("i2m") else "/v2/text-to-3d"
+            task = call("GET", f"{endpoint}/{tid}")
+        else:
+            continue
+        if task.get("status") != "SUCCEEDED":
+            print(f"Skip {stage}: {task.get('status')}")
+            continue
+        result = task.get("result") or {}
+        if stage == "rig":
+            model = download(result.get("rigged_character_glb_url"), directory / f"{a.species}.glb")
+            for source_name, clip in (("walking", "walk"), ("running", "run")):
+                url = result.get("basic_animations", {}).get(f"{source_name}_glb_url")
+                if url:
+                    raw = download(url, work / f"rig_{clip}.glb")
+                    split_glb(raw, directory / "anim" / f"{clip}.glb", clip)
+                else:
+                    print(f"No separate {clip}; inspect embedded clips in {model}")
+        elif stage.startswith("anim_"):
+            raw = download(result.get("animation_glb_url"), work / f"{stage}.glb")
+            suffix = stage[5:]
+            if suffix.replace("_", "").isdigit():
+                for index, action in enumerate(map(int, suffix.split("_"))):
+                    clips = [name for name, value in presets.items() if value == action]
+                    if len(clips) != 1:
+                        raise ValueError(f"Missing unique preset_actions mapping for {action}")
+                    split_glb(raw, directory / "anim" / f"{clips[0]}.glb", clips[0], index)
+            else:
+                split_glb(raw, directory / "anim" / f"{suffix}.glb", suffix)
+        else:
+            suffix = "i2m_v1" if stage == "i2m" else stage
+            download(task.get("model_urls", {}).get("glb"), work / f"{a.species}_{suffix}.glb")
+
 
 
 P = argparse.ArgumentParser(description=__doc__,

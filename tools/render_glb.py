@@ -14,20 +14,62 @@ import bpy
 from mathutils import Vector
 
 
+REQUIRED_CLIPS = ("idle", "walk", "run", "attack_primary", "attack_heavy",
+                  "hit_react", "knockdown", "death", "alert")
+
+
+def inspect_rig(source):
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    bpy.ops.import_scene.gltf(filepath=str(source))
+    armatures = [obj for obj in bpy.context.scene.objects if obj.type == 'ARMATURE']
+    bones = sorted({bone.name for obj in armatures for bone in obj.data.bones})
+    roots = sorted({bone.name for obj in armatures for bone in obj.data.bones if bone.parent is None})
+    fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
+    clips = [{"name": action.name, "duration_seconds": (action.frame_range[1]-action.frame_range[0])/fps}
+             for action in bpy.data.actions]
+    return {"bones": bones, "roots": roots, "clips": clips}
+
+
+def validate_clips(source):
+    base = inspect_rig(source)
+    report = {"model": str(source), "rig": base, "clips": {}, "pass": bool(base["bones"])}
+    for name in REQUIRED_CLIPS:
+        path = source.parent / 'anim' / (name + '.glb')
+        if not path.is_file():
+            report['clips'][name] = {"pass": False, "error": "missing"}
+        else:
+            data = inspect_rig(path)
+            data['pass'] = data['bones'] == base['bones'] and bool(data['clips']) and all(c['duration_seconds'] > 0 for c in data['clips'])
+            report['clips'][name] = data
+        report['pass'] = report['pass'] and report['clips'][name]['pass']
+    print('CLIP_VALIDATION ' + json.dumps(report))
+    if not report['pass']:
+        raise SystemExit('Clip contract validation failed')
+
+
 def main():
     args = sys.argv[sys.argv.index('--') + 1:]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('glb', type=pathlib.Path)
     parser.add_argument('output', type=pathlib.Path)
     parser.add_argument('--forward', choices=['-Y', '-X'], default='-Y', help='Forward axis after Blender import; changes cameras only')
+    parser.add_argument('--validate-clips', action='store_true', help='Assert bone sets and positive durations for every required clip before rendering')
     options = parser.parse_args(args)
     source, output = options.glb.resolve(), options.output.resolve()
+    if options.validate_clips:
+        validate_clips(source)
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=str(source))
-    meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
+    meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH' and not o.hide_render and o.visible_get()]
     if not meshes:
         raise SystemExit('GLB has no mesh')
-    points = [o.matrix_world @ Vector(v) for o in meshes for v in o.bound_box]
+    points = []
+    graph = bpy.context.evaluated_depsgraph_get()
+    for obj in meshes:
+        evaluated = obj.evaluated_get(graph)
+        mesh = evaluated.to_mesh()
+        points.extend(evaluated.matrix_world @ vertex.co for vertex in mesh.vertices)
+        evaluated.to_mesh_clear()
     low = Vector(tuple(min(p[i] for p in points) for i in range(3)))
     high = Vector(tuple(max(p[i] for p in points) for i in range(3)))
     print('BOUNDING_BOX_METRES ' + json.dumps({'min': list(low), 'max': list(high), 'size': list(high-low)}))
