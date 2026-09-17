@@ -1,0 +1,84 @@
+class_name HarvestNode
+extends StaticBody3D
+## Click-to-gather world node. Player paths here, waits, then receives a stamped stack.
+
+@export var node_id: StringName = &"node"
+@export var required_tool_class: StringName = &"none"
+@export var regen_seconds: float = 8.0
+@export var gather_seconds: float = 1.2
+@export var placeholder_color: Color = Color(0.45, 0.7, 0.35)
+
+var yield_def_id: StringName = &"fibre_stalk"
+var yield_min: int = 1
+var yield_max: int = 1
+var yield_attributes: Dictionary = {}
+
+var depleted: bool = false
+var _regen_left: float = 0.0
+var _mesh: MeshInstance3D
+
+func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Dictionary, tool: StringName, color: Color, gather: float = 1.2, regen: float = 8.0) -> void:
+	node_id = p_id
+	yield_def_id = def_id
+	yield_min = amin
+	yield_max = amax
+	yield_attributes = attrs.duplicate(true)
+	required_tool_class = tool
+	placeholder_color = color
+	gather_seconds = gather
+	regen_seconds = regen
+	_apply_tint()
+
+func _ready() -> void:
+	add_to_group("harvest")
+	collision_layer = 1
+	collision_mask = 0
+	if get_node_or_null("Shape") == null:
+		var shape := CollisionShape3D.new()
+		shape.name = "Shape"
+		var box := BoxShape3D.new()
+		box.size = Vector3(0.8, 1.4, 0.8)
+		shape.shape = box
+		shape.position.y = 0.7
+		add_child(shape)
+	if get_node_or_null("Mesh") == null:
+		_mesh = MeshInstance3D.new()
+		_mesh.name = "Mesh"
+		var m := BoxMesh.new()
+		m.size = Vector3(0.5, 1.4, 0.5)
+		_mesh.mesh = m
+		_mesh.position.y = 0.7
+		add_child(_mesh)
+	else:
+		_mesh = $Mesh
+	_apply_tint()
+
+func _process(delta: float) -> void:
+	if depleted:
+		_regen_left -= delta
+		if _regen_left <= 0.0:
+			depleted = false
+			visible = true
+
+func can_gather(inv: Inventory) -> String:
+	if depleted:
+		return "depleted"
+	if not inv.has_tool_class(required_tool_class):
+		return "need tool %s" % required_tool_class
+	return ""
+
+func roll_yield() -> ItemStack:
+	var n := randi_range(yield_min, yield_max)
+	return ItemStack.make(yield_def_id, n, yield_attributes)
+
+func mark_gathered() -> void:
+	depleted = true
+	_regen_left = regen_seconds
+	visible = false
+
+func _apply_tint() -> void:
+	if _mesh == null:
+		return
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = placeholder_color
+	_mesh.material_override = mat

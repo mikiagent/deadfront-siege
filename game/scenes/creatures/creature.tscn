@@ -1,0 +1,49 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/creatures/creature.gd" id="1_cre"]
+[ext_resource type="Script" path="res://scripts/creatures/creature_view.gd" id="2_view"]
+[ext_resource type="Script" path="res://scripts/combat/health.gd" id="3_hp"]
+[ext_resource type="Script" path="res://scripts/combat/status_effects.gd" id="4_st"]
+[ext_resource type="Script" path="res://scripts/creatures/creature_anim.gd" id="5_anim"]
+
+[sub_resource type="CapsuleShape3D" id="shape"]
+radius = 0.35
+height = 1.2
+
+[node name="Creature" type="CharacterBody3D"]
+collision_layer = 1
+collision_mask = 1
+script = ExtResource("1_cre")
+
+[node name="Shape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+shape = SubResource("shape")
+
+[node name="Agent" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.45
+target_desired_distance = 0.9
+
+[node name="View" type="Node3D" parent="."]
+script = ExtResource("2_view")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("3_hp")
+
+[node name="StatusEffects" type="Node" parent="."]
+script = ExtResource("4_st")
+
+[node name="Anim" type="Node" parent="."]
+script = ExtResource("5_anim")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+
+[node name="AnimationTree" type="AnimationTree" parent="."]
+anim_player = NodePath("../AnimationPlayer")
+active = false
+
+[node name="Label" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+pixel_size = 0.012
+billboard = 1
+text = "creature"
+font_size = 28

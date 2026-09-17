@@ -1,0 +1,59 @@
+{
+  "tree": "survival",
+  "nodes": [
+    {
+      "id": "capture_technique_I",
+      "kind": "capture_technique",
+      "tier": 1,
+      "unlocks_capture_tier": 1
+    },
+    {
+      "id": "capture_technique_II",
+      "kind": "capture_technique",
+      "tier": 2,
+      "unlocks_capture_tier": 2
+    },
+    {
+      "id": "capture_technique_III",
+      "kind": "capture_technique",
+      "tier": 3,
+      "unlocks_capture_tier": 3
+    },
+    {
+      "id": "capture_technique_IV",
+      "kind": "capture_technique",
+      "tier": 4,
+      "unlocks_capture_tier": 4
+    },
+    {
+      "id": "capture_technique_V",
+      "kind": "capture_technique",
+      "tier": 5,
+      "unlocks_capture_tier": 5
+    },
+    {
+      "id": "animal_management_I",
+      "kind": "animal_management",
+      "tier": 1,
+      "bonded_cap_bonus": 1
+    },
+    {
+      "id": "animal_management_II",
+      "kind": "animal_management",
+      "tier": 2,
+      "bonded_cap_bonus": 1
+    },
+    {
+      "id": "animal_management_III",
+      "kind": "animal_management",
+      "tier": 3,
+      "bonded_cap_bonus": 1
+    },
+    {
+      "id": "animal_management_IV",
+      "kind": "animal_management",
+      "tier": 4,
+      "bonded_cap_bonus": 1
+    }
+  ]
+}

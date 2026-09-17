@@ -1,0 +1,5 @@
+.DS_Store
+game/.godot/
+game/export/
+*.blend1
+tools/__pycache__/

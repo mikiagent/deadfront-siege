@@ -1,0 +1,191 @@
+{
+  "items": [
+    {
+      "id": "branch",
+      "display_name": "Branch",
+      "categories": ["wood", "handle"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "stone",
+      "display_name": "Stone",
+      "categories": ["stone"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "fibre_stalk",
+      "display_name": "Fibre Stalk",
+      "categories": ["fibre"],
+      "stack_max": 30,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "twine",
+      "display_name": "Twine",
+      "categories": ["lashing", "fibre"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "herb_leaf",
+      "display_name": "Herb Leaf",
+      "categories": ["herb"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "cloth_scrap",
+      "display_name": "Cloth Scrap",
+      "categories": ["cloth"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "bandage",
+      "display_name": "Bandage",
+      "categories": ["medicine", "cloth"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "clears": ["bleed"]
+    },
+    {
+      "id": "pressure_dressing",
+      "display_name": "Pressure Dressing",
+      "categories": ["medicine", "cloth"],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1,
+      "clears": ["deep_bleed"]
+    },
+    {
+      "id": "stone_knife_work",
+      "display_name": "Stone Work Knife",
+      "categories": ["tool", "blade", "weapon"],
+      "stack_max": 1,
+      "tool_class": "knife",
+      "base_level": 1,
+      "attack_rate": 1.15,
+      "damage": 18,
+      "damage_type": "slashing",
+      "is_work_tool": true
+    },
+    {
+      "id": "stone_knife",
+      "display_name": "Stone Knife",
+      "categories": ["weapon", "blade", "tool"],
+      "stack_max": 1,
+      "tool_class": "knife",
+      "base_level": 1,
+      "attack_rate": 1.4,
+      "damage": 32,
+      "damage_type": "slashing",
+      "is_work_tool": false
+    },
+    {
+      "id": "club",
+      "display_name": "Wooden Club",
+      "categories": ["weapon", "handle"],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "attack_rate": 1.0,
+      "damage": 28,
+      "damage_type": "blunt",
+      "is_work_tool": false
+    },
+    {
+      "id": "raptor_meat",
+      "display_name": "Raptor Meat",
+      "categories": ["meat"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "carnivore"
+    },
+    {
+      "id": "raptor_bone",
+      "display_name": "Raptor Bone",
+      "categories": ["bone"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "raptor_hide",
+      "display_name": "Raptor Hide",
+      "categories": ["hide"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "raw_hide",
+      "display_name": "Raw Hide",
+      "categories": ["hide"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "capture_net_i",
+      "display_name": "Capture Net I",
+      "categories": ["tool"],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1,
+      "capture_tier": 1
+    },
+    {
+      "id": "capture_net_ii",
+      "display_name": "Capture Net II",
+      "categories": ["tool"],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1,
+      "capture_tier": 2
+    },
+    {
+      "id": "captured_animal",
+      "display_name": "Captured Animal",
+      "categories": ["tool"],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "slot_span": 4
+    },
+    {
+      "id": "tamed_animal",
+      "display_name": "Tamed Animal",
+      "categories": ["tool"],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "slot_span": 2
+    },
+    {
+      "id": "makeshift_taming_pen",
+      "display_name": "Makeshift Taming Pen",
+      "categories": ["wood"],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "bonfire_kit",
+      "display_name": "Bonfire Kit",
+      "categories": ["wood"],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1
+    }
+  ]
+}

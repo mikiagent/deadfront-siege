@@ -1,0 +1,7 @@
+{
+  "default_hit_frac": 0.55,
+  "clips": {
+    "attack_primary": { "hit_frac": 0.42, "windup": false },
+    "attack_heavy": { "hit_frac": 0.72, "windup": true, "windup_hold": 0.6 }
+  }
+}
