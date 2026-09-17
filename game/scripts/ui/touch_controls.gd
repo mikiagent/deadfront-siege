@@ -9,6 +9,8 @@ const BUTTONS: Array[Dictionary] = [
 	{"action": "attack", "label": "ATK", "size": 132, "at": Vector2(-190, -200), "color": Color(0.9, 0.35, 0.3)},
 	{"action": "roll", "label": "ROLL", "size": 104, "at": Vector2(-330, -140), "color": Color(0.35, 0.6, 0.9)},
 	{"action": "interact", "label": "USE", "size": 96, "at": Vector2(-150, -370), "color": Color(0.4, 0.8, 0.45)},
+	{"action": "bandage", "label": "AID", "size": 72, "at": Vector2(-48, -370), "color": Color(0.9, 0.5, 0.55)},
+	{"action": "hunt_chase", "label": "HOLD", "size": 72, "at": Vector2(-250, -430), "color": Color(0.7, 0.55, 0.3)},
 	{"action": "tactic_1", "label": "1", "size": 80, "at": Vector2(-420, -280), "color": Color(0.85, 0.75, 0.35)},
 	{"action": "tactic_2", "label": "2", "size": 80, "at": Vector2(-340, -340), "color": Color(0.85, 0.75, 0.35)},
 	{"action": "inventory", "label": "BAG", "size": 72, "at": Vector2(-100, 30), "color": Color(0.8, 0.8, 0.8)},
@@ -108,3 +110,22 @@ static func _circle_texture(size: float, color: Color) -> GradientTexture2D:
 	tex.fill_from = Vector2(0.5, 0.5)
 	tex.fill_to = Vector2(0.5, 0.0)
 	return tex
+
+func blocks_screen_point(p: Vector2) -> bool:
+	if not enabled:
+		return false
+	if joystick and joystick.visible:
+		var jr := Rect2(joystick.position - Vector2(80, 80), Vector2(160, 160))
+		if jr.has_point(p):
+			return true
+	for b: Node in _buttons.get_children():
+		var btn := b as TouchScreenButton
+		if btn == null:
+			continue
+		var size := 80.0
+		if btn.texture_normal:
+			size = float(btn.texture_normal.get_width())
+		var r := Rect2(btn.position, Vector2(size, size))
+		if r.has_point(p):
+			return true
+	return false

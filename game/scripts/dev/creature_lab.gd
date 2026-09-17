@@ -11,6 +11,7 @@ func _ready() -> void:
 	_spawn(&"velociraptor", 3, Vector3(8, 0, 8), 3.0, true)
 	_spawn(&"deinonychus", 1, Vector3(-10, 0, 6), 1.0, false)
 	_spawn(&"utahraptor", 1, Vector3(12, 0, -8), 1.0, false)
+	_spawn(&"protoceratops", 1, Vector3(-6, 0, -8), 1.0, false)
 	print("[boot] lab=creature_lab")
 
 func _spawn(species: StringName, count: int, pos: Vector3, radius: float, pack: bool) -> void:

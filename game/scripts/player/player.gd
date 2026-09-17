@@ -174,14 +174,22 @@ func _unhandled_input(event: InputEvent) -> void:
 			hunt.use_kick()
 		elif event.is_action_pressed("tactic_4"):
 			hunt.use_net()
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+	if event.is_action_pressed("tap"):
 		if placer.placing != &"":
 			placer.confirm(self)
 			get_viewport().set_input_as_handled()
 			return
-		if get_viewport().gui_get_hovered_control() != null:
+		if _tap_blocked():
 			return
 		_tap_world()
+
+func _tap_blocked() -> bool:
+	var hovered := get_viewport().gui_get_hovered_control()
+	if hovered != null and hovered.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+		return true
+	if TouchControls.enabled and TouchControls.blocks_screen_point(get_viewport().get_mouse_position()):
+		return true
+	return false
 
 func _tap_world() -> void:
 	var hit := _ray()

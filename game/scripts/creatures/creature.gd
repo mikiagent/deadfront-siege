@@ -65,13 +65,12 @@ func move_to(world_pos: Vector3) -> void:
 func stop_move() -> void:
 	agent.target_position = global_position
 
-func face_towards(world_pos: Vector3, delta: float) -> void:
-	var to := world_pos - global_position
-	to.y = 0.0
-	if to.length_squared() < 0.0001:
+func face_towards(world_pos: Vector3, _delta: float) -> void:
+	var p := world_pos
+	p.y = global_position.y
+	if p.distance_squared_to(global_position) < 0.0001:
 		return
-	var yaw := atan2(to.x, to.z)
-	rotation.y = lerp_angle(rotation.y, yaw, clampf(8.0 * delta, 0.0, 1.0))
+	look_at(p, Vector3.UP)
 
 func apply_species_on_hit(clip: StringName, target: Node) -> void:
 	CreatureAttack.apply_for(self, clip, target)

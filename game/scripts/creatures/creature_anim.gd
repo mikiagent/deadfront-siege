@@ -35,9 +35,9 @@ func play_idle() -> void:
 func play_locomotion(speed_frac: float) -> void:
 	if _busy or _dead or _hold_knockdown or _forced:
 		return
+	current_clip = &"run" if speed_frac > 0.55 else &"walk"
 	_travel(&"locomotion")
 	tree.set("parameters/locomotion/blend_position", clampf(speed_frac, 0.0, 1.0))
-	current_clip = &"run" if speed_frac > 0.55 else &"walk"
 
 func play_clip(clip: StringName, forced: bool = false) -> void:
 	if _dead and clip != &"death":
@@ -99,9 +99,12 @@ func _oneshot_done(clip: StringName) -> void:
 	play_idle()
 
 func _travel(state: StringName) -> void:
-	current_clip = state
 	if player:
-		player.speed_scale = 1.0
+		var host := get_parent() as Creature
+		var clip := current_clip if state == &"locomotion" else state
+		player.speed_scale = CreatureClips.clip_speed(clip, host.def if host else null)
+	if state != &"locomotion":
+		current_clip = state
 	if _playback:
 		_playback.travel(str(state))
 

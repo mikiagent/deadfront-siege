@@ -23,6 +23,7 @@ extends Resource
 @export var tamed_role: Array[StringName] = []
 @export var variants: Array[StringName] = []
 @export var clips: Dictionary = {}
+@export var pipeline: Dictionary = {}
 
 ## ASSUMPTION: Durango-scale speed 400–700 maps to metres per second as speed / 100.
 var move_speed_mps: float:
@@ -54,6 +55,7 @@ static func from_dict(d: Dictionary, file_id: StringName) -> CreatureDef:
 	c.tamed_role = ItemDef._names(d.get("tamed_role", []))
 	c.variants = ItemDef._names(d.get("variants", []))
 	c.clips = d.get("clips", {})
+	c.pipeline = d.get("pipeline", {})
 	return c
 
 func mapped_archetype() -> StringName:
