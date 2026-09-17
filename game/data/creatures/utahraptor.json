@@ -1,0 +1,52 @@
+{
+  "species": "Utahraptor",
+  "clade": "Dromaeosauridae",
+  "period": "Early Cretaceous",
+  "real_length_m": 5.5,
+  "height_meters": 2.0,
+  "rig": "biped",
+  "tier": 50,
+  "climate": "desert",
+  "archetype": "apex_raptor",
+  "tameable": true,
+  "capture_tier": 5,
+  "verb": "one devastating claw strike",
+  "status_applied": [
+    "deep_bleed"
+  ],
+  "stats": {
+    "hp": 4200,
+    "attack": 340,
+    "defense": 120,
+    "speed": 620
+  },
+  "tamed_role": [
+    "combat",
+    "mount"
+  ],
+  "prompt": "Utahraptor, 5.5 meter dromaeosaur dinosaur, heavy powerful build, deep boxy skull with serrated teeth, thick muscular neck, short strong forelimbs with three clawed fingers and palms facing inward, enormous curved sickle claw on second toe of each foot, stiff horizontal tail held straight out behind, body covered in coarse shaggy proto-feathers with bare scaly hands and feet, rust brown with dark dorsal banding, horizontal running posture with spine parallel to ground, stylized realism, game-ready low-poly creature, clean topology, neutral stance facing forward, no base, no scenery",
+  "texture_prompt": "rust brown shaggy proto-feathers with dark dorsal banding, bare grey scaly hands and feet, pale cream underbelly, matte non-glossy surface",
+  "clips": {
+    "attack_primary": "Large predatory dinosaur lunges forward and snaps its jaws shut, then pulls back into a ready stance",
+    "attack_heavy": "Large predatory dinosaur rears back on one leg, raises the other leg high with claw extended, holds for a beat, then drives the claw down and rakes backward in a single powerful stroke, landing heavily on both feet",
+    "knockdown": "Large predatory dinosaur is struck hard, staggers sideways, loses footing and collapses onto its side, lying stunned",
+    "alert": "Large predatory dinosaur snaps its head up, scans left and right, then lowers into a crouched hunting stance"
+  },
+  "pipeline": {
+    "stage": "C1_silhouette_pass",
+    "preview": "01a0b154-f2ac-746c-9437-931104d6a615",
+    "reference": "01a0b175-73e3-70d1-9fdc-cca7041aa146",
+    "i2m": "01a0b176-5fef-720d-b1ba-017c28587335",
+    "reference_file": "res://assets/creatures/utahraptor/ref/utahraptor_side.png",
+    "mesh_file": "res://assets/creatures/utahraptor/work/utahraptor_i2m_v1.glb",
+    "sheet_file": "res://assets/creatures/utahraptor/sheet.png",
+    "credits_spent": 24,
+    "balance_before": 3895,
+    "balance_after": 3871,
+    "needs_c2": [
+      "Repair neck/chest artifacts",
+      "Correct facing from -X to contract +Z before rigging with orchestrator agreement",
+      "Set rig height to 2.0 metres"
+    ]
+  }
+}
