@@ -1,0 +1,946 @@
+{
+  "_about": "Quaternius Ultimate Nature Pack, CC0. Models under res://assets/nature/<name>.glb, metres, Y up, origin at base. Harvest yields reference item ids; ids not yet in items.json must be added by the island milestone.",
+  "families": {
+    "BirchTree": {
+      "models": [
+        "BirchTree_1",
+        "BirchTree_2",
+        "BirchTree_3",
+        "BirchTree_4",
+        "BirchTree_5"
+      ],
+      "role": "tree",
+      "climates": [
+        "temperate",
+        "grassland"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          3
+        ],
+        "wood_log": [
+          1,
+          2
+        ],
+        "bark_strip": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "BirchTree_Autumn": {
+      "models": [
+        "BirchTree_Autumn_1",
+        "BirchTree_Autumn_2",
+        "BirchTree_Autumn_3",
+        "BirchTree_Autumn_4",
+        "BirchTree_Autumn_5"
+      ],
+      "role": "tree",
+      "climates": [
+        "temperate"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          3
+        ],
+        "wood_log": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "BirchTree_Dead": {
+      "models": [
+        "BirchTree_Dead_1",
+        "BirchTree_Dead_2",
+        "BirchTree_Dead_3",
+        "BirchTree_Dead_4",
+        "BirchTree_Dead_5"
+      ],
+      "role": "tree_dead",
+      "climates": [
+        "temperate"
+      ],
+      "harvest": {
+        "branch": [
+          3,
+          5
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "BirchTree_Dead_Snow": {
+      "models": [
+        "BirchTree_Dead_Snow_1",
+        "BirchTree_Dead_Snow_2",
+        "BirchTree_Dead_Snow_3",
+        "BirchTree_Dead_Snow_4",
+        "BirchTree_Dead_Snow_5"
+      ],
+      "role": "tree_dead",
+      "climates": [
+        "tundra",
+        "snowfield"
+      ],
+      "harvest": {
+        "branch": [
+          3,
+          5
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "BirchTree_Snow": {
+      "models": [
+        "BirchTree_Snow_1",
+        "BirchTree_Snow_2",
+        "BirchTree_Snow_3",
+        "BirchTree_Snow_4",
+        "BirchTree_Snow_5"
+      ],
+      "role": "tree",
+      "climates": [
+        "tundra",
+        "snowfield"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          3
+        ],
+        "wood_log": [
+          1,
+          1
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "Bush": {
+      "models": [
+        "Bush_1",
+        "Bush_2"
+      ],
+      "role": "bush",
+      "climates": [
+        "temperate",
+        "grassland",
+        "savannah"
+      ],
+      "harvest": {
+        "fibre_stalk": [
+          1,
+          3
+        ],
+        "herb_leaf": [
+          0,
+          1
+        ]
+      },
+      "tool_class": "knife",
+      "collision": "none"
+    },
+    "BushBerries": {
+      "models": [
+        "BushBerries_1",
+        "BushBerries_2"
+      ],
+      "role": "bush",
+      "climates": [
+        "temperate",
+        "grassland"
+      ],
+      "harvest": {
+        "berries": [
+          2,
+          4
+        ],
+        "fibre_stalk": [
+          0,
+          1
+        ]
+      },
+      "tool_class": null,
+      "collision": "none"
+    },
+    "Bush_Snow": {
+      "models": [
+        "Bush_Snow_1",
+        "Bush_Snow_2"
+      ],
+      "role": "bush",
+      "climates": [
+        "tundra",
+        "snowfield"
+      ],
+      "harvest": {
+        "fibre_stalk": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "knife",
+      "collision": "none"
+    },
+    "Cactus": {
+      "models": [
+        "Cactus_1",
+        "Cactus_2",
+        "Cactus_3",
+        "Cactus_4",
+        "Cactus_5"
+      ],
+      "role": "plant",
+      "climates": [
+        "desert"
+      ],
+      "harvest": {
+        "cactus_flesh": [
+          1,
+          2
+        ],
+        "spine": [
+          1,
+          3
+        ]
+      },
+      "tool_class": "knife",
+      "collision": "none"
+    },
+    "CactusFlower": {
+      "models": [
+        "CactusFlower_1"
+      ],
+      "role": "plant",
+      "climates": [
+        "desert"
+      ],
+      "harvest": {
+        "cactus_flesh": [
+          1,
+          1
+        ],
+        "cactus_flower": [
+          1,
+          1
+        ]
+      },
+      "tool_class": "knife",
+      "collision": "none"
+    },
+    "CactusFlowers": {
+      "models": [
+        "CactusFlowers_2",
+        "CactusFlowers_3",
+        "CactusFlowers_4",
+        "CactusFlowers_5"
+      ],
+      "role": "plant",
+      "climates": [
+        "desert"
+      ],
+      "harvest": {
+        "cactus_flesh": [
+          1,
+          1
+        ],
+        "cactus_flower": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "knife",
+      "collision": "none"
+    },
+    "CommonTree": {
+      "models": [
+        "CommonTree_1",
+        "CommonTree_2",
+        "CommonTree_3",
+        "CommonTree_4",
+        "CommonTree_5"
+      ],
+      "role": "tree",
+      "climates": [
+        "temperate",
+        "grassland"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          4
+        ],
+        "wood_log": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "CommonTree_Autumn": {
+      "models": [
+        "CommonTree_Autumn_1",
+        "CommonTree_Autumn_2",
+        "CommonTree_Autumn_3",
+        "CommonTree_Autumn_4",
+        "CommonTree_Autumn_5"
+      ],
+      "role": "tree",
+      "climates": [
+        "temperate"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          4
+        ],
+        "wood_log": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "CommonTree_Dead": {
+      "models": [
+        "CommonTree_Dead_1",
+        "CommonTree_Dead_2",
+        "CommonTree_Dead_3",
+        "CommonTree_Dead_4",
+        "CommonTree_Dead_5"
+      ],
+      "role": "tree_dead",
+      "climates": [
+        "temperate",
+        "savannah"
+      ],
+      "harvest": {
+        "branch": [
+          3,
+          5
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "CommonTree_Dead_Snow": {
+      "models": [
+        "CommonTree_Dead_Snow_1",
+        "CommonTree_Dead_Snow_2",
+        "CommonTree_Dead_Snow_3",
+        "CommonTree_Dead_Snow_4",
+        "CommonTree_Dead_Snow_5"
+      ],
+      "role": "tree_dead",
+      "climates": [
+        "tundra",
+        "snowfield"
+      ],
+      "harvest": {
+        "branch": [
+          3,
+          5
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "CommonTree_Snow": {
+      "models": [
+        "CommonTree_Snow_1",
+        "CommonTree_Snow_2",
+        "CommonTree_Snow_3",
+        "CommonTree_Snow_4",
+        "CommonTree_Snow_5"
+      ],
+      "role": "tree",
+      "climates": [
+        "tundra",
+        "snowfield"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          3
+        ],
+        "wood_log": [
+          1,
+          1
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "Corn": {
+      "models": [
+        "Corn_1",
+        "Corn_2"
+      ],
+      "role": "crop",
+      "climates": [
+        "grassland"
+      ],
+      "harvest": {
+        "corn": [
+          1,
+          3
+        ]
+      },
+      "tool_class": null,
+      "collision": "none"
+    },
+    "Flowers": {
+      "models": [
+        "Flowers"
+      ],
+      "role": "ground",
+      "climates": [
+        "temperate",
+        "grassland"
+      ],
+      "harvest": {
+        "herb_leaf": [
+          1,
+          1
+        ],
+        "petals": [
+          1,
+          2
+        ]
+      },
+      "tool_class": null,
+      "collision": "none"
+    },
+    "Grass": {
+      "models": [
+        "Grass",
+        "Grass_2"
+      ],
+      "role": "ground",
+      "climates": [
+        "temperate",
+        "grassland",
+        "savannah"
+      ],
+      "harvest": {
+        "fibre_stalk": [
+          1,
+          2
+        ]
+      },
+      "tool_class": null,
+      "collision": "none"
+    },
+    "Grass_Short": {
+      "models": [
+        "Grass_Short"
+      ],
+      "role": "ground",
+      "climates": [
+        "temperate",
+        "grassland",
+        "savannah",
+        "tundra"
+      ],
+      "harvest": {
+        "fibre_stalk": [
+          1,
+          1
+        ]
+      },
+      "tool_class": null,
+      "collision": "none"
+    },
+    "Lilypad": {
+      "models": [
+        "Lilypad"
+      ],
+      "role": "water",
+      "climates": [
+        "swamp"
+      ],
+      "harvest": {
+        "reed": [
+          1,
+          2
+        ]
+      },
+      "tool_class": null,
+      "collision": "none"
+    },
+    "PalmTree": {
+      "models": [
+        "PalmTree_1",
+        "PalmTree_2",
+        "PalmTree_3",
+        "PalmTree_4"
+      ],
+      "role": "tree",
+      "climates": [
+        "tropical",
+        "blue_tropical",
+        "savannah"
+      ],
+      "harvest": {
+        "palm_frond": [
+          2,
+          3
+        ],
+        "wood_log": [
+          1,
+          1
+        ],
+        "coconut": [
+          0,
+          2
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "PineTree": {
+      "models": [
+        "PineTree_1",
+        "PineTree_2",
+        "PineTree_3",
+        "PineTree_4",
+        "PineTree_5"
+      ],
+      "role": "tree",
+      "climates": [
+        "temperate",
+        "tundra"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          3
+        ],
+        "wood_log": [
+          1,
+          2
+        ],
+        "resin": [
+          0,
+          1
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "PineTree_Autumn": {
+      "models": [
+        "PineTree_Autumn_1",
+        "PineTree_Autumn_2",
+        "PineTree_Autumn_3",
+        "PineTree_Autumn_4",
+        "PineTree_Autumn_5"
+      ],
+      "role": "tree",
+      "climates": [
+        "temperate"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          3
+        ],
+        "wood_log": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "PineTree_Snow": {
+      "models": [
+        "PineTree_Snow_1",
+        "PineTree_Snow_2",
+        "PineTree_Snow_3",
+        "PineTree_Snow_4",
+        "PineTree_Snow_5"
+      ],
+      "role": "tree",
+      "climates": [
+        "tundra",
+        "snowfield"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          3
+        ],
+        "wood_log": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "Plant": {
+      "models": [
+        "Plant_1",
+        "Plant_2",
+        "Plant_3",
+        "Plant_4",
+        "Plant_5"
+      ],
+      "role": "ground",
+      "climates": [
+        "temperate",
+        "tropical",
+        "swamp"
+      ],
+      "harvest": {
+        "herb_leaf": [
+          1,
+          2
+        ]
+      },
+      "tool_class": null,
+      "collision": "none"
+    },
+    "Rock": {
+      "models": [
+        "Rock_1",
+        "Rock_2",
+        "Rock_3",
+        "Rock_4",
+        "Rock_5",
+        "Rock_6",
+        "Rock_7"
+      ],
+      "role": "rock",
+      "climates": [
+        "any"
+      ],
+      "harvest": {
+        "stone": [
+          2,
+          4
+        ],
+        "ore_chunk": [
+          0,
+          1
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box"
+    },
+    "Rock_Moss": {
+      "models": [
+        "Rock_Moss_1",
+        "Rock_Moss_2",
+        "Rock_Moss_3",
+        "Rock_Moss_4",
+        "Rock_Moss_5",
+        "Rock_Moss_6",
+        "Rock_Moss_7"
+      ],
+      "role": "rock",
+      "climates": [
+        "temperate",
+        "swamp",
+        "tropical"
+      ],
+      "harvest": {
+        "stone": [
+          2,
+          4
+        ],
+        "moss": [
+          1,
+          1
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box"
+    },
+    "Rock_Snow": {
+      "models": [
+        "Rock_Snow_1",
+        "Rock_Snow_2",
+        "Rock_Snow_3",
+        "Rock_Snow_4",
+        "Rock_Snow_5",
+        "Rock_Snow_6",
+        "Rock_Snow_7"
+      ],
+      "role": "rock",
+      "climates": [
+        "tundra",
+        "snowfield"
+      ],
+      "harvest": {
+        "stone": [
+          2,
+          4
+        ],
+        "ice": [
+          0,
+          1
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box"
+    },
+    "TreeStump": {
+      "models": [
+        "TreeStump"
+      ],
+      "role": "prop",
+      "climates": [
+        "temperate",
+        "grassland"
+      ],
+      "harvest": {
+        "wood_log": [
+          1,
+          1
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "box"
+    },
+    "TreeStump_Moss": {
+      "models": [
+        "TreeStump_Moss"
+      ],
+      "role": "prop",
+      "climates": [
+        "swamp",
+        "temperate"
+      ],
+      "harvest": {
+        "wood_log": [
+          1,
+          1
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "box"
+    },
+    "TreeStump_Snow": {
+      "models": [
+        "TreeStump_Snow"
+      ],
+      "role": "prop",
+      "climates": [
+        "tundra",
+        "snowfield"
+      ],
+      "harvest": {
+        "wood_log": [
+          1,
+          1
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "box"
+    },
+    "Wheat": {
+      "models": [
+        "Wheat"
+      ],
+      "role": "crop",
+      "climates": [
+        "grassland",
+        "temperate"
+      ],
+      "harvest": {
+        "wheat": [
+          1,
+          3
+        ]
+      },
+      "tool_class": null,
+      "collision": "none"
+    },
+    "Willow": {
+      "models": [
+        "Willow_1",
+        "Willow_2",
+        "Willow_3",
+        "Willow_4",
+        "Willow_5"
+      ],
+      "role": "tree",
+      "climates": [
+        "swamp",
+        "temperate"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          4
+        ],
+        "reed": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "Willow_Autumn": {
+      "models": [
+        "Willow_Autumn_1",
+        "Willow_Autumn_2",
+        "Willow_Autumn_3",
+        "Willow_Autumn_4",
+        "Willow_Autumn_5"
+      ],
+      "role": "tree",
+      "climates": [
+        "swamp",
+        "temperate"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          4
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "Willow_Dead": {
+      "models": [
+        "Willow_Dead_1",
+        "Willow_Dead_2",
+        "Willow_Dead_3",
+        "Willow_Dead_4",
+        "Willow_Dead_5"
+      ],
+      "role": "tree_dead",
+      "climates": [
+        "swamp"
+      ],
+      "harvest": {
+        "branch": [
+          3,
+          5
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "Willow_Dead_Snow": {
+      "models": [
+        "Willow_Dead_Snow_1",
+        "Willow_Dead_Snow_2",
+        "Willow_Dead_Snow_3",
+        "Willow_Dead_Snow_4",
+        "Willow_Dead_Snow_5"
+      ],
+      "role": "tree_dead",
+      "climates": [
+        "snowfield"
+      ],
+      "harvest": {
+        "branch": [
+          3,
+          5
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "Willow_Snow": {
+      "models": [
+        "Willow_Snow_1",
+        "Willow_Snow_2",
+        "Willow_Snow_3",
+        "Willow_Snow_4",
+        "Willow_Snow_5"
+      ],
+      "role": "tree",
+      "climates": [
+        "snowfield"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          3
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "WoodLog": {
+      "models": [
+        "WoodLog"
+      ],
+      "role": "prop",
+      "climates": [
+        "temperate",
+        "grassland"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          3
+        ],
+        "wood_log": [
+          1,
+          1
+        ]
+      },
+      "tool_class": null,
+      "collision": "box"
+    },
+    "WoodLog_Moss": {
+      "models": [
+        "WoodLog_Moss"
+      ],
+      "role": "prop",
+      "climates": [
+        "swamp",
+        "temperate"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          3
+        ],
+        "wood_log": [
+          1,
+          1
+        ]
+      },
+      "tool_class": null,
+      "collision": "box"
+    },
+    "WoodLog_Snow": {
+      "models": [
+        "WoodLog_Snow"
+      ],
+      "role": "prop",
+      "climates": [
+        "tundra",
+        "snowfield"
+      ],
+      "harvest": {
+        "branch": [
+          2,
+          3
+        ]
+      },
+      "tool_class": null,
+      "collision": "box"
+    }
+  }
+}

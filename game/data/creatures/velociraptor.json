@@ -70,6 +70,46 @@
       "knockdown",
       "death",
       "alert"
-    ]
+    ],
+    "forward_axis": "+Z",
+    "source_height_m": 0.2,
+    "source_length_m": 0.93,
+    "route": "skeleton_transplant_v2",
+    "mesh_source": "res://assets/creatures/velociraptor/work/velociraptor_i2m_v1.glb",
+    "donor_rig": "tools/standins/quaternius/Velociraptor.fbx (CC0, 37 bones)",
+    "transplant_tool": "tools/transplant_rig.py",
+    "fit": "landmark (snout/feet/tail, hip height, hip width)",
+    "repair": {
+      "islands": 363,
+      "loose_removed": 279,
+      "doubles_merged": 2846,
+      "holes_filled": 58,
+      "verts": [
+        9410,
+        6285
+      ]
+    },
+    "warp": {
+      "hip_z_scale": 0.924,
+      "width_scale": 1.8
+    },
+    "weights": "direct 100%",
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert"
+    ],
+    "authored_clips": {
+      "knockdown": "death 0-45% then hold",
+      "hit_react": "death 0-35% then reversed",
+      "alert": "idle 0-40% with head pitched 20 deg",
+      "attack_heavy": "Jump with an 8-frame telegraph hold at 30%"
+    }
   }
 }

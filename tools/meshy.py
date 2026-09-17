@@ -39,7 +39,15 @@ GEN = dict(ai_model="meshy-t2", model_type="smart-topology", topology="triangle"
 def key():
     k = os.environ.get("MESHY_API_KEY")
     if not k:
-        sys.exit("MESHY_API_KEY is not set")
+        # Fall back to the key the Meshy MCP server uses (never printed).
+        cfg = pathlib.Path.home() / ".claude.json"
+        if cfg.exists():
+            try:
+                k = json.loads(cfg.read_text())["mcpServers"]["meshy-mcp-server"]["env"]["MESHY_API_KEY"]
+            except (KeyError, ValueError):
+                k = None
+    if not k:
+        sys.exit("MESHY_API_KEY is not set and no MCP config key was found")
     return k
 
 

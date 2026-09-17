@@ -1,0 +1,72 @@
+{
+  "species": "Protoceratops",
+  "clade": "Ceratopsia",
+  "period": "Late Cretaceous",
+  "real_length_m": 2.0,
+  "height_meters": 0.8,
+  "rig": "quadruped",
+  "tier": 20,
+  "climate": "temperate",
+  "archetype": "pack_mule",
+  "tameable": true,
+  "capture_tier": 1,
+  "verb": "shoving beak, herd solidarity",
+  "status_applied": [],
+  "stats": {
+    "hp": 980,
+    "attack": 45,
+    "defense": 110,
+    "speed": 420,
+    "bag_slots": 90
+  },
+  "tamed_role": [
+    "bag",
+    "mount"
+  ],
+  "variants": [
+    "protoceratops_pink",
+    "protoceratops_juvenile"
+  ],
+  "rig_note": "Quadruped. Rigged by skeleton transplant from the Quaternius Triceratops rig; no Meshy rigging involved.",
+  "prompt": "Protoceratops, 2 meter ceratopsian dinosaur the size of a sheep, stocky barrel body on four sturdy legs, large bony neck frill without horns, deep parrot-like hooked beak, small cheek horn bosses, short thick tail, pebbled scaly hide with a row of low scutes along the spine, dusty tan with darker frill markings and a cream underbelly, standing four-legged in a neutral alert pose, stylized realism, game-ready low-poly creature, clean topology, facing forward, no base, no scenery",
+  "texture_prompt": "dusty tan pebbled scaly hide, darker brown frill with pale radiating markings, cream underbelly, horn-coloured beak, matte surface",
+  "clips": {},
+  "pipeline": {
+    "forward_axis": "+Z",
+    "source_height_m": 5.4892,
+    "source_length_m": 9.0266,
+    "route": "skeleton_transplant_v2",
+    "mesh_source": "res://assets/creatures/protoceratops/work/protoceratops_i2m_v1.glb",
+    "reference": {
+      "side": "01a0b1c9-4670-7463-a3f5-58814bf64acc",
+      "front": "01a0b1c9-511f-76cc-b88b-4199415a7f25"
+    },
+    "i2m": "01a0b1cb-c564-75c9-93ec-2db2265804e6",
+    "i2m_params": {
+      "model": "meshy-7 multi-image",
+      "polycount": 16000,
+      "texture": "2k PBR"
+    },
+    "credits_spent": 48,
+    "donor_rig": "tools/standins/quaternius/Triceratops.fbx (CC0, 39 bones, quadruped)",
+    "transplant_tool": "tools/transplant_rig.py",
+    "fit": "bbox (quadruped)",
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert"
+    ],
+    "authored_clips": {
+      "knockdown": "death 0-45% then hold",
+      "hit_react": "death 0-35% then reversed",
+      "alert": "idle 0-40% with head pitched 20 deg",
+      "attack_heavy": "Jump with an 8-frame telegraph hold at 30%"
+    }
+  }
+}

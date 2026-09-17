@@ -1,0 +1,15 @@
+---
+description: Project conventions for the Godot rebuild
+globs: game/**
+alwaysApply: true
+---
+Read AGENTS.md and docs/orchestration/plan.md before editing. You own game/scenes and game/scripts.
+
+Godot 4.7.1, typed GDScript (`var x: int`, `:=`, typed arrays, `class_name` on reusable scripts).
+Scenes are text .tscn. Write them directly as files or via the godot MCP tools; keep sub-resources inline for small scenes, separate .tres for shared data.
+Verify with the godot MCP `run_project` + `get_debug_output`, then `tools/smoke.sh`. Print `[tag] message` lines for anything the smoke test or a reviewer needs to see.
+Mobile-first: read input only through InputMap actions (Input.get_vector / is_action_pressed). The touch layer at scenes/ui/touch_controls.tscn (autoload TouchControls) presses those actions; add a button spec there when you add a verb. UI: tap targets >= 64 px, safe-area aware, no hover-only info, portrait not required (landscape). Run with `-- --touch` to test with the mouse.
+Data lives in JSON under game/data and is loaded into Resources at startup. Do not hardcode stat numbers in scripts.
+Folder layout: scripts/core (autoloads, data loading), scripts/player, scripts/creatures, scripts/combat, scripts/items, scripts/world, scripts/ui. scenes/ mirrors it. scenes/dev/ holds test labs.
+Creature meshes and clips arrive from another agent under game/assets/creatures per game/data/creatures/SCHEMA.md. If a file is missing, fall back to the placeholder and keep going.
+Every milestone prompt lists acceptance checks. Finish all of them, then write docs/orchestration/reports/cursor-<milestone>.md.

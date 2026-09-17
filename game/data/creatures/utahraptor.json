@@ -73,6 +73,59 @@
       "knockdown",
       "death",
       "alert"
-    ]
+    ],
+    "forward_axis": "+Z",
+    "source_height_m": 0.78,
+    "source_length_m": 1.89,
+    "route": "skeleton_transplant_v2",
+    "mesh_source": "res://assets/creatures/utahraptor/work/utahraptor_i2m_v2.glb",
+    "donor_rig": "tools/standins/quaternius/Velociraptor.fbx (CC0, 37 bones)",
+    "transplant_tool": "tools/transplant_rig.py",
+    "reference_v2": {
+      "side": "01a0b1b8-baf2-72ad-b607-88e7705eec93",
+      "front": "01a0b1b8-c7c3-732b-bd1e-6906f8e54588"
+    },
+    "i2m_v2": "01a0b1b9-b787-7533-9c63-8cec34b05e6e",
+    "i2m_v2_params": {
+      "model": "meshy-7",
+      "inputs": "side + front references, arms folded",
+      "polycount": 20000,
+      "texture": "2k PBR"
+    },
+    "redo_reason": "v1 reference had the arm hanging to the ground; Meshy built it as a second pair of legs",
+    "redo_credits": 48,
+    "fit": "landmark (snout/feet/tail, hip height, hip width)",
+    "repair": {
+      "islands": 4340,
+      "loose_removed": 834,
+      "doubles_merged": 16750,
+      "holes_filled": 132,
+      "verts": [
+        27887,
+        10303
+      ]
+    },
+    "warp": {
+      "hip_z_scale": 0.91,
+      "width_scale": 1.09
+    },
+    "weights": "voxel proxy (direct 0%)",
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert"
+    ],
+    "authored_clips": {
+      "knockdown": "death 0-45% then hold",
+      "hit_react": "death 0-35% then reversed",
+      "alert": "idle 0-40% with head pitched 20 deg",
+      "attack_heavy": "Jump with an 8-frame telegraph hold at 30%"
+    }
   }
 }

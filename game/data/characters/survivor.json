@@ -1,0 +1,70 @@
+{
+  "id": "survivor",
+  "display_name": "Survivor",
+  "height_meters": 1.72,
+  "rig": "humanoid",
+  "description": "Player character v1: adult woman warped off the train in torn modern travel clothes with a rope coil. Occupation-neutral; the eight PRD occupations become outfit and starting-skill variants later.",
+  "clips_present": [
+    "idle",
+    "walk",
+    "run",
+    "hit_react",
+    "death",
+    "attack_primary",
+    "attack_heavy",
+    "roll",
+    "gather",
+    "knockdown",
+    "mount_idle"
+  ],
+  "clips_missing": [
+    "alert"
+  ],
+  "pipeline": {
+    "route": "meshy_humanoid",
+    "forward_axis": "+Z",
+    "source_height_m": 1.72,
+    "reference": "01a0b194-5a43-7009-9605-60be5f1a8b43",
+    "i2m": "01a0b195-b8f9-747f-8fd2-d91473ba27eb",
+    "rig": "01a0b198-7d6e-7761-a3e8-242a26cbe7e3",
+    "anim": {
+      "idle": "01a0b199-b02f-7672-b825-3bf1349d129f",
+      "hit_react": "01a0b199-bb09-7434-8bc6-e7ed41fd32ea",
+      "death": "01a0b199-c3c2-7022-b91b-74228b7b700e",
+      "attack_primary": "01a0b1c9-0dee-7291-9eac-991163786863",
+      "attack_heavy": "01a0b1c9-1765-726e-8985-51effb14b782",
+      "roll": "01a0b1c9-22de-7582-b372-92ff3ac16930",
+      "gather": "01a0b1c9-2c0f-7296-bbca-7cdeb96dfe48",
+      "knockdown": "01a0b1c9-34a0-76b1-95f5-1651294ef8dd",
+      "mount_idle": "01a0b1c9-3cb5-7777-8168-39448e13723c"
+    },
+    "preset_actions": {
+      "idle": 0,
+      "hit_react": 178,
+      "death": 8,
+      "attack_primary": 240,
+      "attack_heavy": 128,
+      "roll": 158,
+      "gather": 274,
+      "knockdown": 187,
+      "mount_idle": 32
+    },
+    "params": {
+      "image_model": "nano-banana-pro",
+      "mesh_model": "meshy-7",
+      "pose_mode": "t-pose",
+      "target_polycount": 20000,
+      "texture": "2k PBR"
+    },
+    "credits_spent": 71,
+    "bones": 24,
+    "note": "walk.glb and run.glb are the free rig outputs. Meshy preset animations arrive as full skinned GLBs, one per clip, matching the creature contract layout.",
+    "clip_notes": {
+      "attack_primary": "Thrust Slash (knife). 3.0 s, trim to the strike in-engine or play at 1.5x",
+      "attack_heavy": "Heavy Hammer Swing, overhead two-hand, 1.9 s: the wind-up is the telegraph",
+      "gather": "Female Crouch Pick Up Place Side, 9.6 s: use the first ~2 s for a gather loop",
+      "mount_idle": "Chair Sit Idle, 11.4 s loop: seated riding pose",
+      "knockdown": "Knock Down 2.5 s, holds on the ground"
+    }
+  }
+}
