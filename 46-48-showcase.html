@@ -132,7 +132,7 @@ const stationTypes=['chest','furnace','storage','wall','fence','spike'];
 stationTypes.forEach((tp,i)=>{let b=addBuild(tp,-19+i*3,1);addLabel(b,2.6,tp.toUpperCase())});
 const ztypes=['walker','runner','brute','boss'];
 ztypes.forEach((tp,i)=>{let z=zombie(tp);z.position.set(-19+i*3.2,0,5);z.userData.showcaseFreeze=true;z.userData.hp=1e9;z.userData.max=1e9;addLabel(z,tp==='boss'?5:3.1,tp.toUpperCase())});
-player.position.set(-13,0,1);player.rotation.y=Math.PI;owned=[true,true,true,true];
+player.position.set(-13,0,3.4);player.rotation.y=Math.PI;owned=[true,true,true,true];
 const cycle=[['idle','IDLE · RELAXED SWAY'],['locomotion','RUN CYCLE'],['chop','AXE · CHOP'],['mine','PICKAXE · MINE'],['shoot','PISTOL'],['shoot','SMG'],['shoot','AK-47'],['shoot','FLAMETHROWER'],['building','BUILDING']];
 let ci=0;
 const chip=document.createElement('div');chip.id='showcaseCycle';chip.style.cssText='position:fixed;left:50%;bottom:118px;transform:translateX(-50%);background:#101c22ee;color:#ffd45e;font:700 13px/1.5 monospace;padding:6px 14px;border:1px solid #ffd45e55;border-radius:6px;z-index:40';document.body.appendChild(chip);
