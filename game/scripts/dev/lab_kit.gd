@@ -68,6 +68,7 @@ static func build(host: Node3D, size: float = 80.0) -> Dictionary:
 	ui.add_child(hud)
 	var skills := SkillDebug.new()
 	ui.add_child(skills)
+	(load("res://scripts/ui/world_ui.gd") as GDScript).instance_on(host)
 	var debug := Label.new()
 	debug.name = "DebugLabel"
 	debug.position = Vector2(12, 8)

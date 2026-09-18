@@ -17,6 +17,16 @@ func _kit_id(kind: StringName) -> String:
 			return "workbench_kit"
 		&"drying_rack":
 			return "drying_rack_kit"
+		&"tent":
+			return "tent_kit"
+		&"basket":
+			return "basket_kit"
+		&"fence":
+			return "fence_kit"
+		&"gate":
+			return "gate_kit"
+		&"sign":
+			return "sign_kit"
 		_:
 			return ""
 
@@ -64,6 +74,7 @@ func confirm(player: Player) -> bool:
 	player.get_parent().add_child(node)
 	node.global_position = _cell
 	print("[item] placed %s" % placing)
+	World.note_building(placing)
 	cancel()
 	return true
 
@@ -77,6 +88,8 @@ func _spawn(kind: StringName) -> Node3D:
 			return CraftStation.make(&"workbench")
 		&"drying_rack":
 			return CraftStation.make(&"drying_rack")
+		&"tent", &"basket", &"fence", &"gate", &"sign":
+			return (load("res://scripts/world/placed_building.gd") as GDScript).make(kind)
 		_:
 			return null
 
@@ -107,6 +120,16 @@ func _pay(player: Player) -> bool:
 		player.inventory.consume(&"branch", 3)
 		player.inventory.consume(&"twine", 1)
 		return true
+	if placing == &"tent":
+		return player.inventory.consume(&"tent_kit", 1)
+	if placing == &"basket":
+		return player.inventory.consume(&"basket_kit", 1)
+	if placing == &"fence":
+		return player.inventory.consume(&"fence_kit", 1)
+	if placing == &"gate":
+		return player.inventory.consume(&"gate_kit", 1)
+	if placing == &"sign":
+		return player.inventory.consume(&"sign_kit", 1)
 	return false
 
 func _overlaps() -> bool:

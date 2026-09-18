@@ -69,12 +69,26 @@ func can_gather(inv: Inventory) -> String:
 
 func roll_yield() -> ItemStack:
 	var n := randi_range(yield_min, yield_max)
-	return ItemStack.make(yield_def_id, n, yield_attributes)
+	var stack := ItemStack.make(yield_def_id, n, yield_attributes)
+	if World and World.is_unstable():
+		stack.set_flag(&"unstable", true)
+	return stack
 
 func mark_gathered() -> void:
 	depleted = true
 	_regen_left = regen_seconds
 	visible = false
+
+func set_visual(path: String) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	var packed := load(path)
+	if packed is PackedScene:
+		var inst: Node = (packed as PackedScene).instantiate()
+		inst.name = "VisualGlb"
+		add_child(inst)
+		if _mesh:
+			_mesh.visible = false
 
 func _apply_tint() -> void:
 	if _mesh == null:

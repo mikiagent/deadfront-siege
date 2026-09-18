@@ -10,6 +10,7 @@ var survival_unlocked: Dictionary = {} ## node id -> bool. ASSUMPTION: no SP eco
 var recipes: Dictionary = {} ## StringName -> Dictionary
 var recipe_list: Array = []
 var butcher_tables: Dictionary = {} ## species String -> Dictionary
+var nature_families: Dictionary = {}
 
 func _ready() -> void:
 	_load_items("res://data/items.json")
@@ -19,6 +20,7 @@ func _ready() -> void:
 	_load_survival("res://data/skills/survival.json")
 	_load_recipes("res://data/recipes.json")
 	_load_butchering("res://data/butchering.json")
+	_load_nature("res://data/nature_manifest.json")
 	print("[data] items=%d statuses=%d creatures=%d recipes=%d" % [
 		items.size(), statuses.size(), creatures.size(), recipes.size()])
 
@@ -152,6 +154,14 @@ func _load_butchering(path: String) -> void:
 	var tables: Variant = root.get("species", {})
 	if tables is Dictionary:
 		butcher_tables = tables as Dictionary
+
+func _load_nature(path: String) -> void:
+	if not FileAccess.file_exists(path):
+		return
+	var root := _parse_json(path)
+	var fam: Variant = root.get("families", {})
+	if fam is Dictionary:
+		nature_families = fam as Dictionary
 
 func _parse_json(path: String) -> Dictionary:
 	var f := FileAccess.open(path, FileAccess.READ)

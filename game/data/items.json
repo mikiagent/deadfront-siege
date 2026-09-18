@@ -388,6 +388,59 @@
       "tool_class": "none",
       "base_level": 1,
       "place_as": "drying_rack"
+    },
+    {
+      "id": "tent_kit",
+      "display_name": "Tent Kit",
+      "categories": ["building"],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "tent"
+    },
+    {
+      "id": "basket_kit",
+      "display_name": "Basket Kit",
+      "categories": ["building"],
+      "stack_max": 2,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "basket"
+    },
+    {
+      "id": "fence_kit",
+      "display_name": "Fence Segment",
+      "categories": ["building"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "fence"
+    },
+    {
+      "id": "gate_kit",
+      "display_name": "Gate",
+      "categories": ["building"],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "gate"
+    },
+    {
+      "id": "sign_kit",
+      "display_name": "Sign",
+      "categories": ["building"],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "sign"
+    },
+    {
+      "id": "petals",
+      "display_name": "Petals",
+      "categories": ["herb"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
     }
   ]
 }

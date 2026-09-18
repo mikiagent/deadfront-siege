@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 InputSetup="*res://scripts/core/input_setup.gd"
 Data="*res://scripts/core/data.gd"
 Game="*res://scripts/core/game.gd"
+World="*res://scripts/core/world.gd"
 TouchControls="*res://scenes/ui/touch_controls.tscn"
 
 [display]

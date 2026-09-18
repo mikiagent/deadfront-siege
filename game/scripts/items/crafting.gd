@@ -129,4 +129,5 @@ static func craft(player: Player, rec: Dictionary, picks: Array[int]) -> ItemSta
 	if left > 0:
 		print("[craft] bag full remainder=%d" % left)
 	print("[craft] %s from primary=%s %s" % [out.def_id, primary.def_id, primary.attributes])
+	World.note_craft(StringName(str(rec.get("id", ""))))
 	return out

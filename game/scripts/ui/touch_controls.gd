@@ -15,6 +15,7 @@ const BUTTONS: Array[Dictionary] = [
 	{"action": "tactic_2", "label": "2", "size": 80, "at": Vector2(-340, -340), "color": Color(0.85, 0.75, 0.35)},
 	{"action": "inventory", "label": "BAG", "size": 72, "at": Vector2(-100, 30), "color": Color(0.8, 0.8, 0.8)},
 	{"action": "craft", "label": "CRAFT", "size": 72, "at": Vector2(-190, 30), "color": Color(0.8, 0.8, 0.8)},
+	{"action": "map", "label": "MAP", "size": 72, "at": Vector2(-280, 30), "color": Color(0.65, 0.75, 0.9)},
 ]
 
 var enabled: bool = false

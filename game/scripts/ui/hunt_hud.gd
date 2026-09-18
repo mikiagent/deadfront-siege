@@ -29,11 +29,12 @@ func _process(_delta: float) -> void:
 	if player == null:
 		return
 	var v := player.vitals
-	_vitals.text = "HP %.0f/%.0f  EN %.0f  FAT %.0f%s  bag %d/%d  pets %d/%d  scale x%.0f" % [
+	_vitals.text = "HP %.0f/%.0f  EN %.0f  FAT %.0f%s  bag %d/%d  pets %d/%d  P%d  T%d  %s" % [
 		v.health, v.effective_max_health(), v.energy, v.fatigue,
 		" EXHAUSTED" if v.exhausted else "",
 		player.inventory.used_slots(), player.inventory.slot_count,
-		player.bonded.size(), Data.bonded_cap(), Game.time_scale,
+		player.bonded.size(), Data.bonded_cap(), World.pioneer_level, World.t_stones,
+		str(World.island_id) if World.island_id != &"" else "lab",
 	]
 	if player.hunt:
 		_tactics.text = "1 %s   2 %s   3 %s   4 %s   %s" % [

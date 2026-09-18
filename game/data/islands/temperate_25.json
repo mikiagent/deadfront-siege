@@ -1,0 +1,17 @@
+{
+  "id": "temperate_25",
+  "display_name": "Unstable Temperate",
+  "climate": "temperate",
+  "tier": 25,
+  "size_m": 240,
+  "permanent": false,
+  "kind": "unstable",
+  "lifetime_seconds": 7200,
+  "sail_cost": 5,
+  "harbour": [0, 0, 24],
+  "camp": [0, 0, 12],
+  "crater": [36, 0, -40],
+  "creatures": [
+    {"species": "velociraptor", "count": 3, "pack": true, "at": [16, 0, -8]}
+  ]
+}

@@ -12,6 +12,7 @@ var max_fatigue: float = 100.0
 var fatigue: float = 0.0
 var exhausted: bool = false
 var blocks_regen: bool = false
+var fatigue_gain_mult: float = 1.0
 
 ## ASSUMPTION: Health/Energy regen rates are not numbered in PRD §2.3; 1.5 HP/s and 2 Energy/s while not blocked.
 @export var health_regen: float = 1.5
@@ -37,7 +38,28 @@ func heal(amount: float) -> void:
 	health = minf(effective_max_health(), health + amount)
 
 func add_fatigue(amount: float) -> void:
-	fatigue = clampf(fatigue + amount, 0.0, max_fatigue)
+	fatigue = clampf(fatigue + amount * fatigue_gain_mult, 0.0, max_fatigue)
+
+func rest(amount: float) -> void:
+	fatigue = clampf(fatigue - amount, 0.0, max_fatigue)
+
+func to_dict() -> Dictionary:
+	return {
+		"health": health,
+		"energy": energy,
+		"fatigue": fatigue,
+		"max_health": max_health,
+		"max_energy": max_energy,
+		"max_fatigue": max_fatigue,
+	}
+
+func from_dict(d: Dictionary) -> void:
+	health = float(d.get("health", health))
+	energy = float(d.get("energy", energy))
+	fatigue = float(d.get("fatigue", fatigue))
+	max_health = float(d.get("max_health", max_health))
+	max_energy = float(d.get("max_energy", max_energy))
+	max_fatigue = float(d.get("max_fatigue", max_fatigue))
 
 func spend_energy(amount: float) -> bool:
 	if energy < amount:

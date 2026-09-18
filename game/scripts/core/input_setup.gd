@@ -23,6 +23,8 @@ const ACTIONS: Dictionary = {
 	"touch_toggle": [KEY_F4],
 	"bandage": [KEY_B],
 	"hunt_chase": [KEY_H],
+	"map": [KEY_M],
+	"pause": [KEY_ESCAPE],
 }
 
 func _init() -> void:

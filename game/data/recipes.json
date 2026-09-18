@@ -264,6 +264,70 @@
       "seconds": 1.5,
       "process_step": "bind",
       "process_add": 1
+    },
+    {
+      "id": "tent_kit",
+      "display_name": "Tent Kit",
+      "slots": [
+        {"category": "hide", "count": 2, "primary": true},
+        {"category": "wood", "count": 2, "primary": false},
+        {"category": "lashing", "count": 1, "primary": false}
+      ],
+      "output": {"id": "tent_kit", "count": 1},
+      "station": null,
+      "seconds": 2.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "basket_kit",
+      "display_name": "Basket Kit",
+      "slots": [
+        {"category": "fibre", "count": 4, "primary": true},
+        {"category": "wood", "count": 1, "primary": false}
+      ],
+      "output": {"id": "basket_kit", "count": 1},
+      "station": null,
+      "seconds": 1.5,
+      "process_step": "twist",
+      "process_add": 1
+    },
+    {
+      "id": "fence_kit",
+      "display_name": "Fence Segment",
+      "slots": [
+        {"category": "wood", "count": 2, "primary": true}
+      ],
+      "output": {"id": "fence_kit", "count": 1},
+      "station": null,
+      "seconds": 1.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "gate_kit",
+      "display_name": "Gate",
+      "slots": [
+        {"category": "wood", "count": 3, "primary": true},
+        {"category": "lashing", "count": 1, "primary": false}
+      ],
+      "output": {"id": "gate_kit", "count": 1},
+      "station": null,
+      "seconds": 1.5,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "sign_kit",
+      "display_name": "Sign",
+      "slots": [
+        {"category": "wood", "count": 1, "primary": true}
+      ],
+      "output": {"id": "sign_kit", "count": 1},
+      "station": null,
+      "seconds": 1.0,
+      "process_step": "hammer",
+      "process_add": 1
     }
   ]
 }

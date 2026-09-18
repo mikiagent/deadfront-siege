@@ -66,6 +66,8 @@ func _ready() -> void:
 	place_row.add_child(_mk_btn("Workbench", Callable(self, "_place_kind").bind(&"workbench"), Vector2(150, 64)))
 	place_row.add_child(_mk_btn("Dry rack", Callable(self, "_place_kind").bind(&"drying_rack"), Vector2(150, 64)))
 	place_row.add_child(_mk_btn("Bonfire", Callable(self, "_place_kind").bind(&"bonfire"), Vector2(150, 64)))
+	place_row.add_child(_mk_btn("Tent", Callable(self, "_place_kind").bind(&"tent"), Vector2(120, 64)))
+	place_row.add_child(_mk_btn("Basket", Callable(self, "_place_kind").bind(&"basket"), Vector2(140, 64)))
 	_picker = VBoxContainer.new()
 	_picker.visible = false
 	detail.add_child(_picker)

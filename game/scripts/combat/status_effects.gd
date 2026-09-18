@@ -84,6 +84,22 @@ func get_instance(id: StringName) -> StatusInstance:
 func instances() -> Array[StatusInstance]:
 	return _active
 
+func to_array() -> Array:
+	var out: Array = []
+	for inst in _active:
+		out.append({"id": str(inst.id), "stacks": inst.stacks, "time_left": inst.time_left})
+	return out
+
+func from_array(raw: Array) -> void:
+	_active.clear()
+	for row in raw:
+		if not row is Dictionary:
+			continue
+		apply(StringName(str(row.get("id", ""))), null, int(row.get("stacks", 1)))
+		var inst := get_instance(StringName(str(row.get("id", ""))))
+		if inst:
+			inst.time_left = float(row.get("time_left", inst.time_left))
+
 func has_flag(flag: StringName) -> bool:
 	for inst in _active:
 		var def := Data.status(inst.id)

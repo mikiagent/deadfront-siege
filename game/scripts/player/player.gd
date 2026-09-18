@@ -120,6 +120,7 @@ func _physics_process(delta: float) -> void:
 		var target_yaw := atan2(dir.x, dir.z)
 		visual.rotation.y = lerp_angle(visual.rotation.y, target_yaw, turn_speed * delta)
 		vitals.add_fatigue(delta * (0.8 if can_sprint else 0.25))
+	vitals.fatigue_gain_mult = 0.5 if _in_coziness() else 1.0
 	if _gathering:
 		_gather_left -= delta
 		if _gather_left <= 0.0:
@@ -214,6 +215,12 @@ func _tap_world() -> void:
 			(col as Bonfire).cauterise(self)
 	elif col is TamingPen:
 		_pen_interact(col as TamingPen)
+	elif col is Node and (col as Node).is_in_group("harbour"):
+		col.open()
+	elif col is Node and (col as Node).is_in_group("cargo_warp"):
+		col.use(self)
+	elif col is Node and (col as Node).is_in_group("placed_building"):
+		_building_interact(col)
 
 func _begin_gather(node: HarvestNode) -> void:
 	if vitals.exhausted:
@@ -353,6 +360,18 @@ func _interact() -> void:
 	if corpse and global_position.distance_to(corpse.global_position) < 2.8:
 		_begin_butcher(corpse)
 		return
+	var harbour := _nearest_group("harbour")
+	if harbour and global_position.distance_to(harbour.global_position) < 4.0:
+		harbour.open()
+		return
+	var warp := _nearest_group("cargo_warp")
+	if warp and global_position.distance_to(warp.global_position) < 2.8:
+		warp.use(self)
+		return
+	var basket := _nearest_group("basket")
+	if basket and global_position.distance_to(basket.global_position) < 2.8:
+		_building_interact(basket)
+		return
 	if summoned_pet and is_instance_valid(summoned_pet) and global_position.distance_to(summoned_pet.global_position) < 2.8:
 		_pet_interact(summoned_pet)
 
@@ -442,6 +461,38 @@ func summon_pet(index: int = 0) -> void:
 	summoned_pet = c
 	rec.summoned = true
 	print("[capture] summoned %s hp=%.0f (wild hp=%.0f)" % [def.id, c.health.max_hp, def.hp])
+
+func _building_interact(b: Node) -> void:
+	if str(b.get("kind")) == "basket" and b.get("storage") and ui:
+		if summoned_pet and is_instance_valid(summoned_pet) and summoned_pet.pet_record and summoned_pet.pet_record.bag:
+			_dump_pet_into(b.storage)
+		ui.show_storage(b.storage)
+		return
+	if str(b.get("kind")) == "sign":
+		print("[world] sign: %s" % (str(b.get("sign_text")) if str(b.get("sign_text")) != "" else "(blank)"))
+		return
+	if World.is_home() and Input.is_action_pressed("sprint"):
+		b.pack_up(self)
+
+func _dump_pet_into(dest: Inventory) -> void:
+	var bag := summoned_pet.pet_record.bag
+	for i in bag.slot_count:
+		var s := bag.slots[i]
+		if s == null:
+			continue
+		var taken := bag.remove_at(i, s.count)
+		if taken:
+			dest.add(taken)
+	print("[item] pet dumped into basket")
+
+func _in_coziness() -> bool:
+	if not is_inside_tree():
+		return false
+	for n in get_tree().get_nodes_in_group("coziness"):
+		var a := n as Area3D
+		if a and a.overlaps_body(self):
+			return true
+	return false
 
 func _ray() -> Dictionary:
 	var cam := get_viewport().get_camera_3d()

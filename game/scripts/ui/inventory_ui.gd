@@ -52,6 +52,11 @@ func show_pet_bag(rec: PetRecord) -> void:
 	visible = true
 	rebuild()
 
+func show_storage(inv: Inventory) -> void:
+	pet_bag = inv
+	visible = true
+	rebuild()
+
 func rebuild() -> void:
 	if inventory == null:
 		return

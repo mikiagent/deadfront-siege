@@ -1,0 +1,22 @@
+{
+  "id": "home_grassland",
+  "display_name": "Private Grassland",
+  "climate": "grassland",
+  "tier": 10,
+  "size_m": 160,
+  "permanent": true,
+  "kind": "private",
+  "lifetime_seconds": 0,
+  "sail_cost": 0,
+  "harbour": [0, 0, 18],
+  "camp": [0, 0, 8],
+  "crater": null,
+  "creatures": [],
+  "terrains": {
+    "meadow": {"tree": 8, "bush": 10, "grass": 80, "rock": 4, "flower": 8},
+    "forest": {"tree": 22, "bush": 14, "grass": 50, "rock": 4, "flower": 4},
+    "rocky": {"tree": 4, "bush": 6, "grass": 30, "rock": 18, "flower": 2},
+    "riverside": {"tree": 12, "bush": 12, "grass": 70, "rock": 6, "flower": 10},
+    "coastal": {"tree": 6, "bush": 8, "grass": 40, "rock": 10, "flower": 4}
+  }
+}
