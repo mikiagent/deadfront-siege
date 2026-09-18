@@ -53,10 +53,15 @@ func _physics_process(delta: float) -> void:
 func on_aggro(who: Node) -> void:
 	if who is Node3D:
 		attack_target = who as Node3D
-		_set_state(&"alert")
-		_alert_left = 0.6
 		creature.mark_aggro_now()
-		_propagate_alert(who as Node3D)
+		# Do not downgrade combat states (retreat/flee/approach/attack) back to alert.
+		if state == &"roam" or state == &"sleep" or state == &"disengage" or state == &"downed":
+			_set_state(&"alert")
+			_alert_left = 0.6
+			_propagate_alert(who as Node3D)
+		elif state == &"alert":
+			_alert_left = maxf(_alert_left, 0.35)
+			_propagate_alert(who as Node3D)
 
 func note_damage(amount: float) -> void:
 	if creature == null or creature.health.dead:
@@ -90,8 +95,9 @@ func _think(delta: float) -> void:
 			_roam(delta)
 			_scan()
 		&"alert":
+			# Do not call _scan here: refreshing alert_left every frame trapped
+			# creatures in alert and blocked approach / flee transitions.
 			_alert_left = maxf(0.0, _alert_left - delta)
-			_scan()
 			if attack_target:
 				creature.face_towards(attack_target.global_position, delta)
 			if _alert_left <= 0.0:
@@ -130,6 +136,8 @@ func _roam(delta: float) -> void:
 	_roam_cd = randf_range(float(profile.get("roam_delay_min", 3.0)), float(profile.get("roam_delay_max", 6.0)))
 
 func _scan() -> void:
+	if state != &"roam" and state != &"sleep":
+		return
 	var player := creature.get_tree().get_first_node_in_group("player") as Node3D
 	if player and creature.global_position.distance_to(player.global_position) <= _effective_perception():
 		attack_target = player
@@ -371,13 +379,19 @@ func _propagate_alert(who: Node3D) -> void:
 		var c := n as Creature
 		if c == null or c == creature or c.health.dead:
 			continue
-		if c.pack_id != creature.pack_id:
+		if c.pack_id != creature.pack_id or c.pack_id <= 0:
 			continue
-		if c.brain:
-			c.brain.attack_target = who
+		if c.brain == null:
+			continue
+		c.brain.attack_target = who
+		c.mark_aggro_now()
+		# Only wake peaceful packmates; leave retreat/flee/attack alone.
+		var st := c.brain.state
+		if st == &"roam" or st == &"sleep" or st == &"disengage":
 			c.brain._set_state(&"alert")
 			c.brain._alert_left = maxf(c.brain._alert_left, 0.35)
-			c.mark_aggro_now()
+		elif st == &"alert":
+			c.brain._alert_left = maxf(c.brain._alert_left, 0.35)
 
 func _profile(archetype: StringName) -> Dictionary:
 	var out: Dictionary = {}

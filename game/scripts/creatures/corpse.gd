@@ -58,7 +58,7 @@ func open_loot(player: Player) -> void:
 		_begin_fade()
 		return
 	var why := can_butcher(player.inventory)
-	var readonly := why if why == "need tool knife" else ""
+	var readonly := "needs knife" if why == "need tool knife" else ""
 	player.ui.show_storage(loot, player, {
 		"title": "Loot · %s" % species_display_name(),
 		"take_all": true,

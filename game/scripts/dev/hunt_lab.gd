@@ -58,21 +58,47 @@ func _demo() -> void:
 	if World.runtime:
 		_player.global_position.y = World.runtime.surface_y(_player.global_position.x, _player.global_position.z) + 1.0
 	_player.face_world(lead.global_position)
-	_cam.size = 17.0
+	_cam.size = 14.0 if Game.shot_path != "" else 17.0
 	_cam._snap()
-	_tap_creature(lead)
+	# Status glyphs + plate reveal before combat states flip.
 	lead.statuses.apply(&"bleed", _player)
 	if _herd.size() > 0 and _herd[0]:
 		_herd[0].statuses.apply(&"groggy", _player)
 		_herd[0].brain.on_aggro(_player)
-	lead.health.take_damage(lead.health.max_hp * 0.36, _player)
-	get_tree().create_timer(0.2).timeout.connect(func () -> void:
-		lead.health.take_damage(22.0, _player)
+	_tap_creature(lead)
+	_reveal_plates()
+	# Let alert (0.6 s) resolve into approach / flee, then force a retreat chunk.
+	get_tree().create_timer(0.85).timeout.connect(func () -> void:
+		if lead == null or not is_instance_valid(lead):
+			return
+		lead.health.take_damage(lead.health.max_hp * 0.36, _player)
+		get_tree().create_timer(0.25).timeout.connect(func () -> void:
+			if lead and is_instance_valid(lead):
+				lead.health.take_damage(22.0, _player)
+		, CONNECT_ONE_SHOT)
 	, CONNECT_ONE_SHOT)
+	# Fresh hit shortly before Game's hunt_lab shot (3.2 s) so the white
+	# recent-damage chunk is still animating in the acceptance screenshot.
+	if Game.shot_path != "":
+		get_tree().create_timer(2.55).timeout.connect(func () -> void:
+			if lead and is_instance_valid(lead) and not lead.health.dead:
+				lead.health.take_damage(18.0, _player)
+				_reveal_plates()
+		, CONNECT_ONE_SHOT)
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
-		get_tree().create_timer(1.8).timeout.connect(func () -> void:
+		get_tree().create_timer(2.6).timeout.connect(func () -> void:
 			get_tree().quit(0)
 		, CONNECT_ONE_SHOT)
+
+func _reveal_plates() -> void:
+	if Game == null or not Game.has_method("reveal_creature_plate"):
+		return
+	for c in _raptor_pack:
+		if c:
+			Game.reveal_creature_plate(c, 5.0)
+	for c in _herd:
+		if c:
+			Game.reveal_creature_plate(c, 5.0)
 
 func _tap_creature(creature: Creature) -> void:
 	var screen := _cam.unproject_position(creature.global_position + Vector3(0.0, creature.def.height_meters * 0.8, 0.0))

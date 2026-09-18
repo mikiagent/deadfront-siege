@@ -49,7 +49,9 @@ func _ready() -> void:
 	if smoke_test:
 		get_tree().create_timer(2.0).timeout.connect(_finish_smoke)
 	elif shot_path != "":
-		get_tree().create_timer(2.6).timeout.connect(_take_shot)
+		# hunt_lab needs a beat after alert→damage so plates show a white chunk.
+		var shot_delay := 3.2 if lab_name == "hunt_lab" else 2.6
+		get_tree().create_timer(shot_delay).timeout.connect(_take_shot)
 
 func _make_perf() -> void:
 	var layer := CanvasLayer.new()
