@@ -1274,6 +1274,9 @@ func context_actions() -> Array:
 	var pen := _nearest_group("taming_pen")
 	if pen and global_position.distance_to(pen.global_position) < 3.0:
 		out.append({"id": "pen", "glyph": "🪤", "label": "Pen"})
+	if World.runtime and World.runtime.has_method("is_claimed") and not World.runtime.is_claimed(BuildGrid.tile_of(global_position)):
+		var free := not World.free_claim_used and not World.is_home()
+		out.append({"id": "claim", "glyph": "▦", "label": "Claim" if (free or inventory.count_of(&"claim_stake") > 0 or World.is_home()) else "Claim (stake)"})
 	return out
 
 func context_action(id: String) -> void:
@@ -1313,3 +1316,20 @@ func context_action(id: String) -> void:
 			var pen := _nearest_group("taming_pen") as TamingPen
 			if pen:
 				_pen_interact(pen)
+		"claim":
+			_try_claim()
+
+## Claim a 14x14 plot here. Home: free (expansion by Pioneer level is M10's problem).
+## Unstable: the first plot is free, later ones consume a claim_stake. ASSUMPTION.
+func _try_claim() -> void:
+	var rt := World.runtime
+	if rt == null or not rt.has_method("claim_at"):
+		return
+	if not World.is_home():
+		if World.free_claim_used:
+			if not inventory.consume(&"claim_stake", 1):
+				print("[world] claim refused: needs claim_stake")
+				return
+		World.free_claim_used = true
+	if not rt.claim_at(BuildGrid.tile_of(global_position)):
+		print("[world] claim refused: not dry land")

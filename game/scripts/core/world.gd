@@ -10,7 +10,10 @@ var island_def: Dictionary = {}
 var home_terrain: StringName = &""
 var t_stones: int = 20 ## ASSUMPTION: starting T-stones
 var pioneer_level: int = 0
-var pioneer_xp: int = 0  # gathers +1, crafts +10, buildings +15; bar wraps every 100 (ASSUMPTION)
+var pioneer_xp: int = 0
+var home_claims: Array = []  # [[x, z, w, d], ...] tile rects on the home island (saved)
+var unstable_claims: Array = []  # same, current unstable island only (not saved)
+var free_claim_used: bool = false  # gathers +1, crafts +10, buildings +15; bar wraps every 100 (ASSUMPTION)
 var pioneer_crafts: Dictionary = {}
 var pioneer_buildings: Dictionary = {}
 var cargo_home: Inventory = Inventory.new(60) ## ASSUMPTION: 60 slots for mobile UI
@@ -320,6 +323,9 @@ func _load_islands(_dir: String) -> void:
 			d["lifetime_seconds"] = float(d.get("lifetime_hours", 6)) * 3600.0
 		islands[id] = d
 	Game.max_creatures_per_island = int(Data.world_rules.get("creature_cap_mobile", 24))
+
+func claims_for_current() -> Array:
+	return home_claims if is_home() else unstable_claims
 
 func add_xp(n: int) -> void:
 	pioneer_xp += n

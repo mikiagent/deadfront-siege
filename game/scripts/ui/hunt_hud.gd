@@ -35,6 +35,10 @@ var _ctx_hexes: Array[HexButton] = []
 var _ctx_ids: Array = []
 var _ctx_timer: float = 0.0
 var _place_hexes: Array[HexButton] = []
+var _levelup_lines: Array = []
+var _levelup_t: float = -1.0
+var _titles: Dictionary = {}
+var _level_gains: Dictionary = {}
 
 const MAP_PX := 180.0
 const MAP_SCALE := 1.5  # metres per pixel
@@ -51,6 +55,11 @@ func _ready() -> void:
 	_build_combat()
 	_build_place_hexes()
 	add_to_group("hud")
+	_load_level_data()
+	if World.has_signal("pioneer_changed"):
+		World.pioneer_changed.connect(_on_level_up)
+	if Game.shot_path.contains("levelup"):
+		get_tree().create_timer(0.8).timeout.connect(func () -> void: World.pioneer_level += 1; World.pioneer_changed.emit(World.pioneer_level))
 	get_viewport().size_changed.connect(_layout)
 	_layout()
 
@@ -271,6 +280,45 @@ func _refresh_place_hexes() -> void:
 	for i in _place_hexes.size():
 		_place_hexes[i].position = base + offs[i]
 
+func _load_level_data() -> void:
+	for pair in [["res://data/skills/titles.json", "t"], ["res://data/skills/pioneer_levels.json", "g"]]:
+		if not FileAccess.file_exists(pair[0]):
+			continue
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(pair[0]))
+		if parsed is Dictionary:
+			if pair[1] == "t":
+				_titles = parsed
+			else:
+				_level_gains = parsed
+
+## Reference: a gold text stack at the top-left for ~6 s on level-up.
+func _on_level_up(level: int) -> void:
+	_levelup_lines.clear()
+	_levelup_lines.append(["Lv. %d" % level, 40, Color(1.0, 0.85, 0.35)])
+	_levelup_lines.append(["👁 %d" % World.pioneer_xp, 18, Color.WHITE])
+	_levelup_lines.append(["◎ %d" % World.t_stones, 18, Color.WHITE])
+	var sp := Data.survival_nodes.size() - Data.survival_unlocked.size() if Data.get("survival_nodes") != null else 0
+	_levelup_lines.append(["Available Skill Points: %d" % maxi(0, sp), 18, Color.WHITE])
+	var title := str(_titles.get(str(level), ""))
+	if title != "":
+		_levelup_lines.append(["Title %s acquired." % title, 18, Color(1.0, 0.85, 0.35)])
+		print("[world] pioneer level %d title=\"%s\"" % [level, title])
+	else:
+		print("[world] pioneer level %d" % level)
+	var per: Dictionary = _level_gains.get("per_level", {})
+	if player and player.vitals:
+		player.vitals.max_health += float(per.get("max_health", 0))
+		player.vitals.max_energy += float(per.get("max_energy", 0))
+	var stats: Array = _level_gains.get("display_stats", [])
+	var gain := int(_level_gains.get("display_gain", 5))
+	var bonus := int(_level_gains.get("bonus_stat_gain", 6))
+	for i in stats.size():
+		var g := bonus if (i == level % maxi(1, stats.size())) else gain
+		_levelup_lines.append(["%s + %d" % [stats[i], g], 18, Color(1.0, 0.85, 0.35)])
+	_levelup_t = 0.0
+	if player:
+		player.toast(&"level", level)
+
 # ---------------------------------------------------------------- sheets
 
 func _toggle_sheet(kind: StringName) -> void:
@@ -401,6 +449,10 @@ func _process(delta: float) -> void:
 			h.queue_redraw()
 	_refresh_context(delta)
 	_refresh_place_hexes()
+	if _levelup_t >= 0.0:
+		_levelup_t += delta
+		if _levelup_t > 6.5:
+			_levelup_t = -1.0
 	for t in _toasts:
 		t["t"] += delta
 	_toasts = _toasts.filter(func (t: Dictionary) -> bool: return t["t"] < 1.3)
@@ -452,6 +504,18 @@ func _draw() -> void:
 		var nw := _font.get_string_size(name, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
 		draw_string(_font, Vector2(p.x - nw * 0.5 + 1, p.y + 21), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0, 0, 0, 0.7))
 		draw_string(_font, Vector2(p.x - nw * 0.5, p.y + 20), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.95, 0.95, 0.95))
+	# --- label pills on buildings and nodes within 30 m (reference: base building)
+	_draw_pills(cam)
+	# --- level-up stack (gold, top-left under the bars)
+	if _levelup_t >= 0.0:
+		var la := 1.0 - smoothstep(5.5, 6.5, _levelup_t)
+		var ly := 120.0
+		for line in _levelup_lines:
+			var col: Color = line[2]
+			col.a *= la
+			draw_string(_font, Vector2(31, ly + 1), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), Color(0, 0, 0, 0.6 * la))
+			draw_string(_font, Vector2(30, ly), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), col)
+			ly += float(line[1]) + 8.0
 	# --- pickup toasts near the top-centre, rising and fading
 	for i in _toasts.size():
 		var t: Dictionary = _toasts[i]
@@ -573,3 +637,72 @@ func _draw_minimap() -> void:
 	var side := Vector2(-fwd.y, fwd.x)
 	c.draw_colored_polygon(PackedVector2Array([centre + fwd * 8.0, centre - fwd * 5.0 + side * 5.0, centre - fwd * 5.0 - side * 5.0]), Color(1, 1, 1))
 	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(1, 1, 1, 0.35), false, 1.5)
+
+func _draw_pills(cam: Camera3D) -> void:
+	if cam == null or player == null:
+		return
+	var radial_node: Node3D = null
+	if player.has_node("GatherRadialLayer/GatherRadial"):
+		var gr := player.get_node("GatherRadialLayer/GatherRadial")
+		if gr.is_open():
+			radial_node = gr.node
+	var rows: Array = []
+	var pp := player.global_position
+	for grp in ["placed_building", "craft_station", "bonfire", "taming_pen", "harvest"]:
+		for n in get_tree().get_nodes_in_group(grp):
+			var n3 := n as Node3D
+			if n3 == null or not n3.visible or n3 == radial_node:
+				continue
+			var d := pp.distance_to(n3.global_position)
+			if d > 30.0:
+				continue
+			rows.append([d, n3, grp])
+	rows.sort_custom(func (a: Array, b: Array) -> bool: return a[0] < b[0])
+	var shown := 0
+	for row in rows:
+		if shown >= 24:
+			break
+		var n3: Node3D = row[1]
+		var grp: String = row[2]
+		var d: float = row[0]
+		var name := ""
+		var dot := Color(0.35, 0.85, 0.35)
+		var glyph := "▣"
+		var timer := ""
+		var top := 1.2
+		if grp == "harvest":
+			var hn := n3 as HarvestNode
+			if hn == null:
+				continue
+			name = (hn.family if hn.family != "" else str(hn.node_id)).replace("_", " ").capitalize()
+			glyph = "✿"
+			top = hn.top_of_node()
+			if hn.depleted:
+				dot = Color(0.5, 0.5, 0.5)
+				var left := hn.regen_left()
+				if left > 0.0:
+					timer = "%dm %02ds" % [int(left / 60.0), int(left) % 60]
+			elif hn.required_tool_class != &"" and hn.required_tool_class != &"none" and not player.inventory.has_tool_class(hn.required_tool_class):
+				dot = Color(0.9, 0.3, 0.25)
+		else:
+			var kind: Variant = n3.get("kind")
+			if kind == null:
+				kind = n3.get("station_id")
+			name = str(kind if kind != null else n3.name).replace("_", " ").capitalize()
+		if d > 22.0:
+			name += "  · %d m" % int(d)
+		var a := 1.0 - smoothstep(22.0, 30.0, d)
+		var sp := cam.unproject_position(n3.global_position + Vector3(0, top + 0.35, 0))
+		var text := "%s  %s" % [glyph, name]
+		var tw := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+		var w := tw + 30.0
+		var rect := Rect2(sp.x - w * 0.5, sp.y - 24.0, w, 22.0)
+		draw_rect(rect, Color(0.05, 0.06, 0.08, 0.82 * a))
+		draw_circle(Vector2(rect.position.x + 10.0, rect.position.y + 11.0), 4.0, Color(dot, a))
+		draw_string(_font, Vector2(rect.position.x + 20.0, rect.position.y + 16.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1, 1, 1, a))
+		if timer != "":
+			var tt := "⏱ %s" % timer
+			var ttw := _font.get_string_size(tt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+			draw_rect(Rect2(sp.x - ttw * 0.5 - 8.0, sp.y + 2.0, ttw + 16.0, 20.0), Color(0.05, 0.06, 0.08, 0.82 * a))
+			draw_string(_font, Vector2(sp.x - ttw * 0.5, sp.y + 17.0), tt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.9, 0.6, a))
+		shown += 1

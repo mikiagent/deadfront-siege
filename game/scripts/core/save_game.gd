@@ -43,7 +43,9 @@ static func save_now() -> void:
 			"terrain": str(World.home_terrain),
 			"buildings": buildings if World.is_home() else World._home_buildings_cache,
 			"cargo": World.cargo_home.to_array(),
+			"claims": World.home_claims,
 		},
+		"pioneer_xp": World.pioneer_xp,
 		"pioneer_level": World.pioneer_level,
 		"pioneer_crafts": World.pioneer_crafts,
 		"pioneer_buildings": World.pioneer_buildings,
@@ -92,6 +94,8 @@ static func load_now(host: Node) -> void:
 	World.resting_in_tent = bool(data.get("resting_in_tent", false))
 	World.cargo_home.load_array(data.get("home", {}).get("cargo", []))
 	World._home_buildings_cache = data.get("home", {}).get("buildings", [])
+	World.home_claims = data.get("home", {}).get("claims", [])
+	World.pioneer_xp = int(data.get("pioneer_xp", 0))
 	Game.time_of_day = float(data.get("clock", 0.35))
 	var skills: Dictionary = data.get("skills", {})
 	for id in skills:

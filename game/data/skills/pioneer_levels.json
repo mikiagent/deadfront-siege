@@ -1,0 +1,7 @@
+{
+  "_about": "Stat gains per Pioneer level applied to the survivor's vitals (M8d). ASSUMPTION: +5 max health, +3 max energy per level; the six named stats are display-only until the skills milestone (M10) gives them effects.",
+  "per_level": {"max_health": 5, "max_energy": 3},
+  "display_stats": ["Strength", "Charisma", "Dexterity", "Agility", "Endurance", "Will", "Intelligence", "Perception"],
+  "display_gain": 5,
+  "bonus_stat_gain": 6
+}

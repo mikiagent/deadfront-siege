@@ -34,9 +34,9 @@ void fragment() {
 	float f1 = texture(noise_tex, world_pos.xz / 7.0 + vec2(t * 0.05, t * 0.03)).r;
 	float f2 = texture(noise_tex, world_pos.xz / 3.5 - vec2(t * 0.04, -t * 0.06)).r;
 	// Foam lives in a band just past the waterline, in streaks; open water only gets faint ridges.
-	float shore = smoothstep(0.0, 0.10, depth) * (1.0 - smoothstep(0.22, 0.75, depth));
-	float ridge = smoothstep(0.60, 0.84, f1 * 0.6 + f2 * 0.6);
-	float foam = clamp(shore * (0.10 + ridge * 0.75) + ridge * 0.10 * (1.0 - d), 0.0, 1.0);
+	float shore = smoothstep(0.0, 0.08, depth) * (1.0 - smoothstep(0.16, 0.5, depth));
+	float ridge = smoothstep(0.62, 0.86, f1 * 0.6 + f2 * 0.6);
+	float foam = clamp(shore * (0.06 + ridge * 0.7) + ridge * 0.08 * (1.0 - d), 0.0, 1.0);
 	col = mix(col, foam_col, foam);
 	alpha = max(alpha, foam * 0.92);
 	if (depth <= 0.0) { alpha = 0.0; }

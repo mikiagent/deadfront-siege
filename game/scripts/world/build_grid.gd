@@ -69,6 +69,10 @@ func can_place(kind: StringName, cell: Vector2i, rot: int) -> String:
 	for c in cells:
 		if _occupied.has(c):
 			return "overlap"
+	if runtime and runtime.has_method("is_claimed"):
+		for c in cells:
+			if not runtime.is_claimed(c):
+				return "unclaimed"
 	for c in cells:
 		var at := tile_centre(c, runtime)
 		if runtime and runtime.has_method("spawn_ok") and not runtime.spawn_ok(at, false):

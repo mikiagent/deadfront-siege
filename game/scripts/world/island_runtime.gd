@@ -71,6 +71,9 @@ var _used_tiles: Dictionary = {}
 var _tree_discs: MultiMeshInstance3D
 var _tree_disc_xforms: Array[Transform3D] = []
 var _batches: Array[VegBatch] = []
+var claims: Array[Rect2i] = []
+var _claim_mesh: MeshInstance3D
+var _claim_mat: StandardMaterial3D
 
 ## Radius of dry, walkable land: the shore starts falling at 0.36 * size (see _terrain).
 func land_radius() -> float:
@@ -142,6 +145,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 		cargo_basket.position = _tile_at(float(harbour_a[0]) + 3.0, float(harbour_a[2]))
 		add_child(cargo_basket)
 		build_grid.reserve_kind(&"basket", BuildGrid.tile_of(cargo_basket.position), 0)
+	_setup_claims(def)
 	_scatter(def, terrain, _climate, _tier, size)
 	_setup_pathing()
 	_creatures(def)
@@ -1375,3 +1379,91 @@ func apply_harvest_tile_snapshot(snap: Dictionary) -> void:
 			"node_id": str(row.get("node_id", "")),
 		}
 		_set_tile_type(tile, TileType.BARE)
+
+# ---------------------------------------------------------------- land claims (M8d Part B)
+
+## Home: the camp plot (14x14 tiles) is claimed at creation plus whatever was saved.
+## Unstable: whatever the player staked this visit. Buildings only go on claimed tiles.
+func _setup_claims(def: Dictionary) -> void:
+	claims.clear()
+	var camp_tile := BuildGrid.tile_of(_camp_pos)
+	var saved: Array = World.claims_for_current()
+	if str(def.get("kind", "")) == "private":
+		var base := Rect2i(camp_tile - Vector2i(7, 7), Vector2i(14, 14))
+		claims.append(base)
+		for r in saved:
+			if r is Array and (r as Array).size() >= 4:
+				claims.append(Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3])))
+		if saved.is_empty():
+			World.home_claims = [[base.position.x, base.position.y, base.size.x, base.size.y]]
+	else:
+		# ASSUMPTION: the camp landing spot is always buildable on unstable islands (tents, pens).
+		claims.append(Rect2i(camp_tile - Vector2i(7, 7), Vector2i(14, 14)))
+		for r in saved:
+			if r is Array and (r as Array).size() >= 4:
+				claims.append(Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3])))
+	_rebuild_claim_mesh()
+
+func is_claimed(tile: Vector2i) -> bool:
+	for r in claims:
+		if r.has_point(tile):
+			return true
+	return false
+
+## Claim a 14x14 plot centred on the tile; returns false when it overlaps water or an existing claim centre.
+func claim_at(tile: Vector2i, size: int = 14) -> bool:
+	var rect := Rect2i(tile - Vector2i(size / 2, size / 2), Vector2i(size, size))
+	var centre := BuildGrid.tile_centre(tile, self)
+	if not spawn_ok(centre, false):
+		return false
+	claims.append(rect)
+	var row := [rect.position.x, rect.position.y, rect.size.x, rect.size.y]
+	if World.is_home():
+		World.home_claims.append(row)
+	else:
+		World.unstable_claims.append(row)
+	_rebuild_claim_mesh()
+	print("[world] claimed %dx%d at (%d,%d)" % [size, size, tile.x, tile.y])
+	return true
+
+func _rebuild_claim_mesh() -> void:
+	if _claim_mesh == null:
+		_claim_mesh = MeshInstance3D.new()
+		_claim_mesh.name = "ClaimBoundary"
+		_claim_mat = StandardMaterial3D.new()
+		_claim_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_claim_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_claim_mat.albedo_color = Color(0.55, 0.85, 1.0, 0.9)
+		_claim_mat.vertex_color_use_as_albedo = false
+		_claim_mesh.material_override = _claim_mat
+		_claim_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_claim_mesh.extra_cull_margin = 200.0
+		add_child(_claim_mesh)
+	var im := ImmediateMesh.new()
+	var any := false
+	for r in claims:
+		var x0 := float(r.position.x)
+		var z0 := float(r.position.y)
+		var x1 := float(r.position.x + r.size.x)
+		var z1 := float(r.position.y + r.size.y)
+		var corners := [Vector2(x0, z0), Vector2(x1, z0), Vector2(x1, z1), Vector2(x0, z1)]
+		for i in 4:
+			var a: Vector2 = corners[i]
+			var b: Vector2 = corners[(i + 1) % 4]
+			var len := a.distance_to(b)
+			var dash := 0.5
+			var gap := 0.35
+			var t := 0.0
+			while t < len:
+				var t2 := minf(len, t + dash)
+				var pa := a.lerp(b, t / len)
+				var pb := a.lerp(b, t2 / len)
+				if not any:
+					im.surface_begin(Mesh.PRIMITIVE_LINES)
+					any = true
+				im.surface_add_vertex(Vector3(pa.x, surface_y(pa.x, pa.y) + 0.06, pa.y))
+				im.surface_add_vertex(Vector3(pb.x, surface_y(pb.x, pb.y) + 0.06, pb.y))
+				t += dash + gap
+	if any:
+		im.surface_end()
+	_claim_mesh.mesh = im
