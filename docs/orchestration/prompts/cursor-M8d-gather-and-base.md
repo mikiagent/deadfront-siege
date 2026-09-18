@@ -118,3 +118,11 @@ Acceptance additions: `m8d-corpse-radial.png` (body with its pill and the Meat h
 - Headless `--lab=island_lab` and `--lab=build_lab` pass; `tools/smoke.sh` → `SMOKE PASS`.
 - Report `docs/orchestration/reports/cursor-M8d-gather-and-base.md`; commit as
   `M8d: gather radial, context hexes, land claim, label pills`.
+
+## Note for Part A (owner) — `docs/reference/durango-tree-options-reference.webp`
+A tree (`Umbrella Thorn Acacia`, `Lv. 25`) shows **three** option hexes at once: `Leaf`
+(1.8 s, ×4), `Log` (4.1 s, ×1, with a small yellow axe badge = needs that tool),
+`Branch` (1.8 s, ×5). So: trees yield leaf/branch bare-handed and log with an axe;
+bushes yield leaf/berry/fibre; rocks pebble bare-handed and stone with a pick. The tool
+requirement is shown as a small tool badge on the hex (yellow when the tool is equipped,
+red no-entry when missing). Far label pills show the distance (`Boulder · 45 m`).
