@@ -97,3 +97,19 @@ subtle grid, textured ground, grass swaying (two frames 0.5 s apart differ), a b
 tile where a bush was harvested, and a berry bush and mud node on the grid. Headless
 `island_lab` prints `[world] tile bare (x,z)` when a node empties and
 `[world] tile regrown (x,z)` after regen (use a debug `--fast-regen` user arg ×20).
+
+## Addendum 2 (owner) — shoreline tiles, no swimming
+
+12. **Sand and water tiles are the island's border.** The last dry ring of the island is
+    a band of proper sand tiles (2–4 tiles wide, the sand texture from task 8, slightly
+    lower than the grass), then shallow water tiles (translucent, light blue, visible
+    sandy bottom), then deep water. Tile edges follow the 1 m grid so the border reads
+    as tiles, with a soft foam line where sand meets water. Heights: sand 0.15–0.35 m,
+    shallow water bottom −0.4 m, deep water −2.5 m.
+13. **The player cannot swim.** The navmesh is baked from land faces only (drop terrain
+    triangles whose centre is below 0.0 m before baking, so tap-to-walk never targets
+    water), and free movement is stopped at the water line: an invisible `StaticBody3D`
+    barrier ring (or a per-frame push-back in `Player._physics_process` when
+    `surface_y(x, z) < -0.05`) keeps the player on sand. Creatures use the same rule
+    through `spawn_ok` and the navmesh. Print `[world] shoreline blocked` once when the
+    player first bumps it (debug only).
