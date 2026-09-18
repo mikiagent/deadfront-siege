@@ -222,8 +222,11 @@ func _snapshot_harvest() -> void:
 			"pool": node.pool,
 			"pool_max": node.pool_max,
 			"session_gathered": node.session_gathered,
+			"regen_left": node.regen_left(),
 			"depleted": node.depleted, # backward compatibility while schema is still 1
 		}
+	if runtime and runtime.has_method("harvest_tile_snapshot"):
+		harvested["__tiles"] = runtime.harvest_tile_snapshot()
 
 func _apply_harvested(ir: Node) -> void:
 	for n in ir.get_tree().get_nodes_in_group("harvest"):
@@ -235,7 +238,11 @@ func _apply_harvested(ir: Node) -> void:
 			var pool_max := int(row.get("pool_max", node.pool_max))
 			var pool := float(row.get("pool", float(node.pool_max if not bool(row.get("depleted", false)) else 0.0)))
 			var session_gathered := int(row.get("session_gathered", node.session_gathered))
-			node.restore_snapshot(pool, pool_max, session_gathered)
+			var regen_left := float(row.get("regen_left", -1.0))
+			node.restore_snapshot(pool, pool_max, session_gathered, regen_left)
+	var tiles_v: Variant = harvested.get("__tiles", {})
+	if tiles_v is Dictionary and ir.has_method("apply_harvest_tile_snapshot"):
+		ir.apply_harvest_tile_snapshot(tiles_v as Dictionary)
 
 func _clear_runtime() -> void:
 	if runtime and is_instance_valid(runtime):

@@ -8,10 +8,13 @@ func _ready() -> void:
 	var kit := LabKit.build(self, 20.0)
 	_player = kit["player"]
 	_cam = kit["cam"]
-	_cam.size = 36.0
+	_cam.size = 19.0
 	_cam.distance = 28.0
 	var nav: Node = kit["nav"]
 	nav.visible = false
+	if Game.shot_path != "":
+		TouchControls.visible = false
+		TouchControls.enabled = false
 	LabKit.give(_player, &"work_axe", 1)
 	LabKit.give(_player, &"stone_knife_work", 1)
 	World.harvested.clear()
@@ -27,8 +30,11 @@ func _ready() -> void:
 		_player.global_position = Vector3(8.0, 2.0, -177.0)
 		if World.runtime.has_method("surface_y"):
 			_player.global_position.y = World.runtime.surface_y(_player.global_position.x, _player.global_position.z) + 1.2
-		_cam.size = 32.0
+		_cam.size = 17.0
 		_cam._snap()
+		call_deferred("_log_draw_calls", "crater")
+	elif Game.shot_path.contains("tiles"):
+		call_deferred("_shot_tiles_probe")
 	elif Game.shot_path != "":
 		call_deferred("_shot_ring_probe")
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
@@ -39,26 +45,32 @@ func _headless_gather_probe() -> void:
 	if World.runtime:
 		print("[world] mm=%d nodes=%d creatures=%d" % [
 			int(World.runtime.mm_count), int(World.runtime.harvest_count), int(World.runtime.creature_count)])
-	var node := _nearest_tree()
-	if node == null:
-		print("[item] gather probe failed: no tree")
-		get_tree().quit(1)
-		return
-	_tap_node(node)
-	var start := node.session_gathered
-	var timeout := 30.0
-	while timeout > 0.0:
-		await get_tree().create_timer(0.2).timeout
-		timeout -= 0.2
-		if not is_instance_valid(node):
-			break
-		var gained := node.session_gathered - start
-		if gained >= 5:
-			print("[item] gather 5/%d done" % node.pool_max)
-			get_tree().quit(0)
-			return
-	print("[item] gather probe timeout")
-	get_tree().quit(1)
+	if Game.fast_regen_mult > 1.0:
+		var berry := _nearest_family("berry_bush")
+		if berry:
+			berry.pool = 1.0
+			berry.consume_unit()
+			var wait_left := 8.0
+			while wait_left > 0.0 and berry.depleted:
+				await get_tree().create_timer(0.2).timeout
+				wait_left -= 0.2
+	get_tree().quit(0)
+
+func _shot_tiles_probe() -> void:
+	await _await_nav_ready()
+	var berry := _nearest_family("berry_bush")
+	if berry:
+		berry.pool = 1.0
+		berry.consume_unit()
+		var behind := (_player.global_position - berry.global_position).normalized()
+		if behind.length_squared() <= 0.0001:
+			behind = Vector3.FORWARD
+		_player.global_position = berry.global_position + behind * 2.2
+		if World.runtime and World.runtime.has_method("surface_y"):
+			_player.global_position.y = World.runtime.surface_y(_player.global_position.x, _player.global_position.z) + 1.0
+		_cam.size = 18.0
+		_cam._snap()
+		await _log_draw_calls("tiles")
 
 func _shot_ring_probe() -> void:
 	await _await_nav_ready()
@@ -75,6 +87,7 @@ func _shot_ring_probe() -> void:
 	_cam._snap()
 	_player._begin_gather(node)
 	_player._on_arrived()
+	await _log_draw_calls("camp")
 
 func _tap_node(node: HarvestNode) -> void:
 	if _player == null or _cam == null or node == null:
@@ -82,6 +95,19 @@ func _tap_node(node: HarvestNode) -> void:
 	var world := node.global_position + Vector3(0.0, node.top_of_node() * 0.5, 0.0)
 	var screen := _cam.unproject_position(world)
 	_player.debug_tap_screen(screen)
+
+func _nearest_family(family: String) -> HarvestNode:
+	for n in get_tree().get_nodes_in_group("harvest"):
+		var node := n as HarvestNode
+		if node and node.family == family:
+			return node
+	return null
+
+func _log_draw_calls(tag: String) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var draws := int(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
+	print("[world] draws %s=%d" % [tag, draws])
 
 func _nearest_tree() -> HarvestNode:
 	var best: HarvestNode

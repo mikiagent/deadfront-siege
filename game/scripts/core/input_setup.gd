@@ -21,6 +21,7 @@ const ACTIONS: Dictionary = {
 	"craft": [KEY_C],
 	"debug_toggle": [KEY_F3],
 	"touch_toggle": [KEY_F4],
+	"show_grid": [KEY_F6],
 	"bandage": [KEY_B],
 	"hunt_chase": [KEY_H],
 	"map": [KEY_M],

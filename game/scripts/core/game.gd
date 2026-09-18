@@ -15,10 +15,12 @@ var lab_name: String = ""
 var time_scale: float = 1.0
 ## ASSUMPTION: mobile island cap. Spawners should not exceed this.
 var max_creatures_per_island: int = 24
+var show_grid: bool = true
 ## Lab-only: number keys force creature clips (creature_lab) instead of hunt tactics.
 var lab_force_clips: bool = false
 ## Lab-only: F deals a flat 100 damage to the nearest creature.
 var lab_flat_attack: bool = false
+var fast_regen_mult: float = 1.0
 var shot_path: String = ""
 var pointer: Vector2 = Vector2.ZERO
 
@@ -36,6 +38,10 @@ func _ready() -> void:
 		elif a.begins_with("--shot="):
 			shot_path = a.substr(7)
 			debug_overlay = false
+		elif a == "--fast-regen":
+			fast_regen_mult = 20.0
+		elif a.begins_with("--fast-regen="):
+			fast_regen_mult = maxf(1.0, float(a.substr(13)))
 	print("[boot] Game autoload ready. smoke_test=%s lab=%s godot=%s" % [
 		smoke_test, lab_name if lab_name != "" else "-", Engine.get_version_info().string])
 	_make_perf()
@@ -59,6 +65,9 @@ func _make_perf() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("debug_toggle"):
 		debug_overlay = not debug_overlay
+	elif event.is_action_pressed("show_grid"):
+		show_grid = not show_grid
+		print("[world] grid %s" % ("on" if show_grid else "off"))
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:

@@ -2,6 +2,9 @@ class_name HarvestNode
 extends StaticBody3D
 ## Click-to-gather world node. Player paths here, waits, then receives a stamped stack.
 
+signal depleted_tile(node: HarvestNode, tile: Vector2i)
+signal regrown_tile(node: HarvestNode, tile: Vector2i)
+
 @export var node_id: StringName = &"node"
 @export var required_tool_class: StringName = &"none"
 @export var regen_seconds: float = 8.0
@@ -21,6 +24,8 @@ var pool: float = 0.0
 var session_gathered: int = 0
 var _mesh: MeshInstance3D
 var _falling: bool = false
+var _tile: Vector2i = Vector2i.ZERO
+var _regen_left: float = 0.0
 
 func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Dictionary, tool: StringName, color: Color, gather: float = 1.2, regen: float = 8.0, p_family: String = "", p_falls: bool = false, p_pool_max: int = 0) -> void:
 	node_id = p_id
@@ -38,13 +43,16 @@ func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Di
 	if pool <= 0.0:
 		pool = float(pool_max)
 	depleted = pool_units_left() <= 0
+	_regen_left = regen_seconds if depleted else 0.0
 	_apply_tint()
 
 func _ready() -> void:
 	var runtime := get_parent()
 	if runtime and runtime.has_method("surface_y"):
-		var tile := BuildGrid.tile_of(global_position)
-		global_position = BuildGrid.tile_centre(tile, runtime)
+		_tile = BuildGrid.tile_of(global_position)
+		global_position = BuildGrid.tile_centre(_tile, runtime)
+	else:
+		_tile = BuildGrid.tile_of(global_position)
 	add_to_group("harvest")
 	collision_layer = 1
 	collision_mask = 0
@@ -75,9 +83,16 @@ func _ready() -> void:
 	_apply_tint()
 
 func _process(delta: float) -> void:
-	if regen_seconds > 0.0 and depleted and pool < float(pool_max):
-		pool = minf(float(pool_max), pool + delta * (float(pool_max) / regen_seconds))
-	_sync_visual_state()
+	if not depleted or regen_seconds <= 0.0:
+		return
+	if _regen_left <= 0.0:
+		_regen_left = regen_seconds
+	_regen_left = maxf(0.0, _regen_left - delta * Game.fast_regen_mult)
+	if _regen_left <= 0.0:
+		pool = float(pool_max)
+		depleted = false
+		_sync_visual_state()
+		regrown_tile.emit(self, _tile)
 
 func can_gather(inv: Inventory) -> String:
 	if pool_units_left() <= 0:
@@ -113,11 +128,16 @@ func top_of_node() -> float:
 		return shape.position.y + box.size.y * 0.5
 	return 1.6
 
-func restore_snapshot(saved_pool: float, saved_max: int, saved_session: int = 0) -> void:
+func restore_snapshot(saved_pool: float, saved_max: int, saved_session: int = 0, saved_regen_left: float = -1.0) -> void:
 	if saved_max > 0:
 		pool_max = saved_max
 	pool = clampf(saved_pool, 0.0, float(maxi(1, pool_max)))
 	session_gathered = maxi(0, saved_session)
+	depleted = pool_units_left() <= 0
+	if saved_regen_left >= 0.0:
+		_regen_left = saved_regen_left
+	else:
+		_regen_left = regen_seconds if depleted else 0.0
 	_sync_visual_state()
 
 func mark_gathered() -> void:
@@ -151,7 +171,7 @@ func set_visual(path: String) -> void:
 
 func _apply_vis_range(n: Node) -> void:
 	if n is GeometryInstance3D:
-		(n as GeometryInstance3D).visibility_range_end = 70.0
+		(n as GeometryInstance3D).visibility_range_end = 30.0
 		(n as GeometryInstance3D).visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 	for c in n.get_children():
 		_apply_vis_range(c)
@@ -165,6 +185,8 @@ func _apply_tint() -> void:
 
 func _on_pool_empty() -> void:
 	depleted = true
+	_regen_left = regen_seconds
+	depleted_tile.emit(self, _tile)
 	if falls_to_log and not _falling:
 		_falling = true
 		collision_layer = 0
@@ -182,27 +204,17 @@ func _on_pool_empty() -> void:
 func _sync_visual_state() -> void:
 	depleted = pool_units_left() <= 0
 	if depleted:
-		if regen_seconds <= 0.0:
-			return
-		if falls_to_log:
-			# Tree trunk stays hidden while the pool rebuilds.
-			if pool >= 1.0:
-				rotation = Vector3.ZERO
-				visible = true
-				collision_layer = 1
-				_falling = false
-			else:
-				visible = false
-				collision_layer = 0
-		else:
-			visible = false
-			collision_layer = 0
-			if pool >= 1.0:
-				visible = true
-				collision_layer = 1
-	else:
-		visible = true
-		collision_layer = 1
+		visible = false
+		collision_layer = 0
+		return
+	if falls_to_log:
+		rotation = Vector3.ZERO
+		_falling = false
+	visible = true
+	collision_layer = 1
+
+func regen_left() -> float:
+	return _regen_left
 
 func _collision_size() -> Vector3:
 	var wide := _is_tree_or_rock()

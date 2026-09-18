@@ -55,6 +55,9 @@ var _hold_walk_candidate: bool = false
 var _hold_walk_elapsed: float = 0.0
 var _hold_walk_retarget_left: float = 0.0
 var _touch_context: StringName = &"explore"
+var _shoreline_logged: bool = false
+var _lantern: OmniLight3D
+var _lantern_phase: float = randf() * TAU
 var _force_clip_map: Array[StringName] = [
 	&"idle", &"walk", &"run", &"attack_primary", &"attack_heavy",
 	&"hit_react", &"knockdown", &"death", &"alert",
@@ -84,6 +87,7 @@ func _ready() -> void:
 	placer.name = "Placer"
 	add_child(placer)
 	_setup_survivor()
+	_setup_lantern()
 	_setup_ground_marker()
 	_setup_gather_ring()
 	vitals.damaged.connect(_on_vitals_damaged)
@@ -181,6 +185,8 @@ func _physics_process(delta: float) -> void:
 		if _gather_left <= 0.0:
 			_finish_gather()
 	move_and_slide()
+	_shoreline_guard()
+	_drive_lantern()
 	if anim:
 		var spd := Vector2(velocity.x, velocity.z).length()
 		anim._physics_tick(spd)
@@ -904,3 +910,47 @@ func _fall_guard() -> void:
 	velocity = Vector3.ZERO
 	global_position.y = y
 	print("[player] fell out of the world; re-seated at y=%.2f" % y)
+
+func _shoreline_guard() -> void:
+	if World.runtime == null or not World.runtime.has_method("surface_y"):
+		return
+	if World.runtime.surface_y(global_position.x, global_position.z) >= -0.05:
+		return
+	var out := Vector2(global_position.x, global_position.z)
+	if out.length_squared() < 0.0001:
+		out = Vector2(0.0, 1.0)
+	var inward := -out.normalized()
+	global_position.x += inward.x * 0.55
+	global_position.z += inward.y * 0.55
+	velocity.x = 0.0
+	velocity.z = 0.0
+	if not _shoreline_logged and Game.debug_overlay:
+		_shoreline_logged = true
+		print("[world] shoreline blocked")
+
+func _setup_lantern() -> void:
+	_lantern = OmniLight3D.new()
+	_lantern.name = "HipLantern"
+	_lantern.omni_range = 9.0
+	_lantern.light_color = Color(1.0, 0.85, 0.6)
+	_lantern.light_energy = 0.0
+	_lantern.shadow_enabled = false
+	var anchor := hips_anchor()
+	if anchor:
+		anchor.add_child(_lantern)
+		_lantern.position = Vector3.ZERO
+	else:
+		add_child(_lantern)
+		_lantern.position = Vector3(0.0, 0.9, 0.0)
+
+func _drive_lantern() -> void:
+	if _lantern == null:
+		return
+	var anchor := hips_anchor()
+	if anchor and _lantern.get_parent() != anchor:
+		_lantern.reparent(anchor)
+		_lantern.position = Vector3.ZERO
+	var from_noon := absf(Game.time_of_day - 0.5) * 2.0
+	var night := smoothstep(0.35, 1.0, from_noon)
+	var flicker := 1.0 + sin((Time.get_ticks_msec() * 0.001) * 7.0 + _lantern_phase) * 0.05
+	_lantern.light_energy = 2.2 * night * flicker

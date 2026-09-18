@@ -38,6 +38,7 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> 
 	pack_id = p_pack
 	add_to_group("creatures")
 	view.setup(def, variant)
+	_set_vis_range(view, 26.0)
 	health.setup(def.hp)
 	# ASSUMPTION: pet hunger budget is 0.4 * wild HP when JSON has no hunger field.
 	hunger_max = def.hp * 0.4
@@ -264,3 +265,10 @@ func _fall_guard() -> void:
 	velocity = Vector3.ZERO
 	global_position.y = y
 	print("[creature] %s fell out of the world; re-seated at y=%.2f" % [def.id if def else "?", y])
+
+func _set_vis_range(n: Node, end_dist: float) -> void:
+	if n is GeometryInstance3D:
+		(n as GeometryInstance3D).visibility_range_end = end_dist
+		(n as GeometryInstance3D).visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+	for c in n.get_children():
+		_set_vis_range(c, end_dist)

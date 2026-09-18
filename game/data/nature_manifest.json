@@ -172,6 +172,68 @@
       "tool_class": null,
       "collision": "none"
     },
+    "berry_bush": {
+      "models": [
+        "BushBerries_1",
+        "BushBerries_2"
+      ],
+      "role": "bush",
+      "climates": [
+        "temperate",
+        "grassland"
+      ],
+      "harvest": {
+        "berry": [
+          1,
+          2
+        ]
+      },
+      "tool_class": null,
+      "collision": "none",
+      "pool": 10
+    },
+    "mud": {
+      "models": [
+        "Rock_1",
+        "Rock_2"
+      ],
+      "role": "node",
+      "climates": [
+        "temperate",
+        "grassland",
+        "swamp"
+      ],
+      "harvest": {
+        "mud": [
+          1,
+          1
+        ]
+      },
+      "tool_class": null,
+      "collision": "none",
+      "pool": 8
+    },
+    "clay": {
+      "models": [
+        "Rock_3",
+        "Rock_4"
+      ],
+      "role": "node",
+      "climates": [
+        "temperate",
+        "grassland",
+        "swamp"
+      ],
+      "harvest": {
+        "clay": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "none",
+      "pool": 8
+    },
     "Bush_Snow": {
       "models": [
         "Bush_Snow_1",
@@ -732,6 +794,26 @@
       },
       "tool_class": "axe",
       "collision": "box"
+    },
+    "tree_stump": {
+      "models": [
+        "TreeStump",
+        "TreeStump_Moss"
+      ],
+      "role": "prop",
+      "climates": [
+        "temperate",
+        "grassland"
+      ],
+      "harvest": {
+        "wood_log": [
+          2,
+          2
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "box",
+      "pool": 2
     },
     "TreeStump_Snow": {
       "models": [

@@ -45,6 +45,13 @@
       "clear",
       "rain"
     ],
+    "palette": {
+      "grass": "#6f8f4f",
+      "dry": "#7f7a52",
+      "dirt": "#70563d",
+      "sand": "#c6b184",
+      "rock": "#72726f"
+    },
     "day_night": true
   },
   "savannah": {
@@ -89,6 +96,13 @@
       "clear",
       "scorching"
     ],
+    "palette": {
+      "grass": "#7d7643",
+      "dry": "#8a7f4e",
+      "dirt": "#77593a",
+      "sand": "#ceb47b",
+      "rock": "#80786e"
+    },
     "day_night": true
   },
   "temperate": {
@@ -149,6 +163,13 @@
       "rain",
       "overcast"
     ],
+    "palette": {
+      "grass": "#66884a",
+      "dry": "#79805d",
+      "dirt": "#6d543d",
+      "sand": "#c8b58a",
+      "rock": "#6f716f"
+    },
     "day_night": true
   },
   "tropical": {

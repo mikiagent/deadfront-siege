@@ -1,6 +1,28 @@
 extends Node3D
 ## Generates a private or unstable island: heightmap, nav, harvest, harbour, camp, crater.
 
+const TERRAIN_SHADER: Shader = preload("res://scripts/world/terrain_tiles.gdshader")
+const FOLIAGE_SHADER: Shader = preload("res://scripts/world/foliage_sway.gdshader")
+const TERRAIN_TEX := {
+	"grass": "res://assets/terrain/aerial_grass_rock_diff_1k.jpg",
+	"dirt": "res://assets/terrain/brown_mud_leaves_01_diff_1k.jpg",
+	"sand": "res://assets/terrain/aerial_beach_01_diff_1k.jpg",
+	"rock": "res://assets/terrain/rocky_trail_diff_1k.jpg",
+}
+
+enum TileType {
+	GRASS = 0,
+	DRY = 1,
+	DIRT = 2,
+	SAND = 3,
+	SHALLOW = 4,
+	ROCK = 5,
+	MUD = 6,
+	BARE = 7,
+	DEEP = 8,
+	ASH = 9,
+}
+
 var harvest_count: int = 0
 var creature_count: int = 0
 var mm_count: int = 0
@@ -21,6 +43,22 @@ var _climate: String = "temperate"
 var _tier: int = 25
 var _camp_pos: Vector3 = Vector3.ZERO
 var _harbour_pos: Vector3 = Vector3.ZERO
+var _camp_hint: Vector3 = Vector3.ZERO
+var _crater_pos: Vector3 = Vector3.ZERO
+var _crater_hint: Vector3 = Vector3.ZERO
+var _ridge_dir: Vector2 = Vector2.RIGHT
+var _tile_span: int = 0
+var tile_types: PackedByteArray = PackedByteArray()
+var _tile_base: PackedByteArray = PackedByteArray()
+var _tile_map_image: Image
+var _tile_map_tex: ImageTexture
+var _terrain_mat: ShaderMaterial
+var _foliage_mat: ShaderMaterial
+var _sky_mat: ProceduralSkyMaterial
+var _palette: Dictionary = {}
+var _node_tiles: Dictionary = {}
+var _harvest_nodes: Dictionary = {}
+var _bare_tiles: Dictionary = {}
 var spawn_rejected: int = 0
 var build_grid: BuildGrid
 
@@ -59,6 +97,13 @@ func build(def: Dictionary, terrain: StringName) -> void:
 				size = maxf(size, float(span[1]) * 2.0)
 	_climate = str(def.get("climate", "grassland"))
 	_tier = int(def.get("tier", 10))
+	var harbour_a: Array = def.get("harbour", [0, 0, 12])
+	var camp_a: Array = def.get("camp", [0, 0, 6])
+	_camp_hint = Vector3(float(camp_a[0]), 0.0, float(camp_a[2]))
+	var crater_v: Variant = def.get("crater", null)
+	_crater_hint = Vector3.ZERO
+	if crater_v is Array and (crater_v as Array).size() >= 3:
+		_crater_hint = Vector3(float(crater_v[0]), 0.0, float(crater_v[2]))
 	_env()
 	_sun()
 	_terrain(size, _climate)
@@ -66,10 +111,10 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	build_grid.name = "BuildGrid"
 	build_grid.setup(self)
 	add_child(build_grid)
-	var harbour_a: Array = def.get("harbour", [0, 0, 12])
-	var camp_a: Array = def.get("camp", [0, 0, 6])
 	_camp_pos = _tile_at(float(camp_a[0]), float(camp_a[2]))
 	_harbour_pos = _tile_at(float(harbour_a[0]), float(harbour_a[2]))
+	if _crater_hint != Vector3.ZERO:
+		_crater_pos = _tile_at(_crater_hint.x, _crater_hint.z)
 	harbour = (load("res://scripts/world/harbour.gd") as GDScript).new()
 	harbour.position = _harbour_pos
 	add_child(harbour)
@@ -89,10 +134,10 @@ func build(def: Dictionary, terrain: StringName) -> void:
 		build_grid.reserve_kind(&"basket", BuildGrid.tile_of(cargo_basket.position), 0)
 	_scatter(def, terrain, _climate, _tier, size)
 	_creatures(def)
-	var crater_v: Variant = def.get("crater", null)
 	if crater_v is Array:
 		_crater(_at(float(crater_v[0]), float(crater_v[2])))
 	_rain_layer()
+	_drive_terrain_focus()
 	print("[world] island %s nodes=%d creatures=%d spawn_rejected=%d" % [def.get("id", ""), harvest_count, creature_count, spawn_rejected])
 
 func _env() -> void:
@@ -103,28 +148,43 @@ func _env() -> void:
 			old_sun.visible = false
 	world_env = get_tree().root.find_child("WorldEnvironment", true, false) as WorldEnvironment
 	if world_env and world_env.environment:
-		world_env.environment.background_color = Color(0.55, 0.72, 0.90)
+		_apply_env_setup(world_env.environment)
 		world_env.environment.ambient_light_energy = 0.95
 		world_env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		world_env.environment.ambient_light_color = Color(0.92, 0.94, 0.88)
 		return
 	world_env = WorldEnvironment.new()
 	var e := Environment.new()
-	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.55, 0.72, 0.90)
+	_apply_env_setup(e)
+	world_env.environment = e
+	add_child(world_env)
+
+func _apply_env_setup(e: Environment) -> void:
+	e.background_mode = Environment.BG_SKY
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color(0.92, 0.94, 0.88)
 	e.ambient_light_energy = 0.95
 	e.ssao_enabled = false
 	e.ssr_enabled = false
 	e.glow_enabled = false
-	e.fog_enabled = false
-	world_env.environment = e
-	add_child(world_env)
+	e.fog_enabled = true
+	e.fog_density = 0.0022
+	e.fog_light_color = Color(0.64, 0.74, 0.83)
+	e.fog_sun_scatter = 0.0
+	e.fog_height = 0.0
+	e.fog_aerial_perspective = 0.2
+	_sky_mat = ProceduralSkyMaterial.new()
+	_sky_mat.sky_top_color = Color(0.20, 0.42, 0.66)
+	_sky_mat.sky_horizon_color = Color(0.66, 0.78, 0.92)
+	_sky_mat.ground_bottom_color = Color(0.06, 0.08, 0.10)
+	_sky_mat.ground_horizon_color = Color(0.24, 0.29, 0.34)
+	var sky := Sky.new()
+	sky.sky_material = _sky_mat
+	e.sky = sky
 
 func _sun() -> void:
 	sun = DirectionalLight3D.new()
-	sun.shadow_enabled = OS.get_name() != "iOS"
+	sun.shadow_enabled = false
 	sun.directional_shadow_max_distance = 90.0
 	sun.light_energy = 1.45
 	sun.light_color = Color(1.0, 0.97, 0.90)
@@ -133,6 +193,7 @@ func _sun() -> void:
 
 func _process(delta: float) -> void:
 	_drive_day()
+	_drive_terrain_focus()
 	_weather(delta)
 
 func surface_y(x: float, z: float) -> float:
@@ -178,64 +239,107 @@ func material_level(pos: Vector3, tier: int) -> int:
 
 func _terrain(size: float, climate: String) -> void:
 	_size = size
+	_res = 129 if size >= 200.0 else 65
 	_heights.resize(_res * _res)
-	var noise := FastNoiseLite.new()
-	noise.seed = 25 if climate == "temperate" else 17
-	noise.frequency = 0.018
+	var seed := 25 if climate == "temperate" else 17
+	var n0 := FastNoiseLite.new()
+	n0.seed = seed
+	n0.frequency = 0.012
+	var n1 := FastNoiseLite.new()
+	n1.seed = seed + 101
+	n1.frequency = 0.03
+	var n2 := FastNoiseLite.new()
+	n2.seed = seed + 211
+	n2.frequency = 0.08
+	var rr := RandomNumberGenerator.new()
+	rr.seed = int(seed) * 131
+	var ridge_ang := rr.randf() * TAU
+	_ridge_dir = Vector2(cos(ridge_ang), sin(ridge_ang)).normalized()
 	var cell := size / float(_res - 1)
+	var beach0 := size * 0.40
+	var beach1 := size * 0.46
 	for z in _res:
 		for x in _res:
 			var wx := -size * 0.5 + float(x) * cell
 			var wz := -size * 0.5 + float(z) * cell
-			var h := 2.2 + noise.get_noise_2d(wx, wz) * 2.4
+			var h := 2.4
+			h += n0.get_noise_2d(wx, wz) * 3.5
+			h += n1.get_noise_2d(wx, wz) * 1.2
+			h += n2.get_noise_2d(wx, wz) * 0.35
 			var rad := Vector2(wx, wz).length()
-			var edge := size * 0.46
-			if rad > edge:
-				h = lerpf(h, -2.2, clampf((rad - edge) / (size * 0.08), 0.0, 1.0))
-			elif rad > size * 0.40:
-				h = lerpf(h, 0.35, clampf((rad - size * 0.40) / (size * 0.06), 0.0, 1.0))
-			var river := absf(wz - sin(wx * 0.04) * 8.0)
-			if river < 4.5 and rad > 32.0:
-				h = minf(h, 0.12 - (4.5 - river) * 0.08)
+			if rad > size * 0.16 and rad < beach0:
+				var dir := Vector2(wx, wz).normalized()
+				var along := maxf(0.0, dir.dot(_ridge_dir))
+				var cross := absf(dir.dot(Vector2(-_ridge_dir.y, _ridge_dir.x)))
+				var width := clampf(1.0 - cross / 0.55, 0.0, 1.0)
+				var inland := clampf((rad - size * 0.16) / (beach0 - size * 0.16), 0.0, 1.0)
+				h += 5.0 * along * width * sin(inland * PI)
+			var river_center := sin(wx * 0.018 + float(seed) * 0.13) * (size * 0.085)
+			var river := absf(wz - river_center)
+			if river < 3.0 and rad > size * 0.16 and rad < size * 0.44:
+				var carve := clampf(1.0 - river / 3.0, 0.0, 1.0)
+				var bed := -0.32 + (1.0 - carve) * 0.28
+				h = lerpf(h, bed, carve * carve)
+			if _crater_hint != Vector3.ZERO:
+				var dc := Vector2(wx - _crater_hint.x, wz - _crater_hint.z).length()
+				if dc < 12.0:
+					var bowl := pow(clampf(1.0 - dc / 12.0, 0.0, 1.0), 2.0)
+					h -= bowl * 1.5
+				var rim := clampf(1.0 - absf(dc - 12.0) / 4.0, 0.0, 1.0)
+				h += rim * 0.6
+			if rad > beach0:
+				var t := clampf((rad - beach0) / maxf(0.001, beach1 - beach0), 0.0, 1.0)
+				var eased := 1.0 - pow(1.0 - t, 2.2)
+				h = lerpf(h, -2.5, eased)
+			if _camp_hint != Vector3.ZERO:
+				var camp_d := Vector2(wx - _camp_hint.x, wz - _camp_hint.z).length()
+				if camp_d < 16.0:
+					var s := clampf(1.0 - camp_d / 16.0, 0.0, 1.0)
+					h = lerpf(h, maxf(h, 1.2), s * 0.22)
 			_heights[x + z * _res] = h
+	_build_tile_types(climate)
 	_build_terrain_mesh(size, cell, climate)
 	_sea(size)
 	_river_trigger()
 	_nav_bake()
 
 func _build_terrain_mesh(size: float, cell: float, climate: String) -> void:
-	var grass := Color(0.42, 0.62, 0.32) if climate != "savannah" else Color(0.62, 0.56, 0.32)
-	var sand := Color(0.82, 0.74, 0.52)
-	var dirt := Color(0.42, 0.32, 0.20)
+	_palette = _palette_for(climate)
+	_terrain_mat = _terrain_material()
 	var body := StaticBody3D.new()
 	body.name = "Floor"
-	var tiles := 4
+	var tiles := 8 if _res >= 129 else 4
 	var span := int((_res - 1) / tiles)
 	for tz in tiles:
 		for tx in tiles:
 			var st := SurfaceTool.new()
+			var nav_st := SurfaceTool.new()
 			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			nav_st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			st.set_smooth_group(0)
 			var x0 := tx * span
 			var z0 := tz * span
 			var x1 := _res - 1 if tx == tiles - 1 else (tx + 1) * span
 			var z1 := _res - 1 if tz == tiles - 1 else (tz + 1) * span
 			for z in range(z0, z1):
 				for x in range(x0, x1):
-					_tri(st, size, cell, x, z, grass, sand, dirt)
-					_tri2(st, size, cell, x, z, grass, sand, dirt)
+					_tri(st, nav_st, size, cell, x, z)
+					_tri2(st, nav_st, size, cell, x, z)
 			st.generate_normals()
+			st.generate_tangents()
 			var mi := MeshInstance3D.new()
 			mi.name = "TerrainMesh_%d_%d" % [tx, tz]
 			mi.mesh = st.commit()
-			var mat := StandardMaterial3D.new()
-			mat.vertex_color_use_as_albedo = true
-			mat.roughness = 1.0
-			mat.metallic = 0.0
-			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			mi.material_override = mat
+			mi.material_override = _terrain_mat
 			mi.extra_cull_margin = 80.0
 			body.add_child(mi)
+			var nav_mesh := nav_st.commit()
+			if nav_mesh:
+				var nav_src := MeshInstance3D.new()
+				nav_src.name = "TerrainNav_%d_%d" % [tx, tz]
+				nav_src.mesh = nav_mesh
+				nav_src.visible = false
+				body.add_child(nav_src)
 	var cs := CollisionShape3D.new()
 	var hs := HeightMapShape3D.new()
 	hs.map_width = _res
@@ -247,43 +351,154 @@ func _build_terrain_mesh(size: float, cell: float, climate: String) -> void:
 	body.add_child(cs)
 	add_child(body)
 
-func _tri(st: SurfaceTool, size: float, cell: float, x: int, z: int, grass: Color, sand: Color, dirt: Color) -> void:
-	_vert(st, size, cell, x, z, grass, sand, dirt)
-	_vert(st, size, cell, x + 1, z, grass, sand, dirt)
-	_vert(st, size, cell, x, z + 1, grass, sand, dirt)
+func _tri(st: SurfaceTool, nav_st: SurfaceTool, size: float, cell: float, x: int, z: int) -> void:
+	var p0 := _vpos(size, cell, x, z)
+	var p1 := _vpos(size, cell, x + 1, z)
+	var p2 := _vpos(size, cell, x, z + 1)
+	_v(st, p0)
+	_v(st, p1)
+	_v(st, p2)
+	_nav_tri(nav_st, p0, p1, p2)
 
-func _tri2(st: SurfaceTool, size: float, cell: float, x: int, z: int, grass: Color, sand: Color, dirt: Color) -> void:
-	_vert(st, size, cell, x + 1, z, grass, sand, dirt)
-	_vert(st, size, cell, x + 1, z + 1, grass, sand, dirt)
-	_vert(st, size, cell, x, z + 1, grass, sand, dirt)
+func _tri2(st: SurfaceTool, nav_st: SurfaceTool, size: float, cell: float, x: int, z: int) -> void:
+	var p0 := _vpos(size, cell, x + 1, z)
+	var p1 := _vpos(size, cell, x + 1, z + 1)
+	var p2 := _vpos(size, cell, x, z + 1)
+	_v(st, p0)
+	_v(st, p1)
+	_v(st, p2)
+	_nav_tri(nav_st, p0, p1, p2)
 
-func _vert(st: SurfaceTool, size: float, cell: float, x: int, z: int, grass: Color, sand: Color, dirt: Color) -> void:
+func _vpos(size: float, cell: float, x: int, z: int) -> Vector3:
 	var wx := -size * 0.5 + float(x) * cell
 	var wz := -size * 0.5 + float(z) * cell
-	var h := _heights[x + z * _res]
-	var col := grass
-	if h < 0.05:
-		col = sand
-	if h < -0.2:
-		col = Color(0.28, 0.46, 0.58)
-	var rad := Vector2(wx, wz).length()
-	if rad > 150.0 and h > 0.4:
-		col = dirt
-	st.set_color(col)
-	st.add_vertex(Vector3(wx, h, wz))
+	return Vector3(wx, _heights[x + z * _res], wz)
+
+func _v(st: SurfaceTool, p: Vector3) -> void:
+	st.set_smooth_group(0)
+	st.set_color(_terrain_color(p))
+	st.set_uv(Vector2(p.x, p.z) / 6.0)
+	st.add_vertex(p)
+
+func _terrain_color(p: Vector3) -> Color:
+	var slope := _slope_deg(p.x, p.z)
+	var col := _tile_color(_tile_type_at_world(p.x, p.z))
+	if slope > 40.0 and p.y > 0.25:
+		col = _tile_color(TileType.ROCK)
+	if p.y > 5.5:
+		col = _tile_color(TileType.ROCK)
+	var jitter := 0.88 + _noise_jitter(p.x, p.z) * 0.18
+	col.r *= jitter
+	col.g *= jitter
+	col.b *= jitter
+	var camp_d := Vector2(p.x - _camp_hint.x, p.z - _camp_hint.z).length()
+	if camp_d < 13.0:
+		var s := clampf(1.0 - camp_d / 13.0, 0.0, 1.0)
+		col = col.lerp(Color(0.56, 0.68, 0.44), s * 0.42)
+	var crater_d := Vector2(p.x - _crater_hint.x, p.z - _crater_hint.z).length()
+	if _crater_hint != Vector3.ZERO and crater_d < 14.0:
+		var bowl := clampf(1.0 - crater_d / 14.0, 0.0, 1.0)
+		col = col.lerp(Color(0.23, 0.20, 0.18), bowl * 0.85)
+	if _crater_hint != Vector3.ZERO:
+		var rim := clampf(1.0 - absf(crater_d - 11.0) / 4.0, 0.0, 1.0)
+		if rim > 0.0:
+			col = col.lerp(Color(0.30, 0.26, 0.23), rim * 0.65)
+	return col
+
+func _tile_color(tile_type: int) -> Color:
+	match tile_type:
+		TileType.DRY:
+			return _palette.get("dry", Color(0.58, 0.56, 0.34))
+		TileType.DIRT:
+			return _palette.get("dirt", Color(0.40, 0.32, 0.22))
+		TileType.SAND:
+			return _palette.get("sand", Color(0.79, 0.72, 0.54))
+		TileType.SHALLOW:
+			return Color(0.60, 0.78, 0.84)
+		TileType.DEEP:
+			return Color(0.22, 0.39, 0.56)
+		TileType.ROCK:
+			return _palette.get("rock", Color(0.46, 0.45, 0.44))
+		TileType.MUD:
+			return Color(0.34, 0.27, 0.20)
+		TileType.BARE:
+			return Color(0.44, 0.33, 0.23)
+		TileType.ASH:
+			return Color(0.34, 0.33, 0.33)
+		_:
+			return _palette.get("grass", Color(0.42, 0.62, 0.32))
+
+func _noise_jitter(x: float, z: float) -> float:
+	return 0.5 + 0.5 * sin(x * 0.11 + z * 0.07 + sin(z * 0.03))
+
+func _nav_tri(nav_st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3) -> void:
+	var c := (p0 + p1 + p2) / 3.0
+	if c.y < 0.0:
+		return
+	nav_st.add_vertex(p0)
+	nav_st.add_vertex(p1)
+	nav_st.add_vertex(p2)
 
 func _sea(size: float) -> void:
+	var deep := MeshInstance3D.new()
+	var dplane := PlaneMesh.new()
+	dplane.size = Vector2(size * 1.8, size * 1.8)
+	deep.mesh = dplane
+	deep.position.y = -2.5
+	deep.extra_cull_margin = 320.0
+	var dmat := StandardMaterial3D.new()
+	dmat.albedo_color = Color(0.10, 0.22, 0.35, 1.0)
+	dmat.roughness = 0.95
+	dmat.cull_mode = BaseMaterial3D.CULL_BACK
+	deep.material_override = dmat
+	add_child(deep)
 	var water := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(size * 1.6, size * 1.6)
 	water.mesh = plane
-	water.position.y = -1.1
+	water.position.y = -0.1
 	water.extra_cull_margin = 300.0
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.22, 0.42, 0.60, 0.85)
+	mat.albedo_color = Color(0.24, 0.55, 0.72, 0.62)
+	mat.roughness = 0.9
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	mat.cull_mode = BaseMaterial3D.CULL_BACK
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	water.material_override = mat
 	add_child(water)
+	var foam := _foam_ring(size * 0.45, 3.0)
+	if foam:
+		add_child(foam)
+
+func _foam_ring(radius: float, width: float) -> MeshInstance3D:
+	var segs := 180
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in segs:
+		var a0 := float(i) / float(segs) * TAU
+		var a1 := float(i + 1) / float(segs) * TAU
+		var i0 := Vector3(cos(a0) * radius, -0.05, sin(a0) * radius)
+		var i1 := Vector3(cos(a1) * radius, -0.05, sin(a1) * radius)
+		var o0 := Vector3(cos(a0) * (radius + width), -0.02, sin(a0) * (radius + width))
+		var o1 := Vector3(cos(a1) * (radius + width), -0.02, sin(a1) * (radius + width))
+		st.set_color(Color(1, 1, 1, 0.38))
+		st.add_vertex(i0)
+		st.add_vertex(i1)
+		st.add_vertex(o0)
+		st.set_color(Color(1, 1, 1, 0.38))
+		st.add_vertex(i1)
+		st.add_vertex(o1)
+		st.add_vertex(o0)
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mi.material_override = mat
+	mi.extra_cull_margin = 220.0
+	return mi
 
 func _river_trigger() -> void:
 	_wet_area = Area3D.new()
@@ -317,7 +532,7 @@ func _nav_bake() -> void:
 	var floor := get_node_or_null("Floor")
 	if floor:
 		for c in floor.get_children():
-			if c is MeshInstance3D:
+			if c is MeshInstance3D and String(c.name).begins_with("TerrainNav_"):
 				var dup: Node = c.duplicate()
 				dup.name = String(c.name) + "_nav"
 				nav.add_child(dup)
@@ -325,30 +540,6 @@ func _nav_bake() -> void:
 
 func _camp(at: Vector3) -> void:
 	_coziness(at)
-	var pad := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 9.0
-	cyl.bottom_radius = 9.0
-	cyl.height = 0.12
-	pad.mesh = cyl
-	pad.position = at + Vector3(0, 0.06, 0)
-	var pmat := StandardMaterial3D.new()
-	pmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	pmat.albedo_color = Color(0.45, 0.58, 0.30)
-	pad.material_override = pmat
-	pad.extra_cull_margin = 80.0
-	add_child(pad)
-	var ground := MeshInstance3D.new()
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(36, 36)
-	ground.mesh = plane
-	ground.position = at + Vector3(0, 0.02, 0)
-	var gmat := StandardMaterial3D.new()
-	gmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	gmat.albedo_color = Color(0.38, 0.58, 0.28)
-	ground.material_override = gmat
-	ground.extra_cull_margin = 80.0
-	add_child(ground)
 	var fire := Bonfire.make()
 	fire.persist_building = false
 	var fire_cell := BuildGrid.tile_of(at + Vector3(-2.0, 0.0, 0.0))
@@ -398,29 +589,6 @@ func _crater(at: Vector3) -> void:
 			World.discover_crater()
 	)
 	add_child(area)
-	var mesh := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 7.0
-	cyl.bottom_radius = 8.0
-	cyl.height = 0.5
-	mesh.mesh = cyl
-	mesh.position = at + Vector3(0, 0.15, 0)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.38, 0.24, 0.18)
-	mesh.material_override = mat
-	mesh.extra_cull_margin = 80.0
-	add_child(mesh)
-	var cpad := MeshInstance3D.new()
-	var cplane := PlaneMesh.new()
-	cplane.size = Vector2(28, 28)
-	cpad.mesh = cplane
-	cpad.position = at + Vector3(0, 0.02, 0)
-	var cmat := StandardMaterial3D.new()
-	cmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	cmat.albedo_color = Color(0.40, 0.28, 0.20)
-	cpad.material_override = cmat
-	cpad.extra_cull_margin = 80.0
-	add_child(cpad)
 	var crater_lv := clampi(_tier + 5, 1, 60)
 	for i in 6:
 		var ang := float(i) * TAU / 6.0
@@ -443,16 +611,16 @@ func _scatter(def: Dictionary, terrain: StringName, climate: String, tier: int, 
 		if fs.begins_with("Grass") or fs == "Flowers":
 			continue
 		var role := str(Data.nature_families.get(fs, {}).get("role", "node"))
-		var n := 8
+		var n := 1
 		match role:
 			"tree":
-				n = int(counts.get("tree", 14))
+				n = int(counts.get("tree", 1))
 			"bush":
-				n = int(counts.get("bush", 10))
+				n = int(counts.get("bush", 1))
 			"prop":
-				n = 5
+				n = 0
 			_:
-				n = int(counts.get("rock", 8)) if fs.begins_with("Rock") else 6
+				n = int(counts.get("rock", 1)) if fs.begins_with("Rock") else 1
 		var fallback := &"wood_log"
 		var tool := &"axe"
 		var col := Color(0.35, 0.22, 0.1)
@@ -468,8 +636,9 @@ func _scatter(def: Dictionary, terrain: StringName, climate: String, tier: int, 
 			fallback = &"herb_leaf"
 			tool = &"none"
 			col = Color(0.35, 0.55, 0.25)
-			n = 8
+			n = 1
 		harvest_count += _plant_family(fs, role if role != "" else "node", n, fallback, tool, climate, tier, size, rng, col)
+	_scatter_special_tiles(climate, tier, rng)
 
 func _plant_family(family: String, role: String, n: int, fallback_id: StringName, tool: StringName, climate: String, tier: int, size: float, rng: RandomNumberGenerator, color: Color) -> int:
 	var placed := 0
@@ -478,10 +647,12 @@ func _plant_family(family: String, role: String, n: int, fallback_id: StringName
 		var pos := Vector3(rng.randf_range(-half, half), 0.0, rng.randf_range(-half, half))
 		if Vector2(pos.x, pos.z).length() < 25.0:
 			continue
-		if surface_y(pos.x, pos.z) < 0.05:
-			continue
 		pos.y = surface_y(pos.x, pos.z)
-		placed += _plant_at(family, "%s_%d" % [role, i], pos, fallback_id, tool, climate, material_level(pos, tier), color)
+		if role == "ground" and _slope_deg(pos.x, pos.z) > 35.0:
+			continue
+		if (role.begins_with("tree") or role == "bush" or role == "rock" or role == "prop") and not spawn_ok(pos, false):
+			continue
+		placed += _plant_at(family, "%s_%s_%d" % [family.to_lower(), role, i], pos, fallback_id, tool, climate, material_level(pos, tier), color)
 	return placed
 
 func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringName, tool: StringName, climate: String, level: int, color: Color) -> int:
@@ -514,6 +685,7 @@ func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringNa
 	var attrs := {"climate": climate, "level": level}
 	var role_s := str(Data.nature_families.get(family, {}).get("role", ""))
 	var pool_max := _family_pool_max(family, role_s)
+	var regen_s := _family_regen_seconds(family, role_s)
 	node.setup(
 		StringName(role),
 		yield_id,
@@ -523,11 +695,15 @@ func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringNa
 		tool_s,
 		color,
 		1.2,
-		8.0,
+		regen_s,
 		family,
 		role_s.begins_with("tree"),
 		pool_max
 	)
+	node.depleted_tile.connect(_on_tile_bare)
+	node.regrown_tile.connect(_on_tile_regrown)
+	_node_tiles[str(node.node_id)] = {"tile": tile, "base": _tile_type_at_world(pos.x, pos.z)}
+	_harvest_nodes[str(node.node_id)] = node
 	if models.size() > 0:
 		var model := models[harvest_count % models.size()] if models.size() > 0 else ""
 		if model == "":
@@ -548,6 +724,18 @@ func _family_pool_max(family: String, role: String) -> int:
 	if role.begins_with("tree") or role == "rock":
 		return 30
 	return 12
+
+func _family_regen_seconds(family: String, role: String) -> float:
+	if family == "mud" or family == "clay":
+		# ASSUMPTION: fast regrowth for river-bed resources.
+		return 60.0
+	if family == "berry_bush" or role == "bush":
+		# ASSUMPTION: bush-type nodes regrow in 90s.
+		return 90.0
+	if role.begins_with("tree") or family == "tree_stump":
+		# ASSUMPTION: tree resources regrow in 240s.
+		return 240.0
+	return 120.0
 
 func _multimesh_family(family: String, n: int, size: float, rng: RandomNumberGenerator) -> void:
 	var models := _models(family)
@@ -571,11 +759,13 @@ func _multimesh_family(family: String, n: int, size: float, rng: RandomNumberGen
 		var ox := rng.randf_range(-half, half)
 		var oz := rng.randf_range(-half, half)
 		var y := surface_y(ox, oz)
-		if y < 0.02:
+		if not spawn_ok(Vector3(ox, y, oz), false):
+			continue
+		if (family == "Grass" or family == "Flowers") and _slope_deg(ox, oz) > 35.0:
 			continue
 		var t := Transform3D.IDENTITY
 		t.origin = Vector3(ox, y, oz)
-		t.basis = t.basis.rotated(Vector3.UP, rng.randf() * TAU)
+		t.basis = _basis_from_normal(_normal_at(ox, oz), rng.randf() * TAU)
 		xforms.append(t)
 	if xforms.is_empty():
 		return
@@ -587,7 +777,12 @@ func _multimesh_family(family: String, n: int, size: float, rng: RandomNumberGen
 		mm.set_instance_transform(i, xforms[i])
 	var mmi := MultiMeshInstance3D.new()
 	mmi.multimesh = mm
-	mmi.visibility_range_end = 70.0
+	mmi.visibility_range_end = 34.0
+	if family == "Grass" or family == "Flowers":
+		if _foliage_mat == null:
+			_foliage_mat = ShaderMaterial.new()
+			_foliage_mat.shader = FOLIAGE_SHADER
+		mmi.material_override = _foliage_mat
 	add_child(mmi)
 	mm_count += 1
 
@@ -680,6 +875,30 @@ func _nearest_valid(want: Vector3) -> Dictionary:
 		p.z *= 0.9
 	return {}
 
+func _normal_at(x: float, z: float) -> Vector3:
+	var d := 0.75
+	var h0 := surface_y(x - d, z)
+	var h1 := surface_y(x + d, z)
+	var h2 := surface_y(x, z - d)
+	var h3 := surface_y(x, z + d)
+	return Vector3(h0 - h1, 2.0 * d, h2 - h3).normalized()
+
+func _slope_deg(x: float, z: float) -> float:
+	var d := 0.75
+	var dx := (surface_y(x + d, z) - surface_y(x - d, z)) / (2.0 * d)
+	var dz := (surface_y(x, z + d) - surface_y(x, z - d)) / (2.0 * d)
+	return rad_to_deg(atan(sqrt(dx * dx + dz * dz)))
+
+func _basis_from_normal(up: Vector3, yaw: float) -> Basis:
+	var n := up.normalized()
+	var t := n.cross(Vector3.FORWARD)
+	if t.length_squared() < 0.001:
+		t = n.cross(Vector3.RIGHT)
+	t = t.normalized()
+	var b := t.cross(n).normalized()
+	var basis := Basis(t, n, b)
+	return basis.rotated(n, yaw)
+
 func _models(family: String) -> PackedStringArray:
 	var man: Dictionary = Data.nature_families.get(family, {})
 	var out := PackedStringArray()
@@ -732,10 +951,14 @@ func _drive_day() -> void:
 	sun.rotation_degrees = Vector3(lerpf(-62.0, 12.0, from_noon), 30.0, 0.0)
 	sun.light_energy = lerpf(1.45, 0.12, from_noon)
 	if world_env and world_env.environment:
-		var night := Game.phase_name() == &"night"
-		world_env.environment.background_color = Color(0.10, 0.12, 0.20) if night else Color(0.55, 0.72, 0.90)
-		world_env.environment.ambient_light_energy = 0.40 if night else 0.95
-		world_env.environment.ambient_light_color = Color(0.55, 0.62, 0.85) if night else Color(0.92, 0.94, 0.88)
+		var night_n := smoothstep(0.35, 1.0, from_noon)
+		world_env.environment.ambient_light_energy = lerpf(0.96, 0.32, night_n)
+		world_env.environment.ambient_light_color = Color(0.92, 0.94, 0.88).lerp(Color(0.50, 0.58, 0.82), night_n)
+		world_env.environment.fog_density = lerpf(0.0022, 0.0044, night_n)
+		if _sky_mat:
+			_sky_mat.sky_top_color = Color(0.20, 0.42, 0.66).lerp(Color(0.04, 0.08, 0.16), night_n)
+			_sky_mat.sky_horizon_color = Color(0.66, 0.78, 0.92).lerp(Color(0.18, 0.22, 0.31), night_n)
+			_sky_mat.ground_horizon_color = Color(0.24, 0.29, 0.34).lerp(Color(0.08, 0.10, 0.12), night_n)
 
 func _rain_layer() -> void:
 	_rain_fx = GPUParticles3D.new()
@@ -782,3 +1005,233 @@ func _weather(delta: float) -> void:
 		print("[world] rain")
 	if p:
 		p.tick_climate_fatigue(delta, _climate)
+
+func _palette_for(climate: String) -> Dictionary:
+	var row: Dictionary = Data.world_climates.get(climate, {})
+	var p: Dictionary = row.get("palette", {})
+	var out := {
+		"grass": Color(0.42, 0.62, 0.32),
+		"dry": Color(0.56, 0.54, 0.35),
+		"dirt": Color(0.44, 0.34, 0.24),
+		"sand": Color(0.79, 0.72, 0.54),
+		"rock": Color(0.47, 0.46, 0.44),
+	}
+	for k in p.keys():
+		var parsed := Color.from_string(str(p[k]), Color.WHITE)
+		if parsed != Color.WHITE or str(p[k]).to_lower() == "#ffffff":
+			out[k] = parsed
+	return out
+
+func _build_tile_types(climate: String) -> void:
+	_tile_span = maxi(1, int(round(_size)))
+	tile_types.resize(_tile_span * _tile_span)
+	_tile_base.resize(_tile_span * _tile_span)
+	_tile_map_image = Image.create(_tile_span, _tile_span, false, Image.FORMAT_R8)
+	_tile_map_image.fill(Color.BLACK)
+	var has_ash := _climate_has_material(climate, "ash")
+	for z in _tile_span:
+		for x in _tile_span:
+			var wx := -_size * 0.5 + float(x) + 0.5
+			var wz := -_size * 0.5 + float(z) + 0.5
+			var h := surface_y(wx, wz)
+			var slope := _slope_deg(wx, wz)
+			var rad := Vector2(wx, wz).length()
+			var t := TileType.GRASS
+			if h < -1.25:
+				t = TileType.DEEP
+			elif h < -0.05:
+				t = TileType.SHALLOW
+			elif h < 0.35 or rad > land_radius() - 1.0:
+				t = TileType.SAND
+			elif slope > 40.0 or h > 5.5:
+				t = TileType.ROCK
+			elif slope > 28.0:
+				t = TileType.DRY
+			if has_ash and h > 4.8 and t == TileType.ROCK:
+				t = TileType.ASH
+			var river_center := sin(wx * 0.018 + float(25 if climate == "temperate" else 17) * 0.13) * (_size * 0.085)
+			var river := absf(wz - river_center)
+			if river < 2.1 and h > -0.15 and h < 0.65:
+				t = TileType.MUD
+			var cdist := Vector2(wx - _crater_hint.x, wz - _crater_hint.z).length()
+			if _crater_hint != Vector3.ZERO and cdist < 8.5 and h > -0.2:
+				t = TileType.DIRT
+			var idx := x + z * _tile_span
+			tile_types[idx] = t
+			_tile_base[idx] = t
+			_tile_map_image.set_pixel(x, z, Color(float(t) / 255.0, 0.0, 0.0))
+	_tile_map_tex = ImageTexture.create_from_image(_tile_map_image)
+
+func _terrain_material() -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = TERRAIN_SHADER
+	m.set_shader_parameter("map_size", _size)
+	m.set_shader_parameter("grid_enabled", 1.0 if Game.show_grid else 0.0)
+	m.set_shader_parameter("tile_map_tex", _tile_map_tex)
+	m.set_shader_parameter("grass_tex", _tex_or_fallback(TERRAIN_TEX["grass"], Color(0.45, 0.68, 0.38)))
+	m.set_shader_parameter("dirt_tex", _tex_or_fallback(TERRAIN_TEX["dirt"], Color(0.44, 0.34, 0.24)))
+	m.set_shader_parameter("sand_tex", _tex_or_fallback(TERRAIN_TEX["sand"], Color(0.82, 0.75, 0.58)))
+	m.set_shader_parameter("rock_tex", _tex_or_fallback(TERRAIN_TEX["rock"], Color(0.48, 0.47, 0.45)))
+	m.set_shader_parameter("noise_tex", _noise_tex())
+	m.set_shader_parameter("focus_pos", Vector3.ZERO)
+	m.set_shader_parameter("tint_grass", _c3(_tile_color(TileType.GRASS)))
+	m.set_shader_parameter("tint_dry", _c3(_tile_color(TileType.DRY)))
+	m.set_shader_parameter("tint_dirt", _c3(_tile_color(TileType.DIRT)))
+	m.set_shader_parameter("tint_sand", _c3(_tile_color(TileType.SAND)))
+	m.set_shader_parameter("tint_shallow", _c3(_tile_color(TileType.SHALLOW)))
+	m.set_shader_parameter("tint_rock", _c3(_tile_color(TileType.ROCK)))
+	m.set_shader_parameter("tint_mud", _c3(_tile_color(TileType.MUD)))
+	m.set_shader_parameter("tint_bare", _c3(_tile_color(TileType.BARE)))
+	m.set_shader_parameter("tint_deep", _c3(_tile_color(TileType.DEEP)))
+	m.set_shader_parameter("tint_ash", _c3(_tile_color(TileType.ASH)))
+	return m
+
+func _c3(c: Color) -> Vector3:
+	return Vector3(c.r, c.g, c.b)
+
+func _noise_tex() -> NoiseTexture2D:
+	var n := FastNoiseLite.new()
+	n.seed = 4121
+	n.frequency = 0.09
+	var t := NoiseTexture2D.new()
+	t.width = 256
+	t.height = 256
+	t.seamless = true
+	t.noise = n
+	return t
+
+func _tex_or_fallback(path: String, color: Color) -> Texture2D:
+	if ResourceLoader.exists(path):
+		return load(path) as Texture2D
+	var img := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+	img.fill(color)
+	return ImageTexture.create_from_image(img)
+
+func _tile_idx(x: int, z: int) -> int:
+	return x + z * _tile_span
+
+func _tile_type_at_world(x: float, z: float) -> int:
+	if tile_types.is_empty():
+		return TileType.GRASS
+	var tx := clampi(int(floor(x + _size * 0.5)), 0, _tile_span - 1)
+	var tz := clampi(int(floor(z + _size * 0.5)), 0, _tile_span - 1)
+	return int(tile_types[_tile_idx(tx, tz)])
+
+func _set_tile_type(tile: Vector2i, tile_type: int) -> void:
+	if tile_types.is_empty():
+		return
+	var tx := clampi(tile.x + int(_size * 0.5), 0, _tile_span - 1)
+	var tz := clampi(tile.y + int(_size * 0.5), 0, _tile_span - 1)
+	var idx := _tile_idx(tx, tz)
+	tile_types[idx] = tile_type
+	if _tile_map_image:
+		_tile_map_image.set_pixel(tx, tz, Color(float(tile_type) / 255.0, 0.0, 0.0))
+		if _tile_map_tex:
+			_tile_map_tex.update(_tile_map_image)
+
+func _drive_terrain_focus() -> void:
+	if _terrain_mat == null:
+		return
+	var p := get_tree().get_first_node_in_group("player") as Node3D
+	if p:
+		_terrain_mat.set_shader_parameter("focus_pos", p.global_position)
+	_terrain_mat.set_shader_parameter("grid_enabled", 1.0 if Game.show_grid else 0.0)
+
+func _climate_has_material(climate: String, item_id: String) -> bool:
+	var row: Dictionary = Data.world_climates.get(climate, {})
+	var arr: Array = row.get("materials", [])
+	for m in arr:
+		if m is Dictionary and str((m as Dictionary).get("id", "")) == item_id:
+			return true
+	return false
+
+func _scatter_special_tiles(climate: String, tier: int, rng: RandomNumberGenerator) -> void:
+	_spawn_special_family("mud", 3, [TileType.MUD, TileType.SAND], -0.2, 0.55, &"mud", &"none", climate, tier, Color(0.35, 0.27, 0.20), rng)
+	_spawn_special_family("clay", 2, [TileType.MUD, TileType.DIRT], -0.1, 0.9, &"clay", &"pick", climate, tier, Color(0.44, 0.30, 0.22), rng)
+	_spawn_special_family("berry_bush", 3, [TileType.GRASS, TileType.DRY], 0.25, 6.0, &"berry", &"none", climate, tier, Color(0.58, 0.24, 0.24), rng)
+	_spawn_special_family("tree_stump", 1, [TileType.GRASS, TileType.DRY], 0.25, 6.5, &"wood_log", &"axe", climate, tier, Color(0.41, 0.27, 0.19), rng)
+
+func _spawn_special_family(family: String, count: int, tile_kinds: Array, min_h: float, max_h: float, fallback_id: StringName, tool: StringName, climate: String, tier: int, tint: Color, rng: RandomNumberGenerator) -> void:
+	var placed := 0
+	var tries := 0
+	while placed < count and tries < count * 120:
+		tries += 1
+		var tx := rng.randi_range(0, _tile_span - 1)
+		var tz := rng.randi_range(0, _tile_span - 1)
+		var idx := _tile_idx(tx, tz)
+		var tile_t := int(tile_types[idx])
+		if not tile_kinds.has(tile_t):
+			continue
+		var wx := -_size * 0.5 + float(tx) + 0.5
+		var wz := -_size * 0.5 + float(tz) + 0.5
+		var h := surface_y(wx, wz)
+		if h < min_h or h > max_h:
+			continue
+		var pos := Vector3(wx, h, wz)
+		if family != "mud" and family != "clay" and not spawn_ok(pos, false):
+			continue
+		var uid := "%s_tile_%d" % [family, placed]
+		harvest_count += _plant_at(family, uid, pos, fallback_id, tool, climate, material_level(pos, tier), tint)
+		placed += 1
+
+func _on_tile_bare(node: HarvestNode, tile: Vector2i) -> void:
+	if node == null:
+		return
+	var key := "%d:%d" % [tile.x, tile.y]
+	var row: Dictionary = _node_tiles.get(str(node.node_id), {})
+	var base_type := int(row.get("base", TileType.GRASS))
+	_bare_tiles[key] = {
+		"tile": [tile.x, tile.y],
+		"base": base_type,
+		"node_id": str(node.node_id),
+	}
+	_set_tile_type(tile, TileType.BARE)
+	print("[world] tile bare (%d,%d)" % [tile.x, tile.y])
+
+func _on_tile_regrown(node: HarvestNode, tile: Vector2i) -> void:
+	if node == null:
+		return
+	var key := "%d:%d" % [tile.x, tile.y]
+	var row: Dictionary = _bare_tiles.get(key, {})
+	var base_type := int(row.get("base", TileType.GRASS))
+	_set_tile_type(tile, base_type)
+	_bare_tiles.erase(key)
+	print("[world] tile regrown (%d,%d)" % [tile.x, tile.y])
+
+func harvest_tile_snapshot() -> Dictionary:
+	var arr: Array = []
+	for key in _bare_tiles.keys():
+		var row: Dictionary = _bare_tiles[key]
+		var node_id := str(row.get("node_id", ""))
+		var left := 0.0
+		if _harvest_nodes.has(node_id):
+			var n := _harvest_nodes[node_id] as HarvestNode
+			if n:
+				left = n.regen_left()
+		arr.append({
+			"tile": row.get("tile", [0, 0]),
+			"base": int(row.get("base", TileType.GRASS)),
+			"node_id": node_id,
+			"regen_left": left,
+		})
+	return {"bare_tiles": arr}
+
+func apply_harvest_tile_snapshot(snap: Dictionary) -> void:
+	var arr: Variant = snap.get("bare_tiles", [])
+	if not arr is Array:
+		return
+	for row_v in arr:
+		if not row_v is Dictionary:
+			continue
+		var row := row_v as Dictionary
+		var tile_a: Array = row.get("tile", [0, 0])
+		if tile_a.size() < 2:
+			continue
+		var tile := Vector2i(int(tile_a[0]), int(tile_a[1]))
+		var key := "%d:%d" % [tile.x, tile.y]
+		_bare_tiles[key] = {
+			"tile": [tile.x, tile.y],
+			"base": int(row.get("base", TileType.GRASS)),
+			"node_id": str(row.get("node_id", "")),
+		}
+		_set_tile_type(tile, TileType.BARE)

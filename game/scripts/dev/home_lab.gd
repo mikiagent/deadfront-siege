@@ -16,7 +16,7 @@ func _ready() -> void:
 	LabKit.give(_player, &"work_axe", 1)
 	World.load_island(self, &"home_grassland", Vector3(0, 1, 18), false)
 	print("[boot] lab=home_lab")
-	if DisplayServer.get_name() == "headless":
+	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
 		get_tree().create_timer(0.5).timeout.connect(_demo)
 
 func _demo() -> void:

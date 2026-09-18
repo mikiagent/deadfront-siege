@@ -646,8 +646,25 @@
       "food_energy": 8
     },
     {
+      "id": "berry",
+      "display_name": "Berry",
+      "categories": ["food", "herb"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 6
+    },
+    {
       "id": "clay",
       "display_name": "Clay",
+      "categories": ["earth"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "mud",
+      "display_name": "Mud",
       "categories": ["earth"],
       "stack_max": 20,
       "tool_class": "none",
