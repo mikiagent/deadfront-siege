@@ -7,3 +7,5 @@ tools/__pycache__/
 
 tools/blob.env
 game/export/packs/
+
+.vercel

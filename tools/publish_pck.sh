@@ -67,7 +67,7 @@ for name in core assets; do
   url="$(prev_url "$name" "$(sha $name)")"
   if [[ -n "$url" ]]; then echo "== $name unchanged, keeping $url"; eval "URL_$name=\"$url\""; continue; fi
   echo "== upload $name"
-  log="$(npx --yes vercel blob put "$OUT/$name.pck" --pathname "builds/$name-$(sha8 $name).pck" --rw-token "$BLOB_READ_WRITE_TOKEN" --content-type application/octet-stream 2>&1)"
+  log="$(npx --yes vercel blob put "$OUT/$name.pck" --pathname "builds/$name-$(sha8 $name).pck" --access public --rw-token "$BLOB_READ_WRITE_TOKEN" --content-type application/octet-stream 2>&1 || true)"
   url="$(echo "$log" | grep -oE 'https://[A-Za-z0-9./_-]+\.pck' | head -1)"
   [[ -n "$url" ]] || { echo "$log"; echo "no blob URL for $name"; exit 1; }
   eval "URL_$name=\"$url\""
@@ -75,5 +75,5 @@ for name in core assets; do
 done
 write_manifest "$HOSTING/manifest.json" "$URL_core" "$URL_assets"
 echo "== deploy manifest ($VER)"
-npx --yes vercel deploy "$HOSTING" --yes --prod --project "$PROJECT" --scope "$SCOPE" 2>&1 | tail -3
+(cd "$HOSTING" && npx --yes vercel deploy --yes --prod --project "$PROJECT" --scope "$SCOPE" 2>&1 | tail -3)
 echo "published $VER"

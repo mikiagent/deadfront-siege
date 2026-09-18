@@ -1,1 +1,19 @@
-{"version":"none","min_shell":1,"packs":[]}
+{
+  "version": "20260917.2207-8f15ff1",
+  "min_shell": 1,
+  "channel": "dev",
+  "packs": [
+    {
+      "name": "assets",
+      "url": "https://k43yubonaxv25gua.public.blob.vercel-storage.com/builds/assets-5fa05e74.pck",
+      "sha256": "5fa05e74bcd8dcd6f09a8b5984e1f946dda748e1b85021d5ae0ac7b84824b445",
+      "size": 236844524
+    },
+    {
+      "name": "core",
+      "url": "https://k43yubonaxv25gua.public.blob.vercel-storage.com/builds/core-682b7d34.pck",
+      "sha256": "682b7d34fe06904a08b9ba3a07ca870696c0ad2fcfebbbe8751fbc288e2d28d7",
+      "size": 705324
+    }
+  ]
+}
