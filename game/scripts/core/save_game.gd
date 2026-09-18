@@ -99,7 +99,14 @@ static func load_now(host: Node) -> void:
 	var player := World._player()
 	if player == null:
 		return
-	player.global_position = pos
+	# Re-seat the player on the terrain: saves from older builds (or a regenerated
+	# island) can hold a y that is now inside the ground, and a body that starts
+	# below the one-sided heightmap falls forever.
+	var seat := pos
+	if World.runtime and World.runtime.has_method("surface_y"):
+		seat.y = World.runtime.surface_y(pos.x, pos.z) + 1.0
+	player.global_position = seat
+	print("[world] loaded player at %s (saved y=%.2f)" % [seat.snapped(Vector3.ONE * 0.1), pos.y])
 	player.vitals.from_dict(data.get("player", {}).get("vitals", {}))
 	player.statuses.from_array(data.get("player", {}).get("statuses", []))
 	player.inventory.load_array(data.get("player", {}).get("inventory", []))

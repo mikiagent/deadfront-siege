@@ -101,6 +101,7 @@ func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 			anim.on_damaged()
 
 func _physics_process(delta: float) -> void:
+	_fall_guard()
 	if statuses == null or vitals == null:
 		move_and_slide()
 		return
@@ -642,3 +643,14 @@ func _on_vitals_damaged() -> void:
 func _on_vitals_died() -> void:
 	if anim:
 		anim.on_death()
+
+func _fall_guard() -> void:
+	# Never let the player fall out of the world: below -15 m, put her back on the surface.
+	if global_position.y > -15.0:
+		return
+	var y := 1.0
+	if World.runtime and World.runtime.has_method("surface_y"):
+		y = World.runtime.surface_y(global_position.x, global_position.z) + 1.0
+	velocity = Vector3.ZERO
+	global_position.y = y
+	print("[player] fell out of the world; re-seated at y=%.2f" % y)
