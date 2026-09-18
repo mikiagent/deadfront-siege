@@ -43,6 +43,8 @@ func _ready() -> void:
 		call_deferred("_log_draw_calls", "crater")
 	elif Game.shot_path.contains("tiles"):
 		call_deferred("_shot_tiles_probe")
+	elif Game.shot_path.contains("radial"):
+		call_deferred("_shot_radial_probe")
 	elif Game.shot_path != "" and not (Game.shot_path.contains("shore") or Game.shot_path.contains("night")):
 		call_deferred("_shot_ring_probe")
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
@@ -53,6 +55,28 @@ func _headless_gather_probe() -> void:
 	if World.runtime:
 		print("[world] mm=%d nodes=%d creatures=%d" % [
 			int(World.runtime.mm_count), int(World.runtime.harvest_count), int(World.runtime.creature_count)])
+	var tree := _nearest_tree()
+	if tree:
+		var opts := tree.options()
+		if opts.size() > 1:
+			tree.select_option(1)
+			print("[item] option %s x%d-%d %.1fs (of %d options)" % [tree.yield_def_id, tree.yield_min, tree.yield_max, tree.gather_seconds, opts.size()])
+			# Gather two units with that option, as the tap flow would after arriving.
+			var dir := _player.global_position - tree.global_position
+			dir.y = 0.0
+			if dir.length_squared() <= 0.001:
+				dir = Vector3.FORWARD
+			_player.global_position = tree.global_position + dir.normalized() * 1.8
+			if World.runtime and World.runtime.has_method("surface_y"):
+				_player.global_position.y = World.runtime.surface_y(_player.global_position.x, _player.global_position.z) + 1.0
+			_player._begin_gather(tree)
+			_player._on_arrived()
+			var wait := 12.0
+			while wait > 0.0 and tree.session_gathered < 2:
+				await get_tree().create_timer(0.25).timeout
+				wait -= 0.25
+			print("[item] option gather done units=%d" % tree.session_gathered)
+			_player._stop_gather_cycle(false)
 	if Game.fast_regen_mult > 1.0:
 		var berry := _nearest_family("berry_bush")
 		if berry:
@@ -140,3 +164,18 @@ func _await_nav_ready() -> void:
 		if map.is_valid() and NavigationServer3D.map_get_iteration_id(map) > 0:
 			return
 		await get_tree().create_timer(0.1).timeout
+
+func _shot_radial_probe() -> void:
+	await _await_nav_ready()
+	var node := _nearest_tree()
+	if node == null:
+		return
+	var dir := _player.global_position - node.global_position
+	dir.y = 0.0
+	if dir.length_squared() <= 0.001:
+		dir = Vector3.FORWARD
+	_player.global_position = node.global_position + dir.normalized() * 3.0
+	if World.runtime and World.runtime.has_method("surface_y"):
+		_player.global_position.y = World.runtime.surface_y(_player.global_position.x, _player.global_position.z) + 1.0
+	_cam._snap()
+	_player.debug_open_radial(node)

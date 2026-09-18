@@ -54,6 +54,7 @@ var _gather_left: float = 0.0
 var _gathering: bool = false
 var _gather_unit_time: float = 1.0
 var _gather_ring
+var _gather_radial: GatherRadial
 var _right_hand_anchor: Marker3D
 var _hips_anchor: Marker3D
 var _mount_hips_offset: Vector3 = Vector3.ZERO
@@ -98,6 +99,7 @@ func _ready() -> void:
 	_setup_lantern()
 	_setup_ground_marker()
 	_setup_gather_ring()
+	_setup_gather_radial()
 	vitals.damaged.connect(_on_vitals_damaged)
 	vitals.died.connect(_on_vitals_died)
 	if has_node("Shape"):
@@ -302,6 +304,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _tap_blocked():
 			_hold_walk_candidate = false
 			return
+		if _gather_radial and _gather_radial.is_open():
+			_gather_radial.close()  # tap outside the hexes dismisses the radial; the tap still acts
 		var tap_kind := _tap_world()
 		_hold_walk_candidate = tap_kind == &"ground"
 		_hold_walk_elapsed = 0.0
@@ -341,7 +345,14 @@ func _interact_tap_target(col: Object) -> void:
 	if not (col is Creature and not (col as Creature).is_pet) and hunt:
 		hunt.stop()
 	if col is HarvestNode:
-		_begin_gather(col as HarvestNode)
+		var hn := col as HarvestNode
+		var opts := hn.options()
+		if opts.size() > 1 and _gather_radial:
+			_gather_radial.open(hn, opts, inventory)
+		else:
+			if opts.size() == 1:
+				hn.select_option(0)
+			_begin_gather(hn)
 	elif col is Corpse:
 		(col as Corpse).note_tapped()
 		_begin_butcher(col as Corpse)
@@ -1102,3 +1113,26 @@ func _drive_lantern() -> void:
 	var night := smoothstep(0.35, 1.0, from_noon)
 	var flicker := 1.0 + sin((Time.get_ticks_msec() * 0.001) * 7.0 + _lantern_phase) * 0.05
 	_lantern.light_energy = 4.0 * night * flicker
+
+
+func _setup_gather_radial() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "GatherRadialLayer"
+	layer.layer = 55
+	add_child(layer)
+	_gather_radial = GatherRadial.new()
+	_gather_radial.name = "GatherRadial"
+	layer.add_child(_gather_radial)
+	_gather_radial.picked.connect(_on_gather_option_picked)
+
+func _on_gather_option_picked(node: HarvestNode, index: int) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	node.select_option(index)
+	print("[item] option %s x%d-%d %.1fs" % [node.yield_def_id, node.yield_min, node.yield_max, node.gather_seconds])
+	_begin_gather(node)
+
+## Lab/test helper: open the radial on a node as a tap would.
+func debug_open_radial(node: HarvestNode) -> void:
+	if node and _gather_radial:
+		_gather_radial.open(node, node.options(), inventory)

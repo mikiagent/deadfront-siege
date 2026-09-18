@@ -96,6 +96,44 @@ func _process(delta: float) -> void:
 		_sync_visual_state()
 		regrown_tile.emit(self, _tile)
 
+## Everything this node can yield, one entry per manifest `harvest` item (reference: a tree
+## offers Leaf / Log / Branch at once). Tool-gated options take longer.
+## ASSUMPTION: wood_log needs an axe, stone/ore/clay a pick, bark and hide a knife; the rest is bare-handed.
+const OPTION_TOOLS := {"wood_log": "axe", "stone": "pick", "ore_chunk": "pick", "clay": "pick", "bark_strip": "knife", "hide": "knife"}
+
+func options() -> Array:
+	var out: Array = []
+	var fam: Dictionary = Data.nature_families.get(family, {})
+	var harvest: Variant = fam.get("harvest", {})
+	if harvest is Dictionary and not (harvest as Dictionary).is_empty():
+		for k in harvest.keys():
+			var id := StringName(str(k))
+			if Data.item(id) == null:
+				continue
+			var pair: Variant = harvest[k]
+			var amin := 1
+			var amax := 1
+			if pair is Array and (pair as Array).size() >= 2:
+				amin = maxi(1, int(pair[0]))
+				amax = maxi(amin, int(pair[1]))
+			var tool := str(OPTION_TOOLS.get(str(k), "none"))
+			out.append({"item": str(id), "min": amin, "max": amax, "tool": tool, "seconds": 3.0 if tool != "none" else 1.8})
+	if out.is_empty():
+		out.append({"item": str(yield_def_id), "min": yield_min, "max": yield_max, "tool": str(required_tool_class), "seconds": gather_seconds})
+	return out
+
+## Make one of options() the active yield for the next gathers.
+func select_option(index: int) -> void:
+	var opts := options()
+	if opts.is_empty():
+		return
+	var o: Dictionary = opts[clampi(index, 0, opts.size() - 1)]
+	yield_def_id = StringName(str(o["item"]))
+	yield_min = int(o["min"])
+	yield_max = int(o["max"])
+	required_tool_class = StringName(str(o["tool"]))
+	gather_seconds = float(o["seconds"])
+
 func can_gather(inv: Inventory) -> String:
 	if pool_units_left() <= 0:
 		return "depleted"
