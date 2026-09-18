@@ -354,5 +354,11 @@
         }
       }
     }
+  },
+  "megaloceros": {
+    "v1": {
+      "ref_side": "01a0b1de-aad6-76e0-810b-8345154cb80f",
+      "ref_front": "01a0b1df-0cd9-7228-bb19-9987633eff5b"
+    }
   }
 }

@@ -1,0 +1,180 @@
+{
+  "_about": "Mission templates offered at a Communications Centre on unstable islands (PRD \u00a715.1). Objective pin must be visited; items may be gathered, crafted or bought. Rewards scale with island tier. Up to 4 active; 3 free rerolls per day.",
+  "reward_scale": {
+    "tstones_base": 40,
+    "tstones_per_tier": 3,
+    "xp_base": 60,
+    "xp_per_tier": 5,
+    "trust": 50
+  },
+  "daily_bonus": {
+    "5_missions": "fatigue_tonic",
+    "10_missions": "fatigue_tonic_x2"
+  },
+  "templates": {
+    "gather_herbs": {
+      "type": "gather",
+      "item_category": "herb",
+      "count": [
+        8,
+        15
+      ],
+      "pin": "gathering"
+    },
+    "gather_pillars": {
+      "type": "craft_deliver",
+      "item": "pillar",
+      "count": [
+        2,
+        4
+      ],
+      "pin": "camp"
+    },
+    "catch_fish": {
+      "type": "gather",
+      "item": "fish",
+      "count": [
+        3,
+        6
+      ],
+      "pin": "working",
+      "needs": "fishing (M7)"
+    },
+    "gather_fuel": {
+      "type": "gather",
+      "item_category": "wood",
+      "count": [
+        10,
+        20
+      ],
+      "pin": "gathering"
+    },
+    "cook_meatballs": {
+      "type": "craft_deliver",
+      "item": "meatball",
+      "count": [
+        3,
+        6
+      ],
+      "pin": "camp",
+      "needs": "cooking (M7)"
+    },
+    "craft_clothing": {
+      "type": "craft_deliver",
+      "item_category": "clothing",
+      "count": [
+        1,
+        2
+      ],
+      "pin": "camp"
+    },
+    "gather_plants_no_uproot": {
+      "type": "gather",
+      "item_category": "fibre",
+      "count": [
+        10,
+        20
+      ],
+      "pin": "gathering",
+      "rule": "no tree felling counted"
+    },
+    "plant_seeds": {
+      "type": "farm",
+      "count": [
+        4,
+        8
+      ],
+      "pin": "home",
+      "needs": "farming (M7)"
+    },
+    "discover_plant_crater": {
+      "type": "discover",
+      "crater": "plant",
+      "pin": "crater"
+    },
+    "discover_mineral_crater": {
+      "type": "discover",
+      "crater": "mineral",
+      "pin": "crater"
+    },
+    "observe_herd": {
+      "type": "visit",
+      "target": "herbivore_herd",
+      "stay_seconds": 30,
+      "pin": "working"
+    },
+    "mine_ore": {
+      "type": "gather",
+      "item_category": "metal_ore",
+      "count": [
+        6,
+        12
+      ],
+      "pin": "crater"
+    },
+    "smelt_ingot": {
+      "type": "craft_deliver",
+      "item": "ingot",
+      "count": [
+        2,
+        4
+      ],
+      "pin": "camp"
+    },
+    "build_structure": {
+      "type": "build",
+      "building": "fence",
+      "count": [
+        4,
+        8
+      ],
+      "pin": "home"
+    },
+    "deliver_planks": {
+      "type": "craft_deliver",
+      "item": "plank",
+      "count": [
+        6,
+        12
+      ],
+      "pin": "camp"
+    },
+    "hunt_predator": {
+      "type": "hunt",
+      "archetype": [
+        "raptor_pack",
+        "apex_raptor",
+        "flock_harass"
+      ],
+      "count": [
+        2,
+        4
+      ],
+      "pin": "working"
+    },
+    "capture_animal": {
+      "type": "capture",
+      "tameable": true,
+      "count": 1,
+      "pin": "working"
+    },
+    "clear_crater_guardians": {
+      "type": "hunt",
+      "at": "crater",
+      "count": [
+        3,
+        5
+      ],
+      "pin": "crater"
+    },
+    "deliver_rare_part": {
+      "type": "gather",
+      "item_category": "rare_part",
+      "count": [
+        1,
+        2
+      ],
+      "pin": "far_shore"
+    }
+  }
+}

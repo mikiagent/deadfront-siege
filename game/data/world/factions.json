@@ -1,0 +1,139 @@
+{
+  "_about": "Support organisations (systems PRD \u00a715.1). Trust has 10 ranks; each rank band unlocks a support crate. Radio University offers career guides only.",
+  "company": {
+    "name": "The Company",
+    "unlock": "tutorial",
+    "tone": "humanitarian, callsigns not names (K, Charlie)",
+    "crates": true,
+    "mission_pool": [
+      "gather_herbs",
+      "gather_pillars",
+      "catch_fish",
+      "gather_fuel",
+      "cook_meatballs",
+      "craft_clothing"
+    ],
+    "trust_per_mission": 50,
+    "ranks": 10,
+    "crate_bands": {
+      "1-3": [
+        "bandage",
+        "twine",
+        "berries"
+      ],
+      "4-6": [
+        "cloth_scrap",
+        "stone_knife",
+        "fatigue_tonic"
+      ],
+      "7-10": [
+        "capture_net_i",
+        "medicine",
+        "rare_seed"
+      ]
+    }
+  },
+  "chlorophyll_forum": {
+    "name": "Chlorophyll Forum",
+    "unlock": "tutorial_adjacent",
+    "tone": "conservation, sustainability; opposed to the Pioneer Council",
+    "crates": true,
+    "mission_pool": [
+      "gather_plants_no_uproot",
+      "plant_seeds",
+      "discover_plant_crater",
+      "observe_herd"
+    ],
+    "trust_per_mission": 50,
+    "ranks": 10,
+    "crate_bands": {
+      "1-3": [
+        "seeds",
+        "herb_leaf"
+      ],
+      "4-6": [
+        "fertilizer",
+        "rare_seed"
+      ],
+      "7-10": [
+        "farming_tools",
+        "elixir_ingredient"
+      ]
+    }
+  },
+  "pioneer_council": {
+    "name": "Pioneer Council",
+    "unlock_level": 16,
+    "tone": "industry and science; opposed to the Chlorophyll Forum",
+    "crates": true,
+    "mission_pool": [
+      "mine_ore",
+      "smelt_ingot",
+      "build_structure",
+      "discover_mineral_crater",
+      "deliver_planks"
+    ],
+    "trust_per_mission": 50,
+    "ranks": 10,
+    "crate_bands": {
+      "1-3": [
+        "copper_ore",
+        "nails"
+      ],
+      "4-6": [
+        "ingot",
+        "workbench_kit"
+      ],
+      "7-10": [
+        "black_iron",
+        "technical_workbench_kit"
+      ]
+    }
+  },
+  "committee": {
+    "name": "The Committee",
+    "unlock_level": 20,
+    "tone": "authoritarian, high pay, contemptuous",
+    "crates": true,
+    "mission_pool": [
+      "hunt_predator",
+      "capture_animal",
+      "clear_crater_guardians",
+      "deliver_rare_part"
+    ],
+    "trust_per_mission": 50,
+    "reward_multiplier": 1.8,
+    "ranks": 10,
+    "crate_bands": {
+      "1-3": [
+        "weapon_parts",
+        "tstones_200"
+      ],
+      "4-6": [
+        "capture_net_iii",
+        "armor_parts"
+      ],
+      "7-10": [
+        "capture_net_v",
+        "tstones_2000"
+      ]
+    }
+  },
+  "radio_university": {
+    "name": "Radio University",
+    "unlock_level": 20,
+    "tone": "Dr. Lamar, one-man university",
+    "crates": false,
+    "career_guides": true,
+    "guides": [
+      "first_knife",
+      "first_tame",
+      "ten_recipes",
+      "three_climates",
+      "cook_steam",
+      "smelt_first_ingot",
+      "build_house"
+    ],
+    "sp_per_guide": 2
+  }
+}
