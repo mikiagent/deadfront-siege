@@ -32,5 +32,71 @@
     "compsognathus_temperate",
     "compsognathus_tropical",
     "compsognathus_desert"
-  ]
+  ],
+  "pipeline": {
+    "route": "skeleton_transplant_v2",
+    "forward_axis": "+Z",
+    "version": 1,
+    "mesh_source": "res://assets/creatures/compsognathus/work/compsognathus_i2m_v1.glb",
+    "reference": {
+      "side": "01a0b1d5-ac1b-774a-855d-4e973bc66264",
+      "front": "01a0b1d6-0f77-714b-ad83-0db94a9b1eee"
+    },
+    "i2m": "01a0b1d6-7169-71a6-97c6-2078cdc0fcfa",
+    "i2m_params": {
+      "model": "meshy-7 multi-image",
+      "polycount": 20000,
+      "texture": "2k PBR"
+    },
+    "credits_spent": 48,
+    "donor_rig": "tools/standins/quaternius/Velociraptor.fbx",
+    "transplant_tool": "tools/transplant_rig.py",
+    "source_height_m": 0.7625,
+    "source_length_m": 1.9017,
+    "repair": {
+      "loose_removed": 639,
+      "doubles_merged": 10281,
+      "holes_filled": 148,
+      "verts_before": 21344,
+      "islands": 1996,
+      "verts_after": 10424
+    },
+    "warp": {
+      "mode": "landmark",
+      "snout": [
+        -1.13,
+        -0.95
+      ],
+      "foot": [
+        -0.17,
+        -0.21
+      ],
+      "tail": [
+        1.1,
+        0.95
+      ],
+      "hip_z_scale": 0.904,
+      "width_scale": 0.8
+    },
+    "weights": {
+      "direct_fraction": 1.0
+    },
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert"
+    ],
+    "authored_clips": {
+      "knockdown": "death 0-45%, holds",
+      "hit_react": "death 0-35% then reversed",
+      "alert": "idle 0-40% with head pitched 20.0 deg",
+      "attack_heavy": "telegraph hold of 8 frames at 30%"
+    }
+  }
 }

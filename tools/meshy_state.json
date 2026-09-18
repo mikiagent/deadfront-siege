@@ -10,7 +10,120 @@
   },
   "velociraptor": {
     "reference": "01a0b17d-8fc2-7493-aaec-d11213e1fcf0",
-    "i2m": "01a0b17e-628c-74f6-9f88-b6e289c93bbc"
+    "i2m": "01a0b17e-628c-74f6-9f88-b6e289c93bbc",
+    "v2": {
+      "ref_side": "01a0b1d8-9f56-7031-9001-172fd7d2c4da",
+      "ref_front": "01a0b1d9-013d-75d9-9927-19c7a26e8578",
+      "i2m": "01a0b1d9-63aa-7411-8071-d70e58a4befd",
+      "rig_result": {
+        "species": "velociraptor",
+        "route": "skeleton_transplant",
+        "mesh": "game/assets/creatures/velociraptor/work/velociraptor_i2m_v2.glb",
+        "donor": "tools/standins/quaternius/Velociraptor.fbx",
+        "forward_axis": "+Z",
+        "source_height_m": 0.6992,
+        "source_length_m": 1.9024,
+        "repair": {
+          "loose_removed": 786,
+          "doubles_merged": 15198,
+          "holes_filled": 154,
+          "verts_before": 26285,
+          "islands": 3750,
+          "verts_after": 10301
+        },
+        "warp": {
+          "mode": "landmark",
+          "snout": [
+            -1.13,
+            -0.95
+          ],
+          "foot": [
+            -0.17,
+            -0.29
+          ],
+          "tail": [
+            1.1,
+            0.95
+          ],
+          "hip_z_scale": 0.793,
+          "width_scale": 0.774
+        },
+        "weights": {
+          "direct_fraction": 1.0
+        },
+        "authored_clips": {
+          "knockdown": "death 0-45%, holds",
+          "hit_react": "death 0-35% then reversed",
+          "alert": "idle 0-40% with head pitched 20.0 deg",
+          "attack_heavy": "telegraph hold of 8 frames at 30%"
+        },
+        "clips": {
+          "alert": {
+            "frames": [
+              1,
+              25
+            ],
+            "seconds": 1.0
+          },
+          "attack_heavy": {
+            "frames": [
+              1,
+              36
+            ],
+            "seconds": 1.458
+          },
+          "attack_primary": {
+            "frames": [
+              1,
+              21
+            ],
+            "seconds": 0.833
+          },
+          "death": {
+            "frames": [
+              1,
+              32
+            ],
+            "seconds": 1.292
+          },
+          "hit_react": {
+            "frames": [
+              1,
+              21
+            ],
+            "seconds": 0.833
+          },
+          "idle": {
+            "frames": [
+              1,
+              61
+            ],
+            "seconds": 2.5
+          },
+          "knockdown": {
+            "frames": [
+              1,
+              14
+            ],
+            "seconds": 0.542
+          },
+          "run": {
+            "frames": [
+              1,
+              14
+            ],
+            "seconds": 0.542
+          },
+          "walk": {
+            "frames": [
+              1,
+              59
+            ],
+            "seconds": 2.417
+          }
+        }
+      }
+    }
   },
   "coelophysis": {
     "v1": {
@@ -131,7 +244,115 @@
     "v1": {
       "ref_side": "01a0b1d5-ac1b-774a-855d-4e973bc66264",
       "ref_front": "01a0b1d6-0f77-714b-ad83-0db94a9b1eee",
-      "i2m": "01a0b1d6-7169-71a6-97c6-2078cdc0fcfa"
+      "i2m": "01a0b1d6-7169-71a6-97c6-2078cdc0fcfa",
+      "rig_result": {
+        "species": "compsognathus",
+        "route": "skeleton_transplant",
+        "mesh": "game/assets/creatures/compsognathus/work/compsognathus_i2m_v1.glb",
+        "donor": "tools/standins/quaternius/Velociraptor.fbx",
+        "forward_axis": "+Z",
+        "source_height_m": 0.7625,
+        "source_length_m": 1.9017,
+        "repair": {
+          "loose_removed": 639,
+          "doubles_merged": 10281,
+          "holes_filled": 148,
+          "verts_before": 21344,
+          "islands": 1996,
+          "verts_after": 10424
+        },
+        "warp": {
+          "mode": "landmark",
+          "snout": [
+            -1.13,
+            -0.95
+          ],
+          "foot": [
+            -0.17,
+            -0.21
+          ],
+          "tail": [
+            1.1,
+            0.95
+          ],
+          "hip_z_scale": 0.904,
+          "width_scale": 0.8
+        },
+        "weights": {
+          "direct_fraction": 1.0
+        },
+        "authored_clips": {
+          "knockdown": "death 0-45%, holds",
+          "hit_react": "death 0-35% then reversed",
+          "alert": "idle 0-40% with head pitched 20.0 deg",
+          "attack_heavy": "telegraph hold of 8 frames at 30%"
+        },
+        "clips": {
+          "alert": {
+            "frames": [
+              1,
+              25
+            ],
+            "seconds": 1.0
+          },
+          "attack_heavy": {
+            "frames": [
+              1,
+              36
+            ],
+            "seconds": 1.458
+          },
+          "attack_primary": {
+            "frames": [
+              1,
+              21
+            ],
+            "seconds": 0.833
+          },
+          "death": {
+            "frames": [
+              1,
+              32
+            ],
+            "seconds": 1.292
+          },
+          "hit_react": {
+            "frames": [
+              1,
+              21
+            ],
+            "seconds": 0.833
+          },
+          "idle": {
+            "frames": [
+              1,
+              61
+            ],
+            "seconds": 2.5
+          },
+          "knockdown": {
+            "frames": [
+              1,
+              14
+            ],
+            "seconds": 0.542
+          },
+          "run": {
+            "frames": [
+              1,
+              14
+            ],
+            "seconds": 0.542
+          },
+          "walk": {
+            "frames": [
+              1,
+              59
+            ],
+            "seconds": 2.417
+          }
+        }
+      }
     }
   }
 }

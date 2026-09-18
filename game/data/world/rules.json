@@ -1,0 +1,113 @@
+{
+  "_about": "Material level and island archetype rules (docs/design/world-design.md \u00a72\u20133). The island generator applies ring offsets to the island tier; crafting uses the mean-of-materials rule from the systems PRD \u00a78.4.",
+  "island_size_m": {
+    "unstable": 240,
+    "home": 160
+  },
+  "rings": {
+    "landing": {
+      "radius_m": [
+        0,
+        30
+      ],
+      "level_offset": 0,
+      "spawns": false,
+      "note": "harbour + camp; nothing spawns within 25 m of camp"
+    },
+    "gathering": {
+      "radius_m": [
+        30,
+        90
+      ],
+      "level_offset": -5,
+      "level_offset_max": 0,
+      "spawns": "herbivores, trash mob"
+    },
+    "working": {
+      "radius_m": [
+        90,
+        160
+      ],
+      "level_offset": 0,
+      "spawns": "signature predators, packs",
+      "water": true
+    },
+    "crater": {
+      "radius_m": [
+        160,
+        210
+      ],
+      "level_offset": 5,
+      "guardian_tier_offset": 3,
+      "quadrant": "inland"
+    },
+    "far_shore": {
+      "radius_m": [
+        210,
+        240
+      ],
+      "level_offset": 5,
+      "spawns": "apex",
+      "warp_ruin": true,
+      "quadrant": "opposite"
+    }
+  },
+  "level_cap": 60,
+  "gathering_downrank": "node level above Gathering skill level is reduced to the skill level",
+  "crafted_level": "floor(mean of consumed material levels), clamped by governing skill level and recipe max_level",
+  "rare_attribute_chance": 0.05,
+  "unstable_flag": "all materials from unstable islands until cargo-warped",
+  "craters": {
+    "discover_fatigue": -20,
+    "discover_tstones": 30,
+    "open_cost_tstones": 50,
+    "plant": {
+      "nodes": [
+        6,
+        10
+      ]
+    },
+    "animal": {
+      "nests": 3
+    },
+    "mineral": {
+      "nodes": [
+        4,
+        6
+      ]
+    }
+  },
+  "warp_ruin": {
+    "containers": [
+      2,
+      4
+    ],
+    "loot": [
+      "cloth_scrap",
+      "wire",
+      "medicine",
+      "rare_seed"
+    ]
+  },
+  "lifetime_hours": {
+    "15-25": 6,
+    "30-45": 12,
+    "50-60": 24
+  },
+  "sink_warning_seconds": 60,
+  "creature_cap_mobile": 24,
+  "night_predator_perception_bonus": 0.5,
+  "wet_after_seconds_in_water": 5,
+  "attributes": {
+    "light": "faster tool swing",
+    "straight": "better pillars and planks",
+    "flexible": "bows and springs",
+    "resinous": "torches burn longer",
+    "hard": "higher durability",
+    "pliant": "better lashing",
+    "water": "drinkable",
+    "needle": "sewing",
+    "medicinal": "stronger medicine",
+    "dry": "tinder"
+  }
+}

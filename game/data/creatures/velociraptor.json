@@ -40,8 +40,11 @@
   },
   "pipeline": {
     "stage": "C2_blocked_rig_pose_estimation",
-    "reference": "01a0b17d-8fc2-7493-aaec-d11213e1fcf0",
-    "i2m": "01a0b17e-628c-74f6-9f88-b6e289c93bbc",
+    "reference": {
+      "side": "01a0b1d8-9f56-7031-9001-172fd7d2c4da",
+      "front": "01a0b1d9-013d-75d9-9927-19c7a26e8578"
+    },
+    "i2m": "01a0b1d9-63aa-7411-8071-d70e58a4befd",
     "reference_file": "res://assets/creatures/velociraptor/ref/velociraptor_side.png",
     "mesh_file": "res://assets/creatures/velociraptor/work/velociraptor_i2m_v1.glb",
     "sheet_file": "res://assets/creatures/velociraptor/sheet.png",
@@ -72,28 +75,41 @@
       "alert"
     ],
     "forward_axis": "+Z",
-    "source_height_m": 0.2,
-    "source_length_m": 0.93,
+    "source_height_m": 0.6992,
+    "source_length_m": 1.9024,
     "route": "skeleton_transplant_v2",
-    "mesh_source": "res://assets/creatures/velociraptor/work/velociraptor_i2m_v1.glb",
-    "donor_rig": "tools/standins/quaternius/Velociraptor.fbx (CC0, 37 bones)",
+    "mesh_source": "res://assets/creatures/velociraptor/work/velociraptor_i2m_v2.glb",
+    "donor_rig": "tools/standins/quaternius/Velociraptor.fbx",
     "transplant_tool": "tools/transplant_rig.py",
     "fit": "landmark (snout/feet/tail, hip height, hip width)",
     "repair": {
-      "islands": 363,
-      "loose_removed": 279,
-      "doubles_merged": 2846,
-      "holes_filled": 58,
-      "verts": [
-        9410,
-        6285
-      ]
+      "loose_removed": 786,
+      "doubles_merged": 15198,
+      "holes_filled": 154,
+      "verts_before": 26285,
+      "islands": 3750,
+      "verts_after": 10301
     },
     "warp": {
-      "hip_z_scale": 0.924,
-      "width_scale": 1.8
+      "mode": "landmark",
+      "snout": [
+        -1.13,
+        -0.95
+      ],
+      "foot": [
+        -0.17,
+        -0.29
+      ],
+      "tail": [
+        1.1,
+        0.95
+      ],
+      "hip_z_scale": 0.793,
+      "width_scale": 0.774
     },
-    "weights": "direct 100%",
+    "weights": {
+      "direct_fraction": 1.0
+    },
     "clips": [
       "idle",
       "walk",
@@ -106,11 +122,18 @@
       "alert"
     ],
     "authored_clips": {
-      "knockdown": "death 0-45% then hold",
+      "knockdown": "death 0-45%, holds",
       "hit_react": "death 0-35% then reversed",
-      "alert": "idle 0-40% with head pitched 20 deg",
-      "attack_heavy": "Jump with an 8-frame telegraph hold at 30%"
-    }
+      "alert": "idle 0-40% with head pitched 20.0 deg",
+      "attack_heavy": "telegraph hold of 8 frames at 30%"
+    },
+    "version": 2,
+    "i2m_params": {
+      "model": "meshy-7 multi-image",
+      "polycount": 20000,
+      "texture": "2k PBR"
+    },
+    "credits_spent": 48
   },
   "look": "turkey-sized feathered dromaeosaur, long stiff tail with a feather fan, sickle claw on each foot, rust and tan with dark barring,"
 }

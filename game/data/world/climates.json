@@ -1,0 +1,453 @@
+{
+  "_about": "Ten climates (systems PRD \u00a74.4) plus the home grassland. Vegetation families reference game/data/nature_manifest.json. Materials list item ids the island generator may place; 'attr' is the latent attribute stamped on that material (yellow pip).",
+  "grassland": {
+    "tiers": [
+      10
+    ],
+    "resist": [],
+    "home": true,
+    "vegetation": [
+      "CommonTree",
+      "BirchTree",
+      "Bush",
+      "BushBerries",
+      "Grass",
+      "Grass_Short",
+      "Flowers",
+      "Rock",
+      "WoodLog",
+      "TreeStump"
+    ],
+    "materials": [
+      {
+        "id": "fibre_stalk"
+      },
+      {
+        "id": "branch"
+      },
+      {
+        "id": "wood_log"
+      },
+      {
+        "id": "stone"
+      },
+      {
+        "id": "herb_leaf"
+      },
+      {
+        "id": "berries"
+      },
+      {
+        "id": "clay"
+      }
+    ],
+    "weather": [
+      "clear",
+      "rain"
+    ],
+    "day_night": true
+  },
+  "savannah": {
+    "tiers": [
+      15,
+      45
+    ],
+    "resist": [
+      "heat_weak"
+    ],
+    "vegetation": [
+      "CommonTree_Dead",
+      "Grass",
+      "Grass_Short",
+      "Rock",
+      "Bush",
+      "TreeStump"
+    ],
+    "materials": [
+      {
+        "id": "dry_grass",
+        "attr": "dry"
+      },
+      {
+        "id": "acacia_wood",
+        "attr": "light"
+      },
+      {
+        "id": "sandstone"
+      },
+      {
+        "id": "ochre"
+      },
+      {
+        "id": "branch"
+      },
+      {
+        "id": "stone"
+      }
+    ],
+    "weather": [
+      "clear",
+      "scorching"
+    ],
+    "day_night": true
+  },
+  "temperate": {
+    "tiers": [
+      20,
+      35
+    ],
+    "resist": [
+      "cold_weak"
+    ],
+    "vegetation": [
+      "CommonTree",
+      "BirchTree",
+      "Willow",
+      "PineTree",
+      "Bush",
+      "BushBerries",
+      "Grass",
+      "Plant",
+      "Flowers",
+      "Rock_Moss",
+      "Rock",
+      "WoodLog_Moss",
+      "TreeStump_Moss"
+    ],
+    "materials": [
+      {
+        "id": "fibre_stalk"
+      },
+      {
+        "id": "herb_leaf"
+      },
+      {
+        "id": "branch"
+      },
+      {
+        "id": "wood_log",
+        "attr": "straight"
+      },
+      {
+        "id": "reed"
+      },
+      {
+        "id": "flint"
+      },
+      {
+        "id": "clay"
+      },
+      {
+        "id": "berries"
+      },
+      {
+        "id": "stone"
+      }
+    ],
+    "weather": [
+      "clear",
+      "rain",
+      "overcast"
+    ],
+    "day_night": true
+  },
+  "tropical": {
+    "tiers": [
+      25,
+      40
+    ],
+    "resist": [
+      "heat_high"
+    ],
+    "vegetation": [
+      "PalmTree",
+      "Plant",
+      "Grass",
+      "Bush",
+      "Rock_Moss",
+      "Lilypad"
+    ],
+    "materials": [
+      {
+        "id": "palm_frond"
+      },
+      {
+        "id": "coconut",
+        "attr": "water"
+      },
+      {
+        "id": "bamboo",
+        "attr": "flexible"
+      },
+      {
+        "id": "mango"
+      },
+      {
+        "id": "vine"
+      },
+      {
+        "id": "obsidian",
+        "attr": "hard"
+      },
+      {
+        "id": "stone"
+      }
+    ],
+    "weather": [
+      "clear",
+      "rain",
+      "storm"
+    ],
+    "day_night": true
+  },
+  "tundra": {
+    "tiers": [
+      30,
+      40,
+      55
+    ],
+    "resist": [
+      "cold_high"
+    ],
+    "vegetation": [
+      "PineTree",
+      "PineTree_Snow",
+      "Bush_Snow",
+      "Rock_Snow",
+      "Grass_Short",
+      "WoodLog_Snow"
+    ],
+    "materials": [
+      {
+        "id": "pine_log",
+        "attr": "resinous"
+      },
+      {
+        "id": "resin"
+      },
+      {
+        "id": "ice"
+      },
+      {
+        "id": "bone"
+      },
+      {
+        "id": "stone"
+      },
+      {
+        "id": "branch"
+      }
+    ],
+    "weather": [
+      "clear",
+      "snow",
+      "wind"
+    ],
+    "day_night": true
+  },
+  "desert": {
+    "tiers": [
+      35,
+      50
+    ],
+    "resist": [
+      "heat_high",
+      "sun"
+    ],
+    "vegetation": [
+      "Cactus",
+      "CactusFlowers",
+      "CactusFlower",
+      "Rock",
+      "CommonTree_Dead"
+    ],
+    "materials": [
+      {
+        "id": "cactus_flesh",
+        "attr": "water"
+      },
+      {
+        "id": "cactus_spine",
+        "attr": "needle"
+      },
+      {
+        "id": "sandstone"
+      },
+      {
+        "id": "copper_ore"
+      },
+      {
+        "id": "salt"
+      },
+      {
+        "id": "stone"
+      }
+    ],
+    "weather": [
+      "clear",
+      "scorching",
+      "sandstorm"
+    ],
+    "day_night": true
+  },
+  "swamp": {
+    "tiers": [
+      45,
+      55,
+      60
+    ],
+    "resist": [
+      "heat_weak",
+      "humidity"
+    ],
+    "vegetation": [
+      "Willow",
+      "Willow_Dead",
+      "Lilypad",
+      "Plant",
+      "Grass",
+      "Rock_Moss",
+      "WoodLog_Moss"
+    ],
+    "materials": [
+      {
+        "id": "reed"
+      },
+      {
+        "id": "willow_wood",
+        "attr": "pliant"
+      },
+      {
+        "id": "peat"
+      },
+      {
+        "id": "clay"
+      },
+      {
+        "id": "marsh_herb",
+        "attr": "medicinal"
+      },
+      {
+        "id": "leech"
+      }
+    ],
+    "weather": [
+      "rain",
+      "overcast",
+      "fog"
+    ],
+    "day_night": true
+  },
+  "snowfield": {
+    "tiers": [
+      50,
+      60
+    ],
+    "resist": [
+      "cold_high",
+      "wind"
+    ],
+    "vegetation": [
+      "PineTree_Snow",
+      "BirchTree_Snow",
+      "Willow_Snow",
+      "Rock_Snow",
+      "Bush_Snow",
+      "CommonTree_Dead_Snow"
+    ],
+    "materials": [
+      {
+        "id": "ice"
+      },
+      {
+        "id": "snow_pine",
+        "attr": "resinous"
+      },
+      {
+        "id": "silver_ore"
+      },
+      {
+        "id": "stone"
+      }
+    ],
+    "weather": [
+      "snow",
+      "wind",
+      "clear"
+    ],
+    "day_night": true
+  },
+  "blue_tropical": {
+    "tiers": [
+      55
+    ],
+    "resist": [
+      "heat_high",
+      "humidity"
+    ],
+    "vegetation": [
+      "PalmTree",
+      "Plant",
+      "Lilypad",
+      "Rock",
+      "Grass"
+    ],
+    "materials": [
+      {
+        "id": "pearl"
+      },
+      {
+        "id": "coral",
+        "attr": "hard"
+      },
+      {
+        "id": "palm_frond"
+      },
+      {
+        "id": "blue_dye"
+      },
+      {
+        "id": "coconut",
+        "attr": "water"
+      }
+    ],
+    "weather": [
+      "clear",
+      "storm"
+    ],
+    "day_night": true
+  },
+  "volcanic": {
+    "tiers": [
+      60
+    ],
+    "resist": [
+      "heat_volcanic"
+    ],
+    "vegetation": [
+      "Rock",
+      "CommonTree_Dead",
+      "Rock_Snow"
+    ],
+    "materials": [
+      {
+        "id": "black_iron",
+        "attr": "hard"
+      },
+      {
+        "id": "lava"
+      },
+      {
+        "id": "sulphur"
+      },
+      {
+        "id": "ash"
+      }
+    ],
+    "weather": [
+      "ash_storm",
+      "clear"
+    ],
+    "day_night": true
+  }
+}

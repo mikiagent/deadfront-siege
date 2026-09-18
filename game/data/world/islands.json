@@ -1,0 +1,641 @@
+{
+  "_about": "Unstable island catalogue and the home island. Counts are per group; groups is how many packs/herds in that ring. See docs/design/world-design.md \u00a75.",
+  "home_grassland": {
+    "id": "home_grassland",
+    "climate": "grassland",
+    "tier": 10,
+    "permanent": true,
+    "size_m": 160,
+    "terrains": [
+      "meadow",
+      "forest",
+      "rocky",
+      "riverside",
+      "coastal"
+    ],
+    "spawns": {
+      "gathering": [
+        {
+          "species": "compsognathus",
+          "count": 3,
+          "groups": 1
+        }
+      ],
+      "working": [],
+      "crater": [],
+      "far_shore": []
+    },
+    "crater_type": null
+  },
+  "savannah_15": {
+    "id": "savannah_15",
+    "climate": "savannah",
+    "tier": 15,
+    "lifetime_hours": 6,
+    "crater_type": "plant",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "compsognathus",
+          "count": 6,
+          "groups": 2
+        }
+      ],
+      "working": [
+        {
+          "species": "coelophysis",
+          "count": 4,
+          "groups": 2
+        },
+        {
+          "species": "protoceratops",
+          "count": 3,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "coelophysis",
+          "count": 5,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "coelophysis",
+          "count": 1,
+          "groups": 1,
+          "tier_offset": 5
+        }
+      ]
+    }
+  },
+  "temperate_20": {
+    "id": "temperate_20",
+    "climate": "temperate",
+    "tier": 20,
+    "lifetime_hours": 6,
+    "crater_type": "animal",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "compsognathus",
+          "count": 5,
+          "groups": 1
+        },
+        {
+          "species": "protoceratops",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "coelophysis",
+          "count": 4,
+          "groups": 1
+        },
+        {
+          "species": "velociraptor",
+          "count": 2,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "protoceratops",
+          "count": 4,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "velociraptor",
+          "count": 3,
+          "groups": 1
+        }
+      ]
+    }
+  },
+  "temperate_25": {
+    "id": "temperate_25",
+    "climate": "temperate",
+    "tier": 25,
+    "lifetime_hours": 6,
+    "crater_type": "plant",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "protoceratops",
+          "count": 4,
+          "groups": 1
+        },
+        {
+          "species": "compsognathus",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "velociraptor",
+          "count": 3,
+          "groups": 2
+        }
+      ],
+      "crater": [
+        {
+          "species": "velociraptor",
+          "count": 4,
+          "groups": 1,
+          "tier_offset": 3
+        },
+        {
+          "species": "deinonychus",
+          "count": 2,
+          "groups": 1
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "deinonychus",
+          "count": 3,
+          "groups": 1
+        },
+        {
+          "species": "utahraptor",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.25
+        }
+      ]
+    }
+  },
+  "tropical_25": {
+    "id": "tropical_25",
+    "climate": "tropical",
+    "tier": 25,
+    "lifetime_hours": 6,
+    "crater_type": "plant",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "compsognathus",
+          "count": 6,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "coelophysis",
+          "count": 4,
+          "groups": 1
+        },
+        {
+          "species": "protoceratops",
+          "count": 3,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "deinonychus",
+          "count": 3,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "dilophosaurus",
+          "count": 1,
+          "groups": 1
+        }
+      ]
+    }
+  },
+  "tundra_30": {
+    "id": "tundra_30",
+    "climate": "tundra",
+    "tier": 30,
+    "lifetime_hours": 12,
+    "crater_type": "animal",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "megaloceros",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "megaloceros",
+          "count": 3,
+          "groups": 1
+        },
+        {
+          "species": "velociraptor",
+          "count": 3,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "megaloceros",
+          "count": 3,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "smilodon",
+          "count": 1,
+          "groups": 1
+        }
+      ]
+    }
+  },
+  "desert_35": {
+    "id": "desert_35",
+    "climate": "desert",
+    "tier": 35,
+    "lifetime_hours": 12,
+    "crater_type": "mineral",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "gallimimus",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "gallimimus",
+          "count": 3,
+          "groups": 1
+        },
+        {
+          "species": "coelophysis",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "gallimimus",
+          "count": 5,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "utahraptor",
+          "count": 1,
+          "groups": 1
+        }
+      ]
+    }
+  },
+  "temperate_35": {
+    "id": "temperate_35",
+    "climate": "temperate",
+    "tier": 35,
+    "lifetime_hours": 12,
+    "crater_type": "plant",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "protoceratops",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "deinonychus",
+          "count": 3,
+          "groups": 2
+        }
+      ],
+      "crater": [
+        {
+          "species": "deinonychus",
+          "count": 4,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "stegosaurus",
+          "count": 1,
+          "groups": 1
+        }
+      ]
+    }
+  },
+  "tropical_40": {
+    "id": "tropical_40",
+    "climate": "tropical",
+    "tier": 40,
+    "lifetime_hours": 12,
+    "crater_type": "mineral",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "deinonychus",
+          "count": 3,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "dilophosaurus",
+          "count": 2,
+          "groups": 1
+        },
+        {
+          "species": "deinonychus",
+          "count": 3,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "dilophosaurus",
+          "count": 3,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "allosaurus",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.3
+        }
+      ]
+    }
+  },
+  "savannah_45": {
+    "id": "savannah_45",
+    "climate": "savannah",
+    "tier": 45,
+    "lifetime_hours": 12,
+    "crater_type": "plant",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "coelophysis",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "styracosaurus",
+          "count": 3,
+          "groups": 1
+        },
+        {
+          "species": "deinonychus",
+          "count": 3,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "styracosaurus",
+          "count": 4,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "utahraptor",
+          "count": 2,
+          "groups": 1
+        }
+      ]
+    }
+  },
+  "temperate_45": {
+    "id": "temperate_45",
+    "climate": "temperate",
+    "tier": 45,
+    "lifetime_hours": 12,
+    "crater_type": "animal",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "protoceratops",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "stegosaurus",
+          "count": 2,
+          "groups": 1
+        },
+        {
+          "species": "deinonychus",
+          "count": 3,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "stegosaurus",
+          "count": 3,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "utahraptor",
+          "count": 1,
+          "groups": 1
+        }
+      ]
+    }
+  },
+  "desert_50": {
+    "id": "desert_50",
+    "climate": "desert",
+    "tier": 50,
+    "lifetime_hours": 24,
+    "crater_type": "mineral",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "gallimimus",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "utahraptor",
+          "count": 3,
+          "groups": 1
+        },
+        {
+          "species": "ankylosaurus",
+          "count": 1,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "ankylosaurus",
+          "count": 2,
+          "groups": 1,
+          "tier_offset": 3
+        },
+        {
+          "species": "utahraptor",
+          "count": 3,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "allosaurus",
+          "count": 1,
+          "groups": 1
+        }
+      ]
+    }
+  },
+  "swamp_55": {
+    "id": "swamp_55",
+    "climate": "swamp",
+    "tier": 55,
+    "lifetime_hours": 24,
+    "crater_type": "plant",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "compsognathus",
+          "count": 6,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "triceratops",
+          "count": 3,
+          "groups": 1
+        },
+        {
+          "species": "deinonychus",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "triceratops",
+          "count": 3,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "dilophosaurus",
+          "count": 3,
+          "groups": 1
+        }
+      ]
+    }
+  },
+  "tundra_55": {
+    "id": "tundra_55",
+    "climate": "tundra",
+    "tier": 55,
+    "lifetime_hours": 24,
+    "crater_type": "animal",
+    "spawns": {
+      "gathering": [
+        {
+          "species": "megaloceros",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "working": [
+        {
+          "species": "smilodon",
+          "count": 2,
+          "groups": 1
+        },
+        {
+          "species": "velociraptor",
+          "count": 4,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "smilodon",
+          "count": 3,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "tarbosaurus",
+          "count": 1,
+          "groups": 1
+        }
+      ]
+    }
+  },
+  "volcanic_60": {
+    "id": "volcanic_60",
+    "climate": "volcanic",
+    "tier": 60,
+    "lifetime_hours": 24,
+    "crater_type": "mineral",
+    "raid": true,
+    "spawns": {
+      "gathering": [],
+      "working": [
+        {
+          "species": "ankylosaurus",
+          "count": 2,
+          "groups": 1
+        }
+      ],
+      "crater": [
+        {
+          "species": "utahraptor",
+          "count": 3,
+          "groups": 1,
+          "tier_offset": 3
+        }
+      ],
+      "far_shore": [
+        {
+          "species": "tyrannosaurus",
+          "count": 1,
+          "groups": 1
+        }
+      ]
+    }
+  }
+}
