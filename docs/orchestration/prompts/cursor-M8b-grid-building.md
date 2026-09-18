@@ -66,3 +66,19 @@ semantics and `TouchControls.set_context(&"place")`).
 - `tools/smoke.sh` → `SMOKE PASS`. Report `docs/orchestration/reports/cursor-M8b-grid-building.md`.
   Commit as `M8b: grid building from the bag`.
 - Do not edit `game/project.godot`, `tools/`, or anything under `game/assets/`.
+
+## Addendum (owner, 2026-09-17 evening) — the ground is a tile map
+
+- **Tap-to-walk is tile based.** Rework M8a's ground tap so the target is the centre of
+  the tapped 1 m tile (`floor(x) + 0.5, floor(z) + 0.5`, snapped to the navmesh) and the
+  marker is a **tile highlight**: a flat 1×1 m quad on that tile (unshaded, 40 % alpha)
+  that stays until the player arrives, instead of the fading ring. Hold-to-walk keeps
+  re-targeting tiles. A `BuildGrid.tile_of(pos) -> Vector2i` and
+  `BuildGrid.tile_centre(tile, runtime) -> Vector3` are the single source of truth for
+  tiles; the player, the placer, HarvestNode snapping (M5b) and the terrain grid shader
+  (M5b) all use them.
+- **Footprint labels.** Every placeable kit shows its tile size as text: `2×3` in the bag
+  slot detail and on the Place button, and the ghost carries a `Label3D` above it with
+  the same text plus the reason when invalid (`2×3 · overlap`). Store `footprint` on the
+  item defs in `items.json` from `props_manifest.json` so the bag does not need the
+  manifest.
