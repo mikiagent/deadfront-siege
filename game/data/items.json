@@ -302,7 +302,7 @@
       "max_durability": 40,
       "stats_per_level": {
         "damage": 0.02,
-        "durability": 0.02
+        "max_durability": 0.02
       }
     },
     {
@@ -323,7 +323,7 @@
       "max_durability": 80,
       "stats_per_level": {
         "damage": 0.02,
-        "durability": 0.02
+        "max_durability": 0.02
       }
     },
     {
@@ -343,7 +343,7 @@
       "max_durability": 50,
       "stats_per_level": {
         "damage": 0.02,
-        "durability": 0.02
+        "max_durability": 0.02
       }
     },
     {
@@ -358,7 +358,7 @@
       "is_work_tool": true,
       "max_durability": 50,
       "stats_per_level": {
-        "durability": 0.02
+        "max_durability": 0.02
       }
     },
     {
@@ -378,7 +378,7 @@
       "max_durability": 60,
       "stats_per_level": {
         "damage": 0.02,
-        "durability": 0.02
+        "max_durability": 0.02
       }
     },
     {
@@ -390,7 +390,11 @@
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
-      "diet": "carnivore"
+      "diet": "carnivore",
+      "food_energy": 16,
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "raptor_bone",

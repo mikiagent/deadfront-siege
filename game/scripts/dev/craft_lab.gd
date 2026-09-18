@@ -101,30 +101,28 @@ func _spawn(id: StringName, pos: Vector3, def_id: StringName, attrs: Dictionary,
 	n.setup(id, def_id, 1, 1, attrs, tool, color)
 
 func _level_mean_demo(rec: Dictionary) -> void:
-	# Prompt lab check is a two-unit mean (blade + handle). Lashing is a third sample on the live recipe.
-	var a := Crafting.crafted_level_for(rec, [25, 5])
-	print("[craft] level=%d from %s" % [a, [25, 5]])
-	var b := Crafting.crafted_level_for(rec, [25, 40])
-	print("[craft] level=%d from %s" % [b, [25, 40]])
-	_craft_knife_at(rec, 25, 5)
-	_craft_knife_at(rec, 25, 40)
+	_craft_knife_at(rec, 25, 5, 15, 15)
+	_craft_knife_at(rec, 25, 40, 31, 32)
 
-func _craft_knife_at(rec: Dictionary, stone_lv: int, branch_lv: int) -> void:
+func _craft_knife_at(rec: Dictionary, stone_lv: int, branch_lv: int, twine_lv: int, expected: int) -> void:
 	var stone := ItemStack.make(&"stone", 1, {"tint": "#8a8a8a"}, stone_lv)
 	stone.level = stone_lv
 	var branch := ItemStack.make(&"branch", 1, {}, branch_lv)
 	branch.level = branch_lv
-	var twine := ItemStack.make(&"twine", 1, {}, 1)
-	twine.level = 1
+	var twine := ItemStack.make(&"twine", 1, {}, twine_lv)
+	twine.level = twine_lv
 	_player.inventory.add(stone)
 	_player.inventory.add(branch)
 	_player.inventory.add(twine)
 	var picks: Array[int] = [
 		_find_id_level(&"stone", stone_lv),
 		_find_id_level(&"branch", branch_lv),
-		_find_id_level(&"twine", 1),
+		_find_id_level(&"twine", twine_lv),
 	]
-	Crafting.craft(_player, rec, picks)
+	var out := Crafting.craft(_player, rec, picks)
+	print("[craft] knife expected=%d got=%d blade=%d branch=%d lashing=%d" % [
+		expected, out.level if out else -1, stone_lv, branch_lv, twine_lv
+	])
 
 func _find_id_level(id: StringName, lv: int) -> int:
 	for i in _player.inventory.slot_count:
