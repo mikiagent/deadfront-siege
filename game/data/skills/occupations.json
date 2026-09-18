@@ -1,0 +1,13 @@
+{
+  "_about": "Character creation (systems PRD §5.1): eight occupations, each starting at proficiency 20 in one tree. Stories are placeholders in Durango's voice.",
+  "occupations": [
+    {"id": "soldier", "name": "Soldier", "tree": "melee", "story": "Trained to fight; the jungle is just another posting."},
+    {"id": "job_seeker", "name": "Job Seeker", "tree": "defense", "story": "Took every hit life threw and kept walking."},
+    {"id": "office_worker", "name": "Office Worker", "tree": "construction", "story": "Spreadsheets, deadlines, and a talent for putting things together."},
+    {"id": "technician", "name": "Technician", "tree": "weapon_tools", "story": "If it has moving parts, you can fix it or sharpen it."},
+    {"id": "flight_attendant", "name": "Flight Attendant", "tree": "tailoring", "story": "Neat stitches, calm hands, and a bag for everything."},
+    {"id": "student", "name": "Student", "tree": "gathering", "story": "Curious about every leaf, berry and stone on the island."},
+    {"id": "homemaker", "name": "Homemaker", "tree": "cooking", "story": "Feeds anyone who sits down, even at the end of the world."},
+    {"id": "farmer", "name": "Farmer", "tree": "farming", "story": "Knows soil, seasons and how to wait for things to grow."}
+  ]
+}

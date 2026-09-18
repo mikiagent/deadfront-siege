@@ -148,6 +148,8 @@ func confirm(player: Player) -> bool:
 		node.set_grid_pose(cell, rot_step)
 	grid.occupy(node, grid.cells_for(placing, cell, rot_step))
 	print("[build] placed %s at (%d,%d) rot=%d" % [placing, cell.x, cell.y, posmod(rot_step, 4) * 90])
+	if player.skills:
+		player.skills.add_xp("construction", 8)
 	World.note_building(placing)
 	cancel()
 	return true

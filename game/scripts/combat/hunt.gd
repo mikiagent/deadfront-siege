@@ -109,7 +109,11 @@ func _auto_attack() -> void:
 	var dealt: float = maxf(dmg * 0.05, raw)
 	if _is_behind():
 		dealt *= 1.25
+	if player.skills:
+		dealt *= 1.0 + 0.01 * float(player.skills.level_of("melee"))  # ASSUMPTION +1 % per Melee level
 	target.health.take_damage(dealt, player)
+	if player.skills:
+		player.skills.add_xp("melee", 2)
 	print("[combat] player hit %s dmg=%.1f type=%s" % [target.def.id, dealt, dtype])
 	if dtype == &"slashing" and randf() < 0.25:
 		target.statuses.apply(&"bleeding_target", player)

@@ -13,7 +13,9 @@ var pioneer_level: int = 0
 var pioneer_xp: int = 0
 var home_claims: Array = []  # [[x, z, w, d], ...] tile rects on the home island (saved)
 var unstable_claims: Array = []  # same, current unstable island only (not saved)
-var free_claim_used: bool = false  # gathers +1, crafts +10, buildings +15; bar wraps every 100 (ASSUMPTION)
+var free_claim_used: bool = false
+var player_name: String = ""
+var occupation: String = ""  # gathers +1, crafts +10, buildings +15; bar wraps every 100 (ASSUMPTION)
 var pioneer_crafts: Dictionary = {}
 var pioneer_buildings: Dictionary = {}
 var cargo_home: Inventory = Inventory.new(60) ## ASSUMPTION: 60 slots for mobile UI
@@ -76,7 +78,7 @@ func _boot() -> void:
 		return  # downloader shell is showing; shell/boot.gd calls _boot once the game scene is up
 	if runtime != null and is_instance_valid(runtime):
 		return  # already booted
-	if _save_exists():
+	if _save_exists() and not ("--new-game" in OS.get_cmdline_user_args()):
 		_load_now(host)
 	else:
 		start_new(host)
@@ -84,7 +86,19 @@ func _boot() -> void:
 func start_new(host: Node) -> void:
 	home_terrain = &""
 	island_id = &"home_grassland"
-	load_island(host, island_id, Vector3(0, 1, 18), true)
+	# Character creation first (M10), then the home island with the terrain pick.
+	var cc := CharacterCreation.new()
+	cc.name = "CharacterCreation"
+	host.add_child(cc)
+	cc.done.connect(func (occ: String, gender: String, nm: String) -> void:
+		occupation = occ
+		player_name = nm
+		var p := _player()
+		if p and p.skills:
+			p.skills.apply_occupation(occ)
+		print("[world] new survivor %s (%s, %s)" % [nm, occ, gender])
+		load_island(host, island_id, Vector3(0, 1, 18), true)
+	)
 
 func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) -> void:
 	_clear_runtime()

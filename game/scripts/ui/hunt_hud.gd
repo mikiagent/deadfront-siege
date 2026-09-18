@@ -58,6 +58,8 @@ func _ready() -> void:
 	_load_level_data()
 	if World.has_signal("pioneer_changed"):
 		World.pioneer_changed.connect(_on_level_up)
+	if Game.shot_path.contains("skills") or Game.shot_path.contains("tree"):
+		get_tree().create_timer(0.8).timeout.connect(func () -> void: _toggle_skills("gathering" if Game.shot_path.contains("tree") else ""))
 	if Game.shot_path.contains("levelup"):
 		get_tree().create_timer(0.8).timeout.connect(func () -> void: World.pioneer_level += 1; World.pioneer_changed.emit(World.pioneer_level))
 	get_viewport().size_changed.connect(_layout)
@@ -407,16 +409,19 @@ func _close_sheet() -> void:
 		_sheet = null
 	_sheet_kind = &""
 
-func _toggle_skills() -> void:
-	var p := get_tree().root.find_child("SkillDebug", true, false)
-	if p == null:
-		var sd := SkillDebug.new()
-		sd.name = "SkillDebug"
-		get_parent().add_child(sd)
-		p = sd
-	p.visible = not p.visible
-	if p.visible and p.has_method("_rebuild"):
-		p._rebuild()
+var _skills_sheet: SkillsSheet
+
+func _toggle_skills(tree: String = "") -> void:
+	if player == null or player.skills == null:
+		return
+	if _skills_sheet == null:
+		_skills_sheet = SkillsSheet.new()
+		_skills_sheet.name = "SkillsSheet"
+		add_child(_skills_sheet)
+	if _skills_sheet.visible and tree == "":
+		_skills_sheet.close()
+	else:
+		_skills_sheet.open(player.skills, tree)
 
 func _open_map() -> void:
 	var ui = (load("res://scripts/ui/world_ui.gd") as GDScript).ensure()
@@ -491,9 +496,13 @@ func _draw() -> void:
 	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 36), "%s  %s" % [Game.clock_label(), Game.phase_name()], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, 13, Color(0.85, 0.85, 0.85))
 	# --- XP bar along the bottom
 	var prog := World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
+	var char_lv := World.pioneer_level
+	if player.skills:
+		char_lv = player.skills.character_level()
+		prog = player.skills.character_progress()
 	draw_rect(Rect2(0, r.y - 7, r.x, 7), Color(0.05, 0.05, 0.07, 0.9))
 	draw_rect(Rect2(0, r.y - 7, r.x * prog, 7), Color(0.55, 0.25, 0.75))
-	var lv := "Lv. %d  %.1f%%" % [World.pioneer_level, prog * 100.0]
+	var lv := "Lv. %d  %.1f%%" % [char_lv, prog * 100.0]
 	var lw := _font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
 	draw_string(_font, Vector2(r.x * 0.5 - lw * 0.5, r.y - 10), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 	# --- name under the survivor

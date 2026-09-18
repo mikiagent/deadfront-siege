@@ -159,6 +159,29 @@ static func can_make(player: Player, rec: Dictionary, picks: Array[int]) -> bool
 		return false
 	return picks_valid(player.inventory, rec, picks)
 
+## Which skill tree a recipe trains, from its output categories. ASSUMPTION mapping.
+static func tree_for_recipe(rec: Dictionary) -> String:
+	if rec.has("tree"):
+		return str(rec["tree"])
+	var out_row: Dictionary = rec.get("output", {})
+	var def := Data.item(StringName(str(out_row.get("id", ""))))
+	if def:
+		for c in def.categories:
+			var cs := str(c)
+			if cs == "food":
+				return "cooking"
+			if cs == "tool" or cs == "weapon":
+				return "weapon_tools"
+			if cs == "clothing" or cs == "bag" or cs == "armor":
+				return "tailoring"
+			if cs == "building" or cs == "building_kit":
+				return "construction"
+	return "processing"
+
+static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
+	if player and player.skills:
+		player.skills.add_xp(tree_for_recipe(rec), 6)
+
 static func craft(player: Player, rec: Dictionary, picks: Array[int]) -> ItemStack:
 	if not can_make(player, rec, picks):
 		return null
@@ -182,6 +205,7 @@ static func craft(player: Player, rec: Dictionary, picks: Array[int]) -> ItemSta
 		print("[craft] bag full remainder=%d" % left)
 	print("[craft] level=%d from %s" % [out.level, levels])
 	print("[craft] %s from primary=%s %s" % [out.def_id, primary.def_id, primary.attributes])
+	grant_craft_xp(player, rec)
 	World.note_craft(StringName(str(rec.get("id", ""))))
 	return out
 

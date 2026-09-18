@@ -46,6 +46,9 @@ static func save_now() -> void:
 			"claims": World.home_claims,
 		},
 		"pioneer_xp": World.pioneer_xp,
+		"skills_v2": player.skills.to_dict() if player.skills else {},
+		"player_name": World.player_name,
+		"occupation": World.occupation,
 		"pioneer_level": World.pioneer_level,
 		"pioneer_crafts": World.pioneer_crafts,
 		"pioneer_buildings": World.pioneer_buildings,
@@ -96,6 +99,8 @@ static func load_now(host: Node) -> void:
 	World._home_buildings_cache = data.get("home", {}).get("buildings", [])
 	World.home_claims = data.get("home", {}).get("claims", [])
 	World.pioneer_xp = int(data.get("pioneer_xp", 0))
+	World.player_name = str(data.get("player_name", ""))
+	World.occupation = str(data.get("occupation", ""))
 	Game.time_of_day = float(data.get("clock", 0.35))
 	var skills: Dictionary = data.get("skills", {})
 	for id in skills:
@@ -120,6 +125,8 @@ static func load_now(host: Node) -> void:
 	player.vitals.from_dict(data.get("player", {}).get("vitals", {}))
 	player.statuses.from_array(data.get("player", {}).get("statuses", []))
 	player.inventory.load_array(data.get("player", {}).get("inventory", []))
+	if player.skills:
+		player.skills.from_dict(data.get("skills_v2", {}))
 	player.bonded.clear()
 	for row in data.get("pets", []):
 		if row is Dictionary:

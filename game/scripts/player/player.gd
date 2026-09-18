@@ -36,6 +36,8 @@ var rolling: bool = false
 var gather_target: HarvestNode
 var butcher_target: Corpse
 var _corpse_slot: int = -1
+var skills: SkillState
+var _survival_acc: float = 0.0
 var _ctx_cd: float = 0.0
 var tame_target: Creature
 var tame_food_id: StringName = &""
@@ -102,6 +104,9 @@ func _ready() -> void:
 	_setup_lantern()
 	_setup_ground_marker()
 	_setup_gather_ring()
+	skills = SkillState.new()
+	skills.name = "Skills"
+	add_child(skills)
 	_setup_gather_radial()
 	_setup_station_craft()
 	vitals.damaged.connect(_on_vitals_damaged)
@@ -165,6 +170,8 @@ func face_world(pos: Vector3) -> void:
 
 func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 	_cancel_gather_and_butcher()
+	if skills:
+		skills.add_xp("defense", 1)
 	vitals.add_fatigue(2.0, &"combat")
 	if anim:
 		if statuses and statuses.has_flag(&"knockdown"):
@@ -174,6 +181,10 @@ func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 
 func _physics_process(delta: float) -> void:
 	_fall_guard()
+	_survival_acc += delta
+	if _survival_acc >= 60.0 and skills:
+		_survival_acc -= 60.0
+		skills.add_xp("survival", 1)
 	_tick_hold_walk(delta)
 	if statuses == null or vitals == null:
 		move_and_slide()
@@ -598,6 +609,15 @@ func _finish_gather() -> void:
 			gather_target = null
 			return
 	var stack := gather_target.roll_yield()
+	if skills:
+		# rules.json gathering_downrank: a node above your Gathering level yields at your level.
+		# ASSUMPTION: floor of 5 so a fresh survivor still gets usable materials.
+		var cap := maxi(skills.level_of("gathering"), 5)
+		if int(stack.attributes.get("level", 1)) > cap:
+			stack.attributes["level"] = cap
+		skills.add_xp("gathering", 2)
+		if gather_target.family.begins_with("Rock") or gather_target.family == "clay":
+			skills.add_xp("processing", 1)
 	var attrs := stack.attributes.duplicate(true)
 	var before := stack.count
 	var left := inventory.add(stack)
@@ -1193,6 +1213,8 @@ func debug_open_radial(node: HarvestNode) -> void:
 		_gather_radial.open(node, node.options(), inventory)
 
 func display_name() -> String:
+	if World.player_name != "":
+		return World.player_name
 	var meta := _survivor_meta()
 	return str(meta.get("display_name", "Survivor"))
 
@@ -1235,6 +1257,8 @@ func _corpse_take_timer(corpse: Corpse, slot: int) -> void:
 		var left := inventory.add(st)
 		print("[item] +%d %s (loot %s)" % [before - left, st.def_id, corpse.species])
 		World.add_xp(2)
+		if skills:
+			skills.add_xp("butchering", 3)
 		toast(st.def_id, before - left)
 	)
 
