@@ -682,6 +682,34 @@
       "process_add": 1,
       "max_level": 60,
       "skill": "construction"
+    },
+    {
+      "id": "skewer",
+      "display_name": "Skewer",
+      "skill": "cooking",
+      "max_level": 19,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "skewer",
+        "count": 1
+      },
+      "station": "bonfire",
+      "seconds": 3.0,
+      "process_step": "cook",
+      "process_add": 1,
+      "max_level": 19,
+      "skill": "cooking"
     }
   ]
 }

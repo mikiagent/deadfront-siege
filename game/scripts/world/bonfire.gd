@@ -1,17 +1,22 @@
 class_name Bonfire
 extends StaticBody3D
-## Interact: Cauterise — clears deep_bleed for 5 HP.
+## Interact: Cauterise — clears deep_bleed for 5 HP. Also a cook station (station_id=bonfire).
 
 var kind: StringName = &"bonfire"
+var station_id: StringName = &"bonfire"
 var persist_building: bool = true
 var build_cell: Vector2i = Vector2i.ZERO
 var build_rot: int = 0
+var _fire_light: OmniLight3D
+var _flicker_phase: float = randf() * TAU
 
 func _ready() -> void:
 	add_to_group("placed_building")
 	add_to_group("bonfire")
+	add_to_group("craft_station")
 	if get_node_or_null("Shape") == null and get_node_or_null("Prop") == null and get_node_or_null("FallbackMesh") == null:
 		PropVisuals.apply_building_visual(self, kind, Vector3(1.1, 0.7, 1.1), Color(0.85, 0.35, 0.1))
+	_setup_fire_light()
 
 func _exit_tree() -> void:
 	if World.runtime == null:
@@ -24,6 +29,7 @@ static func make() -> Bonfire:
 	var b := Bonfire.new()
 	b.persist_building = true
 	b.kind = &"bonfire"
+	b.station_id = &"bonfire"
 	b.name = "bonfire"
 	return b
 
@@ -55,3 +61,27 @@ func cauterise(player: Player) -> void:
 	player.vitals.take_damage(5.0)
 	player.statuses.clear_id(&"deep_bleed")
 	print("[status] %s -deep_bleed cauterise" % player.name)
+
+func _setup_fire_light() -> void:
+	_fire_light = OmniLight3D.new()
+	_fire_light.name = "FireLight"
+	_fire_light.omni_range = 7.0
+	_fire_light.omni_attenuation = 1.4
+	_fire_light.light_color = Color(1.0, 0.55, 0.25)
+	_fire_light.light_energy = 0.0
+	_fire_light.shadow_enabled = false
+	_fire_light.position = Vector3(0.0, 0.55, 0.0)
+	add_child(_fire_light)
+	set_process(true)
+
+func _process(_delta: float) -> void:
+	if _fire_light == null:
+		return
+	var phase := Game.phase_name()
+	var on := phase == &"night" or phase == &"dusk" or phase == &"dawn"
+	if not on:
+		_fire_light.light_energy = 0.0
+		return
+	var flicker := 1.0 + sin((Time.get_ticks_msec() * 0.001) * 6.5 + _flicker_phase) * 0.12
+	flicker += sin((Time.get_ticks_msec() * 0.001) * 13.0 + _flicker_phase * 0.7) * 0.05
+	_fire_light.light_energy = 3.6 * flicker

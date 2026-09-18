@@ -74,6 +74,8 @@ static func build(host: Node3D, size: float = 80.0) -> Dictionary:
 	debug.position = Vector2(12, 8)
 	debug.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(debug)
+	if player.station_craft:
+		player.station_craft.reparent_ui(ui)
 	nav.bake_navigation_mesh(false)
 	return {"player": player, "nav": nav, "ui": ui, "debug": debug, "cam": cam}
 

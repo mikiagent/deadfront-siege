@@ -46,6 +46,7 @@ var _path_anchor: Vector3 = Vector3.ZERO
 var _path_blocked_left: float = 0.0
 var ui: InventoryUI
 var craft_ui
+var station_craft: StationCraft
 var in_water: bool = false
 var _wet_acc: float = 0.0
 
@@ -98,10 +99,40 @@ func _ready() -> void:
 	_setup_lantern()
 	_setup_ground_marker()
 	_setup_gather_ring()
+	_setup_station_craft()
 	vitals.damaged.connect(_on_vitals_damaged)
 	vitals.died.connect(_on_vitals_died)
 	if has_node("Shape"):
 		pass
+
+func open_station_craft(st: Node3D) -> void:
+	if station_craft:
+		station_craft.open_station(st)
+
+func _setup_station_craft() -> void:
+	var layer := _find_or_make_ui_layer()
+	station_craft = StationCraft.new()
+	station_craft.name = "StationCraft"
+	add_child(station_craft)
+	station_craft.setup(self, layer)
+
+func _find_or_make_ui_layer() -> CanvasLayer:
+	var scene := get_tree().current_scene
+	if scene:
+		var existing := scene.get_node_or_null("UI") as CanvasLayer
+		if existing:
+			return existing
+		for c in scene.get_children():
+			if c is CanvasLayer and str(c.name) == "UI":
+				return c as CanvasLayer
+	var layer := CanvasLayer.new()
+	layer.layer = 28
+	layer.name = "StationCraftLayer"
+	if scene:
+		scene.add_child(layer)
+	else:
+		add_child(layer)
+	return layer
 
 func nav_to(pos: Vector3) -> void:
 	if nav_active and _path_goal.distance_to(pos) <= 0.3:
@@ -602,6 +633,8 @@ func _cancel_gather_and_butcher() -> void:
 	tame_target = null
 	tame_food_id = &""
 	_stop_gather_cycle()
+	if station_craft and station_craft.crafting:
+		station_craft.cancel_and_refund()
 
 func _setup_ground_marker() -> void:
 	_ground_marker = MeshInstance3D.new()
@@ -804,6 +837,10 @@ func _interact() -> void:
 	if pen and global_position.distance_to(pen.global_position) < 3.0:
 		_pen_interact(pen)
 		return
+	var station := _nearest_group("craft_station") as Node3D
+	if station and global_position.distance_to(station.global_position) < 2.5:
+		open_station_craft(station)
+		return
 	var fire := _nearest_group("bonfire") as Bonfire
 	if fire and global_position.distance_to(fire.global_position) < 2.5:
 		fire.cauterise(self)
@@ -918,6 +955,9 @@ func summon_pet(index: int = 0) -> void:
 	print("[capture] summoned %s hp=%.0f (wild hp=%.0f)" % [def.id, c.health.max_hp, def.hp])
 
 func _building_interact(b: Node) -> void:
+	if StationCraft.is_craft_station(b):
+		open_station_craft(b as Node3D)
+		return
 	if str(b.get("kind")) == "basket" and b.get("storage") and ui:
 		if summoned_pet and is_instance_valid(summoned_pet) and summoned_pet.pet_record and summoned_pet.pet_record.bag:
 			_dump_pet_into(b.storage)

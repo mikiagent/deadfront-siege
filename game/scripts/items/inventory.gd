@@ -6,10 +6,51 @@ signal changed
 
 var slot_count: int = 20
 var slots: Array[ItemStack] = []
+## Equipped gather/work tool slot index, or -1 for auto (first find_gather_tool match).
+var equipped_tool_index: int = -1
 
 func _init(p_slots: int = 20) -> void:
 	slot_count = p_slots
 	slots.resize(slot_count)
+
+func set_equipped_tool_index(idx: int) -> void:
+	equipped_tool_index = idx
+	changed.emit()
+
+func equipped_gather_tool() -> ItemStack:
+	if equipped_tool_index >= 0 and equipped_tool_index < slot_count:
+		var s := slots[equipped_tool_index]
+		if s and not s.is_locked() and not s.is_broken():
+			var d := s.def()
+			if d and d.tool_class != &"" and d.tool_class != &"none":
+				return s
+	# Auto: first work tool, else any gather tool.
+	var best: ItemStack = null
+	for s in slots:
+		if s == null or s.is_locked() or s.is_broken():
+			continue
+		var d := s.def()
+		if d == null or d.tool_class == &"" or d.tool_class == &"none":
+			continue
+		if best == null:
+			best = s
+			continue
+		var bd := best.def()
+		if d.is_work_tool and bd and not bd.is_work_tool:
+			best = s
+	return best
+
+func gather_tools_in_bag() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for i in slot_count:
+		var s := slots[i]
+		if s == null or s.is_locked() or s.is_broken():
+			continue
+		var d := s.def()
+		if d == null or d.tool_class == &"" or d.tool_class == &"none":
+			continue
+		out.append({"index": i, "stack": s})
+	return out
 
 func used_slots() -> int:
 	var n := 0
@@ -152,6 +193,13 @@ func best_capture_net() -> ItemStack:
 func find_gather_tool(tool: StringName) -> ItemStack:
 	if tool == &"" or tool == &"none":
 		return null
+	# Prefer the explicitly equipped tool when it matches the required class.
+	if equipped_tool_index >= 0 and equipped_tool_index < slot_count:
+		var eq := slots[equipped_tool_index]
+		if eq and not eq.is_locked() and not eq.is_broken():
+			var ed := eq.def()
+			if ed and ed.tool_class == tool:
+				return eq
 	var best: ItemStack = null
 	for s in slots:
 		if s == null:
