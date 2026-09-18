@@ -52,3 +52,48 @@ called it "glitched out". Fix the look without changing gameplay data or the sav
 - `tools/smoke.sh` → `SMOKE PASS`. Report `docs/orchestration/reports/cursor-M5b-terrain-look.md`.
   Commit as `M5b: island terrain look`.
 - Do not edit `game/project.godot`, `tools/`, or anything under `game/assets/`.
+
+## Addendum (owner, 2026-09-17 evening) — tiles, textures, grass, resource tiles
+
+7. **Subtle tile grid.** The world is a 1 m tile grid (M8b builds on it). Draw a very
+   subtle grid on the ground everywhere: a terrain shader (`ShaderMaterial` on the
+   terrain chunks, replacing the StandardMaterial from task 2 but keeping vertex
+   colour × noise albedo and lit shading) that darkens a 3 cm line at every whole-metre
+   world x/z by ~8 % alpha, fading out beyond 25 m from the camera focus so it never
+   reads as a mesh. A `Game.show_grid` toggle (F6) turns it off; it is on by default.
+
+8. **Real textures.** Instead of a single noise albedo, blend three tiling textures by
+   vertex colour zone: grass, dirt, sand (plus rock on slopes). Use CC0 textures
+   (Poly Haven "aerial_grass_rock", "brown_mud_leaves_01", "aerial_beach_01" 1K
+   diffuse only; download with the Blender MCP `download_polyhaven_asset` or
+   directly from polyhaven.com; record the source in `docs/orchestration/resources.md`,
+   files under `game/assets/terrain/`, import with `process/size_limit` 1024).
+   Blend weights come from the vertex colour channels (r = dirt, g = grass, b = sand).
+
+9. **Swaying grass.** The grass and flower MultiMeshes get a vertex shader that sways
+   the top of each blade with `sin(TIME * 1.6 + world_x * 0.35 + world_z * 0.2)`
+   scaled by vertex height (bottom vertices do not move), amplitude 0.06 m, plus a
+   gust term. Cheap enough for the phone (no per-instance uniforms).
+
+10. **More harvestables, on tiles.** Add node families in `nature_manifest.json`
+    (data only, no new art): `mud` (river bank and beach edge tiles, yields `mud`
+    item, tool none, pool 8), `tree_stump` (what a felled tree leaves: yields
+    `wood_log` ×2 pool, tool axe), `berry_bush` (Bush model with a red tint,
+    yields `berry`, tool none, pool 10), `clay` (river tiles, pick). Create the missing
+    item ids in `items.json` with `# ASSUMPTION` levels. Every HarvestNode snaps to the
+    tile centre on spawn (`floor(x) + 0.5`) so it sits on the grid.
+
+11. **Harvested tile goes bare, then regrows.** When a node's pool hits 0 (M8a),
+    the node is removed and its tile becomes a **bare dirt tile**: paint the tile's
+    four vertices dirt in the terrain vertex colours (update the chunk mesh in place via
+    `MeshDataTool` or keep a per-tile colour array and rebuild only that chunk), and
+    place a small flat "dirt patch" quad if the chunk rebuild is too slow on the phone.
+    Over `regen_seconds` (trees 240 s, bushes 90 s, mud/clay 60 s `# ASSUMPTION:`) the
+    tile lerps back to grass; when fully green, the node respawns on the same tile.
+    Save bare tiles and their timers with the existing `harvested` snapshot.
+
+Acceptance additions: a screenshot `m5b-terrain-tiles.png` close to the camp shows the
+subtle grid, textured ground, grass swaying (two frames 0.5 s apart differ), a bare dirt
+tile where a bush was harvested, and a berry bush and mud node on the grid. Headless
+`island_lab` prints `[world] tile bare (x,z)` when a node empties and
+`[world] tile regrown (x,z)` after regen (use a debug `--fast-regen` user arg ×20).
