@@ -621,7 +621,10 @@
   "weapons": {
     "crossbow": {
       "model": "res://assets/props/meshy/crossbow.glb",
-      "status": "generating via Meshy (see docs/design/weapons.md)"
+      "status": "done",
+      "source": "Meshy text-to-3D meshy-5 + refine, task 01a0b1e1-685f-7573-9e4e-8ffbcc976537, 15 credits",
+      "length_m": 1.9,
+      "note": "scale to ~0.9 m in the survivor's hands (model is oversized)"
     },
     "bow": {
       "model": null,

@@ -24,7 +24,8 @@
     "tent_kit": "res://assets/icons/tent_kit.png",
     "wood_log": "res://assets/icons/wood_log.png",
     "work_axe": "res://assets/icons/work_axe.png",
-    "workbench_kit": "res://assets/icons/workbench_kit.png"
+    "workbench_kit": "res://assets/icons/workbench_kit.png",
+    "crossbow": "res://assets/icons/crossbow.png"
   },
   "aliases": {
     "stone_knife_work": "work_axe",
