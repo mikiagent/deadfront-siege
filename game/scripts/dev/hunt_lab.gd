@@ -85,6 +85,12 @@ func _demo() -> void:
 				lead.health.take_damage(18.0, _player)
 				_reveal_plates()
 		, CONNECT_ONE_SHOT)
+		if Game.shot_path.contains("hud"):
+			get_tree().create_timer(1.0).timeout.connect(func () -> void:
+				if lead and is_instance_valid(lead) and _player.hunt:
+					_player.hunt.hold = true
+					_player.hunt.start(lead)
+			, CONNECT_ONE_SHOT)
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
 		get_tree().create_timer(2.6).timeout.connect(func () -> void:
 			get_tree().quit(0)

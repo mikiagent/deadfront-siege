@@ -30,6 +30,10 @@ func _ready() -> void:
 			$UI.add_child(craft)
 			player.craft_ui = craft
 			craft.bind(player)
+			var hud := HuntHud.new()
+			hud.name = "HuntHud"
+			hud.bind(player)
+			$UI.add_child(hud)
 
 func _process(_delta: float) -> void:
 	debug_label.visible = false

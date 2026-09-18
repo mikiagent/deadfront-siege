@@ -575,6 +575,7 @@ func _finish_gather() -> void:
 		stack.count = gained
 	gather_target.consume_unit()
 	print("[item] +%d %s %s (pool %d/%d)" % [gained, stack.def_id, attrs, gather_target.pool_units_left(), gather_target.pool_max])
+	World.add_xp(1)
 	vitals.add_fatigue(GATHER_FATIGUE_PER_UNIT, &"gather")
 	if gather_target.pool_units_left() <= 0:
 		_stop_gather_cycle()
@@ -1136,3 +1137,7 @@ func _on_gather_option_picked(node: HarvestNode, index: int) -> void:
 func debug_open_radial(node: HarvestNode) -> void:
 	if node and _gather_radial:
 		_gather_radial.open(node, node.options(), inventory)
+
+func display_name() -> String:
+	var meta := _survivor_meta()
+	return str(meta.get("display_name", "Survivor"))

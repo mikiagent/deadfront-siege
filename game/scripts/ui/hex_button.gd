@@ -49,7 +49,7 @@ func _draw() -> void:
 		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0)
 		draw_texture_rect(icon, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
 	elif glyph != "":
-		var gs := int(r * 0.9)
+		var gs := int(r * 0.9) if glyph.length() <= 2 else int(r * 0.42)
 		var w := font.get_string_size(glyph, HORIZONTAL_ALIGNMENT_CENTER, -1, gs).x
 		draw_string(font, Vector2(c.x - w * 0.5, c.y + gs * 0.35), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gs, Color(1, 1, 1, 0.5 if disabled else 1.0))
 	if top_text != "":

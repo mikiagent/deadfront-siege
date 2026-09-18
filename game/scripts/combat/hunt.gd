@@ -7,6 +7,8 @@ signal ended
 
 var target: Creature
 var hold: bool = false
+var auto: bool = true  # HUD Auto hexagon: auto-attack when in range
+var _ring: MeshInstance3D
 var _swing_cd: float = 0.0
 var _tackle_cd: float = 0.0
 var _kick_cd: float = 0.0
@@ -20,12 +22,34 @@ func start(t: Creature) -> void:
 	if t == null or t.health.dead:
 		return
 	target = t
+	_attach_ring(t)
 	started.emit(t)
 	print("[combat] hunt start %s" % t.def.id)
 
 func stop() -> void:
 	target = null
+	if _ring and is_instance_valid(_ring):
+		_ring.queue_free()
+	_ring = null
 	ended.emit()
+
+## Red ground ring on the target's tile (combat reference).
+func _attach_ring(t: Creature) -> void:
+	if _ring and is_instance_valid(_ring):
+		_ring.queue_free()
+	var PV := load("res://scripts/world/prop_visuals.gd") as GDScript
+	_ring = MeshInstance3D.new()
+	_ring.name = "TargetRing"
+	_ring.mesh = PV.make_disc_mesh(1.15, 32)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(0.9, 0.12, 0.1, 0.45)
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_ring.material_override = m
+	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	t.add_child(_ring)
+	_ring.position = Vector3(0, 0.06, 0)
 
 func tactic_label(slot: int) -> String:
 	match slot:
@@ -51,7 +75,7 @@ func _process(delta: float) -> void:
 		if target:
 			stop()
 		return
-	if hold:
+	if hold or not auto:
 		return
 	if player.global_position.distance_to(target.global_position) > 28.0:
 		stop()

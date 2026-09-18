@@ -133,6 +133,10 @@ var _button_nodes: Dictionary = {}
 var _context: StringName = CONTEXT_EXPLORE
 var _hurt_overlay: bool = false
 var _touch_mode: int = MODE_HIDDEN
+var hud_mode: bool = false:  # the Durango HUD draws its own hexes; only the place context stays here
+	set(v):
+		hud_mode = v
+		_refresh_buttons()
 
 func _ready() -> void:
 	layer = 50
@@ -273,6 +277,8 @@ func _is_button_visible(spec: Dictionary) -> bool:
 	if not enabled:
 		return false
 	var contexts: Array = spec.get("contexts", [])
+	if hud_mode and not contexts.has(CONTEXT_PLACE):
+		return false
 	for ctx in contexts:
 		var name := StringName(str(ctx))
 		if name == &"hurt":
