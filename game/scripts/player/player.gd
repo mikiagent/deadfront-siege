@@ -400,9 +400,9 @@ func _interact_tap_target(col: Object) -> void:
 			_begin_field_tame(c)
 		else:
 			hunt.start(c)
-	elif col is Bonfire:
-		if global_position.distance_to((col as Node3D).global_position) < 2.5:
-			(col as Bonfire).cauterise(self)
+	elif col is Bonfire or col is CraftStation:
+		# Reference: tapping a station opens its recipe radial (M8e); cauterise lives in the context hexes.
+		open_station_craft(col as Node3D)
 	elif col is TamingPen:
 		_pen_interact(col as TamingPen)
 	elif col is Node and (col as Node).is_in_group("harbour"):
@@ -1288,7 +1288,10 @@ func context_action(id: String) -> void:
 			vitals.rest(2.0)
 			print("[item] wash fatigue=%.0f" % vitals.fatigue)
 		"cook":
-			if craft_ui:
+			var fire := _nearest_group("bonfire")
+			if fire:
+				open_station_craft(fire)
+			elif craft_ui:
 				craft_ui.toggle()
 		"cauterise":
 			var fire := _nearest_group("bonfire") as Bonfire
