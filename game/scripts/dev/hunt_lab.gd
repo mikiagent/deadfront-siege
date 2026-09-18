@@ -1,56 +1,82 @@
 extends Node3D
-## Knife, bandages, bonfire, raptor pack, distant utahraptor. F5 cap test, F6 heal.
+## Island combat lab for M9a creature plates + tile AI/pathing checks.
 
 var _player: Player
+var _cam: IsoCamera
+var _raptor_pack: Array[Creature] = []
+var _herd: Array[Creature] = []
 
 func _ready() -> void:
-	var kit := LabKit.build(self, 100.0)
+	var kit := LabKit.build(self, 40.0)
 	_player = kit["player"]
+	_cam = kit["cam"]
+	var nav: Node = kit["nav"]
+	nav.visible = false
+	Game.max_creatures_per_island = 0
+	World.harvested.clear()
+	World.load_island(self, &"temperate_25", Vector3(0, 1, 12), false)
+	var kit_floor := get_node_or_null("Floor")
+	if kit_floor:
+		kit_floor.queue_free()
+	if Game.shot_path != "":
+		TouchControls.visible = false
+		TouchControls.enabled = false
 	LabKit.give(_player, &"stone_knife", 1)
 	LabKit.give(_player, &"bandage", 3)
 	LabKit.give(_player, &"pressure_dressing", 1)
-	var fire := Bonfire.new()
-	fire.position = Vector3(3, 0, 3)
-	add_child(fire)
-	var pack := Spawner.new()
-	pack.species = &"velociraptor"
-	pack.count = 3
-	pack.radius = 3.0
-	pack.as_pack = true
-	pack.position = Vector3(10, 0, 8)
-	add_child(pack)
-	pack.spawn_now()
-	var apex := Spawner.new()
-	apex.species = &"utahraptor"
-	apex.count = 1
-	apex.as_pack = false
-	apex.position = Vector3(40, 0, 8)
-	add_child(apex)
-	apex.spawn_now()
 	print("[boot] lab=hunt_lab")
-	if DisplayServer.get_name() == "headless" or Game.shot_path != "":
-		get_tree().create_timer(0.4).timeout.connect(_demo)
+	call_deferred("_spawn_groups")
+
+func _spawn_groups() -> void:
+	if World.runtime == null:
+		return
+	var raptor_spawner := Spawner.new()
+	raptor_spawner.species = &"velociraptor"
+	raptor_spawner.count = 3
+	raptor_spawner.radius = 2.8
+	raptor_spawner.as_pack = true
+	raptor_spawner.position = Vector3(8.0, 0.0, 14.0)
+	World.runtime.add_child(raptor_spawner)
+	_raptor_pack = raptor_spawner.spawn_now()
+	var herd_spawner := Spawner.new()
+	herd_spawner.species = &"protoceratops"
+	herd_spawner.count = 3
+	herd_spawner.radius = 2.6
+	herd_spawner.as_pack = true
+	herd_spawner.position = Vector3(16.0, 0.0, 18.0)
+	World.runtime.add_child(herd_spawner)
+	_herd = herd_spawner.spawn_now()
+	get_tree().create_timer(0.45).timeout.connect(_demo, CONNECT_ONE_SHOT)
 
 func _demo() -> void:
-	if Game.shot_path == "":
-		_player.statuses.apply(&"groggy")
-		_player.statuses.apply(&"dizziness")
-		_player.statuses.apply(&"bleed")
-		_player.statuses.apply(&"venom")
-	var pack: Creature = null
-	for n in get_tree().get_nodes_in_group("creatures"):
-		var c := n as Creature
-		if c and c.def.id == &"velociraptor":
-			pack = c
-			break
-	if pack:
-		if Game.shot_path != "":
-			_player.global_position = pack.global_position + Vector3(-1.7, 0, 0.2)
-			_player.face_world(pack.global_position)
-		_player.hunt.start(pack)
-		_player.play_attack(false)
-		pack.health.take_damage(40.0, _player)
-		pack.anim.play_clip(&"attack_heavy")
+	if _raptor_pack.is_empty():
+		return
+	var lead := _raptor_pack[0]
+	if lead == null:
+		return
+	_player.global_position = lead.global_position + Vector3(-3.0, 0.0, -1.2)
+	if World.runtime:
+		_player.global_position.y = World.runtime.surface_y(_player.global_position.x, _player.global_position.z) + 1.0
+	_player.face_world(lead.global_position)
+	_cam.size = 17.0
+	_cam._snap()
+	_tap_creature(lead)
+	lead.statuses.apply(&"bleed", _player)
+	if _herd.size() > 0 and _herd[0]:
+		_herd[0].statuses.apply(&"groggy", _player)
+		_herd[0].brain.on_aggro(_player)
+	lead.health.take_damage(lead.health.max_hp * 0.36, _player)
+	get_tree().create_timer(0.2).timeout.connect(func () -> void:
+		lead.health.take_damage(22.0, _player)
+	, CONNECT_ONE_SHOT)
+	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
+		get_tree().create_timer(1.8).timeout.connect(func () -> void:
+			get_tree().quit(0)
+		, CONNECT_ONE_SHOT)
+
+func _tap_creature(creature: Creature) -> void:
+	var screen := _cam.unproject_position(creature.global_position + Vector3(0.0, creature.def.height_meters * 0.8, 0.0))
+	_player.debug_tap_screen(screen)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:

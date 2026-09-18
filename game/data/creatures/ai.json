@@ -1,0 +1,79 @@
+{
+  "_about": "Creature AI archetype tuning for M9a. Distances are metres on 1 m tiles.",
+  "default": {
+    "perception_base": 8.0,
+    "perception_tier_mult": 0.15,
+    "roam_tiles": 6.0,
+    "roam_delay_min": 3.0,
+    "roam_delay_max": 6.0,
+    "attack_range": 1.8,
+    "disengage_seconds": 12.0,
+    "retreat_threshold_frac": 0.3,
+    "retreat_tiles": 3.0,
+    "flee_tiles": 8.0,
+    "heavy_after_primaries": 3,
+    "night_predator_bonus": true,
+    "is_herbivore": false,
+    "pack_flank": false,
+    "herd_hold_radius_tiles": 8.0
+  },
+  "archetypes": {
+    "pack_raptor": {
+      "attack_range": 2.0,
+      "pack_flank": true
+    },
+    "pack_flanker": {
+      "attack_range": 2.0,
+      "pack_flank": true
+    },
+    "apex_raptor": {
+      "attack_range": 2.2,
+      "pack_flank": true,
+      "perception_base": 10.0
+    },
+    "swarm": {
+      "attack_range": 1.4
+    },
+    "flock_harass": {
+      "attack_range": 1.6
+    },
+    "venom_ranged": {
+      "attack_range": 2.4
+    },
+    "saber_cat": {
+      "attack_range": 2.0
+    },
+    "tyrant": {
+      "attack_range": 2.6
+    },
+    "pack_mule": {
+      "is_herbivore": true,
+      "attack_range": 1.8
+    },
+    "spiked_tail": {
+      "is_herbivore": true,
+      "attack_range": 2.2
+    },
+    "runner": {
+      "is_herbivore": true,
+      "attack_range": 1.6
+    },
+    "antlered": {
+      "is_herbivore": true,
+      "attack_range": 1.9
+    },
+    "club_tail": {
+      "is_herbivore": true,
+      "attack_range": 2.0
+    },
+    "horned_charger": {
+      "is_herbivore": true,
+      "attack_range": 2.1
+    },
+    "titan": {
+      "is_herbivore": true,
+      "attack_range": 2.8,
+      "retreat_threshold_frac": 0.2
+    }
+  }
+}

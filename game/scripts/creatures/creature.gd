@@ -5,6 +5,7 @@ extends CharacterBody3D
 signal aggroed(who: Node)
 signal captured
 signal dismissed
+signal combat_float(amount: float, kind: StringName)
 
 var def: CreatureDef
 var variant: StringName = &""
@@ -16,6 +17,12 @@ var brain_state: StringName = &"roam"
 var pet_record: PetRecord
 var hunger: float = 0.0
 var hunger_max: float = 0.0
+var level: int = 1
+var spawn_tile: Vector2i = Vector2i.ZERO
+var spawn_home: Vector3 = Vector3.ZERO
+var last_aggro_s: float = -999.0
+var last_damaged_s: float = -999.0
+var _last_tap_s: float = -999.0
 
 @onready var agent: NavigationAgent3D = $Agent
 @onready var view: CreatureView = $View
@@ -31,6 +38,13 @@ var brain: CreatureBrain
 var _fx_drip: GPUParticles3D
 var _trail_origin: Vector3
 var _last_bleed_pos: Vector3
+var _path_points: PackedVector3Array = PackedVector3Array()
+var _path_index: int = 0
+var _path_goal: Vector3 = Vector3.ZERO
+var _path_active: bool = false
+var _path_replan_left: float = 0.0
+var _path_blocked_left: float = 0.0
+var _path_anchor: Vector3 = Vector3.ZERO
 
 func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> void:
 	def = p_def
@@ -40,9 +54,13 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> 
 	view.setup(def, variant)
 	_set_vis_range(view, 26.0)
 	health.setup(def.hp)
+	health.healed.connect(_on_healed)
 	# ASSUMPTION: pet hunger budget is 0.4 * wild HP when JSON has no hunger field.
 	hunger_max = def.hp * 0.4
 	hunger = hunger_max
+	level = _spawn_level_from_ring()
+	spawn_tile = BuildGrid.tile_of(global_position)
+	spawn_home = BuildGrid.tile_centre(spawn_tile, World.runtime if World else null)
 	_size_collision()
 	var clip_player := view.animation_player()
 	if clip_player == null:
@@ -58,15 +76,28 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> 
 	health.died.connect(_on_died)
 	_make_brain()
 	_make_drip()
+	if Game and Game.has_method("ensure_creature_plates"):
+		Game.ensure_creature_plates()
 	print("[creature] %s spawned pack=%s" % [def.id, pack_id])
 
 func on_anim_event(kind: String, clip: String) -> void:
 	anim.on_event(kind, clip)
 
 func move_to(world_pos: Vector3) -> void:
-	agent.target_position = world_pos
+	if _path_active and _use_tile_path() and _path_goal.distance_to(world_pos) <= 0.25:
+		return
+	_path_goal = world_pos
+	_path_active = true
+	_path_replan_left = 0.0
+	_path_blocked_left = 0.0
+	_path_anchor = global_position
+	if not _use_tile_path():
+		agent.target_position = world_pos
 
 func stop_move() -> void:
+	_path_active = false
+	_path_points = PackedVector3Array()
+	_path_index = 0
 	agent.target_position = global_position
 
 func face_towards(world_pos: Vector3, _delta: float) -> void:
@@ -74,7 +105,9 @@ func face_towards(world_pos: Vector3, _delta: float) -> void:
 	p.y = global_position.y
 	if p.distance_squared_to(global_position) < 0.0001:
 		return
-	look_at(p, Vector3.UP)
+	var to := (p - global_position).normalized()
+	var target_yaw := atan2(-to.x, -to.z)
+	rotation.y = lerp_angle(rotation.y, target_yaw, minf(1.0, _delta * 10.0))
 
 func apply_species_on_hit(clip: StringName, target: Node) -> void:
 	CreatureAttack.apply_for(self, clip, target)
@@ -95,20 +128,24 @@ func _physics_process(delta: float) -> void:
 	var speed := def.move_speed_mps * statuses.move_mult()
 	if is_pet and hunger <= 0.0:
 		speed *= 0.85
-	if not agent.is_navigation_finished():
-		var next := agent.get_next_path_position()
-		var to := next - global_position
-		to.y = 0.0
-		if to.length_squared() > 0.0001:
-			var dir := to.normalized()
-			velocity.x = dir.x * speed
-			velocity.z = dir.z * speed
-			face_towards(next, delta)
-			var frac := clampf(speed / 8.0, 0.0, 1.0)
-			anim.play_locomotion(frac)
-		else:
-			velocity.x = 0.0
-			velocity.z = 0.0
+	var locomote := Vector3.ZERO
+	if _path_active:
+		if _use_tile_path():
+			locomote = _tile_path_direction(delta)
+		elif not agent.is_navigation_finished():
+			var next := agent.get_next_path_position()
+			var to := next - global_position
+			to.y = 0.0
+			if to.length_squared() > 0.0001:
+				locomote = to.normalized()
+	if locomote.length_squared() > 0.0:
+		var sep := _separation_steer()
+		var dir := (locomote + sep).normalized()
+		velocity.x = dir.x * speed
+		velocity.z = dir.z * speed
+		face_towards(global_position + dir, delta)
+		var frac := clampf(speed / 8.0, 0.0, 1.0)
+		anim.play_locomotion(frac)
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -137,8 +174,6 @@ func _size_collision() -> void:
 func _make_brain() -> void:
 	if is_pet:
 		brain = PetBrain.new()
-	elif def.mapped_archetype() == &"raptor_pack":
-		brain = RaptorPackBrain.new()
 	else:
 		brain = CreatureBrain.new()
 	brain.name = "Brain"
@@ -225,9 +260,23 @@ func _on_kd_start() -> void:
 func _on_kd_end() -> void:
 	is_capturable = false
 
+func mark_aggro_now() -> void:
+	last_aggro_s = _now_s()
+
+func note_tapped() -> void:
+	_last_tap_s = _now_s()
+
+func tapped_recently(seconds: float) -> bool:
+	return _now_s() - _last_tap_s <= seconds
+
 func _on_damaged(_amount: float, source: Node) -> void:
 	if health.dead:
 		return
+	last_damaged_s = _now_s()
+	combat_float.emit(_amount, &"hit")
+	view.flash_damage(0.1)
+	if brain:
+		brain.note_damage(_amount)
 	if statuses.has(&"groggy") and not statuses.has(&"knockdown"):
 		statuses.apply(&"knockdown", source)
 		anim.play_clip(&"knockdown")
@@ -247,6 +296,7 @@ func _on_damaged(_amount: float, source: Node) -> void:
 
 func _on_died(_source: Node) -> void:
 	anim.play_clip(&"death")
+	view.set_status_fx(0.35, Color(0.62, 0.62, 0.62), 0.0)
 	collision_layer = 0
 	collision_mask = 1
 	stop_move()
@@ -254,6 +304,15 @@ func _on_died(_source: Node) -> void:
 	corpse.setup(self)
 	get_parent().add_child(corpse)
 	corpse.global_position = global_position
+
+func _on_healed(amount: float) -> void:
+	combat_float.emit(amount, &"heal")
+
+func on_status_tick_damage(id: StringName, amount: float) -> void:
+	if id == &"bleed" or id == &"deep_bleed" or id == &"bleeding_target":
+		combat_float.emit(amount, &"dot")
+	else:
+		combat_float.emit(amount, &"hit")
 
 func _fall_guard() -> void:
 	# Same rule as the player: below -15 m the creature is put back on the surface.
@@ -265,6 +324,88 @@ func _fall_guard() -> void:
 	velocity = Vector3.ZERO
 	global_position.y = y
 	print("[creature] %s fell out of the world; re-seated at y=%.2f" % [def.id if def else "?", y])
+
+func _use_tile_path() -> bool:
+	if World == null or World.runtime == null:
+		return false
+	if get_parent() != World.runtime:
+		return false
+	return World.runtime.get("pathing") != null
+
+func _tile_path_direction(delta: float) -> Vector3:
+	if not _path_active:
+		return Vector3.ZERO
+	_path_replan_left -= delta
+	if _path_replan_left <= 0.0 or _path_points.is_empty():
+		_replan_path()
+		_path_replan_left = 0.5
+	if _path_points.is_empty():
+		return Vector3.ZERO
+	while _path_index < _path_points.size():
+		var next := _path_points[_path_index]
+		var to_next := next - global_position
+		to_next.y = 0.0
+		if to_next.length() <= 0.25:
+			_path_index += 1
+			continue
+		_track_blocked(delta)
+		return to_next.normalized()
+	_path_active = false
+	return Vector3.ZERO
+
+func _track_blocked(delta: float) -> void:
+	if global_position.distance_to(_path_anchor) > 0.06:
+		_path_anchor = global_position
+		_path_blocked_left = 0.0
+		return
+	_path_blocked_left += delta
+	if _path_blocked_left >= 0.35:
+		_replan_path()
+		_path_blocked_left = 0.0
+		_path_anchor = global_position
+
+func _replan_path() -> void:
+	if not _use_tile_path():
+		return
+	var p: Variant = World.runtime.get("pathing")
+	if p == null:
+		return
+	_path_points = p.path(global_position, _path_goal, 72)
+	_path_index = 0
+	if _path_points.size() > 1 and _path_points[0].distance_to(global_position) <= 0.25:
+		_path_index = 1
+
+func _separation_steer() -> Vector3:
+	var want := agent.radius * 0.6
+	if want <= 0.0:
+		return Vector3.ZERO
+	var steer := Vector3.ZERO
+	for n in get_tree().get_nodes_in_group("creatures"):
+		var other := n as Creature
+		if other == null or other == self or other.health.dead:
+			continue
+		var to_me := global_position - other.global_position
+		to_me.y = 0.0
+		var d := to_me.length()
+		if d <= 0.001 or d > want:
+			continue
+		steer += to_me.normalized() * (1.0 - d / want)
+	if steer.length_squared() <= 0.0:
+		return Vector3.ZERO
+	return steer.normalized()
+
+func _spawn_level_from_ring() -> int:
+	if World == null or World.runtime == null:
+		return def.tier
+	if get_parent() != World.runtime:
+		return def.tier
+	var rings: Dictionary = Data.world_rules.get("rings", {})
+	var ring: StringName = World.runtime.ring_name(global_position)
+	var row: Dictionary = rings.get(str(ring), {})
+	return maxi(1, def.tier + int(row.get("level_offset", 0)))
+
+func _now_s() -> float:
+	return float(Time.get_ticks_msec()) * 0.001
 
 func _set_vis_range(n: Node, end_dist: float) -> void:
 	if n is GeometryInstance3D:

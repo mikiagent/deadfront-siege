@@ -33,6 +33,7 @@ var _fx_darken: float = 0.0
 var _fx_tint: Color = Color.WHITE
 var _wobble: float = 0.0
 var _mount: Marker3D
+var _hit_flash_left: float = 0.0
 
 func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 	def = p_def
@@ -80,6 +81,10 @@ func set_status_fx(darken: float, tint: Color, wobble: float) -> void:
 	_fx_darken = darken
 	_fx_tint = tint
 	_wobble = wobble
+	_apply_fx()
+
+func flash_damage(seconds: float = 0.1) -> void:
+	_hit_flash_left = maxf(_hit_flash_left, seconds)
 	_apply_fx()
 
 func _build_placeholder() -> void:
@@ -161,9 +166,13 @@ func _apply_pose() -> void:
 	rotation.z += sin(Time.get_ticks_msec() * 0.012) * _wobble * 0.12
 
 func _apply_fx() -> void:
+	if _hit_flash_left > 0.0:
+		_hit_flash_left = maxf(0.0, _hit_flash_left - get_process_delta_time())
 	for mat in _base_mats:
 		var c := _tint.darkened(_fx_darken)
 		c = c.lerp(_fx_tint, 0.35 if _fx_tint != Color.WHITE else 0.0)
+		if _hit_flash_left > 0.0:
+			c = c.lerp(Color(1.0, 0.2, 0.2), 0.65)
 		mat.albedo_color = c
 	if using_glb:
 		# Placeholder-only materials; GLB tint is a child overlay later.

@@ -36,6 +36,12 @@ var rolling: bool = false
 var gather_target: HarvestNode
 var butcher_target: Corpse
 var nav_active: bool = false
+var _path_points: PackedVector3Array = PackedVector3Array()
+var _path_index: int = 0
+var _path_goal: Vector3 = Vector3.ZERO
+var _path_replan_left: float = 0.0
+var _path_anchor: Vector3 = Vector3.ZERO
+var _path_blocked_left: float = 0.0
 var ui: InventoryUI
 var craft_ui
 var in_water: bool = false
@@ -96,11 +102,22 @@ func _ready() -> void:
 		pass
 
 func nav_to(pos: Vector3) -> void:
+	if nav_active and _path_goal.distance_to(pos) <= 0.3:
+		return
 	nav_active = true
-	agent.target_position = pos
+	_path_goal = pos
+	_path_replan_left = 0.0
+	_path_anchor = global_position
+	_path_blocked_left = 0.0
+	if _use_tile_path():
+		_request_tile_path()
+	else:
+		agent.target_position = pos
 
 func clear_nav() -> void:
 	nav_active = false
+	_path_points = PackedVector3Array()
+	_path_index = 0
 	agent.target_position = global_position
 
 func face_world(pos: Vector3) -> void:
@@ -153,16 +170,25 @@ func _physics_process(delta: float) -> void:
 	target_speed *= statuses.move_mult()
 	if vitals.exhausted:
 		target_speed *= 0.7
-	if nav_active and not agent.is_navigation_finished():
-		var next := agent.get_next_path_position()
-		var to := next - global_position
-		to.y = 0.0
-		if to.length_squared() > 0.0001:
-			dir = to.normalized()
-	elif nav_active:
-		nav_active = false
-		_on_arrived()
-		dir = Vector3.ZERO
+	if nav_active:
+		if _use_tile_path():
+			var next_dir := _tile_nav_dir(delta)
+			if next_dir.length_squared() > 0.0:
+				dir = next_dir
+			else:
+				nav_active = false
+				_on_arrived()
+				dir = Vector3.ZERO
+		elif not agent.is_navigation_finished():
+			var next := agent.get_next_path_position()
+			var to := next - global_position
+			to.y = 0.0
+			if to.length_squared() > 0.0001:
+				dir = to.normalized()
+		else:
+			nav_active = false
+			_on_arrived()
+			dir = Vector3.ZERO
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
 	horizontal = horizontal.move_toward(dir * target_speed, accel * delta)
 	velocity.x = horizontal.x
@@ -309,9 +335,13 @@ func _interact_tap_target(col: Object) -> void:
 	if col is HarvestNode:
 		_begin_gather(col as HarvestNode)
 	elif col is Corpse:
+		(col as Corpse).note_tapped()
 		_begin_butcher(col as Corpse)
 	elif col is Creature:
 		var c := col as Creature
+		c.note_tapped()
+		if Game and Game.has_method("reveal_creature_plate"):
+			Game.reveal_creature_plate(c, 3.0)
 		if c.is_pet:
 			_pet_interact(c)
 		else:
@@ -365,6 +395,9 @@ func _is_interactable(col: Object) -> bool:
 	return false
 
 func _closest_nav_point(pos: Vector3) -> Vector3:
+	if _use_tile_path():
+		var tile := BuildGrid.tile_of(pos)
+		return BuildGrid.tile_centre(tile, World.runtime)
 	var map := get_world_3d().navigation_map
 	if NavigationServer3D.map_get_iteration_id(map) == 0:
 		return pos
@@ -397,11 +430,11 @@ func _begin_butcher(corpse: Corpse) -> void:
 		print("[item] too exhausted to butcher")
 		return
 	var why := corpse.can_butcher(inventory)
-	if why != "":
+	if why == "empty":
 		print("[item] refused butcher %s: %s" % [corpse.species, why])
 		return
 	var tool := inventory.find_gather_tool(&"knife")
-	if tool:
+	if tool and why == "":
 		print("[item] auto-equip %s knife" % tool.def_id)
 	_stop_gather_cycle(false)
 	gather_target = null
@@ -421,18 +454,11 @@ func _on_arrived() -> void:
 		_start_gather_cycle(gather_target.gather_seconds)
 	elif butcher_target and is_instance_valid(butcher_target):
 		face_world(butcher_target.global_position)
-		_gathering = true
-		_gather_left = 1.4
-		vitals.add_fatigue(2.0, &"gather")
-		if anim:
-			anim.on_gather()
+		butcher_target.open_loot(self)
+		butcher_target = null
 
 func _finish_gather() -> void:
 	_gathering = false
-	if butcher_target and is_instance_valid(butcher_target):
-		butcher_target.butcher(self)
-		butcher_target = null
-		return
 	if gather_target == null or not is_instance_valid(gather_target):
 		_stop_gather_cycle()
 		return
@@ -566,6 +592,49 @@ func _retarget_hold_walk() -> void:
 	_cancel_gather_and_butcher()
 	nav_to(nav_pos)
 	_show_ground_marker(BuildGrid.tile_centre(BuildGrid.tile_of(nav_pos), World.runtime))
+
+func _use_tile_path() -> bool:
+	return World.runtime != null and World.runtime.get("pathing") != null and get_parent() == World.runtime
+
+func _request_tile_path() -> void:
+	if not _use_tile_path():
+		return
+	var p: Variant = World.runtime.get("pathing")
+	if p == null:
+		return
+	_path_points = p.path(global_position, _path_goal, 96)
+	_path_index = 0
+	if _path_points.size() > 1 and _path_points[0].distance_to(global_position) <= 0.25:
+		_path_index = 1
+
+func _tile_nav_dir(delta: float) -> Vector3:
+	_path_replan_left -= delta
+	if _path_points.is_empty() or _path_replan_left <= 0.0:
+		_request_tile_path()
+		_path_replan_left = 0.5
+	if _path_points.is_empty():
+		return Vector3.ZERO
+	while _path_index < _path_points.size():
+		var next := _path_points[_path_index]
+		var to := next - global_position
+		to.y = 0.0
+		if to.length() <= 0.25:
+			_path_index += 1
+			continue
+		_track_tile_blocked(delta)
+		return to.normalized()
+	return Vector3.ZERO
+
+func _track_tile_blocked(delta: float) -> void:
+	if global_position.distance_to(_path_anchor) > 0.06:
+		_path_anchor = global_position
+		_path_blocked_left = 0.0
+		return
+	_path_blocked_left += delta
+	if _path_blocked_left >= 0.35:
+		_request_tile_path()
+		_path_blocked_left = 0.0
+		_path_anchor = global_position
 
 func _sync_touch_context() -> void:
 	if TouchControls == null:
@@ -774,7 +843,7 @@ func _building_interact(b: Node) -> void:
 	if str(b.get("kind")) == "basket" and b.get("storage") and ui:
 		if summoned_pet and is_instance_valid(summoned_pet) and summoned_pet.pet_record and summoned_pet.pet_record.bag:
 			_dump_pet_into(b.storage)
-		ui.show_storage(b.storage)
+		ui.show_storage(b.storage, self)
 		return
 	if str(b.get("kind")) == "sign":
 		print("[world] sign: %s" % (str(b.get("sign_text")) if str(b.get("sign_text")) != "" else "(blank)"))

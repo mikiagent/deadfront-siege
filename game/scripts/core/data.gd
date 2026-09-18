@@ -15,6 +15,7 @@ var world_rules: Dictionary = {}
 var world_climates: Dictionary = {}
 var world_islands: Dictionary = {}
 var props_manifest: Dictionary = {}
+var creature_ai: Dictionary = {}
 
 func _ready() -> void:
 	_load_items("res://data/items.json")
@@ -26,6 +27,7 @@ func _ready() -> void:
 	_load_butchering("res://data/butchering.json")
 	_load_nature("res://data/nature_manifest.json")
 	_load_world()
+	_load_creature_ai("res://data/creatures/ai.json")
 	print("[data] items=%d statuses=%d creatures=%d recipes=%d" % [
 		items.size(), statuses.size(), creatures.size(), recipes.size()])
 
@@ -110,7 +112,7 @@ func _load_creatures(dir: String) -> void:
 	da.list_dir_begin()
 	var fname := da.get_next()
 	while fname != "":
-		if not da.current_is_dir() and fname.ends_with(".json") and fname != "anim_events.json":
+		if not da.current_is_dir() and fname.ends_with(".json") and fname != "anim_events.json" and fname != "ai.json":
 			var path := "%s/%s" % [dir, fname]
 			var root := _parse_json(path)
 			if not root.has("species"):
@@ -173,6 +175,12 @@ func _load_world() -> void:
 	world_climates = _parse_json("res://data/world/climates.json")
 	world_islands = _parse_json("res://data/world/islands.json")
 	props_manifest = _parse_json("res://data/props_manifest.json")
+
+func _load_creature_ai(path: String) -> void:
+	if not FileAccess.file_exists(path):
+		creature_ai = {}
+		return
+	creature_ai = _parse_json(path)
 
 func _parse_json(path: String) -> Dictionary:
 	var f := FileAccess.open(path, FileAccess.READ)

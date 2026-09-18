@@ -23,6 +23,7 @@ var lab_flat_attack: bool = false
 var fast_regen_mult: float = 1.0
 var shot_path: String = ""
 var pointer: Vector2 = Vector2.ZERO
+var creature_ui: CanvasLayer
 
 var _last_phase: StringName = &""
 var _perf: Label
@@ -145,3 +146,21 @@ func _finish_smoke() -> void:
 	var ok := player != null and player.global_position.y > -1.0
 	print("[smoke] %s player_pos=%s phase=%s" % ["ok" if ok else "FAIL", player.global_position if player else "none", phase_name()])
 	get_tree().quit(0 if ok else 1)
+
+func ensure_creature_plates() -> void:
+	if creature_ui and is_instance_valid(creature_ui):
+		return
+	var host := get_tree().current_scene
+	if host == null:
+		return
+	var script := load("res://scripts/ui/creature_plates.gd") as GDScript
+	if script == null:
+		return
+	creature_ui = script.new()
+	creature_ui.name = "CreaturePlates"
+	host.add_child(creature_ui)
+
+func reveal_creature_plate(creature: Creature, seconds: float = 3.0) -> void:
+	ensure_creature_plates()
+	if creature_ui and creature_ui.has_method("reveal_creature"):
+		creature_ui.reveal_creature(creature, seconds)

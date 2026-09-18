@@ -29,6 +29,7 @@ func setup(owner_runtime: Node3D) -> void:
 	_occupied.clear()
 	_node_cells.clear()
 	_reserved.clear()
+	_mark_pathing_dirty()
 
 func set_actor(actor: Node3D) -> void:
 	_actor = actor
@@ -40,6 +41,7 @@ func clear_actor(actor: Node3D) -> void:
 func clear_occupancy() -> void:
 	_occupied.clear()
 	_node_cells.clear()
+	_mark_pathing_dirty()
 
 func reserve_kind(kind: StringName, cell: Vector2i, rot: int = 0) -> void:
 	reserve_cells(cells_for(kind, cell, rot), kind)
@@ -47,6 +49,7 @@ func reserve_kind(kind: StringName, cell: Vector2i, rot: int = 0) -> void:
 func reserve_cells(cells: Array[Vector2i], tag: StringName = &"reserved") -> void:
 	for c in cells:
 		_reserved[c] = tag
+	_mark_pathing_dirty()
 
 func cells_for(kind: StringName, cell: Vector2i, rot: int) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
@@ -80,6 +83,7 @@ func occupy(node: Node, cells: Array[Vector2i]) -> void:
 	_node_cells[key] = cells.duplicate()
 	for c in cells:
 		_occupied[c] = node
+	_mark_pathing_dirty()
 
 func release(node: Node) -> void:
 	if node == null:
@@ -92,6 +96,21 @@ func release(node: Node) -> void:
 		if c is Vector2i and _occupied.get(c, null) == node:
 			_occupied.erase(c)
 	_node_cells.erase(key)
+	_mark_pathing_dirty()
+
+func occupied_cells() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for c in _occupied.keys():
+		if c is Vector2i:
+			out.append(c)
+	return out
+
+func reserved_cells() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for c in _reserved.keys():
+		if c is Vector2i:
+			out.append(c)
+	return out
 
 func neighbours(cell: Vector2i) -> Array[Vector2i]:
 	return [
@@ -227,3 +246,7 @@ func _kind_of(node: Node) -> StringName:
 		if str(sid) != "":
 			return StringName(str(sid))
 	return &""
+
+func _mark_pathing_dirty() -> void:
+	if runtime and runtime.has_method("mark_pathing_dirty"):
+		runtime.mark_pathing_dirty()

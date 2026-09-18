@@ -163,7 +163,10 @@ func _dot(inst: StatusInstance) -> void:
 		if def.dps_max_hp_frac > 0.0:
 			dps += def.dps_max_hp_frac * cr.health.max_hp
 		if dps > 0.0:
-			cr.health.take_damage(dps * 0.5, inst.source)
+			var dealt := dps * 0.5
+			cr.health.take_damage(dealt, inst.source)
+			if cr.has_method("on_status_tick_damage"):
+				cr.on_status_tick_damage(inst.id, dealt)
 	elif host is Player:
 		var pl := host as Player
 		if def.dps_max_hp_frac > 0.0:

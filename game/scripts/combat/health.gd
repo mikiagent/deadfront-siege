@@ -3,6 +3,7 @@ extends Node
 ## Hit points for a creature. At zero the owner dies and leaves a corpse.
 
 signal damaged(amount: float, source: Node)
+signal healed(amount: float)
 signal died(source: Node)
 
 var max_hp: float = 100.0
@@ -28,7 +29,11 @@ func take_damage(amount: float, source: Node = null) -> float:
 func heal(amount: float) -> void:
 	if dead:
 		return
+	var before := hp
 	hp = minf(max_hp, hp + amount)
+	var gained := hp - before
+	if gained > 0.0:
+		healed.emit(gained)
 
 func fraction() -> float:
 	return hp / maxf(1.0, max_hp)

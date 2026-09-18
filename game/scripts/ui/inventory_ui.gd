@@ -7,10 +7,14 @@ var pet_bag: Inventory
 var _grid: GridContainer
 var _tip: Label
 var _pet_grid: GridContainer
+var _storage_title: Label
+var _storage_note: Label
 var _lock_btn: Button
 var _place_btn: Button
+var _take_all_btn: Button
 var _owner_player: Player
 var _selected: int = -1
+var _storage_opts: Dictionary = {}
 
 func _ready() -> void:
 	visible = false
@@ -24,10 +28,19 @@ func _ready() -> void:
 	_grid.columns = 5
 	_grid.position = Vector2(16, 16)
 	add_child(_grid)
+	_storage_title = Label.new()
+	_storage_title.position = Vector2(16, 388)
+	_storage_title.size = Vector2(480, 24)
+	add_child(_storage_title)
 	_pet_grid = GridContainer.new()
 	_pet_grid.columns = 5
 	_pet_grid.position = Vector2(16, 420)
 	add_child(_pet_grid)
+	_storage_note = Label.new()
+	_storage_note.position = Vector2(520, 420)
+	_storage_note.size = Vector2(320, 82)
+	_storage_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_storage_note)
 	_tip = Label.new()
 	_tip.position = Vector2(16, 300)
 	_tip.size = Vector2(420, 100)
@@ -46,6 +59,13 @@ func _ready() -> void:
 	_place_btn.visible = false
 	_place_btn.pressed.connect(_on_place_pressed)
 	add_child(_place_btn)
+	_take_all_btn = Button.new()
+	_take_all_btn.text = "Take all"
+	_take_all_btn.custom_minimum_size = Vector2(220, 64)
+	_take_all_btn.position = Vector2(460, 332)
+	_take_all_btn.visible = false
+	_take_all_btn.pressed.connect(_take_all_storage)
+	add_child(_take_all_btn)
 	for i in 20:
 		_grid.add_child(_mk_slot(i))
 	rebuild()
@@ -59,11 +79,19 @@ func bind(inv: Inventory, owner_player: Player = null) -> void:
 
 func show_pet_bag(rec: PetRecord) -> void:
 	pet_bag = rec.bag
+	_storage_opts = {"title": "Pet bag", "take_all": false}
+	if pet_bag and not pet_bag.changed.is_connected(rebuild):
+		pet_bag.changed.connect(rebuild)
 	visible = true
 	rebuild()
 
-func show_storage(inv: Inventory) -> void:
+func show_storage(inv: Inventory, owner_player: Player = null, opts: Dictionary = {}) -> void:
 	pet_bag = inv
+	_storage_opts = opts.duplicate(true)
+	if owner_player:
+		_owner_player = owner_player
+	if pet_bag and not pet_bag.changed.is_connected(rebuild):
+		pet_bag.changed.connect(rebuild)
 	visible = true
 	rebuild()
 
@@ -91,10 +119,27 @@ func rebuild() -> void:
 		c.queue_free()
 	if pet_bag:
 		for i in pet_bag.slot_count:
-			var b := _mk_slot(-1)
+			var b := _mk_storage_slot(i)
 			var s := pet_bag.slots[i]
-			b.text = "" if s == null else "%s\n%d" % [s.def_id, s.count]
+			if s == null:
+				b.text = ""
+				b.tooltip_text = ""
+				b.disabled = true
+			else:
+				b.text = "%s\n%d" % [s.def_id, s.count]
+				b.tooltip_text = s.tooltip()
+				b.disabled = false
+				if _readonly_reason() != "":
+					b.modulate = Color(0.7, 0.7, 0.7, 0.8)
+				else:
+					b.modulate = Color.WHITE
 			_pet_grid.add_child(b)
+	_storage_title.text = str(_storage_opts.get("title", ""))
+	_storage_title.visible = pet_bag != null and _storage_title.text != ""
+	_storage_note.visible = pet_bag != null
+	_storage_note.text = _readonly_reason()
+	_take_all_btn.visible = pet_bag != null and bool(_storage_opts.get("take_all", false))
+	_take_all_btn.disabled = _readonly_reason() != "" or pet_bag == null or pet_bag.used_slots() <= 0
 	_select(_selected if _selected >= 0 else -1)
 
 func _mk_slot(index: int) -> Button:
@@ -103,6 +148,13 @@ func _mk_slot(index: int) -> Button:
 	b.mouse_filter = Control.MOUSE_FILTER_STOP
 	if index >= 0:
 		b.pressed.connect(func () -> void: _select(index))
+	return b
+
+func _mk_storage_slot(index: int) -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(72, 64)
+	b.mouse_filter = Control.MOUSE_FILTER_STOP
+	b.pressed.connect(func () -> void: _take_storage(index))
 	return b
 
 func _select(index: int) -> void:
@@ -151,6 +203,57 @@ func _on_place_pressed() -> void:
 	pet_bag = null
 	_owner_player.placer.begin(def.place_as)
 	TouchControls.set_context(&"place")
+
+func _readonly_reason() -> String:
+	return str(_storage_opts.get("readonly_reason", ""))
+
+func _take_storage(index: int) -> void:
+	if pet_bag == null or inventory == null:
+		return
+	if _readonly_reason() != "":
+		return
+	if index < 0 or index >= pet_bag.slot_count:
+		return
+	var s := pet_bag.slots[index]
+	if s == null:
+		return
+	var taken := pet_bag.remove_at(index, s.count)
+	if taken == null:
+		return
+	var left := inventory.add(taken)
+	if left > 0:
+		taken.count = left
+		pet_bag.add(taken)
+	_notify_storage_take()
+
+func _take_all_storage() -> void:
+	if pet_bag == null or inventory == null:
+		return
+	if _readonly_reason() != "":
+		return
+	for i in range(pet_bag.slot_count - 1, -1, -1):
+		var s := pet_bag.slots[i]
+		if s == null:
+			continue
+		var taken := pet_bag.remove_at(i, s.count)
+		if taken == null:
+			continue
+		var left := inventory.add(taken)
+		if left > 0:
+			taken.count = left
+			pet_bag.add(taken)
+	_notify_storage_take()
+
+func _notify_storage_take() -> void:
+	var cb: Variant = _storage_opts.get("on_take", null)
+	if cb is Callable:
+		(cb as Callable).call()
+	if pet_bag and pet_bag.used_slots() <= 0:
+		var on_empty: Variant = _storage_opts.get("on_empty", null)
+		if on_empty is Callable:
+			(on_empty as Callable).call()
+		visible = false
+		pet_bag = null
 
 func _layout_safe() -> void:
 	if OS.has_feature("mobile"):

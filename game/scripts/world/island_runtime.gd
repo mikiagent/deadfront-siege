@@ -61,6 +61,7 @@ var _harvest_nodes: Dictionary = {}
 var _bare_tiles: Dictionary = {}
 var spawn_rejected: int = 0
 var build_grid: BuildGrid
+var pathing
 
 ## Radius of dry, walkable land: the beach blend starts at 0.40 * size (see _terrain).
 func land_radius() -> float:
@@ -133,12 +134,17 @@ func build(def: Dictionary, terrain: StringName) -> void:
 		add_child(cargo_basket)
 		build_grid.reserve_kind(&"basket", BuildGrid.tile_of(cargo_basket.position), 0)
 	_scatter(def, terrain, _climate, _tier, size)
+	_setup_pathing()
 	_creatures(def)
 	if crater_v is Array:
 		_crater(_at(float(crater_v[0]), float(crater_v[2])))
 	_rain_layer()
 	_drive_terrain_focus()
 	print("[world] island %s nodes=%d creatures=%d spawn_rejected=%d" % [def.get("id", ""), harvest_count, creature_count, spawn_rejected])
+
+func mark_pathing_dirty() -> void:
+	if pathing:
+		pathing.mark_dirty()
 
 func _env() -> void:
 	var scene := get_tree().current_scene
@@ -537,6 +543,17 @@ func _nav_bake() -> void:
 				dup.name = String(c.name) + "_nav"
 				nav.add_child(dup)
 	nav.bake_navigation_mesh(true)
+
+func _setup_pathing() -> void:
+	if pathing and is_instance_valid(pathing):
+		pathing.queue_free()
+	var script := load("res://scripts/world/tile_path.gd") as GDScript
+	pathing = script.new() if script else null
+	if pathing == null:
+		return
+	pathing.name = "TilePath"
+	add_child(pathing)
+	pathing.setup(self)
 
 func _camp(at: Vector3) -> void:
 	_coziness(at)
@@ -1186,6 +1203,7 @@ func _on_tile_bare(node: HarvestNode, tile: Vector2i) -> void:
 		"node_id": str(node.node_id),
 	}
 	_set_tile_type(tile, TileType.BARE)
+	mark_pathing_dirty()
 	print("[world] tile bare (%d,%d)" % [tile.x, tile.y])
 
 func _on_tile_regrown(node: HarvestNode, tile: Vector2i) -> void:
@@ -1196,6 +1214,7 @@ func _on_tile_regrown(node: HarvestNode, tile: Vector2i) -> void:
 	var base_type := int(row.get("base", TileType.GRASS))
 	_set_tile_type(tile, base_type)
 	_bare_tiles.erase(key)
+	mark_pathing_dirty()
 	print("[world] tile regrown (%d,%d)" % [tile.x, tile.y])
 
 func harvest_tile_snapshot() -> Dictionary:
