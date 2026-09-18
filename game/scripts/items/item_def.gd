@@ -12,6 +12,8 @@ extends Resource
 @export var damage: float = 0.0
 @export var damage_type: StringName = &""
 @export var is_work_tool: bool = false
+@export var armor_value: float = 0.0
+@export var food_energy: float = 0.0
 @export var capture_tier: int = 0
 @export var slot_span: int = 1
 @export var clears: Array[StringName] = []
@@ -19,6 +21,7 @@ extends Resource
 @export var max_durability: int = 0
 @export var default_attributes: Dictionary = {}
 @export var place_as: StringName = &""
+@export var stats_per_level: Dictionary = {}
 
 static func from_dict(d: Dictionary) -> ItemDef:
 	var def := ItemDef.new()
@@ -32,6 +35,8 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	def.damage = float(d.get("damage", 0.0))
 	def.damage_type = StringName(str(d.get("damage_type", "")))
 	def.is_work_tool = bool(d.get("is_work_tool", false))
+	def.armor_value = float(d.get("armor_value", 0.0))
+	def.food_energy = float(d.get("food_energy", 0.0))
 	def.capture_tier = int(d.get("capture_tier", 0))
 	def.slot_span = int(d.get("slot_span", 1))
 	def.clears = _names(d.get("clears", []))
@@ -41,6 +46,9 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	if attrs is Dictionary:
 		def.default_attributes = (attrs as Dictionary).duplicate(true)
 	def.place_as = StringName(str(d.get("place_as", "")))
+	var spl: Variant = d.get("stats_per_level", {})
+	if spl is Dictionary:
+		def.stats_per_level = (spl as Dictionary).duplicate(true)
 	return def
 
 static func _names(raw: Variant) -> Array[StringName]:
@@ -52,3 +60,23 @@ static func _names(raw: Variant) -> Array[StringName]:
 
 func has_category(cat: StringName) -> bool:
 	return cat in categories
+
+func damage_at(level: int) -> float:
+	return _scaled(&"damage", damage, level)
+
+func max_durability_at(level: int) -> int:
+	return maxi(0, int(round(_scaled(&"max_durability", float(max_durability), level))))
+
+func armor_value_at(level: int) -> float:
+	return _scaled(&"armor_value", armor_value, level)
+
+func food_energy_at(level: int) -> float:
+	return _scaled(&"food_energy", food_energy, level)
+
+func _scaled(stat: StringName, base: float, level: int) -> float:
+	var factor := 0.0
+	if stats_per_level.has(stat):
+		factor = float(stats_per_level[stat])
+	elif stats_per_level.has(str(stat)):
+		factor = float(stats_per_level[str(stat)])
+	return base * (1.0 + factor * float(maxi(0, level)))

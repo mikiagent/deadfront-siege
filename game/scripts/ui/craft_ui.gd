@@ -144,15 +144,16 @@ func _refresh_detail() -> void:
 		if i < _picks.size() and _picks[i] >= 0:
 			var s := player.inventory.slots[_picks[i]]
 			if s:
-				chosen = "%s lv%d %s" % [s.def_id, s.level, s.attributes]
+				chosen = "%s lv%d ×%d  contrib %s" % [s.def_id, s.level, count, _contrib_list(s.level, count)]
 		var b := _mk_btn("%s\n%s" % [text, chosen], Callable(self, "_open_picker").bind(i), Vector2(360, 72))
 		if i == pidx:
 			b.modulate = Color(1.0, 0.92, 0.55)
 		_slots_box.add_child(b)
 	var prev := Crafting.preview(player.inventory, _rec, _picks)
 	if prev:
-		_preview.text = "Output: %s  lv %d  process %d\n%s" % [
-			prev.def_id, prev.level, prev.process_count, prev.attributes]
+		var levels := Crafting.consumed_levels(player.inventory, _rec, _picks)
+		_preview.text = "Output: %s  lv %d  (mean %s)  process %d\n%s" % [
+			prev.def_id, prev.level, str(levels), prev.process_count, prev.attributes]
 	else:
 		_preview.text = "Need materials (and station if listed)."
 	_craft_btn.disabled = not Crafting.can_make(player, _rec, _picks)
@@ -171,9 +172,11 @@ func _open_picker(slot_i: int) -> void:
 	var title := Label.new()
 	title.text = "Choose %s" % slots[slot_i].get("category", "")
 	_picker.add_child(title)
+	var need := int(slots[slot_i].get("count", 1))
 	for idx in Crafting.stacks_for_slot(player.inventory, slots[slot_i]):
 		var s := player.inventory.slots[idx]
-		var lab := "%s x%d lv%d proc%d  %s" % [s.def_id, s.count, s.level, s.process_count, s.attributes]
+		var lab := "%s x%d lv%d proc%d  %s  contrib %s" % [
+			s.def_id, s.count, s.level, s.process_count, s.attributes, _contrib_list(s.level, need)]
 		_picker.add_child(_mk_btn(lab, Callable(self, "_pick_stack").bind(idx), Vector2(400, 64)))
 	_picker.visible = true
 
@@ -185,6 +188,12 @@ func _pick_stack(idx: int) -> void:
 	_picks[_pick_slot] = idx
 	_picker.visible = false
 	_refresh_detail()
+
+func _contrib_list(level: int, count: int) -> String:
+	var parts: PackedStringArray = []
+	for _i in count:
+		parts.append(str(level))
+	return "[" + ", ".join(parts) + "]"
 
 func _on_craft() -> void:
 	if Crafting.craft(player, _rec, _picks) == null:

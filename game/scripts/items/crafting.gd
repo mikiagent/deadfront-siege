@@ -64,18 +64,69 @@ static func preview(inv: Inventory, rec: Dictionary, picks: Array[int]) -> ItemS
 		return null
 	var pidx := primary_index(rec)
 	var primary := inv.slots[picks[pidx]]
-	return build_output(rec, primary)
+	var levels := consumed_levels(inv, rec, picks)
+	return build_output(rec, primary, crafted_level_for(rec, levels))
 
-static func build_output(rec: Dictionary, primary: ItemStack) -> ItemStack:
+static func consumed_levels(inv: Inventory, rec: Dictionary, picks: Array[int]) -> Array[int]:
+	var out: Array[int] = []
+	var slots: Array = rec.get("slots", [])
+	for i in slots.size():
+		if i >= picks.size():
+			continue
+		var idx := picks[i]
+		if idx < 0 or idx >= inv.slot_count:
+			continue
+		var stack := inv.slots[idx]
+		if stack == null:
+			continue
+		var count := int(slots[i].get("count", 1))
+		for _n in count:
+			out.append(stack.level)
+	return out
+
+static func slot_level_contributions(inv: Inventory, rec: Dictionary, picks: Array[int]) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var slots: Array = rec.get("slots", [])
+	for i in slots.size():
+		if i >= picks.size() or not slots[i] is Dictionary:
+			continue
+		var idx := picks[i]
+		if idx < 0 or idx >= inv.slot_count:
+			continue
+		var stack := inv.slots[idx]
+		if stack == null:
+			continue
+		var count := int((slots[i] as Dictionary).get("count", 1))
+		out.append({
+			"slot": i,
+			"level": stack.level,
+			"count": count,
+			"def_id": str(stack.def_id),
+		})
+	return out
+
+static func skill_level_for(rec: Dictionary) -> int:
+	var _skill := StringName(str(rec.get("skill", "processing")))
+	# ASSUMPTION: M8 owns real per-tree skill progression. Until then every crafting tree is level 60.
+	return 60
+
+static func crafted_level_for(rec: Dictionary, levels: Array[int]) -> int:
+	if levels.is_empty():
+		return 1
+	var total := 0
+	for lv in levels:
+		total += lv
+	var average := int(floor(float(total) / float(levels.size())))
+	var cap := mini(skill_level_for(rec), int(rec.get("max_level", 60)))
+	return clampi(average, 1, cap)
+
+static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int) -> ItemStack:
 	var out_row: Dictionary = rec.get("output", {})
 	var out := ItemStack.make(StringName(str(out_row.get("id", ""))), int(out_row.get("count", 1)))
 	out.attributes = primary.attributes.duplicate(true)
-	out.level = primary.level
+	out.level = crafted_level
 	out.process_count = primary.process_count + int(rec.get("process_add", 1))
-	var d := out.def()
-	if d:
-		out.max_durability = d.max_durability
-		out.durability = d.max_durability
+	out.apply_level_stats()
 	return out
 
 static func station_id(rec: Dictionary) -> String:
@@ -113,6 +164,7 @@ static func craft(player: Player, rec: Dictionary, picks: Array[int]) -> ItemSta
 		return null
 	var pidx := primary_index(rec)
 	var primary := player.inventory.slots[picks[pidx]].duplicate_stack()
+	var levels := consumed_levels(player.inventory, rec, picks)
 	var slots: Array = rec.get("slots", [])
 	var used: Dictionary = {}
 	for i in slots.size():
@@ -124,10 +176,11 @@ static func craft(player: Player, rec: Dictionary, picks: Array[int]) -> ItemSta
 	keys.reverse()
 	for idx in keys:
 		player.inventory.remove_at(int(idx), int(used[idx]))
-	var out := build_output(rec, primary)
+	var out := build_output(rec, primary, crafted_level_for(rec, levels))
 	var left := player.inventory.add(out)
 	if left > 0:
 		print("[craft] bag full remainder=%d" % left)
+	print("[craft] level=%d from %s" % [out.level, levels])
 	print("[craft] %s from primary=%s %s" % [out.def_id, primary.def_id, primary.attributes])
 	World.note_craft(StringName(str(rec.get("id", ""))))
 	return out

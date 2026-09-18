@@ -3,331 +3,685 @@
     {
       "id": "improvised_stone_knife",
       "display_name": "Improvised Stone Knife",
+      "skill": "weapon_tools",
+      "max_level": 60,
       "slots": [
-        {"category": "blade_mat", "count": 1, "primary": true},
-        {"category": "handle", "count": 1, "primary": false},
-        {"category": "lashing", "count": 1, "primary": false}
+        {
+          "category": "blade_mat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
       ],
-      "output": {"id": "stone_knife_work", "count": 1},
+      "output": {
+        "id": "stone_knife_work",
+        "count": 1
+      },
       "station": null,
       "seconds": 2.0,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "weapon_tools"
     },
     {
       "id": "work_axe",
       "display_name": "Work Axe",
+      "skill": "weapon_tools",
+      "max_level": 60,
       "slots": [
-        {"category": "blade_mat", "count": 1, "primary": true},
-        {"category": "handle", "count": 1, "primary": false},
-        {"category": "lashing", "count": 1, "primary": false}
+        {
+          "category": "blade_mat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
       ],
-      "output": {"id": "work_axe", "count": 1},
+      "output": {
+        "id": "work_axe",
+        "count": 1
+      },
       "station": "workbench",
       "seconds": 3.0,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "weapon_tools"
     },
     {
       "id": "club",
       "display_name": "Wooden Club",
+      "skill": "weapon_tools",
+      "max_level": 60,
       "slots": [
-        {"category": "handle", "count": 1, "primary": true},
-        {"category": "lashing", "count": 1, "primary": false}
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
       ],
-      "output": {"id": "club", "count": 1},
+      "output": {
+        "id": "club",
+        "count": 1
+      },
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "weapon_tools"
     },
     {
       "id": "bandage",
       "display_name": "Bandage",
+      "skill": "tailoring",
+      "max_level": 60,
       "slots": [
-        {"category": "herb", "count": 1, "primary": true},
-        {"category": "cloth", "count": 1, "primary": false}
+        {
+          "category": "herb",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "cloth",
+          "count": 1,
+          "primary": false
+        }
       ],
-      "output": {"id": "bandage", "count": 1},
+      "output": {
+        "id": "bandage",
+        "count": 1
+      },
       "station": null,
       "seconds": 1.0,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "tailoring"
     },
     {
       "id": "pressure_dressing",
       "display_name": "Pressure Dressing",
+      "skill": "tailoring",
+      "max_level": 60,
       "slots": [
-        {"category": "herb", "count": 1, "primary": true},
-        {"category": "cloth", "count": 2, "primary": false}
+        {
+          "category": "herb",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "cloth",
+          "count": 2,
+          "primary": false
+        }
       ],
-      "output": {"id": "pressure_dressing", "count": 1},
+      "output": {
+        "id": "pressure_dressing",
+        "count": 1
+      },
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "tailoring"
     },
     {
       "id": "splint",
       "display_name": "Splint",
+      "skill": "weapon_tools",
+      "max_level": 60,
       "slots": [
-        {"category": "wood", "count": 1, "primary": true},
-        {"category": "cloth", "count": 1, "primary": false}
+        {
+          "category": "wood",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "cloth",
+          "count": 1,
+          "primary": false
+        }
       ],
-      "output": {"id": "splint", "count": 1},
+      "output": {
+        "id": "splint",
+        "count": 1
+      },
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "tailoring"
     },
     {
       "id": "capture_net_i",
       "display_name": "Capture Net I",
+      "skill": "weapon_tools",
+      "max_level": 60,
       "slots": [
-        {"category": "lashing", "count": 2, "primary": true},
-        {"category": "handle", "count": 1, "primary": false}
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        }
       ],
-      "output": {"id": "capture_net_i", "count": 1},
+      "output": {
+        "id": "capture_net_i",
+        "count": 1
+      },
       "station": null,
       "seconds": 2.0,
       "process_step": "twist",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "weapon_tools"
     },
     {
       "id": "twine",
       "display_name": "Twine",
+      "skill": "processing",
+      "max_level": 60,
       "slots": [
-        {"category": "fibre", "count": 2, "primary": true}
+        {
+          "category": "fibre",
+          "count": 2,
+          "primary": true
+        }
       ],
-      "output": {"id": "twine", "count": 1},
+      "output": {
+        "id": "twine",
+        "count": 1
+      },
       "station": null,
       "seconds": 1.0,
       "process_step": "twist",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "processing"
     },
     {
       "id": "rope",
       "display_name": "Rope",
+      "skill": "processing",
+      "max_level": 60,
       "slots": [
-        {"category": "lashing", "count": 3, "primary": true}
+        {
+          "category": "lashing",
+          "count": 3,
+          "primary": true
+        }
       ],
-      "output": {"id": "rope", "count": 1},
+      "output": {
+        "id": "rope",
+        "count": 1
+      },
       "station": "workbench",
       "seconds": 2.0,
       "process_step": "twist",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "processing"
     },
     {
       "id": "thread",
       "display_name": "Thread",
+      "skill": "processing",
+      "max_level": 60,
       "slots": [
-        {"category": "fibre", "count": 2, "primary": true}
+        {
+          "category": "fibre",
+          "count": 2,
+          "primary": true
+        }
       ],
-      "output": {"id": "thread", "count": 1},
+      "output": {
+        "id": "thread",
+        "count": 1
+      },
       "station": null,
       "seconds": 1.0,
       "process_step": "twist",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "tailoring"
     },
     {
       "id": "cloth",
       "display_name": "Cloth",
+      "skill": "processing",
+      "max_level": 60,
       "slots": [
-        {"category": "thread", "count": 2, "primary": true}
+        {
+          "category": "thread",
+          "count": 2,
+          "primary": true
+        }
       ],
-      "output": {"id": "cloth", "count": 1},
+      "output": {
+        "id": "cloth",
+        "count": 1
+      },
       "station": "workbench",
       "seconds": 2.0,
       "process_step": "twist",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "tailoring"
     },
     {
       "id": "dried_hide",
       "display_name": "Dried Hide",
+      "skill": "processing",
+      "max_level": 60,
       "slots": [
-        {"category": "green_hide", "count": 1, "primary": true}
+        {
+          "category": "green_hide",
+          "count": 1,
+          "primary": true
+        }
       ],
-      "output": {"id": "dried_hide", "count": 1},
+      "output": {
+        "id": "dried_hide",
+        "count": 1
+      },
       "station": "drying_rack",
       "seconds": 4.0,
       "process_step": "dry",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "processing"
     },
     {
       "id": "hide_strap",
       "display_name": "Hide Strap",
+      "skill": "processing",
+      "max_level": 60,
       "slots": [
-        {"category": "hide", "count": 1, "primary": true}
+        {
+          "category": "hide",
+          "count": 1,
+          "primary": true
+        }
       ],
-      "output": {"id": "hide_strap", "count": 2},
+      "output": {
+        "id": "hide_strap",
+        "count": 2
+      },
       "station": "workbench",
       "seconds": 2.0,
       "process_step": "split",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "processing"
     },
     {
       "id": "split_wood",
       "display_name": "Split Wood",
+      "skill": "processing",
+      "max_level": 60,
       "slots": [
-        {"category": "log", "count": 1, "primary": true}
+        {
+          "category": "log",
+          "count": 1,
+          "primary": true
+        }
       ],
-      "output": {"id": "split_wood", "count": 2},
+      "output": {
+        "id": "split_wood",
+        "count": 2
+      },
       "station": "workbench",
       "seconds": 2.0,
       "process_step": "split",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "processing"
     },
     {
       "id": "plank",
       "display_name": "Plank",
+      "skill": "processing",
+      "max_level": 60,
       "slots": [
-        {"category": "split", "count": 2, "primary": true}
+        {
+          "category": "split",
+          "count": 2,
+          "primary": true
+        }
       ],
-      "output": {"id": "plank", "count": 1},
+      "output": {
+        "id": "plank",
+        "count": 1
+      },
       "station": "workbench",
       "seconds": 2.0,
       "process_step": "hammer",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "processing"
     },
     {
       "id": "charcoal",
       "display_name": "Charcoal",
+      "skill": "processing",
+      "max_level": 60,
       "slots": [
-        {"category": "burnable", "count": 2, "primary": true}
+        {
+          "category": "burnable",
+          "count": 2,
+          "primary": true
+        }
       ],
-      "output": {"id": "charcoal", "count": 1},
+      "output": {
+        "id": "charcoal",
+        "count": 1
+      },
       "station": null,
       "seconds": 3.0,
       "process_step": "bake",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "processing"
     },
     {
       "id": "ingot",
       "display_name": "Ingot",
+      "skill": "processing",
+      "max_level": 60,
       "slots": [
-        {"category": "ore", "count": 2, "primary": true}
+        {
+          "category": "ore",
+          "count": 2,
+          "primary": true
+        }
       ],
-      "output": {"id": "ingot", "count": 1},
+      "output": {
+        "id": "ingot",
+        "count": 1
+      },
       "station": "workbench",
       "seconds": 4.0,
       "process_step": "hammer",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "processing"
     },
     {
       "id": "bonfire_kit",
       "display_name": "Bonfire Kit",
+      "skill": "construction",
+      "max_level": 60,
       "slots": [
-        {"category": "wood", "count": 2, "primary": true},
-        {"category": "fibre", "count": 1, "primary": false}
+        {
+          "category": "wood",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 1,
+          "primary": false
+        }
       ],
-      "output": {"id": "bonfire_kit", "count": 1},
+      "output": {
+        "id": "bonfire_kit",
+        "count": 1
+      },
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "construction"
     },
     {
       "id": "makeshift_taming_pen_kit",
       "display_name": "Makeshift Taming Pen Kit",
+      "skill": "construction",
+      "max_level": 60,
       "slots": [
-        {"category": "wood", "count": 4, "primary": true},
-        {"category": "lashing", "count": 2, "primary": false}
+        {
+          "category": "wood",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
       ],
-      "output": {"id": "makeshift_taming_pen", "count": 1},
+      "output": {
+        "id": "makeshift_taming_pen",
+        "count": 1
+      },
       "station": null,
       "seconds": 2.5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "construction"
     },
     {
       "id": "workbench_kit",
       "display_name": "Workbench Kit",
+      "skill": "construction",
+      "max_level": 60,
       "slots": [
-        {"category": "wood", "count": 4, "primary": true},
-        {"category": "lashing", "count": 2, "primary": false}
+        {
+          "category": "wood",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
       ],
-      "output": {"id": "workbench_kit", "count": 1},
+      "output": {
+        "id": "workbench_kit",
+        "count": 1
+      },
       "station": null,
       "seconds": 2.0,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "construction"
     },
     {
       "id": "drying_rack_kit",
       "display_name": "Drying Rack Kit",
+      "skill": "construction",
+      "max_level": 60,
       "slots": [
-        {"category": "wood", "count": 3, "primary": true},
-        {"category": "lashing", "count": 1, "primary": false}
+        {
+          "category": "wood",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
       ],
-      "output": {"id": "drying_rack_kit", "count": 1},
+      "output": {
+        "id": "drying_rack_kit",
+        "count": 1
+      },
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "construction"
     },
     {
       "id": "tent_kit",
       "display_name": "Tent Kit",
+      "skill": "construction",
+      "max_level": 60,
       "slots": [
-        {"category": "hide", "count": 2, "primary": true},
-        {"category": "wood", "count": 2, "primary": false},
-        {"category": "lashing", "count": 1, "primary": false}
+        {
+          "category": "hide",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "wood",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
       ],
-      "output": {"id": "tent_kit", "count": 1},
+      "output": {
+        "id": "tent_kit",
+        "count": 1
+      },
       "station": null,
       "seconds": 2.0,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "tailoring"
     },
     {
       "id": "basket_kit",
       "display_name": "Basket Kit",
+      "skill": "construction",
+      "max_level": 60,
       "slots": [
-        {"category": "fibre", "count": 4, "primary": true},
-        {"category": "wood", "count": 1, "primary": false}
+        {
+          "category": "fibre",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "wood",
+          "count": 1,
+          "primary": false
+        }
       ],
-      "output": {"id": "basket_kit", "count": 1},
+      "output": {
+        "id": "basket_kit",
+        "count": 1
+      },
       "station": null,
       "seconds": 1.5,
       "process_step": "twist",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "construction"
     },
     {
       "id": "fence_kit",
       "display_name": "Fence Segment",
+      "skill": "construction",
+      "max_level": 60,
       "slots": [
-        {"category": "wood", "count": 2, "primary": true}
+        {
+          "category": "wood",
+          "count": 2,
+          "primary": true
+        }
       ],
-      "output": {"id": "fence_kit", "count": 1},
+      "output": {
+        "id": "fence_kit",
+        "count": 1
+      },
       "station": null,
       "seconds": 1.0,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "construction"
     },
     {
       "id": "gate_kit",
       "display_name": "Gate",
+      "skill": "construction",
+      "max_level": 60,
       "slots": [
-        {"category": "wood", "count": 3, "primary": true},
-        {"category": "lashing", "count": 1, "primary": false}
+        {
+          "category": "wood",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
       ],
-      "output": {"id": "gate_kit", "count": 1},
+      "output": {
+        "id": "gate_kit",
+        "count": 1
+      },
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "construction"
     },
     {
       "id": "sign_kit",
       "display_name": "Sign",
+      "skill": "construction",
+      "max_level": 60,
       "slots": [
-        {"category": "wood", "count": 1, "primary": true}
+        {
+          "category": "wood",
+          "count": 1,
+          "primary": true
+        }
       ],
-      "output": {"id": "sign_kit", "count": 1},
+      "output": {
+        "id": "sign_kit",
+        "count": 1
+      },
       "station": null,
       "seconds": 1.0,
       "process_step": "hammer",
-      "process_add": 1
+      "process_add": 1,
+      "max_level": 60,
+      "skill": "construction"
     }
   ]
 }

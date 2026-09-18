@@ -75,7 +75,7 @@ func _auto_attack() -> void:
 	var w := player.inventory.equipped_weapon()
 	var def := w.def() if w else null
 	var rate := def.attack_rate if def and def.attack_rate > 0.0 else 1.0
-	var dmg := def.damage if def else 8.0
+	var dmg := w.scaled_damage() if w else 8.0
 	var dtype := def.damage_type if def else &"blunt"
 	if def and def.is_work_tool:
 		dmg *= 0.45

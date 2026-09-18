@@ -26,6 +26,26 @@ func duplicate_stack() -> ItemStack:
 func def() -> ItemDef:
 	return Data.item(def_id)
 
+func apply_level_stats() -> void:
+	var d := def()
+	if d == null:
+		return
+	if d.max_durability > 0:
+		max_durability = d.max_durability_at(level)
+		durability = max_durability
+
+func scaled_damage() -> float:
+	var d := def()
+	return d.damage_at(level) if d else 0.0
+
+func scaled_armor() -> float:
+	var d := def()
+	return d.armor_value_at(level) if d else 0.0
+
+func scaled_food_energy() -> float:
+	var d := def()
+	return d.food_energy_at(level) if d else 0.0
+
 func slot_span() -> int:
 	var d := def()
 	return d.slot_span if d else 1
@@ -90,6 +110,15 @@ func tooltip() -> String:
 	var lines: PackedStringArray = ["%s x%d" % [title, count], "lv %d  process %d" % [level, process_count]]
 	if max_durability > 0:
 		lines.append("dur %d/%d%s" % [durability, max_durability, " BROKEN" if is_broken() else ""])
+	var dmg := scaled_damage()
+	if dmg > 0.0:
+		lines.append("dmg %.1f" % dmg)
+	var armor := scaled_armor()
+	if armor > 0.0:
+		lines.append("armor %.1f" % armor)
+	var food_energy := scaled_food_energy()
+	if food_energy > 0.0:
+		lines.append("energy %.1f" % food_energy)
 	if not attributes.is_empty():
 		lines.append("attr %s" % str(attributes))
 	if not flags.is_empty():
@@ -134,10 +163,9 @@ static func make(id: StringName, amount: int = 1, attrs: Dictionary = {}, lvl: i
 	var d := Data.item(id) if Data else null
 	if d:
 		s.attributes = d.default_attributes.duplicate(true)
-		s.max_durability = d.max_durability
-		s.durability = d.max_durability
 		if lvl == 1:
 			s.level = d.base_level
+		s.apply_level_stats()
 	for k in attrs:
 		s.attributes[k] = attrs[k]
 	return s

@@ -76,6 +76,7 @@ func _demo() -> void:
 		bone_k.attributes.get("tint", "") if bone_k else "",
 		stone_k.attributes.get("tint", "") if stone_k else "",
 	])
+	_level_mean_demo(knife_rec)
 	# Butcher a velociraptor corpse (JSON drops via butchering.json).
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 	add_child(c)
@@ -98,3 +99,36 @@ func _spawn(id: StringName, pos: Vector3, def_id: StringName, attrs: Dictionary,
 	n.position = pos
 	add_child(n)
 	n.setup(id, def_id, 1, 1, attrs, tool, color)
+
+func _level_mean_demo(rec: Dictionary) -> void:
+	# Prompt lab check is a two-unit mean (blade + handle). Lashing is a third sample on the live recipe.
+	var a := Crafting.crafted_level_for(rec, [25, 5])
+	print("[craft] level=%d from %s" % [a, [25, 5]])
+	var b := Crafting.crafted_level_for(rec, [25, 40])
+	print("[craft] level=%d from %s" % [b, [25, 40]])
+	_craft_knife_at(rec, 25, 5)
+	_craft_knife_at(rec, 25, 40)
+
+func _craft_knife_at(rec: Dictionary, stone_lv: int, branch_lv: int) -> void:
+	var stone := ItemStack.make(&"stone", 1, {"tint": "#8a8a8a"}, stone_lv)
+	stone.level = stone_lv
+	var branch := ItemStack.make(&"branch", 1, {}, branch_lv)
+	branch.level = branch_lv
+	var twine := ItemStack.make(&"twine", 1, {}, 1)
+	twine.level = 1
+	_player.inventory.add(stone)
+	_player.inventory.add(branch)
+	_player.inventory.add(twine)
+	var picks: Array[int] = [
+		_find_id_level(&"stone", stone_lv),
+		_find_id_level(&"branch", branch_lv),
+		_find_id_level(&"twine", 1),
+	]
+	Crafting.craft(_player, rec, picks)
+
+func _find_id_level(id: StringName, lv: int) -> int:
+	for i in _player.inventory.slot_count:
+		var s := _player.inventory.slots[i]
+		if s and s.def_id == id and s.level == lv:
+			return i
+	return _player.inventory.find_first(id)
