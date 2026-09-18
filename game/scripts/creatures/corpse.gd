@@ -6,11 +6,13 @@ var species: StringName = &""
 var source_pack: int = 0
 var loot: Inventory = Inventory.new(12)
 var _expires_left: float = 90.0 # ASSUMPTION: corpse lifetime on the ground.
+var _empty_despawn: float = 20.0 # ASSUMPTION: looted-empty corpses fade sooner.
 var _owner: Creature
 var _marker: Node3D
 var _label_species: String = ""
 var _tap_s: float = -999.0
 var _fading: bool = false
+var _emptied: bool = false
 
 func setup(c: Creature) -> void:
 	species = c.def.id
@@ -55,7 +57,7 @@ func open_loot(player: Player) -> void:
 		return
 	note_tapped()
 	if _is_empty():
-		_begin_fade()
+		_on_loot_empty()
 		return
 	var why := can_butcher(player.inventory)
 	var readonly := "needs knife" if why == "need tool knife" else ""
@@ -88,8 +90,9 @@ func _process(delta: float) -> void:
 	if _expires_left <= 0.0:
 		_begin_fade()
 		return
-	if _is_empty():
-		_begin_fade()
+	if _is_empty() and not _emptied:
+		_emptied = true
+		_expires_left = minf(_expires_left, _empty_despawn)
 
 func _roll_loot() -> void:
 	var skill := Data.butchering_level()
@@ -116,7 +119,9 @@ func _on_take_from_loot() -> void:
 		_on_loot_empty()
 
 func _on_loot_empty() -> void:
-	_begin_fade()
+	if not _emptied:
+		_emptied = true
+		_expires_left = minf(_expires_left, _empty_despawn)
 
 func _is_empty() -> bool:
 	return loot.used_slots() <= 0
@@ -171,6 +176,7 @@ func _begin_fade() -> void:
 	_fading = true
 	collision_layer = 0
 	collision_mask = 0
+	print("[world] corpse despawned %s" % species)
 	var tw := create_tween()
 	if _marker:
 		tw.parallel().tween_property(_marker, "scale", Vector3.ZERO, 0.45)

@@ -23,6 +23,10 @@ var spawn_home: Vector3 = Vector3.ZERO
 var last_aggro_s: float = -999.0
 var last_damaged_s: float = -999.0
 var _last_tap_s: float = -999.0
+var tame_feeds: float = 0.0
+var tame_window_left: float = 0.0
+var tame_cooldown_left: float = 0.0
+var tame_attempting: bool = false
 
 @onready var agent: NavigationAgent3D = $Agent
 @onready var view: CreatureView = $View
@@ -74,6 +78,7 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> 
 	anim.knockdown_ended.connect(_on_kd_end)
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
+	statuses.removed.connect(_on_status_removed)
 	_make_brain()
 	_make_drip()
 	if Game and Game.has_method("ensure_creature_plates"):
@@ -115,8 +120,25 @@ func apply_species_on_hit(clip: StringName, target: Node) -> void:
 func capturable() -> bool:
 	return is_capturable and health.hp > 0.0 and def.tameable
 
+func field_tame_open() -> bool:
+	return FieldTame.can_attempt(self)
+
+func become_pet(rec: PetRecord) -> void:
+	is_pet = true
+	pet_record = rec
+	hunger = rec.hunger
+	hunger_max = rec.hunger_max
+	tame_attempting = false
+	tame_feeds = 0.0
+	tame_window_left = 0.0
+	if brain:
+		brain.queue_free()
+		brain = null
+	_make_brain()
+
 func _physics_process(delta: float) -> void:
 	_fall_guard()
+	FieldTame.tick(self, delta)
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 	if health.dead or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act"):
@@ -256,9 +278,19 @@ func _on_attack_done() -> void:
 
 func _on_kd_start() -> void:
 	is_capturable = true
+	FieldTame.begin_window(self)
 
 func _on_kd_end() -> void:
 	is_capturable = false
+
+func _on_status_removed(id: StringName) -> void:
+	if id != &"knockdown":
+		return
+	if anim and anim._hold_knockdown:
+		anim.release_knockdown()
+	is_capturable = false
+	if tame_attempting and def and tame_feeds + 0.001 < def.feeds_needed and not is_pet:
+		FieldTame.fail(self, null)
 
 func mark_aggro_now() -> void:
 	last_aggro_s = _now_s()
@@ -280,12 +312,6 @@ func _on_damaged(_amount: float, source: Node) -> void:
 	if statuses.has(&"groggy") and not statuses.has(&"knockdown"):
 		statuses.apply(&"knockdown", source)
 		anim.play_clip(&"knockdown")
-		get_tree().create_timer(4.0).timeout.connect(func () -> void:
-			if is_instance_valid(self) and not health.dead:
-				statuses.clear_id(&"knockdown")
-				anim.release_knockdown()
-				is_capturable = false
-		)
 		return
 	if not str(anim.current_clip).begins_with("attack"):
 		anim.play_clip(&"hit_react")

@@ -33,5 +33,17 @@
     "attack_heavy": "Horned dinosaur lowers its horn, holds, then charges",
     "knockdown": "Horned dinosaur topples onto its side",
     "alert": "Horned dinosaur raises its frill and snorts"
+  },
+  "taming": {
+    "preferred_food": [
+      "berry",
+      "herb_leaf"
+    ],
+    "accepted_food": [
+      "fibre_stalk"
+    ],
+    "feeds_needed": 6,
+    "window_seconds": 45,
+    "requires_pen": true
   }
 }

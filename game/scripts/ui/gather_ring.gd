@@ -10,6 +10,7 @@ const INNER_WIDTH := 2.5
 const FADE_SECONDS := 0.6
 
 var target: HarvestNode
+var _tame_target: Creature
 var unit_progress: float = 0.0
 var _outer_progress: float = 0.0
 var _pool_text: String = ""
@@ -32,6 +33,7 @@ func show_for(node: HarvestNode, progress: float) -> void:
 	if node == null:
 		return
 	target = node
+	_tame_target = null
 	unit_progress = clampf(progress, 0.0, 1.0)
 	_outer_progress = clampf(float(node.session_gathered) / float(maxi(1, node.pool_max)), 0.0, 1.0)
 	_pool_text = "%d/%d" % [node.pool_units_left(), maxi(1, node.pool_max)]
@@ -45,14 +47,34 @@ func show_for(node: HarvestNode, progress: float) -> void:
 	modulate.a = 1.0
 	queue_redraw()
 
+func show_for_tame(creature: Creature, progress: float, food_id: StringName) -> void:
+	if creature == null:
+		return
+	target = null
+	_tame_target = creature
+	unit_progress = clampf(progress, 0.0, 1.0)
+	_outer_progress = clampf(creature.tame_feeds / maxf(0.001, creature.def.feeds_needed), 0.0, 1.0)
+	_pool_text = "%.0f/%.0f" % [creature.tame_feeds, creature.def.feeds_needed]
+	var def := Data.item(food_id)
+	_yield_text = def.display_name if def else str(food_id)
+	_icon = _icon_for(food_id)
+	_alpha = 1.0
+	_fade_left = 0.0
+	_update_screen_position()
+	visible = true
+	modulate.a = 1.0
+	queue_redraw()
+
 func fade_out() -> void:
 	if not visible:
 		return
 	target = null
+	_tame_target = null
 	_fade_left = FADE_SECONDS
 
 func clear_now() -> void:
 	target = null
+	_tame_target = null
 	_fade_left = 0.0
 	_alpha = 0.0
 	visible = false
@@ -60,13 +82,15 @@ func clear_now() -> void:
 func _process(delta: float) -> void:
 	if target and is_instance_valid(target):
 		_update_screen_position()
+	elif _tame_target and is_instance_valid(_tame_target):
+		_update_screen_position()
 	if _fade_left > 0.0:
 		_fade_left = maxf(0.0, _fade_left - delta)
 		_alpha = _fade_left / FADE_SECONDS
 		if _alpha <= 0.01:
 			clear_now()
 			return
-	elif target and is_instance_valid(target):
+	elif (target and is_instance_valid(target)) or (_tame_target and is_instance_valid(_tame_target)):
 		_alpha = 1.0
 	else:
 		_alpha = 0.0
@@ -77,12 +101,16 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _update_screen_position() -> void:
-	if target == null:
-		return
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return
-	var world := target.global_position + Vector3(0.0, target.top_of_node() + 0.3, 0.0)
+	var world := Vector3.ZERO
+	if target and is_instance_valid(target):
+		world = target.global_position + Vector3(0.0, target.top_of_node() + 0.3, 0.0)
+	elif _tame_target and is_instance_valid(_tame_target):
+		world = _tame_target.global_position + Vector3(0.0, _tame_target.def.height_meters + 0.35, 0.0)
+	else:
+		return
 	_screen_pos = cam.unproject_position(world)
 
 func _draw() -> void:

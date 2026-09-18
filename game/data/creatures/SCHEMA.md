@@ -75,11 +75,40 @@ stats{hp, attack, defense, speed}, tamed_role[], prompt, texture_prompt, clips{}
 
 Optional: `variants[]`, `rig_note`, `stats.bag_slots`, `pipeline{}` (Codex adds
 task ids and accepted file names here so the game can show provenance in the
-codex screen later).
+codex screen later), `taming{}` (field-tame food and feed counts; see below).
 
 `archetype` values the game implements: `apex_raptor`, `raptor_pack`,
 `flock_harass`, `swarm`, `runner`, `venom_ranged`, `pack_mule`, `horned_charger`,
 `club_tail`, `spiked_tail`, `saber_cat`, `antlered`, `titan`, `tyrant`.
+
+### Taming block (`taming`)
+
+Field taming (M9b): knock the animal down, then feed preferred/accepted food while
+the knockdown window is open.
+
+```
+"taming": {
+  "preferred_food": ["berry", "herb_leaf"],
+  "accepted_food": ["fibre_stalk"],
+  "feeds_needed": 3,
+  "window_seconds": 45,
+  "requires_pen": false
+}
+```
+
+- `preferred_food`: +1.0 feed progress per unit consumed.
+- `accepted_food`: +0.5 feed progress per unit.
+- `feeds_needed`: progress required to finish a field tame.
+- `window_seconds`: time from knockdown start to finish the feeds; failing enrages
+  the animal (+20% move for 20 s) and blocks another field tame for 60 s.
+- `requires_pen`: when true, feeding still extends knockdown but cannot finish the
+  tame in the field (plate shows `Tame in pen`). Big animals use the existing pen.
+
+Defaults when `taming` is absent (`# ASSUMPTION:`):
+- Herbivore archetypes prefer `berry` + `herb_leaf`, accept `fibre_stalk`.
+- Carnivores prefer `raw_meat`, accept `fish` and `raptor_meat`.
+- `real_length_m` > 5 → `feeds_needed` 6 and `requires_pen` true; else 3 feeds,
+  field-complete allowed.
 
 ## 4b. Making a new species (one command)
 

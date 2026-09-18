@@ -28,5 +28,17 @@
     "attack_heavy": "Giant sauropod rears slightly, holds, then stomps both front feet down",
     "knockdown": "Giant sauropod sways and kneels",
     "alert": "Giant sauropod raises its neck and bellows"
+  },
+  "taming": {
+    "preferred_food": [
+      "berry",
+      "herb_leaf"
+    ],
+    "accepted_food": [
+      "fibre_stalk"
+    ],
+    "feeds_needed": 6,
+    "window_seconds": 45,
+    "requires_pen": true
   }
 }

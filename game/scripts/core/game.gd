@@ -50,7 +50,7 @@ func _ready() -> void:
 		get_tree().create_timer(2.0).timeout.connect(_finish_smoke)
 	elif shot_path != "":
 		# hunt_lab needs a beat after alert→damage so plates show a white chunk.
-		var shot_delay := 3.2 if lab_name == "hunt_lab" else 2.6
+		var shot_delay := 3.2 if lab_name == "hunt_lab" else (2.8 if lab_name == "capture_lab" else 2.6)
 		get_tree().create_timer(shot_delay).timeout.connect(_take_shot)
 
 func _make_perf() -> void:

@@ -69,5 +69,17 @@
       "attack_heavy": "Jump with an 8-frame telegraph hold at 30%"
     }
   },
-  "look": "sheep-sized ceratopsian, large bony neck frill without horns, deep hooked beak, pebbled tan hide with a row of low scutes,"
+  "look": "sheep-sized ceratopsian, large bony neck frill without horns, deep hooked beak, pebbled tan hide with a row of low scutes,",
+  "taming": {
+    "preferred_food": [
+      "berry",
+      "herb_leaf"
+    ],
+    "accepted_food": [
+      "fibre_stalk"
+    ],
+    "feeds_needed": 3,
+    "window_seconds": 45,
+    "requires_pen": false
+  }
 }

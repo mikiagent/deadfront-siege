@@ -101,5 +101,17 @@
       "alert": "idle 0-40% with head pitched 20.0 deg",
       "attack_heavy": "telegraph hold of 8 frames at 30%"
     }
+  },
+  "taming": {
+    "preferred_food": [
+      "raw_meat"
+    ],
+    "accepted_food": [
+      "fish",
+      "raptor_meat"
+    ],
+    "feeds_needed": 3,
+    "window_seconds": 45,
+    "requires_pen": false
   }
 }

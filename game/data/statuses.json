@@ -195,7 +195,7 @@
       "duration": 20.0,
       "max_stacks": 1,
       "flags": [],
-      "move_mult": 1.1,
+      "move_mult": 1.2,
       "defense_mult": 1.0,
       "accuracy_mult": 1.0,
       "attack_mult": 1.2,

@@ -24,6 +24,11 @@ extends Resource
 @export var variants: Array[StringName] = []
 @export var clips: Dictionary = {}
 @export var pipeline: Dictionary = {}
+@export var preferred_food: Array[StringName] = []
+@export var accepted_food: Array[StringName] = []
+@export var feeds_needed: float = 3.0
+@export var tame_window_seconds: float = 45.0
+@export var requires_pen: bool = false
 
 ## ASSUMPTION: Durango-scale speed 400–700 maps to metres per second as speed / 100.
 var move_speed_mps: float:
@@ -56,6 +61,7 @@ static func from_dict(d: Dictionary, file_id: StringName) -> CreatureDef:
 	c.variants = ItemDef._names(d.get("variants", []))
 	c.clips = d.get("clips", {})
 	c.pipeline = d.get("pipeline", {})
+	c._apply_taming(d)
 	return c
 
 func mapped_archetype() -> StringName:
@@ -65,3 +71,42 @@ func mapped_archetype() -> StringName:
 			return &"raptor_pack"
 		_:
 			return archetype
+
+func is_herbivore_diet() -> bool:
+	# Keep in sync with game/data/creatures/ai.json herbivore archetypes.
+	match archetype:
+		&"pack_mule", &"spiked_tail", &"runner", &"antlered", &"club_tail", &"horned_charger", &"titan":
+			return true
+		_:
+			return false
+
+func _apply_taming(d: Dictionary) -> void:
+	var raw: Variant = d.get("taming", {})
+	var block: Dictionary = raw if raw is Dictionary else {}
+	# ASSUMPTION: herbivores prefer berry/herb_leaf; carnivores prefer raw_meat (fish accepted);
+	# animals with real_length_m > 5 need 6 feeds and pen-only completion.
+	var herb := is_herbivore_diet()
+	var big := real_length_m > 5.0
+	if block.is_empty():
+		if herb:
+			preferred_food = [&"berry", &"herb_leaf"]
+			accepted_food = [&"fibre_stalk"]
+		else:
+			preferred_food = [&"raw_meat"]
+			accepted_food = [&"fish", &"raptor_meat"]
+		feeds_needed = 6.0 if big else 3.0
+		tame_window_seconds = 45.0
+		requires_pen = big
+		return
+	preferred_food = ItemDef._names(block.get("preferred_food", []))
+	accepted_food = ItemDef._names(block.get("accepted_food", []))
+	feeds_needed = float(block.get("feeds_needed", 6.0 if big else 3.0))
+	tame_window_seconds = float(block.get("window_seconds", 45.0))
+	if block.has("requires_pen"):
+		requires_pen = bool(block.get("requires_pen"))
+	else:
+		requires_pen = big
+	if preferred_food.is_empty():
+		preferred_food = [&"berry", &"herb_leaf"] if herb else [&"raw_meat"]
+	if accepted_food.is_empty():
+		accepted_food = [&"fibre_stalk"] if herb else [&"fish", &"raptor_meat"]

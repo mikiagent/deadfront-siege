@@ -35,6 +35,8 @@ var mounted_on: Creature
 var rolling: bool = false
 var gather_target: HarvestNode
 var butcher_target: Corpse
+var tame_target: Creature
+var tame_food_id: StringName = &""
 var nav_active: bool = false
 var _path_points: PackedVector3Array = PackedVector3Array()
 var _path_index: int = 0
@@ -207,9 +209,15 @@ func _physics_process(delta: float) -> void:
 		_wet_acc = 0.0
 	if _gathering:
 		_gather_left -= delta
-		_update_gather_ring(1.0 - (_gather_left / maxf(0.001, _gather_unit_time)))
+		if tame_target and is_instance_valid(tame_target):
+			_update_tame_ring(1.0 - (_gather_left / maxf(0.001, _gather_unit_time)))
+		else:
+			_update_gather_ring(1.0 - (_gather_left / maxf(0.001, _gather_unit_time)))
 		if _gather_left <= 0.0:
-			_finish_gather()
+			if tame_target and is_instance_valid(tame_target):
+				_finish_tame_feed()
+			else:
+				_finish_gather()
 	move_and_slide()
 	_shoreline_guard()
 	_drive_lantern()
@@ -344,6 +352,8 @@ func _interact_tap_target(col: Object) -> void:
 			Game.reveal_creature_plate(c, 3.0)
 		if c.is_pet:
 			_pet_interact(c)
+		elif FieldTame.can_attempt(c):
+			_begin_field_tame(c)
 		else:
 			hunt.start(c)
 	elif col is Bonfire:
@@ -438,8 +448,26 @@ func _begin_butcher(corpse: Corpse) -> void:
 		print("[item] auto-equip %s knife" % tool.def_id)
 	_stop_gather_cycle(false)
 	gather_target = null
+	tame_target = null
+	tame_food_id = &""
 	butcher_target = corpse
 	nav_to(_closest_nav_point(corpse.global_position))
+
+func _begin_field_tame(creature: Creature) -> void:
+	if not FieldTame.can_attempt(creature):
+		return
+	var food := FieldTame.food_in_bag(inventory, creature)
+	if food == &"":
+		print("[tame] refused: %s" % FieldTame.refuse_message(creature))
+		return
+	if hunt:
+		hunt.stop()
+	_stop_gather_cycle(false)
+	gather_target = null
+	butcher_target = null
+	tame_target = creature
+	tame_food_id = food
+	nav_to(_closest_nav_point(creature.global_position))
 
 func _on_arrived() -> void:
 	_clear_ground_marker()
@@ -452,10 +480,58 @@ func _on_arrived() -> void:
 			gather_target = null
 			return
 		_start_gather_cycle(gather_target.gather_seconds)
+	elif tame_target and is_instance_valid(tame_target):
+		face_world(tame_target.global_position)
+		_start_tame_feed()
 	elif butcher_target and is_instance_valid(butcher_target):
 		face_world(butcher_target.global_position)
 		butcher_target.open_loot(self)
 		butcher_target = null
+
+func _start_tame_feed() -> void:
+	if tame_target == null or not is_instance_valid(tame_target):
+		_clear_tame_target()
+		return
+	if not FieldTame.can_attempt(tame_target):
+		_clear_tame_target()
+		return
+	if tame_food_id == &"" or inventory.find_first(tame_food_id) < 0:
+		print("[tame] refused: %s" % FieldTame.refuse_message(tame_target))
+		_clear_tame_target()
+		return
+	_gathering = true
+	_gather_unit_time = FieldTame.FEED_SECONDS
+	_gather_left = _gather_unit_time
+	if anim:
+		anim.on_gather()
+	_update_tame_ring(0.0)
+
+func _finish_tame_feed() -> void:
+	_gathering = false
+	if tame_target == null or not is_instance_valid(tame_target):
+		_clear_tame_target()
+		return
+	var food := tame_food_id
+	if food == &"":
+		food = FieldTame.food_in_bag(inventory, tame_target)
+	FieldTame.apply_feed(self, tame_target, food)
+	_clear_tame_target()
+
+func _clear_tame_target() -> void:
+	tame_target = null
+	tame_food_id = &""
+	_stop_gather_cycle()
+
+func _update_tame_ring(progress: float) -> void:
+	if _gather_ring == null:
+		return
+	if tame_target and is_instance_valid(tame_target):
+		if _gather_ring.has_method("show_for_tame"):
+			_gather_ring.show_for_tame(tame_target, progress, tame_food_id)
+		else:
+			_gather_ring.fade_out()
+	else:
+		_gather_ring.fade_out()
 
 func _finish_gather() -> void:
 	_gathering = false
@@ -523,6 +599,8 @@ func _update_gather_ring(progress: float) -> void:
 func _cancel_gather_and_butcher() -> void:
 	gather_target = null
 	butcher_target = null
+	tame_target = null
+	tame_food_id = &""
 	_stop_gather_cycle()
 
 func _setup_ground_marker() -> void:

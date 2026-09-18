@@ -8,8 +8,8 @@
   "tier": 15,
   "climate": "savannah",
   "archetype": "swarm",
-  "tameable": false,
-  "capture_tier": 0,
+  "tameable": true,
+  "capture_tier": 1,
   "verb": "swarm nips, four to eight at once",
   "status_applied": [],
   "stats": {
@@ -18,7 +18,9 @@
     "defense": 10,
     "speed": 650
   },
-  "tamed_role": [],
+  "tamed_role": [
+    "combat"
+  ],
   "prompt": "Compsognathus, 1 meter tiny theropod, small pointed head, long thin tail, short folded arms, fine proto-feathers, mottled brown and grey, stylized realism, game-ready",
   "texture_prompt": "mottled brown and grey fine feathers, pale belly, dark eye stripe, matte surface",
   "clips": {
@@ -98,5 +100,18 @@
       "alert": "idle 0-40% with head pitched 20.0 deg",
       "attack_heavy": "telegraph hold of 8 frames at 30%"
     }
+  },
+  "taming": {
+    "preferred_food": [
+      "berry",
+      "herb_leaf"
+    ],
+    "accepted_food": [
+      "fibre_stalk",
+      "raw_meat"
+    ],
+    "feeds_needed": 3,
+    "window_seconds": 45,
+    "requires_pen": false
   }
 }

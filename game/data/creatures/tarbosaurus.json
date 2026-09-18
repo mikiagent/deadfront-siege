@@ -31,5 +31,17 @@
     "attack_heavy": "Tyrannosaur lowers its head, holds, then lunges and clamps down shaking",
     "knockdown": "Tyrannosaur stumbles and falls heavily on its side",
     "alert": "Tyrannosaur raises its head and roars"
+  },
+  "taming": {
+    "preferred_food": [
+      "raw_meat"
+    ],
+    "accepted_food": [
+      "fish",
+      "raptor_meat"
+    ],
+    "feeds_needed": 6,
+    "window_seconds": 45,
+    "requires_pen": true
   }
 }
