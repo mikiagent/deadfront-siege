@@ -126,3 +126,9 @@ A tree (`Umbrella Thorn Acacia`, `Lv. 25`) shows **three** option hexes at once:
 bushes yield leaf/berry/fibre; rocks pebble bare-handed and stone with a pick. The tool
 requirement is shown as a small tool badge on the hex (yellow when the tool is equipped,
 red no-entry when missing). Far label pills show the distance (`Boulder · 45 m`).
+
+## Note for Part B (owner) — placing a building, `docs/reference/durango-placing-reference.webp`
+While placing, the whole visible ground shows the tile grid; tiles that cannot be built on
+(occupied by a node, a building, water) are tinted translucent red, one diamond per
+tile; the ghost stands on a dark translucent square; under the ghost three hexes:
+rotate (grey arrow), confirm (green check), cancel (red ✕). No other HUD change.
