@@ -1,0 +1,189 @@
+{
+  "_about": "Island Market data (docs/design/economy.md). price = base[category] * (1 + level_slope*level) * attribute_bonus * demand[market][category] * saturation. Simulated settlers buy and sell in v1; real player listings share the same order book later.",
+  "level_slope": 0.06,
+  "attribute_bonus": {
+    "latent": 0.25,
+    "rare": 1.0
+  },
+  "listing_fee": 0.05,
+  "saturation": {
+    "per_unit_sold": 0.02,
+    "recovery_per_hour": 0.1,
+    "floor": 0.2
+  },
+  "buy_multiplier": {
+    "abundant": 1.3,
+    "normal": 1.8,
+    "scarce": 2.5
+  },
+  "sell_time_hours": {
+    "at_price": 0,
+    "over_20pct": 1,
+    "over_50pct": null
+  },
+  "animal_grade_multiplier": {
+    "S": 2.0,
+    "A": 1.5,
+    "B": 1.0,
+    "C": 0.7
+  },
+  "base_price_tstones": {
+    "fibre": 2,
+    "herb": 3,
+    "wood": 2,
+    "stone": 2,
+    "clay": 2,
+    "food_raw": 3,
+    "food_cooked": 8,
+    "meat": 4,
+    "bone": 4,
+    "hide": 5,
+    "cloth": 10,
+    "cordage": 4,
+    "metal_ore": 8,
+    "ingot": 20,
+    "gem": 40,
+    "tool": 25,
+    "weapon": 40,
+    "clothing": 30,
+    "medicine": 15,
+    "building_kit": 30,
+    "animal": 400,
+    "unstable_loot": 60
+  },
+  "markets": {
+    "temperate_exchange": {
+      "name": "Temperate Exchange",
+      "region": [
+        "temperate",
+        "grassland",
+        "savannah"
+      ],
+      "demand": {
+        "default": 1.0,
+        "fibre": 0.5,
+        "wood": 0.5,
+        "food_raw": 0.6,
+        "clay": 0.6,
+        "herb": 0.7,
+        "metal_ore": 2.0,
+        "gem": 2.5,
+        "hide": 1.3,
+        "ingot": 2.0,
+        "cloth": 1.2,
+        "unstable_loot": 1.5
+      },
+      "scarce_items": [
+        "salt",
+        "copper_ore",
+        "obsidian",
+        "ice",
+        "fur",
+        "pearl"
+      ],
+      "abundant_items": [
+        "fibre_stalk",
+        "wood_log",
+        "berries",
+        "clay",
+        "herb_leaf"
+      ]
+    },
+    "tropic_bazaar": {
+      "name": "Tropic Bazaar",
+      "region": [
+        "tropical",
+        "blue_tropical",
+        "swamp"
+      ],
+      "demand": {
+        "default": 1.0,
+        "wood": 0.7,
+        "fibre": 0.6,
+        "hide": 1.6,
+        "metal_ore": 1.8,
+        "cloth": 1.4,
+        "medicine": 0.8,
+        "gem": 0.8
+      },
+      "scarce_items": [
+        "resin",
+        "fur",
+        "ice",
+        "silver_ore",
+        "flint"
+      ],
+      "abundant_items": [
+        "palm_frond",
+        "bamboo",
+        "coconut",
+        "reed",
+        "coral"
+      ]
+    },
+    "frontier_post": {
+      "name": "Frontier Post",
+      "region": [
+        "desert"
+      ],
+      "demand": {
+        "default": 1.1,
+        "wood": 2.2,
+        "fibre": 1.8,
+        "herb": 2.0,
+        "clay": 1.8,
+        "food_raw": 1.6,
+        "food_cooked": 1.8,
+        "metal_ore": 0.5,
+        "stone": 0.5
+      },
+      "scarce_items": [
+        "wood_log",
+        "reed",
+        "clay",
+        "herb_leaf",
+        "coconut",
+        "cactus_flesh"
+      ],
+      "abundant_items": [
+        "salt",
+        "copper_ore",
+        "sandstone",
+        "cactus_spine"
+      ]
+    },
+    "northern_depot": {
+      "name": "Northern Depot",
+      "region": [
+        "tundra",
+        "snowfield"
+      ],
+      "demand": {
+        "default": 1.1,
+        "cloth": 2.0,
+        "herb": 1.8,
+        "food_cooked": 1.6,
+        "medicine": 1.6,
+        "hide": 0.6,
+        "wood": 0.7,
+        "metal_ore": 0.7
+      },
+      "scarce_items": [
+        "bamboo",
+        "coconut",
+        "cactus_flesh",
+        "cloth_scrap",
+        "herb_leaf"
+      ],
+      "abundant_items": [
+        "fur",
+        "resin",
+        "pine_log",
+        "ice",
+        "silver_ore"
+      ]
+    }
+  },
+  "scarce_item_multiplier": 3.0,
+  "abundant_item_multiplier": 0.5
+}

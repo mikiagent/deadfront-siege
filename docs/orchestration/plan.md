@@ -60,7 +60,7 @@ Each milestone ends with: smoke test passes, a dev scene shows the feature, a re
 | **MOB1** | Cursor | iOS export preset, Xcode project, on-device performance pass, touch pass on a real phone. | M5 | `prompts/cursor-MOB1-phone-build.md` |
 | **M7** | Cursor | Cooking and food: energy from meals, skewer → grill → steam, boil-to-uprank, poison persists, food inspector. Farming fields and wells. | M4, M6 | later |
 | **M8** | Cursor | Skills: 12 trees as data, SP budget that forces specialisation (PRD §7.3), research gates, capture ladder wired to real SP. | M4 | later |
-| **M9** | Cursor | Factions and missions: Communications Centre, four radio organisations, mission pins, trust ranks, T-stone economy, island market stub. | M6 | later |
+| **M9** | Cursor | Factions, missions and the **Island Market**: Communications Centre, four radio organisations, mission pins, trust ranks, T-stone sinks, and the simulated four-region market with price memory (`docs/design/economy.md`, `game/data/world/market.json`). | M6 | later |
 | **M10** | Cursor | Unstable island lifecycle: islands spawn per climate and tier, sink on timer, craters and warp ruins, follow-route unlock, volcanic later. | M6 | later |
 | **M11** | Cursor | Remaining creature archetypes on the roster as art lands: herds with solidarity AI, scavengers on corpses, night behaviour, raid-scale Tarbosaurus. | C3 | later |
 
