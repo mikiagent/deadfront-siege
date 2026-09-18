@@ -113,3 +113,25 @@ tile where a bush was harvested, and a berry bush and mud node on the grid. Head
     `surface_y(x, z) < -0.05`) keeps the player on sand. Creatures use the same rule
     through `spawn_ok` and the navmesh. Print `[world] shoreline blocked` once when the
     player first bumps it (debug only).
+
+## Addendum 3 (owner) — night lantern, per-tile ground textures
+
+14. **Lantern at the hip.** The player carries a light: an `OmniLight3D` parented to the
+    hips socket (`Player.hips_anchor()`, fallback: player origin + 0.9 m), warm colour
+    (1.0, 0.85, 0.6), range 9 m, energy 0 by day and ramping to 2.2 through dusk → night
+    → dawn using `Game.time_of_day` (same curve the sun uses in `_drive_day`), no shadows
+    on mobile, a faint flicker (±5 % at 7 Hz). Night ambient stays low enough that the
+    lantern radius reads as a circle of light on the ground; the lit terrain from task 2
+    is what makes this visible, so do task 2 first.
+15. **Tile textures.** Ground textures are chosen per tile, not blended per vertex:
+    each 1 m tile gets a `tile_type` (grass, dry grass, dirt, sand, shallow water, rock,
+    bare/harvested) stored in a `PackedByteArray` on the island runtime (`tile_types`),
+    derived from height/slope/noise at generation and changed at runtime by task 11.
+    Render with one texture-array (or 4×4 atlas) shader: the terrain mesh gets a second
+    UV set per tile (each tile is its own quad pair when res ≥ tile size; for the 129-res
+    islands with 3.75 m cells, subdivide chunks so tile edges land on whole metres) and
+    the fragment shader samples the tile's texture with a 1-pixel edge blend so tiles
+    read as tiles but not as hard squares. Textures: CC0 sets from Poly Haven / Kenney
+    (grass, dry grass, dirt, sand, gravel, mud) 512 px, recorded in
+    `docs/orchestration/resources.md`, under `game/assets/terrain/`. The subtle grid
+    line from task 7 draws on top. Keep draw calls within the task 6 budget.
