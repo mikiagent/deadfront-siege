@@ -30,5 +30,71 @@
     "attack_heavy": "Long-legged dinosaur lowers its head, holds, then charges and slams",
     "knockdown": "Long-legged dinosaur trips and falls onto its side",
     "alert": "Long-legged dinosaur raises its long neck and looks around"
+  },
+  "pipeline": {
+    "route": "skeleton_transplant_v2",
+    "forward_axis": "+Z",
+    "version": 1,
+    "mesh_source": "res://assets/creatures/gallimimus/work/gallimimus_i2m_v1.glb",
+    "reference": {
+      "side": "01a0b1e2-bf5f-759a-84d3-6639efbda3da",
+      "front": "01a0b1e3-224b-7387-a17a-2d16af9ed72c"
+    },
+    "i2m": "01a0b1e3-844d-7746-b0dd-95503528f97f",
+    "i2m_params": {
+      "model": "meshy-7 multi-image",
+      "polycount": 20000,
+      "texture": "2k PBR"
+    },
+    "credits_spent": 48,
+    "donor_rig": "tools/standins/quaternius/Velociraptor.fbx",
+    "transplant_tool": "tools/transplant_rig.py",
+    "source_height_m": 0.9752,
+    "source_length_m": 1.9029,
+    "repair": {
+      "loose_removed": 585,
+      "doubles_merged": 8550,
+      "holes_filled": 141,
+      "verts_before": 19536,
+      "islands": 1600,
+      "verts_after": 10401
+    },
+    "warp": {
+      "mode": "landmark",
+      "snout": [
+        -1.13,
+        -0.95
+      ],
+      "foot": [
+        -0.17,
+        -0.17
+      ],
+      "tail": [
+        1.1,
+        0.95
+      ],
+      "hip_z_scale": 1.068,
+      "width_scale": 0.704
+    },
+    "weights": {
+      "direct_fraction": 1.0
+    },
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert"
+    ],
+    "authored_clips": {
+      "knockdown": "death 0-45%, holds",
+      "hit_react": "death 0-35% then reversed",
+      "alert": "idle 0-40% with head pitched 20.0 deg",
+      "attack_heavy": "telegraph hold of 8 frames at 30%"
+    }
   }
 }

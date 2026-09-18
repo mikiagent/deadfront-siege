@@ -32,5 +32,57 @@
     "attack_heavy": "Giant deer rears on its hind legs, holds, then drops and gores forward",
     "knockdown": "Giant deer stumbles and falls on its side",
     "alert": "Giant deer raises its head high with ears forward"
+  },
+  "pipeline": {
+    "route": "skeleton_transplant_v2",
+    "forward_axis": "+Z",
+    "version": 1,
+    "mesh_source": "res://assets/creatures/megaloceros/work/megaloceros_i2m_v1.glb",
+    "reference": {
+      "side": "01a0b1de-aad6-76e0-810b-8345154cb80f",
+      "front": "01a0b1df-0cd9-7228-bb19-9987633eff5b"
+    },
+    "i2m": "01a0b1df-6ebd-7340-98b8-91772d84526f",
+    "i2m_params": {
+      "model": "meshy-7 multi-image",
+      "polycount": 20000,
+      "texture": "2k PBR"
+    },
+    "credits_spent": 48,
+    "donor_rig": "tools/standins/quaternius/Triceratops.fbx",
+    "transplant_tool": "tools/transplant_rig.py",
+    "source_height_m": 1.8108,
+    "source_length_m": 1.902,
+    "repair": {
+      "loose_removed": 942,
+      "doubles_merged": 20053,
+      "holes_filled": 149,
+      "verts_before": 31426,
+      "islands": 5790,
+      "verts_after": 10431
+    },
+    "warp": {
+      "mode": "bbox"
+    },
+    "weights": {
+      "direct_fraction": 1.0
+    },
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert"
+    ],
+    "authored_clips": {
+      "knockdown": "death 0-45%, holds",
+      "hit_react": "death 0-35% then reversed",
+      "alert": "idle 0-40% with head pitched 20.0 deg",
+      "attack_heavy": "telegraph hold of 8 frames at 30%"
+    }
   }
 }

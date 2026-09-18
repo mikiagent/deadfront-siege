@@ -32,5 +32,57 @@
     "attack_heavy": "Plated dinosaur turns its rear, holds, then sweeps its spiked tail through",
     "knockdown": "Plated dinosaur collapses onto its side",
     "alert": "Plated dinosaur raises its head and stiffens its plates"
+  },
+  "pipeline": {
+    "route": "skeleton_transplant_v2",
+    "forward_axis": "+Z",
+    "version": 1,
+    "mesh_source": "res://assets/creatures/stegosaurus/work/stegosaurus_i2m_v1.glb",
+    "reference": {
+      "side": "01a0b1e5-6f1d-707f-9f2c-ee881667be29",
+      "front": "01a0b1e6-147c-75b5-9cd1-396a3e2a7ced"
+    },
+    "i2m": "01a0b1e6-7687-7190-971e-cc13a025eaec",
+    "i2m_params": {
+      "model": "meshy-7 multi-image",
+      "polycount": 20000,
+      "texture": "2k PBR"
+    },
+    "credits_spent": 48,
+    "donor_rig": "tools/standins/quaternius/Triceratops.fbx",
+    "transplant_tool": "tools/transplant_rig.py",
+    "source_height_m": 0.8458,
+    "source_length_m": 1.9033,
+    "repair": {
+      "loose_removed": 585,
+      "doubles_merged": 8544,
+      "holes_filled": 141,
+      "verts_before": 19546,
+      "islands": 1403,
+      "verts_after": 10417
+    },
+    "warp": {
+      "mode": "bbox"
+    },
+    "weights": {
+      "direct_fraction": 1.0
+    },
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert"
+    ],
+    "authored_clips": {
+      "knockdown": "death 0-45%, holds",
+      "hit_react": "death 0-35% then reversed",
+      "alert": "idle 0-40% with head pitched 20.0 deg",
+      "attack_heavy": "telegraph hold of 8 frames at 30%"
+    }
   }
 }
