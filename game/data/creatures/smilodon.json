@@ -31,5 +31,17 @@
     "attack_heavy": "Big cat crouches, holds, then pounces forward",
     "knockdown": "Big cat is thrown onto its side",
     "alert": "Big cat lifts its head and bares its fangs"
+  },
+  "taming": {
+    "preferred_food": [
+      "raw_meat"
+    ],
+    "accepted_food": [
+      "fish",
+      "raptor_meat"
+    ],
+    "feeds_needed": 3,
+    "window_seconds": 45,
+    "requires_pen": false
   }
 }

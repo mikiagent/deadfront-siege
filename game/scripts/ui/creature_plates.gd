@@ -57,7 +57,7 @@ func _tick_creatures(cam: Camera3D, player: Player, delta: float) -> void:
 		var alpha := float(e.get("alpha", 0.0))
 		alpha = move_toward(alpha, 1.0 if show else 0.0, delta * 4.5)
 		e["alpha"] = alpha
-		_update_entry(e, c, cam, dist, delta)
+		_update_entry(e, c, cam, player, dist, delta)
 		_entries[c.get_instance_id()] = e
 	for key in _entries.keys():
 		if seen.has(key):
@@ -98,6 +98,8 @@ func _forced_visible(c: Creature, player: Player, now: float) -> bool:
 		return true
 	if now - c.last_aggro_s <= 5.0:
 		return true
+	if FieldTame.can_attempt(c):
+		return true
 	return false
 
 func _ensure_entry(c: Creature) -> Dictionary:
@@ -105,7 +107,7 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	if _entries.has(key):
 		return _entries[key]
 	var root := Control.new()
-	root.custom_minimum_size = Vector2(BASE_WIDTH, 62)
+	root.custom_minimum_size = Vector2(BASE_WIDTH, 78)
 	root.size = root.custom_minimum_size
 	root.pivot_offset = Vector2(BASE_WIDTH * 0.5, 0.0)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -143,6 +145,22 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	line3.position = Vector2(8, 38)
 	line3.custom_minimum_size = Vector2(160, 18)
 	root.add_child(line3)
+	var tame_row := HBoxContainer.new()
+	tame_row.name = "TameRow"
+	tame_row.position = Vector2(8, 56)
+	tame_row.custom_minimum_size = Vector2(160, 20)
+	tame_row.visible = false
+	root.add_child(tame_row)
+	var tame_icon := TextureRect.new()
+	tame_icon.name = "TameIcon"
+	tame_icon.custom_minimum_size = Vector2(18, 18)
+	tame_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tame_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tame_row.add_child(tame_icon)
+	var tame_label := Label.new()
+	tame_label.name = "TameLabel"
+	tame_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tame_row.add_child(tame_label)
 	var floats := Control.new()
 	floats.name = "Floats"
 	floats.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -158,6 +176,9 @@ func _ensure_entry(c: Creature) -> Dictionary:
 		"bar_recent": bar_recent,
 		"hp_dbg": hp_dbg,
 		"line3": line3,
+		"tame_row": tame_row,
+		"tame_icon": tame_icon,
+		"tame_label": tame_label,
 		"floats": floats,
 		"float_nodes": [],
 		"alpha": 0.0,
@@ -189,7 +210,7 @@ func _ensure_corpse_entry(corpse: Corpse) -> Dictionary:
 	_corpse_entries[key] = entry
 	return entry
 
-func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, dist: float, delta: float) -> void:
+func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player, dist: float, delta: float) -> void:
 	var root := entry["node"] as Control
 	var alpha := float(entry.get("alpha", 0.0))
 	root.visible = alpha > 0.02
@@ -198,7 +219,7 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, dist: float, d
 	root.scale = Vector2(scale, scale)
 	var top := c.global_position + Vector3(0.0, c.def.height_meters + 0.3, 0.0)
 	var screen := cam.unproject_position(top)
-	root.position = screen + Vector2(-BASE_WIDTH * 0.5 * scale, -54.0 * scale)
+	root.position = screen + Vector2(-BASE_WIDTH * 0.5 * scale, -70.0 * scale)
 	var line1 := entry["line1"] as Label
 	var rel_col := _relation_color(c)
 	line1.add_theme_color_override("font_color", rel_col)
@@ -234,7 +255,37 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, dist: float, d
 	if Game.debug_overlay:
 		hp_dbg.text = "%.0f/%.0f" % [c.health.hp, c.health.max_hp]
 	_tick_status_icons(entry, c)
+	_tick_tame_hint(entry, c, player)
 	_tick_floaters(entry, delta)
+
+func _tick_tame_hint(entry: Dictionary, c: Creature, player: Player) -> void:
+	var row := entry.get("tame_row", null) as Control
+	var icon := entry.get("tame_icon", null) as TextureRect
+	var label := entry.get("tame_label", null) as Label
+	if row == null or label == null:
+		return
+	var hint := FieldTame.plate_hint(c, player.inventory if player else null)
+	if hint.is_empty():
+		row.visible = false
+		return
+	row.visible = true
+	var food_id := StringName(str(hint.get("food_id", "")))
+	if icon:
+		icon.texture = _icon_for(food_id)
+		icon.visible = icon.texture != null
+	var kind := StringName(str(hint.get("kind", "")))
+	var progress := float(hint.get("progress", 0.0))
+	var needed := float(hint.get("needed", 3.0))
+	match kind:
+		&"pen":
+			label.text = "Tame in pen"
+			label.add_theme_color_override("font_color", Color(0.95, 0.82, 0.45))
+		&"need":
+			label.text = str(hint.get("text", "needs food"))
+			label.add_theme_color_override("font_color", Color(0.95, 0.55, 0.4))
+		_:
+			label.text = "Tame  %.0f/%.0f" % [progress, needed]
+			label.add_theme_color_override("font_color", Color(0.55, 0.95, 0.65))
 
 func _tick_status_icons(entry: Dictionary, c: Creature) -> void:
 	var rows := _status_rows(c)

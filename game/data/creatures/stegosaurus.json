@@ -84,5 +84,17 @@
       "alert": "idle 0-40% with head pitched 20.0 deg",
       "attack_heavy": "telegraph hold of 8 frames at 30%"
     }
+  },
+  "taming": {
+    "preferred_food": [
+      "berry",
+      "herb_leaf"
+    ],
+    "accepted_food": [
+      "fibre_stalk"
+    ],
+    "feeds_needed": 6,
+    "window_seconds": 45,
+    "requires_pen": true
   }
 }

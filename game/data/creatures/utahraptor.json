@@ -128,5 +128,17 @@
       "attack_heavy": "Jump with an 8-frame telegraph hold at 30%"
     }
   },
-  "look": "5.5 meter heavy dromaeosaur, deep boxy skull, sickle claws, shaggy proto-feathers, rust brown with dark dorsal banding,"
+  "look": "5.5 meter heavy dromaeosaur, deep boxy skull, sickle claws, shaggy proto-feathers, rust brown with dark dorsal banding,",
+  "taming": {
+    "preferred_food": [
+      "raw_meat"
+    ],
+    "accepted_food": [
+      "fish",
+      "raptor_meat"
+    ],
+    "feeds_needed": 6,
+    "window_seconds": 45,
+    "requires_pen": true
+  }
 }

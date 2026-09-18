@@ -62,6 +62,12 @@ func clear_id(id: StringName) -> void:
 		inst.treated = true
 		_drop(inst, false)
 
+func extend(id: StringName, extra_seconds: float) -> void:
+	var inst := get_instance(id)
+	if inst == null:
+		return
+	inst.time_left += maxf(0.0, extra_seconds)
+
 func clear_by_item(item_id: StringName) -> bool:
 	var cleared := false
 	for inst in _active.duplicate():

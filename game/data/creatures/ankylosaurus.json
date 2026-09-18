@@ -32,5 +32,17 @@
     "attack_heavy": "Armored dinosaur braces, holds, then whips its tail club in a full swing",
     "knockdown": "Armored dinosaur is tipped onto its side",
     "alert": "Armored dinosaur lifts its head and lowers its body"
+  },
+  "taming": {
+    "preferred_food": [
+      "berry",
+      "herb_leaf"
+    ],
+    "accepted_food": [
+      "fibre_stalk"
+    ],
+    "feeds_needed": 6,
+    "window_seconds": 45,
+    "requires_pen": true
   }
 }

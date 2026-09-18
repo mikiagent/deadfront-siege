@@ -382,6 +382,32 @@
       }
     },
     {
+      "id": "raw_meat",
+      "display_name": "Raw Meat",
+      "categories": [
+        "meat",
+        "food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "carnivore",
+      "food_energy": 12
+    },
+    {
+      "id": "fish",
+      "display_name": "Fish",
+      "categories": [
+        "meat",
+        "food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "carnivore",
+      "food_energy": 10
+    },
+    {
       "id": "raptor_meat",
       "display_name": "Raptor Meat",
       "categories": [

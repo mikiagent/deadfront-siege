@@ -30,5 +30,17 @@
     "attack_heavy": "Giant tyrannosaur raises a foot, holds, then stomps down",
     "knockdown": "Giant tyrannosaur staggers and crashes down",
     "alert": "Giant tyrannosaur rears its head and roars"
+  },
+  "taming": {
+    "preferred_food": [
+      "raw_meat"
+    ],
+    "accepted_food": [
+      "fish",
+      "raptor_meat"
+    ],
+    "feeds_needed": 6,
+    "window_seconds": 45,
+    "requires_pen": true
   }
 }

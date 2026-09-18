@@ -135,5 +135,17 @@
     },
     "credits_spent": 48
   },
-  "look": "turkey-sized feathered dromaeosaur, long stiff tail with a feather fan, sickle claw on each foot, rust and tan with dark barring,"
+  "look": "turkey-sized feathered dromaeosaur, long stiff tail with a feather fan, sickle claw on each foot, rust and tan with dark barring,",
+  "taming": {
+    "preferred_food": [
+      "raw_meat"
+    ],
+    "accepted_food": [
+      "fish",
+      "raptor_meat"
+    ],
+    "feeds_needed": 3,
+    "window_seconds": 45,
+    "requires_pen": false
+  }
 }

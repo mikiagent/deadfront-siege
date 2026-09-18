@@ -34,5 +34,17 @@
     "attack_heavy": "Triceratops lowers its horns, holds, then charges forward",
     "knockdown": "Triceratops collapses onto its side",
     "alert": "Triceratops raises its head and paws the ground"
+  },
+  "taming": {
+    "preferred_food": [
+      "berry",
+      "herb_leaf"
+    ],
+    "accepted_food": [
+      "fibre_stalk"
+    ],
+    "feeds_needed": 6,
+    "window_seconds": 45,
+    "requires_pen": true
   }
 }
