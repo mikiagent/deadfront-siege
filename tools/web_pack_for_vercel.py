@@ -6,6 +6,7 @@ browser, concatenate them, and preload the buffer as index.pck.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import pathlib
 import re
@@ -76,11 +77,16 @@ def split_pck(out: pathlib.Path) -> list[str]:
             return list(data['parts'])
         raise SystemExit(f'missing {pck}')
     raw = pck.read_bytes()
+    # Content-hashed part names: the parts can be cached forever, and a new build never
+    # collides with what a browser (or Vercel's edge) still holds from the previous one.
+    digest = hashlib.sha1(raw).hexdigest()[:10]
+    for old in out.glob('pack.*.bin'):
+        old.unlink()
     parts: list[str] = []
     offset = 0
     idx = 0
     while offset < len(raw):
-        name = f'pack.{idx:02d}.bin'
+        name = f'pack.{digest}.{idx:02d}.bin'
         (out / name).write_bytes(raw[offset:offset + CHUNK])
         parts.append(name)
         idx += 1
@@ -108,9 +114,24 @@ def patch_html(out: pathlib.Path) -> None:
     print('patched index.html pck loader')
 
 
+STUB_SW = """// Stub: the PWA service worker is disabled; this one evicts the old cached app from
+// browsers that still run the previous worker, then unregisters itself.
+self.addEventListener('install', function () { self.skipWaiting(); });
+self.addEventListener('activate', function (event) {
+	event.waitUntil(caches.keys().then(function (keys) {
+		return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+	}).then(function () { return self.registration.unregister(); }).then(function () {
+		return self.clients.matchAll({ type: 'window' });
+	}).then(function (clients) { clients.forEach(function (c) { c.navigate(c.url); }); }));
+});
+"""
+
+
 def patch_service_worker(out: pathlib.Path, parts: list[str]) -> None:
     sw = out / 'index.service.worker.js'
     if not sw.is_file():
+        sw.write_text(STUB_SW)
+        print('wrote stub service worker (unregisters the old PWA cache)')
         return
     text = sw.read_text()
     quoted = ','.join(json.dumps(p) for p in (['index.wasm'] + parts))
