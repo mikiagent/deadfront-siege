@@ -15,6 +15,10 @@ func _ready() -> void:
 	LabKit.give(_player, &"work_axe", 1)
 	LabKit.give(_player, &"stone_knife_work", 1)
 	World.load_island(self, &"temperate_25", Vector3(0, 1, 12), false)
+	# The lab kit's 20 m placeholder floor pokes through the real island; drop it.
+	var kit_floor := get_node_or_null("Floor")
+	if kit_floor:
+		kit_floor.queue_free()
 	_cam._target = _player
 	_cam._snap()
 	print("[boot] lab=island_lab")

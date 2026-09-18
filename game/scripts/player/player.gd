@@ -90,7 +90,7 @@ func face_world(pos: Vector3) -> void:
 	var to := pos - global_position
 	to.y = 0.0
 	if to.length_squared() > 0.0001:
-		visual.rotation.y = atan2(to.x, to.z)
+		visual.rotation.y = atan2(-to.x, -to.z)  # RiggedModel faces -Z; yaw so -Z points at the target
 
 func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 	vitals.add_fatigue(2.0, &"combat")
@@ -146,7 +146,7 @@ func _physics_process(delta: float) -> void:
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
 	if dir.length_squared() > 0.0:
-		var target_yaw := atan2(dir.x, dir.z)
+		var target_yaw := atan2(-dir.x, -dir.z)  # RiggedModel faces -Z (the old capsule faced +Z)
 		visual.rotation.y = lerp_angle(visual.rotation.y, target_yaw, turn_speed * delta)
 		vitals.add_fatigue(delta * (0.8 if can_sprint else 0.25), &"walk")
 	vitals.fatigue_gain_mult = 0.5 if _in_coziness() else 1.0
