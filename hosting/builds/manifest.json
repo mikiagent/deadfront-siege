@@ -1,19 +1,19 @@
 {
-  "version": "20260917.2317-2230ad7",
+  "version": "20260917.2323-32de55e",
   "min_shell": 1,
   "channel": "dev",
   "packs": [
     {
       "name": "assets",
-      "url": "https://k43yubonaxv25gua.public.blob.vercel-storage.com/builds/assets-4f40432e.pck",
-      "sha256": "4f40432e5bce17bedf097fbed5a600b682fee758dfdd4644997a7f61de058bc1",
-      "size": 242302700
+      "url": "https://k43yubonaxv25gua.public.blob.vercel-storage.com/builds/assets-b40328f6.pck",
+      "sha256": "b40328f6bd83d1915a0dd35a13adb81e8f42ab93a4f6137a6ec63c6bfe4daa1b",
+      "size": 242302684
     },
     {
       "name": "core",
-      "url": "https://k43yubonaxv25gua.public.blob.vercel-storage.com/builds/core-1344deef.pck",
-      "sha256": "1344deefb9447f17c02b445ec9a9ac4a2710eac48cf2afe90e143a70348cd305",
-      "size": 818024
+      "url": "https://k43yubonaxv25gua.public.blob.vercel-storage.com/builds/core-3371f6ad.pck",
+      "sha256": "3371f6ad4844df21e2aa0bf346f4f4d127aafab558a18c48a92cbbc5e2baa2d3",
+      "size": 849952
     }
   ]
 }
