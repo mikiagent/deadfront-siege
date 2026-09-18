@@ -12,12 +12,14 @@ var yield_def_id: StringName = &"fibre_stalk"
 var yield_min: int = 1
 var yield_max: int = 1
 var yield_attributes: Dictionary = {}
+var family: String = ""
+var falls_to_log: bool = false
 
 var depleted: bool = false
 var _regen_left: float = 0.0
 var _mesh: MeshInstance3D
 
-func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Dictionary, tool: StringName, color: Color, gather: float = 1.2, regen: float = 8.0) -> void:
+func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Dictionary, tool: StringName, color: Color, gather: float = 1.2, regen: float = 8.0, p_family: String = "", p_falls: bool = false) -> void:
 	node_id = p_id
 	yield_def_id = def_id
 	yield_min = amin
@@ -27,6 +29,8 @@ func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Di
 	placeholder_color = color
 	gather_seconds = gather
 	regen_seconds = regen
+	family = p_family
+	falls_to_log = p_falls
 	_apply_tint()
 
 func _ready() -> void:
@@ -55,10 +59,14 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if depleted:
+		if regen_seconds <= 0.0:
+			return
 		_regen_left -= delta
 		if _regen_left <= 0.0:
 			depleted = false
 			visible = true
+			rotation = Vector3.ZERO
+			collision_layer = 1
 
 func can_gather(inv: Inventory) -> String:
 	if depleted:
@@ -77,7 +85,30 @@ func roll_yield() -> ItemStack:
 func mark_gathered() -> void:
 	depleted = true
 	_regen_left = regen_seconds
+	if falls_to_log:
+		collision_layer = 0
+		var tw := create_tween()
+		tw.tween_property(self, "rotation_degrees:z", 88.0, 0.65)
+		tw.tween_callback(_spawn_log)
+	elif regen_seconds <= 0.0:
+		visible = false
+		queue_free()
+	else:
+		visible = false
+
+func _spawn_log() -> void:
 	visible = false
+	var log_n: HarvestNode = preload("res://scenes/world/harvest_node.tscn").instantiate()
+	log_n.position = global_position
+	var parent := get_parent()
+	if parent:
+		parent.add_child(log_n)
+	var attrs := yield_attributes.duplicate(true)
+	log_n.setup(StringName("%s_log" % node_id), &"wood_log", 1, 2, attrs, &"none", Color(0.42, 0.28, 0.16), 1.0, 0.0, "WoodLog_Moss", false)
+	var path := "res://assets/nature/WoodLog_Moss.glb"
+	if ResourceLoader.exists(path):
+		log_n.set_visual(path)
+	# ASSUMPTION: felled tree becomes a WoodLog prop for a second harvest; tree respawns after regen.
 
 func set_visual(path: String) -> void:
 	if not ResourceLoader.exists(path):

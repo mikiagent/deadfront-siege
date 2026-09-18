@@ -626,6 +626,282 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1
+    },
+    {
+      "id": "berries",
+      "display_name": "Berries",
+      "categories": ["food", "herb"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 8
+    },
+    {
+      "id": "clay",
+      "display_name": "Clay",
+      "categories": ["earth"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "flint",
+      "display_name": "Flint",
+      "categories": ["stone"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "dry_grass",
+      "display_name": "Dry Grass",
+      "categories": ["fibre", "tinder"],
+      "stack_max": 30,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "acacia_wood",
+      "display_name": "Acacia Wood",
+      "categories": ["wood", "log"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "sandstone",
+      "display_name": "Sandstone",
+      "categories": ["stone"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "ochre",
+      "display_name": "Ochre",
+      "categories": ["earth"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "palm_frond",
+      "display_name": "Palm Frond",
+      "categories": ["fibre"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "coconut",
+      "display_name": "Coconut",
+      "categories": ["food"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 12
+    },
+    {
+      "id": "bamboo",
+      "display_name": "Bamboo",
+      "categories": ["wood"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "mango",
+      "display_name": "Mango",
+      "categories": ["food"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 10
+    },
+    {
+      "id": "vine",
+      "display_name": "Vine",
+      "categories": ["fibre", "lashing"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "obsidian",
+      "display_name": "Obsidian",
+      "categories": ["stone"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "pine_log",
+      "display_name": "Pine Log",
+      "categories": ["wood", "log"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "resin",
+      "display_name": "Resin",
+      "categories": ["tinder"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "ice",
+      "display_name": "Ice",
+      "categories": ["water"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "bone",
+      "display_name": "Bone",
+      "categories": ["bone"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "cactus_flesh",
+      "display_name": "Cactus Flesh",
+      "categories": ["food"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 6
+    },
+    {
+      "id": "cactus_spine",
+      "display_name": "Cactus Spine",
+      "categories": ["needle"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "copper_ore",
+      "display_name": "Copper Ore",
+      "categories": ["ore"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "salt",
+      "display_name": "Salt",
+      "categories": ["seasoning"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "willow_wood",
+      "display_name": "Willow Wood",
+      "categories": ["wood"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "peat",
+      "display_name": "Peat",
+      "categories": ["tinder"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "marsh_herb",
+      "display_name": "Marsh Herb",
+      "categories": ["herb"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "leech",
+      "display_name": "Leech",
+      "categories": ["bait"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "snow_pine",
+      "display_name": "Snow Pine",
+      "categories": ["wood", "log"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "silver_ore",
+      "display_name": "Silver Ore",
+      "categories": ["ore"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "pearl",
+      "display_name": "Pearl",
+      "categories": ["treasure"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "coral",
+      "display_name": "Coral",
+      "categories": ["treasure"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "blue_dye",
+      "display_name": "Blue Dye",
+      "categories": ["dye"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "black_iron",
+      "display_name": "Black Iron",
+      "categories": ["ore"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "lava",
+      "display_name": "Lava Rock",
+      "categories": ["stone"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "sulphur",
+      "display_name": "Sulphur",
+      "categories": ["earth"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "ash",
+      "display_name": "Ash",
+      "categories": ["earth"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
     }
   ]
 }

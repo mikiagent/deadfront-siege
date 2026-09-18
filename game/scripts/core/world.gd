@@ -15,6 +15,7 @@ var pioneer_buildings: Dictionary = {}
 var cargo_home: Inventory = Inventory.new(60) ## ASSUMPTION: 60 slots for mobile UI
 var remaining_lifetime: float = 0.0
 var crater_discovered: bool = false
+var _sink_warned: bool = false
 var harvested: Dictionary = {} ## node_id -> {depleted, regen_left}
 var runtime: Node3D
 var last_save_unix: int = 0
@@ -35,6 +36,10 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if str(island_def.get("kind", "")) == "unstable" and remaining_lifetime > 0.0:
 		remaining_lifetime = maxf(0.0, remaining_lifetime - delta)
+		var warn_at := float(Data.world_rules.get("sink_warning_seconds", 60))
+		if remaining_lifetime <= warn_at and remaining_lifetime > 0.0 and not _sink_warned:
+			_sink_warned = true
+			print("[world] sink warning %.0fs" % remaining_lifetime)
 		if remaining_lifetime <= 0.0:
 			print("[world] island sinking — return to camp")
 			recall_camp()
@@ -79,6 +84,7 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 	_clear_runtime()
 	island_id = id
 	island_def = def_of(id)
+	_sink_warned = false
 	if remaining_lifetime <= 0.0 and not bool(island_def.get("permanent", false)):
 		remaining_lifetime = float(island_def.get("lifetime_seconds", 7200))
 	var ir = (load("res://scripts/world/island_runtime.gd") as GDScript).new()
@@ -95,6 +101,7 @@ func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) ->
 	if player:
 		if player.get_parent() != ir:
 			player.reparent(ir)
+		at.y = ir.surface_y(at.x, at.z) + 1.0
 		player.global_position = at
 		_apply_harvested(ir)
 	print("[world] island %s nodes=%d creatures=%d terrain=%s" % [
@@ -139,6 +146,8 @@ func recall_camp() -> void:
 	var player := _player()
 	if player:
 		player.global_position = Vector3(float(camp[0]), 1.0, float(camp[2]))
+		if runtime and runtime.has_method("surface_y"):
+			player.global_position.y = runtime.surface_y(float(camp[0]), float(camp[2])) + 1.0
 	print("[world] returned to camp")
 
 func cargo_warp(player: Player) -> void:
@@ -184,7 +193,9 @@ func discover_crater() -> void:
 	crater_discovered = true
 	var player := _player()
 	if player:
-		player.vitals.rest(15.0)
+		var drop := absf(float(Data.world_rules.get("craters", {}).get("discover_fatigue", -20)))
+		player.vitals.rest(drop)
+	t_stones += int(Data.world_rules.get("craters", {}).get("discover_tstones", 30))
 	print("[world] crater discovered")
 
 func _strip_unstable_on_foot(player: Player) -> void:
@@ -257,20 +268,39 @@ func _save_exists() -> bool:
 func _load_now(host: Node) -> void:
 	(load("res://scripts/core/save_game.gd") as GDScript).load_now(host)
 
-func _load_islands(dir: String) -> void:
-	var da := DirAccess.open(dir)
-	if da == null:
-		return
-	da.list_dir_begin()
-	var fname := da.get_next()
-	while fname != "":
-		if not da.current_is_dir() and fname.ends_with(".json"):
-			var path := "%s/%s" % [dir, fname]
-			var f := FileAccess.open(path, FileAccess.READ)
-			if f:
-				var parsed: Variant = JSON.parse_string(f.get_as_text())
-				if parsed is Dictionary:
-					var id := str(parsed.get("id", fname.get_basename()))
-					islands[id] = parsed
-		fname = da.get_next()
-	da.list_dir_end()
+func _load_islands(_dir: String) -> void:
+	islands.clear()
+	for key in Data.world_islands.keys():
+		if key.begins_with("_"):
+			continue
+		var row: Variant = Data.world_islands[key]
+		if row is Dictionary:
+			islands[str((row as Dictionary).get("id", key))] = (row as Dictionary).duplicate(true)
+	var da := DirAccess.open("res://data/islands")
+	if da:
+		da.list_dir_begin()
+		var fname := da.get_next()
+		while fname != "":
+			if not da.current_is_dir() and fname.ends_with(".json"):
+				var f := FileAccess.open("res://data/islands/%s" % fname, FileAccess.READ)
+				if f:
+					var parsed: Variant = JSON.parse_string(f.get_as_text())
+					if parsed is Dictionary:
+						var id := str(parsed.get("id", fname.get_basename()))
+						var base: Dictionary = islands.get(id, {})
+						for k in parsed:
+							base[k] = parsed[k]
+						islands[id] = base
+			fname = da.get_next()
+		da.list_dir_end()
+	for id in islands.keys():
+		var d: Dictionary = islands[id]
+		if not d.has("kind"):
+			d["kind"] = "private" if bool(d.get("permanent", false)) else "unstable"
+		if not d.has("size_m"):
+			var sizes: Dictionary = Data.world_rules.get("island_size_m", {})
+			d["size_m"] = sizes.get("home" if d["kind"] == "private" else "unstable", 240)
+		if not d.has("lifetime_seconds"):
+			d["lifetime_seconds"] = float(d.get("lifetime_hours", 6)) * 3600.0
+		islands[id] = d
+	Game.max_creatures_per_island = int(Data.world_rules.get("creature_cap_mobile", 24))

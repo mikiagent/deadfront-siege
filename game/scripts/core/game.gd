@@ -20,6 +20,7 @@ var lab_force_clips: bool = false
 ## Lab-only: F deals a flat 100 damage to the nearest creature.
 var lab_flat_attack: bool = false
 var shot_path: String = ""
+var pointer: Vector2 = Vector2.ZERO
 
 var _last_phase: StringName = &""
 var _perf: Label
@@ -59,6 +60,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("debug_toggle"):
 		debug_overlay = not debug_overlay
 
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		pointer = (event as InputEventScreenTouch).position
+	elif event is InputEventMouseButton:
+		pointer = (event as InputEventMouseButton).position
+
 func _process(delta: float) -> void:
 	time_of_day = fmod(time_of_day + delta / day_length_seconds, 1.0)
 	var phase := phase_name()
@@ -71,7 +78,7 @@ func _process(delta: float) -> void:
 			var mem_mb := float(Performance.get_monitor(Performance.MEMORY_STATIC)) / 1048576.0
 			_perf.text = "fps %d  draws %d  mem %.0f MB  tod %.2f (%s)" % [
 				Engine.get_frames_per_second(),
-				int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
+				int(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)),
 				mem_mb, time_of_day, phase_name()]
 
 func _notification(what: int) -> void:
@@ -104,6 +111,11 @@ func phase_name() -> StringName:
 	if time_of_day < 0.72:
 		return &"day"
 	return &"dusk"
+
+func clock_label() -> String:
+	var mins := int(time_of_day * 24.0 * 60.0)
+	mins = mins % (24 * 60)
+	return "%02d:%02d" % [int(mins / 60), mins % 60]
 
 func _take_shot() -> void:
 	await RenderingServer.frame_post_draw

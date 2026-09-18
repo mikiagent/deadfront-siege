@@ -34,6 +34,8 @@ var butcher_target: Corpse
 var nav_active: bool = false
 var ui: InventoryUI
 var craft_ui
+var in_water: bool = false
+var _wet_acc: float = 0.0
 
 var _roll_left: float = 0.0
 var _gather_left: float = 0.0
@@ -91,7 +93,7 @@ func face_world(pos: Vector3) -> void:
 		visual.rotation.y = atan2(to.x, to.z)
 
 func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
-	vitals.add_fatigue(2.0)
+	vitals.add_fatigue(2.0, &"combat")
 	if anim:
 		if statuses and statuses.has_flag(&"knockdown"):
 			anim.play_clip(&"knockdown")
@@ -146,8 +148,15 @@ func _physics_process(delta: float) -> void:
 	if dir.length_squared() > 0.0:
 		var target_yaw := atan2(dir.x, dir.z)
 		visual.rotation.y = lerp_angle(visual.rotation.y, target_yaw, turn_speed * delta)
-		vitals.add_fatigue(delta * (0.8 if can_sprint else 0.25))
+		vitals.add_fatigue(delta * (0.8 if can_sprint else 0.25), &"walk")
 	vitals.fatigue_gain_mult = 0.5 if _in_coziness() else 1.0
+	if in_water:
+		_wet_acc += delta
+		var need := float(Data.world_rules.get("wet_after_seconds_in_water", 5))
+		if _wet_acc >= need:
+			statuses.apply(&"wet", null)
+	else:
+		_wet_acc = 0.0
 	if _gathering:
 		_gather_left -= delta
 		if _gather_left <= 0.0:
@@ -221,7 +230,7 @@ func _tap_blocked() -> bool:
 	var hovered := get_viewport().gui_get_hovered_control()
 	if hovered != null and hovered.mouse_filter != Control.MOUSE_FILTER_IGNORE:
 		return true
-	if TouchControls.enabled and TouchControls.blocks_screen_point(get_viewport().get_mouse_position()):
+	if TouchControls.enabled and TouchControls.blocks_screen_point(Game.pointer):
 		return true
 	return false
 
@@ -295,14 +304,14 @@ func _on_arrived() -> void:
 		face_world(gather_target.global_position)
 		_gathering = true
 		_gather_left = gather_target.gather_seconds
-		vitals.add_fatigue(1.5)
+		vitals.add_fatigue(1.5, &"gather")
 		if anim:
 			anim.on_gather()
 	elif butcher_target and is_instance_valid(butcher_target):
 		face_world(butcher_target.global_position)
 		_gathering = true
 		_gather_left = 1.4
-		vitals.add_fatigue(2.0)
+		vitals.add_fatigue(2.0, &"gather")
 		if anim:
 			anim.on_gather()
 
@@ -538,11 +547,25 @@ func _in_coziness() -> bool:
 			return true
 	return false
 
+func tick_climate_fatigue(delta: float, climate: String) -> void:
+	if vitals == null:
+		return
+	var clim: Dictionary = Data.world_climates.get(climate, {})
+	var resists: Array = clim.get("resist", [])
+	if resists.is_empty():
+		return
+	# ASSUMPTION: unmatched climate resist costs 4 fatigue/min at night/dawn/dusk (PRD §4.4 has no number).
+	var phase := Game.phase_name()
+	if phase == &"day":
+		return
+	if "cold_weak" in resists or "heat_weak" in resists:
+		vitals.add_fatigue(delta * (4.0 / 60.0), &"climate")
+
 func _ray() -> Dictionary:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return {}
-	var mouse := get_viewport().get_mouse_position()
+	var mouse := Game.pointer
 	var from := cam.project_ray_origin(mouse)
 	var to := from + cam.project_ray_normal(mouse) * 200.0
 	var q := PhysicsRayQueryParameters3D.create(from, to)

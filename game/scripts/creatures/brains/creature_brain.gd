@@ -14,6 +14,19 @@ func setup(c: Creature) -> void:
 	# ASSUMPTION: perception radius = 8 + tier * 0.15 m.
 	perception = 8.0 + float(c.def.tier) * 0.15
 
+func _effective_perception() -> float:
+	var p := perception
+	if Game.phase_name() == &"night" and creature and creature.def.mapped_archetype() == &"raptor_pack":
+		p *= 1.0 + float(Data.world_rules.get("night_predator_perception_bonus", 0.5))
+	return p
+
+func _is_herbivore() -> bool:
+	if creature == null:
+		return false
+	return creature.def.mapped_archetype() != &"raptor_pack" and not (str(creature.def.archetype) in [
+		"swarm", "flock_harass", "tyrant", "saber_cat", "venom_ranged",
+	])
+
 func _physics_process(delta: float) -> void:
 	if creature == null or creature.health.dead:
 		state = &"dead"
@@ -32,6 +45,10 @@ func on_aggro(who: Node) -> void:
 
 func _think(delta: float) -> void:
 	_attack_cd = maxf(0.0, _attack_cd - delta)
+	if _is_herbivore() and Game.phase_name() == &"night" and not _valid_target():
+		state = &"sleep"
+		creature.stop_move()
+		return
 	match state:
 		&"roam":
 			_roam(delta)
@@ -61,7 +78,7 @@ func _roam(delta: float) -> void:
 
 func _scan() -> void:
 	var player := creature.get_tree().get_first_node_in_group("player") as Node3D
-	if player and creature.global_position.distance_to(player.global_position) <= perception:
+	if player and creature.global_position.distance_to(player.global_position) <= _effective_perception():
 		attack_target = player
 		state = &"alert"
 		creature.anim.play_clip(&"alert")

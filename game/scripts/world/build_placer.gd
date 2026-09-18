@@ -154,7 +154,7 @@ func _ground() -> Dictionary:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return {}
-	var mouse := get_viewport().get_mouse_position()
+	var mouse := Game.pointer
 	var from := cam.project_ray_origin(mouse)
 	var to := from + cam.project_ray_normal(mouse) * 200.0
 	var q := PhysicsRayQueryParameters3D.create(from, to)

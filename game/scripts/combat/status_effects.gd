@@ -171,7 +171,7 @@ func _dot(inst: StatusInstance) -> void:
 		if dps > 0.0:
 			pl.vitals.take_damage(dps * 0.5)
 		if def.fatigue_per_min > 0.0:
-			pl.vitals.add_fatigue(def.fatigue_per_min * (0.5 / 60.0) * 100.0 * float(inst.stacks))
+			pl.vitals.add_fatigue(def.fatigue_per_min * (0.5 / 60.0) * 100.0 * float(inst.stacks), inst.id)
 
 func _expire(inst: StatusInstance) -> void:
 	var def := Data.status(inst.id)

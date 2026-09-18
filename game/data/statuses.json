@@ -202,6 +202,21 @@
       "weakness_rank": 2,
       "cleared_by": [],
       "fx": "tint_red"
+    },
+    {
+      "id": "wet",
+      "display_name": "Wet",
+      "dps": 0.0,
+      "duration": 120.0,
+      "max_stacks": 1,
+      "flags": [],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "fatigue_per_min": 0.3,
+      "weakness_rank": 1,
+      "cleared_by": [],
+      "fx": "none"
     }
   ]
 }

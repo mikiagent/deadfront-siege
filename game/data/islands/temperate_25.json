@@ -10,8 +10,8 @@
   "sail_cost": 5,
   "harbour": [0, 0, 24],
   "camp": [0, 0, 12],
-  "crater": [36, 0, -40],
+  "crater": [0, 0, -185],
   "creatures": [
-    {"species": "velociraptor", "count": 3, "pack": true, "at": [16, 0, -8]}
+    {"species": "utahraptor", "count": 1, "pack": false, "at": [18, 0, -172]}
   ]
 }

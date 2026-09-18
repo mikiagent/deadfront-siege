@@ -15,6 +15,7 @@ var fatigue: float = 0.0
 var exhausted: bool = false
 var blocks_regen: bool = false
 var fatigue_gain_mult: float = 1.0
+var fatigue_log: Dictionary = {}
 
 ## ASSUMPTION: Health/Energy regen rates are not numbered in PRD §2.3; 1.5 HP/s and 2 Energy/s while not blocked.
 @export var health_regen: float = 1.5
@@ -35,7 +36,7 @@ func effective_max_health() -> float:
 func take_damage(amount: float) -> void:
 	var was := health
 	health = maxf(0.0, health - amount)
-	add_fatigue(amount * 0.15)
+	add_fatigue(amount * 0.15, &"combat")
 	if amount > 0.0:
 		damaged.emit()
 	if was > 0.0 and health <= 0.0:
@@ -44,8 +45,11 @@ func take_damage(amount: float) -> void:
 func heal(amount: float) -> void:
 	health = minf(effective_max_health(), health + amount)
 
-func add_fatigue(amount: float) -> void:
-	fatigue = clampf(fatigue + amount * fatigue_gain_mult, 0.0, max_fatigue)
+func add_fatigue(amount: float, source: StringName = &"") -> void:
+	var add := amount * fatigue_gain_mult
+	fatigue = clampf(fatigue + add, 0.0, max_fatigue)
+	if source != &"" and add > 0.0:
+		fatigue_log[str(source)] = float(fatigue_log.get(str(source), 0.0)) + add
 
 func rest(amount: float) -> void:
 	fatigue = clampf(fatigue - amount, 0.0, max_fatigue)
