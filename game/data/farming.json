@@ -1,0 +1,38 @@
+{
+  "_about": "Crop growth and yield. Water amount raises success chance; fertilizer raises yield with overflow. Output level capped by Farming skill.",
+  "base_success": 0.55,
+  "water_bonus_per_unit": 0.12,
+  "max_success": 0.95,
+  "fertilizer_yield_bonus": 1.0,
+  "offline_catchup": true,
+  "crops": {
+    "flax": {
+      "seed": "flax_seed",
+      "output": "flax",
+      "growth_seconds": 120.0,
+      "base_yield": 2,
+      "farming_min": 5
+    },
+    "corn": {
+      "seed": "corn_seed",
+      "output": "corn",
+      "growth_seconds": 90.0,
+      "base_yield": 3,
+      "farming_min": 10
+    },
+    "wheat": {
+      "seed": "wheat_seed",
+      "output": "wheat",
+      "growth_seconds": 100.0,
+      "base_yield": 3,
+      "farming_min": 10
+    },
+    "berry": {
+      "seed": "berry_seed",
+      "output": "berry",
+      "growth_seconds": 80.0,
+      "base_yield": 2,
+      "farming_min": 1
+    }
+  }
+}

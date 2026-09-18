@@ -11,7 +11,9 @@
       "defense_mult": 1.0,
       "accuracy_mult": 1.0,
       "weakness_rank": 3,
-      "cleared_by": ["bandage"],
+      "cleared_by": [
+        "bandage"
+      ],
       "fx": "drip_darken",
       "on_untreated_expire": "infected_wound",
       "on_untreated_chance": 0.25
@@ -22,12 +24,17 @@
       "dps": 1.0,
       "duration": 30.0,
       "max_stacks": 3,
-      "flags": ["blocks_regen"],
+      "flags": [
+        "blocks_regen"
+      ],
       "move_mult": 1.0,
       "defense_mult": 1.0,
       "accuracy_mult": 1.0,
       "weakness_rank": 7,
-      "cleared_by": ["pressure_dressing", "cauterise"],
+      "cleared_by": [
+        "pressure_dressing",
+        "cauterise"
+      ],
       "fx": "drip_darken"
     },
     {
@@ -41,7 +48,9 @@
       "defense_mult": 1.0,
       "accuracy_mult": 0.7,
       "weakness_rank": 4,
-      "cleared_by": ["antivenom"],
+      "cleared_by": [
+        "antivenom"
+      ],
       "fx": "tint_green"
     },
     {
@@ -50,12 +59,18 @@
       "dps": 0.0,
       "duration": 90.0,
       "max_stacks": 1,
-      "flags": ["no_sprint", "no_roll"],
+      "flags": [
+        "no_sprint",
+        "no_roll"
+      ],
       "move_mult": 0.65,
       "defense_mult": 0.75,
       "accuracy_mult": 1.0,
       "weakness_rank": 8,
-      "cleared_by": ["splint", "residence"],
+      "cleared_by": [
+        "splint",
+        "residence"
+      ],
       "fx": "limp"
     },
     {
@@ -64,12 +79,17 @@
       "dps": 2.0,
       "duration": 4.0,
       "max_stacks": 1,
-      "flags": ["cannot_act"],
+      "flags": [
+        "cannot_act"
+      ],
       "move_mult": 0.0,
       "defense_mult": 1.0,
       "accuracy_mult": 1.0,
       "weakness_rank": 9,
-      "cleared_by": ["struggle", "pet_aggro"],
+      "cleared_by": [
+        "struggle",
+        "pet_aggro"
+      ],
       "fx": "none"
     },
     {
@@ -78,7 +98,9 @@
       "dps": 0.0,
       "duration": 12.0,
       "max_stacks": 1,
-      "flags": ["hide_telegraphs"],
+      "flags": [
+        "hide_telegraphs"
+      ],
       "move_mult": 1.0,
       "defense_mult": 1.0,
       "accuracy_mult": 1.0,
@@ -99,7 +121,10 @@
       "max_health_mult": 0.8,
       "fatigue_per_min": 0.15,
       "weakness_rank": 5,
-      "cleared_by": ["antibiotic", "syringe"],
+      "cleared_by": [
+        "antibiotic",
+        "syringe"
+      ],
       "fx": "tint_sick"
     },
     {
@@ -109,7 +134,9 @@
       "dps_max_hp_frac": 0.01,
       "duration": 20.0,
       "max_stacks": 1,
-      "flags": ["blood_trail"],
+      "flags": [
+        "blood_trail"
+      ],
       "move_mult": 1.0,
       "defense_mult": 1.0,
       "accuracy_mult": 1.0,
@@ -137,7 +164,9 @@
       "dps": 0.0,
       "duration": 4.0,
       "max_stacks": 1,
-      "flags": ["cannot_act"],
+      "flags": [
+        "cannot_act"
+      ],
       "move_mult": 0.0,
       "defense_mult": 1.0,
       "accuracy_mult": 1.0,
@@ -151,7 +180,9 @@
       "dps": 0.0,
       "duration": 8.0,
       "max_stacks": 1,
-      "flags": ["cannot_act"],
+      "flags": [
+        "cannot_act"
+      ],
       "move_mult": 0.0,
       "defense_mult": 1.0,
       "accuracy_mult": 1.0,
@@ -165,7 +196,9 @@
       "dps": 0.5,
       "duration": 30.0,
       "max_stacks": 1,
-      "flags": ["meat_inedible"],
+      "flags": [
+        "meat_inedible"
+      ],
       "move_mult": 1.0,
       "defense_mult": 1.0,
       "accuracy_mult": 1.0,
@@ -215,6 +248,51 @@
       "accuracy_mult": 1.0,
       "fatigue_per_min": 0.3,
       "weakness_rank": 1,
+      "cleared_by": [],
+      "fx": "none"
+    },
+    {
+      "id": "full",
+      "display_name": "Full",
+      "dps": 0.0,
+      "duration": 10.0,
+      "max_stacks": 1,
+      "flags": [
+        "blocks_eating"
+      ],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "weakness_rank": 1,
+      "cleared_by": [],
+      "fx": "none"
+    },
+    {
+      "id": "stomachache",
+      "display_name": "Stomachache",
+      "dps": 0.2,
+      "duration": 300.0,
+      "max_stacks": 1,
+      "flags": [],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "weakness_rank": 4,
+      "cleared_by": [],
+      "fx": "tint_sick"
+    },
+    {
+      "id": "tastes_bad",
+      "display_name": "Tastes Bad",
+      "dps": 0.0,
+      "duration": 60.0,
+      "max_stacks": 1,
+      "flags": [],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "fatigue_per_min": 0.5,
+      "weakness_rank": 2,
       "cleared_by": [],
       "fx": "none"
     }

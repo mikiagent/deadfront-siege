@@ -76,6 +76,8 @@ static func build(host: Node3D, size: float = 80.0) -> Dictionary:
 	ui.add_child(debug)
 	if player.station_craft:
 		player.station_craft.reparent_ui(ui)
+	if player.eat_session:
+		player.eat_session.reparent_ui(ui)
 	nav.bake_navigation_mesh(false)
 	return {"player": player, "nav": nav, "ui": ui, "debug": debug, "cam": cam}
 

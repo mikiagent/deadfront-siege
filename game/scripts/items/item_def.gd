@@ -23,6 +23,10 @@ extends Resource
 @export var place_as: StringName = &""
 @export var footprint: Vector2i = Vector2i.ONE
 @export var stats_per_level: Dictionary = {}
+@export var raw: bool = false
+@export var poison_chance: float = 0.0
+@export var tastes_bad_chance: float = 0.0
+@export var food_buff: StringName = &""
 
 static func from_dict(d: Dictionary) -> ItemDef:
 	var def := ItemDef.new()
@@ -53,6 +57,10 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	var spl: Variant = d.get("stats_per_level", {})
 	if spl is Dictionary:
 		def.stats_per_level = (spl as Dictionary).duplicate(true)
+	def.raw = bool(d.get("raw", false))
+	def.poison_chance = float(d.get("poison_chance", 0.0))
+	def.tastes_bad_chance = float(d.get("tastes_bad_chance", 0.0))
+	def.food_buff = StringName(str(d.get("food_buff", "")))
 	return def
 
 static func _names(raw: Variant) -> Array[StringName]:

@@ -16,20 +16,38 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
 static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
 	var picks: Array[int] = []
 	var used: Dictionary = {}
+	var prefer := StringName(str(rec.get("input_id", "")))
 	for slot in rec.get("slots", []):
 		if not slot is Dictionary:
 			picks.append(-1)
 			continue
 		var need := int(slot.get("count", 1))
 		var chosen := -1
-		for idx in stacks_for_slot(inv, slot):
-			var already: int = int(used.get(idx, 0))
-			if inv.slots[idx].count - already >= need:
-				chosen = idx
-				used[idx] = already + need
-				break
+		var prefer_slot := StringName(str((slot as Dictionary).get("prefer_id", prefer if picks.is_empty() else "")))
+		if prefer_slot != &"":
+			for idx in inv.find_all(prefer_slot) if inv.has_method("find_all") else _find_all(inv, prefer_slot):
+				var already: int = int(used.get(idx, 0))
+				if inv.slots[idx] and inv.slots[idx].count - already >= need:
+					chosen = idx
+					used[idx] = already + need
+					break
+		if chosen < 0:
+			for idx in stacks_for_slot(inv, slot):
+				var already2: int = int(used.get(idx, 0))
+				if inv.slots[idx].count - already2 >= need:
+					chosen = idx
+					used[idx] = already2 + need
+					break
 		picks.append(chosen)
 	return picks
+
+static func _find_all(inv: Inventory, id: StringName) -> Array[int]:
+	var out: Array[int] = []
+	for i in inv.slot_count:
+		var s := inv.slots[i]
+		if s and s.def_id == id:
+			out.append(i)
+	return out
 
 static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
 	var slots: Array = rec.get("slots", [])
@@ -105,29 +123,69 @@ static func slot_level_contributions(inv: Inventory, rec: Dictionary, picks: Arr
 		})
 	return out
 
-static func skill_level_for(rec: Dictionary) -> int:
-	var _skill := StringName(str(rec.get("skill", "processing")))
-	# ASSUMPTION: M8 owns real per-tree skill progression. Until then every crafting tree is level 60.
+static func skill_level_for(rec: Dictionary, player: Player = null) -> int:
+	var skill := str(rec.get("skill", "processing"))
+	var p := player
+	if p == null:
+		p = _player()
+	if p and p.skills:
+		var lvl := p.skills.level_of(skill)
+		# Lab / early game: if the tree is still 0, fall back so recipes remain testable.
+		# ASSUMPTION: skill 0 means "not started"; use recipe max as soft unlock until SP spent.
+		if lvl > 0:
+			return lvl
 	return 60
 
-static func crafted_level_for(rec: Dictionary, levels: Array[int]) -> int:
+static func crafted_level_for(rec: Dictionary, levels: Array[int], player: Player = null) -> int:
 	if levels.is_empty():
 		return 1
 	var total := 0
 	for lv in levels:
 		total += lv
 	var average := int(floor(float(total) / float(levels.size())))
-	var cap := mini(skill_level_for(rec), int(rec.get("max_level", 60)))
+	var cap := mini(skill_level_for(rec, player), int(rec.get("max_level", 60)))
 	return clampi(average, 1, cap)
 
-static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int) -> ItemStack:
+static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int, consumed: Array[ItemStack] = []) -> ItemStack:
 	var out_row: Dictionary = rec.get("output", {})
-	var out := ItemStack.make(StringName(str(out_row.get("id", ""))), int(out_row.get("count", 1)))
-	out.attributes = primary.attributes.duplicate(true)
+	var out_id := StringName(str(out_row.get("id", "")))
+	if bool(rec.get("keep_output_id", false)) and primary:
+		var pd := primary.def()
+		if pd and (pd.has_category(&"cooked") or primary.process_count >= 2):
+			out_id = primary.def_id
+	if bool(rec.get("burn_on_fail", false)):
+		var chance := float(rec.get("burn_chance", 0.2))
+		if randf() < chance:
+			out_id = StringName(str(rec.get("burn_output", "burnt_food")))
+			print("[craft] burnt %s" % rec.get("id", ""))
+	var out := ItemStack.make(out_id, int(out_row.get("count", 1)))
+	if primary:
+		out.attributes = primary.attributes.duplicate(true)
+		# Poison persists through cooking (PRD §9.3 MAY keep).
+		if &"poisoned" in primary.flags:
+			out.set_flag(&"poisoned", true)
 	out.level = crafted_level
-	out.process_count = primary.process_count + int(rec.get("process_add", 1))
+	if rec.has("force_process_count"):
+		out.process_count = int(rec.get("force_process_count", 0))
+	elif primary:
+		out.process_count = primary.process_count + int(rec.get("process_add", 1))
+	else:
+		out.process_count = int(rec.get("process_add", 1))
+	var buff := str(rec.get("buff_id", ""))
+	if buff != "":
+		out.attributes["food_buff"] = buff
+	# Boil uprank is the mean-of-materials rule (already in crafted_level).
 	out.apply_level_stats()
+	# Clear raw flag on cooked outputs.
+	if out.def() and out.def().has_category(&"cooked"):
+		out.set_flag(&"raw", false)
 	return out
+
+static func _player() -> Player:
+	var tree := Engine.get_main_loop()
+	if tree is SceneTree:
+		return (tree as SceneTree).get_first_node_in_group("player") as Player
+	return null
 
 static func station_id(rec: Dictionary) -> String:
 	var v: Variant = rec.get("station", null)
@@ -145,10 +203,18 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
 	if player == null or not is_instance_valid(player):
 		return false
 	for n in player.get_tree().get_nodes_in_group("craft_station"):
-		var st := n as CraftStation
-		if st == null or str(st.station_id) != sid:
+		var id := ""
+		if n is CraftStation:
+			id = str((n as CraftStation).station_id)
+		elif n is Bonfire:
+			id = "bonfire"
+		elif n.get("station_id") != null:
+			id = str(n.get("station_id"))
+		elif n.get("kind") != null:
+			id = str(n.get("kind"))
+		if id != sid:
 			continue
-		if player.global_position.distance_to(st.global_position) <= STATION_RANGE:
+		if n is Node3D and player.global_position.distance_to((n as Node3D).global_position) <= STATION_RANGE:
 			return true
 	return false
 
@@ -199,7 +265,7 @@ static func craft(player: Player, rec: Dictionary, picks: Array[int]) -> ItemSta
 	keys.reverse()
 	for idx in keys:
 		player.inventory.remove_at(int(idx), int(used[idx]))
-	var out := build_output(rec, primary, crafted_level_for(rec, levels))
+	var out := build_output(rec, primary, crafted_level_for(rec, levels, player))
 	var left := player.inventory.add(out)
 	if left > 0:
 		print("[craft] bag full remainder=%d" % left)
@@ -259,6 +325,22 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
 			return &"raw_meat"
 		"wood", "handle", "burnable":
 			return &"branch"
+		"water":
+			return &"water_bucket"
+		"spice":
+			return &"spice_herb"
+		"herb":
+			return &"herb_leaf"
+		"seed":
+			return &"flax_seed"
+		"fertilizer":
+			return &"fruit_fertilizer"
+		"fruit":
+			return &"berry"
+		"stalk":
+			return &"fibre_stalk"
+		"bucket":
+			return &"empty_bucket"
 		_:
 			return cat
 
@@ -293,7 +375,7 @@ static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemSt
 		if s:
 			for _n in s.count:
 				levels.append(s.level)
-	var out := build_output(rec, primary, crafted_level_for(rec, levels))
+	var out := build_output(rec, primary, crafted_level_for(rec, levels, player), consumed)
 	var gained := out.count
 	var left := player.inventory.add(out)
 	if left > 0:
@@ -301,8 +383,9 @@ static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemSt
 		gained -= left
 	print("[item] +%d %s" % [gained, out.def_id])
 	print("[craft] level=%d from %s" % [out.level, levels])
-	print("[craft] %s from primary=%s %s" % [out.def_id, primary.def_id, primary.attributes])
+	print("[craft] %s from primary=%s %s process=%d" % [out.def_id, primary.def_id, primary.attributes, out.process_count])
 	World.note_craft(StringName(str(rec.get("id", ""))))
+	grant_craft_xp(player, rec)
 	# Restore count for callers (toast) since add() empties a fully-accepted stack.
 	out.count = gained
 	return out if gained > 0 else null
@@ -317,5 +400,11 @@ static func _category_hint(cat: StringName) -> String:
 			return "stone"
 		"lashing":
 			return "twine"
+		"water":
+			return "water_bucket"
+		"spice":
+			return "spice_herb"
+		"bucket":
+			return "empty_bucket"
 		_:
 			return str(cat)

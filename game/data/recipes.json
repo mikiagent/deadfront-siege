@@ -29,9 +29,7 @@
       "station": null,
       "seconds": 2.0,
       "process_step": "bind",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "weapon_tools"
+      "process_add": 1
     },
     {
       "id": "work_axe",
@@ -62,9 +60,7 @@
       "station": "workbench",
       "seconds": 3.0,
       "process_step": "bind",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "weapon_tools"
+      "process_add": 1
     },
     {
       "id": "club",
@@ -90,9 +86,7 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "weapon_tools"
+      "process_add": 1
     },
     {
       "id": "bandage",
@@ -118,9 +112,7 @@
       "station": null,
       "seconds": 1.0,
       "process_step": "bind",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "tailoring"
+      "process_add": 1
     },
     {
       "id": "pressure_dressing",
@@ -146,14 +138,12 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "tailoring"
+      "process_add": 1
     },
     {
       "id": "splint",
       "display_name": "Splint",
-      "skill": "weapon_tools",
+      "skill": "tailoring",
       "max_level": 60,
       "slots": [
         {
@@ -174,9 +164,7 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "tailoring"
+      "process_add": 1
     },
     {
       "id": "capture_net_i",
@@ -202,9 +190,7 @@
       "station": null,
       "seconds": 2.0,
       "process_step": "twist",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "weapon_tools"
+      "process_add": 1
     },
     {
       "id": "twine",
@@ -225,9 +211,7 @@
       "station": null,
       "seconds": 1.0,
       "process_step": "twist",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "processing"
+      "process_add": 1
     },
     {
       "id": "rope",
@@ -248,14 +232,12 @@
       "station": "workbench",
       "seconds": 2.0,
       "process_step": "twist",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "processing"
+      "process_add": 1
     },
     {
       "id": "thread",
       "display_name": "Thread",
-      "skill": "processing",
+      "skill": "tailoring",
       "max_level": 60,
       "slots": [
         {
@@ -271,14 +253,12 @@
       "station": null,
       "seconds": 1.0,
       "process_step": "twist",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "tailoring"
+      "process_add": 1
     },
     {
       "id": "cloth",
       "display_name": "Cloth",
-      "skill": "processing",
+      "skill": "tailoring",
       "max_level": 60,
       "slots": [
         {
@@ -294,9 +274,7 @@
       "station": "workbench",
       "seconds": 2.0,
       "process_step": "twist",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "tailoring"
+      "process_add": 1
     },
     {
       "id": "dried_hide",
@@ -317,9 +295,7 @@
       "station": "drying_rack",
       "seconds": 4.0,
       "process_step": "dry",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "processing"
+      "process_add": 1
     },
     {
       "id": "hide_strap",
@@ -340,9 +316,7 @@
       "station": "workbench",
       "seconds": 2.0,
       "process_step": "split",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "processing"
+      "process_add": 1
     },
     {
       "id": "split_wood",
@@ -363,9 +337,7 @@
       "station": "workbench",
       "seconds": 2.0,
       "process_step": "split",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "processing"
+      "process_add": 1
     },
     {
       "id": "plank",
@@ -386,9 +358,7 @@
       "station": "workbench",
       "seconds": 2.0,
       "process_step": "hammer",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "processing"
+      "process_add": 1
     },
     {
       "id": "charcoal",
@@ -409,9 +379,7 @@
       "station": null,
       "seconds": 3.0,
       "process_step": "bake",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "processing"
+      "process_add": 1
     },
     {
       "id": "ingot",
@@ -432,9 +400,7 @@
       "station": "workbench",
       "seconds": 4.0,
       "process_step": "hammer",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "processing"
+      "process_add": 1
     },
     {
       "id": "bonfire_kit",
@@ -460,9 +426,7 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "construction"
+      "process_add": 1
     },
     {
       "id": "makeshift_taming_pen_kit",
@@ -488,9 +452,7 @@
       "station": null,
       "seconds": 2.5,
       "process_step": "bind",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "construction"
+      "process_add": 1
     },
     {
       "id": "workbench_kit",
@@ -516,9 +478,7 @@
       "station": null,
       "seconds": 2.0,
       "process_step": "bind",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "construction"
+      "process_add": 1
     },
     {
       "id": "drying_rack_kit",
@@ -544,14 +504,12 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "construction"
+      "process_add": 1
     },
     {
       "id": "tent_kit",
       "display_name": "Tent Kit",
-      "skill": "construction",
+      "skill": "tailoring",
       "max_level": 60,
       "slots": [
         {
@@ -577,9 +535,7 @@
       "station": null,
       "seconds": 2.0,
       "process_step": "bind",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "tailoring"
+      "process_add": 1
     },
     {
       "id": "basket_kit",
@@ -605,9 +561,7 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "twist",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "construction"
+      "process_add": 1
     },
     {
       "id": "fence_kit",
@@ -628,9 +582,7 @@
       "station": null,
       "seconds": 1.0,
       "process_step": "bind",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "construction"
+      "process_add": 1
     },
     {
       "id": "gate_kit",
@@ -656,9 +608,7 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "construction"
+      "process_add": 1
     },
     {
       "id": "sign_kit",
@@ -679,9 +629,7 @@
       "station": null,
       "seconds": 1.0,
       "process_step": "hammer",
-      "process_add": 1,
-      "max_level": 60,
-      "skill": "construction"
+      "process_add": 1
     },
     {
       "id": "skewer",
@@ -707,9 +655,385 @@
       "station": "bonfire",
       "seconds": 3.0,
       "process_step": "cook",
+      "process_add": 1
+    },
+    {
+      "id": "meatball_mix",
+      "display_name": "Meatball Mix",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "meatball_mix",
+        "count": 1
+      },
+      "station": "mortar",
+      "seconds": 1.5,
+      "process_step": "mince",
       "process_add": 1,
+      "tree": "cooking"
+    },
+    {
+      "id": "cook_meatball",
+      "display_name": "Cook Meatball",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "meatball",
+        "count": 1
+      },
+      "station": "bonfire",
+      "seconds": 2.5,
+      "process_step": "cook",
+      "process_add": 1,
+      "tree": "cooking",
+      "input_id": "meatball_mix"
+    },
+    {
+      "id": "stone_grill",
+      "display_name": "Stone-Plate Grill",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "grilled_meat",
+        "count": 1
+      },
+      "station": "stone_grill",
+      "seconds": 3.0,
+      "process_step": "grill",
+      "process_add": 1,
+      "tree": "cooking",
+      "burn_on_fail": true,
+      "burn_chance": 0.2,
+      "burn_output": "burnt_food"
+    },
+    {
+      "id": "steam",
+      "display_name": "Steam",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "food",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "steamed_food",
+        "count": 1
+      },
+      "station": "steamer",
+      "seconds": 2.5,
+      "process_step": "steam",
+      "process_add": 1,
+      "tree": "cooking",
+      "keep_output_id": true
+    },
+    {
+      "id": "sashimi",
+      "display_name": "Sashimi",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "sashimi",
+        "count": 3
+      },
+      "station": "bonfire",
+      "seconds": 2.0,
+      "process_step": "sashimi",
+      "process_add": 0,
+      "force_process_count": 2,
+      "tree": "cooking"
+    },
+    {
+      "id": "boil",
+      "display_name": "Boil",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "water",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "boiled_meat",
+        "count": 1
+      },
+      "station": "bonfire",
+      "seconds": 3.0,
+      "process_step": "boil",
+      "process_add": 1,
+      "tree": "cooking",
+      "boil_uprank": true
+    },
+    {
+      "id": "roast",
+      "display_name": "Roast",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "roast",
+        "count": 1
+      },
+      "station": "stone_grill",
+      "seconds": 4.0,
+      "process_step": "roast",
+      "process_add": 1,
+      "tree": "cooking"
+    },
+    {
+      "id": "seasoned_roast",
+      "display_name": "Seasoned Roast",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "spice",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "seasoned_roast",
+        "count": 1
+      },
+      "station": "stone_grill",
+      "seconds": 4.5,
+      "process_step": "roast",
+      "process_add": 1,
+      "tree": "cooking",
+      "buff_id": "gather_speed"
+    },
+    {
+      "id": "herbed_meal",
+      "display_name": "Herbed Meal",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "herb",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "herb_buff_meal",
+        "count": 1
+      },
+      "station": "bonfire",
+      "seconds": 3.0,
+      "process_step": "cook",
+      "process_add": 1,
+      "tree": "cooking",
+      "buff_id": "defense"
+    },
+    {
+      "id": "spiced_skewer",
+      "display_name": "Spiced Skewer",
+      "skill": "cooking",
       "max_level": 19,
-      "skill": "cooking"
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "spice",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "spiced_skewer",
+        "count": 1
+      },
+      "station": "bonfire",
+      "seconds": 3.0,
+      "process_step": "cook",
+      "process_add": 1,
+      "tree": "cooking",
+      "buff_id": "heat_resist"
+    },
+    {
+      "id": "carnivore_feed",
+      "display_name": "Carnivore Feed",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "meat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "water",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "carnivore_feed",
+        "count": 2
+      },
+      "station": "mortar",
+      "seconds": 2.0,
+      "process_step": "mix",
+      "process_add": 0,
+      "tree": "cooking"
+    },
+    {
+      "id": "herbivore_feed",
+      "display_name": "Herbivore Feed",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "fruit",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "stalk",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "herbivore_feed",
+        "count": 2
+      },
+      "station": null,
+      "seconds": 1.5,
+      "process_step": "mix",
+      "process_add": 0,
+      "tree": "cooking"
+    },
+    {
+      "id": "field_small",
+      "display_name": "Small Field",
+      "skill": "farming",
+      "max_level": 1,
+      "slots": [
+        {
+          "category": "earth",
+          "count": 2,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "field_small_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 2.0,
+      "process_step": "till",
+      "process_add": 0,
+      "tree": "farming",
+      "requires_tool": "hoe"
+    },
+    {
+      "id": "field_large",
+      "display_name": "Large Field",
+      "skill": "farming",
+      "max_level": 1,
+      "slots": [
+        {
+          "category": "earth",
+          "count": 4,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "field_large_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 3.0,
+      "process_step": "till",
+      "process_add": 0,
+      "tree": "farming",
+      "requires_tool": "hoe"
+    },
+    {
+      "id": "fill_bucket",
+      "display_name": "Fill Bucket",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "bucket",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "water_bucket",
+        "count": 1
+      },
+      "station": "well",
+      "seconds": 1.0,
+      "process_step": "fill",
+      "process_add": 0,
+      "tree": "construction",
+      "input_id": "empty_bucket"
     }
   ]
 }

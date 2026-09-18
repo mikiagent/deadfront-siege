@@ -11,10 +11,14 @@ var _storage_title: Label
 var _storage_note: Label
 var _lock_btn: Button
 var _place_btn: Button
+var _eat_btn: Button
+var _inspect_btn: Button
+var _feed_btn: Button
 var _take_all_btn: Button
 var _owner_player: Player
 var _selected: int = -1
 var _storage_opts: Dictionary = {}
+var _food_inspector: FoodInspector
 
 func _ready() -> void:
 	visible = false
@@ -59,6 +63,27 @@ func _ready() -> void:
 	_place_btn.visible = false
 	_place_btn.pressed.connect(_on_place_pressed)
 	add_child(_place_btn)
+	_inspect_btn = Button.new()
+	_inspect_btn.text = "Inspect food"
+	_inspect_btn.custom_minimum_size = Vector2(220, 64)
+	_inspect_btn.position = Vector2(460, 236)
+	_inspect_btn.visible = false
+	_inspect_btn.pressed.connect(_on_inspect_food)
+	add_child(_inspect_btn)
+	_eat_btn = Button.new()
+	_eat_btn.text = "Eat"
+	_eat_btn.custom_minimum_size = Vector2(220, 64)
+	_eat_btn.position = Vector2(700, 236)
+	_eat_btn.visible = false
+	_eat_btn.pressed.connect(_on_eat_food)
+	add_child(_eat_btn)
+	_feed_btn = Button.new()
+	_feed_btn.text = "Feed pet"
+	_feed_btn.custom_minimum_size = Vector2(220, 64)
+	_feed_btn.position = Vector2(700, 300)
+	_feed_btn.visible = false
+	_feed_btn.pressed.connect(_on_feed_pet)
+	add_child(_feed_btn)
 	_take_all_btn = Button.new()
 	_take_all_btn.text = "Take all"
 	_take_all_btn.custom_minimum_size = Vector2(220, 64)
@@ -66,6 +91,18 @@ func _ready() -> void:
 	_take_all_btn.visible = false
 	_take_all_btn.pressed.connect(_take_all_storage)
 	add_child(_take_all_btn)
+	_food_inspector = FoodInspector.new()
+	_food_inspector.name = "FoodInspector"
+	add_child(_food_inspector)
+	_food_inspector.eat_pressed.connect(func (idx: int) -> void:
+		visible = false
+		if _owner_player:
+			_owner_player.begin_eat_slot(idx)
+	)
+	_food_inspector.feed_pressed.connect(func (idx: int) -> void:
+		if _owner_player:
+			_owner_player.feed_summoned_pet_slot(idx)
+	)
 	for i in 20:
 		_grid.add_child(_mk_slot(i))
 	rebuild()
@@ -162,10 +199,38 @@ func _select(index: int) -> void:
 	if inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null:
 		_tip.text = ""
 		_place_btn.visible = false
+		_inspect_btn.visible = false
+		_eat_btn.visible = false
+		_feed_btn.visible = false
 		return
 	var stack := inventory.slots[index]
 	_tip.text = stack.tooltip()
 	_refresh_place_button(stack.def())
+	var is_food := Food.is_food(stack)
+	_inspect_btn.visible = is_food
+	_eat_btn.visible = is_food
+	_feed_btn.visible = is_food and _owner_player != null and _owner_player.summoned_pet != null
+
+func _on_inspect_food() -> void:
+	if inventory == null or _selected < 0:
+		return
+	var stack := inventory.slots[_selected]
+	if stack == null or not Food.is_food(stack):
+		return
+	print("[food] inspect\n%s" % Food.inspector_text(stack))
+	var can_feed := _owner_player != null and _owner_player.summoned_pet != null
+	_food_inspector.show_stack(stack, _selected, can_feed)
+
+func _on_eat_food() -> void:
+	if _owner_player == null or _selected < 0:
+		return
+	visible = false
+	_owner_player.begin_eat_slot(_selected)
+
+func _on_feed_pet() -> void:
+	if _owner_player == null or _selected < 0:
+		return
+	_owner_player.feed_summoned_pet_slot(_selected)
 
 func _toggle_lock() -> void:
 	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
