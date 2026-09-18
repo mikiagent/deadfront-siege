@@ -78,7 +78,7 @@ echo "== deploy manifest ($VER)"
 (cd "$HOSTING" && npx --yes vercel deploy --yes --prod --project "$PROJECT" --scope "$SCOPE" 2>&1 | tail -3)
 # Prune packs the new manifest no longer references (Hobby Blob is capped at 1 GB).
 keep="$URL_core $URL_assets"
-for u in $(npx --yes vercel blob list --rw-token "$BLOB_READ_WRITE_TOKEN" 2>/dev/null | grep -oE 'https://[^ ]+\.pck'); do
-  case " $keep " in *" $u "*) ;; *) npx --yes vercel blob del "$u" --rw-token "$BLOB_READ_WRITE_TOKEN" --non-interactive >/dev/null 2>&1 && echo "   pruned $u";; esac
+for u in $(cd "$HOSTING" && npx --yes vercel blob list --rw-token "$BLOB_READ_WRITE_TOKEN" 2>/dev/null | grep -oE 'https://[^ ]+\.pck' | sort -u); do
+  case " $keep " in *" $u "*) ;; *) (cd "$HOSTING" && npx --yes vercel blob del "$u" --rw-token "$BLOB_READ_WRITE_TOKEN" --non-interactive >/dev/null 2>&1) && echo "   pruned $u";; esac
 done
 echo "published $VER"
