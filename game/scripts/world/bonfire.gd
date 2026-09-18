@@ -2,26 +2,52 @@ class_name Bonfire
 extends StaticBody3D
 ## Interact: Cauterise — clears deep_bleed for 5 HP.
 
+var kind: StringName = &"bonfire"
+var persist_building: bool = true
+var build_cell: Vector2i = Vector2i.ZERO
+var build_rot: int = 0
+
 func _ready() -> void:
+	add_to_group("placed_building")
 	add_to_group("bonfire")
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(1.1, 0.7, 1.1)
-	mesh.mesh = box
-	mesh.position.y = 0.35
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.85, 0.35, 0.1)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.4, 0.05)
-	mat.emission_energy_multiplier = 2.0
-	mesh.material_override = mat
-	add_child(mesh)
-	var cs := CollisionShape3D.new()
-	var sh := BoxShape3D.new()
-	sh.size = Vector3(1.1, 0.7, 1.1)
-	cs.shape = sh
-	cs.position.y = 0.35
-	add_child(cs)
+	if get_node_or_null("Shape") == null and get_node_or_null("Prop") == null and get_node_or_null("FallbackMesh") == null:
+		PropVisuals.apply_building_visual(self, kind, Vector3(1.1, 0.7, 1.1), Color(0.85, 0.35, 0.1))
+
+func _exit_tree() -> void:
+	if World.runtime == null:
+		return
+	var grid: Variant = World.runtime.get("build_grid")
+	if grid is BuildGrid:
+		(grid as BuildGrid).release(self)
+
+static func make() -> Bonfire:
+	var b := Bonfire.new()
+	b.persist_building = true
+	b.kind = &"bonfire"
+	b.name = "bonfire"
+	return b
+
+static func from_dict(d: Dictionary) -> Bonfire:
+	var b := make()
+	var cell_v: Variant = d.get("cell", [0, 0])
+	if cell_v is Array and (cell_v as Array).size() >= 2:
+		b.build_cell = Vector2i(int(cell_v[0]), int(cell_v[1]))
+	b.build_rot = int(d.get("rot", 0))
+	return b
+
+func set_grid_pose(cell: Vector2i, rot: int) -> void:
+	build_cell = cell
+	build_rot = posmod(rot, 4)
+	rotation.y = deg_to_rad(float(build_rot) * 90.0)
+
+func to_dict() -> Dictionary:
+	return {
+		"kind": str(kind),
+		"cell": [build_cell.x, build_cell.y],
+		"rot": posmod(build_rot, 4),
+		"x": global_position.x,
+		"z": global_position.z,
+	}
 
 func cauterise(player: Player) -> void:
 	if not player.statuses.has(&"deep_bleed"):

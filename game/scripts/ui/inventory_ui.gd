@@ -8,6 +8,8 @@ var _grid: GridContainer
 var _tip: Label
 var _pet_grid: GridContainer
 var _lock_btn: Button
+var _place_btn: Button
+var _owner_player: Player
 var _selected: int = -1
 
 func _ready() -> void:
@@ -37,13 +39,21 @@ func _ready() -> void:
 	_lock_btn.position = Vector2(240, 300)
 	_lock_btn.pressed.connect(_toggle_lock)
 	add_child(_lock_btn)
+	_place_btn = Button.new()
+	_place_btn.text = "Place"
+	_place_btn.custom_minimum_size = Vector2(220, 64)
+	_place_btn.position = Vector2(460, 300)
+	_place_btn.visible = false
+	_place_btn.pressed.connect(_on_place_pressed)
+	add_child(_place_btn)
 	for i in 20:
 		_grid.add_child(_mk_slot(i))
 	rebuild()
 	resized.connect(_layout_safe)
 
-func bind(inv: Inventory) -> void:
+func bind(inv: Inventory, owner_player: Player = null) -> void:
 	inventory = inv
+	_owner_player = owner_player
 	inventory.changed.connect(rebuild)
 	rebuild()
 
@@ -85,6 +95,7 @@ func rebuild() -> void:
 			var s := pet_bag.slots[i]
 			b.text = "" if s == null else "%s\n%d" % [s.def_id, s.count]
 			_pet_grid.add_child(b)
+	_select(_selected if _selected >= 0 else -1)
 
 func _mk_slot(index: int) -> Button:
 	var b := Button.new()
@@ -98,8 +109,11 @@ func _select(index: int) -> void:
 	_selected = index
 	if inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null:
 		_tip.text = ""
+		_place_btn.visible = false
 		return
-	_tip.text = inventory.slots[index].tooltip()
+	var stack := inventory.slots[index]
+	_tip.text = stack.tooltip()
+	_refresh_place_button(stack.def())
 
 func _toggle_lock() -> void:
 	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
@@ -110,6 +124,33 @@ func _toggle_lock() -> void:
 	s.set_flag(&"locked", not s.is_locked())
 	inventory.changed.emit()
 	_select(_selected)
+
+func _refresh_place_button(def: ItemDef) -> void:
+	if _place_btn == null:
+		return
+	if def == null or def.place_as == &"":
+		_place_btn.visible = false
+		return
+	var w := maxi(1, def.footprint.x)
+	var h := maxi(1, def.footprint.y)
+	_place_btn.text = "Place %dx%d" % [w, h]
+	_place_btn.visible = true
+
+func _on_place_pressed() -> void:
+	if inventory == null or _owner_player == null:
+		return
+	if _selected < 0 or _selected >= inventory.slot_count:
+		return
+	var stack := inventory.slots[_selected]
+	if stack == null:
+		return
+	var def := stack.def()
+	if def == null or def.place_as == &"":
+		return
+	visible = false
+	pet_bag = null
+	_owner_player.placer.begin(def.place_as)
+	TouchControls.set_context(&"place")
 
 func _layout_safe() -> void:
 	if OS.has_feature("mobile"):

@@ -96,6 +96,33 @@ const BUTTONS: Array[Dictionary] = [
 		"color": Color(0.65, 0.75, 0.9),
 		"contexts": [CONTEXT_EXPLORE]
 	},
+	{
+		"id": "place_rotate",
+		"action": "place_rotate",
+		"label": "ROT",
+		"size": 84,
+		"at": Vector2(-360, -100),
+		"color": Color(0.5, 0.7, 0.95),
+		"contexts": [CONTEXT_PLACE]
+	},
+	{
+		"id": "place_confirm",
+		"action": "place_confirm",
+		"label": "PLACE",
+		"size": 118,
+		"at": Vector2(-220, -180),
+		"color": Color(0.35, 0.8, 0.45),
+		"contexts": [CONTEXT_PLACE]
+	},
+	{
+		"id": "place_cancel",
+		"action": "place_cancel",
+		"label": "CANCEL",
+		"size": 108,
+		"at": Vector2(-90, -110),
+		"color": Color(0.85, 0.4, 0.42),
+		"contexts": [CONTEXT_PLACE]
+	},
 ]
 
 var enabled: bool = false

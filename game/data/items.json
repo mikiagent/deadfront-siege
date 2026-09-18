@@ -527,7 +527,8 @@
       "stack_max": 1,
       "tool_class": "none",
       "base_level": 1,
-      "place_as": "makeshift_taming_pen"
+      "place_as": "makeshift_taming_pen",
+      "footprint": [4, 4]
     },
     {
       "id": "bonfire_kit",
@@ -538,7 +539,8 @@
       "stack_max": 5,
       "tool_class": "none",
       "base_level": 1,
-      "place_as": "bonfire"
+      "place_as": "bonfire",
+      "footprint": [1, 1]
     },
     {
       "id": "workbench_kit",
@@ -549,7 +551,8 @@
       "stack_max": 1,
       "tool_class": "none",
       "base_level": 1,
-      "place_as": "workbench"
+      "place_as": "workbench",
+      "footprint": [2, 1]
     },
     {
       "id": "drying_rack_kit",
@@ -560,7 +563,8 @@
       "stack_max": 1,
       "tool_class": "none",
       "base_level": 1,
-      "place_as": "drying_rack"
+      "place_as": "drying_rack",
+      "footprint": [2, 1]
     },
     {
       "id": "tent_kit",
@@ -571,7 +575,8 @@
       "stack_max": 1,
       "tool_class": "none",
       "base_level": 1,
-      "place_as": "tent"
+      "place_as": "tent",
+      "footprint": [3, 3]
     },
     {
       "id": "basket_kit",
@@ -582,7 +587,8 @@
       "stack_max": 2,
       "tool_class": "none",
       "base_level": 1,
-      "place_as": "basket"
+      "place_as": "basket",
+      "footprint": [1, 1]
     },
     {
       "id": "fence_kit",
@@ -593,7 +599,8 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "place_as": "fence"
+      "place_as": "fence",
+      "footprint": [2, 1]
     },
     {
       "id": "gate_kit",
@@ -604,7 +611,8 @@
       "stack_max": 5,
       "tool_class": "none",
       "base_level": 1,
-      "place_as": "gate"
+      "place_as": "gate",
+      "footprint": [2, 1]
     },
     {
       "id": "sign_kit",
@@ -615,7 +623,8 @@
       "stack_max": 5,
       "tool_class": "none",
       "base_level": 1,
-      "place_as": "sign"
+      "place_as": "sign",
+      "footprint": [1, 1]
     },
     {
       "id": "petals",

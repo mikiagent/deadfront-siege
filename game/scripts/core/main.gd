@@ -25,7 +25,7 @@ func _ready() -> void:
 			var inv_ui = preload("res://scenes/ui/inventory.tscn").instantiate()
 			$UI.add_child(inv_ui)
 			player.ui = inv_ui
-			inv_ui.bind(player.inventory)
+			inv_ui.bind(player.inventory, player)
 			var craft = preload("res://scenes/ui/craft.tscn").instantiate()
 			$UI.add_child(craft)
 			player.craft_ui = craft

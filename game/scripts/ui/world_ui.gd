@@ -32,6 +32,9 @@ func _ready() -> void:
 	add_child(_panel)
 
 func _unhandled_input(event: InputEvent) -> void:
+	var player := get_tree().get_first_node_in_group("player") as Player
+	if player and player.placer and player.placer.placing != &"" and event.is_action_pressed("pause"):
+		return
 	if event.is_action_pressed("map"):
 		if _mode == &"map":
 			hide_all()

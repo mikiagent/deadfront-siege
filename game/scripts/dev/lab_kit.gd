@@ -58,7 +58,7 @@ static func build(host: Node3D, size: float = 80.0) -> Dictionary:
 	var inv_ui: InventoryUI = preload("res://scenes/ui/inventory.tscn").instantiate()
 	ui.add_child(inv_ui)
 	player.ui = inv_ui
-	inv_ui.bind(player.inventory)
+	inv_ui.bind(player.inventory, player)
 	var craft = preload("res://scenes/ui/craft.tscn").instantiate()
 	ui.add_child(craft)
 	player.craft_ui = craft

@@ -25,6 +25,9 @@ const ACTIONS: Dictionary = {
 	"hunt_chase": [KEY_H],
 	"map": [KEY_M],
 	"pause": [KEY_ESCAPE],
+	"place_rotate": [KEY_R],
+	"place_confirm": [KEY_ENTER, KEY_KP_ENTER],
+	"place_cancel": [KEY_ESCAPE],
 }
 
 func _init() -> void:

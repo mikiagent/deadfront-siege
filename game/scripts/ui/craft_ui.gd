@@ -205,6 +205,7 @@ func _on_craft() -> void:
 func _place_kind(kind: StringName) -> void:
 	hide_ui()
 	player.placer.begin(kind)
+	TouchControls.set_context(&"place")
 
 func _on_filter_can() -> void:
 	_filter_can = true

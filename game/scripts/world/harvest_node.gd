@@ -41,6 +41,10 @@ func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Di
 	_apply_tint()
 
 func _ready() -> void:
+	var runtime := get_parent()
+	if runtime and runtime.has_method("surface_y"):
+		var tile := BuildGrid.tile_of(global_position)
+		global_position = BuildGrid.tile_centre(tile, runtime)
 	add_to_group("harvest")
 	collision_layer = 1
 	collision_mask = 0

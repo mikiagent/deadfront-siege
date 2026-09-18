@@ -1,11 +1,26 @@
 class_name BuildPlacer
 extends Node
-## Ghost building under the cursor, 1 m snap, red on overlap. Consumes a kit, else category leftovers.
+## Grid-snap placement flow used by inventory and crafting.
+
+const GRID_HALF_SPAN := 4
 
 var placing: StringName = &""
-var ghost: MeshInstance3D
 var valid: bool = false
-var _cell: Vector3 = Vector3.ZERO
+var reason: String = ""
+var cell: Vector2i = Vector2i.ZERO
+var rot_step: int = 0
+
+var _ghost_root: Node3D
+var _ghost_visual: Node3D
+var _ghost_grid: MeshInstance3D
+var _ghost_cells: Node3D
+var _ghost_label: Label3D
+
+var _mat_valid: StandardMaterial3D
+var _mat_invalid: StandardMaterial3D
+var _cell_valid: StandardMaterial3D
+var _cell_invalid: StandardMaterial3D
+var _grid_mat: StandardMaterial3D
 
 func _kit_id(kind: StringName) -> String:
 	match kind:
@@ -31,49 +46,106 @@ func _kit_id(kind: StringName) -> String:
 			return ""
 
 func _ready() -> void:
-	ghost = MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(3.0, 1.2, 3.0)
-	ghost.mesh = box
-	ghost.visible = false
-	add_child(ghost)
+	_build_materials()
+	_ghost_root = Node3D.new()
+	_ghost_root.name = "GhostRoot"
+	_ghost_root.top_level = true
+	_ghost_root.visible = false
+	add_child(_ghost_root)
+	_ghost_visual = Node3D.new()
+	_ghost_visual.name = "GhostVisual"
+	_ghost_root.add_child(_ghost_visual)
+	_ghost_label = Label3D.new()
+	_ghost_label.name = "GhostLabel"
+	_ghost_label.position = Vector3(0.0, 2.6, 0.0)
+	_ghost_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_ghost_label.modulate = Color(1.0, 1.0, 1.0, 0.92)
+	_ghost_root.add_child(_ghost_label)
+	_ghost_grid = MeshInstance3D.new()
+	_ghost_grid.name = "GhostGrid"
+	_ghost_grid.top_level = true
+	_ghost_grid.visible = false
+	_ghost_grid.material_override = _grid_mat
+	add_child(_ghost_grid)
+	_ghost_cells = Node3D.new()
+	_ghost_cells.name = "GhostCells"
+	_ghost_cells.top_level = true
+	_ghost_cells.visible = false
+	add_child(_ghost_cells)
 
 func begin(kind: StringName) -> void:
 	placing = kind
-	ghost.visible = true
+	rot_step = 0
+	reason = ""
+	valid = false
+	_rebuild_ghost_visual()
+	_snap_to_pointer()
+	_sync_grid_state()
+	_ghost_root.visible = true
+	_ghost_grid.visible = true
+	_ghost_cells.visible = true
+	var grid := _grid()
+	if grid:
+		grid.set_actor(get_parent() as Node3D)
+	TouchControls.set_context(&"place")
 
 func cancel() -> void:
+	var grid := _grid()
+	if grid:
+		grid.clear_actor(get_parent() as Node3D)
 	placing = &""
-	ghost.visible = false
+	valid = false
+	reason = ""
+	_ghost_root.visible = false
+	_ghost_grid.visible = false
+	_ghost_cells.visible = false
+	TouchControls.set_context(&"explore")
+
+func rotate_clockwise() -> void:
+	if placing == &"":
+		return
+	rot_step = posmod(rot_step + 1, 4)
+	_sync_grid_state()
+
+func tap_ground() -> void:
+	if placing == &"":
+		return
+	_snap_to_pointer()
+	_sync_grid_state()
 
 func _process(_delta: float) -> void:
 	if placing == &"":
 		return
-	var hit := _ground()
-	if hit.is_empty():
-		valid = false
-		return
-	var pos: Vector3 = hit.position
-	_cell = Vector3(round(pos.x), 0.0, round(pos.z))
-	ghost.global_position = _cell + Vector3(0, 0.6, 0)
-	valid = not _overlaps()
-	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.3, 0.9, 0.35, 0.45) if valid else Color(0.9, 0.2, 0.15, 0.45)
-	ghost.material_override = mat
+	_snap_to_pointer()
+	_sync_grid_state()
 
 func confirm(player: Player) -> bool:
-	if placing == &"" or not valid:
+	if placing == &"":
+		return false
+	_sync_grid_state()
+	if not valid:
+		print("[build] rejected %s" % (reason if reason != "" else "invalid"))
 		return false
 	if not _pay(player):
-		print("[item] cannot afford %s" % placing)
+		print("[build] rejected missing_kit")
 		return false
 	var node := _spawn(placing)
 	if node == null:
 		return false
-	player.get_parent().add_child(node)
-	node.global_position = _cell
-	print("[item] placed %s" % placing)
+	var runtime := World.runtime
+	var grid := _grid()
+	if runtime == null or grid == null:
+		if node:
+			node.queue_free()
+		print("[build] rejected no_runtime")
+		return false
+	runtime.add_child(node)
+	var pose := grid.placement_transform(placing, cell, rot_step)
+	node.global_transform = pose
+	if node.has_method("set_grid_pose"):
+		node.set_grid_pose(cell, rot_step)
+	grid.occupy(node, grid.cells_for(placing, cell, rot_step))
+	print("[build] placed %s at (%d,%d) rot=%d" % [placing, cell.x, cell.y, posmod(rot_step, 4) * 90])
 	World.note_building(placing)
 	cancel()
 	return true
@@ -81,9 +153,9 @@ func confirm(player: Player) -> bool:
 func _spawn(kind: StringName) -> Node3D:
 	match kind:
 		&"makeshift_taming_pen":
-			return TamingPen.new()
+			return TamingPen.make()
 		&"bonfire":
-			return Bonfire.new()
+			return Bonfire.make()
 		&"workbench":
 			return CraftStation.make(&"workbench")
 		&"drying_rack":
@@ -132,23 +204,36 @@ func _pay(player: Player) -> bool:
 		return player.inventory.consume(&"sign_kit", 1)
 	return false
 
-func _overlaps() -> bool:
-	var space := get_tree().root.get_world_3d().direct_space_state
-	var q := PhysicsShapeQueryParameters3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(3.0, 1.2, 3.0)
-	q.shape = box
-	q.transform = Transform3D(Basis.IDENTITY, _cell + Vector3(0, 0.6, 0))
-	q.collide_with_bodies = true
-	var hits := space.intersect_shape(q, 8)
-	for h in hits:
-		var n: Object = h.get("collider")
-		if n is Player:
-			continue
-		if n is StaticBody3D and str((n as Node).name).begins_with("Floor"):
-			continue
-		return true
-	return false
+func _sync_grid_state() -> void:
+	if placing == &"":
+		return
+	var grid := _grid()
+	if grid == null:
+		valid = false
+		reason = "no_runtime"
+		return
+	rot_step = grid.suggested_fence_rot(placing, cell, rot_step)
+	reason = grid.can_place(placing, cell, rot_step)
+	valid = reason == ""
+	_ghost_root.global_transform = grid.placement_transform(placing, cell, rot_step)
+	_apply_ghost_material(_ghost_visual, _mat_valid if valid else _mat_invalid)
+	_draw_overlay(grid)
+	_update_label(grid)
+
+func _grid() -> BuildGrid:
+	if World.runtime == null:
+		return null
+	var g: Variant = World.runtime.get("build_grid")
+	if g is BuildGrid:
+		return g as BuildGrid
+	return null
+
+func _snap_to_pointer() -> bool:
+	var hit := _ground()
+	if hit.is_empty():
+		return false
+	cell = BuildGrid.tile_of(hit.position)
+	return true
 
 func _ground() -> Dictionary:
 	var cam := get_viewport().get_camera_3d()
@@ -159,3 +244,97 @@ func _ground() -> Dictionary:
 	var to := from + cam.project_ray_normal(mouse) * 200.0
 	var q := PhysicsRayQueryParameters3D.create(from, to)
 	return get_tree().root.get_world_3d().direct_space_state.intersect_ray(q)
+
+func _build_materials() -> void:
+	_mat_valid = StandardMaterial3D.new()
+	_mat_valid.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_mat_valid.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_mat_valid.albedo_color = Color(0.3, 0.9, 0.35, 0.42)
+	_mat_invalid = StandardMaterial3D.new()
+	_mat_invalid.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_mat_invalid.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_mat_invalid.albedo_color = Color(0.9, 0.2, 0.15, 0.42)
+	_cell_valid = StandardMaterial3D.new()
+	_cell_valid.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_cell_valid.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_cell_valid.albedo_color = Color(0.15, 0.9, 0.4, 0.35)
+	_cell_invalid = StandardMaterial3D.new()
+	_cell_invalid.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_cell_invalid.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_cell_invalid.albedo_color = Color(0.95, 0.2, 0.2, 0.35)
+	_grid_mat = StandardMaterial3D.new()
+	_grid_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_grid_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_grid_mat.albedo_color = Color(0.85, 0.92, 1.0, 0.35)
+	_grid_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_grid_mat.no_depth_test = true
+
+func _rebuild_ghost_visual() -> void:
+	for c in _ghost_visual.get_children():
+		c.queue_free()
+	var path := PropVisuals.model_path(placing)
+	if path != "" and ResourceLoader.exists(path):
+		var packed := load(path)
+		if packed is PackedScene:
+			_ghost_visual.add_child((packed as PackedScene).instantiate())
+	else:
+		var box := MeshInstance3D.new()
+		var dims := PropVisuals.footprint(placing)
+		var shape := BoxMesh.new()
+		shape.size = Vector3(maxf(0.8, float(dims.x)), 1.6, maxf(0.8, float(dims.y)))
+		box.mesh = shape
+		box.position.y = shape.size.y * 0.5
+		_ghost_visual.add_child(box)
+	_apply_ghost_material(_ghost_visual, _mat_valid)
+
+func _apply_ghost_material(node: Node, mat: StandardMaterial3D) -> void:
+	if node is MeshInstance3D:
+		(node as MeshInstance3D).material_override = mat
+	for c in node.get_children():
+		_apply_ghost_material(c, mat)
+
+func _draw_overlay(grid: BuildGrid) -> void:
+	var im := ImmediateMesh.new()
+	im.surface_begin(Mesh.PRIMITIVE_LINES, _grid_mat)
+	var center := grid.placement_transform(placing, cell, rot_step).origin
+	var start_x := floorf(center.x) - float(GRID_HALF_SPAN) + 0.5
+	var start_z := floorf(center.z) - float(GRID_HALF_SPAN) + 0.5
+	for row in range(0, GRID_HALF_SPAN * 2 + 2):
+		var z := start_z + float(row) - 0.5
+		for step in range(0, GRID_HALF_SPAN * 2 + 1):
+			var x0 := start_x + float(step) - 0.5
+			var x1 := x0 + 1.0
+			im.surface_add_vertex(Vector3(x0, _surface_y(x0, z) + 0.06, z))
+			im.surface_add_vertex(Vector3(x1, _surface_y(x1, z) + 0.06, z))
+	for col in range(0, GRID_HALF_SPAN * 2 + 2):
+		var x := start_x + float(col) - 0.5
+		for step in range(0, GRID_HALF_SPAN * 2 + 1):
+			var z0 := start_z + float(step) - 0.5
+			var z1 := z0 + 1.0
+			im.surface_add_vertex(Vector3(x, _surface_y(x, z0) + 0.06, z0))
+			im.surface_add_vertex(Vector3(x, _surface_y(x, z1) + 0.06, z1))
+	im.surface_end()
+	_ghost_grid.mesh = im
+	for c in _ghost_cells.get_children():
+		c.queue_free()
+	var mat := _cell_valid if valid else _cell_invalid
+	for c in grid.cells_for(placing, cell, rot_step):
+		var tile := MeshInstance3D.new()
+		var plane := PlaneMesh.new()
+		plane.size = Vector2(0.96, 0.96)
+		tile.mesh = plane
+		tile.material_override = mat
+		_ghost_cells.add_child(tile)
+		tile.global_position = BuildGrid.tile_centre(c, World.runtime) + Vector3(0.0, 0.05, 0.0)
+
+func _surface_y(x: float, z: float) -> float:
+	if World.runtime and World.runtime.has_method("surface_y"):
+		return World.runtime.surface_y(x, z)
+	return 0.0
+
+func _update_label(grid: BuildGrid) -> void:
+	var fp := grid.footprint(placing)
+	var label := "%dx%d" % [fp.x, fp.y]
+	if not valid and reason != "":
+		label += " · %s" % reason
+	_ghost_label.text = label

@@ -22,6 +22,7 @@ var _tier: int = 25
 var _camp_pos: Vector3 = Vector3.ZERO
 var _harbour_pos: Vector3 = Vector3.ZERO
 var spawn_rejected: int = 0
+var build_grid: BuildGrid
 
 ## Radius of dry, walkable land: the beach blend starts at 0.40 * size (see _terrain).
 func land_radius() -> float:
@@ -61,24 +62,31 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	_env()
 	_sun()
 	_terrain(size, _climate)
+	build_grid = BuildGrid.new()
+	build_grid.name = "BuildGrid"
+	build_grid.setup(self)
+	add_child(build_grid)
 	var harbour_a: Array = def.get("harbour", [0, 0, 12])
 	var camp_a: Array = def.get("camp", [0, 0, 6])
-	_camp_pos = _at(float(camp_a[0]), float(camp_a[2]))
-	_harbour_pos = _at(float(harbour_a[0]), float(harbour_a[2]))
+	_camp_pos = _tile_at(float(camp_a[0]), float(camp_a[2]))
+	_harbour_pos = _tile_at(float(harbour_a[0]), float(harbour_a[2]))
 	harbour = (load("res://scripts/world/harbour.gd") as GDScript).new()
 	harbour.position = _harbour_pos
 	add_child(harbour)
-	_camp(_at(float(camp_a[0]), float(camp_a[2])))
+	_reserve_box(_harbour_pos, Vector2i(3, 6), &"harbour")
+	_camp(_camp_pos)
 	cargo = (load("res://scripts/world/cargo_warp.gd") as GDScript).new()
-	cargo.position = _at(float(camp_a[0]) + 3.0, float(camp_a[2]))
+	cargo.position = _tile_at(float(camp_a[0]) + 3.0, float(camp_a[2]))
 	add_child(cargo)
+	build_grid.reserve_kind(&"basket", BuildGrid.tile_of(cargo.position), 0)
 	if str(def.get("kind", "")) == "private":
 		var PB := load("res://scripts/world/placed_building.gd") as GDScript
 		cargo_basket = PB.make(&"basket")
 		cargo_basket.is_cargo = true
 		cargo_basket.storage = World.cargo_home
-		cargo_basket.position = _at(float(harbour_a[0]) + 3.0, float(harbour_a[2]))
+		cargo_basket.position = _tile_at(float(harbour_a[0]) + 3.0, float(harbour_a[2]))
 		add_child(cargo_basket)
+		build_grid.reserve_kind(&"basket", BuildGrid.tile_of(cargo_basket.position), 0)
 	_scatter(def, terrain, _climate, _tier, size)
 	_creatures(def)
 	var crater_v: Variant = def.get("crater", null)
@@ -147,6 +155,9 @@ func surface_y(x: float, z: float) -> float:
 
 func _at(x: float, z: float) -> Vector3:
 	return Vector3(x, surface_y(x, z), z)
+
+func _tile_at(x: float, z: float) -> Vector3:
+	return BuildGrid.tile_centre(BuildGrid.tile_of(Vector3(x, 0.0, z)), self)
 
 func ring_name(pos: Vector3) -> StringName:
 	var r := Vector2(pos.x, pos.z).length()
@@ -338,22 +349,26 @@ func _camp(at: Vector3) -> void:
 	ground.material_override = gmat
 	ground.extra_cull_margin = 80.0
 	add_child(ground)
-	var fire := Bonfire.new()
-	fire.position = at + Vector3(-2.0, 0, 0)
-	fire.position.y = surface_y(fire.position.x, fire.position.z)
+	var fire := Bonfire.make()
+	fire.persist_building = false
+	var fire_cell := BuildGrid.tile_of(at + Vector3(-2.0, 0.0, 0.0))
 	add_child(fire)
-	_attach_prop(fire, &"bonfire")
+	fire.global_transform = build_grid.placement_transform(&"bonfire", fire_cell, 0)
+	fire.set_grid_pose(fire_cell, 0)
+	build_grid.reserve_kind(&"bonfire", fire_cell, 0)
 	var bench := CraftStation.make(&"workbench")
-	bench.position = at + Vector3(2.0, 0, 0)
-	bench.position.y = surface_y(bench.position.x, bench.position.z)
+	bench.persist_building = false
+	var bench_cell := BuildGrid.tile_of(at + Vector3(2.0, 0.0, 0.0))
 	add_child(bench)
-	_attach_prop(bench, &"workbench")
-	var shed := Node3D.new()
+	bench.global_transform = build_grid.placement_transform(&"workbench", bench_cell, 0)
+	bench.set_grid_pose(bench_cell, 0)
+	build_grid.reserve_kind(&"workbench", bench_cell, 0)
+	var shed := StaticBody3D.new()
 	shed.name = "CampShed"
-	shed.position = at + Vector3(0, 0, -3.5)
-	shed.position.y = surface_y(shed.position.x, shed.position.z)
+	shed.position = _tile_at(at.x, at.z - 3.5)
 	add_child(shed)
-	_attach_prop(shed, &"tent")
+	PropVisuals.apply_building_visual(shed, &"tent", Vector3(2.2, 1.6, 2.2), Color(0.55, 0.4, 0.22))
+	build_grid.reserve_kind(&"tent", BuildGrid.tile_of(shed.global_position), 0)
 
 func _coziness(at: Vector3) -> void:
 	var area := Area3D.new()
@@ -470,6 +485,8 @@ func _plant_family(family: String, role: String, n: int, fallback_id: StringName
 	return placed
 
 func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringName, tool: StringName, climate: String, level: int, color: Color) -> int:
+	var tile := BuildGrid.tile_of(pos)
+	pos = BuildGrid.tile_centre(tile, self)
 	var models: PackedStringArray = _models(family)
 	var harvest: Dictionary = _harvest(family)
 	var yield_id := fallback_id
@@ -694,20 +711,18 @@ func _first_mesh(n: Node) -> Mesh:
 			return m
 	return null
 
-func _attach_prop(host: Node3D, kind: StringName) -> void:
-	var buildings: Dictionary = Data.props_manifest.get("buildings", {})
-	var row: Variant = buildings.get(str(kind), {})
-	if not row is Dictionary:
+func _reserve_box(center: Vector3, dims: Vector2i, tag: StringName) -> void:
+	if build_grid == null:
 		return
-	var model := str(row.get("model", ""))
-	if model == "":
-		return
-	var path := "res://assets/props/kenney/%s.glb" % model
-	if not ResourceLoader.exists(path):
-		return
-	var inst: Node = load(path).instantiate()
-	inst.name = "Prop"
-	host.add_child(inst)
+	var start := Vector2i(
+		floori(center.x - float(dims.x) * 0.5),
+		floori(center.z - float(dims.y) * 0.5)
+	)
+	var cells: Array[Vector2i] = []
+	for z in dims.y:
+		for x in dims.x:
+			cells.append(start + Vector2i(x, z))
+	build_grid.reserve_cells(cells, tag)
 
 func _drive_day() -> void:
 	if sun == null:

@@ -21,6 +21,7 @@ extends Resource
 @export var max_durability: int = 0
 @export var default_attributes: Dictionary = {}
 @export var place_as: StringName = &""
+@export var footprint: Vector2i = Vector2i.ONE
 @export var stats_per_level: Dictionary = {}
 
 static func from_dict(d: Dictionary) -> ItemDef:
@@ -46,6 +47,9 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	if attrs is Dictionary:
 		def.default_attributes = (attrs as Dictionary).duplicate(true)
 	def.place_as = StringName(str(d.get("place_as", "")))
+	var fp: Variant = d.get("footprint", [])
+	if fp is Array and (fp as Array).size() >= 2:
+		def.footprint = Vector2i(maxi(1, int(fp[0])), maxi(1, int(fp[1])))
 	var spl: Variant = d.get("stats_per_level", {})
 	if spl is Dictionary:
 		def.stats_per_level = (spl as Dictionary).duplicate(true)

@@ -51,7 +51,6 @@ var _hips_anchor: Marker3D
 var _mount_hips_offset: Vector3 = Vector3.ZERO
 var _mount_saved_parent: Node
 var _ground_marker: MeshInstance3D
-var _ground_marker_tween: Tween
 var _hold_walk_candidate: bool = false
 var _hold_walk_elapsed: float = 0.0
 var _hold_walk_retarget_left: float = 0.0
@@ -199,6 +198,19 @@ func _cam_dir(input: Vector2) -> Vector3:
 	return dir
 
 func _unhandled_input(event: InputEvent) -> void:
+	if placer and placer.placing != &"":
+		if event.is_action_pressed("place_rotate"):
+			placer.rotate_clockwise()
+			get_viewport().set_input_as_handled()
+			return
+		if event.is_action_pressed("place_confirm"):
+			placer.confirm(self)
+			get_viewport().set_input_as_handled()
+			return
+		if event.is_action_pressed("place_cancel"):
+			placer.cancel()
+			get_viewport().set_input_as_handled()
+			return
 	if event.is_action_pressed("inventory"):
 		if ui:
 			ui.visible = not ui.visible
@@ -240,7 +252,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			hunt.use_net()
 	if event.is_action_pressed("tap"):
 		if placer.placing != &"":
-			placer.confirm(self)
+			if _tap_blocked():
+				_hold_walk_candidate = false
+				return
+			placer.tap_ground()
 			_hold_walk_candidate = false
 			get_viewport().set_input_as_handled()
 			return
@@ -268,12 +283,16 @@ func _tap_world() -> StringName:
 	if picked != null:
 		_interact_tap_target(picked)
 		return &"interact"
-	var nav_pos := _closest_nav_point(hit.position)
+	var tile := BuildGrid.tile_of(hit.position)
+	var tile_center := BuildGrid.tile_centre(tile, World.runtime)
+	var nav_pos := _closest_nav_point(tile_center)
+	var marker_tile := BuildGrid.tile_of(nav_pos)
+	var marker_pos := BuildGrid.tile_centre(marker_tile, World.runtime)
 	_cancel_gather_and_butcher()
 	if hunt:
 		hunt.stop()
 	nav_to(nav_pos)
-	_show_ground_marker(nav_pos)
+	_show_ground_marker(marker_pos)
 	return &"ground"
 
 func _interact_tap_target(col: Object) -> void:
@@ -479,44 +498,24 @@ func _setup_ground_marker() -> void:
 	_ground_marker.name = "GroundMarker"
 	_ground_marker.top_level = true
 	_ground_marker.visible = false
-	var ring := TorusMesh.new()
-	ring.inner_radius = 0.26
-	ring.outer_radius = 0.3
-	ring.ring_segments = 32
-	ring.rings = 12
-	_ground_marker.mesh = ring
-	_ground_marker.rotation_degrees.x = 90.0
+	var tile := PlaneMesh.new()
+	tile.size = Vector2(1.0, 1.0)
+	_ground_marker.mesh = tile
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.25, 0.85, 0.55, 0.95)
+	mat.albedo_color = Color(0.25, 0.85, 0.55, 0.4)
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_ground_marker.material_override = mat
 	add_child(_ground_marker)
 
 func _show_ground_marker(at: Vector3) -> void:
 	if _ground_marker == null:
 		return
-	_ground_marker.global_position = at + Vector3(0.0, 0.06, 0.0)
+	_ground_marker.global_position = at + Vector3(0.0, 0.05, 0.0)
 	_ground_marker.visible = true
-	var mat := _ground_marker.material_override as StandardMaterial3D
-	if mat:
-		mat.albedo_color = Color(0.25, 0.85, 0.55, 0.95)
-	if _ground_marker_tween and _ground_marker_tween.is_valid():
-		_ground_marker_tween.kill()
-	_ground_marker_tween = create_tween()
-	_ground_marker_tween.tween_method(_set_ground_marker_alpha, 0.95, 0.0, 0.5)
-	_ground_marker_tween.tween_callback(_clear_ground_marker)
-
-func _set_ground_marker_alpha(a: float) -> void:
-	if _ground_marker == null:
-		return
-	var mat := _ground_marker.material_override as StandardMaterial3D
-	if mat:
-		mat.albedo_color.a = clampf(a, 0.0, 1.0)
 
 func _clear_ground_marker() -> void:
-	if _ground_marker_tween and _ground_marker_tween.is_valid():
-		_ground_marker_tween.kill()
 	if _ground_marker:
 		_ground_marker.visible = false
 
@@ -555,10 +554,12 @@ func _retarget_hold_walk() -> void:
 	var col: Object = hit.get("collider", null)
 	if _is_interactable(col):
 		return
-	var nav_pos := _closest_nav_point(hit.position)
+	var tile := BuildGrid.tile_of(hit.position)
+	var tile_center := BuildGrid.tile_centre(tile, World.runtime)
+	var nav_pos := _closest_nav_point(tile_center)
 	_cancel_gather_and_butcher()
 	nav_to(nav_pos)
-	_show_ground_marker(nav_pos)
+	_show_ground_marker(BuildGrid.tile_centre(BuildGrid.tile_of(nav_pos), World.runtime))
 
 func _sync_touch_context() -> void:
 	if TouchControls == null:

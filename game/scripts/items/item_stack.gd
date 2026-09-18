@@ -108,6 +108,8 @@ func tooltip() -> String:
 	var d := def()
 	var title := d.display_name if d else str(def_id)
 	var lines: PackedStringArray = ["%s x%d" % [title, count], "lv %d  process %d" % [level, process_count]]
+	if d and d.place_as != &"":
+		lines.append("footprint %dx%d" % [d.footprint.x, d.footprint.y])
 	if max_durability > 0:
 		lines.append("dur %d/%d%s" % [durability, max_durability, " BROKEN" if is_broken() else ""])
 	var dmg := scaled_damage()

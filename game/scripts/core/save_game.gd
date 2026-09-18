@@ -1,8 +1,8 @@
 extends RefCounted
-## Snapshot C save. Schema 1. Ids only, never node references.
+## Snapshot C save. Schema 2. Ids only, never node references.
 
 const PATH := "user://save_1.json"
-const SCHEMA := 1
+const SCHEMA := 2
 
 static func exists() -> bool:
 	return FileAccess.file_exists(PATH)
@@ -16,7 +16,12 @@ static func save_now() -> void:
 	if World.runtime:
 		for n in World.runtime.get_tree().get_nodes_in_group("placed_building"):
 			var b = n
-			if b and b.has_method("to_dict") and not bool(b.get("is_cargo")):
+			var persist := true
+			if b and b.has_method("get"):
+				var pv: Variant = b.get("persist_building")
+				if pv != null:
+					persist = bool(pv)
+			if b and b.has_method("to_dict") and persist and not bool(b.get("is_cargo")):
 				buildings.append(b.to_dict())
 	var pets: Array = []
 	for rec in player.bonded:
@@ -73,8 +78,9 @@ static func load_now(host: Node) -> void:
 		World.start_new(host)
 		return
 	var data: Dictionary = parsed
-	if int(data.get("schema", 0)) != SCHEMA:
-		print("[world] save schema mismatch")
+	var schema := int(data.get("schema", 0))
+	if schema != SCHEMA:
+		print("[world] save schema mismatch got=%d want=%d" % [schema, SCHEMA])
 	World.home_terrain = StringName(str(data.get("home", {}).get("terrain", "")))
 	World.pioneer_level = int(data.get("pioneer_level", 0))
 	World.pioneer_crafts = data.get("pioneer_crafts", {})
@@ -95,7 +101,7 @@ static func load_now(host: Node) -> void:
 	var pos := Vector3(float(pos_a[0]), float(pos_a[1]), float(pos_a[2]))
 	World.load_island(host, iid, pos, false)
 	if World.is_home():
-		_restore_buildings(World._home_buildings_cache)
+		_restore_buildings(World._home_buildings_cache, schema)
 	var player := World._player()
 	if player == null:
 		return
@@ -121,15 +127,64 @@ static func load_now(host: Node) -> void:
 		print("[world] offline rest %ds" % elapsed)
 	print("[world] loaded island=%s terrain=%s pioneer=%d" % [iid, World.home_terrain, World.pioneer_level])
 
-static func _restore_buildings(rows: Array) -> void:
+static func _restore_buildings(rows: Array, schema: int) -> void:
 	if World.runtime == null:
 		return
+	var grid: BuildGrid = null
+	var gv: Variant = World.runtime.get("build_grid")
+	if gv is BuildGrid:
+		grid = gv as BuildGrid
+	if grid:
+		grid.clear_occupancy()
 	for row in rows:
 		if not row is Dictionary:
 			continue
-		var b = (load("res://scripts/world/placed_building.gd") as GDScript).from_dict(row)
+		var normalized := _normalize_build_row(row as Dictionary, schema)
+		var b := _spawn_building(normalized)
+		if b == null:
+			continue
 		World.runtime.add_child(b)
-		b.global_position = Vector3(float(row.get("x", 0.0)), 0.0, float(row.get("z", 0.0)))
+		_place_building(b, normalized, grid)
+
+static func _normalize_build_row(row: Dictionary, schema: int) -> Dictionary:
+	var out := row.duplicate(true)
+	if schema >= 2 and out.has("cell"):
+		return out
+	var x := float(out.get("x", 0.0))
+	var z := float(out.get("z", 0.0))
+	var tile := BuildGrid.tile_of(Vector3(x, 0.0, z))
+	out["cell"] = [tile.x, tile.y]
+	out["rot"] = int(out.get("rot", 0))
+	return out
+
+static func _spawn_building(row: Dictionary) -> Node3D:
+	var kind := StringName(str(row.get("kind", "basket")))
+	match kind:
+		&"workbench", &"drying_rack":
+			return CraftStation.from_dict(row)
+		&"bonfire":
+			return Bonfire.from_dict(row)
+		&"makeshift_taming_pen":
+			return TamingPen.from_dict(row)
+		&"tent", &"basket", &"fence", &"gate", &"sign":
+			return (load("res://scripts/world/placed_building.gd") as GDScript).from_dict(row)
+		_:
+			return (load("res://scripts/world/placed_building.gd") as GDScript).from_dict(row)
+
+static func _place_building(node: Node3D, row: Dictionary, grid: BuildGrid) -> void:
+	var kind := StringName(str(row.get("kind", "basket")))
+	var cell := Vector2i.ZERO
+	var cell_v: Variant = row.get("cell", [0, 0])
+	if cell_v is Array and (cell_v as Array).size() >= 2:
+		cell = Vector2i(int(cell_v[0]), int(cell_v[1]))
+	var rot := int(row.get("rot", 0))
+	if grid:
+		node.global_transform = grid.placement_transform(kind, cell, rot)
+		if node.has_method("set_grid_pose"):
+			node.set_grid_pose(cell, rot)
+		grid.occupy(node, grid.cells_for(kind, cell, rot))
+		return
+	node.global_position = Vector3(float(row.get("x", 0.0)), 0.0, float(row.get("z", 0.0)))
 
 static func _player() -> Player:
 	return Engine.get_main_loop().root.get_tree().get_first_node_in_group("player") as Player

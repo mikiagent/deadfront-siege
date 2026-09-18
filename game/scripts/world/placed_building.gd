@@ -6,6 +6,9 @@ var storage: Inventory
 var sign_text: String = ""
 var is_cargo: bool = false
 var protected: bool = true
+var persist_building: bool = true
+var build_cell: Vector2i = Vector2i.ZERO
+var build_rot: int = 0
 
 const BASKET_SLOTS := 60 ## ASSUMPTION: PRD ~100; 60 for mobile UI.
 
@@ -21,19 +24,32 @@ static func from_dict(d: Dictionary):
 	var b = make(StringName(str(d.get("kind", "basket"))))
 	b.sign_text = str(d.get("text", ""))
 	b.is_cargo = bool(d.get("cargo", false))
+	b.persist_building = not b.is_cargo
+	var cell_v: Variant = d.get("cell", [0, 0])
+	if cell_v is Array and (cell_v as Array).size() >= 2:
+		b.build_cell = Vector2i(int(cell_v[0]), int(cell_v[1]))
+	b.build_rot = int(d.get("rot", 0))
 	if b.storage and d.has("contents"):
 		b.storage.load_array(d.get("contents", []))
 	return b
 
 func to_dict() -> Dictionary:
-	return {
+	var rec := {
 		"kind": str(kind),
-		"x": global_position.x,
-		"z": global_position.z,
+		"cell": [build_cell.x, build_cell.y],
+		"rot": posmod(build_rot, 4),
 		"text": sign_text,
 		"cargo": is_cargo,
 		"contents": storage.to_array() if storage else [],
 	}
+	rec["x"] = global_position.x
+	rec["z"] = global_position.z
+	return rec
+
+func set_grid_pose(cell: Vector2i, rot: int) -> void:
+	build_cell = cell
+	build_rot = posmod(rot, 4)
+	rotation.y = deg_to_rad(float(build_rot) * 90.0)
 
 func _ready() -> void:
 	add_to_group("placed_building")
@@ -42,39 +58,14 @@ func _ready() -> void:
 		add_to_group("tent")
 	if kind == &"basket":
 		add_to_group("basket")
-	if get_child_count() > 0:
-		return
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	match kind:
-		&"tent":
-			box.size = Vector3(2.2, 1.6, 2.2)
-		&"fence":
-			box.size = Vector3(2.0, 1.2, 0.2)
-		&"gate":
-			box.size = Vector3(2.4, 1.6, 0.25)
-		&"sign":
-			box.size = Vector3(0.3, 1.5, 0.8)
-		_:
-			box.size = Vector3(1.2, 0.9, 1.2)
-	mesh.mesh = box
-	mesh.position.y = box.size.y * 0.5
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = _color()
-	mesh.material_override = mat
-	add_child(mesh)
-	var cs := CollisionShape3D.new()
-	var sh := BoxShape3D.new()
-	sh.size = box.size
-	cs.shape = sh
-	cs.position.y = box.size.y * 0.5
-	add_child(cs)
-	if kind == &"tent":
+	if get_node_or_null("Shape") == null and get_node_or_null("Prop") == null and get_node_or_null("FallbackMesh") == null:
+		PropVisuals.apply_building_visual(self, kind, _fallback_size(), _color())
+	if kind == &"tent" and get_node_or_null("Rest") == null:
 		var area := Area3D.new()
 		area.name = "Rest"
 		var acs := CollisionShape3D.new()
 		var ash := BoxShape3D.new()
-		ash.size = Vector3(2.4, 2.0, 2.4)
+		ash.size = Vector3(3.2, 2.0, 3.2)
 		acs.shape = ash
 		acs.position.y = 1.0
 		area.add_child(acs)
@@ -87,6 +78,9 @@ func _ready() -> void:
 			if b is Player:
 				World.resting_in_tent = false
 		)
+
+func _exit_tree() -> void:
+	_release_grid()
 
 func pack_up(player: Player) -> void:
 	if not World.is_home():
@@ -124,6 +118,26 @@ func _kit_id() -> StringName:
 			return &"makeshift_taming_pen"
 		_:
 			return &""
+
+func _fallback_size() -> Vector3:
+	match kind:
+		&"tent":
+			return Vector3(2.2, 1.6, 2.2)
+		&"fence":
+			return Vector3(2.0, 1.2, 0.2)
+		&"gate":
+			return Vector3(2.4, 1.6, 0.25)
+		&"sign":
+			return Vector3(0.3, 1.5, 0.8)
+		_:
+			return Vector3(1.2, 0.9, 1.2)
+
+func _release_grid() -> void:
+	if World.runtime == null:
+		return
+	var grid: Variant = World.runtime.get("build_grid")
+	if grid is BuildGrid:
+		(grid as BuildGrid).release(self)
 
 func _color() -> Color:
 	match kind:
