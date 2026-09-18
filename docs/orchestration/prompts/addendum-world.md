@@ -16,3 +16,5 @@ You may add fields to these files (positions, seeds) but ask before changing num
 - `game/data/world/factions.json` and `missions.json`: the four radio organisations plus Radio University, trust ranks, crate bands, and mission templates with pins per island ring. M9 consumes these.
 - `game/data/world/market.json` with `docs/design/economy.md`: the simulated four-region Island Market. M9.
 - `game/data/skills/trees.json` with `docs/design/skills.md`: the twelve skill trees, SP costs, level gates, research gates. M8. `survival.json` stays yours; migrate its capture nodes into the tree file's Survival tree when M8 lands.
+
+- `docs/design/weapons.md`: weapon table including the **crossbow** (Ranged 35, bolts, 2.6 s reload). Add `crossbow`, `bolt_bone`, `bolt_copper`, `bow`, `arrow_*` to items and recipes when M4b/M8 touch them; the crossbow model arrives at `game/assets/props/meshy/crossbow.glb`.

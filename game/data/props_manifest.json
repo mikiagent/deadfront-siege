@@ -617,5 +617,23 @@
       1.18,
       1.15
     ]
+  },
+  "weapons": {
+    "crossbow": {
+      "model": "res://assets/props/meshy/crossbow.glb",
+      "status": "generating via Meshy (see docs/design/weapons.md)"
+    },
+    "bow": {
+      "model": null,
+      "status": "pending"
+    },
+    "spear": {
+      "model": null,
+      "status": "pending"
+    },
+    "club": {
+      "model": "kenney/tool-hammer",
+      "status": "stand-in"
+    }
   }
 }
