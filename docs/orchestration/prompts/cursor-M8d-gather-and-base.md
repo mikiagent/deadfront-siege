@@ -79,8 +79,42 @@ tent/basket/bonfire/workbench, a timer pill on a regrowing node, the two plot he
 headless `build_lab` prints `[build] rejected unclaimed` for a tile outside the plot and
 `[world] claimed 14x14 at (x,z)` on the unstable island.
 
+## Part C — corpses use the radial; level-up overlay; pickup toasts
+Reference: `docs/reference/durango-levelup-loot-reference.webp`. In words: a dead
+compsognathus is labelled `Compsognathus Corpse` with `Lv. 6` under it and the killer's
+name above; next to it the same hex radial as a rock: `Meat Lv. 6`, `1.6s`, count `1`.
+When something is taken, a small toast with the item icon and `+1` floats up near the
+top-centre. On a level-up a gold text stack appears at the top-left under the bars:
+`Lv. 5`, an eye glyph with the XP total, a coin glyph with the coin total,
+`Available Skill Points: 4`, `Title Venture into the World acquired.`, then one line per
+stat gained (`Strength + 5` … in gold); it stays ~6 s and fades.
+
+Tasks:
+17. **Corpse = node with options.** Replace M9a's loot panel with the Part A radial on
+    bodies: options from `butchering.json` (meat, hide, bone, sinew… each with
+    `seconds` and `count`, tool `knife` where the table says so → red badge without a
+    knife). The body's label pill reads `<Species> Corpse` + `Lv. N` and shows the
+    killer's name above when the player killed it. Taking the last option removes the
+    body (M9a despawn timers still apply).
+18. **Pickup toasts.** Every item gained (gather, loot, craft output, pet dump) shows a
+    toast near the top-centre: item icon (or glyph) + `+N`, rising 40 px over 1.2 s and
+    fading; stack repeated ids into one toast with an updated count.
+19. **Level-up overlay.** `LevelUpOverlay` (`scripts/ui/level_up_overlay.gd`) listens to
+    `World.pioneer_changed`: shows `Lv. N`, XP (`World.pioneer_xp` — add it if missing,
+    fed by crafts/buildings/discoveries the way Pioneer level is), T-stones with a coin
+    glyph, `Available Skill Points: N` (survival tree points if the skill system tracks
+    them, else the unlock count), a title line when `game/data/skills/titles.json`
+    (create: level → title, `# ASSUMPTION` names) has one for that level, and the per
+    level stat gains from `game/data/skills/pioneer_levels.json` (create: `{level:
+    {strength: 5, endurance: 5, ...}}` `# ASSUMPTION` +5 each, one +6 per level rotating)
+    applied to the player's `Vitals` max values. Debug key F9 forces a level-up in labs.
+
+Acceptance additions: `m8d-corpse-radial.png` (body with its pill and the Meat hex),
+`m8d-levelup.png` (the gold stack), `[item] +1 raw_meat` followed by a
+`[ui] toast raw_meat +1` print, and `[world] pioneer level 5 title="…"` in the lab.
+
 ## Acceptance (whole milestone)
-- The screenshots and prints listed under Part A and Part B.
+- The screenshots and prints listed under Parts A, B and C.
 - Headless `--lab=island_lab` and `--lab=build_lab` pass; `tools/smoke.sh` → `SMOKE PASS`.
 - Report `docs/orchestration/reports/cursor-M8d-gather-and-base.md`; commit as
   `M8d: gather radial, context hexes, land claim, label pills`.
