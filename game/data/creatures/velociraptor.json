@@ -111,5 +111,6 @@
       "alert": "idle 0-40% with head pitched 20 deg",
       "attack_heavy": "Jump with an 8-frame telegraph hold at 30%"
     }
-  }
+  },
+  "look": "turkey-sized feathered dromaeosaur, long stiff tail with a feather fan, sickle claw on each foot, rust and tan with dark barring,"
 }

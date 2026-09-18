@@ -1,0 +1,34 @@
+{
+  "species": "Tyrannosaurus rex",
+  "clade": "Tyrannosauridae",
+  "period": "Late Cretaceous",
+  "real_length_m": 12.0,
+  "height_meters": 4.0,
+  "rig": "biped",
+  "tier": 60,
+  "climate": "volcanic",
+  "archetype": "tyrant",
+  "tameable": false,
+  "capture_tier": 0,
+  "verb": "three-phase raid: stomp, roar, tail",
+  "status_applied": [
+    "deafened",
+    "fracture",
+    "pinned"
+  ],
+  "stats": {
+    "hp": 200000,
+    "attack": 1100,
+    "defense": 400,
+    "speed": 450
+  },
+  "tamed_role": [],
+  "look": "12 meter Tyrannosaurus rex, massive deep skull, tiny two-fingered arms, huge legs, thick tail, ash-dark scales with a rust-red back and pale belly,",
+  "texture_prompt": "ash-dark scaly hide with rust-red dorsal colouring, pale belly, matte surface",
+  "clips": {
+    "attack_primary": "Giant tyrannosaur bites and tosses",
+    "attack_heavy": "Giant tyrannosaur raises a foot, holds, then stomps down",
+    "knockdown": "Giant tyrannosaur staggers and crashes down",
+    "alert": "Giant tyrannosaur rears its head and roars"
+  }
+}

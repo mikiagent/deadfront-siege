@@ -1,0 +1,35 @@
+{
+  "species": "Smilodon",
+  "clade": "Machairodontinae",
+  "period": "Pleistocene",
+  "real_length_m": 2.5,
+  "height_meters": 1.2,
+  "rig": "quadruped",
+  "tier": 45,
+  "climate": "tundra",
+  "archetype": "saber_cat",
+  "tameable": true,
+  "capture_tier": 5,
+  "verb": "two-hit pounce, throat bite",
+  "status_applied": [
+    "deep_bleed"
+  ],
+  "stats": {
+    "hp": 3800,
+    "attack": 360,
+    "defense": 140,
+    "speed": 720
+  },
+  "tamed_role": [
+    "combat",
+    "mount"
+  ],
+  "look": "muscular sabre-toothed cat with two long curved upper canines, powerful shoulders, short bobbed tail, four legs, tawny fur with faint dark spots and a white chest,",
+  "texture_prompt": "tawny short fur with faint dark spots, white chest and muzzle, ivory sabre teeth, matte surface",
+  "clips": {
+    "attack_primary": "Big cat swipes with a forepaw",
+    "attack_heavy": "Big cat crouches, holds, then pounces forward",
+    "knockdown": "Big cat is thrown onto its side",
+    "alert": "Big cat lifts its head and bares its fangs"
+  }
+}

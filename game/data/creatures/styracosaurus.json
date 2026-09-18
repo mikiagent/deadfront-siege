@@ -1,0 +1,37 @@
+{
+  "species": "Styracosaurus",
+  "clade": "Ceratopsia",
+  "period": "Late Cretaceous",
+  "real_length_m": 5.5,
+  "height_meters": 1.8,
+  "rig": "quadruped",
+  "tier": 45,
+  "climate": "savannah",
+  "archetype": "horned_charger",
+  "tameable": true,
+  "capture_tier": 3,
+  "verb": "horn sweep, knockback",
+  "status_applied": [
+    "knockdown"
+  ],
+  "stats": {
+    "hp": 5200,
+    "attack": 300,
+    "defense": 220,
+    "speed": 470,
+    "bag_slots": 110
+  },
+  "tamed_role": [
+    "bag",
+    "mount",
+    "combat"
+  ],
+  "look": "5.5 meter ceratopsian with a single long nose horn and a frill edged with six long spikes, beaked head, barrel body on four legs, short tail, grey-green hide with orange frill markings,",
+  "texture_prompt": "grey-green pebbled hide, orange and cream frill markings, pale belly, matte surface",
+  "clips": {
+    "attack_primary": "Horned dinosaur swings its head sideways",
+    "attack_heavy": "Horned dinosaur lowers its horn, holds, then charges",
+    "knockdown": "Horned dinosaur topples onto its side",
+    "alert": "Horned dinosaur raises its frill and snorts"
+  }
+}

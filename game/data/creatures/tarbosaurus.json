@@ -1,0 +1,35 @@
+{
+  "species": "Tarbosaurus",
+  "clade": "Tyrannosauridae",
+  "period": "Late Cretaceous",
+  "real_length_m": 10.0,
+  "height_meters": 3.4,
+  "rig": "biped",
+  "tier": 60,
+  "climate": "tundra",
+  "archetype": "tyrant",
+  "tameable": true,
+  "capture_tier": 5,
+  "verb": "grab and shake pin",
+  "status_applied": [
+    "pinned",
+    "deep_bleed"
+  ],
+  "stats": {
+    "hp": 24000,
+    "attack": 700,
+    "defense": 260,
+    "speed": 480
+  },
+  "tamed_role": [
+    "combat"
+  ],
+  "look": "10 meter tyrannosaur with a long deep skull, tiny two-fingered arms, massive legs, thick tail, dark grey-brown scales with a paler throat,",
+  "texture_prompt": "dark grey-brown scaly hide, paler throat and belly, darker back, matte surface",
+  "clips": {
+    "attack_primary": "Tyrannosaur bites and tosses its head",
+    "attack_heavy": "Tyrannosaur lowers its head, holds, then lunges and clamps down shaking",
+    "knockdown": "Tyrannosaur stumbles and falls heavily on its side",
+    "alert": "Tyrannosaur raises its head and roars"
+  }
+}

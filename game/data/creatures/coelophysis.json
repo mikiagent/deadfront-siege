@@ -1,0 +1,105 @@
+{
+  "species": "Coelophysis",
+  "clade": "Coelophysoidea",
+  "period": "Late Triassic",
+  "real_length_m": 3.0,
+  "height_meters": 1.0,
+  "rig": "biped",
+  "tier": 18,
+  "climate": "savannah",
+  "archetype": "flock_harass",
+  "tameable": true,
+  "capture_tier": 1,
+  "verb": "flock harass, darting bites",
+  "status_applied": [
+    "bleed"
+  ],
+  "stats": {
+    "hp": 420,
+    "attack": 60,
+    "defense": 30,
+    "speed": 720
+  },
+  "tamed_role": [
+    "combat",
+    "mount"
+  ],
+  "prompt": "Coelophysis, 3 meter slender Triassic theropod, long narrow snout, long neck, very long thin tail held straight, short folded arms, olive green with pale stripes, stylized realism, game-ready",
+  "texture_prompt": "olive green scaly hide with pale sandy stripes along the flanks, cream underside, darker snout, matte surface",
+  "clips": {
+    "attack_primary": "Slender dinosaur darts forward and snaps its jaws, then hops back",
+    "attack_heavy": "Slender dinosaur crouches, holds for a beat, then leaps forward with both feet and rakes",
+    "knockdown": "Slender dinosaur is knocked sideways and collapses onto its side",
+    "alert": "Slender dinosaur snaps its head up and freezes"
+  },
+  "look": "slender lightly built theropod, long narrow snout, long neck, very long thin tail, sparse short proto-feathers on the back, olive green with pale sandy stripes and a cream underside,",
+  "variants": [
+    "coelophysis_temperate"
+  ],
+  "pipeline": {
+    "route": "skeleton_transplant_v2",
+    "forward_axis": "+Z",
+    "version": 1,
+    "mesh_source": "res://assets/creatures/coelophysis/work/coelophysis_i2m_v1.glb",
+    "reference": {
+      "side": "01a0b1d2-19fa-74fe-835b-3d2261dae282",
+      "front": "01a0b1d2-7be7-7255-8363-178654945c33"
+    },
+    "i2m": "01a0b1d3-bd2f-7018-a88f-34c5e944f060",
+    "i2m_params": {
+      "model": "meshy-7 multi-image",
+      "polycount": 20000,
+      "texture": "2k PBR"
+    },
+    "credits_spent": 48,
+    "donor_rig": "tools/standins/quaternius/Velociraptor.fbx",
+    "transplant_tool": "tools/transplant_rig.py",
+    "source_height_m": 0.7269,
+    "source_length_m": 1.9018,
+    "repair": {
+      "loose_removed": 756,
+      "doubles_merged": 14148,
+      "holes_filled": 140,
+      "verts_before": 25271,
+      "islands": 3476,
+      "verts_after": 10367
+    },
+    "warp": {
+      "mode": "landmark",
+      "snout": [
+        -1.13,
+        -0.95
+      ],
+      "foot": [
+        -0.17,
+        -0.14
+      ],
+      "tail": [
+        1.1,
+        0.95
+      ],
+      "hip_z_scale": 0.831,
+      "width_scale": 0.615
+    },
+    "weights": {
+      "direct_fraction": 1.0
+    },
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert"
+    ],
+    "authored_clips": {
+      "knockdown": "death 0-45%, holds",
+      "hit_react": "death 0-35% then reversed",
+      "alert": "idle 0-40% with head pitched 20.0 deg",
+      "attack_heavy": "telegraph hold of 8 frames at 30%"
+    }
+  }
+}

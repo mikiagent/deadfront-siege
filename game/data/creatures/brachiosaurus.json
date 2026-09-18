@@ -1,0 +1,32 @@
+{
+  "species": "Brachiosaurus",
+  "clade": "Brachiosauridae",
+  "period": "Late Jurassic",
+  "real_length_m": 22.0,
+  "height_meters": 12.0,
+  "rig": "quadruped",
+  "tier": 60,
+  "climate": "any",
+  "archetype": "titan",
+  "tameable": false,
+  "capture_tier": 0,
+  "verb": "ambient titan, stomps only if provoked",
+  "status_applied": [
+    "fracture"
+  ],
+  "stats": {
+    "hp": 90000,
+    "attack": 900,
+    "defense": 500,
+    "speed": 300
+  },
+  "tamed_role": [],
+  "look": "22 meter Brachiosaurus, enormous long neck held high, small head with a domed crest, front legs longer than the hind legs, massive column-like legs, long tail, grey-green hide with a paler belly,",
+  "texture_prompt": "grey-green wrinkled hide, paler cream belly, darker back, matte surface",
+  "clips": {
+    "attack_primary": "Giant sauropod stomps a front foot",
+    "attack_heavy": "Giant sauropod rears slightly, holds, then stomps both front feet down",
+    "knockdown": "Giant sauropod sways and kneels",
+    "alert": "Giant sauropod raises its neck and bellows"
+  }
+}

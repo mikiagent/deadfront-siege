@@ -544,6 +544,8 @@ Latent attributes = yellow pip. Rare extra attributes = green pip, low chance. G
 
 Materials have levels tied to island / node. Gathering skill below that level **downranks** the take. Finished goods have levels that gate effectiveness. Boiling in high-level water can **uprank** some ingredients toward the water's level (cooking exploit; see §9).
 
+**Crafted item level (owner-confirmed, 2026-09-17; not in the cited sources):** the output's level is the **average of the levels of every consumed material**, rounded down, then clamped by the crafting skill's level and the recipe's max level. Higher level means better base stats on the same recipe. This is why bulk slots matter even though only the primary slot passes attributes (§9.1): high-level bulk materials raise the average. It is also the mechanism behind boil-to-uprank.
+
 Unstable-island and savage-island materials may be tagged **Unstable** until cargo-warped.
 
 ---
@@ -563,6 +565,8 @@ Example: Improvised one-hand axe =
 The output's stats come from (a) recipe, (b) primary ingredient attributes, (c) how many processing steps were applied (bake, boil, dry, hammer, mince, …). Same "work knife" is a different item if the blade bone is Smilodon vs Protoceratops.
 
 **MUST NOT** roll affixes independently of inputs. That is the opposite of Durango.
+
+Level is separate from attributes: **attributes come from the primary slot only; level is the average of all slots** (§8.4). A knife with a Smilodon-bone blade and a level-10 branch handle is a Smilodon knife of a lower level than the same blade on a level-40 handle.
 
 Color of a crafted object follows material color (Haven & Hearth lineage, praised).
 

@@ -1,0 +1,36 @@
+{
+  "species": "Megaloceros",
+  "clade": "Cervidae",
+  "period": "Pleistocene",
+  "real_length_m": 3.0,
+  "height_meters": 2.1,
+  "rig": "quadruped",
+  "tier": 30,
+  "climate": "tundra",
+  "archetype": "antlered",
+  "tameable": true,
+  "capture_tier": 2,
+  "verb": "antler gore, flees",
+  "status_applied": [
+    "knockdown"
+  ],
+  "stats": {
+    "hp": 1800,
+    "attack": 150,
+    "defense": 80,
+    "speed": 760,
+    "bag_slots": 40
+  },
+  "tamed_role": [
+    "mount",
+    "bag"
+  ],
+  "look": "giant deer standing 2.1 meters at the shoulder with enormous palmate antlers spanning wide, long legs, thick brown winter coat with a pale rump and a dark shoulder hump,",
+  "texture_prompt": "thick brown winter fur, pale rump and belly, dark shoulder hump, bone-coloured antlers, matte surface",
+  "clips": {
+    "attack_primary": "Giant deer lowers its antlers and jabs forward",
+    "attack_heavy": "Giant deer rears on its hind legs, holds, then drops and gores forward",
+    "knockdown": "Giant deer stumbles and falls on its side",
+    "alert": "Giant deer raises its head high with ears forward"
+  }
+}

@@ -127,5 +127,6 @@
       "alert": "idle 0-40% with head pitched 20 deg",
       "attack_heavy": "Jump with an 8-frame telegraph hold at 30%"
     }
-  }
+  },
+  "look": "5.5 meter heavy dromaeosaur, deep boxy skull, sickle claws, shaggy proto-feathers, rust brown with dark dorsal banding,"
 }

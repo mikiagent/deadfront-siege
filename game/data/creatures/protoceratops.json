@@ -68,5 +68,6 @@
       "alert": "idle 0-40% with head pitched 20 deg",
       "attack_heavy": "Jump with an 8-frame telegraph hold at 30%"
     }
-  }
+  },
+  "look": "sheep-sized ceratopsian, large bony neck frill without horns, deep hooked beak, pebbled tan hide with a row of low scutes,"
 }

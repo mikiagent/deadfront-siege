@@ -11,5 +11,127 @@
   "velociraptor": {
     "reference": "01a0b17d-8fc2-7493-aaec-d11213e1fcf0",
     "i2m": "01a0b17e-628c-74f6-9f88-b6e289c93bbc"
+  },
+  "coelophysis": {
+    "v1": {
+      "ref_side": "01a0b1d2-19fa-74fe-835b-3d2261dae282",
+      "ref_front": "01a0b1d2-7be7-7255-8363-178654945c33",
+      "i2m": "01a0b1d3-bd2f-7018-a88f-34c5e944f060",
+      "rig_result": {
+        "species": "coelophysis",
+        "route": "skeleton_transplant",
+        "mesh": "game/assets/creatures/coelophysis/work/coelophysis_i2m_v1.glb",
+        "donor": "tools/standins/quaternius/Velociraptor.fbx",
+        "forward_axis": "+Z",
+        "source_height_m": 0.7269,
+        "source_length_m": 1.9018,
+        "repair": {
+          "loose_removed": 756,
+          "doubles_merged": 14148,
+          "holes_filled": 140,
+          "verts_before": 25271,
+          "islands": 3476,
+          "verts_after": 10367
+        },
+        "warp": {
+          "mode": "landmark",
+          "snout": [
+            -1.13,
+            -0.95
+          ],
+          "foot": [
+            -0.17,
+            -0.14
+          ],
+          "tail": [
+            1.1,
+            0.95
+          ],
+          "hip_z_scale": 0.831,
+          "width_scale": 0.615
+        },
+        "weights": {
+          "direct_fraction": 1.0
+        },
+        "authored_clips": {
+          "knockdown": "death 0-45%, holds",
+          "hit_react": "death 0-35% then reversed",
+          "alert": "idle 0-40% with head pitched 20.0 deg",
+          "attack_heavy": "telegraph hold of 8 frames at 30%"
+        },
+        "clips": {
+          "alert": {
+            "frames": [
+              1,
+              25
+            ],
+            "seconds": 1.0
+          },
+          "attack_heavy": {
+            "frames": [
+              1,
+              36
+            ],
+            "seconds": 1.458
+          },
+          "attack_primary": {
+            "frames": [
+              1,
+              21
+            ],
+            "seconds": 0.833
+          },
+          "death": {
+            "frames": [
+              1,
+              32
+            ],
+            "seconds": 1.292
+          },
+          "hit_react": {
+            "frames": [
+              1,
+              21
+            ],
+            "seconds": 0.833
+          },
+          "idle": {
+            "frames": [
+              1,
+              61
+            ],
+            "seconds": 2.5
+          },
+          "knockdown": {
+            "frames": [
+              1,
+              14
+            ],
+            "seconds": 0.542
+          },
+          "run": {
+            "frames": [
+              1,
+              14
+            ],
+            "seconds": 0.542
+          },
+          "walk": {
+            "frames": [
+              1,
+              59
+            ],
+            "seconds": 2.417
+          }
+        }
+      }
+    }
+  },
+  "compsognathus": {
+    "v1": {
+      "ref_side": "01a0b1d5-ac1b-774a-855d-4e973bc66264",
+      "ref_front": "01a0b1d6-0f77-714b-ad83-0db94a9b1eee",
+      "i2m": "01a0b1d6-7169-71a6-97c6-2078cdc0fcfa"
+    }
   }
 }

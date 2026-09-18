@@ -1,0 +1,36 @@
+{
+  "species": "Compsognathus",
+  "clade": "Compsognathidae",
+  "period": "Late Jurassic",
+  "real_length_m": 1.0,
+  "height_meters": 0.35,
+  "rig": "biped",
+  "tier": 15,
+  "climate": "savannah",
+  "archetype": "swarm",
+  "tameable": false,
+  "capture_tier": 0,
+  "verb": "swarm nips, four to eight at once",
+  "status_applied": [],
+  "stats": {
+    "hp": 90,
+    "attack": 18,
+    "defense": 10,
+    "speed": 650
+  },
+  "tamed_role": [],
+  "prompt": "Compsognathus, 1 meter tiny theropod, small pointed head, long thin tail, short folded arms, fine proto-feathers, mottled brown and grey, stylized realism, game-ready",
+  "texture_prompt": "mottled brown and grey fine feathers, pale belly, dark eye stripe, matte surface",
+  "clips": {
+    "attack_primary": "Tiny dinosaur darts in and nips, then skitters back",
+    "attack_heavy": "Tiny dinosaur crouches, holds, then pounces with a small hop",
+    "knockdown": "Tiny dinosaur is flung onto its side and lies stunned",
+    "alert": "Tiny dinosaur freezes with its head raised"
+  },
+  "look": "tiny chicken-sized theropod, small pointed head, long thin tail, short folded arms, fine downy proto-feathers, mottled brown and grey with a pale belly,",
+  "variants": [
+    "compsognathus_temperate",
+    "compsognathus_tropical",
+    "compsognathus_desert"
+  ]
+}

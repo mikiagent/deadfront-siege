@@ -5,7 +5,7 @@ Three agents work here. Read this file first, then the plan.
 | Agent | Owns | Never touches |
 |---|---|---|
 | Claude Code | `docs/orchestration/`, contracts, reviews, merges, Meshy credit approvals | — |
-| Codex | `game/assets/creatures/`, `game/data/creatures/*.json`, `tools/meshy.py`, `tools/render_glb.py` | `game/scenes`, `game/scripts` |
+| Claude Code (art pipeline, since Codex ran out of usage) | `game/assets/creatures/`, `game/assets/characters/`, `game/assets/nature/`, `game/data/creatures/*.json`, `game/data/characters/`, `tools/` | `game/scenes`, `game/scripts` |
 | Cursor | `game/scenes/`, `game/scripts/`, `game/data/*.json` except creatures | `game/assets/creatures/`, Meshy |
 
 Plan and milestones: `docs/orchestration/plan.md`

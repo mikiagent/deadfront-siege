@@ -1,0 +1,34 @@
+{
+  "species": "Gallimimus",
+  "clade": "Ornithomimidae",
+  "period": "Late Cretaceous",
+  "real_length_m": 6.0,
+  "height_meters": 1.9,
+  "rig": "biped",
+  "tier": 30,
+  "climate": "desert",
+  "archetype": "runner",
+  "tameable": true,
+  "capture_tier": 3,
+  "verb": "charge, kick, outruns you",
+  "status_applied": [
+    "knockdown"
+  ],
+  "stats": {
+    "hp": 1400,
+    "attack": 120,
+    "defense": 50,
+    "speed": 900
+  },
+  "tamed_role": [
+    "mount"
+  ],
+  "look": "ostrich-like theropod with a small toothless beaked head, very long neck, long slender legs, long tail, short folded arms, sandy tan feathers with a white belly,",
+  "texture_prompt": "sandy tan feathered body, white belly, grey legs and beak, matte surface",
+  "clips": {
+    "attack_primary": "Long-legged dinosaur kicks forward with one leg",
+    "attack_heavy": "Long-legged dinosaur lowers its head, holds, then charges and slams",
+    "knockdown": "Long-legged dinosaur trips and falls onto its side",
+    "alert": "Long-legged dinosaur raises its long neck and looks around"
+  }
+}

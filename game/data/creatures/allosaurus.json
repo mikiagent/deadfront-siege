@@ -1,0 +1,33 @@
+{
+  "species": "Allosaurus",
+  "clade": "Allosauridae",
+  "period": "Late Jurassic",
+  "real_length_m": 9.0,
+  "height_meters": 3.0,
+  "rig": "biped",
+  "tier": 50,
+  "climate": "desert",
+  "archetype": "apex_raptor",
+  "tameable": false,
+  "capture_tier": 0,
+  "verb": "hatchet bite, arterial strike",
+  "status_applied": [
+    "deep_bleed",
+    "fracture"
+  ],
+  "stats": {
+    "hp": 9000,
+    "attack": 480,
+    "defense": 180,
+    "speed": 520
+  },
+  "tamed_role": [],
+  "look": "9 meter large theropod with a boxy skull bearing two small horns above the eyes, powerful jaws, three-fingered arms folded at the chest, thick tail, mottled ochre and brown scaly hide,",
+  "texture_prompt": "mottled ochre and dark brown scales, pale underside, dark eye horns, matte surface",
+  "clips": {
+    "attack_primary": "Large theropod bites down hard and shakes",
+    "attack_heavy": "Large theropod rears up, holds, then slams its head down in a hatchet bite",
+    "knockdown": "Large theropod staggers and crashes onto its side",
+    "alert": "Large theropod lifts its head and roars"
+  }
+}

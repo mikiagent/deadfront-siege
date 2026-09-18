@@ -1,0 +1,36 @@
+{
+  "species": "Ankylosaurus",
+  "clade": "Ankylosauridae",
+  "period": "Late Cretaceous",
+  "real_length_m": 8.0,
+  "height_meters": 1.7,
+  "rig": "quadruped",
+  "tier": 50,
+  "climate": "desert",
+  "archetype": "club_tail",
+  "tameable": true,
+  "capture_tier": 4,
+  "verb": "tail club",
+  "status_applied": [
+    "fracture"
+  ],
+  "stats": {
+    "hp": 12000,
+    "attack": 420,
+    "defense": 520,
+    "speed": 380,
+    "bag_slots": 120
+  },
+  "tamed_role": [
+    "bag",
+    "combat"
+  ],
+  "look": "8 meter armored dinosaur, wide flat body covered in bony plates and short spikes, small horned head with a beak, four short legs, heavy tail ending in a large bony club, sandy brown armor with a darker back,",
+  "texture_prompt": "sandy brown bony armor plates, darker dorsal plates, pale belly, matte surface",
+  "clips": {
+    "attack_primary": "Armored dinosaur swings its tail club sideways",
+    "attack_heavy": "Armored dinosaur braces, holds, then whips its tail club in a full swing",
+    "knockdown": "Armored dinosaur is tipped onto its side",
+    "alert": "Armored dinosaur lifts its head and lowers its body"
+  }
+}

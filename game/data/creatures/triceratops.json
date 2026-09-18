@@ -1,0 +1,38 @@
+{
+  "species": "Triceratops",
+  "clade": "Ceratopsia",
+  "period": "Late Cretaceous",
+  "real_length_m": 9.0,
+  "height_meters": 3.0,
+  "rig": "quadruped",
+  "tier": 55,
+  "climate": "swamp",
+  "archetype": "horned_charger",
+  "tameable": true,
+  "capture_tier": 5,
+  "verb": "full charge",
+  "status_applied": [
+    "fracture",
+    "knockdown"
+  ],
+  "stats": {
+    "hp": 14000,
+    "attack": 520,
+    "defense": 380,
+    "speed": 450,
+    "bag_slots": 140
+  },
+  "tamed_role": [
+    "bag",
+    "mount",
+    "combat"
+  ],
+  "look": "9 meter Triceratops with two long brow horns, a short nose horn, a broad solid frill, beaked head, massive body on four legs, short tail, dark olive hide with a rust frill,",
+  "texture_prompt": "dark olive pebbled hide, rust-coloured frill, pale belly, ivory horns, matte surface",
+  "clips": {
+    "attack_primary": "Triceratops tosses its head upward",
+    "attack_heavy": "Triceratops lowers its horns, holds, then charges forward",
+    "knockdown": "Triceratops collapses onto its side",
+    "alert": "Triceratops raises its head and paws the ground"
+  }
+}

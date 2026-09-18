@@ -109,5 +109,6 @@
       "alert": "idle 0-40% with head pitched 20 deg",
       "attack_heavy": "Jump with an 8-frame telegraph hold at 30%"
     }
-  }
+  },
+  "look": "3 meter dromaeosaur, feathered arms, sickle claws, long stiff tail, olive green with dark spots,"
 }

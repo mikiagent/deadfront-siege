@@ -81,6 +81,19 @@ codex screen later).
 `flock_harass`, `swarm`, `runner`, `venom_ranged`, `pack_mule`, `horned_charger`,
 `club_tail`, `spiked_tail`, `saber_cat`, `antlered`, `titan`, `tyrant`.
 
+## 4b. Making a new species (one command)
+
+```
+python3 tools/creature_pipeline.py <species>            # refs -> Meshy 7 mesh -> transplant -> sheets -> json
+python3 tools/creature_pipeline.py <species> --version 2 # redo
+```
+It needs `game/data/creatures/<species>.json` with `species`, `rig`, `real_length_m`,
+`height_meters`, `texture_prompt` and a `look` sentence (the visual description used
+in the reference prompts). Bipeds get side + front references with the arms
+explicitly folded; quadrupeds get four-on-the-floor references. Donor rigs:
+Quaternius Velociraptor (bipeds), Trex (bipeds over 8 m), Triceratops (quadrupeds).
+Cost: 48 Meshy credits per species. Check `sheet.png` and `work/qa/` before accepting.
+
 ## 5. Validation before handoff
 
 Codex marks a species done only when:

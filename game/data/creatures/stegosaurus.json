@@ -1,0 +1,36 @@
+{
+  "species": "Stegosaurus",
+  "clade": "Stegosauridae",
+  "period": "Late Jurassic",
+  "real_length_m": 9.0,
+  "height_meters": 3.2,
+  "rig": "quadruped",
+  "tier": 45,
+  "climate": "temperate",
+  "archetype": "spiked_tail",
+  "tameable": true,
+  "capture_tier": 4,
+  "verb": "thagomizer tail sweep",
+  "status_applied": [
+    "deep_bleed"
+  ],
+  "stats": {
+    "hp": 8500,
+    "attack": 380,
+    "defense": 300,
+    "speed": 400,
+    "bag_slots": 100
+  },
+  "tamed_role": [
+    "bag",
+    "combat"
+  ],
+  "look": "9 meter Stegosaurus, two rows of large upright kite-shaped back plates, tiny head, arched back higher at the hips, four spikes on the tail, four legs, green-brown hide with orange-edged plates,",
+  "texture_prompt": "green-brown pebbled hide, orange and cream edged back plates, pale belly, matte surface",
+  "clips": {
+    "attack_primary": "Plated dinosaur swings its spiked tail",
+    "attack_heavy": "Plated dinosaur turns its rear, holds, then sweeps its spiked tail through",
+    "knockdown": "Plated dinosaur collapses onto its side",
+    "alert": "Plated dinosaur raises its head and stiffens its plates"
+  }
+}
