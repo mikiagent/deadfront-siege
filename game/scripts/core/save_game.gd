@@ -2,7 +2,7 @@ extends RefCounted
 ## Snapshot C save. Schema 2. Ids only, never node references.
 
 const PATH := "user://save_1.json"
-const SCHEMA := 2
+const SCHEMA := 3
 
 static func exists() -> bool:
 	return FileAccess.file_exists(PATH)
@@ -136,6 +136,12 @@ static func load_now(host: Node) -> void:
 	if World.resting_in_tent and elapsed > 0:
 		player.vitals.rest(World.TENT_REST_PER_MIN * (float(elapsed) / 60.0))
 		print("[world] offline rest %ds" % elapsed)
+	# Field growth catch-up (same offline window as tent rest).
+	if elapsed > 0 and World.runtime:
+		for n in World.runtime.get_tree().get_nodes_in_group("field"):
+			if n is FieldPlot:
+				(n as FieldPlot).advance_offline(float(elapsed))
+		print("[farm] offline catch-up %ds" % elapsed)
 	print("[world] loaded island=%s terrain=%s pioneer=%d" % [iid, World.home_terrain, World.pioneer_level])
 
 static func _restore_buildings(rows: Array, schema: int) -> void:
@@ -171,12 +177,14 @@ static func _normalize_build_row(row: Dictionary, schema: int) -> Dictionary:
 static func _spawn_building(row: Dictionary) -> Node3D:
 	var kind := StringName(str(row.get("kind", "basket")))
 	match kind:
-		&"workbench", &"drying_rack":
+		&"workbench", &"drying_rack", &"mortar", &"stone_grill", &"steamer", &"well":
 			return CraftStation.from_dict(row)
 		&"bonfire":
 			return Bonfire.from_dict(row)
 		&"makeshift_taming_pen":
 			return TamingPen.from_dict(row)
+		&"field_small", &"field_large":
+			return FieldPlot.from_dict(row)
 		&"tent", &"basket", &"fence", &"gate", &"sign":
 			return (load("res://scripts/world/placed_building.gd") as GDScript).from_dict(row)
 		_:

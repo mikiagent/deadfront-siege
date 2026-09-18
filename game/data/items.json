@@ -137,7 +137,8 @@
       "id": "fibre_stalk",
       "display_name": "Fibre Stalk",
       "categories": [
-        "fibre"
+        "fibre",
+        "stalk"
       ],
       "stack_max": 30,
       "tool_class": "none",
@@ -392,7 +393,10 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 12
+      "food_energy": 12,
+      "raw": true,
+      "poison_chance": 0.25,
+      "tastes_bad_chance": 0.2
     },
     {
       "id": "skewer",
@@ -422,13 +426,17 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 10
+      "food_energy": 10,
+      "raw": true,
+      "poison_chance": 0.25,
+      "tastes_bad_chance": 0.2
     },
     {
       "id": "raptor_meat",
       "display_name": "Raptor Meat",
       "categories": [
-        "meat"
+        "meat",
+        "food"
       ],
       "stack_max": 10,
       "tool_class": "none",
@@ -437,7 +445,10 @@
       "food_energy": 16,
       "stats_per_level": {
         "food_energy": 0.01
-      }
+      },
+      "raw": true,
+      "poison_chance": 0.15,
+      "tastes_bad_chance": 0.2
     },
     {
       "id": "raptor_bone",
@@ -711,24 +722,28 @@
       "display_name": "Berries",
       "categories": [
         "food",
-        "herb"
+        "herb",
+        "fruit"
       ],
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 8
+      "food_energy": 8,
+      "diet": "herbivore"
     },
     {
       "id": "berry",
       "display_name": "Berry",
       "categories": [
         "food",
-        "herb"
+        "herb",
+        "fruit"
       ],
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 6
+      "food_energy": 6,
+      "diet": "herbivore"
     },
     {
       "id": "clay",
@@ -816,12 +831,14 @@
       "id": "coconut",
       "display_name": "Coconut",
       "categories": [
-        "food"
+        "food",
+        "fruit"
       ],
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 12
+      "food_energy": 12,
+      "diet": "herbivore"
     },
     {
       "id": "bamboo",
@@ -837,12 +854,14 @@
       "id": "mango",
       "display_name": "Mango",
       "categories": [
-        "food"
+        "food",
+        "fruit"
       ],
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 10
+      "food_energy": 10,
+      "diet": "herbivore"
     },
     {
       "id": "vine",
@@ -1088,6 +1107,471 @@
       "tool_class": "none",
       "base_level": 1,
       "note": "Plant it to claim a 14x14 plot on an unstable island (M8d). ASSUMPTION: first plot per island is free."
+    },
+    {
+      "id": "mushroom",
+      "display_name": "Mushroom",
+      "categories": [
+        "food",
+        "mushroom",
+        "herb"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 8,
+      "raw": true,
+      "poison_chance": 0.35,
+      "tastes_bad_chance": 0.25,
+      "diet": "omnivore"
+    },
+    {
+      "id": "spice_herb",
+      "display_name": "Spice Herb",
+      "categories": [
+        "herb",
+        "spice"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "empty_bucket",
+      "display_name": "Empty Bucket",
+      "categories": [
+        "tool",
+        "bucket"
+      ],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "water_bucket",
+      "display_name": "Water Bucket",
+      "categories": [
+        "water",
+        "bucket",
+        "tool"
+      ],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 0
+    },
+    {
+      "id": "hoe",
+      "display_name": "Hoe",
+      "categories": [
+        "tool"
+      ],
+      "stack_max": 1,
+      "tool_class": "hoe",
+      "base_level": 1,
+      "is_work_tool": true,
+      "max_durability": 60,
+      "stats_per_level": {
+        "max_durability": 0.02
+      }
+    },
+    {
+      "id": "meatball_mix",
+      "display_name": "Meatball Mix",
+      "categories": [
+        "food",
+        "meat",
+        "raw"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 10,
+      "raw": true,
+      "diet": "carnivore",
+      "poison_chance": 0.2
+    },
+    {
+      "id": "meatball",
+      "display_name": "Meatball",
+      "categories": [
+        "food",
+        "cooked",
+        "meat"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "carnivore",
+      "food_energy": 18,
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "sashimi",
+      "display_name": "Sashimi",
+      "categories": [
+        "food",
+        "cooked",
+        "meat"
+      ],
+      "stack_max": 30,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "carnivore",
+      "food_energy": 14,
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "steamed_food",
+      "display_name": "Steamed Dish",
+      "categories": [
+        "food",
+        "cooked",
+        "steamed"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "omnivore",
+      "food_energy": 16,
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "grilled_meat",
+      "display_name": "Grilled Meat",
+      "categories": [
+        "food",
+        "cooked",
+        "meat"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "carnivore",
+      "food_energy": 24,
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "boiled_meat",
+      "display_name": "Boiled Meat",
+      "categories": [
+        "food",
+        "cooked",
+        "meat"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "carnivore",
+      "food_energy": 20,
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "roast",
+      "display_name": "Roast",
+      "categories": [
+        "food",
+        "cooked",
+        "meat"
+      ],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "carnivore",
+      "food_energy": 28,
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "seasoned_roast",
+      "display_name": "Seasoned Roast",
+      "categories": [
+        "food",
+        "cooked",
+        "meat",
+        "buff_food"
+      ],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "carnivore",
+      "food_energy": 30,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "food_buff": "gather_speed"
+    },
+    {
+      "id": "burnt_food",
+      "display_name": "Burnt Food",
+      "categories": [
+        "food",
+        "burnt"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": -25,
+      "diet": "omnivore"
+    },
+    {
+      "id": "herb_buff_meal",
+      "display_name": "Herbed Meal",
+      "categories": [
+        "food",
+        "cooked",
+        "buff_food"
+      ],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "omnivore",
+      "food_energy": 22,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "food_buff": "defense"
+    },
+    {
+      "id": "spiced_skewer",
+      "display_name": "Spiced Skewer",
+      "categories": [
+        "food",
+        "cooked",
+        "buff_food",
+        "meat"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "omnivore",
+      "food_energy": 24,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "food_buff": "heat_resist"
+    },
+    {
+      "id": "flax_seed",
+      "display_name": "Flax Seed",
+      "categories": [
+        "seed",
+        "flax"
+      ],
+      "stack_max": 50,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "corn_seed",
+      "display_name": "Corn Seed",
+      "categories": [
+        "seed",
+        "corn"
+      ],
+      "stack_max": 50,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "wheat_seed",
+      "display_name": "Wheat Seed",
+      "categories": [
+        "seed",
+        "wheat"
+      ],
+      "stack_max": 50,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "berry_seed",
+      "display_name": "Berry Seed",
+      "categories": [
+        "seed",
+        "berry"
+      ],
+      "stack_max": 50,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "flax",
+      "display_name": "Flax",
+      "categories": [
+        "fibre",
+        "crop",
+        "flax"
+      ],
+      "stack_max": 30,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "corn",
+      "display_name": "Corn",
+      "categories": [
+        "food",
+        "crop",
+        "fruit",
+        "stalk"
+      ],
+      "stack_max": 30,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 8,
+      "diet": "herbivore"
+    },
+    {
+      "id": "wheat",
+      "display_name": "Wheat",
+      "categories": [
+        "crop",
+        "stalk"
+      ],
+      "stack_max": 30,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "fruit_fertilizer",
+      "display_name": "Fruit Fertilizer",
+      "categories": [
+        "fertilizer"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "carnivore_feed",
+      "display_name": "Carnivore Feed",
+      "categories": [
+        "pet_feed",
+        "meat",
+        "food"
+      ],
+      "stack_max": 30,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "carnivore",
+      "food_energy": 15
+    },
+    {
+      "id": "herbivore_feed",
+      "display_name": "Herbivore Feed",
+      "categories": [
+        "pet_feed",
+        "fruit",
+        "stalk",
+        "food"
+      ],
+      "stack_max": 30,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "herbivore",
+      "food_energy": 12
+    },
+    {
+      "id": "field_small_kit",
+      "display_name": "Small Field Kit",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "field_small",
+      "footprint": [
+        2,
+        2
+      ]
+    },
+    {
+      "id": "field_large_kit",
+      "display_name": "Large Field Kit",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 3,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "field_large",
+      "footprint": [
+        3,
+        3
+      ]
+    },
+    {
+      "id": "mortar_kit",
+      "display_name": "Mortar Kit",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "mortar",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "stone_grill_kit",
+      "display_name": "Stone Grill Kit",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "stone_grill",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "steamer_kit",
+      "display_name": "Steamer Kit",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "steamer",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "well_kit",
+      "display_name": "Simple Well Kit",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "well",
+      "footprint": [
+        2,
+        2
+      ]
     }
   ]
 }

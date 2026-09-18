@@ -118,9 +118,20 @@ func tooltip() -> String:
 	var armor := scaled_armor()
 	if armor > 0.0:
 		lines.append("armor %.1f" % armor)
-	var food_energy := scaled_food_energy()
-	if food_energy > 0.0:
-		lines.append("energy %.1f" % food_energy)
+	if Food.is_food(self):
+		lines.append("energy %.1f" % Food.energy_restore(self))
+		if Food.is_raw(self):
+			lines.append("RAW")
+		if Food.is_poisoned(self):
+			lines.append("POISONED")
+		var buffs := Food.buff_ids(self)
+		if not buffs.is_empty():
+			var bn: PackedStringArray = []
+			for b in buffs:
+				bn.append(str(b))
+			lines.append("buffs %s" % ", ".join(bn))
+	elif scaled_food_energy() != 0.0:
+		lines.append("energy %.1f" % scaled_food_energy())
 	if not attributes.is_empty():
 		lines.append("attr %s" % str(attributes))
 	if not flags.is_empty():

@@ -51,8 +51,12 @@ var _path_blocked_left: float = 0.0
 var ui: InventoryUI
 var craft_ui
 var station_craft: StationCraft
+var eat_session: EatSession
+var food_buffs: Dictionary = {} ## buff_id -> {time_left, row}
 var in_water: bool = false
 var _wet_acc: float = 0.0
+var _field_radial_target: FieldPlot
+var _field_radial_opts: Array = []
 
 var _roll_left: float = 0.0
 var _gather_left: float = 0.0
@@ -109,6 +113,7 @@ func _ready() -> void:
 	add_child(skills)
 	_setup_gather_radial()
 	_setup_station_craft()
+	_setup_eat_session()
 	vitals.damaged.connect(_on_vitals_damaged)
 	vitals.died.connect(_on_vitals_died)
 	if has_node("Shape"):
@@ -124,6 +129,57 @@ func _setup_station_craft() -> void:
 	station_craft.name = "StationCraft"
 	add_child(station_craft)
 	station_craft.setup(self, layer)
+
+func _setup_eat_session() -> void:
+	var layer := _find_or_make_ui_layer()
+	eat_session = EatSession.new()
+	eat_session.name = "EatSession"
+	add_child(eat_session)
+	eat_session.setup(self, layer)
+
+func apply_food_buff(buff_id: StringName, row: Dictionary) -> void:
+	food_buffs[str(buff_id)] = {
+		"time_left": float(row.get("duration", 300.0)),
+		"row": row.duplicate(true),
+	}
+
+func _tick_food_buffs(delta: float) -> void:
+	if food_buffs.is_empty():
+		return
+	var dead: Array[String] = []
+	for k in food_buffs:
+		food_buffs[k]["time_left"] = float(food_buffs[k].get("time_left", 0.0)) - delta
+		if float(food_buffs[k]["time_left"]) <= 0.0:
+			dead.append(str(k))
+	for k in dead:
+		food_buffs.erase(k)
+
+func food_buff_mult(stat: String) -> float:
+	var m := 1.0
+	for k in food_buffs:
+		var row: Dictionary = food_buffs[k].get("row", {})
+		if str(row.get("stat", "")) == stat and row.has("mult"):
+			m *= float(row.get("mult", 1.0))
+	return m
+
+func begin_eat_slot(index: int) -> bool:
+	return eat_session != null and eat_session.begin_eat(index)
+
+func feed_summoned_pet_slot(index: int) -> bool:
+	if summoned_pet == null or not is_instance_valid(summoned_pet):
+		print("[food] no summoned pet")
+		return false
+	if index < 0 or index >= inventory.slot_count:
+		return false
+	var stack := inventory.slots[index]
+	return Food.feed_pet(self, summoned_pet, stack)
+
+func open_field(field: FieldPlot) -> void:
+	if field == null or _gather_radial == null:
+		return
+	_field_radial_target = field
+	_field_radial_opts = field.radial_options(self)
+	_gather_radial.open_options(field, "Field", 1, 0.4, _field_radial_opts, inventory)
 
 func _find_or_make_ui_layer() -> CanvasLayer:
 	var scene := get_tree().current_scene
@@ -181,6 +237,7 @@ func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 
 func _physics_process(delta: float) -> void:
 	_fall_guard()
+	_tick_food_buffs(delta)
 	_survival_acc += delta
 	if _survival_acc >= 60.0 and skills:
 		_survival_acc -= 60.0
@@ -879,6 +936,10 @@ func _interact() -> void:
 	if station and global_position.distance_to(station.global_position) < 2.5:
 		open_station_craft(station)
 		return
+	var field := _nearest_group("field") as FieldPlot
+	if field and global_position.distance_to(field.global_position) < 2.8:
+		open_field(field)
+		return
 	var fire := _nearest_group("bonfire") as Bonfire
 	if fire and global_position.distance_to(fire.global_position) < 2.5:
 		fire.cauterise(self)
@@ -993,6 +1054,9 @@ func summon_pet(index: int = 0) -> void:
 	print("[capture] summoned %s hp=%.0f (wild hp=%.0f)" % [def.id, c.health.max_hp, def.hp])
 
 func _building_interact(b: Node) -> void:
+	if b is FieldPlot:
+		open_field(b as FieldPlot)
+		return
 	if StationCraft.is_craft_station(b):
 		open_station_craft(b as Node3D)
 		return
@@ -1003,6 +1067,9 @@ func _building_interact(b: Node) -> void:
 		return
 	if str(b.get("kind")) == "sign":
 		print("[world] sign: %s" % (str(b.get("sign_text")) if str(b.get("sign_text")) != "" else "(blank)"))
+		return
+	if str(b.get("kind")) == "well" or str(b.get("station_id")) == "well":
+		open_station_craft(b as Node3D)
 		return
 	if World.is_home() and Input.is_action_pressed("sprint"):
 		b.pack_up(self)
@@ -1194,6 +1261,14 @@ func _setup_gather_radial() -> void:
 
 func _on_gather_option_picked(anchor: Node3D, index: int) -> void:
 	if anchor == null or not is_instance_valid(anchor):
+		return
+	if anchor is FieldPlot:
+		var field := anchor as FieldPlot
+		var opts := _field_radial_opts if _field_radial_target == field else field.radial_options(self)
+		if index >= 0 and index < opts.size():
+			field.apply_action(self, opts[index] as Dictionary)
+		_field_radial_target = null
+		_field_radial_opts.clear()
 		return
 	if anchor is Corpse:
 		var opts := (anchor as Corpse).loot_options(inventory)

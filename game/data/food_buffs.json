@@ -1,0 +1,29 @@
+{
+  "_about": "Timed food buffs granted by herb/spice secondary slots (PRD §9.3).",
+  "buffs": {
+    "gather_speed": {
+      "display_name": "Gather Haste",
+      "stat": "gather_speed",
+      "mult": 1.25,
+      "duration": 300.0
+    },
+    "defense": {
+      "display_name": "Sturdy Meal",
+      "stat": "defense",
+      "add": 8.0,
+      "duration": 300.0
+    },
+    "cold_resist": {
+      "display_name": "Warming Meal",
+      "stat": "cold_resist",
+      "add": 1.0,
+      "duration": 600.0
+    },
+    "heat_resist": {
+      "display_name": "Cooling Meal",
+      "stat": "heat_resist",
+      "add": 1.0,
+      "duration": 600.0
+    }
+  }
+}

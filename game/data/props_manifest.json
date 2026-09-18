@@ -189,6 +189,54 @@
         1,
         1
       ]
+    },
+    "field_small": {
+      "model": "bedroll",
+      "footprint": [
+        2,
+        2
+      ],
+      "note": "small farm field (hoe+mud)"
+    },
+    "field_large": {
+      "model": "tent-canvas",
+      "footprint": [
+        3,
+        3
+      ],
+      "note": "large farm field"
+    },
+    "mortar": {
+      "model": "workbench-grind",
+      "footprint": [
+        1,
+        1
+      ],
+      "note": "meatballs"
+    },
+    "stone_grill": {
+      "model": "campfire-stand",
+      "footprint": [
+        1,
+        1
+      ],
+      "note": "stone-plate grill"
+    },
+    "steamer": {
+      "model": "barrel-open",
+      "footprint": [
+        1,
+        1
+      ],
+      "note": "steam station"
+    },
+    "well": {
+      "model": "barrel-open",
+      "footprint": [
+        2,
+        2
+      ],
+      "note": "simple well Construction 25"
     }
   },
   "tools": {
