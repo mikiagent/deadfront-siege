@@ -1,0 +1,1163 @@
+{
+  "_about": "Skill trees (systems PRD \u00a77). SP: ~827 at level 60 plus ~70 from milestones and career guides. A skill level cannot exceed character level. Survival levels passively and has no research gates. Node types: unlock (new action/recipe) or rate (success/yield %).",
+  "sp_budget": {
+    "per_level": [
+      10,
+      12,
+      14,
+      16
+    ],
+    "level_bands": [
+      20,
+      40,
+      55,
+      60
+    ],
+    "milestones": 40,
+    "career_guides": 30,
+    "total_at_60": 897
+  },
+  "refund": {
+    "free_per_day": 5,
+    "warp_gems_each": 30,
+    "max_per_day": 10
+  },
+  "trees": {
+    "survival": {
+      "levels_by": "any play, passively",
+      "research_gates": "none",
+      "total_sp": 452,
+      "nodes": [
+        {
+          "id": "island_access_15",
+          "level": 10,
+          "sp": 5,
+          "type": "unlock",
+          "unlocks": "sail to tier 15 islands",
+          "requires": null
+        },
+        {
+          "id": "belly_fat_1",
+          "level": 12,
+          "sp": 6,
+          "type": "rate",
+          "unlocks": "+10 max energy",
+          "requires": "island_access_15"
+        },
+        {
+          "id": "capture_technique_1",
+          "level": 15,
+          "sp": 8,
+          "type": "unlock",
+          "unlocks": "capture tier I species (Coelophysis, Protoceratops)",
+          "requires": "belly_fat_1"
+        },
+        {
+          "id": "capture_tool_1",
+          "level": 15,
+          "sp": 10,
+          "type": "unlock",
+          "unlocks": "craft capture net I",
+          "requires": "capture_technique_1"
+        },
+        {
+          "id": "stealth_1",
+          "level": 18,
+          "sp": 12,
+          "type": "rate",
+          "unlocks": "creature perception vs you -15%",
+          "requires": "capture_tool_1"
+        },
+        {
+          "id": "island_access_25",
+          "level": 20,
+          "sp": 15,
+          "type": "unlock",
+          "unlocks": "sail to tier 25 islands",
+          "requires": "stealth_1"
+        },
+        {
+          "id": "capture_technique_2",
+          "level": 25,
+          "sp": 18,
+          "type": "unlock",
+          "unlocks": "capture tier II (Velociraptor, Megaloceros)",
+          "requires": "island_access_25"
+        },
+        {
+          "id": "climate_body_1",
+          "level": 28,
+          "sp": 22,
+          "type": "rate",
+          "unlocks": "+1 resistance to all climates",
+          "requires": "capture_technique_2"
+        },
+        {
+          "id": "island_access_35",
+          "level": 30,
+          "sp": 26,
+          "type": "unlock",
+          "unlocks": "tier 35 islands",
+          "requires": "climate_body_1"
+        },
+        {
+          "id": "capture_technique_3",
+          "level": 35,
+          "sp": 30,
+          "type": "unlock",
+          "unlocks": "tier III (Deinonychus, Gallimimus, Styracosaurus)",
+          "requires": "island_access_35"
+        },
+        {
+          "id": "animal_management_1",
+          "level": 35,
+          "sp": 34,
+          "type": "unlock",
+          "unlocks": "+1 bonded animal",
+          "requires": "capture_technique_3"
+        },
+        {
+          "id": "island_access_45",
+          "level": 40,
+          "sp": 38,
+          "type": "unlock",
+          "unlocks": "tier 45 islands",
+          "requires": "animal_management_1"
+        },
+        {
+          "id": "capture_technique_4",
+          "level": 45,
+          "sp": 38,
+          "type": "unlock",
+          "unlocks": "tier IV (Dilophosaurus, Ankylosaurus, Stegosaurus)",
+          "requires": "island_access_45"
+        },
+        {
+          "id": "animal_management_2",
+          "level": 45,
+          "sp": 38,
+          "type": "unlock",
+          "unlocks": "+1 bonded animal",
+          "requires": "capture_technique_4"
+        },
+        {
+          "id": "island_access_55",
+          "level": 50,
+          "sp": 38,
+          "type": "unlock",
+          "unlocks": "tier 55 islands",
+          "requires": "animal_management_2"
+        },
+        {
+          "id": "capture_technique_5",
+          "level": 55,
+          "sp": 38,
+          "type": "unlock",
+          "unlocks": "tier V (Utahraptor, Triceratops, Smilodon, Tarbosaurus)",
+          "requires": "island_access_55"
+        },
+        {
+          "id": "animal_management_3",
+          "level": 55,
+          "sp": 38,
+          "type": "unlock",
+          "unlocks": "+1 bonded animal",
+          "requires": "capture_technique_5"
+        },
+        {
+          "id": "animal_management_4",
+          "level": 60,
+          "sp": 38,
+          "type": "unlock",
+          "unlocks": "+1 bonded animal (cap 7)",
+          "requires": "animal_management_3"
+        }
+      ]
+    },
+    "gathering": {
+      "levels_by": "foraging; skill level = max material level without downrank",
+      "research_gates": "every 5 levels past 20 needs a timed research (Appendix A)",
+      "total_sp": 186,
+      "nodes": [
+        {
+          "id": "forage_1",
+          "level": 1,
+          "sp": 5,
+          "type": "unlock",
+          "unlocks": "plants, fibre, berries",
+          "requires": null
+        },
+        {
+          "id": "thickets",
+          "level": 5,
+          "sp": 6,
+          "type": "unlock",
+          "unlocks": "cut thickets with a knife",
+          "requires": "forage_1"
+        },
+        {
+          "id": "mining_1",
+          "level": 10,
+          "sp": 8,
+          "type": "unlock",
+          "unlocks": "stone and clay with a pick",
+          "requires": "thickets"
+        },
+        {
+          "id": "herbs_1",
+          "level": 15,
+          "sp": 10,
+          "type": "unlock",
+          "unlocks": "herb identification, medicinal herbs",
+          "requires": "mining_1"
+        },
+        {
+          "id": "insects",
+          "level": 20,
+          "sp": 12,
+          "type": "unlock",
+          "unlocks": "insects and grubs for bait",
+          "requires": "herbs_1"
+        },
+        {
+          "id": "mining_2",
+          "level": 25,
+          "sp": 15,
+          "type": "unlock",
+          "unlocks": "copper and sandstone ore",
+          "requires": "insects"
+        },
+        {
+          "id": "great_success_1",
+          "level": 30,
+          "sp": 18,
+          "type": "rate",
+          "unlocks": "+5% great-success gather (extra process count)",
+          "requires": "mining_2"
+        },
+        {
+          "id": "mining_3",
+          "level": 35,
+          "sp": 22,
+          "type": "unlock",
+          "unlocks": "obsidian, flint, silver",
+          "requires": "great_success_1"
+        },
+        {
+          "id": "rare_plants",
+          "level": 40,
+          "sp": 26,
+          "type": "unlock",
+          "unlocks": "crater plants (bamboo, tea, mango)",
+          "requires": "mining_3"
+        },
+        {
+          "id": "mining_4",
+          "level": 50,
+          "sp": 30,
+          "type": "unlock",
+          "unlocks": "black iron, gems",
+          "requires": "rare_plants"
+        },
+        {
+          "id": "great_success_2",
+          "level": 55,
+          "sp": 34,
+          "type": "rate",
+          "unlocks": "+10% great-success gather",
+          "requires": "mining_4"
+        }
+      ]
+    },
+    "butchering": {
+      "levels_by": "skinning carcasses",
+      "research_gates": "every 5 levels past 20 needs a timed research (Appendix A)",
+      "total_sp": 122,
+      "nodes": [
+        {
+          "id": "butcher_1",
+          "level": 1,
+          "sp": 5,
+          "type": "unlock",
+          "unlocks": "meat, bone, hide",
+          "requires": null
+        },
+        {
+          "id": "organs",
+          "level": 10,
+          "sp": 6,
+          "type": "unlock",
+          "unlocks": "organs and fat",
+          "requires": "butcher_1"
+        },
+        {
+          "id": "tendon",
+          "level": 15,
+          "sp": 8,
+          "type": "unlock",
+          "unlocks": "tendons (cordage)",
+          "requires": "organs"
+        },
+        {
+          "id": "rare_parts_1",
+          "level": 20,
+          "sp": 10,
+          "type": "unlock",
+          "unlocks": "talons, teeth, horns",
+          "requires": "tendon"
+        },
+        {
+          "id": "yield_1",
+          "level": 25,
+          "sp": 12,
+          "type": "rate",
+          "unlocks": "+20% yield",
+          "requires": "rare_parts_1"
+        },
+        {
+          "id": "scutes",
+          "level": 30,
+          "sp": 15,
+          "type": "unlock",
+          "unlocks": "armour scutes and osteoderms",
+          "requires": "yield_1"
+        },
+        {
+          "id": "quality_bone",
+          "level": 40,
+          "sp": 18,
+          "type": "unlock",
+          "unlocks": "leg bones as pillars, skulls",
+          "requires": "scutes"
+        },
+        {
+          "id": "yield_2",
+          "level": 45,
+          "sp": 22,
+          "type": "rate",
+          "unlocks": "+40% yield",
+          "requires": "quality_bone"
+        },
+        {
+          "id": "trophy",
+          "level": 55,
+          "sp": 26,
+          "type": "unlock",
+          "unlocks": "raid-animal trophies",
+          "requires": "yield_2"
+        }
+      ]
+    },
+    "processing": {
+      "levels_by": "turning raw into parts (half XP rate)",
+      "research_gates": "every 5 levels past 20 needs a timed research (Appendix A)",
+      "total_sp": 186,
+      "nodes": [
+        {
+          "id": "cordage",
+          "level": 1,
+          "sp": 5,
+          "type": "unlock",
+          "unlocks": "twine, rope",
+          "requires": null
+        },
+        {
+          "id": "split_wood",
+          "level": 5,
+          "sp": 6,
+          "type": "unlock",
+          "unlocks": "split wood, planks",
+          "requires": "cordage"
+        },
+        {
+          "id": "drying",
+          "level": 10,
+          "sp": 8,
+          "type": "unlock",
+          "unlocks": "dried hide, straps",
+          "requires": "split_wood"
+        },
+        {
+          "id": "charcoal",
+          "level": 15,
+          "sp": 10,
+          "type": "unlock",
+          "unlocks": "charcoal",
+          "requires": "drying"
+        },
+        {
+          "id": "nails_pillars",
+          "level": 20,
+          "sp": 12,
+          "type": "unlock",
+          "unlocks": "nails, pillars",
+          "requires": "charcoal"
+        },
+        {
+          "id": "smelting_1",
+          "level": 25,
+          "sp": 15,
+          "type": "unlock",
+          "unlocks": "copper ingots (furnace)",
+          "requires": "nails_pillars"
+        },
+        {
+          "id": "milling",
+          "level": 30,
+          "sp": 18,
+          "type": "unlock",
+          "unlocks": "flour, meal",
+          "requires": "smelting_1"
+        },
+        {
+          "id": "thread_cloth",
+          "level": 30,
+          "sp": 22,
+          "type": "unlock",
+          "unlocks": "thread and cloth from fibre",
+          "requires": "milling"
+        },
+        {
+          "id": "smelting_2",
+          "level": 40,
+          "sp": 26,
+          "type": "unlock",
+          "unlocks": "silver and black iron ingots",
+          "requires": "thread_cloth"
+        },
+        {
+          "id": "ceramics",
+          "level": 45,
+          "sp": 30,
+          "type": "unlock",
+          "unlocks": "kiln ceramics",
+          "requires": "smelting_2"
+        },
+        {
+          "id": "great_success_p",
+          "level": 55,
+          "sp": 34,
+          "type": "rate",
+          "unlocks": "+10% extra process count",
+          "requires": "ceramics"
+        }
+      ]
+    },
+    "melee": {
+      "levels_by": "fighting with close weapons",
+      "research_gates": "every 5 levels past 20 needs a timed research (Appendix A)",
+      "total_sp": 152,
+      "nodes": [
+        {
+          "id": "attack_stance",
+          "level": 1,
+          "sp": 5,
+          "type": "unlock",
+          "unlocks": "Attack stance, auto-attack",
+          "requires": null
+        },
+        {
+          "id": "body_tackle",
+          "level": 5,
+          "sp": 6,
+          "type": "unlock",
+          "unlocks": "Body Tackle (Groggy)",
+          "requires": "attack_stance"
+        },
+        {
+          "id": "kick",
+          "level": 10,
+          "sp": 8,
+          "type": "unlock",
+          "unlocks": "Kick",
+          "requires": "body_tackle"
+        },
+        {
+          "id": "onslaught",
+          "level": 20,
+          "sp": 10,
+          "type": "unlock",
+          "unlocks": "Onslaught stance (two-hand burst)",
+          "requires": "kick"
+        },
+        {
+          "id": "sweep",
+          "level": 25,
+          "sp": 12,
+          "type": "unlock",
+          "unlocks": "Sweep (multi-target)",
+          "requires": "onslaught"
+        },
+        {
+          "id": "knockdown_mastery",
+          "level": 30,
+          "sp": 15,
+          "type": "rate",
+          "unlocks": "+15% knockdown chance",
+          "requires": "sweep"
+        },
+        {
+          "id": "one_hand_mastery",
+          "level": 35,
+          "sp": 18,
+          "type": "rate",
+          "unlocks": "+10% one-hand damage",
+          "requires": "knockdown_mastery"
+        },
+        {
+          "id": "two_hand_mastery",
+          "level": 40,
+          "sp": 22,
+          "type": "rate",
+          "unlocks": "+10% two-hand damage",
+          "requires": "one_hand_mastery"
+        },
+        {
+          "id": "shoulder_charge",
+          "level": 45,
+          "sp": 26,
+          "type": "unlock",
+          "unlocks": "Shoulder Charge (Groggy + knockback)",
+          "requires": "two_hand_mastery"
+        },
+        {
+          "id": "execution",
+          "level": 55,
+          "sp": 30,
+          "type": "unlock",
+          "unlocks": "bonus damage on Knocked Down targets",
+          "requires": "shoulder_charge"
+        }
+      ]
+    },
+    "ranged": {
+      "levels_by": "bow and crossbow",
+      "research_gates": "every 5 levels past 20 needs a timed research (Appendix A)",
+      "total_sp": 122,
+      "nodes": [
+        {
+          "id": "throw",
+          "level": 1,
+          "sp": 5,
+          "type": "unlock",
+          "unlocks": "throw stones",
+          "requires": null
+        },
+        {
+          "id": "bow_1",
+          "level": 10,
+          "sp": 6,
+          "type": "unlock",
+          "unlocks": "craft and use bows",
+          "requires": "throw"
+        },
+        {
+          "id": "draw_1",
+          "level": 15,
+          "sp": 8,
+          "type": "rate",
+          "unlocks": "+10% draw power",
+          "requires": "bow_1"
+        },
+        {
+          "id": "kiting",
+          "level": 20,
+          "sp": 10,
+          "type": "unlock",
+          "unlocks": "shoot while walking",
+          "requires": "draw_1"
+        },
+        {
+          "id": "fire_rate_1",
+          "level": 25,
+          "sp": 12,
+          "type": "rate",
+          "unlocks": "+10% fire rate",
+          "requires": "kiting"
+        },
+        {
+          "id": "crossbow",
+          "level": 35,
+          "sp": 15,
+          "type": "unlock",
+          "unlocks": "crossbow",
+          "requires": "fire_rate_1"
+        },
+        {
+          "id": "draw_2",
+          "level": 40,
+          "sp": 18,
+          "type": "rate",
+          "unlocks": "+20% draw power",
+          "requires": "crossbow"
+        },
+        {
+          "id": "volley",
+          "level": 45,
+          "sp": 22,
+          "type": "unlock",
+          "unlocks": "Volley",
+          "requires": "draw_2"
+        },
+        {
+          "id": "raid_arrows",
+          "level": 55,
+          "sp": 26,
+          "type": "unlock",
+          "unlocks": "raid-grade arrowheads",
+          "requires": "volley"
+        }
+      ]
+    },
+    "defense": {
+      "levels_by": "taking hits",
+      "research_gates": "every 5 levels past 20 needs a timed research (Appendix A)",
+      "total_sp": 122,
+      "nodes": [
+        {
+          "id": "roll",
+          "level": 1,
+          "sp": 5,
+          "type": "unlock",
+          "unlocks": "Roll",
+          "requires": null
+        },
+        {
+          "id": "max_health_1",
+          "level": 5,
+          "sp": 6,
+          "type": "rate",
+          "unlocks": "+10% max health",
+          "requires": "roll"
+        },
+        {
+          "id": "parry",
+          "level": 15,
+          "sp": 8,
+          "type": "unlock",
+          "unlocks": "Parry",
+          "requires": "max_health_1"
+        },
+        {
+          "id": "counter",
+          "level": 20,
+          "sp": 10,
+          "type": "unlock",
+          "unlocks": "Counter after parry",
+          "requires": "parry"
+        },
+        {
+          "id": "max_health_2",
+          "level": 25,
+          "sp": 12,
+          "type": "rate",
+          "unlocks": "+20% max health",
+          "requires": "counter"
+        },
+        {
+          "id": "anti_knockdown",
+          "level": 30,
+          "sp": 15,
+          "type": "rate",
+          "unlocks": "-25% knockdown taken",
+          "requires": "max_health_2"
+        },
+        {
+          "id": "recovery",
+          "level": 35,
+          "sp": 18,
+          "type": "rate",
+          "unlocks": "+50% health regen out of combat",
+          "requires": "anti_knockdown"
+        },
+        {
+          "id": "iron_body",
+          "level": 45,
+          "sp": 22,
+          "type": "rate",
+          "unlocks": "Fracture duration -30%",
+          "requires": "recovery"
+        },
+        {
+          "id": "max_health_3",
+          "level": 55,
+          "sp": 26,
+          "type": "rate",
+          "unlocks": "+30% max health",
+          "requires": "iron_body"
+        }
+      ]
+    },
+    "weapon_tools": {
+      "levels_by": "crafting weapons and tools",
+      "research_gates": "every 5 levels past 20 needs a timed research (Appendix A)",
+      "total_sp": 186,
+      "nodes": [
+        {
+          "id": "improvised_tools",
+          "level": 1,
+          "sp": 5,
+          "type": "unlock",
+          "unlocks": "stone knife, work axe, club",
+          "requires": null
+        },
+        {
+          "id": "work_pick",
+          "level": 5,
+          "sp": 6,
+          "type": "unlock",
+          "unlocks": "work pick",
+          "requires": "improvised_tools"
+        },
+        {
+          "id": "spear",
+          "level": 10,
+          "sp": 8,
+          "type": "unlock",
+          "unlocks": "spears",
+          "requires": "work_pick"
+        },
+        {
+          "id": "combat_knife",
+          "level": 15,
+          "sp": 10,
+          "type": "unlock",
+          "unlocks": "combat knife and axe",
+          "requires": "spear"
+        },
+        {
+          "id": "splint",
+          "level": 15,
+          "sp": 12,
+          "type": "unlock",
+          "unlocks": "splint (Fracture counter)",
+          "requires": "combat_knife"
+        },
+        {
+          "id": "hammer",
+          "level": 20,
+          "sp": 15,
+          "type": "unlock",
+          "unlocks": "hammer, nails",
+          "requires": "splint"
+        },
+        {
+          "id": "two_hand",
+          "level": 25,
+          "sp": 18,
+          "type": "unlock",
+          "unlocks": "two-hand axe and club",
+          "requires": "hammer"
+        },
+        {
+          "id": "copper_tools",
+          "level": 30,
+          "sp": 22,
+          "type": "unlock",
+          "unlocks": "copper tool heads",
+          "requires": "two_hand"
+        },
+        {
+          "id": "cooking_utensils",
+          "level": 30,
+          "sp": 26,
+          "type": "unlock",
+          "unlocks": "pots and grills",
+          "requires": "copper_tools"
+        },
+        {
+          "id": "blade_shapes",
+          "level": 40,
+          "sp": 30,
+          "type": "unlock",
+          "unlocks": "blade shape changes weapon type",
+          "requires": "cooking_utensils"
+        },
+        {
+          "id": "iron_weapons",
+          "level": 50,
+          "sp": 34,
+          "type": "unlock",
+          "unlocks": "black iron weapons",
+          "requires": "blade_shapes"
+        }
+      ]
+    },
+    "tailoring": {
+      "levels_by": "clothes and bags",
+      "research_gates": "every 5 levels past 20 needs a timed research (Appendix A)",
+      "total_sp": 186,
+      "nodes": [
+        {
+          "id": "leaf_outfit",
+          "level": 1,
+          "sp": 5,
+          "type": "unlock",
+          "unlocks": "leaf outfit",
+          "requires": null
+        },
+        {
+          "id": "bandage",
+          "level": 5,
+          "sp": 6,
+          "type": "unlock",
+          "unlocks": "bandage (Bleed counter)",
+          "requires": "leaf_outfit"
+        },
+        {
+          "id": "small_bag",
+          "level": 10,
+          "sp": 8,
+          "type": "unlock",
+          "unlocks": "small bag +6 slots",
+          "requires": "bandage"
+        },
+        {
+          "id": "cloth_clothes",
+          "level": 15,
+          "sp": 10,
+          "type": "unlock",
+          "unlocks": "cloth shirt and trousers",
+          "requires": "small_bag"
+        },
+        {
+          "id": "heat_resist",
+          "level": 20,
+          "sp": 12,
+          "type": "unlock",
+          "unlocks": "light heat clothing",
+          "requires": "cloth_clothes"
+        },
+        {
+          "id": "cold_resist",
+          "level": 25,
+          "sp": 15,
+          "type": "unlock",
+          "unlocks": "fur cold clothing",
+          "requires": "heat_resist"
+        },
+        {
+          "id": "pressure_dressing",
+          "level": 25,
+          "sp": 18,
+          "type": "unlock",
+          "unlocks": "pressure dressing (Deep Bleed counter)",
+          "requires": "cold_resist"
+        },
+        {
+          "id": "large_bag",
+          "level": 30,
+          "sp": 22,
+          "type": "unlock",
+          "unlocks": "large bag +12 slots",
+          "requires": "pressure_dressing"
+        },
+        {
+          "id": "armor_1",
+          "level": 35,
+          "sp": 26,
+          "type": "unlock",
+          "unlocks": "hide armour",
+          "requires": "large_bag"
+        },
+        {
+          "id": "scute_armor",
+          "level": 45,
+          "sp": 30,
+          "type": "unlock",
+          "unlocks": "scute armour",
+          "requires": "armor_1"
+        },
+        {
+          "id": "master_bag",
+          "level": 55,
+          "sp": 34,
+          "type": "unlock",
+          "unlocks": "master bag +20 slots",
+          "requires": "scute_armor"
+        }
+      ]
+    },
+    "construction": {
+      "levels_by": "building",
+      "research_gates": "every 5 levels past 20 needs a timed research (Appendix A)",
+      "total_sp": 224,
+      "nodes": [
+        {
+          "id": "bonfire",
+          "level": 1,
+          "sp": 5,
+          "type": "unlock",
+          "unlocks": "bonfire, tent",
+          "requires": null
+        },
+        {
+          "id": "workbench",
+          "level": 5,
+          "sp": 6,
+          "type": "unlock",
+          "unlocks": "workbench, basket",
+          "requires": "bonfire"
+        },
+        {
+          "id": "fence",
+          "level": 10,
+          "sp": 8,
+          "type": "unlock",
+          "unlocks": "fence, gate, sign",
+          "requires": "workbench"
+        },
+        {
+          "id": "taming_pen",
+          "level": 15,
+          "sp": 10,
+          "type": "unlock",
+          "unlocks": "makeshift taming pen",
+          "requires": "fence"
+        },
+        {
+          "id": "drying_rack",
+          "level": 15,
+          "sp": 12,
+          "type": "unlock",
+          "unlocks": "drying rack",
+          "requires": "taming_pen"
+        },
+        {
+          "id": "storage_2",
+          "level": 20,
+          "sp": 15,
+          "type": "unlock",
+          "unlocks": "large box",
+          "requires": "drying_rack"
+        },
+        {
+          "id": "simple_well",
+          "level": 25,
+          "sp": 18,
+          "type": "unlock",
+          "unlocks": "simple well",
+          "requires": "storage_2"
+        },
+        {
+          "id": "residence",
+          "level": 30,
+          "sp": 22,
+          "type": "unlock",
+          "unlocks": "wall house (fatigue -100% inside)",
+          "requires": "simple_well"
+        },
+        {
+          "id": "furnace_kiln",
+          "level": 35,
+          "sp": 26,
+          "type": "unlock",
+          "unlocks": "furnace, kiln",
+          "requires": "residence"
+        },
+        {
+          "id": "well",
+          "level": 45,
+          "sp": 30,
+          "type": "unlock",
+          "unlocks": "well",
+          "requires": "furnace_kiln"
+        },
+        {
+          "id": "barn",
+          "level": 50,
+          "sp": 34,
+          "type": "unlock",
+          "unlocks": "barn, large pen",
+          "requires": "well"
+        },
+        {
+          "id": "clan_structures",
+          "level": 60,
+          "sp": 38,
+          "type": "unlock",
+          "unlocks": "clan hall (later)",
+          "requires": "barn"
+        }
+      ]
+    },
+    "cooking": {
+      "levels_by": "cooking and herbalism",
+      "research_gates": "every 5 levels past 20 needs a timed research (Appendix A)",
+      "total_sp": 186,
+      "nodes": [
+        {
+          "id": "skewer",
+          "level": 1,
+          "sp": 5,
+          "type": "unlock",
+          "unlocks": "skewer (cap level 19)",
+          "requires": null
+        },
+        {
+          "id": "meatball",
+          "level": 10,
+          "sp": 6,
+          "type": "unlock",
+          "unlocks": "meatballs (mortar)",
+          "requires": "skewer"
+        },
+        {
+          "id": "stone_grill",
+          "level": 20,
+          "sp": 8,
+          "type": "unlock",
+          "unlocks": "stone-plate grilling",
+          "requires": "meatball"
+        },
+        {
+          "id": "antivenom",
+          "level": 20,
+          "sp": 10,
+          "type": "unlock",
+          "unlocks": "antivenom",
+          "requires": "stone_grill"
+        },
+        {
+          "id": "steam",
+          "level": 25,
+          "sp": 12,
+          "type": "unlock",
+          "unlocks": "steaming",
+          "requires": "antivenom"
+        },
+        {
+          "id": "antibiotic",
+          "level": 30,
+          "sp": 15,
+          "type": "unlock",
+          "unlocks": "antibiotic (Infected Wound counter)",
+          "requires": "steam"
+        },
+        {
+          "id": "buff_food",
+          "level": 35,
+          "sp": 18,
+          "type": "unlock",
+          "unlocks": "stat-buff meals",
+          "requires": "antibiotic"
+        },
+        {
+          "id": "sashimi",
+          "level": 40,
+          "sp": 22,
+          "type": "unlock",
+          "unlocks": "sashimi (1 meat \u2192 3)",
+          "requires": "buff_food"
+        },
+        {
+          "id": "boiling",
+          "level": 40,
+          "sp": 26,
+          "type": "unlock",
+          "unlocks": "boiling (uprank in high-level water)",
+          "requires": "sashimi"
+        },
+        {
+          "id": "roast",
+          "level": 45,
+          "sp": 30,
+          "type": "unlock",
+          "unlocks": "roast, seasoned roast",
+          "requires": "boiling"
+        },
+        {
+          "id": "pet_food",
+          "level": 50,
+          "sp": 34,
+          "type": "unlock",
+          "unlocks": "pet feed recipes",
+          "requires": "roast"
+        }
+      ]
+    },
+    "farming": {
+      "levels_by": "tilling, planting, harvesting",
+      "research_gates": "every 5 levels past 20 needs a timed research (Appendix A)",
+      "total_sp": 122,
+      "nodes": [
+        {
+          "id": "small_field",
+          "level": 1,
+          "sp": 5,
+          "type": "unlock",
+          "unlocks": "small field (hoe + mud)",
+          "requires": null
+        },
+        {
+          "id": "flax",
+          "level": 5,
+          "sp": 6,
+          "type": "unlock",
+          "unlocks": "flax seeds",
+          "requires": "small_field"
+        },
+        {
+          "id": "corn",
+          "level": 10,
+          "sp": 8,
+          "type": "unlock",
+          "unlocks": "corn",
+          "requires": "flax"
+        },
+        {
+          "id": "fertilizer",
+          "level": 15,
+          "sp": 10,
+          "type": "unlock",
+          "unlocks": "fruit fertilizer",
+          "requires": "corn"
+        },
+        {
+          "id": "large_field",
+          "level": 25,
+          "sp": 12,
+          "type": "unlock",
+          "unlocks": "large field",
+          "requires": "fertilizer"
+        },
+        {
+          "id": "orchard",
+          "level": 30,
+          "sp": 15,
+          "type": "unlock",
+          "unlocks": "fruit trees",
+          "requires": "large_field"
+        },
+        {
+          "id": "advanced_fertilizer",
+          "level": 40,
+          "sp": 18,
+          "type": "unlock",
+          "unlocks": "advanced fertilizer (3x)",
+          "requires": "orchard"
+        },
+        {
+          "id": "ranching",
+          "level": 45,
+          "sp": 22,
+          "type": "unlock",
+          "unlocks": "barn animals, milk",
+          "requires": "advanced_fertilizer"
+        },
+        {
+          "id": "sprinkler",
+          "level": 50,
+          "sp": 26,
+          "type": "unlock",
+          "unlocks": "sprinkler",
+          "requires": "ranching"
+        }
+      ]
+    }
+  },
+  "_totals": {
+    "all_trees_sp": 2246,
+    "note": "All twelve trees cost 2246 SP; a character has ~897. Four big trees (Survival, Gathering, Construction, Processing) alone cost 1048."
+  }
+}
