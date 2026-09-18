@@ -26,6 +26,14 @@ func _ready() -> void:
 	_cam._target = _player
 	_cam._snap()
 	print("[boot] lab=island_lab")
+	if Game.shot_path.contains("shore") and World.runtime:
+		var r: float = World.runtime.land_radius() * 1.12
+		_player.global_position = Vector3(r * 0.2, 2.0, r * 0.98)
+		if World.runtime.has_method("surface_y"):
+			_player.global_position.y = World.runtime.surface_y(_player.global_position.x, _player.global_position.z) + 1.2
+		_cam._snap()
+	if Game.shot_path.contains("night"):
+		Game.time_of_day = 0.9
 	if Game.shot_path.contains("crater") and World.runtime:
 		_player.global_position = Vector3(8.0, 2.0, -177.0)
 		if World.runtime.has_method("surface_y"):
@@ -35,7 +43,7 @@ func _ready() -> void:
 		call_deferred("_log_draw_calls", "crater")
 	elif Game.shot_path.contains("tiles"):
 		call_deferred("_shot_tiles_probe")
-	elif Game.shot_path != "":
+	elif Game.shot_path != "" and not (Game.shot_path.contains("shore") or Game.shot_path.contains("night")):
 		call_deferred("_shot_ring_probe")
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
 		call_deferred("_headless_gather_probe")

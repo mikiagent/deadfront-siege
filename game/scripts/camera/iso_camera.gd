@@ -6,9 +6,9 @@ extends Camera3D
 @export var target_path: NodePath
 @export var distance: float = 40.0
 @export var follow_lerp: float = 8.0
-@export var min_size: float = 12.0
-@export var max_size: float = 40.0
-@export var default_size: float = 24.0
+@export var min_size: float = 10.0
+@export var max_size: float = 28.0
+@export var default_size: float = 15.0
 
 var _target: Node3D
 

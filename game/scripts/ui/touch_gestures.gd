@@ -2,8 +2,8 @@ class_name TouchGestures
 extends Node
 ## Pinch (two fingers) or trackpad magnify to zoom the orthographic camera.
 
-@export var min_size: float = 12.0
-@export var max_size: float = 40.0
+@export var min_size: float = 10.0
+@export var max_size: float = 28.0
 
 var joystick: TouchJoystick
 var _touches: Dictionary = {}

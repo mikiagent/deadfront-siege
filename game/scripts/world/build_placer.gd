@@ -87,9 +87,11 @@ func begin(kind: StringName) -> void:
 	var grid := _grid()
 	if grid:
 		grid.set_actor(get_parent() as Node3D)
+	Game.show_grid = true
 	TouchControls.set_context(&"place")
 
 func cancel() -> void:
+	Game.show_grid = false
 	var grid := _grid()
 	if grid:
 		grid.clear_actor(get_parent() as Node3D)

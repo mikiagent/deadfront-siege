@@ -24,6 +24,8 @@ var pool: float = 0.0
 var session_gathered: int = 0
 var _mesh: MeshInstance3D
 var _falling: bool = false
+var _batch: VegBatch
+var _batch_idx: int = -1
 var _tile: Vector2i = Vector2i.ZERO
 var _regen_left: float = 0.0
 
@@ -156,6 +158,22 @@ func _spawn_log() -> void:
 	if ResourceLoader.exists(path):
 		log_n.set_visual(path)
 	# ASSUMPTION: felled tree becomes a WoodLog prop for a second harvest; tree respawns after regen.
+
+## Visual lives in a shared MultiMesh (VegBatch); this node only toggles its instance.
+func set_batched_visual(batch: VegBatch, idx: int) -> void:
+	_batch = batch
+	_batch_idx = idx
+	if _mesh:
+		_mesh.visible = false
+	_apply_batch()
+
+func _apply_batch() -> void:
+	if _batch:
+		_batch.set_shown(_batch_idx, visible and not depleted)
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED:
+		_apply_batch()
 
 func set_visual(path: String) -> void:
 	if not ResourceLoader.exists(path):

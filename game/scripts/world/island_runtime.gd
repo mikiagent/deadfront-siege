@@ -3,6 +3,8 @@ extends Node3D
 
 const TERRAIN_SHADER: Shader = preload("res://scripts/world/terrain_tiles.gdshader")
 const FOLIAGE_SHADER: Shader = preload("res://scripts/world/foliage_sway.gdshader")
+const WATER_SHADER: Shader = preload("res://scripts/world/water.gdshader")
+const DISC_SHADER: Shader = preload("res://scripts/world/dirt_disc.gdshader")
 const TERRAIN_TEX := {
 	"grass": "res://assets/terrain/aerial_grass_rock_diff_1k.jpg",
 	"dirt": "res://assets/terrain/brown_mud_leaves_01_diff_1k.jpg",
@@ -21,6 +23,7 @@ enum TileType {
 	BARE = 7,
 	DEEP = 8,
 	ASH = 9,
+	WET = 10,
 }
 
 var harvest_count: int = 0
@@ -62,10 +65,16 @@ var _bare_tiles: Dictionary = {}
 var spawn_rejected: int = 0
 var build_grid: BuildGrid
 var pathing
+var _height_tex: ImageTexture
+var _water_mat: ShaderMaterial
+var _used_tiles: Dictionary = {}
+var _tree_discs: MultiMeshInstance3D
+var _tree_disc_xforms: Array[Transform3D] = []
+var _batches: Array[VegBatch] = []
 
-## Radius of dry, walkable land: the beach blend starts at 0.40 * size (see _terrain).
+## Radius of dry, walkable land: the shore starts falling at 0.36 * size (see _terrain).
 func land_radius() -> float:
-	return _size * 0.40
+	return _size * 0.38
 
 ## True when a creature may stand at pos: on dry land above the beach and the river,
 ## inside the land radius and (when strict) at least 25 m from camp and the harbour
@@ -147,17 +156,24 @@ func mark_pathing_dirty() -> void:
 		pathing.mark_dirty()
 
 func _env() -> void:
-	var scene := get_tree().current_scene
-	if scene:
-		var old_sun := scene.get_node_or_null("Sun") as DirectionalLight3D
-		if old_sun:
-			old_sun.visible = false
-	world_env = get_tree().root.find_child("WorldEnvironment", true, false) as WorldEnvironment
-	if world_env and world_env.environment:
+	# The island owns the lighting: every other directional light (main scene, lab kits)
+	# is switched off and every other WorldEnvironment is emptied, so day/night works
+	# the same in the game and in the labs.
+	var root := get_tree().root
+	for l in root.find_children("*", "DirectionalLight3D", true, false):
+		if l != sun:
+			(l as DirectionalLight3D).visible = false
+	var envs := root.find_children("*", "WorldEnvironment", true, false)
+	for i in envs.size():
+		var we := envs[i] as WorldEnvironment
+		if i == 0:
+			world_env = we
+		else:
+			we.environment = null
+	if world_env:
+		if world_env.environment == null:
+			world_env.environment = Environment.new()
 		_apply_env_setup(world_env.environment)
-		world_env.environment.ambient_light_energy = 0.95
-		world_env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-		world_env.environment.ambient_light_color = Color(0.92, 0.94, 0.88)
 		return
 	world_env = WorldEnvironment.new()
 	var e := Environment.new()
@@ -168,8 +184,8 @@ func _env() -> void:
 func _apply_env_setup(e: Environment) -> void:
 	e.background_mode = Environment.BG_SKY
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color(0.92, 0.94, 0.88)
-	e.ambient_light_energy = 0.95
+	e.ambient_light_color = Color(0.80, 0.86, 0.95)
+	e.ambient_light_energy = 0.75
 	e.ssao_enabled = false
 	e.ssr_enabled = false
 	e.glow_enabled = false
@@ -190,10 +206,13 @@ func _apply_env_setup(e: Environment) -> void:
 
 func _sun() -> void:
 	sun = DirectionalLight3D.new()
-	sun.shadow_enabled = false
-	sun.directional_shadow_max_distance = 90.0
-	sun.light_energy = 1.45
-	sun.light_color = Color(1.0, 0.97, 0.90)
+	sun.shadow_enabled = true
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	sun.directional_shadow_max_distance = 60.0
+	sun.shadow_bias = 0.04
+	sun.shadow_normal_bias = 1.5
+	sun.light_energy = 1.3
+	sun.light_color = Color(1.0, 0.95, 0.85)
 	sun.rotation_degrees = Vector3(-55, 30, 0)
 	add_child(sun)
 
@@ -257,52 +276,64 @@ func _terrain(size: float, climate: String) -> void:
 	var n2 := FastNoiseLite.new()
 	n2.seed = seed + 211
 	n2.frequency = 0.08
+	var nshore := FastNoiseLite.new()
+	nshore.seed = seed + 307
+	nshore.frequency = 0.02
 	var rr := RandomNumberGenerator.new()
 	rr.seed = int(seed) * 131
 	var ridge_ang := rr.randf() * TAU
 	_ridge_dir = Vector2(cos(ridge_ang), sin(ridge_ang)).normalized()
 	var cell := size / float(_res - 1)
-	var beach0 := size * 0.40
-	var beach1 := size * 0.46
+	# Durango ground is flat: gentle undulation only, a low ridge far inland, and a wide
+	# gradual shore (dry sand -> wet sand -> shallow -> deep over 20-30 m) whose waterline
+	# wanders with noise so it never reads as a ring.
+	var shore0 := size * 0.36
+	var shore1 := size * 0.47
 	for z in _res:
 		for x in _res:
 			var wx := -size * 0.5 + float(x) * cell
 			var wz := -size * 0.5 + float(z) * cell
-			var h := 2.4
-			h += n0.get_noise_2d(wx, wz) * 3.5
-			h += n1.get_noise_2d(wx, wz) * 1.2
-			h += n2.get_noise_2d(wx, wz) * 0.35
+			var h := 1.1
+			h += n0.get_noise_2d(wx, wz) * 0.45
+			h += n1.get_noise_2d(wx, wz) * 0.18
+			h += n2.get_noise_2d(wx, wz) * 0.06
 			var rad := Vector2(wx, wz).length()
-			if rad > size * 0.16 and rad < beach0:
+			if rad > size * 0.14 and rad < shore0:
 				var dir := Vector2(wx, wz).normalized()
 				var along := maxf(0.0, dir.dot(_ridge_dir))
 				var cross := absf(dir.dot(Vector2(-_ridge_dir.y, _ridge_dir.x)))
-				var width := clampf(1.0 - cross / 0.55, 0.0, 1.0)
-				var inland := clampf((rad - size * 0.16) / (beach0 - size * 0.16), 0.0, 1.0)
-				h += 5.0 * along * width * sin(inland * PI)
+				var width := clampf(1.0 - cross / 0.5, 0.0, 1.0)
+				var inland := clampf((rad - size * 0.14) / (shore0 - size * 0.14), 0.0, 1.0)
+				h += 2.0 * along * width * sin(inland * PI)
 			var river_center := sin(wx * 0.018 + float(seed) * 0.13) * (size * 0.085)
 			var river := absf(wz - river_center)
-			if river < 3.0 and rad > size * 0.16 and rad < size * 0.44:
-				var carve := clampf(1.0 - river / 3.0, 0.0, 1.0)
-				var bed := -0.32 + (1.0 - carve) * 0.28
-				h = lerpf(h, bed, carve * carve)
+			if river < 6.0 and rad > size * 0.16 and rad < size * 0.42:
+				var carve := clampf(1.0 - river / 6.0, 0.0, 1.0)
+				carve = carve * carve * (3.0 - 2.0 * carve)
+				h = lerpf(h, -0.35, carve)
 			if _crater_hint != Vector3.ZERO:
 				var dc := Vector2(wx - _crater_hint.x, wz - _crater_hint.z).length()
 				if dc < 12.0:
 					var bowl := pow(clampf(1.0 - dc / 12.0, 0.0, 1.0), 2.0)
-					h -= bowl * 1.5
+					h -= bowl * 1.2
 				var rim := clampf(1.0 - absf(dc - 12.0) / 4.0, 0.0, 1.0)
-				h += rim * 0.6
-			if rad > beach0:
-				var t := clampf((rad - beach0) / maxf(0.001, beach1 - beach0), 0.0, 1.0)
-				var eased := 1.0 - pow(1.0 - t, 2.2)
-				h = lerpf(h, -2.5, eased)
+				h += rim * 0.4
+			var wander := nshore.get_noise_2d(wx, wz) * (size * 0.03)
+			var rs := rad + wander
+			if rs > shore0:
+				var t := clampf((rs - shore0) / maxf(0.001, shore1 - shore0), 0.0, 1.0)
+				var eased := t * t * (3.0 - 2.0 * t)
+				h = lerpf(h, -1.4, eased)
+			if rs > shore1:
+				var t2 := clampf((rs - shore1) / (size * 0.05), 0.0, 1.0)
+				h = lerpf(h, -2.6, t2)
 			if _camp_hint != Vector3.ZERO:
 				var camp_d := Vector2(wx - _camp_hint.x, wz - _camp_hint.z).length()
 				if camp_d < 16.0:
 					var s := clampf(1.0 - camp_d / 16.0, 0.0, 1.0)
-					h = lerpf(h, maxf(h, 1.2), s * 0.22)
+					h = lerpf(h, 1.1, s * 0.6)
 			_heights[x + z * _res] = h
+	_build_height_texture()
 	_build_tile_types(climate)
 	_build_terrain_mesh(size, cell, climate)
 	_sea(size)
@@ -387,28 +418,19 @@ func _v(st: SurfaceTool, p: Vector3) -> void:
 	st.add_vertex(p)
 
 func _terrain_color(p: Vector3) -> Color:
-	var slope := _slope_deg(p.x, p.z)
-	var col := _tile_color(_tile_type_at_world(p.x, p.z))
-	if slope > 40.0 and p.y > 0.25:
-		col = _tile_color(TileType.ROCK)
-	if p.y > 5.5:
-		col = _tile_color(TileType.ROCK)
-	var jitter := 0.88 + _noise_jitter(p.x, p.z) * 0.18
-	col.r *= jitter
-	col.g *= jitter
-	col.b *= jitter
+	var col := Color(1, 1, 1)  # vertex colour is a multiplier on the shader's albedo
 	var camp_d := Vector2(p.x - _camp_hint.x, p.z - _camp_hint.z).length()
 	if camp_d < 13.0:
 		var s := clampf(1.0 - camp_d / 13.0, 0.0, 1.0)
-		col = col.lerp(Color(0.56, 0.68, 0.44), s * 0.42)
+		col = col.lerp(Color(1.08, 1.05, 0.92), s * 0.5)
 	var crater_d := Vector2(p.x - _crater_hint.x, p.z - _crater_hint.z).length()
 	if _crater_hint != Vector3.ZERO and crater_d < 14.0:
 		var bowl := clampf(1.0 - crater_d / 14.0, 0.0, 1.0)
-		col = col.lerp(Color(0.23, 0.20, 0.18), bowl * 0.85)
+		col = col.lerp(Color(0.55, 0.48, 0.42), bowl * 0.85)
 	if _crater_hint != Vector3.ZERO:
 		var rim := clampf(1.0 - absf(crater_d - 11.0) / 4.0, 0.0, 1.0)
 		if rim > 0.0:
-			col = col.lerp(Color(0.30, 0.26, 0.23), rim * 0.65)
+			col = col.lerp(Color(0.66, 0.58, 0.52), rim * 0.65)
 	return col
 
 func _tile_color(tile_type: int) -> Color:
@@ -419,6 +441,8 @@ func _tile_color(tile_type: int) -> Color:
 			return _palette.get("dirt", Color(0.40, 0.32, 0.22))
 		TileType.SAND:
 			return _palette.get("sand", Color(0.79, 0.72, 0.54))
+		TileType.WET:
+			return Color(0.55, 0.49, 0.38)
 		TileType.SHALLOW:
 			return Color(0.60, 0.78, 0.84)
 		TileType.DEEP:
@@ -439,7 +463,7 @@ func _noise_jitter(x: float, z: float) -> float:
 
 func _nav_tri(nav_st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3) -> void:
 	var c := (p0 + p1 + p2) / 3.0
-	if c.y < 0.0:
+	if c.y < -0.3:
 		return
 	nav_st.add_vertex(p0)
 	nav_st.add_vertex(p1)
@@ -450,31 +474,38 @@ func _sea(size: float) -> void:
 	var dplane := PlaneMesh.new()
 	dplane.size = Vector2(size * 1.8, size * 1.8)
 	deep.mesh = dplane
-	deep.position.y = -2.5
+	deep.position.y = -2.6
 	deep.extra_cull_margin = 320.0
 	var dmat := StandardMaterial3D.new()
-	dmat.albedo_color = Color(0.10, 0.22, 0.35, 1.0)
+	dmat.albedo_color = Color(0.09, 0.19, 0.28, 1.0)
 	dmat.roughness = 0.95
-	dmat.cull_mode = BaseMaterial3D.CULL_BACK
 	deep.material_override = dmat
 	add_child(deep)
 	var water := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(size * 1.6, size * 1.6)
+	plane.subdivide_width = 24
+	plane.subdivide_depth = 24
 	water.mesh = plane
-	water.position.y = -0.1
+	water.position.y = -0.05
 	water.extra_cull_margin = 300.0
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.24, 0.55, 0.72, 0.62)
-	mat.roughness = 0.9
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	mat.cull_mode = BaseMaterial3D.CULL_BACK
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	water.material_override = mat
+	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_water_mat = ShaderMaterial.new()
+	_water_mat.shader = WATER_SHADER
+	_water_mat.set_shader_parameter("height_tex", _height_tex)
+	_water_mat.set_shader_parameter("noise_tex", _noise_tex())
+	_water_mat.set_shader_parameter("map_size", size)
+	_water_mat.set_shader_parameter("height_res", float(_res))
+	_water_mat.set_shader_parameter("water_y", -0.05)
+	water.material_override = _water_mat
 	add_child(water)
-	var foam := _foam_ring(size * 0.45, 3.0)
-	if foam:
-		add_child(foam)
+
+func _build_height_texture() -> void:
+	var img := Image.create(_res, _res, false, Image.FORMAT_RF)
+	for z in _res:
+		for x in _res:
+			img.set_pixel(x, z, Color(_heights[x + z * _res], 0.0, 0.0))
+	_height_tex = ImageTexture.create_from_image(img)
 
 func _foam_ring(radius: float, width: float) -> MeshInstance3D:
 	var segs := 180
@@ -619,57 +650,91 @@ func _scatter(def: Dictionary, terrain: StringName, climate: String, tier: int, 
 	var counts: Dictionary = {}
 	if def.has("terrains") and def["terrains"] is Dictionary:
 		counts = def["terrains"].get(str(terrain), {})
+	var home := str(def.get("kind", "")) == "private"
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 17 if str(def.get("kind", "")) == "private" else 25
-	_multimesh_family("Grass", int(counts.get("grass", 90 if climate == "temperate" else 60)), size, rng)
-	_multimesh_family("Flowers", int(counts.get("flower", 20)), size, rng)
+	rng.seed = 17 if home else 25
+	_multimesh_family("Grass", int(counts.get("grass", 260 if not home else 140)), size, rng)
+	_multimesh_family("Flowers", int(counts.get("flower", 40 if not home else 24)), size, rng)
+	# Durango's islands are dense: every family keeps a floor even when the island data is sparse.
+	var floors := {"tree": 12 if home else 44, "bush": 12 if home else 30, "rock": 6 if home else 16, "plant": 6 if home else 10}
+	var tree_families: Array[String] = []
 	for fam in families:
 		var fs := str(fam)
 		if fs.begins_with("Grass") or fs == "Flowers":
 			continue
 		var role := str(Data.nature_families.get(fs, {}).get("role", "node"))
-		var n := 1
-		match role:
-			"tree":
-				n = int(counts.get("tree", 1))
-			"bush":
-				n = int(counts.get("bush", 1))
-			"prop":
-				n = 0
-			_:
-				n = int(counts.get("rock", 1)) if fs.begins_with("Rock") else 1
+		if role.begins_with("tree"):
+			tree_families.append(fs)
+	for fam in families:
+		var fs := str(fam)
+		if fs.begins_with("Grass") or fs == "Flowers":
+			continue
+		var role := str(Data.nature_families.get(fs, {}).get("role", "node"))
+		var n := 0
 		var fallback := &"wood_log"
 		var tool := &"axe"
 		var col := Color(0.35, 0.22, 0.1)
-		if fs.begins_with("Rock"):
-			fallback = &"stone"
-			tool = &"pick"
-			col = Color(0.5, 0.5, 0.48)
-		elif fs.begins_with("Bush"):
-			fallback = &"fibre_stalk"
-			tool = &"knife"
-			col = Color(0.2, 0.45, 0.18)
-		elif fs == "Plant":
-			fallback = &"herb_leaf"
-			tool = &"none"
-			col = Color(0.35, 0.55, 0.25)
-			n = 1
-		harvest_count += _plant_family(fs, role if role != "" else "node", n, fallback, tool, climate, tier, size, rng, col)
+		match role:
+			"tree", "tree_dead":
+				n = maxi(int(counts.get("tree", 0)), int(floors["tree"])) / maxi(1, tree_families.size())
+			"bush":
+				n = maxi(int(counts.get("bush", 0)), int(floors["bush"]))
+				fallback = &"fibre_stalk"
+				tool = &"knife"
+				col = Color(0.2, 0.45, 0.18)
+			"rock":
+				n = maxi(int(counts.get("rock", 0)), int(floors["rock"]))
+				fallback = &"stone"
+				tool = &"pick"
+				col = Color(0.5, 0.5, 0.48)
+			"prop":
+				n = 0
+			_:
+				n = int(floors["plant"])
+				fallback = &"herb_leaf"
+				tool = &"none"
+				col = Color(0.35, 0.55, 0.25)
+		if n <= 0:
+			continue
+		harvest_count += _plant_family(fs, role, n, fallback, tool, climate, tier, size, rng, col)
 	_scatter_special_tiles(climate, tier, rng)
+	for b in _batches:
+		b.commit()
+	_commit_tree_discs()
 
+## Plants a family in clumps of 3-6 (thickets and clearings, like the reference), on free
+## dry tiles, avoiding the camp. Tree clumps near the shore become palms where the climate allows.
 func _plant_family(family: String, role: String, n: int, fallback_id: StringName, tool: StringName, climate: String, tier: int, size: float, rng: RandomNumberGenerator, color: Color) -> int:
 	var placed := 0
-	var half := size * 0.42
-	for i in n:
-		var pos := Vector3(rng.randf_range(-half, half), 0.0, rng.randf_range(-half, half))
-		if Vector2(pos.x, pos.z).length() < 25.0:
+	var half := size * 0.40
+	var tries := 0
+	var palms := family != "PalmTree" and role.begins_with("tree") and not (climate in ["tundra", "volcanic"]) and _models("PalmTree").size() > 0
+	while placed < n and tries < n * 30:
+		tries += 1
+		var cx := rng.randf_range(-half, half)
+		var cz := rng.randf_range(-half, half)
+		var centre := Vector3(cx, surface_y(cx, cz), cz)
+		if not spawn_ok(centre, false):
 			continue
-		pos.y = surface_y(pos.x, pos.z)
-		if role == "ground" and _slope_deg(pos.x, pos.z) > 35.0:
+		if Vector2(cx - _camp_hint.x, cz - _camp_hint.z).length() < 9.0:
 			continue
-		if (role.begins_with("tree") or role == "bush" or role == "rock" or role == "prop") and not spawn_ok(pos, false):
-			continue
-		placed += _plant_at(family, "%s_%s_%d" % [family.to_lower(), role, i], pos, fallback_id, tool, climate, material_level(pos, tier), color)
+		var fam := family
+		if palms and Vector2(cx, cz).length() > land_radius() * 0.70:
+			fam = "PalmTree"
+		var clump := rng.randi_range(3, 6) if (role.begins_with("tree") or role == "bush") else rng.randi_range(1, 3)
+		var spread := 3.2 if role.begins_with("tree") else 2.4
+		for k in clump:
+			if placed >= n:
+				break
+			var ox := cx + rng.randf_range(-spread, spread)
+			var oz := cz + rng.randf_range(-spread, spread)
+			var pos := Vector3(ox, surface_y(ox, oz), oz)
+			if not spawn_ok(pos, false):
+				continue
+			var tile := BuildGrid.tile_of(pos)
+			if _used_tiles.has(tile):
+				continue
+			placed += _plant_at(fam, "%s_%s_%d" % [fam.to_lower(), role, placed], pos, fallback_id, tool, climate, material_level(pos, tier), color)
 	return placed
 
 func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringName, tool: StringName, climate: String, level: int, color: Color) -> int:
@@ -721,16 +786,67 @@ func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringNa
 	node.regrown_tile.connect(_on_tile_regrown)
 	_node_tiles[str(node.node_id)] = {"tile": tile, "base": _tile_type_at_world(pos.x, pos.z)}
 	_harvest_nodes[str(node.node_id)] = node
+	_used_tiles[tile] = true
 	if models.size() > 0:
-		var model := models[harvest_count % models.size()] if models.size() > 0 else ""
+		var model := models[(harvest_count + _used_tiles.size()) % models.size()]
 		if model == "":
 			model = models[0]
 		var path := "res://assets/nature/%s.glb" % model
 		if ResourceLoader.exists(path):
-			node.set_visual(path)
+			_attach_batched(node, path, role_s, family, pos)
 		else:
 			print("[world] missing nature %s" % path)
 	return 1
+
+## Reference look: palms 8-11 m, trees 7-10 m, bushes 1.5-2.2 m, rocks knee-high.
+func _target_height(role: String, family: String) -> float:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash(family) + _used_tiles.size() * 7919
+	if family == "PalmTree":
+		return r.randf_range(8.0, 11.0)
+	if role.begins_with("tree"):
+		return r.randf_range(7.0, 10.0)
+	if role == "bush":
+		return r.randf_range(1.5, 2.2)
+	if role == "rock":
+		return r.randf_range(0.7, 1.3)
+	if family == "tree_stump":
+		return 0.7
+	return r.randf_range(0.6, 1.0)
+
+func _attach_batched(node: HarvestNode, path: String, role: String, family: String, pos: Vector3) -> void:
+	var batch := VegBatch.get_for(self, path)
+	if batch == null:
+		node.set_visual(path)
+		return
+	if not _batches.has(batch):
+		_batches.append(batch)
+	var h := VegBatch.mesh_height(path)
+	var scale := _target_height(role, family) / h
+	var yaw := float(hash(str(pos)) % 628) / 100.0
+	var basis := Basis.IDENTITY.rotated(Vector3.UP, yaw).scaled(Vector3.ONE * scale)
+	var idx := batch.add(Transform3D(basis, pos))
+	node.set_batched_visual(batch, idx)
+	if role.begins_with("tree") or family == "tree_stump":
+		_tree_disc_xforms.append(Transform3D(Basis.IDENTITY, pos + Vector3(0, 0.08, 0)))
+
+func _commit_tree_discs() -> void:
+	if _tree_disc_xforms.is_empty():
+		return
+	var PV := load("res://scripts/world/prop_visuals.gd") as GDScript
+	_tree_discs = MultiMeshInstance3D.new()
+	_tree_discs.name = "TreeDiscs"
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = PV.make_disc_mesh(0.9)
+	mm.instance_count = _tree_disc_xforms.size()
+	for i in _tree_disc_xforms.size():
+		mm.set_instance_transform(i, _tree_disc_xforms[i])
+	_tree_discs.multimesh = mm
+	_tree_discs.material_override = PV.disc_material(0.9, Color(0.66, 0.52, 0.38))
+	_tree_discs.visibility_range_end = 60.0
+	_tree_discs.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_tree_discs)
 
 func _family_pool_max(family: String, role: String) -> int:
 	var row: Dictionary = Data.nature_families.get(family, {})
@@ -794,7 +910,7 @@ func _multimesh_family(family: String, n: int, size: float, rng: RandomNumberGen
 		mm.set_instance_transform(i, xforms[i])
 	var mmi := MultiMeshInstance3D.new()
 	mmi.multimesh = mm
-	mmi.visibility_range_end = 34.0
+	mmi.visibility_range_end = 48.0
 	if family == "Grass" or family == "Flowers":
 		if _foliage_mat == null:
 			_foliage_mat = ShaderMaterial.new()
@@ -966,11 +1082,13 @@ func _drive_day() -> void:
 	var tod := Game.time_of_day
 	var from_noon := absf(tod - 0.5) * 2.0
 	sun.rotation_degrees = Vector3(lerpf(-62.0, 12.0, from_noon), 30.0, 0.0)
-	sun.light_energy = lerpf(1.45, 0.12, from_noon)
+	var night_n := smoothstep(0.35, 1.0, from_noon)
+	# Real night (reference: dark ground, the fire and the lantern carry the scene).
+	sun.light_energy = lerpf(1.3, 0.03, night_n)
+	sun.light_color = Color(1.0, 0.95, 0.85).lerp(Color(0.55, 0.62, 0.85), night_n)
 	if world_env and world_env.environment:
-		var night_n := smoothstep(0.35, 1.0, from_noon)
-		world_env.environment.ambient_light_energy = lerpf(0.96, 0.32, night_n)
-		world_env.environment.ambient_light_color = Color(0.92, 0.94, 0.88).lerp(Color(0.50, 0.58, 0.82), night_n)
+		world_env.environment.ambient_light_energy = lerpf(0.75, 0.10, night_n)
+		world_env.environment.ambient_light_color = Color(0.80, 0.86, 0.95).lerp(Color(0.35, 0.42, 0.70), night_n)
 		world_env.environment.fog_density = lerpf(0.0022, 0.0044, night_n)
 		if _sky_mat:
 			_sky_mat.sky_top_color = Color(0.20, 0.42, 0.66).lerp(Color(0.04, 0.08, 0.16), night_n)
@@ -1054,11 +1172,13 @@ func _build_tile_types(climate: String) -> void:
 			var slope := _slope_deg(wx, wz)
 			var rad := Vector2(wx, wz).length()
 			var t := TileType.GRASS
-			if h < -1.25:
+			if h < -0.6:
 				t = TileType.DEEP
 			elif h < -0.05:
 				t = TileType.SHALLOW
-			elif h < 0.35 or rad > land_radius() - 1.0:
+			elif h < 0.15:
+				t = TileType.WET
+			elif h < 0.45 or rad > land_radius() + 2.0:
 				t = TileType.SAND
 			elif slope > 40.0 or h > 5.5:
 				t = TileType.ROCK
@@ -1068,7 +1188,7 @@ func _build_tile_types(climate: String) -> void:
 				t = TileType.ASH
 			var river_center := sin(wx * 0.018 + float(25 if climate == "temperate" else 17) * 0.13) * (_size * 0.085)
 			var river := absf(wz - river_center)
-			if river < 2.1 and h > -0.15 and h < 0.65:
+			if river < 2.4 and h > -0.5 and h < 0.4:
 				t = TileType.MUD
 			var cdist := Vector2(wx - _crater_hint.x, wz - _crater_hint.z).length()
 			if _crater_hint != Vector3.ZERO and cdist < 8.5 and h > -0.2:
@@ -1096,6 +1216,7 @@ func _terrain_material() -> ShaderMaterial:
 	m.set_shader_parameter("tint_dirt", _c3(_tile_color(TileType.DIRT)))
 	m.set_shader_parameter("tint_sand", _c3(_tile_color(TileType.SAND)))
 	m.set_shader_parameter("tint_shallow", _c3(_tile_color(TileType.SHALLOW)))
+	m.set_shader_parameter("tint_wet", _c3(_tile_color(TileType.WET)))
 	m.set_shader_parameter("tint_rock", _c3(_tile_color(TileType.ROCK)))
 	m.set_shader_parameter("tint_mud", _c3(_tile_color(TileType.MUD)))
 	m.set_shader_parameter("tint_bare", _c3(_tile_color(TileType.BARE)))

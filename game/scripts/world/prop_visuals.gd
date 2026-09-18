@@ -72,21 +72,55 @@ static func ensure_collision(host: Node3D, size: Vector3) -> void:
 	cs.position = Vector3(0.0, size.y * 0.5, 0.0)
 
 static func ensure_foundation(host: Node3D, kind: StringName) -> void:
+	# Durango reference: a rough circular dirt patch under every structure, not a slab.
 	var dims := footprint(kind)
+	var radius := 0.5 * sqrt(float(dims.x * dims.x + dims.y * dims.y)) + 1.0
 	var mesh := host.get_node_or_null("Foundation") as MeshInstance3D
 	if mesh == null:
 		mesh = MeshInstance3D.new()
 		mesh.name = "Foundation"
 		host.add_child(mesh)
-	var box := BoxMesh.new()
-	box.size = Vector3(maxf(0.5, float(dims.x)), FOUNDATION_HEIGHT, maxf(0.5, float(dims.y)))
-	mesh.mesh = box
-	mesh.position = Vector3(0.0, FOUNDATION_HEIGHT * 0.5, 0.0)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.41, 0.30, 0.19, 0.92)
-	mat.roughness = 1.0
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mesh.material_override = mat
+	mesh.mesh = make_disc_mesh(radius)
+	mesh.position = Vector3(0.0, 0.08, 0.0)
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mesh.material_override = disc_material(radius, Color(0.62, 0.48, 0.34))
+
+static var _disc_noise: NoiseTexture2D
+
+static func make_disc_mesh(radius: float, segments: int = 28) -> Mesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in segments:
+		var a0 := float(i) / float(segments) * TAU
+		var a1 := float(i + 1) / float(segments) * TAU
+		st.set_normal(Vector3.UP)
+		st.add_vertex(Vector3.ZERO)
+		st.set_normal(Vector3.UP)
+		st.add_vertex(Vector3(cos(a1) * radius, 0.0, sin(a1) * radius))
+		st.set_normal(Vector3.UP)
+		st.add_vertex(Vector3(cos(a0) * radius, 0.0, sin(a0) * radius))
+	return st.commit()
+
+static func disc_material(radius: float, tint: Color, modulate: Color = Color.WHITE) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://scripts/world/dirt_disc.gdshader")
+	var dirt := "res://assets/terrain/brown_mud_leaves_01_diff_1k.jpg"
+	if ResourceLoader.exists(dirt):
+		m.set_shader_parameter("dirt_tex", load(dirt))
+	if _disc_noise == null:
+		var n := FastNoiseLite.new()
+		n.seed = 911
+		n.frequency = 0.12
+		_disc_noise = NoiseTexture2D.new()
+		_disc_noise.width = 128
+		_disc_noise.height = 128
+		_disc_noise.seamless = true
+		_disc_noise.noise = n
+	m.set_shader_parameter("noise_tex", _disc_noise)
+	m.set_shader_parameter("radius", radius)
+	m.set_shader_parameter("tint", Vector3(tint.r, tint.g, tint.b))
+	m.set_shader_parameter("modulate", modulate)
+	return m
 
 static func _fallback_mesh(host: Node3D, size: Vector3, color: Color) -> Node3D:
 	var mesh := host.get_node_or_null("FallbackMesh") as MeshInstance3D

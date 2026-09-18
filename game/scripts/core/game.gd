@@ -15,7 +15,7 @@ var lab_name: String = ""
 var time_scale: float = 1.0
 ## ASSUMPTION: mobile island cap. Spawners should not exceed this.
 var max_creatures_per_island: int = 24
-var show_grid: bool = true
+var show_grid: bool = false  # on while placing a building (build_placer) or via F6
 ## Lab-only: number keys force creature clips (creature_lab) instead of hunt tactics.
 var lab_force_clips: bool = false
 ## Lab-only: F deals a flat 100 damage to the nearest creature.

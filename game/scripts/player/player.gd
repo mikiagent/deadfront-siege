@@ -983,8 +983,8 @@ func _fall_guard() -> void:
 func _shoreline_guard() -> void:
 	if World.runtime == null or not World.runtime.has_method("surface_y"):
 		return
-	if World.runtime.surface_y(global_position.x, global_position.z) >= -0.05:
-		return
+	if World.runtime.surface_y(global_position.x, global_position.z) >= -0.40:
+		return  # ankle-deep wading is fine (reference); deeper is blocked
 	var out := Vector2(global_position.x, global_position.z)
 	if out.length_squared() < 0.0001:
 		out = Vector2(0.0, 1.0)
@@ -1000,8 +1000,9 @@ func _shoreline_guard() -> void:
 func _setup_lantern() -> void:
 	_lantern = OmniLight3D.new()
 	_lantern.name = "HipLantern"
-	_lantern.omni_range = 9.0
-	_lantern.light_color = Color(1.0, 0.85, 0.6)
+	_lantern.omni_range = 10.0
+	_lantern.omni_attenuation = 1.6
+	_lantern.light_color = Color(1.0, 0.82, 0.55)
 	_lantern.light_energy = 0.0
 	_lantern.shadow_enabled = false
 	var anchor := hips_anchor()
@@ -1022,4 +1023,4 @@ func _drive_lantern() -> void:
 	var from_noon := absf(Game.time_of_day - 0.5) * 2.0
 	var night := smoothstep(0.35, 1.0, from_noon)
 	var flicker := 1.0 + sin((Time.get_ticks_msec() * 0.001) * 7.0 + _lantern_phase) * 0.05
-	_lantern.light_energy = 2.2 * night * flicker
+	_lantern.light_energy = 4.0 * night * flicker
