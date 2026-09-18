@@ -395,6 +395,23 @@
       "food_energy": 12
     },
     {
+      "id": "skewer",
+      "display_name": "Skewer",
+      "categories": [
+        "food",
+        "cooked",
+        "meat"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "omnivore",
+      "food_energy": 22,
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
       "id": "fish",
       "display_name": "Fish",
       "categories": [

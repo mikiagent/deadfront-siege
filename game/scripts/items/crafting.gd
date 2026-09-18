@@ -184,3 +184,114 @@ static func craft(player: Player, rec: Dictionary, picks: Array[int]) -> ItemSta
 	print("[craft] %s from primary=%s %s" % [out.def_id, primary.def_id, primary.attributes])
 	World.note_craft(StringName(str(rec.get("id", ""))))
 	return out
+
+static func recipe_seconds(rec: Dictionary) -> float:
+	# ASSUMPTION: 3 s when recipes.json omits seconds.
+	if rec.has("seconds"):
+		return maxf(0.1, float(rec.get("seconds", 3.0)))
+	return 3.0
+
+static func recipes_for_station(sid: StringName) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var want := str(sid)
+	for row in Data.recipe_list:
+		if not row is Dictionary:
+			continue
+		if station_id(row as Dictionary) == want:
+			out.append(row as Dictionary)
+	return out
+
+static func missing_ingredient_name(inv: Inventory, rec: Dictionary) -> String:
+	if inv == null or rec.is_empty():
+		return "?"
+	var picks := default_picks(inv, rec)
+	var slots: Array = rec.get("slots", [])
+	for i in slots.size():
+		if not slots[i] is Dictionary:
+			continue
+		var cat := StringName(str((slots[i] as Dictionary).get("category", "")))
+		var need := int((slots[i] as Dictionary).get("count", 1))
+		if i >= picks.size() or picks[i] < 0:
+			return _category_hint(cat)
+		var stack := inv.slots[picks[i]]
+		if stack == null or stack.count < need:
+			return _category_hint(cat)
+	return ""
+
+static func preview_level(inv: Inventory, rec: Dictionary) -> int:
+	var picks := default_picks(inv, rec)
+	if not picks_valid(inv, rec, picks):
+		return int(rec.get("max_level", 1)) if rec.has("max_level") else 1
+	return crafted_level_for(rec, consumed_levels(inv, rec, picks))
+
+static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringName:
+	for idx in inv.find_by_category(cat):
+		var s := inv.slots[idx]
+		if s:
+			return s.def_id
+	# Fallback representative ids for UI when bag is empty.
+	match str(cat):
+		"meat":
+			return &"raw_meat"
+		"wood", "handle", "burnable":
+			return &"branch"
+		_:
+			return cat
+
+static func consume_for_craft(inv: Inventory, rec: Dictionary, picks: Array[int]) -> Array[ItemStack]:
+	var refund: Array[ItemStack] = []
+	if not picks_valid(inv, rec, picks):
+		return refund
+	var slots: Array = rec.get("slots", [])
+	# Consume in pick order so refund[0] stays the primary ingredient.
+	var plan: Array[Dictionary] = []
+	for i in slots.size():
+		plan.append({"idx": picks[i], "need": int(slots[i].get("count", 1)), "ord": i})
+	# Remove high indices first so earlier picks stay valid.
+	var sorted_plan := plan.duplicate()
+	sorted_plan.sort_custom(func (a: Dictionary, b: Dictionary) -> bool: return int(a["idx"]) > int(b["idx"]))
+	var taken_by_ord: Dictionary = {}
+	for row in sorted_plan:
+		var taken := inv.remove_at(int(row["idx"]), int(row["need"]))
+		taken_by_ord[int(row["ord"])] = taken
+	for i in slots.size():
+		var t: ItemStack = taken_by_ord.get(i, null) as ItemStack
+		if t:
+			refund.append(t)
+	return refund
+
+static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemStack]) -> ItemStack:
+	if rec.is_empty() or consumed.is_empty():
+		return null
+	var primary := consumed[0]
+	var levels: Array[int] = []
+	for s in consumed:
+		if s:
+			for _n in s.count:
+				levels.append(s.level)
+	var out := build_output(rec, primary, crafted_level_for(rec, levels))
+	var gained := out.count
+	var left := player.inventory.add(out)
+	if left > 0:
+		print("[craft] bag full remainder=%d" % left)
+		gained -= left
+	print("[item] +%d %s" % [gained, out.def_id])
+	print("[craft] level=%d from %s" % [out.level, levels])
+	print("[craft] %s from primary=%s %s" % [out.def_id, primary.def_id, primary.attributes])
+	World.note_craft(StringName(str(rec.get("id", ""))))
+	# Restore count for callers (toast) since add() empties a fully-accepted stack.
+	out.count = gained
+	return out if gained > 0 else null
+
+static func _category_hint(cat: StringName) -> String:
+	match str(cat):
+		"meat":
+			return "raw_meat"
+		"wood", "handle", "burnable":
+			return "branch"
+		"blade_mat":
+			return "stone"
+		"lashing":
+			return "twine"
+		_:
+			return str(cat)

@@ -38,6 +38,8 @@
     "raptor_bone": "stone",
     "raptor_hide": "bedroll",
     "raptor_meat": "berries",
+    "raw_meat": "berries",
+    "skewer": "berries",
     "bandage": "flowers",
     "taming_pen_kit": "fence_kit",
     "drying_rack_kit": "workbench_kit"
@@ -50,6 +52,8 @@
     "tool": "work_axe",
     "weapon": "axe",
     "building_kit": "workbench_kit",
-    "food": "berries"
+    "food": "berries",
+    "cooked": "berries",
+    "meat": "berries"
   }
 }

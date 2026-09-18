@@ -1,7 +1,9 @@
 extends Node3D
 ## PRD §24 test 2: two knives from different primaries do not merge. Locked combat knife skipped.
+## M8e: station skewer craft + held-item slot screenshots.
 
 var _player: Player
+var _bonfire: Bonfire
 
 func _ready() -> void:
 	var kit := LabKit.build(self)
@@ -15,9 +17,64 @@ func _ready() -> void:
 	var rack := CraftStation.make(&"drying_rack")
 	rack.position = Vector3(-3, 0, 5)
 	add_child(rack)
+	_bonfire = Bonfire.make()
+	_bonfire.position = Vector3(2, 0, 2)
+	add_child(_bonfire)
 	print("[boot] lab=craft_lab")
+	if Game.shot_path != "":
+		call_deferred("_shot_setup")
+		return
 	if DisplayServer.get_name() == "headless":
 		get_tree().create_timer(0.4).timeout.connect(_demo)
+
+func _shot_setup() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	Game.time_of_day = 0.88
+	LabKit.give(_player, &"work_axe", 1)
+	LabKit.give(_player, &"stone_knife_work", 1)
+	LabKit.give(_player, &"work_pick", 1)
+	_player.inventory.set_equipped_tool_index(_player.inventory.find_first(&"work_axe"))
+	_player.global_position = _bonfire.global_position + Vector3(1.2, 0, 0.4)
+	_player.face_world(_bonfire.global_position)
+	if _player.anim:
+		_player.anim.on_gather()
+	if _player.station_craft:
+		_player.station_craft._sync_hand_tool()
+	if Game.shot_path.contains("held"):
+		if _player.station_craft and _player.station_craft.held_slot:
+			_player.station_craft.held_slot.refresh()
+			_player.station_craft.held_slot.open_swap_for_shot()
+			print("[ui] held-slot shot ready tools=%d" % _player.inventory.gather_tools_in_bag().size())
+		return
+	# craft-card shot: mid-progress skewer card + fire glow
+	LabKit.give(_player, &"raw_meat", 2)
+	LabKit.give(_player, &"branch", 2)
+	if _player.station_craft:
+		_player.station_craft.station = _bonfire
+		_player.station_craft.recipe_id = &"skewer"
+		var rec := Crafting.recipe(&"skewer")
+		_player.station_craft._picks = Crafting.default_picks(_player.inventory, rec)
+		_player.station_craft._refund = Crafting.consume_for_craft(_player.inventory, rec, _player.station_craft._picks)
+		_player.station_craft.crafting = true
+		_player.station_craft.duration = 3.0
+		_player.station_craft.progress = 0.45
+		# Freeze the session so the 2.6 s shot delay does not finish/hide the card.
+		_player.station_craft.set_process(false)
+		_player.station_craft._show_card(rec)
+		_player.station_craft.force_progress_for_shot(0.45)
+		# Pin card on-screen for the acceptance shot (unproject can miss in labs).
+		if _player.station_craft.card:
+			var card := _player.station_craft.card
+			card.follow_station = false
+			card.set_anchors_preset(Control.PRESET_TOP_LEFT)
+			card.position = Vector2(640, 280)
+			card.reset_size()
+			print("[ui] craft-card shot ready visible=%s size=%s pos=%s" % [
+				card.visible,
+				card.size,
+				card.position,
+			])
 
 func _demo() -> void:
 	# Locked combat knife must never auto-equip for the thicket.
@@ -91,8 +148,34 @@ func _demo() -> void:
 			break
 	if corpse:
 		corpse.butcher(_player)
+	await _m8e_skewer_demo()
 	if DisplayServer.get_name() == "headless":
 		get_tree().quit()
+
+func _m8e_skewer_demo() -> void:
+	# Blocked: meat without stick/branch.
+	_player.inventory.add(ItemStack.make(&"raw_meat", 1))
+	# Clear branches so the missing-ingredient path fires.
+	while _player.inventory.count_of(&"branch") > 0:
+		var bi := _player.inventory.find_first(&"branch")
+		if bi < 0:
+			break
+		_player.inventory.remove_at(bi, _player.inventory.slots[bi].count)
+	var blocked := Crafting.missing_ingredient_name(_player.inventory, Crafting.recipe(&"skewer"))
+	print("[craft] blocked skewer: needs %s" % (blocked if blocked != "" else "branch"))
+	# Full craft via station session (arrive instantly).
+	_player.inventory.add(ItemStack.make(&"branch", 2))
+	_player.global_position = _bonfire.global_position + Vector3(0.8, 0, 0)
+	if _player.station_craft:
+		_player.station_craft.station = _bonfire
+		_player.station_craft._begin_recipe(&"skewer")
+		# Skip nav: force start.
+		_player.clear_nav()
+		_player.station_craft._start_craft_cycle()
+		var wait := 3.4
+		while wait > 0.0 and (_player.station_craft.crafting or _player.station_craft.queue_left > 0 or _player.station_craft.recipe_id != &""):
+			await get_tree().create_timer(0.1).timeout
+			wait -= 0.1
 
 func _spawn(id: StringName, pos: Vector3, def_id: StringName, attrs: Dictionary, tool: StringName, color: Color) -> void:
 	var n: HarvestNode = preload("res://scenes/world/harvest_node.tscn").instantiate()
