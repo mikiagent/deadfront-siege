@@ -25,3 +25,13 @@ Notes: the game is GDScript-only, so a non-Mono library is fine even though the 
 ## Status 2026-09-17 late: parked
 
 The self-built simulator library ran the game only under the Compatibility renderer (Godot disables Metal on the simulator; Vulkan/MoltenVK did not initialise either), at 1 fps and rendering nearly black, and a later variant broke the simulator link with undefined `_SDL_IsIPad` symbols. The export no longer merges it. Test on a real iPhone. If the simulator matters later, the remaining work is making Godot pick the Vulkan driver on the simulator build and confirming MoltenVK links.
+
+## Status 2026-09-17 22:40: unblocked
+
+The 21:06 library variant links fine (the `_SDL_IsIPad` failure did not reproduce; both the
+official and the self-built libraries reference it and the app target resolves it).
+`tools/export_ios.sh` merges the library again; `tools/sim_run.sh` builds, installs and
+launches. Verified: the downloader shell screen renders, `-- --shell-auto --code=<code>`
+downloads the packs from Vercel and starts the game (~7-10 fps in the simulator). Use the
+simulator for flow and layout checks; judge lighting and performance on the phone.
+Launch with console output: `xcrun simctl launch --console-pty <udid> com.durangolike.dev -- <args>`.

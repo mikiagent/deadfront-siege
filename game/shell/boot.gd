@@ -45,6 +45,7 @@ func _ready() -> void:
 		call_deferred("_enter_game")
 		return
 	_load_cfg()
+	_set_touch_layer(false)
 	_build_ui()
 	_refresh_labels()
 	if ShellLoader.safe_mode:
@@ -354,7 +355,15 @@ func _reinit_autoloads(names: Array) -> void:
 		print("[shell] autoload %s re-initialised" % name)
 
 ## Immediate scene swap (not deferred) so World's deferred boot sees the game scene.
+## The game's touch layer (an autoload) must not float over the shell screen.
+func _set_touch_layer(shown: bool) -> void:
+	var root: Window = (Engine.get_main_loop() as SceneTree).root
+	var tc := root.get_node_or_null("TouchControls")
+	if tc is CanvasLayer:
+		(tc as CanvasLayer).visible = shown
+
 func _enter_game() -> void:
+	_set_touch_layer(true)
 	var packed := ResourceLoader.load("res://scenes/main.tscn", "", ResourceLoader.CACHE_MODE_REPLACE) as PackedScene
 	if packed == null:
 		_fail("Game scene missing.")
