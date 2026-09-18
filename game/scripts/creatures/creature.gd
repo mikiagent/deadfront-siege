@@ -82,6 +82,7 @@ func capturable() -> bool:
 	return is_capturable and health.hp > 0.0 and def.tameable
 
 func _physics_process(delta: float) -> void:
+	_fall_guard()
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 	if health.dead or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act"):
@@ -252,3 +253,14 @@ func _on_died(_source: Node) -> void:
 	corpse.setup(self)
 	get_parent().add_child(corpse)
 	corpse.global_position = global_position
+
+func _fall_guard() -> void:
+	# Same rule as the player: below -15 m the creature is put back on the surface.
+	if global_position.y > -15.0:
+		return
+	var y := 1.0
+	if World.runtime and World.runtime.has_method("surface_y"):
+		y = World.runtime.surface_y(global_position.x, global_position.z) + 0.5
+	velocity = Vector3.ZERO
+	global_position.y = y
+	print("[creature] %s fell out of the world; re-seated at y=%.2f" % [def.id if def else "?", y])

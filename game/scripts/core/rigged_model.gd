@@ -174,6 +174,7 @@ static func remap_tracks(anim: Animation, player: AnimationPlayer, search: Node,
 	if root == null:
 		root = player.get_parent()
 	var rel := str(root.get_path_to(skel))
+	var scale_tracks: Array[int] = []
 	for i in tracks:
 		var p := str(anim.track_get_path(i))
 		var colon := p.find(":")
@@ -183,9 +184,17 @@ static func remap_tracks(anim: Animation, player: AnimationPlayer, search: Node,
 		if skel.find_bone(bone) != -1:
 			anim.track_set_path(i, NodePath("%s:%s" % [rel, bone]))
 			remapped += 1
+			if anim.track_get_type(i) == Animation.TYPE_SCALE_3D:
+				scale_tracks.append(i)
 		else:
 			missing += 1
-	print("[%s] clip %s tracks=%d remapped=%d missing=%d" % [tag, clip, tracks, remapped, missing])
+	# Meshy's retarget bakes a uniform scale on the root bone of some clips (survivor idle
+	# carries Hips x1.176 while walk/run carry x1.0), so the character changed size per clip.
+	# Rest-pose scale is 1 on every bone we ship; drop the tracks so every clip shares one size.
+	scale_tracks.reverse()
+	for i in scale_tracks:
+		anim.remove_track(i)
+	print("[%s] clip %s tracks=%d remapped=%d missing=%d scale_dropped=%d" % [tag, clip, tracks, remapped, missing, scale_tracks.size()])
 	return missing
 
 static func _set_loop(anim: Animation, clip: StringName) -> void:

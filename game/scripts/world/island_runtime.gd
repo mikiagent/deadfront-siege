@@ -19,6 +19,31 @@ var _wet_area: Area3D
 var _rain_fx: GPUParticles3D
 var _climate: String = "temperate"
 var _tier: int = 25
+var _camp_pos: Vector3 = Vector3.ZERO
+var _harbour_pos: Vector3 = Vector3.ZERO
+var spawn_rejected: int = 0
+
+## Radius of dry, walkable land: the beach blend starts at 0.40 * size (see _terrain).
+func land_radius() -> float:
+	return _size * 0.40
+
+## True when a creature may stand at pos: on dry land above the beach and the river,
+## inside the land radius and (when strict) at least 25 m from camp and the harbour
+## (rules.json landing ring: "nothing spawns within 25 m of camp").
+func spawn_ok(pos: Vector3, strict: bool = true) -> bool:
+	if _heights.is_empty():
+		return true
+	if Vector2(pos.x, pos.z).length() > land_radius() - 2.0:
+		return false
+	if surface_y(pos.x, pos.z) < 0.4:
+		return false
+	if strict:
+		var keep := 25.0
+		if Vector2(pos.x - _camp_pos.x, pos.z - _camp_pos.z).length() < keep:
+			return false
+		if Vector2(pos.x - _harbour_pos.x, pos.z - _harbour_pos.z).length() < keep * 0.6:
+			return false
+	return true
 
 func build(def: Dictionary, terrain: StringName) -> void:
 	var size := float(def.get("size_m", 160))
@@ -38,8 +63,10 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	_terrain(size, _climate)
 	var harbour_a: Array = def.get("harbour", [0, 0, 12])
 	var camp_a: Array = def.get("camp", [0, 0, 6])
+	_camp_pos = _at(float(camp_a[0]), float(camp_a[2]))
+	_harbour_pos = _at(float(harbour_a[0]), float(harbour_a[2]))
 	harbour = (load("res://scripts/world/harbour.gd") as GDScript).new()
-	harbour.position = _at(float(harbour_a[0]), float(harbour_a[2]))
+	harbour.position = _harbour_pos
 	add_child(harbour)
 	_camp(_at(float(camp_a[0]), float(camp_a[2])))
 	cargo = (load("res://scripts/world/cargo_warp.gd") as GDScript).new()
@@ -58,7 +85,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	if crater_v is Array:
 		_crater(_at(float(crater_v[0]), float(crater_v[2])))
 	_rain_layer()
-	print("[world] island %s nodes=%d creatures=%d" % [def.get("id", ""), harvest_count, creature_count])
+	print("[world] island %s nodes=%d creatures=%d spawn_rejected=%d" % [def.get("id", ""), harvest_count, creature_count, spawn_rejected])
 
 func _env() -> void:
 	var scene := get_tree().current_scene
@@ -537,7 +564,14 @@ func _creatures(def: Dictionary) -> void:
 		placed.count = mini(int(row.get("count", 1)), cap - creature_count)
 		placed.as_pack = bool(row.get("pack", true))
 		var at: Array = row.get("at", [10, 0, 0])
-		placed.position = _at(float(at[0]), float(at[2]))
+		var want := _at(float(at[0]), float(at[2]))
+		var fixed := _nearest_valid(want)
+		if fixed.is_empty():
+			spawn_rejected += 1
+			print("[world] no dry land for %s at %s; skipped" % [placed.species, want])
+			placed.queue_free()
+			continue
+		placed.position = fixed["pos"]
 		add_child(placed)
 		var made0 := placed.spawn_now()
 		creature_count += made0.size()
@@ -561,20 +595,49 @@ func _creatures(def: Dictionary) -> void:
 						continue
 					var r0 := float(span[0]) if span.size() > 0 else 40.0
 					var r1 := float(span[1]) if span.size() > 1 else r0 + 20.0
+					# rules.json rings are written for a 240 m land radius; a 160 m home island
+					# has 64 m of land, so clamp the band to what exists instead of spawning at sea.
+					var land := land_radius() - 4.0
+					r1 = minf(r1, land)
+					r0 = minf(r0, r1 - 8.0)
 					if r1 <= r0 + 4.0:
 						r1 = r0 + 8.0
-					var ang := rng.randf() * TAU
-					var rad := rng.randf_range(r0 + 2.0, r1 - 2.0)
-					var pos := Vector3(cos(ang) * rad, 0, sin(ang) * rad)
-					pos.y = maxf(surface_y(pos.x, pos.z), 0.1)
+					var pos := _ring_point(rng, r0, r1)
+					if pos.is_empty():
+						spawn_rejected += 1
+						print("[world] no valid spawn for %s in ring %s (r %.0f-%.0f); skipped" % [
+							row.get("species", "?"), ring_id, r0, r1])
+						continue
 					var sp := Spawner.new()
 					sp.species = StringName(str(row.get("species", "velociraptor")))
 					sp.count = mini(int(row.get("count", 1)), cap - creature_count)
 					sp.as_pack = sp.count > 1
-					sp.position = pos
+					sp.position = pos["pos"]
 					add_child(sp)
 					var made := sp.spawn_now()
 					creature_count += made.size()
+
+## Up to 40 draws in the band [r0, r1]; returns {"pos": Vector3} or {} when the band has no dry land.
+func _ring_point(rng: RandomNumberGenerator, r0: float, r1: float) -> Dictionary:
+	for _try in 40:
+		var ang := rng.randf() * TAU
+		var rad := rng.randf_range(r0 + 2.0, maxf(r0 + 2.0, r1 - 2.0))
+		var pos := Vector3(cos(ang) * rad, 0.0, sin(ang) * rad)
+		pos.y = surface_y(pos.x, pos.z) + 0.3
+		if spawn_ok(pos):
+			return {"pos": pos}
+	return {}
+
+## Walk a fixed spawn point toward the island centre until it sits on dry land.
+func _nearest_valid(want: Vector3) -> Dictionary:
+	var p := want
+	for _step in 12:
+		p.y = surface_y(p.x, p.z) + 0.3
+		if spawn_ok(p, false):
+			return {"pos": p}
+		p.x *= 0.9
+		p.z *= 0.9
+	return {}
 
 func _models(family: String) -> PackedStringArray:
 	var man: Dictionary = Data.nature_families.get(family, {})

@@ -73,7 +73,7 @@ func _roam(delta: float) -> void:
 	_roam_cd -= delta
 	if _roam_cd <= 0.0 or creature.agent.is_navigation_finished():
 		var p := creature.global_position + Vector3(randf_range(-6, 6), 0, randf_range(-6, 6))
-		creature.move_to(p)
+		creature.move_to(_on_navmesh(p))
 		_roam_cd = randf_range(2.5, 5.0)
 
 func _scan() -> void:
@@ -104,4 +104,14 @@ func _flee() -> void:
 	var player := creature.get_tree().get_first_node_in_group("player") as Node3D
 	if player:
 		var away := creature.global_position + (creature.global_position - player.global_position).normalized() * 8.0
-		creature.move_to(away)
+		creature.move_to(_on_navmesh(away))
+
+## Roam and flee targets are pulled onto the navmesh so animals never aim at the sea,
+## a river or the beach and stand "confused" at the edge of the walkable area.
+func _on_navmesh(p: Vector3) -> Vector3:
+	if creature == null or not creature.is_inside_tree():
+		return p
+	var map := creature.get_world_3d().navigation_map
+	if NavigationServer3D.map_get_iteration_id(map) == 0:
+		return p
+	return NavigationServer3D.map_get_closest_point(map, p)
