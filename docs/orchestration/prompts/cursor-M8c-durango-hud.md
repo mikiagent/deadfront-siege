@@ -62,3 +62,39 @@ the ones below. No autoloads, no `project.godot`, no `game/shell/`.
 - Headless `--lab=island_lab` still passes; `tools/smoke.sh` → `SMOKE PASS`.
 - Report `docs/orchestration/reports/cursor-M8c-durango-hud.md`; commit as
   `M8c: Durango HUD`.
+
+## Addendum (owner) — combat HUD, from `docs/reference/durango-combat-reference.jpg`
+
+In words: during a hunt the screen gets a thin **red frame** (top and bottom edges,
+6 px, 70 % alpha). **Top-centre target plate**: species portrait icon (right), the name
+and level `Centrosaurus Lv. 38` (level in red), a wide red health bar with `2464 / 5439`
+centred, and under it the target's status icons (bleed, venom…) as small rounded squares.
+**Right-middle**: a red `End Combat` button with an ✕ (stops the hunt, clears the target).
+**Bottom-right**: a cluster of **hexagonal** skill buttons (net, slash, kick, roll) in a
+honeycomb, with a yellow `Auto` hexagon (auto-attack toggle, on by default) and an
+`Attack Stance` reticle indicator under it (tap to cycle stance: attack / defend / evade
+if the PRD has them, else attack / hold). **Bottom-left**: `Chase` toggle (hex with a
+running figure; replaces the HOLD button: on = follow the target, off = stand). The
+emote/chat/mic buttons of the reference are out of scope; keep MENU/PETS/BUILD/SKILLS.
+**In world**: the current target gets a **red outline** (a back-face outline pass or a
+`next_pass` fresnel material on its meshes) and a red ground ring on its tile; above it a
+compact plate: eye icon, level in a dark circle, name in red, a small red health bar
+(M9a's nameplate is the base; the target variant is this red style). Hits flash a bright
+burst sprite at the impact point and pop a damage number.
+
+Tasks to add to this milestone:
+8. `HuntHUD` (rework `scripts/ui/hunt_hud.gd`): red frame, target plate, target status
+   row, End Combat, hex skill cluster (`tactic_1..4`, roll), Auto toggle (drives the
+   existing auto-attack), Attack Stance indicator, Chase toggle. Visible only while
+   `Hunt.target` exists; slides in/out over 0.2 s.
+9. Target outline + ground ring + red plate variant on the targeted creature; hit burst
+   sprite (a 6-frame radial flash, procedural `Image` is fine) and floating damage
+   numbers (white; red for bleed ticks; yellow for heavy hits).
+10. Hex button drawing: one `HexButton` Control (`_draw()` hexagon, icon glyph from
+    `icons_manifest.json` or a unicode fallback, pressed/disabled/cooldown sweep states),
+    reused for the skill cluster and the Chase toggle. Targets ≥ 64 px across.
+
+Acceptance additions: `m8c-hud-hunt.png` must show the red frame, the target plate with
+level and health, the hex cluster with Auto on, Chase bottom-left, and the outlined
+target with its red plate and ground ring; a `[hud] target centrosaurus lv=38 hp=2464/5439`
+style print when a target is set (use whatever species is in the lab).
