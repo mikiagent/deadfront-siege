@@ -28,6 +28,11 @@ Everything so far ran on a flat green square. M5 builds the tier-25 temperate un
 
 9. **Lab**: `--lab=island_lab` loads the island with the survivor at camp. Screenshot from the isometric camera at camp and at the crater into `docs/orchestration/reports/`.
 
+## Simulator findings to fix in this milestone (seen on the iPhone 17 Pro simulator, 2026-09-17)
+- The island renders almost black under the `mobile` renderer at midday: check the sun energy, the WorldEnvironment ambient/sky on the mobile path, and that the terrain material is not unlit-dark. Verify with `tools/sim_run.sh` (it screenshots the simulator).
+- Godot logs `mouse_get_position(): Mouse is not supported by this display server` every frame on iOS. Read the pointer position from the InputEventScreenTouch / `tap` event instead of polling the mouse.
+- The F3 HUD's draw-call counter reads 0; use `RenderingServer.get_rendering_info(RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)`.
+
 ## Acceptance
 - `tools/smoke.sh` passes; the island lab boots headless under 5 s and prints `[world] island temperate_25 nodes=<n> creatures=<n>`.
 - Frame rate stays above 60 on this Mac with the full island; report the count of MultiMesh instances and HarvestNodes.
