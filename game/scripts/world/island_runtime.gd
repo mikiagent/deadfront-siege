@@ -496,7 +496,21 @@ func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringNa
 	add_child(node)
 	var attrs := {"climate": climate, "level": level}
 	var role_s := str(Data.nature_families.get(family, {}).get("role", ""))
-	node.setup(StringName(role), yield_id, amin, amax, attrs, tool_s, color, 1.2, 8.0, family, role_s == "tree")
+	var pool_max := _family_pool_max(family, role_s)
+	node.setup(
+		StringName(role),
+		yield_id,
+		amin,
+		amax,
+		attrs,
+		tool_s,
+		color,
+		1.2,
+		8.0,
+		family,
+		role_s.begins_with("tree"),
+		pool_max
+	)
 	if models.size() > 0:
 		var model := models[harvest_count % models.size()] if models.size() > 0 else ""
 		if model == "":
@@ -507,6 +521,16 @@ func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringNa
 		else:
 			print("[world] missing nature %s" % path)
 	return 1
+
+func _family_pool_max(family: String, role: String) -> int:
+	var row: Dictionary = Data.nature_families.get(family, {})
+	var from_manifest := int(row.get("pool", 0))
+	if from_manifest > 0:
+		return from_manifest
+	# ASSUMPTION: when pool is missing, trees/rocks start at 30 units and bushes/plants at 12.
+	if role.begins_with("tree") or role == "rock":
+		return 30
+	return 12
 
 func _multimesh_family(family: String, n: int, size: float, rng: RandomNumberGenerator) -> void:
 	var models := _models(family)

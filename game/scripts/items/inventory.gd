@@ -175,18 +175,20 @@ func has_tool_class(tool: StringName) -> bool:
 		return true
 	return find_gather_tool(tool) != null
 
-func wear_gather_tool(tool: StringName) -> void:
+func wear_gather_tool(tool: StringName) -> bool:
 	var s := find_gather_tool(tool)
 	if s == null:
-		return
+		return false
 	var d := s.def()
 	# ASSUMPTION: work tools lose 1 durability per gather; combat weapons used as tools lose 3.
 	var cost := 1
 	if d and not d.is_work_tool:
 		cost = 3
-	if not s.wear(cost):
+	var intact := s.wear(cost)
+	if not intact:
 		print("[item] %s broke" % s.def_id)
 	changed.emit()
+	return intact
 
 func to_array() -> Array:
 	var out: Array = []

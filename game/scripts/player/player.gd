@@ -9,6 +9,10 @@ const PLAYER_CLIPS: Array[StringName] = [
 	&"idle", &"walk", &"run", &"hit_react", &"death",
 	&"attack_primary", &"attack_heavy", &"roll", &"gather", &"knockdown", &"mount_idle",
 ]
+const GATHER_FATIGUE_PER_UNIT := 1.5 / 4.0 # ASSUMPTION: per-unit fatigue is one quarter of legacy per-gather cost.
+const HOLD_WALK_DELAY := 0.25
+const HOLD_WALK_RETARGET := 0.15
+const TAP_PICK_RADIUS := 0.6
 
 @export var walk_speed: float = 5.5
 @export var sprint_speed: float = 8.5
@@ -40,10 +44,18 @@ var _wet_acc: float = 0.0
 var _roll_left: float = 0.0
 var _gather_left: float = 0.0
 var _gathering: bool = false
+var _gather_unit_time: float = 1.0
+var _gather_ring
 var _right_hand_anchor: Marker3D
 var _hips_anchor: Marker3D
 var _mount_hips_offset: Vector3 = Vector3.ZERO
 var _mount_saved_parent: Node
+var _ground_marker: MeshInstance3D
+var _ground_marker_tween: Tween
+var _hold_walk_candidate: bool = false
+var _hold_walk_elapsed: float = 0.0
+var _hold_walk_retarget_left: float = 0.0
+var _touch_context: StringName = &"explore"
 var _force_clip_map: Array[StringName] = [
 	&"idle", &"walk", &"run", &"attack_primary", &"attack_heavy",
 	&"hit_react", &"knockdown", &"death", &"alert",
@@ -73,6 +85,8 @@ func _ready() -> void:
 	placer.name = "Placer"
 	add_child(placer)
 	_setup_survivor()
+	_setup_ground_marker()
+	_setup_gather_ring()
 	vitals.damaged.connect(_on_vitals_damaged)
 	vitals.died.connect(_on_vitals_died)
 	if has_node("Shape"):
@@ -93,6 +107,7 @@ func face_world(pos: Vector3) -> void:
 		visual.rotation.y = atan2(-to.x, -to.z)  # RiggedModel faces -Z; yaw so -Z points at the target
 
 func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
+	_cancel_gather_and_butcher()
 	vitals.add_fatigue(2.0, &"combat")
 	if anim:
 		if statuses and statuses.has_flag(&"knockdown"):
@@ -102,6 +117,7 @@ func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 
 func _physics_process(delta: float) -> void:
 	_fall_guard()
+	_tick_hold_walk(delta)
 	if statuses == null or vitals == null:
 		move_and_slide()
 		return
@@ -113,6 +129,7 @@ func _physics_process(delta: float) -> void:
 			rolling = false
 	if mounted_on and is_instance_valid(mounted_on):
 		_mounted_move(delta)
+		_sync_touch_context()
 		return
 	if statuses.has_flag(&"cannot_act"):
 		velocity.x = 0.0
@@ -120,12 +137,13 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		if anim:
 			anim._physics_tick(0.0)
+		_sync_touch_context()
 		return
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if input.length_squared() > 0.0:
 		clear_nav()
-		gather_target = null
-		_gathering = false
+		_clear_ground_marker()
+		_cancel_gather_and_butcher()
 	var dir := _cam_dir(input)
 	var can_sprint := Input.is_action_pressed("sprint") and not statuses.has_flag(&"no_sprint")
 	var target_speed := sprint_speed if can_sprint else walk_speed
@@ -160,12 +178,14 @@ func _physics_process(delta: float) -> void:
 		_wet_acc = 0.0
 	if _gathering:
 		_gather_left -= delta
+		_update_gather_ring(1.0 - (_gather_left / maxf(0.001, _gather_unit_time)))
 		if _gather_left <= 0.0:
 			_finish_gather()
 	move_and_slide()
 	if anim:
 		var spd := Vector2(velocity.x, velocity.z).length()
 		anim._physics_tick(spd)
+	_sync_touch_context()
 
 func _cam_dir(input: Vector2) -> Vector3:
 	var cam := get_viewport().get_camera_3d()
@@ -221,11 +241,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("tap"):
 		if placer.placing != &"":
 			placer.confirm(self)
+			_hold_walk_candidate = false
 			get_viewport().set_input_as_handled()
 			return
 		if _tap_blocked():
+			_hold_walk_candidate = false
 			return
-		_tap_world()
+		var tap_kind := _tap_world()
+		_hold_walk_candidate = tap_kind == &"ground"
+		_hold_walk_elapsed = 0.0
+		_hold_walk_retarget_left = 0.0
 
 func _tap_blocked() -> bool:
 	var hovered := get_viewport().gui_get_hovered_control()
@@ -235,11 +260,27 @@ func _tap_blocked() -> bool:
 		return true
 	return false
 
-func _tap_world() -> void:
+func _tap_world() -> StringName:
 	var hit := _ray()
 	if hit.is_empty():
-		return
-	var col: Object = hit.get("collider")
+		return &""
+	var picked := _pick_interactable(hit)
+	if picked != null:
+		_interact_tap_target(picked)
+		return &"interact"
+	var nav_pos := _closest_nav_point(hit.position)
+	_cancel_gather_and_butcher()
+	if hunt:
+		hunt.stop()
+	nav_to(nav_pos)
+	_show_ground_marker(nav_pos)
+	return &"ground"
+
+func _interact_tap_target(col: Object) -> void:
+	_clear_ground_marker()
+	_cancel_gather_and_butcher()
+	if not (col is Creature and not (col as Creature).is_pet) and hunt:
+		hunt.stop()
 	if col is HarvestNode:
 		_begin_gather(col as HarvestNode)
 	elif col is Corpse:
@@ -262,6 +303,48 @@ func _tap_world() -> void:
 	elif col is Node and (col as Node).is_in_group("placed_building"):
 		_building_interact(col)
 
+func _pick_interactable(hit: Dictionary) -> Object:
+	var ray_col: Object = hit.get("collider", null)
+	if _is_interactable(ray_col):
+		return ray_col
+	var at: Vector3 = hit.get("position", global_position)
+	var query := PhysicsShapeQueryParameters3D.new()
+	var bubble := SphereShape3D.new()
+	bubble.radius = TAP_PICK_RADIUS
+	query.shape = bubble
+	query.transform = Transform3D(Basis.IDENTITY, at)
+	query.collide_with_bodies = true
+	query.collide_with_areas = false
+	var results := get_world_3d().direct_space_state.intersect_shape(query, 16)
+	var best: Object = null
+	var best_d := 9999.0
+	for row in results:
+		var col: Object = row.get("collider", null)
+		if not _is_interactable(col):
+			continue
+		var n := col as Node3D
+		if n == null:
+			continue
+		var d := n.global_position.distance_to(at)
+		if d < best_d:
+			best_d = d
+			best = col
+	return best
+
+func _is_interactable(col: Object) -> bool:
+	if col is HarvestNode or col is Corpse or col is Creature or col is Bonfire or col is TamingPen:
+		return true
+	if col is Node:
+		var n := col as Node
+		return n.is_in_group("harbour") or n.is_in_group("cargo_warp") or n.is_in_group("placed_building")
+	return false
+
+func _closest_nav_point(pos: Vector3) -> Vector3:
+	var map := get_world_3d().navigation_map
+	if NavigationServer3D.map_get_iteration_id(map) == 0:
+		return pos
+	return NavigationServer3D.map_get_closest_point(map, pos)
+
 func _begin_gather(node: HarvestNode) -> void:
 	if vitals.exhausted:
 		print("[item] too exhausted to gather")
@@ -279,10 +362,10 @@ func _begin_gather(node: HarvestNode) -> void:
 	if why == "depleted":
 		print("[item] refused %s: depleted" % node.node_id)
 		return
+	_stop_gather_cycle(false)
 	butcher_target = null
 	gather_target = node
-	_gathering = false
-	nav_to(node.global_position)
+	nav_to(_closest_nav_point(node.global_position))
 
 func _begin_butcher(corpse: Corpse) -> void:
 	if vitals.exhausted:
@@ -295,19 +378,22 @@ func _begin_butcher(corpse: Corpse) -> void:
 	var tool := inventory.find_gather_tool(&"knife")
 	if tool:
 		print("[item] auto-equip %s knife" % tool.def_id)
+	_stop_gather_cycle(false)
 	gather_target = null
 	butcher_target = corpse
-	_gathering = false
-	nav_to(corpse.global_position)
+	nav_to(_closest_nav_point(corpse.global_position))
 
 func _on_arrived() -> void:
+	_clear_ground_marker()
 	if gather_target and is_instance_valid(gather_target):
 		face_world(gather_target.global_position)
-		_gathering = true
-		_gather_left = gather_target.gather_seconds
-		vitals.add_fatigue(1.5, &"gather")
-		if anim:
-			anim.on_gather()
+		var why := gather_target.can_gather(inventory)
+		if why != "":
+			print("[item] refused %s: %s" % [gather_target.node_id, why])
+			_stop_gather_cycle()
+			gather_target = null
+			return
+		_start_gather_cycle(gather_target.gather_seconds)
 	elif butcher_target and is_instance_valid(butcher_target):
 		face_world(butcher_target.global_position)
 		_gathering = true
@@ -323,20 +409,181 @@ func _finish_gather() -> void:
 		butcher_target = null
 		return
 	if gather_target == null or not is_instance_valid(gather_target):
+		_stop_gather_cycle()
 		return
 	var why := gather_target.can_gather(inventory)
 	if why != "":
 		print("[item] refused %s: %s" % [gather_target.node_id, why])
+		_stop_gather_cycle()
+		gather_target = null
 		return
 	if gather_target.required_tool_class != &"" and gather_target.required_tool_class != &"none":
-		inventory.wear_gather_tool(gather_target.required_tool_class)
+		var tool_ok := inventory.wear_gather_tool(gather_target.required_tool_class)
+		if not tool_ok:
+			_stop_gather_cycle()
+			gather_target = null
+			return
 	var stack := gather_target.roll_yield()
 	var attrs := stack.attributes.duplicate(true)
 	var before := stack.count
 	var left := inventory.add(stack)
-	print("[item] +%d %s %s" % [before - left, stack.def_id, attrs])
-	gather_target.mark_gathered()
+	var gained := before - left
+	if gained <= 0:
+		print("[item] refused %s: inventory_full" % gather_target.node_id)
+		_stop_gather_cycle()
+		gather_target = null
+		return
+	if left > 0:
+		stack.count = gained
+	gather_target.consume_unit()
+	print("[item] +%d %s %s (pool %d/%d)" % [gained, stack.def_id, attrs, gather_target.pool_units_left(), gather_target.pool_max])
+	vitals.add_fatigue(GATHER_FATIGUE_PER_UNIT, &"gather")
+	if gather_target.pool_units_left() <= 0:
+		_stop_gather_cycle()
+		gather_target = null
+		return
+	_start_gather_cycle(gather_target.gather_seconds)
+
+func _start_gather_cycle(seconds: float) -> void:
+	_gathering = true
+	_gather_unit_time = maxf(0.1, seconds)
+	_gather_left = _gather_unit_time
+	if anim:
+		anim.on_gather()
+	_update_gather_ring(0.0)
+
+func _stop_gather_cycle(fade_ring: bool = true) -> void:
+	_gathering = false
+	_gather_left = 0.0
+	if _gather_ring:
+		if fade_ring:
+			_gather_ring.fade_out()
+		else:
+			_gather_ring.clear_now()
+
+func _update_gather_ring(progress: float) -> void:
+	if _gather_ring == null:
+		return
+	if gather_target and is_instance_valid(gather_target):
+		_gather_ring.show_for(gather_target, progress)
+	else:
+		_gather_ring.fade_out()
+
+func _cancel_gather_and_butcher() -> void:
 	gather_target = null
+	butcher_target = null
+	_stop_gather_cycle()
+
+func _setup_ground_marker() -> void:
+	_ground_marker = MeshInstance3D.new()
+	_ground_marker.name = "GroundMarker"
+	_ground_marker.top_level = true
+	_ground_marker.visible = false
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.26
+	ring.outer_radius = 0.3
+	ring.ring_segments = 32
+	ring.rings = 12
+	_ground_marker.mesh = ring
+	_ground_marker.rotation_degrees.x = 90.0
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.25, 0.85, 0.55, 0.95)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_ground_marker.material_override = mat
+	add_child(_ground_marker)
+
+func _show_ground_marker(at: Vector3) -> void:
+	if _ground_marker == null:
+		return
+	_ground_marker.global_position = at + Vector3(0.0, 0.06, 0.0)
+	_ground_marker.visible = true
+	var mat := _ground_marker.material_override as StandardMaterial3D
+	if mat:
+		mat.albedo_color = Color(0.25, 0.85, 0.55, 0.95)
+	if _ground_marker_tween and _ground_marker_tween.is_valid():
+		_ground_marker_tween.kill()
+	_ground_marker_tween = create_tween()
+	_ground_marker_tween.tween_method(_set_ground_marker_alpha, 0.95, 0.0, 0.5)
+	_ground_marker_tween.tween_callback(_clear_ground_marker)
+
+func _set_ground_marker_alpha(a: float) -> void:
+	if _ground_marker == null:
+		return
+	var mat := _ground_marker.material_override as StandardMaterial3D
+	if mat:
+		mat.albedo_color.a = clampf(a, 0.0, 1.0)
+
+func _clear_ground_marker() -> void:
+	if _ground_marker_tween and _ground_marker_tween.is_valid():
+		_ground_marker_tween.kill()
+	if _ground_marker:
+		_ground_marker.visible = false
+
+func _setup_gather_ring() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 56
+	layer.name = "GatherRingLayer"
+	add_child(layer)
+	var script := load("res://scripts/ui/gather_ring.gd") as GDScript
+	if script:
+		_gather_ring = script.new()
+		layer.add_child(_gather_ring)
+
+func _tick_hold_walk(delta: float) -> void:
+	if not Input.is_action_pressed("tap"):
+		_hold_walk_candidate = false
+		_hold_walk_elapsed = 0.0
+		return
+	if not _hold_walk_candidate:
+		return
+	_hold_walk_elapsed += delta
+	if _hold_walk_elapsed < HOLD_WALK_DELAY:
+		return
+	_hold_walk_retarget_left -= delta
+	if _hold_walk_retarget_left > 0.0:
+		return
+	_hold_walk_retarget_left = HOLD_WALK_RETARGET
+	_retarget_hold_walk()
+
+func _retarget_hold_walk() -> void:
+	if _tap_blocked():
+		return
+	var hit := _ray()
+	if hit.is_empty():
+		return
+	var col: Object = hit.get("collider", null)
+	if _is_interactable(col):
+		return
+	var nav_pos := _closest_nav_point(hit.position)
+	_cancel_gather_and_butcher()
+	nav_to(nav_pos)
+	_show_ground_marker(nav_pos)
+
+func _sync_touch_context() -> void:
+	if TouchControls == null:
+		return
+	var want := _derive_touch_context()
+	if want != _touch_context:
+		_touch_context = want
+		TouchControls.set_context(_touch_context)
+	TouchControls.set_hurt_overlay(_has_bleed_status())
+
+func _derive_touch_context() -> StringName:
+	if placer and placer.placing != &"":
+		return &"place"
+	if mounted_on and is_instance_valid(mounted_on):
+		return &"mounted"
+	if hunt and hunt.target and is_instance_valid(hunt.target):
+		return &"hunt"
+	return &"explore"
+
+func _has_bleed_status() -> bool:
+	return statuses != null and (statuses.has(&"bleed") or statuses.has(&"deep_bleed"))
+
+func debug_tap_screen(screen_pos: Vector2) -> StringName:
+	Game.pointer = screen_pos
+	return _tap_world()
 
 func _try_roll() -> void:
 	if rolling or statuses.has_flag(&"no_roll") or statuses.has_flag(&"cannot_act"):
@@ -570,6 +817,7 @@ func _ray() -> Dictionary:
 	var from := cam.project_ray_origin(mouse)
 	var to := from + cam.project_ray_normal(mouse) * 200.0
 	var q := PhysicsRayQueryParameters3D.create(from, to)
+	q.exclude = [self]
 	return get_world_3d().direct_space_state.intersect_ray(q)
 
 func _nearest_group(group: String) -> Node3D:
@@ -633,6 +881,7 @@ func _survivor_meta() -> Dictionary:
 	return {"height_meters": 1.72, "pipeline": {"forward_axis": "+Z"}}
 
 func _on_vitals_damaged() -> void:
+	_cancel_gather_and_butcher()
 	if anim == null:
 		return
 	if statuses and statuses.has_flag(&"knockdown"):

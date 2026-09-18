@@ -63,8 +63,12 @@ func _unhandled_input(event: InputEvent) -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		pointer = (event as InputEventScreenTouch).position
+	elif event is InputEventScreenDrag:
+		pointer = (event as InputEventScreenDrag).position
 	elif event is InputEventMouseButton:
 		pointer = (event as InputEventMouseButton).position
+	elif event is InputEventMouseMotion:
+		pointer = (event as InputEventMouseMotion).position
 
 func _process(delta: float) -> void:
 	time_of_day = fmod(time_of_day + delta / day_length_seconds, 1.0)

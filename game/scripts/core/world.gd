@@ -16,7 +16,7 @@ var cargo_home: Inventory = Inventory.new(60) ## ASSUMPTION: 60 slots for mobile
 var remaining_lifetime: float = 0.0
 var crater_discovered: bool = false
 var _sink_warned: bool = false
-var harvested: Dictionary = {} ## node_id -> {depleted, regen_left}
+var harvested: Dictionary = {} ## node_id -> {pool, pool_max, session_gathered}
 var runtime: Node3D
 var last_save_unix: int = 0
 var resting_in_tent: bool = false
@@ -216,7 +216,12 @@ func _snapshot_harvest() -> void:
 		var node := n as HarvestNode
 		if node == null:
 			continue
-		harvested[str(node.node_id)] = {"depleted": node.depleted, "regen_left": node._regen_left}
+		harvested[str(node.node_id)] = {
+			"pool": node.pool,
+			"pool_max": node.pool_max,
+			"session_gathered": node.session_gathered,
+			"depleted": node.depleted, # backward compatibility while schema is still 1
+		}
 
 func _apply_harvested(ir: Node) -> void:
 	for n in ir.get_tree().get_nodes_in_group("harvest"):
@@ -225,9 +230,10 @@ func _apply_harvested(ir: Node) -> void:
 			continue
 		var row: Variant = harvested.get(str(node.node_id), null)
 		if row is Dictionary:
-			node.depleted = bool(row.get("depleted", false))
-			node._regen_left = float(row.get("regen_left", 0.0))
-			node.visible = not node.depleted
+			var pool_max := int(row.get("pool_max", node.pool_max))
+			var pool := float(row.get("pool", float(node.pool_max if not bool(row.get("depleted", false)) else 0.0)))
+			var session_gathered := int(row.get("session_gathered", node.session_gathered))
+			node.restore_snapshot(pool, pool_max, session_gathered)
 
 func _clear_runtime() -> void:
 	if runtime and is_instance_valid(runtime):
