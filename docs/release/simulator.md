@@ -20,3 +20,8 @@ tools/sim_run.sh --no-export
 ```
 
 Notes: the game is GDScript-only, so a non-Mono library is fine even though the editor is the Mono build. Simulator frame rate is low (software-ish Metal); judge layout and flow, not performance. When Godot is upgraded, rebuild the library for the new version.
+
+
+## Status 2026-09-17 late: parked
+
+The self-built simulator library ran the game only under the Compatibility renderer (Godot disables Metal on the simulator; Vulkan/MoltenVK did not initialise either), at 1 fps and rendering nearly black, and a later variant broke the simulator link with undefined `_SDL_IsIPad` symbols. The export no longer merges it. Test on a real iPhone. If the simulator matters later, the remaining work is making Godot pick the Vulkan driver on the simulator build and confirming MoltenVK links.

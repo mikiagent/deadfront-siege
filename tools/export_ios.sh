@@ -17,12 +17,6 @@ for p in pathlib.Path("$OUT").rglob("*.entitlements"):
     s = p.read_text(); s2 = re.sub(r"\s*<key>aps-environment</key>\s*<string>[^<]*</string>", "", s)
     if s2 != s: p.write_text(s2); print("stripped aps-environment from", p)
 PY
-# Official templates ship Intel-only simulator slices. If a self-built arm64
-# simulator library exists (docs/release/simulator.md), fold it in so the
-# project also builds for Apple Silicon simulators.
-LIBDIR="$HOME/Library/Application Support/Godot/sim_arm64_4.7.1"
-SIM="$OUT/durango.xcframework/ios-arm64_x86_64-simulator/libgodot.a"
-if [[ -f "$LIBDIR/libgodot.ios.template_debug.arm64.simulator.a" && -f "$SIM" ]] && ! lipo -archs "$SIM" | grep -q arm64; then
-  lipo -create "$SIM" "$LIBDIR/libgodot.ios.template_debug.arm64.simulator.a" -output "$SIM" && echo "simulator slice now: $(lipo -archs "$SIM")"
-fi
+# Simulator route parked (Godot 4.7.1: no Metal on the simulator, Compatibility renderer only,
+# and a self-built library broke the simulator link). See docs/release/simulator.md.
 echo "Export finished. Open game/export/ios/*.xcodeproj in Xcode."
