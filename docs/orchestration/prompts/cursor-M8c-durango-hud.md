@@ -98,3 +98,40 @@ Acceptance additions: `m8c-hud-hunt.png` must show the red frame, the target pla
 level and health, the hex cluster with Auto on, Chase bottom-left, and the outlined
 target with its red plate and ground ring; a `[hud] target centrosaurus lv=38 hp=2464/5439`
 style print when a target is set (use whatever species is in the lab).
+
+## Addendum 2 (owner) — gathering UI, from `docs/reference/durango-gather-reference.webp`
+
+In words: the player taps a boulder by the river. The boulder gets a thin **hexagonal
+selection outline** on the ground with its name and level under it (`Boulder`, `Lv. 1`
+in green). Next to it a small **radial of hexagonal option buttons** fans out, one per
+thing that node can yield: each hex shows the yield's icon, the gather time at the top
+(`3.0s`), the count it gives at the bottom (`3`), and a label to the right
+(`Boulder Lv. 1`, `Pebble Lv. 1`). An option you cannot take (wrong tool, skill too
+low) shows a red no-entry badge and a hint. Tapping a hex walks there and gathers with
+the M8a ring. Bottom-right, standing by water, three **context hexes** appear (drink,
+wash hands, fill container). A quest-hint card top-right (`Axe Materials · Find new
+pebbles to use as a blade`) is out of scope for now.
+
+Tasks to add:
+11. **Node yield options.** `nature_manifest.json` families may list several `yields`
+    (`[{"item": "stone", "count": 3, "seconds": 3.0, "tool": "pick"}, {"item": "pebble",
+    "count": 2, "seconds": 3.0, "tool": "none"}]`); migrate the current single yield into
+    that list (`# ASSUMPTION` second options: rocks → pebble, trees → branch without an
+    axe, bushes → fibre + berry, mud → mud + clay). `HarvestNode` exposes `options()`.
+12. **Tap a node → selection hex + radial.** One node selected at a time: hex outline
+    (flat 1.4 m hexagon mesh, unshaded, 60 % alpha) on its tile, name + `Lv. N` label
+    under it, and a `GatherRadial` Control (`scripts/ui/gather_radial.gd`) placed by
+    unprojecting the node, with one `HexButton` per option (icon, seconds, count, label;
+    red badge + `needs pick` when blocked). Single-option nodes skip the radial and start
+    at once (keeps M8a's flow). Tapping a hex starts the M8a auto-gather with that
+    option; tap-outside dismisses. Radial hexes ≥ 64 px.
+13. **Context hexes.** Standing within 2 m of water (river trigger / shallow water
+    tiles): a bottom-right cluster of hexes `Drink` (energy +5, `# ASSUMPTION`), `Wash`
+    (clears `dirty` if the status exists, else fatigue −2), `Fill` (fills a bucket/bottle
+    item if in the bag). Near a bonfire: `Cauterise`, `Cook` (opens craft filtered to
+    the bonfire). Near a corpse: `Loot`. These replace the old USE button.
+
+Acceptance additions: `m8c-gather-radial.png` showing a selected rock with the hex
+outline, its label and two option hexes (one blocked with the red badge), and the water
+context hexes; `[item] option pebble x2 3.0s` printed when an option is chosen in the
+island lab hook.
