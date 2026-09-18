@@ -41,6 +41,8 @@ No `[player] missing clip ...` fallback lines are emitted with the current eleve
 - Hunt lab mid-fight: `docs/orchestration/reports/m4a-hunt-lab.png`
 - Capture lab mounted on velociraptor: `docs/orchestration/reports/m4a-capture-lab-riding.png`
 
+Scale uses each `MeshInstance3D` local AABB (survivor `char1` is 1.72 m). Including the importer's 0.01 node scale in the measured height over-scaled the mesh ~100×.
+
 ## Reproduce
 ```bash
 tools/smoke.sh

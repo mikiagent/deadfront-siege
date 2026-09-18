@@ -210,47 +210,24 @@ func _orient(mesh: Node3D, axis: String) -> void:
 
 func _scale_to_height(mesh: Node3D, height_m: float, source_h: float = 0.0) -> void:
 	mesh.force_update_transform()
-	var aabb := _local_aabb(mesh)
-	var measured := aabb.size.y
+	var measured := _mesh_height(mesh)
 	if measured < 0.05 and source_h > 0.05:
 		measured = source_h
 	if measured < 0.01:
-		print("[%s] scale skip aabb_h=%.4f target=%.2f" % [log_tag, aabb.size.y, height_m])
 		return
-	var factor := height_m / measured
-	mesh.scale = Vector3.ONE * factor
-	print("[%s] aabb_h=%.3f target=%.2f scale=%.4f" % [log_tag, measured, height_m, factor])
+	mesh.scale = Vector3.ONE * (height_m / measured)
 
-func _local_aabb(root: Node3D) -> AABB:
-	var aabb := AABB()
-	var first := true
+func _mesh_height(root: Node3D) -> float:
+	var best := 0.0
 	for node in root.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		if mi == null:
 			continue
 		var local: AABB = mi.get_aabb()
-		if local.size.length() < 0.001 and mi.mesh:
+		if local.size.y < 0.001 and mi.mesh:
 			local = mi.mesh.get_aabb()
-		var xf := _relative_xform(mi, root)
-		for i in 8:
-			var corner := local.position + local.size * Vector3(
-				float(i & 1), float((i >> 1) & 1), float((i >> 2) & 1))
-			var p := xf * corner
-			if first:
-				aabb = AABB(p, Vector3.ZERO)
-				first = false
-			else:
-				aabb = aabb.expand(p)
-	return aabb
-
-func _relative_xform(node: Node3D, root: Node3D) -> Transform3D:
-	var xf := Transform3D.IDENTITY
-	var n: Node = node
-	while n != null and n != root:
-		if n is Node3D:
-			xf = (n as Node3D).transform * xf
-		n = n.get_parent()
-	return xf
+		best = maxf(best, local.size.y)
+	return best
 
 func _attach_sockets() -> void:
 	if skeleton == null:
