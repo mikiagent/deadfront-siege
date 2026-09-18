@@ -86,9 +86,17 @@ func set_visual(path: String) -> void:
 	if packed is PackedScene:
 		var inst: Node = (packed as PackedScene).instantiate()
 		inst.name = "VisualGlb"
+		_apply_vis_range(inst)
 		add_child(inst)
 		if _mesh:
 			_mesh.visible = false
+
+func _apply_vis_range(n: Node) -> void:
+	if n is GeometryInstance3D:
+		(n as GeometryInstance3D).visibility_range_end = 70.0
+		(n as GeometryInstance3D).visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+	for c in n.get_children():
+		_apply_vis_range(c)
 
 func _apply_tint() -> void:
 	if _mesh == null:

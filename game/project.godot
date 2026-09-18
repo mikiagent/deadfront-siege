@@ -45,5 +45,12 @@ renderer/rendering_method="forward_plus"
 renderer/rendering_method.mobile="mobile"
 textures/vram_compression/import_etc2_astc=true
 lights_and_shadows/directional_shadow/size=4096
-lights_and_shadows/directional_shadow/size.mobile=2048
+lights_and_shadows/directional_shadow/size.mobile=1024
 anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/msaa_3d.mobile=0
+
+[importer_defaults]
+
+texture={
+"process/size_limit": 1024
+}

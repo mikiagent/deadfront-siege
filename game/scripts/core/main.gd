@@ -32,11 +32,6 @@ func _ready() -> void:
 			craft.bind(player)
 
 func _process(_delta: float) -> void:
-	debug_label.visible = Game.debug_overlay and Game.lab_name == ""
+	debug_label.visible = false
 	if Input.is_action_just_pressed("debug_toggle"):
 		Game.debug_overlay = not Game.debug_overlay
-	if debug_label.visible:
-		var p := get_tree().get_first_node_in_group("player") as Node3D
-		debug_label.text = "fps %d  |  tod %.2f (%s)  |  player %s" % [
-			Engine.get_frames_per_second(), Game.time_of_day, Game.phase_name(),
-			(p.global_position.snapped(Vector3.ONE * 0.1) if p else Vector3.ZERO)]
