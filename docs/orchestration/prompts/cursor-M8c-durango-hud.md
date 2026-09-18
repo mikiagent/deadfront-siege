@@ -135,3 +135,41 @@ Acceptance additions: `m8c-gather-radial.png` showing a selected rock with the h
 outline, its label and two option hexes (one blocked with the red badge), and the water
 context hexes; `[item] option pebble x2 3.0s` printed when an option is chosen in the
 island lab hook.
+
+## Addendum 3 (owner) — base building, from `docs/reference/durango-base-reference.jpg`
+
+In words: the player's camp is a **claimed plot** drawn as a glowing dotted light-blue
+boundary along the tile edges (an isometric diamond of about 14×14 tiles). Inside it,
+every building has a **floating label pill**: dark rounded pill with the building's icon,
+a small green status dot, and its name (`Basket`, `Makeshift Tent`, `Bonfire`,
+`Makeshift Workbench`); a `Small Field` shows a second pill with a clock and the time
+left (`19m 54s`). Resource nodes outside the plot have the same pills (`Boulder`,
+`Pebble`). Bottom-right two hexes: a fence glyph (claim / expand land) and an anchor
+(harbour routes). The quest card on the right stays out of scope.
+
+Tasks to add:
+14. **Land claim.** `LandClaim` data on the island runtime: a set of claimed tiles with
+    an owner. Home island: the camp plot (14×14 tiles around the camp) is claimed at
+    creation and can be **expanded** by 4 tiles a side per Pioneer level 5/10/15
+    (`# ASSUMPTION`). Unstable islands: the first plot is free (14×14 where the player
+    stands, tap the fence hex → tap a tile), later ones cost `claim_stake` items
+    (add to `items.json`, craftable from 4 branches). Buildings may only be placed on
+    claimed tiles (`BuildGrid.can_place` returns `unclaimed`); the camp props count as
+    claimed. Draw the boundary as a dotted emissive line (ImmediateMesh or a ribbon of
+    small quads) on the plot's outer tile edges, 0.03 m above ground, animated dash
+    offset; hide it beyond 40 m. Saved in schema 2 (`claims: [{x, z, w, d}]`).
+15. **Label pills.** A `WorldLabels` CanvasLayer draws a pill for every building,
+    crafting station, pen, field and harvest node within 30 m (icon from
+    `icons_manifest.json` or the item glyph, green dot = usable / grey = depleted /
+    red = needs tool, name from the manifest). Fields, drying racks, taming pens and
+    regrowing nodes get a second pill with a clock and `Nm Ns` remaining. Pills fade
+    with distance and never overlap the target plate or the radial (skip when a
+    radial is open for that node). Tapping a pill = tapping the object.
+16. **Plot hexes.** Bottom-right cluster gets `Claim/Expand` (fence glyph) and
+    `Harbour` (anchor glyph, opens the existing harbour routes when within 12 m of the
+    dock). Placement (M8b) shows the claimed area tinted while placing.
+
+Acceptance additions: `m8c-base.png` (home camp with the dotted boundary, pills on
+tent/basket/bonfire/workbench, a timer pill on a regrowing node, the two plot hexes);
+headless `build_lab` prints `[build] rejected unclaimed` for a tile outside the plot and
+`[world] claimed 14x14 at (x,z)` on the unstable island.
