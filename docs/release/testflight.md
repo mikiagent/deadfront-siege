@@ -28,6 +28,8 @@ It exports the Xcode project from Godot, archives with automatic signing, export
 - The simulator is not viable: Godot ships only an Intel simulator slice and Xcode 27's simulators are Apple Silicon only.
 - `ITSAppUsesNonExemptEncryption=false` in Info.plist avoids the export-compliance question on every build.
 
+Check processing from the shell: `uv run --with pyjwt --with cryptography python3 tools/asc_status.py`. Add a tester and attach the latest build: `uv run --with pyjwt --with cryptography python3 tools/asc_testflight.py <email>`.
+
 ## After the upload
 
 Processing takes about ten minutes. Then in App Store Connect, TestFlight tab: add yourself to an internal testing group once (Internal Testing, +, add tester by Apple ID). Install the **TestFlight** app on the phone, accept the invite, install the build. Each later upload appears automatically for that group.
