@@ -59,6 +59,10 @@ static func build(host: Node3D, size: float = 80.0) -> Dictionary:
 	ui.add_child(inv_ui)
 	player.ui = inv_ui
 	inv_ui.bind(player.inventory)
+	var craft = preload("res://scenes/ui/craft.tscn").instantiate()
+	ui.add_child(craft)
+	player.craft_ui = craft
+	craft.bind(player)
 	var hud := HuntHud.new()
 	hud.bind(player)
 	ui.add_child(hud)

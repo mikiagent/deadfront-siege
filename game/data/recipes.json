@@ -1,0 +1,269 @@
+{
+  "recipes": [
+    {
+      "id": "improvised_stone_knife",
+      "display_name": "Improvised Stone Knife",
+      "slots": [
+        {"category": "blade_mat", "count": 1, "primary": true},
+        {"category": "handle", "count": 1, "primary": false},
+        {"category": "lashing", "count": 1, "primary": false}
+      ],
+      "output": {"id": "stone_knife_work", "count": 1},
+      "station": null,
+      "seconds": 2.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "work_axe",
+      "display_name": "Work Axe",
+      "slots": [
+        {"category": "blade_mat", "count": 1, "primary": true},
+        {"category": "handle", "count": 1, "primary": false},
+        {"category": "lashing", "count": 1, "primary": false}
+      ],
+      "output": {"id": "work_axe", "count": 1},
+      "station": "workbench",
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "club",
+      "display_name": "Wooden Club",
+      "slots": [
+        {"category": "handle", "count": 1, "primary": true},
+        {"category": "lashing", "count": 1, "primary": false}
+      ],
+      "output": {"id": "club", "count": 1},
+      "station": null,
+      "seconds": 1.5,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "bandage",
+      "display_name": "Bandage",
+      "slots": [
+        {"category": "herb", "count": 1, "primary": true},
+        {"category": "cloth", "count": 1, "primary": false}
+      ],
+      "output": {"id": "bandage", "count": 1},
+      "station": null,
+      "seconds": 1.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "pressure_dressing",
+      "display_name": "Pressure Dressing",
+      "slots": [
+        {"category": "herb", "count": 1, "primary": true},
+        {"category": "cloth", "count": 2, "primary": false}
+      ],
+      "output": {"id": "pressure_dressing", "count": 1},
+      "station": null,
+      "seconds": 1.5,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "splint",
+      "display_name": "Splint",
+      "slots": [
+        {"category": "wood", "count": 1, "primary": true},
+        {"category": "cloth", "count": 1, "primary": false}
+      ],
+      "output": {"id": "splint", "count": 1},
+      "station": null,
+      "seconds": 1.5,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "capture_net_i",
+      "display_name": "Capture Net I",
+      "slots": [
+        {"category": "lashing", "count": 2, "primary": true},
+        {"category": "handle", "count": 1, "primary": false}
+      ],
+      "output": {"id": "capture_net_i", "count": 1},
+      "station": null,
+      "seconds": 2.0,
+      "process_step": "twist",
+      "process_add": 1
+    },
+    {
+      "id": "twine",
+      "display_name": "Twine",
+      "slots": [
+        {"category": "fibre", "count": 2, "primary": true}
+      ],
+      "output": {"id": "twine", "count": 1},
+      "station": null,
+      "seconds": 1.0,
+      "process_step": "twist",
+      "process_add": 1
+    },
+    {
+      "id": "rope",
+      "display_name": "Rope",
+      "slots": [
+        {"category": "lashing", "count": 3, "primary": true}
+      ],
+      "output": {"id": "rope", "count": 1},
+      "station": "workbench",
+      "seconds": 2.0,
+      "process_step": "twist",
+      "process_add": 1
+    },
+    {
+      "id": "thread",
+      "display_name": "Thread",
+      "slots": [
+        {"category": "fibre", "count": 2, "primary": true}
+      ],
+      "output": {"id": "thread", "count": 1},
+      "station": null,
+      "seconds": 1.0,
+      "process_step": "twist",
+      "process_add": 1
+    },
+    {
+      "id": "cloth",
+      "display_name": "Cloth",
+      "slots": [
+        {"category": "thread", "count": 2, "primary": true}
+      ],
+      "output": {"id": "cloth", "count": 1},
+      "station": "workbench",
+      "seconds": 2.0,
+      "process_step": "twist",
+      "process_add": 1
+    },
+    {
+      "id": "dried_hide",
+      "display_name": "Dried Hide",
+      "slots": [
+        {"category": "green_hide", "count": 1, "primary": true}
+      ],
+      "output": {"id": "dried_hide", "count": 1},
+      "station": "drying_rack",
+      "seconds": 4.0,
+      "process_step": "dry",
+      "process_add": 1
+    },
+    {
+      "id": "hide_strap",
+      "display_name": "Hide Strap",
+      "slots": [
+        {"category": "hide", "count": 1, "primary": true}
+      ],
+      "output": {"id": "hide_strap", "count": 2},
+      "station": "workbench",
+      "seconds": 2.0,
+      "process_step": "split",
+      "process_add": 1
+    },
+    {
+      "id": "split_wood",
+      "display_name": "Split Wood",
+      "slots": [
+        {"category": "log", "count": 1, "primary": true}
+      ],
+      "output": {"id": "split_wood", "count": 2},
+      "station": "workbench",
+      "seconds": 2.0,
+      "process_step": "split",
+      "process_add": 1
+    },
+    {
+      "id": "plank",
+      "display_name": "Plank",
+      "slots": [
+        {"category": "split", "count": 2, "primary": true}
+      ],
+      "output": {"id": "plank", "count": 1},
+      "station": "workbench",
+      "seconds": 2.0,
+      "process_step": "hammer",
+      "process_add": 1
+    },
+    {
+      "id": "charcoal",
+      "display_name": "Charcoal",
+      "slots": [
+        {"category": "burnable", "count": 2, "primary": true}
+      ],
+      "output": {"id": "charcoal", "count": 1},
+      "station": null,
+      "seconds": 3.0,
+      "process_step": "bake",
+      "process_add": 1
+    },
+    {
+      "id": "ingot",
+      "display_name": "Ingot",
+      "slots": [
+        {"category": "ore", "count": 2, "primary": true}
+      ],
+      "output": {"id": "ingot", "count": 1},
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "hammer",
+      "process_add": 1
+    },
+    {
+      "id": "bonfire_kit",
+      "display_name": "Bonfire Kit",
+      "slots": [
+        {"category": "wood", "count": 2, "primary": true},
+        {"category": "fibre", "count": 1, "primary": false}
+      ],
+      "output": {"id": "bonfire_kit", "count": 1},
+      "station": null,
+      "seconds": 1.5,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "makeshift_taming_pen_kit",
+      "display_name": "Makeshift Taming Pen Kit",
+      "slots": [
+        {"category": "wood", "count": 4, "primary": true},
+        {"category": "lashing", "count": 2, "primary": false}
+      ],
+      "output": {"id": "makeshift_taming_pen", "count": 1},
+      "station": null,
+      "seconds": 2.5,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "workbench_kit",
+      "display_name": "Workbench Kit",
+      "slots": [
+        {"category": "wood", "count": 4, "primary": true},
+        {"category": "lashing", "count": 2, "primary": false}
+      ],
+      "output": {"id": "workbench_kit", "count": 1},
+      "station": null,
+      "seconds": 2.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "drying_rack_kit",
+      "display_name": "Drying Rack Kit",
+      "slots": [
+        {"category": "wood", "count": 3, "primary": true},
+        {"category": "lashing", "count": 1, "primary": false}
+      ],
+      "output": {"id": "drying_rack_kit", "count": 1},
+      "station": null,
+      "seconds": 1.5,
+      "process_step": "bind",
+      "process_add": 1
+    }
+  ]
+}

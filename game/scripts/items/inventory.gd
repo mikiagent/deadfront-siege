@@ -149,16 +149,62 @@ func best_capture_net() -> ItemStack:
 			best_tier = d.capture_tier
 	return best
 
-func has_tool_class(tool: StringName) -> bool:
+func find_gather_tool(tool: StringName) -> ItemStack:
 	if tool == &"" or tool == &"none":
-		return true
+		return null
+	var best: ItemStack = null
 	for s in slots:
 		if s == null:
 			continue
+		if s.is_locked() or s.is_broken():
+			continue
 		var d := s.def()
-		if d and d.tool_class == tool:
-			return true
-	return false
+		if d == null or d.tool_class != tool:
+			continue
+		if best == null:
+			best = s
+			continue
+		var bd := best.def()
+		# Prefer work tools so combat weapons stay sheathed unless they are the only match.
+		if d.is_work_tool and bd and not bd.is_work_tool:
+			best = s
+	return best
+
+func has_tool_class(tool: StringName) -> bool:
+	if tool == &"" or tool == &"none":
+		return true
+	return find_gather_tool(tool) != null
+
+func wear_gather_tool(tool: StringName) -> void:
+	var s := find_gather_tool(tool)
+	if s == null:
+		return
+	var d := s.def()
+	# ASSUMPTION: work tools lose 1 durability per gather; combat weapons used as tools lose 3.
+	var cost := 1
+	if d and not d.is_work_tool:
+		cost = 3
+	if not s.wear(cost):
+		print("[item] %s broke" % s.def_id)
+	changed.emit()
+
+func to_array() -> Array:
+	var out: Array = []
+	for s in slots:
+		if s == null:
+			out.append(null)
+		else:
+			out.append(s.to_dict())
+	return out
+
+func load_array(raw: Array) -> void:
+	for i in slot_count:
+		slots[i] = null
+	for i in mini(slot_count, raw.size()):
+		var row: Variant = raw[i]
+		if row is Dictionary:
+			slots[i] = ItemStack.from_dict(row)
+	changed.emit()
 
 func _find_span(span: int) -> int:
 	var i := 0

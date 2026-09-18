@@ -3,18 +3,88 @@
     {
       "id": "branch",
       "display_name": "Branch",
-      "categories": ["wood", "handle"],
+      "categories": ["wood", "handle", "burnable"],
       "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {"tint": "#7a5a32"}
+    },
+    {
+      "id": "wood_log",
+      "display_name": "Log",
+      "categories": ["wood", "log", "burnable"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {"tint": "#6b4a28"}
+    },
+    {
+      "id": "bark_strip",
+      "display_name": "Bark Strip",
+      "categories": ["fibre", "lashing"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "split_wood",
+      "display_name": "Split Wood",
+      "categories": ["wood", "split", "burnable"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "plank",
+      "display_name": "Plank",
+      "categories": ["wood", "plank"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "pillar",
+      "display_name": "Pillar",
+      "categories": ["wood", "pillar"],
+      "stack_max": 5,
       "tool_class": "none",
       "base_level": 1
     },
     {
       "id": "stone",
       "display_name": "Stone",
-      "categories": ["stone"],
+      "categories": ["stone", "blade_mat"],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "default_attributes": {"tint": "#8a8a8a"}
+    },
+    {
+      "id": "metal_shard",
+      "display_name": "Metal Shard",
+      "categories": ["metal", "blade_mat"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {"tint": "#b0b8c0", "hardness": 3}
+    },
+    {
+      "id": "ore",
+      "display_name": "Ore",
+      "categories": ["ore", "stone"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {"tint": "#6a5a4a"}
+    },
+    {
+      "id": "ingot",
+      "display_name": "Ingot",
+      "categories": ["metal", "blade_mat"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {"tint": "#c0c4cc", "hardness": 4}
     },
     {
       "id": "fibre_stalk",
@@ -25,10 +95,52 @@
       "base_level": 1
     },
     {
+      "id": "reed",
+      "display_name": "Reed",
+      "categories": ["fibre", "lashing"],
+      "stack_max": 30,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {"tint": "#8a9a4a"}
+    },
+    {
+      "id": "root",
+      "display_name": "Root",
+      "categories": ["lashing"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {"tint": "#5a4030"}
+    },
+    {
       "id": "twine",
       "display_name": "Twine",
       "categories": ["lashing", "fibre"],
       "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "rope",
+      "display_name": "Rope",
+      "categories": ["lashing"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "thread",
+      "display_name": "Thread",
+      "categories": ["thread", "fibre"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "cloth",
+      "display_name": "Cloth",
+      "categories": ["cloth"],
+      "stack_max": 10,
       "tool_class": "none",
       "base_level": 1
     },
@@ -49,6 +161,15 @@
       "base_level": 1
     },
     {
+      "id": "charcoal",
+      "display_name": "Charcoal",
+      "categories": ["fuel", "burnable"],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {"tint": "#2a2a2a"}
+    },
+    {
       "id": "bandage",
       "display_name": "Bandage",
       "categories": ["medicine", "cloth"],
@@ -67,6 +188,14 @@
       "clears": ["deep_bleed"]
     },
     {
+      "id": "splint",
+      "display_name": "Splint",
+      "categories": ["medicine"],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
       "id": "stone_knife_work",
       "display_name": "Stone Work Knife",
       "categories": ["tool", "blade", "weapon"],
@@ -76,7 +205,8 @@
       "attack_rate": 1.15,
       "damage": 18,
       "damage_type": "slashing",
-      "is_work_tool": true
+      "is_work_tool": true,
+      "max_durability": 40
     },
     {
       "id": "stone_knife",
@@ -88,7 +218,31 @@
       "attack_rate": 1.4,
       "damage": 32,
       "damage_type": "slashing",
-      "is_work_tool": false
+      "is_work_tool": false,
+      "max_durability": 80
+    },
+    {
+      "id": "work_axe",
+      "display_name": "Work Axe",
+      "categories": ["tool", "weapon"],
+      "stack_max": 1,
+      "tool_class": "axe",
+      "base_level": 1,
+      "attack_rate": 0.9,
+      "damage": 22,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 50
+    },
+    {
+      "id": "work_pick",
+      "display_name": "Work Pick",
+      "categories": ["tool"],
+      "stack_max": 1,
+      "tool_class": "pick",
+      "base_level": 1,
+      "is_work_tool": true,
+      "max_durability": 50
     },
     {
       "id": "club",
@@ -100,7 +254,8 @@
       "attack_rate": 1.0,
       "damage": 28,
       "damage_type": "blunt",
-      "is_work_tool": false
+      "is_work_tool": false,
+      "max_durability": 60
     },
     {
       "id": "raptor_meat",
@@ -114,24 +269,51 @@
     {
       "id": "raptor_bone",
       "display_name": "Raptor Bone",
-      "categories": ["bone"],
+      "categories": ["bone", "blade_mat", "handle"],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "default_attributes": {"hardness": 2, "tint": "#d4c4a8"}
     },
     {
       "id": "raptor_hide",
       "display_name": "Raptor Hide",
+      "categories": ["hide", "green_hide"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {"feathered": 1, "tint": "#6b5a3e"}
+    },
+    {
+      "id": "raptor_talon",
+      "display_name": "Raptor Talon",
+      "categories": ["bone", "blade_mat"],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {"hardness": 3, "tint": "#c9b48a"}
+    },
+    {
+      "id": "raw_hide",
+      "display_name": "Raw Hide",
+      "categories": ["hide", "green_hide"],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1
+    },
+    {
+      "id": "dried_hide",
+      "display_name": "Dried Hide",
       "categories": ["hide"],
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1
     },
     {
-      "id": "raw_hide",
-      "display_name": "Raw Hide",
-      "categories": ["hide"],
-      "stack_max": 10,
+      "id": "hide_strap",
+      "display_name": "Hide Strap",
+      "categories": ["lashing", "hide"],
+      "stack_max": 20,
       "tool_class": "none",
       "base_level": 1
     },
@@ -174,18 +356,38 @@
     {
       "id": "makeshift_taming_pen",
       "display_name": "Makeshift Taming Pen",
-      "categories": ["wood"],
+      "categories": ["building"],
       "stack_max": 1,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "place_as": "makeshift_taming_pen"
     },
     {
       "id": "bonfire_kit",
       "display_name": "Bonfire Kit",
-      "categories": ["wood"],
+      "categories": ["building"],
       "stack_max": 5,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "place_as": "bonfire"
+    },
+    {
+      "id": "workbench_kit",
+      "display_name": "Workbench Kit",
+      "categories": ["building"],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "workbench"
+    },
+    {
+      "id": "drying_rack_kit",
+      "display_name": "Drying Rack Kit",
+      "categories": ["building"],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "drying_rack"
     }
   ]
 }

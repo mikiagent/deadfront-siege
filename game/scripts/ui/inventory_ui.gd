@@ -1,16 +1,19 @@
 class_name InventoryUI
 extends Control
-## Ugly-but-correct slot grid. Tooltip shows attributes, level, process, flags.
+## Slot grid. Tap a slot for its tooltip (no hover-only). Lock combat tools so they skip gather auto-equip.
 
 var inventory: Inventory
 var pet_bag: Inventory
 var _grid: GridContainer
 var _tip: Label
 var _pet_grid: GridContainer
+var _lock_btn: Button
+var _selected: int = -1
 
 func _ready() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	_layout_safe()
 	var panel := ColorRect.new()
 	panel.color = Color(0.08, 0.08, 0.1, 0.88)
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -21,15 +24,23 @@ func _ready() -> void:
 	add_child(_grid)
 	_pet_grid = GridContainer.new()
 	_pet_grid.columns = 5
-	_pet_grid.position = Vector2(16, 280)
+	_pet_grid.position = Vector2(16, 420)
 	add_child(_pet_grid)
 	_tip = Label.new()
-	_tip.position = Vector2(16, 220)
-	_tip.size = Vector2(420, 80)
+	_tip.position = Vector2(16, 300)
+	_tip.size = Vector2(420, 100)
+	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_tip)
+	_lock_btn = Button.new()
+	_lock_btn.text = "Lock / Unlock"
+	_lock_btn.custom_minimum_size = Vector2(200, 64)
+	_lock_btn.position = Vector2(240, 300)
+	_lock_btn.pressed.connect(_toggle_lock)
+	add_child(_lock_btn)
 	for i in 20:
-		_grid.add_child(_mk_slot())
+		_grid.add_child(_mk_slot(i))
 	rebuild()
+	resized.connect(_layout_safe)
 
 func bind(inv: Inventory) -> void:
 	inventory = inv
@@ -54,20 +65,52 @@ func rebuild() -> void:
 			btn.text = "—"
 			btn.tooltip_text = "occupied"
 		else:
-			btn.text = "%s\n%d" % [s.def_id, s.count]
+			var pip := ""
+			if s.is_locked():
+				pip = "L "
+			if s.is_unstable():
+				pip += "U "
+			btn.text = "%s%s\n%d" % [pip, s.def_id, s.count]
 			btn.tooltip_text = s.tooltip()
 	for c in _pet_grid.get_children():
 		c.queue_free()
 	if pet_bag:
 		for i in pet_bag.slot_count:
-			var b := _mk_slot()
+			var b := _mk_slot(-1)
 			var s := pet_bag.slots[i]
 			b.text = "" if s == null else "%s\n%d" % [s.def_id, s.count]
 			_pet_grid.add_child(b)
 
-func _mk_slot() -> Button:
+func _mk_slot(index: int) -> Button:
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(72, 48)
+	b.custom_minimum_size = Vector2(72, 64)
 	b.mouse_filter = Control.MOUSE_FILTER_STOP
-	b.mouse_entered.connect(func () -> void: _tip.text = b.tooltip_text)
+	if index >= 0:
+		b.pressed.connect(func () -> void: _select(index))
 	return b
+
+func _select(index: int) -> void:
+	_selected = index
+	if inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null:
+		_tip.text = ""
+		return
+	_tip.text = inventory.slots[index].tooltip()
+
+func _toggle_lock() -> void:
+	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
+		return
+	var s := inventory.slots[_selected]
+	if s == null:
+		return
+	s.set_flag(&"locked", not s.is_locked())
+	inventory.changed.emit()
+	_select(_selected)
+
+func _layout_safe() -> void:
+	if OS.has_feature("mobile"):
+		var safe := DisplayServer.get_display_safe_area()
+		var view := get_viewport_rect().size
+		var win := Vector2(DisplayServer.window_get_size())
+		if win.x > 0.0:
+			offset_left = maxf(8.0, safe.position.x * view.x / win.x)
+			offset_top = maxf(8.0, safe.position.y * view.y / win.y)

@@ -54,6 +54,16 @@
       "kind": "animal_management",
       "tier": 4,
       "bonded_cap_bonus": 1
+    },
+    {
+      "id": "butchering_I",
+      "kind": "butchering",
+      "tier": 1
+    },
+    {
+      "id": "butchering_II",
+      "kind": "butchering",
+      "tier": 2
     }
   ]
 }

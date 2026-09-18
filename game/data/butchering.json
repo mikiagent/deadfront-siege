@@ -1,0 +1,45 @@
+{
+  "_about": "Species butcher drops. Lives here because Codex owns game/data/creatures/*.json. Cursor loads this at boot.",
+  "species": {
+    "velociraptor": {
+      "base": [
+        {"id": "raptor_meat", "min": 2, "max": 3},
+        {"id": "raptor_bone", "min": 1, "max": 2, "attributes": {"hardness": 2, "tint": "#d4c4a8"}},
+        {"id": "raptor_hide", "min": 1, "max": 1, "attributes": {"feathered": 1, "tint": "#6b5a3e"}}
+      ],
+      "rare": [
+        {"id": "raptor_talon", "min": 1, "max": 1, "skill": 1, "attributes": {"hardness": 3, "tint": "#c9b48a"}}
+      ]
+    },
+    "deinonychus": {
+      "base": [
+        {"id": "raptor_meat", "min": 2, "max": 4},
+        {"id": "raptor_bone", "min": 1, "max": 2, "attributes": {"hardness": 2, "tint": "#cbb892"}},
+        {"id": "raptor_hide", "min": 1, "max": 1, "attributes": {"feathered": 1, "tint": "#5a4630"}}
+      ],
+      "rare": [
+        {"id": "raptor_talon", "min": 1, "max": 1, "skill": 1, "attributes": {"hardness": 3}}
+      ]
+    },
+    "utahraptor": {
+      "base": [
+        {"id": "raptor_meat", "min": 3, "max": 5},
+        {"id": "raptor_bone", "min": 2, "max": 3, "attributes": {"hardness": 3, "tint": "#c2b089"}},
+        {"id": "raptor_hide", "min": 1, "max": 2, "attributes": {"feathered": 1, "tint": "#4a3a28"}}
+      ],
+      "rare": [
+        {"id": "raptor_talon", "min": 1, "max": 1, "skill": 2, "attributes": {"hardness": 4}}
+      ]
+    },
+    "protoceratops": {
+      "base": [
+        {"id": "raptor_meat", "min": 3, "max": 4},
+        {"id": "raptor_bone", "min": 2, "max": 3, "attributes": {"hardness": 2, "tint": "#e8dcc8"}},
+        {"id": "raw_hide", "min": 1, "max": 2, "attributes": {"tint": "#c4b08a"}}
+      ],
+      "rare": [
+        {"id": "raptor_bone", "min": 1, "max": 1, "skill": 1, "attributes": {"hardness": 4, "frill": 1, "tint": "#efe6d4"}}
+      ]
+    }
+  }
+}

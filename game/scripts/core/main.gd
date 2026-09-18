@@ -20,6 +20,16 @@ func _ready() -> void:
 			print("[boot] lab=%s" % Game.lab_name)
 	else:
 		print("[boot] main scene ready")
+		var player := get_tree().get_first_node_in_group("player") as Player
+		if player:
+			var inv_ui = preload("res://scenes/ui/inventory.tscn").instantiate()
+			$UI.add_child(inv_ui)
+			player.ui = inv_ui
+			inv_ui.bind(player.inventory)
+			var craft = preload("res://scenes/ui/craft.tscn").instantiate()
+			$UI.add_child(craft)
+			player.craft_ui = craft
+			craft.bind(player)
 
 func _process(_delta: float) -> void:
 	debug_label.visible = Game.debug_overlay and Game.lab_name == ""

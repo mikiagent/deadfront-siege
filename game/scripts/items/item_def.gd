@@ -16,6 +16,9 @@ extends Resource
 @export var slot_span: int = 1
 @export var clears: Array[StringName] = []
 @export var diet: StringName = &""
+@export var max_durability: int = 0
+@export var default_attributes: Dictionary = {}
+@export var place_as: StringName = &""
 
 static func from_dict(d: Dictionary) -> ItemDef:
 	var def := ItemDef.new()
@@ -33,6 +36,11 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	def.slot_span = int(d.get("slot_span", 1))
 	def.clears = _names(d.get("clears", []))
 	def.diet = StringName(str(d.get("diet", "")))
+	def.max_durability = int(d.get("max_durability", 0))
+	var attrs: Variant = d.get("default_attributes", {})
+	if attrs is Dictionary:
+		def.default_attributes = (attrs as Dictionary).duplicate(true)
+	def.place_as = StringName(str(d.get("place_as", "")))
 	return def
 
 static func _names(raw: Variant) -> Array[StringName]:

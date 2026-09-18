@@ -20,8 +20,10 @@ var summoned_pet: Creature
 var mounted_on: Creature
 var rolling: bool = false
 var gather_target: HarvestNode
+var butcher_target: Corpse
 var nav_active: bool = false
 var ui: InventoryUI
+var craft_ui
 
 var _roll_left: float = 0.0
 var _gather_left: float = 0.0
@@ -150,10 +152,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_interact()
 		return
 	if event.is_action_pressed("craft"):
-		if placer.placing == &"":
-			placer.begin(&"makeshift_taming_pen")
-		else:
+		if placer.placing != &"":
 			placer.cancel()
+			return
+		if craft_ui:
+			craft_ui.toggle()
 		return
 	if event.is_action_pressed("bandage"):
 		_use_medicine()
@@ -198,6 +201,8 @@ func _tap_world() -> void:
 	var col: Object = hit.get("collider")
 	if col is HarvestNode:
 		_begin_gather(col as HarvestNode)
+	elif col is Corpse:
+		_begin_butcher(col as Corpse)
 	elif col is Creature:
 		var c := col as Creature
 		if c.is_pet:
@@ -214,6 +219,12 @@ func _begin_gather(node: HarvestNode) -> void:
 	if vitals.exhausted:
 		print("[item] too exhausted to gather")
 		return
+	if node.required_tool_class != &"" and node.required_tool_class != &"none":
+		var tool := inventory.find_gather_tool(node.required_tool_class)
+		if tool == null:
+			print("[item] refused %s: need tool %s" % [node.node_id, node.required_tool_class])
+			return
+		print("[item] auto-equip %s %s" % [tool.def_id, node.required_tool_class])
 	var why := node.can_gather(inventory)
 	if why != "" and why != "depleted":
 		print("[item] refused %s: %s" % [node.node_id, why])
@@ -221,9 +232,26 @@ func _begin_gather(node: HarvestNode) -> void:
 	if why == "depleted":
 		print("[item] refused %s: depleted" % node.node_id)
 		return
+	butcher_target = null
 	gather_target = node
 	_gathering = false
 	nav_to(node.global_position)
+
+func _begin_butcher(corpse: Corpse) -> void:
+	if vitals.exhausted:
+		print("[item] too exhausted to butcher")
+		return
+	var why := corpse.can_butcher(inventory)
+	if why != "":
+		print("[item] refused butcher %s: %s" % [corpse.species, why])
+		return
+	var tool := inventory.find_gather_tool(&"knife")
+	if tool:
+		print("[item] auto-equip %s knife" % tool.def_id)
+	gather_target = null
+	butcher_target = corpse
+	_gathering = false
+	nav_to(corpse.global_position)
 
 func _on_arrived() -> void:
 	if gather_target and is_instance_valid(gather_target):
@@ -231,15 +259,26 @@ func _on_arrived() -> void:
 		_gathering = true
 		_gather_left = gather_target.gather_seconds
 		vitals.add_fatigue(1.5)
+	elif butcher_target and is_instance_valid(butcher_target):
+		face_world(butcher_target.global_position)
+		_gathering = true
+		_gather_left = 1.4
+		vitals.add_fatigue(2.0)
 
 func _finish_gather() -> void:
 	_gathering = false
+	if butcher_target and is_instance_valid(butcher_target):
+		butcher_target.butcher(self)
+		butcher_target = null
+		return
 	if gather_target == null or not is_instance_valid(gather_target):
 		return
 	var why := gather_target.can_gather(inventory)
 	if why != "":
 		print("[item] refused %s: %s" % [gather_target.node_id, why])
 		return
+	if gather_target.required_tool_class != &"" and gather_target.required_tool_class != &"none":
+		inventory.wear_gather_tool(gather_target.required_tool_class)
 	var stack := gather_target.roll_yield()
 	var attrs := stack.attributes.duplicate(true)
 	var before := stack.count
@@ -309,6 +348,10 @@ func _interact() -> void:
 	var fire := _nearest_group("bonfire") as Bonfire
 	if fire and global_position.distance_to(fire.global_position) < 2.5:
 		fire.cauterise(self)
+		return
+	var corpse := _nearest_group("corpse") as Corpse
+	if corpse and global_position.distance_to(corpse.global_position) < 2.8:
+		_begin_butcher(corpse)
 		return
 	if summoned_pet and is_instance_valid(summoned_pet) and global_position.distance_to(summoned_pet.global_position) < 2.8:
 		_pet_interact(summoned_pet)

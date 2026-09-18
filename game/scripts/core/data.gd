@@ -7,6 +7,9 @@ var creatures: Dictionary = {} ## StringName -> CreatureDef
 var anim_events: Dictionary = {}
 var survival_nodes: Dictionary = {}
 var survival_unlocked: Dictionary = {} ## node id -> bool. ASSUMPTION: no SP economy yet.
+var recipes: Dictionary = {} ## StringName -> Dictionary
+var recipe_list: Array = []
+var butcher_tables: Dictionary = {} ## species String -> Dictionary
 
 func _ready() -> void:
 	_load_items("res://data/items.json")
@@ -14,7 +17,10 @@ func _ready() -> void:
 	_load_creatures("res://data/creatures")
 	_load_anim_events("res://data/creatures/anim_events.json")
 	_load_survival("res://data/skills/survival.json")
-	print("[data] items=%d statuses=%d creatures=%d" % [items.size(), statuses.size(), creatures.size()])
+	_load_recipes("res://data/recipes.json")
+	_load_butchering("res://data/butchering.json")
+	print("[data] items=%d statuses=%d creatures=%d recipes=%d" % [
+		items.size(), statuses.size(), creatures.size(), recipes.size()])
 
 func item(id: StringName) -> ItemDef:
 	return items.get(id) as ItemDef
@@ -45,6 +51,23 @@ func has_capture_technique(tier: int) -> bool:
 		if str(n.get("kind", "")) == "capture_technique" and int(n.get("unlocks_capture_tier", 0)) == tier:
 			return is_survival_unlocked(id)
 	return false
+
+func butchering_level() -> int:
+	var lvl := 0
+	for id in survival_nodes:
+		var n: Dictionary = survival_nodes[id]
+		if str(n.get("kind", "")) == "butchering" and is_survival_unlocked(id):
+			lvl = maxi(lvl, int(n.get("tier", 1)))
+	return lvl
+
+func butcher_drops(species: StringName) -> Array:
+	var table: Dictionary = butcher_tables.get(str(species), {})
+	var out: Array = []
+	for row in table.get("base", []):
+		out.append(row)
+	for row in table.get("rare", []):
+		out.append(row)
+	return out
 
 func _load_items(path: String) -> void:
 	var root := _parse_json(path)
@@ -106,6 +129,29 @@ func _load_survival(path: String) -> void:
 			var id := StringName(str(row.get("id", "")))
 			survival_nodes[id] = row
 			survival_unlocked[id] = false
+
+func _load_recipes(path: String) -> void:
+	if not FileAccess.file_exists(path):
+		return
+	var root := _parse_json(path)
+	recipe_list.clear()
+	recipes.clear()
+	for row in root.get("recipes", []):
+		if not row is Dictionary:
+			continue
+		var id := StringName(str(row.get("id", "")))
+		if id == &"":
+			continue
+		recipes[id] = row
+		recipe_list.append(row)
+
+func _load_butchering(path: String) -> void:
+	if not FileAccess.file_exists(path):
+		return
+	var root := _parse_json(path)
+	var tables: Variant = root.get("species", {})
+	if tables is Dictionary:
+		butcher_tables = tables as Dictionary
 
 func _parse_json(path: String) -> Dictionary:
 	var f := FileAccess.open(path, FileAccess.READ)
