@@ -78,3 +78,16 @@ Do this after M8b and M5b: the world is a 1 m tile grid (`BuildGrid.tile_of`,
 - `tools/smoke.sh` → `SMOKE PASS`. Report `docs/orchestration/reports/cursor-M9a-creature-ui-and-ai.md`.
   Commit as `M9a: creature plates, tile pathfinding, combat AI`.
 - Do not edit `game/project.godot`, `game/shell/`, `tools/`, or anything under `game/assets/`.
+
+## Addendum (owner) — dead dinosaurs become lootable bodies
+
+6. **No red box on corpses.** Remove the placeholder box/tint on `Corpse`. A dead
+   creature keeps its death pose on the ground for 90 s (`# ASSUMPTION:`), tinted
+   slightly grey, and a small **loot marker** (Kenney `box-open` or a rolled-hide
+   prop from `props_manifest.json`, else a low unshaded disc) sits on its tile with a
+   nameplate `Loot · Compsognathus` from task 1. Tapping the body or the marker walks
+   there and opens a **loot panel** (reuse `InventoryUI.show_storage`) holding the
+   butcher yields from `butchering.json` pre-rolled at death (meat, hide, bone…) so the
+   player takes what they want; "Take all" button ≥ 64 px. Knife requirement stays:
+   without a knife the panel shows the items greyed with "needs knife". Emptied or
+   expired bodies fade out. Save nothing for corpses (they expire).
