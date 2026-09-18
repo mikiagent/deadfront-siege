@@ -64,3 +64,27 @@ M5b (commit 7b9045c) landed the tile terrain, but the result is an empty checker
 - Smoke passes; report `docs/orchestration/reports/cursor-M5c-terrain-fixes.md`;
   commit as `M5c: Durango look — flat textured ground, tall vegetation, dirt circles`.
 - No autoloads, no `project.godot`, no `game/shell/`, no `tools/`.
+
+## Addendum (owner) — the shore, from `docs/reference/durango-shore-reference.webp`
+
+In words: the beach is **wide and gradual** (20–30 m from dry sand to open water), not a
+tile step. Dry pale sand darkens smoothly into **wet sand**, then into **shallow water**
+where the sand is still visible through a light turquoise-grey tint, then **foam
+streaks** and ripples that move, then deeper blue-grey water. Palms cast long soft
+shadows across the sand; the survivor has a shadow and wades ankle-deep.
+
+6. **Shore.** Replace the sand ring + foam line with a continuous shore: heights fall
+   from +0.4 m (dry sand) to −1.2 m over 20–30 m with noise so the waterline wanders;
+   tile types by height: `sand` (> 0.15), `wet_sand` (0.15 … −0.05, darker and slightly
+   glossy), `shallow` (−0.05 … −0.6: the sand texture tinted turquoise under a
+   translucent water plane), `deep` below. The water plane gets a shader: depth-based
+   colour (clear over shallow, blue-grey over deep) using the terrain height passed as
+   a texture or vertex data, a scrolling foam mask (two noise textures at different
+   speeds) that is strongest where depth ≈ 0 and along wave fronts, and gentle normal
+   ripples. Wading: the player may walk where the water depth is ≤ 0.35 m (M5b's
+   block moves from the waterline to that depth); creatures the same via `spawn_ok`.
+   Shadows: the sun casts soft shadows (PCF, 2048 on desktop / 1024 on phone) so palms
+   draw long shadows on the sand at morning and evening sun angles.
+
+Acceptance addition: `m5c-look-shore.png` must show the four bands (dry, wet, shallow
+with sand visible, deep) with moving foam (two frames differ) and palm shadows on sand.
