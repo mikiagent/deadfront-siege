@@ -28,14 +28,15 @@ func _ready() -> void:
 	add_child(apex)
 	apex.spawn_now()
 	print("[boot] lab=hunt_lab")
-	if DisplayServer.get_name() == "headless":
-		get_tree().create_timer(0.5).timeout.connect(_demo)
+	if DisplayServer.get_name() == "headless" or Game.shot_path != "":
+		get_tree().create_timer(0.4).timeout.connect(_demo)
 
 func _demo() -> void:
-	_player.statuses.apply(&"groggy")
-	_player.statuses.apply(&"dizziness")
-	_player.statuses.apply(&"bleed")
-	_player.statuses.apply(&"venom")
+	if Game.shot_path == "":
+		_player.statuses.apply(&"groggy")
+		_player.statuses.apply(&"dizziness")
+		_player.statuses.apply(&"bleed")
+		_player.statuses.apply(&"venom")
 	var pack: Creature = null
 	for n in get_tree().get_nodes_in_group("creatures"):
 		var c := n as Creature
@@ -43,7 +44,11 @@ func _demo() -> void:
 			pack = c
 			break
 	if pack:
+		if Game.shot_path != "":
+			_player.global_position = pack.global_position + Vector3(-1.7, 0, 0.2)
+			_player.face_world(pack.global_position)
 		_player.hunt.start(pack)
+		_player.play_attack(false)
 		pack.health.take_damage(40.0, _player)
 		pack.anim.play_clip(&"attack_heavy")
 

@@ -3,6 +3,8 @@ extends Node
 ## Player Health / Energy / Fatigue. Food and rest arrive later; this milestone only accumulates fatigue.
 
 signal exhausted_changed(on: bool)
+signal damaged
+signal died
 
 var max_health: float = 100.0
 var health: float = 100.0
@@ -31,8 +33,13 @@ func effective_max_health() -> float:
 	return max_health
 
 func take_damage(amount: float) -> void:
+	var was := health
 	health = maxf(0.0, health - amount)
 	add_fatigue(amount * 0.15)
+	if amount > 0.0:
+		damaged.emit()
+	if was > 0.0 and health <= 0.0:
+		died.emit()
 
 func heal(amount: float) -> void:
 	health = minf(effective_max_health(), health + amount)

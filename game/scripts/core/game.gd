@@ -19,6 +19,7 @@ var max_creatures_per_island: int = 24
 var lab_force_clips: bool = false
 ## Lab-only: F deals a flat 100 damage to the nearest creature.
 var lab_flat_attack: bool = false
+var shot_path: String = ""
 
 var _last_phase: StringName = &""
 var _perf: Label
@@ -31,11 +32,16 @@ func _ready() -> void:
 			smoke_test = true
 		elif a.begins_with("--lab="):
 			lab_name = a.substr(6)
+		elif a.begins_with("--shot="):
+			shot_path = a.substr(7)
+			debug_overlay = false
 	print("[boot] Game autoload ready. smoke_test=%s lab=%s godot=%s" % [
 		smoke_test, lab_name if lab_name != "" else "-", Engine.get_version_info().string])
 	_make_perf()
 	if smoke_test:
 		get_tree().create_timer(2.0).timeout.connect(_finish_smoke)
+	elif shot_path != "":
+		get_tree().create_timer(2.6).timeout.connect(_take_shot)
 
 func _make_perf() -> void:
 	var layer := CanvasLayer.new()
@@ -98,6 +104,16 @@ func phase_name() -> StringName:
 	if time_of_day < 0.72:
 		return &"day"
 	return &"dusk"
+
+func _take_shot() -> void:
+	await RenderingServer.frame_post_draw
+	var tex := get_viewport().get_texture()
+	if tex:
+		var img := tex.get_image()
+		if img:
+			img.save_png(shot_path)
+			print("[boot] shot %s" % shot_path)
+	get_tree().quit(0)
 
 func _finish_smoke() -> void:
 	var player := get_tree().get_first_node_in_group("player") as Node3D

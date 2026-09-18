@@ -24,8 +24,8 @@ func _ready() -> void:
 	add_child(pack)
 	pack.spawn_now()
 	print("[boot] lab=capture_lab")
-	if DisplayServer.get_name() == "headless":
-		get_tree().create_timer(0.5).timeout.connect(_demo)
+	if DisplayServer.get_name() == "headless" or Game.shot_path != "":
+		get_tree().create_timer(0.4).timeout.connect(_demo)
 
 func _demo() -> void:
 	# PRD §24 test 6, compressed: groggy → knockdown → net success/fail → pen → bond → mount.

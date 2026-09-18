@@ -21,6 +21,7 @@ var pose_t: float = 0.0:
 var def: CreatureDef
 var variant: StringName = &""
 var using_glb: bool = false
+var rig: RiggedModel
 var _body: Node3D
 var _head: Node3D
 var _tail: Node3D
@@ -36,71 +37,41 @@ var _mount: Marker3D
 func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 	def = p_def
 	variant = p_variant
+	using_glb = false
 	_tint = TINTS.get(str(def.id), Color(0.55, 0.5, 0.4))
 	var glb := "res://assets/creatures/%s/%s.glb" % [def.id, def.id]
 	if ResourceLoader.exists(glb):
 		rotation = Vector3.ZERO
-		var inst := load(glb).instantiate() as Node3D
-		inst.name = "Mesh"
-		add_child(inst)
-		using_glb = true
-		_orient_mesh(inst)
-		_scale_mesh(inst)
+		rig = RiggedModel.new()
+		rig.name = "Rig"
+		add_child(rig)
+		var anim_dir := "res://assets/creatures/%s/anim" % def.id
+		var axis := str(def.pipeline.get("forward_axis", "-Z"))
+		if rig.setup(glb, anim_dir, axis, def.height_meters, "creature", false, float(def.pipeline.get("source_height_m", 0.0))):
+			using_glb = true
+			rig.fill_missing(CreatureClips.CONTRACT)
+		else:
+			rig.queue_free()
+			rig = null
+			rotation_degrees.y = 180.0
+			_build_placeholder()
 	else:
 		# Placeholder nose sits at +Z; yaw the view so it still faces Godot -Z like before.
 		rotation_degrees.y = 180.0
 		_build_placeholder()
 	_mount = Marker3D.new()
 	_mount.name = "MountSocket"
-	_mount.position = Vector3(0.0, def.height_meters * 0.85, 0.0)
-	add_child(_mount)
+	if using_glb and rig and rig.hips_socket:
+		rig.hips_socket.add_child(_mount)
+		_mount.position = Vector3(0.0, def.height_meters * 0.08, 0.05)
+	else:
+		_mount.position = Vector3(0.0, def.height_meters * 0.85, 0.0)
+		add_child(_mount)
 
-func _orient_mesh(mesh: Node3D) -> void:
-	var axis := str(def.pipeline.get("forward_axis", "-Z"))
-	match axis:
-		"+Z":
-			mesh.rotation_degrees.y = 180.0
-		"+X":
-			mesh.rotation_degrees.y = 90.0
-		"-X":
-			mesh.rotation_degrees.y = -90.0
-		_:
-			mesh.rotation_degrees.y = 0.0
-
-func _scale_mesh(mesh: Node3D) -> void:
-	var aabb := _local_aabb(mesh)
-	var measured := aabb.size.y
-	var source := float(def.pipeline.get("source_height_m", 0.0))
-	# Prefer the live AABB so transplanted / stand-in GLBs scale to height_meters even
-	# when pipeline.source_height_m still describes an earlier unrigged preview.
-	if measured < 0.01:
-		measured = source
-	if measured < 0.01:
-		return
-	var factor := def.height_meters / measured
-	mesh.scale = Vector3.ONE * factor
-	var after := measured * factor
-	if absf(after - def.height_meters) > def.height_meters * 0.15:
-		print("[creature] warning AABB height=%.2f def.height_meters=%.2f species=%s" % [after, def.height_meters, def.id])
-
-func _local_aabb(root: Node3D) -> AABB:
-	var aabb := AABB()
-	var first := true
-	var inv := root.global_transform.affine_inverse()
-	for node in root.find_children("*", "MeshInstance3D", true, false):
-		var mi := node as MeshInstance3D
-		var xf: Transform3D = inv * mi.global_transform
-		var local: AABB = mi.get_aabb()
-		for i in 8:
-			var corner := local.position + local.size * Vector3(
-				float(i & 1), float((i >> 1) & 1), float((i >> 2) & 1))
-			var p := xf * corner
-			if first:
-				aabb = AABB(p, Vector3.ZERO)
-				first = false
-			else:
-				aabb = aabb.expand(p)
-	return aabb
+func animation_player() -> AnimationPlayer:
+	if using_glb and rig:
+		return rig.anim_player
+	return null
 
 func mount_socket() -> Marker3D:
 	return _mount
@@ -151,7 +122,10 @@ func _cyl(r: float, h: float, pos: Vector3, col: Color) -> MeshInstance3D:
 
 func _apply_pose() -> void:
 	if using_glb or _body == null:
-		rotation.z = sin(Time.get_ticks_msec() * 0.01) * _wobble * 0.15
+		if using_glb and rig:
+			rig.rotation.z = sin(Time.get_ticks_msec() * 0.01) * _wobble * 0.15
+		else:
+			rotation.z = sin(Time.get_ticks_msec() * 0.01) * _wobble * 0.15
 		return
 	var t := pose_t
 	var bob := sin(t * TAU) * 0.03

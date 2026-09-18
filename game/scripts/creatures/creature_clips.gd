@@ -47,29 +47,10 @@ static func clip_speed(clip: StringName, def: CreatureDef = null) -> float:
 	return 1.0
 
 static func _from_glb(path: String, view: CreatureView, player: AnimationPlayer, clip: StringName) -> Animation:
-	var packed := load(path)
-	if packed == null:
-		return null
-	var inst: Node = packed.instantiate()
-	var ap := inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	if ap == null:
-		inst.free()
-		print("[creature] missing AnimationPlayer in %s" % path)
-		return null
-	var names := ap.get_animation_list()
-	if names.is_empty():
-		inst.free()
-		return null
-	var src := ap.get_animation(names[0])
-	var copy := src.duplicate(true) as Animation
-	var missing := _remap_tracks(copy, player, view, clip)
-	inst.free()
-	if missing > 0:
-		return null
-	return copy
+	return RiggedModel.animation_from_glb(path, player, view, clip, "creature")
 
 static func _steal_embedded(player: AnimationPlayer, lib: AnimationLibrary, view: CreatureView, loaded: Dictionary) -> void:
-	var mesh := view.get_node_or_null("Mesh")
+	var mesh: Node = view.rig.mesh_root if view.rig else view.get_node_or_null("Mesh")
 	if mesh == null:
 		return
 	var ap := mesh.find_child("AnimationPlayer", true, false) as AnimationPlayer
@@ -86,29 +67,7 @@ static func _steal_embedded(player: AnimationPlayer, lib: AnimationLibrary, view
 			loaded[sn] = true
 
 static func _remap_tracks(anim: Animation, player: AnimationPlayer, view: CreatureView, clip: StringName) -> int:
-	var skel := view.find_child("Skeleton3D", true, false) as Skeleton3D
-	var tracks := anim.get_track_count()
-	var remapped := 0
-	var missing := 0
-	if skel == null:
-		print("[creature] clip %s tracks=%d remapped=0 missing=%d" % [clip, tracks, tracks])
-		return tracks
-	var root := player.get_node_or_null(player.root_node)
-	if root == null:
-		root = player.get_parent()
-	var rel := str(root.get_path_to(skel))
-	for i in tracks:
-		var p := str(anim.track_get_path(i))
-		if not p.contains(":"):
-			continue
-		var bone := p.get_slice(":", 1)
-		if skel.find_bone(bone) != -1:
-			anim.track_set_path(i, NodePath("%s:%s" % [rel, bone]))
-			remapped += 1
-		else:
-			missing += 1
-	print("[creature] clip %s tracks=%d remapped=%d missing=%d" % [clip, tracks, remapped, missing])
-	return missing
+	return RiggedModel.remap_tracks(anim, player, view, clip, "creature")
 
 static func _apply_fallbacks(lib: AnimationLibrary, _loaded: Dictionary, _def: CreatureDef) -> void:
 	if not lib.has_animation(&"knockdown") and lib.has_animation(&"death"):

@@ -2,12 +2,22 @@ class_name Player
 extends CharacterBody3D
 ## Camera-relative movement plus gather, hunt, inventory, mount and pets.
 
+const SURVIVOR_JSON := "res://data/characters/survivor.json"
+const SURVIVOR_BASE_GLB := "res://assets/characters/survivor/survivor.glb"
+const SURVIVOR_ANIM_DIR := "res://assets/characters/survivor/anim"
+const PLAYER_CLIPS: Array[StringName] = [
+	&"idle", &"walk", &"run", &"hit_react", &"death",
+	&"attack_primary", &"attack_heavy", &"roll", &"gather", &"knockdown", &"mount_idle",
+]
+
 @export var walk_speed: float = 5.5
 @export var sprint_speed: float = 8.5
 @export var accel: float = 30.0
 @export var turn_speed: float = 14.0
 
 @onready var visual: Node3D = $Visual
+@onready var rig: RiggedModel = $Visual/Rig
+@onready var anim: PlayerAnim = $Anim
 @onready var agent: NavigationAgent3D = get_node_or_null("Agent")
 
 var inventory: Inventory = Inventory.new(20)
@@ -28,6 +38,9 @@ var craft_ui
 var _roll_left: float = 0.0
 var _gather_left: float = 0.0
 var _gathering: bool = false
+var _right_hand_anchor: Marker3D
+var _hips_anchor: Marker3D
+var _mount_hips_offset: Vector3 = Vector3.ZERO
 var _mount_saved_parent: Node
 var _force_clip_map: Array[StringName] = [
 	&"idle", &"walk", &"run", &"attack_primary", &"attack_heavy",
@@ -35,6 +48,10 @@ var _force_clip_map: Array[StringName] = [
 ]
 
 func _ready() -> void:
+	if Game.lab_name != "" and get_parent() and get_parent().name == "DefaultPlayfield":
+		visible = false
+		set_physics_process(false)
+		return
 	add_to_group("player")
 	if agent == null:
 		agent = NavigationAgent3D.new()
@@ -53,6 +70,9 @@ func _ready() -> void:
 	placer = BuildPlacer.new()
 	placer.name = "Placer"
 	add_child(placer)
+	_setup_survivor()
+	vitals.damaged.connect(_on_vitals_damaged)
+	vitals.died.connect(_on_vitals_died)
 	if has_node("Shape"):
 		pass
 
@@ -72,6 +92,11 @@ func face_world(pos: Vector3) -> void:
 
 func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 	vitals.add_fatigue(2.0)
+	if anim:
+		if statuses and statuses.has_flag(&"knockdown"):
+			anim.play_clip(&"knockdown")
+		else:
+			anim.on_damaged()
 
 func _physics_process(delta: float) -> void:
 	if statuses == null or vitals == null:
@@ -90,6 +115,8 @@ func _physics_process(delta: float) -> void:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		move_and_slide()
+		if anim:
+			anim._physics_tick(0.0)
 		return
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if input.length_squared() > 0.0:
@@ -126,6 +153,9 @@ func _physics_process(delta: float) -> void:
 		if _gather_left <= 0.0:
 			_finish_gather()
 	move_and_slide()
+	if anim:
+		var spd := Vector2(velocity.x, velocity.z).length()
+		anim._physics_tick(spd)
 
 func _cam_dir(input: Vector2) -> Vector3:
 	var cam := get_viewport().get_camera_3d()
@@ -266,11 +296,15 @@ func _on_arrived() -> void:
 		_gathering = true
 		_gather_left = gather_target.gather_seconds
 		vitals.add_fatigue(1.5)
+		if anim:
+			anim.on_gather()
 	elif butcher_target and is_instance_valid(butcher_target):
 		face_world(butcher_target.global_position)
 		_gathering = true
 		_gather_left = 1.4
 		vitals.add_fatigue(2.0)
+		if anim:
+			anim.on_gather()
 
 func _finish_gather() -> void:
 	_gathering = false
@@ -302,12 +336,15 @@ func _try_roll() -> void:
 	var fwd := -visual.global_basis.z
 	velocity.x = fwd.x * 12.0
 	velocity.z = fwd.z * 12.0
+	if anim:
+		anim.on_roll()
 	print("[combat] roll")
 
 func _try_attack_key() -> void:
 	if Game.lab_flat_attack:
 		var c := _nearest_creature()
 		if c:
+			play_attack()
 			c.health.take_damage(100.0, self)
 			print("[combat] lab F 100 → %s hp=%.0f" % [c.def.id, c.health.hp])
 		return
@@ -315,6 +352,10 @@ func _try_attack_key() -> void:
 		var c := _nearest_creature()
 		if c:
 			hunt.start(c)
+
+func play_attack(heavy: bool = false) -> void:
+	if anim:
+		anim.on_attack(heavy)
 
 func _force_clip(i: int) -> void:
 	var c := _nearest_creature()
@@ -396,7 +437,9 @@ func mount(c: Creature) -> void:
 	mounted_on = c
 	_mount_saved_parent = get_parent()
 	reparent(c.view.mount_socket())
-	position = Vector3.ZERO
+	position = -_mount_hips_offset
+	if anim:
+		anim.play_clip(&"mount_idle")
 	print("[capture] mounted %s" % c.def.id)
 
 func dismount() -> void:
@@ -410,7 +453,6 @@ func dismount() -> void:
 	print("[capture] dismounted")
 
 func _mounted_move(delta: float) -> void:
-	global_position = mounted_on.view.mount_socket().global_position
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var dir := _cam_dir(input)
 	if dir.length_squared() > 0.0:
@@ -421,6 +463,8 @@ func _mounted_move(delta: float) -> void:
 	else:
 		mounted_on.velocity.x = 0.0
 		mounted_on.velocity.z = 0.0
+	if anim:
+		anim._physics_tick(0.0)
 
 func bond_from_inventory() -> void:
 	var idx := inventory.find_first(&"tamed_animal")
@@ -513,3 +557,65 @@ func _nearest_group(group: String) -> Node3D:
 			best_d = d
 			best = n as Node3D
 	return best
+
+func _setup_survivor() -> void:
+	var meta := _survivor_meta()
+	var pipeline: Dictionary = meta.get("pipeline", {})
+	var axis := str(pipeline.get("forward_axis", "+Z"))
+	var height := float(meta.get("height_meters", 1.72))
+	if rig == null:
+		print("[player] missing Rig node")
+		return
+	if not rig.setup(SURVIVOR_BASE_GLB, SURVIVOR_ANIM_DIR, axis, height, "player", true, float(pipeline.get("source_height_m", height))):
+		print("[player] survivor GLB missing %s" % SURVIVOR_BASE_GLB)
+		return
+	_bind_rig_markers()
+	if anim:
+		anim.setup(self, rig)
+
+func _bind_rig_markers() -> void:
+	_right_hand_anchor = _marker_from_socket(rig.hand_socket, "RightHand")
+	_hips_anchor = _marker_from_socket(rig.hips_socket, "Hips")
+	_mount_hips_offset = Vector3.ZERO
+	if _hips_anchor:
+		_mount_hips_offset = to_local(_hips_anchor.global_position)
+
+func _marker_from_socket(socket: BoneAttachment3D, fallback_name: String) -> Marker3D:
+	if socket == null:
+		return null
+	for child in socket.get_children():
+		if child is Marker3D:
+			return child as Marker3D
+	var marker := Marker3D.new()
+	marker.name = fallback_name
+	socket.add_child(marker)
+	return marker
+
+func right_hand_anchor() -> Marker3D:
+	return _right_hand_anchor
+
+func hips_anchor() -> Marker3D:
+	return _hips_anchor
+
+func _survivor_meta() -> Dictionary:
+	if not FileAccess.file_exists(SURVIVOR_JSON):
+		return {"height_meters": 1.72, "pipeline": {"forward_axis": "+Z"}}
+	var f := FileAccess.open(SURVIVOR_JSON, FileAccess.READ)
+	if f == null:
+		return {"height_meters": 1.72, "pipeline": {"forward_axis": "+Z"}}
+	var parsed: Variant = JSON.parse_string(f.get_as_text())
+	if parsed is Dictionary:
+		return parsed
+	return {"height_meters": 1.72, "pipeline": {"forward_axis": "+Z"}}
+
+func _on_vitals_damaged() -> void:
+	if anim == null:
+		return
+	if statuses and statuses.has_flag(&"knockdown"):
+		anim.play_clip(&"knockdown")
+	else:
+		anim.on_damaged()
+
+func _on_vitals_died() -> void:
+	if anim:
+		anim.on_death()

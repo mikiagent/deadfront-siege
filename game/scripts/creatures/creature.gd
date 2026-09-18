@@ -43,8 +43,11 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> 
 	hunger_max = def.hp * 0.4
 	hunger = hunger_max
 	_size_collision()
-	CreatureClips.attach(ap, view, def)
-	anim.setup(ap, at)
+	var clip_player := view.animation_player()
+	if clip_player == null:
+		CreatureClips.attach(ap, view, def)
+		clip_player = ap
+	anim.setup(clip_player, at)
 	anim.attack_windup.connect(_on_windup)
 	anim.attack_hit.connect(_on_hit)
 	anim.attack_done.connect(_on_attack_done)
