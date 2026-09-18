@@ -85,6 +85,8 @@ func _demo() -> void:
 				lead.health.take_damage(18.0, _player)
 				_reveal_plates()
 		, CONNECT_ONE_SHOT)
+		if Game.shot_path.contains("corpse"):
+			get_tree().create_timer(1.0).timeout.connect(func () -> void: _corpse_probe(lead, false), CONNECT_ONE_SHOT)
 		if Game.shot_path.contains("hud"):
 			get_tree().create_timer(1.0).timeout.connect(func () -> void:
 				if lead and is_instance_valid(lead) and _player.hunt:
@@ -92,9 +94,47 @@ func _demo() -> void:
 					_player.hunt.start(lead)
 			, CONNECT_ONE_SHOT)
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
-		get_tree().create_timer(2.6).timeout.connect(func () -> void:
+		get_tree().create_timer(2.6).timeout.connect(func () -> void: _corpse_probe(lead, true), CONNECT_ONE_SHOT)
+
+## Kill the lead raptor, then loot its body through the radial path (M8d Part C).
+func _corpse_probe(lead: Creature, headless: bool) -> void:
+	if lead == null or not is_instance_valid(lead):
+		if headless:
 			get_tree().quit(0)
-		, CONNECT_ONE_SHOT)
+		return
+	lead.health.take_damage(99999.0, _player)
+	await get_tree().create_timer(0.6).timeout
+	var corpse: Corpse = null
+	for n in get_tree().get_nodes_in_group("corpse"):
+		corpse = n as Corpse
+		if corpse:
+			break
+	if corpse == null:
+		print("[item] no corpse spawned")
+		if headless:
+			get_tree().quit(1)
+		return
+	var dir := _player.global_position - corpse.global_position
+	dir.y = 0.0
+	if dir.length_squared() <= 0.001:
+		dir = Vector3.FORWARD
+	_player.global_position = corpse.global_position + dir.normalized() * 2.2
+	if World.runtime and World.runtime.has_method("surface_y"):
+		_player.global_position.y = World.runtime.surface_y(_player.global_position.x, _player.global_position.z) + 1.0
+	_player.hunt.stop()
+	if not headless:
+		_cam._snap()
+		_player._open_corpse_radial(corpse)
+		return
+	var opts := corpse.loot_options(_player.inventory)
+	print("[item] corpse options=%d" % opts.size())
+	if opts.is_empty():
+		get_tree().quit(1)
+		return
+	_player._begin_corpse_take(corpse, int(opts[0]["slot"]))
+	_player._on_arrived()
+	await get_tree().create_timer(2.2).timeout
+	get_tree().quit(0)
 
 func _reveal_plates() -> void:
 	if Game == null or not Game.has_method("reveal_creature_plate"):

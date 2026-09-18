@@ -45,7 +45,7 @@ func _ready() -> void:
 		call_deferred("_shot_tiles_probe")
 	elif Game.shot_path.contains("radial"):
 		call_deferred("_shot_radial_probe")
-	elif Game.shot_path != "" and not (Game.shot_path.contains("shore") or Game.shot_path.contains("night")):
+	elif Game.shot_path != "" and not (Game.shot_path.contains("shore") or Game.shot_path.contains("night") or Game.shot_path.contains("ctx")):
 		call_deferred("_shot_ring_probe")
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
 		call_deferred("_headless_gather_probe")

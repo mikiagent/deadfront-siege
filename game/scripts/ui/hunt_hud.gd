@@ -30,6 +30,11 @@ var _chase_hex: HexButton
 var _in_combat: bool = false
 var _combat_alpha: float = 0.0
 var _stance_label: Label
+var _toasts: Array = []
+var _ctx_hexes: Array[HexButton] = []
+var _ctx_ids: Array = []
+var _ctx_timer: float = 0.0
+var _place_hexes: Array[HexButton] = []
 
 const MAP_PX := 180.0
 const MAP_SCALE := 1.5  # metres per pixel
@@ -44,6 +49,8 @@ func _ready() -> void:
 	_build_minimap()
 	_build_menu_row()
 	_build_combat()
+	_build_place_hexes()
+	add_to_group("hud")
 	get_viewport().size_changed.connect(_layout)
 	_layout()
 
@@ -192,6 +199,78 @@ func _on_skill(id: StringName) -> void:
 		&"roll":
 			player._try_roll()
 
+func _build_place_hexes() -> void:
+	var specs := [["↻", Color(0.2, 0.2, 0.22, 0.95), "rotate"], ["✓", Color(0.10, 0.55, 0.22, 0.97), "confirm"], ["✕", Color(0.65, 0.12, 0.12, 0.97), "cancel"]]
+	for sp in specs:
+		var h := HexButton.new(70.0)
+		h.glyph = sp[0]
+		h.fill = sp[1]
+		h.visible = false
+		var id: String = sp[2]
+		h.pressed.connect(func () -> void:
+			if player == null or player.placer == null:
+				return
+			match id:
+				"rotate": player.placer.rotate_clockwise()
+				"confirm": player.placer.confirm(player)
+				"cancel": player.placer.cancel()
+		)
+		add_child(h)
+		_place_hexes.append(h)
+
+func toast(id: StringName, n: int) -> void:
+	print("[ui] toast %s +%d" % [id, n])
+	for t in _toasts:
+		if t["id"] == id and t["t"] < 0.6:
+			t["n"] += n
+			t["t"] = 0.0
+			return
+	_toasts.append({"id": id, "n": n, "t": 0.0})
+
+func _refresh_context(delta: float) -> void:
+	_ctx_timer -= delta
+	if _ctx_timer > 0.0:
+		return
+	_ctx_timer = 0.3
+	var actions: Array = player.context_actions() if player.has_method("context_actions") else []
+	var ids: Array = []
+	for a in actions:
+		ids.append(a["id"])
+	if ids == _ctx_ids:
+		return
+	_ctx_ids = ids
+	for h in _ctx_hexes:
+		h.queue_free()
+	_ctx_hexes.clear()
+	var r := get_viewport_rect().size
+	var inset := _safe_insets()
+	var x := r.x - 16.0 - inset.x - 74.0 - 60.0
+	for a in actions:
+		var h := HexButton.new(70.0)
+		h.glyph = str(a["glyph"])
+		h.bottom_text = str(a["label"])
+		var id := str(a["id"])
+		h.pressed.connect(func () -> void: player.context_action(id))
+		add_child(h)
+		h.position = Vector2(x, r.y - 70.0 - 26.0 - inset.y)
+		x -= 78.0
+		_ctx_hexes.append(h)
+
+func _refresh_place_hexes() -> void:
+	var placing := player.placer != null and player.placer.placing != &""
+	for h in _place_hexes:
+		h.visible = placing
+	if not placing:
+		return
+	var cam := get_viewport().get_camera_3d()
+	var ghost: Node3D = player.placer.get("_ghost_root")
+	if cam == null or ghost == null:
+		return
+	var base := cam.unproject_position(ghost.global_position) + Vector2(0, 40)
+	var offs := [Vector2(-105, 0), Vector2(-22, 28), Vector2(60, 0)]
+	for i in _place_hexes.size():
+		_place_hexes[i].position = base + offs[i]
+
 # ---------------------------------------------------------------- sheets
 
 func _toggle_sheet(kind: StringName) -> void:
@@ -320,6 +399,11 @@ func _process(delta: float) -> void:
 		_skill_hexes[2].disabled = player.hunt._kick_cd > 0.0
 		for h in _skill_hexes:
 			h.queue_redraw()
+	_refresh_context(delta)
+	_refresh_place_hexes()
+	for t in _toasts:
+		t["t"] += delta
+	_toasts = _toasts.filter(func (t: Dictionary) -> bool: return t["t"] < 1.3)
 	_minimap.queue_redraw()
 	queue_redraw()
 
@@ -368,6 +452,17 @@ func _draw() -> void:
 		var nw := _font.get_string_size(name, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
 		draw_string(_font, Vector2(p.x - nw * 0.5 + 1, p.y + 21), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0, 0, 0, 0.7))
 		draw_string(_font, Vector2(p.x - nw * 0.5, p.y + 20), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.95, 0.95, 0.95))
+	# --- pickup toasts near the top-centre, rising and fading
+	for i in _toasts.size():
+		var t: Dictionary = _toasts[i]
+		var k: float = t["t"]
+		var alpha := 1.0 - smoothstep(0.7, 1.3, k)
+		var ty := 120.0 + float(i) * 30.0 - k * 35.0
+		var def := Data.item(t["id"])
+		var label := "+%d  %s" % [int(t["n"]), def.display_name if def else str(t["id"])]
+		var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, 18).x
+		draw_rect(Rect2(r.x * 0.5 - tw * 0.5 - 10, ty - 20, tw + 20, 28), Color(0.05, 0.06, 0.08, 0.8 * alpha))
+		draw_string(_font, Vector2(r.x * 0.5 - tw * 0.5, ty), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, alpha))
 	# --- combat layer
 	if _combat_alpha > 0.01:
 		var a := _combat_alpha

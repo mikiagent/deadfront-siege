@@ -16,3 +16,10 @@ Reference: `docs/reference/durango-gather-reference.webp`, `durango-tree-options
 
 ## Still to do in M8d
 - Context hexes (water: drink/wash/fill; bonfire: cauterise/cook; corpse: loot) and the corpse radial (Part C), pickup toasts, level-up overlay, land claim boundary, label pills, placement hexes (Part B).
+
+## Batch 2 (Claude) — corpse radial, pickup toasts, context hexes, placement hexes
+- **Corpse radial** (Part C task 17): tapping a body opens the same radial with one hex per loot stack (`Corpse.loot_options`, knife-gated), title `<Species> Corpse`, `Lv. N`; picking walks over, plays the gather clip for 1.6 s and takes that stack (`Corpse.take_slot`), `[item] +N id (loot species)`, +2 XP, toast. The M9a loot panel is no longer opened by a tap (still used by the old USE path).
+- **Pickup toasts** (task 18): `HuntHud.toast(id, n)` prints `[ui] toast id +n` and floats `+N Name` near the top-centre, rising and fading, stacking repeats; fired by gathers and loot.
+- **Context hexes** (Part A task 13): `Player.context_actions()` → bottom-right hexes: Drink / Wash by water (energy +5, fatigue −2 `# ASSUMPTION`), Cook / Cauterise at a bonfire, Loot at a body, Harbour, Cargo warp, Pen, Dismount. `TouchControls` buttons are fully hidden now.
+- **Placement hexes** (Part B task 16 + reference): rotate / green confirm / red cancel hexes under the ghost; blocked tiles in the 9×9 span show as red diamonds.
+- Evidence: `m8d-corpse-radial.png`, `m8d-context-hexes.png`, `m8d-placing.png`; headless hunt_lab: `[item] corpse options=3`, `[item] +2 raptor_meat (loot velociraptor)`, `[ui] toast raptor_meat +2`.

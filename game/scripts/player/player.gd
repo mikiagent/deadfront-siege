@@ -35,6 +35,8 @@ var mounted_on: Creature
 var rolling: bool = false
 var gather_target: HarvestNode
 var butcher_target: Corpse
+var _corpse_slot: int = -1
+var _ctx_cd: float = 0.0
 var tame_target: Creature
 var tame_food_id: StringName = &""
 var nav_active: bool = false
@@ -355,7 +357,7 @@ func _interact_tap_target(col: Object) -> void:
 			_begin_gather(hn)
 	elif col is Corpse:
 		(col as Corpse).note_tapped()
-		_begin_butcher(col as Corpse)
+		_open_corpse_radial(col as Corpse)
 	elif col is Creature:
 		var c := col as Creature
 		c.note_tapped()
@@ -496,7 +498,10 @@ func _on_arrived() -> void:
 		_start_tame_feed()
 	elif butcher_target and is_instance_valid(butcher_target):
 		face_world(butcher_target.global_position)
-		butcher_target.open_loot(self)
+		if _corpse_slot >= 0:
+			_corpse_take_timer(butcher_target, _corpse_slot)
+		else:
+			butcher_target.open_loot(self)
 		butcher_target = null
 
 func _start_tame_feed() -> void:
@@ -576,6 +581,7 @@ func _finish_gather() -> void:
 	gather_target.consume_unit()
 	print("[item] +%d %s %s (pool %d/%d)" % [gained, stack.def_id, attrs, gather_target.pool_units_left(), gather_target.pool_max])
 	World.add_xp(1)
+	toast(stack.def_id, gained)
 	vitals.add_fatigue(GATHER_FATIGUE_PER_UNIT, &"gather")
 	if gather_target.pool_units_left() <= 0:
 		_stop_gather_cycle()
@@ -1126,9 +1132,17 @@ func _setup_gather_radial() -> void:
 	layer.add_child(_gather_radial)
 	_gather_radial.picked.connect(_on_gather_option_picked)
 
-func _on_gather_option_picked(node: HarvestNode, index: int) -> void:
-	if node == null or not is_instance_valid(node):
+func _on_gather_option_picked(anchor: Node3D, index: int) -> void:
+	if anchor == null or not is_instance_valid(anchor):
 		return
+	if anchor is Corpse:
+		var opts := (anchor as Corpse).loot_options(inventory)
+		if index < opts.size():
+			_begin_corpse_take(anchor as Corpse, int(opts[index]["slot"]))
+		return
+	if not (anchor is HarvestNode):
+		return
+	var node := anchor as HarvestNode
 	node.select_option(index)
 	print("[item] option %s x%d-%d %.1fs" % [node.yield_def_id, node.yield_min, node.yield_max, node.gather_seconds])
 	_begin_gather(node)
@@ -1141,3 +1155,118 @@ func debug_open_radial(node: HarvestNode) -> void:
 func display_name() -> String:
 	var meta := _survivor_meta()
 	return str(meta.get("display_name", "Survivor"))
+
+# ---------------------------------------------------------------- corpse radial
+
+func _open_corpse_radial(corpse: Corpse) -> void:
+	if corpse == null or _gather_radial == null:
+		return
+	var opts := corpse.loot_options(inventory)
+	if opts.is_empty():
+		print("[item] refused butcher %s: empty" % corpse.species)
+		return
+	_gather_radial.open_options(corpse, "%s Corpse" % corpse.species_display_name(), corpse.level, 1.0, opts, inventory)
+
+func _begin_corpse_take(corpse: Corpse, slot: int) -> void:
+	if vitals.exhausted:
+		print("[item] too exhausted to butcher")
+		return
+	_stop_gather_cycle(false)
+	gather_target = null
+	tame_target = null
+	tame_food_id = &""
+	butcher_target = corpse
+	_corpse_slot = slot
+	nav_to(_closest_nav_point(corpse.global_position))
+
+func _corpse_take_timer(corpse: Corpse, slot: int) -> void:
+	_corpse_slot = -1
+	if anim:
+		anim.on_gather()
+	vitals.add_fatigue(1.0, &"gather")
+	var t := get_tree().create_timer(1.6)
+	t.timeout.connect(func () -> void:
+		if corpse == null or not is_instance_valid(corpse):
+			return
+		var st := corpse.take_slot(slot, self)
+		if st == null:
+			return
+		var before := st.count
+		var left := inventory.add(st)
+		print("[item] +%d %s (loot %s)" % [before - left, st.def_id, corpse.species])
+		World.add_xp(2)
+		toast(st.def_id, before - left)
+	)
+
+# ---------------------------------------------------------------- toasts + context actions (HUD)
+
+func toast(id: StringName, n: int) -> void:
+	var hud := get_tree().get_first_node_in_group("hud")
+	if hud and hud.has_method("toast"):
+		hud.toast(id, n)
+
+## Context hexes shown by the HUD, bottom-right (reference: drink/wash by water, cook at the fire…).
+func context_actions() -> Array:
+	var out: Array = []
+	if mounted_on:
+		out.append({"id": "dismount", "glyph": "⤓", "label": "Dismount"})
+		return out
+	var near_water := in_water
+	if not near_water and World.runtime and World.runtime.has_method("surface_y"):
+		near_water = World.runtime.surface_y(global_position.x, global_position.z) < 0.15
+	if near_water:
+		out.append({"id": "drink", "glyph": "💧", "label": "Drink"})
+		out.append({"id": "wash", "glyph": "🫧", "label": "Wash"})
+	var fire := _nearest_group("bonfire")
+	if fire and global_position.distance_to(fire.global_position) < 2.8:
+		out.append({"id": "cook", "glyph": "🍖", "label": "Cook"})
+		if statuses and (statuses.has(&"bleed") or statuses.has(&"deep_bleed")):
+			out.append({"id": "cauterise", "glyph": "🔥", "label": "Cauterise"})
+	var corpse := _nearest_group("corpse")
+	if corpse and global_position.distance_to(corpse.global_position) < 3.0:
+		out.append({"id": "loot", "glyph": "🎒", "label": "Loot"})
+	var harbour := _nearest_group("harbour")
+	if harbour and global_position.distance_to(harbour.global_position) < 5.0:
+		out.append({"id": "harbour", "glyph": "⚓", "label": "Harbour"})
+	var warp := _nearest_group("cargo_warp")
+	if warp and global_position.distance_to(warp.global_position) < 2.8:
+		out.append({"id": "warp", "glyph": "📦", "label": "Cargo warp"})
+	var pen := _nearest_group("taming_pen")
+	if pen and global_position.distance_to(pen.global_position) < 3.0:
+		out.append({"id": "pen", "glyph": "🪤", "label": "Pen"})
+	return out
+
+func context_action(id: String) -> void:
+	match id:
+		"dismount":
+			dismount()
+		"drink":
+			# ASSUMPTION: a drink restores 5 energy; wash clears 2 fatigue (no dirty status yet).
+			vitals.energy = minf(vitals.max_energy, vitals.energy + 5.0)
+			print("[item] drink energy=%.0f" % vitals.energy)
+		"wash":
+			vitals.rest(2.0)
+			print("[item] wash fatigue=%.0f" % vitals.fatigue)
+		"cook":
+			if craft_ui:
+				craft_ui.toggle()
+		"cauterise":
+			var fire := _nearest_group("bonfire") as Bonfire
+			if fire:
+				fire.cauterise(self)
+		"loot":
+			var corpse := _nearest_group("corpse") as Corpse
+			if corpse:
+				_open_corpse_radial(corpse)
+		"harbour":
+			var h := _nearest_group("harbour")
+			if h:
+				h.open()
+		"warp":
+			var w := _nearest_group("cargo_warp")
+			if w:
+				w.use(self)
+		"pen":
+			var pen := _nearest_group("taming_pen") as TamingPen
+			if pen:
+				_pen_interact(pen)

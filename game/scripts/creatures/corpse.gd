@@ -3,6 +3,7 @@ extends StaticBody3D
 ## Loot marker + timed corpse lifecycle. The dead creature mesh stays in its death pose.
 
 var species: StringName = &""
+var level: int = 1
 var source_pack: int = 0
 var loot: Inventory = Inventory.new(12)
 var _expires_left: float = 90.0 # ASSUMPTION: corpse lifetime on the ground.
@@ -15,6 +16,7 @@ var _fading: bool = false
 var _emptied: bool = false
 
 func setup(c: Creature) -> void:
+	level = maxi(1, int(c.get("level")) if c.get("level") != null else 1)
 	species = c.def.id
 	source_pack = c.pack_id
 	_owner = c
@@ -70,6 +72,28 @@ func open_loot(player: Player) -> void:
 	})
 	if readonly == "":
 		player.inventory.wear_gather_tool(&"knife")
+
+## Radial options (Durango reference): one hex per loot stack, 1.6 s each, knife-gated.
+func loot_options(inv: Inventory) -> Array:
+	var out: Array = []
+	var needs_knife := not inv.has_tool_class(&"knife")
+	for i in loot.slot_count:
+		var st: ItemStack = loot.slots[i]
+		if st == null:
+			continue
+		out.append({"item": str(st.def_id), "min": st.count, "max": st.count, "tool": "knife" if needs_knife else "none", "seconds": 1.6, "slot": i})
+	return out
+
+## Take one loot stack (after the 1.6 s butcher). Returns the stack or null.
+func take_slot(slot: int, player: Player) -> ItemStack:
+	if slot < 0 or slot >= loot.slot_count or loot.slots[slot] == null:
+		return null
+	var st: ItemStack = loot.slots[slot]
+	var taken := loot.remove_at(slot, st.count)
+	if taken and player:
+		player.inventory.wear_gather_tool(&"knife")
+	_on_take_from_loot()
+	return taken
 
 func species_display_name() -> String:
 	return _label_species if _label_species != "" else str(species).capitalize()

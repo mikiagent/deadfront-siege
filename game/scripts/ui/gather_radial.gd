@@ -4,11 +4,14 @@ extends Control
 ## hex option buttons (icon, seconds on top, count below, label to the right). Blocked
 ## options carry a red badge and the reason. Reference: docs/reference/durango-gather-reference.webp
 
-signal picked(node: HarvestNode, index: int)
+signal picked(anchor: Node3D, index: int)
 signal closed
 
-var node: HarvestNode
+var node: Node3D
 var options: Array = []
+var title: String = ""
+var level: int = 1
+var anchor_height: float = 1.0
 var _buttons: Array[HexButton] = []
 var _labels: Array[Dictionary] = []
 var _inventory: Inventory
@@ -28,8 +31,17 @@ func is_open() -> bool:
 	return _open
 
 func open(p_node: HarvestNode, p_options: Array, inv: Inventory) -> void:
+	var fam := p_node.family if p_node.family != "" else str(p_node.node_id)
+	open_options(p_node, fam.replace("_", " ").capitalize(), int(p_node.yield_attributes.get("level", 1)), p_node.top_of_node(), p_options, inv)
+
+## Generic: any Node3D anchor (corpse, station) with option dicts
+## {item, min, max, tool, seconds, [blocked_reason]}.
+func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: float, p_options: Array, inv: Inventory) -> void:
 	close()
-	node = p_node
+	node = p_anchor
+	title = p_title
+	level = p_level
+	anchor_height = p_height
 	options = p_options
 	_inventory = inv
 	for i in options.size():
@@ -45,13 +57,14 @@ func open(p_node: HarvestNode, p_options: Array, inv: Inventory) -> void:
 		b.bottom_text = str(cmax) if cmin == cmax else "%d-%d" % [cmin, cmax]
 		var tool := StringName(str(o.get("tool", "none")))
 		var blocked := tool != &"none" and tool != &"" and inv != null and not inv.has_tool_class(tool)
+		var reason := ("needs %s" % tool) if blocked else str(o.get("blocked_reason", ""))
+		blocked = blocked or reason != ""
 		b.disabled = blocked
 		b.badge = "⊘" if blocked else ""
 		b.pressed.connect(_on_pick.bind(i))
 		add_child(b)
 		_buttons.append(b)
-		var reason := ("needs %s" % tool) if blocked else ""
-		_labels.append({"text": "%s Lv. %d" % [_display_name(item_id), int(node.yield_attributes.get("level", 1))], "reason": reason})
+		_labels.append({"text": "%s Lv. %d" % [_display_name(item_id), level], "reason": reason})
 	_open = true
 	visible = true
 	_layout()
@@ -86,7 +99,7 @@ func _anchor() -> Vector2:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null or node == null:
 		return Vector2.ZERO
-	return cam.unproject_position(node.global_position + Vector3(0, node.top_of_node() * 0.45, 0))
+	return cam.unproject_position(node.global_position + Vector3(0, anchor_height * 0.45, 0))
 
 func _layout() -> void:
 	var base := _anchor()
@@ -117,7 +130,7 @@ func _draw() -> void:
 	var ns := 18
 	var nw := font.get_string_size(name, HORIZONTAL_ALIGNMENT_CENTER, -1, ns).x
 	draw_string(font, Vector2(ground.x - nw * 0.5, ground.y + r * 0.55 + 22.0), name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
-	var lv := "Lv. %d" % int(node.yield_attributes.get("level", 1))
+	var lv := "Lv. %d" % level
 	var lw := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, 16).x
 	draw_string(font, Vector2(ground.x - lw * 0.5, ground.y + r * 0.55 + 42.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.55, 0.9, 0.45))
 	# Labels to the right of each hex, on a dark pill.
@@ -134,10 +147,7 @@ func _draw() -> void:
 			draw_string(font, pos + Vector2(2, 26), reason, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1.0, 0.45, 0.4))
 
 func _node_name() -> String:
-	if node == null:
-		return ""
-	var fam := node.family if node.family != "" else str(node.node_id)
-	return fam.replace("_", " ").capitalize()
+	return title
 
 func _display_name(id: StringName) -> String:
 	var def := Data.item(id)

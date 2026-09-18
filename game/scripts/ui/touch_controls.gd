@@ -277,7 +277,7 @@ func _is_button_visible(spec: Dictionary) -> bool:
 	if not enabled:
 		return false
 	var contexts: Array = spec.get("contexts", [])
-	if hud_mode and not contexts.has(CONTEXT_PLACE):
+	if hud_mode:
 		return false
 	for ctx in contexts:
 		var name := StringName(str(ctx))

@@ -319,6 +319,29 @@ func _draw_overlay(grid: BuildGrid) -> void:
 	_ghost_grid.mesh = im
 	for c in _ghost_cells.get_children():
 		c.queue_free()
+	# Reference: while placing, tiles that cannot be built on show as translucent red diamonds.
+	var blocked_mat := _cell_invalid
+	var occupied := grid.occupied_cells()
+	var reserved := grid.reserved_cells()
+	var mine := grid.cells_for(placing, cell, rot_step)
+	for dz in range(-GRID_HALF_SPAN, GRID_HALF_SPAN + 1):
+		for dx in range(-GRID_HALF_SPAN, GRID_HALF_SPAN + 1):
+			var t := Vector2i(int(floorf(center.x)) + dx, int(floorf(center.z)) + dz)
+			if mine.has(t):
+				continue
+			var wpos := BuildGrid.tile_centre(t, World.runtime)
+			var bad := occupied.has(t) or reserved.has(t)
+			if not bad and World.runtime and World.runtime.has_method("spawn_ok"):
+				bad = not World.runtime.spawn_ok(wpos, false)
+			if not bad:
+				continue
+			var red := MeshInstance3D.new()
+			var rp := PlaneMesh.new()
+			rp.size = Vector2(0.9, 0.9)
+			red.mesh = rp
+			red.material_override = blocked_mat
+			_ghost_cells.add_child(red)
+			red.global_position = wpos + Vector3(0.0, 0.045, 0.0)
 	var mat := _cell_valid if valid else _cell_invalid
 	for c in grid.cells_for(placing, cell, rot_step):
 		var tile := MeshInstance3D.new()
