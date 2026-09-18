@@ -1,5 +1,9 @@
 .DS_Store
 game/.godot/
 game/export/
+/export/
 *.blend1
 tools/__pycache__/
+
+tools/blob.env
+game/export/packs/

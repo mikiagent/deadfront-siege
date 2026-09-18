@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": { "api/manifest.js": { "includeFiles": "manifest.json" } },
+  "headers": [
+    { "source": "/manifest.json", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }
+  ]
+}

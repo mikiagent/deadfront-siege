@@ -68,8 +68,10 @@ func _boot() -> void:
 	if Game.lab_name == "home_lab":
 		return
 	var host := get_tree().current_scene
-	if host == null:
-		return
+	if host == null or host.is_in_group("shell"):
+		return  # downloader shell is showing; shell/boot.gd calls _boot once the game scene is up
+	if runtime != null and is_instance_valid(runtime):
+		return  # already booted
 	if _save_exists():
 		_load_now(host)
 	else:

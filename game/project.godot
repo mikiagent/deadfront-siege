@@ -11,12 +11,13 @@ config_version=5
 [application]
 
 config/name="Durango-like (working title)"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://shell/boot.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
 
+ShellLoader="*res://shell/shell_loader.gd"
 InputSetup="*res://scripts/core/input_setup.gd"
 Data="*res://scripts/core/data.gd"
 Game="*res://scripts/core/game.gd"
@@ -31,26 +32,25 @@ window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation=4
 
-[input_devices]
+[dotnet]
 
-pointing/emulate_touch_from_mouse=true
-
-[physics]
-
-3d/default_gravity=9.8
-
-[rendering]
-
-renderer/rendering_method="forward_plus"
-renderer/rendering_method.mobile="mobile"
-textures/vram_compression/import_etc2_astc=true
-lights_and_shadows/directional_shadow/size=4096
-lights_and_shadows/directional_shadow/size.mobile=1024
-anti_aliasing/quality/msaa_3d=2
-anti_aliasing/quality/msaa_3d.mobile=0
+project/assembly_name="Durango-like (working title)"
 
 [importer_defaults]
 
 texture={
 "process/size_limit": 1024
 }
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[rendering]
+
+renderer/rendering_method.web="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+lights_and_shadows/directional_shadow/size.mobile=1024
+anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/msaa_3d.mobile=0
+anti_aliasing/quality/msaa_3d.web=0

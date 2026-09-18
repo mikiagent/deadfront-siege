@@ -13,3 +13,4 @@ Data lives in JSON under game/data and is loaded into Resources at startup. Do n
 Folder layout: scripts/core (autoloads, data loading), scripts/player, scripts/creatures, scripts/combat, scripts/items, scripts/world, scripts/ui. scenes/ mirrors it. scenes/dev/ holds test labs.
 Creature meshes and clips arrive from another agent under game/assets/creatures per game/data/creatures/SCHEMA.md. If a file is missing, fall back to the placeholder and keep going.
 Every milestone prompt lists acceptance checks. Finish all of them, then write docs/orchestration/reports/cursor-<milestone>.md.
+Downloader shell (game/shell/): the iOS app is a thin shell that downloads game packs at runtime. Never add, rename or reorder autoloads and never edit project.godot or game/shell/ in a milestone; those need a new app build. Everything under scripts/, scenes/, data/ and assets/ ships through tools/publish_pck.sh.
