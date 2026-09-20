@@ -39,6 +39,10 @@ var _levelup_lines: Array = []
 var _levelup_t: float = -1.0
 var _titles: Dictionary = {}
 var _level_gains: Dictionary = {}
+# death
+var _death_panel: Control
+var _death_alpha: float = 0.0
+var _death_btn: Button
 
 const MAP_PX := 180.0
 const MAP_SCALE := 1.5  # metres per pixel
@@ -54,6 +58,7 @@ func _ready() -> void:
 	_build_menu_row()
 	_build_combat()
 	_build_place_hexes()
+	_build_death()
 	add_to_group("hud")
 	_load_level_data()
 	if World.has_signal("pioneer_changed"):
@@ -79,7 +84,8 @@ func _layout() -> void:
 	for h in [_menu_hex, _pets_hex, _build_hex, _skills_hex]:
 		h.position = Vector2(x, y)
 		x += HEX + 10.0
-	_inspect_hex.position = Vector2(r.x - 56.0 - 16.0 - inset.x, r.y - 56.0 - 14.0 - inset.y)
+	# Debug hex sits just left of the minimap, vertically centred on it.
+	_inspect_hex.position = Vector2(_minimap.position.x - 56.0 - 12.0, _minimap.position.y + (MAP_PX - 56.0) * 0.5)
 	_end_btn.position = Vector2(r.x - 200.0 - inset.x, r.y * 0.42)
 	# Honeycomb cluster bottom-right: net / tackle / kick / roll, Auto below-right, stance text.
 	var cx := r.x - 250.0 - inset.x
@@ -117,26 +123,32 @@ func _build_minimap() -> void:
 	)
 	add_child(_minimap)
 
-func _hex(glyph: String, size_px: float = HEX) -> HexButton:
+func _hex(glyph: String, size_px: float = HEX, caption: String = "") -> HexButton:
 	var h := HexButton.new(size_px)
 	h.glyph = glyph
+	h.bottom_text = caption
 	add_child(h)
 	return h
 
 func _build_menu_row() -> void:
-	_menu_hex = _hex("MENU")
+	_menu_hex = _hex("≡", HEX, "MENU")
 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
-	_pets_hex = _hex("PETS")
+	_pets_hex = _hex("🦖", HEX, "PETS")
 	_pets_hex.pressed.connect(func () -> void: _toggle_sheet(&"pets"))
-	_build_hex = _hex("BUILD")
+	_build_hex = _hex("⌂", HEX, "BUILD")
 	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
-	_skills_hex = _hex("SKILLS")
+	_skills_hex = _hex("★", HEX, "SKILLS")
 	_skills_hex.pressed.connect(_toggle_skills)
-	_inspect_hex = _hex("INFO", 56.0)
-	_inspect_hex.pressed.connect(func () -> void:
-		Game.debug_overlay = not Game.debug_overlay
-		print("[hud] inspect %s" % ("on" if Game.debug_overlay else "off"))
-	)
+	_inspect_hex = _hex("🔍", 56.0, "DEBUG")
+	_inspect_hex.pressed.connect(_toggle_debug)
+	_inspect_hex.selected = Game.debug_overlay
+
+## Debug items: perf line top-left, creature state labels, HP numbers on plates, path lines.
+func _toggle_debug() -> void:
+	Game.debug_overlay = not Game.debug_overlay
+	_inspect_hex.selected = Game.debug_overlay
+	_inspect_hex.queue_redraw()
+	print("[hud] debug %s" % ("on" if Game.debug_overlay else "off"))
 
 func _build_combat() -> void:
 	_end_btn = Button.new()
@@ -158,10 +170,11 @@ func _build_combat() -> void:
 	)
 	_end_btn.visible = false
 	add_child(_end_btn)
-	var specs := [["NET", "net"], ["TACKLE", "tackle"], ["KICK", "kick"], ["ROLL", "roll"]]
+	var specs := [["🕸", "net", "NET"], ["💥", "tackle", "TACKLE"], ["🦵", "kick", "KICK"], ["↯", "roll", "ROLL"]]
 	for s in specs:
 		var h := HexButton.new(72.0)
 		h.glyph = s[0]
+		h.bottom_text = s[2]
 		h.visible = false
 		h.pressed.connect(_on_skill.bind(StringName(s[1])))
 		add_child(h)
@@ -186,17 +199,79 @@ func _build_combat() -> void:
 	_stance_label.visible = false
 	add_child(_stance_label)
 	_chase_hex = HexButton.new(HEX)
-	_chase_hex.glyph = "CHASE"
+	_chase_hex.glyph = "🏃"
+	_chase_hex.bottom_text = "CHASE"
 	_chase_hex.fill = Color(0.93, 0.72, 0.15, 0.95)
 	_chase_hex.visible = false
 	_chase_hex.pressed.connect(func () -> void:
 		if player and player.hunt:
 			player.hunt.hold = not player.hunt.hold
 			_chase_hex.fill = Color(0.25, 0.25, 0.25, 0.9) if player.hunt.hold else Color(0.93, 0.72, 0.15, 0.95)
-			_chase_hex.glyph = "HOLD" if player.hunt.hold else "CHASE"
+			_chase_hex.glyph = "✋" if player.hunt.hold else "🏃"
+			_chase_hex.bottom_text = "HOLD" if player.hunt.hold else "CHASE"
 			_chase_hex.queue_redraw()
 	)
 	add_child(_chase_hex)
+
+## Full-screen dim, "You died" and a Respawn hex. Shown while player.dead; the survivor stays
+## on the floor underneath until the button is tapped.
+func _build_death() -> void:
+	_death_panel = Control.new()
+	_death_panel.name = "Death"
+	_death_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_death_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_death_panel.visible = false
+	_death_panel.draw.connect(_draw_death)
+	add_child(_death_panel)
+	_death_btn = Button.new()
+	_death_btn.text = "Respawn at camp"
+	_death_btn.custom_minimum_size = Vector2(260, 64)
+	_death_btn.add_theme_font_size_override("font_size", 22)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.72, 0.12, 0.12, 0.95)
+	sb.corner_radius_top_left = 8
+	sb.corner_radius_top_right = 8
+	sb.corner_radius_bottom_left = 8
+	sb.corner_radius_bottom_right = 8
+	_death_btn.add_theme_stylebox_override("normal", sb)
+	_death_btn.add_theme_stylebox_override("hover", sb.duplicate())
+	_death_btn.add_theme_stylebox_override("pressed", sb.duplicate())
+	_death_btn.pressed.connect(func () -> void:
+		if player:
+			player.respawn()
+	)
+	_death_panel.add_child(_death_btn)
+
+func _tick_death(delta: float) -> void:
+	var dead := player != null and player.dead
+	_death_alpha = move_toward(_death_alpha, 1.0 if dead else 0.0, delta * (0.8 if dead else 4.0))
+	var show := _death_alpha > 0.01
+	if _death_panel.visible != show:
+		_death_panel.visible = show
+		if show:
+			_close_sheet()
+	if not show:
+		return
+	var r := get_viewport_rect().size
+	_death_panel.position = Vector2.ZERO
+	_death_panel.size = r
+	_death_btn.position = Vector2(r.x * 0.5 - 130.0, r.y * 0.5 + 40.0)
+	_death_btn.visible = _death_alpha > 0.6
+	_death_btn.modulate.a = clampf((_death_alpha - 0.6) / 0.4, 0.0, 1.0)
+	_death_panel.queue_redraw()
+
+func _draw_death() -> void:
+	var r := get_viewport_rect().size
+	var a := _death_alpha
+	_death_panel.draw_rect(Rect2(Vector2.ZERO, r), Color(0.05, 0.0, 0.0, 0.62 * a))
+	var title := "You died"
+	var ts := 54
+	var tw := _font.get_string_size(title, HORIZONTAL_ALIGNMENT_CENTER, -1, ts).x
+	_death_panel.draw_string(_font, Vector2(r.x * 0.5 - tw * 0.5 + 2, r.y * 0.5 - 20 + 2), title, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, Color(0, 0, 0, 0.7 * a))
+	_death_panel.draw_string(_font, Vector2(r.x * 0.5 - tw * 0.5, r.y * 0.5 - 20), title, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, Color(0.95, 0.2, 0.18, a))
+	var sub := "Your bag comes with you."
+	var sw := _font.get_string_size(sub, HORIZONTAL_ALIGNMENT_CENTER, -1, 16).x
+	_death_panel.draw_string(_font, Vector2(r.x * 0.5 - sw * 0.5, r.y * 0.5 + 12), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.9, 0.85, 0.85, a))
 
 func _on_skill(id: StringName) -> void:
 	if player == null or player.hunt == null:
@@ -212,10 +287,11 @@ func _on_skill(id: StringName) -> void:
 			player._try_roll()
 
 func _build_place_hexes() -> void:
-	var specs := [["ROTATE", Color(0.2, 0.2, 0.22, 0.95), "rotate"], ["PLACE", Color(0.10, 0.55, 0.22, 0.97), "confirm"], ["CANCEL", Color(0.65, 0.12, 0.12, 0.97), "cancel"]]
+	var specs := [["↻", Color(0.2, 0.2, 0.22, 0.95), "rotate", "ROTATE"], ["✓", Color(0.10, 0.55, 0.22, 0.97), "confirm", "PLACE"], ["✕", Color(0.65, 0.12, 0.12, 0.97), "cancel", "CANCEL"]]
 	for sp in specs:
 		var h := HexButton.new(70.0)
 		h.glyph = sp[0]
+		h.bottom_text = sp[3]
 		h.fill = sp[1]
 		h.visible = false
 		var id: String = sp[2]
@@ -261,7 +337,11 @@ func _refresh_context(delta: float) -> void:
 	var x := r.x - 16.0 - inset.x - 74.0 - 60.0
 	for a in actions:
 		var h := HexButton.new(70.0)
-		h.glyph = str(a["label"]).to_upper()
+		h.glyph = str(a.get("glyph", ""))
+		h.bottom_text = str(a["label"]).to_upper()
+		if h.glyph == "":
+			h.glyph = h.bottom_text
+			h.bottom_text = ""
 		var id := str(a["id"])
 		h.pressed.connect(func () -> void: player.context_action(id))
 		add_child(h)
@@ -354,6 +434,7 @@ func _toggle_sheet(kind: StringName) -> void:
 			_sheet_btn(box, "Craft", func () -> void: _close_sheet(); if player.craft_ui: player.craft_ui.toggle())
 			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
 			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
+			_sheet_btn(box, "Debug info: %s" % ("ON" if Game.debug_overlay else "OFF"), func () -> void: _toggle_debug(); _close_sheet(); _toggle_sheet(&"menu"))
 		&"pets":
 			title.text = "Pets  %d / %d" % [player.bonded.size(), Data.bonded_cap()]
 			if player.bonded.is_empty():
@@ -435,6 +516,7 @@ func _open_map() -> void:
 func _process(delta: float) -> void:
 	if player == null:
 		return
+	_tick_death(delta)
 	var hunting := player.hunt != null and player.hunt.target != null and is_instance_valid(player.hunt.target)
 	if hunting != _in_combat:
 		_in_combat = hunting
@@ -476,16 +558,23 @@ func _draw() -> void:
 	var y := 14.0
 	_bar(Vector2(x, y), Vector2(230, 16), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "♥", "%.0f / %.0f" % [v.health, v.effective_max_health()])
 	_bar(Vector2(x, y + 22), Vector2(230, 16), v.energy / maxf(1.0, v.max_energy), Color(0.20, 0.45, 0.80), "⚡", "%.0f / %.0f" % [v.energy, v.max_energy])
-	_bar(Vector2(x, y + 44), Vector2(230, 8), clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0), Color(0.55, 0.55, 0.55), "", "")
+	# hunger + thirst under energy; the bar colour goes red when empty (no health regen)
+	var hfrac: float = v.hunger / maxf(1.0, v.max_hunger)
+	var tfrac: float = v.thirst / maxf(1.0, v.max_thirst)
+	_bar(Vector2(x, y + 44), Vector2(230, 12), hfrac, Color(0.82, 0.16, 0.16) if hfrac <= 0.0 else Color(0.80, 0.50, 0.18), "🍖", "%.0f" % v.hunger)
+	_bar(Vector2(x, y + 62), Vector2(230, 12), tfrac, Color(0.82, 0.16, 0.16) if tfrac <= 0.0 else Color(0.25, 0.70, 0.85), "💧", "%.0f" % v.thirst)
+	_bar(Vector2(x, y + 80), Vector2(230, 8), clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0), Color(0.55, 0.55, 0.55), "", "")
 	if v.exhausted:
-		draw_string(_font, Vector2(x + 236, y + 52), "EXHAUSTED", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.6, 0.4))
+		draw_string(_font, Vector2(x + 236, y + 88), "EXHAUSTED", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.6, 0.4))
+	elif hfrac <= 0.0 or tfrac <= 0.0:
+		draw_string(_font, Vector2(x + 236, y + 88), "STARVING" if hfrac <= 0.0 else "PARCHED", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.5, 0.4))
 	# status icons row
 	var sx := x
 	if player.statuses:
 		for inst in player.statuses.instances():
-			draw_rect(Rect2(sx, y + 60, 26, 26), Color(0.1, 0.1, 0.12, 0.85))
-			draw_string(_font, Vector2(sx + 4, y + 79), str(inst.id).left(2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.75, 0.45))
-			draw_string(_font, Vector2(sx, y + 100), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.8, 0.8, 0.8))
+			draw_rect(Rect2(sx, y + 96, 26, 26), Color(0.1, 0.1, 0.12, 0.85))
+			draw_string(_font, Vector2(sx + 4, y + 115), str(inst.id).left(2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.75, 0.45))
+			draw_string(_font, Vector2(sx, y + 136), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.8, 0.8, 0.8))
 			sx += 30
 	# --- minimap captions
 	var mp := _minimap.position
@@ -520,7 +609,7 @@ func _draw() -> void:
 	# --- level-up stack (gold, top-left under the bars)
 	if _levelup_t >= 0.0:
 		var la := 1.0 - smoothstep(5.5, 6.5, _levelup_t)
-		var ly := 120.0
+		var ly := 160.0
 		for line in _levelup_lines:
 			var col: Color = line[2]
 			col.a *= la

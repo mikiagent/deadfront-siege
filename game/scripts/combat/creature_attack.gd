@@ -28,6 +28,8 @@ static func _deal_damage(attacker: Creature, target: Node) -> void:
 	var atk := attacker.def.attack * attacker.statuses.attack_mult()
 	var defn := 0.0
 	if target is Player:
+		if (target as Player).dead:
+			return
 		defn = 20.0 * (target as Player).statuses.defense_mult()
 		var raw: float = atk - defn * 0.5
 		var dealt: float = maxf(atk * 0.05, raw)

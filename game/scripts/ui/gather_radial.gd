@@ -18,6 +18,10 @@ var _inventory: Inventory
 var _open: bool = false
 var _icons: Dictionary = {}
 var _icon_cache: Dictionary = {}
+## Harvest picks keep the menu open: the chosen hex stays lit and its outline fills once
+## per unit gathered (progress 0..1 from the player's gather cycle), then resets.
+var active_index: int = -1
+var _progress: float = 0.0
 
 const HEX := 76.0
 
@@ -91,6 +95,8 @@ func close() -> void:
 		b.queue_free()
 	_buttons.clear()
 	_labels.clear()
+	active_index = -1
+	_progress = 0.0
 	if _open:
 		_open = false
 		closed.emit()
@@ -99,8 +105,44 @@ func close() -> void:
 
 func _on_pick(i: int) -> void:
 	var n := node
+	if n is HarvestNode:
+		active_index = i
+		_progress = 0.0
+		for j in _buttons.size():
+			_buttons[j].selected = j == i
+			_buttons[j].queue_redraw()
+		picked.emit(n, i)
+		queue_redraw()
+		return
 	close()
 	picked.emit(n, i)
+
+## Unit progress for the active hex's outline (0 resets after each unit lands in the bag).
+func set_progress(frac: float) -> void:
+	_progress = clampf(frac, 0.0, 1.0)
+	queue_redraw()
+
+func active_node() -> Node3D:
+	return node if _open and active_index >= 0 else null
+
+## Partial hexagon outline just outside a hex button, clockwise from its top vertex.
+static func _hex_sweep(c: Vector2, r: float, frac: float) -> PackedVector2Array:
+	var hex := PackedVector2Array()
+	for i in 6:
+		var a := deg_to_rad(60.0 * float(i) - 90.0)
+		hex.append(c + Vector2(cos(a), sin(a)) * r)
+	var out := PackedVector2Array()
+	var total := clampf(frac, 0.0, 1.0) * 6.0
+	out.append(hex[0])
+	for i in 6:
+		var a := hex[i]
+		var b := hex[(i + 1) % 6]
+		if total >= float(i + 1):
+			out.append(b)
+		else:
+			out.append(a.lerp(b, total - float(i)))
+			break
+	return out
 
 func _process(_delta: float) -> void:
 	if not _open:
@@ -161,6 +203,16 @@ func _draw() -> void:
 		draw_string(font, pos + Vector2(2, 6), text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, Color(0.95, 0.95, 0.95) if reason == "" else Color(0.75, 0.75, 0.75))
 		if reason != "":
 			draw_string(font, pos + Vector2(2, 26), reason, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1.0, 0.45, 0.4))
+	# Gather progress: a thick outline sweeping around the picked hex, once per unit.
+	if active_index >= 0 and active_index < _buttons.size():
+		var ab := _buttons[active_index]
+		var hc := ab.position + ab.size * 0.5
+		var hr := minf(ab.size.x, ab.size.y) * 0.5 + 4.0
+		var track := _hex_sweep(hc, hr, 1.0)
+		track.append(track[0])
+		draw_polyline(track, Color(0.05, 0.05, 0.05, 0.6), 6.0, true)
+		if _progress > 0.002:
+			draw_polyline(_hex_sweep(hc, hr, _progress), Color(1.0, 0.92, 0.5, 0.98), 6.0, true)
 
 func _node_name() -> String:
 	return title

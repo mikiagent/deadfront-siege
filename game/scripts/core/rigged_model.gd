@@ -45,13 +45,13 @@ func setup(base_glb: String, anim_dir: String, forward_axis: String, height_m: f
 		_attach_sockets()
 	return true
 
-func play(clip: StringName, speed: float = 1.0) -> void:
+func play(clip: StringName, speed: float = 1.0, blend: float = 0.0) -> void:
 	if anim_player == null:
 		return
 	if not anim_player.has_animation(clip):
 		return
 	anim_player.speed_scale = speed
-	anim_player.play(clip)
+	anim_player.play(clip, blend)
 
 func has_clip(clip: StringName) -> bool:
 	return library != null and library.has_animation(clip)

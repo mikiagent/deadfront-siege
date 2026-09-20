@@ -39,6 +39,7 @@ project/assembly_name="Durango-like (working title)"
 [importer_defaults]
 
 texture={
+"compress/mode": 4,
 "process/size_limit": 1024
 }
 

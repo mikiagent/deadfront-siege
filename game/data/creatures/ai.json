@@ -17,65 +17,137 @@
     "pack_flank": false,
     "herd_hold_radius_tiles": 8.0,
     "chase_speed_mult": 0.7,
-    "leash_mult": 2.2
+    "leash_mult": 1.5,
+    "weak_to": [],
+    "resists": [],
+    "_effectiveness": "weak_to: damage types that hit x1.5 (orange numbers); resists: x0.6 (grey). Types: slashing, blunt.",
+    "_leash": "Aggro leash = perception x leash_mult (the red dotted ring). 1.5 keeps the ring on screen at the default zoom; 2.2 put it off-screen."
   },
   "archetypes": {
     "pack_raptor": {
       "attack_range": 2.0,
-      "pack_flank": true
+      "pack_flank": true,
+      "weak_to": [
+        "slashing"
+      ],
+      "resists": []
     },
     "pack_flanker": {
       "attack_range": 2.0,
-      "pack_flank": true
+      "pack_flank": true,
+      "weak_to": [
+        "slashing"
+      ],
+      "resists": []
     },
     "apex_raptor": {
       "attack_range": 2.2,
       "pack_flank": true,
-      "perception_base": 10.0
+      "perception_base": 10.0,
+      "weak_to": [
+        "slashing"
+      ],
+      "resists": []
     },
     "swarm": {
-      "attack_range": 1.4
+      "attack_range": 1.4,
+      "weak_to": [
+        "slashing"
+      ],
+      "resists": []
     },
     "flock_harass": {
-      "attack_range": 1.6
+      "attack_range": 1.6,
+      "weak_to": [
+        "slashing"
+      ],
+      "resists": []
     },
     "venom_ranged": {
-      "attack_range": 2.4
+      "attack_range": 2.4,
+      "weak_to": [
+        "blunt"
+      ],
+      "resists": []
     },
     "saber_cat": {
-      "attack_range": 2.0
+      "attack_range": 2.0,
+      "weak_to": [
+        "slashing"
+      ],
+      "resists": []
     },
     "tyrant": {
-      "attack_range": 2.6
+      "attack_range": 2.6,
+      "weak_to": [],
+      "resists": [
+        "slashing"
+      ]
     },
     "pack_mule": {
       "is_herbivore": true,
-      "attack_range": 1.8
+      "attack_range": 1.8,
+      "weak_to": [
+        "blunt"
+      ],
+      "resists": [
+        "slashing"
+      ]
     },
     "spiked_tail": {
       "is_herbivore": true,
-      "attack_range": 2.2
+      "attack_range": 2.2,
+      "weak_to": [
+        "blunt"
+      ],
+      "resists": [
+        "slashing"
+      ]
     },
     "runner": {
       "is_herbivore": true,
-      "attack_range": 1.6
+      "attack_range": 1.6,
+      "weak_to": [
+        "slashing"
+      ],
+      "resists": []
     },
     "antlered": {
       "is_herbivore": true,
-      "attack_range": 1.9
+      "attack_range": 1.9,
+      "weak_to": [
+        "blunt"
+      ],
+      "resists": []
     },
     "club_tail": {
       "is_herbivore": true,
-      "attack_range": 2.0
+      "attack_range": 2.0,
+      "weak_to": [
+        "blunt"
+      ],
+      "resists": [
+        "slashing"
+      ]
     },
     "horned_charger": {
       "is_herbivore": true,
-      "attack_range": 2.1
+      "attack_range": 2.1,
+      "weak_to": [
+        "blunt"
+      ],
+      "resists": [
+        "slashing"
+      ]
     },
     "titan": {
       "is_herbivore": true,
       "attack_range": 2.8,
-      "retreat_threshold_frac": 0.2
+      "retreat_threshold_frac": 0.2,
+      "weak_to": [],
+      "resists": [
+        "slashing"
+      ]
     }
   }
 }

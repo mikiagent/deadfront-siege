@@ -84,6 +84,10 @@ var _force_clip_map: Array[StringName] = [
 	&"hit_react", &"knockdown", &"death", &"alert",
 ]
 
+## True from the fatal hit until respawn(): no input, no regen, creatures lose interest,
+## the death clip plays once and the rig stays on the floor. The HUD shows You Died + Respawn.
+var dead: bool = false
+
 func _ready() -> void:
 	if Game.lab_name != "" and get_parent() and get_parent().name == "DefaultPlayfield":
 		visible = false
@@ -240,6 +244,13 @@ func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 
 func _physics_process(delta: float) -> void:
 	_fall_guard()
+	if dead:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		if not is_on_floor():
+			velocity += get_gravity() * delta
+		move_and_slide()
+		return
 	_draw_path_line(delta)
 	_tick_food_buffs(delta)
 	_survival_acc += delta
@@ -345,6 +356,8 @@ func _cam_dir(input: Vector2) -> Vector3:
 	return dir
 
 func _unhandled_input(event: InputEvent) -> void:
+	if dead:
+		return
 	if placer and placer.placing != &"":
 		if event.is_action_pressed("place_rotate"):
 			placer.rotate_clockwise()
@@ -417,9 +430,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		_hold_walk_retarget_left = 0.0
 
 func _tap_blocked() -> bool:
+	# Blocked only by a control that actually stops input (buttons, sheets, panels) or sits
+	# inside one. Pass-through containers such as the creature plates' status rows used to
+	# count as blocking, so taps near a plate silently did nothing.
 	var hovered := get_viewport().gui_get_hovered_control()
-	if hovered != null and hovered.mouse_filter != Control.MOUSE_FILTER_IGNORE:
-		return true
+	var c := hovered
+	while c != null:
+		if c.mouse_filter == Control.MOUSE_FILTER_STOP and c.is_visible_in_tree():
+			return true
+		c = c.get_parent() as Control
 	if TouchControls.enabled and TouchControls.blocks_screen_point(Game.pointer):
 		return true
 	return false
@@ -460,7 +479,7 @@ func _interact_tap_target(col: Object) -> void:
 			_begin_gather(hn)
 	elif col is Corpse:
 		(col as Corpse).note_tapped()
-		_open_corpse_radial(col as Corpse)
+		_open_corpse_loot(col as Corpse)
 	elif col is Creature:
 		var c := col as Creature
 		c.note_tapped()
@@ -729,8 +748,17 @@ func _stop_gather_cycle(fade_ring: bool = true) -> void:
 			_gather_ring.fade_out()
 		else:
 			_gather_ring.clear_now()
+	if fade_ring and _gather_radial and _gather_radial.is_open() and _gather_radial.active_index >= 0:
+		_gather_radial.close()  # the gather ended (cancelled, pool empty, bag full): drop the menu
 
+## While the radial is open on this node the picked hex shows the unit progress; otherwise
+## the floating hex over the node does.
 func _update_gather_ring(progress: float) -> void:
+	if _gather_radial and _gather_radial.is_open() and gather_target and _gather_radial.active_node() == gather_target:
+		_gather_radial.set_progress(progress)
+		if _gather_ring:
+			_gather_ring.clear_now()
+		return
 	if _gather_ring == null:
 		return
 	if gather_target and is_instance_valid(gather_target):
@@ -1291,8 +1319,43 @@ func _on_vitals_damaged() -> void:
 		anim.on_damaged()
 
 func _on_vitals_died() -> void:
+	if dead:
+		return
+	dead = true
+	clear_nav()
+	_clear_ground_marker()
+	_cancel_gather_and_butcher()
+	if hunt:
+		hunt.stop()
+	if mounted_on:
+		dismount()
+	if placer and placer.placing != &"":
+		placer.cancel()
 	if anim:
 		anim.on_death()
+	print("[player] died")
+
+## Respawn at the camp (home tile) with half health; statuses cleared. Called by the HUD button.
+func respawn() -> void:
+	if not dead:
+		return
+	dead = false
+	if statuses:
+		for inst in statuses.instances().duplicate():
+			statuses.clear_id(inst.id)
+	vitals.revive(0.5)
+	var at := global_position
+	if World.runtime and World.runtime.get("_camp_pos") != null:
+		at = World.runtime.get("_camp_pos") as Vector3
+		if World.runtime.has_method("surface_y"):
+			at.y = World.runtime.surface_y(at.x, at.z) + 0.6
+		else:
+			at.y += 0.6
+	velocity = Vector3.ZERO
+	global_position = at
+	if anim:
+		anim.revive()
+	print("[player] respawn at %s" % at)
 
 func _fall_guard() -> void:
 	# Never let the player fall out of the world: below -15 m, put her back on the surface.
@@ -1325,8 +1388,8 @@ func _shoreline_guard() -> void:
 func _setup_lantern() -> void:
 	_lantern = OmniLight3D.new()
 	_lantern.name = "HipLantern"
-	_lantern.omni_range = 10.0
-	_lantern.omni_attenuation = 1.6
+	_lantern.omni_range = 14.0
+	_lantern.omni_attenuation = 1.15
 	_lantern.light_color = Color(1.0, 0.82, 0.55)
 	_lantern.light_energy = 0.0
 	_lantern.shadow_enabled = false
@@ -1348,7 +1411,7 @@ func _drive_lantern() -> void:
 	var from_noon := absf(Game.time_of_day - 0.5) * 2.0
 	var night := smoothstep(0.35, 1.0, from_noon)
 	var flicker := 1.0 + sin((Time.get_ticks_msec() * 0.001) * 7.0 + _lantern_phase) * 0.05
-	_lantern.light_energy = 4.0 * night * flicker
+	_lantern.light_energy = 9.0 * night * flicker
 
 
 func _setup_gather_radial() -> void:
@@ -1397,14 +1460,24 @@ func display_name() -> String:
 
 # ---------------------------------------------------------------- corpse radial
 
-func _open_corpse_radial(corpse: Corpse) -> void:
-	if corpse == null or _gather_radial == null:
+## Tap the loot box on the floor: walk over and open it as a chest screen (bag on the left,
+## loot on the right, Take all). The knife rule shows in the screen as a read-only note.
+func _open_corpse_loot(corpse: Corpse) -> void:
+	if corpse == null:
 		return
-	var opts := corpse.loot_options(inventory)
-	if opts.is_empty():
-		print("[item] refused butcher %s: empty" % corpse.species)
+	_stop_gather_cycle(false)
+	gather_target = null
+	tame_target = null
+	tame_food_id = &""
+	_corpse_slot = -1
+	if global_position.distance_to(corpse.global_position) <= 2.6:
+		clear_nav()
+		face_world(corpse.global_position)
+		butcher_target = null
+		corpse.open_loot(self)
 		return
-	_gather_radial.open_options(corpse, "%s Corpse" % corpse.species_display_name(), corpse.level, 1.0, opts, inventory)
+	butcher_target = corpse
+	nav_to(_closest_nav_point(corpse.global_position))
 
 func _begin_corpse_take(corpse: Corpse, slot: int) -> void:
 	if vitals.exhausted:
@@ -1487,7 +1560,8 @@ func context_action(id: String) -> void:
 		"drink":
 			# ASSUMPTION: a drink restores 5 energy; wash clears 2 fatigue (no dirty status yet).
 			vitals.energy = minf(vitals.max_energy, vitals.energy + 5.0)
-			print("[item] drink energy=%.0f" % vitals.energy)
+			vitals.drink(30.0)
+			print("[item] drink energy=%.0f thirst=%.0f" % [vitals.energy, vitals.thirst])
 		"wash":
 			vitals.rest(2.0)
 			print("[item] wash fatigue=%.0f" % vitals.fatigue)
@@ -1504,7 +1578,8 @@ func context_action(id: String) -> void:
 		"loot":
 			var corpse := _nearest_group("corpse") as Corpse
 			if corpse:
-				_open_corpse_radial(corpse)
+				corpse.note_tapped()
+				_open_corpse_loot(corpse)
 		"harbour":
 			var h := _nearest_group("harbour")
 			if h:

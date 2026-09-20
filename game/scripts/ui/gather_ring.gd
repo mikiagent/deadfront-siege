@@ -113,21 +113,54 @@ func _update_screen_position() -> void:
 		return
 	_screen_pos = cam.unproject_position(world)
 
+## Pointy-top hexagon, i from the top vertex clockwise.
+static func _hex(c: Vector2, r: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for i in 6:
+		var a := deg_to_rad(-90.0 + 60.0 * float(i))
+		pts.append(c + Vector2(cos(a), sin(a)) * r)
+	return pts
+
+## The first `frac` of the hexagon's perimeter, starting at the top vertex and going clockwise.
+static func _hex_partial(c: Vector2, r: float, frac: float) -> PackedVector2Array:
+	var hex := _hex(c, r)
+	var out := PackedVector2Array()
+	var total := clampf(frac, 0.0, 1.0) * 6.0
+	out.append(hex[0])
+	for i in 6:
+		var a := hex[i]
+		var b := hex[(i + 1) % 6]
+		if total >= float(i + 1):
+			out.append(b)
+		else:
+			out.append(a.lerp(b, total - float(i)))
+			break
+	return out
+
+## Same hex as the option button: dark body, icon in the middle, pool count below. The
+## outside border sweeps clockwise once per unit (resets at each unit gathered); the thin
+## green inner edge is the pool taken this session.
 func _draw() -> void:
 	var c := Vector2(SIZE_PX * 0.5, SIZE_PX * 0.5)
-	draw_arc(c, RADIUS_OUTER, 0.0, TAU, 64, Color(0.05, 0.05, 0.05, 0.45), OUTER_WIDTH, true)
-	draw_arc(c, RADIUS_OUTER, -PI * 0.5, -PI * 0.5 + TAU * _outer_progress, 64, Color(0.2, 0.9, 0.45, 0.95), OUTER_WIDTH, true)
-	draw_arc(c, RADIUS_INNER, 0.0, TAU, 64, Color(0.95, 0.95, 0.95, 0.22), INNER_WIDTH, true)
-	draw_arc(c, RADIUS_INNER, -PI * 0.5, -PI * 0.5 + TAU * unit_progress, 64, Color(1, 1, 1, 0.95), INNER_WIDTH, true)
+	var r := RADIUS_OUTER - OUTER_WIDTH * 0.5
+	draw_colored_polygon(_hex(c, r - OUTER_WIDTH * 0.5), Color(0.07, 0.08, 0.09, 0.86))
+	var outline := _hex(c, r)
+	outline.append(outline[0])
+	draw_polyline(outline, Color(0.05, 0.05, 0.05, 0.6), OUTER_WIDTH, true)
+	draw_polyline(outline, Color(0.6, 0.6, 0.6, 0.35), 1.0, true)
+	if unit_progress > 0.002:
+		draw_polyline(_hex_partial(c, r, unit_progress), Color(1, 1, 1, 0.97), OUTER_WIDTH, true)
+	if _outer_progress > 0.002:
+		draw_polyline(_hex_partial(c, r - OUTER_WIDTH - 1.0, _outer_progress), Color(0.2, 0.9, 0.45, 0.95), INNER_WIDTH, true)
 	if _icon:
-		draw_texture_rect(_icon, Rect2(c - Vector2(10, 28), Vector2(20, 20)), false)
+		draw_texture_rect(_icon, Rect2(c - Vector2(11, 24), Vector2(22, 22)), false)
 	else:
 		var font0 := ThemeDB.fallback_font
 		if font0:
-			draw_string(font0, c + Vector2(0, -13), _yield_text, HORIZONTAL_ALIGNMENT_CENTER, 64.0, 11, Color(1, 1, 1, 0.85))
+			draw_string(font0, c + Vector2(0, -8), _yield_text, HORIZONTAL_ALIGNMENT_CENTER, 64.0, 11, Color(1, 1, 1, 0.85))
 	var font := ThemeDB.fallback_font
 	if font:
-		draw_string(font, c + Vector2(0, 8), _pool_text, HORIZONTAL_ALIGNMENT_CENTER, 64.0, 16, Color(1, 1, 1, 0.98))
+		draw_string(font, c + Vector2(0, 15), _pool_text, HORIZONTAL_ALIGNMENT_CENTER, 64.0, 15, Color(1, 1, 1, 0.98))
 
 func _load_icons_manifest() -> void:
 	var path := "res://data/icons_manifest.json"

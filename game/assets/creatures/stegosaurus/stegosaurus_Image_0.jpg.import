@@ -18,7 +18,7 @@ dest_files=["res://.godot/imported/stegosaurus_Image_0.jpg-7f2fd10f2daab8f9017ce
 
 [params]
 
-compress/mode=0
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

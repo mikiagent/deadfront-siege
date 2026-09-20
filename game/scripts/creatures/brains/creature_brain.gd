@@ -39,6 +39,17 @@ func _effective_perception() -> float:
 func _is_herbivore() -> bool:
 	return bool(profile.get("is_herbivore", false))
 
+## Leash radius: past this the chase ends at once (see _disengage_track). Drawn as the red
+## dotted ring while the creature is on the survivor.
+func aggro_radius() -> float:
+	return _effective_perception() * float(profile.get("leash_mult", 2.2))
+
+## True while this creature is actively on the survivor (ring shown).
+func hunting_player() -> bool:
+	if not (attack_target is Player) or (attack_target as Player).dead:
+		return false
+	return state in [&"alert", &"approach", &"attack", &"retreat"]
+
 func _physics_process(delta: float) -> void:
 	if creature == null or creature.health.dead:
 		_set_state(&"dead")
@@ -139,6 +150,8 @@ func _scan() -> void:
 	if state != &"roam" and state != &"sleep":
 		return
 	var player := creature.get_tree().get_first_node_in_group("player") as Node3D
+	if player is Player and (player as Player).dead:
+		return
 	if player and creature.global_position.distance_to(player.global_position) <= _effective_perception():
 		attack_target = player
 		_set_state(&"alert")
@@ -148,7 +161,11 @@ func _scan() -> void:
 		_propagate_alert(player)
 
 func _valid_target() -> bool:
-	return attack_target != null and is_instance_valid(attack_target)
+	if attack_target == null or not is_instance_valid(attack_target):
+		return false
+	if attack_target is Player and (attack_target as Player).dead:
+		return false  # a survivor on the floor is not prey; wander off
+	return true
 
 func _approach(delta: float) -> void:
 	if not _valid_target():
@@ -239,7 +256,7 @@ func _disengage_track(delta: float) -> void:
 		print("[ai] %s disengage (leash)" % creature.def.id)
 		_set_state(&"disengage")
 		return
-	var far := dist > _effective_perception() * 1.5
+	var far := dist > _effective_perception() * 1.2
 	if far:
 		_disengage_left += delta
 		if _disengage_left >= float(profile.get("disengage_seconds", 3.0)):

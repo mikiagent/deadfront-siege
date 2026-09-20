@@ -16,6 +16,9 @@ func _ready() -> void:
 	projection = PROJECTION_ORTHOGONAL
 	if size <= 1.0:
 		size = default_size  # Camera3D.size defaults to 1 m, which is a face-full of capsule
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--cam-size="):  # screenshot runs: start zoomed out
+			size = clampf(float(a.substr(11)), min_size, max_size)
 	rotation_degrees = Vector3(-35.264, 45.0, 0.0)
 	_target = get_node_or_null(target_path) as Node3D
 	if _target:

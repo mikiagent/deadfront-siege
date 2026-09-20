@@ -18,7 +18,7 @@ dest_files=["res://.godot/imported/megaloceros_normal.png-4d425f16e5fd1049c4c95b
 
 [params]
 
-compress/mode=0
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

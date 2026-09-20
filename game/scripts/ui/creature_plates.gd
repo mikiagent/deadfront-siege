@@ -169,6 +169,9 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	var cb := _on_creature_float.bind(c)
 	if not c.combat_float.is_connected(cb):
 		c.combat_float.connect(cb)
+	var sb := _on_status_float.bind(c)
+	if c.has_signal("status_float") and not c.status_float.is_connected(sb):
+		c.status_float.connect(sb)
 	var entry := {
 		"node": root,
 		"line1": line1,
@@ -350,18 +353,55 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 		shown = "+%s" % shown
 	else:
 		shown = "-%s" % shown
-	label.text = shown
-	label.position = Vector2(70 + randf_range(-16.0, 16.0), 12)
+	# White = normal, grey = not very effective, orange = super effective, red = critical.
+	var col := Color(1.0, 1.0, 1.0)
+	var fs := 16
 	match kind:
 		&"heal":
-			label.add_theme_color_override("font_color", Color(0.45, 1.0, 0.5))
+			col = Color(0.45, 1.0, 0.5)
 		&"dot":
-			label.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
-		_:
-			label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+			col = Color(0.95, 0.4, 0.4)
+			fs = 14
+		&"weak":
+			col = Color(0.62, 0.62, 0.62)
+			fs = 14
+		&"strong":
+			col = Color(1.0, 0.6, 0.15)
+			fs = 20
+		&"crit":
+			col = Color(1.0, 0.18, 0.12)
+			fs = 24
+			shown += "!"
+	label.text = shown
+	label.position = Vector2(70 + randf_range(-16.0, 16.0), 12)
+	label.add_theme_font_size_override("font_size", fs)
+	label.add_theme_color_override("font_color", col)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	label.add_theme_constant_override("outline_size", 4 if fs >= 20 else 3)
 	layer.add_child(label)
 	var nodes: Array = entry.get("float_nodes", [])
 	nodes.append({"node": label, "age": 0.0})
+	entry["float_nodes"] = nodes
+	_entries[key] = entry
+
+## Status name in its colour (BLEED, VENOM, GROGGY...) rising a little slower than numbers.
+func _on_status_float(id: StringName, c: Creature) -> void:
+	var key := c.get_instance_id()
+	if not _entries.has(key):
+		return
+	var entry: Dictionary = _entries[key]
+	var layer := entry["floats"] as Control
+	var def := Data.status(id)
+	var label := Label.new()
+	label.text = (def.display_name if def else str(id)).replace("_", " ").to_upper()
+	label.position = Vector2(40 + randf_range(-10.0, 10.0), -6)
+	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_color_override("font_color", Creature.status_color(id))
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	label.add_theme_constant_override("outline_size", 3)
+	layer.add_child(label)
+	var nodes: Array = entry.get("float_nodes", [])
+	nodes.append({"node": label, "age": -0.3, "y0": -6.0})
 	entry["float_nodes"] = nodes
 	_entries[key] = entry
 
@@ -375,23 +415,14 @@ func _tick_floaters(entry: Dictionary, delta: float) -> void:
 			continue
 		var age := float(row.get("age", 0.0)) + delta
 		row["age"] = age
-		node.position.y = 12.0 - age * 34.0
-		node.modulate.a = clampf(1.0 - age / 0.8, 0.0, 1.0)
+		var y0 := float(row.get("y0", 12.0))
+		node.position.y = y0 - maxf(0.0, age) * 34.0
+		node.modulate.a = clampf(1.0 - age / 0.9, 0.0, 1.0)
 		nodes[i] = row
-		if age >= 0.8:
+		if age >= 0.9:
 			node.queue_free()
 			nodes.remove_at(i)
 	entry["float_nodes"] = nodes
-
-func _pack_suffix(c: Creature) -> String:
-	if c.pack_id <= 0:
-		return ""
-	var n := 0
-	for other_n in get_tree().get_nodes_in_group("creatures"):
-		var other := other_n as Creature
-		if other and other.pack_id == c.pack_id and not other.health.dead:
-			n += 1
-	return " ×%d" % n if n > 1 else ""
 
 func _relation_color(c: Creature) -> Color:
 	if c.is_pet:

@@ -15,7 +15,7 @@ dest_files=["res://.godot/imported/rocky_trail_diff_1k.jpg-2cede8ab047bb5cf27612
 
 [params]
 
-compress/mode=0
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

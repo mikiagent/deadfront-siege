@@ -71,6 +71,8 @@ func _apply_energy(amount: float) -> void:
 	if player == null or player.vitals == null:
 		return
 	player.vitals.energy = clampf(player.vitals.energy + amount, 0.0, player.vitals.max_energy)
+	if player.vitals.has_method("eat"):
+		player.vitals.eat(amount * 1.5)
 
 func _finish() -> void:
 	Food.apply_raw_risks(player, _stack_snapshot)

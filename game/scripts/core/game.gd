@@ -8,7 +8,9 @@ signal day_phase_changed(phase: StringName)
 @export var day_length_seconds: float = 720.0
 
 var time_of_day: float = 0.35  # 0..1, 0 = midnight, 0.5 = noon
-var debug_overlay: bool = true
+## Debug labels, HP numbers and the perf line. Off by default; labs and --debug turn it on,
+## the Menu sheet and the INFO hex toggle it in play.
+var debug_overlay: bool = false
 var smoke_test: bool = false
 var lab_name: String = ""
 ## Debug multiplier for long real-time systems (taming pen). F8 in capture_lab sets 60.
@@ -22,6 +24,7 @@ var lab_force_clips: bool = false
 var lab_flat_attack: bool = false
 var fast_regen_mult: float = 1.0
 var shot_path: String = ""
+var shot_delay_override: float = -1.0  # --shot-delay=SECONDS
 var pointer: Vector2 = Vector2.ZERO
 var creature_ui: CanvasLayer
 
@@ -39,10 +42,17 @@ func _ready() -> void:
 		elif a.begins_with("--shot="):
 			shot_path = a.substr(7)
 			debug_overlay = false
+		elif a == "--debug":
+			debug_overlay = true
+		elif a.begins_with("--shot-delay="):
+			shot_delay_override = float(a.substr(13))
 		elif a == "--fast-regen":
 			fast_regen_mult = 20.0
 		elif a.begins_with("--fast-regen="):
 			fast_regen_mult = maxf(1.0, float(a.substr(13)))
+	if lab_name != "" and shot_path == "":
+		debug_overlay = true
+	_install_symbol_fonts()
 	print("[boot] Game autoload ready. smoke_test=%s lab=%s godot=%s" % [
 		smoke_test, lab_name if lab_name != "" else "-", Engine.get_version_info().string])
 	_make_perf()
@@ -51,7 +61,35 @@ func _ready() -> void:
 	elif shot_path != "":
 		# hunt_lab needs a beat after alert→damage so plates show a white chunk.
 		var shot_delay := 3.2 if lab_name == "hunt_lab" else (2.8 if lab_name == "capture_lab" else 2.6)
+		if shot_delay_override > 0.0:
+			shot_delay = shot_delay_override
 		get_tree().create_timer(shot_delay).timeout.connect(_take_shot)
+
+## Godot's built-in UI font has no emoji or symbol glyphs, so hex icons and label pills drew
+## tofu boxes on web and iOS. Wrap the default font in a FontVariation whose fallbacks are
+## Noto Emoji (monochrome) and Noto Sans Symbols 1/2 (OFL, assets/fonts) and make it the
+## default for every Control and for ThemeDB.fallback_font (used by the custom-drawn HUD).
+func _install_symbol_fonts() -> void:
+	var base := ThemeDB.fallback_font
+	if base == null:
+		return
+	var fv := FontVariation.new()
+	fv.base_font = base
+	var fallbacks: Array[Font] = []
+	for p in ["res://assets/fonts/NotoSansSymbols2.ttf", "res://assets/fonts/NotoSansSymbols.ttf", "res://assets/fonts/NotoEmoji.ttf"]:
+		if ResourceLoader.exists(p):
+			var f := load(p) as Font
+			if f:
+				fallbacks.append(f)
+	if fallbacks.is_empty():
+		print("[boot] symbol fonts missing; glyph icons will show boxes")
+		return
+	fv.fallbacks = fallbacks
+	ThemeDB.fallback_font = fv
+	var theme := ThemeDB.get_default_theme()
+	if theme:
+		theme.default_font = fv
+	print("[boot] symbol fonts installed (%d fallbacks)" % fallbacks.size())
 
 func _make_perf() -> void:
 	var layer := CanvasLayer.new()

@@ -6,6 +6,23 @@ signal aggroed(who: Node)
 signal captured
 signal dismissed
 signal combat_float(amount: float, kind: StringName)
+## A status just landed on this creature (plates float its name in the status colour).
+signal status_float(id: StringName)
+
+## Set by the attacker just before health.take_damage: &"hit", &"weak", &"strong" or &"crit".
+## Read once by _on_damaged for the floating number, then reset.
+var next_hit_kind: StringName = &"hit"
+
+const STATUS_COLORS := {
+	"bleed": Color(0.95, 0.3, 0.3), "deep_bleed": Color(0.85, 0.15, 0.15), "bleeding_target": Color(0.95, 0.3, 0.3),
+	"venom": Color(0.45, 0.95, 0.35), "poisoned_target": Color(0.45, 0.95, 0.35), "infected_wound": Color(0.6, 0.8, 0.3),
+	"groggy": Color(1.0, 0.86, 0.35), "dizziness": Color(1.0, 0.86, 0.35), "knockdown": Color(1.0, 0.62, 0.25),
+	"fracture": Color(0.85, 0.88, 1.0), "snared": Color(0.8, 0.7, 0.5), "pinned": Color(0.8, 0.7, 0.5),
+	"enraged": Color(0.95, 0.25, 0.15), "deafened": Color(0.7, 0.7, 0.85),
+}
+
+static func status_color(id: StringName) -> Color:
+	return STATUS_COLORS.get(str(id), Color(0.9, 0.9, 0.9))
 
 var def: CreatureDef
 var variant: StringName = &""
@@ -40,6 +57,9 @@ var tame_attempting: bool = false
 
 var brain: CreatureBrain
 var _fx_drip: GPUParticles3D
+var _aggro_ring: MeshInstance3D
+var _aggro_ring_r: float = -1.0
+var _aggro_ring_t: float = 0.0
 var _trail_origin: Vector3
 var _last_bleed_pos: Vector3
 var _path_points: PackedVector3Array = PackedVector3Array()
@@ -56,7 +76,9 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> 
 	pack_id = p_pack
 	add_to_group("creatures")
 	view.setup(def, variant)
-	_set_vis_range(view, 26.0)
+	# No visibility range: the iso camera sits 40 m from the survivor (IsoCamera.distance), so the
+	# old 26 m cut-off culled every creature mesh and only the plates showed.
+	_set_vis_range(view, 0.0)
 	health.setup(def.hp)
 	health.healed.connect(_on_healed)
 	# ASSUMPTION: pet hunger budget is 0.4 * wild HP when JSON has no hunger field.
@@ -79,6 +101,7 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> 
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
 	statuses.removed.connect(_on_status_removed)
+	statuses.applied.connect(_on_status_applied)
 	_make_brain()
 	_make_drip()
 	if Game and Game.has_method("ensure_creature_plates"):
@@ -91,11 +114,17 @@ func on_anim_event(kind: String, clip: String) -> void:
 func move_to(world_pos: Vector3) -> void:
 	if _path_active and _use_tile_path() and _path_goal.distance_to(world_pos) <= 0.25:
 		return
+	# A chase target drifts a little every frame. Keep following the current path and let the
+	# 0.5 s replan pick the drift up; only a big jump (new tile) replans at once. Replanning on
+	# every drift restarted the path at this tile's centre and left chasers jittering in place.
+	var was_active := _path_active
+	var moved := _path_goal.distance_to(world_pos)
 	_path_goal = world_pos
 	_path_active = true
-	_path_replan_left = 0.0
-	_path_blocked_left = 0.0
-	_path_anchor = global_position
+	if not was_active or moved > 1.2 or _path_points.is_empty():
+		_path_replan_left = 0.0
+		_path_blocked_left = 0.0
+		_path_anchor = global_position
 	if not _use_tile_path():
 		agent.target_position = world_pos
 
@@ -181,6 +210,7 @@ func _physics_process(delta: float) -> void:
 	_status_fx()
 	_blood_trail()
 	_update_label()
+	_update_aggro_ring(delta)
 	if is_pet and pet_record:
 		var drain := hunger_max / 1800.0 * delta * (1.0 / maxf(0.5, pet_record.hunger_efficiency))
 		hunger = maxf(0.0, hunger - drain)
@@ -258,6 +288,63 @@ func _blood_trail() -> void:
 	get_parent().add_child(decal)
 	get_tree().create_timer(20.0).timeout.connect(decal.queue_free)
 
+## Red dotted ring on the ground at the leash radius while this creature hunts the survivor.
+## Step outside it and the chase ends (CreatureBrain._disengage_track). Vertices follow the
+## terrain so the ring reads on slopes; rebuilt at 10 Hz while the creature moves.
+func _update_aggro_ring(delta: float) -> void:
+	var show := not is_pet and not health.dead and brain != null and brain.has_method("hunting_player") and brain.hunting_player()
+	if not show:
+		if _aggro_ring and _aggro_ring.visible:
+			_aggro_ring.visible = false
+		return
+	if _aggro_ring == null:
+		_aggro_ring = MeshInstance3D.new()
+		_aggro_ring.name = "AggroRing"
+		_aggro_ring.top_level = true
+		_aggro_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color = Color(0.95, 0.12, 0.1, 0.8)
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		m.no_depth_test = true  # a gameplay marker: never hidden by grass or slopes
+		m.render_priority = 2
+		_aggro_ring.material_override = m
+		_aggro_ring.mesh = ImmediateMesh.new()
+		add_child(_aggro_ring)
+		print("[ai] %s aggro ring r=%.1f" % [def.id, brain.aggro_radius()])
+	_aggro_ring.visible = true
+	_aggro_ring_t -= delta
+	var r: float = brain.aggro_radius()
+	if _aggro_ring_t > 0.0 and absf(r - _aggro_ring_r) < 0.01:
+		return
+	_aggro_ring_t = 0.1
+	_aggro_ring_r = r
+	var im := _aggro_ring.mesh as ImmediateMesh
+	im.clear_surfaces()
+	im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	var centre := global_position
+	var dashes := int(clampf(r * 3.0, 24.0, 96.0))
+	var w := 0.07
+	var rt := World.runtime if World else null
+	var has_surf := rt != null and rt.has_method("surface_y")
+	for i in dashes:
+		var a0 := TAU * float(i) / float(dashes)
+		var a1 := a0 + TAU / float(dashes) * 0.55
+		var quad: Array[Vector3] = []
+		for pair in [[a0, r - w], [a0, r + w], [a1, r + w], [a1, r - w]]:
+			var p := centre + Vector3(cos(pair[0]) * pair[1], 0.0, sin(pair[0]) * pair[1])
+			p.y = (rt.surface_y(p.x, p.z) if has_surf else centre.y) + 0.15
+			quad.append(p)
+		im.surface_add_vertex(quad[0])
+		im.surface_add_vertex(quad[1])
+		im.surface_add_vertex(quad[2])
+		im.surface_add_vertex(quad[0])
+		im.surface_add_vertex(quad[2])
+		im.surface_add_vertex(quad[3])
+	im.surface_end()
+	_aggro_ring.global_transform = Transform3D.IDENTITY
+
 func _update_label() -> void:
 	if label == null:
 		return
@@ -308,8 +395,16 @@ func _on_damaged(_amount: float, source: Node) -> void:
 	if health.dead:
 		return
 	last_damaged_s = _now_s()
-	combat_float.emit(_amount, &"hit")
-	view.flash_damage(0.1)
+	var kind := next_hit_kind
+	next_hit_kind = &"hit"
+	combat_float.emit(_amount, kind)
+	view.flash_damage(0.18 if kind == &"crit" else 0.1)
+	var burst_col := Color(1, 1, 1)
+	match kind:
+		&"weak": burst_col = Color(0.6, 0.6, 0.6)
+		&"strong": burst_col = Color(1.0, 0.6, 0.15)
+		&"crit": burst_col = Color(1.0, 0.15, 0.1)
+	hit_burst(burst_col, 0.16 if kind == &"crit" else 0.1, 22 if kind == &"crit" else 12)
 	if brain:
 		brain.note_damage(_amount)
 	if statuses.has(&"groggy") and not statuses.has(&"knockdown"):
@@ -333,6 +428,49 @@ func _on_died(_source: Node) -> void:
 	corpse.setup(self)
 	get_parent().add_child(corpse)
 	corpse.global_position = global_position
+
+## Status landed: float its name over the plate and puff a burst in its colour. The lasting
+## look (blood drip, venom tint, wobble) is _status_fx every frame.
+func _on_status_applied(id: StringName, _stacks: int) -> void:
+	if health.dead:
+		return
+	status_float.emit(id)
+	hit_burst(status_color(id), 0.2, 20, 0.55)
+
+## One-shot particle puff at chest height. Frees itself.
+func hit_burst(col: Color, radius: float = 0.1, count: int = 12, life: float = 0.4) -> void:
+	if not is_inside_tree():
+		return
+	var p := GPUParticles3D.new()
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.amount = count
+	p.lifetime = life
+	p.position = Vector3(0, def.height_meters * 0.55, 0)
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	mat.emission_sphere_radius = maxf(0.08, def.height_meters * 0.25)
+	mat.direction = Vector3(0, 1, 0)
+	mat.spread = 180.0
+	mat.initial_velocity_min = 1.2
+	mat.initial_velocity_max = 2.6
+	mat.gravity = Vector3(0, -3.0, 0)
+	mat.damping_min = 2.0
+	mat.damping_max = 4.0
+	mat.color = col
+	p.process_material = mat
+	var draw := SphereMesh.new()
+	draw.radius = radius * 0.5
+	draw.height = radius
+	var dm := StandardMaterial3D.new()
+	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dm.albedo_color = col
+	dm.vertex_color_use_as_albedo = true
+	draw.material = dm
+	p.draw_pass_1 = draw
+	add_child(p)
+	p.emitting = true
+	get_tree().create_timer(life + 0.3).timeout.connect(p.queue_free)
 
 func _on_healed(amount: float) -> void:
 	combat_float.emit(amount, &"heal")
@@ -369,6 +507,12 @@ func _tile_path_direction(delta: float) -> Vector3:
 		_replan_path()
 		_path_replan_left = 0.5
 	if _path_points.is_empty():
+		# No tile path (target on a blocked tile, or off the grid): steer straight at it when it is
+		# close instead of freezing; move_and_slide handles the bumps.
+		var direct := _path_goal - global_position
+		direct.y = 0.0
+		if direct.length() > 0.3 and direct.length() <= 12.0:
+			return direct.normalized()
 		return Vector3.ZERO
 	while _path_index < _path_points.size():
 		var next := _path_points[_path_index]
@@ -379,6 +523,11 @@ func _tile_path_direction(delta: float) -> Vector3:
 			continue
 		_track_blocked(delta)
 		return to_next.normalized()
+	# Path exhausted: close the last gap to the goal directly (the last point is a tile centre).
+	var tail := _path_goal - global_position
+	tail.y = 0.0
+	if tail.length() > 0.3 and tail.length() <= 2.0:
+		return tail.normalized()
 	_path_active = false
 	return Vector3.ZERO
 
@@ -401,7 +550,20 @@ func _replan_path() -> void:
 		return
 	_path_points = p.path(global_position, _path_goal, 72)
 	_path_index = 0
-	if _path_points.size() > 1 and _path_points[0].distance_to(global_position) <= 0.25:
+	# Skip waypoints already behind us (same rule as the survivor): a fresh path starts at this
+	# tile's centre, and walking back to it every replan is the in-place jitter.
+	while _path_points.size() > _path_index + 1:
+		var p0 := _path_points[_path_index]
+		var p1 := _path_points[_path_index + 1]
+		var seg := p1 - p0
+		seg.y = 0.0
+		var rel := global_position - p0
+		rel.y = 0.0
+		if seg.dot(rel) > 0.0 and rel.length() < 1.5:
+			_path_index += 1
+		else:
+			break
+	if _path_points.size() == 1 and _path_points[0].distance_to(global_position) <= 0.25:
 		_path_index = 1
 
 func _separation_steer() -> Vector3:

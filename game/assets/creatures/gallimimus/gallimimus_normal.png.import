@@ -18,7 +18,7 @@ dest_files=["res://.godot/imported/gallimimus_normal.png-a411119420b574cf5d43266
 
 [params]
 
-compress/mode=0
+compress/mode=4
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

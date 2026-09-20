@@ -90,9 +90,11 @@ func _draw() -> void:
 		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0)
 		draw_texture_rect(icon, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
 	elif glyph != "":
-		var gs := int(r * 0.9) if glyph.length() <= 2 else (int(r * 0.40) if glyph.length() <= 4 else int(r * 0.30))
+		var short := glyph.length() <= 2
+		var gs := int(r * (0.72 if bottom_text != "" else 0.9)) if short else (int(r * 0.40) if glyph.length() <= 4 else int(r * 0.30))
 		var w := font.get_string_size(glyph, HORIZONTAL_ALIGNMENT_CENTER, -1, gs).x
-		draw_string(font, Vector2(c.x - w * 0.5, c.y + gs * 0.35), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gs, Color(1, 1, 1, 0.5 if disabled else 1.0))
+		var gy := c.y + gs * (0.2 if bottom_text != "" else 0.35)
+		draw_string(font, Vector2(c.x - w * 0.5, gy), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gs, Color(1, 1, 1, 0.5 if disabled else 1.0))
 	if top_text != "":
 		var ts := int(r * 0.30)
 		var w := font.get_string_size(top_text, HORIZONTAL_ALIGNMENT_CENTER, -1, ts).x

@@ -107,19 +107,49 @@ func _auto_attack() -> void:
 	var defense := target.def.defense * target.statuses.defense_mult()
 	var raw: float = dmg - defense * 0.5
 	var dealt: float = maxf(dmg * 0.05, raw)
-	if _is_behind():
+	var behind := _is_behind()
+	if behind:
 		dealt *= 1.25
+	var melee_lv := player.skills.level_of("melee") if player.skills else 0
 	if player.skills:
-		dealt *= 1.0 + 0.01 * float(player.skills.level_of("melee"))  # ASSUMPTION +1 % per Melee level
+		dealt *= 1.0 + 0.01 * float(melee_lv)  # ASSUMPTION +1 % per Melee level
+	# Type matchup from ai.json (weak_to x1.5 orange, resists x0.6 grey), then a crit roll
+	# (x1.75 red): 8 % base, +20 % from behind, +0.2 % per Melee level.
+	var kind := effectiveness(target, dtype)
+	if kind == &"strong":
+		dealt *= 1.5
+	elif kind == &"weak":
+		dealt *= 0.6
+	var crit_chance := 0.08 + (0.20 if behind else 0.0) + 0.002 * float(melee_lv)
+	if randf() < crit_chance:
+		dealt *= 1.75
+		kind = &"crit"
+	target.next_hit_kind = kind
 	target.health.take_damage(dealt, player)
 	if player.skills:
 		player.skills.add_xp("melee", 2)
-	print("[combat] player hit %s dmg=%.1f type=%s" % [target.def.id, dealt, dtype])
+	print("[combat] player hit %s dmg=%.1f type=%s kind=%s" % [target.def.id, dealt, dtype, kind])
 	if dtype == &"slashing" and randf() < 0.25:
 		target.statuses.apply(&"bleeding_target", player)
 	if dtype == &"blunt" and randf() < 0.35:
 		target.statuses.apply(&"groggy", player)
 	_swing_cd = 1.0 / maxf(0.2, rate)
+
+## &"strong" when the creature's archetype lists the damage type under weak_to, &"weak" under
+## resists, else &"hit".
+static func effectiveness(c: Creature, dtype: StringName) -> StringName:
+	if c == null or c.def == null or dtype == &"":
+		return &"hit"
+	var all: Dictionary = Data.creature_ai.get("archetypes", {})
+	var row: Variant = all.get(str(c.def.archetype), {})
+	var dflt: Dictionary = Data.creature_ai.get("default", {})
+	var weak: Array = row.get("weak_to", dflt.get("weak_to", [])) if row is Dictionary else dflt.get("weak_to", [])
+	var res: Array = row.get("resists", dflt.get("resists", [])) if row is Dictionary else dflt.get("resists", [])
+	if str(dtype) in weak:
+		return &"strong"
+	if str(dtype) in res:
+		return &"weak"
+	return &"hit"
 
 func use_tackle() -> void:
 	if target == null or _tackle_cd > 0.0:
