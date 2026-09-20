@@ -28,8 +28,12 @@ var thirst: float = 100.0
 const HUNGER_PER_SEC := 100.0 / (45.0 * 60.0)
 const THIRST_PER_SEC := 100.0 / (30.0 * 60.0)
 
-## ASSUMPTION: Health/Energy regen rates are not numbered in PRD §2.3; 1.5 HP/s and 2 Energy/s while not blocked.
-@export var health_regen: float = 1.5
+## ASSUMPTION: Health/Energy regen rates are not numbered in PRD §2.3; 0.8 HP/s and 2 Energy/s while not blocked.
+## Health regen pauses for REGEN_LOCK_S after any hit, otherwise small bites (compy 8 dmg every
+## 1.2 s against 1.5 HP/s) were regenerated away and combat looked like it dealt no damage.
+@export var health_regen: float = 0.8
+const REGEN_LOCK_S := 6.0
+var _regen_lock: float = 0.0
 @export var energy_regen: float = 2.0
 
 func _process(delta: float) -> void:
@@ -40,7 +44,8 @@ func _process(delta: float) -> void:
 	var starving := hunger <= 0.0 or thirst <= 0.0
 	if starving:
 		add_fatigue(delta / 60.0, &"hunger")
-	if not blocks_regen and not starving:
+	_regen_lock = maxf(0.0, _regen_lock - delta)
+	if not blocks_regen and not starving and _regen_lock <= 0.0:
 		health = minf(effective_max_health(), health + health_regen * delta)
 	energy = minf(max_energy, energy + energy_regen * delta)
 	var was := exhausted
@@ -58,6 +63,7 @@ func take_damage(amount: float) -> void:
 	health = maxf(0.0, health - amount)
 	add_fatigue(amount * 0.15, &"combat")
 	if amount > 0.0:
+		_regen_lock = REGEN_LOCK_S
 		damaged.emit()
 	if was > 0.0 and health <= 0.0:
 		dead = true

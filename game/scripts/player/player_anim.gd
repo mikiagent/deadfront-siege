@@ -27,7 +27,9 @@ func play_idle() -> void:
 		return
 	_play(&"idle")
 
-func play_locomotion(speed: float) -> void:
+## Clip by intent, not by measured speed: tap-to-walk and sprint run, joystick/keys walk.
+## (Picking by speed flapped walk/run every frame at full walking pace.)
+func play_locomotion(speed: float, running: bool = false) -> void:
 	if _busy or _dead or _forced:
 		return
 	if player.mounted_on:
@@ -36,15 +38,7 @@ func play_locomotion(speed: float) -> void:
 	if speed < 0.08:
 		_play(&"idle")
 		return
-	# Hysteresis: walk_speed is 5.5 and the old cut-off was 5.5, so the clip flapped walk/run
-	# every frame at full walking pace (the "glitching" walk). Run only above 7.2, back to
-	# walk below 6.2.
-	var run := current_clip == &"run"
-	if speed > 7.2:
-		run = true
-	elif speed < 6.2:
-		run = false
-	_play(&"run" if run else &"walk")
+	_play(&"run" if running and speed > 2.5 else &"walk")
 
 func play_clip(clip: StringName, forced: bool = false) -> void:
 	if _dead and clip != &"death":
@@ -53,7 +47,7 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 		return  # already on the ground; every hit re-triggering the fall looked like a glitch
 	_requested_clip = clip
 	_forced = forced
-	_busy = clip in [&"attack_primary", &"attack_heavy", &"hit_react", &"roll", &"gather", &"knockdown"]
+	_busy = clip in [&"attack_primary", &"attack_heavy", &"punch", &"hit_react", &"roll", &"gather", &"knockdown"]
 	if clip == &"death":
 		_dead = true
 	_play(clip)
@@ -88,6 +82,10 @@ func on_gather() -> void:
 func on_attack(heavy: bool = false) -> void:
 	play_clip(&"attack_heavy" if heavy else &"attack_primary")
 
+## Unarmed: the punch clip when the survivor has one (anim/punch.glb), else the thrust.
+func on_punch() -> void:
+	play_clip(&"punch" if rig and rig.has_clip(&"punch") else &"attack_primary")
+
 ## The knockdown clip freezes on its last frame and stays busy; nothing released it before,
 ## so after the first knockdown the survivor slid around frozen in that pose for the rest
 ## of the session (the "walking glitch"). Release once the status is gone.
@@ -100,7 +98,7 @@ func release_knockdown() -> void:
 		rig.anim_player.speed_scale = 1.0
 	play_idle()
 
-func _physics_tick(speed: float) -> void:
+func _physics_tick(speed: float, running: bool = false) -> void:
 	if _busy and current_clip == &"knockdown" and player.statuses and not player.statuses.has_flag(&"knockdown"):
 		release_knockdown()
 	if player.rolling:
@@ -113,7 +111,7 @@ func _physics_tick(speed: float) -> void:
 		if not _busy:
 			_play(&"mount_idle")
 		return
-	play_locomotion(speed)
+	play_locomotion(speed, running)
 
 func _play(clip: StringName) -> void:
 	var resolved := _resolve(clip)
@@ -126,6 +124,8 @@ func _play(clip: StringName) -> void:
 	var speed := 1.0
 	if clip == &"attack_primary":
 		speed = 1.5
+	elif clip == &"punch":
+		speed = 1.3
 	elif _resolved_missing and clip in [&"attack_heavy", &"roll", &"gather", &"knockdown"]:
 		speed = 1.35
 	if rig:
@@ -159,7 +159,7 @@ func _schedule_missing_done(clip: StringName) -> void:
 func _on_missing_done(clip: StringName) -> void:
 	if _requested_clip != clip:
 		return
-	if clip == &"attack_primary" or clip == &"attack_heavy":
+	if clip == &"attack_primary" or clip == &"attack_heavy" or clip == &"punch":
 		attack_done.emit()
 	_busy = false
 	_forced = false
@@ -172,7 +172,7 @@ func _on_missing_done(clip: StringName) -> void:
 func _on_clip_finished(clip: StringName) -> void:
 	if current_clip != clip:
 		return
-	if clip == &"attack_primary" or clip == &"attack_heavy":
+	if clip == &"attack_primary" or clip == &"attack_heavy" or clip == &"punch":
 		attack_done.emit()
 	if clip == &"death":
 		_busy = false

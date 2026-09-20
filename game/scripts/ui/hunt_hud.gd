@@ -39,6 +39,9 @@ var _levelup_lines: Array = []
 var _levelup_t: float = -1.0
 var _titles: Dictionary = {}
 var _level_gains: Dictionary = {}
+# hits on the survivor: bite/crunch jaws + red numbers
+var _bites: Array = []
+var _player_floats: Array = []
 # death
 var _death_panel: Control
 var _death_alpha: float = 0.0
@@ -69,6 +72,12 @@ func _ready() -> void:
 		get_tree().create_timer(0.8).timeout.connect(func () -> void: World.pioneer_level += 1; World.pioneer_changed.emit(World.pioneer_level))
 	get_viewport().size_changed.connect(_layout)
 	_layout()
+	if "--bite-test" in OS.get_cmdline_user_args():  # screenshot runs: snap the jaws every 0.45 s
+		var t := Timer.new()
+		t.wait_time = 0.45
+		t.autostart = true
+		t.timeout.connect(func () -> void: bite_on_player(12.0, randf() < 0.5))
+		add_child(t)
 
 func bind(p: Player) -> void:
 	player = p
@@ -305,6 +314,52 @@ func _build_place_hexes() -> void:
 		)
 		add_child(h)
 		_place_hexes.append(h)
+
+## A creature bit the survivor: Pokémon Bite/Crunch style jaws snap shut over her chest and the
+## damage floats up in red. Heavy attacks get the bigger, redder Crunch.
+func bite_on_player(amount: float, heavy: bool) -> void:
+	_bites.append({"t": 0.0, "heavy": heavy, "x": randf_range(-6.0, 6.0)})
+	_player_floats.append({"t": 0.0, "n": amount, "x": randf_range(-18.0, 18.0)})
+
+func _draw_bites(cam: Camera3D) -> void:
+	if cam == null or player == null:
+		return
+	var chest := cam.unproject_position(player.global_position + Vector3(0, 0.95, 0))
+	for f in _player_floats:
+		var k: float = f["t"]
+		var a := 1.0 - smoothstep(0.55, 0.95, k)
+		var txt := "-%d" % int(round(float(f["n"])))
+		var fs := 22
+		var w := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x
+		var p := chest + Vector2(float(f["x"]) - w * 0.5, -30.0 - k * 46.0)
+		draw_string(_font, p + Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.8 * a))
+		draw_string(_font, p, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.25, 0.2, a))
+	for b in _bites:
+		var k: float = b["t"]
+		var heavy: bool = b["heavy"]
+		var n := 7 if heavy else 5
+		var s := 44.0 if heavy else 32.0
+		var gap := lerpf(s * 1.3, 3.0, smoothstep(0.0, 0.14, k))  # jaws snap shut
+		var a := 1.0 - smoothstep(0.3, 0.5, k)
+		var c := chest + Vector2(float(b["x"]), 0.0)
+		var tooth := Color(0.98, 0.97, 0.9, a)
+		var gum := Color(0.75, 0.12, 0.12, a) if heavy else Color(0.35, 0.08, 0.1, a)
+		var edge := Color(0.1, 0.05, 0.05, a)
+		for side_v in [-1.0, 1.0]:
+			var side: float = float(side_v)
+			var base_y: float = c.y + side * gap
+			var w := s * 0.62 * float(n)
+			draw_rect(Rect2(c.x - w * 0.5, base_y - (s * 0.28 if side < 0.0 else 0.0), w, s * 0.28), gum)
+			for i in n:
+				var x := c.x + (float(i) - float(n - 1) * 0.5) * s * 0.62
+				var h := s * (0.62 if i % 2 == 0 else 0.48)
+				var tri := PackedVector2Array([Vector2(x - s * 0.3, base_y), Vector2(x + s * 0.3, base_y), Vector2(x, base_y + side * h)])
+				draw_colored_polygon(tri, tooth)
+				var outline := tri.duplicate()
+				outline.append(tri[0])
+				draw_polyline(outline, edge, 1.5, true)
+		if k < 0.2 and heavy:
+			draw_rect(Rect2(0, 0, get_viewport_rect().size.x, get_viewport_rect().size.y), Color(0.9, 0.1, 0.1, 0.18 * (1.0 - k / 0.2)))
 
 func toast(id: StringName, n: int) -> void:
 	print("[ui] toast %s +%d" % [id, n])
@@ -545,6 +600,12 @@ func _process(delta: float) -> void:
 	for t in _toasts:
 		t["t"] += delta
 	_toasts = _toasts.filter(func (t: Dictionary) -> bool: return t["t"] < 1.3)
+	for b in _bites:
+		b["t"] += delta
+	_bites = _bites.filter(func (b: Dictionary) -> bool: return b["t"] < 0.5)
+	for f in _player_floats:
+		f["t"] += delta
+	_player_floats = _player_floats.filter(func (f: Dictionary) -> bool: return f["t"] < 0.95)
 	_minimap.queue_redraw()
 	queue_redraw()
 
@@ -606,6 +667,7 @@ func _draw() -> void:
 		draw_string(_font, Vector2(p.x - nw * 0.5, p.y + 20), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.95, 0.95, 0.95))
 	# --- label pills on buildings and nodes within 30 m (reference: base building)
 	_draw_pills(cam)
+	_draw_bites(cam)
 	# --- level-up stack (gold, top-left under the bars)
 	if _levelup_t >= 0.0:
 		var la := 1.0 - smoothstep(5.5, 6.5, _levelup_t)

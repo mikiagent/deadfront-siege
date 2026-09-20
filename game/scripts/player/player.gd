@@ -15,6 +15,8 @@ const HOLD_WALK_RETARGET := 0.15
 const TAP_PICK_RADIUS := 1.0
 
 @export var walk_speed: float = 5.5
+## Tap-to-walk pace (runs; keys/joystick without sprint walk). Faster than a chasing compy.
+@export var run_speed: float = 7.0
 @export var sprint_speed: float = 8.5
 @export var accel: float = 30.0
 @export var turn_speed: float = 14.0
@@ -286,7 +288,8 @@ func _physics_process(delta: float) -> void:
 		_cancel_gather_and_butcher()
 	var dir := _cam_dir(input)
 	var can_sprint := Input.is_action_pressed("sprint") and not statuses.has_flag(&"no_sprint")
-	var target_speed := sprint_speed if can_sprint else walk_speed
+	var running := can_sprint or (nav_active and not statuses.has_flag(&"no_sprint"))
+	var target_speed := sprint_speed if can_sprint else (run_speed if running else walk_speed)
 	target_speed *= statuses.move_mult()
 	if vitals.exhausted:
 		target_speed *= 0.7
@@ -316,7 +319,7 @@ func _physics_process(delta: float) -> void:
 	if dir.length_squared() > 0.0:
 		var target_yaw := atan2(-dir.x, -dir.z)  # RiggedModel faces -Z (the old capsule faced +Z)
 		visual.rotation.y = lerp_angle(visual.rotation.y, target_yaw, turn_speed * delta)
-		vitals.add_fatigue(delta * (0.8 if can_sprint else 0.25), &"walk")
+		vitals.add_fatigue(delta * (0.8 if can_sprint else (0.4 if running else 0.25)), &"walk")
 	vitals.fatigue_gain_mult = 0.5 if _in_coziness() else 1.0
 	if in_water:
 		_wet_acc += delta
@@ -341,7 +344,7 @@ func _physics_process(delta: float) -> void:
 	_drive_lantern()
 	if anim:
 		var spd := Vector2(velocity.x, velocity.z).length()
-		anim._physics_tick(spd)
+		anim._physics_tick(spd, running)
 	_sync_touch_context()
 
 func _cam_dir(input: Vector2) -> Vector3:
@@ -1021,6 +1024,16 @@ func _try_attack_key() -> void:
 		var c := _nearest_creature()
 		if c:
 			hunt.start(c)
+
+func play_punch() -> void:
+	if anim:
+		anim.on_punch()
+
+## Bite/crunch overlay and a red damage number over the survivor (HUD).
+func take_hit_fx(amount: float, heavy: bool) -> void:
+	var hud := get_tree().get_first_node_in_group("hud")
+	if hud and hud.has_method("bite_on_player"):
+		hud.bite_on_player(amount, heavy)
 
 func play_attack(heavy: bool = false) -> void:
 	if anim:

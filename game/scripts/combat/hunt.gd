@@ -103,7 +103,10 @@ func _auto_attack() -> void:
 	var dtype := def.damage_type if def else &"blunt"
 	if def and def.is_work_tool:
 		dmg *= 0.45
-	player.play_attack(dtype == &"blunt" and dmg > 10.0)
+	if w == null:
+		player.play_punch()
+	else:
+		player.play_attack(dtype == &"blunt" and dmg > 10.0)
 	var defense := target.def.defense * target.statuses.defense_mult()
 	var raw: float = dmg - defense * 0.5
 	var dealt: float = maxf(dmg * 0.05, raw)

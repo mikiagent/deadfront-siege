@@ -75,7 +75,7 @@ func _merge_dir(anim_dir: String) -> void:
 	var seen: Dictionary = {}
 	var names: Array[String] = [
 		"idle", "walk", "run", "hit_react", "death", "attack_primary", "attack_heavy",
-		"roll", "gather", "knockdown", "mount_idle", "alert", "feed",
+		"roll", "gather", "knockdown", "mount_idle", "alert", "feed", "punch",
 	]
 	var da := DirAccess.open(anim_dir)
 	if da:

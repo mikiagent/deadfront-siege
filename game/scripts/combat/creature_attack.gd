@@ -9,7 +9,7 @@ static func apply_for(attacker: Creature, clip: StringName, target: Node) -> voi
 	if clip == &"attack_heavy" or clip == &"attack_primary":
 		for tok in tokens:
 			_apply_token(tok, clip, target, attacker)
-	_deal_damage(attacker, target)
+	_deal_damage(attacker, target, clip)
 
 static func _apply_token(tok: StringName, clip: StringName, target: Node, source: Creature) -> void:
 	var parsed := StatusEffects.parse_token(tok)
@@ -24,7 +24,7 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 	elif target is Player:
 		(target as Player).statuses.apply(id, source, int(parsed["stacks"]))
 
-static func _deal_damage(attacker: Creature, target: Node) -> void:
+static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"attack_primary") -> void:
 	var atk := attacker.def.attack * attacker.statuses.attack_mult()
 	var defn := 0.0
 	if target is Player:
@@ -37,6 +37,8 @@ static func _deal_damage(attacker: Creature, target: Node) -> void:
 			print("[combat] dodged %s %s" % [attacker.def.id, attacker.anim.current_clip])
 			return
 		(target as Player).vitals.take_damage(dealt)
+		if (target as Player).has_method("take_hit_fx"):
+			(target as Player).take_hit_fx(dealt, clip == &"attack_heavy")
 		print("[combat] %s hit player dmg=%.1f clip=%s" % [attacker.def.id, dealt, attacker.anim.current_clip])
 	elif target is Creature:
 		var cr := target as Creature
