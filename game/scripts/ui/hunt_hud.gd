@@ -124,15 +124,15 @@ func _hex(glyph: String, size_px: float = HEX) -> HexButton:
 	return h
 
 func _build_menu_row() -> void:
-	_menu_hex = _hex("≡")
+	_menu_hex = _hex("MENU")
 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
-	_pets_hex = _hex("🦖")
+	_pets_hex = _hex("PETS")
 	_pets_hex.pressed.connect(func () -> void: _toggle_sheet(&"pets"))
-	_build_hex = _hex("⌂")
+	_build_hex = _hex("BUILD")
 	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
-	_skills_hex = _hex("★")
+	_skills_hex = _hex("SKILLS")
 	_skills_hex.pressed.connect(_toggle_skills)
-	_inspect_hex = _hex("🔍", 56.0)
+	_inspect_hex = _hex("INFO", 56.0)
 	_inspect_hex.pressed.connect(func () -> void:
 		Game.debug_overlay = not Game.debug_overlay
 		print("[hud] inspect %s" % ("on" if Game.debug_overlay else "off"))
@@ -158,7 +158,7 @@ func _build_combat() -> void:
 	)
 	_end_btn.visible = false
 	add_child(_end_btn)
-	var specs := [["🕸", "net"], ["🔪", "tackle"], ["🦵", "kick"], ["↯", "roll"]]
+	var specs := [["NET", "net"], ["TACKLE", "tackle"], ["KICK", "kick"], ["ROLL", "roll"]]
 	for s in specs:
 		var h := HexButton.new(72.0)
 		h.glyph = s[0]
@@ -186,13 +186,14 @@ func _build_combat() -> void:
 	_stance_label.visible = false
 	add_child(_stance_label)
 	_chase_hex = HexButton.new(HEX)
-	_chase_hex.glyph = "🏃"
+	_chase_hex.glyph = "CHASE"
 	_chase_hex.fill = Color(0.93, 0.72, 0.15, 0.95)
 	_chase_hex.visible = false
 	_chase_hex.pressed.connect(func () -> void:
 		if player and player.hunt:
 			player.hunt.hold = not player.hunt.hold
 			_chase_hex.fill = Color(0.25, 0.25, 0.25, 0.9) if player.hunt.hold else Color(0.93, 0.72, 0.15, 0.95)
+			_chase_hex.glyph = "HOLD" if player.hunt.hold else "CHASE"
 			_chase_hex.queue_redraw()
 	)
 	add_child(_chase_hex)
@@ -211,7 +212,7 @@ func _on_skill(id: StringName) -> void:
 			player._try_roll()
 
 func _build_place_hexes() -> void:
-	var specs := [["↻", Color(0.2, 0.2, 0.22, 0.95), "rotate"], ["✓", Color(0.10, 0.55, 0.22, 0.97), "confirm"], ["✕", Color(0.65, 0.12, 0.12, 0.97), "cancel"]]
+	var specs := [["ROTATE", Color(0.2, 0.2, 0.22, 0.95), "rotate"], ["PLACE", Color(0.10, 0.55, 0.22, 0.97), "confirm"], ["CANCEL", Color(0.65, 0.12, 0.12, 0.97), "cancel"]]
 	for sp in specs:
 		var h := HexButton.new(70.0)
 		h.glyph = sp[0]
@@ -244,6 +245,8 @@ func _refresh_context(delta: float) -> void:
 		return
 	_ctx_timer = 0.3
 	var actions: Array = player.context_actions() if player.has_method("context_actions") else []
+	if _in_combat:
+		actions = []  # the skill cluster owns the bottom-right during a hunt
 	var ids: Array = []
 	for a in actions:
 		ids.append(a["id"])
@@ -258,8 +261,7 @@ func _refresh_context(delta: float) -> void:
 	var x := r.x - 16.0 - inset.x - 74.0 - 60.0
 	for a in actions:
 		var h := HexButton.new(70.0)
-		h.glyph = str(a["glyph"])
-		h.bottom_text = str(a["label"])
+		h.glyph = str(a["label"]).to_upper()
 		var id := str(a["id"])
 		h.pressed.connect(func () -> void: player.context_action(id))
 		add_child(h)
@@ -565,7 +567,7 @@ func _draw() -> void:
 					draw_string(_font, Vector2(ix + 4, py + 93), str(inst.id).left(2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.6, 0.5, a))
 					ix += 30
 		# labels for the hex cluster
-		draw_string(_font, _chase_hex.position + Vector2(HEX + 8, HEX * 0.5 + 6), "Hold" if player.hunt.hold else "Chase", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 1, 1, a))
+	
 
 func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String) -> void:
 	draw_rect(Rect2(pos, size), Color(0.08, 0.08, 0.1, 0.85))
@@ -657,7 +659,7 @@ func _draw_pills(cam: Camera3D) -> void:
 			radial_node = gr.node
 	var rows: Array = []
 	var pp := player.global_position
-	for grp in ["placed_building", "craft_station", "bonfire", "taming_pen", "harvest"]:
+	for grp in ["placed_building", "craft_station", "bonfire", "taming_pen", "cargo_warp", "harbour", "harvest"]:
 		for n in get_tree().get_nodes_in_group(grp):
 			var n3 := n as Node3D
 			if n3 == null or not n3.visible or n3 == radial_node:
@@ -698,6 +700,10 @@ func _draw_pills(cam: Camera3D) -> void:
 			if kind == null:
 				kind = n3.get("station_id")
 			name = str(kind if kind != null else n3.name).replace("_", " ").capitalize()
+			if grp == "cargo_warp":
+				name = "Cargo Warp"
+			elif grp == "harbour":
+				name = "Harbour"
 		if d > 22.0:
 			name += "  · %d m" % int(d)
 		var a := 1.0 - smoothstep(22.0, 30.0, d)

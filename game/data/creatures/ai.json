@@ -7,7 +7,7 @@
     "roam_delay_min": 3.0,
     "roam_delay_max": 6.0,
     "attack_range": 1.8,
-    "disengage_seconds": 12.0,
+    "disengage_seconds": 3.0,
     "retreat_threshold_frac": 0.3,
     "retreat_tiles": 3.0,
     "flee_tiles": 8.0,
@@ -15,7 +15,9 @@
     "night_predator_bonus": true,
     "is_herbivore": false,
     "pack_flank": false,
-    "herd_hold_radius_tiles": 8.0
+    "herd_hold_radius_tiles": 8.0,
+    "chase_speed_mult": 0.7,
+    "leash_mult": 2.2
   },
   "archetypes": {
     "pack_raptor": {

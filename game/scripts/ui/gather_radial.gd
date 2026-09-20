@@ -30,6 +30,22 @@ func _ready() -> void:
 func is_open() -> bool:
 	return _open
 
+## Any press that is not on one of the hexes closes the menu (Durango: tap away to dismiss).
+func _input(event: InputEvent) -> void:
+	if not _open:
+		return
+	var pos := Vector2.ZERO
+	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
+		pos = (event as InputEventScreenTouch).position
+	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		pos = (event as InputEventMouseButton).position
+	else:
+		return
+	for b in _buttons:
+		if b.get_global_rect().grow(6.0).has_point(pos):
+			return
+	close()
+
 func open(p_node: HarvestNode, p_options: Array, inv: Inventory) -> void:
 	var fam := p_node.family if p_node.family != "" else str(p_node.node_id)
 	open_options(p_node, fam.replace("_", " ").capitalize(), int(p_node.yield_attributes.get("level", 1)), p_node.top_of_node(), p_options, inv)

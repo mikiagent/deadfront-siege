@@ -223,7 +223,7 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	var line1 := entry["line1"] as Label
 	var rel_col := _relation_color(c)
 	line1.add_theme_color_override("font_color", rel_col)
-	line1.text = "Lv. %d %s%s" % [c.level, c.def.species, _pack_suffix(c)]
+	line1.text = "Lv. %d %s" % [c.level, str(c.def.species).capitalize()]
 	var frac := c.health.fraction()
 	var prev := float(entry.get("hp_frac", frac))
 	if frac < prev:

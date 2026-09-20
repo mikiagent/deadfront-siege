@@ -12,7 +12,7 @@ const PLAYER_CLIPS: Array[StringName] = [
 const GATHER_FATIGUE_PER_UNIT := 1.5 / 4.0 # ASSUMPTION: per-unit fatigue is one quarter of legacy per-gather cost.
 const HOLD_WALK_DELAY := 0.25
 const HOLD_WALK_RETARGET := 0.15
-const TAP_PICK_RADIUS := 0.6
+const TAP_PICK_RADIUS := 1.0
 
 @export var walk_speed: float = 5.5
 @export var sprint_speed: float = 8.5
@@ -69,6 +69,9 @@ var _hips_anchor: Marker3D
 var _mount_hips_offset: Vector3 = Vector3.ZERO
 var _mount_saved_parent: Node
 var _ground_marker: MeshInstance3D
+var _path_line: MeshInstance3D
+var _ripple: MeshInstance3D
+var _marker_t: float = 0.0
 var _hold_walk_candidate: bool = false
 var _hold_walk_elapsed: float = 0.0
 var _hold_walk_retarget_left: float = 0.0
@@ -237,6 +240,7 @@ func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 
 func _physics_process(delta: float) -> void:
 	_fall_guard()
+	_draw_path_line(delta)
 	_tick_food_buffs(delta)
 	_survival_acc += delta
 	if _survival_acc >= 60.0 and skills:
@@ -448,8 +452,8 @@ func _interact_tap_target(col: Object) -> void:
 	if col is HarvestNode:
 		var hn := col as HarvestNode
 		var opts := hn.options()
-		if opts.size() > 1 and _gather_radial:
-			_gather_radial.open(hn, opts, inventory)
+		if _gather_radial and not opts.is_empty():
+			_gather_radial.open(hn, opts, inventory)  # Durango: always pick from the hexes
 		else:
 			if opts.size() == 1:
 				hn.select_option(0)
@@ -483,7 +487,7 @@ func _interact_tap_target(col: Object) -> void:
 func _pick_interactable(hit: Dictionary) -> Object:
 	var ray_col: Object = hit.get("collider", null)
 	if _is_interactable(ray_col):
-		return ray_col
+		return _unwrap_tap(ray_col)
 	var at: Vector3 = hit.get("position", global_position)
 	var query := PhysicsShapeQueryParameters3D.new()
 	var bubble := SphereShape3D.new()
@@ -491,7 +495,7 @@ func _pick_interactable(hit: Dictionary) -> Object:
 	query.shape = bubble
 	query.transform = Transform3D(Basis.IDENTITY, at)
 	query.collide_with_bodies = true
-	query.collide_with_areas = false
+	query.collide_with_areas = true  # HarvestNode tap zones live on layer 2 (see _is_interactable)
 	var results := get_world_3d().direct_space_state.intersect_shape(query, 16)
 	var best: Object = null
 	var best_d := 9999.0
@@ -505,10 +509,17 @@ func _pick_interactable(hit: Dictionary) -> Object:
 		var d := n.global_position.distance_to(at)
 		if d < best_d:
 			best_d = d
-			best = col
+			best = _unwrap_tap(col)
 	return best
 
+func _unwrap_tap(col: Object) -> Object:
+	if col is Area3D and (col as Area3D).get_parent() is HarvestNode:
+		return (col as Area3D).get_parent()
+	return col
+
 func _is_interactable(col: Object) -> bool:
+	if col is Area3D and (col as Area3D).get_parent() is HarvestNode:
+		return true
 	if col is HarvestNode or col is Corpse or col is Creature or col is Bonfire or col is TamingPen:
 		return true
 	if col is Node:
@@ -582,6 +593,11 @@ func _begin_field_tame(creature: Creature) -> void:
 	nav_to(_closest_nav_point(creature.global_position))
 
 func _on_arrived() -> void:
+	if gather_target and is_instance_valid(gather_target) and global_position.distance_to(gather_target.global_position) > 3.2:
+		print("[path] could not reach %s" % gather_target.node_id)
+		gather_target = null
+		_clear_ground_marker()
+		return
 	_clear_ground_marker()
 	if gather_target and is_instance_valid(gather_target):
 		face_world(gather_target.global_position)
@@ -752,10 +768,85 @@ func _show_ground_marker(at: Vector3) -> void:
 		return
 	_ground_marker.global_position = at + Vector3(0.0, 0.05, 0.0)
 	_ground_marker.visible = true
+	_marker_t = 0.0
+	_ripple_at(at)
 
 func _clear_ground_marker() -> void:
 	if _ground_marker:
 		_ground_marker.visible = false
+	if _path_line:
+		_path_line.visible = false
+
+## Tap feedback: an expanding ring on the tapped tile (pathfinding UI).
+func _ripple_at(at: Vector3) -> void:
+	if _ripple == null:
+		_ripple = MeshInstance3D.new()
+		_ripple.name = "TapRipple"
+		_ripple.top_level = true
+		var PV := load("res://scripts/world/prop_visuals.gd") as GDScript
+		var tor := TorusMesh.new()
+		tor.inner_radius = 0.42
+		tor.outer_radius = 0.5
+		tor.rings = 24
+		tor.ring_segments = 8
+		_ripple.mesh = tor
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color = Color(1, 1, 1, 0.9)
+		_ripple.material_override = m
+		_ripple.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(_ripple)
+	_ripple.global_position = at + Vector3(0, 0.08, 0)
+	_ripple.scale = Vector3.ONE * 0.4
+	_ripple.visible = true
+	var mat := _ripple.material_override as StandardMaterial3D
+	mat.albedo_color = Color(1, 1, 1, 0.9)
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(_ripple, "scale", Vector3.ONE * 2.4, 0.45).set_ease(Tween.EASE_OUT)
+	tw.tween_property(mat, "albedo_color", Color(1, 1, 1, 0.0), 0.45)
+	tw.chain().tween_callback(func () -> void: _ripple.visible = false)
+
+## Dotted line along the planned route (tile path), redrawn while walking; the target pulses.
+func _draw_path_line(delta: float) -> void:
+	if _path_line == null:
+		_path_line = MeshInstance3D.new()
+		_path_line.name = "PathLine"
+		_path_line.top_level = true
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color = Color(1, 1, 1, 0.75)
+		_path_line.material_override = m
+		_path_line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(_path_line)
+	if not nav_active or _path_points.size() < 2:
+		_path_line.visible = false
+		return
+	_marker_t += delta
+	if _ground_marker and _ground_marker.visible:
+		_ground_marker.scale = Vector3.ONE * (1.0 + 0.12 * sin(_marker_t * 6.0))
+	var im := ImmediateMesh.new()
+	im.surface_begin(Mesh.PRIMITIVE_LINES)
+	var prev := global_position
+	var dash := 0.35
+	var gap := 0.3
+	for i in range(_path_index, _path_points.size()):
+		var nxt := _path_points[i]
+		var len := prev.distance_to(nxt)
+		var t := 0.0
+		while t < len:
+			var t2 := minf(len, t + dash)
+			var a := prev.lerp(nxt, t / maxf(0.001, len))
+			var b := prev.lerp(nxt, t2 / maxf(0.001, len))
+			im.surface_add_vertex(Vector3(a.x, a.y + 0.12, a.z))
+			im.surface_add_vertex(Vector3(b.x, b.y + 0.12, b.z))
+			t += dash + gap
+		prev = nxt
+	im.surface_end()
+	_path_line.mesh = im
+	_path_line.visible = true
 
 func _setup_gather_ring() -> void:
 	var layer := CanvasLayer.new()
@@ -810,14 +901,25 @@ func _request_tile_path() -> void:
 		return
 	_path_points = p.path(global_position, _path_goal, 96)
 	_path_index = 0
-	if _path_points.size() > 1 and _path_points[0].distance_to(global_position) <= 0.25:
-		_path_index = 1
+	# Skip waypoints already behind us (a re-plan starts at the current tile's centre, which
+	# would otherwise make the survivor step back to it and jitter).
+	while _path_points.size() > _path_index + 1:
+		var p0 := _path_points[_path_index]
+		var p1 := _path_points[_path_index + 1]
+		var seg := p1 - p0
+		seg.y = 0.0
+		var rel := global_position - p0
+		rel.y = 0.0
+		if seg.dot(rel) > 0.0 and rel.length() < 1.5:
+			_path_index += 1
+		else:
+			break
 
 func _tile_nav_dir(delta: float) -> Vector3:
 	_path_replan_left -= delta
 	if _path_points.is_empty() or _path_replan_left <= 0.0:
 		_request_tile_path()
-		_path_replan_left = 0.5
+		_path_replan_left = 1.5
 	if _path_points.is_empty():
 		return Vector3.ZERO
 	while _path_index < _path_points.size():

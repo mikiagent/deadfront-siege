@@ -15,6 +15,8 @@ xcodebuild -project "$OUT/durango.xcodeproj" -scheme durango -configuration Debu
 APP="$WORK/dd/Build/Products/Debug-iphonesimulator/durango.app"; [[ -d "$APP" ]] || { echo "build failed"; exit 1; }
 xcrun simctl install "$UDID" "$APP"
 xcrun simctl terminate "$UDID" com.durangolike.dev 2>/dev/null || true
-xcrun simctl launch "$UDID" com.durangolike.dev
+# Godot reads NSProcessInfo arguments, so engine flags can be passed here (e.g. --rendering-driver vulkan).
+# shellcheck disable=SC2086
+xcrun simctl launch "$UDID" com.durangolike.dev ${LAUNCH_ARGS:-}
 sleep "${SIM_WAIT:-15}"
 xcrun simctl io "$UDID" screenshot --type=png "$SHOT" >/dev/null && echo "screenshot: $SHOT"

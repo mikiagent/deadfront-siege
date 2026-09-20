@@ -148,6 +148,9 @@ func _physics_process(delta: float) -> void:
 		_update_label()
 		return
 	var speed := def.move_speed_mps * statuses.move_mult()
+	if not is_pet and brain and (brain.state == &"approach" or brain.state == &"attack"):
+		# ASSUMPTION: wild animals chase at 70 % of their listed speed so a survivor can outrun them.
+		speed *= float(brain.profile.get("chase_speed_mult", 0.7)) if brain.get("profile") != null else 0.7
 	if is_pet and hunger <= 0.0:
 		speed *= 0.85
 	var locomote := Vector3.ZERO

@@ -63,13 +63,28 @@ func _ready() -> void:
 		pool = float(pool_max)
 	depleted = pool_units_left() <= 0
 	if get_node_or_null("Shape") == null:
+		# Physics: a slim trunk so paths that pass next to the node never jam on it.
 		var shape := CollisionShape3D.new()
 		shape.name = "Shape"
 		var box := BoxShape3D.new()
-		box.size = _collision_size()
+		var tap := _collision_size()
+		box.size = Vector3(0.9 if _is_rock() else 0.55, tap.y, 0.9 if _is_rock() else 0.55)
 		shape.shape = box
 		shape.position.y = box.size.y * 0.5
 		add_child(shape)
+		# Tap target: the wide box, on layer 2 so it is picked by taps but never collided with.
+		var zone := Area3D.new()
+		zone.name = "TapZone"
+		zone.collision_layer = 2
+		zone.collision_mask = 0
+		zone.monitoring = false
+		var zs := CollisionShape3D.new()
+		var zb := BoxShape3D.new()
+		zb.size = tap
+		zs.shape = zb
+		zs.position.y = tap.y * 0.5
+		zone.add_child(zs)
+		add_child(zone)
 	if get_node_or_null("Mesh") == null:
 		_mesh = MeshInstance3D.new()
 		_mesh.name = "Mesh"
@@ -205,9 +220,15 @@ func set_batched_visual(batch: VegBatch, idx: int) -> void:
 		_mesh.visible = false
 	_apply_batch()
 
+func _set_tap_zone(on: bool) -> void:
+	var z := get_node_or_null("TapZone") as Area3D
+	if z:
+		z.collision_layer = 2 if on else 0
+
 func _apply_batch() -> void:
 	if _batch:
 		_batch.set_shown(_batch_idx, visible and not depleted)
+	_set_tap_zone(visible and not depleted)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED:
@@ -276,6 +297,9 @@ func _collision_size() -> Vector3:
 	var wide := _is_tree_or_rock()
 	var w := 1.4 if wide else 1.0
 	return Vector3(w, 1.6, w)
+
+func _is_rock() -> bool:
+	return str(Data.nature_families.get(family, {}).get("role", "")) == "rock"
 
 func _is_tree_or_rock() -> bool:
 	var role := str(Data.nature_families.get(family, {}).get("role", ""))

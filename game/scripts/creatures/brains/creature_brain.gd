@@ -232,10 +232,17 @@ func _disengage_track(delta: float) -> void:
 	if not _valid_target():
 		_disengage_left = 0.0
 		return
-	var far := creature.global_position.distance_to(attack_target.global_position) > _effective_perception() * 1.5
+	var dist := creature.global_position.distance_to(attack_target.global_position)
+	# Aggro leash: beyond leash_mult × perception the chase ends at once; beyond 1.5 × it ends
+	# after disengage_seconds. Running far enough away always works.
+	if dist > _effective_perception() * float(profile.get("leash_mult", 2.2)):
+		print("[ai] %s disengage (leash)" % creature.def.id)
+		_set_state(&"disengage")
+		return
+	var far := dist > _effective_perception() * 1.5
 	if far:
 		_disengage_left += delta
-		if _disengage_left >= float(profile.get("disengage_seconds", 12.0)):
+		if _disengage_left >= float(profile.get("disengage_seconds", 3.0)):
 			_set_state(&"disengage")
 	else:
 		_disengage_left = 0.0
