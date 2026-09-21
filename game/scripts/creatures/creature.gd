@@ -190,12 +190,20 @@ func _physics_process(delta: float) -> void:
 	if _path_active:
 		if _use_tile_path():
 			locomote = _tile_path_direction(delta)
-		elif not agent.is_navigation_finished():
-			var next := agent.get_next_path_position()
-			var to := next - global_position
-			to.y = 0.0
-			if to.length_squared() > 0.0001:
-				locomote = to.normalized()
+		else:
+			if not agent.is_navigation_finished():
+				var next := agent.get_next_path_position()
+				var to := next - global_position
+				to.y = 0.0
+				if to.length_squared() > 0.0001:
+					locomote = to.normalized()
+			# Runtime nav maps can take a frame to sync and sparse labs occasionally return the
+			# current point. A nearby AI goal is still safe to steer toward directly.
+			if locomote.length_squared() <= 0.0:
+				var direct := _path_goal - global_position
+				direct.y = 0.0
+				if direct.length() > 0.3 and direct.length() <= 12.0:
+					locomote = direct.normalized()
 	if locomote.length_squared() > 0.0:
 		var sep := _separation_steer()
 		var dir := (locomote + sep).normalized()
@@ -236,6 +244,8 @@ func _size_collision() -> void:
 func _make_brain() -> void:
 	if is_pet:
 		brain = PetBrain.new()
+	elif def and def.mapped_archetype() == &"raptor_pack":
+		brain = RaptorPackBrain.new()
 	else:
 		brain = CreatureBrain.new()
 	brain.name = "Brain"
@@ -434,6 +444,11 @@ func _on_damaged(_amount: float, source: Node) -> void:
 
 func _on_died(_source: Node) -> void:
 	anim.play_clip(&"death")
+	# The dead creature stops physics processing before _update_aggro_ring can hide it. Remove the
+	# top-level world marker here so a dead dinosaur never leaves a red leash circle behind.
+	if _aggro_ring:
+		_aggro_ring.queue_free()
+		_aggro_ring = null
 	# Pet XP: a kill by the pet pays 10 + tier/3; a survivor kill with the pet fighting within
 	# 15 m pays 3 + tier/6. Levels raise the pet's HP, attack and defense.
 	if not is_pet:
