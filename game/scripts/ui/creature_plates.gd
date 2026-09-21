@@ -82,6 +82,9 @@ func _tick_corpses(cam: Camera3D, player: Player, delta: float) -> void:
 		var node := e["node"] as Control
 		node.visible = alpha > 0.02
 		node.modulate.a = alpha
+		var knife := e.get("knife", null) as TextureRect
+		if knife:
+			knife.modulate = Color.WHITE if player.inventory.has_tool_class(&"knife") else Color(1.0, 0.4, 0.35)
 		var world := corpse.plate_anchor()
 		var screen := cam.unproject_position(world)
 		node.position = screen + Vector2(-70, -28)
@@ -208,8 +211,18 @@ func _ensure_corpse_entry(corpse: Corpse) -> Dictionary:
 	label.text = "Loot · %s" % corpse.species_display_name()
 	label.add_theme_color_override("font_color", Color(0.85, 0.9, 0.78))
 	node.add_child(label)
+	# Butchering needs a knife: show it, red while the bag has none.
+	var knife := TextureRect.new()
+	knife.name = "Knife"
+	knife.texture = ItemIcons.texture(&"stone_knife")
+	knife.custom_minimum_size = Vector2(18, 18)
+	knife.size = Vector2(18, 18)
+	knife.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	knife.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	knife.position = Vector2(node.size.x + 4.0, 2.0)
+	node.add_child(knife)
 	_root.add_child(node)
-	var entry := {"node": node, "alpha": 0.0}
+	var entry := {"node": node, "alpha": 0.0, "knife": knife}
 	_corpse_entries[key] = entry
 	return entry
 

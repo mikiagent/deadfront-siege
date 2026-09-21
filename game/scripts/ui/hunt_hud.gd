@@ -921,6 +921,30 @@ func _draw_minimap() -> void:
 	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(1, 1, 1, 0.35), false, 1.5)
 
+const TOOL_ICON_ITEM := {"axe": "work_axe", "pick": "work_pick", "knife": "stone_knife", "none": "hands", "": "hands"}
+
+## [[icon, have]] per distinct tool the node's yields need; corpses need a knife.
+func _tools_for_node(n3: Node3D, grp: String) -> Array:
+	var out: Array = []
+	var seen: Dictionary = {}
+	var classes: Array = []
+	if grp == "harvest" and n3 is HarvestNode:
+		for o in (n3 as HarvestNode).options():
+			classes.append(str(o.get("tool", "none")))
+	elif grp == "corpse":
+		classes.append("knife")
+	else:
+		return out
+	for c in classes:
+		if seen.has(c):
+			continue
+		seen[c] = true
+		var have := true
+		if c != "none" and c != "" and player and player.inventory:
+			have = player.inventory.has_tool_class(StringName(c))
+		out.append([ItemIcons.texture(StringName(str(TOOL_ICON_ITEM.get(c, "hands")))), have])
+	return out
+
 func _draw_pills(cam: Camera3D) -> void:
 	if cam == null or player == null:
 		return
@@ -982,11 +1006,20 @@ func _draw_pills(cam: Camera3D) -> void:
 		var sp := cam.unproject_position(n3.global_position + Vector3(0, top + 0.35, 0))
 		var text := "%s  %s" % [glyph, name]
 		var tw := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
-		var w := tw + 30.0
+		# Tool icons: one per yield (hands when no tool is needed), red when the bag lacks it.
+		var tools: Array = _tools_for_node(n3, grp)
+		var w := tw + 30.0 + float(tools.size()) * 22.0 + (6.0 if not tools.is_empty() else 0.0)
 		var rect := Rect2(sp.x - w * 0.5, sp.y - 24.0, w, 22.0)
 		draw_rect(rect, Color(0.05, 0.06, 0.08, 0.82 * a))
 		draw_circle(Vector2(rect.position.x + 10.0, rect.position.y + 11.0), 4.0, Color(dot, a))
 		draw_string(_font, Vector2(rect.position.x + 20.0, rect.position.y + 16.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1, 1, 1, a))
+		var ix := rect.position.x + 20.0 + tw + 8.0
+		for t in tools:
+			var tex: Texture2D = t[0]
+			var ok: bool = t[1]
+			if tex:
+				draw_texture_rect(tex, Rect2(ix, rect.position.y + 2.0, 18.0, 18.0), false, Color(1, 1, 1, a) if ok else Color(1.0, 0.4, 0.35, a))
+			ix += 22.0
 		if timer != "":
 			var tt := "⏱ %s" % timer
 			var ttw := _font.get_string_size(tt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
