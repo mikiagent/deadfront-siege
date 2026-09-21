@@ -485,6 +485,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.is_action_pressed("tactic_4"):
 			hunt.use_net()
 	if event.is_action_pressed("tap"):
+		if placer.layout_mode and placer.moving == null:
+			# Layout mode: a tap on a building picks it up; anything else is ignored.
+			if _tap_blocked():
+				return
+			var hit := _ray()
+			var col: Object = hit.get("collider", null) if not hit.is_empty() else null
+			var b := _unwrap_tap(col) if col else null
+			if b is Node3D and BuildPlacer.is_movable(b):
+				placer.pick_up(b as Node3D)
+			else:
+				notice("Tap a building to pick it up, or DONE to finish.")
+			_hold_walk_candidate = false
+			get_viewport().set_input_as_handled()
+			return
 		if placer.placing != &"":
 			if _tap_blocked():
 				_hold_walk_candidate = false
@@ -1341,6 +1355,7 @@ func summon_pet(index: int = 0) -> void:
 	c.hunger_max = rec.hunger_max
 	c.health.max_hp = rec.hp
 	c.health.hp = rec.hp
+	c.level = rec.level
 	summoned_pet = c
 	rec.summoned = true
 	print("[capture] summoned %s hp=%.0f (wild hp=%.0f)" % [def.id, c.health.max_hp, def.hp])

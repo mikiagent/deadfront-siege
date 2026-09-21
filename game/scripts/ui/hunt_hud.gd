@@ -40,6 +40,7 @@ var _ctx_hexes: Array[HexButton] = []
 var _ctx_ids: Array = []
 var _ctx_timer: float = 0.0
 var _place_hexes: Array[HexButton] = []
+var _done_hex: HexButton
 var _levelup_lines: Array = []
 var _levelup_t: float = -1.0
 var _titles: Dictionary = {}
@@ -73,6 +74,20 @@ func _ready() -> void:
 		World.pioneer_changed.connect(_on_level_up)
 	if Game.shot_path.contains("skills") or Game.shot_path.contains("tree"):
 		get_tree().create_timer(0.8).timeout.connect(func () -> void: _toggle_skills("gathering" if Game.shot_path.contains("tree") else ""))
+	if Game.shot_path.contains("layout"):
+		get_tree().create_timer(0.9).timeout.connect(func () -> void:
+			player.placer.begin_layout()
+			var best: Node3D = null
+			var bd := INF
+			for n in get_tree().get_nodes_in_group("craft_station") + get_tree().get_nodes_in_group("placed_building"):
+				if n is Node3D and BuildPlacer.is_movable(n):
+					var d: float = player.global_position.distance_to((n as Node3D).global_position)
+					if d < bd:
+						bd = d
+						best = n
+			if best:
+				player.placer.pick_up(best)
+		)
 	if Game.shot_path.contains("bigmap"):
 		get_tree().create_timer(0.9).timeout.connect(_open_map)
 	if Game.shot_path.contains("levelup"):
@@ -375,6 +390,17 @@ func _on_skill(id: StringName) -> void:
 			player._try_roll()
 
 func _build_place_hexes() -> void:
+	_done_hex = HexButton.new(72.0)
+	_done_hex.glyph = "✓"
+	_done_hex.bottom_text = "DONE"
+	_done_hex.fill = Color(0.10, 0.55, 0.22, 0.97)
+	_done_hex.visible = false
+	_done_hex.pressed.connect(func () -> void:
+		if player and player.placer:
+			player.placer.end_layout()
+			player.notice("Layout saved.")
+	)
+	add_child(_done_hex)
 	var specs := [["↻", Color(0.2, 0.2, 0.22, 0.95), "rotate", "ROTATE"], ["✓", Color(0.10, 0.55, 0.22, 0.97), "confirm", "PLACE"], ["✕", Color(0.65, 0.12, 0.12, 0.97), "cancel", "CANCEL"]]
 	for sp in specs:
 		var h := HexButton.new(70.0)
@@ -496,6 +522,12 @@ func _refresh_context(delta: float) -> void:
 
 func _refresh_place_hexes() -> void:
 	var placing := player.placer != null and player.placer.placing != &""
+	var layout := player.placer != null and player.placer.layout_mode
+	if _done_hex.visible != layout:
+		_done_hex.visible = layout
+	if layout:
+		var r := get_viewport_rect().size
+		_done_hex.position = Vector2(r.x * 0.5 - 36.0, r.y - 72.0 - 30.0)
 	for h in _place_hexes:
 		h.visible = placing
 	if not placing:
@@ -589,11 +621,12 @@ func _toggle_sheet(kind: StringName) -> void:
 			for i in player.bonded.size():
 				var rec: PetRecord = player.bonded[i]
 				var idx := i
-				_sheet_btn(box, "%s  grade %s  hp %.0f" % [rec.species, rec.grade, rec.hp], func () -> void: _close_sheet(); player.summon_pet(idx))
+				_sheet_btn(box, "%s  Lv. %d %s  hp %.0f  xp %.0f/%.0f" % [str(rec.species).capitalize(), rec.level, rec.grade, rec.hp, rec.xp, PetRecord.xp_to_next(rec.level)], func () -> void: _close_sheet(); player.summon_pet(idx))
 			if player.summoned_pet and is_instance_valid(player.summoned_pet):
 				_sheet_btn(box, "Dismiss %s" % player.summoned_pet.def.id, func () -> void: _close_sheet(); player.summon_pet())
 		&"build":
 			title.text = "Build"
+			_sheet_btn(box, "Move buildings (layout mode)", func () -> void: _close_sheet(); if player.placer: player.placer.begin_layout())
 			var any := false
 			for i in player.inventory.slot_count:
 				var s: ItemStack = player.inventory.slots[i]
@@ -830,6 +863,11 @@ func _draw() -> void:
 		var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, 18).x
 		draw_rect(Rect2(r.x * 0.5 - tw * 0.5 - 10, ty - 20, tw + 20, 28), Color(0.05, 0.06, 0.08, 0.8 * alpha))
 		draw_string(_font, Vector2(r.x * 0.5 - tw * 0.5, ty), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, alpha))
+	if player.placer and player.placer.layout_mode:
+		var hint := "Layout mode: tap a building to pick it up · tap a tile to move it · ✓ drop · ✕ put back · DONE saves" if player.placer.moving == null else "Tap a tile to move it · ↻ rotate · ✓ drop here · ✕ put it back"
+		var hw := _font.get_string_size(hint, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
+		draw_rect(Rect2(r.x * 0.5 - hw * 0.5 - 12, 150, hw + 24, 28), Color(0.05, 0.15, 0.3, 0.85))
+		draw_string(_font, Vector2(r.x * 0.5 - hw * 0.5, 170), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.85, 0.92, 1.0))
 	# --- notices (refusals, hints) under the toasts, centre-top
 	for i in _notices.size():
 		var n: Dictionary = _notices[i]

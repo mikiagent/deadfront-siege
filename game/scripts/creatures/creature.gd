@@ -431,7 +431,28 @@ func _on_damaged(_amount: float, source: Node) -> void:
 
 func _on_died(_source: Node) -> void:
 	anim.play_clip(&"death")
-	# Kills pay pioneer XP by tier and train Melee; pets' kills count for their survivor too.
+	# Pet XP: a kill by the pet pays 10 + tier/3; a survivor kill with the pet fighting within
+	# 15 m pays 3 + tier/6. Levels raise the pet's HP, attack and defense.
+	if not is_pet:
+		var killer_pet: Creature = _source as Creature if (_source is Creature and (_source as Creature).is_pet) else null
+		var owner := get_tree().get_first_node_in_group("player") as Player
+		var pet: Creature = owner.summoned_pet if (owner and owner.summoned_pet and is_instance_valid(owner.summoned_pet)) else null
+		if pet and pet.pet_record and not pet.health.dead:
+			var amount := 0.0
+			if killer_pet == pet:
+				amount = 10.0 + float(def.tier) / 3.0
+			elif _source is Player and pet.global_position.distance_to(global_position) <= 15.0:
+				amount = 3.0 + float(def.tier) / 6.0
+			if amount > 0.0:
+				var gained := pet.pet_record.add_xp(amount)
+				pet.level = pet.pet_record.level
+				if gained > 0:
+					pet.health.max_hp = pet.pet_record.hp
+					pet.health.hp = minf(pet.health.max_hp, pet.health.hp + pet.health.max_hp * 0.25)
+					pet.hit_burst(Color(1.0, 0.9, 0.4), 0.2, 24, 0.7)
+					if owner:
+						owner.notice("%s reached Lv. %d!" % [str(pet.def.species), pet.pet_record.level])
+				print("[pet] +%.0f xp -> lv %d" % [amount, pet.pet_record.level])
 	if not is_pet and (_source is Player or (_source is Creature and (_source as Creature).is_pet)):
 		var p := _source as Player if _source is Player else get_tree().get_first_node_in_group("player") as Player
 		if p and p.skills:

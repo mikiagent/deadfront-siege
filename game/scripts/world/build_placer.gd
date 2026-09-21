@@ -5,6 +5,12 @@ extends Node
 const GRID_HALF_SPAN := 4
 
 var placing: StringName = &""
+## Layout mode (BUILD > Move buildings): tap a building to pick it up, tap tiles to move the
+## ghost, ✓ drops it, ✕ puts it back, DONE saves. Tiles glow blue when valid, red when not.
+var layout_mode: bool = false
+var moving: Node3D
+var _moving_cell: Vector2i = Vector2i.ZERO
+var _moving_rot: int = 0
 var valid: bool = false
 var reason: String = ""
 var cell: Vector2i = Vector2i.ZERO
@@ -90,8 +96,94 @@ func begin(kind: StringName) -> void:
 	Game.show_grid = true
 	TouchControls.set_context(&"place")
 
+static func kind_of_building(n: Node) -> StringName:
+	if n == null:
+		return &""
+	if n is TamingPen:
+		return &"makeshift_taming_pen"
+	if n is Bonfire:
+		return &"bonfire"
+	if n is CraftStation:
+		return (n as CraftStation).station_id
+	var k: Variant = n.get("kind")
+	if k != null and str(k) != "":
+		return StringName(str(k))
+	return &""
+
+static func is_movable(n: Node) -> bool:
+	if n == null or not (n is Node3D):
+		return false
+	if n.is_in_group("cargo_warp") or n.is_in_group("harbour"):
+		return false
+	return n.has_method("set_grid_pose") and kind_of_building(n) != &""
+
+func begin_layout() -> void:
+	layout_mode = true
+	Game.show_grid = true
+	var grid := _grid()
+	if grid:
+		grid.ignore_distance = true
+	TouchControls.set_context(&"place")
+	print("[build] layout mode on")
+
+## Pick a placed building up: it becomes the ghost at its own spot with its cells freed.
+func pick_up(n: Node3D) -> bool:
+	if not layout_mode or not is_movable(n) or moving != null:
+		return false
+	var grid := _grid()
+	if grid == null:
+		return false
+	moving = n
+	_moving_cell = n.get("build_cell") if n.get("build_cell") != null else BuildGrid.tile_of(n.global_position)
+	_moving_rot = int(n.get("build_rot")) if n.get("build_rot") != null else 0
+	grid.release(n)
+	n.visible = false
+	placing = kind_of_building(n)
+	rot_step = _moving_rot
+	cell = _moving_cell
+	reason = ""
+	_rebuild_ghost_visual()
+	_sync_grid_state()
+	_ghost_root.visible = true
+	_ghost_grid.visible = true
+	_ghost_cells.visible = true
+	print("[build] pick up %s from (%d,%d)" % [placing, cell.x, cell.y])
+	return true
+
+## Put a picked-up building back where it was (✕ while moving).
+func put_back() -> void:
+	if moving == null:
+		return
+	var grid := _grid()
+	if grid and is_instance_valid(moving):
+		moving.visible = true
+		moving.global_transform = grid.placement_transform(placing, _moving_cell, _moving_rot)
+		moving.set_grid_pose(_moving_cell, _moving_rot)
+		grid.occupy(moving, grid.cells_for(placing, _moving_cell, _moving_rot))
+	moving = null
+	placing = &""
+	_ghost_root.visible = false
+	_ghost_grid.visible = false
+	_ghost_cells.visible = false
+
+## DONE: drop anything still held back where it was, leave layout mode and save.
+func end_layout() -> void:
+	if moving:
+		put_back()
+	layout_mode = false
+	var grid := _grid()
+	if grid:
+		grid.ignore_distance = false
+	cancel()
+	(load("res://scripts/core/save_game.gd") as GDScript).save_now()
+	print("[build] layout saved")
+
 func cancel() -> void:
-	Game.show_grid = false
+	if moving:
+		put_back()
+		if layout_mode:
+			return
+	Game.show_grid = layout_mode
 	var grid := _grid()
 	if grid:
 		grid.clear_actor(get_parent() as Node3D)
@@ -101,7 +193,8 @@ func cancel() -> void:
 	_ghost_root.visible = false
 	_ghost_grid.visible = false
 	_ghost_cells.visible = false
-	TouchControls.set_context(&"explore")
+	if not layout_mode:
+		TouchControls.set_context(&"explore")
 
 func rotate_clockwise() -> void:
 	if placing == &"":
@@ -118,7 +211,8 @@ func tap_ground() -> void:
 func _process(_delta: float) -> void:
 	if placing == &"":
 		return
-	_snap_to_pointer()
+	if moving == null:
+		_snap_to_pointer()  # a picked-up building only moves on taps
 	_sync_grid_state()
 
 func confirm(player: Player) -> bool:
@@ -127,7 +221,27 @@ func confirm(player: Player) -> bool:
 	_sync_grid_state()
 	if not valid:
 		print("[build] rejected %s" % (reason if reason != "" else "invalid"))
+		if player.has_method("notice"):
+			player.notice("Can't place here: %s" % reason.replace("_", " "))
 		return false
+	if moving:
+		var g := _grid()
+		if g == null or not is_instance_valid(moving):
+			moving = null
+			return false
+		moving.visible = true
+		moving.global_transform = g.placement_transform(placing, cell, rot_step)
+		moving.set_grid_pose(cell, rot_step)
+		if moving.has_method("reset_physics_interpolation"):
+			moving.reset_physics_interpolation()
+		g.occupy(moving, g.cells_for(placing, cell, rot_step))
+		print("[build] moved %s to (%d,%d) rot=%d" % [placing, cell.x, cell.y, posmod(rot_step, 4) * 90])
+		moving = null
+		placing = &""
+		_ghost_root.visible = false
+		_ghost_grid.visible = false
+		_ghost_cells.visible = false
+		return true
 	if not _pay(player):
 		print("[build] rejected missing_kit")
 		return false
@@ -253,7 +367,7 @@ func _build_materials() -> void:
 	_mat_valid = StandardMaterial3D.new()
 	_mat_valid.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_mat_valid.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_mat_valid.albedo_color = Color(0.3, 0.9, 0.35, 0.42)
+	_mat_valid.albedo_color = Color(0.3, 0.6, 1.0, 0.45)  # blue = valid spot
 	_mat_invalid = StandardMaterial3D.new()
 	_mat_invalid.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_mat_invalid.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -261,7 +375,7 @@ func _build_materials() -> void:
 	_cell_valid = StandardMaterial3D.new()
 	_cell_valid.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_cell_valid.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_cell_valid.albedo_color = Color(0.15, 0.9, 0.4, 0.35)
+	_cell_valid.albedo_color = Color(0.25, 0.55, 1.0, 0.45)
 	_cell_invalid = StandardMaterial3D.new()
 	_cell_invalid.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_cell_invalid.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA

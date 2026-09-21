@@ -8,6 +8,7 @@ const MAX_SLOPE_SPREAD := 0.6
 
 var runtime: Node3D
 var _actor: Node3D
+var ignore_distance: bool = false  # layout mode: move buildings anywhere on the claim
 var _occupied: Dictionary = {} ## Vector2i -> Node
 var _node_cells: Dictionary = {} ## instance id -> Array[Vector2i]
 var _reserved: Dictionary = {} ## Vector2i -> StringName
@@ -168,6 +169,8 @@ func suggested_fence_rot(kind: StringName, cell: Vector2i, rot: int) -> int:
 	return 0 if horizontal >= vertical else 1
 
 func _too_far(kind: StringName, cell: Vector2i, rot: int) -> bool:
+	if ignore_distance:
+		return false
 	var actor := _actor
 	if actor == null:
 		var player := get_tree().get_first_node_in_group("player")

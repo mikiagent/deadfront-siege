@@ -26,6 +26,8 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 
 static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"attack_primary") -> void:
 	var atk := attacker.def.attack * attacker.statuses.attack_mult()
+	if attacker.is_pet and attacker.pet_record:
+		atk = attacker.pet_record.attack * attacker.statuses.attack_mult()  # levelled pet stats
 	var defn := 0.0
 	if target is Player:
 		if (target as Player).dead:

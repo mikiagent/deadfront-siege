@@ -16,6 +16,28 @@ var speed: float = 0.0
 var tamed_role: Array[StringName] = []
 var bag: Inventory
 var summoned: bool = false
+## Pet level: kills by the pet pay most, kills by the survivor with the pet fighting nearby pay
+## less. Each level: +8 % HP, +5 % attack, +4 % defense. ASSUMPTION: level n needs 30 + 15 n XP.
+var level: int = 1
+var xp: float = 0.0
+
+static func xp_to_next(lv: int) -> float:
+	return 30.0 + 15.0 * float(lv)
+
+## Returns the number of levels gained.
+func add_xp(amount: float) -> int:
+	if amount <= 0.0:
+		return 0
+	xp += amount * xp_rate
+	var gained := 0
+	while xp >= xp_to_next(level) and level < 60:
+		xp -= xp_to_next(level)
+		level += 1
+		hp *= 1.08
+		attack *= 1.05
+		defense *= 1.04
+		gained += 1
+	return gained
 
 static func from_def(def: CreatureDef, p_grade: StringName, variant: StringName = &"") -> PetRecord:
 	var r := PetRecord.new()
@@ -67,6 +89,8 @@ func to_dict() -> Dictionary:
 		"speed": speed,
 		"tamed_role": roles,
 		"bag": bag.to_array() if bag else [],
+		"level": level,
+		"xp": xp,
 	}
 
 static func from_dict(d: Dictionary) -> PetRecord:
@@ -87,4 +111,6 @@ static func from_dict(d: Dictionary) -> PetRecord:
 		r.tamed_role.append(StringName(str(v)))
 	r.bag = Inventory.new(10)
 	r.bag.load_array(d.get("bag", []))
+	r.level = maxi(1, int(d.get("level", 1)))
+	r.xp = float(d.get("xp", 0.0))
 	return r
