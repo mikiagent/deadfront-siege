@@ -29,6 +29,7 @@ var _auto_hex: HexButton
 var _chase_hex: HexButton
 var _feed_hex: HexButton
 var _food_hexes: Array[HexButton] = []
+var _whistle_hexes: Array[HexButton] = []  # attack / heel / guard, shown while a pet is out
 var _in_combat: bool = false
 var _combat_alpha: float = 0.0
 var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
@@ -112,6 +113,8 @@ func _layout() -> void:
 		_skill_hexes[i].position = Vector2(cx, cy) + slots[i]
 	_auto_hex.position = Vector2(cx + 60.0, cy + 30.0)
 	_feed_hex.position = Vector2(cx - 170.0, cy - 20.0)
+	for i in _whistle_hexes.size():
+		_whistle_hexes[i].position = Vector2(r.x - 16.0 - inset.x - 62.0, r.y - 250.0 - inset.y - float(i) * 66.0)
 	_stance_label.position = Vector2(cx + 20.0, cy + 118.0)
 	_chase_hex.position = Vector2(16.0 + inset.w, r.y - HEX * 2.0 - 40.0 - inset.y)
 	if _sheet:
@@ -249,6 +252,19 @@ func _build_combat() -> void:
 			_auto_hex.queue_redraw()
 	)
 	add_child(_auto_hex)
+	for spec in [["attack", "🦖", "SIC", Color(0.55, 0.12, 0.12, 0.95)], ["heel", "↩", "HEEL", Color(0.2, 0.22, 0.28, 0.95)], ["guard", "🛡", "GUARD", Color(0.15, 0.35, 0.22, 0.95)]]:
+		var wh := HexButton.new(60.0)
+		wh.glyph = spec[1]
+		wh.bottom_text = spec[2]
+		wh.fill = spec[3]
+		wh.visible = false
+		var cmd := StringName(str(spec[0]))
+		wh.pressed.connect(func () -> void:
+			if player:
+				player.pet_order(cmd)
+		)
+		add_child(wh)
+		_whistle_hexes.append(wh)
 	_feed_hex = HexButton.new(72.0)
 	_feed_hex.glyph = "🍖"
 	_feed_hex.bottom_text = "FEED"
@@ -290,7 +306,11 @@ func _build_death() -> void:
 	_death_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_death_panel.visible = false
 	_death_panel.draw.connect(_draw_death)
-	add_child(_death_panel)
+	var death_layer := CanvasLayer.new()
+	death_layer.name = "DeathLayer"
+	death_layer.layer = 100  # above everything: plates, world UI, modals
+	add_child(death_layer)
+	death_layer.add_child(_death_panel)
 	_death_btn = Button.new()
 	_death_btn.text = "Respawn at camp"
 	_death_btn.custom_minimum_size = Vector2(260, 64)
@@ -644,7 +664,11 @@ func _open_map() -> void:
 		_map_screen.name = "MapScreen"
 		_map_screen.hud = self
 		_map_screen.player = player
-		add_child(_map_screen)
+		var map_layer := CanvasLayer.new()
+		map_layer.name = "MapLayer"
+		map_layer.layer = 96
+		add_child(map_layer)
+		map_layer.add_child(_map_screen)
 	if _map_screen.is_open():
 		_map_screen.close()
 	else:
@@ -690,6 +714,17 @@ func _process(delta: float) -> void:
 	_refresh_context(delta)
 	_refresh_place_hexes()
 	_refresh_food_hexes()
+	var pet_out := player.summoned_pet != null and is_instance_valid(player.summoned_pet)
+	for i in _whistle_hexes.size():
+		var wh := _whistle_hexes[i]
+		if wh.visible != pet_out:
+			wh.visible = pet_out
+		if pet_out and player.summoned_pet.brain:
+			var m: StringName = player.summoned_pet.brain.get("mode") if player.summoned_pet.brain.get("mode") != null else &"guard"
+			var want := (i == 0 and m == &"attack") or (i == 1 and m == &"heel") or (i == 2 and m == &"guard")
+			if wh.selected != want:
+				wh.selected = want
+				wh.queue_redraw()
 	if _levelup_t >= 0.0:
 		_levelup_t += delta
 		if _levelup_t > 6.5:
@@ -931,6 +966,12 @@ func _draw_minimap() -> void:
 	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(1, 1, 1, 0.35), false, 1.5)
 
+func _gather_radial_node() -> Node3D:
+	var gr: Variant = player.get("_gather_radial")
+	if gr and gr.has_method("is_open") and gr.is_open():
+		return gr.node
+	return null
+
 const TOOL_ICON_ITEM := {"axe": "work_axe", "pick": "work_pick", "knife": "stone_knife", "none": "hands", "": "hands"}
 
 ## [[icon, have]] per distinct tool the node's yields need; corpses need a knife.
@@ -1016,20 +1057,22 @@ func _draw_pills(cam: Camera3D) -> void:
 		var sp := cam.unproject_position(n3.global_position + Vector3(0, top + 0.35, 0))
 		var text := "%s  %s" % [glyph, name]
 		var tw := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
-		# Tool icons: one per yield (hands when no tool is needed), red when the bag lacks it.
-		var tools: Array = _tools_for_node(n3, grp)
-		var w := tw + 30.0 + float(tools.size()) * 22.0 + (6.0 if not tools.is_empty() else 0.0)
+		# Tool icons (small, top-right of the pill) only on the resource being worked or picked.
+		var working := (grp == "harvest" and (n3 == player.gather_target or (_gather_radial_node() == n3))) or (grp == "corpse" and n3 is Corpse and (n3 as Corpse).tapped_recently(4.0))
+		var tools: Array = _tools_for_node(n3, grp) if working else []
+		var w := tw + 30.0
 		var rect := Rect2(sp.x - w * 0.5, sp.y - 24.0, w, 22.0)
 		draw_rect(rect, Color(0.05, 0.06, 0.08, 0.82 * a))
 		draw_circle(Vector2(rect.position.x + 10.0, rect.position.y + 11.0), 4.0, Color(dot, a))
 		draw_string(_font, Vector2(rect.position.x + 20.0, rect.position.y + 16.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1, 1, 1, a))
-		var ix := rect.position.x + 20.0 + tw + 8.0
+		var ix := rect.position.x + w - 6.0 - float(tools.size()) * 14.0
 		for t in tools:
 			var tex: Texture2D = t[0]
 			var ok: bool = t[1]
 			if tex:
-				draw_texture_rect(tex, Rect2(ix, rect.position.y + 2.0, 18.0, 18.0), false, Color(1, 1, 1, a) if ok else Color(1.0, 0.4, 0.35, a))
-			ix += 22.0
+				draw_circle(Vector2(ix + 6.0, rect.position.y - 2.0), 8.0, Color(0.05, 0.06, 0.08, 0.9 * a))
+				draw_texture_rect(tex, Rect2(ix, rect.position.y - 8.0, 12.0, 12.0), false, Color(1, 1, 1, a) if ok else Color(1.0, 0.4, 0.35, a))
+			ix += 14.0
 		if timer != "":
 			var tt := "⏱ %s" % timer
 			var ttw := _font.get_string_size(tt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x

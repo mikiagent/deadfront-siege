@@ -58,6 +58,9 @@ var tame_attempting: bool = false
 var brain: CreatureBrain
 var _fx_drip: GPUParticles3D
 var _aggro_ring: MeshInstance3D
+## Stagger: 0.3 s frozen hurt window after a hit, at most once per second.
+var stagger_left: float = 0.0
+var _stagger_immune_until: float = -1.0
 var _aggro_ring_r: float = -1.0
 var _aggro_ring_t: float = 0.0
 var _trail_origin: Vector3
@@ -170,7 +173,8 @@ func _physics_process(delta: float) -> void:
 	FieldTame.tick(self, delta)
 	if not is_on_floor():
 		velocity += get_gravity() * delta
-	if health.dead or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act"):
+	stagger_left = maxf(0.0, stagger_left - delta)
+	if health.dead or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act") or stagger_left > 0.0:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		move_and_slide()
@@ -411,6 +415,9 @@ func _on_damaged(_amount: float, source: Node) -> void:
 		statuses.apply(&"knockdown", source)
 		anim.play_clip(&"knockdown")
 		return
+	if _now_s() >= _stagger_immune_until:
+		stagger_left = 0.45 if kind == &"crit" else 0.3
+		_stagger_immune_until = _now_s() + 1.0
 	if not str(anim.current_clip).begins_with("attack"):
 		var authored: Dictionary = def.pipeline.get("authored_clips", {})
 		if authored.has("hit_react") or not view.using_glb:

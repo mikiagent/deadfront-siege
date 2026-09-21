@@ -92,6 +92,9 @@ var dead: bool = false
 var _last_hit_taken_s: float = -999.0
 var _autofeed_cd: float = 0.0
 var _roll_through: Array[Creature] = []
+## Stagger: a short unmovable hurt window after a hit (0.35 s), at most once every 1.5 s.
+var _stagger_left: float = 0.0
+var _stagger_immune_until: float = -1.0
 
 func _ready() -> void:
 	if Game.lab_name != "" and get_parent() and get_parent().name == "DefaultPlayfield":
@@ -272,6 +275,11 @@ func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 			anim.play_clip(&"knockdown")
 		else:
 			anim.on_damaged()
+	var now_s := Time.get_ticks_msec() * 0.001
+	if not rolling and now_s >= _stagger_immune_until:
+		_stagger_left = 0.35
+		_stagger_immune_until = now_s + 1.5
+		clear_nav()
 
 func _physics_process(delta: float) -> void:
 	_fall_guard()
@@ -305,6 +313,14 @@ func _physics_process(delta: float) -> void:
 			_roll_through.clear()
 			velocity.x *= 0.3
 			velocity.z *= 0.3
+	if _stagger_left > 0.0:
+		_stagger_left -= delta
+		velocity.x = 0.0
+		velocity.z = 0.0
+		move_and_slide()
+		if anim:
+			anim._physics_tick(0.0)
+		return
 	if rolling:
 		# Committed dash: constant speed, ignores input and nav, slips through creatures.
 		var rf := -visual.global_basis.z
@@ -1281,6 +1297,29 @@ func bond_from_inventory() -> void:
 	bonded.append(rec)
 	print("[capture] bonded %s grade=%s hp=%.0f atk=%.0f def=%.0f spd=%.0f" % [
 		species, grade, rec.hp, rec.attack, rec.defense, rec.speed])
+
+## Whistle: "attack" sics the pet on the current target, "heel" calls it back, "guard" is the default.
+func pet_order(cmd: StringName) -> void:
+	if summoned_pet == null or not is_instance_valid(summoned_pet) or summoned_pet.brain == null:
+		notice("No pet out. Summon one from PETS.")
+		return
+	var b := summoned_pet.brain
+	if not b.has_method("order"):
+		return
+	match cmd:
+		&"attack":
+			var t: Creature = hunt.target if (hunt and hunt.target and is_instance_valid(hunt.target)) else null
+			if t == null:
+				notice("Tap an enemy first, then whistle attack.")
+				return
+			b.order(&"attack", t)
+			notice("%s: attack %s!" % [str(summoned_pet.def.species), str(t.def.species)])
+		&"heel":
+			b.order(&"heel")
+			notice("%s heels." % str(summoned_pet.def.species))
+		_:
+			b.order(&"guard")
+			notice("%s guards you." % str(summoned_pet.def.species))
 
 func summon_pet(index: int = 0) -> void:
 	if summoned_pet and is_instance_valid(summoned_pet):

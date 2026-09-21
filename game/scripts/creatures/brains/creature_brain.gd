@@ -212,7 +212,7 @@ func _do_attack() -> void:
 		return
 	creature.stop_move()
 	creature.face_towards(attack_target.global_position, 0.05)
-	if _attack_cd > 0.0 or creature.anim._busy:
+	if _attack_cd > 0.0 or creature.anim._busy or creature.stagger_left > 0.0:
 		return
 	if _is_pack_member() and not _pack_ready():
 		return

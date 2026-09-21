@@ -84,6 +84,7 @@ func _tick_corpses(cam: Camera3D, player: Player, delta: float) -> void:
 		node.modulate.a = alpha
 		var knife := e.get("knife", null) as TextureRect
 		if knife:
+			knife.visible = corpse.tapped_recently(4.0)
 			knife.modulate = Color.WHITE if player.inventory.has_tool_class(&"knife") else Color(1.0, 0.4, 0.35)
 		var world := corpse.plate_anchor()
 		var screen := cam.unproject_position(world)
@@ -215,8 +216,8 @@ func _ensure_corpse_entry(corpse: Corpse) -> Dictionary:
 	var knife := TextureRect.new()
 	knife.name = "Knife"
 	knife.texture = ItemIcons.texture(&"stone_knife")
-	knife.custom_minimum_size = Vector2(18, 18)
-	knife.size = Vector2(18, 18)
+	knife.custom_minimum_size = Vector2(12, 12)
+	knife.size = Vector2(12, 12)
 	knife.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	knife.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	knife.position = Vector2(node.size.x + 4.0, 2.0)

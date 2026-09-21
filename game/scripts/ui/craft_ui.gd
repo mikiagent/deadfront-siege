@@ -76,6 +76,11 @@ func _ready() -> void:
 	if Game.shot_path.contains("craft"):
 		get_tree().create_timer(0.9).timeout.connect(func () -> void: show_for_station(&"bonfire"))
 
+func _unhandled_input(event: InputEvent) -> void:
+	if visible and event.is_action_pressed("ui_cancel"):
+		hide_ui()
+		get_viewport().set_input_as_handled()
+
 func bind(p: Player) -> void:
 	player = p
 	if not player.inventory.changed.is_connected(_on_inventory_changed):

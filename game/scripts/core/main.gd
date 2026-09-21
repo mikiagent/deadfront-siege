@@ -22,12 +22,17 @@ func _ready() -> void:
 		print("[boot] main scene ready")
 		var player := get_tree().get_first_node_in_group("player") as Player
 		if player:
+			# Modal screens (bag, craft) sit above every other canvas layer (plates 58, world UI 40).
+			var modals := CanvasLayer.new()
+			modals.name = "Modals"
+			modals.layer = 96
+			add_child(modals)
 			var inv_ui = preload("res://scenes/ui/inventory.tscn").instantiate()
-			$UI.add_child(inv_ui)
+			modals.add_child(inv_ui)
 			player.ui = inv_ui
 			inv_ui.bind(player.inventory, player)
 			var craft = preload("res://scenes/ui/craft.tscn").instantiate()
-			$UI.add_child(craft)
+			modals.add_child(craft)
 			player.craft_ui = craft
 			craft.bind(player)
 			var hud := HuntHud.new()
