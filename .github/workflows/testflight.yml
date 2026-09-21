@@ -39,7 +39,11 @@ jobs:
 
           printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
           mkdir -p "$API_KEY_DIR"
-          printf '%s' "$ASC_API_KEY_BASE64" | base64 --decode > "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
+          if [[ "$ASC_API_KEY_BASE64" == *"BEGIN PRIVATE KEY"* ]]; then
+            printf '%s\n' "$ASC_API_KEY_BASE64" > "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
+          else
+            printf '%s' "$ASC_API_KEY_BASE64" | base64 --decode > "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
+          fi
           chmod 600 "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
