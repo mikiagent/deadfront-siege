@@ -676,11 +676,11 @@ func _unwrap_tap(col: Object) -> Object:
 func _is_interactable(col: Object) -> bool:
 	if col is Area3D and (col as Area3D).get_parent() is HarvestNode:
 		return true
-	if col is HarvestNode or col is Corpse or col is Creature or col is Bonfire or col is TamingPen:
+	if col is HarvestNode or col is Corpse or col is Creature or col is Bonfire or col is CraftStation or col is TamingPen:
 		return true
 	if col is Node:
 		var n := col as Node
-		return n.is_in_group("harbour") or n.is_in_group("cargo_warp") or n.is_in_group("placed_building")
+		return n.is_in_group("craft_station") or n.is_in_group("harbour") or n.is_in_group("cargo_warp") or n.is_in_group("placed_building")
 	return false
 
 func _closest_nav_point(pos: Vector3) -> Vector3:
