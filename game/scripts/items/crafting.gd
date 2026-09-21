@@ -137,14 +137,7 @@ static func skill_level_for(rec: Dictionary, player: Player = null) -> int:
 	return 60
 
 static func crafted_level_for(rec: Dictionary, levels: Array[int], player: Player = null) -> int:
-	if levels.is_empty():
-		return 1
-	var total := 0
-	for lv in levels:
-		total += lv
-	var average := int(floor(float(total) / float(levels.size())))
-	var cap := mini(skill_level_for(rec, player), int(rec.get("max_level", 60)))
-	return clampi(average, 1, cap)
+	return ProgressionScaling.crafted_level(levels, int(rec.get("max_level", 60)), skill_level_for(rec, player))
 
 static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int, consumed: Array[ItemStack] = []) -> ItemStack:
 	var out_row: Dictionary = rec.get("output", {})

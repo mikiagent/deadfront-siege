@@ -66,7 +66,7 @@ func _test_progression_scaling() -> void:
 	_expect(is_equal_approx(ProgressionScaling.tool_power(5, &"stone"), 1.4), "level 5 tool is meaningfully stronger")
 	_expect(ProgressionScaling.gather_seconds(3.0, 6, 1, &"stone", 1) > 4.5, "five-level zone gap slows gathering")
 	_expect(ProgressionScaling.gather_seconds(3.0, 1, 5, &"steel", 5) < 1.0, "high-level steel tool gathers much faster")
-	var mean := Crafting.crafted_level_for({"max_level": 60}, [5, 10, 15])
+	var mean := ProgressionScaling.crafted_level([5, 10, 15])
 	_expect(mean == 10, "craft output level is weighted material average")
 
 func _test_hud_event_state() -> void:
