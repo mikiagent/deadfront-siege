@@ -32,7 +32,28 @@ var statuses: StatusEffects
 var hunt: Hunt
 var placer: BuildPlacer
 var bonded: Array[PetRecord] = []
-var summoned_pet: Creature
+## Up to MAX_PETS_OUT pets at once. `summoned_pet` stays as the first live one for old callers.
+const MAX_PETS_OUT := 3
+var summoned_pets: Array[Creature] = []
+var summoned_pet: Creature:
+	get:
+		_prune_pets()
+		return summoned_pets[0] if not summoned_pets.is_empty() else null
+	set(v):
+		if v and is_instance_valid(v) and not summoned_pets.has(v):
+			summoned_pets.append(v)
+
+func _prune_pets() -> void:
+	for i in range(summoned_pets.size() - 1, -1, -1):
+		var c := summoned_pets[i]
+		if c == null or not is_instance_valid(c) or c.health.dead:
+			if c and is_instance_valid(c) and c.pet_record:
+				c.pet_record.summoned = false
+			summoned_pets.remove_at(i)
+
+func live_pets() -> Array[Creature]:
+	_prune_pets()
+	return summoned_pets
 var mounted_on: Creature
 var rolling: bool = false
 var gather_target: HarvestNode
@@ -1320,36 +1341,41 @@ func bond_from_inventory() -> void:
 
 ## Whistle: "attack" sics the pet on the current target, "heel" calls it back, "guard" is the default.
 func pet_order(cmd: StringName) -> void:
-	if summoned_pet == null or not is_instance_valid(summoned_pet) or summoned_pet.brain == null:
+	var pets := live_pets()
+	if pets.is_empty():
 		notice("No pet out. Summon one from PETS.")
 		return
-	var b := summoned_pet.brain
-	if not b.has_method("order"):
+	var t: Creature = hunt.target if (hunt and hunt.target and is_instance_valid(hunt.target)) else null
+	if cmd == &"attack" and t == null:
+		notice("Tap an enemy first, then whistle attack.")
 		return
+	for p in pets:
+		if p.brain and p.brain.has_method("order"):
+			p.brain.order(cmd, t)
+	var who := "Your pet" if pets.size() == 1 else "Your %d pets" % pets.size()
 	match cmd:
 		&"attack":
-			var t: Creature = hunt.target if (hunt and hunt.target and is_instance_valid(hunt.target)) else null
-			if t == null:
-				notice("Tap an enemy first, then whistle attack.")
-				return
-			b.order(&"attack", t)
-			notice("%s: attack %s!" % [str(summoned_pet.def.species), str(t.def.species)])
+			notice("%s: attack %s!" % [who, str(t.def.species)])
 		&"heel":
-			b.order(&"heel")
-			notice("%s heels." % str(summoned_pet.def.species))
+			notice("%s heel." % who)
 		_:
-			b.order(&"guard")
-			notice("%s guards you." % str(summoned_pet.def.species))
+			notice("%s guard you." % who)
 
+## Toggle one bonded record: dismiss it if it is out, else summon it (up to 3 out).
 func summon_pet(index: int = 0) -> void:
-	if summoned_pet and is_instance_valid(summoned_pet):
-		summoned_pet.queue_free()
-		summoned_pet = null
-		print("[capture] dismissed")
-		return
 	if bonded.is_empty():
 		return
 	var rec := bonded[clampi(index, 0, bonded.size() - 1)]
+	for p in live_pets():
+		if p.pet_record == rec:
+			summoned_pets.erase(p)
+			p.queue_free()
+			rec.summoned = false
+			print("[capture] dismissed %s" % rec.species)
+			return
+	if live_pets().size() >= MAX_PETS_OUT:
+		notice("Only %d pets can be out at once." % MAX_PETS_OUT)
+		return
 	var def := Data.creature(rec.species)
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 	get_parent().add_child(c)
@@ -1362,7 +1388,8 @@ func summon_pet(index: int = 0) -> void:
 	c.health.max_hp = rec.hp
 	c.health.hp = rec.hp
 	c.level = rec.level
-	summoned_pet = c
+	c.global_position = global_position + Vector3(1.5 + 1.2 * float(summoned_pets.size()), 0, 0)
+	summoned_pets.append(c)
 	rec.summoned = true
 	print("[capture] summoned %s hp=%.0f (wild hp=%.0f)" % [def.id, c.health.max_hp, def.hp])
 

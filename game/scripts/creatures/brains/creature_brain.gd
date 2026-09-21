@@ -56,7 +56,9 @@ func aggro_radius() -> float:
 
 ## True while this creature is actively on the survivor (ring shown).
 func hunting_player() -> bool:
-	if not (attack_target is Player) or (attack_target as Player).dead:
+	var on_player := attack_target is Player and not (attack_target as Player).dead
+	var on_pet := attack_target is Creature and (attack_target as Creature).is_pet and not (attack_target as Creature).health.dead
+	if not (on_player or on_pet):
 		return false
 	return state in [&"alert", &"approach", &"attack", &"retreat"]
 
@@ -173,8 +175,20 @@ func _scan() -> void:
 	var player := creature.get_tree().get_first_node_in_group("player") as Node3D
 	if player is Player and (player as Player).dead:
 		return
-	if player and creature.global_position.distance_to(player.global_position) <= _effective_perception():
-		attack_target = player
+	# Nearest of the survivor and her pets inside perception: wild animals go for pets too.
+	var best: Node3D = null
+	var best_d := _effective_perception()
+	if player and creature.global_position.distance_to(player.global_position) <= best_d:
+		best = player
+		best_d = creature.global_position.distance_to(player.global_position)
+	if player is Player:
+		for p in (player as Player).live_pets():
+			var d := creature.global_position.distance_to(p.global_position)
+			if d < best_d:
+				best = p
+				best_d = d
+	if best:
+		attack_target = best
 		_set_state(&"alert")
 		_alert_left = maxf(_alert_left, 0.6)
 		creature.mark_aggro_now()
@@ -186,6 +200,8 @@ func _valid_target() -> bool:
 		return false
 	if attack_target is Player and (attack_target as Player).dead:
 		return false  # a survivor on the floor is not prey; wander off
+	if attack_target is Creature and (attack_target as Creature).health.dead:
+		return false
 	return true
 
 func _approach(delta: float) -> void:

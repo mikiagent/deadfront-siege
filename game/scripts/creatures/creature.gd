@@ -436,13 +436,15 @@ func _on_died(_source: Node) -> void:
 	if not is_pet:
 		var killer_pet: Creature = _source as Creature if (_source is Creature and (_source as Creature).is_pet) else null
 		var owner := get_tree().get_first_node_in_group("player") as Player
-		var pet: Creature = owner.summoned_pet if (owner and owner.summoned_pet and is_instance_valid(owner.summoned_pet)) else null
-		if pet and pet.pet_record and not pet.health.dead:
+		var pets: Array[Creature] = owner.live_pets() if owner else []
+		for pet in pets:
+			if pet == null or pet.pet_record == null or pet.health.dead:
+				continue
 			var amount := 0.0
 			if killer_pet == pet:
 				amount = 10.0 + float(def.tier) / 3.0
-			elif _source is Player and pet.global_position.distance_to(global_position) <= 15.0:
-				amount = 3.0 + float(def.tier) / 6.0
+			elif pet.global_position.distance_to(global_position) <= 15.0:
+				amount = 3.0 + float(def.tier) / 6.0  # assist: fighting alongside whoever landed the kill
 			if amount > 0.0:
 				var gained := pet.pet_record.add_xp(amount)
 				pet.level = pet.pet_record.level

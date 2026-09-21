@@ -619,12 +619,16 @@ func _toggle_sheet(kind: StringName) -> void:
 				var l := Label.new()
 				l.text = "No bonded animals yet. Knock one down and feed it."
 				box.add_child(l)
+			var out_now := player.live_pets().size()
+			title.text = "Pets  %d / %d   ·   out %d / %d" % [player.bonded.size(), Data.bonded_cap(), out_now, Player.MAX_PETS_OUT]
 			for i in player.bonded.size():
 				var rec: PetRecord = player.bonded[i]
 				var idx := i
-				_sheet_btn(box, "%s  Lv. %d %s  hp %.0f  xp %.0f/%.0f" % [str(rec.species).capitalize(), rec.level, rec.grade, rec.hp, rec.xp, PetRecord.xp_to_next(rec.level)], func () -> void: _close_sheet(); player.summon_pet(idx))
-			if player.summoned_pet and is_instance_valid(player.summoned_pet):
-				_sheet_btn(box, "Dismiss %s" % player.summoned_pet.def.id, func () -> void: _close_sheet(); player.summon_pet())
+				var is_out := false
+				for p in player.live_pets():
+					if p.pet_record == rec:
+						is_out = true
+				_sheet_btn(box, "%s  %s  Lv. %d %s  hp %.0f  xp %.0f/%.0f" % ["Dismiss" if is_out else "Summon", str(rec.species).capitalize(), rec.level, rec.grade, rec.hp, rec.xp, PetRecord.xp_to_next(rec.level)], func () -> void: _close_sheet(); player.summon_pet(idx); _toggle_sheet(&"pets"))
 		&"build":
 			title.text = "Build"
 			_sheet_btn(box, "Move buildings (layout mode)", func () -> void: _close_sheet(); if player.placer: player.placer.begin_layout())
@@ -748,7 +752,7 @@ func _process(delta: float) -> void:
 	_refresh_context(delta)
 	_refresh_place_hexes()
 	_refresh_food_hexes()
-	var pet_out := player.summoned_pet != null and is_instance_valid(player.summoned_pet)
+	var pet_out := not player.live_pets().is_empty()
 	for i in _whistle_hexes.size():
 		var wh := _whistle_hexes[i]
 		if wh.visible != pet_out:
