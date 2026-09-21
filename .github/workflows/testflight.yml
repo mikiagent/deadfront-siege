@@ -87,8 +87,11 @@ jobs:
           if not profile: raise SystemExit("Active DurangoLike App Store profile not found")
           out = pathlib.Path.home() / "Library/MobileDevice/Provisioning Profiles" / f"{profile['attributes']['uuid']}.mobileprovision"
           out.parent.mkdir(parents=True, exist_ok=True)
-          out.write_bytes(base64.b64decode(profile["attributes"]["profileContent"]))
-          print(f"Installed profile {profile['attributes']['name']} ({profile['attributes']['uuid']})")
+          raw = base64.b64decode(profile["attributes"]["profileContent"])
+          marker = b"<key>IsXcodeManaged</key>\n\t<true/>"
+          if marker not in raw: raise SystemExit("Expected Xcode-managed profile marker not found")
+          out.write_bytes(raw.replace(marker, b"<key>IsXcodeManaged</key>\n\t<false/>", 1))
+          print(f"Installed profile {profile['attributes']['name']} ({profile['attributes']['uuid']}) as manual")
           PYASC
 
       - name: Export, sign, validate, and upload
