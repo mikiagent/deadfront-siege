@@ -13,3 +13,6 @@ game/export/packs/
 # Source assets and historical prototypes are kept in git for authors, but never ship.
 # Export presets also exclude game/assets/**/work; this makes accidental staging visible.
 game/assets/**/work/
+
+# Local dependencies for the production web soak harness.
+tools/web_soak/node_modules/
