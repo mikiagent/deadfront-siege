@@ -98,6 +98,7 @@ var _marker_t: float = 0.0
 var _hold_walk_candidate: bool = false
 var _hold_walk_elapsed: float = 0.0
 var _hold_walk_retarget_left: float = 0.0
+var _tap_touch_index: int = -1
 var _touch_context: StringName = &"explore"
 var _shoreline_logged: bool = false
 var _lantern: OmniLight3D
@@ -143,6 +144,7 @@ func _ready() -> void:
 	_setup_survivor()
 	_setup_lantern()
 	_setup_ground_marker()
+	_setup_player_beacon()
 	_setup_gather_ring()
 	skills = SkillState.new()
 	skills.name = "Skills"
@@ -155,12 +157,10 @@ func _ready() -> void:
 	if has_node("Shape"):
 		pass
 
-## A station tap opens the craft menu on that station's group (the old hex radial is gone).
+## A station tap opens its hex interact menu over the station; CRAFT/COOK open the craft sheet.
 func open_station_craft(st: Node3D) -> void:
-	if craft_ui and craft_ui.has_method("show_for_station") and station_craft:
-		craft_ui.show_for_station(station_craft.station_id_of(st))
-	elif station_craft:
-		station_craft.open_station(st)
+	if station_craft:
+		station_craft.open_station_menu(st)
 
 ## From the craft menu: craft `count` of a recipe (walks to the station if needed).
 func craft_recipe(rid: StringName, count: int = 1) -> void:
@@ -495,11 +495,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			hunt.use_kick()
 		elif event.is_action_pressed("tactic_4"):
 			hunt.use_net()
-	if placer.layout_mode and placer.moving != null and placer.dragging and event.is_action_released("tap"):
-		placer.drag_end(self)
-		get_viewport().set_input_as_handled()
-		return
-	if event.is_action_pressed("tap"):
+	var tap_released := _is_tap_released(event)
+	if tap_released:
+		_tap_touch_index = -1
+		_hold_walk_candidate = false
+		_hold_walk_elapsed = 0.0
+		if placer.layout_mode and placer.moving != null and placer.dragging:
+			placer.drag_end(self)
+			get_viewport().set_input_as_handled()
+			return
+	if _is_tap_pressed(event):
 		if placer.layout_mode and placer.moving == null:
 			# Layout mode: a tap on a building picks it up; anything else is ignored.
 			if _tap_blocked():
@@ -531,6 +536,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		_hold_walk_candidate = tap_kind == &"ground"
 		_hold_walk_elapsed = 0.0
 		_hold_walk_retarget_left = 0.0
+
+func _is_tap_pressed(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed and _tap_touch_index == -1:
+			_tap_touch_index = touch.index
+			return true
+		return false
+	return event.is_action_pressed("tap")
+
+
+func _is_tap_released(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		return not touch.pressed and touch.index == _tap_touch_index
+	return event.is_action_released("tap")
 
 func _tap_blocked() -> bool:
 	# Blocked only by a control that actually stops input (buttons, sheets, panels) or sits
@@ -1024,7 +1045,7 @@ func _tick_autofeed(delta: float) -> void:
 	_autofeed_cd = 3.0
 
 func _tick_hold_walk(delta: float) -> void:
-	if not Input.is_action_pressed("tap"):
+	if _tap_touch_index == -1 and not Input.is_action_pressed("tap"):
 		_hold_walk_candidate = false
 		_hold_walk_elapsed = 0.0
 		return
@@ -1485,9 +1506,35 @@ func _setup_survivor() -> void:
 	if not rig.setup(SURVIVOR_BASE_GLB, SURVIVOR_ANIM_DIR, axis, height, "player", true, float(pipeline.get("source_height_m", height))):
 		print("[player] survivor GLB missing %s" % SURVIVOR_BASE_GLB)
 		return
+	_make_survivor_web_safe()
 	_bind_rig_markers()
 	if anim:
 		anim.setup(self, rig)
+
+
+func _make_survivor_web_safe() -> void:
+	# Meshy's material relies on an emissive texture plus KHR material extensions. It can
+	# vanish in the Compatibility/WebGL renderer even though the skinned mesh is present.
+	# Override it with a plain double-sided PBR material on web/mobile; textures are preserved
+	# when available, while a warm fallback guarantees that the body remains visible.
+	if rig == null or rig.mesh_root == null:
+		return
+	for node in rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi == null:
+			continue
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		mi.extra_cull_margin = 1.0
+		for surface in mi.mesh.get_surface_count() if mi.mesh else 0:
+			var original := mi.get_active_material(surface) as BaseMaterial3D
+			var safe := StandardMaterial3D.new()
+			safe.cull_mode = BaseMaterial3D.CULL_DISABLED
+			safe.albedo_color = Color(0.70, 0.45, 0.28)
+			safe.roughness = 0.82
+			if original:
+				safe.albedo_color = original.albedo_color
+				safe.albedo_texture = original.albedo_texture
+			mi.set_surface_override_material(surface, safe)
 
 func _bind_rig_markers() -> void:
 	_right_hand_anchor = _marker_from_socket(rig.hand_socket, "RightHand")
@@ -1629,6 +1676,29 @@ func _drive_lantern() -> void:
 	var flicker := 1.0 + sin((Time.get_ticks_msec() * 0.001) * 7.0 + _lantern_phase) * 0.05
 	_lantern.light_energy = 9.0 * night * flicker
 
+
+
+func _setup_player_beacon() -> void:
+	# On a phone the survivor occupies only a few pixels. A soft ring makes the spawn and
+	# movement readable without covering the character model or becoming a debug marker.
+	var ring := MeshInstance3D.new()
+	ring.name = "PlayerBeacon"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.62
+	torus.outer_radius = 0.76
+	torus.rings = 16
+	torus.ring_segments = 8
+	ring.mesh = torus
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.30, 0.95, 0.62, 0.72)
+	mat.emission_enabled = true
+	mat.emission = Color(0.12, 0.72, 0.42)
+	mat.emission_energy_multiplier = 1.4
+	ring.material_override = mat
+	ring.position.y = -0.86
+	visual.add_child(ring)
 
 func _setup_gather_radial() -> void:
 	var layer := CanvasLayer.new()
