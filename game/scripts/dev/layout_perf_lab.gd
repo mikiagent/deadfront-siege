@@ -83,6 +83,9 @@ func _run() -> void:
 		get_tree().quit(1)
 		return
 	_player.placer.begin_layout()
+	# Real input updates Game.pointer before pickup; mirror that here so grab-offset behavior is
+	# measured from the building instead of the default (0, 0) screen coordinate.
+	Game.pointer = _cam.unproject_position(tent.global_position)
 	if not _player.placer.pick_up(tent):
 		print("[perf] FAIL pick_up")
 		get_tree().quit(1)
@@ -92,6 +95,21 @@ func _run() -> void:
 	_drag_left = 240
 	_last_tick = 0
 	_phase = &"drag"
+	# Event-path probe: a sub-cell movement must move the visual immediately even when the
+	# snapped footprint stays in the same cell. This is the perceived-latency fix.
+	var start_screen := _cam.unproject_position(tent.global_position)
+	var event_screen := start_screen + Vector2(2.0, 0.0)
+	var visual_before: Vector3 = _player.placer.get("_ghost_visual").global_position
+	var event_t0 := Time.get_ticks_usec()
+	_player.placer.drag_to(event_screen)
+	var event_us := Time.get_ticks_usec() - event_t0
+	var visual_after: Vector3 = _player.placer.get("_ghost_visual").global_position
+	var response_m := visual_before.distance_to(visual_after)
+	if response_m <= 0.01:
+		print("[perf] FAIL drag event did not move visual response=%.4fm" % response_m)
+		get_tree().quit(1)
+		return
+	print("[perf] input_to_visual=%dus response=%.3fm" % [event_us, response_m])
 	print("[perf] drag start cell=%s" % str(_player.placer.cell))
 
 func _bench() -> void:

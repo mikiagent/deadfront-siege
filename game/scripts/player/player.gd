@@ -497,6 +497,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			hunt.use_kick()
 		elif event.is_action_pressed("tactic_4"):
 			hunt.use_net()
+	# Feed drag positions straight to the placer in the input event. Waiting for _process added
+	# a full frame of pickup latency on mobile before the ghost reacted to the finger.
+	if placer.layout_mode and placer.moving != null and placer.dragging:
+		if event is InputEventScreenDrag:
+			placer.drag_to((event as InputEventScreenDrag).position)
+			get_viewport().set_input_as_handled()
+			return
+		if event is InputEventMouseMotion and Input.is_action_pressed("tap"):
+			placer.drag_to((event as InputEventMouseMotion).position)
+			get_viewport().set_input_as_handled()
+			return
 	var tap_released := _is_tap_released(event)
 	if tap_released:
 		_tap_touch_index = -1

@@ -84,7 +84,10 @@ func _ready() -> void:
 						bd = d
 						best = n
 			if best:
+				Game.pointer = get_viewport().get_camera_3d().unproject_position(best.global_position)
 				player.placer.pick_up(best)
+				if Game.shot_path.contains("layoutdrag"):
+					player.placer.drag_to(Game.pointer + Vector2(70.0, -18.0))
 				player.placer.dragging = false
 		)
 	if Game.shot_path.contains("bigmap"):

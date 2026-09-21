@@ -12,6 +12,7 @@ var moving: Node3D
 var dragging: bool = false
 var _press_t: float = 0.0
 var _press_pos: Vector2 = Vector2.ZERO
+var _drag_world_offset: Vector3 = Vector3.ZERO
 var _moving_cell: Vector2i = Vector2i.ZERO
 var _moving_rot: int = 0
 var valid: bool = false
@@ -160,6 +161,11 @@ func pick_up(n: Node3D) -> bool:
 	dragging = true
 	_press_t = Time.get_ticks_msec() * 0.001
 	_press_pos = Game.pointer
+	# Preserve the exact point the player grabbed instead of jumping the building's centre
+	# under their finger. This also makes the first drag frame visibly respond immediately.
+	var hit := _ground_at(Game.pointer)
+	_drag_world_offset = n.global_position - hit.position if not hit.is_empty() else Vector3.ZERO
+	_drag_world_offset.y = 0.0
 	print("[build] pick up %s from (%d,%d)" % [placing, cell.x, cell.y])
 	return true
 
@@ -169,6 +175,7 @@ func drag_end(player: Player) -> void:
 	if moving == null:
 		return
 	dragging = false
+	_ghost_visual.position = Vector3.ZERO
 	var quick := (Time.get_ticks_msec() * 0.001 - _press_t) < 0.3 and Game.pointer.distance_to(_press_pos) < 14.0
 	if quick:
 		cell = _moving_cell
@@ -190,22 +197,42 @@ func drag_end(player: Player) -> void:
 		if player.has_method("notice"):
 			player.notice("Can't drop here: %s" % why.replace("_", " "))
 
-## While dragging, the footprint is centred under the finger.
+## While dragging, preserve the grabbed point under the finger.
 func _snap_centered() -> void:
-	var hit := _ground()
+	_update_drag(Game.pointer)
+
+## Update from the input event, not only on the next process frame. The placement footprint
+## remains grid-snapped, while the building itself follows the finger continuously so crossing
+## a tile boundary never feels like input lag.
+func drag_to(screen_pos: Vector2) -> void:
+	if moving == null or not dragging:
+		return
+	Game.pointer = screen_pos
+	_update_drag(screen_pos)
+
+func _update_drag(screen_pos: Vector2) -> void:
+	var hit := _ground_at(screen_pos)
 	if hit.is_empty():
 		return
+	var target: Vector3 = hit.position + _drag_world_offset
 	var grid := _grid()
 	var dims := grid.footprint(placing) if grid else Vector2i.ONE
 	if posmod(rot_step, 4) % 2 == 1:
 		dims = Vector2i(dims.y, dims.x)
-	var under := BuildGrid.tile_of(hit.position)
+	var under := BuildGrid.tile_of(target)
 	cell = under - Vector2i(int(dims.x / 2), int(dims.y / 2))
+	_sync_grid_state()
+	# The overlay communicates the committed cell; only the translucent building follows every
+	# pixel of finger travel. Keep its grounded Y from the snapped placement transform.
+	var snapped: Vector3 = _ghost_root.global_position
+	var visual_world := Vector3(target.x, snapped.y, target.z)
+	_ghost_visual.position = _ghost_root.to_local(visual_world)
 
 ## Put a picked-up building back where it was (✕ while moving).
 func put_back() -> void:
 	if moving == null:
 		return
+	_ghost_visual.position = Vector3.ZERO
 	var grid := _grid()
 	if grid and is_instance_valid(moving):
 		moving.visible = true
@@ -420,12 +447,14 @@ func _snap_to_pointer() -> bool:
 	return true
 
 func _ground() -> Dictionary:
+	return _ground_at(Game.pointer)
+
+func _ground_at(screen_pos: Vector2) -> Dictionary:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return {}
-	var mouse := Game.pointer
-	var from := cam.project_ray_origin(mouse)
-	var to := from + cam.project_ray_normal(mouse) * 200.0
+	var from := cam.project_ray_origin(screen_pos)
+	var to := from + cam.project_ray_normal(screen_pos) * 200.0
 	var q := PhysicsRayQueryParameters3D.create(from, to)
 	return get_tree().root.get_world_3d().direct_space_state.intersect_ray(q)
 
