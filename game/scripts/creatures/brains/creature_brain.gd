@@ -20,6 +20,7 @@ var _target_prev: Vector3 = Vector3.ZERO
 var _target_still_left: float = 0.0
 var _flank_sign: float = 1.0
 var _last_flank_log_s: float = -999.0
+var _orbit_angle: float = 0.0
 ## Herbivores flee, but after PROVOKE_HITS hits within a short window they turn and fight for
 ## PROVOKE_SECONDS (a cornered/provoked grazer bites back), then go back to fleeing.
 const PROVOKE_HITS := 3
@@ -38,6 +39,7 @@ func setup(c: Creature) -> void:
 	profile = _profile(c.def.archetype)
 	perception = float(profile.get("perception_base", 8.0)) + float(c.def.tier) * float(profile.get("perception_tier_mult", 0.15))
 	_flank_sign = -1.0 if int(c.get_instance_id()) % 2 == 0 else 1.0
+	_orbit_angle = fmod(float(c.get_instance_id()) * 2.399963, TAU)
 	_roam_cd = randf_range(float(profile.get("roam_delay_min", 3.0)), float(profile.get("roam_delay_max", 6.0)))
 
 func _effective_perception() -> float:
@@ -237,10 +239,14 @@ func _do_attack() -> void:
 	if creature.global_position.distance_to(attack_target.global_position) > range_max:
 		_set_state(&"approach")
 		return
-	creature.stop_move()
 	creature.face_towards(attack_target.global_position, 0.05)
-	if _attack_cd > 0.0 or creature.anim._busy or creature.stagger_left > 0.0:
+	if creature.anim._busy or creature.stagger_left > 0.0:
+		creature.stop_move() # never slide during a bite / hit reaction
 		return
+	if _attack_cd > 0.0:
+		_strafe_target(get_physics_process_delta_time())
+		return
+	creature.stop_move()
 	if _is_pack_member() and not _pack_ready():
 		return
 	var clip := &"attack_primary"
@@ -253,6 +259,32 @@ func _do_attack() -> void:
 	_attack_cd = 1.2 if clip == &"attack_primary" else 1.8
 	if _is_pack_member():
 		_pack_cooldown_until[creature.pack_id] = _now_s() + 0.4
+
+func _strafe_target(delta: float) -> void:
+	if not _valid_target() or creature.def == null or not creature.def.is_dinosaur():
+		creature.stop_move()
+		return
+	# Every dinosaur circles its target between attacks. Instance-derived phase and direction
+	# distribute a group around one target instead of stacking every attacker on one point.
+	var group_count := _attackers_on_target()
+	var angular_speed := 0.9 + minf(0.55, float(group_count - 1) * 0.14)
+	_orbit_angle = fmod(_orbit_angle + _flank_sign * angular_speed * delta, TAU)
+	var reach := maxf(1.35, float(profile.get("attack_range", 1.8)) + 0.25)
+	var phase_step := TAU / float(maxi(1, group_count))
+	var group_phase := phase_step * float(int(creature.get_instance_id()) % maxi(1, group_count))
+	var a := _orbit_angle + group_phase
+	var slot := attack_target.global_position + Vector3(cos(a), 0.0, sin(a)) * reach
+	creature.move_to(slot)
+
+func _attackers_on_target() -> int:
+	if attack_target == null:
+		return 1
+	var count := 0
+	for n in creature.get_tree().get_nodes_in_group("creatures"):
+		var c := n as Creature
+		if c and not c.health.dead and c.brain and c.brain.attack_target == attack_target:
+			count += 1
+	return maxi(1, count)
 
 func _retreat(delta: float) -> void:
 	if not _valid_target():

@@ -15,7 +15,7 @@ var _icons: Dictionary = {}
 var _icon_cache: Dictionary = {}
 
 func _ready() -> void:
-	layer = 58
+	layer = 48 # behind touch controls and the interactive gather radial/ring layers
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -102,6 +102,8 @@ func _forced_visible(c: Creature, player: Player, now: float) -> bool:
 		return true
 	if now - c.last_aggro_s <= 5.0:
 		return true
+	if c.is_pet:
+		return true
 	if FieldTame.can_attempt(c):
 		return true
 	return false
@@ -139,6 +141,19 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	bar_fill.size = Vector2(160, 14)
 	bar_fill.color = Color(0.2, 0.85, 0.4, 0.95)
 	bar_bg.add_child(bar_fill)
+	var xp_bg := ColorRect.new()
+	xp_bg.name = "XpBg"
+	xp_bg.position = Vector2(8, 36)
+	xp_bg.size = Vector2(160, 7)
+	xp_bg.color = Color(0.04, 0.04, 0.04, 0.82)
+	xp_bg.visible = c.is_pet
+	root.add_child(xp_bg)
+	var xp_fill := ColorRect.new()
+	xp_fill.name = "XpFill"
+	xp_fill.position = Vector2.ZERO
+	xp_fill.size = Vector2(0, 7)
+	xp_fill.color = Color(0.95, 0.76, 0.2, 0.98)
+	xp_bg.add_child(xp_fill)
 	var hp_dbg := Label.new()
 	hp_dbg.name = "HpDebug"
 	hp_dbg.position = Vector2(172, 18)
@@ -146,12 +161,12 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	root.add_child(hp_dbg)
 	var line3 := HBoxContainer.new()
 	line3.name = "Line3"
-	line3.position = Vector2(8, 38)
+	line3.position = Vector2(8, 48)
 	line3.custom_minimum_size = Vector2(160, 18)
 	root.add_child(line3)
 	var tame_row := HBoxContainer.new()
 	tame_row.name = "TameRow"
-	tame_row.position = Vector2(8, 56)
+	tame_row.position = Vector2(8, 64)
 	tame_row.custom_minimum_size = Vector2(160, 20)
 	tame_row.visible = false
 	root.add_child(tame_row)
@@ -181,6 +196,8 @@ func _ensure_entry(c: Creature) -> Dictionary:
 		"line1": line1,
 		"bar_fill": bar_fill,
 		"bar_recent": bar_recent,
+		"xp_bg": xp_bg,
+		"xp_fill": xp_fill,
 		"hp_dbg": hp_dbg,
 		"line3": line3,
 		"tame_row": tame_row,
@@ -251,6 +268,12 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	var bar_fill := entry["bar_fill"] as ColorRect
 	bar_fill.size.x = 160.0 * frac
 	bar_fill.color = _hp_color(frac)
+	var xp_bg := entry["xp_bg"] as ColorRect
+	var xp_fill := entry["xp_fill"] as ColorRect
+	xp_bg.visible = c.is_pet and c.pet_record != null
+	if xp_bg.visible:
+		var need := PetRecord.xp_to_next(c.pet_record.level)
+		xp_fill.size.x = 160.0 * clampf(c.pet_record.xp / maxf(1.0, need), 0.0, 1.0)
 	var recent := entry["bar_recent"] as ColorRect
 	var left := maxf(0.0, float(entry.get("recent_left", 0.0)) - delta)
 	entry["recent_left"] = left

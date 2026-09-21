@@ -995,7 +995,7 @@ func _draw_path_line(delta: float) -> void:
 
 func _setup_gather_ring() -> void:
 	var layer := CanvasLayer.new()
-	layer.layer = 56
+	layer.layer = 81 # interactive gather feedback stays above creature plates and controls
 	layer.name = "GatherRingLayer"
 	add_child(layer)
 	var script := load("res://scripts/ui/gather_ring.gd") as GDScript
@@ -1371,6 +1371,13 @@ func summon_pet(index: int = 0) -> void:
 	if bonded.is_empty():
 		return
 	var rec := bonded[clampi(index, 0, bonded.size() - 1)]
+	var cooldown_left := rec.respawn_seconds_left()
+	if cooldown_left > 0:
+		notice("%s recovers in %d:%02d." % [str(rec.species).capitalize(), cooldown_left / 60, cooldown_left % 60])
+		return
+	if rec.current_hp <= 0.0:
+		rec.current_hp = rec.hp
+		rec.respawn_ready_unix = 0
 	for p in live_pets():
 		if p.pet_record == rec:
 			summoned_pets.erase(p)
@@ -1391,7 +1398,7 @@ func summon_pet(index: int = 0) -> void:
 	c.hunger = rec.hunger
 	c.hunger_max = rec.hunger_max
 	c.health.max_hp = rec.hp
-	c.health.hp = rec.hp
+	c.health.hp = clampf(rec.current_hp, 0.0, rec.hp)
 	c.level = rec.level
 	c.global_position = global_position + Vector3(1.5 + 1.2 * float(summoned_pets.size()), 0, 0)
 	summoned_pets.append(c)
@@ -1633,7 +1640,7 @@ func _drive_lantern() -> void:
 func _setup_gather_radial() -> void:
 	var layer := CanvasLayer.new()
 	layer.name = "GatherRadialLayer"
-	layer.layer = 55
+	layer.layer = 80 # interactive option picker must win UI ordering
 	add_child(layer)
 	_gather_radial = GatherRadial.new()
 	_gather_radial.name = "GatherRadial"

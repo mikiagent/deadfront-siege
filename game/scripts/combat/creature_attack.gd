@@ -18,9 +18,14 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 	if source.def.id == &"velociraptor" and clip != &"attack_heavy" and (id == &"knockdown" or id == &"bleed"):
 		return
 	if target is Creature:
-		(target as Creature).statuses.apply(id, source, int(parsed["stacks"]))
+		var cr := target as Creature
+		# A wild tameable creature may only enter the capture knockdown window at <=10% HP.
+		# Combat knockdowns still work normally on non-tameable enemies and pets.
+		if id == &"knockdown" and not cr.is_pet and cr.def.tameable and cr.health.fraction() > FieldTame.TAME_HEALTH_THRESHOLD + 0.0001:
+			return
+		cr.statuses.apply(id, source, int(parsed["stacks"]))
 		if id == &"knockdown":
-			(target as Creature).anim.play_clip(&"knockdown")
+			cr.anim.play_clip(&"knockdown")
 	elif target is Player:
 		(target as Player).statuses.apply(id, source, int(parsed["stacks"]))
 

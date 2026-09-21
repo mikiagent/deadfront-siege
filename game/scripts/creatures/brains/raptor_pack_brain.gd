@@ -40,9 +40,13 @@ func _think(delta: float) -> void:
 			state = &"attack"
 		return
 	state = &"attack"
-	creature.stop_move()
 	creature.face_towards(attack_target.global_position, 0.08)
-	if _attack_cd <= 0.0:
+	if creature.anim._busy:
+		creature.stop_move()
+	elif _attack_cd > 0.0:
+		_strafe_target(delta)
+	else:
+		creature.stop_move()
 		creature.anim.play_clip(&"attack_primary")
 		_attack_cd = 1.1
 	_attack_cd = maxf(0.0, _attack_cd - delta)

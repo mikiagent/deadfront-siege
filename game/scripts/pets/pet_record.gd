@@ -20,6 +20,18 @@ var summoned: bool = false
 ## less. Each level: +8 % HP, +5 % attack, +4 % defense. ASSUMPTION: level n needs 30 + 15 n XP.
 var level: int = 1
 var xp: float = 0.0
+## Runtime health is distinct from the level-scaled maximum (`hp`). It is written on every
+## health change so save/load cannot silently heal a pet to full.
+var current_hp: float = 0.0
+## Unix second when this pet may return after being knocked out. Zero means ready.
+var respawn_ready_unix: int = 0
+const RESPAWN_COOLDOWN_SECONDS := 180
+
+func respawn_seconds_left(now_unix: int = int(Time.get_unix_time_from_system())) -> int:
+	return maxi(0, respawn_ready_unix - now_unix)
+
+func can_respawn(now_unix: int = int(Time.get_unix_time_from_system())) -> bool:
+	return respawn_seconds_left(now_unix) <= 0
 
 static func xp_to_next(lv: int) -> float:
 	return 30.0 + 15.0 * float(lv)
@@ -45,6 +57,7 @@ static func from_def(def: CreatureDef, p_grade: StringName, variant: StringName 
 	r.variant = variant
 	r.grade = p_grade
 	r.hp = def.hp
+	r.current_hp = def.hp
 	r.attack = def.attack
 	r.defense = def.defense
 	r.speed = def.speed
@@ -91,6 +104,8 @@ func to_dict() -> Dictionary:
 		"bag": bag.to_array() if bag else [],
 		"level": level,
 		"xp": xp,
+		"current_hp": current_hp,
+		"respawn_ready_unix": respawn_ready_unix,
 	}
 
 static func from_dict(d: Dictionary) -> PetRecord:
@@ -113,4 +128,6 @@ static func from_dict(d: Dictionary) -> PetRecord:
 	r.bag.load_array(d.get("bag", []))
 	r.level = maxi(1, int(d.get("level", 1)))
 	r.xp = float(d.get("xp", 0.0))
+	r.current_hp = clampf(float(d.get("current_hp", r.hp)), 0.0, r.hp)
+	r.respawn_ready_unix = maxi(0, int(d.get("respawn_ready_unix", 0)))
 	return r

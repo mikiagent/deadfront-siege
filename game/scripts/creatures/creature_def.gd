@@ -72,6 +72,11 @@ func mapped_archetype() -> StringName:
 		_:
 			return archetype
 
+func is_dinosaur() -> bool:
+	# Smilodon and Megaloceros share the creature runtime but are mammals. Every other current
+	# roster entry is a dinosaur; keeping the exceptions here makes strafing data-independent.
+	return id not in [&"smilodon", &"megaloceros"]
+
 func is_herbivore_diet() -> bool:
 	# Keep in sync with game/data/creatures/ai.json herbivore archetypes.
 	match archetype:
