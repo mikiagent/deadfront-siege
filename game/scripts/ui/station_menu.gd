@@ -106,8 +106,10 @@ func _process(delta: float) -> void:
 	if cui != null and cui is Control and (cui as Control).visible:
 		hide_menu()
 		return
-	if player and (player.nav_active \
-			or player.global_position.distance_to(station.global_position) > CLOSE_RANGE):
+	# Ground taps start navigation and dismiss the menu. Do not also close solely because
+	# the first station tap came from farther than CLOSE_RANGE; that made the ring flash
+	# for one frame at the opening camp.
+	if player and player.nav_active:
 		hide_menu()
 		return
 	_expand_elapsed = minf(EXPAND_SECONDS, _expand_elapsed + delta)
