@@ -113,12 +113,22 @@ func _draw() -> void:
 		draw_string(font, Vector2(bc.x - w * 0.5, bc.y + bsz * 0.36), badge, HORIZONTAL_ALIGNMENT_LEFT, -1, bsz, Color.WHITE)
 
 	if cooldown > 0.0:
-		var pts := PackedVector2Array([c])
-		var steps := 24
-		for i in steps + 1:
-			var a := -PI * 0.5 + TAU * cooldown * float(i) / float(steps)
-			pts.append(c + Vector2(cos(a), sin(a)) * r)
-		draw_colored_polygon(pts, Color(0, 0, 0, 0.55))
+		# Durango-style progress: a translucent circular dial fills in discrete slices.
+		# The gaps make progress readable against foliage without another heavy hex outline.
+		var slices := 16
+		var filled := ceili(clampf(cooldown, 0.0, 1.0) * float(slices))
+		var outer := r * 0.94
+		var inner := r * 0.56
+		for i in filled:
+			var a0 := -PI * 0.5 + TAU * float(i) / float(slices) + 0.025
+			var a1 := -PI * 0.5 + TAU * float(i + 1) / float(slices) - 0.025
+			var wedge := PackedVector2Array([
+				c + Vector2(cos(a0), sin(a0)) * inner,
+				c + Vector2(cos(a0), sin(a0)) * outer,
+				c + Vector2(cos(a1), sin(a1)) * outer,
+				c + Vector2(cos(a1), sin(a1)) * inner,
+			])
+			draw_colored_polygon(wedge, Color(0.72, 0.72, 0.72, 0.42))
 	if label_text != "":
 		var ls := int(r * 0.42)
 		var lw := font.get_string_size(label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ls).x

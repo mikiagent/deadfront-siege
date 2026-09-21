@@ -51,7 +51,7 @@ var _death_panel: Control
 var _death_alpha: float = 0.0
 var _death_btn: Button
 
-const MAP_PX := 180.0
+const MAP_PX := 154.0
 const MAP_SCALE := 1.5  # metres per pixel
 const HEX := 66.0
 
@@ -154,6 +154,12 @@ func _build_minimap() -> void:
 	_minimap.size = Vector2(MAP_PX, MAP_PX)
 	_minimap.mouse_filter = Control.MOUSE_FILTER_STOP
 	_minimap.clip_contents = true
+	# Clip the map and every marker to a round field window.
+	var circle_shader := Shader.new()
+	circle_shader.code = "shader_type canvas_item; void fragment(){ vec2 q = UV - vec2(0.5); if (length(q) > 0.5) discard; COLOR = texture(TEXTURE, UV) * COLOR; }"
+	var circle_material := ShaderMaterial.new()
+	circle_material.shader = circle_shader
+	_minimap.material = circle_material
 	_minimap.draw.connect(_draw_minimap)
 	_minimap.gui_input.connect(func (ev: InputEvent) -> void:
 		if (ev is InputEventScreenTouch and not (ev as InputEventScreenTouch).pressed) or (ev is InputEventMouseButton and not (ev as InputEventMouseButton).pressed and (ev as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT):
@@ -789,15 +795,19 @@ func _draw() -> void:
 	var r := get_viewport_rect().size
 	var v := player.vitals
 	# --- vitals top-left
-	var x := 30.0
-	var y := 14.0
-	_bar(Vector2(x, y), Vector2(230, 16), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "♥", "%.0f / %.0f" % [v.health, v.effective_max_health()])
-	_bar(Vector2(x, y + 22), Vector2(230, 16), v.energy / maxf(1.0, v.max_energy), Color(0.20, 0.45, 0.80), "⚡", "%.0f / %.0f" % [v.energy, v.max_energy])
+	var x := 16.0
+	var y := 12.0
+	# Compact level chip belongs to the vitals cluster, not the bottom edge.
+	draw_circle(Vector2(x + 16.0, y + 16.0), 16.0, Color(0.06, 0.07, 0.08, 0.92))
+	draw_string(_font, Vector2(x + 5.0, y + 21.0), str(World.pioneer_level), HORIZONTAL_ALIGNMENT_CENTER, 22.0, 13, Color.WHITE)
+	x += 38.0
+	_bar(Vector2(x, y), Vector2(176, 13), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "♥", "%.0f / %.0f" % [v.health, v.effective_max_health()])
+	_bar(Vector2(x, y + 22), Vector2(176, 13), v.energy / maxf(1.0, v.max_energy), Color(0.20, 0.45, 0.80), "⚡", "%.0f / %.0f" % [v.energy, v.max_energy])
 	# hunger + thirst under energy; the bar colour goes red when empty (no health regen)
 	var hfrac: float = v.hunger / maxf(1.0, v.max_hunger)
 	var tfrac: float = v.thirst / maxf(1.0, v.max_thirst)
-	_bar(Vector2(x, y + 44), Vector2(230, 12), hfrac, Color(0.82, 0.16, 0.16) if hfrac <= 0.0 else Color(0.80, 0.50, 0.18), "🍖", "%.0f" % v.hunger)
-	_bar(Vector2(x, y + 62), Vector2(230, 12), tfrac, Color(0.82, 0.16, 0.16) if tfrac <= 0.0 else Color(0.25, 0.70, 0.85), "💧", "%.0f" % v.thirst)
+	_bar(Vector2(x, y + 44), Vector2(176, 9), hfrac, Color(0.82, 0.16, 0.16) if hfrac <= 0.0 else Color(0.80, 0.50, 0.18), "🍖", "%.0f" % v.hunger)
+	_bar(Vector2(x, y + 62), Vector2(176, 9), tfrac, Color(0.82, 0.16, 0.16) if tfrac <= 0.0 else Color(0.25, 0.70, 0.85), "💧", "%.0f" % v.thirst)
 	var warn := ""
 	if hfrac <= 0.0 or tfrac <= 0.0:
 		warn = "STARVING" if hfrac <= 0.0 else "PARCHED"
@@ -832,11 +842,11 @@ func _draw() -> void:
 	# One bar: the pioneer level, which every skill XP grant also feeds.
 	var prog := World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
 	var char_lv := World.pioneer_level
-	draw_rect(Rect2(0, r.y - 7, r.x, 7), Color(0.05, 0.05, 0.07, 0.9))
-	draw_rect(Rect2(0, r.y - 7, r.x * prog, 7), Color(0.55, 0.25, 0.75))
+	draw_rect(Rect2(0, r.y - 4, r.x, 4), Color(0.05, 0.05, 0.07, 0.9))
+	draw_rect(Rect2(0, r.y - 4, r.x * prog, 4), Color(0.90, 0.68, 0.12))
 	var lv := "Lv. %d  %.1f%%" % [char_lv, prog * 100.0]
 	var lw := _font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
-	draw_string(_font, Vector2(r.x * 0.5 - lw * 0.5, r.y - 10), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
+	draw_string(_font, Vector2(r.x * 0.5 - lw * 0.5, r.y - 7), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 	# --- name under the survivor
 	var cam := get_viewport().get_camera_3d()
 	if cam:
@@ -1008,7 +1018,7 @@ func _draw_minimap() -> void:
 	var side := Vector2(-fwd.y, fwd.x)
 	c.draw_colored_polygon(PackedVector2Array([fwd * 8.0, -fwd * 5.0 + side * 5.0, -fwd * 5.0 - side * 5.0]), Color(1, 1, 1))
 	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(1, 1, 1, 0.35), false, 1.5)
+	c.draw_circle(c.size * 0.5, MAP_PX * 0.5 - 1.5, Color(1, 1, 1, 0.48), false, 2.0)
 
 func _gather_radial_node() -> Node3D:
 	var gr: Variant = player.get("_gather_radial")
