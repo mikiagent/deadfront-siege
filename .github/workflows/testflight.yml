@@ -41,6 +41,9 @@ jobs:
           mkdir -p "$API_KEY_DIR"
           printf '%s' "$ASC_API_KEY_BASE64" | base64 --decode > "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
           chmod 600 "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
+          KEY_FINGERPRINT="$(openssl pkey -in "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8" -pubout -outform DER 2>/dev/null | shasum -a 256 | awk '{print $1}')"
+          [[ "$KEY_FINGERPRINT" == "fbd8f52405643043d7a71f7fb87e810bde0489da9397d4fd779845c44e00aaf4" ]] || { echo "ASC private key does not match AuthKey_SG2U74KCQ5.p8 (public fingerprint $KEY_FINGERPRINT)"; exit 1; }
+          echo "Verified ASC private-key fingerprint for $ASC_API_KEY_ID"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
