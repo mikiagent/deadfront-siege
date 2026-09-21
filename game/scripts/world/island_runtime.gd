@@ -129,14 +129,10 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	if _crater_hint != Vector3.ZERO:
 		_crater_pos = _tile_at(_crater_hint.x, _crater_hint.z)
 	harbour = (load("res://scripts/world/harbour.gd") as GDScript).new()
-	harbour.position = _harbour_pos
-	add_child(harbour)
-	_reserve_box(_harbour_pos, Vector2i(3, 6), &"harbour")
+	_camp_place(harbour, "Harbour", &"harbour", BuildGrid.tile_of(_harbour_pos) - Vector2i(1, 3))
 	_camp(_camp_pos)
 	cargo = (load("res://scripts/world/cargo_warp.gd") as GDScript).new()
-	cargo.position = _tile_at(float(camp_a[0]) + 3.0, float(camp_a[2]))
-	add_child(cargo)
-	build_grid.reserve_kind(&"basket", BuildGrid.tile_of(cargo.position), 0)
+	_camp_place(cargo, "CargoWarp", &"chest", BuildGrid.tile_of(_tile_at(float(camp_a[0]) + 3.0, float(camp_a[2]))))
 	if str(def.get("kind", "")) == "private":
 		var PB := load("res://scripts/world/placed_building.gd") as GDScript
 		cargo_basket = PB.make(&"basket")
@@ -590,28 +586,36 @@ func _setup_pathing() -> void:
 	add_child(pathing)
 	pathing.setup(self)
 
+## Camp pieces are real buildings (occupied cells, not reserved) so layout mode can move them;
+## a moved pose is remembered in World.camp_layout and applied here on the next build.
+func _camp_place(node: Node3D, name: String, kind: StringName, default_cell: Vector2i) -> void:
+	node.name = name
+	var cell := default_cell
+	var rot := 0
+	var saved: Variant = World.camp_layout.get(name, null) if World else null
+	if saved is Dictionary:
+		var cv: Variant = (saved as Dictionary).get("cell", null)
+		if cv is Array and (cv as Array).size() >= 2:
+			cell = Vector2i(int(cv[0]), int(cv[1]))
+		rot = int((saved as Dictionary).get("rot", 0))
+	add_child(node)
+	node.global_transform = build_grid.placement_transform(kind, cell, rot)
+	if node.has_method("set_grid_pose"):
+		node.set_grid_pose(cell, rot)
+	build_grid.occupy(node, build_grid.cells_for(kind, cell, rot))
+
 func _camp(at: Vector3) -> void:
 	_coziness(at)
 	var fire := Bonfire.make()
 	fire.persist_building = false
-	var fire_cell := BuildGrid.tile_of(at + Vector3(-2.0, 0.0, 0.0))
-	add_child(fire)
-	fire.global_transform = build_grid.placement_transform(&"bonfire", fire_cell, 0)
-	fire.set_grid_pose(fire_cell, 0)
-	build_grid.reserve_kind(&"bonfire", fire_cell, 0)
+	_camp_place(fire, "CampFire", &"bonfire", BuildGrid.tile_of(at + Vector3(-2.0, 0.0, 0.0)))
 	var bench := CraftStation.make(&"workbench")
 	bench.persist_building = false
-	var bench_cell := BuildGrid.tile_of(at + Vector3(2.0, 0.0, 0.0))
-	add_child(bench)
-	bench.global_transform = build_grid.placement_transform(&"workbench", bench_cell, 0)
-	bench.set_grid_pose(bench_cell, 0)
-	build_grid.reserve_kind(&"workbench", bench_cell, 0)
-	var shed := StaticBody3D.new()
-	shed.name = "CampShed"
-	shed.position = _tile_at(at.x, at.z - 3.5)
-	add_child(shed)
-	PropVisuals.apply_building_visual(shed, &"tent", Vector3(2.2, 1.6, 2.2), Color(0.55, 0.4, 0.22))
-	build_grid.reserve_kind(&"tent", BuildGrid.tile_of(shed.global_position), 0)
+	_camp_place(bench, "CampBench", &"workbench", BuildGrid.tile_of(at + Vector3(2.0, 0.0, 0.0)))
+	var PB := load("res://scripts/world/placed_building.gd") as GDScript
+	var shed = PB.make(&"tent")
+	shed.persist_building = false
+	_camp_place(shed, "CampShed", &"tent", BuildGrid.tile_of(_tile_at(at.x, at.z - 3.5)))
 
 func _coziness(at: Vector3) -> void:
 	var area := Area3D.new()

@@ -45,6 +45,7 @@ static func save_now() -> void:
 			"buildings": buildings if World.is_home() else World._home_buildings_cache,
 			"cargo": World.cargo_home.to_array(),
 			"claims": World.home_claims,
+			"camp_layout": World.camp_layout,
 		},
 		"pioneer_xp": World.pioneer_xp,
 		"skills_v2": player.skills.to_dict() if player.skills else {},
@@ -99,6 +100,8 @@ static func load_now(host: Node) -> void:
 	World.cargo_home.load_array(data.get("home", {}).get("cargo", []))
 	World._home_buildings_cache = data.get("home", {}).get("buildings", [])
 	World.home_claims = data.get("home", {}).get("claims", [])
+	var cl: Variant = data.get("home", {}).get("camp_layout", {})
+	World.camp_layout = (cl as Dictionary).duplicate() if cl is Dictionary else {}
 	World.pioneer_xp = int(data.get("pioneer_xp", 0))
 	World.player_name = str(data.get("player_name", ""))
 	World.occupation = str(data.get("occupation", ""))

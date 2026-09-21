@@ -116,8 +116,6 @@ static func kind_of_building(n: Node) -> StringName:
 static func is_movable(n: Node) -> bool:
 	if n == null or not (n is Node3D):
 		return false
-	if n.is_in_group("cargo_warp") or n.is_in_group("harbour"):
-		return false
 	return n.has_method("set_grid_pose") and kind_of_building(n) != &""
 
 func begin_layout() -> void:
@@ -282,6 +280,10 @@ func confirm(player: Player) -> bool:
 		if moving.has_method("reset_physics_interpolation"):
 			moving.reset_physics_interpolation()
 		g.occupy(moving, g.cells_for(placing, cell, rot_step))
+		# Camp pieces are rebuilt each load from World.camp_layout, so remember where they went.
+		var pv: Variant = moving.get("persist_building")
+		if pv != null and not bool(pv):
+			World.camp_layout[str(moving.name)] = {"cell": [cell.x, cell.y], "rot": posmod(rot_step, 4)}
 		print("[build] moved %s to (%d,%d) rot=%d" % [placing, cell.x, cell.y, posmod(rot_step, 4) * 90])
 		moving = null
 		placing = &""

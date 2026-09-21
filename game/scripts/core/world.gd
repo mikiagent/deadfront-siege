@@ -27,6 +27,9 @@ var runtime: Node3D
 var last_save_unix: int = 0
 var resting_in_tent: bool = false
 var _home_buildings_cache: Array = []
+## Moved camp pieces (fire, bench, shed, cargo warp): node name -> {cell, rot}; applied when the
+## island builds them, saved under home.camp_layout.
+var camp_layout: Dictionary = {}
 var _save_acc: float = 0.0
 var _fade: ColorRect
 
