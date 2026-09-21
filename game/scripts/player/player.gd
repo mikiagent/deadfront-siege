@@ -143,6 +143,7 @@ func _ready() -> void:
 	_setup_survivor()
 	_setup_lantern()
 	_setup_ground_marker()
+	_setup_player_beacon()
 	_setup_gather_ring()
 	skills = SkillState.new()
 	skills.name = "Skills"
@@ -1629,6 +1630,29 @@ func _drive_lantern() -> void:
 	var flicker := 1.0 + sin((Time.get_ticks_msec() * 0.001) * 7.0 + _lantern_phase) * 0.05
 	_lantern.light_energy = 9.0 * night * flicker
 
+
+
+func _setup_player_beacon() -> void:
+	# On a phone the survivor occupies only a few pixels. A soft ring makes the spawn and
+	# movement readable without covering the character model or becoming a debug marker.
+	var ring := MeshInstance3D.new()
+	ring.name = "PlayerBeacon"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.62
+	torus.outer_radius = 0.76
+	torus.rings = 16
+	torus.ring_segments = 8
+	ring.mesh = torus
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.30, 0.95, 0.62, 0.72)
+	mat.emission_enabled = true
+	mat.emission = Color(0.12, 0.72, 0.42)
+	mat.emission_energy_multiplier = 1.4
+	ring.material_override = mat
+	ring.position.y = -0.86
+	visual.add_child(ring)
 
 func _setup_gather_radial() -> void:
 	var layer := CanvasLayer.new()
