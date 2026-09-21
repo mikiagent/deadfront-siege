@@ -1,0 +1,22 @@
+name: Game checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  headless:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.0
+          use-dotnet: false
+          include-templates: false
+      - name: Migration fixture tests
+        run: tools/test.sh
+      - name: Main-scene smoke test
+        run: tools/smoke.sh --no-import

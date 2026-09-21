@@ -4,8 +4,8 @@
 # Usage: tools/smoke.sh            (import + run)
 #        tools/smoke.sh --no-import
 set -u
-G="${GODOT_PATH:-/Applications/Godot_mono.app/Contents/MacOS/Godot}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+G="$($ROOT/tools/find_godot.sh)"
 if [[ "${1:-}" != "--no-import" ]]; then
   perl -e 'alarm 180; exec @ARGV' "$G" --headless --path "$ROOT/game" --import >/dev/null 2>&1
 fi

@@ -1151,20 +1151,7 @@ func _weather(delta: float) -> void:
 		p.tick_climate_fatigue(delta, _climate)
 
 func _palette_for(climate: String) -> Dictionary:
-	var row: Dictionary = Data.world_climates.get(climate, {})
-	var p: Dictionary = row.get("palette", {})
-	var out := {
-		"grass": Color(0.42, 0.62, 0.32),
-		"dry": Color(0.56, 0.54, 0.35),
-		"dirt": Color(0.44, 0.34, 0.24),
-		"sand": Color(0.79, 0.72, 0.54),
-		"rock": Color(0.47, 0.46, 0.44),
-	}
-	for k in p.keys():
-		var parsed := Color.from_string(str(p[k]), Color.WHITE)
-		if parsed != Color.WHITE or str(p[k]).to_lower() == "#ffffff":
-			out[k] = parsed
-	return out
+	return ClimatePalette.resolve(Data.world_climates.get(climate, {}))
 
 func _build_tile_types(climate: String) -> void:
 	_tile_span = maxi(1, int(round(_size)))

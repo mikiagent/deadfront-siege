@@ -2,7 +2,7 @@ extends RefCounted
 ## Snapshot C save. Schema 2. Ids only, never node references.
 
 const PATH := "user://save_1.json"
-const SCHEMA := 3
+const SCHEMA := SaveMigrations.CURRENT_SCHEMA
 
 static func exists() -> bool:
 	return FileAccess.file_exists(PATH)
@@ -84,10 +84,16 @@ static func load_now(host: Node) -> void:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		World.start_new(host)
 		return
-	var data: Dictionary = parsed
-	var schema := int(data.get("schema", 0))
-	if schema != SCHEMA:
-		print("[world] save schema mismatch got=%d want=%d" % [schema, SCHEMA])
+	var raw_data: Dictionary = parsed
+	var source_schema := int(raw_data.get("schema", 0))
+	var data := SaveMigrations.migrate(raw_data)
+	if data.is_empty():
+		print("[world] unsupported save schema=%d; starting new world" % source_schema)
+		World.start_new(host)
+		return
+	if source_schema != SCHEMA:
+		print("[world] migrated save schema=%d -> %d" % [source_schema, SCHEMA])
+	var schema := source_schema
 	World.home_terrain = StringName(str(data.get("home", {}).get("terrain", "")))
 	World.pioneer_level = int(data.get("pioneer_level", 0))
 	World.pioneer_crafts = data.get("pioneer_crafts", {})
