@@ -7,6 +7,11 @@ const SCHEMA := SaveMigrations.CURRENT_SCHEMA
 static func exists() -> bool:
 	return FileAccess.file_exists(PATH)
 
+static func erase() -> bool:
+	if not FileAccess.file_exists(PATH):
+		return true
+	return DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH)) == OK
+
 static func save_now() -> void:
 	var player := _player()
 	if player == null:

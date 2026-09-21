@@ -44,6 +44,7 @@ var _levelup_lines: Array = []
 var _levelup_t: float = -1.0
 var _titles: Dictionary = {}
 var _level_gains: Dictionary = {}
+var _fresh_start_armed_until: float = -1.0
 # hits on the survivor: bite/crunch jaws + red numbers
 
 # death
@@ -227,6 +228,26 @@ func _toggle_debug() -> void:
 	_inspect_hex.selected = Game.debug_overlay
 	_inspect_hex.queue_redraw()
 	print("[hud] debug %s" % ("on" if Game.debug_overlay else "off"))
+
+func _debug_fresh_start() -> void:
+	# Hidden behind the debug affordance and requires a second press within six seconds.
+	# Reloading the scene rebuilds every autoload-owned view from a truly absent save.
+	if not Game.debug_overlay:
+		return
+	if _now_s() > _fresh_start_armed_until:
+		_fresh_start_armed_until = _now_s() + 6.0
+		_close_sheet()
+		_toggle_sheet(&"menu")
+		if player:
+			player.notice("Press CONFIRM WIPE within 6 seconds.")
+		return
+	if not (load("res://scripts/core/save_game.gd") as GDScript).erase():
+		if player:
+			player.notice("Could not erase the save.")
+		return
+	_fresh_start_armed_until = -1.0
+	Game.debug_overlay = false
+	get_tree().reload_current_scene()
 
 func _build_combat() -> void:
 	_end_btn = Button.new()
@@ -604,6 +625,9 @@ func _toggle_sheet(kind: StringName) -> void:
 			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
 			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
 			_sheet_btn(box, "Debug info: %s" % ("ON" if Game.debug_overlay else "OFF"), func () -> void: _toggle_debug(); _close_sheet(); _toggle_sheet(&"menu"))
+			if Game.debug_overlay:
+				var armed := _now_s() <= _fresh_start_armed_until
+				_sheet_btn(box, "CONFIRM WIPE + FRESH CHARACTER" if armed else "Restart progress…", _debug_fresh_start)
 		&"pets":
 			title.text = "Pets  %d / %d" % [player.bonded.size(), Data.bonded_cap()]
 			if player.bonded.is_empty():
