@@ -63,6 +63,9 @@ var stagger_left: float = 0.0
 var _stagger_immune_until: float = -1.0
 var _aggro_ring_r: float = -1.0
 var _aggro_ring_t: float = 0.0
+## Pet regen accumulates here and is applied in one tick per second, so the heal float
+## pops once a second instead of every frame.
+var _pet_regen_pool: float = 0.0
 var _trail_origin: Vector3
 var _last_bleed_pos: Vector3
 var _path_points: PackedVector3Array = PackedVector3Array()
@@ -224,8 +227,16 @@ func _physics_process(delta: float) -> void:
 	_update_label()
 	_update_aggro_ring(delta)
 	# Pets heal 2 % of max HP per second once 6 s have passed without a hit and nothing is targeted.
+	# The heal is pooled and applied once it reaches a full second's worth, so the floating
+	# "+HP" text ticks about once a second instead of spamming every rendered frame.
 	if is_pet and not health.dead and health.hp < health.max_hp and _now_s() - last_damaged_s > 6.0 and (brain == null or brain.attack_target == null):
-		health.heal(health.max_hp * 0.02 * delta)
+		_pet_regen_pool += health.max_hp * 0.02 * delta
+		var tick := maxf(1.0, health.max_hp * 0.02)
+		if _pet_regen_pool >= tick:
+			health.heal(_pet_regen_pool)
+			_pet_regen_pool = 0.0
+	else:
+		_pet_regen_pool = 0.0
 	if is_pet and pet_record:
 		var drain := hunger_max / 1800.0 * delta * (1.0 / maxf(0.5, pet_record.hunger_efficiency))
 		hunger = maxf(0.0, hunger - drain)
