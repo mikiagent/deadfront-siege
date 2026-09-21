@@ -186,8 +186,7 @@ static func make(id: StringName, amount: int = 1, attrs: Dictionary = {}, lvl: i
 	var d := Data.item(id) if Data else null
 	if d:
 		s.attributes = d.default_attributes.duplicate(true)
-		if lvl < 1:
-			s.level = d.base_level
+		s.level = ProgressionScaling.resolved_item_level(lvl, d.base_level)
 		s.apply_level_stats()
 	for k in attrs:
 		s.attributes[k] = attrs[k]

@@ -57,3 +57,10 @@ static func crafted_level(levels: Array[int], max_level: int = 60, skill_level: 
 		total += level
 	var average := int(floor(float(total) / float(levels.size())))
 	return clampi(average, 1, mini(max_level, skill_level))
+
+static func resolved_item_level(requested_level: int, catalog_level: int) -> int:
+	return maxi(1, catalog_level) if requested_level < 1 else requested_level
+
+static func resolved_spawn_level(species_tier: int, island: Dictionary, cap: int = 60) -> int:
+	var override := int(island.get("level_override", 0))
+	return clampi(override, 1, cap) if override > 0 else species_tier
