@@ -4,7 +4,7 @@
 # up-to-date launch) and check the [shell] lines. Cleans the desktop user:// build cache after.
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-G="${GODOT_PATH:-/Applications/Godot_mono.app/Contents/MacOS/Godot}"
+G="$($ROOT/tools/find_godot.sh)"
 DIR="${TMPDIR:-/tmp}/durango_pack_srv"; PORT=8765
 USERDIR="$HOME/Library/Application Support/Godot/app_userdata/Durango-like (working title)"
 rm -rf "$DIR"; mkdir -p "$DIR"

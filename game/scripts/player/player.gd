@@ -75,7 +75,7 @@ var ui: InventoryUI
 var craft_ui
 var station_craft: StationCraft
 var eat_session: EatSession
-var food_buffs: Dictionary = {} ## buff_id -> {time_left, row}
+var food_buffs := FoodBuffState.new()
 var in_water: bool = false
 var _wet_acc: float = 0.0
 var _field_radial_target: FieldPlot
@@ -186,29 +186,13 @@ func _setup_eat_session() -> void:
 	eat_session.setup(self, layer)
 
 func apply_food_buff(buff_id: StringName, row: Dictionary) -> void:
-	food_buffs[str(buff_id)] = {
-		"time_left": float(row.get("duration", 300.0)),
-		"row": row.duplicate(true),
-	}
+	food_buffs.apply(buff_id, row)
 
 func _tick_food_buffs(delta: float) -> void:
-	if food_buffs.is_empty():
-		return
-	var dead: Array[String] = []
-	for k in food_buffs:
-		food_buffs[k]["time_left"] = float(food_buffs[k].get("time_left", 0.0)) - delta
-		if float(food_buffs[k]["time_left"]) <= 0.0:
-			dead.append(str(k))
-	for k in dead:
-		food_buffs.erase(k)
+	food_buffs.tick(delta)
 
 func food_buff_mult(stat: String) -> float:
-	var m := 1.0
-	for k in food_buffs:
-		var row: Dictionary = food_buffs[k].get("row", {})
-		if str(row.get("stat", "")) == stat and row.has("mult"):
-			m *= float(row.get("mult", 1.0))
-	return m
+	return food_buffs.multiplier(stat)
 
 func begin_eat_slot(index: int) -> bool:
 	return eat_session != null and eat_session.begin_eat(index)
