@@ -21,6 +21,8 @@ var hint_text: String = ""    # small red line under the label (blocked reason)
 var cooldown: float = 0.0     # 0..1 remaining sweep
 var selected: bool = false
 var enabled_look: bool = true
+
+static var _white_icon_cache: Dictionary = {}
 var _down: bool = false
 var _hold: float = 0.0
 
@@ -88,7 +90,7 @@ func _draw() -> void:
 	if icon:
 		var isz := r * 1.05
 		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0)
-		draw_texture_rect(icon, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
+		draw_texture_rect(_white_symbol(icon), Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
 	elif glyph != "":
 		var short := glyph.length() <= 2
 		var gs := int(r * (0.72 if bottom_text != "" else 0.9)) if short else (int(r * 0.40) if glyph.length() <= 4 else int(r * 0.30))
@@ -124,6 +126,26 @@ func _draw() -> void:
 		draw_string(font, Vector2(size.x + 10.0, c.y + ls * 0.35), label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, Color(0.95, 0.95, 0.95))
 		if hint_text != "":
 			draw_string(font, Vector2(size.x + 10.0, c.y + ls * 1.5), hint_text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(r * 0.32), Color(1.0, 0.45, 0.4))
+
+## Durango-style HUD language: action symbols are white silhouettes. Keep alpha/shape from
+## source art, discard its RGB. Cached once per source texture so redraws stay cheap.
+static func _white_symbol(source: Texture2D) -> Texture2D:
+	if source == null:
+		return null
+	var key := source.resource_path if source.resource_path != "" else str(source.get_rid())
+	if _white_icon_cache.has(key):
+		return _white_icon_cache[key] as Texture2D
+	var image := source.get_image()
+	if image == null or image.is_empty():
+		return source
+	image.convert(Image.FORMAT_RGBA8)
+	for y in image.get_height():
+		for x in image.get_width():
+			var px := image.get_pixel(x, y)
+			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, px.a))
+	var white := ImageTexture.create_from_image(image)
+	_white_icon_cache[key] = white
+	return white
 
 func _gui_input(event: InputEvent) -> void:
 	var press := false
