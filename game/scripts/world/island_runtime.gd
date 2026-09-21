@@ -424,9 +424,13 @@ func _v(st: SurfaceTool, p: Vector3) -> void:
 func _terrain_color(p: Vector3) -> Color:
 	var col := Color(1, 1, 1)  # vertex colour is a multiplier on the shader's albedo
 	var camp_d := Vector2(p.x - _camp_hint.x, p.z - _camp_hint.z).length()
-	if camp_d < 13.0:
-		var s := clampf(1.0 - camp_d / 13.0, 0.0, 1.0)
-		col = col.lerp(Color(1.08, 1.05, 0.92), s * 0.5)
+	if camp_d < 18.0:
+		# A warm, trampled clearing frames the opening camp against the surrounding grass.
+		# The broad feathered edge reads as terrain variation, not a UI boundary ring.
+		var inner := 1.0 - smoothstep(7.0, 18.0, camp_d)
+		var path_band := 1.0 - smoothstep(2.0, 5.5, absf(p.x - _camp_hint.x))
+		var warmth := maxf(inner * 0.55, path_band * inner * 0.22)
+		col = col.lerp(Color(0.88, 0.78, 0.57), warmth)
 	var crater_d := Vector2(p.x - _crater_hint.x, p.z - _crater_hint.z).length()
 	if _crater_hint != Vector3.ZERO and crater_d < 14.0:
 		var bowl := clampf(1.0 - crater_d / 14.0, 0.0, 1.0)
@@ -565,8 +569,8 @@ func _nav_bake() -> void:
 	var nav := NavigationRegion3D.new()
 	nav.name = "Nav"
 	var nmesh := NavigationMesh.new()
-	nmesh.agent_radius = 0.35
-	nmesh.agent_max_climb = 1.2
+	nmesh.agent_radius = 0.5
+	nmesh.agent_max_climb = 1.25
 	nmesh.agent_max_slope = 45.0
 	nav.navigation_mesh = nmesh
 	add_child(nav)
@@ -1437,7 +1441,8 @@ func _rebuild_claim_mesh() -> void:
 		_claim_mat = StandardMaterial3D.new()
 		_claim_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		_claim_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_claim_mat.albedo_color = Color(0.55, 0.85, 1.0, 0.9)
+		# Claims should quietly mark ownership, not dominate the camp as a cyan debug ring.
+		_claim_mat.albedo_color = Color(0.72, 0.74, 0.58, 0.30)
 		_claim_mat.vertex_color_use_as_albedo = false
 		_claim_mesh.material_override = _claim_mat
 		_claim_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -1455,8 +1460,8 @@ func _rebuild_claim_mesh() -> void:
 			var a: Vector2 = corners[i]
 			var b: Vector2 = corners[(i + 1) % 4]
 			var len := a.distance_to(b)
-			var dash := 0.5
-			var gap := 0.35
+			var dash := 0.28
+			var gap := 0.72
 			var t := 0.0
 			while t < len:
 				var t2 := minf(len, t + dash)

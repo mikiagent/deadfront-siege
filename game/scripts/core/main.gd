@@ -43,7 +43,7 @@ func _ready() -> void:
 				_gather_test(player)
 			if "--combat-test" in OS.get_cmdline_user_args():
 				_combat_test(player)
-			if "--web-soak" in OS.get_cmdline_user_args():
+			if "--web-soak" in OS.get_cmdline_user_args() or "--web-soak" in OS.get_cmdline_args():
 				var soak = (load("res://scripts/dev/web_soak.gd") as GDScript).new()
 				soak.name = "WebSoak"
 				add_child(soak)
