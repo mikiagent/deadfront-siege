@@ -83,10 +83,7 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 		b.pressed.connect(_on_pick.bind(i))
 		add_child(b)
 		_buttons.append(b)
-		var left_txt := ""
-		if o.has("left"):
-			left_txt = "  ·  %d / %d left" % [int(o["left"]), int(o.get("pool", 0))]
-		_labels.append({"text": "%s Lv. %d%s" % [_display_name(item_id), level, left_txt], "reason": reason})
+		_labels.append({"text": "%s Lv. %d" % [_display_name(item_id), level], "reason": reason})
 	_open = true
 	visible = true
 	_show_ring3d()
@@ -189,8 +186,7 @@ func refresh() -> void:
 		b.queue_redraw()
 		if i < _labels.size():
 			var item_id := StringName(str(o.get("item", "")))
-			var left_txt := ("  ·  %d / %d left" % [int(o["left"]), int(o.get("pool", 0))]) if o.has("left") else ""
-			_labels[i] = {"text": "%s Lv. %d%s" % [_display_name(item_id), level, left_txt], "reason": reason}
+			_labels[i] = {"text": "%s Lv. %d" % [_display_name(item_id), level], "reason": reason}
 	queue_redraw()
 
 func set_progress(frac: float) -> void:

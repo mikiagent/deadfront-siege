@@ -25,6 +25,7 @@ var _ghost_grid: MeshInstance3D
 var _ghost_cells: Node3D
 var _ghost_label: Label3D
 
+var _last_sync := [Vector2i(999999, 999999), -1, ""]  # cell, rot, placing: overlay rebuilt only on change
 var _mat_valid: StandardMaterial3D
 var _mat_invalid: StandardMaterial3D
 var _cell_valid: StandardMaterial3D
@@ -83,6 +84,7 @@ func _ready() -> void:
 	add_child(_ghost_cells)
 
 func begin(kind: StringName) -> void:
+	_last_sync = [Vector2i(999999, 999999), -1, ""]
 	placing = kind
 	rot_step = 0
 	reason = ""
@@ -135,6 +137,7 @@ func pick_up(n: Node3D) -> bool:
 	if grid == null:
 		return false
 	moving = n
+	_last_sync = [Vector2i(999999, 999999), -1, ""]
 	_moving_cell = n.get("build_cell") if n.get("build_cell") != null else BuildGrid.tile_of(n.global_position)
 	_moving_rot = int(n.get("build_rot")) if n.get("build_rot") != null else 0
 	grid.release(n)
@@ -380,6 +383,11 @@ func _sync_grid_state() -> void:
 		reason = "no_runtime"
 		return
 	rot_step = grid.suggested_fence_rot(placing, cell, rot_step)
+	# Rebuilding the grid overlay (an ImmediateMesh plus ~80 tile quads) every frame made dragging
+	# stutter; only redo it when the ghost actually moved, rotated or changed kind.
+	if _last_sync[0] == cell and _last_sync[1] == rot_step and _last_sync[2] == str(placing):
+		return
+	_last_sync = [cell, rot_step, str(placing)]
 	reason = grid.can_place(placing, cell, rot_step)
 	valid = reason == ""
 	_ghost_root.global_transform = grid.placement_transform(placing, cell, rot_step)

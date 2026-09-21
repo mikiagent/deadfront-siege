@@ -73,8 +73,19 @@ func _physics_process(delta: float) -> void:
 	_think(delta)
 	creature.brain_state = state
 
+var _retarget_cd: float = 0.0
+
+## Hit by someone other than the current target (a pet biting while it chases the survivor):
+## turn on the attacker. Fight what fights you; no running past a biter to reach the survivor.
 func on_aggro(who: Node) -> void:
 	if who is Node3D:
+		if attack_target != null and attack_target != who and _valid_target() and _now_s() >= _retarget_cd:
+			attack_target = who as Node3D
+			_retarget_cd = _now_s() + 2.5
+			if state == &"approach" or state == &"attack":
+				print("[ai] %s turns on %s" % [creature.def.id, who.name])
+				creature.mark_aggro_now()
+				return
 		attack_target = who as Node3D
 		creature.mark_aggro_now()
 		# Do not downgrade combat states (retreat/flee/approach/attack) back to alert.

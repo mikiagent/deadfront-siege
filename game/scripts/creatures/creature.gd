@@ -215,6 +215,9 @@ func _physics_process(delta: float) -> void:
 	_blood_trail()
 	_update_label()
 	_update_aggro_ring(delta)
+	# Pets heal 2 % of max HP per second once 6 s have passed without a hit and nothing is targeted.
+	if is_pet and not health.dead and health.hp < health.max_hp and _now_s() - last_damaged_s > 6.0 and (brain == null or brain.attack_target == null):
+		health.heal(health.max_hp * 0.02 * delta)
 	if is_pet and pet_record:
 		var drain := hunger_max / 1800.0 * delta * (1.0 / maxf(0.5, pet_record.hunger_efficiency))
 		hunger = maxf(0.0, hunger - drain)
@@ -448,6 +451,7 @@ func _on_died(_source: Node) -> void:
 			if amount > 0.0:
 				var gained := pet.pet_record.add_xp(amount)
 				pet.level = pet.pet_record.level
+				pet.combat_float.emit(amount, &"xp")
 				if gained > 0:
 					pet.health.max_hp = pet.pet_record.hp
 					pet.health.hp = minf(pet.health.max_hp, pet.health.hp + pet.health.max_hp * 0.25)

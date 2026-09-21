@@ -365,6 +365,8 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 	var shown := "%d" % int(round(amount))
 	if kind == &"heal":
 		shown = "+%s" % shown
+	elif kind == &"xp":
+		shown = "+%s XP" % shown
 	else:
 		shown = "-%s" % shown
 	# White = normal, grey = not very effective, orange = super effective, red = critical.
@@ -373,6 +375,9 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 	match kind:
 		&"heal":
 			col = Color(0.45, 1.0, 0.5)
+		&"xp":
+			col = Color(1.0, 0.85, 0.35)
+			fs = 15
 		&"dot":
 			col = Color(0.95, 0.4, 0.4)
 			fs = 14

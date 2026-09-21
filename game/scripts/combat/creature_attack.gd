@@ -48,3 +48,8 @@ static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"
 		var raw: float = atk - defn * 0.5
 		var dealt: float = maxf(atk * 0.05, raw)
 		cr.health.take_damage(dealt, attacker)
+		if attacker.is_pet and attacker.pet_record and not cr.is_pet:
+			if attacker.pet_record.add_xp(1.0) > 0:  # a little XP per landed bite
+				attacker.level = attacker.pet_record.level
+				attacker.health.max_hp = attacker.pet_record.hp
+				attacker.combat_float.emit(attacker.pet_record.level, &"xp")

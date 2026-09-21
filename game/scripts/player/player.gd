@@ -334,6 +334,12 @@ func _physics_process(delta: float) -> void:
 			_roll_through.clear()
 			velocity.x *= 0.3
 			velocity.z *= 0.3
+	# Fight or move, not both: no walking while a swing or punch plays.
+	if anim and anim._busy and anim.current_clip in [&"attack_primary", &"attack_heavy", &"punch"]:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		move_and_slide()
+		return
 	if _stagger_left > 0.0:
 		_stagger_left -= delta
 		velocity.x = 0.0
@@ -1212,6 +1218,19 @@ func _force_clip(i: int) -> void:
 		return
 	c.anim.play_clip(_force_clip_map[i], true)
 
+func _nearest_enemy(max_d: float) -> Creature:
+	var best: Creature = null
+	var best_d := max_d
+	for n in get_tree().get_nodes_in_group("creatures"):
+		var c := n as Creature
+		if c == null or c.is_pet or c.health.dead:
+			continue
+		var d := global_position.distance_to(c.global_position)
+		if d < best_d:
+			best_d = d
+			best = c
+	return best
+
 func _nearest_creature() -> Creature:
 	var best: Creature = null
 	var best_d := 9999.0
@@ -1347,8 +1366,10 @@ func pet_order(cmd: StringName) -> void:
 		return
 	var t: Creature = hunt.target if (hunt and hunt.target and is_instance_valid(hunt.target)) else null
 	if cmd == &"attack" and t == null:
-		notice("Tap an enemy first, then whistle attack.")
-		return
+		t = _nearest_enemy(30.0)  # SIC with no target: the nearest wild animal
+		if t == null:
+			notice("No enemy nearby to sic them on.")
+			return
 	for p in pets:
 		if p.brain and p.brain.has_method("order"):
 			p.brain.order(cmd, t)
