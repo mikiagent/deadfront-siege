@@ -162,7 +162,7 @@ def install_diagnostics(out: pathlib.Path) -> None:
             raise SystemExit('index.html has no index.js script hook')
         html = html.replace(needle, marker + '\n' + needle, 1)
     config_needle = 'const engine = new Engine(GODOT_CONFIG);'
-    soak_hook = "if (new URLSearchParams(location.search).get('soak') === '1' && !GODOT_CONFIG.args.includes('--web-soak')) GODOT_CONFIG.args.push('--web-soak');"
+    soak_hook = "if (new URLSearchParams(location.search).get('soak') === '1' && !GODOT_CONFIG.args.includes('--web-soak')) GODOT_CONFIG.args.push('--', '--web-soak');"
     if soak_hook not in html:
         if config_needle not in html:
             raise SystemExit('index.html has no Engine(GODOT_CONFIG) hook')

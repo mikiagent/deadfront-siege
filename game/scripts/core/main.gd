@@ -7,8 +7,6 @@ extends Node3D
 @onready var iso_camera: Camera3D = $IsoCamera
 
 func _ready() -> void:
-	if OS.has_feature("web"):
-		print("[boot] user_args=%s" % [OS.get_cmdline_user_args()])
 	sun.rotation_degrees = Vector3(-50.0, 30.0, 0.0)
 	if Game.lab_name != "":
 		default_playfield.visible = false
@@ -45,7 +43,7 @@ func _ready() -> void:
 				_gather_test(player)
 			if "--combat-test" in OS.get_cmdline_user_args():
 				_combat_test(player)
-			if "--web-soak" in OS.get_cmdline_user_args():
+			if "--web-soak" in OS.get_cmdline_user_args() or "--web-soak" in OS.get_cmdline_args():
 				var soak = (load("res://scripts/dev/web_soak.gd") as GDScript).new()
 				soak.name = "WebSoak"
 				add_child(soak)
