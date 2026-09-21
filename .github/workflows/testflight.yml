@@ -56,7 +56,7 @@ jobs:
           ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
         run: |
           set -euo pipefail
-          python3 -m pip install --quiet cryptography
+          python3 -m pip install --quiet --break-system-packages cryptography
           python3 <<'PYASC'
           import base64, json, os, pathlib, time, urllib.request
           from cryptography.hazmat.primitives import hashes, serialization
