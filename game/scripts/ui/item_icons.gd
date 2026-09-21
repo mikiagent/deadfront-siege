@@ -44,9 +44,6 @@ static func texture(id: StringName) -> Texture2D:
 	var tex: Texture2D = null
 	if p != "" and ResourceLoader.exists(p):
 		tex = load(p) as Texture2D
-		# Menus and field actions share the same Durango-style visual language:
-		# recognizable silhouettes, never multicolour inventory art.
-		tex = HexButton._white_symbol(tex)
 	_cache[key] = tex
 	return tex
 
