@@ -51,7 +51,9 @@ func _tick_creatures(cam: Camera3D, player: Player, delta: float) -> void:
 		seen[c.get_instance_id()] = true
 		var e := _ensure_entry(c)
 		var forced := _forced_visible(c, player, now)
-		if not forced and (dist <= NEAR_DIST or c.tapped_recently(3.0)):
+		# Nearby wild creatures reveal their plate for inspection. Pets do not keep a plate
+		# permanently visible just because they follow within the near-distance bubble.
+		if not forced and ((dist <= NEAR_DIST and not c.is_pet) or c.tapped_recently(3.0)):
 			e["reveal_until"] = now + 3.0
 		var show := forced or now <= float(e.get("reveal_until", 0.0))
 		var alpha := float(e.get("alpha", 0.0))

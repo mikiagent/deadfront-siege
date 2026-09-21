@@ -1203,7 +1203,9 @@ func debug_tap_screen(screen_pos: Vector2) -> StringName:
 	return _tap_world()
 
 func _try_roll() -> void:
-	if rolling or statuses.has_flag(&"no_roll") or statuses.has_flag(&"cannot_act"):
+	# Do not let roll replace an in-flight attack/tactic clip. This used to cancel the visual
+	# while the previous move's damage still landed, making the actions overlap strangely.
+	if rolling or (anim and anim._busy) or statuses.has_flag(&"no_roll") or statuses.has_flag(&"cannot_act"):
 		return
 	if not vitals.spend_energy(12.0):
 		notice("Out of stamina.")
