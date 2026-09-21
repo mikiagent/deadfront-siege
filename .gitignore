@@ -9,3 +9,7 @@ tools/blob.env
 game/export/packs/
 
 .vercel
+
+# Source assets and historical prototypes are kept in git for authors, but never ship.
+# Export presets also exclude game/assets/**/work; this makes accidental staging visible.
+game/assets/**/work/

@@ -16,6 +16,8 @@ jobs:
           version: 4.7.0
           use-dotnet: false
           include-templates: false
+      - name: Export payload guard
+        run: python3 tools/check_export_payload.py
       - name: Migration fixture tests
         run: tools/test.sh
       - name: Main-scene smoke test
