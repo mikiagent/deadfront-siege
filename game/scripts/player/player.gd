@@ -1004,23 +1004,36 @@ func _tile_nav_dir(delta: float) -> Vector3:
 		var next := _path_points[_path_index]
 		var to := next - global_position
 		to.y = 0.0
-		if to.length() <= 0.25:
+		var last := _path_index == _path_points.size() - 1
+		# The last waypoint is the target's own tile centre; bushes, corpses and animals have
+		# colliders there, so the survivor stops short. Count that as arrived within reach.
+		if to.length() <= (_arrive_tolerance() if last else 0.25):
 			_path_index += 1
 			continue
-		_track_tile_blocked(delta)
+		if _track_tile_blocked(delta) and last and to.length() <= 2.2:
+			_path_index += 1  # pushed up against something at the goal: close enough
+			continue
 		return to.normalized()
 	return Vector3.ZERO
 
-func _track_tile_blocked(delta: float) -> void:
+func _arrive_tolerance() -> float:
+	if (gather_target and is_instance_valid(gather_target)) or (butcher_target and is_instance_valid(butcher_target)) or (tame_target and is_instance_valid(tame_target)):
+		return 1.5
+	return 0.25
+
+## True on the tick a stall is detected (no movement for 0.35 s); also replans the path.
+func _track_tile_blocked(delta: float) -> bool:
 	if global_position.distance_to(_path_anchor) > 0.06:
 		_path_anchor = global_position
 		_path_blocked_left = 0.0
-		return
+		return false
 	_path_blocked_left += delta
 	if _path_blocked_left >= 0.35:
 		_request_tile_path()
 		_path_blocked_left = 0.0
 		_path_anchor = global_position
+		return true
+	return false
 
 func _sync_touch_context() -> void:
 	if TouchControls == null:

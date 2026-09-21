@@ -161,29 +161,55 @@ static func effectiveness(c: Creature, dtype: StringName) -> StringName:
 		return &"weak"
 	return &"hit"
 
+## Body tackle: lunge into the target, groggy (then knockdown on the next hit), 6 damage.
 func use_tackle() -> void:
-	if target == null or _tackle_cd > 0.0:
+	if target == null:
 		return
-	if player.global_position.distance_to(target.global_position) > 2.4:
+	if _tackle_cd > 0.0:
+		player.notice("Tackle ready in %.0fs" % ceil(_tackle_cd))
+		return
+	if player.global_position.distance_to(target.global_position) > 3.2:
+		player.notice("Too far to tackle: get closer.")
 		return
 	if not player.vitals.spend_energy(15.0):
 		player.notice("Out of stamina.")
 		return
+	player.face_world(target.global_position)
+	var to := target.global_position - player.global_position
+	to.y = 0.0
+	if to.length() > 0.8:
+		var lunge := to.normalized() * 6.0
+		player.velocity.x = lunge.x
+		player.velocity.z = lunge.z
 	target.statuses.apply(&"groggy", player)
+	target.next_hit_kind = &"strong"
+	target.health.take_damage(6.0, player)
+	target.status_float.emit(&"tackle")
 	_tackle_cd = 8.0
 	player.play_attack(true)
 	print("[combat] body tackle %s" % target.def.id)
 
+## Kick: shove the target back 3.5 m with 4 damage and a burst; buys room to run or net.
 func use_kick() -> void:
-	if target == null or _kick_cd > 0.0:
+	if target == null:
 		return
-	if player.global_position.distance_to(target.global_position) > 2.4:
+	if _kick_cd > 0.0:
+		player.notice("Kick ready in %.0fs" % ceil(_kick_cd))
+		return
+	if player.global_position.distance_to(target.global_position) > 3.2:
+		player.notice("Too far to kick: get closer.")
 		return
 	if not player.vitals.spend_energy(10.0):
 		player.notice("Out of stamina.")
 		return
+	player.face_world(target.global_position)
+	player.play_attack(false)
 	var away := (target.global_position - player.global_position).normalized() * 3.5
 	target.global_position += Vector3(away.x, 0, away.z)
+	target.reset_physics_interpolation()
+	target.next_hit_kind = &"hit"
+	target.health.take_damage(4.0, player)
+	target.status_float.emit(&"kick")
 	_kick_cd = 6.0
 	print("[combat] kick %s" % target.def.id)
 

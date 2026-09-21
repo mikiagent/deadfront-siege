@@ -27,6 +27,7 @@ var _end_btn: Button
 var _skill_hexes: Array[HexButton] = []
 var _auto_hex: HexButton
 var _chase_hex: HexButton
+var _feed_hex: HexButton
 var _in_combat: bool = false
 var _combat_alpha: float = 0.0
 var _stance_label: Label
@@ -106,6 +107,7 @@ func _layout() -> void:
 	for i in _skill_hexes.size():
 		_skill_hexes[i].position = Vector2(cx, cy) + slots[i]
 	_auto_hex.position = Vector2(cx + 60.0, cy + 30.0)
+	_feed_hex.position = Vector2(cx - 170.0, cy - 20.0)
 	_stance_label.position = Vector2(cx + 20.0, cy + 118.0)
 	_chase_hex.position = Vector2(16.0 + inset.w, r.y - HEX * 2.0 - 40.0 - inset.y)
 	if _sheet:
@@ -204,6 +206,16 @@ func _build_combat() -> void:
 			_auto_hex.queue_redraw()
 	)
 	add_child(_auto_hex)
+	_feed_hex = HexButton.new(72.0)
+	_feed_hex.glyph = "🍖"
+	_feed_hex.bottom_text = "FEED"
+	_feed_hex.fill = Color(0.15, 0.45, 0.22, 0.95)
+	_feed_hex.visible = false
+	_feed_hex.pressed.connect(func () -> void:
+		if player and player.hunt and player.hunt.target and FieldTame.can_attempt(player.hunt.target):
+			player._begin_field_tame(player.hunt.target)
+	)
+	add_child(_feed_hex)
 	_stance_label = Label.new()
 	_stance_label.text = "Attack Stance ◎"
 	_stance_label.add_theme_font_size_override("font_size", 16)
@@ -614,11 +626,17 @@ func _process(delta: float) -> void:
 		_auto_hex.visible = hunting
 		_stance_label.visible = hunting
 		_chase_hex.visible = hunting
+		if not hunting:
+			_feed_hex.visible = false
 		if hunting:
 			var t := player.hunt.target
 			print("[hud] target %s lv=%d hp=%.0f/%.0f" % [t.def.id, t.level, t.health.hp, t.health.max_hp])
 	_combat_alpha = move_toward(_combat_alpha, 1.0 if hunting else 0.0, delta * 5.0)
 	if hunting:
+		var feedable: bool = FieldTame.can_attempt(player.hunt.target)
+		if _feed_hex.visible != feedable:
+			_feed_hex.visible = feedable
+			_feed_hex.queue_redraw()
 		_skill_hexes[0].disabled = not (player.hunt.target.capturable() and player.hunt._best_net_ok())
 		_skill_hexes[1].disabled = player.hunt._tackle_cd > 0.0
 		_skill_hexes[2].disabled = player.hunt._kick_cd > 0.0

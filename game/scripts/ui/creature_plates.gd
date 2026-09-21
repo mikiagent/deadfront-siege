@@ -393,7 +393,7 @@ func _on_status_float(id: StringName, c: Creature) -> void:
 	var layer := entry["floats"] as Control
 	var def := Data.status(id)
 	var label := Label.new()
-	label.text = (def.display_name if def else str(id)).replace("_", " ").to_upper()
+	label.text = (def.display_name if def else str(id)).replace("_", " ").to_upper() + ("!" if def == null else "")
 	label.position = Vector2(40 + randf_range(-10.0, 10.0), -6)
 	label.add_theme_font_size_override("font_size", 15)
 	label.add_theme_color_override("font_color", Creature.status_color(id))

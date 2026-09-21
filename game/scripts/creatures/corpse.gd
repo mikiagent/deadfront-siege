@@ -60,6 +60,8 @@ func open_loot(player: Player) -> void:
 	note_tapped()
 	if _is_empty():
 		_on_loot_empty()
+		if player.has_method("notice"):
+			player.notice("Nothing left on the %s." % species_display_name().to_lower())
 		return
 	var why := can_butcher(player.inventory)
 	var readonly := "needs knife" if why == "need tool knife" else ""
