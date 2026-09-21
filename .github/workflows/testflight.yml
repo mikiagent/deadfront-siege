@@ -29,6 +29,7 @@ jobs:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
           ASC_API_KEY_BASE64: ${{ secrets.ASC_API_KEY_BASE64 }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
         run: |
           set -euo pipefail
           CERTIFICATE_PATH="$RUNNER_TEMP/apple-distribution.p12"
@@ -38,8 +39,8 @@ jobs:
 
           printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
           mkdir -p "$API_KEY_DIR"
-          printf '%s' "$ASC_API_KEY_BASE64" | base64 --decode > "$API_KEY_DIR/AuthKey_678H6PU9Y9.p8"
-          chmod 600 "$API_KEY_DIR/AuthKey_678H6PU9Y9.p8"
+          printf '%s' "$ASC_API_KEY_BASE64" | base64 --decode > "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
+          chmod 600 "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
@@ -53,17 +54,19 @@ jobs:
       - name: Export, sign, validate, and upload
         env:
           GODOT_PATH: ${{ env.GODOT }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
         run: |
           set -euo pipefail
           export GODOT_PATH="$(command -v godot)"
+          sed -i '' "s/^ASC_KEY_ID=.*/ASC_KEY_ID=$ASC_API_KEY_ID/" tools/release.env
 
           # Give xcodebuild the App Store Connect API key for automatic provisioning on this clean runner.
           mkdir -p "$RUNNER_TEMP/bin"
           cat > "$RUNNER_TEMP/bin/xcodebuild" <<'SH'
           #!/usr/bin/env bash
           exec /usr/bin/xcodebuild "$@" \
-            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_678H6PU9Y9.p8" \
-            -authenticationKeyID 678H6PU9Y9 \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_API_KEY_ID.p8" \
+            -authenticationKeyID "$ASC_API_KEY_ID" \
             -authenticationKeyIssuerID e932d878-2780-4029-8f69-e5a4d9bdcb65
           SH
           chmod +x "$RUNNER_TEMP/bin/xcodebuild"
