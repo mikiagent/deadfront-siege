@@ -56,44 +56,37 @@ jobs:
           ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
         run: |
           set -euo pipefail
-          ruby <<'RB'
-          require "openssl"
-          require "json"
-          require "base64"
-          require "net/http"
-          require "uri"
+          python3 -m pip install --quiet cryptography
+          python3 <<'PYASC'
+          import base64, json, os, pathlib, time, urllib.request
+          from cryptography.hazmat.primitives import hashes, serialization
+          from cryptography.hazmat.primitives.asymmetric import ec
+          from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
-          key_id = ENV.fetch("ASC_API_KEY_ID")
+          key_id = os.environ["ASC_API_KEY_ID"]
           issuer = "e932d878-2780-4029-8f69-e5a4d9bdcb65"
-          key_path = File.expand_path("~/.appstoreconnect/private_keys/AuthKey_#{key_id}.p8")
-          key = OpenSSL::PKey.read(File.read(key_path))
-          b64 = ->(x) { Base64.urlsafe_encode64(x, padding: false) }
-          now = Time.now.to_i
-          header = b64.call({alg: "ES256", kid: key_id, typ: "JWT"}.to_json)
-          payload = b64.call({iss: issuer, iat: now, exp: now + 600, aud: "appstoreconnect-v1"}.to_json)
-          input = "#{header}.#{payload}"
-          asn1 = OpenSSL::ASN1.decode(key.dsa_sign_asn1(OpenSSL::Digest::SHA256.digest(input)))
-          signature = asn1.value.map { |n| n.value.to_s(16).rjust(64, "0") }.join
-          token = "#{input}.#{b64.call([signature].pack("H*"))}"
-          get = lambda do |path|
-            uri = URI("https://api.appstoreconnect.apple.com#{path}")
-            req = Net::HTTP::Get.new(uri)
-            req["Authorization"] = "Bearer #{token}"
-            res = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |http| http.request(req) }
-            abort("ASC API #{res.code}: #{res.body}") unless res.is_a?(Net::HTTPSuccess)
-            JSON.parse(res.body)
-          end
-          bundles = get.call("/v1/bundleIds?filter%5Bidentifier%5D=com.durangolike.dev&limit=10")
-          abort("DurangoLike bundle ID not found") unless bundles["data"].length == 1
-          profiles = get.call("/v1/bundleIds/#{bundles["data"][0]["id"]}/profiles?limit=200")
-          profile = profiles["data"].find { |p| p.dig("attributes", "profileType") == "IOS_APP_STORE" && p.dig("attributes", "profileState") == "ACTIVE" }
-          abort("Active DurangoLike App Store profile not found") unless profile
-          dir = File.expand_path("~/Library/MobileDevice/Provisioning Profiles")
-          Dir.mkdir(File.dirname(dir)) unless Dir.exist?(File.dirname(dir))
-          Dir.mkdir(dir) unless Dir.exist?(dir)
-          File.binwrite(File.join(dir, "#{profile.dig("attributes", "uuid")}.mobileprovision"), Base64.decode64(profile.dig("attributes", "profileContent")))
-          puts "Installed profile #{profile.dig("attributes", "name")} (#{profile.dig("attributes", "uuid")})"
-          RB
+          key_path = pathlib.Path.home() / ".appstoreconnect/private_keys" / f"AuthKey_{key_id}.p8"
+          key = serialization.load_pem_private_key(key_path.read_bytes(), password=None)
+          b64 = lambda b: base64.urlsafe_b64encode(b).rstrip(b"=")
+          now = int(time.time())
+          header = b64(json.dumps({"alg":"ES256","kid":key_id,"typ":"JWT"}, separators=(",", ":")).encode())
+          payload = b64(json.dumps({"iss":issuer,"iat":now,"exp":now+600,"aud":"appstoreconnect-v1"}, separators=(",", ":")).encode())
+          signing_input = header + b"." + payload
+          r, s = decode_dss_signature(key.sign(signing_input, ec.ECDSA(hashes.SHA256())))
+          token = (signing_input + b"." + b64(r.to_bytes(32,"big") + s.to_bytes(32,"big"))).decode()
+          def get(path):
+              req = urllib.request.Request("https://api.appstoreconnect.apple.com" + path, headers={"Authorization":"Bearer " + token})
+              with urllib.request.urlopen(req) as res: return json.load(res)
+          bundles = get("/v1/bundleIds?filter%5Bidentifier%5D=com.durangolike.dev&limit=10")
+          if len(bundles["data"]) != 1: raise SystemExit("DurangoLike bundle ID not found")
+          profiles = get(f"/v1/bundleIds/{bundles['data'][0]['id']}/profiles?limit=200")
+          profile = next((p for p in profiles["data"] if p["attributes"]["profileType"] == "IOS_APP_STORE" and p["attributes"]["profileState"] == "ACTIVE"), None)
+          if not profile: raise SystemExit("Active DurangoLike App Store profile not found")
+          out = pathlib.Path.home() / "Library/MobileDevice/Provisioning Profiles" / f"{profile['attributes']['uuid']}.mobileprovision"
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_bytes(base64.b64decode(profile["attributes"]["profileContent"]))
+          print(f"Installed profile {profile['attributes']['name']} ({profile['attributes']['uuid']})")
+          PYASC
 
       - name: Export, sign, validate, and upload
         env:
