@@ -1,6 +1,6 @@
 class_name CharacterCreation
 extends CanvasLayer
-## First launch: pick who you were before the crash (eight occupations, one starts a skill at
+## First launch: build a survivor (eight backgrounds, one starts a skill at
 ## Lv. 20), a body, and a name. `--occupation=<id>` preselects and starts at once (tests).
 
 signal done(occupation: String, gender: String, player_name: String)
@@ -28,12 +28,12 @@ func _ready() -> void:
 	box.add_theme_constant_override("separation", 14)
 	centre.add_child(box)
 	var title := Label.new()
-	title.text = "Who were you before the crash?"
+	title.text = "Create your survivor"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 34)
 	box.add_child(title)
 	var sub := Label.new()
-	sub.text = "Your old job gives one skill a head start (Lv. 20). Nothing is locked: any survivor can learn everything."
+	sub.text = "Choose a background for one Lv. 20 head start. Then claim your island and begin."
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_color_override("font_color", Color(0.75, 0.78, 0.82))
 	box.add_child(sub)
@@ -81,7 +81,7 @@ func _ready() -> void:
 	_name.add_theme_font_size_override("font_size", 20)
 	row2.add_child(_name)
 	_start = Button.new()
-	_start.text = "Start surviving"
+	_start.text = "Enter the Durango rift"
 	_start.custom_minimum_size = Vector2(320, 64)
 	_start.add_theme_font_size_override("font_size", 22)
 	_start.disabled = true

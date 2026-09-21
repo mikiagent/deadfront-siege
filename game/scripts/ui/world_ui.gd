@@ -58,7 +58,7 @@ func hide_all() -> void:
 		c.queue_free()
 
 func show_terrain() -> void:
-	_fill("Choose your home terrain (once)", [
+	_fill("Choose your first island", [
 		["Meadow", &"meadow"],
 		["Forest", &"forest"],
 		["Rocky", &"rocky"],
@@ -71,7 +71,45 @@ func show_terrain() -> void:
 		World.load_island(host, &"home_grassland", Vector3(float(harbour[0]), 1.0, float(harbour[2])), false)
 		(load("res://scripts/core/save_game.gd") as GDScript).save_now()
 		hide_all()
+		_show_arrival(host)
 	)
+
+
+func _show_arrival(host: Node) -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "ArrivalWelcome"
+	layer.layer = 92
+	host.add_child(layer)
+	var shade := ColorRect.new()
+	shade.color = Color(0.025, 0.045, 0.05, 0.82)
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	layer.add_child(shade)
+	var centre := CenterContainer.new()
+	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.add_child(centre)
+	var box := VBoxContainer.new()
+	box.custom_minimum_size = Vector2(620, 0)
+	box.add_theme_constant_override("separation", 14)
+	centre.add_child(box)
+	var title := Label.new()
+	title.text = "YOU MADE IT"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 42)
+	title.add_theme_color_override("font_color", Color(0.55, 0.95, 0.72))
+	box.add_child(title)
+	var body := Label.new()
+	body.text = "Your survivor is at the harbour. Drag the left thumbstick to move. Tap the world to interact."
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_theme_font_size_override("font_size", 20)
+	box.add_child(body)
+	var go := Button.new()
+	go.text = "START EXPLORING"
+	go.custom_minimum_size = Vector2(0, 68)
+	go.add_theme_font_size_override("font_size", 22)
+	go.pressed.connect(layer.queue_free)
+	box.add_child(go)
 
 func show_harbour() -> void:
 	var rows: Array = []
