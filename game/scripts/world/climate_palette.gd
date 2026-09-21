@@ -3,8 +3,8 @@ extends RefCounted
 ## Resolves data-driven climate colours without depending on IslandRuntime.
 
 const DEFAULTS := {
-	"grass": Color(0.42, 0.62, 0.32),
-	"dry": Color(0.56, 0.54, 0.35),
+	"grass": Color(0.30, 0.58, 0.22),
+	"dry": Color(0.53, 0.49, 0.27),
 	"dirt": Color(0.44, 0.34, 0.24),
 	"sand": Color(0.79, 0.72, 0.54),
 	"rock": Color(0.47, 0.46, 0.44),
