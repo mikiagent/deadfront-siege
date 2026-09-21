@@ -20,6 +20,20 @@ var genetics: CreatureGenetics
 var tamed_role: Array[StringName] = []
 var bag: Inventory
 var summoned: bool = false
+## A dead pet comes back after this long; the PETS sheet shows the countdown ring.
+const RESPAWN_TIME := 60.0
+var respawn_left: float = 0.0
+
+func respawning() -> bool:
+	return respawn_left > 0.0
+
+func tick_respawn(delta: float) -> void:
+	if respawn_left > 0.0:
+		respawn_left = maxf(0.0, respawn_left - delta)
+
+func start_respawn() -> void:
+	respawn_left = RESPAWN_TIME
+	summoned = false
 ## Pet level: kills by the pet pay most, kills by the survivor with the pet fighting nearby pay
 ## less. Each level: +8 % HP, +5 % attack, +4 % defense. ASSUMPTION: level n needs 30 + 15 n XP.
 var level: int = 1
@@ -127,6 +141,7 @@ func to_dict() -> Dictionary:
 		"bag": bag.to_array() if bag else [],
 		"level": level,
 		"xp": xp,
+		"respawn_left": respawn_left,
 	}
 
 static func from_dict(d: Dictionary) -> PetRecord:
@@ -153,4 +168,5 @@ static func from_dict(d: Dictionary) -> PetRecord:
 	r.bag.load_array(d.get("bag", []))
 	r.level = maxi(1, int(d.get("level", 1)))
 	r.xp = float(d.get("xp", 0.0))
+	r.respawn_left = maxf(0.0, float(d.get("respawn_left", 0.0)))
 	return r

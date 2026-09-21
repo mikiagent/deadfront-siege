@@ -497,6 +497,8 @@ func _on_died(_source: Node) -> void:
 	if _aggro_ring:
 		_aggro_ring.queue_free()
 		_aggro_ring = null
+	if is_pet and pet_record:
+		pet_record.start_respawn()  # down for RESPAWN_TIME; PETS sheet shows the countdown ring
 	# Pet XP: a kill by the pet pays 10 + tier/3; a survivor kill with the pet fighting within
 	# 15 m pays 3 + tier/6. Levels raise the pet's HP, attack and defense.
 	if not is_pet:

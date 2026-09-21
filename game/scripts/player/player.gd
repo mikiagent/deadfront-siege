@@ -288,6 +288,8 @@ func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 
 func _physics_process(delta: float) -> void:
 	_fall_guard()
+	for rec in bonded:
+		rec.tick_respawn(delta)
 	if dead:
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -1399,6 +1401,9 @@ func summon_pet(index: int = 0) -> void:
 			rec.summoned = false
 			print("[capture] dismissed %s" % rec.species)
 			return
+	if rec.respawning():
+		notice("%s is down - back in %ds." % [str(rec.species).capitalize(), int(ceil(rec.respawn_left))])
+		return
 	if live_pets().size() >= MAX_PETS_OUT:
 		notice("Only %d pets can be out at once." % MAX_PETS_OUT)
 		return

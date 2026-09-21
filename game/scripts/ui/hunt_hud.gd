@@ -612,6 +612,19 @@ func _toggle_sheet(kind: StringName) -> void:
 			for i in player.bonded.size():
 				var rec: PetRecord = player.bonded[i]
 				var idx := i
+				if rec.respawning():
+					# Down after dying: circular cooldown ring instead of a Summon button.
+					var row := HBoxContainer.new()
+					row.add_theme_constant_override("separation", 10)
+					row.add_child(RespawnRing.new(rec, func () -> void: _refresh_sheet()))
+					var down := Button.new()
+					down.text = "%s  Lv. %d %s  DOWN" % [str(rec.species).capitalize(), rec.level, rec.grade]
+					down.disabled = true
+					down.custom_minimum_size = Vector2(240, 60)
+					down.add_theme_font_size_override("font_size", 18)
+					row.add_child(down)
+					box.add_child(row)
+					continue
 				var is_out := false
 				for p in player.live_pets():
 					if p.pet_record == rec:
@@ -656,6 +669,14 @@ func _sheet_btn(box: VBoxContainer, text: String, cb: Callable) -> void:
 	b.add_theme_font_size_override("font_size", 18)
 	b.pressed.connect(cb)
 	box.add_child(b)
+
+## Rebuild the open sheet in place (e.g. a pet finished respawning and Summon is back).
+func _refresh_sheet() -> void:
+	if _sheet == null:
+		return
+	var kind := _sheet_kind
+	_close_sheet()
+	_toggle_sheet(kind)
 
 func _close_sheet() -> void:
 	if _sheet:
