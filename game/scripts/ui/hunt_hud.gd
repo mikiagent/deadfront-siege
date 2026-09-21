@@ -234,8 +234,8 @@ func _debug_fresh_start() -> void:
 	# Reloading the scene rebuilds every autoload-owned view from a truly absent save.
 	if not Game.debug_overlay:
 		return
-	if _now_s() > _fresh_start_armed_until:
-		_fresh_start_armed_until = _now_s() + 6.0
+	if float(Time.get_ticks_msec()) * 0.001 > _fresh_start_armed_until:
+		_fresh_start_armed_until = float(Time.get_ticks_msec()) * 0.001 + 6.0
 		_close_sheet()
 		_toggle_sheet(&"menu")
 		if player:
@@ -626,7 +626,7 @@ func _toggle_sheet(kind: StringName) -> void:
 			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
 			_sheet_btn(box, "Debug info: %s" % ("ON" if Game.debug_overlay else "OFF"), func () -> void: _toggle_debug(); _close_sheet(); _toggle_sheet(&"menu"))
 			if Game.debug_overlay:
-				var armed := _now_s() <= _fresh_start_armed_until
+				var armed := float(Time.get_ticks_msec()) * 0.001 <= _fresh_start_armed_until
 				_sheet_btn(box, "CONFIRM WIPE + FRESH CHARACTER" if armed else "Restart progress…", _debug_fresh_start)
 		&"pets":
 			title.text = "Pets  %d / %d" % [player.bonded.size(), Data.bonded_cap()]
