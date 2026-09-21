@@ -157,12 +157,10 @@ func _ready() -> void:
 	if has_node("Shape"):
 		pass
 
-## A station tap opens the craft menu on that station's group (the old hex radial is gone).
+## A station tap opens its hex interact menu over the station; CRAFT/COOK open the craft sheet.
 func open_station_craft(st: Node3D) -> void:
-	if craft_ui and craft_ui.has_method("show_for_station") and station_craft:
-		craft_ui.show_for_station(station_craft.station_id_of(st))
-	elif station_craft:
-		station_craft.open_station(st)
+	if station_craft:
+		station_craft.open_station_menu(st)
 
 ## From the craft menu: craft `count` of a recipe (walks to the station if needed).
 func craft_recipe(rid: StringName, count: int = 1) -> void:
