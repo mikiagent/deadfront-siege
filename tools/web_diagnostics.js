@@ -44,10 +44,12 @@
 		if (body) body.textContent = lines.join('\n');
 		if (fatal && overlay) overlay.style.display = 'block';
 	}
-	for (const level of ['error', 'warn']) {
+	for (const level of ['error', 'warn', 'log']) {
 		const original = console[level].bind(console);
 		console[level] = function (...args) {
-			record('console.' + level, args, level === 'error');
+			const text = args.map(stringify).join(' ');
+			if (level !== 'log' || /\[(soak|boot)\]/.test(text))
+				record('console.' + level, args, level === 'error');
 			original(...args);
 		};
 	}
