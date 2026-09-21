@@ -30,7 +30,8 @@
       "weak_to": [
         "slashing"
       ],
-      "resists": []
+      "resists": [],
+      "perception_base": 24.0
     },
     "pack_flanker": {
       "attack_range": 2.0,
@@ -38,12 +39,13 @@
       "weak_to": [
         "slashing"
       ],
-      "resists": []
+      "resists": [],
+      "perception_base": 24.0
     },
     "apex_raptor": {
       "attack_range": 2.2,
       "pack_flank": true,
-      "perception_base": 10.0,
+      "perception_base": 20.0,
       "weak_to": [
         "slashing"
       ],
@@ -55,7 +57,7 @@
         "slashing"
       ],
       "resists": [],
-      "perception_base": 3.5,
+      "perception_base": 7.0,
       "leash_mult": 1.2,
       "chase_speed_mult": 0.5,
       "_note": "Compys: short sight, short leash, slower chase so a survivor can walk away from a swarm."
@@ -65,14 +67,16 @@
       "weak_to": [
         "slashing"
       ],
-      "resists": []
+      "resists": [],
+      "perception_base": 16.0
     },
     "venom_ranged": {
       "attack_range": 2.4,
       "weak_to": [
         "blunt"
       ],
-      "resists": []
+      "resists": [],
+      "perception_base": 16.0
     },
     "saber_cat": {
       "attack_range": 2.0,
@@ -86,7 +90,8 @@
       "weak_to": [],
       "resists": [
         "slashing"
-      ]
+      ],
+      "perception_base": 16.0
     },
     "pack_mule": {
       "is_herbivore": true,
@@ -96,7 +101,8 @@
       ],
       "resists": [
         "slashing"
-      ]
+      ],
+      "perception_base": 16.0
     },
     "spiked_tail": {
       "is_herbivore": true,
@@ -106,7 +112,8 @@
       ],
       "resists": [
         "slashing"
-      ]
+      ],
+      "perception_base": 16.0
     },
     "runner": {
       "is_herbivore": true,
@@ -114,7 +121,8 @@
       "weak_to": [
         "slashing"
       ],
-      "resists": []
+      "resists": [],
+      "perception_base": 16.0
     },
     "antlered": {
       "is_herbivore": true,
@@ -132,7 +140,8 @@
       ],
       "resists": [
         "slashing"
-      ]
+      ],
+      "perception_base": 16.0
     },
     "horned_charger": {
       "is_herbivore": true,
@@ -142,7 +151,8 @@
       ],
       "resists": [
         "slashing"
-      ]
+      ],
+      "perception_base": 16.0
     },
     "titan": {
       "is_herbivore": true,
@@ -151,7 +161,8 @@
       "weak_to": [],
       "resists": [
         "slashing"
-      ]
+      ],
+      "perception_base": 16.0
     }
   }
 }
