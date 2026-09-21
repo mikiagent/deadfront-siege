@@ -91,6 +91,7 @@ var _force_clip_map: Array[StringName] = [
 var dead: bool = false
 var _last_hit_taken_s: float = -999.0
 var _autofeed_cd: float = 0.0
+var _roll_through: Array[Creature] = []
 
 func _ready() -> void:
 	if Game.lab_name != "" and get_parent() and get_parent().name == "DefaultPlayfield":
@@ -298,6 +299,20 @@ func _physics_process(delta: float) -> void:
 		_roll_left -= delta
 		if _roll_left <= 0.0:
 			rolling = false
+			for c in _roll_through:
+				if c and is_instance_valid(c):
+					remove_collision_exception_with(c)
+			_roll_through.clear()
+			velocity.x *= 0.3
+			velocity.z *= 0.3
+	if rolling:
+		# Committed dash: constant speed, ignores input and nav, slips through creatures.
+		var rf := -visual.global_basis.z
+		velocity.x = rf.x * 13.0
+		velocity.z = rf.z * 13.0
+		move_and_slide()
+		_shoreline_guard()
+		return
 	if mounted_on and is_instance_valid(mounted_on):
 		_mounted_move(delta)
 		_sync_touch_context()
@@ -1092,10 +1107,17 @@ func _try_roll() -> void:
 		notice("Out of stamina.")
 		return
 	rolling = true
-	_roll_left = 0.4
+	_roll_left = 0.45  # ~5.5 m at 13 m/s (was ~2.5 m with the speed decaying)
+	clear_nav()
 	var fwd := -visual.global_basis.z
-	velocity.x = fwd.x * 12.0
-	velocity.z = fwd.z * 12.0
+	velocity.x = fwd.x * 13.0
+	velocity.z = fwd.z * 13.0
+	# Roll through creatures: collision exceptions with everything close, restored at the end.
+	for n in get_tree().get_nodes_in_group("creatures"):
+		var c := n as Creature
+		if c and global_position.distance_to(c.global_position) < 8.0:
+			add_collision_exception_with(c)
+			_roll_through.append(c)
 	if anim:
 		anim.on_roll()
 	print("[combat] roll")
