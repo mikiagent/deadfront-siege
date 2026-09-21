@@ -35,7 +35,7 @@ xcodebuild -project "$OUT/durango.xcodeproj" -scheme durango -configuration Rele
   -destination 'generic/platform=iOS' -archivePath "$WORK/durango.xcarchive" \
   -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
   CODE_SIGN_IDENTITY="Apple Development" MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
-  archive 2>&1 | grep -E 'error:|ARCHIVE (SUCCEEDED|FAILED)' || true
+  archive 2>&1 | tee "$WORK/archive.log"
 [[ -d "$WORK/durango.xcarchive" ]] || { echo "archive missing"; exit 1; }
 
 echo "== 3/5 Export signed IPA"
