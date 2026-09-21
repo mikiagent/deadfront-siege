@@ -33,7 +33,11 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	def.id = StringName(str(d.get("id", "")))
 	def.display_name = str(d.get("display_name", def.id))
 	def.categories = _names(d.get("categories", []))
-	def.stack_max = int(d.get("stack_max", 1))
+	# Owner rule (2026-09-20): everything stacks to 999 until per-item stack sizes are decided.
+	# Tools/weapons with durability and multi-slot animals keep the data value.
+	var span := int(d.get("slot_span", 1))
+	var dur := int(d.get("max_durability", 0))
+	def.stack_max = int(d.get("stack_max", 1)) if (span > 1 or dur > 0) else 999
 	def.tool_class = StringName(str(d.get("tool_class", "none")))
 	def.base_level = int(d.get("base_level", 1))
 	def.attack_rate = float(d.get("attack_rate", 0.0))
