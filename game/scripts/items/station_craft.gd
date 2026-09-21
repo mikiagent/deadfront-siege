@@ -1,10 +1,12 @@
 class_name StationCraft
 extends Node
-## Station tap radial → walk → crouch craft card with consume/refund/queue.
+## Station tap → hex interact menu over the station (StationMenu) → craft sheet / radial →
+## walk → crouch craft card with consume/refund/queue.
 
 const CANCEL_RANGE := 2.8
 
 var player: Player
+var menu: StationMenu
 var radial: StationRadial
 var card: CraftCard
 var toast: PickupToast
@@ -24,6 +26,11 @@ var _batch_total: int = 1
 
 func setup(p: Player, layer: CanvasLayer) -> void:
 	player = p
+	menu = StationMenu.new()
+	menu.name = "StationMenu"
+	layer.add_child(menu)
+	menu.player = p
+	menu.action_chosen.connect(_on_menu_action)
 	radial = StationRadial.new()
 	radial.name = "StationRadial"
 	layer.add_child(radial)
@@ -45,9 +52,40 @@ func setup(p: Player, layer: CanvasLayer) -> void:
 func reparent_ui(layer: CanvasLayer) -> void:
 	if layer == null:
 		return
-	for n in [radial, card, toast, held_slot]:
+	for n in [menu, radial, card, toast, held_slot]:
 		if n and is_instance_valid(n) and n.get_parent() != layer:
 			n.reparent(layer)
+
+## Station tap entry point: hex interact menu over the station. Tapping the same station
+## again toggles it closed. Actions dispatch in _on_menu_action.
+func open_station_menu(st: Node3D) -> void:
+	if st == null or not is_instance_valid(st) or menu == null:
+		return
+	if menu.visible and menu.station == st:
+		menu.hide_menu()
+		return
+	var actions := StationMenu.actions_for(station_id_of(st), player)
+	if actions.is_empty():
+		print("[craft] no actions for station %s" % station_id_of(st))
+		return
+	close_radial()
+	menu.show_for(st, actions)
+
+func _on_menu_action(st: Node3D, action_id: StringName) -> void:
+	if st == null or not is_instance_valid(st):
+		return
+	match action_id:
+		&"craft", &"cook":
+			var cui: Variant = player.get("craft_ui")
+			if cui != null and cui.has_method("show_for_station"):
+				cui.show_for_station(station_id_of(st))
+			else:
+				open_station(st)
+		&"cauterise":
+			if st is Bonfire:
+				(st as Bonfire).cauterise(player)
+		_:
+			print("[craft] unknown station action %s" % action_id)
 
 func open_station(st: Node3D) -> void:
 	if st == null or not is_instance_valid(st):
@@ -65,6 +103,10 @@ func open_station(st: Node3D) -> void:
 func close_radial() -> void:
 	if radial:
 		radial.hide_radial()
+
+func close_menu() -> void:
+	if menu:
+		menu.hide_menu()
 
 func station_id_of(st: Node3D) -> StringName:
 	if st == null:
@@ -277,6 +319,7 @@ func _clear_session() -> void:
 		card.hide_card()
 	_hide_ring()
 	close_radial()
+	close_menu()
 
 func force_progress_for_shot(p: float) -> void:
 	if card and card.visible:
