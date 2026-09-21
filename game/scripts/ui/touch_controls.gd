@@ -1,7 +1,6 @@
 extends CanvasLayer
-## Autoloaded touch layer: floating joystick on the left, action buttons on the
-## right, pinch zoom. Shown automatically on touchscreens, or forced with the
-## `--touch` user arg / F4 on desktop (mouse emulates touch, see project.godot).
+## Autoloaded touch layer: tap-to-walk, action buttons and pinch zoom.
+## Touch/web builds default to tap-only; F4 cycles the optional joystick for desktop testing.
 ## Buttons are TouchScreenButtons bound to InputMap actions, so they work with
 ## multi-touch and gameplay never sees anything but actions.
 
@@ -140,7 +139,7 @@ var hud_mode: bool = false:  # the Durango HUD draws its own hexes; only the pla
 
 func _ready() -> void:
 	layer = 50
-	_touch_mode = MODE_TAP_ONLY if (DisplayServer.is_touchscreen_available() or "--touch" in OS.get_cmdline_user_args()) else MODE_HIDDEN
+	_touch_mode = MODE_TAP_ONLY if (DisplayServer.is_touchscreen_available() or OS.has_feature("web") or "--touch" in OS.get_cmdline_user_args()) else MODE_HIDDEN
 	joystick = TouchJoystick.new()
 	add_child(joystick)
 	_buttons = Node2D.new()
