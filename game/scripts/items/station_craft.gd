@@ -19,6 +19,8 @@ var queue_left: int = 0
 var _picks: Array[int] = []
 var _refund: Array[ItemStack] = []
 var _hand_tool: Node3D
+var _hand_craft: bool = false  # recipe with no station: crafts in place over the survivor
+var _batch_total: int = 1
 
 func setup(p: Player, layer: CanvasLayer) -> void:
 	player = p
@@ -84,6 +86,32 @@ static func is_craft_station(n: Object) -> bool:
 		return true
 	return false
 
+## From the craft menu: craft `count` of a recipe. Hand recipes start at once; station recipes
+## walk to the nearest station of that kind first (none built -> refused).
+func begin(rid: StringName, count: int = 1) -> bool:
+	var rec := Crafting.recipe(rid)
+	if rec.is_empty():
+		return false
+	if crafting:
+		cancel_and_refund()
+	var sid := Crafting.station_id(rec)
+	_hand_craft = sid == ""
+	station = null
+	if not _hand_craft:
+		station = Crafting.nearest_station(player, StringName(sid))
+		if station == null:
+			print("[craft] blocked %s: no %s built" % [rid, sid])
+			return false
+	_batch_total = maxi(1, count)
+	_begin_recipe(rid)
+	if recipe_id != rid:
+		return false
+	queue_left = _batch_total - 1
+	if _hand_craft:
+		player.clear_nav()
+		_start_craft_cycle()
+	return true
+
 func _on_recipe_chosen(rid: StringName) -> void:
 	close_radial()
 	if crafting and rid == recipe_id:
@@ -109,7 +137,10 @@ func _begin_recipe(rid: StringName) -> void:
 		return
 	queue_left = 0
 	if station and is_instance_valid(station):
-		player.nav_to(player._closest_nav_point(station.global_position))
+		if player.global_position.distance_to(station.global_position) > Crafting.STATION_RANGE + 0.35:
+			player.nav_to(player._closest_nav_point(station.global_position))
+		else:
+			player.face_world(station.global_position)
 	# Arrival is polled in _process.
 
 func _start_craft_cycle() -> void:
@@ -134,8 +165,27 @@ func _start_craft_cycle() -> void:
 	print("[craft] start %s %.1fs" % [recipe_id, duration])
 	if player.anim:
 		player.anim.on_gather()
-	_show_card(rec)
+	if station and is_instance_valid(station):
+		player.face_world(station.global_position)
 	player.clear_nav()
+	_show_ring(rec)
+
+## The gather-style hex over the station (or the survivor for hand recipes): the outside
+## border fills once per item, the inner green edge is the batch.
+func _show_ring(rec: Dictionary) -> void:
+	var ring: Variant = player.get("_gather_ring")
+	if ring == null or not ring.has_method("show_for_craft"):
+		return
+	var out_id := StringName(str((rec.get("output", {}) as Dictionary).get("id", "")))
+	var anchor: Node3D = station if (station and is_instance_valid(station)) else player
+	var height := 1.0 if anchor != player else 2.1
+	var done := _batch_total - queue_left - 1
+	ring.show_for_craft(anchor, height, progress, float(done) / float(maxi(1, _batch_total)), out_id, "%d/%d" % [done + 1, _batch_total])
+
+func _hide_ring() -> void:
+	var ring: Variant = player.get("_gather_ring")
+	if ring and ring.has_method("fade_out"):
+		ring.fade_out()
 
 func _show_card(rec: Dictionary) -> void:
 	if card == null or station == null:
@@ -173,18 +223,17 @@ func _process(delta: float) -> void:
 		elif player.nav_active and player.global_position.distance_to(station.global_position) > CANCEL_RANGE + 4.0:
 			pass
 	if crafting:
-		if station == null or not is_instance_valid(station) \
-				or player.global_position.distance_to(station.global_position) > CANCEL_RANGE:
+		if not _hand_craft and (station == null or not is_instance_valid(station) \
+				or player.global_position.distance_to(station.global_position) > CANCEL_RANGE):
 			cancel_and_refund()
 			return
-		# Manual move cancels.
+		# Moving (keys, or a tap elsewhere) cancels and refunds.
 		var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-		if input.length_squared() > 0.04:
+		if input.length_squared() > 0.04 or player.nav_active or player.dead:
 			cancel_and_refund()
 			return
 		progress = minf(1.0, progress + delta / maxf(0.05, duration))
-		if card:
-			card.set_progress(progress)
+		_show_ring(Crafting.recipe(recipe_id))
 		if progress >= 1.0:
 			_finish_one()
 
@@ -195,6 +244,7 @@ func _finish_one() -> void:
 	if out:
 		if toast:
 			toast.show_gain(out.def_id, out.count)
+		player.toast(out.def_id, out.count)
 	crafting = false
 	progress = 0.0
 	if queue_left > 0:
@@ -203,7 +253,9 @@ func _finish_one() -> void:
 	else:
 		if card:
 			card.hide_card()
+		_hide_ring()
 		recipe_id = &""
+		_hand_craft = false
 
 func cancel_and_refund() -> void:
 	if not _refund.is_empty():
@@ -219,9 +271,11 @@ func _clear_session() -> void:
 	progress = 0.0
 	queue_left = 0
 	recipe_id = &""
+	_hand_craft = false
 	_picks.clear()
 	if card:
 		card.hide_card()
+	_hide_ring()
 	close_radial()
 
 func force_progress_for_shot(p: float) -> void:

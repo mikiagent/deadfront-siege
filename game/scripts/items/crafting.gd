@@ -196,27 +196,38 @@ static func station_id(rec: Dictionary) -> String:
 		return ""
 	return s
 
+static func node_station_id(n: Node) -> String:
+	if n is CraftStation:
+		return str((n as CraftStation).station_id)
+	if n is Bonfire:
+		return "bonfire"
+	if n.get("station_id") != null:
+		return str(n.get("station_id"))
+	if n.get("kind") != null:
+		return str(n.get("kind"))
+	return ""
+
+## Closest station of this kind on the island, or null when none is built.
+static func nearest_station(player: Player, sid: StringName) -> Node3D:
+	if player == null or not is_instance_valid(player) or sid == &"":
+		return null
+	var best: Node3D = null
+	var best_d := INF
+	for n in player.get_tree().get_nodes_in_group("craft_station"):
+		if not (n is Node3D) or node_station_id(n) != str(sid):
+			continue
+		var d := player.global_position.distance_to((n as Node3D).global_position)
+		if d < best_d:
+			best_d = d
+			best = n as Node3D
+	return best
+
 static func station_nearby(player: Player, rec: Dictionary) -> bool:
 	var sid := station_id(rec)
 	if sid == "":
 		return true
-	if player == null or not is_instance_valid(player):
-		return false
-	for n in player.get_tree().get_nodes_in_group("craft_station"):
-		var id := ""
-		if n is CraftStation:
-			id = str((n as CraftStation).station_id)
-		elif n is Bonfire:
-			id = "bonfire"
-		elif n.get("station_id") != null:
-			id = str(n.get("station_id"))
-		elif n.get("kind") != null:
-			id = str(n.get("kind"))
-		if id != sid:
-			continue
-		if n is Node3D and player.global_position.distance_to((n as Node3D).global_position) <= STATION_RANGE:
-			return true
-	return false
+	var n := nearest_station(player, StringName(sid))
+	return n != null and player.global_position.distance_to(n.global_position) <= STATION_RANGE
 
 static func can_make(player: Player, rec: Dictionary, picks: Array[int]) -> bool:
 	if rec.is_empty():
@@ -244,9 +255,11 @@ static func tree_for_recipe(rec: Dictionary) -> String:
 				return "construction"
 	return "processing"
 
+## Crafting trains the recipe's tree and pays pioneer XP (gathering pays 1/unit, kills pay by tier).
 static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
 	if player and player.skills:
 		player.skills.add_xp(tree_for_recipe(rec), 6)
+	World.add_xp(2 + int(recipe_seconds(rec)))
 
 static func craft(player: Player, rec: Dictionary, picks: Array[int]) -> ItemStack:
 	if not can_make(player, rec, picks):

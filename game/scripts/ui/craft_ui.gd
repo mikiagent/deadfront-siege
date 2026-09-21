@@ -1,24 +1,31 @@
 class_name CraftUI
 extends Control
-## Touch-first recipe list. Primary slot is badged; output preview shows inherited attributes.
+## The one crafting menu, open from anywhere (Menu > Craft, the craft key, or a tap on a
+## station). Recipes are grouped by station; a group unlocks when a station of that kind is
+## within reach, otherwise the row says how far the nearest one is (or that none is built).
+## Choosing a recipe closes the menu and crafts it like gathering: the survivor walks to the
+## station if needed, the hex over it fills once per item, and the item lands in the bag on
+## the full pass (StationCraft).
+
+const STATIONS := [
+	["", "By hand", "✋"], ["workbench", "Workbench", "🔨"], ["bonfire", "Bonfire", "🔥"],
+	["drying_rack", "Drying rack", "🪢"], ["mortar", "Mortar", "🥣"], ["stone_grill", "Stone grill", "🍖"],
+	["steamer", "Steamer", "♨"], ["well", "Well", "💧"],
+]
 
 var player: Player
-var _filter_can: bool = true
-var _rec: Dictionary = {}
-var _picks: Array[int] = []
-var _pick_slot: int = -1
-var _list: VBoxContainer
-var _slots_box: VBoxContainer
-var _preview: Label
-var _picker: VBoxContainer
-var _craft_btn: Button
-var _status: Label
-var _scroll: ScrollContainer
+var _station: String = ""
 var _root: VBoxContainer
+var _tabs: VBoxContainer
+var _list: VBoxContainer
+var _title: Label
+var _hint: Label
+var _refresh_left: float = 0.0
 
 func _ready() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	z_index = 40  # above the HUD, which is added to the same UI layer after this menu
 	var bg := ColorRect.new()
 	bg.color = Color(0.07, 0.08, 0.1, 0.94)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -26,58 +33,57 @@ func _ready() -> void:
 	add_child(bg)
 	_root = VBoxContainer.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_root.offset_left = 12
-	_root.offset_top = 12
-	_root.offset_right = -12
-	_root.offset_bottom = -12
+	_root.add_theme_constant_override("separation", 8)
 	add_child(_root)
-	var filters := HBoxContainer.new()
-	_root.add_child(filters)
-	filters.add_child(_mk_btn("Can craft", Callable(self, "_on_filter_can"), Vector2(160, 64)))
-	filters.add_child(_mk_btn("All", Callable(self, "_on_filter_all"), Vector2(120, 64)))
-	filters.add_child(_mk_btn("Close", Callable(self, "hide_ui"), Vector2(120, 64)))
-	_status = Label.new()
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_root.add_child(_status)
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 12)
+	_root.add_child(header)
+	_title = Label.new()
+	_title.text = "Craft"
+	_title.add_theme_font_size_override("font_size", 26)
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(_title)
+	_hint = Label.new()
+	_hint.add_theme_font_size_override("font_size", 14)
+	_hint.add_theme_color_override("font_color", Color(0.85, 0.85, 0.8))
+	_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	header.add_child(_hint)
+	header.add_child(_mk_btn("Close", hide_ui, Vector2(120, 56)))
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 12)
 	_root.add_child(body)
-	_scroll = ScrollContainer.new()
-	_scroll.custom_minimum_size = Vector2(280, 400)
-	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_child(_scroll)
+	var tab_scroll := ScrollContainer.new()
+	tab_scroll.custom_minimum_size = Vector2(200, 300)
+	tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body.add_child(tab_scroll)
+	_tabs = VBoxContainer.new()
+	_tabs.add_theme_constant_override("separation", 6)
+	_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab_scroll.add_child(_tabs)
+	var list_scroll := ScrollContainer.new()
+	list_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body.add_child(list_scroll)
 	_list = VBoxContainer.new()
+	_list.add_theme_constant_override("separation", 6)
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_scroll.add_child(_list)
-	var detail := VBoxContainer.new()
-	detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_child(detail)
-	_slots_box = VBoxContainer.new()
-	detail.add_child(_slots_box)
-	_preview = Label.new()
-	_preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_preview.custom_minimum_size = Vector2(0, 80)
-	detail.add_child(_preview)
-	_craft_btn = _mk_btn("Craft", Callable(self, "_on_craft"), Vector2(200, 72))
-	detail.add_child(_craft_btn)
-	var place_row := HBoxContainer.new()
-	detail.add_child(place_row)
-	place_row.add_child(_mk_btn("Place pen", Callable(self, "_place_kind").bind(&"makeshift_taming_pen"), Vector2(150, 64)))
-	place_row.add_child(_mk_btn("Workbench", Callable(self, "_place_kind").bind(&"workbench"), Vector2(150, 64)))
-	place_row.add_child(_mk_btn("Dry rack", Callable(self, "_place_kind").bind(&"drying_rack"), Vector2(150, 64)))
-	place_row.add_child(_mk_btn("Bonfire", Callable(self, "_place_kind").bind(&"bonfire"), Vector2(150, 64)))
-	place_row.add_child(_mk_btn("Tent", Callable(self, "_place_kind").bind(&"tent"), Vector2(120, 64)))
-	place_row.add_child(_mk_btn("Basket", Callable(self, "_place_kind").bind(&"basket"), Vector2(140, 64)))
-	_picker = VBoxContainer.new()
-	_picker.visible = false
-	detail.add_child(_picker)
+	list_scroll.add_child(_list)
 	resized.connect(_layout_safe)
 	_layout_safe()
+	if Game.shot_path.contains("craft"):
+		get_tree().create_timer(0.9).timeout.connect(func () -> void: show_for_station(&"bonfire"))
 
 func bind(p: Player) -> void:
 	player = p
-	if not player.inventory.changed.is_connected(rebuild):
-		player.inventory.changed.connect(rebuild)
+	if not player.inventory.changed.is_connected(_on_inventory_changed):
+		player.inventory.changed.connect(_on_inventory_changed)
+
+func _on_inventory_changed() -> void:
+	if visible:
+		rebuild()
 
 func toggle() -> void:
 	if visible:
@@ -90,146 +96,200 @@ func show_ui() -> void:
 	_layout_safe()
 	rebuild()
 
+## A station tap lands on that station's group.
+func show_for_station(sid: StringName) -> void:
+	_station = str(sid)
+	show_ui()
+
 func hide_ui() -> void:
 	visible = false
-	_picker.visible = false
+
+func _process(delta: float) -> void:
+	if not visible:
+		return
+	_refresh_left -= delta
+	if _refresh_left <= 0.0:  # distances change as the survivor walks
+		_refresh_left = 0.5
+		_refresh_tabs()
+
+# ---------------------------------------------------------------- build
 
 func rebuild() -> void:
 	if player == null:
 		return
+	_refresh_tabs()
+	_refresh_list()
+
+func _refresh_tabs() -> void:
+	for c in _tabs.get_children():
+		c.queue_free()
+	for row in STATIONS:
+		var sid: String = row[0]
+		var info := _station_info(sid)
+		var status := ""
+		var col := Color(0.55, 0.95, 0.6)
+		if sid == "":
+			status = "always"
+		elif info["near"]:
+			status = "● here"
+		elif info["exists"]:
+			status = "○ %d m away" % int(info["dist"])
+			col = Color(0.95, 0.85, 0.5)
+		else:
+			status = "○ none built"
+			col = Color(0.6, 0.6, 0.6)
+		var count := Crafting.recipes_for_station(StringName(sid)).size()
+		var b := _mk_btn("%s %s\n%s · %d" % [row[2], row[1], status, count], _pick_station.bind(sid), Vector2(190, 64))
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.add_theme_color_override("font_color", col)
+		if sid == _station:
+			b.add_theme_color_override("font_color", Color(1.0, 0.92, 0.55))
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = Color(0.22, 0.2, 0.12, 0.95)
+			sb.corner_radius_top_left = 6
+			sb.corner_radius_bottom_left = 6
+			b.add_theme_stylebox_override("normal", sb)
+		_tabs.add_child(b)
+
+func _pick_station(sid: String) -> void:
+	_station = sid
+	rebuild()
+
+func _refresh_list() -> void:
 	for c in _list.get_children():
 		c.queue_free()
-	for rec in Crafting.all_recipes():
-		if not rec is Dictionary:
-			continue
-		var picks := Crafting.default_picks(player.inventory, rec)
-		var can := Crafting.picks_valid(player.inventory, rec, picks)
-		var station_ok := Crafting.station_nearby(player, rec)
-		if _filter_can and (not can or not station_ok):
-			continue
-		var label := str(rec.get("display_name", rec.get("id", "?")))
-		if not station_ok:
-			label += "  (need %s)" % Crafting.station_id(rec)
-		elif not can:
-			label += "  (missing)"
-		var b := _mk_btn(label, Callable(self, "_select").bind(rec), Vector2(260, 64))
-		b.modulate = Color.WHITE if can and station_ok else Color(0.7, 0.7, 0.7)
-		_list.add_child(b)
-	_refresh_detail()
-
-func _select(rec: Dictionary) -> void:
-	_rec = rec
-	_picks = Crafting.default_picks(player.inventory, rec)
-	_pick_slot = -1
-	_picker.visible = false
-	_refresh_detail()
-
-func _refresh_detail() -> void:
-	for c in _slots_box.get_children():
-		c.queue_free()
-	if _rec.is_empty():
-		_preview.text = "Pick a recipe."
-		_craft_btn.disabled = true
-		return
-	var slots: Array = _rec.get("slots", [])
-	var pidx := Crafting.primary_index(_rec)
-	for i in slots.size():
-		var slot: Dictionary = slots[i]
-		var cat := str(slot.get("category", ""))
-		var count := int(slot.get("count", 1))
-		var text := "%s ×%d" % [cat, count]
-		if i == pidx:
-			text = "PRIMARY  " + text
-		var chosen := "—"
-		if i < _picks.size() and _picks[i] >= 0:
-			var s := player.inventory.slots[_picks[i]]
-			if s:
-				chosen = "%s lv%d ×%d  contrib %s" % [s.def_id, s.level, count, _contrib_list(s.level, count)]
-		var b := _mk_btn("%s\n%s" % [text, chosen], Callable(self, "_open_picker").bind(i), Vector2(360, 72))
-		if i == pidx:
-			b.modulate = Color(1.0, 0.92, 0.55)
-		_slots_box.add_child(b)
-	var prev := Crafting.preview(player.inventory, _rec, _picks)
-	if prev:
-		var levels := Crafting.consumed_levels(player.inventory, _rec, _picks)
-		_preview.text = "Output: %s  lv %d  (mean %s)  process %d\n%s" % [
-			prev.def_id, prev.level, str(levels), prev.process_count, prev.attributes]
+	var name := "By hand"
+	for row in STATIONS:
+		if row[0] == _station:
+			name = row[1]
+	var info := _station_info(_station)
+	_title.text = "Craft · %s" % name
+	if _station == "":
+		_hint.text = "Hand recipes craft anywhere. The hex over the survivor fills once per item."
+	elif info["near"]:
+		_hint.text = "%s in reach. Pick a recipe: the hex over it fills once per item." % name
+	elif info["exists"]:
+		_hint.text = "Nearest %s is %d m away: picking a recipe walks there first." % [name.to_lower(), int(info["dist"])]
 	else:
-		_preview.text = "Need materials (and station if listed)."
-	_craft_btn.disabled = not Crafting.can_make(player, _rec, _picks)
-	_status.text = "Filter: %s   butcher skill %d" % [
-		"can craft" if _filter_can else "all", Data.butchering_level()]
-
-func _open_picker(slot_i: int) -> void:
-	_pick_slot = slot_i
-	for c in _picker.get_children():
-		c.queue_free()
-	if _rec.is_empty():
+		_hint.text = "No %s built yet. Craft its kit by hand and place it from Build." % name.to_lower()
+	var recipes := Crafting.recipes_for_station(StringName(_station))
+	if recipes.is_empty():
+		var l := Label.new()
+		l.text = "No recipes here yet."
+		_list.add_child(l)
 		return
-	var slots: Array = _rec.get("slots", [])
-	if slot_i < 0 or slot_i >= slots.size():
-		return
-	var title := Label.new()
-	title.text = "Choose %s" % slots[slot_i].get("category", "")
-	_picker.add_child(title)
-	var need := int(slots[slot_i].get("count", 1))
-	for idx in Crafting.stacks_for_slot(player.inventory, slots[slot_i]):
-		var s := player.inventory.slots[idx]
-		var lab := "%s x%d lv%d proc%d  %s  contrib %s" % [
-			s.def_id, s.count, s.level, s.process_count, s.attributes, _contrib_list(s.level, need)]
-		_picker.add_child(_mk_btn(lab, Callable(self, "_pick_stack").bind(idx), Vector2(400, 64)))
-	_picker.visible = true
+	for rec in recipes:
+		_list.add_child(_recipe_row(rec, info))
 
-func _pick_stack(idx: int) -> void:
-	if _pick_slot < 0:
-		return
-	if _picks.size() <= _pick_slot:
-		_picks.resize(_pick_slot + 1)
-	_picks[_pick_slot] = idx
-	_picker.visible = false
-	_refresh_detail()
+func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
+	var panel := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	var picks := Crafting.default_picks(player.inventory, rec)
+	var have := Crafting.picks_valid(player.inventory, rec, picks)
+	var reachable: bool = _station == "" or bool(info["exists"])
+	var can := have and reachable
+	sb.bg_color = Color(0.12, 0.16, 0.12, 0.95) if can else Color(0.12, 0.13, 0.15, 0.9)
+	sb.corner_radius_top_left = 8
+	sb.corner_radius_top_right = 8
+	sb.corner_radius_bottom_left = 8
+	sb.corner_radius_bottom_right = 8
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 6
+	panel.add_theme_stylebox_override("panel", sb)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	panel.add_child(h)
+	var text := VBoxContainer.new()
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(text)
+	var name := Label.new()
+	var out_row: Dictionary = rec.get("output", {})
+	var out_def := Data.item(StringName(str(out_row.get("id", ""))))
+	var out_name := out_def.display_name if out_def and out_def.display_name != "" else str(rec.get("display_name", rec.get("id", "?")))
+	name.text = "%s   Lv %d · %.1fs" % [out_name, Crafting.preview_level(player.inventory, rec), Crafting.recipe_seconds(rec)]
+	name.add_theme_font_size_override("font_size", 18)
+	name.add_theme_color_override("font_color", Color.WHITE if can else Color(0.75, 0.75, 0.75))
+	text.add_child(name)
+	var ing := Label.new()
+	ing.text = _ingredients_text(rec)
+	ing.add_theme_font_size_override("font_size", 13)
+	ing.add_theme_color_override("font_color", Color(0.8, 0.85, 0.75) if have else Color(1.0, 0.55, 0.45))
+	ing.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.add_child(ing)
+	var btn_text := "Craft"
+	if not have:
+		btn_text = "Missing"
+	elif _station != "" and not info["exists"]:
+		btn_text = "No station"
+	elif _station != "" and not info["near"]:
+		btn_text = "Walk & craft"
+	var b := _mk_btn(btn_text, _start.bind(rec, 1), Vector2(130, 56))
+	b.disabled = not can
+	h.add_child(b)
+	var b5 := _mk_btn("×5", _start.bind(rec, 5), Vector2(64, 56))
+	b5.disabled = not can
+	h.add_child(b5)
+	return panel
 
-func _contrib_list(level: int, count: int) -> String:
+func _ingredients_text(rec: Dictionary) -> String:
 	var parts: PackedStringArray = []
-	for _i in count:
-		parts.append(str(level))
-	return "[" + ", ".join(parts) + "]"
+	var picks := Crafting.default_picks(player.inventory, rec)
+	var slots: Array = rec.get("slots", [])
+	for i in slots.size():
+		if not slots[i] is Dictionary:
+			continue
+		var slot: Dictionary = slots[i]
+		var cat := StringName(str(slot.get("category", "")))
+		var need := int(slot.get("count", 1))
+		var have := 0
+		for idx in player.inventory.find_by_category(cat):
+			var s := player.inventory.slots[idx]
+			if s:
+				have += s.count
+		var label := str(cat).replace("_", " ")
+		if i < picks.size() and picks[i] >= 0 and player.inventory.slots[picks[i]]:
+			var d := player.inventory.slots[picks[i]].def()
+			if d and d.display_name != "":
+				label = d.display_name
+		else:
+			var sample := Data.item(Crafting.sample_def_for_category(player.inventory, cat))
+			if sample and sample.display_name != "":
+				label = sample.display_name
+		parts.append("%s %d/%d" % [label, mini(have, need), need])
+	return "  ·  ".join(parts)
 
-func _on_craft() -> void:
-	if Crafting.craft(player, _rec, _picks) == null:
-		_status.text = "Cannot craft."
-		return
-	_picks = Crafting.default_picks(player.inventory, _rec)
-	rebuild()
-
-func _place_kind(kind: StringName) -> void:
+func _start(rec: Dictionary, count: int) -> void:
 	hide_ui()
-	player.placer.begin(kind)
-	TouchControls.set_context(&"place")
+	if player and player.has_method("craft_recipe"):
+		player.craft_recipe(StringName(str(rec.get("id", ""))), count)
 
-func _on_filter_can() -> void:
-	_filter_can = true
-	rebuild()
-
-func _on_filter_all() -> void:
-	_filter_can = false
-	rebuild()
+## {exists, near, dist} for a station kind, from the survivor's position.
+func _station_info(sid: String) -> Dictionary:
+	if sid == "" or player == null:
+		return {"exists": true, "near": true, "dist": 0.0}
+	var n := Crafting.nearest_station(player, StringName(sid))
+	if n == null:
+		return {"exists": false, "near": false, "dist": 0.0}
+	var d := player.global_position.distance_to(n.global_position)
+	return {"exists": true, "near": d <= Crafting.STATION_RANGE + 0.35, "dist": d}
 
 func _layout_safe() -> void:
 	if _root == null:
 		return
-	var pad_l := 12.0
+	var pad_l := 14.0
 	var pad_t := 12.0
-	var pad_r := 12.0
+	var pad_r := 14.0
 	var pad_b := 12.0
 	if OS.has_feature("mobile"):
 		var safe := DisplayServer.get_display_safe_area()
 		var view := get_viewport_rect().size
 		var win := Vector2(DisplayServer.window_get_size())
 		if win.x > 0.0 and win.y > 0.0:
-			pad_l = maxf(12.0, safe.position.x * view.x / win.x)
+			pad_l = maxf(14.0, safe.position.x * view.x / win.x)
 			pad_t = maxf(12.0, safe.position.y * view.y / win.y)
-			pad_r = maxf(12.0, (win.x - (safe.position.x + safe.size.x)) * view.x / win.x)
+			pad_r = maxf(14.0, (win.x - (safe.position.x + safe.size.x)) * view.x / win.x)
 			pad_b = maxf(12.0, (win.y - (safe.position.y + safe.size.y)) * view.y / win.y)
 	_root.offset_left = pad_l
 	_root.offset_top = pad_t

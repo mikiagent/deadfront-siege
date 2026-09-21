@@ -23,6 +23,7 @@ var _food_inspector: FoodInspector
 func _ready() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	z_index = 40  # above the HUD (same UI layer, added later)
 	_layout_safe()
 	var panel := ColorRect.new()
 	panel.color = Color(0.08, 0.08, 0.1, 0.88)
