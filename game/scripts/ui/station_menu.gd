@@ -11,6 +11,9 @@ const HEX_SIZE := 76.0
 const GAP := 12.0
 const CLOSE_RANGE := 3.6
 const MARGIN := 8.0
+const RING_RADIUS := 1.15
+const RING_WIDTH := 0.07
+const EXPAND_SECONDS := 0.22
 
 ## Per-station hexes. icon resolves through data/icons_manifest.json, glyph is the fallback.
 const ACTIONS := {
@@ -31,6 +34,8 @@ var _buttons: Array[HexButton] = []
 var _icons: Dictionary = {}
 var _aliases: Dictionary = {}
 var _icon_cache: Dictionary = {}
+var _ring3d: MeshInstance3D
+var _expand_elapsed: float = 0.0
 
 ## The hexes a station offers right now. Data-driven so new stations/actions slot in here.
 static func actions_for(sid: StringName, p: Player) -> Array:
@@ -57,6 +62,8 @@ func show_for(st: Node3D, actions: Array) -> void:
 	for a in actions:
 		var row: Dictionary = a
 		var btn := HexButton.new(HEX_SIZE)
+		# HexButton only emits after receiving its own press and release. Because this is
+		# created after the station press, that opening gesture cannot activate the action.
 		btn.icon = _icon_for(str(row.get("icon", "")))
 		btn.glyph = "" if btn.icon else str(row.get("glyph", ""))
 		btn.bottom_text = str(row.get("label", ""))
@@ -65,12 +72,17 @@ func show_for(st: Node3D, actions: Array) -> void:
 		add_child(btn)
 		_buttons.append(btn)
 	visible = true
+	_expand_elapsed = 0.0
+	_show_ring3d(0.22)
 	_update_screen_pos()
 
 func hide_menu() -> void:
 	_clear()
 	station = null
 	visible = false
+	_expand_elapsed = 0.0
+	if _ring3d:
+		_ring3d.visible = false
 
 func _on_pressed(aid: StringName) -> void:
 	var st := station
@@ -83,7 +95,7 @@ func _clear() -> void:
 			b.queue_free()
 	_buttons.clear()
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not visible:
 		return
 	if station == null or not is_instance_valid(station):
@@ -98,6 +110,9 @@ func _process(_delta: float) -> void:
 			or player.global_position.distance_to(station.global_position) > CLOSE_RANGE):
 		hide_menu()
 		return
+	_expand_elapsed = minf(EXPAND_SECONDS, _expand_elapsed + delta)
+	var t := ease(_expand_elapsed / EXPAND_SECONDS, 0.35)
+	_show_ring3d(lerpf(0.22, RING_RADIUS, t))
 	_update_screen_pos()
 
 func _update_screen_pos() -> void:
@@ -114,9 +129,57 @@ func _update_screen_pos() -> void:
 	var total := float(n) * HEX_SIZE + float(maxi(0, n - 1)) * GAP
 	var view := get_viewport_rect().size
 	var x := clampf(anchor.x - total * 0.5, MARGIN, maxf(MARGIN, view.x - total - MARGIN))
-	var y := clampf(anchor.y - HEX_SIZE * 0.5, MARGIN, maxf(MARGIN, view.y - HEX_SIZE - MARGIN))
+	# Match gathering's expand-then-pick flow, with station actions across the ring's top.
+	var y := clampf(anchor.y - HEX_SIZE - 20.0, MARGIN, maxf(MARGIN, view.y - HEX_SIZE - MARGIN))
 	for i in n:
 		_buttons[i].position = Vector2(x + float(i) * (HEX_SIZE + GAP), y)
+
+## Ground selection ring shared visually with gathering. It grows from the station on first tap;
+## the action hex sits above it and needs its own second tap.
+func _show_ring3d(radius: float) -> void:
+	if station == null or not is_instance_valid(station):
+		return
+	if _ring3d == null:
+		_ring3d = MeshInstance3D.new()
+		_ring3d.name = "StationSelectHex3D"
+		_ring3d.top_level = true
+		_ring3d.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var material := StandardMaterial3D.new()
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.albedo_color = Color(1.0, 0.92, 0.5, 0.82)
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_ring3d.material_override = material
+		_ring3d.mesh = ImmediateMesh.new()
+		var host: Node = get_tree().current_scene
+		if host:
+			host.add_child(_ring3d)
+		else:
+			add_child(_ring3d)
+	var im := _ring3d.mesh as ImmediateMesh
+	im.clear_surfaces()
+	im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	var c := station.global_position
+	var rt := World.runtime if World else null
+	var has_surface := rt != null and rt.has_method("surface_y")
+	var inner := maxf(0.03, radius - RING_WIDTH)
+	for i in 6:
+		var a0 := deg_to_rad(60.0 * float(i))
+		var a1 := deg_to_rad(60.0 * float(i + 1))
+		var quad: Array[Vector3] = []
+		for pair in [[a0, inner], [a0, radius], [a1, radius], [a1, inner]]:
+			var point := c + Vector3(cos(pair[0]) * pair[1], 0.0, sin(pair[0]) * pair[1])
+			point.y = (rt.surface_y(point.x, point.z) if has_surface else c.y) + 0.05
+			quad.append(point)
+		im.surface_add_vertex(quad[0])
+		im.surface_add_vertex(quad[1])
+		im.surface_add_vertex(quad[2])
+		im.surface_add_vertex(quad[0])
+		im.surface_add_vertex(quad[2])
+		im.surface_add_vertex(quad[3])
+	im.surface_end()
+	_ring3d.global_transform = Transform3D.IDENTITY
+	_ring3d.visible = true
 
 func _load_icons() -> void:
 	var path := "res://data/icons_manifest.json"

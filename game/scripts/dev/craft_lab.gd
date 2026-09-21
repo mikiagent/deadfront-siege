@@ -66,7 +66,10 @@ func _shot_setup() -> void:
 		_player.global_position = _bench.global_position + Vector3(1.6, 0, 0.6)
 		_player.face_world(_bench.global_position)
 		_player.open_station_craft(_bench)
-		print("[ui] station-menu shot ready station=workbench")
+		print("[ui] station-menu shot ready station=workbench ring=%s craft_ui=%s" % [
+			_player.station_craft.menu._ring3d != null and _player.station_craft.menu._ring3d.visible,
+			_player.craft_ui.visible if _player.craft_ui else "none",
+		])
 		return
 	# craft-card shot: mid-progress skewer card + fire glow
 	LabKit.give(_player, &"raw_meat", 2)
@@ -174,6 +177,15 @@ func _demo() -> void:
 		get_tree().quit()
 
 func _m8e_skewer_demo() -> void:
+	# First station interaction only expands the ring/action hex. The action callback is
+	# the second interaction and is the only step allowed to open the craft sheet.
+	_player.open_station_craft(_bench)
+	var first_step_ok: bool = _player.station_craft.menu.visible and not _player.craft_ui.visible
+	_player.station_craft.menu._on_pressed(&"craft")
+	var second_step_ok: bool = not _player.station_craft.menu.visible and _player.craft_ui.visible
+	print("[craft] station_two_tap first=%s second=%s" % [first_step_ok, second_step_ok])
+	if _player.craft_ui:
+		_player.craft_ui.hide()
 	# Blocked: meat without stick/branch.
 	_player.inventory.add(ItemStack.make(&"raw_meat", 1))
 	# Clear branches so the missing-ingredient path fires.
