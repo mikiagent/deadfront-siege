@@ -99,7 +99,7 @@ func _show_arrival(host: Node) -> void:
 	title.add_theme_color_override("font_color", Color(0.55, 0.95, 0.72))
 	box.add_child(title)
 	var body := Label.new()
-	body.text = "Your survivor is at the harbour. Drag the left thumbstick to move. Tap the world to interact."
+	body.text = "Your survivor is at the harbour. Tap the world to move and interact."
 	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_theme_font_size_override("font_size", 20)
