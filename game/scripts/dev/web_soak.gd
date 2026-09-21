@@ -5,7 +5,7 @@ extends Node
 func run(host: Node) -> void:
 	print("[soak] start")
 	await get_tree().create_timer(1.0).timeout
-	for node in get_tree().get_nodes_in_group("character_creation"):
+	for node in get_tree().root.find_children("CharacterCreation", "CharacterCreation", true, false):
 		node.free()
 	World.home_terrain = &"meadow"
 	World.t_stones = maxi(World.t_stones, 20)
