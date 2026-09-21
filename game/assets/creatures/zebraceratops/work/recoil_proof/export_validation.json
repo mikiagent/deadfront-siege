@@ -1,0 +1,10 @@
+{
+  "frame_count": 19,
+  "duration_seconds": 0.6,
+  "maximum_foot_travel": 0.0,
+  "additional_ground_penetration": 0.0,
+  "maximum_top_change_fraction": 0.00778012284373463,
+  "maximum_influences": 4,
+  "maximum_weight_sum_error": 8.940696716308594e-08,
+  "pass": true
+}

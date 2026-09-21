@@ -1,0 +1,9 @@
+{
+  "reference_source": "https://www.bluestacks.com/de/blog/game-guides/durango-wild-lands/dinos-zaehmen-de.html",
+  "reference_image": "https://cdn-www.bluestacks.com/bs-images/screenshot03.jpg",
+  "visual_target": "Compact, heavy ceratopsian with broad shield frill, charcoal hide and irregular ivory zebra bands, muted reddish-brown frill rim, warm horn beak, matte pebbled skin; natural proportions and readable isometric silhouette.",
+  "side_prompt": "Orthographic side view, full Zebraceratops inspired by Durango Wild Lands. Compact stocky triceratops, broad rounded bony frill, two short brow horns and small nose horn, hooked beak, thick tapering tail. Charcoal hide with irregular ivory zebra stripes, muted rust frill rim, warm horn beak. Matte pebbled skin, restrained stylized realism, natural anatomy. Four stout separated legs, all feet flat; neutral square stance, straight spine, head level. No saddle, armor, mane or accessories. Even light, white background, no shadow, no text, full body with margin.",
+  "front_prompt": "The SAME animal, same proportions, markings and colours, orthographic front view. Broad shield frill and two short symmetrical brow horns plus one small nasal horn. Four separated legs; front feet set apart under shoulders, hind feet visible behind, all on ground. Level head and back, closed beak, neutral square stance for rigging. Charcoal skin with irregular ivory zebra stripes, muted rust frill edge; matte pebbled hide and warm horn beak. White background, even light, no shadows, no text or accessories. Full body with margin.",
+  "rig_requirements": ["Anatomically fitted quadruped leg chains", "Rigid skull, frill and horns", "Normalized maximum four skin influences", "Dedicated small recoil for hit_react, planted feet and no body roll", "Heavy attack with visible anticipation hold", "Knockdown and death end grounded on side"],
+  "paid_generation_status": "Awaiting user credit cap; no paid requests submitted"
+}
