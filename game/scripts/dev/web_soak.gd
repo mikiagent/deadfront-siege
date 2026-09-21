@@ -6,7 +6,7 @@ func run(host: Node) -> void:
 	print("[soak] start")
 	await get_tree().create_timer(1.0).timeout
 	for node in get_tree().get_nodes_in_group("character_creation"):
-		node.queue_free()
+		node.free()
 	World.home_terrain = &"meadow"
 	World.t_stones = maxi(World.t_stones, 20)
 	World.load_island(host, &"home_grassland", Vector3(0, 1, 18), false)
