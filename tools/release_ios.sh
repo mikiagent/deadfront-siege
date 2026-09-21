@@ -29,12 +29,13 @@ if "ITSAppUsesNonExemptEncryption" not in s:
     p.write_text(s.replace("</dict>\n</plist>", "\t<key>ITSAppUsesNonExemptEncryption</key>\n\t<false/>\n</dict>\n</plist>", 1)); print("   added ITSAppUsesNonExemptEncryption=false")
 PY
 
-echo "== 2/5 Archive (Release, automatic signing, build $BUILD_NUMBER)"
+echo "== 2/5 Archive (Release, manual App Store signing, build $BUILD_NUMBER)"
 rm -rf "$WORK/durango.xcarchive"
 xcodebuild -project "$OUT/durango.xcodeproj" -scheme durango -configuration Release \
   -destination 'generic/platform=iOS' -archivePath "$WORK/durango.xcarchive" \
-  -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
-  CODE_SIGN_IDENTITY="Apple Development" MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+  CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$TEAM_ID" \
+  PROVISIONING_PROFILE_SPECIFIER="iOS Team Store Provisioning Profile: com.durangolike.dev" \
+  CODE_SIGN_IDENTITY="Apple Distribution" MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
   archive 2>&1 | tee "$WORK/archive.log"
 [[ -d "$WORK/durango.xcarchive" ]] || { echo "archive missing"; exit 1; }
 
@@ -46,13 +47,17 @@ cat > "$WORK/exportOptions.plist" <<PL
   <key>method</key><string>app-store-connect</string>
   <key>destination</key><string>export</string>
   <key>teamID</key><string>$TEAM_ID</string>
-  <key>signingStyle</key><string>automatic</string>
+  <key>signingStyle</key><string>manual</string>
+  <key>signingCertificate</key><string>Apple Distribution</string>
+  <key>provisioningProfiles</key><dict>
+    <key>com.durangolike.dev</key><string>iOS Team Store Provisioning Profile: com.durangolike.dev</string>
+  </dict>
   <key>uploadSymbols</key><true/>
 </dict></plist>
 PL
 rm -rf "$WORK/ipa"
 xcodebuild -exportArchive -archivePath "$WORK/durango.xcarchive" -exportOptionsPlist "$WORK/exportOptions.plist" \
-  -exportPath "$WORK/ipa" -allowProvisioningUpdates 2>&1 | grep -E 'error|EXPORT (SUCCEEDED|FAILED)' || true
+  -exportPath "$WORK/ipa" 2>&1 | grep -E 'error|EXPORT (SUCCEEDED|FAILED)' || true
 IPA="$WORK/ipa/durango.ipa"; [[ -f "$IPA" ]] || { echo "IPA missing"; exit 1; }
 ls -la "$IPA"
 
