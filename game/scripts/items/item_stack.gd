@@ -176,15 +176,17 @@ static func from_dict(d: Dictionary) -> ItemStack:
 			s.flags.append(StringName(str(f)))
 	return s
 
-static func make(id: StringName, amount: int = 1, attrs: Dictionary = {}, lvl: int = 1) -> ItemStack:
+static func make(id: StringName, amount: int = 1, attrs: Dictionary = {}, lvl: int = -1) -> ItemStack:
 	var s := ItemStack.new()
 	s.def_id = id
 	s.count = amount
+	# Negative means "use the catalog base level". An explicit level 1 must stay level 1;
+	# the old lvl == 1 sentinel silently promoted starter-island resources to base levels.
 	s.level = lvl
 	var d := Data.item(id) if Data else null
 	if d:
 		s.attributes = d.default_attributes.duplicate(true)
-		if lvl == 1:
+		if lvl < 1:
 			s.level = d.base_level
 		s.apply_level_stats()
 	for k in attrs:
