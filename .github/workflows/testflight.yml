@@ -53,6 +53,9 @@ jobs:
           security default-keychain -d user -s "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          CERT_SHA1="$(openssl pkcs12 -in "$CERTIFICATE_PATH" -passin pass:"$P12_PASSWORD" -clcerts -nokeys 2>/dev/null | openssl x509 -noout -fingerprint -sha1 | cut -d= -f2 | tr -d ':')"
+          [[ "$CERT_SHA1" == "AEA060BAE33BB5E6D4C37431D3366AE06F82BDF7" ]] || { echo "Distribution certificate fingerprint mismatch: $CERT_SHA1"; exit 1; }
+          echo "Verified distribution certificate fingerprint $CERT_SHA1"
 
       - name: Download and install DurangoLike App Store profile
         env:
@@ -63,6 +66,7 @@ jobs:
           python3 <<'PYASC'
           import base64, json, os, pathlib, time, urllib.request
           from cryptography.hazmat.primitives import hashes, serialization
+          from cryptography import x509
           from cryptography.hazmat.primitives.asymmetric import ec
           from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
@@ -83,12 +87,25 @@ jobs:
           bundles = get("/v1/bundleIds?filter%5Bidentifier%5D=com.durangolike.dev&limit=10")
           if len(bundles["data"]) != 1: raise SystemExit("DurangoLike bundle ID not found")
           profiles = get(f"/v1/bundleIds/{bundles['data'][0]['id']}/profiles?limit=200")
-          profile = next((p for p in profiles["data"] if p["attributes"]["profileType"] == "IOS_APP_STORE" and p["attributes"]["profileState"] == "ACTIVE"), None)
+          profile = next((p for p in profiles["data"] if p["attributes"]["name"] == "DurangoLike CI App Store" and p["attributes"]["profileType"] == "IOS_APP_STORE" and p["attributes"]["profileState"] == "ACTIVE"), None)
           if not profile: raise SystemExit("Active DurangoLike App Store profile not found")
           out = pathlib.Path.home() / "Library/MobileDevice/Provisioning Profiles" / f"{profile['attributes']['uuid']}.mobileprovision"
           out.parent.mkdir(parents=True, exist_ok=True)
-          out.write_bytes(base64.b64decode(profile["attributes"]["profileContent"]))
-          print(f"Installed profile {profile['attributes']['name']} ({profile['attributes']['uuid']})")
+          raw_profile = base64.b64decode(profile["attributes"]["profileContent"])
+          out.write_bytes(raw_profile)
+          import plistlib, subprocess, tempfile
+          with tempfile.NamedTemporaryFile() as decoded:
+              subprocess.run(["openssl", "smime", "-inform", "der", "-verify", "-noverify", "-in", str(out), "-out", decoded.name], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+              decoded.seek(0)
+              plist = plistlib.load(decoded)
+          if plist.get("UUID") != "6462a2dc-4fbd-460b-885b-53ef5ead6dd9": raise SystemExit(f"Unexpected profile UUID {plist.get('UUID')}")
+          cert_fingerprints = []
+          for cert_der in plist.get("DeveloperCertificates", []):
+              cert = x509.load_der_x509_certificate(cert_der)
+              cert_fingerprints.append(cert.fingerprint(hashes.SHA1()).hex().upper())
+          expected = "AEA060BAE33BB5E6D4C37431D3366AE06F82BDF7"
+          if cert_fingerprints != [expected]: raise SystemExit(f"Profile certificate mismatch: {cert_fingerprints}")
+          print(f"Verified profile {plist['Name']} ({plist['UUID']}) with certificate {expected}")
           PYASC
 
       - name: Export, sign, validate, and upload
