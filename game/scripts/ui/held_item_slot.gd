@@ -28,6 +28,11 @@ func bind(p: Player) -> void:
 		player.inventory.changed.connect(refresh)
 	refresh()
 
+var _fighting_shown: bool = false
+
+func _fighting() -> bool:
+	return player != null and player.hunt != null and player.hunt.target != null and is_instance_valid(player.hunt.target)
+
 func refresh() -> void:
 	_icon = null
 	_caption = "TOOL"
@@ -35,6 +40,11 @@ func refresh() -> void:
 		queue_redraw()
 		return
 	var tool := player.inventory.equipped_gather_tool()
+	if tool == null:
+		# Bare hands: fists while fighting, open hands while gathering.
+		_fighting_shown = _fighting()
+		_icon = ItemIcons.texture(&"fists" if _fighting_shown else &"hands")
+		_caption = "FISTS" if _fighting_shown else "HANDS"
 	if tool:
 		_icon = ItemIcons.texture(tool.def_id)
 		var d := tool.def()
@@ -84,6 +94,8 @@ func _gui_input(event: InputEvent) -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	if player and player.inventory.equipped_gather_tool() == null and _fighting() != _fighting_shown:
+		refresh()
 	var safe := DisplayServer.get_display_safe_area()
 	var vp := get_viewport_rect().size
 	var win := Vector2(DisplayServer.window_get_size())
@@ -115,7 +127,7 @@ func _draw() -> void:
 	draw_colored_polygon(_hex(r, c), fill)
 	var outline := _hex(r, c)
 	outline.append(outline[0])
-	draw_polyline(outline, Color(0.95, 0.95, 0.95) if _icon else Color(0.55, 0.55, 0.55), 2.0, true)
+	draw_polyline(outline, Color(0.95, 0.95, 0.95), 2.0, true)
 	var font := ThemeDB.fallback_font
 	if _icon:
 		var isz := r * 0.95
