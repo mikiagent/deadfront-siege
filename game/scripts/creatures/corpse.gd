@@ -141,6 +141,10 @@ func _roll_loot() -> void:
 		loot.add(ItemStack.make(item_id, n, attrs))
 
 func _on_take_from_loot() -> void:
+	# Taking from the chest screen trains Butchering (and so the player level).
+	var p := get_tree().get_first_node_in_group("player") as Player
+	if p and p.skills:
+		p.skills.add_xp("butchering", 3)
 	if _is_empty():
 		_on_loot_empty()
 

@@ -426,10 +426,11 @@ func _on_died(_source: Node) -> void:
 	anim.play_clip(&"death")
 	# Kills pay pioneer XP by tier and train Melee; pets' kills count for their survivor too.
 	if not is_pet and (_source is Player or (_source is Creature and (_source as Creature).is_pet)):
-		World.add_xp(4 + def.tier / 5)
 		var p := _source as Player if _source is Player else get_tree().get_first_node_in_group("player") as Player
 		if p and p.skills:
 			p.skills.add_xp("melee", 4 + def.tier / 5)
+		else:
+			World.add_xp(4 + def.tier / 5)
 		print("[combat] %s killed: +%d xp" % [def.id, 4 + def.tier / 5])
 	view.set_status_fx(0.35, Color(0.62, 0.62, 0.62), 0.0)
 	collision_layer = 0

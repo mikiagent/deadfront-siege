@@ -197,15 +197,13 @@ func note_craft(recipe_id: StringName) -> void:
 	if pioneer_crafts.has(str(recipe_id)):
 		return
 	pioneer_crafts[str(recipe_id)] = true
-	pioneer_level += 1
-	pioneer_changed.emit(pioneer_level)
+	add_xp(25)  # first time crafting a recipe: a discovery bonus, not a free level
 
 func note_building(kind: StringName) -> void:
 	if not is_home():
 		return
 	pioneer_buildings[str(kind)] = int(pioneer_buildings.get(str(kind), 0)) + 1
-	pioneer_level += 1
-	pioneer_changed.emit(pioneer_level)
+	add_xp(30)
 
 func discover_crater() -> void:
 	if crater_discovered:
@@ -345,8 +343,20 @@ func _load_islands(_dir: String) -> void:
 func claims_for_current() -> Array:
 	return home_claims if is_home() else unstable_claims
 
+## One player level. Every skill-tree XP grant (gathering, fighting, crafting, cooking, building,
+## farming...) also lands here (SkillState.add_xp), so the bottom bar moves with everything.
+## ASSUMPTION: level n needs 100 + 25 n XP.
+static func xp_for_level(level: int) -> int:
+	return 100 + 25 * level
+
 func add_xp(n: int) -> void:
+	if n <= 0:
+		return
 	pioneer_xp += n
+	while pioneer_xp >= xp_for_level(pioneer_level):
+		pioneer_xp -= xp_for_level(pioneer_level)
+		pioneer_level += 1
+		pioneer_changed.emit(pioneer_level)
 
 func pioneer_progress() -> float:
-	return float(pioneer_xp % 100) / 100.0
+	return clampf(float(pioneer_xp) / float(maxi(1, xp_for_level(pioneer_level))), 0.0, 1.0)

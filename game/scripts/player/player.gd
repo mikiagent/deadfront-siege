@@ -771,7 +771,8 @@ func _finish_gather() -> void:
 		stack.count = gained
 	gather_target.consume_unit()
 	print("[item] +%d %s %s (pool %d/%d)" % [gained, stack.def_id, attrs, gather_target.pool_units_left(), gather_target.pool_max])
-	World.add_xp(1)
+	if skills == null:
+		World.add_xp(2)
 	toast(stack.def_id, gained)
 	vitals.add_fatigue(GATHER_FATIGUE_PER_UNIT, &"gather")
 	if gather_target.pool_units_left() <= 0:
@@ -1602,9 +1603,10 @@ func _corpse_take_timer(corpse: Corpse, slot: int) -> void:
 		var before := st.count
 		var left := inventory.add(st)
 		print("[item] +%d %s (loot %s)" % [before - left, st.def_id, corpse.species])
-		World.add_xp(2)
 		if skills:
 			skills.add_xp("butchering", 3)
+		else:
+			World.add_xp(3)
 		toast(st.def_id, before - left)
 	)
 

@@ -51,6 +51,8 @@ func xp_of(tree: String) -> float:
 func add_xp(tree: String, amount: float) -> void:
 	if not trees.has(tree) or amount <= 0.0:
 		return
+	if World and World.has_method("add_xp"):
+		World.add_xp(int(ceil(amount)))  # every skill gain is also general player XP (one bar)
 	var t: Dictionary = trees[tree]
 	if int(t["level"]) >= MAX_LEVEL:
 		return

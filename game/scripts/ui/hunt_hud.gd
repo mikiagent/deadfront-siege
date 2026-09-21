@@ -752,11 +752,9 @@ func _draw() -> void:
 	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 18), "X %d  Y %d" % [tile.x, tile.y], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, 13, Color(0.9, 0.85, 0.6))
 	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 36), "%s  %s" % [Game.clock_label(), Game.phase_name()], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, 13, Color(0.85, 0.85, 0.85))
 	# --- XP bar along the bottom
+	# One bar: the pioneer level, which every skill XP grant also feeds.
 	var prog := World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
 	var char_lv := World.pioneer_level
-	if player.skills:
-		char_lv = player.skills.character_level()
-		prog = player.skills.character_progress()
 	draw_rect(Rect2(0, r.y - 7, r.x, 7), Color(0.05, 0.05, 0.07, 0.9))
 	draw_rect(Rect2(0, r.y - 7, r.x * prog, 7), Color(0.55, 0.25, 0.75))
 	var lv := "Lv. %d  %.1f%%" % [char_lv, prog * 100.0]

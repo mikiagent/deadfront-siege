@@ -258,8 +258,9 @@ static func tree_for_recipe(rec: Dictionary) -> String:
 ## Crafting trains the recipe's tree and pays pioneer XP (gathering pays 1/unit, kills pay by tier).
 static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
 	if player and player.skills:
-		player.skills.add_xp(tree_for_recipe(rec), 6)
-	World.add_xp(2 + int(recipe_seconds(rec)))
+		player.skills.add_xp(tree_for_recipe(rec), 6 + int(recipe_seconds(rec)))
+	else:
+		World.add_xp(6 + int(recipe_seconds(rec)))
 
 static func craft(player: Player, rec: Dictionary, picks: Array[int]) -> ItemStack:
 	if not can_make(player, rec, picks):
