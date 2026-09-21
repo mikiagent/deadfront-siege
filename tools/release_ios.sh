@@ -33,7 +33,7 @@ echo "== 2/5 Archive (Release, manual App Store signing, build $BUILD_NUMBER)"
 rm -rf "$WORK/durango.xcarchive"
 xcodebuild -project "$OUT/durango.xcodeproj" -scheme durango -configuration Release \
   -destination 'generic/platform=iOS' -archivePath "$WORK/durango.xcarchive" \
-  CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$TEAM_ID" \
+  CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="$TEAM_ID" \
   PROVISIONING_PROFILE_SPECIFIER="iOS Team Store Provisioning Profile: com.durangolike.dev" \
   CODE_SIGN_IDENTITY="Apple Distribution" MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
   archive 2>&1 | tee "$WORK/archive.log"
@@ -47,11 +47,7 @@ cat > "$WORK/exportOptions.plist" <<PL
   <key>method</key><string>app-store-connect</string>
   <key>destination</key><string>export</string>
   <key>teamID</key><string>$TEAM_ID</string>
-  <key>signingStyle</key><string>manual</string>
-  <key>signingCertificate</key><string>Apple Distribution</string>
-  <key>provisioningProfiles</key><dict>
-    <key>com.durangolike.dev</key><string>iOS Team Store Provisioning Profile: com.durangolike.dev</string>
-  </dict>
+  <key>signingStyle</key><string>automatic</string>
   <key>uploadSymbols</key><true/>
 </dict></plist>
 PL
