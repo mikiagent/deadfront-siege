@@ -16,7 +16,8 @@
       "Flowers",
       "Rock",
       "WoodLog",
-      "TreeStump"
+      "TreeStump",
+      "WildGrass"
     ],
     "materials": [
       {
@@ -68,7 +69,8 @@
       "Grass_Short",
       "Rock",
       "Bush",
-      "TreeStump"
+      "TreeStump",
+      "WildGrass"
     ],
     "materials": [
       {
@@ -126,7 +128,8 @@
       "Rock_Moss",
       "Rock",
       "WoodLog_Moss",
-      "TreeStump_Moss"
+      "TreeStump_Moss",
+      "WildGrass"
     ],
     "materials": [
       {
@@ -186,7 +189,8 @@
       "Grass",
       "Bush",
       "Rock_Moss",
-      "Lilypad"
+      "Lilypad",
+      "WildGrass"
     ],
     "materials": [
       {
@@ -236,7 +240,8 @@
       "Bush_Snow",
       "Rock_Snow",
       "Grass_Short",
-      "WoodLog_Snow"
+      "WoodLog_Snow",
+      "WildGrass"
     ],
     "materials": [
       {
@@ -280,7 +285,8 @@
       "CactusFlowers",
       "CactusFlower",
       "Rock",
-      "CommonTree_Dead"
+      "CommonTree_Dead",
+      "WildGrass"
     ],
     "materials": [
       {
@@ -328,7 +334,8 @@
       "Plant",
       "Grass",
       "Rock_Moss",
-      "WoodLog_Moss"
+      "WoodLog_Moss",
+      "WildGrass"
     ],
     "materials": [
       {
@@ -374,7 +381,8 @@
       "Willow_Snow",
       "Rock_Snow",
       "Bush_Snow",
-      "CommonTree_Dead_Snow"
+      "CommonTree_Dead_Snow",
+      "WildGrass"
     ],
     "materials": [
       {
@@ -411,7 +419,8 @@
       "Plant",
       "Lilypad",
       "Rock",
-      "Grass"
+      "Grass",
+      "WildGrass"
     ],
     "materials": [
       {
@@ -448,7 +457,8 @@
     "vegetation": [
       "Rock",
       "CommonTree_Dead",
-      "Rock_Snow"
+      "Rock_Snow",
+      "WildGrass"
     ],
     "materials": [
       {

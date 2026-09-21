@@ -22,6 +22,7 @@ var _icon_cache: Dictionary = {}
 ## per unit gathered (progress 0..1 from the player's gather cycle), then resets.
 var active_index: int = -1
 var _progress: float = 0.0
+var _ring3d: MeshInstance3D  # selection hexagon on the ground, depth-tested so the plant stands on it
 
 const HEX := 76.0
 
@@ -72,9 +73,7 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 		if b.icon == null:
 			b.glyph = str(_display_name(item_id)).left(1)
 		b.top_text = "%.1fs" % float(o.get("seconds", 1.8))
-		var cmin := int(o.get("min", 1))
-		var cmax := int(o.get("max", 1))
-		b.bottom_text = str(cmax) if cmin == cmax else "%d-%d" % [cmin, cmax]
+		b.bottom_text = str(int(o["left"])) if o.has("left") else ""  # units left on this yield
 		var tool := StringName(str(o.get("tool", "none")))
 		var blocked := tool != &"none" and tool != &"" and inv != null and not inv.has_tool_class(tool)
 		var reason := ("needs %s" % tool) if blocked else str(o.get("blocked_reason", ""))
@@ -90,10 +89,61 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 		_labels.append({"text": "%s Lv. %d%s" % [_display_name(item_id), level, left_txt], "reason": reason})
 	_open = true
 	visible = true
+	_show_ring3d()
 	_layout()
 	queue_redraw()
 
+## Hexagon flat on the terrain under the node (1.15 m), rebuilt on open; the mesh is depth-tested,
+## so the trunk/bush occludes the far edge and the ring reads as sitting on the ground.
+func _show_ring3d() -> void:
+	if node == null:
+		return
+	if _ring3d == null:
+		_ring3d = MeshInstance3D.new()
+		_ring3d.name = "SelectHex3D"
+		_ring3d.top_level = true
+		_ring3d.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color = Color(1.0, 1.0, 1.0, 0.75)
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_ring3d.material_override = m
+		_ring3d.mesh = ImmediateMesh.new()
+		var host: Node = get_tree().current_scene
+		if host:
+			host.add_child(_ring3d)
+		else:
+			add_child(_ring3d)
+	var im := _ring3d.mesh as ImmediateMesh
+	im.clear_surfaces()
+	im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	var c := node.global_position
+	var rt := World.runtime if World else null
+	var has_surf := rt != null and rt.has_method("surface_y")
+	var r := 1.15
+	var w := 0.07
+	for i in 6:
+		var a0 := deg_to_rad(60.0 * float(i))
+		var a1 := deg_to_rad(60.0 * float(i + 1))
+		var quad: Array[Vector3] = []
+		for pair in [[a0, r - w], [a0, r + w], [a1, r + w], [a1, r - w]]:
+			var p := c + Vector3(cos(pair[0]) * pair[1], 0.0, sin(pair[0]) * pair[1])
+			p.y = (rt.surface_y(p.x, p.z) if has_surf else c.y) + 0.05
+			quad.append(p)
+		im.surface_add_vertex(quad[0])
+		im.surface_add_vertex(quad[1])
+		im.surface_add_vertex(quad[2])
+		im.surface_add_vertex(quad[0])
+		im.surface_add_vertex(quad[2])
+		im.surface_add_vertex(quad[3])
+	im.surface_end()
+	_ring3d.global_transform = Transform3D.IDENTITY
+	_ring3d.visible = true
+
 func close() -> void:
+	if _ring3d:
+		_ring3d.visible = false
 	for b in _buttons:
 		b.queue_free()
 	_buttons.clear()
@@ -121,6 +171,28 @@ func _on_pick(i: int) -> void:
 	picked.emit(n, i)
 
 ## Unit progress for the active hex's outline (0 resets after each unit lands in the bag).
+## After each unit lands: re-read the node's pools so counts, labels and blocked badges update.
+func refresh() -> void:
+	if not _open or not (node is HarvestNode):
+		return
+	var opts := (node as HarvestNode).options()
+	for i in mini(opts.size(), _buttons.size()):
+		var o: Dictionary = opts[i]
+		var b := _buttons[i]
+		b.bottom_text = str(int(o["left"])) if o.has("left") else ""
+		var reason := str(o.get("blocked_reason", ""))
+		var tool := StringName(str(o.get("tool", "none")))
+		if reason == "" and tool != &"none" and tool != &"" and _inventory != null and not _inventory.has_tool_class(tool):
+			reason = "needs %s" % tool
+		b.disabled = reason != ""
+		b.badge = "⊘" if reason != "" else ""
+		b.queue_redraw()
+		if i < _labels.size():
+			var item_id := StringName(str(o.get("item", "")))
+			var left_txt := ("  ·  %d / %d left" % [int(o["left"]), int(o.get("pool", 0))]) if o.has("left") else ""
+			_labels[i] = {"text": "%s Lv. %d%s" % [_display_name(item_id), level, left_txt], "reason": reason}
+	queue_redraw()
+
 func set_progress(frac: float) -> void:
 	_progress = clampf(frac, 0.0, 1.0)
 	queue_redraw()
@@ -176,17 +248,13 @@ func _draw() -> void:
 	var cam := get_viewport().get_camera_3d()
 	var base := _anchor()
 	var font := ThemeDB.fallback_font
-	# Selection hexagon around the node's tile (screen-space, squashed for the iso view).
+	# The selection hexagon itself is a 3D mesh on the terrain (_show_ring3d); the name and level
+	# sit under it in screen space.
 	var ppm := 40.0
 	if cam and cam.projection == Camera3D.PROJECTION_ORTHOGONAL:
 		ppm = get_viewport_rect().size.y / maxf(1.0, cam.size)
 	var r := 1.35 * ppm
 	var ground := cam.unproject_position(node.global_position) if cam else base
-	var pts := PackedVector2Array()
-	for i in 7:
-		var a := deg_to_rad(60.0 * float(i))
-		pts.append(ground + Vector2(cos(a) * r, sin(a) * r * 0.55))
-	draw_polyline(pts, Color(1, 1, 1, 0.55), 2.0, true)
 	var name := _node_name()
 	var ns := 18
 	var nw := font.get_string_size(name, HORIZONTAL_ALIGNMENT_CENTER, -1, ns).x

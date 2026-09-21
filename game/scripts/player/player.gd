@@ -825,6 +825,8 @@ func _finish_gather() -> void:
 	if left > 0:
 		stack.count = gained
 	gather_target.consume_unit()
+	if _gather_radial and _gather_radial.is_open():
+		_gather_radial.refresh()
 	print("[item] +%d %s %s (pool %d/%d)" % [gained, stack.def_id, attrs, gather_target.pool_units_left(), gather_target.pool_max])
 	if skills == null:
 		World.add_xp(2)

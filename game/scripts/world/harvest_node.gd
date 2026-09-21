@@ -190,6 +190,8 @@ func restore_pools(snap: Dictionary) -> void:
 ## offers Leaf / Log / Branch at once). Tool-gated options take longer.
 ## ASSUMPTION: wood_log needs an axe, stone/ore/clay a pick, bark and hide a knife; the rest is bare-handed.
 const OPTION_TOOLS := {"wood_log": "axe", "stone": "pick", "ore_chunk": "pick", "clay": "pick", "bark_strip": "knife", "hide": "knife"}
+## One unit per pass; seconds per unit by item (bare-handed picks are quick, tool work is slow).
+const OPTION_SECONDS := {"berries": 1.1, "berry": 1.1, "mushroom": 1.0, "petals": 1.0, "dry_grass": 0.9, "fibre_stalk": 1.3, "herb_leaf": 1.2, "reed": 1.2, "branch": 1.6, "palm_frond": 1.5, "coconut": 2.0, "root": 1.8, "cactus_flesh": 1.6, "bark_strip": 2.2, "clay": 2.4, "stone": 2.8, "wood_log": 3.0, "ore_chunk": 3.2, "hide": 2.4}
 
 func options() -> Array:
 	var out: Array = []
@@ -200,14 +202,9 @@ func options() -> Array:
 			var id := StringName(str(k))
 			if Data.item(id) == null:
 				continue
-			var pair: Variant = harvest[k]
-			var amin := 1
-			var amax := 1
-			if pair is Array and (pair as Array).size() >= 2:
-				amin = maxi(1, int(pair[0]))
-				amax = maxi(amin, int(pair[1]))
 			var tool := str(OPTION_TOOLS.get(str(k), "none"))
-			out.append({"item": str(id), "min": amin, "max": amax, "tool": tool, "seconds": 3.0 if tool != "none" else 1.8})
+			var secs := float(OPTION_SECONDS.get(str(k), 3.0 if tool != "none" else 1.6))
+			out.append({"item": str(id), "min": 1, "max": 1, "tool": tool, "seconds": secs})
 	if out.is_empty():
 		out.append({"item": str(yield_def_id), "min": yield_min, "max": yield_max, "tool": str(required_tool_class), "seconds": gather_seconds})
 	for o in out:

@@ -1023,6 +1023,34 @@
       },
       "tool_class": null,
       "collision": "box"
+    },
+    "WildGrass": {
+      "models": [
+        "Grass",
+        "Grass_2"
+      ],
+      "role": "plant",
+      "climates": [
+        "temperate",
+        "grassland",
+        "savannah",
+        "tropical",
+        "swamp",
+        "tundra"
+      ],
+      "harvest": {
+        "dry_grass": [
+          1,
+          1
+        ],
+        "fibre_stalk": [
+          1,
+          1
+        ]
+      },
+      "tool_class": null,
+      "collision": "none",
+      "_note": "Gatherable wild grass tufts (dry grass for kindling/thatch, fibre for twine). Added 2026-09-20."
     }
   }
 }

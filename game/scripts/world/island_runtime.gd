@@ -664,7 +664,8 @@ func _scatter(def: Dictionary, terrain: StringName, climate: String, tier: int, 
 	_multimesh_family("Grass", int(counts.get("grass", 260 if not home else 140)), size, rng)
 	_multimesh_family("Flowers", int(counts.get("flower", 40 if not home else 24)), size, rng)
 	# Durango's islands are dense: every family keeps a floor even when the island data is sparse.
-	var floors := {"tree": 12 if home else 44, "bush": 12 if home else 30, "rock": 6 if home else 16, "plant": 6 if home else 10}
+	# Denser islands (owner asked for resources everywhere): home floors up 3-4x, unstable up ~1.5x.
+	var floors := {"tree": 40 if home else 64, "bush": 36 if home else 44, "rock": 20 if home else 26, "plant": 24 if home else 24, "wild_grass": 48 if home else 60}
 	var tree_families: Array[String] = []
 	for fam in families:
 		var fs := str(fam)
@@ -698,10 +699,10 @@ func _scatter(def: Dictionary, terrain: StringName, climate: String, tier: int, 
 			"prop":
 				n = 0
 			_:
-				n = int(floors["plant"])
-				fallback = &"herb_leaf"
+				n = int(floors["wild_grass"]) if fs == "WildGrass" else int(floors["plant"])
+				fallback = &"dry_grass" if fs == "WildGrass" else &"herb_leaf"
 				tool = &"none"
-				col = Color(0.35, 0.55, 0.25)
+				col = Color(0.55, 0.62, 0.3) if fs == "WildGrass" else Color(0.35, 0.55, 0.25)
 		if n <= 0:
 			continue
 		harvest_count += _plant_family(fs, role, n, fallback, tool, climate, tier, size, rng, col)
