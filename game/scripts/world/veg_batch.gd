@@ -22,7 +22,11 @@ static func get_for(host: Node3D, path: String) -> VegBatch:
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = mesh
 	b.multimesh = mm
-	b.visibility_range_end = 95.0
+	# A batch contains transforms across the whole island, but its Node3D origin stays at the
+	# island origin. Godot distance-culls the whole MultiMesh from that origin, so walking more
+	# than 95 m away hid even instances beside the player while their HarvestNodes stayed live.
+	# Leave range culling off; camera-frustum culling still skips the single batched draw call.
+	b.visibility_range_end = 0.0
 	b.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	host.add_child(b)
 	return b

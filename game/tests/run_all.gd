@@ -6,6 +6,7 @@ func _init() -> void:
 	_test_save_migrations()
 	_test_food_buffs()
 	_test_climate_palette()
+	_test_creature_genetics()
 	_test_hud_event_state()
 	if failures.is_empty():
 		print("[tests] PASS")
@@ -70,3 +71,24 @@ func _test_hud_event_state() -> void:
 	_expect(events.bites.size() == 1 and events.player_floats.size() == 1, "bite and damage float are paired")
 	events.tick(4.0)
 	_expect(events.toasts.is_empty() and events.notices.is_empty() and events.bites.is_empty() and events.player_floats.is_empty(), "expired HUD events are removed")
+
+func _test_creature_genetics() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	var genes := CreatureGenetics.roll(rng)
+	for stat in CreatureGenetics.STATS:
+		_expect(int(genes.ivs[stat]) >= 0 and int(genes.ivs[stat]) <= CreatureGenetics.IV_MAX, "IV in range: %s" % stat)
+	var before := 0
+	for value in genes.level_gains.values():
+		before += int(value)
+	var gains := genes.add_level(rng)
+	var after := 0
+	for value in genes.level_gains.values():
+		after += int(value)
+	_expect(after - before == 3, "level grants three random combat stat points")
+	_expect(not gains.is_empty(), "level gain summary is populated")
+	_expect(genes.train(&"accuracy", 500) == CreatureGenetics.EV_MAX_PER_STAT, "focused EV respects per-stat cap")
+	_expect(genes.tier_for_iv(0) == &"D-", "lowest IV is D-")
+	_expect(genes.tier_for_iv(31) == &"S+", "highest IV is S+")
+	var copy := CreatureGenetics.from_dict(genes.to_dict())
+	_expect(copy.ivs == genes.ivs and copy.evs == genes.evs and copy.level_gains == genes.level_gains, "genetics save roundtrip")

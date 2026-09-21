@@ -149,7 +149,7 @@ static func _complete(player: Player, creature: Creature) -> void:
 	var species_id := creature.def.id
 	var variant := creature.variant
 	var def := creature.def
-	var rec := PetRecord.from_def(def, grade, variant)
+	var rec := PetRecord.from_def(def, grade, variant, creature.genetics)
 	creature.tame_attempting = false
 	creature.tame_feeds = 0.0
 	creature.tame_window_left = 0.0
@@ -165,7 +165,8 @@ static func _complete(player: Player, creature: Creature) -> void:
 		var bagged := ItemStack.make(&"tamed_animal", 1, {
 			"species": str(species_id),
 			"variant": str(variant),
-			"grade": str(grade),
+			"grade": str(rec.grade),
+			"genetics": rec.genetics.to_dict(),
 		})
 		player.inventory.add(bagged)
 		creature.queue_free()

@@ -84,7 +84,10 @@ func _ready() -> void:
 						bd = d
 						best = n
 			if best:
+				Game.pointer = get_viewport().get_camera_3d().unproject_position(best.global_position)
 				player.placer.pick_up(best)
+				if Game.shot_path.contains("layoutdrag"):
+					player.placer.drag_to(Game.pointer + Vector2(70.0, -18.0))
 				player.placer.dragging = false
 		)
 	if Game.shot_path.contains("bigmap"):
@@ -612,6 +615,19 @@ func _toggle_sheet(kind: StringName) -> void:
 			for i in player.bonded.size():
 				var rec: PetRecord = player.bonded[i]
 				var idx := i
+				if rec.respawning():
+					# Down after dying: circular cooldown ring instead of a Summon button.
+					var row := HBoxContainer.new()
+					row.add_theme_constant_override("separation", 10)
+					row.add_child(RespawnRing.new(rec, func () -> void: _refresh_sheet()))
+					var down := Button.new()
+					down.text = "%s  Lv. %d %s  DOWN" % [str(rec.species).capitalize(), rec.level, rec.grade]
+					down.disabled = true
+					down.custom_minimum_size = Vector2(240, 60)
+					down.add_theme_font_size_override("font_size", 18)
+					row.add_child(down)
+					box.add_child(row)
+					continue
 				var is_out := false
 				for p in player.live_pets():
 					if p.pet_record == rec:
@@ -656,6 +672,14 @@ func _sheet_btn(box: VBoxContainer, text: String, cb: Callable) -> void:
 	b.add_theme_font_size_override("font_size", 18)
 	b.pressed.connect(cb)
 	box.add_child(b)
+
+## Rebuild the open sheet in place (e.g. a pet finished respawning and Summon is back).
+func _refresh_sheet() -> void:
+	if _sheet == null:
+		return
+	var kind := _sheet_kind
+	_close_sheet()
+	_toggle_sheet(kind)
 
 func _close_sheet() -> void:
 	if _sheet:
@@ -879,7 +903,7 @@ func _draw_target_plate(t: Creature, a: float) -> void:
 			var pw := 520.0
 			var px := r.x * 0.5 - pw * 0.5
 			var py := 14.0
-			var nm := "%s" % str(t.def.id).capitalize()
+			var nm := "%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]
 			draw_string(_font, Vector2(px + 40, py + 30), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1, 1, 1, a))
 			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
 			draw_string(_font, Vector2(px + 40 + nmw + 14, py + 30), "Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1.0, 0.3, 0.25, a))

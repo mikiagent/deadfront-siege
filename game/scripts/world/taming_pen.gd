@@ -110,6 +110,7 @@ func _process(delta: float) -> void:
 			"species": str(species),
 			"variant": str(occupant.attributes.get("variant", "")),
 			"grade": str(grade),
+			"genetics": occupant.attributes.get("genetics", {}),
 		})
 		var player := get_tree().get_first_node_in_group("player") as Player
 		if player:

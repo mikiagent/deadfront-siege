@@ -338,8 +338,9 @@ func set_visual(path: String) -> void:
 
 func _apply_vis_range(n: Node) -> void:
 	if n is GeometryInstance3D:
-		(n as GeometryInstance3D).visibility_range_end = 30.0
-		(n as GeometryInstance3D).visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+		# Fallback visuals must obey the same visible/interactable lifetime as this body. A
+		# render-only distance cutoff leaves an invisible resource that can still be tapped.
+		(n as GeometryInstance3D).visibility_range_end = 0.0
 	for c in n.get_children():
 		_apply_vis_range(c)
 

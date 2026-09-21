@@ -12,7 +12,7 @@ import pathlib
 import re
 import sys
 
-CHUNK = 90 * 1024 * 1024  # stay under Vercel Hobby's 100 MB per-file cap
+CHUNK = 16 * 1024 * 1024  # keep fallback buffers small on memory-constrained mobile browsers
 
 LOADER = r'''
 (function (engine) {
@@ -34,28 +34,47 @@ LOADER = r'''
 			return r.json();
 		}).then(function (man) {
 			let loaded = 0;
-			const pieces = [];
+			const out = new Uint8Array(man.size);
+			function reportProgress() {
+				if (onProgress) {
+					onProgress(loaded, man.size);
+				}
+			}
 			return man.parts.reduce(function (p, part) {
 				return p.then(function () {
 					return fetch(part).then(function (res) {
 						if (!res.ok) {
 							throw new Error('Failed to download ' + part + ' (' + res.status + ')');
 						}
-						return res.arrayBuffer();
-					}).then(function (buf) {
-						loaded += buf.byteLength;
-						if (onProgress) {
-							onProgress(loaded, man.size);
+						if (!res.body || !res.body.getReader) {
+							return res.arrayBuffer().then(function (buf) {
+								const bytes = new Uint8Array(buf);
+								out.set(bytes, loaded);
+								loaded += bytes.byteLength;
+								reportProgress();
+							});
 						}
-						pieces.push(new Uint8Array(buf));
+						const reader = res.body.getReader();
+						function pump() {
+							return reader.read().then(function (result) {
+								if (result.done) {
+									return;
+								}
+								if (loaded + result.value.byteLength > out.byteLength) {
+									throw new Error('Downloaded pack is larger than its manifest');
+								}
+								out.set(result.value, loaded);
+								loaded += result.value.byteLength;
+								reportProgress();
+								return pump();
+							});
+						}
+						return pump();
 					});
 				});
 			}, Promise.resolve()).then(function () {
-				const out = new Uint8Array(man.size);
-				let off = 0;
-				for (let i = 0; i < pieces.length; i++) {
-					out.set(pieces[i], off);
-					off += pieces[i].byteLength;
+				if (loaded !== man.size) {
+					throw new Error('Downloaded pack size mismatch (' + loaded + ' of ' + man.size + ' bytes)');
 				}
 				return me.preloadFile(out.buffer, pack);
 			});
