@@ -740,16 +740,12 @@ func _separation_steer() -> Vector3:
 		return Vector3.ZERO
 	return steer.normalized()
 
-static func spawn_level_for_island(def_tier: int, island: Dictionary, cap: int = 60) -> int:
-	var override := int(island.get("level_override", 0))
-	return clampi(override, 1, cap) if override > 0 else def_tier
-
 func _spawn_level_from_ring() -> int:
 	# island_def is set before IslandRuntime.build() starts spawning creatures. Use it first:
 	# World.runtime is intentionally assigned only after build completes, so consulting runtime
 	# first made every starter creature fall back to its species tier (often Lv. 20).
 	if World != null:
-		var resolved := spawn_level_for_island(def.tier, World.island_def, int(Data.world_rules.get("level_cap", 60)))
+		var resolved := ProgressionScaling.resolved_spawn_level(def.tier, World.island_def, int(Data.world_rules.get("level_cap", 60)))
 		if resolved != def.tier or int(World.island_def.get("level_override", 0)) > 0:
 			return resolved
 	if World == null or World.runtime == null:
