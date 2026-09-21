@@ -7,6 +7,8 @@ extends Node3D
 @onready var iso_camera: Camera3D = $IsoCamera
 
 func _ready() -> void:
+	if OS.has_feature("web"):
+		print("[boot] user_args=%s" % [OS.get_cmdline_user_args()])
 	sun.rotation_degrees = Vector3(-50.0, 30.0, 0.0)
 	if Game.lab_name != "":
 		default_playfield.visible = false
