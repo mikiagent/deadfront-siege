@@ -146,6 +146,31 @@ self.addEventListener('activate', function (event) {
 """
 
 
+
+def install_diagnostics(out: pathlib.Path) -> None:
+    """Install diagnostics before Engine construction and expose the opt-in soak arg."""
+    source = pathlib.Path(__file__).with_name('web_diagnostics.js')
+    if not source.is_file():
+        raise SystemExit(f'missing {source}')
+    (out / 'web_diagnostics.js').write_text(source.read_text())
+    html_path = out / 'index.html'
+    html = html_path.read_text()
+    marker = '<script src="web_diagnostics.js"></script>'
+    if marker not in html:
+        needle = '<script src="index.js"></script>'
+        if needle not in html:
+            raise SystemExit('index.html has no index.js script hook')
+        html = html.replace(needle, marker + '\n' + needle, 1)
+    config_needle = 'const engine = new Engine(GODOT_CONFIG);'
+    soak_hook = "if (new URLSearchParams(location.search).get('soak') === '1' && !GODOT_CONFIG.args.includes('--web-soak')) GODOT_CONFIG.args.push('--web-soak');"
+    if soak_hook not in html:
+        if config_needle not in html:
+            raise SystemExit('index.html has no Engine(GODOT_CONFIG) hook')
+        html = html.replace(config_needle, soak_hook + '\n' + config_needle, 1)
+    html_path.write_text(html)
+    print('installed web crash diagnostics and soak hook')
+
+
 def patch_service_worker(out: pathlib.Path, parts: list[str]) -> None:
     sw = out / 'index.service.worker.js'
     if not sw.is_file():
@@ -188,6 +213,7 @@ def main() -> None:
     out = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else '.')
     parts = split_pck(out)
     patch_html(out)
+    install_diagnostics(out)
     patch_service_worker(out, parts)
     report(out)
 
