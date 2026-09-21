@@ -22,15 +22,19 @@ var rot_step: int = 0
 var _ghost_root: Node3D
 var _ghost_visual: Node3D
 var _ghost_grid: MeshInstance3D
-var _ghost_cells: Node3D
+var _ghost_cells: MeshInstance3D
 var _ghost_label: Label3D
 
 var _last_sync := [Vector2i(999999, 999999), -1, ""]  # cell, rot, placing: overlay rebuilt only on change
+var _ghost_mat_valid: bool = false  # material currently on the ghost visual
+var _ghost_mat_fresh: bool = false  # false until the first tint after a visual rebuild
+var _last_label: String = ""
+var _blocked_cache: Dictionary = {}  # Vector2i -> bool: nature-blocked is static for an island
+var _blocked_cache_runtime: Node = null
 var _mat_valid: StandardMaterial3D
 var _mat_invalid: StandardMaterial3D
-var _cell_valid: StandardMaterial3D
-var _cell_invalid: StandardMaterial3D
 var _grid_mat: StandardMaterial3D
+var _cell_mat: StandardMaterial3D  # vertex-coloured: one mesh draws every overlay quad
 
 func _kit_id(kind: StringName) -> String:
 	match kind:
@@ -77,10 +81,12 @@ func _ready() -> void:
 	_ghost_grid.visible = false
 	_ghost_grid.material_override = _grid_mat
 	add_child(_ghost_grid)
-	_ghost_cells = Node3D.new()
+	_ghost_cells = MeshInstance3D.new()
 	_ghost_cells.name = "GhostCells"
 	_ghost_cells.top_level = true
 	_ghost_cells.visible = false
+	_ghost_cells.material_override = _cell_mat
+	_ghost_cells.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_ghost_cells)
 
 func begin(kind: StringName) -> void:
@@ -391,7 +397,10 @@ func _sync_grid_state() -> void:
 	reason = grid.can_place(placing, cell, rot_step)
 	valid = reason == ""
 	_ghost_root.global_transform = grid.placement_transform(placing, cell, rot_step)
-	_apply_ghost_material(_ghost_visual, _mat_valid if valid else _mat_invalid)
+	if not _ghost_mat_fresh or _ghost_mat_valid != valid:
+		_ghost_mat_valid = valid
+		_ghost_mat_fresh = true
+		_apply_ghost_material(_ghost_visual, _mat_valid if valid else _mat_invalid)
 	_draw_overlay(grid)
 	_update_label(grid)
 
@@ -429,14 +438,11 @@ func _build_materials() -> void:
 	_mat_invalid.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_mat_invalid.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_mat_invalid.albedo_color = Color(0.9, 0.2, 0.15, 0.42)
-	_cell_valid = StandardMaterial3D.new()
-	_cell_valid.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_cell_valid.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_cell_valid.albedo_color = Color(0.25, 0.55, 1.0, 0.45)
-	_cell_invalid = StandardMaterial3D.new()
-	_cell_invalid.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_cell_invalid.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_cell_invalid.albedo_color = Color(0.95, 0.2, 0.2, 0.35)
+	_cell_mat = StandardMaterial3D.new()
+	_cell_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_cell_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_cell_mat.vertex_color_use_as_albedo = true
+	_cell_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_grid_mat = StandardMaterial3D.new()
 	_grid_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_grid_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -445,6 +451,7 @@ func _build_materials() -> void:
 	_grid_mat.no_depth_test = true
 
 func _rebuild_ghost_visual() -> void:
+	_ghost_mat_fresh = false
 	for c in _ghost_visual.get_children():
 		c.queue_free()
 	var path := PropVisuals.model_path(placing)
@@ -469,61 +476,101 @@ func _apply_ghost_material(node: Node, mat: StandardMaterial3D) -> void:
 		_apply_ghost_material(c, mat)
 
 func _draw_overlay(grid: BuildGrid) -> void:
-	var im := ImmediateMesh.new()
-	im.surface_begin(Mesh.PRIMITIVE_LINES, _grid_mat)
+	# Both overlays are ArrayMeshes built from packed arrays in one server call each; the old
+	# ImmediateMesh (one GDScript->engine call per vertex, ~360 per rebuild) plus per-cell
+	# MeshInstance3D churn was the drag-lag hotspot. Terrain heights are sampled once per
+	# unique grid point (121) instead of once per vertex (360).
 	var center := grid.placement_transform(placing, cell, rot_step).origin
+	var heights := {}
+	var height_at := func(x: float, z: float) -> float:
+		var k := Vector2(x, z)
+		var v: Variant = heights.get(k, null)
+		if v == null:
+			v = _surface_y(x, z)
+			heights[k] = v
+		return float(v)
 	var start_x := floorf(center.x) - float(GRID_HALF_SPAN) + 0.5
 	var start_z := floorf(center.z) - float(GRID_HALF_SPAN) + 0.5
+	var verts := PackedVector3Array()
 	for row in range(0, GRID_HALF_SPAN * 2 + 2):
 		var z := start_z + float(row) - 0.5
 		for step in range(0, GRID_HALF_SPAN * 2 + 1):
 			var x0 := start_x + float(step) - 0.5
 			var x1 := x0 + 1.0
-			im.surface_add_vertex(Vector3(x0, _surface_y(x0, z) + 0.06, z))
-			im.surface_add_vertex(Vector3(x1, _surface_y(x1, z) + 0.06, z))
+			verts.append(Vector3(x0, height_at.call(x0, z) + 0.06, z))
+			verts.append(Vector3(x1, height_at.call(x1, z) + 0.06, z))
 	for col in range(0, GRID_HALF_SPAN * 2 + 2):
 		var x := start_x + float(col) - 0.5
 		for step in range(0, GRID_HALF_SPAN * 2 + 1):
 			var z0 := start_z + float(step) - 0.5
 			var z1 := z0 + 1.0
-			im.surface_add_vertex(Vector3(x, _surface_y(x, z0) + 0.06, z0))
-			im.surface_add_vertex(Vector3(x, _surface_y(x, z1) + 0.06, z1))
-	im.surface_end()
-	_ghost_grid.mesh = im
-	for c in _ghost_cells.get_children():
-		c.queue_free()
+			verts.append(Vector3(x, height_at.call(x, z0) + 0.06, z0))
+			verts.append(Vector3(x, height_at.call(x, z1) + 0.06, z1))
+	var line_arrays := []
+	line_arrays.resize(Mesh.ARRAY_MAX)
+	line_arrays[Mesh.ARRAY_VERTEX] = verts
+	var lines := ArrayMesh.new()
+	lines.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, line_arrays)
+	_ghost_grid.mesh = lines
 	# Reference: while placing, tiles that cannot be built on show as translucent red diamonds.
-	var blocked_mat := _cell_invalid
+	var qverts := PackedVector3Array()
+	var qcols := PackedColorArray()
 	var occupied := grid.occupied_cells()
 	var reserved := grid.reserved_cells()
 	var mine := grid.cells_for(placing, cell, rot_step)
+	var blocked_col := Color(0.95, 0.2, 0.2, 0.35)
 	for dz in range(-GRID_HALF_SPAN, GRID_HALF_SPAN + 1):
 		for dx in range(-GRID_HALF_SPAN, GRID_HALF_SPAN + 1):
 			var t := Vector2i(int(floorf(center.x)) + dx, int(floorf(center.z)) + dz)
 			if mine.has(t):
 				continue
-			var wpos := BuildGrid.tile_centre(t, World.runtime)
 			var bad := occupied.has(t) or reserved.has(t)
-			if not bad and World.runtime and World.runtime.has_method("spawn_ok"):
-				bad = not World.runtime.spawn_ok(wpos, false)
+			if not bad:
+				bad = _nature_blocked(t)
 			if not bad:
 				continue
-			var red := MeshInstance3D.new()
-			var rp := PlaneMesh.new()
-			rp.size = Vector2(0.9, 0.9)
-			red.mesh = rp
-			red.material_override = blocked_mat
-			_ghost_cells.add_child(red)
-			red.global_position = wpos + Vector3(0.0, 0.045, 0.0)
-	var mat := _cell_valid if valid else _cell_invalid
-	for c in grid.cells_for(placing, cell, rot_step):
-		var tile := MeshInstance3D.new()
-		var plane := PlaneMesh.new()
-		plane.size = Vector2(0.96, 0.96)
-		tile.mesh = plane
-		tile.material_override = mat
-		_ghost_cells.add_child(tile)
-		tile.global_position = BuildGrid.tile_centre(c, World.runtime) + Vector3(0.0, 0.05, 0.0)
+			_overlay_quad(qverts, qcols, BuildGrid.tile_centre(t, World.runtime), 0.9, 0.045, blocked_col)
+	var mine_col := Color(0.25, 0.55, 1.0, 0.45) if valid else Color(0.9, 0.2, 0.15, 0.42)
+	for c in mine:
+		_overlay_quad(qverts, qcols, BuildGrid.tile_centre(c, World.runtime), 0.96, 0.05, mine_col)
+	var quad_arrays := []
+	quad_arrays.resize(Mesh.ARRAY_MAX)
+	quad_arrays[Mesh.ARRAY_VERTEX] = qverts
+	quad_arrays[Mesh.ARRAY_COLOR] = qcols
+	var quads := ArrayMesh.new()
+	quads.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, quad_arrays)
+	_ghost_cells.mesh = quads
+
+## Water/steep-ground rejection for a tile. Terrain is static for a loaded island, so the
+## answer is cached per tile instead of re-running spawn_ok for ~121 tiles every rebuild.
+func _nature_blocked(t: Vector2i) -> bool:
+	if not is_instance_valid(_blocked_cache_runtime) or World.runtime != _blocked_cache_runtime:
+		_blocked_cache_runtime = World.runtime
+		_blocked_cache.clear()
+	var v: Variant = _blocked_cache.get(t, null)
+	if v != null:
+		return bool(v)
+	var bad := false
+	if World.runtime and World.runtime.has_method("spawn_ok"):
+		bad = not World.runtime.spawn_ok(BuildGrid.tile_centre(t, World.runtime), false)
+	_blocked_cache[t] = bad
+	return bad
+
+func _overlay_quad(qverts: PackedVector3Array, qcols: PackedColorArray, centre: Vector3, size: float, y_off: float, col: Color) -> void:
+	var h := size * 0.5
+	var y := centre.y + y_off
+	var p0 := Vector3(centre.x - h, y, centre.z - h)
+	var p1 := Vector3(centre.x + h, y, centre.z - h)
+	var p2 := Vector3(centre.x + h, y, centre.z + h)
+	var p3 := Vector3(centre.x - h, y, centre.z + h)
+	qverts.append(p0)
+	qverts.append(p1)
+	qverts.append(p2)
+	qverts.append(p0)
+	qverts.append(p2)
+	qverts.append(p3)
+	for i in 6:
+		qcols.append(col)
 
 func _surface_y(x: float, z: float) -> float:
 	if World.runtime and World.runtime.has_method("surface_y"):
@@ -535,4 +582,7 @@ func _update_label(grid: BuildGrid) -> void:
 	var label := "%dx%d" % [fp.x, fp.y]
 	if not valid and reason != "":
 		label += " · %s" % reason
+	if label == _last_label:
+		return  # setting Label3D.text re-rasterises the font texture
+	_last_label = label
 	_ghost_label.text = label
