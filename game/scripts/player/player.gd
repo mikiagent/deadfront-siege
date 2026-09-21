@@ -143,6 +143,7 @@ func _ready() -> void:
 	_setup_survivor()
 	_setup_lantern()
 	_setup_ground_marker()
+	_setup_player_beacon()
 	_setup_gather_ring()
 	skills = SkillState.new()
 	skills.name = "Skills"
@@ -1485,9 +1486,35 @@ func _setup_survivor() -> void:
 	if not rig.setup(SURVIVOR_BASE_GLB, SURVIVOR_ANIM_DIR, axis, height, "player", true, float(pipeline.get("source_height_m", height))):
 		print("[player] survivor GLB missing %s" % SURVIVOR_BASE_GLB)
 		return
+	_make_survivor_web_safe()
 	_bind_rig_markers()
 	if anim:
 		anim.setup(self, rig)
+
+
+func _make_survivor_web_safe() -> void:
+	# Meshy's material relies on an emissive texture plus KHR material extensions. It can
+	# vanish in the Compatibility/WebGL renderer even though the skinned mesh is present.
+	# Override it with a plain double-sided PBR material on web/mobile; textures are preserved
+	# when available, while a warm fallback guarantees that the body remains visible.
+	if rig == null or rig.mesh_root == null:
+		return
+	for node in rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi == null:
+			continue
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		mi.extra_cull_margin = 1.0
+		for surface in mi.mesh.get_surface_count() if mi.mesh else 0:
+			var original := mi.get_active_material(surface) as BaseMaterial3D
+			var safe := StandardMaterial3D.new()
+			safe.cull_mode = BaseMaterial3D.CULL_DISABLED
+			safe.albedo_color = Color(0.70, 0.45, 0.28)
+			safe.roughness = 0.82
+			if original:
+				safe.albedo_color = original.albedo_color
+				safe.albedo_texture = original.albedo_texture
+			mi.set_surface_override_material(surface, safe)
 
 func _bind_rig_markers() -> void:
 	_right_hand_anchor = _marker_from_socket(rig.hand_socket, "RightHand")
@@ -1629,6 +1656,29 @@ func _drive_lantern() -> void:
 	var flicker := 1.0 + sin((Time.get_ticks_msec() * 0.001) * 7.0 + _lantern_phase) * 0.05
 	_lantern.light_energy = 9.0 * night * flicker
 
+
+
+func _setup_player_beacon() -> void:
+	# On a phone the survivor occupies only a few pixels. A soft ring makes the spawn and
+	# movement readable without covering the character model or becoming a debug marker.
+	var ring := MeshInstance3D.new()
+	ring.name = "PlayerBeacon"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.62
+	torus.outer_radius = 0.76
+	torus.rings = 16
+	torus.ring_segments = 8
+	ring.mesh = torus
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.30, 0.95, 0.62, 0.72)
+	mat.emission_enabled = true
+	mat.emission = Color(0.12, 0.72, 0.42)
+	mat.emission_energy_multiplier = 1.4
+	ring.material_override = mat
+	ring.position.y = -0.86
+	visual.add_child(ring)
 
 func _setup_gather_radial() -> void:
 	var layer := CanvasLayer.new()
