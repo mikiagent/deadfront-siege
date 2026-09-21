@@ -12,7 +12,11 @@ var xp_rate: float = 1.0
 var hp: float = 0.0
 var attack: float = 0.0
 var defense: float = 0.0
+var ranged_defense: float = 0.0
+var ranged_attack: float = 0.0
+var accuracy: float = 100.0
 var speed: float = 0.0
+var genetics: CreatureGenetics
 var tamed_role: Array[StringName] = []
 var bag: Inventory
 var summoned: bool = false
@@ -36,18 +40,26 @@ func add_xp(amount: float) -> int:
 		hp *= 1.08
 		attack *= 1.05
 		defense *= 1.04
+		ranged_defense *= 1.04
+		ranged_attack *= 1.05
+		if genetics:
+			genetics.add_level()
 		gained += 1
 	return gained
 
-static func from_def(def: CreatureDef, p_grade: StringName, variant: StringName = &"") -> PetRecord:
+static func from_def(def: CreatureDef, p_grade: StringName, variant: StringName = &"", p_genetics: CreatureGenetics = null) -> PetRecord:
 	var r := PetRecord.new()
 	r.species = def.id
 	r.variant = variant
-	r.grade = p_grade
-	r.hp = def.hp
-	r.attack = def.attack
-	r.defense = def.defense
-	r.speed = def.speed
+	r.genetics = p_genetics if p_genetics != null else CreatureGenetics.roll()
+	r.grade = r.genetics.overall_tier()
+	r.hp = def.hp * r.genetics.multiplier(&"health")
+	r.attack = def.attack * r.genetics.multiplier(&"melee_attack")
+	r.ranged_attack = def.attack * r.genetics.multiplier(&"ranged_attack")
+	r.defense = def.defense * r.genetics.multiplier(&"melee_defense")
+	r.ranged_defense = def.defense * r.genetics.multiplier(&"ranged_defense")
+	r.accuracy = 100.0 * r.genetics.multiplier(&"accuracy")
+	r.speed = def.speed * r.genetics.multiplier(&"speed")
 	r.tamed_role = def.tamed_role.duplicate()
 	r.hunger_max = def.hp * 0.4
 	r.hunger = r.hunger_max
@@ -68,6 +80,26 @@ static func from_def(def: CreatureDef, p_grade: StringName, variant: StringName 
 	r.bag = Inventory.new(slots)
 	return r
 
+func stat_value(stat: StringName) -> float:
+	match stat:
+		&"health": return hp
+		&"melee_defense": return defense
+		&"ranged_defense": return ranged_defense
+		&"melee_attack": return attack
+		&"ranged_attack": return ranged_attack
+		&"accuracy": return accuracy
+		&"speed": return speed
+	return 0.0
+
+func accuracy_chance() -> float:
+	return clampf(0.90 + (accuracy - 100.0) * 0.004, 0.72, 0.99)
+
+func crit_chance() -> float:
+	return clampf(0.05 + (accuracy - 85.0) * 0.003, 0.02, 0.16)
+
+func dodge_chance(def: CreatureDef) -> float:
+	return clampf(0.04 + (speed / maxf(1.0, def.speed) - 0.85) * 0.20, 0.04, 0.10)
+
 func matches_wild(def: CreatureDef) -> bool:
 	return is_equal_approx(hp, def.hp) and is_equal_approx(attack, def.attack) and is_equal_approx(defense, def.defense) and is_equal_approx(speed, def.speed)
 
@@ -86,7 +118,11 @@ func to_dict() -> Dictionary:
 		"hp": hp,
 		"attack": attack,
 		"defense": defense,
+		"ranged_defense": ranged_defense,
+		"ranged_attack": ranged_attack,
+		"accuracy": accuracy,
 		"speed": speed,
+		"genetics": genetics.to_dict() if genetics else {},
 		"tamed_role": roles,
 		"bag": bag.to_array() if bag else [],
 		"level": level,
@@ -105,7 +141,11 @@ static func from_dict(d: Dictionary) -> PetRecord:
 	r.hp = float(d.get("hp", 0.0))
 	r.attack = float(d.get("attack", 0.0))
 	r.defense = float(d.get("defense", 0.0))
+	r.ranged_defense = float(d.get("ranged_defense", r.defense))
+	r.ranged_attack = float(d.get("ranged_attack", r.attack))
+	r.accuracy = float(d.get("accuracy", 100.0))
 	r.speed = float(d.get("speed", 0.0))
+	r.genetics = CreatureGenetics.from_dict(d.get("genetics", {})) if d.get("genetics", {}) is Dictionary else CreatureGenetics.neutral()
 	r.tamed_role.clear()
 	for v in d.get("tamed_role", []):
 		r.tamed_role.append(StringName(str(v)))

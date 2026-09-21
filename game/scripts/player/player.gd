@@ -1337,7 +1337,7 @@ func _mounted_move(delta: float) -> void:
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var dir := _cam_dir(input)
 	if dir.length_squared() > 0.0:
-		var speed := mounted_on.def.move_speed_mps
+		var speed := mounted_on.move_speed_mps()
 		mounted_on.velocity.x = dir.x * speed
 		mounted_on.velocity.z = dir.z * speed
 		mounted_on.face_towards(mounted_on.global_position + dir, delta)
@@ -1358,7 +1358,7 @@ func bond_from_inventory() -> void:
 	var species := StringName(str(stack.attributes.get("species", "velociraptor")))
 	var def := Data.creature(species)
 	var grade := StringName(str(stack.attributes.get("grade", "B")))
-	var rec := PetRecord.from_def(def, grade, StringName(str(stack.attributes.get("variant", ""))))
+	var rec := PetRecord.from_def(def, grade, StringName(str(stack.attributes.get("variant", ""))), CreatureGenetics.from_dict(stack.attributes.get("genetics", {})))
 	bonded.append(rec)
 	print("[capture] bonded %s grade=%s hp=%.0f atk=%.0f def=%.0f spd=%.0f" % [
 		species, grade, rec.hp, rec.attack, rec.defense, rec.speed])
@@ -1408,6 +1408,7 @@ func summon_pet(index: int = 0) -> void:
 	c.global_position = global_position + Vector3(1.5, 0, 0)
 	c.is_pet = true
 	c.pet_record = rec
+	c.genetics = rec.genetics
 	c.spawn(def, rec.variant)
 	c.hunger = rec.hunger
 	c.hunger_max = rec.hunger_max

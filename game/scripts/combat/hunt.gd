@@ -112,9 +112,13 @@ func _auto_attack() -> void:
 		player.play_punch()
 	else:
 		player.play_attack(dtype == &"blunt" and dmg > 10.0)
-	var defense := target.def.defense * target.statuses.defense_mult()
+	var defense := target.defense_for(false) * target.statuses.defense_mult()
 	var raw: float = dmg - defense * 0.5
 	var dealt: float = maxf(dmg * 0.05, raw)
+	if randf() < target.dodge_chance():
+		target.combat_float.emit(0.0, &"dodge")
+		_swing_cd = 1.0 / maxf(0.2, rate)
+		return
 	var behind := _is_behind()
 	if behind:
 		dealt *= 1.25

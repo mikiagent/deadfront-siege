@@ -35,6 +35,7 @@ var pet_record: PetRecord
 var hunger: float = 0.0
 var hunger_max: float = 0.0
 var level: int = 1
+var genetics: CreatureGenetics
 var spawn_tile: Vector2i = Vector2i.ZERO
 var spawn_home: Vector3 = Vector3.ZERO
 var last_aggro_s: float = -999.0
@@ -85,7 +86,9 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> 
 	# No visibility range: the iso camera sits 40 m from the survivor (IsoCamera.distance), so the
 	# old 26 m cut-off culled every creature mesh and only the plates showed.
 	_set_vis_range(view, 0.0)
-	health.setup(def.hp)
+	if genetics == null:
+		genetics = CreatureGenetics.roll()
+	health.setup(stat_value(&"health"))
 	health.healed.connect(_on_healed)
 	# ASSUMPTION: pet hunger budget is 0.4 * wild HP when JSON has no hunger field.
 	hunger_max = def.hp * 0.4
@@ -152,6 +155,40 @@ func face_towards(world_pos: Vector3, _delta: float) -> void:
 func apply_species_on_hit(clip: StringName, target: Node) -> void:
 	CreatureAttack.apply_for(self, clip, target)
 
+func stat_value(stat: StringName) -> float:
+	var base := 0.0
+	match stat:
+		&"health": base = def.hp
+		&"melee_defense", &"ranged_defense": base = def.defense
+		&"melee_attack", &"ranged_attack": base = def.attack
+		&"accuracy": base = 100.0
+		&"speed": base = def.speed
+	return base * (genetics.multiplier(stat) if genetics else 1.0)
+
+func defense_for(ranged: bool = false) -> float:
+	return stat_value(&"ranged_defense" if ranged else &"melee_defense")
+
+func attack_for(ranged: bool = false) -> float:
+	return stat_value(&"ranged_attack" if ranged else &"melee_attack")
+
+func accuracy_chance() -> float:
+	if is_pet and pet_record:
+		return pet_record.accuracy_chance()
+	return clampf(0.90 + (stat_value(&"accuracy") - 100.0) * 0.004, 0.72, 0.99)
+
+func crit_chance() -> float:
+	if is_pet and pet_record:
+		return pet_record.crit_chance()
+	return clampf(0.05 + (stat_value(&"accuracy") - 85.0) * 0.003, 0.02, 0.16)
+
+func dodge_chance() -> float:
+	if is_pet and pet_record:
+		return pet_record.dodge_chance(def)
+	return clampf(0.04 + (stat_value(&"speed") / maxf(1.0, def.speed) - 0.85) * 0.20, 0.04, 0.10)
+
+func move_speed_mps() -> float:
+	return stat_value(&"speed") / 100.0
+
 func capturable() -> bool:
 	return is_capturable and health.hp > 0.0 and def.tameable
 
@@ -183,7 +220,7 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		_update_label()
 		return
-	var speed := def.move_speed_mps * statuses.move_mult()
+	var speed := (pet_record.speed / 100.0 if is_pet and pet_record else move_speed_mps()) * statuses.move_mult()
 	if not is_pet and brain and (brain.state == &"approach" or brain.state == &"attack"):
 		# ASSUMPTION: wild animals chase at 70 % of their listed speed so a survivor can outrun them.
 		speed *= float(brain.profile.get("chase_speed_mult", 0.7)) if brain.get("profile") != null else 0.7

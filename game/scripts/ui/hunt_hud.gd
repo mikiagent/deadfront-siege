@@ -879,7 +879,7 @@ func _draw_target_plate(t: Creature, a: float) -> void:
 			var pw := 520.0
 			var px := r.x * 0.5 - pw * 0.5
 			var py := 14.0
-			var nm := "%s" % str(t.def.id).capitalize()
+			var nm := "%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]
 			draw_string(_font, Vector2(px + 40, py + 30), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1, 1, 1, a))
 			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
 			draw_string(_font, Vector2(px + 40 + nmw + 14, py + 30), "Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1.0, 0.3, 0.25, a))
