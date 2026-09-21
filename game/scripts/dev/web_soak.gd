@@ -22,7 +22,7 @@ func run(host: Node) -> void:
 	var cam := get_viewport().get_camera_3d()
 	var bench_screen := cam.unproject_position(bench.global_position + Vector3(0, 0.5, 0))
 	var kind := player.debug_tap_screen(bench_screen)
-	await get_tree().create_timer(0.75).timeout
+	await get_tree().create_timer(0.25).timeout
 	if player.station_craft == null or not player.station_craft.menu.visible \
 			or player.station_craft.menu._ring3d == null or not player.station_craft.menu._ring3d.visible:
 		_fail("first workbench touch did not open ring")
@@ -30,16 +30,16 @@ func run(host: Node) -> void:
 	await _checkpoint("station-ring-open")
 	var craft_button := player.station_craft.menu._buttons[0] as Control
 	craft_button.pressed.emit()
-	await get_tree().create_timer(0.75).timeout
+	await get_tree().create_timer(0.25).timeout
 	if player.craft_ui == null or not player.craft_ui.visible:
 		_fail("second CRAFT touch did not open sheet")
 		return
 	await _checkpoint("station-craft-open")
 	player.craft_ui.hide()
 	await _touch(cam.unproject_position(bench.global_position + Vector3(0, 0.5, 0)))
-	await get_tree().create_timer(0.75).timeout
+	await get_tree().create_timer(0.25).timeout
 	player.global_position = bench.global_position + Vector3(8, 0, 0)
-	await get_tree().create_timer(0.75).timeout
+	await get_tree().create_timer(0.25).timeout
 	if player.station_craft.menu.visible:
 		_fail("walking away did not dismiss station ring")
 		return
@@ -72,7 +72,7 @@ func run(host: Node) -> void:
 	print("[soak] PASS")
 
 func _checkpoint(name: String) -> void:
-	await get_tree().create_timer(0.75).timeout
+	await get_tree().create_timer(0.25).timeout
 	print("[soak] checkpoint %s" % name)
 
 func _fail(message: String) -> void:
