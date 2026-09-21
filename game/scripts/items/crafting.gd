@@ -137,14 +137,7 @@ static func skill_level_for(rec: Dictionary, player: Player = null) -> int:
 	return 60
 
 static func crafted_level_for(rec: Dictionary, levels: Array[int], player: Player = null) -> int:
-	if levels.is_empty():
-		return 1
-	var total := 0
-	for lv in levels:
-		total += lv
-	var average := int(floor(float(total) / float(levels.size())))
-	var cap := mini(skill_level_for(rec, player), int(rec.get("max_level", 60)))
-	return clampi(average, 1, cap)
+	return ProgressionScaling.crafted_level(levels, int(rec.get("max_level", 60)), skill_level_for(rec, player))
 
 static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int, consumed: Array[ItemStack] = []) -> ItemStack:
 	var out_row: Dictionary = rec.get("output", {})
@@ -161,6 +154,9 @@ static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int
 	var out := ItemStack.make(out_id, int(out_row.get("count", 1)))
 	if primary:
 		out.attributes = primary.attributes.duplicate(true)
+		# Tool quality follows the primary material; level follows the weighted material mean.
+		if out.def() and out.def().has_category(&"tool"):
+			out.attributes["material_tier"] = str(ProgressionScaling.material_tier(primary.def_id, primary.attributes))
 		# Poison persists through cooking (PRD §9.3 MAY keep).
 		if &"poisoned" in primary.flags:
 			out.set_flag(&"poisoned", true)

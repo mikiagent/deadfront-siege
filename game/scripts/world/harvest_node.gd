@@ -238,7 +238,8 @@ func can_gather(inv: Inventory) -> String:
 
 func roll_yield() -> ItemStack:
 	var n := randi_range(yield_min, yield_max)
-	var stack := ItemStack.make(yield_def_id, n, yield_attributes)
+	var material_level := int(yield_attributes.get("level", 1))
+	var stack := ItemStack.make(yield_def_id, n, yield_attributes, material_level)
 	if World and World.is_unstable():
 		stack.set_flag(&"unstable", true)
 	return stack

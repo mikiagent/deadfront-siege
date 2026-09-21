@@ -773,7 +773,7 @@ func _on_arrived() -> void:
 			_stop_gather_cycle()
 			gather_target = null
 			return
-		_start_gather_cycle(gather_target.gather_seconds)
+		_start_gather_cycle(_scaled_gather_seconds(gather_target))
 	elif tame_target and is_instance_valid(tame_target):
 		face_world(tame_target.global_position)
 		_start_tame_feed()
@@ -848,11 +848,16 @@ func _finish_gather() -> void:
 			gather_target = null
 			return
 	var stack := gather_target.roll_yield()
+	var yield_mult := _gather_yield_multiplier(gather_target)
+	stack.count = maxi(1, int(floor(float(stack.count) * yield_mult)))
+	if randf() < fmod(yield_mult, 1.0):
+		stack.count += 1
 	if skills:
 		# rules.json gathering_downrank: a node above your Gathering level yields at your level.
 		# ASSUMPTION: floor of 5 so a fresh survivor still gets usable materials.
 		var cap := maxi(skills.level_of("gathering"), 5)
-		if int(stack.attributes.get("level", 1)) > cap:
+		if stack.level > cap:
+			stack.level = cap
 			stack.attributes["level"] = cap
 		skills.add_xp("gathering", 2)
 		if gather_target.family.begins_with("Rock") or gather_target.family == "clay":
@@ -881,7 +886,23 @@ func _finish_gather() -> void:
 		_stop_gather_cycle()
 		gather_target = null
 		return
-	_start_gather_cycle(gather_target.gather_seconds)
+	_start_gather_cycle(_scaled_gather_seconds(gather_target))
+
+func _scaled_gather_seconds(node: HarvestNode) -> float:
+	var tool := inventory.find_gather_tool(node.required_tool_class)
+	var tool_level := tool.level if tool else 1
+	var tier := tool.material_tier() if tool else &"stone"
+	var skill_level := maxi(1, skills.level_of("gathering")) if skills else 1
+	var zone_level := int(node.yield_attributes.get("level", 1))
+	return ProgressionScaling.gather_seconds(node.gather_seconds, zone_level, tool_level, tier, skill_level)
+
+func _gather_yield_multiplier(node: HarvestNode) -> float:
+	var tool := inventory.find_gather_tool(node.required_tool_class)
+	var tool_level := tool.level if tool else 1
+	var tier := tool.material_tier() if tool else &"stone"
+	var skill_level := maxi(1, skills.level_of("gathering")) if skills else 1
+	var zone_level := int(node.yield_attributes.get("level", 1))
+	return ProgressionScaling.gather_yield_multiplier(zone_level, tool_level, tier, skill_level)
 
 func _start_gather_cycle(seconds: float) -> void:
 	_gathering = true
