@@ -3,6 +3,7 @@
   "display_name": "Private Grassland",
   "climate": "grassland",
   "tier": 10,
+  "level_override": 1,
   "size_m": 160,
   "permanent": true,
   "kind": "private",

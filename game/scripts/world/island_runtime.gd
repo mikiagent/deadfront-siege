@@ -44,6 +44,7 @@ var _wet_area: Area3D
 var _rain_fx: GPUParticles3D
 var _climate: String = "temperate"
 var _tier: int = 25
+var _level_override: int = 0
 var _camp_pos: Vector3 = Vector3.ZERO
 var _harbour_pos: Vector3 = Vector3.ZERO
 var _camp_hint: Vector3 = Vector3.ZERO
@@ -110,6 +111,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 				size = maxf(size, float(span[1]) * 2.0)
 	_climate = str(def.get("climate", "grassland"))
 	_tier = int(def.get("tier", 10))
+	_level_override = int(def.get("level_override", 0))
 	var harbour_a: Array = def.get("harbour", [0, 0, 12])
 	var camp_a: Array = def.get("camp", [0, 0, 6])
 	_camp_hint = Vector3(float(camp_a[0]), 0.0, float(camp_a[2]))
@@ -257,6 +259,8 @@ func ring_name(pos: Vector3) -> StringName:
 	return &"far_shore"
 
 func material_level(pos: Vector3, tier: int) -> int:
+	if _level_override > 0:
+		return clampi(_level_override, 1, int(Data.world_rules.get("level_cap", 60)))
 	var rings: Dictionary = Data.world_rules.get("rings", {})
 	var row: Dictionary = rings.get(str(ring_name(pos)), {})
 	var off := int(row.get("level_offset", 0))
@@ -952,6 +956,7 @@ func _creatures(def: Dictionary) -> void:
 		placed.position = fixed["pos"]
 		add_child(placed)
 		var made0 := placed.spawn_now()
+		_apply_creature_level_override(made0)
 		creature_count += made0.size()
 	var rings: Dictionary = Data.world_rules.get("rings", {})
 	var spawns: Variant = def.get("spawns", {})
@@ -993,7 +998,14 @@ func _creatures(def: Dictionary) -> void:
 					sp.position = pos["pos"]
 					add_child(sp)
 					var made := sp.spawn_now()
+					_apply_creature_level_override(made)
 					creature_count += made.size()
+
+func _apply_creature_level_override(creatures: Array[Creature]) -> void:
+	if _level_override <= 0:
+		return
+	for creature in creatures:
+		creature.level = _level_override
 
 ## Up to 40 draws in the band [r0, r1]; returns {"pos": Vector3} or {} when the band has no dry land.
 func _ring_point(rng: RandomNumberGenerator, r0: float, r1: float) -> Dictionary:
