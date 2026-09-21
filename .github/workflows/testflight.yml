@@ -39,11 +39,7 @@ jobs:
 
           printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
           mkdir -p "$API_KEY_DIR"
-          if [[ "$ASC_API_KEY_BASE64" == *"BEGIN PRIVATE KEY"* ]]; then
-            printf '%s\n' "$ASC_API_KEY_BASE64" > "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
-          else
-            printf '%s' "$ASC_API_KEY_BASE64" | base64 --decode > "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
-          fi
+          printf '%s' "$ASC_API_KEY_BASE64" | base64 --decode > "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
           chmod 600 "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
@@ -55,6 +51,50 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
+      - name: Download and install DurangoLike App Store profile
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+        run: |
+          set -euo pipefail
+          ruby <<'RB'
+          require "openssl"
+          require "json"
+          require "base64"
+          require "net/http"
+          require "uri"
+
+          key_id = ENV.fetch("ASC_API_KEY_ID")
+          issuer = "e932d878-2780-4029-8f69-e5a4d9bdcb65"
+          key_path = File.expand_path("~/.appstoreconnect/private_keys/AuthKey_#{key_id}.p8")
+          key = OpenSSL::PKey.read(File.read(key_path))
+          b64 = ->(x) { Base64.urlsafe_encode64(x, padding: false) }
+          now = Time.now.to_i
+          header = b64.call({alg: "ES256", kid: key_id, typ: "JWT"}.to_json)
+          payload = b64.call({iss: issuer, iat: now, exp: now + 600, aud: "appstoreconnect-v1"}.to_json)
+          input = "#{header}.#{payload}"
+          asn1 = OpenSSL::ASN1.decode(key.dsa_sign_asn1(OpenSSL::Digest::SHA256.digest(input)))
+          signature = asn1.value.map { |n| n.value.to_s(16).rjust(64, "0") }.join
+          token = "#{input}.#{b64.call([signature].pack("H*"))}"
+          get = lambda do |path|
+            uri = URI("https://api.appstoreconnect.apple.com#{path}")
+            req = Net::HTTP::Get.new(uri)
+            req["Authorization"] = "Bearer #{token}"
+            res = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |http| http.request(req) }
+            abort("ASC API #{res.code}: #{res.body}") unless res.is_a?(Net::HTTPSuccess)
+            JSON.parse(res.body)
+          end
+          bundles = get.call("/v1/bundleIds?filter%5Bidentifier%5D=com.durangolike.dev&limit=10")
+          abort("DurangoLike bundle ID not found") unless bundles["data"].length == 1
+          profiles = get.call("/v1/bundleIds/#{bundles["data"][0]["id"]}/profiles?limit=200")
+          profile = profiles["data"].find { |p| p.dig("attributes", "profileType") == "IOS_APP_STORE" && p.dig("attributes", "profileState") == "ACTIVE" }
+          abort("Active DurangoLike App Store profile not found") unless profile
+          dir = File.expand_path("~/Library/MobileDevice/Provisioning Profiles")
+          Dir.mkdir(File.dirname(dir)) unless Dir.exist?(File.dirname(dir))
+          Dir.mkdir(dir) unless Dir.exist?(dir)
+          File.binwrite(File.join(dir, "#{profile.dig("attributes", "uuid")}.mobileprovision"), Base64.decode64(profile.dig("attributes", "profileContent")))
+          puts "Installed profile #{profile.dig("attributes", "name")} (#{profile.dig("attributes", "uuid")})"
+          RB
+
       - name: Export, sign, validate, and upload
         env:
           GODOT_PATH: ${{ env.GODOT }}
@@ -63,18 +103,6 @@ jobs:
           set -euo pipefail
           export GODOT_PATH="$(command -v godot)"
           sed -i '' "s/^ASC_KEY_ID=.*/ASC_KEY_ID=$ASC_API_KEY_ID/" tools/release.env
-
-          # Give xcodebuild the App Store Connect API key for automatic provisioning on this clean runner.
-          mkdir -p "$RUNNER_TEMP/bin"
-          cat > "$RUNNER_TEMP/bin/xcodebuild" <<'SH'
-          #!/usr/bin/env bash
-          exec /usr/bin/xcodebuild "$@" \
-            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_API_KEY_ID.p8" \
-            -authenticationKeyID "$ASC_API_KEY_ID" \
-            -authenticationKeyIssuerID e932d878-2780-4029-8f69-e5a4d9bdcb65
-          SH
-          chmod +x "$RUNNER_TEMP/bin/xcodebuild"
-          export PATH="$RUNNER_TEMP/bin:$PATH"
 
           tools/release_ios.sh
 
