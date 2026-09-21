@@ -207,9 +207,24 @@ func become_pet(rec: PetRecord) -> void:
 		brain.queue_free()
 		brain = null
 	_make_brain()
+	_apply_pet_passthrough()
+
+## Pets never body-block the survivor: a mutual collision exception, applied once the
+## player node is around. Enemies and everything else still collide with pets normally.
+var _pet_passthrough_done: bool = false
+
+func _apply_pet_passthrough() -> void:
+	if _pet_passthrough_done or not is_pet:
+		return
+	var p := get_tree().get_first_node_in_group("player") as PhysicsBody3D
+	if p == null:
+		return
+	add_collision_exception_with(p)
+	_pet_passthrough_done = true
 
 func _physics_process(delta: float) -> void:
 	_fall_guard()
+	_apply_pet_passthrough()
 	FieldTame.tick(self, delta)
 	if not is_on_floor():
 		velocity += get_gravity() * delta
