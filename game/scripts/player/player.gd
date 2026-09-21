@@ -1545,6 +1545,8 @@ func _setup_survivor() -> void:
 		print("[player] survivor GLB missing %s" % SURVIVOR_BASE_GLB)
 		return
 	_make_survivor_web_safe()
+	# A small silhouette lift keeps the survivor legible at the phone-landscape camera size.
+	rig.scale *= 1.18
 	_bind_rig_markers()
 	if anim:
 		anim.setup(self, rig)
@@ -1722,18 +1724,18 @@ func _setup_player_beacon() -> void:
 	var ring := MeshInstance3D.new()
 	ring.name = "PlayerBeacon"
 	var torus := TorusMesh.new()
-	torus.inner_radius = 0.62
-	torus.outer_radius = 0.76
+	torus.inner_radius = 0.56
+	torus.outer_radius = 0.66
 	torus.rings = 16
 	torus.ring_segments = 8
 	ring.mesh = torus
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.30, 0.95, 0.62, 0.72)
+	mat.albedo_color = Color(0.30, 0.88, 0.56, 0.42)
 	mat.emission_enabled = true
 	mat.emission = Color(0.12, 0.72, 0.42)
-	mat.emission_energy_multiplier = 1.4
+	mat.emission_energy_multiplier = 0.7
 	ring.material_override = mat
 	ring.position.y = -0.86
 	visual.add_child(ring)

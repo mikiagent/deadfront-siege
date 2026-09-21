@@ -20,8 +20,8 @@ static func build(host: Node3D, size: float = 80.0) -> Dictionary:
 	var nav := NavigationRegion3D.new()
 	nav.name = "Nav"
 	var nmesh := NavigationMesh.new()
-	nmesh.agent_radius = 0.35
-	nmesh.agent_max_climb = 0.4
+	nmesh.agent_radius = 0.5
+	nmesh.agent_max_climb = 0.5
 	nmesh.agent_max_slope = 45.0
 	nav.navigation_mesh = nmesh
 	host.add_child(nav)

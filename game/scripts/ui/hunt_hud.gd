@@ -903,7 +903,7 @@ func _draw_target_plate(t: Creature, a: float) -> void:
 			var pw := 520.0
 			var px := r.x * 0.5 - pw * 0.5
 			var py := 14.0
-			var nm := "%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]
+			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
 			draw_string(_font, Vector2(px + 40, py + 30), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1, 1, 1, a))
 			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
 			draw_string(_font, Vector2(px + 40 + nmw + 14, py + 30), "Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1.0, 0.3, 0.25, a))
@@ -1056,7 +1056,10 @@ func _draw_pills(cam: Camera3D) -> void:
 			if n3 == null or not n3.visible or n3 == radial_node:
 				continue
 			var d := pp.distance_to(n3.global_position)
-			if d > 30.0:
+			# World labels are interaction hints, not permanent billboards. Keep the scene
+			# clean until the survivor is close or the object is actively inspected.
+			var active := n3 == radial_node or n3 == player.gather_target
+			if d > 8.0 and not active:
 				continue
 			rows.append([d, n3, grp])
 	rows.sort_custom(func (a: Array, b: Array) -> bool: return a[0] < b[0])
@@ -1095,9 +1098,7 @@ func _draw_pills(cam: Camera3D) -> void:
 				name = "Cargo Warp"
 			elif grp == "harbour":
 				name = "Harbour"
-		if d > 22.0:
-			name += "  · %d m" % int(d)
-		var a := 1.0 - smoothstep(22.0, 30.0, d)
+		var a := 1.0 if n3 == radial_node else 1.0 - smoothstep(5.5, 8.0, d)
 		var sp := cam.unproject_position(n3.global_position + Vector3(0, top + 0.35, 0))
 		var text := "%s  %s" % [glyph, name]
 		var tw := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
