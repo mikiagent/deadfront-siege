@@ -98,6 +98,7 @@ var _marker_t: float = 0.0
 var _hold_walk_candidate: bool = false
 var _hold_walk_elapsed: float = 0.0
 var _hold_walk_retarget_left: float = 0.0
+var _tap_touch_index: int = -1
 var _touch_context: StringName = &"explore"
 var _shoreline_logged: bool = false
 var _lantern: OmniLight3D
@@ -496,11 +497,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			hunt.use_kick()
 		elif event.is_action_pressed("tactic_4"):
 			hunt.use_net()
-	if placer.layout_mode and placer.moving != null and placer.dragging and event.is_action_released("tap"):
-		placer.drag_end(self)
-		get_viewport().set_input_as_handled()
-		return
-	if event.is_action_pressed("tap"):
+	var tap_released := _is_tap_released(event)
+	if tap_released:
+		_tap_touch_index = -1
+		_hold_walk_candidate = false
+		_hold_walk_elapsed = 0.0
+		if placer.layout_mode and placer.moving != null and placer.dragging:
+			placer.drag_end(self)
+			get_viewport().set_input_as_handled()
+			return
+	if _is_tap_pressed(event):
 		if placer.layout_mode and placer.moving == null:
 			# Layout mode: a tap on a building picks it up; anything else is ignored.
 			if _tap_blocked():
@@ -532,6 +538,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		_hold_walk_candidate = tap_kind == &"ground"
 		_hold_walk_elapsed = 0.0
 		_hold_walk_retarget_left = 0.0
+
+func _is_tap_pressed(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed and _tap_touch_index == -1:
+			_tap_touch_index = touch.index
+			return true
+		return false
+	return event.is_action_pressed("tap")
+
+
+func _is_tap_released(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		return not touch.pressed and touch.index == _tap_touch_index
+	return event.is_action_released("tap")
 
 func _tap_blocked() -> bool:
 	# Blocked only by a control that actually stops input (buttons, sheets, panels) or sits
@@ -1025,7 +1047,7 @@ func _tick_autofeed(delta: float) -> void:
 	_autofeed_cd = 3.0
 
 func _tick_hold_walk(delta: float) -> void:
-	if not Input.is_action_pressed("tap"):
+	if _tap_touch_index == -1 and not Input.is_action_pressed("tap"):
 		_hold_walk_candidate = false
 		_hold_walk_elapsed = 0.0
 		return
