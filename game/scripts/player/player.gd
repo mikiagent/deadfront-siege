@@ -257,6 +257,12 @@ func face_world(pos: Vector3) -> void:
 func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 	_last_hit_taken_s = Time.get_ticks_msec() * 0.001
 	_cancel_gather_and_butcher()
+	# Self-defence: bitten with no live target -> turn on the biter (auto-attack takes it from there).
+	if not dead and hunt and _who and not _who.is_pet and not _who.health.dead:
+		var cur := hunt.target
+		if cur == null or not is_instance_valid(cur) or cur.health.dead or global_position.distance_to(cur.global_position) > 6.0:
+			hunt.start(_who)
+			print("[combat] retaliate %s" % _who.def.id)
 	if skills:
 		skills.add_xp("defense", 1)
 	vitals.add_fatigue(2.0, &"combat")

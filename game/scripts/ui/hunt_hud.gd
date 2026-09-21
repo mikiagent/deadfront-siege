@@ -31,6 +31,7 @@ var _feed_hex: HexButton
 var _food_hexes: Array[HexButton] = []
 var _in_combat: bool = false
 var _combat_alpha: float = 0.0
+var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
 var _stance_label: Label
 var _toasts: Array = []
 var _notices: Array = []  # {text, t}
@@ -673,6 +674,8 @@ func _process(delta: float) -> void:
 		if hunting:
 			var t := player.hunt.target
 			print("[hud] target %s lv=%d hp=%.0f/%.0f" % [t.def.id, t.level, t.health.hp, t.health.max_hp])
+	if hunting and player.hunt.target != _last_target:
+		_last_target = player.hunt.target
 	_combat_alpha = move_toward(_combat_alpha, 1.0 if hunting else 0.0, delta * 5.0)
 	if hunting:
 		var feedable: bool = FieldTame.can_attempt(player.hunt.target)
@@ -807,7 +810,16 @@ func _draw() -> void:
 		var a := _combat_alpha
 		draw_rect(Rect2(0, 0, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
 		draw_rect(Rect2(0, r.y - 6, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
-		var t := player.hunt.target if player.hunt else null
+	# --- target plate: the current hunt target, else the last creature attacked while it lives
+	var plate_t: Creature = player.hunt.target if (player.hunt and player.hunt.target and is_instance_valid(player.hunt.target)) else null
+	if plate_t == null and _last_target and is_instance_valid(_last_target) and not _last_target.health.dead and player.global_position.distance_to(_last_target.global_position) < 40.0:
+		plate_t = _last_target
+	if plate_t:
+		_draw_target_plate(plate_t, maxf(_combat_alpha, 0.85))
+
+func _draw_target_plate(t: Creature, a: float) -> void:
+	var r := get_viewport_rect().size
+	if true:
 		if t and is_instance_valid(t):
 			var pw := 520.0
 			var px := r.x * 0.5 - pw * 0.5
@@ -830,8 +842,6 @@ func _draw() -> void:
 					draw_rect(Rect2(ix, py + 74, 26, 26), Color(0.1, 0.1, 0.12, 0.85 * a))
 					draw_string(_font, Vector2(ix + 4, py + 93), str(inst.id).left(2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.6, 0.5, a))
 					ix += 30
-		# labels for the hex cluster
-	
 
 func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String) -> void:
 	draw_rect(Rect2(pos, size), Color(0.08, 0.08, 0.1, 0.85))
