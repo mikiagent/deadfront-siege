@@ -46,6 +46,12 @@ var tame_window_left: float = 0.0
 var tame_cooldown_left: float = 0.0
 var tame_attempting: bool = false
 
+# Wild creatures recover slowly after a real break from combat. Pool sub-point healing so
+# plates get readable ticks instead of a floating-number event every frame.
+const WILD_REGEN_DELAY_S := 8.0
+const WILD_REGEN_RATE := 0.01
+var _wild_regen_pool: float = 0.0
+
 @onready var agent: NavigationAgent3D = $Agent
 @onready var view: CreatureView = $View
 @onready var health: Health = $Health
@@ -203,6 +209,12 @@ func become_pet(rec: PetRecord) -> void:
 	tame_attempting = false
 	tame_feeds = 0.0
 	tame_window_left = 0.0
+	# A fresh tame is no longer a combat target. Do not carry wild damage/aggro plate timers
+	# into the bonded state, which left the old health plate hanging over the new pet.
+	last_damaged_s = -999.0
+	last_aggro_s = -999.0
+	_last_tap_s = -999.0
+	_wild_regen_pool = 0.0
 	if brain:
 		brain.queue_free()
 		brain = null
@@ -278,6 +290,20 @@ func _physics_process(delta: float) -> void:
 	_blood_trail()
 	_update_label()
 	_update_aggro_ring(delta)
+	# Wild dinosaurs recover 1 % max HP/s after eight quiet seconds. Both recent damage and
+	# aggro hold the lock, and an AI target keeps it locked even if no hit has landed yet.
+	var wild_calm := not is_pet and not health.dead and health.hp < health.max_hp \
+		and _now_s() - last_damaged_s > WILD_REGEN_DELAY_S \
+		and _now_s() - last_aggro_s > WILD_REGEN_DELAY_S \
+		and (brain == null or brain.attack_target == null)
+	if wild_calm:
+		_wild_regen_pool += health.max_hp * WILD_REGEN_RATE * delta
+		var wild_tick := maxf(1.0, health.max_hp * WILD_REGEN_RATE)
+		if _wild_regen_pool >= wild_tick:
+			health.heal(_wild_regen_pool)
+			_wild_regen_pool = 0.0
+	else:
+		_wild_regen_pool = 0.0
 	# Pets heal 2 % of max HP per second once 6 s have passed without a hit and nothing is targeted.
 	# The heal is pooled and applied once it reaches a full second's worth, so the floating
 	# "+HP" text ticks about once a second instead of spamming every rendered frame.
@@ -550,10 +576,13 @@ func _on_died(_source: Node) -> void:
 	collision_layer = 0
 	collision_mask = 1
 	stop_move()
-	var corpse := Corpse.new()
-	corpse.setup(self)
-	get_parent().add_child(corpse)
-	corpse.global_position = global_position
+	# Bonded animals enter their respawn cooldown without creating a harvestable corpse or
+	# loot bag. Wild kills still use the normal corpse/loot flow.
+	if not is_pet:
+		var corpse := Corpse.new()
+		corpse.setup(self)
+		get_parent().add_child(corpse)
+		corpse.global_position = global_position
 
 ## Status landed: float its name over the plate and puff a burst in its colour. The lasting
 ## look (blood drip, venom tint, wobble) is _status_fx every frame.

@@ -172,6 +172,10 @@ static func _complete(player: Player, creature: Creature) -> void:
 		creature.queue_free()
 		print("[tame] bonded cap full → bagged %s" % species_id)
 		return
+	# End the hunt before converting the target. Otherwise auto-combat keeps the new pet
+	# selected and the combat plate remains forced on screen after the tame reveal.
+	if player.hunt and player.hunt.target == creature:
+		player.hunt.stop()
 	creature.become_pet(rec)
 	player.bonded.append(rec)
 	player.summoned_pet = creature

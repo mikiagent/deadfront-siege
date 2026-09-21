@@ -82,6 +82,7 @@ var _field_radial_target: FieldPlot
 var _field_radial_opts: Array = []
 
 var _roll_left: float = 0.0
+var _roll_direction: Vector3 = Vector3.ZERO
 var _gather_left: float = 0.0
 var _gathering: bool = false
 var _gather_unit_time: float = 1.0
@@ -336,9 +337,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if rolling:
 		# Committed dash: constant speed, ignores input and nav, slips through creatures.
-		var rf := -visual.global_basis.z
-		velocity.x = rf.x * 13.0
-		velocity.z = rf.z * 13.0
+		velocity.x = _roll_direction.x * 13.0
+		velocity.z = _roll_direction.z * 13.0
 		move_and_slide()
 		_shoreline_guard()
 		return
@@ -1203,7 +1203,9 @@ func debug_tap_screen(screen_pos: Vector2) -> StringName:
 	return _tap_world()
 
 func _try_roll() -> void:
-	if rolling or statuses.has_flag(&"no_roll") or statuses.has_flag(&"cannot_act"):
+	# Do not let roll replace an in-flight attack/tactic clip. This used to cancel the visual
+	# while the previous move's damage still landed, making the actions overlap strangely.
+	if rolling or (anim and anim._busy) or statuses.has_flag(&"no_roll") or statuses.has_flag(&"cannot_act"):
 		return
 	if not vitals.spend_energy(12.0):
 		notice("Out of stamina.")
@@ -1212,8 +1214,9 @@ func _try_roll() -> void:
 	_roll_left = 0.45  # ~5.5 m at 13 m/s (was ~2.5 m with the speed decaying)
 	clear_nav()
 	var fwd := -visual.global_basis.z
-	velocity.x = fwd.x * 13.0
-	velocity.z = fwd.z * 13.0
+	_roll_direction = Vector3(fwd.x, 0.0, fwd.z).normalized()
+	velocity.x = _roll_direction.x * 13.0
+	velocity.z = _roll_direction.z * 13.0
 	# Roll through creatures: collision exceptions with everything close, restored at the end.
 	for n in get_tree().get_nodes_in_group("creatures"):
 		var c := n as Creature
