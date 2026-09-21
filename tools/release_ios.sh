@@ -33,7 +33,7 @@ echo "== 2/5 Archive (Release, manual App Store signing, build $BUILD_NUMBER)"
 rm -rf "$WORK/durango.xcarchive"
 xcodebuild -project "$OUT/durango.xcodeproj" -scheme durango -configuration Release \
   -destination 'generic/platform=iOS' -archivePath "$WORK/durango.xcarchive" \
-  CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="$TEAM_ID" \
+  CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$TEAM_ID" \
   PROVISIONING_PROFILE_SPECIFIER="iOS Team Store Provisioning Profile: com.durangolike.dev" \
   CODE_SIGN_IDENTITY="Apple Distribution" MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
   archive 2>&1 | tee "$WORK/archive.log"
