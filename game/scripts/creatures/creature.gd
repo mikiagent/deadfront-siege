@@ -150,7 +150,7 @@ func apply_species_on_hit(clip: StringName, target: Node) -> void:
 	CreatureAttack.apply_for(self, clip, target)
 
 func capturable() -> bool:
-	return is_capturable and health.hp > 0.0 and def.tameable
+	return is_capturable and health.hp > 0.0 and def.tameable and health.fraction() <= FieldTame.TAME_HEALTH_THRESHOLD + 0.0001
 
 func field_tame_open() -> bool:
 	return FieldTame.can_attempt(self)
@@ -222,6 +222,7 @@ func _physics_process(delta: float) -> void:
 		var drain := hunger_max / 1800.0 * delta * (1.0 / maxf(0.5, pet_record.hunger_efficiency))
 		hunger = maxf(0.0, hunger - drain)
 		pet_record.hunger = hunger
+		pet_record.current_hp = health.hp
 
 func _size_collision() -> void:
 	var cap := CapsuleShape3D.new()
@@ -402,6 +403,8 @@ func _on_damaged(_amount: float, source: Node) -> void:
 	if health.dead:
 		return
 	last_damaged_s = _now_s()
+	if is_pet and pet_record:
+		pet_record.current_hp = health.hp
 	var kind := next_hit_kind
 	next_hit_kind = &"hit"
 	combat_float.emit(_amount, kind)
@@ -414,7 +417,7 @@ func _on_damaged(_amount: float, source: Node) -> void:
 	hit_burst(burst_col, 0.16 if kind == &"crit" else 0.1, 22 if kind == &"crit" else 12)
 	if brain:
 		brain.note_damage(_amount)
-	if statuses.has(&"groggy") and not statuses.has(&"knockdown"):
+	if statuses.has(&"groggy") and not statuses.has(&"knockdown") and def.tameable and health.fraction() <= FieldTame.TAME_HEALTH_THRESHOLD + 0.0001:
 		statuses.apply(&"knockdown", source)
 		anim.play_clip(&"knockdown")
 		return
@@ -434,6 +437,21 @@ func _on_damaged(_amount: float, source: Node) -> void:
 
 func _on_died(_source: Node) -> void:
 	anim.play_clip(&"death")
+	if is_pet:
+		# Pets are knocked out, never converted into butcherable corpses / loot bags.
+		if pet_record:
+			pet_record.current_hp = 0.0
+			pet_record.summoned = false
+			pet_record.respawn_ready_unix = int(Time.get_unix_time_from_system()) + PetRecord.RESPAWN_COOLDOWN_SECONDS
+		collision_layer = 0
+		collision_mask = 0
+		stop_move()
+		var owner := get_tree().get_first_node_in_group("player") as Player
+		if owner:
+			owner.summoned_pets.erase(self)
+			owner.notice("%s can return in 3 minutes." % str(def.species))
+		get_tree().create_timer(1.25).timeout.connect(queue_free, CONNECT_ONE_SHOT)
+		return
 	# Pet XP: a kill by the pet pays 10 + tier/3; a survivor kill with the pet fighting within
 	# 15 m pays 3 + tier/6. Levels raise the pet's HP, attack and defense.
 	if not is_pet:

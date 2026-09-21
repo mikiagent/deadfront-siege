@@ -60,13 +60,25 @@ func _demo() -> void:
 	a.statuses.extend(&"knockdown", 30.0)
 	if Game and Game.has_method("reveal_creature_plate"):
 		Game.reveal_creature_plate(a, 8.0)
-	if shot:
-		# Leave berries so the plate shows Tame 0/3 with food icon.
-		return
 	# Successful field tame: three preferred berries.
 	for _i in 3:
 		FieldTame.apply_feed(_player, a, &"berry")
 		await get_tree().create_timer(0.05).timeout
+	if shot:
+		# Phone screenshot acceptance: isolate the pet and show both persisted HP and combat XP.
+		for n in get_tree().get_nodes_in_group("creatures"):
+			var other := n as Creature
+			if other and other != a:
+				other.queue_free()
+		a.global_position = Vector3(4.2, 0.0, 1.6)
+		if a.brain:
+			a.brain.attack_target = null
+		a.pet_record.xp = PetRecord.xp_to_next(a.pet_record.level) * 0.58
+		a.health.hp = a.health.max_hp
+		a.pet_record.current_hp = a.health.hp
+		a.health.take_damage(a.health.max_hp * 0.35, _player)
+		Game.reveal_creature_plate(a, 8.0)
+		return
 	# Refusal: strip food, tap second downed animal.
 	while _player.inventory.find_first(&"berry") >= 0:
 		_player.inventory.remove_at(_player.inventory.find_first(&"berry"), 99)
@@ -102,6 +114,7 @@ func _demo() -> void:
 		get_tree().quit(0)
 
 func _knock_down(c: Creature) -> void:
+	c.health.hp = c.health.max_hp * 0.08
 	c.statuses.apply(&"groggy", _player)
 	c.statuses.apply(&"knockdown", _player)
 	c.anim.play_clip(&"knockdown")

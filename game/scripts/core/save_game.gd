@@ -24,6 +24,9 @@ static func save_now() -> void:
 			if b and b.has_method("to_dict") and persist and not bool(b.get("is_cargo")):
 				buildings.append(b.to_dict())
 	var pets: Array = []
+	for pet in player.live_pets():
+		if pet.pet_record:
+			pet.pet_record.current_hp = pet.health.hp
 	for rec in player.bonded:
 		pets.append(rec.to_dict())
 	var skills: Dictionary = {}

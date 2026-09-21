@@ -31,6 +31,9 @@ func _pick_guard_target(player: Player) -> Creature:
 	return best
 
 func _think(delta: float) -> void:
+	# PetBrain owns its think loop, so it must also advance the inherited attack cooldown.
+	# Without this, a SIC order lands exactly one bite and _attack_cd stays at 1.2 forever.
+	_attack_cd = maxf(0.0, _attack_cd - delta)
 	var player := creature.get_tree().get_first_node_in_group("player") as Player
 	if player == null:
 		return
@@ -53,10 +56,9 @@ func _think(delta: float) -> void:
 			var reach := maxf(1.2, float(profile.get("attack_range", 1.8)) + 0.2)
 			state = &"chase" if dist > reach else &"attack"
 			if dist > reach:
-				creature.move_to(target.global_position)
+				creature.move_to(_pet_attack_slot(target, reach))
 				creature.face_towards(target.global_position, delta)
 			else:
-				creature.stop_move()
 				_do_attack()
 			return
 	attack_target = null
@@ -67,3 +69,23 @@ func _think(delta: float) -> void:
 		creature.move_to(follow)
 	else:
 		creature.stop_move()
+
+func _pet_attack_slot(target: Creature, reach: float) -> Vector3:
+	var away := creature.global_position - target.global_position
+	away.y = 0.0
+	if away.length_squared() <= 0.001:
+		away = Vector3.BACK
+	var slot := target.global_position + away.normalized() * reach
+	# Repel this slot from other live pets. This keeps several SIC attackers from selecting the
+	# same contact point even before CharacterBody collision / local steering is involved.
+	var separation := Vector3.ZERO
+	for n in creature.get_tree().get_nodes_in_group("creatures"):
+		var other := n as Creature
+		if other == null or other == creature or not other.is_pet or other.health.dead:
+			continue
+		var from_other := slot - other.global_position
+		from_other.y = 0.0
+		var d := from_other.length()
+		if d < 2.0:
+			separation += (from_other.normalized() if d > 0.01 else Vector3.RIGHT * _flank_sign) * (2.0 - d)
+	return slot + separation

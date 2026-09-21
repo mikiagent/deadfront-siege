@@ -7,6 +7,7 @@ const KNOCKDOWN_EXTEND := 6.0
 const FAIL_COOLDOWN := 60.0
 const PREFERRED_FEED := 1.0
 const ACCEPTED_FEED := 0.5
+const TAME_HEALTH_THRESHOLD := 0.10
 
 static func can_attempt(creature: Creature) -> bool:
 	if creature == null or creature.def == null or creature.health.dead:
@@ -14,6 +15,8 @@ static func can_attempt(creature: Creature) -> bool:
 	if not creature.def.tameable or creature.is_pet:
 		return false
 	if creature.tame_cooldown_left > 0.0:
+		return false
+	if creature.health.fraction() > TAME_HEALTH_THRESHOLD + 0.0001:
 		return false
 	return creature.statuses.has(&"knockdown")
 
@@ -83,6 +86,8 @@ static func begin_window(creature: Creature) -> void:
 	if not creature.def.tameable or creature.is_pet:
 		return
 	if creature.tame_cooldown_left > 0.0:
+		return
+	if creature.health.fraction() > TAME_HEALTH_THRESHOLD + 0.0001:
 		return
 	creature.tame_feeds = 0.0
 	creature.tame_window_left = creature.def.tame_window_seconds
