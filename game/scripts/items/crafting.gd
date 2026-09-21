@@ -161,6 +161,9 @@ static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int
 	var out := ItemStack.make(out_id, int(out_row.get("count", 1)))
 	if primary:
 		out.attributes = primary.attributes.duplicate(true)
+		# Tool quality follows the primary material; level follows the weighted material mean.
+		if out.def() and out.def().has_category(&"tool"):
+			out.attributes["material_tier"] = str(ProgressionScaling.material_tier(primary.def_id, primary.attributes))
 		# Poison persists through cooking (PRD §9.3 MAY keep).
 		if &"poisoned" in primary.flags:
 			out.set_flag(&"poisoned", true)

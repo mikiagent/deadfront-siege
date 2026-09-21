@@ -7,6 +7,7 @@ func _init() -> void:
 	_test_food_buffs()
 	_test_climate_palette()
 	_test_creature_genetics()
+	_test_progression_scaling()
 	_test_hud_event_state()
 	if failures.is_empty():
 		print("[tests] PASS")
@@ -58,6 +59,15 @@ func _test_climate_palette() -> void:
 	_expect(palette.get("grass") == Color.WHITE, "white climate override is accepted")
 	_expect(palette.get("sand") == Color.from_string("#123456", Color.BLACK), "hex climate override is parsed")
 	_expect(palette.has("rock"), "default climate colours remain present")
+
+func _test_progression_scaling() -> void:
+	_expect(ProgressionScaling.TOOL_TIERS == [&"stone", &"bone", &"flint", &"obsidian", &"copper", &"bronze", &"iron", &"steel"], "tool tier ladder keeps owner order")
+	_expect(is_equal_approx(ProgressionScaling.tool_power(1, &"stone"), 1.0), "level 1 stone is baseline")
+	_expect(is_equal_approx(ProgressionScaling.tool_power(5, &"stone"), 1.4), "level 5 tool is meaningfully stronger")
+	_expect(ProgressionScaling.gather_seconds(3.0, 6, 1, &"stone", 1) > 4.5, "five-level zone gap slows gathering")
+	_expect(ProgressionScaling.gather_seconds(3.0, 1, 5, &"steel", 5) < 1.0, "high-level steel tool gathers much faster")
+	var mean := Crafting.crafted_level_for({"max_level": 60}, [5, 10, 15])
+	_expect(mean == 10, "craft output level is weighted material average")
 
 func _test_hud_event_state() -> void:
 	var events := HudEventState.new()

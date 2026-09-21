@@ -46,6 +46,12 @@ func scaled_food_energy() -> float:
 	var d := def()
 	return d.food_energy_at(level) if d else 0.0
 
+func material_tier() -> StringName:
+	return ProgressionScaling.material_tier(def_id, attributes)
+
+func gather_power() -> float:
+	return ProgressionScaling.tool_power(level, material_tier())
+
 func slot_span() -> int:
 	var d := def()
 	return d.slot_span if d else 1
@@ -110,6 +116,8 @@ func tooltip() -> String:
 	var lines: PackedStringArray = ["%s x%d" % [title, count], "lv %d  process %d" % [level, process_count]]
 	if d and d.place_as != &"":
 		lines.append("footprint %dx%d" % [d.footprint.x, d.footprint.y])
+	if d and d.has_category(&"tool"):
+		lines.append("%s tier · %.2fx gather power" % [str(material_tier()).capitalize(), gather_power()])
 	if max_durability > 0:
 		lines.append("dur %d/%d%s" % [durability, max_durability, " BROKEN" if is_broken() else ""])
 	var dmg := scaled_damage()
