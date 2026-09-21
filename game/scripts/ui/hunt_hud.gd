@@ -34,8 +34,7 @@ var _in_combat: bool = false
 var _combat_alpha: float = 0.0
 var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
 var _stance_label: Label
-var _toasts: Array = []
-var _notices: Array = []  # {text, t}
+var _events := HudEventState.new()
 var _ctx_hexes: Array[HexButton] = []
 var _ctx_ids: Array = []
 var _ctx_timer: float = 0.0
@@ -46,8 +45,7 @@ var _levelup_t: float = -1.0
 var _titles: Dictionary = {}
 var _level_gains: Dictionary = {}
 # hits on the survivor: bite/crunch jaws + red numbers
-var _bites: Array = []
-var _player_floats: Array = []
+
 # death
 var _death_panel: Control
 var _death_alpha: float = 0.0
@@ -424,14 +422,13 @@ func _build_place_hexes() -> void:
 ## A creature bit the survivor: Pokémon Bite/Crunch style jaws snap shut over her chest and the
 ## damage floats up in red. Heavy attacks get the bigger, redder Crunch.
 func bite_on_player(amount: float, heavy: bool) -> void:
-	_bites.append({"t": 0.0, "heavy": heavy, "x": randf_range(-6.0, 6.0)})
-	_player_floats.append({"t": 0.0, "n": amount, "x": randf_range(-18.0, 18.0)})
+	_events.add_bite(amount, heavy)
 
 func _draw_bites(cam: Camera3D) -> void:
 	if cam == null or player == null:
 		return
 	var chest := cam.unproject_position(player.get_global_transform_interpolated().origin + Vector3(0, 0.95, 0))
-	for f in _player_floats:
+	for f in _events.player_floats:
 		var k: float = f["t"]
 		var a := 1.0 - smoothstep(0.55, 0.95, k)
 		var txt := "-%d" % int(round(float(f["n"])))
@@ -440,7 +437,7 @@ func _draw_bites(cam: Camera3D) -> void:
 		var p := chest + Vector2(float(f["x"]) - w * 0.5, -30.0 - k * 46.0)
 		draw_string(_font, p + Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.8 * a))
 		draw_string(_font, p, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.25, 0.2, a))
-	for b in _bites:
+	for b in _events.bites:
 		var k: float = b["t"]
 		var heavy: bool = b["heavy"]
 		var n := 7 if heavy else 5
@@ -468,20 +465,11 @@ func _draw_bites(cam: Camera3D) -> void:
 			draw_rect(Rect2(0, 0, get_viewport_rect().size.x, get_viewport_rect().size.y), Color(0.9, 0.1, 0.1, 0.18 * (1.0 - k / 0.2)))
 
 func notice(text: String) -> void:
-	for n in _notices:
-		if n["text"] == text and n["t"] < 1.5:
-			n["t"] = 0.0
-			return
-	_notices.append({"text": text, "t": 0.0})
+	_events.add_notice(text)
 
 func toast(id: StringName, n: int) -> void:
 	print("[ui] toast %s +%d" % [id, n])
-	for t in _toasts:
-		if t["id"] == id and t["t"] < 0.6:
-			t["n"] += n
-			t["t"] = 0.0
-			return
-	_toasts.append({"id": id, "n": n, "t": 0.0})
+	_events.add_toast(id, n)
 
 func _refresh_context(delta: float) -> void:
 	_ctx_timer -= delta
@@ -767,18 +755,7 @@ func _process(delta: float) -> void:
 		_levelup_t += delta
 		if _levelup_t > 6.5:
 			_levelup_t = -1.0
-	for t in _toasts:
-		t["t"] += delta
-	_toasts = _toasts.filter(func (t: Dictionary) -> bool: return t["t"] < 1.3)
-	for n in _notices:
-		n["t"] += delta
-	_notices = _notices.filter(func (n: Dictionary) -> bool: return n["t"] < 3.2)
-	for b in _bites:
-		b["t"] += delta
-	_bites = _bites.filter(func (b: Dictionary) -> bool: return b["t"] < 0.5)
-	for f in _player_floats:
-		f["t"] += delta
-	_player_floats = _player_floats.filter(func (f: Dictionary) -> bool: return f["t"] < 0.95)
+	_events.tick(delta)
 	_minimap.queue_redraw()
 	queue_redraw()
 
@@ -858,8 +835,8 @@ func _draw() -> void:
 			draw_string(_font, Vector2(30, ly), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), col)
 			ly += float(line[1]) + 8.0
 	# --- pickup toasts near the top-centre, rising and fading
-	for i in _toasts.size():
-		var t: Dictionary = _toasts[i]
+	for i in _events.toasts.size():
+		var t: Dictionary = _events.toasts[i]
 		var k: float = t["t"]
 		var alpha := 1.0 - smoothstep(0.7, 1.3, k)
 		var ty := 120.0 + float(i) * 30.0 - k * 35.0
@@ -874,8 +851,8 @@ func _draw() -> void:
 		draw_rect(Rect2(r.x * 0.5 - hw * 0.5 - 12, 150, hw + 24, 28), Color(0.05, 0.15, 0.3, 0.85))
 		draw_string(_font, Vector2(r.x * 0.5 - hw * 0.5, 170), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.85, 0.92, 1.0))
 	# --- notices (refusals, hints) under the toasts, centre-top
-	for i in _notices.size():
-		var n: Dictionary = _notices[i]
+	for i in _events.notices.size():
+		var n: Dictionary = _events.notices[i]
 		var k: float = n["t"]
 		var alpha := 1.0 - smoothstep(2.4, 3.2, k)
 		var ny := 190.0 + float(i) * 30.0

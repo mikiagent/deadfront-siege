@@ -6,6 +6,7 @@ func _init() -> void:
 	_test_save_migrations()
 	_test_food_buffs()
 	_test_climate_palette()
+	_test_hud_event_state()
 	if failures.is_empty():
 		print("[tests] PASS")
 		quit(0)
@@ -56,3 +57,16 @@ func _test_climate_palette() -> void:
 	_expect(palette.get("grass") == Color.WHITE, "white climate override is accepted")
 	_expect(palette.get("sand") == Color.from_string("#123456", Color.BLACK), "hex climate override is parsed")
 	_expect(palette.has("rock"), "default climate colours remain present")
+
+func _test_hud_event_state() -> void:
+	var events := HudEventState.new()
+	events.add_toast(&"wood", 2)
+	events.add_toast(&"wood", 3)
+	_expect(events.toasts.size() == 1 and int(events.toasts[0]["n"]) == 5, "nearby item toasts coalesce")
+	events.add_notice("Too far")
+	events.add_notice("Too far")
+	_expect(events.notices.size() == 1, "duplicate notices coalesce")
+	events.add_bite(7.0, true)
+	_expect(events.bites.size() == 1 and events.player_floats.size() == 1, "bite and damage float are paired")
+	events.tick(4.0)
+	_expect(events.toasts.is_empty() and events.notices.is_empty() and events.bites.is_empty() and events.player_floats.is_empty(), "expired HUD events are removed")
