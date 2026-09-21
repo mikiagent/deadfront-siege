@@ -120,6 +120,8 @@ func _play(clip: StringName) -> void:
 			return
 	var loco := [&"idle", &"walk", &"run", &"mount_idle"]
 	var blend := 0.18 if (resolved in loco and current_clip in loco) else 0.0
+	if resolved in loco and current_clip in [&"punch", &"attack_primary", &"attack_heavy", &"gather"]:
+		blend = 0.12  # trimmed one-shots end mid-pose; ease back into locomotion
 	current_clip = resolved
 	var speed := 1.0
 	if clip == &"attack_primary":

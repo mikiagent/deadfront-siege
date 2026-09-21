@@ -100,6 +100,8 @@ func _merge_dir(anim_dir: String) -> void:
 		if anim:
 			if clip == &"gather" and anim.length > 2.0:
 				anim.length = 2.0
+			if clip == &"punch" and anim.length > 1.1:
+				anim.length = 1.1  # Meshy "Right Jab from Guard" is 2 s; the jab is the first half
 			_set_loop(anim, clip)
 			library.add_animation(clip, anim)
 			loaded[clip] = true

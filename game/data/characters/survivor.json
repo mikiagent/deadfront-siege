@@ -36,7 +36,8 @@
       "roll": "01a0b1c9-22de-7582-b372-92ff3ac16930",
       "gather": "01a0b1c9-2c0f-7296-bbca-7cdeb96dfe48",
       "knockdown": "01a0b1c9-34a0-76b1-95f5-1651294ef8dd",
-      "mount_idle": "01a0b1c9-3cb5-7777-8168-39448e13723c"
+      "mount_idle": "01a0b1c9-3cb5-7777-8168-39448e13723c",
+      "punch": "01a0c148-35f1-724d-b304-9bbdeb890ec6"
     },
     "preset_actions": {
       "idle": 0,
@@ -47,7 +48,8 @@
       "roll": 158,
       "gather": 274,
       "knockdown": 187,
-      "mount_idle": 32
+      "mount_idle": 32,
+      "punch": 192
     },
     "params": {
       "image_model": "nano-banana-pro",
@@ -56,7 +58,7 @@
       "target_polycount": 20000,
       "texture": "2k PBR"
     },
-    "credits_spent": 71,
+    "credits_spent": 74,
     "bones": 24,
     "note": "walk.glb and run.glb are the free rig outputs. Meshy preset animations arrive as full skinned GLBs, one per clip, matching the creature contract layout.",
     "clip_notes": {
