@@ -9,6 +9,7 @@ func _init() -> void:
 	_test_creature_genetics()
 	_test_progression_scaling()
 	_test_starter_island_levels_and_resource_stacks()
+	_test_starter_creature_level_override()
 	_test_hud_event_state()
 	if failures.is_empty():
 		print("[tests] PASS")
@@ -88,6 +89,10 @@ func _test_starter_island_levels_and_resource_stacks() -> void:
 	_expect(inv.slots[0].count == 50 and inv.slots[0].level == 4, "level-four stack preserves count and level")
 	_expect(inv.slots[1].count == 10 and inv.slots[1].level == 10, "level-ten stack preserves count and level")
 	_expect(inv.slots[0].def().stack_max == 999, "resources stack to 999")
+
+func _test_starter_creature_level_override() -> void:
+	_expect(Creature.spawn_level_for_island(20, {"level_override": 1}) == 1, "starter creature override beats species tier during island build")
+	_expect(Creature.spawn_level_for_island(20, {}) == 20, "islands without an override keep the species tier")
 
 func _test_hud_event_state() -> void:
 	var events := HudEventState.new()
