@@ -8,6 +8,7 @@ func _init() -> void:
 	_test_climate_palette()
 	_test_creature_genetics()
 	_test_progression_scaling()
+	_test_starter_island_levels_and_resource_stacks()
 	_test_hud_event_state()
 	if failures.is_empty():
 		print("[tests] PASS")
@@ -68,6 +69,25 @@ func _test_progression_scaling() -> void:
 	_expect(ProgressionScaling.gather_seconds(3.0, 1, 5, &"steel", 5) < 1.0, "high-level steel tool gathers much faster")
 	var mean := ProgressionScaling.crafted_level([5, 10, 15])
 	_expect(mean == 10, "craft output level is weighted material average")
+
+func _test_starter_island_levels_and_resource_stacks() -> void:
+	var home_file := FileAccess.open("res://data/islands/home_grassland.json", FileAccess.READ)
+	_expect(home_file != null, "starter-island definition exists")
+	var home: Variant = JSON.parse_string(home_file.get_as_text()) if home_file else {}
+	_expect(home is Dictionary and int(home.get("level_override", 0)) == 1, "starter island pins resources and creatures to level 1")
+
+	# Explicit spawn/gather level beats an item's catalog base level. This was the live regression:
+	# make(..., 1) used 1 as a sentinel and silently promoted starter resources to Lv. 20.
+	var explicit_one := ItemStack.make(&"berries", 1, {}, 1)
+	_expect(explicit_one.level == 1, "explicit level-one resource stays level one")
+
+	var inv := Inventory.new(4)
+	_expect(inv.add(ItemStack.make(&"berries", 50, {}, 4)) == 0, "level-four resources fit in one stack")
+	_expect(inv.add(ItemStack.make(&"berries", 10, {}, 10)) == 0, "level-ten resources fit in a separate stack")
+	_expect(inv.used_slots() == 2, "same resource at different levels never merges")
+	_expect(inv.slots[0].count == 50 and inv.slots[0].level == 4, "level-four stack preserves count and level")
+	_expect(inv.slots[1].count == 10 and inv.slots[1].level == 10, "level-ten stack preserves count and level")
+	_expect(inv.slots[0].def().stack_max == 999, "resources stack to 999")
 
 func _test_hud_event_state() -> void:
 	var events := HudEventState.new()
