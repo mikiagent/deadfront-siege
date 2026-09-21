@@ -28,6 +28,7 @@ var _skill_hexes: Array[HexButton] = []
 var _auto_hex: HexButton
 var _chase_hex: HexButton
 var _feed_hex: HexButton
+var _food_hexes: Array[HexButton] = []
 var _in_combat: bool = false
 var _combat_alpha: float = 0.0
 var _stance_label: Label
@@ -97,6 +98,8 @@ func _layout() -> void:
 	for h in [_menu_hex, _pets_hex, _build_hex, _skills_hex]:
 		h.position = Vector2(x, y)
 		x += HEX + 10.0
+	for i in _food_hexes.size():
+		_food_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (HEX + 10.0), y - HEX - 12.0)
 	# Debug hex sits just left of the minimap, vertically centred on it.
 	_inspect_hex.position = Vector2(_minimap.position.x - 56.0 - 12.0, _minimap.position.y + (MAP_PX - 56.0) * 0.5)
 	_end_btn.position = Vector2(r.x - 200.0 - inset.x, r.y * 0.42)
@@ -154,9 +157,48 @@ func _build_menu_row() -> void:
 	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
 	_skills_hex = _hex("★", HEX, "SKILLS")
 	_skills_hex.pressed.connect(_toggle_skills)
+	for i in 2:
+		var fh := HexButton.new(HEX)
+		fh.glyph = "🍖"
+		fh.bottom_text = "EAT"
+		fh.fill = Color(0.16, 0.36, 0.2, 0.95)
+		fh.visible = false
+		var qi := i
+		fh.pressed.connect(func () -> void: _eat_quick(qi))
+		add_child(fh)
+		_food_hexes.append(fh)
 	_inspect_hex = _hex("🔍", 56.0, "DEBUG")
 	_inspect_hex.pressed.connect(_toggle_debug)
 	_inspect_hex.selected = Game.debug_overlay
+
+## Quick-food hexes (bottom-left, above the menu row): icon + count of the two quick slots set
+## in the bag; tap eats one. Hidden while a slot is empty or its food is gone.
+func _refresh_food_hexes() -> void:
+	if player == null or player.inventory == null:
+		return
+	for i in _food_hexes.size():
+		var h := _food_hexes[i]
+		var fid := str(player.inventory.quick_food[i]) if player.inventory.quick_food.size() > i else ""
+		var n := player.inventory.count_of(StringName(fid)) if fid != "" else 0
+		var show := fid != "" and n > 0
+		if h.visible != show:
+			h.visible = show
+		if show:
+			var tex := ItemIcons.texture(StringName(fid))
+			if h.icon != tex or h.bottom_text != str(n):
+				h.icon = tex
+				h.glyph = "" if tex else "🍖"
+				h.bottom_text = "×%d" % n
+				h.queue_redraw()
+
+func _eat_quick(i: int) -> void:
+	if player == null:
+		return
+	var fid := str(player.inventory.quick_food[i])
+	var idx := player.inventory.find_first(StringName(fid)) if fid != "" else -1
+	if idx >= 0:
+		if not player.begin_eat_slot(idx):
+			player.notice("Can't eat right now.")
 
 ## Debug items: perf line top-left, creature state labels, HP numbers on plates, path lines.
 func _toggle_debug() -> void:
@@ -644,6 +686,7 @@ func _process(delta: float) -> void:
 			h.queue_redraw()
 	_refresh_context(delta)
 	_refresh_place_hexes()
+	_refresh_food_hexes()
 	if _levelup_t >= 0.0:
 		_levelup_t += delta
 		if _levelup_t > 6.5:
@@ -678,18 +721,26 @@ func _draw() -> void:
 	var tfrac: float = v.thirst / maxf(1.0, v.max_thirst)
 	_bar(Vector2(x, y + 44), Vector2(230, 12), hfrac, Color(0.82, 0.16, 0.16) if hfrac <= 0.0 else Color(0.80, 0.50, 0.18), "🍖", "%.0f" % v.hunger)
 	_bar(Vector2(x, y + 62), Vector2(230, 12), tfrac, Color(0.82, 0.16, 0.16) if tfrac <= 0.0 else Color(0.25, 0.70, 0.85), "💧", "%.0f" % v.thirst)
-	_bar(Vector2(x, y + 80), Vector2(230, 8), clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0), Color(0.55, 0.55, 0.55) if not v.exhausted else Color(0.82, 0.3, 0.2), "💤", "fatigue %.0f" % v.fatigue)
-	if v.exhausted:
-		draw_string(_font, Vector2(x + 236, y + 88), "EXHAUSTED", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.6, 0.4))
-	elif hfrac <= 0.0 or tfrac <= 0.0:
-		draw_string(_font, Vector2(x + 236, y + 88), "STARVING" if hfrac <= 0.0 else "PARCHED", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.5, 0.4))
-	# status icons row
-	var sx := x
+	var warn := ""
+	if hfrac <= 0.0 or tfrac <= 0.0:
+		warn = "STARVING" if hfrac <= 0.0 else "PARCHED"
+	elif v.hungry() and v.thirsty():
+		warn = "HUNGRY · THIRSTY"
+	elif v.hungry():
+		warn = "HUNGRY: slow stamina"
+	elif v.thirsty():
+		warn = "THIRSTY: slow, weak regen"
+	if warn != "":
+		draw_string(_font, Vector2(x, y + 92), warn, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.55, 0.4))
+	# status badges live under the minimap (right side), left of the Claim hex
+	var mp0 := _minimap.position
+	var sx := mp0.x
+	var sy := mp0.y + MAP_PX + 50.0
 	if player.statuses:
 		for inst in player.statuses.instances():
-			draw_rect(Rect2(sx, y + 96, 26, 26), Color(0.1, 0.1, 0.12, 0.85))
-			draw_string(_font, Vector2(sx + 4, y + 115), str(inst.id).left(2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.75, 0.45))
-			draw_string(_font, Vector2(sx, y + 136), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.8, 0.8, 0.8))
+			draw_rect(Rect2(sx, sy, 26, 26), Color(0.1, 0.1, 0.12, 0.85))
+			draw_string(_font, Vector2(sx + 4, sy + 19), str(inst.id).left(2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.75, 0.45))
+			draw_string(_font, Vector2(sx, sy + 40), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.8, 0.8, 0.8))
 			sx += 30
 	# --- minimap captions
 	var mp := _minimap.position

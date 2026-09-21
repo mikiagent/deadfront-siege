@@ -35,6 +35,7 @@ static func save_now() -> void:
 			"vitals": player.vitals.to_dict(),
 			"statuses": player.statuses.to_array(),
 			"inventory": player.inventory.to_array(),
+			"inventory_extras": player.inventory.extras_to_dict(),
 			"position": [player.global_position.x, player.global_position.y, player.global_position.z],
 		},
 		"pets": pets,
@@ -125,6 +126,9 @@ static func load_now(host: Node) -> void:
 	player.vitals.from_dict(data.get("player", {}).get("vitals", {}))
 	player.statuses.from_array(data.get("player", {}).get("statuses", []))
 	player.inventory.load_array(data.get("player", {}).get("inventory", []))
+	var extras: Variant = data.get("player", {}).get("inventory_extras", null)
+	if extras is Dictionary:
+		player.inventory.extras_from_dict(extras as Dictionary)
 	if player.skills:
 		player.skills.from_dict(data.get("skills_v2", {}))
 	player.bonded.clear()

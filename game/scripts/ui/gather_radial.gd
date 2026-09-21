@@ -84,7 +84,10 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 		b.pressed.connect(_on_pick.bind(i))
 		add_child(b)
 		_buttons.append(b)
-		_labels.append({"text": "%s Lv. %d" % [_display_name(item_id), level], "reason": reason})
+		var left_txt := ""
+		if o.has("left"):
+			left_txt = "  ·  %d / %d left" % [int(o["left"]), int(o.get("pool", 0))]
+		_labels.append({"text": "%s Lv. %d%s" % [_display_name(item_id), level, left_txt], "reason": reason})
 	_open = true
 	visible = true
 	_layout()

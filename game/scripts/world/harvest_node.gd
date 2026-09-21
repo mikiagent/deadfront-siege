@@ -22,6 +22,12 @@ var falls_to_log: bool = false
 var depleted: bool = false
 var pool: float = 0.0
 var session_gathered: int = 0
+## One pool per yield (berries and fibre on a bush are separate). The node stays up until every
+## pool is empty; each emptied pool refills RESPAWN_SECONDS later (the dirt patch shows the timer).
+var pools: Dictionary = {}       # item id -> float units left
+var pool_maxes: Dictionary = {}  # item id -> int
+var _pool_regen: Dictionary = {} # item id -> seconds until that pool refills
+const RESPAWN_SECONDS := 3600.0
 var _mesh: MeshInstance3D
 var _falling: bool = false
 var _batch: VegBatch
@@ -41,10 +47,18 @@ func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Di
 	regen_seconds = regen
 	family = p_family
 	falls_to_log = p_falls
+	if regen_seconds > 0.0:
+		regen_seconds = RESPAWN_SECONDS
 	pool_max = _resolve_pool_max(p_pool_max)
 	if pool <= 0.0:
 		pool = float(pool_max)
-	depleted = pool_units_left() <= 0
+	# setup() knows the family, so it defines the pools (a _ready before setup only saw the
+	# fallback single option); a save restore comes after and overrides.
+	pools.clear()
+	pool_maxes.clear()
+	_pool_regen.clear()
+	_ensure_pools()
+	depleted = _all_empty()
 	_regen_left = regen_seconds if depleted else 0.0
 	_apply_tint()
 
@@ -61,7 +75,8 @@ func _ready() -> void:
 	pool_max = _resolve_pool_max(pool_max)
 	if pool <= 0.0:
 		pool = float(pool_max)
-	depleted = pool_units_left() <= 0
+	_ensure_pools()
+	depleted = _all_empty()
 	if get_node_or_null("Shape") == null:
 		# Physics: a slim trunk so paths that pass next to the node never jam on it.
 		var shape := CollisionShape3D.new()
@@ -100,16 +115,76 @@ func _ready() -> void:
 	_apply_tint()
 
 func _process(delta: float) -> void:
-	if not depleted or regen_seconds <= 0.0:
+	if _pool_regen.is_empty() or regen_seconds <= 0.0:
 		return
-	if _regen_left <= 0.0:
-		_regen_left = regen_seconds
-	_regen_left = maxf(0.0, _regen_left - delta * Game.fast_regen_mult)
-	if _regen_left <= 0.0:
-		pool = float(pool_max)
+	var refilled := false
+	for item in _pool_regen.keys():
+		var left: float = float(_pool_regen[item]) - delta * Game.fast_regen_mult
+		if left <= 0.0:
+			pools[item] = float(pool_maxes.get(item, pool_max))
+			_pool_regen.erase(item)
+			refilled = true
+		else:
+			_pool_regen[item] = left
+	_regen_left = _min_regen()
+	if refilled and depleted:
 		depleted = false
+		pool = float(pool_max)
 		_sync_visual_state()
 		regrown_tile.emit(self, _tile)
+
+func _min_regen() -> float:
+	var best := 0.0
+	for item in _pool_regen:
+		var v: float = float(_pool_regen[item])
+		if best <= 0.0 or v < best:
+			best = v
+	return best
+
+## Pools for every option: the first (main) yield gets the full pool, the rest half of it.
+func _ensure_pools() -> void:
+	var opts := options()
+	for i in opts.size():
+		var item := str(opts[i].get("item", ""))
+		if item == "" or pools.has(item):
+			continue
+		var mx := pool_max if i == 0 else maxi(3, int(pool_max / 2))
+		pool_maxes[item] = mx
+		pools[item] = float(mx)
+
+func _all_empty() -> bool:
+	if pools.is_empty():
+		return pool_units_left() <= 0
+	for item in pools:
+		if int(floor(float(pools[item]) + 0.0001)) > 0:
+			return false
+	return true
+
+func units_left_for(item: StringName) -> int:
+	if pools.has(str(item)):
+		return maxi(0, int(floor(float(pools[str(item)]) + 0.0001)))
+	return pool_units_left()
+
+func active_pool_max() -> int:
+	return int(pool_maxes.get(str(yield_def_id), pool_max))
+
+## Save/load of the per-yield pools (World.harvested).
+func pools_snapshot() -> Dictionary:
+	return {"pools": pools.duplicate(), "maxes": pool_maxes.duplicate(), "regen": _pool_regen.duplicate()}
+
+func restore_pools(snap: Dictionary) -> void:
+	var p: Variant = snap.get("pools", {})
+	var m: Variant = snap.get("maxes", {})
+	var r: Variant = snap.get("regen", {})
+	if p is Dictionary and not (p as Dictionary).is_empty():
+		pools = (p as Dictionary).duplicate()
+	if m is Dictionary and not (m as Dictionary).is_empty():
+		pool_maxes = (m as Dictionary).duplicate()
+	if r is Dictionary:
+		_pool_regen = (r as Dictionary).duplicate()
+	_ensure_pools()
+	_regen_left = _min_regen()
+	_sync_visual_state()
 
 ## Everything this node can yield, one entry per manifest `harvest` item (reference: a tree
 ## offers Leaf / Log / Branch at once). Tool-gated options take longer.
@@ -135,6 +210,14 @@ func options() -> Array:
 			out.append({"item": str(id), "min": amin, "max": amax, "tool": tool, "seconds": 3.0 if tool != "none" else 1.8})
 	if out.is_empty():
 		out.append({"item": str(yield_def_id), "min": yield_min, "max": yield_max, "tool": str(required_tool_class), "seconds": gather_seconds})
+	for o in out:
+		var item := str(o["item"])
+		if pools.has(item):
+			o["left"] = maxi(0, int(floor(float(pools[item]) + 0.0001)))
+			o["pool"] = int(pool_maxes.get(item, pool_max))
+			if int(o["left"]) <= 0:
+				var secs: float = float(_pool_regen.get(item, 0.0))
+				o["blocked_reason"] = "none left · %dm" % int(ceil(secs / 60.0)) if secs > 0.0 else "none left"
 	return out
 
 ## Make one of options() the active yield for the next gathers.
@@ -151,7 +234,7 @@ func select_option(index: int) -> void:
 
 func can_gather(inv: Inventory) -> String:
 	if pool_units_left() <= 0:
-		return "depleted"
+		return "depleted" if _all_empty() else "no %s left" % str(yield_def_id).replace("_", " ")
 	if not inv.has_tool_class(required_tool_class):
 		return "need tool %s" % required_tool_class
 	return ""
@@ -165,15 +248,25 @@ func roll_yield() -> ItemStack:
 
 func consume_unit() -> bool:
 	if pool_units_left() <= 0:
-		depleted = true
+		depleted = _all_empty()
 		return false
-	pool = maxf(0.0, pool - 1.0)
+	var key := str(yield_def_id)
+	if pools.has(key):
+		pools[key] = maxf(0.0, float(pools[key]) - 1.0)
+		if int(floor(float(pools[key]) + 0.0001)) <= 0 and regen_seconds > 0.0:
+			_pool_regen[key] = RESPAWN_SECONDS
+			_regen_left = _min_regen()
+	else:
+		pool = maxf(0.0, pool - 1.0)
 	session_gathered += 1
-	if pool_units_left() <= 0:
+	if _all_empty():
 		_on_pool_empty()
 	return true
 
 func pool_units_left() -> int:
+	var key := str(yield_def_id)
+	if pools.has(key):
+		return maxi(0, int(floor(float(pools[key]) + 0.0001)))
 	return maxi(0, int(floor(pool + 0.0001)))
 
 func top_of_node() -> float:
@@ -262,7 +355,7 @@ func _apply_tint() -> void:
 
 func _on_pool_empty() -> void:
 	depleted = true
-	_regen_left = regen_seconds
+	_regen_left = _min_regen() if not _pool_regen.is_empty() else regen_seconds
 	depleted_tile.emit(self, _tile)
 	if falls_to_log and not _falling:
 		_falling = true
@@ -279,7 +372,7 @@ func _on_pool_empty() -> void:
 	collision_layer = 0
 
 func _sync_visual_state() -> void:
-	depleted = pool_units_left() <= 0
+	depleted = _all_empty()
 	if depleted:
 		visible = false
 		collision_layer = 0

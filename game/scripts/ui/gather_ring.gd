@@ -60,8 +60,9 @@ func show_for(node: HarvestNode, progress: float) -> void:
 	_tame_target = null
 	_anchor_node = null
 	unit_progress = clampf(progress, 0.0, 1.0)
-	_outer_progress = clampf(float(node.session_gathered) / float(maxi(1, node.pool_max)), 0.0, 1.0)
-	_pool_text = "%d/%d" % [node.pool_units_left(), maxi(1, node.pool_max)]
+	var pm: int = node.active_pool_max() if node.has_method("active_pool_max") else node.pool_max
+	_outer_progress = clampf(1.0 - float(node.pool_units_left()) / float(maxi(1, pm)), 0.0, 1.0)
+	_pool_text = "%d/%d" % [node.pool_units_left(), maxi(1, pm)]
 	var def := Data.item(node.yield_def_id)
 	_yield_text = def.display_name if def else str(node.yield_def_id)
 	_icon = _icon_for(node.yield_def_id)

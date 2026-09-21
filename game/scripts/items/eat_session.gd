@@ -15,6 +15,7 @@ func setup(p: Player, layer: CanvasLayer) -> void:
 	player = p
 	progress_ui = EatProgress.new()
 	progress_ui.name = "EatProgress"
+	progress_ui.player = p
 	layer.add_child(progress_ui)
 	set_process(true)
 
@@ -73,6 +74,13 @@ func _apply_energy(amount: float) -> void:
 	player.vitals.energy = clampf(player.vitals.energy + amount, 0.0, player.vitals.max_energy)
 	if player.vitals.has_method("eat"):
 		player.vitals.eat(amount * 1.5)
+	# Juicy food also drinks: fruit and water-based dishes refill thirst, soups the most.
+	var d := _stack_snapshot.def() if _stack_snapshot else null
+	if d and player.vitals.has_method("drink"):
+		if d.has_category(&"fruit") or d.has_category(&"berry"):
+			player.vitals.drink(amount * 1.0)
+		elif d.has_category(&"soup") or d.has_category(&"drink") or str(d.id).contains("boiled") or str(d.id).contains("steam"):
+			player.vitals.drink(amount * 1.5)
 
 func _finish() -> void:
 	Food.apply_raw_risks(player, _stack_snapshot)

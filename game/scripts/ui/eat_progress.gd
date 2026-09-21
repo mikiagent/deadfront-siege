@@ -8,6 +8,8 @@ const RING_W := 5.0
 var progress: float = 0.0
 var _hint: Label
 var _visible_eat: bool = false
+var player: Player
+var _icon: Texture2D
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -25,7 +27,8 @@ func _ready() -> void:
 	_hint.add_theme_color_override("font_color", Color(1.0, 0.92, 0.55))
 	add_child(_hint)
 
-func show_eat(_def_id: StringName, p: float = 0.0) -> void:
+func show_eat(def_id: StringName, p: float = 0.0) -> void:
+	_icon = ItemIcons.texture(def_id)
 	progress = clampf(p, 0.0, 1.0)
 	_visible_eat = true
 	visible = true
@@ -40,6 +43,17 @@ func hide_eat() -> void:
 	_visible_eat = false
 	visible = false
 
+## Ring floats over the survivor's head with the food's icon in the middle.
+func _process(_delta: float) -> void:
+	if not _visible_eat or player == null or not is_instance_valid(player):
+		return
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var head := cam.unproject_position(player.get_global_transform_interpolated().origin + Vector3(0, 2.15, 0))
+	position = head - Vector2(size.x * 0.5, 44.0)
+	queue_redraw()
+
 func _draw() -> void:
 	if not _visible_eat:
 		return
@@ -47,6 +61,9 @@ func _draw() -> void:
 	draw_circle(c, RING_R, Color(0.08, 0.09, 0.1, 0.9))
 	draw_arc(c, RING_R - 1.0, 0.0, TAU, 48, Color(0.35, 0.38, 0.4, 0.9), RING_W, true)
 	draw_arc(c, RING_R - 1.0, -PI * 0.5, -PI * 0.5 + TAU * progress, 48, Color(0.35, 0.75, 1.0, 0.98), RING_W, true)
-	var font := ThemeDB.fallback_font
-	if font:
-		draw_string(font, c + Vector2(0, 5), "Eat", HORIZONTAL_ALIGNMENT_CENTER, 60.0, 14, Color(0.95, 0.95, 0.9))
+	if _icon:
+		draw_texture_rect(_icon, Rect2(c - Vector2(22, 22), Vector2(44, 44)), false)
+	else:
+		var font := ThemeDB.fallback_font
+		if font:
+			draw_string(font, c + Vector2(0, 5), "Eat", HORIZONTAL_ALIGNMENT_CENTER, 60.0, 14, Color(0.95, 0.95, 0.9))

@@ -8,6 +8,57 @@ var slot_count: int = 20
 var slots: Array[ItemStack] = []
 ## Equipped gather/work tool slot index, or -1 for auto (first find_gather_tool match).
 var equipped_tool_index: int = -1
+## Equipment by slot (def id of an item that must still be in the bag) and two quick-food
+## slots (def ids) for the HUD food hexes + auto-feed.
+const EQUIP_SLOTS: Array[StringName] = [&"weapon", &"head", &"body", &"legs", &"accessory1", &"accessory2"]
+var equipment: Dictionary = {}
+var quick_food: Array = ["", ""]
+
+static func slot_for(def: ItemDef) -> StringName:
+	if def == null:
+		return &""
+	if def.has_category(&"weapon") and def.damage > 0.0:
+		return &"weapon"
+	for pair in [[&"armor_head", &"head"], [&"helmet", &"head"], [&"armor_body", &"body"], [&"armor", &"body"], [&"clothing", &"body"], [&"armor_legs", &"legs"], [&"accessory", &"accessory1"], [&"bag", &"accessory1"]]:
+		if def.has_category(pair[0]):
+			return pair[1]
+	return &""
+
+func equip(slot: StringName, def_id: StringName) -> void:
+	if slot == &"accessory1" and str(equipment.get("accessory1", "")) != "" and str(equipment.get("accessory1", "")) != str(def_id):
+		slot = &"accessory2"
+	equipment[str(slot)] = str(def_id)
+	changed.emit()
+
+func unequip(slot: StringName) -> void:
+	equipment.erase(str(slot))
+	changed.emit()
+
+func equipped_in(slot: StringName) -> ItemStack:
+	var id := str(equipment.get(str(slot), ""))
+	if id == "":
+		return null
+	var idx := find_first(StringName(id))
+	return slots[idx] if idx >= 0 else null
+
+func set_quick_food(i: int, def_id: StringName) -> void:
+	if i < 0 or i > 1:
+		return
+	quick_food[i] = str(def_id)
+	changed.emit()
+
+func extras_to_dict() -> Dictionary:
+	return {"equipment": equipment.duplicate(), "quick_food": quick_food.duplicate(), "tool_index": equipped_tool_index}
+
+func extras_from_dict(d: Dictionary) -> void:
+	var e: Variant = d.get("equipment", {})
+	if e is Dictionary:
+		equipment = (e as Dictionary).duplicate()
+	var q: Variant = d.get("quick_food", [])
+	if q is Array and (q as Array).size() >= 2:
+		quick_food = [str(q[0]), str(q[1])]
+	equipped_tool_index = int(d.get("tool_index", -1))
+	changed.emit()
 
 func _init(p_slots: int = 20) -> void:
 	slot_count = p_slots
@@ -170,6 +221,9 @@ func consume_by_category(cat: StringName, amount: int) -> bool:
 	return true
 
 func equipped_weapon() -> ItemStack:
+	var chosen := equipped_in(&"weapon")
+	if chosen:
+		return chosen
 	for s in slots:
 		if s == null:
 			continue

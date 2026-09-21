@@ -48,19 +48,24 @@ func _process(delta: float) -> void:
 		return
 	hunger = maxf(0.0, hunger - HUNGER_PER_SEC * delta)
 	thirst = maxf(0.0, thirst - THIRST_PER_SEC * delta)
-	var starving := hunger <= 0.0 or thirst <= 0.0
-	if starving:
-		add_fatigue(delta / 60.0, &"hunger")
+	# Penalties: hungry (<50 %) halves stamina regen and caps stamina at 75 %; thirsty (<50 %)
+	# halves health regen; either under 25 % stops health regen; either at 0 drains 0.3 HP/s.
+	var hungry := hunger < max_hunger * 0.5
+	var thirsty := thirst < max_thirst * 0.5
+	var very_low := hunger < max_hunger * 0.25 or thirst < max_thirst * 0.25
+	var empty := hunger <= 0.0 or thirst <= 0.0
 	_regen_lock = maxf(0.0, _regen_lock - delta)
-	if not blocks_regen and not starving and _regen_lock <= 0.0:
-		health = minf(effective_max_health(), health + health_regen * delta)
+	if empty:
+		health = maxf(1.0, health - 0.3 * delta)
+	elif not blocks_regen and not very_low and _regen_lock <= 0.0:
+		health = minf(effective_max_health(), health + health_regen * (0.5 if thirsty else 1.0) * delta)
 	_stamina_lock = maxf(0.0, _stamina_lock - delta)
+	var stam_cap := max_energy * (0.75 if hungry else 1.0)
 	if _stamina_lock <= 0.0:
-		energy = minf(max_energy, energy + (STAMINA_REGEN_COMBAT if in_combat else STAMINA_REGEN_CALM) * delta)
-	var was := exhausted
-	exhausted = fatigue >= max_fatigue
-	if exhausted != was:
-		exhausted_changed.emit(exhausted)
+		energy = minf(stam_cap, energy + (STAMINA_REGEN_COMBAT if in_combat else STAMINA_REGEN_CALM) * (0.5 if hungry else 1.0) * delta)
+	energy = minf(energy, stam_cap)
+	# Fatigue no longer gates anything (the exhausted state was removed 2026-09-20).
+	exhausted = false
 
 func effective_max_health() -> float:
 	return max_health
@@ -82,6 +87,12 @@ func heal(amount: float) -> void:
 	if dead:
 		return
 	health = minf(effective_max_health(), health + amount)
+
+func hungry() -> bool:
+	return hunger < max_hunger * 0.5
+
+func thirsty() -> bool:
+	return thirst < max_thirst * 0.5
 
 ## Respawn: back to a fraction of max health, fatigue eased, regen on again.
 func revive(health_frac: float = 0.5) -> void:

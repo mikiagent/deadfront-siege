@@ -90,6 +90,7 @@ var _force_clip_map: Array[StringName] = [
 ## the death clip plays once and the rig stays on the floor. The HUD shows You Died + Respawn.
 var dead: bool = false
 var _last_hit_taken_s: float = -999.0
+var _autofeed_cd: float = 0.0
 
 func _ready() -> void:
 	if Game.lab_name != "" and get_parent() and get_parent().name == "DefaultPlayfield":
@@ -280,6 +281,7 @@ func _physics_process(delta: float) -> void:
 	if _survival_acc >= 60.0 and skills:
 		_survival_acc -= 60.0
 		skills.add_xp("survival", 1)
+	_tick_autofeed(delta)
 	_tick_hold_walk(delta)
 	if statuses == null or vitals == null:
 		move_and_slide()
@@ -321,8 +323,8 @@ func _physics_process(delta: float) -> void:
 		can_sprint = false
 	var target_speed := sprint_speed if can_sprint else (run_speed if running else walk_speed)
 	target_speed *= statuses.move_mult()
-	if vitals.exhausted:
-		target_speed *= 0.7
+	if vitals.thirsty():
+		target_speed *= 0.9
 	if nav_active:
 		if _use_tile_path():
 			var next_dir := _tile_nav_dir(delta)
@@ -352,8 +354,6 @@ func _physics_process(delta: float) -> void:
 		# ASSUMPTION: walking 0.05/s, tap-running 0.09/s, sprint 0.2/s (was 0.25-0.8/s, which
 		# filled the bar in a few minutes and then blocked gathering).
 		vitals.add_fatigue(delta * (0.2 if can_sprint else (0.09 if running else 0.05)), &"walk")
-	elif not _gathering and hunt != null and hunt.target == null:
-		vitals.rest(delta * 0.35)  # standing still recovers fatigue slowly; tents and washing are faster
 	vitals.fatigue_gain_mult = 0.5 if _in_coziness() else 1.0
 	if in_water:
 		_wet_acc += delta
@@ -593,8 +593,6 @@ func _closest_nav_point(pos: Vector3) -> Vector3:
 	return NavigationServer3D.map_get_closest_point(map, pos)
 
 func _begin_gather(node: HarvestNode) -> void:
-	if vitals.exhausted:
-		notice("Exhausted: gathering slowly. Stand still, wash or rest in a tent.")
 	if node.required_tool_class != &"" and node.required_tool_class != &"none":
 		if not _auto_equip_tool(node.required_tool_class):
 			print("[item] refused %s: need tool %s" % [node.node_id, node.required_tool_class])
@@ -784,7 +782,7 @@ func _finish_gather() -> void:
 
 func _start_gather_cycle(seconds: float) -> void:
 	_gathering = true
-	_gather_unit_time = maxf(0.1, seconds) * (1.6 if vitals.exhausted else 1.0)
+	_gather_unit_time = maxf(0.1, seconds)
 	_gather_left = _gather_unit_time
 	if anim:
 		anim.on_gather()
@@ -935,6 +933,26 @@ func _setup_gather_ring() -> void:
 	if script:
 		_gather_ring = script.new()
 		layer.add_child(_gather_ring)
+
+## Under 50 % hunger, standing still, not already eating: eat one from a quick-food slot.
+func _tick_autofeed(delta: float) -> void:
+	_autofeed_cd = maxf(0.0, _autofeed_cd - delta)
+	if _autofeed_cd > 0.0 or vitals == null or not vitals.hungry() or dead:
+		return
+	if eat_session == null or eat_session.eating or nav_active or _gathering or Vector2(velocity.x, velocity.z).length() > 0.3:
+		return
+	if hunt and hunt.target:
+		return
+	for fid in inventory.quick_food:
+		if str(fid) == "":
+			continue
+		var idx := inventory.find_first(StringName(str(fid)))
+		if idx >= 0 and Food.can_eat(self, inventory.slots[idx]) == "":
+			if begin_eat_slot(idx):
+				notice("Auto-eating %s" % (Data.item(StringName(str(fid))).display_name if Data.item(StringName(str(fid))) else str(fid)))
+				_autofeed_cd = 12.0
+				return
+	_autofeed_cd = 3.0
 
 func _tick_hold_walk(delta: float) -> void:
 	if not Input.is_action_pressed("tap"):
