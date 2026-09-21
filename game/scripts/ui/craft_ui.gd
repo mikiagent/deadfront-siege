@@ -201,6 +201,14 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 10)
 	panel.add_child(h)
+	var out_row0: Dictionary = rec.get("output", {})
+	var out_icon := TextureRect.new()
+	out_icon.texture = ItemIcons.texture(StringName(str(out_row0.get("id", ""))))
+	out_icon.custom_minimum_size = Vector2(52, 52)
+	out_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	out_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	out_icon.modulate = Color.WHITE if can else Color(0.6, 0.6, 0.6)
+	h.add_child(out_icon)
 	var text := VBoxContainer.new()
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(text)
@@ -212,12 +220,7 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	name.add_theme_font_size_override("font_size", 18)
 	name.add_theme_color_override("font_color", Color.WHITE if can else Color(0.75, 0.75, 0.75))
 	text.add_child(name)
-	var ing := Label.new()
-	ing.text = _ingredients_text(rec)
-	ing.add_theme_font_size_override("font_size", 13)
-	ing.add_theme_color_override("font_color", Color(0.8, 0.85, 0.75) if have else Color(1.0, 0.55, 0.45))
-	ing.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.add_child(ing)
+	text.add_child(_ingredients_row(rec))
 	var btn_text := "Craft"
 	if not have:
 		btn_text = "Missing"
@@ -232,6 +235,47 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	b5.disabled = not can
 	h.add_child(b5)
 	return panel
+
+## Icon + "have/need" per slot; red when short.
+func _ingredients_row(rec: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var picks := Crafting.default_picks(player.inventory, rec)
+	var slots: Array = rec.get("slots", [])
+	for i in slots.size():
+		if not slots[i] is Dictionary:
+			continue
+		var slot: Dictionary = slots[i]
+		var cat := StringName(str(slot.get("category", "")))
+		var need := int(slot.get("count", 1))
+		var have := 0
+		for idx in player.inventory.find_by_category(cat):
+			var s := player.inventory.slots[idx]
+			if s:
+				have += s.count
+		var sample_id := StringName(str(cat))
+		if i < picks.size() and picks[i] >= 0 and player.inventory.slots[picks[i]]:
+			sample_id = player.inventory.slots[picks[i]].def_id
+		else:
+			sample_id = Crafting.sample_def_for_category(player.inventory, cat)
+		var cell := HBoxContainer.new()
+		cell.add_theme_constant_override("separation", 4)
+		var ic := TextureRect.new()
+		ic.texture = ItemIcons.texture(sample_id)
+		ic.custom_minimum_size = Vector2(24, 24)
+		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		ic.modulate = Color.WHITE if have >= need else Color(1.0, 0.55, 0.45)
+		cell.add_child(ic)
+		var l := Label.new()
+		var d := Data.item(sample_id)
+		var nm := d.display_name if d and d.display_name != "" else str(cat).replace("_", " ")
+		l.text = "%s %d/%d" % [nm, mini(have, need), need]
+		l.add_theme_font_size_override("font_size", 13)
+		l.add_theme_color_override("font_color", Color(0.8, 0.85, 0.75) if have >= need else Color(1.0, 0.55, 0.45))
+		cell.add_child(l)
+		row.add_child(cell)
+	return row
 
 func _ingredients_text(rec: Dictionary) -> String:
 	var parts: PackedStringArray = []

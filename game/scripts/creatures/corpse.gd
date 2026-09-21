@@ -150,10 +150,41 @@ func _on_loot_empty() -> void:
 func _is_empty() -> bool:
 	return loot.used_slots() <= 0
 
+## Dropped loot on the floor: a billboard loot-bag symbol with the top item's icon over it,
+## bobbing gently (tap it to open the chest screen). Falls back to the Kenney box.
 func _build_marker() -> Node3D:
 	var marker := Node3D.new()
 	marker.name = "LootMarker"
 	add_child(marker)
+	var bag_tex := ItemIcons.texture(&"loot_bag")
+	if bag_tex:
+		var bag := Sprite3D.new()
+		bag.texture = bag_tex
+		bag.pixel_size = 0.0042
+		bag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		bag.shaded = false
+		bag.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		bag.position = Vector3(0, 0.42, 0)
+		marker.add_child(bag)
+		var top: ItemStack = null
+		for i in loot.slot_count:
+			if loot.slots[i]:
+				top = loot.slots[i]
+				break
+		if top:
+			var item := Sprite3D.new()
+			item.texture = ItemIcons.texture(top.def_id)
+			if item.texture:
+				item.pixel_size = 0.0026
+				item.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+				item.shaded = false
+				item.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+				item.position = Vector3(0.22, 0.78, 0)
+				marker.add_child(item)
+		var tw := create_tween().set_loops()
+		tw.tween_property(marker, "position:y", 0.14, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tw.tween_property(marker, "position:y", 0.02, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		return marker
 	var path := "res://assets/props/kenney/box-open.glb"
 	var placed := false
 	if ResourceLoader.exists(path):

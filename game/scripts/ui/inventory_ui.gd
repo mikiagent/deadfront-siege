@@ -24,6 +24,8 @@ func _ready() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	z_index = 40  # above the HUD (same UI layer, added later)
+	if Game.shot_path.contains("bag"):
+		get_tree().create_timer(0.9).timeout.connect(func () -> void: visible = true; rebuild())
 	_layout_safe()
 	var panel := ColorRect.new()
 	panel.color = Color(0.08, 0.08, 0.1, 0.88)
@@ -141,9 +143,11 @@ func rebuild() -> void:
 		var s := inventory.slots[i]
 		if s == null:
 			btn.text = ""
+			btn.icon = null
 			btn.tooltip_text = ""
 		elif str(s.def_id) == "_slot_lock":
 			btn.text = "—"
+			btn.icon = null
 			btn.tooltip_text = "occupied"
 		else:
 			var pip := ""
@@ -151,7 +155,7 @@ func rebuild() -> void:
 				pip = "L "
 			if s.is_unstable():
 				pip += "U "
-			btn.text = "%s%s\n%d" % [pip, s.def_id, s.count]
+			ItemIcons.style_slot(btn, s.def_id, "%s%d" % [pip, s.count])
 			btn.tooltip_text = s.tooltip()
 	for c in _pet_grid.get_children():
 		c.queue_free()
@@ -164,7 +168,7 @@ func rebuild() -> void:
 				b.tooltip_text = ""
 				b.disabled = true
 			else:
-				b.text = "%s\n%d" % [s.def_id, s.count]
+				ItemIcons.style_slot(b, s.def_id, str(s.count))
 				b.tooltip_text = s.tooltip()
 				b.disabled = false
 				if _readonly_reason() != "":

@@ -1,0 +1,10 @@
+Item symbols from game-icons.net, licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/).
+Recoloured and outlined for this game. Icons by author:
+
+caro-asercion: bowl-of-rice, clothesline, dumpling
+delapouite: animal-hide, arm-bandage, arm-sling, bamboo, barbecue, basket, berries-bowl, cactus, cage, camping-tent, clay-brick, clownfish, coal-pile, coconuts, cooking-pot, coral, corn, dog-bowl, empty-wood-bucket, fertilizer-bag, flax, flint-spark, full-wood-bucket, gate, grain, half-log, herbs-bundle, high-grass, hot-meal, kebab-spit, log, loincloth, night-sleep, oyster-pearl, paint-bucket, palm-tree, papyrus, peach, planks, plant-roots, plant-seed, plow, powder-bag, rake, reed, rolled-cloth, rope-coil, sewing-string, steak, stone-pile, sushis, swamp, vines, war-pick, well, wood-beam, wood-club
+faithtoken: minerals, ore
+lorc: anvil, bandage-roll, bone-knife, bowie-knife, broken-bone, burning-embers, campfire, cauldron, crystal-growth, dinosaur-bones, droplets, fishing-net, flowers, flying-flag, hot-spices, ice-cube, knapsack, leather-vest, leeching-worm, meat, metal-bar, mushroom, pine-tree, roast-chicken, salt-shaker, spine-arrow, stone-block, tree-branch, wheat, wood-axe, wooden-fence, wooden-sign
+lucasms: belt
+sbed: claw, lava
+skoll: ham-shank, pestle-mortar
