@@ -55,3 +55,7 @@ lights_and_shadows/directional_shadow/size.mobile=1024
 anti_aliasing/quality/msaa_3d=2
 anti_aliasing/quality/msaa_3d.mobile=0
 anti_aliasing/quality/msaa_3d.web=0
+
+[physics]
+
+common/physics_interpolation=true

@@ -32,6 +32,13 @@ const THIRST_PER_SEC := 100.0 / (30.0 * 60.0)
 ## Health regen pauses for REGEN_LOCK_S after any hit, otherwise small bites (compy 8 dmg every
 ## 1.2 s against 1.5 HP/s) were regenerated away and combat looked like it dealt no damage.
 @export var health_regen: float = 0.8
+## Stamina (the blue bar): running, sprinting, attacks, tackles and rolls spend it. It refills
+## fast out of combat and slowly in combat, after a short pause following any spend.
+const STAMINA_REGEN_CALM := 14.0
+const STAMINA_REGEN_COMBAT := 3.5
+const STAMINA_LOCK_S := 0.8
+var in_combat: bool = false
+var _stamina_lock: float = 0.0
 const REGEN_LOCK_S := 6.0
 var _regen_lock: float = 0.0
 @export var energy_regen: float = 2.0
@@ -47,7 +54,9 @@ func _process(delta: float) -> void:
 	_regen_lock = maxf(0.0, _regen_lock - delta)
 	if not blocks_regen and not starving and _regen_lock <= 0.0:
 		health = minf(effective_max_health(), health + health_regen * delta)
-	energy = minf(max_energy, energy + energy_regen * delta)
+	_stamina_lock = maxf(0.0, _stamina_lock - delta)
+	if _stamina_lock <= 0.0:
+		energy = minf(max_energy, energy + (STAMINA_REGEN_COMBAT if in_combat else STAMINA_REGEN_CALM) * delta)
 	var was := exhausted
 	exhausted = fatigue >= max_fatigue
 	if exhausted != was:
@@ -124,4 +133,13 @@ func spend_energy(amount: float) -> bool:
 	if energy < amount:
 		return false
 	energy -= amount
+	_stamina_lock = STAMINA_LOCK_S
 	return true
+
+## Continuous drain (running): returns false when empty so the caller drops to a walk.
+func drain_energy(per_second: float, delta: float) -> bool:
+	if energy <= 0.0:
+		return false
+	energy = maxf(0.0, energy - per_second * delta)
+	_stamina_lock = STAMINA_LOCK_S
+	return energy > 0.0

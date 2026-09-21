@@ -412,7 +412,11 @@ func _on_damaged(_amount: float, source: Node) -> void:
 		anim.play_clip(&"knockdown")
 		return
 	if not str(anim.current_clip).begins_with("attack"):
-		anim.play_clip(&"hit_react")
+		var authored: Dictionary = def.pipeline.get("authored_clips", {})
+		if authored.has("hit_react") or not view.using_glb:
+			view.flinch(1.4 if kind == &"crit" else 1.0)  # no real hurt clip: shove + nod instead
+		else:
+			anim.play_clip(&"hit_react")
 	if source:
 		aggroed.emit(source)
 		if brain:

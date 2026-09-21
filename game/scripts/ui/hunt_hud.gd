@@ -31,6 +31,7 @@ var _in_combat: bool = false
 var _combat_alpha: float = 0.0
 var _stance_label: Label
 var _toasts: Array = []
+var _notices: Array = []  # {text, t}
 var _ctx_hexes: Array[HexButton] = []
 var _ctx_ids: Array = []
 var _ctx_timer: float = 0.0
@@ -68,6 +69,8 @@ func _ready() -> void:
 		World.pioneer_changed.connect(_on_level_up)
 	if Game.shot_path.contains("skills") or Game.shot_path.contains("tree"):
 		get_tree().create_timer(0.8).timeout.connect(func () -> void: _toggle_skills("gathering" if Game.shot_path.contains("tree") else ""))
+	if Game.shot_path.contains("bigmap"):
+		get_tree().create_timer(0.9).timeout.connect(_open_map)
 	if Game.shot_path.contains("levelup"):
 		get_tree().create_timer(0.8).timeout.connect(func () -> void: World.pioneer_level += 1; World.pioneer_changed.emit(World.pioneer_level))
 	get_viewport().size_changed.connect(_layout)
@@ -124,6 +127,7 @@ func _build_minimap() -> void:
 	_minimap.name = "Minimap"
 	_minimap.size = Vector2(MAP_PX, MAP_PX)
 	_minimap.mouse_filter = Control.MOUSE_FILTER_STOP
+	_minimap.clip_contents = true
 	_minimap.draw.connect(_draw_minimap)
 	_minimap.gui_input.connect(func (ev: InputEvent) -> void:
 		if (ev is InputEventScreenTouch and not (ev as InputEventScreenTouch).pressed) or (ev is InputEventMouseButton and not (ev as InputEventMouseButton).pressed and (ev as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT):
@@ -324,7 +328,7 @@ func bite_on_player(amount: float, heavy: bool) -> void:
 func _draw_bites(cam: Camera3D) -> void:
 	if cam == null or player == null:
 		return
-	var chest := cam.unproject_position(player.global_position + Vector3(0, 0.95, 0))
+	var chest := cam.unproject_position(player.get_global_transform_interpolated().origin + Vector3(0, 0.95, 0))
 	for f in _player_floats:
 		var k: float = f["t"]
 		var a := 1.0 - smoothstep(0.55, 0.95, k)
@@ -360,6 +364,13 @@ func _draw_bites(cam: Camera3D) -> void:
 				draw_polyline(outline, edge, 1.5, true)
 		if k < 0.2 and heavy:
 			draw_rect(Rect2(0, 0, get_viewport_rect().size.x, get_viewport_rect().size.y), Color(0.9, 0.1, 0.1, 0.18 * (1.0 - k / 0.2)))
+
+func notice(text: String) -> void:
+	for n in _notices:
+		if n["text"] == text and n["t"] < 1.5:
+			n["t"] = 0.0
+			return
+	_notices.append({"text": text, "t": 0.0})
 
 func toast(id: StringName, n: int) -> void:
 	print("[ui] toast %s +%d" % [id, n])
@@ -400,8 +411,12 @@ func _refresh_context(delta: float) -> void:
 		var id := str(a["id"])
 		h.pressed.connect(func () -> void: player.context_action(id))
 		add_child(h)
-		h.position = Vector2(x, r.y - 70.0 - 26.0 - inset.y)
-		x -= 78.0
+		if id == "claim":
+			# Land claim lives by the minimap (it is about the map, not the fight).
+			h.position = Vector2(_minimap.position.x + MAP_PX - 70.0, _minimap.position.y + MAP_PX + 44.0)
+		else:
+			h.position = Vector2(x, r.y - 70.0 - 26.0 - inset.y)
+			x -= 78.0
 		_ctx_hexes.append(h)
 
 func _refresh_place_hexes() -> void:
@@ -561,10 +576,28 @@ func _toggle_skills(tree: String = "") -> void:
 	else:
 		_skills_sheet.open(player.skills, tree)
 
+var _map_screen: MapScreen
+
+func map_texture() -> ImageTexture:
+	_ensure_map_texture()
+	return _map_tex
+
+## The big map (minimap tap / map key). Travel routes moved onto it from the old text panel.
 func _open_map() -> void:
-	var ui = (load("res://scripts/ui/world_ui.gd") as GDScript).ensure()
-	if ui:
-		ui.show_map()
+	if _map_screen == null:
+		_map_screen = MapScreen.new()
+		_map_screen.name = "MapScreen"
+		_map_screen.hud = self
+		_map_screen.player = player
+		add_child(_map_screen)
+	if _map_screen.is_open():
+		_map_screen.close()
+	else:
+		_close_sheet()
+		_map_screen.open()
+
+func open_map() -> void:
+	_open_map()
 
 # ---------------------------------------------------------------- per frame
 
@@ -600,6 +633,9 @@ func _process(delta: float) -> void:
 	for t in _toasts:
 		t["t"] += delta
 	_toasts = _toasts.filter(func (t: Dictionary) -> bool: return t["t"] < 1.3)
+	for n in _notices:
+		n["t"] += delta
+	_notices = _notices.filter(func (n: Dictionary) -> bool: return n["t"] < 3.2)
 	for b in _bites:
 		b["t"] += delta
 	_bites = _bites.filter(func (b: Dictionary) -> bool: return b["t"] < 0.5)
@@ -624,7 +660,7 @@ func _draw() -> void:
 	var tfrac: float = v.thirst / maxf(1.0, v.max_thirst)
 	_bar(Vector2(x, y + 44), Vector2(230, 12), hfrac, Color(0.82, 0.16, 0.16) if hfrac <= 0.0 else Color(0.80, 0.50, 0.18), "🍖", "%.0f" % v.hunger)
 	_bar(Vector2(x, y + 62), Vector2(230, 12), tfrac, Color(0.82, 0.16, 0.16) if tfrac <= 0.0 else Color(0.25, 0.70, 0.85), "💧", "%.0f" % v.thirst)
-	_bar(Vector2(x, y + 80), Vector2(230, 8), clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0), Color(0.55, 0.55, 0.55), "", "")
+	_bar(Vector2(x, y + 80), Vector2(230, 8), clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0), Color(0.55, 0.55, 0.55) if not v.exhausted else Color(0.82, 0.3, 0.2), "💤", "fatigue %.0f" % v.fatigue)
 	if v.exhausted:
 		draw_string(_font, Vector2(x + 236, y + 88), "EXHAUSTED", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.6, 0.4))
 	elif hfrac <= 0.0 or tfrac <= 0.0:
@@ -660,7 +696,7 @@ func _draw() -> void:
 	# --- name under the survivor
 	var cam := get_viewport().get_camera_3d()
 	if cam:
-		var p := cam.unproject_position(player.global_position - Vector3(0, 0.05, 0))
+		var p := cam.unproject_position(player.get_global_transform_interpolated().origin - Vector3(0, 0.05, 0))
 		var name := player.display_name() if player.has_method("display_name") else "Survivor"
 		var nw := _font.get_string_size(name, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
 		draw_string(_font, Vector2(p.x - nw * 0.5 + 1, p.y + 21), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0, 0, 0, 0.7))
@@ -689,6 +725,16 @@ func _draw() -> void:
 		var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, 18).x
 		draw_rect(Rect2(r.x * 0.5 - tw * 0.5 - 10, ty - 20, tw + 20, 28), Color(0.05, 0.06, 0.08, 0.8 * alpha))
 		draw_string(_font, Vector2(r.x * 0.5 - tw * 0.5, ty), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, alpha))
+	# --- notices (refusals, hints) under the toasts, centre-top
+	for i in _notices.size():
+		var n: Dictionary = _notices[i]
+		var k: float = n["t"]
+		var alpha := 1.0 - smoothstep(2.4, 3.2, k)
+		var ny := 190.0 + float(i) * 30.0
+		var txt: String = n["text"]
+		var tw := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, 17).x
+		draw_rect(Rect2(r.x * 0.5 - tw * 0.5 - 12, ny - 20, tw + 24, 30), Color(0.35, 0.08, 0.06, 0.85 * alpha))
+		draw_string(_font, Vector2(r.x * 0.5 - tw * 0.5, ny + 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 0.9, 0.8, alpha))
 	# --- combat layer
 	if _combat_alpha > 0.01:
 		var a := _combat_alpha
@@ -768,15 +814,23 @@ func _draw_minimap() -> void:
 	if player == null:
 		return
 	var rt := World.runtime
+	# Camera-up map: the iso camera looks along a 45° diagonal, so a north-up map made running
+	# left read as south-west. Everything below is drawn rotated by the camera yaw around the
+	# centre (so screen-up on the map is screen-up in the world); the frame clips the corners.
+	var centre := Vector2(MAP_PX * 0.5, MAP_PX * 0.5)
+	var cam := get_viewport().get_camera_3d()
+	var cam_yaw := cam.global_rotation.y if cam else 0.0
+	c.draw_set_transform(centre, cam_yaw, Vector2.ONE)
 	if _map_tex and rt:
 		var size_m: float = float(rt.get("_size"))
-		var half := MAP_PX * 0.5 * MAP_SCALE  # metres covered from centre to edge
+		var span_px := MAP_PX * 1.45  # covers the frame's corners once rotated
+		var half := span_px * 0.5 * MAP_SCALE  # metres from centre to the drawn edge
 		var pp := player.global_position
 		var u0 := (pp.x - half + size_m * 0.5)
 		var v0 := (pp.z - half + size_m * 0.5)
-		c.draw_texture_rect_region(_map_tex, Rect2(Vector2.ZERO, c.size), Rect2(u0, v0, half * 2.0, half * 2.0))
+		c.draw_texture_rect_region(_map_tex, Rect2(Vector2(-span_px * 0.5, -span_px * 0.5), Vector2(span_px, span_px)), Rect2(u0, v0, half * 2.0, half * 2.0))
 		var to_px := func (w: Vector3) -> Vector2:
-			return Vector2((w.x - pp.x) / MAP_SCALE + MAP_PX * 0.5, (w.z - pp.z) / MAP_SCALE + MAP_PX * 0.5)
+			return Vector2((w.x - pp.x) / MAP_SCALE, (w.z - pp.z) / MAP_SCALE)
 		var camp: Vector3 = rt.get("_camp_pos")
 		var harb: Vector3 = rt.get("_harbour_pos")
 		c.draw_circle(to_px.call(camp), 4.0, Color(1.0, 0.85, 0.3))
@@ -789,15 +843,15 @@ func _draw_minimap() -> void:
 			if cr == null or cr.health.dead:
 				continue
 			var q: Vector2 = to_px.call(cr.global_position)
-			if q.x < 0 or q.y < 0 or q.x > MAP_PX or q.y > MAP_PX:
+			if q.length() > MAP_PX * 0.72:
 				continue
 			c.draw_circle(q, 2.5, Color(0.4, 0.9, 0.4) if cr.is_pet else Color(0.95, 0.35, 0.3))
-	# player arrow (north up; yaw around Y)
-	var centre := Vector2(MAP_PX * 0.5, MAP_PX * 0.5)
+	# player arrow: facing relative to the camera, so it points up when running up the screen
 	var yaw := player.visual.rotation.y if player.visual else 0.0
 	var fwd := Vector2(-sin(yaw), -cos(yaw))
 	var side := Vector2(-fwd.y, fwd.x)
-	c.draw_colored_polygon(PackedVector2Array([centre + fwd * 8.0, centre - fwd * 5.0 + side * 5.0, centre - fwd * 5.0 - side * 5.0]), Color(1, 1, 1))
+	c.draw_colored_polygon(PackedVector2Array([fwd * 8.0, -fwd * 5.0 + side * 5.0, -fwd * 5.0 - side * 5.0]), Color(1, 1, 1))
+	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(1, 1, 1, 0.35), false, 1.5)
 
 func _draw_pills(cam: Camera3D) -> void:

@@ -20,6 +20,16 @@ var _target_prev: Vector3 = Vector3.ZERO
 var _target_still_left: float = 0.0
 var _flank_sign: float = 1.0
 var _last_flank_log_s: float = -999.0
+## Herbivores flee, but after PROVOKE_HITS hits within a short window they turn and fight for
+## PROVOKE_SECONDS (a cornered/provoked grazer bites back), then go back to fleeing.
+const PROVOKE_HITS := 3
+const PROVOKE_SECONDS := 15.0
+var _hits_taken: int = 0
+var _last_hit_s: float = -999.0
+var _provoked_until: float = -1.0
+
+func _provoked() -> bool:
+	return _now_s() < _provoked_until
 
 static var _pack_cooldown_until: Dictionary = {} ## pack_id -> unix seconds
 
@@ -78,6 +88,16 @@ func note_damage(amount: float) -> void:
 	if creature == null or creature.health.dead:
 		return
 	var now := _now_s()
+	if now - _last_hit_s > 8.0:
+		_hits_taken = 0
+	_last_hit_s = now
+	_hits_taken += 1
+	if _is_herbivore() and _hits_taken >= PROVOKE_HITS and not _provoked():
+		_provoked_until = now + PROVOKE_SECONDS
+		print("[ai] %s provoked: fights back for %.0fs" % [creature.def.id, PROVOKE_SECONDS])
+		if _valid_target():
+			_set_state(&"approach")
+			creature.anim.play_clip(&"alert")
 	_damage_window.append({"t": now, "a": amount})
 	var total := 0.0
 	for i in range(_damage_window.size() - 1, -1, -1):
@@ -89,7 +109,8 @@ func note_damage(amount: float) -> void:
 	var trigger := creature.health.max_hp * float(profile.get("retreat_threshold_frac", 0.3))
 	if total >= trigger:
 		if _is_herbivore():
-			_set_state(&"flee")
+			if not _provoked():
+				_set_state(&"flee")
 		else:
 			_set_state(&"retreat")
 			_retreat_left = 1.2
@@ -112,7 +133,7 @@ func _think(delta: float) -> void:
 			if attack_target:
 				creature.face_towards(attack_target.global_position, delta)
 			if _alert_left <= 0.0:
-				_set_state(&"flee" if _is_herbivore() else &"approach")
+				_set_state(&"flee" if (_is_herbivore() and not _provoked()) else &"approach")
 		&"approach":
 			if not _valid_target():
 				_disengage()
@@ -176,7 +197,7 @@ func _approach(delta: float) -> void:
 	creature.face_towards(attack_target.global_position, delta)
 	var dist := creature.global_position.distance_to(attack_target.global_position)
 	if dist <= maxf(1.0, float(profile.get("attack_range", 1.8)) + 0.2):
-		if _is_herbivore() and not _cornered():
+		if _is_herbivore() and not _cornered() and not _provoked():
 			_set_state(&"flee")
 		else:
 			_set_state(&"attack")
@@ -225,6 +246,9 @@ func _flee(_delta: float) -> void:
 	if player == null:
 		_set_state(&"roam")
 		return
+	if _provoked() and _valid_target():
+		_set_state(&"approach")
+		return
 	var center := _herd_center()
 	var away := creature.global_position - player.global_position
 	away.y = 0.0
@@ -244,6 +268,8 @@ func _walk_home(_delta: float) -> void:
 		_set_state(&"roam")
 		attack_target = null
 		_disengage_left = 0.0
+		_hits_taken = 0
+		_provoked_until = -1.0
 
 func _disengage_track(delta: float) -> void:
 	if not _valid_target():

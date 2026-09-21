@@ -220,7 +220,7 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	root.modulate.a = alpha
 	var scale := _distance_scale(dist)
 	root.scale = Vector2(scale, scale)
-	var top := c.global_position + Vector3(0.0, c.def.height_meters + 0.3, 0.0)
+	var top := c.get_global_transform_interpolated().origin + Vector3(0.0, c.def.height_meters + 0.3, 0.0)
 	var screen := cam.unproject_position(top)
 	root.position = screen + Vector2(-BASE_WIDTH * 0.5 * scale, -70.0 * scale)
 	var line1 := entry["line1"] as Label

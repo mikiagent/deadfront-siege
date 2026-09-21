@@ -36,7 +36,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if player and player.placer and player.placer.placing != &"" and event.is_action_pressed("pause"):
 		return
 	if event.is_action_pressed("map"):
-		if _mode == &"map":
+		var hud := get_tree().get_first_node_in_group("hud")
+		if hud and hud.has_method("open_map"):
+			hud.open_map()  # toggles
+		elif _mode == &"map":
 			hide_all()
 		else:
 			show_map()
@@ -89,6 +92,11 @@ func show_harbour() -> void:
 	)
 
 func show_map() -> void:
+	var hud := get_tree().get_first_node_in_group("hud")
+	if hud and hud.has_method("open_map"):
+		hud.open_map()  # the drawn island map; this text panel is the lab fallback
+		_mode = &"map"
+		return
 	var life := "permanent" if World.is_home() else "%.0fs left" % World.remaining_lifetime
 	var crater := "yes" if World.crater_discovered else "no"
 	var player := get_tree().get_first_node_in_group("player") as Player

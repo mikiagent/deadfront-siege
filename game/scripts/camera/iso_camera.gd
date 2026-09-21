@@ -28,7 +28,9 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not _target:
 		return
-	var desired := _target.global_position + (-global_basis.z) * -distance
+	# Interpolated origin: the survivor moves on physics ticks, the camera every frame. Without
+	# this the survivor stepped 60 Hz under a 120 Hz camera and read as a doubled, smeared image.
+	var desired := _target.get_global_transform_interpolated().origin + (-global_basis.z) * -distance
 	global_position = global_position.lerp(desired, clampf(follow_lerp * delta, 0.0, 1.0))
 
 func _snap() -> void:

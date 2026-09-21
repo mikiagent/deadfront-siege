@@ -34,6 +34,23 @@ var _fx_tint: Color = Color.WHITE
 var _wobble: float = 0.0
 var _mount: Marker3D
 var _hit_flash_left: float = 0.0
+var _flinch_tw: Tween
+
+## Procedural hurt: a quick shove back and a nod, then settle. Used instead of the synthesised
+## hit_react clip ("death 0-35 % reversed") that made transplanted species start collapsing on
+## every hit. Works on the rig node (GLB) or the placeholder body.
+func flinch(strength: float = 1.0) -> void:
+	var node: Node3D = rig if (using_glb and rig) else _body
+	if node == null or def == null:
+		return
+	if _flinch_tw and _flinch_tw.is_valid():
+		_flinch_tw.kill()
+	var back := clampf(def.real_length_m * 0.07, 0.05, 0.35) * strength
+	_flinch_tw = create_tween()
+	_flinch_tw.tween_property(node, "position:z", back, 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_flinch_tw.parallel().tween_property(node, "rotation:x", -0.16 * strength, 0.07)
+	_flinch_tw.tween_property(node, "position:z", 0.0, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_flinch_tw.parallel().tween_property(node, "rotation:x", 0.0, 0.2)
 
 func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 	def = p_def

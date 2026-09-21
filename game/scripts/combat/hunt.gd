@@ -80,6 +80,9 @@ func _process(delta: float) -> void:
 	if player.global_position.distance_to(target.global_position) > 28.0:
 		stop()
 		return
+	# Square up to the target while close and not walking, so swings and punches land facing it.
+	if not player.nav_active and player.global_position.distance_to(target.global_position) <= 4.0:
+		player.face_world_smooth(target.global_position, delta)
 	_auto_attack()
 
 func _auto_attack() -> void:
@@ -98,6 +101,10 @@ func _auto_attack() -> void:
 		return
 	var w := player.inventory.equipped_weapon()
 	var def := w.def() if w else null
+	# Stamina: a punch costs 5, a weapon swing 8. Empty -> the swing waits for the refill.
+	if not player.vitals.spend_energy(5.0 if w == null else 8.0):
+		_swing_cd = 0.3
+		return
 	var rate := def.attack_rate if def and def.attack_rate > 0.0 else 1.0
 	var dmg := w.scaled_damage() if w else 8.0
 	var dtype := def.damage_type if def else &"blunt"
@@ -159,6 +166,9 @@ func use_tackle() -> void:
 		return
 	if player.global_position.distance_to(target.global_position) > 2.4:
 		return
+	if not player.vitals.spend_energy(15.0):
+		player.notice("Out of stamina.")
+		return
 	target.statuses.apply(&"groggy", player)
 	_tackle_cd = 8.0
 	player.play_attack(true)
@@ -168,6 +178,9 @@ func use_kick() -> void:
 	if target == null or _kick_cd > 0.0:
 		return
 	if player.global_position.distance_to(target.global_position) > 2.4:
+		return
+	if not player.vitals.spend_energy(10.0):
+		player.notice("Out of stamina.")
 		return
 	var away := (target.global_position - player.global_position).normalized() * 3.5
 	target.global_position += Vector3(away.x, 0, away.z)

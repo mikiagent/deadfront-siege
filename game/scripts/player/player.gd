@@ -89,6 +89,7 @@ var _force_clip_map: Array[StringName] = [
 ## True from the fatal hit until respawn(): no input, no regen, creatures lose interest,
 ## the death clip plays once and the rig stays on the floor. The HUD shows You Died + Respawn.
 var dead: bool = false
+var _last_hit_taken_s: float = -999.0
 
 func _ready() -> void:
 	if Game.lab_name != "" and get_parent() and get_parent().name == "DefaultPlayfield":
@@ -239,6 +240,13 @@ func clear_nav() -> void:
 	_path_index = 0
 	agent.target_position = global_position
 
+## Turn toward a point over time (combat facing while swinging).
+func face_world_smooth(pos: Vector3, delta: float, speed: float = 12.0) -> void:
+	var to := pos - global_position
+	to.y = 0.0
+	if to.length_squared() > 0.0001:
+		visual.rotation.y = lerp_angle(visual.rotation.y, atan2(-to.x, -to.z), clampf(speed * delta, 0.0, 1.0))
+
 func face_world(pos: Vector3) -> void:
 	var to := pos - global_position
 	to.y = 0.0
@@ -246,6 +254,7 @@ func face_world(pos: Vector3) -> void:
 		visual.rotation.y = atan2(-to.x, -to.z)  # RiggedModel faces -Z; yaw so -Z points at the target
 
 func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
+	_last_hit_taken_s = Time.get_ticks_msec() * 0.001
 	_cancel_gather_and_butcher()
 	if skills:
 		skills.add_xp("defense", 1)
@@ -301,6 +310,15 @@ func _physics_process(delta: float) -> void:
 	var dir := _cam_dir(input)
 	var can_sprint := Input.is_action_pressed("sprint") and not statuses.has_flag(&"no_sprint")
 	var running := can_sprint or (nav_active and not statuses.has_flag(&"no_sprint"))
+	# Stamina: sprint 9/s, tap-run 3/s; empty -> walk until it refills.
+	vitals.in_combat = (hunt != null and hunt.target != null) or (Time.get_ticks_msec() * 0.001 - _last_hit_taken_s) < 5.0
+	if running and velocity.length_squared() > 0.5:
+		if not vitals.drain_energy(9.0 if can_sprint else 3.0, delta):
+			running = false
+			can_sprint = false
+	elif running and vitals.energy <= 0.0:
+		running = false
+		can_sprint = false
 	var target_speed := sprint_speed if can_sprint else (run_speed if running else walk_speed)
 	target_speed *= statuses.move_mult()
 	if vitals.exhausted:
@@ -331,7 +349,11 @@ func _physics_process(delta: float) -> void:
 	if dir.length_squared() > 0.0:
 		var target_yaw := atan2(-dir.x, -dir.z)  # RiggedModel faces -Z (the old capsule faced +Z)
 		visual.rotation.y = lerp_angle(visual.rotation.y, target_yaw, turn_speed * delta)
-		vitals.add_fatigue(delta * (0.8 if can_sprint else (0.4 if running else 0.25)), &"walk")
+		# ASSUMPTION: walking 0.05/s, tap-running 0.09/s, sprint 0.2/s (was 0.25-0.8/s, which
+		# filled the bar in a few minutes and then blocked gathering).
+		vitals.add_fatigue(delta * (0.2 if can_sprint else (0.09 if running else 0.05)), &"walk")
+	elif not _gathering and hunt != null and hunt.target == null:
+		vitals.rest(delta * 0.35)  # standing still recovers fatigue slowly; tents and washing are faster
 	vitals.fatigue_gain_mult = 0.5 if _in_coziness() else 1.0
 	if in_water:
 		_wet_acc += delta
@@ -572,14 +594,11 @@ func _closest_nav_point(pos: Vector3) -> Vector3:
 
 func _begin_gather(node: HarvestNode) -> void:
 	if vitals.exhausted:
-		print("[item] too exhausted to gather")
-		return
+		notice("Exhausted: gathering slowly. Stand still, wash or rest in a tent.")
 	if node.required_tool_class != &"" and node.required_tool_class != &"none":
-		var tool := inventory.find_gather_tool(node.required_tool_class)
-		if tool == null:
+		if not _auto_equip_tool(node.required_tool_class):
 			print("[item] refused %s: need tool %s" % [node.node_id, node.required_tool_class])
 			return
-		print("[item] auto-equip %s %s" % [tool.def_id, node.required_tool_class])
 	var why := node.can_gather(inventory)
 	if why != "" and why != "depleted":
 		print("[item] refused %s: %s" % [node.node_id, why])
@@ -591,6 +610,20 @@ func _begin_gather(node: HarvestNode) -> void:
 	butcher_target = null
 	gather_target = node
 	nav_to(_closest_nav_point(node.global_position))
+
+## Put the right tool in hand for a job (axe for trees, pick for rocks, knife for corpses).
+## Returns false when the bag has none. The held-tool hex and the hand model follow.
+func _auto_equip_tool(tool_class: StringName) -> bool:
+	if tool_class == &"" or tool_class == &"none":
+		return true
+	var tool := inventory.find_gather_tool(tool_class)
+	if tool == null:
+		return false
+	var idx := inventory.slots.find(tool)
+	if idx >= 0 and idx != inventory.equipped_tool_index:
+		inventory.set_equipped_tool_index(idx)
+		print("[item] auto-equip %s %s" % [tool.def_id, tool_class])
+	return true
 
 func _begin_butcher(corpse: Corpse) -> void:
 	if vitals.exhausted:
@@ -638,6 +671,7 @@ func _on_arrived() -> void:
 		var why := gather_target.can_gather(inventory)
 		if why != "":
 			print("[item] refused %s: %s" % [gather_target.node_id, why])
+			notice("Can't gather: %s" % why.replace("_", " "))
 			_stop_gather_cycle()
 			gather_target = null
 			return
@@ -731,6 +765,7 @@ func _finish_gather() -> void:
 	var gained := before - left
 	if gained <= 0:
 		print("[item] refused %s: inventory_full" % gather_target.node_id)
+		notice("Bag is full.")
 		_stop_gather_cycle()
 		gather_target = null
 		return
@@ -749,7 +784,7 @@ func _finish_gather() -> void:
 
 func _start_gather_cycle(seconds: float) -> void:
 	_gathering = true
-	_gather_unit_time = maxf(0.1, seconds)
+	_gather_unit_time = maxf(0.1, seconds) * (1.6 if vitals.exhausted else 1.0)
 	_gather_left = _gather_unit_time
 	if anim:
 		anim.on_gather()
@@ -1014,6 +1049,9 @@ func debug_tap_screen(screen_pos: Vector2) -> StringName:
 
 func _try_roll() -> void:
 	if rolling or statuses.has_flag(&"no_roll") or statuses.has_flag(&"cannot_act"):
+		return
+	if not vitals.spend_energy(12.0):
+		notice("Out of stamina.")
 		return
 	rolling = true
 	_roll_left = 0.4
@@ -1378,6 +1416,7 @@ func respawn() -> void:
 			at.y += 0.6
 	velocity = Vector3.ZERO
 	global_position = at
+	reset_physics_interpolation()
 	if anim:
 		anim.revive()
 	print("[player] respawn at %s" % at)
@@ -1495,6 +1534,7 @@ func _open_corpse_loot(corpse: Corpse) -> void:
 	tame_target = null
 	tame_food_id = &""
 	_corpse_slot = -1
+	_auto_equip_tool(&"knife")
 	if global_position.distance_to(corpse.global_position) <= 2.6:
 		clear_nav()
 		face_world(corpse.global_position)
@@ -1543,6 +1583,13 @@ func toast(id: StringName, n: int) -> void:
 	var hud := get_tree().get_first_node_in_group("hud")
 	if hud and hud.has_method("toast"):
 		hud.toast(id, n)
+
+## Short on-screen line for refusals and hints (was print-only, so the game looked stuck).
+func notice(text: String) -> void:
+	print("[ui] notice %s" % text)
+	var hud := get_tree().get_first_node_in_group("hud")
+	if hud and hud.has_method("notice"):
+		hud.notice(text)
 
 ## Context hexes shown by the HUD, bottom-right (reference: drink/wash by water, cook at the fire…).
 func context_actions() -> Array:
