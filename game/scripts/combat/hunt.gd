@@ -101,10 +101,8 @@ func _auto_attack() -> void:
 		return
 	var w := player.inventory.equipped_weapon()
 	var def := w.def() if w else null
-	# Stamina: a punch costs 5, a weapon swing 8. Empty -> the swing waits for the refill.
-	if not player.vitals.spend_energy(5.0 if w == null else 8.0):
-		_swing_cd = 0.3
-		return
+	# The basic swing/punch is free: stamina only pays for sprint, roll, tackle and kick, so the
+	# survivor always keeps fighting.
 	var rate := def.attack_rate if def and def.attack_rate > 0.0 else 1.0
 	var dmg := w.scaled_damage() if w else 8.0
 	var dtype := def.damage_type if def else &"blunt"

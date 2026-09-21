@@ -34,8 +34,8 @@ const THIRST_PER_SEC := 100.0 / (30.0 * 60.0)
 @export var health_regen: float = 0.8
 ## Stamina (the blue bar): running, sprinting, attacks, tackles and rolls spend it. It refills
 ## fast out of combat and slowly in combat, after a short pause following any spend.
-const STAMINA_REGEN_CALM := 14.0
-const STAMINA_REGEN_COMBAT := 3.5
+const STAMINA_REGEN_CALM := 16.0   # out of combat: full bar in ~7 s
+const STAMINA_REGEN_COMBAT := 2.5  # in combat: a slow trickle
 const STAMINA_LOCK_S := 0.8
 var in_combat: bool = false
 var _stamina_lock: float = 0.0
