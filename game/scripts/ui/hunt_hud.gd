@@ -87,6 +87,7 @@ func _ready() -> void:
 						best = n
 			if best:
 				player.placer.pick_up(best)
+				player.placer.dragging = false
 		)
 	if Game.shot_path.contains("bigmap"):
 		get_tree().create_timer(0.9).timeout.connect(_open_map)
@@ -529,7 +530,7 @@ func _refresh_place_hexes() -> void:
 		var r := get_viewport_rect().size
 		_done_hex.position = Vector2(r.x * 0.5 - 36.0, r.y - 72.0 - 30.0)
 	for h in _place_hexes:
-		h.visible = placing
+		h.visible = placing and not layout  # layout mode is drag and drop, no confirm hexes
 	if not placing:
 		return
 	var cam := get_viewport().get_camera_3d()
@@ -864,7 +865,7 @@ func _draw() -> void:
 		draw_rect(Rect2(r.x * 0.5 - tw * 0.5 - 10, ty - 20, tw + 20, 28), Color(0.05, 0.06, 0.08, 0.8 * alpha))
 		draw_string(_font, Vector2(r.x * 0.5 - tw * 0.5, ty), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, alpha))
 	if player.placer and player.placer.layout_mode:
-		var hint := "Layout mode: tap a building to pick it up · tap a tile to move it · ✓ drop · ✕ put back · DONE saves" if player.placer.moving == null else "Tap a tile to move it · ↻ rotate · ✓ drop here · ✕ put it back"
+		var hint := "Layout mode: drag a building to move it · tap one to rotate · blue = ok, red = blocked · DONE saves" if player.placer.moving == null else "Release to drop (red snaps it back)"
 		var hw := _font.get_string_size(hint, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
 		draw_rect(Rect2(r.x * 0.5 - hw * 0.5 - 12, 150, hw + 24, 28), Color(0.05, 0.15, 0.3, 0.85))
 		draw_string(_font, Vector2(r.x * 0.5 - hw * 0.5, 170), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.85, 0.92, 1.0))

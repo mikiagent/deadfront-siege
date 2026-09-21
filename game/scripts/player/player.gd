@@ -484,6 +484,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			hunt.use_kick()
 		elif event.is_action_pressed("tactic_4"):
 			hunt.use_net()
+	if placer.layout_mode and placer.moving != null and placer.dragging and event.is_action_released("tap"):
+		placer.drag_end(self)
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("tap"):
 		if placer.layout_mode and placer.moving == null:
 			# Layout mode: a tap on a building picks it up; anything else is ignored.
@@ -495,7 +499,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if b is Node3D and BuildPlacer.is_movable(b):
 				placer.pick_up(b as Node3D)
 			else:
-				notice("Tap a building to pick it up, or DONE to finish.")
+				notice("Drag a building to move it · tap one to rotate · DONE saves.")
 			_hold_walk_candidate = false
 			get_viewport().set_input_as_handled()
 			return

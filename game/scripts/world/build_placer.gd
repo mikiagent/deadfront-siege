@@ -9,6 +9,9 @@ var placing: StringName = &""
 ## ghost, ✓ drops it, ✕ puts it back, DONE saves. Tiles glow blue when valid, red when not.
 var layout_mode: bool = false
 var moving: Node3D
+var dragging: bool = false
+var _press_t: float = 0.0
+var _press_pos: Vector2 = Vector2.ZERO
 var _moving_cell: Vector2i = Vector2i.ZERO
 var _moving_rot: int = 0
 var valid: bool = false
@@ -147,8 +150,50 @@ func pick_up(n: Node3D) -> bool:
 	_ghost_root.visible = true
 	_ghost_grid.visible = true
 	_ghost_cells.visible = true
+	dragging = true
+	_press_t = Time.get_ticks_msec() * 0.001
+	_press_pos = Game.pointer
 	print("[build] pick up %s from (%d,%d)" % [placing, cell.x, cell.y])
 	return true
+
+## Finger/mouse released: a quick tap rotates the building in place, a drag drops it where it
+## is if the spot is valid, otherwise it snaps back to where it came from.
+func drag_end(player: Player) -> void:
+	if moving == null:
+		return
+	dragging = false
+	var quick := (Time.get_ticks_msec() * 0.001 - _press_t) < 0.3 and Game.pointer.distance_to(_press_pos) < 14.0
+	if quick:
+		cell = _moving_cell
+		rot_step = posmod(_moving_rot + 1, 4)
+		_sync_grid_state()
+		if valid:
+			confirm(player)
+		else:
+			put_back()
+			if player.has_method("notice"):
+				player.notice("Can't rotate here: %s" % reason.replace("_", " "))
+		return
+	_sync_grid_state()
+	if valid:
+		confirm(player)
+	else:
+		var why := reason
+		put_back()
+		if player.has_method("notice"):
+			player.notice("Can't drop here: %s" % why.replace("_", " "))
+
+## While dragging, the footprint is centred under the finger.
+func _snap_centered() -> void:
+	var hit := _ground()
+	if hit.is_empty():
+		return
+	var grid := _grid()
+	var dims := grid.footprint(placing) if grid else Vector2i.ONE
+	if posmod(rot_step, 4) % 2 == 1:
+		dims = Vector2i(dims.y, dims.x)
+	var under := BuildGrid.tile_of(hit.position)
+	cell = under - Vector2i(int(dims.x / 2), int(dims.y / 2))
 
 ## Put a picked-up building back where it was (✕ while moving).
 func put_back() -> void:
@@ -212,7 +257,9 @@ func _process(_delta: float) -> void:
 	if placing == &"":
 		return
 	if moving == null:
-		_snap_to_pointer()  # a picked-up building only moves on taps
+		_snap_to_pointer()
+	elif dragging:
+		_snap_centered()  # follows the finger while held
 	_sync_grid_state()
 
 func confirm(player: Player) -> bool:
