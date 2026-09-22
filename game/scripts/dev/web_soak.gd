@@ -19,6 +19,10 @@ func run(host: Node) -> void:
 	if player == null or bench == null:
 		_fail("station acceptance missing player or workbench")
 		return
+	var tap_zone := bench.get_node_or_null("TapZone") as Area3D
+	if tap_zone == null or not player._is_interactable(tap_zone) or player._unwrap_tap(tap_zone) != bench:
+		_fail("workbench tap zone missing or does not route to station")
+		return
 	var cam := get_viewport().get_camera_3d()
 	var bench_screen := cam.unproject_position(bench.global_position + Vector3(0, 0.5, 0))
 	var kind := player.debug_tap_screen(bench_screen)

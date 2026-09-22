@@ -669,13 +669,17 @@ func _pick_interactable(hit: Dictionary) -> Object:
 	return best
 
 func _unwrap_tap(col: Object) -> Object:
-	if col is Area3D and (col as Area3D).get_parent() is HarvestNode:
-		return (col as Area3D).get_parent()
+	if col is Area3D:
+		var owner := (col as Area3D).get_parent()
+		if owner is HarvestNode or owner is CraftStation or owner is Bonfire:
+			return owner
 	return col
 
 func _is_interactable(col: Object) -> bool:
-	if col is Area3D and (col as Area3D).get_parent() is HarvestNode:
-		return true
+	if col is Area3D:
+		var owner := (col as Area3D).get_parent()
+		if owner is HarvestNode or owner is CraftStation or owner is Bonfire:
+			return true
 	if col is HarvestNode or col is Corpse or col is Creature or col is Bonfire or col is CraftStation or col is TamingPen:
 		return true
 	if col is Node:
