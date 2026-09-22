@@ -61,4 +61,16 @@ Field-notebook style approval applies to the visual direction shown in the Stego
 
 ### Stegosaurus journal page composition
 
-Use the single hind-print art (`stegosaurus-journal-tracks-v04-single-pes.png`) for the tracks/sign inset. Do not place the two-rail trackway on the page. `stegosaurus-journal-trackway-two-rail-unused-v04.png` is retained for research/reference history only.
+SUPERSEDED: Milan removed footprint/sign art from journal pages at 2026-09-21 21:35 CDT. The single-print and two-rail assets remain unused research/reference history only; environmental evidence may unlock a short text note.
+
+
+### Final Stegosaurus journal behavior art
+
+The standard creature page uses two behavior scenes, not a track/sign inset: an idle field observation and a combat/defense scene. Carry this idle+combat pattern forward for every dinosaur journal entry.
+
+| Scene | Final source | Status | Milan review | Proposed game path | Integration notes |
+|---|---|---|---|---|---|
+| Idle grazing | `journal/creatures/stegosaurus/stegosaurus-journal-idle-v01.png` | `APPROVED` | Approved as-is in authenticated iMessage context, 2026-09-21 21:37 CDT | `game/assets/journal/creatures/stegosaurus/idle.webp` | Calm grazing, planted feet, relaxed raised tail, no baked text. |
+| Combat knockback | `journal/creatures/stegosaurus/stegosaurus-journal-combat-v06-fixed.png` | `APPROVED` | New v06 frame: "That's better" - authenticated iMessage, 2026-09-21 21:50 CDT; then surgical four-spike correction | `game/assets/journal/creatures/stegosaurus/combat.webp` | Low three-quarter depth view; thagomizer contacts Deinonychus and knocks it right; second hunter pauses; no gore; exactly four spikes. |
+
+Superseded combat drafts v01-v05 are not integration candidates. The single pes print and two-rail trackway remain unused reference history only and must not appear in the page composition.
