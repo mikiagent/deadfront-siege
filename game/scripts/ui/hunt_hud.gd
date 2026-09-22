@@ -160,11 +160,7 @@ func _build_minimap() -> void:
 	_minimap.mouse_filter = Control.MOUSE_FILTER_STOP
 	_minimap.clip_contents = true
 	# Clip the map and every marker to a round field window.
-	var circle_shader := Shader.new()
-	circle_shader.code = "shader_type canvas_item; void fragment(){ vec2 q = UV - vec2(0.5); if (length(q) > 0.5) discard; COLOR = texture(TEXTURE, UV) * COLOR; }"
-	_minimap_material = ShaderMaterial.new()
-	_minimap_material.shader = circle_shader
-	_minimap.material = _minimap_material
+	_apply_minimap_mask()
 	World.island_changed.connect(_refresh_minimap_after_travel)
 	_minimap.draw.connect(_draw_minimap)
 	_minimap.gui_input.connect(func (ev: InputEvent) -> void:
@@ -175,17 +171,19 @@ func _build_minimap() -> void:
 	add_child(_minimap)
 
 func _refresh_minimap_after_travel(_id: StringName) -> void:
-	# WebGL can drop a CanvasItem material when the island swaps its large map texture.
-	# Rebind the retained material after the runtime and texture change have settled.
+	# The island signal fires before HuntHud creates the replacement map ImageTexture.
+	# In WebGL the texture upload can invalidate this CanvasItem material, so the mask is
+	# rebuilt in _ensure_map_texture after the new texture exists, not one frame early.
 	_map_tex = null
 	_map_island = &""
-	_minimap.material = _minimap_material
 	_minimap.queue_redraw()
-	call_deferred("_rebind_minimap_material")
 
-func _rebind_minimap_material() -> void:
+func _apply_minimap_mask() -> void:
+	var circle_shader := Shader.new()
+	circle_shader.code = "shader_type canvas_item; void fragment(){ vec2 q = UV - vec2(0.5); if (length(q) > 0.5) discard; COLOR = texture(TEXTURE, UV) * COLOR; }"
+	_minimap_material = ShaderMaterial.new()
+	_minimap_material.shader = circle_shader
 	_minimap.material = _minimap_material
-	_minimap.queue_redraw()
 
 func _hex(glyph: String, size_px: float = HEX, caption: String = "") -> HexButton:
 	var h := HexButton.new(size_px)
@@ -1083,6 +1081,9 @@ func _ensure_map_texture() -> void:
 	_map_tex = ImageTexture.create_from_image(img)
 	_map_island = World.island_id
 	_map_span = span
+	# Order matters on Compatibility/WebGL: recreate the mask only after the island texture
+	# upload. Rebinding before this point reproduced a raw square on the destination island.
+	_apply_minimap_mask()
 
 func _draw_minimap() -> void:
 	var c := _minimap
