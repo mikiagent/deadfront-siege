@@ -9,6 +9,9 @@ Approval is version-specific. `Milan review anchor` records the authenticated me
 | Species | Concept version | Status | Milan review anchor | Meshy route/task | Credits | Model output | Rig status | Clip matrix |
 |---|---|---|---|---|---:|---|---|---|
 | Stegosaurus | `creatures/stegosaurus/concept-sheet-v01.png` | `DRAFT` | Seen by Milan; approval not received | Not started | 0 | None | Not started | See below |
+| Deinonychus | `creatures/deinonychus/concept-sheet-v01.png` | `DRAFT` | - | Not started | 0 | None | Not started | Pending |
+| Velociraptor | `creatures/velociraptor/concept-sheet-v01.png` | `DRAFT` | - | Not started | 0 | None | Not started | Pending |
+| Utahraptor | `creatures/utahraptor/concept-sheet-v01.png` | `DRAFT` | - | Not started | 0 | None | Not started | Pending |
 
 ### Stegosaurus clip matrix
 
