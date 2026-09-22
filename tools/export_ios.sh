@@ -11,12 +11,19 @@ echo "Exporting iOS debug Xcode project → $OUT/durango.xcodeproj"
 "$G" --headless --path "$ROOT/game" --export-debug "iOS" "export/ios/durango.xcodeproj"
 # Godot writes an aps-environment entitlement even with push notifications off; a
 # free/personal provisioning profile rejects it, so strip it after every export.
-python3 - <<'PY'
-import pathlib, re
-for p in pathlib.Path("$OUT").rglob("*.entitlements"):
-    s = p.read_text(); s2 = re.sub(r"\s*<key>aps-environment</key>\s*<string>[^<]*</string>", "", s)
-    if s2 != s: p.write_text(s2); print("stripped aps-environment from", p)
-PY
+python3 - "$OUT" <<'PYENT'
+import pathlib, re, sys
+root = pathlib.Path(sys.argv[1])
+for p in root.rglob("*.entitlements"):
+    s = p.read_text()
+    s2 = re.sub(r"\s*<key>aps-environment</key>\s*<string>[^<]*</string>", "", s)
+    if s2 != s:
+        p.write_text(s2)
+        print("stripped aps-environment from", p)
+remaining = [str(p) for p in root.rglob("*.entitlements") if "aps-environment" in p.read_text()]
+if remaining:
+    raise SystemExit("aps-environment remains after export: " + ", ".join(remaining))
+PYENT
 # Official templates ship Intel-only simulator slices. If the self-built arm64 simulator
 # library exists (docs/release/simulator.md), fold it in so tools/sim_run.sh can build for
 # Apple Silicon simulators. Device builds are unaffected (separate slice).
