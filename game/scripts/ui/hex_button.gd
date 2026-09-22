@@ -17,6 +17,7 @@ var fill: Color = Color(0.07, 0.08, 0.09, 0.93)
 var badge: String = ""  # e.g. "⊘" when blocked
 var badge_color: Color = Color(0.85, 0.15, 0.12, 0.95)
 var label_text: String = ""   # optional label drawn to the right (station radial)
+var caption: String = ""      # action word drawn under the hex, outside the outline (rail, skills)
 var hint_text: String = ""    # small red line under the label (blocked reason)
 var cooldown: float = 0.0     # 0..1 remaining sweep
 var selected: bool = false
@@ -108,6 +109,18 @@ func _draw() -> void:
 		var bs := int(r * 0.40)
 		var w := font.get_string_size(bottom_text, HORIZONTAL_ALIGNMENT_CENTER, -1, bs).x
 		draw_string(font, Vector2(c.x - w * 0.5, c.y + r * 0.82), bottom_text, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, Color.WHITE)
+	if caption != "":
+		var cs := 13
+		var cap := UiTokens.ellipsis(font, caption, size.x * 1.25, cs)
+		var cw := font.get_string_size(cap, HORIZONTAL_ALIGNMENT_CENTER, -1, cs).x
+		var cx := c.x - cw * 0.5
+		# keep the word on screen when the hex hugs a screen edge (harbour / whistle hexes, right side)
+		var vw := get_viewport_rect().size.x
+		var gx := global_position.x
+		if gx + size.x > vw - 40.0:
+			cx = minf(cx, size.x + 6.0 - cw)
+		cx = maxf(cx, 4.0 - gx)
+		draw_string(font, Vector2(cx, c.y + r + 15.0), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, cs, Color(1, 1, 1, 0.55 if disabled else 1.0))
 	if badge != "":
 		var bc := c + Vector2(r * 0.55, -r * 0.55)
 		draw_circle(bc, r * 0.26, badge_color)

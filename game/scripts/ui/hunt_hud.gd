@@ -59,6 +59,7 @@ var _death_btn: Button
 const MAP_PX := 154.0
 const MAP_SCALE := 1.5  # metres per pixel
 const HEX := 64.0
+const CAPTION_H := 18.0  # room for the action word HexButton draws under a hex
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -117,13 +118,13 @@ func _layout() -> void:
 	var r := get_viewport_rect().size
 	var inset := _safe_insets()
 	_minimap.position = Vector2(r.x - MAP_PX - 16.0 - inset.x, 34.0 + inset.z)
-	var y := r.y - HEX - 14.0 - inset.y
+	var y := r.y - HEX - CAPTION_H - 14.0 - inset.y  # captions sit under the hexes, inside the safe area
 	var x := 16.0 + inset.w
 	for h in [_menu_hex, _pets_hex, _build_hex, _skills_hex]:
 		h.position = Vector2(x, y)
 		x += HEX + 10.0
 	for i in _food_hexes.size():
-		_food_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (HEX + 10.0), y - HEX - 12.0)
+		_food_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (HEX + 10.0), y - HEX - CAPTION_H - 12.0)
 	# Debug hex stays off the minimap. On a phone it drops to the lower right so the vitals can sit beside the map.
 	_inspect_hex.visible = Game.debug_overlay
 	if UiTokens.is_phone(r):
@@ -140,11 +141,11 @@ func _layout() -> void:
 	_auto_hex.position = Vector2(cx + 60.0, cy + 30.0)
 	_feed_hex.position = Vector2(cx - 170.0, cy - 20.0)
 	for i in _whistle_hexes.size():
-		_whistle_hexes[i].position = Vector2(r.x - 16.0 - inset.x - 62.0, r.y - 250.0 - inset.y - float(i) * 66.0)
+		_whistle_hexes[i].position = Vector2(r.x - 16.0 - inset.x - 62.0, r.y - 250.0 - inset.y - float(i) * (66.0 + CAPTION_H))
 	_stance_label.position = Vector2(cx + 20.0, cy + 118.0)
-	_chase_hex.position = Vector2(16.0 + inset.w, r.y - HEX * 2.0 - 40.0 - inset.y)
+	_chase_hex.position = Vector2(16.0 + inset.w, r.y - HEX * 2.0 - CAPTION_H * 2.0 - 40.0 - inset.y)
 	if _sheet:
-		_sheet.position = Vector2(16.0 + inset.w, r.y - HEX - 30.0 - inset.y - _sheet.size.y)
+		_sheet.position = Vector2(16.0 + inset.w, r.y - HEX - CAPTION_H - 30.0 - inset.y - _sheet.size.y)
 
 func _safe_insets() -> Vector4:  # x=right, y=bottom, z=top, w=left
 	return UiTokens.safe_insets(get_viewport())
@@ -174,7 +175,7 @@ func _build_minimap() -> void:
 func _hex(glyph: String, size_px: float = HEX, caption: String = "") -> HexButton:
 	var h := HexButton.new(size_px)
 	h.glyph = glyph
-	h.bottom_text = caption
+	h.caption = caption
 	add_child(h)
 	return h
 
@@ -190,7 +191,7 @@ func _build_menu_row() -> void:
 	for i in 2:
 		var fh := HexButton.new(HEX)
 		fh.glyph = "🍖"
-		fh.bottom_text = "EAT"
+		fh.caption = "EAT"
 		fh.color_icon = true
 		fh.visible = false
 		var qi := i
@@ -273,7 +274,7 @@ func _build_combat() -> void:
 	for s in specs:
 		var h := HexButton.new(72.0)
 		h.glyph = s[0]
-		h.bottom_text = s[2]
+		h.caption = s[2]
 		h.visible = false
 		h.pressed.connect(_on_skill.bind(StringName(s[1])))
 		add_child(h)
@@ -291,7 +292,7 @@ func _build_combat() -> void:
 	for spec in [["attack", "🦖", "SIC"], ["heel", "↩", "HEEL"], ["guard", "🛡", "GUARD"]]:
 		var wh := HexButton.new(64.0)
 		wh.glyph = spec[1]
-		wh.bottom_text = spec[2]
+		wh.caption = spec[2]
 		wh.visible = false
 		var cmd := StringName(str(spec[0]))
 		wh.pressed.connect(func () -> void:
@@ -302,7 +303,7 @@ func _build_combat() -> void:
 		_whistle_hexes.append(wh)
 	_feed_hex = HexButton.new(64.0)
 	_feed_hex.glyph = "FEED"
-	_feed_hex.bottom_text = "FEED"
+	_feed_hex.caption = "FEED"
 	_feed_hex.visible = false
 	_feed_hex.pressed.connect(func () -> void:
 		if player and player.hunt and player.hunt.target and FieldTame.can_attempt(player.hunt.target):
@@ -318,14 +319,14 @@ func _build_combat() -> void:
 	add_child(_stance_label)
 	_chase_hex = HexButton.new(HEX)
 	_chase_hex.glyph = "🏃"
-	_chase_hex.bottom_text = "CHASE"
+	_chase_hex.caption = "CHASE"
 	_chase_hex.visible = false
 	_chase_hex.pressed.connect(func () -> void:
 		if player and player.hunt:
 			player.hunt.hold = not player.hunt.hold
 			_chase_hex.selected = player.hunt.hold
 			_chase_hex.glyph = "✋" if player.hunt.hold else "🏃"
-			_chase_hex.bottom_text = "HOLD" if player.hunt.hold else "CHASE"
+			_chase_hex.caption = "HOLD" if player.hunt.hold else "CHASE"
 			_chase_hex.queue_redraw()
 	)
 	add_child(_chase_hex)
@@ -443,7 +444,7 @@ func _on_skill(id: StringName) -> void:
 func _build_place_hexes() -> void:
 	_done_hex = HexButton.new(64.0)
 	_done_hex.glyph = "✓"
-	_done_hex.bottom_text = "DONE"
+	_done_hex.caption = "DONE"
 	_done_hex.accent = UiTokens.TEAL
 	_done_hex.visible = false
 	_done_hex.pressed.connect(func () -> void:
@@ -456,7 +457,7 @@ func _build_place_hexes() -> void:
 	for sp in specs:
 		var h := HexButton.new(64.0)
 		h.glyph = sp[0]
-		h.bottom_text = sp[2]
+		h.caption = sp[2]
 		h.top_text = sp[3]
 		if sp[1] == "confirm":
 			h.accent = UiTokens.TEAL
@@ -548,10 +549,10 @@ func _refresh_context(delta: float) -> void:
 	for a in actions:
 		var h := HexButton.new(70.0)
 		h.glyph = str(a.get("glyph", ""))
-		h.bottom_text = str(a["label"]).to_upper()
+		h.caption = str(a["label"]).to_upper()
 		if h.glyph == "":
-			h.glyph = h.bottom_text
-			h.bottom_text = ""
+			h.glyph = h.caption
+			h.caption = ""
 		var id := str(a["id"])
 		h.pressed.connect(func () -> void: player.context_action(id))
 		add_child(h)
@@ -846,18 +847,32 @@ func _draw() -> void:
 	var y := 12.0 + inset.z
 	var phone := UiTokens.is_phone(r)
 	var map_left := _minimap.position.x
-	var panel_w := 236.0 if not phone else maxf(148.0, map_left - x - 8.0)
-	var bar_w := 176.0 if not phone else maxf(88.0, panel_w - 54.0)
-	draw_rect(Rect2(x - 8.0, y - 6.0, panel_w, 92.0), UiTokens.INK)
-	draw_circle(Vector2(x + 16.0, y + 16.0), 16.0, Color(0.08, 0.09, 0.11, 0.95))
-	draw_string(_font, Vector2(x, y + 21.0), str(World.pioneer_level), HORIZONTAL_ALIGNMENT_CENTER, 32.0, UiTokens.meta(r), Color.WHITE)
-	x += 38.0
-	_bar(Vector2(x, y), Vector2(bar_w, 12), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", "%.0f / %.0f" % [v.health, v.effective_max_health()])
-	_bar(Vector2(x, y + 18), Vector2(bar_w, 12), v.energy / maxf(1.0, v.max_energy), Color(0.20, 0.45, 0.80), "", "%.0f / %.0f" % [v.energy, v.max_energy])
+	# Desktop: 300 px panel, 16 px HP/energy bars with body-size numbers (the audit called the
+	# old 176 px / 12 px block "tiny desktop typography"). Phone keeps the compact block.
+	var panel_w := 300.0 if not phone else maxf(148.0, map_left - x - 8.0)
+	var bar_w := 232.0 if not phone else maxf(88.0, panel_w - 54.0)
+	var big := 16.0 if not phone else 12.0
+	var small := 10.0 if not phone else 8.0
+	var gap := 6.0 if not phone else 6.0
+	var num_px := UiTokens.body(r) - 1 if not phone else 12
+	var bar_px := UiTokens.meta(r) if not phone else 12
+	var panel_h := big * 2.0 + small * 2.0 + gap * 3.0 + 28.0
+	draw_rect(Rect2(x - 8.0, y - 6.0, panel_w, panel_h), UiTokens.INK)
+	var lvl_r := 18.0 if not phone else 16.0
+	draw_circle(Vector2(x + lvl_r, y + lvl_r), lvl_r, Color(0.08, 0.09, 0.11, 0.95))
+	draw_string(_font, Vector2(x, y + lvl_r + num_px * 0.36), str(World.pioneer_level), HORIZONTAL_ALIGNMENT_CENTER, lvl_r * 2.0, num_px, Color.WHITE)
+	x += lvl_r * 2.0 + 8.0
+	var yy := y
+	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", "%.0f / %.0f" % [v.health, v.effective_max_health()], num_px)
+	yy += big + gap
+	_bar(Vector2(x, yy), Vector2(bar_w, big), v.energy / maxf(1.0, v.max_energy), Color(0.20, 0.45, 0.80), "", "%.0f / %.0f" % [v.energy, v.max_energy], num_px)
+	yy += big + gap
 	var hfrac: float = v.hunger / maxf(1.0, v.max_hunger)
 	var tfrac: float = v.thirst / maxf(1.0, v.max_thirst)
-	_bar(Vector2(x, y + 36), Vector2(bar_w, 8), hfrac, UiTokens.DANGER if hfrac <= 0.0 else Color(0.80, 0.50, 0.18), "", "%.0f" % v.hunger)
-	_bar(Vector2(x, y + 50), Vector2(bar_w, 8), tfrac, UiTokens.DANGER if tfrac <= 0.0 else Color(0.25, 0.70, 0.85), "", "%.0f" % v.thirst)
+	_bar(Vector2(x, yy), Vector2(bar_w, small), hfrac, UiTokens.DANGER if hfrac <= 0.0 else Color(0.80, 0.50, 0.18), "", "%.0f" % v.hunger, bar_px)
+	yy += small + gap
+	_bar(Vector2(x, yy), Vector2(bar_w, small), tfrac, UiTokens.DANGER if tfrac <= 0.0 else Color(0.25, 0.70, 0.85), "", "%.0f" % v.thirst, bar_px)
+	yy += small + gap
 	var warn := ""
 	if hfrac <= 0.0 or tfrac <= 0.0:
 		warn = "STARVING" if hfrac <= 0.0 else "PARCHED"
@@ -868,7 +883,7 @@ func _draw() -> void:
 	elif v.thirsty():
 		warn = "THIRSTY: slow, weak regen"
 	if warn != "":
-		draw_string(_font, Vector2(x, y + 74), warn, HORIZONTAL_ALIGNMENT_LEFT, bar_w, UiTokens.meta(r), Color(1, 0.55, 0.4))
+		draw_string(_font, Vector2(x, yy + bar_px), warn, HORIZONTAL_ALIGNMENT_LEFT, bar_w, bar_px, Color(1, 0.55, 0.4))
 	# status badges live under the minimap (right side), left of the Claim hex
 	var mp0 := _minimap.position
 	var sx := mp0.x
@@ -988,7 +1003,7 @@ func _draw_target_plate(t: Creature, a: float) -> void:
 
 func _draw_quest(r: Vector2, mp: Vector2) -> void:
 	var phone := UiTokens.is_phone(r)
-	var w := MAP_PX if phone else 168.0
+	var w := MAP_PX if phone else 240.0  # wide enough for "Home Grassland" at heading size
 	var origin := Vector2(mp.x, mp.y + MAP_PX + 52.0) if phone else Vector2(mp.x - w - 12.0, mp.y)
 	if origin.x < 8.0:
 		origin.x = 8.0
@@ -1005,15 +1020,15 @@ func _draw_quest(r: Vector2, mp: Vector2) -> void:
 	draw_string(_font, origin + Vector2(12, 38), UiTokens.ellipsis(_font, island, w - 24.0, head), HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, head, UiTokens.TEXT)
 	draw_string(_font, origin + Vector2(12, 58), UiTokens.ellipsis(_font, objective, w - 24.0, UiTokens.meta(r)), HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, UiTokens.meta(r), UiTokens.TEXT)
 
-func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String) -> void:
+func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String, text_px: int = 12) -> void:
 	draw_rect(Rect2(pos, size), Color(0.08, 0.08, 0.1, 0.85))
 	draw_rect(Rect2(pos, Vector2(size.x * clampf(frac, 0.0, 1.0), size.y)), col)
 	draw_rect(Rect2(pos, size), Color(0, 0, 0, 0.6), false, 1.0)
 	if glyph != "":
 		draw_string(_font, pos + Vector2(-14, size.y - 3), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 	if text != "":
-		var w := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, 12).x
-		draw_string(_font, pos + Vector2(size.x - w - 6, size.y - 3), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color.WHITE)
+		var w := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, text_px).x
+		draw_string(_font, pos + Vector2(size.x - w - 6, size.y * 0.5 + text_px * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, text_px, Color.WHITE)
 
 # ---------------------------------------------------------------- minimap
 

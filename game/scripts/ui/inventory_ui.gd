@@ -32,8 +32,16 @@ var _equip_btn: Button
 var _food1_btn: Button
 var _food2_btn: Button
 var _close_btn: Button
-
-const SLOT := Vector2(48.0, 48.0)
+var _profile_col: VBoxContainer
+var _bag_col: VBoxContainer
+var _equip_col: VBoxContainer
+var _bag_label: Label
+var _equip_label: Label
+var _equip_grid: GridContainer
+var _equip_pad: Control
+var _stat_box: VBoxContainer
+var _stat_rows: Array[Label] = []
+var _slot_px: float = 64.0
 const EQUIP_LABELS := {"head": "Head", "body": "Body", "legs": "Legs", "accessory1": "Ring", "accessory2": "Ring", "weapon": "Weapon", "tool": "Tool", "food1": "Food 1", "food2": "Food 2"}
 const INK := Color(0.95, 0.95, 0.93)
 
@@ -61,6 +69,7 @@ func _ready() -> void:
 	var root := VBoxContainer.new()
 	root.add_theme_constant_override("separation", UiTokens.SPACE)
 	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.add_child(root)
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", UiTokens.SPACE)
@@ -90,23 +99,44 @@ func _ready() -> void:
 	_split.add_theme_constant_override("h_separation", UiTokens.SPACE * 2)
 	_split.add_theme_constant_override("v_separation", UiTokens.SPACE * 2)
 	_split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(_split)
 	var col_p := VBoxContainer.new()
+	col_p.add_theme_constant_override("separation", UiTokens.SPACE)
 	col_p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col_p.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_profile_col = col_p
 	_split.add_child(col_p)
 	_profile = Label.new()
 	_profile.add_theme_color_override("font_color", INK)
-	_profile.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_profile.custom_minimum_size = Vector2(180, 140)
+	_profile.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_profile.clip_text = true
+	_profile.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_profile.custom_minimum_size = Vector2(180, 0)
 	_profile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col_p.add_child(_profile)
+	_stat_box = VBoxContainer.new()
+	_stat_box.add_theme_constant_override("separation", UiTokens.SPACE)
+	_stat_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col_p.add_child(_stat_box)
+	for _i in 4:
+		var stat := Label.new()
+		stat.add_theme_color_override("font_color", INK)
+		stat.clip_text = true
+		stat.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		stat.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_stat_box.add_child(stat)
+		_stat_rows.append(stat)
 	var col_b := VBoxContainer.new()
+	col_b.add_theme_constant_override("separation", UiTokens.SPACE)
 	col_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col_b.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_bag_col = col_b
 	_split.add_child(col_b)
-	var bag_label := Label.new()
-	bag_label.text = "BAG"
-	bag_label.add_theme_color_override("font_color", UiTokens.META)
-	col_b.add_child(bag_label)
+	_bag_label = Label.new()
+	_bag_label.text = "BAG"
+	_bag_label.add_theme_color_override("font_color", UiTokens.META)
+	col_b.add_child(_bag_label)
 	_grid = GridContainer.new()
 	_grid.columns = 5
 	_grid.add_theme_constant_override("h_separation", UiTokens.SPACE)
@@ -115,37 +145,47 @@ func _ready() -> void:
 	for i in 20:
 		_grid.add_child(_mk_slot(i))
 	var col_e := VBoxContainer.new()
+	col_e.add_theme_constant_override("separation", UiTokens.SPACE)
 	col_e.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col_e.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_equip_col = col_e
 	_split.add_child(col_e)
-	var equip_label := Label.new()
-	equip_label.text = "EQUIPMENT"
-	equip_label.add_theme_color_override("font_color", UiTokens.META)
-	col_e.add_child(equip_label)
-	var equip_grid := GridContainer.new()
-	equip_grid.columns = 3
-	equip_grid.add_theme_constant_override("h_separation", UiTokens.SPACE)
-	equip_grid.add_theme_constant_override("v_separation", UiTokens.SPACE)
-	col_e.add_child(equip_grid)
+	_equip_label = Label.new()
+	_equip_label.text = "EQUIPMENT"
+	_equip_label.add_theme_color_override("font_color", UiTokens.META)
+	col_e.add_child(_equip_label)
+	_equip_pad = Control.new()
+	_equip_pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col_e.add_child(_equip_pad)
+	_equip_grid = GridContainer.new()
+	_equip_grid.columns = 3
+	_equip_grid.add_theme_constant_override("h_separation", UiTokens.SPACE)
+	_equip_grid.add_theme_constant_override("v_separation", UiTokens.SPACE)
+	col_e.add_child(_equip_grid)
 	var equip_order := ["head", "body", "legs", "weapon", "tool", "accessory1", "accessory2", "food1", "food2"]
 	for slot_name in equip_order:
 		var cell := VBoxContainer.new()
+		cell.add_theme_constant_override("separation", 4)
 		var cap := Label.new()
 		cap.text = str(EQUIP_LABELS.get(slot_name, slot_name))
-		cap.add_theme_font_size_override("font_size", 12)
 		cap.add_theme_color_override("font_color", UiTokens.META)
 		cap.clip_text = true
 		cap.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		cap.custom_minimum_size = Vector2(_slot_px, 0)
 		cell.add_child(cap)
-		var b := _btn("", SLOT)
+		var b := _btn("", _slot_vec())
 		_slot_style(b)
 		b.pressed.connect(_on_equip_slot_pressed.bind(slot_name))
 		cell.add_child(b)
-		equip_grid.add_child(cell)
+		_equip_grid.add_child(cell)
 		_equip_slots[slot_name] = b
 	_tip = Label.new()
+	_tip.text = "Tap an item."
 	_tip.add_theme_color_override("font_color", INK)
 	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_tip.custom_minimum_size = Vector2(180, 72)
+	_tip.clip_text = true
+	_tip.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_tip.custom_minimum_size = Vector2(180, 24)
 	_tip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col_e.add_child(_tip)
 	_storage_title = Label.new()
@@ -221,8 +261,11 @@ func _slot_style(b: Button, selected: bool = false) -> void:
 	b.add_theme_color_override("font_color", UiTokens.TEXT)
 	b.add_theme_font_size_override("font_size", 12)
 
+func _slot_vec() -> Vector2:
+	return Vector2(_slot_px, _slot_px)
+
 func _equip_slot(slot: String, pos: Vector2) -> void:
-	var b := _btn("", SLOT)
+	var b := _btn("", _slot_vec())
 	b.position = pos
 	_slot_style(b)
 	var sname: String = slot
@@ -237,14 +280,14 @@ func _equip_slot(slot: String, pos: Vector2) -> void:
 	_panel.add_child(cap)
 
 func _mk_slot(index: int) -> Button:
-	var b := _btn("", SLOT)
+	var b := _btn("", _slot_vec())
 	_slot_style(b)
 	if index >= 0:
 		b.pressed.connect(func () -> void: _select(index))
 	return b
 
 func _mk_storage_slot(index: int) -> Button:
-	var b := _btn("", SLOT)
+	var b := _btn("", _slot_vec())
 	_slot_style(b)
 	b.pressed.connect(func () -> void: _take_storage(index))
 	return b
@@ -307,10 +350,22 @@ func _layout_safe() -> void:
 		_profile.add_theme_font_size_override("font_size", body)
 	if _tip:
 		_tip.add_theme_font_size_override("font_size", UiTokens.meta(r))
+		_tip.custom_minimum_size = Vector2(180, UiTokens.meta(r) + UiTokens.SPACE * 2)
 	if _storage_title:
 		_storage_title.add_theme_font_size_override("font_size", body)
 	if _storage_note:
 		_storage_note.add_theme_font_size_override("font_size", UiTokens.meta(r))
+	if _profile:
+		_profile.add_theme_constant_override("line_spacing", UiTokens.SPACE)
+	if _bag_label:
+		_bag_label.add_theme_font_size_override("font_size", UiTokens.meta(r))
+	if _equip_label:
+		_equip_label.add_theme_font_size_override("font_size", UiTokens.meta(r))
+	for stat in _stat_rows:
+		stat.add_theme_font_size_override("font_size", body)
+	_apply_slot_metrics(r, safe)
+	if inventory != null:
+		_refresh_profile()
 
 # ---------------------------------------------------------------- rebuild
 
@@ -364,17 +419,100 @@ func rebuild() -> void:
 	_select(_selected if _selected >= 0 else -1)
 
 func _refresh_profile() -> void:
-	if _profile == null:
+	if _profile == null or inventory == null:
 		return
+	var view := get_viewport_rect().size
+	var body_px := UiTokens.body(view)
 	var name := _owner_player.display_name() if _owner_player else (World.player_name if World.player_name != "" else "Survivor")
 	var occupation := World.occupation.capitalize() if World.occupation != "" else "Survivor"
 	var hp: float = _owner_player.vitals.health if _owner_player and _owner_player.vitals else 0.0
 	var energy: float = _owner_player.vitals.energy if _owner_player and _owner_player.vitals else 0.0
 	var gathering: int = _owner_player.skills.level_of("gathering") if _owner_player and _owner_player.skills else 0
 	var font := ThemeDB.fallback_font
-	var name_w := maxf(120.0, _profile.size.x if _profile.size.x > 8.0 else 180.0)
-	name = UiTokens.ellipsis(font, name, name_w, UiTokens.body(get_viewport_rect().size))
-	_profile.text = "%s\n%s  ·  Lv. %d\n\nHP        %.0f\nEnergy    %.0f\nGathering %d\nBag       %d / %d" % [name, occupation, World.pioneer_level + 1, hp, energy, gathering, inventory.used_slots(), inventory.slot_count]
+	var name_w := _name_column_width(view)
+	name = UiTokens.ellipsis(font, name, name_w, body_px)
+	_profile.add_theme_font_size_override("font_size", body_px)
+	_profile.add_theme_constant_override("line_spacing", UiTokens.SPACE)
+	_profile.custom_minimum_size = Vector2(minf(180.0, name_w), body_px * 2 + UiTokens.SPACE)
+	_profile.text = "%s\n%s  ·  Lv. %d" % [name, occupation, World.pioneer_level + 1]
+	var lines: PackedStringArray = [
+		"HP        %.0f" % hp,
+		"Energy    %.0f" % energy,
+		"Gathering %d" % gathering,
+		"Bag       %d / %d" % [inventory.used_slots(), inventory.slot_count],
+	]
+	for i in _stat_rows.size():
+		_stat_rows[i].text = lines[i] if i < lines.size() else ""
+		_stat_rows[i].add_theme_font_size_override("font_size", body_px)
+
+func _name_column_width(view: Vector2) -> float:
+	var safe := UiTokens.safe_insets(get_viewport())
+	var panel_w := view.x - (24.0 + safe.w + safe.x)
+	if UiTokens.is_phone(view):
+		return maxf(160.0, panel_w - 8.0)
+	var used := 0.0
+	if _bag_col:
+		used += _bag_col.custom_minimum_size.x
+	if _equip_col:
+		used += _equip_col.custom_minimum_size.x
+	used += float(UiTokens.SPACE) * 4.0
+	return maxf(180.0, panel_w - used - 8.0)
+
+func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
+	var sep := float(UiTokens.SPACE)
+	var phone := UiTokens.is_phone(view)
+	var panel_w := maxf(280.0, view.x - (24.0 + safe.w + safe.x))
+	var panel_h := maxf(280.0, view.y - (24.0 + safe.z + safe.y))
+	var slot := 64.0
+	if phone:
+		slot = floorf((panel_w - sep * 4.0) / 5.0)
+		slot = clampf(slot, 56.0, 80.0)
+		if _bag_col:
+			_bag_col.custom_minimum_size = Vector2.ZERO
+			_bag_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if _equip_col:
+			_equip_col.custom_minimum_size = Vector2.ZERO
+			_equip_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if _equip_pad:
+			_equip_pad.custom_minimum_size = Vector2.ZERO
+	else:
+		var profile_floor := 280.0
+		var h_gaps := sep * 4.0
+		var inner_seps := sep * 6.0
+		var chrome := 44.0 + sep + 36.0 + sep
+		var label_h := float(UiTokens.meta(view)) + 4.0
+		var grid_h := panel_h - chrome - label_h - sep * 2.0
+		var by_h := floorf((grid_h - sep * 3.0) / 4.0)
+		var by_w := floorf((panel_w - h_gaps - profile_floor - inner_seps) / 8.0)
+		slot = maxf(64.0, minf(by_w, by_h))
+		var bag_w := 5.0 * slot + sep * 4.0
+		var equip_w := 3.0 * slot + sep * 2.0
+		if _bag_col:
+			_bag_col.custom_minimum_size = Vector2(bag_w, 0)
+			_bag_col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		if _equip_col:
+			_equip_col.custom_minimum_size = Vector2(equip_w, 0)
+			_equip_col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_slot_px = slot
+	var sz := _slot_vec()
+	for child in _grid.get_children():
+		if child is Control:
+			(child as Control).custom_minimum_size = sz
+	for key in _equip_slots.keys():
+		var button: Button = _equip_slots[key]
+		button.custom_minimum_size = sz
+		var cell := button.get_parent()
+		if cell and cell.get_child_count() > 0 and cell.get_child(0) is Label:
+			var cap := cell.get_child(0) as Label
+			cap.custom_minimum_size = Vector2(slot, 0)
+			cap.add_theme_font_size_override("font_size", UiTokens.meta(view))
+	for child in _pet_grid.get_children():
+		if child is Control:
+			(child as Control).custom_minimum_size = sz
+	if not phone and _equip_pad and _grid and _equip_grid:
+		var bag_h := _grid.get_combined_minimum_size().y
+		var equip_h := _equip_grid.get_combined_minimum_size().y
+		_equip_pad.custom_minimum_size = Vector2(0, maxf(0.0, (bag_h - equip_h) * 0.5))
 
 func _refresh_equipped() -> void:
 	for slot in _equip_slots.keys():

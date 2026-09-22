@@ -49,7 +49,7 @@ func refresh() -> void:
 		_icon = ItemIcons.texture(tool.def_id)
 		var d := tool.def()
 		var name := d.display_name if d and d.display_name != "" else str(tool.def_id).replace("_", " ")
-		_caption = name.to_upper().left(9)
+		_caption = name.to_upper()
 	queue_redraw()
 
 func open_swap_for_shot() -> void:
@@ -137,9 +137,18 @@ func _draw() -> void:
 		var w := font.get_string_size("—", HORIZONTAL_ALIGNMENT_CENTER, -1, gs).x
 		draw_string(font, Vector2(c.x - w * 0.5, c.y + gs * 0.2), "—", HORIZONTAL_ALIGNMENT_LEFT, -1, gs, Color(0.6, 0.6, 0.6))
 	if font:
-		var bs := int(r * 0.36)
-		var w := font.get_string_size(_caption, HORIZONTAL_ALIGNMENT_CENTER, -1, bs).x
-		draw_string(font, Vector2(c.x - w * 0.5, c.y + r * 0.82), _caption, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, Color.WHITE)
+		# Caption sits under the hex like every other action word (HexButton.caption) and is
+		# ellipsised and kept on screen; the slot hugs the bottom-right corner.
+		var bs := 13
+		var cap := UiTokens.ellipsis(font, _caption, size.x * 1.25, bs)
+		var w := font.get_string_size(cap, HORIZONTAL_ALIGNMENT_CENTER, -1, bs).x
+		var cx := c.x - w * 0.5
+		var gx := global_position.x
+		var vw := get_viewport_rect().size.x
+		if gx + size.x > vw - 40.0:
+			cx = minf(cx, size.x + 6.0 - w)  # right-edge hex: end the word at the hex edge
+		cx = maxf(cx, 4.0 - gx)
+		draw_string(font, Vector2(cx, c.y + r + 15.0), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, Color.WHITE)
 		var bc := c + Vector2(r * 0.55, -r * 0.55)
 		draw_circle(bc, r * 0.24, Color(0.2, 0.22, 0.26, 0.95))
 		var sw := font.get_string_size("⇄", HORIZONTAL_ALIGNMENT_CENTER, -1, 11).x

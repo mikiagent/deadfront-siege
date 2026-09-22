@@ -46,11 +46,16 @@ func _ready() -> void:
 	var detail_scroll := ScrollContainer.new()
 	detail_scroll.name = "DetailScroll"
 	detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	detail_scroll.clip_contents = true
 	add_child(detail_scroll)
+	var detail_margin := MarginContainer.new()
+	detail_margin.name = "DetailMargin"
+	detail_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_scroll.add_child(detail_margin)
 	_detail = Label.new()
 	_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	detail_scroll.add_child(_detail)
+	detail_margin.add_child(_detail)
 	_summon = Button.new()
 	_summon.custom_minimum_size = Vector2(220, 56)
 	_summon.add_theme_stylebox_override("normal", UiTokens.button_style(true))
@@ -79,24 +84,39 @@ func _layout() -> void:
 	_close.add_theme_font_size_override("font_size", UiTokens.body(view))
 	_active.position = Vector2(pad, 72)
 	_active.size = Vector2(view.x - pad * 2.0, 64)
+	var bar_h := maxf(_summon.custom_minimum_size.y, _close.custom_minimum_size.y)
+	var bottom_margin := bar_h + float(UiTokens.SPACE)
+	_apply_detail_margin(detail_scroll, int(bottom_margin))
 	if phone:
 		_list.position = Vector2(pad, 148)
 		_list.size = Vector2(view.x - pad * 2.0, 180)
-		if detail_scroll:
-			detail_scroll.position = Vector2(pad, 340)
-			detail_scroll.size = Vector2(view.x - pad * 2.0, maxf(120.0, view.y - 430.0))
-		_detail.custom_minimum_size = Vector2(view.x - pad * 2.0, 0)
 		_summon.position = Vector2(pad, view.y - 76.0)
 		_close.position = Vector2(view.x - pad - 160.0, view.y - 76.0)
+		if detail_scroll:
+			var scroll_top := 340.0
+			var scroll_bottom := _summon.position.y - float(UiTokens.SPACE)
+			detail_scroll.position = Vector2(pad, scroll_top)
+			detail_scroll.size = Vector2(view.x - pad * 2.0, maxf(120.0, scroll_bottom - scroll_top))
+		_detail.custom_minimum_size = Vector2(maxf(120.0, (detail_scroll.size.x if detail_scroll else view.x) - pad), 0)
 	else:
 		_list.position = Vector2(pad, 148)
 		_list.size = Vector2(minf(420.0, view.x * 0.34), view.y - 240.0)
-		if detail_scroll:
-			detail_scroll.position = Vector2(_list.position.x + _list.size.x + 24.0, 148)
-			detail_scroll.size = Vector2(maxf(180.0, view.x - detail_scroll.position.x - pad), view.y - 250.0)
-		_detail.custom_minimum_size = Vector2(maxf(180.0, view.x - (detail_scroll.position.x if detail_scroll else 0.0) - pad), 0)
-		_summon.position = Vector2(detail_scroll.position.x if detail_scroll else pad, view.y - 84.0)
+		var detail_x := _list.position.x + _list.size.x + 24.0
+		_summon.position = Vector2(detail_x, view.y - 84.0)
 		_close.position = Vector2(_summon.position.x + 236.0, view.y - 84.0)
+		if detail_scroll:
+			var scroll_top := 148.0
+			var scroll_bottom := _summon.position.y - float(UiTokens.SPACE)
+			detail_scroll.position = Vector2(detail_x, scroll_top)
+			detail_scroll.size = Vector2(maxf(180.0, view.x - detail_x - pad), maxf(120.0, scroll_bottom - scroll_top))
+		_detail.custom_minimum_size = Vector2(maxf(180.0, (detail_scroll.size.x if detail_scroll else 180.0) - 4.0), 0)
+
+func _apply_detail_margin(detail_scroll: Control, bottom_margin: int) -> void:
+	if detail_scroll == null:
+		return
+	var margin := detail_scroll.get_node_or_null("DetailMargin") as MarginContainer
+	if margin:
+		margin.add_theme_constant_override("margin_bottom", bottom_margin)
 
 func open(p: Player) -> void:
 	player = p

@@ -236,10 +236,11 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	actions.add_theme_constant_override("separation", 8)
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 8)
-	panel.add_child(stack if phone else h)
-	if phone:
-		stack.add_child(h)
-		stack.add_child(actions)
+	# Buttons sit under the title so the name row keeps the column width.
+	# Only the recipe name ellipsises; Lv / time keeps a reserved width.
+	panel.add_child(stack)
+	stack.add_child(h)
+	stack.add_child(actions)
 	var out_row0: Dictionary = rec.get("output", {})
 	var out_icon := TextureRect.new()
 	out_icon.texture = ItemIcons.texture(StringName(str(out_row0.get("id", ""))))
@@ -251,24 +252,46 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	var text := VBoxContainer.new()
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(text)
-	var name := Label.new()
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", UiTokens.SPACE)
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.add_child(line)
 	var out_row: Dictionary = rec.get("output", {})
 	var out_def := Data.item(StringName(str(out_row.get("id", ""))))
 	var out_name := out_def.display_name if out_def and out_def.display_name != "" else str(rec.get("display_name", rec.get("id", "?")))
-	var name_w := 148.0 if phone else 220.0
-	name.text = UiTokens.ellipsis(ThemeDB.fallback_font, "%s   Lv %d · %.1fs" % [out_name, Crafting.preview_level(player.inventory, rec), Crafting.recipe_seconds(rec)], name_w, 16)
+	var view := get_viewport_rect().size
+	var name_px := UiTokens.body(view)
+	var font := ThemeDB.fallback_font
+	var level := Crafting.preview_level(player.inventory, rec)
+	var seconds := Crafting.recipe_seconds(rec)
+	var meta_text := "Lv %d · %.1fs" % [level, seconds]
+	var reserve_w := font.get_string_size("Lv 60 · 3.0s", HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x if font else 108.0
+	var actual_w := font.get_string_size(meta_text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x if font else reserve_w
+	var meta_w := maxf(reserve_w, actual_w) + float(UiTokens.SPACE)
+	var name := Label.new()
+	name.text = out_name
 	name.clip_text = true
 	name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	name.custom_minimum_size = Vector2(name_w, 0)
+	name.custom_minimum_size = Vector2(0, name_px + 4)
 	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name.add_theme_font_size_override("font_size", 16)
+	name.add_theme_font_size_override("font_size", name_px)
 	name.add_theme_color_override("font_color", Color.WHITE if can else Color(0.75, 0.75, 0.75))
-	text.add_child(name)
+	line.add_child(name)
+	var meta := Label.new()
+	meta.text = meta_text
+	meta.clip_text = false
+	meta.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	meta.custom_minimum_size = Vector2(ceilf(meta_w), name_px + 4)
+	meta.size_flags_horizontal = Control.SIZE_SHRINK_END
+	meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	meta.add_theme_font_size_override("font_size", name_px)
+	meta.add_theme_color_override("font_color", Color.WHITE if can else Color(0.75, 0.75, 0.75))
+	line.add_child(meta)
 	var pick := Button.new()
 	pick.text = "Details"
 	pick.custom_minimum_size = Vector2(88, 44)
 	pick.pressed.connect(_choose_recipe.bind(str(rec.get("id", ""))))
-	(actions if phone else h).add_child(pick)
+	actions.add_child(pick)
 	var btn_text := "Craft"
 	if not have:
 		btn_text = "Missing"
@@ -280,10 +303,10 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	b.disabled = not can
 	b.clip_text = true
 	b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	(actions if phone else h).add_child(b)
+	actions.add_child(b)
 	var b5 := _mk_btn("×5", _start.bind(rec, 5), Vector2(64, 56))
 	b5.disabled = not can
-	(actions if phone else h).add_child(b5)
+	actions.add_child(b5)
 	return panel
 
 ## Icon + "have/need" per slot; red when short.
@@ -446,6 +469,19 @@ func _layout_safe() -> void:
 	var phone := UiTokens.is_phone(view)
 	if _body:
 		_body.columns = 1 if phone else 3
+	if _list:
+		var list_scroll := _list.get_parent() as Control
+		if list_scroll:
+			list_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			list_scroll.size_flags_stretch_ratio = 1.0 if phone else 1.7
+	if _tabs:
+		var tab_scroll := _tabs.get_parent() as Control
+		if tab_scroll:
+			tab_scroll.size_flags_stretch_ratio = 1.0
+	if _detail:
+		var detail_scroll := _detail.get_parent() as Control
+		if detail_scroll:
+			detail_scroll.size_flags_stretch_ratio = 1.0
 	var inner_h := maxf(180.0, view.y - 36.0 - safe.y - safe.z)
 	var section_h := maxf(112.0, (inner_h - 72.0) / 3.0) if phone else 220.0
 	for scroll_name in ["tab", "list", "detail"]:

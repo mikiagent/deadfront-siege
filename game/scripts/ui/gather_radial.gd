@@ -234,7 +234,9 @@ func _anchor() -> Vector2:
 func _layout() -> void:
 	var base := _anchor()
 	var view := get_viewport_rect().size
-	var spots := ContextRadial.hex_positions(base, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX)
+	var tf := ThemeDB.fallback_font
+	var tw := tf.get_string_size(UiTokens.ellipsis(tf, _node_name(), 168.0, UiTokens.body(view)), HORIZONTAL_ALIGNMENT_CENTER, -1, UiTokens.body(view)).x + 20.0
+	var spots := ContextRadial.hex_positions(base, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX, tw)
 	for i in _buttons.size():
 		if i < spots.size():
 			_buttons[i].position = spots[i]
@@ -256,19 +258,30 @@ func _draw() -> void:
 	var name := UiTokens.ellipsis(font, _node_name(), 168.0, UiTokens.body(view))
 	var ns := UiTokens.body(view)
 	var nw := font.get_string_size(name, HORIZONTAL_ALIGNMENT_CENTER, -1, ns).x
-	var name_pos := Vector2(ground.x - nw * 0.5, ground.y + minf(r, 72.0) * 0.35 + 18.0)
+	# Name and level sit in the middle of the ring (Durango), not under it where the lower hexes go.
+	var name_pos := Vector2(ground.x - nw * 0.5, ground.y + 4.0)
+	name_pos.x = clampf(name_pos.x, 8.0, maxf(8.0, view.x - nw - 28.0))
+	# Near a screen edge the ring is clamped into a column; keep the name clear of every hex.
+	var title_rect := Rect2(name_pos + Vector2(-10, -ns), Vector2(nw + 20, ns + 30))
+	for b in _buttons:
+		var hr := Rect2(b.position, b.size).grow(4.0)
+		if title_rect.intersects(hr):
+			var left_x := hr.position.x - title_rect.size.x - 8.0
+			var right_x := hr.end.x + 8.0
+			name_pos.x = (left_x if left_x >= 8.0 else minf(right_x, view.x - nw - 28.0)) + 10.0
+			title_rect.position.x = name_pos.x - 10.0
 	draw_rect(Rect2(name_pos + Vector2(-10, -ns), Vector2(nw + 20, ns + 8)), UiTokens.INK)
 	draw_string(font, name_pos, name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
 	var lv := "Lv. %d" % level
 	var lw := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, UiTokens.meta(view)).x
-	draw_string(font, Vector2(ground.x - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
+	draw_string(font, Vector2(name_pos.x + nw * 0.5 - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
 	for i in _buttons.size():
 		var b := _buttons[i]
 		var text: String = UiTokens.ellipsis(font, str(_labels[i]["text"]), 148.0, UiTokens.body(view))
 		var reason: String = str(_labels[i]["reason"])
 		var ts := UiTokens.body(view)
 		var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x
-		var left := ContextRadial.label_on_left(b.position, b.size.x, view)
+		var left := ContextRadial.label_on_left(b.position, b.size.x, view, base)
 		var pos := b.position + (Vector2(-tw - 14.0, b.size.y * 0.5) if left else Vector2(b.size.x + 8.0, b.size.y * 0.5))
 		pos.x = clampf(pos.x, 8.0, maxf(8.0, view.x - tw - 16.0))
 		draw_rect(Rect2(pos + Vector2(-4, -14), Vector2(tw + 12, 26)), UiTokens.INK)
