@@ -43,6 +43,11 @@ func _ready() -> void:
 				_gather_test(player)
 			if "--combat-test" in OS.get_cmdline_user_args():
 				_combat_test(player)
+			if "--bot" in OS.get_cmdline_user_args():
+				var bot = (load("res://scripts/dev/bot_survivor.gd") as GDScript).new()
+				bot.name = "BotSurvivor"
+				add_child(bot)
+				bot.run(self)
 			if "--web-soak" in OS.get_cmdline_user_args() or "--web-soak" in OS.get_cmdline_args():
 				var soak = (load("res://scripts/dev/web_soak.gd") as GDScript).new()
 				soak.name = "WebSoak"

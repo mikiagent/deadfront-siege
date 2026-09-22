@@ -1009,16 +1009,24 @@ func _draw_quest(r: Vector2, mp: Vector2) -> void:
 		origin.x = 8.0
 	draw_rect(Rect2(origin, Vector2(w, 72.0)), UiTokens.INK)
 	draw_rect(Rect2(origin, Vector2(3.0, 72.0)), UiTokens.TEAL)
-	var island := str(World.island_id).replace("_", " ").capitalize()
-	if island == "":
-		island = "Uncharted"
-	var objective := "Settle and gather" if World.is_home() else "Survive, then return"
-	if World.island_id == &"":
-		objective = "Lab range"
+	var step := Objectives.current(player)
 	var head := UiTokens.heading(r) - 4
-	draw_string(_font, origin + Vector2(12, 16), "NOW", HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, UiTokens.meta(r), UiTokens.META)
-	draw_string(_font, origin + Vector2(12, 38), UiTokens.ellipsis(_font, island, w - 24.0, head), HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, head, UiTokens.TEXT)
-	draw_string(_font, origin + Vector2(12, 58), UiTokens.ellipsis(_font, objective, w - 24.0, UiTokens.meta(r)), HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, UiTokens.meta(r), UiTokens.TEXT)
+	var meta_px := UiTokens.meta(r)
+	if step.is_empty():
+		var island := str(World.island_id).replace("_", " ").capitalize()
+		if island == "":
+			island = "Uncharted"
+		draw_string(_font, origin + Vector2(12, 16), "NOW", HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, meta_px, UiTokens.META)
+		draw_string(_font, origin + Vector2(12, 38), UiTokens.ellipsis(_font, island, w - 24.0, head), HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, head, UiTokens.TEXT)
+		draw_string(_font, origin + Vector2(12, 58), "Survive, then return", HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, meta_px, UiTokens.TEXT)
+		return
+	draw_string(_font, origin + Vector2(12, 16), "ORDERS %d/%d" % [int(step["index"]) + 1, int(step["count"])], HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, meta_px, UiTokens.META)
+	draw_string(_font, origin + Vector2(12, 38), UiTokens.ellipsis(_font, str(step["title"]), w - 24.0, head), HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, head, UiTokens.TEXT)
+	draw_string(_font, origin + Vector2(12, 58), UiTokens.ellipsis(_font, str(step["hint"]), w - 60.0, meta_px), HORIZONTAL_ALIGNMENT_LEFT, w - 60.0, meta_px, UiTokens.META)
+	var pw := _font.get_string_size(str(step["progress"]), HORIZONTAL_ALIGNMENT_LEFT, -1, meta_px).x
+	draw_string(_font, origin + Vector2(w - pw - 12.0, 58), str(step["progress"]), HORIZONTAL_ALIGNMENT_LEFT, -1, meta_px, UiTokens.TEAL)
+	# A thin fill along the card's left edge shows how close the order is to done.
+	draw_rect(Rect2(origin, Vector2(3.0, 72.0 * float(step["frac"]))), UiTokens.TEAL)
 
 func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String, text_px: int = 12) -> void:
 	draw_rect(Rect2(pos, size), Color(0.08, 0.08, 0.1, 0.85))
@@ -1148,11 +1156,17 @@ func _draw_pills(cam: Camera3D) -> void:
 			radial_node = gr.node
 	var rows: Array = []
 	var pp := player.global_position
+	# A bonfire is in "placed_building", "craft_station" AND "bonfire", so without this the camp
+	# drew three identical labels stacked on one object.
+	var labelled := {}
 	for grp in ["placed_building", "craft_station", "bonfire", "taming_pen", "cargo_warp", "harbour", "harvest"]:
 		for n in get_tree().get_nodes_in_group(grp):
 			var n3 := n as Node3D
 			if n3 == null or not n3.visible or n3 == radial_node:
 				continue
+			if labelled.has(n3.get_instance_id()):
+				continue
+			labelled[n3.get_instance_id()] = true
 			var d := pp.distance_to(n3.global_position)
 			# World labels are interaction hints, not permanent billboards. Keep the scene
 			# clean until the survivor is close or the object is actively inspected.
@@ -1163,6 +1177,9 @@ func _draw_pills(cam: Camera3D) -> void:
 	rows.sort_custom(func (a: Array, b: Array) -> bool: return a[0] < b[0])
 	var pending: Array = []
 	var shown := 0
+	# Durango labels the thing you are about to use, not every trunk in the grove. Two of any
+	# one kind is enough to read the area; the rest would be a wall of identical chips.
+	var per_kind := {}
 	for row in rows:
 		if shown >= 12:
 			break
@@ -1195,7 +1212,12 @@ func _draw_pills(cam: Camera3D) -> void:
 				name = "Cargo Warp"
 			elif grp == "harbour":
 				name = "Harbour"
-		var priority := 100 if n3 == radial_node or n3 == player.gather_target else int(40.0 - d)
+		var active_row := n3 == radial_node or n3 == player.gather_target
+		var kind_n := int(per_kind.get(name, 0))
+		if kind_n >= 2 and not active_row:
+			continue
+		per_kind[name] = kind_n + 1
+		var priority := 100 if active_row else int(40.0 - d)
 		if name == "Workbench" or name == "Cargo Warp":
 			priority += 5
 		var text := UiTokens.ellipsis(_font, name, UiTokens.LABEL_MAX_W - 28.0, 14)

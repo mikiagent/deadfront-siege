@@ -14,6 +14,7 @@ var nature_families: Dictionary = {}
 var world_rules: Dictionary = {}
 var world_climates: Dictionary = {}
 var world_islands: Dictionary = {}
+var world_objectives: Array = [] ## ordered standing orders; see data/world/objectives.json
 var props_manifest: Dictionary = {}
 var creature_ai: Dictionary = {}
 
@@ -171,6 +172,9 @@ func _load_world() -> void:
 	world_climates = _parse_json("res://data/world/climates.json")
 	world_islands = _parse_json("res://data/world/islands.json")
 	props_manifest = _parse_json("res://data/props_manifest.json")
+	var obj := _parse_json("res://data/world/objectives.json")
+	var steps: Variant = obj.get("steps", [])
+	world_objectives = steps if steps is Array else []
 
 func _load_creature_ai(path: String) -> void:
 	if not FileAccess.file_exists(path):

@@ -14,6 +14,9 @@ var pioneer_xp: int = 0
 var home_claims: Array = []  # [[x, z, w, d], ...] tile rects on the home island (saved)
 var unstable_claims: Array = []  # same, current unstable island only (not saved)
 var free_claim_used: bool = false
+var objective: int = 0 ## index into Data.world_objectives; the survivor's standing orders
+var objective_best: int = 0 ## high-water progress on the current order (materials get spent)
+var _objective_acc: float = 0.0
 var player_name: String = ""
 var occupation: String = ""  # gathers +1, crafts +10, buildings +15; bar wraps every 100 (ASSUMPTION)
 var pioneer_crafts: Dictionary = {}
@@ -52,6 +55,12 @@ func _process(delta: float) -> void:
 		if remaining_lifetime <= 0.0:
 			print("[world] island sinking — return to camp")
 			recall_camp()
+	_objective_acc += delta
+	if _objective_acc >= 0.5:
+		_objective_acc = 0.0
+		var p := _player()
+		if p and not p.dead:
+			Objectives.settle(p)
 	_save_acc += delta
 	if _save_acc >= 60.0:
 		_save_acc = 0.0

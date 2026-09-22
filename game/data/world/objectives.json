@@ -1,0 +1,93 @@
+{
+  "_about": "The survivor's standing orders: one objective at a time, in order, shown on the HUD card. Every condition is read from state the player can already see (bag contents, bonded animals, which island you are on), so no system has to report completion. Rewards are pioneer XP and T-stones. Added 2026-09-22 after a bot playthrough found the early game had no stated goal at all.",
+  "steps": [
+    {
+      "id": "branches",
+      "title": "Gather 3 branches",
+      "hint": "Tap a tree and pick Branch from the wheel",
+      "have": { "branch": 3 },
+      "xp": 20
+    },
+    {
+      "id": "stone",
+      "title": "Pick up 2 stones",
+      "hint": "Loose rock comes up by hand",
+      "have": { "stone": 2 },
+      "xp": 20
+    },
+    {
+      "id": "fibre",
+      "title": "Strip 4 plant fibre",
+      "hint": "Bushes and wild grass, no tool needed",
+      "have": { "fibre_stalk": 4 },
+      "xp": 20
+    },
+    {
+      "id": "twine",
+      "title": "Twist fibre into twine",
+      "hint": "Craft by hand from 2 fibre",
+      "have": { "twine": 1 },
+      "xp": 30
+    },
+    {
+      "id": "knife",
+      "title": "Knap a stone knife",
+      "hint": "Stone, a branch and twine",
+      "have": { "stone_knife_work": 1 },
+      "xp": 50,
+      "t_stones": 2
+    },
+    {
+      "id": "axe",
+      "title": "Make a work axe at the bench",
+      "hint": "The camp workbench, same three parts",
+      "have": { "work_axe": 1 },
+      "xp": 60,
+      "t_stones": 2
+    },
+    {
+      "id": "logs",
+      "title": "Fell 2 wood logs",
+      "hint": "The axe opens Wood Log on any tree",
+      "have": { "wood_log": 2 },
+      "xp": 40
+    },
+    {
+      "id": "meat",
+      "title": "Hunt something for meat",
+      "hint": "Compsognathus scavenge near the shore",
+      "have_any": { "raw_meat": 1, "raptor_meat": 1 },
+      "xp": 60
+    },
+    {
+      "id": "cook",
+      "title": "Cook a skewer at the fire",
+      "hint": "Meat and a branch at the bonfire",
+      "have": { "skewer": 1 },
+      "xp": 60,
+      "t_stones": 3
+    },
+    {
+      "id": "net",
+      "title": "Weave a capture net",
+      "hint": "Two lashings and a handle",
+      "have": { "capture_net_i": 1 },
+      "xp": 60
+    },
+    {
+      "id": "tame",
+      "title": "Tame a Zebraceratops",
+      "hint": "Wear it down, knock it over, then feed it berries",
+      "pets": 1,
+      "xp": 120,
+      "t_stones": 5
+    },
+    {
+      "id": "sail",
+      "title": "Sail for the unstable savannah",
+      "hint": "The harbour at the end of the dock",
+      "away": true,
+      "xp": 100
+    }
+  ]
+}

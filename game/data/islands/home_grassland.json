@@ -9,24 +9,85 @@
   "kind": "private",
   "lifetime_seconds": 0,
   "sail_cost": 0,
-  "harbour": [0, 0, 18],
-  "camp": [0, 0, 8],
+  "harbour": [
+    0,
+    0,
+    18
+  ],
+  "camp": [
+    0,
+    0,
+    8
+  ],
   "crater": null,
   "creatures": [
-    {"species": "compsognathus", "count": 1, "pack": false, "at": [-22, 0, 30]},
-    {"species": "coelophysis", "count": 1, "pack": false, "at": [-8, 0, 40]},
-    {"species": "protoceratops", "count": 1, "pack": false, "at": [8, 0, 42]},
-    {"species": "gallimimus", "count": 1, "pack": false, "at": [24, 0, 34]},
-    {"species": "deinonychus", "count": 1, "pack": false, "at": [38, 0, 18]},
-    {"species": "stegosaurus", "count": 1, "pack": false, "at": [34, 0, -4]},
-    {"species": "utahraptor", "count": 1, "pack": false, "at": [-36, 0, -4]},
-    {"species": "velociraptor", "count": 1, "pack": false, "at": [-38, 0, 16]}
+    {
+      "species": "compsognathus",
+      "count": 1,
+      "pack": false,
+      "at": [
+        -22,
+        0,
+        30
+      ]
+    },
+    {
+      "species": "protoceratops",
+      "count": 1,
+      "pack": false,
+      "at": [
+        8,
+        0,
+        42
+      ]
+    },
+    {
+      "species": "gallimimus",
+      "count": 1,
+      "pack": false,
+      "at": [
+        24,
+        0,
+        34
+      ]
+    }
   ],
   "terrains": {
-    "meadow": {"tree": 8, "bush": 10, "grass": 80, "rock": 4, "flower": 8},
-    "forest": {"tree": 22, "bush": 14, "grass": 50, "rock": 4, "flower": 4},
-    "rocky": {"tree": 4, "bush": 6, "grass": 30, "rock": 18, "flower": 2},
-    "riverside": {"tree": 12, "bush": 12, "grass": 70, "rock": 6, "flower": 10},
-    "coastal": {"tree": 6, "bush": 8, "grass": 40, "rock": 10, "flower": 4}
-  }
+    "meadow": {
+      "tree": 8,
+      "bush": 10,
+      "grass": 80,
+      "rock": 4,
+      "flower": 8
+    },
+    "forest": {
+      "tree": 22,
+      "bush": 14,
+      "grass": 50,
+      "rock": 4,
+      "flower": 4
+    },
+    "rocky": {
+      "tree": 4,
+      "bush": 6,
+      "grass": 30,
+      "rock": 18,
+      "flower": 2
+    },
+    "riverside": {
+      "tree": 12,
+      "bush": 12,
+      "grass": 70,
+      "rock": 6,
+      "flower": 10
+    },
+    "coastal": {
+      "tree": 6,
+      "bush": 8,
+      "grass": 40,
+      "rock": 10,
+      "flower": 4
+    }
+  },
+  "_creature_note": "Private island: starter fauna only. Coelophysis, Deinonychus, Stegosaurus, Utahraptor and Velociraptor were hand-placed 34-40 m from camp and killed a fresh survivor in seconds; they spawn on the unstable islands instead."
 }

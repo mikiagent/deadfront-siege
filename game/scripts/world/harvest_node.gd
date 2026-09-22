@@ -189,7 +189,11 @@ func restore_pools(snap: Dictionary) -> void:
 ## Everything this node can yield, one entry per manifest `harvest` item (reference: a tree
 ## offers Leaf / Log / Branch at once). Tool-gated options take longer.
 ## ASSUMPTION: wood_log needs an axe, stone/ore/clay a pick, bark and hide a knife; the rest is bare-handed.
-const OPTION_TOOLS := {"wood_log": "axe", "stone": "pick", "ore_chunk": "pick", "clay": "pick", "bark_strip": "knife", "hide": "knife"}
+## Loose stone is hand-pickable like Durango's pebbles: every first tool needs a blade_mat,
+## so gating stone behind a pick that itself needs stone made a fresh survivor unable to
+## craft anything at all. A pick still pays off (ProgressionScaling.tool_power = faster
+## passes and richer yields) and still gates ore and clay.
+const OPTION_TOOLS := {"wood_log": "axe", "ore_chunk": "pick", "clay": "pick", "bark_strip": "knife", "hide": "knife"}
 ## One unit per pass; seconds per unit by item (bare-handed picks are quick, tool work is slow).
 const OPTION_SECONDS := {"berries": 1.1, "berry": 1.1, "mushroom": 1.0, "petals": 1.0, "dry_grass": 0.9, "fibre_stalk": 1.3, "herb_leaf": 1.2, "reed": 1.2, "branch": 1.6, "palm_frond": 1.5, "coconut": 2.0, "root": 1.8, "cactus_flesh": 1.6, "bark_strip": 2.2, "clay": 2.4, "stone": 2.8, "wood_log": 3.0, "ore_chunk": 3.2, "hide": 2.4}
 

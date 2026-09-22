@@ -55,6 +55,8 @@ static func save_now() -> void:
 		"pioneer_crafts": World.pioneer_crafts,
 		"pioneer_buildings": World.pioneer_buildings,
 		"t_stones": World.t_stones,
+		"objective": World.objective,
+		"objective_best": World.objective_best,
 		"island_id": str(World.island_id),
 		"unstable": {
 			"remaining": World.remaining_lifetime,
@@ -99,6 +101,8 @@ static func load_now(host: Node) -> void:
 	World.pioneer_crafts = data.get("pioneer_crafts", {})
 	World.pioneer_buildings = data.get("pioneer_buildings", {})
 	World.t_stones = int(data.get("t_stones", 20))
+	World.objective = int(data.get("objective", 0))  # older saves start the standing orders over
+	World.objective_best = int(data.get("objective_best", 0))
 	World.remaining_lifetime = float(data.get("unstable", {}).get("remaining", 0.0))
 	World.harvested = data.get("unstable", {}).get("harvested", {})
 	World.crater_discovered = bool(data.get("unstable", {}).get("crater_discovered", false))

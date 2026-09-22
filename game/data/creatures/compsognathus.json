@@ -14,7 +14,7 @@
   "status_applied": [],
   "stats": {
     "hp": 90,
-    "attack": 18,
+    "attack": 7,
     "defense": 10,
     "speed": 650
   },
@@ -116,5 +116,6 @@
     "feeds_needed": 3,
     "window_seconds": 45,
     "requires_pen": false
-  }
+  },
+  "balance_note": "Attack 18 -> 7 on 2026-09-22: a bot playthrough showed four of them killing an unarmed level-0 survivor in ~3 s on the starting island and cancelling every gather. A swarm is still dangerous bare-handed, but survivable."
 }
