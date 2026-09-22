@@ -21,6 +21,8 @@ var hint_text: String = ""    # small red line under the label (blocked reason)
 var cooldown: float = 0.0     # 0..1 remaining sweep
 var selected: bool = false
 var enabled_look: bool = true
+## Item and creature thumbnails stay colored. Action glyphs and HUD symbols stay white.
+var color_icon: bool = false
 
 static var _white_icon_cache: Dictionary = {}
 var _down: bool = false
@@ -79,7 +81,7 @@ func _draw() -> void:
 		f = Color(0.05, 0.05, 0.06, 0.8)
 		rim = Color(0.5, 0.5, 0.5, 0.8)
 	if selected:
-		rim = Color(1.0, 0.85, 0.3)
+		rim = UiTokens.TEAL
 	if _down:
 		f = f.lightened(0.15)
 	draw_colored_polygon(_hex(r, c), f)
@@ -90,7 +92,8 @@ func _draw() -> void:
 	if icon:
 		var isz := r * 1.05
 		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0)
-		draw_texture_rect(_white_symbol(icon), Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
+		var shown: Texture2D = icon if color_icon else _white_symbol(icon)
+		draw_texture_rect(shown, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
 	elif glyph != "":
 		var short := glyph.length() <= 2
 		var gs := int(r * (0.72 if bottom_text != "" else 0.9)) if short else (int(r * 0.40) if glyph.length() <= 4 else int(r * 0.30))
@@ -130,12 +133,18 @@ func _draw() -> void:
 			])
 			draw_colored_polygon(wedge, Color(0.72, 0.72, 0.72, 0.42))
 	if label_text != "":
-		var ls := int(r * 0.42)
-		var lw := font.get_string_size(label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ls).x
-		draw_rect(Rect2(Vector2(size.x + 4.0, c.y - ls * 0.9), Vector2(lw + 12.0, ls * 1.6)), Color(0.05, 0.06, 0.07, 0.85))
-		draw_string(font, Vector2(size.x + 10.0, c.y + ls * 0.35), label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, Color(0.95, 0.95, 0.95))
+		var ls := maxi(12, int(r * 0.36))
+		var shown := UiTokens.ellipsis(font, label_text, 140.0, ls)
+		var lw := font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, ls).x
+		var view_w := get_viewport_rect().size.x
+		var global_x := get_global_rect().position.x
+		var on_left := global_x + size.x + lw + 16.0 > view_w - 8.0
+		var origin_x := (-lw - 16.0) if on_left else (size.x + 4.0)
+		draw_rect(Rect2(Vector2(origin_x, c.y - ls * 0.9), Vector2(lw + 12.0, ls * 1.6)), UiTokens.INK)
+		draw_string(font, Vector2(origin_x + 6.0, c.y + ls * 0.35), shown, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, Color(0.95, 0.95, 0.95))
 		if hint_text != "":
-			draw_string(font, Vector2(size.x + 10.0, c.y + ls * 1.5), hint_text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(r * 0.32), Color(1.0, 0.45, 0.4))
+			var hint := UiTokens.ellipsis(font, hint_text, 140.0, maxi(12, int(r * 0.28)))
+			draw_string(font, Vector2(origin_x + 6.0, c.y + ls * 1.45), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, maxi(12, int(r * 0.28)), UiTokens.DANGER)
 
 ## Durango-style HUD language: action symbols are white silhouettes. Keep alpha/shape from
 ## source art, discard its RGB. Cached once per source texture so redraws stay cheap.

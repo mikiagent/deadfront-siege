@@ -5,8 +5,7 @@ extends Control
 signal recipe_chosen(recipe_id: StringName)
 signal dismissed
 
-const HEX_SIZE := 68.0
-const RING_RADIUS := 92.0
+const HEX_SIZE := 64.0
 
 var station: Node3D
 var _buttons: Array[HexButton] = []
@@ -27,9 +26,8 @@ func show_for(st: Node3D, recipes: Array[Dictionary], inv: Inventory) -> void:
 	var n := recipes.size()
 	for i in n:
 		var rec: Dictionary = recipes[i]
-		var btn := HexButton.new()
-		btn.custom_minimum_size = Vector2(HEX_SIZE, HEX_SIZE)
-		btn.size = btn.custom_minimum_size
+		var btn := HexButton.new(HEX_SIZE)
+		btn.color_icon = true
 		var rid := StringName(str(rec.get("id", "")))
 		var out_row: Dictionary = rec.get("output", {})
 		var out_id := StringName(str(out_row.get("id", rid)))
@@ -42,9 +40,6 @@ func show_for(st: Node3D, recipes: Array[Dictionary], inv: Inventory) -> void:
 		btn.setup(_icon_for(out_id), _glyph_for(out_id), label, "%.1fs" % secs, "×%d" % int(out_row.get("count", 1)))
 		if missing != "":
 			btn.set_blocked(missing)
-		var angle := -PI * 0.5 + (TAU * float(i) / float(maxi(1, n)))
-		var offset := Vector2(cos(angle), sin(angle)) * RING_RADIUS
-		btn.position = size * 0.5 + offset - btn.size * 0.5
 		btn.pressed.connect(_on_pressed.bind(rid, missing))
 		add_child(btn)
 		_buttons.append(btn)
@@ -77,17 +72,32 @@ func _update_screen_pos() -> void:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null or station == null:
 		return
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	position = Vector2.ZERO
+	size = get_viewport_rect().size
 	var world := station.global_position + Vector3(0.0, 1.4, 0.0)
 	var screen := cam.unproject_position(world)
-	position = screen - size * 0.5
-	custom_minimum_size = Vector2(280, 280)
-	size = custom_minimum_size
-	# Reposition children relative to centre.
-	var n := _buttons.size()
-	for i in n:
-		var angle := -PI * 0.5 + (TAU * float(i) / float(maxi(1, n)))
-		var offset := Vector2(cos(angle), sin(angle)) * RING_RADIUS
-		_buttons[i].position = size * 0.5 + offset - _buttons[i].size * 0.5
+	var spots := ContextRadial.hex_positions(screen, _buttons.size(), size, UiTokens.safe_insets(get_viewport()), HEX_SIZE)
+	for i in _buttons.size():
+		if i < spots.size():
+			_buttons[i].position = spots[i]
+	queue_redraw()
+
+func _draw() -> void:
+	if station == null or not is_instance_valid(station):
+		return
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var screen := cam.unproject_position(station.global_position + Vector3(0.0, 1.4, 0.0))
+	var font := ThemeDB.fallback_font
+	var view := get_viewport_rect().size
+	var sid := str(station.get("station_id")) if station.get("station_id") != null else str(station.name)
+	var title := UiTokens.ellipsis(font, sid.replace("_", " ").capitalize(), 160.0, UiTokens.body(view))
+	var tw := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.body(view)).x
+	var pos := screen + Vector2(-tw * 0.5, 22.0)
+	draw_rect(Rect2(pos + Vector2(-8, -16), Vector2(tw + 16, 24)), UiTokens.INK)
+	draw_string(font, pos, title, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.body(view), Color.WHITE)
 
 func _gui_input(event: InputEvent) -> void:
 	# Tap empty radial area does nothing; outside is handled by StationCraft.

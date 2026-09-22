@@ -7,7 +7,7 @@ extends Control
 
 signal action_chosen(station: Node3D, action_id: StringName)
 
-const HEX_SIZE := 76.0
+const HEX_SIZE := 64.0
 const GAP := 12.0
 const CLOSE_RANGE := 3.6
 const MARGIN := 8.0
@@ -64,8 +64,10 @@ func show_for(st: Node3D, actions: Array) -> void:
 		var btn := HexButton.new(HEX_SIZE)
 		# HexButton only emits after receiving its own press and release. Because this is
 		# created after the station press, that opening gesture cannot activate the action.
-		btn.icon = _icon_for(str(row.get("icon", "")))
-		btn.glyph = "" if btn.icon else str(row.get("glyph", ""))
+		# Station entry is an action, so the glyph stays white. Item thumbnails live on the gather radial.
+		btn.icon = null
+		btn.color_icon = false
+		btn.glyph = str(row.get("glyph", "✦"))
 		btn.bottom_text = str(row.get("label", ""))
 		var aid := StringName(str(row.get("id", "")))
 		btn.pressed.connect(_on_pressed.bind(aid))
@@ -127,14 +129,11 @@ func _update_screen_pos() -> void:
 	if cam.is_position_behind(world):
 		return
 	var anchor := cam.unproject_position(world)
-	var n := _buttons.size()
-	var total := float(n) * HEX_SIZE + float(maxi(0, n - 1)) * GAP
 	var view := get_viewport_rect().size
-	var x := clampf(anchor.x - total * 0.5, MARGIN, maxf(MARGIN, view.x - total - MARGIN))
-	# Match gathering's expand-then-pick flow, with station actions across the ring's top.
-	var y := clampf(anchor.y - HEX_SIZE - 20.0, MARGIN, maxf(MARGIN, view.y - HEX_SIZE - MARGIN))
-	for i in n:
-		_buttons[i].position = Vector2(x + float(i) * (HEX_SIZE + GAP), y)
+	var spots := ContextRadial.hex_positions(anchor, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX_SIZE)
+	for i in _buttons.size():
+		if i < spots.size():
+			_buttons[i].position = spots[i]
 
 ## Ground selection ring shared visually with gathering. It grows from the station on first tap;
 ## the action hex sits above it and needs its own second tap.

@@ -33,10 +33,11 @@ var _food1_btn: Button
 var _food2_btn: Button
 var _close_btn: Button
 
-const PANEL := Vector2(820.0, 370.0)
-const SLOT := Vector2(48.0, 44.0)
+const SLOT := Vector2(48.0, 48.0)
 const EQUIP_LABELS := {"head": "Head", "body": "Body", "legs": "Legs", "accessory1": "Ring", "accessory2": "Ring", "weapon": "Weapon", "tool": "Tool", "food1": "Food 1", "food2": "Food 2"}
-const INK := Color(0.22, 0.22, 0.24)
+const INK := Color(0.95, 0.95, 0.93)
+
+var _split: GridContainer
 
 func _ready() -> void:
 	visible = false
@@ -45,83 +46,123 @@ func _ready() -> void:
 	if Game.shot_path.contains("bag"):
 		get_tree().create_timer(0.9).timeout.connect(func () -> void: visible = true; rebuild())
 	var dim := ColorRect.new()
-	dim.color = Color(0.0, 0.0, 0.0, 0.45)
+	dim.color = Color(0.0, 0.0, 0.0, 0.55)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(dim)
 	_panel = Panel.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.77, 0.77, 0.77)
-	sb.border_color = Color(0.25, 0.25, 0.27)
-	sb.set_border_width_all(3)
-	sb.set_corner_radius_all(4)
-	_panel.add_theme_stylebox_override("panel", sb)
-	_panel.size = PANEL
+	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_panel.add_theme_stylebox_override("panel", UiTokens.panel_style())
 	add_child(_panel)
-	_title = _label("CHARACTER", Vector2(18, 10), 20)
-	_close_btn = _btn("✕", Vector2(42, 36))
-	_close_btn.position = Vector2(PANEL.x - 52, 8)
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_panel.add_child(scroll)
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", UiTokens.SPACE)
+	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(root)
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", UiTokens.SPACE)
+	root.add_child(header)
+	_title = Label.new()
+	_title.text = "CHARACTER"
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_title.add_theme_color_override("font_color", INK)
+	header.add_child(_title)
+	_close_btn = _btn("✕", Vector2(44, 44))
 	_close_btn.pressed.connect(hide_ui)
-	_panel.add_child(_close_btn)
-
-	# Durango layout: identity/stats left, bag + loadout tabs centre, equipped gear right.
-	var portrait := ColorRect.new()
-	portrait.position = Vector2(18, 48)
-	portrait.size = Vector2(132, 118)
-	portrait.color = Color(0.24, 0.25, 0.27, 0.34)
-	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_panel.add_child(portrait)
-	_profile = _label("", Vector2(18, 176), 13)
-	_profile.size = Vector2(146, 132)
-	_profile.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-
-	_tab_title = _label("GEAR  1", Vector2(176, 12), 15)
+	header.add_child(_close_btn)
+	var load := HBoxContainer.new()
+	load.add_theme_constant_override("separation", UiTokens.SPACE)
+	root.add_child(load)
+	_tab_title = Label.new()
+	_tab_title.text = "GEAR  1"
+	_tab_title.add_theme_color_override("font_color", INK)
+	load.add_child(_tab_title)
 	for i in 3:
-		var loadout := _btn(str(i + 1), Vector2(42, 30))
-		loadout.position = Vector2(258 + i * 48, 8)
+		var loadout := _btn(str(i + 1), Vector2(44, 36))
 		loadout.disabled = i > 0
 		loadout.tooltip_text = "Active loadout" if i == 0 else "Loadout slot"
-		_panel.add_child(loadout)
-	_label("BAG", Vector2(176, 48), 12)
+		load.add_child(loadout)
+	_split = GridContainer.new()
+	_split.columns = 3
+	_split.add_theme_constant_override("h_separation", UiTokens.SPACE * 2)
+	_split.add_theme_constant_override("v_separation", UiTokens.SPACE * 2)
+	_split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	root.add_child(_split)
+	var col_p := VBoxContainer.new()
+	col_p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_split.add_child(col_p)
+	_profile = Label.new()
+	_profile.add_theme_color_override("font_color", INK)
+	_profile.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_profile.custom_minimum_size = Vector2(180, 140)
+	_profile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col_p.add_child(_profile)
+	var col_b := VBoxContainer.new()
+	col_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_split.add_child(col_b)
+	var bag_label := Label.new()
+	bag_label.text = "BAG"
+	bag_label.add_theme_color_override("font_color", UiTokens.META)
+	col_b.add_child(bag_label)
 	_grid = GridContainer.new()
 	_grid.columns = 5
-	_grid.position = Vector2(176, 68)
-	_grid.add_theme_constant_override("h_separation", 5)
-	_grid.add_theme_constant_override("v_separation", 5)
-	_panel.add_child(_grid)
+	_grid.add_theme_constant_override("h_separation", UiTokens.SPACE)
+	_grid.add_theme_constant_override("v_separation", UiTokens.SPACE)
+	col_b.add_child(_grid)
 	for i in 20:
 		_grid.add_child(_mk_slot(i))
-
-	_label("EQUIPMENT", Vector2(450, 48), 12)
+	var col_e := VBoxContainer.new()
+	col_e.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_split.add_child(col_e)
+	var equip_label := Label.new()
+	equip_label.text = "EQUIPMENT"
+	equip_label.add_theme_color_override("font_color", UiTokens.META)
+	col_e.add_child(equip_label)
+	var equip_grid := GridContainer.new()
+	equip_grid.columns = 3
+	equip_grid.add_theme_constant_override("h_separation", UiTokens.SPACE)
+	equip_grid.add_theme_constant_override("v_separation", UiTokens.SPACE)
+	col_e.add_child(equip_grid)
 	var equip_order := ["head", "body", "legs", "weapon", "tool", "accessory1", "accessory2", "food1", "food2"]
-	for i in equip_order.size():
-		var col := i % 3
-		var row := i / 3
-		_equip_slot(equip_order[i], Vector2(450 + col * 62, 70 + row * 62))
-
-	_tip = _label("", Vector2(646, 70), 12)
-	_tip.size = Vector2(154, 190)
+	for slot_name in equip_order:
+		var cell := VBoxContainer.new()
+		var cap := Label.new()
+		cap.text = str(EQUIP_LABELS.get(slot_name, slot_name))
+		cap.add_theme_font_size_override("font_size", 12)
+		cap.add_theme_color_override("font_color", UiTokens.META)
+		cap.clip_text = true
+		cap.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		cell.add_child(cap)
+		var b := _btn("", SLOT)
+		_slot_style(b)
+		b.pressed.connect(_on_equip_slot_pressed.bind(slot_name))
+		cell.add_child(b)
+		equip_grid.add_child(cell)
+		_equip_slots[slot_name] = b
+	_tip = Label.new()
+	_tip.add_theme_color_override("font_color", INK)
 	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-
-	# Storage replaces the right-hand detail area while a chest, corpse or pet bag is open.
-	_storage_title = _label("", Vector2(450, 266), 13)
-	_storage_title.size = Vector2(190, 20)
+	_tip.custom_minimum_size = Vector2(180, 72)
+	_tip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col_e.add_child(_tip)
+	_storage_title = Label.new()
+	_storage_title.add_theme_color_override("font_color", INK)
+	root.add_child(_storage_title)
 	_pet_grid = GridContainer.new()
-	_pet_grid.columns = 6
-	_pet_grid.position = Vector2(450, 288)
-	_pet_grid.scale = Vector2(0.72, 0.72)
-	_pet_grid.add_theme_constant_override("h_separation", 4)
-	_pet_grid.add_theme_constant_override("v_separation", 4)
-	_panel.add_child(_pet_grid)
-	_storage_note = _label("", Vector2(646, 266), 12)
-	_storage_note.size = Vector2(154, 48)
+	_pet_grid.columns = 5
+	_pet_grid.add_theme_constant_override("h_separation", UiTokens.SPACE)
+	_pet_grid.add_theme_constant_override("v_separation", UiTokens.SPACE)
+	root.add_child(_pet_grid)
+	_storage_note = Label.new()
 	_storage_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_storage_note.add_theme_color_override("font_color", Color(0.75, 0.28, 0.18))
-
+	_storage_note.add_theme_color_override("font_color", UiTokens.DANGER)
+	root.add_child(_storage_note)
 	_actions = HBoxContainer.new()
-	_actions.position = Vector2(176, PANEL.y - 48)
-	_actions.add_theme_constant_override("separation", 5)
-	_panel.add_child(_actions)
+	_actions.add_theme_constant_override("separation", UiTokens.SPACE)
+	root.add_child(_actions)
 	_lock_btn = _action("Lock", _toggle_lock)
 	_equip_btn = _action("EQUIP", _on_equip_pressed)
 	_food1_btn = _action("Food 1", func () -> void: _set_quick(0))
@@ -164,28 +205,20 @@ func _btn(text: String, minsz: Vector2) -> Button:
 	return b
 
 func _action(text: String, cb: Callable) -> Button:
-	var b := _btn(text, Vector2(0, 38))
+	var b := _btn(text, Vector2(0, 44))
 	b.pressed.connect(cb)
 	b.visible = false
 	_actions.add_child(b)
 	return b
 
-func _slot_style(b: Button) -> void:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.55, 0.55, 0.55)
-	sb.border_color = Color(0.36, 0.36, 0.38)
-	sb.border_width_left = 2
-	sb.border_width_top = 2
-	sb.border_width_right = 2
-	sb.border_width_bottom = 2
+func _slot_style(b: Button, selected: bool = false) -> void:
+	var sb := UiTokens.slot_style(selected)
 	b.add_theme_stylebox_override("normal", sb)
 	var hov := sb.duplicate() as StyleBoxFlat
-	hov.bg_color = Color(0.68, 0.68, 0.7)
+	hov.bg_color = Color(0.16, 0.18, 0.2, 1.0)
 	b.add_theme_stylebox_override("hover", hov)
-	var prs := sb.duplicate() as StyleBoxFlat
-	prs.bg_color = Color(0.45, 0.45, 0.47)
-	b.add_theme_stylebox_override("pressed", prs)
-	b.add_theme_color_override("font_color", Color(0.12, 0.12, 0.14))
+	b.add_theme_stylebox_override("pressed", UiTokens.slot_style(true))
+	b.add_theme_color_override("font_color", UiTokens.TEXT)
 	b.add_theme_font_size_override("font_size", 12)
 
 func _equip_slot(slot: String, pos: Vector2) -> void:
@@ -256,9 +289,28 @@ func _layout_safe() -> void:
 	if _panel == null:
 		return
 	var r := get_viewport_rect().size
-	var scale := minf(1.0, minf((r.x - 16.0) / PANEL.x, (r.y - 16.0) / PANEL.y))
-	_panel.scale = Vector2(scale, scale)
-	_panel.position = (r - PANEL * scale) * 0.5
+	var safe := UiTokens.safe_insets(get_viewport())
+	_panel.offset_left = 12.0 + safe.w
+	_panel.offset_top = 12.0 + safe.z
+	_panel.offset_right = -(12.0 + safe.x)
+	_panel.offset_bottom = -(12.0 + safe.y)
+	_panel.scale = Vector2.ONE
+	if _split:
+		_split.columns = 1 if UiTokens.is_phone(r) else 3
+	var head := UiTokens.heading(r)
+	var body := UiTokens.body(r)
+	if _title:
+		_title.add_theme_font_size_override("font_size", head)
+	if _tab_title:
+		_tab_title.add_theme_font_size_override("font_size", body)
+	if _profile:
+		_profile.add_theme_font_size_override("font_size", body)
+	if _tip:
+		_tip.add_theme_font_size_override("font_size", UiTokens.meta(r))
+	if _storage_title:
+		_storage_title.add_theme_font_size_override("font_size", body)
+	if _storage_note:
+		_storage_note.add_theme_font_size_override("font_size", UiTokens.meta(r))
 
 # ---------------------------------------------------------------- rebuild
 
@@ -308,7 +360,7 @@ func rebuild() -> void:
 	_storage_note.text = _readonly_reason()
 	_take_all_btn.visible = has_storage and bool(_storage_opts.get("take_all", false))
 	_take_all_btn.disabled = _readonly_reason() != "" or pet_bag == null or pet_bag.used_slots() <= 0
-	_title.text = "Inventory" if not has_storage else "Inventory  ·  %s" % str(_storage_opts.get("title", "Storage"))
+	_title.text = "CHARACTER" if not has_storage else "CHARACTER  ·  %s" % str(_storage_opts.get("title", "Storage"))
 	_select(_selected if _selected >= 0 else -1)
 
 func _refresh_profile() -> void:
@@ -319,7 +371,10 @@ func _refresh_profile() -> void:
 	var hp: float = _owner_player.vitals.health if _owner_player and _owner_player.vitals else 0.0
 	var energy: float = _owner_player.vitals.energy if _owner_player and _owner_player.vitals else 0.0
 	var gathering: int = _owner_player.skills.level_of("gathering") if _owner_player and _owner_player.skills else 0
-	_profile.text = "%s\n%s  ·  Lv. %d\n\nHP  %.0f\nEnergy  %.0f\nGathering  %d\nBag  %d / %d" % [name, occupation, World.pioneer_level + 1, hp, energy, gathering, inventory.used_slots(), inventory.slot_count]
+	var font := ThemeDB.fallback_font
+	var name_w := maxf(120.0, _profile.size.x if _profile.size.x > 8.0 else 180.0)
+	name = UiTokens.ellipsis(font, name, name_w, UiTokens.body(get_viewport_rect().size))
+	_profile.text = "%s\n%s  ·  Lv. %d\n\nHP        %.0f\nEnergy    %.0f\nGathering %d\nBag       %d / %d" % [name, occupation, World.pioneer_level + 1, hp, energy, gathering, inventory.used_slots(), inventory.slot_count]
 
 func _refresh_equipped() -> void:
 	for slot in _equip_slots.keys():
@@ -360,6 +415,10 @@ func _select(index: int) -> void:
 	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null
 	for b in [_lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn]:
 		b.visible = false
+	for i in _grid.get_child_count():
+		var slot_btn := _grid.get_child(i) as Button
+		if slot_btn:
+			_slot_style(slot_btn, i == index)
 	if none:
 		_tip.text = "Tap an item."
 		return

@@ -58,6 +58,7 @@ func to_dict() -> Dictionary:
 func cauterise(player: Player) -> void:
 	if not player.statuses.has(&"deep_bleed"):
 		return
+	player.downed_by = "the bonfire"
 	player.vitals.take_damage(5.0)
 	player.statuses.clear_id(&"deep_bleed")
 	print("[status] %s -deep_bleed cauterise" % player.name)

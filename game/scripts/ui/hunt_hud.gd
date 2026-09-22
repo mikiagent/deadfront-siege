@@ -49,12 +49,16 @@ var _level_gains: Dictionary = {}
 
 # death
 var _death_panel: Control
+var _death_card: Panel
+var _death_title: Label
+var _death_cause: Label
+var _death_note: Label
 var _death_alpha: float = 0.0
 var _death_btn: Button
 
 const MAP_PX := 154.0
 const MAP_SCALE := 1.5  # metres per pixel
-const HEX := 66.0
+const HEX := 64.0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -120,8 +124,12 @@ func _layout() -> void:
 		x += HEX + 10.0
 	for i in _food_hexes.size():
 		_food_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (HEX + 10.0), y - HEX - 12.0)
-	# Debug hex sits just left of the minimap, vertically centred on it.
-	_inspect_hex.position = Vector2(_minimap.position.x - 56.0 - 12.0, _minimap.position.y + (MAP_PX - 56.0) * 0.5)
+	# Debug hex stays off the minimap. On a phone it drops to the lower right so the vitals can sit beside the map.
+	_inspect_hex.visible = Game.debug_overlay
+	if UiTokens.is_phone(r):
+		_inspect_hex.position = Vector2(r.x - HEX - 16.0 - inset.x, r.y - HEX * 2.0 - 36.0 - inset.y)
+	else:
+		_inspect_hex.position = Vector2(_minimap.position.x - 56.0 - 12.0, _minimap.position.y + (MAP_PX - 56.0) * 0.5)
 	_end_btn.position = Vector2(r.x - 200.0 - inset.x, r.y * 0.42)
 	# Honeycomb cluster bottom-right: net / tackle / kick / roll, Auto below-right, stance text.
 	var cx := r.x - 250.0 - inset.x
@@ -139,13 +147,7 @@ func _layout() -> void:
 		_sheet.position = Vector2(16.0 + inset.w, r.y - HEX - 30.0 - inset.y - _sheet.size.y)
 
 func _safe_insets() -> Vector4:  # x=right, y=bottom, z=top, w=left
-	if not OS.has_feature("mobile"):
-		return Vector4.ZERO
-	var rect := get_viewport().get_visible_rect().size
-	var win := Vector2(DisplayServer.window_get_size())
-	var scale := rect / win if win.x > 0.0 and win.y > 0.0 else Vector2.ONE
-	var safe := DisplayServer.get_display_safe_area()
-	return Vector4(maxf(0.0, win.x - (safe.position.x + safe.size.x)) * scale.x, maxf(0.0, win.y - (safe.position.y + safe.size.y)) * scale.y, maxf(0.0, safe.position.y) * scale.y, maxf(0.0, safe.position.x) * scale.x)
+	return UiTokens.safe_insets(get_viewport())
 
 # ---------------------------------------------------------------- build
 
@@ -189,7 +191,7 @@ func _build_menu_row() -> void:
 		var fh := HexButton.new(HEX)
 		fh.glyph = "🍖"
 		fh.bottom_text = "EAT"
-		fh.fill = Color(0.16, 0.36, 0.2, 0.95)
+		fh.color_icon = true
 		fh.visible = false
 		var qi := i
 		fh.pressed.connect(func () -> void: _eat_quick(qi))
@@ -198,6 +200,7 @@ func _build_menu_row() -> void:
 	_inspect_hex = _hex("🔍", 56.0, "DEBUG")
 	_inspect_hex.pressed.connect(_toggle_debug)
 	_inspect_hex.selected = Game.debug_overlay
+	_inspect_hex.visible = Game.debug_overlay
 
 ## Quick-food hexes (bottom-left, above the menu row): icon + count of the two quick slots set
 ## in the bag; tap eats one. Hidden while a slot is empty or its food is gone.
@@ -215,6 +218,7 @@ func _refresh_food_hexes() -> void:
 			var tex := ItemIcons.texture(StringName(fid))
 			if h.icon != tex or h.bottom_text != str(n):
 				h.icon = tex
+				h.color_icon = tex != null
 				h.glyph = "" if tex else "🍖"
 				h.bottom_text = "×%d" % n
 				h.queue_redraw()
@@ -232,6 +236,7 @@ func _eat_quick(i: int) -> void:
 func _toggle_debug() -> void:
 	Game.debug_overlay = not Game.debug_overlay
 	_inspect_hex.selected = Game.debug_overlay
+	_inspect_hex.visible = Game.debug_overlay
 	_inspect_hex.queue_redraw()
 	print("[hud] debug %s" % ("on" if Game.debug_overlay else "off"))
 
@@ -250,18 +255,14 @@ func _open_animals() -> void:
 
 func _build_combat() -> void:
 	_end_btn = Button.new()
-	_end_btn.text = "✕  End Combat"
+	_end_btn.text = "End Combat"
 	_end_btn.custom_minimum_size = Vector2(184, 64)
-	_end_btn.add_theme_font_size_override("font_size", 20)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.72, 0.12, 0.12, 0.95)
-	sb.corner_radius_top_left = 6
-	sb.corner_radius_top_right = 6
-	sb.corner_radius_bottom_left = 6
-	sb.corner_radius_bottom_right = 6
+	_end_btn.add_theme_font_size_override("font_size", 16)
+	_end_btn.add_theme_color_override("font_color", UiTokens.ACTION)
+	var sb := UiTokens.button_style(false)
 	_end_btn.add_theme_stylebox_override("normal", sb)
 	_end_btn.add_theme_stylebox_override("hover", sb)
-	_end_btn.add_theme_stylebox_override("pressed", sb)
+	_end_btn.add_theme_stylebox_override("pressed", UiTokens.button_style(true))
 	_end_btn.pressed.connect(func () -> void:
 		if player and player.hunt:
 			player.hunt.stop()
@@ -277,23 +278,20 @@ func _build_combat() -> void:
 		h.pressed.connect(_on_skill.bind(StringName(s[1])))
 		add_child(h)
 		_skill_hexes.append(h)
-	_auto_hex = HexButton.new(80.0)
+	_auto_hex = HexButton.new(64.0)
 	_auto_hex.glyph = "Auto"
-	_auto_hex.fill = Color(0.93, 0.72, 0.15, 0.95)
-	_auto_hex.accent = Color(1.0, 0.9, 0.5)
 	_auto_hex.visible = false
 	_auto_hex.pressed.connect(func () -> void:
 		if player and player.hunt:
 			player.hunt.auto = not player.hunt.auto
-			_auto_hex.fill = Color(0.93, 0.72, 0.15, 0.95) if player.hunt.auto else Color(0.25, 0.25, 0.25, 0.9)
+			_auto_hex.selected = player.hunt.auto
 			_auto_hex.queue_redraw()
 	)
 	add_child(_auto_hex)
-	for spec in [["attack", "🦖", "SIC", Color(0.55, 0.12, 0.12, 0.95)], ["heel", "↩", "HEEL", Color(0.2, 0.22, 0.28, 0.95)], ["guard", "🛡", "GUARD", Color(0.15, 0.35, 0.22, 0.95)]]:
-		var wh := HexButton.new(60.0)
+	for spec in [["attack", "🦖", "SIC"], ["heel", "↩", "HEEL"], ["guard", "🛡", "GUARD"]]:
+		var wh := HexButton.new(64.0)
 		wh.glyph = spec[1]
 		wh.bottom_text = spec[2]
-		wh.fill = spec[3]
 		wh.visible = false
 		var cmd := StringName(str(spec[0]))
 		wh.pressed.connect(func () -> void:
@@ -302,10 +300,9 @@ func _build_combat() -> void:
 		)
 		add_child(wh)
 		_whistle_hexes.append(wh)
-	_feed_hex = HexButton.new(72.0)
-	_feed_hex.glyph = "🍖"
+	_feed_hex = HexButton.new(64.0)
+	_feed_hex.glyph = "FEED"
 	_feed_hex.bottom_text = "FEED"
-	_feed_hex.fill = Color(0.15, 0.45, 0.22, 0.95)
 	_feed_hex.visible = false
 	_feed_hex.pressed.connect(func () -> void:
 		if player and player.hunt and player.hunt.target and FieldTame.can_attempt(player.hunt.target):
@@ -322,20 +319,18 @@ func _build_combat() -> void:
 	_chase_hex = HexButton.new(HEX)
 	_chase_hex.glyph = "🏃"
 	_chase_hex.bottom_text = "CHASE"
-	_chase_hex.fill = Color(0.93, 0.72, 0.15, 0.95)
 	_chase_hex.visible = false
 	_chase_hex.pressed.connect(func () -> void:
 		if player and player.hunt:
 			player.hunt.hold = not player.hunt.hold
-			_chase_hex.fill = Color(0.25, 0.25, 0.25, 0.9) if player.hunt.hold else Color(0.93, 0.72, 0.15, 0.95)
+			_chase_hex.selected = player.hunt.hold
 			_chase_hex.glyph = "✋" if player.hunt.hold else "🏃"
 			_chase_hex.bottom_text = "HOLD" if player.hunt.hold else "CHASE"
 			_chase_hex.queue_redraw()
 	)
 	add_child(_chase_hex)
 
-## Full-screen dim, "You died" and a Respawn hex. Shown while player.dead; the survivor stays
-## on the floor underneath until the button is tapped.
+## Deliberate death card. Shown while player.dead; the survivor stays on the ground until respawn.
 func _build_death() -> void:
 	_death_panel = Control.new()
 	_death_panel.name = "Death"
@@ -345,27 +340,45 @@ func _build_death() -> void:
 	_death_panel.draw.connect(_draw_death)
 	var death_layer := CanvasLayer.new()
 	death_layer.name = "DeathLayer"
-	death_layer.layer = 100  # above everything: plates, world UI, modals
+	death_layer.layer = 100
 	add_child(death_layer)
 	death_layer.add_child(_death_panel)
+	_death_card = Panel.new()
+	_death_card.name = "DeathCard"
+	_death_card.custom_minimum_size = Vector2(280, 280)
+	_death_card.add_theme_stylebox_override("panel", UiTokens.panel_style(1.0))
+	_death_panel.add_child(_death_card)
+	_death_title = Label.new()
+	_death_title.name = "DeathTitle"
+	_death_title.text = "YOU DIED"
+	_death_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_death_title.add_theme_color_override("font_color", UiTokens.DANGER)
+	_death_card.add_child(_death_title)
+	_death_cause = Label.new()
+	_death_cause.name = "DeathCause"
+	_death_cause.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_death_cause.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_death_cause.add_theme_color_override("font_color", UiTokens.TEXT)
+	_death_card.add_child(_death_cause)
+	_death_note = Label.new()
+	_death_note.name = "DeathNote"
+	_death_note.text = "Engaged dinosaurs retreat past their aggro ring. Your bag comes with you."
+	_death_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_death_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_death_note.add_theme_color_override("font_color", UiTokens.META)
+	_death_card.add_child(_death_note)
 	_death_btn = Button.new()
 	_death_btn.text = "Respawn at camp"
 	_death_btn.custom_minimum_size = Vector2(260, 64)
-	_death_btn.add_theme_font_size_override("font_size", 22)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.72, 0.12, 0.12, 0.95)
-	sb.corner_radius_top_left = 8
-	sb.corner_radius_top_right = 8
-	sb.corner_radius_bottom_left = 8
-	sb.corner_radius_bottom_right = 8
-	_death_btn.add_theme_stylebox_override("normal", sb)
-	_death_btn.add_theme_stylebox_override("hover", sb.duplicate())
-	_death_btn.add_theme_stylebox_override("pressed", sb.duplicate())
+	_death_btn.add_theme_color_override("font_color", UiTokens.ACTION)
+	_death_btn.add_theme_stylebox_override("normal", UiTokens.button_style(true))
+	_death_btn.add_theme_stylebox_override("hover", UiTokens.button_style(true))
+	_death_btn.add_theme_stylebox_override("pressed", UiTokens.button_style(true))
 	_death_btn.pressed.connect(func () -> void:
 		if player:
 			player.respawn()
 	)
-	_death_panel.add_child(_death_btn)
+	_death_card.add_child(_death_btn)
 
 func _tick_death(delta: float) -> void:
 	var dead := player != null and player.dead
@@ -380,23 +393,39 @@ func _tick_death(delta: float) -> void:
 	var r := get_viewport_rect().size
 	_death_panel.position = Vector2.ZERO
 	_death_panel.size = r
-	_death_btn.position = Vector2(r.x * 0.5 - 130.0, r.y * 0.5 + 40.0)
+	var card_w := clampf(r.x - 32.0, 280.0, 520.0)
+	var card_h := 300.0 if not UiTokens.is_phone(r) else 320.0
+	_death_card.size = Vector2(card_w, card_h)
+	_death_card.position = (r - _death_card.size) * 0.5
+	var view_font := UiTokens.heading(r)
+	_death_title.add_theme_font_size_override("font_size", view_font + (4 if not UiTokens.is_phone(r) else 0))
+	_death_title.position = Vector2(16, 28)
+	_death_title.size = Vector2(card_w - 32, 36)
+	var cause := "Downed by the wilds."
+	if player and player.downed_by != "":
+		cause = "Downed by %s." % player.downed_by
+	_death_cause.text = cause
+	_death_cause.add_theme_font_size_override("font_size", UiTokens.body(r))
+	_death_cause.position = Vector2(16, 84)
+	_death_cause.size = Vector2(card_w - 32, 48)
+	_death_note.add_theme_font_size_override("font_size", UiTokens.meta(r))
+	_death_note.position = Vector2(16, 140)
+	_death_note.size = Vector2(card_w - 32, 64)
+	var btn_w := minf(260.0, card_w - 32.0)
+	_death_btn.custom_minimum_size = Vector2(btn_w, 64)
+	_death_btn.size = Vector2(btn_w, 64)
+	_death_btn.position = Vector2((card_w - btn_w) * 0.5, card_h - 84.0)
+	_death_btn.add_theme_font_size_override("font_size", UiTokens.body(r))
 	_death_btn.visible = _death_alpha > 0.6
 	_death_btn.modulate.a = clampf((_death_alpha - 0.6) / 0.4, 0.0, 1.0)
+	_death_panel.modulate.a = _death_alpha
 	_death_panel.queue_redraw()
 
 func _draw_death() -> void:
-	var r := get_viewport_rect().size
-	var a := _death_alpha
-	_death_panel.draw_rect(Rect2(Vector2.ZERO, r), Color(0.05, 0.0, 0.0, 0.62 * a))
-	var title := "You died"
-	var ts := 54
-	var tw := _font.get_string_size(title, HORIZONTAL_ALIGNMENT_CENTER, -1, ts).x
-	_death_panel.draw_string(_font, Vector2(r.x * 0.5 - tw * 0.5 + 2, r.y * 0.5 - 20 + 2), title, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, Color(0, 0, 0, 0.7 * a))
-	_death_panel.draw_string(_font, Vector2(r.x * 0.5 - tw * 0.5, r.y * 0.5 - 20), title, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, Color(0.95, 0.2, 0.18, a))
-	var sub := "Your bag comes with you."
-	var sw := _font.get_string_size(sub, HORIZONTAL_ALIGNMENT_CENTER, -1, 16).x
-	_death_panel.draw_string(_font, Vector2(r.x * 0.5 - sw * 0.5, r.y * 0.5 + 12), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.9, 0.85, 0.85, a))
+	var r := _death_panel.size
+	if r.x < 2.0:
+		r = get_viewport_rect().size
+	_death_panel.draw_rect(Rect2(Vector2.ZERO, r), Color(0.02, 0.025, 0.03, 0.88))
 
 func _on_skill(id: StringName) -> void:
 	if player == null or player.hunt == null:
@@ -412,10 +441,10 @@ func _on_skill(id: StringName) -> void:
 			player._try_roll()
 
 func _build_place_hexes() -> void:
-	_done_hex = HexButton.new(72.0)
+	_done_hex = HexButton.new(64.0)
 	_done_hex.glyph = "✓"
 	_done_hex.bottom_text = "DONE"
-	_done_hex.fill = Color(0.10, 0.55, 0.22, 0.97)
+	_done_hex.accent = UiTokens.TEAL
 	_done_hex.visible = false
 	_done_hex.pressed.connect(func () -> void:
 		if player and player.placer:
@@ -423,14 +452,16 @@ func _build_place_hexes() -> void:
 			player.notice("Layout saved.")
 	)
 	add_child(_done_hex)
-	var specs := [["↻", Color(0.2, 0.2, 0.22, 0.95), "rotate", "ROTATE"], ["✓", Color(0.10, 0.55, 0.22, 0.97), "confirm", "PLACE"], ["✕", Color(0.65, 0.12, 0.12, 0.97), "cancel", "CANCEL"]]
+	var specs := [["↻", "rotate", "ROTATE", "R"], ["✓", "confirm", "PLACE", "Enter"], ["✕", "cancel", "CANCEL", "Esc"]]
 	for sp in specs:
-		var h := HexButton.new(70.0)
+		var h := HexButton.new(64.0)
 		h.glyph = sp[0]
-		h.bottom_text = sp[3]
-		h.fill = sp[1]
+		h.bottom_text = sp[2]
+		h.top_text = sp[3]
+		if sp[1] == "confirm":
+			h.accent = UiTokens.TEAL
 		h.visible = false
-		var id: String = sp[2]
+		var id: String = sp[1]
 		h.pressed.connect(func () -> void:
 			if player == null or player.placer == null:
 				return
@@ -804,24 +835,29 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	if player == null:
+	if player == null or player.dead:
 		return
 	var r := get_viewport_rect().size
 	var v := player.vitals
-	# --- vitals top-left
-	var x := 16.0
-	var y := 12.0
-	# Compact level chip belongs to the vitals cluster, not the bottom edge.
-	draw_circle(Vector2(x + 16.0, y + 16.0), 16.0, Color(0.06, 0.07, 0.08, 0.92))
-	draw_string(_font, Vector2(x + 5.0, y + 21.0), str(World.pioneer_level), HORIZONTAL_ALIGNMENT_CENTER, 22.0, 13, Color.WHITE)
+	if player.placer and player.placer.placing != &"":
+		draw_rect(Rect2(Vector2.ZERO, r), Color(0.02, 0.03, 0.04, 0.28))
+	var inset := _safe_insets()
+	var x := 16.0 + inset.w
+	var y := 12.0 + inset.z
+	var phone := UiTokens.is_phone(r)
+	var map_left := _minimap.position.x
+	var panel_w := 236.0 if not phone else maxf(148.0, map_left - x - 8.0)
+	var bar_w := 176.0 if not phone else maxf(88.0, panel_w - 54.0)
+	draw_rect(Rect2(x - 8.0, y - 6.0, panel_w, 92.0), UiTokens.INK)
+	draw_circle(Vector2(x + 16.0, y + 16.0), 16.0, Color(0.08, 0.09, 0.11, 0.95))
+	draw_string(_font, Vector2(x, y + 21.0), str(World.pioneer_level), HORIZONTAL_ALIGNMENT_CENTER, 32.0, UiTokens.meta(r), Color.WHITE)
 	x += 38.0
-	_bar(Vector2(x, y), Vector2(176, 13), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "♥", "%.0f / %.0f" % [v.health, v.effective_max_health()])
-	_bar(Vector2(x, y + 22), Vector2(176, 13), v.energy / maxf(1.0, v.max_energy), Color(0.20, 0.45, 0.80), "⚡", "%.0f / %.0f" % [v.energy, v.max_energy])
-	# hunger + thirst under energy; the bar colour goes red when empty (no health regen)
+	_bar(Vector2(x, y), Vector2(bar_w, 12), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", "%.0f / %.0f" % [v.health, v.effective_max_health()])
+	_bar(Vector2(x, y + 18), Vector2(bar_w, 12), v.energy / maxf(1.0, v.max_energy), Color(0.20, 0.45, 0.80), "", "%.0f / %.0f" % [v.energy, v.max_energy])
 	var hfrac: float = v.hunger / maxf(1.0, v.max_hunger)
 	var tfrac: float = v.thirst / maxf(1.0, v.max_thirst)
-	_bar(Vector2(x, y + 44), Vector2(176, 9), hfrac, Color(0.82, 0.16, 0.16) if hfrac <= 0.0 else Color(0.80, 0.50, 0.18), "🍖", "%.0f" % v.hunger)
-	_bar(Vector2(x, y + 62), Vector2(176, 9), tfrac, Color(0.82, 0.16, 0.16) if tfrac <= 0.0 else Color(0.25, 0.70, 0.85), "💧", "%.0f" % v.thirst)
+	_bar(Vector2(x, y + 36), Vector2(bar_w, 8), hfrac, UiTokens.DANGER if hfrac <= 0.0 else Color(0.80, 0.50, 0.18), "", "%.0f" % v.hunger)
+	_bar(Vector2(x, y + 50), Vector2(bar_w, 8), tfrac, UiTokens.DANGER if tfrac <= 0.0 else Color(0.25, 0.70, 0.85), "", "%.0f" % v.thirst)
 	var warn := ""
 	if hfrac <= 0.0 or tfrac <= 0.0:
 		warn = "STARVING" if hfrac <= 0.0 else "PARCHED"
@@ -832,7 +868,7 @@ func _draw() -> void:
 	elif v.thirsty():
 		warn = "THIRSTY: slow, weak regen"
 	if warn != "":
-		draw_string(_font, Vector2(x, y + 92), warn, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.55, 0.4))
+		draw_string(_font, Vector2(x, y + 74), warn, HORIZONTAL_ALIGNMENT_LEFT, bar_w, UiTokens.meta(r), Color(1, 0.55, 0.4))
 	# status badges live under the minimap (right side), left of the Claim hex
 	var mp0 := _minimap.position
 	var sx := mp0.x
@@ -841,17 +877,18 @@ func _draw() -> void:
 		for inst in player.statuses.instances():
 			draw_rect(Rect2(sx, sy, 26, 26), Color(0.1, 0.1, 0.12, 0.85))
 			draw_string(_font, Vector2(sx + 4, sy + 19), str(inst.id).left(2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.75, 0.45))
-			draw_string(_font, Vector2(sx, sy + 40), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.8, 0.8, 0.8))
+			draw_string(_font, Vector2(sx, sy + 40), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UiTokens.META)
 			sx += 30
-	# --- minimap captions
 	var mp := _minimap.position
-	var top := "Home" if World.is_home() else ("Survivable for %d min" % int(ceil(World.remaining_lifetime / 60.0)))
+	var top := "Home" if World.is_home() else ("Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0)))
 	if World.island_id == &"":
 		top = "Lab"
-	draw_string(_font, Vector2(mp.x, mp.y - 8), top, HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, 15, Color.WHITE)
+	var meta_px := UiTokens.meta(r)
+	draw_string(_font, Vector2(mp.x, mp.y - 16.0), UiTokens.ellipsis(_font, top, MAP_PX, meta_px), HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, Color.WHITE)
 	var tile := BuildGrid.tile_of(player.global_position)
-	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 18), "X %d  Y %d" % [tile.x, tile.y], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, 13, Color(0.9, 0.85, 0.6))
-	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 36), "%s  %s" % [Game.clock_label(), Game.phase_name()], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, 13, Color(0.85, 0.85, 0.85))
+	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 16), "X %d  Y %d" % [tile.x, tile.y], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
+	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 32), "%s  %s" % [Game.clock_label(), Game.phase_name()], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
+	_draw_quest(r, mp)
 	# --- XP bar along the bottom
 	# One bar: the pioneer level, which every skill XP grant also feeds.
 	var prog := World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
@@ -860,7 +897,8 @@ func _draw() -> void:
 	draw_rect(Rect2(0, r.y - 4, r.x * prog, 4), Color(0.90, 0.68, 0.12))
 	var lv := "Lv. %d  %.1f%%" % [char_lv, prog * 100.0]
 	var lw := _font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
-	draw_string(_font, Vector2(r.x * 0.5 - lw * 0.5, r.y - 7), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
+	var lv_pos := Vector2(r.x - lw - 16.0 - inset.x, r.y - HEX - 22.0) if phone else Vector2(r.x * 0.5 - lw * 0.5, r.y - 7.0)
+	draw_string(_font, lv_pos, lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 	# --- name under the survivor
 	var cam := get_viewport().get_camera_3d()
 	if cam:
@@ -924,13 +962,15 @@ func _draw_target_plate(t: Creature, a: float) -> void:
 	var r := get_viewport_rect().size
 	if true:
 		if t and is_instance_valid(t):
-			var pw := 520.0
+			var pw := minf(520.0, r.x - 24.0)
 			var px := r.x * 0.5 - pw * 0.5
-			var py := 14.0
+			var py := 14.0 + _safe_insets().z
 			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
-			draw_string(_font, Vector2(px + 40, py + 30), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1, 1, 1, a))
-			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
-			draw_string(_font, Vector2(px + 40 + nmw + 14, py + 30), "Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1.0, 0.3, 0.25, a))
+			var name_px := UiTokens.heading(r)
+			nm = UiTokens.ellipsis(_font, nm, pw - 150.0, name_px)
+			draw_string(_font, Vector2(px + 12, py + 28), nm, HORIZONTAL_ALIGNMENT_LEFT, pw - 120.0, name_px, Color(1, 1, 1, a))
+			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x
+			draw_string(_font, Vector2(px + 18 + nmw, py + 28), "Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px, UiTokens.DANGER)
 			draw_rect(Rect2(px + pw - 60, py - 4, 52, 52), Color(0.12, 0.12, 0.14, 0.9 * a))
 			draw_string(_font, Vector2(px + pw - 48, py + 32), str(t.def.id).left(1).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1, 1, 1, a))
 			var frac := clampf(t.health.hp / maxf(1.0, t.health.max_hp), 0.0, 1.0)
@@ -945,6 +985,25 @@ func _draw_target_plate(t: Creature, a: float) -> void:
 					draw_rect(Rect2(ix, py + 74, 26, 26), Color(0.1, 0.1, 0.12, 0.85 * a))
 					draw_string(_font, Vector2(ix + 4, py + 93), str(inst.id).left(2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.6, 0.5, a))
 					ix += 30
+
+func _draw_quest(r: Vector2, mp: Vector2) -> void:
+	var phone := UiTokens.is_phone(r)
+	var w := MAP_PX if phone else 168.0
+	var origin := Vector2(mp.x, mp.y + MAP_PX + 52.0) if phone else Vector2(mp.x - w - 12.0, mp.y)
+	if origin.x < 8.0:
+		origin.x = 8.0
+	draw_rect(Rect2(origin, Vector2(w, 72.0)), UiTokens.INK)
+	draw_rect(Rect2(origin, Vector2(3.0, 72.0)), UiTokens.TEAL)
+	var island := str(World.island_id).replace("_", " ").capitalize()
+	if island == "":
+		island = "Uncharted"
+	var objective := "Settle and gather" if World.is_home() else "Survive, then return"
+	if World.island_id == &"":
+		objective = "Lab range"
+	var head := UiTokens.heading(r) - 4
+	draw_string(_font, origin + Vector2(12, 16), "NOW", HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, UiTokens.meta(r), UiTokens.META)
+	draw_string(_font, origin + Vector2(12, 38), UiTokens.ellipsis(_font, island, w - 24.0, head), HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, head, UiTokens.TEXT)
+	draw_string(_font, origin + Vector2(12, 58), UiTokens.ellipsis(_font, objective, w - 24.0, UiTokens.meta(r)), HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, UiTokens.meta(r), UiTokens.TEXT)
 
 func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String) -> void:
 	draw_rect(Rect2(pos, size), Color(0.08, 0.08, 0.1, 0.85))
@@ -1087,16 +1146,16 @@ func _draw_pills(cam: Camera3D) -> void:
 				continue
 			rows.append([d, n3, grp])
 	rows.sort_custom(func (a: Array, b: Array) -> bool: return a[0] < b[0])
+	var pending: Array = []
 	var shown := 0
 	for row in rows:
-		if shown >= 24:
+		if shown >= 12:
 			break
 		var n3: Node3D = row[1]
 		var grp: String = row[2]
 		var d: float = row[0]
 		var name := ""
 		var dot := Color(0.35, 0.85, 0.35)
-		var glyph := "▣"
 		var timer := ""
 		var top := 1.2
 		if grp == "harvest":
@@ -1104,7 +1163,6 @@ func _draw_pills(cam: Camera3D) -> void:
 			if hn == null:
 				continue
 			name = (hn.family if hn.family != "" else str(hn.node_id)).replace("_", " ").capitalize()
-			glyph = "✿"
 			top = hn.top_of_node()
 			if hn.depleted:
 				dot = Color(0.5, 0.5, 0.5)
@@ -1112,7 +1170,7 @@ func _draw_pills(cam: Camera3D) -> void:
 				if left > 0.0:
 					timer = "%dm %02ds" % [int(left / 60.0), int(left) % 60]
 			elif hn.required_tool_class != &"" and hn.required_tool_class != &"none" and not player.inventory.has_tool_class(hn.required_tool_class):
-				dot = Color(0.9, 0.3, 0.25)
+				dot = UiTokens.DANGER
 		else:
 			var kind: Variant = n3.get("kind")
 			if kind == null:
@@ -1122,29 +1180,47 @@ func _draw_pills(cam: Camera3D) -> void:
 				name = "Cargo Warp"
 			elif grp == "harbour":
 				name = "Harbour"
-		var a := 1.0 if n3 == radial_node else 1.0 - smoothstep(5.5, 8.0, d)
-		var sp := cam.unproject_position(n3.global_position + Vector3(0, top + 0.35, 0))
-		var text := "%s  %s" % [glyph, name]
+		var priority := 100 if n3 == radial_node or n3 == player.gather_target else int(40.0 - d)
+		if name == "Workbench" or name == "Cargo Warp":
+			priority += 5
+		var text := UiTokens.ellipsis(_font, name, UiTokens.LABEL_MAX_W - 28.0, 14)
 		var tw := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
-		# Tool icons (small, top-right of the pill) only on the resource being worked or picked.
 		var working := (grp == "harvest" and (n3 == player.gather_target or (_gather_radial_node() == n3))) or (grp == "corpse" and n3 is Corpse and (n3 as Corpse).tapped_recently(4.0))
 		var tools: Array = _tools_for_node(n3, grp) if working else []
-		var w := tw + 30.0
-		var rect := Rect2(sp.x - w * 0.5, sp.y - 24.0, w, 22.0)
-		draw_rect(rect, Color(0.05, 0.06, 0.08, 0.82 * a))
-		draw_circle(Vector2(rect.position.x + 10.0, rect.position.y + 11.0), 4.0, Color(dot, a))
-		draw_string(_font, Vector2(rect.position.x + 20.0, rect.position.y + 16.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1, 1, 1, a))
-		var ix := rect.position.x + w - 6.0 - float(tools.size()) * 14.0
+		var w := minf(tw + 28.0, UiTokens.LABEL_MAX_W)
+		var sp := cam.unproject_position(n3.global_position + Vector3(0, top + 0.35, 0))
+		pending.append({
+			"anchor": sp, "w": w, "h": 22.0, "priority": priority,
+			"text": text, "dot": dot, "timer": timer, "tools": tools,
+			"a": 1.0 if n3 == radial_node else 1.0 - smoothstep(5.5, 8.0, d),
+		})
+		shown += 1
+	var view := get_viewport_rect().size
+	for item in UiTokens.layout_labels(pending, view):
+		var rect: Rect2 = item["rect"]
+		var a: float = item["a"]
+		var text: String = item["text"]
+		var dot: Color = item["dot"]
+		var bg := UiTokens.INK
+		bg.a *= a
+		draw_rect(rect, bg)
+		draw_circle(Vector2(rect.position.x + 10.0, rect.position.y + 11.0), 4.0, Color(dot.r, dot.g, dot.b, a))
+		draw_string(_font, Vector2(rect.position.x + 20.0, rect.position.y + 16.0), text, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 24.0, 14, Color(1, 1, 1, a))
+		var tools: Array = item["tools"]
+		var ix := rect.position.x + rect.size.x - 6.0 - float(tools.size()) * 14.0
 		for t in tools:
 			var tex: Texture2D = t[0]
 			var ok: bool = t[1]
 			if tex:
-				draw_circle(Vector2(ix + 6.0, rect.position.y - 2.0), 8.0, Color(0.05, 0.06, 0.08, 0.9 * a))
-				draw_texture_rect(tex, Rect2(ix, rect.position.y - 8.0, 12.0, 12.0), false, Color(1, 1, 1, a) if ok else Color(1.0, 0.4, 0.35, a))
+				draw_texture_rect(tex, Rect2(ix, rect.position.y - 8.0, 12.0, 12.0), false, Color(1, 1, 1, a) if ok else Color(1.0, 0.45, 0.4, a))
 			ix += 14.0
+		var timer: String = item["timer"]
 		if timer != "":
-			var tt := "⏱ %s" % timer
-			var ttw := _font.get_string_size(tt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
-			draw_rect(Rect2(sp.x - ttw * 0.5 - 8.0, sp.y + 2.0, ttw + 16.0, 20.0), Color(0.05, 0.06, 0.08, 0.82 * a))
-			draw_string(_font, Vector2(sp.x - ttw * 0.5, sp.y + 17.0), tt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.9, 0.6, a))
+			var tt := UiTokens.ellipsis(_font, timer, 96.0, UiTokens.meta(view))
+			var ttw := _font.get_string_size(tt, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view)).x
+			var trect := Rect2(rect.position.x, rect.position.y + rect.size.y + 2.0, ttw + 16.0, 18.0)
+			var tbg := UiTokens.INK
+			tbg.a *= a
+			draw_rect(trect, tbg)
+			draw_string(_font, Vector2(trect.position.x + 8.0, trect.position.y + 14.0), tt, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), Color(1, 0.9, 0.6, a))
 		shown += 1

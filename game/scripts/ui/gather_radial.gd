@@ -24,7 +24,7 @@ var active_index: int = -1
 var _progress: float = 0.0
 var _ring3d: MeshInstance3D  # selection hexagon on the ground, depth-tested so the plant stands on it
 
-const HEX := 76.0
+const HEX := 64.0
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -70,6 +70,7 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 		var b := HexButton.new(HEX)
 		var item_id := StringName(str(o.get("item", "")))
 		b.icon = _icon_for(item_id)
+		b.color_icon = b.icon != null
 		if b.icon == null:
 			b.glyph = str(_display_name(item_id)).left(1)
 		b.top_text = "%.1fs" % float(o.get("seconds", 1.8))
@@ -83,7 +84,7 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 		b.pressed.connect(_on_pick.bind(i))
 		add_child(b)
 		_buttons.append(b)
-		_labels.append({"text": "%s Lv. %d" % [_display_name(item_id), level], "reason": reason})
+		_labels.append({"text": "%s  Lv. %d" % [_display_name(item_id), level], "reason": reason})
 	_open = true
 	visible = true
 	_show_ring3d()
@@ -186,7 +187,7 @@ func refresh() -> void:
 		b.queue_redraw()
 		if i < _labels.size():
 			var item_id := StringName(str(o.get("item", "")))
-			_labels[i] = {"text": "%s Lv. %d" % [_display_name(item_id), level], "reason": reason}
+			_labels[i] = {"text": "%s  Lv. %d" % [_display_name(item_id), level], "reason": reason}
 	queue_redraw()
 
 func set_progress(frac: float) -> void:
@@ -232,11 +233,11 @@ func _anchor() -> Vector2:
 
 func _layout() -> void:
 	var base := _anchor()
-	# Fan to the right, stacked diagonally like the reference (right-hand thumb reach).
+	var view := get_viewport_rect().size
+	var spots := ContextRadial.hex_positions(base, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX)
 	for i in _buttons.size():
-		var off := Vector2(95.0 + float(i % 2) * 46.0, -80.0 + float(i) * 82.0)
-		var b := _buttons[i]
-		b.position = base + off - b.size * 0.5
+		if i < spots.size():
+			_buttons[i].position = spots[i]
 
 func _draw() -> void:
 	if not _open or node == null:
@@ -251,25 +252,30 @@ func _draw() -> void:
 		ppm = get_viewport_rect().size.y / maxf(1.0, cam.size)
 	var r := 1.35 * ppm
 	var ground := cam.unproject_position(node.global_position) if cam else base
-	var name := _node_name()
-	var ns := 18
+	var view := get_viewport_rect().size
+	var name := UiTokens.ellipsis(font, _node_name(), 168.0, UiTokens.body(view))
+	var ns := UiTokens.body(view)
 	var nw := font.get_string_size(name, HORIZONTAL_ALIGNMENT_CENTER, -1, ns).x
-	draw_string(font, Vector2(ground.x - nw * 0.5, ground.y + r * 0.55 + 22.0), name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
+	var name_pos := Vector2(ground.x - nw * 0.5, ground.y + minf(r, 72.0) * 0.35 + 18.0)
+	draw_rect(Rect2(name_pos + Vector2(-10, -ns), Vector2(nw + 20, ns + 8)), UiTokens.INK)
+	draw_string(font, name_pos, name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
 	var lv := "Lv. %d" % level
-	var lw := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, 16).x
-	draw_string(font, Vector2(ground.x - lw * 0.5, ground.y + r * 0.55 + 42.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.55, 0.9, 0.45))
-	# Labels to the right of each hex, on a dark pill.
+	var lw := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, UiTokens.meta(view)).x
+	draw_string(font, Vector2(ground.x - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
 	for i in _buttons.size():
 		var b := _buttons[i]
-		var text: String = _labels[i]["text"]
-		var reason: String = _labels[i]["reason"]
-		var ts := 17
+		var text: String = UiTokens.ellipsis(font, str(_labels[i]["text"]), 148.0, UiTokens.body(view))
+		var reason: String = str(_labels[i]["reason"])
+		var ts := UiTokens.body(view)
 		var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x
-		var pos := b.position + Vector2(b.size.x + 6.0, b.size.y * 0.5)
-		draw_rect(Rect2(pos + Vector2(-4, -14), Vector2(tw + 12, 26)), Color(0.05, 0.06, 0.07, 0.85))
+		var left := ContextRadial.label_on_left(b.position, b.size.x, view)
+		var pos := b.position + (Vector2(-tw - 14.0, b.size.y * 0.5) if left else Vector2(b.size.x + 8.0, b.size.y * 0.5))
+		pos.x = clampf(pos.x, 8.0, maxf(8.0, view.x - tw - 16.0))
+		draw_rect(Rect2(pos + Vector2(-4, -14), Vector2(tw + 12, 26)), UiTokens.INK)
 		draw_string(font, pos + Vector2(2, 6), text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, Color(0.95, 0.95, 0.95) if reason == "" else Color(0.75, 0.75, 0.75))
 		if reason != "":
-			draw_string(font, pos + Vector2(2, 26), reason, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1.0, 0.45, 0.4))
+			var short := UiTokens.ellipsis(font, reason, 148.0, UiTokens.meta(view))
+			draw_string(font, pos + Vector2(2, 24), short, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.DANGER)
 	# Gather progress: a thick outline sweeping around the picked hex, once per unit.
 	if active_index >= 0 and active_index < _buttons.size():
 		var ab := _buttons[active_index]

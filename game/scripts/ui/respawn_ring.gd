@@ -9,7 +9,8 @@ var on_done: Callable
 func _init(p_rec: PetRecord = null, p_on_done: Callable = Callable()) -> void:
 	rec = p_rec
 	on_done = p_on_done
-	custom_minimum_size = Vector2(56, 56)
+	custom_minimum_size = Vector2(64, 64)
+	size = custom_minimum_size
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func _process(_delta: float) -> void:
@@ -36,6 +37,6 @@ func _draw() -> void:
 		draw_arc(c, r, -PI * 0.5, -PI * 0.5 + TAU * frac, 40, Color(0.55, 0.9, 1.0), 4.0, true)
 	var secs := "%ds" % int(ceil(rec.respawn_left))
 	var f := ThemeDB.fallback_font
-	var fs := 16
+	var fs := 14
 	var w := f.get_string_size(secs, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	draw_string(f, c + Vector2(-w * 0.5, fs * 0.38), secs, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color.WHITE)

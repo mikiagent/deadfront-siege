@@ -114,6 +114,8 @@ var _force_clip_map: Array[StringName] = [
 ## the death clip plays once and the rig stays on the floor. The HUD shows You Died + Respawn.
 var dead: bool = false
 var _last_hit_taken_s: float = -999.0
+## Presentation only: who landed the hit that left the survivor down. Cleared on respawn.
+var downed_by: String = ""
 var _autofeed_cd: float = 0.0
 var _roll_through: Array[Creature] = []
 ## Stagger: a short unmovable hurt window after a hit (0.35 s), at most once every 1.5 s.
@@ -177,7 +179,14 @@ func craft_recipe(rid: StringName, count: int = 1) -> void:
 	station_craft.begin(rid, count)
 
 func _setup_station_craft() -> void:
-	var layer := _find_or_make_ui_layer()
+	var layer := CanvasLayer.new()
+	layer.name = "ContextUI"
+	layer.layer = 64
+	var scene := get_tree().current_scene
+	if scene:
+		scene.add_child(layer)
+	else:
+		add_child(layer)
 	station_craft = StationCraft.new()
 	station_craft.name = "StationCraft"
 	add_child(station_craft)
@@ -270,6 +279,8 @@ func face_world(pos: Vector3) -> void:
 
 func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 	_last_hit_taken_s = Time.get_ticks_msec() * 0.001
+	if _who and _who.def:
+		downed_by = str(_who.def.id).replace("_", " ").capitalize()
 	_cancel_gather_and_butcher()
 	# Self-defence: bitten with no live target -> turn on the biter (auto-attack takes it from there).
 	if not dead and hunt and _who and not _who.is_pet and not _who.health.dead:
@@ -1118,7 +1129,7 @@ func _draw_path_line(delta: float) -> void:
 
 func _setup_gather_ring() -> void:
 	var layer := CanvasLayer.new()
-	layer.layer = 56
+	layer.layer = 65
 	layer.name = "GatherRingLayer"
 	add_child(layer)
 	var script := load("res://scripts/ui/gather_ring.gd") as GDScript
@@ -1719,6 +1730,7 @@ func respawn() -> void:
 	if not dead:
 		return
 	dead = false
+	downed_by = ""
 	if statuses:
 		for inst in statuses.instances().duplicate():
 			statuses.clear_id(inst.id)
@@ -1820,7 +1832,7 @@ func _setup_player_beacon() -> void:
 func _setup_gather_radial() -> void:
 	var layer := CanvasLayer.new()
 	layer.name = "GatherRadialLayer"
-	layer.layer = 55
+	layer.layer = 64
 	add_child(layer)
 	_gather_radial = GatherRadial.new()
 	_gather_radial.name = "GatherRadial"

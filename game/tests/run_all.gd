@@ -1,6 +1,7 @@
 extends SceneTree
 
 var failures: Array[String] = []
+var _capture_done := false
 
 func _init() -> void:
 	_test_save_migrations()
@@ -10,7 +11,21 @@ func _init() -> void:
 	_test_progression_scaling()
 	_test_starter_island_levels_and_resource_stacks()
 	_test_hud_event_state()
+	_test_ui_tokens()
+
+## FieldTame references the Data autoload. `godot --script` compiles this file before
+## singletons exist, so the capture checks load that class on the first frame.
+func _process(_delta: float) -> bool:
+	if _capture_done:
+		return true
+	if get_root() == null or get_root().get_node_or_null("Data") == null:
+		return false
+	_capture_done = true
 	_test_capture_threshold()
+	_finish()
+	return true
+
+func _finish() -> void:
 	if failures.is_empty():
 		print("[tests] PASS")
 		quit(0)
@@ -118,7 +133,45 @@ func _test_creature_genetics() -> void:
 	var copy := CreatureGenetics.from_dict(genes.to_dict())
 	_expect(copy.ivs == genes.ivs and copy.evs == genes.evs and copy.level_gains == genes.level_gains, "genetics save roundtrip")
 
+func _test_ui_tokens() -> void:
+	var font := ThemeDB.fallback_font
+	_expect(font != null, "UI font is available")
+	if font == null:
+		return
+	for sample in ["Stegosaurus", "Compsognathus", "Ranged Defense", "Obsidian Pickaxe"]:
+		var clipped := UiTokens.ellipsis(font, sample, 72.0, 14)
+		_expect(clipped.ends_with("…") or font.get_string_size(sample, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x <= 72.0, "long name stays inside 72 px: %s" % sample)
+		_expect(font.get_string_size(clipped, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x <= 72.0 + 1.0, "ellipsis result fits: %s" % sample)
+	_expect(UiTokens.ellipsis(font, "999", 80.0, 14) == "999", "three-digit stack is kept when it fits")
+	_expect(font.get_string_size("999s", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x <= 60.0, "three-digit timer fits a 64 px ring")
+	_expect(UiTokens.body(Vector2(1600, 900)) >= 16, "desktop body is at least 16")
+	_expect(UiTokens.body(Vector2(390, 844)) >= 14, "phone body stays at least 14")
+	_expect(UiTokens.meta(Vector2(390, 844)) >= 12, "phone metadata stays at least 12")
+	_expect(UiTokens.heading(Vector2(1600, 900)) >= 20 and UiTokens.heading(Vector2(1600, 900)) <= 28, "desktop heading is in range")
+	var labels: Array = [
+		{"id": "Workbench", "anchor": Vector2(400, 300), "w": 150.0, "h": 22.0, "priority": 2},
+		{"id": "Cargo Warp", "anchor": Vector2(410, 308), "w": 160.0, "h": 22.0, "priority": 1},
+	]
+	var placed: Array = UiTokens.layout_labels(labels, Vector2(1600, 900))
+	_expect(placed.size() == 2, "both world labels are placed")
+	var a: Rect2 = placed[0]["rect"]
+	var b: Rect2 = placed[1]["rect"]
+	_expect(not a.grow(1.0).intersects(b), "Workbench and Cargo Warp labels do not overlap")
+	var edge: Array = ContextRadial.hex_positions(Vector2(1580, 860), 3, Vector2(1600, 900), Vector4.ZERO, 64.0)
+	_expect(edge.size() == 3, "radial returns one spot per hex")
+	for spot in edge:
+		var p: Vector2 = spot
+		_expect(p.x >= -0.1 and p.y >= -0.1 and p.x + 64.0 <= 1600.1 and p.y + 64.0 <= 900.1, "radial hex stays inside 1600x900")
+	var phone: Array = ContextRadial.hex_positions(Vector2(370, 820), 3, Vector2(390, 844), Vector4.ZERO, 64.0)
+	for spot in phone:
+		var p2: Vector2 = spot
+		_expect(p2.x >= -0.1 and p2.y >= -0.1 and p2.x + 64.0 <= 390.1 and p2.y + 64.0 <= 844.1, "radial hex stays inside 390x844")
+
 func _test_capture_threshold() -> void:
-	_expect(FieldTame.health_allows_capture(0.299), "capture opens below 30 percent health")
-	_expect(not FieldTame.health_allows_capture(0.30), "capture stays closed at 30 percent health")
-	_expect(not FieldTame.health_allows_capture(0.50), "capture stays closed above threshold")
+	var script: Variant = load("res://scripts/pets/field_tame.gd")
+	_expect(script != null, "field tame script loads after autoloads")
+	if script == null:
+		return
+	_expect(bool(script.call("health_allows_capture", 0.299)), "capture opens below 30 percent health")
+	_expect(not bool(script.call("health_allows_capture", 0.30)), "capture stays closed at 30 percent health")
+	_expect(not bool(script.call("health_allows_capture", 0.50)), "capture stays closed above threshold")

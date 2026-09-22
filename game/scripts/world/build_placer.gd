@@ -76,6 +76,20 @@ func _ready() -> void:
 	_ghost_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_ghost_label.modulate = Color(1.0, 1.0, 1.0, 0.92)
 	_ghost_root.add_child(_ghost_label)
+	var contact := MeshInstance3D.new()
+	contact.name = "ContactShadow"
+	contact.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var disc := PlaneMesh.new()
+	disc.size = Vector2(1.1, 1.1)
+	contact.mesh = disc
+	var shadow_mat := StandardMaterial3D.new()
+	shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	shadow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	shadow_mat.albedo_color = Color(0.0, 0.0, 0.0, 0.38)
+	shadow_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	contact.material_override = shadow_mat
+	contact.position = Vector3(0.0, 0.03, 0.0)
+	_ghost_root.add_child(contact)
 	_ghost_grid = MeshInstance3D.new()
 	_ghost_grid.name = "GhostGrid"
 	_ghost_grid.top_level = true
@@ -462,7 +476,7 @@ func _build_materials() -> void:
 	_mat_valid = StandardMaterial3D.new()
 	_mat_valid.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_mat_valid.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_mat_valid.albedo_color = Color(0.3, 0.6, 1.0, 0.45)  # blue = valid spot
+	_mat_valid.albedo_color = Color(0.18, 0.74, 0.70, 0.42)
 	_mat_invalid = StandardMaterial3D.new()
 	_mat_invalid.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_mat_invalid.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -475,7 +489,7 @@ func _build_materials() -> void:
 	_grid_mat = StandardMaterial3D.new()
 	_grid_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_grid_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_grid_mat.albedo_color = Color(0.85, 0.92, 1.0, 0.35)
+	_grid_mat.albedo_color = Color(0.85, 0.92, 1.0, 0.16)
 	_grid_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_grid_mat.no_depth_test = true
 
@@ -500,7 +514,9 @@ func _rebuild_ghost_visual() -> void:
 
 func _apply_ghost_material(node: Node, mat: StandardMaterial3D) -> void:
 	if node is MeshInstance3D:
-		(node as MeshInstance3D).material_override = mat
+		var mesh_node := node as MeshInstance3D
+		mesh_node.material_override = mat
+		mesh_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	for c in node.get_children():
 		_apply_ghost_material(c, mat)
 
@@ -559,7 +575,7 @@ func _draw_overlay(grid: BuildGrid) -> void:
 			if not bad:
 				continue
 			_overlay_quad(qverts, qcols, BuildGrid.tile_centre(t, World.runtime), 0.9, 0.045, blocked_col)
-	var mine_col := Color(0.25, 0.55, 1.0, 0.45) if valid else Color(0.9, 0.2, 0.15, 0.42)
+	var mine_col := Color(0.16, 0.72, 0.68, 0.40) if valid else Color(0.9, 0.2, 0.15, 0.42)
 	for c in mine:
 		_overlay_quad(qverts, qcols, BuildGrid.tile_centre(c, World.runtime), 0.96, 0.05, mine_col)
 	var quad_arrays := []
@@ -606,11 +622,30 @@ func _surface_y(x: float, z: float) -> float:
 		return World.runtime.surface_y(x, z)
 	return 0.0
 
+func _cost_text() -> String:
+	var kit := _kit_id(placing)
+	if kit == "":
+		kit = str(placing)
+	var rec: Variant = Data.recipes.get(StringName(kit), null)
+	if not rec is Dictionary:
+		return ""
+	var parts: PackedStringArray = []
+	for slot in (rec as Dictionary).get("slots", []):
+		if slot is Dictionary:
+			parts.append("%s ×%d" % [str((slot as Dictionary).get("category", "")).replace("_", " "), int((slot as Dictionary).get("count", 1))])
+	return " · ".join(parts)
+
 func _update_label(grid: BuildGrid) -> void:
 	var fp := grid.footprint(placing)
 	var label := "%dx%d" % [fp.x, fp.y]
+	var cost := _cost_text()
+	if cost != "":
+		label += "\n%s" % cost
 	if not valid and reason != "":
 		label += " · %s" % reason
+	var contact := _ghost_root.get_node_or_null("ContactShadow") as MeshInstance3D
+	if contact and contact.mesh is PlaneMesh:
+		(contact.mesh as PlaneMesh).size = Vector2(maxf(0.8, float(fp.x)) * 0.92, maxf(0.8, float(fp.y)) * 0.92)
 	if label == _last_label:
 		return  # setting Label3D.text re-rasterises the font texture
 	_last_label = label

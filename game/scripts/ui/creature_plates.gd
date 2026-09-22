@@ -13,6 +13,7 @@ var _entries: Dictionary = {} ## creature instance id -> Dictionary
 var _corpse_entries: Dictionary = {} ## corpse instance id -> Dictionary
 var _icons: Dictionary = {}
 var _icon_cache: Dictionary = {}
+var _emphasis_id: int = 0
 
 func _ready() -> void:
 	layer = 58
@@ -40,6 +41,7 @@ func _process(delta: float) -> void:
 
 func _tick_creatures(cam: Camera3D, player: Player, delta: float) -> void:
 	var now := _now_s()
+	_emphasis_id = _pick_emphasis(player)
 	var seen: Dictionary = {}
 	for n in get_tree().get_nodes_in_group("creatures"):
 		var c := n as Creature
@@ -113,7 +115,7 @@ func _separate_visible_creature_plates() -> void:
 	visible.sort_custom(func(a: Control, b: Control) -> bool: return a.position.y < b.position.y)
 	for node in visible:
 		var pos := node.position
-		var sz := Vector2(BASE_WIDTH, 38.0) * node.scale
+		var sz := node.size * node.scale
 		var rect := Rect2(pos, sz).grow(3.0)
 		var attempts := 0
 		while attempts < 6:
@@ -154,7 +156,10 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	var line1 := Label.new()
 	line1.name = "Line1"
 	line1.position = Vector2(8, 0)
-	line1.size = Vector2(BASE_WIDTH - 16.0, 16.0)
+	line1.size = Vector2(BASE_WIDTH - 16.0, 18.0)
+	line1.clip_text = true
+	line1.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	line1.add_theme_font_size_override("font_size", 14)
 	root.add_child(line1)
 	var bar_bg := ColorRect.new()
 	bar_bg.name = "BarBg"
@@ -200,6 +205,18 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	tame_label.name = "TameLabel"
 	tame_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tame_row.add_child(tame_label)
+	var xp_bg := ColorRect.new()
+	xp_bg.name = "XpBg"
+	xp_bg.position = Vector2(8, 36)
+	xp_bg.size = Vector2(160, 4)
+	xp_bg.color = Color(0.08, 0.08, 0.1, 0.9)
+	xp_bg.visible = false
+	root.add_child(xp_bg)
+	var xp_fill := ColorRect.new()
+	xp_fill.name = "XpFill"
+	xp_fill.size = Vector2(0, 4)
+	xp_fill.color = Color(0.90, 0.72, 0.22, 0.95)
+	xp_bg.add_child(xp_fill)
 	var floats := Control.new()
 	floats.name = "Floats"
 	floats.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -221,6 +238,8 @@ func _ensure_entry(c: Creature) -> Dictionary:
 		"tame_row": tame_row,
 		"tame_icon": tame_icon,
 		"tame_label": tame_label,
+		"xp_bg": xp_bg,
+		"xp_fill": xp_fill,
 		"floats": floats,
 		"float_nodes": [],
 		"alpha": 0.0,
@@ -274,10 +293,19 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	var top := c.get_global_transform_interpolated().origin + Vector3(0.0, c.def.height_meters + 0.3, 0.0)
 	var screen := cam.unproject_position(top)
 	root.position = screen + Vector2(-BASE_WIDTH * 0.5 * scale, -70.0 * scale)
+	var full := c.get_instance_id() == _emphasis_id
 	var line1 := entry["line1"] as Label
 	var rel_col := _relation_color(c)
+	line1.visible = full
 	line1.add_theme_color_override("font_color", rel_col)
-	line1.text = ("Lv. %d  %s  [%s]" % [c.level, str(c.def.species).capitalize(), c.genetics.overall_tier() if c.genetics else &"?"]) if c.is_pet else ("Lv. %d  %s" % [c.level, str(c.def.species).capitalize()])
+	var raw_name := ("Lv. %d  %s  [%s]" % [c.level, str(c.def.species).capitalize(), c.genetics.overall_tier() if c.genetics else &"?"]) if c.is_pet else ("Lv. %d  %s" % [c.level, str(c.def.species).capitalize()])
+	line1.text = UiTokens.ellipsis(ThemeDB.fallback_font, raw_name, BASE_WIDTH - 20.0, 14)
+	var bar_bg := root.get_node_or_null("BarBg") as ColorRect
+	if bar_bg:
+		bar_bg.position = Vector2(8, 20 if full else 2)
+		bar_bg.size = Vector2(160 if full else 96, 14 if full else 6)
+	root.size = Vector2(BASE_WIDTH, 78 if full else 18)
+	root.custom_minimum_size = root.size
 	var frac := c.health.fraction()
 	var prev := float(entry.get("hp_frac", frac))
 	if frac < prev:
@@ -285,8 +313,10 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 		entry["recent_left"] = DAMAGE_CHUNK_SECONDS
 		entry["flash_left"] = 0.12
 	entry["hp_frac"] = frac
+	var bar_w := 160.0 if full else 96.0
+	var bar_h := 14.0 if full else 6.0
 	var bar_fill := entry["bar_fill"] as ColorRect
-	bar_fill.size.x = 160.0 * frac
+	bar_fill.size = Vector2(bar_w * frac, bar_h)
 	bar_fill.color = _hp_color(frac)
 	var recent := entry["bar_recent"] as ColorRect
 	var left := maxf(0.0, float(entry.get("recent_left", 0.0)) - delta)
@@ -294,8 +324,8 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	if left > 0.0:
 		var from_frac := float(entry.get("recent_from", frac))
 		var shown_from := lerpf(frac, from_frac, left / DAMAGE_CHUNK_SECONDS)
-		recent.position.x = 160.0 * frac
-		recent.size.x = maxf(0.0, 160.0 * (shown_from - frac))
+		recent.position.x = bar_w * frac
+		recent.size = Vector2(maxf(0.0, bar_w * (shown_from - frac)), bar_h)
 	else:
 		recent.size.x = 0.0
 	var flash_left := maxf(0.0, float(entry.get("flash_left", 0.0)) - delta)
@@ -308,18 +338,62 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	hp_dbg.visible = Game.debug_overlay
 	if Game.debug_overlay:
 		hp_dbg.text = "%.0f/%.0f" % [c.health.hp, c.health.max_hp]
+	var line3 := entry["line3"] as Control
+	if line3:
+		line3.visible = full
 	_tick_status_icons(entry, c)
-	_tick_tame_hint(entry, c, player)
+	_tick_tame_hint(entry, c, player, full)
+	_tick_xp(entry, c, full)
 	_tick_floaters(entry, delta)
 
-func _tick_tame_hint(entry: Dictionary, c: Creature, player: Player) -> void:
+func _pick_emphasis(player: Player) -> int:
+	if player.hunt and player.hunt.target and is_instance_valid(player.hunt.target) and not player.hunt.target.health.dead:
+		return player.hunt.target.get_instance_id()
+	var best := 0
+	var best_score := -1.0
+	var now := _now_s()
+	for n in get_tree().get_nodes_in_group("creatures"):
+		var c := n as Creature
+		if c == null or c.health.dead:
+			continue
+		var score := 0.0
+		if FieldTame.can_attempt(c):
+			score = 100.0
+		elif now - c.last_damaged_s <= 5.0:
+			score = 50.0
+		elif now - c.last_aggro_s <= 5.0:
+			score = 40.0
+		if score <= 0.0:
+			continue
+		score -= player.global_position.distance_to(c.global_position) * 0.02
+		if score > best_score:
+			best_score = score
+			best = c.get_instance_id()
+	return best
+
+func _tick_xp(entry: Dictionary, c: Creature, full: bool) -> void:
+	var bg := entry.get("xp_bg", null) as ColorRect
+	var fill := entry.get("xp_fill", null) as ColorRect
+	if bg == null or fill == null:
+		return
+	var show := c.is_pet and c.pet_record != null
+	bg.visible = show
+	if not show:
+		return
+	bg.position = Vector2(8, 40 if full else 10)
+	bg.size = Vector2(160 if full else 96, 4)
+	var need := PetRecord.xp_to_next(c.pet_record.level)
+	var frac := clampf(c.pet_record.xp / maxf(1.0, need), 0.0, 1.0)
+	fill.size = Vector2(bg.size.x * frac, 4)
+
+func _tick_tame_hint(entry: Dictionary, c: Creature, player: Player, full: bool = true) -> void:
 	var row := entry.get("tame_row", null) as Control
 	var icon := entry.get("tame_icon", null) as TextureRect
 	var label := entry.get("tame_label", null) as Label
 	if row == null or label == null:
 		return
 	var hint := FieldTame.plate_hint(c, player.inventory if player else null)
-	if hint.is_empty():
+	if not full or hint.is_empty():
 		row.visible = false
 		return
 	row.visible = true
