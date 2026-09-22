@@ -10,6 +10,7 @@ extends Control
 var player: Player
 var _font: Font
 var _minimap: Control
+var _minimap_material: ShaderMaterial
 var _map_tex: ImageTexture
 var _map_island: StringName = &""
 var _map_span: int = 0
@@ -161,9 +162,10 @@ func _build_minimap() -> void:
 	# Clip the map and every marker to a round field window.
 	var circle_shader := Shader.new()
 	circle_shader.code = "shader_type canvas_item; void fragment(){ vec2 q = UV - vec2(0.5); if (length(q) > 0.5) discard; COLOR = texture(TEXTURE, UV) * COLOR; }"
-	var circle_material := ShaderMaterial.new()
-	circle_material.shader = circle_shader
-	_minimap.material = circle_material
+	_minimap_material = ShaderMaterial.new()
+	_minimap_material.shader = circle_shader
+	_minimap.material = _minimap_material
+	World.island_changed.connect(_refresh_minimap_after_travel)
 	_minimap.draw.connect(_draw_minimap)
 	_minimap.gui_input.connect(func (ev: InputEvent) -> void:
 		if (ev is InputEventScreenTouch and not (ev as InputEventScreenTouch).pressed) or (ev is InputEventMouseButton and not (ev as InputEventMouseButton).pressed and (ev as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT):
@@ -171,6 +173,19 @@ func _build_minimap() -> void:
 			_minimap.accept_event()
 	)
 	add_child(_minimap)
+
+func _refresh_minimap_after_travel(_id: StringName) -> void:
+	# WebGL can drop a CanvasItem material when the island swaps its large map texture.
+	# Rebind the retained material after the runtime and texture change have settled.
+	_map_tex = null
+	_map_island = &""
+	_minimap.material = _minimap_material
+	_minimap.queue_redraw()
+	call_deferred("_rebind_minimap_material")
+
+func _rebind_minimap_material() -> void:
+	_minimap.material = _minimap_material
+	_minimap.queue_redraw()
 
 func _hex(glyph: String, size_px: float = HEX, caption: String = "") -> HexButton:
 	var h := HexButton.new(size_px)
