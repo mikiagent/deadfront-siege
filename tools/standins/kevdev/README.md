@@ -7,8 +7,9 @@ use or expect to use are copied here; the full free packs are on itch.io:
   mining, hammering, fishing, farming. `crafting/HumanM_Model.fbx` is the 55-bone rig.
 - Human Throwing Animations FREE: spear / weapon / ball throws, damage.
 - Human Soldier Animations FREE: damage, deaths, in-place walk 2 m/s and run 4 m/s.
-- Human Archer Animations FREE and Human Spellcasting Animations FREE were downloaded and
-  inspected but nothing from them is used yet (bow shoot and casting have no gameplay hook).
+- Human Archer Animations FREE and Human Spellcasting Animations FREE were reviewed from their
+  itch.io pages only (bow shoot, casting, 8-direction locomotion); nothing there has a gameplay
+  hook yet, so they were not downloaded.
 
 Author: Kevin Iglesias, https://www.keviniglesias.com, support@keviniglesias.com. The packs are
 name-your-own-price and the author allows use in commercial projects; the FBX sources must not

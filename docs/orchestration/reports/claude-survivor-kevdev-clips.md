@@ -25,8 +25,8 @@ Date: 2026-09-21. Agent: Claude Code (art pipeline). Meshy credits spent: 0.
   - `HarvestNode.gather_kind()` returns chop for tree families, mine for rock, gather otherwise.
   - `Player._start_gather_cycle` passes the target's kind; `StationCraft` passes `craft`.
 - `tools/standins/kevdev/`: the masculine FBX sources actually used plus a README with the
-  author, licence note and rig facts. Archer and spellcasting packs were downloaded and read
-  but nothing from them is used (no bow or casting gameplay hook).
+  author, licence note and rig facts. Archer and spellcasting packs were reviewed from their
+  pages only; nothing there has a gameplay hook, so they were not downloaded.
 - `game/data/characters/survivor.json`: clip list and a `pipeline.kevdev` provenance block.
 
 ## Validation
