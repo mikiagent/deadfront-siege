@@ -27,10 +27,11 @@ echo "Exporting Web release with $($G --version) → $OUT/index.html"
 "$G" --headless --path "$ROOT/game" --export-release "Web" "../export/web/index.html"
 cp "$ROOT/hosting/web/vercel.json" "$OUT/vercel.json"
 python3 "$ROOT/tools/web_pack_for_vercel.py" "$OUT"
-PACK_HASH="$(python3 - <<'PY2'
+PACK_HASH="$(python3 - "$OUT/pack.manifest.json" <<'PY2'
 import json
 from pathlib import Path
-part = json.loads(Path("$OUT/pack.manifest.json").read_text())["parts"][0]
+import sys
+part = json.loads(Path(sys.argv[1]).read_text())["parts"][0]
 print(part.split(".")[1])
 PY2
 )"
