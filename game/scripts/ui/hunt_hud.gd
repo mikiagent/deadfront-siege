@@ -10,7 +10,6 @@ extends Control
 var player: Player
 var _font: Font
 var _minimap: Control
-var _minimap_material: ShaderMaterial
 var _map_tex: ImageTexture
 var _map_island: StringName = &""
 var _map_span: int = 0
@@ -159,8 +158,8 @@ func _build_minimap() -> void:
 	_minimap.size = Vector2(MAP_PX, MAP_PX)
 	_minimap.mouse_filter = Control.MOUSE_FILTER_STOP
 	_minimap.clip_contents = true
-	# Clip the map and every marker to a round field window.
-	_apply_minimap_mask()
+	# The map is drawn square. A WebGL-safe opaque bezel hides the corners in
+	# _draw_minimap; no CanvasItem shader participates in this path.
 	World.island_changed.connect(_refresh_minimap_after_travel)
 	_minimap.draw.connect(_draw_minimap)
 	_minimap.gui_input.connect(func (ev: InputEvent) -> void:
@@ -177,13 +176,6 @@ func _refresh_minimap_after_travel(_id: StringName) -> void:
 	_map_tex = null
 	_map_island = &""
 	_minimap.queue_redraw()
-
-func _apply_minimap_mask() -> void:
-	var circle_shader := Shader.new()
-	circle_shader.code = "shader_type canvas_item; void fragment(){ vec2 q = UV - vec2(0.5); if (length(q) > 0.5) discard; COLOR = texture(TEXTURE, UV) * COLOR; }"
-	_minimap_material = ShaderMaterial.new()
-	_minimap_material.shader = circle_shader
-	_minimap.material = _minimap_material
 
 func _hex(glyph: String, size_px: float = HEX, caption: String = "") -> HexButton:
 	var h := HexButton.new(size_px)
@@ -1081,9 +1073,6 @@ func _ensure_map_texture() -> void:
 	_map_tex = ImageTexture.create_from_image(img)
 	_map_island = World.island_id
 	_map_span = span
-	# Order matters on Compatibility/WebGL: recreate the mask only after the island texture
-	# upload. Rebinding before this point reproduced a raw square on the destination island.
-	_apply_minimap_mask()
 
 func _draw_minimap() -> void:
 	var c := _minimap
@@ -1109,19 +1098,26 @@ func _draw_minimap() -> void:
 		c.draw_texture_rect_region(_map_tex, Rect2(Vector2(-span_px * 0.5, -span_px * 0.5), Vector2(span_px, span_px)), Rect2(u0, v0, half * 2.0, half * 2.0))
 		var to_px := func (w: Vector3) -> Vector2:
 			return Vector2((w.x - pp.x) / MAP_SCALE, (w.z - pp.z) / MAP_SCALE)
+		var marker_r := MAP_PX * 0.5 - 5.0
 		var camp: Vector3 = rt.get("_camp_pos")
 		var harb: Vector3 = rt.get("_harbour_pos")
-		c.draw_circle(to_px.call(camp), 4.0, Color(1.0, 0.85, 0.3))
-		c.draw_circle(to_px.call(harb), 4.0, Color(0.7, 0.85, 1.0))
+		var camp_q: Vector2 = to_px.call(camp)
+		var harb_q: Vector2 = to_px.call(harb)
+		if camp_q.length() <= marker_r:
+			c.draw_circle(camp_q, 4.0, Color(1.0, 0.85, 0.3))
+		if harb_q.length() <= marker_r:
+			c.draw_circle(harb_q, 4.0, Color(0.7, 0.85, 1.0))
 		if World.crater_discovered:
 			var cr: Vector3 = rt.get("_crater_pos")
-			c.draw_circle(to_px.call(cr), 4.0, Color(0.9, 0.4, 0.2))
+			var crater_q: Vector2 = to_px.call(cr)
+			if crater_q.length() <= marker_r:
+				c.draw_circle(crater_q, 4.0, Color(0.9, 0.4, 0.2))
 		for n in get_tree().get_nodes_in_group("creatures"):
 			var cr := n as Creature
 			if cr == null or cr.health.dead:
 				continue
 			var q: Vector2 = to_px.call(cr.global_position)
-			if q.length() > MAP_PX * 0.72:
+			if q.length() > marker_r:
 				continue
 			c.draw_circle(q, 2.5, Color(0.4, 0.9, 0.4) if cr.is_pet else Color(0.95, 0.35, 0.3))
 	# player arrow: facing relative to the camera, so it points up when running up the screen
@@ -1130,7 +1126,27 @@ func _draw_minimap() -> void:
 	var side := Vector2(-fwd.y, fwd.x)
 	c.draw_colored_polygon(PackedVector2Array([fwd * 8.0, -fwd * 5.0 + side * 5.0, -fwd * 5.0 - side * 5.0]), Color(1, 1, 1))
 	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	c.draw_circle(c.size * 0.5, MAP_PX * 0.5 - 1.5, Color(1, 1, 1, 0.48), false, 2.0)
+	_draw_minimap_bezel(c)
+
+func _draw_minimap_bezel(c: Control) -> void:
+	# Shader clipping was lost after island travel in WebGL. Cover the four square corners
+	# with opaque polygons instead; this is pure Canvas draw state and survives texture swaps.
+	var centre := c.size * 0.5
+	var radius := MAP_PX * 0.5 - 1.5
+	var cover := Color(0.035, 0.04, 0.05, 1.0)
+	var corners := [
+		[Vector2(centre.x, 0), Vector2(c.size.x, 0), Vector2(c.size.x, centre.y), 0.0, -PI * 0.5],
+		[Vector2(c.size.x, centre.y), Vector2(c.size.x, c.size.y), Vector2(centre.x, c.size.y), PI * 0.5, 0.0],
+		[Vector2(centre.x, c.size.y), Vector2(0, c.size.y), Vector2(0, centre.y), PI, PI * 0.5],
+		[Vector2(0, centre.y), Vector2(0, 0), Vector2(centre.x, 0), PI * 1.5, PI],
+	]
+	for spec in corners:
+		var pts := PackedVector2Array([spec[0], spec[1], spec[2]])
+		for i in 13:
+			var angle: float = lerpf(float(spec[3]), float(spec[4]), float(i) / 12.0)
+			pts.append(centre + Vector2(cos(angle), sin(angle)) * radius)
+		c.draw_colored_polygon(pts, cover)
+	c.draw_circle(centre, radius, Color(1, 1, 1, 0.48), false, 2.0)
 
 func _gather_radial_node() -> Node3D:
 	var gr: Variant = player.get("_gather_radial")
