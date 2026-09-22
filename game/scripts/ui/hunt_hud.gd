@@ -57,7 +57,7 @@ var _death_alpha: float = 0.0
 var _death_btn: Button
 
 const MAP_PX := 154.0
-const MAP_SCALE := 1.5  # metres per pixel
+const MAP_SCALE := 0.95  # metres per pixel
 const HEX := 64.0
 const CAPTION_H := 18.0  # room for the action word HexButton draws under a hex
 
