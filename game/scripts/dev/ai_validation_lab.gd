@@ -8,6 +8,7 @@ var follower_b: Creature
 var pet: Creature
 var target: Creature
 var idle_start: Array[Vector3] = []
+var failures: Array[String] = []
 
 func _ready() -> void:
 	var kit := LabKit.build(self, 50.0)
@@ -37,6 +38,8 @@ func _spawn(id: StringName, at: Vector3, pack: int = 0) -> Creature:
 
 func _after_idle() -> void:
 	var moved := [idle_start[0].distance_to(alpha.global_position), idle_start[1].distance_to(follower_a.global_position), idle_start[2].distance_to(follower_b.global_position)]
+	if float(moved[0]) < 0.25 or float(moved[1]) < 0.25 or float(moved[2]) < 0.25:
+		failures.append("flat pack member stayed stationary: %s" % [moved])
 	print("[aival] idle_moved=%s states=%s/%s/%s active=%s/%s/%s targets=%s/%s/%s nav_done=%s/%s/%s" % [moved, alpha.brain.state, follower_a.brain.state, follower_b.brain.state, alpha._path_active, follower_a._path_active, follower_b._path_active, alpha.brain._roam_target, follower_a.brain._roam_target, follower_b.brain._roam_target, alpha.agent.is_navigation_finished(), follower_a.agent.is_navigation_finished(), follower_b.agent.is_navigation_finished()])
 	# Isolate repeat-pet-attack verification away from the pack.
 	target = _spawn(&"utahraptor", Vector3(-3, 0, 8), 0)
@@ -66,8 +69,14 @@ func _after_idle() -> void:
 	await get_tree().process_frame
 	print("[aival] ring_cleanup had=%s removed=%s" % [had_ring, alpha._aggro_ring == null])
 	await get_tree().create_timer(0.25).timeout
+	await _runtime_protoceratops_probe()
+	if failures.is_empty():
+		print("[aival] PASS")
+	else:
+		for failure in failures:
+			push_error("[aival] FAIL %s" % failure)
 	if Game.shot_path == "":
-		get_tree().quit(0)
+		get_tree().quit(0 if failures.is_empty() else 1)
 
 func _target_name(c: Creature) -> String:
 	if c.brain.attack_target == player:
@@ -75,3 +84,28 @@ func _target_name(c: Creature) -> String:
 	if c.brain.attack_target is Creature:
 		return str((c.brain.attack_target as Creature).def.id)
 	return "none"
+
+func _runtime_protoceratops_probe() -> void:
+	Game.max_creatures_per_island = 24
+	World.harvested.clear()
+	World.load_island(self, &"home_grassland", Vector3(0, 1, 18), false)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var proto: Creature
+	for node in get_tree().get_nodes_in_group("creatures"):
+		var c := node as Creature
+		if c and c.def and c.def.id == &"protoceratops" and c.get_parent() == World.runtime:
+			proto = c
+			break
+	if proto == null:
+		failures.append("starter-island protoceratops missing")
+		print("[aival] runtime_proto missing=true")
+		return
+	var start := proto.global_position
+	await get_tree().create_timer(3.0).timeout
+	var moved := start.distance_to(proto.global_position)
+	if proto.level != 1:
+		failures.append("starter-island protoceratops level=%d, expected 1" % proto.level)
+	if moved < 0.25:
+		failures.append("starter-island protoceratops stayed stationary (%.3fm in 3s)" % moved)
+	print("[aival] runtime_proto level=%d moved=%.3f state=%s active=%s target=%s path_points=%d path_index=%d pos=%s start=%s" % [proto.level, moved, proto.brain.state, proto._path_active, proto.brain._roam_target, proto._path_points.size(), proto._path_index, proto.global_position, start])
