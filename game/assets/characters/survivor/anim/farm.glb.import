@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dtc74g1w5erw6"
-path="res://.godot/imported/hit_react.glb-fa3896ca2b0021ba46f812300552ba33.scn"
+uid="uid://dqyx4skjmap5v"
+path="res://.godot/imported/farm.glb-f0efaa5daccb9b7e80794acf5f97d1be.scn"
 
 [deps]
 
-source_file="res://assets/characters/survivor/anim/hit_react.glb"
-dest_files=["res://.godot/imported/hit_react.glb-fa3896ca2b0021ba46f812300552ba33.scn"]
+source_file="res://assets/characters/survivor/anim/farm.glb"
+dest_files=["res://.godot/imported/farm.glb-f0efaa5daccb9b7e80794acf5f97d1be.scn"]
 
 [params]
 

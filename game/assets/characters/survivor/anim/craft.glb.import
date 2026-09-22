@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dtc74g1w5erw6"
-path="res://.godot/imported/hit_react.glb-fa3896ca2b0021ba46f812300552ba33.scn"
+uid="uid://bxu5cvsk4auf"
+path="res://.godot/imported/craft.glb-5c2c635b43a436f0a45b2c274c7a43ec.scn"
 
 [deps]
 
-source_file="res://assets/characters/survivor/anim/hit_react.glb"
-dest_files=["res://.godot/imported/hit_react.glb-fa3896ca2b0021ba46f812300552ba33.scn"]
+source_file="res://assets/characters/survivor/anim/craft.glb"
+dest_files=["res://.godot/imported/craft.glb-5c2c635b43a436f0a45b2c274c7a43ec.scn"]
 
 [params]
 

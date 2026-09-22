@@ -388,6 +388,15 @@ func _collision_size() -> Vector3:
 	var w := 1.4 if wide else 1.0
 	return Vector3(w, 1.6, w)
 
+## Survivor work clip for this node: chop for trees, mine for rocks, the bush reach otherwise.
+func gather_kind() -> StringName:
+	var role := str(Data.nature_families.get(family, {}).get("role", ""))
+	if role.begins_with("tree"):
+		return &"chop"
+	if role == "rock":
+		return &"mine"
+	return &"gather"
+
 func _is_rock() -> bool:
 	return str(Data.nature_families.get(family, {}).get("role", "")) == "rock"
 

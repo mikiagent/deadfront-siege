@@ -164,7 +164,7 @@ func _start_craft_cycle() -> void:
 	_refund = Crafting.consume_for_craft(player.inventory, rec, _picks)
 	print("[craft] start %s %.1fs" % [recipe_id, duration])
 	if player.anim:
-		player.anim.on_gather()
+		player.anim.on_gather(&"craft")
 	if station and is_instance_valid(station):
 		player.face_world(station.global_position)
 	player.clear_nav()

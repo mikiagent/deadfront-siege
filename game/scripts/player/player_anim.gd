@@ -14,6 +14,10 @@ var _forced: bool = false
 var _missing_logged: Dictionary = {}
 var _resolved_missing: bool = false
 var _requested_clip: StringName = &"idle"
+## Work clips retargeted from the KevDev villager pack (tools/retarget_human.py); each is a
+## short one-shot that the gather loop re-triggers, so no idle pop between units.
+const GATHER_CLIPS: Array[StringName] = [&"gather", &"gather_chop", &"gather_mine", &"craft"]
+var _gather_clip: StringName = &"gather"
 
 func setup(p: Player, p_rig: RiggedModel) -> void:
 	player = p
@@ -47,7 +51,7 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 		return  # already on the ground; every hit re-triggering the fall looked like a glitch
 	_requested_clip = clip
 	_forced = forced
-	_busy = clip in [&"attack_primary", &"attack_heavy", &"punch", &"hit_react", &"roll", &"gather", &"knockdown"]
+	_busy = clip in [&"attack_primary", &"attack_heavy", &"punch", &"hit_react", &"roll", &"knockdown"] or clip in GATHER_CLIPS
 	if clip == &"death":
 		_dead = true
 	_play(clip)
@@ -76,8 +80,23 @@ func revive() -> void:
 func on_roll() -> void:
 	play_clip(&"roll")
 
-func on_gather() -> void:
-	play_clip(&"gather")
+## kind: &"chop" (trees), &"mine" (rocks), &"craft" (stations) or anything else for the
+## berry-bush reach. Falls back to the plain gather clip when the rig lacks the variant.
+func on_gather(kind: StringName = &"") -> void:
+	var clip: StringName = &"gather"
+	match kind:
+		&"chop":
+			clip = &"gather_chop"
+		&"mine":
+			clip = &"gather_mine"
+		&"craft":
+			clip = &"craft"
+	if rig and not rig.has_clip(clip):
+		clip = &"gather"
+	if clip != _gather_clip:
+		print("[player] work clip %s" % clip)
+	_gather_clip = clip
+	play_clip(clip)
 
 func on_attack(heavy: bool = false) -> void:
 	play_clip(&"attack_heavy" if heavy else &"attack_primary")
@@ -104,8 +123,8 @@ func _physics_tick(speed: float, running: bool = false) -> void:
 	if player.rolling:
 		return
 	if player._gathering:
-		if current_clip != &"gather":
-			on_gather()
+		if current_clip != _gather_clip:
+			play_clip(_gather_clip)
 		return
 	if player.mounted_on:
 		if not _busy:
@@ -120,7 +139,7 @@ func _play(clip: StringName) -> void:
 			return
 	var loco := [&"idle", &"walk", &"run", &"mount_idle"]
 	var blend := 0.18 if (resolved in loco and current_clip in loco) else 0.0
-	if resolved in loco and current_clip in [&"punch", &"attack_primary", &"attack_heavy", &"gather"]:
+	if resolved in loco and (current_clip in [&"punch", &"attack_primary", &"attack_heavy"] or current_clip in GATHER_CLIPS):
 		blend = 0.12  # trimmed one-shots end mid-pose; ease back into locomotion
 	current_clip = resolved
 	var speed := 1.0
@@ -185,6 +204,9 @@ func _on_clip_finished(clip: StringName) -> void:
 		_busy = true
 		if rig and rig.anim_player:
 			rig.anim_player.speed_scale = 0.0
+		return
+	if clip in GATHER_CLIPS and player and player._gathering:
+		_play(clip)  # next unit of the same work, no idle frame in between
 		return
 	_busy = false
 	_forced = false

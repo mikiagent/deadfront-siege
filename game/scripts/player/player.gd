@@ -870,7 +870,7 @@ func _start_gather_cycle(seconds: float) -> void:
 	_gather_unit_time = maxf(0.1, seconds)
 	_gather_left = _gather_unit_time
 	if anim:
-		anim.on_gather()
+		anim.on_gather(gather_target.gather_kind() if gather_target and is_instance_valid(gather_target) else &"")
 	_update_gather_ring(0.0)
 
 func _stop_gather_cycle(fade_ring: bool = true) -> void:

@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://q4lqucvknit3"
-path="res://.godot/imported/gather_texture_0.png-71a9a6dd078bedce94d78dda42aded92.ctex"
+uid="uid://1r6rsygbgq1p"
+path="res://.godot/imported/punch_texture_0.png-3cd6ca46a7735b941f1026639449c4ca.ctex"
 metadata={
 "vram_texture": false
 }
@@ -13,8 +13,8 @@ generator_parameters={
 
 [deps]
 
-source_file="res://assets/characters/survivor/anim/gather_texture_0.png"
-dest_files=["res://.godot/imported/gather_texture_0.png-71a9a6dd078bedce94d78dda42aded92.ctex"]
+source_file="res://assets/characters/survivor/anim/punch_texture_0.png"
+dest_files=["res://.godot/imported/punch_texture_0.png-3cd6ca46a7735b941f1026639449c4ca.ctex"]
 
 [params]
 

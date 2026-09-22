@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dtc74g1w5erw6"
-path="res://.godot/imported/hit_react.glb-fa3896ca2b0021ba46f812300552ba33.scn"
+uid="uid://vdmilj4bk33s"
+path="res://.godot/imported/fish_cast.glb-42ac6696f7cbd4b3acc9b3312f01dab4.scn"
 
 [deps]
 
-source_file="res://assets/characters/survivor/anim/hit_react.glb"
-dest_files=["res://.godot/imported/hit_react.glb-fa3896ca2b0021ba46f812300552ba33.scn"]
+source_file="res://assets/characters/survivor/anim/fish_cast.glb"
+dest_files=["res://.godot/imported/fish_cast.glb-42ac6696f7cbd4b3acc9b3312f01dab4.scn"]
 
 [params]
 
