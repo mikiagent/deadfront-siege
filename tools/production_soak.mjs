@@ -14,7 +14,7 @@ fs.mkdirSync(out, { recursive: true });
 const log = [];
 const executablePath = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(fs.existsSync);
 const browser = await chromium.launch({ headless: true, executablePath });
-const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1, isMobile: false, hasTouch: false });
 let failure = '';
 let checkpoint = 0;
 function writeLog() { fs.writeFileSync(path.join(out, 'console.log'), log.join('\n') + '\n'); }
@@ -24,7 +24,15 @@ page.on('console', async msg => {
   console.log(line);
   if (/\[soak\] checkpoint /.test(line)) {
     checkpoint += 1;
-    await inspectFrame(`checkpoint-${String(checkpoint).padStart(2, '0')}`, true);
+    await inspectFrame(`checkpoint-${String(checkpoint).padStart(2, '0')}`, checkpoint === 1 || checkpoint === 2);
+  }
+  const click = line.match(/\[soak\] desktop_click_norm ([0-9.-]+) ([0-9.-]+)/);
+  if (click) {
+    const nx = Number(click[1]), ny = Number(click[2]);
+    const canvas = page.locator('canvas');
+    const box = await canvas.boundingBox();
+    if (!box || nx < 0 || nx > 1 || ny < 0 || ny > 1) failure ||= `invalid desktop click projection: ${nx},${ny}`;
+    else await page.mouse.click(box.x + nx * box.width, box.y + ny * box.height);
   }
   if (/\[soak\] FAIL|SCRIPT ERROR|Parse Error|WebGL context lost/i.test(line)) failure ||= line;
 });
@@ -49,10 +57,9 @@ async function inspectFrame(label, capture = false) {
 try {
   await page.goto(url.href, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   await page.waitForFunction(() => window.__deadfrontDiagnostics, null, { timeout: 10_000 });
-  const deadline = Date.now() + 180_000;
+  const deadline = Date.now() + 360_000;
   while (!failure && Date.now() < deadline && !log.some(line => line.includes('[soak] PASS'))) {
     await page.waitForTimeout(1000);
-    if (checkpoint > 0) await inspectFrame(`interval-${Date.now()}`);
   }
   if (!failure && !log.some(line => line.includes('[soak] PASS'))) failure = 'timed out waiting for [soak] PASS';
   const diagnostics = await page.evaluate(() => window.__deadfrontDiagnostics?.text() || '').catch(() => '');

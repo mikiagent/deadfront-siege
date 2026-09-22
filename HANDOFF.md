@@ -331,3 +331,27 @@ Required evidence
 ```
 
 If the one-liner is ambiguous in a way that changes money, public behavior, save compatibility, multiplayer authority, species identity, or a major visual direction, prepare the plan and ask one focused question before implementation. Otherwise fill small gaps conservatively and build.
+
+## 13. Canonical concept library and rig service
+
+Concept and production inputs are deliberately separate:
+
+- `assets/concept-art/` at repository root is the canonical, versioned concept library. Keeping it outside `game/` prevents Godot from importing or packaging working art.
+- `assets/concept-art/STYLE.md` is the shared art bible.
+- `assets/concept-art/README.md` owns approval, versioning and credit-spend rules.
+- `assets/concept-art/INDEX.md` is the status ledger. Use only `DRAFT`, `APPROVED`, `GENERATED`, `REJECTED`, or `INTEGRATED`; record exact approval anchor, Meshy task ID/route, credits, output, rig state and per-clip state.
+- Clip states are `preset-confirmed`, `preset-needs-cleanup`, `custom-T2M-approved`, `Blender-authored`, `fallback-rejected`, or `missing`. Never infer coverage from a marketing clip count.
+- Store sheets and clean views under `assets/concept-art/creatures/<species>/`. Approval is version-specific. A changed sheet gets a new numbered version and new Milan review.
+- `game/assets/creatures/<species>/ref/` is generation-input staging only. Copy approved, label-free clean crops there and retain `.gdignore` so reference art never enters the game pack.
+
+Use this nine-step rig and animation service for every creature:
+
+1. Create the numbered concept sheet and ledger row as `DRAFT`.
+2. Get Milan's approval of that exact version and record the authenticated message anchor.
+3. Verify the current Meshy web-subscription credit balance and the approved batch cap.
+4. Generate the mesh through the existing-subscription web route; record task and spend.
+5. Run Meshy Smart-Rig on the accepted mesh.
+6. Audit the actual preset/action catalog for that species and deformation; update each clip independently.
+7. Export only accepted clips, with exact source/action and file recorded.
+8. For missing or bad clips, use approved Text to Motion when its cap covers it, then Astra-authored Blender rig/weight/animation surgery. Mark rejected fallbacks rather than silently shipping them.
+9. Import into Godot, run the creature lab, and inspect desktop gameplay pixels for anatomy, scale, material, foot contact, plate/tail deformation and every required state before `INTEGRATED`.

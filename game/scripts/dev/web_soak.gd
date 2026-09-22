@@ -24,13 +24,18 @@ func run(host: Node) -> void:
 		_fail("workbench tap zone missing or does not route to station")
 		return
 	var cam := get_viewport().get_camera_3d()
+	# Put the survivor in a deterministic station-relative spot and let the following camera settle.
+	# A moving navigation target made the projected browser click stale before Chrome received it.
+	player.clear_nav()
+	player.global_position = bench.global_position + Vector3(-3.0, 0.5, 3.0)
+	await get_tree().create_timer(1.0).timeout
 	var bench_screen := cam.unproject_position(bench.global_position + Vector3(0, 0.5, 0))
 	# Browser harness sees this marker and sends a real Chrome mouse click into the canvas.
 	# Touchscreen/input-parser synthesis does not cover desktop canvas GUI routing.
-	player.nav_to(player.global_position + Vector3(8, 0, 0))
 	var view_size := get_viewport().get_visible_rect().size
 	print("[soak] desktop_click_norm %.6f %.6f" % [bench_screen.x / view_size.x, bench_screen.y / view_size.y])
-	await get_tree().create_timer(1.0).timeout
+	# Console delivery and Playwright mouse injection are asynchronous to the game frame.
+	await get_tree().create_timer(4.0).timeout
 	if player.station_craft == null or not player.station_craft.menu.visible \
 			or player.station_craft.menu._ring3d == null or not player.station_craft.menu._ring3d.visible:
 		_fail("first workbench touch did not open ring")
