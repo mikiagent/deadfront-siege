@@ -1,0 +1,23 @@
+{
+  "cap": 96,
+  "balance_before": 3350,
+  "tasks": [
+    {
+      "type": "text-to-image",
+      "id": "01a0c1ba-da5f-7448-a830-07c0541e2ed1",
+      "reserved_credits": 9
+    },
+    {
+      "type": "image-to-image",
+      "id": "01a0c1bb-812a-705e-a4ef-cd5d450f2744",
+      "reserved_credits": 9
+    },
+    {
+      "type": "multi-image-to-3d",
+      "id": "01a0c1bc-3f6c-73f4-abfa-5a2d5f39a4be",
+      "reserved_credits": 30
+    }
+  ],
+  "credits_spent": 48,
+  "status": "All three tasks succeeded; model downloaded; rigging and validation in progress"
+}

@@ -1,0 +1,176 @@
+{
+  "species": "Zebraceratops",
+  "clade": "Ceratopsia",
+  "period": "Durango original (fictional)",
+  "real_length_m": 2.4,
+  "height_meters": 1.0,
+  "rig": "quadruped",
+  "tier": 13,
+  "climate": "grassland",
+  "archetype": "pack_mule",
+  "tameable": true,
+  "capture_tier": 1,
+  "verb": "head shove, herd solidarity",
+  "status_applied": [],
+  "stats": {
+    "hp": 720,
+    "attack": 36,
+    "defense": 80,
+    "speed": 400,
+    "bag_slots": 50
+  },
+  "tamed_role": [
+    "bag",
+    "mount"
+  ],
+  "variants": [],
+  "rig_note": "Quadruped. Rigged by skeleton transplant from the Quaternius Triceratops rig (rig revision 3, anatomically fitted legs, dedicated hit_react recoil); no Meshy rigging involved.",
+  "prompt": "Orthographic side view, full Zebraceratops inspired by Durango Wild Lands. Compact stocky triceratops, broad rounded bony frill, two short brow horns and small nose horn, hooked beak, thick tapering tail. Charcoal hide with irregular ivory zebra stripes, muted rust frill rim, warm horn beak. Matte pebbled skin, restrained stylized realism, natural anatomy. Four stout separated legs, all feet flat; neutral square stance, straight spine, head level. No saddle, armor, mane or accessories. Even light, white background, no shadow, no text, full body with margin.",
+  "texture_prompt": "charcoal pebbled hide with irregular ivory zebra stripes, muted rust frill rim, warm horn-coloured beak and horns, matte surface",
+  "clips": {},
+  "pipeline": {
+    "forward_axis": "+Z",
+    "source_height_m": 0.8925,
+    "source_length_m": 1.9025,
+    "route": "skeleton_transplant_v3",
+    "mesh_source": "res://assets/creatures/zebraceratops/work/zebraceratops_i2m_v1.glb",
+    "reference": {
+      "side": "01a0c1ba-da5f-7448-a830-07c0541e2ed1",
+      "front": "01a0c1bb-812a-705e-a4ef-cd5d450f2744"
+    },
+    "i2m": "01a0c1bc-3f6c-73f4-abfa-5a2d5f39a4be",
+    "i2m_params": {
+      "model": "meshy-7 multi-image",
+      "polycount": 16000,
+      "texture": "2k PBR"
+    },
+    "credits_spent": 48,
+    "credit_cap": 96,
+    "donor_rig": "tools/standins/quaternius/Triceratops.fbx (CC0, 39 bones, quadruped)",
+    "transplant_tool": "tools/transplant_rig.py",
+    "fit": "quadruped landmarks",
+    "clips": [
+      "alert",
+      "attack_heavy",
+      "attack_primary",
+      "death",
+      "hit_react",
+      "idle",
+      "knockdown",
+      "run",
+      "walk"
+    ],
+    "clip_lengths": {
+      "alert": {
+        "frames": [
+          1,
+          39
+        ],
+        "seconds": 1.583
+      },
+      "attack_heavy": {
+        "frames": [
+          1,
+          44
+        ],
+        "seconds": 1.792
+      },
+      "attack_primary": {
+        "frames": [
+          1,
+          29
+        ],
+        "seconds": 1.167
+      },
+      "death": {
+        "frames": [
+          1,
+          51
+        ],
+        "seconds": 2.083
+      },
+      "hit_react": {
+        "frames": [
+          1,
+          15
+        ],
+        "seconds": 0.583
+      },
+      "idle": {
+        "frames": [
+          1,
+          73
+        ],
+        "seconds": 3.0
+      },
+      "knockdown": {
+        "frames": [
+          1,
+          44
+        ],
+        "seconds": 1.792
+      },
+      "run": {
+        "frames": [
+          1,
+          23
+        ],
+        "seconds": 0.917
+      },
+      "walk": {
+        "frames": [
+          1,
+          39
+        ],
+        "seconds": 1.583
+      }
+    },
+    "authored_clips": {
+      "knockdown": "90-degree side collapse ending with grounded hold",
+      "hit_react": "0.6s dedicated recoil; fixed foot targets; no body roll",
+      "alert": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "attack_heavy": "0.36s held anticipation then head thrust",
+      "death": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "idle": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "walk": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "run": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "attack_primary": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps"
+    },
+    "repair": {
+      "loose_removed": 492,
+      "doubles_merged": 6592,
+      "holes_filled": 118,
+      "verts_before": 16486,
+      "islands": 1009,
+      "verts_after": 9402
+    },
+    "warp": {
+      "mode": "quadruped_landmarks",
+      "front_foot_y": -0.3602610508427673,
+      "back_foot_y": 0.0703064314997117,
+      "foot_half_width": 0.17588551342487335,
+      "hip_z": 0.46941647827625266,
+      "shoulder_z": 0.5107775270938875,
+      "head_z": 0.4940320551395416
+    },
+    "weights": {
+      "direct_fraction": 1.0,
+      "method": "continuous anatomical spine and single-limb weights, max four"
+    },
+    "rig_revision": 3,
+    "reference_study": "https://www.bluestacks.com/de/blog/game-guides/durango-wild-lands/dinos-zaehmen-de.html"
+  },
+  "look": "compact stocky ceratopsian, broad rounded bony frill, two short brow horns and a small nose horn, charcoal hide with irregular ivory zebra stripes,",
+  "taming": {
+    "preferred_food": [
+      "berry",
+      "herb_leaf"
+    ],
+    "accepted_food": [
+      "fibre_stalk"
+    ],
+    "feeds_needed": 3,
+    "window_seconds": 45,
+    "requires_pen": false
+  }
+}

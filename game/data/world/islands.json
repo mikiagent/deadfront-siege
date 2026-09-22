@@ -19,6 +19,11 @@
           "species": "compsognathus",
           "count": 3,
           "groups": 1
+        },
+        {
+          "species": "zebraceratops",
+          "count": 3,
+          "groups": 1
         }
       ],
       "working": [],
@@ -39,6 +44,11 @@
           "species": "compsognathus",
           "count": 6,
           "groups": 2
+        },
+        {
+          "species": "zebraceratops",
+          "count": 3,
+          "groups": 1
         }
       ],
       "working": [
