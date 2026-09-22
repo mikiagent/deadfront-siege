@@ -15,3 +15,9 @@ Biome mineral wave:
 - `min-ice-final.glb`: tundra/snowfield ice deposit.
 
 Rejected from this wave: stone texture developed white patches; sandstone became a melted ground patch rather than a rock node; ochre preview was a shapeless ground patch. These remain unintegrated.
+- `min2-copper_ore-final.glb`: desert copper/malachite deposit.
+- `min2-salt-final.glb`: desert halite deposit.
+- `min2-peat-final.glb`: swamp peat block deposit.
+- `min2-black_iron-final.glb`: volcanic black iron deposit.
+
+Rejected: silver ore texture bleached nearly white and does not read as silver-bearing host rock; mud geometry was a shallow shapeless depression.
