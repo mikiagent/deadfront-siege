@@ -47,7 +47,11 @@ func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Di
 	regen_seconds = regen
 	family = p_family
 	falls_to_log = p_falls
-	if regen_seconds > 0.0:
+	# The island already chooses a regrowth time per family (60 s for river mud, 90 s for bushes,
+	# 240 s for trees). Flattening every one of them to an hour meant a 14-minute session farmed
+	# the area out in six minutes and then had nothing left to do. Honour the family's value and
+	# keep the hour only as the fallback when nobody supplied one.
+	if regen_seconds <= 0.0:
 		regen_seconds = RESPAWN_SECONDS
 	pool_max = _resolve_pool_max(p_pool_max)
 	if pool <= 0.0:
@@ -256,7 +260,7 @@ func consume_unit() -> bool:
 	if pools.has(key):
 		pools[key] = maxf(0.0, float(pools[key]) - 1.0)
 		if int(floor(float(pools[key]) + 0.0001)) <= 0 and regen_seconds > 0.0:
-			_pool_regen[key] = RESPAWN_SECONDS
+			_pool_regen[key] = regen_seconds  # the family's own regrowth time, not a flat hour
 			_regen_left = _min_regen()
 	else:
 		pool = maxf(0.0, pool - 1.0)

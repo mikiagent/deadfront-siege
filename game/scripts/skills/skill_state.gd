@@ -105,12 +105,34 @@ func unlock(tree: String, node_id: String) -> bool:
 		sp_available -= cost
 		sp_spent += cost
 		(trees[tree]["unlocked"] as Array).append(node_id)
-		if tree == "survival" and Data.survival_nodes.has(StringName(node_id)):
+		if tree == "survival":
 			Data.set_survival_unlocked(StringName(node_id), true)
+			# trees.json numbers these nodes capture_technique_1..5, survival.json numbers the
+			# same nodes capture_technique_I..V. With no id in common the bridge never fired, so
+			# Data.has_capture_technique() was permanently false: net capture always bailed and
+			# every skill-gated rare butchering drop was unreachable. Mirror to both spellings.
+			var roman := _roman_id(node_id)
+			if roman != "":
+				Data.set_survival_unlocked(StringName(roman), true)
 		print("[skill] unlocked %s (%s, %d SP)" % [node_id, tree, cost])
 		skill_changed.emit(StringName(tree), level_of(tree))
 		return true
 	return false
+
+## "capture_technique_3" -> "capture_technique_III", or "" when the id has no trailing number.
+static func _roman_id(node_id: String) -> String:
+	var cut := node_id.rfind("_")
+	if cut <= 0:
+		return ""
+	var tail := node_id.substr(cut + 1)
+	if not tail.is_valid_int():
+		return ""
+	const NUMERALS := ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+	var n := int(tail)
+	if n < 1 or n >= NUMERALS.size():
+		return ""
+	return "%s_%s" % [node_id.substr(0, cut), NUMERALS[n]]
+
 
 ## Refund a node (trees.json refund rules are day-limited; ASSUMPTION: free while there is no clock for it).
 func refund(tree: String, node_id: String) -> bool:
@@ -142,10 +164,18 @@ func apply_occupation(id: String) -> void:
 		var tree := str(row.get("tree", "gathering"))
 		occupation = id
 		if trees.has(tree):
-			trees[tree]["level"] = maxi(int(trees[tree]["level"]), 20)
+			var was := int(trees[tree]["level"])
+			var now := maxi(was, 20)
+			trees[tree]["level"] = now
 			trees[tree]["xp"] = 0.0
-			print("[skill] %s 20 (occupation %s)" % [tree, id])
-			skill_changed.emit(StringName(tree), 20)
+			# Those levels have to pay out, or a new survivor opens a skill screen showing a
+			# level-20 tree, a wall of affordable-looking nodes and 0 SP to spend on any of them.
+			var granted := 0
+			for lvl in range(was + 1, now + 1):
+				granted += sp_for_level(lvl)
+			sp_available += granted
+			print("[skill] %s 20 (occupation %s, +%d SP)" % [tree, id, granted])
+			skill_changed.emit(StringName(tree), now)
 		return
 	print("[skill] unknown occupation %s" % id)
 

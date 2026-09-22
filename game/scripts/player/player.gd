@@ -71,6 +71,7 @@ var _path_goal: Vector3 = Vector3.ZERO
 var _path_replan_left: float = 0.0
 var _path_anchor: Vector3 = Vector3.ZERO
 var _path_blocked_left: float = 0.0
+var _path_stuck: float = 0.0  ## cumulative seconds the survivor has not moved while routed
 var ui: InventoryUI
 var craft_ui
 var station_craft: StationCraft
@@ -253,6 +254,7 @@ func nav_to(pos: Vector3) -> void:
 	_path_replan_left = 0.0
 	_path_anchor = global_position
 	_path_blocked_left = 0.0
+	_path_stuck = 0.0
 	if _use_tile_path():
 		_request_tile_path()
 	else:
@@ -391,24 +393,46 @@ func _physics_process(delta: float) -> void:
 	if vitals.thirsty():
 		target_speed *= 0.9
 	if nav_active:
+		var next_dir := Vector3.ZERO
+		var finished := false
 		if _use_tile_path():
-			var next_dir := _tile_nav_dir(delta)
-			if next_dir.length_squared() > 0.0:
-				dir = next_dir
-			else:
-				nav_active = false
-				_on_arrived()
-				dir = Vector3.ZERO
+			next_dir = _tile_nav_dir(delta)
+			finished = next_dir.length_squared() <= 0.0
 		elif not agent.is_navigation_finished():
 			var next := agent.get_next_path_position()
 			var to := next - global_position
 			to.y = 0.0
 			if to.length_squared() > 0.0001:
-				dir = to.normalized()
+				next_dir = to.normalized()
 		else:
+			finished = true
+		# Neither router promises a walkable answer. The tile graph returns a degenerate route
+		# when the goal tile is occupied (a bush and its collider sit on it), whose waypoints are
+		# all behind the survivor, so it reported "arrived" while still 8 m short and something
+		# re-issued the route every frame: nav_active true, velocity zero, gather never starting.
+		# NavigationAgent3D has the same shape of failure when its map is not ready. Walk straight
+		# at the goal in both cases, and give up rather than freeze.
+		var remain := _path_goal - global_position
+		remain.y = 0.0
+		var short_of_goal := remain.length() > _arrive_tolerance()
+		if short_of_goal and (finished or _stalled(delta)):
+			if _path_stuck > 5.0:
+				print("[path] abandoned route to %.0f,%.0f after %.1fs stuck" % [_path_goal.x, _path_goal.z, _path_stuck])
+				_path_stuck = 0.0
+			else:
+				finished = false
+				next_dir = remain.normalized()
+				# Full speed into a static body and still not moving means the survivor is
+				# wedged in geometry, which no steering fixes. Hop and ease forward along the
+				# surface until the collider lets go.
+				if _path_stuck > 2.0:
+					_unstick(next_dir)
+		if finished:
 			nav_active = false
 			_on_arrived()
 			dir = Vector3.ZERO
+		elif next_dir.length_squared() > 0.0:
+			dir = next_dir
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
 	horizontal = horizontal.move_toward(dir * target_speed, accel * delta)
 	velocity.x = horizontal.x
@@ -1243,6 +1267,28 @@ func _arrive_tolerance() -> float:
 	return 0.25
 
 ## True on the tick a stall is detected (no movement for 0.35 s); also replans the path.
+## Free a survivor wedged against static geometry: a short hop plus a nudge along the ground.
+## Terrain height keeps the nudge on the surface instead of inside a slope.
+func _unstick(towards: Vector3) -> void:
+	var step := global_position + towards * 0.45
+	var rt := World.runtime
+	if rt and rt.has_method("surface_y"):
+		step.y = rt.surface_y(step.x, step.z) + 0.25
+	else:
+		step.y = global_position.y + 0.25
+	global_position = step
+	velocity.y = maxf(velocity.y, 2.5)
+
+
+## True once a routed survivor has stood still for 1.2 s. Drives the straight-line fallback.
+func _stalled(delta: float) -> bool:
+	if Vector2(velocity.x, velocity.z).length() > 0.45:
+		_path_stuck = 0.0
+		return false
+	_path_stuck += delta
+	return _path_stuck > 1.2
+
+
 func _track_tile_blocked(delta: float) -> bool:
 	if global_position.distance_to(_path_anchor) > 0.06:
 		_path_anchor = global_position

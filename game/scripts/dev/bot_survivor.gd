@@ -16,12 +16,17 @@ const LADDER: Array[Dictionary] = [
 	{"goal": "club", "craft": "club"},
 	{"goal": "axe", "craft": "work_axe"},
 	{"goal": "pick", "craft": "work_pick"},
-	{"goal": "fire", "craft": "bonfire_kit", "then": "build"},
+	{"goal": "fire", "craft": "bonfire_kit", "then": "build:bonfire"},
+	{"goal": "bench", "craft": "workbench_kit", "then": "build:workbench"},
+	{"goal": "basket", "craft": "basket_kit", "then": "build:basket"},
 	{"goal": "hunt", "then": "hunt"},
-	{"goal": "cook", "then": "cook"},
+	{"goal": "cook", "craft": "skewer"},
 	{"goal": "net", "craft": "capture_net_i"},
 	{"goal": "tame", "then": "tame"},
-	{"goal": "travel", "then": "travel"},
+	{"goal": "sail", "then": "travel"},
+	{"goal": "away", "then": "forage"},
+	{"goal": "home", "then": "return_home"},
+	{"goal": "grind", "then": "grind"},
 ]
 
 ## Concrete items the bot will try to gather for a recipe category, best first.
@@ -34,6 +39,7 @@ const CATEGORY_ITEMS := {
 	"wood": ["wood_log", "branch"],
 	"fibre": ["fibre_stalk"],
 	"fuel": ["charcoal"],
+	"meat": ["raw_meat", "raptor_meat"],  # looted from a corpse, never gathered
 	"stone_mat": ["stone"],
 }
 
@@ -232,9 +238,19 @@ func _craft(rec: Dictionary) -> bool:
 	var before := player.inventory.count_of(out_id)
 	_goal = "craft:%s" % rid
 	var station := Crafting.station_id(rec)
-	if station != "" and Crafting.nearest_station(player, StringName(station)) == null:
-		_event("craft-blocked", "%s needs a %s and none is built" % [rid, station])
-		return false
+	if station != "":
+		var st := Crafting.nearest_station(player, StringName(station))
+		if st == null:
+			_event("craft-blocked", "%s needs a %s and none is built" % [rid, station])
+			return false
+		player.nav_to(player._closest_nav_point(st.global_position))
+		var walk := _t + 25.0
+		while _t < walk and player.global_position.distance_to(st.global_position) > Crafting.STATION_RANGE:
+			if not await _beat(0.25):
+				break
+		if player.global_position.distance_to(st.global_position) > Crafting.STATION_RANGE:
+			_event("craft-blocked", "%s: could not reach the %s (%.0f m short)" % [rid, station, player.global_position.distance_to(st.global_position)])
+			return false
 	player.craft_recipe(rid, 1)
 	var deadline := _t + 40.0
 	while _t < deadline and player.inventory.count_of(out_id) <= before:
@@ -247,34 +263,64 @@ func _craft(rec: Dictionary) -> bool:
 
 ## Extra verbs a rung can ask for. Returns "" or the blocker.
 func _verb(kind: String) -> String:
+	if kind.begins_with("build:"):
+		return await _build(StringName(kind.substr(6)))
 	match kind:
-		"build":
-			return await _build_bonfire()
 		"hunt":
 			return await _hunt()
-		"cook":
-			return await _cook()
 		"tame":
 			return await _tame()
 		"travel":
 			return await _travel()
+		"forage":
+			return await _forage()
+		"return_home":
+			return await _return_home()
+		"grind":
+			return await _grind()
 	return ""
 
-func _build_bonfire() -> String:
-	_goal = "build"
+func _build(kind: StringName) -> String:
+	_goal = "build:%s" % kind
 	var placer = player.placer
 	if placer == null:
 		return "player has no build placer"
-	placer.begin(&"bonfire")
-	await _beat(0.5)
+	if DisplayServer.get_name() == "headless":
+		# The ghost snaps to the mouse pointer, and headless has no pointer, so a refusal here
+		# would say nothing about the game. Build placement is checked in the windowed run.
+		return "skipped: placement follows the mouse pointer, which headless has none of"
+	# Building needs ground you have claimed; the HUD's CLAIM hex is the real player flow.
+	var acts: Array = []
+	for a in player.context_actions():
+		acts.append(str(a["id"]))
+	if acts.has("claim"):
+		player.context_action("claim")
+		await _beat(0.4)
+		_event("claim", "claimed the plot under the survivor")
+	var before := get_tree().get_nodes_in_group("placed_building").size()
+	placer.begin(kind)
+	await _beat(0.4)
 	if placer.placing == &"":
-		return "build placer refused bonfire (cost or unlock)"
-	var ok: bool = placer.confirm(player)
-	await _beat(0.5)
+		return "build placer refused %s (cost or unlock)" % kind
+	var cam := get_viewport().get_camera_3d()
+	var ok := false
+	var tried := 0
+	for offset in [Vector3(2.5, 0, 2.5), Vector3(-2.5, 0, 2.5), Vector3(2.5, 0, -2.5), Vector3(5, 0, 0), Vector3(0, 0, 5)]:
+		tried += 1
+		if cam:
+			Input.warp_mouse(cam.unproject_position(player.global_position + offset))
+			await _beat(0.3)
+			placer.tap_ground()
+			await _beat(0.2)
+		ok = placer.confirm(player)
+		await _beat(0.4)
+		if ok and get_tree().get_nodes_in_group("placed_building").size() > before:
+			break
+		ok = false
 	if not ok:
 		placer.cancel()
-		return "bonfire placement refused where the survivor stands"
-	_event("build", "bonfire placed")
+		return "%s refused on %d spots: %s" % [kind, tried, placer.reason if placer.reason != "" else "invalid"]
+	_event("build", "%s placed" % kind)
 	return ""
 
 func _hunt() -> String:
@@ -294,14 +340,20 @@ func _hunt() -> String:
 	var species := str(target.def.id) if target.def else "?"
 	_event("hunt-start", "%s %.0f m away" % [species, best])
 	player.hunt.start(target)
-	var deadline := _t + 70.0
+	var deadline := _t + 90.0
 	while _t < deadline and target and is_instance_valid(target) and not target.health.dead:
+		# Starting a hunt does not walk the survivor there; close the distance like a player.
+		var gap := player.global_position.distance_to(target.global_position)
+		if gap > 2.0 and not player.nav_active:
+			player.nav_to(player._closest_nav_point(target.global_position))
 		if not await _beat(0.25):
 			break
 		if player.dead:
 			return "the survivor died to a %s" % species
-	if target and is_instance_valid(target) and not target.health.dead:
-		return "could not kill a %s in 70 s (hp %.0f)" % [species, target.health.health]
+	if target == null or not is_instance_valid(target):
+		return "the %s vanished mid-hunt" % species
+	if not target.health.dead:
+		return "could not kill a %s in 90 s (hp %.0f, %.0f m away)" % [species, target.health.health, player.global_position.distance_to(target.global_position)]
 	_event("kill", species)
 	var corpse := get_tree().get_first_node_in_group("corpse") as Corpse
 	if corpse == null:
@@ -313,30 +365,26 @@ func _hunt() -> String:
 			break
 	var meat := player.inventory.count_of(&"raw_meat") + player.inventory.count_of(&"raptor_meat")
 	player.context_action("loot")
-	await _beat(1.5)
+	await _beat(1.0)
+	# Opening the chest is not taking anything: pull every slot so the meat is actually in the bag.
+	var taken := 0
+	for pass_i in 8:
+		var opts := corpse.loot_options(player.inventory)
+		if opts.is_empty():
+			break
+		player._begin_corpse_take(corpse, int((opts[0] as Dictionary)["slot"]))
+		if not await _beat(1.8):
+			break
+		taken += 1
 	if player.ui and player.ui.visible:
 		player.ui.hide()
-	_event("loot", "corpse opened, meat=%d" % meat)
+	var gained := player.inventory.count_of(&"raw_meat") + player.inventory.count_of(&"raptor_meat") - meat
+	_event("loot", "%d slots taken, meat +%d" % [taken, gained])
+	if gained <= 0 and taken == 0:
+		return "the corpse gave up nothing"
 	return ""
 
-func _cook() -> String:
-	_goal = "cook"
-	var fire := player._nearest_group("bonfire")
-	if fire == null:
-		return "no bonfire exists to cook at"
-	player.nav_to(fire.global_position)
-	var deadline := _t + 25.0
-	while _t < deadline and player.global_position.distance_to(fire.global_position) > 2.5:
-		if not await _beat(0.25):
-			break
-	var acts: Array = []
-	for a in player.context_actions():
-		acts.append(str(a["id"]))
-	if not acts.has("cook"):
-		return "standing at the bonfire offers no cook action (%s)" % [acts]
-	_event("cook", "cook action available at the bonfire")
-	return ""
-
+## Wear the animal below the capture threshold, tackle it over, then feed it.
 func _tame() -> String:
 	_goal = "tame"
 	var target: Creature = null
@@ -350,19 +398,52 @@ func _tame() -> String:
 		if target == null or c.def.capture_tier < target.def.capture_tier:
 			target = c
 	if target == null:
-		return "no tameable creature on the home island"
-	_event("tame-start", str(target.def.id))
+		return "no tameable creature on this island"
+	var species := str(target.def.id)
+	# Food first, or the knockdown window is wasted walking to a bush.
+	var menu: Array[StringName] = []
+	menu.assign(target.def.preferred_food)
+	menu.append_array(target.def.accepted_food)
+	for food in menu:
+		if FieldTame.food_in_bag(player.inventory, target) != &"":
+			break
+		await _gather(food, 3)
+	if FieldTame.food_in_bag(player.inventory, target) == &"":
+		return "nothing on this island a %s will eat (wants %s)" % [species, ", ".join(PackedStringArray(menu))]
+	_event("tame-start", "%s, food %s" % [species, FieldTame.food_in_bag(player.inventory, target)])
 	player.hunt.start(target)
-	var deadline := _t + 60.0
-	while _t < deadline and is_instance_valid(target) and not target.statuses.has_flag(&"knockdown"):
+	var deadline := _t + 120.0
+	while _t < deadline and is_instance_valid(target) and not target.health.dead:
 		if not await _beat(0.25):
 			break
-		if target.health.dead:
-			return "the %s died before it could be knocked down" % target.def.id
-	if not is_instance_valid(target) or not target.statuses.has_flag(&"knockdown"):
-		return "could not knock a %s down in 60 s" % target.def.id
-	_event("knockdown", str(target.def.id))
-	return ""
+		if player.dead:
+			return "the survivor died taming a %s" % species
+		if target.statuses.has_flag(&"knockdown"):
+			break
+		# Below the capture threshold a tackle puts it on the ground; that is the window.
+		if FieldTame.health_allows_capture(target.health.health / maxf(1.0, target.health.max_health)):
+			player.hunt.use_tackle()
+			await _beat(0.4)
+	if not is_instance_valid(target) or target.health.dead:
+		return "the %s died before it could be knocked down" % species
+	if not target.statuses.has_flag(&"knockdown"):
+		return "could not knock a %s down in 120 s (hp %.0f%%)" % [species, 100.0 * target.health.health / maxf(1.0, target.health.max_health)]
+	_event("knockdown", species)
+	var bonded := player.bonded.size()
+	var feeds := 0
+	var feed_deadline := _t + 50.0
+	while _t < feed_deadline and player.bonded.size() <= bonded:
+		var food := FieldTame.food_in_bag(player.inventory, target)
+		if food == &"":
+			return "ran out of food %d feeds into the %s" % [feeds, species]
+		if FieldTame.apply_feed(player, target, food):
+			feeds += 1
+		if not await _beat(FieldTame.FEED_SECONDS + 0.2):
+			break
+	if player.bonded.size() > bonded:
+		_event("tame", "%s bonded after %d feeds" % [species, feeds])
+		return ""
+	return "fed a %s %d times and it never bonded" % [species, feeds]
 
 func _travel() -> String:
 	_goal = "travel"
@@ -372,6 +453,60 @@ func _travel() -> String:
 	if World.island_id == before:
 		return "travel to savannah_15 refused (level, cost or harbour)"
 	_event("travel", "%s -> %s" % [before, World.island_id])
+	return ""
+
+## Gather what the unstable island offers that home does not.
+func _forage() -> String:
+	_goal = "forage"
+	if World.is_home():
+		return "still on the home island"
+	var wanted: Array[StringName] = [&"stone", &"branch", &"fibre_stalk", &"berries"]
+	var got := 0
+	for item in wanted:
+		if _t >= minutes * 60.0:
+			break
+		var before := player.inventory.count_of(item)
+		await _gather(item, 3)
+		got += player.inventory.count_of(item) - before
+	if got <= 0:
+		return "gathered nothing on %s" % World.island_id
+	_event("forage", "%d units off %s" % [got, World.island_id])
+	return ""
+
+func _return_home() -> String:
+	_goal = "return_home"
+	if World.is_home():
+		return ""
+	var before := World.island_id
+	World.travel(&"home_grassland", &"harbour_home")
+	await _beat(2.0)
+	if not World.is_home():
+		return "could not get home from %s" % before
+	_event("return", "%s -> home" % before)
+	return ""
+
+## Play out the rest of the session the way a session actually goes: gather, craft, repeat.
+## This is what measures whether the loop sustains, rather than whether it starts.
+func _grind() -> String:
+	_goal = "grind"
+	var cycles := 0
+	var start_xp := World.pioneer_xp
+	var start_level := World.pioneer_level
+	while _t < minutes * 60.0 - 5.0:
+		for item in [&"fibre_stalk", &"branch", &"stone", &"berries"]:
+			if _t >= minutes * 60.0 - 5.0:
+				break
+			await _gather(item, 4)
+		for rid in [&"twine", &"rope", &"charcoal", &"plank"]:
+			var rec := Crafting.recipe(rid)
+			if rec.is_empty():
+				continue
+			if await _acquire_for(rec) == "":
+				await _craft(rec)
+		cycles += 1
+		if cycles > 20:
+			break
+	_event("grind", "%d cycles, level %d -> %d, xp +%d" % [cycles, start_level, World.pioneer_level, World.pioneer_xp - start_xp])
 	return ""
 
 # ---------------------------------------------------------------- housekeeping

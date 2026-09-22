@@ -98,3 +98,65 @@ identical "Common Tree" chips. The focused node always wins.
 `ui_family_lab` passes. `--gather-test` is intermittently red on this machine at HEAD as well as
 with these changes, per the soft-lock above. Bot runs inspected headless and windowed, with
 frames read at 1600x900.
+
+---
+
+# Round 2, 2026-09-22: the soft-lock, the unlock bridge, and a full session
+
+## Fixed
+
+### The gather soft-lock (was the top open bug)
+
+Two separate routers could both report "arrived" while the survivor was still metres short, and
+nothing ended the route: `nav_active` stayed true, velocity stayed zero, and the gather never
+started. The tile graph returns a degenerate route when a collider sits on the goal tile, so all
+its waypoints are already behind the survivor; `NavigationAgent3D` hands back the survivor's own
+position when its map is not ready. Underneath both, the survivor was wedged in static geometry,
+so steering alone changed nothing.
+
+`player.gd` now: walks straight at the goal whenever the router claims it finished while short of
+it, hops free (`_unstick`) when full speed against a static body still produces zero movement, and
+abandons the route after 5 s with a printed reason rather than freezing. `--gather-test` went from
+failing 3 of 3 to passing 3 of 3, and the bot's "walked 6 m to a Bush and got none" lines are gone.
+
+### Net capture and skill-gated drops were unreachable
+
+`skills/trees.json` numbers the nodes `capture_technique_1..5`; `skills/survival.json` numbers the
+same nodes `capture_technique_I..V`. With no id in common the only unlock bridge in the codebase
+never fired, so `Data.has_capture_technique()` was permanently false and every `"skill": 1` rare
+butchering drop was unreachable. `SkillState` now mirrors an unlock to both spellings.
+
+### A new survivor had a level-20 tree and zero skill points
+
+Picking an occupation granted 20 levels in a tree without paying the SP those levels are worth, so
+the skill screen opened full of affordable-looking nodes with nothing to spend. It now pays out.
+
+### The island farmed out after six minutes
+
+`HarvestNode.setup` overwrote every per-family regrowth time (60 s river mud, 90 s bushes, 240 s
+trees) with a flat `RESPAWN_SECONDS` of one hour, and the per-pool refill used the same hour. A
+14-minute session cleared the area around camp in about six minutes and then had nothing left: the
+bag sat at 13 items and the level crawled. Both now use the family's own time.
+
+## The bot is now a session, not a ladder
+
+Fifteen rungs: the tool chain, three buildings, hunt, loot the corpse, cook, weave a net, tame,
+sail to the unstable island, forage there, sail home, then grind gather-and-craft cycles until the
+clock runs out while tracking level and XP. It walks to a station before crafting, closes the
+distance before fighting, takes every loot slot rather than just opening the chest, tries every
+food a species will accept, and claims ground before building.
+
+Latest 8-minute headless session: **12 of 15 rungs, 0 deaths, lowest HP 100, 861 m walked**, first
+stone knife at 19 s, axe at 44 s, first tame at 159 s, home from the unstable island at 213 s.
+
+## Still open
+
+- **Build placement refuses every spot.** `BuildPlacer.confirm` reports `valid == false` with an
+  empty `reason`, on claimed ground, at five different offsets, in a windowed run where the ghost
+  has a real mouse pointer. Nothing is placeable through the ghost flow. This is the biggest
+  remaining hole and it is why three rungs stay blocked.
+- Headless cannot exercise placement at all, because the ghost snaps to the mouse pointer. The bot
+  says so rather than reporting a false failure.
+- Skill unlocks other than capture still gate nothing: recipes, buildings and island access read
+  no tree node.
+- The material ladder still stops at bone.
