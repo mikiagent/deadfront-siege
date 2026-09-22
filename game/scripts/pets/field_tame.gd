@@ -7,6 +7,10 @@ const KNOCKDOWN_EXTEND := 6.0
 const FAIL_COOLDOWN := 60.0
 const PREFERRED_FEED := 1.0
 const ACCEPTED_FEED := 0.5
+const CAPTURE_HEALTH_FRAC := 0.30
+
+static func health_allows_capture(fraction: float) -> bool:
+	return fraction < CAPTURE_HEALTH_FRAC
 
 static func can_attempt(creature: Creature) -> bool:
 	if creature == null or creature.def == null or creature.health.dead:
@@ -15,7 +19,7 @@ static func can_attempt(creature: Creature) -> bool:
 		return false
 	if creature.tame_cooldown_left > 0.0:
 		return false
-	return creature.statuses.has(&"knockdown")
+	return creature.statuses.has(&"knockdown") and health_allows_capture(creature.health.fraction())
 
 static func preferred_need(creature: Creature) -> StringName:
 	if creature == null or creature.def == null:

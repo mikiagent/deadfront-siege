@@ -21,6 +21,7 @@ var _inspect_hex: HexButton
 var _sheet: PanelContainer
 var _sheet_kind: StringName = &""
 var _skills_panel: Control
+var _animal_screen: AnimalScreen
 var _inspector: Panel
 # combat
 var _end_btn: Button
@@ -178,8 +179,8 @@ func _hex(glyph: String, size_px: float = HEX, caption: String = "") -> HexButto
 func _build_menu_row() -> void:
 	_menu_hex = _hex("≡", HEX, "MENU")
 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
-	_pets_hex = _hex("🦖", HEX, "PETS")
-	_pets_hex.pressed.connect(func () -> void: _toggle_sheet(&"pets"))
+	_pets_hex = _hex("🦖", HEX, "ANIMALS")
+	_pets_hex.pressed.connect(_open_animals)
 	_build_hex = _hex("⌂", HEX, "BUILD")
 	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
 	_skills_hex = _hex("★", HEX, "SKILLS")
@@ -233,6 +234,19 @@ func _toggle_debug() -> void:
 	_inspect_hex.selected = Game.debug_overlay
 	_inspect_hex.queue_redraw()
 	print("[hud] debug %s" % ("on" if Game.debug_overlay else "off"))
+
+
+func _open_animals() -> void:
+	_close_sheet()
+	if _animal_screen == null:
+		_animal_screen = AnimalScreen.new()
+		_animal_screen.name = "AnimalScreen"
+		var layer := CanvasLayer.new()
+		layer.name = "AnimalLayer"
+		layer.layer = 96
+		add_child(layer)
+		layer.add_child(_animal_screen)
+	_animal_screen.open(player)
 
 func _build_combat() -> void:
 	_end_btn = Button.new()
@@ -611,13 +625,13 @@ func _toggle_sheet(kind: StringName) -> void:
 			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
 			_sheet_btn(box, "Debug info: %s" % ("ON" if Game.debug_overlay else "OFF"), func () -> void: _toggle_debug(); _close_sheet(); _toggle_sheet(&"menu"))
 		&"pets":
-			title.text = "Pets  %d / %d" % [player.bonded.size(), Data.bonded_cap()]
+			title.text = "ANIMALS  %d owned" % player.bonded.size()
 			if player.bonded.is_empty():
 				var l := Label.new()
 				l.text = "No bonded animals yet. Knock one down and feed it."
 				box.add_child(l)
 			var out_now := player.live_pets().size()
-			title.text = "Pets  %d / %d   ·   out %d / %d" % [player.bonded.size(), Data.bonded_cap(), out_now, Player.MAX_PETS_OUT]
+			title.text = "ANIMALS  %d owned   ·   equipped %d / %d" % [player.bonded.size(), out_now, Player.MAX_PETS_OUT]
 			for i in player.bonded.size():
 				var rec: PetRecord = player.bonded[i]
 				var idx := i

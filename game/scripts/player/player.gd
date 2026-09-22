@@ -100,6 +100,7 @@ var _hold_walk_candidate: bool = false
 var _hold_walk_elapsed: float = 0.0
 var _hold_walk_retarget_left: float = 0.0
 var _tap_touch_index: int = -1
+var _desktop_click_fallback_pending: bool = false
 var _touch_context: StringName = &"explore"
 var _shoreline_logged: bool = false
 var _lantern: OmniLight3D
@@ -160,6 +161,9 @@ func _ready() -> void:
 
 ## A station tap opens its hex interact menu over the station; CRAFT/COOK open the craft sheet.
 func open_station_craft(st: Node3D) -> void:
+	# A station click wins over an in-flight ground move. StationMenu intentionally dismisses
+	# while nav_active, so leaving the old route alive made the ring open and close in one frame.
+	clear_nav()
 	if station_craft:
 		station_craft.open_station_menu(st)
 
@@ -442,6 +446,47 @@ func _cam_dir(input: Vector2) -> Vector3:
 		dir = (right.normalized() * input.x + fwd.normalized() * -input.y).normalized()
 	return dir
 
+func _input(event: InputEvent) -> void:
+	# Godot web can consume a desktop mouse press before it reaches _unhandled_input even when
+	# the canvas control ignores mouse input. Defer a fallback until GUI routing has finished;
+	# _unhandled_input cancels it when the normal path did receive the click.
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+			_desktop_click_fallback_pending = true
+			call_deferred("_desktop_click_fallback", mb.position)
+
+func _desktop_click_fallback(pos: Vector2) -> void:
+	if not _desktop_click_fallback_pending or dead:
+		return
+	_desktop_click_fallback_pending = false
+	Game.pointer = pos
+	# Pick stations in screen space first. Their low, open meshes often let a 3D ray pass through
+	# to terrain in desktop Compatibility/WebGL even when the visible mouse is over the model.
+	var cam := get_viewport().get_camera_3d()
+	var best: Node3D
+	var best_px := 96.0
+	if cam:
+		for node in get_tree().get_nodes_in_group("craft_station"):
+			var st := node as Node3D
+			if st == null or cam.is_position_behind(st.global_position):
+				continue
+			var screen := cam.unproject_position(st.global_position + Vector3(0, 0.7, 0))
+			var d := screen.distance_to(pos)
+			if d < best_px:
+				best_px = d
+				best = st
+	if best:
+		_interact_tap_target(best)
+		return
+	# Fall back to normal physics for clicks close enough to hit the station collision directly.
+	var hit := _ray()
+	if hit.is_empty():
+		return
+	var picked := _pick_interactable(hit)
+	if picked is CraftStation or picked is Bonfire:
+		_interact_tap_target(picked)
+
 func _unhandled_input(event: InputEvent) -> void:
 	if dead:
 		return
@@ -518,6 +563,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 	if _is_tap_pressed(event):
+		if event is InputEventMouseButton:
+			_desktop_click_fallback_pending = false
 		if placer.layout_mode and placer.moving == null:
 			# Layout mode: a tap on a building picks it up; anything else is ignored.
 			if _tap_blocked():
@@ -581,6 +628,23 @@ func _tap_blocked() -> bool:
 	return false
 
 func _tap_world() -> StringName:
+	# Stations are low/open meshes. On desktop WebGL the ray often reaches terrain through the
+	# visible bench, so accept the nearest station projected under the pointer before physics.
+	var cam := get_viewport().get_camera_3d()
+	var station: Node3D
+	var station_px := 96.0
+	if cam:
+		for node in get_tree().get_nodes_in_group("craft_station"):
+			var st := node as Node3D
+			if st == null or cam.is_position_behind(st.global_position):
+				continue
+			var d := cam.unproject_position(st.global_position + Vector3(0, 0.7, 0)).distance_to(Game.pointer)
+			if d < station_px:
+				station_px = d
+				station = st
+	if station:
+		_interact_tap_target(station)
+		return &"interact"
 	var hit := _ray()
 	if hit.is_empty():
 		return &""

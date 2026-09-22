@@ -18,6 +18,8 @@ var _pet_grid: GridContainer
 var _storage_title: Label
 var _storage_note: Label
 var _tip: Label
+var _profile: Label
+var _tab_title: Label
 var _equip_slots: Dictionary = {}  # slot name -> Button
 var _actions: HBoxContainer
 var _lock_btn: Button
@@ -31,8 +33,8 @@ var _food1_btn: Button
 var _food2_btn: Button
 var _close_btn: Button
 
-const PANEL := Vector2(780.0, 600.0)
-const SLOT := Vector2(60.0, 56.0)
+const PANEL := Vector2(820.0, 370.0)
+const SLOT := Vector2(48.0, 44.0)
 const EQUIP_LABELS := {"head": "Head", "body": "Body", "legs": "Legs", "accessory1": "Ring", "accessory2": "Ring", "weapon": "Weapon", "tool": "Tool", "food1": "Food 1", "food2": "Food 2"}
 const INK := Color(0.22, 0.22, 0.24)
 
@@ -56,62 +58,77 @@ func _ready() -> void:
 	_panel.add_theme_stylebox_override("panel", sb)
 	_panel.size = PANEL
 	add_child(_panel)
-	_title = _label("Inventory", Vector2(16, 10), 20)
-	_close_btn = _btn("Close", Vector2(120, 40))
-	_close_btn.position = Vector2(PANEL.x - 136, 8)
+	_title = _label("CHARACTER", Vector2(18, 10), 20)
+	_close_btn = _btn("✕", Vector2(42, 36))
+	_close_btn.position = Vector2(PANEL.x - 52, 8)
 	_close_btn.pressed.connect(hide_ui)
 	_panel.add_child(_close_btn)
-	# Armour column (head, body, legs, rings) and the hands (weapon, tool) beside it.
-	var y := 62.0
-	for slot in ["head", "body", "legs", "accessory1", "accessory2"]:
-		_equip_slot(slot, Vector2(16, y))
-		y += SLOT.y + 18.0
-	_equip_slot("weapon", Vector2(16 + SLOT.x + 10, 62))
-	_equip_slot("tool", Vector2(16 + SLOT.x + 10, 62 + SLOT.y + 18.0))
-	_label("Survivor", Vector2(16 + SLOT.x + 10, 62 + (SLOT.y + 18.0) * 2 + 4), 13)
-	# Bag grid
-	_label("Bag", Vector2(176, 30), 13)
+
+	# Durango layout: identity/stats left, bag + loadout tabs centre, equipped gear right.
+	var portrait := ColorRect.new()
+	portrait.position = Vector2(18, 48)
+	portrait.size = Vector2(132, 118)
+	portrait.color = Color(0.24, 0.25, 0.27, 0.34)
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(portrait)
+	_profile = _label("", Vector2(18, 176), 13)
+	_profile.size = Vector2(146, 132)
+	_profile.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+	_tab_title = _label("GEAR  1", Vector2(176, 12), 15)
+	for i in 3:
+		var loadout := _btn(str(i + 1), Vector2(42, 30))
+		loadout.position = Vector2(258 + i * 48, 8)
+		loadout.disabled = i > 0
+		loadout.tooltip_text = "Active loadout" if i == 0 else "Loadout slot"
+		_panel.add_child(loadout)
+	_label("BAG", Vector2(176, 48), 12)
 	_grid = GridContainer.new()
 	_grid.columns = 5
-	_grid.position = Vector2(176, 48)
-	_grid.add_theme_constant_override("h_separation", 4)
-	_grid.add_theme_constant_override("v_separation", 4)
+	_grid.position = Vector2(176, 68)
+	_grid.add_theme_constant_override("h_separation", 5)
+	_grid.add_theme_constant_override("v_separation", 5)
 	_panel.add_child(_grid)
 	for i in 20:
 		_grid.add_child(_mk_slot(i))
-	# Quick-food hotbar
-	_label("Quick food: the two hexes bottom-left; auto-eaten under 50 % hunger", Vector2(310, 322), 11)
-	_equip_slot("food1", Vector2(176, 322))
-	_equip_slot("food2", Vector2(176 + SLOT.x + 4, 322))
-	# Tooltip
-	_tip = _label("", Vector2(500, 48), 13)
-	_tip.size = Vector2(264, 250)
+
+	_label("EQUIPMENT", Vector2(450, 48), 12)
+	var equip_order := ["head", "body", "legs", "weapon", "tool", "accessory1", "accessory2", "food1", "food2"]
+	for i in equip_order.size():
+		var col := i % 3
+		var row := i / 3
+		_equip_slot(equip_order[i], Vector2(450 + col * 62, 70 + row * 62))
+
+	_tip = _label("", Vector2(646, 70), 12)
+	_tip.size = Vector2(154, 190)
 	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	# Storage / loot
-	_storage_title = _label("", Vector2(176, 380), 14)
-	_storage_title.size = Vector2(300, 22)
+
+	# Storage replaces the right-hand detail area while a chest, corpse or pet bag is open.
+	_storage_title = _label("", Vector2(450, 266), 13)
+	_storage_title.size = Vector2(190, 20)
 	_pet_grid = GridContainer.new()
 	_pet_grid.columns = 6
-	_pet_grid.position = Vector2(176, 402)
+	_pet_grid.position = Vector2(450, 288)
+	_pet_grid.scale = Vector2(0.72, 0.72)
 	_pet_grid.add_theme_constant_override("h_separation", 4)
 	_pet_grid.add_theme_constant_override("v_separation", 4)
 	_panel.add_child(_pet_grid)
-	_storage_note = _label("", Vector2(560, 402), 13)
-	_storage_note.size = Vector2(204, 60)
+	_storage_note = _label("", Vector2(646, 266), 12)
+	_storage_note.size = Vector2(154, 48)
 	_storage_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_storage_note.add_theme_color_override("font_color", Color(0.6, 0.15, 0.1))
-	# Actions row
+	_storage_note.add_theme_color_override("font_color", Color(0.75, 0.28, 0.18))
+
 	_actions = HBoxContainer.new()
-	_actions.position = Vector2(16, PANEL.y - 56)
-	_actions.add_theme_constant_override("separation", 6)
+	_actions.position = Vector2(176, PANEL.y - 48)
+	_actions.add_theme_constant_override("separation", 5)
 	_panel.add_child(_actions)
 	_lock_btn = _action("Lock", _toggle_lock)
-	_equip_btn = _action("Equip", _on_equip_pressed)
-	_food1_btn = _action("Quick 1", func () -> void: _set_quick(0))
-	_food2_btn = _action("Quick 2", func () -> void: _set_quick(1))
+	_equip_btn = _action("EQUIP", _on_equip_pressed)
+	_food1_btn = _action("Food 1", func () -> void: _set_quick(0))
+	_food2_btn = _action("Food 2", func () -> void: _set_quick(1))
 	_inspect_btn = _action("Inspect", _on_inspect_food)
 	_eat_btn = _action("Eat", _on_eat_food)
-	_feed_btn = _action("Feed pet", _on_feed_pet)
+	_feed_btn = _action("Feed", _on_feed_pet)
 	_place_btn = _action("Place", _on_place_pressed)
 	_take_all_btn = _action("Take all", _take_all_storage)
 	_food_inspector = FoodInspector.new()
@@ -147,7 +164,7 @@ func _btn(text: String, minsz: Vector2) -> Button:
 	return b
 
 func _action(text: String, cb: Callable) -> Button:
-	var b := _btn(text, Vector2(0, 44))
+	var b := _btn(text, Vector2(0, 38))
 	b.pressed.connect(cb)
 	b.visible = false
 	_actions.add_child(b)
@@ -248,6 +265,7 @@ func _layout_safe() -> void:
 func rebuild() -> void:
 	if inventory == null:
 		return
+	_refresh_profile()
 	_refresh_equipped()
 	for i in mini(_grid.get_child_count(), inventory.slot_count):
 		var btn := _grid.get_child(i) as Button
@@ -292,6 +310,16 @@ func rebuild() -> void:
 	_take_all_btn.disabled = _readonly_reason() != "" or pet_bag == null or pet_bag.used_slots() <= 0
 	_title.text = "Inventory" if not has_storage else "Inventory  ·  %s" % str(_storage_opts.get("title", "Storage"))
 	_select(_selected if _selected >= 0 else -1)
+
+func _refresh_profile() -> void:
+	if _profile == null:
+		return
+	var name := _owner_player.display_name() if _owner_player else (World.player_name if World.player_name != "" else "Survivor")
+	var occupation := World.occupation.capitalize() if World.occupation != "" else "Survivor"
+	var hp: float = _owner_player.vitals.health if _owner_player and _owner_player.vitals else 0.0
+	var energy: float = _owner_player.vitals.energy if _owner_player and _owner_player.vitals else 0.0
+	var gathering: int = _owner_player.skills.level_of("gathering") if _owner_player and _owner_player.skills else 0
+	_profile.text = "%s\n%s  ·  Lv. %d\n\nHP  %.0f\nEnergy  %.0f\nGathering  %d\nBag  %d / %d" % [name, occupation, World.pioneer_level + 1, hp, energy, gathering, inventory.used_slots(), inventory.slot_count]
 
 func _refresh_equipped() -> void:
 	for slot in _equip_slots.keys():

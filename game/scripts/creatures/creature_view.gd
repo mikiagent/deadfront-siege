@@ -58,7 +58,10 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 	using_glb = false
 	_tint = TINTS.get(str(def.id), Color(0.55, 0.5, 0.4))
 	var glb := "res://assets/creatures/%s/%s.glb" % [def.id, def.id]
-	if ResourceLoader.exists(glb):
+	# The current transplanted Stegosaurus skin has catastrophic weights (worm-like stretching).
+	# Keep it playable with the procedural quadruped until the asset-upgrade replacement lands.
+	var force_safe_placeholder := def.id == &"stegosaurus"
+	if ResourceLoader.exists(glb) and not force_safe_placeholder:
 		rotation = Vector3.ZERO
 		rig = RiggedModel.new()
 		rig.name = "Rig"

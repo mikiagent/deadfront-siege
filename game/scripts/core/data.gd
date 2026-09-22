@@ -47,12 +47,8 @@ func set_survival_unlocked(node_id: StringName, on: bool) -> void:
 	survival_unlocked[node_id] = on
 
 func bonded_cap() -> int:
-	var cap := 3
-	for id in survival_nodes:
-		var n: Dictionary = survival_nodes[id]
-		if str(n.get("kind", "")) == "animal_management" and is_survival_unlocked(id):
-			cap += int(n.get("bonded_cap_bonus", 1))
-	return cap
+	# Roster storage is unlimited; Player.MAX_PETS_OUT governs the three active companions.
+	return 2147483647
 
 func has_capture_technique(tier: int) -> bool:
 	for id in survival_nodes:

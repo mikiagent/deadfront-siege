@@ -354,8 +354,14 @@ func _disengage_track(delta: float) -> void:
 	var dist := creature.global_position.distance_to(attack_target.global_position)
 	# Aggro leash: beyond leash_mult × perception the chase ends at once; beyond 1.5 × it ends
 	# after disengage_seconds. Running far enough away always works.
-	if dist > _effective_perception() * float(profile.get("leash_mult", 2.2)):
-		print("[ai] %s disengage (leash)" % creature.def.id)
+	if dist > aggro_radius():
+		print("[ai] %s disengage (left aggro radius)" % creature.def.id)
+		# Leaving the visible combat radius is an immediate de-aggro, not a walk-home chase.
+		# Clear target/memory now so neither this animal nor pack retention reacquires the runner.
+		attack_target = null
+		_combat_memory_left = 0.0
+		_disengage_left = 0.0
+		creature.mark_aggro_now()
 		_set_state(&"disengage")
 		return
 	var far := dist > _effective_perception() * 1.2

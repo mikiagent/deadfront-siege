@@ -127,7 +127,7 @@ func _draw() -> void:
 		draw_arc(goal, 6.0, 0.0, TAU, 24, Color(1, 1, 1, 0.9), 2.0, true)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	# header + legend (screen space)
-	var title := "%s   %s" % [str(World.island_id).replace("_", " ").capitalize(), "Home" if World.is_home() else "Survivable for %d min" % int(ceil(World.remaining_lifetime / 60.0))]
+	var title := "WORLD ATLAS   ·   %s   %s" % [str(World.island_id).replace("_", " ").capitalize(), "Home" if World.is_home() else "Survivable for %d min" % int(ceil(World.remaining_lifetime / 60.0))]
 	draw_string(font, Vector2(MARGIN, MARGIN + 24), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color.WHITE)
 	var tile := BuildGrid.tile_of(pp)
 	draw_string(font, Vector2(MARGIN, MARGIN + 50), "You: X %d  Y %d   ·   Pioneer %d   ·   T-stones %d   ·   tap the map to walk there" % [tile.x, tile.y, World.pioneer_level, World.t_stones], HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.85, 0.85, 0.8))

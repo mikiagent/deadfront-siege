@@ -68,6 +68,16 @@ func _after_idle() -> void:
 	alpha.health.take_damage(alpha.health.max_hp + 1.0, player)
 	await get_tree().process_frame
 	print("[aival] ring_cleanup had=%s removed=%s" % [had_ring, alpha._aggro_ring == null])
+	# A live target crossing the exact displayed aggro radius must be forgotten immediately.
+	follower_a.brain.attack_target = player
+	follower_a.brain._combat_memory_left = 4.0
+	follower_a.brain.state = &"approach"
+	player.global_position = follower_a.global_position + Vector3(follower_a.brain.aggro_radius() + 0.5, 0, 0)
+	follower_a.brain._disengage_track(0.016)
+	var deaggro_ok := follower_a.brain.attack_target == null and follower_a.brain.state == &"disengage"
+	print("[aival] radius_deaggro=%s state=%s target=%s" % [deaggro_ok, follower_a.brain.state, follower_a.brain.attack_target])
+	if not deaggro_ok:
+		failures.append("leaving aggro radius retained target")
 	await get_tree().create_timer(0.25).timeout
 	await _runtime_protoceratops_probe()
 	if failures.is_empty():

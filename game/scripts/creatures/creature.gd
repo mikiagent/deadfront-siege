@@ -513,7 +513,7 @@ func _on_damaged(_amount: float, source: Node) -> void:
 	hit_burst(burst_col, 0.16 if kind == &"crit" else 0.1, 22 if kind == &"crit" else 12)
 	if brain:
 		brain.note_damage(_amount)
-	if statuses.has(&"groggy") and not statuses.has(&"knockdown"):
+	if statuses.has(&"groggy") and not statuses.has(&"knockdown") 			and health.fraction() < FieldTame.CAPTURE_HEALTH_FRAC:
 		statuses.apply(&"knockdown", source)
 		anim.play_clip(&"knockdown")
 		return

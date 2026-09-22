@@ -10,6 +10,7 @@ func _init() -> void:
 	_test_progression_scaling()
 	_test_starter_island_levels_and_resource_stacks()
 	_test_hud_event_state()
+	_test_capture_threshold()
 	if failures.is_empty():
 		print("[tests] PASS")
 		quit(0)
@@ -116,3 +117,8 @@ func _test_creature_genetics() -> void:
 	_expect(genes.tier_for_iv(31) == &"S+", "highest IV is S+")
 	var copy := CreatureGenetics.from_dict(genes.to_dict())
 	_expect(copy.ivs == genes.ivs and copy.evs == genes.evs and copy.level_gains == genes.level_gains, "genetics save roundtrip")
+
+func _test_capture_threshold() -> void:
+	_expect(FieldTame.health_allows_capture(0.299), "capture opens below 30 percent health")
+	_expect(not FieldTame.health_allows_capture(0.30), "capture stays closed at 30 percent health")
+	_expect(not FieldTame.health_allows_capture(0.50), "capture stays closed above threshold")
