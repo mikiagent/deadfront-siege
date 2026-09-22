@@ -34,7 +34,7 @@
     "alert": "Giant deer raises its head high with ears forward"
   },
   "pipeline": {
-    "route": "skeleton_transplant_v2",
+    "route": "skeleton_transplant_v3",
     "forward_axis": "+Z",
     "version": 1,
     "mesh_source": "res://assets/creatures/megaloceros/work/megaloceros_i2m_v1.glb",
@@ -62,28 +62,41 @@
       "verts_after": 10431
     },
     "warp": {
-      "mode": "bbox"
+      "mode": "quadruped_landmarks",
+      "front_foot_y": -0.12199598640068361,
+      "back_foot_y": 0.7580102418477719,
+      "foot_half_width": 0.09659601747989655,
+      "hip_z": 0.9950553059577941,
+      "shoulder_z": 1.5728487491607666,
+      "head_z": 1.2507591247558594
     },
     "weights": {
-      "direct_fraction": 1.0
+      "direct_fraction": 1.0,
+      "method": "continuous anatomical spine and single-limb weights, max four"
     },
     "clips": [
-      "idle",
-      "walk",
-      "run",
-      "attack_primary",
+      "alert",
       "attack_heavy",
-      "hit_react",
-      "knockdown",
+      "attack_primary",
       "death",
-      "alert"
+      "hit_react",
+      "idle",
+      "knockdown",
+      "run",
+      "walk"
     ],
     "authored_clips": {
-      "knockdown": "death 0-45%, holds",
-      "hit_react": "death 0-35% then reversed",
-      "alert": "idle 0-40% with head pitched 20.0 deg",
-      "attack_heavy": "telegraph hold of 8 frames at 30%"
-    }
+      "knockdown": "90-degree side collapse ending with grounded hold",
+      "hit_react": "0.6s dedicated recoil; fixed foot targets; no body roll",
+      "alert": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "attack_heavy": "0.36s held anticipation then head thrust",
+      "death": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "idle": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "walk": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "run": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "attack_primary": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps"
+    },
+    "rig_revision": 3
   },
   "taming": {
     "preferred_food": [

@@ -77,7 +77,7 @@
     "forward_axis": "+Z",
     "source_height_m": 0.6992,
     "source_length_m": 1.9024,
-    "route": "skeleton_transplant_v2",
+    "route": "skeleton_transplant_v3",
     "mesh_source": "res://assets/creatures/velociraptor/work/velociraptor_i2m_v2.glb",
     "donor_rig": "tools/standins/quaternius/Velociraptor.fbx",
     "transplant_tool": "tools/transplant_rig.py",
@@ -108,24 +108,26 @@
       "width_scale": 0.774
     },
     "weights": {
-      "direct_fraction": 1.0
+      "direct_fraction": 1.0,
+      "toe_weights": "three spatial smoothing passes; original bone assignments retained"
     },
     "clips": [
-      "idle",
-      "walk",
-      "run",
-      "attack_primary",
+      "alert",
       "attack_heavy",
-      "hit_react",
-      "knockdown",
+      "attack_primary",
       "death",
-      "alert"
+      "hit_react",
+      "idle",
+      "knockdown",
+      "run",
+      "walk"
     ],
     "authored_clips": {
-      "knockdown": "death 0-45%, holds",
-      "hit_react": "death 0-35% then reversed",
+      "knockdown": "complete death collapse followed by 8-frame grounded hold",
+      "hit_react": "dedicated 0.6s head/neck recoil from neutral idle; no death frames",
       "alert": "idle 0-40% with head pitched 20.0 deg",
-      "attack_heavy": "telegraph hold of 8 frames at 30%"
+      "attack_heavy": "telegraph hold of 8 frames at 30%",
+      "death": "coherent sideways collapse with small neck release; corrected to ground each frame"
     },
     "version": 2,
     "i2m_params": {
@@ -133,7 +135,8 @@
       "polycount": 20000,
       "texture": "2k PBR"
     },
-    "credits_spent": 48
+    "credits_spent": 48,
+    "rig_revision": 3
   },
   "look": "turkey-sized feathered dromaeosaur, long stiff tail with a feather fan, sickle claw on each foot, rust and tan with dark barring,",
   "taming": {

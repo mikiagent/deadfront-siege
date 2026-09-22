@@ -1,0 +1,114 @@
+{
+  "species": "utahraptor",
+  "route": "skeleton_transplant_v3",
+  "mesh": "game/assets/creatures/utahraptor/work/utahraptor_i2m_v2.glb",
+  "donor": "tools/standins/quaternius/Velociraptor.fbx",
+  "forward_axis": "+Z",
+  "source_height_m": 0.78,
+  "source_length_m": 1.8892,
+  "repair": {
+    "loose_removed": 834,
+    "doubles_merged": 16750,
+    "holes_filled": 132,
+    "verts_before": 27887,
+    "islands": 4340,
+    "verts_after": 10303
+  },
+  "warp": {
+    "mode": "landmark",
+    "snout": [
+      -1.12,
+      -0.94
+    ],
+    "foot": [
+      -0.17,
+      -0.23
+    ],
+    "tail": [
+      1.09,
+      0.94
+    ],
+    "hip_z_scale": 0.91,
+    "width_scale": 1.09
+  },
+  "weights": {
+    "direct_fraction": 0.0,
+    "proxy_verts": 4272,
+    "proxy_fraction": 1.0,
+    "final_fraction": 1.0,
+    "toe_weights": "three spatial smoothing passes; original bone assignments retained"
+  },
+  "authored_clips": {
+    "knockdown": "complete death collapse followed by 8-frame grounded hold",
+    "hit_react": "dedicated 0.6s head/neck recoil from neutral idle; no death frames",
+    "alert": "idle 0-40% with head pitched 20.0 deg",
+    "attack_heavy": "telegraph hold of 8 frames at 30%",
+    "death": "coherent sideways collapse with small neck release; corrected to ground each frame"
+  },
+  "clips": {
+    "alert": {
+      "frames": [
+        1,
+        25
+      ],
+      "seconds": 1.0
+    },
+    "attack_heavy": {
+      "frames": [
+        1,
+        36
+      ],
+      "seconds": 1.458
+    },
+    "attack_primary": {
+      "frames": [
+        1,
+        21
+      ],
+      "seconds": 0.833
+    },
+    "death": {
+      "frames": [
+        1,
+        44
+      ],
+      "seconds": 1.792
+    },
+    "hit_react": {
+      "frames": [
+        1,
+        15
+      ],
+      "seconds": 0.583
+    },
+    "idle": {
+      "frames": [
+        1,
+        62
+      ],
+      "seconds": 2.542
+    },
+    "knockdown": {
+      "frames": [
+        1,
+        52
+      ],
+      "seconds": 2.125
+    },
+    "run": {
+      "frames": [
+        1,
+        15
+      ],
+      "seconds": 0.583
+    },
+    "walk": {
+      "frames": [
+        1,
+        59
+      ],
+      "seconds": 2.417
+    }
+  },
+  "rig_revision": 3
+}

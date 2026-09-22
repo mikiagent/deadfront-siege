@@ -1,0 +1,107 @@
+{
+  "species": "megaloceros",
+  "route": "skeleton_transplant_v3",
+  "mesh": "game/assets/creatures/megaloceros/work/megaloceros_i2m_v1.glb",
+  "donor": "tools/standins/quaternius/Triceratops.fbx",
+  "forward_axis": "+Z",
+  "source_height_m": 1.8108,
+  "source_length_m": 1.902,
+  "repair": {
+    "loose_removed": 942,
+    "doubles_merged": 20053,
+    "holes_filled": 149,
+    "verts_before": 31426,
+    "islands": 5790,
+    "verts_after": 10431
+  },
+  "warp": {
+    "mode": "quadruped_landmarks",
+    "front_foot_y": -0.12199598640068361,
+    "back_foot_y": 0.7580102418477719,
+    "foot_half_width": 0.09659601747989655,
+    "hip_z": 0.9950553059577941,
+    "shoulder_z": 1.5728487491607666,
+    "head_z": 1.2507591247558594
+  },
+  "weights": {
+    "direct_fraction": 1.0,
+    "method": "continuous anatomical spine and single-limb weights, max four"
+  },
+  "authored_clips": {
+    "knockdown": "90-degree side collapse ending with grounded hold",
+    "hit_react": "0.6s dedicated recoil; fixed foot targets; no body roll",
+    "alert": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+    "attack_heavy": "0.36s held anticipation then head thrust",
+    "death": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+    "idle": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+    "walk": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+    "run": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+    "attack_primary": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps"
+  },
+  "clips": {
+    "alert": {
+      "frames": [
+        1,
+        39
+      ],
+      "seconds": 1.583
+    },
+    "attack_heavy": {
+      "frames": [
+        1,
+        44
+      ],
+      "seconds": 1.792
+    },
+    "attack_primary": {
+      "frames": [
+        1,
+        29
+      ],
+      "seconds": 1.167
+    },
+    "death": {
+      "frames": [
+        1,
+        51
+      ],
+      "seconds": 2.083
+    },
+    "hit_react": {
+      "frames": [
+        1,
+        15
+      ],
+      "seconds": 0.583
+    },
+    "idle": {
+      "frames": [
+        1,
+        73
+      ],
+      "seconds": 3.0
+    },
+    "knockdown": {
+      "frames": [
+        1,
+        44
+      ],
+      "seconds": 1.792
+    },
+    "run": {
+      "frames": [
+        1,
+        23
+      ],
+      "seconds": 0.917
+    },
+    "walk": {
+      "frames": [
+        1,
+        39
+      ],
+      "seconds": 1.583
+    }
+  },
+  "rig_revision": 3
+}

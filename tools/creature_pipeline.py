@@ -164,7 +164,7 @@ def main():
     if "json" in stages:
         rr = get(a.species, ver, "rig_result") or {}
         p = SPEC / f"{a.species}.json"; j = json.loads(p.read_text()); pl = j.setdefault("pipeline", {})
-        pl.update({"route": "skeleton_transplant_v2", "forward_axis": "+Z", "version": ver,
+        pl.update({"route": rr.get("route", "skeleton_transplant_v3"), "forward_axis": "+Z", "version": ver,
                    "mesh_source": f"res://assets/creatures/{a.species}/work/{a.species}_i2m_v{ver}.glb",
                    "reference": {"side": get(a.species, ver, "ref_side"), "front": get(a.species, ver, "ref_front")}, "i2m": get(a.species, ver, "i2m"),
                    "i2m_params": {"model": "meshy-7 multi-image", "polycount": a.polycount, "texture": "2k PBR"}, "credits_spent": 48,

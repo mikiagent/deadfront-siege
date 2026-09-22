@@ -36,7 +36,7 @@
     "compsognathus_desert"
   ],
   "pipeline": {
-    "route": "skeleton_transplant_v2",
+    "route": "skeleton_transplant_v3",
     "forward_axis": "+Z",
     "version": 1,
     "mesh_source": "res://assets/creatures/compsognathus/work/compsognathus_i2m_v1.glb",
@@ -81,25 +81,28 @@
       "width_scale": 0.8
     },
     "weights": {
-      "direct_fraction": 1.0
+      "direct_fraction": 1.0,
+      "toe_weights": "three spatial smoothing passes; original bone assignments retained"
     },
     "clips": [
-      "idle",
-      "walk",
-      "run",
-      "attack_primary",
+      "alert",
       "attack_heavy",
-      "hit_react",
-      "knockdown",
+      "attack_primary",
       "death",
-      "alert"
+      "hit_react",
+      "idle",
+      "knockdown",
+      "run",
+      "walk"
     ],
     "authored_clips": {
-      "knockdown": "death 0-45%, holds",
-      "hit_react": "death 0-35% then reversed",
+      "knockdown": "complete death collapse followed by 8-frame grounded hold",
+      "hit_react": "dedicated 0.6s head/neck recoil from neutral idle; no death frames",
       "alert": "idle 0-40% with head pitched 20.0 deg",
-      "attack_heavy": "telegraph hold of 8 frames at 30%"
-    }
+      "attack_heavy": "telegraph hold of 8 frames at 30%",
+      "death": "coherent sideways collapse with small neck release; corrected to ground each frame"
+    },
+    "rig_revision": 3
   },
   "taming": {
     "preferred_food": [

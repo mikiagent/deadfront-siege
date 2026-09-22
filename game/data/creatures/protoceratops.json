@@ -33,9 +33,9 @@
   "clips": {},
   "pipeline": {
     "forward_axis": "+Z",
-    "source_height_m": 5.4892,
-    "source_length_m": 9.0266,
-    "route": "skeleton_transplant_v2",
+    "source_height_m": 0.8912,
+    "source_length_m": 1.9022,
+    "route": "skeleton_transplant_v3",
     "mesh_source": "res://assets/creatures/protoceratops/work/protoceratops_i2m_v1.glb",
     "reference": {
       "side": "01a0b1c9-4670-7463-a3f5-58814bf64acc",
@@ -52,22 +52,49 @@
     "transplant_tool": "tools/transplant_rig.py",
     "fit": "bbox (quadruped)",
     "clips": [
-      "idle",
-      "walk",
-      "run",
-      "attack_primary",
+      "alert",
       "attack_heavy",
-      "hit_react",
-      "knockdown",
+      "attack_primary",
       "death",
-      "alert"
+      "hit_react",
+      "idle",
+      "knockdown",
+      "run",
+      "walk"
     ],
     "authored_clips": {
-      "knockdown": "death 0-45% then hold",
-      "hit_react": "death 0-35% then reversed",
-      "alert": "idle 0-40% with head pitched 20 deg",
-      "attack_heavy": "Jump with an 8-frame telegraph hold at 30%"
-    }
+      "knockdown": "90-degree side collapse ending with grounded hold",
+      "hit_react": "0.6s dedicated recoil; fixed foot targets; no body roll",
+      "alert": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "attack_heavy": "0.36s held anticipation then head thrust",
+      "death": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "idle": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "walk": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "run": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+      "attack_primary": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps"
+    },
+    "repair": {
+      "loose_removed": 552,
+      "doubles_merged": 9582,
+      "holes_filled": 135,
+      "verts_before": 18438,
+      "islands": 2006,
+      "verts_after": 8304
+    },
+    "warp": {
+      "mode": "quadruped_landmarks",
+      "front_foot_y": -0.320186065658927,
+      "back_foot_y": 0.13868439318737882,
+      "foot_half_width": 0.14410650730133057,
+      "hip_z": 0.44621941447257996,
+      "shoulder_z": 0.5517665863037109,
+      "head_z": 0.45067597925662994
+    },
+    "weights": {
+      "direct_fraction": 1.0,
+      "method": "continuous anatomical spine and single-limb weights, max four"
+    },
+    "rig_revision": 3
   },
   "look": "sheep-sized ceratopsian, large bony neck frill without horns, deep hooked beak, pebbled tan hide with a row of low scutes,",
   "taming": {

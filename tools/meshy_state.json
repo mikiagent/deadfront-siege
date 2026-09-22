@@ -671,5 +671,121 @@
         }
       }
     }
+  },
+  "zebraceratops": {
+    "reference": "01a0c1ba-da5f-7448-a830-07c0541e2ed1",
+    "i2m": "01a0c1bc-3f6c-73f4-abfa-5a2d5f39a4be",
+    "v1": {
+      "ref_side": "01a0c1ba-da5f-7448-a830-07c0541e2ed1",
+      "ref_front": "01a0c1bb-812a-705e-a4ef-cd5d450f2744",
+      "i2m": "01a0c1bc-3f6c-73f4-abfa-5a2d5f39a4be",
+      "rig_result": {
+        "species": "zebraceratops",
+        "route": "skeleton_transplant_v3",
+        "mesh": "game/assets/creatures/zebraceratops/work/zebraceratops_i2m_v1.glb",
+        "donor": "tools/standins/quaternius/Triceratops.fbx",
+        "forward_axis": "+Z",
+        "source_height_m": 0.8925,
+        "source_length_m": 1.9025,
+        "repair": {
+          "loose_removed": 492,
+          "doubles_merged": 6592,
+          "holes_filled": 118,
+          "verts_before": 16486,
+          "islands": 1009,
+          "verts_after": 9402
+        },
+        "warp": {
+          "mode": "quadruped_landmarks",
+          "front_foot_y": -0.3602610508427673,
+          "back_foot_y": 0.0703064314997117,
+          "foot_half_width": 0.17588551342487335,
+          "hip_z": 0.46941647827625266,
+          "shoulder_z": 0.5107775270938875,
+          "head_z": 0.4940320551395416
+        },
+        "weights": {
+          "direct_fraction": 1.0,
+          "method": "continuous anatomical spine and single-limb weights, max four"
+        },
+        "authored_clips": {
+          "knockdown": "90-degree side collapse ending with grounded hold",
+          "hit_react": "0.6s dedicated recoil; fixed foot targets; no body roll",
+          "alert": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+          "attack_heavy": "0.36s held anticipation then head thrust",
+          "death": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+          "idle": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+          "walk": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+          "run": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
+          "attack_primary": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps"
+        },
+        "clips": {
+          "alert": {
+            "frames": [
+              1,
+              39
+            ],
+            "seconds": 1.583
+          },
+          "attack_heavy": {
+            "frames": [
+              1,
+              44
+            ],
+            "seconds": 1.792
+          },
+          "attack_primary": {
+            "frames": [
+              1,
+              29
+            ],
+            "seconds": 1.167
+          },
+          "death": {
+            "frames": [
+              1,
+              51
+            ],
+            "seconds": 2.083
+          },
+          "hit_react": {
+            "frames": [
+              1,
+              15
+            ],
+            "seconds": 0.583
+          },
+          "idle": {
+            "frames": [
+              1,
+              73
+            ],
+            "seconds": 3.0
+          },
+          "knockdown": {
+            "frames": [
+              1,
+              44
+            ],
+            "seconds": 1.792
+          },
+          "run": {
+            "frames": [
+              1,
+              23
+            ],
+            "seconds": 0.917
+          },
+          "walk": {
+            "frames": [
+              1,
+              39
+            ],
+            "seconds": 1.583
+          }
+        },
+        "rig_revision": 3
+      }
+    }
   }
 }
