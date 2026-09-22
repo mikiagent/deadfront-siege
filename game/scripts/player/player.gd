@@ -1706,6 +1706,12 @@ func _on_vitals_died() -> void:
 		placer.cancel()
 	if anim:
 		anim.on_death()
+	# Every wild dinosaur engaged with this survivor relocates beyond its immediate aggro ring.
+	# This happens before respawn, so the new life never begins beside the same killer/pack.
+	for node in get_tree().get_nodes_in_group("creatures"):
+		var creature := node as Creature
+		if creature and creature.brain and creature.brain.has_method("on_player_killed"):
+			creature.brain.on_player_killed(global_position)
 	print("[player] died")
 
 ## Respawn at the camp (home tile) with half health; statuses cleared. Called by the HUD button.

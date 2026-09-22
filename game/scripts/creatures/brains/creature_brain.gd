@@ -42,6 +42,45 @@ func setup(c: Creature) -> void:
 	# Start walking promptly. The old full roam delay made newly spawned dinosaurs look frozen.
 	_roam_cd = randf_range(0.1, 0.6)
 
+
+## The player stays on the ground until respawn. Relocate every dinosaur that was fighting
+## them so the camp/respawn point cannot become a permanent death trap.
+func on_player_killed(at: Vector3) -> void:
+	if creature == null or creature.health.dead or creature.is_pet:
+		return
+	var was_hunting := attack_target is Player or state in [&"alert", &"approach", &"attack", &"retreat"]
+	if not was_hunting:
+		return
+	var away := creature.global_position - at
+	away.y = 0.0
+	if away.length_squared() <= 0.001:
+		away = Vector3.RIGHT.rotated(Vector3.UP, randf() * TAU)
+	var distance := maxf(14.0, aggro_radius() + 4.0)
+	var destination := creature.global_position + away.normalized() * distance
+	var rt := World.runtime if World else null
+	if rt and rt.has_method("spawn_ok"):
+		var found := false
+		for shorten in [1.0, 0.8, 0.6, 0.4]:
+			for angle in [0.0, 0.45, -0.45, 0.9, -0.9]:
+				var probe: Vector3 = creature.global_position + away.normalized().rotated(Vector3.UP, angle) * distance * shorten
+				probe.y = rt.surface_y(probe.x, probe.z) + 0.3 if rt.has_method("surface_y") else creature.global_position.y
+				if rt.spawn_ok(probe, false):
+					destination = probe
+					found = true
+					break
+			if found:
+				break
+	attack_target = null
+	_combat_memory_left = 0.0
+	_disengage_left = 0.0
+	_hits_taken = 0
+	_provoked_until = -1.0
+	# Make the retreat destination the new local home so idle roam does not walk straight back.
+	creature.spawn_home = destination
+	_set_state(&"disengage")
+	creature.move_to(destination)
+	print("[ai] %s post-kill retreat %.1fm" % [creature.def.id, creature.global_position.distance_to(destination)])
+
 func _effective_perception() -> float:
 	var p := perception
 	if Game.phase_name() == &"night" and bool(profile.get("night_predator_bonus", true)) and not _is_herbivore():

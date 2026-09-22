@@ -116,6 +116,15 @@ func _build_placeholder() -> void:
 	_leg_l = _cyl(h * 0.05, h * 0.42, Vector3(-h * 0.1, h * 0.2, 0.05), _tint.darkened(0.2))
 	_leg_r = _cyl(h * 0.05, h * 0.42, Vector3(h * 0.1, h * 0.2, 0.05), _tint.darkened(0.2))
 	_body.name = "Body"
+	if def.id == &"stegosaurus":
+		# Readable low-poly Stegosaurus fallback: arched plate row and four thagomizer spikes.
+		for i in 7:
+			var plate := _box(Vector3(h * 0.08, h * (0.28 + 0.08 * (1.0 - absf(float(i - 3)) / 3.0)), h * 0.07), Vector3(0, h * 0.70, lerpf(-L * 0.18, L * 0.24, float(i) / 6.0)), _tint.lightened(0.18))
+			plate.rotation.z = 0.12 * float(i - 3)
+		for side in [-1.0, 1.0]:
+			for row in [0.0, 1.0]:
+				var spike := _box(Vector3(h * 0.055, h * 0.055, L * 0.18), Vector3(side * h * (0.10 + row * 0.04), h * 0.50, -L * (0.42 + row * 0.08)), Color(0.78, 0.72, 0.56))
+				spike.rotation.x = -0.28
 
 func _box(size: Vector3, pos: Vector3, col: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()

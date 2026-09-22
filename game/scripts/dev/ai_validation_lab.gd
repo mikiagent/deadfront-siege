@@ -78,6 +78,23 @@ func _after_idle() -> void:
 	print("[aival] radius_deaggro=%s state=%s target=%s" % [deaggro_ok, follower_a.brain.state, follower_a.brain.attack_target])
 	if not deaggro_ok:
 		failures.append("leaving aggro radius retained target")
+	alpha.brain.attack_target = player
+	alpha.brain.state = &"attack"
+	player.global_position = alpha.global_position + Vector3(alpha.brain.aggro_radius() + 0.5, 0, 0)
+	alpha.brain._think(0.016)
+	var raptor_deaggro_ok := alpha.brain.attack_target == null and alpha.brain.state == &"disengage"
+	print("[aival] raptor_radius_deaggro=%s state=%s target=%s" % [raptor_deaggro_ok, alpha.brain.state, alpha.brain.attack_target])
+	if not raptor_deaggro_ok:
+		failures.append("raptor retained target outside aggro radius")
+	var old_home := follower_b.spawn_home
+	follower_b.brain.attack_target = player
+	follower_b.brain.state = &"attack"
+	follower_b.brain.on_player_killed(player.global_position)
+	var retreat_distance := old_home.distance_to(follower_b.spawn_home)
+	var post_kill_ok := follower_b.brain.attack_target == null and follower_b.brain.state == &"disengage" and retreat_distance >= 14.0
+	print("[aival] post_kill_retreat=%s distance=%.2f target=%s" % [post_kill_ok, retreat_distance, follower_b.brain.attack_target])
+	if not post_kill_ok:
+		failures.append("player killer did not retreat beyond respawn")
 	await get_tree().create_timer(0.25).timeout
 	await _runtime_protoceratops_probe()
 	if failures.is_empty():

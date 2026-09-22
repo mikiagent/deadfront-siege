@@ -19,6 +19,15 @@ func _think(delta: float) -> void:
 	_attack_cd = maxf(0.0, _attack_cd - delta)
 	_heavy_cd = maxf(0.0, _heavy_cd - delta)
 	_combat_memory_left = maxf(0.0, _combat_memory_left - delta)
+	# Raptor override bypasses CreatureBrain._think, so enforce the same hard radius boundary
+	# before refreshing combat memory or inheriting the alpha's target.
+	if _valid_target() and creature.global_position.distance_to(attack_target.global_position) > aggro_radius():
+		attack_target = null
+		_combat_memory_left = 0.0
+		_set_state(&"disengage")
+		creature.move_to(creature.spawn_home)
+		print("[ai] %s disengage (left aggro radius)" % creature.def.id)
+		return
 
 	if creature.health.fraction() < 0.30 and creature.def.archetype != &"apex_raptor":
 		_set_state(&"flee")
