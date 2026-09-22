@@ -39,3 +39,22 @@ No entries yet.
 ## Nature
 
 No entries yet.
+
+## Survivor's Journal art
+
+Field-notebook style approval applies to the visual direction shown in the Stegosaurus v01 contact sheet: graphite construction, dry sepia ink, sparse muted olive/sand/rust-charcoal color, and oxidized-red danger marks. This approval is for journal sketch art only; it does not replace the realistic 3D concept direction.
+
+| Species | Art set | Status | Milan review anchor | Components | Integration note |
+|---|---|---|---|---|---|
+| Stegosaurus | `journal/creatures/stegosaurus/*-v01.png` | `APPROVED` | Authenticated iMessage reaction on `phonemsg-01M33F39RMBWMNS2KWJQNFT21C` at 2026-09-21 21:29 CDT | hero, silhouette, tail sweep, tracks, thagomizer, variants | Use the approved style as the journal bar. Track anatomy finalized from the planner's grounded Deltapodus brief: small crescent manus paired just ahead of a larger three-toed wedge pes; v01 is superseded by v02. |
+
+### Stegosaurus journal component status
+
+| Component | Source | Status | Proposed game path |
+|---|---|---|---|
+| Hero | `journal/creatures/stegosaurus/stegosaurus-journal-hero-v01.png` | `APPROVED` style | `game/assets/journal/creatures/stegosaurus/hero.webp` |
+| Silhouette | `journal/creatures/stegosaurus/stegosaurus-journal-silhouette-v01.png` | `APPROVED` style | `game/assets/journal/creatures/stegosaurus/silhouette.webp` |
+| Tail sweep | `journal/creatures/stegosaurus/stegosaurus-journal-tail-sweep-v01.png` | `APPROVED` style | `game/assets/journal/creatures/stegosaurus/tail_sweep.webp` |
+| Tracks/sign | `journal/creatures/stegosaurus/stegosaurus-journal-tracks-v02.png` | `APPROVED` | `game/assets/journal/creatures/stegosaurus/tracks.webp` |
+| Thagomizer | `journal/creatures/stegosaurus/stegosaurus-journal-thagomizer-v01.png` | `APPROVED` style | `game/assets/journal/creatures/stegosaurus/thagomizer.webp` |
+| Variants | `journal/creatures/stegosaurus/stegosaurus-journal-variants-v01.png` | `APPROVED` style | `game/assets/journal/creatures/stegosaurus/variants.webp` |
