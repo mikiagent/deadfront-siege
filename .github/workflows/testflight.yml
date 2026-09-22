@@ -84,10 +84,10 @@ jobs:
           def get(path):
               req = urllib.request.Request("https://api.appstoreconnect.apple.com" + path, headers={"Authorization":"Bearer " + token})
               with urllib.request.urlopen(req) as res: return json.load(res)
-          bundles = get("/v1/bundleIds?filter%5Bidentifier%5D=com.durangolike.dev&limit=10")
+          bundles = get("/v1/bundleIds?filter%5Bidentifier%5D=com.deadfront.app&limit=10")
           if len(bundles["data"]) != 1: raise SystemExit("DurangoLike bundle ID not found")
           profiles = get(f"/v1/bundleIds/{bundles['data'][0]['id']}/profiles?limit=200")
-          profile = next((p for p in profiles["data"] if p["attributes"]["name"] == "DurangoLike CI App Store" and p["attributes"]["profileType"] == "IOS_APP_STORE" and p["attributes"]["profileState"] == "ACTIVE"), None)
+          profile = next((p for p in profiles["data"] if p["attributes"]["name"] == "Deadfront CI App Store" and p["attributes"]["profileType"] == "IOS_APP_STORE" and p["attributes"]["profileState"] == "ACTIVE"), None)
           if not profile: raise SystemExit("Active DurangoLike App Store profile not found")
           out = pathlib.Path.home() / "Library/MobileDevice/Provisioning Profiles" / f"{profile['attributes']['uuid']}.mobileprovision"
           out.parent.mkdir(parents=True, exist_ok=True)
@@ -98,7 +98,7 @@ jobs:
               subprocess.run(["openssl", "smime", "-inform", "der", "-verify", "-noverify", "-in", str(out), "-out", decoded.name], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
               decoded.seek(0)
               plist = plistlib.load(decoded)
-          if plist.get("UUID") != "6462a2dc-4fbd-460b-885b-53ef5ead6dd9": raise SystemExit(f"Unexpected profile UUID {plist.get('UUID')}")
+          if plist.get("UUID") != "33540570-188d-4cfd-8c9d-62516cdcfb8b": raise SystemExit(f"Unexpected profile UUID {plist.get('UUID')}")
           cert_fingerprints = []
           for cert_der in plist.get("DeveloperCertificates", []):
               cert = x509.load_der_x509_certificate(cert_der)
