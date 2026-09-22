@@ -46,7 +46,7 @@ Field-notebook style approval applies to the visual direction shown in the Stego
 
 | Species | Art set | Status | Milan review anchor | Components | Integration note |
 |---|---|---|---|---|---|
-| Stegosaurus | `journal/creatures/stegosaurus/*-v01.png` | `APPROVED` | Authenticated iMessage reaction on `phonemsg-01M33F39RMBWMNS2KWJQNFT21C` at 2026-09-21 21:29 CDT | hero, silhouette, tail sweep, tracks, thagomizer, variants | Use the approved style as the journal bar. Track anatomy finalized from the planner's grounded Deltapodus brief: small crescent manus paired just ahead of a larger three-toed wedge pes; v01 is superseded by v02. |
+| Stegosaurus | `journal/creatures/stegosaurus/*-v01.png` | `APPROVED` | Authenticated iMessage reaction on `phonemsg-01M33F39RMBWMNS2KWJQNFT21C` at 2026-09-21 21:29 CDT | hero, silhouette, tail sweep, tracks, thagomizer, variants | Use the approved style as the journal bar. Milan chose the single hind-print composition in authenticated iMessage at 2026-09-21 21:34 CDT ("One is better I think", replying to the A/B comparison; provider message ID was not present in the delegated evidence), replying to the A/B comparison. The page uses one large recessed three-toed pes print. The scientifically complete two-rail trackway is retained as unused reference only. |
 
 ### Stegosaurus journal component status
 
@@ -55,6 +55,10 @@ Field-notebook style approval applies to the visual direction shown in the Stego
 | Hero | `journal/creatures/stegosaurus/stegosaurus-journal-hero-v01.png` | `APPROVED` style | `game/assets/journal/creatures/stegosaurus/hero.webp` |
 | Silhouette | `journal/creatures/stegosaurus/stegosaurus-journal-silhouette-v01.png` | `APPROVED` style | `game/assets/journal/creatures/stegosaurus/silhouette.webp` |
 | Tail sweep | `journal/creatures/stegosaurus/stegosaurus-journal-tail-sweep-v01.png` | `APPROVED` style | `game/assets/journal/creatures/stegosaurus/tail_sweep.webp` |
-| Tracks/sign | `journal/creatures/stegosaurus/stegosaurus-journal-tracks-v02.png` | `APPROVED` | `game/assets/journal/creatures/stegosaurus/tracks.webp` |
+| Tracks/sign | `journal/creatures/stegosaurus/stegosaurus-journal-tracks-v04-single-pes.png` | `APPROVED` | `game/assets/journal/creatures/stegosaurus/tracks.webp` |
 | Thagomizer | `journal/creatures/stegosaurus/stegosaurus-journal-thagomizer-v01.png` | `APPROVED` style | `game/assets/journal/creatures/stegosaurus/thagomizer.webp` |
 | Variants | `journal/creatures/stegosaurus/stegosaurus-journal-variants-v01.png` | `APPROVED` style | `game/assets/journal/creatures/stegosaurus/variants.webp` |
+
+### Stegosaurus journal page composition
+
+Use the single hind-print art (`stegosaurus-journal-tracks-v04-single-pes.png`) for the tracks/sign inset. Do not place the two-rail trackway on the page. `stegosaurus-journal-trackway-two-rail-unused-v04.png` is retained for research/reference history only.
