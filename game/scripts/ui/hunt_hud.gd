@@ -21,6 +21,7 @@ var _inspect_hex: HexButton
 var _sheet: PanelContainer
 var _sheet_kind: StringName = &""
 var _skills_panel: Control
+var _animal_screen: AnimalScreen
 var _inspector: Panel
 # combat
 var _end_btn: Button
@@ -34,8 +35,7 @@ var _in_combat: bool = false
 var _combat_alpha: float = 0.0
 var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
 var _stance_label: Label
-var _toasts: Array = []
-var _notices: Array = []  # {text, t}
+var _events := HudEventState.new()
 var _ctx_hexes: Array[HexButton] = []
 var _ctx_ids: Array = []
 var _ctx_timer: float = 0.0
@@ -46,14 +46,13 @@ var _levelup_t: float = -1.0
 var _titles: Dictionary = {}
 var _level_gains: Dictionary = {}
 # hits on the survivor: bite/crunch jaws + red numbers
-var _bites: Array = []
-var _player_floats: Array = []
+
 # death
 var _death_panel: Control
 var _death_alpha: float = 0.0
 var _death_btn: Button
 
-const MAP_PX := 180.0
+const MAP_PX := 154.0
 const MAP_SCALE := 1.5  # metres per pixel
 const HEX := 66.0
 
@@ -86,7 +85,10 @@ func _ready() -> void:
 						bd = d
 						best = n
 			if best:
+				Game.pointer = get_viewport().get_camera_3d().unproject_position(best.global_position)
 				player.placer.pick_up(best)
+				if Game.shot_path.contains("layoutdrag"):
+					player.placer.drag_to(Game.pointer + Vector2(70.0, -18.0))
 				player.placer.dragging = false
 		)
 	if Game.shot_path.contains("bigmap"):
@@ -153,6 +155,12 @@ func _build_minimap() -> void:
 	_minimap.size = Vector2(MAP_PX, MAP_PX)
 	_minimap.mouse_filter = Control.MOUSE_FILTER_STOP
 	_minimap.clip_contents = true
+	# Clip the map and every marker to a round field window.
+	var circle_shader := Shader.new()
+	circle_shader.code = "shader_type canvas_item; void fragment(){ vec2 q = UV - vec2(0.5); if (length(q) > 0.5) discard; COLOR = texture(TEXTURE, UV) * COLOR; }"
+	var circle_material := ShaderMaterial.new()
+	circle_material.shader = circle_shader
+	_minimap.material = circle_material
 	_minimap.draw.connect(_draw_minimap)
 	_minimap.gui_input.connect(func (ev: InputEvent) -> void:
 		if (ev is InputEventScreenTouch and not (ev as InputEventScreenTouch).pressed) or (ev is InputEventMouseButton and not (ev as InputEventMouseButton).pressed and (ev as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT):
@@ -171,8 +179,8 @@ func _hex(glyph: String, size_px: float = HEX, caption: String = "") -> HexButto
 func _build_menu_row() -> void:
 	_menu_hex = _hex("≡", HEX, "MENU")
 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
-	_pets_hex = _hex("🦖", HEX, "PETS")
-	_pets_hex.pressed.connect(func () -> void: _toggle_sheet(&"pets"))
+	_pets_hex = _hex("🦖", HEX, "ANIMALS")
+	_pets_hex.pressed.connect(_open_animals)
 	_build_hex = _hex("⌂", HEX, "BUILD")
 	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
 	_skills_hex = _hex("★", HEX, "SKILLS")
@@ -226,6 +234,19 @@ func _toggle_debug() -> void:
 	_inspect_hex.selected = Game.debug_overlay
 	_inspect_hex.queue_redraw()
 	print("[hud] debug %s" % ("on" if Game.debug_overlay else "off"))
+
+
+func _open_animals() -> void:
+	_close_sheet()
+	if _animal_screen == null:
+		_animal_screen = AnimalScreen.new()
+		_animal_screen.name = "AnimalScreen"
+		var layer := CanvasLayer.new()
+		layer.name = "AnimalLayer"
+		layer.layer = 96
+		add_child(layer)
+		layer.add_child(_animal_screen)
+	_animal_screen.open(player)
 
 func _build_combat() -> void:
 	_end_btn = Button.new()
@@ -424,14 +445,13 @@ func _build_place_hexes() -> void:
 ## A creature bit the survivor: Pokémon Bite/Crunch style jaws snap shut over her chest and the
 ## damage floats up in red. Heavy attacks get the bigger, redder Crunch.
 func bite_on_player(amount: float, heavy: bool) -> void:
-	_bites.append({"t": 0.0, "heavy": heavy, "x": randf_range(-6.0, 6.0)})
-	_player_floats.append({"t": 0.0, "n": amount, "x": randf_range(-18.0, 18.0)})
+	_events.add_bite(amount, heavy)
 
 func _draw_bites(cam: Camera3D) -> void:
 	if cam == null or player == null:
 		return
 	var chest := cam.unproject_position(player.get_global_transform_interpolated().origin + Vector3(0, 0.95, 0))
-	for f in _player_floats:
+	for f in _events.player_floats:
 		var k: float = f["t"]
 		var a := 1.0 - smoothstep(0.55, 0.95, k)
 		var txt := "-%d" % int(round(float(f["n"])))
@@ -440,7 +460,7 @@ func _draw_bites(cam: Camera3D) -> void:
 		var p := chest + Vector2(float(f["x"]) - w * 0.5, -30.0 - k * 46.0)
 		draw_string(_font, p + Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.8 * a))
 		draw_string(_font, p, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.25, 0.2, a))
-	for b in _bites:
+	for b in _events.bites:
 		var k: float = b["t"]
 		var heavy: bool = b["heavy"]
 		var n := 7 if heavy else 5
@@ -468,20 +488,11 @@ func _draw_bites(cam: Camera3D) -> void:
 			draw_rect(Rect2(0, 0, get_viewport_rect().size.x, get_viewport_rect().size.y), Color(0.9, 0.1, 0.1, 0.18 * (1.0 - k / 0.2)))
 
 func notice(text: String) -> void:
-	for n in _notices:
-		if n["text"] == text and n["t"] < 1.5:
-			n["t"] = 0.0
-			return
-	_notices.append({"text": text, "t": 0.0})
+	_events.add_notice(text)
 
 func toast(id: StringName, n: int) -> void:
 	print("[ui] toast %s +%d" % [id, n])
-	for t in _toasts:
-		if t["id"] == id and t["t"] < 0.6:
-			t["n"] += n
-			t["t"] = 0.0
-			return
-	_toasts.append({"id": id, "n": n, "t": 0.0})
+	_events.add_toast(id, n)
 
 func _refresh_context(delta: float) -> void:
 	_ctx_timer -= delta
@@ -614,16 +625,29 @@ func _toggle_sheet(kind: StringName) -> void:
 			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
 			_sheet_btn(box, "Debug info: %s" % ("ON" if Game.debug_overlay else "OFF"), func () -> void: _toggle_debug(); _close_sheet(); _toggle_sheet(&"menu"))
 		&"pets":
-			title.text = "Pets  %d / %d" % [player.bonded.size(), Data.bonded_cap()]
+			title.text = "ANIMALS  %d owned" % player.bonded.size()
 			if player.bonded.is_empty():
 				var l := Label.new()
 				l.text = "No bonded animals yet. Knock one down and feed it."
 				box.add_child(l)
 			var out_now := player.live_pets().size()
-			title.text = "Pets  %d / %d   ·   out %d / %d" % [player.bonded.size(), Data.bonded_cap(), out_now, Player.MAX_PETS_OUT]
+			title.text = "ANIMALS  %d owned   ·   equipped %d / %d" % [player.bonded.size(), out_now, Player.MAX_PETS_OUT]
 			for i in player.bonded.size():
 				var rec: PetRecord = player.bonded[i]
 				var idx := i
+				if rec.respawning():
+					# Down after dying: circular cooldown ring instead of a Summon button.
+					var row := HBoxContainer.new()
+					row.add_theme_constant_override("separation", 10)
+					row.add_child(RespawnRing.new(rec, func () -> void: _refresh_sheet()))
+					var down := Button.new()
+					down.text = "%s  Lv. %d %s  DOWN" % [str(rec.species).capitalize(), rec.level, rec.grade]
+					down.disabled = true
+					down.custom_minimum_size = Vector2(240, 60)
+					down.add_theme_font_size_override("font_size", 18)
+					row.add_child(down)
+					box.add_child(row)
+					continue
 				var is_out := false
 				for p in player.live_pets():
 					if p.pet_record == rec:
@@ -668,6 +692,14 @@ func _sheet_btn(box: VBoxContainer, text: String, cb: Callable) -> void:
 	b.add_theme_font_size_override("font_size", 18)
 	b.pressed.connect(cb)
 	box.add_child(b)
+
+## Rebuild the open sheet in place (e.g. a pet finished respawning and Summon is back).
+func _refresh_sheet() -> void:
+	if _sheet == null:
+		return
+	var kind := _sheet_kind
+	_close_sheet()
+	_toggle_sheet(kind)
 
 func _close_sheet() -> void:
 	if _sheet:
@@ -767,18 +799,7 @@ func _process(delta: float) -> void:
 		_levelup_t += delta
 		if _levelup_t > 6.5:
 			_levelup_t = -1.0
-	for t in _toasts:
-		t["t"] += delta
-	_toasts = _toasts.filter(func (t: Dictionary) -> bool: return t["t"] < 1.3)
-	for n in _notices:
-		n["t"] += delta
-	_notices = _notices.filter(func (n: Dictionary) -> bool: return n["t"] < 3.2)
-	for b in _bites:
-		b["t"] += delta
-	_bites = _bites.filter(func (b: Dictionary) -> bool: return b["t"] < 0.5)
-	for f in _player_floats:
-		f["t"] += delta
-	_player_floats = _player_floats.filter(func (f: Dictionary) -> bool: return f["t"] < 0.95)
+	_events.tick(delta)
 	_minimap.queue_redraw()
 	queue_redraw()
 
@@ -788,15 +809,19 @@ func _draw() -> void:
 	var r := get_viewport_rect().size
 	var v := player.vitals
 	# --- vitals top-left
-	var x := 30.0
-	var y := 14.0
-	_bar(Vector2(x, y), Vector2(230, 16), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "♥", "%.0f / %.0f" % [v.health, v.effective_max_health()])
-	_bar(Vector2(x, y + 22), Vector2(230, 16), v.energy / maxf(1.0, v.max_energy), Color(0.20, 0.45, 0.80), "⚡", "%.0f / %.0f" % [v.energy, v.max_energy])
+	var x := 16.0
+	var y := 12.0
+	# Compact level chip belongs to the vitals cluster, not the bottom edge.
+	draw_circle(Vector2(x + 16.0, y + 16.0), 16.0, Color(0.06, 0.07, 0.08, 0.92))
+	draw_string(_font, Vector2(x + 5.0, y + 21.0), str(World.pioneer_level), HORIZONTAL_ALIGNMENT_CENTER, 22.0, 13, Color.WHITE)
+	x += 38.0
+	_bar(Vector2(x, y), Vector2(176, 13), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "♥", "%.0f / %.0f" % [v.health, v.effective_max_health()])
+	_bar(Vector2(x, y + 22), Vector2(176, 13), v.energy / maxf(1.0, v.max_energy), Color(0.20, 0.45, 0.80), "⚡", "%.0f / %.0f" % [v.energy, v.max_energy])
 	# hunger + thirst under energy; the bar colour goes red when empty (no health regen)
 	var hfrac: float = v.hunger / maxf(1.0, v.max_hunger)
 	var tfrac: float = v.thirst / maxf(1.0, v.max_thirst)
-	_bar(Vector2(x, y + 44), Vector2(230, 12), hfrac, Color(0.82, 0.16, 0.16) if hfrac <= 0.0 else Color(0.80, 0.50, 0.18), "🍖", "%.0f" % v.hunger)
-	_bar(Vector2(x, y + 62), Vector2(230, 12), tfrac, Color(0.82, 0.16, 0.16) if tfrac <= 0.0 else Color(0.25, 0.70, 0.85), "💧", "%.0f" % v.thirst)
+	_bar(Vector2(x, y + 44), Vector2(176, 9), hfrac, Color(0.82, 0.16, 0.16) if hfrac <= 0.0 else Color(0.80, 0.50, 0.18), "🍖", "%.0f" % v.hunger)
+	_bar(Vector2(x, y + 62), Vector2(176, 9), tfrac, Color(0.82, 0.16, 0.16) if tfrac <= 0.0 else Color(0.25, 0.70, 0.85), "💧", "%.0f" % v.thirst)
 	var warn := ""
 	if hfrac <= 0.0 or tfrac <= 0.0:
 		warn = "STARVING" if hfrac <= 0.0 else "PARCHED"
@@ -831,11 +856,11 @@ func _draw() -> void:
 	# One bar: the pioneer level, which every skill XP grant also feeds.
 	var prog := World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
 	var char_lv := World.pioneer_level
-	draw_rect(Rect2(0, r.y - 7, r.x, 7), Color(0.05, 0.05, 0.07, 0.9))
-	draw_rect(Rect2(0, r.y - 7, r.x * prog, 7), Color(0.55, 0.25, 0.75))
+	draw_rect(Rect2(0, r.y - 4, r.x, 4), Color(0.05, 0.05, 0.07, 0.9))
+	draw_rect(Rect2(0, r.y - 4, r.x * prog, 4), Color(0.90, 0.68, 0.12))
 	var lv := "Lv. %d  %.1f%%" % [char_lv, prog * 100.0]
 	var lw := _font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
-	draw_string(_font, Vector2(r.x * 0.5 - lw * 0.5, r.y - 10), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
+	draw_string(_font, Vector2(r.x * 0.5 - lw * 0.5, r.y - 7), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 	# --- name under the survivor
 	var cam := get_viewport().get_camera_3d()
 	if cam:
@@ -858,8 +883,8 @@ func _draw() -> void:
 			draw_string(_font, Vector2(30, ly), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), col)
 			ly += float(line[1]) + 8.0
 	# --- pickup toasts near the top-centre, rising and fading
-	for i in _toasts.size():
-		var t: Dictionary = _toasts[i]
+	for i in _events.toasts.size():
+		var t: Dictionary = _events.toasts[i]
 		var k: float = t["t"]
 		var alpha := 1.0 - smoothstep(0.7, 1.3, k)
 		var ty := 120.0 + float(i) * 30.0 - k * 35.0
@@ -874,8 +899,8 @@ func _draw() -> void:
 		draw_rect(Rect2(r.x * 0.5 - hw * 0.5 - 12, 150, hw + 24, 28), Color(0.05, 0.15, 0.3, 0.85))
 		draw_string(_font, Vector2(r.x * 0.5 - hw * 0.5, 170), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.85, 0.92, 1.0))
 	# --- notices (refusals, hints) under the toasts, centre-top
-	for i in _notices.size():
-		var n: Dictionary = _notices[i]
+	for i in _events.notices.size():
+		var n: Dictionary = _events.notices[i]
 		var k: float = n["t"]
 		var alpha := 1.0 - smoothstep(2.4, 3.2, k)
 		var ny := 190.0 + float(i) * 30.0
@@ -902,7 +927,7 @@ func _draw_target_plate(t: Creature, a: float) -> void:
 			var pw := 520.0
 			var px := r.x * 0.5 - pw * 0.5
 			var py := 14.0
-			var nm := "%s" % str(t.def.id).capitalize()
+			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
 			draw_string(_font, Vector2(px + 40, py + 30), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1, 1, 1, a))
 			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
 			draw_string(_font, Vector2(px + 40 + nmw + 14, py + 30), "Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1.0, 0.3, 0.25, a))
@@ -1007,7 +1032,7 @@ func _draw_minimap() -> void:
 	var side := Vector2(-fwd.y, fwd.x)
 	c.draw_colored_polygon(PackedVector2Array([fwd * 8.0, -fwd * 5.0 + side * 5.0, -fwd * 5.0 - side * 5.0]), Color(1, 1, 1))
 	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(1, 1, 1, 0.35), false, 1.5)
+	c.draw_circle(c.size * 0.5, MAP_PX * 0.5 - 1.5, Color(1, 1, 1, 0.48), false, 2.0)
 
 func _gather_radial_node() -> Node3D:
 	var gr: Variant = player.get("_gather_radial")
@@ -1055,7 +1080,10 @@ func _draw_pills(cam: Camera3D) -> void:
 			if n3 == null or not n3.visible or n3 == radial_node:
 				continue
 			var d := pp.distance_to(n3.global_position)
-			if d > 30.0:
+			# World labels are interaction hints, not permanent billboards. Keep the scene
+			# clean until the survivor is close or the object is actively inspected.
+			var active := n3 == radial_node or n3 == player.gather_target
+			if d > 8.0 and not active:
 				continue
 			rows.append([d, n3, grp])
 	rows.sort_custom(func (a: Array, b: Array) -> bool: return a[0] < b[0])
@@ -1094,9 +1122,7 @@ func _draw_pills(cam: Camera3D) -> void:
 				name = "Cargo Warp"
 			elif grp == "harbour":
 				name = "Harbour"
-		if d > 22.0:
-			name += "  · %d m" % int(d)
-		var a := 1.0 - smoothstep(22.0, 30.0, d)
+		var a := 1.0 if n3 == radial_node else 1.0 - smoothstep(5.5, 8.0, d)
 		var sp := cam.unproject_position(n3.global_position + Vector3(0, top + 0.35, 0))
 		var text := "%s  %s" % [glyph, name]
 		var tw := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x

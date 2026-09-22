@@ -75,13 +75,14 @@ var ui: InventoryUI
 var craft_ui
 var station_craft: StationCraft
 var eat_session: EatSession
-var food_buffs: Dictionary = {} ## buff_id -> {time_left, row}
+var food_buffs := FoodBuffState.new()
 var in_water: bool = false
 var _wet_acc: float = 0.0
 var _field_radial_target: FieldPlot
 var _field_radial_opts: Array = []
 
 var _roll_left: float = 0.0
+var _roll_direction: Vector3 = Vector3.ZERO
 var _gather_left: float = 0.0
 var _gathering: bool = false
 var _gather_unit_time: float = 1.0
@@ -98,6 +99,8 @@ var _marker_t: float = 0.0
 var _hold_walk_candidate: bool = false
 var _hold_walk_elapsed: float = 0.0
 var _hold_walk_retarget_left: float = 0.0
+var _tap_touch_index: int = -1
+var _desktop_click_fallback_pending: bool = false
 var _touch_context: StringName = &"explore"
 var _shoreline_logged: bool = false
 var _lantern: OmniLight3D
@@ -143,6 +146,7 @@ func _ready() -> void:
 	_setup_survivor()
 	_setup_lantern()
 	_setup_ground_marker()
+	_setup_player_beacon()
 	_setup_gather_ring()
 	skills = SkillState.new()
 	skills.name = "Skills"
@@ -155,12 +159,13 @@ func _ready() -> void:
 	if has_node("Shape"):
 		pass
 
-## A station tap opens the craft menu on that station's group (the old hex radial is gone).
+## A station tap opens its hex interact menu over the station; CRAFT/COOK open the craft sheet.
 func open_station_craft(st: Node3D) -> void:
-	if craft_ui and craft_ui.has_method("show_for_station") and station_craft:
-		craft_ui.show_for_station(station_craft.station_id_of(st))
-	elif station_craft:
-		station_craft.open_station(st)
+	# A station click wins over an in-flight ground move. StationMenu intentionally dismisses
+	# while nav_active, so leaving the old route alive made the ring open and close in one frame.
+	clear_nav()
+	if station_craft:
+		station_craft.open_station_menu(st)
 
 ## From the craft menu: craft `count` of a recipe (walks to the station if needed).
 func craft_recipe(rid: StringName, count: int = 1) -> void:
@@ -186,29 +191,13 @@ func _setup_eat_session() -> void:
 	eat_session.setup(self, layer)
 
 func apply_food_buff(buff_id: StringName, row: Dictionary) -> void:
-	food_buffs[str(buff_id)] = {
-		"time_left": float(row.get("duration", 300.0)),
-		"row": row.duplicate(true),
-	}
+	food_buffs.apply(buff_id, row)
 
 func _tick_food_buffs(delta: float) -> void:
-	if food_buffs.is_empty():
-		return
-	var dead: Array[String] = []
-	for k in food_buffs:
-		food_buffs[k]["time_left"] = float(food_buffs[k].get("time_left", 0.0)) - delta
-		if float(food_buffs[k]["time_left"]) <= 0.0:
-			dead.append(str(k))
-	for k in dead:
-		food_buffs.erase(k)
+	food_buffs.tick(delta)
 
 func food_buff_mult(stat: String) -> float:
-	var m := 1.0
-	for k in food_buffs:
-		var row: Dictionary = food_buffs[k].get("row", {})
-		if str(row.get("stat", "")) == stat and row.has("mult"):
-			m *= float(row.get("mult", 1.0))
-	return m
+	return food_buffs.multiplier(stat)
 
 func begin_eat_slot(index: int) -> bool:
 	return eat_session != null and eat_session.begin_eat(index)
@@ -304,6 +293,8 @@ func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 
 func _physics_process(delta: float) -> void:
 	_fall_guard()
+	for rec in bonded:
+		rec.tick_respawn(delta)
 	if dead:
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -350,9 +341,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if rolling:
 		# Committed dash: constant speed, ignores input and nav, slips through creatures.
-		var rf := -visual.global_basis.z
-		velocity.x = rf.x * 13.0
-		velocity.z = rf.z * 13.0
+		velocity.x = _roll_direction.x * 13.0
+		velocity.z = _roll_direction.z * 13.0
 		move_and_slide()
 		_shoreline_guard()
 		return
@@ -456,6 +446,47 @@ func _cam_dir(input: Vector2) -> Vector3:
 		dir = (right.normalized() * input.x + fwd.normalized() * -input.y).normalized()
 	return dir
 
+func _input(event: InputEvent) -> void:
+	# Godot web can consume a desktop mouse press before it reaches _unhandled_input even when
+	# the canvas control ignores mouse input. Defer a fallback until GUI routing has finished;
+	# _unhandled_input cancels it when the normal path did receive the click.
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+			_desktop_click_fallback_pending = true
+			call_deferred("_desktop_click_fallback", mb.position)
+
+func _desktop_click_fallback(pos: Vector2) -> void:
+	if not _desktop_click_fallback_pending or dead:
+		return
+	_desktop_click_fallback_pending = false
+	Game.pointer = pos
+	# Pick stations in screen space first. Their low, open meshes often let a 3D ray pass through
+	# to terrain in desktop Compatibility/WebGL even when the visible mouse is over the model.
+	var cam := get_viewport().get_camera_3d()
+	var best: Node3D
+	var best_px := 96.0
+	if cam:
+		for node in get_tree().get_nodes_in_group("craft_station"):
+			var st := node as Node3D
+			if st == null or cam.is_position_behind(st.global_position):
+				continue
+			var screen := cam.unproject_position(st.global_position + Vector3(0, 0.7, 0))
+			var d := screen.distance_to(pos)
+			if d < best_px:
+				best_px = d
+				best = st
+	if best:
+		_interact_tap_target(best)
+		return
+	# Fall back to normal physics for clicks close enough to hit the station collision directly.
+	var hit := _ray()
+	if hit.is_empty():
+		return
+	var picked := _pick_interactable(hit)
+	if picked is CraftStation or picked is Bonfire:
+		_interact_tap_target(picked)
+
 func _unhandled_input(event: InputEvent) -> void:
 	if dead:
 		return
@@ -511,11 +542,29 @@ func _unhandled_input(event: InputEvent) -> void:
 			hunt.use_kick()
 		elif event.is_action_pressed("tactic_4"):
 			hunt.use_net()
-	if placer.layout_mode and placer.moving != null and placer.dragging and event.is_action_released("tap"):
-		placer.drag_end(self)
-		get_viewport().set_input_as_handled()
-		return
-	if event.is_action_pressed("tap"):
+	# Feed drag positions straight to the placer in the input event. Waiting for _process added
+	# a full frame of pickup latency on mobile before the ghost reacted to the finger.
+	if placer.layout_mode and placer.moving != null and placer.dragging:
+		if event is InputEventScreenDrag:
+			placer.drag_to((event as InputEventScreenDrag).position)
+			get_viewport().set_input_as_handled()
+			return
+		if event is InputEventMouseMotion and Input.is_action_pressed("tap"):
+			placer.drag_to((event as InputEventMouseMotion).position)
+			get_viewport().set_input_as_handled()
+			return
+	var tap_released := _is_tap_released(event)
+	if tap_released:
+		_tap_touch_index = -1
+		_hold_walk_candidate = false
+		_hold_walk_elapsed = 0.0
+		if placer.layout_mode and placer.moving != null and placer.dragging:
+			placer.drag_end(self)
+			get_viewport().set_input_as_handled()
+			return
+	if _is_tap_pressed(event):
+		if event is InputEventMouseButton:
+			_desktop_click_fallback_pending = false
 		if placer.layout_mode and placer.moving == null:
 			# Layout mode: a tap on a building picks it up; anything else is ignored.
 			if _tap_blocked():
@@ -548,6 +597,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		_hold_walk_elapsed = 0.0
 		_hold_walk_retarget_left = 0.0
 
+func _is_tap_pressed(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed and _tap_touch_index == -1:
+			_tap_touch_index = touch.index
+			return true
+		return false
+	return event.is_action_pressed("tap")
+
+
+func _is_tap_released(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		return not touch.pressed and touch.index == _tap_touch_index
+	return event.is_action_released("tap")
+
 func _tap_blocked() -> bool:
 	# Blocked only by a control that actually stops input (buttons, sheets, panels) or sits
 	# inside one. Pass-through containers such as the creature plates' status rows used to
@@ -563,6 +628,23 @@ func _tap_blocked() -> bool:
 	return false
 
 func _tap_world() -> StringName:
+	# Stations are low/open meshes. On desktop WebGL the ray often reaches terrain through the
+	# visible bench, so accept the nearest station projected under the pointer before physics.
+	var cam := get_viewport().get_camera_3d()
+	var station: Node3D
+	var station_px := 96.0
+	if cam:
+		for node in get_tree().get_nodes_in_group("craft_station"):
+			var st := node as Node3D
+			if st == null or cam.is_position_behind(st.global_position):
+				continue
+			var d := cam.unproject_position(st.global_position + Vector3(0, 0.7, 0)).distance_to(Game.pointer)
+			if d < station_px:
+				station_px = d
+				station = st
+	if station:
+		_interact_tap_target(station)
+		return &"interact"
 	var hit := _ray()
 	if hit.is_empty():
 		return &""
@@ -651,18 +733,22 @@ func _pick_interactable(hit: Dictionary) -> Object:
 	return best
 
 func _unwrap_tap(col: Object) -> Object:
-	if col is Area3D and (col as Area3D).get_parent() is HarvestNode:
-		return (col as Area3D).get_parent()
+	if col is Area3D:
+		var owner := (col as Area3D).get_parent()
+		if owner is HarvestNode or owner is CraftStation or owner is Bonfire:
+			return owner
 	return col
 
 func _is_interactable(col: Object) -> bool:
-	if col is Area3D and (col as Area3D).get_parent() is HarvestNode:
-		return true
-	if col is HarvestNode or col is Corpse or col is Creature or col is Bonfire or col is TamingPen:
+	if col is Area3D:
+		var owner := (col as Area3D).get_parent()
+		if owner is HarvestNode or owner is CraftStation or owner is Bonfire:
+			return true
+	if col is HarvestNode or col is Corpse or col is Creature or col is Bonfire or col is CraftStation or col is TamingPen:
 		return true
 	if col is Node:
 		var n := col as Node
-		return n.is_in_group("harbour") or n.is_in_group("cargo_warp") or n.is_in_group("placed_building")
+		return n.is_in_group("craft_station") or n.is_in_group("harbour") or n.is_in_group("cargo_warp") or n.is_in_group("placed_building")
 	return false
 
 func _closest_nav_point(pos: Vector3) -> Vector3:
@@ -755,7 +841,7 @@ func _on_arrived() -> void:
 			_stop_gather_cycle()
 			gather_target = null
 			return
-		_start_gather_cycle(gather_target.gather_seconds)
+		_start_gather_cycle(_scaled_gather_seconds(gather_target))
 	elif tame_target and is_instance_valid(tame_target):
 		face_world(tame_target.global_position)
 		_start_tame_feed()
@@ -830,11 +916,16 @@ func _finish_gather() -> void:
 			gather_target = null
 			return
 	var stack := gather_target.roll_yield()
+	var yield_mult := _gather_yield_multiplier(gather_target)
+	stack.count = maxi(1, int(floor(float(stack.count) * yield_mult)))
+	if randf() < fmod(yield_mult, 1.0):
+		stack.count += 1
 	if skills:
 		# rules.json gathering_downrank: a node above your Gathering level yields at your level.
 		# ASSUMPTION: floor of 5 so a fresh survivor still gets usable materials.
 		var cap := maxi(skills.level_of("gathering"), 5)
-		if int(stack.attributes.get("level", 1)) > cap:
+		if stack.level > cap:
+			stack.level = cap
 			stack.attributes["level"] = cap
 		skills.add_xp("gathering", 2)
 		if gather_target.family.begins_with("Rock") or gather_target.family == "clay":
@@ -863,7 +954,23 @@ func _finish_gather() -> void:
 		_stop_gather_cycle()
 		gather_target = null
 		return
-	_start_gather_cycle(gather_target.gather_seconds)
+	_start_gather_cycle(_scaled_gather_seconds(gather_target))
+
+func _scaled_gather_seconds(node: HarvestNode) -> float:
+	var tool := inventory.find_gather_tool(node.required_tool_class)
+	var tool_level := tool.level if tool else 1
+	var tier := tool.material_tier() if tool else &"stone"
+	var skill_level := maxi(1, skills.level_of("gathering")) if skills else 1
+	var zone_level := int(node.yield_attributes.get("level", 1))
+	return ProgressionScaling.gather_seconds(node.gather_seconds, zone_level, tool_level, tier, skill_level)
+
+func _gather_yield_multiplier(node: HarvestNode) -> float:
+	var tool := inventory.find_gather_tool(node.required_tool_class)
+	var tool_level := tool.level if tool else 1
+	var tier := tool.material_tier() if tool else &"stone"
+	var skill_level := maxi(1, skills.level_of("gathering")) if skills else 1
+	var zone_level := int(node.yield_attributes.get("level", 1))
+	return ProgressionScaling.gather_yield_multiplier(zone_level, tool_level, tier, skill_level)
 
 func _start_gather_cycle(seconds: float) -> void:
 	_gathering = true
@@ -1040,7 +1147,7 @@ func _tick_autofeed(delta: float) -> void:
 	_autofeed_cd = 3.0
 
 func _tick_hold_walk(delta: float) -> void:
-	if not Input.is_action_pressed("tap"):
+	if _tap_touch_index == -1 and not Input.is_action_pressed("tap"):
 		_hold_walk_candidate = false
 		_hold_walk_elapsed = 0.0
 		return
@@ -1164,7 +1271,9 @@ func debug_tap_screen(screen_pos: Vector2) -> StringName:
 	return _tap_world()
 
 func _try_roll() -> void:
-	if rolling or statuses.has_flag(&"no_roll") or statuses.has_flag(&"cannot_act"):
+	# Do not let roll replace an in-flight attack/tactic clip. This used to cancel the visual
+	# while the previous move's damage still landed, making the actions overlap strangely.
+	if rolling or (anim and anim._busy) or statuses.has_flag(&"no_roll") or statuses.has_flag(&"cannot_act"):
 		return
 	if not vitals.spend_energy(12.0):
 		notice("Out of stamina.")
@@ -1173,8 +1282,9 @@ func _try_roll() -> void:
 	_roll_left = 0.45  # ~5.5 m at 13 m/s (was ~2.5 m with the speed decaying)
 	clear_nav()
 	var fwd := -visual.global_basis.z
-	velocity.x = fwd.x * 13.0
-	velocity.z = fwd.z * 13.0
+	_roll_direction = Vector3(fwd.x, 0.0, fwd.z).normalized()
+	velocity.x = _roll_direction.x * 13.0
+	velocity.z = _roll_direction.z * 13.0
 	# Roll through creatures: collision exceptions with everything close, restored at the end.
 	for n in get_tree().get_nodes_in_group("creatures"):
 		var c := n as Creature
@@ -1332,7 +1442,7 @@ func _mounted_move(delta: float) -> void:
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var dir := _cam_dir(input)
 	if dir.length_squared() > 0.0:
-		var speed := mounted_on.def.move_speed_mps
+		var speed := mounted_on.move_speed_mps()
 		mounted_on.velocity.x = dir.x * speed
 		mounted_on.velocity.z = dir.z * speed
 		mounted_on.face_towards(mounted_on.global_position + dir, delta)
@@ -1353,7 +1463,7 @@ func bond_from_inventory() -> void:
 	var species := StringName(str(stack.attributes.get("species", "velociraptor")))
 	var def := Data.creature(species)
 	var grade := StringName(str(stack.attributes.get("grade", "B")))
-	var rec := PetRecord.from_def(def, grade, StringName(str(stack.attributes.get("variant", ""))))
+	var rec := PetRecord.from_def(def, grade, StringName(str(stack.attributes.get("variant", ""))), CreatureGenetics.from_dict(stack.attributes.get("genetics", {})))
 	bonded.append(rec)
 	print("[capture] bonded %s grade=%s hp=%.0f atk=%.0f def=%.0f spd=%.0f" % [
 		species, grade, rec.hp, rec.attack, rec.defense, rec.speed])
@@ -1394,6 +1504,9 @@ func summon_pet(index: int = 0) -> void:
 			rec.summoned = false
 			print("[capture] dismissed %s" % rec.species)
 			return
+	if rec.respawning():
+		notice("%s is down - back in %ds." % [str(rec.species).capitalize(), int(ceil(rec.respawn_left))])
+		return
 	if live_pets().size() >= MAX_PETS_OUT:
 		notice("Only %d pets can be out at once." % MAX_PETS_OUT)
 		return
@@ -1403,6 +1516,7 @@ func summon_pet(index: int = 0) -> void:
 	c.global_position = global_position + Vector3(1.5, 0, 0)
 	c.is_pet = true
 	c.pet_record = rec
+	c.genetics = rec.genetics
 	c.spawn(def, rec.variant)
 	c.hunger = rec.hunger
 	c.hunger_max = rec.hunger_max
@@ -1501,9 +1615,37 @@ func _setup_survivor() -> void:
 	if not rig.setup(SURVIVOR_BASE_GLB, SURVIVOR_ANIM_DIR, axis, height, "player", true, float(pipeline.get("source_height_m", height))):
 		print("[player] survivor GLB missing %s" % SURVIVOR_BASE_GLB)
 		return
+	_make_survivor_web_safe()
+	# A small silhouette lift keeps the survivor legible at the phone-landscape camera size.
+	rig.scale *= 1.18
 	_bind_rig_markers()
 	if anim:
 		anim.setup(self, rig)
+
+
+func _make_survivor_web_safe() -> void:
+	# Meshy's material relies on an emissive texture plus KHR material extensions. It can
+	# vanish in the Compatibility/WebGL renderer even though the skinned mesh is present.
+	# Override it with a plain double-sided PBR material on web/mobile; textures are preserved
+	# when available, while a warm fallback guarantees that the body remains visible.
+	if rig == null or rig.mesh_root == null:
+		return
+	for node in rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi == null:
+			continue
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		mi.extra_cull_margin = 1.0
+		for surface in mi.mesh.get_surface_count() if mi.mesh else 0:
+			var original := mi.get_active_material(surface) as BaseMaterial3D
+			var safe := StandardMaterial3D.new()
+			safe.cull_mode = BaseMaterial3D.CULL_DISABLED
+			safe.albedo_color = Color(0.70, 0.45, 0.28)
+			safe.roughness = 0.82
+			if original:
+				safe.albedo_color = original.albedo_color
+				safe.albedo_texture = original.albedo_texture
+			mi.set_surface_override_material(surface, safe)
 
 func _bind_rig_markers() -> void:
 	_right_hand_anchor = _marker_from_socket(rig.hand_socket, "RightHand")
@@ -1564,6 +1706,12 @@ func _on_vitals_died() -> void:
 		placer.cancel()
 	if anim:
 		anim.on_death()
+	# Every wild dinosaur engaged with this survivor relocates beyond its immediate aggro ring.
+	# This happens before respawn, so the new life never begins beside the same killer/pack.
+	for node in get_tree().get_nodes_in_group("creatures"):
+		var creature := node as Creature
+		if creature and creature.brain and creature.brain.has_method("on_player_killed"):
+			creature.brain.on_player_killed(global_position)
 	print("[player] died")
 
 ## Respawn at the camp (home tile) with half health; statuses cleared. Called by the HUD button.
@@ -1645,6 +1793,29 @@ func _drive_lantern() -> void:
 	var flicker := 1.0 + sin((Time.get_ticks_msec() * 0.001) * 7.0 + _lantern_phase) * 0.05
 	_lantern.light_energy = 9.0 * night * flicker
 
+
+
+func _setup_player_beacon() -> void:
+	# On a phone the survivor occupies only a few pixels. A soft ring makes the spawn and
+	# movement readable without covering the character model or becoming a debug marker.
+	var ring := MeshInstance3D.new()
+	ring.name = "PlayerBeacon"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.56
+	torus.outer_radius = 0.66
+	torus.rings = 16
+	torus.ring_segments = 8
+	ring.mesh = torus
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.30, 0.88, 0.56, 0.42)
+	mat.emission_enabled = true
+	mat.emission = Color(0.12, 0.72, 0.42)
+	mat.emission_energy_multiplier = 0.7
+	ring.material_override = mat
+	ring.position.y = -0.86
+	visual.add_child(ring)
 
 func _setup_gather_radial() -> void:
 	var layer := CanvasLayer.new()

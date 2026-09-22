@@ -31,6 +31,7 @@ static func attempt(player: Player, creature: Creature, force_result: int = 0) -
 			"species": str(creature.def.id),
 			"variant": str(creature.variant),
 			"grade_seed": randi(),
+			"genetics": creature.genetics.to_dict(),
 		})
 		var left := player.inventory.add(stack)
 		if left > 0:

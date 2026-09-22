@@ -21,6 +21,8 @@ var hint_text: String = ""    # small red line under the label (blocked reason)
 var cooldown: float = 0.0     # 0..1 remaining sweep
 var selected: bool = false
 var enabled_look: bool = true
+
+static var _white_icon_cache: Dictionary = {}
 var _down: bool = false
 var _hold: float = 0.0
 
@@ -88,7 +90,7 @@ func _draw() -> void:
 	if icon:
 		var isz := r * 1.05
 		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0)
-		draw_texture_rect(icon, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
+		draw_texture_rect(_white_symbol(icon), Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
 	elif glyph != "":
 		var short := glyph.length() <= 2
 		var gs := int(r * (0.72 if bottom_text != "" else 0.9)) if short else (int(r * 0.40) if glyph.length() <= 4 else int(r * 0.30))
@@ -111,12 +113,22 @@ func _draw() -> void:
 		draw_string(font, Vector2(bc.x - w * 0.5, bc.y + bsz * 0.36), badge, HORIZONTAL_ALIGNMENT_LEFT, -1, bsz, Color.WHITE)
 
 	if cooldown > 0.0:
-		var pts := PackedVector2Array([c])
-		var steps := 24
-		for i in steps + 1:
-			var a := -PI * 0.5 + TAU * cooldown * float(i) / float(steps)
-			pts.append(c + Vector2(cos(a), sin(a)) * r)
-		draw_colored_polygon(pts, Color(0, 0, 0, 0.55))
+		# Durango-style progress: a translucent circular dial fills in discrete slices.
+		# The gaps make progress readable against foliage without another heavy hex outline.
+		var slices := 16
+		var filled := ceili(clampf(cooldown, 0.0, 1.0) * float(slices))
+		var outer := r * 0.94
+		var inner := r * 0.56
+		for i in filled:
+			var a0 := -PI * 0.5 + TAU * float(i) / float(slices) + 0.025
+			var a1 := -PI * 0.5 + TAU * float(i + 1) / float(slices) - 0.025
+			var wedge := PackedVector2Array([
+				c + Vector2(cos(a0), sin(a0)) * inner,
+				c + Vector2(cos(a0), sin(a0)) * outer,
+				c + Vector2(cos(a1), sin(a1)) * outer,
+				c + Vector2(cos(a1), sin(a1)) * inner,
+			])
+			draw_colored_polygon(wedge, Color(0.72, 0.72, 0.72, 0.42))
 	if label_text != "":
 		var ls := int(r * 0.42)
 		var lw := font.get_string_size(label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ls).x
@@ -124,6 +136,26 @@ func _draw() -> void:
 		draw_string(font, Vector2(size.x + 10.0, c.y + ls * 0.35), label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, Color(0.95, 0.95, 0.95))
 		if hint_text != "":
 			draw_string(font, Vector2(size.x + 10.0, c.y + ls * 1.5), hint_text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(r * 0.32), Color(1.0, 0.45, 0.4))
+
+## Durango-style HUD language: action symbols are white silhouettes. Keep alpha/shape from
+## source art, discard its RGB. Cached once per source texture so redraws stay cheap.
+static func _white_symbol(source: Texture2D) -> Texture2D:
+	if source == null:
+		return null
+	var key := source.resource_path if source.resource_path != "" else str(source.get_rid())
+	if _white_icon_cache.has(key):
+		return _white_icon_cache[key] as Texture2D
+	var image := source.get_image()
+	if image == null or image.is_empty():
+		return source
+	image.convert(Image.FORMAT_RGBA8)
+	for y in image.get_height():
+		for x in image.get_width():
+			var px := image.get_pixel(x, y)
+			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, px.a))
+	var white := ImageTexture.create_from_image(image)
+	_white_icon_cache[key] = white
+	return white
 
 func _gui_input(event: InputEvent) -> void:
 	var press := false

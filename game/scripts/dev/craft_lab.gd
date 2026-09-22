@@ -4,6 +4,7 @@ extends Node3D
 
 var _player: Player
 var _bonfire: Bonfire
+var _bench: CraftStation
 
 func _ready() -> void:
 	var kit := LabKit.build(self)
@@ -11,9 +12,9 @@ func _ready() -> void:
 	_spawn(&"thicket", Vector3(5, 0, 3), &"fibre_stalk", {"climate": "thicket"}, &"knife", Color(0.18, 0.4, 0.18))
 	_spawn(&"tree", Vector3(8, 0, 3), &"wood_log", {}, &"axe", Color(0.35, 0.22, 0.12))
 	_spawn(&"rock", Vector3(5, 0, 6), &"stone", {}, &"pick", Color(0.5, 0.5, 0.48))
-	var bench := CraftStation.make(&"workbench")
-	bench.position = Vector3(-3, 0, 2)
-	add_child(bench)
+	_bench = CraftStation.make(&"workbench")
+	_bench.position = Vector3(-3, 0, 2)
+	add_child(_bench)
 	var rack := CraftStation.make(&"drying_rack")
 	rack.position = Vector3(-3, 0, 5)
 	add_child(rack)
@@ -46,6 +47,29 @@ func _shot_setup() -> void:
 			_player.station_craft.held_slot.refresh()
 			_player.station_craft.held_slot.open_swap_for_shot()
 			print("[ui] held-slot shot ready tools=%d" % _player.inventory.gather_tools_in_bag().size())
+		return
+	if Game.shot_path.contains("stmenu_bonfire"):
+		_player.global_position = _bonfire.global_position + Vector3(1.6, 0, 0.6)
+		_player.face_world(_bonfire.global_position)
+		_player.open_station_craft(_bonfire)
+		print("[ui] station-menu shot ready station=bonfire")
+		return
+	if Game.shot_path.contains("stmenu_open"):
+		_player.global_position = _bench.global_position + Vector3(1.6, 0, 0.6)
+		_player.face_world(_bench.global_position)
+		_player.open_station_craft(_bench)
+		if _player.station_craft and _player.station_craft.menu.visible:
+			_player.station_craft.menu._on_pressed(&"craft")
+		print("[ui] station-menu open shot ready craft_ui=%s" % (_player.craft_ui.visible if _player.craft_ui else "none"))
+		return
+	if Game.shot_path.contains("stmenu"):
+		_player.global_position = _bench.global_position + Vector3(1.6, 0, 0.6)
+		_player.face_world(_bench.global_position)
+		_player.open_station_craft(_bench)
+		print("[ui] station-menu shot ready station=workbench ring=%s craft_ui=%s" % [
+			_player.station_craft.menu._ring3d != null and _player.station_craft.menu._ring3d.visible,
+			_player.craft_ui.visible if _player.craft_ui else "none",
+		])
 		return
 	# craft-card shot: mid-progress skewer card + fire glow
 	LabKit.give(_player, &"raw_meat", 2)
@@ -153,6 +177,15 @@ func _demo() -> void:
 		get_tree().quit()
 
 func _m8e_skewer_demo() -> void:
+	# First station interaction only expands the ring/action hex. The action callback is
+	# the second interaction and is the only step allowed to open the craft sheet.
+	_player.open_station_craft(_bench)
+	var first_step_ok: bool = _player.station_craft.menu.visible and not _player.craft_ui.visible
+	_player.station_craft.menu._on_pressed(&"craft")
+	var second_step_ok: bool = not _player.station_craft.menu.visible and _player.craft_ui.visible
+	print("[craft] station_two_tap first=%s second=%s" % [first_step_ok, second_step_ok])
+	if _player.craft_ui:
+		_player.craft_ui.hide()
 	# Blocked: meat without stick/branch.
 	_player.inventory.add(ItemStack.make(&"raw_meat", 1))
 	# Clear branches so the missing-ingredient path fires.

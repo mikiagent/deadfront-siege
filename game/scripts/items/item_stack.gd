@@ -46,6 +46,12 @@ func scaled_food_energy() -> float:
 	var d := def()
 	return d.food_energy_at(level) if d else 0.0
 
+func material_tier() -> StringName:
+	return ProgressionScaling.material_tier(def_id, attributes)
+
+func gather_power() -> float:
+	return ProgressionScaling.tool_power(level, material_tier())
+
 func slot_span() -> int:
 	var d := def()
 	return d.slot_span if d else 1
@@ -110,6 +116,8 @@ func tooltip() -> String:
 	var lines: PackedStringArray = ["%s x%d" % [title, count], "lv %d  process %d" % [level, process_count]]
 	if d and d.place_as != &"":
 		lines.append("footprint %dx%d" % [d.footprint.x, d.footprint.y])
+	if d and d.has_category(&"tool"):
+		lines.append("%s tier · %.2fx gather power" % [str(material_tier()).capitalize(), gather_power()])
 	if max_durability > 0:
 		lines.append("dur %d/%d%s" % [durability, max_durability, " BROKEN" if is_broken() else ""])
 	var dmg := scaled_damage()
@@ -168,16 +176,17 @@ static func from_dict(d: Dictionary) -> ItemStack:
 			s.flags.append(StringName(str(f)))
 	return s
 
-static func make(id: StringName, amount: int = 1, attrs: Dictionary = {}, lvl: int = 1) -> ItemStack:
+static func make(id: StringName, amount: int = 1, attrs: Dictionary = {}, lvl: int = -1) -> ItemStack:
 	var s := ItemStack.new()
 	s.def_id = id
 	s.count = amount
+	# Negative means "use the catalog base level". An explicit level 1 must stay level 1;
+	# the old lvl == 1 sentinel silently promoted starter-island resources to base levels.
 	s.level = lvl
 	var d := Data.item(id) if Data else null
 	if d:
 		s.attributes = d.default_attributes.duplicate(true)
-		if lvl == 1:
-			s.level = d.base_level
+		s.level = ProgressionScaling.resolved_item_level(lvl, d.base_level)
 		s.apply_level_stats()
 	for k in attrs:
 		s.attributes[k] = attrs[k]

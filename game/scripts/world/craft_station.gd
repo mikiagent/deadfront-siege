@@ -15,6 +15,7 @@ func _ready() -> void:
 	add_to_group(str(station_id))
 	if get_node_or_null("Shape") == null and get_node_or_null("Prop") == null and get_node_or_null("FallbackMesh") == null:
 		PropVisuals.apply_building_visual(self, station_id, _fallback_size(), _fallback_color())
+	_ensure_tap_zone()
 
 func _exit_tree() -> void:
 	if World.runtime == null:
@@ -59,3 +60,22 @@ func _fallback_size() -> Vector3:
 
 func _fallback_color() -> Color:
 	return Color(0.45, 0.32, 0.18) if station_id == &"workbench" else Color(0.62, 0.55, 0.38)
+
+## A forgiving touch target over the whole visible station. The model's fitted physics box is
+## deliberately tight for movement, but that made clicks near the workbench edges hit terrain.
+func _ensure_tap_zone() -> void:
+	if get_node_or_null("TapZone") != null:
+		return
+	var zone := Area3D.new()
+	zone.name = "TapZone"
+	zone.collision_layer = 2
+	zone.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	cs.name = "Shape"
+	var box := BoxShape3D.new()
+	var base := PropVisuals.collision_size(station_id, get_node_or_null("Prop") as Node3D, _fallback_size())
+	box.size = Vector3(maxf(2.2, base.x + 0.8), maxf(1.6, base.y + 0.5), maxf(1.8, base.z + 0.8))
+	cs.shape = box
+	cs.position.y = box.size.y * 0.5
+	zone.add_child(cs)
+	add_child(zone)

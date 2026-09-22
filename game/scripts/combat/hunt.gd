@@ -13,6 +13,7 @@ var _swing_cd: float = 0.0
 var _tackle_cd: float = 0.0
 var _kick_cd: float = 0.0
 var _net_cd: float = 0.0
+var _tactic_lock: float = 0.0
 var player: Player
 
 func setup(p: Player) -> void:
@@ -71,6 +72,7 @@ func _process(delta: float) -> void:
 	_tackle_cd = maxf(0.0, _tackle_cd - delta)
 	_kick_cd = maxf(0.0, _kick_cd - delta)
 	_net_cd = maxf(0.0, _net_cd - delta)
+	_tactic_lock = maxf(0.0, _tactic_lock - delta)
 	if target == null or not is_instance_valid(target) or target.health.dead:
 		if target:
 			stop()
@@ -88,7 +90,7 @@ func _process(delta: float) -> void:
 func _auto_attack() -> void:
 	if player.statuses.has_flag(&"cannot_act"):
 		return
-	if player.rolling:
+	if player.rolling or _tactic_lock > 0.0:
 		return
 	var dist := player.global_position.distance_to(target.global_position)
 	if dist > 2.1:
@@ -112,9 +114,13 @@ func _auto_attack() -> void:
 		player.play_punch()
 	else:
 		player.play_attack(dtype == &"blunt" and dmg > 10.0)
-	var defense := target.def.defense * target.statuses.defense_mult()
+	var defense := target.defense_for(false) * target.statuses.defense_mult()
 	var raw: float = dmg - defense * 0.5
 	var dealt: float = maxf(dmg * 0.05, raw)
+	if randf() < target.dodge_chance():
+		target.combat_float.emit(0.0, &"dodge")
+		_swing_cd = 1.0 / maxf(0.2, rate)
+		return
 	var behind := _is_behind()
 	if behind:
 		dealt *= 1.25
@@ -159,9 +165,16 @@ static func effectiveness(c: Creature, dtype: StringName) -> StringName:
 		return &"weak"
 	return &"hit"
 
+func _can_start_tactic() -> bool:
+	if player == null or player.rolling or player.statuses.has_flag(&"cannot_act"):
+		return false
+	if player.anim and player.anim._busy:
+		return false
+	return _tactic_lock <= 0.0
+
 ## Body tackle: lunge into the target, groggy (then knockdown on the next hit), 6 damage.
 func use_tackle() -> void:
-	if target == null:
+	if target == null or not _can_start_tactic():
 		return
 	if _tackle_cd > 0.0:
 		player.notice("Tackle ready in %.0fs" % ceil(_tackle_cd))
@@ -172,24 +185,28 @@ func use_tackle() -> void:
 	if not player.vitals.spend_energy(15.0):
 		player.notice("Out of stamina.")
 		return
+	player.clear_nav()
 	player.face_world(target.global_position)
 	var to := target.global_position - player.global_position
 	to.y = 0.0
 	if to.length() > 0.8:
-		var lunge := to.normalized() * 6.0
-		player.velocity.x = lunge.x
-		player.velocity.z = lunge.z
+		# Move the body now. The attack animation marks the player busy and the normal player
+		# loop zeroes velocity, so the old velocity-only lunge never actually happened.
+		var lunge_distance := minf(1.0, maxf(0.0, to.length() - 0.8))
+		player.move_and_collide(to.normalized() * lunge_distance)
 	target.statuses.apply(&"groggy", player)
 	target.next_hit_kind = &"strong"
 	target.health.take_damage(6.0, player)
 	target.status_float.emit(&"tackle")
 	_tackle_cd = 8.0
+	_tactic_lock = 0.55
+	_swing_cd = maxf(_swing_cd, _tactic_lock)
 	player.play_attack(true)
 	print("[combat] body tackle %s" % target.def.id)
 
 ## Kick: shove the target back 3.5 m with 4 damage and a burst; buys room to run or net.
 func use_kick() -> void:
-	if target == null:
+	if target == null or not _can_start_tactic():
 		return
 	if _kick_cd > 0.0:
 		player.notice("Kick ready in %.0fs" % ceil(_kick_cd))
@@ -200,15 +217,18 @@ func use_kick() -> void:
 	if not player.vitals.spend_energy(10.0):
 		player.notice("Out of stamina.")
 		return
+	player.clear_nav()
 	player.face_world(target.global_position)
 	player.play_attack(false)
 	var away := (target.global_position - player.global_position).normalized() * 3.5
-	target.global_position += Vector3(away.x, 0, away.z)
-	target.reset_physics_interpolation()
+	# Respect walls, props and terrain instead of teleporting the target through geometry.
+	target.move_and_collide(Vector3(away.x, 0, away.z))
 	target.next_hit_kind = &"hit"
 	target.health.take_damage(4.0, player)
 	target.status_float.emit(&"kick")
 	_kick_cd = 6.0
+	_tactic_lock = 0.45
+	_swing_cd = maxf(_swing_cd, _tactic_lock)
 	print("[combat] kick %s" % target.def.id)
 
 func use_net() -> void:

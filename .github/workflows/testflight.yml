@@ -1,0 +1,131 @@
+name: Upload iOS to TestFlight
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight-upload
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot 4.7.1 and iOS export templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.1
+          use-dotnet: false
+          include-templates: true
+
+      - name: Install signing certificate and App Store Connect key
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          ASC_API_KEY_BASE64: ${{ secrets.ASC_API_KEY_BASE64 }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+        run: |
+          set -euo pipefail
+          CERTIFICATE_PATH="$RUNNER_TEMP/apple-distribution.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          API_KEY_DIR="$HOME/.appstoreconnect/private_keys"
+
+          printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          mkdir -p "$API_KEY_DIR"
+          printf '%s' "$ASC_API_KEY_BASE64" | base64 --decode > "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
+          chmod 600 "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8"
+          KEY_FINGERPRINT="$(openssl pkey -in "$API_KEY_DIR/AuthKey_$ASC_API_KEY_ID.p8" -pubout -outform DER 2>/dev/null | shasum -a 256 | awk '{print $1}')"
+          [[ "$KEY_FINGERPRINT" == "fbd8f52405643043d7a71f7fb87e810bde0489da9397d4fd779845c44e00aaf4" ]] || { echo "ASC private key does not match AuthKey_SG2U74KCQ5.p8 (public fingerprint $KEY_FINGERPRINT)"; exit 1; }
+          echo "Verified ASC private-key fingerprint for $ASC_API_KEY_ID"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -A -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security default-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          CERT_SHA1="$(openssl pkcs12 -in "$CERTIFICATE_PATH" -passin pass:"$P12_PASSWORD" -clcerts -nokeys 2>/dev/null | openssl x509 -noout -fingerprint -sha1 | cut -d= -f2 | tr -d ':')"
+          [[ "$CERT_SHA1" == "AEA060BAE33BB5E6D4C37431D3366AE06F82BDF7" ]] || { echo "Distribution certificate fingerprint mismatch: $CERT_SHA1"; exit 1; }
+          echo "Verified distribution certificate fingerprint $CERT_SHA1"
+
+      - name: Download and install DurangoLike App Store profile
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet --break-system-packages cryptography
+          python3 <<'PYASC'
+          import base64, json, os, pathlib, time, urllib.request
+          from cryptography.hazmat.primitives import hashes, serialization
+          from cryptography import x509
+          from cryptography.hazmat.primitives.asymmetric import ec
+          from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+
+          key_id = os.environ["ASC_API_KEY_ID"]
+          issuer = "e932d878-2780-4029-8f69-e5a4d9bdcb65"
+          key_path = pathlib.Path.home() / ".appstoreconnect/private_keys" / f"AuthKey_{key_id}.p8"
+          key = serialization.load_pem_private_key(key_path.read_bytes(), password=None)
+          b64 = lambda b: base64.urlsafe_b64encode(b).rstrip(b"=")
+          now = int(time.time())
+          header = b64(json.dumps({"alg":"ES256","kid":key_id,"typ":"JWT"}, separators=(",", ":")).encode())
+          payload = b64(json.dumps({"iss":issuer,"iat":now,"exp":now+600,"aud":"appstoreconnect-v1"}, separators=(",", ":")).encode())
+          signing_input = header + b"." + payload
+          r, s = decode_dss_signature(key.sign(signing_input, ec.ECDSA(hashes.SHA256())))
+          token = (signing_input + b"." + b64(r.to_bytes(32,"big") + s.to_bytes(32,"big"))).decode()
+          def get(path):
+              req = urllib.request.Request("https://api.appstoreconnect.apple.com" + path, headers={"Authorization":"Bearer " + token})
+              with urllib.request.urlopen(req) as res: return json.load(res)
+          bundles = get("/v1/bundleIds?filter%5Bidentifier%5D=com.deadfront.app&limit=10")
+          if len(bundles["data"]) != 1: raise SystemExit("DurangoLike bundle ID not found")
+          profiles = get(f"/v1/bundleIds/{bundles['data'][0]['id']}/profiles?limit=200")
+          profile = next((p for p in profiles["data"] if p["attributes"]["name"] == "Deadfront CI App Store" and p["attributes"]["profileType"] == "IOS_APP_STORE" and p["attributes"]["profileState"] == "ACTIVE"), None)
+          if not profile: raise SystemExit("Active DurangoLike App Store profile not found")
+          out = pathlib.Path.home() / "Library/MobileDevice/Provisioning Profiles" / f"{profile['attributes']['uuid']}.mobileprovision"
+          out.parent.mkdir(parents=True, exist_ok=True)
+          raw_profile = base64.b64decode(profile["attributes"]["profileContent"])
+          out.write_bytes(raw_profile)
+          import plistlib, subprocess, tempfile
+          with tempfile.NamedTemporaryFile() as decoded:
+              subprocess.run(["openssl", "smime", "-inform", "der", "-verify", "-noverify", "-in", str(out), "-out", decoded.name], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+              decoded.seek(0)
+              plist = plistlib.load(decoded)
+          if plist.get("UUID") != "33540570-188d-4cfd-8c9d-62516cdcfb8b": raise SystemExit(f"Unexpected profile UUID {plist.get('UUID')}")
+          cert_fingerprints = []
+          for cert_der in plist.get("DeveloperCertificates", []):
+              cert = x509.load_der_x509_certificate(cert_der)
+              cert_fingerprints.append(cert.fingerprint(hashes.SHA1()).hex().upper())
+          expected = "AEA060BAE33BB5E6D4C37431D3366AE06F82BDF7"
+          if cert_fingerprints != [expected]: raise SystemExit(f"Profile certificate mismatch: {cert_fingerprints}")
+          print(f"Verified profile {plist['Name']} ({plist['UUID']}) with certificate {expected}")
+          PYASC
+
+      - name: Export, sign, validate, and upload
+        env:
+          GODOT_PATH: ${{ env.GODOT }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+        run: |
+          set -euo pipefail
+          export GODOT_PATH="$(command -v godot)"
+          sed -i '' "s/^ASC_KEY_ID=.*/ASC_KEY_ID=$ASC_API_KEY_ID/" tools/release.env
+
+          tools/release_ios.sh
+
+      - name: Upload release diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-release-diagnostics
+          path: |
+            ~/Library/Caches/durango-release/ipa/*.ipa
+            ~/Library/Caches/durango-release/*.xcdistributionlogs
+          if-no-files-found: ignore
+          retention-days: 7

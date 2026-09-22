@@ -63,6 +63,37 @@
       "process_add": 1
     },
     {
+      "id": "work_pick",
+      "display_name": "Work Pick",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "blade_mat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "work_pick",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
       "id": "club",
       "display_name": "Wooden Club",
       "skill": "weapon_tools",

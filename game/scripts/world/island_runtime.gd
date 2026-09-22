@@ -44,6 +44,7 @@ var _wet_area: Area3D
 var _rain_fx: GPUParticles3D
 var _climate: String = "temperate"
 var _tier: int = 25
+var _level_override: int = 0
 var _camp_pos: Vector3 = Vector3.ZERO
 var _harbour_pos: Vector3 = Vector3.ZERO
 var _camp_hint: Vector3 = Vector3.ZERO
@@ -110,6 +111,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 				size = maxf(size, float(span[1]) * 2.0)
 	_climate = str(def.get("climate", "grassland"))
 	_tier = int(def.get("tier", 10))
+	_level_override = int(def.get("level_override", 0))
 	var harbour_a: Array = def.get("harbour", [0, 0, 12])
 	var camp_a: Array = def.get("camp", [0, 0, 6])
 	_camp_hint = Vector3(float(camp_a[0]), 0.0, float(camp_a[2]))
@@ -257,6 +259,8 @@ func ring_name(pos: Vector3) -> StringName:
 	return &"far_shore"
 
 func material_level(pos: Vector3, tier: int) -> int:
+	if _level_override > 0:
+		return clampi(_level_override, 1, int(Data.world_rules.get("level_cap", 60)))
 	var rings: Dictionary = Data.world_rules.get("rings", {})
 	var row: Dictionary = rings.get(str(ring_name(pos)), {})
 	var off := int(row.get("level_offset", 0))
@@ -420,9 +424,13 @@ func _v(st: SurfaceTool, p: Vector3) -> void:
 func _terrain_color(p: Vector3) -> Color:
 	var col := Color(1, 1, 1)  # vertex colour is a multiplier on the shader's albedo
 	var camp_d := Vector2(p.x - _camp_hint.x, p.z - _camp_hint.z).length()
-	if camp_d < 13.0:
-		var s := clampf(1.0 - camp_d / 13.0, 0.0, 1.0)
-		col = col.lerp(Color(1.08, 1.05, 0.92), s * 0.5)
+	if camp_d < 18.0:
+		# A warm, trampled clearing frames the opening camp against the surrounding grass.
+		# The broad feathered edge reads as terrain variation, not a UI boundary ring.
+		var inner := 1.0 - smoothstep(7.0, 18.0, camp_d)
+		var path_band := 1.0 - smoothstep(2.0, 5.5, absf(p.x - _camp_hint.x))
+		var warmth := maxf(inner * 0.55, path_band * inner * 0.22)
+		col = col.lerp(Color(0.88, 0.78, 0.57), warmth)
 	var crater_d := Vector2(p.x - _crater_hint.x, p.z - _crater_hint.z).length()
 	if _crater_hint != Vector3.ZERO and crater_d < 14.0:
 		var bowl := clampf(1.0 - crater_d / 14.0, 0.0, 1.0)
@@ -561,8 +569,8 @@ func _nav_bake() -> void:
 	var nav := NavigationRegion3D.new()
 	nav.name = "Nav"
 	var nmesh := NavigationMesh.new()
-	nmesh.agent_radius = 0.35
-	nmesh.agent_max_climb = 1.2
+	nmesh.agent_radius = 0.5
+	nmesh.agent_max_climb = 1.25
 	nmesh.agent_max_slope = 45.0
 	nav.navigation_mesh = nmesh
 	add_child(nav)
@@ -952,6 +960,7 @@ func _creatures(def: Dictionary) -> void:
 		placed.position = fixed["pos"]
 		add_child(placed)
 		var made0 := placed.spawn_now()
+		_apply_creature_level_override(made0)
 		creature_count += made0.size()
 	var rings: Dictionary = Data.world_rules.get("rings", {})
 	var spawns: Variant = def.get("spawns", {})
@@ -993,7 +1002,14 @@ func _creatures(def: Dictionary) -> void:
 					sp.position = pos["pos"]
 					add_child(sp)
 					var made := sp.spawn_now()
+					_apply_creature_level_override(made)
 					creature_count += made.size()
+
+func _apply_creature_level_override(creatures: Array[Creature]) -> void:
+	if _level_override <= 0:
+		return
+	for creature in creatures:
+		creature.level = _level_override
 
 ## Up to 40 draws in the band [r0, r1]; returns {"pos": Vector3} or {} when the band has no dry land.
 func _ring_point(rng: RandomNumberGenerator, r0: float, r1: float) -> Dictionary:
@@ -1151,20 +1167,7 @@ func _weather(delta: float) -> void:
 		p.tick_climate_fatigue(delta, _climate)
 
 func _palette_for(climate: String) -> Dictionary:
-	var row: Dictionary = Data.world_climates.get(climate, {})
-	var p: Dictionary = row.get("palette", {})
-	var out := {
-		"grass": Color(0.42, 0.62, 0.32),
-		"dry": Color(0.56, 0.54, 0.35),
-		"dirt": Color(0.44, 0.34, 0.24),
-		"sand": Color(0.79, 0.72, 0.54),
-		"rock": Color(0.47, 0.46, 0.44),
-	}
-	for k in p.keys():
-		var parsed := Color.from_string(str(p[k]), Color.WHITE)
-		if parsed != Color.WHITE or str(p[k]).to_lower() == "#ffffff":
-			out[k] = parsed
-	return out
+	return ClimatePalette.resolve(Data.world_climates.get(climate, {}))
 
 func _build_tile_types(climate: String) -> void:
 	_tile_span = maxi(1, int(round(_size)))
@@ -1438,7 +1441,8 @@ func _rebuild_claim_mesh() -> void:
 		_claim_mat = StandardMaterial3D.new()
 		_claim_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		_claim_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_claim_mat.albedo_color = Color(0.55, 0.85, 1.0, 0.9)
+		# Claims should quietly mark ownership, not dominate the camp as a cyan debug ring.
+		_claim_mat.albedo_color = Color(0.72, 0.74, 0.58, 0.30)
 		_claim_mat.vertex_color_use_as_albedo = false
 		_claim_mesh.material_override = _claim_mat
 		_claim_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -1456,8 +1460,8 @@ func _rebuild_claim_mesh() -> void:
 			var a: Vector2 = corners[i]
 			var b: Vector2 = corners[(i + 1) % 4]
 			var len := a.distance_to(b)
-			var dash := 0.5
-			var gap := 0.35
+			var dash := 0.28
+			var gap := 0.72
 			var t := 0.0
 			while t < len:
 				var t2 := minf(len, t + dash)

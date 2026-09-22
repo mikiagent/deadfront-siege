@@ -17,6 +17,7 @@ var lab_name: String = ""
 var time_scale: float = 1.0
 ## ASSUMPTION: mobile island cap. Spawners should not exceed this.
 var max_creatures_per_island: int = 24
+var build_stamp: String = "dev/local"
 var show_grid: bool = false  # on while placing a building (build_placer) or via F6
 ## Lab-only: number keys force creature clips (creature_lab) instead of hunt tactics.
 var lab_force_clips: bool = false
@@ -44,6 +45,8 @@ func _ready() -> void:
 			debug_overlay = false
 		elif a == "--debug":
 			debug_overlay = true
+		elif a.begins_with("--build="):
+			build_stamp = a.substr(8)
 		elif a.begins_with("--shot-delay="):
 			shot_delay_override = float(a.substr(13))
 		elif a == "--fast-regen":
@@ -130,7 +133,7 @@ func _process(delta: float) -> void:
 		_perf.visible = debug_overlay
 		if debug_overlay:
 			var mem_mb := float(Performance.get_monitor(Performance.MEMORY_STATIC)) / 1048576.0
-			_perf.text = "fps %d  draws %d  mem %.0f MB  tod %.2f (%s)" % [
+			_perf.text = "%s  fps %d  draws %d  mem %.0f MB  tod %.2f (%s)" % [build_stamp,
 				Engine.get_frames_per_second(),
 				int(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)),
 				mem_mb, time_of_day, phase_name()]

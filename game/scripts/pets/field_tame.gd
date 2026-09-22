@@ -7,6 +7,10 @@ const KNOCKDOWN_EXTEND := 6.0
 const FAIL_COOLDOWN := 60.0
 const PREFERRED_FEED := 1.0
 const ACCEPTED_FEED := 0.5
+const CAPTURE_HEALTH_FRAC := 0.30
+
+static func health_allows_capture(fraction: float) -> bool:
+	return fraction < CAPTURE_HEALTH_FRAC
 
 static func can_attempt(creature: Creature) -> bool:
 	if creature == null or creature.def == null or creature.health.dead:
@@ -15,7 +19,7 @@ static func can_attempt(creature: Creature) -> bool:
 		return false
 	if creature.tame_cooldown_left > 0.0:
 		return false
-	return creature.statuses.has(&"knockdown")
+	return creature.statuses.has(&"knockdown") and health_allows_capture(creature.health.fraction())
 
 static func preferred_need(creature: Creature) -> StringName:
 	if creature == null or creature.def == null:
@@ -149,7 +153,7 @@ static func _complete(player: Player, creature: Creature) -> void:
 	var species_id := creature.def.id
 	var variant := creature.variant
 	var def := creature.def
-	var rec := PetRecord.from_def(def, grade, variant)
+	var rec := PetRecord.from_def(def, grade, variant, creature.genetics)
 	creature.tame_attempting = false
 	creature.tame_feeds = 0.0
 	creature.tame_window_left = 0.0
@@ -165,12 +169,17 @@ static func _complete(player: Player, creature: Creature) -> void:
 		var bagged := ItemStack.make(&"tamed_animal", 1, {
 			"species": str(species_id),
 			"variant": str(variant),
-			"grade": str(grade),
+			"grade": str(rec.grade),
+			"genetics": rec.genetics.to_dict(),
 		})
 		player.inventory.add(bagged)
 		creature.queue_free()
 		print("[tame] bonded cap full → bagged %s" % species_id)
 		return
+	# End the hunt before converting the target. Otherwise auto-combat keeps the new pet
+	# selected and the combat plate remains forced on screen after the tame reveal.
+	if player.hunt and player.hunt.target == creature:
+		player.hunt.stop()
 	creature.become_pet(rec)
 	player.bonded.append(rec)
 	player.summoned_pet = creature

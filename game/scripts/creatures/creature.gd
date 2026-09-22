@@ -35,6 +35,7 @@ var pet_record: PetRecord
 var hunger: float = 0.0
 var hunger_max: float = 0.0
 var level: int = 1
+var genetics: CreatureGenetics
 var spawn_tile: Vector2i = Vector2i.ZERO
 var spawn_home: Vector3 = Vector3.ZERO
 var last_aggro_s: float = -999.0
@@ -44,6 +45,12 @@ var tame_feeds: float = 0.0
 var tame_window_left: float = 0.0
 var tame_cooldown_left: float = 0.0
 var tame_attempting: bool = false
+
+# Wild creatures recover slowly after a real break from combat. Pool sub-point healing so
+# plates get readable ticks instead of a floating-number event every frame.
+const WILD_REGEN_DELAY_S := 8.0
+const WILD_REGEN_RATE := 0.01
+var _wild_regen_pool: float = 0.0
 
 @onready var agent: NavigationAgent3D = $Agent
 @onready var view: CreatureView = $View
@@ -63,6 +70,9 @@ var stagger_left: float = 0.0
 var _stagger_immune_until: float = -1.0
 var _aggro_ring_r: float = -1.0
 var _aggro_ring_t: float = 0.0
+## Pet regen accumulates here and is applied in one tick per second, so the heal float
+## pops once a second instead of every frame.
+var _pet_regen_pool: float = 0.0
 var _trail_origin: Vector3
 var _last_bleed_pos: Vector3
 var _path_points: PackedVector3Array = PackedVector3Array()
@@ -82,7 +92,9 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> 
 	# No visibility range: the iso camera sits 40 m from the survivor (IsoCamera.distance), so the
 	# old 26 m cut-off culled every creature mesh and only the plates showed.
 	_set_vis_range(view, 0.0)
-	health.setup(def.hp)
+	if genetics == null:
+		genetics = CreatureGenetics.roll()
+	health.setup(stat_value(&"health"))
 	health.healed.connect(_on_healed)
 	# ASSUMPTION: pet hunger budget is 0.4 * wild HP when JSON has no hunger field.
 	hunger_max = def.hp * 0.4
@@ -149,6 +161,40 @@ func face_towards(world_pos: Vector3, _delta: float) -> void:
 func apply_species_on_hit(clip: StringName, target: Node) -> void:
 	CreatureAttack.apply_for(self, clip, target)
 
+func stat_value(stat: StringName) -> float:
+	var base := 0.0
+	match stat:
+		&"health": base = def.hp
+		&"melee_defense", &"ranged_defense": base = def.defense
+		&"melee_attack", &"ranged_attack": base = def.attack
+		&"accuracy": base = 100.0
+		&"speed": base = def.speed
+	return base * (genetics.multiplier(stat) if genetics else 1.0)
+
+func defense_for(ranged: bool = false) -> float:
+	return stat_value(&"ranged_defense" if ranged else &"melee_defense")
+
+func attack_for(ranged: bool = false) -> float:
+	return stat_value(&"ranged_attack" if ranged else &"melee_attack")
+
+func accuracy_chance() -> float:
+	if is_pet and pet_record:
+		return pet_record.accuracy_chance()
+	return clampf(0.90 + (stat_value(&"accuracy") - 100.0) * 0.004, 0.72, 0.99)
+
+func crit_chance() -> float:
+	if is_pet and pet_record:
+		return pet_record.crit_chance()
+	return clampf(0.05 + (stat_value(&"accuracy") - 85.0) * 0.003, 0.02, 0.16)
+
+func dodge_chance() -> float:
+	if is_pet and pet_record:
+		return pet_record.dodge_chance(def)
+	return clampf(0.04 + (stat_value(&"speed") / maxf(1.0, def.speed) - 0.85) * 0.20, 0.04, 0.10)
+
+func move_speed_mps() -> float:
+	return stat_value(&"speed") / 100.0
+
 func capturable() -> bool:
 	return is_capturable and health.hp > 0.0 and def.tameable
 
@@ -163,13 +209,34 @@ func become_pet(rec: PetRecord) -> void:
 	tame_attempting = false
 	tame_feeds = 0.0
 	tame_window_left = 0.0
+	# A fresh tame is no longer a combat target. Do not carry wild damage/aggro plate timers
+	# into the bonded state, which left the old health plate hanging over the new pet.
+	last_damaged_s = -999.0
+	last_aggro_s = -999.0
+	_last_tap_s = -999.0
+	_wild_regen_pool = 0.0
 	if brain:
 		brain.queue_free()
 		brain = null
 	_make_brain()
+	_apply_pet_passthrough()
+
+## Pets never body-block the survivor: a mutual collision exception, applied once the
+## player node is around. Enemies and everything else still collide with pets normally.
+var _pet_passthrough_done: bool = false
+
+func _apply_pet_passthrough() -> void:
+	if _pet_passthrough_done or not is_pet:
+		return
+	var p := get_tree().get_first_node_in_group("player") as PhysicsBody3D
+	if p == null:
+		return
+	add_collision_exception_with(p)
+	_pet_passthrough_done = true
 
 func _physics_process(delta: float) -> void:
 	_fall_guard()
+	_apply_pet_passthrough()
 	FieldTame.tick(self, delta)
 	if not is_on_floor():
 		velocity += get_gravity() * delta
@@ -180,7 +247,7 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		_update_label()
 		return
-	var speed := def.move_speed_mps * statuses.move_mult()
+	var speed := (pet_record.speed / 100.0 if is_pet and pet_record else move_speed_mps()) * statuses.move_mult()
 	if not is_pet and brain and (brain.state == &"approach" or brain.state == &"attack"):
 		# ASSUMPTION: wild animals chase at 70 % of their listed speed so a survivor can outrun them.
 		speed *= float(brain.profile.get("chase_speed_mult", 0.7)) if brain.get("profile") != null else 0.7
@@ -190,12 +257,20 @@ func _physics_process(delta: float) -> void:
 	if _path_active:
 		if _use_tile_path():
 			locomote = _tile_path_direction(delta)
-		elif not agent.is_navigation_finished():
-			var next := agent.get_next_path_position()
-			var to := next - global_position
-			to.y = 0.0
-			if to.length_squared() > 0.0001:
-				locomote = to.normalized()
+		else:
+			if not agent.is_navigation_finished():
+				var next := agent.get_next_path_position()
+				var to := next - global_position
+				to.y = 0.0
+				if to.length_squared() > 0.0001:
+					locomote = to.normalized()
+			# Runtime nav maps can take a frame to sync and sparse labs occasionally return the
+			# current point. A nearby AI goal is still safe to steer toward directly.
+			if locomote.length_squared() <= 0.0:
+				var direct := _path_goal - global_position
+				direct.y = 0.0
+				if direct.length() > 0.3 and direct.length() <= 12.0:
+					locomote = direct.normalized()
 	if locomote.length_squared() > 0.0:
 		var sep := _separation_steer()
 		var dir := (locomote + sep).normalized()
@@ -215,9 +290,31 @@ func _physics_process(delta: float) -> void:
 	_blood_trail()
 	_update_label()
 	_update_aggro_ring(delta)
+	# Wild dinosaurs recover 1 % max HP/s after eight quiet seconds. Both recent damage and
+	# aggro hold the lock, and an AI target keeps it locked even if no hit has landed yet.
+	var wild_calm := not is_pet and not health.dead and health.hp < health.max_hp \
+		and _now_s() - last_damaged_s > WILD_REGEN_DELAY_S \
+		and _now_s() - last_aggro_s > WILD_REGEN_DELAY_S \
+		and (brain == null or brain.attack_target == null)
+	if wild_calm:
+		_wild_regen_pool += health.max_hp * WILD_REGEN_RATE * delta
+		var wild_tick := maxf(1.0, health.max_hp * WILD_REGEN_RATE)
+		if _wild_regen_pool >= wild_tick:
+			health.heal(_wild_regen_pool)
+			_wild_regen_pool = 0.0
+	else:
+		_wild_regen_pool = 0.0
 	# Pets heal 2 % of max HP per second once 6 s have passed without a hit and nothing is targeted.
+	# The heal is pooled and applied once it reaches a full second's worth, so the floating
+	# "+HP" text ticks about once a second instead of spamming every rendered frame.
 	if is_pet and not health.dead and health.hp < health.max_hp and _now_s() - last_damaged_s > 6.0 and (brain == null or brain.attack_target == null):
-		health.heal(health.max_hp * 0.02 * delta)
+		_pet_regen_pool += health.max_hp * 0.02 * delta
+		var tick := maxf(1.0, health.max_hp * 0.02)
+		if _pet_regen_pool >= tick:
+			health.heal(_pet_regen_pool)
+			_pet_regen_pool = 0.0
+	else:
+		_pet_regen_pool = 0.0
 	if is_pet and pet_record:
 		var drain := hunger_max / 1800.0 * delta * (1.0 / maxf(0.5, pet_record.hunger_efficiency))
 		hunger = maxf(0.0, hunger - drain)
@@ -236,6 +333,8 @@ func _size_collision() -> void:
 func _make_brain() -> void:
 	if is_pet:
 		brain = PetBrain.new()
+	elif def and def.mapped_archetype() == &"raptor_pack":
+		brain = RaptorPackBrain.new()
 	else:
 		brain = CreatureBrain.new()
 	brain.name = "Brain"
@@ -414,7 +513,7 @@ func _on_damaged(_amount: float, source: Node) -> void:
 	hit_burst(burst_col, 0.16 if kind == &"crit" else 0.1, 22 if kind == &"crit" else 12)
 	if brain:
 		brain.note_damage(_amount)
-	if statuses.has(&"groggy") and not statuses.has(&"knockdown"):
+	if statuses.has(&"groggy") and not statuses.has(&"knockdown") 			and health.fraction() < FieldTame.CAPTURE_HEALTH_FRAC:
 		statuses.apply(&"knockdown", source)
 		anim.play_clip(&"knockdown")
 		return
@@ -434,6 +533,13 @@ func _on_damaged(_amount: float, source: Node) -> void:
 
 func _on_died(_source: Node) -> void:
 	anim.play_clip(&"death")
+	# The dead creature stops physics processing before _update_aggro_ring can hide it. Remove the
+	# top-level world marker here so a dead dinosaur never leaves a red leash circle behind.
+	if _aggro_ring:
+		_aggro_ring.queue_free()
+		_aggro_ring = null
+	if is_pet and pet_record:
+		pet_record.start_respawn()  # down for RESPAWN_TIME; PETS sheet shows the countdown ring
 	# Pet XP: a kill by the pet pays 10 + tier/3; a survivor kill with the pet fighting within
 	# 15 m pays 3 + tier/6. Levels raise the pet's HP, attack and defense.
 	if not is_pet:
@@ -470,10 +576,13 @@ func _on_died(_source: Node) -> void:
 	collision_layer = 0
 	collision_mask = 1
 	stop_move()
-	var corpse := Corpse.new()
-	corpse.setup(self)
-	get_parent().add_child(corpse)
-	corpse.global_position = global_position
+	# Bonded animals enter their respawn cooldown without creating a harvestable corpse or
+	# loot bag. Wild kills still use the normal corpse/loot flow.
+	if not is_pet:
+		var corpse := Corpse.new()
+		corpse.setup(self)
+		get_parent().add_child(corpse)
+		corpse.global_position = global_position
 
 ## Status landed: float its name over the plate and puff a burst in its colour. The lasting
 ## look (blood drip, venom tint, wobble) is _status_fx every frame.
@@ -632,6 +741,13 @@ func _separation_steer() -> Vector3:
 	return steer.normalized()
 
 func _spawn_level_from_ring() -> int:
+	# island_def is set before IslandRuntime.build() starts spawning creatures. Use it first:
+	# World.runtime is intentionally assigned only after build completes, so consulting runtime
+	# first made every starter creature fall back to its species tier (often Lv. 20).
+	if World != null:
+		var resolved := ProgressionScaling.resolved_spawn_level(def.tier, World.island_def, int(Data.world_rules.get("level_cap", 60)))
+		if resolved != def.tier or int(World.island_def.get("level_override", 0)) > 0:
+			return resolved
 	if World == null or World.runtime == null:
 		return def.tier
 	if get_parent() != World.runtime:

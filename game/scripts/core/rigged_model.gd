@@ -75,7 +75,7 @@ func _merge_dir(anim_dir: String) -> void:
 	var seen: Dictionary = {}
 	var names: Array[String] = [
 		"idle", "walk", "run", "hit_react", "death", "attack_primary", "attack_heavy",
-		"roll", "gather", "knockdown", "mount_idle", "alert", "feed", "punch",
+		"roll", "gather", "knockdown", "mount_idle", "alert", "feed",
 	]
 	var da := DirAccess.open(anim_dir)
 	if da:
@@ -84,6 +84,11 @@ func _merge_dir(anim_dir: String) -> void:
 		while fname != "":
 			if not da.current_is_dir() and fname.ends_with(".glb"):
 				var base := fname.get_basename()
+				# The optional punch source currently references a missing external texture.
+				# Skip it cleanly and let PlayerAnim fall back to attack_primary.
+				if base == "punch":
+					fname = da.get_next()
+					continue
 				if base not in names:
 					names.append(base)
 			fname = da.get_next()

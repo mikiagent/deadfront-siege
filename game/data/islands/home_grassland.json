@@ -3,6 +3,7 @@
   "display_name": "Private Grassland",
   "climate": "grassland",
   "tier": 10,
+  "level_override": 1,
   "size_m": 160,
   "permanent": true,
   "kind": "private",
@@ -11,7 +12,16 @@
   "harbour": [0, 0, 18],
   "camp": [0, 0, 8],
   "crater": null,
-  "creatures": [],
+  "creatures": [
+    {"species": "compsognathus", "count": 1, "pack": false, "at": [-22, 0, 30]},
+    {"species": "coelophysis", "count": 1, "pack": false, "at": [-8, 0, 40]},
+    {"species": "protoceratops", "count": 1, "pack": false, "at": [8, 0, 42]},
+    {"species": "gallimimus", "count": 1, "pack": false, "at": [24, 0, 34]},
+    {"species": "deinonychus", "count": 1, "pack": false, "at": [38, 0, 18]},
+    {"species": "stegosaurus", "count": 1, "pack": false, "at": [34, 0, -4]},
+    {"species": "utahraptor", "count": 1, "pack": false, "at": [-36, 0, -4]},
+    {"species": "velociraptor", "count": 1, "pack": false, "at": [-38, 0, 16]}
+  ],
   "terrains": {
     "meadow": {"tree": 8, "bush": 10, "grass": 80, "rock": 4, "flower": 8},
     "forest": {"tree": 22, "bush": 14, "grass": 50, "rock": 4, "flower": 4},

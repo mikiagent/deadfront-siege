@@ -51,7 +51,9 @@ func _tick_creatures(cam: Camera3D, player: Player, delta: float) -> void:
 		seen[c.get_instance_id()] = true
 		var e := _ensure_entry(c)
 		var forced := _forced_visible(c, player, now)
-		if not forced and (dist <= NEAR_DIST or c.tapped_recently(3.0)):
+		# Nearby wild creatures reveal their plate for inspection. Pets do not keep a plate
+		# permanently visible just because they follow within the near-distance bubble.
+		if not forced and ((dist <= NEAR_DIST and not c.is_pet) or c.tapped_recently(3.0)):
 			e["reveal_until"] = now + 3.0
 		var show := forced or now <= float(e.get("reveal_until", 0.0))
 		var alpha := float(e.get("alpha", 0.0))
@@ -59,6 +61,7 @@ func _tick_creatures(cam: Camera3D, player: Player, delta: float) -> void:
 		e["alpha"] = alpha
 		_update_entry(e, c, cam, player, dist, delta)
 		_entries[c.get_instance_id()] = e
+	_separate_visible_creature_plates()
 	for key in _entries.keys():
 		if seen.has(key):
 			continue
@@ -82,10 +85,12 @@ func _tick_corpses(cam: Camera3D, player: Player, delta: float) -> void:
 		var node := e["node"] as Control
 		node.visible = alpha > 0.02
 		node.modulate.a = alpha
-		var knife := e.get("knife", null) as TextureRect
+		var knife := e.get("knife", null) as Label
 		if knife:
 			knife.visible = corpse.tapped_recently(4.0)
-			knife.modulate = Color.WHITE if player.inventory.has_tool_class(&"knife") else Color(1.0, 0.4, 0.35)
+			var unlocked := player.inventory.has_tool_class(&"knife")
+			knife.text = "🔪" if unlocked else "🔒"
+			knife.modulate = Color.WHITE if unlocked else Color(1.0, 0.4, 0.35)
 		var world := corpse.plate_anchor()
 		var screen := cam.unproject_position(world)
 		node.position = screen + Vector2(-70, -28)
@@ -94,6 +99,36 @@ func _tick_corpses(cam: Camera3D, player: Player, delta: float) -> void:
 		if seen.has(key):
 			continue
 		_remove_corpse_entry(int(key))
+
+func _separate_visible_creature_plates() -> void:
+	# Keep nearby herd members readable. Greedily lift a plate until its name/HP block no
+	# longer overlaps an earlier one; horizontal separation still keeps unrelated plates free.
+	var placed: Array[Rect2] = []
+	var visible: Array[Control] = []
+	for e_v in _entries.values():
+		var e := e_v as Dictionary
+		var node := e.get("node", null) as Control
+		if node and node.visible:
+			visible.append(node)
+	visible.sort_custom(func(a: Control, b: Control) -> bool: return a.position.y < b.position.y)
+	for node in visible:
+		var pos := node.position
+		var sz := Vector2(BASE_WIDTH, 38.0) * node.scale
+		var rect := Rect2(pos, sz).grow(3.0)
+		var attempts := 0
+		while attempts < 6:
+			var hit := false
+			for prior in placed:
+				if rect.intersects(prior):
+					pos.y = prior.position.y - rect.size.y - 4.0
+					rect.position.y = pos.y
+					hit = true
+					break
+			if not hit:
+				break
+			attempts += 1
+		node.position = pos
+		placed.append(rect)
 
 func _forced_visible(c: Creature, player: Player, now: float) -> bool:
 	if player.hunt and player.hunt.target == c:
@@ -212,15 +247,17 @@ func _ensure_corpse_entry(corpse: Corpse) -> Dictionary:
 	label.text = "Loot · %s" % corpse.species_display_name()
 	label.add_theme_color_override("font_color", Color(0.85, 0.9, 0.78))
 	node.add_child(label)
-	# Butchering needs a knife: show it, red while the bag has none.
-	var knife := TextureRect.new()
-	knife.name = "Knife"
-	knife.texture = ItemIcons.texture(&"stone_knife")
-	knife.custom_minimum_size = Vector2(12, 12)
-	knife.size = Vector2(12, 12)
-	knife.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	knife.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	knife.position = Vector2(node.size.x + 4.0, 2.0)
+	# Small action lock in the bag corner. A TextureRect inherited the source image minimum
+	# and produced a giant world knife; the glyph has a fixed 16 px box and cannot escape it.
+	var knife := Label.new()
+	knife.name = "KnifeLock"
+	knife.text = "🔪"
+	knife.custom_minimum_size = Vector2(16, 16)
+	knife.size = Vector2(16, 16)
+	knife.position = Vector2(node.size.x - 17.0, 1.0)
+	knife.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	knife.add_theme_font_size_override("font_size", 12)
+	knife.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	node.add_child(knife)
 	_root.add_child(node)
 	var entry := {"node": node, "alpha": 0.0, "knife": knife}
@@ -240,7 +277,7 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	var line1 := entry["line1"] as Label
 	var rel_col := _relation_color(c)
 	line1.add_theme_color_override("font_color", rel_col)
-	line1.text = "Lv. %d %s" % [c.level, str(c.def.species).capitalize()]
+	line1.text = ("Lv. %d  %s  [%s]" % [c.level, str(c.def.species).capitalize(), c.genetics.overall_tier() if c.genetics else &"?"]) if c.is_pet else ("Lv. %d  %s" % [c.level, str(c.def.species).capitalize()])
 	var frac := c.health.fraction()
 	var prev := float(entry.get("hp_frac", frac))
 	if frac < prev:

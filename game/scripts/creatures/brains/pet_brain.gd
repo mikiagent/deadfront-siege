@@ -31,6 +31,9 @@ func _pick_guard_target(player: Player) -> Creature:
 	return best
 
 func _think(delta: float) -> void:
+	# PetBrain owns its think loop, so it must also advance the inherited attack cooldown.
+	# Without this, a SIC order lands exactly one bite and _attack_cd stays at 1.2 forever.
+	_attack_cd = maxf(0.0, _attack_cd - delta)
 	var player := creature.get_tree().get_first_node_in_group("player") as Player
 	if player == null:
 		return
@@ -51,12 +54,19 @@ func _think(delta: float) -> void:
 			target = null
 		else:
 			var reach := maxf(1.2, float(profile.get("attack_range", 1.8)) + 0.2)
-			state = &"chase" if dist > reach else &"attack"
-			if dist > reach:
+			# Use a wider exit threshold than entry. Without hysteresis, contact separation nudges the
+			# pet a few centimetres outside reach after a bite and it oscillates instead of reattacking.
+			var attack_exit := reach + 0.65
+			if state != &"attack" and dist > reach:
+				state = &"chase"
+				creature.move_to(target.global_position)
+				creature.face_towards(target.global_position, delta)
+			elif dist > attack_exit:
+				state = &"chase"
 				creature.move_to(target.global_position)
 				creature.face_towards(target.global_position, delta)
 			else:
-				creature.stop_move()
+				state = &"attack"
 				_do_attack()
 			return
 	attack_target = null

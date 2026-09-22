@@ -12,7 +12,7 @@ import pathlib
 import re
 import sys
 
-CHUNK = 90 * 1024 * 1024  # stay under Vercel Hobby's 100 MB per-file cap
+CHUNK = 16 * 1024 * 1024  # keep fallback buffers small on memory-constrained mobile browsers
 
 LOADER = r'''
 (function (engine) {
@@ -34,28 +34,47 @@ LOADER = r'''
 			return r.json();
 		}).then(function (man) {
 			let loaded = 0;
-			const pieces = [];
+			const out = new Uint8Array(man.size);
+			function reportProgress() {
+				if (onProgress) {
+					onProgress(loaded, man.size);
+				}
+			}
 			return man.parts.reduce(function (p, part) {
 				return p.then(function () {
 					return fetch(part).then(function (res) {
 						if (!res.ok) {
 							throw new Error('Failed to download ' + part + ' (' + res.status + ')');
 						}
-						return res.arrayBuffer();
-					}).then(function (buf) {
-						loaded += buf.byteLength;
-						if (onProgress) {
-							onProgress(loaded, man.size);
+						if (!res.body || !res.body.getReader) {
+							return res.arrayBuffer().then(function (buf) {
+								const bytes = new Uint8Array(buf);
+								out.set(bytes, loaded);
+								loaded += bytes.byteLength;
+								reportProgress();
+							});
 						}
-						pieces.push(new Uint8Array(buf));
+						const reader = res.body.getReader();
+						function pump() {
+							return reader.read().then(function (result) {
+								if (result.done) {
+									return;
+								}
+								if (loaded + result.value.byteLength > out.byteLength) {
+									throw new Error('Downloaded pack is larger than its manifest');
+								}
+								out.set(result.value, loaded);
+								loaded += result.value.byteLength;
+								reportProgress();
+								return pump();
+							});
+						}
+						return pump();
 					});
 				});
 			}, Promise.resolve()).then(function () {
-				const out = new Uint8Array(man.size);
-				let off = 0;
-				for (let i = 0; i < pieces.length; i++) {
-					out.set(pieces[i], off);
-					off += pieces[i].byteLength;
+				if (loaded !== man.size) {
+					throw new Error('Downloaded pack size mismatch (' + loaded + ' of ' + man.size + ' bytes)');
 				}
 				return me.preloadFile(out.buffer, pack);
 			});
@@ -127,6 +146,31 @@ self.addEventListener('activate', function (event) {
 """
 
 
+
+def install_diagnostics(out: pathlib.Path) -> None:
+    """Install diagnostics before Engine construction and expose the opt-in soak arg."""
+    source = pathlib.Path(__file__).with_name('web_diagnostics.js')
+    if not source.is_file():
+        raise SystemExit(f'missing {source}')
+    (out / 'web_diagnostics.js').write_text(source.read_text())
+    html_path = out / 'index.html'
+    html = html_path.read_text()
+    marker = '<script src="web_diagnostics.js"></script>'
+    if marker not in html:
+        needle = '<script src="index.js"></script>'
+        if needle not in html:
+            raise SystemExit('index.html has no index.js script hook')
+        html = html.replace(needle, marker + '\n' + needle, 1)
+    config_needle = 'const engine = new Engine(GODOT_CONFIG);'
+    soak_hook = "if (new URLSearchParams(location.search).get('soak') === '1' && !GODOT_CONFIG.args.includes('--web-soak')) GODOT_CONFIG.args.push('--', '--web-soak');"
+    if soak_hook not in html:
+        if config_needle not in html:
+            raise SystemExit('index.html has no Engine(GODOT_CONFIG) hook')
+        html = html.replace(config_needle, soak_hook + '\n' + config_needle, 1)
+    html_path.write_text(html)
+    print('installed web crash diagnostics and soak hook')
+
+
 def patch_service_worker(out: pathlib.Path, parts: list[str]) -> None:
     sw = out / 'index.service.worker.js'
     if not sw.is_file():
@@ -169,6 +213,7 @@ def main() -> None:
     out = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else '.')
     parts = split_pck(out)
     patch_html(out)
+    install_diagnostics(out)
     patch_service_worker(out, parts)
     report(out)
 

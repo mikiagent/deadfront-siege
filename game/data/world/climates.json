@@ -167,11 +167,11 @@
       "overcast"
     ],
     "palette": {
-      "grass": "#66884a",
-      "dry": "#79805d",
-      "dirt": "#6d543d",
-      "sand": "#c8b58a",
-      "rock": "#6f716f"
+      "grass": "#3f7c32",
+      "dry": "#69703d",
+      "dirt": "#65452f",
+      "sand": "#c9aa6a",
+      "rock": "#626761"
     },
     "day_night": true
   },

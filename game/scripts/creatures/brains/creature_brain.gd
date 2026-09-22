@@ -20,6 +20,7 @@ var _target_prev: Vector3 = Vector3.ZERO
 var _target_still_left: float = 0.0
 var _flank_sign: float = 1.0
 var _last_flank_log_s: float = -999.0
+var _combat_memory_left: float = 0.0
 ## Herbivores flee, but after PROVOKE_HITS hits within a short window they turn and fight for
 ## PROVOKE_SECONDS (a cornered/provoked grazer bites back), then go back to fleeing.
 const PROVOKE_HITS := 3
@@ -38,7 +39,47 @@ func setup(c: Creature) -> void:
 	profile = _profile(c.def.archetype)
 	perception = float(profile.get("perception_base", 8.0)) + float(c.def.tier) * float(profile.get("perception_tier_mult", 0.15))
 	_flank_sign = -1.0 if int(c.get_instance_id()) % 2 == 0 else 1.0
-	_roam_cd = randf_range(float(profile.get("roam_delay_min", 3.0)), float(profile.get("roam_delay_max", 6.0)))
+	# Start walking promptly. The old full roam delay made newly spawned dinosaurs look frozen.
+	_roam_cd = randf_range(0.1, 0.6)
+
+
+## The player stays on the ground until respawn. Relocate every dinosaur that was fighting
+## them so the camp/respawn point cannot become a permanent death trap.
+func on_player_killed(at: Vector3) -> void:
+	if creature == null or creature.health.dead or creature.is_pet:
+		return
+	var was_hunting := attack_target is Player or state in [&"alert", &"approach", &"attack", &"retreat"]
+	if not was_hunting:
+		return
+	var away := creature.global_position - at
+	away.y = 0.0
+	if away.length_squared() <= 0.001:
+		away = Vector3.RIGHT.rotated(Vector3.UP, randf() * TAU)
+	var distance := maxf(14.0, aggro_radius() + 4.0)
+	var destination := creature.global_position + away.normalized() * distance
+	var rt := World.runtime if World else null
+	if rt and rt.has_method("spawn_ok"):
+		var found := false
+		for shorten in [1.0, 0.8, 0.6, 0.4]:
+			for angle in [0.0, 0.45, -0.45, 0.9, -0.9]:
+				var probe: Vector3 = creature.global_position + away.normalized().rotated(Vector3.UP, angle) * distance * shorten
+				probe.y = rt.surface_y(probe.x, probe.z) + 0.3 if rt.has_method("surface_y") else creature.global_position.y
+				if rt.spawn_ok(probe, false):
+					destination = probe
+					found = true
+					break
+			if found:
+				break
+	attack_target = null
+	_combat_memory_left = 0.0
+	_disengage_left = 0.0
+	_hits_taken = 0
+	_provoked_until = -1.0
+	# Make the retreat destination the new local home so idle roam does not walk straight back.
+	creature.spawn_home = destination
+	_set_state(&"disengage")
+	creature.move_to(destination)
+	print("[ai] %s post-kill retreat %.1fm" % [creature.def.id, creature.global_position.distance_to(destination)])
 
 func _effective_perception() -> float:
 	var p := perception
@@ -56,6 +97,8 @@ func aggro_radius() -> float:
 
 ## True while this creature is actively on the survivor (ring shown).
 func hunting_player() -> bool:
+	if attack_target == null or not is_instance_valid(attack_target):
+		return false
 	var on_player := attack_target is Player and not (attack_target as Player).dead
 	var on_pet := attack_target is Creature and (attack_target as Creature).is_pet and not (attack_target as Creature).health.dead
 	if not (on_player or on_pet):
@@ -87,6 +130,7 @@ func on_aggro(who: Node) -> void:
 				creature.mark_aggro_now()
 				return
 		attack_target = who as Node3D
+		_combat_memory_left = 4.0
 		creature.mark_aggro_now()
 		# Do not downgrade combat states (retreat/flee/approach/attack) back to alert.
 		if state == &"roam" or state == &"sleep" or state == &"disengage" or state == &"downed":
@@ -130,6 +174,13 @@ func note_damage(amount: float) -> void:
 
 func _think(delta: float) -> void:
 	_attack_cd = maxf(0.0, _attack_cd - delta)
+	_combat_memory_left = maxf(0.0, _combat_memory_left - delta)
+	# A dead pet is one target, not the end of the hunt. Keep the pack together and immediately
+	# select another live pet or the survivor instead of every dinosaur walking home.
+	if not _valid_target() and _combat_memory_left > 0.0:
+		attack_target = _nearest_live_prey(_effective_perception() * float(profile.get("leash_mult", 2.2)))
+		if attack_target:
+			_set_state(&"approach")
 	_disengage_track(delta)
 	if _is_herbivore() and Game.phase_name() == &"night" and not _valid_target():
 		_set_state(&"sleep")
@@ -162,15 +213,29 @@ func _think(delta: float) -> void:
 			_walk_home(delta)
 
 func _roam(delta: float) -> void:
+	# Pack members travel behind their alpha while idle. Only the alpha chooses the roaming path;
+	# this keeps a hunting group visibly together instead of several independent random walkers.
+	var leader := _pack_leader()
+	if leader and leader != creature:
+		var slot := _idle_pack_slot(leader)
+		if creature.global_position.distance_to(slot) > 1.4:
+			creature.move_to(slot)
+		else:
+			creature.stop_move()
+		return
 	if _roam_pause > 0.0:
 		_roam_pause -= delta
 		creature.stop_move()
 		return
+	if _roam_target != Vector3.ZERO:
+		if creature.global_position.distance_to(_roam_target) <= 0.8:
+			_roam_target = Vector3.ZERO
+			_roam_pause = randf_range(0.25, 0.7)
+			_roam_cd = randf_range(0.15, 0.55)
+			creature.stop_move()
+		return
 	_roam_cd -= delta
 	if _roam_cd > 0.0:
-		if _roam_target != Vector3.ZERO and creature.global_position.distance_to(_roam_target) <= 0.8:
-			_roam_target = Vector3.ZERO
-			_roam_pause = randf_range(0.4, 0.9)
 		return
 	var center := _herd_center() if _is_herbivore() else creature.spawn_home
 	var roam_tiles := float(profile.get("roam_tiles", 6.0))
@@ -180,31 +245,52 @@ func _roam(delta: float) -> void:
 	creature.move_to(p)
 	_roam_cd = randf_range(float(profile.get("roam_delay_min", 3.0)), float(profile.get("roam_delay_max", 6.0)))
 
+func _idle_pack_slot(leader: Creature) -> Vector3:
+	var members := _pack_members()
+	var index := members.find(creature)
+	var angle := TAU * float(maxi(0, index - 1)) / float(maxi(1, members.size() - 1))
+	var radius := 1.8 + 0.35 * float(index % 2)
+	return leader.global_position + Vector3(cos(angle), 0.0, sin(angle)) * radius
+
 func _scan() -> void:
 	if state != &"roam" and state != &"sleep":
 		return
-	var player := creature.get_tree().get_first_node_in_group("player") as Node3D
-	if player is Player and (player as Player).dead:
+	# Followers let the alpha acquire prey and path behind it. If prey reaches a follower first,
+	# it still alerts the whole pack through on_aggro.
+	var leader := _pack_leader()
+	if leader and leader != creature:
+		if leader.brain and leader.brain._valid_target():
+			attack_target = leader.brain.attack_target
+			_combat_memory_left = 4.0
+			_set_state(&"approach")
 		return
-	# Nearest of the survivor and her pets inside perception: wild animals go for pets too.
-	var best: Node3D = null
-	var best_d := _effective_perception()
-	if player and creature.global_position.distance_to(player.global_position) <= best_d:
-		best = player
-		best_d = creature.global_position.distance_to(player.global_position)
-	if player is Player:
-		for p in (player as Player).live_pets():
-			var d := creature.global_position.distance_to(p.global_position)
-			if d < best_d:
-				best = p
-				best_d = d
+	var best := _nearest_live_prey(_effective_perception())
 	if best:
 		attack_target = best
+		_combat_memory_left = 4.0
 		_set_state(&"alert")
 		_alert_left = maxf(_alert_left, 0.6)
 		creature.mark_aggro_now()
 		creature.anim.play_clip(&"alert")
-		_propagate_alert(player)
+		_propagate_alert(best)
+
+func _nearest_live_prey(radius: float) -> Node3D:
+	var player := creature.get_tree().get_first_node_in_group("player") as Player
+	var best: Node3D = null
+	var best_d := radius
+	if player and not player.dead:
+		var d := creature.global_position.distance_to(player.global_position)
+		if d <= best_d:
+			best = player
+			best_d = d
+		for pet in player.live_pets():
+			if pet == null or pet.health.dead:
+				continue
+			d = creature.global_position.distance_to(pet.global_position)
+			if d < best_d:
+				best = pet
+				best_d = d
+	return best
 
 func _valid_target() -> bool:
 	if attack_target == null or not is_instance_valid(attack_target):
@@ -230,6 +316,8 @@ func _approach(delta: float) -> void:
 			_set_state(&"attack")
 
 func _do_attack() -> void:
+	if _valid_target():
+		_combat_memory_left = 4.0
 	if not _valid_target():
 		_disengage()
 		return
@@ -305,8 +393,14 @@ func _disengage_track(delta: float) -> void:
 	var dist := creature.global_position.distance_to(attack_target.global_position)
 	# Aggro leash: beyond leash_mult × perception the chase ends at once; beyond 1.5 × it ends
 	# after disengage_seconds. Running far enough away always works.
-	if dist > _effective_perception() * float(profile.get("leash_mult", 2.2)):
-		print("[ai] %s disengage (leash)" % creature.def.id)
+	if dist > aggro_radius():
+		print("[ai] %s disengage (left aggro radius)" % creature.def.id)
+		# Leaving the visible combat radius is an immediate de-aggro, not a walk-home chase.
+		# Clear target/memory now so neither this animal nor pack retention reacquires the runner.
+		attack_target = null
+		_combat_memory_left = 0.0
+		_disengage_left = 0.0
+		creature.mark_aggro_now()
 		_set_state(&"disengage")
 		return
 	var far := dist > _effective_perception() * 1.2
@@ -371,16 +465,26 @@ func _pack_ready() -> bool:
 	return true
 
 func _pack_leader() -> Creature:
-	if creature == null:
-		return null
-	var best: Creature = creature
+	var members := _pack_members()
+	return members[0] if not members.is_empty() else null
+
+func _pack_members() -> Array[Creature]:
+	var members: Array[Creature] = []
+	if creature == null or creature.pack_id <= 0:
+		return members
 	for n in creature.get_tree().get_nodes_in_group("creatures"):
 		var c := n as Creature
-		if c == null or c.pack_id != creature.pack_id or c.health.dead:
-			continue
-		if c.get_instance_id() < best.get_instance_id():
-			best = c
-	return best
+		if c and c.pack_id == creature.pack_id and not c.health.dead and not c.is_pet:
+			members.append(c)
+	# Alpha means strongest, not first spawned. Tier dominates, then combat stats break ties.
+	members.sort_custom(func(a: Creature, b: Creature) -> bool:
+		var sa := float(a.def.tier) * 1000000.0 + a.health.max_hp * 100.0 + a.def.attack * 10.0 + a.def.defense
+		var sb := float(b.def.tier) * 1000000.0 + b.health.max_hp * 100.0 + b.def.attack * 10.0 + b.def.defense
+		if not is_equal_approx(sa, sb):
+			return sa > sb
+		return a.get_instance_id() < b.get_instance_id()
+	)
+	return members
 
 func _herd_center() -> Vector3:
 	if creature == null or creature.pack_id <= 0:

@@ -116,8 +116,8 @@ func _build_tree() -> void:
 	walk_n.animation = "walk"
 	var run_n := AnimationNodeAnimation.new()
 	run_n.animation = "run"
-	blend.add_blend_point(walk_n, 0.0)
-	blend.add_blend_point(run_n, 1.0)
+	blend.add_blend_point(walk_n, 0.0, -1, &"walk")
+	blend.add_blend_point(run_n, 1.0, -1, &"run")
 	sm.add_node("locomotion", blend, Vector2(200, 0))
 	for clip in ["attack_primary", "attack_heavy", "hit_react", "knockdown", "death", "alert", "feed"]:
 		_add_anim(sm, clip, Vector2(0, 140))

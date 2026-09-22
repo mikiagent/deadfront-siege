@@ -86,7 +86,8 @@
       "tool_class": "none",
       "base_level": 1,
       "default_attributes": {
-        "tint": "#8a8a8a"
+        "tint": "#8a8a8a",
+        "material_tier": "stone"
       }
     },
     {
@@ -131,6 +132,62 @@
       "default_attributes": {
         "tint": "#c0c4cc",
         "hardness": 4
+      }
+    },
+    {
+      "id": "copper_ingot",
+      "display_name": "Copper Ingot",
+      "categories": [
+        "metal",
+        "blade_mat"
+      ],
+      "stack_max": 999,
+      "default_attributes": {
+        "material_tier": "copper",
+        "tint": "#b87333",
+        "hardness": 4
+      }
+    },
+    {
+      "id": "bronze_ingot",
+      "display_name": "Bronze Ingot",
+      "categories": [
+        "metal",
+        "blade_mat"
+      ],
+      "stack_max": 999,
+      "default_attributes": {
+        "material_tier": "bronze",
+        "tint": "#cd7f32",
+        "hardness": 5
+      }
+    },
+    {
+      "id": "iron_ingot",
+      "display_name": "Iron Ingot",
+      "categories": [
+        "metal",
+        "blade_mat"
+      ],
+      "stack_max": 999,
+      "default_attributes": {
+        "material_tier": "iron",
+        "tint": "#9a9b9d",
+        "hardness": 6
+      }
+    },
+    {
+      "id": "steel_ingot",
+      "display_name": "Steel Ingot",
+      "categories": [
+        "metal",
+        "blade_mat"
+      ],
+      "stack_max": 999,
+      "default_attributes": {
+        "material_tier": "steel",
+        "tint": "#b8c2cc",
+        "hardness": 7
       }
     },
     {
@@ -463,7 +520,8 @@
       "base_level": 1,
       "default_attributes": {
         "hardness": 2,
-        "tint": "#d4c4a8"
+        "tint": "#d4c4a8",
+        "material_tier": "bone"
       }
     },
     {
@@ -769,11 +827,15 @@
       "id": "flint",
       "display_name": "Flint",
       "categories": [
-        "stone"
+        "stone",
+        "blade_mat"
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "default_attributes": {
+        "material_tier": "flint"
+      }
     },
     {
       "id": "dry_grass",
@@ -878,11 +940,15 @@
       "id": "obsidian",
       "display_name": "Obsidian",
       "categories": [
-        "stone"
+        "stone",
+        "blade_mat"
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "default_attributes": {
+        "material_tier": "obsidian"
+      }
     },
     {
       "id": "pine_log",
@@ -919,11 +985,15 @@
       "id": "bone",
       "display_name": "Bone",
       "categories": [
-        "bone"
+        "bone",
+        "blade_mat"
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "default_attributes": {
+        "material_tier": "bone"
+      }
     },
     {
       "id": "cactus_flesh",
@@ -950,11 +1020,15 @@
       "id": "copper_ore",
       "display_name": "Copper Ore",
       "categories": [
-        "ore"
+        "ore",
+        "blade_mat"
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "default_attributes": {
+        "material_tier": "copper"
+      }
     },
     {
       "id": "salt",
@@ -1061,11 +1135,15 @@
       "id": "black_iron",
       "display_name": "Black Iron",
       "categories": [
-        "ore"
+        "ore",
+        "blade_mat"
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "default_attributes": {
+        "material_tier": "iron"
+      }
     },
     {
       "id": "lava",
