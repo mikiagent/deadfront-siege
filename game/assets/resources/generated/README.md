@@ -42,3 +42,7 @@ Plant wave (September 23, 2026; 1k JPEG textures):
 Rejected: herb_leaf twice more (slab bases), cactus twice (ground discs), first reed and bamboo (ground discs).
 
 - `plant-cactus-final.glb`: flowering saguaro cactus (desert plant crater).
+- `plant-mango-final.glb`: mango bush with ripening fruit (tropical plant crater).
+- `plant-vine-final.glb`: twisted jungle vine with leaves (tropical/jungle plant crater).
+
+Rejected: coconut (texture read as pale onion bulbs, off-brief), dry_grass (bound sheaf), marsh_herb (ground disc).
