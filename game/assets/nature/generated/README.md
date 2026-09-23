@@ -8,3 +8,10 @@ Meshy production trees from the September 23, 2026 pilot, replacing lowpoly Quat
 - `tree-palm-twin.glb`: twin-trunk palm clump (tropical/blue tropical).
 
 Rejected in pilot: bubble-crown cartoon common tree with grass disc; three umbrella acacias (faceted neon canopy, tiny crown on stick, floating leaf fragments); dead acacia and one palm with baked ground pads.
+
+Pilot round 2 (September 23, 2026; generated without remesh for natural foliage, then Meshy remesh to ~30k triangles):
+- `tree-acacia-a.glb`: umbrella thorn acacia, wide clumped canopy (savannah/desert).
+- `tree-birch-a.glb`: white birch, oval clumped crown (grassland/temperate).
+- `tree-willow-autumn-a.glb`: weeping willow with golden autumn foliage (swamp/temperate autumn variant).
+
+Rejected in round 2: 2 acacias (ground disc; double crown), 2 birches (ground pad; white snow-like leaf patches), 3 pines (ground pads; sparse; bubble-cone crown), 2 willows (ground disc; washed-out gray foliage).
