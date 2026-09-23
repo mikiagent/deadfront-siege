@@ -22,3 +22,7 @@ Pilot round 3 (September 23, 2026):
 
 Rejected in round 3: 2 pines (blobby bubble crown; too sparse), 1 willow (ground disc).
 All generated GLBs use 1k JPEG textures for mobile.
+- `tree-birch-b.glb`: second birch, slim white trunk with clumped crown and exposed roots.
+- `tree-willow-b.glb`: second green willow, full weeping crown.
+
+Rejected (variant b round): pine_v2 (puffball foliage, flared root skirt), acacia_v2 (cotton-ball crown, held back as borderline), common_v3 (root pad), palm_v3 (small pad).
