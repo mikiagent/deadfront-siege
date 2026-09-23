@@ -10,13 +10,18 @@ SHOT="${2:-$WORK/sim_shot.png}"
 [[ "${1:-}" == "--no-export" ]] || "$ROOT/tools/export_ios.sh"
 UDID=$(xcrun simctl list devices booted | grep -oE '[0-9A-F-]{36}' | head -1)
 [[ -n "$UDID" ]] || { echo "no booted simulator; run: xcrun simctl boot \"iPhone 17 Pro\""; exit 1; }
-xcodebuild -project "$OUT/durango.xcodeproj" -scheme durango -configuration Debug \
-  -destination "platform=iOS Simulator,id=$UDID" -derivedDataPath "$WORK/dd" CODE_SIGNING_ALLOWED=NO build 2>&1 | grep -E 'error:|BUILD (SUCCEEDED|FAILED)' || true
+if ! xcodebuild -project "$OUT/durango.xcodeproj" -scheme durango -configuration Debug \
+  -destination "platform=iOS Simulator,id=$UDID" -derivedDataPath "$WORK/dd" CODE_SIGNING_ALLOWED=NO build > "$WORK/build.log" 2>&1; then
+  rg 'error:|BUILD (SUCCEEDED|FAILED)' "$WORK/build.log" | tail -30 || tail -30 "$WORK/build.log"
+  exit 1
+fi
+rg 'BUILD SUCCEEDED' "$WORK/build.log" | tail -1 || true
 APP="$WORK/dd/Build/Products/Debug-iphonesimulator/durango.app"; [[ -d "$APP" ]] || { echo "build failed"; exit 1; }
+BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
 xcrun simctl install "$UDID" "$APP"
-xcrun simctl terminate "$UDID" com.durangolike.dev 2>/dev/null || true
+xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
 # Godot reads NSProcessInfo arguments, so engine flags can be passed here (e.g. --rendering-driver vulkan).
 # shellcheck disable=SC2086
-xcrun simctl launch "$UDID" com.durangolike.dev ${LAUNCH_ARGS:-}
+xcrun simctl launch "$UDID" "$BUNDLE_ID" ${LAUNCH_ARGS:-}
 sleep "${SIM_WAIT:-15}"
 xcrun simctl io "$UDID" screenshot --type=png "$SHOT" >/dev/null && echo "screenshot: $SHOT"

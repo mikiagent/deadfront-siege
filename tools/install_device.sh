@@ -13,11 +13,15 @@ KEY="$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8"
 UDID="$(xcrun devicectl list devices 2>/dev/null | grep -v simulated | grep -E 'connected|available' | grep -oE '[0-9A-F]{8}-[0-9A-F]{16}' | head -1 || true)"
 [[ -n "$UDID" ]] || { echo "No iPhone connected over USB (xcrun devicectl list devices). Plug it in, tap Trust, retry."; exit 1; }
 echo "== device $UDID"
-xcodebuild -project "$OUT/durango.xcodeproj" -scheme durango -configuration Debug \
+if ! xcodebuild -project "$OUT/durango.xcodeproj" -scheme durango -configuration Debug \
   -destination "id=$UDID" -derivedDataPath "$WORK/dd" \
   -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
   -authenticationKeyPath "$KEY" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-  DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic build 2>&1 | grep -E 'error:|warning: .*provision|BUILD (SUCCEEDED|FAILED)' || true
+  DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic build > "$WORK/build.log" 2>&1; then
+  rg 'error:|warning: .*provision|BUILD (SUCCEEDED|FAILED)' "$WORK/build.log" | tail -30 || tail -30 "$WORK/build.log"
+  exit 1
+fi
+rg 'BUILD SUCCEEDED' "$WORK/build.log" | tail -1 || true
 APP="$WORK/dd/Build/Products/Debug-iphoneos/durango.app"
 [[ -d "$APP" ]] || { echo "build failed (no $APP)"; exit 1; }
 xcrun devicectl device install app --device "$UDID" "$APP"

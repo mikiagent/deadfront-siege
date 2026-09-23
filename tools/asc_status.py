@@ -13,4 +13,19 @@ def get(path):
 for a in get(f"/apps?filter[bundleId]={bundle}")["data"]:
     print("APP", a["id"], a["attributes"]["name"], bundle)
     for x in get(f"/builds?filter[app]={a['id']}&sort=-uploadedDate&limit=5")["data"]:
-        at = x["attributes"]; print("BUILD", at["version"], at["processingState"], at.get("uploadedDate"), "expired" if at.get("expired") else "")
+        at = x["attributes"]
+        detail = get(f"/builds/{x['id']}/buildBetaDetail")["data"]["attributes"]
+        print("BUILD", at["version"], at["processingState"], detail.get("internalBuildState"),
+              at.get("uploadedDate"), "expired" if at.get("expired") else "")
+    for group in get(f"/betaGroups?filter[app]={a['id']}")["data"]:
+        ga = group["attributes"]
+        testers = get(f"/betaGroups/{group['id']}/betaTesters")["data"]
+        builds = get(f"/betaGroups/{group['id']}/builds")["data"]
+        states = {}
+        for tester in testers:
+            state = tester["attributes"].get("state", "UNKNOWN")
+            states[state] = states.get(state, 0) + 1
+        print("GROUP", ga["name"], "internal", ga.get("isInternalGroup"),
+              "allBuilds", ga.get("hasAccessToAllBuilds"),
+              "testerStates", states,
+              "activeBuilds", [b["attributes"]["version"] for b in builds if not b["attributes"].get("expired")])

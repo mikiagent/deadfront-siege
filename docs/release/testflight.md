@@ -1,34 +1,52 @@
 # Shipping a build to TestFlight
 
-First upload: 2026-09-17, build 0.1.0 (1), delivery `3305d9a9-1f45-499d-948e-6a1947705807`.
+The current TestFlight app is **Deadfront** (`com.deadfront.app`). The older **DurangoLike**
+(`com.durangolike.dev`) is a separate App Store Connect app. Check the bundle ID when looking
+for builds or tester invitations.
 
 ## One command
 
 ```
 tools/release_ios.sh
+tools/release_ios.sh --validate  # export, sign and validate without uploading
 ```
 
-It exports the Xcode project from Godot, archives with automatic signing, exports a signed App Store IPA, validates it, and uploads it. Build number is the timestamp, so every run is a higher build. Bump `MARKETING_VERSION` in `tools/release.env` when the version should change. `--validate` does everything but upload; `--no-export` reuses the last Godot export.
+It exports a **release** Xcode project from Godot, archives with manual App Store signing,
+exports a signed IPA, validates it, and uploads it. Build number is the timestamp, so every
+run is higher. Bump `MARKETING_VERSION` in `tools/release.env` when the version should change.
+`--validate` does everything except upload. `--no-export` reuses only a project produced by
+`tools/export_ios.sh --release`; it refuses a debug export. `tools/export_ios.sh` alone defaults
+to debug for local simulator and development-device runs.
 
-## What it relies on (all already in place on this Mac)
+## What it relies on
 
 | Thing | Where | Notes |
 |---|---|---|
 | Godot 4.7.1 mono export templates | `~/Library/Application Support/Godot/export_templates/4.7.1.stable.mono/` | installed 2026-09-17 |
-| iOS export preset | `game/export_presets.cfg` | team `U6SV8Z7K4S`, bundle `com.durangolike.dev`, `export_project_only`, push notifications off |
+| iOS export preset | `game/export_presets.cfg` | team `U6SV8Z7K4S`, bundle `com.deadfront.app`, `export_project_only`, push notifications off |
 | Xcode 27 with the licence accepted and an Apple ID signed in | Xcode, Settings, Accounts | needed for automatic provisioning |
-| App Store Connect app record | App Store Connect, My Apps | bundle `com.durangolike.dev` |
+| App Store Connect app record | App Store Connect, My Apps | Deadfront, bundle `com.deadfront.app` |
 | App Store Connect API key | `~/.appstoreconnect/private_keys/AuthKey_678H6PU9Y9.p8` | role App Manager; Key ID and Issuer ID in `tools/release.env` |
 
 ## Gotchas learned the hard way
 
 - Godot writes an `aps-environment` entitlement even with push notifications off; free and automatic provisioning rejects it. `tools/export_ios.sh` strips it after every export.
-- The generated project hard-codes `Apple Distribution` for Release, which conflicts with automatic signing. Archiving with `CODE_SIGN_IDENTITY="Apple Development"` and letting `-exportArchive` re-sign for the store is the fix.
+- The Release archive requires an installed provisioning profile for `com.deadfront.app` whose
+  distribution certificate has a private key on this Mac. As checked on 2026-09-23, the
+  account's active `Deadfront CI App Store` profile uses a distribution certificate without
+  a local private key, so the signed archive fails. An unsigned Release archive does build.
+- The script now stops on archive, IPA export, validation or upload errors. Older versions
+  suppressed some failures and could print an upload success message without a successful upload.
 - `xcodebuild -exportArchive` with `destination: upload` fails with "team IDs for account (null)" on this Mac. Uploading with `xcrun altool --apiKey/--apiIssuer` works. Validation passing also proves the app record exists.
-- The simulator is not viable: Godot ships only an Intel simulator slice and Xcode 27's simulators are Apple Silicon only.
+- `tools/sim_run.sh` adds the locally built arm64 simulator slice and launches the debug
+  shell. Simulator rendering is too slow for a reliable full-game performance test.
 - `ITSAppUsesNonExemptEncryption=false` in Info.plist avoids the export-compliance question on every build.
 
-Check processing from the shell: `uv run --with pyjwt --with cryptography python3 tools/asc_status.py`. Add a tester and attach the latest build: `uv run --with pyjwt --with cryptography python3 tools/asc_testflight.py <email>`.
+Check processing, tester-group access and accepted tester count:
+`uv run --with pyjwt --with cryptography python3 tools/asc_status.py`.
+To invite a tester and attach a build, use
+`uv run --with pyjwt --with cryptography python3 tools/asc_testflight.py <email>`.
+That second command changes App Store Connect.
 
 ## After the upload
 
