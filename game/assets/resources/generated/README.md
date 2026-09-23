@@ -32,3 +32,11 @@ Wave 4 (September 23, 2026, Meshy API, isolated props):
 - `min4-mud-final.glb`: raised swamp mud mound with puddle (mud pit node).
 
 Rejected this wave: two sandstone attempts (slab base; stacked cairn).
+
+Plant wave (September 23, 2026; 1k JPEG textures):
+- `plant-flax-final.glb`: flax clump with pale flowers (savannah/temperate plant crater).
+- `plant-bamboo-final.glb`: bamboo stalk cluster on a root rhizome (tropical; harvestable plant, not a tree).
+- `plant-tea-final.glb`: dense tea bush (temperate plant crater).
+- `plant-reed-final.glb`: reed and cattail clump with roots (temperate/swamp).
+
+Rejected: herb_leaf twice more (slab bases), cactus twice (ground discs), first reed and bamboo (ground discs).
