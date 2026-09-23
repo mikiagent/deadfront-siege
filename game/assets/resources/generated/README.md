@@ -47,3 +47,6 @@ Rejected: herb_leaf twice more (slab bases), cactus twice (ground discs), first 
 
 Rejected: coconut (texture read as pale onion bulbs, off-brief), dry_grass (bound sheaf), marsh_herb (ground disc).
 - `plant-herb_leaf-final.glb`: flowering leafy herb on a root clump (temperate plant crater).
+- `plant-marsh_herb-final.glb`: marsh medicinal herb with purple flower spikes on exposed roots (swamp plant crater). A stray loose disc piece was removed in Blender.
+
+Rejected: coconut twice more (pumpkin/onion shapes, then a plate), dry_grass again (flat litter pad at the base).
