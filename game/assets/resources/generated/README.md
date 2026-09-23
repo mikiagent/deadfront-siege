@@ -21,3 +21,14 @@ Rejected from this wave: stone texture developed white patches; sandstone became
 - `min2-black_iron-final.glb`: volcanic black iron deposit.
 
 Rejected: silver ore texture bleached nearly white and does not read as silver-bearing host rock; mud geometry was a shallow shapeless depression.
+
+Wave 4 (September 23, 2026, Meshy API, isolated props):
+- `min4-coral-final.glb`: blue-tropical branching coral colony on a small natural rock anchor.
+- `min4-lava_rock-final.glb`: volcanic scoria chunk with orange cooled seams.
+- `min4-silver_ore-final.glb`: snowfield dark granite host rock with silver veins.
+- `min4-stone-final.glb`: mid-gray lichen granite boulder (replaces rejected stone).
+- `min4-sandstone-final.glb`: layered tan-orange sandstone boulder.
+- `min4-ochre-final.glb`: rust-red ochre rock node.
+- `min4-mud-final.glb`: raised swamp mud mound with puddle (mud pit node).
+
+Rejected this wave: two sandstone attempts (slab base; stacked cairn).
