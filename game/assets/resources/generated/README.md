@@ -40,3 +40,5 @@ Plant wave (September 23, 2026; 1k JPEG textures):
 - `plant-reed-final.glb`: reed and cattail clump with roots (temperate/swamp).
 
 Rejected: herb_leaf twice more (slab bases), cactus twice (ground discs), first reed and bamboo (ground discs).
+
+- `plant-cactus-final.glb`: flowering saguaro cactus (desert plant crater).
