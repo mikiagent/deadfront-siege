@@ -50,3 +50,6 @@ Rejected: coconut (texture read as pale onion bulbs, off-brief), dry_grass (boun
 - `plant-marsh_herb-final.glb`: marsh medicinal herb with purple flower spikes on exposed roots (swamp plant crater). A stray loose disc piece was removed in Blender.
 
 Rejected: coconut twice more (pumpkin/onion shapes, then a plate), dry_grass again (flat litter pad at the base).
+- `plant-dry_grass-final.glb`: loose tuft of dry golden savannah grass (savannah/grassland plant crater). The flat litter pad the generator baked at the base was cropped out in Blender.
+
+Coconut: dropped. The palm tree is the in-world coconut source.
