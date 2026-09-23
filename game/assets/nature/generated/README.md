@@ -15,3 +15,10 @@ Pilot round 2 (September 23, 2026; generated without remesh for natural foliage,
 - `tree-willow-autumn-a.glb`: weeping willow with golden autumn foliage (swamp/temperate autumn variant).
 
 Rejected in round 2: 2 acacias (ground disc; double crown), 2 birches (ground pad; white snow-like leaf patches), 3 pines (ground pads; sparse; bubble-cone crown), 2 willows (ground disc; washed-out gray foliage).
+
+Pilot round 3 (September 23, 2026):
+- `tree-pine-a.glb`: tall conical pine with layered needle tiers (temperate/tundra/snowfield).
+- `tree-willow-a.glb`: green weeping willow (temperate/swamp).
+
+Rejected in round 3: 2 pines (blobby bubble crown; too sparse), 1 willow (ground disc).
+All generated GLBs use 1k JPEG textures for mobile.
