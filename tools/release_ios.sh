@@ -43,8 +43,8 @@ rm -rf "$WORK/durango.xcarchive"
 xcodebuild -project "$OUT/durango.xcodeproj" -scheme durango -configuration Release \
   -destination 'generic/platform=iOS' -archivePath "$WORK/durango.xcarchive" \
   CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$TEAM_ID" \
-  PROVISIONING_PROFILE_SPECIFIER="Deadfront CI App Store" \
-  CODE_SIGN_IDENTITY="iPhone Distribution" MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+  PROVISIONING_PROFILE_SPECIFIER="$APP_STORE_PROFILE" \
+  CODE_SIGN_IDENTITY="$SIGNING_CERTIFICATE" MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
   archive 2>&1 | tee "$WORK/archive.log"
 [[ -d "$WORK/durango.xcarchive" ]] || { echo "archive missing"; exit 1; }
 ARCHIVE_APP="$WORK/durango.xcarchive/Products/Applications/durango.app"
@@ -60,9 +60,9 @@ cat > "$WORK/exportOptions.plist" <<PL
   <key>destination</key><string>export</string>
   <key>teamID</key><string>$TEAM_ID</string>
   <key>signingStyle</key><string>manual</string>
-  <key>signingCertificate</key><string>AEA060BAE33BB5E6D4C37431D3366AE06F82BDF7</string>
+  <key>signingCertificate</key><string>$SIGNING_CERTIFICATE</string>
   <key>provisioningProfiles</key><dict>
-    <key>com.deadfront.app</key><string>Deadfront CI App Store</string>
+    <key>$BUNDLE_ID</key><string>$APP_STORE_PROFILE</string>
   </dict>
   <key>uploadSymbols</key><true/>
 </dict></plist>

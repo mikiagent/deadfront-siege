@@ -8,6 +8,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"; OUT="$ROOT/game/export/ios"
 WORK="${SIM_WORK:-$HOME/Library/Caches/durango-sim}"; mkdir -p "$WORK"
 SHOT="${2:-$WORK/sim_shot.png}"
 [[ "${1:-}" == "--no-export" ]] || "$ROOT/tools/export_ios.sh"
+if [[ ! -f "$OUT/.godot-export-mode" || "$(cat "$OUT/.godot-export-mode")" != debug ]]; then
+  echo "Simulator build requires a Godot debug export; run tools/sim_run.sh without --no-export." >&2
+  exit 1
+fi
 UDID=$(xcrun simctl list devices booted | grep -oE '[0-9A-F-]{36}' | head -1)
 [[ -n "$UDID" ]] || { echo "no booted simulator; run: xcrun simctl boot \"iPhone 17 Pro\""; exit 1; }
 if ! xcodebuild -project "$OUT/durango.xcodeproj" -scheme durango -configuration Debug \

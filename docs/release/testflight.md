@@ -24,7 +24,8 @@ to debug for local simulator and development-device runs.
 |---|---|---|
 | Godot 4.7.1 mono export templates | `~/Library/Application Support/Godot/export_templates/4.7.1.stable.mono/` | installed 2026-09-17 |
 | iOS export preset | `game/export_presets.cfg` | team `U6SV8Z7K4S`, bundle `com.deadfront.app`, `export_project_only`, push notifications off |
-| Xcode 27 with the licence accepted and an Apple ID signed in | Xcode, Settings, Accounts | needed for automatic provisioning |
+| Xcode 27 with the licence accepted | `/Applications/Xcode.app` | archives and exports the IPA |
+| App Store distribution certificate and matching profile | Login keychain and `~/Library/MobileDevice/Provisioning Profiles/` | `Deadfront Local App Store`; certificate SHA-1 and profile name are recorded in `tools/release.env` |
 | App Store Connect app record | App Store Connect, My Apps | Deadfront, bundle `com.deadfront.app` |
 | App Store Connect API key | `~/.appstoreconnect/private_keys/AuthKey_678H6PU9Y9.p8` | role App Manager; Key ID and Issuer ID in `tools/release.env` |
 
@@ -32,9 +33,10 @@ to debug for local simulator and development-device runs.
 
 - Godot writes an `aps-environment` entitlement even with push notifications off; free and automatic provisioning rejects it. `tools/export_ios.sh` strips it after every export.
 - The Release archive requires an installed provisioning profile for `com.deadfront.app` whose
-  distribution certificate has a private key on this Mac. As checked on 2026-09-23, the
-  account's active `Deadfront CI App Store` profile uses a distribution certificate without
-  a local private key, so the signed archive fails. An unsigned Release archive does build.
+  distribution certificate has a private key on this Mac. The existing `Deadfront CI App Store`
+  profile uses a different certificate. On 2026-09-23, `Deadfront Local App Store` was created
+  using this Mac's distribution certificate; it signed, exported and validated build
+  `0.2.0 (202609231330)` successfully.
 - The script now stops on archive, IPA export, validation or upload errors. Older versions
   suppressed some failures and could print an upload success message without a successful upload.
 - `xcodebuild -exportArchive` with `destination: upload` fails with "team IDs for account (null)" on this Mac. Uploading with `xcrun altool --apiKey/--apiIssuer` works. Validation passing also proves the app record exists.
@@ -50,7 +52,10 @@ That second command changes App Store Connect.
 
 ## After the upload
 
-Processing takes about ten minutes. Then in App Store Connect, TestFlight tab: add yourself to an internal testing group once (Internal Testing, +, add tester by Apple ID). Install the **TestFlight** app on the phone, accept the invite, install the build. Each later upload appears automatically for that group.
+Processing takes about ten minutes. Then in App Store Connect, TestFlight tab, confirm the new
+build is available to the existing internal group `Test`. The invited tester is already in that
+group. On the phone, open the **Deadfront** listing in TestFlight and install the new build.
+The older **DurangoLike** listing will keep showing its older build.
 
 ## Android (later)
 

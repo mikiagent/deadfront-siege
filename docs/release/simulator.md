@@ -19,6 +19,13 @@ tools/sim_run.sh            # export, build, install, launch, screenshot
 tools/sim_run.sh --no-export
 ```
 
+If Xcode reports `Undefined symbol: _main` while building for an Apple Silicon
+simulator after `tools/release_ios.sh`, the generated project still contains the
+official release simulator library, which has only an x86_64 slice. Run
+`tools/sim_run.sh` (without `--no-export`) to regenerate the project in debug mode
+with the locally built arm64 simulator library. The iPhone device archive uses a
+different arm64 library; this simulator linker error does not affect it.
+
 Notes: the game is GDScript-only, so a non-Mono library is fine even though the editor is the Mono build. Simulator frame rate is low (software-ish Metal); judge layout and flow, not performance. When Godot is upgraded, rebuild the library for the new version.
 
 

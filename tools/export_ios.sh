@@ -44,3 +44,7 @@ if [[ "$MODE" == debug && -f "$LIBDIR/libgodot.ios.template_debug.arm64.simulato
 fi
 printf '%s\n' "$MODE" > "$OUT/.godot-export-mode"
 echo "Export finished. Open game/export/ios/*.xcodeproj in Xcode."
+if [[ "$MODE" == release && "$(uname -m)" == arm64 && -f "$SIM" ]] && ! lipo -archs "$SIM" | grep -q arm64; then
+  echo "Note: this release project archives for iPhone, but its official simulator library is x86_64 only."
+  echo "Run tools/sim_run.sh to export a debug project with the local arm64 simulator library."
+fi
