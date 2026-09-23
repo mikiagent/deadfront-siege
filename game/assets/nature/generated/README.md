@@ -26,3 +26,9 @@ All generated GLBs use 1k JPEG textures for mobile.
 - `tree-willow-b.glb`: second green willow, full weeping crown.
 
 Rejected (variant b round): pine_v2 (puffball foliage, flared root skirt), acacia_v2 (cotton-ball crown, held back as borderline), common_v3 (root pad), palm_v3 (small pad).
+
+Material-swap variants (recolored base-color texture of the committed meshes, no new generation):
+- `tree-pine-snow.glb`: pine-a with snow-laden branches (tundra/snow biome).
+- `tree-common-snow.glb`: common-a with frosted crown (snow biome edge).
+- `tree-common-dead.glb`: common-a with withered brown foliage and greyed bark (wasteland/dead zones).
+- `tree-birch-dead.glb`: birch-a with dried brown foliage.
