@@ -17,7 +17,12 @@
       "Rock",
       "WoodLog",
       "TreeStump",
-      "WildGrass"
+      "WildGrass",
+      "GraniteBoulder",
+      "HerbPlant",
+      "FibreTuft",
+      "BranchPile",
+      "BerrySprig"
     ],
     "materials": [
       {
@@ -70,7 +75,13 @@
       "Rock",
       "Bush",
       "TreeStump",
-      "WildGrass"
+      "WildGrass",
+      "AcaciaTree",
+      "SandstoneNode",
+      "OchreNode",
+      "FlaxPlant",
+      "DryGrassTuft",
+      "BranchPile"
     ],
     "materials": [
       {
@@ -129,7 +140,15 @@
       "Rock",
       "WoodLog_Moss",
       "TreeStump_Moss",
-      "WildGrass"
+      "WildGrass",
+      "FlintNode",
+      "GraniteBoulder",
+      "FlaxPlant",
+      "ReedPlant",
+      "HerbPlant",
+      "FibreTuft",
+      "BranchPile",
+      "BerrySprig"
     ],
     "materials": [
       {
@@ -190,7 +209,11 @@
       "Bush",
       "Rock_Moss",
       "Lilypad",
-      "WildGrass"
+      "WildGrass",
+      "ObsidianNode",
+      "BambooPlant",
+      "MangoBush",
+      "VinePlant"
     ],
     "materials": [
       {
@@ -241,7 +264,8 @@
       "Rock_Snow",
       "Grass_Short",
       "WoodLog_Snow",
-      "WildGrass"
+      "WildGrass",
+      "IceNode"
     ],
     "materials": [
       {
@@ -286,7 +310,10 @@
       "CactusFlower",
       "Rock",
       "CommonTree_Dead",
-      "WildGrass"
+      "WildGrass",
+      "CopperOreNode",
+      "SaltNode",
+      "SandstoneNode"
     ],
     "materials": [
       {
@@ -335,7 +362,10 @@
       "Grass",
       "Rock_Moss",
       "WoodLog_Moss",
-      "WildGrass"
+      "WildGrass",
+      "PeatNode",
+      "ReedPlant",
+      "MarshHerbPlant"
     ],
     "materials": [
       {
@@ -382,7 +412,9 @@
       "Rock_Snow",
       "Bush_Snow",
       "CommonTree_Dead_Snow",
-      "WildGrass"
+      "WildGrass",
+      "IceNode",
+      "SilverOreNode"
     ],
     "materials": [
       {
@@ -420,7 +452,9 @@
       "Lilypad",
       "Rock",
       "Grass",
-      "WildGrass"
+      "WildGrass",
+      "CoralNode",
+      "PearlNode"
     ],
     "materials": [
       {
@@ -458,7 +492,10 @@
       "Rock",
       "CommonTree_Dead",
       "Rock_Snow",
-      "WildGrass"
+      "WildGrass",
+      "BlackIronNode",
+      "SulphurNode",
+      "LavaRockNode"
     ],
     "materials": [
       {

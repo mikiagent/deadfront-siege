@@ -711,6 +711,11 @@ func _scatter(def: Dictionary, terrain: StringName, climate: String, tier: int, 
 				fallback = &"dry_grass" if fs == "WildGrass" else &"herb_leaf"
 				tool = &"none"
 				col = Color(0.55, 0.62, 0.3) if fs == "WildGrass" else Color(0.35, 0.55, 0.25)
+		# Generated resource families declare their own per-island count so a mineral or crater
+		# plant stays a find, not a carpet.
+		var fixed_count := int(Data.nature_families.get(fs, {}).get("count", 0))
+		if fixed_count > 0:
+			n = maxi(2, fixed_count / 2) if home else fixed_count
 		if n <= 0:
 			continue
 		harvest_count += _plant_family(fs, role, n, fallback, tool, climate, tier, size, rng, col)
@@ -808,7 +813,7 @@ func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringNa
 		var model := models[(harvest_count + _used_tiles.size()) % models.size()]
 		if model == "":
 			model = models[0]
-		var path := "res://assets/nature/%s.glb" % model
+		var path := _nature_path(model)
 		if ResourceLoader.exists(path):
 			_attach_batched(node, path, role_s, family, pos)
 		else:
@@ -819,6 +824,9 @@ func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringNa
 func _target_height(role: String, family: String) -> float:
 	var r := RandomNumberGenerator.new()
 	r.seed = hash(family) + _used_tiles.size() * 7919
+	var span: Variant = Data.nature_families.get(family, {}).get("height", null)
+	if span is Array and (span as Array).size() >= 2:
+		return r.randf_range(float(span[0]), float(span[1]))
 	if family == "PalmTree":
 		return r.randf_range(8.0, 11.0)
 	if role.begins_with("tree"):
@@ -891,7 +899,7 @@ func _multimesh_family(family: String, n: int, size: float, rng: RandomNumberGen
 	var models := _models(family)
 	if models.is_empty() or n <= 0:
 		return
-	var path := "res://assets/nature/%s.glb" % models[0]
+	var path := _nature_path(models[0])
 	if not ResourceLoader.exists(path):
 		print("[world] missing nature %s" % path)
 		return
@@ -1056,6 +1064,13 @@ func _basis_from_normal(up: Vector3, yaw: float) -> Basis:
 	var b := t.cross(n).normalized()
 	var basis := Basis(t, n, b)
 	return basis.rotated(n, yaw)
+
+## Manifest models are Quaternius names under res://assets/nature/, or full res:// paths
+## (the generated Meshy trees, minerals and plants live in their own folders).
+static func _nature_path(model: String) -> String:
+	if model.begins_with("res://"):
+		return model
+	return "res://assets/nature/%s.glb" % model
 
 func _models(family: String) -> PackedStringArray:
 	var man: Dictionary = Data.nature_families.get(family, {})

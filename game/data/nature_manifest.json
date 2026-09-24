@@ -3,11 +3,8 @@
   "families": {
     "BirchTree": {
       "models": [
-        "BirchTree_1",
-        "BirchTree_2",
-        "BirchTree_3",
-        "BirchTree_4",
-        "BirchTree_5"
+        "res://assets/nature/generated/tree-birch-a.glb",
+        "res://assets/nature/generated/tree-birch-b.glb"
       ],
       "role": "tree",
       "climates": [
@@ -58,11 +55,7 @@
     },
     "BirchTree_Dead": {
       "models": [
-        "BirchTree_Dead_1",
-        "BirchTree_Dead_2",
-        "BirchTree_Dead_3",
-        "BirchTree_Dead_4",
-        "BirchTree_Dead_5"
+        "res://assets/nature/generated/tree-birch-dead.glb"
       ],
       "role": "tree_dead",
       "climates": [
@@ -194,8 +187,7 @@
     },
     "mud": {
       "models": [
-        "Rock_1",
-        "Rock_2"
+        "res://assets/resources/generated/min4-mud-final.glb"
       ],
       "role": "node",
       "climates": [
@@ -215,8 +207,7 @@
     },
     "clay": {
       "models": [
-        "Rock_3",
-        "Rock_4"
+        "res://assets/resources/generated/resource-clay-final.glb"
       ],
       "role": "node",
       "climates": [
@@ -255,11 +246,7 @@
     },
     "Cactus": {
       "models": [
-        "Cactus_1",
-        "Cactus_2",
-        "Cactus_3",
-        "Cactus_4",
-        "Cactus_5"
+        "res://assets/resources/generated/plant-cactus-final.glb"
       ],
       "role": "plant",
       "climates": [
@@ -276,7 +263,11 @@
         ]
       },
       "tool_class": "knife",
-      "collision": "none"
+      "collision": "none",
+      "height": [
+        2.6,
+        4.0
+      ]
     },
     "CactusFlower": {
       "models": [
@@ -325,11 +316,8 @@
     },
     "CommonTree": {
       "models": [
-        "CommonTree_1",
-        "CommonTree_2",
-        "CommonTree_3",
-        "CommonTree_4",
-        "CommonTree_5"
+        "res://assets/nature/generated/tree-common-a.glb",
+        "res://assets/nature/generated/tree-common-b.glb"
       ],
       "role": "tree",
       "climates": [
@@ -376,11 +364,7 @@
     },
     "CommonTree_Dead": {
       "models": [
-        "CommonTree_Dead_1",
-        "CommonTree_Dead_2",
-        "CommonTree_Dead_3",
-        "CommonTree_Dead_4",
-        "CommonTree_Dead_5"
+        "res://assets/nature/generated/tree-common-dead.glb"
       ],
       "role": "tree_dead",
       "climates": [
@@ -420,11 +404,7 @@
     },
     "CommonTree_Snow": {
       "models": [
-        "CommonTree_Snow_1",
-        "CommonTree_Snow_2",
-        "CommonTree_Snow_3",
-        "CommonTree_Snow_4",
-        "CommonTree_Snow_5"
+        "res://assets/nature/generated/tree-common-snow.glb"
       ],
       "role": "tree",
       "climates": [
@@ -543,10 +523,8 @@
     },
     "PalmTree": {
       "models": [
-        "PalmTree_1",
-        "PalmTree_2",
-        "PalmTree_3",
-        "PalmTree_4"
+        "res://assets/nature/generated/tree-palm-a.glb",
+        "res://assets/nature/generated/tree-palm-twin.glb"
       ],
       "role": "tree",
       "climates": [
@@ -573,11 +551,7 @@
     },
     "PineTree": {
       "models": [
-        "PineTree_1",
-        "PineTree_2",
-        "PineTree_3",
-        "PineTree_4",
-        "PineTree_5"
+        "res://assets/nature/generated/tree-pine-a.glb"
       ],
       "role": "tree",
       "climates": [
@@ -628,11 +602,7 @@
     },
     "PineTree_Snow": {
       "models": [
-        "PineTree_Snow_1",
-        "PineTree_Snow_2",
-        "PineTree_Snow_3",
-        "PineTree_Snow_4",
-        "PineTree_Snow_5"
+        "res://assets/nature/generated/tree-pine-snow.glb"
       ],
       "role": "tree",
       "climates": [
@@ -853,11 +823,8 @@
     },
     "Willow": {
       "models": [
-        "Willow_1",
-        "Willow_2",
-        "Willow_3",
-        "Willow_4",
-        "Willow_5"
+        "res://assets/nature/generated/tree-willow-a.glb",
+        "res://assets/nature/generated/tree-willow-b.glb"
       ],
       "role": "tree",
       "climates": [
@@ -879,11 +846,7 @@
     },
     "Willow_Autumn": {
       "models": [
-        "Willow_Autumn_1",
-        "Willow_Autumn_2",
-        "Willow_Autumn_3",
-        "Willow_Autumn_4",
-        "Willow_Autumn_5"
+        "res://assets/nature/generated/tree-willow-autumn-a.glb"
       ],
       "role": "tree",
       "climates": [
@@ -1051,6 +1014,637 @@
       "tool_class": null,
       "collision": "none",
       "_note": "Gatherable wild grass tufts (dry grass for kindling/thatch, fibre for twine). Added 2026-09-20."
+    },
+    "AcaciaTree": {
+      "models": [
+        "res://assets/nature/generated/tree-acacia-a.glb"
+      ],
+      "role": "tree",
+      "climates": [
+        "savannah"
+      ],
+      "harvest": {
+        "acacia_wood": [
+          1,
+          2
+        ],
+        "branch": [
+          2,
+          3
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder",
+      "height": [
+        6.5,
+        8.5
+      ]
+    },
+    "FlintNode": {
+      "models": [
+        "res://assets/resources/generated/min-flint-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "temperate"
+      ],
+      "harvest": {
+        "flint": [
+          1,
+          2
+        ],
+        "stone": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 8,
+      "height": [
+        0.8,
+        1.3
+      ]
+    },
+    "ObsidianNode": {
+      "models": [
+        "res://assets/resources/generated/min-obsidian-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "tropical"
+      ],
+      "harvest": {
+        "obsidian": [
+          1,
+          2
+        ],
+        "stone": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 8,
+      "height": [
+        0.8,
+        1.3
+      ]
+    },
+    "IceNode": {
+      "models": [
+        "res://assets/resources/generated/min-ice-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "tundra",
+        "snowfield"
+      ],
+      "harvest": {
+        "ice": [
+          1,
+          3
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 8,
+      "height": [
+        0.8,
+        1.3
+      ]
+    },
+    "CopperOreNode": {
+      "models": [
+        "res://assets/resources/generated/min2-copper_ore-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "desert"
+      ],
+      "harvest": {
+        "copper_ore": [
+          1,
+          2
+        ],
+        "stone": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 8,
+      "height": [
+        0.8,
+        1.3
+      ]
+    },
+    "SaltNode": {
+      "models": [
+        "res://assets/resources/generated/min2-salt-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "desert"
+      ],
+      "harvest": {
+        "salt": [
+          1,
+          3
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 8,
+      "height": [
+        0.8,
+        1.3
+      ]
+    },
+    "PeatNode": {
+      "models": [
+        "res://assets/resources/generated/min2-peat-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "swamp"
+      ],
+      "harvest": {
+        "peat": [
+          1,
+          3
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 8,
+      "height": [
+        0.5,
+        0.8
+      ]
+    },
+    "BlackIronNode": {
+      "models": [
+        "res://assets/resources/generated/min2-black_iron-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "volcanic"
+      ],
+      "harvest": {
+        "black_iron": [
+          1,
+          2
+        ],
+        "stone": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 8,
+      "height": [
+        0.8,
+        1.3
+      ]
+    },
+    "SulphurNode": {
+      "models": [
+        "res://assets/resources/generated/min3-sulphur-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "volcanic"
+      ],
+      "harvest": {
+        "sulphur": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 8,
+      "height": [
+        0.8,
+        1.3
+      ]
+    },
+    "LavaRockNode": {
+      "models": [
+        "res://assets/resources/generated/min4-lava_rock-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "volcanic"
+      ],
+      "harvest": {
+        "stone": [
+          1,
+          3
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 10,
+      "height": [
+        0.8,
+        1.3
+      ]
+    },
+    "CoralNode": {
+      "models": [
+        "res://assets/resources/generated/min4-coral-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "blue_tropical"
+      ],
+      "harvest": {
+        "coral": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 8,
+      "height": [
+        0.6,
+        1.0
+      ]
+    },
+    "PearlNode": {
+      "models": [
+        "res://assets/resources/generated/min3-pearl-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "blue_tropical"
+      ],
+      "harvest": {
+        "pearl": [
+          1,
+          1
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 4,
+      "height": [
+        0.4,
+        0.6
+      ]
+    },
+    "SilverOreNode": {
+      "models": [
+        "res://assets/resources/generated/min4-silver_ore-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "snowfield"
+      ],
+      "harvest": {
+        "silver_ore": [
+          1,
+          2
+        ],
+        "stone": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 8,
+      "height": [
+        0.8,
+        1.3
+      ]
+    },
+    "SandstoneNode": {
+      "models": [
+        "res://assets/resources/generated/min4-sandstone-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "savannah",
+        "desert"
+      ],
+      "harvest": {
+        "sandstone": [
+          1,
+          3
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 8,
+      "height": [
+        0.8,
+        1.3
+      ]
+    },
+    "OchreNode": {
+      "models": [
+        "res://assets/resources/generated/min4-ochre-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "savannah"
+      ],
+      "harvest": {
+        "ochre": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 6,
+      "height": [
+        0.6,
+        1.0
+      ]
+    },
+    "GraniteBoulder": {
+      "models": [
+        "res://assets/resources/generated/min4-stone-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "grassland",
+        "temperate"
+      ],
+      "harvest": {
+        "stone": [
+          2,
+          3
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 8,
+      "height": [
+        0.9,
+        1.4
+      ]
+    },
+    "FlaxPlant": {
+      "models": [
+        "res://assets/resources/generated/plant-flax-final.glb"
+      ],
+      "role": "plant",
+      "climates": [
+        "savannah",
+        "temperate"
+      ],
+      "harvest": {
+        "flax": [
+          1,
+          3
+        ]
+      },
+      "tool_class": "none",
+      "collision": "none",
+      "count": 10,
+      "height": [
+        0.8,
+        1.2
+      ]
+    },
+    "BambooPlant": {
+      "models": [
+        "res://assets/resources/generated/plant-bamboo-final.glb"
+      ],
+      "role": "plant",
+      "climates": [
+        "tropical"
+      ],
+      "harvest": {
+        "bamboo": [
+          1,
+          3
+        ]
+      },
+      "tool_class": "knife",
+      "collision": "none",
+      "count": 10,
+      "height": [
+        2.4,
+        3.6
+      ]
+    },
+    "ReedPlant": {
+      "models": [
+        "res://assets/resources/generated/plant-reed-final.glb"
+      ],
+      "role": "plant",
+      "climates": [
+        "temperate",
+        "swamp"
+      ],
+      "harvest": {
+        "reed": [
+          1,
+          3
+        ]
+      },
+      "tool_class": "none",
+      "collision": "none",
+      "count": 10,
+      "height": [
+        1.2,
+        1.8
+      ]
+    },
+    "MangoBush": {
+      "models": [
+        "res://assets/resources/generated/plant-mango-final.glb"
+      ],
+      "role": "plant",
+      "climates": [
+        "tropical"
+      ],
+      "harvest": {
+        "mango": [
+          1,
+          3
+        ]
+      },
+      "tool_class": "none",
+      "collision": "none",
+      "count": 8,
+      "height": [
+        1.8,
+        2.6
+      ]
+    },
+    "VinePlant": {
+      "models": [
+        "res://assets/resources/generated/plant-vine-final.glb"
+      ],
+      "role": "plant",
+      "climates": [
+        "tropical"
+      ],
+      "harvest": {
+        "vine": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "knife",
+      "collision": "none",
+      "count": 10,
+      "height": [
+        0.8,
+        1.2
+      ]
+    },
+    "HerbPlant": {
+      "models": [
+        "res://assets/resources/generated/plant-herb_leaf-final.glb"
+      ],
+      "role": "plant",
+      "climates": [
+        "grassland",
+        "temperate"
+      ],
+      "harvest": {
+        "herb_leaf": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "none",
+      "collision": "none",
+      "count": 10,
+      "height": [
+        0.5,
+        0.8
+      ]
+    },
+    "MarshHerbPlant": {
+      "models": [
+        "res://assets/resources/generated/plant-marsh_herb-final.glb"
+      ],
+      "role": "plant",
+      "climates": [
+        "swamp"
+      ],
+      "harvest": {
+        "marsh_herb": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "none",
+      "collision": "none",
+      "count": 10,
+      "height": [
+        0.5,
+        0.8
+      ]
+    },
+    "DryGrassTuft": {
+      "models": [
+        "res://assets/resources/generated/plant-dry_grass-final.glb"
+      ],
+      "role": "plant",
+      "climates": [
+        "savannah"
+      ],
+      "harvest": {
+        "dry_grass": [
+          1,
+          3
+        ],
+        "fibre_stalk": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "none",
+      "collision": "none",
+      "count": 14,
+      "height": [
+        0.6,
+        0.9
+      ]
+    },
+    "FibreTuft": {
+      "models": [
+        "res://assets/resources/generated/resource-fibre_stalk-final.glb"
+      ],
+      "role": "plant",
+      "climates": [
+        "grassland",
+        "temperate"
+      ],
+      "harvest": {
+        "fibre_stalk": [
+          1,
+          3
+        ]
+      },
+      "tool_class": "none",
+      "collision": "none",
+      "count": 12,
+      "height": [
+        0.6,
+        0.9
+      ]
+    },
+    "BranchPile": {
+      "models": [
+        "res://assets/resources/generated/resource-branch-final.glb"
+      ],
+      "role": "plant",
+      "climates": [
+        "grassland",
+        "temperate",
+        "savannah"
+      ],
+      "harvest": {
+        "branch": [
+          1,
+          2
+        ]
+      },
+      "tool_class": "none",
+      "collision": "none",
+      "count": 10,
+      "height": [
+        0.25,
+        0.4
+      ]
+    },
+    "BerrySprig": {
+      "models": [
+        "res://assets/resources/generated/resource-berries-final.glb"
+      ],
+      "role": "plant",
+      "climates": [
+        "grassland",
+        "temperate"
+      ],
+      "harvest": {
+        "berries": [
+          1,
+          3
+        ]
+      },
+      "tool_class": "none",
+      "collision": "none",
+      "count": 8,
+      "height": [
+        0.5,
+        0.8
+      ]
     }
   }
 }
