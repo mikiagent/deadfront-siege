@@ -71,7 +71,17 @@ static func _mesh_of(path: String) -> Mesh:
 	var inst: Node = (packed as PackedScene).instantiate()
 	var mesh := _first_mesh(inst)
 	inst.free()
+	if mesh and path.contains("/generated/"):
+		_strip_emission(mesh)
 	return mesh
+
+## Meshy exports copy the albedo into a full-strength emissive map, which makes generated
+## crowns and rocks glow neon under the island light. Nature never self-lights, so drop it.
+static func _strip_emission(mesh: Mesh) -> void:
+	for s in mesh.get_surface_count():
+		var mat := mesh.surface_get_material(s)
+		if mat is BaseMaterial3D and (mat as BaseMaterial3D).emission_enabled:
+			(mat as BaseMaterial3D).emission_enabled = false
 
 static func _first_mesh(n: Node) -> Mesh:
 	if n is MeshInstance3D and (n as MeshInstance3D).mesh:

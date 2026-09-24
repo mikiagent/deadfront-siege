@@ -495,7 +495,8 @@
       "WildGrass",
       "BlackIronNode",
       "SulphurNode",
-      "LavaRockNode"
+      "LavaRockNode",
+      "AshNode"
     ],
     "materials": [
       {
