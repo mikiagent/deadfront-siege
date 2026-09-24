@@ -40,8 +40,25 @@ LOADER = r'''
 					onProgress(loaded, man.size);
 				}
 			}
-			return man.parts.reduce(function (p, part) {
-				return p.then(function () {
+			// One dropped fetch used to kill the whole multi-part load. Retry each part up to
+			// three times, rewinding to the part's start offset so partial bytes are overwritten.
+			function fetchPart(part, attempt) {
+				const start = loaded;
+				return downloadPart(part).catch(function (err) {
+					if (attempt >= 3) {
+						throw err;
+					}
+					loaded = start;
+					reportProgress();
+					console.warn('Retrying ' + part + ' (attempt ' + (attempt + 1) + ' of 3): ' + err);
+					return new Promise(function (resolve) {
+						setTimeout(resolve, 1000 * attempt);
+					}).then(function () {
+						return fetchPart(part, attempt + 1);
+					});
+				});
+			}
+			function downloadPart(part) {
 					return fetch(part).then(function (res) {
 						if (!res.ok) {
 							throw new Error('Failed to download ' + part + ' (' + res.status + ')');
@@ -71,6 +88,10 @@ LOADER = r'''
 						}
 						return pump();
 					});
+			}
+			return man.parts.reduce(function (p, part) {
+				return p.then(function () {
+					return fetchPart(part, 1);
 				});
 			}, Promise.resolve()).then(function () {
 				if (loaded !== man.size) {
