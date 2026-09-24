@@ -32,3 +32,5 @@ Material-swap variants (recolored base-color texture of the committed meshes, no
 - `tree-common-snow.glb`: common-a with frosted crown (snow biome edge).
 - `tree-common-dead.glb`: common-a with withered brown foliage and greyed bark (wasteland/dead zones).
 - `tree-birch-dead.glb`: birch-a with dried brown foliage.
+
+Foliage regrade (Sep 24): the green trees (common a/b, birch a/b, pine-a, acacia-a, palm-a, palm-twin, willow a/b) had neon lime foliage albedo that read as highlighter green under the island's warm light. Their base-color textures were recolored toward deeper, less saturated greens: hue about 105 degrees, saturation capped at 0.45, foliage brightness normalized to V 0.38. Foliage now averages about RGB (70,97,55), matching the dark natural greens in docs/reference/durango-*. Snow, dead and autumn variants are unchanged.
