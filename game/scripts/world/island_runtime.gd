@@ -1163,7 +1163,6 @@ func _weather(delta: float) -> void:
 	if raining:
 		_rain_left -= delta
 		if p:
-			p.vitals.drink(delta * 2.0)  # rain refills thirst 2/s while it falls
 			p.statuses.apply(&"wet", null)
 		if _rain_fx:
 			if p:

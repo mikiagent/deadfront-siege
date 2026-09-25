@@ -531,7 +531,7 @@ func _beat(seconds: float) -> bool:
 		if player and player.skills:
 			_xp_curve.append({"t": _t, "lvl": World.pioneer_level, "bag": player.inventory.used_slots(),
 				"hp": player.vitals.health, "energy": player.vitals.energy,
-				"hunger": player.vitals.hunger, "thirst": player.vitals.thirst})
+				"exhaustion": player.vitals.fatigue})
 	if shot_dir != "" and _t >= _next_shot:
 		_next_shot = _t + 10.0
 		_shot()
@@ -600,7 +600,7 @@ func _report() -> void:
 			print("[bot]   %-22s %5.1f s  %4.1f%%" % [k, secs, 100.0 * secs / maxf(1.0, _t)])
 	print("[bot] vitals / progress samples:")
 	for s in _xp_curve:
-		print("[bot]   t=%5.0f lvl=%d bag=%d hp=%.0f energy=%.0f hunger=%.0f thirst=%.0f" % [
-			s["t"], s["lvl"], s["bag"], s["hp"], s["energy"], s["hunger"], s["thirst"]])
+		print("[bot]   t=%5.0f lvl=%d bag=%d hp=%.0f energy=%.0f exhaustion=%.0f" % [
+			s["t"], s["lvl"], s["bag"], s["hp"], s["energy"], s["exhaustion"]])
 	print("[bot] events=%d shots=%d" % [_events.size(), _shot_n])
 	print("[bot] PASS" if ok > 0 else "[bot] FAIL no rung reached")

@@ -60,24 +60,6 @@ func _ready() -> void:
 		add_to_group("basket")
 	if get_node_or_null("Shape") == null and get_node_or_null("Prop") == null and get_node_or_null("FallbackMesh") == null:
 		PropVisuals.apply_building_visual(self, kind, _fallback_size(), _color())
-	if kind == &"tent" and get_node_or_null("Rest") == null:
-		var area := Area3D.new()
-		area.name = "Rest"
-		var acs := CollisionShape3D.new()
-		var ash := BoxShape3D.new()
-		ash.size = Vector3(3.2, 2.0, 3.2)
-		acs.shape = ash
-		acs.position.y = 1.0
-		area.add_child(acs)
-		add_child(area)
-		area.body_entered.connect(func (b: Node) -> void:
-			if b is Player:
-				World.resting_in_tent = true
-		)
-		area.body_exited.connect(func (b: Node) -> void:
-			if b is Player:
-				World.resting_in_tent = false
-		)
 
 func _exit_tree() -> void:
 	_release_grid()

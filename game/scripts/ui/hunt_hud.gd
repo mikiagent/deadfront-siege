@@ -98,6 +98,8 @@ func _ready() -> void:
 		)
 	if Game.shot_path.contains("bigmap"):
 		get_tree().create_timer(0.9).timeout.connect(_open_map)
+	if Game.shot_path.contains("exhaustion") and player:
+		player.vitals.fatigue = 96.0 if Game.shot_path.contains("sad") else (60.0 if Game.shot_path.contains("weary") else 0.0)
 	if Game.shot_path.contains("levelup"):
 		get_tree().create_timer(0.8).timeout.connect(func () -> void: World.pioneer_level += 1; World.pioneer_changed.emit(World.pioneer_level))
 	get_viewport().size_changed.connect(_layout)
@@ -861,7 +863,7 @@ func _draw() -> void:
 	var gap := 6.0 if not phone else 6.0
 	var num_px := UiTokens.body(r) - 1 if not phone else 12
 	var bar_px := UiTokens.meta(r) if not phone else 12
-	var panel_h := big * 2.0 + small * 2.0 + gap * 3.0 + 28.0
+	var panel_h := big * 2.0 + small + gap * 2.0 + 36.0
 	draw_rect(Rect2(x - 8.0, y - 6.0, panel_w, panel_h), UiTokens.INK)
 	var lvl_r := 18.0 if not phone else 16.0
 	draw_circle(Vector2(x + lvl_r, y + lvl_r), lvl_r, Color(0.08, 0.09, 0.11, 0.95))
@@ -872,23 +874,14 @@ func _draw() -> void:
 	yy += big + gap
 	_bar(Vector2(x, yy), Vector2(bar_w, big), v.energy / maxf(1.0, v.max_energy), Color(0.20, 0.45, 0.80), "", "%.0f / %.0f" % [v.energy, v.max_energy], num_px)
 	yy += big + gap
-	var hfrac: float = v.hunger / maxf(1.0, v.max_hunger)
-	var tfrac: float = v.thirst / maxf(1.0, v.max_thirst)
-	_bar(Vector2(x, yy), Vector2(bar_w, small), hfrac, UiTokens.DANGER if hfrac <= 0.0 else Color(0.80, 0.50, 0.18), "", "%.0f" % v.hunger, bar_px)
-	yy += small + gap
-	_bar(Vector2(x, yy), Vector2(bar_w, small), tfrac, UiTokens.DANGER if tfrac <= 0.0 else Color(0.25, 0.70, 0.85), "", "%.0f" % v.thirst, bar_px)
-	yy += small + gap
-	var warn := ""
-	if hfrac <= 0.0 or tfrac <= 0.0:
-		warn = "STARVING" if hfrac <= 0.0 else "PARCHED"
-	elif v.hungry() and v.thirsty():
-		warn = "HUNGRY · THIRSTY"
-	elif v.hungry():
-		warn = "HUNGRY: slow stamina"
-	elif v.thirsty():
-		warn = "THIRSTY: slow, weak regen"
-	if warn != "":
-		draw_string(_font, Vector2(x, yy + bar_px), warn, HORIZONTAL_ALIGNMENT_LEFT, bar_w, bar_px, Color(1, 0.55, 0.4))
+	var strain: float = clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0)
+	var face_pos := Vector2(x + 11.0, yy + 10.0)
+	_draw_exhaustion_face(face_pos, strain)
+	var face_label := "RESTED" if strain < 0.25 else ("TIRED" if strain < 0.5 else ("WEARY" if strain < 0.75 else "EXHAUSTED"))
+	var face_col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
+	draw_string(_font, Vector2(x + 27.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, bar_w - 30.0, bar_px, face_col)
+	yy += 22.0
+	_bar(Vector2(x, yy), Vector2(bar_w, small), strain, face_col, "", "%d%%" % int(strain * 100.0), bar_px)
 	# status badges live under the minimap (right side), left of the Claim hex
 	var mp0 := _minimap.position
 	var sx := mp0.x
@@ -1032,6 +1025,26 @@ func _draw_quest(r: Vector2, mp: Vector2) -> void:
 	draw_string(_font, origin + Vector2(w - pw - 12.0, 58), str(step["progress"]), HORIZONTAL_ALIGNMENT_LEFT, -1, meta_px, UiTokens.TEAL)
 	# A thin fill along the card's left edge shows how close the order is to done.
 	draw_rect(Rect2(origin, Vector2(3.0, 72.0 * float(step["frac"]))), UiTokens.TEAL)
+
+## Four readable expressions: smile -> neutral -> frown -> deep frown.
+## Geometry is drawn rather than relying on platform-specific emoji fonts.
+func _draw_exhaustion_face(center: Vector2, strain: float) -> void:
+	var tier := mini(3, int(strain * 4.0))
+	var col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
+	draw_circle(center, 10.0, col)
+	draw_arc(center, 10.0, 0.0, TAU, 18, Color(0.06, 0.08, 0.08), 1.4)
+	for side in [-1.0, 1.0]:
+		draw_circle(center + Vector2(side * 3.4, -2.0), 1.0, Color(0.08, 0.1, 0.1))
+	var dark := Color(0.08, 0.1, 0.1)
+	match tier:
+		0:
+			draw_arc(center + Vector2(0, -0.2), 5.5, 0.15, PI - 0.15, 12, dark, 1.6)
+		1:
+			draw_line(center + Vector2(-4.5, 4.0), center + Vector2(4.5, 4.0), dark, 1.6)
+		2:
+			draw_arc(center + Vector2(0, 7.0), 4.5, PI + 0.35, TAU - 0.35, 12, dark, 1.5)
+		3:
+			draw_arc(center + Vector2(0, 9.0), 5.5, PI + 0.15, TAU - 0.15, 12, dark, 1.6)
 
 func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String, text_px: int = 12) -> void:
 	draw_rect(Rect2(pos, size), Color(0.08, 0.08, 0.1, 0.85))

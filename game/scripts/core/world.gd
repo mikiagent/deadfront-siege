@@ -28,7 +28,6 @@ var _sink_warned: bool = false
 var harvested: Dictionary = {} ## node_id -> {pool, pool_max, session_gathered}
 var runtime: Node3D
 var last_save_unix: int = 0
-var resting_in_tent: bool = false
 var _home_buildings_cache: Array = []
 ## Moved camp pieces (fire, bench, shed, cargo warp): node name -> {cell, rot}; applied when the
 ## island builds them, saved under home.camp_layout.
@@ -38,7 +37,6 @@ var _fade: ColorRect
 
 const SAVE_PATH := "user://save_1.json"
 const CARGO_FEE := 2 ## ASSUMPTION: T-stones to cargo-warp a bag of unstable goods
-const TENT_REST_PER_MIN := 8.0 ## ASSUMPTION: fatigue drained per real minute in a tent
 
 func _ready() -> void:
 	_load_islands("res://data/islands")
@@ -65,9 +63,6 @@ func _process(delta: float) -> void:
 	if _save_acc >= 60.0:
 		_save_acc = 0.0
 		_save_now()
-	var player := _player()
-	if player and resting_in_tent:
-		player.vitals.rest(TENT_REST_PER_MIN / 60.0 * delta)
 
 func is_home() -> bool:
 	return str(island_def.get("kind", "")) == "private"

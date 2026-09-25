@@ -153,11 +153,6 @@ func _notification(what: int) -> void:
 		var elapsed := 0
 		if _bg_unix > 0:
 			elapsed = maxi(0, int(Time.get_unix_time_from_system()) - _bg_unix)
-		if elapsed > 0 and World.resting_in_tent:
-			var player := get_tree().get_first_node_in_group("player") as Player
-			if player:
-				player.vitals.rest(World.TENT_REST_PER_MIN * (float(elapsed) / 60.0))
-				print("[world] background rest %ds" % elapsed)
 		_bg_unix = 0
 
 func phase_name() -> StringName:

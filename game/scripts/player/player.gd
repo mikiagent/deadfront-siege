@@ -118,6 +118,7 @@ var _last_hit_taken_s: float = -999.0
 ## Presentation only: who landed the hit that left the survivor down. Cleared on respawn.
 var downed_by: String = ""
 var _autofeed_cd: float = 0.0
+var _sleep_left: float = 0.0
 var _roll_through: Array[Creature] = []
 ## Stagger: a short unmovable hurt window after a hit (0.35 s), at most once every 1.5 s.
 var _stagger_left: float = 0.0
@@ -323,6 +324,9 @@ func _physics_process(delta: float) -> void:
 		skills.add_xp("survival", 1)
 	_tick_autofeed(delta)
 	_tick_hold_walk(delta)
+	if _sleep_left > 0.0 and statuses != null and vitals != null:
+		_tick_sleep(delta)
+		return
 	if statuses == null or vitals == null:
 		move_and_slide()
 		return
@@ -390,8 +394,6 @@ func _physics_process(delta: float) -> void:
 		can_sprint = false
 	var target_speed := sprint_speed if can_sprint else (run_speed if running else walk_speed)
 	target_speed *= statuses.move_mult()
-	if vitals.thirsty():
-		target_speed *= 0.9
 	if nav_active:
 		var next_dir := Vector3.ZERO
 		var finished := false
@@ -827,9 +829,6 @@ func _auto_equip_tool(tool_class: StringName) -> bool:
 	return true
 
 func _begin_butcher(corpse: Corpse) -> void:
-	if vitals.exhausted:
-		print("[item] too exhausted to butcher")
-		return
 	var why := corpse.can_butcher(inventory)
 	if why == "empty":
 		print("[item] refused butcher %s: %s" % [corpse.species, why])
@@ -1161,10 +1160,10 @@ func _setup_gather_ring() -> void:
 		_gather_ring = script.new()
 		layer.add_child(_gather_ring)
 
-## Under 50 % hunger, standing still, not already eating: eat one from a quick-food slot.
+## Offer quick food when energy is low or exhaustion is high, outside combat.
 func _tick_autofeed(delta: float) -> void:
 	_autofeed_cd = maxf(0.0, _autofeed_cd - delta)
-	if _autofeed_cd > 0.0 or vitals == null or not vitals.hungry() or dead:
+	if _autofeed_cd > 0.0 or vitals == null or _sleep_left > 0.0 or (vitals.energy > vitals.max_energy * 0.5 and vitals.fatigue < vitals.max_fatigue * 0.6) or dead:
 		return
 	if eat_session == null or eat_session.eating or nav_active or _gathering or Vector2(velocity.x, velocity.z).length() > 0.3:
 		return
@@ -1420,9 +1419,42 @@ func _use_medicine() -> void:
 		statuses.clear_id(&"deep_bleed")
 		print("[item] used pressure_dressing")
 
+## ASSUMPTION: sleeping in a tent takes 10 real seconds, heals exhaustion at
+## 10 points/second and is interrupted by movement or damage. No time skip.
+func _tick_sleep(delta: float) -> void:
+	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if input.length_squared() > 0.04 or nav_active or vitals.in_combat or (Time.get_ticks_msec() * 0.001 - _last_hit_taken_s) < 1.0 or dead:
+		_sleep_left = 0.0
+		notice("Sleep interrupted")
+		return
+	_sleep_left = maxf(0.0, _sleep_left - delta)
+	vitals.rest(10.0 * delta)
+	velocity.x = 0.0
+	velocity.z = 0.0
+	move_and_slide()
+	if _sleep_left <= 0.0 or vitals.fatigue <= 0.0:
+		_sleep_left = 0.0
+		notice("Rested")
+
+func _start_sleep() -> void:
+	var tent := _nearest_group("tent")
+	if tent == null or global_position.distance_to(tent.global_position) > 3.2:
+		return
+	if vitals.in_combat or (Time.get_ticks_msec() * 0.001 - _last_hit_taken_s) < 5.0 or dead:
+		notice("Can't sleep in combat")
+		return
+	clear_nav()
+	_cancel_gather_and_butcher()
+	_sleep_left = 10.0
+	notice("Sleeping - move to wake")
+
 func _interact() -> void:
 	if mounted_on:
 		dismount()
+		return
+	var tent := _nearest_group("tent")
+	if tent and global_position.distance_to(tent.global_position) < 3.2 and vitals.fatigue >= 1.0:
+		_start_sleep()
 		return
 	var pen := _nearest_group("taming_pen") as TamingPen
 	if pen and global_position.distance_to(pen.global_position) < 3.0:
@@ -1592,6 +1624,9 @@ func _building_interact(b: Node) -> void:
 	if StationCraft.is_craft_station(b):
 		open_station_craft(b as Node3D)
 		return
+	if str(b.get("kind")) == "tent":
+		_start_sleep()
+		return
 	if str(b.get("kind")) == "basket" and b.get("storage") and ui:
 		if summoned_pet and is_instance_valid(summoned_pet) and summoned_pet.pet_record and summoned_pet.pet_record.bag:
 			_dump_pet_into(b.storage)
@@ -1740,6 +1775,7 @@ func _survivor_meta() -> Dictionary:
 	return {"height_meters": 1.72, "pipeline": {"forward_axis": "+Z"}}
 
 func _on_vitals_damaged() -> void:
+	_sleep_left = 0.0
 	_cancel_gather_and_butcher()
 	if anim == null:
 		return
@@ -1752,6 +1788,7 @@ func _on_vitals_died() -> void:
 	if dead:
 		return
 	dead = true
+	_sleep_left = 0.0
 	clear_nav()
 	_clear_ground_marker()
 	_cancel_gather_and_butcher()
@@ -1942,9 +1979,6 @@ func _open_corpse_loot(corpse: Corpse) -> void:
 	nav_to(_closest_nav_point(corpse.global_position))
 
 func _begin_corpse_take(corpse: Corpse, slot: int) -> void:
-	if vitals.exhausted:
-		print("[item] too exhausted to butcher")
-		return
 	_stop_gather_cycle(false)
 	gather_target = null
 	tame_target = null
@@ -2001,6 +2035,9 @@ func context_actions() -> Array:
 	if near_water:
 		out.append({"id": "drink", "glyph": "💧", "label": "Drink"})
 		out.append({"id": "wash", "glyph": "🫧", "label": "Wash"})
+	var tent := _nearest_group("tent")
+	if tent and global_position.distance_to(tent.global_position) < 3.2:
+		out.append({"id": "sleep", "glyph": "☾", "label": "Sleep"})
 	var fire := _nearest_group("bonfire")
 	if fire and global_position.distance_to(fire.global_position) < 2.8:
 		out.append({"id": "cook", "glyph": "🍖", "label": "Cook"})
@@ -2028,10 +2065,11 @@ func context_action(id: String) -> void:
 		"dismount":
 			dismount()
 		"drink":
-			# ASSUMPTION: a drink restores 5 energy; wash clears 2 fatigue (no dirty status yet).
+			# Water remains a small stamina pickup; there is no thirst meter.
 			vitals.energy = minf(vitals.max_energy, vitals.energy + 5.0)
-			vitals.drink(30.0)
-			print("[item] drink energy=%.0f thirst=%.0f" % [vitals.energy, vitals.thirst])
+			print("[item] drink energy=%.0f" % vitals.energy)
+		"sleep":
+			_start_sleep()
 		"wash":
 			vitals.rest(2.0)
 			print("[item] wash fatigue=%.0f" % vitals.fatigue)

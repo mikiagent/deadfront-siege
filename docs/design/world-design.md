@@ -2,6 +2,21 @@
 
 **Status:** v1, 2026-09-17. Owner-directed. Machine-readable twin: `game/data/world/` (climates, islands, material rules, spawn tables). Sources: systems PRD §4 (islands, climates, craters), §8.4 (item level), §11 (ecology), §17 (progression geography); roster PRD §2 (tiers per species). Numbers marked *design* are ours, not Durango's.
 
+## Survivor exhaustion (owner-directed, 2026-09-25)
+
+The survivor has Health, Energy, and **Exhaustion** (the saved `fatigue` value).
+There are no player Hunger or Thirst meters or starvation penalties. Pet hunger is
+separate and unchanged. Exhaustion rises slowly with time and from travel, gathering,
+combat, and climate. The face beside its HUD bar progresses through rested (smile),
+tired (flat), weary (frown), exhausted (deep frown). At 50% Energy regen slows; at
+75% Energy capacity drops to 75%. It never causes death or hard-blocks gathering.
+
+Food restores Energy, gives existing recipe buffs, and eases exhaustion by 25% of
+its Energy value. Medicine, not food, remains the direct Health restore. Sleeping
+near a tent takes ten uninterrupted real seconds to clear 100 exhaustion; moving
+or taking damage wakes the survivor. Simply standing in a tent does not sleep.
+These rates and thresholds are design assumptions, not historical Durango facts.
+
 ## 1. The shape of the world
 
 Two kinds of land, exactly as Durango shipped: **stable** (your home island, later city islands) and **unstable** (islands that appear at a tier and climate, live for hours, then sink). Travel is a harbour route list, never sailing. Every island is one climate and one tier.

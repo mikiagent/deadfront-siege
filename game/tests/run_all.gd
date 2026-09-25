@@ -6,6 +6,7 @@ var _capture_done := false
 func _init() -> void:
 	_test_save_migrations()
 	_test_food_buffs()
+	_test_exhaustion()
 	_test_climate_palette()
 	_test_creature_genetics()
 	_test_progression_scaling()
@@ -70,6 +71,28 @@ func _test_food_buffs() -> void:
 	_expect(is_equal_approx(buffs.multiplier("damage"), 1.5), "food buff multipliers stack")
 	buffs.tick(2.1)
 	_expect(is_equal_approx(buffs.multiplier("damage"), 1.2), "expired food buff is removed")
+
+func _test_exhaustion() -> void:
+	var v := Vitals.new()
+	v.fatigue = 60.0
+	v.energy = 5.0
+	v._process(1.0)
+	_expect(v.fatigue > 60.0 and v.energy > 5.0, "time raises exhaustion while stamina still regenerates")
+	v.eat(40.0)
+	_expect(v.fatigue < 51.0, "food reduces exhaustion by a quarter of Energy")
+	v.fatigue = 100.0
+	v.energy = 100.0
+	v._process(0.1)
+	_expect(is_equal_approx(v.energy, 75.0), "high exhaustion caps Energy at 75 percent")
+	var saved := v.to_dict()
+	_expect(not saved.has("hunger") and not saved.has("thirst") and saved.has("fatigue"), "player save keeps exhaustion without hunger or thirst")
+	var restored := Vitals.new()
+	restored.from_dict(saved)
+	_expect(is_equal_approx(restored.fatigue, 100.0) and restored.exhausted, "exhaustion survives save/load")
+	restored.rest(100.0)
+	_expect(is_equal_approx(restored.fatigue, 0.0) and not restored.exhausted, "sleep rest clears exhaustion")
+	v.free()
+	restored.free()
 
 func _test_climate_palette() -> void:
 	var palette := ClimatePalette.resolve({"palette": {"grass": "#ffffff", "sand": "#123456"}})

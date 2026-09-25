@@ -1,5 +1,5 @@
 extends Node3D
-## Private home island. Headless demo: unstable destroy vs cargo warp, save/load tent rest.
+## Private home island. Headless demo: unstable destroy vs cargo warp, save/load vitals.
 
 var _player: Player
 
@@ -36,7 +36,6 @@ func _demo() -> void:
 	var cargo_n := World.cargo_home.count_of(&"stone")
 	print("[world] cargo basket stone=%d" % cargo_n)
 	_player.vitals.fatigue = 80.0
-	World.resting_in_tent = true
 	var SG := load("res://scripts/core/save_game.gd") as GDScript
 	SG.save_now()
 	var raw := FileAccess.get_file_as_string("user://save_1.json")
@@ -48,7 +47,7 @@ func _demo() -> void:
 		if f:
 			f.store_string(JSON.stringify(d))
 	SG.load_now(self)
-	print("[world] fatigue after rest=%.0f terrain=%s pioneer=%d" % [
+	print("[world] fatigue after load=%.0f terrain=%s pioneer=%d" % [
 		_player.vitals.fatigue, World.home_terrain, World.pioneer_level])
 	if DisplayServer.get_name() == "headless":
 		get_tree().quit()

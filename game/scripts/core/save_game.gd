@@ -65,7 +65,6 @@ static func save_now() -> void:
 		},
 		"clock": Game.time_of_day,
 		"saved_unix": int(Time.get_unix_time_from_system()),
-		"resting_in_tent": World.resting_in_tent,
 	}
 	if World.is_home():
 		World._home_buildings_cache = buildings
@@ -106,7 +105,6 @@ static func load_now(host: Node) -> void:
 	World.remaining_lifetime = float(data.get("unstable", {}).get("remaining", 0.0))
 	World.harvested = data.get("unstable", {}).get("harvested", {})
 	World.crater_discovered = bool(data.get("unstable", {}).get("crater_discovered", false))
-	World.resting_in_tent = bool(data.get("resting_in_tent", false))
 	World.cargo_home.load_array(data.get("home", {}).get("cargo", []))
 	World._home_buildings_cache = data.get("home", {}).get("buildings", [])
 	World.home_claims = data.get("home", {}).get("claims", [])
@@ -150,9 +148,6 @@ static func load_now(host: Node) -> void:
 			player.bonded.append(PetRecord.from_dict(row))
 	var saved_unix := int(data.get("saved_unix", Time.get_unix_time_from_system()))
 	var elapsed := maxi(0, int(Time.get_unix_time_from_system()) - saved_unix)
-	if World.resting_in_tent and elapsed > 0:
-		player.vitals.rest(World.TENT_REST_PER_MIN * (float(elapsed) / 60.0))
-		print("[world] offline rest %ds" % elapsed)
 	# Field growth catch-up (same offline window as tent rest).
 	if elapsed > 0 and World.runtime:
 		for n in World.runtime.get_tree().get_nodes_in_group("field"):
