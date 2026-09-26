@@ -7,12 +7,19 @@ var station_id: StringName = &"bonfire"
 var persist_building: bool = true
 var build_cell: Vector2i = Vector2i.ZERO
 var build_rot: int = 0
+## Only temporary campfires consume lifetime. Saved as seconds remaining, not wall time.
+const CAMPFIRE_SECONDS := 120.0
+var seconds_left: float = -1.0
 var _fire_light: OmniLight3D
 var _flicker_phase: float = randf() * TAU
 
 func _ready() -> void:
+	if kind == &"campfire" and seconds_left <= 0.0:
+		queue_free() # Do not revive a fire saved on its burnout frame.
+		return
 	add_to_group("placed_building")
-	add_to_group("bonfire")
+	if kind != &"campfire":
+		add_to_group("bonfire")
 	add_to_group("craft_station")
 	if get_node_or_null("Shape") == null and get_node_or_null("Prop") == null and get_node_or_null("FallbackMesh") == null:
 		PropVisuals.apply_building_visual(self, kind, Vector3(1.1, 0.7, 1.1), Color(0.85, 0.35, 0.1))
@@ -29,13 +36,16 @@ static func make(p_kind: StringName = &"bonfire") -> Bonfire:
 	var b := Bonfire.new()
 	b.persist_building = true
 	b.kind = p_kind
-	b.station_id = &"bonfire" # Shared cook/cauterise recipes; distinct saved building kind.
+	b.station_id = &"campfire" if p_kind == &"campfire" else &"bonfire"
+	b.seconds_left = CAMPFIRE_SECONDS if p_kind == &"campfire" else -1.0
 	b.name = str(p_kind)
 	return b
 
 static func from_dict(d: Dictionary) -> Bonfire:
 	var saved_kind := StringName(str(d.get("kind", "bonfire")))
-	var b := make(&"stone_fire_pit" if saved_kind == &"stone_fire_pit" else &"bonfire")
+	var b := make(saved_kind if saved_kind == &"stone_fire_pit" or saved_kind == &"campfire" else &"bonfire")
+	if b.kind == &"campfire":
+		b.seconds_left = clampf(float(d.get("seconds_left", CAMPFIRE_SECONDS)), 0.0, CAMPFIRE_SECONDS)
 	var cell_v: Variant = d.get("cell", [0, 0])
 	if cell_v is Array and (cell_v as Array).size() >= 2:
 		b.build_cell = Vector2i(int(cell_v[0]), int(cell_v[1]))
@@ -52,12 +62,13 @@ func to_dict() -> Dictionary:
 		"kind": str(kind),
 		"cell": [build_cell.x, build_cell.y],
 		"rot": posmod(build_rot, 4),
+		"seconds_left": seconds_left,
 		"x": global_position.x,
 		"z": global_position.z,
 	}
 
 func cauterise(player: Player) -> void:
-	if not player.statuses.has(&"deep_bleed"):
+	if kind == &"campfire" or not player.statuses.has(&"deep_bleed"):
 		return
 	player.downed_by = "the bonfire"
 	player.vitals.take_damage(5.0)
@@ -76,7 +87,12 @@ func _setup_fire_light() -> void:
 	add_child(_fire_light)
 	set_process(true)
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	if kind == &"campfire":
+		seconds_left = maxf(0.0, seconds_left - delta)
+		if seconds_left <= 0.0:
+			queue_free()
+			return
 	if _fire_light == null:
 		return
 	var phase := Game.phase_name()

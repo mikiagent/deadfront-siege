@@ -261,6 +261,14 @@
         2
       ],
       "note": "persistent stone-lined cook/cauterise fire; shares bonfire station recipes"
+    },
+    "campfire": {
+      "model": "campfire-pit",
+      "footprint": [
+        1,
+        1
+      ],
+      "note": "temporary cooking fire, 120 active seconds then disappears"
     }
   },
   "tools": {

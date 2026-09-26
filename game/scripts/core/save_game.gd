@@ -191,7 +191,7 @@ static func _spawn_building(row: Dictionary) -> Node3D:
 	match kind:
 		&"workbench", &"drying_rack", &"crock_pot", &"mortar", &"stone_grill", &"steamer", &"well":
 			return CraftStation.from_dict(row)
-		&"bonfire", &"stone_fire_pit":
+		&"bonfire", &"stone_fire_pit", &"campfire":
 			return Bonfire.from_dict(row)
 		&"makeshift_taming_pen":
 			return TamingPen.from_dict(row)

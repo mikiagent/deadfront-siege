@@ -19,11 +19,13 @@ const EXPAND_SECONDS := 0.22
 const ACTIONS := {
 	&"workbench": [{"id": &"craft", "label": "CRAFT", "icon": "hammer", "glyph": "🔨"}],
 	&"bonfire": [{"id": &"cook", "label": "COOK", "icon": "skewer", "glyph": "🍖"}],
+	&"campfire": [{"id": &"cook", "label": "COOK", "icon": "skewer", "glyph": "🍖"}],
 }
 ## Menu anchor height above the station origin, per station kind.
 const HEIGHTS := {
 	&"workbench": 1.55,
 	&"bonfire": 1.25,
+	&"campfire": 1.25,
 	&"drying_rack": 1.5,
 	&"crock_pot": 1.45,
 }

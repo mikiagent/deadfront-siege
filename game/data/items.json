@@ -683,6 +683,21 @@
       ]
     },
     {
+      "id": "campfire_kit",
+      "display_name": "Campfire Kit",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "campfire",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    {
       "id": "bonfire_kit",
       "display_name": "Bonfire Kit",
       "categories": [

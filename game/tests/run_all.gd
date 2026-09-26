@@ -27,6 +27,7 @@ func _process(_delta: float) -> bool:
 	_test_dried_meat_recipe()
 	_test_crock_pot_recipe_and_kit()
 	_test_stone_fire_pit()
+	_test_temporary_campfire()
 	_finish()
 	return true
 
@@ -145,6 +146,32 @@ func _test_stone_fire_pit() -> void:
 	var props: Dictionary = data.get("props_manifest").get("buildings", {})
 	_expect(props.has("stone_fire_pit"), "stone pit has a placed visual")
 	# The boot smoke keeps the legacy public-camp bonfire path exercised.
+
+func _test_temporary_campfire() -> void:
+	var data: Node = get_root().get_node("Data")
+	var kit: Dictionary = data.get("recipes").get(&"campfire_kit", {})
+	_expect(kit.get("slots", []).size() == 2 and int(kit["slots"][0].get("count", 0)) == 2 and int(kit["slots"][1].get("count", 0)) == 1, "campfire costs wood two and tinder one")
+	var cook: Dictionary = data.get("recipes").get(&"campfire_skewer", {})
+	_expect(str(cook.get("station", "")) == "campfire" and str(cook.get("slots", [{}])[0].get("category", "")) == "raw_meat", "campfire only skewers raw meat")
+	var build_script := load("res://scripts/world/build_placer.gd") as GDScript
+	var placer: Node = build_script.new()
+	_expect(placer.call("_kit_id", &"campfire") == "campfire_kit", "campfire placement spends its kit")
+	placer.free()
+	var fire_script := load("res://scripts/world/bonfire.gd") as GDScript
+	var fire: Node = fire_script.make(&"campfire")
+	_expect(fire.get("kind") == &"campfire" and fire.get("station_id") == &"campfire", "campfire has its own cook station")
+	_expect(is_equal_approx(float(fire.get("seconds_left")), 120.0), "campfire starts with two active minutes")
+	get_root().add_child(fire)
+	fire.set_process(false) # Keep a fixed lifetime for the save round-trip assertion.
+	fire.set("seconds_left", 53.0)
+	var saved: Dictionary = fire.to_dict()
+	var restored: Node = fire_script.from_dict(saved)
+	_expect(restored.get("kind") == &"campfire" and is_equal_approx(float(restored.get("seconds_left")), 53.0), "campfire remaining time survives save")
+	var legacy: Node = fire_script.from_dict({"kind": "bonfire"})
+	_expect(legacy.get("station_id") == &"bonfire" and float(legacy.get("seconds_left")) < 0.0, "legacy bonfire stays persistent")
+	fire.queue_free()
+	restored.free()
+	legacy.free()
 
 func _test_exhaustion() -> void:
 	var v := Vitals.new()

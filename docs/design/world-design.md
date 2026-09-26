@@ -154,7 +154,7 @@ kit. The public camp's starter shelter remains unlimited; it grants no free kit.
 
 | Utility / station | Craft input (category/count) | What it does / enables | State |
 |---|---|---|---|
-| Campfire (temporary) | wood 2 + tinder 1 | Basic skewers, warmth and light for a short fuel budget; burns out. Distinct from the present persistent bonfire, which remains legacy until the conversion has a save migration. | planned |
+| Campfire (temporary) | wood 2 + tinder 1 | 1x1 cook/fire-light station: raw meat/fish + a handle makes a skewer; burns out after 120 active seconds. Remaining time persists in the placed-building save; no refuel yet. Separate from persistent legacy bonfires and stone pits, no cauterise. | first implementation |
 | Stone fire pit | stone 6 + wood 2 | Persistent 2x2 cook/cauterise fire and night light, reusing the bonfire recipes and keeping the existing camp/legacy bonfires. Dedicated art pending. | first implementation |
 | Crock pot | clay 4 + stone 2 + wood 2 | Placed 2x2 cooking station. Combines raw meat/fish + herb + fruit into Camp Stew in 6 s (32 base energy); other dishes and buffs remain planned. Current Kenney cooking-stand visual is temporary. | first implementation |
 | Meat drying station | wood 4 + lashing 2 | Placed drying rack processes raw meat/fish into dried meat in 8 s (17 energy), keeping the existing dried-hide recipe. Weather, spoilage and passive batches remain planned. | first implementation |

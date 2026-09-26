@@ -8,7 +8,7 @@ extends Control
 ## the full pass (StationCraft).
 
 const STATIONS := [
-	["", "By hand", "✋"], ["workbench", "Workbench", "🔨"], ["bonfire", "Bonfire", "🔥"],
+	["", "By hand", "✋"], ["workbench", "Workbench", "🔨"], ["bonfire", "Bonfire", "🔥"], ["campfire", "Campfire", "🔥"],
 	["drying_rack", "Meat dryer", "🪢"], ["crock_pot", "Crock pot", "🍲"], ["mortar", "Mortar", "🥣"], ["stone_grill", "Stone grill", "🍖"],
 	["steamer", "Steamer", "♨"], ["well", "Well", "💧"],
 ]

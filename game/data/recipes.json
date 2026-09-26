@@ -487,6 +487,32 @@
       "process_add": 1
     },
     {
+      "id": "campfire_kit",
+      "display_name": "Campfire Kit",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "wood",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "tinder",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "campfire_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 1.5,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
       "id": "bonfire_kit",
       "display_name": "Bonfire Kit",
       "skill": "construction",
@@ -796,6 +822,32 @@
       "station": null,
       "seconds": 1.0,
       "process_step": "hammer",
+      "process_add": 1
+    },
+    {
+      "id": "campfire_skewer",
+      "display_name": "Campfire Skewer",
+      "skill": "cooking",
+      "max_level": 19,
+      "slots": [
+        {
+          "category": "raw_meat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "skewer",
+        "count": 1
+      },
+      "station": "campfire",
+      "seconds": 3.0,
+      "process_step": "cook",
       "process_add": 1
     },
     {
