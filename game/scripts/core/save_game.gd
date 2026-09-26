@@ -189,7 +189,7 @@ static func _normalize_build_row(row: Dictionary, schema: int) -> Dictionary:
 static func _spawn_building(row: Dictionary) -> Node3D:
 	var kind := StringName(str(row.get("kind", "basket")))
 	match kind:
-		&"workbench", &"drying_rack", &"mortar", &"stone_grill", &"steamer", &"well":
+		&"workbench", &"drying_rack", &"crock_pot", &"mortar", &"stone_grill", &"steamer", &"well":
 			return CraftStation.from_dict(row)
 		&"bonfire":
 			return Bonfire.from_dict(row)

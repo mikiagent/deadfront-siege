@@ -9,7 +9,7 @@ extends Control
 
 const STATIONS := [
 	["", "By hand", "✋"], ["workbench", "Workbench", "🔨"], ["bonfire", "Bonfire", "🔥"],
-	["drying_rack", "Meat dryer", "🪢"], ["mortar", "Mortar", "🥣"], ["stone_grill", "Stone grill", "🍖"],
+	["drying_rack", "Meat dryer", "🪢"], ["crock_pot", "Crock pot", "🍲"], ["mortar", "Mortar", "🥣"], ["stone_grill", "Stone grill", "🍖"],
 	["steamer", "Steamer", "♨"], ["well", "Well", "💧"],
 ]
 

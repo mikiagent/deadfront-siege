@@ -25,6 +25,7 @@ const HEIGHTS := {
 	&"workbench": 1.55,
 	&"bonfire": 1.25,
 	&"drying_rack": 1.5,
+	&"crock_pot": 1.45,
 }
 const DEFAULT_HEIGHT := 1.45
 

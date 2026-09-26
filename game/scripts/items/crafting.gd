@@ -331,8 +331,10 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
 			return s.def_id
 	# Fallback representative ids for UI when bag is empty.
 	match str(cat):
-		"meat":
+		"meat", "raw_meat":
 			return &"raw_meat"
+		"pot_clay":
+			return &"clay"
 		"wood", "handle", "burnable":
 			return &"branch"
 		"water":
@@ -402,8 +404,10 @@ static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemSt
 
 static func _category_hint(cat: StringName) -> String:
 	match str(cat):
-		"meat":
+		"meat", "raw_meat":
 			return "raw_meat"
+		"pot_clay":
+			return "clay"
 		"wood", "handle", "burnable":
 			return "branch"
 		"blade_mat":

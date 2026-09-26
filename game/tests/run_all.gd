@@ -25,6 +25,7 @@ func _process(_delta: float) -> bool:
 	_test_capture_threshold()
 	_test_sleep_building_save()
 	_test_dried_meat_recipe()
+	_test_crock_pot_recipe_and_kit()
 	_finish()
 	return true
 
@@ -108,6 +109,27 @@ func _test_dried_meat_recipe() -> void:
 	_expect(dried != null and dried.has_category(&"food") and not dried.raw and dried.food_energy > 0.0, "drying outputs edible preserved meat")
 	var kit: Dictionary = data.get("recipes").get(&"drying_rack_kit", {})
 	_expect(int(kit.get("slots", [])[0].get("count", 0)) == 4 and int(kit.get("slots", [])[1].get("count", 0)) == 2, "rack kit matches wood/lashing plan")
+
+func _test_crock_pot_recipe_and_kit() -> void:
+	var data: Node = get_root().get_node("Data")
+	var rec: Dictionary = data.get("recipes").get(&"camp_stew", {})
+	_expect(str(rec.get("station", "")) == "crock_pot", "stew requires a crock pot")
+	_expect(rec.get("slots", []).size() == 3 and is_equal_approx(float(rec.get("seconds", 0)), 6.0), "stew combines three ingredients in six seconds")
+	var stew: ItemDef = data.call("item", &"camp_stew")
+	_expect(stew != null and stew.has_category(&"cooked") and not stew.raw and stew.food_energy == 32.0, "stew is cooked food")
+	var clay: ItemDef = data.call("item", &"clay")
+	var mud: ItemDef = data.call("item", &"mud")
+	_expect(clay.has_category(&"pot_clay") and not mud.has_category(&"pot_clay"), "pot kit requires clay rather than any earth")
+	var kit: Dictionary = data.get("recipes").get(&"crock_pot_kit", {})
+	_expect(kit.get("slots", []).size() == 3 and int(kit["slots"][0].get("count", 0)) == 4 and int(kit["slots"][1].get("count", 0)) == 2 and int(kit["slots"][2].get("count", 0)) == 2, "pot kit costs clay four, stone two, wood two")
+	var build_script := load("res://scripts/world/build_placer.gd") as GDScript
+	var placer: Node = build_script.new()
+	_expect(placer.call("_kit_id", &"crock_pot") == "crock_pot_kit", "pot kit routes to placement")
+	placer.free()
+	var pot_kit: ItemDef = data.call("item", &"crock_pot_kit")
+	_expect(pot_kit != null and pot_kit.place_as == &"crock_pot" and pot_kit.footprint == Vector2i(2, 2), "pot kit exposes a two by two placement")
+	var props: Dictionary = data.get("props_manifest").get("buildings", {})
+	_expect(props.has("crock_pot"), "pot has a visual entry")
 
 func _test_exhaustion() -> void:
 	var v := Vitals.new()

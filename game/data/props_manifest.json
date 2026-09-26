@@ -245,6 +245,14 @@
         2
       ],
       "note": "temporary single-use rest, replaced by generated straw-roll asset later"
+    },
+    "crock_pot": {
+      "model": "campfire-stand",
+      "footprint": [
+        2,
+        2
+      ],
+      "note": "temporary Kenney cooking stand until dedicated crock-pot art passes in-world pixel check"
     }
   },
   "tools": {

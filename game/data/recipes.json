@@ -350,6 +350,38 @@
       "process_add": 1
     },
     {
+      "id": "camp_stew",
+      "display_name": "Camp Stew",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "raw_meat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "herb",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "fruit",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "camp_stew",
+        "count": 1
+      },
+      "station": "crock_pot",
+      "seconds": 6.0,
+      "process_step": "stew",
+      "process_add": 1,
+      "tree": "cooking"
+    },
+    {
       "id": "hide_strap",
       "display_name": "Hide Strap",
       "skill": "processing",
@@ -556,6 +588,37 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "crock_pot_kit",
+      "display_name": "Crock Pot Kit",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "pot_clay",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "stone",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "wood",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "crock_pot_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 3.0,
+      "process_step": "shape",
       "process_add": 1
     },
     {

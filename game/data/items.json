@@ -474,6 +474,23 @@
       }
     },
     {
+      "id": "camp_stew",
+      "display_name": "Camp Stew",
+      "categories": [
+        "food",
+        "cooked",
+        "meal"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "omnivore",
+      "food_energy": 32,
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
       "id": "skewer",
       "display_name": "Skewer",
       "categories": [
@@ -711,6 +728,21 @@
       ]
     },
     {
+      "id": "crock_pot_kit",
+      "display_name": "Crock Pot Kit",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "crock_pot",
+      "footprint": [
+        2,
+        2
+      ]
+    },
+    {
       "id": "straw_roll_kit",
       "display_name": "Straw Roll",
       "categories": [
@@ -842,7 +874,8 @@
       "id": "clay",
       "display_name": "Clay",
       "categories": [
-        "earth"
+        "earth",
+        "pot_clay"
       ],
       "stack_max": 20,
       "tool_class": "none",

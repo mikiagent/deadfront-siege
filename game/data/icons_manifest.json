@@ -138,7 +138,9 @@
     "workbench_kit": "res://assets/icons/sym/workbench_kit.png"
   },
   "aliases": {
-    "taming_pen_kit": "fence_kit"
+    "taming_pen_kit": "fence_kit",
+    "crock_pot_kit": "stone_grill_kit",
+    "camp_stew": "boiled_meat"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",
