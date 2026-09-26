@@ -26,6 +26,7 @@ func _process(_delta: float) -> bool:
 	_test_sleep_building_save()
 	_test_dried_meat_recipe()
 	_test_crock_pot_recipe_and_kit()
+	_test_stone_fire_pit()
 	_finish()
 	return true
 
@@ -130,6 +131,20 @@ func _test_crock_pot_recipe_and_kit() -> void:
 	_expect(pot_kit != null and pot_kit.place_as == &"crock_pot" and pot_kit.footprint == Vector2i(2, 2), "pot kit exposes a two by two placement")
 	var props: Dictionary = data.get("props_manifest").get("buildings", {})
 	_expect(props.has("crock_pot"), "pot has a visual entry")
+
+func _test_stone_fire_pit() -> void:
+	var data: Node = get_root().get_node("Data")
+	var kit: Dictionary = data.get("recipes").get(&"stone_fire_pit_kit", {})
+	_expect(kit.get("slots", []).size() == 2 and int(kit["slots"][0].get("count", 0)) == 6 and int(kit["slots"][1].get("count", 0)) == 2, "stone pit costs six stone and two wood")
+	var kit_item: ItemDef = data.call("item", &"stone_fire_pit_kit")
+	_expect(kit_item != null and kit_item.place_as == &"stone_fire_pit" and kit_item.footprint == Vector2i(2, 2), "stone pit kit places as two by two")
+	var build_script := load("res://scripts/world/build_placer.gd") as GDScript
+	var placer: Node = build_script.new()
+	_expect(placer.call("_kit_id", &"stone_fire_pit") == "stone_fire_pit_kit", "pit placement spends its own kit")
+	placer.free()
+	var props: Dictionary = data.get("props_manifest").get("buildings", {})
+	_expect(props.has("stone_fire_pit"), "stone pit has a placed visual")
+	# The boot smoke keeps the legacy public-camp bonfire path exercised.
 
 func _test_exhaustion() -> void:
 	var v := Vitals.new()

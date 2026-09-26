@@ -140,7 +140,8 @@
   "aliases": {
     "taming_pen_kit": "fence_kit",
     "crock_pot_kit": "stone_grill_kit",
-    "camp_stew": "boiled_meat"
+    "camp_stew": "boiled_meat",
+    "stone_fire_pit_kit": "bonfire_kit"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

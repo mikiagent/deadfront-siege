@@ -43,6 +43,8 @@ func _kit_id(kind: StringName) -> String:
 			return "makeshift_taming_pen"
 		&"bonfire":
 			return "bonfire_kit"
+		&"stone_fire_pit":
+			return "stone_fire_pit_kit"
 		&"workbench":
 			return "workbench_kit"
 		&"drying_rack":
@@ -132,7 +134,7 @@ static func kind_of_building(n: Node) -> StringName:
 	if n is TamingPen:
 		return &"makeshift_taming_pen"
 	if n is Bonfire:
-		return &"bonfire"
+		return (n as Bonfire).kind
 	if n is CraftStation:
 		return (n as CraftStation).station_id
 	var k: Variant = n.get("kind")
@@ -377,6 +379,8 @@ func _spawn(kind: StringName) -> Node3D:
 			return TamingPen.make()
 		&"bonfire":
 			return Bonfire.make()
+		&"stone_fire_pit":
+			return Bonfire.make(&"stone_fire_pit")
 		&"workbench":
 			return CraftStation.make(&"workbench")
 		&"drying_rack":

@@ -513,6 +513,32 @@
       "process_add": 1
     },
     {
+      "id": "stone_fire_pit_kit",
+      "display_name": "Stone Fire Pit Kit",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "stone",
+          "count": 6,
+          "primary": true
+        },
+        {
+          "category": "wood",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "stone_fire_pit_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 2.5,
+      "process_step": "stack",
+      "process_add": 1
+    },
+    {
       "id": "makeshift_taming_pen_kit",
       "display_name": "Makeshift Taming Pen Kit",
       "skill": "construction",

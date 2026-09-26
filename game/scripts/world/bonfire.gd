@@ -25,16 +25,17 @@ func _exit_tree() -> void:
 	if grid is BuildGrid:
 		(grid as BuildGrid).release(self)
 
-static func make() -> Bonfire:
+static func make(p_kind: StringName = &"bonfire") -> Bonfire:
 	var b := Bonfire.new()
 	b.persist_building = true
-	b.kind = &"bonfire"
-	b.station_id = &"bonfire"
-	b.name = "bonfire"
+	b.kind = p_kind
+	b.station_id = &"bonfire" # Shared cook/cauterise recipes; distinct saved building kind.
+	b.name = str(p_kind)
 	return b
 
 static func from_dict(d: Dictionary) -> Bonfire:
-	var b := make()
+	var saved_kind := StringName(str(d.get("kind", "bonfire")))
+	var b := make(&"stone_fire_pit" if saved_kind == &"stone_fire_pit" else &"bonfire")
 	var cell_v: Variant = d.get("cell", [0, 0])
 	if cell_v is Array and (cell_v as Array).size() >= 2:
 		b.build_cell = Vector2i(int(cell_v[0]), int(cell_v[1]))

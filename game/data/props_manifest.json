@@ -253,6 +253,14 @@
         2
       ],
       "note": "temporary Kenney cooking stand until dedicated crock-pot art passes in-world pixel check"
+    },
+    "stone_fire_pit": {
+      "model": "campfire-pit",
+      "footprint": [
+        2,
+        2
+      ],
+      "note": "persistent stone-lined cook/cauterise fire; shares bonfire station recipes"
     }
   },
   "tools": {

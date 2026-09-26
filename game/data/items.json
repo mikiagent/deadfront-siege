@@ -698,6 +698,21 @@
       ]
     },
     {
+      "id": "stone_fire_pit_kit",
+      "display_name": "Stone Fire Pit Kit",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "stone_fire_pit",
+      "footprint": [
+        2,
+        2
+      ]
+    },
+    {
       "id": "workbench_kit",
       "display_name": "Workbench Kit",
       "categories": [
