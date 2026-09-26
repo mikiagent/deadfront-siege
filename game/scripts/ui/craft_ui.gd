@@ -438,7 +438,7 @@ func _show_detail(info: Dictionary) -> void:
 	var missing := Crafting.missing_ingredient_name(player.inventory, rec)
 	if missing != "":
 		var lock := Label.new()
-		lock.text = "Needs %s" % missing
+		lock.text = "Needs %s" % missing.replace("_", " ")
 		lock.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		lock.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 		lock.add_theme_color_override("font_color", UiTokens.DANGER)
