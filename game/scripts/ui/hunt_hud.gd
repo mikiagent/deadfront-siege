@@ -543,7 +543,7 @@ func _refresh_context(delta: float) -> void:
 		actions = []  # the skill cluster owns the bottom-right during a hunt
 	var ids: Array = []
 	for a in actions:
-		ids.append(a["id"])
+		ids.append([a["id"], a.get("uses", "")])
 	if ids == _ctx_ids:
 		return
 	_ctx_ids = ids
@@ -557,6 +557,7 @@ func _refresh_context(delta: float) -> void:
 		var h := HexButton.new(70.0)
 		h.glyph = str(a.get("glyph", ""))
 		h.caption = str(a["label"]).to_upper()
+		h.bottom_text = str(a.get("uses", ""))
 		if h.glyph == "":
 			h.glyph = h.caption
 			h.caption = ""

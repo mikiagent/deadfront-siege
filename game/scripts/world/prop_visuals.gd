@@ -119,6 +119,9 @@ static func ensure_collision(host: Node3D, size: Vector3) -> void:
 	cs.position = Vector3(0.0, size.y * 0.5, 0.0)
 
 static func ensure_foundation(host: Node3D, kind: StringName) -> void:
+	# Portable bedding lies directly on terrain; a large dirt footprint dwarfs it.
+	if kind == &"straw_roll":
+		return
 	# Durango reference: a rough circular dirt patch under every structure, not a slab.
 	var dims := footprint(kind)
 	var radius := 0.5 * sqrt(float(dims.x * dims.x + dims.y * dims.y)) + 1.0

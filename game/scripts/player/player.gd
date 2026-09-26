@@ -2065,7 +2065,7 @@ func context_actions() -> Array:
 	var sleep_spot := _nearest_sleep_spot()
 	if sleep_spot:
 		var left := int(sleep_spot.get("sleeps_left"))
-		out.append({"id": "sleep", "glyph": "☾", "label": "Sleep" if left < 0 else "Sleep (%d left)" % left})
+		out.append({"id": "sleep", "glyph": "☾", "label": "Sleep", "uses": "" if left < 0 else str(left)})
 	var fire := _nearest_group("bonfire")
 	if fire and global_position.distance_to(fire.global_position) < 2.8:
 		out.append({"id": "cook", "glyph": "🍖", "label": "Cook"})
