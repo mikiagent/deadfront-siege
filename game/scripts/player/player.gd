@@ -119,6 +119,7 @@ var _last_hit_taken_s: float = -999.0
 var downed_by: String = ""
 var _autofeed_cd: float = 0.0
 var _sleep_left: float = 0.0
+var _sleep_spot: Node3D
 var _roll_through: Array[Creature] = []
 ## Stagger: a short unmovable hurt window after a hit (0.35 s), at most once every 1.5 s.
 var _stagger_left: float = 0.0
@@ -1419,42 +1420,66 @@ func _use_medicine() -> void:
 		statuses.clear_id(&"deep_bleed")
 		print("[item] used pressure_dressing")
 
-## ASSUMPTION: sleeping in a tent takes 10 real seconds, heals exhaustion at
-## 10 points/second and is interrupted by movement or damage. No time skip.
+## ASSUMPTION: straw rolls take 12 seconds and restore 65 exhaustion once;
+## tents take 10 seconds and restore 100. Only a completed, uninterrupted sleep
+## spends a use. No time skip, no partial restoration on interruption.
 func _tick_sleep(delta: float) -> void:
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	if input.length_squared() > 0.04 or nav_active or vitals.in_combat or (Time.get_ticks_msec() * 0.001 - _last_hit_taken_s) < 1.0 or dead:
+	if input.length_squared() > 0.04 or nav_active or vitals.in_combat or (Time.get_ticks_msec() * 0.001 - _last_hit_taken_s) < 1.0 or dead or not is_instance_valid(_sleep_spot) or global_position.distance_to(_sleep_spot.global_position) > 3.2:
 		_sleep_left = 0.0
+		_sleep_spot = null
 		notice("Sleep interrupted")
 		return
 	_sleep_left = maxf(0.0, _sleep_left - delta)
-	vitals.rest(10.0 * delta)
 	velocity.x = 0.0
 	velocity.z = 0.0
 	move_and_slide()
-	if _sleep_left <= 0.0 or vitals.fatigue <= 0.0:
-		_sleep_left = 0.0
+	if _sleep_left <= 0.0:
+		var spot := _sleep_spot
+		_sleep_spot = null
+		vitals.rest(spot.sleep_restore())
+		spot.complete_sleep()
 		notice("Rested")
 
-func _start_sleep() -> void:
-	var tent := _nearest_group("tent")
-	if tent == null or global_position.distance_to(tent.global_position) > 3.2:
+func _nearest_sleep_spot() -> Node3D:
+	var best: Node3D = null
+	var best_d := 3.2
+	for node in get_tree().get_nodes_in_group("sleep_spot"):
+		var n := node as Node3D
+		if n == null or not is_instance_valid(n):
+			continue
+		if int(n.get("sleeps_left")) == 0:
+			continue
+		var d := global_position.distance_to(n.global_position)
+		if d < best_d:
+			best = n
+			best_d = d
+	return best
+
+func _start_sleep(spot: Node3D = null) -> void:
+	if spot == null:
+		spot = _nearest_sleep_spot()
+	if spot == null or not is_instance_valid(spot) or global_position.distance_to(spot.global_position) > 3.2 or int(spot.get("sleeps_left")) == 0:
 		return
 	if vitals.in_combat or (Time.get_ticks_msec() * 0.001 - _last_hit_taken_s) < 5.0 or dead:
 		notice("Can't sleep in combat")
 		return
+	if vitals.fatigue < 1.0:
+		notice("Already rested")
+		return
 	clear_nav()
 	_cancel_gather_and_butcher()
-	_sleep_left = 10.0
+	_sleep_spot = spot
+	_sleep_left = spot.sleep_duration()
 	notice("Sleeping - move to wake")
 
 func _interact() -> void:
 	if mounted_on:
 		dismount()
 		return
-	var tent := _nearest_group("tent")
-	if tent and global_position.distance_to(tent.global_position) < 3.2 and vitals.fatigue >= 1.0:
-		_start_sleep()
+	var sleep_spot := _nearest_sleep_spot()
+	if sleep_spot and vitals.fatigue >= 1.0:
+		_start_sleep(sleep_spot)
 		return
 	var pen := _nearest_group("taming_pen") as TamingPen
 	if pen and global_position.distance_to(pen.global_position) < 3.0:
@@ -1624,8 +1649,8 @@ func _building_interact(b: Node) -> void:
 	if StationCraft.is_craft_station(b):
 		open_station_craft(b as Node3D)
 		return
-	if str(b.get("kind")) == "tent":
-		_start_sleep()
+	if str(b.get("kind")) == "tent" or str(b.get("kind")) == "straw_roll":
+		_start_sleep(b as Node3D)
 		return
 	if str(b.get("kind")) == "basket" and b.get("storage") and ui:
 		if summoned_pet and is_instance_valid(summoned_pet) and summoned_pet.pet_record and summoned_pet.pet_record.bag:
@@ -1776,6 +1801,7 @@ func _survivor_meta() -> Dictionary:
 
 func _on_vitals_damaged() -> void:
 	_sleep_left = 0.0
+	_sleep_spot = null
 	_cancel_gather_and_butcher()
 	if anim == null:
 		return
@@ -1789,6 +1815,7 @@ func _on_vitals_died() -> void:
 		return
 	dead = true
 	_sleep_left = 0.0
+	_sleep_spot = null
 	clear_nav()
 	_clear_ground_marker()
 	_cancel_gather_and_butcher()
@@ -2035,9 +2062,10 @@ func context_actions() -> Array:
 	if near_water:
 		out.append({"id": "drink", "glyph": "💧", "label": "Drink"})
 		out.append({"id": "wash", "glyph": "🫧", "label": "Wash"})
-	var tent := _nearest_group("tent")
-	if tent and global_position.distance_to(tent.global_position) < 3.2:
-		out.append({"id": "sleep", "glyph": "☾", "label": "Sleep"})
+	var sleep_spot := _nearest_sleep_spot()
+	if sleep_spot:
+		var left := int(sleep_spot.get("sleeps_left"))
+		out.append({"id": "sleep", "glyph": "☾", "label": "Sleep" if left < 0 else "Sleep (%d left)" % left})
 	var fire := _nearest_group("bonfire")
 	if fire and global_position.distance_to(fire.global_position) < 2.8:
 		out.append({"id": "cook", "glyph": "🍖", "label": "Cook"})

@@ -12,9 +12,8 @@ tired (flat), weary (frown), exhausted (deep frown). At 50% Energy regen slows; 
 75% Energy capacity drops to 75%. It never causes death or hard-blocks gathering.
 
 Food restores Energy, gives existing recipe buffs, and eases exhaustion by 25% of
-its Energy value. Medicine, not food, remains the direct Health restore. Sleeping
-near a tent takes ten uninterrupted real seconds to clear 100 exhaustion; moving
-or taking damage wakes the survivor. Simply standing in a tent does not sleep.
+its Energy value. Medicine, not food, remains the direct Health restore. Sleeping at a placed shelter is manual and interruptible; see the tiered sleep
+plan below. Simply standing in a tent does not sleep.
 These rates and thresholds are design assumptions, not historical Durango facts.
 
 ## 1. The shape of the world
@@ -133,3 +132,66 @@ Home resources regenerate slowly unless uprooted (NamuWiki reading, PRD §4.2 di
 2. A tier-25 island yields materials at 20, 25 and 30 in its three rings, and a crafted knife's level reads back as the mean.
 3. Every climate has at least one tameable herbivore in the gathering ring and one status-applying predator in the working ring.
 4. The volcanic island has no gathering ring: it is a raid, not a farm.
+
+## Building expansion plan (owner-directed, 2026-09-26)
+
+The shelter and utility line should make a camp useful, not fill the build menu with
+cosmetic copies. These are DEADFRONT design recipes, not a historical Don't Starve
+catalog. Counts below are initial balance targets. "Existing" means the gameplay
+already has a station or prop, not that its final art or new behavior is finished.
+Sleep is a deliberate action at a placed shelter: movement or damage interrupts it,
+without spending a use. A completed sleep restores exhaustion, then decrements its
+remaining uses in saved building state. Used bedding cannot be repacked into a fresh
+kit. The public camp's starter shelter remains unlimited; it grants no free kit.
+
+| Tier / structure | Craft input (item category/count) | What it does / unlocks | State |
+|---|---|---|---|
+| 0 Straw roll | fibre 3 + lashing 1 | 12 s sleep, restore 65 exhaustion; disappears after 1 completed sleep. 1x2. | first implementation |
+| 1 Field tent | hide 2 + wood 2 + lashing 1 | 10 s sleep, restore 100; 6 completed sleeps, then disappears. 3x3. Replaces unlimited personal tent. | first implementation |
+| 2 Canvas tent | fibre/canvas 6 + wood 3 + lashing 2 | 8 s sleep, restore 100; 12 sleeps; weather cover later. 3x3. | planned |
+| 3 Log shelter | log 8 + fibre 6 + lashing 3 | 7 s sleep, restore 100; repair with logs instead of finite uses. 4x4. | planned |
+| 4 Cabin bed | plank 6 + fibre 4 + hide 2 | 5 s sleep inside enclosed cabin, permanent; better home-base rest. | planned |
+
+| Utility / station | Craft input (category/count) | What it does / enables | State |
+|---|---|---|---|
+| Campfire (temporary) | wood 2 + tinder 1 | Basic skewers, warmth and light for a short fuel budget; burns out. Distinct from the present persistent bonfire, which remains legacy until the conversion has a save migration. | planned |
+| Stone fire pit | stone 6 + wood 2 | Persistent campsite fire/light; unlocks grilling and cauterise. Keep camp's existing fire available. | planned |
+| Crock pot | clay 4 + stone 2 + wood 2 | Combines several ingredients into cooked meals and recipe buffs; no generic "cook anything" shortcut. | planned |
+| Meat drying station | wood 4 + lashing 2 | Processes raw meat over time into preserved food; weather and spoilage balance later. Existing drying-rack mechanics can be reused. | planned |
+| Flat stone grill | stone 4 + wood 2 | Single-ingredient roasted meats and vegetables; hotter tier than skewer. | planned |
+| Smoker | wood 6 + stone 3 + lashing 2 | Slower preserved meat, better food quality than drying. | planned |
+| Mortar and pestle | stone 3 + wood 1 | Crush herbs and grind ingredients for medicine and meatballs. | existing station / final art pending |
+| Water well | stone 6 + wood 4 + lashing 2 | Reliable water source away from rivers; supports farming and cooking. | existing station / final art pending |
+| Water purifier | clay 3 + stone 3 + wood 2 | Boils water for cooking, medicine, and dye processes. | planned |
+| Workbench | wood 4 + lashing 2 | Basic tools, small structures and repair recipes. | existing |
+| Repair grindstone | stone 4 + wood 2 | Repairs tools/weapons using compatible materials; avoid free durability resets. | planned |
+| Tanning frame | wood 4 + lashing 3 | Processes hides for clothes and advanced shelters. | planned |
+| Loom | wood 5 + fibre 4 + lashing 2 | Weaves canvas/cloth for tents, armour and sails. | planned |
+| Kiln | clay 6 + stone 4 + wood 2 | Fired bricks and ceramic pots. | planned |
+| Clay furnace / forge | clay 8 + stone 6 + wood 4 | Smelts ores and makes metal parts; fuel is consumed. | planned |
+| Anvil bench | metal 3 + wood 4 | Metal tools and weapon upgrades; requires forge output. | planned |
+
+| Home / ecology | Craft input (category/count) | What it does / enables | State |
+|---|---|---|---|
+| Basket | fibre 4 + wood 1 | 60-slot storage. | existing |
+| Lidded chest | wood 6 + metal 1 | Protected storage with an explicit access owner when sharing exists. | planned |
+| Raised storehouse | log 10 + plank 6 + lashing 4 | Large protected food/material store. | planned |
+| Seed planter | wood 2 + soil/clay 2 | Small herb nursery; plant management. | planned |
+| Farm plot | wood 2 + fibre 2 + soil/clay 4 | Grow crops with water and tending. | existing field system |
+| Compost bin | wood 4 + fibre 2 | Converts plant scraps into fertilizer over time. | planned |
+| Rain catcher | wood 3 + fibre 4 + clay 2 | Collects rainwater for the well/field loop. | planned |
+| Fish trap | wood 3 + lashing 2 | Passive fish catch in placed water, with finite bait. | planned |
+| Animal feed trough | wood 3 + fibre 2 | Deposits feed for bonded animals, not a free hunger reset. | planned |
+| Reinforced taming pen | wood 8 + lashing 4 + metal 2 | Safer taming space; preserves the species' wild stat block. | planned |
+| Fence / gate | wood 2 / wood 3 + lashing 1 | Route and protect a claim; gate allows entry. | existing |
+| Palisade / windbreak | log 4 + lashing 2 / wood 3 + fibre 2 | Defence / climate cover in claimed areas. | planned |
+| Watchtower / lantern post | wood 8 + lashing 3 / wood 2 + fuel 1 | Sightlines / night visibility; no passive omniscience. | planned |
+| Sign / map board | wood 1 / plank 3 + lashing 1 | Name a place / display discovered route information. | sign existing; board planned |
+| Cargo marker | wood 3 + stone 2 | Marks outbound cargo prep; does not waive warp fee. | planned |
+
+Make the early loop legible: gather fibre -> roll -> sleep, hunt for hide -> field
+tent, then a temporary cooking fire -> stone pit -> crock pot/meat dryer. Station
+recipes should point to real products before placing the models. Generated art
+replaces the Kenney placeholders only after in-world pixel checks. New economy
+outputs, fuel rates, storage size, spoilage time and late tiers remain design
+assumptions to playtest, not shipped mechanics.

@@ -538,6 +538,32 @@
       "process_add": 1
     },
     {
+      "id": "straw_roll_kit",
+      "display_name": "Straw Roll",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "fibre",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "straw_roll_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 1.5,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
       "id": "tent_kit",
       "display_name": "Tent Kit",
       "skill": "tailoring",

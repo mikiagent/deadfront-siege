@@ -23,6 +23,7 @@ func _process(_delta: float) -> bool:
 		return false
 	_capture_done = true
 	_test_capture_threshold()
+	_test_sleep_building_save()
 	_finish()
 	return true
 
@@ -71,6 +72,25 @@ func _test_food_buffs() -> void:
 	_expect(is_equal_approx(buffs.multiplier("damage"), 1.5), "food buff multipliers stack")
 	buffs.tick(2.1)
 	_expect(is_equal_approx(buffs.multiplier("damage"), 1.2), "expired food buff is removed")
+
+func _test_sleep_building_save() -> void:
+	var script := load("res://scripts/world/placed_building.gd") as GDScript
+	var roll: Node = script.make(&"straw_roll")
+	_expect(int(roll.get("sleeps_left")) == 1, "straw roll starts with one sleep")
+	_expect(is_equal_approx(roll.sleep_restore(), 65.0), "straw roll restores less than tent")
+	var tent: Node = script.make(&"tent")
+	_expect(int(tent.get("sleeps_left")) == 6, "tent starts with six sleeps")
+	get_root().add_child(tent)
+	tent.complete_sleep()
+	var saved: Dictionary = tent.to_dict()
+	var restored: Node = script.from_dict(saved)
+	_expect(int(restored.get("sleeps_left")) == 5, "remaining tent uses survive save/load")
+	var old: Node = script.from_dict({"kind": "tent"})
+	_expect(int(old.get("sleeps_left")) == 6, "legacy tent saves start at six uses")
+	roll.free()
+	tent.queue_free()
+	restored.free()
+	old.free()
 
 func _test_exhaustion() -> void:
 	var v := Vitals.new()

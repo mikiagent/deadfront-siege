@@ -197,7 +197,7 @@ static func _spawn_building(row: Dictionary) -> Node3D:
 			return TamingPen.from_dict(row)
 		&"field_small", &"field_large":
 			return FieldPlot.from_dict(row)
-		&"tent", &"basket", &"fence", &"gate", &"sign":
+		&"straw_roll", &"tent", &"basket", &"fence", &"gate", &"sign":
 			return (load("res://scripts/world/placed_building.gd") as GDScript).from_dict(row)
 		_:
 			return (load("res://scripts/world/placed_building.gd") as GDScript).from_dict(row)

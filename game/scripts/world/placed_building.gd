@@ -1,5 +1,5 @@
 extends StaticBody3D
-## Home-island buildings: basket, tent, fence, gate, sign. Protected, no decay.
+## Placed structures. Temporary sleep structures track completed uses in saves.
 
 var kind: StringName = &"basket"
 var storage: Inventory
@@ -9,12 +9,14 @@ var protected: bool = true
 var persist_building: bool = true
 var build_cell: Vector2i = Vector2i.ZERO
 var build_rot: int = 0
+var sleeps_left: int = -1  # -1 for non-sleep structures
 
 const BASKET_SLOTS := 60 ## ASSUMPTION: PRD ~100; 60 for mobile UI.
 
 static func make(p_kind: StringName):
 	var b = (load("res://scripts/world/placed_building.gd") as GDScript).new()
 	b.kind = p_kind
+	b.sleeps_left = 1 if p_kind == &"straw_roll" else (6 if p_kind == &"tent" else -1)
 	b.name = str(p_kind)
 	if p_kind == &"basket":
 		b.storage = Inventory.new(BASKET_SLOTS)
@@ -29,6 +31,9 @@ static func from_dict(d: Dictionary):
 	if cell_v is Array and (cell_v as Array).size() >= 2:
 		b.build_cell = Vector2i(int(cell_v[0]), int(cell_v[1]))
 	b.build_rot = int(d.get("rot", 0))
+	# Older tents had no use field: give them the full six uses.
+	if b.sleeps_left >= 0:
+		b.sleeps_left = clampi(int(d.get("sleeps_left", b.sleeps_left)), 0, b.sleeps_left)
 	if b.storage and d.has("contents"):
 		b.storage.load_array(d.get("contents", []))
 	return b
@@ -41,6 +46,7 @@ func to_dict() -> Dictionary:
 		"text": sign_text,
 		"cargo": is_cargo,
 		"contents": storage.to_array() if storage else [],
+		"sleeps_left": sleeps_left,
 	}
 	rec["x"] = global_position.x
 	rec["z"] = global_position.z
@@ -52,8 +58,13 @@ func set_grid_pose(cell: Vector2i, rot: int) -> void:
 	rotation.y = deg_to_rad(float(build_rot) * 90.0)
 
 func _ready() -> void:
+	if sleeps_left == 0:
+		queue_free()  # a save made on the completion frame must not resurrect used bedding
+		return
 	add_to_group("placed_building")
 	add_to_group(str(kind))
+	if kind == &"tent" or kind == &"straw_roll":
+		add_to_group("sleep_spot")
 	if kind == &"tent":
 		add_to_group("tent")
 	if kind == &"basket":
@@ -65,6 +76,9 @@ func _exit_tree() -> void:
 	_release_grid()
 
 func pack_up(player: Player) -> void:
+	if sleeps_left >= 0 and sleeps_left < (1 if kind == &"straw_roll" else 6):
+		player.notice("Used bedding can't be repacked")
+		return
 	if not World.is_home():
 		return
 	var kit := _kit_id()
@@ -78,8 +92,24 @@ func pack_up(player: Player) -> void:
 	print("[item] packed %s" % kind)
 	queue_free()
 
+func sleep_duration() -> float:
+	return 12.0 if kind == &"straw_roll" else 10.0
+
+func sleep_restore() -> float:
+	return 65.0 if kind == &"straw_roll" else 100.0
+
+func complete_sleep() -> void:
+	if sleeps_left <= 0:
+		return
+	sleeps_left -= 1
+	print("[sleep] %s uses_left=%d" % [kind, sleeps_left])
+	if sleeps_left == 0:
+		queue_free()
+
 func _kit_id() -> StringName:
 	match kind:
+		&"straw_roll":
+			return &"straw_roll_kit"
 		&"tent":
 			return &"tent_kit"
 		&"basket":
@@ -105,6 +135,8 @@ func _fallback_size() -> Vector3:
 	match kind:
 		&"tent":
 			return Vector3(2.2, 1.6, 2.2)
+		&"straw_roll":
+			return Vector3(0.9, 0.25, 1.7)
 		&"fence":
 			return Vector3(2.0, 1.2, 0.2)
 		&"gate":

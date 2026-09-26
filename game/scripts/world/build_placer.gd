@@ -49,6 +49,8 @@ func _kit_id(kind: StringName) -> String:
 			return "drying_rack_kit"
 		&"tent":
 			return "tent_kit"
+		&"straw_roll":
+			return "straw_roll_kit"
 		&"basket":
 			return "basket_kit"
 		&"fence":
@@ -377,7 +379,7 @@ func _spawn(kind: StringName) -> Node3D:
 			return CraftStation.make(&"workbench")
 		&"drying_rack":
 			return CraftStation.make(&"drying_rack")
-		&"tent", &"basket", &"fence", &"gate", &"sign":
+		&"straw_roll", &"tent", &"basket", &"fence", &"gate", &"sign":
 			return (load("res://scripts/world/placed_building.gd") as GDScript).make(kind)
 		_:
 			return null
@@ -411,6 +413,8 @@ func _pay(player: Player) -> bool:
 		return true
 	if placing == &"tent":
 		return player.inventory.consume(&"tent_kit", 1)
+	if placing == &"straw_roll":
+		return player.inventory.consume(&"straw_roll_kit", 1)
 	if placing == &"basket":
 		return player.inventory.consume(&"basket_kit", 1)
 	if placing == &"fence":

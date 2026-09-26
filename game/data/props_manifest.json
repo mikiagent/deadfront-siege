@@ -53,7 +53,7 @@
         3,
         3
       ],
-      "note": "rest, fatigue drain"
+      "note": "field tent, six completed sleeps before it wears out"
     },
     "tent_canvas": {
       "model": "tent-canvas",
@@ -237,6 +237,14 @@
         2
       ],
       "note": "simple well Construction 25"
+    },
+    "straw_roll": {
+      "model": "bedroll",
+      "footprint": [
+        1,
+        2
+      ],
+      "note": "temporary single-use rest, replaced by generated straw-roll asset later"
     }
   },
   "tools": {

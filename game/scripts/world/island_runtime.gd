@@ -623,6 +623,7 @@ func _camp(at: Vector3) -> void:
 	var PB := load("res://scripts/world/placed_building.gd") as GDScript
 	var shed = PB.make(&"tent")
 	shed.persist_building = false
+	shed.sleeps_left = -1  # public camp shelter does not consume personal kit uses
 	_camp_place(shed, "CampShed", &"tent", BuildGrid.tile_of(_tile_at(at.x, at.z - 3.5)))
 
 func _coziness(at: Vector3) -> void:

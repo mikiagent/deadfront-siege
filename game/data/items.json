@@ -691,6 +691,21 @@
       ]
     },
     {
+      "id": "straw_roll_kit",
+      "display_name": "Straw Roll",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 3,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "straw_roll",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    {
       "id": "tent_kit",
       "display_name": "Tent Kit",
       "categories": [
