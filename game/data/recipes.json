@@ -329,6 +329,27 @@
       "process_add": 1
     },
     {
+      "id": "dry_meat",
+      "display_name": "Dry Meat",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "raw_meat",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "dried_meat",
+        "count": 1
+      },
+      "station": "drying_rack",
+      "seconds": 8.0,
+      "process_step": "dry",
+      "process_add": 1
+    },
+    {
       "id": "hide_strap",
       "display_name": "Hide Strap",
       "skill": "processing",
@@ -513,18 +534,18 @@
     },
     {
       "id": "drying_rack_kit",
-      "display_name": "Drying Rack Kit",
+      "display_name": "Meat Drying Rack Kit",
       "skill": "construction",
       "max_level": 60,
       "slots": [
         {
           "category": "wood",
-          "count": 3,
+          "count": 4,
           "primary": true
         },
         {
           "category": "lashing",
-          "count": 1,
+          "count": 2,
           "primary": false
         }
       ],

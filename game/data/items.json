@@ -444,7 +444,8 @@
       "display_name": "Raw Meat",
       "categories": [
         "meat",
-        "food"
+        "food",
+        "raw_meat"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -454,6 +455,23 @@
       "raw": true,
       "poison_chance": 0.25,
       "tastes_bad_chance": 0.2
+    },
+    {
+      "id": "dried_meat",
+      "display_name": "Dried Meat",
+      "categories": [
+        "food",
+        "meat",
+        "preserved"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "carnivore",
+      "food_energy": 17,
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "skewer",
@@ -477,7 +495,8 @@
       "display_name": "Fish",
       "categories": [
         "meat",
-        "food"
+        "food",
+        "raw_meat"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -493,7 +512,8 @@
       "display_name": "Raptor Meat",
       "categories": [
         "meat",
-        "food"
+        "food",
+        "raw_meat"
       ],
       "stack_max": 10,
       "tool_class": "none",

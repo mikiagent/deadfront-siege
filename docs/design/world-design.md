@@ -157,7 +157,7 @@ kit. The public camp's starter shelter remains unlimited; it grants no free kit.
 | Campfire (temporary) | wood 2 + tinder 1 | Basic skewers, warmth and light for a short fuel budget; burns out. Distinct from the present persistent bonfire, which remains legacy until the conversion has a save migration. | planned |
 | Stone fire pit | stone 6 + wood 2 | Persistent campsite fire/light; unlocks grilling and cauterise. Keep camp's existing fire available. | planned |
 | Crock pot | clay 4 + stone 2 + wood 2 | Combines several ingredients into cooked meals and recipe buffs; no generic "cook anything" shortcut. | planned |
-| Meat drying station | wood 4 + lashing 2 | Processes raw meat over time into preserved food; weather and spoilage balance later. Existing drying-rack mechanics can be reused. | planned |
+| Meat drying station | wood 4 + lashing 2 | Placed drying rack processes raw meat/fish into dried meat in 8 s (17 energy), keeping the existing dried-hide recipe. Weather, spoilage and passive batches remain planned. | first implementation |
 | Flat stone grill | stone 4 + wood 2 | Single-ingredient roasted meats and vegetables; hotter tier than skewer. | planned |
 | Smoker | wood 6 + stone 3 + lashing 2 | Slower preserved meat, better food quality than drying. | planned |
 | Mortar and pestle | stone 3 + wood 1 | Crush herbs and grind ingredients for medicine and meatballs. | existing station / final art pending |

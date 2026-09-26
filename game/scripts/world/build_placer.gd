@@ -406,10 +406,10 @@ func _pay(player: Player) -> bool:
 		player.inventory.consume(&"twine", 2)
 		return true
 	if placing == &"drying_rack":
-		if player.inventory.count_of(&"branch") < 3 or player.inventory.count_of(&"twine") < 1:
+		if player.inventory.count_of(&"branch") < 4 or player.inventory.count_of(&"twine") < 2:
 			return false
-		player.inventory.consume(&"branch", 3)
-		player.inventory.consume(&"twine", 1)
+		player.inventory.consume(&"branch", 4)
+		player.inventory.consume(&"twine", 2)
 		return true
 	if placing == &"tent":
 		return player.inventory.consume(&"tent_kit", 1)

@@ -24,6 +24,7 @@ func _process(_delta: float) -> bool:
 	_capture_done = true
 	_test_capture_threshold()
 	_test_sleep_building_save()
+	_test_dried_meat_recipe()
 	_finish()
 	return true
 
@@ -91,6 +92,22 @@ func _test_sleep_building_save() -> void:
 	tent.queue_free()
 	restored.free()
 	old.free()
+
+func _test_dried_meat_recipe() -> void:
+	var data: Node = get_root().get_node("Data")
+	var rec: Dictionary = data.get("recipes").get(&"dry_meat", {})
+	_expect(str(rec.get("station", "")) == "drying_rack", "dried meat uses placed rack")
+	_expect(is_equal_approx(float(rec.get("seconds", 0.0)), 8.0), "drying requires eight seconds")
+	_expect(str(rec.get("slots", [{}])[0].get("category", "")) == "raw_meat", "drying accepts raw meat category")
+	for raw_id in [&"raw_meat", &"fish", &"raptor_meat"]:
+		var item: ItemDef = data.call("item", raw_id)
+		_expect(item != null and item.has_category(&"raw_meat"), "%s can dry" % raw_id)
+	var cooked: ItemDef = data.call("item", &"skewer")
+	_expect(cooked != null and not cooked.has_category(&"raw_meat"), "cooked meat cannot dry again")
+	var dried: ItemDef = data.call("item", &"dried_meat")
+	_expect(dried != null and dried.has_category(&"food") and not dried.raw and dried.food_energy > 0.0, "drying outputs edible preserved meat")
+	var kit: Dictionary = data.get("recipes").get(&"drying_rack_kit", {})
+	_expect(int(kit.get("slots", [])[0].get("count", 0)) == 4 and int(kit.get("slots", [])[1].get("count", 0)) == 2, "rack kit matches wood/lashing plan")
 
 func _test_exhaustion() -> void:
 	var v := Vitals.new()
