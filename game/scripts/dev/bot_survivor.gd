@@ -496,12 +496,29 @@ func _tame() -> String:
 
 func _travel() -> String:
 	_goal = "travel"
+	if not World.is_home():
+		return "harbour outbound route starts at home"
+	# Test the only player-visible outbound route, not an unlisted destination.
+	# Use its real button callback so the UI and World.travel stay in sync.
+	var ui: CanvasLayer = (load("res://scripts/ui/world_ui.gd") as GDScript).ensure() as CanvasLayer
+	ui.call("show_harbour")
+	var route: Button = null
+	for button in ui.find_children("*", "Button", true, false):
+		if (button as Button).text.contains("SAIL UNSTABLE TEMPERATE"):
+			route = button as Button
+			break
+	if route == null:
+		ui.call("hide_all")
+		return "no visible outbound harbour route"
 	var before := World.island_id
-	World.travel(&"savannah_15", &"sail")
-	await _beat(2.0)
+	var stones_before := World.t_stones
+	route.pressed.emit()
+	var deadline := _t + 8.0
+	while _t < deadline and World.island_id == before:
+		if not await _beat(0.25): break
 	if World.island_id == before:
-		return "travel to savannah_15 refused (level, cost or harbour)"
-	_event("travel", "%s -> %s" % [before, World.island_id])
+		return "visible harbour sail did not depart (T-stones %d)" % stones_before
+	_event("travel", "%s -> %s by harbour button (T-stones %d -> %d)" % [before, World.island_id, stones_before, World.t_stones])
 	return ""
 
 ## Gather what the unstable island offers that home does not.
