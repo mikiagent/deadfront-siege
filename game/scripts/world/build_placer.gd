@@ -51,6 +51,8 @@ func _kit_id(kind: StringName) -> String:
 			return "workbench_kit"
 		&"drying_rack":
 			return "drying_rack_kit"
+		&"smoker":
+			return "smoker_kit"
 		&"crock_pot":
 			return "crock_pot_kit"
 		&"stone_grill":
@@ -397,6 +399,8 @@ func _spawn(kind: StringName) -> Node3D:
 			return CraftStation.make(&"workbench")
 		&"drying_rack":
 			return CraftStation.make(&"drying_rack")
+		&"smoker":
+			return CraftStation.make(&"smoker")
 		&"crock_pot":
 			return CraftStation.make(&"crock_pot")
 		&"stone_grill":

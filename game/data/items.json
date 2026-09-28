@@ -474,6 +474,23 @@
       }
     },
     {
+      "id": "smoked_meat",
+      "display_name": "Smoked Meat",
+      "categories": [
+        "food",
+        "meat",
+        "preserved"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "diet": "carnivore",
+      "food_energy": 23,
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
       "id": "camp_stew",
       "display_name": "Camp Stew",
       "categories": [
@@ -755,6 +772,21 @@
       "footprint": [
         2,
         1
+      ]
+    },
+    {
+      "id": "smoker_kit",
+      "display_name": "Smoker Kit",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "smoker",
+      "footprint": [
+        2,
+        2
       ]
     },
     {

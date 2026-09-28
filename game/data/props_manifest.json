@@ -293,6 +293,14 @@
         2
       ],
       "note": "staged placeholder; enclosure validation absent, sleep disabled"
+    },
+    "smoker": {
+      "model": "campfire-stand",
+      "footprint": [
+        2,
+        2
+      ],
+      "note": "smoking station; Kenney stand placeholder, no fuel/weather system yet"
     }
   },
   "tools": {

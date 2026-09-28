@@ -350,6 +350,27 @@
       "process_add": 1
     },
     {
+      "id": "smoke_meat",
+      "display_name": "Smoke Meat",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "raw_meat",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "smoked_meat",
+        "count": 1
+      },
+      "station": "smoker",
+      "seconds": 12.0,
+      "process_step": "smoke",
+      "process_add": 1
+    },
+    {
       "id": "camp_stew",
       "display_name": "Camp Stew",
       "skill": "cooking",
@@ -665,6 +686,37 @@
       },
       "station": null,
       "seconds": 1.5,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "smoker_kit",
+      "display_name": "Smoker Kit",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "wood",
+          "count": 6,
+          "primary": true
+        },
+        {
+          "category": "stone",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "smoker_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 4.0,
       "process_step": "bind",
       "process_add": 1
     },

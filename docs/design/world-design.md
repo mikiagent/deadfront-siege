@@ -159,7 +159,7 @@ kit. The public camp's starter shelter remains unlimited; it grants no free kit.
 | Crock pot | clay 4 + stone 2 + wood 2 | Placed 2x2 cooking station. Combines raw meat/fish + herb + fruit into Camp Stew in 6 s (32 base energy); other dishes and buffs remain planned. Current Kenney cooking-stand visual is temporary. | first implementation |
 | Meat drying station | wood 4 + lashing 2 | Placed drying rack processes raw meat/fish into dried meat in 8 s (17 energy), keeping the existing dried-hide recipe. Weather, spoilage and passive batches remain planned. | first implementation |
 | Flat stone grill | stone 4 + wood 2 | Placed 2x2 station. Raw meat/fish can be grilled or roasted; seasoned roast adds spice. Vegetable roasting remains planned. Temporary Kenney cooking-stand visual. | first implementation |
-| Smoker | wood 6 + stone 3 + lashing 2 | Slower preserved meat, better food quality than drying. | planned |
+| Smoker | wood 6 + stone 3 + lashing 2 | Placed 2x2 station. Raw meat/fish becomes smoked meat in 12 s (23 base energy vs dried meat 17); no fuel, spoilage or weather effects yet. Temporary Kenney stand visual. | first implementation |
 | Mortar and pestle | stone 3 + wood 1 | Crush herbs and grind ingredients for medicine and meatballs. | existing station / final art pending |
 | Water well | stone 6 + wood 4 + lashing 2 | Reliable water source away from rivers; supports farming and cooking. | existing station / final art pending |
 | Water purifier | clay 3 + stone 3 + wood 2 | Boils water for cooking, medicine, and dye processes. | planned |

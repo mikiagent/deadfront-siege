@@ -30,6 +30,7 @@ func _process(_delta: float) -> bool:
 	_test_stone_fire_pit()
 	_test_temporary_campfire()
 	_test_flat_stone_grill()
+	_test_smoker()
 	_finish()
 	return true
 
@@ -190,6 +191,25 @@ func _test_stone_fire_pit() -> void:
 	var props: Dictionary = data.get("props_manifest").get("buildings", {})
 	_expect(props.has("stone_fire_pit"), "stone pit has a placed visual")
 	# The boot smoke keeps the legacy public-camp bonfire path exercised.
+
+func _test_smoker() -> void:
+	var data: Node = get_root().get_node("Data")
+	var rec: Dictionary = data.get("recipes").get(&"smoke_meat", {})
+	_expect(str(rec.get("station", "")) == "smoker" and is_equal_approx(float(rec.get("seconds", 0.0)), 12.0), "smoker processing takes twelve seconds")
+	_expect(str(rec.get("slots", [{}])[0].get("category", "")) == "raw_meat", "smoker takes only uncooked meat/fish")
+	var smoked: ItemDef = data.call("item", &"smoked_meat")
+	var dried: ItemDef = data.call("item", &"dried_meat")
+	_expect(smoked != null and not smoked.raw and smoked.has_category(&"preserved") and smoked.food_energy > dried.food_energy, "smoked meat preserves and exceeds dried food energy")
+	var kit: Dictionary = data.get("recipes").get(&"smoker_kit", {})
+	_expect(kit.get("slots", []).size() == 3 and int(kit["slots"][0].get("count", 0)) == 6 and int(kit["slots"][1].get("count", 0)) == 3 and int(kit["slots"][2].get("count", 0)) == 2, "smoker kit costs wood six, stone three, lashing two")
+	var kit_item: ItemDef = data.call("item", &"smoker_kit")
+	_expect(kit_item != null and kit_item.place_as == &"smoker" and kit_item.footprint == Vector2i(2, 2), "smoker kit places two by two")
+	var placer: Node = (load("res://scripts/world/build_placer.gd") as GDScript).new()
+	_expect(placer.call("_kit_id", &"smoker") == "smoker_kit", "smoker placement spends kit")
+	var station: Node = placer.call("_spawn", &"smoker")
+	_expect(station != null and station.get("station_id") == &"smoker", "smoker spawns craft station")
+	station.free()
+	placer.free()
 
 func _test_flat_stone_grill() -> void:
 	var data: Node = get_root().get_node("Data")
