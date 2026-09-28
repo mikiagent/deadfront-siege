@@ -402,7 +402,7 @@ func _hunt() -> String:
 	if target == null or not is_instance_valid(target):
 		return "the %s vanished mid-hunt" % species
 	if not target.health.dead:
-		return "could not kill a %s in 90 s (hp %.0f, %.0f m away)" % [species, target.health.health, player.global_position.distance_to(target.global_position)]
+		return "could not kill a %s in 90 s (hp %.0f, %.0f m away)" % [species, target.health.hp, player.global_position.distance_to(target.global_position)]
 	_event("kill", species)
 	var corpse := get_tree().get_first_node_in_group("corpse") as Corpse
 	if corpse == null:
@@ -470,13 +470,13 @@ func _tame() -> String:
 		if target.statuses.has_flag(&"knockdown"):
 			break
 		# Below the capture threshold a tackle puts it on the ground; that is the window.
-		if FieldTame.health_allows_capture(target.health.health / maxf(1.0, target.health.max_health)):
+		if FieldTame.health_allows_capture(target.health.hp / maxf(1.0, target.health.max_hp)):
 			player.hunt.use_tackle()
 			await _beat(0.4)
 	if not is_instance_valid(target) or target.health.dead:
 		return "the %s died before it could be knocked down" % species
 	if not target.statuses.has_flag(&"knockdown"):
-		return "could not knock a %s down in 120 s (hp %.0f%%)" % [species, 100.0 * target.health.health / maxf(1.0, target.health.max_health)]
+		return "could not knock a %s down in 120 s (hp %.0f%%)" % [species, 100.0 * target.health.hp / maxf(1.0, target.health.max_hp)]
 	_event("knockdown", species)
 	var bonded := player.bonded.size()
 	var feeds := 0
