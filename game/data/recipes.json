@@ -1462,6 +1462,32 @@
       "requires_tool": "hoe"
     },
     {
+      "id": "empty_bucket",
+      "display_name": "Empty Bucket",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "wood",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "empty_bucket",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 2.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
       "id": "fill_bucket",
       "display_name": "Fill Bucket",
       "skill": "construction",

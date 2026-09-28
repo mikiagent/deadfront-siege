@@ -32,6 +32,7 @@ func _process(_delta: float) -> bool:
 	_test_flat_stone_grill()
 	_test_smoker()
 	_test_mortar_well_kit_routes()
+	_test_empty_bucket_recipe()
 	_finish()
 	return true
 
@@ -192,6 +193,16 @@ func _test_stone_fire_pit() -> void:
 	var props: Dictionary = data.get("props_manifest").get("buildings", {})
 	_expect(props.has("stone_fire_pit"), "stone pit has a placed visual")
 	# The boot smoke keeps the legacy public-camp bonfire path exercised.
+
+func _test_empty_bucket_recipe() -> void:
+	var data: Node = get_root().get_node("Data")
+	var rec: Dictionary = data.get("recipes").get(&"empty_bucket", {})
+	_expect(str(rec.get("station", "")) == "workbench" and str(rec.get("output", {}).get("id", "")) == "empty_bucket", "workbench crafts an empty bucket")
+	_expect(rec.get("slots", []).size() == 2 and str(rec["slots"][0].get("category", "")) == "wood" and int(rec["slots"][0].get("count", 0)) == 2 and str(rec["slots"][1].get("category", "")) == "lashing" and int(rec["slots"][1].get("count", 0)) == 1, "bucket provisional wood and lashing cost")
+	var bucket: ItemDef = data.call("item", &"empty_bucket")
+	_expect(bucket != null and bucket.has_category(&"bucket"), "bucket qualifies for well fill recipe")
+	var fill: Dictionary = data.get("recipes").get(&"fill_bucket", {})
+	_expect(str(fill.get("station", "")) == "well" and str(fill.get("output", {}).get("id", "")) == "water_bucket", "well makes water bucket from crafted bucket")
 
 func _test_mortar_well_kit_routes() -> void:
 	var data: Node = get_root().get_node("Data")
