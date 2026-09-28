@@ -34,6 +34,7 @@ func _process(_delta: float) -> bool:
 	_test_smoker()
 	_test_mortar_well_kit_routes()
 	_test_empty_bucket_recipe()
+	_test_multistack_crafting()
 	_finish()
 	return true
 
@@ -425,3 +426,13 @@ func _test_capture_threshold() -> void:
 	_expect(bool(script.call("health_allows_capture", 0.299)), "capture opens below 30 percent health")
 	_expect(not bool(script.call("health_allows_capture", 0.30)), "capture stays closed at 30 percent health")
 	_expect(not bool(script.call("health_allows_capture", 0.50)), "capture stays closed above threshold")
+
+func _test_multistack_crafting() -> void:
+	# Dynamic load avoids compiling Crafting before autoload Data exists.
+	var script: GDScript = load("res://tests/multistack_lab.gd") as GDScript
+	_expect(script != null, "multi-stack lab loads")
+	if script == null: return
+	var lab: RefCounted = script.new()
+	var results: Dictionary = lab.call("run")
+	for label in results:
+		_expect(bool(results[label]), str(label))

@@ -4,8 +4,9 @@ extends Node
 ##
 ## It drives the same entry points a human drives through the UI: tap a harvest node, pick a
 ## radial hex, craft a recipe through StationCraft, hunt a creature, run a context action.
-## It never calls a gameplay rule directly, so whatever it fails to do is something a player
-## also cannot do. Each objective is timed and ends OK, BLOCKED (with the reason) or TIMEOUT,
+## Headless placement supplies grid cells to the real BuildPlacer validation/payment path;
+## it does not exercise the pointer, placement UI, or rendered pixels. The remaining actions
+## use player interactions. Each objective ends OK, BLOCKED (with reason) or TIMEOUT,
 ## and the closing report is the debug output: what the first hour of DEADFRONT actually is.
 ##
 ## Usage: <godot> --path game -- --bot [--bot-minutes=6] [--bot-shots=/tmp/deadfront-bot]
@@ -128,20 +129,25 @@ func _do_rung(rung: Dictionary) -> void:
 
 ## Gather everything a recipe still needs. Returns "" or the reason it cannot be finished.
 func _acquire_for(rec: Dictionary, depth: int = 0) -> String:
+	if depth >= 5:
+		return "ingredients still short after gathers: %s" % Crafting.missing_ingredient_name(player.inventory, rec)
 	for slot_v in rec.get("slots", []):
 		if not slot_v is Dictionary:
 			continue
 		var slot: Dictionary = slot_v
 		var cat := str(slot.get("category", ""))
 		var need := int(slot.get("count", 1))
-		if player.inventory.find_by_category(StringName(cat)).size() > 0:
-			var have := 0
-			for idx in player.inventory.find_by_category(StringName(cat)):
-				var st := player.inventory.slots[idx]
-				if st:
-					have += st.count
-			if have >= need:
-				continue
+		# Check the recipe's complete allocation, not this category alone. A twine
+		# stack can satisfy fibre or lashing but its units cannot serve both twice.
+		if Crafting.picks_valid(player.inventory, rec, Crafting.default_picks(player.inventory, rec)):
+			break
+		var have := 0
+		for idx in player.inventory.find_by_category(StringName(cat)):
+			var st := player.inventory.slots[idx]
+			if st:
+				have += st.count
+		if have >= need:
+			continue
 		var wants: Array = CATEGORY_ITEMS.get(cat, [])
 		if wants.is_empty():
 			return "category %s has no gatherable item mapped" % cat
@@ -170,6 +176,10 @@ func _acquire_for(rec: Dictionary, depth: int = 0) -> String:
 					return "%s needs %s, which needs %s" % [cat, sub.get("id", "?"), sub_why]
 		if not got:
 			return "nothing on this island yields %s (tried %s)" % [cat, ", ".join(PackedStringArray(wants))]
+	if not Crafting.picks_valid(player.inventory, rec, Crafting.default_picks(player.inventory, rec)):
+		# A gather action can return only part of a slot's count (one node's pool).
+		# Re-evaluate all slots with a hard bound rather than trying craft prematurely.
+		return await _acquire_for(rec, depth + 1)
 	return ""
 
 ## A recipe whose output carries `cat`, or {}. Lets the bot discover crafted intermediates.
@@ -285,10 +295,37 @@ func _build(kind: StringName) -> String:
 	var placer = player.placer
 	if placer == null:
 		return "player has no build placer"
+	# In headless mode the window system has no pointer to warp. The BuildPlacer
+	# still owns validation, costs, and occupancy: feed it a candidate grid cell
+	# directly rather than pretending a screen tap has occurred.
 	if DisplayServer.get_name() == "headless":
-		# The ghost snaps to the mouse pointer, and headless has no pointer, so a refusal here
-		# would say nothing about the game. Build placement is checked in the windowed run.
-		return "skipped: placement follows the mouse pointer, which headless has none of"
+		var actions: Array = player.context_actions()
+		for action in actions:
+			if str(action.get("id", "")) == "claim":
+				player.context_action("claim")
+				break
+		var count := get_tree().get_nodes_in_group("placed_building").size()
+		placer.begin(kind)
+		await _beat(0.1)
+		if placer.placing == &"": return "build placer refused %s (cost or unlock)" % kind
+		var tried := 0
+		var grid := World.runtime.build_grid as BuildGrid
+		var nearby := BuildGrid.tile_of(player.global_position)
+		# Use a deterministic close-first scan of the claimed area. Never bypass can_place.
+		for radius in range(0, 8):
+			for dz in range(-radius, radius + 1):
+				for dx in range(-radius, radius + 1):
+					if maxi(abs(dx), abs(dz)) != radius: continue
+					var candidate := nearby + Vector2i(dx, dz)
+					if grid.can_place(kind, candidate, 0) != "": continue
+					tried += 1
+					placer.cell = candidate
+					placer._sync_grid_state()
+					if placer.confirm(player) and get_tree().get_nodes_in_group("placed_building").size() > count:
+						_event("build", "%s placed via grid candidate (headless; pointer/UI untested)" % kind)
+						return ""
+		placer.cancel()
+		return "%s had no valid nearby grid cell (%d feasible attempts; pointer/UI untested)" % [kind, tried]
 	# Building needs ground you have claimed; the HUD's CLAIM hex is the real player flow.
 	var acts: Array = []
 	for a in player.context_actions():
@@ -603,4 +640,9 @@ func _report() -> void:
 		print("[bot]   t=%5.0f lvl=%d bag=%d hp=%.0f energy=%.0f exhaustion=%.0f" % [
 			s["t"], s["lvl"], s["bag"], s["hp"], s["energy"], s["exhaustion"]])
 	print("[bot] events=%d shots=%d" % [_events.size(), _shot_n])
-	print("[bot] PASS" if ok > 0 else "[bot] FAIL no rung reached")
+	if ok == _rungs.size() and ok > 0:
+		print("[bot] PASS all attempted rungs reached")
+	elif ok > 0:
+		print("[bot] PARTIAL %d/%d rungs reached" % [ok, _rungs.size()])
+	else:
+		print("[bot] FAIL no rung reached")

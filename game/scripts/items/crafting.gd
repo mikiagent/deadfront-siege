@@ -13,62 +13,91 @@ static func all_recipes() -> Array:
 static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
 	return inv.find_by_category(StringName(str(slot.get("category", ""))))
 
-static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
-	var picks: Array[int] = []
-	var used: Dictionary = {}
-	var prefer := StringName(str(rec.get("input_id", "")))
-	for slot in rec.get("slots", []):
-		if not slot is Dictionary:
-			picks.append(-1)
-			continue
-		var need := int(slot.get("count", 1))
-		var chosen := -1
-		var prefer_slot := StringName(str((slot as Dictionary).get("prefer_id", prefer if picks.is_empty() else "")))
-		if prefer_slot != &"":
-			for idx in inv.find_all(prefer_slot) if inv.has_method("find_all") else _find_all(inv, prefer_slot):
-				var already: int = int(used.get(idx, 0))
-				if inv.slots[idx] and inv.slots[idx].count - already >= need:
-					chosen = idx
-					used[idx] = already + need
-					break
-		if chosen < 0:
-			for idx in stacks_for_slot(inv, slot):
-				var already2: int = int(used.get(idx, 0))
-				if inv.slots[idx].count - already2 >= need:
-					chosen = idx
-					used[idx] = already2 + need
-					break
-		picks.append(chosen)
-	return picks
-
-static func _find_all(inv: Inventory, id: StringName) -> Array[int]:
-	var out: Array[int] = []
-	for i in inv.slot_count:
-		var s := inv.slots[i]
-		if s and s.def_id == id:
-			out.append(i)
-	return out
-
-static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
+## Each recipe slot has a lead stack (for the primary item's attributes) and may draw
+## its remaining units from other stacks. A plan row records exact bag indices/counts.
+## Prefer dedicated materials over dual-category ones, so fibre stalk is spent before
+## bark that might still be needed as lashing. Leads take the largest matching stack.
+static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
 	var slots: Array = rec.get("slots", [])
-	if picks.size() != slots.size():
-		return false
-	var used: Dictionary = {}
+	if inv == null or slots.is_empty() or (not picks.is_empty() and picks.size() != slots.size()):
+		return []
+	var remaining: Dictionary = {}
+	var plan: Array[Dictionary] = []
+	var prefer := StringName(str(rec.get("input_id", "")))
 	for i in slots.size():
-		var idx := picks[i]
-		if idx < 0 or idx >= inv.slot_count or inv.slots[idx] == null:
-			return false
+		if not slots[i] is Dictionary:
+			return []
 		var slot: Dictionary = slots[i]
 		var cat := StringName(str(slot.get("category", "")))
 		var need := int(slot.get("count", 1))
-		var d := inv.slots[idx].def()
-		if d == null or not d.has_category(cat):
-			return false
-		var already: int = int(used.get(idx, 0))
-		if inv.slots[idx].count - already < need:
-			return false
-		used[idx] = already + need
-	return true
+		if need <= 0:
+			return []
+		var preferred := StringName(str(slot.get("prefer_id", prefer if i == 0 else "")))
+		var candidates := inv.find_by_category(cat)
+		candidates.sort_custom(func(a: int, b: int) -> bool:
+			var sa := inv.slots[a]
+			var sb := inv.slots[b]
+			var pa := 1 if preferred != &"" and sa.def_id == preferred else 0
+			var pb := 1 if preferred != &"" and sb.def_id == preferred else 0
+			if pa != pb:
+				return pa > pb
+			var overlaps_a := 0
+			var overlaps_b := 0
+			for other in slots:
+				var other_cat := StringName(str(other.get("category", "")))
+				if sa.def().has_category(other_cat):
+					overlaps_a += 1
+				if sb.def().has_category(other_cat):
+					overlaps_b += 1
+			if overlaps_a != overlaps_b:
+				return overlaps_a < overlaps_b
+			var ca := int(remaining.get(a, sa.count))
+			var cb := int(remaining.get(b, sb.count))
+			return ca > cb if ca != cb else a < b)
+		var lead := -1
+		if not picks.is_empty():
+			lead = picks[i]
+			if lead < 0 or lead >= inv.slot_count or inv.slots[lead] == null or not inv.slots[lead].def().has_category(cat):
+				return []
+			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
+				return []
+		elif not candidates.is_empty():
+			lead = candidates[0]
+		if lead < 0:
+			return []
+		var parts: Array[Dictionary] = []
+		var order: Array[int] = [lead]
+		for idx in candidates:
+			if idx != lead:
+				order.append(idx)
+		for idx in order:
+			var available := int(remaining.get(idx, inv.slots[idx].count))
+			var take := mini(need, available)
+			if take > 0:
+				parts.append({"idx": idx, "count": take})
+				remaining[idx] = available - take
+				need -= take
+			if need == 0:
+				break
+		if need > 0:
+			return []
+		plan.append({"lead": lead, "parts": parts})
+	return plan
+
+static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
+	var plan := _plan(inv, rec)
+	if not plan.is_empty():
+		var picks: Array[int] = []
+		for row in plan:
+			picks.append(int(row["lead"]))
+		return picks
+	var missing: Array[int] = []
+	missing.resize(rec.get("slots", []).size())
+	missing.fill(-1)
+	return missing
+
+static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
+	return not _plan(inv, rec, picks).is_empty()
 
 static func primary_index(rec: Dictionary) -> int:
 	var slots: Array = rec.get("slots", [])
@@ -87,40 +116,20 @@ static func preview(inv: Inventory, rec: Dictionary, picks: Array[int]) -> ItemS
 
 static func consumed_levels(inv: Inventory, rec: Dictionary, picks: Array[int]) -> Array[int]:
 	var out: Array[int] = []
-	var slots: Array = rec.get("slots", [])
-	for i in slots.size():
-		if i >= picks.size():
-			continue
-		var idx := picks[i]
-		if idx < 0 or idx >= inv.slot_count:
-			continue
-		var stack := inv.slots[idx]
-		if stack == null:
-			continue
-		var count := int(slots[i].get("count", 1))
-		for _n in count:
-			out.append(stack.level)
+	for row in _plan(inv, rec, picks):
+		for part in row["parts"]:
+			var stack := inv.slots[int(part["idx"])]
+			for _n in int(part["count"]):
+				out.append(stack.level)
 	return out
 
 static func slot_level_contributions(inv: Inventory, rec: Dictionary, picks: Array[int]) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	var slots: Array = rec.get("slots", [])
-	for i in slots.size():
-		if i >= picks.size() or not slots[i] is Dictionary:
-			continue
-		var idx := picks[i]
-		if idx < 0 or idx >= inv.slot_count:
-			continue
-		var stack := inv.slots[idx]
-		if stack == null:
-			continue
-		var count := int((slots[i] as Dictionary).get("count", 1))
-		out.append({
-			"slot": i,
-			"level": stack.level,
-			"count": count,
-			"def_id": str(stack.def_id),
-		})
+	var plan := _plan(inv, rec, picks)
+	for i in plan.size():
+		for part in plan[i]["parts"]:
+			var stack := inv.slots[int(part["idx"])]
+			out.append({"slot": i, "level": stack.level, "count": int(part["count"]), "def_id": str(stack.def_id)})
 	return out
 
 static func skill_level_for(rec: Dictionary, player: Player = null) -> int:
@@ -261,29 +270,8 @@ static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
 static func craft(player: Player, rec: Dictionary, picks: Array[int]) -> ItemStack:
 	if not can_make(player, rec, picks):
 		return null
-	var pidx := primary_index(rec)
-	var primary := player.inventory.slots[picks[pidx]].duplicate_stack()
-	var levels := consumed_levels(player.inventory, rec, picks)
-	var slots: Array = rec.get("slots", [])
-	var used: Dictionary = {}
-	for i in slots.size():
-		var idx := picks[i]
-		var need := int(slots[i].get("count", 1))
-		used[idx] = int(used.get(idx, 0)) + need
-	var keys: Array = used.keys()
-	keys.sort()
-	keys.reverse()
-	for idx in keys:
-		player.inventory.remove_at(int(idx), int(used[idx]))
-	var out := build_output(rec, primary, crafted_level_for(rec, levels, player))
-	var left := player.inventory.add(out)
-	if left > 0:
-		print("[craft] bag full remainder=%d" % left)
-	print("[craft] level=%d from %s" % [out.level, levels])
-	print("[craft] %s from primary=%s %s" % [out.def_id, primary.def_id, primary.attributes])
-	grant_craft_xp(player, rec)
-	World.note_craft(StringName(str(rec.get("id", ""))))
-	return out
+	var consumed := consume_for_craft(player.inventory, rec, picks)
+	return finish_craft(player, rec, consumed)
 
 static func recipe_seconds(rec: Dictionary) -> float:
 	# ASSUMPTION: 3 s when recipes.json omits seconds.
@@ -304,19 +292,20 @@ static func recipes_for_station(sid: StringName) -> Array[Dictionary]:
 static func missing_ingredient_name(inv: Inventory, rec: Dictionary) -> String:
 	if inv == null or rec.is_empty():
 		return "?"
-	var picks := default_picks(inv, rec)
-	var slots: Array = rec.get("slots", [])
-	for i in slots.size():
-		if not slots[i] is Dictionary:
+	if not _plan(inv, rec).is_empty():
+		return ""
+	# For a failed recipe, show the first genuinely short category. Totals are
+	# guidance only: dual-category units must still be allocated by _plan.
+	for slot in rec.get("slots", []):
+		if not slot is Dictionary:
 			continue
-		var cat := StringName(str((slots[i] as Dictionary).get("category", "")))
-		var need := int((slots[i] as Dictionary).get("count", 1))
-		if i >= picks.size() or picks[i] < 0:
+		var cat := StringName(str(slot.get("category", "")))
+		var available := 0
+		for idx in inv.find_by_category(cat):
+			available += inv.slots[idx].count
+		if available < int(slot.get("count", 1)):
 			return _category_hint(cat)
-		var stack := inv.slots[picks[i]]
-		if stack == null or stack.count < need:
-			return _category_hint(cat)
-	return ""
+	return "materials"
 
 static func preview_level(inv: Inventory, rec: Dictionary) -> int:
 	var picks := default_picks(inv, rec)
@@ -358,24 +347,20 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
 
 static func consume_for_craft(inv: Inventory, rec: Dictionary, picks: Array[int]) -> Array[ItemStack]:
 	var refund: Array[ItemStack] = []
-	if not picks_valid(inv, rec, picks):
+	var plan := _plan(inv, rec, picks)
+	if plan.is_empty():
 		return refund
-	var slots: Array = rec.get("slots", [])
-	# Consume in pick order so refund[0] stays the primary ingredient.
-	var plan: Array[Dictionary] = []
-	for i in slots.size():
-		plan.append({"idx": picks[i], "need": int(slots[i].get("count", 1)), "ord": i})
-	# Remove high indices first so earlier picks stay valid.
-	var sorted_plan := plan.duplicate()
-	sorted_plan.sort_custom(func (a: Dictionary, b: Dictionary) -> bool: return int(a["idx"]) > int(b["idx"]))
-	var taken_by_ord: Dictionary = {}
-	for row in sorted_plan:
-		var taken := inv.remove_at(int(row["idx"]), int(row["need"]))
-		taken_by_ord[int(row["ord"])] = taken
-	for i in slots.size():
-		var t: ItemStack = taken_by_ord.get(i, null) as ItemStack
-		if t:
-			refund.append(t)
+	# Take each part exactly once. Inventory.remove_at does not shift indices.
+	# The primary slot goes first for output attribute/process inheritance; each
+	# remaining part retains its own level/attributes for weighted level and refund.
+	var order: Array[int] = [primary_index(rec)]
+	for i in plan.size():
+		if i != order[0]:
+			order.append(i)
+	for i in order:
+		for part in plan[i]["parts"]:
+			var taken := inv.remove_at(int(part["idx"]), int(part["count"]))
+			if taken: refund.append(taken)
 	return refund
 
 static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemStack]) -> ItemStack:
