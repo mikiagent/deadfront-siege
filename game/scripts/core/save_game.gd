@@ -21,7 +21,7 @@ static func save_now() -> void:
 				var pv: Variant = b.get("persist_building")
 				if pv != null:
 					persist = bool(pv)
-			if b and b.has_method("to_dict") and persist and not bool(b.get("is_cargo")):
+			if b and b.has_method("to_dict") and persist and b.get("is_cargo") != true:
 				buildings.append(b.to_dict())
 	var pets: Array = []
 	for rec in player.bonded:

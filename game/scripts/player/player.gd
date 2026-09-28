@@ -1130,7 +1130,11 @@ func _draw_path_line(delta: float) -> void:
 	_marker_t += delta
 	if _ground_marker and _ground_marker.visible:
 		_ground_marker.scale = Vector3.ONE * (1.0 + 0.12 * sin(_marker_t * 6.0))
+	if _path_index >= _path_points.size():
+		_path_line.visible = false
+		return
 	var im := ImmediateMesh.new()
+	var vertices_added := 0
 	im.surface_begin(Mesh.PRIMITIVE_LINES)
 	var prev := global_position
 	var dash := 0.35
@@ -1145,8 +1149,12 @@ func _draw_path_line(delta: float) -> void:
 			var b := prev.lerp(nxt, t2 / maxf(0.001, len))
 			im.surface_add_vertex(Vector3(a.x, a.y + 0.12, a.z))
 			im.surface_add_vertex(Vector3(b.x, b.y + 0.12, b.z))
+			vertices_added += 2
 			t += dash + gap
 		prev = nxt
+	if vertices_added == 0:
+		_path_line.visible = false
+		return
 	im.surface_end()
 	_path_line.mesh = im
 	_path_line.visible = true
@@ -1459,7 +1467,7 @@ func _nearest_sleep_spot() -> Node3D:
 func _start_sleep(spot: Node3D = null) -> void:
 	if spot == null:
 		spot = _nearest_sleep_spot()
-	if spot == null or not is_instance_valid(spot) or global_position.distance_to(spot.global_position) > 3.2 or int(spot.get("sleeps_left")) == 0:
+	if spot == null or not is_instance_valid(spot) or not spot.is_in_group("sleep_spot") or global_position.distance_to(spot.global_position) > 3.2 or int(spot.get("sleeps_left")) == 0:
 		return
 	if vitals.in_combat or (Time.get_ticks_msec() * 0.001 - _last_hit_taken_s) < 5.0 or dead:
 		notice("Can't sleep in combat")

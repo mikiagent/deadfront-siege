@@ -25,6 +25,7 @@ func _process(_delta: float) -> bool:
 	_test_capture_threshold()
 	_test_sleep_building_save()
 	_test_staged_sleep_tiers()
+	_test_save_with_craft_stations()
 	_test_dried_meat_recipe()
 	_test_crock_pot_recipe_and_kit()
 	_test_stone_fire_pit()
@@ -142,6 +143,14 @@ func _test_staged_sleep_tiers() -> void:
 		_expect(found, "%s staged recipe is recorded" % row["kind"])
 		building.queue_free()
 	placer.free()
+
+func _test_save_with_craft_stations() -> void:
+	# Newly craftable stations have no is_cargo field. Autosave must not cast null to bool.
+	var station_script := load("res://scripts/world/craft_station.gd") as GDScript
+	var st: Node = station_script.make(&"smoker")
+	_expect(st.get("is_cargo") == null and st.persist_building, "craft station persists without is_cargo property")
+	_expect(st.get("is_cargo") != true, "missing cargo flag is not cargo")
+	st.free()
 
 func _test_dried_meat_recipe() -> void:
 	var data: Node = get_root().get_node("Data")
