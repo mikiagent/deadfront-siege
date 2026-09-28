@@ -175,7 +175,7 @@ func _acquire_for(rec: Dictionary, depth: int = 0) -> String:
 				elif sub_why != "":
 					return "%s needs %s, which needs %s" % [cat, sub.get("id", "?"), sub_why]
 		if not got:
-			return "nothing on this island yields %s (tried %s)" % [cat, ", ".join(PackedStringArray(wants))]
+			return "could not acquire %s this attempt (tried %s)" % [cat, ", ".join(PackedStringArray(wants))]
 	if not Crafting.picks_valid(player.inventory, rec, Crafting.default_picks(player.inventory, rec)):
 		# A gather action can return only part of a slot's count (one node's pool).
 		# Re-evaluate all slots with a hard bound rather than trying craft prematurely.
@@ -228,6 +228,8 @@ func _gather(item: StringName, n: int) -> String:
 	if player._gather_radial and player._gather_radial.is_open():
 		player._gather_radial._on_pick(best_i)
 	else:
+		player._cancel_gather_and_butcher()
+		player.clear_nav()
 		return "tapping the %s opened no gather radial" % best.family
 	var deadline := _t + 30.0
 	var grace := _t + 1.5  # the pick takes a frame or two to become a route; do not judge it yet
@@ -237,6 +239,12 @@ func _gather(item: StringName, n: int) -> String:
 		if _t > grace and not player._gathering and not player.nav_active and player.gather_target == null:
 			break
 	var gained := player.inventory.count_of(item) - start
+	# One bot acquisition ends here even if the player's auto-gather cycle would
+	# continue. Otherwise nested recipe crafting can route to a station while a
+	# live gather_target is still set and then misattribute station arrival to it.
+	if player.gather_target == best:
+		player._cancel_gather_and_butcher()
+		player.clear_nav()
 	if gained > 0:
 		_event("gather", "%s x%d (%.0f m away)" % [item, gained, best_d])
 		return ""
@@ -261,6 +269,10 @@ func _craft(rec: Dictionary) -> bool:
 		if player.global_position.distance_to(st.global_position) > Crafting.STATION_RANGE:
 			_event("craft-blocked", "%s: could not reach the %s (%.0f m short)" % [rid, station, player.global_position.distance_to(st.global_position)])
 			return false
+	# Stop the station approach first. StationCraft starts only when nav is idle;
+	# a near-enough path can still be active when this loop exits.
+	if station != "" and player.nav_active:
+		player.clear_nav()
 	player.craft_recipe(rid, 1)
 	var deadline := _t + 40.0
 	while _t < deadline and player.inventory.count_of(out_id) <= before:
