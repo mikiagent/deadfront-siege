@@ -53,6 +53,8 @@ func _kit_id(kind: StringName) -> String:
 			return "drying_rack_kit"
 		&"crock_pot":
 			return "crock_pot_kit"
+		&"stone_grill":
+			return "stone_grill_kit"
 		&"tent":
 			return "tent_kit"
 		&"canvas_tent":
@@ -397,6 +399,8 @@ func _spawn(kind: StringName) -> Node3D:
 			return CraftStation.make(&"drying_rack")
 		&"crock_pot":
 			return CraftStation.make(&"crock_pot")
+		&"stone_grill":
+			return CraftStation.make(&"stone_grill")
 		&"straw_roll", &"tent", &"canvas_tent", &"log_shelter", &"cabin_bed", &"basket", &"fence", &"gate", &"sign":
 			return (load("res://scripts/world/placed_building.gd") as GDScript).make(kind)
 		_:

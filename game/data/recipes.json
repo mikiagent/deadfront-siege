@@ -565,6 +565,32 @@
       "process_add": 1
     },
     {
+      "id": "stone_grill_kit",
+      "display_name": "Flat Stone Grill Kit",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "stone",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "wood",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "stone_grill_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
       "id": "makeshift_taming_pen_kit",
       "display_name": "Makeshift Taming Pen Kit",
       "skill": "construction",
@@ -1023,7 +1049,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "meat",
+          "category": "raw_meat",
           "count": 1,
           "primary": true
         }
@@ -1122,7 +1148,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "meat",
+          "category": "raw_meat",
           "count": 1,
           "primary": true
         }
@@ -1144,7 +1170,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "meat",
+          "category": "raw_meat",
           "count": 1,
           "primary": true
         },

@@ -217,10 +217,10 @@
     "stone_grill": {
       "model": "campfire-stand",
       "footprint": [
-        1,
-        1
+        2,
+        2
       ],
-      "note": "stone-plate grill"
+      "note": "flat stone grill with temporary Kenney cooking-stand visual"
     },
     "steamer": {
       "model": "barrel-open",

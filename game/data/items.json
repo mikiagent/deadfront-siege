@@ -1751,7 +1751,7 @@
     },
     {
       "id": "stone_grill_kit",
-      "display_name": "Stone Grill Kit",
+      "display_name": "Flat Stone Grill Kit",
       "categories": [
         "building"
       ],
@@ -1760,8 +1760,8 @@
       "base_level": 1,
       "place_as": "stone_grill",
       "footprint": [
-        1,
-        1
+        2,
+        2
       ]
     },
     {

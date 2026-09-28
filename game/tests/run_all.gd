@@ -29,6 +29,7 @@ func _process(_delta: float) -> bool:
 	_test_crock_pot_recipe_and_kit()
 	_test_stone_fire_pit()
 	_test_temporary_campfire()
+	_test_flat_stone_grill()
 	_finish()
 	return true
 
@@ -189,6 +190,24 @@ func _test_stone_fire_pit() -> void:
 	var props: Dictionary = data.get("props_manifest").get("buildings", {})
 	_expect(props.has("stone_fire_pit"), "stone pit has a placed visual")
 	# The boot smoke keeps the legacy public-camp bonfire path exercised.
+
+func _test_flat_stone_grill() -> void:
+	var data: Node = get_root().get_node("Data")
+	var kit: Dictionary = data.get("recipes").get(&"stone_grill_kit", {})
+	_expect(kit.get("slots", []).size() == 2 and int(kit["slots"][0].get("count", 0)) == 4 and int(kit["slots"][1].get("count", 0)) == 2, "flat grill costs stone four, wood two")
+	var kit_item: ItemDef = data.call("item", &"stone_grill_kit")
+	_expect(kit_item != null and kit_item.place_as == &"stone_grill" and kit_item.footprint == Vector2i(2, 2), "flat grill kit places two by two")
+	var placer: Node = (load("res://scripts/world/build_placer.gd") as GDScript).new()
+	_expect(placer.call("_kit_id", &"stone_grill") == "stone_grill_kit", "flat grill placement spends kit")
+	var grill: Node = placer.call("_spawn", &"stone_grill")
+	_expect(grill != null and grill.get("station_id") == &"stone_grill", "flat grill spawns craft station")
+	grill.free()
+	placer.free()
+	for rid in [&"stone_grill", &"roast", &"seasoned_roast"]:
+		var rec: Dictionary = data.get("recipes").get(rid, {})
+		_expect(str(rec.get("station", "")) == "stone_grill" and str(rec.get("slots", [{}])[0].get("category", "")) == "raw_meat", "%s only takes raw meat or fish" % rid)
+	var cooked: ItemDef = data.call("item", &"grilled_meat")
+	_expect(cooked != null and not cooked.has_category(&"raw_meat"), "cooked meat cannot be repeatedly grilled")
 
 func _test_temporary_campfire() -> void:
 	var data: Node = get_root().get_node("Data")
