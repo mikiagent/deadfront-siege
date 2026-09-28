@@ -31,6 +31,7 @@ func _process(_delta: float) -> bool:
 	_test_temporary_campfire()
 	_test_flat_stone_grill()
 	_test_smoker()
+	_test_mortar_well_kit_routes()
 	_finish()
 	return true
 
@@ -191,6 +192,29 @@ func _test_stone_fire_pit() -> void:
 	var props: Dictionary = data.get("props_manifest").get("buildings", {})
 	_expect(props.has("stone_fire_pit"), "stone pit has a placed visual")
 	# The boot smoke keeps the legacy public-camp bonfire path exercised.
+
+func _test_mortar_well_kit_routes() -> void:
+	var data: Node = get_root().get_node("Data")
+	var placer: Node = (load("res://scripts/world/build_placer.gd") as GDScript).new()
+	for row in [
+		{"kind": &"mortar", "kit": &"mortar_kit", "footprint": Vector2i(1, 1), "costs": [3, 1]},
+		{"kind": &"well", "kit": &"well_kit", "footprint": Vector2i(2, 2), "costs": [6, 4, 2]},
+	]:
+		var rec: Dictionary = data.get("recipes").get(row["kit"], {})
+		_expect(rec.get("slots", []).size() == row["costs"].size(), "%s kit has required materials" % row["kind"])
+		for i in row["costs"].size():
+			_expect(int(rec["slots"][i].get("count", 0)) == row["costs"][i], "%s kit material %d" % [row["kind"], i])
+		var kit: ItemDef = data.call("item", row["kit"])
+		_expect(kit != null and kit.place_as == row["kind"] and kit.footprint == row["footprint"], "%s kit footprint and place kind" % row["kind"])
+		_expect(placer.call("_kit_id", row["kind"]) == str(row["kit"]), "%s placement consumes its kit" % row["kind"])
+		var station: Node = placer.call("_spawn", row["kind"])
+		_expect(station != null and station.get("station_id") == row["kind"], "%s station spawns" % row["kind"])
+		station.free()
+	placer.free()
+	var fill: Dictionary = data.get("recipes").get(&"fill_bucket", {})
+	_expect(str(fill.get("station", "")) == "well" and str(fill.get("input_id", "")) == "empty_bucket", "well fills empty bucket")
+	var mince: Dictionary = data.get("recipes").get(&"meatball_mix", {})
+	_expect(str(mince.get("station", "")) == "mortar" and str(mince.get("slots", [{}])[0].get("category", "")) == "raw_meat", "mortar minces raw meat, not cooked meat")
 
 func _test_smoker() -> void:
 	var data: Node = get_root().get_node("Data")

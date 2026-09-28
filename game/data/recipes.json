@@ -664,6 +664,63 @@
       "process_add": 1
     },
     {
+      "id": "mortar_kit",
+      "display_name": "Mortar and Pestle Kit",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "stone",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "wood",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "mortar_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "well_kit",
+      "display_name": "Simple Well Kit",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "stone",
+          "count": 6,
+          "primary": true
+        },
+        {
+          "category": "wood",
+          "count": 4,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "well_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
       "id": "drying_rack_kit",
       "display_name": "Meat Drying Rack Kit",
       "skill": "construction",
@@ -1056,7 +1113,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "meat",
+          "category": "raw_meat",
           "count": 1,
           "primary": true
         }

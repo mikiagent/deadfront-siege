@@ -49,6 +49,10 @@ func _kit_id(kind: StringName) -> String:
 			return "campfire_kit"
 		&"workbench":
 			return "workbench_kit"
+		&"mortar":
+			return "mortar_kit"
+		&"well":
+			return "well_kit"
 		&"drying_rack":
 			return "drying_rack_kit"
 		&"smoker":
@@ -397,6 +401,10 @@ func _spawn(kind: StringName) -> Node3D:
 			return Bonfire.make(&"campfire")
 		&"workbench":
 			return CraftStation.make(&"workbench")
+		&"mortar":
+			return CraftStation.make(&"mortar")
+		&"well":
+			return CraftStation.make(&"well")
 		&"drying_rack":
 			return CraftStation.make(&"drying_rack")
 		&"smoker":

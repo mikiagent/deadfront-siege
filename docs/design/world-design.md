@@ -160,8 +160,8 @@ kit. The public camp's starter shelter remains unlimited; it grants no free kit.
 | Meat drying station | wood 4 + lashing 2 | Placed drying rack processes raw meat/fish into dried meat in 8 s (17 energy), keeping the existing dried-hide recipe. Weather, spoilage and passive batches remain planned. | first implementation |
 | Flat stone grill | stone 4 + wood 2 | Placed 2x2 station. Raw meat/fish can be grilled or roasted; seasoned roast adds spice. Vegetable roasting remains planned. Temporary Kenney cooking-stand visual. | first implementation |
 | Smoker | wood 6 + stone 3 + lashing 2 | Placed 2x2 station. Raw meat/fish becomes smoked meat in 12 s (23 base energy vs dried meat 17); no fuel, spoilage or weather effects yet. Temporary Kenney stand visual. | first implementation |
-| Mortar and pestle | stone 3 + wood 1 | Crush herbs and grind ingredients for medicine and meatballs. | existing station / final art pending |
-| Water well | stone 6 + wood 4 + lashing 2 | Reliable water source away from rivers; supports farming and cooking. | existing station / final art pending |
+| Mortar and pestle | stone 3 + wood 1 | Placed 1x1 station supports raw-meat mince for meatballs and existing feed mixing. Herb and medicine recipes remain planned; placeholder Kenney grindstone. | first craftable station |
+| Water well | stone 6 + wood 4 + lashing 2 | Placed 2x2 station fills an empty bucket, providing water away from rivers for farming/cooking. Empty bucket acquisition remains separate; no finite reserve, placeholder barrel visual. | first craftable station |
 | Water purifier | clay 3 + stone 3 + wood 2 | Boils water for cooking, medicine, and dye processes. | planned |
 | Workbench | wood 4 + lashing 2 | Basic tools, small structures and repair recipes. | existing |
 | Repair grindstone | stone 4 + wood 2 | Repairs tools/weapons using compatible materials; avoid free durability resets. | planned |
