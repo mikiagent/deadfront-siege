@@ -444,7 +444,7 @@ func _tame() -> String:
 		if not (c.def and c.def.tameable):
 			continue
 		# Prefer the lowest capture tier: that is the species the game means as a first tame.
-		if target == null or c.def.capture_tier < target.def.capture_tier:
+		if target == null or c.def.capture_tier < target.def.capture_tier or (c.def.capture_tier == target.def.capture_tier and player.global_position.distance_to(c.global_position) < player.global_position.distance_to(target.global_position)):
 			target = c
 	if target == null:
 		return "no tameable creature on this island"
@@ -463,20 +463,24 @@ func _tame() -> String:
 	player.hunt.start(target)
 	var deadline := _t + 120.0
 	while _t < deadline and is_instance_valid(target) and not target.health.dead:
+		# A hunt target beyond the combat leash will not make the player pursue it.
+		if player.global_position.distance_to(target.global_position) > 2.5 and not player.nav_active:
+			player.nav_to(player._closest_nav_point(target.global_position))
 		if not await _beat(0.25):
 			break
 		if player.dead:
 			return "the survivor died taming a %s" % species
-		if target.statuses.has_flag(&"knockdown"):
+		if target.statuses.has(&"knockdown"):
+			player.hunt.stop()  # Do not auto-attack through the feeding window.
 			break
 		# Below the capture threshold a tackle puts it on the ground; that is the window.
-		if FieldTame.health_allows_capture(target.health.hp / maxf(1.0, target.health.max_hp)):
+		if FieldTame.health_allows_capture(target.health.fraction()):
 			player.hunt.use_tackle()
 			await _beat(0.4)
 	if not is_instance_valid(target) or target.health.dead:
 		return "the %s died before it could be knocked down" % species
-	if not target.statuses.has_flag(&"knockdown"):
-		return "could not knock a %s down in 120 s (hp %.0f%%)" % [species, 100.0 * target.health.hp / maxf(1.0, target.health.max_hp)]
+	if not target.statuses.has(&"knockdown"):
+		return "could not knock a %s down in 120 s (hp %.0f%%, %.0f m away)" % [species, 100.0 * target.health.fraction(), player.global_position.distance_to(target.global_position)]
 	_event("knockdown", species)
 	var bonded := player.bonded.size()
 	var feeds := 0
