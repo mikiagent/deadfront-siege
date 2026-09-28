@@ -24,6 +24,7 @@ func _process(_delta: float) -> bool:
 	_capture_done = true
 	_test_capture_threshold()
 	_test_sleep_building_save()
+	_test_staged_sleep_tiers()
 	_test_dried_meat_recipe()
 	_test_crock_pot_recipe_and_kit()
 	_test_stone_fire_pit()
@@ -109,6 +110,34 @@ func _test_sleep_building_save() -> void:
 	tent.queue_free()
 	restored.free()
 	old.free()
+
+func _test_staged_sleep_tiers() -> void:
+	var data: Node = get_root().get_node("Data")
+	var script := load("res://scripts/world/placed_building.gd") as GDScript
+	var placer: Node = (load("res://scripts/world/build_placer.gd") as GDScript).new()
+	for row in [
+		{"kind": &"log_shelter", "kit": &"log_shelter_kit", "footprint": Vector2i(4, 4), "seconds": 7.0, "costs": [8, 6, 3]},
+		{"kind": &"cabin_bed", "kit": &"cabin_bed_kit", "footprint": Vector2i(2, 2), "seconds": 5.0, "costs": [6, 4, 2]},
+	]:
+		var kit: ItemDef = data.call("item", row["kit"])
+		_expect(kit != null and kit.place_as == row["kind"] and kit.footprint == row["footprint"], "%s catalog and footprint" % row["kind"])
+		_expect(placer.call("_kit_id", row["kind"]) == str(row["kit"]), "%s placement routes to kit" % row["kind"])
+		var building: Node = script.make(row["kind"])
+		_expect(is_equal_approx(building.sleep_duration(), row["seconds"]), "%s intended duration is staged" % row["kind"])
+		get_root().add_child(building)
+		_expect(not building.is_in_group("sleep_spot"), "%s cannot sleep without prerequisite" % row["kind"])
+		_expect(not data.get("recipes").has(row["kit"]), "%s cannot consume resources via crafting" % row["kind"])
+		var catalog: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/recipes.json"))
+		var found := false
+		for recipe in catalog.get("recipes", []):
+			if recipe.get("id", "") == str(row["kit"]):
+				found = true
+				_expect(recipe.get("implementation_status", "") == "staged", "%s recipe flagged staged" % row["kind"])
+				for i in 3:
+					_expect(int(recipe["slots"][i].get("count", -1)) == row["costs"][i], "%s recipe input %d" % [row["kind"], i])
+		_expect(found, "%s staged recipe is recorded" % row["kind"])
+		building.queue_free()
+	placer.free()
 
 func _test_dried_meat_recipe() -> void:
 	var data: Node = get_root().get_node("Data")

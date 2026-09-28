@@ -277,6 +277,22 @@
         3
       ],
       "note": "twelve completed sleeps, eight seconds each; temporary Kenney visual"
+    },
+    "log_shelter": {
+      "model": "structure-canvas",
+      "footprint": [
+        4,
+        4
+      ],
+      "note": "staged placeholder; repair mechanic absent, sleep disabled"
+    },
+    "cabin_bed": {
+      "model": "bedroll-frame",
+      "footprint": [
+        2,
+        2
+      ],
+      "note": "staged placeholder; enclosure validation absent, sleep disabled"
     }
   },
   "tools": {

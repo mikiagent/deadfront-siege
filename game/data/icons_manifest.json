@@ -143,7 +143,9 @@
     "camp_stew": "boiled_meat",
     "stone_fire_pit_kit": "bonfire_kit",
     "campfire_kit": "bonfire_kit",
-    "canvas_tent_kit": "tent_kit"
+    "canvas_tent_kit": "tent_kit",
+    "log_shelter_kit": "tent_kit",
+    "cabin_bed_kit": "bedroll"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

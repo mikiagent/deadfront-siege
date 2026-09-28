@@ -148,6 +148,10 @@ func _load_recipes(path: String) -> void:
 		var id := StringName(str(row.get("id", "")))
 		if id == &"":
 			continue
+		# Staged designs remain in recipes.json but are not craftable or listed.
+		# Their sleep prerequisites must exist before a player can spend resources.
+		if str(row.get("implementation_status", "")) == "staged":
+			continue
 		recipes[id] = row
 		recipe_list.append(row)
 

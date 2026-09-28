@@ -818,6 +818,36 @@
       ]
     },
     {
+      "id": "log_shelter_kit",
+      "display_name": "Log Shelter Kit (Planned)",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "log_shelter",
+      "footprint": [
+        4,
+        4
+      ]
+    },
+    {
+      "id": "cabin_bed_kit",
+      "display_name": "Cabin Bed Kit (Planned)",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "cabin_bed",
+      "footprint": [
+        2,
+        2
+      ]
+    },
+    {
       "id": "basket_kit",
       "display_name": "Basket Kit",
       "categories": [

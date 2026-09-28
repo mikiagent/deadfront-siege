@@ -762,6 +762,70 @@
       "process_add": 1
     },
     {
+      "id": "log_shelter_kit",
+      "display_name": "Log Shelter Kit (Planned)",
+      "skill": "construction",
+      "max_level": 60,
+      "implementation_status": "staged",
+      "slots": [
+        {
+          "category": "log",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 6,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 3,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "log_shelter_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "cabin_bed_kit",
+      "display_name": "Cabin Bed Kit (Planned)",
+      "skill": "construction",
+      "max_level": 60,
+      "implementation_status": "staged",
+      "slots": [
+        {
+          "category": "plank",
+          "count": 6,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 4,
+          "primary": false
+        },
+        {
+          "category": "hide",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "cabin_bed_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
       "id": "basket_kit",
       "display_name": "Basket Kit",
       "skill": "construction",

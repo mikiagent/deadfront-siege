@@ -142,15 +142,15 @@ already has a station or prop, not that its final art or new behavior is finishe
 Sleep is a deliberate action at a placed shelter: movement or damage interrupts it,
 without spending a use. A completed sleep restores exhaustion, then decrements its
 remaining uses in saved building state. Used bedding cannot be repacked into a fresh
-kit. The public camp's starter shelter remains unlimited; it grants no free kit.
+kit. The public camp's starter shelter remains unlimited; it grants no free kit. Staged recipes in the data file are filtered from the craft menu and crafting API; no player resources can be spent on unfinished shelter tiers.
 
 | Tier / structure | Craft input (item category/count) | What it does / unlocks | State |
 |---|---|---|---|
 | 0 Straw roll | fibre 3 + lashing 1 | 12 s sleep, restore 65 exhaustion; disappears after 1 completed sleep. 1x2. | first implementation |
 | 1 Field tent | hide 2 + wood 2 + lashing 1 | 10 s sleep, restore 100; 6 completed sleeps, then disappears. 3x3. Replaces unlimited personal tent. | first implementation |
 | 2 Canvas tent | fibre 6 + wood 3 + lashing 2 | 8 s sleep, restore 100; 12 completed sleeps, then disappears. 3x3. Weather cover later; placeholder Kenney art. | first implementation |
-| 3 Log shelter | log 8 + fibre 6 + lashing 3 | 7 s sleep, restore 100; repair with logs instead of finite uses. 4x4. | planned |
-| 4 Cabin bed | plank 6 + fibre 4 + hide 2 | 5 s sleep inside enclosed cabin, permanent; better home-base rest. | planned |
+| 3 Log shelter | log 8 + fibre 6 + lashing 3 | 7 s sleep, restore 100; repair with logs instead of finite uses. 4x4. | staged catalog, recipe and placement route; unavailable to craft or sleep until condition/repair mechanic exists |
+| 4 Cabin bed | plank 6 + fibre 4 + hide 2 | 5 s sleep inside enclosed cabin, permanent; better home-base rest. Initial placement footprint 2x2. | staged catalog, recipe and placement route; unavailable to craft or sleep until cabin/enclosure validation exists |
 
 | Utility / station | Craft input (category/count) | What it does / enables | State |
 |---|---|---|---|

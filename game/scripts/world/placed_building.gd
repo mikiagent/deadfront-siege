@@ -63,6 +63,8 @@ func _ready() -> void:
 		return
 	add_to_group("placed_building")
 	add_to_group(str(kind))
+	# Staged shelter/bed are deliberately not sleep spots until repair and
+	# enclosure prerequisites are implemented.
 	if kind == &"tent" or kind == &"straw_roll" or kind == &"canvas_tent":
 		add_to_group("sleep_spot")
 	if kind == &"tent":
@@ -93,7 +95,7 @@ func pack_up(player: Player) -> void:
 	queue_free()
 
 func sleep_duration() -> float:
-	return 12.0 if kind == &"straw_roll" else (8.0 if kind == &"canvas_tent" else 10.0)
+	return 12.0 if kind == &"straw_roll" else (8.0 if kind == &"canvas_tent" else (7.0 if kind == &"log_shelter" else (5.0 if kind == &"cabin_bed" else 10.0)))
 
 func sleep_restore() -> float:
 	return 65.0 if kind == &"straw_roll" else 100.0
@@ -114,6 +116,10 @@ func _kit_id() -> StringName:
 			return &"tent_kit"
 		&"canvas_tent":
 			return &"canvas_tent_kit"
+		&"log_shelter":
+			return &"log_shelter_kit"
+		&"cabin_bed":
+			return &"cabin_bed_kit"
 		&"basket":
 			return &"basket_kit"
 		&"fence":
@@ -139,6 +145,10 @@ func _fallback_size() -> Vector3:
 			return Vector3(2.2, 1.6, 2.2)
 		&"canvas_tent":
 			return Vector3(2.5, 1.8, 2.5)
+		&"log_shelter":
+			return Vector3(3.5, 2.3, 3.5)
+		&"cabin_bed":
+			return Vector3(1.1, 0.45, 1.8)
 		&"straw_roll":
 			return Vector3(0.9, 0.25, 1.7)
 		&"fence":
