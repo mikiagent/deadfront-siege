@@ -803,6 +803,21 @@
       ]
     },
     {
+      "id": "canvas_tent_kit",
+      "display_name": "Canvas Tent Kit",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "canvas_tent",
+      "footprint": [
+        3,
+        3
+      ]
+    },
+    {
       "id": "basket_kit",
       "display_name": "Basket Kit",
       "categories": [

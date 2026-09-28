@@ -731,6 +731,37 @@
       "process_add": 1
     },
     {
+      "id": "canvas_tent_kit",
+      "display_name": "Canvas Tent Kit",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "fibre",
+          "count": 6,
+          "primary": true
+        },
+        {
+          "category": "wood",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "canvas_tent_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
       "id": "basket_kit",
       "display_name": "Basket Kit",
       "skill": "construction",

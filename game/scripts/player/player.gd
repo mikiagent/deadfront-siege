@@ -1649,7 +1649,7 @@ func _building_interact(b: Node) -> void:
 	if StationCraft.is_craft_station(b):
 		open_station_craft(b as Node3D)
 		return
-	if str(b.get("kind")) == "tent" or str(b.get("kind")) == "straw_roll":
+	if b.is_in_group("sleep_spot"):
 		_start_sleep(b as Node3D)
 		return
 	if str(b.get("kind")) == "basket" and b.get("storage") and ui:

@@ -16,7 +16,7 @@ const BASKET_SLOTS := 60 ## ASSUMPTION: PRD ~100; 60 for mobile UI.
 static func make(p_kind: StringName):
 	var b = (load("res://scripts/world/placed_building.gd") as GDScript).new()
 	b.kind = p_kind
-	b.sleeps_left = 1 if p_kind == &"straw_roll" else (6 if p_kind == &"tent" else -1)
+	b.sleeps_left = 1 if p_kind == &"straw_roll" else (6 if p_kind == &"tent" else (12 if p_kind == &"canvas_tent" else -1))
 	b.name = str(p_kind)
 	if p_kind == &"basket":
 		b.storage = Inventory.new(BASKET_SLOTS)
@@ -63,7 +63,7 @@ func _ready() -> void:
 		return
 	add_to_group("placed_building")
 	add_to_group(str(kind))
-	if kind == &"tent" or kind == &"straw_roll":
+	if kind == &"tent" or kind == &"straw_roll" or kind == &"canvas_tent":
 		add_to_group("sleep_spot")
 	if kind == &"tent":
 		add_to_group("tent")
@@ -76,7 +76,7 @@ func _exit_tree() -> void:
 	_release_grid()
 
 func pack_up(player: Player) -> void:
-	if sleeps_left >= 0 and sleeps_left < (1 if kind == &"straw_roll" else 6):
+	if sleeps_left >= 0 and sleeps_left < (1 if kind == &"straw_roll" else (12 if kind == &"canvas_tent" else 6)):
 		player.notice("Used bedding can't be repacked")
 		return
 	if not World.is_home():
@@ -93,7 +93,7 @@ func pack_up(player: Player) -> void:
 	queue_free()
 
 func sleep_duration() -> float:
-	return 12.0 if kind == &"straw_roll" else 10.0
+	return 12.0 if kind == &"straw_roll" else (8.0 if kind == &"canvas_tent" else 10.0)
 
 func sleep_restore() -> float:
 	return 65.0 if kind == &"straw_roll" else 100.0
@@ -112,6 +112,8 @@ func _kit_id() -> StringName:
 			return &"straw_roll_kit"
 		&"tent":
 			return &"tent_kit"
+		&"canvas_tent":
+			return &"canvas_tent_kit"
 		&"basket":
 			return &"basket_kit"
 		&"fence":
@@ -135,6 +137,8 @@ func _fallback_size() -> Vector3:
 	match kind:
 		&"tent":
 			return Vector3(2.2, 1.6, 2.2)
+		&"canvas_tent":
+			return Vector3(2.5, 1.8, 2.5)
 		&"straw_roll":
 			return Vector3(0.9, 0.25, 1.7)
 		&"fence":
@@ -157,6 +161,8 @@ func _color() -> Color:
 	match kind:
 		&"tent":
 			return Color(0.55, 0.4, 0.22)
+		&"canvas_tent":
+			return Color(0.68, 0.63, 0.42)
 		&"fence", &"gate":
 			return Color(0.4, 0.28, 0.14)
 		&"sign":

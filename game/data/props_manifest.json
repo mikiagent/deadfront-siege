@@ -269,6 +269,14 @@
         1
       ],
       "note": "temporary cooking fire, 120 active seconds then disappears"
+    },
+    "canvas_tent": {
+      "model": "tent-canvas",
+      "footprint": [
+        3,
+        3
+      ],
+      "note": "twelve completed sleeps, eight seconds each; temporary Kenney visual"
     }
   },
   "tools": {
