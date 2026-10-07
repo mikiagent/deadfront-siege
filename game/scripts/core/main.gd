@@ -43,6 +43,10 @@ func _ready() -> void:
 				_gather_test(player)
 			if "--combat-test" in OS.get_cmdline_user_args():
 				_combat_test(player)
+			if "--raid-fight-probe" in OS.get_cmdline_user_args():
+				var fight_probe = load("res://scripts/dev/raid_fight_probe.gd").new()
+				add_child(fight_probe)
+				fight_probe.call_deferred("run", self)
 			if "--raid-gear-probe" in OS.get_cmdline_user_args():
 				var gear_probe = load("res://scripts/dev/raid_gear_probe.gd").new()
 				add_child(gear_probe)

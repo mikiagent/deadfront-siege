@@ -87,13 +87,21 @@ func _process(delta: float) -> void:
 		player.face_world_smooth(target.global_position, delta)
 	_auto_attack()
 
+## Keep small-creature reach unchanged, but strike the edge of large collision bodies.
+## T-rex radius2.88m previously made the fixed2.1m center distance unreachable.
+static func melee_reach(creature: Creature) -> float:
+	if creature == null or creature.def == null:
+		return 2.1
+	return maxf(2.1, maxf(0.18, creature.def.real_length_m * 0.12) + 0.65)
+
 func _auto_attack() -> void:
 	if player.statuses.has_flag(&"cannot_act"):
 		return
 	if player.rolling or _tactic_lock > 0.0:
 		return
-	var dist := player.global_position.distance_to(target.global_position)
-	if dist > 2.1:
+	var offset := player.global_position - target.global_position
+	var dist := Vector2(offset.x, offset.z).length()
+	if dist > melee_reach(target):
 		if not hold:
 			player.nav_to(target.global_position)
 		return

@@ -59,6 +59,32 @@ func run(_host: Node) -> void:
 	var spawned := sp.spawn_now()
 	var boss: Creature = spawned[0]
 	boss.set_physics_process(false)
+	if "--combat-reach-probe" in OS.get_cmdline_user_args():
+		boss.genetics = CreatureGenetics.neutral()
+		boss.global_position = player.global_position + Vector3(3.4, 0, 0)
+		player.statuses.from_array([])
+		player.hunt.start(boss)
+		var hp := boss.health.hp
+		player.hunt._auto_attack()
+		check(boss.health.hp < hp, "survivor hits large body edge3.4m")
+		check(Hunt.melee_reach(boss) > 3.4 and boss.brain.contact_reach() > 3.4, "both sides reach large body edge")
+		boss.brain.attack_target = player
+		player.vitals.heal(999)
+		var before := player.vitals.health
+		seed(1)
+		for i in 5: boss._on_hit(&"attack_primary")
+		check(player.vitals.health < before, "boss also hits edge3.4m")
+		player.dead = false
+		player.vitals.dead = false
+		player.vitals.heal(999)
+		boss.global_position = player.global_position + Vector3(9, 0, 0)
+		before = player.vitals.health
+		boss._on_hit(&"attack_primary")
+		check(player.vitals.health == before, "windup cannot hit escaped target9m")
+		player.hunt.stop()
+		print("[reach] PARTIAL body-edge contact regression; evasive raid not passed; failures=%d" % failures.size())
+		get_tree().quit(0 if failures.is_empty() else 1)
+		return
 	seed(12345)
 	CreatureAttack._apply_token(&"fracture", &"attack_primary", player, boss)
 	CreatureAttack._apply_token(&"pinned", &"attack_primary", player, boss)

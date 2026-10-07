@@ -301,6 +301,11 @@ func _valid_target() -> bool:
 		return false
 	return true
 
+## Both sides can contact a giant's body edge without body overlap or safe-edge cheese.
+func contact_reach() -> float:
+	var radius := maxf(0.18, creature.def.real_length_m * 0.12)
+	return maxf(float(profile.get("attack_range", 1.8)) + 0.3, radius + 0.75)
+
 func _approach(delta: float) -> void:
 	if not _valid_target():
 		_disengage()
@@ -308,8 +313,9 @@ func _approach(delta: float) -> void:
 	var want := _approach_slot()
 	creature.move_to(want)
 	creature.face_towards(attack_target.global_position, delta)
-	var dist := creature.global_position.distance_to(attack_target.global_position)
-	if dist <= maxf(1.0, float(profile.get("attack_range", 1.8)) + 0.2):
+	var offset := creature.global_position - attack_target.global_position
+	var dist := Vector2(offset.x, offset.z).length()
+	if dist <= contact_reach() - 0.1:
 		if _is_herbivore() and not _cornered() and not _provoked():
 			_set_state(&"flee")
 		else:
@@ -321,8 +327,9 @@ func _do_attack() -> void:
 	if not _valid_target():
 		_disengage()
 		return
-	var range_max := maxf(1.0, float(profile.get("attack_range", 1.8)) + 0.4)
-	if creature.global_position.distance_to(attack_target.global_position) > range_max:
+	var range_max := contact_reach() + 0.1
+	var offset := creature.global_position - attack_target.global_position
+	if Vector2(offset.x, offset.z).length() > range_max:
 		_set_state(&"approach")
 		return
 	creature.stop_move()
@@ -390,7 +397,8 @@ func _disengage_track(delta: float) -> void:
 	if not _valid_target():
 		_disengage_left = 0.0
 		return
-	var dist := creature.global_position.distance_to(attack_target.global_position)
+	var offset := creature.global_position - attack_target.global_position
+	var dist := Vector2(offset.x, offset.z).length()
 	# Aggro leash: beyond leash_mult × perception the chase ends at once; beyond 1.5 × it ends
 	# after disengage_seconds. Running far enough away always works.
 	if dist > aggro_radius():
@@ -428,7 +436,7 @@ func _approach_slot() -> Vector3:
 	to_me.y = 0.0
 	if to_me.length_squared() <= 0.001:
 		to_me = Vector3.BACK
-	var reach := maxf(0.6, float(profile.get("attack_range", 1.8)) - 0.3)
+	var reach := maxf(0.6, contact_reach() - 0.6)
 	want += to_me.normalized() * reach
 	return want
 

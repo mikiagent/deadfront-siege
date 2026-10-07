@@ -465,6 +465,10 @@ func _on_windup(clip: StringName) -> void:
 func _on_hit(clip: StringName) -> void:
 	var target := brain.attack_target if brain else null
 	if target:
+		# A contact attack lands at impact, not anywhere the target ran during windup.
+		var offset := global_position - target.global_position
+		if brain and Vector2(offset.x, offset.z).length() > brain.contact_reach() + 0.3:
+			return
 		apply_species_on_hit(clip, target)
 		if target is Player:
 			(target as Player).receive_creature_hit(self, clip)
