@@ -57,6 +57,7 @@ func run(host: Node) -> void:
 	player.hunt.auto = false
 	set_physics_process(true)
 var next_diag := 15.0
+var recovering := false
 func _physics_process(delta: float) -> void:
 	if player == null or enemy == null: return
 	elapsed += delta
@@ -70,7 +71,14 @@ func _physics_process(delta: float) -> void:
 		get_tree().quit(0)
 		set_physics_process(false)
 		return
-	if elapsed >= next_roll and player.vitals.energy >= 15 and player.global_position.distance_to(enemy.global_position) < Hunt.melee_reach(enemy) + 0.5 and not player.anim._busy and not player.rolling:
+	var gap := player.global_position.distance_to(enemy.global_position)
+	if gap > Hunt.melee_reach(enemy) + 1.0 and player.vitals.energy < 15:
+		recovering = true
+	if recovering:
+		player.clear_nav()
+		if player.vitals.energy >= 55: recovering = false
+		else: return
+	if elapsed >= next_roll and player.vitals.energy >= 35 and player.global_position.distance_to(enemy.global_position) < Hunt.melee_reach(enemy) + 0.5 and not player.anim._busy and not player.rolling:
 		player.face_world(player.global_position + (player.global_position-enemy.global_position))
 		player._try_roll()
 		if player.rolling: rolls += 1
@@ -78,5 +86,5 @@ func _physics_process(delta: float) -> void:
 	if elapsed >= next_swing and not player.rolling and not player.anim._busy:
 		player.hunt._auto_attack()
 		next_swing = elapsed + 0.8
-	if not player.rolling and player.global_position.distance_to(enemy.global_position) > Hunt.melee_reach(enemy):
+	if not player.rolling and gap > Hunt.melee_reach(enemy):
 		player.nav_to(enemy.global_position)

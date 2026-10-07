@@ -228,3 +228,12 @@ Probe preserves this audit for policy refinement. No pointer/pixel/earned fight
 coverage or raidwin claim. Counting health decreases includes DOT ticks, not
 attack contacts. Need normal-speed repeats and pursuit/finish reliability before
 publishing an early fight pass. Ranged and tyrant punish windows remain unfinished.
+
+### Pursuit refinement on681609b
+
+Probe-only: reserve35stamina for rolls, stop out-of-range tap-run below15stamina
+and recover to55 before resuming chase. No direct stamina grants or AI callbacks.
+Normal-speed correct raptor repeats now win19.1/20.0s; wrong hammer/no trap wins
+23.7s. Both retain190-ishHP under the shared seeded raid armor. This is a modest
+counter advantage, not proof wrongkit must lose or earned early progression.
+Fixture intentionally isolates offense but its protection is not normal early gear.
