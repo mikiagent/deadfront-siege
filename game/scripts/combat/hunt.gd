@@ -161,6 +161,7 @@ func _auto_attack() -> void:
 		player.skills.add_xp("melee", 2)
 	print("[combat] player hit %s dmg=%.1f type=%s kind=%s" % [target.def.id, dealt, dtype, kind])
 	apply_counter_hit(w, target)
+	if dtype == &"blunt" and target.brain is TyrantBrain: (target.brain as TyrantBrain).blunt_counter()
 	if dtype == &"blunt" and randf() < 0.35:
 		target.statuses.apply(&"groggy", player)
 	_swing_cd = 1.0 / maxf(0.2, rate)

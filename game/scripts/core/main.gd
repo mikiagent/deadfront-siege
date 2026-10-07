@@ -43,6 +43,10 @@ func _ready() -> void:
 				_gather_test(player)
 			if "--combat-test" in OS.get_cmdline_user_args():
 				_combat_test(player)
+			if "--tyrant-window-probe" in OS.get_cmdline_user_args():
+				var tyrant_probe = load("res://scripts/dev/tyrant_window_probe.gd").new()
+				add_child(tyrant_probe)
+				tyrant_probe.call_deferred("run", self)
 			if "--siege-probe" in OS.get_cmdline_user_args():
 				var siege_probe = load("res://scripts/dev/siege_probe.gd").new()
 				add_child(siege_probe)

@@ -22,6 +22,7 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_capture_done = true
+	_test_tyrant_counters()
 	_test_catapult_recipe_save()
 	_test_slingshot_recipe()
 	_test_trap_control()
@@ -646,3 +647,31 @@ func _test_catapult_recipe_save() -> void:
 	grid.free()
 	platform.free()
 	restored.free()
+
+func _test_tyrant_counters() -> void:
+	var scene = load("res://scenes/creatures/creature.tscn")
+	var boss = scene.instantiate()
+	get_root().add_child(boss)
+	boss.spawn(get_root().get_node("Data").creature(&"tyrannosaurus"))
+	var brain = boss.brain
+	_expect(brain.get_script() == load("res://scripts/creatures/brains/tyrant_brain.gd"), "T-rex uses timing controller")
+	brain.phase = &"windup"
+	brain.blunt_counter()
+	_expect(brain.counter_hits == 0, "windup damage cannot stagger")
+	brain.phase = &"recovery"
+	for k in range(5): brain.blunt_counter()
+	_expect(brain.phase == &"recovery" and brain.counter_hits == 5, "unpoisoned boss needs six punish hits")
+	brain.blunt_counter()
+	_expect(brain.phase == &"stagger" and brain.phase_left == 3 and brain.counter_hits == 0, "six blunt counters grant fixed stagger")
+	brain.phase = &"recovery"
+	boss.statuses.apply(&"poisoned_target")
+	for k in range(3): brain.blunt_counter()
+	_expect(brain.phase == &"stagger", "poison lowers threshold to three punish hits")
+	brain.phase = &"recovery"
+	brain.stagger_immunity = 20
+	brain.blunt_counter()
+	_expect(brain.counter_hits == 0, "stagger immunity rejects buildup")
+	for id in [&"groggy",&"knockdown",&"snared",&"pinned"]:
+		boss.statuses.apply(id)
+		_expect(not boss.statuses.has(id), "tyrant rejects shortcut control " + str(id))
+	boss.free()

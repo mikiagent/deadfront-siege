@@ -50,4 +50,5 @@ func impact(victim: Creature) -> void:
 	victim.health.take_damage(dealt, source)
 	if source.skills: source.skills.add_xp("ranged", 2)
 	source.hunt.apply_counter_hit(weapon, victim)
+	if victim.brain is TyrantBrain: (victim.brain as TyrantBrain).blunt_counter()
 	print("[ranged] hit %s blunt=%.1f" % [victim.def.id, dealt])

@@ -9,6 +9,7 @@ signal knockdown_started
 signal knockdown_ended
 signal died
 
+var timed_attack := false
 var current_clip: StringName = &"idle"
 var tree: AnimationTree
 var player: AnimationPlayer
@@ -48,6 +49,7 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 		_hold_knockdown = true
 		knockdown_started.emit()
 	if clip == &"death":
+		timed_attack = false
 		_dead = true
 		died.emit()
 	if clip == &"attack_heavy":
@@ -75,12 +77,14 @@ func release_knockdown() -> void:
 		play_idle()
 
 func on_event(kind: String, clip: String) -> void:
+	if timed_attack: return
 	if kind == "hit":
 		attack_hit.emit(StringName(clip))
 	elif kind == "windup":
 		attack_windup.emit(StringName(clip))
 
 func _oneshot_done(clip: StringName) -> void:
+	if timed_attack: return
 	if current_clip != clip:
 		return
 	_busy = false
@@ -138,3 +142,23 @@ func _trans(sm: AnimationNodeStateMachine, a: String, b: String) -> void:
 	var t := AnimationNodeStateMachineTransition.new()
 	t.xfade_time = 0.08
 	sm.add_transition(a, b, t)
+
+## Boss controller owns impact/recovery. Authored animation is retimed to the impact cue.
+func play_timed_attack(clip: StringName, windup: float) -> void:
+	timed_attack = true
+	_busy = true
+	_forced = true
+	_travel(clip)
+	if player and player.has_animation(clip):
+		player.play(clip)
+		var length := player.get_animation(clip).length
+		player.speed_scale = maxf(0.01,length * CreatureClips._hit_frac(clip) / windup)
+	current_clip = clip
+
+func end_timed_attack() -> void:
+	if not timed_attack: return
+	timed_attack = false
+	_busy = false
+	_forced = false
+	if player: player.speed_scale = 1.0
+	if not _dead: play_idle()

@@ -316,3 +316,47 @@ Art caveat: simple procedural timber boxes/wheels and shared inventory icons,
 no authored catapult animation. World HP/reload label is small at phone-scale;
 HUD disables both fire actions during reload. Free-ground reticle, pointer feel,
 earned deployment/raid balance and tyrant openings remain unverified/unbuilt.
+
+## Phase 4a: tyrant counter windows (2026-10-06)
+
+T-rex only, not all tyrants or the titan. Catalogue remains200000HP/1100ATK/400DEF.
+Physics-timed bite0.7s windup/1s recovery; every third attack stomp1.2s/2s.
+Fixed target/facing at windup start: contact range and facing checked at impact,
+roll active at impact or moving behind/out of reach avoids it. Generic clip timers
+and authored hit events cannot deal a duplicate hit for controller-owned attacks.
+Animation is retimed to its authored hit fraction, then idle during recovery.
+
+Windup remains damageable but cannot build stagger. Landed blunt melee/stone/siege
+hits during recovery build one counter each. Six normally; three if poisoned.
+Counters carry across recovery windows. Threshold grants3s no-attack stagger,
+then20s immunity that also rejects buildup. No flat damage multiplier or HP nerf.
+Random groggy/knockdown and snared/pinned shortcut statuses are rejected on T-rex;
+heavy snare's existing physical slow still works. Disengagement/death invalidates
+windows; player death resets the meter. Telegraph ring and HUD BITE/STOMP timer
+survive deafened; PUNISH counter count and STAGGER timer are visible in top plate.
+Ring marks outer reach, not a full360-degree damage area; facing/roll still matters.
+
+Evidence:
+- Final Godot4.7 full regression suite PASS, no script errors. Isolated tests verify
+  six/three thresholds, windup rejection, immunity, shortcut-status rejection.
+- Normal1x home physics probe: primary0.70s,1.00s recovery; actual contact55.3HP
+  with raid armor, no second hit during recovery; normal roll active at next impact
+  takes0HP. Behind relocation also avoids damage. Deafened does not hide ring.
+- Actual seededL60-maul/raid-armor/melee60, three coated hits versus same armor/
+  L60barbed knife without poison: real AI correct policy earned one stagger from
+  actual attacks, died19.3s at183409bossHP. Wrong died12.8s at199941bossHP with
+  no stagger. More conservative punish-only policy earned one stagger and died
+ 26.3s at179805bossHP. These show a working opening/kit distinction, NOT a raid win
+  or earned/tier-matched balance proof. Injury/stamina/policy mistakes remain lethal.
+- Inspected960x600 isolated visual lab: visible BITE0.7s ring while deafened,
+  PUNISH1.0s BLUNT0/6, STAGGER3.0s. Threshold in this visual fixture was directly
+  invoked, not three earned hits; actual-hit stagger evidence is the AI fight log.
+  Local T-rex has no imported species asset and renders the existing box fallback.
+  This patch changes no creature/survivor art, skeleton or scale. Exact production
+  survivor import used privately only, not patched. Stagger freezes without an
+  authored stumble clip. Pixel acceptance covers readable cues, not final boss art.
+
+Reproduce actual seeded attempt with --tyrant-window-probe; add --tyrant-wrong-kit
+for the knife/no-poison comparison. Raid-win path, volcanic arena, continued scarce
+poison supply/earned gear, successful dodging policy and actual human timing remain
+open. Do not declare the boss beatable or complete from these failed fixtures.

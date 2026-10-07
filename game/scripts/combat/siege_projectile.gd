@@ -66,6 +66,7 @@ func explode(at: Vector3, direct: Creature = null) -> void:
 		else:
 			var damage := maxf(12.0,240.0-victim.defense_for(true)*victim.statuses.defense_mult()*0.5) * CombatCounters.multiplier(victim.def.archetype,&"blunt")
 			victim.health.take_damage(damage,platform if is_instance_valid(platform) else source)
+			if victim.brain is TyrantBrain: (victim.brain as TyrantBrain).blunt_counter()
 		if is_instance_valid(platform): victim.brain.on_aggro(platform)
 	queue_free()
 

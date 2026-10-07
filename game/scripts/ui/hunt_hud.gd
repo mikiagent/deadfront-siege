@@ -1020,6 +1020,10 @@ func _draw_target_plate(t: Creature, a: float) -> void:
 			var hp := "%.0f / %.0f" % [t.health.hp, t.health.max_hp]
 			var hw := _font.get_string_size(hp, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
 			draw_string(_font, Vector2(px + pw * 0.5 - hw * 0.5, py + 61), hp, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, a))
+			if t.brain is TyrantBrain:
+				var label := (t.brain as TyrantBrain).opening_label()
+				draw_rect(Rect2(px,py+108,pw,26),Color(0.1,0.1,0.12,0.9*a))
+				draw_string(_font,Vector2(px+8,py+128),label,HORIZONTAL_ALIGNMENT_LEFT,pw-16,16,Color(1,0.85,0.2,a))
 			var ix := px
 			if t.statuses:
 				for inst in t.statuses.instances():

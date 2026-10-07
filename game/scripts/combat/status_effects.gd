@@ -30,6 +30,10 @@ func apply(id: StringName, source: Node = null, extra_stacks: int = 1) -> void:
 	# Creature counter statuses must never become percent-health player injuries.
 	if get_parent() is Player and real_id in [&"bleeding_target", &"poisoned_target"]:
 		return
+	# Raid control is earned through timed blunt counters, not random groggy/stun chains.
+	if get_parent() is Creature:
+		var host := get_parent() as Creature
+		if host.def and host.def.id == &"tyrannosaurus" and real_id in [&"groggy",&"knockdown",&"snared",&"pinned"]: return
 	var add_stacks: int = int(parsed["stacks"]) * extra_stacks
 	var def := Data.status(real_id)
 	if def == null:

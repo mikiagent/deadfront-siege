@@ -337,6 +337,8 @@ func _size_collision() -> void:
 func _make_brain() -> void:
 	if is_pet:
 		brain = PetBrain.new()
+	elif def and def.id == &"tyrannosaurus":
+		brain = TyrantBrain.new()
 	elif def and def.mapped_archetype() == &"raptor_pack":
 		brain = RaptorPackBrain.new()
 	else:
@@ -467,6 +469,7 @@ func _on_windup(clip: StringName) -> void:
 	Telegraph.show_for(self, clip)
 
 func _on_hit(clip: StringName) -> void:
+	if brain is TyrantBrain: return
 	var target := brain.attack_target if brain else null
 	if target:
 		# A contact attack lands at impact, not anywhere the target ran during windup.
@@ -525,10 +528,10 @@ func _on_damaged(_amount: float, source: Node) -> void:
 		statuses.apply(&"knockdown", source)
 		anim.play_clip(&"knockdown")
 		return
-	if _now_s() >= _stagger_immune_until:
+	if not brain is TyrantBrain and _now_s() >= _stagger_immune_until:
 		stagger_left = 0.45 if kind == &"crit" else 0.3
 		_stagger_immune_until = _now_s() + 1.0
-	if not str(anim.current_clip).begins_with("attack"):
+	if not brain is TyrantBrain and not str(anim.current_clip).begins_with("attack"):
 		var authored: Dictionary = def.pipeline.get("authored_clips", {})
 		if authored.has("hit_react") or not view.using_glb:
 			view.flinch(1.4 if kind == &"crit" else 1.0)  # no real hurt clip: shove + nod instead

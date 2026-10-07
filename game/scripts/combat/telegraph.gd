@@ -58,3 +58,23 @@ func _process(delta: float) -> void:
 	if _life <= 0.0:
 		_active.erase(self)
 		queue_free()
+
+## Raid visual information survives deafened; damage is fixed-facing, not a homing cue.
+static func show_tyrant(creature: Creature, radius: float, duration: float, clip: StringName) -> Telegraph:
+	var t := Telegraph.new()
+	creature.get_parent().add_child(t)
+	t.global_position = creature.global_position
+	t.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	t._build(radius,creature)
+	t._life = duration + 0.15
+	var label := Label3D.new()
+	label.text = "STOMP - ROLL OR GET BEHIND" if clip == &"attack_heavy" else "BITE - ROLL OR GET BEHIND"
+	label.position.y = 2
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 32
+	t.add_child(label)
+	_active.append(t)
+	return t
+
+func _exit_tree() -> void:
+	_active.erase(self)
