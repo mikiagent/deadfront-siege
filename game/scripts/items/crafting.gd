@@ -234,8 +234,24 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
 	var n := nearest_station(player, StringName(sid))
 	return n != null and player.global_position.distance_to(n.global_position) <= STATION_RANGE
 
+## Optional endgame gates. Existing recipes are unchanged.
+static func progression_block(player: Player, rec: Dictionary) -> String:
+	var survival := int(rec.get("required_survival", 0))
+	if survival > 0 and (player == null or player.skills == null or player.skills.level_of("survival") < survival):
+		return "needs Survival %d" % survival
+	var minimum := int(rec.get("min_level", 0))
+	if minimum > 0:
+		if player.skills == null or player.skills.level_of(str(rec.get("skill", "processing"))) < minimum:
+			return "needs %s %d" % [str(rec.get("skill", "processing")), minimum]
+		var levels := consumed_levels(player.inventory, rec, default_picks(player.inventory, rec))
+		if levels.is_empty() or crafted_level_for(rec, levels, player) < minimum:
+			return "needs materials and crafting skill for level %d" % minimum
+	return ""
+
 static func can_make(player: Player, rec: Dictionary, picks: Array[int]) -> bool:
 	if rec.is_empty():
+		return false
+	if progression_block(player, rec) != "":
 		return false
 	if not station_nearby(player, rec):
 		return false

@@ -168,6 +168,10 @@ func _begin_recipe(rid: StringName) -> void:
 	var rec := Crafting.recipe(rid)
 	if rec.is_empty():
 		return
+	var blocked := Crafting.progression_block(player, rec)
+	if blocked != "":
+		player.notice(blocked)
+		return
 	var missing := Crafting.missing_ingredient_name(player.inventory, rec)
 	if missing != "":
 		print("[craft] blocked %s: needs %s" % [rid, missing])
@@ -191,6 +195,11 @@ func _start_craft_cycle() -> void:
 		_clear_session()
 		return
 	_picks = Crafting.default_picks(player.inventory, rec)
+	var blocked := Crafting.progression_block(player, rec)
+	if blocked != "":
+		player.notice(blocked)
+		_clear_session()
+		return
 	var missing := Crafting.missing_ingredient_name(player.inventory, rec)
 	if missing != "":
 		print("[craft] blocked %s: needs %s" % [recipe_id, missing])

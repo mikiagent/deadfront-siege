@@ -523,7 +523,7 @@ func _refresh_equipped() -> void:
 			"weapon":
 				st = inventory.equipped_weapon()
 				if st and st.def():
-					caption = "%.0f" % st.def().damage
+					caption = "%.0f" % st.scaled_damage()
 			"tool":
 				st = inventory.equipped_gather_tool()
 			"food1", "food2":
@@ -536,6 +536,8 @@ func _refresh_equipped() -> void:
 					continue
 			_:
 				st = inventory.equipped_in(StringName(slot))
+		if st and st.scaled_armor() > 0:
+			caption = "%.0f" % st.scaled_armor()
 		if st:
 			ItemIcons.style_slot(b, st.def_id, caption)
 			b.tooltip_text = st.tooltip()

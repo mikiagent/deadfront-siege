@@ -218,7 +218,8 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	var picks := Crafting.default_picks(player.inventory, rec)
 	var have := Crafting.picks_valid(player.inventory, rec, picks)
 	var reachable: bool = _station == "" or bool(info["exists"])
-	var can := have and reachable
+	var blocked := Crafting.progression_block(player, rec)
+	var can := have and reachable and blocked == ""
 	var chosen := str(rec.get("id", "")) == _selected_id
 	sb.bg_color = UiTokens.TEAL_DIM if chosen else (Color(0.10, 0.12, 0.13, 0.95) if can else Color(0.08, 0.09, 0.1, 0.92))
 	sb.border_color = UiTokens.TEAL if chosen else UiTokens.DIVIDER
@@ -293,7 +294,9 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	pick.pressed.connect(_choose_recipe.bind(str(rec.get("id", ""))))
 	actions.add_child(pick)
 	var btn_text := "Craft"
-	if not have:
+	if blocked != "":
+		btn_text = "Locked"
+	elif not have:
 		btn_text = "Missing"
 	elif _station != "" and not info["exists"]:
 		btn_text = "No station"

@@ -306,7 +306,13 @@ func receive_creature_hit(_who: Creature, _clip: StringName) -> void:
 		_stagger_immune_until = now_s + 1.5
 		clear_nav()
 
+func refresh_equipment_vitals() -> void:
+	if vitals and inventory:
+		vitals.equipment_health_bonus = inventory.equipped_health_bonus()
+		vitals.health = minf(vitals.health, vitals.effective_max_health())
+
 func _physics_process(delta: float) -> void:
+	refresh_equipment_vitals()
 	_fall_guard()
 	for rec in bonded:
 		rec.tick_respawn(delta)

@@ -13,6 +13,7 @@ extends Resource
 @export var damage_type: StringName = &""
 @export var is_work_tool: bool = false
 @export var armor_value: float = 0.0
+@export var health_bonus: float = 0.0
 @export var food_energy: float = 0.0
 @export var capture_tier: int = 0
 @export var slot_span: int = 1
@@ -45,6 +46,7 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	def.damage_type = StringName(str(d.get("damage_type", "")))
 	def.is_work_tool = bool(d.get("is_work_tool", false))
 	def.armor_value = float(d.get("armor_value", 0.0))
+	def.health_bonus = float(d.get("health_bonus", 0.0))
 	def.food_energy = float(d.get("food_energy", 0.0))
 	def.capture_tier = int(d.get("capture_tier", 0))
 	def.slot_span = int(d.get("slot_span", 1))
@@ -85,6 +87,9 @@ func max_durability_at(level: int) -> int:
 
 func armor_value_at(level: int) -> float:
 	return _scaled(&"armor_value", armor_value, level)
+
+func health_bonus_at(level: int) -> float:
+	return _scaled(&"health_bonus", health_bonus, level)
 
 func food_energy_at(level: int) -> float:
 	return _scaled(&"food_energy", food_energy, level)

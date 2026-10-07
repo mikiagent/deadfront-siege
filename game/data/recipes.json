@@ -1509,6 +1509,142 @@
       "process_add": 0,
       "tree": "construction",
       "input_id": "empty_bucket"
+    },
+    {
+      "id": "raid_maul",
+      "display_name": "Raid Maul",
+      "skill": "weapon_tools",
+      "tree": "weapon_tools",
+      "min_level": 55,
+      "required_survival": 50,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "metal",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 4,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "raid_maul",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 12,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "raid_helm",
+      "display_name": "Raid Helm",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 55,
+      "required_survival": 50,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "metal",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "hide",
+          "count": 4,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "raid_helm",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 12,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "raid_cuirass",
+      "display_name": "Raid Cuirass",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 55,
+      "required_survival": 50,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "metal",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "hide",
+          "count": 8,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 4,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "raid_cuirass",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 12,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "raid_greaves",
+      "display_name": "Raid Greaves",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 55,
+      "required_survival": 50,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "metal",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "hide",
+          "count": 4,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "raid_greaves",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 12,
+      "process_step": "bind",
+      "process_add": 1
     }
   ]
 }

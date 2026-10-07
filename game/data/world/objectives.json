@@ -216,6 +216,19 @@
       "t_stones": 5
     },
     {
+      "id": "raid_gear",
+      "title": "Forge the raid kit",
+      "hint": "Scout volcano ore without fighting the boss. Cargo-warp it home. Level55+ materials and crafting skill: raid maul, helm, cuirass, greaves at workbench. Equip and recover health.",
+      "have": {
+        "raid_maul": 1,
+        "raid_helm": 1,
+        "raid_cuirass": 1,
+        "raid_greaves": 1
+      },
+      "xp": 200,
+      "t_stones": 5
+    },
+    {
       "id": "volcano_raid",
       "title": "Defeat the volcano tyrant",
       "hint": "Prepare raid gear and food. Dodge the tyrannosaur. Your bonded animal can help.",

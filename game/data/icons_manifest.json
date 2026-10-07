@@ -147,7 +147,11 @@
     "log_shelter_kit": "tent_kit",
     "cabin_bed_kit": "bedroll",
     "smoker_kit": "drying_rack_kit",
-    "smoked_meat": "dried_meat"
+    "smoked_meat": "dried_meat",
+    "raid_maul": "club",
+    "raid_helm": "dried_hide",
+    "raid_cuirass": "raw_hide",
+    "raid_greaves": "hide_strap"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

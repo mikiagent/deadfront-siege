@@ -43,10 +43,14 @@ func _ready() -> void:
 				_gather_test(player)
 			if "--combat-test" in OS.get_cmdline_user_args():
 				_combat_test(player)
+			if "--raid-gear-probe" in OS.get_cmdline_user_args():
+				var gear_probe = load("res://scripts/dev/raid_gear_probe.gd").new()
+				add_child(gear_probe)
+				gear_probe.call_deferred("run", self)
 			if "--progression-probe" in OS.get_cmdline_user_args():
 				var probe = load("res://scripts/dev/progression_probe.gd").new()
 				add_child(probe)
-				probe.run(self)
+				probe.call_deferred("run", self)
 			if "--bot" in OS.get_cmdline_user_args():
 				var bot = (load("res://scripts/dev/bot_survivor.gd") as GDScript).new()
 				bot.name = "BotSurvivor"

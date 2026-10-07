@@ -41,6 +41,29 @@ func equipped_in(slot: StringName) -> ItemStack:
 	var idx := find_first(StringName(id))
 	return slots[idx] if idx >= 0 else null
 
+func equipped_armor() -> float:
+	var value := 0.0
+	for slot in [&"head", &"body", &"legs"]:
+		var item := equipped_in(slot)
+		if item and not item.is_broken():
+			value += item.scaled_armor()
+	return value
+
+func has_raid_protection() -> bool:
+	for pair in [[&"head", &"raid_helm"], [&"body", &"raid_cuirass"], [&"legs", &"raid_greaves"]]:
+		var item := equipped_in(pair[0])
+		if item == null or item.def_id != pair[1] or item.level < 55 or item.is_broken():
+			return false
+	return true
+
+func equipped_health_bonus() -> float:
+	var value := 0.0
+	for slot in [&"head", &"body", &"legs"]:
+		var item := equipped_in(slot)
+		if item and not item.is_broken() and item.def():
+			value += item.def().health_bonus_at(item.level)
+	return value
+
 func set_quick_food(i: int, def_id: StringName) -> void:
 	if i < 0 or i > 1:
 		return

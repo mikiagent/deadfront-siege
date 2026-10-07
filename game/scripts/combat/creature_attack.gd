@@ -22,6 +22,10 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 		if id == &"knockdown":
 			(target as Creature).anim.play_clip(&"knockdown")
 	elif target is Player:
+		# The reinforced full kit keeps the tyrant's first hit from permanently removing
+		# dodge/agency. Deafened and damage still land; incomplete/low-level kits do not help.
+		if source.def.id == &"tyrannosaurus" and id in [&"fracture", &"pinned"] and (target as Player).inventory.has_raid_protection():
+			return
 		(target as Player).statuses.apply(id, source, int(parsed["stacks"]))
 
 static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"attack_primary") -> void:
@@ -32,7 +36,9 @@ static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"
 	if target is Player:
 		if (target as Player).dead:
 			return
-		defn = 20.0 * (target as Player).statuses.defense_mult()
+		var survivor := target as Player
+		survivor.refresh_equipment_vitals()
+		defn = (20.0 + survivor.inventory.equipped_armor()) * survivor.statuses.defense_mult()
 		var raw: float = atk - defn * 0.5
 		var dealt: float = maxf(atk * 0.05, raw)
 		if Telegraph.player_dodged(attacker) or randf() > attacker.accuracy_chance():

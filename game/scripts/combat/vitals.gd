@@ -7,6 +7,7 @@ signal damaged
 signal died
 
 var max_health: float = 100.0
+var equipment_health_bonus: float = 0.0 ## derived, never saved; equipping does not heal
 var health: float = 100.0
 var max_energy: float = 100.0
 var energy: float = 100.0
@@ -60,7 +61,7 @@ func _sync_exhausted() -> void:
 		exhausted_changed.emit(on)
 
 func effective_max_health() -> float:
-	return max_health
+	return max_health + equipment_health_bonus
 
 func take_damage(amount: float) -> void:
 	if dead:

@@ -138,12 +138,14 @@ static func load_now(host: Node) -> void:
 		seat.y = World.runtime.surface_y(pos.x, pos.z) + 1.0
 	player.global_position = seat
 	print("[world] loaded player at %s (saved y=%.2f)" % [seat.snapped(Vector3.ONE * 0.1), pos.y])
-	player.vitals.from_dict(data.get("player", {}).get("vitals", {}))
-	player.statuses.from_array(data.get("player", {}).get("statuses", []))
 	player.inventory.load_array(data.get("player", {}).get("inventory", []))
 	var extras: Variant = data.get("player", {}).get("inventory_extras", null)
 	if extras is Dictionary:
 		player.inventory.extras_from_dict(extras as Dictionary)
+	# Derive equipment capacity before restoring statuses, whose sync clamps health.
+	player.refresh_equipment_vitals()
+	player.vitals.from_dict(data.get("player", {}).get("vitals", {}))
+	player.statuses.from_array(data.get("player", {}).get("statuses", []))
 	if player.skills:
 		player.skills.from_dict(data.get("skills_v2", {}))
 	player.bonded.clear()

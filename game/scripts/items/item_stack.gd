@@ -126,6 +126,8 @@ func tooltip() -> String:
 	var armor := scaled_armor()
 	if armor > 0.0:
 		lines.append("armor %.1f" % armor)
+	if d and d.health_bonus > 0.0:
+		lines.append("max health +%.1f (does not heal)" % d.health_bonus_at(level))
 	if Food.is_food(self):
 		lines.append("energy %.1f" % Food.energy_restore(self))
 		if Food.is_raw(self):

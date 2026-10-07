@@ -1825,6 +1825,68 @@
         2,
         2
       ]
+    },
+    {
+      "id": "raid_maul",
+      "display_name": "Volcano Raid Maul",
+      "categories": [
+        "weapon"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "tool_class": "none",
+      "damage": 220,
+      "damage_type": "blunt",
+      "attack_rate": 1.0,
+      "max_durability": 400,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      }
+    },
+    {
+      "id": "raid_helm",
+      "display_name": "Raid Hide Helm",
+      "categories": [
+        "armor_head"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 300,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      }
+    },
+    {
+      "id": "raid_cuirass",
+      "display_name": "Raid Hide Cuirass",
+      "categories": [
+        "armor_body"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 700,
+      "health_bonus": 90,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02,
+        "health_bonus": 0.02
+      }
+    },
+    {
+      "id": "raid_greaves",
+      "display_name": "Raid Hide Greaves",
+      "categories": [
+        "armor_legs"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 300,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      }
     }
   ]
 }
