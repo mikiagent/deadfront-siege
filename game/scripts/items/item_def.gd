@@ -10,6 +10,8 @@ extends Resource
 @export var base_level: int = 1
 @export var attack_rate: float = 0.0
 @export var damage: float = 0.0
+@export var range_m: float = 0.0
+@export var ammo_id: StringName = &""
 @export var bleed_every_hits: int = 0
 @export var damage_type: StringName = &""
 @export var is_work_tool: bool = false
@@ -44,6 +46,8 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	def.base_level = int(d.get("base_level", 1))
 	def.attack_rate = float(d.get("attack_rate", 0.0))
 	def.damage = float(d.get("damage", 0.0))
+	def.range_m = float(d.get("range_m", 0.0))
+	def.ammo_id = StringName(str(d.get("ammo_id", "")))
 	def.bleed_every_hits = int(d.get("bleed_every_hits", 0))
 	def.damage_type = StringName(str(d.get("damage_type", "")))
 	def.is_work_tool = bool(d.get("is_work_tool", false))

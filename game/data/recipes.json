@@ -1816,6 +1816,58 @@
       "seconds": 4,
       "process_step": "bind",
       "process_add": 1
+    },
+    {
+      "id": "slingshot",
+      "display_name": "Bone Slingshot",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "bone",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "slingshot",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 3,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "stone_shot",
+      "display_name": "Stone Shot",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "stone",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "stone_shot",
+        "count": 5
+      },
+      "station": null,
+      "seconds": 1,
+      "process_step": "bind",
+      "process_add": 1
     }
   ]
 }

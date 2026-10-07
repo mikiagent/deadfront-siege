@@ -22,6 +22,7 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_capture_done = true
+	_test_slingshot_recipe()
 	_test_trap_control()
 	_test_counter_supplies()
 	_test_combat_counters()
@@ -600,3 +601,19 @@ func _test_trap_control() -> void:
 		var parts: Array = craft.consume_for_craft(inv, recipe, picks)
 		inv.add(craft.build_output(recipe, parts[0], 1, parts))
 	_expect(inv.count_of(&"rope_snare") == 1 and inv.count_of(&"heavy_snare") == 1, "snare crafted outputs with real payment")
+
+func _test_slingshot_recipe() -> void:
+	var craft := load("res://scripts/items/crafting.gd") as GDScript
+	var inv = (load("res://scripts/items/inventory.gd") as GDScript).new(20)
+	var stack_script := load("res://scripts/items/item_stack.gd") as GDScript
+	for pair in [[&"bone",1], [&"branch",1], [&"hide_strap",2], [&"stone",1]]:
+		inv.add(stack_script.make(pair[0], pair[1]))
+	for id in [&"slingshot", &"stone_shot"]:
+		var recipe: Dictionary = craft.recipe(id)
+		var picks: Array = craft.default_picks(inv, recipe)
+		_expect(craft.picks_valid(inv, recipe, picks), "ranged recipe allocation " + str(id))
+		var parts: Array = craft.consume_for_craft(inv, recipe, picks)
+		inv.add(craft.build_output(recipe, parts[0], 1, parts))
+	_expect(inv.count_of(&"slingshot") == 1 and inv.count_of(&"stone_shot") == 5, "slingshot and five shots paid")
+	var data = get_root().get_node("Data")
+	_expect(data.item(&"slingshot").range_m == 12 and data.item(&"slingshot").ammo_id == &"stone_shot", "ranged data loaded")

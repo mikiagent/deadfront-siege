@@ -237,3 +237,26 @@ Normal-speed correct raptor repeats now win19.1/20.0s; wrong hammer/no trap wins
 23.7s. Both retain190-ishHP under the shared seeded raid armor. This is a modest
 counter advantage, not proof wrongkit must lose or earned early progression.
 Fixture intentionally isolates offense but its protection is not normal early gear.
+
+## Phase3a slingshot delivery
+
+Baseff00f377. Bone Slingshot45base blunt/1Hz/+2%damage per level,12m range.
+Recipe bone+handle+2lashing, handcraft3s. One stone produces5stone shots in1s.
+Normal hunt FIRE/ammo hex replaces NET while equipped, Auto uses same action.
+No new weapon mesh/clip: existing swing and club icon reused pending Fable art.
+
+Fire snapshots aim, checks target/range/LOS/ammo/busy,0.25s windup. Weapon change,
+roll/death/interrupted clip or world change cancels before ammo payment. One shot
+then travels straight18m/s, visible sphere; per-tick segment ray catches terrain,
+geometry or intervening creature. No homing/through-wall/instant damage. Impact
+uses ranged defense/skill and central blunt chart, dodge, ranged XP and existing
+coating charges only on landed hit. Target death/regeneration semantics unchanged.
+Autochase can approach range, not silently fire across the island. Wall refusal
+leaves ammo untouched; miss in flight spends ammo. Normal ammo stacks save asbefore.
+
+Godot4.7 regressions/recipe-payment testsPASS. Physics stationary/liveAI probe:
+paid1of5shots,18.4damage on protoceratops, cooldown/wall/range refusals. Interruption
+by weapon switch spends noammo; emptyammo refuses. Inspected960x600 FIRE5 and
+visible shot pixels with production imported survivor privately. Pointer timing,
+continuous ranged animation feel and actual ranged fight balance remain unverified.
+No claim this supplies raid DPS or beats fleeing prey. Catapult/tyrant windows open.

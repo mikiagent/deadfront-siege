@@ -440,7 +440,11 @@ func _on_skill(id: StringName) -> void:
 		return
 	match id:
 		&"net":
-			player.hunt.use_net()
+			var weapon := player.inventory.equipped_weapon()
+			if weapon and weapon.def() and weapon.def().range_m > 0.0:
+				player.hunt.fire_ranged()
+			else:
+				player.hunt.use_net()
 		&"tackle":
 			player.hunt.use_tackle()
 		&"kick":
@@ -816,7 +820,12 @@ func _process(delta: float) -> void:
 		if _feed_hex.visible != feedable:
 			_feed_hex.visible = feedable
 			_feed_hex.queue_redraw()
-		_skill_hexes[0].disabled = not (player.hunt.target.capturable() and player.hunt._best_net_ok())
+		var weapon := player.inventory.equipped_weapon()
+		var ranged := weapon != null and weapon.def() != null and weapon.def().range_m > 0.0
+		_skill_hexes[0].caption = "FIRE %d" % player.inventory.count_of(weapon.def().ammo_id) if ranged else "NET"
+		_skill_hexes[0].glyph = "F" if ranged else "🕸"
+		_skill_hexes[0].disabled = player.inventory.count_of(weapon.def().ammo_id) <= 0 if ranged else not (player.hunt.target.capturable() and player.hunt._best_net_ok())
+		_skill_hexes[0].queue_redraw()
 		_skill_hexes[1].disabled = player.hunt._tackle_cd > 0.0
 		_skill_hexes[2].disabled = player.hunt._kick_cd > 0.0
 		for h in _skill_hexes:

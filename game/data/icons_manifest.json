@@ -160,7 +160,9 @@
     "armor_scute": "raptor_bone",
     "venom_gland": "herb_leaf",
     "rope_snare": "capture_net_i",
-    "heavy_snare": "capture_net_ii"
+    "heavy_snare": "capture_net_ii",
+    "slingshot": "club",
+    "stone_shot": "stone"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

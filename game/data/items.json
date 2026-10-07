@@ -1985,6 +1985,32 @@
       ],
       "stack_max": 999,
       "base_level": 1
+    },
+    {
+      "id": "slingshot",
+      "display_name": "Bone Slingshot",
+      "categories": [
+        "weapon"
+      ],
+      "tool_class": "none",
+      "damage": 45,
+      "damage_type": "blunt",
+      "attack_rate": 1,
+      "range_m": 12,
+      "ammo_id": "stone_shot",
+      "max_durability": 140,
+      "stats_per_level": {
+        "damage": 0.02
+      }
+    },
+    {
+      "id": "stone_shot",
+      "display_name": "Stone Shot",
+      "categories": [
+        "ammunition"
+      ],
+      "stack_max": 999,
+      "base_level": 1
     }
   ]
 }

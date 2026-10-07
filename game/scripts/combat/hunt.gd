@@ -9,6 +9,7 @@ var target: Creature
 var hold: bool = false
 var auto: bool = true  # HUD Auto hexagon: auto-attack when in range
 var _ring: MeshInstance3D
+var _ranged_pending := false
 var _swing_cd: float = 0.0
 var _tackle_cd: float = 0.0
 var _kick_cd: float = 0.0
@@ -98,6 +99,13 @@ func _auto_attack() -> void:
 	if player.statuses.has_flag(&"cannot_act"):
 		return
 	if player.rolling or _tactic_lock > 0.0:
+		return
+	var ranged_weapon := player.inventory.equipped_weapon()
+	if ranged_weapon and ranged_weapon.def() and ranged_weapon.def().range_m > 0.0:
+		if player.global_position.distance_to(target.global_position) > ranged_weapon.def().range_m and not hold:
+			player.nav_to(target.global_position)
+		else:
+			fire_ranged()
 		return
 	var offset := player.global_position - target.global_position
 	var dist := Vector2(offset.x, offset.z).length()
@@ -263,3 +271,45 @@ func apply_counter_hit(w: ItemStack, victim: Creature) -> void:
 		w.attributes["toxin_hits"] = int(w.attributes["toxin_hits"]) - 1
 		if not victim.health.dead: victim.statuses.apply(&"poisoned_target", player)
 		player.inventory.changed.emit()
+
+## Fixed aim at launch, real projectile collision. Auto and Fire context share this action.
+func fire_ranged() -> bool:
+	if target == null or not is_instance_valid(target) or target.health.dead: return false
+	var weapon := player.inventory.equipped_weapon()
+	var def := weapon.def() if weapon else null
+	if def == null or def.range_m <= 0.0: return false
+	if _ranged_pending or _swing_cd > 0 or player.dead or player.rolling or player.anim._busy or player.statuses.has_flag(&"cannot_act"): return false
+	var origin := player.global_position + Vector3(0,0.3,0)
+	var aim := target.global_position + Vector3(0, minf(1.0, target.def.height_meters * 0.4),0)
+	var offset := aim-origin
+	if offset.length() > def.range_m or offset.length() < 0.1: return false
+	var query := PhysicsRayQueryParameters3D.create(origin, aim)
+	query.exclude = [player.get_rid()]
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
+	if not hit.is_empty() and hit.get("collider") != target: return false
+	if player.inventory.count_of(def.ammo_id) < 1:
+		player.notice("Need stone shot")
+		_swing_cd = 1.0
+		return false
+	player.clear_nav()
+	player.face_world(target.global_position)
+	player.play_attack(false)
+	_ranged_pending = true
+	_swing_cd = 1.0 / maxf(0.2, def.attack_rate)
+	var runtime := World.runtime
+	# Snapshot aim at button press, not a homing shot after windup.
+	player.get_tree().create_timer(0.25).timeout.connect(func () -> void:
+		_ranged_pending = false
+		if not is_instance_valid(player) or player.dead or player.rolling or player.inventory.equipped_weapon() != weapon or not is_instance_valid(runtime) or runtime != World.runtime or player.anim.current_clip != &"attack_primary": return
+		if not player.inventory.consume(def.ammo_id, 1): return
+		var shot := StoneProjectile.new()
+		shot.source = player
+		shot.weapon = weapon
+		shot.direction = offset.normalized()
+		shot.damage = weapon.scaled_damage()
+		shot.range_left = def.range_m
+		shot.skill_level = player.skills.level_of("ranged") if player.skills else 0
+		runtime.add_child(shot)
+		shot.global_position = origin
+	)
+	return true

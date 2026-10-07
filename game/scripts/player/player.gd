@@ -2079,6 +2079,8 @@ func context_actions() -> Array:
 		out.append({"id": "dismount", "glyph": "⤓", "label": "Dismount"})
 		return out
 	var weapon := inventory.equipped_weapon()
+	if weapon and weapon.def() and weapon.def().range_m > 0 and hunt.target != null:
+		out.append({"id": "fire_ranged", "glyph": "F", "label": "Fire (%d)" % inventory.count_of(weapon.def().ammo_id)})
 	if weapon and (inventory.count_of(&"toxin_coating") > 0 or int(weapon.attributes.get("toxin_hits", 0)) > 0):
 		out.append({"id": "coat_weapon", "glyph": "V", "label": "Coat (%d/3)" % int(weapon.attributes.get("toxin_hits", 0))})
 	for snare in [&"rope_snare", &"heavy_snare"]:
@@ -2118,6 +2120,8 @@ func context_actions() -> Array:
 
 func context_action(id: String) -> void:
 	match id:
+		"fire_ranged":
+			hunt.fire_ranged()
 		"rope_snare", "heavy_snare":
 			place_snare(StringName(id))
 		"coat_weapon":
