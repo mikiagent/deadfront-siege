@@ -360,3 +360,24 @@ Reproduce actual seeded attempt with --tyrant-window-probe; add --tyrant-wrong-k
 for the knife/no-poison comparison. Raid-win path, volcanic arena, continued scarce
 poison supply/earned gear, successful dodging policy and actual human timing remain
 open. Do not declare the boss beatable or complete from these failed fixtures.
+
+## Phase 4b: moving-floor carry correction (2026-10-07)
+
+Real walking-evasion diagnosis: during a close fixed-facing windup, boss velocity
+was0 and pathing disabled but both bodies moved together, keeping2.28m distance.
+CharacterBody treated the survivor as a moving floor and inherited its velocity.
+Creature spawn now sets platform_floor_layers/platform_wall_layers to0. Creatures
+still collide and walk on static terrain; they do not ride live characters.
+No collision exception, teleport, speed, attack/HP/defense/regen or timing change.
+
+Same restedL60maul/raid-armor seed, three coated hits, normal directional walk away
+from windup and return for punish: before fix died21.3s at184143bossHP; after fix
+survived60s at298HP,0contacts,173849bossHP and one earned stagger. These are seeded
+home fixtures, not a raid win, volcanic proof or earned supply path. Prior window
+probes inherited saved stamina/fatigue; the new probe explicitly labels its fresh
+rested seed. Updating policy is evidence hygiene, not changing stamina mechanics.
+
+Full regression PASS, new assertion on platform inheritance masks. Inspected
+960x600 normal walking escape visual: boss moves0.00m through windup while player
+separation grows3.55->7.34m, takes0damage, readable PUNISH1.0s. Existing box T-rex
+fallback and isolated flat lab caveats remain. Sustained supply/kill proof pending.

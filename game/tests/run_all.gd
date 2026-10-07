@@ -653,6 +653,7 @@ func _test_tyrant_counters() -> void:
 	var boss = scene.instantiate()
 	get_root().add_child(boss)
 	boss.spawn(get_root().get_node("Data").creature(&"tyrannosaurus"))
+	_expect(boss.platform_floor_layers == 0 and boss.platform_wall_layers == 0, "creature never rides moving character floors/walls")
 	var brain = boss.brain
 	_expect(brain.get_script() == load("res://scripts/creatures/brains/tyrant_brain.gd"), "T-rex uses timing controller")
 	brain.phase = &"windup"

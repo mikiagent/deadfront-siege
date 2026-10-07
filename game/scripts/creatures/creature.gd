@@ -87,6 +87,9 @@ var _path_blocked_left: float = 0.0
 var _path_anchor: Vector3 = Vector3.ZERO
 
 func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> void:
+	# A live character is not a moving floor. Giants must not ride a survivor away.
+	platform_floor_layers = 0
+	platform_wall_layers = 0
 	def = p_def
 	variant = p_variant
 	pack_id = p_pack

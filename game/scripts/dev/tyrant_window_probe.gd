@@ -1,7 +1,7 @@
 extends Node
 var player: Player
 var boss: Creature
-## Seeded kit, visible boss phase cues and normal actions. No guaranteed win.
+## Seeded rested kit, normal directional walking during visible windup; not earned raid.
 var elapsed := 0.0
 var rolled_cycle := -1
 var stagger_seen := 0
@@ -27,6 +27,10 @@ func run(host: Node) -> void:
 	player.skills.trees["melee"]["level"] = 60
 	player.refresh_equipment_vitals()
 	player.vitals.heal(999)
+	# Seeded rested fixture, not a survival or earned-supplies claim.
+	player.vitals.energy = player.vitals.max_energy
+	player.vitals.fatigue = 0
+	print("[raidwindows] rested seed energy=%.0f fatigue=%.0f" % [player.vitals.energy,player.vitals.fatigue])
 	var sp := Spawner.new()
 	sp.species = &"tyrannosaurus"
 	sp.count = 1
@@ -53,19 +57,24 @@ func _physics_process(delta: float) -> void:
 		last_phase = brain.phase
 	if boss.health.hp < before_hp: hits_seen += 1
 	before_hp = boss.health.hp
-	if player.dead or boss.health.dead or elapsed > 90:
+	if player.dead or boss.health.dead or elapsed > 60:
 		print("[raidwindows] close t=%.1f bossHP=%.0f playerHP=%.0f stagger=%d damage-events=%d; seeded normal AI home terrain, not earned volcanic win" % [elapsed,boss.health.hp,player.vitals.health,stagger_seen,hits_seen])
 		get_tree().quit(0)
 		return
+	for key in ["move_left","move_right","move_up","move_down"]: Input.action_release(key)
 	if brain.phase == &"windup":
 		player.clear_nav()
-		if rolled_cycle != brain.attack_number and brain.phase_left < (0.3 if brain.windup_clip == &"attack_primary" else 0.3) and not player.anim._busy:
-			var tangent := (player.global_position-boss.global_position).rotated(Vector3.UP,PI/2)
-			tangent.y = 0
-			player.face_world(player.global_position+tangent)
-			player._try_roll()
-			if player.rolling: rolled_cycle = brain.attack_number
+		var away := player.global_position-boss.global_position
+		away.y = 0
+		var cam := get_viewport().get_camera_3d()
+		var right := cam.global_basis.x
+		var back := cam.global_basis.z
+		right.y = 0; back.y = 0
+		var u := away.normalized().dot(right.normalized())
+		var v := away.normalized().dot(back.normalized())
+		Input.action_press("move_right" if u >= 0 else "move_left",absf(u))
+		Input.action_press("move_down" if v >= 0 else "move_up",absf(v))
 	else:
 		if not player.rolling:
 			if player.global_position.distance_to(boss.global_position) > Hunt.melee_reach(boss): player.nav_to(boss.global_position)
-			elif (brain.phase == &"recovery" or brain.phase == &"stagger") and brain.phase_left > 0.7: player.hunt._auto_attack()
+			elif (brain.phase == &"recovery" or brain.phase == &"stagger") and brain.phase_left > 0.75: player.hunt._auto_attack()
