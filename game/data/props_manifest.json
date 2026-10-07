@@ -301,6 +301,13 @@
         2
       ],
       "note": "smoking station; Kenney stand placeholder, no fuel/weather system yet"
+    },
+    "catapult": {
+      "footprint": [
+        3,
+        3
+      ],
+      "note": "Manual destructible siege platform; procedural placeholder visual"
     }
   },
   "tools": {

@@ -260,3 +260,59 @@ by weapon switch spends noammo; emptyammo refuses. Inspected960x600 FIRE5 and
 visible shot pixels with production imported survivor privately. Pointer timing,
 continuous ranged animation feel and actual ranged fight balance remain unverified.
 No claim this supplies raid DPS or beats fleeing prey. Catapult/tyrant windows open.
+
+## Phase 3b: field catapult (2026-10-06)
+
+Reviewable implementation, not deployed. Manual selected-target aim: tap a creature,
+stand within3m of the platform, press SIEGE or TOXIN. The shot locks that creature's
+current ground position, never homes, and draws a2m landing circle in flight.
+This is target-snapshot aim, not free-ground aiming or leading by dragging a reticle.
+8-24m range,1.2s visible5m arc,3s reload. Auto does not fire or chase while attending
+an adjacent platform; firing stops navigation and selects Hold/manual. Moving away
+restores ordinary weapon controls. Rolls/status action locks refuse without payment.
+A missed or blocked launched shot spends ammo. Arc segment raycasts hit geometry;
+burst LOS prevents through-wall damage. A directly hit giant receives the impact
+rather than failing the2m centre-distance check.
+
+Workbench kit:8wood +2dense bone +6lashing. Toxin pot:1venom gland +2stone.
+Stone shot is shared with the slingshot,1stone makes5. Stone damage240 before
+ranged defense and blunt matchup, minimum12 before matchup. Toxin applies the
+existing percentage poison, with its one-stack/refresh rules. No new raid stats,
+flat HP nerf, armor, rig, skeleton, scale, deployment or generated asset changes.
+
+Platform200HP, nine occupied grid cells. Normal BuildPlacer validates claim,
+water, slope, overlap, distance and kit payment. Firing alerts even a missed-shot
+victim to the destructible platform. Herbivores are provoked; siege threat gets
+at least26m aggro radius and no short-distance disengage while advancing on it.
+Regular player chase/leash is unchanged. Creature clip contact attacks damage
+it, destruction releases footprint and restores normal controls. Stones attribute
+damage to the platform and raid kill credit to its operator; poison retains operator
+source plus a weak siege origin for retaliation. Destroyed saved rows are skipped.
+HP/reload/grid pose persist as ordinary home building state. Away-island platforms
+are expedition-local, lost on travel/reload like other ordinary away buildings.
+
+Evidence:
+- Godot4.7 full regression suite PASS with no script errors in final runs.
+  Added paid kit/toxin recipes,3x3 footprint, damage/reload/pose serialization and
+  rejection of destroyed-row restoration.
+- Seeded actual home-island probe through BuildPlacer and HUD action handlers:
+  kit1->0, stone5->4, reload refusal,277.1blunt damage to deterministic proto,
+  toxin2->1 and poison tick retention on platform, operator/min/max-range refusals.
+  Restored save dispatch reports matching platform state. Real AI was then released
+  from10m without forced contact/attack events: walked to1.9m, five real attack
+  impacts reduced200->154.8->109.6->64.3->19.1->destroyed; footprint released.
+  Last normal-speed home run destruction11s after release. Seeded inventory,
+  frozen target during delivery checks, not earned progression or a full ranged fight.
+- Separate actual physics probe: Auto did not fire/navigate, moving target escaped
+  fixed aim (0damage,1ammo spent),12m-high wall blocked arc (0damage), empty ammo,
+  rolling and destroyed-platform refusals. No pointer timing claim.
+- Inspected960x600 flat visual lab: attended wheeled placeholder, SIEGE5/TOXIN2,
+  visible airborne sphere/yellow landing circle on selected proto, then animal at
+  platform and platform gone with NET/TACKLE restored. Normal1x flat visual run
+  destruction17s after AI release; this fixture lacks island art/pathing. Exact
+  production-imported survivor used privately for visual fidelity, not patched.
+
+Art caveat: simple procedural timber boxes/wheels and shared inventory icons,
+no authored catapult animation. World HP/reload label is small at phone-scale;
+HUD disables both fire actions during reload. Free-ground reticle, pointer feel,
+earned deployment/raid balance and tyrant openings remain unverified/unbuilt.

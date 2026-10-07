@@ -22,6 +22,7 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_capture_done = true
+	_test_catapult_recipe_save()
 	_test_slingshot_recipe()
 	_test_trap_control()
 	_test_counter_supplies()
@@ -617,3 +618,31 @@ func _test_slingshot_recipe() -> void:
 	_expect(inv.count_of(&"slingshot") == 1 and inv.count_of(&"stone_shot") == 5, "slingshot and five shots paid")
 	var data = get_root().get_node("Data")
 	_expect(data.item(&"slingshot").range_m == 12 and data.item(&"slingshot").ammo_id == &"stone_shot", "ranged data loaded")
+
+func _test_catapult_recipe_save() -> void:
+	var inv = load("res://scripts/items/inventory.gd").new()
+	for part in [[&"branch",8],[&"dense_bone",2],[&"twine",6],[&"venom_gland",1],[&"stone",2]]:
+		inv.add(load("res://scripts/items/item_stack.gd").make(part[0],part[1]))
+	var craft = load("res://scripts/items/crafting.gd")
+	for id in [&"catapult_kit",&"toxin_pot"]:
+		var rec: Dictionary = craft.recipe(id)
+		var picks: Array[int] = craft.default_picks(inv,rec)
+		_expect(craft.picks_valid(inv,rec,picks), "siege recipe payable: %s" % id)
+		var parts: Array = craft.consume_for_craft(inv,rec,picks)
+		if not parts.is_empty(): inv.add(craft.build_output(rec,parts[0],1,parts))
+	_expect(inv.count_of(&"catapult_kit")==1 and inv.count_of(&"toxin_pot")==1, "siege craft spends real ingredients")
+	var platform = load("res://scripts/world/field_catapult.gd").new()
+	platform.set_grid_pose(Vector2i(4,5),1)
+	platform.receive_siege_hit(50)
+	platform.reload_left = 2.0
+	var save := load("res://scripts/core/save_game.gd")
+	var restored = save._spawn_building(platform.to_dict())
+	_expect(restored != null and restored.hp == 150 and restored.reload_left == 2 and restored.build_cell == Vector2i(4,5) and restored.build_rot == 1, "siege hp/reload/pose persist")
+	var dead_row: Dictionary = platform.to_dict()
+	dead_row["hp"] = 0
+	_expect(save._spawn_building(dead_row) == null, "destroyed siege is not resurrected from transient save")
+	var grid = load("res://scripts/world/build_grid.gd").new()
+	_expect(grid.cells_for(&"catapult",Vector2i.ZERO,0).size()==9, "siege uses 3x3 footprint")
+	grid.free()
+	platform.free()
+	restored.free()

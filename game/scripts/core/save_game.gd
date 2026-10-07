@@ -205,6 +205,8 @@ static func _normalize_build_row(row: Dictionary, schema: int) -> Dictionary:
 static func _spawn_building(row: Dictionary) -> Node3D:
 	var kind := StringName(str(row.get("kind", "basket")))
 	match kind:
+		&"catapult":
+			return FieldCatapult.from_dict(row) if float(row.get("hp",200)) > 0 else null
 		&"workbench", &"drying_rack", &"smoker", &"crock_pot", &"mortar", &"stone_grill", &"steamer", &"well":
 			return CraftStation.from_dict(row)
 		&"bonfire", &"stone_fire_pit", &"campfire":

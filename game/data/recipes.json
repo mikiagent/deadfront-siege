@@ -1868,6 +1868,63 @@
       "seconds": 1,
       "process_step": "bind",
       "process_add": 1
+    },
+    {
+      "id": "catapult_kit",
+      "display_name": "Field Catapult Kit",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "wood",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "dense_bone",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 6,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "catapult_kit",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "toxin_pot",
+      "display_name": "Toxin Pot",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "venom",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "stone",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "toxin_pot",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4,
+      "process_step": "bind",
+      "process_add": 1
     }
   ]
 }

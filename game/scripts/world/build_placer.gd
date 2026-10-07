@@ -39,6 +39,8 @@ var _cell_mat: StandardMaterial3D  # vertex-coloured: one mesh draws every overl
 
 func _kit_id(kind: StringName) -> String:
 	match kind:
+		&"catapult":
+			return "catapult_kit"
 		&"makeshift_taming_pen":
 			return "makeshift_taming_pen"
 		&"bonfire":
@@ -391,6 +393,8 @@ func confirm(player: Player) -> bool:
 
 func _spawn(kind: StringName) -> Node3D:
 	match kind:
+		&"catapult":
+			return FieldCatapult.new()
 		&"makeshift_taming_pen":
 			return TamingPen.make()
 		&"bonfire":

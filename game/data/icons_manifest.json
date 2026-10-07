@@ -162,7 +162,9 @@
     "rope_snare": "capture_net_i",
     "heavy_snare": "capture_net_ii",
     "slingshot": "club",
-    "stone_shot": "stone"
+    "stone_shot": "stone",
+    "catapult_kit": "workbench_kit",
+    "toxin_pot": "herb_leaf"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

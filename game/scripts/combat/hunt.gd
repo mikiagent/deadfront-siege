@@ -96,6 +96,10 @@ static func melee_reach(creature: Creature) -> float:
 	return maxf(2.1, maxf(0.18, creature.def.real_length_m * 0.12) + 0.65)
 
 func _auto_attack() -> void:
+	# An attended siege platform never fires or chases automatically.
+	var platform := player._nearest_group("catapult") as FieldCatapult
+	if platform and player.global_position.distance_to(platform.global_position) <= 3.0:
+		return
 	if player.statuses.has_flag(&"cannot_act"):
 		return
 	if player.rolling or _tactic_lock > 0.0:

@@ -43,6 +43,10 @@ func _ready() -> void:
 				_gather_test(player)
 			if "--combat-test" in OS.get_cmdline_user_args():
 				_combat_test(player)
+			if "--siege-probe" in OS.get_cmdline_user_args():
+				var siege_probe = load("res://scripts/dev/siege_probe.gd").new()
+				add_child(siege_probe)
+				siege_probe.call_deferred("run", self)
 			if "--bot-rest-probe" in OS.get_cmdline_user_args():
 				var rest_probe = load("res://scripts/dev/bot_rest_probe.gd").new()
 				add_child(rest_probe)

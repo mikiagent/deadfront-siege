@@ -2078,6 +2078,10 @@ func context_actions() -> Array:
 	if mounted_on:
 		out.append({"id": "dismount", "glyph": "⤓", "label": "Dismount"})
 		return out
+	var catapult := _nearest_group("catapult") as FieldCatapult
+	if catapult and global_position.distance_to(catapult.global_position) <= 3.0 and hunt.target != null:
+		out.append({"id":"catapult_stone", "glyph":"C", "label":"Stone %d" % inventory.count_of(&"stone_shot")})
+		out.append({"id":"catapult_toxin", "glyph":"V", "label":"Toxin %d" % inventory.count_of(&"toxin_pot")})
 	var weapon := inventory.equipped_weapon()
 	if weapon and weapon.def() and weapon.def().range_m > 0 and hunt.target != null:
 		out.append({"id": "fire_ranged", "glyph": "F", "label": "Fire (%d)" % inventory.count_of(weapon.def().ammo_id)})
@@ -2120,6 +2124,9 @@ func context_actions() -> Array:
 
 func context_action(id: String) -> void:
 	match id:
+		"catapult_stone", "catapult_toxin":
+			var catapult := _nearest_group("catapult") as FieldCatapult
+			if catapult: catapult.fire(self, hunt.target, id == "catapult_toxin")
 		"fire_ranged":
 			hunt.fire_ranged()
 		"rope_snare", "heavy_snare":

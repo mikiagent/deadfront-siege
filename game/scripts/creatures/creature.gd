@@ -541,7 +541,10 @@ func _on_damaged(_amount: float, source: Node) -> void:
 
 func _on_died(_source: Node) -> void:
 	if not is_pet:
-		World.record_raid_kill(def.id, _source)
+		var credited := _source
+		if _source is FieldCatapult and is_instance_valid((_source as FieldCatapult).operator):
+			credited = (_source as FieldCatapult).operator
+		World.record_raid_kill(def.id, credited)
 	anim.play_clip(&"death")
 	# The dead creature stops physics processing before _update_aggro_ring can hide it. Remove the
 	# top-level world marker here so a dead dinosaur never leaves a red leash circle behind.

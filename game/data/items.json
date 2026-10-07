@@ -2011,6 +2011,29 @@
       ],
       "stack_max": 999,
       "base_level": 1
+    },
+    {
+      "id": "catapult_kit",
+      "display_name": "Field Catapult Kit",
+      "categories": [
+        "building"
+      ],
+      "place_as": "catapult",
+      "footprint": [
+        3,
+        3
+      ],
+      "stack_max": 1,
+      "base_level": 1
+    },
+    {
+      "id": "toxin_pot",
+      "display_name": "Toxin Pot",
+      "categories": [
+        "siege_ammunition"
+      ],
+      "stack_max": 999,
+      "base_level": 1
     }
   ]
 }

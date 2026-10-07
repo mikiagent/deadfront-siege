@@ -175,7 +175,10 @@ func _dot(inst: StatusInstance) -> void:
 			dps += def.dps_max_hp_frac * cr.health.max_hp
 		if dps > 0.0:
 			var dealt := dps * 0.5
-			cr.health.take_damage(dealt, inst.source)
+			var origin: Node = inst.source if is_instance_valid(inst.source) else null
+			if inst.siege_origin and is_instance_valid(inst.siege_origin.get_ref()):
+				origin = inst.siege_origin.get_ref()
+			cr.health.take_damage(dealt, origin)
 			if cr.has_method("on_status_tick_damage"):
 				cr.on_status_tick_damage(inst.id, dealt)
 	elif host is Player:

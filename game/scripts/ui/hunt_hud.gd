@@ -440,13 +440,21 @@ func _on_skill(id: StringName) -> void:
 		return
 	match id:
 		&"net":
+			var catapult := player._nearest_group("catapult") as FieldCatapult
+			if catapult and player.global_position.distance_to(catapult.global_position) <= 3.0:
+				catapult.fire(player,player.hunt.target)
+				return
 			var weapon := player.inventory.equipped_weapon()
 			if weapon and weapon.def() and weapon.def().range_m > 0.0:
 				player.hunt.fire_ranged()
 			else:
 				player.hunt.use_net()
 		&"tackle":
-			player.hunt.use_tackle()
+			var catapult := player._nearest_group("catapult") as FieldCatapult
+			if catapult and player.global_position.distance_to(catapult.global_position) <= 3.0:
+				catapult.fire(player,player.hunt.target,true)
+			else:
+				player.hunt.use_tackle()
 		&"kick":
 			player.hunt.use_kick()
 		&"roll":
@@ -544,7 +552,8 @@ func _refresh_context(delta: float) -> void:
 	_ctx_timer = 0.3
 	var actions: Array = player.context_actions() if player.has_method("context_actions") else []
 	if _in_combat:
-		actions = []  # the skill cluster owns the bottom-right during a hunt
+		# Siege actions use the two top combat hexes, not overlapping context controls.
+		actions = []
 	var ids: Array = []
 	for a in actions:
 		ids.append([a["id"], a.get("uses", "")])
@@ -820,13 +829,22 @@ func _process(delta: float) -> void:
 		if _feed_hex.visible != feedable:
 			_feed_hex.visible = feedable
 			_feed_hex.queue_redraw()
+		var catapult := player._nearest_group("catapult") as FieldCatapult
+		var siege := catapult != null and player.global_position.distance_to(catapult.global_position) <= 3.0
+		_skill_hexes[1].caption = "TOXIN %d" % player.inventory.count_of(&"toxin_pot") if siege else "TACKLE"
+		_skill_hexes[1].glyph = "V" if siege else "💥"
+		_skill_hexes[1].queue_redraw()
 		var weapon := player.inventory.equipped_weapon()
 		var ranged := weapon != null and weapon.def() != null and weapon.def().range_m > 0.0
 		_skill_hexes[0].caption = "FIRE %d" % player.inventory.count_of(weapon.def().ammo_id) if ranged else "NET"
 		_skill_hexes[0].glyph = "F" if ranged else "🕸"
 		_skill_hexes[0].disabled = player.inventory.count_of(weapon.def().ammo_id) <= 0 if ranged else not (player.hunt.target.capturable() and player.hunt._best_net_ok())
+		if siege:
+			_skill_hexes[0].caption = "SIEGE %d" % player.inventory.count_of(&"stone_shot")
+			_skill_hexes[0].glyph = "C"
+			_skill_hexes[0].disabled = catapult.reload_left > 0 or player.inventory.count_of(&"stone_shot") == 0
 		_skill_hexes[0].queue_redraw()
-		_skill_hexes[1].disabled = player.hunt._tackle_cd > 0.0
+		_skill_hexes[1].disabled = (catapult.reload_left > 0 or player.inventory.count_of(&"toxin_pot") == 0) if siege else player.hunt._tackle_cd > 0.0
 		_skill_hexes[2].disabled = player.hunt._kick_cd > 0.0
 		for h in _skill_hexes:
 			h.queue_redraw()

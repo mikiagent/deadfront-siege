@@ -93,7 +93,7 @@ func _is_herbivore() -> bool:
 ## Leash radius: past this the chase ends at once (see _disengage_track). Drawn as the red
 ## dotted ring while the creature is on the survivor.
 func aggro_radius() -> float:
-	return _effective_perception() * float(profile.get("leash_mult", 2.2))
+	return maxf(26.0 if attack_target is FieldCatapult else 0.0, _effective_perception() * float(profile.get("leash_mult", 2.2)))
 
 ## True while this creature is actively on the survivor (ring shown).
 func hunting_player() -> bool:
@@ -101,7 +101,8 @@ func hunting_player() -> bool:
 		return false
 	var on_player := attack_target is Player and not (attack_target as Player).dead
 	var on_pet := attack_target is Creature and (attack_target as Creature).is_pet and not (attack_target as Creature).health.dead
-	if not (on_player or on_pet):
+	var on_siege := attack_target is FieldCatapult and (attack_target as FieldCatapult).hp > 0
+	if not (on_player or on_pet or on_siege):
 		return false
 	return state in [&"alert", &"approach", &"attack", &"retreat"]
 
@@ -295,6 +296,8 @@ func _nearest_live_prey(radius: float) -> Node3D:
 func _valid_target() -> bool:
 	if attack_target == null or not is_instance_valid(attack_target):
 		return false
+	if attack_target is FieldCatapult and (attack_target as FieldCatapult).hp <= 0:
+		return false
 	if attack_target is Player and (attack_target as Player).dead:
 		return false  # a survivor on the floor is not prey; wander off
 	if attack_target is Creature and (attack_target as Creature).health.dead:
@@ -411,7 +414,7 @@ func _disengage_track(delta: float) -> void:
 		creature.mark_aggro_now()
 		_set_state(&"disengage")
 		return
-	var far := dist > _effective_perception() * 1.2
+	var far := dist > _effective_perception() * 1.2 and not attack_target is FieldCatapult
 	if far:
 		_disengage_left += delta
 		if _disengage_left >= float(profile.get("disengage_seconds", 3.0)):
@@ -603,3 +606,8 @@ func _set_state(next: StringName) -> void:
 
 func _now_s() -> float:
 	return float(Time.get_ticks_msec()) * 0.001
+
+## A fired siege platform is a threat, including to otherwise peaceful herbivores.
+func on_siege_fire(platform: FieldCatapult) -> void:
+	_provoked_until = _now_s() + PROVOKE_SECONDS
+	on_aggro(platform)

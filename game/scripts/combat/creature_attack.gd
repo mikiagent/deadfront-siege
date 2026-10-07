@@ -29,6 +29,9 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 		(target as Player).statuses.apply(id, source, int(parsed["stacks"]))
 
 static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"attack_primary") -> void:
+	if target is FieldCatapult:
+		(target as FieldCatapult).receive_siege_hit(attacker.attack_for(false) * attacker.statuses.attack_mult())
+		return
 	var atk := attacker.attack_for(false) * attacker.statuses.attack_mult()
 	if attacker.is_pet and attacker.pet_record:
 		atk = attacker.pet_record.stat_value(&"melee_attack") * attacker.statuses.attack_mult()
