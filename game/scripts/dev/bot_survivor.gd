@@ -38,6 +38,7 @@ const CATEGORY_ITEMS := {
 	"herb": ["herb_leaf", "berries", "berry", "petals"],
 	"cloth": ["cloth_scrap", "cloth"],
 	"wood": ["wood_log", "branch"],
+	"log": ["wood_log"],
 	"fibre": ["fibre_stalk"],
 	"fuel": ["charcoal"],
 	"meat": ["raw_meat", "raptor_meat"],  # looted from a corpse, never gathered
@@ -192,8 +193,56 @@ func _recipe_making(cat: String) -> Dictionary:
 			return rec
 	return {}
 
+## Recover using existing camp sleep and idle stamina, never set vitals directly.
+func _recover_for_work() -> String:
+	if player.vitals.energy >= 25.0 and player.vitals.fatigue < 70.0:
+		return ""
+	player._cancel_gather_and_butcher()
+	player.clear_nav()
+	player.hunt.stop()
+	# Stop exertion before routing back; exhausted tap-run keeps postponing regen.
+	var calm_deadline := _t + 15.0
+	while _t < calm_deadline and player.vitals.energy < 45.0:
+		if not await _beat(0.25): return "session ended recovering before rest"
+	if player.vitals.fatigue >= 70.0:
+		var spot: Node3D = null
+		var distance := INF
+		for n in get_tree().get_nodes_in_group("sleep_spot"):
+			if int(n.get("sleeps_left")) == 0: continue
+			var d := player.global_position.distance_to(n.global_position)
+			if d < distance:
+				spot = n
+				distance = d
+		if spot == null: return "no available sleep spot"
+		var toward := player.global_position - spot.global_position
+		toward.y = 0.0
+		if toward.length_squared() < 0.01: toward = Vector3.BACK
+		# Sleep context reaches3.2m. Do not route into the tent's occupied tile.
+		var approach := spot.global_position + toward.normalized() * 2.0
+		player.nav_to(player._closest_nav_point(approach))
+		var deadline := _t + 35.0
+		while _t < deadline and player.global_position.distance_to(spot.global_position) > 3.0:
+			if not await _beat(0.25): return "session ended walking to rest"
+			if not player.nav_active:
+				break
+		player.clear_nav()
+		if player.global_position.distance_to(spot.global_position) > 3.2:
+			return "sleep spot unreachable (%.1fm pos=%s goal=%s nav=%s busy=%s)" % [player.global_position.distance_to(spot.global_position), player.global_position, spot.global_position, player.nav_active, player.anim._busy]
+		await _beat(5.2) # existing combat lock must expire
+		player._start_sleep(spot)
+		if player._sleep_left <= 0.0: return "sleep was refused"
+		await _beat(spot.sleep_duration() + 0.5)
+		if player.vitals.fatigue >= 70.0: return "sleep interrupted"
+	var deadline := _t + 12.0
+	while _t < deadline and player.vitals.energy < 65.0:
+		if not await _beat(0.25): return "session ended recovering stamina"
+	_event("recover", "energy %.0f fatigue %.0f" % [player.vitals.energy, player.vitals.fatigue])
+	return "" if player.vitals.energy >= 25.0 else "stamina did not recover"
+
 ## Gather up to `n` of one item from the nearest node that offers it. "" on success.
 func _gather(item: StringName, n: int) -> String:
+	var recovery := await _recover_for_work()
+	if recovery != "": return recovery
 	var best: HarvestNode = null
 	var best_d := INF
 	var best_i := -1
@@ -248,9 +297,13 @@ func _gather(item: StringName, n: int) -> String:
 	if gained > 0:
 		_event("gather", "%s x%d (%.0f m away)" % [item, gained, best_d])
 		return ""
-	return "walked %.0f m to a %s and got none" % [best_d, best.family]
+	return "walked %.0f m to a %s and got none (gap=%.1f nav=%s busy=%s)" % [best_d, best.family, player.global_position.distance_to(best.global_position), player.nav_active, player.anim._busy]
 
 func _craft(rec: Dictionary) -> bool:
+	var recovery := await _recover_for_work()
+	if recovery != "":
+		_event("craft-blocked", recovery)
+		return false
 	var rid := StringName(str(rec.get("id", "")))
 	var out_id := StringName(str((rec.get("output", {}) as Dictionary).get("id", "")))
 	var before := player.inventory.count_of(out_id)

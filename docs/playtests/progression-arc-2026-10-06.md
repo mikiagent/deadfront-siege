@@ -15,7 +15,7 @@ Orders guide a canonical route through tiers30/35/40/45/50/55/60; same-tier alte
 remain optional. Final objective is a player/pet-attributed T-rex kill on volcanic60.
 
 Survival previously gained only 1XP/minute plus 5XP/travel. Reaching Survival55 by the
-clock alone takes about 213 hours (sum 20+8L for L0..54 is 12980XP).
+clock alone takes about 216.3 hours (sum 20+8L for L0..54 is 12980XP).
 Survival now mirrors non-Survival skill gains, matching its existing "any play" definition.
 Mirrored gains do not award duplicate Pioneer XP; clock/travel Survival gains still do.
 This is a pacing change requiring fresh earned-play soak testing, not a measured pace claim.
