@@ -22,6 +22,7 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_capture_done = true
+	_test_storage_transfer()
 	_test_declared_craft_xp()
 	_test_corpse_material_levels()
 	_test_tyrant_counters()
@@ -717,3 +718,36 @@ func _test_declared_craft_xp() -> void:
 	for rec in data.recipe_list:
 		if rec.has("skill") and not rec.has("tree"):
 			_expect(craft.tree_for_recipe(rec) == str(rec["skill"]),"craft XP matches skill gate %s" % rec.get("id","?"))
+
+func _test_storage_transfer() -> void:
+	var inv = load("res://scripts/items/inventory.gd") as GDScript
+	var stack = load("res://scripts/items/item_stack.gd") as GDScript
+	var src = inv.new(3)
+	var dst = inv.new(1)
+	src.add(stack.make(&"branch",8,{},55))
+	var original = src.slots[0].to_dict()
+	dst.add(stack.make(&"stone",1))
+	_expect(src.transfer_to(dst,0) == 0 and src.slots[0].to_dict() == original,"full storage leaves original unchanged")
+	dst.remove_at(0,1)
+	src.slots[0].set_flag(&"locked",true)
+	_expect(src.transfer_to(dst,0) == 0,"locked source refuses storage")
+	src.slots[0].set_flag(&"locked",false)
+	_expect(src.transfer_to(src,0) == 0,"self storage refuses")
+	_expect(src.transfer_to(dst,0) == 8 and src.slots[0] == null and dst.slots[0].level == 55,"whole stack preserves quality")
+	src.add(stack.make(&"branch",5,{},55))
+	var cap = dst.slots[0].def().stack_max
+	dst.slots[0].count = cap-2
+	_expect(src.transfer_to(dst,0) == 2 and src.slots[0].count == 3 and dst.slots[0].count == cap,"partial storage leaves remainder in original slot")
+	var ui = (load("res://scripts/ui/inventory_ui.gd") as GDScript).new()
+	ui.inventory = src
+	ui.pet_bag = dst
+	ui._selected = 0
+	_expect(not ui._can_store_selected(),"corpse/default storage stays take-only")
+	ui._storage_opts = {"allow_deposit":true}
+	_expect(ui._can_store_selected(),"basket permits deposit")
+	src.equip(&"weapon",&"branch")
+	_expect(not ui._can_store_selected(),"equipped item cannot be accidentally stored")
+	src.unequip(&"weapon")
+	ui._storage_opts["readonly_reason"] = "need knife"
+	_expect(not ui._can_store_selected(),"read-only storage cannot accept deposits")
+	ui.free()

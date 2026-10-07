@@ -189,6 +189,20 @@ func remove_at(index: int, amount: int = 1) -> ItemStack:
 	changed.emit()
 	return taken
 
+## Move only the units the destination accepts. Rejected units stay in their source slot.
+func transfer_to(destination: Inventory, index: int) -> int:
+	if destination == null or destination == self or index < 0 or index >= slot_count:
+		return 0
+	var source := slots[index]
+	if source == null or source.is_locked() or str(source.def_id) == "_slot_lock":
+		return 0
+	var copy := source.duplicate_stack()
+	var count := copy.count
+	var left := destination.add(copy)
+	var moved := count - left
+	if moved > 0: remove_at(index, moved)
+	return moved
+
 func find_by_category(cat: StringName) -> Array[int]:
 	var hits: Array[int] = []
 	for i in slot_count:

@@ -1677,7 +1677,7 @@ func _building_interact(b: Node) -> void:
 	if str(b.get("kind")) == "basket" and b.get("storage") and ui:
 		if summoned_pet and is_instance_valid(summoned_pet) and summoned_pet.pet_record and summoned_pet.pet_record.bag:
 			_dump_pet_into(b.storage)
-		ui.show_storage(b.storage, self)
+		ui.show_storage(b.storage, self, {"title":"Basket","allow_deposit":true})
 		return
 	if str(b.get("kind")) == "sign":
 		print("[world] sign: %s" % (str(b.get("sign_text")) if str(b.get("sign_text")) != "" else "(blank)"))

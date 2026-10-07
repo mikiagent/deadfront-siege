@@ -27,6 +27,7 @@ var _place_btn: Button
 var _eat_btn: Button
 var _inspect_btn: Button
 var _feed_btn: Button
+var _store_btn: Button
 var _take_all_btn: Button
 var _equip_btn: Button
 var _food1_btn: Button
@@ -211,6 +212,7 @@ func _ready() -> void:
 	_eat_btn = _action("Eat", _on_eat_food)
 	_feed_btn = _action("Feed", _on_feed_pet)
 	_place_btn = _action("Place", _on_place_pressed)
+	_store_btn = _action("Store", _store_selected)
 	_take_all_btn = _action("Take all", _take_all_storage)
 	_food_inspector = FoodInspector.new()
 	_food_inspector.name = "FoodInspector"
@@ -312,7 +314,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func show_pet_bag(rec: PetRecord) -> void:
 	pet_bag = rec.bag
-	_storage_opts = {"title": "Pet bag", "take_all": false}
+	_storage_opts = {"title": "Pet bag", "take_all": false, "allow_deposit": true}
 	if pet_bag and not pet_bag.changed.is_connected(rebuild):
 		pet_bag.changed.connect(rebuild)
 	visible = true
@@ -553,7 +555,7 @@ func _refresh_equipped() -> void:
 func _select(index: int) -> void:
 	_selected = index
 	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null
-	for b in [_lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn]:
+	for b in [_store_btn, _lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn]:
 		b.visible = false
 	for i in _grid.get_child_count():
 		var slot_btn := _grid.get_child(i) as Button
@@ -566,6 +568,7 @@ func _select(index: int) -> void:
 	_tip.text = stack.tooltip()
 	_lock_btn.visible = true
 	_lock_btn.text = "Unlock" if stack.is_locked() else "Lock"
+	_store_btn.visible = _can_store_selected()
 	var d := stack.def()
 	var is_food := Food.is_food(stack)
 	_inspect_btn.visible = is_food
@@ -726,3 +729,20 @@ func _notify_storage_take() -> void:
 		if on_empty is Callable:
 			(on_empty as Callable).call()
 		hide_ui()
+
+## Loot is take-only unless its owner explicitly exposes writable storage.
+func _can_store_selected() -> bool:
+	if pet_bag == null or inventory == null or _readonly_reason() != "" or not bool(_storage_opts.get("allow_deposit",false)):
+		return false
+	if _selected < 0 or _selected >= inventory.slot_count: return false
+	var st := inventory.slots[_selected]
+	if st == null or st.is_locked() or str(st.def_id) == "_slot_lock": return false
+	if inventory.equipped_tool_index == _selected: return false
+	if str(st.def_id) in inventory.equipment.values() or str(st.def_id) in inventory.quick_food: return false
+	return true
+
+func _store_selected() -> void:
+	if not _can_store_selected(): return
+	var moved := inventory.transfer_to(pet_bag,_selected)
+	if moved == 0 and _owner_player: _owner_player.notice("Storage is full.")
+	rebuild()
