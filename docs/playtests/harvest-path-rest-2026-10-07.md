@@ -1,0 +1,9 @@
+# Harvest collision routing and rest, October 7
+
+TilePath registered trees/rocks only. All live HarvestNodes physically collide, including BushBerries. Actual fresh training stalled at(1.5,1.818,-24.126) south of a berry bush at(1.5,0.922,-23.5); router returned a straight path through it. Repeated straight fallback/unstick failed,30.6m from camp sleep.
+
+Register every visible collision-enabled HarvestNode tile. No collider/terrain/stats/rig changes. Normal1x seeded position/fatigue fixture before:39.2s,still30.6m short,exhausted. After: route detours via(0.5,-22.5), actual walk and sleep complete24.2s,fatigue0,energy83.2. Reproduce Godot4.7 --path game -- --new-game --bot-rest-probe --bot-rest-bush-path. Explicit seed fixture, not earned progression.
+
+Godot4.7 full regression suite PASS. Fresh bounded training now completes1800simsec at20x:40cycles,7/7early paid/crafted/built rungs,3689m walked,0deaths,lowestHP100,paid basket Store frees bag repeatedly,actual camp sleep continues. Survival19/Gathering12/Processing8/WeaponTools6/Tailoring6 earned by real gather/craft interactions, no XP/items/vital/occupation seeds. Before candidate30minute run stalled after about9min,ended Survival11/Gathering6/Processing3/WeaponTools3/Tailoring2. Run --new-game --earned-training-probe for reproducible bounded policy. This is accelerated headless interaction evidence, not normal-speed or pointer play. Still nowhere near55, no high-tier materials/harbour/raid clear proof.
+
+Inspected960x600 initial-route render: berry bush blocking area, survivor partly occluded by bush, dashed route detouring left, exhausted HUD. This is start scene, NOT completed rest or earned training pixels. Rendered completion attempts at1x and4x timed out; no completion pixels verified. Normal1x completion is headless only. Dense vegetation/low-poly bushes and selected UI detail clipping remain visual caveats. No production deployment.

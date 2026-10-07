@@ -92,9 +92,9 @@ func _collect_blockers() -> void:
 			continue
 		if not node.visible or node.collision_layer == 0:
 			continue
-		var role := str(Data.nature_families.get(node.family, {}).get("role", ""))
-		if role.begins_with("tree") or role == "rock":
-			_blockers[_key(BuildGrid.tile_of(node.global_position))] = true
+		# Every live HarvestNode has a physical trunk/box, including berry bushes
+		# and plants. Routing through those unregistered boxes wedges the survivor.
+		_blockers[_key(BuildGrid.tile_of(node.global_position))] = true
 
 func _walkable(tile: Vector2i) -> bool:
 	if not _region.has_point(tile):
