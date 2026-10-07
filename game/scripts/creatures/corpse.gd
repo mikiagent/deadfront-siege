@@ -142,7 +142,10 @@ func _roll_loot() -> void:
 		var raw_attrs: Variant = row.get("attributes", {})
 		if raw_attrs is Dictionary:
 			attrs = (raw_attrs as Dictionary).duplicate(true)
-		loot.add(ItemStack.make(item_id, n, attrs))
+		# Preserve the defeated creature's material quality. The catalogue base
+		# is a default for spawned items, not the quality of an earned corpse.
+		attrs["level"] = level
+		loot.add(ItemStack.make(item_id, n, attrs, level))
 
 func _on_take_from_loot() -> void:
 	# Taking from the chest screen trains Butchering (and so the player level).

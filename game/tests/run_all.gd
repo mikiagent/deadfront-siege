@@ -22,6 +22,7 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_capture_done = true
+	_test_corpse_material_levels()
 	_test_tyrant_counters()
 	_test_catapult_recipe_save()
 	_test_slingshot_recipe()
@@ -676,3 +677,29 @@ func _test_tyrant_counters() -> void:
 		boss.statuses.apply(id)
 		_expect(not boss.statuses.has(id), "tyrant rejects shortcut control " + str(id))
 	boss.free()
+
+## Seeded corpse fixture: validates loot quality, not an earned hunt.
+func _test_corpse_material_levels() -> void:
+	var data = get_root().get_node("Data")
+	var c = (load("res://scripts/creatures/creature.gd") as GDScript).new()
+	c.def = data.creature(&"tyrannosaurus")
+	c.statuses = (load("res://scripts/combat/status_effects.gd") as GDScript).new()
+	c.add_child(c.statuses)
+	for lvl in [1,55,60]:
+		c.level = lvl
+		var corpse = (load("res://scripts/creatures/corpse.gd") as GDScript).new()
+		corpse.setup(c)
+		var hide := false
+		for st in corpse.loot.slots:
+			if st == null: continue
+			_expect(st.level == lvl and int(st.attributes.get("level",0)) == lvl,"corpse source level propagates to %s" % st.def_id)
+			if st.def().has_category(&"hide"): hide = true
+		_expect(hide,"T-rex fixture includes hide")
+		corpse.free()
+	c.statuses.apply(&"poisoned_target")
+	var poisoned = (load("res://scripts/creatures/corpse.gd") as GDScript).new()
+	poisoned.setup(c)
+	for st in poisoned.loot.slots:
+		if st: _expect(not st.def().has_category(&"meat"),"poisoned corpse keeps meat restriction")
+	poisoned.free()
+	c.free()
