@@ -236,13 +236,17 @@ func cargo_warp(player: Player) -> void:
 		var s := player.inventory.slots[i]
 		if s == null or not s.is_unstable():
 			continue
-		var taken := player.inventory.remove_at(i, s.count)
-		if taken:
-			taken.set_flag(&"unstable", false)
-			cargo_home.add(taken)
+		# Ship only accepted units. A full cargo basket must not destroy the bag.
+		var copy := s.duplicate_stack()
+		copy.set_flag(&"unstable", false)
+		var offered := copy.count
+		var left := cargo_home.add(copy)
+		var accepted := offered - left
+		if accepted > 0:
+			player.inventory.remove_at(i, accepted)
 			moved += 1
 	if moved <= 0:
-		print("[world] nothing unstable to warp")
+		print("[world] nothing accepted by cargo basket (empty shipment or full storage)")
 		return
 	t_stones -= CARGO_FEE
 	print("[world] cargo warp %d stacks fee=%d" % [moved, CARGO_FEE])
