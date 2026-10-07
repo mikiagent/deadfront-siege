@@ -24,6 +24,7 @@ const LADDER: Array[Dictionary] = [
 	{"goal": "cook", "craft": "skewer"},
 	{"goal": "net", "craft": "capture_net_i"},
 	{"goal": "tame", "then": "tame"},
+	{"goal": "route_grind", "then": "route_grind"},
 	{"goal": "sail", "then": "travel"},
 	{"goal": "away", "then": "forage"},
 	{"goal": "home", "then": "return_home"},
@@ -351,6 +352,8 @@ func _verb(kind: String) -> String:
 			return await _forage()
 		"return_home":
 			return await _return_home()
+		"route_grind":
+			return await _grind(10)
 		"grind":
 			return await _grind()
 	return ""
@@ -555,18 +558,22 @@ func _travel() -> String:
 	_goal = "travel"
 	if not World.is_home():
 		return "harbour outbound route starts at home"
-	# Test the only player-visible outbound route, not an unlisted destination.
-	# Use its real button callback so the UI and World.travel stay in sync.
+	# Catalogue ladder: choose the first enabled real harbour button.
 	var ui: CanvasLayer = (load("res://scripts/ui/world_ui.gd") as GDScript).ensure() as CanvasLayer
 	ui.call("show_harbour")
 	var route: Button = null
+	var locked := ""
 	for button in ui.find_children("*", "Button", true, false):
-		if (button as Button).text.contains("SAIL UNSTABLE TEMPERATE"):
-			route = button as Button
-			break
+		var candidate := button as Button
+		if not candidate.text.begins_with("SAIL "): continue
+		if candidate.disabled:
+			if locked == "": locked = candidate.text
+			continue
+		route = candidate
+		break
 	if route == null:
 		ui.call("hide_all")
-		return "no visible outbound harbour route"
+		return "no enabled visible outbound route: %s" % locked
 	var before := World.island_id
 	var stones_before := World.t_stones
 	if route.disabled:
@@ -621,12 +628,12 @@ func _return_home() -> String:
 
 ## Play out the rest of the session the way a session actually goes: gather, craft, repeat.
 ## This is what measures whether the loop sustains, rather than whether it starts.
-func _grind() -> String:
+func _grind(target_survival: int = 60) -> String:
 	_goal = "grind"
 	var cycles := 0
-	var start_xp := World.pioneer_xp
+	var start_xp := _total_pioneer_xp()
 	var start_level := World.pioneer_level
-	while _t < minutes * 60.0 - 5.0:
+	while _t < minutes * 60.0 - 5.0 and player.skills.level_of("survival") < target_survival:
 		for item in [&"fibre_stalk", &"branch", &"stone", &"berries"]:
 			if _t >= minutes * 60.0 - 5.0:
 				break
@@ -640,8 +647,17 @@ func _grind() -> String:
 		cycles += 1
 		if cycles > 20:
 			break
-	_event("grind", "%d cycles, level %d -> %d, xp +%d" % [cycles, start_level, World.pioneer_level, World.pioneer_xp - start_xp])
+	_event("grind", "%d cycles, Pioneer %d -> %d, xp +%d, Survival%d xp%.0f target%d" % [cycles, start_level, World.pioneer_level, _total_pioneer_xp() - start_xp, player.skills.level_of("survival"), player.skills.trees["survival"]["xp"], target_survival])
+	if target_survival < 60 and player.skills.level_of("survival") < target_survival:
+		return "earned Survival%d below route target%d" % [player.skills.level_of("survival"), target_survival]
 	return ""
+
+## Pioneer xp stores only the remainder after each level.
+func _total_pioneer_xp() -> int:
+	var total := World.pioneer_xp
+	for level in World.pioneer_level:
+		total += World.xp_for_level(level)
+	return total
 
 # ---------------------------------------------------------------- housekeeping
 

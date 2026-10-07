@@ -39,3 +39,22 @@ perfect evasion or coordinated pets have not been proved feasible.
 For a five-minute behind fight at1Hz, neutral weapon needs >=475.71 actual damage.
 Armor was not read by CreatureAttack and no catalogue item supplied armor_value.
 Gear is a separate patch, not a boss retune. No production deploy.
+
+## Earned entry investigation after camp repair
+
+Base654d4b68d32584f0e73fff0d0da2a71099e97495. Bot previously selected only
+Unstable Temperate25, missing the new tier15 entry. Bot now grinds normal actions
+toward Survival10 before sail and selects the first enabled actual harbour button.
+This exercises button callbacks, not pointer input or scroll reach. Gates/XP unchanged.
+Grind reports earned Survival level/remainder and target; Pioneer XP gains include
+completed levels rather than subtracting only within-level remainders.
+
+Fresh20x22-minute fixture: earned Survival10 at902 simulated seconds; sailed
+home->savannah15 through the real button,5T debit24->19; gathered9 units away,
+then free home return at946s. No skill/item/coin grants. Finished Survival12,
+14/16 rungs,0 deaths. Hunt/cook failed, tame succeeded. This is an accelerated
+entry-voyage result, NOT measured normal-speed pacing or full route/endgame success.
+Fresh4x6min reached Survival8,10/12 rungs,0 deaths, with hunt/cook/net working but
+tame food ran out.8x10min reached Survival7;12x/8x longer attempts reached9 before
+wall-time cutoffs. Acceleration and encounter variation materially affect results.
+No normal-speed earned sail repeat yet. Godot4.7 regression suite PASS.
