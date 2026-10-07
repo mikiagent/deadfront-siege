@@ -583,6 +583,7 @@
       "display_name": "Raptor Hide",
       "categories": [
         "hide",
+        "uncut_hide",
         "green_hide"
       ],
       "stack_max": 10,
@@ -614,6 +615,7 @@
       "display_name": "Raw Hide",
       "categories": [
         "hide",
+        "uncut_hide",
         "green_hide"
       ],
       "stack_max": 10,
@@ -624,7 +626,8 @@
       "id": "dried_hide",
       "display_name": "Dried Hide",
       "categories": [
-        "hide"
+        "hide",
+        "uncut_hide"
       ],
       "stack_max": 10,
       "tool_class": "none",

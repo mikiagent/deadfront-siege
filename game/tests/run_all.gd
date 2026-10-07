@@ -22,6 +22,7 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_capture_done = true
+	_test_hide_strap_no_self_input()
 	_test_json_attribute_merging()
 	_test_storage_transfer()
 	_test_declared_craft_xp()
@@ -762,3 +763,20 @@ func _test_json_attribute_merging() -> void:
 	_expect(not old.can_merge_with(fresh),"different numeric quality does not merge")
 	fresh.attributes["level"] = "1"
 	_expect(not old.can_merge_with(fresh),"string quality is not numeric quality")
+
+func _test_hide_strap_no_self_input() -> void:
+	var craft = load("res://scripts/items/crafting.gd") as GDScript
+	var inv = load("res://scripts/items/inventory.gd") as GDScript
+	var stack = load("res://scripts/items/item_stack.gd") as GDScript
+	var rec = craft.recipe(&"hide_strap")
+	var bag = inv.new(5)
+	bag.add(stack.make(&"hide_strap",10,{},55))
+	_expect(not craft.picks_valid(bag,rec,craft.default_picks(bag,rec)),"straps cannot double through own recipe")
+	for id in [&"raw_hide",&"raptor_hide",&"dried_hide"]:
+		var material = inv.new(5)
+		material.add(stack.make(id,1,{},55))
+		var picks = craft.default_picks(material,rec)
+		_expect(craft.picks_valid(material,rec,picks),"uncut hide remains eligible %s" % id)
+		var parts = craft.consume_for_craft(material,rec,picks)
+		var out = craft.build_output(rec,parts[0],55,parts)
+		_expect(out.def_id == &"hide_strap" and out.count == 2 and out.level == 55,"hide processing preserves quality and output")

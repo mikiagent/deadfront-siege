@@ -409,7 +409,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "hide",
+          "category": "uncut_hide",
           "count": 1,
           "primary": true
         }
