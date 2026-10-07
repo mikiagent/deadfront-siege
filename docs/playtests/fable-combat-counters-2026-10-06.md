@@ -205,3 +205,26 @@ and destroys trap. Seeded nearby raptor still damages survivor to28HP: trapping
 is movement control, not a free stun. Inspected960x600 ring/label and ROOTED pixels
 using production imported survivor privately. Pointer/spatial corner coverage and
 actual correct-vs-wrong-kit fight/earned trap grind remain unverified.
+
+## Early actual-AI matchup audit, not a balance pass
+
+Base39d3a42. --counter-matchup-probe --match-species=velociraptor|protoceratops
+with --correct-kit optional uses seededL25 weapon/melee, sharedL25 raid armor,
+neutral enemy genetics, realAI and terrain. Same starting seed41, not identical
+random streams after divergent combat actions. Correct fast kit barbed+rope;
+correct bulky hammer+one toxin; wrong kit swaps weapon and omits supplies.
+Normal action placement/coating, attacks and navigation; no flat damage/immortality.
+
+Protoceratops correct won31.6s/214HP; wrong cut won73.1s/163HP. This is an
+advantage, not proof early wrong-kit players must lose. Raptor initial policies
+varied: correct30.1s vs wrong40.6s; later correct90s timeout/wrong37.2s.
+Diagnostics: fleeing prey, exhausted chase and occasional regen. Out-of-range
+rolls wasted stamina. Bounded in-range rolls gave correct26.5s win and wrong90s
+timeout at4x, but normal-speed correct still timed out90s with44enemyHP remaining.
+Thus counter advantage is not yet reliable completion. Anky tier50 killed both
+L25 kits; that mismatched-tier fixture is not a reason to retune its stats.
+
+Probe preserves this audit for policy refinement. No pointer/pixel/earned fight
+coverage or raidwin claim. Counting health decreases includes DOT ticks, not
+attack contacts. Need normal-speed repeats and pursuit/finish reliability before
+publishing an early fight pass. Ranged and tyrant punish windows remain unfinished.

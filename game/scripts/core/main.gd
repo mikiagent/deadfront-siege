@@ -47,6 +47,10 @@ func _ready() -> void:
 				var rest_probe = load("res://scripts/dev/bot_rest_probe.gd").new()
 				add_child(rest_probe)
 				rest_probe.call_deferred("run", self)
+			if "--counter-matchup-probe" in OS.get_cmdline_user_args():
+				var counter_probe = load("res://scripts/dev/counter_matchup_probe.gd").new()
+				add_child(counter_probe)
+				counter_probe.call_deferred("run", self)
 			if "--raid-fight-probe" in OS.get_cmdline_user_args():
 				var fight_probe = load("res://scripts/dev/raid_fight_probe.gd").new()
 				add_child(fight_probe)
