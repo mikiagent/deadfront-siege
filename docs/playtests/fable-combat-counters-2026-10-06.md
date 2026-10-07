@@ -381,3 +381,44 @@ Full regression PASS, new assertion on platform inheritance masks. Inspected
 960x600 normal walking escape visual: boss moves0.00m through windup while player
 separation grows3.55->7.34m, takes0damage, readable PUNISH1.0s. Existing box T-rex
 fallback and isolated flat lab caveats remain. Sustained supply/kill proof pending.
+
+## Phase 4c: actual volcanic seeded fight evidence (2026-10-07)
+
+Probe now selects the real far-shore T-rex on generated volcanic_60, leaves the
+six-creature population in place, and explicitly seedsL60maul/raidarmor/melee60,
+rested state, one outside-combat coating dose and direct arena entry. Normal
+walking backs only to4.5m on visible windup, then returns and attacks during punish
+with>.55s left. No forced damage, immortality, regen bypass or supply refresh.
+A single coating's3landed hits supply the finite initial poison; no catapult used.
+No new gameplay balance change accompanies this probe update.
+
+- Accelerated10x deterministic-genetics fixture: actual kill562.3simseconds,
+ 15earned staggers,0contacts,308HP, real raid victory flag/save. Only first coating.
+- Same evasion, L60barbed knife/no poison,700simseconds:194581bossHP remaining,
+ 0staggers,0contacts. Wrong kit can survive this precise policy, but loses almost
+ all kill progress. This is not proof that survival requires correct kit.
+- Normal1x correct90s:150481bossHP remaining,3earned staggers,0contacts,303HP.
+ Full normal-speed kill is not yet checked; do not infer timing feel from10x logs.
+- Varied-genetics first accelerated kill654.8s; reproducible seed61007 roll:
+ 218387HP/1041.5meleeATK/398.1meleeDEF, actual kill650.5s,17staggers,0contacts,
+ 308HP. Catalogue200000/1100/400 unchanged. The earlier empty-dictionary genetics
+ fixture is IV16, giving~100.48% non-HP stat multipliers, not exactly1.0; health
+ setup explicitly used catalogue200000. Stats are now printed by the probe.
+- Actual960x600 generated volcanic pixels inspected: target BITE0.7s and ring,
+ armor298HP, surrounding trees and terrain. Existing T-rex is a box fallback;
+ dense trees/body partly obscure the survivor. Catalogue climate is volcanic,
+ but World.load_island currently passes meadow terrain away from home, so the
+ surface is green, not ash/volcano art. No art/terrain change in this patch.
+ Screenshot is a cue scene, not the kill; imported production survivor private only.
+
+Reproduce --tyrant-window-probe (normal full700s horizon), optional
+--tyrant-normal-check (90s), --tyrant-accelerated (10x), --tyrant-wrong-kit,
+--tyrant-varied-genetics (seed61007). Every option still seeds gear/rest/arena entry.
+
+Still open: earned Survival55 volcanic departure (paid5T via harbour), weapon_tools55
+and tailoring55 crafting gates, actual>=55material mix and station payment,
+whole progression path from fresh state, full normal-speed kill, human pointer
+feel and final volcanic/T-rex art. Prior fresh bot earned only Survival10 and its
+first voyage. Do not describe this as an earned raid clear. Several same-ID coated
+weapons are not a verified refresh route: equipment currently resolves first
+matching item ID, not a chosen instance. Recoating remains outside combat only.
