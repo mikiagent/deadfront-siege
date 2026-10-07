@@ -42,5 +42,10 @@
     "feeds_needed": 6,
     "window_seconds": 45,
     "requires_pen": true
+  },
+  "pipeline": {
+    "stand_in": "Quaternius Trex, existing repository asset",
+    "forward_axis": "-Z",
+    "stand_in_model_scale": 0.5450177880180564
   }
 }

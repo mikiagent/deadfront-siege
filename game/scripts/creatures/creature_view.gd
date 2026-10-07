@@ -69,6 +69,9 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 		var anim_dir := "res://assets/creatures/%s/anim" % def.id
 		var axis := str(def.pipeline.get("forward_axis", "-Z"))
 		if rig.setup(glb, anim_dir, axis, def.height_meters, "creature", false, float(def.pipeline.get("source_height_m", 0.0))):
+			# Explicit posed-height scale for imported standins with transformed skin bounds.
+			if def.pipeline.has("stand_in_model_scale"):
+				rig.mesh_root.scale = Vector3.ONE * float(def.pipeline["stand_in_model_scale"])
 			using_glb = true
 			rig.fill_missing(CreatureClips.CONTRACT)
 		else:
