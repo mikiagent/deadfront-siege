@@ -1,0 +1,138 @@
+# Combat counters: source audit and proposed implementation
+
+Base0823b9bcecc23f68ad48ea1e8137eabaaa74881b. Milan's October6 direction:
+bulky/tanky dinosaurs reward blunt force and poison; fast/deadly dinosaurs reward
+traps and bleed. A tool for every job, varied resistance, loot feeds combinations.
+This is a proposed design, not a shipped feature or a beatability claim.
+
+## What already exists
+
+Hunt maps weapon damage_type into ai.json weak_to/resists (1.5/0.6 multipliers).
+Knife/axe are slashing, club/raid_maul blunt; no playable ranged delivery found.
+Slashing has25% chance to apply bleeding_target. Unlike its displayed0 flat DPS,
+it already has1% maxHP/second. That universally scaling DOT needs matchup rules,
+not a second unrelated bleed system. poisoned_target is0.5 DPS/30s and declares meat_inedible, but corpse loot does not enforce it.
+Food poison_chance is not weapon coating. Player bleed/deep_bleed/venom are separate
+small fixed-DPS injury statuses and must retain those semantics.
+
+snared already stops action8s; groggy, knockdown, fracture, pinned and deafened exist.
+A single universal eight-second action lock against a boss would be a cheese loop.
+CreatureBrain stops actions for cannot_act. Existing contact damage floor is5% ATK;
+full raid armor gives298HP and still dies in4-6 contacts. The raid needs readable
+counter-earned openings as well as damage matchups. No flatHP/ATK nerf proposed.
+
+## Proposed type chart
+
+Physical channels: blunt, pierce, cut. Preserve data token slashing as cut alias.
+Do not relabel knives as pierce merely to shrink the chart. Future spear is pierce.
+DOT channels: poison, bleed. Trap is control, not a damage channel.
+Numbers below are starting design targets, pending real-AI tests.
+
+| Counter family | Blunt | Pierce | Cut | Poison | Bleed | Trap control |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Armored/bulky |1.5|0.75|0.6|1.5|0.25|short slow, no stun |
+| Fast hunter |0.75|1.0|1.25|0.5|1.5|4s root, attack still works |
+| Runner |0.75|1.25|1.0|0.75|1.25|6s root, attack still works |
+| Venom hunter |1.25|1.25|1.0|0.25|1.0|3s root |
+| Antlered charger |1.0|1.25|0.75|1.0|1.0|3s root |
+| Tyrant/titan |1.5|0.75|0.5|1.5|0.1|no root; heavy snare slows briefly |
+
+Apply physical matchup after defense and before crit. DOT matchup scales damage,
+not duration; hostile poison/bleed never inherits player injury scaling. Proposed
+creature DOT bases: bleed0.2% maxHP/s for12s, poison0.15% maxHP/s for20s, one stack
+per channel, refresh only. Lower universal bleed from1% to this base with explicit
+counter chart rather than allow a knife to erase armored raid bosses. Do not apply
+percentHP damage to players. Cap persistent DPS against raid bosses at0.3%/s per
+channel; mixed poison/bleed does not bypass resistances. Successful poison kill
+will enforce the existing meat_inedible flag; bone/hide/counter materials remain recoverable.
+
+## Catalogue matrix and reason
+
+| Species | Existing archetype | Counter family | Grounding in current stats/behavior |
+| --- | --- | --- | --- |
+| compy |swarm|Fast hunter|90HP/10DEF/650speed, short-leash swarm |
+| velociraptor |pack_raptor|Fast hunter|640HP/40DEF/700speed, pack flank/pounce |
+| deinonychus |pack_flanker|Fast hunter|1450HP/70DEF/660speed, flank |
+| utahraptor |apex_raptor|Fast hunter|4200HP/120DEF/620speed, pack flank |
+| allosaurus |apex_raptor|Fast hunter|9000HP/180DEF/520speed, existing flank behavior |
+| coelophysis |flock_harass|Fast hunter|420HP/30DEF/720speed |
+| smilodon |saber_cat|Fast hunter|3800HP/140DEF/720speed |
+| gallimimus |runner|Runner|1400HP/50DEF/900speed, fleeing herbivore |
+| megaloceros |antlered|Antlered charger|1800HP/80DEF/760speed, mobile herbivore |
+| dilophosaurus |venom_ranged|Venom hunter|2600HP/80DEF/560speed, venom role |
+| zebra/protoceratops |pack_mule|Armored/bulky|720/980HP,80/110DEF,400/420speed |
+| stegosaurus |spiked_tail|Armored/bulky|8500HP/300DEF/400speed |
+| ankylosaurus |club_tail|Armored/bulky|12000HP/520DEF/380speed |
+| styraco/triceratops |horned_charger|Armored/bulky|5200/14000HP,220/380DEF,470/450speed |
+| brachiosaurus |titan|Tyrant/titan|90000HP/500DEF/300speed |
+| tarbosaurus |tyrant|Tyrant/titan|24000HP/260DEF/480speed |
+| T-rex |tyrant|Tyrant/titan|200000HP/400DEF/450speed, raid |
+
+Archetype assignment is game logic based on existing behavior, not a claim about
+real paleontology. Species overrides can distinguish same-family enemies later.
+Do not alter existing AI profiles just to assign damage channels.
+
+## Tools, delivery and loot loop
+
+- Existing club/raid_maul: close blunt. A dedicated mid-tier hammer bridges the
+  large gap between28-base club and220-base raid weapon.
+- Slingshot: player-visible aim/fire, blunt stone ammunition, range12m,1 shot/s.
+  Limited by bag ammunition, line of sight, windup and short kite range. No silent
+  hits through walls and no longer-range unchallenged boss kill.
+- Catapult: placed3x3 structure, build validation/payment, destructible200HP,
+  manual fire3s reload, ballistic aim with visible landing circle, range8-24m.
+  Stone shot blunt; toxin pot poison delivery; ammunition consumed. No auto-fire.
+  Boss attacks it when used; range does not disable retaliation. Art is Fable work.
+- Barbed knife/spear: cut/pierce with deterministic bleed after consecutive valid
+  hits, replacing reliance on lucky25% procs for counter identity.
+- Toxin coating: consumable preparation,3 landed hits per dose, applies poison
+  without inventing a global venom weapon stat. Save doses; never apply on dodge.
+- Rope snare: one-use ground placement, visible trigger radius, roots mobile prey
+  without disabling bites. Heavy cable snare: brief slow for large targets.
+ 10s post-release control immunity prevents chaining; bosses never hard-rooted.
+- Loot: tendon from mobile predators feeds snares; serrated talon feeds barbed
+  tools; dense bone/armor scute from bulky herbivores feeds hammer/stone-shot
+  upgrades; venom gland from dilophosaurus feeds coatings/toxin pots. Guaranteed
+  modest base yields for progression; rare quality variants improve crafting.
+- Early toxin precursor from existing bitter herbs allows first bulky kill before
+  needing venom glands. No circular requirement to kill poisoned prey for poison.
+  Scarce raid doses require hunting/crafting, not unlimited refresh or free items.
+
+## Raid counter loop and fight-feel targets
+
+Correct kit: reinforced armor, raid blunt weapon, toxin doses, heavy slow snare
+or catapult support. Wrong kit: ordinary cut weapon with no counter supplies.
+T-rex retains200000HP/1100ATK/400DEF. Poison lowers stagger threshold; blunt hits
+build visible stagger during punish openings, not on invulnerable windup.
+Starting targets: three landed blunt counters with poison active trigger3s stagger,
+then20s stagger immunity. No permanent knockdown, no stacking stun.
+
+Primary/heavy attacks get readable windup and fixed recovery: provisional0.7s
+primary windup/1.0s recovery,1.2s heavy windup/2.0s recovery. Damage only at impact,
+range checked then; escaped targets are missed. Poison does not simply suppress
+all enemy damage. Heavy slow helps reposition, not create an untouchable edge.
+Telegraphs must survive roar/deafened: sound suppression must not remove all visual
+information. Ordinary swing finishes within current0.65/rate budget; preserve roll
+cost and no-walk-during-swing unless actual testing justifies a separately reviewed
+change. Initial target remains a skillful roughly5-minute raid, not a damage sponge
+or automatic poison kite win. These timing changes replace the parked no-retune
+constraint only within the user's new combat design scope; raw boss stats unchanged.
+
+## Build order and acceptance
+
+1. Central matchup model/data and tests, route existing melee/DOT through it;
+   keep player status semantics. Counter descriptions on creature inspect UI.
+2. Earnable hammer/barbed/coating/snare items and species loot/recipes, saved
+   state and consumed supplies; visible normal player actions. Test early tools.
+3. Slingshot projectile then catapult structure as separate reviewed patches.
+4. Tyrant counter buildup, telegraphs/recovery, UI meter; actual correct/wrong kit
+   bot attempts on volcanic terrain, not only seeded damage formula fixtures.
+5. Fable pixels: weapons/traps/poison/bleed identification, impact radius, stagger,
+   aim and attack anticipation. Render/inspect before gameplay completion claim.
+
+Require all19 species resolve to exactly one documented counter family; alias and
+neutral fallback tests; physical/DOT math; save/reload charges; no damage on dodge;
+no player percentHP spill; control immunity and boss root rejection; loot/recipe
+non-circularity. Correct kit must actually survive and win, wrong kit must remain
+measurably worse. Repeat with neutral and varied genetics. Seeded kits are fixtures,
+not earned runs. Formula TTK and sparse poses are not proof of real-time feel.
