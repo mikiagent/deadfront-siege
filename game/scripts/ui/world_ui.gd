@@ -161,20 +161,30 @@ func _show_arrival(host: Node) -> void:
 
 func show_harbour() -> void:
 	var rows: Array = []
-	if World.is_home():
-		rows.append(["Sail Unstable Temperate (5 T)", &"sail_temp"])
-	else:
+	var player := get_tree().get_first_node_in_group("player") as Player
+	var level := player.skills.level_of("survival") if player and player.skills else 0
+	if not World.is_home():
 		rows.append(["Free return home", &"home"])
 		rows.append(["Return to camp", &"camp"])
-	_fill("Harbour", rows, func (id: StringName) -> void:
+	for key in World.harbour_routes():
+		if key == str(World.island_id):
+			continue
+		var id := StringName(key)
+		var dest := World.def_of(id)
+		var required := World.route_level(id)
+		var cost := int(dest.get("sail_cost", 5))
+		var label := "Sail %s (%d T)" % [dest.get("display_name", key), cost]
+		if level < required:
+			label += " - Survival %d required" % required
+		elif World.t_stones < cost:
+			label += " - need T-stones"
+		rows.append([label, id, level < required or World.t_stones < cost])
+	_fill("Harbour - Survival %d" % level, rows, func (id: StringName) -> void:
 		hide_all()
 		match id:
-			&"sail_temp":
-				World.travel(&"temperate_25", &"sail")
-			&"home":
-				World.travel(&"home_grassland", &"harbour_home")
-			&"camp":
-				World.recall_camp()
+			&"home": World.travel(&"home_grassland", &"harbour_home")
+			&"camp": World.recall_camp()
+			_: World.travel(id, &"sail")
 	)
 
 func show_map() -> void:
@@ -233,7 +243,7 @@ func _fill(title: String, rows: Array, cb: Callable) -> void:
 	sheet.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	sheet.offset_left = 12.0
 	sheet.offset_right = -12.0
-	sheet.offset_top = -148.0 if rows.size() <= 2 else -220.0
+	sheet.offset_top = -minf(650.0, get_viewport().get_visible_rect().size.y * 0.75) if rows.size() > 4 else (-148.0 if rows.size() <= 2 else -220.0)
 	sheet.offset_bottom = -10.0
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.055, 0.07, 0.08, 0.96)
@@ -264,13 +274,25 @@ func _fill(title: String, rows: Array, cb: Callable) -> void:
 	close.add_theme_font_size_override("font_size", 26)
 	close.pressed.connect(hide_all)
 	heading.add_child(close)
-	var actions := HBoxContainer.new()
+	var actions: BoxContainer
+	if rows.size() > 4:
+		var scroll := ScrollContainer.new()
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		box.add_child(scroll)
+		actions = VBoxContainer.new()
+		actions.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(actions)
+	else:
+		actions = HBoxContainer.new()
+		box.add_child(actions)
 	actions.add_theme_constant_override("separation", 8)
-	box.add_child(actions)
 	for i in rows.size():
 		var row: Array = rows[i]
 		var b := Button.new()
 		b.text = str(row[0]).to_upper()
+		b.set_meta("route_id", str(row[1]))
+		b.disabled = bool(row[2]) if row.size() > 2 else false
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.custom_minimum_size = Vector2(0, 64)
 		b.add_theme_font_size_override("font_size", 20)

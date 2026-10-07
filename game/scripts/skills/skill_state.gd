@@ -48,11 +48,13 @@ func level_of(tree: String) -> int:
 func xp_of(tree: String) -> float:
 	return float(trees.get(tree, {}).get("xp", 0.0))
 
-func add_xp(tree: String, amount: float) -> void:
+func add_xp(tree: String, amount: float, mirrored: bool = false) -> void:
 	if not trees.has(tree) or amount <= 0.0:
 		return
-	if World and World.has_method("add_xp"):
+	if not mirrored and World and World.has_method("add_xp"):
 		World.add_xp(int(ceil(amount)))  # every skill gain is also general player XP (one bar)
+	if tree != "survival":
+		add_xp("survival", amount, true) # any play advances the passive route proficiency
 	var t: Dictionary = trees[tree]
 	if int(t["level"]) >= MAX_LEVEL:
 		return

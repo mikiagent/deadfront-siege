@@ -77,6 +77,12 @@ static func _steps() -> Array:
 
 ## {"done", "frac", "label"} for one step.
 static func _progress(player: Player, step: Dictionary) -> Dictionary:
+	if step.has("survival_level"):
+		return _row(player.skills.level_of("survival") if player.skills else 0, int(step["survival_level"]))
+	if step.has("visit"):
+		return _row(1 if World.visited_islands.has(str(step["visit"])) else 0, 1)
+	if step.has("raid_victory"):
+		return _row(1 if World.raid_victory else 0, 1)
 	if step.has("have"):
 		var need: Dictionary = step["have"]
 		var got := 0

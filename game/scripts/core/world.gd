@@ -15,6 +15,8 @@ var home_claims: Array = []  # [[x, z, w, d], ...] tile rects on the home island
 var unstable_claims: Array = []  # same, current unstable island only (not saved)
 var free_claim_used: bool = false
 var objective: int = 0 ## index into Data.world_objectives; the survivor's standing orders
+var visited_islands: Dictionary = {} ## persistent voyage log
+var raid_victory: bool = false ## persists only a player/pet T-rex kill on volcanic_60
 var objective_best: int = 0 ## high-water progress on the current order (materials get spent)
 var _objective_acc: float = 0.0
 var player_name: String = ""
@@ -93,6 +95,10 @@ func _boot() -> void:
 func start_new(host: Node) -> void:
 	home_terrain = &""
 	island_id = &"home_grassland"
+	visited_islands.clear()
+	raid_victory = false
+	objective = 0
+	objective_best = 0
 	# Character creation first (M10), then the home island with the terrain pick.
 	var cc := CharacterCreation.new()
 	cc.name = "CharacterCreation"
@@ -110,6 +116,7 @@ func start_new(host: Node) -> void:
 func load_island(host: Node, id: StringName, at: Vector3, show_terrain: bool) -> void:
 	_clear_runtime()
 	island_id = id
+	visited_islands[str(id)] = true
 	island_def = def_of(id)
 	_sink_warned = false
 	if remaining_lifetime <= 0.0 and not bool(island_def.get("permanent", false)):
@@ -146,6 +153,10 @@ func travel(to_id: StringName, mode: StringName) -> void:
 	if player == null:
 		return
 	if mode == &"sail":
+		var required := route_level(to_id)
+		if player.skills == null or player.skills.level_of("survival") < required:
+			player.notice("Needs Survival %d" % required)
+			return
 		var cost := int(dest.get("sail_cost", 0))
 		if t_stones < cost:
 			print("[world] need %d T-stones" % cost)
@@ -159,9 +170,41 @@ func travel(to_id: StringName, mode: StringName) -> void:
 	await _fade_to(func () -> void:
 		if str(island_def.get("kind", "")) == "unstable":
 			_snapshot_harvest()
+		remaining_lifetime = 0.0 # each destination starts its own island lifetime
 		load_island(host, to_id, pos, false)
 		_save_now()
 	)
+
+## Survival gates follow trees.json's L10/20/30/40/50 island nodes.
+## Intermediate bands fill every five levels; volcano opens at Survival55.
+func route_level(id: StringName) -> int:
+	if id == &"home_grassland":
+		return 0
+	return clampi(int(def_of(id).get("tier", 60)) - 5, 10, 55)
+
+func harbour_routes() -> Array[String]:
+	var routes: Array[String] = []
+	for id in islands:
+		if id != "home_grassland":
+			routes.append(str(id))
+	routes.sort_custom(func (a: String, b: String) -> bool:
+		var ta := int(def_of(StringName(a)).get("tier", 0))
+		var tb := int(def_of(StringName(b)).get("tier", 0))
+		return a < b if ta == tb else ta < tb
+	)
+	return routes
+
+func record_raid_kill(species: StringName, source: Node) -> void:
+	if raid_victory or island_id != &"volcanic_60" or species != &"tyrannosaurus":
+		return
+	if not (source is Player or (source is Creature and (source as Creature).is_pet)):
+		return
+	raid_victory = true
+	var player := _player()
+	if player:
+		player.notice("VICTORY: the volcano tyrant has fallen")
+	print("[raid] VICTORY volcanic_60 tyrannosaurus")
+	_save_now()
 
 func warp_home() -> void:
 	travel(&"home_grassland", &"warp_home")
@@ -339,6 +382,10 @@ func _load_islands(_dir: String) -> void:
 		var d: Dictionary = islands[id]
 		if not d.has("kind"):
 			d["kind"] = "private" if bool(d.get("permanent", false)) else "unstable"
+		if not d.has("sail_cost"):
+			d["sail_cost"] = 5
+		if not d.has("display_name"):
+			d["display_name"] = str(id).replace("_", " ").capitalize()
 		if not d.has("size_m"):
 			var sizes: Dictionary = Data.world_rules.get("island_size_m", {})
 			d["size_m"] = sizes.get("home" if d["kind"] == "private" else "unstable", 240)

@@ -516,6 +516,8 @@ func _travel() -> String:
 		return "no visible outbound harbour route"
 	var before := World.island_id
 	var stones_before := World.t_stones
+	if route.disabled:
+		return "visible route locked: %s" % route.text
 	route.pressed.emit()
 	var deadline := _t + 8.0
 	while _t < deadline and World.island_id == before:
@@ -548,7 +550,16 @@ func _return_home() -> String:
 	if World.is_home():
 		return ""
 	var before := World.island_id
-	World.travel(&"home_grassland", &"harbour_home")
+	var ui: CanvasLayer = (load("res://scripts/ui/world_ui.gd") as GDScript).ensure() as CanvasLayer
+	ui.call("show_harbour")
+	var route: Button = null
+	for button in ui.find_children("*", "Button", true, false):
+		if (button as Button).text.contains("FREE RETURN HOME"):
+			route = button as Button
+			break
+	if route == null:
+		return "no visible return-home route"
+	route.pressed.emit()
 	await _beat(2.0)
 	if not World.is_home():
 		return "could not get home from %s" % before

@@ -5,35 +5,45 @@
       "id": "branches",
       "title": "Gather 3 branches",
       "hint": "Tap a tree and pick Branch from the wheel",
-      "have": { "branch": 3 },
+      "have": {
+        "branch": 3
+      },
       "xp": 20
     },
     {
       "id": "stone",
       "title": "Pick up 2 stones",
       "hint": "Loose rock comes up by hand",
-      "have": { "stone": 2 },
+      "have": {
+        "stone": 2
+      },
       "xp": 20
     },
     {
       "id": "fibre",
       "title": "Strip 4 plant fibre",
       "hint": "Bushes and wild grass, no tool needed",
-      "have": { "fibre_stalk": 4 },
+      "have": {
+        "fibre_stalk": 4
+      },
       "xp": 20
     },
     {
       "id": "twine",
       "title": "Twist fibre into twine",
       "hint": "Craft by hand from 2 fibre",
-      "have": { "twine": 1 },
+      "have": {
+        "twine": 1
+      },
       "xp": 30
     },
     {
       "id": "knife",
       "title": "Knap a stone knife",
       "hint": "Stone, a branch and twine",
-      "have": { "stone_knife_work": 1 },
+      "have": {
+        "stone_knife_work": 1
+      },
       "xp": 50,
       "t_stones": 2
     },
@@ -41,7 +51,9 @@
       "id": "axe",
       "title": "Make a work axe at the bench",
       "hint": "The camp workbench, same three parts",
-      "have": { "work_axe": 1 },
+      "have": {
+        "work_axe": 1
+      },
       "xp": 60,
       "t_stones": 2
     },
@@ -49,21 +61,28 @@
       "id": "logs",
       "title": "Fell 2 wood logs",
       "hint": "The axe opens Wood Log on any tree",
-      "have": { "wood_log": 2 },
+      "have": {
+        "wood_log": 2
+      },
       "xp": 40
     },
     {
       "id": "meat",
       "title": "Hunt something for meat",
       "hint": "Compsognathus scavenge near the shore",
-      "have_any": { "raw_meat": 1, "raptor_meat": 1 },
+      "have_any": {
+        "raw_meat": 1,
+        "raptor_meat": 1
+      },
       "xp": 60
     },
     {
       "id": "cook",
       "title": "Cook a skewer at the fire",
       "hint": "Meat and a branch at the bonfire",
-      "have": { "skewer": 1 },
+      "have": {
+        "skewer": 1
+      },
       "xp": 60,
       "t_stones": 3
     },
@@ -71,7 +90,9 @@
       "id": "net",
       "title": "Weave a capture net",
       "hint": "Two lashings and a handle",
-      "have": { "capture_net_i": 1 },
+      "have": {
+        "capture_net_i": 1
+      },
       "xp": 60
     },
     {
@@ -84,10 +105,123 @@
     },
     {
       "id": "sail",
-      "title": "Sail for the unstable savannah",
-      "hint": "The harbour at the end of the dock",
+      "title": "Sail for Unstable Temperate",
+      "hint": "Reach Survival 20 by playing, then use the harbour route",
       "away": true,
       "xp": 100
+    },
+    {
+      "id": "survival_25",
+      "title": "Reach Survival 25",
+      "hint": "Gather, craft, cook and hunt. Tier 30 routes unlock next.",
+      "survival_level": 25,
+      "xp": 100
+    },
+    {
+      "id": "visit_tundra_30",
+      "title": "Sail to Tundra 30",
+      "hint": "Use the harbour. Bring food and ship valuables home by cargo warp.",
+      "visit": "tundra_30",
+      "xp": 100,
+      "t_stones": 5
+    },
+    {
+      "id": "survival_30",
+      "title": "Reach Survival 30",
+      "hint": "Gather, craft, cook and hunt. Tier 35 routes unlock next.",
+      "survival_level": 30,
+      "xp": 100
+    },
+    {
+      "id": "visit_desert_35",
+      "title": "Sail to Desert 35",
+      "hint": "Use the harbour. Bring food and ship valuables home by cargo warp.",
+      "visit": "desert_35",
+      "xp": 100,
+      "t_stones": 5
+    },
+    {
+      "id": "survival_35",
+      "title": "Reach Survival 35",
+      "hint": "Gather, craft, cook and hunt. Tier 40 routes unlock next.",
+      "survival_level": 35,
+      "xp": 100
+    },
+    {
+      "id": "visit_tropical_40",
+      "title": "Sail to Tropical 40",
+      "hint": "Use the harbour. Bring food and ship valuables home by cargo warp.",
+      "visit": "tropical_40",
+      "xp": 100,
+      "t_stones": 5
+    },
+    {
+      "id": "survival_40",
+      "title": "Reach Survival 40",
+      "hint": "Gather, craft, cook and hunt. Tier 45 routes unlock next.",
+      "survival_level": 40,
+      "xp": 100
+    },
+    {
+      "id": "visit_savannah_45",
+      "title": "Sail to Savannah 45",
+      "hint": "Use the harbour. Bring food and ship valuables home by cargo warp.",
+      "visit": "savannah_45",
+      "xp": 100,
+      "t_stones": 5
+    },
+    {
+      "id": "survival_45",
+      "title": "Reach Survival 45",
+      "hint": "Gather, craft, cook and hunt. Tier 50 routes unlock next.",
+      "survival_level": 45,
+      "xp": 100
+    },
+    {
+      "id": "visit_desert_50",
+      "title": "Sail to Desert 50",
+      "hint": "Use the harbour. Bring food and ship valuables home by cargo warp.",
+      "visit": "desert_50",
+      "xp": 100,
+      "t_stones": 5
+    },
+    {
+      "id": "survival_50",
+      "title": "Reach Survival 50",
+      "hint": "Gather, craft, cook and hunt. Tier 55 routes unlock next.",
+      "survival_level": 50,
+      "xp": 100
+    },
+    {
+      "id": "visit_swamp_55",
+      "title": "Sail to Swamp 55",
+      "hint": "Use the harbour. Bring food and ship valuables home by cargo warp.",
+      "visit": "swamp_55",
+      "xp": 100,
+      "t_stones": 5
+    },
+    {
+      "id": "survival_55",
+      "title": "Reach Survival 55",
+      "hint": "Gather, craft, cook and hunt. Tier 60 routes unlock next.",
+      "survival_level": 55,
+      "xp": 100
+    },
+    {
+      "id": "visit_volcanic_60",
+      "title": "Sail to Volcanic 60",
+      "hint": "Use the harbour. Bring food and ship valuables home by cargo warp.",
+      "visit": "volcanic_60",
+      "xp": 100,
+      "t_stones": 5
+    },
+    {
+      "id": "volcano_raid",
+      "title": "Defeat the volcano tyrant",
+      "hint": "Prepare raid gear and food. Dodge the tyrannosaur. Your bonded animal can help.",
+      "raid_victory": true,
+      "xp": 500,
+      "t_stones": 20
     }
   ]
 }
