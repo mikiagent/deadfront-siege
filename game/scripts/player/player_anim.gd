@@ -150,6 +150,11 @@ func _play(clip: StringName) -> void:
 	elif _resolved_missing and clip in [&"attack_heavy", &"roll", &"gather", &"knockdown"]:
 		speed = 1.35
 	if rig:
+		if clip in [&"attack_primary", &"attack_heavy", &"punch"] and rig.anim_player and rig.anim_player.has_animation(resolved):
+			var weapon := player.inventory.equipped_weapon() if player and player.inventory else null
+			var rate := weapon.def().attack_rate if weapon and weapon.def() else 1.0
+			var duration := rig.anim_player.get_animation(resolved).length
+			speed = maxf(speed, duration * maxf(0.2, rate) / 0.65)
 		rig.play(resolved, speed, blend)
 
 func _resolve(clip: StringName) -> StringName:

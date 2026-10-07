@@ -28,6 +28,15 @@ func run(host: Node) -> void:
 	player.refresh_equipment_vitals()
 	player.vitals.heal(999)
 	last_health = player.vitals.health
+	if "--swing-cadence-probe" in OS.get_cmdline_user_args():
+		var started_at := Time.get_ticks_msec()
+		player.play_attack(true)
+		await get_tree().create_timer(0.7).timeout
+		print("[cadenceprobe] %s swing idle after0.7s" % ["PASS" if not player.anim._busy else "FAIL"])
+		player._try_roll()
+		print("[cadenceprobe] %s roll available after swing" % ["PASS" if player.rolling else "FAIL"])
+		get_tree().quit(0)
+		return
 	var sp := Spawner.new()
 	sp.species = &"tyrannosaurus"
 	sp.count = 1
