@@ -1967,6 +1967,24 @@
       ],
       "stack_max": 999,
       "base_level": 1
+    },
+    {
+      "id": "rope_snare",
+      "display_name": "Rope Snare",
+      "categories": [
+        "counter_supply"
+      ],
+      "stack_max": 999,
+      "base_level": 1
+    },
+    {
+      "id": "heavy_snare",
+      "display_name": "Heavy Cable Snare",
+      "categories": [
+        "counter_supply"
+      ],
+      "stack_max": 999,
+      "base_level": 1
     }
   ]
 }

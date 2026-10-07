@@ -158,7 +158,9 @@
     "predator_tendon": "hide_strap",
     "dense_bone": "raptor_bone",
     "armor_scute": "raptor_bone",
-    "venom_gland": "herb_leaf"
+    "venom_gland": "herb_leaf",
+    "rope_snare": "capture_net_i",
+    "heavy_snare": "capture_net_ii"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

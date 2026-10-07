@@ -23,6 +23,10 @@ static func save_now() -> void:
 					persist = bool(pv)
 			if b and b.has_method("to_dict") and persist and b.get("is_cargo") != true:
 				buildings.append(b.to_dict())
+	var snares: Array = []
+	if World.runtime:
+		for n in World.runtime.get_tree().get_nodes_in_group("ground_snare"):
+			if n.get_parent() == World.runtime and not n.is_queued_for_deletion(): snares.append(n.to_dict())
 	var pets: Array = []
 	for rec in player.bonded:
 		pets.append(rec.to_dict())
@@ -39,6 +43,7 @@ static func save_now() -> void:
 			"position": [player.global_position.x, player.global_position.y, player.global_position.z],
 		},
 		"pets": pets,
+		"ground_snares": snares,
 		"skills": skills,
 		"home": {
 			"terrain": str(World.home_terrain),
@@ -127,6 +132,11 @@ static func load_now(host: Node) -> void:
 	World.load_island(host, iid, pos, false)
 	if World.is_home():
 		_restore_buildings(World._home_buildings_cache, schema)
+	for row in data.get("ground_snares", []):
+		if row is Dictionary and World.runtime:
+			var remaining: Dictionary = row.duplicate(true)
+			remaining["life_left"] = float(row.get("life_left", 0.0)) - maxi(0, int(Time.get_unix_time_from_system()) - int(data.get("saved_unix", Time.get_unix_time_from_system())))
+			GroundSnare.restore(remaining, World.runtime)
 	var player := World._player()
 	if player == null:
 		return

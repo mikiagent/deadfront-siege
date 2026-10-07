@@ -74,6 +74,9 @@ var _aggro_ring_t: float = 0.0
 ## pops once a second instead of every frame.
 var _pet_regen_pool: float = 0.0
 var _trail_origin: Vector3
+var trap_left: float = 0.0
+var trap_immunity_left: float = 0.0
+var trap_move_mult: float = 1.0
 var _last_bleed_pos: Vector3
 var _path_points: PackedVector3Array = PackedVector3Array()
 var _path_index: int = 0
@@ -235,6 +238,7 @@ func _apply_pet_passthrough() -> void:
 	_pet_passthrough_done = true
 
 func _physics_process(delta: float) -> void:
+	tick_trap_control(delta)
 	_fall_guard()
 	_apply_pet_passthrough()
 	FieldTame.tick(self, delta)
@@ -247,7 +251,7 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		_update_label()
 		return
-	var speed := (pet_record.speed / 100.0 if is_pet and pet_record else move_speed_mps()) * statuses.move_mult()
+	var speed := (pet_record.speed / 100.0 if is_pet and pet_record else move_speed_mps()) * statuses.move_mult() * (trap_move_mult if trap_left > 0.0 else 1.0)
 	if not is_pet and brain and (brain.state == &"approach" or brain.state == &"attack"):
 		# ASSUMPTION: wild animals chase at 70 % of their listed speed so a survivor can outrun them.
 		speed *= float(brain.profile.get("chase_speed_mult", 0.7)) if brain.get("profile") != null else 0.7
@@ -772,3 +776,24 @@ func _set_vis_range(n: Node, end_dist: float) -> void:
 		(n as GeometryInstance3D).visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 	for c in n.get_children():
 		_set_vis_range(c, end_dist)
+
+## Movement control only: brain/attacks stay live. Giant families reject light snares.
+func apply_trap_control(heavy: bool) -> bool:
+	if health.dead or is_pet or trap_left > 0.0 or trap_immunity_left > 0.0: return false
+	var family := CombatCounters.family(def.archetype)
+	if family in ["armored", "giant"] and not heavy: return false
+	var row: Dictionary = CombatCounters.data().get("trap_control", {}).get(family, {})
+	if row.is_empty(): return false
+	trap_left = float(row.get("seconds", 0.0))
+	trap_move_mult = float(row.get("move_mult", 1.0))
+	status_float.emit(&"slowed" if trap_move_mult > 0.0 else &"rooted")
+	return true
+
+func tick_trap_control(delta: float) -> void:
+	if trap_left > 0.0:
+		trap_left = maxf(0.0, trap_left - delta)
+		if trap_left == 0.0:
+			trap_move_mult = 1.0
+			trap_immunity_left = 10.0
+	else:
+		trap_immunity_left = maxf(0.0, trap_immunity_left - delta)

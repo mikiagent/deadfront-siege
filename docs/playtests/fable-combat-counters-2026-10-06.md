@@ -177,3 +177,31 @@ Inspected960x600 rendered context before/after coating: Coat0/3->3/3 and toxin n
 readable. Seeded UI fixture uses production-imported survivor privately, no rig edit.
 No pointer coverage, actual fight balance, fresh earned crafting or raidwin claim.
 Trap/control, slingshot/catapult and raid timing are separate unfinished phases.
+
+## Phase2b spatial snares
+
+Base81f1cbf. Rope snare recipe:tendon+2lashing+handle, handcraft4s. Heavy cable:
+2scute+2metal+2lashing, workbench4s. Normal HUD action places2m ahead on dry ground;
+checks reserved/occupied build cells, nearby harvest/static geometry and other
+snares before consuming one item. Radius1.25m, arms1s, expires120s, single-use.
+Green rope/amber heavy rings and labels use simple geometry; no new trap art claimed.
+
+Fast hunters root4s; runners6s; venom/antlered3s. Attacks/AI remain active.
+Armored targets reject rope, heavy slows50% for3s. Giants reject rope, heavy slows
+35% for2s, never roots. Control cannot refresh while active;10s immunity starts
+at release. These are independent movement timers, not existing cannot_act snared.
+No player/pet trigger, direct trap damage, boss stat or attack timing changes.
+
+Placed trap snapshots save position/type/arming/lifetime on current island; offline
+elapsed time subtracts lifetime on load. Travel abandons placed traps, no refunds.
+Wild creatures themselves regenerate on load as before, so active wild control/
+immunity is not persistent across world reload; no save-reload combat proof claimed.
+Old saves without ground_snares load with none. No inventory seed in normal placement.
+
+Godot4.7 testsPASS: root action-live, duration/immunity/no refresh, tyrant rope reject,
+heavy slow, snapshot/expiry and ingredient payment. Real scene fixture pays one,
+rejects duplicate, actual save/load restores armed trap, proximity triggers root
+and destroys trap. Seeded nearby raptor still damages survivor to28HP: trapping
+is movement control, not a free stun. Inspected960x600 ring/label and ROOTED pixels
+using production imported survivor privately. Pointer/spatial corner coverage and
+actual correct-vs-wrong-kit fight/earned trap grind remain unverified.

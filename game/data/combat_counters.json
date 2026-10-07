@@ -73,5 +73,31 @@
       "fraction_per_second": 0.0015,
       "duration": 20
     }
+  },
+  "trap_control": {
+    "fast_hunter": {
+      "seconds": 4,
+      "move_mult": 0
+    },
+    "runner": {
+      "seconds": 6,
+      "move_mult": 0
+    },
+    "venom_hunter": {
+      "seconds": 3,
+      "move_mult": 0
+    },
+    "antlered": {
+      "seconds": 3,
+      "move_mult": 0
+    },
+    "armored": {
+      "seconds": 3,
+      "move_mult": 0.5
+    },
+    "giant": {
+      "seconds": 2,
+      "move_mult": 0.65
+    }
   }
 }

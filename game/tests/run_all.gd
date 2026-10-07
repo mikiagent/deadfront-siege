@@ -22,6 +22,7 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_capture_done = true
+	_test_trap_control()
 	_test_counter_supplies()
 	_test_combat_counters()
 	_test_capture_threshold()
@@ -554,3 +555,48 @@ func _test_counter_supplies() -> void:
 	_expect(corpse.loot.count_of(&"raptor_meat") == 0, "poison corpse rejects meat")
 	_expect(corpse.loot.count_of(&"raptor_bone") > 0 and corpse.loot.count_of(&"predator_tendon") > 0, "poison corpse keeps counter materials")
 	corpse.free()
+
+func _test_trap_control() -> void:
+	var script := load("res://scripts/creatures/creature.gd") as GDScript
+	var cr = script.new()
+	cr.def = (load("res://scripts/creatures/creature_def.gd") as GDScript).new()
+	cr.def.archetype = &"pack_raptor"
+	cr.health = (load("res://scripts/combat/health.gd") as GDScript).new()
+	cr.health.setup(640)
+	cr.add_child(cr.health)
+	cr.statuses = (load("res://scripts/combat/status_effects.gd") as GDScript).new()
+	cr.add_child(cr.statuses)
+	_expect(cr.apply_trap_control(false), "light snare catches fast prey")
+	_expect(cr.trap_left == 4 and cr.trap_move_mult == 0, "fast prey root4s")
+	_expect(cr.statuses.can_act(), "root never disables attacks")
+	_expect(not cr.apply_trap_control(true), "no control refresh while trapped")
+	cr.tick_trap_control(4)
+	_expect(cr.trap_left == 0 and cr.trap_immunity_left == 10, "postrelease10s immunity")
+	_expect(not cr.apply_trap_control(false), "immunity rejects retrap")
+	cr.tick_trap_control(10)
+	cr.def.archetype = &"tyrant"
+	_expect(not cr.apply_trap_control(false), "tyrant rejects rope root")
+	_expect(cr.apply_trap_control(true) and cr.trap_move_mult > 0 and cr.trap_left == 2, "tyrant heavy slow not root")
+	cr.tick_trap_control(2)
+	_expect(not cr.apply_trap_control(true), "tyrant slow chain rejected")
+	cr.free()
+	var model := load("res://scripts/combat/ground_snare.gd") as GDScript
+	var row := {"heavy": true, "position": [1.0, 2.0, 3.0], "life_left": 30.0, "arm_left": 0.5}
+	var host := Node3D.new()
+	get_root().add_child(host)
+	var trap = model.restore(row, host)
+	_expect(trap != null and trap.to_dict() == row, "placed snare snapshot restores remaining life")
+	_expect(model.restore({"position": [1,2,3], "life_left": 0}, host) == null, "expired trap not restored")
+	host.free()
+	var craft := load("res://scripts/items/crafting.gd") as GDScript
+	var inv = (load("res://scripts/items/inventory.gd") as GDScript).new(20)
+	var stack_script := load("res://scripts/items/item_stack.gd") as GDScript
+	for pair in [[&"predator_tendon",1], [&"hide_strap",4], [&"branch",1], [&"armor_scute",2], [&"metal_shard",2]]:
+		inv.add(stack_script.make(pair[0], pair[1]))
+	for id in [&"rope_snare", &"heavy_snare"]:
+		var recipe: Dictionary = craft.recipe(id)
+		var picks: Array = craft.default_picks(inv, recipe)
+		_expect(craft.picks_valid(inv, recipe, picks), "snare recipe allocation " + str(id))
+		var parts: Array = craft.consume_for_craft(inv, recipe, picks)
+		inv.add(craft.build_output(recipe, parts[0], 1, parts))
+	_expect(inv.count_of(&"rope_snare") == 1 and inv.count_of(&"heavy_snare") == 1, "snare crafted outputs with real payment")

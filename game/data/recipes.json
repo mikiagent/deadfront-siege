@@ -1754,6 +1754,68 @@
       "seconds": 4,
       "process_step": "mix",
       "process_add": 1
+    },
+    {
+      "id": "rope_snare",
+      "display_name": "Rope Snare",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tendon",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "rope_snare",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 4,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "heavy_snare",
+      "display_name": "Heavy Cable Snare",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "scute",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "metal",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "heavy_snare",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4,
+      "process_step": "bind",
+      "process_add": 1
     }
   ]
 }

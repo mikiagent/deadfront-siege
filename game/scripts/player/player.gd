@@ -2081,6 +2081,9 @@ func context_actions() -> Array:
 	var weapon := inventory.equipped_weapon()
 	if weapon and (inventory.count_of(&"toxin_coating") > 0 or int(weapon.attributes.get("toxin_hits", 0)) > 0):
 		out.append({"id": "coat_weapon", "glyph": "V", "label": "Coat (%d/3)" % int(weapon.attributes.get("toxin_hits", 0))})
+	for snare in [&"rope_snare", &"heavy_snare"]:
+		if inventory.count_of(snare) > 0:
+			out.append({"id": str(snare), "glyph": "S", "label": "Heavy snare" if snare == &"heavy_snare" else "Rope snare"})
 	var near_water := in_water
 	if not near_water and World.runtime and World.runtime.has_method("surface_y"):
 		near_water = World.runtime.surface_y(global_position.x, global_position.z) < 0.15
@@ -2115,6 +2118,8 @@ func context_actions() -> Array:
 
 func context_action(id: String) -> void:
 	match id:
+		"rope_snare", "heavy_snare":
+			place_snare(StringName(id))
 		"coat_weapon":
 			coat_weapon()
 		"dismount":
@@ -2186,4 +2191,48 @@ func coat_weapon() -> bool:
 	weapon.attributes["toxin_hits"] = 3
 	inventory.changed.emit()
 	notice("Toxin ready:3 landed hits")
+	return true
+
+## Place one snare2m ahead using normal HUD action, valid dry terrain and real inventory.
+func place_snare(id: StringName) -> bool:
+	if id not in [&"rope_snare", &"heavy_snare"] or dead or rolling or anim._busy: return false
+	var rt := World.runtime
+	if rt == null: return false
+	var forward := -visual.global_basis.z
+	forward.y = 0
+	var at := global_position + forward.normalized() * 2.0
+	at.y = rt.surface_y(at.x, at.z) + 0.08
+	if not rt.spawn_ok(at, false):
+		notice("Snare needs dry ground")
+		return false
+	var grid: BuildGrid = rt.get("build_grid") as BuildGrid
+	var cell := BuildGrid.tile_of(at)
+	if grid and (cell in grid.occupied_cells() or cell in grid.reserved_cells()):
+		notice("Snare needs clear ground")
+		return false
+	for node in get_tree().get_nodes_in_group("harvest"):
+		if node is Node3D and (node as Node3D).global_position.distance_to(at) < 1.0:
+			notice("Snare needs clear ground")
+			return false
+	for node in get_tree().get_nodes_in_group("ground_snare"):
+		if (node as Node3D).global_position.distance_to(at) < 2.5:
+			notice("Snares need space")
+			return false
+	var query := PhysicsShapeQueryParameters3D.new()
+	var shape := SphereShape3D.new()
+	shape.radius = 0.35
+	query.shape = shape
+	query.transform = Transform3D(Basis.IDENTITY, at + Vector3(0,0.5,0))
+	query.exclude = [get_rid()]
+	for contact in get_world_3d().direct_space_state.intersect_shape(query, 8):
+		var collider: Object = contact.get("collider")
+		if collider is StaticBody3D and (collider as Node).name != "Floor":
+			notice("Snare needs clear ground")
+			return false
+	if not inventory.consume(id, 1): return false
+	var snare := GroundSnare.new()
+	snare.heavy = id == &"heavy_snare"
+	rt.add_child(snare)
+	snare.global_position = at
+	notice("Snare armed in1s, lasts2min")
 	return true
