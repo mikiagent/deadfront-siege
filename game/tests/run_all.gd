@@ -22,6 +22,7 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_capture_done = true
+	_test_json_attribute_merging()
 	_test_storage_transfer()
 	_test_declared_craft_xp()
 	_test_corpse_material_levels()
@@ -751,3 +752,13 @@ func _test_storage_transfer() -> void:
 	ui._storage_opts["readonly_reason"] = "need knife"
 	_expect(not ui._can_store_selected(),"read-only storage cannot accept deposits")
 	ui.free()
+
+func _test_json_attribute_merging() -> void:
+	var stack = load("res://scripts/items/item_stack.gd") as GDScript
+	var old = stack.from_dict(JSON.parse_string(JSON.stringify(stack.make(&"branch",3,{"level":1},1).to_dict())))
+	var fresh = stack.make(&"branch",2,{"level":1},1)
+	_expect(old.can_merge_with(fresh),"JSON float attribute equals fresh integer material")
+	fresh.attributes["level"] = 2
+	_expect(not old.can_merge_with(fresh),"different numeric quality does not merge")
+	fresh.attributes["level"] = "1"
+	_expect(not old.can_merge_with(fresh),"string quality is not numeric quality")

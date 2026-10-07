@@ -200,6 +200,12 @@ static func _attrs_equal(a: Dictionary, b: Dictionary) -> bool:
 	for k in a:
 		if not b.has(k):
 			return false
+		# JSON restores integer attributes as floats. Equal numeric quality must
+		# still merge with a newly harvested integer-stamped stack.
+		if (a[k] is int or a[k] is float) and (b[k] is int or b[k] is float):
+			if float(a[k]) != float(b[k]): return false
+			continue
+		if (a[k] is int or a[k] is float) != (b[k] is int or b[k] is float): return false
 		if str(a[k]) != str(b[k]):
 			return false
 	return true
