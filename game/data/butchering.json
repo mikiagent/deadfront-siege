@@ -25,6 +25,11 @@
             "feathered": 1,
             "tint": "#6b5a3e"
           }
+        },
+        {
+          "id": "predator_tendon",
+          "min": 1,
+          "max": 2
         }
       ],
       "rare": [
@@ -64,6 +69,11 @@
             "feathered": 1,
             "tint": "#5a4630"
           }
+        },
+        {
+          "id": "predator_tendon",
+          "min": 1,
+          "max": 2
         }
       ],
       "rare": [
@@ -102,6 +112,11 @@
             "feathered": 1,
             "tint": "#4a3a28"
           }
+        },
+        {
+          "id": "predator_tendon",
+          "min": 1,
+          "max": 2
         }
       ],
       "rare": [
@@ -139,6 +154,16 @@
           "attributes": {
             "tint": "#c4b08a"
           }
+        },
+        {
+          "id": "dense_bone",
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "armor_scute",
+          "min": 1,
+          "max": 1
         }
       ],
       "rare": [
@@ -178,6 +203,16 @@
           "attributes": {
             "tint": "#4a4a4a"
           }
+        },
+        {
+          "id": "dense_bone",
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "armor_scute",
+          "min": 1,
+          "max": 1
         }
       ],
       "rare": [
@@ -210,6 +245,11 @@
           "id": "raw_hide",
           "min": 2,
           "max": 4
+        },
+        {
+          "id": "predator_tendon",
+          "min": 1,
+          "max": 2
         }
       ],
       "rare": [],
@@ -231,6 +271,16 @@
           "id": "raw_hide",
           "min": 2,
           "max": 4
+        },
+        {
+          "id": "dense_bone",
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "armor_scute",
+          "min": 1,
+          "max": 1
         }
       ],
       "rare": [],
@@ -252,6 +302,16 @@
           "id": "raw_hide",
           "min": 2,
           "max": 4
+        },
+        {
+          "id": "dense_bone",
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "armor_scute",
+          "min": 1,
+          "max": 1
         }
       ],
       "rare": [],
@@ -273,6 +333,11 @@
           "id": "raw_hide",
           "min": 1,
           "max": 1
+        },
+        {
+          "id": "predator_tendon",
+          "min": 1,
+          "max": 2
         }
       ],
       "rare": [],
@@ -294,6 +359,11 @@
           "id": "raw_hide",
           "min": 1,
           "max": 1
+        },
+        {
+          "id": "predator_tendon",
+          "min": 1,
+          "max": 2
         }
       ],
       "rare": [],
@@ -313,6 +383,11 @@
         },
         {
           "id": "raw_hide",
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "venom_gland",
           "min": 1,
           "max": 2
         }
@@ -378,6 +453,11 @@
           "id": "raw_hide",
           "min": 1,
           "max": 1
+        },
+        {
+          "id": "predator_tendon",
+          "min": 1,
+          "max": 2
         }
       ],
       "rare": [],
@@ -399,6 +479,16 @@
           "id": "raw_hide",
           "min": 2,
           "max": 4
+        },
+        {
+          "id": "dense_bone",
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "armor_scute",
+          "min": 1,
+          "max": 1
         }
       ],
       "rare": [],
@@ -420,6 +510,16 @@
           "id": "raw_hide",
           "min": 1,
           "max": 2
+        },
+        {
+          "id": "dense_bone",
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "armor_scute",
+          "min": 1,
+          "max": 1
         }
       ],
       "rare": [],
@@ -441,6 +541,16 @@
           "id": "raw_hide",
           "min": 2,
           "max": 4
+        },
+        {
+          "id": "dense_bone",
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "armor_scute",
+          "min": 1,
+          "max": 1
         }
       ],
       "rare": [],
@@ -462,6 +572,16 @@
           "id": "raw_hide",
           "min": 2,
           "max": 4
+        },
+        {
+          "id": "dense_bone",
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "armor_scute",
+          "min": 1,
+          "max": 1
         }
       ],
       "rare": [],
@@ -483,6 +603,16 @@
           "id": "raw_hide",
           "min": 2,
           "max": 4
+        },
+        {
+          "id": "dense_bone",
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "armor_scute",
+          "min": 1,
+          "max": 1
         }
       ],
       "rare": [],

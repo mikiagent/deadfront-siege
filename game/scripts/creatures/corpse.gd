@@ -14,6 +14,7 @@ var _label_species: String = ""
 var _tap_s: float = -999.0
 var _fading: bool = false
 var _emptied: bool = false
+var poison_spoiled: bool = false
 
 func setup(c: Creature) -> void:
 	level = maxi(1, int(c.get("level")) if c.get("level") != null else 1)
@@ -22,6 +23,7 @@ func setup(c: Creature) -> void:
 	_owner = c
 	_label_species = c.def.species
 	name = "Corpse_%s" % species
+	poison_spoiled = c.statuses.has_flag(&"meat_inedible")
 	_roll_loot()
 	_snap_owner_to_ground()
 
@@ -131,6 +133,8 @@ func _roll_loot() -> void:
 		var item_id := StringName(str(row.get("id", "")))
 		if item_id == &"":
 			continue
+		var item_def := Data.item(item_id)
+		if poison_spoiled and item_def and item_def.has_category(&"meat"): continue
 		var n := randi_range(int(row.get("min", 1)), int(row.get("max", int(row.get("min", 1)))))
 		if n <= 0:
 			continue

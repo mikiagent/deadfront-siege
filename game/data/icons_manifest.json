@@ -151,7 +151,14 @@
     "raid_maul": "club",
     "raid_helm": "dried_hide",
     "raid_cuirass": "raw_hide",
-    "raid_greaves": "hide_strap"
+    "raid_greaves": "hide_strap",
+    "bone_hammer": "club",
+    "barbed_knife": "stone_knife",
+    "toxin_coating": "herb_leaf",
+    "predator_tendon": "hide_strap",
+    "dense_bone": "raptor_bone",
+    "armor_scute": "raptor_bone",
+    "venom_gland": "herb_leaf"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

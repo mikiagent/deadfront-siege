@@ -1645,6 +1645,115 @@
       "seconds": 12,
       "process_step": "bind",
       "process_add": 1
+    },
+    {
+      "id": "bone_hammer",
+      "display_name": "Dense Bone Hammer",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "dense_bone",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bone_hammer",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 5,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "barbed_knife",
+      "display_name": "Barbed Talon Knife",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "talon",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "barbed_knife",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "toxin_coating",
+      "display_name": "Herb Toxin Coating",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "herb",
+          "count": 4,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "toxin_coating",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 4,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "venom_coating",
+      "display_name": "Venom Toxin Coating",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "venom",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "herb",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "toxin_coating",
+        "count": 3
+      },
+      "station": null,
+      "seconds": 4,
+      "process_step": "mix",
+      "process_add": 1
     }
   ]
 }

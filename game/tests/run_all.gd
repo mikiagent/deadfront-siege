@@ -22,6 +22,7 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_capture_done = true
+	_test_counter_supplies()
 	_test_combat_counters()
 	_test_capture_threshold()
 	_test_sleep_building_save()
@@ -493,3 +494,63 @@ func _test_combat_counters() -> void:
 	cr.statuses._dot(cr.statuses.get_instance(&"poisoned_target"))
 	_expect(is_equal_approx(cr.health.hp, 199775.0), "real tyrant poison tick225HP")
 	cr.free()
+
+func _test_counter_supplies() -> void:
+	var data = get_root().get_node("Data")
+	var inv = (load("res://scripts/items/inventory.gd") as GDScript).new(20)
+	var stack_script := load("res://scripts/items/item_stack.gd") as GDScript
+	for pair in [[&"herb_leaf", 4], [&"dense_bone", 2], [&"branch", 2], [&"hide_strap", 3], [&"raptor_talon", 1]]:
+		inv.add(stack_script.make(pair[0], pair[1]))
+	var craft := load("res://scripts/items/crafting.gd") as GDScript
+	for id in [&"toxin_coating", &"bone_hammer", &"barbed_knife"]:
+		var recipe: Dictionary = craft.recipe(id)
+		_expect(not recipe.is_empty(), "counter recipe " + str(id))
+		var picks: Array = craft.default_picks(inv, recipe)
+		_expect(craft.picks_valid(inv, recipe, picks), "counter materials allocation " + str(id))
+		var parts: Array = craft.consume_for_craft(inv, recipe, picks)
+		var output = craft.build_output(recipe, parts[0], 1, parts)
+		inv.add(output)
+	_expect(inv.count_of(&"herb_leaf") == 0 and inv.count_of(&"toxin_coating") == 1, "herb toxin consumes real herbs")
+	var pl = (load("res://tests/fixtures/counter_player.gd") as GDScript).new()
+	pl.inventory = inv
+	pl.anim = (load("res://scripts/player/player_anim.gd") as GDScript).new()
+	pl.add_child(pl.anim)
+	pl.vitals = (load("res://scripts/combat/vitals.gd") as GDScript).new()
+	pl.add_child(pl.vitals)
+	inv.equip(&"weapon", &"barbed_knife")
+	_expect(pl.coat_weapon(), "normal coat action")
+	_expect(inv.count_of(&"toxin_coating") == 0, "coating dose consumed")
+	var weapon = inv.equipped_weapon()
+	_expect(int(weapon.attributes.get("toxin_hits", 0)) == 3, "three toxin charges")
+	_expect(not pl.coat_weapon(), "cannot overwrite active coating")
+	var restored = (load("res://scripts/items/inventory.gd") as GDScript).new(20)
+	restored.load_array(inv.to_array())
+	_expect(int(restored.slots[restored.find_first(&"barbed_knife")].attributes.get("toxin_hits", 0)) == 3, "toxin charges survive item reload")
+	var cr = (load("res://scripts/creatures/creature.gd") as GDScript).new()
+	cr.def = (load("res://scripts/creatures/creature_def.gd") as GDScript).new()
+	cr.def.archetype = &"pack_raptor"
+	cr.health = (load("res://scripts/combat/health.gd") as GDScript).new()
+	cr.health.setup(640)
+	cr.add_child(cr.health)
+	cr.statuses = (load("res://scripts/combat/status_effects.gd") as GDScript).new()
+	cr.add_child(cr.statuses)
+	var hunt = (load("res://scripts/combat/hunt.gd") as GDScript).new()
+	hunt.player = pl
+	for i in 3: hunt.apply_counter_hit(weapon, cr)
+	_expect(cr.statuses.has(&"bleeding_target") and cr.statuses.has(&"poisoned_target"), "third valid barbed hit bleeds and coating poisons")
+	_expect(int(weapon.attributes["toxin_hits"]) == 0, "three hits spend exactly three charges")
+	hunt.free()
+	cr.free()
+	pl.free()
+	for species in [&"compsognathus", &"velociraptor", &"deinonychus", &"utahraptor"]:
+		var found := false
+		for drop in data.butcher_drops(species):
+			if str(drop.get("id", "")) == "predator_tendon": found = true
+		_expect(found, "guaranteed tendon source " + str(species))
+	var corpse = (load("res://scripts/creatures/corpse.gd") as GDScript).new()
+	corpse.species = &"velociraptor"
+	corpse.poison_spoiled = true
+	corpse._roll_loot()
+	_expect(corpse.loot.count_of(&"raptor_meat") == 0, "poison corpse rejects meat")
+	_expect(corpse.loot.count_of(&"raptor_bone") > 0 and corpse.loot.count_of(&"predator_tendon") > 0, "poison corpse keeps counter materials")
+	corpse.free()

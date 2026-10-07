@@ -2078,6 +2078,9 @@ func context_actions() -> Array:
 	if mounted_on:
 		out.append({"id": "dismount", "glyph": "⤓", "label": "Dismount"})
 		return out
+	var weapon := inventory.equipped_weapon()
+	if weapon and (inventory.count_of(&"toxin_coating") > 0 or int(weapon.attributes.get("toxin_hits", 0)) > 0):
+		out.append({"id": "coat_weapon", "glyph": "V", "label": "Coat (%d/3)" % int(weapon.attributes.get("toxin_hits", 0))})
 	var near_water := in_water
 	if not near_water and World.runtime and World.runtime.has_method("surface_y"):
 		near_water = World.runtime.surface_y(global_position.x, global_position.z) < 0.15
@@ -2112,6 +2115,8 @@ func context_actions() -> Array:
 
 func context_action(id: String) -> void:
 	match id:
+		"coat_weapon":
+			coat_weapon()
 		"dismount":
 			dismount()
 		"drink":
@@ -2167,3 +2172,18 @@ func _try_claim() -> void:
 		World.free_claim_used = true
 	if not rt.claim_at(BuildGrid.tile_of(global_position)):
 		print("[world] claim refused: not dry land")
+
+## Normal context action. One dose gives three landed hits; never overwrites live charges.
+func coat_weapon() -> bool:
+	var weapon := inventory.equipped_weapon()
+	if dead or rolling or anim._busy or vitals.in_combat or (hunt and hunt.target != null):
+		notice("Coat your weapon outside combat")
+		return false
+	if weapon == null or int(weapon.attributes.get("toxin_hits", 0)) > 0:
+		notice("Equip an uncoated weapon")
+		return false
+	if not inventory.consume(&"toxin_coating", 1): return false
+	weapon.attributes["toxin_hits"] = 3
+	inventory.changed.emit()
+	notice("Toxin ready:3 landed hits")
+	return true

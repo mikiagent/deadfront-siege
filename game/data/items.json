@@ -598,7 +598,8 @@
       "display_name": "Raptor Talon",
       "categories": [
         "bone",
-        "blade_mat"
+        "blade_mat",
+        "talon"
       ],
       "stack_max": 5,
       "tool_class": "none",
@@ -1887,6 +1888,85 @@
       "stats_per_level": {
         "armor_value": 0.02
       }
+    },
+    {
+      "id": "predator_tendon",
+      "display_name": "Predator Tendon",
+      "categories": [
+        "tendon",
+        "lashing"
+      ],
+      "stack_max": 999,
+      "base_level": 1
+    },
+    {
+      "id": "armor_scute",
+      "display_name": "Armor Scute",
+      "categories": [
+        "scute",
+        "bone"
+      ],
+      "stack_max": 999,
+      "base_level": 1
+    },
+    {
+      "id": "dense_bone",
+      "display_name": "Dense Bone",
+      "categories": [
+        "dense_bone",
+        "bone",
+        "blade_mat"
+      ],
+      "stack_max": 999,
+      "base_level": 1
+    },
+    {
+      "id": "venom_gland",
+      "display_name": "Venom Gland",
+      "categories": [
+        "venom"
+      ],
+      "stack_max": 999,
+      "base_level": 1
+    },
+    {
+      "id": "bone_hammer",
+      "display_name": "Dense Bone Hammer",
+      "categories": [
+        "weapon"
+      ],
+      "damage": 65,
+      "damage_type": "blunt",
+      "attack_rate": 0.9,
+      "max_durability": 160,
+      "stats_per_level": {
+        "damage": 0.02
+      }
+    },
+    {
+      "id": "barbed_knife",
+      "display_name": "Barbed Talon Knife",
+      "categories": [
+        "weapon"
+      ],
+      "tool_class": "knife",
+      "damage": 40,
+      "damage_type": "slashing",
+      "attack_rate": 1.3,
+      "max_durability": 160,
+      "bleed_every_hits": 3,
+      "stats_per_level": {
+        "damage": 0.02
+      }
+    },
+    {
+      "id": "toxin_coating",
+      "display_name": "Toxin Coating (3 Hits)",
+      "categories": [
+        "counter_supply"
+      ],
+      "stack_max": 999,
+      "base_level": 1
     }
   ]
 }

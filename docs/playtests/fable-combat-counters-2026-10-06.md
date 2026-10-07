@@ -147,3 +147,33 @@ escalating bleed follow Milan's9:57pm steering. Player counter-status applicatio
 are rejected; ordinary bleed/deep_bleed/venom remain unchanged. No new delivery,
 traps, loot, AI timings or boss stats in this patch. Chart/alias/fallback/stack math
 and player-injury separation tests are included. Raid completion remainsPARTIAL.
+
+## Phase2a counter supplies
+
+Basea0eb7f1. Dense Bone Hammer65base blunt/0.9Hz; Barbed Talon Knife40base cut/1.3Hz,
+one fixed bleed stack every third landed hit. Both scale damage2%/level. Existing
+animations/icons are reused explicitly; new weapon models are not claimed.
+Hammer:2dense bone+handle+2lashing, workbench5s. Knife:talon+handle+lashing, bench4s.
+Herb toxin:4herb-category units, handcraft4s,1dose. Venom alternative:1gland+1herb,
+4s,3doses. No skill gates for this first pass; balance remains provisional.
+
+Mobile predator base loot adds1-2tendons; bulky/giant base loot1-2dense bone+1scute;
+dilophosaurus1-2venom glands. Existing drops retained. Talon category extends the
+existing raptor talon; its original butchering gate remains. Tendon/scute are stocked
+for the next trap/ranged phase, not silently used in nonexistent recipes.
+
+Normal context Coat action consumes1dose, sets3saved weapon hit charges; preparation
+refused in combat/busy and active coating cannot be overwritten. Charges spend only
+on landed melee hits, not dodge or range refusal. Charge and barbed hit count live
+in saved ItemStack attributes. Poisoned corpses now exclude meat, keep bone/hide and
+counter materials. Poison must already be active at death; a lethal physical strike
+is not retroactively poisoned. No corpse flag persistence needed because loot is
+rolled at creation; normal saved loot still holds the resulting stacks.
+
+Tests cover real ingredient allocation/consumption, coating/dose/charge reload,
+three-hit toxin spend and deterministic bleed, tendon sources and meat exclusion
+with bone/tendon retained. Godot4.7 regression suitePASS without script errors.
+Inspected960x600 rendered context before/after coating: Coat0/3->3/3 and toxin notice
+readable. Seeded UI fixture uses production-imported survivor privately, no rig edit.
+No pointer coverage, actual fight balance, fresh earned crafting or raidwin claim.
+Trap/control, slingshot/catapult and raid timing are separate unfinished phases.

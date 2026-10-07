@@ -148,14 +148,12 @@ func _auto_attack() -> void:
 	if player.skills:
 		player.skills.add_xp("melee", 2)
 	print("[combat] player hit %s dmg=%.1f type=%s kind=%s" % [target.def.id, dealt, dtype, kind])
-	if dtype == &"slashing" and randf() < 0.25:
-		target.statuses.apply(&"bleeding_target", player)
+	apply_counter_hit(w, target)
 	if dtype == &"blunt" and randf() < 0.35:
 		target.statuses.apply(&"groggy", player)
 	_swing_cd = 1.0 / maxf(0.2, rate)
 
-## &"strong" when the creature's archetype lists the damage type under weak_to, &"weak" under
-## resists, else &"hit".
+## Chart feedback: strong above1, weak below1, otherwise neutral hit.
 static func effectiveness(c: Creature, dtype: StringName) -> StringName:
 	if c == null or c.def == null or dtype == &"":
 		return &"hit"
@@ -248,3 +246,20 @@ func _is_behind() -> bool:
 	if to_player.length_squared() < 0.001:
 		return false
 	return to_player.normalized().dot(target.global_basis.z) > 0.35
+
+## Called only after a landed melee hit, never on dodge/out-of-range attempts.
+func apply_counter_hit(w: ItemStack, victim: Creature) -> void:
+	if victim == null: return
+	var def := w.def() if w else null
+	if w and def and def.bleed_every_hits > 0:
+		var hits := int(w.attributes.get("barbed_hits", 0)) + 1
+		w.attributes["barbed_hits"] = hits % def.bleed_every_hits
+		player.inventory.changed.emit()
+		if hits >= def.bleed_every_hits and not victim.health.dead:
+			victim.statuses.apply(&"bleeding_target", player)
+	elif def and def.damage_type == &"slashing" and not victim.health.dead and randf() < 0.25:
+		victim.statuses.apply(&"bleeding_target", player)
+	if w and int(w.attributes.get("toxin_hits", 0)) > 0:
+		w.attributes["toxin_hits"] = int(w.attributes["toxin_hits"]) - 1
+		if not victim.health.dead: victim.statuses.apply(&"poisoned_target", player)
+		player.inventory.changed.emit()
