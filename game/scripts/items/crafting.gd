@@ -257,10 +257,12 @@ static func can_make(player: Player, rec: Dictionary, picks: Array[int]) -> bool
 		return false
 	return picks_valid(player.inventory, rec, picks)
 
-## Which skill tree a recipe trains, from its output categories. ASSUMPTION mapping.
+## Explicit tree wins, then the declared crafting skill; categories are legacy fallback.
 static func tree_for_recipe(rec: Dictionary) -> String:
 	if rec.has("tree"):
 		return str(rec["tree"])
+	if rec.has("skill") and str(rec["skill"]) != "":
+		return str(rec["skill"])
 	var out_row: Dictionary = rec.get("output", {})
 	var def := Data.item(StringName(str(out_row.get("id", ""))))
 	if def:

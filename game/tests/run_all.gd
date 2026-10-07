@@ -22,6 +22,7 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_capture_done = true
+	_test_declared_craft_xp()
 	_test_corpse_material_levels()
 	_test_tyrant_counters()
 	_test_catapult_recipe_save()
@@ -703,3 +704,16 @@ func _test_corpse_material_levels() -> void:
 		if st: _expect(not st.def().has_category(&"meat"),"poisoned corpse keeps meat restriction")
 	poisoned.free()
 	c.free()
+
+func _test_declared_craft_xp() -> void:
+	var craft = load("res://scripts/items/crafting.gd") as GDScript
+	for id in [&"thread",&"cloth",&"bandage",&"pressure_dressing",&"splint",&"tent_kit"]:
+		_expect(craft.tree_for_recipe(craft.recipe(id)) == "tailoring","declared Tailoring XP: %s" % id)
+	for id in [&"dry_meat",&"smoke_meat"]:
+		_expect(craft.tree_for_recipe(craft.recipe(id)) == "processing","declared Processing XP: %s" % id)
+	_expect(craft.tree_for_recipe({"tree":"tailoring","skill":"processing"}) == "tailoring","explicit tree keeps precedence")
+	_expect(craft.tree_for_recipe({"output":{"id":"club"}}) == "weapon_tools","legacy category fallback")
+	var data = get_root().get_node("Data")
+	for rec in data.recipe_list:
+		if rec.has("skill") and not rec.has("tree"):
+			_expect(craft.tree_for_recipe(rec) == str(rec["skill"]),"craft XP matches skill gate %s" % rec.get("id","?"))
