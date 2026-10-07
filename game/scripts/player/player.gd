@@ -71,6 +71,7 @@ var _path_goal: Vector3 = Vector3.ZERO
 var _path_replan_left: float = 0.0
 var _path_anchor: Vector3 = Vector3.ZERO
 var _path_blocked_left: float = 0.0
+var _stall_pos: Vector3 = Vector3.ZERO
 var _path_stuck: float = 0.0  ## cumulative seconds the survivor has not moved while routed
 var ui: InventoryUI
 var craft_ui
@@ -255,6 +256,7 @@ func nav_to(pos: Vector3) -> void:
 	_path_goal = pos
 	_path_replan_left = 0.0
 	_path_anchor = global_position
+	_stall_pos = global_position
 	_path_blocked_left = 0.0
 	_path_stuck = 0.0
 	if _use_tile_path():
@@ -1287,7 +1289,10 @@ func _unstick(towards: Vector3) -> void:
 	var step := global_position + towards * 0.45
 	var rt := World.runtime
 	if rt and rt.has_method("surface_y"):
-		step.y = rt.surface_y(step.x, step.z) + 0.25
+		# CharacterBody origin is the capsule centre, not its feet.
+		var capsule := ($Shape as CollisionShape3D).shape as CapsuleShape3D
+		var clearance := capsule.height * 0.5 + 0.1 if capsule else 1.0
+		step.y = rt.surface_y(step.x, step.z) + clearance
 	else:
 		step.y = global_position.y + 0.25
 	global_position = step
@@ -1296,7 +1301,10 @@ func _unstick(towards: Vector3) -> void:
 
 ## True once a routed survivor has stood still for 1.2 s. Drives the straight-line fallback.
 func _stalled(delta: float) -> bool:
-	if Vector2(velocity.x, velocity.z).length() > 0.45:
+	var displacement := global_position - _stall_pos
+	displacement.y = 0
+	_stall_pos = global_position
+	if displacement.length() / maxf(delta, 0.0001) > 0.45:
 		_path_stuck = 0.0
 		return false
 	_path_stuck += delta
