@@ -55,6 +55,10 @@ func _ready() -> void:
 				var loot_probe = load("res://scripts/dev/loot_level_probe.gd").new()
 				add_child(loot_probe)
 				loot_probe.call_deferred("run", self)
+			if "--camp-travel-probe" in OS.get_cmdline_user_args():
+				var camp_probe = load("res://scripts/dev/camp_travel_probe.gd").new()
+				add_child(camp_probe)
+				camp_probe.call_deferred("run", self)
 			if "--earned-training-probe" in OS.get_cmdline_user_args():
 				var training_probe = load("res://scripts/dev/earned_training_probe.gd").new()
 				add_child(training_probe)

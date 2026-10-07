@@ -15,6 +15,8 @@ static func save_now() -> void:
 	var buildings: Array = []
 	if World.runtime:
 		for n in World.runtime.get_tree().get_nodes_in_group("placed_building"):
+			# The old island may still be queue_free pending during a travel callback.
+			if n.is_queued_for_deletion() or not World.runtime.is_ancestor_of(n): continue
 			var b = n
 			var persist := true
 			if b and b.has_method("get"):

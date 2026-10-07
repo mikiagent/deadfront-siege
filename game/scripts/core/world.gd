@@ -170,8 +170,12 @@ func travel(to_id: StringName, mode: StringName) -> void:
 	await _fade_to(func () -> void:
 		if str(island_def.get("kind", "")) == "unstable":
 			_snapshot_harvest()
+		# Capture the live camp before replacing its runtime, including unsaved storage.
+		if is_home(): _save_now()
 		remaining_lifetime = 0.0 # each destination starts its own island lifetime
 		load_island(host, to_id, pos, false)
+		if is_home():
+			(load("res://scripts/core/save_game.gd") as GDScript)._restore_buildings(_home_buildings_cache, SaveMigrations.CURRENT_SCHEMA)
 		_save_now()
 	)
 
