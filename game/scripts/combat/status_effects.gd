@@ -27,6 +27,9 @@ func _process(delta: float) -> void:
 func apply(id: StringName, source: Node = null, extra_stacks: int = 1) -> void:
 	var parsed := parse_token(id)
 	var real_id: StringName = parsed["id"]
+	# Creature counter statuses must never become percent-health player injuries.
+	if get_parent() is Player and real_id in [&"bleeding_target", &"poisoned_target"]:
+		return
 	var add_stacks: int = int(parsed["stacks"]) * extra_stacks
 	var def := Data.status(real_id)
 	if def == null:
@@ -34,8 +37,8 @@ func apply(id: StringName, source: Node = null, extra_stacks: int = 1) -> void:
 		return
 	var existing: StatusInstance = get_instance(real_id)
 	if existing:
-		existing.stacks = mini(def.max_stacks, existing.stacks + add_stacks)
-		existing.time_left = def.duration
+		existing.stacks = mini(_max_stacks(real_id, def.max_stacks), existing.stacks + add_stacks)
+		existing.time_left = _duration(real_id, def.duration)
 		existing.source = source
 		print("[status] %s +%s x%d" % [_who(), real_id, existing.stacks])
 		applied.emit(real_id, existing.stacks)
@@ -48,8 +51,8 @@ func apply(id: StringName, source: Node = null, extra_stacks: int = 1) -> void:
 			return
 	var inst: StatusInstance = StatusInstance.new()
 	inst.id = real_id
-	inst.stacks = mini(def.max_stacks, add_stacks)
-	inst.time_left = def.duration
+	inst.stacks = mini(_max_stacks(real_id, def.max_stacks), add_stacks)
+	inst.time_left = _duration(real_id, def.duration)
 	inst.source = source
 	_active.append(inst)
 	print("[status] %s +%s x%d" % [_who(), real_id, inst.stacks])
@@ -166,7 +169,9 @@ func _dot(inst: StatusInstance) -> void:
 	var host := get_parent()
 	if host is Creature:
 		var cr := host as Creature
-		if def.dps_max_hp_frac > 0.0:
+		if inst.id in [&"bleeding_target", &"poisoned_target"]:
+			dps = CombatCounters.dot_dps(cr.def.archetype, inst.id, cr.health.max_hp, inst.stacks)
+		elif def.dps_max_hp_frac > 0.0:
 			dps += def.dps_max_hp_frac * cr.health.max_hp
 		if dps > 0.0:
 			var dealt := dps * 0.5
@@ -225,3 +230,10 @@ func _sync_vitals() -> void:
 				mh *= def.max_health_mult
 		(p as Player).vitals.max_health = 100.0 * mh
 		(p as Player).vitals.health = minf((p as Player).vitals.health, (p as Player).vitals.effective_max_health())
+
+## Only creature counter statuses use the counter clock; player injuries are unchanged.
+func _duration(id: StringName, fallback: float) -> float:
+	return CombatCounters.dot_duration(id, fallback) if get_parent() is Creature else fallback
+
+func _max_stacks(id: StringName, fallback: int) -> int:
+	return CombatCounters.max_stacks(id, fallback) if get_parent() is Creature else fallback

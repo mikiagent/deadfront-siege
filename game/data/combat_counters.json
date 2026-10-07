@@ -1,0 +1,77 @@
+{
+  "_about": "Proposed combat counter model. Multipliers apply after defense. Player injury DOT is separate.",
+  "archetype_family": {
+    "pack_mule": "armored",
+    "spiked_tail": "armored",
+    "club_tail": "armored",
+    "horned_charger": "armored",
+    "pack_raptor": "fast_hunter",
+    "pack_flanker": "fast_hunter",
+    "apex_raptor": "fast_hunter",
+    "swarm": "fast_hunter",
+    "flock_harass": "fast_hunter",
+    "saber_cat": "fast_hunter",
+    "runner": "runner",
+    "venom_ranged": "venom_hunter",
+    "antlered": "antlered",
+    "tyrant": "giant",
+    "titan": "giant"
+  },
+  "families": {
+    "armored": {
+      "blunt": 1.5,
+      "pierce": 0.75,
+      "cut": 0.6,
+      "poison": 1.5,
+      "bleed": 0.25
+    },
+    "fast_hunter": {
+      "blunt": 0.75,
+      "pierce": 1,
+      "cut": 1.25,
+      "poison": 0.5,
+      "bleed": 1.5
+    },
+    "runner": {
+      "blunt": 0.75,
+      "pierce": 1.25,
+      "cut": 1,
+      "poison": 0.75,
+      "bleed": 1.25
+    },
+    "venom_hunter": {
+      "blunt": 1.25,
+      "pierce": 1.25,
+      "cut": 1,
+      "poison": 0.25,
+      "bleed": 1
+    },
+    "antlered": {
+      "blunt": 1,
+      "pierce": 1.25,
+      "cut": 0.75,
+      "poison": 1,
+      "bleed": 1
+    },
+    "giant": {
+      "blunt": 1.5,
+      "pierce": 0.75,
+      "cut": 0.5,
+      "poison": 1.5,
+      "bleed": 0.1
+    }
+  },
+  "creature_dot": {
+    "bleeding_target": {
+      "channel": "bleed",
+      "fixed_dps": 4.0,
+      "max_stacks": 5,
+      "duration": 12
+    },
+    "poisoned_target": {
+      "channel": "poison",
+      "fraction_per_second": 0.0015,
+      "duration": 20
+    }
+  }
+}

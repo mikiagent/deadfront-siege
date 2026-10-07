@@ -22,6 +22,7 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_capture_done = true
+	_test_combat_counters()
 	_test_capture_threshold()
 	_test_sleep_building_save()
 	_test_staged_sleep_tiers()
@@ -436,3 +437,59 @@ func _test_multistack_crafting() -> void:
 	var results: Dictionary = lab.call("run")
 	for label in results:
 		_expect(bool(results[label]), str(label))
+
+func _test_combat_counters() -> void:
+	var model := load("res://scripts/combat/combat_counters.gd") as GDScript
+	var creature_count := 0
+	var dir := DirAccess.open("res://data/creatures")
+	for filename in dir.get_files():
+		if not filename.ends_with(".json"): continue
+		var row: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/creatures/" + filename))
+		if not row is Dictionary or not row.has("stats"): continue
+		creature_count += 1
+		_expect(model.family(StringName(row["archetype"])) != "neutral", "counter family for " + filename)
+	_expect(creature_count == 19, "counter chart covers19 catalogue species")
+	_expect(is_equal_approx(model.multiplier(&"tyrant", &"blunt"), 1.5), "tyrant blunt counter")
+	_expect(is_equal_approx(model.multiplier(&"tyrant", &"slashing"), 0.5), "slashing aliases cut")
+	_expect(is_equal_approx(model.multiplier(&"unknown", &"blunt"), 1.0), "unknown archetype neutral")
+	_expect(is_equal_approx(model.multiplier(&"tyrant", &"unknown"), 1.0), "unknown channel neutral")
+	_expect(is_equal_approx(model.dot_fraction(&"tyrant", &"poisoned_target"), 0.00225), "tyrant poison0.225percent")
+	_expect(is_equal_approx(model.dot_dps(&"tyrant", &"bleeding_target", 200000.0, 5), 6.0), "tyrant fixed bleed resistance")
+	_expect(is_equal_approx(model.dot_dps(&"pack_raptor", &"bleeding_target", 640.0, 5), 90.0), "raptor stacked fixed bleed")
+	_expect(model.dot_dps(&"pack_raptor", &"bleeding_target", 640.0, 1) == model.dot_dps(&"pack_raptor", &"bleeding_target", 64000.0, 1), "bleed independent of health")
+	_expect(model.dot_dps(&"pack_raptor", &"bleeding_target", 640.0, 2) > 2 * model.dot_dps(&"pack_raptor", &"bleeding_target", 640.0, 1), "bleed stacks escalate")
+	_expect(model.dot_duration(&"bleeding_target", 20.0) == 12.0, "creature counter duration")
+	_expect(model.dot_duration(&"deep_bleed", 30.0) == 30.0, "injury clock unchanged")
+	var pl = (load("res://scripts/player/player.gd") as GDScript).new()
+	var status = (load("res://scripts/combat/status_effects.gd") as GDScript).new()
+	pl.vitals = (load("res://scripts/combat/vitals.gd") as GDScript).new()
+	pl.add_child(pl.vitals)
+	pl.add_child(status)
+	status.apply(&"bleeding_target")
+	status.apply(&"poisoned_target")
+	_expect(not status.has(&"bleeding_target") and not status.has(&"poisoned_target"), "no creature counter status on players")
+	status.apply(&"deep_bleed")
+	_expect(status.has(&"deep_bleed"), "ordinary player bleed unchanged")
+	pl.free()
+	var cr = (load("res://scripts/creatures/creature.gd") as GDScript).new()
+	cr.def = (load("res://scripts/creatures/creature_def.gd") as GDScript).new()
+	cr.def.archetype = &"pack_raptor"
+	cr.health = (load("res://scripts/combat/health.gd") as GDScript).new()
+	cr.health.setup(640.0)
+	cr.add_child(cr.health)
+	cr.statuses = (load("res://scripts/combat/status_effects.gd") as GDScript).new()
+	cr.add_child(cr.statuses)
+	for i in 6: cr.statuses.apply(&"bleeding_target")
+	var inst = cr.statuses.get_instance(&"bleeding_target")
+	_expect(inst.stacks == 5 and inst.time_left == 12.0, "creature bleed stack cap and refresh")
+	cr.statuses._dot(inst)
+	_expect(is_equal_approx(cr.health.hp, 595.0), "real creature bleed tick45HP")
+	var saved: Array = cr.statuses.to_array()
+	cr.statuses.from_array(saved)
+	_expect(cr.statuses.get_instance(&"bleeding_target").stacks == 5, "bleed stacks survive reload")
+	cr.def.archetype = &"tyrant"
+	cr.health.setup(200000.0)
+	cr.statuses.apply(&"poisoned_target")
+	cr.statuses._dot(cr.statuses.get_instance(&"poisoned_target"))
+	_expect(is_equal_approx(cr.health.hp, 199775.0), "real tyrant poison tick225HP")
+	cr.free()

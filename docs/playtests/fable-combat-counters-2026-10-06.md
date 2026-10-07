@@ -39,9 +39,11 @@ Numbers below are starting design targets, pending real-AI tests.
 
 Apply physical matchup after defense and before crit. DOT matchup scales damage,
 not duration; hostile poison/bleed never inherits player injury scaling. Proposed
-creature DOT bases: bleed0.2% maxHP/s for12s, poison0.15% maxHP/s for20s, one stack
-per channel, refresh only. Lower universal bleed from1% to this base with explicit
-counter chart rather than allow a knife to erase armored raid bosses. Do not apply
+creature DOT bases: poison0.15% maxHP/s for20s, one stack, refresh only.
+Milan's9:57pm steering supersedes percentage bleed: bleed is fixed damage with
+escalating stacks. Base4DPS times n(n+1)/2 at1-5 stacks gives4/12/24/40/60DPS
+before archetype resistance,12s shared refresh timer. No health-percentage bleed.
+These are starting targets, not proved balance. Do not apply
 percentHP damage to players. Cap persistent DPS against raid bosses at0.3%/s per
 channel; mixed poison/bleed does not bypass resistances. Successful poison kill
 will enforce the existing meat_inedible flag; bone/hide/counter materials remain recoverable.
@@ -136,3 +138,12 @@ no player percentHP spill; control immunity and boss root rejection; loot/recipe
 non-circularity. Correct kit must actually survive and win, wrong kit must remain
 measurably worse. Repeat with neutral and varied genetics. Seeded kits are fixtures,
 not earned runs. Formula TTK and sparse poses are not proof of real-time feel.
+
+## Phase1 implementation evidence
+
+Central combat_counters.json now owns all19 species' archetype families and type
+multipliers. Melee and creature counter DOT use it. Poison percentage and fixed
+escalating bleed follow Milan's9:57pm steering. Player counter-status applications
+are rejected; ordinary bleed/deep_bleed/venom remain unchanged. No new delivery,
+traps, loot, AI timings or boss stats in this patch. Chart/alias/fallback/stack math
+and player-injury separation tests are included. Raid completion remainsPARTIAL.
