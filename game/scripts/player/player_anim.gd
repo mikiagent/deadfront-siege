@@ -11,6 +11,10 @@ var player: Player
 var _busy: bool = false
 var _dead: bool = false
 var _forced: bool = false
+var _sleeping: bool = false
+var _waking: bool = false
+var _sleep_ground_tween: Tween
+var _visual_rest_y: float = 0.0
 var _missing_logged: Dictionary = {}
 var _resolved_missing: bool = false
 var _requested_clip: StringName = &"idle"
@@ -21,6 +25,7 @@ var _gather_clip: StringName = &"gather"
 
 func setup(p: Player, p_rig: RiggedModel) -> void:
 	player = p
+	_visual_rest_y = player.visual.position.y
 	rig = p_rig
 	if rig:
 		rig.clip_finished.connect(_on_clip_finished)
@@ -45,6 +50,11 @@ func play_locomotion(speed: float, running: bool = false) -> void:
 	_play(&"run" if running and speed > 2.5 else &"walk")
 
 func play_clip(clip: StringName, forced: bool = false) -> void:
+	if clip not in [&"sleep", &"sleep_down", &"sleep_up"]:
+		if _sleeping or _waking:
+			_ground_sleep_visual(false)
+		_sleeping = false
+		_waking = false
 	if _dead and clip != &"death":
 		return
 	if clip == &"knockdown" and _busy and current_clip == &"knockdown":
@@ -58,17 +68,57 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 	if _busy and _resolved_missing:
 		_schedule_missing_done(clip)
 
+func start_sleep() -> void:
+	if _dead:
+		return
+	_sleeping = true
+	_ground_sleep_visual(true)
+	_waking = false
+	_busy = false
+	play_clip(&"sleep_down" if rig and rig.has_clip(&"sleep_down") else &"sleep", true)
+
+func wake_from_sleep() -> void:
+	if not _sleeping or _dead:
+		return
+	_sleeping = false
+	_ground_sleep_visual(false, 2.05)
+	_waking = true
+	play_clip(&"sleep_up", true)
+
+func _ground_sleep_visual(asleep: bool, delay: float = 0.0) -> void:
+	if _sleep_ground_tween:
+		_sleep_ground_tween.kill()
+	# Player origin is capsule centre, while the imported sleeping mesh grounds at root0.
+	# Match actual terrain beneath the survivor, without moving its collision capsule/rig.
+	var offset := 0.9
+	if World.runtime and World.runtime.has_method("surface_y"):
+		offset = maxf(0.0, player.global_position.y - World.runtime.surface_y(player.global_position.x, player.global_position.z))
+	var y := _visual_rest_y - offset if asleep else _visual_rest_y
+	_sleep_ground_tween = create_tween()
+	if delay > 0.0:
+		_sleep_ground_tween.tween_interval(delay)
+	_sleep_ground_tween.tween_property(player.visual, "position:y", y, 0.25)
+
 func on_damaged() -> void:
+	_ground_sleep_visual(false)
+	_sleeping = false
+	_waking = false
 	if not _dead:
 		play_clip(&"hit_react")
 
 func on_death() -> void:
+	_ground_sleep_visual(false)
+	_sleeping = false
+	_waking = false
 	if _dead:
 		return  # already on the floor; never replay the fall
 	play_clip(&"death")
 
 ## Respawn: unfreeze the rig and stand back up.
 func revive() -> void:
+	_ground_sleep_visual(false)
+	_sleeping = false
+	_waking = false
 	_dead = false
 	_busy = false
 	_forced = false
@@ -118,6 +168,8 @@ func release_knockdown() -> void:
 	play_idle()
 
 func _physics_tick(speed: float, running: bool = false) -> void:
+	if _sleeping or _waking:
+		return
 	if _busy and current_clip == &"knockdown" and player.statuses and not player.statuses.has_flag(&"knockdown"):
 		release_knockdown()
 	if player.rolling:
@@ -135,7 +187,7 @@ func _physics_tick(speed: float, running: bool = false) -> void:
 func _play(clip: StringName) -> void:
 	var resolved := _resolve(clip)
 	if resolved == current_clip and rig and rig.anim_player and rig.anim_player.is_playing():
-		if clip in [&"idle", &"walk", &"run", &"mount_idle"]:
+		if clip in [&"idle", &"walk", &"run", &"mount_idle", &"sleep"]:
 			return
 	var loco := [&"idle", &"walk", &"run", &"mount_idle"]
 	var blend := 0.18 if (resolved in loco and current_clip in loco) else 0.0
@@ -198,6 +250,11 @@ func _on_missing_done(clip: StringName) -> void:
 func _on_clip_finished(clip: StringName) -> void:
 	if current_clip != clip:
 		return
+	if clip == &"sleep_down" and _sleeping:
+		play_clip(&"sleep", true)
+		return
+	if clip == &"sleep_up":
+		_waking = false
 	if clip == &"attack_primary" or clip == &"attack_heavy" or clip == &"punch":
 		attack_done.emit()
 	if clip == &"death":

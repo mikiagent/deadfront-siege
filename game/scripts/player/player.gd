@@ -336,6 +336,13 @@ func _physics_process(delta: float) -> void:
 	if _sleep_left > 0.0 and statuses != null and vitals != null:
 		_tick_sleep(delta)
 		return
+	if anim and anim._waking:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		if not is_on_floor():
+			velocity += get_gravity() * delta
+		move_and_slide()
+		return
 	if statuses == null or vitals == null:
 		move_and_slide()
 		return
@@ -1450,6 +1457,8 @@ func _tick_sleep(delta: float) -> void:
 	if input.length_squared() > 0.04 or nav_active or vitals.in_combat or (Time.get_ticks_msec() * 0.001 - _last_hit_taken_s) < 1.0 or dead or not is_instance_valid(_sleep_spot) or global_position.distance_to(_sleep_spot.global_position) > 3.2:
 		_sleep_left = 0.0
 		_sleep_spot = null
+		if anim:
+			anim.wake_from_sleep()
 		notice("Sleep interrupted")
 		return
 	_sleep_left = maxf(0.0, _sleep_left - delta)
@@ -1461,6 +1470,8 @@ func _tick_sleep(delta: float) -> void:
 		_sleep_spot = null
 		vitals.rest(spot.sleep_restore())
 		spot.complete_sleep()
+		if anim:
+			anim.wake_from_sleep()
 		notice("Rested")
 
 func _nearest_sleep_spot() -> Node3D:
@@ -1496,6 +1507,8 @@ func _start_sleep(spot: Node3D = null) -> void:
 	_cancel_gather_and_butcher()
 	_sleep_spot = spot
 	_sleep_left = spot.sleep_duration()
+	if anim:
+		anim.start_sleep()
 	notice("Sleeping - move to wake")
 
 func _interact() -> void:
