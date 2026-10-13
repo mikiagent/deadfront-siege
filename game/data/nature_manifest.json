@@ -144,8 +144,8 @@
     },
     "BushBerries": {
       "models": [
-        "BushBerries_1",
-        "BushBerries_2"
+        "res://assets/nature/generated/bush-berries-a.glb",
+        "res://assets/nature/generated/bush-berries-b.glb"
       ],
       "role": "bush",
       "climates": [
@@ -163,12 +163,16 @@
         ]
       },
       "tool_class": null,
-      "collision": "none"
+      "collision": "none",
+      "depleted_models": {
+        "res://assets/nature/generated/bush-berries-a.glb": "res://assets/nature/generated/bush-berries-a-empty.glb",
+        "res://assets/nature/generated/bush-berries-b.glb": "res://assets/nature/generated/bush-berries-b-empty.glb"
+      }
     },
     "berry_bush": {
       "models": [
-        "BushBerries_1",
-        "BushBerries_2"
+        "res://assets/nature/generated/bush-berries-a.glb",
+        "res://assets/nature/generated/bush-berries-b.glb"
       ],
       "role": "bush",
       "climates": [
@@ -183,7 +187,11 @@
       },
       "tool_class": null,
       "collision": "none",
-      "pool": 10
+      "pool": 10,
+      "depleted_models": {
+        "res://assets/nature/generated/bush-berries-a.glb": "res://assets/nature/generated/bush-berries-a-empty.glb",
+        "res://assets/nature/generated/bush-berries-b.glb": "res://assets/nature/generated/bush-berries-b-empty.glb"
+      }
     },
     "mud": {
       "models": [

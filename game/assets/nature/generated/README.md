@@ -34,3 +34,10 @@ Material-swap variants (recolored base-color texture of the committed meshes, no
 - `tree-birch-dead.glb`: birch-a with dried brown foliage.
 
 Foliage regrade (Sep 24): the green trees (common a/b, birch a/b, pine-a, acacia-a, palm-a, palm-twin, willow a/b) had neon lime foliage albedo that read as highlighter green under the island's warm light. Their base-color textures were recolored toward deeper, less saturated greens: hue about 105 degrees, saturation capped at 0.45, foliage brightness normalized to V 0.38. Foliage now averages about RGB (70,97,55), matching the dark natural greens in docs/reference/durango-*. Snow, dead and autumn variants are unchanged.
+
+Accepted berry bushes (October13, 2026; corrected pairs from8f771cc):
+- `bush-berries-a.glb`: natural branchy green shrub with small matte raspberry/magenta berries.
+- `bush-berries-a-empty.glb`: identicala foliage, no berries.
+- `bush-berries-b.glb`: broad low dome shrub, small matte berries.
+- `bush-berries-b-empty.glb`: identicalb foliage, no berries or baked fruit-like blobs.
+Both pairs use one merged mesh with shared origin/scale. BushBerries and berry_bush explicitly map these full/empty paths in nature_manifest.json. Visual state follows the berry pool independently of other yields, remains empty when all pools are depleted, and returns when berries refill. No snowc pair exists; snow bushes remain unchanged. Earlier candy-likea berries and sapling/blobbedb pair from3c11345 were rejected, superseded by8f771cc.

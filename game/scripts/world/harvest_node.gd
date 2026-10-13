@@ -32,6 +32,8 @@ var _mesh: MeshInstance3D
 var _falling: bool = false
 var _batch: VegBatch
 var _batch_idx: int = -1
+var _empty_batch: VegBatch
+var _empty_batch_idx: int = -1
 var _tile: Vector2i = Vector2i.ZERO
 var _regen_left: float = 0.0
 
@@ -131,11 +133,13 @@ func _process(delta: float) -> void:
 		else:
 			_pool_regen[item] = left
 	_regen_left = _min_regen()
-	if refilled and depleted:
+	if refilled:
+		var was_depleted := depleted
 		depleted = false
 		pool = float(pool_max)
 		_sync_visual_state()
-		regrown_tile.emit(self, _tile)
+		if was_depleted:
+			regrown_tile.emit(self, _tile)
 
 func _min_regen() -> float:
 	var best := 0.0
@@ -267,6 +271,8 @@ func consume_unit() -> bool:
 	session_gathered += 1
 	if _all_empty():
 		_on_pool_empty()
+	elif _empty_batch:
+		_sync_visual_state()
 	return true
 
 func pool_units_left() -> int:
@@ -312,9 +318,11 @@ func _spawn_log() -> void:
 	# ASSUMPTION: felled tree becomes a WoodLog prop for a second harvest; tree respawns after regen.
 
 ## Visual lives in a shared MultiMesh (VegBatch); this node only toggles its instance.
-func set_batched_visual(batch: VegBatch, idx: int) -> void:
+func set_batched_visual(batch: VegBatch, idx: int, empty_batch: VegBatch = null, empty_idx: int = -1) -> void:
 	_batch = batch
 	_batch_idx = idx
+	_empty_batch = empty_batch
+	_empty_batch_idx = empty_idx
 	if _mesh:
 		_mesh.visible = false
 	_apply_batch()
@@ -324,8 +332,21 @@ func _set_tap_zone(on: bool) -> void:
 	if z:
 		z.collision_layer = 2 if on else 0
 
+func berries_available() -> bool:
+	for item in ["berry", "berries"]:
+		if pools.has(item) and units_left_for(StringName(item)) > 0:
+			return true
+	return false
+
+func refresh_batched_visual() -> void:
+	_apply_batch()
+
 func _apply_batch() -> void:
-	if _batch:
+	if _empty_batch:
+		var full := berries_available()
+		_batch.set_shown(_batch_idx, visible and full)
+		_empty_batch.set_shown(_empty_batch_idx, visible and not full)
+	elif _batch:
 		_batch.set_shown(_batch_idx, visible and not depleted)
 	_set_tap_zone(visible and not depleted)
 
@@ -375,20 +396,25 @@ func _on_pool_empty() -> void:
 		visible = false
 		queue_free()
 		return
+	if _empty_batch:
+		_sync_visual_state()
+		return
 	visible = false
 	collision_layer = 0
 
 func _sync_visual_state() -> void:
 	depleted = _all_empty()
 	if depleted:
-		visible = false
+		visible = _empty_batch != null
 		collision_layer = 0
+		_apply_batch()
 		return
 	if falls_to_log:
 		rotation = Vector3.ZERO
 		_falling = false
 	visible = true
 	collision_layer = 1
+	_apply_batch()
 
 func regen_left() -> float:
 	return _regen_left

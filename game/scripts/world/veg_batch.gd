@@ -7,6 +7,7 @@ static var _height_cache: Dictionary = {}
 
 var _xforms: Array[Transform3D] = []
 var _committed: bool = false
+var _shown: Dictionary = {}
 
 static func get_for(host: Node3D, path: String) -> VegBatch:
 	var key := "VegBatch_" + path.get_file().get_basename()
@@ -40,12 +41,14 @@ func add(xf: Transform3D) -> int:
 func commit() -> void:
 	multimesh.instance_count = _xforms.size()
 	for i in _xforms.size():
-		multimesh.set_instance_transform(i, _xforms[i])
+		var shown := bool(_shown.get(i, true))
+		multimesh.set_instance_transform(i, _xforms[i] if shown else Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * 0.001), _xforms[i].origin))
 	_committed = true
 
 func set_shown(i: int, shown: bool) -> void:
 	if i < 0 or i >= _xforms.size() or not _committed:
 		return
+	_shown[i] = shown
 	if shown:
 		multimesh.set_instance_transform(i, _xforms[i])
 	else:

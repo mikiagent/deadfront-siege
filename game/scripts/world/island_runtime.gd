@@ -723,6 +723,9 @@ func _scatter(def: Dictionary, terrain: StringName, climate: String, tier: int, 
 	_scatter_special_tiles(climate, tier, rng)
 	for b in _batches:
 		b.commit()
+	for node in _harvest_nodes.values():
+		if is_instance_valid(node):
+			node.refresh_batched_visual()
 	_commit_tree_discs()
 
 ## Plants a family in clumps of 3-6 (thickets and clearings, like the reference), on free
@@ -757,6 +760,15 @@ func _plant_family(family: String, role: String, n: int, fallback_id: StringName
 			var tile := BuildGrid.tile_of(pos)
 			if _used_tiles.has(tile):
 				continue
+			if Data.nature_families.get(fam, {}).has("depleted_models"):
+				var crowded := false
+				var centre_pos := BuildGrid.tile_centre(tile, self)
+				for other in _harvest_nodes.values():
+					if is_instance_valid(other) and Data.nature_families.get(other.family, {}).has("depleted_models") and Vector2(other.position.x - centre_pos.x, other.position.z - centre_pos.z).length() < 3.8:
+						crowded = true
+						break
+				if crowded:
+					continue
 			placed += _plant_at(fam, "%s_%s_%d" % [fam.to_lower(), role, placed], pos, fallback_id, tool, climate, material_level(pos, tier), color)
 	return placed
 
@@ -851,8 +863,17 @@ func _attach_batched(node: HarvestNode, path: String, role: String, family: Stri
 	var scale := _target_height(role, family) / h
 	var yaw := float(hash(str(pos)) % 628) / 100.0
 	var basis := Basis.IDENTITY.rotated(Vector3.UP, yaw).scaled(Vector3.ONE * scale)
-	var idx := batch.add(Transform3D(basis, pos))
-	node.set_batched_visual(batch, idx)
+	var xf := Transform3D(basis, pos)
+	var idx := batch.add(xf)
+	var variants: Dictionary = Data.nature_families.get(family, {}).get("depleted_models", {})
+	var empty_path := str(variants.get(path, ""))
+	var empty_batch: VegBatch = VegBatch.get_for(self, empty_path) if empty_path != "" else null
+	var empty_idx := -1
+	if empty_batch:
+		if not _batches.has(empty_batch):
+			_batches.append(empty_batch)
+		empty_idx = empty_batch.add(xf)
+	node.set_batched_visual(batch, idx, empty_batch, empty_idx)
 	if role.begins_with("tree") or family == "tree_stump":
 		_tree_disc_xforms.append(Transform3D(Basis.IDENTITY, pos + Vector3(0, 0.08, 0)))
 
