@@ -19,9 +19,10 @@ var dead: bool = false
 var blocks_regen: bool = false
 var fatigue_gain_mult: float = 1.0
 var fatigue_log: Dictionary = {}
-## ASSUMPTION: Exhaustion rises by 100 over 45 minutes even at rest, plus exertion.
-## It is a soft governor: at 50+ stamina regenerates more slowly; at 75+ its
-## maximum is reduced. Neither state starves the survivor or disables gathering.
+## Owner balance: halve all positive exhaustion gains, including exertion/statuses.
+## Baseline now takes 90 minutes to fill; food/rest keep their full reductions.
+## Tired/severe/exhausted carry stronger stamina penalties without blocking work.
+const FATIGUE_ACCUMULATION_MULT := 0.5
 const EXHAUSTION_PER_SEC := 100.0 / (45.0 * 60.0)
 
 ## ASSUMPTION: Health regen is 0.8 HP/s while not blocked.
@@ -47,15 +48,22 @@ func _process(delta: float) -> void:
 	if not blocks_regen and _regen_lock <= 0.0:
 		health = minf(effective_max_health(), health + health_regen * delta)
 	_stamina_lock = maxf(0.0, _stamina_lock - delta)
-	var strain := fatigue / maxf(1.0, max_fatigue)
-	var stam_cap := max_energy * (0.75 if strain >= 0.75 else 1.0)
+	var stam_cap := max_energy * stamina_cap_mult()
 	if _stamina_lock <= 0.0:
-		energy = minf(stam_cap, energy + (STAMINA_REGEN_COMBAT if in_combat else STAMINA_REGEN_CALM) * (0.65 if strain >= 0.5 else 1.0) * delta)
+		energy = minf(stam_cap, energy + (STAMINA_REGEN_COMBAT if in_combat else STAMINA_REGEN_CALM) * stamina_regen_mult() * delta)
 	energy = minf(energy, stam_cap)
 	_sync_exhausted()
 
+func stamina_cap_mult() -> float:
+	var strain := fatigue / maxf(1.0, max_fatigue)
+	return 0.5 if strain >= 0.75 else (0.65 if strain >= 0.5 else (0.85 if strain >= 0.25 else 1.0))
+
+func stamina_regen_mult() -> float:
+	var strain := fatigue / maxf(1.0, max_fatigue)
+	return 0.2 if strain >= 0.75 else (0.35 if strain >= 0.5 else (0.5 if strain >= 0.25 else 1.0))
+
 func _sync_exhausted() -> void:
-	var on := fatigue >= max_fatigue * 0.95
+	var on := fatigue >= max_fatigue * 0.75
 	if on != exhausted:
 		exhausted = on
 		exhausted_changed.emit(on)
@@ -95,7 +103,7 @@ func eat(amount: float) -> void:
 	rest(amount * 0.25)
 
 func add_fatigue(amount: float, source: StringName = &"") -> void:
-	var add := amount * fatigue_gain_mult
+	var add := amount * fatigue_gain_mult * (FATIGUE_ACCUMULATION_MULT if amount > 0.0 else 1.0)
 	fatigue = clampf(fatigue + add, 0.0, max_fatigue)
 	_sync_exhausted()
 	if source != &"" and add > 0.0:

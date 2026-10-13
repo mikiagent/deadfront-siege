@@ -1481,7 +1481,10 @@ func _nearest_sleep_spot() -> Node3D:
 func _start_sleep(spot: Node3D = null) -> void:
 	if spot == null:
 		spot = _nearest_sleep_spot()
-	if spot == null or not is_instance_valid(spot) or not spot.is_in_group("sleep_spot") or global_position.distance_to(spot.global_position) > 3.2 or int(spot.get("sleeps_left")) == 0:
+	if spot == null or not is_instance_valid(spot) or not spot.is_in_group("sleep_spot") or int(spot.get("sleeps_left")) == 0:
+		return
+	if global_position.distance_to(spot.global_position) > 3.2:
+		notice("Move closer to sleep")
 		return
 	if vitals.in_combat or (Time.get_ticks_msec() * 0.001 - _last_hit_taken_s) < 5.0 or dead:
 		notice("Can't sleep in combat")
@@ -1672,7 +1675,7 @@ func _building_interact(b: Node) -> void:
 		open_station_craft(b as Node3D)
 		return
 	if b.is_in_group("sleep_spot"):
-		_start_sleep(b as Node3D)
+		open_station_craft(b as Node3D)
 		return
 	if str(b.get("kind")) == "basket" and b.get("storage") and ui:
 		if summoned_pet and is_instance_valid(summoned_pet) and summoned_pet.pet_record and summoned_pet.pet_record.bag:

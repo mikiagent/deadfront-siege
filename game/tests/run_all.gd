@@ -322,7 +322,7 @@ func _test_exhaustion() -> void:
 	v.fatigue = 100.0
 	v.energy = 100.0
 	v._process(0.1)
-	_expect(is_equal_approx(v.energy, 75.0), "high exhaustion caps Energy at 75 percent")
+	_expect(is_equal_approx(v.energy, 50.0), "exhaustion caps Energy at 50 percent")
 	var saved := v.to_dict()
 	_expect(not saved.has("hunger") and not saved.has("thirst") and saved.has("fatigue"), "player save keeps exhaustion without hunger or thirst")
 	var restored := Vitals.new()
@@ -330,6 +330,14 @@ func _test_exhaustion() -> void:
 	_expect(is_equal_approx(restored.fatigue, 100.0) and restored.exhausted, "exhaustion survives save/load")
 	restored.rest(100.0)
 	_expect(is_equal_approx(restored.fatigue, 0.0) and not restored.exhausted, "sleep rest clears exhaustion")
+	v.fatigue = 0.0
+	v.add_fatigue(20.0, &"gather")
+	_expect(is_equal_approx(v.fatigue, 10.0), "positive exertion fatigue is halved")
+	v.rest(5.0)
+	_expect(is_equal_approx(v.fatigue, 5.0), "rest reduction is not halved")
+	for row in [[24.0, 1.0, 1.0], [25.0, 0.85, 0.5], [50.0, 0.65, 0.35], [75.0, 0.5, 0.2]]:
+		v.fatigue = row[0]
+		_expect(is_equal_approx(v.stamina_cap_mult(), row[1]) and is_equal_approx(v.stamina_regen_mult(), row[2]), "fatigue stage penalties at %s" % row[0])
 	v.free()
 	restored.free()
 

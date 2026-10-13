@@ -81,6 +81,8 @@ func _on_menu_action(st: Node3D, action_id: StringName) -> void:
 				cui.show_for_station(station_id_of(st))
 			else:
 				open_station(st)
+		&"sleep":
+			player._start_sleep(st)
 		&"cauterise":
 			if st is Bonfire:
 				(st as Bonfire).cauterise(player)

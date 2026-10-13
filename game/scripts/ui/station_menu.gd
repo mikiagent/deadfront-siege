@@ -17,6 +17,9 @@ const EXPAND_SECONDS := 0.22
 
 ## Per-station hexes. icon resolves through data/icons_manifest.json, glyph is the fallback.
 const ACTIONS := {
+	&"tent": [{"id": &"sleep", "label": "SLEEP", "icon": "", "glyph": "☾"}],
+	&"canvas_tent": [{"id": &"sleep", "label": "SLEEP", "icon": "", "glyph": "☾"}],
+	&"straw_roll": [{"id": &"sleep", "label": "SLEEP", "icon": "", "glyph": "☾"}],
 	&"workbench": [{"id": &"craft", "label": "CRAFT", "icon": "hammer", "glyph": "🔨"}],
 	&"bonfire": [{"id": &"cook", "label": "COOK", "icon": "skewer", "glyph": "🍖"}],
 	&"campfire": [{"id": &"cook", "label": "COOK", "icon": "skewer", "glyph": "🍖"}],
