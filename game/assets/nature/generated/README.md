@@ -43,3 +43,8 @@ Accepted berry bushes (October13, 2026; corrected pairs from8f771cc):
 Both pairs use one merged mesh with shared origin/scale. BushBerries and berry_bush explicitly map these full/empty paths in nature_manifest.json. Visual state follows the berry pool independently of other yields, remains empty when all pools are depleted, and returns when berries refill. No snowc pair exists; snow bushes remain unchanged. Earlier candy-likea berries and sapling/blobbedb pair from3c11345 were rejected, superseded by8f771cc.
 
 October14 resolver follow-up: plain `Bush` and `Bush_Snow` also reference the existinga/b-empty foliage GLBs, without duplicating files or adding berries to fibre/herb pools. Snow bushes temporarily use green foliage until an accepted snow custom variant exists. Grass/Grass_Short/WildGrass remain ground cover, not shrub substitutions.
+
+Nature wave (October 14, 2026): rocks and ground plants, all `meshy-6-lite`, one merged opaque mesh each, 1k JPEG, base on Y=0, centered. See docs/orchestration/reports/claude-nature-wave-rocks-plants.md for task IDs, credits, rejects and proposed mappings (not wired).
+- `rock-a.glb`, `rock-moss-a.glb`, `rock-snow-a.glb`: weathered boulder; moss and snow are painted texture variants of the same mesh.
+- `cactusflowers-a.glb`, `corn-a.glb`, `grass-a.glb`, `grass-short-a.glb`, `wildgrass-a.glb`, `plant-a.glb`, `wheat-a.glb`. Base soil pads Meshy added under the small plants were trimmed locally.
+Stumps and logs (`treestump-*`, `woodlog-*`) are props, under game/assets/props/meshy/. No accepted Flowers or Lilypad yet.
