@@ -41,3 +41,5 @@ Accepted berry bushes (October13, 2026; corrected pairs from8f771cc):
 - `bush-berries-b.glb`: broad low dome shrub, small matte berries.
 - `bush-berries-b-empty.glb`: identicalb foliage, no berries or baked fruit-like blobs.
 Both pairs use one merged mesh with shared origin/scale. BushBerries and berry_bush explicitly map these full/empty paths in nature_manifest.json. Visual state follows the berry pool independently of other yields, remains empty when all pools are depleted, and returns when berries refill. No snowc pair exists; snow bushes remain unchanged. Earlier candy-likea berries and sapling/blobbedb pair from3c11345 were rejected, superseded by8f771cc.
+
+October14 resolver follow-up: plain `Bush` and `Bush_Snow` also reference the existinga/b-empty foliage GLBs, without duplicating files or adding berries to fibre/herb pools. Snow bushes temporarily use green foliage until an accepted snow custom variant exists. Grass/Grass_Short/WildGrass remain ground cover, not shrub substitutions.

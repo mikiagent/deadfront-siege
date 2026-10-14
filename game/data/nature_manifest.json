@@ -120,8 +120,8 @@
     },
     "Bush": {
       "models": [
-        "Bush_1",
-        "Bush_2"
+        "res://assets/nature/generated/bush-berries-a-empty.glb",
+        "res://assets/nature/generated/bush-berries-b-empty.glb"
       ],
       "role": "bush",
       "climates": [
@@ -235,8 +235,8 @@
     },
     "Bush_Snow": {
       "models": [
-        "Bush_Snow_1",
-        "Bush_Snow_2"
+        "res://assets/nature/generated/bush-berries-a-empty.glb",
+        "res://assets/nature/generated/bush-berries-b-empty.glb"
       ],
       "role": "bush",
       "climates": [
