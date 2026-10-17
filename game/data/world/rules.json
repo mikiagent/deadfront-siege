@@ -53,6 +53,15 @@
     }
   },
   "level_cap": 60,
+  "fatigue": {
+    "_about": "ASSUMPTION: our own starting values, tune in playtests. Level gap = zone level minus character level. Each level over adds gap_up_rate to every non-baseline fatigue gain, each level under removes gap_down_rate, clamped to [gap_min, gap_max]. Climate fatigue = unmet resistance points x climate_per_min. Window is the seconds a source keeps counting in the breakdown panel.",
+    "gap_up_rate": 0.06,
+    "gap_down_rate": 0.04,
+    "gap_min": 0.5,
+    "gap_max": 2.0,
+    "climate_per_min": 4.0,
+    "breakdown_window_s": 180.0
+  },
   "gathering_downrank": "node level above Gathering skill level is reduced to the skill level",
   "crafted_level": "floor(mean of consumed material levels), clamped by governing skill level and recipe max_level",
   "rare_attribute_chance": 0.05,

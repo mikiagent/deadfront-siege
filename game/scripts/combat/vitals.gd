@@ -19,6 +19,16 @@ var dead: bool = false
 var blocks_regen: bool = false
 var fatigue_gain_mult: float = 1.0
 var fatigue_log: Dictionary = {}
+## Island level versus survivor level, set by the island each frame (ProgressionScaling.fatigue_level_factor).
+## Applies to every gain except the baseline clock, so over-levelled ground tires you faster.
+var level_gap_mult: float = 1.0
+## The two levels behind level_gap_mult, kept for the fatigue panel.
+var gap_zone_level: int = 0
+var gap_char_level: int = 0
+## Recent fatigue by source for the breakdown panel: source -> {"v": decayed total, "t": last update, seconds}.
+var _recent: Dictionary = {}
+## Seconds a source keeps counting in the breakdown. The island sets it from rules.json (fatigue.breakdown_window_s).
+var breakdown_window_s: float = 180.0
 ## Owner balance: halve all positive exhaustion gains, including exertion/statuses.
 ## Baseline now takes 90 minutes to fill; food/rest keep their full reductions.
 ## Tired/severe/exhausted carry stronger stamina penalties without blocking work.
@@ -103,11 +113,40 @@ func eat(amount: float) -> void:
 	rest(amount * 0.25)
 
 func add_fatigue(amount: float, source: StringName = &"") -> void:
-	var add := amount * fatigue_gain_mult * (FATIGUE_ACCUMULATION_MULT if amount > 0.0 else 1.0)
+	var gap := level_gap_mult if (amount > 0.0 and source != &"time") else 1.0
+	var add := amount * fatigue_gain_mult * gap * (FATIGUE_ACCUMULATION_MULT if amount > 0.0 else 1.0)
 	fatigue = clampf(fatigue + add, 0.0, max_fatigue)
 	_sync_exhausted()
 	if source != &"" and add > 0.0:
 		fatigue_log[str(source)] = float(fatigue_log.get(str(source), 0.0)) + add
+		_note_recent(str(source), add)
+
+func _window_s() -> float:
+	return maxf(10.0, breakdown_window_s)
+
+func _note_recent(source: String, add: float) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	var row: Dictionary = _recent.get(source, {"v": 0.0, "t": now})
+	row["v"] = float(row["v"]) * exp(-(now - float(row["t"])) / _window_s()) + add
+	row["t"] = now
+	_recent[source] = row
+
+## Share of recent fatigue per source, largest first: [{"source", "share", "amount"}].
+## Each source fades with a time constant of breakdown_window_s, so the panel shows what is tiring you now.
+func fatigue_breakdown() -> Array[Dictionary]:
+	var now := Time.get_ticks_msec() / 1000.0
+	var rows: Array[Dictionary] = []
+	var total := 0.0
+	for source in _recent:
+		var row: Dictionary = _recent[source]
+		var v := float(row["v"]) * exp(-(now - float(row["t"])) / _window_s())
+		if v > 0.01:
+			rows.append({"source": source, "amount": v})
+			total += v
+	for r in rows:
+		r["share"] = float(r["amount"]) / maxf(0.0001, total)
+	rows.sort_custom(func (a: Dictionary, b: Dictionary) -> bool: return float(a["amount"]) > float(b["amount"]))
+	return rows
 
 func rest(amount: float) -> void:
 	fatigue = clampf(fatigue - amount, 0.0, max_fatigue)

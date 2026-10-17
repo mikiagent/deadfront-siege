@@ -40,6 +40,13 @@ static func specialist_multiplier(skill_level: int) -> float:
 static func zone_pressure(zone_level: int, skill_level: int) -> float:
 	return 1.0 + float(maxi(0, zone_level - maxi(1, skill_level))) * ZONE_MISMATCH_RATE
 
+## Fatigue multiplier from the gap between the island's level and the survivor's level.
+## Over-levelled islands tire you faster, under-levelled ones slower. Values in rules.json.
+static func fatigue_level_factor(zone_level: int, character_level: int, cfg: Dictionary = {}) -> float:
+	var gap := zone_level - maxi(1, character_level)
+	var rate := float(cfg.get("gap_up_rate", 0.06)) if gap > 0 else float(cfg.get("gap_down_rate", 0.04))
+	return clampf(1.0 + float(gap) * rate, float(cfg.get("gap_min", 0.5)), float(cfg.get("gap_max", 2.0)))
+
 static func gather_seconds(base_seconds: float, zone_level: int, tool_level: int, tier: StringName, skill_level: int) -> float:
 	var effort := zone_pressure(zone_level, skill_level)
 	var ability := tool_power(tool_level, tier) * specialist_multiplier(skill_level)

@@ -1201,6 +1201,14 @@ func _weather(delta: float) -> void:
 		print("[world] rain")
 	if p:
 		p.tick_climate_fatigue(delta, _climate)
+		if p.vitals:
+			var char_level := p.skills.character_level() if p.skills else 1
+			var zone_level := material_level(p.global_position, _tier)
+			p.vitals.gap_zone_level = zone_level
+			p.vitals.gap_char_level = char_level
+			var fatigue_cfg: Dictionary = Data.world_rules.get("fatigue", {}) as Dictionary
+			p.vitals.breakdown_window_s = float(fatigue_cfg.get("breakdown_window_s", 180.0))
+			p.vitals.level_gap_mult = ProgressionScaling.fatigue_level_factor(zone_level, char_level, fatigue_cfg)
 
 func _palette_for(climate: String) -> Dictionary:
 	return ClimatePalette.resolve(Data.world_climates.get(climate, {}))

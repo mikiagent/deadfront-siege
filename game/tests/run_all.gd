@@ -7,6 +7,7 @@ func _init() -> void:
 	_test_save_migrations()
 	_test_food_buffs()
 	_test_exhaustion()
+	_test_fatigue_level_gap()
 	_test_climate_palette()
 	_test_creature_genetics()
 	_test_progression_scaling()
@@ -94,6 +95,11 @@ func _test_food_buffs() -> void:
 	_expect(is_equal_approx(buffs.multiplier("damage"), 1.5), "food buff multipliers stack")
 	buffs.tick(2.1)
 	_expect(is_equal_approx(buffs.multiplier("damage"), 1.2), "expired food buff is removed")
+	var resist := FoodBuffState.new()
+	resist.apply(&"cooling", {"duration": 5.0, "stat": "heat_resist", "add": 1.0})
+	_expect(is_equal_approx(resist.added("heat_resist"), 1.0) and is_equal_approx(resist.added("cold_resist"), 0.0), "additive buffs sum per stat")
+	resist.tick(5.1)
+	_expect(is_equal_approx(resist.added("heat_resist"), 0.0), "expired additive buff is removed")
 
 func _test_sleep_building_save() -> void:
 	var script := load("res://scripts/world/placed_building.gd") as GDScript
@@ -346,6 +352,33 @@ func _test_climate_palette() -> void:
 	_expect(palette.get("grass") == Color.WHITE, "white climate override is accepted")
 	_expect(palette.get("sand") == Color.from_string("#123456", Color.BLACK), "hex climate override is parsed")
 	_expect(palette.has("rock"), "default climate colours remain present")
+
+func _test_fatigue_level_gap() -> void:
+	var cfg := {"gap_up_rate": 0.06, "gap_down_rate": 0.04, "gap_min": 0.5, "gap_max": 2.0}
+	_expect(is_equal_approx(ProgressionScaling.fatigue_level_factor(20, 20, cfg), 1.0), "even level gap leaves fatigue unchanged")
+	_expect(is_equal_approx(ProgressionScaling.fatigue_level_factor(30, 20, cfg), 1.6), "ten levels over adds sixty percent")
+	_expect(is_equal_approx(ProgressionScaling.fatigue_level_factor(10, 20, cfg), 0.6), "ten levels under removes forty percent")
+	_expect(is_equal_approx(ProgressionScaling.fatigue_level_factor(1, 60, cfg), 0.5), "easy ground floors at half")
+	_expect(is_equal_approx(ProgressionScaling.fatigue_level_factor(60, 1, cfg), 2.0), "brutal ground caps at double")
+	_expect(is_equal_approx(ProgressionScaling.fatigue_level_factor(25, 10), 1.9), "missing config falls back to the default rates")
+	var v := Vitals.new()
+	v.level_gap_mult = 2.0
+	v.add_fatigue(10.0, &"gather")
+	_expect(is_equal_approx(v.fatigue, 10.0), "level gap multiplies exertion fatigue (10 x 0.5 x 2)")
+	v.fatigue = 0.0
+	v.add_fatigue(10.0, &"time")
+	_expect(is_equal_approx(v.fatigue, 5.0), "the baseline clock ignores the level gap")
+	v = Vitals.new()
+	v.add_fatigue(8.0, &"climate_cold")
+	v.add_fatigue(2.0, &"combat")
+	var rows := v.fatigue_breakdown()
+	_expect(rows.size() == 2 and str(rows[0]["source"]) == "climate_cold", "breakdown lists the largest source first")
+	_expect(is_equal_approx(float(rows[0]["share"]) + float(rows[1]["share"]), 1.0), "breakdown shares sum to one")
+	_expect(absf(float(rows[0]["share"]) - 0.8) < 0.02, "breakdown share follows the amounts (8 of 10)")
+	v.rest(100.0)
+	_expect(v.fatigue_breakdown().size() == 2, "rest does not erase what tired you")
+	var fresh := Vitals.new()
+	_expect(fresh.fatigue_breakdown().is_empty(), "a fresh survivor has nothing to explain")
 
 func _test_progression_scaling() -> void:
 	_expect(ProgressionScaling.TOOL_TIERS == [&"stone", &"bone", &"flint", &"obsidian", &"copper", &"bronze", &"iron", &"steel"], "tool tier ladder keeps owner order")

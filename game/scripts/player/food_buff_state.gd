@@ -29,6 +29,15 @@ func multiplier(stat: String) -> float:
 			value *= float(row.get("mult", 1.0))
 	return value
 
+## Sum of "add" rows for a stat, such as heat_resist or cold_resist.
+func added(stat: String) -> float:
+	var total := 0.0
+	for id in _active:
+		var row: Dictionary = _active[id].get("row", {})
+		if str(row.get("stat", "")) == stat and row.has("add"):
+			total += float(row.get("add", 0.0))
+	return total
+
 func to_dict() -> Dictionary:
 	return _active.duplicate(true)
 

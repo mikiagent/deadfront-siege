@@ -18,6 +18,8 @@ var _pets_hex: HexButton
 var _build_hex: HexButton
 var _skills_hex: HexButton
 var _inspect_hex: HexButton
+var _fatigue_rect := Rect2() ## screen rect of the fatigue face and bar, recorded in _draw; a tap opens the panel
+var _fatigue_panel: FatiguePanel
 var _sheet: PanelContainer
 var _sheet_kind: StringName = &""
 var _skills_panel: Control
@@ -68,6 +70,7 @@ func _ready() -> void:
 	if TouchControls:
 		TouchControls.hud_mode = true
 	_build_minimap()
+	_build_fatigue_panel()
 	_build_menu_row()
 	_build_combat()
 	_build_place_hexes()
@@ -100,6 +103,19 @@ func _ready() -> void:
 		get_tree().create_timer(0.9).timeout.connect(_open_map)
 	if Game.shot_path.contains("exhaustion") and player:
 		player.vitals.fatigue = 96.0 if Game.shot_path.contains("sad") else (60.0 if Game.shot_path.contains("weary") else 0.0)
+	if Game.shot_path.contains("fatiguepanel") and player:
+		# Dev screenshot: a believable mix of causes, then the panel open under the gauge.
+		player.vitals.gap_zone_level = 35
+		player.vitals.gap_char_level = 25
+		player.vitals.level_gap_mult = 1.6
+		player.vitals.add_fatigue(6.0, &"climate_heat")
+		player.vitals.add_fatigue(4.0, &"walk")
+		player.vitals.add_fatigue(3.0, &"gather")
+		player.vitals.add_fatigue(2.0, &"combat")
+		get_tree().create_timer(0.5).timeout.connect(func () -> void:
+			_fatigue_panel.player = player
+			_fatigue_panel.toggle()
+			queue_redraw())
 	if Game.shot_path.contains("levelup"):
 		get_tree().create_timer(0.8).timeout.connect(func () -> void: World.pioneer_level += 1; World.pioneer_changed.emit(World.pioneer_level))
 	get_viewport().size_changed.connect(_layout)
@@ -803,6 +819,23 @@ func open_map() -> void:
 
 # ---------------------------------------------------------------- per frame
 
+func _build_fatigue_panel() -> void:
+	_fatigue_panel = FatiguePanel.new()
+	_fatigue_panel.player = player
+	_fatigue_panel.visible = false
+	add_child(_fatigue_panel)
+
+## A tap on the fatigue face or bar opens "what is tiring you".
+func _input(event: InputEvent) -> void:
+	if player == null or player.dead or _fatigue_panel == null:
+		return
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if _fatigue_rect.has_point(event.position):
+			_fatigue_panel.player = player
+			_fatigue_panel.toggle()
+			queue_redraw()
+			get_viewport().set_input_as_handled()
+
 func _process(delta: float) -> void:
 	if player == null:
 		return
@@ -910,6 +943,9 @@ func _draw() -> void:
 	draw_string(_font, Vector2(x + 27.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, bar_w - 30.0, bar_px, face_col)
 	yy += 22.0
 	_bar(Vector2(x, yy), Vector2(bar_w, small), strain, face_col, "", "%d%%" % int(strain * 100.0), bar_px)
+	_fatigue_rect = Rect2(x, face_pos.y - 14.0, bar_w, maxf(UiTokens.TARGET_MIN, yy + small - face_pos.y + 14.0))
+	if _fatigue_panel and _fatigue_panel.visible:
+		_fatigue_panel.position = Vector2(_fatigue_rect.position.x, _fatigue_rect.end.y + 8.0)
 	# status badges live under the minimap (right side), left of the Claim hex
 	var mp0 := _minimap.position
 	var sx := mp0.x

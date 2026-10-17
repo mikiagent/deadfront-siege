@@ -1724,19 +1724,60 @@ func _in_coziness() -> bool:
 			return true
 	return false
 
+## Climate tokens in data/world/climates.json, grouped by what resists them. Weak = 1 point, high = 2,
+## volcanic = 3. Humidity and sun add one point of pressure to the heat group, wind to the cold group.
+## The climate of the island the survivor is on, set by the island each frame. The fatigue panel reads it.
+var current_climate: String = ""
+
+const _HEAT_TOKENS := {"heat_weak": 1, "heat_high": 2, "heat_volcanic": 3}
+const _COLD_TOKENS := {"cold_weak": 1, "cold_high": 2}
+
+## Resistance points the survivor has now. ASSUMPTION: a Cooling or Warming Meal gives +1 (its "add"
+## row), and the matching tailoring unlock gives +1. Clothing carries no climate value yet.
+func climate_resistance() -> Dictionary:
+	var heat := food_buffs.added("heat_resist")
+	var cold := food_buffs.added("cold_resist")
+	if skills:
+		heat += 1.0 if skills.is_unlocked("tailoring", "heat_resist") else 0.0
+		cold += 1.0 if skills.is_unlocked("tailoring", "cold_resist") else 0.0
+	return {"heat": heat, "cold": cold}
+
+## Resistance points the climate asks for: {"heat": n, "cold": n}.
+func climate_needs(climate: String) -> Dictionary:
+	var resists: Array = (Data.world_climates.get(climate, {}) as Dictionary).get("resist", [])
+	var heat := 0
+	var cold := 0
+	for token in resists:
+		heat = maxi(heat, int(_HEAT_TOKENS.get(str(token), 0)))
+		cold = maxi(cold, int(_COLD_TOKENS.get(str(token), 0)))
+	if heat > 0 and ("sun" in resists or "humidity" in resists):
+		heat += 1
+	if cold > 0 and "wind" in resists:
+		cold += 1
+	return {"heat": heat, "cold": cold}
+
+## Unmet resistance points per group: {"heat": x, "cold": y}, never negative.
+func climate_shortfall(climate: String) -> Dictionary:
+	var need := climate_needs(climate)
+	var have := climate_resistance()
+	return {
+		"heat": maxf(0.0, float(need["heat"]) - float(have["heat"])),
+		"cold": maxf(0.0, float(need["cold"]) - float(have["cold"])),
+	}
+
+## Fatigue from climate = unmet resistance points x climate_per_min. Heat bites by day, cold at dawn,
+## dusk and night. ASSUMPTION: the old rule charged only weak climates at night, nothing by day.
 func tick_climate_fatigue(delta: float, climate: String) -> void:
+	current_climate = climate
 	if vitals == null:
 		return
-	var clim: Dictionary = Data.world_climates.get(climate, {})
-	var resists: Array = clim.get("resist", [])
-	if resists.is_empty():
-		return
-	# ASSUMPTION: unmatched climate resist costs 4 fatigue/min at night/dawn/dusk (PRD §4.4 has no number).
-	var phase := Game.phase_name()
-	if phase == &"day":
-		return
-	if "cold_weak" in resists or "heat_weak" in resists:
-		vitals.add_fatigue(delta * (4.0 / 60.0), &"climate")
+	var short := climate_shortfall(climate)
+	var per_min := float((Data.world_rules.get("fatigue", {}) as Dictionary).get("climate_per_min", 4.0))
+	var daytime := Game.phase_name() == &"day"
+	var group := "heat" if daytime else "cold"
+	var points := float(short[group])
+	if points > 0.0:
+		vitals.add_fatigue(delta * points * (per_min / 60.0), StringName("climate_" + group))
 
 func _ray() -> Dictionary:
 	var cam := get_viewport().get_camera_3d()
