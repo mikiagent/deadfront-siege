@@ -45,6 +45,7 @@ var _rain_fx: GPUParticles3D
 var _climate: String = "temperate"
 var _tier: int = 25
 var _level_override: int = 0
+var _wet_refresh: float = 0.0
 var _camp_pos: Vector3 = Vector3.ZERO
 var _harbour_pos: Vector3 = Vector3.ZERO
 var _camp_hint: Vector3 = Vector3.ZERO
@@ -1185,7 +1186,11 @@ func _weather(delta: float) -> void:
 	if raining:
 		_rain_left -= delta
 		if p:
-			p.statuses.apply(&"wet", null)
+			# Refresh once a second, not every frame, so the status log and its bookkeeping stay quiet.
+			_wet_refresh -= delta
+			if _wet_refresh <= 0.0 or not p.statuses.has(&"wet"):
+				p.statuses.apply(&"wet", null)
+				_wet_refresh = 1.0
 		if _rain_fx:
 			if p:
 				_rain_fx.global_position = p.global_position + Vector3(0, 10, 0)

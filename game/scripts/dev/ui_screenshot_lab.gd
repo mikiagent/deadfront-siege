@@ -129,6 +129,23 @@ func _audit_size(player: Player, size: Vector2i) -> void:
 		_expect(rect.position.x >= -1.0 and rect.position.y >= -1.0 and rect.end.x <= view.x + 1.0 and rect.end.y <= view.y + 1.0, "radial hex inside %s" % size)
 	await _shot(host, "radial_%dx%d" % [size.x, size.y])
 	radial.queue_free()
+	if size.x >= 1000:
+		# Right-edge case: three options close enough to the screen edge that a label cannot fit beside
+		# its hex. This is where "Branch Lv. 1" lost its first letters behind its own hex.
+		var edge := GatherRadial.new()
+		host.add_child(edge)
+		var edge_anchor := Node3D.new()
+		host.add_child(edge_anchor)
+		edge_anchor.position = Vector3(6.3, 0, 0.6)
+		var edge_options: Array = [
+			{"item": "bark_strip", "seconds": 2.2, "left": 15, "tool": "none", "min": 1, "max": 1},
+			{"item": "branch", "seconds": 1.6, "left": 30, "tool": "none", "min": 1, "max": 1},
+			{"item": "wood_log", "seconds": 3.0, "left": 15, "tool": "axe", "min": 1, "max": 1},
+		]
+		edge.open_options(edge_anchor, "Birch Tree", 1, 1.0, edge_options, player.inventory)
+		await get_tree().process_frame
+		await _shot(host, "radial_edge_%dx%d" % [size.x, size.y])
+		edge.queue_free()
 	hud.queue_free()
 
 func _viewport(size: Vector2i) -> Control:

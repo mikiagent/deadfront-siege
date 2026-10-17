@@ -218,9 +218,11 @@ func show_map() -> void:
 	_mode = &"map"
 
 func show_pause() -> void:
-	_fill("Paused", [["Save", &"save"], ["Resume", &"resume"]], func (id: StringName) -> void:
+	_fill("Paused", [["Save", &"save"], [DisplayMode.label(), &"fullscreen"], ["Resume", &"resume"]], func (id: StringName) -> void:
 		if id == &"save":
 			(load("res://scripts/core/save_game.gd") as GDScript).save_now()
+		elif id == &"fullscreen":
+			DisplayMode.toggle()  # runs inside the button press, which the browser needs for fullscreen
 		hide_all()
 	)
 

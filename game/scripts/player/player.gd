@@ -467,6 +467,7 @@ func _physics_process(delta: float) -> void:
 		var need := float(Data.world_rules.get("wet_after_seconds_in_water", 5))
 		if _wet_acc >= need:
 			statuses.apply(&"wet", null)
+			_wet_acc = need - 1.0  # keep refreshing while in water, once a second rather than every frame
 	else:
 		_wet_acc = 0.0
 	if _gathering:
@@ -1551,8 +1552,29 @@ func _interact() -> void:
 	if basket and global_position.distance_to(basket.global_position) < 2.8:
 		_building_interact(basket)
 		return
+	# Gathering from the interact key lets a controller (or keyboard) player harvest without a pointer.
+	var node := _nearest_harvest_node()
+	if node and _gather_radial:
+		var opts := node.options()
+		if not opts.is_empty():
+			_gather_radial.open(node, opts, inventory)
+			return
 	if summoned_pet and is_instance_valid(summoned_pet) and global_position.distance_to(summoned_pet.global_position) < 2.8:
 		_pet_interact(summoned_pet)
+
+## The closest harvest node within reach that still has something to give.
+func _nearest_harvest_node() -> HarvestNode:
+	var best: HarvestNode = null
+	var best_d := INTERACT_GATHER_RANGE
+	for n in get_tree().get_nodes_in_group("harvest"):
+		var hn := n as HarvestNode
+		if hn == null or not is_instance_valid(hn) or hn.pool_units_left() <= 0:
+			continue
+		var d := global_position.distance_to(hn.global_position)
+		if d < best_d:
+			best_d = d
+			best = hn
+	return best
 
 func _pen_interact(pen: TamingPen) -> void:
 	if pen.running:
@@ -1728,6 +1750,9 @@ func _in_coziness() -> bool:
 ## volcanic = 3. Humidity and sun add one point of pressure to the heat group, wind to the cold group.
 ## The climate of the island the survivor is on, set by the island each frame. The fatigue panel reads it.
 var current_climate: String = ""
+
+## How close a harvest node must be for the interact action to open its gather options.
+const INTERACT_GATHER_RANGE := 2.6
 
 const _HEAT_TOKENS := {"heat_weak": 1, "heat_high": 2, "heat_volcanic": 3}
 const _COLD_TOKENS := {"cold_weak": 1, "cold_high": 2}

@@ -251,7 +251,10 @@ func _physics_process(delta: float) -> void:
 	if health.dead or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act") or stagger_left > 0.0:
 		velocity.x = 0.0
 		velocity.z = 0.0
-		move_and_slide()
+		# A creature that is fading out has a collapsed scale; sliding it inverts a singular basis
+		# and logged an engine error every physics frame (found by the survivor bot).
+		if absf(global_transform.basis.determinant()) > 0.0001:
+			move_and_slide()
 		_update_label()
 		return
 	var speed := (pet_record.speed / 100.0 if is_pet and pet_record else move_speed_mps()) * statuses.move_mult() * (trap_move_mult if trap_left > 0.0 else 1.0)
@@ -291,7 +294,8 @@ func _physics_process(delta: float) -> void:
 		velocity.z = 0.0
 		if not anim._busy and not anim._forced:
 			anim.play_idle()
-	move_and_slide()
+	if absf(global_transform.basis.determinant()) > 0.0001:  # same guard as above: a collapsed scale cannot slide
+		move_and_slide()
 	current_clip = anim.current_clip
 	_status_fx()
 	_blood_trail()

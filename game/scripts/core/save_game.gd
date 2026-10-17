@@ -1,11 +1,21 @@
 extends RefCounted
 ## Snapshot C save. Schema 2. Ids only, never node references.
 
-const PATH := "user://save_1.json"
+## The bot plays on its own throwaway save, deleted at launch, so every bot run is a true first hour
+## and none of them can write into the real save.
+static var path: String = _pick_path()
+
+static func _pick_path() -> String:
+	if "--bot" in OS.get_cmdline_user_args():
+		var bot_path := "user://bot_save.json"
+		if FileAccess.file_exists(bot_path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(bot_path))
+		return bot_path
+	return "user://save_1.json"
 const SCHEMA := SaveMigrations.CURRENT_SCHEMA
 
 static func exists() -> bool:
-	return FileAccess.file_exists(PATH)
+	return FileAccess.file_exists(path)
 
 static func save_now() -> void:
 	var player := _player()
@@ -77,7 +87,7 @@ static func save_now() -> void:
 	}
 	if World.is_home():
 		World._home_buildings_cache = buildings
-	var f := FileAccess.open(PATH, FileAccess.WRITE)
+	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		print("[world] save failed")
 		return
@@ -86,7 +96,7 @@ static func save_now() -> void:
 	print("[world] saved schema=%d island=%s" % [SCHEMA, World.island_id])
 
 static func load_now(host: Node) -> void:
-	var f := FileAccess.open(PATH, FileAccess.READ)
+	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
 		World.start_new(host)
 		return

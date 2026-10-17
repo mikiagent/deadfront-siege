@@ -246,10 +246,13 @@ func _begin_fade() -> void:
 	collision_mask = 0
 	print("[world] corpse despawned %s" % species)
 	var tw := create_tween()
+	# Shrink to a sliver, not exactly zero: a CharacterBody3D with a zero scale has a singular basis and
+	# logged an engine error every physics frame for the last half second of the fade.
+	var sliver := Vector3.ONE * 0.001
 	if _marker:
-		tw.parallel().tween_property(_marker, "scale", Vector3.ZERO, 0.45)
+		tw.parallel().tween_property(_marker, "scale", sliver, 0.45)
 	if _owner and is_instance_valid(_owner):
-		tw.parallel().tween_property(_owner, "scale", Vector3.ZERO, 0.55)
+		tw.parallel().tween_property(_owner, "scale", sliver, 0.55)
 	tw.tween_interval(0.56)
 	if _owner and is_instance_valid(_owner):
 		tw.tween_callback(_owner.queue_free)

@@ -35,6 +35,9 @@ func _process(_delta: float) -> bool:
 	_test_counter_supplies()
 	_test_combat_counters()
 	_test_capture_threshold()
+	_test_dot_respects_capture_window()
+	_test_gamepad_bindings()
+	_test_gather_label_side()
 	_test_sleep_building_save()
 	_test_staged_sleep_tiers()
 	_test_save_with_craft_stations()
@@ -478,6 +481,90 @@ func _test_capture_threshold() -> void:
 	_expect(bool(script.call("health_allows_capture", 0.299)), "capture opens below 30 percent health")
 	_expect(not bool(script.call("health_allows_capture", 0.30)), "capture stays closed at 30 percent health")
 	_expect(not bool(script.call("health_allows_capture", 0.50)), "capture stays closed above threshold")
+
+## Bleed may wear a tameable animal down to the capture window but must not finish it there.
+func _test_dot_respects_capture_window() -> void:
+	for tameable in [true, false]:
+		var cr = (load("res://scripts/creatures/creature.gd") as GDScript).new()
+		cr.def = (load("res://scripts/creatures/creature_def.gd") as GDScript).new()
+		cr.def.archetype = &"pack_raptor"
+		cr.def.tameable = tameable
+		cr.health = (load("res://scripts/combat/health.gd") as GDScript).new()
+		cr.health.setup(100)
+		cr.add_child(cr.health)
+		cr.statuses = (load("res://scripts/combat/status_effects.gd") as GDScript).new()
+		cr.add_child(cr.statuses)
+		cr.statuses.apply(&"bleeding_target")
+		var inst = cr.statuses.instances()[0]
+		cr.health.hp = 50.0
+		cr.statuses._dot(inst)
+		_expect(cr.health.hp < 50.0, "bleed still wears a healthy animal down (tameable=%s)" % tameable)
+		cr.health.hp = 20.0
+		cr.statuses._dot(inst)
+		if tameable:
+			_expect(is_equal_approx(cr.health.hp, 20.0), "bleed stops inside the capture window on a tameable animal")
+		else:
+			_expect(cr.health.hp < 20.0, "bleed still finishes a non-tameable animal")
+		cr.free()
+
+## The pad layout and fullscreen key exist, and keyboard play is unchanged.
+func _test_gamepad_bindings() -> void:
+	for action in ["interact", "attack", "roll", "craft", "inventory", "pause", "map", "sprint", "tactic_1", "tactic_2", "place_confirm", "place_cancel"]:
+		_expect(InputMap.has_action(action), "action exists: " + action)
+	var a := InputEventJoypadButton.new()
+	a.button_index = JOY_BUTTON_A
+	_expect(InputMap.event_is_action(a, "interact") and InputMap.event_is_action(a, "place_confirm"), "pad A interacts and confirms placement")
+	var x := InputEventJoypadButton.new()
+	x.button_index = JOY_BUTTON_X
+	_expect(InputMap.event_is_action(x, "attack") and not InputMap.event_is_action(x, "interact"), "pad X attacks only")
+	var left := InputEventJoypadMotion.new()
+	left.axis = JOY_AXIS_LEFT_X
+	left.axis_value = -1.0
+	_expect(left.is_action_pressed("move_left") and not left.is_action_pressed("move_right"), "left stick left presses move_left only")
+	var up := InputEventJoypadMotion.new()
+	up.axis = JOY_AXIS_LEFT_Y
+	up.axis_value = -1.0
+	_expect(InputMap.event_is_action(up, "move_up"), "left stick up moves up")
+	var trigger := InputEventJoypadMotion.new()
+	trigger.axis = JOY_AXIS_TRIGGER_RIGHT
+	trigger.axis_value = 1.0
+	_expect(InputMap.event_is_action(trigger, "tactic_3"), "right trigger is tactic 3")
+	_expect(InputMap.action_get_deadzone("move_left") >= 0.2, "stick movement has a dead zone")
+	var w := InputEventKey.new()
+	w.physical_keycode = KEY_W
+	_expect(InputMap.event_is_action(w, "move_up"), "keyboard W still moves up")
+	var f11 := InputEventKey.new()
+	f11.physical_keycode = KEY_F11
+	_expect(InputMap.has_action("fullscreen") and InputMap.event_is_action(f11, "fullscreen"), "F11 toggles fullscreen")
+
+## A wheel label that does not fit beside its hex moves to a spot that is clear of every hex.
+func _test_gather_label_side() -> void:
+	var script := load("res://scripts/ui/gather_radial.gd") as GDScript
+	_expect(script != null, "gather radial script loads")
+	if script == null:
+		return
+	var view := Vector2(1600.0, 900.0)
+	var hex := Rect2(1454.0, 440.0, 56.0, 56.0)
+	var r1: Rect2 = script.call("pick_label_rect", false, hex, 100.0, view, [])
+	_expect(r1.end.x <= view.x and not r1.intersects(hex) and r1.end.x <= hex.position.x, "label that overflows the right edge goes left, clear of its hex")
+	var r2: Rect2 = script.call("pick_label_rect", true, Rect2(20.0, 440.0, 56.0, 56.0), 148.0, view, [])
+	_expect(r2.position.x >= 56.0 and not r2.intersects(Rect2(20.0, 440.0, 56.0, 56.0)), "label that overflows the left edge goes right, clear of its hex")
+	var mid := Rect2(600.0, 440.0, 56.0, 56.0)
+	var r3: Rect2 = script.call("pick_label_rect", false, mid, 120.0, view, [])
+	_expect(r3.position.x >= mid.end.x, "a label that fits on the right stays right")
+	var r4: Rect2 = script.call("pick_label_rect", true, mid, 120.0, view, [])
+	_expect(r4.end.x <= mid.position.x, "a label that fits on the left stays left")
+	# The frame that hid "Bark": the right side overflows the screen and the left runs behind a neighbour.
+	var bark := Rect2(1540.0, 440.0, 56.0, 56.0)
+	var log_hex := Rect2(1397.0, 440.0, 52.0, 56.0)
+	var title := Rect2(1460.0, 505.0, 98.0, 40.0)
+	var r5: Rect2 = script.call("pick_label_rect", false, bark, 125.0, view, [log_hex, title])
+	_expect(not r5.intersects(bark) and not r5.intersects(log_hex) and not r5.intersects(title), "label squeezed between a neighbour and the screen edge moves above or below, clear of everything")
+	_expect(r5.position.x >= 0.0 and r5.end.x <= view.x and r5.position.y >= 0.0 and r5.end.y <= view.y, "the moved label stays on screen")
+	# Boxed in on every side: keep the preferred side rather than hide a label.
+	var boxed := [Rect2(0.0, 0.0, 1600.0, 900.0)]
+	var r6: Rect2 = script.call("pick_label_rect", true, Rect2(700.0, 400.0, 56.0, 56.0), 120.0, view, boxed)
+	_expect(r6.end.x <= 700.0, "when nothing is clear the preferred side is kept")
 
 func _test_multistack_crafting() -> void:
 	# Dynamic load avoids compiling Crafting before autoload Data exists.

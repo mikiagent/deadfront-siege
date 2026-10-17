@@ -35,6 +35,7 @@ var _bg_unix: int = 0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_ready_controller_notice()
 	for a in OS.get_cmdline_user_args():
 		if a == "--smoke":
 			smoke_test = true
@@ -106,8 +107,20 @@ func _make_perf() -> void:
 	_perf.add_theme_color_override("font_color", Color(0.95, 0.95, 0.7))
 	layer.add_child(_perf)
 
+func _ready_controller_notice() -> void:
+	Input.joy_connection_changed.connect(func (device: int, connected: bool) -> void:
+		var player := get_tree().get_first_node_in_group("player") as Player
+		var pad := Input.get_joy_name(device)
+		print("[input] controller %s: %s" % ["connected" if connected else "disconnected", pad])
+		if player and player.has_method("notice"):
+			player.notice(("Controller connected: %s" % pad) if connected else "Controller disconnected")
+	)
+
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("debug_toggle"):
+	if event.is_action_pressed("fullscreen"):
+		DisplayMode.toggle()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("debug_toggle"):
 		debug_overlay = not debug_overlay
 	elif event.is_action_pressed("show_grid"):
 		show_grid = not show_grid

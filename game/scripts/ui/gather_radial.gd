@@ -281,9 +281,12 @@ func _draw() -> void:
 		var reason: String = str(_labels[i]["reason"])
 		var ts := UiTokens.body(view)
 		var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x
-		var left := ContextRadial.label_on_left(b.position, b.size.x, view, base)
-		var pos := b.position + (Vector2(-tw - 14.0, b.size.y * 0.5) if left else Vector2(b.size.x + 8.0, b.size.y * 0.5))
-		pos.x = clampf(pos.x, 8.0, maxf(8.0, view.x - tw - 16.0))
+		var blockers: Array[Rect2] = [title_rect]
+		for j in _buttons.size():
+			if j != i:
+				blockers.append(Rect2(_buttons[j].position, _buttons[j].size))
+		var rect := pick_label_rect(ContextRadial.label_on_left(b.position, b.size.x, view, base), Rect2(b.position, b.size), tw, view, blockers)
+		var pos := rect.position + Vector2(4.0, 14.0)
 		draw_rect(Rect2(pos + Vector2(-4, -14), Vector2(tw + 12, 26)), UiTokens.INK)
 		draw_string(font, pos + Vector2(2, 6), text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, Color(0.95, 0.95, 0.95) if reason == "" else Color(0.75, 0.75, 0.75))
 		if reason != "":
@@ -338,3 +341,37 @@ func _icon_for(id: StringName) -> Texture2D:
 		tex = load(path)
 	_icon_cache[key] = tex
 	return tex
+
+## Where a hex's label is drawn on one side of it, after the same clamp the draw uses.
+static func label_rect(hex: Rect2, label_w: float, left: bool, view_w: float) -> Rect2:
+	var x := hex.position.x - label_w - 14.0 if left else hex.end.x + 8.0
+	x = clampf(x, 8.0, maxf(8.0, view_w - label_w - 16.0))
+	return Rect2(Vector2(x - 4.0, hex.position.y + hex.size.y * 0.5 - 14.0), Vector2(label_w + 12.0, 26.0))
+
+## Where a hex's label goes. ContextRadial.label_on_left only looks at where the hex is, not how wide its
+## label is, so a label that could not fit beside its hex was clamped back over it and lost its first
+## letters. Try the preferred side, the other side, then above and below the hex, and keep the first spot
+## that is inside the screen and clear of this hex and every blocker (other hexes, the title box).
+## If nothing is clear, keep the preferred side.
+static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view: Vector2, blockers: Array = []) -> Rect2:
+	var w := label_w + 12.0
+	var cx := clampf(hex.get_center().x - w * 0.5, 8.0, maxf(8.0, view.x - w - 8.0))
+	var candidates: Array[Rect2] = [
+		label_rect(hex, label_w, prefer_left, view.x),
+		label_rect(hex, label_w, not prefer_left, view.x),
+		Rect2(Vector2(cx, hex.position.y - 30.0), Vector2(w, 26.0)),
+		Rect2(Vector2(cx, hex.end.y + 4.0), Vector2(w, 26.0)),
+	]
+	for rect in candidates:
+		if rect.position.y < 0.0 or rect.end.y > view.y or rect.position.x < 0.0 or rect.end.x > view.x:
+			continue
+		if rect.intersects(hex):
+			continue
+		var clear := true
+		for blocker in blockers:
+			if rect.intersects(blocker as Rect2):
+				clear = false
+				break
+		if clear:
+			return rect
+	return candidates[0]

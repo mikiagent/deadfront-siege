@@ -413,7 +413,11 @@ func _build(kind: StringName) -> String:
 	for offset in [Vector3(2.5, 0, 2.5), Vector3(-2.5, 0, 2.5), Vector3(2.5, 0, -2.5), Vector3(5, 0, 0), Vector3(0, 0, 5)]:
 		tried += 1
 		if cam:
-			Input.warp_mouse(cam.unproject_position(player.global_position + offset))
+			var screen := cam.unproject_position(player.global_position + offset)
+			Input.warp_mouse(screen)
+			# The game reads Game.pointer, which only follows real mouse events. An unfocused window
+			# never delivers them, so the bot sets it directly or every spot lands at a stale position.
+			Game.pointer = screen
 			await _beat(0.3)
 			placer.tap_ground()
 			await _beat(0.2)
@@ -529,6 +533,10 @@ func _tame() -> String:
 		if target.statuses.has(&"knockdown"):
 			player.hunt.stop()  # Do not auto-attack through the feeding window.
 			break
+		# A wild animal that attacks first pulls the hunt onto itself (retaliation). Once it dies the
+		# hunt ends, so point it back at the intended target like a player would.
+		if player.hunt.target != target:
+			player.hunt.start(target)
 		# Below the capture threshold a tackle puts it on the ground; that is the window.
 		if FieldTame.health_allows_capture(target.health.fraction()):
 			player.hunt.use_tackle()
