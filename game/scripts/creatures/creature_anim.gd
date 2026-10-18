@@ -123,11 +123,11 @@ func _build_tree() -> void:
 	blend.add_blend_point(walk_n, 0.0, -1, &"walk")
 	blend.add_blend_point(run_n, 1.0, -1, &"run")
 	sm.add_node("locomotion", blend, Vector2(200, 0))
-	for clip in ["attack_primary", "attack_heavy", "hit_react", "knockdown", "death", "alert", "feed"]:
+	for clip in ["attack_primary", "attack_heavy", "hit_react", "knockdown", "death", "alert", "feed", "tail_swipe", "sleep"]:
 		_add_anim(sm, clip, Vector2(0, 140))
 	_trans(sm, "idle", "locomotion")
 	_trans(sm, "locomotion", "idle")
-	for clip in ["attack_primary", "attack_heavy", "hit_react", "knockdown", "death", "alert", "feed"]:
+	for clip in ["attack_primary", "attack_heavy", "hit_react", "knockdown", "death", "alert", "feed", "tail_swipe", "sleep"]:
 		_trans(sm, "idle", clip)
 		_trans(sm, "locomotion", clip)
 		_trans(sm, clip, "idle")

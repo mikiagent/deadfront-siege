@@ -4,9 +4,11 @@ extends RefCounted
 
 const CONTRACT: Array[StringName] = [
 	&"idle", &"walk", &"run", &"attack_primary", &"attack_heavy",
-	&"hit_react", &"knockdown", &"death", &"alert", &"feed",
+	&"hit_react", &"knockdown", &"death", &"alert", &"feed", &"tail_swipe", &"sleep",
 ]
-const LOOPING: Array[StringName] = [&"idle", &"walk", &"run"]
+const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"sleep"]
+## Only some species author these; the rest get a silent idle copy.
+const OPTIONAL: Array[StringName] = [&"tail_swipe", &"sleep"]
 
 static func attach(player: AnimationPlayer, view: CreatureView, def: CreatureDef) -> AnimationLibrary:
 	if player.root_node == NodePath(""):
@@ -31,8 +33,11 @@ static func attach(player: AnimationPlayer, view: CreatureView, def: CreatureDef
 	else:
 		for clip in CONTRACT:
 			if not lib.has_animation(clip) and lib.has_animation(&"idle"):
-				print("[creature] missing clip %s falling back to idle" % clip)
-				lib.add_animation(clip, lib.get_animation(&"idle").duplicate(true) as Animation)
+				if clip not in OPTIONAL:
+					print("[creature] missing clip %s falling back to idle" % clip)
+				var copy := lib.get_animation(&"idle").duplicate(true) as Animation
+				_set_loop(copy, clip)
+				lib.add_animation(clip, copy)
 	if player.has_animation_library(""):
 		player.remove_animation_library("")
 	player.add_animation_library("", lib)
@@ -133,6 +138,10 @@ static func _len(clip: StringName) -> float:
 			return 0.9
 		&"feed":
 			return 1.2
+		&"tail_swipe":
+			return 1.97
+		&"sleep":
+			return 1.6
 		_:
 			return 0.8
 

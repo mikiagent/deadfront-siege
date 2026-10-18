@@ -11,6 +11,7 @@ extends Camera3D
 @export var default_size: float = 15.0
 
 var _target: Node3D
+var _pre_boss_size := 0.0  # size to return to once a big-boss hunt ends; 0 = not zoomed
 
 func _ready() -> void:
 	projection = PROJECTION_ORTHOGONAL
@@ -32,6 +33,20 @@ func _process(delta: float) -> void:
 	# this the survivor stepped 60 Hz under a 120 Hz camera and read as a doubled, smeared image.
 	var desired := _target.get_global_transform_interpolated().origin + (-global_basis.z) * -distance
 	global_position = global_position.lerp(desired, clampf(follow_lerp * delta, 0.0, 1.0))
+	_boss_zoom(delta)
+
+## An 8 m tyrant overflows the default frame: widen while hunting anything over ~4 m tall.
+func _boss_zoom(delta: float) -> void:
+	var hunt: Hunt = (_target as Player).hunt if _target is Player else null
+	var boss: Creature = hunt.target if hunt and is_instance_valid(hunt.target) and not hunt.target.health.dead else null
+	if boss and boss.def.height_meters > 4.0:
+		if _pre_boss_size == 0.0:
+			_pre_boss_size = size
+		size = move_toward(size, clampf(boss.def.height_meters * 3.0, _pre_boss_size, max_size), 12.0 * delta)
+	elif _pre_boss_size > 0.0:
+		size = move_toward(size, _pre_boss_size, 12.0 * delta)
+		if is_equal_approx(size, _pre_boss_size):
+			_pre_boss_size = 0.0
 
 func _snap() -> void:
 	global_position = _target.global_position + (-global_basis.z) * -distance

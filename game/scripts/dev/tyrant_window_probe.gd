@@ -62,7 +62,7 @@ func _physics_process(delta: float) -> void:
 	var brain := boss.brain as TyrantBrain
 	if brain.phase != last_phase:
 		if brain.phase == &"stagger": stagger_seen += 1
-		print("[raidwindows] t=%.1f phase=%s count=%d bossHP=%.0f playerHP=%.0f" % [elapsed,brain.phase,brain.counter_hits,boss.health.hp,player.vitals.health])
+		print("[raidwindows] t=%.1f phase=%s clip=%s count=%d bossHP=%.0f playerHP=%.0f" % [elapsed,brain.phase,brain.windup_clip,brain.counter_hits,boss.health.hp,player.vitals.health])
 		last_phase = brain.phase
 	if boss.health.hp < before_hp: hits_seen += 1
 	before_hp = boss.health.hp
@@ -82,7 +82,7 @@ func _physics_process(delta: float) -> void:
 		right.y = 0; back.y = 0
 		var u := away.normalized().dot(right.normalized())
 		var v := away.normalized().dot(back.normalized())
-		if away.length() < 4.5:
+		if away.length() < maxf(4.5, brain._phase_reach(brain.windup_clip) + 0.5):  # leave the telegraph ring
 			Input.action_press("move_right" if u >= 0 else "move_left",absf(u))
 			Input.action_press("move_down" if v >= 0 else "move_up",absf(v))
 	else:

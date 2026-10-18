@@ -73,7 +73,7 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 			if def.pipeline.has("stand_in_model_scale"):
 				rig.mesh_root.scale = Vector3.ONE * float(def.pipeline["stand_in_model_scale"])
 			using_glb = true
-			rig.fill_missing(CreatureClips.CONTRACT)
+			rig.fill_missing(CreatureClips.CONTRACT, CreatureClips.OPTIONAL)
 		else:
 			rig.queue_free()
 			rig = null

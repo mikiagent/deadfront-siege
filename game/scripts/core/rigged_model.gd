@@ -56,13 +56,14 @@ func play(clip: StringName, speed: float = 1.0, blend: float = 0.0) -> void:
 func has_clip(clip: StringName) -> bool:
 	return library != null and library.has_animation(clip)
 
-func fill_missing(clips: Array[StringName]) -> void:
+func fill_missing(clips: Array[StringName], quiet: Array[StringName] = []) -> void:
 	if library == null or not library.has_animation(&"idle"):
 		return
 	for clip in clips:
 		if has_clip(clip):
 			continue
-		print("[%s] missing clip %s falling back to idle" % [log_tag, clip])
+		if clip not in quiet:
+			print("[%s] missing clip %s falling back to idle" % [log_tag, clip])
 		var a := library.get_animation(&"idle").duplicate(true) as Animation
 		_set_loop(a, clip)
 		library.add_animation(clip, a)

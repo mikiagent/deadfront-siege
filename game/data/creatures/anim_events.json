@@ -3,6 +3,7 @@
   "clips": {
     "attack_primary": { "hit_frac": 0.42, "windup": false },
 	"attack_heavy": { "hit_frac": 0.72, "windup": true, "windup_hold": 0.6 },
+    "tail_swipe": { "hit_frac": 0.47 },
     "run": { "speed": 1.6 }
   }
 }
