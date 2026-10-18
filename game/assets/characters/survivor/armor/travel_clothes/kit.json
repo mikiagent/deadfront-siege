@@ -1,0 +1,39 @@
+{
+ "name": "travel_clothes",
+ "base": "survivor",
+ "skeleton_joints": 65,
+ "mode": "replace",
+ "slots": {
+  "chest": {
+   "file": "chest.glb",
+   "triangles": 1251,
+   "covers": 1.0,
+   "hides": [
+    "chest"
+   ]
+  },
+  "arms": {
+   "file": "arms.glb",
+   "triangles": 3411,
+   "covers": 1.0,
+   "hides": [
+    "arms"
+   ]
+  },
+  "legs": {
+   "file": "legs.glb",
+   "triangles": 5653,
+   "covers": 1.0,
+   "hides": [
+    "legs"
+   ]
+  }
+ },
+ "provenance": {
+  "sheet": "../sheet_v1.png",
+  "views": "../views/",
+  "tripo": "../tripo.json",
+  "credits": 50,
+  "method": "extract_armor --keep-skin --weights transfer, split_by_bones"
+ }
+}
