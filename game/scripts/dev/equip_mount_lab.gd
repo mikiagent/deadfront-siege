@@ -66,8 +66,7 @@ func _vis(region: String) -> bool:
 func _ride() -> void:
 	var def := Data.creature(&"tyrannosaurus")
 	var rec := PetRecord.from_def(def, &"A")
-	# Lab only: tyrannosaurus.json has no mount role yet.
-	rec.tamed_role = [&"mount"]
+	assert(def.tameable and &"mount" in rec.tamed_role, "tyrannosaurus is a tameable mount")
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 	player.get_parent().add_child(c)
 	c.is_pet = true

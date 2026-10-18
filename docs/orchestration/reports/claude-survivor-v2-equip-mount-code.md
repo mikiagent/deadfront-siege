@@ -13,13 +13,15 @@ Edited the scripts directly instead of driving Cursor: HANDOFF.md makes Claude t
 
 New lab: `--lab=equip_mount_lab` (scene `scenes/dev/equip_mount_lab.tscn`). It asserts the slot mapping, body-region visibility for each kit, mixed and unequip, armor/HP totals with arms, the saddle path, rider height on the howdah, the dropped 1.18, mount_idle, and that dismount restores the rig. Run it with a display to get screenshots at `/tmp/dfs-equip-*.png`.
 
+6. **T. rex is a tameable mount** (owner decision, 2026-10-18): `tyrannosaurus.json` `tameable: true`, `tamed_role: ["mount"]`. The other taming values are unchanged (raw meat, 6 feeds, needs a pen). The lab now asserts the real role instead of forcing it.
+
 ## Evidence
+- After the T. rex data change: `capture_lab` and `ai_validation_lab` PASS.
 - `tools/smoke.sh`: SMOKE PASS. `tools/test.sh`: `[tests] PASS` (the "5 ObjectDB instances leaked" warning is the same on the base commit 662dc0d).
 - `ui_screenshot_lab`: PASS at 1600x900 and 390x844; I looked at the inventory shots.
 - `equip_mount_lab`: PASS headless and windowed. Screenshots checked: travel (bare head, shirt/jeans/boots), forager (hat, vest, wraps, leggings), hide and bone (full), mixed (hide helm + forager vest + travel sleeves + hide greaves), unequip (base body). Ride: seated on the bench, feet on the footboard, hands at the reins, facing the head, moving with idle and walk. Matches the stills from `trex_ride_v3_howdah.mp4` (close side, front three-quarter).
 
 ## Not done / open
-- **The T. rex isn't tameable or mountable in game data** (`tyrannosaurus.json`: `tameable: false`, `tamed_role: []`). The code handles a mount-role T. rex (the lab forces the role on a PetRecord), but a player can't ride one until someone decides that in the data. I did not change it (taming design).
 - Optional item 6 skipped: no wiring of sprint/alert/gather_berry/gather_dig/butcher/eat/drink, and no held tools from `tools.json`. gather_chop/gather_mine still play empty-handed.
 - Not checked in a deployed web build (Compatibility renderer) or on a phone.
 - Untracked import output (bush-berries, treestump/woodlog, resources/generated `.import`/`.jpg`) left uncommitted; it's the owner's call.
