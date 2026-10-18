@@ -65,6 +65,10 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   real item art (3D models built in Blender MCP, rendered with consistent studio light, transparent
   PNG, rarity rim/glow) via tools/render_icons.py, and give slots an art-overflow layout. Colour =
   things, white = actions still holds.
+- 2026-10-18 building and crafting (owner): intricate building and crafting systems; building is a
+  big deal. Processing must feel impactful, e.g. drying meat: you see the strips hang on the rack,
+  change colour over time, smoke drifts, it sounds right, and the result matters (dried meat keeps
+  while raw meat spoils, carries a real buff, sells well). Apply that bar to every station.
 - Balances 2026-10-18: Tripo 3,240 credits (works). Meshy MCP key returns 401 (revoked), so the
   art route is Tripo + the game-asset-pipeline skill until the owner replaces the Meshy key.
 
