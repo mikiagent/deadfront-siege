@@ -2037,6 +2037,176 @@
       ],
       "stack_max": 999,
       "base_level": 1
+    },
+    {
+      "id": "travel_shirt",
+      "display_name": "Travel Shirt",
+      "categories": [
+        "armor_body",
+        "clothing"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 30,
+      "max_durability": 150,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "visual": "travel_clothes/chest"
+    },
+    {
+      "id": "travel_sleeves",
+      "display_name": "Travel Sleeves",
+      "categories": [
+        "armor_arms",
+        "clothing"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 15,
+      "max_durability": 150,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "visual": "travel_clothes/arms"
+    },
+    {
+      "id": "travel_trousers",
+      "display_name": "Travel Trousers",
+      "categories": [
+        "armor_legs",
+        "clothing"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 20,
+      "max_durability": 150,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "visual": "travel_clothes/legs"
+    },
+    {
+      "id": "forager_hood",
+      "display_name": "Forager Hood",
+      "categories": [
+        "armor_head"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 50,
+      "max_durability": 250,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "visual": "forager/helmet"
+    },
+    {
+      "id": "forager_vest",
+      "display_name": "Forager Vest",
+      "categories": [
+        "armor_body"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 110,
+      "max_durability": 250,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "visual": "forager/chest"
+    },
+    {
+      "id": "forager_wraps",
+      "display_name": "Forager Arm Wraps",
+      "categories": [
+        "armor_arms"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 40,
+      "max_durability": 250,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "visual": "forager/arms"
+    },
+    {
+      "id": "forager_leggings",
+      "display_name": "Forager Leggings",
+      "categories": [
+        "armor_legs"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 70,
+      "max_durability": 250,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "visual": "forager/legs"
+    },
+    {
+      "id": "hide_bone_helm",
+      "display_name": "Hide and Bone Helm",
+      "categories": [
+        "armor_head"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 150,
+      "max_durability": 350,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "visual": "hide_and_bone/helmet"
+    },
+    {
+      "id": "hide_bone_cuirass",
+      "display_name": "Hide and Bone Cuirass",
+      "categories": [
+        "armor_body"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 350,
+      "health_bonus": 40,
+      "max_durability": 350,
+      "stats_per_level": {
+        "armor_value": 0.02,
+        "health_bonus": 0.02
+      },
+      "visual": "hide_and_bone/chest"
+    },
+    {
+      "id": "hide_bone_bracers",
+      "display_name": "Hide and Bone Bracers",
+      "categories": [
+        "armor_arms"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 120,
+      "max_durability": 350,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "visual": "hide_and_bone/arms"
+    },
+    {
+      "id": "hide_bone_greaves",
+      "display_name": "Hide and Bone Greaves",
+      "categories": [
+        "armor_legs"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 150,
+      "max_durability": 350,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "visual": "hide_and_bone/legs"
     }
   ]
 }

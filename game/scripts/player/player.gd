@@ -94,6 +94,10 @@ var _right_hand_anchor: Marker3D
 var _hips_anchor: Marker3D
 var _mount_hips_offset: Vector3 = Vector3.ZERO
 var _mount_saved_parent: Node
+## Saddled mounts (mount.json): the rig follows the saddle bone; the rig's normal local transform is kept here.
+var _saddle_view: CreatureView
+var _rig_rest: Transform3D
+var equipment: PlayerEquipment
 var _ground_marker: MeshInstance3D
 var _path_line: MeshInstance3D
 var _ripple: MeshInstance3D
@@ -1596,19 +1600,47 @@ func mount(c: Creature) -> void:
 		return
 	mounted_on = c
 	_mount_saved_parent = get_parent()
-	reparent(c.view.mount_socket())
-	position = -_mount_hips_offset
+	c.add_collision_exception_with(self)
+	add_collision_exception_with(c)
+	if rig and c.view.begin_ride():
+		# The body rides the mount's root; only the rig follows the saddle bone (keeps physics off the bone).
+		_saddle_view = c.view
+		_rig_rest = rig.transform
+		reparent(c)
+		position = Vector3.ZERO
+		_saddle_view.rig.skeleton.skeleton_updated.connect(_follow_saddle)
+		_follow_saddle()
+	else:
+		reparent(c.view.mount_socket())
+		position = -_mount_hips_offset
 	if anim:
 		anim.play_clip(&"mount_idle")
 	print("[capture] mounted %s" % c.def.id)
 
+## Runs on the mount's skeleton_updated, after its clip posed the bones; following in _process lags a frame
+## and the rider bounces. rider_transform() is the rider's unscaled model root, so this undoes the rig's own
+## facing yaw (mesh_root) and drops the 1.18 silhouette lift, which would push the feet past the footboard.
+func _follow_saddle() -> void:
+	if _saddle_view == null or rig == null or rig.mesh_root == null:
+		return
+	rig.global_transform = _saddle_view.rider_transform() * Transform3D(rig.mesh_root.basis.orthonormalized().inverse())
+
 func dismount() -> void:
 	if mounted_on == null:
 		return
+	if _saddle_view:
+		if is_instance_valid(_saddle_view) and _saddle_view.rig.skeleton.skeleton_updated.is_connected(_follow_saddle):
+			_saddle_view.rig.skeleton.skeleton_updated.disconnect(_follow_saddle)
+			_saddle_view.end_ride()
+		_saddle_view = null
+		rig.transform = _rig_rest
 	var pos := mounted_on.global_position + Vector3(1.2, 0, 0)
 	var host := _mount_saved_parent if _mount_saved_parent else mounted_on.get_parent()
 	reparent(host)
 	global_position = pos
+	if is_instance_valid(mounted_on):
+		mounted_on.remove_collision_exception_with(self)
+		remove_collision_exception_with(mounted_on)
 	mounted_on = null
 	print("[capture] dismounted")
 
@@ -1840,33 +1872,40 @@ func _setup_survivor() -> void:
 	# A small silhouette lift keeps the survivor legible at the phone-landscape camera size.
 	rig.scale *= 1.18
 	_bind_rig_markers()
+	equipment = PlayerEquipment.new()
+	equipment.name = "Equipment"
+	add_child(equipment)
+	equipment.setup(rig, inventory)
 	if anim:
 		anim.setup(self, rig)
 
 
 func _make_survivor_web_safe() -> void:
-	# Meshy's material relies on an emissive texture plus KHR material extensions. It can
-	# vanish in the Compatibility/WebGL renderer even though the skinned mesh is present.
-	# Override it with a plain double-sided PBR material on web/mobile; textures are preserved
-	# when available, while a warm fallback guarantees that the body remains visible.
 	if rig == null or rig.mesh_root == null:
 		return
 	for node in rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
-		var mi := node as MeshInstance3D
-		if mi == null:
-			continue
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		mi.extra_cull_margin = 1.0
-		for surface in mi.mesh.get_surface_count() if mi.mesh else 0:
-			var original := mi.get_active_material(surface) as BaseMaterial3D
-			var safe := StandardMaterial3D.new()
-			safe.cull_mode = BaseMaterial3D.CULL_DISABLED
-			safe.albedo_color = Color(0.70, 0.45, 0.28)
-			safe.roughness = 0.82
-			if original:
-				safe.albedo_color = original.albedo_color
-				safe.albedo_texture = original.albedo_texture
-			mi.set_surface_override_material(surface, safe)
+		web_safe_mesh(node as MeshInstance3D)
+
+## Meshy's material relies on an emissive texture plus KHR material extensions. It can
+## vanish in the Compatibility/WebGL renderer even though the skinned mesh is present.
+## Override it with a plain double-sided PBR material on web/mobile; textures are preserved
+## when available, while a warm fallback guarantees that the body remains visible.
+## Body regions and armor pieces get the same treatment so they match the base look.
+static func web_safe_mesh(mi: MeshInstance3D) -> void:
+	if mi == null:
+		return
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	mi.extra_cull_margin = 1.0
+	for surface in mi.mesh.get_surface_count() if mi.mesh else 0:
+		var original := mi.get_active_material(surface) as BaseMaterial3D
+		var safe := StandardMaterial3D.new()
+		safe.cull_mode = BaseMaterial3D.CULL_DISABLED
+		safe.albedo_color = Color(0.70, 0.45, 0.28)
+		safe.roughness = 0.82
+		if original:
+			safe.albedo_color = original.albedo_color
+			safe.albedo_texture = original.albedo_texture
+		mi.set_surface_override_material(surface, safe)
 
 func _bind_rig_markers() -> void:
 	_right_hand_anchor = _marker_from_socket(rig.hand_socket, "RightHand")

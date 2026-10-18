@@ -1925,6 +1925,351 @@
       "seconds": 4,
       "process_step": "bind",
       "process_add": 1
+    },
+    {
+      "id": "travel_shirt",
+      "display_name": "Travel Shirt",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 4,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "travel_shirt",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "travel_sleeves",
+      "display_name": "Travel Sleeves",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "travel_sleeves",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "travel_trousers",
+      "display_name": "Travel Trousers",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 4,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "travel_trousers",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "forager_hood",
+      "display_name": "Forager Hood",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 10,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "hide",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "forager_hood",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "forager_vest",
+      "display_name": "Forager Vest",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 10,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 6,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 6,
+          "primary": false
+        },
+        {
+          "category": "hide",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "forager_vest",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "forager_wraps",
+      "display_name": "Forager Arm Wraps",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 10,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "hide",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "forager_wraps",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "forager_leggings",
+      "display_name": "Forager Leggings",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 10,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 6,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 6,
+          "primary": false
+        },
+        {
+          "category": "hide",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "forager_leggings",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "hide_bone_helm",
+      "display_name": "Hide and Bone Helm",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 30,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "hide",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "bone",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "hide_bone_helm",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "hide_bone_cuirass",
+      "display_name": "Hide and Bone Cuirass",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 30,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "hide",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "bone",
+          "count": 6,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 4,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "hide_bone_cuirass",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "hide_bone_bracers",
+      "display_name": "Hide and Bone Bracers",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 30,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "hide",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "bone",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "hide_bone_bracers",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "hide_bone_greaves",
+      "display_name": "Hide and Bone Greaves",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 30,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "hide",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "bone",
+          "count": 6,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 4,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "hide_bone_greaves",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
     }
   ]
 }
