@@ -29,11 +29,18 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | Wave | Packages | State |
 |---|---|---|
 | 0 | 16-system audit with adversarial verify and plan | running |
-| 1a | economy engine; net core (server, auth, presence, chat) | not started |
+| 1a | economy engine (`claude/mmo-econ`); net core: server, auth, presence, chat (`claude/mmo-net`) | running, reviewer-gated (workflow wf_158b264c-baf) |
+
+## Owner decisions
+
+- 2026-10-18: keep the server local for now; build and test with local clients; ask about hosting when it is ready.
+
+- 2026-10-18: agents may download CC0/royalty-free audio packs (record source and licence per file).
+- 2026-10-18: Meshy/Tripo credit spend approved with no cap, from existing balances only (never buy,
+  top up or upgrade). Record task ids and spend per asset; diagnose weak output before re-spending.
+- 2026-10-18: the uncommitted 2026-10-17 UI pass in the main checkout: owner is not sure whose it
+  is. Leave it untouched; do not commit or overwrite it.
 
 ## Owner questions (open)
 
-1. Where should the public game server run? (needs a host with persistent WebSockets; costs money)
-2. May agents download CC0/royalty-free audio packs (e.g. Kenney, Sonniss GDC bundle)?
-3. Approve Meshy/Tripo credit spend for dinosaur model upgrades, and the cap?
-4. The uncommitted 2026-10-17 UI pass in the main checkout: commit it, or is someone still on it?
+- none
