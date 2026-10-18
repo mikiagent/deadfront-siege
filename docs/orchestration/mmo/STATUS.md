@@ -50,6 +50,11 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   of gathering -> crafting -> building (and back), and an economy of resources: rare items, with
   progression locked behind rare items or crafting recipes. The loop is the priority that makes it
   fun; the marketplace should trade those rare goods.
+- 2026-10-18 item look (owner): items should look cool with cool icons; idea: each item is a PNG
+  render that sits above / overflows its button rather than a flat glyph inside it. Plan: render
+  real item art (3D models built in Blender MCP, rendered with consistent studio light, transparent
+  PNG, rarity rim/glow) via tools/render_icons.py, and give slots an art-overflow layout. Colour =
+  things, white = actions still holds.
 - Balances 2026-10-18: Tripo 3,240 credits (works). Meshy MCP key returns 401 (revoked), so the
   art route is Tripo + the game-asset-pipeline skill until the owner replaces the Meshy key.
 
