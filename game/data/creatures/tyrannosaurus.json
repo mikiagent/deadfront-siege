@@ -44,8 +44,27 @@
     "requires_pen": true
   },
   "pipeline": {
-    "stand_in": "Quaternius Trex, existing repository asset",
     "forward_axis": "-Z",
-    "stand_in_model_scale": 0.5450177880180564
+    "source_height_m": 8.0,
+    "mesh": "Tripo P1 multiview, task c7aea80d-714b-49f6-b59b-645c87f8a6c9, 50 Tripo credits",
+    "mesh_views": "ref/tyrannosaurus_{front,back,left,right}.png (Codex, from the approved sheet)",
+    "reference_sheet": "ref/tyrannosaurus_sheet_v1.png (Codex, user-approved)",
+    "rig_and_animation": "DeepSeek V4.1 Flash via dsc harness in Blender, 30 bones incl. Jaw and Tail1-7, about $0.29",
+    "accepted_mesh": "tyrannosaurus.glb",
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert",
+      "feed",
+      "tail_swipe",
+      "sleep"
+    ],
+    "provenance": "work/pipeline.json, work/REPORT.md"
   }
 }

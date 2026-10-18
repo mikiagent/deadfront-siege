@@ -1,0 +1,20 @@
+{
+  "forward_axis": "-Z",
+  "source_height_m": 8.0,
+  "mesh": "Tripo P1 multiview, task c7aea80d-714b-49f6-b59b-645c87f8a6c9, 50 credits",
+  "rig_and_animation": "DeepSeek V4.1 Flash via dsc in Blender",
+  "clips": [
+    { "name": "idle", "file": "anim/idle.glb", "duration_s": 4.0, "loop": true },
+    { "name": "walk", "file": "anim/walk.glb", "duration_s": 1.6, "loop": true },
+    { "name": "run", "file": "anim/run.glb", "duration_s": 0.9, "loop": true },
+    { "name": "attack_primary", "file": "anim/attack_primary.glb", "duration_s": 1.57, "hit_frac": 0.42, "hit_frame": 21 },
+    { "name": "attack_heavy", "file": "anim/attack_heavy.glb", "duration_s": 2.57, "hit_frac": 0.72, "hit_frame": 56, "windup_hold_s": 0.6 },
+    { "name": "tail_swipe", "file": "anim/tail_swipe.glb", "duration_s": 1.97 },
+    { "name": "hit_react", "file": "anim/hit_react.glb", "duration_s": 0.77 },
+    { "name": "knockdown", "file": "anim/knockdown.glb", "duration_s": 3.17 },
+    { "name": "death", "file": "anim/death.glb", "duration_s": 2.97 },
+    { "name": "alert", "file": "anim/alert.glb", "duration_s": 2.37 },
+    { "name": "feed", "file": "anim/feed.glb", "duration_s": 3.97 },
+    { "name": "sleep", "file": "anim/sleep.glb", "duration_s": 6.0, "loop": true }
+  ]
+}
