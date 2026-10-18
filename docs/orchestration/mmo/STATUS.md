@@ -1,0 +1,39 @@
+# DEADFRONT AAA survival-MMO program: status
+
+Owner request (2026-10-18): raise every system to an ARK: Survival Ascended bar and turn the game
+into a persistent multiplayer MMO with a real, server-validated marketplace. This file is the loop's
+memory: each iteration reads it, runs the next wave, and updates it.
+
+Integration branch: `claude/mmo-overhaul` (worktree `.claude/worktrees/mmo-overhaul`), cut from
+local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
+
+## Constraints found so far
+
+- Engine stays Godot 4.7.1 typed GDScript (the owner's prompt says "Three.js and the existing
+  stack"; the existing stack is Godot, and a rewrite would discard 540 commits of working game).
+- The web build uses the gl_compatibility renderer: no SDFGI, volumetric fog, SSR or SSIL there.
+- No audio exists in the project (0 sound files). Sourcing sounds means downloading packs, which
+  needs the owner's yes.
+- New creature meshes cost Meshy/Tripo credits, which need the owner's yes per batch.
+- A public multiplayer server needs a host that keeps WebSockets open (Vercel cannot). Until the
+  owner picks one, the server runs locally and is tested with real local clients.
+- Concurrent session `deadfront-armor-mount` owns survivor v2, armor slots and the T. rex mount
+  (touches items.json, recipes.json, inventory.gd, item_def.gd, inventory_ui.gd).
+- The owner's main checkout holds an uncommitted UI pass (hunt_hud.gd, inventory_ui.gd,
+  animal_screen.gd, item_icons.gd). Not in this branch; do not overwrite it.
+- Machine: 15 cores, 24 GB. Godot runs go through the scratchpad `gslot.sh` (5 at a time).
+  Every work tree has a git-excluded `game/override.cfg` so user:// never touches the owner's save.
+
+## Waves
+
+| Wave | Packages | State |
+|---|---|---|
+| 0 | 16-system audit with adversarial verify and plan | running |
+| 1a | economy engine; net core (server, auth, presence, chat) | not started |
+
+## Owner questions (open)
+
+1. Where should the public game server run? (needs a host with persistent WebSockets; costs money)
+2. May agents download CC0/royalty-free audio packs (e.g. Kenney, Sonniss GDC bundle)?
+3. Approve Meshy/Tripo credit spend for dinosaur model upgrades, and the cap?
+4. The uncommitted 2026-10-17 UI pass in the main checkout: commit it, or is someone still on it?
