@@ -191,11 +191,24 @@ func _apply_env_setup(e: Environment) -> void:
 	e.ambient_light_energy = 0.75
 	e.ssao_enabled = false
 	e.ssr_enabled = false
-	e.glow_enabled = false
+	# Color grade, all supported by the web Compatibility renderer: filmic tonemap keeps sunlit
+	# foliage from clipping flat, a touch of contrast/saturation and a soft glow for fire and sky.
+	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	e.tonemap_exposure = 1.0
+	e.tonemap_white = 6.0
+	e.adjustment_enabled = true
+	e.adjustment_contrast = 1.08
+	e.adjustment_saturation = 1.12
+	e.glow_enabled = true
+	e.glow_intensity = 0.25
+	e.glow_strength = 0.9
+	e.glow_bloom = 0.04
+	e.glow_hdr_threshold = 1.3
+	e.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
 	e.fog_enabled = true
 	e.fog_density = 0.0022
 	e.fog_light_color = Color(0.64, 0.74, 0.83)
-	e.fog_sun_scatter = 0.0
+	e.fog_sun_scatter = 0.15
 	e.fog_height = 0.0
 	e.fog_aerial_perspective = 0.2
 	_sky_mat = ProceduralSkyMaterial.new()
@@ -1147,15 +1160,18 @@ func _drive_day() -> void:
 	sun.rotation_degrees = Vector3(lerpf(-62.0, 12.0, from_noon), 30.0, 0.0)
 	var night_n := smoothstep(0.35, 1.0, from_noon)
 	# Real night (reference: dark ground, the fire and the lantern carry the scene).
+	# Golden hour: the low sun warms toward amber before night turns it blue.
+	var golden := smoothstep(0.35, 0.7, from_noon) * (1.0 - smoothstep(0.75, 0.95, from_noon))
 	sun.light_energy = lerpf(1.3, 0.03, night_n)
-	sun.light_color = Color(1.0, 0.95, 0.85).lerp(Color(0.55, 0.62, 0.85), night_n)
+	sun.light_color = Color(1.0, 0.95, 0.85).lerp(Color(1.0, 0.68, 0.40), golden).lerp(Color(0.55, 0.62, 0.85), night_n)
 	if world_env and world_env.environment:
 		world_env.environment.ambient_light_energy = lerpf(0.75, 0.10, night_n)
 		world_env.environment.ambient_light_color = Color(0.80, 0.86, 0.95).lerp(Color(0.35, 0.42, 0.70), night_n)
 		world_env.environment.fog_density = lerpf(0.0022, 0.0044, night_n)
+		world_env.environment.fog_light_color = Color(0.64, 0.74, 0.83).lerp(Color(0.80, 0.72, 0.66), golden).lerp(Color(0.16, 0.20, 0.30), night_n)
 		if _sky_mat:
 			_sky_mat.sky_top_color = Color(0.20, 0.42, 0.66).lerp(Color(0.04, 0.08, 0.16), night_n)
-			_sky_mat.sky_horizon_color = Color(0.66, 0.78, 0.92).lerp(Color(0.18, 0.22, 0.31), night_n)
+			_sky_mat.sky_horizon_color = Color(0.66, 0.78, 0.92).lerp(Color(0.95, 0.62, 0.40), golden).lerp(Color(0.18, 0.22, 0.31), night_n)
 			_sky_mat.ground_horizon_color = Color(0.24, 0.29, 0.34).lerp(Color(0.08, 0.10, 0.12), night_n)
 
 func _rain_layer() -> void:
