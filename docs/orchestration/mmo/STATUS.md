@@ -24,6 +24,16 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - Machine: 15 cores, 24 GB. Godot runs go through the scratchpad `gslot.sh` (5 at a time).
   Every work tree has a git-excluded `game/override.cfg` so user:// never touches the owner's save.
 
+## Known defects (owner-reported)
+
+- 2026-10-18 "weird brightness, too bright" in a raptor test window. Cause: flat-colour ambient at
+  0.7-0.75 energy plus a 1.2-1.3 sun with the default linear tonemap and no exposure control, in
+  both `dev/lab_kit.gd:6-18` and `world/island_runtime.gd:187-219`; labs also build their own
+  lighting, so lab screenshots do not match the game. Evidence: audit shots
+  `dino-art/raptor_scale_lab_cam10.png`, `dino-ai/aival_pack.png`. Fix belongs to the lighting
+  package: one shared lighting builder used by island and labs, sky-sourced ambient, AgX/filmic
+  tonemap with calibrated exposure, and a no-blown-highlights pixel check.
+
 ## Waves
 
 | Wave | Packages | State |
