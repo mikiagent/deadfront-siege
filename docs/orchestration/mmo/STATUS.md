@@ -42,6 +42,10 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - 2026-10-18: the uncommitted 2026-10-17 UI pass in the main checkout: owner is not sure whose it
   is. Leave it untouched; do not commit or overwrite it.
 
+- 2026-10-18 asset routing: Tripo ONLY for complicated creatures and player characters; rigging and
+  animation by the DeepSeek CLI (dsc) used as a subagent (game-asset-pipeline skill); buildings and
+  most world objects built with Blender MCP + Blender skills. Do not use Tripo for everything.
+- 2026-10-18: when the program is done, ship it to GitHub (push; owner authorised).
 - Balances 2026-10-18: Tripo 3,240 credits (works). Meshy MCP key returns 401 (revoked), so the
   art route is Tripo + the game-asset-pipeline skill until the owner replaces the Meshy key.
 
