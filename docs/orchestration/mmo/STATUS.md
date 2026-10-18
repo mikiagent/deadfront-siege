@@ -29,6 +29,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | Wave | Packages | State |
 |---|---|---|
 | 0 | 16-system audit with adversarial verify and plan | running |
+| 1a-audio | CC0 audio layer (`claude/mmo-audio`) | running, reviewer-gated (wf_abafae3d-0a6) |
 | 1a | economy engine (`claude/mmo-econ`); net core: server, auth, presence, chat (`claude/mmo-net`) | running, reviewer-gated (workflow wf_158b264c-baf) |
 
 ## Owner decisions
@@ -40,6 +41,9 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   top up or upgrade). Record task ids and spend per asset; diagnose weak output before re-spending.
 - 2026-10-18: the uncommitted 2026-10-17 UI pass in the main checkout: owner is not sure whose it
   is. Leave it untouched; do not commit or overwrite it.
+
+- Balances 2026-10-18: Tripo 3,240 credits (works). Meshy MCP key returns 401 (revoked), so the
+  art route is Tripo + the game-asset-pipeline skill until the owner replaces the Meshy key.
 
 ## Owner questions (open)
 
