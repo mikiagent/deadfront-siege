@@ -151,5 +151,4 @@ func _draw() -> void:
 		draw_string(font, Vector2(cx, c.y + r + 15.0), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, Color.WHITE)
 		var bc := c + Vector2(r * 0.55, -r * 0.55)
 		draw_circle(bc, r * 0.24, Color(0.2, 0.22, 0.26, 0.95))
-		var sw := font.get_string_size("⇄", HORIZONTAL_ALIGNMENT_CENTER, -1, 11).x
-		draw_string(font, Vector2(bc.x - sw * 0.5, bc.y + 4.0), "⇄", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.95, 0.95, 0.9))
+		UiTokens.draw_centered(self, font, bc, "⇄", UiTokens.TYPE_MIN, Color(0.95, 0.95, 0.9))

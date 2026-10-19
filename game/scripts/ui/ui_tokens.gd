@@ -10,6 +10,8 @@ const HEX := 64.0
 const TARGET_MIN := 44.0
 const TARGET_PRIMARY := 56.0
 const LABEL_MAX_W := 168.0
+## Smallest text any screen draws, in logical px (the phone canvas is one px per point).
+const TYPE_MIN := 12
 
 const INK := Color(0.035, 0.04, 0.048, 0.94)
 const INK_SOLID := Color(0.05, 0.055, 0.062, 0.97)
@@ -20,6 +22,9 @@ const DANGER := Color(0.86, 0.22, 0.18, 1.0)
 const TEXT := Color(0.95, 0.95, 0.93, 1.0)
 const META := Color(0.78, 0.76, 0.70, 1.0)
 const ACTION := Color(1, 1, 1, 1)
+
+static var _white_cache: Dictionary = {}
+static var _theme_installed := false
 
 static func is_phone(view: Vector2) -> bool:
 	return view.x < 720.0
@@ -153,6 +158,149 @@ static func _hits(rect: Rect2, placed: Array[Rect2]) -> bool:
 		if grown.intersects(prior):
 			return true
 	return false
+
+## Left edge that centres a run of `width` px on `center_x`.
+static func centered_x(center_x: float, width: float) -> float:
+	return center_x - width * 0.5
+
+## Baseline origin that centres `text` on `center` both ways. draw_string with
+## HORIZONTAL_ALIGNMENT_CENTER and a width centres inside [x, x + width], so passing the centre as x
+## shifted every glyph right by half that width (plate letters fell out of their circles).
+static func centered_origin(font: Font, text: String, size_px: int, center: Vector2) -> Vector2:
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x
+	var y := center.y + (font.get_ascent(size_px) - font.get_descent(size_px)) * 0.5
+	return Vector2(centered_x(center.x, w), y)
+
+static func draw_centered(ci: CanvasItem, font: Font, center: Vector2, text: String, size_px: int, color: Color) -> Vector2:
+	if font == null or text == "":
+		return center
+	var at := centered_origin(font, text, maxi(TYPE_MIN, size_px), center)
+	ci.draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, maxi(TYPE_MIN, size_px), color)
+	return at
+
+## White silhouette of a texture (alpha kept, RGB dropped). HUD commands, menu actions and
+## controls are monochrome white; system emoji render in colour on macOS/iOS, so action
+## glyphs use these instead. Cached per source texture.
+static func white_symbol(source: Texture2D) -> Texture2D:
+	if source == null:
+		return null
+	var key := source.resource_path if source.resource_path != "" else str(source.get_rid())
+	if _white_cache.has(key):
+		return _white_cache[key] as Texture2D
+	var image := source.get_image()
+	if image == null or image.is_empty():
+		return source
+	image = image.duplicate() as Image
+	if image.is_compressed():
+		image.decompress()
+	image.convert(Image.FORMAT_RGBA8)
+	for y in image.get_height():
+		for x in image.get_width():
+			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, image.get_pixel(x, y).a))
+	var white := ImageTexture.create_from_image(image)
+	_white_cache[key] = white
+	return white
+
+## White symbol for the first id in `ids` that has an icon (item ids from icons_manifest.json).
+static func symbol(ids: Array) -> Texture2D:
+	for id in ids:
+		var tex := ItemIcons.texture(StringName(str(id)))
+		if tex:
+			return white_symbol(tex)
+	return null
+
+## Menus put focus on their first control only when a controller is connected; with a mouse the
+## ring would just be noise and Space would press it.
+static func wants_focus() -> bool:
+	return not Input.get_connected_joypads().is_empty()
+
+static func focus_first(controls: Array) -> void:
+	if not wants_focus():
+		return
+	for c in controls:
+		var control := c as Control
+		if control and control.is_visible_in_tree() and control.focus_mode != Control.FOCUS_NONE:
+			control.grab_focus()
+			return
+
+## Where the hand-drawn HUD sits, so radials can keep their hexes off it.
+## ASSUMPTION: mirrors hunt_hud.gd geometry (vitals top-left, quest + minimap top-right, rails in the
+## bottom corners) until W2-HUD exports its own rects.
+static func hud_reserved(view: Vector2) -> Array[Rect2]:
+	if is_phone(view):
+		return [Rect2(0, 0, view.x, 96.0), Rect2(0, view.y - 96.0, view.x, 96.0)]
+	return [
+		Rect2(0, 0, 330.0, 112.0),
+		Rect2(view.x - 450.0, 0, 450.0, 240.0),
+		Rect2(0, view.y - 104.0, 330.0, 104.0),
+		Rect2(view.x - 190.0, view.y - 196.0, 190.0, 196.0),
+	]
+
+## One Theme from these tokens: ink panels, teal selection and a teal focus ring (keyboard and
+## controller users can see where they are), 16 px body type.
+static func build_theme() -> Theme:
+	var t := Theme.new()
+	t.default_font_size = 16
+	var normal := button_style(false)
+	var hover := button_style(false)
+	hover.bg_color = hover.bg_color.lightened(0.08)
+	hover.border_color = META
+	var pressed := button_style(true)
+	var disabled := button_style(false)
+	disabled.bg_color = Color(0.07, 0.075, 0.085, 0.9)
+	disabled.border_color = Color(DIVIDER, 0.3)
+	var focus := StyleBoxFlat.new()
+	focus.draw_center = false
+	focus.border_color = TEAL
+	focus.set_border_width_all(3)
+	focus.set_corner_radius_all(RADIUS)
+	focus.set_expand_margin_all(2.0)
+	for kind in ["Button", "OptionButton", "MenuButton"]:
+		t.set_stylebox("normal", kind, normal)
+		t.set_stylebox("hover", kind, hover)
+		t.set_stylebox("pressed", kind, pressed)
+		t.set_stylebox("hover_pressed", kind, pressed)
+		t.set_stylebox("disabled", kind, disabled)
+		t.set_stylebox("focus", kind, focus)
+		t.set_color("font_color", kind, TEXT)
+		t.set_color("font_hover_color", kind, Color.WHITE)
+		t.set_color("font_pressed_color", kind, Color.WHITE)
+		t.set_color("font_focus_color", kind, Color.WHITE)
+		t.set_color("font_disabled_color", kind, Color(META, 0.55))
+		t.set_font_size("font_size", kind, 16)
+	t.set_color("font_color", "Label", TEXT)
+	t.set_font_size("font_size", "Label", 16)
+	t.set_stylebox("panel", "PanelContainer", panel_style())
+	t.set_stylebox("panel", "Panel", panel_style())
+	var field := slot_style(false)
+	field.content_margin_left = SPACE
+	field.content_margin_right = SPACE
+	t.set_stylebox("normal", "LineEdit", field)
+	t.set_stylebox("focus", "LineEdit", focus)
+	t.set_color("font_color", "LineEdit", TEXT)
+	t.set_font_size("font_size", "LineEdit", 16)
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0.08, 0.09, 0.11, 0.95)
+	track.set_corner_radius_all(3)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = TEAL
+	fill.set_corner_radius_all(3)
+	t.set_stylebox("background", "ProgressBar", track)
+	t.set_stylebox("fill", "ProgressBar", fill)
+	t.set_font_size("font_size", "ProgressBar", TYPE_MIN)
+	return t
+
+## Merge the token theme into the engine default theme, so every Control picks it up, including
+## those under CanvasLayers (a theme on the root Window does not reach them). Idempotent.
+static func install_theme() -> void:
+	if _theme_installed:
+		return
+	var base := ThemeDB.get_default_theme()
+	if base == null:
+		return
+	base.merge_with(build_theme())
+	_theme_installed = true
+	print("[ui] theme installed")
 
 static func style_label(label: Label, view: Vector2, kind: String) -> void:
 	var size_px := body(view)

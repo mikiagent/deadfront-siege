@@ -112,6 +112,7 @@ func show_terrain() -> void:
 		var id: StringName = row[4]
 		b.pressed.connect(func () -> void: _choose_terrain(id))
 		cards.add_child(b)
+	UiTokens.focus_first(cards.get_children())
 
 func _choose_terrain(id: StringName) -> void:
 	World.home_terrain = id
@@ -306,3 +307,4 @@ func _fill(title: String, rows: Array, cb: Callable) -> void:
 		var id: StringName = row[1]
 		b.pressed.connect(func () -> void: cb.call(id))
 		actions.add_child(b)
+	UiTokens.focus_first(actions.get_children())

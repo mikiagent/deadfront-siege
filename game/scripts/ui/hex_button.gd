@@ -25,7 +25,6 @@ var enabled_look: bool = true
 ## Item and creature thumbnails stay colored. Action glyphs and HUD symbols stay white.
 var color_icon: bool = false
 
-static var _white_icon_cache: Dictionary = {}
 var _down: bool = false
 var _hold: float = 0.0
 
@@ -65,6 +64,11 @@ func _init(size_px: float = 72.0) -> void:
 	size = Vector2(size_px, size_px)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	pivot_offset = size * 0.5
+	# Keyboard and controller users reach every hex; _draw shows a teal ring on focus. A tap or
+	# click drops focus again (_gui_input) so a HUD hex never keeps arrows/Space from the game.
+	focus_mode = Control.FOCUS_ALL
+	focus_entered.connect(queue_redraw)
+	focus_exited.connect(queue_redraw)
 
 func _hex(r: float, c: Vector2) -> PackedVector2Array:
 	var pts := PackedVector2Array()
@@ -89,6 +93,10 @@ func _draw() -> void:
 	var outline := _hex(r, c)
 	outline.append(outline[0])
 	draw_polyline(outline, rim, 2.0, true)
+	if has_focus():
+		var ring := _hex(r + 4.0, c)
+		ring.append(ring[0])
+		draw_polyline(ring, UiTokens.TEAL, 3.0, true)
 	var font := ThemeDB.fallback_font
 	if icon:
 		var isz := r * 1.05
@@ -97,16 +105,16 @@ func _draw() -> void:
 		draw_texture_rect(shown, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
 	elif glyph != "":
 		var short := glyph.length() <= 2
-		var gs := int(r * (0.72 if bottom_text != "" else 0.9)) if short else (int(r * 0.40) if glyph.length() <= 4 else int(r * 0.30))
+		var gs := maxi(UiTokens.TYPE_MIN, int(r * (0.72 if bottom_text != "" else 0.9)) if short else (int(r * 0.40) if glyph.length() <= 4 else int(r * 0.30)))
 		var w := font.get_string_size(glyph, HORIZONTAL_ALIGNMENT_CENTER, -1, gs).x
 		var gy := c.y + gs * (0.2 if bottom_text != "" else 0.35)
 		draw_string(font, Vector2(c.x - w * 0.5, gy), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gs, Color(1, 1, 1, 0.5 if disabled else 1.0))
 	if top_text != "":
-		var ts := int(r * 0.30)
+		var ts := maxi(UiTokens.TYPE_MIN, int(r * 0.30))
 		var w := font.get_string_size(top_text, HORIZONTAL_ALIGNMENT_CENTER, -1, ts).x
 		draw_string(font, Vector2(c.x - w * 0.5, c.y - r * 0.52), top_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, Color(0.85, 0.85, 0.85))
 	if bottom_text != "":
-		var bs := int(r * 0.40)
+		var bs := maxi(UiTokens.TYPE_MIN, int(r * 0.40))
 		var w := font.get_string_size(bottom_text, HORIZONTAL_ALIGNMENT_CENTER, -1, bs).x
 		draw_string(font, Vector2(c.x - w * 0.5, c.y + r * 0.82), bottom_text, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, Color.WHITE)
 	if caption != "":
@@ -124,7 +132,7 @@ func _draw() -> void:
 	if badge != "":
 		var bc := c + Vector2(r * 0.55, -r * 0.55)
 		draw_circle(bc, r * 0.26, badge_color)
-		var bsz := int(r * 0.34)
+		var bsz := maxi(UiTokens.TYPE_MIN, int(r * 0.34))
 		var w := font.get_string_size(badge, HORIZONTAL_ALIGNMENT_CENTER, -1, bsz).x
 		draw_string(font, Vector2(bc.x - w * 0.5, bc.y + bsz * 0.36), badge, HORIZONTAL_ALIGNMENT_LEFT, -1, bsz, Color.WHITE)
 
@@ -146,7 +154,7 @@ func _draw() -> void:
 			])
 			draw_colored_polygon(wedge, Color(0.72, 0.72, 0.72, 0.42))
 	if label_text != "":
-		var ls := maxi(12, int(r * 0.36))
+		var ls := maxi(UiTokens.TYPE_MIN, int(r * 0.36))
 		var shown := UiTokens.ellipsis(font, label_text, 140.0, ls)
 		var lw := font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, ls).x
 		var view_w := get_viewport_rect().size.x
@@ -156,30 +164,19 @@ func _draw() -> void:
 		draw_rect(Rect2(Vector2(origin_x, c.y - ls * 0.9), Vector2(lw + 12.0, ls * 1.6)), UiTokens.INK)
 		draw_string(font, Vector2(origin_x + 6.0, c.y + ls * 0.35), shown, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, Color(0.95, 0.95, 0.95))
 		if hint_text != "":
-			var hint := UiTokens.ellipsis(font, hint_text, 140.0, maxi(12, int(r * 0.28)))
-			draw_string(font, Vector2(origin_x + 6.0, c.y + ls * 1.45), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, maxi(12, int(r * 0.28)), UiTokens.DANGER)
+			var hint := UiTokens.ellipsis(font, hint_text, 140.0, UiTokens.TYPE_MIN)
+			draw_string(font, Vector2(origin_x + 6.0, c.y + ls * 1.45), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.TYPE_MIN, UiTokens.DANGER)
 
-## Durango-style HUD language: action symbols are white silhouettes. Keep alpha/shape from
-## source art, discard its RGB. Cached once per source texture so redraws stay cheap.
+## Durango-style HUD language: action symbols are white silhouettes (UiTokens.white_symbol).
 static func _white_symbol(source: Texture2D) -> Texture2D:
-	if source == null:
-		return null
-	var key := source.resource_path if source.resource_path != "" else str(source.get_rid())
-	if _white_icon_cache.has(key):
-		return _white_icon_cache[key] as Texture2D
-	var image := source.get_image()
-	if image == null or image.is_empty():
-		return source
-	image.convert(Image.FORMAT_RGBA8)
-	for y in image.get_height():
-		for x in image.get_width():
-			var px := image.get_pixel(x, y)
-			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, px.a))
-	var white := ImageTexture.create_from_image(image)
-	_white_icon_cache[key] = white
-	return white
+	return UiTokens.white_symbol(source)
 
 func _gui_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_accept") and has_focus():
+		accept_event()
+		if not disabled:
+			pressed.emit()
+		return
 	var press := false
 	var release := false
 	if event is InputEventScreenTouch:
@@ -191,6 +188,8 @@ func _gui_input(event: InputEvent) -> void:
 	else:
 		return
 	if press:
+		if has_focus():
+			release_focus()
 		_down = true
 		_hold = 0.0
 		queue_redraw()

@@ -1,8 +1,8 @@
 class_name MapScreen
 extends Control
-## Full-screen island map (tap the minimap or the map key). Same camera-up orientation as the
-## minimap. Shows terrain, camp/harbour/crater, resource dots, creatures and the survivor;
-## tap anywhere on land to walk there. Travel buttons along the bottom.
+## Full-screen island map (tap the minimap or the map key). North-up and axis-aligned, so the
+## island reads as a map rather than a diamond. Shows terrain, camp/harbour/crater, resource dots,
+## creatures and the survivor; tap anywhere on land to walk there. Travel buttons along the bottom.
 
 var hud: HuntHud
 var player: Player
@@ -13,6 +13,20 @@ var _zoom_label: Label
 var _zoom: float = 1.0
 var _selected_region: String = ""
 const MARGIN := 24.0
+## Marker colours, one per kind, far apart from each other and from the green/sand/sea map.
+const LEGEND := {
+	"camp": [Color(1.0, 0.82, 0.22), "Camp"],
+	"harbour": [Color(0.45, 0.70, 1.0), "Harbour"],
+	"crater": [Color(1.0, 0.55, 0.0), "Crater"],
+	"wild": [Color(0.95, 0.20, 0.25), "Wild animal"],
+	"pet": [Color(0.80, 0.45, 1.0), "Pet"],
+	"tree": [Color(0.05, 0.22, 0.10), "Trees"],
+	"rock": [Color(0.80, 0.80, 0.84), "Rocks"],
+	"plant": [Color(0.62, 1.0, 0.20), "Plants"],
+}
+
+static func legend_color(kind: String) -> Color:
+	return (LEGEND[kind] as Array)[0]
 
 func _ready() -> void:
 	visible = false
@@ -56,6 +70,7 @@ func open() -> void:
 	_selected_region = str(World.island_id)
 	_rebuild_cards()
 	queue_redraw()
+	UiTokens.focus_first([_close])
 
 func _set_zoom(value: float) -> void:
 	_zoom = clampf(value, 0.75, 2.0)
@@ -94,7 +109,7 @@ func _region_card(id: String, entry: Dictionary) -> Button:
 	var here := id == str(World.island_id)
 	var travel := "You are here" if here else "Charted"
 	var b := Button.new()
-	b.text = "%s\nLv %d    %s\n%s\n%s\n%s" % [id.replace("_", " ").capitalize(), tier, climate, materials, species, travel]
+	b.text = "%s\nLv %d    %s\n%s\n%s\n%s" % [island_name(id), tier, climate, materials, species, travel]
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.clip_text = true
 	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -116,8 +131,9 @@ func _species_line(entry: Dictionary) -> String:
 		for ring in (spawns as Dictionary).values():
 			if ring is Array:
 				for row in ring:
-					if row is Dictionary and not names.has(str((row as Dictionary).get("species", ""))):
-						names.append(str((row as Dictionary).get("species", "")).capitalize())
+					var sp := _species_name(str((row as Dictionary).get("species", ""))) if row is Dictionary else ""
+					if sp != "" and not names.has(sp):
+						names.append(sp)
 					if names.size() >= 3:
 						break
 	if names.is_empty():
@@ -130,12 +146,27 @@ func _material_line(climate: String) -> String:
 	if block is Dictionary:
 		for row in (block as Dictionary).get("materials", []):
 			if row is Dictionary:
-				names.append(str((row as Dictionary).get("id", "")).replace("_", " "))
+				names.append(CraftUI._nice(str((row as Dictionary).get("id", ""))))
 			if names.size() >= 3:
 				break
 	if names.is_empty():
 		return "Resources —"
 	return UiTokens.ellipsis(ThemeDB.fallback_font, " · ".join(names), 200.0, 14)
+
+## Island name for people: its display name, or "<Climate> Island" when the data only has an id.
+static func island_name(id: String) -> String:
+	var def := World.def_of(StringName(id))
+	var dn := str(def.get("display_name", ""))
+	if dn == "" or dn == id.replace("_", " ").capitalize():
+		var climate := str(def.get("climate", ""))
+		return ("%s Island" % climate.capitalize()) if climate != "" else id.replace("_", " ").capitalize()
+	return dn
+
+static func _species_name(id: String) -> String:
+	if id == "":
+		return ""
+	var def := Data.creature(StringName(id))
+	return def.species if def and def.species != "" else id.replace("_", " ").capitalize()
 
 func close() -> void:
 	visible = false
@@ -196,10 +227,9 @@ func _layout() -> Dictionary:
 	var fit := minf(r.x, r.y) - MARGIN * 2.0 - 90.0
 	var rt := World.runtime
 	var size_m: float = float(rt.get("_size")) if rt and rt.get("_size") != null else 200.0
-	var cam := get_viewport().get_camera_3d()
 	var centre := Vector2(r.x * 0.58, r.y * 0.48) if not UiTokens.is_phone(r) else Vector2(r.x * 0.5, r.y * 0.62)
 	return {"centre": centre, "scale": fit / maxf(1.0, size_m) * _zoom, "fit": fit,
-		"yaw": cam.global_rotation.y if cam else 0.0, "size_m": size_m}
+		"yaw": 0.0, "size_m": size_m}
 
 func _draw() -> void:
 	if player == null or hud == null:
@@ -227,24 +257,24 @@ func _draw() -> void:
 		if hn == null or not hn.visible or hn.depleted:
 			continue
 		var role := str(Data.nature_families.get(hn.family, {}).get("role", ""))
-		var col := Color(0.55, 0.85, 0.45, 0.9)
+		var col := legend_color("plant")
 		if role.begins_with("tree"):
-			col = Color(0.15, 0.45, 0.2, 0.95)
+			col = legend_color("tree")
 		elif role == "rock":
-			col = Color(0.62, 0.62, 0.66, 0.95)
-		draw_circle(to_map.call(hn.global_position), 1.6, col)
+			col = legend_color("rock")
+		draw_circle(to_map.call(hn.global_position), 2.2, col)
 	if rt:
 		var camp: Vector3 = rt.get("_camp_pos")
 		var harb: Vector3 = rt.get("_harbour_pos")
-		draw_circle(to_map.call(camp), 6.0, Color(1.0, 0.85, 0.3))
-		draw_circle(to_map.call(harb), 6.0, Color(0.7, 0.85, 1.0))
+		draw_circle(to_map.call(camp), 6.0, legend_color("camp"))
+		draw_circle(to_map.call(harb), 6.0, legend_color("harbour"))
 		if World.crater_discovered:
-			draw_circle(to_map.call(rt.get("_crater_pos")), 6.0, Color(0.9, 0.4, 0.2))
+			draw_circle(to_map.call(rt.get("_crater_pos")), 6.0, legend_color("crater"))
 	for n in get_tree().get_nodes_in_group("creatures"):
 		var cr := n as Creature
 		if cr == null or cr.health.dead:
 			continue
-		draw_circle(to_map.call(cr.global_position), 3.2, Color(0.4, 0.9, 0.4) if cr.is_pet else Color(0.95, 0.35, 0.3))
+		draw_circle(to_map.call(cr.global_position), 3.2, legend_color("pet") if cr.is_pet else legend_color("wild"))
 	var pp := player.global_position
 	var pyaw := player.visual.rotation.y if player.visual else 0.0
 	var fwd := Vector2(-sin(pyaw), -cos(pyaw))
@@ -263,21 +293,29 @@ func _draw() -> void:
 	var close_w := minf(160.0, maxf(96.0, r.x * 0.36))
 	var text_w := r.x - MARGIN * 2.0 - close_w - 12.0
 	draw_string(font, Vector2(MARGIN, MARGIN + head), title, HORIZONTAL_ALIGNMENT_LEFT, text_w, head, Color.WHITE)
-	var sub := "%s   %s" % [str(World.island_id).replace("_", " ").capitalize(), "Home" if World.is_home() else "Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0))]
+	var sub := "%s   %s" % [island_name(str(World.island_id)), "Home" if World.is_home() else "Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0))]
 	var sub_pos := Vector2(MARGIN, MARGIN + head + 22) if phone else Vector2(MARGIN + 220, MARGIN + head)
 	var sub_w := text_w if phone else minf(r.x * 0.4, text_w - 220.0)
 	draw_string(font, sub_pos, UiTokens.ellipsis(font, sub, sub_w, UiTokens.body(r)), HORIZONTAL_ALIGNMENT_LEFT, sub_w, UiTokens.body(r), UiTokens.TEAL)
 	var tile := BuildGrid.tile_of(pp)
-	var meta := "You  X %d  Y %d    Pioneer %d    T-stones %d" % [tile.x, tile.y, World.pioneer_level, World.t_stones]
+	var meta := "You  X %d  Y %d    %s    T-stones %d" % [tile.x, tile.y, LevelDisplay.player_label(), World.t_stones]
 	var meta_y := MARGIN + head + (44.0 if phone else 22.0)
 	draw_string(font, Vector2(MARGIN, meta_y), UiTokens.ellipsis(font, meta, text_w, UiTokens.meta(r)), HORIZONTAL_ALIGNMENT_LEFT, text_w, UiTokens.meta(r), UiTokens.META)
-	if not phone:
-		var lx := r.x - MARGIN - 200.0
-		var ly := MARGIN + 100.0
-		for row in [[Color(1.0, 0.85, 0.3), "Camp"], [Color(0.7, 0.85, 1.0), "Harbour"], [Color(0.95, 0.35, 0.3), "Wild animal"], [Color(0.4, 0.9, 0.4), "Pet"], [Color(0.15, 0.45, 0.2), "Trees"], [Color(0.62, 0.62, 0.66), "Rocks"], [Color(0.55, 0.85, 0.45), "Plants"]]:
-			draw_circle(Vector2(lx + 8, ly - 5), 5.0, row[0])
-			draw_string(font, Vector2(lx + 22, ly), row[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.9, 0.9, 0.9))
-			ly += 22.0
+	# Legend: a column under Close on desktop, two rows over the buttons on a phone.
+	var kinds: Array = LEGEND.keys()
+	if not World.crater_discovered:
+		kinds.erase("crater")
+	var meta_px := UiTokens.meta(r)
+	for i in kinds.size():
+		var row: Array = LEGEND[kinds[i]]
+		var at := Vector2(r.x - MARGIN - 200.0, MARGIN + 100.0 + 22.0 * float(i))
+		if phone:
+			var per_row := ceili(float(kinds.size()) / 2.0)
+			var col_w := (r.x - MARGIN * 2.0) / float(per_row)
+			at = Vector2(MARGIN + col_w * float(i % per_row), r.y - 64.0 * 2.0 - MARGIN - UiTokens.SPACE * 3.0 - 44.0 + 22.0 * floorf(float(i) / float(per_row)))
+		draw_circle(at + Vector2(6, -5), 5.0, row[0])
+		draw_circle(at + Vector2(6, -5), 5.0, Color(0, 0, 0, 0.6), false, 1.0)
+		draw_string(font, at + Vector2(16, 0), str(row[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, meta_px, Color(0.9, 0.9, 0.9))
 
 func _gui_input(event: InputEvent) -> void:
 	var pos := Vector2.ZERO

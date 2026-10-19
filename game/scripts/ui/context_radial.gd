@@ -1,14 +1,18 @@
 class_name ContextRadial
 extends RefCounted
 ## One hex layout for gather, tame and station entry.
-## The anchor is the source; outer hexes stay inside the safe rect, flipping when they would clip.
+## The anchor is the source; the ring turns as a whole to stay inside the safe rect and off the
+## HUD, and only when no turn fits does the whole ring slide in. Clamping each hex on its own
+## stacked them on one spot when the anchor sat above the view.
 
 const HEX := 64.0
+const TURN_STEPS := 24
 
 ## Top-left positions for `count` hexes on a ring around `anchor` (Durango tree wheel: the
 ## source name sits in the middle, hexes surround it, labels face outward). `clear_w` is the
-## width of the centred title so the ring radius keeps the hexes off it.
-static func hex_positions(anchor: Vector2, count: int, view: Vector2, safe: Vector4, hex: float = HEX, clear_w: float = 0.0) -> Array[Vector2]:
+## width of the centred title so the ring radius keeps the hexes off it. `avoid` are screen rects
+## the hexes should stay off (UiTokens.hud_reserved).
+static func hex_positions(anchor: Vector2, count: int, view: Vector2, safe: Vector4, hex: float = HEX, clear_w: float = 0.0, avoid: Array[Rect2] = []) -> Array[Vector2]:
 	var positions: Array[Vector2] = []
 	if count <= 0:
 		return positions
@@ -25,15 +29,64 @@ static func hex_positions(anchor: Vector2, count: int, view: Vector2, safe: Vect
 	else:
 		for i in count:
 			angles.append(-0.55 + TAU * float(i) / float(count))
-	var min_x := safe.w
-	var min_y := safe.z
-	var max_x := maxf(min_x, view.x - safe.x - hex)
-	var max_y := maxf(min_y, view.y - safe.y - hex)
+	var bounds := Rect2(Vector2(safe.w, safe.z), Vector2(maxf(hex, view.x - safe.w - safe.x), maxf(hex, view.y - safe.z - safe.y)))
+	# Try the preferred layout, then turn it a step either way, nearest turns first.
+	var best: Array[Vector2] = []
+	var best_score := INF
+	for k in TURN_STEPS:
+		var step := ((k + 1) >> 1) * (1 if k % 2 == 1 else -1)
+		var turn := TAU * float(step) / float(TURN_STEPS)
+		var ring := _ring(anchor, angles, turn, radius, hex)
+		var score := _overflow(ring, hex, bounds) * 1000.0 + _overlap(ring, hex, avoid)
+		if score <= 0.0:
+			return ring
+		if score < best_score:
+			best_score = score
+			best = ring
+	# Nothing fits as is (anchor near or past an edge): slide the best ring in, keeping its shape.
+	return _slide_inside(best, hex, bounds)
+
+static func _ring(anchor: Vector2, angles: Array[float], turn: float, radius: float, hex: float) -> Array[Vector2]:
+	var out: Array[Vector2] = []
 	for ang in angles:
-		var center := anchor + Vector2(cos(ang), sin(ang)) * radius
-		var p := center - Vector2(hex, hex) * 0.5
-		positions.append(Vector2(clampf(p.x, min_x, max_x), clampf(p.y, min_y, max_y)))
-	return positions
+		out.append(anchor + Vector2(cos(ang + turn), sin(ang + turn)) * radius - Vector2(hex, hex) * 0.5)
+	return out
+
+## Pixels of hex area outside the bounds, summed.
+static func _overflow(ring: Array[Vector2], hex: float, bounds: Rect2) -> float:
+	var total := 0.0
+	for p in ring:
+		var r := Rect2(p, Vector2(hex, hex))
+		total += r.get_area() - r.intersection(bounds).get_area()
+	return total
+
+static func _overlap(ring: Array[Vector2], hex: float, avoid: Array[Rect2]) -> float:
+	var total := 0.0
+	for p in ring:
+		var r := Rect2(p, Vector2(hex, hex))
+		for a in avoid:
+			total += r.intersection(a).get_area()
+	return total
+
+static func _slide_inside(ring: Array[Vector2], hex: float, bounds: Rect2) -> Array[Vector2]:
+	if ring.is_empty():
+		return ring
+	var box := Rect2(ring[0], Vector2(hex, hex))
+	for p in ring:
+		box = box.merge(Rect2(p, Vector2(hex, hex)))
+	var shift := Vector2.ZERO
+	if box.size.x <= bounds.size.x:
+		shift.x = clampf(box.position.x, bounds.position.x, bounds.end.x - box.size.x) - box.position.x
+	else:
+		shift.x = bounds.get_center().x - box.get_center().x
+	if box.size.y <= bounds.size.y:
+		shift.y = clampf(box.position.y, bounds.position.y, bounds.end.y - box.size.y) - box.position.y
+	else:
+		shift.y = bounds.get_center().y - box.get_center().y
+	var out: Array[Vector2] = []
+	for p in ring:
+		out.append(p + shift)
+	return out
 
 ## Labels face away from the ring centre; without an anchor fall back to the screen side.
 static func label_on_left(hex_pos: Vector2, hex: float, view: Vector2, anchor: Vector2 = Vector2(-1, -1)) -> bool:

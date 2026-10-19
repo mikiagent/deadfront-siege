@@ -7,6 +7,10 @@ const NEAR_DIST := 10.0
 const BASE_WIDTH := 176.0
 const DAMAGE_CHUNK_SECONDS := 0.6
 const STATUS_GLYPH_SCRIPT: GDScript = preload("res://scripts/ui/status_glyph.gd")
+## Rows of a full plate: name 0-18, HP bar 20-34, pet XP 36-40, status glyphs 44-70, tame 72-92.
+const FULL_H := 94.0
+## Far plates shrink, but never below the 12 px type floor for their 14 px text.
+const MIN_SCALE := 0.86
 
 var _root: Control
 var _entries: Dictionary = {} ## creature instance id -> Dictionary
@@ -87,12 +91,12 @@ func _tick_corpses(cam: Camera3D, player: Player, delta: float) -> void:
 		var node := e["node"] as Control
 		node.visible = alpha > 0.02
 		node.modulate.a = alpha
-		var knife := e.get("knife", null) as Label
+		var knife := e.get("knife", null) as TextureRect
 		if knife:
 			knife.visible = corpse.tapped_recently(4.0)
 			var unlocked := player.inventory.has_tool_class(&"knife")
-			knife.text = "🔪" if unlocked else "🔒"
-			knife.modulate = Color.WHITE if unlocked else Color(1.0, 0.4, 0.35)
+			# White knife = ready to butcher; red and dim = needs a knife first.
+			knife.modulate = Color.WHITE if unlocked else Color(1.0, 0.4, 0.35, 0.8)
 		var world := corpse.plate_anchor()
 		var screen := cam.unproject_position(world)
 		node.position = screen + Vector2(-70, -28)
@@ -148,11 +152,20 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	if _entries.has(key):
 		return _entries[key]
 	var root := Control.new()
-	root.custom_minimum_size = Vector2(BASE_WIDTH, 78)
+	root.custom_minimum_size = Vector2(BASE_WIDTH, FULL_H)
 	root.size = root.custom_minimum_size
 	root.pivot_offset = Vector2(BASE_WIDTH * 0.5, 0.0)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(root)
+	# Backing pill: the name, bar and glyphs read on bright grass and sky alike.
+	var pill := Panel.new()
+	pill.name = "Pill"
+	var pill_style := StyleBoxFlat.new()
+	pill_style.bg_color = Color(UiTokens.INK, 0.72)
+	pill_style.set_corner_radius_all(8)
+	pill.add_theme_stylebox_override("panel", pill_style)
+	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(pill)
 	var line1 := Label.new()
 	line1.name = "Line1"
 	line1.position = Vector2(8, 0)
@@ -186,12 +199,13 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	root.add_child(hp_dbg)
 	var line3 := HBoxContainer.new()
 	line3.name = "Line3"
-	line3.position = Vector2(8, 38)
-	line3.custom_minimum_size = Vector2(160, 18)
+	line3.position = Vector2(8, 44)
+	line3.custom_minimum_size = Vector2(160, 26)
+	line3.add_theme_constant_override("separation", 4)
 	root.add_child(line3)
 	var tame_row := HBoxContainer.new()
 	tame_row.name = "TameRow"
-	tame_row.position = Vector2(8, 56)
+	tame_row.position = Vector2(8, 72)
 	tame_row.custom_minimum_size = Vector2(160, 20)
 	tame_row.visible = false
 	root.add_child(tame_row)
@@ -204,7 +218,15 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	var tame_label := Label.new()
 	tame_label.name = "TameLabel"
 	tame_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tame_label.add_theme_font_size_override("font_size", 14)
 	tame_row.add_child(tame_label)
+	var tame_bar := ProgressBar.new()
+	tame_bar.name = "TameBar"
+	tame_bar.custom_minimum_size = Vector2(56, 8)
+	tame_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	tame_bar.show_percentage = false
+	tame_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tame_row.add_child(tame_bar)
 	var xp_bg := ColorRect.new()
 	xp_bg.name = "XpBg"
 	xp_bg.position = Vector2(8, 36)
@@ -238,6 +260,8 @@ func _ensure_entry(c: Creature) -> Dictionary:
 		"tame_row": tame_row,
 		"tame_icon": tame_icon,
 		"tame_label": tame_label,
+		"tame_bar": tame_bar,
+		"pill": pill,
 		"xp_bg": xp_bg,
 		"xp_fill": xp_fill,
 		"floats": floats,
@@ -266,16 +290,16 @@ func _ensure_corpse_entry(corpse: Corpse) -> Dictionary:
 	label.text = "Loot · %s" % corpse.species_display_name()
 	label.add_theme_color_override("font_color", Color(0.85, 0.9, 0.78))
 	node.add_child(label)
-	# Small action lock in the bag corner. A TextureRect inherited the source image minimum
-	# and produced a giant world knife; the glyph has a fixed 16 px box and cannot escape it.
-	var knife := Label.new()
+	# Small butcher symbol in the bag corner. EXPAND_IGNORE_SIZE keeps the 16 px box: a TextureRect
+	# that kept the source image minimum once drew a giant world knife.
+	var knife := TextureRect.new()
 	knife.name = "KnifeLock"
-	knife.text = "🔪"
+	knife.texture = UiTokens.symbol(["stone_knife", "stone_knife_work"])
+	knife.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	knife.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	knife.custom_minimum_size = Vector2(16, 16)
 	knife.size = Vector2(16, 16)
-	knife.position = Vector2(node.size.x - 17.0, 1.0)
-	knife.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	knife.add_theme_font_size_override("font_size", 12)
+	knife.position = Vector2(node.size.x - 17.0, 3.0)
 	knife.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	node.add_child(knife)
 	_root.add_child(node)
@@ -304,7 +328,7 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	if bar_bg:
 		bar_bg.position = Vector2(8, 20 if full else 2)
 		bar_bg.size = Vector2(160 if full else 96, 14 if full else 6)
-	root.size = Vector2(BASE_WIDTH, 78 if full else 18)
+	root.size = Vector2(BASE_WIDTH, FULL_H if full else 18)
 	root.custom_minimum_size = root.size
 	var frac := c.health.fraction()
 	var prev := float(entry.get("hp_frac", frac))
@@ -345,6 +369,29 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	_tick_tame_hint(entry, c, player, full)
 	_tick_xp(entry, c, full)
 	_tick_floaters(entry, delta)
+	_fit_pill(entry, full)
+
+## Pill behind whatever rows are showing (compact: just the short bar).
+func _fit_pill(entry: Dictionary, full: bool) -> void:
+	var pill := entry.get("pill", null) as Control
+	if pill == null:
+		return
+	if not full:
+		pill.position = Vector2(4, -2)
+		pill.size = Vector2(104, 10)
+		return
+	var bottom := 38.0
+	var line3 := entry.get("line3", null) as Control
+	if line3 and line3.visible:
+		for g in line3.get_children():
+			if (g as Control).visible:
+				bottom = 72.0
+				break
+	var tame_row := entry.get("tame_row", null) as Control
+	if tame_row and tame_row.visible:
+		bottom = 94.0
+	pill.position = Vector2(2, -2)
+	pill.size = Vector2(BASE_WIDTH - 4.0, bottom + 2.0)
 
 func _pick_emphasis(player: Player) -> int:
 	if player.hunt and player.hunt.target and is_instance_valid(player.hunt.target) and not player.hunt.target.health.dead:
@@ -380,7 +427,7 @@ func _tick_xp(entry: Dictionary, c: Creature, full: bool) -> void:
 	bg.visible = show
 	if not show:
 		return
-	bg.position = Vector2(8, 40 if full else 10)
+	bg.position = Vector2(8, 36 if full else 10)
 	bg.size = Vector2(160 if full else 96, 4)
 	var need := PetRecord.xp_to_next(c.pet_record.level)
 	var frac := clampf(c.pet_record.xp / maxf(1.0, need), 0.0, 1.0)
@@ -404,6 +451,11 @@ func _tick_tame_hint(entry: Dictionary, c: Creature, player: Player, full: bool 
 	var kind := StringName(str(hint.get("kind", "")))
 	var progress := float(hint.get("progress", 0.0))
 	var needed := float(hint.get("needed", 3.0))
+	var bar := entry.get("tame_bar", null) as ProgressBar
+	if bar:
+		bar.visible = kind != &"pen" and kind != &"need"
+		bar.max_value = maxf(1.0, needed)
+		bar.value = progress
 	match kind:
 		&"pen":
 			label.text = "Tame in pen"
@@ -574,8 +626,8 @@ func _distance_scale(dist: float) -> float:
 	if dist <= 15.0:
 		return 1.0
 	if dist >= 45.0:
-		return 0.7
-	return lerpf(1.0, 0.7, (dist - 15.0) / 30.0)
+		return MIN_SCALE
+	return lerpf(1.0, MIN_SCALE, (dist - 15.0) / 30.0)
 
 func _hp_color(frac: float) -> Color:
 	if frac >= 0.6:

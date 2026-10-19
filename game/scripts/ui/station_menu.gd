@@ -15,14 +15,15 @@ const RING_RADIUS := 1.15
 const RING_WIDTH := 0.07
 const EXPAND_SECONDS := 0.22
 
-## Per-station hexes. icon resolves through data/icons_manifest.json, glyph is the fallback.
+## Per-station hexes. icon resolves through data/icons_manifest.json and is drawn as a white
+## symbol (actions are white); glyph is the plain-letter fallback, never a system emoji.
 const ACTIONS := {
-	&"tent": [{"id": &"sleep", "label": "SLEEP", "icon": "", "glyph": "☾"}],
-	&"canvas_tent": [{"id": &"sleep", "label": "SLEEP", "icon": "", "glyph": "☾"}],
-	&"straw_roll": [{"id": &"sleep", "label": "SLEEP", "icon": "", "glyph": "☾"}],
-	&"workbench": [{"id": &"craft", "label": "CRAFT", "icon": "hammer", "glyph": "🔨"}],
-	&"bonfire": [{"id": &"cook", "label": "COOK", "icon": "skewer", "glyph": "🍖"}],
-	&"campfire": [{"id": &"cook", "label": "COOK", "icon": "skewer", "glyph": "🍖"}],
+	&"tent": [{"id": &"sleep", "label": "SLEEP", "icon": "sleeping", "glyph": "Z"}],
+	&"canvas_tent": [{"id": &"sleep", "label": "SLEEP", "icon": "sleeping", "glyph": "Z"}],
+	&"straw_roll": [{"id": &"sleep", "label": "SLEEP", "icon": "sleeping", "glyph": "Z"}],
+	&"workbench": [{"id": &"craft", "label": "CRAFT", "icon": "hammer", "glyph": "C"}],
+	&"bonfire": [{"id": &"cook", "label": "COOK", "icon": "skewer", "glyph": "C"}],
+	&"campfire": [{"id": &"cook", "label": "COOK", "icon": "skewer", "glyph": "C"}],
 }
 ## Menu anchor height above the station origin, per station kind.
 const HEIGHTS := {
@@ -37,9 +38,6 @@ const DEFAULT_HEIGHT := 1.45
 var station: Node3D
 var player: Player
 var _buttons: Array[HexButton] = []
-var _icons: Dictionary = {}
-var _aliases: Dictionary = {}
-var _icon_cache: Dictionary = {}
 var _ring3d: MeshInstance3D
 var _expand_elapsed: float = 0.0
 
@@ -48,19 +46,18 @@ static func actions_for(sid: StringName, p: Player) -> Array:
 	var out: Array = []
 	var list: Array = ACTIONS.get(sid, [])
 	if list.is_empty() and not Crafting.recipes_for_station(sid).is_empty():
-		list = [{"id": &"craft", "label": "CRAFT", "icon": "hammer", "glyph": "🔨"}]
+		list = [{"id": &"craft", "label": "CRAFT", "icon": "hammer", "glyph": "C"}]
 	for a in list:
 		out.append((a as Dictionary).duplicate())
 	if sid == &"bonfire" and p != null and p.statuses \
 			and (p.statuses.has(&"bleed") or p.statuses.has(&"deep_bleed")):
-		out.append({"id": &"cauterise", "label": "CAUTERISE", "icon": "", "glyph": "🔥"})
+		out.append({"id": &"cauterise", "label": "CAUTERISE", "icon": "bonfire_kit", "glyph": "B"})
 	return out
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	visible = false
-	_load_icons()
 
 func show_for(st: Node3D, actions: Array) -> void:
 	station = st
@@ -70,10 +67,11 @@ func show_for(st: Node3D, actions: Array) -> void:
 		var btn := HexButton.new(HEX_SIZE)
 		# HexButton only emits after receiving its own press and release. Because this is
 		# created after the station press, that opening gesture cannot activate the action.
-		# Station entry is an action, so the glyph stays white. Item thumbnails live on the gather radial.
-		btn.icon = null
+		# Station entry is an action, so the symbol is drawn white. Item thumbnails live on the gather radial.
+		var icon_id := str(row.get("icon", ""))
+		btn.icon = ItemIcons.texture(StringName(icon_id)) if icon_id != "" else null
 		btn.color_icon = false
-		btn.glyph = str(row.get("glyph", "✦"))
+		btn.glyph = "" if btn.icon else str(row.get("glyph", "?"))
 		btn.bottom_text = str(row.get("label", ""))
 		var aid := StringName(str(row.get("id", "")))
 		btn.pressed.connect(_on_pressed.bind(aid))
@@ -83,6 +81,7 @@ func show_for(st: Node3D, actions: Array) -> void:
 	_expand_elapsed = 0.0
 	_show_ring3d(0.22)
 	_update_screen_pos()
+	UiTokens.focus_first(_buttons)
 
 func hide_menu() -> void:
 	_clear()
@@ -136,7 +135,7 @@ func _update_screen_pos() -> void:
 		return
 	var anchor := cam.unproject_position(world)
 	var view := get_viewport_rect().size
-	var spots := ContextRadial.hex_positions(anchor, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX_SIZE)
+	var spots := ContextRadial.hex_positions(anchor, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX_SIZE, 0.0, UiTokens.hud_reserved(view))
 	for i in _buttons.size():
 		if i < spots.size():
 			_buttons[i].position = spots[i]
@@ -187,34 +186,3 @@ func _show_ring3d(radius: float) -> void:
 	im.surface_end()
 	_ring3d.global_transform = Transform3D.IDENTITY
 	_ring3d.visible = true
-
-func _load_icons() -> void:
-	var path := "res://data/icons_manifest.json"
-	if not FileAccess.file_exists(path):
-		return
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
-	if parsed is Dictionary:
-		var root := parsed as Dictionary
-		var block: Variant = root.get("icons", {})
-		if block is Dictionary:
-			_icons = block as Dictionary
-		var al: Variant = root.get("aliases", {})
-		if al is Dictionary:
-			_aliases = al as Dictionary
-
-func _icon_for(key: String) -> Texture2D:
-	if key == "":
-		return null
-	if _aliases.has(key):
-		key = str(_aliases[key])
-	var icon_path := str(_icons.get(key, ""))
-	if icon_path == "" and ResourceLoader.exists("res://assets/icons/%s.png" % key):
-		icon_path = "res://assets/icons/%s.png" % key
-	if icon_path == "" or not ResourceLoader.exists(icon_path):
-		return null
-	if _icon_cache.has(icon_path):
-		return _icon_cache[icon_path] as Texture2D
-	var tex := load(icon_path) as Texture2D
-	if tex:
-		_icon_cache[icon_path] = tex
-	return tex

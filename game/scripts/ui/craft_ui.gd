@@ -7,11 +7,14 @@ extends Control
 ## station if needed, the hex over it fills once per item, and the item lands in the bag on
 ## the full pass (StationCraft).
 
+## [station id, name, symbol icon id]. Symbols are white (UiTokens.symbol); system emoji drew in colour.
 const STATIONS := [
-	["", "By hand", "✋"], ["workbench", "Workbench", "🔨"], ["bonfire", "Bonfire", "🔥"], ["campfire", "Campfire", "🔥"],
-	["drying_rack", "Meat dryer", "🪢"], ["crock_pot", "Crock pot", "🍲"], ["mortar", "Mortar", "🥣"], ["stone_grill", "Stone grill", "🍖"],
-	["steamer", "Steamer", "♨"], ["well", "Well", "💧"],
+	["", "By hand", "hands"], ["workbench", "Workbench", "workbench_kit"], ["bonfire", "Bonfire", "bonfire_kit"],
+	["campfire", "Campfire", "campfire_kit"], ["drying_rack", "Meat dryer", "drying_rack_kit"],
+	["crock_pot", "Crock pot", "crock_pot_kit"], ["mortar", "Mortar", "mortar_kit"],
+	["stone_grill", "Stone grill", "stone_grill_kit"], ["steamer", "Steamer", "steamer_kit"], ["well", "Well", "well_kit"],
 ]
+const NO_LEVEL := "Lv —"
 
 var player: Player
 var _station: String = ""
@@ -121,6 +124,7 @@ func show_ui() -> void:
 	visible = true
 	_layout_safe()
 	rebuild()
+	UiTokens.focus_first(_list.get_children())
 
 ## A station tap lands on that station's group.
 func show_for_station(sid: StringName) -> void:
@@ -155,20 +159,22 @@ func _refresh_tabs() -> void:
 		var status := ""
 		var col := Color(0.55, 0.95, 0.6)
 		if sid == "":
-			status = "always"
+			status = "anywhere"
 		elif info["near"]:
-			status = "● here"
+			status = "here"
 		elif info["exists"]:
-			status = "○ %d m away" % int(info["dist"])
+			status = "%d m away" % int(info["dist"])
 			col = Color(0.95, 0.85, 0.5)
 		else:
-			status = "○ none built"
+			status = "none built"
 			col = Color(0.6, 0.6, 0.6)
 		var count := Crafting.recipes_for_station(StringName(sid)).size()
-		var b := _mk_btn("%s %s\n%s · %d" % [row[2], row[1], status, count], _pick_station.bind(sid), Vector2(190, 64))
+		var b := _mk_btn("%s\n%s · %d recipes" % [row[1], status, count], _pick_station.bind(sid), Vector2(190, 64))
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.clip_text = true
-		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.icon = UiTokens.symbol([row[2], "hammer"])
+		b.expand_icon = true
+		b.add_theme_constant_override("icon_max_width", 28)
 		b.add_theme_color_override("font_color", col)
 		if sid == _station:
 			b.add_theme_color_override("font_color", UiTokens.TEXT)
@@ -212,105 +218,121 @@ func _refresh_list() -> void:
 		_list.add_child(_recipe_row(rec, info))
 	_show_detail(info)
 
-func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
-	var panel := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	var picks := Crafting.default_picks(player.inventory, rec)
-	var have := Crafting.picks_valid(player.inventory, rec, picks)
-	var reachable: bool = _station == "" or bool(info["exists"])
+## "Lv 12", or "Lv —" when the bag cannot make it yet. Crafting.preview_level reports the recipe's
+## top level for an invalid pick, which read as "Lv 60" on every row the player could not craft.
+static func level_text(inv: Inventory, rec: Dictionary) -> String:
+	if inv == null or not Crafting.picks_valid(inv, rec, Crafting.default_picks(inv, rec)):
+		return NO_LEVEL
+	return "Lv %d" % Crafting.preview_level(inv, rec)
+
+## Why a recipe cannot start now ("" = it can).
+func _block_reason(rec: Dictionary, info: Dictionary) -> String:
 	var blocked := Crafting.progression_block(player, rec)
-	var can := have and reachable and blocked == ""
+	if blocked != "":
+		return "Locked"
+	if not Crafting.picks_valid(player.inventory, rec, Crafting.default_picks(player.inventory, rec)):
+		return "Missing items"
+	if _station != "" and not info["exists"]:
+		return "No station"
+	return ""
+
+## One line per recipe: tap the row for details; only a recipe that can start carries a button.
+func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
+	var reason := _block_reason(rec, info)
+	var can := reason == ""
 	var chosen := str(rec.get("id", "")) == _selected_id
-	sb.bg_color = UiTokens.TEAL_DIM if chosen else (Color(0.10, 0.12, 0.13, 0.95) if can else Color(0.08, 0.09, 0.1, 0.92))
-	sb.border_color = UiTokens.TEAL if chosen else UiTokens.DIVIDER
-	sb.set_border_width_all(2 if chosen else 1)
-	sb.set_corner_radius_all(UiTokens.RADIUS)
-	sb.content_margin_left = 10
-	sb.content_margin_right = 10
-	sb.content_margin_top = 6
-	sb.content_margin_bottom = 6
-	panel.add_theme_stylebox_override("panel", sb)
-	var phone := UiTokens.is_phone(get_viewport_rect().size)
+	var view := get_viewport_rect().size
+	var phone := UiTokens.is_phone(view)
+	var row := Button.new()
+	row.toggle_mode = false
+	row.custom_minimum_size = Vector2(0, 60)
+	row.add_theme_stylebox_override("normal", UiTokens.button_style(chosen))
+	row.pressed.connect(_choose_recipe.bind(str(rec.get("id", ""))))
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 8)
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation", 8)
-	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 8)
-	# Buttons sit under the title so the name row keeps the column width.
-	# Only the recipe name ellipsises; Lv / time keeps a reserved width.
-	panel.add_child(stack)
-	stack.add_child(h)
-	stack.add_child(actions)
-	var out_row0: Dictionary = rec.get("output", {})
+	h.set_anchors_preset(Control.PRESET_FULL_RECT)
+	h.offset_left = 8
+	h.offset_right = -8
+	h.add_theme_constant_override("separation", UiTokens.SPACE)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(h)
+	var out_row: Dictionary = rec.get("output", {})
 	var out_icon := TextureRect.new()
-	out_icon.texture = ItemIcons.texture(StringName(str(out_row0.get("id", ""))))
-	out_icon.custom_minimum_size = Vector2(44, 44) if phone else Vector2(52, 52)
+	out_icon.texture = ItemIcons.texture(StringName(str(out_row.get("id", ""))))
+	out_icon.custom_minimum_size = Vector2(44, 44)
 	out_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	out_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	out_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	out_icon.modulate = Color.WHITE if can else Color(0.6, 0.6, 0.6)
+	out_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(out_icon)
 	var text := VBoxContainer.new()
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.alignment = BoxContainer.ALIGNMENT_CENTER
+	text.add_theme_constant_override("separation", 0)
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(text)
-	var line := HBoxContainer.new()
-	line.add_theme_constant_override("separation", UiTokens.SPACE)
-	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.add_child(line)
-	var out_row: Dictionary = rec.get("output", {})
-	var out_def := Data.item(StringName(str(out_row.get("id", ""))))
-	var out_name := out_def.display_name if out_def and out_def.display_name != "" else str(rec.get("display_name", rec.get("id", "?")))
-	var view := get_viewport_rect().size
-	var name_px := UiTokens.body(view)
-	var font := ThemeDB.fallback_font
-	var level := Crafting.preview_level(player.inventory, rec)
-	var seconds := Crafting.recipe_seconds(rec)
-	var meta_text := "Lv %d · %.1fs" % [level, seconds]
-	var reserve_w := font.get_string_size("Lv 60 · 3.0s", HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x if font else 108.0
-	var actual_w := font.get_string_size(meta_text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x if font else reserve_w
-	var meta_w := maxf(reserve_w, actual_w) + float(UiTokens.SPACE)
 	var name := Label.new()
-	name.text = out_name
+	name.text = _output_name(rec)
 	name.clip_text = true
 	name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	name.custom_minimum_size = Vector2(0, name_px + 4)
-	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name.add_theme_font_size_override("font_size", name_px)
+	name.add_theme_font_size_override("font_size", UiTokens.body(view))
 	name.add_theme_color_override("font_color", Color.WHITE if can else Color(0.75, 0.75, 0.75))
-	line.add_child(name)
+	text.add_child(name)
 	var meta := Label.new()
-	meta.text = meta_text
-	meta.clip_text = false
-	meta.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	meta.custom_minimum_size = Vector2(ceilf(meta_w), name_px + 4)
-	meta.size_flags_horizontal = Control.SIZE_SHRINK_END
-	meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	meta.add_theme_font_size_override("font_size", name_px)
-	meta.add_theme_color_override("font_color", Color.WHITE if can else Color(0.75, 0.75, 0.75))
-	line.add_child(meta)
-	var pick := Button.new()
-	pick.text = "Details"
-	pick.custom_minimum_size = Vector2(88, 44)
-	pick.pressed.connect(_choose_recipe.bind(str(rec.get("id", ""))))
-	actions.add_child(pick)
-	var btn_text := "Craft"
-	if blocked != "":
-		btn_text = "Locked"
-	elif not have:
-		btn_text = "Missing"
-	elif _station != "" and not info["exists"]:
-		btn_text = "No station"
-	elif _station != "" and not info["near"]:
-		btn_text = "Walk & craft"
-	var b := _mk_btn(btn_text, _start.bind(rec, 1), Vector2(120 if not phone else 96, 56))
-	b.disabled = not can
-	b.clip_text = true
-	b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	actions.add_child(b)
-	var b5 := _mk_btn("×5", _start.bind(rec, 5), Vector2(64, 56))
-	b5.disabled = not can
-	actions.add_child(b5)
-	return panel
+	meta.name = "RecipeMeta"
+	meta.text = "%s · %.1fs%s" % [level_text(player.inventory, rec), Crafting.recipe_seconds(rec), ("  ·  " + reason) if reason != "" else ""]
+	meta.clip_text = true
+	meta.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	meta.add_theme_font_size_override("font_size", UiTokens.meta(view))
+	meta.add_theme_color_override("font_color", UiTokens.META if can else Color(1.0, 0.62, 0.5))
+	text.add_child(meta)
+	if can:
+		var label := "Craft"
+		if _station != "" and not info["near"]:
+			label = "Walk & craft" if not phone else "Walk"
+		var b := _mk_btn(label, _start.bind(rec, 1), Vector2(96 if phone else 132, 48))
+		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(b)
+	return row
+
+func _output_name(rec: Dictionary) -> String:
+	var out_row: Dictionary = rec.get("output", {})
+	var out_def := Data.item(StringName(str(out_row.get("id", ""))))
+	if out_def and out_def.display_name != "":
+		return out_def.display_name
+	return str(rec.get("display_name", rec.get("id", "?"))).replace("_", " ").capitalize()
+
+## Readable name for an ingredient category or item id ("lashing" -> "Lashing").
+static func _nice(id: String) -> String:
+	var d := Data.item(StringName(id))
+	if d and d.display_name != "":
+		return d.display_name
+	return id.replace("_", " ").capitalize()
+
+## What the item does, from its definition (base values; crafted level scales them).
+static func stat_lines(def: ItemDef) -> PackedStringArray:
+	var out: PackedStringArray = []
+	if def == null:
+		return out
+	if def.damage > 0.0:
+		out.append("Damage %.0f" % def.damage)
+	if def.attack_rate > 0.0:
+		out.append("Attack rate %.1f/s" % def.attack_rate)
+	if def.range_m > 0.0:
+		out.append("Range %.0f m" % def.range_m)
+	if def.armor_value > 0.0:
+		out.append("Armor %.0f" % def.armor_value)
+	if def.health_bonus > 0.0:
+		out.append("Health +%.0f" % def.health_bonus)
+	if def.food_energy > 0.0:
+		out.append("Energy +%.0f" % def.food_energy)
+	if def.capture_tier > 0:
+		out.append("Capture tier %d" % def.capture_tier)
+	if def.tool_class != &"none" and def.tool_class != &"":
+		out.append("Tool: %s" % str(def.tool_class).capitalize())
+	if def.max_durability > 0:
+		out.append("Durability %d" % def.max_durability)
+	return out
 
 ## Icon + "have/need" per slot; red when short.
 func _ingredients_row(rec: Dictionary) -> Control:
@@ -346,40 +368,13 @@ func _ingredients_row(rec: Dictionary) -> Control:
 		cell.add_child(ic)
 		var l := Label.new()
 		var d := Data.item(sample_id)
-		var nm := d.display_name if d and d.display_name != "" else str(cat).replace("_", " ")
+		var nm := d.display_name if d and d.display_name != "" else _nice(str(cat))
 		l.text = "%s %d/%d" % [nm, mini(have, need), need]
 		l.add_theme_font_size_override("font_size", 14)
 		l.add_theme_color_override("font_color", Color(0.8, 0.85, 0.75) if have >= need else Color(1.0, 0.55, 0.45))
 		cell.add_child(l)
 		row.add_child(cell)
 	return row
-
-func _ingredients_text(rec: Dictionary) -> String:
-	var parts: PackedStringArray = []
-	var picks := Crafting.default_picks(player.inventory, rec)
-	var slots: Array = rec.get("slots", [])
-	for i in slots.size():
-		if not slots[i] is Dictionary:
-			continue
-		var slot: Dictionary = slots[i]
-		var cat := StringName(str(slot.get("category", "")))
-		var need := int(slot.get("count", 1))
-		var have := 0
-		for idx in player.inventory.find_by_category(cat):
-			var s := player.inventory.slots[idx]
-			if s:
-				have += s.count
-		var label := str(cat).replace("_", " ")
-		if i < picks.size() and picks[i] >= 0 and player.inventory.slots[picks[i]]:
-			var d := player.inventory.slots[picks[i]].def()
-			if d and d.display_name != "":
-				label = d.display_name
-		else:
-			var sample := Data.item(Crafting.sample_def_for_category(player.inventory, cat))
-			if sample and sample.display_name != "":
-				label = sample.display_name
-		parts.append("%s %d/%d" % [label, mini(have, need), need])
-	return "  ·  ".join(parts)
 
 func _choose_recipe(rid: String) -> void:
 	_selected_id = rid
@@ -419,7 +414,7 @@ func _show_detail(info: Dictionary) -> void:
 		return
 	var out_row: Dictionary = rec.get("output", {})
 	var out_def := Data.item(StringName(str(out_row.get("id", ""))))
-	var out_name := out_def.display_name if out_def and out_def.display_name != "" else str(rec.get("display_name", rec.get("id", "?")))
+	var out_name := _output_name(rec)
 	var icon := TextureRect.new()
 	icon.texture = ItemIcons.texture(StringName(str(out_row.get("id", ""))))
 	icon.custom_minimum_size = Vector2(64, 64)
@@ -427,11 +422,20 @@ func _show_detail(info: Dictionary) -> void:
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_detail.add_child(icon)
 	var title := Label.new()
-	title.text = "%s\nLv %d    ×%d" % [out_name, Crafting.preview_level(player.inventory, rec), int(out_row.get("count", 1))]
+	title.name = "DetailTitle"
+	title.text = "%s\n%s · %.1fs    ×%d" % [out_name, level_text(player.inventory, rec), Crafting.recipe_seconds(rec), int(out_row.get("count", 1))]
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 	title.add_theme_color_override("font_color", UiTokens.TEXT)
 	_detail.add_child(title)
+	var stats := stat_lines(out_def)
+	if not stats.is_empty():
+		var st := Label.new()
+		st.name = "DetailStats"
+		st.text = "\n".join(stats)
+		st.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
+		st.add_theme_color_override("font_color", UiTokens.META)
+		_detail.add_child(st)
 	var need := Label.new()
 	need.text = "INGREDIENTS"
 	need.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
@@ -441,7 +445,7 @@ func _show_detail(info: Dictionary) -> void:
 	var missing := Crafting.missing_ingredient_name(player.inventory, rec)
 	if missing != "":
 		var lock := Label.new()
-		lock.text = "Needs %s" % missing.replace("_", " ")
+		lock.text = "Needs %s" % _nice(missing)
 		lock.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		lock.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 		lock.add_theme_color_override("font_color", UiTokens.DANGER)
@@ -453,6 +457,18 @@ func _show_detail(info: Dictionary) -> void:
 		lock.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 		lock.add_theme_color_override("font_color", UiTokens.DANGER)
 		_detail.add_child(lock)
+	# The repeated per-row buttons live here once: craft one or five of the selected recipe.
+	var can := _block_reason(rec, info) == ""
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", UiTokens.SPACE)
+	_detail.add_child(actions)
+	var one := _mk_btn("Craft", _start.bind(rec, 1), Vector2(120, 56))
+	one.name = "CraftOne"
+	one.disabled = not can
+	actions.add_child(one)
+	var five := _mk_btn("Craft ×5", _start.bind(rec, 5), Vector2(120, 56))
+	five.disabled = not can
+	actions.add_child(five)
 
 func _selected_recipe() -> Dictionary:
 	for rec in Crafting.recipes_for_station(StringName(_station)):

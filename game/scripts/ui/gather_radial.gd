@@ -236,7 +236,7 @@ func _layout() -> void:
 	var view := get_viewport_rect().size
 	var tf := ThemeDB.fallback_font
 	var tw := tf.get_string_size(UiTokens.ellipsis(tf, _node_name(), 168.0, UiTokens.body(view)), HORIZONTAL_ALIGNMENT_CENTER, -1, UiTokens.body(view)).x + 20.0
-	var spots := ContextRadial.hex_positions(base, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX, tw)
+	var spots := ContextRadial.hex_positions(base, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX, tw, UiTokens.hud_reserved(view))
 	for i in _buttons.size():
 		if i < spots.size():
 			_buttons[i].position = spots[i]
