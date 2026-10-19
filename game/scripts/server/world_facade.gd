@@ -61,6 +61,7 @@ func damage_creature(net_id: String, amount: float) -> void:
 	var c: Dictionary = creatures[net_id]
 	c.hp = maxf(0.0, float(c.hp) - amount)
 
+## A feed landed. W3 also extends the knockdown by FieldTame.KNOCKDOWN_EXTEND, as apply_feed does.
 func set_tame_feeds(net_id: String, feeds: float) -> void:
 	creatures[net_id].feeds = feeds
 

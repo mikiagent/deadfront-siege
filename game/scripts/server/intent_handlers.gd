@@ -395,7 +395,9 @@ func _attack(ch: CharacterState, a: Dictionary) -> Dictionary:
 		return no("not_found", "unknown species for %s" % net_id)
 	if ch.pos().distance_to(WorldFacade.v3(c.get("pos"))) > body_reach(def) + REACH_SLACK:
 		return no("out_of_range", "%s is out of reach" % net_id)
-	var w := ch.inventory().equipped_weapon()
+	var inv := ch.inventory()
+	var wi := ch.find_uid(str(ch.d.equipment.get("weapon", "")))
+	var w := inv.slots[wi] if wi >= 0 else inv.equipped_weapon() # by uid: two clubs may differ in level
 	var wd := w.def() if w else null
 	if wd and wd.range_m > 0.0:
 		return no("bad_request", "ranged attacks are not server-side yet")

@@ -100,6 +100,7 @@ func _run(op: String, account: int, a: Dictionary, ts: int, tape: Array, replayi
 		var hit: Array = ch.d.rids[rid]
 		if str(hit[0]) != op:
 			return IntentHandlers.no("conflict", "rid already used for %s" % hit[0])
+		# shortcut: a repeat gets this marker, not the first body; the client re-reads with char.get.
 		return {"ok": true, "r": {"duplicate": true, "op": op, "seq": int(hit[1])}}
 	var backup: Dictionary = {"char": ch.d.duplicate(true), "minted": s.minted.duplicate(), "consumed": s.consumed.duplicate(), "exported": s.exported.duplicate(), "pets_minted": s.pets_minted, "pets_exported": s.pets_exported}
 	var errors := _errors.n
