@@ -1,6 +1,44 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Unit gate: import, then run game/tests/run_all.gd and every game/tests/t_*.gd headless.
+# A file passes only with exit 0, its own PASS line ("[tests] PASS" for run_all, "[t_x] PASS"
+# for t_x.gd) and no 'SCRIPT ERROR' / 'Parse Error' line: GDScript keeps running after a runtime
+# error, so a crashed test used to print PASS. Every run gets a throwaway HOME, so tests never
+# share a save with each other or touch the owner's real user:// data.
+# Usage: tools/test.sh [--no-import]
+set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-G="$($ROOT/tools/find_godot.sh)"
-"$G" --headless --path "$ROOT/game" --import
-"$G" --headless --path "$ROOT/game" --script res://tests/run_all.gd
+G="$($ROOT/tools/find_godot.sh)" || exit 127
+# Strict expected failures: listed files must FAIL; one that passes (XPASS) fails the gate so the
+# entry gets removed. t_rules: pet death cooldown is 60 s, GAUNTLET says 180 s (W1-TAME fixes it).
+XFAIL=" t_rules "
+TMP_HOME="$(mktemp -d)"
+trap 'rm -rf "$TMP_HOME"' EXIT
+export HOME="$TMP_HOME" XDG_DATA_HOME="$TMP_HOME/.local/share" XDG_CONFIG_HOME="$TMP_HOME/.config"
+if [[ "${1:-}" != "--no-import" ]]; then
+  perl -e 'alarm 400; exec @ARGV' "$G" --headless --path "$ROOT/game" --import >/dev/null 2>&1
+fi
+bad=0; total=0
+for f in "$ROOT/game/tests/run_all.gd" "$ROOT"/game/tests/t_*.gd; do
+  [[ -f "$f" ]] || continue
+  name="$(basename "$f" .gd)"
+  tag="$name"; [[ "$name" == run_all ]] && tag=tests
+  total=$((total + 1))
+  out="$(perl -e 'alarm 120; exec @ARGV' "$G" --headless --path "$ROOT/game" --script "res://tests/$name.gd" 2>&1)"
+  code=$?
+  why=""
+  echo "$out" | grep -q "^\[$tag\] PASS" || why="no [$tag] PASS line"
+  err="$(echo "$out" | grep -m1 -E 'SCRIPT ERROR|Parse Error')" && why="$err"
+  [[ $code -ne 0 ]] && why="exit $code${why:+; $why}"
+  if [[ "$XFAIL" == *" $name "* ]]; then
+    # An expected failure must be the test's own FAIL verdict, never a crash or compile error.
+    if [[ -n "$why" && -z "$err" ]] && echo "$out" | grep -q "^\[$tag\] FAIL"; then echo "[test] XFAIL $name ($(echo "$out" | grep -m1 "^\[$tag\] FAIL"))"
+    elif [[ -n "$why" ]]; then echo "[test] FAIL $name (expected-fail file crashed: $why)"; bad=$((bad + 1)); else echo "[test] XPASS $name (passes now: remove it from XFAIL in tools/test.sh)"; bad=$((bad + 1)); fi
+  elif [[ -n "$why" ]]; then
+    echo "$out" | grep -E "^\[$tag\]|SCRIPT ERROR|Parse Error|^ +at: " | head -20
+    echo "[test] FAIL $name ($why)"; bad=$((bad + 1))
+  else
+    echo "[test] PASS $name"
+  fi
+done
+if [[ $bad -eq 0 ]]; then echo "[tests] PASS files=$total"; exit 0; fi
+echo "[tests] FAIL $bad/$total files"; exit 1
