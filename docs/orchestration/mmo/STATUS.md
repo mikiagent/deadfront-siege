@@ -75,6 +75,10 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - 2026-10-18 orchestrator decision: contracts v2 section 0. Online characters are server-owned and
   islands are server-simulated; clients send intents. The audit rated v1's client deposits P0.
 
+- 2026-10-18: Blender MCP connected (Blender 5.2, addon 1.8, port 9876, execute_code + viewport
+  screenshots). One Blender instance: only one agent drives Blender MCP at a time; others use
+  headless Blender scripts kept in tools/. Asset libraries (Poly Haven etc.) are off.
+
 ## Owner questions (open)
 
 - none
