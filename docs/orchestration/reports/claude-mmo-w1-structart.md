@@ -30,7 +30,7 @@ world-harbour-07 (pier model only; placing it on the coast is W2-TERRAIN).
   `glb_info.py` (pure-Python GLB reader), lab `structart_lab`, test `game/tests/t_structart.gd`, and the review
   shot `tools/blender/structures/built_base_shot.gd`.
 
-Commits: ddc1aef (WIP helper), 04027fe, 5cb3f5c, 59f1f3f, (uids), 8fb71cf, (stages/canvas), plus this report.
+Commits: ddc1aef (WIP helper), 04027fe, 5cb3f5c, 59f1f3f, 209539f, 8fb71cf, 825ef4c, 82f06dc (this report) and the commit that fixes this list.
 
 ## Acceptance checklist
 
