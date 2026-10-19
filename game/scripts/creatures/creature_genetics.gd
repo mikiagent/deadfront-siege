@@ -57,12 +57,23 @@ func train(stat: StringName, amount: int = 1) -> int:
 	evs[stat] = int(evs.get(stat, 0)) + added
 	return added
 
+## Growth per random level-up point and per trained EV, as a fraction of the species base.
+## Small on purpose: PetStats adds these to per-level growth and the sum must keep a perfect
+## Lv60 pet inside its tier (see PetStats).
+const GAIN_STEP := 0.0008
+const EV_STEP := 0.001
+
+## Innate quality: 85-115 % of the species baseline.
+func iv_multiplier(stat: StringName) -> float:
+	return 0.85 + 0.30 * float(int(ivs.get(stat, 16))) / float(IV_MAX)
+
+## Additive growth from level gains and EVs (0 for a wild animal).
+func growth(stat: StringName) -> float:
+	return GAIN_STEP * float(int(level_gains.get(stat, 0))) + EV_STEP * float(int(evs.get(stat, 0)))
+
+## Level-1 stat factor; PetStats.compute(def, self, 1) == base * multiplier(stat).
 func multiplier(stat: StringName) -> float:
-	# IV range is 85-115 % of species baseline. Growth is deliberately smaller:
-	# +1 % per random level point and +0.2 % per focused EV.
-	return (0.85 + 0.30 * float(int(ivs.get(stat, 16))) / float(IV_MAX)
-		+ 0.01 * float(int(level_gains.get(stat, 0)))
-		+ 0.002 * float(int(evs.get(stat, 0))))
+	return iv_multiplier(stat) * (1.0 + growth(stat))
 
 func tier_for(stat: StringName) -> StringName:
 	return tier_for_iv(int(ivs.get(stat, 16)))

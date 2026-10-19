@@ -8,6 +8,9 @@ const FAIL_COOLDOWN := 60.0
 const PREFERRED_FEED := 1.0
 const ACCEPTED_FEED := 0.5
 const CAPTURE_HEALTH_FRAC := 0.30
+## ASSUMPTION: tier-1 species (the starter tames) need no Capture Technique, so a new survivor can
+## make a first tame; every higher tier needs its technique, the same nodes nets check.
+const FREE_CAPTURE_TIER := 1
 
 static func health_allows_capture(fraction: float) -> bool:
 	return fraction < CAPTURE_HEALTH_FRAC
@@ -21,6 +24,15 @@ static func can_attempt(creature: Creature) -> bool:
 		return false
 	return creature.statuses.has(&"knockdown") and health_allows_capture(creature.health.fraction())
 
+## "" when this survivor may tame the species, else the hint naming the missing technique.
+static func lock_reason(creature: Creature) -> String:
+	if creature == null or creature.def == null:
+		return ""
+	var tier := creature.def.capture_tier
+	if tier <= FREE_CAPTURE_TIER or Data.has_capture_technique(tier):
+		return ""
+	return "Needs Capture Technique %d" % tier
+
 static func preferred_need(creature: Creature) -> StringName:
 	if creature == null or creature.def == null:
 		return &"berry"
@@ -28,8 +40,10 @@ static func preferred_need(creature: Creature) -> StringName:
 		return creature.def.preferred_food[0]
 	return &"berry"
 
+## A locked species accepts no food, so callers fall through to refuse_message(), which then
+## names the missing technique instead of a food.
 static func food_in_bag(inv: Inventory, creature: Creature) -> StringName:
-	if inv == null or creature == null or creature.def == null:
+	if inv == null or creature == null or creature.def == null or lock_reason(creature) != "":
 		return &""
 	for id in creature.def.preferred_food:
 		if inv.find_first(id) >= 0:
@@ -53,6 +67,15 @@ static func plate_hint(creature: Creature, inv: Inventory) -> Dictionary:
 	if not can_attempt(creature):
 		return {}
 	var need := preferred_need(creature)
+	var locked := lock_reason(creature)
+	if locked != "":
+		return {
+			"kind": &"need",
+			"text": locked,
+			"food_id": need,
+			"progress": creature.tame_feeds,
+			"needed": creature.def.feeds_needed,
+		}
 	if creature.def.requires_pen:
 		return {
 			"kind": &"pen",
@@ -79,7 +102,8 @@ static func plate_hint(creature: Creature, inv: Inventory) -> Dictionary:
 	}
 
 static func refuse_message(creature: Creature) -> String:
-	return "needs %s" % preferred_need(creature)
+	var locked := lock_reason(creature)
+	return locked if locked != "" else "needs %s" % preferred_need(creature)
 
 static func begin_window(creature: Creature) -> void:
 	if creature == null or creature.def == null:
@@ -94,6 +118,13 @@ static func begin_window(creature: Creature) -> void:
 
 static func apply_feed(player: Player, creature: Creature, food_id: StringName) -> bool:
 	if player == null or not can_attempt(creature):
+		return false
+	if lock_reason(creature) != "":
+		print("[tame] refused: %s" % lock_reason(creature))
+		return false
+	# Refuse before eating the food: a completed tame must have a roster slot to go to.
+	if player.bonded.size() >= Data.bonded_cap():
+		print("[tame] refused: roster full (%d)" % Data.bonded_cap())
 		return false
 	var value := feed_value(creature, food_id)
 	if value <= 0.0:
@@ -146,14 +177,13 @@ static func fail(creature: Creature, source: Node) -> void:
 	print("[tame] %s failed window; enraged cooldown=%.0fs" % [creature.def.id, FAIL_COOLDOWN])
 
 static func _complete(player: Player, creature: Creature) -> void:
-	var grade := _roll_grade(randi())
 	var feeds_shown := int(ceili(creature.def.feeds_needed - 0.001))
 	if feeds_shown < 1:
 		feeds_shown = int(round(creature.tame_feeds))
-	var species_id := creature.def.id
-	var variant := creature.variant
-	var def := creature.def
-	var rec := PetRecord.from_def(def, grade, variant, creature.genetics)
+	# The wild level carries over (capped at PetStats.MAX_LEVEL inside from_def).
+	var rec := PetRecord.from_def(creature.def, &"", creature.variant, creature.genetics, creature.level)
+	rec.origin = &"tame"
+	rec.tamer = player.display_name()
 	creature.tame_attempting = false
 	creature.tame_feeds = 0.0
 	creature.tame_window_left = 0.0
@@ -164,35 +194,17 @@ static func _complete(player: Player, creature: Creature) -> void:
 	creature.is_capturable = false
 	if creature.anim:
 		creature.anim.play_clip(&"alert")
-	print("[tame] %s tamed grade=%s feeds=%d" % [species_id, grade, feeds_shown])
-	if player.bonded.size() >= Data.bonded_cap():
-		var bagged := ItemStack.make(&"tamed_animal", 1, {
-			"species": str(species_id),
-			"variant": str(variant),
-			"grade": str(rec.grade),
-			"genetics": rec.genetics.to_dict(),
-		})
-		player.inventory.add(bagged)
-		creature.queue_free()
-		print("[tame] bonded cap full → bagged %s" % species_id)
-		return
+	print("[tame] %s tamed grade=%s lv=%d uid=%s feeds=%d" % [creature.def.id, rec.grade, rec.level, rec.uid, feeds_shown])
 	# End the hunt before converting the target. Otherwise auto-combat keeps the new pet
 	# selected and the combat plate remains forced on screen after the tame reveal.
 	if player.hunt and player.hunt.target == creature:
 		player.hunt.stop()
 	creature.become_pet(rec)
+	# Same wounds, pet-sized pool: the fraction of HP left carries over to the pet's max.
+	var frac := creature.health.fraction()
+	creature.health.max_hp = rec.hp
+	creature.health.hp = rec.hp * frac
+	creature.level = rec.level
 	player.bonded.append(rec)
 	player.summoned_pet = creature
 	rec.summoned = true
-
-static func _roll_grade(seed: int) -> StringName:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed if seed != 0 else randi()
-	var r := rng.randf()
-	if r < 0.08:
-		return &"S"
-	if r < 0.28:
-		return &"A"
-	if r < 0.75:
-		return &"B"
-	return &"C"
