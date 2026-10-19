@@ -6,27 +6,33 @@ extends Control
 ## Choosing a recipe closes the menu and crafts it like gathering: the survivor walks to the
 ## station if needed, the hex over it fills once per item, and the item lands in the bag on
 ## the full pass (StationCraft).
+## Desktop: stations | recipes | detail side by side. Phone: one pane at a time: a chip row of
+## stations over the recipe list, then the detail as a sheet over both, with Craft / Craft x5
+## pinned in a footer (three stacked scroll panes hid the Craft button below a nested scroll).
 
-## [station id, name, symbol icon id]. Symbols are white (UiTokens.symbol); system emoji drew in colour.
+## [station id, name, symbol icon id]. Symbols are white (UiSymbols.symbol); system emoji drew in colour.
 const STATIONS := [
 	["", "By hand", "hands"], ["workbench", "Workbench", "workbench_kit"], ["bonfire", "Bonfire", "bonfire_kit"],
 	["campfire", "Campfire", "campfire_kit"], ["drying_rack", "Meat dryer", "drying_rack_kit"],
 	["crock_pot", "Crock pot", "crock_pot_kit"], ["mortar", "Mortar", "mortar_kit"],
 	["stone_grill", "Stone grill", "stone_grill_kit"], ["steamer", "Steamer", "steamer_kit"], ["well", "Well", "well_kit"],
 ]
-const NO_LEVEL := "Lv —"
+const NO_LEVEL := LevelDisplay.NONE
+const FOOTER_H := 64.0
 
 var player: Player
 var _station: String = ""
 var _root: VBoxContainer
 var _body: GridContainer
-var _tabs: VBoxContainer
+var _tabs: BoxContainer  ## vertical column on desktop, horizontal chip row on a phone
 var _list: VBoxContainer
 var _detail: VBoxContainer
 var _title: Label
 var _hint: Label
 var _refresh_left: float = 0.0
 var _selected_id: String = ""
+var _footer: HBoxContainer
+var _phone_detail := false  ## phone only: the detail sheet is up instead of the list
 
 func _ready() -> void:
 	visible = false
@@ -71,7 +77,8 @@ func _ready() -> void:
 	tab_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_body.add_child(tab_scroll)
-	_tabs = VBoxContainer.new()
+	_tabs = BoxContainer.new()
+	_tabs.vertical = true
 	_tabs.add_theme_constant_override("separation", 6)
 	_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_scroll.add_child(_tabs)
@@ -95,6 +102,12 @@ func _ready() -> void:
 	_detail.add_theme_constant_override("separation", 8)
 	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	detail_scroll.add_child(_detail)
+	_footer = HBoxContainer.new()
+	_footer.name = "CraftFooter"
+	_footer.add_theme_constant_override("separation", UiTokens.SPACE)
+	_footer.custom_minimum_size = Vector2(0, FOOTER_H)
+	_footer.visible = false
+	_root.add_child(_footer)
 	resized.connect(_layout_safe)
 	_layout_safe()
 	if Game.shot_path.contains("craft"):
@@ -122,6 +135,7 @@ func toggle() -> void:
 
 func show_ui() -> void:
 	visible = true
+	_phone_detail = false
 	_layout_safe()
 	rebuild()
 	UiTokens.focus_first(_list.get_children())
@@ -169,10 +183,10 @@ func _refresh_tabs() -> void:
 			status = "none built"
 			col = Color(0.6, 0.6, 0.6)
 		var count := Crafting.recipes_for_station(StringName(sid)).size()
-		var b := _mk_btn("%s\n%s · %d recipes" % [row[1], status, count], _pick_station.bind(sid), Vector2(190, 64))
+		var b := _mk_btn("%s\n%s · %s" % [row[1], status, recipe_count(count)], _pick_station.bind(sid), Vector2(170 if _is_phone() else 190, 64))
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.clip_text = true
-		b.icon = UiTokens.symbol([row[2], "hammer"])
+		b.icon = UiSymbols.symbol([row[2], "hammer"])
 		b.expand_icon = true
 		b.add_theme_constant_override("icon_max_width", 28)
 		b.add_theme_color_override("font_color", col)
@@ -183,7 +197,14 @@ func _refresh_tabs() -> void:
 
 func _pick_station(sid: String) -> void:
 	_station = sid
+	_phone_detail = false
 	rebuild()
+
+static func recipe_count(n: int) -> String:
+	return "%d recipe%s" % [n, "" if n == 1 else "s"]
+
+func _is_phone() -> bool:
+	return UiTokens.is_phone(get_viewport_rect().size)
 
 func _refresh_list() -> void:
 	for c in _list.get_children():
@@ -218,12 +239,12 @@ func _refresh_list() -> void:
 		_list.add_child(_recipe_row(rec, info))
 	_show_detail(info)
 
-## "Lv 12", or "Lv —" when the bag cannot make it yet. Crafting.preview_level reports the recipe's
-## top level for an invalid pick, which read as "Lv 60" on every row the player could not craft.
+## "Lv. 12", or "Lv. —" when the bag cannot make it yet. Crafting.preview_level reports the recipe's
+## top level for an invalid pick, which read as "Lv. 60" on every row the player could not craft.
 static func level_text(inv: Inventory, rec: Dictionary) -> String:
 	if inv == null or not Crafting.picks_valid(inv, rec, Crafting.default_picks(inv, rec)):
 		return NO_LEVEL
-	return "Lv %d" % Crafting.preview_level(inv, rec)
+	return LevelDisplay.label(Crafting.preview_level(inv, rec))
 
 ## Why a recipe cannot start now ("" = it can).
 func _block_reason(rec: Dictionary, info: Dictionary) -> String:
@@ -379,7 +400,22 @@ func _ingredients_row(rec: Dictionary) -> Control:
 
 func _choose_recipe(rid: String) -> void:
 	_selected_id = rid
+	_phone_detail = _is_phone()
 	rebuild()
+	_apply_phone_pane()
+
+func _back_to_list() -> void:
+	_phone_detail = false
+	_apply_phone_pane()
+
+## Phone: chips + list, or the detail sheet with its pinned footer. Desktop: all three panes.
+func _apply_phone_pane() -> void:
+	var phone := _is_phone()
+	var sheet := phone and _phone_detail
+	(_tabs.get_parent() as Control).visible = not sheet
+	(_list.get_parent() as Control).visible = not sheet
+	(_detail.get_parent() as Control).visible = sheet or not phone
+	_footer.visible = sheet
 
 func _start(rec: Dictionary, count: int) -> void:
 	hide_ui()
@@ -401,6 +437,13 @@ func _show_detail(info: Dictionary) -> void:
 		return
 	for c in _detail.get_children():
 		c.queue_free()
+	for c in _footer.get_children():
+		c.queue_free()
+	var phone := _is_phone()
+	if phone:
+		var back := _mk_btn("Back to recipes", _back_to_list, Vector2(0, UiTokens.TARGET_PRIMARY))
+		back.name = "CraftBack"
+		_detail.add_child(back)
 	var head := Label.new()
 	head.text = "RESULT"
 	head.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
@@ -459,17 +502,23 @@ func _show_detail(info: Dictionary) -> void:
 		lock.add_theme_color_override("font_color", UiTokens.DANGER)
 		_detail.add_child(lock)
 	# The repeated per-row buttons live here once: craft one or five of the selected recipe.
+	# On a phone they sit in the pinned footer, never below the fold of a scroll.
 	var can := _block_reason(rec, info) == ""
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation", UiTokens.SPACE)
-	_detail.add_child(actions)
-	var one := _mk_btn("Craft", _start.bind(rec, 1), Vector2(120, 56))
+	var actions := _footer as HBoxContainer
+	if not phone:
+		actions = HBoxContainer.new()
+		actions.add_theme_constant_override("separation", UiTokens.SPACE)
+		_detail.add_child(actions)
+	var btn_h := FOOTER_H if phone else 56.0
+	var one := _mk_btn("Craft", _start.bind(rec, 1), Vector2(120, btn_h))
 	one.name = "CraftOne"
 	one.disabled = not can
-	actions.add_child(one)
-	var five := _mk_btn("Craft ×5", _start.bind(rec, 5), Vector2(120, 56))
+	var five := _mk_btn("Craft ×5", _start.bind(rec, 5), Vector2(120, btn_h))
+	five.name = "CraftFive"
 	five.disabled = not can
-	actions.add_child(five)
+	for b in [one, five]:
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone else Control.SIZE_FILL
+		actions.add_child(b)
 
 func _selected_recipe() -> Dictionary:
 	for rec in Crafting.recipes_for_station(StringName(_station)):
@@ -502,18 +551,19 @@ func _layout_safe() -> void:
 		var detail_scroll := _detail.get_parent() as Control
 		if detail_scroll:
 			detail_scroll.size_flags_stretch_ratio = 1.0
-	var inner_h := maxf(180.0, view.y - 36.0 - safe.y - safe.z)
-	var section_h := maxf(112.0, (inner_h - 72.0) / 3.0) if phone else 220.0
-	for scroll_name in ["tab", "list", "detail"]:
-		var scroll: ScrollContainer = null
-		if scroll_name == "tab" and _tabs:
-			scroll = _tabs.get_parent() as ScrollContainer
-		elif scroll_name == "list" and _list:
-			scroll = _list.get_parent() as ScrollContainer
-		elif scroll_name == "detail" and _detail:
-			scroll = _detail.get_parent() as ScrollContainer
-		if scroll:
-			scroll.custom_minimum_size = Vector2(0.0 if phone else scroll.custom_minimum_size.x, section_h)
+	if _tabs:
+		# Phone: one horizontal chip row (scrolls sideways), so the recipe list gets the height.
+		_tabs.vertical = not phone
+		var tab_scroll := _tabs.get_parent() as ScrollContainer
+		tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if phone else ScrollContainer.SCROLL_MODE_DISABLED
+		tab_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED if phone else ScrollContainer.SCROLL_MODE_AUTO
+		tab_scroll.size_flags_vertical = Control.SIZE_FILL if phone else Control.SIZE_EXPAND_FILL
+		tab_scroll.custom_minimum_size = Vector2(0, 80) if phone else Vector2(200, 220)
+	for pane in [_list, _detail]:
+		if pane:
+			(pane.get_parent() as Control).custom_minimum_size = Vector2(0, 0) if phone else Vector2(220, 220)
+	if _footer:
+		_apply_phone_pane()
 	if _title:
 		_title.add_theme_font_size_override("font_size", UiTokens.heading(view))
 	if _hint:

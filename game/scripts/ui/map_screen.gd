@@ -25,8 +25,34 @@ const LEGEND := {
 	"plant": [Color(0.62, 1.0, 0.20), "Plants"],
 }
 
+## Light ring round every legend swatch: the dark tree green vanished on the near-black panel.
+const SWATCH_RING := Color(0.92, 0.92, 0.9, 0.85)
+## Phone legend columns: four per row ran "Wild animal" into the "Pet" swatch at 390 px.
+const PHONE_LEGEND_COLS := 3
+const LEGEND_ROW_H := 22.0
+
 static func legend_color(kind: String) -> Color:
 	return (LEGEND[kind] as Array)[0]
+
+## One map mark. The harbour is a square with a dark edge: as a light-blue dot it sat lost on the
+## light-blue shallows.
+func _mark(at: Vector2, radius: float, kind: String, ring: Color) -> void:
+	if kind == "harbour":
+		var sq := Rect2(at - Vector2(radius, radius), Vector2(radius, radius) * 2.0)
+		draw_rect(sq, legend_color(kind))
+		draw_rect(sq.grow(1.0), ring, false, 2.0)
+		return
+	draw_circle(at, radius, legend_color(kind))
+	draw_circle(at, radius, ring, false, 1.0)
+
+## Legend slot for item i of n: a column on desktop, PHONE_LEGEND_COLS per row on a phone.
+static func legend_slot(i: int, r: Vector2) -> Vector2:
+	if UiTokens.is_phone(r):
+		return Vector2(MARGIN + legend_col_w(r) * float(i % PHONE_LEGEND_COLS), phone_legend_y(r) + LEGEND_ROW_H * floorf(float(i) / float(PHONE_LEGEND_COLS)))
+	return Vector2(r.x - MARGIN - 200.0, MARGIN + 100.0 + LEGEND_ROW_H * float(i))
+
+static func legend_col_w(r: Vector2) -> float:
+	return (r.x - MARGIN * 2.0) / float(PHONE_LEGEND_COLS) if UiTokens.is_phone(r) else 200.0
 
 func _ready() -> void:
 	visible = false
@@ -112,7 +138,7 @@ func _region_card(id: String, entry: Dictionary) -> Button:
 	var here := id == str(World.island_id)
 	var travel := "You are here" if here else "Charted"
 	var b := Button.new()
-	b.text = "%s\nLv %d    %s\n%s\n%s\n%s" % [island_name(id), tier, climate, materials, species, travel]
+	b.text = "%s\n%s    %s\n%s\n%s\n%s" % [island_name(id), LevelDisplay.label(tier), climate, materials, species, travel]
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.clip_text = true
 	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -225,12 +251,12 @@ func _process(_delta: float) -> void:
 		_zoom_label.add_theme_color_override("font_color", UiTokens.TEXT)
 	queue_redraw()
 
-## Phone bands, top to bottom: header, one island card, map, legend (two rows), zoom, actions.
+## Phone bands, top to bottom: header, one island card, map, legend (three rows), zoom, actions.
 const PHONE_CARD_TOP := 108.0
 const PHONE_MAP_TOP := 236.0
 
 static func phone_legend_y(r: Vector2) -> float:
-	return r.y - 64.0 - MARGIN - UiTokens.SPACE - 64.0 - UiTokens.SPACE * 2.0 - 30.0
+	return r.y - 64.0 - MARGIN - UiTokens.SPACE - 64.0 - UiTokens.SPACE * 2.0 - 30.0 - LEGEND_ROW_H
 
 func _layout() -> Dictionary:
 	var r := get_viewport_rect().size
@@ -280,7 +306,7 @@ func _draw() -> void:
 		var camp: Vector3 = rt.get("_camp_pos")
 		var harb: Vector3 = rt.get("_harbour_pos")
 		draw_circle(to_map.call(camp), 6.0, legend_color("camp"))
-		draw_circle(to_map.call(harb), 6.0, legend_color("harbour"))
+		_mark(to_map.call(harb), 6.0, "harbour", Color(0.02, 0.05, 0.12, 0.95))
 		if World.crater_discovered:
 			draw_circle(to_map.call(rt.get("_crater_pos")), 6.0, legend_color("crater"))
 	for n in get_tree().get_nodes_in_group("creatures"):
@@ -319,16 +345,12 @@ func _draw() -> void:
 	if not World.crater_discovered:
 		kinds.erase("crater")
 	var meta_px := UiTokens.meta(r)
+	var label_w := legend_col_w(r) - 22.0
 	for i in kinds.size():
 		var row: Array = LEGEND[kinds[i]]
-		var at := Vector2(r.x - MARGIN - 200.0, MARGIN + 100.0 + 22.0 * float(i))
-		if phone:
-			var per_row := ceili(float(kinds.size()) / 2.0)
-			var col_w := (r.x - MARGIN * 2.0) / float(per_row)
-			at = Vector2(MARGIN + col_w * float(i % per_row), phone_legend_y(r) + 22.0 * floorf(float(i) / float(per_row)))
-		draw_circle(at + Vector2(6, -5), 5.0, row[0])
-		draw_circle(at + Vector2(6, -5), 5.0, Color(0, 0, 0, 0.6), false, 1.0)
-		draw_string(font, at + Vector2(16, 0), str(row[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, meta_px, Color(0.9, 0.9, 0.9))
+		var at := legend_slot(i, r)
+		_mark(at + Vector2(6, -5), 5.0, kinds[i], SWATCH_RING)
+		draw_string(font, at + Vector2(16, 0), UiTokens.ellipsis(font, str(row[1]), label_w, meta_px), HORIZONTAL_ALIGNMENT_LEFT, -1, meta_px, Color(0.9, 0.9, 0.9))
 
 func _gui_input(event: InputEvent) -> void:
 	var pos := Vector2.ZERO

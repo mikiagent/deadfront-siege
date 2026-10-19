@@ -85,7 +85,7 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 		b.pressed.connect(_on_pick.bind(i))
 		add_child(b)
 		_buttons.append(b)
-		_labels.append({"text": "%s  Lv. %d" % [_display_name(item_id), level], "reason": reason})
+		_labels.append({"text": "%s  %s" % [_display_name(item_id), LevelDisplay.label(level)], "reason": reason})
 	_open = true
 	visible = true
 	_show_ring3d()
@@ -188,7 +188,7 @@ func refresh() -> void:
 		b.queue_redraw()
 		if i < _labels.size():
 			var item_id := StringName(str(o.get("item", "")))
-			_labels[i] = {"text": "%s  Lv. %d" % [_display_name(item_id), level], "reason": reason}
+			_labels[i] = {"text": "%s  %s" % [_display_name(item_id), LevelDisplay.label(level)], "reason": reason}
 	queue_redraw()
 
 func set_progress(frac: float) -> void:
@@ -273,7 +273,7 @@ func _draw() -> void:
 			title_rect.position.x = name_pos.x - 10.0
 	draw_rect(Rect2(name_pos + Vector2(-10, -ns), Vector2(nw + 20, ns + 8)), UiTokens.INK)
 	draw_string(font, name_pos, name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
-	var lv := "Lv. %d" % level
+	var lv := LevelDisplay.label(level)
 	var lw := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, UiTokens.meta(view)).x
 	draw_string(font, Vector2(name_pos.x + nw * 0.5 - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
 	for i in _buttons.size():

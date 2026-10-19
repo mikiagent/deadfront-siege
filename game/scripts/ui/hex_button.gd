@@ -166,9 +166,9 @@ func _draw() -> void:
 			var hint := UiTokens.ellipsis(font, hint_text, 140.0, UiTokens.TYPE_MIN)
 			draw_string(font, Vector2(origin_x + 6.0, c.y + ls * 1.45), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.TYPE_MIN, UiTokens.DANGER)
 
-## Durango-style HUD language: action symbols are white silhouettes (UiTokens.white_symbol).
+## Durango-style HUD language: action symbols are white silhouettes (UiSymbols.white_symbol).
 static func _white_symbol(source: Texture2D) -> Texture2D:
-	return UiTokens.white_symbol(source)
+	return UiSymbols.white_symbol(source)
 
 func _gui_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_accept") and has_focus():

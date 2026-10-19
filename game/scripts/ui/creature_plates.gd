@@ -2,6 +2,8 @@ class_name CreaturePlates
 extends CanvasLayer
 ## Screen-space creature and loot plates.
 
+## Near-opaque: at 0.72 a world label behind the plate ("Harbour") read as ghost text between glyphs.
+const PILL_ALPHA := 0.9
 const MAX_DIST := 45.0
 const NEAR_DIST := 10.0
 const BASE_WIDTH := 176.0
@@ -161,7 +163,7 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	var pill := Panel.new()
 	pill.name = "Pill"
 	var pill_style := StyleBoxFlat.new()
-	pill_style.bg_color = Color(UiTokens.INK, 0.72)
+	pill_style.bg_color = Color(UiTokens.INK, PILL_ALPHA)
 	pill_style.set_corner_radius_all(8)
 	pill.add_theme_stylebox_override("panel", pill_style)
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -294,7 +296,7 @@ func _ensure_corpse_entry(corpse: Corpse) -> Dictionary:
 	# that kept the source image minimum once drew a giant world knife.
 	var knife := TextureRect.new()
 	knife.name = "KnifeLock"
-	knife.texture = UiTokens.symbol(["stone_knife", "stone_knife_work"])
+	knife.texture = UiSymbols.symbol(["stone_knife", "stone_knife_work"])
 	knife.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	knife.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	knife.custom_minimum_size = Vector2(16, 16)
@@ -322,7 +324,7 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	var rel_col := _relation_color(c)
 	line1.visible = full
 	line1.add_theme_color_override("font_color", rel_col)
-	var raw_name := ("Lv. %d  %s  [%s]" % [c.level, str(c.def.species).capitalize(), c.genetics.overall_tier() if c.genetics else &"?"]) if c.is_pet else ("Lv. %d  %s" % [c.level, str(c.def.species).capitalize()])
+	var raw_name := ("%s  %s  [%s]" % [LevelDisplay.label(c.level), str(c.def.species).capitalize(), c.genetics.overall_tier() if c.genetics else &"?"]) if c.is_pet else ("%s  %s" % [LevelDisplay.label(c.level), str(c.def.species).capitalize()])
 	line1.text = UiTokens.ellipsis(ThemeDB.fallback_font, raw_name, BASE_WIDTH - 20.0, 14)
 	var bar_bg := root.get_node_or_null("BarBg") as ColorRect
 	if bar_bg:

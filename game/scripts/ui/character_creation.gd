@@ -5,9 +5,6 @@ extends CanvasLayer
 
 signal done(occupation: String, gender: String, player_name: String)
 
-const PHONE_MAX_HEIGHT := 500.0
-const PHONE_MIN_ASPECT := 1.75
-
 var _selected: String = ""
 var _gender: String = "f"
 var _name: LineEdit
@@ -16,9 +13,10 @@ var _cards: Dictionary = {}
 
 func _ready() -> void:
 	layer = 60
-	# Logical canvas size (DisplayMode), not window pixels: a 390-pt phone is 390 px wide here.
+	# Portrait phone: the logical canvas (DisplayMode) is ~390 px wide, so is_phone holds.
+	# Landscape phone: the canvas stays 1600x900-ish, so decide from the window in points.
 	var view := get_viewport().get_visible_rect().size
-	var phone_landscape := view.y <= PHONE_MAX_HEIGHT and view.x / maxf(1.0, view.y) >= PHONE_MIN_ASPECT
+	var phone_landscape := DisplayMode.is_phone_landscape(DisplayMode.window_points(get_window()))
 	var phone := UiTokens.is_phone(view)
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)

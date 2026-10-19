@@ -16,6 +16,10 @@ static func hex_positions(anchor: Vector2, count: int, view: Vector2, safe: Vect
 	var positions: Array[Vector2] = []
 	if count <= 0:
 		return positions
+	# A NaN anchor (a source behind the camera) scored NaN on every turn and returned nothing,
+	# leaving the hexes where they last were; centre the ring instead.
+	if not anchor.is_finite():
+		anchor = view * 0.5
 	var radius := maxf(hex * 0.55 + 40.0, hex * 1.5)
 	if count > 4:
 		radius = maxf(radius, float(count) * hex * 1.08 / TAU)
@@ -44,6 +48,8 @@ static func hex_positions(anchor: Vector2, count: int, view: Vector2, safe: Vect
 			best_score = score
 			best = ring
 	# Nothing fits as is (anchor near or past an edge): slide the best ring in, keeping its shape.
+	if best.is_empty():  # no finite score at all: the unturned ring
+		best = _ring(anchor, angles, 0.0, radius, hex)
 	return _slide_inside(best, hex, bounds)
 
 static func _ring(anchor: Vector2, angles: Array[float], turn: float, radius: float, hex: float) -> Array[Vector2]:

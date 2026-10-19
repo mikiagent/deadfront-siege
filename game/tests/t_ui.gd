@@ -12,6 +12,7 @@ const OWNED := [
 	"res://scripts/ui/creature_plates.gd", "res://scripts/ui/context_radial.gd", "res://scripts/ui/gather_radial.gd",
 	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
 	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
+	"res://scripts/ui/ui_theme.gd", "res://scripts/ui/ui_symbols.gd",
 ]
 const TYPE_MIN := 12
 
@@ -23,6 +24,7 @@ var UT: GDScript
 var CU: GDScript
 var MS: GDScript
 var LD: GDScript
+var LAB: GDScript
 
 func _process(_delta: float) -> bool:
 	if _done:
@@ -34,6 +36,7 @@ func _process(_delta: float) -> bool:
 	CU = load("res://scripts/ui/craft_ui.gd")
 	MS = load("res://scripts/ui/map_screen.gd")
 	LD = load("res://scripts/ui/level_display.gd")
+	LAB = load("res://scripts/dev/ui_real_capture_lab.gd")
 	_expect(UT.TYPE_MIN == TYPE_MIN, "type floor is %d" % TYPE_MIN)
 	_test_owned_sources()
 	_test_draw_centered()
@@ -44,6 +47,8 @@ func _process(_delta: float) -> bool:
 	_test_legend_colours()
 	_test_level_display()
 	_test_hex_focus()
+	_test_gate_verdict()
+	_test_review_fixes()
 	if failures.is_empty():
 		print("[t_ui] PASS")
 		quit(0)
@@ -165,7 +170,7 @@ func _test_craft_level_text() -> void:
 		if tested >= 5:
 			break
 	_expect(tested > 0, "hand recipes with inputs exist")
-	_expect(CU.NO_LEVEL == "Lv —", "missing-input level text is 'Lv —'")
+	_expect(CU.NO_LEVEL == LD.NONE and LD.NONE == "Lv. —", "missing-input level text is 'Lv. —', in the LevelDisplay format")
 	var data: Node = get_root().get_node("Data")
 	_expect(not (CU.stat_lines(data.item(&"work_axe")) as PackedStringArray).is_empty(), "a tool has stat lines")
 	print("[t_ui] craft: %d unmakeable hand recipes read '%s'" % [tested, CU.NO_LEVEL])
@@ -176,16 +181,21 @@ func _test_display_mode() -> void:
 	_expect(DisplayMode.logical_size(Vector2i(1600, 900), 1.0) == DisplayMode.DESIGN, "1600x900 desktop unchanged")
 	_expect(DisplayMode.logical_size(Vector2i(3200, 1800), 2.0) == DisplayMode.DESIGN, "retina browser at 1600x900 CSS unchanged")
 	_expect(DisplayMode.logical_size(Vector2i(844, 390), 1.0) == DisplayMode.DESIGN, "landscape keeps the design canvas")
+	# Landscape phones are told apart by the window in points: the logical canvas is ~1947x900 there.
+	_expect(DisplayMode.is_phone_landscape(Vector2(844, 390)), "844x390 pt is a landscape phone")
+	_expect(not DisplayMode.is_phone_landscape(Vector2(1947, 900)), "the 1947x900 logical canvas is not (the old charcreate test)")
+	_expect(not DisplayMode.is_phone_landscape(Vector2(390, 844)) and not DisplayMode.is_phone_landscape(Vector2(1600, 900)), "portrait phone and desktop are not landscape phones")
 	_expect(DisplayMode.logical_size(Vector2i(0, 0), 1.0) == DisplayMode.DESIGN, "a zero window keeps the design canvas")
 	_expect(UT.is_phone(Vector2(DisplayMode.logical_size(Vector2i(390, 844), 1.0))), "is_phone holds on the phone canvas")
 
 func _test_theme() -> void:
-	var t: Theme = UT.build_theme()
+	var TH: GDScript = load("res://scripts/ui/ui_theme.gd")
+	var t: Theme = TH.build()
 	_expect(t.has_stylebox("focus", "Button"), "theme has a Button focus ring")
 	_expect(t.has_stylebox("normal", "Button") and t.has_stylebox("panel", "PanelContainer"), "theme styles buttons and panels")
 	for kind in ["Button", "Label", "LineEdit", "ProgressBar"]:
 		_expect(t.get_font_size("font_size", kind) >= TYPE_MIN, "theme font size >= %d for %s" % [TYPE_MIN, kind])
-	UT.install_theme()
+	TH.install()
 	var focus := ThemeDB.get_default_theme().get_stylebox("focus", "Button") as StyleBoxFlat
 	_expect(focus != null and focus.border_color == UT.TEAL, "theme merged into the default theme")
 
@@ -212,4 +222,86 @@ func _test_level_display() -> void:
 func _test_hex_focus() -> void:
 	var b: Control = (load("res://scripts/ui/hex_button.gd") as GDScript).new()
 	_expect(b.focus_mode == Control.FOCUS_ALL, "HexButton is focusable")
-	b.free()
+	get_root().add_child(b)
+	b.position = Vector2(100, 100)
+	var hits := [0]
+	b.connect("pressed", func () -> void: hits[0] += 1)
+	b.grab_focus()
+	var accept := InputEventAction.new()
+	accept.action = &"ui_accept"
+	accept.pressed = true
+	get_root().push_input(accept)
+	_expect(hits[0] == 1, "ui_accept presses a focused HexButton (pressed x%d)" % hits[0])
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	# push_input takes window pixels; the root stretches its canvas into the window
+	click.position = get_root().get_final_transform() * b.get_global_rect().get_center()
+	click.global_position = click.position
+	get_root().push_input(click)
+	var up := click.duplicate() as InputEventMouseButton
+	up.pressed = false
+	get_root().push_input(up)
+	_expect(not b.has_focus(), "a tap drops the hex's focus")
+	_expect(hits[0] == 2, "the tap itself still presses the hex (pressed x%d)" % hits[0])
+	print("[t_ui] hex focus: accept pressed=%d, focus after tap=%s" % [hits[0], b.has_focus()])
+	b.queue_free()
+	var hidden := Button.new()
+	hidden.visible = false
+	var inert := Label.new()
+	var first := Button.new()
+	var second := Button.new()
+	for c in [hidden, inert, first, second]:
+		get_root().add_child(c)
+	_expect(UT.first_focusable([hidden, inert, first, second]) == first, "focus_first picks the first visible focusable control")
+	for c in [hidden, inert, first, second]:
+		c.queue_free()
+
+## The real-scene gate must fail when the phone canvas fit is missing (review: it printed PASS
+## for "phone=false min_font_px=3 logical_width=1600" at 390x844).
+func _test_gate_verdict() -> void:
+	var broken: Array = LAB.gate_failures(Vector2(390, 844), false, 3, 1600)
+	_expect(broken.size() == 2, "390x844 without the fit fails twice (got %s)" % [broken])
+	_expect((LAB.gate_failures(Vector2(390, 844), true, 12, 390) as Array).is_empty(), "390x844 with the fit passes")
+	_expect(not (LAB.gate_failures(Vector2(600, 500), true, 9, 600) as Array).is_empty(), "any phone-width window under 12 px fails")
+	_expect((LAB.gate_failures(Vector2(1600, 900), false, 13, 1600) as Array).is_empty(), "1600x900 desktop passes")
+	_expect(not (LAB.gate_failures(Vector2(1600, 900), false, 13, 1947) as Array).is_empty(), "1600x900 with a wrong canvas fails")
+	print("[t_ui] gate: 390x844 without fit -> %d failures" % broken.size())
+
+func _test_review_fixes() -> void:
+	# NaN anchor (source behind the camera) still yields a full, finite ring
+	var nan_ring := ContextRadial.hex_positions(Vector2(NAN, NAN), 2, Vector2(1600, 900), Vector4.ZERO)
+	var finite := nan_ring.size() == 2
+	for p in nan_ring:
+		finite = finite and p.is_finite()
+	_expect(finite, "NaN anchor returns two finite hex positions (got %s)" % [nan_ring])
+	print("[t_ui] NaN anchor -> %s" % [nan_ring])
+	# station tab grammar
+	_expect(CU.recipe_count(1) == "1 recipe" and CU.recipe_count(3) == "3 recipes", "recipe count is pluralised")
+	# one level format: no hand-rolled "Lv %d" / "Lv —" outside LevelDisplay
+	var lv_re := RegEx.new()
+	lv_re.compile("\"[^\"]*Lv\\.? ?(%d|—)")
+	for path in OWNED:
+		if path.ends_with("level_display.gd"):
+			continue
+		var lines := FileAccess.get_file_as_string(path).split("\n")
+		for n in lines.size():
+			var line := lines[n].strip_edges()
+			if not line.begins_with("#") and lv_re.search(line) != null:
+				failures.append("level text not via LevelDisplay at %s:%d" % [path, n + 1])
+	# atlas legend: a light ring on every swatch, and phone labels fit their column
+	_expect(MS.SWATCH_RING.get_luminance() >= 0.6, "legend swatch ring is light on the dark panel")
+	var phone := Vector2(390, 844)
+	var font := ThemeDB.fallback_font
+	var col_w: float = MS.legend_col_w(phone)
+	for kind in MS.LEGEND:
+		var w := font.get_string_size(str(MS.LEGEND[kind][1]), HORIZONTAL_ALIGNMENT_LEFT, -1, UT.meta(phone)).x
+		_expect(w + 22.0 <= col_w, "phone legend label '%s' (%.0f px) fits its %.0f px column" % [MS.LEGEND[kind][1], w, col_w])
+	# plate pill hides world labels behind it
+	var CP: GDScript = load("res://scripts/ui/creature_plates.gd")
+	_expect(CP.PILL_ALPHA >= 0.88, "plate pill is near-opaque (%.2f)" % CP.PILL_ALPHA)
+	# skills: the scroll content leaves room for the scrollbar
+	var sc := ScrollContainer.new()
+	var SS: GDScript = load("res://scripts/ui/skills_sheet.gd")
+	_expect(SS.scrollbar_reserve(sc) >= 12 + UT.SPACE, "skills sheet reserves the scrollbar width (%d)" % SS.scrollbar_reserve(sc))
+	sc.free()

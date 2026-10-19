@@ -1,10 +1,11 @@
 extends Node3D
 ## Real-scene UI gate (W1-UI). Boots the home island with the real HUD, fits the logical canvas and
-## installs the theme the way boot does (DisplayMode.install, UiTokens.install_theme), then opens
+## installs the theme the way boot does (DisplayMode.install, UiTheme.install), then opens
 ## the HUD, craft, skills, atlas, a gather radial and character creation in the ROOT viewport (not a
 ## sized SubViewport, which hid the phone problem) and saves a PNG of each. Every screen must have
 ## size, sit inside the view, draw no text under 12 px on screen and be neither blank nor blown out.
-## Windowed: --resolution 390x844 -- --lab=ui_real_capture_lab [--shot-dir=DIR]
+## Windowed: --resolution 390x844 -- --lab=ui_real_capture_lab [--shot-dir=DIR] [--no-fit]
+## --no-fit skips DisplayMode.install: the gate's self-test, which must then FAIL on a phone window.
 ## Prints "[uireal] phone=<bool> min_font_px=<n> ..." then "[uireal] PASS" (exit 0) or FAIL lines (exit 1).
 
 const SETTLE_S := 3.0
@@ -25,12 +26,16 @@ var _min_font_where := ""
 var _shots: PackedStringArray = []
 
 func _ready() -> void:
-	DisplayMode.install(get_tree().root)
-	UiTokens.install_theme()
+	var fit := true
 	_out = OS.get_user_data_dir().path_join("ui-real")
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot-dir="):
 			_out = a.substr(11)
+		elif a == "--no-fit":
+			fit = false
+	if fit:
+		DisplayMode.install(get_tree().root)
+	UiTheme.install()
 	DirAccess.make_dir_recursive_absolute(_out)
 	var kit := LabKit.build(self, 4.0)
 	Game.debug_overlay = false
@@ -73,7 +78,20 @@ func _run() -> void:
 			dash += 1
 	print("[uireal] craft rows=%d with_lv_dash=%d first=\"%s\"" % [metas.size(), dash, metas[0].text if not metas.is_empty() else ""])
 	_expect(dash > 0, "craft shows '%s' on a recipe the bag cannot make" % CraftUI.NO_LEVEL)
+	if phone:
+		_expect(_visible_vscrolls(craft) == 1, "phone craft shows one vertical scroll pane, not %d" % _visible_vscrolls(craft))
 	await _capture("craft", [craft], logical)
+	if phone and not metas.is_empty():
+		# open the detail sheet: Craft / Craft x5 must sit in the pinned footer, inside the view
+		(metas[0].get_parent().get_parent().get_parent() as Button).pressed.emit()
+		await _frames(3)
+		var one := craft.find_child("CraftOne", true, false) as Control
+		var view := Rect2(Vector2.ZERO, logical)
+		var ok := one != null and one.is_visible_in_tree() and view.encloses(one.get_global_rect()) and one.size.y >= UiTokens.TARGET_PRIMARY
+		print("[uireal] craft sheet: CraftOne %s in footer=%s vscrolls=%d" % [one.get_global_rect() if one else "missing", one != null and one.get_parent().name == "CraftFooter", _visible_vscrolls(craft)])
+		_expect(ok, "phone craft detail: Craft button visible, inside the view, >= %d px tall" % UiTokens.TARGET_PRIMARY)
+		_expect(one != null and one.get_parent().name == "CraftFooter", "phone Craft button is pinned in the footer, not inside a scroll")
+		await _capture("craft_detail", [craft], logical)
 	craft.hide_ui()
 	# skills: the real HUD path
 	_hud.call("_toggle_skills")
@@ -82,6 +100,14 @@ func _run() -> void:
 	_expect(sheet != null and sheet.visible, "skills sheet opens from the HUD")
 	if sheet:
 		var panel := sheet.get_child(1) as Control
+		var scroll := panel.get_child(0) as ScrollContainer
+		var vbar := scroll.get_v_scroll_bar() if scroll else null
+		if vbar and vbar.visible:
+			var right := 0.0
+			for l in _labels_in(sheet):
+				right = maxf(right, l.get_global_rect().end.x)
+			print("[uireal] skills: rightmost text %.0f, scrollbar starts %.0f" % [right, vbar.get_global_rect().position.x])
+			_expect(right <= vbar.get_global_rect().position.x + 0.5, "skills text stays left of the scrollbar (%.0f > %.0f)" % [right, vbar.get_global_rect().position.x])
 		for zone in UiTokens.hud_reserved(logical).slice(0, 1):
 			_expect(not panel.get_global_rect().intersects(zone), "skills panel %s clears the vitals block %s" % [panel.get_global_rect(), zone])
 		await _capture("skills", [sheet], logical)
@@ -122,19 +148,49 @@ func _run() -> void:
 	_finish(phone, logical)
 
 func _finish(phone: bool, logical: Vector2) -> void:
-	var min_px := int(floor(_min_font)) if _min_font < INF else 0
-	print("[uireal] phone=%s min_font_px=%d logical_width=%d (smallest: %s)" % [phone, min_px, int(logical.x), _min_font_where])
-	if phone:
-		_expect(min_px >= UiTokens.TYPE_MIN, "phone text at least %d px on screen (got %d at %s)" % [UiTokens.TYPE_MIN, min_px, _min_font_where])
-	elif get_tree().root.size.x >= 1600:
-		_expect(int(logical.x) == DisplayMode.DESIGN.x, "desktop keeps a %d px logical width" % DisplayMode.DESIGN.x)
+	# On-screen size in points (window px / device scale), the unit the 12 px floor is meant in.
+	var min_px := int(floor(_min_font / DisplayMode.device_scale())) if _min_font < INF else 0
+	var pts := DisplayMode.window_points(get_tree().root)
+	print("[uireal] phone=%s min_font_px=%d logical_width=%d window_pt=%dx%d (smallest: %s)" % [phone, min_px, int(logical.x), int(pts.x), int(pts.y), _min_font_where])
+	_fails.append_array(gate_failures(pts, phone, min_px, int(logical.x)))
 	if _fails.is_empty():
-		print("[uireal] PASS screens=hud,craft,skills,atlas,radial,plate,charcreate shots=%s" % _out)
+		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,plate,charcreate shots=%s" % ["craft_detail," if phone else "", _out])
 		get_tree().quit(0)
 	else:
 		for f in _fails:
 			print("[uireal] FAIL %s" % f)
 		get_tree().quit(1)
+
+## The gate's verdict on the canvas fit. A phone-width window must get the phone canvas and a
+## 12 px floor whatever the screens did; before this a missing fit (phone=false, 3 px text) passed
+## because neither branch ran under 1600 px.
+static func gate_failures(pts: Vector2, phone: bool, min_px: int, logical_w: int) -> Array[String]:
+	var out: Array[String] = []
+	if DisplayMode.is_phone_window(pts):
+		if pts.y > pts.x and not phone:
+			out.append("a portrait %dx%d pt window must get the phone canvas (is_phone is false, logical width %d)" % [int(pts.x), int(pts.y), logical_w])
+		if min_px < UiTokens.TYPE_MIN:
+			out.append("phone-width window: text at least %d px on screen (got %d)" % [UiTokens.TYPE_MIN, min_px])
+	elif pts.x >= float(DisplayMode.DESIGN.x) and logical_w != DisplayMode.DESIGN.x:
+		out.append("desktop keeps a %d px logical width (got %d)" % [DisplayMode.DESIGN.x, logical_w])
+	return out
+
+func _visible_vscrolls(node: Node) -> int:
+	var n := 0
+	var sc := node as ScrollContainer
+	if sc and sc.is_visible_in_tree() and sc.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED:
+		n += 1
+	for c in node.get_children():
+		n += _visible_vscrolls(c)
+	return n
+
+func _labels_in(node: Node) -> Array[Label]:
+	var out: Array[Label] = []
+	if node is Label and (node as Label).is_visible_in_tree() and (node as Label).text != "":
+		out.append(node)
+	for c in node.get_children():
+		out.append_array(_labels_in(c))
+	return out
 
 func _capture_plate(logical: Vector2) -> void:
 	var wild: Creature = null

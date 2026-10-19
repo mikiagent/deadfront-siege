@@ -42,6 +42,23 @@ static func device_scale() -> float:
 		return maxf(1.0, DisplayServer.screen_get_scale())
 	return 1.0
 
+## Window size in points, the input logical_size() decides on. Screens that pick a layout by the
+## physical shape (a landscape phone keeps the 1600x900 canvas) use this, not the logical canvas.
+static func window_points(win: Window) -> Vector2:
+	if win == null:
+		return Vector2.ZERO
+	return Vector2(win.size) / device_scale()
+
+## A phone held sideways: short (<= 500 pt) and wide (>= 1.75:1). It keeps the design canvas, so
+## text drawn at desktop sizes lands under 12 pt; screens scale their type up for it.
+static func is_phone_landscape(pts: Vector2) -> bool:
+	return pts.y > 0.0 and pts.y <= 500.0 and pts.x / pts.y >= 1.75
+
+## A window narrower than a phone, in points: the canvas fit must make UiTokens.is_phone true
+## there and text must stay at least UiTokens.TYPE_MIN.
+static func is_phone_window(pts: Vector2) -> bool:
+	return pts.x > 0.0 and pts.x < PHONE_MAX_PT
+
 static func fit(win: Window) -> void:
 	if win == null:
 		return

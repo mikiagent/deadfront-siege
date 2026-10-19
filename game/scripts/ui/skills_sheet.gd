@@ -43,11 +43,20 @@ func _ready() -> void:
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_panel.add_child(scroll)
+	# Reserve the scrollbar's width: without it the SP label and every row's right edge ran under it.
+	var pad := MarginContainer.new()
+	pad.name = "ScrollPad"
+	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pad.add_theme_constant_override("margin_right", scrollbar_reserve(scroll))
+	scroll.add_child(pad)
 	_box = VBoxContainer.new()
 	_box.add_theme_constant_override("separation", 6)
 	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_box)
+	pad.add_child(_box)
 	resized.connect(_layout)
+
+static func scrollbar_reserve(scroll: ScrollContainer) -> int:
+	return int(maxf(12.0, scroll.get_v_scroll_bar().get_combined_minimum_size().x)) + UiTokens.SPACE
 
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
@@ -120,7 +129,7 @@ func _header(text: String, right: String = "", symbol_id: String = "") -> void:
 
 func _symbol(id: String, px: float) -> TextureRect:
 	var t := TextureRect.new()
-	t.texture = UiTokens.symbol([SYMBOLS.get(id, id), "hammer"])
+	t.texture = UiSymbols.symbol([SYMBOLS.get(id, id), "hammer"])
 	t.custom_minimum_size = Vector2(px, px)
 	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -168,7 +177,7 @@ func _build_overview() -> void:
 		var name_cell := _cell(str(SkillState.NAMES.get(id, id)), 0.0, body)
 		name_cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cols.add_child(name_cell)
-		cols.add_child(_cell("Lv %d" % lvl, 56.0, body, UiTokens.TEXT, HORIZONTAL_ALIGNMENT_RIGHT))
+		cols.add_child(_cell(LevelDisplay.label(lvl), 56.0, body, UiTokens.TEXT, HORIZONTAL_ALIGNMENT_RIGHT))
 		var xp_col := VBoxContainer.new()
 		xp_col.custom_minimum_size = Vector2(96.0 if phone else 150.0, 0)
 		xp_col.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -202,7 +211,7 @@ func _build_overview() -> void:
 
 func _build_tree() -> void:
 	var view := get_viewport_rect().size
-	_header("%s  Lv %d" % [SkillState.NAMES.get(_tree, _tree), skills.level_of(_tree)], "SP %d" % skills.sp_available, _tree)
+	_header("%s  %s" % [SkillState.NAMES.get(_tree, _tree), LevelDisplay.label(skills.level_of(_tree))], "SP %d" % skills.sp_available, _tree)
 	var info := Label.new()
 	info.text = str((skills.defs.get(_tree, {}) as Dictionary).get("levels_by", ""))
 	info.add_theme_color_override("font_color", UiTokens.META)
@@ -218,7 +227,7 @@ func _build_tree() -> void:
 		var l := Label.new()
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.text = "%s  ·  Lv %d  ·  %d SP\n%s" % [str(n.get("id", "")).replace("_", " ").capitalize(), int(n.get("level", 1)), int(n.get("sp", 0)), str(n.get("unlocks", ""))]
+		l.text = "%s  ·  %s  ·  %d SP\n%s" % [str(n.get("id", "")).replace("_", " ").capitalize(), LevelDisplay.label(int(n.get("level", 1))), int(n.get("sp", 0)), str(n.get("unlocks", ""))]
 		l.add_theme_font_size_override("font_size", UiTokens.meta(view) + 2)
 		match st[0]:
 			"owned":
