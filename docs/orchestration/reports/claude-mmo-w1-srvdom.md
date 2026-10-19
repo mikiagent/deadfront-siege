@@ -140,3 +140,15 @@ Nothing in the acceptance list failed. Left for later packages:
 - Movement is bounded by distance per second only. Terrain and navmesh plausibility come with W3-SRVWORLD.
 - The first test run printed one `String formatting error` from my own check message (an empty
   Array used as format args). It was fixed before the final runs above, which print no errors.
+
+## Resume check (2026-10-19)
+
+A later run picked up the branch after the interruption and re-ran everything on `00c5d17` with no
+code changes. Logs are in `scratchpad/w1/srvdom/final_*.log`: `[t_srvdom] PASS` and `[t_server_domain] PASS`
+(exit 0), `[tests] PASS` (run_all, exit 0), `SMOKE PASS` (smoke --no-import, exit 0).
+
+**For the integrator:** commit `00c5d17` ("WIP srvdom") only adds 15 `.gd.uid` files for probes and
+fixtures this package does not own (`game/scripts/dev/*_probe.gd.uid`, `*_lab.gd.uid`,
+`game/tests/fixtures/counter_player.gd.uid`, `game/tests/multistack_lab.gd.uid`). That is Godot import
+churn. Drop them at merge, or keep them if the owning packages commit the same uids. Untracking them
+here was blocked by the session's permission policy.
