@@ -12,6 +12,9 @@ extends RefCounted
 
 const VERSION := 1
 const RIDS_KEPT := 64
+## The data the handlers read. Replay re-runs them, so a snapshot records this hash and boot
+## warns when it changed. shortcut: creature defs (tame, capture) are not hashed yet.
+const DATA_FILES := ["res://data/items.json", "res://data/recipes.json", "res://data/combat_counters.json", "res://data/world/rules.json"]
 
 var s: Dictionary
 var world: WorldFacade
@@ -22,6 +25,7 @@ var snapshot_every_ops := 500 ## 0 disables automatic snapshots
 var broken := "" ## set when the disk cannot be trusted; every later op is refused
 var _journal: FileAccess
 var _ops_since := 0
+var data_changed := false ## set by open() when the snapshot was taken under other data files
 static var _errors: ErrorCount
 
 ## Counts script and engine errors, so apply() can tell an op that hit one part-way.
@@ -31,7 +35,10 @@ class ErrorCount extends Logger:
 		if error_type != ERROR_TYPE_WARNING:
 			n += 1
 
-func _init(p_world: WorldFacade, p_dir: String = "", world_seed: int = 1) -> void:
+## world_seed seeds every server roll (capture, crit, genetics) with the op's seq. It must be a
+## server secret, random and persisted per world (W3 passes it): anyone who knows it can predict
+## rolls. Tests pass fixed seeds.
+func _init(p_world: WorldFacade, p_dir: String, world_seed: int) -> void:
 	world = p_world
 	dir = p_dir
 	handlers = IntentHandlers.new(world)
@@ -96,6 +103,8 @@ func _run(op: String, account: int, a: Dictionary, ts: int, tape: Array, replayi
 	if ch == null:
 		return IntentHandlers.no("unauthorized", "account %d has no online character" % account)
 	var rid: Variant = IntentHandlers.text(a, "rid")
+	if a.has("rid") and rid == null: # an unusable rid would let the op apply twice (§5.3)
+		return IntentHandlers.no("bad_request", "rid must be a 1..64 character string")
 	if rid != null and ch.d.rids.has(rid):
 		var hit: Array = ch.d.rids[rid]
 		if str(hit[0]) != op:
@@ -181,6 +190,8 @@ func open() -> String:
 		if not parsed is Dictionary or int(parsed.get("v", 0)) != VERSION:
 			return "snapshot.json is unreadable or another version"
 		s = norm(parsed)
+		data_changed = str(s.get("data", "")) != data_hash()
+		s.erase("data") # lives only in the file, so the state hash does not depend on it
 	var path := dir.path_join("journal.jsonl")
 	if FileAccess.file_exists(path):
 		var bytes := FileAccess.get_file_as_bytes(path)
@@ -209,13 +220,17 @@ func open() -> String:
 		return "cannot open journal (%d)" % FileAccess.get_open_error()
 	_journal.seek_end()
 	_ops_since = 0
+	if data_changed:
+		# The journal just replayed under new rules; snapshot so later boots do not repeat that.
+		push_warning("[srv] data files changed since the last snapshot; the journal replayed under the new rules")
+		return snapshot()
 	return ""
 
 ## Verified write of the snapshot, then a fresh journal (everything in it is now covered).
 func snapshot() -> String:
 	if dir == "":
 		return ""
-	var text := canon(s)
+	var text := canon(s.merged({"data": data_hash()}))
 	var snap := dir.path_join("snapshot.json")
 	var tmp := snap + ".tmp"
 	var f := FileAccess.open(tmp, FileAccess.WRITE)
@@ -228,7 +243,7 @@ func snapshot() -> String:
 		return "snapshot did not verify; kept the old one and the journal"
 	if DirAccess.rename_absolute(tmp, snap) != OK: # atomic replace on POSIX
 		return "cannot rename the snapshot into place"
-	close()
+	_close_journal()
 	_journal = FileAccess.open(dir.path_join("journal.jsonl"), FileAccess.WRITE)
 	if _journal == null:
 		broken = "cannot open a new journal (%d)" % FileAccess.get_open_error()
@@ -236,13 +251,25 @@ func snapshot() -> String:
 	_ops_since = 0
 	return ""
 
-func close() -> void:
+## Clean shutdown: snapshot (so no journal replays under the next deploy's data), then close.
+func close() -> String:
+	var why := snapshot() if _journal and broken == "" else ""
+	_close_journal()
+	return why
+
+func _close_journal() -> void:
 	if _journal:
 		_journal.flush()
 		_journal.close()
 		_journal = null
 
 # --- canonical form and invariants ------------------------------------------------------------
+
+static func data_hash() -> String:
+	var all := ""
+	for path: String in DATA_FILES:
+		all += FileAccess.get_file_as_string(path).sha256_text()
+	return all.sha256_text()
 
 func state_json() -> String:
 	return canon(s)

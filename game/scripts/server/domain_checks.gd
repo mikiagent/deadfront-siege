@@ -1,5 +1,5 @@
-class_name ServerDomainChecks
 extends RefCounted
+## No class_name: this is test code; tests/t_server_domain.gd loads it by path.
 ## W1-SRVDOM acceptance checks. tests/t_server_domain.gd loads this on the first frame, once
 ## the Data autoload exists (Crafting and friends cannot compile before it). Prints one
 ## "[srvdom] ..." evidence line per check; run() returns the failures.
@@ -18,6 +18,8 @@ func run(fuzz_ops: int = 10000) -> Array[String]:
 	_tame_checks()
 	_import_checks()
 	_rid_checks()
+	_move_checks()
+	_receive_checks()
 	_fuzz_and_replay(fuzz_ops, 20261018)
 	_disk_checks()
 	return failures
@@ -207,7 +209,55 @@ func _rid_checks() -> void:
 	var again := st.apply("act.gather", 1, {"node_id": "rock", "rid": "r-1"}, 3)
 	var other := st.apply("act.eat", 1, {"bag_slot": 0, "rid": "r-1"}, 3)
 	expect(bool(again.r.get("duplicate", false)) and int(st.s.seq) == seq and other.get("err") == "conflict", "a repeated rid applies once; reusing it for another op is a conflict")
+	var h := st.state_hash()
+	var long := st.apply("act.gather", 1, {"node_id": "rock", "rid": "r".repeat(65)}, 4)
+	var typed := st.apply("act.gather", 1, {"node_id": "rock", "rid": 7}, 4)
+	expect(long.get("err") == "bad_request" and typed.get("err") == "bad_request" and st.state_hash() == h, "a present but unusable rid (65 chars, an int) is bad_request with nothing applied")
+	print("[srvdom] rid invalid long=%s int=%s unchanged=%s" % [long.get("err", "ok"), typed.get("err", "ok"), st.state_hash() == h])
 	print("[srvdom] rid repeat duplicate=%s seq_unchanged=%s other_op=%s first_seq=%d" % [again.r.get("duplicate", false), int(st.s.seq) == seq, other.get("err"), int(first.r.get("seq", 0))])
+
+## char.move shares one second's distance across every update in that second (contract §7).
+func _move_checks() -> void:
+	var st := _store(7)
+	var bound := 1.6 * IntentHandlers.RUN_SPEED + 1.0
+	var accepted := 0
+	var x := 0.0
+	for i in 10: # the reviewer's probe: ten 12 m hops inside one second
+		if st.apply("char.move", 1, {"p": [x + 12.0, 0, 0]}, 2).ok:
+			accepted += 1
+			x += 12.0
+	var small := 0
+	for i in 20: # many small hops in the next second: refused once the sum passes the bound
+		if st.apply("char.move", 1, {"p": [x + 1.0, 0, 0]}, 3).ok:
+			small += 1
+			x += 1.0
+	var later: bool = st.apply("char.move", 1, {"p": [x + 12.0, 0, 0]}, 4).ok
+	var travel: bool = st.apply("char.move", 1, {"p": [900, 0, 0], "reset": true}, 4).ok
+	expect(accepted == 1 and small == int(bound) and later and travel, "move budget: one 12 m hop per second (got %d), %d of 20 1 m hops (expect %d), next second ok=%s, reset ok=%s" % [accepted, small, int(bound), later, travel])
+	print("[srvdom] move budget bound=%.1f same_second_12m_accepted=%d/10 same_second_1m_accepted=%d/20 next_second=%s reset=%s" % [bound, accepted, small, later, travel])
+
+## char.receive: a deposited asset can come back once; forged or never-exported ones cannot.
+func _receive_checks() -> void:
+	var st := _store(8)
+	_gather_until(st, 1, "rock", 0, "stone", 2, 2)
+	var before := _units(st, 1)
+	var d := _ok(st.apply("act.deposit", 1, {"bag_slot": 0, "count": 1}, 3), "deposit for receive")
+	var asset: Dictionary = d.r.get("asset", {}) if d.ok else {}
+	var back := _ok(st.apply("char.receive", 1, {"asset": asset}, 4), "receive the deposit")
+	var restored := _units(st, 1) == before and int(st.s.exported.get("stone", 0)) == 0
+	var twice := st.apply("char.receive", 1, {"asset": asset}, 5)
+	var forged := st.apply("char.receive", 1, {"asset": FORGED}, 5)
+	var bare := st.apply("char.receive", 1, {"asset": {"id": "stone", "count": 1}}, 5)
+	expect(restored and st.invariants().is_empty(), "receive restores the deposited unit and the counters: %s vs %s, %s" % [before, _units(st, 1), st.invariants()])
+	expect(twice.get("err") == "invalid_asset" and forged.get("err") == "invalid_asset" and bare.get("err") == "invalid_asset", "receive refuses a second return, a forged stamp and an unstamped dict: %s %s %s" % [twice.get("err"), forged.get("err"), bare.get("err")])
+	var pt := _tame_once(12)
+	var pet_uid: String = (pt.character(1).d.pets as Dictionary).keys()[0] if not (pt.character(1).d.pets as Dictionary).is_empty() else ""
+	var pd := _ok(pt.apply("act.deposit", 1, {"pet_uid": pet_uid}, 10), "deposit pet")
+	var pet: Dictionary = pd.r.get("asset", {}) if pd.ok else {}
+	var pr := pt.apply("char.receive", 2, {"asset": pet}, 11)
+	var pr2 := pt.apply("char.receive", 1, {"asset": pet}, 12)
+	expect(pr.get("ok", false) and (pt.character(2).d.pets as Dictionary).has(pet_uid) and pr2.get("err") == "conflict" and pt.invariants().is_empty(), "a deposited pet comes back once (to account 2), a repeat is a conflict: %s %s" % [pr.get("err", "ok"), pr2.get("err", "ok")])
+	print("[srvdom] receive item=%s restored=%s twice=%s forged=%s unstamped=%s pet=%s pet_twice=%s" % [back.get("ok", false), restored, twice.get("err"), forged.get("err"), bare.get("err"), pr.get("err", "ok"), pr2.get("err", "ok")])
 
 # --- fuzz ----------------------------------------------------------------------------------
 
@@ -349,13 +399,17 @@ func _disk_checks() -> void:
 		var req := _random_op(rng, st, w, acct)
 		st.apply(req[0], acct, req[1], 10 + i)
 		spawned = _simulate(w, spawned)
-	st.close()
+	st._close_journal() # a crash: no shutdown snapshot, so boot must replay the journal
 	var live := st.state_json()
+	var journaled := FileAccess.get_file_as_string(dir.path_join("journal.jsonl")).count("\n")
 	var b := CharacterStore.new(WorldFacade.new(), dir, 9)
 	var why := b.open()
-	b.close()
-	var reopened := why == "" and b.state_json() == live
-	expect(reopened, "snapshot + journal boot reproduces the live state (%s)" % why)
+	var reopened := why == "" and b.state_json() == live and journaled > 0
+	expect(reopened, "snapshot + journal boot reproduces the live state (%s, %d journal lines)" % [why, journaled])
+	var shut := b.close()
+	var snap_text := FileAccess.get_file_as_string(dir.path_join("snapshot.json"))
+	var clean := shut == "" and FileAccess.get_file_as_string(dir.path_join("journal.jsonl")) == "" and snap_text.contains(CharacterStore.data_hash())
+	expect(clean, "close() snapshots with the data hash and leaves an empty journal (%s)" % shut)
 	var f := FileAccess.open(dir.path_join("journal.jsonl"), FileAccess.READ_WRITE)
 	f.seek_end()
 	f.store_string('{"a":{"node_id":"TORN') # a write torn by a crash
@@ -364,9 +418,24 @@ func _disk_checks() -> void:
 	why = c.open()
 	c.close()
 	var torn := why == "" and c.state_json() == live and not FileAccess.get_file_as_string(dir.path_join("journal.jsonl")).contains("TORN")
-	expect(torn, "a torn journal tail is cut and boot still matches (%s)" % why)
-	print("[srvdom] disk seq=%d snapshot=%s reopen_equal=%s torn_tail_cut=%s" % [int(st.s.seq), FileAccess.file_exists(dir.path_join("snapshot.json")), reopened, torn])
+	expect(torn, "a torn journal tail is cut and boot still matches (%s) first difference: %s" % [why, _around(c.state_json(), live)])
+	# A deploy that changed the data files: boot flags it and re-snapshots under the new hash.
+	var fs := FileAccess.open(dir.path_join("snapshot.json"), FileAccess.WRITE)
+	fs.store_string(snap_text.replace(CharacterStore.data_hash(), "older-data"))
+	fs.close()
+	var e := CharacterStore.new(WorldFacade.new(), dir, 9)
+	why = e.open()
+	var flagged := why == "" and e.data_changed and e.state_json() == live and FileAccess.get_file_as_string(dir.path_join("snapshot.json")).contains(CharacterStore.data_hash())
+	e.close()
+	expect(flagged, "a snapshot from other data files sets data_changed and is re-snapshotted (%s)" % why)
+	print("[srvdom] disk seq=%d crash_replay_lines=%d reopen_equal=%s clean_close_snapshot=%s torn_tail_cut=%s data_change_flagged=%s" % [int(st.s.seq), journaled, reopened, clean, torn, flagged])
 	_clear(dir)
+
+static func _around(a: String, b: String) -> String:
+	var i := 0
+	while i < mini(a.length(), b.length()) and a[i] == b[i]:
+		i += 1
+	return a.substr(maxi(0, i - 80), 160)
 
 static func _clear(dir: String) -> void:
 	for name in ["snapshot.json", "snapshot.json.tmp", "journal.jsonl"]:

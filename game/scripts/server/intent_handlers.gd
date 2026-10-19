@@ -10,7 +10,7 @@ extends RefCounted
 # not_ready) are new stable strings for intents; the orchestrator adds them to the contract.
 
 const CLIENT_OPS := ["act.gather", "act.loot", "act.craft", "act.place", "act.equip", "act.eat", "act.tame", "act.capture", "act.attack", "act.deposit", "char.import", "char.get"]
-const SYSTEM_OPS := ["char.create", "char.move", "char.wallet"] ## the server itself, never relayed from a client
+const SYSTEM_OPS := ["char.create", "char.move", "char.wallet", "char.receive"] ## the server itself, never relayed from a client
 const READ_OPS := ["char.get"]
 const GATHER_REACH := Player.INTERACT_GATHER_RANGE ## 2.6 m, the client's own gather reach
 const LOOT_REACH := 2.6 ## Player corpse reach
@@ -58,6 +58,7 @@ func run(op: String, ch: CharacterState, a: Dictionary) -> Dictionary:
 		"char.get": return ok(ch.view(), false)
 		"char.move": return _move(ch, a)
 		"char.wallet": return _wallet(ch, a)
+		"char.receive": return _receive(ch, a)
 	return no("bad_request", "unknown op %s" % op)
 
 # --- intents -----------------------------------------------------------------------------
@@ -467,11 +468,18 @@ func _move(ch: CharacterState, a: Dictionary) -> Dictionary:
 		if not (v is int or v is float) or not is_finite(float(v)) or absf(float(v)) > 100000.0:
 			return no("bad_request", "p must be three finite numbers")
 	var to := WorldFacade.v3(p)
-	var limit := 1.6 * RUN_SPEED * float(maxi(1, now - int(ch.d.pos_ts))) + 1.0
-	if not bool(a.get("reset", false)) and ch.pos().distance_to(to) > limit:
-		return no("bad_request", "moved %.1f m, more than %.1f m allows" % [ch.pos().distance_to(to), limit])
+	var step := ch.pos().distance_to(to)
+	# A budget, not a per-update cap: updates in the same second share one second's distance,
+	# so 10 Hz presence (contract §7) cannot multiply the bound. ts is whole seconds.
+	var elapsed := now - int(ch.d.pos_ts)
+	var used := 0.0 if elapsed > 0 else float(ch.d.get("move_cm", 0)) / 100.0
+	var limit := 1.6 * RUN_SPEED * float(maxi(1, elapsed)) + 1.0 - used
+	var reset := bool(a.get("reset", false))
+	if not reset and step > limit:
+		return no("bad_request", "moved %.1f m, more than the %.1f m left this second" % [step, maxf(0.0, limit)])
 	ch.d.pos = p
 	ch.d.pos_ts = now
+	ch.d.move_cm = 0 if reset else ceili((used + step) * 100.0) # whole cm: a float sum would not survive the JSON snapshot bit-exact
 	return ok({"p": p})
 
 ## char.wallet {wallet}: mirrors the economy wallet (the ledger stays the authority).
@@ -483,6 +491,35 @@ func _wallet(ch: CharacterState, a: Dictionary) -> Dictionary:
 		return ok({"wallet": w}, false)
 	ch.d.wallet = w
 	return ok({"wallet": w})
+
+## char.receive {asset}: the economy hands back an asset act.deposit exported (a vault that
+## refused it, or a withdrawal). Only stamped assets the counters show as exported come back.
+# shortcut: an item that lands in a new stack gets a fresh uid (merged units take the stack's,
+# as everywhere); exported is counted per def, so the bridge must not return one asset twice.
+func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
+	var asset: Variant = a.get("asset")
+	if not Provenance.is_server(asset):
+		return no("invalid_asset", "only assets with server provenance come back")
+	var uid := str(asset.uid)
+	if uid.begins_with("p"):
+		for key: String in s.chars:
+			if (s.chars[key].pets as Dictionary).has(uid):
+				return no("conflict", "pet %s is already held" % uid)
+		if int(s.pets_exported) < 1 or not asset.has("species"):
+			return no("invalid_asset", "pet %s was never exported" % uid)
+		ch.d.pets[uid] = (asset as Dictionary).duplicate(true)
+		s.pets_exported = int(s.pets_exported) - 1
+		return ok({"kind": "pet", "pet_uid": uid})
+	var stack := ItemStack.from_dict(Provenance.strip(asset))
+	if stack.def() == null or stack.count < 1 or int(s.exported.get(str(stack.def_id), 0)) < stack.count:
+		return no("invalid_asset", "%s x%d was never exported" % [stack.def_id, stack.count])
+	var n := stack.count
+	var inv := ch.inventory()
+	if inv.add(stack) > 0:
+		return no("bag_full", "no room for %s" % stack.def_id)
+	var uids := ch.commit(inv, str(asset.origin), seq)
+	count("exported", stack.def_id, -n)
+	return ok({"kind": "item", "item": str(stack.def_id), "count": n, "uids": uids})
 
 # --- helpers -----------------------------------------------------------------------------
 
