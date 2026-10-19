@@ -68,7 +68,7 @@ func _process(delta: float) -> void:
 			if c.def.id == &"tyrannosaurus":
 				_rex_clips(c)
 		var gait := c.anim.current_clip
-		_labels[i].text = "%s  %s x%.2f  %.1f m/s" % [c.def.id, gait, c.anim._effective(gait), v]
+		_labels[i].text = "%s  %s x%.2f  %.1f m/s" % [c.def.id, gait, c.anim.cadence(gait), v]
 		_labels[i].position = c.position + Vector3(0.0, c.def.height_meters + 0.8, 0.0)
 	if phase != _phase:
 		_phase = phase

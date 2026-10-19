@@ -36,6 +36,12 @@ var _time_scale := 1.0
 var _scale: Dictionary = {}  ## state -> cadence before the global time scale
 var _param: Dictionary = {}  ## state -> "parameters/<state>/ts/scale"; also the set of built states
 var _natural: Dictionary = {}  ## &"walk" / &"run" -> planted-foot ground speed at cadence 1 (m/s)
+## The one-shot being watched for its hit and end frames, in tree time so a mid-clip time-scale
+## change (hit-stop, slows) moves them with the visible swing.
+var _os_state: StringName = &""
+var _os_t := 0.0
+var _os_last := -1.0
+var _os_hit_done := true
 
 func setup(ap: AnimationPlayer, at: AnimationTree) -> void:
 	player = ap
@@ -44,13 +50,15 @@ func setup(ap: AnimationPlayer, at: AnimationTree) -> void:
 	_def = host.def if host else null
 	for gait in [&"walk", &"run"]:
 		if player.has_animation(gait):
-			CreatureClips.trim_frozen_tail(player.get_animation(gait), "%s/%s" % [_def.id, gait] if _def else "")
-			var nat := CreatureClips.natural_speed(_def, gait)
+			var anim := player.get_animation(gait)
+			CreatureClips.trim_frozen_tail(anim, "%s/%s" % [_def.id, gait] if _def else "")
+			var nat := CreatureClips.natural_speed(_def, gait, anim.length)
 			if nat > 0.0:
 				_natural[gait] = nat
 	_build_tree()
 	tree.anim_player = tree.get_path_to(player)
 	tree.active = true
+	tree.mixer_applied.connect(_poll_oneshot)  # also fires on manual advance(); mixer_updated does not
 	_playback = tree.get("parameters/playback")
 	play_idle()
 
@@ -71,7 +79,7 @@ func play_locomotion(speed_frac: float) -> void:
 ## Stride-matched locomotion: picks the gait whose natural stride suits mps and sets its cadence to
 ## mps / natural speed, so a planted foot keeps pace with the ground instead of sliding.
 func set_move_speed(mps: float) -> void:
-	if not _can_move():
+	if not is_finite(mps) or not _can_move():
 		return
 	if mps <= 0.05:
 		play_idle()
@@ -85,6 +93,8 @@ func set_move_speed(mps: float) -> void:
 
 ## Global retime on top of every state's own cadence (slows, hit-stop, lab slow motion).
 func set_time_scale(x: float) -> void:
+	if not is_finite(x):
+		return
 	_time_scale = maxf(0.0, x)
 	for state in _scale:
 		_apply(state)
@@ -107,16 +117,10 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 	_scale[state] = CreatureClips.clip_speed(state, _def)
 	_travel(state)
 	if state in ONESHOT:
-		var anim := player.get_animation(state) if player.has_animation(state) else null
-		# Timers run in wall time, the clip in tree time: divide by the cadence it plays at.
-		# shortcut: a set_time_scale change mid-clip does not retime these timers; poll the tree if that matters.
-		var wait := (anim.length if anim else 0.6) / maxf(0.01, _effective(state))
-		if state in ATTACKS:
-			get_tree().create_timer(wait * CreatureClips._hit_frac(state)).timeout.connect(func () -> void:
-				if current_clip == state:
-					attack_hit.emit(state)
-			, CONNECT_ONE_SHOT)
-		get_tree().create_timer(wait).timeout.connect(_oneshot_done.bind(state), CONNECT_ONE_SHOT)
+		_os_state = state
+		_os_t = 0.0
+		_os_last = -1.0
+		_os_hit_done = state not in ATTACKS
 
 func release_knockdown() -> void:
 	_hold_knockdown = false
@@ -163,6 +167,28 @@ func _pick_gait(mps: float) -> StringName:
 	var cut := sqrt(w * r) * (0.9 if current_clip == &"run" else 1.1)
 	return &"run" if mps > cut else &"walk"
 
+## Runs after every tree update (idle or manual advance): fires attack_hit at the clip's hit
+## fraction and ends the one-shot at its last frame, both measured in tree time.
+func _poll_oneshot() -> void:
+	if _os_state == &"" or timed_attack:
+		return
+	if current_clip != _os_state:
+		_os_state = &""
+		return
+	if _playback.get_current_node() != _os_state:
+		return  # the travel lands on the next update
+	var length := _playback.get_current_length()
+	var pos := _playback.get_current_play_position()
+	_os_t = pos if _os_last < 0.0 else _os_t + (fposmod(pos - _os_last, length) if length > 0.0 else 0.0)
+	_os_last = pos
+	if not _os_hit_done and _os_t >= length * CreatureClips._hit_frac(_os_state):
+		_os_hit_done = true
+		attack_hit.emit(_os_state)
+	if _os_t >= length - 0.001 or pos >= length - 0.001:
+		var done := _os_state
+		_os_state = &""
+		_oneshot_done(done)
+
 func _oneshot_done(clip: StringName) -> void:
 	if timed_attack: return
 	if current_clip != clip:
@@ -184,7 +210,20 @@ func _travel(state: StringName) -> void:
 	_apply(state)
 	current_clip = state
 	if _playback:
-		_playback.travel(str(state))
+		if state in ONESHOT and _playback.get_current_node() == state:
+			_playback.start(str(state))  # travel to the node the machine is still on would not replay it
+		else:
+			_playback.travel(str(state))
+
+## Read-only views for tests and labs.
+func current_state() -> StringName:
+	return _playback.get_current_node() if _playback else &""
+
+func cadence(state: StringName) -> float:
+	return _effective(state)
+
+func has_state(clip: StringName) -> bool:
+	return _param.has(clip)
 
 func _build_tree() -> void:
 	var sm := AnimationNodeStateMachine.new()

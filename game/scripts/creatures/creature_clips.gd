@@ -14,6 +14,7 @@ const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120
 
 static var _trim_cache: Dictionary = {}  ## "species/clip" -> cut length, so each species pays once
+static var _stale_warned: Dictionary = {}  ## "species/clip" of stale natural-speed bakes already reported
 
 static func attach(player: AnimationPlayer, view: CreatureView, def: CreatureDef) -> AnimationLibrary:
 	if player.root_node == NodePath(""):
@@ -54,11 +55,20 @@ static func clip_speed(clip: StringName, def: CreatureDef = null) -> float:
 	return 1.0
 
 ## Planted-foot ground speed (m/s) of a gait at cadence 1, baked by tools/bake_clip_speeds.py
-## into anim_events.json "natural_speeds" and scaled with the creature's height. 0 = unknown.
-static func natural_speed(def: CreatureDef, clip: StringName) -> float:
+## into anim_events.json "natural_speeds" and scaled with the creature's height. 0 = unknown, marked
+## for replacement, or stale: a bake measured on a clip length more than 1 % off clip_len (the GLB
+## was swapped since) is ignored, with one warning per species and gait.
+static func natural_speed(def: CreatureDef, clip: StringName, clip_len: float = -1.0) -> float:
 	if def == null:
 		return 0.0
 	var row: Dictionary = (Data.anim_events.get("natural_speeds", {}) as Dictionary).get(str(def.id), {})
+	var baked_len := float(row.get(str(clip) + "_len", -1.0))
+	if clip_len > 0.0 and baked_len > 0.0 and absf(baked_len - clip_len) > clip_len * 0.01:
+		var key := "%s/%s" % [def.id, clip]
+		if not _stale_warned.has(key):
+			_stale_warned[key] = true
+			print("[creature] %s natural speed baked on a %.3f s clip, clip is %.3f s: ignored, rerun tools/bake_clip_speeds.py" % [key, baked_len, clip_len])
+		return 0.0
 	var baked_h := float(row.get("height_m", def.height_meters))
 	return float(row.get(str(clip), 0.0)) * (def.height_meters / baked_h if baked_h > 0.0 else 1.0)
 

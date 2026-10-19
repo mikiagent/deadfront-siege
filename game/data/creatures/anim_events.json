@@ -1,89 +1,120 @@
 {
   "default_hit_frac": 0.55,
   "clips": {
-    "attack_primary": {
-      "hit_frac": 0.42,
-      "windup": false
-    },
-    "attack_heavy": {
-      "hit_frac": 0.72,
-      "windup": true,
-      "windup_hold": 0.6
-    },
-    "run": {
-      "speed": 1.6
-    }
+    "attack_primary": { "hit_frac": 0.42, "windup": false },
+	"attack_heavy": { "hit_frac": 0.72, "windup": true, "windup_hold": 0.6 },
+    "run": { "speed": 1.6 }
   },
   "natural_speeds": {
     "coelophysis": {
       "height_m": 2.0,
-      "run": 0.406,
+      "run_l": 0.406,
       "run_len": 0.625,
-      "walk": 0.436,
-      "walk_len": 1.229
+      "run_r": 1.111,
+      "walk_l": 0.436,
+      "walk_len": 1.229,
+      "walk_r": 0.216,
+      "walk_replace": "feet disagree: L 0.436 R 0.216 m/s",
+      "run_replace": "feet disagree: L 0.406 R 1.111 m/s"
     },
     "compsognathus": {
       "height_m": 1.2,
-      "run": 2.193,
+      "run_l": 2.193,
       "run_len": 0.625,
-      "walk": 0.805,
-      "walk_len": 1.209
+      "run_r": 4.267,
+      "walk_l": 0.805,
+      "walk_len": 1.209,
+      "walk_r": 1.007,
+      "walk": 0.906,
+      "run_replace": "feet disagree: L 2.193 R 4.267 m/s"
     },
     "deinonychus": {
       "height_m": 3.6,
-      "run": 12.534,
+      "run_l": 12.534,
       "run_len": 0.625,
-      "walk": 3.975,
-      "walk_len": 1.209
+      "run_r": 15.224,
+      "walk_l": 3.975,
+      "walk_len": 1.209,
+      "walk_r": 4.794,
+      "walk": 4.385,
+      "run": 13.879
     },
     "gallimimus": {
       "height_m": 3.8,
-      "run": 2.789,
+      "run_l": 2.789,
       "run_len": 0.625,
-      "walk": 2.37,
-      "walk_len": 1.209
+      "run_r": 13.45,
+      "walk_l": 2.37,
+      "walk_len": 1.209,
+      "walk_r": 3.19,
+      "walk": 2.78,
+      "run_replace": "feet disagree: L 2.789 R 13.450 m/s"
     },
     "megaloceros": {
       "height_m": 2.1,
-      "run": 0.416,
+      "run_l": 0.416,
       "run_len": 0.958,
+      "run_r": 0.416,
+      "walk_l": 0.113,
+      "walk_len": 1.625,
+      "walk_r": 0.113,
       "walk": 0.113,
-      "walk_len": 1.625
+      "run": 0.416
     },
     "protoceratops": {
       "height_m": 1.6,
-      "run": 0.63,
+      "run_l": 0.63,
       "run_len": 0.958,
+      "run_r": 0.63,
+      "walk_l": 0.174,
+      "walk_len": 1.625,
+      "walk_r": 0.174,
       "walk": 0.174,
-      "walk_len": 1.625
+      "run": 0.63
     },
     "tyrannosaurus": {
       "height_m": 8.0,
-      "run": 0.442,
+      "run_l": 0.442,
       "run_len": 0.9,
+      "run_r": 0.401,
+      "walk_l": 2.05,
+      "walk_len": 1.6,
+      "walk_r": 2.05,
       "walk": 2.05,
-      "walk_len": 1.6
+      "run": 0.421
     },
     "utahraptor": {
       "height_m": 4.0,
-      "run": 10.944,
+      "run_l": 10.944,
       "run_len": 0.625,
-      "walk": 2.868,
-      "walk_len": 1.209
+      "run_r": 15.25,
+      "walk_l": 2.868,
+      "walk_len": 1.209,
+      "walk_r": 4.283,
+      "walk": 3.575,
+      "run": 13.097
     },
     "velociraptor": {
       "height_m": 2.4,
-      "run": 3.14,
+      "run_l": 3.14,
       "run_len": 0.625,
-      "walk": 0.839,
-      "walk_len": 1.209
+      "run_r": 4.298,
+      "walk_l": 0.839,
+      "walk_len": 1.209,
+      "walk_r": 0.643,
+      "walk": 0.741,
+      "run": 3.719
     },
     "zebraceratops": {
       "height_m": 1.0,
-      "run": 0.395,
+      "run_l": 0.395,
       "run_len": 0.958,
+      "run_r": 0.393,
+      "walk_l": 0.109,
+      "walk_len": 1.625,
+      "walk_r": 0.109,
       "walk": 0.109,
-      "walk_len": 1.625
+      "run": 0.394
     }
   }
 }
