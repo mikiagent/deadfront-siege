@@ -50,6 +50,7 @@ func _process(_delta: float) -> bool:
 	_test_mortar_well_kit_routes()
 	_test_empty_bucket_recipe()
 	_test_multistack_crafting()
+	failures.append_array((load("res://tests/audio_tests.gd") as GDScript).new().run(self))
 	_finish()
 	return true
 
