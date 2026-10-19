@@ -6,11 +6,14 @@ Headless only (the Blender MCP lock belongs to another package):
   Blender -b --factory-startup -P tools/render_icons.py --                 # every item
   Blender -b --factory-startup -P tools/render_icons.py -- --only a,b      # some items
   Blender -b --factory-startup -P tools/render_icons.py -- --verify a,b    # re-render, byte-compare
+  Blender -b --factory-startup -P tools/render_icons.py -- --verify all     # every item (gate: REPRO PASS n=122)
   ... -- --out DIR   writes elsewhere (no manifest update)
   ... -- id=path.glb renders an existing GLB through the same rig
+  ... -- --quality model_v2 id=path.glb   the quality tier recorded for those GLB renders
 Prints ICON <id> <bytes> <sha> per item; --verify prints REPRO PASS|FAIL.
 """
 import hashlib
+import os
 import importlib
 import json
 import pathlib
@@ -42,7 +45,19 @@ REPLACE = {
     "grilled_meat": "striped disc, does not read as meat",
     "armor_scute": "flat plate, no bony texture",
     "heavy_snare": "low-detail frame, reads poorly at slot size",
+    # Pairs that are not told apart at slot size (review 2026-10-19).
+    "capture_net_ii": "not distinguishable from capture_net_i at slot size",
+    "dense_bone": "not distinguishable from bone at slot size",
+    "smoked_meat": "not distinguishable from roast / seasoned_roast at slot size",
+    "seasoned_roast": "not distinguishable from roast / smoked_meat at slot size",
+    "pine_log": "not distinguishable from wood_log at slot size",
+    "black_iron": "dark crystal, not distinguishable from obsidian at slot size",
+    "berry": "plain blue sphere, no stem, leaf or cluster",
+    "mango": "noisy green/orange blotches, reads poorly",
 }
+PROCEDURAL = "procedural_v1"
+# Known tiers, lowest first. A GLB render (the route for better art) never becomes procedural_v1.
+QUALITY_TIERS = [PROCEDURAL, "model_v2"]
 
 sys.dont_write_bytecode = True  # keep __pycache__ out of tools/blender/items
 sys.path.insert(0, str(ITEMS_DIR))
@@ -103,7 +118,7 @@ def missing_ids(rendered):
 
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    only, verify, out_dir, glbs = None, None, None, {}
+    only, verify, out_dir, glbs, quality = None, None, None, {}, "model_v2"
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -112,6 +127,10 @@ def main():
             i += 1
         elif a == "--verify":
             verify = argv[i + 1].split(",")
+            i += 1
+        elif a == "--quality":
+            quality = argv[i + 1]
+            assert quality in QUALITY_TIERS[1:], "--quality must be one of %s" % QUALITY_TIERS[1:]
             i += 1
         elif a == "--out":
             out_dir = pathlib.Path(argv[i + 1])
@@ -122,9 +141,14 @@ def main():
         i += 1
     reg = registry()
     for k, v in glbs.items():
-        reg[k] = ("glb:%s" % v, v)
+        # Repo-relative in the committed manifest: never leak a developer machine path.
+        rel = pathlib.Path(os.path.relpath(pathlib.Path(v).resolve(), ROOT))
+        assert not str(rel).startswith(".."), "GLB must live inside the repo: %s" % v
+        reg[k] = ("glb:%s" % rel.as_posix(), v)
     tmp = tempfile.mkdtemp(prefix="icons_")
     if verify:
+        if verify == ["all"]:
+            verify = sorted(reg)
         ok = True
         for iid in verify:
             if iid not in reg:
@@ -151,11 +175,19 @@ def main():
             if n > MAX_BYTES:
                 continue
             script, fn = reg[iid]
+            prev = items.get(iid, {})
             items[iid] = {"script": script, "builder": iid, "png": "res://assets/icons/render/%s.png" % iid,
                           "sha256": sha, "bytes": n, "rect": rect}
+            if script.startswith("glb:"):
+                # New model art: this run's --quality, and the replacement mark is cleared.
+                items[iid]["quality"] = quality
+            elif "replace" in prev and iid not in REPLACE:
+                items[iid]["replace"] = prev["replace"]  # keep a hand-set mark
         for iid, entry in items.items():
-            entry["quality"] = "procedural_v1"
-            entry.pop("replace", None)
+            if entry["script"].startswith("glb:"):
+                entry.setdefault("quality", quality)
+                continue  # never restamp model art as procedural, never re-mark it
+            entry["quality"] = PROCEDURAL
             if iid in REPLACE:
                 entry["replace"] = REPLACE[iid]
         man = {

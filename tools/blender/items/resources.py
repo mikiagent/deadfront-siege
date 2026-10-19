@@ -158,7 +158,10 @@ def metal_shard():
 
 
 def _ingot(c, rough=0.28):
-    box((1.2, 0.56, 0.34), m=metal(c, rough), bev=0.045, taper=(0.8, 0.72))
+    # A small stack (two under one): a lone bar is ~2:1 and could not rise above the slot.
+    m = metal(c, rough)
+    for loc in ((0, -0.31, 0), (0, 0.31, 0), (0, 0, 0.35)):
+        box((1.2, 0.56, 0.34), loc=loc, m=m, bev=0.045, taper=(0.8, 0.72))
     turn(24)
 
 
@@ -264,7 +267,7 @@ def pearl():
     prof = [(0, 0.0), (0.5, 0.05), (0.9, 0.2), (1.0, 0.3), (0.94, 0.3), (0.5, 0.12), (0, 0.08)]
     lathe(prof, m=shell, segs=12, smooth=False, scl=(1.0, 0.85, 1.0))
     cyl(0.85, 0.02, loc=(0, 0, 0.1), m=nacre, segs=24)
-    top = group(loc=(0, 0.75, 0.25), rot=(-70, 0, 0))
+    top = group(loc=(0, 0.75, 0.25), rot=(-84, 0, 0))  # wide open: taller, so it rises above the slot
     lathe([(0, 0.0), (0.5, -0.05), (0.9, -0.2), (1.0, -0.3), (0.94, -0.3), (0.5, -0.12), (0, -0.08)], m=shell, segs=12,
           smooth=False, scl=(1.0, 0.85, 1.0), parent=top)
     ball(0.42, loc=(0, -0.05, 0.45), m=mat("#f6f2ff", 0.1, color2="#ffd8ec", tex="noise", scale=2.0, coat=1.0), sub=4)

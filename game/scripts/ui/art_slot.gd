@@ -6,7 +6,9 @@ extends Button
 
 const MIN_SIZE := 64.0  # mobile tap floor
 const RISE := 0.16      # art top sits 16 % of the slot height above the slot (spec: 12-20 %)
+const RISE_MIN := 0.12 # spec floor for the rise: wide items lift until they reach it
 const FLOOR := 0.80     # art bottom sits here, so every object stands on the same slot floor
+const HOVER := 0.20     # a wide item may lift its bottom this far off FLOOR to reach RISE_MIN
 const COUNT_PX := 14.0  # stack count floor in physical pixels (GAUNTLET: no illegible metadata)
 
 var item_id: StringName = &""
@@ -39,9 +41,10 @@ func set_item(id: StringName, p_count: int = 1) -> void:
 	_apply_rim()
 	queue_redraw()
 
-## Where the object's opaque pixels land, all standing on FLOOR. Tall items fill the height
-## and their top rises RISE above the slot; wide flat items (ingots, fish) may use the full
-## slot width and sit on the floor instead of hanging from the top like a lid.
+## Where the object's opaque pixels land. Tall items stand on FLOOR and their top rises RISE
+## above the slot. Wide items may use the full slot width and lift off the floor (at most
+## HOVER) until their top rises RISE_MIN; only very flat art (> ~1.45:1) stays below that,
+## and the art builders stage such items on a diagonal or as a stack instead.
 func art_rect() -> Rect2:
 	var s := minf(size.x, size.y)
 	var box := Rect2(Vector2(size.x * 0.06, -s * RISE), Vector2(size.x * 0.88, s * (RISE + FLOOR)))
@@ -52,7 +55,10 @@ func art_rect() -> Rect2:
 		box = box.grow_individual(size.x * 0.08, 0.0, size.x * 0.08, 0.0)
 	var k := minf(box.size.x / src.size.x, box.size.y / src.size.y)
 	var dst := src.size * k
-	return Rect2(Vector2(box.position.x + (box.size.x - dst.x) * 0.5, box.end.y - dst.y), dst)
+	var top := box.end.y - dst.y
+	if top > -s * RISE_MIN:
+		top = maxf(-s * RISE_MIN, box.end.y - s * HOVER - dst.y)
+	return Rect2(Vector2(box.position.x + (box.size.x - dst.x) * 0.5, top), dst)
 
 ## Count font in logical px, floored so it is COUNT_PX on screen whatever the stretch scale.
 func count_font_size() -> int:

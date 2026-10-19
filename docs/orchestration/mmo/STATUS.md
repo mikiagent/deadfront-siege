@@ -39,11 +39,42 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | Wave | Packages | State |
 |---|---|---|
 | 0 | 16-system audit with adversarial verify and plan | plan done: `plan-register.md` (ranked gaps, waves 1-4, 21 owner questions) |
+| 1 (merged) | W1-TAME, W1-CANIM, W1-BUILD, W1-ITEMS, W1-WEB, W1-AI, raptor re-animation (dsc) passed review and are merged into `claude/mmo-overhaul`; gates: import, [tests] PASS, t_tame/t_canim/t_build/t_items PASS, SMOKE PASS | done |
 | 1 | W1-LIGHT, SAVE, TAME, AI, CANIM, COMBAT, BUILD, ITEMS, SRVDOM, QA, UI, ICONART, WEB, BIOME, STRUCTART (each `claude/mmo-w1-<key>`) | launching, reviewer-gated, blind A/B judge on visual packages |
 | 1-INT | merge econ/net/audio + sound settings + market over socket | after wave 1a and audio pass review |
-| 1-ART | ARTA/ARTB Tripo species | waiting on owner concept approval (skill gate) |
+| 1-ART | ARTA/ARTB Tripo species | concept sheets generating (Higgsfield gpt_image_2_5, critic-checked, wf_4ea0904a-0e6); then one owner batch approval |
+| merge | survivor-v2/armor/T. rex mount merged into `claude/mmo-overhaul` (0fef2a3) | import, [tests] PASS, SMOKE PASS |
 | 1a-audio | CC0 audio layer (`claude/mmo-audio`) | running, reviewer-gated (wf_abafae3d-0a6) |
 | 1a | economy engine (`claude/mmo-econ`); net core: server, auth, presence, chat (`claude/mmo-net`) | running, reviewer-gated (workflow wf_158b264c-baf) |
+
+## Releases
+
+- 2026-10-18 22:00 production: `548804ac8/f34e148e39` (claude/mmo-overhaul = main + survivor v2/armor/T. rex
+  mount; wave 1 not yet merged). Local browser boot checked into the world before deploy; alias
+  stamp verified.
+
+## Plan amendments for wave 2+ (from plan-critic.md)
+
+- W2-SURVIVAL (new): hunger, thirst and temperature meters with drinking, starvation and climate/
+  weather/clothing temperature; HUD bars; tuned so the loop stays fun.
+- W2-BREED (new, pulled forward from W4): breeding, eggs/gestation, incubation, hatching, growth
+  stages, imprinting/offspring care, inheritance and mutations (incl. colour mutations), lineage;
+  domain built node-free like W1-SRVDOM, plus UI and tests.
+- W2-ACTION (new): the owner's hybrid combat action mode (click-to-swing, dodge, block, aimed ranged)
+  with its camera; acceptance must be measurable.
+- W2-DEATH (new): recoverable death loot bag (ownership, despawn timer, server authority later) and
+  equipped-gear durability loss on death.
+- W2-CVIEW gains: remove the Stegosaurus box override (creature_view.gd:65-66, one line now), and the
+  web render cost of creatures (60 creatures = ~6 fps in gl_compatibility; Label3D, particles and two
+  AnimationPlayers each) with a Chrome fps gate.
+- W2-ECO and W2-BUILDSYS: wild dinosaurs attack blocking structures (owner yes), with a test.
+- Camera: occlusion fade/roof cutaway for tall builds and relief; action-mode camera.
+- W3: server restart persistence test (structures, nodes, pets, population), latency/loss injection,
+  replication of armor/held weapon/mount state, players-per-island target.
+- Later/owner: PvP and tribes (PRD default no PvP), weight/encumbrance, loot crates and supply
+  drops, map discovery, swimming, caves, onboarding, accessibility (rarity not by colour only),
+  key rebinding, graphics settings, telemetry, account deletion.
+- W1-INT's reviewer must deep-audit the econ/net/audio branches (no auditor ever ran them).
 
 ## Owner decisions
 
@@ -89,6 +120,30 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   settings panel (Master, Music, Ambience, SFX, Creatures, UI sliders + Mute all), persisted,
   reachable from the menu with a one-line hook, a mute hotkey, and the game honouring `--mute` and
   the DEADFRONT_MUTE env var by muting Master at boot.
+
+- Decided by the owner's original 2026-10-18 request (planner questions 7, 8, 13, 19 and 9): breeding,
+  inherited traits, mutations, growth stages and offspring care are IN (overrides PRD:747);
+  ARK-style survival meters (health, stamina, hunger, thirst, temperature) and hazards are IN; caves
+  are IN; base defenses imply wild dinosaurs can attack blocking structures; predators may outrun a
+  walking survivor (data-driven, tuned per species). Market defaults (0.25x-4x bands, 30 min trade
+  lock), faucet rate and steam cap use the planner's defaults as # ASSUMPTION until the owner tunes them.
+
+- 2026-10-18 owner answers: (1) merge the survivor-v2/armor/T. rex mount branch into the MMO
+  branch now; (2) the 7 new species' concept sheets are approved as one batch before any Tripo mesh;
+  (3) combat = keep tap-target auto-attack AND add an action mode (click-to-swing, dodge, block,
+  aimed ranged); (4) death = inventory drops in a recoverable loot bag at the death spot and
+  equipped gear loses durability; pets keep the 3-minute respawn rule.
+
+- 2026-10-19 (owner): low-quality and low-poly assets are marked for replacement in
+  `asset-replacement.md`; every art package reads and updates it.
+- 2026-10-19 (owner): delegate long mechanical work to dsc overnight. Running: re-animation of
+  velociraptor+utahraptor and protoceratops+megaloceros in ~/Documents/DeepseekCLI/deadfront-reanim/
+  ({bipeds,quads}, $6 and 8 h cap each, verify.sh = creature-verify + contact sheets). Review before
+  anything enters the repo.
+- 2026-10-19: usage limit cut every running workflow; partial work is WIP-committed on each branch.
+
+- 2026-10-19 (owner): the mobile view is HORIZONTAL (landscape). Phone checks use 844x390, not
+  390x844 (GAUNTLET.md's 390x844 is superseded). project.godot already uses sensor-landscape.
 
 ## Owner questions (open)
 

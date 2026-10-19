@@ -49,6 +49,11 @@ func _test_pngs_and_manifest() -> void:
 		var entry: Dictionary = items.get(id, {})
 		var script := str(entry.get("script", ""))
 		_check(script.begins_with("tools/blender/items/") or script.begins_with("glb:"), "%s in manifest with source script" % id)
+		# Review 2026-10-19: model (glb) art must never be restamped as the procedural placeholder tier.
+		var q := str(entry.get("quality", ""))
+		_check(q in ["procedural_v1", "model_v2"], "%s has a known quality tier (%s)" % [id, q])
+		_check(not (script.begins_with("glb:") and q == "procedural_v1"), "%s glb art not labelled procedural_v1" % id)
+		_check(not (script.begins_with("glb:/") or script.contains("/Users/") or script.contains("..")), "%s glb path is repo-relative" % id)
 		var path := ProjectSettings.globalize_path(dir + f)
 		_check(FileAccess.get_file_as_bytes(path).size() <= 64 * 1024, "%s <= 64 KB" % id)
 		var img := Image.load_from_file(path)
@@ -91,6 +96,13 @@ func _test_fallback() -> void:
 	_check(tex != null, "no_such_id falls back to a symbol texture")
 	_check(not IA.is_rendered(&"no_such_id"), "no_such_id is not rendered")
 	_check(IA.rim_color(&"no_such_id") == IA.color_for_rarity(&"common"), "unknown item rims as common")
+	# Review 2026-10-19: lookup must be exact-case on every platform, and junk ids must not be cached.
+	_check(IA.is_rendered(&"steel_ingot") and not IA.is_rendered(&"STEEL_INGOT"), "is_rendered is case-sensitive")
+	var before: int = (IA._cache as Dictionary).size()
+	for i in 50:
+		IA.texture_for(StringName("junk_%d" % i))
+		IA.content_rect(StringName("junk_%d" % i))
+	_check((IA._cache as Dictionary).size() == before, "unknown ids are not cached")
 
 func _test_slot_overflow() -> void:
 	var s: Button = (load("res://scripts/ui/art_slot.gd") as GDScript).new()
@@ -98,8 +110,13 @@ func _test_slot_overflow() -> void:
 	s.set_item(&"steel_ingot", 2)
 	var r: Rect2 = s.art_rect()
 	_check(Rect2(Vector2.ZERO, s.size).has_point(r.get_center()), "wide steel_ingot art centre lies inside the slot (%s)" % r)
-	_check(absf(r.end.y - 80.0 * 0.80) < 0.5, "steel_ingot stands on the slot floor")
+	_check(r.end.y <= 80.0 * 0.80 + 0.5 and r.end.y >= 80.0 * 0.60 - 0.5, "steel_ingot bottom within the floor band")
 	_check(s.rim == IA.color_for_rarity(&"rare"), "steel ingot (a bulk material) rims rare, not legendary")
+	# Review 2026-10-19: wide flat items never rose above the slot top.
+	for wide in [&"copper_ingot", &"bronze_ingot", &"iron_ingot", &"steel_ingot", &"pearl", &"fish"]:
+		s.set_item(wide, 1)
+		var wl: float = -s.art_rect().position.y / s.size.y
+		_check(wl >= 0.12 - 0.005 and wl <= 0.20 + 0.005, "wide %s rises 12-20 %% above the slot (got %.2f)" % [wide, wl])
 	s.set_item(&"raid_maul", 1)
 	var lift: float = -s.art_rect().position.y / s.size.y
 	_check(lift >= 0.12 and lift <= 0.20, "tall raid_maul rises 12-20 %% above the slot (got %.2f)" % lift)

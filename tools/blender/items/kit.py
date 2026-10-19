@@ -2,7 +2,8 @@
 
 Builders call these helpers to make parts parented to one ITEM root; render_icons.py
 then normalises the root, lights it with one studio rig and writes the PNG.
-Everything is seeded from the item id so a re-render is byte-identical.
+Geometry is seeded from the item id and the render is Cycles on the CPU with a fixed seed
+(EEVEE on the GPU drifted by 1 LSB between runs), so a re-render is byte-identical.
 """
 import math
 import random
@@ -409,8 +410,11 @@ def turn(deg, axis="Z"):
 
 RIG = {
     "name": "studio_v1",
-    "engine": "BLENDER_EEVEE",
-    "samples": 64,
+    "engine": "CYCLES",
+    "device": "CPU",
+    "samples": 128,
+    "seed": 0,
+    "threads": 4,
     "render_px": 512,
     "out_px": 256,
     "camera": "orthographic, view dir (0.42,-1,0.62), fit to projected bounds, margin 0.085",
@@ -465,11 +469,17 @@ def stage():
     """One light rig, one camera rule, one world for every item."""
     sc = bpy.context.scene
     sc.render.engine = RIG["engine"]
-    sc.eevee.taa_render_samples = RIG["samples"]
-    try:
-        sc.eevee.use_shadows = True
-    except AttributeError:
-        pass
+    # CPU, fixed seed, fixed sample count, no denoiser: the only setup that re-renders to the
+    # same bytes (EEVEE's GPU path flipped single pixels by 1 LSB from run to run).
+    cy = sc.cycles
+    cy.device = RIG["device"]
+    cy.samples = RIG["samples"]
+    cy.seed = RIG["seed"]
+    cy.use_animated_seed = False
+    cy.use_adaptive_sampling = False
+    cy.use_denoising = False
+    sc.render.threads_mode = "FIXED"  # frugal on a shared machine; Cycles pixels do not depend on it
+    sc.render.threads = RIG["threads"]
     sc.render.resolution_x = sc.render.resolution_y = RIG["render_px"]
     sc.render.resolution_percentage = 100
     sc.render.film_transparent = True

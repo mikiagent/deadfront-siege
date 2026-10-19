@@ -378,7 +378,7 @@ test.sh and smoke.sh fail on any 'SCRIPT ERROR' or 'Parse Error' line, and test.
 
 **Size** L · **Blocker** none · **Depends on** nothing
 
-Drive root content_scale_size from the window and device scale so a 390-pt phone gets about 390 logical px and UiTokens.is_phone works at runtime, with 1600x900 desktop unchanged. A Theme generated from UiTokens applied at runtime. One UiTokens.draw_centered helper fixing four off-centre draw_string sites; type floor 12 px; white symbol icons instead of system emoji in the files this package owns. ContextRadial resolves hex overlap by rotating the whole ring instead of clamping each hex. Skills sheet as an aligned grid inside the content area; craft card 'Lv —' and stat lines; atlas axis-aligned with distinct legend colours and display names; plate backing pill and fixed glyph centring; one LevelDisplay helper for fatigue panel and atlas; HexButton focusable with a focus ring; a real-scene capture lab.
+Drive root content_scale_size from the window and device scale so a 390-pt-tall landscape phone gets about 390 logical px and UiTokens.is_phone works at runtime, with 1600x900 desktop unchanged. A Theme generated from UiTokens applied at runtime. One UiTokens.draw_centered helper fixing four off-centre draw_string sites; type floor 12 px; white symbol icons instead of system emoji in the files this package owns. ContextRadial resolves hex overlap by rotating the whole ring instead of clamping each hex. Skills sheet as an aligned grid inside the content area; craft card 'Lv —' and stat lines; atlas axis-aligned with distinct legend colours and display names; plate backing pill and fixed glyph centring; one LevelDisplay helper for fatigue panel and atlas; HexButton focusable with a focus ring; a real-scene capture lab.
 
 **Owns:** `game/scripts/core/display_mode.gd`; `game/scripts/ui/ui_tokens.gd`; `game/scripts/ui/hex_button.gd`; `game/scripts/ui/status_glyph.gd`; `game/scripts/ui/gather_ring.gd`; `game/scripts/ui/eat_progress.gd`; `game/scripts/ui/held_item_slot.gd`; `game/scripts/ui/craft_ui.gd`; `game/scripts/ui/craft_card.gd`; `game/scripts/ui/station_menu.gd`; `game/scripts/ui/station_radial.gd`; `game/scripts/ui/skills_sheet.gd`; `game/scripts/ui/map_screen.gd`; `game/scripts/ui/fatigue_panel.gd`; `game/scripts/ui/world_ui.gd`; `game/scripts/ui/creature_plates.gd`; `game/scripts/ui/context_radial.gd`; `game/scripts/ui/gather_radial.gd`; `game/scripts/ui/food_inspector.gd`; `game/scripts/ui/pickup_toast.gd`; `game/scripts/ui/respawn_ring.gd`; `game/scripts/ui/character_creation.gd`; `game/scripts/ui/level_display.gd (new)`; `game/ui/deadfront_theme.tres (new)`; `game/scripts/dev/ui_screenshot_lab.gd`; `game/scripts/dev/ui_family_lab.gd`; `game/scripts/dev/ui_real_capture_lab.gd (new) + scene`; `game/tests/t_ui.gd (new)`
 
@@ -388,12 +388,12 @@ Drive root content_scale_size from the window and device scale so a 390-pt phone
 
 **Acceptance (a reviewer can run or inspect each):**
 
-- --lab=ui_real_capture_lab boots the real island at --resolution 390x844 and at 1600x900: prints '[uireal] phone=true min_font_px=<n>' with n >= 12 at 390x844, and 'phone=false' with logical width 1600 at 1600x900; saves root-viewport PNGs of HUD, craft, skills, atlas, radial and character creation; exit 1 otherwise.
+- --lab=ui_real_capture_lab boots the real island at --resolution 844x390 and at 1600x900: prints '[uireal] phone=true min_font_px=<n>' with n >= 12 at 844x390, and 'phone=false' with logical width 1600 at 1600x900; saves root-viewport PNGs of HUD, craft, skills, atlas, radial and character creation; exit 1 otherwise.
 - t_ui scans the owned ui/*.gd files: no code point in U+1F300-1FAFF and no literal font size below 12.
 - draw_centered: a 40 px string centred at x=100 starts at x=80 (unit test).
 - ContextRadial with two options and an anchor above the view returns hex centres at least one hex diameter apart (the verifier found them identical).
 - A craft card for a recipe with missing inputs shows 'Lv —' (label text check and screenshot).
-- Screenshots inspected at 1600x900 and 390x844: no text over the vitals block in skills or craft, distinct atlas legend colours, plate letters fully inside their circles.
+- Screenshots inspected at 1600x900 and 844x390: no text over the vitals block in skills or craft, distinct atlas legend colours, plate letters fully inside their circles.
 
 
 #### W1-ICONART: Rendered item art that overflows its slot, with rarity rims
@@ -412,7 +412,7 @@ Headless Blender scripts (tools/blender/items/*.py, run with Blender -b -P; the 
 
 - >= 60 PNGs in game/assets/icons/render/, 256x256 RGBA, all four edge rows fully transparent, each <= 64 KB, with a manifest listing item id, source script and render settings.
 - Re-running the render for one item reproduces a byte-identical PNG.
-- --lab=item_art_lab windowed at 1600x900 and 390x844 shows a 5x4 ArtSlot grid covering every rarity; screenshots inspected: art rises above the slot top edge, rims coloured by rarity, white action glyphs unchanged; copper/bronze/iron/steel ingot and straw_roll_kit (previously iconless) have art.
+- --lab=item_art_lab windowed at 1600x900 and 844x390 shows a 5x4 ArtSlot grid covering every rarity; screenshots inspected: art rises above the slot top edge, rims coloured by rarity, white action glyphs unchanged; copper/bronze/iron/steel ingot and straw_roll_kit (previously iconless) have art.
 - ItemArt.texture_for(&"no_such_id") returns the symbol fallback with no error.
 
 
@@ -864,7 +864,7 @@ hunt_hud.gd (1,376 lines, hand-drawn) split into Control widgets under game/scri
 **Acceptance (a reviewer can run or inspect each):**
 
 - wc -l hunt_hud.gd <= 400.
-- ui_real_capture_lab at 1600x900 and 390x844 asserts that no radial hex or world label intersects a HUD widget rect and that every modal hides the HUD; screenshots inspected.
+- ui_real_capture_lab at 1600x900 and 844x390 asserts that no radial hex or world label intersects a HUD widget rect and that every modal hides the HUD; screenshots inspected.
 - Settings sliders change AudioServer bus volume and persist across a restart.
 - Notices are colour-coded by kind; idle HUD redraws <= 10 Hz (counter); desktop Chrome soak PASS.
 
@@ -883,9 +883,9 @@ inventory_ui.gd, animal_screen.gd, item_icons.gd and character_creation.gd. Anim
 
 **Acceptance (a reviewer can run or inspect each):**
 
-- ui_family_lab through debug_state(): the Animals backdrop rect equals the viewport rect at 1600x900 and 390x844 (was 0x0).
+- ui_family_lab through debug_state(): the Animals backdrop rect equals the viewport rect at 1600x900 and 844x390 (was 0x0).
 - An allocation '+' raises the pet stat in PetStats; drag and drop moves a stack with units conserved; inventory cells show names and rarity rims.
-- Real-scene screenshots at 1600x900 and 390x844 inspected: item art overflows its slot (owner direction), nothing overlaps the HUD.
+- Real-scene screenshots at 1600x900 and 844x390 inspected: item art overflows its slot (owner direction), nothing overlaps the HUD.
 
 
 #### W2-RERIG: Bespoke rigs and per-species clips for eight transplanted species
@@ -1010,7 +1010,7 @@ Market screens under game/scripts/ui/market/: browse, search, filter and sort; i
 
 **Acceptance (a reviewer can run or inspect each):**
 
-- market_lab at 1600x900 and 390x844 (screenshots inspected): browse, search, filter and sort 200 listings at >= 55 fps; list fixed, list auction, place a buy order, cancel each.
+- market_lab at 1600x900 and 844x390 (screenshots inspected): browse, search, filter and sort 200 listings at >= 55 fps; list fixed, list auction, place a buy order, cancel each.
 - An outbid event updates the UI within 1 s; Settlers orders carry their badge; a failed op shows the server error text; a vault mutation away from the harbour is refused.
 - Two real clients on a local server: A lists a dried_meat stack, B buys it, and wallets and vaults satisfy the economy invariants afterwards.
 
@@ -1184,7 +1184,7 @@ Per the owner's answers: shared zone maps streamed in chunks or island shards wi
 - **Concurrency.** Wave 1 must not touch the owner's UI pass (hunt_hud.gd, inventory_ui.gd, animal_screen.gd, item_icons.gd) or the survivor-v2 branch's files (items.json, recipes.json, icons_manifest.json, inventory.gd, item_def.gd, player.gd, player_anim.gd, rigged_model.gd, creature_view.gd, stegosaurus.json, tyrannosaurus.json, characters/). One owner per god file per wave. Only the integrator edits run_all.gd; tests go in `game/tests/t_<pkg>.gd`; labs register in `tools/labs.txt` at merge. The audio branch may add one-line signal emits in files other packages own; the integrator keeps them.
 - **Hosting.** The server stays local until the owner decides. Vercel cannot hold WebSockets. Behind a proxy the per-IP caps collapse onto the proxy address.
 - **Engine and process.** Godot 4.7.1 typed GDScript, no C#, no new autoloads (Game.net and Game.audio are lazy children); contracts.md changes only through the orchestrator. No invented lore, species or mechanics beyond the PRDs; `# ASSUMPTION:` markers listed in each report.
-- **Gates.** Every package ends with `tools/smoke.sh` SMOKE PASS, `tools/test.sh` [tests] PASS, its own labs, and inspected screenshots at 1600x900 and 390x844. A release additionally needs the desktop Chrome production soak PASS and the displayed `commit/pack-hash` stamp matching the release.
+- **Gates.** Every package ends with `tools/smoke.sh` SMOKE PASS, `tools/test.sh` [tests] PASS, its own labs, and inspected screenshots at 1600x900 and 844x390. A release additionally needs the desktop Chrome production soak PASS and the displayed `commit/pack-hash` stamp matching the release.
 
 ## 6. Full gap register
 
@@ -1460,7 +1460,7 @@ per-system audit folders. "1a-audio" means the running audio package, merged by 
 
 | ID | Sev | Adj | V | Blocker | Eff | Gap | Evidence | Pkg |
 |---|---|---|---|---|---|---|---|---|
-| ui-phone-01 | P0 | | C | none | M | Runtime has no phone layout; HUD at 24 % on 390x844 | project.godot:29-32 expand; play_390x844.png | W1-UI |
+| ui-phone-01 | P0 | | C | none | M | Runtime has no phone layout; HUD at 24 % on 844x390 | project.godot:29-32 expand; play_844x390.png | W1-UI |
 | ui-mmo-01 | P0 | blocker none for layouts | C | hosting | XL | No multiplayer, social or market UI | grep finds none | W3-EXCHANGE, W3-SOCIAL |
 | ui-radial-01 | P1 | | C | none | M | Radial hexes overlap each other and the HUD; clip at top | context_radial.gd:29-35; z_ring_topright.png | W1-UI, W2-HUD |
 | ui-animals-01 | P1 | | C | none | S | Animals screen has zero size; no backdrop | '[aprobe] screen size=(0.0, 0.0)' | W2-SCREENS |

@@ -3,8 +3,11 @@
  "quality": "procedural_v1 = low-poly bpy primitives, a placeholder tier; every item is to be replaced by higher-quality art. 'replace' marks the weakest first; 'missing' lists items.json ids with no render yet (they show the flat white symbol).",
  "rig": {
   "name": "studio_v1",
-  "engine": "BLENDER_EEVEE",
-  "samples": 64,
+  "engine": "CYCLES",
+  "device": "CPU",
+  "samples": 128,
+  "seed": 0,
+  "threads": 4,
   "render_px": 512,
   "out_px": 256,
   "camera": "orthographic, view dir (0.42,-1,0.62), fit to projected bounds, margin 0.085",
@@ -18,8 +21,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "_unknown",
    "png": "res://assets/icons/render/_unknown.png",
-   "sha256": "46b873533308ba91913687966ea2a11930d2e823bf430cf7a6ec3684f231a627",
-   "bytes": 4589,
+   "sha256": "300438fc120884c5a462a8e1799f982b2103504caff2a5430954e2d17969416a",
+   "bytes": 4565,
    "rect": [
     44,
     21,
@@ -32,13 +35,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "armor_scute",
    "png": "res://assets/icons/render/armor_scute.png",
-   "sha256": "c181138bc6954dd2e2ae442a44ec602b12db5e9dd24ef9e5243e70b99bc80443",
-   "bytes": 29351,
+   "sha256": "ae0e426946b40c84a6ff02cf512bf3aef2fb9bf2ffb66cc34d43f8b5151dc021",
+   "bytes": 31317,
    "rect": [
     19,
-    55,
+    56,
     218,
-    146
+    144
    ],
    "quality": "procedural_v1",
    "replace": "flat plate, no bony texture"
@@ -47,8 +50,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "bamboo",
    "png": "res://assets/icons/render/bamboo.png",
-   "sha256": "680282d7406536a4d20d3d7a4a7db0c54742be8369b3ff5ad846a9a3b699edb1",
-   "bytes": 28265,
+   "sha256": "1df8976f6725dda95a9f84e99a100f14c6301c608c33fbc5e237d14693c46725",
+   "bytes": 30602,
    "rect": [
     65,
     19,
@@ -61,8 +64,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "bandage",
    "png": "res://assets/icons/render/bandage.png",
-   "sha256": "85708f6a85dcd30c415c384d0967845116797d0c1d3500c159b47330b6edbb8b",
-   "bytes": 42490,
+   "sha256": "af7bbe5ece76bfaa50d92c8614df8d95061305658dfe559d532c9a30d1344a1c",
+   "bytes": 45147,
    "rect": [
     23,
     19,
@@ -75,8 +78,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "barbed_knife",
    "png": "res://assets/icons/render/barbed_knife.png",
-   "sha256": "93a6bae8cdcf1ce9d9b69ce412e81e860787b0111da567d46af02280adcce353",
-   "bytes": 17370,
+   "sha256": "9c464f17a93386c5bf70544f13060546008a88c5ac22a850284b60669e381d5c",
+   "bytes": 17469,
    "rect": [
     79,
     19,
@@ -89,8 +92,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "basket_kit",
    "png": "res://assets/icons/render/basket_kit.png",
-   "sha256": "a9806d05716b9ad55e1de5df5bc8447df7cd78fb889c22bc7c8d02c43c73e949",
-   "bytes": 64670,
+   "sha256": "148f21c42868ec901620c3eadef91977b7ef3551961ca6180d2da8cbd8d8be93",
+   "bytes": 65343,
    "rect": [
     19,
     23,
@@ -103,8 +106,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "berries",
    "png": "res://assets/icons/render/berries.png",
-   "sha256": "4e8196208994d920e48f95f3b812ac6f56357ae88f70a71fa1c3c9d2b79dfb98",
-   "bytes": 44930,
+   "sha256": "8c4ecae5c52a991aec9d5c0d95590c2568ff2701bb06c0043f6e8f33c382f49a",
+   "bytes": 47821,
    "rect": [
     42,
     19,
@@ -117,22 +120,23 @@
    "script": "tools/blender/items/food.py",
    "builder": "berry",
    "png": "res://assets/icons/render/berry.png",
-   "sha256": "03630144c61e7c1d197983d660812f231c3a160a99155c8b7afc018aeb31f844",
-   "bytes": 45454,
+   "sha256": "01462c2fd919205f26e93e7ff4bc241c50d9c14f0540f8600dea1741ae9d7315",
+   "bytes": 48363,
    "rect": [
     19,
-    23,
+    22,
     218,
-    210
+    211
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "plain blue sphere, no stem, leaf or cluster"
   },
   "berry_seed": {
    "script": "tools/blender/items/food.py",
    "builder": "berry_seed",
    "png": "res://assets/icons/render/berry_seed.png",
-   "sha256": "8240edac94ba1dfb3d3b9a7958dfbad187d6eb72fc6c6359e2dba707c26404e6",
-   "bytes": 45077,
+   "sha256": "ca2946b6366d5fc1640bbdb9dac72c52c77363fc94b5d4e554141c54f1372a87",
+   "bytes": 46714,
    "rect": [
     19,
     35,
@@ -145,22 +149,23 @@
    "script": "tools/blender/items/resources.py",
    "builder": "black_iron",
    "png": "res://assets/icons/render/black_iron.png",
-   "sha256": "182ad2a46424c530401a64d8aa4ca7c5d2d4d518d86893171030dd19e98619f6",
-   "bytes": 30665,
+   "sha256": "027f039253a4267a0fc1a10488c7a78243dc872118c321077c8f1bfc151564ec",
+   "bytes": 31685,
    "rect": [
     19,
     43,
     218,
     170
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "dark crystal, not distinguishable from obsidian at slot size"
   },
   "blue_dye": {
    "script": "tools/blender/items/resources.py",
    "builder": "blue_dye",
    "png": "res://assets/icons/render/blue_dye.png",
-   "sha256": "ff100db3b84c8ab30ae3a69d1cd04bd0bcae78e608843a9dd5146e571b6b08f6",
-   "bytes": 41937,
+   "sha256": "e6d05a5ddf4883a18abe05d4f4faa1f9d35d8681f1a223ad71aae045eec3b1e0",
+   "bytes": 44597,
    "rect": [
     21,
     19,
@@ -173,8 +178,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "boiled_meat",
    "png": "res://assets/icons/render/boiled_meat.png",
-   "sha256": "01a56517aea4910fdf9442c59525a8fcda4ff6d5e8e5e8c4f2f4ee41599f9fe4",
-   "bytes": 45337,
+   "sha256": "99e0cd24a1f923ced9f2d51d7a1e69d915845b2a1023fd8bffa4507808a2641b",
+   "bytes": 50561,
    "rect": [
     19,
     29,
@@ -187,8 +192,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "bone",
    "png": "res://assets/icons/render/bone.png",
-   "sha256": "de6de56646bca998dbc17929111c1aedda566b1e3f0908c43e49086b1f0324d3",
-   "bytes": 24734,
+   "sha256": "7d427a8acf8d16e31bcfa87f2cd8f5bb2827c0d4643f37bfb52c016629929579",
+   "bytes": 27125,
    "rect": [
     25,
     19,
@@ -201,8 +206,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "bone_hammer",
    "png": "res://assets/icons/render/bone_hammer.png",
-   "sha256": "a526ca28b6270ab3c1aec0149c651ebd9753c142d759d6a0f3bd3c334d9faa4c",
-   "bytes": 22827,
+   "sha256": "c191e5bd2a5b6eeeada130b3b9eb11082b2ed98fc554bbdc3f02c34e2a5276ed",
+   "bytes": 23482,
    "rect": [
     43,
     19,
@@ -215,8 +220,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "bonfire_kit",
    "png": "res://assets/icons/render/bonfire_kit.png",
-   "sha256": "dab08c802760e01804b3559d14213b9946521e18b75a14c34e8bda3f98359a3b",
-   "bytes": 48286,
+   "sha256": "d29fc2851a78965e01e31852ab4bddae5f2f4f95b19bef09ba03b6416820480a",
+   "bytes": 48329,
    "rect": [
     25,
     19,
@@ -229,8 +234,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "branch",
    "png": "res://assets/icons/render/branch.png",
-   "sha256": "6dc464de642a1b53e892562ac529c5dd4e3270b32be950164f252cb218083eef",
-   "bytes": 18729,
+   "sha256": "28a828974c85e7a72936ff6a0ee6f2d7ff0e705dd436f77fe0fb9bcde6593559",
+   "bytes": 18733,
    "rect": [
     48,
     19,
@@ -243,13 +248,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "bronze_ingot",
    "png": "res://assets/icons/render/bronze_ingot.png",
-   "sha256": "df08c3876612b23d5b7ef79534900c12719c4c307f653caf659a23808f8bbdd7",
-   "bytes": 16324,
+   "sha256": "473a8e2fd3cad8ecdd3bc1aab5b966af6e245a049137b1955f857ebcf148c557",
+   "bytes": 41784,
    "rect": [
     19,
-    79,
+    39,
     218,
-    98
+    178
    ],
    "quality": "procedural_v1"
   },
@@ -257,8 +262,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "burnt_food",
    "png": "res://assets/icons/render/burnt_food.png",
-   "sha256": "5eb6c70e06812b50f04a383003d9e7e9a34cdcabaf3343b4ced2a2385e353891",
-   "bytes": 42338,
+   "sha256": "79b3cf4d8e4350abd37df95a1a66787686c40c029038d2a320227e94e368a14c",
+   "bytes": 43125,
    "rect": [
     26,
     19,
@@ -271,8 +276,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "cactus_flesh",
    "png": "res://assets/icons/render/cactus_flesh.png",
-   "sha256": "851827001aec9c6e2a24419bb8f45d4aeb3699300a2827efda5b4fbe95df65ba",
-   "bytes": 31310,
+   "sha256": "220d425b9179aca7530409c3cb2af6b8d2ae4548d19d3693bbd3c3b094b3f9f2",
+   "bytes": 33516,
    "rect": [
     58,
     19,
@@ -285,13 +290,13 @@
    "script": "tools/blender/items/food.py",
    "builder": "camp_stew",
    "png": "res://assets/icons/render/camp_stew.png",
-   "sha256": "a7f8c995b625c9fa8a8f2cf7bc5fc6bdda5d24af67188aaa47a35385c7af93f1",
-   "bytes": 45469,
+   "sha256": "0ed583e28435f3b21bef15558720c80a99a138fa906053317083c9f146cacbb5",
+   "bytes": 48774,
    "rect": [
     19,
-    36,
+    37,
     218,
-    183
+    182
    ],
    "quality": "procedural_v1"
   },
@@ -299,8 +304,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "campfire_kit",
    "png": "res://assets/icons/render/campfire_kit.png",
-   "sha256": "faa332cd23158550ca857edd53ab601b0823657c09b722ec119eff4e6ba0ec1b",
-   "bytes": 43947,
+   "sha256": "0f0b66bdbcd346d4618df21eb5a67b3687b6a759533df5df8c37832a5ac1d6dd",
+   "bytes": 44814,
    "rect": [
     19,
     36,
@@ -313,8 +318,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "capture_net_i",
    "png": "res://assets/icons/render/capture_net_i.png",
-   "sha256": "a64a66f157a81a38fabd58e4d7a09d009b0cac3a2737fbfc069446109895242c",
-   "bytes": 45639,
+   "sha256": "ada1efbc6ea25df1566fa9c1bdad710c1abf2abce07c4c04d9a137577c142f2e",
+   "bytes": 45600,
    "rect": [
     44,
     19,
@@ -327,22 +332,23 @@
    "script": "tools/blender/items/gear.py",
    "builder": "capture_net_ii",
    "png": "res://assets/icons/render/capture_net_ii.png",
-   "sha256": "1ef2ada921b5ddc6ab3d74e74d68eb8185cc528620680791e548f3b0d7e63a38",
-   "bytes": 45593,
+   "sha256": "baf031e7e7adff57a9e231d6dc2fd3e93db2d0dd0242a1575f0ac5e95b210ff2",
+   "bytes": 45764,
    "rect": [
     44,
     19,
     168,
     218
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "not distinguishable from capture_net_i at slot size"
   },
   "catapult_kit": {
    "script": "tools/blender/items/camp.py",
    "builder": "catapult_kit",
    "png": "res://assets/icons/render/catapult_kit.png",
-   "sha256": "a9cd4c0307bd8ba39e0f5c88eb4ffa7e2ba66e29556f2469619d4a186b83a39a",
-   "bytes": 37411,
+   "sha256": "7d0060fcef60fc6129a38c7634c4a5145b0b6ee4ad88fe0e1d70436d068cc499",
+   "bytes": 37598,
    "rect": [
     41,
     19,
@@ -355,8 +361,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "charcoal",
    "png": "res://assets/icons/render/charcoal.png",
-   "sha256": "404c02ebea984810783bb3807845cff7f9772f43b513c8c0bcad1ef3e56a2b8c",
-   "bytes": 24518,
+   "sha256": "c5769a2ed6437fa1671dcfa899d12e28bd754c668b8f0dcc9ece37d274120ecc",
+   "bytes": 25721,
    "rect": [
     19,
     69,
@@ -369,8 +375,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "claim_stake",
    "png": "res://assets/icons/render/claim_stake.png",
-   "sha256": "3c92be233c2e3f4a4c11ae708390b0cb4e61223b0a5cb98b4f5e6797ec6d0090",
-   "bytes": 20185,
+   "sha256": "292ab0d46b75bfa3b042853ad099b71958d6cda5ec001a0fd5a4f09ce4b37183",
+   "bytes": 21063,
    "rect": [
     75,
     19,
@@ -383,8 +389,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "clay",
    "png": "res://assets/icons/render/clay.png",
-   "sha256": "f39cf0a777cf24fda32332415d1f221ed4582de2d145e766a1ddcf19a877c957",
-   "bytes": 30874,
+   "sha256": "8d55b1882f9930cd3084621c75732a19302d508638f5b7a3c5d3f5383b83f643",
+   "bytes": 32694,
    "rect": [
     19,
     47,
@@ -398,8 +404,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "cloth",
    "png": "res://assets/icons/render/cloth.png",
-   "sha256": "c724021c28ec5a50913c9f7d42531d1c8d656ae74594aa860bf76e4962047211",
-   "bytes": 33508,
+   "sha256": "b7b45c5c2b11f7269f7dbca29a4f8bef744afa734dcdcdb2aa753d1a7913983b",
+   "bytes": 36061,
    "rect": [
     19,
     59,
@@ -413,8 +419,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "club",
    "png": "res://assets/icons/render/club.png",
-   "sha256": "4d68cfa06cf1cea31fbdf4fd48fa92ea4e82d088ae3c81a25f48272f17ca0344",
-   "bytes": 24291,
+   "sha256": "c66ef64c1ba6bc77591a9ffbe9a740b3e00e9467e338c5a79db16489a07bfc05",
+   "bytes": 24347,
    "rect": [
     44,
     19,
@@ -427,8 +433,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "coconut",
    "png": "res://assets/icons/render/coconut.png",
-   "sha256": "b1fa6d34e7a09fdf2ca7c470db979265ffd8beb28ad8668ec6c21cfb790569cb",
-   "bytes": 32853,
+   "sha256": "5c30da43d53b6de8255dc67551ab22d55b57d28f681ab9aae24b88f5475a1583",
+   "bytes": 34191,
    "rect": [
     19,
     33,
@@ -441,13 +447,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "copper_ingot",
    "png": "res://assets/icons/render/copper_ingot.png",
-   "sha256": "32f1aae4fe5aafa78c9db4a4ef74f051638448f42610c9ad34e017ce83e8238c",
-   "bytes": 16173,
+   "sha256": "68e8521dca55b3237bfa7887b2e3f955f09f81d0af041f5c9f10c4dd1dc58bc3",
+   "bytes": 40401,
    "rect": [
     19,
-    79,
+    39,
     218,
-    98
+    178
    ],
    "quality": "procedural_v1"
   },
@@ -455,8 +461,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "copper_ore",
    "png": "res://assets/icons/render/copper_ore.png",
-   "sha256": "40b50875e08d67febfc8a96f11f6fbe767845ed818d037eb7c065347029fed4e",
-   "bytes": 35211,
+   "sha256": "d0660a2dc55d623693f21b0d538a08ee97748de5e82b0e0390a930f14ba87ec1",
+   "bytes": 36332,
    "rect": [
     19,
     52,
@@ -469,8 +475,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "coral",
    "png": "res://assets/icons/render/coral.png",
-   "sha256": "d9cdf2aba0dac3fd40796391b914df2db237043b31ddba6b6dada6a2cb10c98f",
-   "bytes": 28772,
+   "sha256": "336a8038e20228115b1ea84ed5d6e81e1efe1792764cf82405e37658deafbbfc",
+   "bytes": 30123,
    "rect": [
     64,
     19,
@@ -483,8 +489,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "corn",
    "png": "res://assets/icons/render/corn.png",
-   "sha256": "170f7557bc9e0dbe5c68bc0ef0d5787fce9d0aca9d3d491459557c5ab4cba55b",
-   "bytes": 46131,
+   "sha256": "c267c7172701d1fc1f57d9e9182658e9e4efb3800687687b46d35b6569ea0d8a",
+   "bytes": 47370,
    "rect": [
     19,
     24,
@@ -497,8 +503,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "corn_seed",
    "png": "res://assets/icons/render/corn_seed.png",
-   "sha256": "f58fb4c47716bfdb33274d28880a0e89e52c3fc54d9c571c5e081699b608cbfd",
-   "bytes": 51114,
+   "sha256": "6ff62af628bfd6d7dd0eeef20f788ba91f9a30fed4ff291813c65146c3f02ff3",
+   "bytes": 54120,
    "rect": [
     19,
     35,
@@ -511,12 +517,12 @@
    "script": "tools/blender/items/camp.py",
    "builder": "crock_pot_kit",
    "png": "res://assets/icons/render/crock_pot_kit.png",
-   "sha256": "74150305437bfb05bcc66e078b28eee6e08943ecfaf57f6dbba08fe6fe2e9490",
-   "bytes": 38863,
+   "sha256": "59b7c5c5e4901b0f4a2f69fea617caa0ea45792b1e10c239f16b714203658d2d",
+   "bytes": 40673,
    "rect": [
+    20,
     19,
-    19,
-    217,
+    216,
     218
    ],
    "quality": "procedural_v1"
@@ -525,22 +531,23 @@
    "script": "tools/blender/items/resources.py",
    "builder": "dense_bone",
    "png": "res://assets/icons/render/dense_bone.png",
-   "sha256": "e3b2a3eaf9e8a21f240f0c5bba52c39a8721b30beb44c22f1ebbdc1eb3bd09fd",
-   "bytes": 29783,
+   "sha256": "093f6812a707ee79471d36e337d0f03c6644fdf0497c09d5a9559677302a5854",
+   "bytes": 31569,
    "rect": [
-    36,
+    37,
     19,
-    184,
+    182,
     218
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "not distinguishable from bone at slot size"
   },
   "dried_hide": {
    "script": "tools/blender/items/resources.py",
    "builder": "dried_hide",
    "png": "res://assets/icons/render/dried_hide.png",
-   "sha256": "80d246f220239fbbf747fe7fa387611060cdc7736e3d69efb0b158833408a41a",
-   "bytes": 26325,
+   "sha256": "36065eacbf28c84b43719a31c5e29619c5fa98d870c5650f6bc9fcba923c0b88",
+   "bytes": 28044,
    "rect": [
     19,
     69,
@@ -554,8 +561,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "dried_meat",
    "png": "res://assets/icons/render/dried_meat.png",
-   "sha256": "eb8f948a43d41ea83ded48d64972cb6350e5c8b7ce45829d0cc5501fa44c0b4f",
-   "bytes": 41120,
+   "sha256": "81340765b79efcd37eb361551603b0ac36b6f7730fc2033890b952413de6541a",
+   "bytes": 49827,
    "rect": [
     19,
     23,
@@ -568,8 +575,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "dry_grass",
    "png": "res://assets/icons/render/dry_grass.png",
-   "sha256": "8ff80c3680d8dd83fac012bce55d3c160d7e4da3b1ed26a98a5ddb8333fc87ec",
-   "bytes": 32913,
+   "sha256": "6f39d1648ade761359834257ffa4fd8dcf38097e217982fcc07a79b24dddd938",
+   "bytes": 33227,
    "rect": [
     55,
     19,
@@ -582,12 +589,12 @@
    "script": "tools/blender/items/camp.py",
    "builder": "drying_rack_kit",
    "png": "res://assets/icons/render/drying_rack_kit.png",
-   "sha256": "59a94c189c3a23aa78ce3f0d262e8cecf4faf6c4334fa271f2b1616aed3a0f22",
-   "bytes": 29287,
+   "sha256": "4af6e4c2864b12ae1ca02299c8242728556be276fabcede17a446102d2db2292",
+   "bytes": 30039,
    "rect": [
-    21,
+    22,
     19,
-    214,
+    213,
     218
    ],
    "quality": "procedural_v1"
@@ -596,8 +603,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "empty_bucket",
    "png": "res://assets/icons/render/empty_bucket.png",
-   "sha256": "e87ba593c715f95a57e660f41d0e658f6434e665aa2378a93b80f7eddcd520b1",
-   "bytes": 57055,
+   "sha256": "cc6c562bc911a98da1af4ae24420ae807a32ee147259ff08865ac0fcc4462f8b",
+   "bytes": 60469,
    "rect": [
     29,
     19,
@@ -610,8 +617,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "fence_kit",
    "png": "res://assets/icons/render/fence_kit.png",
-   "sha256": "dd0358d1db9b2863b56e05a6a41e5c27448e9423fb5ee29fed2581e405e6643a",
-   "bytes": 28006,
+   "sha256": "b7c80f8acb082904804346939c56e61fefbc6bb3c4966e19ce7c8934b3c20735",
+   "bytes": 29280,
    "rect": [
     51,
     19,
@@ -624,12 +631,12 @@
    "script": "tools/blender/items/resources.py",
    "builder": "fibre_stalk",
    "png": "res://assets/icons/render/fibre_stalk.png",
-   "sha256": "7afe7c1ef80236128ea39cafeaadbeffb50536e14178d0e8c6afcc0ae54dfbb1",
-   "bytes": 28457,
+   "sha256": "34504b17e374ba16d921b90c0ec77de7e9696e85b2b6148e6977ad80907a4de1",
+   "bytes": 28969,
    "rect": [
-    59,
+    60,
     19,
-    138,
+    136,
     218
    ],
    "quality": "procedural_v1"
@@ -638,13 +645,13 @@
    "script": "tools/blender/items/food.py",
    "builder": "fish",
    "png": "res://assets/icons/render/fish.png",
-   "sha256": "eccd07d4ccf044e212b2140c4592ec48325a81c5d502c5eaf426cb2df1cdb525",
-   "bytes": 24302,
+   "sha256": "c4a4437d8c60b834ee6f29e22ad3f12bcf19d537997bf4e19a1a990ea57070ca",
+   "bytes": 33737,
    "rect": [
     19,
-    81,
+    34,
     218,
-    94
+    188
    ],
    "quality": "procedural_v1"
   },
@@ -652,8 +659,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "flax",
    "png": "res://assets/icons/render/flax.png",
-   "sha256": "9d78072b460863e9b9f1501493d4394b769d3cc85d318e935e7107fda043cb3b",
-   "bytes": 25570,
+   "sha256": "711be8472fd839b49d55d2acc9b9e38a29944fe933d34cb4db401ff577f61193",
+   "bytes": 27137,
    "rect": [
     60,
     19,
@@ -666,8 +673,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "flax_seed",
    "png": "res://assets/icons/render/flax_seed.png",
-   "sha256": "ce452da0343a5398a84adcf4c9239406fe9356d36c453f83b3d5496635b966b5",
-   "bytes": 49022,
+   "sha256": "337f8dd2f1a03d2bf58bb8a67f1d03fe3a661ece2c14f376a0c9e191b9f00737",
+   "bytes": 50730,
    "rect": [
     19,
     34,
@@ -680,8 +687,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "flint",
    "png": "res://assets/icons/render/flint.png",
-   "sha256": "fdabb78389ddb985bb960b285154b2fa2deb6dcba3cff8354f82f3d461bfc1bc",
-   "bytes": 28750,
+   "sha256": "4396abef128fbd56afc50b645a2ff974b29cf4dd205bed7e67f16fe361255278",
+   "bytes": 29552,
    "rect": [
     19,
     42,
@@ -694,8 +701,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "gate_kit",
    "png": "res://assets/icons/render/gate_kit.png",
-   "sha256": "895b81a501f69082bb70a26fc858b10a96b74dddbe47a27b6fdcaace88d24e14",
-   "bytes": 27136,
+   "sha256": "2f3e14355f1605b0c84ef49f7d59fb9bd0706a58694d7f58386c11651bf61871",
+   "bytes": 28887,
    "rect": [
     57,
     19,
@@ -708,8 +715,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "grilled_meat",
    "png": "res://assets/icons/render/grilled_meat.png",
-   "sha256": "203b256233ad50b3be53744e4ad04d3940c2677c44d4928f636ea4948b74fca0",
-   "bytes": 29952,
+   "sha256": "34905116a3d0dea5369c406a7a5a7c3eadf38a2eff8bff359f3149303df3bcf3",
+   "bytes": 35575,
    "rect": [
     19,
     50,
@@ -723,8 +730,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "heavy_snare",
    "png": "res://assets/icons/render/heavy_snare.png",
-   "sha256": "9d45b7c12e9fa46624427fc474a6bcee5e9d6aa62d446089d36d0acd26431f89",
-   "bytes": 34963,
+   "sha256": "d1f45791ccee955efe63dda304970b7c3000e5e02fc8efd33bc1ba3a5a9c6f53",
+   "bytes": 35154,
    "rect": [
     19,
     21,
@@ -738,8 +745,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "herb_buff_meal",
    "png": "res://assets/icons/render/herb_buff_meal.png",
-   "sha256": "4a27da8300a20a13744bdcd0a4e45b3eb534c4afe963a381de702004e235cd26",
-   "bytes": 53537,
+   "sha256": "dda26d6b64b79fbf022f44b0a4a232d3feb0fb0257336a1c8a11fa2b4bffff6d",
+   "bytes": 56753,
    "rect": [
     19,
     44,
@@ -752,8 +759,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "herb_leaf",
    "png": "res://assets/icons/render/herb_leaf.png",
-   "sha256": "becccc7eee5b809dc6ff63343ffb6f20ed595460923abf433ed3d299d64de85d",
-   "bytes": 26803,
+   "sha256": "0e6ab299296c91dd68a1bbc76d39422ad3b7cdf6190e566a4542126e1dfb91b7",
+   "bytes": 27423,
    "rect": [
     74,
     19,
@@ -766,8 +773,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "hide_strap",
    "png": "res://assets/icons/render/hide_strap.png",
-   "sha256": "34ff1b37779358126cd55659183e5ee102d822b03a92412ef71fe3609d51da44",
-   "bytes": 28019,
+   "sha256": "0a39c5255cf58c2667d5f3bacedd951357249b44dab253f618aabe303396db3f",
+   "bytes": 28146,
    "rect": [
     19,
     46,
@@ -780,8 +787,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "hoe",
    "png": "res://assets/icons/render/hoe.png",
-   "sha256": "1a8efebdb00a1917860c7af172f087c10c1838ea7e1195498551f073d80eb692",
-   "bytes": 18746,
+   "sha256": "6ebad5b56d1ab6d3bdc5ea27f82fea372e7535d62c87e59c2c5ad59972e47483",
+   "bytes": 19091,
    "rect": [
     41,
     19,
@@ -794,8 +801,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "ice",
    "png": "res://assets/icons/render/ice.png",
-   "sha256": "00061f0959a2ae1f0669449be0a3d83fa61c5ed053da656548abe70239d5d27e",
-   "bytes": 31085,
+   "sha256": "5ee3807565e9efe8ccd5f76a8b3b02f1b9b40f2585b0807e976cef3107b0dc94",
+   "bytes": 32896,
    "rect": [
     19,
     28,
@@ -808,13 +815,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "ingot",
    "png": "res://assets/icons/render/ingot.png",
-   "sha256": "c191c85b5e1d7b2fb4ff0dd4c99f8e2ec56354b554108ccff745499fb7552eae",
-   "bytes": 16399,
+   "sha256": "20572a792ebfd97ba2ea477578f3f5649559937495e4870e01259c5a69b09902",
+   "bytes": 41260,
    "rect": [
     19,
-    79,
+    39,
     218,
-    98
+    178
    ],
    "quality": "procedural_v1",
    "replace": "generic ingot duplicate of the metal ingots"
@@ -823,13 +830,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "iron_ingot",
    "png": "res://assets/icons/render/iron_ingot.png",
-   "sha256": "40c52228346cbdf78679b7ccfca4b52b61fca7ce4dd3b31e2d1b23bcb8b47b6f",
-   "bytes": 15214,
+   "sha256": "cd469d7dd57b9c94531da4da3bf702954ce61ea6e3689e20109f4ec50c3c96ff",
+   "bytes": 33399,
    "rect": [
     19,
-    79,
+    39,
     218,
-    98
+    178
    ],
    "quality": "procedural_v1"
   },
@@ -837,8 +844,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "lava",
    "png": "res://assets/icons/render/lava.png",
-   "sha256": "219eb725b24c3111d201613d80c05067b335a65fde1a8857a7024f9a27952c2e",
-   "bytes": 47608,
+   "sha256": "e86d6e3eafda7c18a2f7b3d6ca5a3c40b6480a9985a74f7e9883bd0f075c5e05",
+   "bytes": 49169,
    "rect": [
     19,
     52,
@@ -851,22 +858,23 @@
    "script": "tools/blender/items/food.py",
    "builder": "mango",
    "png": "res://assets/icons/render/mango.png",
-   "sha256": "961dad38c19c979a6a10854860c4eec856ad20b7bab3aa2753c223a48958104a",
-   "bytes": 34736,
+   "sha256": "4d23e5692428f7d47ae46d36ac15a2c8a28cd9c7a5793f989323f5c95b2a7cf3",
+   "bytes": 36129,
    "rect": [
     56,
     19,
     144,
     218
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "noisy green/orange blotches, reads poorly"
   },
   "meatball": {
    "script": "tools/blender/items/food.py",
    "builder": "meatball",
    "png": "res://assets/icons/render/meatball.png",
-   "sha256": "a598288fc623737b889422c912447340e982eaf995d95f849a4259ccced15b02",
-   "bytes": 51485,
+   "sha256": "11aec5dd9c288115c8a7a4c5c1efdf36a190481ea9122140248df367e599efce",
+   "bytes": 53534,
    "rect": [
     19,
     42,
@@ -879,8 +887,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "meatball_mix",
    "png": "res://assets/icons/render/meatball_mix.png",
-   "sha256": "e2d624febe8bd056240df3a9a4ef87488e2c66be80e62278b696441d587ecc2c",
-   "bytes": 57336,
+   "sha256": "39bea2be1c55464bc151b03dc0e1df8421e02417cec58fb230eb455a9cb1821e",
+   "bytes": 61653,
    "rect": [
     19,
     31,
@@ -893,8 +901,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "metal_shard",
    "png": "res://assets/icons/render/metal_shard.png",
-   "sha256": "2677e0415b70790715c4a1b4b581d3a5be7fc2d54c56cec1808a688525b9c32d",
-   "bytes": 17935,
+   "sha256": "d90e3e9a14fc5002376a597ff4371d05de368fcbbe79df0e545355e27842a0d8",
+   "bytes": 20632,
    "rect": [
     56,
     19,
@@ -908,8 +916,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "mortar_kit",
    "png": "res://assets/icons/render/mortar_kit.png",
-   "sha256": "fa8757a6003a69a81f1d5442f7a54179fa9716249b4ad663f19acc91aa09c7b5",
-   "bytes": 45485,
+   "sha256": "bcb8737f7e877541264f0ef186e63c78b688460182031eea826cd0991265632f",
+   "bytes": 47771,
    "rect": [
     19,
     27,
@@ -922,8 +930,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "mushroom",
    "png": "res://assets/icons/render/mushroom.png",
-   "sha256": "b83be6f71a0e7be765593e4cc46510098f735ee5f5de3c79a74fe36612c8d78c",
-   "bytes": 40870,
+   "sha256": "0e813bb11b9bb97139064eaab26b2f1ec685ff1fad0a30e572e2f497b1de36bc",
+   "bytes": 43041,
    "rect": [
     20,
     19,
@@ -936,8 +944,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "obsidian",
    "png": "res://assets/icons/render/obsidian.png",
-   "sha256": "014f291e5e8fcbdab997b8a8f5566144b9d1354dfdda419cb0d7568479b8d42d",
-   "bytes": 29699,
+   "sha256": "8ad111468d8417c0205372a9ff55346432f1c6d18b1a3a51ae42453dda8abb7b",
+   "bytes": 30320,
    "rect": [
     30,
     19,
@@ -950,8 +958,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "ore",
    "png": "res://assets/icons/render/ore.png",
-   "sha256": "dca0ec399d50cfc453546e41473081d8fcce099b45c1a772581e7c6ebf19e4fc",
-   "bytes": 32782,
+   "sha256": "bef8c6535dc15807f15349165024679b85d43f97615bf826a2f883c101f820fb",
+   "bytes": 33981,
    "rect": [
     19,
     59,
@@ -964,8 +972,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "palm_frond",
    "png": "res://assets/icons/render/palm_frond.png",
-   "sha256": "013808e22467f8fb7965e2a69600b3d77e58556d7ad7e9951c9271e9174468b2",
-   "bytes": 31330,
+   "sha256": "6ac4187a983e264d0c5cdb76da2e05912ec92592f1ba2eced858cc130057dcaa",
+   "bytes": 32673,
    "rect": [
     40,
     19,
@@ -978,13 +986,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "pearl",
    "png": "res://assets/icons/render/pearl.png",
-   "sha256": "8f57d7fa0739b6abba44fa523f96bec2f9a84b3ed0a97ac7f5cbb3abb8329500",
-   "bytes": 50685,
+   "sha256": "d475cec3e4a9af1a026e0ce219c147bc52fce687a5c5b4ae567a110fd15d019b",
+   "bytes": 59972,
    "rect": [
     19,
-    53,
+    43,
     218,
-    150
+    170
    ],
    "quality": "procedural_v1"
   },
@@ -992,8 +1000,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "pillar",
    "png": "res://assets/icons/render/pillar.png",
-   "sha256": "1e9b1be45b8983e10b6c1b3e47919f43485b1bd9586df0080723bad3c5aeef83",
-   "bytes": 21662,
+   "sha256": "aa479fedcd7b4acc7c5ebbdd132c6a88f4834d4d2be3d178a8b5292b7b15945c",
+   "bytes": 21997,
    "rect": [
     80,
     19,
@@ -1007,22 +1015,23 @@
    "script": "tools/blender/items/resources.py",
    "builder": "pine_log",
    "png": "res://assets/icons/render/pine_log.png",
-   "sha256": "411b73f55f18dcc92faf69014e2bb110104ef7be8fd564fb78cdf729ed823ac1",
-   "bytes": 32720,
+   "sha256": "532e2bfa8f0f99cb474abc7745cff580ed402deb24c6e14a59e1fa63bf9e8663",
+   "bytes": 33319,
    "rect": [
     19,
-    61,
+    62,
     218,
-    134
+    132
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "not distinguishable from wood_log at slot size"
   },
   "plank": {
    "script": "tools/blender/items/resources.py",
    "builder": "plank",
    "png": "res://assets/icons/render/plank.png",
-   "sha256": "b87820514db69b9457bb0fb201716b496de4af3127120c00ae3602525a7408f8",
-   "bytes": 37741,
+   "sha256": "a398aa5a2d8cd077f6e175c871970265706628e3f9cc2c2e9b3327024f4c18c4",
+   "bytes": 38721,
    "rect": [
     19,
     30,
@@ -1035,8 +1044,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "predator_tendon",
    "png": "res://assets/icons/render/predator_tendon.png",
-   "sha256": "023c2d05e5193b410603dc42c4839d9eee255c81ef24bb3b1e19b25ce0bd4943",
-   "bytes": 60405,
+   "sha256": "0387284c61201bc591de79a4782bffc4c9a1ed051015e28240179b39f22cdef1",
+   "bytes": 60277,
    "rect": [
     22,
     19,
@@ -1049,8 +1058,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "raid_cuirass",
    "png": "res://assets/icons/render/raid_cuirass.png",
-   "sha256": "a4c0b4fbd42d35ece539bf2c984f15fd4c9106552a8d3e733d3d7f70580089e5",
-   "bytes": 40790,
+   "sha256": "a78f60bdaf2bf7e7b38dab1925633ed7173543d615feb5b2eb2f1ad11f648acf",
+   "bytes": 42345,
    "rect": [
     42,
     19,
@@ -1064,8 +1073,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "raid_greaves",
    "png": "res://assets/icons/render/raid_greaves.png",
-   "sha256": "11c5fa8001708b6157dc0ffb4840e077c00b0a36fb7453b2e2a3ee0be9672fe7",
-   "bytes": 33469,
+   "sha256": "b4e4b938ad93b887859b684ed68797e9b255448211b318cca30133faa7bf3265",
+   "bytes": 34644,
    "rect": [
     63,
     19,
@@ -1079,8 +1088,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "raid_helm",
    "png": "res://assets/icons/render/raid_helm.png",
-   "sha256": "bf998ab2347140d6791ad24eddcde1819a40ff94ea532c3f735a00ff7a4c632f",
-   "bytes": 32854,
+   "sha256": "35a1d8533210759ec07391c590d656410bf411f9c3101da97a474a530846b3c1",
+   "bytes": 33776,
    "rect": [
     38,
     19,
@@ -1093,8 +1102,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "raid_maul",
    "png": "res://assets/icons/render/raid_maul.png",
-   "sha256": "1fd49c72190f34cc2b3d062e0be923bb6b8404cdf59e9df799619cff952dcbd7",
-   "bytes": 35758,
+   "sha256": "406b2c0efff93390a2450dc1c82219761fa9d2de76a2c41965717259f492818a",
+   "bytes": 36522,
    "rect": [
     41,
     19,
@@ -1107,8 +1116,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "raptor_bone",
    "png": "res://assets/icons/render/raptor_bone.png",
-   "sha256": "c533f0c3e43d9b341c460c3459cc7dc1d73daaf9e7cb5705397d6e60ca0aa439",
-   "bytes": 20715,
+   "sha256": "52e6d0645ab145ee6ca08120ae7b663f72fe7020dd3aae25d0f82e081c78ff1b",
+   "bytes": 22283,
    "rect": [
     33,
     19,
@@ -1121,8 +1130,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "raptor_hide",
    "png": "res://assets/icons/render/raptor_hide.png",
-   "sha256": "2e61124653277a84f1ea818aa06b02d22860b37186de1701f388145ed1824393",
-   "bytes": 29654,
+   "sha256": "9a72b4a48848591f0e8e9dcf50142fccd8098d69828d4543ce02d7dfcf8fe9dc",
+   "bytes": 30746,
    "rect": [
     66,
     19,
@@ -1136,8 +1145,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "raptor_meat",
    "png": "res://assets/icons/render/raptor_meat.png",
-   "sha256": "7acddac4919f367c4d034964d75ce6d35b2ff8ac25cbba354eda68aad332bad4",
-   "bytes": 33090,
+   "sha256": "d0b687425ffea574967536dd2de3f6ffa33d0c7de2963bd8f9c293d51ac9c38d",
+   "bytes": 34533,
    "rect": [
     26,
     19,
@@ -1150,12 +1159,12 @@
    "script": "tools/blender/items/resources.py",
    "builder": "raptor_talon",
    "png": "res://assets/icons/render/raptor_talon.png",
-   "sha256": "9e8a79a56b2574b7929d93ce5ad2def31d721c84e34890e3d1d840a5c4085978",
-   "bytes": 19945,
+   "sha256": "39de4a68751df3059b0c2fe7391274c7f61d4e5379d36f69275574afeead78c2",
+   "bytes": 20724,
    "rect": [
-    69,
+    70,
     19,
-    118,
+    117,
     218
    ],
    "quality": "procedural_v1"
@@ -1164,8 +1173,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "raw_hide",
    "png": "res://assets/icons/render/raw_hide.png",
-   "sha256": "0320441ac4c6aa5f41b85c88164a9e8a0a98414316b7520a036a74b33cc64b60",
-   "bytes": 25952,
+   "sha256": "bca9b97178ddea2c9bbcc2b800caa3f8f52fd7a68c9f59d0738a1782e9bcc87b",
+   "bytes": 27176,
    "rect": [
     66,
     19,
@@ -1179,13 +1188,13 @@
    "script": "tools/blender/items/food.py",
    "builder": "raw_meat",
    "png": "res://assets/icons/render/raw_meat.png",
-   "sha256": "2538f511a4740e95cb8d39c938163f118f5658baa2f45fc3d153fc534dc39d62",
-   "bytes": 34030,
+   "sha256": "6e230172df818509ac5677778dab52fde135e5b41f7c24572903b8f9e5f3ea9c",
+   "bytes": 35319,
    "rect": [
     19,
-    56,
+    57,
     218,
-    144
+    142
    ],
    "quality": "procedural_v1"
   },
@@ -1193,8 +1202,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "resin",
    "png": "res://assets/icons/render/resin.png",
-   "sha256": "4fda27a24d2dabe645505e4f700210a786af199d56889a744e73a595998d2b2b",
-   "bytes": 27832,
+   "sha256": "5cb7bea8c62697f074b9fd6dd30cc4486b4aef6ba817a7e7bb8b377778f63d17",
+   "bytes": 29779,
    "rect": [
     31,
     19,
@@ -1207,8 +1216,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "roast",
    "png": "res://assets/icons/render/roast.png",
-   "sha256": "96e6981214774193ec4cef30ff8b7e16b465d148b1a91995b6e9737733d43ba7",
-   "bytes": 32593,
+   "sha256": "821e5c7aeaa9fae96396c6d4439dadd920772d937c13f981cc292cd7283312ba",
+   "bytes": 33441,
    "rect": [
     26,
     19,
@@ -1221,8 +1230,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "rope",
    "png": "res://assets/icons/render/rope.png",
-   "sha256": "20d60ca1e6513034cf06ce0f9c7dab212691c4f3e49ec59471ff948347170a56",
-   "bytes": 58038,
+   "sha256": "557682ce9653f36f580784381f82cc48fa665a5a40387a200176727c92c14912",
+   "bytes": 59630,
    "rect": [
     19,
     29,
@@ -1235,8 +1244,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "rope_snare",
    "png": "res://assets/icons/render/rope_snare.png",
-   "sha256": "1bab31bcb081745309b17b1c19f17e4f310591439ab9a62c15de3dea7a0fd943",
-   "bytes": 31724,
+   "sha256": "c362b1356a9f0445cba98a8aac382e71e630e7a351d60ea48b6804c373bbd277",
+   "bytes": 31895,
    "rect": [
     19,
     25,
@@ -1249,8 +1258,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "salt",
    "png": "res://assets/icons/render/salt.png",
-   "sha256": "a3dd599979f2d2e5bc9c22eea375e5720af7d3b8e5f6b1b8e3b0bc4b5dc38681",
-   "bytes": 25345,
+   "sha256": "a313f538f730c2489c3d752083d607d99238d7c933da66f80054eb5d8e8e47af",
+   "bytes": 26154,
    "rect": [
     19,
     57,
@@ -1263,8 +1272,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "sandstone",
    "png": "res://assets/icons/render/sandstone.png",
-   "sha256": "fca2455e9412cbbbe58957ca8427da731b32786bdb1614f6842229bf9bf63f7c",
-   "bytes": 45552,
+   "sha256": "11f1bda2024ced5f16489f263dfdc437adc99ab1c4a8241c61fbaf63010af17d",
+   "bytes": 49912,
    "rect": [
     19,
     25,
@@ -1277,8 +1286,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "sashimi",
    "png": "res://assets/icons/render/sashimi.png",
-   "sha256": "6c3af41cde13a1148bbe442344da78cdcb828de12bd1e1035135ab9fc5979fc5",
-   "bytes": 40276,
+   "sha256": "c62071e660fdef76e7d0a6ee2cda2d0952548ded194b5c8958d17a27f57ac0ad",
+   "bytes": 42156,
    "rect": [
     19,
     65,
@@ -1291,22 +1300,23 @@
    "script": "tools/blender/items/food.py",
    "builder": "seasoned_roast",
    "png": "res://assets/icons/render/seasoned_roast.png",
-   "sha256": "b84f286251a93708a663c344e45c96ca823591f313c8e006c16908dd862accd1",
-   "bytes": 35238,
+   "sha256": "56f587ba3d3b7811ea5eaced3237a91745119a047561e4b4abba02bf0781d6f0",
+   "bytes": 36401,
    "rect": [
     26,
     19,
     204,
     218
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "not distinguishable from roast / smoked_meat at slot size"
   },
   "sign_kit": {
    "script": "tools/blender/items/camp.py",
    "builder": "sign_kit",
    "png": "res://assets/icons/render/sign_kit.png",
-   "sha256": "3776adcc05555184a60c29066236d014544410c268b7743fb28bc08846858556",
-   "bytes": 20316,
+   "sha256": "ced499411954f24b61eb270cfe72c8295c5da2a01c7cdadab9513ea3f79edbd5",
+   "bytes": 21258,
    "rect": [
     52,
     19,
@@ -1320,8 +1330,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "silver_ore",
    "png": "res://assets/icons/render/silver_ore.png",
-   "sha256": "9b9e7fa61141c2c7b7ee63450f7162a26819779340fdb7378fc6a46363aa4e50",
-   "bytes": 33500,
+   "sha256": "07f4aaee42cb4db4de5f6c5a5d064ed2ef3cbb3cfa76e46568094e1d34bcca44",
+   "bytes": 34262,
    "rect": [
     19,
     52,
@@ -1334,13 +1344,13 @@
    "script": "tools/blender/items/food.py",
    "builder": "skewer",
    "png": "res://assets/icons/render/skewer.png",
-   "sha256": "3ff587d45fc62b5c34216fc82b8f0c29c346b1e41eb940a08d7075ff23744d05",
-   "bytes": 16045,
+   "sha256": "b281fe2ec13e246c5ff9f74f0fc76c708825164d7879ba3f71c1404c5975bc9f",
+   "bytes": 25572,
    "rect": [
+    23,
     19,
-    82,
-    218,
-    92
+    209,
+    218
    ],
    "quality": "procedural_v1"
   },
@@ -1348,8 +1358,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "slingshot",
    "png": "res://assets/icons/render/slingshot.png",
-   "sha256": "f972ffdd8873ac39c16e6aa29c7fb64586b800c84c1e01a032c48990991de18a",
-   "bytes": 20747,
+   "sha256": "7afb73e52598f2b8d7ca9f189eed9a185f47374be083aec1a7e21523af8f877b",
+   "bytes": 21310,
    "rect": [
     76,
     19,
@@ -1362,27 +1372,28 @@
    "script": "tools/blender/items/food.py",
    "builder": "smoked_meat",
    "png": "res://assets/icons/render/smoked_meat.png",
-   "sha256": "c043fdfc82e54acd4de5d765feb5f7d50212f71e2ce7ed9ba64b98d2a92b0065",
-   "bytes": 46759,
+   "sha256": "3b8dd6af663d5286a845f2e8e1001980ce85b656ee713bc950d51ab94230d687",
+   "bytes": 53086,
    "rect": [
     19,
     23,
     218,
     210
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "not distinguishable from roast / seasoned_roast at slot size"
   },
   "spiced_skewer": {
    "script": "tools/blender/items/food.py",
    "builder": "spiced_skewer",
    "png": "res://assets/icons/render/spiced_skewer.png",
-   "sha256": "b65ca5ec6e8a4f1ad06e0fda71c35210e8581c3f225766bbaeb5aeb980b06083",
-   "bytes": 17258,
+   "sha256": "a74f3e95b825ab44468d9d8374aeb1dd46005609c96f2b5c5a9d147bd23257e2",
+   "bytes": 27782,
    "rect": [
+    23,
     19,
-    82,
-    218,
-    92
+    209,
+    218
    ],
    "quality": "procedural_v1"
   },
@@ -1390,8 +1401,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "splint",
    "png": "res://assets/icons/render/splint.png",
-   "sha256": "c1b89e6472c9597f590ae2e78cff724670b7ad5b2d9088689f1467aaf0c812cb",
-   "bytes": 31829,
+   "sha256": "2686faa99a90b62cc76d49bba3f5e152b1568c3cde6da4ba26be07ce7c088015",
+   "bytes": 33178,
    "rect": [
     42,
     19,
@@ -1404,8 +1415,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "split_wood",
    "png": "res://assets/icons/render/split_wood.png",
-   "sha256": "5559d90e5ef727db0337403ab0b4a543d65350a9c755976288f8c862f5577a49",
-   "bytes": 42561,
+   "sha256": "78bf07eb666f0b83350c20de7e1787e8d868500059b95e5e29ff9561e829843b",
+   "bytes": 44056,
    "rect": [
     19,
     34,
@@ -1418,8 +1429,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "steamed_food",
    "png": "res://assets/icons/render/steamed_food.png",
-   "sha256": "0b6b27427559c913e707c17f5bd4904bfc76cc7eec6e2a4d9021addf05c761dc",
-   "bytes": 57377,
+   "sha256": "f6919e1ef1d9f057f953b6b3e8838aee38d6cdd96ac9ef536018bc3e85ddd760",
+   "bytes": 60787,
    "rect": [
     19,
     25,
@@ -1432,13 +1443,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "steel_ingot",
    "png": "res://assets/icons/render/steel_ingot.png",
-   "sha256": "773fd73e8fe9d19f0eb7f27cfd721f4d4bc161e973e045eb93eb74f7678defa9",
-   "bytes": 15969,
+   "sha256": "aaf7648ab85a817cd2d838ec72ce166790a70e8bb6e4fa806a6b0fd9b2f45d5d",
+   "bytes": 40936,
    "rect": [
     19,
-    79,
+    39,
     218,
-    98
+    178
    ],
    "quality": "procedural_v1"
   },
@@ -1446,8 +1457,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "stone",
    "png": "res://assets/icons/render/stone.png",
-   "sha256": "3849d6d2a577115f081682ebd1a2385f5b593be3716c074a179fe6f73262eca3",
-   "bytes": 37210,
+   "sha256": "c7f57a68ed7eee2e7653e63c9e18f12e0ed4b3138e7e347e2e5513c1e38d61a8",
+   "bytes": 37806,
    "rect": [
     19,
     44,
@@ -1460,8 +1471,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "stone_grill_kit",
    "png": "res://assets/icons/render/stone_grill_kit.png",
-   "sha256": "a2174d3b2306eafd991544a10f7990d33c75980d3d63a40f0726a8fdb07f7e39",
-   "bytes": 35417,
+   "sha256": "856e4cf7bf5c0a0d318bd52b205b468307c02df5ff281b1b66d36869a741c964",
+   "bytes": 36659,
    "rect": [
     19,
     41,
@@ -1474,8 +1485,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "stone_knife",
    "png": "res://assets/icons/render/stone_knife.png",
-   "sha256": "9c9c9720c8ad0ebc9c5ee2f36a8bc134268785bfdeb1a46df8769286f541b882",
-   "bytes": 22981,
+   "sha256": "b5a6833cde888d7b1cb272dbd461cc763e9cfd9ced1dafd105b063c60a1f42db",
+   "bytes": 23180,
    "rect": [
     27,
     19,
@@ -1488,12 +1499,12 @@
    "script": "tools/blender/items/gear.py",
    "builder": "stone_knife_work",
    "png": "res://assets/icons/render/stone_knife_work.png",
-   "sha256": "5ad81cf6fc22c719557c22cca0100ca9b0a151f5cb9ff85040a46fce5720f31a",
-   "bytes": 30004,
+   "sha256": "be9a319a27c9c01867720c328cff26506caf040adeead773129d151a4cb17ffc",
+   "bytes": 30136,
    "rect": [
-    37,
+    38,
     19,
-    182,
+    181,
     218
    ],
    "quality": "procedural_v1"
@@ -1502,8 +1513,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "stone_shot",
    "png": "res://assets/icons/render/stone_shot.png",
-   "sha256": "8a0ea9e886bff352f0ada9287514a4b02709106f668deccdfb4db98f1887a7bf",
-   "bytes": 39889,
+   "sha256": "7595c82071697fd7fdaa082b03a45e8f761ed57bf981e21940028da7a0ccaf0e",
+   "bytes": 40989,
    "rect": [
     19,
     25,
@@ -1516,8 +1527,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "straw_roll_kit",
    "png": "res://assets/icons/render/straw_roll_kit.png",
-   "sha256": "17d7349cfd3a7824d0e17895e48cca3ab75b56aa2be65e83bfcd41c39bfbd7b5",
-   "bytes": 55596,
+   "sha256": "48867f485ebbbbec27c9569d979773a7d3f858712c7798db4a9a07b8c89733aa",
+   "bytes": 56403,
    "rect": [
     19,
     27,
@@ -1530,8 +1541,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "sulphur",
    "png": "res://assets/icons/render/sulphur.png",
-   "sha256": "54fd999646a7dc59a05b6d8951441ca2a3967e86f7adbec6d3c347c8d0960c30",
-   "bytes": 40046,
+   "sha256": "07475283ffe77bd07e09e39e218d6757650491066e8e05e0ba4735b45ce31ac2",
+   "bytes": 43843,
    "rect": [
     21,
     19,
@@ -1544,8 +1555,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "tent_kit",
    "png": "res://assets/icons/render/tent_kit.png",
-   "sha256": "f5dd544e4a908d95579a28b57cb0e7135fdeabc11fd6cb170f8d44cdb86d5643",
-   "bytes": 32685,
+   "sha256": "2ad53ad06f7c36f772a069093230b57cbc1b2bff059a846adab7d21fae7f2baa",
+   "bytes": 33407,
    "rect": [
     19,
     55,
@@ -1559,8 +1570,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "thread",
    "png": "res://assets/icons/render/thread.png",
-   "sha256": "d6e75f1348962f15b8a059fd21e1ea430e63c2cf55c142e867a1c5d8a0276c06",
-   "bytes": 46464,
+   "sha256": "bd453c673c890ce0165a5fde6aa1ed6ca12aed55cf96bc7171ec388d282079e4",
+   "bytes": 48090,
    "rect": [
     19,
     22,
@@ -1573,8 +1584,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "toxin_coating",
    "png": "res://assets/icons/render/toxin_coating.png",
-   "sha256": "fac85da29b05f4355c1be46568160bf14b957a7d8e6806b4c5ff5ed8bac04263",
-   "bytes": 25198,
+   "sha256": "3e67217eab0b903894b2155c9bde0044f1c720ba3d9ee42d827527dde78673aa",
+   "bytes": 27295,
    "rect": [
     54,
     19,
@@ -1587,8 +1598,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "toxin_pot",
    "png": "res://assets/icons/render/toxin_pot.png",
-   "sha256": "71b961a71e9b7ea333283579f1d160e20455312f13a9c73fad1152519e6bc18c",
-   "bytes": 43620,
+   "sha256": "c12310238d3c07e28b644917d2442fef18b50dfedf6379be18a1c5b322d0252c",
+   "bytes": 46108,
    "rect": [
     19,
     27,
@@ -1601,8 +1612,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "twine",
    "png": "res://assets/icons/render/twine.png",
-   "sha256": "73743c71368893ffd22cf1b9c516fa1b6de6a7edc1cc0c415da1d72eeb44dad3",
-   "bytes": 58816,
+   "sha256": "0a1a699f5e73cd17572acb8b7785e14f80ff4b575fc2772f84e5a84007d5c012",
+   "bytes": 59785,
    "rect": [
     19,
     23,
@@ -1615,8 +1626,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "venom_gland",
    "png": "res://assets/icons/render/venom_gland.png",
-   "sha256": "2b6c3a09978a0057b1d5b0112816e581490a000fa2245055505612c281cc88ff",
-   "bytes": 34444,
+   "sha256": "f8f8c60185c1d64f9a8bd83823c96c0d2be48e6112d963e6b378a6d1094c7f10",
+   "bytes": 35422,
    "rect": [
     35,
     19,
@@ -1629,8 +1640,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "water_bucket",
    "png": "res://assets/icons/render/water_bucket.png",
-   "sha256": "68af0b997311401b4930d15ce599f66b88fd222116d9e76f54eb490b72c6fcf8",
-   "bytes": 53413,
+   "sha256": "3bb19c28f96f9432243d8a8e471d61882634f431f01b21d3686405be5ee50cae",
+   "bytes": 58118,
    "rect": [
     29,
     19,
@@ -1643,8 +1654,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "well_kit",
    "png": "res://assets/icons/render/well_kit.png",
-   "sha256": "4952046f61f0ecd5b8f4f2a33b36c1da3d2f7aaae4bb8f7fce3195616bafdea4",
-   "bytes": 49180,
+   "sha256": "9255b8c36a0b1a7cdf9e132c23065141c39f24accbb255e16fa3dd123a95b87c",
+   "bytes": 51099,
    "rect": [
     34,
     19,
@@ -1657,8 +1668,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "wheat",
    "png": "res://assets/icons/render/wheat.png",
-   "sha256": "a13da7b4401b28c95dc45a0db9fd77fcd1e41923ac04e67210df8530f07da2af",
-   "bytes": 28212,
+   "sha256": "5ba4058c453e67b6d7dcbcd4f58fe707708c42a38bba161285e7a7c52ae7206f",
+   "bytes": 29642,
    "rect": [
     62,
     19,
@@ -1671,8 +1682,8 @@
    "script": "tools/blender/items/food.py",
    "builder": "wheat_seed",
    "png": "res://assets/icons/render/wheat_seed.png",
-   "sha256": "21581a9973d3186c3d533f109f9212b8fe505e20e49709e367f46a251691b94a",
-   "bytes": 52541,
+   "sha256": "fd83c85ec418d9fe52132ed5599519ba516f0844fd69591402c865d489de0d6e",
+   "bytes": 55615,
    "rect": [
     19,
     34,
@@ -1685,8 +1696,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "wood_log",
    "png": "res://assets/icons/render/wood_log.png",
-   "sha256": "911b79ab0fbb53ab8526b3cd25e38d5d559b2f42f6722c9f2d13fe05e78f48ed",
-   "bytes": 28319,
+   "sha256": "4ac3e257ac1994c638df76e91d972636cdfb8fb274428c265cb7edfb67d2f7b8",
+   "bytes": 28617,
    "rect": [
     19,
     55,
@@ -1699,8 +1710,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "work_axe",
    "png": "res://assets/icons/render/work_axe.png",
-   "sha256": "b1c188d3bb2432fb28e0a9559d2e3093322478bc812dc8cabe07089c1635acee",
-   "bytes": 25121,
+   "sha256": "f78cd974b0a070334c29a9e3f59f3cdb8420ad50ffc3a446af541393da46039c",
+   "bytes": 25333,
    "rect": [
     19,
     24,
@@ -1713,8 +1724,8 @@
    "script": "tools/blender/items/gear.py",
    "builder": "work_pick",
    "png": "res://assets/icons/render/work_pick.png",
-   "sha256": "000c8399dd66b1a62e1b876ff0b3b2b1744ce06cf1d57ec5e999486b41ca7421",
-   "bytes": 20079,
+   "sha256": "d59c34336a1ca1e92739495c7f50b8ba4f9c42caf8817629c91745b66568c961",
+   "bytes": 20185,
    "rect": [
     50,
     19,
@@ -1727,8 +1738,8 @@
    "script": "tools/blender/items/camp.py",
    "builder": "workbench_kit",
    "png": "res://assets/icons/render/workbench_kit.png",
-   "sha256": "aaa19ce5f878d74ff308e1ffb771a692b640740d7f3e2f8348b328db5fc724db",
-   "bytes": 43060,
+   "sha256": "f9f85c0c4d166038c7f0323d8fb519474b88b4a9eebb955fb5029e0819fe0f76",
+   "bytes": 44206,
    "rect": [
     19,
     22,

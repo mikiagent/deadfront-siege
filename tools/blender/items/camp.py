@@ -173,7 +173,8 @@ def well_kit():
 
 
 def basket_kit():
-    weave = mat("#c8a05a", 0.75, color2="#8a6a32", tex="wave", scale=7.0, bump=0.4, ramp=(0.2, 0.8))
+    # Lower weave contrast: the original (#8a6a32, bump 0.4) PNG went over 64 KB under Cycles noise.
+    weave = mat("#c8a05a", 0.75, color2="#a07c40", tex="wave", scale=6.0, bump=0.15, ramp=(0.2, 0.8))
     lathe([(0, 0), (0.6, 0.0), (0.75, 0.1), (0.95, 0.9), (1.0, 1.0), (0.93, 1.0), (0.88, 0.9), (0.7, 0.14), (0, 0.14)],
           m=weave, segs=32)
     _lash(0, 0, 1.0, rope_m("#9a7a42"), r=0.98)

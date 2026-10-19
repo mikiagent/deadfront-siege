@@ -43,7 +43,7 @@ func _ready() -> void:
 	var actions := HBoxContainer.new()
 	actions.add_theme_constant_override("separation", int(gap))
 	box.add_child(actions)
-	for spec in [["≡", "MENU"], ["★", "SKILLS"], ["⌂", "BUILD"], ["🦖", "ANIMALS"]]:
+	for spec in [["≡", "MENU"], ["★", "SKILLS"], ["⌂", "BUILD"], ["♞", "ANIMALS"]]:
 		var h := HexButton.new(maxf(64.0, side * 0.7))
 		h.glyph = spec[0]
 		h.caption = spec[1]
@@ -68,11 +68,12 @@ func _self_check() -> void:
 	print("[itemart] slots=%d rarities=%d rendered=%d framed=%s count_px_ok=%s ok=%s" % [slots.size(), seen.size(), rendered, overflow_ok, count_ok, ok])
 	get_tree().quit(0 if ok else 1)
 
-## Every object stands on the slot floor with its centre inside the slot; tall ones rise 12-20 %.
+## Every lab object (wide ones included) rises 12-20 % above the slot, its centre inside the
+## slot and its bottom on or at most HOVER above the slot floor.
 static func _framed(s: ArtSlot) -> bool:
 	var r := s.art_rect()
 	var lift := -r.position.y / s.size.y
-	var tall := r.size.y >= s.size.y * (ArtSlot.RISE + ArtSlot.FLOOR) - 0.5
 	var centred := Rect2(Vector2.ZERO, s.size).has_point(r.get_center())
-	var floor_ok := absf(r.end.y - s.size.y * ArtSlot.FLOOR) < 0.5
-	return centred and floor_ok and lift <= 0.20 and (not tall or lift >= 0.12)
+	var bottom := r.end.y / s.size.y
+	var floor_ok := bottom <= ArtSlot.FLOOR + 0.005 and bottom >= ArtSlot.FLOOR - ArtSlot.HOVER - 0.005
+	return centred and floor_ok and lift <= 0.20 + 0.005 and lift >= 0.12 - 0.005

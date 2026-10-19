@@ -103,7 +103,7 @@ def _skewer(colors, specks=False):
             for k in range(5):
                 a = k * 1.3
                 ball(0.035, loc=(x + 0.15 * math.cos(a), -0.24, 0.15 * math.sin(a)), m=mat("#1a1008", 0.6), sub=1)
-    lean(32)
+    lean(58)  # near-square silhouette so the slot can lift it above its top like the rest
 
 
 def skewer():
@@ -123,7 +123,7 @@ def fish():
     prism([(-0.2, -0.5), (0.3, -0.55), (0.0, -0.8)], 0.05, m=fin, bev=0.01)
     ball(0.12, loc=(1.0, -0.33, 0.15), m=mat("#f0f0e8", 0.3), sub=2)
     ball(0.07, loc=(1.03, -0.42, 0.16), m=mat("#0a0a0a", 0.1, coat=1.0), sub=2)
-    lean(18)
+    lean(52)  # diagonal: a flat fish otherwise sits low and never rises above the slot
 
 
 def sashimi():

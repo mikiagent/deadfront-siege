@@ -36,8 +36,11 @@ static func _load_rarity() -> void:
 		_rarity = {"items": {}, "colors": {}, "default": "common"}
 
 ## True when the item has its own rendered PNG (not a symbol fallback).
+## Looked up in the manifest, not the filesystem: macOS paths are case-insensitive, so
+## "STEEL_INGOT" would resolve on desktop and fail on case-sensitive export targets.
 static func is_rendered(id: StringName) -> bool:
-	return ResourceLoader.exists(RENDER_DIR + str(id) + ".png") and not str(id).begins_with("_")
+	_load_rects()
+	return _rects.has(str(id)) and not str(id).begins_with("_")
 
 static func texture_for(id: StringName) -> Texture2D:
 	var key := str(id)
@@ -50,7 +53,8 @@ static func texture_for(id: StringName) -> Texture2D:
 		tex = ItemIcons.texture(id)
 	if tex == null and ResourceLoader.exists(UNKNOWN):
 		tex = load(UNKNOWN) as Texture2D
-	_cache[key] = tex
+	if is_rendered(id) or Data.item(id) != null:  # only real ids, so arbitrary ids cannot grow the cache
+		_cache[key] = tex
 	return tex
 
 ## Opaque part of the texture in texture pixels, so slots can fit the object, not the padding.
@@ -72,7 +76,8 @@ static func content_rect(id: StringName) -> Rect2:
 			var used := img.get_used_rect()
 			if used.size.x > 0 and used.size.y > 0:
 				r = Rect2(used)
-	_used[key] = r
+	if is_rendered(id) or Data.item(id) != null:
+		_used[key] = r
 	return r
 
 static func rarity(id: StringName) -> StringName:
