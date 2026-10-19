@@ -33,7 +33,7 @@
     "skittish": {
       "provoke_hits": 3,
       "flee_on_sight": true,
-      "flee_speed_mult": 1.5
+      "flee_speed_mult": 1.6
     },
     "defensive": {
       "provoke_hits": 1,

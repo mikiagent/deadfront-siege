@@ -42,7 +42,8 @@ func _think(delta: float) -> void:
 	var dist := creature.global_position.distance_to(attack_target.global_position)
 	var excess := _size_excess(attack_target)
 	var reach := maxf(1.2, float(profile.get("attack_range", 2.0)) + 0.2) + excess
-	if dist > reach:
+	# Leave a bite only a little past reach, so a target stepping back does not flip the state.
+	if dist > reach + (0.4 if state == &"attack" else 0.0):
 		_set_state(&"approach")
 		creature.move_to(_flank_slot())
 		creature.face_towards(attack_target.global_position, delta)

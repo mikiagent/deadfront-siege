@@ -15,7 +15,8 @@ func _ready() -> void:
 	player = kit["player"]
 	var cam := kit["cam"] as IsoCamera
 	cam.size = 15.0
-	player.global_position = Vector3(-20, 1, 0)
+	# Out of the utahraptor's sight even after a full roam leg toward the survivor (perception 15.5 m).
+	player.global_position = Vector3(-23, 1, 23)
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	# Flat labs have no World.runtime, so finish the NavigationServer sync before locomotion checks.
 	await get_tree().physics_frame
@@ -57,7 +58,9 @@ func _after_idle() -> void:
 	# A SIC order must keep biting: one bite and a frozen cooldown was the old failure.
 	if bites[0] < 2 or hp0 - target.health.hp <= 0.0:
 		failures.append("pet repeat attack stalled: bites=%d damage=%.1f" % [bites[0], hp0 - target.health.hp])
-	# Make the pack finish a pet. Every member must immediately retain player engagement.
+	# Make the pack finish a pet. Every member must immediately retain player engagement, so the
+	# survivor steps inside the pack's leash first.
+	player.global_position = alpha.global_position + Vector3(-8, 1, 0)
 	for c in [alpha, follower_a, follower_b]:
 		c.brain.attack_target = pet
 		c.brain._combat_memory_left = 4.0
@@ -91,7 +94,8 @@ func _after_idle() -> void:
 	alpha.brain.state = &"attack"
 	player.global_position = alpha.global_position + Vector3(alpha.brain.aggro_radius() + 0.5, 0, 0)
 	alpha.brain.tick(0.016)  # the shared pre-think owns the leash for every species brain
-	var raptor_deaggro_ok := alpha.brain.attack_target == null and alpha.brain.state == &"disengage"
+	# Already standing at home, the leash break ends in roam within the same tick.
+	var raptor_deaggro_ok := alpha.brain.attack_target == null and alpha.brain.state in [&"disengage", &"roam"]
 	print("[aival] raptor_radius_deaggro=%s state=%s target=%s" % [raptor_deaggro_ok, alpha.brain.state, alpha.brain.attack_target])
 	if not raptor_deaggro_ok:
 		failures.append("raptor retained target outside aggro radius")

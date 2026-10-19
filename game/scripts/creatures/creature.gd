@@ -706,14 +706,22 @@ func _fall_guard() -> void:
 
 ## NavigationAgent3D advances its waypoint by 3D distance, but lab nav meshes sit ~0.5 m above the
 ## floor, so it kept handing back the waypoint under our feet (an in-place jitter once brains
-## stopped re-targeting every frame). Take the first waypoint that is far enough in the flat plane.
+## stopped re-targeting every frame). Take the first waypoint that is far enough in the flat plane
+## and not already behind us (the stuck start waypoint pulled the alpha back and forth in place).
 func _agent_direction() -> Vector3:
+	agent.get_next_path_position()  # refreshes the path for a new target; reading it alone went stale
 	var path := agent.get_current_navigation_path()
+	var here := Vector2(global_position.x, global_position.z)
 	for i in range(agent.get_current_navigation_path_index(), path.size()):
-		var to := path[i] - global_position
-		to.y = 0.0
-		if to.length() > agent.path_desired_distance:
-			return to.normalized()
+		var wp := Vector2(path[i].x, path[i].z)
+		if here.distance_to(wp) <= agent.path_desired_distance:
+			continue
+		if i + 1 < path.size():
+			var nxt := Vector2(path[i + 1].x, path[i + 1].z)
+			if here.distance_to(nxt) < wp.distance_to(nxt):
+				continue  # already past this waypoint
+		var to := wp - here
+		return Vector3(to.x, 0.0, to.y).normalized()
 	return Vector3.ZERO
 
 func _use_tile_path() -> bool:

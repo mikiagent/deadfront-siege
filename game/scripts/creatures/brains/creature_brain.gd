@@ -539,7 +539,8 @@ func _disengage_track(delta: float) -> void:
 		_log("[ai] %s disengage (left aggro radius)" % creature.def.id)
 		_leash_break()
 		return
-	var far := dist > _effective_perception() * 1.2 and not attack_target is FieldCatapult
+	# A fleeing animal runs until the threat is past the leash; the slow give-up is for chasers.
+	var far := dist > _effective_perception() * 1.2 and not attack_target is FieldCatapult and state != &"flee"
 	if far:
 		_disengage_left += delta
 		if _disengage_left >= float(profile.get("disengage_seconds", 3.0)):
