@@ -1,10 +1,13 @@
 extends Node3D
-## Island combat lab for M9a creature plates + tile AI/pathing checks.
+## Island combat lab for M9a creature plates + tile AI/pathing checks. Headless it asserts:
+## the survivor is alive at the 3.2 s acceptance-shot beat, and the lead raptor leaves a
+## corpse whose loot reaches the bag; any failure exits 1.
 
 var _player: Player
 var _cam: IsoCamera
 var _raptor_pack: Array[Creature] = []
 var _herd: Array[Creature] = []
+var _failed := false
 
 func _ready() -> void:
 	var kit := LabKit.build(self, 40.0)
@@ -21,6 +24,7 @@ func _ready() -> void:
 	if Game.shot_path != "":
 		TouchControls.visible = false
 		TouchControls.enabled = false
+	_player.vitals.damaged.connect(_lab_guard)
 	LabKit.give(_player, &"stone_knife", 1)
 	LabKit.give(_player, &"bandage", 3)
 	LabKit.give(_player, &"pressure_dressing", 1)
@@ -46,7 +50,41 @@ func _spawn_groups() -> void:
 	herd_spawner.position = Vector3(16.0, 0.0, 18.0)
 	World.runtime.add_child(herd_spawner)
 	_herd = herd_spawner.spawn_now()
+	for c in _raptor_pack + _herd:
+		_starter_level(c)
+	# Game takes the acceptance shot at 3.2 s; the survivor must not be dead in it (pc-lab-01).
+	get_tree().create_timer(3.2).timeout.connect(func () -> void:
+		print("[hunt_lab] survivor alive=%s hp=%.0f at 3.2 s" % [not _player.dead, _player.vitals.health])
+		if _player.dead:
+			_fail("survivor dead at the 3.2 s acceptance shot")
+	, CONNECT_ONE_SHOT)
 	get_tree().create_timer(0.45).timeout.connect(_demo, CONNECT_ONE_SHOT)
+
+## The lab's island level offset made these raptors far above a fresh survivor, who died
+## before the shot. A starter survivor fights starter-level animals here.
+func _starter_level(c: Creature) -> void:
+	if c == null:
+		return
+	c.level = 1
+	c.health.setup(c.stat_value(&"health"))
+
+# ASSUMPTION: wild stats do not scale with level yet (W1-AI), so even a Lv1 tier-25 raptor
+# bites a fresh survivor for 80-140 (pc-balance-01 waits on the owner). This lab shows plates,
+# not balance: a bite that would leave the survivor below 40 HP tops him up instead. Vitals
+# emits damaged before its death check, so this runs in time; every top-up is printed.
+func _lab_guard() -> void:
+	if _player.vitals.health < 40.0:
+		_player.vitals.health = _player.vitals.effective_max_health()
+		print("[hunt_lab] survivor topped up (lab guard, not balance)")
+
+func _fail(msg: String) -> void:
+	print("[hunt_lab] FAIL %s" % msg)
+	_failed = true
+
+func _quit_headless() -> void:
+	if not _failed:
+		print("[hunt_lab] PASS")
+	get_tree().quit(1 if _failed else 0)
 
 func _demo() -> void:
 	if _raptor_pack.is_empty():
@@ -100,7 +138,8 @@ func _demo() -> void:
 func _corpse_probe(lead: Creature, headless: bool) -> void:
 	if lead == null or not is_instance_valid(lead):
 		if headless:
-			get_tree().quit(0)
+			_fail("lead raptor gone before the corpse probe")
+			_quit_headless()
 		return
 	lead.health.take_damage(99999.0, _player)
 	await get_tree().create_timer(0.6).timeout
@@ -112,7 +151,8 @@ func _corpse_probe(lead: Creature, headless: bool) -> void:
 	if corpse == null:
 		print("[item] no corpse spawned")
 		if headless:
-			get_tree().quit(1)
+			_fail("no corpse")
+			_quit_headless()
 		return
 	var dir := _player.global_position - corpse.global_position
 	dir.y = 0.0
@@ -129,12 +169,17 @@ func _corpse_probe(lead: Creature, headless: bool) -> void:
 	var opts := corpse.loot_options(_player.inventory)
 	print("[item] corpse options=%d" % opts.size())
 	if opts.is_empty():
-		get_tree().quit(1)
+		_fail("corpse has no loot")
+		_quit_headless()
 		return
+	var loot_id: StringName = StringName(str(opts[0].get("item", "")))
+	var had := _player.inventory.count_of(loot_id) if loot_id != &"" else -1
 	_player._begin_corpse_take(corpse, int(opts[0]["slot"]))
 	_player._on_arrived()
 	await get_tree().create_timer(2.2).timeout
-	get_tree().quit(0)
+	if loot_id != &"" and _player.inventory.count_of(loot_id) <= had:
+		_fail("loot %s never reached the bag" % loot_id)
+	_quit_headless()
 
 func _reveal_plates() -> void:
 	if Game == null or not Game.has_method("reveal_creature_plate"):
