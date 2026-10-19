@@ -378,7 +378,8 @@
   ],
   "shader": {
    "slope_rock_lo": 0.22,
-   "slope_rock_hi": 0.4
+   "slope_rock_hi": 0.4,
+   "tex_scale": 7.0
   }
  }
 }

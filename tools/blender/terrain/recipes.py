@@ -78,7 +78,7 @@ RECIPES = {
         "rock": rock(["#6c6458", "#80786e", "#958c80"], crack="#4a4238"),
     },
     "tropical": {
-        "ground": grass(["#1f5a22", "#2f7a2c", "#4a9638"], splats=[
+        "ground": grass(["#2a7a26", "#40a034", "#62bc46"], splats=[
             patch(["#185018", "#226622"], 3.5, 0.55, 0.66, 65, 0.8),
             patch(["#5aa040", "#6ab048"], 8.0, 0.68, 0.76, 66, 0.5)]),
         "dirt": soil(["#3a281a", "#4b3424", "#5e4230"]),
@@ -119,8 +119,8 @@ RECIPES = {
     },
     "swamp": {
         # Peat and mud with algae scum and standing water in the low spots.
-        "ground": soil(["#2a2619", "#3a3324", "#4a4430"], seed=101, splats=[
-            patch(["#46552a", "#556632"], 4.0, 0.56, 0.66, 102, 0.8),
+        "ground": soil(["#3e3622", "#524830", "#665a38"], seed=101, splats=[
+            patch(["#5a7a2e", "#6e9038"], 4.0, 0.56, 0.66, 102, 0.9),
             patch(["#1c1c16", "#24241c"], 5.0, 0.66, 0.72, 103, 0.8)]),
         "dirt": soil(["#2e2218", "#3b2c1f", "#4a3828"]),
         "sand": sand(["#6c6250", "#7d725a", "#8e846a"]),
