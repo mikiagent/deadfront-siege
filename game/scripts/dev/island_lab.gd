@@ -50,12 +50,26 @@ func _ready() -> void:
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
 		call_deferred("_headless_gather_probe")
 
+## Headless gate (tools/smoke.sh and labs.sh): the real island builds, with vegetation, harvest
+## nodes and creatures, and one tree option actually gathers.
 func _headless_gather_probe() -> void:
+	var r := LabResult.new("island")
+	r.deadline(get_tree(), 60.0)
 	await _await_nav_ready()
-	if World.runtime:
-		print("[world] mm=%d nodes=%d creatures=%d" % [
-			int(World.runtime.mm_count), int(World.runtime.harvest_count), int(World.runtime.creature_count)])
+	var mm := 0
+	var nodes := 0
+	var creatures := 0
+	if r.expect(World.runtime != null, "island runtime exists"):
+		mm = int(World.runtime.mm_count)
+		nodes = int(World.runtime.harvest_count)
+		creatures = int(World.runtime.creature_count)
+		print("[world] mm=%d nodes=%d creatures=%d" % [mm, nodes, creatures])
+	r.expect(mm > 0, "vegetation multimeshes built")
+	r.expect(nodes > 0, "harvest nodes placed")
+	r.expect(creatures > 0, "creatures spawned")
+	var units := -1
 	var tree := _nearest_tree()
+	r.expect(tree != null, "a tree to gather")
 	if tree:
 		var opts := tree.options()
 		if opts.size() > 1:
@@ -75,8 +89,10 @@ func _headless_gather_probe() -> void:
 			while wait > 0.0 and tree.session_gathered < 2:
 				await get_tree().create_timer(0.25).timeout
 				wait -= 0.25
-			print("[item] option gather done units=%d" % tree.session_gathered)
+			units = tree.session_gathered
+			print("[item] option gather done units=%d" % units)
 			_player._stop_gather_cycle(false)
+	r.expect(units >= 1, "tree option gathered at least one unit (got %d)" % units)
 	if Game.fast_regen_mult > 1.0:
 		var berry := _nearest_family("berry_bush")
 		if berry:
@@ -86,7 +102,7 @@ func _headless_gather_probe() -> void:
 			while wait_left > 0.0 and berry.depleted:
 				await get_tree().create_timer(0.2).timeout
 				wait_left -= 0.2
-	get_tree().quit(0)
+	r.finish(get_tree(), "mm=%d nodes=%d creatures=%d gathered=%d" % [mm, nodes, creatures, units])
 
 func _shot_tiles_probe() -> void:
 	await _await_nav_ready()
