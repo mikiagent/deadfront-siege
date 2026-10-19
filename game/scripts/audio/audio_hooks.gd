@@ -16,6 +16,11 @@ const CANCEL_WORDS := ["close", "cancel", "back", "dismiss", "no", "refund", "en
 const CONFIRM_WORDS := ["ok", "confirm", "yes", "done", "craft", "build", "unlock", "accept", "buy", "sell", "enter the rift", "respawn", "eat", "feed"]
 const WORK_DELAY := {&"gather_chop": 0.36, &"gather_mine": 0.40, &"gather_pick": 0.22, &"gather_dig": 0.30,
 	&"gather_butcher": 0.25, &"gather_craft": 0.30, &"survivor_eat": 0.35}
+## Foot strikes as fractions of the survivor's locomotion clips, read off the ankle bones of
+## walk.glb (1.067 s) and run.glb (0.667 s). Two per cycle, so steps land on the feet at any clip speed.
+const STEP_PHASES := {&"walk": [0.28, 0.76], &"run": [0.31, 0.81]}
+## With no locomotion clip playing (no rig, swimming) steps keep the walk clip's cadence.
+const FALLBACK_STEP_S := 0.533
 
 var director: AudioDirector
 var player: Player
@@ -24,12 +29,14 @@ var threat: bool = false
 
 var _force_combat: bool = false
 var _step_acc: float = 0.0
-var _was_moving: bool = false
+var _step_clip: StringName = &""
+var _step_phase: float = -1.0
 var _levels: Dictionary = {}       # skill tree -> last level heard
 var _t_stones: int = -1
 var _last_craft_ms: int = -100000
 var _poll_left: float = 0.0
-var _cstate: Dictionary = {}       # creature instance id -> {state, idle, alert_cd, hurt_cd, attack_cd, pos, step}
+var _cstate: Dictionary = {}       # creature instance id -> {state, idle, alert_cd, hurt_cd, attack_cd, pos, step, size}
+var _big: Array = []               # large/huge creatures in earshot (footfalls every frame); refreshed each poll
 
 func _ready() -> void:
 	get_tree().node_added.connect(_on_node_added)
@@ -144,7 +151,7 @@ func _hook_player(p: Player) -> void:
 	if p.vitals == null or not p.is_in_group("player"):
 		return  # the hidden DefaultPlayfield survivor in labs never finishes setup
 	player = p
-	p.vitals.damaged.connect(_on_player_damaged)
+	p.hit_taken.connect(_on_player_hit)  # landed hits only: Vitals.damaged also fires on every bleed/poison tick
 	p.vitals.died.connect(func () -> void: director.play(&"survivor_death", p.global_position))
 	p.anim.clip_played.connect(_on_player_clip)
 	p.noticed.connect(_on_notice)
@@ -157,7 +164,7 @@ func _hook_player(p: Player) -> void:
 		for tree in p.skills.trees:
 			_levels[StringName(str(tree))] = p.skills.level_of(str(tree))
 
-func _on_player_damaged() -> void:
+func _on_player_hit(_amount: float, _heavy: bool) -> void:
 	_force_combat = true
 	var at := player.global_position
 	director.play(&"impact_flesh_medium", at)
@@ -254,26 +261,42 @@ func surface_under(p: Player) -> StringName:
 	return surface_for_tile(int(rt.call("_tile_type_at_world", local.x, local.z)), snowy)
 
 func _tick_steps(delta: float) -> void:
-	if player == null or not is_instance_valid(player) or player.dead or player.rolling or player.mounted_on:
-		_was_moving = false
+	var speed := Vector2(player.velocity.x, player.velocity.z).length() if player and is_instance_valid(player) else 0.0
+	if speed < STEP_MIN_SPEED or player.dead or player.rolling or player.mounted_on or not (player.is_on_floor() or player.in_water):
+		_step_phase = -1.0
+		_step_acc = 0.0
 		return
-	var speed := Vector2(player.velocity.x, player.velocity.z).length()
-	if speed < STEP_MIN_SPEED or not (player.is_on_floor() or player.in_water):
-		_was_moving = false
+	var ap: AnimationPlayer = player.anim.rig.anim_player if player.anim and player.anim.rig else null
+	var clip: StringName = player.anim.current_clip if player.anim else &""
+	if ap and STEP_PHASES.has(clip) and StringName(ap.current_animation) == clip and ap.current_animation_length > 0.0:
+		var ph := ap.current_animation_position / ap.current_animation_length
+		if clip == _step_clip and _step_phase >= 0.0 and step_crossed(_step_phase, ph, STEP_PHASES[clip]):
+			_play_step(clip == &"run")
+		_step_clip = clip
+		_step_phase = ph
 		return
-	# Stride grows with pace (5.5 m/s walk ~1.8 m, sprint caps at 2.2 m): about three steps a second.
-	var stride := clampf(speed * 0.32, 0.9, 2.2)
-	if not _was_moving:
-		_was_moving = true
-		_step_acc = stride * 0.7  # first footfall right after setting off
-	_step_acc += speed * delta
-	if _step_acc >= stride:
-		_step_acc -= stride
-		director.play(StringName("step_%s" % surface_under(player)), player.global_position, {"volume_db": 0.0 if speed > 6.0 else -2.0})
+	_step_phase = -1.0
+	_step_acc += delta
+	if _step_acc >= FALLBACK_STEP_S:
+		_step_acc -= FALLBACK_STEP_S
+		_play_step(speed > 6.0)
+
+func _play_step(loud: bool) -> void:
+	director.play(StringName("step_%s" % surface_under(player)), player.global_position, {"volume_db": 0.0 if loud else -2.0})
+
+## True when the clip phase passed a foot strike between two frames, wrapping at the loop point.
+static func step_crossed(prev: float, now: float, phases: Array) -> bool:
+	for p in phases:
+		var f := float(p)
+		if (now >= prev and f > prev and f <= now) or (now < prev and (f > prev or f <= now)):
+			return true
+	return false
 
 # ---------------------------------------------------------------- creatures
 
 func _hook_creature(c: Creature) -> void:
+	var id := c.get_instance_id()
+	c.tree_exiting.connect(func () -> void: _cstate.erase(id))  # despawns never die, so death alone leaks state
 	c.combat_float.connect(_on_creature_float.bind(c))
 	c.health.died.connect(_on_creature_died.bind(c))
 	c.anim.attack_windup.connect(_on_creature_windup.bind(c))
@@ -297,6 +320,13 @@ func _impact_event(size: StringName) -> StringName:
 
 func _on_creature_float(_amount: float, kind: StringName, c: Creature) -> void:
 	if not is_instance_valid(c) or c.def == null or not kind in [&"hit", &"weak", &"strong", &"crit"]:
+		return
+	if c.statuses and c.statuses.ticking:
+		return  # bleed and poison ticks are not hits: no thud, no yelp, no combat music
+	if kind == &"crit" and Time.get_ticks_msec() * 0.001 - c.last_damaged_s > 0.05:
+		# creature_attack floats "crit" on the attacker when it crits the survivor: the crunch is the survivor's
+		if player and is_instance_valid(player):
+			director.play(&"impact_crit", player.global_position + Vector3.UP)
 		return
 	var at := c.global_position + Vector3.UP
 	if player and is_instance_valid(player) and player.global_position.distance_to(c.global_position) < 20.0:
@@ -335,15 +365,21 @@ func _state(c: Creature) -> Dictionary:
 	var id := c.get_instance_id()
 	if not _cstate.has(id):
 		_cstate[id] = {"state": c.brain_state, "idle": randf_range(3.0, 15.0), "alert_cd": 0, "hurt_cd": 0, "attack_cd": 0,
-			"pos": c.global_position, "step": 0.0}
+			"pos": c.global_position, "step": 0.0, "size": director.creature_size(_species(c))}
 	return _cstate[id]
 
 ## Brain-state edges give alert calls; roaming creatures call on a random timer; big ones thud.
+## Only the footfalls run every frame; the group scan waits for the poll.
 func _tick_creatures(delta: float) -> void:
+	for big in _big:
+		if is_instance_valid(big) and (big as Creature).is_inside_tree() and not (big as Creature).health.dead:
+			var st := _state(big as Creature)
+			_tick_footfalls(big as Creature, st, st["size"], delta)
 	_poll_left -= delta
-	var poll := _poll_left <= 0.0
-	if poll:
-		_poll_left = CREATURE_POLL_S
+	if _poll_left > 0.0:
+		return
+	_poll_left = CREATURE_POLL_S
+	_big.clear()
 	var ear := director.listener.global_position if director.listener else Vector3.ZERO
 	var now := Time.get_ticks_msec()
 	var danger := false
@@ -355,11 +391,9 @@ func _tick_creatures(delta: float) -> void:
 		if d > CREATURE_EAR_M:
 			continue
 		var st := _state(c)
-		var size := director.creature_size(_species(c))
+		var size: StringName = st["size"]
 		if size in [&"large", &"huge"]:
-			_tick_footfalls(c, st, size, delta)
-		if not poll:
-			continue
+			_big.append(c)
 		var bs := c.brain_state
 		if bs != st["state"]:
 			var calm := str(st["state"]) in ["roam", "heel", "sleep", ""]
@@ -377,8 +411,7 @@ func _tick_creatures(delta: float) -> void:
 			var b := c.brain
 			if b and b.get("attack_target") == player:
 				danger = true
-	if poll:
-		threat = danger or (player != null and is_instance_valid(player) and player.vitals != null and player.vitals.in_combat and not player.dead)
+	threat = danger or (player != null and is_instance_valid(player) and player.vitals != null and player.vitals.in_combat and not player.dead)
 
 func _tick_footfalls(c: Creature, st: Dictionary, size: StringName, delta: float) -> void:
 	var pos := c.global_position

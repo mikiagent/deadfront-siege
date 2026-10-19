@@ -7,6 +7,8 @@ signal removed(id: StringName)
 
 var _active: Array[StatusInstance] = []
 var _tick_acc: float = 0.0
+## True while a damage-over-time tick is landing, so listeners can tell it from a direct hit.
+var ticking: bool = false
 
 func _process(delta: float) -> void:
 	_tick_acc += delta
@@ -20,7 +22,9 @@ func _process(delta: float) -> void:
 		if inst.time_left <= 0.0:
 			dying.append(inst)
 		elif tick:
+			ticking = true
 			_dot(inst)
+			ticking = false
 	for inst: StatusInstance in dying:
 		_expire(inst)
 

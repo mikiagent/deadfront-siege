@@ -5,10 +5,11 @@ extends CharacterBody3D
 const SURVIVOR_JSON := "res://data/characters/survivor.json"
 const SURVIVOR_BASE_GLB := "res://assets/characters/survivor/survivor.glb"
 const SURVIVOR_ANIM_DIR := "res://assets/characters/survivor/anim"
-## HUD line, bag gain and context action as they happen (AudioHooks listens; nothing else needs to).
+## HUD line, bag gain, context action and landed creature hit as they happen (AudioHooks listens; nothing else needs to).
 signal noticed(text: String)
 signal item_gained(id: StringName, n: int)
 signal context_used(id: String)
+signal hit_taken(amount: float, heavy: bool)
 
 const PLAYER_CLIPS: Array[StringName] = [
 	&"idle", &"walk", &"run", &"hit_react", &"death",
@@ -1406,6 +1407,7 @@ func play_punch() -> void:
 
 ## Bite/crunch overlay and a red damage number over the survivor (HUD).
 func take_hit_fx(amount: float, heavy: bool) -> void:
+	hit_taken.emit(amount, heavy)
 	var hud := get_tree().get_first_node_in_group("hud")
 	if hud and hud.has_method("bite_on_player"):
 		hud.bite_on_player(amount, heavy)

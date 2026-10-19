@@ -14,9 +14,17 @@ const POOL_2D := 12
 const POOL_3D := 32
 const BUSES: Array[StringName] = [&"Master", &"Music", &"Ambience", &"SFX", &"Creatures", &"UI"]
 ## The iso camera sits 40 m from the survivor (IsoCamera.distance), so the camera is a poor ear:
-## everything on screen would sound equally far. The listener rides on the survivor instead,
+## everything on screen would sound equally far. The listener rides above the survivor instead,
 ## turned like the camera so screen-left is ear-left; this softens the side-to-side pan.
 const PANNING := 0.55
+## Ear height over the survivor. Godot adds volume_db before clamping to max_db, so an ear at head
+## height (1.2 m, +14 dB of inverse-distance gain at unit_size 6-8) pinned every near sound at max_db
+## and erased the event table's levels. At 8 m a sound at the survivor with unit_size <= 8 never
+## exceeds 0 dB, so volume_db and per-call offsets stay audible.
+const LISTENER_HEIGHT := 8.0
+## No 3D voice is boosted above its file level: web Sample playback skips bus effects, so the
+## Master limiter cannot catch an overshoot in the judged build.
+const MAX_DB := 0.0
 
 var events: Dictionary = {}
 var ambience_cfg: Dictionary = {}
@@ -78,8 +86,22 @@ func _init_buses() -> void:
 		if idx < 0:
 			push_warning("[audio] bus %s missing from default_bus_layout.tres" % bus)
 			continue
-		_bus_default_db[bus] = AudioServer.get_bus_volume_db(idx)
+		_bus_default_db[bus] = designed_bus_db(bus)
 		_apply_bus(bus, bus_volume(bus))
+
+## The mix level a bus has in default_bus_layout.tres. Read from the file, not the live bus, so a
+## recreated director does not compound the player's volume setting into the new default.
+static func designed_bus_db(bus: StringName) -> float:
+	var layout := load(str(ProjectSettings.get_setting("audio/buses/default_bus_layout", "res://default_bus_layout.tres"))) as AudioBusLayout
+	if layout == null:
+		return 0.0
+	for i in 64:
+		var n: Variant = layout.get("bus/%d/name" % i)
+		if n == null:
+			break
+		if StringName(str(n)) == bus:
+			return float(layout.get("bus/%d/volume_db" % i))
+	return 0.0
 
 ## linear 0..1 scales the bus around its designed mix level (1.0 = the default layout volume).
 ## Persisted in user://settings.cfg for the settings screen.
@@ -278,7 +300,8 @@ func _new_voice(is3d: bool) -> Dictionary:
 		p3.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
 		p3.panning_strength = PANNING
 		p3.doppler_tracking = AudioStreamPlayer3D.DOPPLER_TRACKING_DISABLED
-		p3.max_db = 3.0
+		p3.max_db = MAX_DB
+		p3.attenuation_filter_cutoff_hz = 20500.0  # off: web Sample playback has no distance filter, so native matches the judged build
 		n = p3
 	else:
 		n = AudioStreamPlayer.new()
@@ -302,6 +325,8 @@ func attach_loop(event: StringName, host: Node3D, offset: Vector3 = Vector3(0, 0
 	p.unit_size = float(e.get("unit_size", 3.0))
 	p.max_distance = float(e.get("max_distance", 18.0))
 	p.panning_strength = PANNING
+	p.max_db = MAX_DB
+	p.attenuation_filter_cutoff_hz = 20500.0
 	p.position = offset
 	p.autoplay = true
 	host.add_child(p)
@@ -357,6 +382,6 @@ func _place_listener() -> void:
 	var p := hooks.player if hooks else null
 	if p and is_instance_valid(p) and p.is_inside_tree():
 		var basis := cam.global_basis if cam else Basis()
-		listener.global_transform = Transform3D(basis, p.global_position + Vector3.UP * 1.2)
+		listener.global_transform = Transform3D(basis, p.global_position + Vector3.UP * LISTENER_HEIGHT)
 	elif cam:
 		listener.global_transform = cam.global_transform

@@ -19,6 +19,7 @@ var _layers: Dictionary = {}
 var _dying: Array[Dictionary] = []
 var _weather_kind: StringName = &"auto"
 var _weather_intensity: float = 1.0
+var _weather_now: StringName = &"clear"  # what _effective_weather said at the last ambience tick
 var _thunder_left: float = 20.0
 var _tick_left: float = 0.0
 var _music_mood: StringName = &""
@@ -60,6 +61,7 @@ func _tick_ambience() -> void:
 	var row: Dictionary = table.get(_climate(), {})
 	var night := Game.phase_name() == &"night"
 	var kind := _effective_weather()
+	_weather_now = kind
 	var wet := kind in [&"rain", &"storm"]
 	var bed := StringName(str(row.get("night" if night else "day", "")))
 	if bed != &"":
@@ -101,7 +103,7 @@ func _shore_gain() -> float:
 	return clampf((d - (shore - 30.0)) / 30.0, 0.0, 1.0) * 0.9
 
 func _tick_thunder(delta: float) -> void:
-	if _effective_weather() != &"storm":
+	if _weather_now != &"storm":
 		return
 	_thunder_left -= delta
 	if _thunder_left <= 0.0:
@@ -174,9 +176,15 @@ func _set_layer(slot: StringName, event: StringName, target: float, fade: float,
 		print("[audio] layer %s -> %s" % [slot, event])
 	_layers[slot] = {"player": p, "event": event, "gain": 0.0, "target": target, "fade": fade, "base_db": float(e.get("volume_db", 0.0))}
 
+## A slot faded to silence is freed, not left playing at -80 dB: web Sample playback keeps its
+## decoded PCM (about 15 MB for a 40 s stereo bed) alive while the player exists.
 func _fade(delta: float) -> void:
-	for slot in _layers:
-		_step(_layers[slot], delta)
+	for slot in _layers.keys():
+		var l: Dictionary = _layers[slot]
+		_step(l, delta)
+		if float(l["gain"]) <= 0.0 and float(l["target"]) <= 0.0:
+			(l["player"] as Node).queue_free()
+			_layers.erase(slot)
 	for i in range(_dying.size() - 1, -1, -1):
 		var l := _dying[i]
 		_step(l, delta)
