@@ -56,7 +56,8 @@ static func actions_for(sid: StringName, p: Player) -> Array:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Inside the tree set_anchors_preset keeps the current (empty) rect; reset the offsets too.
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	visible = false
 
 func show_for(st: Node3D, actions: Array) -> void:

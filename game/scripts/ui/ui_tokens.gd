@@ -280,7 +280,7 @@ static func build_theme() -> Theme:
 	t.set_color("font_color", "LineEdit", TEXT)
 	t.set_font_size("font_size", "LineEdit", 16)
 	var track := StyleBoxFlat.new()
-	track.bg_color = Color(0.08, 0.09, 0.11, 0.95)
+	track.bg_color = Color(1, 1, 1, 0.14)  # visible on ink panels even when the bar is empty
 	track.set_corner_radius_all(3)
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = TEAL

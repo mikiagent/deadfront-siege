@@ -12,7 +12,8 @@ var _aliases: Dictionary = {}
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_anchors_preset(Control.PRESET_TOP_WIDE)
+	# Inside the tree set_anchors_preset keeps the current (empty) rect; reset the offsets too.
+	set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	offset_top = 72.0
 	offset_bottom = 160.0
 	_load_icons()

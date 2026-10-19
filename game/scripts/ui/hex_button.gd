@@ -98,11 +98,14 @@ func _draw() -> void:
 		ring.append(ring[0])
 		draw_polyline(ring, UiTokens.TEAL, 3.0, true)
 	var font := ThemeDB.fallback_font
+	var has_texts := top_text != "" or bottom_text != ""
 	if icon:
-		var isz := r * 1.05
+		# Smaller icon when seconds/count sit above and below it, so the 12 px text clears the rim.
+		var isz := r * (0.8 if has_texts else 1.05)
+		var ic := c + Vector2(0.0, 2.0 if top_text != "" else 0.0)
 		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0)
 		var shown: Texture2D = icon if color_icon else _white_symbol(icon)
-		draw_texture_rect(shown, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
+		draw_texture_rect(shown, Rect2(ic - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
 	elif glyph != "":
 		var short := glyph.length() <= 2
 		var gs := maxi(UiTokens.TYPE_MIN, int(r * (0.72 if bottom_text != "" else 0.9)) if short else (int(r * 0.40) if glyph.length() <= 4 else int(r * 0.30)))
@@ -110,13 +113,9 @@ func _draw() -> void:
 		var gy := c.y + gs * (0.2 if bottom_text != "" else 0.35)
 		draw_string(font, Vector2(c.x - w * 0.5, gy), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gs, Color(1, 1, 1, 0.5 if disabled else 1.0))
 	if top_text != "":
-		var ts := maxi(UiTokens.TYPE_MIN, int(r * 0.30))
-		var w := font.get_string_size(top_text, HORIZONTAL_ALIGNMENT_CENTER, -1, ts).x
-		draw_string(font, Vector2(c.x - w * 0.5, c.y - r * 0.52), top_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, Color(0.85, 0.85, 0.85))
+		UiTokens.draw_centered(self, font, Vector2(c.x, c.y - r * 0.52), top_text, int(r * 0.30), Color(0.85, 0.85, 0.85))
 	if bottom_text != "":
-		var bs := maxi(UiTokens.TYPE_MIN, int(r * 0.40))
-		var w := font.get_string_size(bottom_text, HORIZONTAL_ALIGNMENT_CENTER, -1, bs).x
-		draw_string(font, Vector2(c.x - w * 0.5, c.y + r * 0.82), bottom_text, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, Color.WHITE)
+		UiTokens.draw_centered(self, font, Vector2(c.x, c.y + r * 0.62), bottom_text, int(r * 0.40), Color.WHITE)
 	if caption != "":
 		var cs := 13
 		var cap := UiTokens.ellipsis(font, caption, size.x * 1.25, cs)

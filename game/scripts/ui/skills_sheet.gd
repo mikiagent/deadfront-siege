@@ -21,7 +21,11 @@ var _box: VBoxContainer
 var _tree: String = ""
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# The HUD that hosts this sheet has no size, so anchor to the viewport instead (top_level),
+	# and reset offsets: inside the tree set_anchors_preset keeps the current empty rect.
+	top_level = true
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	z_index = 45  # above the HUD hexes that share its canvas layer (held slot, rails)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
 	var bg := ColorRect.new()
@@ -34,7 +38,7 @@ func _ready() -> void:
 			close()
 	)
 	_panel = PanelContainer.new()
-	_panel.add_theme_stylebox_override("panel", UiTokens.panel_style(0.97))
+	_panel.add_theme_stylebox_override("panel", UiTokens.panel_style(1.0))
 	add_child(_panel)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -61,15 +65,15 @@ func close() -> void:
 	visible = false
 
 ## Panel rect: centred between the vitals (top-left) and the map/quest block (top-right) on
-## desktop; full width under the top HUD band on a phone.
+## desktop; on a phone full width from just under the vitals (the opaque panel covers the map).
 static func panel_rect(view: Vector2) -> Rect2:
 	var top := 24.0
 	var bottom := 24.0
 	var w := minf(PANEL_MAX_W, view.x - 2.0 * 340.0)
 	if UiTokens.is_phone(view) or w < 480.0:
 		w = view.x - 16.0
-		top = 104.0
-		bottom = 104.0
+		top = 100.0
+		bottom = 100.0
 	return Rect2(Vector2((view.x - w) * 0.5, top), Vector2(w, maxf(200.0, view.y - top - bottom)))
 
 func _layout() -> void:

@@ -33,7 +33,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	z_index = 40  # above the HUD, which is added to the same UI layer after this menu
 	var bg := ColorRect.new()
-	bg.color = Color(0.02, 0.025, 0.03, 0.94)
+	bg.color = Color(0.02, 0.025, 0.03, 1.0)  # opaque: the HUD vitals must not show through the title
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(bg)
@@ -365,6 +365,7 @@ func _ingredients_row(rec: Dictionary) -> Control:
 		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		ic.modulate = Color.WHITE if have >= need else Color(1.0, 0.55, 0.45)
+		ic.visible = ic.texture != null  # no empty 24 px gap before an icon-less ingredient
 		cell.add_child(ic)
 		var l := Label.new()
 		var d := Data.item(sample_id)

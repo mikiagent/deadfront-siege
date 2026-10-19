@@ -83,7 +83,7 @@ func _ready() -> void:
 	for g in [["f", "Woman"], ["m", "Man"]]:
 		var gb := Button.new()
 		gb.text = g[1]
-		gb.custom_minimum_size = Vector2(100 if phone_landscape else 140, 48 if phone_landscape else 56)
+		gb.custom_minimum_size = Vector2(100 if phone_landscape else (120 if phone else 140), 48 if phone_landscape else 56)
 		gb.add_theme_font_size_override("font_size", 30 if phone_landscape else 18)
 		gb.toggle_mode = true
 		gb.button_pressed = g[0] == _gender

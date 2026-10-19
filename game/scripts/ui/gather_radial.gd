@@ -27,7 +27,8 @@ var _ring3d: MeshInstance3D  # selection hexagon on the ground, depth-tested so 
 const HEX := 64.0
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Inside the tree set_anchors_preset keeps the current (empty) rect; reset the offsets too.
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
 	_load_icons()

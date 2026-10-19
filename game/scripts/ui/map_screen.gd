@@ -30,7 +30,8 @@ static func legend_color(kind: String) -> Color:
 
 func _ready() -> void:
 	visible = false
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Inside the tree set_anchors_preset keeps the current (empty) rect; reset the offsets too.
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	z_index = 45
 	_btn_row = HBoxContainer.new()
@@ -88,12 +89,14 @@ func _rebuild_cards() -> void:
 	var current := str(World.island_id)
 	if current != "" and catalogue.has(current):
 		ids.append(current)
+	# A phone has room for the current island's card only; the map needs the rest.
+	var limit := 1 if UiTokens.is_phone(get_viewport_rect().size) else 4
 	for key in catalogue.keys():
+		if ids.size() >= limit:
+			break
 		if str(key).begins_with("_") or str(key) == current:
 			continue
 		ids.append(str(key))
-		if ids.size() >= 4:
-			break
 	if ids.is_empty():
 		ids.append(current if current != "" else "home")
 	if _selected_region == "" or not ids.has(_selected_region):
@@ -211,8 +214,8 @@ func _process(_delta: float) -> void:
 			action.custom_minimum_size = Vector2(action_w, 56)
 	_btn_row.position = Vector2(MARGIN, r.y - 64.0 - MARGIN)
 	if _cards:
-		_cards.position = Vector2(MARGIN, 132.0 if phone else 96.0)
-		_cards.size = Vector2(240.0 if not phone else r.x - MARGIN * 2.0, 220.0 if phone else r.y - 220.0)
+		_cards.position = Vector2(MARGIN, PHONE_CARD_TOP if phone else 96.0)
+		_cards.size = Vector2(240.0 if not phone else r.x - MARGIN * 2.0, 112.0 if phone else r.y - 220.0)
 	var zoom_row := get_node_or_null("ZoomRow") as Control
 	if zoom_row:
 		var zoom_w := 64.0 + 108.0 + 64.0 + UiTokens.SPACE * 2.0
@@ -222,12 +225,22 @@ func _process(_delta: float) -> void:
 		_zoom_label.add_theme_color_override("font_color", UiTokens.TEXT)
 	queue_redraw()
 
+## Phone bands, top to bottom: header, one island card, map, legend (two rows), zoom, actions.
+const PHONE_CARD_TOP := 108.0
+const PHONE_MAP_TOP := 236.0
+
+static func phone_legend_y(r: Vector2) -> float:
+	return r.y - 64.0 - MARGIN - UiTokens.SPACE - 64.0 - UiTokens.SPACE * 2.0 - 30.0
+
 func _layout() -> Dictionary:
 	var r := get_viewport_rect().size
 	var fit := minf(r.x, r.y) - MARGIN * 2.0 - 90.0
+	if UiTokens.is_phone(r):
+		var map_h := phone_legend_y(r) - 24.0 - PHONE_MAP_TOP
+		fit = minf(r.x - MARGIN * 2.0, map_h)
 	var rt := World.runtime
 	var size_m: float = float(rt.get("_size")) if rt and rt.get("_size") != null else 200.0
-	var centre := Vector2(r.x * 0.58, r.y * 0.48) if not UiTokens.is_phone(r) else Vector2(r.x * 0.5, r.y * 0.62)
+	var centre := Vector2(r.x * 0.58, r.y * 0.48) if not UiTokens.is_phone(r) else Vector2(r.x * 0.5, PHONE_MAP_TOP + fit * 0.5)
 	return {"centre": centre, "scale": fit / maxf(1.0, size_m) * _zoom, "fit": fit,
 		"yaw": 0.0, "size_m": size_m}
 
@@ -312,7 +325,7 @@ func _draw() -> void:
 		if phone:
 			var per_row := ceili(float(kinds.size()) / 2.0)
 			var col_w := (r.x - MARGIN * 2.0) / float(per_row)
-			at = Vector2(MARGIN + col_w * float(i % per_row), r.y - 64.0 * 2.0 - MARGIN - UiTokens.SPACE * 3.0 - 44.0 + 22.0 * floorf(float(i) / float(per_row)))
+			at = Vector2(MARGIN + col_w * float(i % per_row), phone_legend_y(r) + 22.0 * floorf(float(i) / float(per_row)))
 		draw_circle(at + Vector2(6, -5), 5.0, row[0])
 		draw_circle(at + Vector2(6, -5), 5.0, Color(0, 0, 0, 0.6), false, 1.0)
 		draw_string(font, at + Vector2(16, 0), str(row[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, meta_px, Color(0.9, 0.9, 0.9))
