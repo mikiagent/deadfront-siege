@@ -41,6 +41,9 @@ func run(p_tree: SceneTree, p_expect: Callable) -> void:
 		await _test_rid_replay()
 		await _test_restart()
 		await _test_client_retry()
+		await _test_token_kept()
+		await _test_rid_write_failure()
+		await _test_lock_wait()
 		await _test_presence_and_chat()
 		_test_presence_rules()
 		_test_chat_clean()
@@ -73,6 +76,7 @@ func _test_accounts() -> void:
 	raw = await _raw()  # a fresh pre-hello bucket (burst 4)
 	_check((await _req(raw, "auth.hello", {"name": "Zed", "token": "00"})).get("err") == "bad_request", "a malformed token is rejected")
 	_check((await _req(raw, "auth.hello", {"name": "Zed", "token": "ab".repeat(32)})).get("err") == "unauthorized", "an unknown token is unauthorized")
+	_check((await _req(raw, "auth.hello", {"name": "Zed", "token": "ab".repeat(32) + "\n"})).get("err") == "bad_request", "a token with a trailing newline is malformed (validators anchor with \\z)")
 	raw.ws.close()
 
 	var alice_id := alice.account_id
@@ -115,6 +119,9 @@ func _test_hostile_frames() -> void:
 	_check(_err(await _ask(r, '{"t":"req","id":79,"op":"sys.ping","x":1}', 79)) == "bad_request", "an unknown envelope field gets bad_request")
 	_check(_err(await _ask(r, '{"t":"req","id":80,"op":"sys.ping","a":[1]}', 80)) == "bad_request", "non-object args get bad_request")
 	_check(_err(await _req(r, "nope.nothing", {})) == "bad_request", "an unknown op gets bad_request")
+	_check(_err(await _req(r, "sys.ping\n", {})) == "bad_request", "an op name with a trailing newline gets bad_request")
+	_check(_err(await _req(r, "sys.ping", {}, "abcdefgh\n")) == "bad_request", "a rid with a trailing newline gets bad_request")
+	_check(_err(await _req(r, "presence.update", {"p": [0, 1, 0], "yaw": 0, "anim": "idle\n", "island": ISLAND})) == "bad_request", "a clip name with a trailing newline gets bad_request")
 	_check(_err(await _req(r, "presence.update", {"island": ISLAND})) == "bad_request", "missing presence fields get bad_request")
 	_check(_err(await _ask(r, '{"t":"req","id":81,"op":"presence.update","a":{"p":[1e999,0,0],"yaw":0,"anim":"idle","island":"%s"}}' % ISLAND, 81)) == "bad_request", "an infinite coordinate gets bad_request")
 	_check(_err(await _req(r, "presence.update", {"p": ["a", 0, 0], "yaw": 0, "anim": "idle", "island": ISLAND})) == "bad_request", "a string coordinate gets bad_request")
@@ -268,14 +275,84 @@ func _test_client_retry() -> void:
 	_check(line.err == "offline", "a chat line already sent is not resent after a reconnect (got %s)" % line.err)
 	_check(ping.ok, "a read already sent is resent after the reconnect")
 
+	var order: Array = []
+	server.register_op("test.order", func (_aid: int, a: Dictionary) -> Dictionary:
+		order.append(int(a.get("n", -1)))
+		return NetProtocol.ok({}), true, "write")
 	server._drop(server._by_account[bob.account_id], 4002, "test drop", server.mono())
 	_check(await _until(func () -> bool: return not bob.is_online()), "Bob is offline again")
 	var backlog: Array[NetRequest] = []
 	for i in 20:
-		backlog.append(bob.request("test.crashy", {}))
+		backlog.append(bob.request("test.order", {"n": i}))
+	_check(await _until(func () -> bool: return bob.is_online(), 5.0), "Bob reconnects with a backlog")
+	backlog.append(bob.request("test.order", {"n": 20}))  # the backlog is still draining at 4/s
 	await _until(func () -> bool: return backlog.all(func (b: NetRequest) -> bool: return b.finished), 9.0)
 	var limited := backlog.filter(func (b: NetRequest) -> bool: return b.err == "rate_limited").size()
-	_check(backlog.all(func (b: NetRequest) -> bool: return b.ok), "a 20-request backlog is paced under the write limit after a reconnect (%d rate limited)" % limited)
+	_check(backlog.all(func (b: NetRequest) -> bool: return b.ok), "a 20-request backlog plus a new request is paced under the write limit (%d rate limited)" % limited)
+	_check(order == range(21), "a request made while the backlog drains lands after it (applied %s)" % str(order))
+
+## The token is the account's only key (§3): a server that rejects it must not cost the player
+## the account once the operator restores the data.
+func _test_token_kept() -> void:
+	var file := dir.path_join("tok_g.json")
+	var stale := "cd".repeat(32)
+	_write(file, JSON.stringify({url: {"token": stale, "name": "Gina", "account_id": 4242, "saved": 1}}))
+	var g := _client("Gina", "tok_g.json")
+	var warned: Array = []
+	g.event.connect(func (ev: String, _d: Dictionary) -> void:
+		if ev == "token_rejected":
+			warned.append(ev)
+	)
+	_check(await _until(func () -> bool: return g.is_online()), "a client whose saved token is rejected still comes online")
+	_check(g.account_name == "Gina" and g.account_id != 4242 and not warned.is_empty(), "it falls back to a fresh account and emits token_rejected")
+	var e := _token_entry(file)
+	_check(e.get("token") != stale and _lost_keys(e).has(stale), "the rejected token is kept on disk after the fallback")
+	g.disconnect_from_server()
+	# The operator restores a backup: Gina's new key is unknown again, but an archived one (Frank's
+	# account stands in for her original) is known. The client must find its way back.
+	e["token"] = "ef".repeat(32)
+	if not e.get("lost") is Array:
+		e["lost"] = []  # only when the check above already failed; keeps the rest running
+	e["lost"].append({"token": frank_token, "name": "Frank", "account_id": -1, "lost_at": 1})
+	_write(file, JSON.stringify({url: e}))
+	g.connect_to(url)
+	_check(await _until(func () -> bool: return g.is_online()) and g.account_name == "Frank", "after a restore, an archived key signs back in to the old account")
+	e = _token_entry(file)
+	_check(e.get("token") == frank_token and _lost_keys(e).has("ef".repeat(32)) and _lost_keys(e).has(stale), "every key the server ever refused is still on disk")
+	g.disconnect_from_server()
+
+## A full disk: store_line and flush report success there, so the store checks the file length.
+## A read-only handle makes every write fail the same way the checks see it.
+func _test_rid_write_failure() -> void:
+	var applied: Array = [0]
+	server.register_op("test.disk", func (_aid: int, _a: Dictionary) -> Dictionary:
+		applied[0] += 1
+		return NetProtocol.ok({"n": applied[0]}), true, "write")
+	var r := await _raw()
+	_check(await _hello(r, "Frank", frank_token), "Frank signs in for the disk test")
+	server.rids._file = FileAccess.open(server.rids.path, FileAccess.READ)
+	var first := await _req(r, "test.disk", {}, "rid-disk-0001")
+	_check(first.get("ok") == true and not server.rids.is_open(), "a failed rid write closes the store (the op had applied, so its answer is still sent)")
+	_check(_err(await _req(r, "test.disk", {}, "rid-disk-0002")) == "server_error" and applied[0] == 1, "later mutating ops fail closed instead of applying with no saved rid")
+	_check((await _req(r, "test.disk", {}, "rid-disk-0001")).get("r", {}).get("n") == 1 and applied[0] == 1, "the rid whose write failed still replays in this process")
+	_check((await _req(r, "sys.ping", {})).get("ok") == true, "reads still work while the store is closed")
+	_check(server.rids.open(dir) == OK and (await _req(r, "test.disk", {}, "rid-disk-0003")).get("ok") == true, "a reopened store takes mutating ops again")
+	r.ws.close()
+
+## Godot runs no exit code on SIGTERM, so a killed server leaves a fresh lock behind.
+func _test_lock_wait() -> void:
+	var d := dir.path_join("locked")
+	DirAccess.make_dir_recursive_absolute(d)
+	_write(d.path_join(NetServer.LOCK_FILE), JSON.stringify({"pid": 1, "beat": Time.get_unix_time_from_system() - NetServer.LOCK_STALE + 2.0}))
+	var s := NetServer.new()
+	_add(s)
+	_check(s.start(0, d, "127.0.0.1") == ERR_ALREADY_IN_USE, "a lock left by a killed server refuses a plain start()")
+	var t0 := Time.get_ticks_msec()
+	var err: Error = await s.start_when_free(0, d, "127.0.0.1")
+	var waited := (Time.get_ticks_msec() - t0) / 1000.0
+	_check(err == OK and waited >= 1.0 and waited < NetServer.LOCK_STALE, "start_when_free waits out a dead server's lock instead of failing (%.1f s)" % waited)
+	s.stop()
+	_check(not FileAccess.file_exists(d.path_join(NetServer.LOCK_FILE)), "a graceful stop removes the lock")
 
 # ---------------------------------------------------------------- presence and chat (§7)
 
@@ -324,6 +401,9 @@ func _test_presence_and_chat() -> void:
 	var blank := alice.request("chat.send", {"text": " \u0001\n "})
 	await blank.done
 	_check(blank.err == "bad_request", "chat that is only control characters is rejected")
+	var ghost := alice.request("chat.send", {"text": _invisible()})
+	await ghost.done
+	_check(ghost.err == "bad_request", "chat that is only odd spaces, fillers and private-use characters is rejected")
 
 	alice.disconnect_from_server()
 	_check(await _until(func () -> bool: return puppets.puppet(aid) == null), "leaving removes the avatar")
@@ -368,17 +448,29 @@ func _test_presence_rules() -> void:
 		bunched += 1 if up.call(b, Vector3(0.7 * i, 0, 0)).ok else 0
 	_check(bunched == 40, "40 updates delivered together after a stall all pass (%d did)" % bunched)
 	_check(_err(up.call(b, Vector3(35, 0, 0))) == "bad_request", "banked allowance is capped at %d s of running" % int(PresenceRooms.CARRY_S))
-	pr._last[b]["at"] -= 30.0  # 30 s without an update: the client kept running through a disconnect
+	pr._last[b]["spots"]["tundra_30"]["at"] -= 30.0  # 30 s without an update: the client kept running through a disconnect
 	_check(up.call(b, Vector3(228, 0, 0)).ok, "running on through a long gap is not frozen out")
+	# Island hops: A -> B -> A must not be a free teleport on A.
+	var c := 990003
+	var on := func (aid: int, p: Vector3, island: String) -> Dictionary: return pr.op_update(aid, _state(p, "idle", island))
+	_check(on.call(c, Vector3.ZERO, "tundra_30").ok and on.call(c, Vector3(900, 0, 0), ISLAND).ok, "arriving on another island may start anywhere (travel resets the check)")
+	pr._last[c]["hopped_at"] -= 5.0  # past the hop cooldown
+	var back: Dictionary = on.call(c, Vector3(900, 0, 0), "tundra_30")
+	_check(_err(back) == "bad_request" and str(back.get("msg")).begins_with("moved too fast"), "going back is checked against the spot left there (no A -> B -> A teleport)")
+	_check(on.call(c, Vector3(5, 0, 0), "tundra_30").ok, "going back near that spot passes")
 	pr.leave(a)
 	pr.leave(b)
+	pr.leave(c)
 
 func _test_chat_clean() -> void:
 	_check(NetChat.clean("ad" + char(0xAD) + "min") == "admin", "chat strips the soft hyphen")
 	_check(NetChat.clean("a" + char(0x61C) + "b" + char(0xE0041) + "c" + char(0x2066) + "d") == "abcd", "chat strips every format character (U+061C, tags, isolates)")
 	_check(NetChat.clean("a" + char(0x301).repeat(199)).length() == 1 + NetChat.MAX_MARKS, "stacked combining marks are capped")
-	var real := "Olá, café, Tiếng Việt, naïve"
-	_check(NetChat.clean(real) == real, "ordinary accented text is untouched")
+	var real := "Olá, café, Tiếng Việt, naïve, 日本語 👍"
+	_check(NetChat.clean(real) == real, "ordinary accented text, CJK and emoji are untouched")
+	_check(NetChat.clean(" " + _invisible() + " ") == "", "odd spaces, Hangul fillers, braille blanks and private-use characters leave nothing")
+	_check(NetChat.clean(char(0x301) + char(0x34F) + char(0xFE0F)) == "", "a line of only combining marks leaves nothing")
+	_check(NetChat.clean(char(0x3000) + "hi" + char(0xA0) + "there" + char(0x3164)) == "hi there", "odd spaces are trimmed at the edges and read as spaces inside")
 
 # ---------------------------------------------------------------- persistence and cleanup
 
@@ -502,6 +594,17 @@ static func _count(results: Array, err: String) -> int:
 
 static func _state(p: Vector3, anim: String = "idle", island: String = ISLAND) -> Dictionary:
 	return {"p": [p.x, p.y, p.z], "yaw": 0.25, "anim": anim, "island": island}
+
+## Characters that draw nothing: NBSP, ideographic and em space, Hangul fillers, braille blank, private use.
+static func _invisible() -> String:
+	return char(0xA0) + char(0x3000) + char(0x2003) + char(0x3164) + char(0xFFA0) + char(0x115F) + char(0x1160) + char(0x2800) + char(0xE000)
+
+func _token_entry(file: String) -> Dictionary:
+	var all: Variant = JSON.parse_string(FileAccess.get_file_as_string(file))
+	return all.get(url, {}) if all is Dictionary and all.get(url) is Dictionary else {}
+
+static func _lost_keys(e: Dictionary) -> Array:
+	return (e.get("lost", []) as Array).map(func (row: Variant) -> String: return str(row.get("token", "")) if row is Dictionary else "")
 
 ## Msec when an evt presence for id at x arrived, or -1.
 static func _saw(heard: Array, id: int, x: float) -> int:

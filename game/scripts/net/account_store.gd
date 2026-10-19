@@ -109,8 +109,7 @@ func _save() -> Error:
 	if f == null:
 		return FileAccess.get_open_error()
 	f.store_string(JSON.stringify({"next_id": _next_id, "accounts": rows}, "\t"))
-	f.flush()
-	var err := f.get_error()
+	var err := OK if NetProtocol.flushed(f) else ERR_FILE_CANT_WRITE  # a full disk must not truncate accounts.json
 	f.close()
 	if err != OK:
 		DirAccess.remove_absolute(tmp)

@@ -10,8 +10,14 @@ extends Node
 ##
 ## Every request carries a fresh rid; the server uses it to deduplicate mutating ops. Requests
 ## still waiting when the socket drops are resent with the same rid after reconnect, paced so a
-## backlog never trips the rate limit. A request that ends in "timeout" or "offline" may still
-## have applied: retry(req) resends it under the same rid, never request() again.
+## backlog never trips the rate limit; requests made while it drains queue behind it, so ops land
+## in the order they were made. A request that ends in "timeout" or "offline" may still have
+## applied: retry(req) resends it under the same rid, never request() again.
+##
+## The saved token is the account's only key (§3), so it is never deleted: a key that is replaced
+## moves to "lost" in the token file. When the server rejects the key, the archived ones are tried
+## (a restored backup knows them) before a fresh account is made, and event("token_rejected")
+## tells the UI.
 
 signal state_changed(state: int)
 signal event(ev: String, d: Dictionary)
@@ -37,6 +43,12 @@ const NO_RESEND_OPS: Array[String] = ["chat.send", "presence.update"]
 ## rate_limited answers count toward the server's flood cut-off.
 const RESEND_RATE := 4.0
 const RESEND_BURST := 8.0
+## Written at once even while a backlog drains: only the newest position matters, and at 10 Hz it
+## would outrun the 4/s drain so the backlog never finished.
+const STREAM_OPS: Array[String] = ["presence.update"]
+## Rejected keys kept per server. shortcut: the oldest goes after this many rejections; a hostile
+## server could otherwise grow the file one key per reconnect.
+const MAX_LOST_TOKENS := 32
 
 var state: State = State.OFFLINE
 var url := ""
@@ -63,6 +75,7 @@ var _pending: Dictionary = {}  # id -> NetRequest, sent or waiting for ONLINE
 var _resend: Array[NetRequest] = []  # pending requests to write after a hello, oldest first
 var _resend_bucket: TokenBucket
 var _hello: NetRequest
+var _rejected: Dictionary = {}  # tokens this server refused since the last good hello
 var _crypto := Crypto.new()
 
 ## Starts connecting (and keeps reconnecting) to a ws:// or wss:// server.
@@ -78,6 +91,7 @@ func connect_to(p_url: String, wanted_name: String = "") -> Error:
 	_token = str(saved.get("token", ""))
 	_name = NetProtocol.sanitize_name(str(saved.get("name", wanted_name)))
 	_name_tries = 0
+	_rejected.clear()
 	_attempt = 0
 	_want = true
 	last_error = ""
@@ -111,7 +125,10 @@ func _submit(req: NetRequest) -> NetRequest:
 	else:
 		_pending[req.id] = req
 		if state == State.ONLINE:
-			_write(req)
+			if _resend.is_empty() or req.op in STREAM_OPS:
+				_write(req)
+			else:
+				_resend.append(req)  # behind the backlog, paced by the same bucket
 	return req
 
 func _write(req: NetRequest) -> void:
@@ -205,6 +222,7 @@ func _on_hello(req: NetRequest) -> void:
 		_token = tok if NetProtocol.is_token(tok) else _token
 		var st: Variant = req.r.get("server_time")
 		server_time_offset = float(st) - Time.get_unix_time_from_system() if NetProtocol.is_num(st) else 0.0
+		_rejected.clear()
 		_save_entry()
 		_attempt = 0
 		_last_ping = _now()
@@ -222,9 +240,14 @@ func _on_hello(req: NetRequest) -> void:
 				_resend.append(pend)
 		return
 	if req.err == "unauthorized" and _token != "":
-		# The server no longer knows this token (its data was reset): start a fresh account.
-		_token = ""
-		_forget_entry()
+		# Data reset or rolled back, a wrong --data dir, or another server on this address. The
+		# key may work again once the operator fixes that, so keep it (see the header).
+		_rejected[_token] = true
+		_token = _next_archived()
+		last_error = "the server did not recognise the saved account; its key stays in %s" % token_path
+		print("[net] WARNING: %s rejected the saved token for %s (kept on disk); trying %s" % [url, _name,
+			"an older key" if _token != "" else "a new account"])
+		event.emit("token_rejected", {"name": _name})
 		_send_hello()
 		return
 	if req.err == "conflict" and _token == "" and _name_tries < MAX_NAME_RETRIES:
@@ -321,8 +344,8 @@ func _now() -> float:
 	return Time.get_ticks_usec() / 1000000.0
 
 # ---------------------------------------------------------------- token file
-# {"<server url>": {"token", "name", "account_id", "saved"}}. Keyed by URL so one server's
-# token is never sent to another.
+# {"<server url>": {"token", "name", "account_id", "saved", "lost": [{token, name, account_id,
+# lost_at}]}}. Keyed by URL so one server's tokens are never sent to another.
 
 func _read_tokens() -> Dictionary:
 	if token_path == "" or not FileAccess.file_exists(token_path):
@@ -342,7 +365,14 @@ func _save_entry() -> void:
 	if token_path == "":
 		return
 	var all := _read_tokens()
-	all[url] = {"token": _token, "name": account_name, "account_id": account_id, "saved": int(Time.get_unix_time_from_system())}
+	var e: Dictionary = all[url] if all.get(url) is Dictionary else {}
+	var prev: Variant = e.get("token")
+	if prev is String and NetProtocol.is_token(prev) and prev != _token:
+		_add_lost(e, prev)  # never overwrite a key without archiving it
+	var entry := {"token": _token, "name": account_name, "account_id": account_id, "saved": int(Time.get_unix_time_from_system())}
+	if e.has("lost"):
+		entry["lost"] = _lost_rows(e)
+	all[url] = entry
 	while all.size() > MAX_SAVED_SERVERS:
 		var oldest: Variant = null
 		for k in all.keys():
@@ -354,10 +384,28 @@ func _save_entry() -> void:
 static func _saved_at(e: Variant) -> float:
 	return float(e.get("saved", 0)) if e is Dictionary and NetProtocol.is_num(e.get("saved")) else 0.0
 
-func _forget_entry() -> void:
-	var all := _read_tokens()
-	if all.erase(url):
-		_write_tokens(all)
+## Adds e's current key to e["lost"] once, with e's name and account id, keeping the newest few.
+static func _add_lost(e: Dictionary, tok: String) -> void:
+	var lost := _lost_rows(e)
+	if not lost.any(func (row: Dictionary) -> bool: return row["token"] == tok):
+		lost.append({"token": tok, "name": e.get("name", ""), "account_id": e.get("account_id", -1),
+			"lost_at": int(Time.get_unix_time_from_system())})
+	e["lost"] = lost.slice(maxi(0, lost.size() - MAX_LOST_TOKENS))
+
+## The newest archived key for this server not yet refused since the last good hello, or "".
+func _next_archived() -> String:
+	var lost := _lost_rows(_read_tokens().get(url))
+	for i in range(lost.size() - 1, -1, -1):
+		var t: String = lost[i]["token"]
+		if NetProtocol.is_token(t) and not _rejected.has(t):
+			return t
+	return ""
+
+static func _lost_rows(e: Variant) -> Array:
+	var lost: Variant = e.get("lost") if e is Dictionary else null
+	if not lost is Array:
+		return []
+	return (lost as Array).filter(func (row: Variant) -> bool: return row is Dictionary and row.get("token") is String)
 
 func _write_tokens(all: Dictionary) -> void:
 	var tmp := token_path + ".tmp"
@@ -366,6 +414,11 @@ func _write_tokens(all: Dictionary) -> void:
 		print("[net] could not save the online token (%s)" % error_string(FileAccess.get_open_error()))
 		return
 	f.store_string(JSON.stringify(all, "\t"))
+	var wrote := NetProtocol.flushed(f)  # a full disk must not truncate the file holding the keys
 	f.close()
+	if not wrote:
+		DirAccess.remove_absolute(tmp)
+		print("[net] could not save the online token (disk full?)")
+		return
 	if DirAccess.rename_absolute(tmp, token_path) != OK:
 		print("[net] could not save the online token (rename failed)")

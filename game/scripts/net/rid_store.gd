@@ -10,13 +10,14 @@ extends RefCounted
 const FILE := "rids.jsonl"
 const PER_ACCOUNT := 64
 const MIN_COMPACT := 4096  # lines
+const RID_PATTERN := "^[A-Za-z0-9-]{8,64}\\z"  # \z, not $ (see NetProtocol)
 
 var path := ""
 var _caches: Dictionary = {}  # account_id -> {rid -> {op, res}}, oldest first
 var _entries := 0
 var _lines := 0
 var _file: FileAccess
-var _rid_re := RegEx.create_from_string("^[A-Za-z0-9-]{8,64}$")
+var _rid_re := RegEx.create_from_string(RID_PATTERN)
 
 ## Loads dir/rids.jsonl. A torn last line (the server died mid-write, before that response was
 ## sent) is dropped; any other bad line is corruption and refuses to open.
@@ -50,19 +51,24 @@ func count(aid: int) -> int:
 	return (_caches.get(aid, {}) as Dictionary).size()
 
 ## Records op's response under rid; OK once it is flushed to disk. A rid already held is kept as is.
+## A failed write closes the store, so every later mutating op is refused (NetServer checks
+## is_open()) instead of applying with a rid that would be forgotten on restart. The rid that
+## failed stays in memory, so it still replays until the process ends.
 func remember(aid: int, rid: String, op: String, res: Dictionary) -> Error:
 	if not lookup(aid, rid).is_empty():
 		return OK
 	_put(aid, rid, op, res.duplicate(true))
 	if _file == null:
 		return ERR_FILE_CANT_WRITE
-	_file.store_line(JSON.stringify({"acc": aid, "rid": rid, "op": op, "res": res}))
-	_file.flush()  # survives a process crash; power loss needs fsync, which GDScript does not expose
+	var wrote := _file.store_line(JSON.stringify({"acc": aid, "rid": rid, "op": op, "res": res}))
 	_lines += 1
-	var err := _file.get_error()
-	if err == OK and _lines > maxi(MIN_COMPACT, 2 * _entries):
-		err = _compact()
-	return err
+	# flushed(): survives a process crash; power loss needs fsync, which GDScript does not expose.
+	if not wrote or not NetProtocol.flushed(_file):
+		close()
+		return ERR_FILE_CANT_WRITE
+	if _lines > maxi(MIN_COMPACT, 2 * _entries):
+		return _compact()
+	return OK
 
 func _admit(line: String) -> bool:
 	var json := JSON.new()
@@ -99,8 +105,7 @@ func _compact() -> Error:
 		var cache: Dictionary = _caches[aid]
 		for rid: String in cache:
 			f.store_line(JSON.stringify({"acc": aid, "rid": rid, "op": cache[rid]["op"], "res": cache[rid]["res"]}))
-	f.flush()
-	var err := f.get_error()
+	var err := OK if NetProtocol.flushed(f) else ERR_FILE_CANT_WRITE  # never rename a short file over the real one
 	f.close()
 	if err == OK:
 		err = DirAccess.rename_absolute(tmp, path)

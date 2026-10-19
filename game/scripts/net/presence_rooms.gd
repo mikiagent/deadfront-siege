@@ -14,15 +14,18 @@ const CARRY_S := 3.0
 const Y_MIN := -20.0
 const Y_MAX := 30.0
 const MAX_ROOM := 100  # ASSUMPTION
-## ASSUMPTION: real travel takes longer than this, so hopping islands to dodge the speed check
-## (each change resets it, contract §7) is held to one hop per window.
+## ASSUMPTION: real travel takes longer than this, so islands cannot be hopped every frame.
+## Travel resets the check (contract §7) only for an island with no recent spot: a return trip is
+## checked against where the player last stood there, so A -> B -> A is no free teleport.
+## shortcut: one free placement per island per LAST_TTL; gate it on a server travel record
+## (wallet.spend {travel}) once the economy lands.
 const ISLAND_HOP_COOLDOWN := 2.0
 ## Last accepted position outlives the socket so a reconnect cannot reset the speed check. After
 ## this long the allowance (1.6 × run speed × dt) covers any island anyway.
 const LAST_TTL := 600.0
 ## ASSUMPTION: the default playfield (smoke runs, --net-probe) has no island id.
 const LOBBY := "lobby"
-const ANIM_PATTERN := "^[a-z0-9_]{1,32}$"  # every survivor clip name (assets/characters/survivor/anim)
+const ANIM_PATTERN := "^[a-z0-9_]{1,32}\\z"  # every survivor clip name (assets/characters/survivor/anim)
 const PLAYER_SCRIPT := "res://scripts/player/player.gd"
 ## Player.run_speed (game/scripts/player/player.gd:19, no override in player.tscn). Used only
 ## when the script's default cannot be read (export templates strip script defaults).
@@ -32,7 +35,9 @@ var run_speed := RUN_SPEED_FALLBACK
 var _server: NetServer
 var _rooms: Dictionary = {}  # room key -> {account_id: true}
 var _who: Dictionary = {}  # account_id -> {room, island, name, p: Vector3, yaw, anim, has_pos, dirty}
-var _last: Dictionary = {}  # account_id -> {island, p: Vector3, at, budget, hopped_at}; swept after LAST_TTL
+## account_id -> {island, at, hopped_at, spots: {island -> {p: Vector3, at, budget}}}; swept after
+## LAST_TTL. spots is bounded by the island list, since _island() only admits known ids.
+var _last: Dictionary = {}
 var _acc := 0.0
 var _sweep_acc := 0.0
 var _anim_re := RegEx.create_from_string(ANIM_PATTERN)
@@ -66,31 +71,33 @@ func op_update(aid: int, a: Dictionary) -> Dictionary:
 		return NetProtocol.fail("bad_request", "height must be %d to %d m" % [int(Y_MIN), int(Y_MAX)])
 	var now := _server.mono()
 	var rate := SPEED_FACTOR * run_speed
-	var budget := rate * CARRY_S  # a first update, or one after travel, starts with a full carry
+	var budget := rate * CARRY_S  # a first update on an island starts with a full carry
 	var last: Dictionary = _last.get(aid, {})
-	var hopped_at := -LAST_TTL
-	if not last.is_empty() and last["island"] == island:
+	var hopped_at: float = last.get("hopped_at", -LAST_TTL)
+	if not last.is_empty() and last["island"] != island:
+		if now - hopped_at < ISLAND_HOP_COOLDOWN:
+			return NetProtocol.fail("rate_limited", "changing islands too fast")
+		hopped_at = now
+	var spots: Dictionary = last.get("spots", {})
+	var spot: Dictionary = spots.get(island, {})
+	if not spot.is_empty():
 		# Distance budget: carry from earlier updates plus run allowance for the time since the
 		# last accepted one (unbounded, so running on through a long disconnect still passes).
 		# Climbing costs like running; falling is free (gravity is the only vertical force).
-		var d: Vector3 = pos - last["p"]
+		var d: Vector3 = pos - spot["p"]
 		var cost := Vector3(d.x, maxf(d.y, 0.0), d.z).length()
-		var allow := float(last["budget"]) + rate * maxf(0.0, now - float(last["at"]))
+		var allow := float(spot["budget"]) + rate * maxf(0.0, now - float(spot["at"]))
 		if cost > allow:
 			return NetProtocol.fail("bad_request", "moved too fast: %.1f m with %.1f m allowed" % [cost, allow])
 		budget = minf(budget, allow - cost)
-		hopped_at = last["hopped_at"]
-	elif not last.is_empty():
-		if now - float(last["hopped_at"]) < ISLAND_HOP_COOLDOWN:
-			return NetProtocol.fail("rate_limited", "changing islands too fast")
-		hopped_at = now
 	var st: Dictionary = _who.get(aid, {})
 	if st.is_empty() or st["island"] != island:
 		var joined := _join(aid, island)
 		if not joined["ok"]:
 			return joined
 		st = _who[aid]
-	_last[aid] = {"island": island, "p": pos, "at": now, "budget": budget, "hopped_at": hopped_at}
+	spots[island] = {"p": pos, "at": now, "budget": budget}
+	_last[aid] = {"island": island, "at": now, "hopped_at": hopped_at, "spots": spots}
 	st["p"] = pos
 	st["yaw"] = wrapf(float(yaw), -PI, PI)
 	st["anim"] = anim

@@ -15,6 +15,7 @@ var _seen: Dictionary = {}  # id -> name
 var _heard := ""
 var _chat_sent := false
 var _passed_at := -1.0
+var _passed_puppets := 0  # at the moment PASS was earned; the other probe may have left by the print
 
 func run(p: Player, r: RemotePlayers, s: PresenceSender) -> void:
 	player = p
@@ -38,9 +39,10 @@ func _process(delta: float) -> void:
 	var clean := _heard != "" and _heard == _heard.strip_edges() and not "\u0007" in _heard
 	if _passed_at < 0.0 and clean and remote.puppet_count() > 0:
 		_passed_at = _t
+		_passed_puppets = remote.puppet_count()
 	if _passed_at >= 0.0 and _t - _passed_at > LINGER:
 		print("[netprobe] PASS me=%s saw=%s heard=\"%s\" puppets=%d rejected=%d" % [Game.net.account_name,
-			_seen.values(), _heard, remote.puppet_count(), sender.rejected])
+			_seen.values(), _heard, _passed_puppets, sender.rejected])
 		set_process(false)
 		get_tree().quit(0)
 	elif _t > TIMEOUT:

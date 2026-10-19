@@ -16,15 +16,22 @@ Run every command from the repo root.
   `accounts.json.bak` (the version before the last write), `rids.jsonl` (the last 64 mutating
   responses per account) and `server.lock`.
 - One server per data dir. `server.lock` is a heartbeat rewritten every 3 s. A second server
-  refuses to start (`lock_error`, exit 1) while the heartbeat is under 10 s old. After a crash,
-  wait 10 s or delete the lock.
+  waits while the heartbeat is under 10 s old, logging `lock_error` once a second. If the
+  heartbeat is still fresh after 13 s, another server really holds the dir, and it exits 1.
 - The shell loads `server.tscn` directly, so the island, the player and the HUD are never
   loaded. The server logs one JSON line per connection event:
   `[net] {"ev":"listen","port":8910,...}`, then `connect`, `open`, `hello`, `drop` and `close`.
-- Ctrl+C stops it. Accounts and rids are written to disk before the reply is sent (accounts:
-  tmp file, then rename; rids: appended and flushed), so stopping the server at any moment is
-  safe. A retry after a restart replays the saved response. A power cut is not covered: Godot has
-  no fsync.
+- Ctrl+C, `kill` and `systemctl stop` all stop it at once. Godot runs no exit code on a signal,
+  so every one of them leaves `server.lock` behind (only a scene quit removes it). A restart
+  right away therefore waits up to 10 s for the heartbeat to go stale, then starts by itself.
+- The data is safe at any stopping point. Accounts and rids are written to disk before the reply
+  is sent (accounts: tmp file, then rename; rids: appended and flushed), and a retry after a
+  restart replays the saved response. A power cut is not covered: Godot has no fsync.
+- Disk full: each write is checked by file length, because on a full disk Godot's writes and
+  flushes report success. A failed account write refuses that hello with `server_error`. A failed
+  rid write closes the rid store, so every later mutating op gets `server_error` until you free
+  space and restart. The op whose write failed has already applied: its answer is sent, and its
+  rid replays until the process exits.
 - If `accounts.json` does not parse, the server refuses to start rather than run with an empty
   store. To recover, copy `accounts.json.bak` over it by hand.
 
@@ -37,7 +44,15 @@ Run every command from the repo root.
 The client says hello with the survivor's name from the save. If the name is taken it adds
 `-123` and tries again. It keeps the token in `user://online_token.json`, one entry per server URL,
 so the next launch signs back in to the same account. If the connection drops, it reconnects with
-backoff (0.5 s doubling to 30 s). The default playfield (no island loaded) is the `lobby` room.
+backoff (0.5 s doubling to 30 s).
+
+The token is the account's only key, so the client never deletes one. If the server rejects it
+(data reset or restored, wrong `--data` dir, a different server on the same address), the client
+logs `[net] WARNING: ... rejected the saved token` and emits `event("token_rejected")`. It then
+tries the keys archived under `"lost"` in the token file, newest first, and only after that
+makes a fresh account. Any key that gets replaced moves to `"lost"` (the newest 32 per server are
+kept). So once you restore the right data, the client finds its old account by itself on the
+next connect. The default playfield (no island loaded) is the `lobby` room.
 Every island id is its own room, and each player's private home island is a room of its own.
 
 Without `--online=`, the game runs offline exactly as before. `Game.net` is only created the first
@@ -82,7 +97,7 @@ server.register_op("market.buy", engine.op_buy, true, "write")
 
 Handlers run on the main thread one at a time and must not await. Before your handler runs, the
 server has already authenticated the account, rate limited it by class (`read`, `write`, `chat`;
-`presence` is for presence.update only) and, for mutating ops, checked the `rid`: a repeated
+`presence` is for presence.update only and is not in contract 5.4 yet) and, for mutating ops, checked the `rid`: a repeated
 `rid` returns the cached response without calling the handler. After the handler returns, the
 server writes the response to `rids.jsonl` before sending it, so the cache survives restarts.
 

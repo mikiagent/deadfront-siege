@@ -9,8 +9,9 @@ const ERR_CODES: Array[String] = ["bad_request", "unauthorized", "rate_limited",
 	"insufficient_funds", "insufficient_items", "not_owner", "self_trade", "expired", "closed",
 	"bid_too_low", "limit_reached", "invalid_asset", "conflict", "server_error"]
 
-static var _name_re := RegEx.create_from_string("^[A-Za-z0-9 _-]{3,20}$")
-static var _token_re := RegEx.create_from_string("^[0-9a-f]{64}$")
+## Validators anchor with \z: PCRE's $ also matches before a trailing newline, so "x\n" would pass.
+static var _name_re := RegEx.create_from_string("^[A-Za-z0-9 _-]{3,20}\\z")
+static var _token_re := RegEx.create_from_string("^[0-9a-f]{64}\\z")
 static var _name_char_re := RegEx.create_from_string("[^A-Za-z0-9 _-]")
 
 static func ok(r: Dictionary = {}) -> Dictionary:
@@ -72,6 +73,12 @@ static func sanitize_name(raw: String) -> String:
 ## Client side: a name was taken, try "<name>-123" (still ≤ 20 chars).
 static func suffix_name(n: String) -> String:
 	return "%s-%03d" % [n.substr(0, 16).strip_edges(), randi_range(0, 999)]
+
+## True once every byte written to f is on disk. On a full disk store_*() and flush() still report
+## success (seen with Godot 4.7.1 on macOS); only the length shows the bytes never landed.
+static func flushed(f: FileAccess) -> bool:
+	f.flush()
+	return f.get_error() == OK and f.get_length() == f.get_position()
 
 static func uuid4(crypto: Crypto) -> String:
 	var b := crypto.generate_random_bytes(16)

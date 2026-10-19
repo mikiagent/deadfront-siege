@@ -67,8 +67,8 @@ var _lock_path := ""
 var _lock_acc := 0.0
 var _next_conn := 1
 var _sweep_acc := 0.0
-var _op_re := RegEx.create_from_string("^[a-z][a-z0-9_]{0,31}(\\.[a-z][a-z0-9_]{0,31}){0,3}$")
-var _rid_re := RegEx.create_from_string("^[A-Za-z0-9-]{8,64}$")
+var _op_re := RegEx.create_from_string("^[a-z][a-z0-9_]{0,31}(\\.[a-z][a-z0-9_]{0,31}){0,3}\\z")  # \z, not $ (see NetProtocol)
+var _rid_re := RegEx.create_from_string(RidStore.RID_PATTERN)
 
 class Conn:
 	var id := 0
@@ -93,8 +93,19 @@ func _init() -> void:
 func _ready() -> void:
 	if autostart:
 		Engine.max_fps = 60  # ASSUMPTION: a headless main loop would otherwise spin a whole core
-		if start(Game.server_port, Game.server_data_dir) != OK:
+		if await start_when_free(Game.server_port, Game.server_data_dir) != OK:
 			get_tree().quit(1)
+
+## start(), but a lock left by a server that was killed waits out its heartbeat (at most
+## LOCK_STALE + LOCK_BEAT) instead of failing. Godot runs no exit code on SIGTERM or Ctrl+C, so
+## every non-graceful stop leaves the lock, and a supervisor's restart would otherwise exit 1.
+func start_when_free(p_port: int, data_dir: String, bind: String = "*") -> Error:
+	var err := start(p_port, data_dir, bind)
+	var give_up := mono() + LOCK_STALE + LOCK_BEAT
+	while err == ERR_ALREADY_IN_USE and mono() < give_up and is_inside_tree():
+		await get_tree().create_timer(1.0).timeout
+		err = start(p_port, data_dir, bind)
+	return err
 
 ## Locks the data dir, opens the stores and starts listening. port 0 picks a free port (see `port`).
 func start(p_port: int, data_dir: String, bind: String = "*") -> Error:
