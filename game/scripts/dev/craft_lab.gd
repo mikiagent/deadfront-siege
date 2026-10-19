@@ -1,14 +1,24 @@
 extends Node3D
 ## PRD §24 test 2: two knives from different primaries do not merge. Locked combat knife skipped.
 ## M8e: station skewer craft + held-item slot screenshots.
+## W1-ITEMS: full-bag refusal, refunds kept at the station, recipe switch refunds, weapon in hand.
+## Headless run asserts every step, prints "[craft_lab] PASS" and exits 1 on any FAIL.
 
 var _player: Player
 var _bonfire: Bonfire
 var _bench: CraftStation
+var _cam: Camera3D
+var _fails: Array[String] = []
+
+func _check(ok: bool, label: String) -> void:
+	print("[craft_lab] %s %s" % ["PASS" if ok else "FAIL", label])
+	if not ok:
+		_fails.append(label)
 
 func _ready() -> void:
 	var kit := LabKit.build(self)
 	_player = kit["player"]
+	_cam = kit["cam"]
 	_spawn(&"thicket", Vector3(5, 0, 3), &"fibre_stalk", {"climate": "thicket"}, &"knife", Color(0.18, 0.4, 0.18))
 	_spawn(&"tree", Vector3(8, 0, 3), &"wood_log", {}, &"axe", Color(0.35, 0.22, 0.12))
 	_spawn(&"rock", Vector3(5, 0, 6), &"stone", {}, &"pick", Color(0.5, 0.5, 0.48))
@@ -38,6 +48,9 @@ func _shot_setup() -> void:
 	_player.inventory.set_equipped_tool_index(_player.inventory.find_first(&"work_axe"))
 	_player.global_position = _bonfire.global_position + Vector3(1.2, 0, 0.4)
 	_player.face_world(_bonfire.global_position)
+	if Game.shot_path.contains("weapon") or Game.shot_path.contains("gathertool"):
+		_weapon_shot_setup(Game.shot_path.contains("weapon"))
+		return
 	if _player.anim:
 		_player.anim.on_gather()
 	if _player.station_craft:
@@ -100,6 +113,27 @@ func _shot_setup() -> void:
 				card.position,
 			])
 
+## Close shot of the right hand: club while a hunt target is set, the work axe otherwise.
+func _weapon_shot_setup(hunting: bool) -> void:
+	LabKit.give(_player, &"club", 1)
+	_player.inventory.equip(&"weapon", &"club")
+	_player.global_position = Vector3(0, 0, -4)
+	var prey := _prey(_player.global_position + Vector3(4.0, 0, 3.0))
+	_player.face_world(_player.global_position + Vector3(1, 0, -1))
+	_player.hunt.target = prey if hunting else null
+	_player.station_craft._sync_hand_tool()
+	if _cam:
+		_cam.size = 4.0
+	print("[ui] weapon-hand shot ready hunting=%s held=%s" % [hunting, _player.station_craft.held_model_id()])
+
+func _prey(at: Vector3) -> Creature:
+	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
+	add_child(c)
+	c.global_position = at
+	c.spawn(Data.creature(&"velociraptor"), &"")
+	c.set_physics_process(false)
+	return c
+
 func _demo() -> void:
 	# Locked combat knife must never auto-equip for the thicket.
 	var locked := ItemStack.make(&"stone_knife", 1)
@@ -113,6 +147,7 @@ func _demo() -> void:
 	if thicket:
 		var why := thicket.can_gather(_player.inventory)
 		print("[item] refused %s: %s" % [thicket.node_id, why if why != "" else "open"])
+		_check(why == "need tool knife", "locked combat knife is never used for the thicket")
 		_player._begin_gather(thicket)
 	# Work knife auto-equips and the locked combat knife stays unused.
 	LabKit.give(_player, &"stone_knife_work", 1)
@@ -124,6 +159,7 @@ func _demo() -> void:
 			_player._gathering = true
 			_player._gather_left = 0.0
 			_player._finish_gather()
+	_check(_player.inventory.count_of(&"fibre_stalk") > 0, "work knife gathers the thicket")
 	# PRD §24 test 2: bone-blade vs stone-blade knives differ and do not merge.
 	_player.inventory.add(ItemStack.make(&"raptor_bone", 1, {"hardness": 2, "tint": "#d4c4a8"}))
 	_player.inventory.add(ItemStack.make(&"stone", 1, {"tint": "#8a8a8a"}))
@@ -157,6 +193,8 @@ func _demo() -> void:
 		bone_k.attributes.get("tint", "") if bone_k else "",
 		stone_k.attributes.get("tint", "") if stone_k else "",
 	])
+	_check(bone_k != null and stone_k != null and not merge, "bone and stone knives craft and stay apart")
+	_check(bone_k != null and bone_k.uid != "" and bone_k.origin == "craft", "a crafted knife carries identity and origin craft")
 	_level_mean_demo(knife_rec)
 	# Butcher a velociraptor corpse (JSON drops via butchering.json).
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
@@ -173,8 +211,106 @@ func _demo() -> void:
 	if corpse:
 		corpse.butcher(_player)
 	await _m8e_skewer_demo()
+	_full_bag_craft()
+	_station_cancel_full_bag()
+	_recipe_switch_refunds()
+	_weapon_in_hand()
 	if DisplayServer.get_name() == "headless":
-		get_tree().quit()
+		if _fails.is_empty():
+			print("[craft_lab] PASS")
+		else:
+			print("[craft_lab] FAIL count=%d" % _fails.size())
+		get_tree().quit(0 if _fails.is_empty() else 1)
+
+func _empty_bag() -> void:
+	for i in _player.inventory.slot_count:
+		_player.inventory.slots[i] = null
+	_player.inventory.equipment.clear()
+	_player.inventory.equipped_tool_index = -1
+
+## Fill every empty slot with a stack nothing else merges with.
+func _fill_bag() -> void:
+	var lvl := 1
+	while _player.inventory.used_slots() < _player.inventory.slot_count:
+		_player.inventory.add(ItemStack.make(&"berry", 1, {}, lvl))
+		lvl += 1
+
+func _units() -> int:
+	var n := 0
+	for s in _player.inventory.slots:
+		if s:
+			n += s.count
+	return n
+
+func _full_bag_craft() -> void:
+	_empty_bag()
+	for id in [&"stone", &"branch", &"twine"]:
+		_player.inventory.add(ItemStack.make(id, 2, {}, 1))
+	_fill_bag()
+	var before := _player.inventory.to_array()
+	var rec := Crafting.recipe(&"improvised_stone_knife")
+	var out := Crafting.craft(_player, rec, Crafting.default_picks(_player.inventory, rec))
+	var hud := get_tree().get_first_node_in_group("hud")
+	var notices := str(hud.get("_events").notices) if hud and hud.get("_events") else ""
+	_check(out == null and _player.inventory.to_array() == before, "full bag: craft refused, inputs unchanged")
+	_check(notices.contains("Bag is full"), "full bag: refusal notice shown")
+
+func _station_cancel_full_bag() -> void:
+	var sc := _player.station_craft
+	_empty_bag()
+	_player.inventory.add(ItemStack.make(&"raw_meat", 1, {}, 4))
+	_player.inventory.add(ItemStack.make(&"branch", 1, {}, 4))
+	_player.global_position = _bonfire.global_position + Vector3(0.8, 0, 0)
+	sc.station = _bonfire
+	sc._begin_recipe(&"skewer")
+	_player.clear_nav()
+	sc._start_craft_cycle()
+	_check(sc.crafting and _player.inventory.count_of(&"raw_meat") == 0, "station craft consumed its inputs")
+	_fill_bag()
+	var bag_units := _units()
+	sc.cancel_and_refund()
+	var held: Array = _bonfire.get_meta(StationCraft.HELD_META, [])
+	var held_units := 0
+	for row in held:
+		held_units += int(row.get("count", 0))
+	_check(held_units == 2 and _units() == bag_units, "station cancel with a full bag keeps the refund in the station")
+	_player.inventory.remove_at(_player.inventory.slot_count - 1, 1)
+	_player.inventory.remove_at(_player.inventory.slot_count - 2, 1)
+	var back := sc.collect_held(_bonfire)
+	_check(back == 2 and _player.inventory.count_of(&"raw_meat") == 1 and _player.inventory.count_of(&"branch") == 1 and not _bonfire.has_meta(StationCraft.HELD_META), "held refund returns once there is room")
+
+func _recipe_switch_refunds() -> void:
+	var sc := _player.station_craft
+	_empty_bag()
+	_player.inventory.add(ItemStack.make(&"raw_meat", 2, {}, 4))
+	_player.inventory.add(ItemStack.make(&"branch", 1, {}, 4))
+	_player.global_position = _bonfire.global_position + Vector3(0.8, 0, 0)
+	sc.station = _bonfire
+	sc._begin_recipe(&"skewer")
+	_player.clear_nav()
+	sc._start_craft_cycle()
+	var mid_meat := _player.inventory.count_of(&"raw_meat")
+	sc._on_recipe_chosen(&"sashimi")
+	_check(mid_meat == 1 and _player.inventory.count_of(&"raw_meat") == 2 and _player.inventory.count_of(&"branch") == 1 and not sc.crafting, "switching recipe mid-craft refunds the first recipe's inputs")
+	sc.cancel_and_refund()
+
+func _weapon_in_hand() -> void:
+	var sc := _player.station_craft
+	_empty_bag()
+	LabKit.give(_player, &"club", 1)
+	LabKit.give(_player, &"work_axe", 1)
+	_player.inventory.equip(&"weapon", &"club")
+	_player.inventory.set_equipped_tool_index(_player.inventory.find_first(&"work_axe"))
+	var prey := _prey(_player.global_position + Vector3(12, 0, 0))
+	_player.hunt.target = prey
+	sc._sync_hand_tool()
+	var hunting_id := sc.held_model_id()
+	_player.hunt.target = null
+	sc._sync_hand_tool()
+	var calm_id := sc.held_model_id()
+	print("[craft_lab] hand hunting=%s calm=%s" % [hunting_id, calm_id])
+	_check(hunting_id == &"club" and calm_id == &"work_axe", "the hand shows the club while hunting and the axe otherwise")
+	prey.queue_free()
 
 func _m8e_skewer_demo() -> void:
 	# First station interaction only expands the ring/action hex. The action callback is
@@ -209,6 +345,9 @@ func _m8e_skewer_demo() -> void:
 		while wait > 0.0 and (_player.station_craft.crafting or _player.station_craft.queue_left > 0 or _player.station_craft.recipe_id != &""):
 			await get_tree().create_timer(0.1).timeout
 			wait -= 0.1
+	_check(first_step_ok and second_step_ok, "station needs two taps before the craft sheet")
+	_check(blocked != "", "skewer without a handle is blocked")
+	_check(_player.inventory.count_of(&"skewer") > 0, "station skewer craft completes")
 
 func _spawn(id: StringName, pos: Vector3, def_id: StringName, attrs: Dictionary, tool: StringName, color: Color) -> void:
 	var n: HarvestNode = preload("res://scenes/world/harvest_node.tscn").instantiate()
@@ -217,8 +356,12 @@ func _spawn(id: StringName, pos: Vector3, def_id: StringName, attrs: Dictionary,
 	n.setup(id, def_id, 1, 1, attrs, tool, color)
 
 func _level_mean_demo(rec: Dictionary) -> void:
+	# PRD 8.4: the mean of the materials, clamped by the skill; a master skill shows the mean.
+	_player.skills.trees["weapon_tools"]["level"] = 60
 	_craft_knife_at(rec, 25, 5, 15, 15)
 	_craft_knife_at(rec, 25, 40, 31, 32)
+	_player.skills.trees["weapon_tools"]["level"] = 0
+	_craft_knife_at(rec, 25, 40, 31, 1)
 
 func _craft_knife_at(rec: Dictionary, stone_lv: int, branch_lv: int, twine_lv: int, expected: int) -> void:
 	var stone := ItemStack.make(&"stone", 1, {"tint": "#8a8a8a"}, stone_lv)
@@ -239,6 +382,7 @@ func _craft_knife_at(rec: Dictionary, stone_lv: int, branch_lv: int, twine_lv: i
 	print("[craft] knife expected=%d got=%d blade=%d branch=%d lashing=%d" % [
 		expected, out.level if out else -1, stone_lv, branch_lv, twine_lv
 	])
+	_check(out != null and out.level == expected, "knife level %d from materials %d/%d/%d" % [expected, stone_lv, branch_lv, twine_lv])
 
 func _find_id_level(id: StringName, lv: int) -> int:
 	for i in _player.inventory.slot_count:
