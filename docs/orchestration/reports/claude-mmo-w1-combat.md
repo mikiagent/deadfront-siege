@@ -108,3 +108,7 @@ The corner slot itself is a real 0.4 m gap where a ring row and a column fail to
 - pc-misc-01 second half (a 2.03 m survivor in a 1.8 m capsule) belongs to W2-PLAYER. Only the decal half is closed here.
 - durability-01: combat wear ships. Repair and death cost remain an owner decision (W2-DATA).
 - Telegraph and trauma were not checked in pixels: the lab asserts them headless. Only the hunt_lab acceptance shot was inspected.
+
+## Re-verification (2026-10-19, HEAD 9d791fa, no code changes)
+
+All re-run through gslot, each exit 0: `[t_combat] PASS`, `[combatrules] PASS` (fence 0 bites / 0 hits, control 7 bites), `[hunt_lab] survivor alive=true hp=33 at 3.2 s` + `[hunt_lab] PASS`, `[tests] PASS` (run_all.gd), `SMOKE PASS` (tools/smoke.sh --no-import).
