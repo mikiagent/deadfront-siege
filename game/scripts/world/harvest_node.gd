@@ -310,9 +310,14 @@ func can_gather(inv: Inventory) -> String:
 		var pick := best_pick(inv)
 		if pick == null or ProgressionScaling.tier_index(pick.material_tier()) < ProgressionScaling.tier_index(need):
 			return "needs %s pick" % need
-		# Swing the pick that qualifies: the survivor's tool lookup prefers the equipped slot.
+		# Swap only when the equipped pick cannot work this node: a deliberately held lower-tier
+		# pick that qualifies (to spare a better one's durability) stays in hand.
+		# shortcut: equips from a query because player.gd (protected) swings the equipped slot; move to PlayerActions (W2-PLAYER).
+		var held := inv.equipped_gather_tool()
+		var held_ok := held != null and held.def().tool_class == &"pick" \
+				and ProgressionScaling.tier_index(held.material_tier()) >= ProgressionScaling.tier_index(need)
 		var idx := inv.slots.find(pick)
-		if idx >= 0 and idx != inv.equipped_tool_index:
+		if not held_ok and idx >= 0:
 			inv.set_equipped_tool_index(idx)
 	elif not inv.has_tool_class(required_tool_class):
 		return "need tool %s" % required_tool_class

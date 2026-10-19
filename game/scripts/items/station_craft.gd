@@ -4,9 +4,10 @@ extends Node
 ## walk → crouch craft card with consume/refund/queue.
 
 const CANCEL_RANGE := 2.8
-## Refunds and outputs that did not fit the bag wait here (on the station, or the survivor for
-## hand crafts) as ItemStack dicts until there is room. Nothing is dropped (sec-loss-08).
-const HELD_META := &"held_items"
+## Inputs stay in the bag until a craft finishes; consume and produce happen together then, so
+## a cancel, a save, a burnt-out fire or a demolished station can never strand items (sec-loss-08).
+## A finished craft whose output does not fit waits at 100 % and retries this often.
+const FULL_RETRY_S := 1.0
 
 var player: Player
 var menu: StationMenu
@@ -22,7 +23,8 @@ var progress: float = 0.0
 var duration: float = 3.0
 var queue_left: int = 0
 var _picks: Array[int] = []
-var _refund: Array[ItemStack] = []
+var _full_wait: float = 0.0  # countdown to the next fit retry of a finished craft
+var _told_full: bool = false
 var _hand_tool: Node3D
 var _hand_craft: bool = false  # recipe with no station: crafts in place over the survivor
 var _batch_total: int = 1
@@ -70,7 +72,6 @@ func open_station_menu(st: Node3D) -> void:
 	if menu.visible and menu.station == st:
 		menu.hide_menu()
 		return
-	collect_held(st)
 	var actions := StationMenu.actions_for(station_id_of(st), player)
 	if actions.is_empty():
 		print("[craft] no actions for station %s" % station_id_of(st))
@@ -180,8 +181,6 @@ func _begin_recipe(rid: StringName) -> void:
 	# Switching recipe mid-craft gives the first recipe's inputs back (sec-craft-22).
 	if crafting and rid != recipe_id:
 		cancel_and_refund()
-	if station and is_instance_valid(station):
-		collect_held(station)
 	var blocked := Crafting.progression_block(player, rec)
 	if blocked != "":
 		player.notice(blocked)
@@ -230,8 +229,9 @@ func _start_craft_cycle() -> void:
 		return
 	duration = Crafting.recipe_seconds(rec)
 	progress = 0.0
+	_full_wait = 0.0
+	_told_full = false
 	crafting = true
-	_refund = Crafting.consume_for_craft(player.inventory, rec, _picks)
 	print("[craft] start %s %.1fs" % [recipe_id, duration])
 	if player.anim:
 		player.anim.on_gather(&"craft")
@@ -274,21 +274,12 @@ func _show_card(rec: Dictionary) -> void:
 			"icon": card.icon_for(def_id),
 			"glyph": str(def_id).substr(0, 1).to_upper() if str(def_id) != "" else "?",
 		})
-	# Fill icons from refund stacks when available.
-	if not _refund.is_empty():
-		for i in mini(rows.size(), _refund.size()):
-			if _refund[i]:
-				rows[i]["def_id"] = _refund[i].def_id
-				rows[i]["icon"] = card.icon_for(_refund[i].def_id)
-				rows[i]["glyph"] = str(_refund[i].def_id).substr(0, 1).to_upper()
 	card.show_recipe(station, str(rec.get("display_name", recipe_id)), rows, progress, queue_left + 1)
 
 func _process(delta: float) -> void:
 	if player == null:
 		return
 	_sync_hand_tool()
-	if not crafting and player.has_meta(HELD_META):
-		collect_held(player)
 	if recipe_id != &"" and not crafting and station and is_instance_valid(station):
 		if not player.nav_active and player.global_position.distance_to(station.global_position) <= Crafting.STATION_RANGE + 0.35:
 			_start_craft_cycle()
@@ -307,14 +298,32 @@ func _process(delta: float) -> void:
 		progress = minf(1.0, progress + delta / maxf(0.05, duration))
 		_show_ring(Crafting.recipe(recipe_id))
 		if progress >= 1.0:
-			_finish_one()
+			_full_wait -= delta
+			if _full_wait <= 0.0:
+				_finish_one()
 
+## Consume the inputs and add the output in one step. A full bag pauses the finished craft
+## (inputs untouched) until there is room; inputs that left the bag stop it.
 func _finish_one() -> void:
 	var rec := Crafting.recipe(recipe_id)
+	_picks = Crafting.default_picks(player.inventory, rec)
+	if not Crafting.picks_valid(player.inventory, rec, _picks):
+		player.notice("Craft stopped: its materials left the bag.")
+		_clear_session()
+		return
+	if not Crafting.output_fits(player.inventory, rec, _picks, _burnt, player):
+		if not _told_full:
+			_told_full = true
+			player.notice("Bag is full: make room to finish the %s." % str(rec.get("display_name", recipe_id)))
+		_full_wait = FULL_RETRY_S
+		return
+	_full_wait = 0.0
+	_told_full = false
+	var consumed := Crafting.consume_for_craft(player.inventory, rec, _picks)
 	var overflow: Array[ItemStack] = []
-	var out := Crafting.finish_craft(player, rec, _refund, _burnt, overflow)
-	_hold(overflow)
-	_refund.clear()
+	var out := Crafting.finish_craft(player, rec, consumed, _burnt, overflow)
+	if not overflow.is_empty():
+		push_error("[craft] output_fits passed but %d units overflowed" % overflow[0].count)
 	if out:
 		if toast:
 			toast.show_gain(out.def_id, out.count)
@@ -331,60 +340,17 @@ func _finish_one() -> void:
 		recipe_id = &""
 		_hand_craft = false
 
+## Stops the craft. Nothing to give back: the inputs never left the bag (name kept for player.gd).
 func cancel_and_refund() -> void:
-	if not _refund.is_empty():
-		_hold(refund_into(player.inventory, _refund))
-		print("[craft] cancelled refunded %s" % recipe_id)
-	_refund.clear()
+	if crafting:
+		print("[craft] cancelled %s; inputs stay in the bag" % recipe_id)
 	_clear_session()
-
-## Add every stack to the bag; return what did not fit (never discarded).
-static func refund_into(inv: Inventory, stacks: Array[ItemStack]) -> Array[ItemStack]:
-	var left_over: Array[ItemStack] = []
-	for stack in stacks:
-		if stack == null or stack.count <= 0:
-			continue
-		if inv.add(stack) > 0:
-			left_over.append(stack)
-	return left_over
-
-func _hold(stacks: Array[ItemStack]) -> void:
-	if stacks.is_empty():
-		return
-	var holder: Node = station if (station and is_instance_valid(station) and not _hand_craft) else player
-	var held: Array = holder.get_meta(HELD_META, [])
-	var units := 0
-	for stack in stacks:
-		held.append(stack.to_dict())
-		units += stack.count
-	holder.set_meta(HELD_META, held)
-	print("[craft] bag full: %d units kept at %s" % [units, holder.name])
-	player.notice("Bag is full: %d items wait at the %s." % [units, "station" if holder != player else "craft spot"])
-
-## Give held stacks back as far as the bag allows. Returns units returned.
-func collect_held(holder: Node) -> int:
-	if holder == null or not is_instance_valid(holder) or not holder.has_meta(HELD_META):
-		return 0
-	var keep: Array = []
-	var returned := 0
-	for row in holder.get_meta(HELD_META, []):
-		var stack := ItemStack.from_dict(row)
-		var before := stack.count
-		var left := player.inventory.add(stack)
-		returned += before - left
-		if left > 0:
-			keep.append(stack.to_dict())
-	if keep.is_empty():
-		holder.remove_meta(HELD_META)
-	else:
-		holder.set_meta(HELD_META, keep)
-	if returned > 0:
-		print("[craft] collected %d held units" % returned)
-	return returned
 
 func _clear_session() -> void:
 	crafting = false
 	progress = 0.0
+	_full_wait = 0.0
+	_told_full = false
 	queue_left = 0
 	recipe_id = &""
 	_hand_craft = false
@@ -426,19 +392,11 @@ func _sync_hand_tool() -> void:
 		if want_id == &"" or str(_hand_tool.get_meta("tool_id", "")) != str(want_id):
 			_hand_tool.queue_free()
 			_hand_tool = null
-	if want_id == &"":
+	if want_id == &"" or (_hand_tool and is_instance_valid(_hand_tool)):
 		return
-	if _hand_tool and is_instance_valid(_hand_tool):
-		return
-	_hand_tool = attach_weapon_model(anchor, want_id) if hunting else null
-	if _hand_tool == null:
-		_hand_tool = PropVisuals.attach_tool_model(anchor, want_id)
+	_hand_tool = HeldModel.attach(anchor, want_id, hunting)
 	if _hand_tool:
 		_hand_tool.set_meta("tool_id", str(want_id))
-		# survivor-v2's hand bone carries the armature's cm scale (~0.012): undo it so tools read at metre size.
-		var s := anchor.global_basis.get_scale().x
-		if s > 0.0001:
-			_hand_tool.scale /= s
 
 func held_model_id() -> StringName:
 	return StringName(str(_hand_tool.get_meta("tool_id", ""))) if _hand_tool and is_instance_valid(_hand_tool) else &""
@@ -447,30 +405,3 @@ func held_model_id() -> StringName:
 func _hunting() -> bool:
 	var h: Variant = player.get("hunt")
 	return h != null and h.target != null and is_instance_valid(h.target)
-
-## Weapon model from props_manifest "weapons" (club, crossbow, ...). Blunt weapons without
-## their own row borrow the club's. Returns null so the tool model can stand in.
-static func attach_weapon_model(anchor: Node3D, def_id: StringName) -> Node3D:
-	var rows: Dictionary = Data.props_manifest.get("weapons", {})
-	var row: Variant = rows.get(str(def_id), null)
-	var d := Data.item(def_id)
-	# ASSUMPTION: maul and hammer read as clubs until they get their own models.
-	if row == null and d and d.tool_class == &"none" and d.range_m <= 0.0:
-		row = rows.get("club", null)
-	var model := str((row as Dictionary).get("model", "")) if row is Dictionary else ""
-	if model == "" or model == "<null>":
-		return null
-	var path := model if model.begins_with("res://") else "res://assets/props/%s.glb" % model
-	if not ResourceLoader.exists(path):
-		return null
-	var inst := (load(path) as PackedScene).instantiate() as Node3D
-	if inst == null:
-		return null
-	inst.name = "HeldWeapon"
-	anchor.add_child(inst)
-	inst.rotation_degrees = Vector3(0.0, 0.0, -80.0)
-	inst.position = Vector3(0.02, 0.02, 0.0)
-	# The crossbow ships oversized (props_manifest note): scale it to ~0.9 m in hand.
-	var length := float((row as Dictionary).get("length_m", 0.0))
-	inst.scale = Vector3.ONE * (0.9 / length if length > 0.0 else 0.55)
-	return inst

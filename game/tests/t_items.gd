@@ -67,6 +67,11 @@ func _test_identity() -> void:
 	var old_row := {"id": "stone", "count": 4, "level": 1, "process_count": 0, "attributes": {"tint": "#8a8a8a", "material_tier": "stone"}, "flags": [], "durability": 0, "max_durability": 0}
 	var reloaded: Dictionary = IS.from_dict(old_row).to_dict()
 	_expect(reloaded.keys().size() == old_row.keys().size() and not reloaded.has("uid"), "old fungible save rows keep their exact shape")
+	var hostile = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": 12345, "origin": null, "creator": null, "created_at": "soon"})
+	var forged = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": "l1", "origin": "admin_spawn", "created_at": -5})
+	print("[t_items] hostile provenance uid='%s' origin='%s' creator='%s' created=%d; forged origin='%s' created=%d" % [hostile.uid, hostile.origin, hostile.creator, hostile.created_at, forged.origin, forged.created_at])
+	_expect(hostile.origin == "" and hostile.creator == "" and hostile.created_at == 0, "null provenance loads as empty, never '<null>'")
+	_expect(forged.origin == "" and forged.created_at == 0, "an origin outside the whitelist is blanked")
 
 func _test_merging() -> void:
 	var bag = INV.new(5)
@@ -131,6 +136,13 @@ func _test_pick_gates() -> void:
 	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "stone"}, 1))
 	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "copper"}, 1))
 	_expect(iron.can_gather(mixed) == "" and mixed.slots[mixed.equipped_tool_index].material_tier() == &"copper", "the qualifying pick is the one equipped")
+	var spare = INV.new(20)
+	spare.add(IS.make(&"work_pick", 1, {"material_tier": "copper"}, 1))
+	spare.add(IS.make(&"work_pick", 1, {"material_tier": "obsidian"}, 1))
+	spare.set_equipped_tool_index(1)
+	var spare_why: String = copper.can_gather(spare)
+	print("[t_items] copper node with obsidian pick held, copper pick in bag: why='%s' held=%s" % [spare_why, spare.slots[spare.equipped_tool_index].material_tier()])
+	_expect(spare_why == "" and spare.equipped_tool_index == 1, "a held pick that meets the minimum tier is not swapped for a better one")
 	var rock = _node("Rock", &"stone")
 	_expect(rock.can_gather(bare) == "", "loose stone still gathers bare-handed")
 	var copper_stone = _node("CopperOreNode", &"stone")
@@ -226,41 +238,24 @@ func _test_no_lost_items() -> void:
 	_expect(bag.to_array() == before, "the fit check leaves the bag untouched")
 	bag.remove_at(bag.slot_count - 1, 1)
 	_expect(CR.output_fits(bag, knife, CR.default_picks(bag, knife)), "one free slot lets the craft through")
-	var full = _full_bag()
-	var snapshot: Array = full.to_array()
-	var refund := _stacks([IS.make(&"raw_meat", 1, {}, 3), IS.make(&"branch", 1, {}, 7)])
-	var kept: Array = SC.refund_into(full, refund)
-	var kept_units := 0
-	for s in kept:
-		kept_units += s.count
-	_expect(kept_units == 2 and full.to_array() == snapshot, "refund into a full bag keeps every unit out of the void")
-	var roomy = INV.new(20)
-	var back: Array = SC.refund_into(roomy, _stacks([IS.make(&"raw_meat", 1, {}, 3)]))
-	_expect(back.is_empty() and roomy.count_of(&"raw_meat") == 1, "refund with room lands in the bag")
+	# StationCraft no longer parks refunds anywhere: no meta store may come back.
+	var methods: Array = SC.get_script_method_list().map(func(m: Dictionary) -> String: return str(m["name"]))
+	_expect(not "collect_held" in methods and not "HELD_META" in SC.get_script_constant_map(), "no volatile held-item store remains")
 
-## Array[ItemStack] without naming the class (it would compile before the Data autoload).
-func _stacks(items: Array) -> Array:
-	return Array(items, TYPE_OBJECT, &"RefCounted", IS)
-
+## A poisoned raw meal always hits, so the outcome (not just "a roll happened") is checked.
 func _test_eat_cancel() -> void:
 	var ES: GDScript = load("res://scripts/items/eat_session.gd")
-	var late = ES.new()
-	late._stack_snapshot = IS.make(&"raw_meat", 1)
-	late.eating = true
-	late.progress = 0.6
-	late.rng = RandomNumberGenerator.new()
-	late.rng.seed = 7
-	late._cancel_with_full()
-	var same := RandomNumberGenerator.new()
-	same.seed = 7
-	var want: StringName = FOOD.raw_risk_roll(IS.make(&"raw_meat", 1), same)
-	print("[t_items] raw meal cancelled at 60%%: rolled=%s risk='%s'" % [late.risk_rolled, late.last_risk])
-	_expect(late.risk_rolled and late.last_risk == want, "cancelling a raw meal at 60% applies the raw-risk roll")
-	var early = ES.new()
-	early._stack_snapshot = IS.make(&"raw_meat", 1)
-	early.eating = true
-	early.progress = 0.4
-	early._cancel_with_full()
-	_expect(not early.risk_rolled, "cancelling before half skips the raw-risk roll")
-	late.free()
-	early.free()
+	var out := {}
+	for at in [0.6, 0.4]:
+		var meal = IS.make(&"raw_meat", 1)
+		meal.set_flag(&"poisoned", true)
+		var es = ES.new()
+		es._stack_snapshot = meal
+		es.eating = true
+		es.progress = at
+		es._cancel_with_full()
+		out[at] = es.last_risk
+		es.free()
+	print("[t_items] poisoned raw meal cancelled: at 60%% risk='%s', at 40%% risk='%s'" % [out[0.6], out[0.4]])
+	_expect(out[0.6] == &"stomachache", "cancelling a poisoned raw meal at 60% gives a stomachache")
+	_expect(out[0.4] == &"", "cancelling before half gives nothing")

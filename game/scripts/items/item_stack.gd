@@ -13,7 +13,8 @@ var durability: int = 0
 var max_durability: int = 0
 ## Instance identity: empty for fungible stacks. The server issues "i<seq>"; offline mints "l<hex>".
 var uid: String = ""
-var origin: String = ""  # gather|loot|craft|tame|breed|settlers|objective|market
+var origin: String = ""  # one of ORIGINS
+const ORIGINS := ["gather", "loot", "craft", "tame", "breed", "settlers", "objective", "market"]
 var creator: String = ""
 var created_at: int = 0
 ## Where a stack came from does not make it a different good (inv-01): climate never splits stacks.
@@ -213,11 +214,17 @@ static func from_dict(d: Dictionary) -> ItemStack:
 	if raw is Array:
 		for f in raw:
 			s.flags.append(StringName(str(f)))
-	s.uid = str(d.get("uid", ""))
-	s.origin = str(d.get("origin", ""))
-	s.creator = str(d.get("creator", ""))
-	s.created_at = int(d.get("created_at", 0))
+	# Provenance is trusted later by vault and market: null becomes "", unknown origins are blanked.
+	s.uid = _text(d.get("uid"))
+	var o := _text(d.get("origin"))
+	s.origin = o if o in ORIGINS else ""
+	s.creator = _text(d.get("creator"))
+	var t: Variant = d.get("created_at", 0)
+	s.created_at = maxi(0, int(t)) if (t is int or t is float) else 0
 	return s
+
+static func _text(v: Variant) -> String:
+	return "" if v == null else str(v)
 
 static func make(id: StringName, amount: int = 1, attrs: Dictionary = {}, lvl: int = -1) -> ItemStack:
 	var s := ItemStack.new()

@@ -83,21 +83,29 @@ func _demo() -> void:
 			print("[kitchen_lab] FAIL count=%d" % _fails.size())
 		get_tree().quit(0 if _fails.is_empty() else 1)
 
-## sec-eat-23: past half a raw meal, walking away still rolls the raw-food risk.
+## sec-eat-23: past half a raw meal, walking away still applies the raw-food risk. A poisoned
+## meal always hits, so the status itself is checked, not just that a roll happened.
 func _demo_raw_cancel() -> void:
 	for at in [0.6, 0.4]:
 		_player.statuses.clear_id(&"full")
-		_player.inventory.add(ItemStack.make(&"raw_meat", 1))
-		_player.begin_eat_slot(_player.inventory.find_first(&"raw_meat"))
+		_player.statuses.clear_id(&"stomachache")
+		var meal := ItemStack.make(&"raw_meat", 1)
+		meal.set_flag(&"poisoned", true)
+		_player.inventory.add(meal)
+		var idx := -1
+		for i in _player.inventory.slot_count:
+			var s := _player.inventory.slots[i]
+			if s and s.def_id == &"raw_meat" and Food.is_poisoned(s):
+				idx = i
 		var session := _player.eat_session
-		session.rng = RandomNumberGenerator.new()
-		session.rng.seed = 11
+		_check(_player.begin_eat_slot(idx), "poisoned raw meal starts at %d%%" % int(at * 100.0))
 		session.progress = at
 		session._cancel_with_full()
-		var rolled := session.risk_rolled
-		print("[food] raw meal cancelled at %d%% rolled=%s risk=%s" % [int(at * 100.0), rolled, session.last_risk])
-		_check(rolled == (at >= EatSession.RAW_RISK_CANCEL_AT), "raw meal cancel at %d%% %s the raw-risk roll" % [int(at * 100.0), "applies" if at >= 0.5 else "skips"])
+		var sick := _player.statuses.has(&"stomachache")
+		print("[food] poisoned raw meal cancelled at %d%% stomachache=%s" % [int(at * 100.0), sick])
+		_check(sick == (at >= EatSession.RAW_RISK_CANCEL_AT), "raw meal cancel at %d%% %s a stomachache" % [int(at * 100.0), "applies" if at >= 0.5 else "skips"])
 	_player.statuses.clear_id(&"full")
+	_player.statuses.clear_id(&"stomachache")
 
 func _demo_burn_skill() -> void:
 	var grill := Crafting.recipe(&"stone_grill")

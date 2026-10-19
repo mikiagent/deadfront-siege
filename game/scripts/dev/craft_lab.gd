@@ -1,7 +1,9 @@
 extends Node3D
 ## PRD §24 test 2: two knives from different primaries do not merge. Locked combat knife skipped.
 ## M8e: station skewer craft + held-item slot screenshots.
-## W1-ITEMS: full-bag refusal, refunds kept at the station, recipe switch refunds, weapon in hand.
+## W1-ITEMS: full-bag refusal; inputs stay in the bag until a craft finishes, so cancel, recipe
+## switch, save mid-craft and a burnt-out campfire lose nothing; a finished craft waits for room;
+## weapon in hand.
 ## Headless run asserts every step, prints "[craft_lab] PASS" and exits 1 on any FAIL.
 
 var _player: Player
@@ -92,7 +94,6 @@ func _shot_setup() -> void:
 		_player.station_craft.recipe_id = &"skewer"
 		var rec := Crafting.recipe(&"skewer")
 		_player.station_craft._picks = Crafting.default_picks(_player.inventory, rec)
-		_player.station_craft._refund = Crafting.consume_for_craft(_player.inventory, rec, _player.station_craft._picks)
 		_player.station_craft.crafting = true
 		_player.station_craft.duration = 3.0
 		_player.station_craft.progress = 0.45
@@ -126,6 +127,12 @@ func _weapon_shot_setup(hunting: bool) -> void:
 	_player.station_craft._sync_hand_tool()
 	if _cam:
 		_cam.size = 3.0
+		# "close" shots frame the fist itself, to judge the grip.
+		if Game.shot_path.contains("close"):
+			_cam.size = 1.1
+			_cam._target = _player.right_hand_anchor()
+			# Profile view, right hand toward the lens: a held tool points across the screen.
+			_player.face_world(_player.global_position + _cam.global_basis.x)
 	print("[ui] weapon-hand shot ready hunting=%s held=%s" % [hunting, _player.station_craft.held_model_id()])
 
 func _prey(at: Vector3) -> Creature:
@@ -216,6 +223,9 @@ func _demo() -> void:
 	_full_bag_craft()
 	_station_cancel_full_bag()
 	_recipe_switch_refunds()
+	_finish_waits_for_room()
+	_save_mid_craft()
+	await _campfire_burns_out_mid_craft()
 	_weapon_in_hand()
 	if DisplayServer.get_name() == "headless":
 		if _fails.is_empty():
@@ -257,44 +267,77 @@ func _full_bag_craft() -> void:
 	_check(out == null and _player.inventory.to_array() == before, "full bag: craft refused, inputs unchanged")
 	_check(notices.contains("Bag is full"), "full bag: refusal notice shown")
 
-func _station_cancel_full_bag() -> void:
+## Start a skewer at `fire` with one meat and one branch (level 4) in an otherwise empty bag.
+func _start_skewer(fire: Node3D, meat: int = 1, branch: int = 1) -> StationCraft:
 	var sc := _player.station_craft
 	_empty_bag()
-	_player.inventory.add(ItemStack.make(&"raw_meat", 1, {}, 4))
-	_player.inventory.add(ItemStack.make(&"branch", 1, {}, 4))
-	_player.global_position = _bonfire.global_position + Vector3(0.8, 0, 0)
-	sc.station = _bonfire
+	_player.inventory.add(ItemStack.make(&"raw_meat", meat, {}, 4))
+	_player.inventory.add(ItemStack.make(&"branch", branch, {}, 4))
+	_player.global_position = fire.global_position + Vector3(0.8, 0, 0)
+	sc.station = fire
 	sc._begin_recipe(&"skewer")
 	_player.clear_nav()
 	sc._start_craft_cycle()
-	_check(sc.crafting and _player.inventory.count_of(&"raw_meat") == 0, "station craft consumed its inputs")
+	return sc
+
+func _inputs_home(meat: int, branch: int = 1) -> bool:
+	return _player.inventory.count_of(&"raw_meat") == meat and _player.inventory.count_of(&"branch") == branch
+
+func _station_cancel_full_bag() -> void:
+	var sc := _start_skewer(_bonfire)
+	_check(sc.crafting and _inputs_home(1), "a running craft leaves its inputs in the bag")
 	_fill_bag()
 	var bag_units := _units()
 	sc.cancel_and_refund()
-	var held: Array = _bonfire.get_meta(StationCraft.HELD_META, [])
-	var held_units := 0
-	for row in held:
-		held_units += int(row.get("count", 0))
-	_check(held_units == 2 and _units() == bag_units, "station cancel with a full bag keeps the refund in the station")
-	_player.inventory.remove_at(_player.inventory.slot_count - 1, 1)
-	_player.inventory.remove_at(_player.inventory.slot_count - 2, 1)
-	var back := sc.collect_held(_bonfire)
-	_check(back == 2 and _player.inventory.count_of(&"raw_meat") == 1 and _player.inventory.count_of(&"branch") == 1 and not _bonfire.has_meta(StationCraft.HELD_META), "held refund returns once there is room")
+	_check(not sc.crafting and _units() == bag_units and _inputs_home(1), "station cancel with a full bag loses nothing (inputs never left the bag)")
 
 func _recipe_switch_refunds() -> void:
-	var sc := _player.station_craft
-	_empty_bag()
-	_player.inventory.add(ItemStack.make(&"raw_meat", 2, {}, 4))
-	_player.inventory.add(ItemStack.make(&"branch", 1, {}, 4))
-	_player.global_position = _bonfire.global_position + Vector3(0.8, 0, 0)
-	sc.station = _bonfire
-	sc._begin_recipe(&"skewer")
-	_player.clear_nav()
-	sc._start_craft_cycle()
-	var mid_meat := _player.inventory.count_of(&"raw_meat")
+	var sc := _start_skewer(_bonfire, 2)
+	var was_crafting := sc.crafting
 	sc._on_recipe_chosen(&"sashimi")
-	_check(mid_meat == 1 and _player.inventory.count_of(&"raw_meat") == 2 and _player.inventory.count_of(&"branch") == 1 and not sc.crafting, "switching recipe mid-craft refunds the first recipe's inputs")
+	_check(was_crafting and _inputs_home(2) and not sc.crafting, "switching recipe mid-craft keeps the first recipe's inputs")
 	sc.cancel_and_refund()
+
+## The bag fills up during the craft: the finished craft waits at 100 % with its inputs, then
+## completes once a slot frees up.
+func _finish_waits_for_room() -> void:
+	# Two of each, so consuming one of each frees no slot for the skewer.
+	var sc := _start_skewer(_bonfire, 2, 2)
+	_fill_bag()
+	sc.progress = 0.99
+	sc._process(0.1)
+	var hud := get_tree().get_first_node_in_group("hud")
+	var notices := str(hud.get("_events").notices) if hud and hud.get("_events") else ""
+	_check(sc.crafting and _inputs_home(2, 2) and _player.inventory.count_of(&"skewer") == 0, "a finished craft with a full bag waits, inputs untouched")
+	_check(notices.contains("make room to finish"), "the wait tells the player to make room")
+	_player.inventory.remove_at(_player.inventory.slot_count - 1, 1)
+	sc._process(FULL_RETRY)
+	_check(not sc.crafting and _player.inventory.count_of(&"skewer") == 1 and _inputs_home(1, 1), "it finishes once a slot frees up")
+
+const FULL_RETRY := StationCraft.FULL_RETRY_S + 0.05
+
+## Saving mid-craft writes the inventory as it is: the inputs are in it, so a reload keeps them.
+func _save_mid_craft() -> void:
+	var sc := _start_skewer(_bonfire)
+	var saved: Array = JSON.parse_string(JSON.stringify(_player.inventory.to_array()))
+	sc.cancel_and_refund()  # the session itself is not saved, like any running action
+	var reloaded := Inventory.new(_player.inventory.slot_count)
+	reloaded.load_array(saved)
+	_check(reloaded.count_of(&"raw_meat") == 1 and reloaded.count_of(&"branch") == 1, "a save taken mid-craft reloads with the craft's inputs")
+
+## A campfire that burns out mid-craft frees its node: the craft stops and nothing is lost.
+func _campfire_burns_out_mid_craft() -> void:
+	var fire := Bonfire.make(&"campfire")
+	fire.position = Vector3(-6, 0, -2)
+	add_child(fire)
+	var sc := _start_skewer(fire)
+	var started := sc.crafting
+	_fill_bag()
+	fire.seconds_left = 0.01
+	await get_tree().process_frame
+	await get_tree().process_frame
+	sc._process(0.1)
+	_check(started and not is_instance_valid(fire) and not sc.crafting and _inputs_home(1), "a campfire burning out mid-craft loses nothing")
 
 func _weapon_in_hand() -> void:
 	var sc := _player.station_craft
