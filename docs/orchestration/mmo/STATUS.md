@@ -38,7 +38,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 
 | Wave | Packages | State |
 |---|---|---|
-| 0 | 16-system audit with adversarial verify and plan | running |
+| 0 | 16-system audit with adversarial verify and plan | 14/16 audits done; interrupted by usage limit, resumed (verify, plan, critic) |
 | 1a-audio | CC0 audio layer (`claude/mmo-audio`) | running, reviewer-gated (wf_abafae3d-0a6) |
 | 1a | economy engine (`claude/mmo-econ`); net core: server, auth, presence, chat (`claude/mmo-net`) | running, reviewer-gated (workflow wf_158b264c-baf) |
 
@@ -71,6 +71,9 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   while raw meat spoils, carries a real buff, sells well). Apply that bar to every station.
 - Balances 2026-10-18: Tripo 3,240 credits (works). Meshy MCP key returns 401 (revoked), so the
   art route is Tripo + the game-asset-pipeline skill until the owner replaces the Meshy key.
+
+- 2026-10-18 orchestrator decision: contracts v2 section 0. Online characters are server-owned and
+  islands are server-simulated; clients send intents. The audit rated v1's client deposits P0.
 
 ## Owner questions (open)
 

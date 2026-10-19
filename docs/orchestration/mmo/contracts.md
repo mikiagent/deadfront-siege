@@ -3,6 +3,45 @@
 Every agent building online, economy or marketplace code builds against this file. Change it only
 through the orchestrator. Where it is silent, pick the simplest thing and mark it `# ASSUMPTION:`.
 
+## 0. Authority decision (v2, 2026-10-18; supersedes the v1 "client deposit" trust model)
+
+The audit (economy, security and multiplayer auditors independently) rated v1's validated client
+deposits P0: every item, pet and T-stone is minted on the client, so a market fed by deposits is
+only as honest as its caps. The owner asked for a real, server-validated economy. Therefore:
+
+1. **Online characters are server-owned from creation.** The server stores their bag, equipment,
+   wallet, pets, skills and position (a `CharacterStore` persisted with the same snapshot+journal
+   as the ledger). Offline saves never import into online characters. The client's copy is a cache
+   that the server overwrites.
+2. **Server-simulated islands.** The server runs the island headless (`Game.is_server` guards
+   skip visuals, UI, autosave, shell): IslandRuntime, HarvestNode pools, creatures and brains,
+   corpses, structures. Clients in online mode do not simulate creatures or nodes; they render
+   replicas from server snapshots (10 Hz, interest radius 80 m).
+3. **Clients send intents, the server decides.** One `PlayerActions` command layer is the only
+   path that mutates inventory, equipment, crafting, building, eating, combat, looting and taming.
+   Offline it applies locally exactly as today (no behaviour change, proven by existing labs).
+   Online it sends `act.<verb>` ops (`act.gather {node_id, option}`, `act.attack {net_id}`,
+   `act.loot {corpse_id, slot}`, `act.craft {recipe_id, picks}`, `act.place {kind, cell, rot}`,
+   `act.equip`, `act.eat`, `act.tame {net_id, food}`), and the server runs the same domain code
+   (Inventory, Crafting, CaptureSystem, FieldTame, Hunt) on its copy with a server-owned RNG,
+   then pushes `evt char_delta` / `evt world_delta`.
+4. **Movement** stays client-predicted and server-checked (speed/teleport bound, navmesh/terrain
+   plausibility); the server's position is the one used for reach checks.
+5. **Provenance.** Every server-minted stack and pet carries `uid` and `origin`
+   (`gather|loot|craft|tame|breed|settlers|objective|market`) + the journal seq. Only assets with
+   server provenance can enter the vault/market; the v1 dict-deposit ops are removed from the
+   client API (`vault.deposit_*` take a bag slot or pet uid of the server-side character).
+6. **Accounts.** Token accounts stay for local testing. Before public hosting: verified login and
+   creation limits (owner decision at hosting time). New accounts are trade-locked until 30 min of
+   server-observed play (`# ASSUMPTION`), and the starting wallet is bound (non-tradable).
+7. **Faucets** are server-observed: objective rewards fire on server-observed state, Settler
+   issuance is per active account per day with diminishing returns, missions.json is the renewable
+   faucet. Sinks are named ledger entries.
+
+Interim (until 2+3 land): the Exchange runs with Settlers and server-provenance assets only; no
+client-claimed deposits are accepted on any server. The economy engine's deposit validation stays
+as defence in depth.
+
 ## 1. Process model
 
 - One Godot project, two roles. The **server** is the same project run headless:
@@ -63,9 +102,8 @@ Account { id:int, name, token_hash, created, wallet:int (T-stones),
   Per-account per-def deposit caps per rolling 24 h come from `game/data/economy/limits.json`.
 - `vault.withdraw_item {uid, count}` / `vault.withdraw_pet {uid}` remove from the vault and return
   the dict; the client adds it locally. Withdraw is authoritative and cannot duplicate.
-- **Honest limit (v1):** gathering, crafting and combat still run on the client, so a deposit is a
-  validated client claim. Server-simulated islands (v2) remove this; until then the caps and
-  integrity checks are the defence, and the report must say so.
+- **Superseded by section 0:** deposits come from the server-side character, not a client dict.
+  The validation above stays as defence in depth inside the engine.
 
 ### Wallet
 - In online mode `World.t_stones` mirrors the server wallet. Client spends go through
