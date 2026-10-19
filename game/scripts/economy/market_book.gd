@@ -96,6 +96,7 @@ func bid(me: int, a: EconArgs) -> Dictionary:
 		need = maxi(need, current + maxi(R.num("auction_min_increment_abs"), EconRules.ceil_bp(current, R.bp("auction_min_increment"))))
 	if amount < need:
 		return EconArgs.no("bid_too_low", "bid at least %d" % need)
+	# ASSUMPTION: a bid at or above the buyout is refused; the buyer uses buyout instead.
 	if int(lst.buyout) > 0 and amount >= int(lst.buyout):
 		return EconArgs.no("bad_request", "bid reaches the buyout price; use buyout")
 	var held := current if int(lst.bidder) == me else 0

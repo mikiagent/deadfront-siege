@@ -164,6 +164,7 @@ func _spend(me: int, a: EconArgs) -> Dictionary:
 	var amount := a.integer("amount", 1, rules.num("max_unit_price"))
 	if a.err != "":
 		return a.fail()
+	# ASSUMPTION: the server does not know where a client sails in v1, so any listed cost is legal.
 	if amount not in cat.spend_costs[reason]:
 		return EconArgs.no("bad_request", "%s costs %s" % [reason, str(cat.spend_costs[reason])])
 	if int(L.acct(me).wallet) < amount:

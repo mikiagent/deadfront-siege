@@ -129,7 +129,7 @@ func close(o: Dictionary, state: String) -> void:
 	o.state = state
 	o.closed = L.now
 	L.s.orders.erase(o.id)
-	if not o.npc:
+	if not o.npc: # ASSUMPTION: closed Settler orders are not kept (about 288 a day); they read as not_found
 		L.s.closed_orders[o.id] = o
 	var acct := L.acct(int(o.buyer))
 	acct.open_orders = int(acct.open_orders) - 1
