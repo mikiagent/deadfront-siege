@@ -80,10 +80,12 @@ Directory: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/
 
 ## Integrator hooks
 
-In `game/scripts/core/main.gd` `_ready()`, first lines. Land these together with, or after, the W2-HUD overlap fixes: with the phone canvas on, the protected HUD overlaps CLAIM/ORDERS, HARBOUR/SKILLS and HANDS/DEBUG/`Lv. 0 5.0%` (see Left for W2-HUD). Before that, gate the first line behind a flag:
+In `game/scripts/core/main.gd` `_ready()`, first lines. Land these together with, or after, the W2-HUD overlap fixes: with the phone canvas on, the protected HUD overlaps CLAIM/ORDERS, HARBOUR/SKILLS and HANDS/DEBUG/`Lv. 0 5.0%` (see Left for W2-HUD). Until then, gate the first line behind a flag:
 
 ```gdscript
-	DisplayMode.install(get_tree().root)
+	# ASSUMPTION: flag name; drop the condition once W2-HUD's phone overlap fixes are merged.
+	if OS.get_cmdline_user_args().has("--phone-canvas") or ProjectSettings.get_setting("deadfront/ui/phone_canvas", false):
+		DisplayMode.install(get_tree().root)
 	UiTheme.install()
 ```
 
@@ -93,7 +95,7 @@ For W2-HUD, in `game/scripts/ui/hunt_hud.gd:68`: replace `set_anchors_preset(Con
 
 ## Labs to register
 
-- `ui_real_capture_lab` (`game/scripts/dev/ui_real_capture_lab.gd` + `game/scenes/dev/ui_real_capture_lab.tscn`). Run windowed: `--resolution 390x844 -- --lab=ui_real_capture_lab --shot-dir=DIR`.
+- `ui_real_capture_lab` (`game/scripts/dev/ui_real_capture_lab.gd` + `game/scenes/dev/ui_real_capture_lab.tscn`). Run windowed: `--resolution 390x844 -- --lab=ui_real_capture_lab --shot-dir=DIR`. Add `--no-fit` for the gate's self-test, which must exit 1 at 390x844.
 
 ## Not done / risks
 
