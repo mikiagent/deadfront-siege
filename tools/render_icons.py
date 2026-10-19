@@ -24,6 +24,19 @@ OUT = ROOT / "game" / "assets" / "icons" / "render"
 FAMILIES = ["resources", "gear", "food", "camp"]
 WHITE = {"_unknown"}  # the white symbol fallback is a silhouette, not coloured art
 MAX_BYTES = 64 * 1024
+# Owner rule: low-quality / low-poly art is marked for replacement by newer, higher-quality art.
+# The whole set is procedural primitives (tier "procedural_v1"); these few read worst at slot size.
+REPLACE = {
+    "metal_shard": "two flat grey slabs; reads as nothing at slot size",
+    "raw_hide": "flat single-colour cut-out, no fur or edge detail",
+    "raptor_hide": "flat striped cut-out, no fur or edge detail",
+    "dried_hide": "flat slab with painted stripes",
+    "clay": "untextured blob, low poly",
+    "pillar": "plain box with straps, low detail",
+    "sign_kit": "bare plank on a post, low detail",
+    "tent_kit": "flat cloth plane on sticks, reads poorly",
+    "ingot": "generic ingot duplicate of the metal ingots",
+}
 
 sys.dont_write_bytecode = True  # keep __pycache__ out of tools/blender/items
 sys.path.insert(0, str(ITEMS_DIR))
@@ -110,9 +123,16 @@ def main():
             script, fn = reg[iid]
             items[iid] = {"script": script, "builder": iid, "png": "res://assets/icons/render/%s.png" % iid,
                           "sha256": sha, "bytes": n}
+        for iid, entry in items.items():
+            entry["quality"] = "procedural_v1"
+            entry.pop("replace", None)
+            if iid in REPLACE:
+                entry["replace"] = REPLACE[iid]
         man = {
             "_about": "Rendered item art (W1-ICONART). Regenerate with tools/render_icons.py; "
                       "models are procedural bpy builders in tools/blender/items/.",
+            "quality": "procedural_v1 = low-poly bpy primitives, a placeholder tier; every item is to be "
+                       "replaced by higher-quality art. 'replace' marks the weakest first.",
             "rig": kit.RIG,
             "blender": __import__("bpy").app.version_string,
             "items": dict(sorted(items.items())),
