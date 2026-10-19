@@ -8,6 +8,9 @@ extends RefCounted
 const DESIGN := Vector2i(1600, 900)
 ## Same threshold as UiTokens.is_phone: narrower than this in points is a phone.
 const PHONE_MAX_PT := 720.0
+## Portrait windows narrower than this (iPad mini 768, iPad Air 820) are tablets.
+const TABLET_MAX_PT := 1100.0
+const TABLET_W := 1000
 
 static func is_fullscreen() -> bool:
 	var mode := DisplayServer.window_get_mode()
@@ -25,14 +28,19 @@ static func label() -> String:
 	return "Exit full screen" if is_fullscreen() else "Full screen"
 
 ## Logical canvas for a window. The project stretches a 1600x900 canvas (aspect expand), which on a
-## 390-pt phone drew the HUD at 24 % and left every is_phone branch dead. A portrait phone now gets
-## one logical px per point, so text keeps its designed size; everything else keeps 1600x900.
-## shortcut: landscape phones and portrait tablets still get the design canvas; give them their own
-## rule when a device test shows text below the 12 px floor there.
+## 390-pt phone drew the HUD at 24 % and left every is_phone branch dead. Phones, held either way,
+## now get one logical px per point, so the 12 px type floor is 12 pt on the glass: portrait keeps
+## is_phone layouts, landscape (844x390) gets the desktop layouts at 1:1 (is_phone is width-based).
+## Portrait tablets get a TABLET_W-wide canvas, so desktop layouts keep their columns at ~0.8 scale
+## instead of 0.48. Everything else keeps 1600x900.
 static func logical_size(window_px: Vector2i, device_scale: float) -> Vector2i:
 	var pts := Vector2(window_px) / maxf(1.0, device_scale)
-	if pts.x > 0.0 and pts.x < PHONE_MAX_PT and pts.y > pts.x:
+	if pts.x <= 0.0 or pts.y <= 0.0:
+		return DESIGN
+	if pts.x < PHONE_MAX_PT or is_phone_landscape(pts):
 		return Vector2i(roundi(pts.x), roundi(pts.y))
+	if pts.y > pts.x and pts.x < TABLET_MAX_PT:
+		return Vector2i(TABLET_W, roundi(pts.y * float(TABLET_W) / pts.x))
 	return DESIGN
 
 ## Device pixels per point. Desktop windows are sized in pixels (--resolution, the window manager),
@@ -49,8 +57,8 @@ static func window_points(win: Window) -> Vector2:
 		return Vector2.ZERO
 	return Vector2(win.size) / device_scale()
 
-## A phone held sideways: short (<= 500 pt) and wide (>= 1.75:1). It keeps the design canvas, so
-## text drawn at desktop sizes lands under 12 pt; screens scale their type up for it.
+## A phone held sideways: short (<= 500 pt) and wide (>= 1.75:1), the shipped handheld orientation
+## (project.godot sensor landscape). logical_size() gives it a 1:1 canvas.
 static func is_phone_landscape(pts: Vector2) -> bool:
 	return pts.y > 0.0 and pts.y <= 500.0 and pts.x / pts.y >= 1.75
 
@@ -75,3 +83,72 @@ static func install(win: Window) -> void:
 	if not win.has_meta(&"display_mode_fit"):
 		win.set_meta(&"display_mode_fit", true)
 		win.size_changed.connect(func () -> void: fit(win))
+
+## The token Theme lives here, beside the canvas fit: both are what boot installs on the root.
+static var _theme_installed := false
+
+## One Theme from these tokens: ink panels, teal selection and a teal focus ring (keyboard and
+## controller users can see where they are), 16 px body type.
+static func build_theme() -> Theme:
+	var t := Theme.new()
+	t.default_font_size = 16
+	var normal := UiTokens.button_style(false)
+	var hover := UiTokens.button_style(false)
+	hover.bg_color = hover.bg_color.lightened(0.08)
+	hover.border_color = UiTokens.META
+	var pressed := UiTokens.button_style(true)
+	var disabled := UiTokens.button_style(false)
+	disabled.bg_color = Color(0.07, 0.075, 0.085, 0.9)
+	disabled.border_color = Color(UiTokens.DIVIDER, 0.3)
+	var focus := StyleBoxFlat.new()
+	focus.draw_center = false
+	focus.border_color = UiTokens.TEAL
+	focus.set_border_width_all(3)
+	focus.set_corner_radius_all(UiTokens.RADIUS)
+	focus.set_expand_margin_all(2.0)
+	for kind in ["Button", "OptionButton", "MenuButton"]:
+		t.set_stylebox("normal", kind, normal)
+		t.set_stylebox("hover", kind, hover)
+		t.set_stylebox("pressed", kind, pressed)
+		t.set_stylebox("hover_pressed", kind, pressed)
+		t.set_stylebox("disabled", kind, disabled)
+		t.set_stylebox("focus", kind, focus)
+		t.set_color("font_color", kind, UiTokens.TEXT)
+		t.set_color("font_hover_color", kind, Color.WHITE)
+		t.set_color("font_pressed_color", kind, Color.WHITE)
+		t.set_color("font_focus_color", kind, Color.WHITE)
+		t.set_color("font_disabled_color", kind, Color(UiTokens.META, 0.55))
+		t.set_font_size("font_size", kind, 16)
+	t.set_color("font_color", "Label", UiTokens.TEXT)
+	t.set_font_size("font_size", "Label", 16)
+	t.set_stylebox("panel", "PanelContainer", UiTokens.panel_style())
+	t.set_stylebox("panel", "Panel", UiTokens.panel_style())
+	var field := UiTokens.slot_style(false)
+	field.content_margin_left = UiTokens.SPACE
+	field.content_margin_right = UiTokens.SPACE
+	t.set_stylebox("normal", "LineEdit", field)
+	t.set_stylebox("focus", "LineEdit", focus)
+	t.set_color("font_color", "LineEdit", UiTokens.TEXT)
+	t.set_font_size("font_size", "LineEdit", 16)
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(1, 1, 1, 0.14)  # visible on ink panels even when the bar is empty
+	track.set_corner_radius_all(3)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = UiTokens.TEAL
+	fill.set_corner_radius_all(3)
+	t.set_stylebox("background", "ProgressBar", track)
+	t.set_stylebox("fill", "ProgressBar", fill)
+	t.set_font_size("font_size", "ProgressBar", UiTokens.TYPE_MIN)
+	return t
+
+## Merge the token theme into the engine default theme, so every Control picks it up, including
+## those under CanvasLayers (a theme on the root Window does not reach them). Idempotent.
+static func install_theme() -> void:
+	if _theme_installed:
+		return
+	var base := ThemeDB.get_default_theme()
+	if base == null:
+		return
+	base.merge_with(build_theme())
+	_theme_installed = true
+	print("[ui] theme installed")

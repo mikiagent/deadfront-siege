@@ -12,7 +12,6 @@ const OWNED := [
 	"res://scripts/ui/creature_plates.gd", "res://scripts/ui/context_radial.gd", "res://scripts/ui/gather_radial.gd",
 	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
 	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
-	"res://scripts/ui/ui_theme.gd", "res://scripts/ui/ui_symbols.gd",
 ]
 const TYPE_MIN := 12
 
@@ -189,13 +188,12 @@ func _test_display_mode() -> void:
 	_expect(UT.is_phone(Vector2(DisplayMode.logical_size(Vector2i(390, 844), 1.0))), "is_phone holds on the phone canvas")
 
 func _test_theme() -> void:
-	var TH: GDScript = load("res://scripts/ui/ui_theme.gd")
-	var t: Theme = TH.build()
+	var t: Theme = DisplayMode.build_theme()
 	_expect(t.has_stylebox("focus", "Button"), "theme has a Button focus ring")
 	_expect(t.has_stylebox("normal", "Button") and t.has_stylebox("panel", "PanelContainer"), "theme styles buttons and panels")
 	for kind in ["Button", "Label", "LineEdit", "ProgressBar"]:
 		_expect(t.get_font_size("font_size", kind) >= TYPE_MIN, "theme font size >= %d for %s" % [TYPE_MIN, kind])
-	TH.install()
+	DisplayMode.install_theme()
 	var focus := ThemeDB.get_default_theme().get_stylebox("focus", "Button") as StyleBoxFlat
 	_expect(focus != null and focus.border_color == UT.TEAL, "theme merged into the default theme")
 

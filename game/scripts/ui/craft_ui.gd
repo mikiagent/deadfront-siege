@@ -10,7 +10,7 @@ extends Control
 ## stations over the recipe list, then the detail as a sheet over both, with Craft / Craft x5
 ## pinned in a footer (three stacked scroll panes hid the Craft button below a nested scroll).
 
-## [station id, name, symbol icon id]. Symbols are white (UiSymbols.symbol); system emoji drew in colour.
+## [station id, name, symbol icon id]. Symbols are white (HexButton.symbol); system emoji drew in colour.
 const STATIONS := [
 	["", "By hand", "hands"], ["workbench", "Workbench", "workbench_kit"], ["bonfire", "Bonfire", "bonfire_kit"],
 	["campfire", "Campfire", "campfire_kit"], ["drying_rack", "Meat dryer", "drying_rack_kit"],
@@ -58,9 +58,11 @@ func _ready() -> void:
 	_hint = Label.new()
 	_hint.add_theme_font_size_override("font_size", 14)
 	_hint.add_theme_color_override("font_color", Color(0.85, 0.85, 0.8))
+	_hint.name = "CraftHint"
 	_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hint.max_lines_visible = 2
+	_hint.size_flags_stretch_ratio = 2.0
+	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# One line: the autowrapped version got a zero-height rect in the header and never drew.
 	_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_hint.clip_text = true
 	header.add_child(_hint)
@@ -166,6 +168,7 @@ func rebuild() -> void:
 
 func _refresh_tabs() -> void:
 	for c in _tabs.get_children():
+		_tabs.remove_child(c)  # detach first: focus_first and finds must not see rows about to go
 		c.queue_free()
 	for row in STATIONS:
 		var sid: String = row[0]
@@ -186,7 +189,7 @@ func _refresh_tabs() -> void:
 		var b := _mk_btn("%s\n%s · %s" % [row[1], status, recipe_count(count)], _pick_station.bind(sid), Vector2(228 if _is_phone() else 190, 64))
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.clip_text = true
-		b.icon = UiSymbols.symbol([row[2], "hammer"])
+		b.icon = HexButton.symbol([row[2], "hammer"])
 		b.expand_icon = true
 		b.add_theme_constant_override("icon_max_width", 28)
 		b.add_theme_color_override("font_color", col)
@@ -208,6 +211,7 @@ func _is_phone() -> bool:
 
 func _refresh_list() -> void:
 	for c in _list.get_children():
+		_list.remove_child(c)
 		c.queue_free()
 	var name := "By hand"
 	for row in STATIONS:

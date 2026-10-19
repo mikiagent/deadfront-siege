@@ -129,7 +129,7 @@ func _header(text: String, right: String = "", symbol_id: String = "") -> void:
 
 func _symbol(id: String, px: float) -> TextureRect:
 	var t := TextureRect.new()
-	t.texture = UiSymbols.symbol([SYMBOLS.get(id, id), "hammer"])
+	t.texture = HexButton.symbol([SYMBOLS.get(id, id), "hammer"])
 	t.custom_minimum_size = Vector2(px, px)
 	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED

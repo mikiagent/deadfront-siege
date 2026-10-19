@@ -192,7 +192,7 @@ static func focus_first(controls: Array) -> void:
 static func first_focusable(controls: Array) -> Control:
 	for c in controls:
 		var control := c as Control
-		if control and control.is_visible_in_tree() and control.focus_mode != Control.FOCUS_NONE:
+		if control and not control.is_queued_for_deletion() and control.is_visible_in_tree() and control.focus_mode != Control.FOCUS_NONE:
 			return control
 	return null
 

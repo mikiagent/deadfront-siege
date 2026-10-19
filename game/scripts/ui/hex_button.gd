@@ -104,7 +104,7 @@ func _draw() -> void:
 		var isz := r * (0.8 if has_texts else 1.05)
 		var ic := c + Vector2(0.0, 2.0 if top_text != "" else 0.0)
 		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0)
-		var shown: Texture2D = icon if color_icon else _white_symbol(icon)
+		var shown: Texture2D = icon if color_icon else white_symbol(icon)
 		draw_texture_rect(shown, Rect2(ic - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
 	elif glyph != "":
 		var short := glyph.length() <= 2
@@ -166,9 +166,39 @@ func _draw() -> void:
 			var hint := UiTokens.ellipsis(font, hint_text, 140.0, UiTokens.TYPE_MIN)
 			draw_string(font, Vector2(origin_x + 6.0, c.y + ls * 1.45), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.TYPE_MIN, UiTokens.DANGER)
 
-## Durango-style HUD language: action symbols are white silhouettes (UiSymbols.white_symbol).
-static func _white_symbol(source: Texture2D) -> Texture2D:
-	return UiSymbols.white_symbol(source)
+## Durango-style HUD language: action symbols are white silhouettes.
+static var _symbol_cache: Dictionary = {}
+
+## White silhouette of a texture (alpha kept, RGB dropped). HUD commands, menu actions and
+## controls are monochrome white; system emoji render in colour on macOS/iOS, so action
+## glyphs use these instead. Cached per source texture.
+static func white_symbol(source: Texture2D) -> Texture2D:
+	if source == null:
+		return null
+	var key := source.resource_path if source.resource_path != "" else str(source.get_rid())
+	if _symbol_cache.has(key):
+		return _symbol_cache[key] as Texture2D
+	var image := source.get_image()
+	if image == null or image.is_empty():
+		return source
+	image = image.duplicate() as Image
+	if image.is_compressed():
+		image.decompress()
+	image.convert(Image.FORMAT_RGBA8)
+	for y in image.get_height():
+		for x in image.get_width():
+			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, image.get_pixel(x, y).a))
+	var white := ImageTexture.create_from_image(image)
+	_symbol_cache[key] = white
+	return white
+
+## White symbol for the first id in `ids` that has an icon (item ids from icons_manifest.json).
+static func symbol(ids: Array) -> Texture2D:
+	for id in ids:
+		var tex := ItemIcons.texture(StringName(str(id)))
+		if tex:
+			return white_symbol(tex)
+	return null
 
 func _gui_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_accept") and has_focus():

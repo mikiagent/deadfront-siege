@@ -1,6 +1,6 @@
 extends Node3D
 ## Real-scene UI gate (W1-UI). Boots the home island with the real HUD, fits the logical canvas and
-## installs the theme the way boot does (DisplayMode.install, UiTheme.install), then opens
+## installs the theme the way boot does (DisplayMode.install, DisplayMode.install_theme), then opens
 ## the HUD, craft, skills, atlas, a gather radial and character creation in the ROOT viewport (not a
 ## sized SubViewport, which hid the phone problem) and saves a PNG of each. Every screen must have
 ## size, sit inside the view, draw no text under 12 px on screen and be neither blank nor blown out.
@@ -35,7 +35,7 @@ func _ready() -> void:
 			fit = false
 	if fit:
 		DisplayMode.install(get_tree().root)
-	UiTheme.install()
+	DisplayMode.install_theme()
 	DirAccess.make_dir_recursive_absolute(_out)
 	var kit := LabKit.build(self, 4.0)
 	Game.debug_overlay = false
@@ -153,9 +153,6 @@ func _finish(phone: bool, logical: Vector2) -> void:
 	var pts := DisplayMode.window_points(get_tree().root)
 	print("[uireal] phone=%s min_font_px=%d logical_width=%d window_pt=%dx%d (smallest: %s)" % [phone, min_px, int(logical.x), int(pts.x), int(pts.y), _min_font_where])
 	_fails.append_array(gate_failures(pts, phone, min_px, int(logical.x)))
-	if DisplayMode.is_phone_landscape(pts) and min_px < UiTokens.TYPE_MIN:
-		# Not failed: landscape phones keep the 1600x900 canvas by design (DisplayMode shortcut).
-		print("[uireal] WARN landscape phone %dx%d pt: smallest text %d pt, under the %d floor; screens other than character creation have no landscape layout yet" % [int(pts.x), int(pts.y), min_px, UiTokens.TYPE_MIN])
 	if _fails.is_empty():
 		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,plate,charcreate shots=%s" % ["craft_detail," if phone else "", _out])
 		get_tree().quit(0)
@@ -169,11 +166,15 @@ func _finish(phone: bool, logical: Vector2) -> void:
 ## because neither branch ran under 1600 px.
 static func gate_failures(pts: Vector2, phone: bool, min_px: int, logical_w: int) -> Array[String]:
 	var out: Array[String] = []
-	if DisplayMode.is_phone_window(pts):
-		if pts.y > pts.x and not phone:
+	var handheld := DisplayMode.is_phone_window(pts) or DisplayMode.is_phone_landscape(pts)
+	if handheld:
+		if DisplayMode.is_phone_window(pts) and pts.y > pts.x and not phone:
 			out.append("a portrait %dx%d pt window must get the phone canvas (is_phone is false, logical width %d)" % [int(pts.x), int(pts.y), logical_w])
 		if min_px < UiTokens.TYPE_MIN:
-			out.append("phone-width window: text at least %d px on screen (got %d)" % [UiTokens.TYPE_MIN, min_px])
+			out.append("phone window %dx%d pt: text at least %d pt on screen (got %d)" % [int(pts.x), int(pts.y), UiTokens.TYPE_MIN, min_px])
+	elif pts.y > pts.x and pts.x < DisplayMode.TABLET_MAX_PT:
+		if logical_w > DisplayMode.TABLET_W:
+			out.append("portrait tablet %dx%d pt gets a canvas at most %d wide (got %d)" % [int(pts.x), int(pts.y), DisplayMode.TABLET_W, logical_w])
 	elif pts.x >= float(DisplayMode.DESIGN.x) and logical_w != DisplayMode.DESIGN.x:
 		out.append("desktop keeps a %d px logical width (got %d)" % [DisplayMode.DESIGN.x, logical_w])
 	return out
@@ -275,7 +276,7 @@ func _scan_fonts_from(node: Node, screen: String, stretch: float) -> void:
 	var c := node as Control
 	if c and not c.is_visible_in_tree():
 		return
-	if c and c.modulate.a > 0.05 and (c is Label or c is Button or c is LineEdit):
+	if c and c.modulate.a > 0.05 and (c is Label or c is Button or c is LineEdit) and on_screen(c):
 		var text := str(c.get("text"))
 		if text.strip_edges() != "":
 			var px := float(c.get_theme_font_size("font_size")) * stretch * c.get_global_transform_with_canvas().get_scale().x
@@ -284,6 +285,21 @@ func _scan_fonts_from(node: Node, screen: String, stretch: float) -> void:
 				_min_font_where = "%s %s \"%s\" %.1f px" % [screen, c.get_path(), text.left(24).replace("\n", " "), px]
 	for child in node.get_children():
 		_scan_fonts_from(child, screen, stretch)
+
+## A text control counts for the font gate only when part of it is drawn: a zero-size label or
+## one clipped out by its parents (the old craft hint) is text nobody sees.
+static func on_screen(c: Control) -> bool:
+	var rect := c.get_global_rect()
+	if rect.size.x < 1.0 or rect.size.y < 1.0:
+		return false
+	var p := c.get_parent() as Control
+	while p:
+		if p.clip_contents or p is ScrollContainer:
+			rect = rect.intersection(p.get_global_rect())
+			if rect.size.x < 1.0 or rect.size.y < 1.0:
+				return false
+		p = p.get_parent() as Control
+	return Rect2(Vector2.ZERO, c.get_viewport_rect().size).intersects(rect)
 
 ## (mean luma, luma deviation, share of near-white pixels) on a 64 px grid sample.
 func _exposure(img: Image) -> Vector3:
