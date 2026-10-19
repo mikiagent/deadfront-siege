@@ -55,6 +55,15 @@ func to_dict() -> Dictionary:
 		"z": global_position.z,
 	}
 
+func pack_up(player: Player) -> bool:
+	return BuildPlacer.pack_up_node(self, player)
+
+# ASSUMPTION: a planted field refuses so seeds, water and fertiliser are never silently lost.
+func pack_up_block_reason() -> String:
+	if crop_id != &"":
+		return "Harvest or clear the field first"
+	return ""
+
 func set_grid_pose(cell: Vector2i, rot: int) -> void:
 	build_cell = cell
 	build_rot = posmod(rot, 4)

@@ -10,13 +10,17 @@ var persist_building: bool = true
 var build_cell: Vector2i = Vector2i.ZERO
 var build_rot: int = 0
 var sleeps_left: int = -1  # -1 for non-sleep structures
+var gate_open: bool = false  # gates only: open = passable for everyone, closed = solid
 
 const BASKET_SLOTS := 60 ## ASSUMPTION: PRD ~100; 60 for mobile UI.
+
+static func full_sleeps(p_kind: StringName) -> int:
+	return 1 if p_kind == &"straw_roll" else (6 if p_kind == &"tent" else (12 if p_kind == &"canvas_tent" else -1))
 
 static func make(p_kind: StringName):
 	var b = (load("res://scripts/world/placed_building.gd") as GDScript).new()
 	b.kind = p_kind
-	b.sleeps_left = 1 if p_kind == &"straw_roll" else (6 if p_kind == &"tent" else (12 if p_kind == &"canvas_tent" else -1))
+	b.sleeps_left = full_sleeps(p_kind)
 	b.name = str(p_kind)
 	if p_kind == &"basket":
 		b.storage = Inventory.new(BASKET_SLOTS)
@@ -31,6 +35,7 @@ static func from_dict(d: Dictionary):
 	if cell_v is Array and (cell_v as Array).size() >= 2:
 		b.build_cell = Vector2i(int(cell_v[0]), int(cell_v[1]))
 	b.build_rot = int(d.get("rot", 0))
+	b.gate_open = b.kind == &"gate" and bool(d.get("open", false))
 	# Older tents had no use field: give them the full six uses.
 	if b.sleeps_left >= 0:
 		b.sleeps_left = clampi(int(d.get("sleeps_left", b.sleeps_left)), 0, b.sleeps_left)
@@ -48,6 +53,8 @@ func to_dict() -> Dictionary:
 		"contents": storage.to_array() if storage else [],
 		"sleeps_left": sleeps_left,
 	}
+	if kind == &"gate":
+		rec["open"] = gate_open
 	rec["x"] = global_position.x
 	rec["z"] = global_position.z
 	return rec
@@ -73,26 +80,64 @@ func _ready() -> void:
 		add_to_group("basket")
 	if get_node_or_null("Shape") == null and get_node_or_null("Prop") == null and get_node_or_null("FallbackMesh") == null:
 		PropVisuals.apply_building_visual(self, kind, _fallback_size(), _color())
+	if kind == &"gate":
+		_build_gate_leaf()
+		_apply_gate_state()
 
 func _exit_tree() -> void:
 	_release_grid()
 
-func pack_up(player: Player) -> void:
-	if sleeps_left >= 0 and sleeps_left < (1 if kind == &"straw_roll" else (12 if kind == &"canvas_tent" else 6)):
-		player.notice("Used bedding can't be repacked")
+func pack_up(player: Player) -> bool:
+	return BuildPlacer.pack_up_node(self, player)
+
+func pack_up_block_reason() -> String:
+	if sleeps_left >= 0 and sleeps_left < full_sleeps(kind):
+		return "Used bedding can't be repacked"
+	return ""
+
+## Tap on a gate (W2-PLAYER routes the survivor's building tap here). Other kinds ignore it.
+func interact(_player: Player) -> bool:
+	if kind != &"gate":
+		return false
+	set_gate_open(not gate_open)
+	return true
+
+func set_gate_open(on: bool) -> void:
+	gate_open = on
+	_apply_gate_state()
+	print("[build] gate %s" % ("open" if on else "closed"))
+
+## Open: off the movement layer (1) but still on the tap layer (2) so it can be closed again;
+## pathing cells re-flag immediately. Closed: a solid leaf fills the doorway.
+func _apply_gate_state() -> void:
+	collision_layer = 2 if gate_open else 1
+	var hinge := get_node_or_null("GateHinge") as Node3D
+	if hinge:
+		hinge.rotation.y = deg_to_rad(-100.0) if gate_open else 0.0
+	if is_inside_tree() and World.runtime and World.runtime.get("build_grid") is BuildGrid:
+		var grid := World.runtime.get("build_grid") as BuildGrid
+		grid.refresh_path(self)
+
+# ASSUMPTION: the Kenney fence-doorway model is an empty frame, so the closed state needs a visible
+# leaf; plain planks until W1-STRUCTART ships a gate model.
+func _build_gate_leaf() -> void:
+	if get_node_or_null("GateHinge") != null:
 		return
-	if not World.is_home():
-		return
-	var kit := _kit_id()
-	if kit != &"":
-		player.inventory.add(ItemStack.make(kit, 1))
-	if storage:
-		for i in storage.slot_count:
-			var s := storage.slots[i]
-			if s:
-				player.inventory.add(s.duplicate_stack())
-	print("[item] packed %s" % kind)
-	queue_free()
+	var hinge := Node3D.new()
+	hinge.name = "GateHinge"
+	hinge.position = Vector3(-0.5, 0.0, 0.0)
+	add_child(hinge)
+	var leaf := MeshInstance3D.new()
+	leaf.name = "Leaf"
+	var box := BoxMesh.new()
+	box.size = Vector3(1.0, 1.2, 0.08)
+	leaf.mesh = box
+	leaf.position = Vector3(0.5, 0.7, 0.0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.42, 0.29, 0.16)
+	mat.roughness = 0.9
+	leaf.material_override = mat
+	hinge.add_child(leaf)
 
 func sleep_duration() -> float:
 	return 12.0 if kind == &"straw_roll" else (8.0 if kind == &"canvas_tent" else (7.0 if kind == &"log_shelter" else (5.0 if kind == &"cabin_bed" else 10.0)))
@@ -107,37 +152,6 @@ func complete_sleep() -> void:
 	print("[sleep] %s uses_left=%d" % [kind, sleeps_left])
 	if sleeps_left == 0:
 		queue_free()
-
-func _kit_id() -> StringName:
-	match kind:
-		&"straw_roll":
-			return &"straw_roll_kit"
-		&"tent":
-			return &"tent_kit"
-		&"canvas_tent":
-			return &"canvas_tent_kit"
-		&"log_shelter":
-			return &"log_shelter_kit"
-		&"cabin_bed":
-			return &"cabin_bed_kit"
-		&"basket":
-			return &"basket_kit"
-		&"fence":
-			return &"fence_kit"
-		&"gate":
-			return &"gate_kit"
-		&"sign":
-			return &"sign_kit"
-		&"workbench":
-			return &"workbench_kit"
-		&"drying_rack":
-			return &"drying_rack_kit"
-		&"bonfire":
-			return &"bonfire_kit"
-		&"makeshift_taming_pen":
-			return &"makeshift_taming_pen"
-		_:
-			return &""
 
 func _fallback_size() -> Vector3:
 	match kind:
