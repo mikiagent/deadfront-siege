@@ -35,5 +35,6 @@ func run(host:Node)->void:
 				check(b.storage.count_of(&"branch")==7 and b.storage.slots[0].level==55,"stored material count/quality restored")
 		check(count==1,"exactly one basket after return%d" % repeat)
 	check(World.t_stones==10,"two5T sail debits, returns free")
-	print("[camptravel] done failures%d seeded fixture, NOT earned camp journey" % failures)
-	get_tree().quit(0 if failures==0 else 1)
+	var r := LabResult.new("camptravel")
+	r.expect(failures == 0, "%d camp checks failed" % failures)
+	r.finish(get_tree(), "done failures%d seeded fixture, NOT earned camp journey" % failures)

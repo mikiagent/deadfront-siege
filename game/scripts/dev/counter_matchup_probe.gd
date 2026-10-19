@@ -1,4 +1,7 @@
 extends Node
+## Gate: with --correct-kit the counter kit must win inside 90 s. Without it (the wrong kit) the
+## run fails when the wrong kit still wins, because then the counter did not decide the fight.
+## ASSUMPTION: "counter decides the fight" is the probe's pass rule; balance targets stay W1-COMBAT's.
 var player: Player
 var enemy: Creature
 var elapsed := 0.0
@@ -67,8 +70,14 @@ func _physics_process(delta: float) -> void:
 		next_diag += 15
 		print("[matchdiag] t=%.0f gap=%.1f hp=%.0f eHP=%.0f busy=%s nav=%s roll=%s energy=%.0f fracture=%s" % [elapsed, player.global_position.distance_to(enemy.global_position), player.vitals.health,enemy.health.hp,player.anim._busy,player.nav_active,player.rolling,player.vitals.energy,player.statuses.has(&"fracture")])
 	if player.dead or enemy.health.dead or elapsed > 90:
-		print("[matchup] species=%s correct=%s win=%s time=%.1f hp=%.0f enemyHP=%.0f rolls=%d health_drops=%d poison=%s bleed=%s; seededL25weapon/melee and sharedL25raidarmor, not earned progression" % [species,correct,enemy.health.dead and not player.dead,elapsed,player.vitals.health,enemy.health.hp,rolls,contact,enemy.statuses.has(&"poisoned_target"),enemy.statuses.has(&"bleeding_target")])
-		get_tree().quit(0)
+		var win := enemy.health.dead and not player.dead
+		print("[matchup] species=%s correct=%s win=%s time=%.1f hp=%.0f enemyHP=%.0f rolls=%d health_drops=%d poison=%s bleed=%s; seededL25weapon/melee and sharedL25raidarmor, not earned progression" % [species,correct,win,elapsed,player.vitals.health,enemy.health.hp,rolls,contact,enemy.statuses.has(&"poisoned_target"),enemy.statuses.has(&"bleeding_target")])
+		var r := LabResult.new("matchup")
+		if correct:
+			r.expect(win, "correct kit did not win against %s in %.0f s" % [species, elapsed])
+		else:
+			r.expect(not win, "wrong kit still beat %s in %.0f s: the counter did not decide it" % [species, elapsed])
+		r.finish(get_tree(), "species=%s correct=%s win=%s time=%.1f" % [species, correct, win, elapsed])
 		set_physics_process(false)
 		return
 	var gap := player.global_position.distance_to(enemy.global_position)

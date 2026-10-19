@@ -20,5 +20,8 @@ func run(host: Node) -> void:
 	bot.player._last_hit_taken_s = -999
 	print("[restprobe] route%s bush-path=%s" % [World.runtime.pathing.path(bot.player.global_position,spot.global_position+Vector3(0,0,-2),96),bush_path])
 	var why := await bot._recover_for_work()
-	print("[restprobe] %s reason=%s fatigue=%.1f energy=%.1f elapsed=%.1f; seeded fatigue fixture, stock-position=%s, not earned progression" % ["PASS" if why == "" and bot.player.vitals.fatigue < 10 and bot.player.vitals.energy > 25 else "PARTIAL", why,bot.player.vitals.fatigue,bot.player.vitals.energy,bot._t, stock_position])
-	get_tree().quit(0)
+	var r := LabResult.new("restprobe")
+	r.expect(why == "", "recover_for_work blocked: %s" % why)
+	r.expect(bot.player.vitals.fatigue < 10, "fatigue still %.1f after rest" % bot.player.vitals.fatigue)
+	r.expect(bot.player.vitals.energy > 25, "energy only %.1f after rest" % bot.player.vitals.energy)
+	r.finish(get_tree(), "fatigue=%.1f energy=%.1f elapsed=%.1f; seeded fatigue fixture, stock-position=%s, not earned progression" % [bot.player.vitals.fatigue, bot.player.vitals.energy, bot._t, stock_position])

@@ -3,6 +3,7 @@ extends Node3D
 var player: Player
 var runtime: Node3D
 var bushes: Array[HarvestNode] = []
+var _r := LabResult.new("berrylab")
 
 func _ready() -> void:
 	var kit := LabKit.build(self, 24.0)
@@ -21,6 +22,7 @@ func _ready() -> void:
 	call_deferred("_demo")
 
 func _demo() -> void:
+	_r.deadline(get_tree(), 45.0)
 	await get_tree().create_timer(0.6).timeout
 	# Isolated closest legal clump: four mapped bushes, full/empty paira and pairb.
 	for i in 4:
@@ -54,7 +56,7 @@ func _demo() -> void:
 	var snap := n.pools_snapshot()
 	n.restore_pools({"pools": {"berry": 0.0, "fibre_stalk": 3.0}, "maxes": {"berry": 10, "fibre_stalk": 3}, "regen": {"berry": 90.0}})
 	_verify(n, false)
-	assert(not n.depleted, "fibre availability keeps harvesting active")
+	_r.expect(not n.depleted, "fibre availability keeps harvesting active")
 	n.restore_pools(snap)
 	_verify(n, true)
 	for b in runtime._batches:
@@ -63,7 +65,7 @@ func _demo() -> void:
 		_verify(bush, true)
 	await _capture("regrown")
 	if DisplayServer.get_name() != "headless":
-		get_tree().quit(0)
+		_r.finish(get_tree(), "windowed stills only")
 		return
 	var min_d: float = 999.0
 	var mapped: Array[HarvestNode] = []
@@ -74,14 +76,13 @@ func _demo() -> void:
 		for b in mapped:
 			if a != b:
 				min_d = minf(min_d, Vector2(a.position.x-b.position.x, a.position.z-b.position.z).length())
-	assert(min_d >= 3.8, "generated berry clump centre separation")
+	_r.expect(min_d >= 3.8, "generated berry clump centre separation")
 	# Move across the fixture clump with normal navigation, no collider changes.
 	player.nav_to(player._closest_nav_point(player.global_position + Vector3(-3, 0, -10)))
 	var start := player.global_position
 	await get_tree().create_timer(6.0).timeout
-	assert(player.global_position.distance_to(start) > 3.0, "walk route makes progress through bush clump")
-	print("[berrylab] PASS both variants consume/refill/restore; nodes=%d min_separation=%.2f walk_progress=%.2f" % [mapped.size(), min_d, player.global_position.distance_to(start)])
-	get_tree().quit(0)
+	_r.expect(player.global_position.distance_to(start) > 3.0, "walk route makes progress through bush clump")
+	_r.finish(get_tree(), "both variants consume/refill/restore; nodes=%d min_separation=%.2f walk_progress=%.2f" % [mapped.size(), min_d, player.global_position.distance_to(start)])
 
 func _empty(n: HarvestNode) -> void:
 	n.yield_def_id = &"berry"
@@ -89,13 +90,13 @@ func _empty(n: HarvestNode) -> void:
 		n.consume_unit()
 
 func _verify(n: HarvestNode, full: bool) -> void:
-	assert(n.berries_available() == full)
-	assert(n.visible, "empty foliage persists")
-	assert(n._batch._xforms[n._batch_idx] == n._empty_batch._xforms[n._empty_batch_idx], "identical transform for both states")
-	assert(bool(n._batch._shown.get(n._batch_idx, true)) == full)
-	assert(bool(n._empty_batch._shown.get(n._empty_batch_idx, true)) != full)
+	_r.expect(n.berries_available() == full, "n.berries_available() == full")
+	_r.expect(n.visible, "empty foliage persists")
+	_r.expect(n._batch._xforms[n._batch_idx] == n._empty_batch._xforms[n._empty_batch_idx], "identical transform for both states")
+	_r.expect(bool(n._batch._shown.get(n._batch_idx, true)) == full, "bool(n._batch._shown.get(n._batch_idx, true)) == full")
+	_r.expect(bool(n._empty_batch._shown.get(n._empty_batch_idx, true)) != full, "bool(n._empty_batch._shown.get(n._empty_batch_idx, true)) != full")
 	if n.depleted:
-		assert(n.collision_layer == 0 and n.get_node("TapZone").collision_layer == 0)
+		_r.expect(n.collision_layer == 0 and n.get_node("TapZone").collision_layer == 0, "n.collision_layer == 0 and n.get_node(\"TapZone\").collision_layer == 0")
 
 func _capture(stage: String) -> void:
 	if DisplayServer.get_name() == "headless":
@@ -103,4 +104,4 @@ func _capture(stage: String) -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("/tmp/dfs-berries-" + stage + ".png")
+	get_viewport().get_texture().get_image().save_png(LabResult.capture_path("berries-" + stage))

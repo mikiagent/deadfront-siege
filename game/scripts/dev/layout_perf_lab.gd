@@ -11,6 +11,12 @@ var _drag_left: int = 0
 var _drag_origin: Vector3 = Vector3.ZERO
 var _phase: StringName = &"boot"
 var _rebuilds_before: int = 0
+## Budgets (qa-perf-01). ASSUMPTION: a layout drag must keep a 60 Hz frame on the dev machine
+## and one overlay rebuild stays under 1 ms; measured 2026-10-18: p95 ~9 ms, rebuild ~0.2 ms.
+const BUDGET_DRAG_P95_US := 16667
+const BUDGET_REBUILD_US := 1000.0
+var _drag_p95_us: int = 0
+var _rebuild_us: float = 0.0
 
 func _ready() -> void:
 	var kit := LabKit.build(self, 20.0)
@@ -123,6 +129,7 @@ func _bench() -> void:
 	var p95 := _frames[int(float(n) * 0.95)] if n > 0 else 0
 	var worst := _frames[n - 1] if n > 0 else 0
 	print("[perf] drag frames=%d avg=%.0fus p95=%dus worst=%dus end_cell=%s" % [n, avg, p95, worst, str(p.cell)])
+	_drag_p95_us = p95
 	# Micro: forced overlay rebuilds (cell nudge forces the _last_sync miss path).
 	var t0 := Time.get_ticks_usec()
 	var base := p.cell
@@ -131,6 +138,7 @@ func _bench() -> void:
 		p._sync_grid_state()
 	var rebuild_us := float(Time.get_ticks_usec() - t0) / 200.0
 	print("[perf] sync_rebuild avg=%.0fus" % rebuild_us)
+	_rebuild_us = rebuild_us
 	# Micro: overlay draw alone.
 	var grid2: BuildGrid = World.runtime.build_grid
 	t0 = Time.get_ticks_usec()
@@ -293,9 +301,11 @@ func _functional_checks() -> void:
 			if tent.get("build_cell") != target:
 				fails.append("put_back moved tent: %s" % str(tent.get("build_cell")))
 	p.end_layout()
-	if fails.is_empty():
-		print("[perf] functional PASS")
-	else:
-		for f in fails:
-			print("[perf] functional FAIL: %s" % f)
-	get_tree().quit(0 if fails.is_empty() else 1)
+	if _drag_p95_us > BUDGET_DRAG_P95_US:
+		fails.append("drag p95 %d us over budget %d us" % [_drag_p95_us, BUDGET_DRAG_P95_US])
+	if _rebuild_us > BUDGET_REBUILD_US:
+		fails.append("overlay rebuild %.0f us over budget %.0f us" % [_rebuild_us, BUDGET_REBUILD_US])
+	var r := LabResult.new("perf")
+	for f in fails:
+		r.expect(false, "functional: %s" % f)
+	r.finish(get_tree(), "functional drag_p95=%dus rebuild=%.0fus" % [_drag_p95_us, _rebuild_us])

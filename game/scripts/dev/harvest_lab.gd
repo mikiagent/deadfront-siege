@@ -1,5 +1,7 @@
 extends Node3D
 ## Six harvest nodes: two climate-stamped fibre stalks, branch, stone, herb, knife-gated thicket.
+## (Was foundation_lab.) Headless it is a gate: climates stay unmerged, the thicket refuses
+## without a knife and yields with one.
 
 var _player: Player
 var _debug: Label
@@ -19,6 +21,8 @@ func _ready() -> void:
 
 func _demo() -> void:
 	# Headless proof: two climate-stamped fibre stalks stay unmerged; thicket refuses without a knife.
+	var r := LabResult.new("harvest")
+	var refused: Array[String] = []
 	for n in get_tree().get_nodes_in_group("harvest"):
 		var node := n as HarvestNode
 		if node == null:
@@ -26,6 +30,7 @@ func _demo() -> void:
 		var why := node.can_gather(_player.inventory)
 		if why != "":
 			print("[item] refused %s: %s" % [node.node_id, why])
+			refused.append(str(node.node_id))
 			continue
 		var stack := node.roll_yield()
 		var attrs: Dictionary = stack.attributes.duplicate(true)
@@ -39,7 +44,9 @@ func _demo() -> void:
 			var left2 := _player.inventory.add(again)
 			print("[item] +%d %s %s" % [before2 - left2, again.def_id, attrs2])
 		node.mark_gathered()
+	r.expect(refused == ["thicket"], "only the thicket refuses without a knife (refused %s)" % [refused])
 	LabKit.give(_player, &"stone_knife_work", 1)
+	var thicket_units := 0
 	for n in get_tree().get_nodes_in_group("harvest"):
 		var node := n as HarvestNode
 		if node and node.node_id == &"thicket":
@@ -49,7 +56,9 @@ func _demo() -> void:
 			var attrs: Dictionary = stack.attributes.duplicate(true)
 			var before := stack.count
 			var left := _player.inventory.add(stack)
+			thicket_units += before - left
 			print("[item] +%d %s %s" % [before - left, stack.def_id, attrs])
+	r.expect(thicket_units > 0, "thicket yields once a knife is carried")
 	var temperate := 0
 	var tropical := 0
 	for s in _player.inventory.slots:
@@ -59,10 +68,17 @@ func _demo() -> void:
 			elif str(s.attributes.get("climate", "")) == "tropical":
 				tropical += s.count
 	print("[item] fibre stacks temperate=%d tropical=%d (unmerged climates)" % [temperate, tropical])
+	var fibre_slots := 0
+	for s in _player.inventory.slots:
+		if s and s.def_id == &"fibre_stalk" and str(s.attributes.get("climate", "")) in ["temperate", "tropical"]:
+			fibre_slots += 1
+	r.expect(temperate == 2 and tropical == 2, "two units per climate (temperate=%d tropical=%d)" % [temperate, tropical])
+	r.expect(fibre_slots == 2, "same-climate units merge and climates stay apart (%d fibre slots)" % fibre_slots)
+	r.finish(get_tree(), "temperate=%d tropical=%d thicket=%d" % [temperate, tropical, thicket_units])
 
 func _process(_delta: float) -> void:
 	if _player:
-		_debug.text = "foundation_lab  slots %d/%d  (tap a plant; thicket needs a knife)" % [
+		_debug.text = "harvest_lab  slots %d/%d  (tap a plant; thicket needs a knife)" % [
 			_player.inventory.used_slots(), _player.inventory.slot_count]
 
 func _spawn(id: StringName, pos: Vector3, def_id: StringName, attrs: Dictionary, tool: StringName, color: Color) -> void:

@@ -1,9 +1,23 @@
 extends Node
 ## Deterministic in-engine route used by tools/production_soak.mjs.
 ## It drives real menu and travel methods while the browser harness watches pixels and logs.
+## Native runs (desktop or --headless, `-- --web-soak`) click the bench themselves and exit 0/1,
+## so the route is also a local gate. Every wait has a timeout: the old route awaited
+## World.island_changed forever when the sail gate said "Needs Survival 20".
+
+## The whole route must finish inside this; a hang becomes "[soak] FAIL watchdog".
+const WATCHDOG_S := 180.0
+## Seconds a travel may take before the route fails.
+const TRAVEL_S := 30.0
+var _done := false
+var _failed := false
 
 func run(host: Node) -> void:
 	print("[soak] start")
+	print("[soak] stamp %s" % Game.build_stamp)
+	get_tree().create_timer(WATCHDOG_S, true, false, true).timeout.connect(func () -> void:
+		if not _done:
+			_fail("watchdog: route not finished after %.0f s" % WATCHDOG_S))
 	await get_tree().create_timer(1.0).timeout
 	for node in get_tree().root.find_children("CharacterCreation", "CharacterCreation", true, false):
 		node.free()
@@ -19,6 +33,9 @@ func run(host: Node) -> void:
 	if player == null or bench == null:
 		_fail("station acceptance missing player or workbench")
 		return
+	# The route sails to temperate_25, whose harbour gate needs Survival 20 (route_level = tier - 5).
+	# Seeded like camp_travel_probe: the soak proves the release, not earned progression.
+	player.skills.trees["survival"]["level"] = maxi(player.skills.level_of("survival"), World.route_level(&"temperate_25"))
 	var tap_zone := bench.get_node_or_null("TapZone") as Area3D
 	if tap_zone == null or not player._is_interactable(tap_zone) or player._unwrap_tap(tap_zone) != bench:
 		_fail("workbench tap zone missing or does not route to station")
@@ -34,6 +51,8 @@ func run(host: Node) -> void:
 	# Touchscreen/input-parser synthesis does not cover desktop canvas GUI routing.
 	var view_size := get_viewport().get_visible_rect().size
 	print("[soak] desktop_click_norm %.6f %.6f" % [bench_screen.x / view_size.x, bench_screen.y / view_size.y])
+	if not OS.has_feature("web"):
+		await _click(bench_screen)  # no browser harness here to send the real click
 	# Console delivery and Playwright mouse injection are asynchronous to the game frame.
 	await get_tree().create_timer(4.0).timeout
 	if player.station_craft == null or not player.station_craft.menu.visible \
@@ -77,20 +96,63 @@ func run(host: Node) -> void:
 	await _checkpoint("build-closed")
 
 	World.travel(&"temperate_25", &"sail")
-	await World.island_changed
+	if not await _arrived(&"temperate_25"):
+		return
 	await _checkpoint("travelled")
 	World.travel(&"home_grassland", &"harbour_home")
-	await World.island_changed
+	if not await _arrived(&"home_grassland"):
+		return
 	await _checkpoint("returned-home")
+	if _failed:
+		return
+	_done = true
 	print("[soak] PASS")
+	_quit_native(0)
+
+## Wait for a travel to land, at most TRAVEL_S.
+func _arrived(island: StringName) -> bool:
+	var left := TRAVEL_S
+	while left > 0.0:
+		if World.island_id == island and World.runtime != null and is_instance_valid(World.runtime):
+			return true
+		await get_tree().create_timer(0.25).timeout
+		left -= 0.25
+	_fail("travel to %s did not arrive in %.0f s (island=%s)" % [island, TRAVEL_S, World.island_id])
+	return false
+
+## Native runs exit with the verdict; the browser page stays up for the harness to read.
+func _quit_native(code: int) -> void:
+	if not OS.has_feature("web"):
+		get_tree().quit(code)
 
 func _checkpoint(name: String) -> void:
 	await get_tree().create_timer(0.25).timeout
 	print("[soak] checkpoint %s" % name)
 
 func _fail(message: String) -> void:
+	if _done:
+		return
+	_done = true
+	_failed = true
 	push_error("[soak] FAIL %s" % message)
 	print("[soak] FAIL %s" % message)
+	_quit_native(1)
+
+## A left click at a screen point through the normal input path (motion, press, release).
+func _click(pos: Vector2) -> void:
+	var move := InputEventMouseMotion.new()
+	move.position = pos
+	move.global_position = pos
+	Input.parse_input_event(move)
+	await get_tree().process_frame
+	for pressed in [true, false]:
+		var mb := InputEventMouseButton.new()
+		mb.button_index = MOUSE_BUTTON_LEFT
+		mb.position = pos
+		mb.global_position = pos
+		mb.pressed = pressed
+		Input.parse_input_event(mb)
+		await get_tree().process_frame
 
 func _touch(pos: Vector2) -> void:
 	var down := InputEventScreenTouch.new()

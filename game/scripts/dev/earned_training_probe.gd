@@ -45,6 +45,6 @@ func run(host: Node) -> void:
 					print("[earnedtrain] stored surplus through writable basket UI bag%d storage%d" % [bot.player.inventory.used_slots(),basket.storage.used_slots()])
 		print("[earnedtrain] cycle%d t%.1f bag%d survival%d gathering%d processing%d weapon%d tailoring%d deaths%d" % [cycle,bot._t,bot.player.inventory.used_slots(),bot.player.skills.level_of("survival"),bot.player.skills.level_of("gathering"),bot.player.skills.level_of("processing"),bot.player.skills.level_of("weapon_tools"),bot.player.skills.level_of("tailoring"),bot._deaths])
 		if bot._t-before < 0.1: break
-	bot._report()
+	var verdict := bot._report()
 	print("[earnedtrain] END skills=%s" % JSON.stringify(bot.player.skills.trees))
-	get_tree().quit(0)
+	get_tree().quit(0 if verdict == "PASS" else 1)

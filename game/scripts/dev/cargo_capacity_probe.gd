@@ -28,5 +28,6 @@ func run(host:Node)->void:
 	World.cargo_home=Inventory.new(1)
 	World.cargo_warp(p)
 	check(p.inventory.count_of(&"black_iron")==0 and World.cargo_home.count_of(&"black_iron")==6 and World.t_stones==16,"whole shipment retained and2Tfee")
-	print("[cargocapacity] failures%d seeded capacity fixture, not earned cargo" % failures)
-	get_tree().quit(0 if failures==0 else 1)
+	var r := LabResult.new("cargocapacity")
+	r.expect(failures == 0, "%d cargo checks failed" % failures)
+	r.finish(get_tree(), "failures%d seeded capacity fixture, not earned cargo" % failures)

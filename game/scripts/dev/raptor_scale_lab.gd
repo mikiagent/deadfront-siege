@@ -1,5 +1,10 @@
 extends Node3D
-## Visual QA: compy baseline beside the two 3x raptor species.
+## Visual QA: compy baseline beside the two 3x raptor species. Headless it is a gate: each
+## model's visible height must track its data height and the three must keep their order.
+
+## ASSUMPTION: a model may stand 35 % off its data height (pose, head carriage, tail arch).
+const HEIGHT_TOLERANCE := 0.35
+var _models: Dictionary = {}
 
 func _ready() -> void:
 	var kit := LabKit.build(self, 36.0)
@@ -17,6 +22,36 @@ func _ready() -> void:
 	_label("VELOCIRAPTOR  3x", Vector3(0.0, raptor.height_meters + 0.5, 0.0))
 	_label("DEINONYCHUS  3x", Vector3(4.0, deino.height_meters + 0.5, 0.0))
 	print("[boot] lab=raptor_scale_lab")
+	if LabResult.headless():
+		call_deferred("_gate")
+
+func _gate() -> void:
+	var r := LabResult.new("raptor_scale")
+	await get_tree().process_frame
+	var heights: Array[float] = []
+	for species in [&"compsognathus", &"velociraptor", &"deinonychus"]:
+		var want: float = Data.creature(species).height_meters
+		var got := _visual_height(_models.get(species) as Node3D)
+		heights.append(got)
+		print("[dino_scale] %s model_h=%.2f data_h=%.2f ratio=%.2f" % [species, got, want, got / maxf(0.01, want)])
+		r.expect(absf(got / maxf(0.01, want) - 1.0) <= HEIGHT_TOLERANCE, "%s model %.2f m vs data %.2f m" % [species, got, want])
+	r.expect(heights[0] < heights[1] and heights[1] < heights[2], "compy < velociraptor < deinonychus by model height")
+	r.finish(get_tree(), "heights=%.2f/%.2f/%.2f" % [heights[0], heights[1], heights[2]])
+
+## World-space height of every visible mesh under the creature (rest-pose AABBs).
+func _visual_height(root: Node3D) -> float:
+	if root == null:
+		return 0.0
+	var top := -INF
+	var bottom := INF
+	for n in root.find_children("*", "VisualInstance3D", true, false):
+		var vi := n as VisualInstance3D
+		if not vi.is_visible_in_tree() or vi is Label3D:
+			continue
+		var box := vi.global_transform * vi.get_aabb()
+		top = maxf(top, box.end.y)
+		bottom = minf(bottom, box.position.y)
+	return top - bottom if top > bottom else 0.0
 
 func _spawn_frozen(species: StringName, at: Vector3) -> void:
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
@@ -24,6 +59,7 @@ func _spawn_frozen(species: StringName, at: Vector3) -> void:
 	c.global_position = at
 	c.spawn(Data.creature(species))
 	c.process_mode = Node.PROCESS_MODE_DISABLED
+	_models[species] = c
 
 func _label(text: String, at: Vector3) -> void:
 	var label := Label3D.new()

@@ -1,4 +1,9 @@
 extends Node
+## Gate: the seeded raid kit kills the real volcanic tyrant with at least one stagger window and
+## the survivor alive. Capped at 200 s of game time (the probe used to run to 700 s and be killed
+## at 240 s wall): a live boss at the cap is PARTIAL and a dead survivor is FAIL, both exit 1.
+## Run it with --fixed-fps 60 (tools/labs.txt) so 200 game seconds take well under 200 s.
+const CAP_S := 200.0
 var player: Player
 var boss: Creature
 var elapsed := 0.0
@@ -66,10 +71,21 @@ func _physics_process(delta: float) -> void:
 		last_phase = brain.phase
 	if boss.health.hp < before_hp: hits_seen += 1
 	before_hp = boss.health.hp
-	if player.dead or boss.health.dead or elapsed > (90 if "--tyrant-normal-check" in OS.get_cmdline_user_args() else 700):
+	if player.dead or boss.health.dead or elapsed > (90.0 if "--tyrant-normal-check" in OS.get_cmdline_user_args() else CAP_S):
 		print("[raidwindows] close t=%.1f bossHP=%.0f playerHP=%.0f stagger=%d damage-events=%d; seeded normal AI actual volcanic terrain/boss; seeded gear/rest/arena entry, not earned progression" % [elapsed,boss.health.hp,player.vitals.health,stagger_seen,hits_seen])
 		for key in ["move_left","move_right","move_up","move_down"]: Input.action_release(key)
-		get_tree().quit(0)
+		set_physics_process(false)
+		var detail := "t=%.1f bossHP=%.0f playerHP=%.0f stagger=%d" % [elapsed, boss.health.hp, player.vitals.health, stagger_seen]
+		if player.dead:
+			print("[raidwindows] FAIL survivor died %s" % detail)
+			get_tree().quit(1)
+		elif not boss.health.dead:
+			print("[raidwindows] PARTIAL boss alive at the %.0f s cap %s" % [elapsed, detail])
+			get_tree().quit(1)
+		else:
+			var r := LabResult.new("raidwindows")
+			r.expect(stagger_seen >= 1, "boss died without a stagger window")
+			r.finish(get_tree(), detail)
 		return
 	for key in ["move_left","move_right","move_up","move_down"]: Input.action_release(key)
 	if brain.phase == &"windup":

@@ -1,0 +1,30 @@
+# Gate rows for tools/labs.sh, one per line:   name | timeout_s | godot args | flags
+# godot args: engine flags, then "--" and the game's own flags (labs.sh adds --headless --path game).
+# flags: "shot"        also captured by `tools/labs.sh --shots DIR` (web renderer, 1600x900)
+#        "xfail:<PKG>" known red and owned by PKG. Strict: the row must fail by its own FAIL/PARTIAL
+#                      verdict (a crash still fails the gate), and once it passes the gate fails
+#                      until the flag is removed.
+# --fixed-fps 60 steps the game at exactly 60 Hz as fast as the CPU allows: same physics, less wall
+# time. Never on perf rows (they time real frames). New labs: one line each, appended at merge.
+island_lab              |  90 | -- --lab=island_lab                    | shot
+creature_lab            |  45 | -- --lab=creature_lab                  | shot
+raptor_scale_lab        |  30 | -- --lab=raptor_scale_lab              | shot
+harvest_lab             |  30 | -- --lab=harvest_lab                   | shot
+skills_lab              |  30 | -- --lab=skills_lab
+sleep_lab               |  90 | -- --lab=sleep_lab
+plain_bush_lab          |  60 | -- --lab=plain_bush_lab
+berry_state_lab         |  60 | -- --lab=berry_state_lab
+layout_perf_lab         |  60 | -- --lab=layout_perf_lab
+pet_passthrough_lab     |  30 | -- --lab=pet_passthrough_lab
+perf_budget_lab         |  90 | -- --lab=perf_budget_lab               | shot
+camp_travel             |  90 | -- --camp-travel-probe
+cargo_capacity          |  60 | -- --cargo-capacity-probe
+bot_rest                | 120 | --fixed-fps 60 -- --bot-rest-probe
+earned_training         | 300 | -- --earned-training-probe
+counter_raptor          | 150 | --fixed-fps 60 -- --counter-matchup-probe --correct-kit
+counter_protoceratops   | 150 | --fixed-fps 60 -- --counter-matchup-probe --correct-kit --match-species=protoceratops
+tyrant_window           | 200 | --fixed-fps 60 -- --tyrant-window-probe
+bot_gate                | 600 | --fixed-fps 60 -- --bot --bot-gate --bot-minutes=8
+web_soak                | 200 | -- --web-soak
+ai_validation_lab       |  90 | -- --lab=ai_validation_lab
+resource_visibility_lab |  30 | -- --lab=resource_visibility_lab

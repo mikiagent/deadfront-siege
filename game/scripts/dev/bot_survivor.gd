@@ -9,7 +9,8 @@ extends Node
 ## use player interactions. Each objective ends OK, BLOCKED (with reason) or TIMEOUT,
 ## and the closing report is the debug output: what the first hour of DEADFRONT actually is.
 ##
-## Usage: <godot> --path game -- --bot [--bot-minutes=6] [--bot-shots=/tmp/deadfront-bot]
+## Usage: <godot> --path game -- --bot [--bot-minutes=6] [--bot-shots=/tmp/deadfront-bot] [--bot-gate]
+## --bot-gate makes the run a gate: exit 1 unless every attempted rung is OK (PARTIAL/FAIL fail).
 
 ## One rung of the early game. `craft` is a recipe id; `then` is an extra verb to run after it.
 const LADDER: Array[Dictionary] = [
@@ -49,6 +50,7 @@ const CATEGORY_ITEMS := {
 var player: Player
 var minutes: float = 6.0
 var shot_dir: String = ""
+var gate: bool = false
 
 var _t: float = 0.0
 var _events: Array[Dictionary] = []
@@ -71,6 +73,8 @@ func run(host: Node) -> void:
 			minutes = maxf(0.5, float(a.substr(14)))
 		elif a.begins_with("--bot-shots="):
 			shot_dir = a.substr(12)
+		elif a == "--bot-gate":
+			gate = true
 	if shot_dir != "":
 		DirAccess.make_dir_recursive_absolute(shot_dir)
 	print("[bot] start minutes=%.1f shots=%s" % [minutes, shot_dir if shot_dir != "" else "-"])
@@ -94,8 +98,8 @@ func run(host: Node) -> void:
 		if _t >= minutes * 60.0:
 			break
 		await _do_rung(rung)
-	_report()
-	get_tree().quit(0)
+	var verdict := _report()
+	get_tree().quit(1 if gate and verdict != "PASS" else 0)
 
 # ---------------------------------------------------------------- objectives
 
@@ -126,6 +130,11 @@ func _do_rung(rung: Dictionary) -> void:
 		if r != "":
 			outcome = "BLOCKED"
 			detail = r
+	# A rung cut short by the session budget is a TIMEOUT, not a gameplay block: the hunt used to
+	# report "could not kill in 90 s" after 8 s because --bot-minutes ran out.
+	if outcome != "OK" and _t >= minutes * 60.0:
+		outcome = "TIMEOUT"
+		detail = "session budget %.0f s ran out (%s)" % [minutes * 60.0, detail]
 	_rungs.append({"goal": name, "outcome": outcome, "detail": detail, "t": _t, "took": _t - _goal_t})
 	print("[bot] rung %-7s %-8s t=%5.1fs took=%5.1fs %s" % [name, outcome, _t, _t - _goal_t, detail])
 
@@ -740,7 +749,8 @@ func _survey() -> void:
 	line.sort()
 	print("[bot] survey yields %s" % ", ".join(PackedStringArray(line)))
 
-func _report() -> void:
+## Prints the report and returns its verdict: PASS, PARTIAL or FAIL.
+func _report() -> String:
 	print("[bot] ---------------- report ----------------")
 	var ok := 0
 	for r in _rungs:
@@ -763,7 +773,9 @@ func _report() -> void:
 	print("[bot] events=%d shots=%d" % [_events.size(), _shot_n])
 	if ok == _rungs.size() and ok > 0:
 		print("[bot] PASS all attempted rungs reached")
-	elif ok > 0:
+		return "PASS"
+	if ok > 0:
 		print("[bot] PARTIAL %d/%d rungs reached" % [ok, _rungs.size()])
-	else:
-		print("[bot] FAIL no rung reached")
+		return "PARTIAL"
+	print("[bot] FAIL no rung reached")
+	return "FAIL"
