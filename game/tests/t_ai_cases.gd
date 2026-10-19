@@ -37,7 +37,8 @@ func _test_state_changed_once() -> void:
 
 func _test_profiles() -> void:
 	var zeb := _creature(&"zebraceratops")
-	_check(float(zeb.brain.profile.get("flee_speed_mult", 0.0)) == 1.5, "skittish temperament not merged into zebraceratops profile")
+	var skittish: Dictionary = (Data.creature_ai.get("temperaments", {}) as Dictionary).get("skittish", {})
+	_check(skittish.has("flee_speed_mult") and is_equal_approx(float(zeb.brain.profile.get("flee_speed_mult", 0.0)), float(skittish["flee_speed_mult"])), "skittish temperament not merged into zebraceratops profile")
 	var raptor := _creature(&"velociraptor")
 	_check(is_equal_approx(float(raptor.brain.profile.get("chase_speed_mult", 0.0)), 0.7), "chase_speed_mult missing on pack_raptor")
 	zeb.free()

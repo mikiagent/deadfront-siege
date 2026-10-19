@@ -42,6 +42,9 @@ func _spawn(id: StringName, at: Vector3, pack: int = 0) -> Creature:
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 	add_child(c)
 	c.global_position = at
+	# Average IVs (100 % speed): the sweep tests the AI, not the genetics dice. A low-IV
+	# zebraceratops (85 % speed) flees at 5.4 m/s and a walking survivor does catch it.
+	c.genetics = CreatureGenetics.neutral()
 	c.spawn(Data.creature(id), &"", pack)
 	return c
 
@@ -137,10 +140,17 @@ func _sleep_and_wake() -> void:
 	for c in cs:
 		start.append(c.global_position)
 	Game.time_of_day = 0.25
-	await _wait(10.0)
+	var far: Array[float] = []
+	far.resize(cs.size())
+	far.fill(0.0)
+	var t1 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t1 < 10000:
+		await get_tree().physics_frame
+		for i in cs.size():
+			far[i] = maxf(far[i], _flat(start[i], cs[i].global_position))
 	var bad: Array[String] = []
 	for i in range(1, cs.size()):
-		var d := _flat(start[i], cs[i].global_position)
+		var d: float = far[i]
 		if cs[i].brain.state == &"sleep" or d < 1.0:
 			bad.append("%s:%s/%.2f" % [cs[i].def.id, cs[i].brain.state, d])
 	print("[aisweep] dawn herbivores=%d still_or_asleep=%s" % [cs.size() - 1, bad])
@@ -184,8 +194,12 @@ func _pet_bite_flight() -> void:
 	var t0 := Time.get_ticks_msec()
 	while not bitten[0] and Time.get_ticks_msec() - t0 < 4000:
 		await get_tree().physics_frame
-	await _wait(3.0)
-	var away := (herb.global_position - herb0).dot((herb0 - pet0).normalized())
+	# Best progress away over 5 s: a crit bite can knock it down for a moment first.
+	var away := 0.0
+	var t1 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t1 < 5000:
+		await get_tree().physics_frame
+		away = maxf(away, (herb.global_position - herb0).dot((herb0 - pet0).normalized()))
 	print("[aisweep] pet_bite bitten=%s away_from_pet=%.2f state=%s target_is_pet=%s" % [bitten[0], away, herb.brain.state, herb.brain.attack_target == pet])
 	_check(bitten[0] and away >= 1.0, "bitten herbivore did not move away from the pet (bitten=%s away=%.2f)" % [bitten[0], away])
 	await _clear()
