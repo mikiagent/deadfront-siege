@@ -1,6 +1,7 @@
 class_name CreatureAnim
 extends Node
-## AnimationTree state machine over the clip contract. Falls back to AnimationPlayer.play.
+## AnimationTree state machine over the clip contract. Every state is clip -> TimeScale because a
+## tree ignores AnimationPlayer.speed_scale: cadence, boss retiming and set_time_scale live here.
 
 signal attack_windup(clip: StringName)
 signal attack_hit(clip: StringName)
@@ -8,6 +9,18 @@ signal attack_done
 signal knockdown_started
 signal knockdown_ended
 signal died
+
+## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
+const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"hit_react", &"alert"]
+const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe"]
+const HUBS: Array[StringName] = [&"idle", &"walk", &"run"]
+const XFADE := 0.08
+const GAIT_XFADE := 0.2  # walk <-> run: long enough that a gait change never pops
+const LEGACY_TOP_MPS := 8.0  # creature.gd passes play_locomotion(speed / 8)
+## Cadence guard for set_move_speed. Wide on purpose: several donor clips barely stride
+## (megaloceros run 0.67 m/s natural at 7.6 m/s), and matching the ground beats a slide.
+const CADENCE_MIN := 0.1
+const CADENCE_MAX := 16.0
 
 var timed_attack := false
 var current_clip: StringName = &"idle"
@@ -18,10 +31,23 @@ var _busy: bool = false
 var _hold_knockdown: bool = false
 var _dead: bool = false
 var _forced: bool = false
+var _def: CreatureDef
+var _time_scale := 1.0
+var _scale: Dictionary = {}  ## state -> cadence before the global time scale
+var _param: Dictionary = {}  ## state -> "parameters/<state>/ts/scale"; also the set of built states
+var _natural: Dictionary = {}  ## &"walk" / &"run" -> planted-foot ground speed at cadence 1 (m/s)
 
 func setup(ap: AnimationPlayer, at: AnimationTree) -> void:
 	player = ap
 	tree = at
+	var host := get_parent() as Creature
+	_def = host.def if host else null
+	for gait in [&"walk", &"run"]:
+		if player.has_animation(gait):
+			CreatureClips.trim_frozen_tail(player.get_animation(gait), "%s/%s" % [_def.id, gait] if _def else "")
+			var nat := CreatureClips.natural_speed(_def, gait)
+			if nat > 0.0:
+				_natural[gait] = nat
 	_build_tree()
 	tree.anim_player = tree.get_path_to(player)
 	tree.active = true
@@ -31,43 +57,66 @@ func setup(ap: AnimationPlayer, at: AnimationTree) -> void:
 func play_idle() -> void:
 	if _dead or _hold_knockdown:
 		return
+	_scale[&"idle"] = CreatureClips.clip_speed(&"idle", _def)
 	_travel(&"idle")
 
+## Legacy gait pick from creature.gd's speed / 8. Run now really plays at its anim_events cadence.
 func play_locomotion(speed_frac: float) -> void:
-	if _busy or _dead or _hold_knockdown or _forced:
+	if not _can_move():
 		return
-	current_clip = &"run" if speed_frac > 0.55 else &"walk"
-	_travel(&"locomotion")
-	tree.set("parameters/locomotion/blend_position", clampf(speed_frac, 0.0, 1.0))
+	var gait := &"run" if speed_frac > 0.55 else &"walk"
+	_scale[gait] = CreatureClips.clip_speed(gait, _def)
+	_travel(gait)
+
+## Stride-matched locomotion: picks the gait whose natural stride suits mps and sets its cadence to
+## mps / natural speed, so a planted foot keeps pace with the ground instead of sliding.
+func set_move_speed(mps: float) -> void:
+	if not _can_move():
+		return
+	if mps <= 0.05:
+		play_idle()
+		return
+	if _natural.is_empty():
+		play_locomotion(mps / LEGACY_TOP_MPS)
+		return
+	var gait := _pick_gait(mps)
+	_scale[gait] = clampf(mps / float(_natural[gait]), CADENCE_MIN, CADENCE_MAX)
+	_travel(gait)
+
+## Global retime on top of every state's own cadence (slows, hit-stop, lab slow motion).
+func set_time_scale(x: float) -> void:
+	_time_scale = maxf(0.0, x)
+	for state in _scale:
+		_apply(state)
 
 func play_clip(clip: StringName, forced: bool = false) -> void:
 	if _dead and clip != &"death":
 		return
+	var state := clip if _param.has(clip) else &"idle"  # sleep / tail_swipe exist on some species only
 	_forced = forced
-	_busy = clip in [&"attack_primary", &"attack_heavy", &"hit_react", &"alert"]
-	if clip == &"knockdown":
+	_busy = state in ONESHOT
+	if state == &"knockdown":
 		_hold_knockdown = true
 		knockdown_started.emit()
-	if clip == &"death":
+	if state == &"death":
 		timed_attack = false
 		_dead = true
 		died.emit()
-	if clip == &"attack_heavy":
-		attack_windup.emit(clip)
-	_travel(clip if clip != &"walk" and clip != &"run" else &"locomotion")
-	if player and player.has_animation(clip):
-		player.play(clip)
-	current_clip = clip
-	if clip in [&"attack_primary", &"attack_heavy", &"hit_react", &"alert"]:
-		var anim := player.get_animation(clip) if player.has_animation(clip) else null
-		var wait := anim.length if anim else 0.6
-		var hit_at := wait * CreatureClips._hit_frac(clip)
-		if clip == &"attack_primary" or clip == &"attack_heavy":
-			get_tree().create_timer(hit_at).timeout.connect(func () -> void:
-				if current_clip == clip:
-					attack_hit.emit(clip)
+	if state == &"attack_heavy":
+		attack_windup.emit(state)
+	_scale[state] = CreatureClips.clip_speed(state, _def)
+	_travel(state)
+	if state in ONESHOT:
+		var anim := player.get_animation(state) if player.has_animation(state) else null
+		# Timers run in wall time, the clip in tree time: divide by the cadence it plays at.
+		# shortcut: a set_time_scale change mid-clip does not retime these timers; poll the tree if that matters.
+		var wait := (anim.length if anim else 0.6) / maxf(0.01, _effective(state))
+		if state in ATTACKS:
+			get_tree().create_timer(wait * CreatureClips._hit_frac(state)).timeout.connect(func () -> void:
+				if current_clip == state:
+					attack_hit.emit(state)
 			, CONNECT_ONE_SHOT)
-		get_tree().create_timer(wait).timeout.connect(_oneshot_done.bind(clip), CONNECT_ONE_SHOT)
+		get_tree().create_timer(wait).timeout.connect(_oneshot_done.bind(state), CONNECT_ONE_SHOT)
 
 func release_knockdown() -> void:
 	_hold_knockdown = false
@@ -83,82 +132,89 @@ func on_event(kind: String, clip: String) -> void:
 	elif kind == "windup":
 		attack_windup.emit(StringName(clip))
 
-func _oneshot_done(clip: StringName) -> void:
-	if timed_attack: return
-	if current_clip != clip:
-		return
-	_busy = false
-	_forced = false
-	if clip == &"attack_primary" or clip == &"attack_heavy":
-		attack_done.emit()
-	if clip == &"knockdown":
-		# Hold last frame until release_knockdown.
-		if player:
-			player.speed_scale = 0.0
-		return
-	if clip == &"death":
-		if player:
-			player.speed_scale = 0.0
-		return
-	play_idle()
-
-func _travel(state: StringName) -> void:
-	if player:
-		var host := get_parent() as Creature
-		var clip := current_clip if state == &"locomotion" else state
-		player.speed_scale = CreatureClips.clip_speed(clip, host.def if host else null)
-	if state != &"locomotion":
-		current_clip = state
-	if _playback:
-		_playback.travel(str(state))
-
-func _build_tree() -> void:
-	var sm := AnimationNodeStateMachine.new()
-	_add_anim(sm, "idle", Vector2(0, 0))
-	var blend := AnimationNodeBlendSpace1D.new()
-	var walk_n := AnimationNodeAnimation.new()
-	walk_n.animation = "walk"
-	var run_n := AnimationNodeAnimation.new()
-	run_n.animation = "run"
-	blend.add_blend_point(walk_n, 0.0, -1, &"walk")
-	blend.add_blend_point(run_n, 1.0, -1, &"run")
-	sm.add_node("locomotion", blend, Vector2(200, 0))
-	for clip in ["attack_primary", "attack_heavy", "hit_react", "knockdown", "death", "alert", "feed"]:
-		_add_anim(sm, clip, Vector2(0, 140))
-	_trans(sm, "idle", "locomotion")
-	_trans(sm, "locomotion", "idle")
-	for clip in ["attack_primary", "attack_heavy", "hit_react", "knockdown", "death", "alert", "feed"]:
-		_trans(sm, "idle", clip)
-		_trans(sm, "locomotion", clip)
-		_trans(sm, clip, "idle")
-	tree.tree_root = sm
-
-func _add_anim(sm: AnimationNodeStateMachine, name: String, pos: Vector2) -> void:
-	var n := AnimationNodeAnimation.new()
-	n.animation = name
-	sm.add_node(name, n, pos)
-
-func _trans(sm: AnimationNodeStateMachine, a: String, b: String) -> void:
-	var t := AnimationNodeStateMachineTransition.new()
-	t.xfade_time = 0.08
-	sm.add_transition(a, b, t)
-
-## Boss controller owns impact/recovery. Authored animation is retimed to the impact cue.
+## Boss controller owns impact/recovery: the clip is retimed so its hit frame lands at windup.
 func play_timed_attack(clip: StringName, windup: float) -> void:
 	timed_attack = true
 	_busy = true
 	_forced = true
+	var anim := player.get_animation(clip) if player and player.has_animation(clip) else null
+	_scale[clip] = maxf(0.01, anim.length * CreatureClips._hit_frac(clip) / windup) if anim and windup > 0.0 else 1.0
 	_travel(clip)
-	if player and player.has_animation(clip):
-		player.play(clip)
-		var length := player.get_animation(clip).length
-		player.speed_scale = maxf(0.01,length * CreatureClips._hit_frac(clip) / windup)
-	current_clip = clip
 
 func end_timed_attack() -> void:
 	if not timed_attack: return
 	timed_attack = false
 	_busy = false
 	_forced = false
-	if player: player.speed_scale = 1.0
 	if not _dead: play_idle()
+
+func _can_move() -> bool:
+	return not (_busy or _dead or _hold_knockdown or _forced)
+
+func _pick_gait(mps: float) -> StringName:
+	var w := float(_natural.get(&"walk", 0.0))
+	var r := float(_natural.get(&"run", 0.0))
+	if w <= 0.0:
+		return &"run"
+	if r <= w:
+		return &"walk"  # a run clip that strides no faster than the walk only adds cadence
+	# Geometric mean: either gait is equally far from cadence 1 there. 10 % hysteresis stops flapping.
+	var cut := sqrt(w * r) * (0.9 if current_clip == &"run" else 1.1)
+	return &"run" if mps > cut else &"walk"
+
+func _oneshot_done(clip: StringName) -> void:
+	if timed_attack: return
+	if current_clip != clip:
+		return
+	_busy = false
+	_forced = false
+	if clip in ATTACKS:
+		attack_done.emit()
+	play_idle()
+
+func _effective(state: StringName) -> float:
+	return float(_scale.get(state, 1.0)) * _time_scale
+
+func _apply(state: StringName) -> void:
+	if tree and _param.has(state):
+		tree.set(_param[state], _effective(state))
+
+func _travel(state: StringName) -> void:
+	_apply(state)
+	current_clip = state
+	if _playback:
+		_playback.travel(str(state))
+
+func _build_tree() -> void:
+	var sm := AnimationNodeStateMachine.new()
+	for clip in CreatureClips.CONTRACT + CreatureClips.OPTIONAL:
+		if player.has_animation(clip):
+			sm.add_node(clip, _clip_node(clip))
+			_param[clip] = StringName("parameters/%s/ts/scale" % clip)
+	for a in HUBS:
+		for b in HUBS:
+			if a != b and _param.has(a) and _param.has(b):
+				_trans(sm, a, b, GAIT_XFADE if a != &"idle" and b != &"idle" else XFADE)
+	for clip in _param:
+		if clip in HUBS:
+			continue
+		for hub in HUBS:
+			if _param.has(hub):
+				_trans(sm, hub, clip, XFADE)
+		_trans(sm, clip, &"idle", XFADE)
+	tree.tree_root = sm
+
+func _clip_node(clip: StringName) -> AnimationNodeBlendTree:
+	var bt := AnimationNodeBlendTree.new()
+	var a := AnimationNodeAnimation.new()
+	a.animation = clip
+	bt.add_node(&"anim", a)
+	bt.add_node(&"ts", AnimationNodeTimeScale.new())
+	bt.connect_node(&"ts", 0, &"anim")
+	bt.connect_node(&"output", 0, &"ts")
+	return bt
+
+func _trans(sm: AnimationNodeStateMachine, a: StringName, b: StringName, xfade: float) -> void:
+	var t := AnimationNodeStateMachineTransition.new()
+	t.xfade_time = xfade
+	sm.add_transition(a, b, t)
