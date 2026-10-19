@@ -183,7 +183,7 @@ func _refresh_tabs() -> void:
 			status = "none built"
 			col = Color(0.6, 0.6, 0.6)
 		var count := Crafting.recipes_for_station(StringName(sid)).size()
-		var b := _mk_btn("%s\n%s · %s" % [row[1], status, recipe_count(count)], _pick_station.bind(sid), Vector2(170 if _is_phone() else 190, 64))
+		var b := _mk_btn("%s\n%s · %s" % [row[1], status, recipe_count(count)], _pick_station.bind(sid), Vector2(228 if _is_phone() else 190, 64))
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.clip_text = true
 		b.icon = UiSymbols.symbol([row[2], "hammer"])
@@ -435,10 +435,11 @@ func _station_info(sid: String) -> Dictionary:
 func _show_detail(info: Dictionary) -> void:
 	if _detail == null:
 		return
-	for c in _detail.get_children():
-		c.queue_free()
-	for c in _footer.get_children():
-		c.queue_free()
+	# Detach before freeing: a queued sibling still holds "CraftOne", so the new button got renamed.
+	for pane in [_detail, _footer]:
+		for c in pane.get_children():
+			pane.remove_child(c)
+			c.queue_free()
 	var phone := _is_phone()
 	if phone:
 		var back := _mk_btn("Back to recipes", _back_to_list, Vector2(0, UiTokens.TARGET_PRIMARY))

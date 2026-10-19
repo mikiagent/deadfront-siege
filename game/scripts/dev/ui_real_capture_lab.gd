@@ -153,6 +153,9 @@ func _finish(phone: bool, logical: Vector2) -> void:
 	var pts := DisplayMode.window_points(get_tree().root)
 	print("[uireal] phone=%s min_font_px=%d logical_width=%d window_pt=%dx%d (smallest: %s)" % [phone, min_px, int(logical.x), int(pts.x), int(pts.y), _min_font_where])
 	_fails.append_array(gate_failures(pts, phone, min_px, int(logical.x)))
+	if DisplayMode.is_phone_landscape(pts) and min_px < UiTokens.TYPE_MIN:
+		# Not failed: landscape phones keep the 1600x900 canvas by design (DisplayMode shortcut).
+		print("[uireal] WARN landscape phone %dx%d pt: smallest text %d pt, under the %d floor; screens other than character creation have no landscape layout yet" % [int(pts.x), int(pts.y), min_px, UiTokens.TYPE_MIN])
 	if _fails.is_empty():
 		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,plate,charcreate shots=%s" % ["craft_detail," if phone else "", _out])
 		get_tree().quit(0)
