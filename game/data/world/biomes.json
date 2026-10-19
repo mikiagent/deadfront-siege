@@ -1,5 +1,5 @@
 {
- "_about": "W1-BIOME per-climate ground look, one entry per climates.json key. textures: baked by tools/blender/terrain/bake_terrain.py (final albedo). palette: shader multipliers on those textures (white = as baked; dry/wet/mud/bare/ash are multipliers on ground/sand/dirt/rock; shallow and deep are absolute colours). ground_cover: low vegetation families the scatter may place. palm_allowlist: palm families allowed. special_tiles: tile overrides the terrain may stamp. Hooked into islands by W2-TERRAIN/W2-SCATTER. special_families: island_runtime _spawn_special_family families the scatter may place; berry_bush only where the climate's vegetation has BushBerries (world-placement-08: berries on volcano).",
+ "_about": "W1-BIOME per-climate ground look, one entry per climates.json key. textures: baked by tools/blender/terrain/bake_terrain.py (final albedo). palette: shader multipliers on those textures (white = as baked; dry/wet/mud/bare/ash are multipliers on ground/sand/dirt/rock; shallow and deep are absolute colours). ground_cover: low vegetation families the scatter may place. palm_allowlist: palm families allowed. special_tiles: tile overrides the terrain may stamp. Hooked into islands by W2-TERRAIN/W2-SCATTER. special_families: island_runtime _spawn_special_family families the scatter may place; berry_bush only where the climate's vegetation has BushBerries (world-placement-08: berries on volcano). compat_gain: multiplier on the ground tints under gl_compatibility only, where bright sets clip.",
  "water_only_families": [
   "Lilypad"
  ],
@@ -203,6 +203,7 @@
    "shallow": "#9cbccc",
    "deep": "#22323e"
   },
+  "compat_gain": 0.75,
   "foliage_tint": "#7a8460",
   "foliage_tip": "#e8eae0",
   "ground_cover": [
@@ -245,6 +246,7 @@
    "shallow": "#a8c8c0",
    "deep": "#28404a"
   },
+  "compat_gain": 0.62,
   "foliage_tint": "#8c9a5a",
   "foliage_tip": "#f0e0a0",
   "ground_cover": [
@@ -331,6 +333,7 @@
    "shallow": "#9cbccc",
    "deep": "#22323e"
   },
+  "compat_gain": 0.62,
   "foliage_tint": "#c8d4dc",
   "foliage_tip": "#ffffff",
   "ground_cover": [

@@ -8,6 +8,9 @@ const TERRAIN_SHADER: Shader = preload("res://scripts/world/terrain_tiles.gdshad
 const FOLIAGE_SHADER: Shader = preload("res://scripts/world/foliage_sway.gdshader")
 const LAYERS: Dictionary = {"ground": "grass_tex", "dirt": "dirt_tex", "sand": "sand_tex", "rock": "rock_tex"}
 
+## Absolute water colours; compat_gain leaves them alone.
+const WATER_KEYS := ["shallow", "deep"]
+
 static var _rows: Dictionary = {}
 static var _loaded := false
 
@@ -52,13 +55,20 @@ static func apply_terrain(m: ShaderMaterial, climate: String) -> bool:
 		else:
 			push_error("[biome] %s missing %s texture %s" % [climate, layer, path])
 	var pal: Dictionary = r.get("palette", {})
+	var gain := compat_gain(r, RenderingServer.get_current_rendering_method())
 	for key in pal:
 		var c := color(str(pal[key]))
-		m.set_shader_parameter("tint_%s" % key, Vector3(c.r, c.g, c.b))
+		var g := 1.0 if key in WATER_KEYS else gain
+		m.set_shader_parameter("tint_%s" % key, Vector3(c.r, c.g, c.b) * g)
 	var knobs: Dictionary = r.get("shader", {})
 	for key in knobs:
 		m.set_shader_parameter(str(key), float(knobs[key]))
 	return true
+
+## gl_compatibility (the web renderer) lights the ground about twice as bright as Forward+, so snow
+## and dune sand clip to flat white there. A row's compat_gain scales its ground tints in compat only.
+static func compat_gain(r: Dictionary, rendering_method: String) -> float:
+	return float(r.get("compat_gain", 1.0)) if rendering_method == "gl_compatibility" else 1.0
 
 ## A standalone terrain material (labs, and the W2 island hook).
 static func terrain(climate: String, map_size: float, tile_map: Texture2D) -> ShaderMaterial:

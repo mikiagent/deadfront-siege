@@ -175,5 +175,8 @@ func _check_materials() -> void:
 	var tint: Variant = fol.get_shader_parameter("tint")
 	if not (tint is Color) or (tint as Color).to_html(false) != "a0944e":
 		failures.append("savannah foliage tint is %s" % [tint])
+	var snow := BiomeMaterial.row("snowfield")
+	if BiomeMaterial.compat_gain(snow, "gl_compatibility") >= 0.9 or BiomeMaterial.compat_gain(snow, "forward_plus") != 1.0:
+		failures.append("snowfield compat_gain must dim compat only")
 	if BiomeMaterial.apply_terrain(ShaderMaterial.new(), "no_such_climate"):
 		failures.append("unknown climate applied")
