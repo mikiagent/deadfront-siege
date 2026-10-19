@@ -35,9 +35,18 @@ func settler(key: String) -> Variant:
 static func ceil_bp(amount: int, bps: int) -> int:
 	return mini(amount, (amount * bps + 9999) / 10000)
 
-func deposit_cap(def_id: String) -> int:
+## The pinned table wins; a def added to items.json later falls back to the same rule the
+## table was built with: the smallest category_caps value among its categories.
+func deposit_cap(def_id: String, categories: Array = []) -> int:
 	var caps: Dictionary = limits.get("deposit_caps", {})
-	return int(caps.get(def_id, limits.get("deposit_default_cap", 0)))
+	if caps.has(def_id):
+		return int(caps[def_id])
+	var by_cat: Dictionary = limits.get("category_caps", {})
+	var best := -1
+	for c in categories:
+		if by_cat.has(str(c)):
+			best = int(by_cat[str(c)]) if best < 0 else mini(best, int(by_cat[str(c)]))
+	return best if best >= 0 else int(limits.get("deposit_default_cap", 0))
 
 static func read_json(path: String) -> Dictionary:
 	var f := FileAccess.open(path, FileAccess.READ)

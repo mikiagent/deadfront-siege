@@ -9,6 +9,8 @@ const ORDER_CLOSED := ["filled", "cancelled", "expired"]
 static func check(s: Dictionary) -> Array[String]:
 	var bad: Array[String] = []
 	var coins := int(s.fee_sink)
+	if coins < 0:
+		bad.append("fee sink %d" % coins)
 	var units := {} ## def_id -> units in vaults + listing escrow
 	var pets := 0
 	var where := {} ## uid -> container, for the exactly-one-place rule

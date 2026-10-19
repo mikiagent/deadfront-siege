@@ -209,7 +209,7 @@ func _deposit_item(me: int, a: EconArgs) -> Dictionary:
 		return EconArgs.no("limit_reached", "vault holds at most %d stacks" % rules.num("max_vault_items"))
 	var stack: Dictionary = checked.v
 	var def_id := str(stack.id)
-	var cap_left := rules.deposit_cap(def_id) - _deposited(acct, def_id)
+	var cap_left := rules.deposit_cap(def_id, cat.item(def_id).categories) - _deposited(acct, def_id)
 	if count > cap_left:
 		return EconArgs.no("limit_reached", "%s deposit cap: %d more in the next 24 h" % [def_id, maxi(0, cap_left)])
 	_log_deposit(acct, def_id, count)

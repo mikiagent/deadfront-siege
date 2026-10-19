@@ -8,10 +8,13 @@ extends RefCounted
 ## Limit: FileAccess.flush hands bytes to the OS (fflush), not fsync; a process crash is safe,
 ## a kernel or power loss can drop the last few ops.
 
+const DEFAULT_DIR := "user://server" ## contract 5.2; the server may pass --data=<dir> instead
+
 var engine: MarketEngine
 var dir: String
 var snapshot_every_ops := 500 ## 0 disables automatic snapshots
 var snapshot_every_s := 60
+var broken := "" ## set when a journal write fails; the store then refuses every op
 var _journal: FileAccess
 var _ops_since := 0
 var _snap_ts := 0
@@ -75,14 +78,25 @@ func replay_file(path: String) -> String:
 	return ""
 
 ## Applies one op; journals and flushes it before returning when it changed state.
+## The engine sees the args parsed back from the exact text the journal stores, so a replay
+## reads the same numbers the live op did (JSON floats do not always survive a round trip).
 func apply(op: String, account_id: int, args: Dictionary, ts: int) -> Dictionary:
+	if _journal == null or broken != "":
+		return EconArgs.no("server_error", "economy store is not writable (%s)" % (broken if broken != "" else "not open"))
+	var text := JSON.stringify(args, "", true, true)
+	var wire: Variant = JSON.parse_string(text)
 	var before := engine.seq()
-	var res := engine.apply(op, account_id, args, ts)
+	var res := engine.apply(op, account_id, wire if wire is Dictionary else {}, ts)
 	if engine.seq() == before:
 		return res
-	var entry := {"seq": engine.seq(), "ts": int(engine.state().last_ts), "account": account_id, "op": op, "a": args}
-	_journal.store_line(JSON.stringify(entry, "", true, true))
+	_journal.store_line('{"a":%s,"account":%d,"op":%s,"seq":%d,"ts":%d}' % [text, account_id, JSON.stringify(op), engine.seq(), int(engine.state().last_ts)])
 	_journal.flush()
+	if _journal.get_error() != OK:
+		# Memory is now ahead of disk. Refuse this and every later op until a restart, so no
+		# client acts on a change the disk does not hold (a reboot rolls back to the journal).
+		broken = "journal write failed (%d)" % _journal.get_error()
+		push_error("[econ] %s" % broken)
+		return EconArgs.no("server_error", broken)
 	_ops_since += 1
 	if snapshot_every_ops > 0 and (_ops_since >= snapshot_every_ops or int(engine.state().last_ts) - _snap_ts >= snapshot_every_s):
 		var why := snapshot()

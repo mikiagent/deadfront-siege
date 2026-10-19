@@ -1,5 +1,5 @@
 {
-  "_about": "Abuse caps for the online economy (docs/orchestration/mmo/contracts.md sections 4 and 5). deposit_caps: units of one def an account may deposit into its vault per rolling 24 h. Each def's cap is the smallest category_caps value among its items.json categories (default deposit_default_cap); raw gathered bulk 2000, ores and metal 600, processed parts 200-1000, food 500, medicine 100, kits 20, tools and weapons 10, armour 5. Regenerate the table the same way when items.json gains defs; a def missing from the table gets deposit_default_cap. Gathering still runs on the client in v1, so these caps bound what a cheating client can inject per day.",
+  "_about": "Abuse caps for the online economy (docs/orchestration/mmo/contracts.md sections 4 and 5). deposit_caps: units of one def an account may deposit into its vault per rolling 24 h. Each def's cap is the smallest category_caps value among its items.json categories (default deposit_default_cap); raw gathered bulk 2000, ores and metal 600, processed parts 200-1000, food 500, medicine 100, kits 20, tools and weapons 10, armour 5. A def missing from the table (added to items.json later) gets the same category rule at runtime (EconRules.deposit_cap), and deposit_default_cap only when no category matches; economy_tests checks the pinned table still follows the rule. Gathering still runs on the client in v1, so these caps bound what a cheating client can inject per day.",
   "max_open_listings": 50,
   "max_open_orders": 20,
   "max_vault_items": 500,
@@ -45,10 +45,12 @@
     "hardness": {
       "type": "int",
       "min": 0,
-      "max": 3
+      "max": 10
     },
     "feathered": {
-      "type": "bool"
+      "type": "int",
+      "min": 0,
+      "max": 1
     },
     "climate": {
       "type": "enum",

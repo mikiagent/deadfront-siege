@@ -15,23 +15,10 @@ var _rid := 0
 
 func run() -> Array[String]:
 	cat = EconCatalog.from_data()
-	_test_accounts_wallet_objectives()
-	_test_item_deposits()
-	_test_pet_deposits()
-	_test_withdraw()
-	_test_fixed_listings()
-	_test_auctions()
-	_test_anti_snipe_and_settlement()
-	_test_orders()
-	_test_expiry()
-	_test_search()
-	_test_history_and_reference()
-	_test_settlers()
-	_test_idempotency()
-	_test_journal_replay()
-	_test_snapshots()
-	_test_fuzz()
-	_test_search_perf()
+	# Each test returns true on its last line; a script error aborts it and returns null.
+	for test: Callable in [_test_accounts_wallet_objectives, _test_item_deposits, _test_pet_deposits, _test_withdraw, _test_fixed_listings, _test_auctions, _test_anti_snipe_and_settlement, _test_orders, _test_expiry, _test_search, _test_history_and_reference, _test_settlers, _test_idempotency, _test_float_grid, _test_journal_replay, _test_snapshots, _test_fuzz, _test_search_perf]:
+		if test.call() != true:
+			failures.append("econ: %s stopped early (script error)" % test.get_method())
 	return failures
 
 func _expect(cond: bool, msg: String) -> void:
@@ -76,6 +63,37 @@ func _err(e: MarketEngine, op: String, who: int, args: Dictionary, code: String,
 	var res := _op(e, op, who, args, ts)
 	_expect(not res.ok and res.get("err") == code, "%s (%s) should fail with %s, got %s" % [op, why, code, str(res)])
 
+## First path where two JSON-shaped values differ, for readable replay failures.
+static func _diff(x: Variant, y: Variant, path: String = "") -> String:
+	if typeof(x) != typeof(y):
+		return "%s: %s vs %s" % [path, type_string(typeof(x)), type_string(typeof(y))]
+	if x is Dictionary:
+		for k in x:
+			if not y.has(k):
+				return "%s.%s missing on the right" % [path, k]
+			var d := _diff(x[k], y[k], "%s.%s" % [path, k])
+			if d != "":
+				return d
+		for k in y:
+			if not x.has(k):
+				return "%s.%s missing on the left" % [path, k]
+		return ""
+	if x is Array:
+		if x.size() != y.size():
+			return "%s: %d vs %d items" % [path, x.size(), y.size()]
+		for i in x.size():
+			var d := _diff(x[i], y[i], "%s[%d]" % [path, i])
+			if d != "":
+				return d
+		return ""
+	return "" if x == y else "%s: %s vs %s" % [path, var_to_str(x), var_to_str(y)]
+
+func _same(a: MarketEngine, b: MarketEngine) -> String:
+	if a.state_json() == b.state_json():
+		return ""
+	var d := _diff(a.state(), b.state())
+	return d if d != "" else "same values, different JSON text"
+
 func _wallet(e: MarketEngine, id: int) -> int:
 	return int(e.L.acct(id).wallet)
 
@@ -113,7 +131,7 @@ func _events(e: MarketEngine, who: int, ts: int = T0) -> Array:
 		evs.append(str(ev.ev))
 	return evs
 
-func _test_accounts_wallet_objectives() -> void:
+func _test_accounts_wallet_objectives() -> bool:
 	var e := MarketEngine.new(_rules(false), cat)
 	var r := _ok(e, "account.ensure", 1, {"name": "Alice"})
 	_expect(int(r.wallet) == 20, "starting wallet is 20")
@@ -144,11 +162,12 @@ func _test_accounts_wallet_objectives() -> void:
 	_expect(int(e.state().faucet.objectives) == 2, "objective rewards are booked as faucet")
 	r = _ok(e, "wallet.get", 1)
 	_expect(int(r.wallet) == 17 and int(r.held) == 0, "wallet.get reports wallet and holds")
+	return true
 
 func _bad_item(e: MarketEngine, slot: Dictionary, why: String) -> void:
 	_err(e, "vault.deposit_item", 1, {"slot_dict": slot, "count": 1}, "invalid_asset", T0, why)
 
-func _test_item_deposits() -> void:
+func _test_item_deposits() -> bool:
 	var r := _rules()
 	r.limits.deposit_caps.stone = 30
 	r.limits.max_vault_items = 6
@@ -166,7 +185,7 @@ func _test_item_deposits() -> void:
 	_bad_item(e, _with(base, "flags", ["unstable"]), "unstable")
 	_bad_item(e, _with(base, "flags", ["shiny"]), "unknown flag")
 	_bad_item(e, _with(base, "attributes", {"evil": 1}), "unknown attribute")
-	_bad_item(e, _with(base, "attributes", {"hardness": 9}), "attribute out of range")
+	_bad_item(e, _with(base, "attributes", {"hardness": 11}), "attribute out of range")
 	_bad_item(e, _with(base, "attributes", {"tint": "red"}), "tint not a colour")
 	_bad_item(e, _with(base, "durability", 5), "durability on a plain item")
 	_bad_item(e, _with(base, "dupe", true), "unknown field")
@@ -189,14 +208,25 @@ func _test_item_deposits() -> void:
 	_deposit(e, 1, "stone", 1, 1, T0 + 86401)
 	_deposit(e, 1, "wood_log", 1, 1, T0 + 86401)
 	_err(e, "vault.deposit_item", 1, {"slot_dict": _stack("wood_log", 1), "count": 1}, "limit_reached", T0 + 86401, "vault full")
+	var derived := EconRules.load_default()
+	var pinned: Dictionary = derived.limits.deposit_caps
+	derived.limits.deposit_caps = {}
+	for def_id in pinned:
+		_expect(cat.item(def_id) != null and derived.deposit_cap(def_id, cat.item(def_id).categories) == int(pinned[def_id]), "limits.json pins %s to its category rule" % def_id)
+	for def_id in cat.items:
+		if def_id not in r.g("denied_defs"):
+			var made := ItemStack.make(StringName(def_id), 1, {}, 30).to_dict()
+			var why: String = e.V.item(made, 1).msg
+			_expect(why == "", "a fresh %s from the catalog passes deposit checks (%s)" % [def_id, why])
 	var wire: Dictionary = JSON.parse_string(JSON.stringify(_stack("wood_log", 3, 7)))
 	got = _ok(e, "vault.deposit_item", 2, {"slot_dict": wire, "count": 3.0}, T0 + 86401)
 	_expect(typeof(got.item.level) == TYPE_INT and int(got.item.count) == 3, "JSON floats from the wire normalise to ints")
+	return true
 
 func _bad_pet(e: MarketEngine, pet: Dictionary, why: String) -> void:
 	_err(e, "vault.deposit_pet", 1, {"pet_dict": pet}, "invalid_asset", T0, why)
 
-func _test_pet_deposits() -> void:
+func _test_pet_deposits() -> bool:
 	var r := _rules()
 	r.limits.pet_species_cap = 2
 	var e := _engine(r)
@@ -236,8 +266,9 @@ func _test_pet_deposits() -> void:
 	noisy.hp = float(noisy.hp) * 1.004
 	got = _ok(e, "vault.deposit_pet", 2, {"pet_dict": noisy})
 	_expect(absf(float(got.pet.hp) - float(noisy.hp) / 1.004) < 0.001, "float noise under 0.5 % is accepted and stored canonical")
+	return true
 
-func _test_withdraw() -> void:
+func _test_withdraw() -> bool:
 	var e := _engine()
 	var uid := _deposit(e, 1, "stone", 10, 3)
 	var r := _ok(e, "vault.withdraw_item", 1, {"uid": uid, "count": 4})
@@ -257,8 +288,9 @@ func _test_withdraw() -> void:
 	var rec := PetRecord.from_dict(r.pet)
 	_expect(rec.level == 2 and absf(rec.hp - float(pet.hp)) < 0.01, "a withdrawn pet loads as a PetRecord")
 	_err(e, "vault.withdraw_pet", 1, {"uid": pid}, "not_found", T0, "pet withdrawn twice")
+	return true
 
-func _test_fixed_listings() -> void:
+func _test_fixed_listings() -> bool:
 	var r := _rules()
 	r.limits.max_open_listings = 3
 	var e := _engine(r)
@@ -304,8 +336,9 @@ func _test_fixed_listings() -> void:
 	var poor := _engine(_rules(false), 1)
 	var pu := _deposit(poor, 1, "stone", 1)
 	_err(poor, "market.list_fixed", 1, {"asset": {"uid": pu}, "unit_price": 1000, "duration_h": 12}, "insufficient_funds", T0, "fee above the wallet")
+	return true
 
-func _test_auctions() -> void:
+func _test_auctions() -> bool:
 	var e := _engine()
 	var uid := _deposit(e, 1, "copper_ore", 5)
 	_err(e, "market.list_auction", 1, {"asset": {"uid": uid}, "start_bid": 100, "buyout": 100, "duration_h": 24}, "bad_request", T0, "buyout not above start")
@@ -352,8 +385,9 @@ func _test_auctions() -> void:
 	var quiet := _auction(e, 1, lone, 30, 0, 12)
 	_ok(e, "market.cancel", 1, {"listing_id": quiet})
 	_expect(e.L.acct(1).vault_items.has(lone), "cancelling an auction without bids returns the lot")
+	return true
 
-func _test_anti_snipe_and_settlement() -> void:
+func _test_anti_snipe_and_settlement() -> bool:
 	var e := _engine()
 	var lot := _deposit(e, 1, "copper_ore", 2)
 	var aid := _auction(e, 1, lot, 10, 0, 12)
@@ -387,11 +421,12 @@ func _test_anti_snipe_and_settlement() -> void:
 	_ok(e, "sys.tick", 0, {}, int(lst.ends) + 12 * 3600)
 	_expect(e.L.acct(1).vault_items.has(idle), "an auction without bids returns to the seller")
 	_expect(e.state().closed_listings[quiet].state == "expired", "and is marked expired")
+	return true
 
 func _order(e: MarketEngine, who: int, def_id: String, qty: int, unit: int, lo: int = 1, hi: int = 60, hours: int = 24, ts: int = T0) -> String:
 	return str(_ok(e, "market.order_create", who, {"def_id": def_id, "min_level": lo, "max_level": hi, "qty": qty, "unit_price": unit, "duration_h": hours}, ts).get("order", {}).get("id", ""))
 
-func _test_orders() -> void:
+func _test_orders() -> bool:
 	var r := _rules()
 	r.limits.max_open_orders = 2
 	var e := _engine(r)
@@ -444,8 +479,9 @@ func _test_orders() -> void:
 	_ok(e, "sys.tick", 0, {}, T0 + 24 * 3600)
 	_expect(_wallet(e, 2) == w2 + 9 and e.state().closed_orders[o3].state == "expired", "expiry refunds the escrow")
 	_err(e, "market.sell_to_order", 1, {"order_id": o3, "uid": wood, "count": 1}, "closed", T0 + 24 * 3600, "sell to an expired order")
+	return true
 
-func _test_expiry() -> void:
+func _test_expiry() -> bool:
 	var e := _engine()
 	var uid := _deposit(e, 1, "raw_meat", 6)
 	var lid := _list(e, 1, uid, 3, 4, T0, 12)
@@ -462,8 +498,9 @@ func _test_expiry() -> void:
 	var seq := e.seq()
 	_ok(e, "sys.tick", 0, {}, end + 5)
 	_expect(e.seq() == seq, "an idle tick changes nothing and is not journaled")
+	return true
 
-func _test_search() -> void:
+func _test_search() -> bool:
 	var e := _engine()
 	var stone := _list(e, 1, _deposit(e, 1, "stone", 5), 10)
 	_list(e, 1, _deposit(e, 1, "stone", 3, 5), 30, -1, T0, 48)
@@ -513,8 +550,9 @@ func _test_search() -> void:
 	_expect(mine.listings.size() == 4 and mine.orders.is_empty(), "market.mine lists my listings")
 	_ok(e, "vault.get", 1)
 	_ok(e, "wallet.get", 1)
+	return true
 
-func _test_history_and_reference() -> void:
+func _test_history_and_reference() -> bool:
 	var e := _engine(null, 6)
 	var trade := func (seller: int, buyer: int, count: int, unit: int, ts: int) -> void:
 		var lid := _list(e, seller, _deposit(e, seller, "stone", count, 1, ts), unit, -1, ts)
@@ -548,8 +586,9 @@ func _test_history_and_reference() -> void:
 	d = _ok(e, "market.item_detail", 1, {"def_id": "stone"}, later)
 	_expect(d.buckets.is_empty() and int(d.volume_7d) == 0 and int(d.ref_price) == 20, "history keeps 7 days; the reference survives as the anchor")
 	_expect(not e.state().ref_trades.has("item:stone") and e.state().pairs.is_empty(), "windows are pruned")
+	return true
 
-func _test_settlers() -> void:
+func _test_settlers() -> bool:
 	var r := EconRules.load_default()
 	var e := _engine(r, 2)
 	var t := T0 - T0 % 86400 + 86400 + 5 * 3600 # 05:00 the next server day
@@ -574,7 +613,7 @@ func _test_settlers() -> void:
 	var paid := int(o.unit_price) * n
 	_expect(_wallet(e, 1) == w1 + paid - EconRules.ceil_bp(paid, 300), "selling to Settlers pays")
 	_expect(int(s.items_consumed[str(o.def_id)]) == n, "Settlers consume what they buy")
-	_err(e, "market.order_cancel", 1, {"order_id": o.id}, "not_owner", t, "cancel a Settler order")
+	_err(e, "market.order_cancel", 1, {"order_id": npc[npc.size() - 1].id}, "not_owner", t, "cancel a Settler order")
 	var seq := e.seq()
 	_ok(e, "sys.tick", 0, {}, t + 60)
 	_expect(e.seq() == seq, "no refresh inside the same hour")
@@ -588,6 +627,7 @@ func _test_settlers() -> void:
 	_expect(table.size() > 20, "Settlers demand covers the catalog")
 	for row in table:
 		_expect(int(row[1]) >= 1 and str(row[0]) not in r.g("denied_defs"), "demand rows are priced and tradeable")
+	return true
 
 func _npc_orders(e: MarketEngine) -> Array:
 	var out: Array = []
@@ -602,7 +642,7 @@ static func _escrow(orders: Array) -> int:
 		total += int(o.escrow)
 	return total
 
-func _test_idempotency() -> void:
+func _test_idempotency() -> bool:
 	var e := _engine()
 	var args := {"slot_dict": _stack("stone", 5), "count": 5, "rid": "dep-1"}
 	var first := _op(e, "vault.deposit_item", 1, args)
@@ -622,6 +662,7 @@ func _test_idempotency() -> void:
 	for i in 70:
 		_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "count": 1})
 	_expect(e.L.acct(4).rid_cache.size() == 64 and e.L.acct(4).rid_order.size() == 64, "the rid cache keeps the last 64")
+	return true
 
 ## A deterministic scenario touching every mutating op, run through an EconStore.
 func _scenario(store: EconStore) -> void:
@@ -654,7 +695,20 @@ func _wipe(dir: String) -> void:
 		for f in da.get_files():
 			da.remove(f)
 
-func _test_journal_replay() -> void:
+## Replay equality rests on stored floats surviving JSON text exactly (AssetValidator.q).
+func _test_float_grid() -> bool:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var bad := 0
+	for i in 100000:
+		var x := AssetValidator.q(rng.randf_range(0.0, 5000.0) * pow(10.0, rng.randi_range(-3, 3)))
+		var back: Variant = JSON.parse_string(JSON.stringify([x], "", true, true))[0]
+		if float(back) != x or AssetValidator.q(float(back)) != x:
+			bad += 1
+	_expect(bad == 0, "0.001-grid floats round-trip through JSON (%d of 100000 did not)" % bad)
+	return true
+
+func _test_journal_replay() -> bool:
 	var dir := DIR + "/journal"
 	_wipe(dir)
 	var store := EconStore.new(MarketEngine.new(_rules(), cat), dir)
@@ -664,9 +718,11 @@ func _test_journal_replay() -> void:
 	var live := store.engine.state_json()
 	_expect(EconInvariants.check(store.engine.state()).is_empty(), "scenario keeps the books balanced")
 	store.close()
+	var refused := store.apply("wallet.spend", 1, {"reason": "travel", "amount": 5, "rid": "closed"}, T0 + 13 * 3600)
+	_expect(refused.get("err") == "server_error" and store.engine.state_json() == live, "a closed store refuses ops with server_error and changes nothing")
 	var fresh := MarketEngine.new(_rules(), cat)
 	var why := EconStore.new(fresh, dir).replay_file(dir + "/journal.jsonl")
-	_expect(why == "" and fresh.state_json() == live, "journal replay from empty reproduces the state byte for byte (%s)" % why)
+	_expect(why == "" and fresh.state_json() == live, "journal replay from empty reproduces the state byte for byte (%s %s)" % [why, _same(store.engine, fresh)])
 	var f := FileAccess.open(dir + "/journal.jsonl", FileAccess.READ_WRITE)
 	f.seek_end()
 	f.store_string("{\"seq\": 9999, \"ts\": 17")
@@ -688,8 +744,9 @@ func _test_journal_replay() -> void:
 	w.close()
 	_expect(EconStore.new(MarketEngine.new(_rules(), cat), dir).open() != "", "a corrupt line before the end stops boot")
 	_wipe(dir)
+	return true
 
-func _test_snapshots() -> void:
+func _test_snapshots() -> bool:
 	var dir := DIR + "/snapshot"
 	_wipe(dir)
 	var store := EconStore.new(MarketEngine.new(_rules(), cat), dir)
@@ -710,8 +767,9 @@ func _test_snapshots() -> void:
 	_expect(cold.open() == "" and cold.engine.state_json() == live and FileAccess.get_file_as_string(dir + "/journal.jsonl") == "", "a snapshot alone boots to the same state")
 	cold.close()
 	_wipe(dir)
+	return true
 
-func _test_fuzz() -> void:
+func _test_fuzz() -> bool:
 	var rules := _rules(false)
 	rules.market.starting_wallet = 400
 	rules.market.settlers.daily_budget = 2000
@@ -775,11 +833,12 @@ func _test_fuzz() -> void:
 	for op in ["vault.deposit_item", "market.list_fixed", "market.list_auction", "market.buy", "market.bid", "market.sell_to_order", "market.cancel", "vault.withdraw_item", "sys.tick"]:
 		_expect(int(tally.get(op, [0, 0])[0]) > 0, "fuzz exercised a successful %s" % op)
 	if broken:
-		return
+		return true
 	var fresh := MarketEngine.new(rules, cat)
 	var why := EconStore.new(fresh, dir).replay_file(dir + "/journal.jsonl")
 	_expect(why == "" and fresh.state_json() == e.state_json(), "the fuzz journal replays from empty byte for byte (%s)" % why)
 	_wipe(dir)
+	return true
 
 static func _any(rng: RandomNumberGenerator, pool: Array, fallback: String) -> String:
 	if pool.is_empty() or rng.randf() < 0.05:
@@ -822,14 +881,23 @@ func _fuzz_op(e: MarketEngine, rng: RandomNumberGenerator, who: int, pets: Array
 	if roll < 58:
 		return ["market.buyout", {"listing_id": _any(rng, listings, "L1")}]
 	if roll < 62:
-		return ["market.cancel", {"listing_id": _any(rng, listings, "L1")}]
+		var own := listings.filter(func (id: String) -> bool: return int(e.state().listings[id].seller) == who)
+		return ["market.cancel", {"listing_id": _any(rng, own if rng.randf() < 0.7 else listings, "L1")}]
 	if roll < 67:
 		var lo := rng.randi_range(1, 6)
 		return ["market.order_create", {"def_id": FUZZ_DEFS[rng.randi_range(0, FUZZ_DEFS.size() - 1)], "min_level": lo, "max_level": rng.randi_range(lo - 1, 60), "qty": rng.randi_range(1, 15), "unit_price": rng.randi_range(1, 12), "duration_h": durations[rng.randi_range(0, 4)]}]
 	if roll < 69:
-		return ["market.order_cancel", {"order_id": _any(rng, orders, "O1")}]
+		var own := orders.filter(func (id: String) -> bool: return int(e.state().orders[id].buyer) == who)
+		return ["market.order_cancel", {"order_id": _any(rng, own if rng.randf() < 0.7 else orders, "O1")}]
 	if roll < 77:
-		return ["market.sell_to_order", {"order_id": _any(rng, orders, "O1"), "uid": _any(rng, items, "i1"), "count": rng.randi_range(1, 8)}]
+		var oid := _any(rng, orders, "O1")
+		var uid := _any(rng, items, "i1")
+		if e.state().orders.has(oid) and rng.randf() < 0.8:
+			for u in items: # usually offer a stack the order accepts, so fills actually happen
+				if OrderBook.accepts(e.state().orders[oid], acct.vault_items[u]):
+					uid = u
+					break
+		return ["market.sell_to_order", {"order_id": oid, "uid": uid, "count": rng.randi_range(1, 8)}]
 	if roll < 79:
 		return ["inbox.take", {}]
 	if roll < 80:
@@ -845,12 +913,13 @@ func _fuzz_op(e: MarketEngine, rng: RandomNumberGenerator, who: int, pets: Array
 	]
 	return reads[rng.randi_range(0, reads.size() - 1)]
 
-func _test_search_perf() -> void:
+func _test_search_perf() -> bool:
 	var r := _rules()
 	r.market.starting_wallet = 1000000000
 	r.limits.max_open_listings = 1000000
 	r.limits.max_vault_items = 1000000
 	r.limits.deposit_caps = {}
+	r.limits.category_caps = {}
 	r.limits.deposit_default_cap = 1000000000
 	var e := MarketEngine.new(r, cat)
 	var rng := RandomNumberGenerator.new()
@@ -881,3 +950,4 @@ func _test_search_perf() -> void:
 		if int(res.r.results[i].unit_price) < int(res.r.results[i - 1].unit_price):
 			sorted = false
 	_expect(sorted and q.ok, "perf results are sorted")
+	return true

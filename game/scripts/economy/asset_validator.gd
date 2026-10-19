@@ -148,26 +148,29 @@ func pet(raw: Variant) -> Dictionary:
 		var want := _expected(def, stat, int(genes.ivs[GENE[stat]]), lv)
 		if absf(float(have) - want) > tol * absf(want) + 0.000001:
 			return _no("%s %.3f does not match species, level and genetics (%.3f)" % [stat, float(have), want])
-		out[stat] = want
+		out[stat] = q(want)
 	var rate: Variant = d.get("hunger_efficiency", 1.0)
-	if not (rate is float or rate is int) or float(rate) not in GRADE_RATES or float(d.get("xp_rate", -1.0)) != float(rate):
+	var grade_rate := _grade_rate(rate)
+	if grade_rate < 0.0 or _grade_rate(d.get("xp_rate")) != grade_rate:
 		return _no("hunger_efficiency / xp_rate do not match a grade")
-	out.hunger_efficiency = float(rate)
-	out.xp_rate = float(rate)
-	out.hunger_max = def.hp * 0.4
+	out.hunger_efficiency = grade_rate
+	out.xp_rate = grade_rate
+	out.hunger_max = q(def.hp * 0.4)
 	var hunger: Variant = d.get("hunger", 0.0)
 	if not (hunger is float or hunger is int) or float(hunger) < 0.0 or float(hunger) > out.hunger_max * (1.0 + tol):
 		return _no("hunger out of range")
-	out.hunger = minf(float(hunger), out.hunger_max)
+	out.hunger = minf(q(float(hunger)), out.hunger_max)
 	var xp: Variant = d.get("xp", 0.0)
 	var xp_cap := PetRecord.xp_to_next(lv) if lv < rules.num("level_max") else 1.0e9
 	if not (xp is float or xp is int) or float(xp) < 0.0 or float(xp) >= xp_cap:
 		return _no("xp out of range")
-	out.xp = float(xp)
+	out.xp = q(float(xp))
+	if out.xp >= xp_cap:
+		return _no("xp out of range")
 	var respawn: Variant = d.get("respawn_left", 0.0)
 	if not (respawn is float or respawn is int) or float(respawn) < 0.0 or float(respawn) > PetRecord.RESPAWN_TIME:
 		return _no("respawn_left out of range")
-	out.respawn_left = float(respawn)
+	out.respawn_left = q(float(respawn))
 	var g := CreatureGenetics.new()
 	g.ivs = _keyed(genes.ivs)
 	out.grade = str(g.overall_tier())
@@ -224,6 +227,21 @@ static func _expected(def: CreatureDef, stat: String, iv: int, level: int) -> fl
 		"speed": base = def.speed
 	var mult := 0.85 + 0.30 * float(iv) / float(CreatureGenetics.IV_MAX)
 	return base * mult * pow(float(GROWTH[stat]), float(level - 1))
+
+## Stored pet floats sit on a 0.001 grid. Godot's JSON reader is not exact for 17-digit
+## doubles (about 1 in 8 comes back an ulp off), but grid values survive the trip, so the
+## journal and snapshot reload to byte-identical state. economy_tests checks the round trip.
+static func q(x: float) -> float:
+	return roundf(x * 1000.0) / 1000.0
+
+## The grade rate `v` names (within float noise), or -1.
+static func _grade_rate(v: Variant) -> float:
+	if not (v is float or v is int):
+		return -1.0
+	for r in GRADE_RATES:
+		if absf(float(v) - r) < 0.000001:
+			return r
+	return -1.0
 
 static func _keyed(src: Dictionary) -> Dictionary:
 	var out := {}
