@@ -32,6 +32,7 @@ TILES = [
     "canvas", "hide", "rope", "thatch", "weave", "steamer_weave", "leather_dark", "fiber",
     "stone", "stone_dark", "cobble", "clay", "clay_dark", "iron", "ash", "ember",
     "meat_raw", "meat_drying", "meat_dried", "water", "soot", "sign_board", "dirt", "bone",
+    "meat_fat",
 ]
 TILE_INDEX = {n: i for i, n in enumerate(TILES)}
 
@@ -279,6 +280,7 @@ def paint_atlas():
         "meat_raw": _meat(25, (0.86, 0.17, 0.15), (0.62, 0.08, 0.08), (0.95, 0.74, 0.68), 0.2),
         "meat_drying": _meat(26, (0.46, 0.08, 0.065), (0.3, 0.045, 0.04), (0.56, 0.24, 0.18), 0.16),
         "meat_dried": _meat(27, (0.18, 0.085, 0.05), (0.09, 0.04, 0.025), (0.62, 0.46, 0.32), 0.14),
+        "meat_fat": _speckle(33, (0.6, 0.38, 0.22), (0.44, 0.26, 0.14), light=(0.72, 0.52, 0.34), scale=6),
         "water": _water(),
         "soot": _speckle(29, (0.17, 0.15, 0.14), (0.08, 0.07, 0.07), scale=5),
         "sign_board": _sign_board(),

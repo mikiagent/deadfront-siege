@@ -6,6 +6,8 @@ Footprints follow game/data/props_manifest.json: X is the first footprint number
 """
 import math
 
+from mathutils import Euler, Vector
+
 from lib import Part
 
 R = math.radians
@@ -254,6 +256,13 @@ def _strips(p, stage, seed):
             # fold over the pole, then the hanging tongue on the camera side
             p.box((w, 2 * r + t * 2, t * 1.6), (x, y, z + r + t * 0.5), tile)
             p.box((w, t, length), (x, y - r - t / 2, z - length / 2), tile, rot=(c, 0, c * 0.6))
+            if stage == "dried":
+                # near-black jerky vanishes on the dark dirt disc; a pale fat rim down one edge of
+                # each tongue keeps the strips readable at gameplay zoom without lifting their value
+                rot = (c, 0, c * 0.6)
+                off = Euler([R(a) for a in rot], "XYZ").to_matrix() @ Vector((w * 0.38, -t * 0.3, 0))
+                centre = Vector((x, y - r - t / 2, z - length / 2)) + off
+                p.box((w * 0.3, t * 1.2, length * 0.96), tuple(centre), "meat_fat", rot=rot)
             p.box((w * 0.9, t, length * 0.6), (x, y + r + t / 2, z - length * 0.3), tile, rot=(-c, 0, 0))
 
 
