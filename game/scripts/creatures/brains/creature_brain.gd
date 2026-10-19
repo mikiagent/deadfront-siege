@@ -9,8 +9,8 @@ extends Node
 signal state_changed(prev: StringName, next: StringName)
 
 const THINK_HZ := 10
-## Idle brains farther than this from every player stop thinking (AI LOD).
-const LOD_RADIUS := 60.0
+## Idle brains farther than this from every player stop thinking (AI LOD, see BrainRest).
+const LOD_RADIUS := BrainRest.LOD_RADIUS
 ## After a leash break nobody in the pack may re-acquire for this long (no flicker on the line).
 const REACQUIRE_HOLD_S := 0.5
 ## ASSUMPTION: the post-kill / post-flight temporary home lasts two minutes, then the real one returns.
@@ -22,12 +22,13 @@ const SURVIVOR_RADIUS := 0.35
 ## they turn and fight for PROVOKE_SECONDS, then go back to their temperament.
 const PROVOKE_HITS := 3
 const PROVOKE_SECONDS := 15.0
+## A grazer hit in the last FRESH_HIT_S keeps fleeing even past the leash: a shot from beyond the
+## ring is still a reason to run, not to walk home.
+const FRESH_HIT_S := 3.0
 
 ## Debug lines printed so far; labs assert it stays flat with the overlay off.
 static var debug_lines: int = 0
 static var _pack_cooldown_until: Dictionary = {} ## pack_id -> seconds
-static var _pack_index: Dictionary = {} ## pack_id -> Array[Creature], rebuilt once per physics frame
-static var _pack_index_frame: int = -1
 
 var creature: Creature
 var state: StringName = &"roam"
@@ -171,18 +172,8 @@ func _full_rate() -> bool:
 func _think_every() -> int:
 	return maxi(1, int(Engine.physics_ticks_per_second / THINK_HZ))
 
-## Idle and nobody within LOD_RADIUS: skip the think. Combat, flight and pets never freeze, and
-## a scene with no player at all keeps thinking (tests, tools).
 func _lod_frozen() -> bool:
-	if creature.is_pet or not (state == &"roam" or state == &"sleep") or _valid_target():
-		return false
-	var players := creature.get_tree().get_nodes_in_group("player")
-	if players.is_empty():
-		return false
-	for p in players:
-		if p is Node3D and (p as Node3D).global_position.distance_squared_to(creature.global_position) <= LOD_RADIUS * LOD_RADIUS:
-			return false
-	return true
+	return BrainRest.lod_frozen(self)
 
 ## Rules every wild brain obeys before its species think: timers, the leash, night sleep and the
 ## walk home. Returns true when it handled this tick.
@@ -198,9 +189,9 @@ func _pre_think(dt: float) -> bool:
 		_set_state(&"alert" if _valid_target() else &"roam")
 	_disengage_track(dt)
 	if state == &"sleep":
-		_sleep_tick()
+		BrainRest.sleep_tick(self)
 		return state == &"sleep"
-	if _should_sleep():
+	if BrainRest.should_sleep(self):
 		_set_state(&"sleep")
 		creature.stop_move()
 		return true
@@ -224,6 +215,8 @@ func on_aggro(who: Node) -> void:
 		attack_target = who as Node3D
 		_combat_memory_left = 4.0
 		creature.mark_aggro_now()
+		if _is_herbivore():
+			BrainRest.keep_awake(self)  # hurt animals do not doze off at the leash edge
 		# Do not downgrade combat states (retreat/flee/approach/attack) back to alert.
 		if state == &"roam" or state == &"sleep" or state == &"disengage" or state == &"downed":
 			_set_state(&"alert")
@@ -535,7 +528,7 @@ func _disengage_track(delta: float) -> void:
 	var dist := _flat_dist(attack_target)
 	# Aggro leash: beyond aggro_radius the chase ends at once; beyond 1.2 x perception it ends
 	# after disengage_seconds. Running far enough away always works.
-	if dist > aggro_radius():
+	if dist > aggro_radius() and not _fresh_flight():
 		_log("[ai] %s disengage (left aggro radius)" % creature.def.id)
 		_leash_break()
 		return
@@ -547,6 +540,10 @@ func _disengage_track(delta: float) -> void:
 			_disengage()
 	else:
 		_disengage_left = 0.0
+
+## A grazer that was just hit runs from the hit, wherever the shooter stands.
+func _fresh_flight() -> bool:
+	return _is_herbivore() and (state == &"alert" or state == &"flee") and _now_s() - _last_hit_s < FRESH_HIT_S
 
 ## The target crossed the pack's one leash: everyone on that target lets go together and none
 ## re-acquires for REACQUIRE_HOLD_S. Per-member breaks made followers flicker on the line.
@@ -583,29 +580,6 @@ func _set_temp_home(pos: Vector3) -> void:
 		_true_home = creature.spawn_home
 	creature.spawn_home = pos
 	_home_until = _now_s() + TEMP_HOME_S
-
-func _should_sleep() -> bool:
-	return _is_herbivore() and Game.phase_name() == &"night" and _now_s() >= _awake_until \
-		and not _valid_target() and (state == &"roam" or state == &"disengage")
-
-## Asleep: stay put. Dawn wakes everyone; a survivor or pet within wake_m of the body wakes
-## this one (and a skittish grazer bolts). The old code had no way out of sleep at all.
-func _sleep_tick() -> void:
-	creature.stop_move()
-	if Game.phase_name() != &"night":
-		_wake(null)
-		return
-	var near := _nearest_live_prey(float(profile.get("wake_m", 3.0)) + creature.body_radius())
-	if near:
-		_wake(near)
-
-func _wake(who: Node3D) -> void:
-	_awake_until = _now_s() + float(profile.get("woken_awake_s", 30.0))
-	_roam_target = Vector3.ZERO
-	_roam_cd = randf_range(0.1, 0.6)
-	_set_state(&"roam")
-	if who:
-		_spot(who)
 
 func _approach_slot() -> Vector3:
 	if attack_target == null:
@@ -664,35 +638,9 @@ func _pack_leader() -> Creature:
 	var members := _pack_members()
 	return members[0] if not members.is_empty() else null
 
-## Live wild members of this pack, strongest first. Shared read-only list, rebuilt once per
-## physics frame for every pack from one group scan (it was a scan + sort per call).
+## Live wild members of this pack, strongest first (shared, read-only).
 func _pack_members() -> Array[Creature]:
-	var none: Array[Creature] = []
-	if creature == null or creature.pack_id <= 0 or not creature.is_inside_tree():
-		return none
-	var frame := Engine.get_physics_frames()
-	if frame != _pack_index_frame:
-		_pack_index_frame = frame
-		_pack_index.clear()
-		for n in creature.get_tree().get_nodes_in_group("creatures"):
-			var c := n as Creature
-			if c == null or c.pack_id <= 0 or c.is_pet or c.health == null or c.health.dead:
-				continue
-			if not _pack_index.has(c.pack_id):
-				var fresh: Array[Creature] = []
-				_pack_index[c.pack_id] = fresh
-			(_pack_index[c.pack_id] as Array[Creature]).append(c)
-		for id in _pack_index:
-			(_pack_index[id] as Array[Creature]).sort_custom(_stronger)
-	return _pack_index.get(creature.pack_id, none)
-
-## Alpha means strongest, not first spawned. Tier dominates, then combat stats break ties.
-func _stronger(a: Creature, b: Creature) -> bool:
-	var sa := float(a.def.tier) * 1000000.0 + a.health.max_hp * 100.0 + a.def.attack * 10.0 + a.def.defense
-	var sb := float(b.def.tier) * 1000000.0 + b.health.max_hp * 100.0 + b.def.attack * 10.0 + b.def.defense
-	if not is_equal_approx(sa, sb):
-		return sa > sb
-	return a.get_instance_id() < b.get_instance_id()
+	return PackIndex.members(creature)
 
 func _herd_center() -> Vector3:
 	var members := _pack_members()

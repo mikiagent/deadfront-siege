@@ -35,9 +35,12 @@ func spawn_now() -> Array[Creature]:
 		out.append(c)
 	return out
 
-## IslandRuntime builds a Spawner per island spawn row but does not hand over the row, so find
-## it by ring + species to read its tier_offset (crater and far-shore rows carry one).
+## The row's tier_offset: the "tier_offset" meta when the runtime set it from the row (integrator
+## hook), else the row found by ring + species. shortcut: the fallback misreads a row whose ring
+## band IslandRuntime clamped into another ring; goes away once the meta hook lands.
 func _row_tier_offset(rt: Node) -> int:
+	if has_meta(&"tier_offset"):
+		return int(get_meta(&"tier_offset"))
 	if rt == null or World == null:
 		return 0
 	var spawns: Variant = World.island_def.get("spawns", {})

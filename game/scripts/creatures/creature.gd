@@ -341,11 +341,16 @@ func _physics_process(delta: float) -> void:
 		hunger = maxf(0.0, hunger - drain)
 		pet_record.hunger = hunger
 
-## An animal standing still on the ground has nothing to slide (most of the idle cost). A fading
-## creature has a collapsed scale; sliding it inverts a singular basis and logged an engine error
-## every physics frame (found by the survivor bot).
+## An animal standing still on the ground has nothing to slide (most of the idle cost), so it
+## slides only every IDLE_SLIDE_EVERY frames: often enough to notice a floor that went away. The
+## dead always slide: the corpse teleports them and the cached is_on_floor() is stale.
+## A fading creature has a collapsed scale; sliding it inverts a singular basis and logged an
+## engine error every physics frame (found by the survivor bot).
+const IDLE_SLIDE_EVERY := 8
+
 func _slide() -> void:
-	if is_on_floor() and velocity.length_squared() < 0.000001:
+	if not health.dead and is_on_floor() and velocity.length_squared() < 0.000001 \
+			and (Engine.get_physics_frames() + get_instance_id()) % IDLE_SLIDE_EVERY != 0:
 		return
 	if absf(global_transform.basis.determinant()) > 0.0001:
 		move_and_slide()

@@ -20,8 +20,12 @@ func _ready() -> void:
 	await _roam_all()  # also loads every species' model, so perf below measures no first loads
 	await _perf(24, 2.0)
 	await _perf(120, 8.0)
+	await _lod_freeze()
 	await _sleep_and_wake()
+	await _wake_each_herbivore()
+	await _hurt_grazer_flight()
 	await _lone_flight()
+	await _hit_react()
 	await _pet_bite_flight()
 	await _pack_walkout()
 	await _pet_reach_giants()
@@ -124,18 +128,7 @@ func _sleep_and_wake() -> void:
 		if c.brain.state == &"sleep":
 			asleep += 1
 	_check(asleep == cs.size(), "only %d/%d herbivores asleep at night" % [asleep, cs.size()])
-	# Wake by proximity: the survivor stands 2 m from the first sleeper's body.
-	var sleeper := cs[0]
-	var to_p := (Vector3.ZERO - sleeper.global_position).normalized()
-	player.global_position = sleeper.global_position + to_p * (sleeper.body_radius() + 2.0) + Vector3.UP
-	var t0 := Time.get_ticks_msec()
-	while sleeper.brain.state == &"sleep" and Time.get_ticks_msec() - t0 < 1500:
-		await get_tree().physics_frame
-	var wake_s := float(Time.get_ticks_msec() - t0) / 1000.0
-	print("[aisweep] wake_near species=%s state=%s wake_s=%.2f" % [sleeper.def.id, sleeper.brain.state, wake_s])
-	_check(sleeper.brain.state != &"sleep" and wake_s <= 1.0, "%s did not wake within 1 s of a survivor at 2 m (%.2f s)" % [sleeper.def.id, wake_s])
-	player.global_position = Vector3(0, 1, 0)
-	# Dawn wakes everyone else.
+	# Dawn wakes everyone.
 	var start: Array[Vector3] = []
 	for c in cs:
 		start.append(c.global_position)
@@ -149,14 +142,116 @@ func _sleep_and_wake() -> void:
 		for i in cs.size():
 			far[i] = maxf(far[i], _flat(start[i], cs[i].global_position))
 	var bad: Array[String] = []
-	for i in range(1, cs.size()):
+	for i in cs.size():
 		var d: float = far[i]
 		if cs[i].brain.state == &"sleep" or d < 1.0:
 			bad.append("%s:%s/%.2f" % [cs[i].def.id, cs[i].brain.state, d])
-	print("[aisweep] dawn herbivores=%d still_or_asleep=%s" % [cs.size() - 1, bad])
+	print("[aisweep] dawn herbivores=%d still_or_asleep=%s" % [cs.size(), bad])
 	_check(bad.is_empty(), "herbivores did not wake and move >= 1 m within 10 s of dawn: %s" % [bad])
 	Game.time_of_day = 0.40
 	await _clear()
+
+## Every sleeping herbivore wakes within 1 s once the survivor stands 2 m from its body.
+func _wake_each_herbivore() -> void:
+	Game.time_of_day = 0.05
+	player.global_position = Vector3(0, 1, 0)
+	var cs := _ring(_herbivores())
+	await _wait(1.0)
+	var slow: Array[String] = []
+	var worst := 0.0
+	for sleeper in cs:
+		if sleeper.brain.state != &"sleep":
+			slow.append("%s:not_asleep(%s)" % [sleeper.def.id, sleeper.brain.state])
+			continue
+		var to_p := (Vector3.ZERO - sleeper.global_position).normalized()
+		player.global_position = sleeper.global_position + to_p * (sleeper.body_radius() + 2.0) + Vector3.UP
+		var t0 := Time.get_ticks_msec()
+		while sleeper.brain.state == &"sleep" and Time.get_ticks_msec() - t0 < 1500:
+			await get_tree().physics_frame
+		var wake_s := float(Time.get_ticks_msec() - t0) / 1000.0
+		worst = maxf(worst, wake_s)
+		if sleeper.brain.state == &"sleep" or wake_s > 1.0:
+			slow.append("%s:%.2f" % [sleeper.def.id, wake_s])
+	print("[aisweep] wake_near herbivores=%d worst_s=%.2f slow=%s" % [cs.size(), worst, slow])
+	_check(slow.is_empty(), "herbivores did not wake within 1 s of a survivor at 2 m: %s" % [slow])
+	Game.time_of_day = 0.40
+	await _clear()
+
+## A zebraceratops hit while asleep (8 m) runs and stays up; one shot in daylight from just past
+## its leash runs too, instead of walking home (was: back to sleep at the leash edge, 0 m moved).
+func _hurt_grazer_flight() -> void:
+	for night in [true, false]:
+		Game.time_of_day = 0.05 if night else 0.40
+		player.global_position = Vector3(0, 1, 200)
+		var zeb := _spawn(&"zebraceratops", Vector3(0, 0, 0))
+		await _wait(0.6)
+		var slept := zeb.brain.state == &"sleep"
+		var dist := 8.0 if night else zeb.brain.aggro_radius() + 0.5
+		player.global_position = Vector3(-dist, 1, 0)
+		var z0 := zeb.global_position
+		var trail: Array[String] = [str(zeb.brain.state)]
+		zeb.brain.state_changed.connect(func (_p: StringName, n: StringName) -> void: trail.append(str(n)))
+		zeb.health.take_damage(1.0, player)
+		var away := 0.0
+		var t0 := Time.get_ticks_msec()
+		while Time.get_ticks_msec() - t0 < 8000:
+			await get_tree().physics_frame
+			away = maxf(away, zeb.global_position.x - z0.x)
+		var label := "asleep_8m" if night else "day_past_leash"
+		print("[aisweep] hurt_flight case=%s slept=%s away=%.2f state=%s trail=%s" % [label, slept, away, zeb.brain.state, trail])
+		_check(away >= 10.0 and zeb.brain.state != &"sleep" and not trail.has("disengage") and (slept or not night), "%s: away=%.2f state=%s trail=%s (want >= 10 m, awake, no walk home)" % [label, away, zeb.brain.state, trail])
+		await _clear()
+	Game.time_of_day = 0.40
+
+## AI LOD: an idle animal 80 m from the survivor does not think (stays put); one at 45 m roams.
+func _lod_freeze() -> void:
+	Game.time_of_day = 0.40
+	player.global_position = Vector3(0, 1, 0)
+	var near := _spawn(&"velociraptor", Vector3(45, 0, 0))
+	var far := _spawn(&"velociraptor", Vector3(-80, 0, 0))
+	var n0 := near.global_position
+	var f0 := far.global_position
+	var near_d := 0.0
+	var far_d := 0.0
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 6000:
+		await get_tree().physics_frame
+		near_d = maxf(near_d, _flat(n0, near.global_position))
+		far_d = maxf(far_d, _flat(f0, far.global_position))
+	print("[aisweep] lod near45_moved=%.2f far80_moved=%.2f" % [near_d, far_d])
+	_check(near_d >= 0.5 and far_d < 0.05, "AI LOD: near45 moved %.2f (want >= 0.5), far80 moved %.2f (want 0)" % [near_d, far_d])
+	await _clear()
+
+## pc-hitreact-01: species with an authored hit_react clip play it when hit (not the flinch).
+func _hit_react() -> void:
+	player.global_position = Vector3(0, 1, -60)
+	var ids: Array[StringName] = []
+	for id in _species():
+		# The tyrant never staggers or flinches by design (its counters are the tells).
+		if id != &"tyrannosaurus" and (Data.creature(id).pipeline.get("authored_clips", {}) as Dictionary).has("hit_react"):
+			ids.append(id)
+	var missed: Array[String] = []
+	var played := 0
+	for id in ids:
+		var c := _spawn(id, Vector3(0, 0, 0))
+		c.brain.process_mode = Node.PROCESS_MODE_DISABLED
+		await _wait(0.3)
+		if not c.view.using_glb:
+			missed.append("%s:no_glb" % id)
+			await _clear()
+			continue
+		c.health.take_damage(1.0, player)
+		var seen := false
+		for f in 6:
+			seen = seen or c.anim.current_clip == &"hit_react"
+			await get_tree().physics_frame
+		if seen:
+			played += 1
+		else:
+			missed.append("%s:%s" % [id, c.anim.current_clip])
+		await _clear()
+	print("[aisweep] hit_react species=%d played=%d missed=%s" % [ids.size(), played, missed])
+	_check(ids.size() > 0 and missed.is_empty(), "authored hit_react did not play: %s" % [missed])
 
 ## A lone zebraceratops chased by a survivor walking at 5.5 m/s for 10 s.
 func _lone_flight() -> void:
@@ -299,7 +394,12 @@ func _island_levels_and_corpse() -> void:
 	var rt: Node = World.runtime
 	var rings: Dictionary = Data.world_rules.get("rings", {})
 	var proto: Creature
-	var raptor_seen := false
+	var raptors := 0
+	var raptor_bad: Array[String] = []
+	var crater_offset := 0
+	for row in (World.island_def.get("spawns", {}) as Dictionary).get("crater", []):
+		if row is Dictionary and str(row.get("species", "")) == "velociraptor":
+			crater_offset = int(row.get("tier_offset", 0))
 	for n in get_tree().get_nodes_in_group("creatures"):
 		var c := n as Creature
 		if c == null or c.def == null:
@@ -310,29 +410,35 @@ func _island_levels_and_corpse() -> void:
 			var want := c.def.tier + int((rings["gathering"] as Dictionary).get("level_offset", 0))
 			print("[aisweep] level protoceratops ring=gathering level=%d want=%d" % [c.level, want])
 			_check(c.level == want, "protoceratops in gathering ring level=%d want %d" % [c.level, want])
-		elif c.def.id == &"velociraptor" and ring == "crater" and not raptor_seen:
-			raptor_seen = true
-			var want := c.def.tier + int((rings["crater"] as Dictionary).get("level_offset", 0)) + 3
-			print("[aisweep] level velociraptor ring=crater level=%d want=%d" % [c.level, want])
-			_check(c.level == want, "velociraptor in crater level=%d want %d" % [c.level, want])
+		elif c.def.id == &"velociraptor" and ring == "crater":
+			raptors += 1
+			var want := c.def.tier + int((rings["crater"] as Dictionary).get("level_offset", 0)) + crater_offset
+			if c.level != want:
+				raptor_bad.append("%d!=%d" % [c.level, want])
+	print("[aisweep] level velociraptor ring=crater count=%d row_tier_offset=%d wrong=%s" % [raptors, crater_offset, raptor_bad])
 	_check(proto != null, "no protoceratops spawned in the gathering ring")
-	_check(raptor_seen, "no velociraptor spawned in the crater")
+	_check(raptors > 0 and crater_offset != 0, "no velociraptor (or no tier_offset row) in the crater")
+	_check(raptor_bad.is_empty(), "crater velociraptor levels wrong: %s" % [raptor_bad])
 	if proto == null:
 		return
-	# Corpse: the body must rest on the terrain, not on its own loot cylinder.
+	# Corpse: the body must rest on the terrain, not on its own loot cylinder. Once killed while
+	# roaming, once killed standing still (brain off): the still one hovered 0.1 m when idle
+	# bodies skipped move_and_slide.
+	var still: Creature
+	for n in get_tree().get_nodes_in_group("creatures"):
+		var c := n as Creature
+		if c and c != proto and c.def and not c.health.dead and _flat(c.global_position, proto.global_position) > 12.0:
+			still = c
+			break
+	_check(still != null, "no second creature for the standing-kill corpse check")
+	if still:
+		still.brain.process_mode = Node.PROCESS_MODE_DISABLED
+		still.stop_move()
 	player.global_position = proto.global_position + Vector3(30, 0, 0)
-	proto.health.take_damage(proto.health.max_hp + 1.0, player)
-	await _wait(2.5)
-	var corpse: Corpse
-	for n in get_tree().get_nodes_in_group("corpse"):
-		if (n as Corpse)._owner == proto:
-			corpse = n
-	var q := PhysicsRayQueryParameters3D.create(proto.global_position + Vector3.UP * 3.0, proto.global_position + Vector3.DOWN * 5.0, 1)
-	q.exclude = [proto.get_rid()] + ([corpse.get_rid()] if corpse else [])
-	var hit := get_world_3d().direct_space_state.intersect_ray(q)
-	var gap: float = proto.global_position.y - (hit["position"] as Vector3).y if hit else 99.0
-	print("[aisweep] corpse species=protoceratops feet_gap=%.3f" % gap)
-	_check(absf(gap) <= 0.05, "corpse feet gap %.3f m (want <= 0.05)" % gap)
+	await _wait(0.5)
+	var corpse := await _kill_and_gap(proto, "roaming")
+	if still:
+		await _kill_and_gap(still, "standing")
 	_check(corpse != null, "no corpse for the dead protoceratops")
 	if corpse == null:
 		return
@@ -351,6 +457,22 @@ func _island_levels_and_corpse() -> void:
 	var gained := player.skills.xp_of("butchering") - xp0
 	print("[aisweep] loot_full_bag taps=50 xp_gained=%.1f level_change=%d" % [gained, player.skills.level_of("butchering") - lvl0])
 	_check(is_zero_approx(gained) and player.skills.level_of("butchering") == lvl0, "full-bag loot taps paid %.1f XP" % gained)
+
+## Kills c, waits for the corpse, prints and checks the feet gap to the terrain under it.
+func _kill_and_gap(c: Creature, how: String) -> Corpse:
+	c.health.take_damage(c.health.max_hp + 1.0, player)
+	await _wait(2.5)
+	var corpse: Corpse
+	for n in get_tree().get_nodes_in_group("corpse"):
+		if (n as Corpse)._owner == c:
+			corpse = n
+	var q := PhysicsRayQueryParameters3D.create(c.global_position + Vector3.UP * 3.0, c.global_position + Vector3.DOWN * 5.0, 1)
+	q.exclude = [c.get_rid()] + ([corpse.get_rid()] if corpse else [])
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	var gap: float = c.global_position.y - (hit["position"] as Vector3).y if hit else 99.0
+	print("[aisweep] corpse species=%s killed=%s feet_gap=%.3f" % [c.def.id, how, gap])
+	_check(absf(gap) <= 0.05, "%s corpse (%s) feet gap %.3f m (want <= 0.05)" % [c.def.id, how, gap])
+	return corpse
 
 func _loot_has(corpse: Corpse, id: StringName) -> bool:
 	for st in corpse.loot.slots:
