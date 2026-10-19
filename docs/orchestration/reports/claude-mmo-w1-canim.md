@@ -42,7 +42,7 @@ Deviations from the spec's file list:
   (owned), which Data already loads. No data.gd change needed.
 - Test file is `game/tests/t_canim.gd` (wave-1 convention), not `t_creature_anim.gd`.
 
-## Acceptance checklist (exact output lines, run on HEAD 3a33685)
+## Acceptance checklist (exact output lines, run on HEAD 3a33685; all re-run and re-seen on 49f4609 on 2026-10-19)
 
 Command: `Godot --headless --path game --script res://tests/t_canim.gd` (exit 0).
 
@@ -108,6 +108,20 @@ None needed in core files. For W2-CVIEW (wiring is theirs per the spec):
 - `creature_anim_lab`: `Godot --path game -- --lab=creature_anim_lab [--shot=... --shot-delay=3]`.
   Walk phase 0-5 s, run phase 5-10 s, T. rex sleep/feed/tail_swipe 10-15 s, repeating. It prints
   one `[canimlab]` line per phase and has no PASS gate; the test is the gate.
+
+## Assets to mark for replacement (rows for `docs/orchestration/mmo/asset-replacement.md`)
+
+Owner rule 2026-10-19. This package does not own the register; the integrator should add or extend
+these rows. Evidence is the baked `natural_speeds` in `anim_events.json` (planted-foot m/s at x1).
+
+| Asset | Problem | Route | Package | Status |
+|---|---|---|---|---|
+| megaloceros, protoceratops walk/run clips | Barely stride (natural run 0.42 and 0.63 m/s): listed speeds need 7-16x cadence and megaloceros hits the 16x cap; legs will read as vibration | dsc re-animation (extends the existing W2-RERIG row) | W2-RERIG | REPLACE |
+| zebraceratops walk/run clips | Same (natural run 0.40 m/s) | Goes with its model replacement | W2-ARTC | REPLACE |
+| tyrannosaurus run, coelophysis run clips | Stride slower than their own walks (0.44 vs 2.05, 0.41 vs 0.44 m/s), so `set_move_speed` never picks them | dsc re-animation, re-check with the stride method | W2-RERIG | REPLACE |
+| Donor biped walks (velociraptor, gallimimus, utahraptor, compsognathus, deinonychus, coelophysis) | Second half of each loop was frozen (51 %); trimmed at load as a stopgap, the GLBs still carry it | Re-export trimmed clips with the bespoke rigs | W2-RERIG | REPLACE |
+
+After any replacement walk/run GLB lands, rerun `tools/bake_clip_speeds.py`.
 
 ## What failed or is left, and risks for other packages
 
