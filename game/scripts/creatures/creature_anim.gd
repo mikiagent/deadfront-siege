@@ -17,8 +17,8 @@ const HUBS: Array[StringName] = [&"idle", &"walk", &"run"]
 const XFADE := 0.08
 const GAIT_XFADE := 0.2  # walk <-> run: long enough that a gait change never pops
 const LEGACY_TOP_MPS := 8.0  # creature.gd passes play_locomotion(speed / 8)
-## Cadence guard for set_move_speed. Wide on purpose: several donor clips barely stride
-## (megaloceros run 0.67 m/s natural at 7.6 m/s), and matching the ground beats a slide.
+## ASSUMPTION: cadence guard for set_move_speed. Wide on purpose: several donor clips barely
+## stride (megaloceros run 0.42 m/s natural at 7.6 m/s), and matching the ground beats a slide.
 const CADENCE_MIN := 0.1
 const CADENCE_MAX := 16.0
 
@@ -158,7 +158,8 @@ func _pick_gait(mps: float) -> StringName:
 		return &"run"
 	if r <= w:
 		return &"walk"  # a run clip that strides no faster than the walk only adds cadence
-	# Geometric mean: either gait is equally far from cadence 1 there. 10 % hysteresis stops flapping.
+	# ASSUMPTION: switch at the geometric mean, where either gait is equally far from cadence 1;
+	# 10 % hysteresis stops flapping at the boundary.
 	var cut := sqrt(w * r) * (0.9 if current_clip == &"run" else 1.1)
 	return &"run" if mps > cut else &"walk"
 
