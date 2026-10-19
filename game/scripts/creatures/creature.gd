@@ -172,6 +172,8 @@ func apply_species_on_hit(clip: StringName, target: Node) -> void:
 	CreatureAttack.apply_for(self, clip, target)
 
 func stat_value(stat: StringName) -> float:
+	if is_pet and pet_record:
+		return pet_record.stat_value(stat)  # PetStats is the one source for pets (W1-TAME hook 4)
 	var base := 0.0
 	match stat:
 		&"health": base = def.hp * _level_factor()
