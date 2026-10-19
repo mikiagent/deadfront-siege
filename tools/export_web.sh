@@ -36,7 +36,7 @@ find "$OUT" -mindepth 1 -maxdepth 1 ! -name '.vercel' -exec rm -rf {} +
 echo "Exporting $PRESET release with $($G --version) → $OUT/index.html"
 "$G" --headless --path "$ROOT/game" --export-release "$PRESET" "../export/web/index.html"
 cp "$ROOT/hosting/web/vercel.json" "$OUT/vercel.json"
-python3 "$ROOT/tools/web_pack_for_vercel.py" "$OUT"
+python3 "$ROOT/tools/web_pack_for_vercel.py" "$OUT" ${SOAK_ARG[@]+"${SOAK_ARG[@]}"}
 # Payload gate: no dev labs/tests/refs in the pack and the pack under the ceiling.
 python3 "$ROOT/tools/check_export_payload.py" "$OUT" --max-mb "$MAX_MB" ${SOAK_ARG[@]+"${SOAK_ARG[@]}"}
 PACK_HASH="$(python3 - "$OUT/pack.manifest.json" <<'PY2'

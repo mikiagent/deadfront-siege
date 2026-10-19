@@ -58,6 +58,7 @@ func _test_manifest_rules() -> void:
 		"number name": [_pack(7)],
 		"duplicate name": [_pack("core"), _pack("core")],
 		"file url": [_pack("core", GOOD_SHA, "file:///etc/passwd")],
+		"no packs": [],
 	}
 	for why: String in bad:
 		var err: String = shell.manifest_error({"packs": bad[why]})
@@ -65,15 +66,18 @@ func _test_manifest_rules() -> void:
 	_check(shell.manifest_error({"version": "x"}) != "", "manifest without packs is refused")
 
 func _test_boot_refuses_bad_manifest() -> void:
-	for packs: Array in [[_pack("core", null)], [_pack("../../evil")]]:
+	for packs: Array in [[_pack("core", null)], [_pack("../../evil")], []]:
 		var boot: Control = load("res://shell/boot.gd").new()
-		boot.set("_http", HTTPRequest.new())
+		var http := HTTPRequest.new()
+		boot.set("_http", http)
 		var body := JSON.stringify({"version": "t", "min_shell": 1, "packs": packs}).to_utf8_buffer()
 		boot.call("_on_manifest", HTTPRequest.RESULT_SUCCESS, 200, PackedStringArray(), body)
 		var queued: Array = boot.get("_queue")
 		var kept: Dictionary = boot.get("manifest")
 		_check(queued.is_empty() and kept.is_empty(), "boot.gd refuses %s" % JSON.stringify(packs))
 		boot.free()
+		if is_instance_valid(http):
+			http.free()
 
 func _test_veg_cells() -> void:
 	var host := Node3D.new()
@@ -107,10 +111,20 @@ func _test_veg_cells() -> void:
 	_check(b.cell_for(j) == b.cell_for(2) and b.cell_for(j).multimesh.instance_count == 2, "add after commit lands in its cell")
 	_check(b._xforms[j].origin == Vector3(41, 0, 6) and b.instance_count() == 5, "_xforms keeps world transforms by index")
 	var r := VegBatch.get_for(host, ROCK)
+	_check(r != null, "rock batch builds")
 	if r:
-		r.add(Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * (1.0 / VegBatch.mesh_height(ROCK))), Vector3(3, 0, 3)))
+		var rock_m := func(m: float) -> Basis: return Basis.IDENTITY.scaled(Vector3.ONE * (m / VegBatch.mesh_height(ROCK)))
+		r.add(Transform3D(rock_m.call(1.0), Vector3(3, 0, 3)))
 		r.commit()
 		_check(r.cell_for(0).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "a 1 m rock casts no shadow")
+		# Shadows are per cell: a tall rock added later in another cell turns on only that cell.
+		var far := r.add(Transform3D(rock_m.call(4.0), Vector3(70, 0, 3)))
+		_check(r.cell_for(far).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON, "a 4 m rock casts a shadow")
+		_check(r.cell_for(0).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "the 1 m rock's cell stays shadowless")
+		var late := r.add(Transform3D(rock_m.call(1.0), Vector3(3, 0, 70)))
+		_check(r.cell_for(late).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "a 1 m rock added after a tall one stays shadowless")
+		var near := r.add(Transform3D(rock_m.call(4.0), Vector3(6, 0, 6)))
+		_check(r.cell_for(near) == r.cell_for(0) and r.cell_for(0).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON, "a tall add re-decides its cell's shadow")
 	_check(VegBatch.get_for(host, BIRCH) == b, "get_for reuses the batch")
 	host.free()
 

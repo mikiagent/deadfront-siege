@@ -18,8 +18,11 @@ var _encoded: Dictionary = {}  # source Texture2D -> its re-encoded texture
 func _post_import(scene: Node) -> Object:
 	# Keep compressed buffers so the scene saves them, without baking keep_compressed_buffer=true
 	# into each texture (that would hold a second copy in RAM at runtime).
+	# It is a process-wide static, so put back what the editor had for later imports.
+	var was := PortableCompressedTexture2D.is_keeping_all_compressed_buffers()
 	PortableCompressedTexture2D.set_keep_all_compressed_buffers(true)
 	_walk(scene)
+	PortableCompressedTexture2D.set_keep_all_compressed_buffers(was)
 	return scene
 
 func _walk(n: Node) -> void:

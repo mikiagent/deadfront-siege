@@ -50,6 +50,8 @@ static func manifest_error(m: Dictionary) -> String:
 	var packs: Variant = m.get("packs")
 	if not packs is Array:
 		return "packs is not a list"
+	if (packs as Array).is_empty():
+		return "packs is empty"
 	var name_re := RegEx.create_from_string(PACK_NAME_PATTERN)
 	var sha_re := RegEx.create_from_string(SHA256_PATTERN)
 	var seen: Dictionary = {}

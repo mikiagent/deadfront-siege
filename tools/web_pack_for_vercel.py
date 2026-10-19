@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Split Godot's index.pck into <100 MB parts so Vercel Hobby can host it.
 
-Godot's loader expects one file named index.pck. We download the parts in the
+Godot's loader expects one file named index.pck. Usage: web_pack_for_vercel.py OUT_DIR [--soak] We download the parts in the
 browser, concatenate them, and preload the buffer as index.pck.
 """
 from __future__ import annotations
@@ -32,11 +32,19 @@ LOADER = r'''
 		const t0 = performance.now();
 		// Log time-to-world once the game prints its island line (World.load_island).
 		const print = this.config.onPrint;
+		// time_to_main_ms is load time; time_to_world_ms also holds the player's time on the
+		// menu and character creation, so it is not a load number on its own.
+		let mainLogged = false;
 		let worldLogged = false;
 		this.config.onPrint = function () {
-			if (!worldLogged && String(arguments[0]).indexOf('[world] island') === 0) {
+			const line = String(arguments[0]);
+			if (!mainLogged && line.indexOf('[boot] main scene ready') === 0) {
+				mainLogged = true;
+				console.log('[loader] time_to_main_ms=' + Math.round(performance.now() - t0));
+			}
+			if (!worldLogged && line.indexOf('[world] island') === 0) {
 				worldLogged = true;
-				console.log('[loader] time_to_world_ms=' + Math.round(performance.now() - t0));
+				console.log('[loader] time_to_world_ms=' + Math.round(performance.now() - t0) + ' (includes menu and creation time)');
 			}
 			return print.apply(this, arguments);
 		};
@@ -167,7 +175,7 @@ def split_pck(out: pathlib.Path) -> list[str]:
         'virtual': 'index.pck',
     }, indent=2) + '\n')
     pck.unlink()
-    print(f'split index.pck ({len(raw) / (1024*1024):.1f} MB) into {len(parts)} parts')
+    print(f'split index.pck ({len(raw) / (1024*1024):.1f} MiB) into {len(parts)} parts')
     return parts
 
 
@@ -198,8 +206,8 @@ self.addEventListener('activate', function (event) {
 
 
 
-def install_diagnostics(out: pathlib.Path) -> None:
-    """Install diagnostics before Engine construction and expose the opt-in soak arg."""
+def install_diagnostics(out: pathlib.Path, soak: bool) -> None:
+    """Install diagnostics before Engine construction; with soak, also the ?soak=1 arg hook."""
     source = pathlib.Path(__file__).with_name('web_diagnostics.js')
     if not source.is_file():
         raise SystemExit(f'missing {source}')
@@ -214,12 +222,12 @@ def install_diagnostics(out: pathlib.Path) -> None:
         html = html.replace(needle, marker + '\n' + needle, 1)
     config_needle = 'const engine = new Engine(GODOT_CONFIG);'
     soak_hook = "if (new URLSearchParams(location.search).get('soak') === '1' && !GODOT_CONFIG.args.includes('--web-soak')) GODOT_CONFIG.args.push('--', '--web-soak');"
-    if soak_hook not in html:
+    if soak and soak_hook not in html:
         if config_needle not in html:
             raise SystemExit('index.html has no Engine(GODOT_CONFIG) hook')
         html = html.replace(config_needle, soak_hook + '\n' + config_needle, 1)
     html_path.write_text(html)
-    print('installed web crash diagnostics and soak hook')
+    print('installed web crash diagnostics' + (' and soak hook' if soak else ''))
 
 
 def patch_service_worker(out: pathlib.Path, parts: list[str]) -> None:
@@ -261,10 +269,11 @@ def report(out: pathlib.Path) -> None:
 
 
 def main() -> None:
-    out = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else '.')
+    args = [a for a in sys.argv[1:] if a != '--soak']
+    out = pathlib.Path(args[0] if args else '.')
     parts = split_pck(out)
     patch_html(out)
-    install_diagnostics(out)
+    install_diagnostics(out, '--soak' in sys.argv[1:])
     patch_service_worker(out, parts)
     report(out)
 

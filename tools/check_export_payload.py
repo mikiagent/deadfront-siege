@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+MB = 1_000_000  # decimal megabytes: the 220 MB ceiling means 220,000,000 bytes
 SHIPPING = {"iOS", "Web", "PackCore", "PackAssets", "Server"}
 # Every shipping preset's exclude_filter must contain these (dev-only or authoring sources).
 REQUIRED_EXCLUDES = ["scripts/dev/*", "scenes/dev/*", "tests/*", "assets/creatures/*/ref/*",
@@ -108,12 +109,16 @@ def audit_pack(target: Path, max_mb: float, top: int, soak: bool = False) -> lis
         by_dir["/".join(src.split("/")[:3])] += size
         by_ext[name.rsplit(".", 1)[-1]] += size
     total = len(data)
-    print(f"[payload] pack {target} bytes={total} ({total / 1048576:.1f} MB) files={len(files)}")
+    print(f"[payload] pack {target} bytes={total} ({total / MB:.1f} MB) files={len(files)}")
     for k, v in by_dir.most_common(top):
-        print(f"[payload]   {v / 1048576:8.1f} MB  {k}")
-    print("[payload] by type: " + ", ".join(f"{k}={v / 1048576:.1f}MB" for k, v in by_ext.most_common(6)))
-    if total > max_mb * 1048576:
-        errors.append(f"pack is {total / 1048576:.1f} MB, over the {max_mb:.0f} MB ceiling")
+        print(f"[payload]   {v / MB:8.1f} MB  {k}")
+    print("[payload] by type: " + ", ".join(f"{k}={v / MB:.1f}MB" for k, v in by_ext.most_common(6)))
+    if total > max_mb * MB:
+        errors.append(f"pack is {total / MB:.1f} MB, over the {max_mb:.0f} MB ceiling")
+    # A release page must not offer ?soak=1: its pack has no scripts/dev/web_soak.gd to load.
+    html = target / "index.html" if target.is_dir() else None
+    if not soak and html and html.is_file() and "--web-soak" in html.read_text():
+        errors.append("release index.html carries the ?soak=1 hook")
     return errors
 
 

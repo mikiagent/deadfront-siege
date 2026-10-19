@@ -19,7 +19,6 @@ static var _height_cache: Dictionary = {}
 
 var _mesh: Mesh
 var _mesh_h: float = 1.0
-var _max_h: float = 0.0
 ## Batch-local transform of every instance, by index (the index harvest nodes keep).
 var _xforms: Array[Transform3D] = []
 var _committed: bool = false
@@ -47,7 +46,6 @@ static func get_for(host: Node3D, path: String) -> VegBatch:
 func add(xf: Transform3D) -> int:
 	var i := _xforms.size()
 	_xforms.append(xf)
-	_max_h = maxf(_max_h, _mesh_h * xf.basis.get_scale().y)
 	var key := Vector2i(floori(xf.origin.x / CELL_M), floori(xf.origin.z / CELL_M))
 	if not _members.has(key):
 		_members[key] = [] as Array[int]
@@ -96,8 +94,12 @@ func _commit_cell(key: Vector2i) -> void:
 		cell.visibility_range_end = CELL_RANGE_END_M
 		add_child(cell)
 		_cells[key] = cell
-	cell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if _max_h < SMALL_PROP_M else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	var list: Array[int] = _members[key]
+	# Per cell, from this cell's tallest instance, so a late tall add cannot leave cells inconsistent.
+	var max_h := 0.0
+	for i in list:
+		max_h = maxf(max_h, _mesh_h * _xforms[i].basis.get_scale().y)
+	cell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if max_h < SMALL_PROP_M else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	cell.multimesh.instance_count = list.size()
 	for slot in list.size():
 		cell.multimesh.set_instance_transform(slot, _local_xform(list[slot], cell.position))
