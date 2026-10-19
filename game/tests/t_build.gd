@@ -50,6 +50,7 @@ func _run() -> void:
 	_test_manual_fence_rotation()
 	_test_pack_up_every_kind()
 	_test_pack_up_refusals()
+	_test_field_full_bag()
 	_test_gate_state_and_path()
 	_test_tilepath_incremental()
 	if _fails.is_empty():
@@ -205,6 +206,38 @@ func _test_pack_up_refusals() -> void:
 		_expect(refused and why != "" and is_instance_valid(node), "%s with %s=%s refuses" % row)
 		_grid.release(node)
 		node.free()
+
+## Harvest and water on a full bag used to drop the crop / the empty bucket.
+func _test_field_full_bag() -> void:
+	var field := _place(&"field_small", _free_cell(&"field_small"), 0)
+	if field == null:
+		_expect(false, "field full-bag: could not place")
+		return
+	field.crop_id = &"wheat"
+	field.mature = true
+	_give(&"water_bucket", 2)  # a stack of 2: pouring one frees no slot
+	var filler := _filler_id()
+	var empties: Array[int] = []
+	for i in _player.inventory.slot_count:
+		if _player.inventory.slots[i] == null:
+			empties.append(i)
+			_player.inventory.slots[i] = _IS.make(filler, 1)
+	var units_before := _units(_player.inventory)
+	field.apply_action(_player, {"action": "harvest"})
+	field.apply_action(_player, {"action": "water"})
+	var units_after := _units(_player.inventory)
+	var kept: bool = field.mature and field.crop_id == &"wheat" and field.watered == 0.0
+	for i in empties:
+		_player.inventory.slots[i] = null
+	field.apply_action(_player, {"action": "harvest"})
+	var got: int = _player.inventory.count_of(&"wheat")
+	print("[build] field full bag: units %d->%d crop_kept=%s buckets=%d | with room: wheat=%d" % [units_before, units_after, kept, _player.inventory.count_of(&"water_bucket"), got])
+	_expect(units_before == units_after and kept and _player.inventory.count_of(&"water_bucket") == 2, "full bag: harvest and water refuse without losing units")
+	_expect(got > 0 and field.crop_id == &"", "harvest lands once the bag has room")
+	_player.inventory.consume(&"wheat", got)
+	_player.inventory.consume(&"water_bucket", 2)
+	_grid.release(field)
+	field.free()
 
 # ---------------------------------------------------------------- gate + pathing
 

@@ -204,8 +204,12 @@ func _water(player: Player) -> void:
 	if not player.inventory.consume(&"water_bucket", 1):
 		print("[farm] water blocked")
 		return
-	# Return empty bucket.
-	player.inventory.add(ItemStack.make(&"empty_bucket", 1))
+	# Return the empty bucket; with no room for it, undo the pour instead of destroying the bucket.
+	if player.inventory.add(ItemStack.make(&"empty_bucket", 1)) > 0:
+		player.inventory.add(ItemStack.make(&"water_bucket", 1))
+		player.notice("Your bag has no room for the empty bucket")
+		print("[farm] water blocked: bag full")
+		return
 	watered += 1.0
 	print("[farm] watered amount=%.0f" % watered)
 
@@ -227,13 +231,18 @@ func _harvest(player: Player) -> void:
 	var bonus := int(floor(fertilizer * float(_farm_cfg().get("fertilizer_yield_bonus", 1.0))))
 	var used_fert := float(bonus) # ASSUMPTION: each yield bonus unit consumes 1 fertilizer.
 	var leftover := maxf(0.0, fertilizer - used_fert)
-	fertilizer_overflow = leftover
 	var count := maxi(1, base_y + bonus)
 	var farm_lvl := 1
 	if player.skills:
 		farm_lvl = maxi(1, player.skills.level_of("farming"))
 	var stack := ItemStack.make(out_id, count)
 	stack.level = clampi(farm_lvl, 1, farm_lvl) # capped by farming skill
+	# A full bag leaves the crop standing; it used to vanish into a refused add().
+	if not BuildPlacer.fits_in_bag(player.inventory, [stack]):
+		player.notice("Your bag has no room for the harvest")
+		print("[farm] harvest blocked: bag full")
+		return
+	fertilizer_overflow = leftover
 	player.inventory.add(stack)
 	print("[farm] harvest %s x%d lv%d overflow=%.1f" % [out_id, count, stack.level, fertilizer_overflow])
 	if player.skills:

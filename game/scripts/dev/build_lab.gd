@@ -89,16 +89,29 @@ func _last_rot(kind: StringName) -> int:
 		best = n
 	return int(best.get("build_rot")) if best else -1
 
+## Shot staging: a fence run with a gate (opened when the shot name contains "open") and an
+## invalid basket ghost on a fence cell, so the rejection label is in frame.
 func _stage_ghost_for_shot() -> void:
 	var grid := _grid()
 	if grid == null:
 		return
 	var anchor := _find_anchor_cell()
-	_player.global_position = BuildGrid.tile_centre(anchor + Vector2i(3, 3), World.runtime) + Vector3(0.0, 1.0, 0.0)
-	var ghost_at := BuildGrid.tile_centre(anchor, World.runtime)
-	Game.pointer = _cam.unproject_position(ghost_at)
-	_player.placer.begin(&"tent")
+	_player.global_position = BuildGrid.tile_centre(anchor + Vector2i(3, 1), World.runtime) + Vector3(0.0, 1.0, 0.0)
+	var row := anchor + Vector2i(0, 4)
+	LabKit.give(_player, &"fence_kit", 2)
+	_place(&"fence", row)
+	_place(&"gate", row + Vector2i(2, 0))
+	_place(&"fence", row + Vector2i(4, 0))
+	if Game.shot_path.contains("open"):
+		for g in get_tree().get_nodes_in_group("gate"):
+			g.call("set_gate_open", true)
+	# Frame the gate at the game's default zoom (15 m), not the lab's wide 26 m.
+	_player.global_position = BuildGrid.tile_centre(row + Vector2i(3, 2), World.runtime) + Vector3(0.0, 1.0, 0.0)
+	_cam.size = 15.0
 	_cam._snap()
+	var ghost_at := BuildGrid.tile_centre(row + Vector2i(5, 0), World.runtime)
+	Game.pointer = _cam.unproject_position(ghost_at)
+	_player.placer.begin(&"basket")
 
 func _place(kind: StringName, at: Vector2i, rot: int = 0) -> bool:
 	_player.placer.begin(kind)
@@ -130,17 +143,16 @@ func _find_anchor_cell() -> Vector2i:
 			return c
 	return around + Vector2i(4, 2)
 
+## Walk east from the camp to the first tile the island refuses (shore water), so the probe is
+## a real water cell next to dry land rather than a guess at the land radius.
 func _find_water_probe_cell(anchor: Vector2i) -> Vector2i:
 	if World.runtime == null:
 		return anchor + Vector2i(10, 0)
-	var land := int(World.runtime.land_radius())
-	for ring in range(maxi(10, land - 4), land + 10):
-		var water := Vector2i(ring, 0)
-		var dry := Vector2i(ring - 4, 0)
-		var water_ok: bool = World.runtime.spawn_ok(BuildGrid.tile_centre(water, World.runtime), false)
-		var dry_ok: bool = World.runtime.spawn_ok(BuildGrid.tile_centre(dry, World.runtime), false)
-		if not water_ok and dry_ok:
-			return water
+	var land := int(World.runtime.land_radius()) + 10
+	for dx in range(1, land * 2):
+		var c := anchor + Vector2i(dx, 0)
+		if not World.runtime.spawn_ok(BuildGrid.tile_centre(c, World.runtime), false):
+			return c
 	return anchor + Vector2i(land, 0)
 
 func _grid() -> BuildGrid:

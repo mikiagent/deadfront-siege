@@ -109,6 +109,7 @@ func set_gate_open(on: bool) -> void:
 
 ## Open: off the movement layer (1) but still on the tap layer (2) so it can be closed again;
 ## pathing cells re-flag immediately. Closed: a solid leaf fills the doorway.
+# ASSUMPTION: an open gate lets everything through, creatures included (no owner-only gates yet).
 func _apply_gate_state() -> void:
 	collision_layer = 2 if gate_open else 1
 	var hinge := get_node_or_null("GateHinge") as Node3D
@@ -119,20 +120,21 @@ func _apply_gate_state() -> void:
 		grid.refresh_path(self)
 
 # ASSUMPTION: the Kenney fence-doorway model is an empty frame, so the closed state needs a visible
-# leaf; plain planks until W1-STRUCTART ships a gate model.
+# leaf; plain planks until W1-STRUCTART ships a gate model. The model's opening is 1.25 m wide,
+# centred on x, on the back edge of the cell (z = -0.92 after its x4 scale).
 func _build_gate_leaf() -> void:
 	if get_node_or_null("GateHinge") != null:
 		return
 	var hinge := Node3D.new()
 	hinge.name = "GateHinge"
-	hinge.position = Vector3(-0.5, 0.0, 0.0)
+	hinge.position = Vector3(-0.6, 0.0, -0.92)
 	add_child(hinge)
 	var leaf := MeshInstance3D.new()
 	leaf.name = "Leaf"
 	var box := BoxMesh.new()
-	box.size = Vector3(1.0, 1.2, 0.08)
+	box.size = Vector3(1.2, 1.55, 0.06)
 	leaf.mesh = box
-	leaf.position = Vector3(0.5, 0.7, 0.0)
+	leaf.position = Vector3(0.6, 0.88, 0.0)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.42, 0.29, 0.16)
 	mat.roughness = 0.9

@@ -56,19 +56,19 @@ func _kit_id(kind: StringName) -> String:
 static func reason_text(code: String) -> String:
 	match code:
 		"too_far":
-			return "Too far away, move closer"
+			return "Too far away"
 		"reserved":
-			return "This spot is kept clear"
+			return "Path must stay clear"
 		"overlap":
-			return "Something is already here"
+			return "Spot is taken"
 		"unclaimed":
 			return "Outside your claim"
 		"water":
 			return "Can't build on water"
 		"slope":
-			return "Ground is too steep"
+			return "Ground too steep"
 		"missing_kit":
-			return "You need the kit in your bag"
+			return "No kit in your bag"
 		"no_runtime", "spawn_failed":
 			return "Can't build here"
 		"":
@@ -88,13 +88,14 @@ func _ready() -> void:
 	_ghost_root.add_child(_ghost_visual)
 	_ghost_label = Label3D.new()
 	_ghost_label.name = "GhostLabel"
-	_ghost_label.position = Vector3(0.0, 2.6, 0.0)
+	_ghost_label.position = Vector3(0.0, 3.2, 0.0)  # above the building name plates
 	_ghost_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_ghost_label.modulate = Color(1.0, 1.0, 1.0, 0.92)
-	# The default 32 px at 0.005 m/px rendered ~8 px tall at the build camera's distance.
-	_ghost_label.font_size = 64
-	_ghost_label.pixel_size = 0.008
-	_ghost_label.outline_size = 16
+	# The default 32 px at 0.005 m/px rendered ~8 px tall at the build camera's distance; this is
+	# ~17 px at 1600x900 and still fits a 390 px wide phone at the default 15 m zoom.
+	_ghost_label.font_size = 48
+	_ghost_label.pixel_size = 0.006
+	_ghost_label.outline_size = 12
 	_ghost_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
 	_ghost_label.no_depth_test = true
 	_ghost_root.add_child(_ghost_label)
@@ -175,7 +176,7 @@ static func pack_up_node(n: Node, player: Player) -> bool:
 	var back: Array[ItemStack] = []
 	if why == "":
 		back = _pack_returns(n)
-		if not _fits(player.inventory, back):
+		if not fits_in_bag(player.inventory, back):
 			why = "Your bag has no room"
 	if why != "":
 		print("[build] pack_up refused %s: %s" % [kind, why])
@@ -231,7 +232,7 @@ static func _pack_returns(n: Node) -> Array[ItemStack]:
 	return out
 
 ## Dry run on a copy of the bag: true only when every unit of every stack would land.
-static func _fits(inv: Inventory, stacks: Array[ItemStack]) -> bool:
+static func fits_in_bag(inv: Inventory, stacks: Array[ItemStack]) -> bool:
 	var sim := Inventory.new(inv.slot_count)
 	for i in inv.slot_count:
 		sim.slots[i] = inv.slots[i].duplicate_stack() if inv.slots[i] else null
@@ -762,7 +763,7 @@ func _update_label(grid: BuildGrid) -> void:
 	if cost != "":
 		label += "  %s" % cost
 	if not valid and reason != "":
-		label = "%s\n%s" % [reason_text(reason), label]
+		label = reason_text(reason)  # the cost line only adds noise when the spot is refused
 	var contact := _ghost_root.get_node_or_null("ContactShadow") as MeshInstance3D
 	if contact and contact.mesh is PlaneMesh:
 		(contact.mesh as PlaneMesh).size = Vector2(maxf(0.8, float(fp.x)) * 0.92, maxf(0.8, float(fp.y)) * 0.92)

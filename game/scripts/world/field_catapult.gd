@@ -48,9 +48,13 @@ func _ready() -> void:
 	label.pixel_size = 0.006
 	label.outline_size = 8
 	add_child(label)
+	_refresh_label()
 
 func _physics_process(delta: float) -> void:
 	reload_left = maxf(0, reload_left-delta)
+	_refresh_label()
+
+func _refresh_label() -> void:
 	var label := get_node_or_null("Label") as Label3D
 	if label:
 		var text := "Catapult %.0f/%.0f%s" % [hp, max_hp, " Reload%d" % ceili(reload_left) if reload_left > 0 else ""]
