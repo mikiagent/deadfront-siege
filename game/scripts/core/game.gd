@@ -88,6 +88,11 @@ func _ready() -> void:
 			online_url = a.substr(9)
 		elif a == "--net-probe":
 			net_probe = true
+	if online_url == "" and OS.has_feature("web"):
+		# A browser has no command line: index.html?online=ws://host:port does the same job.
+		# NetClient.connect_to validates the URL like any other input.
+		var q: Variant = JavaScriptBridge.eval("new URLSearchParams(location.search).get('online') || ''", true)
+		online_url = str(q).substr(0, 512) if q is String else ""
 	if lab_name != "" and shot_path == "":
 		debug_overlay = true
 	_install_symbol_fonts()

@@ -56,8 +56,11 @@ func _process(_delta: float) -> bool:
 
 ## Socket tests need real frames (peers poll in _process), so they run as a coroutine and end the run.
 func _net_then_finish() -> void:
-	_net_tests = (load("res://tests/net_tests.gd") as GDScript).new()
-	await _net_tests.run(self, _expect)
+	var script := load("res://tests/net_tests.gd") as GDScript
+	_expect(script != null and script.can_instantiate(), "net_tests.gd failed to load")
+	if script != null and script.can_instantiate():
+		_net_tests = script.new()
+		await _net_tests.run(self, _expect)
 	_finish()
 
 func _finish() -> void:

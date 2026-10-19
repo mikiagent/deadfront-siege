@@ -8,8 +8,15 @@ const SPEED_FACTOR := 1.6
 ## ASSUMPTION: absorbs frame jitter and the 0.45 s roll burst (~12 m/s, player.gd _roll_left).
 const SPEED_SLACK_M := 0.5
 const MAX_ROOM := 100  # ASSUMPTION
+## ASSUMPTION: real travel takes longer than this, so hopping islands to dodge the speed check
+## (each change resets it, contract §7) is held to one hop per window.
+const ISLAND_HOP_COOLDOWN := 2.0
+## Last accepted position outlives the socket so a reconnect cannot reset the speed check. After
+## this long the allowance (1.6 × run speed × dt) covers any island anyway.
+const LAST_TTL := 600.0
 ## ASSUMPTION: the default playfield (smoke runs, --net-probe) has no island id.
 const LOBBY := "lobby"
+const ANIM_PATTERN := "^[a-z0-9_]{1,32}$"  # every survivor clip name (assets/characters/survivor/anim)
 const PLAYER_SCRIPT := "res://scripts/player/player.gd"
 ## Player.run_speed (game/scripts/player/player.gd:19, no override in player.tscn). Used only
 ## when the script's default cannot be read (export templates strip script defaults).
@@ -18,9 +25,11 @@ const RUN_SPEED_FALLBACK := 7.0
 var run_speed := RUN_SPEED_FALLBACK
 var _server: NetServer
 var _rooms: Dictionary = {}  # room key -> {account_id: true}
-var _who: Dictionary = {}  # account_id -> {room, island, name, p: Vector3, yaw, anim, at, has_pos, dirty}
+var _who: Dictionary = {}  # account_id -> {room, island, name, p: Vector3, yaw, anim, has_pos, dirty}
+var _last: Dictionary = {}  # account_id -> {island, p: Vector3, at, hopped_at}; swept after LAST_TTL
 var _acc := 0.0
-var _anim_re := RegEx.create_from_string("^[a-z0-9_]{1,32}$")
+var _sweep_acc := 0.0
+var _anim_re := RegEx.create_from_string(ANIM_PATTERN)
 
 func _init(server: NetServer) -> void:
 	_server = server
@@ -46,24 +55,31 @@ func op_update(aid: int, a: Dictionary) -> Dictionary:
 	if island == "" or not NetProtocol.is_vec3(p) or not NetProtocol.is_num(yaw) \
 			or not anim is String or _anim_re.search(anim) == null:
 		return NetProtocol.fail("bad_request", "presence.update needs p:[x,y,z], yaw, anim and a known island")
+	var pos := Vector3(float(p[0]), float(p[1]), float(p[2]))
+	var now := _server.mono()
+	var last: Dictionary = _last.get(aid, {})
+	var hopped_at := -LAST_TTL
+	if not last.is_empty() and last["island"] == island:
+		# Ground speed only: a fall off a cliff is fast and vertical, a speed hack is horizontal.
+		var dt := now - float(last["at"])
+		var flat := Vector2(pos.x - last["p"].x, pos.z - last["p"].z).length()
+		if flat > SPEED_FACTOR * run_speed * dt + SPEED_SLACK_M:
+			return NetProtocol.fail("bad_request", "moved too fast: %.1f m in %.2f s" % [flat, dt])
+		hopped_at = last["hopped_at"]
+	elif not last.is_empty():
+		if now - float(last["hopped_at"]) < ISLAND_HOP_COOLDOWN:
+			return NetProtocol.fail("rate_limited", "changing islands too fast")
+		hopped_at = now
 	var st: Dictionary = _who.get(aid, {})
 	if st.is_empty() or st["island"] != island:
 		var joined := _join(aid, island)
 		if not joined["ok"]:
 			return joined
 		st = _who[aid]
-	var pos := Vector3(float(p[0]), float(p[1]), float(p[2]))
-	var now := _server.mono()
-	if st["has_pos"]:
-		# Ground speed only: a fall off a cliff is fast and vertical, a speed hack is horizontal.
-		var dt := now - float(st["at"])
-		var flat := Vector2(pos.x - st["p"].x, pos.z - st["p"].z).length()
-		if flat > SPEED_FACTOR * run_speed * dt + SPEED_SLACK_M:
-			return NetProtocol.fail("bad_request", "moved too fast: %.1f m in %.2f s" % [flat, dt])
+	_last[aid] = {"island": island, "p": pos, "at": now, "hopped_at": hopped_at}
 	st["p"] = pos
 	st["yaw"] = wrapf(float(yaw), -PI, PI)
 	st["anim"] = anim
-	st["at"] = now
 	st["has_pos"] = true
 	st["dirty"] = true
 	return NetProtocol.ok({})
@@ -86,6 +102,13 @@ func room_members(aid: int) -> Array:
 	return [] if st.is_empty() else (_rooms.get(st["room"], {}) as Dictionary).keys()
 
 func tick(delta: float) -> void:
+	_sweep_acc += delta
+	if _sweep_acc >= 30.0:
+		_sweep_acc = 0.0
+		var now := _server.mono()
+		for aid in _last.keys():
+			if not _who.has(aid) and now - float(_last[aid]["at"]) > LAST_TTL:
+				_last.erase(aid)
 	_acc += delta
 	if _acc < RELAY_INTERVAL:
 		return
@@ -112,7 +135,7 @@ func _join(aid: int, island: String) -> Dictionary:
 			_rooms[key] = {}
 		_rooms[key][aid] = true
 		_who[aid] = {"room": key, "island": island, "name": _server.account_name(aid), "p": Vector3.ZERO,
-			"yaw": 0.0, "anim": "idle", "at": 0.0, "has_pos": false, "dirty": false}
+			"yaw": 0.0, "anim": "idle", "has_pos": false, "dirty": false}
 	# The relay only carries changes, so a newcomer gets everyone who is standing still now.
 	var players: Array = []
 	for other in _rooms[key].keys():

@@ -100,6 +100,15 @@ func _process(_delta: float) -> void:
 	var now := _now()
 	if _ws != null:
 		_ws.poll()
+		# Drain before looking at the state: a server that pushes evt kicked and closes in the
+		# same tick leaves the event readable on a socket that already reports CLOSED.
+		var n := 0
+		while _ws != null and n < 64 and _ws.get_available_packet_count() > 0:
+			n += 1
+			var pkt := _ws.get_packet()
+			_last_rx = now
+			_on_frame(pkt)
+	if _ws != null:
 		match _ws.get_ready_state():
 			WebSocketPeer.STATE_CONNECTING:
 				if now - _opened_at > CONNECT_TIMEOUT:
@@ -108,13 +117,7 @@ func _process(_delta: float) -> void:
 				if state == State.CONNECTING:
 					_last_rx = now
 					_send_hello()
-				var n := 0
-				while _ws != null and n < 64 and _ws.get_available_packet_count() > 0:
-					n += 1
-					var pkt := _ws.get_packet()
-					_last_rx = now
-					_on_frame(pkt)
-				if _ws != null and state == State.ONLINE:
+				elif state == State.ONLINE:
 					if now - _last_rx > SILENCE_TIMEOUT:
 						_lost("server silent for %d s" % int(SILENCE_TIMEOUT))
 					elif now - _last_ping > PING_INTERVAL:
@@ -122,9 +125,16 @@ func _process(_delta: float) -> void:
 						request("sys.ping")
 			WebSocketPeer.STATE_CLOSED:
 				var code := _ws.get_close_code()
-				if code in NO_RETRY_CODES:
+				var reason := _ws.get_close_reason().substr(0, 120)
+				# WebSocketPeer drops unread frames once CLOSED, so evt kicked can be lost with the
+				# close; the 4003 close code carries the same news.
+				var kicked := code in NO_RETRY_CODES and _want
+				if kicked:
 					_want = false
-				_lost("closed (%d %s)" % [code, _ws.get_close_reason()])
+					last_error = "signed in elsewhere"
+				_lost("closed (%d %s)" % [code, reason])
+				if kicked:
+					event.emit("kicked", {"reason": reason})
 	elif state == State.WAITING and now >= _retry_at:
 		_open()
 	for id in _pending.keys():

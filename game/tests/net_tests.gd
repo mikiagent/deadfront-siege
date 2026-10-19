@@ -62,6 +62,8 @@ func _test_accounts() -> void:
 	_check((await _req(raw, "auth.hello", {"name": "aLiCe"})).get("err") == "conflict", "a duplicate name is rejected case-insensitively")
 	_check((await _req(raw, "auth.hello", {"name": "x!"})).get("err") == "bad_request", "an invalid name is rejected")
 	_check((await _req(raw, "auth.hello", {"name": "Settlers"})).get("err") == "conflict", "the NPC account name is reserved")
+	raw.ws.close()
+	raw = await _raw()  # a fresh pre-hello bucket (burst 4)
 	_check((await _req(raw, "auth.hello", {"name": "Zed", "token": "00"})).get("err") == "bad_request", "a malformed token is rejected")
 	_check((await _req(raw, "auth.hello", {"name": "Zed", "token": "ab".repeat(32)})).get("err") == "unauthorized", "an unknown token is unauthorized")
 	raw.ws.close()
@@ -222,7 +224,7 @@ func _test_presence_and_chat() -> void:
 	await tree.create_timer(0.3).timeout
 	_check(_saw(heard, aid, 500.0) < 0, "a rejected teleport is never relayed")
 
-	var ch := alice.request("chat.send", {"text": "  hi\u0007 there‮  "})
+	var ch := alice.request("chat.send", {"text": "  hi\u0007 there\u202e  "})
 	await ch.done
 	_check(ch.ok, "chat is accepted")
 	_check(await _until(func () -> bool: return _chat(heard) != ""), "Bob receives the chat")
@@ -242,6 +244,9 @@ func _test_presence_and_chat() -> void:
 	# A private island is everyone's own home: same island id, different rooms.
 	alice = _client("Alice", "tok_a.json")
 	_check(await _until(func () -> bool: return alice.is_online()), "Alice is back")
+	var tp2 := alice.request("presence.update", _state(Vector3(500, 1, 0)))
+	await tp2.done
+	_check(tp2.err == "bad_request" and tp2.msg.begins_with("moved too fast"), "reconnecting does not reset the teleport check")
 	var ha := alice.request("presence.join", {"island": "home_grassland"})
 	await ha.done
 	var hb := bob.request("presence.join", {"island": "home_grassland"})
@@ -251,6 +256,9 @@ func _test_presence_and_chat() -> void:
 	await hu.done
 	await tree.create_timer(0.3).timeout
 	_check(ha.ok and hb.ok and hu.ok and not heard.any(func (e: Array) -> bool: return e[2] >= mark and e[0] == "presence"), "players on their own home islands never see each other")
+	var hop := alice.request("presence.update", _state(Vector3(500, 1, 0)))
+	await hop.done
+	_check(hop.err == "rate_limited", "hopping straight back to another island to dodge the speed check is refused")
 
 # ---------------------------------------------------------------- persistence and cleanup
 

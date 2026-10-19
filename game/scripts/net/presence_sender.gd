@@ -15,6 +15,7 @@ var _room := ""
 var _last_p := Vector3.INF
 var _last_yaw := 0.0
 var _last_anim := ""
+var _anim_re := RegEx.create_from_string(PresenceRooms.ANIM_PATTERN)
 
 func _init(p_player: Player, p_net: NetClient = null) -> void:
 	name = "PresenceSender"
@@ -39,10 +40,11 @@ func _process(delta: float) -> void:
 		_last_p = Vector3.INF  # announce ourselves in the new room even if standing still
 		net.request("presence.join", {"island": island})
 	var p := player.global_position
-	var yaw := player.visual.rotation.y if player.visual else 0.0
+	# World yaw: when mounted the survivor is parented to the mount's saddle socket.
+	var yaw := player.visual.global_rotation.y if player.visual else 0.0
 	var anim := str(player.anim.current_clip) if player.anim else ""
-	if anim == "":
-		anim = "idle"
+	if _anim_re.search(anim) == null:
+		anim = "idle"  # the server refuses the whole update for a clip name outside its pattern
 	if p.distance_to(_last_p) < MOVE_EPS and absf(angle_difference(yaw, _last_yaw)) < YAW_EPS and anim == _last_anim:
 		return
 	_last_p = p
