@@ -90,6 +90,13 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   reachable from the menu with a one-line hook, a mute hotkey, and the game honouring `--mute` and
   the DEADFRONT_MUTE env var by muting Master at boot.
 
+- Decided by the owner's original 2026-10-18 request (planner questions 7, 8, 13, 19 and 9): breeding,
+  inherited traits, mutations, growth stages and offspring care are IN (overrides PRD:747);
+  ARK-style survival meters (health, stamina, hunger, thirst, temperature) and hazards are IN; caves
+  are IN; base defenses imply wild dinosaurs can attack blocking structures; predators may outrun a
+  walking survivor (data-driven, tuned per species). Market defaults (0.25x-4x bands, 30 min trade
+  lock), faucet rate and steam cap use the planner's defaults as # ASSUMPTION until the owner tunes them.
+
 ## Owner questions (open)
 
 - none
