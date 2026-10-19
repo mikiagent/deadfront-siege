@@ -1,5 +1,5 @@
 {
-  "_about": "Kenney Survival Kit 2.0, CC0. Models under res://assets/props/kenney/<name>.glb, metres, Y up. Buildings reference these for their visuals; footprints are grid cells (1 m). Models were re-exported at 4x the kit's native scale with the colormap embedded (tools/glb_rescale_embed.py); sizes below are metres (x,z footprint, y height in Blender order x,y,z=up).",
+  "_about": "Building visuals. `glb` (res:// path) is the hand-built Blender structure set (tools/blender/structures, one shared 1024 atlas) and wins when present; `aabb_m` is its measured size in Godot axes (x, y up, z) for colliders; `stages` lists per-stage GLBs for processing stations. `model` is the old Kenney Survival Kit 2.0 (CC0) name under res://assets/props/kenney/<name>.glb, kept as the fallback; rows whose art_status is REPLACE still use it and are marked for replacement (docs/orchestration/mmo/asset-replacement.md). Footprints are grid cells (1 m). model_sizes_m are the Kenney sizes (Blender x, y, z=up).",
   "buildings": {
     "bonfire": {
       "model": "campfire-pit",
@@ -7,7 +7,14 @@
         1,
         1
       ],
-      "note": "cook/cauterise station"
+      "note": "cook/cauterise station",
+      "glb": "res://assets/props/blender/bonfire.glb",
+      "aabb_m": [
+        0.941,
+        0.984,
+        0.995
+      ],
+      "art_status": "REVIEW"
     },
     "campfire_stand": {
       "model": "campfire-stand",
@@ -15,21 +22,30 @@
         1,
         1
       ],
-      "note": "cooking upgrade"
+      "note": "cooking upgrade",
+      "art_status": "REPLACE"
     },
     "workbench": {
       "model": "workbench",
       "footprint": [
         2,
         1
-      ]
+      ],
+      "glb": "res://assets/props/blender/workbench.glb",
+      "aabb_m": [
+        1.917,
+        1.015,
+        0.715
+      ],
+      "art_status": "REVIEW"
     },
     "technical_workbench": {
       "model": "workbench-anvil",
       "footprint": [
         2,
         1
-      ]
+      ],
+      "art_status": "REPLACE"
     },
     "grindstone": {
       "model": "workbench-grind",
@@ -37,7 +53,8 @@
         1,
         1
       ],
-      "note": "tool repair later"
+      "note": "tool repair later",
+      "art_status": "REPLACE"
     },
     "drying_rack": {
       "model": "structure-canvas",
@@ -45,7 +62,32 @@
         2,
         1
       ],
-      "note": "use the canvas frame as a rack until a dedicated model exists"
+      "note": "use the canvas frame as a rack until a dedicated model exists",
+      "glb": "res://assets/props/blender/drying_rack.glb",
+      "aabb_m": [
+        1.94,
+        1.759,
+        0.794
+      ],
+      "art_status": "REVIEW",
+      "stages": [
+        {
+          "id": "empty",
+          "glb": "res://assets/props/blender/drying_rack.glb"
+        },
+        {
+          "id": "raw",
+          "glb": "res://assets/props/blender/drying_rack_raw.glb"
+        },
+        {
+          "id": "drying",
+          "glb": "res://assets/props/blender/drying_rack_drying.glb"
+        },
+        {
+          "id": "dried",
+          "glb": "res://assets/props/blender/drying_rack_dried.glb"
+        }
+      ]
     },
     "tent": {
       "model": "tent",
@@ -53,7 +95,14 @@
         3,
         3
       ],
-      "note": "field tent, six completed sleeps before it wears out"
+      "note": "field tent, six completed sleeps before it wears out",
+      "glb": "res://assets/props/blender/tent.glb",
+      "aabb_m": [
+        2.827,
+        2.317,
+        2.934
+      ],
+      "art_status": "REVIEW"
     },
     "tent_canvas": {
       "model": "tent-canvas",
@@ -61,7 +110,8 @@
         3,
         2
       ],
-      "note": "cheap shade tent"
+      "note": "cheap shade tent",
+      "art_status": "REPLACE"
     },
     "bedroll": {
       "model": "bedroll",
@@ -69,7 +119,8 @@
         1,
         2
       ],
-      "note": "minimal rest"
+      "note": "minimal rest",
+      "art_status": "REPLACE"
     },
     "basket": {
       "model": "box-open",
@@ -77,7 +128,14 @@
         1,
         1
       ],
-      "note": "storage ~60 slots"
+      "note": "storage ~60 slots",
+      "glb": "res://assets/props/blender/basket.glb",
+      "aabb_m": [
+        0.86,
+        0.899,
+        0.82
+      ],
+      "art_status": "REVIEW"
     },
     "large_box": {
       "model": "box-large-open",
@@ -85,7 +143,8 @@
         2,
         1
       ],
-      "note": "storage ~120 slots"
+      "note": "storage ~120 slots",
+      "art_status": "REPLACE"
     },
     "chest": {
       "model": "chest",
@@ -93,7 +152,8 @@
         1,
         1
       ],
-      "note": "locked storage"
+      "note": "locked storage",
+      "art_status": "REPLACE"
     },
     "barrel": {
       "model": "barrel-open",
@@ -101,14 +161,16 @@
         1,
         1
       ],
-      "note": "water / brine"
+      "note": "water / brine",
+      "art_status": "REPLACE"
     },
     "bucket": {
       "model": "bucket",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "art_status": "REPLACE"
     },
     "fence": {
       "model": "fence",
@@ -116,21 +178,41 @@
         2,
         1
       ],
-      "note": "2 m segment"
+      "note": "2 m segment",
+      "glb": "res://assets/props/blender/fence.glb",
+      "aabb_m": [
+        2.006,
+        1.47,
+        0.211
+      ],
+      "art_status": "REVIEW"
     },
     "fence_gate": {
       "model": "fence-doorway",
       "footprint": [
         2,
         1
-      ]
+      ],
+      "glb": "res://assets/props/blender/gate.glb",
+      "aabb_m": [
+        2.055,
+        1.842,
+        0.341
+      ],
+      "art_status": "REVIEW",
+      "nodes": {
+        "leaf_left": "LeafL",
+        "leaf_right": "LeafR",
+        "note": "leaf origins sit on the hinges; swing about local Y"
+      }
     },
     "fence_fortified": {
       "model": "fence-fortified",
       "footprint": [
         2,
         1
-      ]
+      ],
+      "art_status": "REPLACE"
     },
     "taming_pen": {
       "model": "fence-fortified",
@@ -138,28 +220,44 @@
         4,
         4
       ],
-      "note": "assemble 4x4 fortified fence ring with a doorway; centre marker for the animal"
+      "note": "assemble 4x4 fortified fence ring with a doorway; centre marker for the animal",
+      "art_status": "REPLACE"
     },
     "sign": {
       "model": "signpost-single",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "glb": "res://assets/props/blender/sign.glb",
+      "aabb_m": [
+        0.86,
+        1.64,
+        0.271
+      ],
+      "art_status": "REVIEW"
     },
     "signpost": {
       "model": "signpost",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "art_status": "REPLACE"
     },
     "floor": {
       "model": "floor",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "glb": "res://assets/props/blender/floor.glb",
+      "aabb_m": [
+        1.0,
+        0.2,
+        1.0
+      ],
+      "art_status": "REVIEW"
     },
     "wall": {
       "model": "structure",
@@ -167,28 +265,50 @@
         1,
         1
       ],
-      "note": "wall-house segment"
+      "note": "wall-house segment",
+      "glb": "res://assets/props/blender/wall.glb",
+      "aabb_m": [
+        1.0,
+        2.397,
+        0.228
+      ],
+      "art_status": "REVIEW"
     },
     "wall_doorway": {
       "model": "structure-metal-doorway",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "glb": "res://assets/props/blender/wall_doorway.glb",
+      "aabb_m": [
+        1.0,
+        2.4,
+        0.25
+      ],
+      "art_status": "REVIEW"
     },
     "roof": {
       "model": "structure-roof",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "glb": "res://assets/props/blender/roof.glb",
+      "aabb_m": [
+        1.0,
+        0.673,
+        1.036
+      ],
+      "art_status": "REVIEW"
     },
     "fishing_stand": {
       "model": "campfire-fishing-stand",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "art_status": "REPLACE"
     },
     "field_small": {
       "model": "bedroll",
@@ -196,7 +316,8 @@
         2,
         2
       ],
-      "note": "small farm field (hoe+mud)"
+      "note": "small farm field (hoe+mud)",
+      "art_status": "REPLACE"
     },
     "field_large": {
       "model": "tent-canvas",
@@ -204,7 +325,8 @@
         3,
         3
       ],
-      "note": "large farm field"
+      "note": "large farm field",
+      "art_status": "REPLACE"
     },
     "mortar": {
       "model": "workbench-grind",
@@ -212,7 +334,14 @@
         1,
         1
       ],
-      "note": "placed mortar unlocks raw-meat grinding; placeholder Kenney grindstone"
+      "note": "placed mortar unlocks raw-meat grinding; placeholder Kenney grindstone",
+      "glb": "res://assets/props/blender/mortar.glb",
+      "aabb_m": [
+        0.69,
+        1.068,
+        0.782
+      ],
+      "art_status": "REVIEW"
     },
     "stone_grill": {
       "model": "campfire-stand",
@@ -220,7 +349,8 @@
         2,
         2
       ],
-      "note": "flat stone grill with temporary Kenney cooking-stand visual"
+      "note": "flat stone grill with temporary Kenney cooking-stand visual",
+      "art_status": "REPLACE"
     },
     "steamer": {
       "model": "barrel-open",
@@ -228,7 +358,14 @@
         1,
         1
       ],
-      "note": "steam station"
+      "note": "steam station",
+      "glb": "res://assets/props/blender/steamer.glb",
+      "aabb_m": [
+        0.712,
+        1.198,
+        0.71
+      ],
+      "art_status": "REVIEW"
     },
     "well": {
       "model": "barrel-open",
@@ -236,7 +373,14 @@
         2,
         2
       ],
-      "note": "placed water source for fill-bucket recipe; placeholder Kenney barrel, no finite water reserve"
+      "note": "placed water source for fill-bucket recipe; placeholder Kenney barrel, no finite water reserve",
+      "glb": "res://assets/props/blender/well.glb",
+      "aabb_m": [
+        1.96,
+        2.461,
+        1.639
+      ],
+      "art_status": "REVIEW"
     },
     "straw_roll": {
       "model": "bedroll",
@@ -244,7 +388,8 @@
         1,
         2
       ],
-      "note": "temporary single-use rest, replaced by generated straw-roll asset later"
+      "note": "temporary single-use rest, replaced by generated straw-roll asset later",
+      "art_status": "REPLACE"
     },
     "crock_pot": {
       "model": "campfire-stand",
@@ -252,7 +397,14 @@
         2,
         2
       ],
-      "note": "temporary Kenney cooking stand until dedicated crock-pot art passes in-world pixel check"
+      "note": "temporary Kenney cooking stand until dedicated crock-pot art passes in-world pixel check",
+      "glb": "res://assets/props/blender/crock_pot.glb",
+      "aabb_m": [
+        1.477,
+        1.311,
+        1.461
+      ],
+      "art_status": "REVIEW"
     },
     "stone_fire_pit": {
       "model": "campfire-pit",
@@ -260,7 +412,14 @@
         2,
         2
       ],
-      "note": "persistent stone-lined cook/cauterise fire; shares bonfire station recipes"
+      "note": "persistent stone-lined cook/cauterise fire; shares bonfire station recipes",
+      "glb": "res://assets/props/blender/stone_fire_pit.glb",
+      "aabb_m": [
+        1.96,
+        0.955,
+        1.581
+      ],
+      "art_status": "REVIEW"
     },
     "campfire": {
       "model": "campfire-pit",
@@ -268,7 +427,14 @@
         1,
         1
       ],
-      "note": "temporary cooking fire, 120 active seconds then disappears"
+      "note": "temporary cooking fire, 120 active seconds then disappears",
+      "glb": "res://assets/props/blender/campfire.glb",
+      "aabb_m": [
+        0.982,
+        0.529,
+        0.918
+      ],
+      "art_status": "REVIEW"
     },
     "canvas_tent": {
       "model": "tent-canvas",
@@ -276,7 +442,14 @@
         3,
         3
       ],
-      "note": "twelve completed sleeps, eight seconds each; temporary Kenney visual"
+      "note": "twelve completed sleeps, eight seconds each; temporary Kenney visual",
+      "glb": "res://assets/props/blender/tent.glb",
+      "aabb_m": [
+        2.827,
+        2.317,
+        2.934
+      ],
+      "art_status": "REVIEW"
     },
     "log_shelter": {
       "model": "structure-canvas",
@@ -284,7 +457,8 @@
         4,
         4
       ],
-      "note": "staged placeholder; repair mechanic absent, sleep disabled"
+      "note": "staged placeholder; repair mechanic absent, sleep disabled",
+      "art_status": "REPLACE"
     },
     "cabin_bed": {
       "model": "bedroll-frame",
@@ -292,7 +466,8 @@
         2,
         2
       ],
-      "note": "staged placeholder; enclosure validation absent, sleep disabled"
+      "note": "staged placeholder; enclosure validation absent, sleep disabled",
+      "art_status": "REPLACE"
     },
     "smoker": {
       "model": "campfire-stand",
@@ -300,14 +475,46 @@
         2,
         2
       ],
-      "note": "smoking station; Kenney stand placeholder, no fuel/weather system yet"
+      "note": "smoking station; Kenney stand placeholder, no fuel/weather system yet",
+      "glb": "res://assets/props/blender/smoker.glb",
+      "aabb_m": [
+        1.585,
+        2.178,
+        1.709
+      ],
+      "art_status": "REVIEW"
     },
     "catapult": {
       "footprint": [
         3,
         3
       ],
-      "note": "Manual destructible siege platform; procedural placeholder visual"
+      "note": "Manual destructible siege platform; procedural placeholder visual",
+      "glb": "res://assets/props/blender/catapult.glb",
+      "aabb_m": [
+        2.7,
+        1.83,
+        1.76
+      ],
+      "art_status": "REVIEW",
+      "nodes": {
+        "arm": "Arm",
+        "note": "arm origin on its axle; throw = rotate about local Z"
+      }
+    },
+    "pier": {
+      "footprint": [
+        3,
+        8
+      ],
+      "note": "harbour pier/dock; deck 1.2 m above the pile feet, seaward end towards -Z. # ASSUMPTION: W2-TERRAIN sinks the piles into the water and snaps it to the coast",
+      "glb": "res://assets/props/blender/pier.glb",
+      "aabb_m": [
+        2.802,
+        1.7,
+        7.8
+      ],
+      "art_status": "REVIEW"
     }
   },
   "tools": {
