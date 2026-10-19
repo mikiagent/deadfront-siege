@@ -142,6 +142,9 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   anything enters the repo.
 - 2026-10-19: usage limit cut every running workflow; partial work is WIP-committed on each branch.
 
+- 2026-10-19 (owner): the mobile view is HORIZONTAL (landscape). Phone checks use 844x390, not
+  390x844 (GAUNTLET.md's 390x844 is superseded). project.godot already uses sensor-landscape.
+
 ## Owner questions (open)
 
 - none
