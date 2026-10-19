@@ -187,7 +187,8 @@ func load_stream(rel: String, looped: bool = false, uncached: bool = false) -> A
 			_warned[path] = true
 			push_warning("[audio] missing file %s" % path)
 		return null
-	var s := load(path) as AudioStream
+	# Uncached loads bypass the resource cache so a bed or track is truly gone once it fades.
+	var s := (ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) if uncached else load(path)) as AudioStream
 	if s is AudioStreamOggVorbis:
 		(s as AudioStreamOggVorbis).loop = looped
 	if not uncached and s:

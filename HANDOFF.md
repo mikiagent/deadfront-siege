@@ -59,6 +59,7 @@ Repository: <https://github.com/mikiagent/deadfront-siege>
 - `game/scripts/pets/` - capture, field tame and persistent pet records.
 - `game/scripts/world/` - island runtime, spawns, gatherables, building, stations, farms, harbour.
 - `game/scripts/ui/` - HUD, inventory, Animals/Growth, crafting, gathering, map, plates, touch.
+- `game/scripts/audio/` - `Game.audio` (AudioDirector): event table `data/audio/events.json`, voice pool, ambience/music beds, signal hooks. Gameplay only emits; sounds are added in data plus `audio_hooks.gd`. Credits in `data/audio/credits.json`, build in `tools/audio/`.
 - `game/scripts/dev/` - deterministic labs and web-soak route.
 - `game/data/` - JSON-driven items, creatures, recipes, islands, world rules and status data.
 - `game/assets/` - imported meshes, textures, animation libraries, icons and nature assets.
