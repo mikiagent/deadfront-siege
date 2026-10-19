@@ -3,7 +3,7 @@
 Headless only (the Blender MCP lock belongs to another package):
   /Applications/Blender.app/Contents/MacOS/Blender -b -P tools/blender/terrain/bake_terrain.py -- [climate ...] [--size 1024]
 
-Writes game/assets/terrain/<climate>/{ground,dirt,sand,rock}.png: seamless 1024 px colour maps that
+Writes game/assets/terrain/<climate>/{ground,dirt,sand,rock}.jpg: seamless 1024 px colour maps that
 terrain_tiles.gdshader samples as grass_tex / dirt_tex / sand_tex / rock_tex. Each layer is a
 Cycles emission bake of procedural nodes on a unit plane. Every noise is sampled on a 4D Clifford
 torus (cos u, sin u, cos v, sin v), which is flat, so features stay round and the tile wraps with
@@ -111,7 +111,8 @@ class Graph:
         self.feed(n.inputs["W"], w)
         n.inputs["Scale"].default_value = scale
         n.inputs["Randomness"].default_value = randomness
-        return n.outputs["Distance"], n.outputs["Color"]
+        col = n.outputs.get("Color")  # absent for DISTANCE_TO_EDGE
+        return n.outputs["Distance"], col
 
     def remap(self, value, lo, hi, smooth=True):
         n = self.node("ShaderNodeMapRange", interpolation_type="SMOOTHSTEP" if smooth else "LINEAR", clamp=True)
@@ -217,6 +218,9 @@ def setup_scene(size: int):
     scene.render.threads_mode = "FIXED"
     scene.render.threads = 4  # shared machine: leave cores for the other agents
     scene.render.bake.margin = 0
+    scene.view_settings.view_transform = "Standard"
+    scene.render.image_settings.file_format = "JPEG"
+    scene.render.image_settings.quality = 90
     bpy.ops.mesh.primitive_plane_add(size=1.0)
     plane = bpy.context.active_object
     return scene, plane
@@ -237,11 +241,10 @@ def bake(plane, climate: str, layer: str, spec: dict, size: int) -> pathlib.Path
     tex.select = True
     g.nt.nodes.active = tex
     bpy.ops.object.bake(type="EMIT")
-    out = OUT / climate / f"{layer}.png"
+    out = OUT / climate / f"{layer}.jpg"
     out.parent.mkdir(parents=True, exist_ok=True)
-    img.filepath_raw = str(out)
-    img.file_format = "PNG"
-    img.save()
+    # JPEG q90 keeps each set near 1.5 MB on disk (PNG was ~8 MB); Standard view = bytes as baked.
+    img.save_render(str(out), scene=bpy.context.scene)
     px = np.array(img.pixels[:], dtype=np.float32).reshape(size, size, 4)[:, :, :3]
     # Seam check: the wrap-around column/row step should look like any interior step.
     wrap = float(np.abs(px[:, 0] - px[:, -1]).mean() + np.abs(px[0] - px[-1]).mean()) * 0.5
