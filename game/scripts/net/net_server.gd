@@ -7,15 +7,21 @@ extends Node
 ##
 ##   server.register_op("market.buy", handler, true, "write")
 ##   handler: func(account_id: int, a: Dictionary) -> Dictionary   # NetProtocol.ok(r) / .fail(code, msg)
+##        or: func(account_id: int, a: Dictionary, rid: String) -> Dictionary
 ##
 ## Handlers run on the main thread one at a time, must validate everything before they change
-## anything, and must not await (§5.1).
+## anything, and must not await (§5.1). A mutating op's response is stored under its rid in
+## rids.jsonl before it is sent, so a retry with that rid replays it, even after a restart. An
+## op that journals itself (§5.2) should take the rid, journal it with the op, and on boot call
+## remember_rid() for each entry it replays: that covers a crash between its journal flush and
+## ours.
 
 signal account_created(account_id: int, name: String)
 signal account_online(account_id: int)
 signal account_offline(account_id: int)
 
-const RATE_CLASSES := {"read": [20.0, 40.0], "write": [5.0, 10.0], "chat": [1.0, 5.0]}
+const RATE_CLASSES := {"read": [20.0, 40.0], "write": [5.0, 10.0], "chat": [1.0, 5.0],
+	"presence": [12.0, 50.0]}  # ASSUMPTION: §5.4 has no class for the 10 Hz stream; burst 50 = a 5 s stall
 ## ASSUMPTION: burst 4 leaves room for a stale-token retry and a name-taken retry.
 const PRE_AUTH_RATE := [2.0, 4.0]
 ## Rejected frames (bad JSON, over the rate) before the socket is closed for flooding.
@@ -31,19 +37,25 @@ const HELLO_TIMEOUT := 20.0
 const IDLE_TIMEOUT := 60.0  # NetClient pings every 15 s
 const CLOSE_GRACE := 3.0
 const FRAMES_PER_TICK := 32  # per socket per frame, so one socket cannot starve the rest
-const RID_CACHE := 64
-const RID_TTL := 3600.0  # ASSUMPTION: an account offline this long loses its in-memory rid cache
+const RID_CACHE := RidStore.PER_ACCOUNT
 const SWEEP_INTERVAL := 10.0
+## One server per data dir: a second one would overwrite the first's files. The lock is a
+## heartbeat, not a pid, because Godot cannot ask whether an unrelated pid is alive.
+const LOCK_FILE := "server.lock"
+const LOCK_BEAT := 3.0
+const LOCK_STALE := 10.0
+## Room left for the res envelope around r, so a response that passes never makes a frame over 64 KiB.
+const MAX_RESULT := NetProtocol.MAX_FRAME - 256
 const ENVELOPE_KEYS: Array[String] = ["t", "id", "rid", "op", "a"]
 
+## server.tscn sets it: the scene is the whole server process, started from Game's flags (§1).
+@export var autostart := false
 var accounts := AccountStore.new()
+var rids := RidStore.new()
 var presence: PresenceRooms
 var chat: NetChat
 var port := 0
 var new_accounts_per_hour := 10.0  # ASSUMPTION: per IP; tests raise it
-## account_id -> {rid -> {op, res}} in insertion order (oldest first). In memory only; the
-## economy snapshot may persist it (contracts §4 lists rid_cache on the Account).
-var rid_caches: Dictionary = {}
 
 var _tcp := TCPServer.new()
 var _conns: Dictionary = {}  # conn id -> Conn
@@ -51,7 +63,8 @@ var _by_account: Dictionary = {}  # account_id -> Conn
 var _ops: Dictionary = {}  # op -> {handler, mutating, rate_class}
 var _buckets: Dictionary = {}  # account_id -> {rate_class -> TokenBucket}
 var _ip_new: Dictionary = {}  # ip -> TokenBucket for account creation
-var _offline_since: Dictionary = {}  # account_id -> mono()
+var _lock_path := ""
+var _lock_acc := 0.0
 var _next_conn := 1
 var _sweep_acc := 0.0
 var _op_re := RegEx.create_from_string("^[a-z][a-z0-9_]{0,31}(\\.[a-z][a-z0-9_]{0,31}){0,3}$")
@@ -74,18 +87,34 @@ func _init() -> void:
 	chat = NetChat.new(self, presence)
 	register_op("sys.ping", func (_aid: int, _a: Dictionary) -> Dictionary: return NetProtocol.ok({"server_time": wall_time()}), false, "read")
 	register_op("presence.join", presence.op_join, false, "write")
-	register_op("presence.update", presence.op_update, false, "read")
+	register_op("presence.update", presence.op_update, false, "presence")
 	register_op("chat.send", chat.op_send, false, "chat")
 
-## Opens the account store and starts listening. port 0 picks a free port (see `port`).
+func _ready() -> void:
+	if autostart:
+		Engine.max_fps = 60  # ASSUMPTION: a headless main loop would otherwise spin a whole core
+		if start(Game.server_port, Game.server_data_dir) != OK:
+			get_tree().quit(1)
+
+## Locks the data dir, opens the stores and starts listening. port 0 picks a free port (see `port`).
 func start(p_port: int, data_dir: String, bind: String = "*") -> Error:
-	var err := accounts.open(data_dir)
+	if not DirAccess.dir_exists_absolute(data_dir) and DirAccess.make_dir_recursive_absolute(data_dir) != OK:
+		_log("store_error", {"dir": data_dir, "err": "cannot create the data dir"})
+		return ERR_CANT_CREATE
+	var err := _take_lock(data_dir)
+	if err != OK:
+		return err
+	err = accounts.open(data_dir)
+	if err == OK:
+		err = rids.open(data_dir)
 	if err != OK:
 		_log("store_error", {"dir": data_dir, "err": error_string(err)})
+		stop()
 		return err
 	err = _tcp.listen(p_port, bind)
 	if err != OK:
 		_log("listen_error", {"port": p_port, "bind": bind, "err": error_string(err)})
+		stop()
 		return err
 	port = _tcp.get_local_port()
 	_log("listen", {"port": port, "bind": bind, "data": data_dir, "accounts": accounts.count()})
@@ -99,6 +128,10 @@ func stop() -> void:
 	if _tcp.is_listening():
 		_tcp.stop()
 		_log("stop", {"port": port})
+	rids.close()
+	if _lock_path != "":
+		DirAccess.remove_absolute(_lock_path)
+		_lock_path = ""
 
 func _exit_tree() -> void:
 	stop()
@@ -108,16 +141,28 @@ func register_op(op_name: String, handler: Callable, mutating: bool, rate_class:
 			or not RATE_CLASSES.has(rate_class) or not handler.is_valid():
 		push_error("[net] register_op refused %s (%s)" % [op_name, rate_class])
 		return false
-	_ops[op_name] = {"handler": handler, "mutating": mutating, "rate_class": rate_class}
+	_ops[op_name] = {"handler": handler, "mutating": mutating, "rate_class": rate_class,
+		"takes_rid": handler.get_argument_count() >= 3}
 	return true
+
+## Puts a mutating op's response in the account's rid cache (on disk before it returns). The
+## server does this itself; an economy replaying its journal at boot calls it for each entry.
+func remember_rid(account_id: int, rid: String, op: String, res: Dictionary) -> Error:
+	var err := rids.remember(account_id, rid, op, res)
+	if err != OK:
+		_log("store_error", {"op": op, "account": account_id, "err": "rid not saved: %s" % error_string(err)})
+	return err
 
 func send_event(account_id: int, ev: String, d: Dictionary) -> bool:
 	var c: Conn = _by_account.get(account_id)
-	return c != null and _send(c, NetProtocol.evt_frame(ev, d).to_utf8_buffer())
+	var buf := _event_buf(ev, d) if c != null else PackedByteArray()
+	return not buf.is_empty() and _send(c, buf)
 
 ## Serialises once and sends to every listed account that is online.
 func broadcast_event(account_ids: Array, ev: String, d: Dictionary) -> void:
-	var buf := NetProtocol.evt_frame(ev, d).to_utf8_buffer()
+	var buf := _event_buf(ev, d)
+	if buf.is_empty():
+		return
 	for aid in account_ids:
 		var c: Conn = _by_account.get(aid)
 		if c != null:
@@ -149,6 +194,10 @@ func _process(delta: float) -> void:
 	for c: Conn in _conns.values():
 		_poll(c, now)
 	presence.tick(delta)
+	_lock_acc += delta
+	if _lock_acc >= LOCK_BEAT:
+		_lock_acc = 0.0
+		_beat_lock()
 	_sweep_acc += delta
 	if _sweep_acc >= SWEEP_INTERVAL:
 		_sweep_acc = 0.0
@@ -238,7 +287,7 @@ func _on_frame(c: Conn, pkt: PackedByteArray, is_text: bool, now: float) -> void
 		return
 	var res := _handle(c, id, env, now)
 	if c.closing_until < 0.0:
-		_send(c, NetProtocol.res_frame(id, res).to_utf8_buffer())
+		_send(c, NetProtocol.res_frame(id, res).to_utf8_buffer())  # _handle keeps results under MAX_RESULT
 
 func _handle(c: Conn, id: int, env: Dictionary, now: float) -> Dictionary:
 	for k in env.keys():
@@ -268,24 +317,27 @@ func _handle(c: Conn, id: int, env: Dictionary, now: float) -> Dictionary:
 		return _strike(c, now, NetProtocol.fail("bad_request", "unknown op %s" % op))
 	if not _bucket(c.account_id, spec["rate_class"], now).take(now):
 		return _strike(c, now, NetProtocol.fail("rate_limited", "slow down"))
-	var cache: Dictionary = {}
+	var aid := c.account_id  # a handler may drop this socket, which clears c.account_id
 	if spec["mutating"]:
 		if rid == "":
 			return NetProtocol.fail("bad_request", "%s needs a rid" % op)
-		cache = rid_caches.get(c.account_id, {})
-		var hit: Dictionary = cache.get(rid, {})
+		var hit := rids.lookup(aid, rid)
 		if not hit.is_empty():
 			return hit["res"] if hit["op"] == op else NetProtocol.fail("conflict", "rid already used for another op")
-	var res: Variant = (spec["handler"] as Callable).call(c.account_id, a)
+		if not rids.is_open():
+			return NetProtocol.fail("server_error", "storage unavailable")  # an applied op must be replayable
+	var handler: Callable = spec["handler"]
+	var res: Variant = handler.call(aid, a, rid) if spec["takes_rid"] else handler.call(aid, a)
 	if not NetProtocol.is_result(res):
-		_log("handler_error", {"op": op, "account": c.account_id})
+		_log("handler_error", {"op": op, "account": aid})
 		res = NetProtocol.fail("server_error", "internal error")
+	elif JSON.stringify(res).to_utf8_buffer().size() > MAX_RESULT:
+		# Sent as is, it would overflow the client's frame cap and our send buffer (dropping the
+		# socket, after which the client resends the same request and loops).
+		_log("handler_error", {"op": op, "account": aid, "err": "response over 64 KiB"})
+		res = NetProtocol.fail("server_error", "response too large")
 	if spec["mutating"]:
-		if cache.is_empty():
-			rid_caches[c.account_id] = cache
-		cache[rid] = {"op": op, "res": (res as Dictionary).duplicate(true)}
-		while cache.size() > RID_CACHE:
-			cache.erase(cache.keys()[0])  # dictionaries keep insertion order: oldest first
+		remember_rid(aid, rid, op, res)
 	return res
 
 ## auth.hello {name, token?} → {account_id, name, token, server_time} (contracts §3).
@@ -328,7 +380,6 @@ func _hello(c: Conn, a: Dictionary, now: float) -> Dictionary:
 		_drop(old, 4003, "signed in elsewhere", now)
 	c.account_id = aid
 	_by_account[aid] = c
-	_offline_since.erase(aid)
 	_log("hello", {"conn": c.id, "account": aid, "name": rec["name"], "new": created})
 	if created:
 		account_created.emit(aid, rec["name"])
@@ -388,10 +439,10 @@ func _unbind(c: Conn) -> void:
 	if aid < 0 or _by_account.get(aid) != c:
 		return
 	_by_account.erase(aid)
-	_offline_since[aid] = mono()
 	account_offline.emit(aid)
 
-## Drops limiter and rid state that nobody can be using any more, so memory follows live load.
+## Drops limiter state that nobody can be using any more, so memory follows live load. The rid
+## cache is never swept: it is bounded per account and must outlive any retry (§4, §5.3).
 func _sweep(now: float) -> void:
 	for aid in _buckets.keys():
 		if _by_account.has(aid):
@@ -404,10 +455,37 @@ func _sweep(now: float) -> void:
 	for ip in _ip_new.keys():
 		if (_ip_new[ip] as TokenBucket).is_full(now):
 			_ip_new.erase(ip)
-	for aid in _offline_since.keys():
-		if now - float(_offline_since[aid]) > RID_TTL:
-			rid_caches.erase(aid)
-			_offline_since.erase(aid)
+
+## The serialised event, or empty (and logged) when it would break the 64 KiB frame cap.
+func _event_buf(ev: String, d: Dictionary) -> PackedByteArray:
+	var buf := NetProtocol.evt_frame(ev, d).to_utf8_buffer()
+	if buf.size() <= NetProtocol.MAX_FRAME:
+		return buf
+	_log("event_error", {"ev": ev.substr(0, 32), "bytes": buf.size(), "err": "event over 64 KiB"})
+	return PackedByteArray()
+
+func _take_lock(dir: String) -> Error:
+	var p := dir.path_join(LOCK_FILE)
+	if FileAccess.file_exists(p):
+		var json := JSON.new()
+		var held: Variant = json.data if json.parse(FileAccess.get_file_as_string(p)) == OK else null
+		var beat: Variant = held.get("beat") if held is Dictionary else null
+		if NetProtocol.is_num(beat) and absf(wall_time() - float(beat)) < LOCK_STALE:
+			_log("lock_error", {"dir": dir, "held_by": held.get("pid"), "err": "data dir in use; if that server is gone, wait %d s or delete %s" % [int(LOCK_STALE), LOCK_FILE]})
+			return ERR_ALREADY_IN_USE
+	_lock_path = p
+	return _beat_lock()
+
+func _beat_lock() -> Error:
+	if _lock_path == "":
+		return OK
+	var f := FileAccess.open(_lock_path, FileAccess.WRITE)
+	if f == null:
+		_log("lock_error", {"path": _lock_path, "err": error_string(FileAccess.get_open_error())})
+		return FileAccess.get_open_error()
+	f.store_string(JSON.stringify({"pid": OS.get_process_id(), "beat": wall_time()}))
+	f.close()
+	return OK
 
 func _log(ev: String, fields: Dictionary) -> void:
 	var line := {"ev": ev}

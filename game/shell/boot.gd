@@ -363,8 +363,10 @@ func _set_touch_layer(shown: bool) -> void:
 		(tc as CanvasLayer).visible = shown
 
 func _enter_game() -> void:
-	_set_touch_layer(true)
-	var packed := ResourceLoader.load("res://scenes/main.tscn", "", ResourceLoader.CACHE_MODE_REPLACE) as PackedScene
+	_set_touch_layer(not Game.server_mode)
+	# --server: the net root is the whole scene, so no island, player or HUD is ever built (online contract §1).
+	var scene := "res://scenes/net/server.tscn" if Game.server_mode else "res://scenes/main.tscn"
+	var packed := ResourceLoader.load(scene, "", ResourceLoader.CACHE_MODE_REPLACE) as PackedScene
 	if packed == null:
 		_fail("Game scene missing.")
 		return

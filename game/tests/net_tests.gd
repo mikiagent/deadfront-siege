@@ -12,6 +12,9 @@ var url := ""
 var dir := ""
 var alice: NetClient
 var bob: NetClient
+var frank_token := ""
+var last_fill := 0  # the response n cached under rid-fill-0065
+var crashy_n: Array = [0]  # applies of test.crashy on the restarted server
 var _nodes: Array[Node] = []
 
 class Raw:
@@ -36,7 +39,11 @@ func run(p_tree: SceneTree, p_expect: Callable) -> void:
 		await _test_hostile_frames()
 		await _test_rate_limits()
 		await _test_rid_replay()
+		await _test_restart()
+		await _test_client_retry()
 		await _test_presence_and_chat()
+		_test_presence_rules()
+		_test_chat_clean()
 		_test_store_reload()
 		await _test_cleanup()
 	for n in _nodes:
@@ -146,6 +153,9 @@ func _test_rate_limits() -> void:
 	_check((await _req(c2, "presence.join", {"island": "tundra_30"})).get("ok") == true, "Erin rejoins")
 	var more := await _burst(c2, "chat.send", {"text": "spam"}, 3)
 	_check(_count(more, "rate_limited") >= 2, "the chat bucket belongs to the account, not the socket")
+	var moves := await _burst(c2, "presence.update", _state(Vector3(2, 1, 2), "idle", "tundra_30"), 30)
+	var pings := await _burst(c2, "sys.ping", {}, 40)
+	_check(_count(moves, "") == 30 and _count(pings, "") == 40, "presence has its own bucket and leaves the read budget alone (%d/%d)" % [_count(moves, ""), _count(pings, "")])
 	c2.ws.close()
 
 # ---------------------------------------------------------------- idempotency (§5.3)
@@ -170,6 +180,14 @@ func _test_rid_replay() -> void:
 	_check(_err(await _req(r, "test.other", {}, "rid-first-01")) == "conflict", "a rid reused for another op is a conflict")
 	_check(_err(await _req(r, "test.bump", {})) == "bad_request" and applied[0] == 2, "a mutating op without rid is refused before it runs")
 	_check(_err(await _req(r, "test.broken", {})) == "server_error", "a handler returning garbage gives server_error")
+	server.register_op("test.rid", func (_aid: int, _a: Dictionary, rid: String) -> Dictionary: return NetProtocol.ok({"rid": rid}), true, "write")
+	_check((await _req(r, "test.rid", {}, "rid-echo-0001")).get("r", {}).get("rid") == "rid-echo-0001", "a handler with a third parameter gets the rid (to journal it)")
+	server.register_op("test.huge", func (_aid: int, _a: Dictionary) -> Dictionary: return NetProtocol.ok({"blob": "x".repeat(200000)}), false, "read")
+	var huge := await _req(r, "test.huge", {})
+	_check(_err(huge) == "server_error" and str(huge.get("msg")) == "response too large", "a response over 64 KiB becomes server_error instead of killing the socket")
+	_check(not server.send_event(r.account_id, "test", {"blob": "x".repeat(200000)}), "an event over 64 KiB is not sent")
+	_check((await _req(r, "sys.ping", {})).get("ok") == true, "the socket survives oversize results and events")
+	frank_token = r.token
 	r.ws.close()
 	var r2 := await _raw()
 	_check(await _hello(r2, "Frank", r.token), "Frank reconnects")
@@ -183,11 +201,81 @@ func _test_rid_replay() -> void:
 		_frame(r2, "test.bump", {}, "rid-fill-%04d" % i)
 	var batch2 := await _collect(r2, 36)
 	_check(_count(batch1, "") == 30 and _count(batch2, "") == 36, "66 paced mutating requests all apply")
-	var cache: Dictionary = server.rid_caches.get(r2.account_id, {})
-	_check(cache.size() == NetServer.RID_CACHE and cache.has("rid-fill-0065") and not cache.has("rid-fill-0000"), "the rid cache keeps exactly the last 64 (has %d)" % cache.size())
+	var held := server.rids.count(r2.account_id)
+	_check(held == NetServer.RID_CACHE and not server.rids.lookup(r2.account_id, "rid-fill-0065").is_empty() \
+		and server.rids.lookup(r2.account_id, "rid-fill-0000").is_empty(), "the rid cache keeps exactly the last 64 (has %d)" % held)
 	var before: int = applied[0]
+	last_fill = before
 	_check((await _req(r2, "test.bump", {}, "rid-fill-0065")).get("r", {}).get("n") == before and applied[0] == before, "a recent rid still replays")
 	r2.ws.close()
+	_check(await _until(func () -> bool: return not server.is_online(r2.account_id)), "Frank goes offline")
+	server._sweep(server.mono() + 7200.0)  # two hours offline
+	var r3 := await _raw()
+	_check(await _hello(r3, "Frank", frank_token), "Frank comes back")
+	_check((await _req(r3, "test.bump", {}, "rid-fill-0065")).get("r", {}).get("n") == before and applied[0] == before, "the rid cache has no time limit: it still replays after hours offline")
+	r3.ws.close()
+
+# ---------------------------------------------------------------- restart and client retries (§5.3)
+
+## The dupe the review found: an op applies, the server dies before answering, a new server
+## starts on the same data dir within the client's deadline, and NetClient resends the same rid.
+func _test_restart() -> void:
+	var applied: Array = [0]
+	server.register_op("test.crashy", _crashy(server, applied), true, "write")
+	var pending := bob.request("test.crashy", {"crash": true})
+	_check(await _until(func () -> bool: return applied[0] == 1), "the op applies on the first server")
+	var p := server.port
+	server.stop()  # dies without answering
+	server = NetServer.new()
+	server.new_accounts_per_hour = 1000.0
+	_add(server)
+	_check(server.start(p, dir, "127.0.0.1") == OK, "a new server starts on the same port and data dir")
+	server.register_op("test.crashy", _crashy(server, crashy_n), true, "write")
+	var bumps: Array = [0]
+	server.register_op("test.bump", func (_aid: int, _a: Dictionary) -> Dictionary:
+		bumps[0] += 1
+		return NetProtocol.ok({"n": -1}), true, "read")
+	if not pending.finished:
+		await pending.done
+	_check(pending.ok and pending.r.get("n") == 1 and crashy_n[0] == 0, "NetClient's resend after the restart replays the saved response instead of applying twice")
+	var r := await _raw()
+	_check(await _hello(r, "Frank", frank_token), "accounts survive the restart")
+	_check((await _req(r, "test.bump", {}, "rid-fill-0065")).get("r", {}).get("n") == last_fill and bumps[0] == 0, "an older rid replays after the restart too")
+	r.ws.close()
+	var rival := NetServer.new()
+	_check(rival.start(0, dir, "127.0.0.1") == ERR_ALREADY_IN_USE, "a second server on the same data dir is refused")
+	rival.free()
+	_check(FileAccess.file_exists(dir.path_join(AccountStore.FILE + ".bak")), "the account store keeps the previous file as .bak")
+	_check(await _until(func () -> bool: return alice.is_online() and bob.is_online(), 5.0), "clients reconnect to the restarted server")
+
+func _test_client_retry() -> void:
+	var before: int = crashy_n[0]
+	var q := bob.request("test.crashy", {"crash": true}, 0.3)  # never answered; the reconnect takes >= 0.4 s
+	await q.done
+	_check(q.err == "timeout" and crashy_n[0] == before + 1, "an applied but unanswered request times out")
+	_check(await _until(func () -> bool: return bob.is_online(), 5.0), "Bob reconnects")
+	var again := bob.retry(q)
+	await again.done
+	_check(again.rid == q.rid and again.id != q.id, "retry reuses the rid under a new id")
+	_check(again.ok and again.r.get("n") == before + 1 and crashy_n[0] == before + 1, "retry after a timeout replays instead of applying twice")
+
+	var line := bob.request("chat.send", {"text": "only once"})
+	var ping := bob.request("sys.ping")
+	server._drop(server._by_account[bob.account_id], 4002, "test drop", server.mono())  # before the server reads either
+	await line.done
+	if not ping.finished:
+		await ping.done
+	_check(line.err == "offline", "a chat line already sent is not resent after a reconnect (got %s)" % line.err)
+	_check(ping.ok, "a read already sent is resent after the reconnect")
+
+	server._drop(server._by_account[bob.account_id], 4002, "test drop", server.mono())
+	_check(await _until(func () -> bool: return not bob.is_online()), "Bob is offline again")
+	var backlog: Array[NetRequest] = []
+	for i in 20:
+		backlog.append(bob.request("test.crashy", {}))
+	await _until(func () -> bool: return backlog.all(func (b: NetRequest) -> bool: return b.finished), 9.0)
+	var limited := backlog.filter(func (b: NetRequest) -> bool: return b.err == "rate_limited").size()
+	_check(backlog.all(func (b: NetRequest) -> bool: return b.ok), "a 20-request backlog is paced under the write limit after a reconnect (%d rate limited)" % limited)
 
 # ---------------------------------------------------------------- presence and chat (§7)
 
@@ -260,6 +348,38 @@ func _test_presence_and_chat() -> void:
 	await hop.done
 	_check(hop.err == "rate_limited", "hopping straight back to another island to dodge the speed check is refused")
 
+## The speed check itself, called directly with made-up account ids (events to them go nowhere).
+func _test_presence_rules() -> void:
+	var pr := server.presence
+	var up := func (aid: int, p: Vector3) -> Dictionary: return pr.op_update(aid, _state(p, "idle", "tundra_30"))
+	var a := 990001
+	_check(up.call(a, Vector3(0, -15, 0)).ok, "a first update is accepted")
+	_check(_err(up.call(a, Vector3(0, 99000, 0))) == "bad_request", "a vertical teleport far up is rejected")
+	_check(_err(up.call(a, Vector3(0, -99000, 0))) == "bad_request", "a vertical teleport far down is rejected")
+	_check(up.call(a, Vector3(0, 10, 0)).ok, "a 25 m climb fits the carried allowance")
+	var climb: Dictionary = up.call(a, Vector3(0, 20, 0))
+	_check(_err(climb) == "bad_request" and str(climb.get("msg")).begins_with("moved too fast"), "climbing counts against the speed check")
+	_check(up.call(a, Vector3(0, -10, 0)).ok, "falling 20 m is free")
+	# A stalled link hands over 40 updates at once, 0.7 m apart (running at 10 Hz).
+	var b := 990002
+	up.call(b, Vector3.ZERO)
+	var bunched := 0
+	for i in range(1, 41):
+		bunched += 1 if up.call(b, Vector3(0.7 * i, 0, 0)).ok else 0
+	_check(bunched == 40, "40 updates delivered together after a stall all pass (%d did)" % bunched)
+	_check(_err(up.call(b, Vector3(35, 0, 0))) == "bad_request", "banked allowance is capped at %d s of running" % int(PresenceRooms.CARRY_S))
+	pr._last[b]["at"] -= 30.0  # 30 s without an update: the client kept running through a disconnect
+	_check(up.call(b, Vector3(228, 0, 0)).ok, "running on through a long gap is not frozen out")
+	pr.leave(a)
+	pr.leave(b)
+
+func _test_chat_clean() -> void:
+	_check(NetChat.clean("ad" + char(0xAD) + "min") == "admin", "chat strips the soft hyphen")
+	_check(NetChat.clean("a" + char(0x61C) + "b" + char(0xE0041) + "c" + char(0x2066) + "d") == "abcd", "chat strips every format character (U+061C, tags, isolates)")
+	_check(NetChat.clean("a" + char(0x301).repeat(199)).length() == 1 + NetChat.MAX_MARKS, "stacked combining marks are capped")
+	var real := "Olá, café, Tiếng Việt, naïve"
+	_check(NetChat.clean(real) == real, "ordinary accented text is untouched")
+
 # ---------------------------------------------------------------- persistence and cleanup
 
 func _test_store_reload() -> void:
@@ -267,10 +387,15 @@ func _test_store_reload() -> void:
 	_check(store.open(dir) == OK and store.count() == server.accounts.count() and store.name_of(alice.account_id) == "Alice", "accounts reload from disk")
 	var bad := dir.path_join("corrupt")
 	DirAccess.make_dir_recursive_absolute(bad)
-	var f := FileAccess.open(bad.path_join(AccountStore.FILE), FileAccess.WRITE)
-	f.store_string("{oops")
-	f.close()
+	_write(bad.path_join(AccountStore.FILE), "{oops")
 	_check(AccountStore.new().open(bad) == ERR_FILE_CORRUPT, "a corrupt account file refuses to open instead of starting empty")
+	var good := JSON.stringify({"acc": 5, "rid": "rid-torn-0001", "op": "test.x", "res": {"ok": true, "r": {}}})
+	_write(bad.path_join(RidStore.FILE), good + "\n" + good.substr(0, 20))
+	var rs := RidStore.new()
+	_check(rs.open(bad) == OK and rs.count(5) == 1, "a torn last rid line is dropped and the rest reload")
+	rs.close()
+	_write(bad.path_join(RidStore.FILE), "{oops\n" + good + "\n")
+	_check(RidStore.new().open(bad) == ERR_FILE_CORRUPT, "a bad rid line mid-file refuses to open")
 
 func _test_cleanup() -> void:
 	alice.disconnect_from_server()
@@ -393,6 +518,19 @@ static func _chat(heard: Array) -> String:
 		if e[0] == "chat":
 			return str(e[1].get("text", ""))
 	return ""
+
+## test.crashy: applies, and with {crash: true} drops the caller before the answer is sent.
+static func _crashy(srv: NetServer, applied: Array) -> Callable:
+	return func (aid: int, a: Dictionary) -> Dictionary:
+		applied[0] += 1
+		if a.get("crash") == true:
+			srv._drop(srv._by_account[aid], 4006, "test crash", srv.mono())
+		return NetProtocol.ok({"n": applied[0]})
+
+static func _write(path: String, text: String) -> void:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(text)
+	f.close()
 
 func _rm_rf(path: String) -> void:
 	var da := DirAccess.open(path)

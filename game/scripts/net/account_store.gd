@@ -2,7 +2,10 @@ class_name AccountStore
 extends RefCounted
 ## Online identity (contracts.md §3): id, name, sha256(token) and created. Wallets and vaults
 ## belong to the economy. The whole file is rewritten (tmp + rename) on every new account, so a
-## crash leaves either the old or the new file, never half of one.
+## crash leaves either the old or the new file, never half of one; the previous version is kept
+## as accounts.json.bak for an operator to restore by hand.
+## shortcut: O(accounts) per new account and no fsync (GDScript has none); move the rows into the
+## economy snapshot and journal (contracts §5.2) once that lands.
 
 const FILE := "accounts.json"
 ## ASSUMPTION: Settlers is the NPC account (§6.6); the others would read as staff.
@@ -28,15 +31,15 @@ func open(dir: String) -> Error:
 		return OK
 	var json := JSON.new()
 	if json.parse(FileAccess.get_file_as_string(path)) != OK or not json.data is Dictionary:
-		return ERR_FILE_CORRUPT
+		return _corrupt()
 	var data: Dictionary = json.data
 	var rows: Variant = data.get("accounts")
 	var next: Variant = NetProtocol.as_int(data.get("next_id"), 1, NetProtocol.MAX_ID)
 	if not rows is Array or next == null:
-		return ERR_FILE_CORRUPT
+		return _corrupt()
 	for row in rows:
 		if not _admit(row):
-			return ERR_FILE_CORRUPT
+			return _corrupt()
 	_next_id = maxi(_next_id, next)
 	return OK
 
@@ -70,6 +73,10 @@ func create(n: String, created: int) -> Dictionary:
 		_next_id -= 1
 		return {}
 	return {"account": rec, "token": token}
+
+func _corrupt() -> Error:
+	print("[net] %s is corrupt; the server will not start. %s.bak holds the version before the last write." % [path, path])
+	return ERR_FILE_CORRUPT
 
 func _admit(row: Variant) -> bool:
 	if not row is Dictionary:
@@ -108,4 +115,6 @@ func _save() -> Error:
 	if err != OK:
 		DirAccess.remove_absolute(tmp)
 		return err
+	if FileAccess.file_exists(path):
+		DirAccess.copy_absolute(path, path + ".bak")  # a copy, so accounts.json exists at every instant
 	return DirAccess.rename_absolute(tmp, path)

@@ -8,8 +8,10 @@ extends Node
 ##   await req.done
 ##   if req.ok: ... req.r ...  else: ... req.err, req.msg ...
 ##
-## Every request carries a fresh rid; the server uses it to deduplicate mutating ops, and
-## requests still waiting when the socket drops are resent with the same rid after reconnect.
+## Every request carries a fresh rid; the server uses it to deduplicate mutating ops. Requests
+## still waiting when the socket drops are resent with the same rid after reconnect, paced so a
+## backlog never trips the rate limit. A request that ends in "timeout" or "offline" may still
+## have applied: retry(req) resends it under the same rid, never request() again.
 
 signal state_changed(state: int)
 signal event(ev: String, d: Dictionary)
@@ -28,6 +30,13 @@ const MAX_PENDING := 256
 const MAX_NAME_RETRIES := 3
 const PEER_BUFFER := 1 << 17
 const NO_RETRY_CODES: Array[int] = [4003]  # signed in elsewhere: reconnecting would kick the other device back
+## Not resent once written: the server has no rid cache for them, so a chat line would show
+## twice, and a position from before the drop is stale anyway. They end with err "offline".
+const NO_RESEND_OPS: Array[String] = ["chat.send", "presence.update"]
+## Under the write class (§5.4, 5/s burst 10) so arrival jitter cannot push a backlog over it:
+## rate_limited answers count toward the server's flood cut-off.
+const RESEND_RATE := 4.0
+const RESEND_BURST := 8.0
 
 var state: State = State.OFFLINE
 var url := ""
@@ -51,6 +60,8 @@ var _last_rx := 0.0
 var _last_ping := 0.0
 var _next_id := 1
 var _pending: Dictionary = {}  # id -> NetRequest, sent or waiting for ONLINE
+var _resend: Array[NetRequest] = []  # pending requests to write after a hello, oldest first
+var _resend_bucket: TokenBucket
 var _hello: NetRequest
 var _crypto := Crypto.new()
 
@@ -83,7 +94,14 @@ func is_online() -> bool:
 	return state == State.ONLINE
 
 func request(op: String, a: Dictionary = {}, timeout: float = REQUEST_TIMEOUT) -> NetRequest:
-	var req := _make(op, a, timeout)
+	return _submit(_make(op, a, timeout))
+
+## Sends req's op and args again under its rid, as a new request: the safe answer to a "timeout"
+## or "offline" on a mutating op, because the server replays its cached response.
+func retry(req: NetRequest, timeout: float = REQUEST_TIMEOUT) -> NetRequest:
+	return _submit(_make(req.op, req.a, timeout, req.rid))
+
+func _submit(req: NetRequest) -> NetRequest:
 	if not _want:
 		_finish_later(req, "offline", "not connected")
 	elif req.frame.to_utf8_buffer().size() > NetProtocol.MAX_FRAME:
@@ -93,8 +111,12 @@ func request(op: String, a: Dictionary = {}, timeout: float = REQUEST_TIMEOUT) -
 	else:
 		_pending[req.id] = req
 		if state == State.ONLINE:
-			_ws.send_text(req.frame)
+			_write(req)
 	return req
+
+func _write(req: NetRequest) -> void:
+	_ws.send_text(req.frame)
+	req.sent = true
 
 func _process(_delta: float) -> void:
 	var now := _now()
@@ -123,6 +145,10 @@ func _process(_delta: float) -> void:
 					elif now - _last_ping > PING_INTERVAL:
 						_last_ping = now
 						request("sys.ping")
+					while not _resend.is_empty() and _resend_bucket.take(now):
+						var req: NetRequest = _resend.pop_front()
+						if not req.finished:
+							_write(req)
 			WebSocketPeer.STATE_CLOSED:
 				var code := _ws.get_close_code()
 				var reason := _ws.get_close_reason().substr(0, 120)
@@ -185,8 +211,15 @@ func _on_hello(req: NetRequest) -> void:
 		last_error = ""
 		print("[net] online as %s (#%d) at %s" % [account_name, account_id, url])
 		_set_state(State.ONLINE)
+		_resend.clear()
+		_resend_bucket = TokenBucket.new(RESEND_RATE, RESEND_BURST, _now())
 		for id in _pending.keys():
-			_ws.send_text((_pending[id] as NetRequest).frame)
+			var pend: NetRequest = _pending[id]
+			if pend.sent and pend.op in NO_RESEND_OPS:
+				_pending.erase(id)
+				_finish_later(pend, "offline", "the connection dropped before the answer; it may have been delivered")
+			else:
+				_resend.append(pend)
 		return
 	if req.err == "unauthorized" and _token != "":
 		# The server no longer knows this token (its data was reset): start a fresh account.
@@ -235,6 +268,7 @@ func _lost(why: String) -> void:
 	if _hello != null:
 		_pending.erase(_hello.id)  # a new socket says hello again
 		_hello = null
+	_resend.clear()  # the next hello queues every pending request again
 	_close_socket()
 	if state == State.ONLINE or state == State.AUTHENTICATING:
 		print("[net] connection lost: %s" % why)
@@ -259,13 +293,15 @@ func _set_state(s: State) -> void:
 		state = s
 		state_changed.emit(s)
 
-func _make(op: String, a: Dictionary, timeout: float) -> NetRequest:
+func _make(op: String, a: Dictionary, timeout: float, rid: String = "") -> NetRequest:
 	var req := NetRequest.new()
 	req.id = _next_id
 	_next_id = 1 if _next_id >= NetProtocol.MAX_ID else _next_id + 1
 	req.op = op
+	req.a = a
+	req.rid = rid if rid != "" else NetProtocol.uuid4(_crypto)
 	req.deadline = _now() + timeout
-	req.frame = JSON.stringify({"t": "req", "id": req.id, "rid": NetProtocol.uuid4(_crypto), "op": op, "a": a})
+	req.frame = JSON.stringify({"t": "req", "id": req.id, "rid": req.rid, "op": op, "a": a})
 	return req
 
 func _finish_later(req: NetRequest, code: String, msg: String) -> void:
@@ -277,6 +313,7 @@ func _finish_deferred(req: NetRequest, res: Dictionary) -> void:
 func _fail_all(code: String, msg: String) -> void:
 	var reqs := _pending.values()
 	_pending.clear()
+	_resend.clear()
 	for req: NetRequest in reqs:
 		_finish_later(req, code, msg)
 

@@ -1,14 +1,18 @@
 class_name NetChat
 extends RefCounted
 ## Island-room chat (contracts.md §7): chat.send {text} → evt chat {from, id, text, ts} to the
-## sender's room, after control and bidi-override characters are stripped and edges trimmed.
+## sender's room, after invisible and control characters are stripped, stacked combining marks
+## are capped and edges are trimmed.
 
 const MAX_LEN := 200
 const MAX_RAW := 2000  # refuse absurd input before scanning it
+const MAX_MARKS := 3  # ASSUMPTION: combining marks per base; enough for real text (Vietnamese stacks 2), zalgo stacks hundreds
 
-## C0, DEL, C1, zero-width and direction-override characters: they break lines or spoof names.
-static var _strip_re := RegEx.create_from_string(
-	"[\\x{0}-\\x{1F}\\x{7F}-\\x{9F}\\x{200B}-\\x{200F}\\x{2028}-\\x{202E}\\x{2060}-\\x{206F}\\x{FEFF}]")
+## Every control (Cc), format (Cf: soft hyphen, zero-width, joiners, bidi, tags, U+061C...) and
+## line or paragraph separator: they break lines, hide characters or spoof other text. This also
+## splits emoji ZWJ sequences and drops Persian ZWNJ; readable beats faithful here.
+static var _strip_re := RegEx.create_from_string("[\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}]")
+static var _marks_re := RegEx.create_from_string("(\\p{M}{%d})\\p{M}+" % MAX_MARKS)
 
 var _server: NetServer
 var _presence: PresenceRooms
@@ -32,4 +36,4 @@ func op_send(aid: int, a: Dictionary) -> Dictionary:
 	return NetProtocol.ok({"ts": ts})
 
 static func clean(s: String) -> String:
-	return _strip_re.sub(s, "", true).strip_edges()
+	return _marks_re.sub(_strip_re.sub(s, "", true), "$1", true).strip_edges()

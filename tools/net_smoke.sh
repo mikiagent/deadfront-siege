@@ -46,6 +46,12 @@ done
 grep -E '"ev":"(hello|close|drop)"' "$WORK/server.log" | sed 's/^/[server] /'
 grep -E 'SCRIPT ERROR|Parse Error' "$WORK/server.log" | sed 's/^/[server] /'
 
+# Contract §1: the server never builds the playfield (no main scene, no survivor).
+if grep -qE '^\[boot\] main scene ready|^\[player\]' "$WORK/server.log"; then
+  echo "[server] built the playfield:"; grep -E '^\[boot\] main scene ready|^\[player\]' "$WORK/server.log" | head -3
+  echo "NET SMOKE FAIL"; exit 1
+fi
+
 if [[ $CODE_A -eq 0 && $CODE_B -eq 0 ]] && grep -q '^\[netprobe\] PASS' "$WORK/client_a.log" && grep -q '^\[netprobe\] PASS' "$WORK/client_b.log"; then
   echo "NET SMOKE PASS"; exit 0
 fi

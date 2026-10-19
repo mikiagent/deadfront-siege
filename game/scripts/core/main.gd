@@ -9,7 +9,8 @@ extends Node3D
 func _ready() -> void:
 	sun.rotation_degrees = Vector3(-50.0, 30.0, 0.0)
 	if Game.server_mode:
-		_start_server()
+		# The shell loads server.tscn directly; this only catches a run that opened main.tscn itself.
+		get_tree().change_scene_to_file.call_deferred("res://scenes/net/server.tscn")
 		return
 	if Game.lab_name != "":
 		default_playfield.visible = false
@@ -102,16 +103,6 @@ func _ready() -> void:
 				soak.name = "WebSoak"
 				add_child(soak)
 				soak.run(self)
-
-## Headless server (contracts.md §1): no island, player, camera or HUD, only the net root.
-func _start_server() -> void:
-	default_playfield.queue_free()
-	iso_camera.queue_free()
-	Engine.max_fps = 60  # ASSUMPTION: a headless main loop would otherwise spin a whole core
-	var server := (load("res://scenes/net/server.tscn") as PackedScene).instantiate() as NetServer
-	add_child(server)
-	if server.start(Game.server_port, Game.server_data_dir) != OK:
-		get_tree().quit(1)
 
 ## Online mode (--online=ws://host:port): connect Game.net, show other players, send ours.
 func _start_online(player: Player) -> void:

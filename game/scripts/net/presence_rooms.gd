@@ -5,8 +5,14 @@ extends RefCounted
 
 const RELAY_INTERVAL := 0.1
 const SPEED_FACTOR := 1.6
-## ASSUMPTION: absorbs frame jitter and the 0.45 s roll burst (~12 m/s, player.gd _roll_left).
-const SPEED_SLACK_M := 0.5
+## ASSUMPTION: allowance an update did not use carries over, up to this many seconds of it. Frames
+## that a stalled mobile link delivers together (arriving ~0 s apart) still pass, and so does the
+## 0.45 s roll at 13 m/s (player.gd _try_roll). Standing still banks no more than this.
+const CARRY_S := 3.0
+## ASSUMPTION: islands are flat (island_runtime.gd _terrain keeps heights within about -2.6..4.5 m),
+## nothing flies, and player.gd _fall_guard re-seats anyone below -15 m. Outside this band is a hack.
+const Y_MIN := -20.0
+const Y_MAX := 30.0
 const MAX_ROOM := 100  # ASSUMPTION
 ## ASSUMPTION: real travel takes longer than this, so hopping islands to dodge the speed check
 ## (each change resets it, contract §7) is held to one hop per window.
@@ -26,7 +32,7 @@ var run_speed := RUN_SPEED_FALLBACK
 var _server: NetServer
 var _rooms: Dictionary = {}  # room key -> {account_id: true}
 var _who: Dictionary = {}  # account_id -> {room, island, name, p: Vector3, yaw, anim, has_pos, dirty}
-var _last: Dictionary = {}  # account_id -> {island, p: Vector3, at, hopped_at}; swept after LAST_TTL
+var _last: Dictionary = {}  # account_id -> {island, p: Vector3, at, budget, hopped_at}; swept after LAST_TTL
 var _acc := 0.0
 var _sweep_acc := 0.0
 var _anim_re := RegEx.create_from_string(ANIM_PATTERN)
@@ -56,15 +62,23 @@ func op_update(aid: int, a: Dictionary) -> Dictionary:
 			or not anim is String or _anim_re.search(anim) == null:
 		return NetProtocol.fail("bad_request", "presence.update needs p:[x,y,z], yaw, anim and a known island")
 	var pos := Vector3(float(p[0]), float(p[1]), float(p[2]))
+	if pos.y < Y_MIN or pos.y > Y_MAX:
+		return NetProtocol.fail("bad_request", "height must be %d to %d m" % [int(Y_MIN), int(Y_MAX)])
 	var now := _server.mono()
+	var rate := SPEED_FACTOR * run_speed
+	var budget := rate * CARRY_S  # a first update, or one after travel, starts with a full carry
 	var last: Dictionary = _last.get(aid, {})
 	var hopped_at := -LAST_TTL
 	if not last.is_empty() and last["island"] == island:
-		# Ground speed only: a fall off a cliff is fast and vertical, a speed hack is horizontal.
-		var dt := now - float(last["at"])
-		var flat := Vector2(pos.x - last["p"].x, pos.z - last["p"].z).length()
-		if flat > SPEED_FACTOR * run_speed * dt + SPEED_SLACK_M:
-			return NetProtocol.fail("bad_request", "moved too fast: %.1f m in %.2f s" % [flat, dt])
+		# Distance budget: carry from earlier updates plus run allowance for the time since the
+		# last accepted one (unbounded, so running on through a long disconnect still passes).
+		# Climbing costs like running; falling is free (gravity is the only vertical force).
+		var d: Vector3 = pos - last["p"]
+		var cost := Vector3(d.x, maxf(d.y, 0.0), d.z).length()
+		var allow := float(last["budget"]) + rate * maxf(0.0, now - float(last["at"]))
+		if cost > allow:
+			return NetProtocol.fail("bad_request", "moved too fast: %.1f m with %.1f m allowed" % [cost, allow])
+		budget = minf(budget, allow - cost)
 		hopped_at = last["hopped_at"]
 	elif not last.is_empty():
 		if now - float(last["hopped_at"]) < ISLAND_HOP_COOLDOWN:
@@ -76,7 +90,7 @@ func op_update(aid: int, a: Dictionary) -> Dictionary:
 		if not joined["ok"]:
 			return joined
 		st = _who[aid]
-	_last[aid] = {"island": island, "p": pos, "at": now, "hopped_at": hopped_at}
+	_last[aid] = {"island": island, "p": pos, "at": now, "budget": budget, "hopped_at": hopped_at}
 	st["p"] = pos
 	st["yaw"] = wrapf(float(yaw), -PI, PI)
 	st["anim"] = anim
@@ -112,7 +126,7 @@ func tick(delta: float) -> void:
 	_acc += delta
 	if _acc < RELAY_INTERVAL:
 		return
-	_acc = 0.0
+	_acc = minf(_acc - RELAY_INTERVAL, RELAY_INTERVAL)  # keep the remainder so the relay stays at 10 Hz
 	for key in _rooms.keys():
 		var members: Dictionary = _rooms[key]
 		var batch: Array = []

@@ -4,3 +4,4 @@
 
 [node name="NetServer" type="Node"]
 script = ExtResource("1_server")
+autostart = true
