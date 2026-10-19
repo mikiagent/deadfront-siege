@@ -24,7 +24,6 @@ func _ready() -> void:
 	if Game.shot_path != "":
 		TouchControls.visible = false
 		TouchControls.enabled = false
-	_player.vitals.damaged.connect(_lab_guard)
 	LabKit.give(_player, &"stone_knife", 1)
 	LabKit.give(_player, &"bandage", 3)
 	LabKit.give(_player, &"pressure_dressing", 1)
@@ -36,7 +35,9 @@ func _spawn_groups() -> void:
 		return
 	var raptor_spawner := Spawner.new()
 	raptor_spawner.species = &"velociraptor"
-	raptor_spawner.count = 3
+	# Two, not three: with three starter raptors a fresh survivor ended the 3.2 s beat at 9-74 HP
+	# over five runs, so one crit killed him. The assertion below stays live either way.
+	raptor_spawner.count = 2
 	raptor_spawner.radius = 2.8
 	raptor_spawner.as_pack = true
 	raptor_spawner.position = Vector3(8.0, 0.0, 14.0)
@@ -61,21 +62,22 @@ func _spawn_groups() -> void:
 	get_tree().create_timer(0.45).timeout.connect(_demo, CONNECT_ONE_SHOT)
 
 ## The lab's island level offset made these raptors far above a fresh survivor, who died
-## before the shot. A starter survivor fights starter-level animals here.
+## before the shot. Wild stats do not scale with level yet (creature.gd is W1-AI's), so a Lv1
+## plate alone changed nothing: rebase each animal's stats to level 1 on the shared level curve.
+# ASSUMPTION: species JSON stats are the animal at its tier level; level 1 is those stats /
+# ProgressionScaling.level_multiplier(tier) (raptor 640 hp / 95 atk -> 219 / 33). Drop this when
+# W1-AI scales wild stats by level.
 func _starter_level(c: Creature) -> void:
 	if c == null:
 		return
+	var d := c.def.duplicate() as CreatureDef  # never edit the shared species def
+	var k := 1.0 / ProgressionScaling.level_multiplier(d.tier)
+	d.hp *= k
+	d.attack *= k
+	d.defense *= k
+	c.def = d
 	c.level = 1
 	c.health.setup(c.stat_value(&"health"))
-
-# ASSUMPTION: wild stats do not scale with level yet (W1-AI), so even a Lv1 tier-25 raptor
-# bites a fresh survivor for 80-140 (pc-balance-01 waits on the owner). This lab shows plates,
-# not balance: a bite that would leave the survivor below 40 HP tops him up instead. Vitals
-# emits damaged before its death check, so this runs in time; every top-up is printed.
-func _lab_guard() -> void:
-	if _player.vitals.health < 40.0:
-		_player.vitals.health = _player.vitals.effective_max_health()
-		print("[hunt_lab] survivor topped up (lab guard, not balance)")
 
 func _fail(msg: String) -> void:
 	print("[hunt_lab] FAIL %s" % msg)

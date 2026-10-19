@@ -56,7 +56,7 @@ func impact(victim: Creature) -> void:
 		return
 	var tune := CombatTuning.section("ranged")
 	var raw := maxf(damage * float(tune.get("min_damage_frac", 0.05)), damage - victim.defense_for(true) * victim.statuses.defense_mult() * float(tune.get("defense_factor", 0.5)))
-	var dealt := raw * (1.0 + 0.01 * skill_level) * CombatCounters.multiplier(victim.def.archetype, &"blunt")
+	var dealt := raw * (1.0 + float(tune.get("damage_per_ranged_level", 0.01)) * skill_level) * CombatCounters.multiplier(victim.def.archetype, &"blunt")
 	victim.next_hit_kind = Hunt.effectiveness(victim, &"blunt")
 	victim.health.take_damage(dealt, source)
 	if source.skills: source.skills.add_xp("ranged", int(tune.get("xp_per_hit", 2)))

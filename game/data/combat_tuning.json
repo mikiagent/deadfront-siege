@@ -33,6 +33,7 @@
     "defense_factor": 0.5,
     "min_damage_frac": 0.05,
     "gravity": 9.8,
+    "damage_per_ranged_level": 0.01,
     "xp_per_hit": 2
   },
   "evasion_add_scale": 0.01,

@@ -13,6 +13,7 @@ var data: Node
 var CA: GDScript  # CreatureAttack
 var MQ: GDScript  # MeleeQuery
 var HUNT: GDScript
+var TACT: GDScript  # CombatTactics
 var ITEM: GDScript  # ItemStack
 
 func _process(_delta: float) -> bool:
@@ -26,6 +27,7 @@ func _process(_delta: float) -> bool:
 	CA = load("res://scripts/combat/creature_attack.gd")
 	MQ = load("res://scripts/combat/melee_query.gd")
 	HUNT = load("res://scripts/combat/hunt.gd")
+	TACT = load("res://scripts/combat/combat_tactics.gd")
 	ITEM = load("res://scripts/items/item_stack.gd")
 	_run.call_deferred()
 	return false
@@ -56,6 +58,8 @@ func _run() -> void:
 	_test_tuning()
 	_test_no_status_without_hit()
 	await _test_walls_block()
+	await _test_corner_slot()
+	await _test_swing_pauses()
 	_test_wear()
 	_test_seeded_accuracy()
 	_test_evasion()
@@ -127,6 +131,12 @@ func _test_walls_block() -> void:
 	player.vitals.health = 1000.0  # vitals clamp to max each frame; re-arm right before the bite
 	_expect(not CA.apply_for(raptor, &"attack_primary", player) and is_equal_approx(player.vitals.health, 1000.0), "bite through the fence lands nothing")
 	_expect(not MQ.clear(player, raptor), "survivor swing through the fence refused")
+	player.hunt.start(raptor)
+	player.hunt._los_notice_s = -99.0
+	player.hunt.last_notice = ""
+	player.hunt._auto_attack()
+	_expect(player.hunt.last_notice.contains("in the way"), "melee blocked by the fence says so ('%s')" % player.hunt.last_notice)
+	player.hunt.stop()
 	fence.free()
 	await physics_frame
 	_expect(MQ.clear(raptor, player), "same bodies without the fence: clear")
@@ -136,6 +146,59 @@ func _test_walls_block() -> void:
 	raptor.global_position = Vector3(0, 6.0, 0.9)
 	_expect(not MQ.clear(player, raptor), "a body 5 m above is out of reach")
 	player.global_position = Vector3(0, 0.9, 0)
+	raptor.free()
+
+## phys-hit-01 regression: the 0.4 m slot where a fence row (z=16.5) and column (x=10.5) fail
+## to meet let a zero-width ray through diagonally (combat_rules_lab, 3 of 5 runs). Same geometry
+## and body positions, shifted to the origin.
+func _test_corner_slot() -> void:
+	_reset_player()
+	var walls: Array[StaticBody3D] = []
+	for spec in [[Vector3(-2.5, 0.6, 0.0), Vector3(6.0, 1.2, 0.2)], [Vector3(0.0, 0.6, 2.0), Vector3(0.2, 1.2, 3.0)]]:
+		var w := StaticBody3D.new()
+		var cs := CollisionShape3D.new()
+		var bx := BoxShape3D.new()
+		bx.size = spec[1]
+		cs.shape = bx
+		w.add_child(cs)
+		host.add_child(w)
+		w.global_position = spec[0]
+		walls.append(w)
+	var raptor = _creature(&"velociraptor", Vector3(1.23, 0, 0.07))
+	player.global_position = Vector3(-0.55, 0.9, 0.55)
+	await physics_frame
+	await physics_frame
+	var hit = MQ.blocker(raptor, player)
+	_expect(hit != null and hit in walls, "corner slot: raptor->survivor blocked by %s" % hit)
+	_expect(MQ.blocker(player, raptor) != null, "corner slot: survivor->raptor blocked")
+	for w in walls:
+		w.free()
+	await physics_frame
+	_expect(MQ.clear(raptor, player), "corner slot control: clear with the walls gone")
+	player.global_position = Vector3(0, 0.9, 0)
+	raptor.free()
+
+## A swing started just before a pause must not land while the game is paused.
+func _test_swing_pauses() -> void:
+	_reset_player()
+	CombatTuning.force_dodge = 0.0
+	CombatTuning.force_accuracy = 1.0
+	player.global_position = Vector3(0, 0.9, 0)
+	var raptor = _creature(&"velociraptor", Vector3(0, 0, -1.6))
+	await physics_frame
+	player.hunt.start(raptor)
+	player.hunt.auto = false
+	var hp0: float = raptor.health.hp
+	player.hunt.begin_swing()
+	paused = true
+	await create_timer(1.0, true).timeout
+	var hp_paused: float = raptor.health.hp
+	paused = false
+	await create_timer(1.0).timeout
+	_expect(is_equal_approx(hp_paused, hp0) and raptor.health.hp < hp0, "swing waits out a pause: hp %.0f paused, %.0f after" % [hp_paused, raptor.health.hp])
+	player.hunt.auto = true
+	player.hunt.stop()
+	CombatTuning.reset_overrides()
 	raptor.free()
 
 ## pc-data-02 / durability-01: 10 landed club hits cost 10 durability; a broken club is bare hands.
@@ -221,6 +284,6 @@ func _test_kick_mass() -> void:
 	var probe = (load("res://scripts/creatures/creature.gd") as GDScript).new()
 	for row in [[&"compsognathus", 1.5, INF], [&"velociraptor", 0.3, INF], [&"triceratops", -1.0, 0.0], [&"tyrannosaurus", -1.0, 0.0]]:
 		probe.def = data.creature(row[0])
-		var push = HUNT.kick_push(probe)
+		var push = TACT.kick_push(probe)
 		_expect(push >= float(row[1]) and push <= float(row[2]), "kick push %s = %.2f m" % [row[0], push])
 	probe.free()

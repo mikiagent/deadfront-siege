@@ -230,13 +230,20 @@ func _melee_bout(raptor: Creature, bounds: Rect2, tag: String) -> Dictionary:
 	raptor.anim.attack_hit.connect(pre)
 	raptor.anim.attack_hit.connect(raptor._on_hit)
 	raptor.anim.attack_hit.connect(post)
+	# Count what the survivor did from Hunt itself: bleed ticks are not hits, and a swing is
+	# a begin_swing, whatever clip it plays.
+	var on_hit := func (t: Creature) -> void:
+		if t == raptor:
+			out["hits"] += 1
+	var on_swing := func () -> void:
+		out["swings"] += 1
+	_player.hunt.hit_landed.connect(on_hit)
+	_player.hunt.swing_started.connect(on_swing)
 	_reset_player(_player.global_position)
 	_player.hunt.start(raptor)
 	raptor.brain.on_aggro(_player)
-	var hp_r := raptor.health.max_hp
 	var t := 0.0
 	var next_place := 0.0
-	var last_clip := &""
 	while t < 10.0:
 		await get_tree().physics_frame
 		t += get_physics_process_delta_time()
@@ -248,16 +255,12 @@ func _melee_bout(raptor: Creature, bounds: Rect2, tag: String) -> Dictionary:
 			_player.global_position = Vector3(x, rt.surface_y(x, z) + 1.0, z)
 			if _player.hunt.target == null:
 				_player.hunt.start(raptor)
-		if raptor.health.hp < hp_r - 0.01:
-			out["hits"] += 1
-		if _player.anim.current_clip == &"attack_primary" and last_clip != &"attack_primary":
-			out["swings"] += 1
-		last_clip = _player.anim.current_clip
 		_player.dead = false
 		_player.vitals.dead = false
 		_player.vitals.health = 1000.0
 		raptor.health.hp = raptor.health.max_hp
-		hp_r = raptor.health.hp
+	_player.hunt.hit_landed.disconnect(on_hit)
+	_player.hunt.swing_started.disconnect(on_swing)
 	raptor.anim.attack_hit.disconnect(pre)
 	raptor.anim.attack_hit.disconnect(post)
 	_player.hunt.stop()

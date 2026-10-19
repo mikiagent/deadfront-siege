@@ -4,6 +4,9 @@ extends Node
 
 signal started(target: Creature)
 signal ended
+## A swing started / a melee hit landed on its target (labs and tests count these).
+signal swing_started
+signal hit_landed(target: Creature)
 
 var target: Creature
 var hold: bool = false
@@ -126,6 +129,7 @@ func _auto_attack() -> void:
 	if _swing_cd > 0.0 or _swing_pending:
 		return
 	if not MeleeQuery.clear(player, target):
+		say_throttled("Something is in the way.")
 		return  # a wall or a ridge between: no swing through it
 	begin_swing()
 
@@ -143,7 +147,8 @@ func begin_swing() -> void:
 	var forward := target.global_position - player.global_position
 	forward.y = 0.0
 	_swing_pending = true
-	get_tree().create_timer(hit_delay(w)).timeout.connect(_on_swing_hit.bind(weakref(target), w, forward.normalized()), CONNECT_ONE_SHOT)
+	swing_started.emit()
+	get_tree().create_timer(hit_delay(w), false).timeout.connect(_on_swing_hit.bind(weakref(target), w, forward.normalized()), CONNECT_ONE_SHOT)
 
 ## Seconds from the swing press to contact. The survivor clip is rescaled to swing_seconds/rate
 ## (player_anim._play), so contact sits at hit_frac of that.
@@ -214,6 +219,7 @@ func land_hit(t: Creature, w: ItemStack) -> bool:
 		kind = &"crit"
 	t.next_hit_kind = kind
 	t.health.take_damage(dealt, player)
+	hit_landed.emit(t)
 	if player.skills:
 		player.skills.add_xp("melee", int(tune.get("xp_per_hit", 2)))
 	print("[combat] player hit %s dmg=%.1f type=%s kind=%s" % [t.def.id, dealt, dtype, kind])
@@ -244,6 +250,13 @@ func _say(text: String) -> void:
 	last_notice = text
 	player.notice(text)
 
+## Auto-attack retries every frame; tell the player once every few seconds, not silently.
+func say_throttled(text: String) -> void:
+	var now := Time.get_ticks_msec() * 0.001
+	if now - _los_notice_s > 3.0:
+		_los_notice_s = now
+		_say(text)
+
 ## Chart feedback: strong above1, weak below1, otherwise neutral hit.
 static func effectiveness(c: Creature, dtype: StringName) -> StringName:
 	if c == null or c.def == null or dtype == &"":
@@ -260,97 +273,11 @@ func _can_start_tactic() -> bool:
 		return false
 	return _tactic_lock <= 0.0
 
-## Shared gate for Tackle and Kick: reach is measured body edge to body edge, so a T. rex at
-## contact range is in reach (its centre is 3+ m away), and a wall between refuses the move.
-func _tactic_reach_ok(verb: String, tune: Dictionary) -> bool:
-	if MeleeQuery.surface_gap(player, target) > float(tune.get("surface_reach_m", 2.4)):
-		_say("Too far to %s: get closer." % verb)
-		return false
-	if not MeleeQuery.clear(player, target):
-		_say("Something is in the way.")
-		return false
-	return true
-
-## Body tackle: lunge into the target, groggy (then knockdown on the next hit), 6 damage.
 func use_tackle() -> void:
-	if target == null or not _can_start_tactic():
-		return
-	if _tackle_cd > 0.0:
-		_say("Tackle ready in %.0fs" % ceil(_tackle_cd))
-		return
-	var tune := CombatTuning.section("tackle")
-	if not _tactic_reach_ok("tackle", tune):
-		return
-	if not player.vitals.spend_energy(float(tune.get("stamina", 15.0))):
-		_say("Out of stamina.")
-		return
-	player.clear_nav()
-	player.face_world(target.global_position)
-	var to := target.global_position - player.global_position
-	to.y = 0.0
-	var lunge_distance := minf(float(tune.get("lunge_max_m", 1.0)), maxf(0.0, MeleeQuery.surface_gap(player, target) - 0.1))
-	if lunge_distance > 0.0 and to.length_squared() > 0.0001:
-		# Move the body now. The attack animation marks the player busy and the normal player
-		# loop zeroes velocity, so a velocity-only lunge never actually happened.
-		player.move_and_collide(to.normalized() * lunge_distance)
-	target.statuses.apply(&"groggy", player)
-	target.next_hit_kind = &"strong"
-	target.health.take_damage(float(tune.get("damage", 6.0)), player)
-	target.status_float.emit(&"tackle")
-	_tackle_cd = float(tune.get("cooldown", 8.0))
-	_tactic_lock = float(tune.get("lock", 0.55))
-	_swing_cd = maxf(_swing_cd, _tactic_lock)
-	player.play_attack(true)
-	print("[combat] body tackle %s" % target.def.id)
+	CombatTactics.tackle(self)
 
-## Body mass stand-in for shoves.
-# ASSUMPTION: creature JSON has no mass, so length x height ranks bodies (compy 3.6, raptor 14,
-# triceratops 108, T. rex 192).
-static func mass_proxy(c: Creature) -> float:
-	if c == null or c.def == null:
-		return 1.0
-	return maxf(0.1, c.def.real_length_m * c.def.height_meters)
-
-## Shove distance for this body: full push up to ref_mass, falling off with mass, 0 for giants.
-static func kick_push(c: Creature) -> float:
-	var tune := CombatTuning.section("kick")
-	var mass := mass_proxy(c)
-	if mass >= float(tune.get("giant_mass", 60.0)):
-		return 0.0
-	var push := float(tune.get("push_m", 3.5)) * clampf(float(tune.get("ref_mass", 8.0)) / mass, 0.0, 1.0)
-	return push if push >= float(tune.get("min_push_m", 0.3)) else 0.0
-
-## Kick: shove the target back (scaled by its mass; giants do not budge) with 4 damage.
 func use_kick() -> void:
-	if target == null or not _can_start_tactic():
-		return
-	if _kick_cd > 0.0:
-		_say("Kick ready in %.0fs" % ceil(_kick_cd))
-		return
-	var tune := CombatTuning.section("kick")
-	if not _tactic_reach_ok("kick", tune):
-		return
-	if not player.vitals.spend_energy(float(tune.get("stamina", 10.0))):
-		_say("Out of stamina.")
-		return
-	player.clear_nav()
-	player.face_world(target.global_position)
-	player.play_attack(false)
-	var push := kick_push(target)
-	if push <= 0.0:
-		_say("Too heavy to shove: it barely feels the kick.")
-	else:
-		var away := target.global_position - player.global_position
-		away.y = 0.0
-		# Respect walls, props and terrain instead of teleporting the target through geometry.
-		target.move_and_collide(away.normalized() * push)
-	target.next_hit_kind = &"hit"
-	target.health.take_damage(float(tune.get("damage", 4.0)), player)
-	target.status_float.emit(&"kick")
-	_kick_cd = float(tune.get("cooldown", 6.0))
-	_tactic_lock = float(tune.get("lock", 0.45))
-	_swing_cd = maxf(_swing_cd, _tactic_lock)
-	print("[combat] kick %s push=%.2f" % [target.def.id, push])
+	CombatTactics.kick(self)
 
 ## Nets follow the capture rule: knocked out and under 30 % health (HANDOFF section 8).
 func use_net() -> void:
@@ -410,11 +337,7 @@ func fire_ranged() -> bool:
 	query.exclude = [player.get_rid()]
 	var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty() and hit.get("collider") != target:
-		# Auto-attack retries every frame; tell the player once every few seconds, not silently.
-		var now := Time.get_ticks_msec() * 0.001
-		if now - _los_notice_s > 3.0:
-			_los_notice_s = now
-			_say("No clear shot: something is in the way.")
+		say_throttled("No clear shot: something is in the way.")
 		return false
 	if player.inventory.count_of(def.ammo_id) < 1:
 		_say("Need stone shot")

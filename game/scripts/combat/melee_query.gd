@@ -1,13 +1,15 @@
 class_name MeleeQuery
 extends RefCounted
 ## One reach rule for every melee contact (player swing, tackle, kick, creature bite, tyrant
-## impact): a knee-height ray between the two bodies. Structures and terrain block it;
+## impact): a knee-height sphere swept between the two bodies. Structures and terrain block it;
 ## creatures, players, corpses and resource nodes do not. Also checks that the two bodies
 ## overlap in height, so a cliff top cannot be bitten from below.
 
 const KNEE_M := 0.5        # fences are 1.2 m, gates 1.6 m: a knee ray always meets them
 const MAX_PASSES := 6      # bodies standing in the line are skipped, one recast each
 const REACH_UP_M := 0.6    # an attacker reaches this far above its own head
+const CAST_RADIUS_M := 0.22  # swept sphere: wider than any slot a body could bite through
+const GROUND_CLEAR_M := 0.12  # sphere bottom stays this far above the lower body's feet
 
 ## True when nothing solid stands between a and b and their heights overlap.
 static func clear(a: Node3D, b: Node3D) -> bool:
@@ -20,28 +22,40 @@ static func clear(a: Node3D, b: Node3D) -> bool:
 	return blocker(a, b) == null
 
 ## The structure or terrain body between a and b, or null when the line is clear.
+## A knee-height sphere is swept from body to body: a zero-width ray slipped diagonally through
+## the 0.4 m slot where a fence row and column meet; a 0.44 m sphere cannot.
 static func blocker(a: Node3D, b: Node3D) -> Node:
 	var space := a.get_world_3d().direct_space_state
-	var from := Vector3(a.global_position.x, feet_y(a) + minf(KNEE_M, body_height(a) * 0.5), a.global_position.z)
-	var to := Vector3(b.global_position.x, feet_y(b) + minf(KNEE_M, body_height(b) * 0.5), b.global_position.z)
+	var knee_a := minf(KNEE_M, body_height(a) * 0.5)
+	var knee_b := minf(KNEE_M, body_height(b) * 0.5)
+	var from := Vector3(a.global_position.x, feet_y(a) + knee_a, a.global_position.z)
+	var to := Vector3(b.global_position.x, feet_y(b) + knee_b, b.global_position.z)
+	var sphere := SphereShape3D.new()
+	# Stay clear of the ground each body stands on, or flat floor would count as a wall.
+	sphere.radius = clampf(minf(knee_a, knee_b) - GROUND_CLEAR_M, 0.02, CAST_RADIUS_M)
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = sphere
 	var exclude: Array[RID] = []
 	for n in [a, b]:
 		if n is CollisionObject3D:
 			exclude.append((n as CollisionObject3D).get_rid())
 	for i in MAX_PASSES:
-		var q := PhysicsRayQueryParameters3D.create(from, to)
 		q.exclude = exclude
-		q.hit_from_inside = true  # a survivor standing inside his own fence still swings into it
-		var hit := space.intersect_ray(q)
-		if hit.is_empty():
+		q.transform = Transform3D(Basis.IDENTITY, from)
+		q.motion = to - from
+		var frac := space.cast_motion(q)
+		if frac.is_empty() or frac[1] >= 1.0:
 			return null
-		var col := hit.get("collider") as Node
+		# Read what the sphere touches at first contact (a start inside a fence counts too).
+		q.transform = Transform3D(Basis.IDENTITY, from + (to - from) * frac[1])
+		q.motion = Vector3.ZERO
+		var info := space.get_rest_info(q)
+		if info.is_empty():
+			return null
+		var col := instance_from_id(int(info.get("collider_id", 0))) as Node
 		if _is_blocker(col):
 			return col
-		var co := col as CollisionObject3D
-		if co == null:
-			return null
-		exclude.append(co.get_rid())
+		exclude.append(info.get("rid") as RID)
 	return null
 
 static func _is_blocker(n: Node) -> bool:
