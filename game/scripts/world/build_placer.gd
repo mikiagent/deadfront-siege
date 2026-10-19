@@ -58,7 +58,7 @@ static func reason_text(code: String) -> String:
 		"too_far":
 			return "Too far away"
 		"reserved":
-			return "Path must stay clear"
+			return "Reserved for the camp"
 		"overlap":
 			return "Spot is taken"
 		"unclaimed":
