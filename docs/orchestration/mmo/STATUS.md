@@ -46,6 +46,29 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | 1a-audio | CC0 audio layer (`claude/mmo-audio`) | running, reviewer-gated (wf_abafae3d-0a6) |
 | 1a | economy engine (`claude/mmo-econ`); net core: server, auth, presence, chat (`claude/mmo-net`) | running, reviewer-gated (workflow wf_158b264c-baf) |
 
+## Plan amendments for wave 2+ (from plan-critic.md)
+
+- W2-SURVIVAL (new): hunger, thirst and temperature meters with drinking, starvation and climate/
+  weather/clothing temperature; HUD bars; tuned so the loop stays fun.
+- W2-BREED (new, pulled forward from W4): breeding, eggs/gestation, incubation, hatching, growth
+  stages, imprinting/offspring care, inheritance and mutations (incl. colour mutations), lineage;
+  domain built node-free like W1-SRVDOM, plus UI and tests.
+- W2-ACTION (new): the owner's hybrid combat action mode (click-to-swing, dodge, block, aimed ranged)
+  with its camera; acceptance must be measurable.
+- W2-DEATH (new): recoverable death loot bag (ownership, despawn timer, server authority later) and
+  equipped-gear durability loss on death.
+- W2-CVIEW gains: remove the Stegosaurus box override (creature_view.gd:65-66, one line now), and the
+  web render cost of creatures (60 creatures = ~6 fps in gl_compatibility; Label3D, particles and two
+  AnimationPlayers each) with a Chrome fps gate.
+- W2-ECO and W2-BUILDSYS: wild dinosaurs attack blocking structures (owner yes), with a test.
+- Camera: occlusion fade/roof cutaway for tall builds and relief; action-mode camera.
+- W3: server restart persistence test (structures, nodes, pets, population), latency/loss injection,
+  replication of armor/held weapon/mount state, players-per-island target.
+- Later/owner: PvP and tribes (PRD default no PvP), weight/encumbrance, loot crates and supply
+  drops, map discovery, swimming, caves, onboarding, accessibility (rarity not by colour only),
+  key rebinding, graphics settings, telemetry, account deletion.
+- W1-INT's reviewer must deep-audit the econ/net/audio branches (no auditor ever ran them).
+
 ## Owner decisions
 
 - 2026-10-18: keep the server local for now; build and test with local clients; ask about hosting when it is ready.
