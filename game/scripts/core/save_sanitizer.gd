@@ -2,7 +2,8 @@ class_name SaveSanitizer
 extends RefCounted
 ## Trust boundary for save files. The JSON on disk is user-editable, so after migration every
 ## field the loader reads is coerced to its type, unknown ids are dropped and numbers are clamped
-## to what play can reach. A save written by this build passes through unchanged.
+## to what play can reach. A save written by this build passes through unchanged. Anything missed
+## here still cannot cost the save: SaveGame refuses to save after a load that did not finish.
 
 const MAX_LEVEL := 60
 const MAX_T_STONES := 100000 # ASSUMPTION: no shipped faucet comes near this; it only stops forged balances
@@ -23,6 +24,16 @@ const SHAPE := {
 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
 	"clock": 0.0, "saved_unix": 0,
 }
+## Fields the building from_dicts read with int()/float()/bool() (placed_building, bonfire,
+## field_plot, field_catapult, taming_pen, craft_station). Strings go through str(), which takes anything.
+const BUILDING_ROW := {
+	"kind": "", "rot": 0, "x": 0.0, "z": 0.0, "sleeps_left": 0, "hp": 0.0, "reload_left": 0.0,
+	"seconds_left": 0.0, "growth": 0.0, "watered": 0.0, "fertilizer": 0.0, "fertilizer_overflow": 0.0,
+	"remaining": 0.0, "cargo": false, "running": false, "mature": false, "failed": false,
+}
+const SNARE_ROW := {"heavy": false, "life_left": 0.0, "arm_left": 0.0}
+const STATUS_ROW := {"id": "", "stacks": 0, "time_left": 0.0}
+const CAMP_ROW := {"rot": 0}
 
 static func clean(data: Dictionary) -> Dictionary:
 	_shape(data, SHAPE)
@@ -37,19 +48,40 @@ static func clean(data: Dictionary) -> Dictionary:
 				(equipment as Dictionary).erase(slot)
 	if player.has("position") and not _is_position(player["position"]):
 		player["position"] = DEFAULT_POSITION.duplicate()
+	var vitals: Dictionary = player.get("vitals", {})
+	for key in vitals.keys():
+		var v: float = _num(vitals[key], 0.0, 1000000.0, NAN)
+		if is_nan(v):
+			vitals.erase(key) # not a number: Vitals.from_dict keeps its current value
+		else:
+			vitals[key] = v
+	if player.has("statuses"):
+		player["statuses"] = _rows(player["statuses"], STATUS_ROW)
 	var home: Dictionary = data.get("home", {})
 	if home.has("cargo"):
 		home["cargo"] = stacks(home["cargo"])
+	var layout: Dictionary = home.get("camp_layout", {})
+	for key in layout.keys():
+		var row: Variant = layout[key]
+		if not row is Dictionary or ((row as Dictionary).has("cell") and not _is_cell((row as Dictionary)["cell"])):
+			layout.erase(key)
+		else:
+			_shape(row, CAMP_ROW)
 	for block in [home, data.get("away", {})]:
 		if (block as Dictionary).has("buildings"):
 			block["buildings"] = _buildings(block["buildings"])
+		if (block as Dictionary).has("claims"):
+			block["claims"] = (block["claims"] as Array).filter(func (r: Variant) -> bool:
+				return r is Array and (r as Array).size() >= 4 and _all_numbers((r as Array).slice(0, 4)))
 	if data.has("pets"):
 		data["pets"] = _pets(data["pets"])
 	if data.has("ground_snares"):
-		data["ground_snares"] = (data["ground_snares"] as Array).filter(func (r: Variant) -> bool:
-			return r is Dictionary and _is_position((r as Dictionary).get("position")))
+		data["ground_snares"] = _rows(data["ground_snares"], SNARE_ROW).filter(func (r: Variant) -> bool:
+			return _is_position((r as Dictionary).get("position")))
 	if data.has("skills_v2"):
 		_skills(data["skills_v2"])
+	if data.has("skills"):
+		data["skills"] = _legacy_survival(data["skills"], data.get("skills_v2", {}))
 	if data.has("t_stones"):
 		data["t_stones"] = _int(data["t_stones"], 0, MAX_T_STONES)
 	for key in ["pioneer_level", "pioneer_xp", "objective", "objective_best"]:
@@ -112,7 +144,8 @@ static func _buildings(rows: Array) -> Array:
 		if not row is Dictionary or not (row as Dictionary).get("kind") is String:
 			continue
 		var b: Dictionary = row
-		if b.has("cell") and not (b["cell"] is Array and (b["cell"] as Array).size() >= 2 and _all_numbers(b["cell"])):
+		_shape(b, BUILDING_ROW)
+		if b.has("cell") and not _is_cell(b["cell"]):
 			b.erase("cell")
 		if b.has("contents"):
 			b["contents"] = stacks(b["contents"]) if b["contents"] is Array else []
@@ -135,6 +168,9 @@ static func _pets(rows: Array) -> Array:
 	return out
 
 ## Tree levels cap at 60 and SP can never exceed what those levels paid out (SkillState.add_xp).
+## Bought nodes must exist in trees.json and be reachable (tree level, prerequisite); walking the
+## trees in order, a node is kept only while the total cost stays within that payout, and sp_spent
+## is that total, so a forged unlocked list cannot buy nodes for free.
 static func _skills(sv: Dictionary) -> void:
 	var trees: Dictionary = sv.get("trees") if sv.get("trees") is Dictionary else {}
 	var payout := SkillState.new()
@@ -148,16 +184,59 @@ static func _skills(sv: Dictionary) -> void:
 		var level := _int(row.get("level", 0), 0, MAX_LEVEL)
 		row["level"] = level
 		row["xp"] = _num(row.get("xp", 0.0), 0.0, SkillState.xp_to_next(level), 0.0)
-		if not row.get("unlocked", []) is Array:
-			row["unlocked"] = []
+		row["unlocked"] = row.get("unlocked") if row.get("unlocked") is Array else []
 		trees[id] = row
 		for l in range(1, level + 1):
 			earned += payout.sp_for_level(l)
+	var spent := 0
+	for id in SkillState.ORDER:
+		if not trees.has(id):
+			continue
+		var row: Dictionary = trees[id]
+		var claimed: Array = row["unlocked"]
+		var kept: Array = []
+		for node in payout.nodes(id):
+			var nid := str(node.get("id", ""))
+			var req := str(node.get("requires", "")) if node.get("requires") != null else ""
+			var cost := int(node.get("sp", 0))
+			if claimed.has(nid) and int(row["level"]) >= int(node.get("level", 1)) and (req == "" or kept.has(req)) and spent + cost <= earned:
+				kept.append(nid)
+				spent += cost
+		row["unlocked"] = kept
 	payout.free()
 	sv["trees"] = trees
-	var spent := _int(sv.get("sp_spent", 0), 0, earned)
 	sv["sp_spent"] = spent
 	sv["sp_available"] = _int(sv.get("sp_available", 0), 0, earned - spent)
+
+## Legacy {survival node id: bool}. Only survival.json ids with bool values survive. When a skill
+## tree save exists it is the record of what was bought, so a node stays true only if its tree node
+## (or the arabic-numbered twin SkillState.unlock mirrors it from) is kept above.
+## ASSUMPTION: butchering_I/II have no tree node (only the debug panel sets them); they load false
+## next to a skill tree save.
+static func _legacy_survival(raw: Dictionary, sv: Variant) -> Dictionary:
+	var bought := {}
+	var has_trees: bool = sv is Dictionary and (sv as Dictionary).get("trees") is Dictionary
+	if has_trees:
+		for nid in (sv["trees"] as Dictionary).get("survival", {}).get("unlocked", []):
+			bought[str(nid)] = true
+			bought[SkillState._roman_id(str(nid))] = true
+	var out := {}
+	for id in raw:
+		if Data.survival_nodes.has(StringName(str(id))) and raw[id] is bool:
+			out[str(id)] = raw[id] and (not has_trees or bought.has(str(id)))
+	return out
+
+## Keep the Dictionary rows of an array, each coerced to `shape`.
+static func _rows(rows: Array, shape: Dictionary) -> Array:
+	var out: Array = []
+	for r in rows:
+		if r is Dictionary:
+			_shape(r, shape)
+			out.append(r)
+	return out
+
+static func _is_cell(v: Variant) -> bool:
+	return v is Array and (v as Array).size() >= 2 and _all_numbers(v)
 
 ## Erase every field whose type does not match the sample (ints and floats are interchangeable,
 ## JSON reads every number as a float).

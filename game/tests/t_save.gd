@@ -8,6 +8,13 @@ const FIX := "res://tests/fixtures/"
 const RUN_DIR := "user://runs/t_save"
 ## Island state regenerated on load, not save format: excluded from field-for-field compares.
 const IGNORE := ["/saved_unix", "/unstable/harvested"]
+## What each legacy fixture must still hold after its first load + save (not just idempotence):
+## [building kinds, {item id: count} in the player's bag, t_stones, island_id].
+const LEGACY := {
+	"save_v0.json": [["basket"], {}, 20, "home_grassland"],
+	"save_v1.json": [["basket"], {"stone": 3, "branch": 2}, 25, "home_grassland"],
+	"save_v2.json": [[], {}, 20, "home_grassland"],
+}
 
 var failures: Array[String] = []
 var _started := false
@@ -32,6 +39,7 @@ func _run() -> void:
 	IS = load("res://scripts/items/item_stack.gd")
 	_check(str(SG.path) == RUN_DIR + "/save_1.json", "a --script run saves under user://runs/t_save/ (got %s)" % SG.path)
 	_test_run_names()
+	_test_fresh_run_dir()
 	_test_offline_clamp()
 	_clean()
 	host = Node3D.new()
@@ -54,6 +62,9 @@ func _run() -> void:
 	await _test_backup_fallback()
 	await _test_restore_refunds()
 	await _test_away_island()
+	await _test_hostile_types()
+	await _test_aborted_load()
+	_test_skill_purchases()
 	_finish()
 
 func _test_run_names() -> void:
@@ -64,10 +75,23 @@ func _test_run_names() -> void:
 		[["--bot"], [], "bot"],
 		[[], ["--headless", "--script", "res://tests/run_all.gd"], "run_all"],
 		[["--occupation=soldier"], ["--path", "game"], ""],
+		[["--lab=../../evil"], [], "______evil"],
+		[["--lab=.."], [], "__"],
 	]
 	for c in cases:
 		var got: String = SG.run_name(PackedStringArray(c[0]), PackedStringArray(c[1]))
 		_check(got == c[2], "run_name(%s, %s) == '%s' (got '%s')" % [c[0], c[1], c[2], got])
+
+## Every automated launch starts fresh: a .bak a previous run left must not be resumed (the bot
+## used to load runs/bot/save_1.json.bak after its main file was deleted).
+func _test_fresh_run_dir() -> void:
+	_clean()
+	for f in [SG.path + ".bak", SG.path + ".tmp", SG.path]:
+		var fa := FileAccess.open(f, FileAccess.WRITE)
+		fa.store_string("{}")
+		fa.close()
+	var again: String = SG._pick_path()
+	_check(again == RUN_DIR + "/save_1.json" and not SG.exists(), "picking the run path wipes a leftover save, .bak and .tmp (exists=%s)" % SG.exists())
 
 func _test_offline_clamp() -> void:
 	var now := int(Time.get_unix_time_from_system())
@@ -100,6 +124,8 @@ func _test_round_trip(name: String) -> void:
 	_same(s1, s2, "", diffs)
 	_same(s2, s1, "", diffs)
 	_check(diffs.is_empty(), "%s re-saves field-for-field equal: %s" % [name, diffs.slice(0, 6)])
+	if LEGACY.has(name):
+		_check_legacy(name, s1)
 	if name == "save_v3_golden.json":
 		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
 		var gd: Array[String] = []
@@ -107,6 +133,19 @@ func _test_round_trip(name: String) -> void:
 		_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
 	print("[t_save] round trip %s fields=%d diffs=%d" % [name, s1.size(), diffs.size()])
 	await process_frame
+
+func _check_legacy(name: String, s1: Dictionary) -> void:
+	var want: Array = LEGACY[name]
+	var kinds: Array = []
+	for b in s1.get("home", {}).get("buildings", []):
+		kinds.append(str(b.get("kind", "")))
+	var bag := {}
+	for st in s1.get("player", {}).get("inventory", []):
+		if st is Dictionary:
+			bag[str(st["id"])] = int(bag.get(str(st["id"]), 0)) + int(st.get("count", 1))
+	var ok: bool = kinds == want[0] and bag == want[1] and int(s1.get("t_stones", -1)) == want[2] and str(s1.get("island_id", "")) == want[3]
+	_check(ok, "%s content survives migration: buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
+	print("[t_save] legacy %s buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
 
 func _test_forged() -> void:
 	_clean()
@@ -136,6 +175,10 @@ func _test_forged() -> void:
 	_check(player.bonded.size() == 1 and player.bonded[0].level <= 60, "unknown pet species dropped, pet level clamps")
 	var cuirass: int = W.cargo_home.find_first(&"raid_cuirass")
 	_check(cuirass >= 0 and W.cargo_home.slots[cuirass].count == 1, "cargo raid_cuirass x3000 loads as x1")
+	var bought: Array = player.skills.trees["survival"]["unlocked"]
+	_check(bought == ["island_access_15"] and player.skills.sp_spent == 5, "survival L10 listing every node keeps only island_access_15, sp_spent 5 (got %s, %d)" % [bought, player.skills.sp_spent])
+	var d = root.get_node("Data")
+	_check(not d.is_survival_unlocked(&"capture_technique_I") and not d.survival_unlocked.has(&"made_up_node"), "legacy skills true without a bought tree node, or an unknown id, unlock nothing")
 	await process_frame
 
 func _test_truncated() -> void:
@@ -144,7 +187,11 @@ func _test_truncated() -> void:
 	var sha0 := FileAccess.get_sha256(SG.path)
 	SG.load_now(host)
 	var cc := host.get_node_or_null("CharacterCreation")
-	_check(cc != null and cc.get_node_or_null("SaveWarning") != null, "truncated save opens character creation with a warning")
+	var note: Label = cc.find_child("SaveWarning", true, false) if cc else null
+	_check(note != null, "truncated save opens character creation with a warning")
+	if note:
+		var column := note.get_parent()
+		_check(column is VBoxContainer and note.get_index() == 2, "the warning sits in the layout column under the subtitle, not over the bottom row (parent=%s index=%d)" % [column.get_class(), note.get_index()])
 	_check(FileAccess.get_sha256(SG.path) == sha0, "truncated save: sha256 of the original unchanged")
 	var kept := _corrupt()
 	_check(kept.size() == 1 and FileAccess.get_sha256(RUN_DIR.path_join(kept[0])) == sha0, "truncated save: a .corrupt-* copy holds its bytes (%s)" % [kept])
@@ -204,13 +251,14 @@ func _test_restore_refunds() -> void:
 		{"kind": "basket", "cell": [cell.x, cell.y], "rot": 0, "contents": [flint3]},
 		{"kind": "basket", "cell": [cell.x, cell.y], "rot": 0, "contents": [flint2]},
 		{"kind": "watchtower_of_doom", "cell": [cell.x + 4, cell.y], "rot": 0, "contents": [stone4]},
+		{"kind": "basket", "cell": _camp_cell("CampFire"), "rot": 0}, # on the island's own camp fire
 	]
 	_put(JSON.stringify(d))
 	SG.load_now(host)
 	var baskets := _baskets()
 	_check(baskets[0] == 1 and baskets[1] == 0, "an overlapping basket is not rebuilt (baskets=%d)" % baskets[0])
 	var c = W.cargo_home
-	_check(c.count_of(&"basket_kit") == 1 and c.count_of(&"flint") == 2 and c.count_of(&"stone") == 4,
+	_check(c.count_of(&"basket_kit") == 2 and c.count_of(&"flint") == 2 and c.count_of(&"stone") == 4,
 		"refunds reach camp cargo (kit=%d flint=%d stone=%d)" % [c.count_of(&"basket_kit"), c.count_of(&"flint"), c.count_of(&"stone")])
 	var boxes := 0
 	for n in get_nodes_in_group("placed_building"):
@@ -235,8 +283,76 @@ func _test_away_island() -> void:
 	var got := _baskets()
 	print("[t_save] away island=%s is_home=%s placed_baskets=%d stone_in_baskets=%d" % [W.island_id, W.is_home(), got[0], got[1]])
 	_check(str(W.island_id) == "temperate_25" and got[0] == 1 and got[1] == 9, "an away-island basket with 9 stone survives save and load")
+	var fire: Array = _camp_cell("CampFire")
+	var why: String = W.runtime.get("build_grid").can_place(&"basket", Vector2i(fire[0], fire[1]), 0)
+	_check(why != "", "after an away load the camp fire's cells are still occupied (can_place='%s')" % why)
 	W.load_island(host, &"home_grassland", Vector3(0, 1, 12), false)
 	await process_frame
+
+## Wrong-typed leaves the loader casts with int()/float()/bool(): each must load completely
+## (the golden's 42 t_stones and 6 stacks arrive) and keep saving, never abort halfway.
+func _test_hostile_types() -> void:
+	var cases := {
+		"building rot {}": func (d: Dictionary) -> void: d["home"]["buildings"][0]["rot"] = {},
+		"building hp/bool strings": func (d: Dictionary) -> void:
+			d["home"]["buildings"][0]["sleeps_left"] = "x"
+			d["home"]["buildings"][0]["cargo"] = "yes",
+		"claims row with {}": func (d: Dictionary) -> void: d["home"]["claims"] = [[0, {}, 4, 4], [1, 2]],
+		"vitals strings": func (d: Dictionary) -> void: d["player"]["vitals"] = {"health": "full", "energy": {}},
+		"legacy skills {x: y}": func (d: Dictionary) -> void: d["skills"] = {"x": "y", "capture_technique_I": {}},
+		"statuses/snares/layout junk": func (d: Dictionary) -> void:
+			d["player"]["statuses"] = [{"id": "bleeding", "stacks": "lots", "time_left": []}, 7]
+			d["ground_snares"] = [{"heavy": "y", "life_left": "z", "position": [0, 1, 12]}]
+			d["home"]["camp_layout"] = {"CampFire": {"cell": [{}, 1], "rot": "r"}, "CampBench": {"rot": []}},
+	}
+	for label in cases:
+		_clean()
+		var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+		(cases[label] as Callable).call(d)
+		_put(JSON.stringify(d))
+		W.t_stones = 0
+		player.inventory.load_array([])
+		SG.load_now(host)
+		var stacks := 0
+		for st in player.inventory.slots:
+			if st != null: stacks += 1
+		var ok: bool = SG.blocked_reason == "" and int(W.t_stones) == 42 and stacks == 6
+		_check(ok and SG.save_now(), "hostile '%s' loads completely and saves (blocked='%s' t_stones=%d stacks=%d)" % [label, SG.blocked_reason, W.t_stones, stacks])
+		print("[t_save] hostile '%s' blocked='%s' t_stones=%d stacks=%d" % [label, SG.blocked_reason, W.t_stones, stacks])
+		await process_frame
+
+## A load that dies halfway (here: an unsanitized row handed straight to _apply) must leave saving
+## refused, so the next autosave cannot write the half-built world over the good file. A later good
+## load lifts the block.
+func _test_aborted_load() -> void:
+	_clean()
+	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	var sha0 := FileAccess.get_sha256(SG.path)
+	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	raw["t_stones"] = {}
+	print("[t_save] the next SCRIPT ERROR (Nonexistent 'int' constructor) is the deliberate abort")
+	SG._apply_guarded(host, raw, 3, false)
+	_check(SG.blocked_reason == SG.LOAD_UNFINISHED and not SG.save_now(), "an aborted load refuses saves (blocked='%s')" % SG.blocked_reason)
+	for i in 70:
+		W._process(1.0)
+	_check(FileAccess.get_sha256(SG.path) == sha0, "aborted load: bytes unchanged after 70 s of autosave")
+	SG.confirm_new_game()
+	_check(FileAccess.file_exists(SG.path), "confirm_new_game() never deletes a readable save after an aborted load")
+	SG.load_now(host)
+	_check(SG.blocked_reason == "" and SG.save_now(), "a later complete load clears the block")
+	await process_frame
+
+## Purchases are checked against trees.json and the SP the levels paid, not just type-checked.
+func _test_skill_purchases() -> void:
+	var San: GDScript = load("res://scripts/core/save_sanitizer.gd")
+	var sv := {"trees": {"survival": {"level": 20, "xp": 0, "unlocked": ["island_access_15", "capture_technique_1", "belly_fat_1", "island_access_25", "ghost"]}}, "sp_spent": 0, "sp_available": 0}
+	San._skills(sv)
+	var kept: Array = sv["trees"]["survival"]["unlocked"]
+	# island_access_25 is within level 20 but needs stealth_1, which was not bought; ghost is no node.
+	_check(kept == ["island_access_15", "belly_fat_1", "capture_technique_1"], "reachable known nodes kept in tree order, the rest dropped (%s)" % [kept])
+	_check(int(sv["sp_spent"]) == 5 + 6 + 8, "sp_spent is the cost of the kept nodes (%d)" % sv["sp_spent"])
+	var legacy: Dictionary = San._legacy_survival({"capture_technique_I": true, "capture_technique_II": true, "nope": true, "animal_management_I": 1}, sv)
+	_check(legacy == {"capture_technique_I": true, "capture_technique_II": false}, "legacy survival flags follow the bought tree nodes (%s)" % legacy)
 
 ## Stage a camp with every save-relevant field populated, then keep the save -> load -> save result.
 func _write_golden() -> void:
@@ -309,6 +425,13 @@ func _free_cell(kind: StringName) -> Vector2i:
 	grid.ignore_distance = was
 	_check(false, "no free cell for %s near the camp" % kind)
 	return at
+
+## [x, y] cell of one of the island's own camp pieces (CampFire, CampBench, CampShed).
+func _camp_cell(name: String) -> Array:
+	var n: Node = W.runtime.get_node_or_null(name)
+	var c: Vector2i = n.get("build_cell") if n else Vector2i.ZERO
+	_check(n != null, "camp piece %s exists" % name)
+	return [c.x, c.y]
 
 ## [count, stone] of live, non-cargo baskets on the current island.
 func _baskets() -> Array:

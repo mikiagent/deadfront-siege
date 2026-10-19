@@ -7,22 +7,27 @@ const SCHEMA := SaveMigrations.CURRENT_SCHEMA
 const MAX_OFFLINE_SECONDS := 7 * 24 * 3600 # ASSUMPTION: a week of offline growth; a wrong device clock cannot fast-forward farms further
 
 ## Automated runs (--lab, --smoke, --bot, probe/test flags, --script) save under user://runs/<name>/
-## so they never read or write the player's save. The bot also starts from a fresh save every launch.
+## so they never read or write the player's save, and every launch of one starts from a fresh world.
 static var path: String = _pick_path()
 ## Set while an unreadable save is on disk and the player has not confirmed a new game. Every
 ## save_now() is refused, which also stops World's 60 s autosave from overwriting it.
 static var blocked_reason: String = ""
+## Held while a save is being applied: a load that aborts partway leaves it set, so the half-built
+## world is never autosaved over the good file.
+const LOAD_UNFINISHED := "the last load did not finish"
 
 static func _pick_path() -> String:
 	var run := run_name(OS.get_cmdline_user_args(), OS.get_cmdline_args())
 	if run == "":
 		return "user://save_1.json"
-	var p := "user://runs/%s/save_1.json" % run
-	if run == "bot" and FileAccess.file_exists(p):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
-	return p
+	SaveFile.wipe_dir("user://runs/%s" % run) # also any .bak/.tmp/.corrupt-* a previous launch left
+	return "user://runs/%s/save_1.json" % run
 
 static func run_name(user_args: PackedStringArray, args: PackedStringArray) -> String:
+	# A path segment: "/" and ".." in a --lab value must not climb out of user://runs/.
+	return _raw_run_name(user_args, args).validate_filename().replace(".", "_")
+
+static func _raw_run_name(user_args: PackedStringArray, args: PackedStringArray) -> String:
 	for a in user_args:
 		if a.begins_with("--lab=") and a.length() > 6:
 			return a.substr(6)
@@ -115,7 +120,7 @@ static func save_now() -> bool:
 	else:
 		# The island the survivor is standing on: its buildings, storage and staked claims.
 		payload["away"] = {"buildings": buildings, "claims": World.unstable_claims}
-	if not _write_atomic(JSON.stringify(payload)):
+	if not SaveFile.write_atomic(path, JSON.stringify(payload)):
 		print("[world] save failed")
 		return false
 	World.last_save_unix = int(payload["saved_unix"])
@@ -125,47 +130,29 @@ static func save_now() -> bool:
 ## The player chose to start over after an unreadable save (character creation finished). Its bytes
 ## are already kept as .corrupt-<unix>, so the slot is cleared and saving resumes.
 static func confirm_new_game() -> void:
-	if blocked_reason == "":
+	if blocked_reason == "" or blocked_reason == LOAD_UNFINISHED: # that file is readable: never delete it
 		return
 	blocked_reason = ""
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	print("[save] new game confirmed; saving to %s again" % path)
 
-## Write tmp, check it, refresh .bak from the current save, then rename over it: a crash at any
-## point leaves a complete save on disk.
-static func _write_atomic(text: String) -> bool:
-	var target := ProjectSettings.globalize_path(path)
-	var tmp := target + ".tmp"
-	DirAccess.make_dir_recursive_absolute(target.get_base_dir())
-	var f := FileAccess.open(tmp, FileAccess.WRITE)
-	if f == null:
-		return false
-	f.store_string(text)
-	f.close()
-	if FileAccess.get_file_as_bytes(tmp).size() != text.to_utf8_buffer().size():
-		DirAccess.remove_absolute(tmp) # short write (disk full): keep the old save untouched
-		return false
-	if FileAccess.file_exists(target) and DirAccess.copy_absolute(target, target + ".bak") != OK:
-		push_warning("[save] could not refresh %s.bak" % path)
-	return DirAccess.rename_absolute(tmp, target) == OK
-
 static func load_now(host: Node) -> void:
-	var main := _read(path)
+	var main := SaveFile.read(path)
 	if main.has("data"):
-		_apply(host, main["data"], int(main["schema"]), false)
+		_apply_guarded(host, main["data"], int(main["schema"]), false)
 		return
-	var bak := _read(path + ".bak")
+	var bak := SaveFile.read(path + ".bak")
 	if bak.has("data"):
 		if main.has("error"):
 			# Moved aside: left in place, the next save would rotate these bytes into .bak.
-			print("[save] %s unreadable (%s); kept as %s" % [path, main["error"], _quarantine(path, true).get_file()])
+			print("[save] %s unreadable (%s); kept as %s" % [path, main["error"], SaveFile.quarantine(path, true).get_file()])
 		print("[save] restored %s.bak" % path)
-		_apply(host, bak["data"], int(bak["schema"]), true)
+		_apply_guarded(host, bak["data"], int(bak["schema"]), true)
 		return
 	var kept := ""
 	for r in [bak, main]:
 		if r.has("error"):
-			kept = _quarantine(r["path"], false).get_file()
+			kept = SaveFile.quarantine(r["path"], false).get_file()
 			blocked_reason = r["error"]
 			print("[save] %s unreadable (%s); kept as %s" % [r["path"], r["error"], kept])
 	World.start_new(host)
@@ -173,47 +160,15 @@ static func load_now(host: Node) -> void:
 		print("[save] saves are refused until the player confirms a new game")
 		_warn_new_world(host, blocked_reason, kept)
 
-## {path} when missing, {path, error} when unreadable, else {path, data, schema} (migrated, sanitized).
-static func _read(p: String) -> Dictionary:
-	var out := {"path": p}
-	if not FileAccess.file_exists(p):
-		return out
-	var json := JSON.new()
-	if json.parse(FileAccess.get_file_as_string(p)) != OK or not json.data is Dictionary:
-		out["error"] = "the file is damaged"
-		return out
-	var schema := SaveMigrations.schema_of(json.data)
-	if schema > SCHEMA:
-		out["error"] = "it was made by a newer version (schema %d)" % schema
-		return out
-	var data := SaveMigrations.migrate(json.data)
-	if data.is_empty():
-		out["error"] = "unsupported schema %d" % schema
-		return out
-	out["data"] = SaveSanitizer.clean(data)
-	out["schema"] = schema
-	return out
-
-## Keep an unreadable file's bytes as <file>.corrupt-<unix> (once per distinct content). Returns that path.
-static func _quarantine(p: String, move: bool) -> String:
-	var src := ProjectSettings.globalize_path(p)
-	var dir := src.get_base_dir()
-	var sha := FileAccess.get_sha256(src)
-	for f in DirAccess.get_files_at(dir):
-		if f.begins_with(src.get_file() + ".corrupt-") and FileAccess.get_sha256(dir.path_join(f)) == sha:
-			if move:
-				DirAccess.remove_absolute(src)
-			return dir.path_join(f)
-	var unix := int(Time.get_unix_time_from_system())
-	var dest := "%s.corrupt-%d" % [src, unix]
-	var n := 1
-	while FileAccess.file_exists(dest):
-		dest = "%s.corrupt-%d-%d" % [src, unix, n]
-		n += 1
-	var err := DirAccess.rename_absolute(src, dest) if move else DirAccess.copy_absolute(src, dest)
-	if err != OK:
-		push_error("[save] could not keep %s as %s (error %d)" % [src, dest, err])
-	return dest
+## A script error inside _apply returns here with the world half-built: saving stays refused for
+## the session so the next autosave cannot replace the good file with that state.
+static func _apply_guarded(host: Node, data: Dictionary, source_schema: int, from_backup: bool) -> void:
+	_apply(host, data, source_schema, from_backup)
+	if blocked_reason == LOAD_UNFINISHED:
+		print("[save] load of %s did not finish; saves are refused this session so it stays untouched" % path)
+		var player := _player()
+		if player:
+			player.notice("Your save could not be fully loaded. It is kept untouched; progress this session will not be saved")
 
 ## Character creation opened because the save could not be read: say so on screen, and treat
 ## finishing it as the player's confirmation that a new world may take the save slot.
@@ -224,22 +179,28 @@ static func _warn_new_world(host: Node, why: String, kept: String) -> void:
 	cc.done.connect(func (_occ: String, _gender: String, _nm: String) -> void: confirm_new_game())
 	var note := Label.new()
 	note.name = "SaveWarning"
-	note.text = "Your saved world could not be loaded: %s.\nIt is kept untouched as %s. Creating a survivor starts a new world." % [why, kept]
+	note.text = "Your saved world could not be loaded: %s. It is kept untouched as %s. Creating a survivor starts a new world." % [why, kept]
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.add_theme_color_override("font_color", Color(1.0, 0.74, 0.42))
-	note.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-	note.add_theme_constant_override("outline_size", 6)
 	note.add_theme_font_size_override("font_size", 18)
-	note.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	note.offset_top = -64.0
-	note.offset_bottom = -8.0
-	cc.add_child(note)
+	# In the layout column under the subtitle: the card grid shrinks to make room, and the column
+	# already sits inside character creation's margins (bottom-anchored, it covered the start row).
+	var boxes := cc.find_children("*", "VBoxContainer", true, false)
+	if boxes.is_empty() or boxes[0].get_child_count() < 2:
+		cc.add_child(note)
+		return
+	var sub := boxes[0].get_child(1) as Label # title, subtitle, cards, details
+	if sub:
+		note.add_theme_font_size_override("font_size", sub.get_theme_font_size("font_size"))
+	boxes[0].add_child(note)
+	boxes[0].move_child(note, 2)
 
 static func offline_seconds(saved_unix: int) -> int:
 	return clampi(int(Time.get_unix_time_from_system()) - saved_unix, 0, MAX_OFFLINE_SECONDS)
 
 static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup: bool) -> void:
+	blocked_reason = LOAD_UNFINISHED # cleared as the last statement; also lifts an older block
 	if source_schema != SCHEMA:
 		print("[world] migrated save schema=%d -> %d" % [source_schema, SCHEMA])
 	var schema := source_schema
@@ -262,9 +223,9 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World.player_name = str(data.get("player_name", ""))
 	World.occupation = str(data.get("occupation", ""))
 	Game.time_of_day = float(data.get("clock", 0.35))
-	var skills: Dictionary = data.get("skills", {})
+	var skills: Dictionary = data.get("skills", {}) # sanitized: known survival ids -> bool
 	for id in skills:
-		Data.set_survival_unlocked(StringName(id), bool(skills[id]))
+		Data.set_survival_unlocked(StringName(id), skills[id] is bool and skills[id])
 	var away: Dictionary = data.get("away", {})
 	if away.has("claims"):
 		World.unstable_claims = away["claims"] # read by the island's claim setup in load_island
@@ -287,6 +248,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 			GroundSnare.restore(remaining, World.runtime)
 	var player := World._player()
 	if player == null:
+		blocked_reason = ""
 		return
 	# Re-seat the player on the terrain: saves from older builds (or a regenerated
 	# island) can hold a y that is now inside the ground, and a body that starts
@@ -319,6 +281,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	print("[world] loaded island=%s terrain=%s pioneer=%d" % [iid, World.home_terrain, World.pioneer_level])
 	if from_backup:
 		player.notice("Your last save was damaged; the backup before it was loaded")
+	blocked_reason = ""
 
 ## Saved rows are rebuilt only where the grid would accept them now. An unknown kind or a row that
 ## fails can_place (overlap, off the claim, water, slope) is refunded to the camp cargo instead.
@@ -327,8 +290,9 @@ static func _restore_buildings(rows: Array, schema: int) -> void:
 		return
 	var grid := World.runtime.get("build_grid") as BuildGrid
 	var was_ignoring := false
+	# No clear_occupancy(): the runtime is fresh, and the cells it holds are the island's own camp
+	# pieces, which restored rows must not overlap.
 	if grid:
-		grid.clear_occupancy()
 		was_ignoring = grid.ignore_distance
 		grid.ignore_distance = true # nobody stands beside a building while it is loaded
 	var kits := _kits_by_kind()
