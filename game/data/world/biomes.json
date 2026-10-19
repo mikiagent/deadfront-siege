@@ -1,0 +1,384 @@
+{
+ "_about": "W1-BIOME per-climate ground look, one entry per climates.json key. textures: baked by tools/blender/terrain/bake_terrain.py (final albedo). palette: shader multipliers on those textures (white = as baked; dry/wet/mud/bare/ash are multipliers on ground/sand/dirt/rock; shallow and deep are absolute colours). ground_cover: low vegetation families the scatter may place. palm_allowlist: palm families allowed. special_tiles: tile overrides the terrain may stamp. Hooked into islands by W2-TERRAIN/W2-SCATTER.",
+ "water_only_families": [
+  "Lilypad"
+ ],
+ "grassland": {
+  "textures": {
+   "ground": "res://assets/terrain/grassland/ground.jpg",
+   "dirt": "res://assets/terrain/grassland/dirt.jpg",
+   "sand": "res://assets/terrain/grassland/sand.jpg",
+   "rock": "res://assets/terrain/grassland/rock.jpg"
+  },
+  "palette": {
+   "grass": "#ffffff",
+   "dry": "#e2d49a",
+   "dirt": "#ffffff",
+   "sand": "#ffffff",
+   "wet": "#b4a890",
+   "rock": "#ffffff",
+   "mud": "#7a6450",
+   "bare": "#a08870",
+   "ash": "#8a8a8a",
+   "shallow": "#94c4d4",
+   "deep": "#283c4c"
+  },
+  "foliage_tint": "#6f9a48",
+  "foliage_tip": "#f0f0c8",
+  "ground_cover": [
+   "Grass",
+   "Grass_Short",
+   "Flowers",
+   "WildGrass",
+   "HerbPlant",
+   "FibreTuft",
+   "BerrySprig"
+  ],
+  "palm_allowlist": [],
+  "special_tiles": [
+   "dirt",
+   "mud",
+   "bare",
+   "rock"
+  ],
+  "shader": {}
+ },
+ "savannah": {
+  "textures": {
+   "ground": "res://assets/terrain/savannah/ground.jpg",
+   "dirt": "res://assets/terrain/savannah/dirt.jpg",
+   "sand": "res://assets/terrain/savannah/sand.jpg",
+   "rock": "res://assets/terrain/savannah/rock.jpg"
+  },
+  "palette": {
+   "grass": "#ffffff",
+   "dry": "#f0d8a0",
+   "dirt": "#ffffff",
+   "sand": "#ffffff",
+   "wet": "#b4a890",
+   "rock": "#ffffff",
+   "mud": "#7a6450",
+   "bare": "#a08870",
+   "ash": "#8a8a8a",
+   "shallow": "#94c4d4",
+   "deep": "#283c4c"
+  },
+  "foliage_tint": "#a0944e",
+  "foliage_tip": "#ffe8a8",
+  "ground_cover": [
+   "Grass",
+   "Grass_Short",
+   "WildGrass",
+   "DryGrassTuft"
+  ],
+  "palm_allowlist": [],
+  "special_tiles": [
+   "dirt",
+   "bare",
+   "rock"
+  ],
+  "shader": {
+   "tex_scale": 5.0
+  }
+ },
+ "temperate": {
+  "textures": {
+   "ground": "res://assets/terrain/temperate/ground.jpg",
+   "dirt": "res://assets/terrain/temperate/dirt.jpg",
+   "sand": "res://assets/terrain/temperate/sand.jpg",
+   "rock": "res://assets/terrain/temperate/rock.jpg"
+  },
+  "palette": {
+   "grass": "#ffffff",
+   "dry": "#e2d49a",
+   "dirt": "#ffffff",
+   "sand": "#ffffff",
+   "wet": "#b4a890",
+   "rock": "#ffffff",
+   "mud": "#7a6450",
+   "bare": "#a08870",
+   "ash": "#8a8a8a",
+   "shallow": "#94c4d4",
+   "deep": "#283c4c"
+  },
+  "foliage_tint": "#4f8236",
+  "foliage_tip": "#e8f0c0",
+  "ground_cover": [
+   "Grass",
+   "Plant",
+   "Flowers",
+   "WildGrass",
+   "ReedPlant",
+   "HerbPlant",
+   "FibreTuft",
+   "BerrySprig"
+  ],
+  "palm_allowlist": [],
+  "special_tiles": [
+   "dirt",
+   "mud",
+   "bare",
+   "rock"
+  ],
+  "shader": {}
+ },
+ "tropical": {
+  "textures": {
+   "ground": "res://assets/terrain/tropical/ground.jpg",
+   "dirt": "res://assets/terrain/tropical/dirt.jpg",
+   "sand": "res://assets/terrain/tropical/sand.jpg",
+   "rock": "res://assets/terrain/tropical/rock.jpg"
+  },
+  "palette": {
+   "grass": "#ffffff",
+   "dry": "#c8d890",
+   "dirt": "#ffffff",
+   "sand": "#ffffff",
+   "wet": "#b4a890",
+   "rock": "#ffffff",
+   "mud": "#7a6450",
+   "bare": "#a08870",
+   "ash": "#8a8a8a",
+   "shallow": "#80c8c8",
+   "deep": "#1c4a5c"
+  },
+  "foliage_tint": "#3e9a38",
+  "foliage_tip": "#d8f8a8",
+  "ground_cover": [
+   "Plant",
+   "Grass",
+   "WildGrass",
+   "VinePlant"
+  ],
+  "palm_allowlist": [
+   "PalmTree"
+  ],
+  "special_tiles": [
+   "dirt",
+   "mud",
+   "bare",
+   "rock"
+  ],
+  "shader": {}
+ },
+ "tundra": {
+  "textures": {
+   "ground": "res://assets/terrain/tundra/ground.jpg",
+   "dirt": "res://assets/terrain/tundra/dirt.jpg",
+   "sand": "res://assets/terrain/tundra/sand.jpg",
+   "rock": "res://assets/terrain/tundra/rock.jpg"
+  },
+  "palette": {
+   "grass": "#ffffff",
+   "dry": "#d0ccc0",
+   "dirt": "#ffffff",
+   "sand": "#ffffff",
+   "wet": "#b4a890",
+   "rock": "#ffffff",
+   "mud": "#80786c",
+   "bare": "#a08870",
+   "ash": "#8a8a8a",
+   "shallow": "#9cbccc",
+   "deep": "#22323e"
+  },
+  "foliage_tint": "#7a8460",
+  "foliage_tip": "#e8eae0",
+  "ground_cover": [
+   "Grass_Short",
+   "WildGrass"
+  ],
+  "palm_allowlist": [],
+  "special_tiles": [
+   "dirt",
+   "bare",
+   "rock"
+  ],
+  "shader": {
+   "slope_rock_lo": 0.28,
+   "slope_rock_hi": 0.45
+  }
+ },
+ "desert": {
+  "textures": {
+   "ground": "res://assets/terrain/desert/ground.jpg",
+   "dirt": "res://assets/terrain/desert/dirt.jpg",
+   "sand": "res://assets/terrain/desert/sand.jpg",
+   "rock": "res://assets/terrain/desert/rock.jpg"
+  },
+  "palette": {
+   "grass": "#ffffff",
+   "dry": "#f0d8a8",
+   "dirt": "#ffffff",
+   "sand": "#ffffff",
+   "wet": "#c0a890",
+   "rock": "#ffffff",
+   "mud": "#7a6450",
+   "bare": "#a08870",
+   "ash": "#8a8a8a",
+   "shallow": "#a8c8c0",
+   "deep": "#28404a"
+  },
+  "foliage_tint": "#8c9a5a",
+  "foliage_tip": "#f0e0a0",
+  "ground_cover": [
+   "CactusFlower",
+   "WildGrass"
+  ],
+  "palm_allowlist": [],
+  "special_tiles": [
+   "dirt",
+   "bare",
+   "rock"
+  ],
+  "shader": {
+   "tex_scale": 6.0
+  }
+ },
+ "swamp": {
+  "textures": {
+   "ground": "res://assets/terrain/swamp/ground.jpg",
+   "dirt": "res://assets/terrain/swamp/dirt.jpg",
+   "sand": "res://assets/terrain/swamp/sand.jpg",
+   "rock": "res://assets/terrain/swamp/rock.jpg"
+  },
+  "palette": {
+   "grass": "#ffffff",
+   "dry": "#c0c890",
+   "dirt": "#ffffff",
+   "sand": "#ffffff",
+   "wet": "#a0a088",
+   "rock": "#ffffff",
+   "mud": "#a08c70",
+   "bare": "#a08870",
+   "ash": "#8a8a8a",
+   "shallow": "#5a6a4a",
+   "deep": "#1e2a1e"
+  },
+  "foliage_tint": "#4e6a30",
+  "foliage_tip": "#a8b878",
+  "ground_cover": [
+   "Plant",
+   "Grass",
+   "WildGrass",
+   "ReedPlant",
+   "MarshHerbPlant"
+  ],
+  "palm_allowlist": [],
+  "special_tiles": [
+   "dirt",
+   "mud",
+   "bare",
+   "rock"
+  ],
+  "shader": {
+   "macro_strength": 0.3
+  }
+ },
+ "snowfield": {
+  "textures": {
+   "ground": "res://assets/terrain/snowfield/ground.jpg",
+   "dirt": "res://assets/terrain/snowfield/dirt.jpg",
+   "sand": "res://assets/terrain/snowfield/sand.jpg",
+   "rock": "res://assets/terrain/snowfield/rock.jpg"
+  },
+  "palette": {
+   "grass": "#ffffff",
+   "dry": "#d8dce4",
+   "dirt": "#ffffff",
+   "sand": "#ffffff",
+   "wet": "#b8bcc4",
+   "rock": "#ffffff",
+   "mud": "#7a6450",
+   "bare": "#c0c0c4",
+   "ash": "#8a8a8a",
+   "shallow": "#9cbccc",
+   "deep": "#22323e"
+  },
+  "foliage_tint": "#c8d4dc",
+  "foliage_tip": "#ffffff",
+  "ground_cover": [
+   "WildGrass"
+  ],
+  "palm_allowlist": [],
+  "special_tiles": [
+   "dirt",
+   "bare",
+   "rock"
+  ],
+  "shader": {}
+ },
+ "blue_tropical": {
+  "textures": {
+   "ground": "res://assets/terrain/blue_tropical/ground.jpg",
+   "dirt": "res://assets/terrain/blue_tropical/dirt.jpg",
+   "sand": "res://assets/terrain/blue_tropical/sand.jpg",
+   "rock": "res://assets/terrain/blue_tropical/rock.jpg"
+  },
+  "palette": {
+   "grass": "#ffffff",
+   "dry": "#c8e0b0",
+   "dirt": "#ffffff",
+   "sand": "#ffffff",
+   "wet": "#c8c0a8",
+   "rock": "#ffffff",
+   "mud": "#7a6450",
+   "bare": "#a08870",
+   "ash": "#8a8a8a",
+   "shallow": "#7ad4d8",
+   "deep": "#1a5a78"
+  },
+  "foliage_tint": "#3e9a74",
+  "foliage_tip": "#d0f8e0",
+  "ground_cover": [
+   "Plant",
+   "Grass",
+   "WildGrass"
+  ],
+  "palm_allowlist": [
+   "PalmTree"
+  ],
+  "special_tiles": [
+   "dirt",
+   "bare",
+   "rock"
+  ],
+  "shader": {}
+ },
+ "volcanic": {
+  "textures": {
+   "ground": "res://assets/terrain/volcanic/ground.jpg",
+   "dirt": "res://assets/terrain/volcanic/dirt.jpg",
+   "sand": "res://assets/terrain/volcanic/sand.jpg",
+   "rock": "res://assets/terrain/volcanic/rock.jpg"
+  },
+  "palette": {
+   "grass": "#ffffff",
+   "dry": "#b0aca8",
+   "dirt": "#ffffff",
+   "sand": "#ffffff",
+   "wet": "#a09890",
+   "rock": "#ffffff",
+   "mud": "#7a6450",
+   "bare": "#c0b8b0",
+   "ash": "#ffffff",
+   "shallow": "#6a7070",
+   "deep": "#1a2226"
+  },
+  "foliage_tint": "#6a6a50",
+  "foliage_tip": "#c8b8a0",
+  "ground_cover": [
+   "WildGrass"
+  ],
+  "palm_allowlist": [],
+  "special_tiles": [
+   "dirt",
+   "bare",
+   "rock",
+   "ash"
+  ],
+  "shader": {
+   "slope_rock_lo": 0.22,
+   "slope_rock_hi": 0.4
+  }
+ }
+}

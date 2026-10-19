@@ -31,6 +31,13 @@ uniform float h_sand = 0.25;
 uniform float h_wet = 0.15;
 uniform float h_shallow = -0.05;
 uniform float h_deep = -0.6;
+// Biome knobs (BiomeMaterial sets them from biomes.json); defaults reproduce the pre-biome look.
+uniform float slope_dry_lo = 0.12;
+uniform float slope_dry_hi = 0.30;
+uniform float slope_rock_lo = 0.32;
+uniform float slope_rock_hi = 0.50;
+uniform float macro_strength = 0.20;
+uniform float macro_scale = 12.0;
 uniform float grid_enabled = 0.0;
 uniform float grid_width = 0.03;
 uniform float grid_fade = 25.0;
@@ -89,8 +96,8 @@ void fragment() {
 	base = mix(wet * 0.85, base, smoothstep(h_shallow - 0.10, h_shallow + 0.05, h));
 	base = mix(tint_deep, base, smoothstep(h_deep - 0.3, h_deep + 0.2, h));
 	float above_sand = smoothstep(h_sand, h_sand + 0.2, h);
-	base = mix(base, dry, smoothstep(0.12, 0.30, v_slope) * above_sand);
-	base = mix(base, rock, smoothstep(0.32, 0.50, v_slope));
+	base = mix(base, dry, smoothstep(slope_dry_lo, slope_dry_hi, v_slope) * above_sand);
+	base = mix(base, rock, smoothstep(slope_rock_lo, slope_rock_hi, v_slope));
 
 	// Tile overrides (harvested bare tiles, mud, dirt, rock, ash) with a soft edge:
 	// two lookups, the second displaced by noise, averaged.
@@ -101,7 +108,7 @@ void fragment() {
 	vec3 ocol = (o0.rgb * o0.a + o1.rgb * o1.a) / max(o0.a + o1.a, 0.001);
 	vec3 albedo = mix(base, ocol, ow);
 
-	albedo *= 0.90 + texture(noise_tex, p / 12.0).r * 0.20;
+	albedo *= 1.0 - macro_strength * 0.5 + texture(noise_tex, p / macro_scale).r * macro_strength;
 	albedo *= v_color.rgb;
 
 	float gx = min(fract(p.x), 1.0 - fract(p.x));
