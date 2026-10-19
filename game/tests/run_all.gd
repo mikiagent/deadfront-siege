@@ -2,6 +2,7 @@ extends SceneTree
 
 var failures: Array[String] = []
 var _capture_done := false
+var _net_tests: RefCounted  # held here so the coroutine's instance outlives its awaits
 
 func _init() -> void:
 	_test_save_migrations()
@@ -19,7 +20,7 @@ func _init() -> void:
 ## singletons exist, so the capture checks load that class on the first frame.
 func _process(_delta: float) -> bool:
 	if _capture_done:
-		return true
+		return false  # _net_then_finish() quits once the socket tests are done
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_capture_done = true
@@ -50,8 +51,14 @@ func _process(_delta: float) -> bool:
 	_test_mortar_well_kit_routes()
 	_test_empty_bucket_recipe()
 	_test_multistack_crafting()
+	_net_then_finish()
+	return false
+
+## Socket tests need real frames (peers poll in _process), so they run as a coroutine and end the run.
+func _net_then_finish() -> void:
+	_net_tests = (load("res://tests/net_tests.gd") as GDScript).new()
+	await _net_tests.run(self, _expect)
 	_finish()
-	return true
 
 func _finish() -> void:
 	if failures.is_empty():

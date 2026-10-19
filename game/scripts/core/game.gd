@@ -28,6 +28,22 @@ var shot_path: String = ""
 var shot_delay_override: float = -1.0  # --shot-delay=SECONDS
 var pointer: Vector2 = Vector2.ZERO
 var creature_ui: CanvasLayer
+## Online (contracts.md §1). --server runs the headless server root instead of the playfield;
+## --online=<ws url> connects this client. Offline single-player stays the default.
+var server_mode: bool = false
+var server_port: int = 8910
+var server_data_dir: String = "user://server"
+var online_url: String = ""
+var net_probe: bool = false
+## The client connection, created on first use (no new autoload).
+var net: NetClient:
+	get:
+		if _net == null:
+			_net = NetClient.new()
+			_net.name = "Net"
+			add_child(_net)
+		return _net
+var _net: NetClient
 
 var _last_phase: StringName = &""
 var _perf: Label
@@ -54,11 +70,30 @@ func _ready() -> void:
 			fast_regen_mult = 20.0
 		elif a.begins_with("--fast-regen="):
 			fast_regen_mult = maxf(1.0, float(a.substr(13)))
+		elif a == "--server":
+			server_mode = true
+		elif a.begins_with("--port="):
+			var port := a.substr(7)
+			if port.is_valid_int() and int(port) >= 0 and int(port) <= 65535:
+				server_port = int(port)
+			else:
+				print("[boot] ignoring --port=%s (0-65535)" % port)
+		elif a.begins_with("--data="):
+			var dir := a.substr(7)
+			if dir.is_absolute_path() and not dir.begins_with("res://"):
+				server_data_dir = dir
+			else:
+				print("[boot] ignoring --data=%s (needs an absolute or user:// path)" % dir)
+		elif a.begins_with("--online="):
+			online_url = a.substr(9)
+		elif a == "--net-probe":
+			net_probe = true
 	if lab_name != "" and shot_path == "":
 		debug_overlay = true
 	_install_symbol_fonts()
-	print("[boot] Game autoload ready. smoke_test=%s lab=%s godot=%s" % [
-		smoke_test, lab_name if lab_name != "" else "-", Engine.get_version_info().string])
+	print("[boot] Game autoload ready. smoke_test=%s lab=%s godot=%s%s" % [
+		smoke_test, lab_name if lab_name != "" else "-", Engine.get_version_info().string,
+		" server" if server_mode else (" online=%s" % online_url if online_url != "" else "")])
 	_make_perf()
 	if smoke_test:
 		get_tree().create_timer(2.0).timeout.connect(_finish_smoke)

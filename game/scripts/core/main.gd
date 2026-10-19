@@ -8,6 +8,9 @@ extends Node3D
 
 func _ready() -> void:
 	sun.rotation_degrees = Vector3(-50.0, 30.0, 0.0)
+	if Game.server_mode:
+		_start_server()
+		return
 	if Game.lab_name != "":
 		default_playfield.visible = false
 		default_playfield.process_mode = Node.PROCESS_MODE_DISABLED
@@ -39,6 +42,8 @@ func _ready() -> void:
 			hud.name = "HuntHud"
 			hud.bind(player)
 			$UI.add_child(hud)
+			if Game.online_url != "":
+				_start_online(player)
 			if "--gather-test" in OS.get_cmdline_user_args():
 				_gather_test(player)
 			if "--combat-test" in OS.get_cmdline_user_args():
@@ -97,6 +102,32 @@ func _ready() -> void:
 				soak.name = "WebSoak"
 				add_child(soak)
 				soak.run(self)
+
+## Headless server (contracts.md §1): no island, player, camera or HUD, only the net root.
+func _start_server() -> void:
+	default_playfield.queue_free()
+	iso_camera.queue_free()
+	Engine.max_fps = 60  # ASSUMPTION: a headless main loop would otherwise spin a whole core
+	var server := (load("res://scenes/net/server.tscn") as PackedScene).instantiate() as NetServer
+	add_child(server)
+	if server.start(Game.server_port, Game.server_data_dir) != OK:
+		get_tree().quit(1)
+
+## Online mode (--online=ws://host:port): connect Game.net, show other players, send ours.
+func _start_online(player: Player) -> void:
+	var remote := RemotePlayers.new()
+	add_child(remote)
+	var sender := PresenceSender.new(player)
+	add_child(sender)
+	if Game.net_probe:
+		Game.net.token_path = ""  # every probe process is a fresh throwaway account
+		var probe = (load("res://scripts/dev/net_probe.gd") as GDScript).new()
+		probe.name = "NetProbe"
+		add_child(probe)
+		probe.run(player, remote, sender)
+	await get_tree().process_frame  # World._boot (deferred) loads the save, and with it the survivor's name
+	if Game.net.connect_to(Game.online_url, World.player_name) != OK:
+		print("[net] %s" % Game.net.last_error)
 
 ## Headless regression: spawn a compy next to the survivor, hunt it, press Tackle and Kick,
 ## kill it, press Loot; expect groggy, a push, and the chest screen with items.

@@ -76,8 +76,8 @@ func def_of(id: StringName) -> Dictionary:
 	return islands.get(str(id), {}) as Dictionary
 
 func _boot() -> void:
-	if Game.smoke_test:
-		return
+	if Game.smoke_test or Game.server_mode or Game.net_probe:
+		return  # the server has no island; probes run on the default playfield like smoke
 	if Game.lab_name != "" and Game.lab_name != "home_lab":
 		return
 	if Game.lab_name == "home_lab":
