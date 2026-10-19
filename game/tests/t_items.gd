@@ -1,0 +1,266 @@
+extends SceneTree
+## W1-ITEMS: item identity, tier and level scaling, tool-gated gathering, no lost items.
+## Item scripts reference the Data autoload, so they load on the first frame after it exists
+## (a --script run compiles this file before singletons).
+
+var failures: Array[String] = []
+var _done := false
+var IS: GDScript
+var INV: GDScript
+var CR: GDScript
+var SC: GDScript
+var FOOD: GDScript
+var NODE: PackedScene
+
+func _process(_delta: float) -> bool:
+	if _done:
+		return true
+	if get_root() == null or get_root().get_node_or_null("Data") == null:
+		return false
+	_done = true
+	IS = load("res://scripts/items/item_stack.gd")
+	INV = load("res://scripts/items/inventory.gd")
+	CR = load("res://scripts/items/crafting.gd")
+	SC = load("res://scripts/items/station_craft.gd")
+	FOOD = load("res://scripts/items/food.gd")
+	NODE = load("res://scenes/world/harvest_node.tscn")
+	_test_identity()
+	_test_merging()
+	_test_scaling()
+	_test_pick_gates()
+	_test_yields()
+	_test_crafted_level()
+	_test_burn()
+	_test_no_lost_items()
+	_test_eat_cancel()
+	if failures.is_empty():
+		print("[t_items] PASS")
+		quit(0)
+	else:
+		for f in failures:
+			print("[t_items] FAIL %s" % f)
+		quit(1)
+	return true
+
+func _expect(ok: bool, label: String) -> void:
+	if not ok:
+		failures.append(label)
+
+func _test_identity() -> void:
+	var a = IS.make(&"stone_knife_work", 1, {}, 5)
+	a.stamp_identity("craft", "tester")
+	var twin = a.duplicate_stack()
+	twin.uid = "l-twin"
+	_expect(a.uid.begins_with("l") and a.origin == "craft" and a.created_at > 0, "stamp_identity sets uid, origin, created_at")
+	_expect(not a.can_merge_with(twin) and not twin.can_merge_with(a), "uid'd stacks never merge, even when identical")
+	_expect(not IS.make(&"stone_knife_work", 1, {}, 5).can_merge_with(a), "plain stack does not merge into a uid'd one")
+	var back = IS.from_dict(JSON.parse_string(JSON.stringify(a.to_dict())))
+	_expect(back.uid == a.uid and back.origin == "craft" and back.creator == "tester" and back.created_at == a.created_at, "uid/origin/creator/created_at round-trip through JSON")
+	var bag = INV.new(4)
+	var s1 = IS.make(&"stone", 3, {}, 1)
+	s1.stamp_identity("loot")
+	var s2 = IS.make(&"stone", 3, {}, 1)
+	s2.stamp_identity("loot")
+	bag.add(s1)
+	bag.add(s2)
+	_expect(bag.used_slots() == 2, "uid'd stackable stacks keep separate slots")
+	var old_row := {"id": "stone", "count": 4, "level": 1, "process_count": 0, "attributes": {"tint": "#8a8a8a", "material_tier": "stone"}, "flags": [], "durability": 0, "max_durability": 0}
+	var reloaded: Dictionary = IS.from_dict(old_row).to_dict()
+	_expect(reloaded.keys().size() == old_row.keys().size() and not reloaded.has("uid"), "old fungible save rows keep their exact shape")
+
+func _test_merging() -> void:
+	var bag = INV.new(5)
+	bag.add(IS.make(&"stone", 3, {}, 1))
+	bag.add(IS.make(&"stone", 4, {}, 1))
+	_expect(bag.used_slots() == 1 and bag.count_of(&"stone") == 7, "fungible stone stacks still merge")
+	var fibre = INV.new(5)
+	fibre.add(IS.make(&"fibre_stalk", 2, {"climate": "temperate", "level": 1}, 1))
+	fibre.add(IS.make(&"fibre_stalk", 3, {"climate": "tropical", "level": 1}, 1))
+	fibre.add(IS.make(&"fibre_stalk", 1, {"level": 1}, 1))
+	_expect(fibre.used_slots() == 1 and fibre.count_of(&"fibre_stalk") == 6, "same-level temperate, tropical and fresh fibre merge")
+	var lv2 = IS.make(&"fibre_stalk", 1, {"climate": "tropical", "level": 2}, 2)
+	_expect(not fibre.slots[0].can_merge_with(lv2), "a different level still keeps its own stack")
+
+func _test_scaling() -> void:
+	var l1 = IS.make(&"work_axe", 1, {}, 1)
+	var l5 = IS.make(&"work_axe", 1, {}, 5)
+	var ratio: float = l5.scaled_damage() / l1.scaled_damage()
+	print("[t_items] work_axe L5/L1 = %.3f (dmg %.2f -> %.2f)" % [ratio, l1.scaled_damage(), l5.scaled_damage()])
+	_expect(ratio >= 1.30, "work_axe L5/L1 >= 1.30 (got %.3f)" % ratio)
+	var stone_k = IS.make(&"stone_knife", 1, {"material_tier": "stone"}, 10)
+	var copper_k = IS.make(&"stone_knife", 1, {"material_tier": "copper"}, 10)
+	var want := ProgressionScaling.tier_multiplier(&"copper") / ProgressionScaling.tier_multiplier(&"stone")
+	var tier_ratio: float = copper_k.scaled_damage() / stone_k.scaled_damage()
+	print("[t_items] copper/stone knife L10 = %.3f (tier ratio %.3f)" % [tier_ratio, want])
+	_expect(absf(tier_ratio - want) < 0.001 and copper_k.scaled_damage() > stone_k.scaled_damage(), "copper knife out-damages stone knife by the tier ratio")
+	var helm = IS.make(&"raid_helm", 1, {}, 10)
+	_expect(is_equal_approx(helm.scaled_armor(), 300.0 * ProgressionScaling.level_multiplier(10)), "armor follows level x tier")
+	var flint_pick = IS.make(&"work_pick", 1, {"material_tier": "flint"}, 1)
+	var stone_pick = IS.make(&"work_pick", 1, {"material_tier": "stone"}, 1)
+	_expect(flint_pick.max_durability > stone_pick.max_durability and flint_pick.durability == flint_pick.max_durability, "durability follows material tier")
+	_expect(ProgressionScaling.material_tier(&"metal_shard", {"hardness": 3.0}) == &"flint", "untagged hardness maps onto the ladder")
+
+## A harvest node of `family` with `item` as the active option.
+func _node(family: String, item: StringName):
+	var n = NODE.instantiate()
+	n.setup(StringName("t_" + family), item, 1, 1, {"level": 1, "climate": "temperate"}, &"pick", Color.GRAY, 1.2, 8.0, family)
+	var opts: Array = n.options()
+	for i in opts.size():
+		if str(opts[i]["item"]) == str(item):
+			n.select_option(i)
+	return n
+
+func _bag_with_pick(tier: String):
+	var bag = INV.new(20)
+	if tier != "":
+		bag.add(IS.make(&"work_pick", 1, {"material_tier": tier}, 1))
+	return bag
+
+func _test_pick_gates() -> void:
+	var bare = INV.new(20)
+	var copper = _node("CopperOreNode", &"copper_ore")
+	var iron = _node("BlackIronNode", &"black_iron")
+	var copper_why: String = copper.can_gather(bare)
+	var iron_why: String = iron.can_gather(bare)
+	print("[t_items] bare hands: copper_ore='%s' black_iron='%s'" % [copper_why, iron_why])
+	_expect(copper_why == "needs obsidian pick", "copper_ore refuses bare hands with 'needs obsidian pick' (got '%s')" % copper_why)
+	_expect(iron_why == "needs copper pick", "black_iron refuses bare hands with 'needs copper pick' (got '%s')" % iron_why)
+	_expect(copper.can_gather(_bag_with_pick("flint")) == "needs obsidian pick", "a flint pick is below copper's tier")
+	_expect(copper.can_gather(_bag_with_pick("obsidian")) == "", "an obsidian pick mines copper")
+	var mixed = INV.new(20)
+	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "stone"}, 1))
+	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "copper"}, 1))
+	_expect(iron.can_gather(mixed) == "" and mixed.slots[mixed.equipped_tool_index].material_tier() == &"copper", "the qualifying pick is the one equipped")
+	var rock = _node("Rock", &"stone")
+	_expect(rock.can_gather(bare) == "", "loose stone still gathers bare-handed")
+	var copper_stone = _node("CopperOreNode", &"stone")
+	_expect(copper_stone.can_gather(bare) == "", "stone at an ore node stays bare-handed")
+	var picked = _bag_with_pick("flint")
+	_expect(rock.can_gather(picked) == "" and rock.gather_seconds < rock._base_seconds, "a held pick works loose stone faster")
+	var flint = _node("FlintNode", &"flint")
+	_expect(flint.can_gather(bare) == "needs stone pick", "flint needs at least a stone pick")
+	var at_min: float = flint.seconds_for(_bag_with_pick("stone"))
+	var flint_s: float = flint.seconds_for(_bag_with_pick("flint"))
+	print("[t_items] flint node seconds: stone pick (minimum tier) %.2f, flint pick %.2f, base %.2f" % [at_min, flint_s, flint._base_seconds])
+	_expect(flint_s < at_min and at_min <= flint._base_seconds, "a flint pick gathers flint faster than the minimum tier")
+	_expect(flint._collision_size().y <= 1.3, "rock collider height comes from the manifest span")
+	for n in [copper, iron, rock, copper_stone, flint]:
+		n.free()
+
+func _test_yields() -> void:
+	var rock = _node("Rock", &"stone")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2024
+	var total := 0
+	var in_range := true
+	var climate_free := true
+	for i in 200:
+		var s = rock.roll_yield(rng)
+		total += s.count
+		in_range = in_range and s.count >= 2 and s.count <= 4
+		climate_free = climate_free and not s.attributes.has("climate")
+	var mean := float(total) / 200.0
+	print("[t_items] 200 Rock rolls mean=%.2f in_range=%s" % [mean, in_range])
+	_expect(in_range and mean > 2.4, "Rock stone rolls stay in [2,4] with mean > 2.4 (mean %.2f)" % mean)
+	_expect(climate_free, "gathered stacks carry no climate stamp")
+	rock.free()
+
+func _test_crafted_level() -> void:
+	var mats: Array[int] = [40, 40, 40]
+	var at0 := ProgressionScaling.crafted_level(mats, 60, 0)
+	var at1 := ProgressionScaling.crafted_level(mats, 60, 1)
+	print("[t_items] crafted level mats40 skill0=%d skill1=%d skill20=%d skill60=%d" % [at0, at1, ProgressionScaling.crafted_level(mats, 60, 20), ProgressionScaling.crafted_level(mats, 60, 60)])
+	_expect(at0 <= at1 and at0 == 1, "crafted_level at skill 0 <= skill 1 (no 60 fallback)")
+	var prev := 0
+	var monotonic := true
+	for skill in 61:
+		var lvl := ProgressionScaling.crafted_level(mats, 60, skill)
+		monotonic = monotonic and lvl >= prev
+		prev = lvl
+	_expect(monotonic and prev == 40, "crafted level cap rises monotonically with skill")
+	var knife: Dictionary = CR.recipe(&"improvised_stone_knife")
+	_expect(CR.preview_level(INV.new(20), knife) == -1, "preview_level is -1 for invalid picks")
+
+func _test_burn() -> void:
+	var grill: Dictionary = CR.recipe(&"stone_grill")
+	var prev := 2.0
+	var falling := true
+	for skill in 61:
+		var c: float = CR.burn_chance(grill, skill)
+		falling = falling and c < prev
+		prev = c
+	print("[t_items] burn chance skill0=%.3f skill60=%.3f" % [CR.burn_chance(grill, 0), CR.burn_chance(grill, 60)])
+	_expect(falling and CR.burn_chance(grill, 0) > CR.burn_chance(grill, 60), "burn chance falls monotonically from cooking 0 to 60")
+	var a := RandomNumberGenerator.new()
+	var b := RandomNumberGenerator.new()
+	a.seed = 99
+	b.seed = 99
+	var same := true
+	var burns := 0
+	for i in 200:
+		var x: bool = CR.rolls_burn(grill, 0, a)
+		same = same and x == CR.rolls_burn(grill, 0, b)
+		burns += 1 if x else 0
+	_expect(same and burns > 0 and burns < 200, "burn rolls reproduce with a seeded RNG")
+	_expect(CR.burn_chance(CR.recipe(&"skewer"), 0) == 0.0, "recipes without burn_on_fail never burn")
+
+## A 20-slot bag whose every slot is taken: knife inputs (2 each) plus distinct berries.
+func _full_bag():
+	var bag = INV.new(20)
+	bag.add(IS.make(&"stone", 2, {}, 1))
+	bag.add(IS.make(&"branch", 2, {}, 1))
+	bag.add(IS.make(&"twine", 2, {}, 1))
+	var lvl := 1
+	while bag.used_slots() < 20:
+		bag.add(IS.make(&"berry", 1, {}, lvl))
+		lvl += 1
+	return bag
+
+func _test_no_lost_items() -> void:
+	var knife: Dictionary = CR.recipe(&"improvised_stone_knife")
+	var bag = _full_bag()
+	var before: Array = bag.to_array()
+	var picks: Array[int] = CR.default_picks(bag, knife)
+	_expect(CR.picks_valid(bag, knife, picks), "full-bag fixture can otherwise make the knife")
+	_expect(not CR.output_fits(bag, knife, picks), "a full bag refuses the craft before consuming")
+	_expect(bag.to_array() == before, "the fit check leaves the bag untouched")
+	bag.remove_at(bag.slot_count - 1, 1)
+	_expect(CR.output_fits(bag, knife, CR.default_picks(bag, knife)), "one free slot lets the craft through")
+	var full = _full_bag()
+	var snapshot: Array = full.to_array()
+	var refund := _stacks([IS.make(&"raw_meat", 1, {}, 3), IS.make(&"branch", 1, {}, 7)])
+	var kept: Array = SC.refund_into(full, refund)
+	var kept_units := 0
+	for s in kept:
+		kept_units += s.count
+	_expect(kept_units == 2 and full.to_array() == snapshot, "refund into a full bag keeps every unit out of the void")
+	var roomy = INV.new(20)
+	var back: Array = SC.refund_into(roomy, _stacks([IS.make(&"raw_meat", 1, {}, 3)]))
+	_expect(back.is_empty() and roomy.count_of(&"raw_meat") == 1, "refund with room lands in the bag")
+
+## Array[ItemStack] without naming the class (it would compile before the Data autoload).
+func _stacks(items: Array) -> Array:
+	return Array(items, TYPE_OBJECT, &"RefCounted", IS)
+
+func _test_eat_cancel() -> void:
+	var ES: GDScript = load("res://scripts/items/eat_session.gd")
+	var late = ES.new()
+	late._stack_snapshot = IS.make(&"raw_meat", 1)
+	late.eating = true
+	late.progress = 0.6
+	late.rng = RandomNumberGenerator.new()
+	late.rng.seed = 7
+	late._cancel_with_full()
+	var same := RandomNumberGenerator.new()
+	same.seed = 7
+	var want: StringName = FOOD.raw_risk_roll(IS.make(&"raw_meat", 1), same)
+	print("[t_items] raw meal cancelled at 60%%: rolled=%s risk='%s'" % [late.risk_rolled, late.last_risk])
+	_expect(late.risk_rolled and late.last_risk == want, "cancelling a raw meal at 60% applies the raw-risk roll")
+	var early = ES.new()
+	early._stack_snapshot = IS.make(&"raw_meat", 1)
+	early.eating = true
+	early.progress = 0.4
+	early._cancel_with_full()
+	_expect(not early.risk_rolled, "cancelling before half skips the raw-risk roll")
+	late.free()
+	early.free()
