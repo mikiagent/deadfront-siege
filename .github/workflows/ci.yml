@@ -1,24 +1,45 @@
 name: Game checks
+# Pinned to the engine the project ships on (4.7.1); every agent branch (claude/**) gets the
+# same gates as main: unit tests, smoke, the lab table, and web-renderer stills of the shot rows.
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
 permissions:
   contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   headless:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
+    env:
+      LABS_LOG_DIR: ${{ github.workspace }}/artifacts/lab-logs
     steps:
       - uses: actions/checkout@v4
       - uses: chickensoft-games/setup-godot@v2
         with:
-          version: 4.7.0
+          version: 4.7.1
           use-dotnet: false
           include-templates: false
       - name: Export payload guard
         run: python3 tools/check_export_payload.py
-      - name: Migration fixture tests
+      - name: Unit tests (run_all.gd + every t_*.gd)
         run: tools/test.sh
-      - name: Main-scene smoke test
+      - name: Smoke (main scene + real island)
         run: tools/smoke.sh --no-import
+      - name: Lab table
+        run: tools/labs.sh
+      - name: Display for the web-renderer stills
+        if: always()
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+      - name: Web-renderer stills (shot rows)
+        if: always()
+        run: xvfb-run -a -s "-screen 0 1600x900x24" tools/labs.sh --shots artifacts/shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lab-shots-and-logs
+          path: artifacts/
+          if-no-files-found: warn

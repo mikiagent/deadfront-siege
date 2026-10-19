@@ -8,7 +8,7 @@
 # Usage: tools/labs.sh [name-filter]              headless gate, logs in $LABS_LOG_DIR (or a temp dir)
 #        tools/labs.sh --shots DIR [name-filter]  rows flagged "shot": windowed web renderer
 #            (gl_compatibility, 1600x900) still into DIR/<name>.png, then an exposure check
-#            (black, blank or blown frames fail). Needs a display (xvfb-run on Linux CI).
+#            (black, blank or blown frames fail). Needs a display (xvfb-run on Linux CI). Silent.
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 G="$($ROOT/tools/find_godot.sh)" || exit 127
@@ -47,7 +47,7 @@ while IFS= read -r line; do
     total=$((total + 1))
     t0=$SECONDS
     # shellcheck disable=SC2086  # args are plain flags, split on purpose
-    run_godot "$secs" "$LOGS/$name.shot.log" --path "$ROOT/game" --rendering-method gl_compatibility \
+    run_godot "$secs" "$LOGS/$name.shot.log" --audio-driver Dummy --path "$ROOT/game" --rendering-method gl_compatibility \
       --resolution 1600x900 $args "--shot=$shots/$name.png"
     code=$?
     if [[ -s "$shots/$name.png" ]]; then r=SHOT; d="$shots/$name.png"; else r=FAIL; d="no still (exit $code)"; bad=$((bad + 1)); fi

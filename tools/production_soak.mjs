@@ -1,12 +1,19 @@
 #!/usr/bin/env node
 /** Run the deployed web build through its deterministic soak route.
- * Usage: npm --prefix tools/web_soak install && node tools/production_soak.mjs [URL]
+ * Usage: npm --prefix tools/web_soak install && node tools/production_soak.mjs [URL] [--expect-stamp=<commit>/<pack>]
+ * PASS needs '[soak] PASS', no error line, no black checkpoint frame, the in-game '[soak] stamp'
+ * equal to the expected stamp (flag or EXPECTED_STAMP; without one the stamp is only printed),
+ * and a requestAnimationFrame p95 at or under RAF_P95_MS (default 100 ms) once the route runs.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from './web_soak/node_modules/playwright-core/index.mjs';
 
-const base = process.argv[2] || process.env.DEADFRONT_URL || 'https://durango-like.vercel.app/';
+const flags = process.argv.slice(2);
+const base = flags.find(a => !a.startsWith('--')) || process.env.DEADFRONT_URL || 'https://durango-like.vercel.app/';
+const expectStamp = (flags.find(a => a.startsWith('--expect-stamp=')) || '').slice(15) || process.env.EXPECTED_STAMP || '';
+// Loose on purpose: catches stalls and a stuck renderer, not a 60 fps target (headless Chrome has no GPU).
+const rafBudgetMs = Number(process.env.RAF_P95_MS || 100);
 const url = new URL(base);
 url.searchParams.set('soak', '1');
 const out = path.resolve(process.env.SOAK_ARTIFACTS || 'artifacts/web-soak');
@@ -15,15 +22,29 @@ const log = [];
 const executablePath = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(fs.existsSync);
 const browser = await chromium.launch({ headless: true, executablePath });
 const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1, isMobile: false, hasTouch: false });
+// Frame deltas start at the first soak checkpoint, so page load and pack streaming do not count.
+await page.addInitScript(() => {
+  window.__soakRaf = { on: false, deltas: [] };
+  let last = 0;
+  const tick = t => { if (window.__soakRaf.on && last) window.__soakRaf.deltas.push(t - last); last = t; requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+});
 let failure = '';
+let stamp = '';
 let checkpoint = 0;
 function writeLog() { fs.writeFileSync(path.join(out, 'console.log'), log.join('\n') + '\n'); }
 page.on('console', async msg => {
   const line = `[console.${msg.type()}] ${msg.text()}`;
   log.push(line);
   console.log(line);
+  const st = line.match(/\[soak\] stamp (\S+)/);
+  if (st) {
+    stamp = st[1];
+    if (expectStamp && stamp !== expectStamp) failure ||= `stamp ${stamp} is not the expected ${expectStamp}`;
+  }
   if (/\[soak\] checkpoint /.test(line)) {
     checkpoint += 1;
+    if (checkpoint === 1) await page.evaluate(() => { window.__soakRaf.on = true; }).catch(() => {});
     await inspectFrame(`checkpoint-${String(checkpoint).padStart(2, '0')}`, checkpoint === 1 || checkpoint === 2);
   }
   const click = line.match(/\[soak\] desktop_click_norm ([0-9.-]+) ([0-9.-]+)/);
@@ -62,6 +83,16 @@ try {
     await page.waitForTimeout(1000);
   }
   if (!failure && !log.some(line => line.includes('[soak] PASS'))) failure = 'timed out waiting for [soak] PASS';
+  if (!failure && !stamp) failure = 'no [soak] stamp line: cannot tell which build was tested';
+  const raf = await page.evaluate(() => {
+    const d = [...window.__soakRaf.deltas].sort((a, b) => a - b);
+    return { n: d.length, p50: d[Math.floor(d.length * 0.5)] || 0, p95: d[Math.floor(d.length * 0.95)] || 0, max: d[d.length - 1] || 0 };
+  }).catch(() => ({ n: 0, p50: 0, p95: 0, max: 0 }));
+  const perfLine = `[perf] raf_frames=${raf.n} raf_p50_ms=${raf.p50.toFixed(1)} raf_p95_ms=${raf.p95.toFixed(1)} raf_max_ms=${raf.max.toFixed(1)} budget_p95_ms=${rafBudgetMs}`;
+  log.push(perfLine);
+  console.log(perfLine);
+  if (!failure && raf.n < 30) failure = `only ${raf.n} animation frames recorded`;
+  if (!failure && raf.p95 > rafBudgetMs) failure = `rAF p95 ${raf.p95.toFixed(1)} ms over the ${rafBudgetMs} ms budget`;
   const diagnostics = await page.evaluate(() => window.__deadfrontDiagnostics?.text() || '').catch(() => '');
   fs.writeFileSync(path.join(out, 'diagnostics.log'), diagnostics);
 } finally {
@@ -69,4 +100,4 @@ try {
   await browser.close();
 }
 if (failure) { console.error(`SOAK FAIL: ${failure}\nArtifacts: ${out}`); process.exit(1); }
-console.log(`SOAK PASS (${checkpoint} checkpoints)\nArtifacts: ${out}`);
+console.log(`SOAK PASS (${checkpoint} checkpoints, stamp ${stamp}${expectStamp ? ' as expected' : ', not checked: pass --expect-stamp'})\nArtifacts: ${out}`);
