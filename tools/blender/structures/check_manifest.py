@@ -8,6 +8,7 @@ fallback, which is flagged art_status REPLACE). Blender GLBs: <= 4000 triangles,
 one atlas image, origin at the ground centre, horizontal size inside the footprint +5 %, and the
 measured AABB within 5 % of the manifest's aabb_m.
 """
+import hashlib
 import json
 import os
 import sys
@@ -31,7 +32,15 @@ KIND_GLB = {
     "smoker": "smoker", "crock_pot": "crock_pot", "steamer": "steamer", "mortar": "mortar",
     "well": "well", "catapult": "catapult", "pier": "pier", "floor": "floor", "wall": "wall",
     "wall_doorway": "wall_doorway", "roof": "roof",
+    "taming_pen": "fence",  # the pen ring is built from fence segments; same style as fence/gate
 }
+# Owner rule (2026-10-19): low-quality and low-poly assets are marked for replacement. The
+# building-system pieces are bare 1 m stand-ins for W2-BUILDSYS, so they are REPLACE outright; the
+# rest of the set is hand-built low-poly (<1k tris, albedo only) and stays REVIEW with an upgrade path.
+STAND_INS = {"floor", "wall", "wall_doorway", "roof"}
+UPGRADE = ("low-poly hand-built Blender (%d tris, 4-10 segment cylinders, albedo-only atlas, no normal "
+           "map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m")
+STAND_IN_UPGRADE = "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
 STAGES = {"drying_rack": ["empty", "raw", "drying", "dried"]}
 NODES = {
     "fence_gate": {"leaf_left": "LeafL", "leaf_right": "LeafR",
@@ -65,18 +74,22 @@ def write(manifest):
         s = glb_info.summary(res_to_path(RES % name))
         row["glb"] = RES % name
         row["aabb_m"] = [round(s["aabb_max"][k] - s["aabb_min"][k], 3) for k in range(3)]
-        row["art_status"] = "REVIEW"
+        row["art_status"] = "REPLACE" if kind in STAND_INS else "REVIEW"
+        row["upgrade"] = STAND_IN_UPGRADE if kind in STAND_INS else UPGRADE % s["tris"]
         if kind in STAGES:
             row["stages"] = [{"id": st, "glb": RES % stage_glb(kind, st)} for st in STAGES[kind]]
         if kind in NODES:
             row["nodes"] = NODES[kind]
+        if kind == "taming_pen":
+            row["note"] = "ring of 2 m Blender fence segments (fence.glb) with the gate as doorway; centre marker for the animal"
     manifest["_about"] = (
         "Building visuals. `glb` (res:// path) is the hand-built Blender structure set "
         "(tools/blender/structures, one shared 1024 atlas) and wins when present; `aabb_m` is its "
         "measured size in Godot axes (x, y up, z) for colliders; `stages` lists per-stage GLBs for "
         "processing stations. `model` is the old Kenney Survival Kit 2.0 (CC0) name under "
         "res://assets/props/kenney/<name>.glb, kept as the fallback; rows whose art_status is "
-        "REPLACE still use it and are marked for replacement (docs/orchestration/mmo/asset-replacement.md). "
+        "REPLACE are marked for replacement (docs/orchestration/mmo/asset-replacement.md): Kenney rows, and "
+        "the Blender building-system stand-ins. Every Blender row carries `upgrade`, its low-poly upgrade path. "
         "Footprints are grid cells (1 m). model_sizes_m are the Kenney sizes (Blender x, y, z=up)."
     )
 
@@ -121,8 +134,19 @@ def main():
         fp = row.get("footprint", [1, 1])
         if row.get("glb"):
             check_glb(kind, res_to_path(row["glb"]), fp, row.get("aabb_m"), errors)
+            seen = {}
             for st in row.get("stages", []):
-                check_glb("%s.%s" % (kind, st["id"]), res_to_path(st["glb"]), fp, row.get("aabb_m"), errors)
+                path = res_to_path(st["glb"])
+                check_glb("%s.%s" % (kind, st["id"]), path, fp, row.get("aabb_m"), errors)
+                if os.path.exists(path):
+                    digest = hashlib.sha1(open(path, "rb").read()).hexdigest()
+                    if digest in seen:
+                        errors.append("%s: stage %s is the same GLB as stage %s" % (kind, st["id"], seen[digest]))
+                    seen[digest] = st["id"]
+            if kind in STAND_INS and row.get("art_status") != "REPLACE":
+                errors.append("%s: building-system stand-in not marked art_status REPLACE" % kind)
+            if not row.get("upgrade"):
+                errors.append("%s: low-poly Blender row has no upgrade path" % kind)
         elif row.get("model"):
             p = os.path.join(GAME, "assets", "props", "kenney", row["model"] + ".glb")
             if not os.path.exists(p):
@@ -138,8 +162,9 @@ def main():
         print("[check_manifest] FAIL " + e)
     if errors:
         sys.exit(1)
-    print("[check_manifest] PASS %d kinds resolve to existing GLBs (%d Blender, %d Kenney marked REPLACE)"
-          % (len(manifest["buildings"]), len(manifest["buildings"]) - len(replace), len(replace)))
+    print("[check_manifest] PASS %d kinds resolve to existing GLBs (%d Blender, %d Kenney marked REPLACE, "
+          "%d Blender stand-ins marked REPLACE)" % (len(manifest["buildings"]), len(manifest["buildings"]) - len(replace),
+                                                    len(replace), len(STAND_INS)))
 
 
 if __name__ == "__main__":

@@ -30,5 +30,14 @@ for path in sorted(glob.glob(os.path.join(DIR, "*.glb.import"))):
         out.append(ln)
     open(path, "w").write("\n".join(out))
     print("[import_settings]", os.path.basename(path))
+# The atlas material samples with mipmaps (texture_filter 5) and lib.INSET pads tiles for them;
+# without mips the fine grain shimmers at iso distance, so a re-import must never drop them.
+atlas_import = os.path.join(DIR, "structures_atlas.png.import")
+if os.path.exists(atlas_import):
+    txt = open(atlas_import).read()
+    if "mipmaps/generate=true" not in txt:
+        txt = txt.replace("mipmaps/generate=false", "mipmaps/generate=true")
+        open(atlas_import, "w").write(txt)
+    print("[import_settings] structures_atlas.png mipmaps on")
 for junk in glob.glob(os.path.join(DIR, "*_atlas_structures.jpg*")):
     os.remove(junk)

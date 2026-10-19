@@ -5,6 +5,15 @@ extends SceneTree
 ## Run: Godot --headless --path game --script res://tests/t_structart.gd
 
 const ATLAS_MAT := "res://assets/props/blender/structures_atlas.tres"
+const ATLAS_PNG := "res://assets/props/blender/structures_atlas.png"
+const GRID := 8
+## Atlas tile order (lib.TILES); only the tiles the stage check reads.
+const TILE_INDEX := {"wood": 0, "bark": 3, "meat_raw": 24, "meat_drying": 25, "meat_dried": 26}
+## Owner rule: the stages must read by value, not hue alone. Minimum Rec.709 luma steps between
+## tile means, and dried must stay clear of the rack's own bark poles.
+const STAGE_LUMA_STEP := 10.0
+const DRIED_VS_FRAME := 20.0
+const STAND_INS := ["floor", "wall", "wall_doorway", "roof"]
 const MAX_TRIS := 4000
 const TOL := 0.05
 
@@ -23,6 +32,8 @@ func _process(_delta: float) -> bool:
 	_check_rows(buildings)
 	_check_stages(buildings)
 	_check_pivots(buildings)
+	_check_atlas()
+	_check_replacement_marks(buildings)
 	if failures.is_empty():
 		print("[t_structart] PASS")
 		quit(0)
@@ -117,6 +128,49 @@ func _check_pivots(buildings: Dictionary) -> void:
 		elif n.position.length() < 0.3:
 			failures.append("%s/%s origin %s is not on its hinge/axle" % [pair[0], pair[1], n.position])
 		root.free()
+
+func _check_atlas() -> void:
+	# Without mipmaps the grain aliases and shimmers at iso distance (the pier deck went moire).
+	var tex := load(ATLAS_PNG) as Texture2D
+	if tex == null or not tex.get_image().has_mipmaps():
+		failures.append("%s imported without mipmaps" % ATLAS_PNG)
+	var img := Image.load_from_file(ProjectSettings.globalize_path(ATLAS_PNG))
+	if img == null:
+		failures.append("cannot read %s" % ATLAS_PNG)
+		return
+	var luma := {}
+	for tile: String in TILE_INDEX:
+		luma[tile] = _tile_luma(img, int(TILE_INDEX[tile]))
+	var order := ["meat_raw", "meat_drying", "meat_dried"]
+	for i in range(order.size() - 1):
+		if float(luma[order[i]]) - float(luma[order[i + 1]]) < STAGE_LUMA_STEP:
+			failures.append("%s luma %.0f is not clearly darker than %s %.0f" % [order[i + 1], luma[order[i + 1]], order[i], luma[order[i]]])
+	if float(luma["bark"]) - float(luma["meat_dried"]) < DRIED_VS_FRAME:
+		failures.append("dried strips (luma %.0f) camouflage against the bark frame (%.0f)" % [luma["meat_dried"], luma["bark"]])
+	print("[t_structart] stage luma raw %.0f drying %.0f dried %.0f, frame bark %.0f" % [luma["meat_raw"], luma["meat_drying"], luma["meat_dried"], luma["bark"]])
+
+func _tile_luma(img: Image, index: int) -> float:
+	var tile := img.get_width() / GRID
+	var x0 := (index % GRID) * tile
+	var y0 := (index / GRID) * tile
+	var sum := 0.0
+	var n := 0
+	for y in range(y0, y0 + tile, 2):
+		for x in range(x0, x0 + tile, 2):
+			var c := img.get_pixel(x, y)  # PNG values are sRGB-encoded, which is what the review measured
+			sum += 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
+			n += 1
+	return sum / n * 255.0
+
+func _check_replacement_marks(buildings: Dictionary) -> void:
+	# Owner rule (2026-10-19): low-quality / low-poly assets are marked for replacement.
+	for kind: String in STAND_INS:
+		if str((buildings.get(kind, {}) as Dictionary).get("art_status", "")) != "REPLACE":
+			failures.append("building-system stand-in %s is not marked REPLACE" % kind)
+	for kind: String in buildings:
+		var row: Dictionary = buildings[kind]
+		if str(row.get("glb", "")) != "" and str(row.get("upgrade", "")) == "":
+			failures.append("%s: low-poly Blender row has no upgrade path" % kind)
 
 ## Same corner-transform measure PropVisuals uses for colliders, kept local so this test does not
 ## depend on W1-BUILD's file.

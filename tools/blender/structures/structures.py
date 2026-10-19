@@ -469,7 +469,11 @@ def pier():
     step = 2 * hl / n
     for i in range(n):
         y = -hl + (i + 0.5) * step
-        p.box((2 * hw - 0.06 * (i % 3), step - 0.03, 0.06), (0.03 * ((i % 3) - 1), y, deck - 0.03), "weathered", tile_m=2.8)
+        # each board is three ~0.9 m lengths with staggered butt joints, so the grain tile maps at
+        # ~1 m instead of being stretched across the whole deck width
+        cuts = [-hw, -hw / 3 + 0.25 * ((i % 3) - 1), hw / 3 + 0.25 * ((i % 3) - 1), hw]
+        for a, b in zip(cuts, cuts[1:]):
+            p.box((b - a - 0.025, step - 0.035, 0.06), ((a + b) / 2, y, deck - 0.03), "weathered", tile_m=1.0)
     for sx in (-1, 1):
         p.cyl(0.1, 0.5, (sx * (hw - 0.1), hl - 0.15, deck + 0.25), "bark", seg=7, cap_tile="log_end")
         p.cyl(0.115, 0.08, (sx * (hw - 0.1), hl - 0.15, deck + 0.3), "rope", seg=7)
