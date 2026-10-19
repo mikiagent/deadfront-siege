@@ -26,6 +26,7 @@ var broken := "" ## set when the disk cannot be trusted; every later op is refus
 var _journal: FileAccess
 var _ops_since := 0
 var data_changed := false ## set by open() when the snapshot was taken under other data files
+var _seed := 0 ## the seed W3 passed; open() refuses a disk written under another one
 static var _errors: ErrorCount
 
 ## Counts script and engine errors, so apply() can tell an op that hit one part-way.
@@ -42,6 +43,7 @@ func _init(p_world: WorldFacade, p_dir: String, world_seed: int) -> void:
 	world = p_world
 	dir = p_dir
 	handlers = IntentHandlers.new(world)
+	_seed = world_seed
 	s = genesis(world_seed)
 	if _errors == null:
 		_errors = ErrorCount.new()
@@ -51,6 +53,7 @@ static func genesis(world_seed: int) -> Dictionary:
 	return {
 		"v": VERSION, "seq": 0, "last_ts": 0, "world_seed": world_seed, "chars": {},
 		"minted": {}, "consumed": {}, "exported": {}, "pets_minted": 0, "pets_exported": 0,
+		"exported_assets": {}, ## uid -> canonical body of every asset act.deposit handed out
 	}
 
 func character(account: int) -> CharacterState:
@@ -64,6 +67,8 @@ func character(account: int) -> CharacterState:
 func apply(op: String, account: int, args: Dictionary, ts: int) -> Dictionary:
 	if broken != "":
 		return IntentHandlers.no("server_error", "character store is not writable (%s)" % broken)
+	if dir != "" and _journal == null:
+		return IntentHandlers.no("server_error", "character store is not open; call open() first")
 	var a: Variant = wire(args)
 	var tape: Array = []
 	var res := _run(op, account, a if a is Dictionary else {}, ts, tape, false)
@@ -111,7 +116,7 @@ func _run(op: String, account: int, a: Dictionary, ts: int, tape: Array, replayi
 			return IntentHandlers.no("conflict", "rid already used for %s" % hit[0])
 		# shortcut: a repeat gets this marker, not the first body; the client re-reads with char.get.
 		return {"ok": true, "r": {"duplicate": true, "op": op, "seq": int(hit[1])}}
-	var backup: Dictionary = {"char": ch.d.duplicate(true), "minted": s.minted.duplicate(), "consumed": s.consumed.duplicate(), "exported": s.exported.duplicate(), "pets_minted": s.pets_minted, "pets_exported": s.pets_exported}
+	var backup: Dictionary = {"char": ch.d.duplicate(true), "minted": s.minted.duplicate(), "consumed": s.consumed.duplicate(), "exported": s.exported.duplicate(), "pets_minted": s.pets_minted, "pets_exported": s.pets_exported, "exported_assets": s.exported_assets.duplicate()}
 	var errors := _errors.n
 	handlers.begin(s, int(s.seq) + 1, now, account, op, tape, replaying)
 	var got: Variant = handlers.run(op, ch, a)
@@ -119,12 +124,13 @@ func _run(op: String, account: int, a: Dictionary, ts: int, tape: Array, replayi
 	if not res.has("ok") or _errors.n != errors:
 		# An internal error part-way: put the character back so a half-applied op cannot persist.
 		s.chars[str(account)] = backup.char
-		for k in ["minted", "consumed", "exported", "pets_minted", "pets_exported"]:
+		for k in ["minted", "consumed", "exported", "pets_minted", "pets_exported", "exported_assets"]:
 			s[k] = backup[k]
 		return IntentHandlers.no("server_error", "internal error in %s; nothing was applied" % op)
 	if not res.ok or res.has("noop") or op in IntentHandlers.READ_OPS:
 		res.erase("noop")
 		return res
+	handlers.flush() # world writes land only now that the op commits
 	s.seq = int(s.seq) + 1
 	s.last_ts = now
 	if rid != null:
@@ -192,7 +198,15 @@ func open() -> String:
 		s = norm(parsed)
 		data_changed = str(s.get("data", "")) != data_hash()
 		s.erase("data") # lives only in the file, so the state hash does not depend on it
+		if int(s.world_seed) != _seed:
+			return "world_seed differs from the one this store was written under"
 	var path := dir.path_join("journal.jsonl")
+	if not FileAccess.file_exists(snap):
+		# Genesis goes to disk first, so world_seed is never only in memory (a journal replayed
+		# under another seed would silently diverge). A journal with no snapshot cannot be checked.
+		if FileAccess.file_exists(path) and FileAccess.get_file_as_bytes(path).size() > 0:
+			return "journal.jsonl has no snapshot.json; its world_seed cannot be checked"
+		return snapshot()
 	if FileAccess.file_exists(path):
 		var bytes := FileAccess.get_file_as_bytes(path)
 		var start := 0

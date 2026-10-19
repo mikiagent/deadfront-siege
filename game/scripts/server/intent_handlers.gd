@@ -26,6 +26,7 @@ var now := 0
 var account := 0
 var rng: RandomNumberGenerator
 var tape: Array = []
+var writes: Array = []    ## world writes of this op, applied by flush() only once it commits
 var replaying := false
 var _tape_i := 0
 
@@ -41,6 +42,7 @@ func begin(p_state: Dictionary, p_seq: int, p_now: int, p_account: int, op: Stri
 	tape = p_tape
 	replaying = p_replaying
 	_tape_i = 0
+	writes.clear()
 
 func run(op: String, ch: CharacterState, a: Dictionary) -> Dictionary:
 	match op:
@@ -435,6 +437,7 @@ func _deposit(ch: CharacterState, a: Dictionary) -> Dictionary:
 			return no("invalid_asset", "pet %s has no server provenance" % uid)
 		ch.d.pets.erase(uid)
 		s.pets_exported = int(s.pets_exported) + 1
+		_export(pet)
 		return ok({"kind": "pet", "asset": pet})
 	var i: Variant = integer(a, "bag_slot", 0, (ch.d.bag as Array).size() - 1)
 	var n: Variant = integer(a, "count", 1, 1000000, 1000000)
@@ -454,7 +457,12 @@ func _deposit(ch: CharacterState, a: Dictionary) -> Dictionary:
 		Provenance.stamp(asset, Provenance.item_uid(seq, 0), str(row.origin), seq) # a part gets a new uid
 	ch.commit(inv, str(row.origin), seq)
 	count("exported", taken.def_id, taken.count)
+	_export(asset)
 	return ok({"kind": "item", "asset": asset})
+
+## Records the exact body that left, so char.receive takes back only that asset, only once.
+func _export(asset: Dictionary) -> void:
+	s.exported_assets[str(asset.uid)] = CharacterStore.canon(CharacterStore.wire(asset))
 
 # --- system ops --------------------------------------------------------------------------
 
@@ -471,7 +479,7 @@ func _move(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var step := ch.pos().distance_to(to)
 	# A budget, not a per-update cap: updates in the same second share one second's distance,
 	# so 10 Hz presence (contract §7) cannot multiply the bound. ts is whole seconds.
-	var elapsed := now - int(ch.d.pos_ts)
+	var elapsed := mini(now - int(ch.d.pos_ts), 2) # a long silence banks at most 2 s of distance
 	var used := 0.0 if elapsed > 0 else float(ch.d.get("move_cm", 0)) / 100.0
 	var limit := 1.6 * RUN_SPEED * float(maxi(1, elapsed)) + 1.0 - used
 	var reset := bool(a.get("reset", false))
@@ -493,9 +501,9 @@ func _wallet(ch: CharacterState, a: Dictionary) -> Dictionary:
 	return ok({"wallet": w})
 
 ## char.receive {asset}: the economy hands back an asset act.deposit exported (a vault that
-## refused it, or a withdrawal). Only stamped assets the counters show as exported come back.
-# shortcut: an item that lands in a new stack gets a fresh uid (merged units take the stack's,
-# as everywhere); exported is counted per def, so the bridge must not return one asset twice.
+## refused it, or a withdrawal). Only the exact body act.deposit recorded under that uid comes
+## back, once. Economy-minted assets (market, settlers, objective) have no entry: see the report.
+# shortcut: an item that lands in a new stack gets a fresh uid (merged units take the stack's, as everywhere).
 func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var asset: Variant = a.get("asset")
 	if not Provenance.is_server(asset):
@@ -505,18 +513,21 @@ func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
 		for key: String in s.chars:
 			if (s.chars[key].pets as Dictionary).has(uid):
 				return no("conflict", "pet %s is already held" % uid)
-		if int(s.pets_exported) < 1 or not asset.has("species"):
-			return no("invalid_asset", "pet %s was never exported" % uid)
+	if str(s.exported_assets.get(uid, "")) != CharacterStore.canon(asset):
+		return no("invalid_asset", "%s is not an asset this server exported (or it was edited)" % uid)
+	if uid.begins_with("p"):
+		s.exported_assets.erase(uid)
 		ch.d.pets[uid] = (asset as Dictionary).duplicate(true)
 		s.pets_exported = int(s.pets_exported) - 1
 		return ok({"kind": "pet", "pet_uid": uid})
 	var stack := ItemStack.from_dict(Provenance.strip(asset))
-	if stack.def() == null or stack.count < 1 or int(s.exported.get(str(stack.def_id), 0)) < stack.count:
-		return no("invalid_asset", "%s x%d was never exported" % [stack.def_id, stack.count])
+	if stack.def() == null or stack.count < 1:
+		return no("invalid_asset", "%s is not a valid stack" % uid)
 	var n := stack.count
 	var inv := ch.inventory()
 	if inv.add(stack) > 0:
 		return no("bag_full", "no room for %s" % stack.def_id)
+	s.exported_assets.erase(uid)
 	var uids := ch.commit(inv, str(asset.origin), seq)
 	count("exported", stack.def_id, -n)
 	return ok({"kind": "item", "item": str(stack.def_id), "count": n, "uids": uids})
@@ -538,9 +549,15 @@ func _read(method: String, args: Array) -> Dictionary:
 	tape.append(d if d is Dictionary else {})
 	return tape[-1]
 
+## Queued, not applied: an op that fails or errors after this line leaves the island untouched.
 func _write(method: String, args: Array) -> void:
 	if not replaying:
-		world.callv(method, args)
+		writes.append([method, args])
+
+func flush() -> void:
+	for w: Array in writes:
+		world.callv(w[0], w[1])
+	writes.clear()
 
 func count(counter: String, def_id: StringName, n: int) -> void:
 	var d: Dictionary = s[counter]

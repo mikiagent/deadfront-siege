@@ -20,6 +20,7 @@ func run(fuzz_ops: int = 10000) -> Array[String]:
 	_rid_checks()
 	_move_checks()
 	_receive_checks()
+	_write_checks()
 	_fuzz_and_replay(fuzz_ops, 20261018)
 	_disk_checks()
 	return failures
@@ -234,7 +235,11 @@ func _move_checks() -> void:
 	var later: bool = st.apply("char.move", 1, {"p": [x + 12.0, 0, 0]}, 4).ok
 	var travel: bool = st.apply("char.move", 1, {"p": [900, 0, 0], "reset": true}, 4).ok
 	expect(accepted == 1 and small == int(bound) and later and travel, "move budget: one 12 m hop per second (got %d), %d of 20 1 m hops (expect %d), next second ok=%s, reset ok=%s" % [accepted, small, int(bound), later, travel])
-	print("[srvdom] move budget bound=%.1f same_second_12m_accepted=%d/10 same_second_1m_accepted=%d/20 next_second=%s reset=%s" % [bound, accepted, small, later, travel])
+	# The reviewer's probe: 999 s of silence must not bank 999 s of distance.
+	var idle := st.apply("char.move", 1, {"p": [5900, 0, 0]}, 1003)
+	var idle_ok: bool = st.apply("char.move", 1, {"p": [920, 0, 0]}, 2003).ok
+	expect(idle.get("err") == "bad_request" and idle_ok, "idle time caps the budget: 5000 m after 999 s refused (%s), 20 m after 1000 s ok=%s" % [idle.get("err", "ok"), idle_ok])
+	print("[srvdom] move budget bound=%.1f same_second_12m_accepted=%d/10 same_second_1m_accepted=%d/20 next_second=%s reset=%s teleport_after_idle=%s" % [bound, accepted, small, later, travel, idle.get("err", "ok")])
 
 ## char.receive: a deposited asset can come back once; forged or never-exported ones cannot.
 func _receive_checks() -> void:
@@ -257,7 +262,42 @@ func _receive_checks() -> void:
 	var pr := pt.apply("char.receive", 2, {"asset": pet}, 11)
 	var pr2 := pt.apply("char.receive", 1, {"asset": pet}, 12)
 	expect(pr.get("ok", false) and (pt.character(2).d.pets as Dictionary).has(pet_uid) and pr2.get("err") == "conflict" and pt.invariants().is_empty(), "a deposited pet comes back once (to account 2), a repeat is a conflict: %s %s" % [pr.get("err", "ok"), pr2.get("err", "ok")])
-	print("[srvdom] receive item=%s restored=%s twice=%s forged=%s unstamped=%s pet=%s pet_twice=%s" % [back.get("ok", false), restored, twice.get("err"), forged.get("err"), bare.get("err"), pr.get("err", "ok"), pr2.get("err", "ok")])
+	# The reviewer's probes: with real units of the same def still exported, a repeat and an
+	# edited body are refused; with a real pet exported, a forged pet with a fresh uid is too.
+	_gather_until(st, 1, "rock", 0, "stone", 3, 6)
+	var da := _ok(st.apply("act.deposit", 1, {"bag_slot": 0, "count": 1}, 7), "deposit A")
+	var db := _ok(st.apply("act.deposit", 1, {"bag_slot": 0, "count": 1}, 7), "deposit B")
+	var ua: Dictionary = da.r.get("asset", {}) if da.ok else {}
+	var ub: Dictionary = db.r.get("asset", {}) if db.ok else {}
+	var a1 := st.apply("char.receive", 1, {"asset": ua}, 8)
+	var a2 := st.apply("char.receive", 1, {"asset": ua}, 8)
+	var edited := ub.duplicate()
+	edited["level"] = 9999
+	var be := st.apply("char.receive", 1, {"asset": edited}, 8)
+	var b1 := st.apply("char.receive", 1, {"asset": ub}, 8)
+	expect(a1.get("ok", false) and a2.get("err") == "invalid_asset" and be.get("err") == "invalid_asset" and b1.get("ok", false) and st.invariants().is_empty(), "receive takes each exported body once, exactly: first=%s second=%s edited=%s real=%s" % [a1.get("err", "ok"), a2.get("err", "ok"), be.get("err", "ok"), b1.get("err", "ok")])
+	var pd2 := _ok(pt.apply("act.deposit", 2, {"pet_uid": pet_uid}, 13), "deposit pet again")
+	var fake := {"species": "tyrannosaurus", "hp": 999999, "uid": "p99999.0", "origin": "tame", "seq": 1}
+	var pf := pt.apply("char.receive", 1, {"asset": fake}, 14)
+	var pback := pt.apply("char.receive", 2, {"asset": pd2.r.get("asset", {}) if pd2.ok else {}}, 14)
+	expect(pf.get("err") == "invalid_asset" and pback.get("ok", false) and pt.invariants().is_empty(), "a forged pet is refused and the real one still comes back: forged=%s real=%s" % [pf.get("err", "ok"), pback.get("err", "ok")])
+	print("[srvdom] receive item=%s restored=%s twice=%s forged=%s unstamped=%s pet=%s pet_twice=%s same_def_first=%s same_def_second=%s edited_level=%s forged_pet=%s real_pet_back=%s" % [back.get("ok", false), restored, twice.get("err"), forged.get("err"), bare.get("err"), pr.get("err", "ok"), pr2.get("err", "ok"), a1.get("err", "ok"), a2.get("err", "ok"), be.get("err", "ok"), pf.get("err", "ok"), pback.get("err", "ok")])
+
+## World writes are queued until the op commits: a handler that wrote and then failed (or hit
+## an internal error) leaves the island as it was.
+func _write_checks() -> void:
+	var w := make_world()
+	var st := _store(13, w)
+	var left := int(w.nodes.rock.options[0].left)
+	st.handlers.begin(st.s, int(st.s.seq) + 1, 2, 1, "act.gather", [], false)
+	st.handlers._write("take_node_unit", ["rock", "stone"]) # as a handler does just before failing
+	var queued_untouched := int(w.nodes.rock.options[0].left) == left
+	var refused := st.apply("act.gather", 1, {"node_id": "far"}, 2) # next op starts with an empty queue
+	var dropped := int(w.nodes.rock.options[0].left) == left and st.handlers.writes.is_empty()
+	_ok(st.apply("act.gather", 1, {"node_id": "rock"}, 3), "committed gather")
+	var landed := int(w.nodes.rock.options[0].left) == left - 1
+	expect(queued_untouched and refused.get("err") == "out_of_range" and dropped and landed, "world writes land only on commit: queued_untouched=%s dropped=%s landed=%s" % [queued_untouched, dropped, landed])
+	print("[srvdom] world writes queued_untouched=%s uncommitted_dropped=%s committed_landed=%s" % [queued_untouched, dropped, landed])
 
 # --- fuzz ----------------------------------------------------------------------------------
 
@@ -428,7 +468,19 @@ func _disk_checks() -> void:
 	var flagged := why == "" and e.data_changed and e.state_json() == live and FileAccess.get_file_as_string(dir.path_join("snapshot.json")).contains(CharacterStore.data_hash())
 	e.close()
 	expect(flagged, "a snapshot from other data files sets data_changed and is re-snapshotted (%s)" % why)
-	print("[srvdom] disk seq=%d crash_replay_lines=%d reopen_equal=%s clean_close_snapshot=%s torn_tail_cut=%s data_change_flagged=%s" % [int(st.s.seq), journaled, reopened, clean, torn, flagged])
+	# The seed is on disk from genesis, so a boot with another seed is refused, not replayed.
+	var wrong := CharacterStore.new(WorldFacade.new(), dir, 10).open()
+	_clear(dir)
+	var g := CharacterStore.new(WorldFacade.new(), dir, 9)
+	var unopened := g.apply("char.create", 1, {"name": "Early"}, 1)
+	var genesis_on_disk := g.open() == "" and FileAccess.file_exists(dir.path_join("snapshot.json"))
+	g.apply("char.create", 1, {"name": "Early"}, 1)
+	g._close_journal() # crash before any automatic snapshot
+	var wrong_early := CharacterStore.new(WorldFacade.new(), dir, 11).open()
+	DirAccess.remove_absolute(dir.path_join("snapshot.json"))
+	var orphan := CharacterStore.new(WorldFacade.new(), dir, 9).open()
+	expect(wrong != "" and wrong_early != "" and genesis_on_disk and unopened.get("err") == "server_error" and orphan != "", "seed and open guards: wrong_seed=%s wrong_seed_before_snapshot=%s genesis_on_disk=%s apply_before_open=%s orphan_journal=%s" % [wrong, wrong_early, genesis_on_disk, unopened.get("err", "ok"), orphan])
+	print("[srvdom] disk seq=%d crash_replay_lines=%d reopen_equal=%s clean_close_snapshot=%s torn_tail_cut=%s data_change_flagged=%s wrong_seed_refused=%s early_wrong_seed_refused=%s apply_before_open=%s orphan_journal_refused=%s" % [int(st.s.seq), journaled, reopened, clean, torn, flagged, wrong != "", wrong_early != "", unopened.get("err", "ok"), orphan != ""])
 	_clear(dir)
 
 static func _around(a: String, b: String) -> String:

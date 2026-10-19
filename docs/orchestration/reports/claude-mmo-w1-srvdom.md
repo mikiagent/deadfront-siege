@@ -61,16 +61,24 @@ Runs (after the review fixes): `perl -e 'alarm 300; exec @ARGV' gslot.sh Godot -
 - [x] Extra: durability. A crash (no shutdown snapshot) boots from snapshot plus journal to the live
   state; a clean `close()` snapshots with the data hash and empties the journal; a torn tail is cut;
   a snapshot taken under other data files sets `data_changed` and is re-snapshotted:
-  `[srvdom] disk seq=43 crash_replay_lines=3 reopen_equal=true clean_close_snapshot=true torn_tail_cut=true data_change_flagged=true`
+  `[srvdom] disk seq=46 crash_replay_lines=6 reopen_equal=true clean_close_snapshot=true torn_tail_cut=true data_change_flagged=true wrong_seed_refused=true early_wrong_seed_refused=true apply_before_open=server_error orphan_journal_refused=true`
+  (round 2 also: a boot with another world_seed is refused, before and after the first automatic
+  snapshot; genesis is snapshotted by `open()`; `apply()` before `open()` is `server_error`; a
+  journal with no snapshot is refused)
 - [x] Extra: a repeated rid applies once, and reusing it for another op is a conflict:
   `[srvdom] rid repeat duplicate=true seq_unchanged=true other_op=conflict first_seq=4`
   and a present but unusable rid (65 chars, an int) is refused with nothing applied:
   `[srvdom] rid invalid long=bad_request int=bad_request unchanged=true`
 - [x] Extra: `char.move` keeps one second's distance budget across all updates in that second
   (the reviewer's probe of ten 12 m hops at one ts now accepts 1; twenty 1 m hops accept 12):
-  `[srvdom] move budget bound=12.2 same_second_12m_accepted=1/10 same_second_1m_accepted=12/20 next_second=true reset=true`
-- [x] Extra: `char.receive` returns a deposited asset once and refuses forged or never-exported ones:
-  `[srvdom] receive item=true restored=true twice=invalid_asset forged=invalid_asset unstamped=invalid_asset pet=ok pet_twice=conflict`
+  `[srvdom] move budget bound=12.2 same_second_12m_accepted=1/10 same_second_1m_accepted=12/20 next_second=true reset=true teleport_after_idle=bad_request`
+  (idle time banks at most 2 s, so 5000 m after 999 s of silence is refused)
+- [x] Extra: `char.receive` takes back only the exact body `act.deposit` recorded under that uid,
+  once (the reviewer's three probes: same asset twice while other units of the def are exported,
+  an edited level, a forged pet with a fresh uid after a real pet export; the real pet still returns):
+  `[srvdom] receive item=true restored=true twice=invalid_asset forged=invalid_asset unstamped=invalid_asset pet=ok pet_twice=conflict same_def_first=ok same_def_second=invalid_asset edited_level=invalid_asset forged_pet=invalid_asset real_pet_back=ok`
+- [x] Extra: world writes are queued and land only when the op commits:
+  `[srvdom] world writes queued_untouched=true uncommitted_dropped=true committed_landed=true`
 - [x] Existing suite: `--script res://tests/run_all.gd` printed `[tests] PASS` (exit 0, `run_all.log`).
 - [x] `gslot.sh tools/smoke.sh --no-import` printed `SMOKE PASS` (exit 0, `smoke.log`).
 
@@ -140,12 +148,21 @@ treats one structure as one cell.
   rows to `Inventory`, so merging still works here after W1-ITEMS lands. The integrator picks one
   rule; this package's choice is "every server stack" per §0.5.
 - **`char.receive {asset}`** (server-only, `SYSTEM_OPS`): the vault bridge calls it when the economy
-  refuses a deposit or on a withdrawal. It accepts only stamped assets the `exported` counters cover
-  and refuses a pet uid already held. Counters are per def, so the bridge must not return the same
-  asset twice.
+  refuses a deposit or on a withdrawal. `act.deposit` records each exported asset in
+  `s.exported_assets[uid] = canon(body)`; receive needs that uid with a byte-identical canonical
+  body, then erases the entry. A pet uid already held is a `conflict`. The vault must hand back
+  the asset unchanged (no re-stamping, no added fields).
+- **Integration trap (W3):** assets the economy mints itself (origins `market`, `settlers`,
+  `objective`) have no `exported_assets` entry, so `char.receive` refuses them. W3 needs an explicit
+  server-only economy-mint op (for example `char.grant {asset}` called by the ledger after its own
+  mint, which also bumps `minted`/`pets_minted` so the invariants hold). Not built here: no
+  economy mint path exists in this package to test it against.
 - **`CharacterStore.new(world, dir, world_seed)`**: `world_seed` is now required. W3 must pass a
   random, persisted, secret seed per world; anyone who knows it can predict capture, crit and
   genetics rolls for any seq.
+- **Boot:** call `open()` before `apply()` (a disk store refuses ops until then). A fresh `open()`
+  snapshots genesis at once, so `world_seed` is always on disk; a later boot with another seed, or
+  a journal with no snapshot, returns an error and must stop boot.
 - **Shutdown:** call `close()` on clean shutdown (it snapshots). After `open()`, `data_changed`
   tells the host that the journal replayed under different data files (items, recipes,
   combat_counters, world/rules); boot then snapshots at once.
@@ -196,3 +213,21 @@ code changes. Logs are in `scratchpad/w1/srvdom/final_*.log`: `[t_srvdom] PASS` 
 | minor: deposit loses asset on vault refusal | server-only `char.receive {asset}` | `receive` line |
 
 After the fixes: `[t_srvdom] PASS`, run_all `[tests] PASS`, `tools/smoke.sh --no-import` `SMOKE PASS`.
+
+## Review fixes, round 2 (2026-10-19)
+
+| Finding | Fix | Caught by |
+|---|---|---|
+| major: `char.receive` is a mint path (forged pet, edited level, double receive) | per-uid registry `exported_assets` of canonical bodies, written by `act.deposit`, matched exactly and erased by `char.receive`; per-def/global counter checks dropped from receive (counters stay for the invariants) | `receive ... same_def_second=invalid_asset edited_level=invalid_asset forged_pet=invalid_asset real_pet_back=ok` |
+| minor: idle time banks move distance | `elapsed` capped at 2 s | `move budget ... teleport_after_idle=bad_request` |
+| minor: world_seed only in memory before the first snapshot | `open()` snapshots genesis; boot refuses a seed mismatch and a journal with no snapshot | `disk ... wrong_seed_refused=true early_wrong_seed_refused=true orphan_journal_refused=true` |
+| minor: `apply()` before `open()` crashes | `server_error` "call open() first" | `disk ... apply_before_open=server_error` |
+| minor: error rollback leaves world writes | `_write` queues; `CharacterStore._run` calls `handlers.flush()` only after the op commits; `begin()` clears the queue | `world writes queued_untouched=true uncommitted_dropped=true committed_landed=true` |
+| minor: economy-minted assets cannot come back | recorded as an integrator hook (economy-mint op for W3) | n/a |
+
+Not covered by a test: the world-write check drives the queue directly rather than through a real
+mid-handler script error, since no handler can be made to error on demand. Old snapshots without
+`exported_assets` would fail to load deposits back; none exist outside tests (unmerged branch).
+
+After the fixes (logs in `scratchpad/w1/srvdom/`): `t_srvdom2.log` `[t_srvdom] PASS` (exit 0),
+`run_all2.log` `[tests] PASS` (exit 0), `smoke2.log` `SMOKE PASS` (exit 0).
