@@ -12,7 +12,7 @@ var cargo
 var cargo_basket
 var sun: DirectionalLight3D
 var world_env: WorldEnvironment
-var lighting := WorldLighting.new()
+var lighting: WorldLighting
 var weather := WorldWeather.new()
 var raining: bool:
 	get:
@@ -95,7 +95,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	_crater_hint = Vector3.ZERO
 	if crater_v is Array and (crater_v as Array).size() >= 3:
 		_crater_hint = Vector3(float(crater_v[0]), 0.0, float(crater_v[2]))
-	lighting.install(self)
+	lighting = WorldLighting.install(self, _climate)
 	sun = lighting.sun
 	world_env = lighting.world_env
 	IslandTerrain.build(self, size, _climate)
@@ -137,7 +137,6 @@ func mark_pathing_dirty() -> void:
 		pathing.mark_dirty()
 
 func _process(delta: float) -> void:
-	lighting.drive(Game.time_of_day)
 	IslandTerrain.drive_focus(self)
 	weather.tick(self, delta)
 

@@ -3,20 +3,9 @@ extends RefCounted
 ## Shared floor + nav + player + camera + HUD for scenes/dev/*_lab.tscn.
 
 static func build(host: Node3D, size: float = 80.0) -> Dictionary:
-	var env := WorldEnvironment.new()
-	var e := Environment.new()
-	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.53, 0.68, 0.84)
-	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color(0.82, 0.86, 0.9)
-	e.ambient_light_energy = 0.7
-	env.environment = e
-	host.add_child(env)
-	var sun := DirectionalLight3D.new()
-	sun.shadow_enabled = true
-	sun.light_energy = 1.2
-	sun.rotation_degrees = Vector3(-50, 30, 0)
-	host.add_child(sun)
+	# The game's own lighting (temperate profile), so lab shots match the islands; the old kit
+	# added a second 1.2 sun and 0.7 flat ambient on top of the main scene's and blew out.
+	var lighting := WorldLighting.install(host, "temperate")
 	var nav := NavigationRegion3D.new()
 	nav.name = "Nav"
 	var nmesh := NavigationMesh.new()
@@ -79,7 +68,7 @@ static func build(host: Node3D, size: float = 80.0) -> Dictionary:
 	if player.eat_session:
 		player.eat_session.reparent_ui(ui)
 	nav.bake_navigation_mesh(false)
-	return {"player": player, "nav": nav, "ui": ui, "debug": debug, "cam": cam}
+	return {"player": player, "nav": nav, "ui": ui, "debug": debug, "cam": cam, "lighting": lighting}
 
 static func give(player: Player, id: StringName, n: int, attrs: Dictionary = {}) -> void:
 	player.inventory.add(ItemStack.make(id, n, attrs))

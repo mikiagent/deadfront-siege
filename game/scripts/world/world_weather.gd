@@ -25,10 +25,18 @@ func install(rt: IslandRuntime) -> void:
 	mat.emission_box_extents = Vector3(18, 0.2, 18)
 	mat.color = Color(0.65, 0.75, 0.9, 0.7)
 	_rain_fx.process_material = mat
-	var draw := SphereMesh.new()
-	draw.radius = 0.03
-	draw.height = 0.12
+	# A 2-triangle streak (was a 4,224-triangle sphere) whose material takes the particle colour;
+	# without vertex_color_use_as_albedo every drop rendered plain white.
+	var draw := QuadMesh.new()
+	draw.size = Vector2(0.025, 0.5)
+	var streak := StandardMaterial3D.new()
+	streak.vertex_color_use_as_albedo = true
+	streak.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	streak.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	streak.cull_mode = BaseMaterial3D.CULL_DISABLED
+	draw.material = streak
 	_rain_fx.draw_pass_1 = draw
+	_rain_fx.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	rt.add_child(_rain_fx)
 
 func tick(rt: IslandRuntime, delta: float) -> void:
