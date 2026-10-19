@@ -1,0 +1,226 @@
+extends SceneTree
+## W1-COMBAT rules: statuses only on landed hits, walls block melee, wear per landed hit,
+## seeded accuracy, pets are never hunted, nets keep the 30 % rule, kick mass scaling.
+## Usage: godot --headless --path game --script res://tests/t_combat.gd
+
+var failures: Array[String] = []
+var _started := false
+var host: Node3D
+## `godot --script` compiles this file before the autoloads exist, so every class that touches
+## Data/World/Game is loaded at run time and used untyped (the run_all.gd pattern).
+var player
+var data: Node
+var CA: GDScript  # CreatureAttack
+var MQ: GDScript  # MeleeQuery
+var HUNT: GDScript
+var ITEM: GDScript  # ItemStack
+
+func _process(_delta: float) -> bool:
+	if _started:
+		return false
+	# Player/Creature reference autoloads (Data, World, Game): wait until they exist.
+	if get_root() == null or get_root().get_node_or_null("Data") == null or get_root().get_node_or_null("World") == null:
+		return false
+	_started = true
+	data = get_root().get_node("Data")
+	CA = load("res://scripts/combat/creature_attack.gd")
+	MQ = load("res://scripts/combat/melee_query.gd")
+	HUNT = load("res://scripts/combat/hunt.gd")
+	ITEM = load("res://scripts/items/item_stack.gd")
+	_run.call_deferred()
+	return false
+
+func _expect(ok: bool, msg: String) -> void:
+	if not ok:
+		failures.append(msg)
+		print("[t_combat] FAIL %s" % msg)
+	else:
+		print("[t_combat] ok %s" % msg)
+
+func _run() -> void:
+	host = Node3D.new()
+	host.name = "TCombat"
+	get_root().add_child(host)
+	var floor := StaticBody3D.new()
+	var fs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(60, 1, 60)
+	fs.shape = box
+	floor.add_child(fs)
+	floor.position.y = -0.5
+	host.add_child(floor)
+	player = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	player.position = Vector3(0, 0.9, 0)
+	host.add_child(player)
+	await physics_frame
+	_test_tuning()
+	_test_no_status_without_hit()
+	await _test_walls_block()
+	_test_wear()
+	_test_seeded_accuracy()
+	_test_evasion()
+	_test_pets_and_nets()
+	_test_kick_mass()
+	CombatTuning.reset_overrides()
+	host.queue_free()
+	await process_frame
+	if failures.is_empty():
+		print("[t_combat] PASS")
+		quit(0)
+	else:
+		print("[t_combat] FAIL count=%d" % failures.size())
+		quit(1)
+
+func _creature(species: StringName, at: Vector3):
+	var c = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
+	c.position = at
+	host.add_child(c)
+	c.spawn(data.creature(species))
+	c.brain.process_mode = Node.PROCESS_MODE_DISABLED  # rules under test, not AI
+	return c
+
+func _reset_player() -> void:
+	for inst in player.statuses.instances().duplicate():
+		player.statuses.clear_id(inst.id)
+	player.vitals.dead = false
+	player.dead = false
+	player.vitals.health = 1000.0
+
+func _test_tuning() -> void:
+	_expect(CombatTuning.section("player_melee").has("hit_frac"), "combat_tuning.json loads with player_melee.hit_frac")
+	_expect(is_equal_approx(CombatTuning.num("creature_melee", "player_base_defense", -1.0), 20.0), "today's player base defense 20 lives in data")
+
+## pc-combat-02: a dodged or missed velociraptor pounce applies no knockdown and no bleed.
+func _test_no_status_without_hit() -> void:
+	var raptor = _creature(&"velociraptor", Vector3(0, 0, -1.6))
+	for mode in ["dodge", "miss"]:
+		_reset_player()
+		CombatTuning.reset_overrides()
+		if mode == "dodge":
+			CombatTuning.force_dodge = 1.0
+		else:
+			CombatTuning.force_accuracy = 0.0
+		var landed = CA.apply_for(raptor, &"attack_heavy", player)
+		_expect(not landed and player.statuses.instances().is_empty() and is_equal_approx(player.vitals.health, 1000.0),
+			"forced %s: heavy applies 0 statuses, 0 damage (statuses=%d)" % [mode, player.statuses.instances().size()])
+	_reset_player()
+	CombatTuning.force_dodge = 0.0
+	CombatTuning.force_accuracy = 1.0
+	var landed_ctrl = CA.apply_for(raptor, &"attack_heavy", player)
+	_expect(landed_ctrl and player.statuses.has(&"knockdown") and player.statuses.has(&"bleed"), "control: a landed heavy applies knockdown + bleed")
+	_reset_player()
+	raptor.free()
+
+## phys-hit-01: one fence between the bodies blocks the bite and the swing.
+func _test_walls_block() -> void:
+	_reset_player()
+	CombatTuning.force_dodge = 0.0
+	CombatTuning.force_accuracy = 1.0
+	player.global_position = Vector3(0, 0.9, -0.8)
+	var raptor = _creature(&"velociraptor", Vector3(0, 0, 0.9))
+	var fence = (load("res://scripts/world/placed_building.gd") as GDScript).make(&"fence")
+	host.add_child(fence)
+	fence.global_position = Vector3(0, 0, 0)
+	await physics_frame
+	await physics_frame
+	_expect(MQ.blocker(raptor, player) == fence, "knee ray raptor->survivor meets the fence")
+	player.vitals.health = 1000.0  # vitals clamp to max each frame; re-arm right before the bite
+	_expect(not CA.apply_for(raptor, &"attack_primary", player) and is_equal_approx(player.vitals.health, 1000.0), "bite through the fence lands nothing")
+	_expect(not MQ.clear(player, raptor), "survivor swing through the fence refused")
+	fence.free()
+	await physics_frame
+	_expect(MQ.clear(raptor, player), "same bodies without the fence: clear")
+	player.vitals.health = 1000.0
+	_expect(CA.apply_for(raptor, &"attack_primary", player) and player.vitals.health < 1000.0, "control: bite lands without the fence")
+	_reset_player()
+	raptor.global_position = Vector3(0, 6.0, 0.9)
+	_expect(not MQ.clear(player, raptor), "a body 5 m above is out of reach")
+	player.global_position = Vector3(0, 0.9, 0)
+	raptor.free()
+
+## pc-data-02 / durability-01: 10 landed club hits cost 10 durability; a broken club is bare hands.
+func _test_wear() -> void:
+	CombatTuning.force_dodge = 0.0
+	CombatTuning.force_accuracy = 1.0
+	var target = _creature(&"velociraptor", Vector3(0, 0, -1.6))
+	player.inventory.add(ITEM.make(&"club", 1))
+	player.inventory.equip(&"weapon", &"club")
+	var club = player.inventory.equipped_weapon()
+	var before = club.durability
+	var landed := 0
+	for i in 10:
+		target.health.hp = target.health.max_hp
+		if player.hunt.land_hit(target, club):
+			landed += 1
+	_expect(landed == 10 and before - club.durability == 10, "10 landed club hits: durability %d -> %d" % [before, club.durability])
+	CombatTuning.force_accuracy = 0.0
+	var dur = club.durability
+	player.hunt.land_hit(target, club)
+	_expect(club.durability == dur, "a missed swing does not wear the club")
+	club.durability = 0
+	_expect(player.hunt._weapon() == null, "a broken club fights as bare hands")
+	club.durability = club.max_durability
+	target.free()
+
+## pc-data-01: 1,000 seeded swings by a groggy attacker hit at base x accuracy_mult (+-3 %).
+func _test_seeded_accuracy() -> void:
+	CombatTuning.reset_overrides()
+	_reset_player()
+	var raptor = _creature(&"velociraptor", Vector3(0, 0, -1.6))
+	var base = CA.hit_chance(raptor, player)
+	raptor.statuses.apply(&"groggy")
+	var mult: float = data.status(&"groggy").accuracy_mult
+	CombatTuning.rng.seed = 20261018
+	var hits := 0
+	for i in 1000:
+		if CombatTuning.roll(CA.hit_chance(raptor, player)):
+			hits += 1
+	var want: float = base * mult
+	_expect(absf(hits / 1000.0 - want) <= 0.03, "groggy raptor: %d/1000 hits, want %.3f x %.2f = %.3f" % [hits, base, mult, want])
+	# The survivor: groggy swings against a target with no dodge.
+	player.statuses.apply(&"groggy")
+	CombatTuning.force_dodge = 0.0
+	hits = 0
+	for i in 1000:
+		if CombatTuning.roll(player.hunt.hit_chance(raptor)):
+			hits += 1
+	_expect(absf(hits / 1000.0 - mult) <= 0.03, "groggy survivor: %d/1000 hits, want %.2f" % [hits, mult])
+	CombatTuning.reset_overrides()
+	_reset_player()
+	raptor.free()
+
+## evasion_add (dizziness -40) lowers the host's dodge.
+func _test_evasion() -> void:
+	var raptor = _creature(&"velociraptor", Vector3(0, 0, -1.6))
+	var plain = player.hunt.hit_chance(raptor)
+	raptor.statuses.apply(&"dizziness")
+	_expect(raptor.statuses.evasion_add() < 0.0 and player.hunt.hit_chance(raptor) > plain, "dizziness evasion_add raises the chance to hit it (%.3f -> %.3f)" % [plain, player.hunt.hit_chance(raptor)])
+	raptor.free()
+
+## pc-bug-01 / tame-11: never hunt your own pet; a net needs < 30 % health.
+func _test_pets_and_nets() -> void:
+	var pet = _creature(&"velociraptor", Vector3(0, 0, -1.6))
+	pet.is_pet = true
+	player.hunt.stop()
+	player.hunt.start(pet)
+	_expect(player.hunt.target == null, "Hunt.start on a pet starts no hunt")
+	pet.free()
+	var wild = _creature(&"velociraptor", Vector3(0, 0, -1.6))
+	player.hunt.start(wild)
+	wild.is_capturable = true
+	wild.health.hp = wild.health.max_hp * 0.5
+	player.hunt.last_notice = ""
+	player.hunt.use_net()
+	_expect(player.hunt.last_notice.contains("30%"), "net at 50 %% health refused (%s)" % player.hunt.last_notice)
+	_expect(player.hunt.tactic_label(4) != "Net", "Net hex hidden above 30 % health")
+	player.hunt.stop()
+	wild.free()
+
+## phys-kick-01: shove falls off with mass; giants do not budge.
+func _test_kick_mass() -> void:
+	var probe = (load("res://scripts/creatures/creature.gd") as GDScript).new()
+	for row in [[&"compsognathus", 1.5, INF], [&"velociraptor", 0.3, INF], [&"triceratops", -1.0, 0.0], [&"tyrannosaurus", -1.0, 0.0]]:
+		probe.def = data.creature(row[0])
+		var push = HUNT.kick_push(probe)
+		_expect(push >= float(row[1]) and push <= float(row[2]), "kick push %s = %.2f m" % [row[0], push])
+	probe.free()

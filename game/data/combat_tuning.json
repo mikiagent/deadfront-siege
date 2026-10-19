@@ -1,0 +1,66 @@
+{
+  "_doc": "Combat formulas, today's numbers. Balance (pc-balance-01) and the armour model (armor-01) wait on the owner; change values here, not in code. Read by scripts/combat/combat_tuning.gd.",
+  "player_melee": {
+    "unarmed_damage": 8.0,
+    "work_tool_mult": 0.45,
+    "heavy_swing_min_damage": 10.0,
+    "base_accuracy": 1.0,
+    "defense_factor": 0.5,
+    "min_damage_frac": 0.05,
+    "behind_dot": 0.35,
+    "behind_mult": 1.25,
+    "damage_per_melee_level": 0.01,
+    "crit_base": 0.08,
+    "crit_behind": 0.2,
+    "crit_per_melee_level": 0.002,
+    "crit_mult": 1.75,
+    "blunt_groggy_chance": 0.35,
+    "slashing_bleed_chance": 0.25,
+    "swing_seconds": 0.65,
+    "missing_clip_swing_seconds": 0.35,
+    "hit_frac": 0.6,
+    "hit_reach_slack_m": 0.3,
+    "hit_arc_min_dot": 0.0,
+    "xp_per_hit": 2
+  },
+  "creature_melee": {
+    "player_base_defense": 20.0,
+    "defense_factor": 0.5,
+    "min_damage_frac": 0.05,
+    "crit_mult": 1.5
+  },
+  "ranged": {
+    "defense_factor": 0.5,
+    "min_damage_frac": 0.05,
+    "gravity": 9.8,
+    "xp_per_hit": 2
+  },
+  "evasion_add_scale": 0.01,
+  "weapon_wear_per_hit": 1,
+  "tackle": {
+    "surface_reach_m": 2.4,
+    "stamina": 15.0,
+    "damage": 6.0,
+    "cooldown": 8.0,
+    "lock": 0.55,
+    "lunge_max_m": 1.0
+  },
+  "kick": {
+    "surface_reach_m": 2.4,
+    "stamina": 10.0,
+    "damage": 4.0,
+    "cooldown": 6.0,
+    "lock": 0.45,
+    "push_m": 3.5,
+    "ref_mass": 8.0,
+    "giant_mass": 60.0,
+    "min_push_m": 0.3
+  },
+  "camera": {
+    "trauma_decay_per_s": 1.4,
+    "max_offset_m": 0.45,
+    "heavy_hit": 0.6,
+    "player_hit": 0.35,
+    "player_heavy_swing": 0.25
+  }
+}
