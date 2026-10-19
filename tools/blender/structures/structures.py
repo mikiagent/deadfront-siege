@@ -223,7 +223,7 @@ STRIP_STAGES = {
     # stage: (tile, width, length, thickness, curl degrees, shrink of hang point)
     "raw": ("meat_raw", 0.12, 0.5, 0.03, 0.0),
     "drying": ("meat_drying", 0.105, 0.44, 0.022, 9.0),
-    "dried": ("meat_dried", 0.075, 0.36, 0.015, 18.0),
+    "dried": ("meat_dried", 0.085, 0.38, 0.016, 18.0),
 }
 
 
@@ -259,7 +259,7 @@ def _strips(p, stage, seed):
 
 def drying_rack(stage="empty"):
     """A-frame rack, three poles. Stages: empty, raw (bright red), drying (darker, curling),
-    dried (near-black, thin, curled). The frame is identical in every stage so swapping the
+    dried (leathery brown, thinner, curled). The frame is identical in every stage so swapping the
     model reads as the meat changing."""
     name = "drying_rack" if stage == "empty" else "drying_rack_" + stage
     p = Part(name)

@@ -256,7 +256,7 @@ def paint_atlas():
         "char": _speckle(6, (0.13, 0.11, 0.1), (0.05, 0.04, 0.04), light=(0.3, 0.28, 0.26), crack=1),
         "wheel": _wheel(),
         "weathered": _grain(8, (0.55, 0.49, 0.41), (0.36, 0.31, 0.26), rings=12),
-        "canvas": _mix(_weave(9, (0.82, 0.74, 0.58), (0.68, 0.6, 0.45), cell=3),
+        "canvas": _mix(_weave(9, (0.72, 0.65, 0.51), (0.6, 0.53, 0.4), cell=3),
                        _rgb((0.55, 0.47, 0.35)), np.clip(_fbm(_rng(10), TILE_PX, 3, 3) - 0.45, 0, 1)),
         "hide": _speckle(11, (0.62, 0.45, 0.31), (0.45, 0.31, 0.2), light=(0.72, 0.56, 0.4), scale=5),
         "rope": _stripes(12, (0.74, 0.62, 0.42), (0.45, 0.36, 0.22), freq=12, angle=0.7, sharp=2, noise=0.2),
@@ -273,10 +273,11 @@ def paint_atlas():
         "iron": _speckle(23, (0.27, 0.27, 0.29), (0.16, 0.16, 0.17), light=(0.42, 0.33, 0.25), scale=7),
         "ash": _speckle(24, (0.48, 0.46, 0.43), (0.28, 0.27, 0.26), light=(0.62, 0.6, 0.57), scale=9),
         "ember": _ember(),
-        # Drying-rack stages: bright wet red -> darker brown-red -> near-black leathery brown.
+        # Drying-rack stages: bright wet red -> dark red -> leathery brown (brown, not black, so it
+        # still reads against the dark dirt disc under every structure).
         "meat_raw": _meat(25, (0.78, 0.14, 0.13), (0.55, 0.06, 0.07), (0.92, 0.72, 0.66), 0.2),
-        "meat_drying": _meat(26, (0.48, 0.2, 0.1), (0.31, 0.11, 0.06), (0.66, 0.46, 0.34), 0.25),
-        "meat_dried": _meat(27, (0.27, 0.13, 0.07), (0.15, 0.07, 0.04), (0.38, 0.24, 0.15), 0.15),
+        "meat_drying": _meat(26, (0.58, 0.16, 0.11), (0.38, 0.08, 0.06), (0.72, 0.42, 0.32), 0.22),
+        "meat_dried": _meat(27, (0.4, 0.24, 0.14), (0.25, 0.14, 0.08), (0.56, 0.4, 0.26), 0.18),
         "water": _water(),
         "soot": _speckle(29, (0.17, 0.15, 0.14), (0.08, 0.07, 0.07), scale=5),
         "sign_board": _sign_board(),
