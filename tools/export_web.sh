@@ -4,7 +4,17 @@
 # Must use the *standard* (non-Mono) editor: Godot 4 refuses Web export from
 # C#/.NET editor builds even for GDScript-only projects.
 # Vercel cannot run Godot; this folder is the static site you deploy.
+# Usage: tools/export_web.sh [--soak]
+#   --soak  export the WebSoak preset (keeps scripts/dev for ?soak=1); never ship it as a release.
+# PAYLOAD_MAX_MB (default 220): the export fails when the pack is larger.
 set -euo pipefail
+PRESET="Web"
+SOAK_ARG=()
+if [[ "${1:-}" == "--soak" ]]; then
+  PRESET="WebSoak"
+  SOAK_ARG=(--soak)
+fi
+MAX_MB="${PAYLOAD_MAX_MB:-220}"
 G="${GODOT_WEB_PATH:-$HOME/Applications/Godot-4.7.1.app/Contents/MacOS/Godot}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/export/web"
@@ -23,10 +33,12 @@ fi
 mkdir -p "$OUT"
 # Godot refuses to overwrite a dirty HTML export dir in some versions.
 find "$OUT" -mindepth 1 -maxdepth 1 ! -name '.vercel' -exec rm -rf {} +
-echo "Exporting Web release with $($G --version) → $OUT/index.html"
-"$G" --headless --path "$ROOT/game" --export-release "Web" "../export/web/index.html"
+echo "Exporting $PRESET release with $($G --version) → $OUT/index.html"
+"$G" --headless --path "$ROOT/game" --export-release "$PRESET" "../export/web/index.html"
 cp "$ROOT/hosting/web/vercel.json" "$OUT/vercel.json"
 python3 "$ROOT/tools/web_pack_for_vercel.py" "$OUT"
+# Payload gate: no dev labs/tests/refs in the pack and the pack under the ceiling.
+python3 "$ROOT/tools/check_export_payload.py" "$OUT" --max-mb "$MAX_MB" ${SOAK_ARG[@]+"${SOAK_ARG[@]}"}
 PACK_HASH="$(python3 - "$OUT/pack.manifest.json" <<'PY2'
 import json
 from pathlib import Path
