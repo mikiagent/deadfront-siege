@@ -108,6 +108,8 @@ func _test_growth_bounded() -> void:
 		worst_atk = maxf(worst_atk, atk60 / atk1)
 		_expect(hp60 <= 3.0 * hp1, "%s Lv60 HP %.0f > 3x Lv1 %.0f" % [id, hp60, hp1])
 		_expect(atk60 <= 2.5 * atk1, "%s Lv60 attack %.0f > 2.5x Lv1 %.0f" % [id, atk60, atk1])
+		if id == &"tyrannosaurus":
+			continue  # tameable since the mount merge; a tamed rex is capped by the growth checks above, not by itself
 		_expect(hp60 <= rex.hp, "%s Lv60 HP %.0f exceeds wild T. rex %.0f" % [id, hp60, rex.hp])
 		_expect(atk60 <= rex.attack and ratk60 <= rex.attack, "%s Lv60 attack %.0f exceeds wild T. rex %.0f" % [id, maxf(atk60, ratk60), rex.attack])
 	_expect(count >= 16, "tameable species found (%d)" % count)
