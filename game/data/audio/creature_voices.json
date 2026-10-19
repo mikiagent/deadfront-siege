@@ -1,0 +1,149 @@
+{
+ "_about": "Species -> voice set. Event = cv_<set>_<colour>_<kind>; pitch multiplies the event pitch. Colour is an offline EQ timbre (dark/neutral/bright) standing in for a formant shift.",
+ "kinds": [
+  "idle",
+  "alert",
+  "attack",
+  "hurt",
+  "death"
+ ],
+ "sets": {
+  "carn_small": {
+   "size": "small",
+   "diet": "carnivore"
+  },
+  "carn_medium": {
+   "size": "medium",
+   "diet": "carnivore"
+  },
+  "carn_large": {
+   "size": "large",
+   "diet": "carnivore"
+  },
+  "carn_huge": {
+   "size": "huge",
+   "diet": "carnivore"
+  },
+  "herb_small": {
+   "size": "small",
+   "diet": "herbivore"
+  },
+  "herb_medium": {
+   "size": "medium",
+   "diet": "herbivore"
+  },
+  "herb_large": {
+   "size": "large",
+   "diet": "herbivore"
+  },
+  "herb_huge": {
+   "size": "huge",
+   "diet": "herbivore"
+  },
+  "mammal_cat": {
+   "size": "medium",
+   "diet": "carnivore"
+  },
+  "mammal_deer": {
+   "size": "medium",
+   "diet": "herbivore"
+  }
+ },
+ "species": {
+  "allosaurus": {
+   "set": "carn_large",
+   "colour": "neutral",
+   "pitch": 1.0
+  },
+  "ankylosaurus": {
+   "set": "herb_large",
+   "colour": "dark",
+   "pitch": 0.9
+  },
+  "brachiosaurus": {
+   "set": "herb_huge",
+   "colour": "neutral",
+   "pitch": 1.0
+  },
+  "coelophysis": {
+   "set": "carn_small",
+   "colour": "neutral",
+   "pitch": 1.0
+  },
+  "compsognathus": {
+   "set": "carn_small",
+   "colour": "bright",
+   "pitch": 1.35
+  },
+  "deinonychus": {
+   "set": "carn_medium",
+   "colour": "dark",
+   "pitch": 1.0
+  },
+  "dilophosaurus": {
+   "set": "carn_medium",
+   "colour": "bright",
+   "pitch": 1.0
+  },
+  "gallimimus": {
+   "set": "herb_medium",
+   "colour": "neutral",
+   "pitch": 1.0
+  },
+  "megaloceros": {
+   "set": "mammal_deer",
+   "colour": "neutral",
+   "pitch": 1.0
+  },
+  "protoceratops": {
+   "set": "herb_small",
+   "colour": "neutral",
+   "pitch": 1.0
+  },
+  "smilodon": {
+   "set": "mammal_cat",
+   "colour": "neutral",
+   "pitch": 1.0
+  },
+  "stegosaurus": {
+   "set": "herb_large",
+   "colour": "bright",
+   "pitch": 1.05
+  },
+  "styracosaurus": {
+   "set": "herb_large",
+   "colour": "bright",
+   "pitch": 1.15
+  },
+  "tarbosaurus": {
+   "set": "carn_huge",
+   "colour": "neutral",
+   "pitch": 1.02
+  },
+  "triceratops": {
+   "set": "herb_large",
+   "colour": "neutral",
+   "pitch": 0.95
+  },
+  "tyrannosaurus": {
+   "set": "carn_huge",
+   "colour": "dark",
+   "pitch": 0.88
+  },
+  "utahraptor": {
+   "set": "carn_medium",
+   "colour": "dark",
+   "pitch": 0.82
+  },
+  "velociraptor": {
+   "set": "carn_medium",
+   "colour": "neutral",
+   "pitch": 1.1
+  },
+  "zebraceratops": {
+   "set": "herb_small",
+   "colour": "bright",
+   "pitch": 1.15
+  }
+ }
+}

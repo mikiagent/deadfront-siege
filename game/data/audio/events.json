@@ -1,0 +1,3187 @@
+{
+ "_about": "AudioDirector event table. files are relative to res://assets/audio/. pitch is [min, max]; cooldown and max_instances are per event.",
+ "ambience": {
+  "climates": {
+   "grassland": {
+    "day": "amb_grassland_day",
+    "night": "amb_grassland_night"
+   },
+   "savannah": {
+    "day": "amb_savannah_day",
+    "night": "amb_savannah_night"
+   },
+   "temperate": {
+    "day": "amb_temperate_day",
+    "night": "amb_temperate_night"
+   },
+   "tropical": {
+    "day": "amb_tropical_day",
+    "night": "amb_tropical_night"
+   },
+   "blue_tropical": {
+    "day": "amb_tropical_day",
+    "night": "amb_tropical_night"
+   },
+   "tundra": {
+    "day": "amb_tundra_day",
+    "night": "amb_tundra_night"
+   },
+   "snowfield": {
+    "day": "amb_tundra_day",
+    "night": "amb_tundra_night"
+   },
+   "desert": {
+    "day": "amb_desert_day",
+    "night": "amb_desert_night"
+   },
+   "swamp": {
+    "day": "amb_swamp_day",
+    "night": "amb_swamp_night"
+   },
+   "volcanic": {
+    "day": "amb_volcanic_day",
+    "night": "amb_volcanic_night"
+   }
+  },
+  "default": "grassland",
+  "shore": "amb_shore",
+  "rain_light": "amb_rain_light",
+  "rain_heavy": "amb_rain_heavy",
+  "wind": "amb_wind_strong",
+  "thunder": "thunder",
+  "fire": "amb_fire"
+ },
+ "music": {
+  "explore": "music_explore",
+  "night": "music_night",
+  "combat": "music_combat"
+ },
+ "events": {
+  "ui_click": {
+   "files": [
+    "ui/click_01.ogg",
+    "ui/click_02.ogg",
+    "ui/click_03.ogg",
+    "ui/click_04.ogg"
+   ],
+   "bus": "UI",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.03,
+   "priority": 90
+  },
+  "ui_confirm": {
+   "files": [
+    "ui/confirm_01.ogg",
+    "ui/confirm_02.ogg"
+   ],
+   "bus": "UI",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.05,
+   "priority": 90
+  },
+  "ui_cancel": {
+   "files": [
+    "ui/cancel_01.ogg",
+    "ui/cancel_02.ogg"
+   ],
+   "bus": "UI",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.05,
+   "priority": 90
+  },
+  "ui_panel_open": {
+   "files": [
+    "ui/panel_open_01.ogg",
+    "ui/panel_open_02.ogg"
+   ],
+   "bus": "UI",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 1,
+   "cooldown": 0.12,
+   "priority": 85
+  },
+  "ui_panel_close": {
+   "files": [
+    "ui/panel_close_01.ogg",
+    "ui/panel_close_02.ogg"
+   ],
+   "bus": "UI",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 1,
+   "cooldown": 0.12,
+   "priority": 85
+  },
+  "ui_error": {
+   "files": [
+    "ui/error_01.ogg",
+    "ui/error_02.ogg"
+   ],
+   "bus": "UI",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 1,
+   "cooldown": 0.35,
+   "priority": 88
+  },
+  "ui_notice": {
+   "files": [
+    "ui/notice_01.ogg",
+    "ui/notice_02.ogg"
+   ],
+   "bus": "UI",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 1,
+   "cooldown": 0.25,
+   "priority": 60
+  },
+  "ui_level_up": {
+   "files": [
+    "ui/level_up_01.ogg",
+    "ui/level_up_02.ogg"
+   ],
+   "bus": "UI",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1.0,
+    1.0
+   ],
+   "max_instances": 1,
+   "cooldown": 1.0,
+   "priority": 95
+  },
+  "ui_item_pickup": {
+   "files": [
+    "ui/pickup_01.ogg",
+    "ui/pickup_02.ogg",
+    "ui/pickup_03.ogg"
+   ],
+   "bus": "UI",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.2,
+   "priority": 70
+  },
+  "ui_coin": {
+   "files": [
+    "ui/coin_01.ogg",
+    "ui/coin_02.ogg"
+   ],
+   "bus": "UI",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 1,
+   "cooldown": 0.2,
+   "priority": 80
+  },
+  "ui_tstone": {
+   "files": [
+    "ui/tstone_01.ogg",
+    "ui/tstone_02.ogg",
+    "ui/tstone_03.ogg"
+   ],
+   "bus": "UI",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 1,
+   "cooldown": 0.2,
+   "priority": 80
+  },
+  "ui_craft_complete": {
+   "files": [
+    "ui/craft_done_01.ogg",
+    "ui/craft_done_02.ogg"
+   ],
+   "bus": "UI",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 1,
+   "cooldown": 0.3,
+   "priority": 85
+  },
+  "step_sand": {
+   "files": [
+    "survivor/step_sand_01.ogg",
+    "survivor/step_sand_02.ogg",
+    "survivor/step_sand_03.ogg",
+    "survivor/step_sand_04.ogg",
+    "survivor/step_sand_05.ogg",
+    "survivor/step_sand_06.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": -1.0,
+   "pitch": [
+    0.92,
+    1.08
+   ],
+   "max_instances": 3,
+   "cooldown": 0.09,
+   "priority": 40,
+   "unit_size": 6.0,
+   "max_distance": 28.0
+  },
+  "step_stone": {
+   "files": [
+    "survivor/step_stone_01.ogg",
+    "survivor/step_stone_02.ogg",
+    "survivor/step_stone_03.ogg",
+    "survivor/step_stone_04.ogg",
+    "survivor/step_stone_05.ogg",
+    "survivor/step_stone_06.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": -1.0,
+   "pitch": [
+    0.92,
+    1.08
+   ],
+   "max_instances": 3,
+   "cooldown": 0.09,
+   "priority": 40,
+   "unit_size": 6.0,
+   "max_distance": 28.0
+  },
+  "step_dirt": {
+   "files": [
+    "survivor/step_dirt_01.ogg",
+    "survivor/step_dirt_02.ogg",
+    "survivor/step_dirt_03.ogg",
+    "survivor/step_dirt_04.ogg",
+    "survivor/step_dirt_05.ogg",
+    "survivor/step_dirt_06.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": -1.0,
+   "pitch": [
+    0.92,
+    1.08
+   ],
+   "max_instances": 3,
+   "cooldown": 0.09,
+   "priority": 40,
+   "unit_size": 6.0,
+   "max_distance": 28.0
+  },
+  "step_wood": {
+   "files": [
+    "survivor/step_wood_01.ogg",
+    "survivor/step_wood_02.ogg",
+    "survivor/step_wood_03.ogg",
+    "survivor/step_wood_04.ogg",
+    "survivor/step_wood_05.ogg",
+    "survivor/step_wood_06.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": -1.0,
+   "pitch": [
+    0.92,
+    1.08
+   ],
+   "max_instances": 3,
+   "cooldown": 0.09,
+   "priority": 40,
+   "unit_size": 6.0,
+   "max_distance": 28.0
+  },
+  "step_snow": {
+   "files": [
+    "survivor/step_snow_01.ogg",
+    "survivor/step_snow_02.ogg",
+    "survivor/step_snow_03.ogg",
+    "survivor/step_snow_04.ogg",
+    "survivor/step_snow_05.ogg",
+    "survivor/step_snow_06.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": -1.0,
+   "pitch": [
+    0.92,
+    1.08
+   ],
+   "max_instances": 3,
+   "cooldown": 0.09,
+   "priority": 40,
+   "unit_size": 6.0,
+   "max_distance": 28.0
+  },
+  "step_water": {
+   "files": [
+    "survivor/step_water_01.ogg",
+    "survivor/step_water_02.ogg",
+    "survivor/step_water_03.ogg",
+    "survivor/step_water_04.ogg",
+    "survivor/step_water_05.ogg",
+    "survivor/step_water_06.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": -1.0,
+   "pitch": [
+    0.92,
+    1.08
+   ],
+   "max_instances": 3,
+   "cooldown": 0.09,
+   "priority": 40,
+   "unit_size": 6.0,
+   "max_distance": 28.0
+  },
+  "step_mud": {
+   "files": [
+    "survivor/step_mud_01.ogg",
+    "survivor/step_mud_02.ogg",
+    "survivor/step_mud_03.ogg",
+    "survivor/step_mud_04.ogg",
+    "survivor/step_mud_05.ogg",
+    "survivor/step_mud_06.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": -1.0,
+   "pitch": [
+    0.92,
+    1.08
+   ],
+   "max_instances": 3,
+   "cooldown": 0.09,
+   "priority": 40,
+   "unit_size": 6.0,
+   "max_distance": 28.0
+  },
+  "survivor_roll": {
+   "files": [
+    "survivor/roll_01.ogg",
+    "survivor/roll_02.ogg",
+    "survivor/roll_03.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 1,
+   "cooldown": 0.3,
+   "priority": 80,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "survivor_hurt": {
+   "files": [
+    "survivor/hurt_01.ogg",
+    "survivor/hurt_02.ogg",
+    "survivor/hurt_03.ogg",
+    "survivor/hurt_04.ogg",
+    "survivor/hurt_05.ogg",
+    "survivor/hurt_06.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.97,
+    1.03
+   ],
+   "max_instances": 1,
+   "cooldown": 0.45,
+   "priority": 80,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "survivor_death": {
+   "files": [
+    "survivor/death_01.ogg",
+    "survivor/death_02.ogg",
+    "survivor/death_03.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    1.0,
+    1.0
+   ],
+   "max_instances": 1,
+   "cooldown": 2.0,
+   "priority": 80,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "survivor_effort": {
+   "files": [
+    "survivor/effort_01.ogg",
+    "survivor/effort_02.ogg",
+    "survivor/effort_03.ogg",
+    "survivor/effort_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 1,
+   "cooldown": 0.6,
+   "priority": 80,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "survivor_eat": {
+   "files": [
+    "survivor/eat_01.ogg",
+    "survivor/eat_02.ogg",
+    "survivor/eat_03.ogg",
+    "survivor/eat_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 1,
+   "cooldown": 0.5,
+   "priority": 80,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "survivor_drink": {
+   "files": [
+    "survivor/drink_01.ogg",
+    "survivor/drink_02.ogg",
+    "survivor/drink_03.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 1,
+   "cooldown": 0.8,
+   "priority": 80,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "survivor_sleep": {
+   "files": [
+    "survivor/sleep_01.ogg",
+    "survivor/sleep_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.98,
+    1.02
+   ],
+   "max_instances": 1,
+   "cooldown": 2.0,
+   "priority": 80,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "survivor_wake": {
+   "files": [
+    "survivor/wake_01.ogg",
+    "survivor/wake_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 1,
+   "cooldown": 2.0,
+   "priority": 80,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "gather_chop": {
+   "files": [
+    "gather/chop_01.ogg",
+    "gather/chop_02.ogg",
+    "gather/chop_03.ogg",
+    "gather/chop_04.ogg",
+    "gather/chop_05.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.14,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "gather_mine": {
+   "files": [
+    "gather/mine_01.ogg",
+    "gather/mine_02.ogg",
+    "gather/mine_03.ogg",
+    "gather/mine_04.ogg",
+    "gather/mine_05.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.14,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "gather_pick": {
+   "files": [
+    "gather/pick_01.ogg",
+    "gather/pick_02.ogg",
+    "gather/pick_03.ogg",
+    "gather/pick_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.14,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "gather_dig": {
+   "files": [
+    "gather/dig_01.ogg",
+    "gather/dig_02.ogg",
+    "gather/dig_03.ogg",
+    "gather/dig_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.14,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "gather_butcher": {
+   "files": [
+    "gather/butcher_01.ogg",
+    "gather/butcher_02.ogg",
+    "gather/butcher_03.ogg",
+    "gather/butcher_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.14,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "gather_craft": {
+   "files": [
+    "gather/craft_01.ogg",
+    "gather/craft_02.ogg",
+    "gather/craft_03.ogg",
+    "gather/craft_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.14,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "node_depleted_tree": {
+   "files": [
+    "gather/depleted_tree_01.ogg",
+    "gather/depleted_tree_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.4,
+   "priority": 65,
+   "unit_size": 10.0,
+   "max_distance": 45.0
+  },
+  "node_depleted_rock": {
+   "files": [
+    "gather/depleted_rock_01.ogg",
+    "gather/depleted_rock_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.4,
+   "priority": 65,
+   "unit_size": 10.0,
+   "max_distance": 45.0
+  },
+  "node_depleted_bush": {
+   "files": [
+    "gather/depleted_bush_01.ogg",
+    "gather/depleted_bush_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.4,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 35.0
+  },
+  "swing_light": {
+   "files": [
+    "combat/swing_light_01.ogg",
+    "combat/swing_light_02.ogg",
+    "combat/swing_light_03.ogg",
+    "combat/swing_light_04.ogg",
+    "combat/swing_light_05.ogg",
+    "combat/swing_light_06.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.92,
+    1.08
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 70,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "swing_heavy": {
+   "files": [
+    "combat/swing_heavy_01.ogg",
+    "combat/swing_heavy_02.ogg",
+    "combat/swing_heavy_03.ogg",
+    "combat/swing_heavy_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 70,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "impact_flesh_small": {
+   "files": [
+    "combat/flesh_small_01.ogg",
+    "combat/flesh_small_02.ogg",
+    "combat/flesh_small_03.ogg",
+    "combat/flesh_small_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 70,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "impact_flesh_medium": {
+   "files": [
+    "combat/flesh_medium_01.ogg",
+    "combat/flesh_medium_02.ogg",
+    "combat/flesh_medium_03.ogg",
+    "combat/flesh_medium_04.ogg",
+    "combat/flesh_medium_05.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 70,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "impact_hide_large": {
+   "files": [
+    "combat/hide_large_01.ogg",
+    "combat/hide_large_02.ogg",
+    "combat/hide_large_03.ogg",
+    "combat/hide_large_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 72,
+   "unit_size": 10.0,
+   "max_distance": 50.0
+  },
+  "impact_hide_huge": {
+   "files": [
+    "combat/hide_huge_01.ogg",
+    "combat/hide_huge_02.ogg",
+    "combat/hide_huge_03.ogg",
+    "combat/hide_huge_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 74,
+   "unit_size": 12.0,
+   "max_distance": 60.0
+  },
+  "impact_bone": {
+   "files": [
+    "combat/bone_01.ogg",
+    "combat/bone_02.ogg",
+    "combat/bone_03.ogg",
+    "combat/bone_04.ogg",
+    "combat/bone_05.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 70,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "impact_crit": {
+   "files": [
+    "combat/crit_01.ogg",
+    "combat/crit_02.ogg",
+    "combat/crit_03.ogg",
+    "combat/crit_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 78,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "armour_hit": {
+   "files": [
+    "combat/armour_01.ogg",
+    "combat/armour_02.ogg",
+    "combat/armour_03.ogg",
+    "combat/armour_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 70,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "proj_stone_release": {
+   "files": [
+    "combat/stone_release_01.ogg",
+    "combat/stone_release_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 70,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "proj_stone_hit": {
+   "files": [
+    "combat/stone_hit_01.ogg",
+    "combat/stone_hit_02.ogg",
+    "combat/stone_hit_03.ogg",
+    "combat/stone_hit_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 70,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "proj_arrow_release": {
+   "files": [
+    "combat/arrow_release_01.ogg",
+    "combat/arrow_release_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 70,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "proj_arrow_hit": {
+   "files": [
+    "combat/arrow_hit_01.ogg",
+    "combat/arrow_hit_02.ogg",
+    "combat/arrow_hit_03.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 70,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "proj_spear_release": {
+   "files": [
+    "combat/spear_release_01.ogg",
+    "combat/spear_release_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 70,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "proj_spear_hit": {
+   "files": [
+    "combat/spear_hit_01.ogg",
+    "combat/spear_hit_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 70,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "proj_catapult_release": {
+   "files": [
+    "combat/catapult_release_01.ogg",
+    "combat/catapult_release_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.2,
+   "priority": 70,
+   "unit_size": 10.0,
+   "max_distance": 55.0
+  },
+  "proj_catapult_hit": {
+   "files": [
+    "combat/catapult_hit_01.ogg",
+    "combat/catapult_hit_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.1,
+   "priority": 75,
+   "unit_size": 12.0,
+   "max_distance": 60.0
+  },
+  "knockdown_thud": {
+   "files": [
+    "combat/knockdown_01.ogg",
+    "combat/knockdown_02.ogg",
+    "combat/knockdown_03.ogg",
+    "combat/knockdown_04.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 4,
+   "cooldown": 0.03,
+   "priority": 70,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "body_fall_small": {
+   "files": [
+    "combat/fall_small_01.ogg",
+    "combat/fall_small_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.05,
+   "priority": 60,
+   "unit_size": 6.0,
+   "max_distance": 30.0
+  },
+  "body_fall_medium": {
+   "files": [
+    "combat/fall_medium_01.ogg",
+    "combat/fall_medium_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.05,
+   "priority": 65,
+   "unit_size": 8.0,
+   "max_distance": 40.0
+  },
+  "body_fall_large": {
+   "files": [
+    "combat/fall_large_01.ogg",
+    "combat/fall_large_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.05,
+   "priority": 70,
+   "unit_size": 12.0,
+   "max_distance": 60.0
+  },
+  "body_fall_huge": {
+   "files": [
+    "combat/fall_huge_01.ogg",
+    "combat/fall_huge_02.ogg"
+   ],
+   "bus": "SFX",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.05,
+   "priority": 80,
+   "unit_size": 18.0,
+   "max_distance": 110.0
+  },
+  "creature_step_large": {
+   "files": [
+    "combat/step_large_01.ogg",
+    "combat/step_large_02.ogg",
+    "combat/step_large_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.9,
+    1.1
+   ],
+   "max_instances": 6,
+   "cooldown": 0.05,
+   "priority": 35,
+   "unit_size": 10.0,
+   "max_distance": 45.0
+  },
+  "creature_step_huge": {
+   "files": [
+    "combat/step_huge_01.ogg",
+    "combat/step_huge_02.ogg",
+    "combat/step_huge_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.92,
+    1.08
+   ],
+   "max_instances": 6,
+   "cooldown": 0.05,
+   "priority": 45,
+   "unit_size": 16.0,
+   "max_distance": 90.0
+  },
+  "cv_carn_small_bright_idle": {
+   "files": [
+    "creatures/carn_small/bright_idle_01.ogg",
+    "creatures/carn_small/bright_idle_02.ogg",
+    "creatures/carn_small/bright_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 45,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_carn_small_bright_alert": {
+   "files": [
+    "creatures/carn_small/bright_alert_01.ogg",
+    "creatures/carn_small/bright_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 50,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_carn_small_bright_attack": {
+   "files": [
+    "creatures/carn_small/bright_attack_01.ogg",
+    "creatures/carn_small/bright_attack_02.ogg",
+    "creatures/carn_small/bright_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 50,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_carn_small_bright_hurt": {
+   "files": [
+    "creatures/carn_small/bright_hurt_01.ogg",
+    "creatures/carn_small/bright_hurt_02.ogg",
+    "creatures/carn_small/bright_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 45,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_carn_small_bright_death": {
+   "files": [
+    "creatures/carn_small/bright_death_01.ogg",
+    "creatures/carn_small/bright_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 45,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_carn_small_neutral_idle": {
+   "files": [
+    "creatures/carn_small/neutral_idle_01.ogg",
+    "creatures/carn_small/neutral_idle_02.ogg",
+    "creatures/carn_small/neutral_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 45,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_carn_small_neutral_alert": {
+   "files": [
+    "creatures/carn_small/neutral_alert_01.ogg",
+    "creatures/carn_small/neutral_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 50,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_carn_small_neutral_attack": {
+   "files": [
+    "creatures/carn_small/neutral_attack_01.ogg",
+    "creatures/carn_small/neutral_attack_02.ogg",
+    "creatures/carn_small/neutral_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 50,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_carn_small_neutral_hurt": {
+   "files": [
+    "creatures/carn_small/neutral_hurt_01.ogg",
+    "creatures/carn_small/neutral_hurt_02.ogg",
+    "creatures/carn_small/neutral_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 45,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_carn_small_neutral_death": {
+   "files": [
+    "creatures/carn_small/neutral_death_01.ogg",
+    "creatures/carn_small/neutral_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 45,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_carn_medium_bright_idle": {
+   "files": [
+    "creatures/carn_medium/bright_idle_01.ogg",
+    "creatures/carn_medium/bright_idle_02.ogg",
+    "creatures/carn_medium/bright_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_bright_alert": {
+   "files": [
+    "creatures/carn_medium/bright_alert_01.ogg",
+    "creatures/carn_medium/bright_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_bright_attack": {
+   "files": [
+    "creatures/carn_medium/bright_attack_01.ogg",
+    "creatures/carn_medium/bright_attack_02.ogg",
+    "creatures/carn_medium/bright_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_bright_hurt": {
+   "files": [
+    "creatures/carn_medium/bright_hurt_01.ogg",
+    "creatures/carn_medium/bright_hurt_02.ogg",
+    "creatures/carn_medium/bright_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_bright_death": {
+   "files": [
+    "creatures/carn_medium/bright_death_01.ogg",
+    "creatures/carn_medium/bright_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_dark_idle": {
+   "files": [
+    "creatures/carn_medium/dark_idle_01.ogg",
+    "creatures/carn_medium/dark_idle_02.ogg",
+    "creatures/carn_medium/dark_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_dark_alert": {
+   "files": [
+    "creatures/carn_medium/dark_alert_01.ogg",
+    "creatures/carn_medium/dark_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_dark_attack": {
+   "files": [
+    "creatures/carn_medium/dark_attack_01.ogg",
+    "creatures/carn_medium/dark_attack_02.ogg",
+    "creatures/carn_medium/dark_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_dark_hurt": {
+   "files": [
+    "creatures/carn_medium/dark_hurt_01.ogg",
+    "creatures/carn_medium/dark_hurt_02.ogg",
+    "creatures/carn_medium/dark_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_dark_death": {
+   "files": [
+    "creatures/carn_medium/dark_death_01.ogg",
+    "creatures/carn_medium/dark_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_neutral_idle": {
+   "files": [
+    "creatures/carn_medium/neutral_idle_01.ogg",
+    "creatures/carn_medium/neutral_idle_02.ogg",
+    "creatures/carn_medium/neutral_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_neutral_alert": {
+   "files": [
+    "creatures/carn_medium/neutral_alert_01.ogg",
+    "creatures/carn_medium/neutral_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_neutral_attack": {
+   "files": [
+    "creatures/carn_medium/neutral_attack_01.ogg",
+    "creatures/carn_medium/neutral_attack_02.ogg",
+    "creatures/carn_medium/neutral_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_neutral_hurt": {
+   "files": [
+    "creatures/carn_medium/neutral_hurt_01.ogg",
+    "creatures/carn_medium/neutral_hurt_02.ogg",
+    "creatures/carn_medium/neutral_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_medium_neutral_death": {
+   "files": [
+    "creatures/carn_medium/neutral_death_01.ogg",
+    "creatures/carn_medium/neutral_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_carn_large_neutral_idle": {
+   "files": [
+    "creatures/carn_large/neutral_idle_01.ogg",
+    "creatures/carn_large/neutral_idle_02.ogg",
+    "creatures/carn_large/neutral_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 65,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_carn_large_neutral_alert": {
+   "files": [
+    "creatures/carn_large/neutral_alert_01.ogg",
+    "creatures/carn_large/neutral_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 70,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_carn_large_neutral_attack": {
+   "files": [
+    "creatures/carn_large/neutral_attack_01.ogg",
+    "creatures/carn_large/neutral_attack_02.ogg",
+    "creatures/carn_large/neutral_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 70,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_carn_large_neutral_hurt": {
+   "files": [
+    "creatures/carn_large/neutral_hurt_01.ogg",
+    "creatures/carn_large/neutral_hurt_02.ogg",
+    "creatures/carn_large/neutral_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 65,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_carn_large_neutral_death": {
+   "files": [
+    "creatures/carn_large/neutral_death_01.ogg",
+    "creatures/carn_large/neutral_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 65,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_carn_huge_dark_idle": {
+   "files": [
+    "creatures/carn_huge/dark_idle_01.ogg",
+    "creatures/carn_huge/dark_idle_02.ogg",
+    "creatures/carn_huge/dark_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 75,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_carn_huge_dark_alert": {
+   "files": [
+    "creatures/carn_huge/dark_alert_01.ogg",
+    "creatures/carn_huge/dark_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 80,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_carn_huge_dark_attack": {
+   "files": [
+    "creatures/carn_huge/dark_attack_01.ogg",
+    "creatures/carn_huge/dark_attack_02.ogg",
+    "creatures/carn_huge/dark_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 80,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_carn_huge_dark_hurt": {
+   "files": [
+    "creatures/carn_huge/dark_hurt_01.ogg",
+    "creatures/carn_huge/dark_hurt_02.ogg",
+    "creatures/carn_huge/dark_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 75,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_carn_huge_dark_death": {
+   "files": [
+    "creatures/carn_huge/dark_death_01.ogg",
+    "creatures/carn_huge/dark_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 75,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_carn_huge_neutral_idle": {
+   "files": [
+    "creatures/carn_huge/neutral_idle_01.ogg",
+    "creatures/carn_huge/neutral_idle_02.ogg",
+    "creatures/carn_huge/neutral_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 75,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_carn_huge_neutral_alert": {
+   "files": [
+    "creatures/carn_huge/neutral_alert_01.ogg",
+    "creatures/carn_huge/neutral_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 80,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_carn_huge_neutral_attack": {
+   "files": [
+    "creatures/carn_huge/neutral_attack_01.ogg",
+    "creatures/carn_huge/neutral_attack_02.ogg",
+    "creatures/carn_huge/neutral_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 80,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_carn_huge_neutral_hurt": {
+   "files": [
+    "creatures/carn_huge/neutral_hurt_01.ogg",
+    "creatures/carn_huge/neutral_hurt_02.ogg",
+    "creatures/carn_huge/neutral_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 75,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_carn_huge_neutral_death": {
+   "files": [
+    "creatures/carn_huge/neutral_death_01.ogg",
+    "creatures/carn_huge/neutral_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 75,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_herb_small_bright_idle": {
+   "files": [
+    "creatures/herb_small/bright_idle_01.ogg",
+    "creatures/herb_small/bright_idle_02.ogg",
+    "creatures/herb_small/bright_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 45,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_herb_small_bright_alert": {
+   "files": [
+    "creatures/herb_small/bright_alert_01.ogg",
+    "creatures/herb_small/bright_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 50,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_herb_small_bright_attack": {
+   "files": [
+    "creatures/herb_small/bright_attack_01.ogg",
+    "creatures/herb_small/bright_attack_02.ogg",
+    "creatures/herb_small/bright_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 50,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_herb_small_bright_hurt": {
+   "files": [
+    "creatures/herb_small/bright_hurt_01.ogg",
+    "creatures/herb_small/bright_hurt_02.ogg",
+    "creatures/herb_small/bright_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 45,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_herb_small_bright_death": {
+   "files": [
+    "creatures/herb_small/bright_death_01.ogg",
+    "creatures/herb_small/bright_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 45,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_herb_small_neutral_idle": {
+   "files": [
+    "creatures/herb_small/neutral_idle_01.ogg",
+    "creatures/herb_small/neutral_idle_02.ogg",
+    "creatures/herb_small/neutral_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 45,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_herb_small_neutral_alert": {
+   "files": [
+    "creatures/herb_small/neutral_alert_01.ogg",
+    "creatures/herb_small/neutral_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 50,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_herb_small_neutral_attack": {
+   "files": [
+    "creatures/herb_small/neutral_attack_01.ogg",
+    "creatures/herb_small/neutral_attack_02.ogg",
+    "creatures/herb_small/neutral_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 50,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_herb_small_neutral_hurt": {
+   "files": [
+    "creatures/herb_small/neutral_hurt_01.ogg",
+    "creatures/herb_small/neutral_hurt_02.ogg",
+    "creatures/herb_small/neutral_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 45,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_herb_small_neutral_death": {
+   "files": [
+    "creatures/herb_small/neutral_death_01.ogg",
+    "creatures/herb_small/neutral_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 45,
+   "unit_size": 5.0,
+   "max_distance": 32.0
+  },
+  "cv_herb_medium_neutral_idle": {
+   "files": [
+    "creatures/herb_medium/neutral_idle_01.ogg",
+    "creatures/herb_medium/neutral_idle_02.ogg",
+    "creatures/herb_medium/neutral_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_herb_medium_neutral_alert": {
+   "files": [
+    "creatures/herb_medium/neutral_alert_01.ogg",
+    "creatures/herb_medium/neutral_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_herb_medium_neutral_attack": {
+   "files": [
+    "creatures/herb_medium/neutral_attack_01.ogg",
+    "creatures/herb_medium/neutral_attack_02.ogg",
+    "creatures/herb_medium/neutral_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_herb_medium_neutral_hurt": {
+   "files": [
+    "creatures/herb_medium/neutral_hurt_01.ogg",
+    "creatures/herb_medium/neutral_hurt_02.ogg",
+    "creatures/herb_medium/neutral_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_herb_medium_neutral_death": {
+   "files": [
+    "creatures/herb_medium/neutral_death_01.ogg",
+    "creatures/herb_medium/neutral_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_herb_large_bright_idle": {
+   "files": [
+    "creatures/herb_large/bright_idle_01.ogg",
+    "creatures/herb_large/bright_idle_02.ogg",
+    "creatures/herb_large/bright_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 65,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_bright_alert": {
+   "files": [
+    "creatures/herb_large/bright_alert_01.ogg",
+    "creatures/herb_large/bright_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 70,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_bright_attack": {
+   "files": [
+    "creatures/herb_large/bright_attack_01.ogg",
+    "creatures/herb_large/bright_attack_02.ogg",
+    "creatures/herb_large/bright_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 70,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_bright_hurt": {
+   "files": [
+    "creatures/herb_large/bright_hurt_01.ogg",
+    "creatures/herb_large/bright_hurt_02.ogg",
+    "creatures/herb_large/bright_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 65,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_bright_death": {
+   "files": [
+    "creatures/herb_large/bright_death_01.ogg",
+    "creatures/herb_large/bright_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 65,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_dark_idle": {
+   "files": [
+    "creatures/herb_large/dark_idle_01.ogg",
+    "creatures/herb_large/dark_idle_02.ogg",
+    "creatures/herb_large/dark_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 65,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_dark_alert": {
+   "files": [
+    "creatures/herb_large/dark_alert_01.ogg",
+    "creatures/herb_large/dark_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 70,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_dark_attack": {
+   "files": [
+    "creatures/herb_large/dark_attack_01.ogg",
+    "creatures/herb_large/dark_attack_02.ogg",
+    "creatures/herb_large/dark_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 70,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_dark_hurt": {
+   "files": [
+    "creatures/herb_large/dark_hurt_01.ogg",
+    "creatures/herb_large/dark_hurt_02.ogg",
+    "creatures/herb_large/dark_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 65,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_dark_death": {
+   "files": [
+    "creatures/herb_large/dark_death_01.ogg",
+    "creatures/herb_large/dark_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 65,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_neutral_idle": {
+   "files": [
+    "creatures/herb_large/neutral_idle_01.ogg",
+    "creatures/herb_large/neutral_idle_02.ogg",
+    "creatures/herb_large/neutral_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 65,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_neutral_alert": {
+   "files": [
+    "creatures/herb_large/neutral_alert_01.ogg",
+    "creatures/herb_large/neutral_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 70,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_neutral_attack": {
+   "files": [
+    "creatures/herb_large/neutral_attack_01.ogg",
+    "creatures/herb_large/neutral_attack_02.ogg",
+    "creatures/herb_large/neutral_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 70,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_neutral_hurt": {
+   "files": [
+    "creatures/herb_large/neutral_hurt_01.ogg",
+    "creatures/herb_large/neutral_hurt_02.ogg",
+    "creatures/herb_large/neutral_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 65,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_large_neutral_death": {
+   "files": [
+    "creatures/herb_large/neutral_death_01.ogg",
+    "creatures/herb_large/neutral_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 65,
+   "unit_size": 12.0,
+   "max_distance": 75.0
+  },
+  "cv_herb_huge_neutral_idle": {
+   "files": [
+    "creatures/herb_huge/neutral_idle_01.ogg",
+    "creatures/herb_huge/neutral_idle_02.ogg",
+    "creatures/herb_huge/neutral_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 75,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_herb_huge_neutral_alert": {
+   "files": [
+    "creatures/herb_huge/neutral_alert_01.ogg",
+    "creatures/herb_huge/neutral_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 80,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_herb_huge_neutral_attack": {
+   "files": [
+    "creatures/herb_huge/neutral_attack_01.ogg",
+    "creatures/herb_huge/neutral_attack_02.ogg",
+    "creatures/herb_huge/neutral_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 80,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_herb_huge_neutral_hurt": {
+   "files": [
+    "creatures/herb_huge/neutral_hurt_01.ogg",
+    "creatures/herb_huge/neutral_hurt_02.ogg",
+    "creatures/herb_huge/neutral_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 75,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_herb_huge_neutral_death": {
+   "files": [
+    "creatures/herb_huge/neutral_death_01.ogg",
+    "creatures/herb_huge/neutral_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 2,
+   "cooldown": 0.08,
+   "priority": 75,
+   "unit_size": 18.0,
+   "max_distance": 120.0
+  },
+  "cv_mammal_cat_neutral_idle": {
+   "files": [
+    "creatures/mammal_cat/neutral_idle_01.ogg",
+    "creatures/mammal_cat/neutral_idle_02.ogg",
+    "creatures/mammal_cat/neutral_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_mammal_cat_neutral_alert": {
+   "files": [
+    "creatures/mammal_cat/neutral_alert_01.ogg",
+    "creatures/mammal_cat/neutral_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_mammal_cat_neutral_attack": {
+   "files": [
+    "creatures/mammal_cat/neutral_attack_01.ogg",
+    "creatures/mammal_cat/neutral_attack_02.ogg",
+    "creatures/mammal_cat/neutral_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_mammal_cat_neutral_hurt": {
+   "files": [
+    "creatures/mammal_cat/neutral_hurt_01.ogg",
+    "creatures/mammal_cat/neutral_hurt_02.ogg",
+    "creatures/mammal_cat/neutral_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_mammal_cat_neutral_death": {
+   "files": [
+    "creatures/mammal_cat/neutral_death_01.ogg",
+    "creatures/mammal_cat/neutral_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_mammal_deer_neutral_idle": {
+   "files": [
+    "creatures/mammal_deer/neutral_idle_01.ogg",
+    "creatures/mammal_deer/neutral_idle_02.ogg",
+    "creatures/mammal_deer/neutral_idle_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_mammal_deer_neutral_alert": {
+   "files": [
+    "creatures/mammal_deer/neutral_alert_01.ogg",
+    "creatures/mammal_deer/neutral_alert_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_mammal_deer_neutral_attack": {
+   "files": [
+    "creatures/mammal_deer/neutral_attack_01.ogg",
+    "creatures/mammal_deer/neutral_attack_02.ogg",
+    "creatures/mammal_deer/neutral_attack_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 60,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_mammal_deer_neutral_hurt": {
+   "files": [
+    "creatures/mammal_deer/neutral_hurt_01.ogg",
+    "creatures/mammal_deer/neutral_hurt_02.ogg",
+    "creatures/mammal_deer/neutral_hurt_03.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "cv_mammal_deer_neutral_death": {
+   "files": [
+    "creatures/mammal_deer/neutral_death_01.ogg",
+    "creatures/mammal_deer/neutral_death_02.ogg"
+   ],
+   "bus": "Creatures",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.96,
+    1.04
+   ],
+   "max_instances": 3,
+   "cooldown": 0.08,
+   "priority": 55,
+   "unit_size": 8.0,
+   "max_distance": 48.0
+  },
+  "amb_grassland_day": {
+   "files": [
+    "ambience/grassland_day.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_grassland_night": {
+   "files": [
+    "ambience/grassland_night.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_temperate_day": {
+   "files": [
+    "ambience/temperate_day.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_temperate_night": {
+   "files": [
+    "ambience/temperate_night.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_tropical_day": {
+   "files": [
+    "ambience/tropical_day.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_tropical_night": {
+   "files": [
+    "ambience/tropical_night.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_savannah_day": {
+   "files": [
+    "ambience/savannah_day.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_savannah_night": {
+   "files": [
+    "ambience/savannah_night.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_desert_day": {
+   "files": [
+    "ambience/desert_day.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_desert_night": {
+   "files": [
+    "ambience/desert_night.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_swamp_day": {
+   "files": [
+    "ambience/swamp_day.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_swamp_night": {
+   "files": [
+    "ambience/swamp_night.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_tundra_day": {
+   "files": [
+    "ambience/tundra_day.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_tundra_night": {
+   "files": [
+    "ambience/tundra_night.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_volcanic_day": {
+   "files": [
+    "ambience/volcanic_day.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_volcanic_night": {
+   "files": [
+    "ambience/volcanic_night.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_shore": {
+   "files": [
+    "ambience/shore.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_rain_light": {
+   "files": [
+    "ambience/rain_light.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_rain_heavy": {
+   "files": [
+    "ambience/rain_heavy.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_wind_strong": {
+   "files": [
+    "ambience/wind_strong.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  },
+  "amb_fire": {
+   "files": [
+    "ambience/fire.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "3d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 8,
+   "cooldown": 0.0,
+   "priority": 40,
+   "unit_size": 3.0,
+   "max_distance": 18.0,
+   "loop": true
+  },
+  "thunder": {
+   "files": [
+    "ambience/thunder_01.ogg",
+    "ambience/thunder_02.ogg",
+    "ambience/thunder_03.ogg",
+    "ambience/thunder_04.ogg"
+   ],
+   "bus": "Ambience",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    0.9,
+    1.05
+   ],
+   "max_instances": 2,
+   "cooldown": 4.0,
+   "priority": 90
+  },
+  "music_explore": {
+   "files": [
+    "music/explore_forest.ogg",
+    "music/explore_jungle.ogg"
+   ],
+   "bus": "Music",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100
+  },
+  "music_night": {
+   "files": [
+    "music/night_solitude.ogg"
+   ],
+   "bus": "Music",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100
+  },
+  "music_combat": {
+   "files": [
+    "music/combat_pursuit.ogg"
+   ],
+   "bus": "Music",
+   "mode": "2d",
+   "volume_db": 0.0,
+   "pitch": [
+    1,
+    1
+   ],
+   "max_instances": 1,
+   "cooldown": 0.0,
+   "priority": 100,
+   "loop": true
+  }
+ }
+}
