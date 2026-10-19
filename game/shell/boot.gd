@@ -165,6 +165,10 @@ func _on_manifest(result: int, response_code: int, _headers: PackedStringArray, 
 	if not parsed is Dictionary:
 		_fail("Bad manifest.")
 		return
+	var refused := ShellLoader.manifest_error(parsed)
+	if refused != "":
+		_fail("Bad manifest (%s)." % refused)
+		return
 	manifest = parsed
 	_save_cfg()
 	if int(manifest.get("min_shell", 1)) > ShellLoader.SHELL_VERSION:
@@ -238,9 +242,10 @@ func _on_pack_done(result: int, response_code: int, _h: PackedStringArray, _b: P
 	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
 		_fail("Download of %s failed (%d/%d)." % [_current.get("name", "pack"), result, response_code])
 		return
+	# The manifest check guarantees a sha256; an empty or different hash never installs.
 	var want := str(_current.get("sha256", ""))
 	var got := FileAccess.get_sha256(part)
-	if want != "" and got != want:
+	if want == "" or got != want:
 		DirAccess.remove_absolute(part)
 		_fail("Checksum mismatch for %s; try again." % _current.get("name", "pack"))
 		return

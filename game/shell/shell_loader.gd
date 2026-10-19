@@ -9,6 +9,11 @@ const BUILDS_DIR := "user://builds"
 const INSTALLED := "user://builds/installed.json"
 const BOOT_MARKER := "user://builds/booting"
 
+## Manifest rules (sec-shell-20): the name and hash become a file name under user://builds.
+const PACK_NAME_PATTERN := "^[a-z0-9_-]{1,32}\\z"
+const SHA256_PATTERN := "^[0-9a-f]{64}\\z"
+const PACK_FILE_PATTERN := "^[a-z0-9_-]{1,32}-[0-9a-f]{8}\\.pck\\z"
+
 static var applied: Dictionary = {}
 static var safe_mode: bool = false
 static var no_pack: bool = false
@@ -39,11 +44,47 @@ func _init() -> void:
 	else:
 		DirAccess.remove_absolute(BOOT_MARKER)
 
+## Empty when a build manifest is safe to act on, else the reason it is refused. Every pack
+## needs a name of [a-z0-9_-]{1,32}, a lowercase sha256 and an http(s) url.
+static func manifest_error(m: Dictionary) -> String:
+	var packs: Variant = m.get("packs")
+	if not packs is Array:
+		return "packs is not a list"
+	if (packs as Array).is_empty():
+		return "packs is empty"
+	var name_re := RegEx.create_from_string(PACK_NAME_PATTERN)
+	var sha_re := RegEx.create_from_string(SHA256_PATTERN)
+	var seen: Dictionary = {}
+	for p: Variant in packs:
+		if not p is Dictionary:
+			return "pack entry is not an object"
+		var name: Variant = p.get("name")
+		if not name is String or name_re.search(name) == null:
+			return "bad pack name %s" % str(name).left(40)
+		if seen.has(name):
+			return "duplicate pack %s" % name
+		seen[name] = true
+		var sha: Variant = p.get("sha256")
+		if not sha is String or sha_re.search(sha) == null:
+			return "pack %s has no valid sha256" % name
+		var url: Variant = p.get("url")
+		if not url is String or not ((url as String).begins_with("https://") or (url as String).begins_with("http://")):
+			return "pack %s has no http(s) url" % name
+		var size: Variant = p.get("size", 0)
+		if not (size is int or size is float) or float(size) < 0.0:
+			return "pack %s has a bad size" % name
+	return ""
+
 ## Loads every pack listed in an installed.json dictionary. Returns false if any is missing.
 static func apply_packs(inst: Dictionary) -> bool:
 	var all_ok := true
+	var file_re := RegEx.create_from_string(PACK_FILE_PATTERN)
 	for p in inst.get("packs", []):
 		if not p is Dictionary:
+			continue
+		if file_re.search(str(p.get("file", ""))) == null:
+			print("[shell] refusing pack file %s" % str(p.get("file", "")).left(60))
+			all_ok = false
 			continue
 		var path := "%s/%s" % [BUILDS_DIR, str(p.get("file", ""))]
 		if not FileAccess.file_exists(path):
