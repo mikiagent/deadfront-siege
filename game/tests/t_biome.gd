@@ -33,11 +33,18 @@ func _init() -> void:
 			has_ash = has_ash or str(m.get("id", "")) == "ash"
 		if ("ash" in r.get("special_tiles", [])) != has_ash:
 			failures.append("%s ash tile allowlist disagrees with its materials" % climate)
+		# world-placement-08: berry bushes only where the climate grows BushBerries (none on the volcano).
+		if ("berry_bush" in r.get("special_families", [])) != ("BushBerries" in veg):
+			failures.append("%s berry_bush allowlist disagrees with its vegetation" % climate)
+		_check_keys(climate, r)
+		_check_import(climate, r)
 	for dry in ["desert", "volcanic", "tundra", "snowfield"]:
 		if not BiomeMaterial.row(dry).get("palm_allowlist", []).is_empty():
 			failures.append("%s allows palms" % dry)
 	_check_defaults()
 	_check_materials()
+	_check_lab_slope()
+	_check_detail()
 	if failures.is_empty():
 		print("[t_biome] PASS %d climates" % BiomeMaterial.climates().size())
 		quit(0)
@@ -62,6 +69,98 @@ func _check_defaults() -> void:
 		for line: String in lines[sh]:
 			if not sh.code.contains(line):
 				failures.append("%s lacks default line: %s" % [sh.resource_path, line])
+
+## Every palette key must be a tint_<key> uniform and every knob a uniform, or
+## set_shader_parameter drops the typo silently.
+func _check_keys(climate: String, r: Dictionary) -> void:
+	var names := _uniforms(BiomeMaterial.TERRAIN_SHADER)
+	for key in r.get("palette", {}):
+		if not ("tint_%s" % key) in names:
+			failures.append("%s palette key %s has no tint_%s uniform" % [climate, key, key])
+	for key in r.get("shader", {}):
+		if not str(key) in names:
+			failures.append("%s shader knob %s is not a uniform" % [climate, key])
+
+## Uniform names from the renderer; headless has none, so fall back to the declarations.
+func _uniforms(sh: Shader) -> PackedStringArray:
+	var out := PackedStringArray()
+	for u: Dictionary in sh.get_shader_uniform_list():
+		out.append(str(u["name"]))
+	if out.is_empty():
+		var re := RegEx.create_from_string("(?m)^\\s*uniform\\s+\\w+\\s+(\\w+)")
+		for m in re.search_all(sh.code):
+			out.append(m.get_string(1))
+	return out
+
+## terrain_tiles samples with filter_linear_mipmap, so the sets must import with mipmaps
+## (VRAM compressed keeps each set under 3 MB per platform).
+func _check_import(climate: String, r: Dictionary) -> void:
+	for layer in BiomeMaterial.LAYERS:
+		var cfg := ConfigFile.new()
+		var path := str(r.get("textures", {}).get(layer, "")) + ".import"
+		if cfg.load(path) != OK:
+			failures.append("%s cannot read %s" % [climate, path])
+			continue
+		if not cfg.get_value("params", "mipmaps/generate", false):
+			failures.append("%s imports without mipmaps" % path)
+		if int(cfg.get_value("params", "compress/mode", -1)) != 2:
+			failures.append("%s is not VRAM compressed" % path)
+
+## The lab patch must reach every climate's rock band, or the rock layer never shows in a shot.
+func _check_lab_slope() -> void:
+	var need := 0.50
+	for climate in BiomeMaterial.climates():
+		need = maxf(need, float(BiomeMaterial.row(climate).get("shader", {}).get("slope_rock_hi", 0.50)))
+	var got := BiomeLab.max_slope()
+	if got < need:
+		failures.append("biome_lab steepest v_slope %.2f is under slope_rock_hi %.2f" % [got, need])
+	else:
+		print("[t_biome] lab steepest v_slope %.2f >= %.2f" % [got, need])
+
+## Pixel detail (mean |lum - 3x3 blur| / mean lum) on the centre 128 px of each source image must
+## match the Poly Haven layer it replaces; the first bake was flat cloud noise at a fifth of it.
+const REFERENCE := {"ground": "aerial_grass_rock_diff_1k.jpg", "dirt": "brown_mud_leaves_01_diff_1k.jpg",
+	"sand": "aerial_beach_01_diff_1k.jpg", "rock": "rocky_trail_diff_1k.jpg"}
+## Snow and dune ground are compared with the beach, as the bake does (recipes.py floor_ref).
+const SAND_LIKE := ["snowfield", "desert"]
+
+func _check_detail() -> void:
+	var ref := {}
+	for layer in REFERENCE:
+		ref[layer] = _detail("res://assets/terrain/" + REFERENCE[layer])
+	for climate in BiomeMaterial.climates():
+		var tex: Dictionary = BiomeMaterial.row(climate).get("textures", {})
+		for layer in BiomeMaterial.LAYERS:
+			var against: String = "sand" if layer == "ground" and climate in SAND_LIKE else layer
+			var d := _detail(str(tex.get(layer, "")))
+			if d < float(ref[against]) * 0.9:
+				failures.append("%s %s detail %.4f under the Poly Haven %s %.4f" % [climate, layer, d, against, ref[against]])
+
+func _detail(path: String) -> float:
+	var img := Image.new()  # raw jpg bytes: the imported texture is VRAM compressed
+	if img.load_jpg_from_buffer(FileAccess.get_file_as_bytes(path)) != OK or img.is_empty():
+		failures.append("cannot read %s" % path)
+		return 0.0
+	img.convert(Image.FORMAT_RGB8)
+	var n := 128
+	var x0 := img.get_width() / 2 - n / 2
+	var crop := img.get_region(Rect2i(x0, x0, n, n))
+	var lum := PackedFloat32Array()
+	lum.resize(n * n)
+	var data := crop.get_data()
+	for i in n * n:
+		lum[i] = (data[i * 3] + data[i * 3 + 1] + data[i * 3 + 2]) / 765.0
+	var hf := 0.0
+	var mean := 0.0
+	for y in range(1, n - 1):
+		for x in range(1, n - 1):
+			var box := 0.0
+			for dy in [-1, 0, 1]:
+				for dx in [-1, 0, 1]:
+					box += lum[(y + dy) * n + x + dx]
+			hf += absf(lum[y * n + x] - box / 9.0)
+			mean += lum[y * n + x]
+	return hf / maxf(mean, 0.0001)
 
 func _check_materials() -> void:
 	var img := Image.create(4, 4, false, Image.FORMAT_R8)

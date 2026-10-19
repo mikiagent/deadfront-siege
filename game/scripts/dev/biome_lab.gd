@@ -17,7 +17,7 @@ var _cam: Camera3D
 func _ready() -> void:
 	_hide_overlays()
 	_mesh = MeshInstance3D.new()
-	_mesh.mesh = _patch_mesh()
+	_mesh.mesh = patch_mesh()
 	add_child(_mesh)
 	_cam = Camera3D.new()
 	_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
@@ -33,7 +33,7 @@ func _hide_overlays() -> void:
 	var host := get_parent()
 	if host and host.get_node_or_null("UI") is CanvasLayer:
 		(host.get_node("UI") as CanvasLayer).visible = false
-	var perf := Game.get_node_or_null("PerfHud") as CanvasLayer
+	var perf := get_node_or_null("/root/Game/PerfHud") as CanvasLayer  # no Game identifier: t_biome loads this class before autoloads
 	if perf:
 		perf.visible = false
 
@@ -94,15 +94,25 @@ func _mean(img: Image) -> Color:
 	sum /= float(small.get_width() * small.get_height())
 	return Color(sum.x, sum.y, sum.z)
 
-## Mostly flat ground at 1 m (the ground band), a mound for the dry and rock slope bands and a
-## shore on +x down to the shallows.
-func _height(x: float, z: float) -> float:
+## Mostly flat ground at 1 m (the ground band), a gentle mound (peaks near 36 degrees, so it only
+## reaches the dry band), a mesa with 2 m walls over 1 m (about 63 degrees, v_slope ~0.55: past every
+## climate's slope_rock_hi, so the rock layer shows) and a shore on +x down to the shallows.
+static func height(x: float, z: float) -> float:
 	var h := 1.0
 	h += 3.2 * exp(-(Vector2(x + 9.0, z + 3.0).length_squared()) / 14.0)
+	h += 2.0 * clampf(4.0 - Vector2(x - 3.0, z - 2.0).length(), 0.0, 1.0)
 	h -= clampf((x - 11.0) / 5.0, 0.0, 1.0) * 1.4
 	return h
 
-func _patch_mesh() -> ArrayMesh:
+## Steepest face of the patch as the shader's v_slope (1 - normal.y); t_biome checks it.
+static func max_slope() -> float:
+	var arr := patch_mesh().surface_get_arrays(0)
+	var top := 0.0
+	for n: Vector3 in arr[Mesh.ARRAY_NORMAL]:
+		top = maxf(top, 1.0 - clampf(n.y, 0.0, 1.0))
+	return top
+
+static func patch_mesh() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var step := PATCH / float(GRID)
@@ -114,7 +124,7 @@ func _patch_mesh() -> ArrayMesh:
 			for k in [0, 1, 2, 0, 2, 3]:
 				var p: Vector2 = quad[k]
 				st.set_color(Color.WHITE)
-				st.add_vertex(Vector3(p.x, _height(p.x, p.y), p.y))
+				st.add_vertex(Vector3(p.x, height(p.x, p.y), p.y))
 	st.generate_normals()
 	return st.commit()
 

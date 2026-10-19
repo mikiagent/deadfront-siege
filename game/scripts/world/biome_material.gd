@@ -9,9 +9,12 @@ const FOLIAGE_SHADER: Shader = preload("res://scripts/world/foliage_sway.gdshade
 const LAYERS: Dictionary = {"ground": "grass_tex", "dirt": "dirt_tex", "sand": "sand_tex", "rock": "rock_tex"}
 
 static var _rows: Dictionary = {}
+static var _loaded := false
 
+## Parsed once; a broken file is reported once and then reads as empty (no error per call).
 static func rows() -> Dictionary:
-	if _rows.is_empty():
+	if not _loaded:
+		_loaded = true
 		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(PATH))
 		if parsed is Dictionary:
 			_rows = parsed
@@ -26,8 +29,9 @@ static func row(climate: String) -> Dictionary:
 ## Every climate key in biomes.json (skips "_about" and other non-row keys).
 static func climates() -> Array[String]:
 	var out: Array[String] = []
-	for k in rows():
-		if rows()[k] is Dictionary:
+	var all := rows()
+	for k in all:
+		if all[k] is Dictionary:
 			out.append(str(k))
 	return out
 

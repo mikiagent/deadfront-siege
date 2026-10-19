@@ -19,7 +19,7 @@ import numpy as np
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from recipes import RECIPES  # noqa: E402
+from recipes import RECIPES, REFERENCE  # noqa: E402
 
 ROOT = HERE.parents[2]
 OUT = ROOT / "game" / "assets" / "terrain"
@@ -30,8 +30,17 @@ def srgb_to_linear(c: float) -> float:
     return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
 
 
-def rgba(hex_color: str) -> tuple:
-    h = hex_color.lstrip("#")
+def linear_to_srgb(c: float) -> float:
+    return c * 12.92 if c <= 0.0031308 else 1.055 * c ** (1.0 / 2.4) - 0.055
+
+
+def rgba(c) -> tuple:
+    """sRGB hex, or a linear grey float / linear (r, g, b) for overlay shades (0.5 = neutral)."""
+    if isinstance(c, (int, float)):
+        return (float(c),) * 3 + (1.0,)
+    if isinstance(c, (tuple, list)):
+        return tuple(float(x) for x in c) + (1.0,)
+    h = c.lstrip("#")
     return tuple(srgb_to_linear(int(h[i:i + 2], 16) / 255.0) for i in (0, 2, 4)) + (1.0,)
 
 
@@ -184,13 +193,24 @@ def build_layer(g: Graph, spec: dict):
         wave = g.math("POWER", wave, r.get("sharp", 2.0))
         shade = g.ramp(wave, [r.get("dark", "#b8b0a0"), "#ffffff"])
         col = g.mix(col, g.mix(col, shade, 1.0, "MULTIPLY"), r.get("amount", 0.6))
+    for b in spec.get("bands", []):
+        # Strata: warped stripes along u, coloured through a multi-stop ramp (count is per tile so it wraps).
+        warp = g.noise(b.get("warp_scale", 2.0), 3.0, 0.55, 0.0, b.get("seed", 17))
+        phase = g.math("ADD", g.math("MULTIPLY", g.v, float(b["count"])),
+                       g.math("MULTIPLY", g.math("SUBTRACT", warp, 0.5), b.get("warp", 3.0)))
+        wave = g.math("MULTIPLY", g.math("ADD", g.math("SINE", g.math("MULTIPLY", phase, 2.0 * math.pi)), 1.0), 0.5)
+        col = g.mix(col, g.ramp(wave, b["colors"]), b.get("amount", 0.6), b.get("blend", "OVERLAY"))
+    for c in spec.get("cells", []):
+        col = cells(g, col, c)
     if "cracks" in spec:
-        c = spec["cracks"]
-        dist, _cell = g.voronoi(c["scale"], "DISTANCE_TO_EDGE", c.get("seed", 13))
-        wob = g.noise(c["scale"] * 4.0, 2.0, 0.5, 0.0, c.get("seed", 13) + 1)
-        dist = g.math("ADD", dist, g.math("MULTIPLY", g.math("SUBTRACT", wob, 0.5), c.get("wobble", 0.04)))
-        mask = g.math("SUBTRACT", 1.0, g.remap(dist, c["width"] * 0.4, c["width"]))
-        col = g.mix(col, g.ramp(mask, ["#ffffff", c["color"]]), g.math("MULTIPLY", mask, c.get("strength", 1.0)), "MULTIPLY")
+        col = cells(g, col, dict(spec["cracks"], tone=0.0, dome=0.0))
+    for d in spec.get("detail", []):
+        # High-frequency overlay: shades are linear greys/colours around 0.5, so the mean stays put.
+        n = g.noise(d["scale"], d.get("detail", 2.0), d.get("rough", 0.6), d.get("distortion", 0.0),
+                    d.get("seed", 3), tuple(d.get("stretch", (1.0, 1.0))))
+        shade = g.ramp(g.remap(n, d.get("lo", 0.35), d.get("hi", 0.65), smooth=False),
+                       [d.get("dark", 0.3), d.get("light", 0.7)])
+        col = g.mix(col, shade, d.get("amount", 0.5), "OVERLAY")
     gr = spec.get("grain", {"scale": 90.0, "amount": 0.10})
     if gr["amount"] > 0.0:
         gn = g.noise(gr["scale"], 2.0, 0.5, 0.0, 31)
@@ -198,6 +218,32 @@ def build_layer(g: Graph, spec: dict):
         grain = g.ramp(g.remap(gn, 0.3, 0.7, smooth=False), ["#%02x%02x%02x" % ((int(255 * lo),) * 3), "#ffffff"])
         col = g.mix(col, grain, 1.0, "MULTIPLY")
     g.emit(col)
+
+
+def cells(g: Graph, col, c: dict):
+    """Voronoi stones: per-cell tone, a domed shade towards the gaps, and dark gap lines.
+    stretch elongates cells (strata blocks); low randomness gives columnar basalt."""
+    sc, seed, rnd = c["scale"], c.get("seed", 13), c.get("randomness", 1.0)
+    st = tuple(c.get("stretch", (1.0, 1.0)))
+    edge, _ = g.voronoi(sc, "DISTANCE_TO_EDGE", seed, rnd, st)
+    wob = g.noise(sc * 4.0, 2.0, 0.5, 0.0, seed + 1, st)
+    edge = g.math("ADD", edge, g.math("MULTIPLY", g.math("SUBTRACT", wob, 0.5), c.get("wobble", 0.04)))
+    if c.get("tone", 0.0) > 0.0:
+        _d, cell = g.voronoi(sc, "F1", seed, rnd, st)
+        t = c["tone"]
+        col = g.mix(col, g.ramp(g.node_color_r(cell), [0.5 - t, 0.5 + t]), 1.0, "OVERLAY")
+    if c.get("dome", 0.0) > 0.0:
+        shade = g.ramp(g.remap(edge, 0.0, c.get("dome_width", 0.3)), [1.0 - c["dome"], 1.0])
+        col = g.mix(col, shade, 1.0, "MULTIPLY")
+    if c.get("width", 0.0) > 0.0:
+        mask = g.math("SUBTRACT", 1.0, g.remap(edge, c["width"] * 0.4, c["width"]))
+        if c.get("fade", 0.0) > 0.0:
+            # Joints open and close along their length so the stones do not read as paving.
+            f = g.remap(g.noise(c.get("fade_scale", 3.0), 4.0, 0.6, 0.0, seed + 5, st), 0.38, 0.62)
+            mask = g.math("MULTIPLY", mask, g.math("ADD", g.math("MULTIPLY", f, c["fade"]), 1.0 - c["fade"]))
+        col = g.mix(col, g.ramp(mask, ["#ffffff", c.get("color", "#3a3836")]),
+                    g.math("MULTIPLY", mask, c.get("strength", 0.8)), "MULTIPLY")
+    return col
 
 
 def _node_color_r(self, color_socket):
@@ -226,7 +272,29 @@ def setup_scene(size: int):
     return scene, plane
 
 
-def bake(plane, climate: str, layer: str, spec: dict, size: int) -> pathlib.Path:
+def rel_detail(px: np.ndarray) -> tuple:
+    """Mean |pixel - 3x3 box blur| over mean luminance (sRGB): the pixel-level texture a flat
+    cloud lacks, independent of how bright the set is. Returns (relative, absolute)."""
+    lum = px.mean(axis=2)
+    blur = sum(np.roll(np.roll(lum, dy, 0), dx, 1) for dy in (-1, 0, 1) for dx in (-1, 0, 1)) / 9.0
+    hf = float(np.abs(lum - blur).mean())
+    return hf / max(1e-4, float(lum.mean())), hf
+
+
+def reference_detail(size: int) -> dict:
+    out = {}
+    for layer, name in REFERENCE.items():
+        img = bpy.data.images.load(str(OUT / name))
+        if tuple(img.size) != (size, size):
+            img.scale(size, size)
+        px = np.array(img.pixels[:], dtype=np.float32).reshape(size, size, 4)[:, :, :3]
+        out[layer] = rel_detail(px)[0]
+        bpy.data.images.remove(img)
+    print("[bake] reference detail " + " ".join("%s=%.4f" % kv for kv in out.items()))
+    return out
+
+
+def bake(plane, climate: str, layer: str, spec: dict, size: int, floor: float) -> bool:
     mat = bpy.data.materials.new(f"{climate}_{layer}")
     mat.use_nodes = True
     plane.data.materials.clear()
@@ -244,16 +312,29 @@ def bake(plane, climate: str, layer: str, spec: dict, size: int) -> pathlib.Path
     out = OUT / climate / f"{layer}.jpg"
     out.parent.mkdir(parents=True, exist_ok=True)
     # JPEG q90 keeps each set near 1.5 MB on disk (PNG was ~8 MB); Standard view = bytes as baked.
+    px4 = np.array(img.pixels[:], dtype=np.float32).reshape(size, size, 4)
+    if "cap" in spec:
+        # Byte bake buffers hold sRGB. Bright sets clip under gl_compatibility, so scale the 99.5th
+        # percentile channel down to the recipe's linear peak.
+        cap = linear_to_srgb(spec["cap"])
+        peak = float(np.percentile(px4[:, :, :3].max(axis=2), 99.5))
+        if peak > cap:
+            px4[:, :, :3] *= cap / peak
+            img.pixels.foreach_set(px4.ravel())
     img.save_render(str(out), scene=bpy.context.scene)
-    px = np.array(img.pixels[:], dtype=np.float32).reshape(size, size, 4)[:, :, :3]
+    px = px4[:, :, :3]
     # Seam check: the wrap-around column/row step should look like any interior step.
     wrap = float(np.abs(px[:, 0] - px[:, -1]).mean() + np.abs(px[0] - px[-1]).mean()) * 0.5
     inner = float(np.abs(px[:, 1:] - px[:, :-1]).mean())
     mean = px.reshape(-1, 3).mean(axis=0)
-    print("[bake] %s/%s mean_lin=(%.3f, %.3f, %.3f) seam=%.4f inner=%.4f" % (climate, layer, *mean, wrap, inner))
+    rel, hf = rel_detail(px)
+    peak = float(np.percentile(px.max(axis=2), 99.5))
+    ok = rel >= floor and ("cap" not in spec or srgb_to_linear(peak) <= spec["cap"] + 0.01)
+    print("[bake] %s %s/%s mean_srgb=(%.3f, %.3f, %.3f) peak_lin=%.3f detail=%.4f rel=%.4f (floor %.4f) seam=%.4f inner=%.4f"
+          % ("ok" if ok else "FAIL", climate, layer, *mean, srgb_to_linear(peak), hf, rel, floor, wrap, inner))
     bpy.data.images.remove(img)
     bpy.data.materials.remove(mat)
-    return out
+    return ok
 
 
 def main():
@@ -265,12 +346,17 @@ def main():
         del argv[i:i + 2]
     climates = argv or list(RECIPES.keys())
     scene, plane = setup_scene(size)
+    floors = reference_detail(size)
+    fails = 0
     for climate in climates:
         t0 = time.time()
         for layer in LAYERS:
-            bake(plane, climate, layer, RECIPES[climate][layer], size)
+            fails += 0 if bake(plane, climate, layer, RECIPES[climate][layer], size,
+                                floors[RECIPES[climate][layer].get("floor_ref", layer)]) else 1
         print("[bake] %s done in %.1fs" % (climate, time.time() - t0))
-    print("[bake] PASS %d climates" % len(climates))
+    print("[bake] %s %d climates, %d layers under the Poly Haven detail floor or over their cap"
+          % ("PASS" if fails == 0 else "FAIL", len(climates), fails))
+    sys.exit(1 if fails else 0)
 
 
 main()

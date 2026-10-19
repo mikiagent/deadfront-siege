@@ -1,5 +1,5 @@
 {
- "_about": "W1-BIOME per-climate ground look, one entry per climates.json key. textures: baked by tools/blender/terrain/bake_terrain.py (final albedo). palette: shader multipliers on those textures (white = as baked; dry/wet/mud/bare/ash are multipliers on ground/sand/dirt/rock; shallow and deep are absolute colours). ground_cover: low vegetation families the scatter may place. palm_allowlist: palm families allowed. special_tiles: tile overrides the terrain may stamp. Hooked into islands by W2-TERRAIN/W2-SCATTER.",
+ "_about": "W1-BIOME per-climate ground look, one entry per climates.json key. textures: baked by tools/blender/terrain/bake_terrain.py (final albedo). palette: shader multipliers on those textures (white = as baked; dry/wet/mud/bare/ash are multipliers on ground/sand/dirt/rock; shallow and deep are absolute colours). ground_cover: low vegetation families the scatter may place. palm_allowlist: palm families allowed. special_tiles: tile overrides the terrain may stamp. Hooked into islands by W2-TERRAIN/W2-SCATTER. special_families: island_runtime _spawn_special_family families the scatter may place; berry_bush only where the climate's vegetation has BushBerries (world-placement-08: berries on volcano).",
  "water_only_families": [
   "Lilypad"
  ],
@@ -41,6 +41,12 @@
    "bare",
    "rock"
   ],
+  "special_families": [
+   "mud",
+   "clay",
+   "berry_bush",
+   "tree_stump"
+  ],
   "shader": {}
  },
  "savannah": {
@@ -76,6 +82,11 @@
    "dirt",
    "bare",
    "rock"
+  ],
+  "special_families": [
+   "mud",
+   "clay",
+   "tree_stump"
   ],
   "shader": {
    "tex_scale": 5.0
@@ -120,6 +131,12 @@
    "bare",
    "rock"
   ],
+  "special_families": [
+   "mud",
+   "clay",
+   "berry_bush",
+   "tree_stump"
+  ],
   "shader": {}
  },
  "tropical": {
@@ -159,6 +176,11 @@
    "bare",
    "rock"
   ],
+  "special_families": [
+   "mud",
+   "clay",
+   "tree_stump"
+  ],
   "shader": {}
  },
  "tundra": {
@@ -192,6 +214,11 @@
    "dirt",
    "bare",
    "rock"
+  ],
+  "special_families": [
+   "mud",
+   "clay",
+   "tree_stump"
   ],
   "shader": {
    "slope_rock_lo": 0.28,
@@ -229,6 +256,11 @@
    "dirt",
    "bare",
    "rock"
+  ],
+  "special_families": [
+   "mud",
+   "clay",
+   "tree_stump"
   ],
   "shader": {
    "tex_scale": 6.0
@@ -270,6 +302,11 @@
    "bare",
    "rock"
   ],
+  "special_families": [
+   "mud",
+   "clay",
+   "tree_stump"
+  ],
   "shader": {
    "macro_strength": 0.3
   }
@@ -304,6 +341,11 @@
    "dirt",
    "bare",
    "rock"
+  ],
+  "special_families": [
+   "mud",
+   "clay",
+   "tree_stump"
   ],
   "shader": {}
  },
@@ -342,6 +384,11 @@
    "bare",
    "rock"
   ],
+  "special_families": [
+   "mud",
+   "clay",
+   "tree_stump"
+  ],
   "shader": {}
  },
  "volcanic": {
@@ -375,6 +422,11 @@
    "bare",
    "rock",
    "ash"
+  ],
+  "special_families": [
+   "mud",
+   "clay",
+   "tree_stump"
   ],
   "shader": {
    "slope_rock_lo": 0.22,
