@@ -275,11 +275,11 @@ def paint_atlas():
         "ash": _speckle(24, (0.48, 0.46, 0.43), (0.28, 0.27, 0.26), light=(0.62, 0.6, 0.57), scale=9),
         "ember": _ember(),
         # Drying-rack stages separate by value as well as hue (tile-mean Rec.709 luma, checked by
-        # t_structart): wet bright red ~65 -> deep maroon ~33 -> near-black brown ~20 with pale
-        # salt/fat edges so the finished strips do not vanish against the dark dirt disc.
+        # t_structart): wet bright red ~65 -> deep maroon ~28 -> near-black brown ~16 with amber
+        # fat speckle; the dried stage also gets meat_fat rim geometry (structures._strips) so it reads on the dirt disc.
         "meat_raw": _meat(25, (0.86, 0.17, 0.15), (0.62, 0.08, 0.08), (0.95, 0.74, 0.68), 0.2),
-        "meat_drying": _meat(26, (0.46, 0.08, 0.065), (0.3, 0.045, 0.04), (0.56, 0.24, 0.18), 0.16),
-        "meat_dried": _meat(27, (0.18, 0.085, 0.05), (0.09, 0.04, 0.025), (0.62, 0.46, 0.32), 0.14),
+        "meat_drying": _meat(26, (0.38, 0.06, 0.05), (0.24, 0.035, 0.03), (0.56, 0.24, 0.18), 0.16),
+        "meat_dried": _meat(27, (0.14, 0.065, 0.04), (0.07, 0.03, 0.02), (0.62, 0.46, 0.32), 0.14),
         "meat_fat": _speckle(33, (0.6, 0.38, 0.22), (0.44, 0.26, 0.14), light=(0.72, 0.52, 0.34), scale=6),
         "water": _water(),
         "soot": _speckle(29, (0.17, 0.15, 0.14), (0.08, 0.07, 0.07), scale=5),
