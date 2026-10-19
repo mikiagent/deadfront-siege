@@ -1,0 +1,27 @@
+{
+	"schema": 3,
+	"player": {
+		"vitals": {},
+		"statuses": [],
+		"inventory": [
+			{"id": "raid_helm", "count": 5000, "level": 9999, "durability": 999999, "max_durability": 999999, "attributes": {}, "flags": []},
+			{"id": "no_such_item_xyz", "count": 42},
+			{"id": "stone", "count": -7},
+			{"id": "branch", "count": 1000000, "level": 60}
+		],
+		"inventory_extras": {"equipment": {"head": "raid_helm", "chest": "no_such_item_xyz"}},
+		"position": []
+	},
+	"pets": [
+		{"species": "velociraptor", "grade": "S", "level": 9999, "bag": [{"id": "no_such_item_xyz", "count": 3}]},
+		{"species": "no_such_dragon", "level": 5}
+	],
+	"skills_v2": {"trees": {"gathering": {"level": 99, "xp": 0}, "butchering": {"level": 5, "xp": -40}}, "sp_available": 99999, "sp_spent": -3},
+	"t_stones": -5,
+	"pioneer_level": 2,
+	"island_id": "home_grassland",
+	"home": {"terrain": "meadow", "buildings": [], "cargo": [{"id": "raid_cuirass", "count": 3000, "level": 60}], "claims": [], "camp_layout": {}},
+	"unstable": {},
+	"clock": 0.4,
+	"saved_unix": 0
+}

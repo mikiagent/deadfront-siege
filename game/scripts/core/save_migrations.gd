@@ -6,7 +6,10 @@ const CURRENT_SCHEMA := 3
 
 static func migrate(raw: Dictionary) -> Dictionary:
 	var data := raw.duplicate(true)
-	var schema := int(data.get("schema", 0))
+	for key in ["player", "home", "unstable"]:
+		if not data.get(key, {}) is Dictionary:
+			data.erase(key) # a hand-edited scalar here would crash the typed steps below
+	var schema := schema_of(data)
 	if schema > CURRENT_SCHEMA:
 		push_error("Save schema %d is newer than this build (%d)" % [schema, CURRENT_SCHEMA])
 		return {}
@@ -23,6 +26,11 @@ static func migrate(raw: Dictionary) -> Dictionary:
 				return {}
 		schema = int(data.get("schema", -1))
 	return data
+
+## -1 for a marker that is not a number (no migration path, so the save is rejected).
+static func schema_of(data: Dictionary) -> int:
+	var v: Variant = data.get("schema", 0)
+	return int(clampf(float(v), -1.0, 1000000.0)) if v is int or v is float else -1
 
 static func _v0_to_v1(data: Dictionary) -> Dictionary:
 	# The first shipped saves had no schema marker. Their world-position buildings
