@@ -1,7 +1,7 @@
 # W1-CANIM: creature animation runtime that obeys time scale and speed
 
 Branch `claude/mmo-w1-canim` (from `claude/mmo-overhaul` at ea2d167). Commits: `baf01f5` runtime, bake
-tool, data, test; `3a33685` lab and assumption markers; `ba9306f` review round 1 fixes; this report. Closes dino-art-05, dino-art-10
+tool, data, test; `3a33685` lab and assumption markers; `ba9306f` review round 1 fixes; review round 2 (limp factor, `is_busy`, report); this report. Closes dino-art-05, dino-art-10
 (runtime half), dino-art-03 (loop-trim half), dino-art-04 (runtime half; wiring is W2-CVIEW).
 Credits spent: 0.
 
@@ -15,7 +15,10 @@ Credits spent: 0.
   - `set_move_speed(mps)`: picks walk or run from baked natural stride speeds and sets the cadence to
     mps / natural speed, so the planted foot keeps pace with the ground. Falls back to the legacy path
     when a species has no baked data (placeholders).
-  - `set_time_scale(x)`: global multiplier over every state's cadence.
+  - `set_time_scale(x, factor = &"base")`: global multiplier over every state's cadence. Each caller
+    owns a named factor and the tree plays at their product, so the limp (`&"fracture"`) survives a
+    hit-stop or slow writing `&"base"` (review round 2).
+  - `is_busy()`: read-only view of the one-shot busy flag.
   - Walk and run are separate states with a 0.2 s crossfade (was a linear BlendSpace1D of two
     unsynced gaits). Legacy `play_locomotion(frac)` keeps its call shape: run above 0.55, run at the
     anim_events cadence (1.6, which now actually applies).
@@ -43,6 +46,16 @@ Deviations from the spec's file list:
   (owned), which Data already loads. No data.gd change needed.
 - Test file is `game/tests/t_canim.gd` (wave-1 convention), not `t_creature_anim.gd`.
 
+## Review round 2
+
+| Finding | Fix | Check that would have caught it |
+|---|---|---|
+| major: limp still broken (creature.gd:393-394 writes `ap.speed_scale = 0.65`, which the tree ignores; no hook) | `set_time_scale` takes a named factor; product of all factors. W2-CVIEW hook added below. The old line also never reset `speed_scale` when fracture ended | t_canim: `limp: fracture 0.65 x base 0.5 ... 0.325` and `limp: fracture 0.65 kept after base reset to 1.0 ... 0.650` |
+| minor: quadruped/T. rex gait picks look poor with donor clips | Agreed, asset problem. Replacement rows kept; W2-CVIEW hook says not to wire `set_move_speed` for quadrupeds and the T. rex until W2-RERIG clips land (or cap cadence near 3x) | n/a (asset) |
+| minor: rex sleep row omits the float | Row now says the body floats about 1 m above the ground (root height) | n/a (report) |
+| minor: server hit timing depends on the tree | Note for W1-SRVDOM added under risks | t_canim item 2b drives `tree.advance()` manually, the path a server would need |
+| minor: test reads `anim._busy` | `is_busy()` added; test reads it | `grep _busy game/tests/t_canim.gd` is empty |
+
 ## Review round 1 (commit ba9306f)
 
 | Finding | Fix | Check that would have caught it |
@@ -64,7 +77,7 @@ can no longer keep both feet inside the [0.75, 1.30] acceptance window (that lim
 marks exactly the clips the review named: coelophysis walk (2.02x) and run (2.74x), compsognathus
 run (1.95x), gallimimus run (4.82x). The 1.3-1.6x clips are baked and still listed for replacement.
 
-## Acceptance checklist (exact output lines, run on ba9306f on 2026-10-19)
+## Acceptance checklist (exact output lines, run on ba9306f, rerun after review round 2 on 2026-10-19)
 
 Command: `Godot --headless --path game --script res://tests/t_canim.gd` (exit 0).
 
@@ -72,6 +85,9 @@ Command: `Godot --headless --path game --script res://tests/t_canim.gd` (exit 0)
    `[t_canim] ok   velociraptor attack_primary timed to 2.0 s: time scale 0.184, tree advance / wall = 0.184 (want 0.16-0.21, was 1.000)`
    `[t_canim] ok   velociraptor run at anim_events speed 1.6: tree advance / wall = 1.600 (want 1.5-1.7)`
    `[t_canim] ok   set_time_scale(0.5) on idle: tree advance / wall = 0.500`
+   1b. Limp (dino-art-10), named factor survives a base write (review round 2):
+   `[t_canim] ok   limp: fracture 0.65 x base 0.5 on idle: tree advance / wall = 0.325 (want 0.325)`
+   `[t_canim] ok   limp: fracture 0.65 kept after base reset to 1.0: tree advance / wall = 0.650`
 2. T. rex heavy sync (was 0.65 s late), windup read from TyrantBrain:
    `[t_canim] ok   tyrannosaurus attack_heavy (len 2.567 s, hit_frac pos 1.848 s): animation hit at 1.208 s, TyrantBrain damage at 1.200 s, gap 0.008 s (want <= 0.05, was 0.65)`
    2b. One-shot events in tree time:
@@ -139,7 +155,16 @@ None needed in core files. For W2-CVIEW (wiring is theirs per the spec):
 - creature.gd:541: the hit_react guard is `not str(anim.current_clip).begins_with("attack")`, so a hit
   would interrupt `tail_swipe` once a brain uses it. Use
   `not (anim.current_clip in CreatureAnim.ATTACKS)`.
-- Read `anim.current_state()` / `anim.cadence(state)` / `anim.has_state(clip)` instead of private fields.
+- creature.gd:393-394 (the limp, dino-art-10): delete `if statuses.has(&"fracture"): ap.speed_scale = 0.65`
+  and put `anim.set_time_scale(0.65 if statuses.has(&"fracture") else 1.0, &"fracture")` in `_status_fx()`
+  unconditionally, so it resets when fracture is removed. Hit-stop or slows use their own factor key
+  (for example `&"hitstop"`), never `&"fracture"`; `&"base"` (the default) belongs to whoever owns
+  global slow-motion. The tree plays at the product of all factors.
+- Do not wire `set_move_speed` for megaloceros, protoceratops, zebraceratops or the T. rex until the
+  W2-RERIG clips land: with the donor clips they play the run at walking speed (velociraptor too at
+  the 40 % walk assumption), megaloceros hits the 16x cadence cap and reads as standing still, and the
+  T. rex plays its walk at 2.2x. If they must be wired sooner, cap cadence near 3x and accept sliding.
+- Read `anim.current_state()` / `anim.cadence(state)` / `anim.has_state(clip)` / `anim.is_busy()` instead of private fields.
 
 ## Labs to register
 
@@ -154,7 +179,7 @@ these rows. Evidence is the baked `natural_speeds` in `anim_events.json` (plante
 
 | Asset | Problem | Route | Package | Status |
 |---|---|---|---|---|
-| tyrannosaurus sleep clip | Lies on its back with legs and arms in the air (dead-bug pose), belly to camera (`lab_rex_sleep_crop.png`) | dsc re-animation | W2-RERIG | REPLACE |
+| tyrannosaurus sleep clip | Lies on its back with legs and arms in the air (dead-bug pose), belly to camera (`lab_rex_sleep_crop.png`), and the whole body floats about 1 m above the ground with a clear gap to its shadow (reviewer's `rex_sleep_after.png`, `rex_sleep_after_gl.png`): fix the root height as well as the pose | dsc re-animation | W2-RERIG | REPLACE |
 | coelophysis walk + run clips | Feet disagree (walk L 0.436 R 0.216 m/s, run L 0.406 R 1.111), and the run strides slower than the walk on the left foot; with the old bake it played the walk at x16 at top speed and x6.6 at 2.9 m/s. Now unbaked: legacy cadence | dsc re-animation | W2-RERIG | REPLACE |
 | gallimimus run, compsognathus run clips | Feet disagree 4.8x (L 2.789 R 13.45) and 1.95x (L 2.193 R 4.267); unbaked, so these species use their walk at every speed | dsc re-animation | W2-RERIG | REPLACE |
 | velociraptor, utahraptor, deinonychus, gallimimus walk; velociraptor, utahraptor, deinonychus run | Asymmetric donor stance, 1.2-1.5x between feet; baked from the mean so each foot slides up to ~20 %. Run naturals per metre of height also disagree across the same donor clip (deinonychus 13.9 m/s at 3.6 m vs velociraptor 3.7 at 2.4 m) | dsc re-animation with the bespoke rigs | W2-RERIG | REPLACE |
@@ -189,6 +214,10 @@ After any replacement walk/run GLB lands, rerun `tools/bake_clip_speeds.py`.
   print `[creature] <species>/<gait> natural speed baked on ...` once.
 - One-shot end/hit events now depend on the AnimationTree updating. A creature whose tree is
   inactive or paused stays busy until it resumes (the old wall-clock timers would have released it
-  while the clip stood still). Nothing in this branch deactivates creature trees.
+  while the clip stood still). Nothing in this branch deactivates creature trees. Probe:
+  `set_time_scale(0)` leaves a creature busy after 3 s and it recovers when the scale is restored.
+- W1-SRVDOM: creature hit timing (`attack_hit` -> creature.gd `_on_hit`) is driven by the
+  AnimationTree. A headless authoritative server must keep creature trees active and advancing, or
+  replace this with a tree-time model that does not need the mixer.
 - The idle-mode one-shot path (mixer_applied in a live tree) is exercised by run_all and the lab,
   but only the manual-advance path has a timing assert.

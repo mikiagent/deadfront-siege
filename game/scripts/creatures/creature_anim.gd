@@ -32,7 +32,8 @@ var _hold_knockdown: bool = false
 var _dead: bool = false
 var _forced: bool = false
 var _def: CreatureDef
-var _time_scale := 1.0
+var _time_factors: Dictionary = {}  ## named retime factors (&"base", &"fracture", hit-stop...) multiplied together
+var _time_scale := 1.0  ## product of _time_factors
 var _scale: Dictionary = {}  ## state -> cadence before the global time scale
 var _param: Dictionary = {}  ## state -> "parameters/<state>/ts/scale"; also the set of built states
 var _natural: Dictionary = {}  ## &"walk" / &"run" -> planted-foot ground speed at cadence 1 (m/s)
@@ -91,11 +92,15 @@ func set_move_speed(mps: float) -> void:
 	_scale[gait] = clampf(mps / float(_natural[gait]), CADENCE_MIN, CADENCE_MAX)
 	_travel(gait)
 
-## Global retime on top of every state's own cadence (slows, hit-stop, lab slow motion).
-func set_time_scale(x: float) -> void:
+## Global retime on top of every state's own cadence. Each caller owns a named factor (the limp is
+## &"fracture", a hit-stop its own key) and the tree plays at their product, so one never erases another.
+func set_time_scale(x: float, factor: StringName = &"base") -> void:
 	if not is_finite(x):
 		return
-	_time_scale = maxf(0.0, x)
+	_time_factors[factor] = maxf(0.0, x)
+	_time_scale = 1.0
+	for f in _time_factors.values():
+		_time_scale *= float(f)
 	for state in _scale:
 		_apply(state)
 
@@ -218,6 +223,9 @@ func _travel(state: StringName) -> void:
 ## Read-only views for tests and labs.
 func current_state() -> StringName:
 	return _playback.get_current_node() if _playback else &""
+
+func is_busy() -> bool:
+	return _busy
 
 func cadence(state: StringName) -> float:
 	return _effective(state)

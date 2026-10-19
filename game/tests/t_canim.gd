@@ -86,6 +86,16 @@ func _test_time_scale() -> void:
 	r = _ratio(c, &"idle", 30)
 	_expect(absf(r - 0.5) <= 0.02, "set_time_scale(0.5) on idle: tree advance / wall = %.3f" % r)
 	anim.set_time_scale(1.0)
+	# The limp (dino-art-10): ap.speed_scale = 0.65 was ignored by the tree. A named factor must slow the
+	# tree and survive a later hit-stop/base write instead of being overwritten by it.
+	anim.set_time_scale(0.65, &"fracture")
+	anim.set_time_scale(0.5)
+	r = _ratio(c, &"idle", 30)
+	_expect(absf(r - 0.325) <= 0.02, "limp: fracture 0.65 x base 0.5 on idle: tree advance / wall = %.3f (want 0.325)" % r)
+	anim.set_time_scale(1.0)
+	r = _ratio(c, &"idle", 30)
+	_expect(absf(r - 0.65) <= 0.02, "limp: fracture 0.65 kept after base reset to 1.0: tree advance / wall = %.3f" % r)
+	anim.set_time_scale(1.0, &"fracture")
 	c.free()
 
 ## The windup comes from the real TyrantBrain: it is aimed at a target in reach on its third attack
@@ -144,7 +154,7 @@ func _test_oneshot_tree_time() -> void:
 		var want_done: float = 0.1 + (length - head) / (run[2] * cad)
 		var hit: float = ev.get("hit", -1.0)
 		var done: float = ev.get("done", -1.0)
-		_expect(absf(hit - want_hit) <= 0.05 and absf(done - want_done) <= 0.05 and not anim._busy, "velociraptor attack_primary, %s: attack_hit at %.3f s (want %.3f), attack_done at %.3f s (want %.3f), busy after %s (was hit 3.399 s, done 8.477 s for hit-stop)" % [run[0], hit, want_hit, done, want_done, anim._busy])
+		_expect(absf(hit - want_hit) <= 0.05 and absf(done - want_done) <= 0.05 and not anim.is_busy(), "velociraptor attack_primary, %s: attack_hit at %.3f s (want %.3f), attack_done at %.3f s (want %.3f), busy after %s (was hit 3.399 s, done 8.477 s for hit-stop)" % [run[0], hit, want_hit, done, want_done, anim.is_busy()])
 	anim.set_time_scale(1.0)
 	c.free()
 
