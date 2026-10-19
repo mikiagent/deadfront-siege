@@ -39,8 +39,12 @@ def grass(colors, seed=51, splats=None, tips="#a8b860", gaps="#3a2e1e", litter=N
         "base": {"scale": 5.0, "detail": 6.0, "rough": 0.6, "colors": colors, "spread": 0.22, "seed": seed,
                  "stretch": stretch, "fine": {"scale": 70.0, "amount": 0.45, "seed": seed + 1, "stretch": stretch}},
         "splats": sp,
+        # Clump-scale overlays (40 and 18 per tile) survive the mipmaps at camp distance; the
+        # per-pixel ones only show up close.
         "detail": [det(480.0, 0.95, seed + 6, (0.18, 0.2, 0.16), (0.8, 0.82, 0.66)),
-                   det(160.0, 0.6, seed + 7, 0.3, 0.7, stretch=(1.0, 3.0))],
+                   det(160.0, 0.6, seed + 7, 0.3, 0.7, stretch=(1.0, 3.0)),
+                   det(40.0, 0.7, seed + 8, (0.3, 0.3, 0.36), (0.68, 0.7, 0.58), detail=3.0),
+                   det(18.0, 0.6, seed + 9, (0.32, 0.34, 0.38), (0.66, 0.66, 0.56), detail=3.0)],
         "grain": {"scale": 160.0, "amount": 0.16},
     }
     if cap:
@@ -124,7 +128,7 @@ RECIPES = {
             splats=[dots(["#a8a878", "#b8b488"], 60.0, 0.45, 0.12, 154, 0.7)], speck=1.0),
     },
     "temperate": {
-        "ground": grass(["#33491e", "#465f28", "#5e7636"], seed=51, tips="#9aa85a", gaps="#3a2c1c",
+        "ground": grass(["#2e431b", "#405724", "#566d32"], seed=51, tips="#9aa85a", gaps="#3a2c1c",
                         litter=["#6a4a2a", "#86643a"], splats=[
             patch(["#2c401a", "#36501f"], 4.0, 0.55, 0.68, 61, 0.7),
             patch(["#6d6a3c", "#7d7646"], 6.0, 0.66, 0.74, 62, 0.5),
