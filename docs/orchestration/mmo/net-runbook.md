@@ -12,12 +12,21 @@ Run every command from the repo root.
 
 - `--port=` takes 0 to 65535. 0 picks a free port; the log prints which one.
 - `--data=` must be an absolute path or a `user://` path. It defaults to `user://server/`.
-  `accounts.json` is stored there (ids, names, `sha256(token)`, never the token itself).
-- The server never builds the island, the player or the HUD. It logs one JSON line per
-  connection event:
+  It holds `accounts.json` (ids, names, `sha256(token)`, never the token itself) plus
+  `accounts.json.bak` (the version before the last write), `rids.jsonl` (the last 64 mutating
+  responses per account) and `server.lock`.
+- One server per data dir. `server.lock` is a heartbeat rewritten every 3 s. A second server
+  refuses to start (`lock_error`, exit 1) while the heartbeat is under 10 s old. After a crash,
+  wait 10 s or delete the lock.
+- The shell loads `server.tscn` directly, so the island, the player and the HUD are never
+  loaded. The server logs one JSON line per connection event:
   `[net] {"ev":"listen","port":8910,...}`, then `connect`, `open`, `hello`, `drop` and `close`.
-- Ctrl+C stops it. Accounts are written to disk when they are created (tmp file, then rename), so
-  stopping the server at any moment is safe.
+- Ctrl+C stops it. Accounts and rids are written to disk before the reply is sent (accounts:
+  tmp file, then rename; rids: appended and flushed), so stopping the server at any moment is
+  safe. A retry after a restart replays the saved response. A power cut is not covered: Godot has
+  no fsync.
+- If `accounts.json` does not parse, the server refuses to start rather than run with an empty
+  store. To recover, copy `accounts.json.bak` over it by hand.
 
 ## 2. Desktop client
 
@@ -68,15 +77,28 @@ For a second player, use one of these:
 ```gdscript
 server.register_op("market.buy", engine.op_buy, true, "write")
 # handler: func(account_id: int, a: Dictionary) -> Dictionary  (NetProtocol.ok(r) / NetProtocol.fail(code, msg))
+#      or: func(account_id: int, a: Dictionary, rid: String) -> Dictionary
 ```
 
-Handlers run on the main thread one at a time and must not await. The server has already
-authenticated the account, rate limited it by class (`read`, `write`, `chat`) and, for mutating
-ops, checked the `rid`: a repeated `rid` returns the cached response without calling the handler.
-The last 64 rids per account live in `server.rid_caches` (memory only). Persisting them with the
-snapshot is the economy's job (contract section 4). `server.account_created`,
-`account_online` and `account_offline` are signals. `send_event` and `broadcast_event` push
-`evt` frames to clients.
+Handlers run on the main thread one at a time and must not await. Before your handler runs, the
+server has already authenticated the account, rate limited it by class (`read`, `write`, `chat`;
+`presence` is for presence.update only) and, for mutating ops, checked the `rid`: a repeated
+`rid` returns the cached response without calling the handler. After the handler returns, the
+server writes the response to `rids.jsonl` before sending it, so the cache survives restarts.
+
+If your op journals itself (contract 5.2), take the third `rid` parameter and journal the rid
+with the op. When you replay the journal at boot, call
+`server.remember_rid(account_id, rid, op, response)` for each entry, in the same frame as
+`server.start()`. This covers a crash that lands after your journal flush and before the
+server's rid write. Results over 64 KiB are replaced with `server_error` ("response too large"),
+so page your searches.
+
+`server.account_created`, `account_online` and `account_offline` are signals. `send_event` and
+`broadcast_event` push `evt` frames to clients. An event over 64 KiB is logged and dropped.
+
+On the client, `Game.net.request()` returns a `NetRequest` with `req.rid`. A mutating request
+that ends in `timeout` or `offline` may have been applied. Retry it with `Game.net.retry(req)`,
+which reuses the rid, and never with a fresh `request()`.
 
 ## 6. Checks
 
