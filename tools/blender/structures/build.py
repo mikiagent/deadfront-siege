@@ -7,6 +7,7 @@ import importlib
 import os
 import sys
 
+sys.dont_write_bytecode = True  # keep __pycache__ out of the repo
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
