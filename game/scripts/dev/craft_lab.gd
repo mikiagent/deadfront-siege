@@ -127,9 +127,6 @@ func _weapon_shot_setup(hunting: bool) -> void:
 	if _cam:
 		_cam.size = 3.0
 	print("[ui] weapon-hand shot ready hunting=%s held=%s" % [hunting, _player.station_craft.held_model_id()])
-	var anc := _player.right_hand_anchor()
-	var ht: Node3D = _player.station_craft._hand_tool
-	print("[dbg] anchor scale=%s pos=%s tool=%s tool_scale=%s tool_pos=%s visible=%s" % [anc.global_basis.get_scale() if anc else "-", anc.global_position if anc else "-", ht, ht.global_basis.get_scale() if ht else "-", ht.global_position if ht else "-", ht.is_visible_in_tree() if ht else "-"])
 
 func _prey(at: Vector3) -> Creature:
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()

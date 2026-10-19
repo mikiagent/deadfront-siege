@@ -435,6 +435,10 @@ func _sync_hand_tool() -> void:
 		_hand_tool = PropVisuals.attach_tool_model(anchor, want_id)
 	if _hand_tool:
 		_hand_tool.set_meta("tool_id", str(want_id))
+		# survivor-v2's hand bone carries the armature's cm scale (~0.012): undo it so tools read at metre size.
+		var s := anchor.global_basis.get_scale().x
+		if s > 0.0001:
+			_hand_tool.scale /= s
 
 func held_model_id() -> StringName:
 	return StringName(str(_hand_tool.get_meta("tool_id", ""))) if _hand_tool and is_instance_valid(_hand_tool) else &""
