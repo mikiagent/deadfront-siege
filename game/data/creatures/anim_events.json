@@ -85,25 +85,25 @@
     },
     "utahraptor": {
       "height_m": 4.0,
-      "run_l": 10.944,
-      "run_len": 0.625,
-      "run_r": 15.25,
-      "walk_l": 2.868,
-      "walk_len": 1.209,
-      "walk_r": 4.283,
-      "walk": 3.575,
-      "run": 13.097
+      "run_l": 10.073,
+      "run_len": 0.708,
+      "run_r": 10.073,
+      "walk_l": 1.164,
+      "walk_len": 2.458,
+      "walk_r": 1.164,
+      "walk": 1.164,
+      "run": 10.073
     },
     "velociraptor": {
       "height_m": 2.4,
-      "run_l": 3.14,
-      "run_len": 0.625,
-      "run_r": 4.298,
-      "walk_l": 0.839,
-      "walk_len": 1.209,
-      "walk_r": 0.643,
-      "walk": 0.741,
-      "run": 3.719
+      "run_l": 6.743,
+      "run_len": 0.708,
+      "run_r": 6.743,
+      "walk_l": 0.779,
+      "walk_len": 2.458,
+      "walk_r": 0.779,
+      "walk": 0.779,
+      "run": 6.743
     },
     "zebraceratops": {
       "height_m": 1.0,
