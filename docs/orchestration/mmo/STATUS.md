@@ -46,6 +46,12 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | 1a-audio | CC0 audio layer (`claude/mmo-audio`) | running, reviewer-gated (wf_abafae3d-0a6) |
 | 1a | economy engine (`claude/mmo-econ`); net core: server, auth, presence, chat (`claude/mmo-net`) | running, reviewer-gated (workflow wf_158b264c-baf) |
 
+## Releases
+
+- 2026-10-18 22:00 production: `548804ac8/f34e148e39` (claude/mmo-overhaul = main + survivor v2/armor/T. rex
+  mount; wave 1 not yet merged). Local browser boot checked into the world before deploy; alias
+  stamp verified.
+
 ## Plan amendments for wave 2+ (from plan-critic.md)
 
 - W2-SURVIVAL (new): hunger, thirst and temperature meters with drinking, starvation and climate/
