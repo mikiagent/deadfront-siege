@@ -6,8 +6,11 @@
 #        "xfail:<PKG>" known red and owned by PKG. Strict: the row must fail by its own FAIL/PARTIAL
 #                      verdict (a crash still fails the gate), and once it passes the gate fails
 #                      until the flag is removed.
+#        "errors:N"    the row may log up to N engine ERROR lines (default 0)
 # --fixed-fps 60 steps the game at exactly 60 Hz as fast as the CPU allows: same physics, less wall
-# time. Never on perf rows (they time real frames). New labs: one line each, appended at merge.
+# time. Never on perf rows (they time real frames), and never on the counter_* fight rows: combat
+# cooldowns read the wall clock (Time.get_ticks_msec in creature_brain.gd, creature.gd, player.gd,
+# vitals.gd), so a faster-than-realtime run changes who wins. New labs: one line each, appended at merge.
 island_lab              |  90 | -- --lab=island_lab                    | shot
 creature_lab            |  45 | -- --lab=creature_lab                  | shot shotxfail:W1-LIGHT
 raptor_scale_lab        |  30 | -- --lab=raptor_scale_lab              | shot shotxfail:W1-LIGHT
@@ -19,12 +22,13 @@ berry_state_lab         |  60 | -- --lab=berry_state_lab
 layout_perf_lab         |  60 | -- --lab=layout_perf_lab
 pet_passthrough_lab     |  30 | -- --lab=pet_passthrough_lab
 perf_budget_lab         |  90 | -- --lab=perf_budget_lab               | shot
+perf_budget_render      | 120 | -- --lab=perf_budget_lab               | window
 camp_travel             |  90 | -- --camp-travel-probe
 cargo_capacity          |  60 | -- --cargo-capacity-probe
 bot_rest                | 120 | --fixed-fps 60 -- --bot-rest-probe
 earned_training         | 300 | -- --earned-training-probe
-counter_raptor          | 150 | --fixed-fps 60 -- --counter-matchup-probe --correct-kit
-counter_protoceratops   | 150 | --fixed-fps 60 -- --counter-matchup-probe --correct-kit --match-species=protoceratops
+counter_raptor          | 150 | -- --counter-matchup-probe --correct-kit
+counter_protoceratops   | 150 | -- --counter-matchup-probe --correct-kit --match-species=protoceratops
 tyrant_window           | 200 | --fixed-fps 60 -- --tyrant-window-probe          | xfail:W1-COMBAT
 bot_gate                | 600 | --fixed-fps 60 -- --bot --bot-gate --bot-minutes=8 | xfail:W2-DATA
 web_soak                | 200 | -- --web-soak                          | window

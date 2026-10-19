@@ -1,9 +1,11 @@
 extends Node3D
-## Visual QA: compy baseline beside the two 3x raptor species. Headless it is a gate: each
-## model's visible height must track its data height and the three must keep their order.
+## Visual QA: compy baseline beside the two 3x raptor species. Headless it is a gate on body
+## LENGTH: RiggedModel.setup scales every model to its data height, so height always matches by
+## construction (printed only). Length is the mesh's own proportion, which normalisation does not
+## set: a stubby or stretched model shows up as length far off real_length_m.
 
-## ASSUMPTION: a model may stand 35 % off its data height (pose, head carriage, tail arch).
-const HEIGHT_TOLERANCE := 0.35
+## ASSUMPTION: a model's nose-to-tail extent may sit 35 % off real_length_m (tail curl, pose).
+const LENGTH_TOLERANCE := 0.35
 var _models: Dictionary = {}
 
 func _ready() -> void:
@@ -28,30 +30,34 @@ func _ready() -> void:
 func _gate() -> void:
 	var r := LabResult.new("raptor_scale")
 	await get_tree().process_frame
-	var heights: Array[float] = []
+	var lengths: Array[float] = []
 	for species in [&"compsognathus", &"velociraptor", &"deinonychus"]:
-		var want: float = Data.creature(species).height_meters
-		var got := _visual_height(_models.get(species) as Node3D)
-		heights.append(got)
-		print("[dino_scale] %s model_h=%.2f data_h=%.2f ratio=%.2f" % [species, got, want, got / maxf(0.01, want)])
-		r.expect(absf(got / maxf(0.01, want) - 1.0) <= HEIGHT_TOLERANCE, "%s model %.2f m vs data %.2f m" % [species, got, want])
-	r.expect(heights[0] < heights[1] and heights[1] < heights[2], "compy < velociraptor < deinonychus by model height")
-	r.finish(get_tree(), "heights=%.2f/%.2f/%.2f" % [heights[0], heights[1], heights[2]])
+		var def := Data.creature(species)
+		var box := _visual_box(_models.get(species) as Node3D)
+		var got := maxf(box.size.x, box.size.z)
+		lengths.append(got)
+		# Height is normalised by RiggedModel, so this ratio is 1.00 by construction: info only.
+		print("[dino_scale] %s model_h=%.2f data_h=%.2f (normalised) model_l=%.2f data_l=%.2f l_ratio=%.2f" % [species,
+			box.size.y, def.height_meters, got, def.real_length_m, got / maxf(0.01, def.real_length_m)])
+		r.expect(absf(got / maxf(0.01, def.real_length_m) - 1.0) <= LENGTH_TOLERANCE,
+			"%s model length %.2f m vs data %.2f m" % [species, got, def.real_length_m])
+	r.expect(lengths[0] < lengths[1] and lengths[1] < lengths[2], "compy < velociraptor < deinonychus by model length")
+	r.finish(get_tree(), "lengths=%.2f/%.2f/%.2f" % [lengths[0], lengths[1], lengths[2]])
 
-## World-space height of every visible mesh under the creature (rest-pose AABBs).
-func _visual_height(root: Node3D) -> float:
+## World-space bounds of every visible mesh under the creature (rest-pose AABBs).
+func _visual_box(root: Node3D) -> AABB:
+	var out := AABB()
+	var first := true
 	if root == null:
-		return 0.0
-	var top := -INF
-	var bottom := INF
+		return out
 	for n in root.find_children("*", "VisualInstance3D", true, false):
 		var vi := n as VisualInstance3D
 		if not vi.is_visible_in_tree() or vi is Label3D:
 			continue
 		var box := vi.global_transform * vi.get_aabb()
-		top = maxf(top, box.end.y)
-		bottom = minf(bottom, box.position.y)
-	return top - bottom if top > bottom else 0.0
+		out = box if first else out.merge(box)
+		first = false
+	return out
 
 func _spawn_frozen(species: StringName, at: Vector3) -> void:
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()

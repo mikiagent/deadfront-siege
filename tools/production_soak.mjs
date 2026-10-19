@@ -3,7 +3,10 @@
  * Usage: npm --prefix tools/web_soak install && node tools/production_soak.mjs [URL] [--expect-stamp=<commit>/<pack>]
  * PASS needs '[soak] PASS', no error line, no black checkpoint frame, the in-game '[soak] stamp'
  * equal to the expected stamp (flag or EXPECTED_STAMP; without one the stamp is only printed),
- * and a requestAnimationFrame p95 at or under RAF_P95_MS (default 100 ms) once the route runs.
+ * a requestAnimationFrame p95 at or under RAF_P95_MS (default 100 ms) once the route runs, and no
+ * stall: no frame over RAF_MAX_MS (default 250 ms) while playing, none over RAF_LOAD_MAX_MS
+ * (default 8000 ms) while an island loads (the route prints '[soak] loading <id>' before each travel).
+ * Release scripts should pass the stamp they just built (EXPECTED_STAMP), or a stale cache passes.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,6 +17,9 @@ const base = flags.find(a => !a.startsWith('--')) || process.env.DEADFRONT_URL |
 const expectStamp = (flags.find(a => a.startsWith('--expect-stamp=')) || '').slice(15) || process.env.EXPECTED_STAMP || '';
 // Loose on purpose: catches stalls and a stuck renderer, not a 60 fps target (headless Chrome has no GPU).
 const rafBudgetMs = Number(process.env.RAF_P95_MS || 100);
+const rafMaxMs = Number(process.env.RAF_MAX_MS || 250);
+// shortcut: island travel still loads on the main thread, so a load freeze gets its own looser cap; tighten when W1-WEB streams islands.
+const rafLoadMaxMs = Number(process.env.RAF_LOAD_MAX_MS || 8000);
 const url = new URL(base);
 url.searchParams.set('soak', '1');
 const out = path.resolve(process.env.SOAK_ARTIFACTS || 'artifacts/web-soak');
@@ -24,9 +30,13 @@ const browser = await chromium.launch({ headless: true, executablePath });
 const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1, isMobile: false, hasTouch: false });
 // Frame deltas start at the first soak checkpoint, so page load and pack streaming do not count.
 await page.addInitScript(() => {
-  window.__soakRaf = { on: false, deltas: [] };
+  window.__soakRaf = { on: false, seg: 'play', deltas: [], load: [] };
   let last = 0;
-  const tick = t => { if (window.__soakRaf.on && last) window.__soakRaf.deltas.push(t - last); last = t; requestAnimationFrame(tick); };
+  const tick = t => {
+    const r = window.__soakRaf;
+    if (r.on && last) (r.seg === 'load' ? r.load : r.deltas).push(t - last);
+    last = t; requestAnimationFrame(tick);
+  };
   requestAnimationFrame(tick);
 });
 let failure = '';
@@ -42,9 +52,10 @@ page.on('console', async msg => {
     stamp = st[1];
     if (expectStamp && stamp !== expectStamp) failure ||= `stamp ${stamp} is not the expected ${expectStamp}`;
   }
+  if (/\[soak\] loading /.test(line)) await page.evaluate(() => { window.__soakRaf.seg = 'load'; }).catch(() => {});
   if (/\[soak\] checkpoint /.test(line)) {
     checkpoint += 1;
-    if (checkpoint === 1) await page.evaluate(() => { window.__soakRaf.on = true; }).catch(() => {});
+    await page.evaluate(() => { window.__soakRaf.on = true; window.__soakRaf.seg = 'play'; }).catch(() => {});
     await inspectFrame(`checkpoint-${String(checkpoint).padStart(2, '0')}`, checkpoint === 1 || checkpoint === 2);
   }
   const click = line.match(/\[soak\] desktop_click_norm ([0-9.-]+) ([0-9.-]+)/);
@@ -86,13 +97,17 @@ try {
   if (!failure && !stamp) failure = 'no [soak] stamp line: cannot tell which build was tested';
   const raf = await page.evaluate(() => {
     const d = [...window.__soakRaf.deltas].sort((a, b) => a - b);
-    return { n: d.length, p50: d[Math.floor(d.length * 0.5)] || 0, p95: d[Math.floor(d.length * 0.95)] || 0, max: d[d.length - 1] || 0 };
-  }).catch(() => ({ n: 0, p50: 0, p95: 0, max: 0 }));
-  const perfLine = `[perf] raf_frames=${raf.n} raf_p50_ms=${raf.p50.toFixed(1)} raf_p95_ms=${raf.p95.toFixed(1)} raf_max_ms=${raf.max.toFixed(1)} budget_p95_ms=${rafBudgetMs}`;
+    const l = window.__soakRaf.load;
+    return { n: d.length, p50: d[Math.floor(d.length * 0.5)] || 0, p95: d[Math.floor(d.length * 0.95)] || 0, max: d[d.length - 1] || 0,
+      long: d.filter(x => x > 250).length, loadN: l.length, loadMax: l.length ? Math.max(...l) : 0 };
+  }).catch(() => ({ n: 0, p50: 0, p95: 0, max: 0, long: 0, loadN: 0, loadMax: 0 }));
+  const perfLine = `[perf] raf_frames=${raf.n} raf_p50_ms=${raf.p50.toFixed(1)} raf_p95_ms=${raf.p95.toFixed(1)} raf_max_ms=${raf.max.toFixed(1)} frames_over_250ms=${raf.long} load_frames=${raf.loadN} load_max_ms=${raf.loadMax.toFixed(1)} budget_p95_ms=${rafBudgetMs} budget_max_ms=${rafMaxMs} budget_load_max_ms=${rafLoadMaxMs}`;
   log.push(perfLine);
   console.log(perfLine);
   if (!failure && raf.n < 30) failure = `only ${raf.n} animation frames recorded`;
   if (!failure && raf.p95 > rafBudgetMs) failure = `rAF p95 ${raf.p95.toFixed(1)} ms over the ${rafBudgetMs} ms budget`;
+  if (!failure && raf.max > rafMaxMs) failure = `stall: a ${raf.max.toFixed(0)} ms frame while playing (budget ${rafMaxMs} ms, ${raf.long} frames over 250 ms)`;
+  if (!failure && raf.loadMax > rafLoadMaxMs) failure = `stall: a ${raf.loadMax.toFixed(0)} ms frame while an island loaded (budget ${rafLoadMaxMs} ms)`;
   const diagnostics = await page.evaluate(() => window.__deadfrontDiagnostics?.text() || '').catch(() => '');
   fs.writeFileSync(path.join(out, 'diagnostics.log'), diagnostics);
 } finally {

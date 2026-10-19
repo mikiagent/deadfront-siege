@@ -76,8 +76,28 @@ static func exposure(img: Image) -> Dictionary:
 		"black": float(black) / maxf(1.0, float(n)),
 		"spread": sqrt(maxf(0.0, sum_sq / maxf(1.0, float(n)) - mean * mean))}
 
-## Capture path for windowed lab stills: under user:// (isolated per work tree and per gate
-## run), never a hardcoded /tmp that every work tree shares.
+# ASSUMPTION: gross-failure bounds for gate stills, not a colour sign-off (that stays in desktop
+# Chrome). W1-LIGHT owns the lighting; tighten these once its builder lands.
+const SHOT_MIN_MEAN := 0.04
+const SHOT_MIN_SPREAD := 0.015
+const SHOT_MAX_CLIPPED := 0.35
+
+## Why a gate still is unusable: black, one flat colour (a loader or error screen) or blown out.
+## Empty when the frame passes. tools/labs.sh --shots runs this through tests/t_qa.gd -- --shots.
+static func shot_problems(e: Dictionary) -> PackedStringArray:
+	var out: PackedStringArray = []
+	if e["mean"] < SHOT_MIN_MEAN:
+		out.append("black (mean %.3f)" % e["mean"])
+	if e["spread"] < SHOT_MIN_SPREAD:
+		out.append("one flat colour (spread %.3f)" % e["spread"])
+	if e["clipped"] > SHOT_MAX_CLIPPED:
+		out.append("blown out (%.0f %% clipped)" % (e["clipped"] * 100.0))
+	return out
+
+## Capture path for windowed lab stills: the gate's log dir when tools/labs.sh runs the lab
+## (LABS_LOG_DIR, kept after the run), else user:// (isolated per work tree). Never a shared /tmp.
 static func capture_path(name: String) -> String:
-	DirAccess.make_dir_recursive_absolute("user://lab_shots")
-	return ProjectSettings.globalize_path("user://lab_shots/%s.png" % name)
+	var logs := OS.get_environment("LABS_LOG_DIR")
+	var dir := logs.path_join("lab_shots") if not logs.is_empty() else "user://lab_shots"
+	DirAccess.make_dir_recursive_absolute(dir)
+	return ProjectSettings.globalize_path(dir.path_join("%s.png" % name))

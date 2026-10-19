@@ -9,12 +9,18 @@ extends Node
 const WATCHDOG_S := 180.0
 ## Seconds a travel may take before the route fails.
 const TRAVEL_S := 30.0
+## The route seeds Survival 20 and stones and travels (travel() saves). It must never reach a real
+## player's save: production serves this route to anyone who opens /?soak=1.
+const SOAK_SAVE := "user://soak_save.json"
 var _done := false
 var _failed := false
+var _real_save := ""
+var _real_md5 := ""
 
 func run(host: Node) -> void:
 	print("[soak] start")
 	print("[soak] stamp %s" % Game.build_stamp)
+	_isolate_save()
 	get_tree().create_timer(WATCHDOG_S, true, false, true).timeout.connect(func () -> void:
 		if not _done:
 			_fail("watchdog: route not finished after %.0f s" % WATCHDOG_S))
@@ -95,19 +101,38 @@ func run(host: Node) -> void:
 	hud._close_sheet()
 	await _checkpoint("build-closed")
 
+	print("[soak] loading temperate_25")  # the browser harness times load frames apart from play
 	World.travel(&"temperate_25", &"sail")
 	if not await _arrived(&"temperate_25"):
 		return
 	await _checkpoint("travelled")
+	print("[soak] loading home_grassland")  # the browser harness times load frames apart from play
 	World.travel(&"home_grassland", &"harbour_home")
 	if not await _arrived(&"home_grassland"):
 		return
 	await _checkpoint("returned-home")
 	if _failed:
 		return
+	if _save_md5(_real_save) != _real_md5:
+		_fail("route changed the real save %s" % _real_save)
+		return
+	print("[soak] real save untouched (%s)" % ("absent" if _real_md5.is_empty() else _real_md5.left(8)))
 	_done = true
 	print("[soak] PASS")
 	_quit_native(0)
+
+## Point every save of this session at a throwaway file and remember the real one's hash.
+## The redirect is a static var, so it lasts for the whole page: later autosaves stay off it too.
+func _isolate_save() -> void:
+	var save_script := load("res://scripts/core/save_game.gd") as GDScript
+	_real_save = save_script.path
+	_real_md5 = _save_md5(_real_save)
+	save_script.path = SOAK_SAVE
+	if FileAccess.file_exists(SOAK_SAVE):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SOAK_SAVE))
+
+static func _save_md5(p: String) -> String:
+	return FileAccess.get_md5(p) if FileAccess.file_exists(p) else ""
 
 ## Wait for a travel to land, at most TRAVEL_S.
 func _arrived(island: StringName) -> bool:
