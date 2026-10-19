@@ -118,13 +118,18 @@ func _weapon_shot_setup(hunting: bool) -> void:
 	LabKit.give(_player, &"club", 1)
 	_player.inventory.equip(&"weapon", &"club")
 	_player.global_position = Vector3(0, 0, -4)
-	var prey := _prey(_player.global_position + Vector3(4.0, 0, 3.0))
-	_player.face_world(_player.global_position + Vector3(1, 0, -1))
+	# Prey behind the survivor, survivor turned three-quarters to the iso camera (+x+z side).
+	var prey := _prey(_player.global_position + Vector3(-5.0, 0, -5.0))
+	_player.face_world(_player.global_position + Vector3(1.0, 0, 0.35))
+	_player.hunt.hold = true  # freeze: no chase, no swing, just the stance
 	_player.hunt.target = prey if hunting else null
 	_player.station_craft._sync_hand_tool()
 	if _cam:
-		_cam.size = 4.0
+		_cam.size = 3.0
 	print("[ui] weapon-hand shot ready hunting=%s held=%s" % [hunting, _player.station_craft.held_model_id()])
+	var anc := _player.right_hand_anchor()
+	var ht: Node3D = _player.station_craft._hand_tool
+	print("[dbg] anchor scale=%s pos=%s tool=%s tool_scale=%s tool_pos=%s visible=%s" % [anc.global_basis.get_scale() if anc else "-", anc.global_position if anc else "-", ht, ht.global_basis.get_scale() if ht else "-", ht.global_position if ht else "-", ht.is_visible_in_tree() if ht else "-"])
 
 func _prey(at: Vector3) -> Creature:
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()

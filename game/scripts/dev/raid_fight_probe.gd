@@ -44,7 +44,7 @@ func run(host: Node) -> void:
 	sp.position = player.global_position + Vector3(1.8, 0, 0)
 	World.runtime.add_child(sp)
 	boss = sp.spawn_now()[0]
-	boss.genetics = CreatureGenetics.from_dict({})
+	boss.genetics = CreatureGenetics.neutral()
 	boss.health.setup(boss.def.hp)
 	print("[raidfight] fixture neutral genetics/catalogue stats")
 	player.hunt.start(boss)
