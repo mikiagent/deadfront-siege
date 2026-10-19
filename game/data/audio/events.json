@@ -3114,8 +3114,8 @@
    "max_instances": 8,
    "cooldown": 0.0,
    "priority": 40,
-   "unit_size": 3.0,
-   "max_distance": 18.0,
+   "unit_size": 7.0,
+   "max_distance": 24.0,
    "loop": true
   },
   "thunder": {

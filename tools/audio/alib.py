@@ -64,3 +64,14 @@ def lufs(path, loop_to=None):
     e = run([FF, "-hide_banner", "-nostats", "-i", path, "-af", af, "-f", "null", "-"]).stderr
     m = re.findall(r"I:\s+(-?[\d.]+) LUFS", e)
     return float(m[-1]) if m else -70.0
+
+
+def loudness(path, loop_to=None):
+    """(integrated LUFS, true peak dBTP) of a file, measured as shipped. ebur128 true peak is 4x oversampled."""
+    af = "ebur128=framelog=quiet:peak=true"
+    if loop_to:
+        af = "aloop=loop=-1:size=2e9,atrim=0:%.2f,%s" % (loop_to, af)
+    e = run([FF, "-hide_banner", "-nostats", "-i", path, "-af", af, "-f", "null", "-"]).stderr
+    i = re.findall(r"I:\s+(-?[\d.]+) LUFS", e)
+    tp = re.findall(r"Peak:\s+(-?[\d.]+|-inf) dBFS", e)
+    return (float(i[-1]) if i else -70.0), (float(tp[-1]) if tp and tp[-1] != "-inf" else -99.0)

@@ -8,6 +8,8 @@ import alib, env, oggenc, srcs
 FF = "/opt/homebrew/bin/ffmpeg"
 SR = 48000
 OUT_SR = 44100
+TP_MAX = -1.0     # dBTP ceiling for every shipped file, measured on the encoded .ogg
+LIMIT_DB = -1.5   # oversampled limiter ceiling; Vorbis overshoot is caught by the re-measure loop
 TMP = os.environ.get("AUDIO_TMP", "/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/audio-build-tmp")
 os.makedirs(TMP, exist_ok=True)
 
@@ -83,18 +85,27 @@ def _run(args):
         raise RuntimeError("ffmpeg failed: %s\n%s" % (" ".join(args)[-600:], p.stderr[-1500:]))
 
 
-def _finish(wav, out_path, lufs, ch, q, peak_db=-1.0):
+def _finish(wav, out_path, lufs, ch, q):
+    """Normalise to `lufs`, limit at 4x oversampling, encode, then measure the .ogg itself: a sample-peak
+    limiter misses inter-sample peaks and Vorbis adds overshoot, so the gain drops until it passes TP_MAX."""
     d = alib.probe(wav)[0]
-    meas = alib.lufs(wav, loop_to=3.0 if d < 3.0 else None)
+    loop_to = 3.0 if d < 3.0 else None
+    meas = alib.lufs(wav, loop_to=loop_to)
     gain = max(-30.0, min(40.0, lufs - meas))  # quiet field recordings need up to +40 dB
     fin = wav[:-4] + "_n.wav"
-    lim = 10 ** (peak_db / 20.0)
-    _run(["-i", wav, "-af", "volume=%.2fdB,alimiter=limit=%.4f:level=0:attack=2:release=60" % (gain, lim),
-          "-ac", str(ch), "-ar", str(OUT_SR), "-c:a", "pcm_f32le", fin])
-    final = alib.lufs(fin, loop_to=3.0 if d < 3.0 else None)
+    lim = 10 ** (LIMIT_DB / 20.0)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    oggenc.encode(fin, out_path, q)
-    return final, alib.probe(fin)[0]
+    for _ in range(6):
+        _run(["-i", wav, "-af", "volume=%.2fdB,aresample=%d,alimiter=limit=%.4f:level=0:attack=2:release=60,aresample=%d"
+              % (gain, SR * 4, lim, OUT_SR), "-ac", str(ch), "-c:a", "pcm_f32le", fin])
+        oggenc.encode(fin, out_path, q)
+        final, tp = alib.loudness(out_path, loop_to)
+        if tp <= TP_MAX - 0.1:
+            break
+        gain -= tp - (TP_MAX - 0.4)
+    if tp > TP_MAX:
+        raise RuntimeError("%s true peak %.2f dBTP above %.1f" % (out_path, tp, TP_MAX))
+    return final, alib.probe(fin)[0], tp
 
 
 def _hash(obj):
@@ -103,13 +114,13 @@ def _hash(obj):
 
 def render(out_path, layers, lufs, ch=1, post=None, max_len=None, fade=0.04, trim=True, q=0.35, cache=True):
     """One-shot: mix layers, post filters, trim leading silence, cap length, fade the tail, normalise."""
-    recipe = {"layers": layers, "post": post, "max_len": max_len, "fade": fade, "trim": trim, "lufs": lufs, "ch": ch, "q": q, "v": 4}
+    recipe = {"layers": layers, "post": post, "max_len": max_len, "fade": fade, "trim": trim, "lufs": lufs, "ch": ch, "q": q, "v": 5}
     h = _hash(recipe)
     stamp = os.path.join(TMP, _hash(out_path) + ".json")
     if cache and os.path.exists(out_path) and os.path.exists(stamp):
         st = json.load(open(stamp))
         if st.get("hash") == h:
-            return st["lufs"], st["dur"]
+            return st["lufs"], st["dur"], st["tp"]
     args, chains = _graph(layers, ch)
     f = list(post or [])
     if trim:
@@ -122,19 +133,19 @@ def render(out_path, layers, lufs, ch=1, post=None, max_len=None, fade=0.04, tri
     wav = os.path.join(TMP, _hash(out_path) + ".wav")
     _run(args + ["-filter_complex", ";".join(chains), "-map", "[o]", "-c:a", "pcm_f32le", wav])
     res = _finish(wav, out_path, lufs, ch, q)
-    json.dump({"hash": h, "lufs": res[0], "dur": res[1]}, open(stamp, "w"))
+    json.dump({"hash": h, "lufs": res[0], "dur": res[1], "tp": res[2]}, open(stamp, "w"))
     return res
 
 
 def render_loop(out_path, layers, lufs, length, xfade=3.0, ch=2, post=None, q=0.15, cache=True):
     """Seamless loop of `length` s: the head is an equal-power crossfade with the tail past `length`."""
-    recipe = {"layers": layers, "post": post, "len": length, "x": xfade, "lufs": lufs, "ch": ch, "q": q, "v": 4}
+    recipe = {"layers": layers, "post": post, "len": length, "x": xfade, "lufs": lufs, "ch": ch, "q": q, "v": 5}
     h = _hash(recipe)
     stamp = os.path.join(TMP, _hash(out_path) + ".json")
     if cache and os.path.exists(out_path) and os.path.exists(stamp):
         st = json.load(open(stamp))
         if st.get("hash") == h:
-            return st["lufs"], st["dur"]
+            return st["lufs"], st["dur"], st["tp"]
     total = length + xfade
     args, chains = _graph(layers, ch, total)
     f = list(post or []) + ["atrim=0:%.3f" % total, "asetpts=PTS-STARTPTS"]
@@ -147,5 +158,5 @@ def render_loop(out_path, layers, lufs, length, xfade=3.0, ch=2, post=None, q=0.
     wav = os.path.join(TMP, _hash(out_path) + ".wav")
     _run(args + ["-filter_complex", ";".join(chains), "-map", "[o]", "-c:a", "pcm_f32le", wav])
     res = _finish(wav, out_path, lufs, ch, q)
-    json.dump({"hash": h, "lufs": res[0], "dur": res[1]}, open(stamp, "w"))
+    json.dump({"hash": h, "lufs": res[0], "dur": res[1], "tp": res[2]}, open(stamp, "w"))
     return res

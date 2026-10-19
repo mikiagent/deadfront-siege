@@ -16,6 +16,7 @@ ROOT = os.path.join(GAME, "assets", "audio")
 JOBS = []          # (rel, kind, args, kwargs, category)
 EVENTS = collections.OrderedDict()
 SOURCES = {}       # rel -> [source keys]
+LEADS = {}         # rel -> key of the first (loudest by design) layer
 
 
 def _keys(layers):
@@ -25,12 +26,14 @@ def _keys(layers):
 def one(rel, layers, lufs, cat, **kw):
     JOBS.append((rel, "one", layers, lufs, kw, cat))
     SOURCES[rel] = _keys(layers)
+    LEADS[rel] = layers[0]["key"]
     return rel
 
 
 def loop(rel, layers, lufs, length, cat, **kw):
     JOBS.append((rel, "loop", layers, lufs, dict(kw, length=length), cat))
     SOURCES[rel] = _keys(layers)
+    LEADS[rel] = layers[0]["key"]
     return rel
 
 
@@ -193,7 +196,7 @@ def combat():
 
 # ------------------------------------------------------------------ creatures
 TIGER = "c:c03"; LION = "c:c11"; ALLI2 = "c:c01"; ALLI1 = "c:c04"; ALLIE = "c:c05"; HISS = "c:c06"
-ELEPH = "c:c07"; ELK = "c:c08"; GEESE = "c:c10"; LOONS = "c:c12"; RATTLE = "c:c13"; SWANS = "c:c14"
+ELEPH = "c:c07"; ELK = "c:c08"; GEESE = "c:c10"; LOONS = "c:c12"; SWANS = "c:c14"
 GRIZ = "c:c21"; CRANE = "c:c22"; CRANE2 = "c:c23"; TREX = "oga:oga-t-rex-calls/t-rex_calls.mp3"
 RASPY = "oga:oga-small-dino-raspy/small_dino_raspy_calls.mp3"
 GOR = "oga:oga-gorilla/x/ogg/gorilla_snarl_0%d.ogg"; CAMEL = "oga:oga-camel/x/ogg/camel_0%d.ogg"
@@ -240,16 +243,23 @@ def carn_large(kind, v):
     return [L(CAMEL % (v + 1), rate=0.62), L(GRIZ, 1.0, 3.5, rate=0.65, gain=-5)], big, 4.0
 
 
+CR1 = "oga:oga-80-creature/x/%s.ogg"; CR2 = "oga:oga-80-creature-2/x/%s.ogg"
+# Raptors: geese bark, crane rattle, hiss and the raspy small-dino calls lead. The domestic cat that
+# smilodon is built on only adds body, pitched down to 0.62-0.70 at -11 dB or lower, and a throat
+# chain (band limit, flanger comb, 14 ms slap) keeps any one recording from reading as itself.
+RAPTOR = ["highpass=f=150", "lowpass=f=6800", "flanger=delay=1.4:depth=1.8:regen=-14:width=60:speed=0.35", "aecho=0.8:0.85:14:0.3"]
+
+
 def carn_medium(kind, v):
     if kind == "idle":
-        return [L("bsb:%d" % (1885 + v), t=1.6, rate=j(0.86, v)), C(CRANE, v, rate=0.9, gain=-9, **MID)], [], 2.0
+        return [C(CRANE, v + 1, rate=j(0.82, v), maxt=1.4, **MID), C(RASPY, v, rate=0.8, gain=-5, **SMALL), L("bsb:%d" % (1885 + v), t=1.4, rate=0.66, gain=-12)], RAPTOR, 2.0
     if kind == "alert":
-        return [C(GEESE, v + 1, rate=0.78, **MID), L("bsb:%d" % (1881 + v), rate=0.9, gain=-3), L(RATTLE, 1.0 + v, 0.6, rate=1.0, gain=-12, af="highpass=f=2000")], [], 1.7
+        return [C(GEESE, v + 1, rate=0.84, maxt=1.0, **MID), L(CR2 % ("attack_0%d" % (2 + v)), rate=0.88, gain=-3), L(HISS, 1.0 + v, 0.6, rate=1.05, gain=-4), L("bsb:%d" % (1881 + v), rate=0.64, gain=-14)], RAPTOR, 1.7
     if kind == "attack":
-        return [L("bsb:%d" % (1882 + v % 2), rate=j(0.95, v)), L(HISS, 1.0 + v, 0.5, rate=1.1, gain=-6)], [], 1.2
+        return [L(HISS, 0.8 + v * 0.7, 0.9, rate=0.95), L(CR1 % ("scream_0%d" % (1 + v % 2)), rate=j(0.74, v), gain=-2), C(RASPY, v + 1, rate=0.85, gain=-6, **SMALL), L("bsb:%d" % (1882 + v % 2), rate=0.7, gain=-13)], RAPTOR, 1.2
     if kind == "hurt":
-        return [C("bsb:1040", v, rate=0.72, maxt=0.9, **SMALL), L("bsb:%d" % (1884 - v), rate=1.05, gain=-6)], [], 1.0
-    return [C(CRANE2, v + 1, rate=0.7, **MID), L("bsb:%d" % (1887 + v), rate=0.8, gain=-4, t=2.4)], [], 2.6
+        return [L(CR1 % ("hurt_0%d" % (v + 1)), rate=0.72), C("bsb:1040", v, rate=0.6, gain=-6, maxt=0.9, **SMALL), C(CRANE2, v, rate=1.1, gain=-8, maxt=0.6, **MID)], RAPTOR, 1.0
+    return [C(CRANE2, v + 1, rate=0.66, **MID), L(CR2 % ("die_0%d" % (v + 2)), rate=0.72, gain=-3), L("bsb:%d" % (1887 + v), t=2.0, rate=0.62, gain=-11)], RAPTOR, 2.6
 
 
 def carn_small(kind, v):
@@ -413,7 +423,7 @@ def ambience():
     ev("amb_rain_light", [A("rain_light", [L("bsb:0124", 1)], length=38.0, lufs=-27)], "Ambience", "2d", pitch=(1, 1), maxi=1, prio=100, loop_=True)
     ev("amb_rain_heavy", [A("rain_heavy", [L("bsb:2717", 0), L("bsb:0740", 60, gain=-3)], length=36.0, lufs=-24)], "Ambience", "2d", pitch=(1, 1), maxi=1, prio=100, loop_=True)
     ev("amb_wind_strong", [A("wind_strong", [L("bsb:0146", 30), L("bsb:1450", 70, gain=-6)], lufs=-26)], "Ambience", "2d", pitch=(1, 1), maxi=1, prio=100, loop_=True)
-    ev("amb_fire", [A("fire", [L("bsb:0987", 5)], length=30.0, lufs=-24, ch=1)], "Ambience", "3d", pitch=(1, 1), maxi=8, prio=40, unit=3.0, maxd=18.0, loop_=True)
+    ev("amb_fire", [A("fire", [L("bsb:0987", 5)], length=30.0, lufs=-24, ch=1)], "Ambience", "3d", pitch=(1, 1), maxi=8, prio=40, unit=7.0, maxd=24.0, loop_=True)
     f = [one("ambience/thunder_%02d.ogg" % (i + 1), [C("bsb:%s" % k, 0, rel=30, lo=2.0, hi=12.0)], -19, "ambience", max_len=12.0, fade=2.0) for i, k in enumerate(("2718", "3113", "3115", "3179"))]
     ev("thunder", f, "Ambience", "2d", pitch=(0.9, 1.05), maxi=2, cd=4.0, prio=90)
 
@@ -428,6 +438,7 @@ def music():
     JOBS.append(("music/combat_pursuit.ogg", "one", [L("oga:oga-determined-pursuit/determined_pursuit_loop.wav")], -20,
                  dict(ch=2, fade=0, trim=False, q=0.28), "music"))
     SOURCES["music/combat_pursuit.ogg"] = ["oga:oga-determined-pursuit/determined_pursuit_loop.wav"]
+    LEADS["music/combat_pursuit.ogg"] = SOURCES["music/combat_pursuit.ogg"][0]
     ev("music_combat", ["music/combat_pursuit.ogg"], "Music", "2d", pitch=(1, 1), maxi=1, prio=100, loop_=True)
 
 
@@ -435,11 +446,11 @@ def run_job(job):
     rel, kind, layers, lufs, kw, cat = job
     out = os.path.join(ROOT, rel)
     if kind == "one":
-        lu, d = R.render(out, layers, lufs, **kw)
+        lu, d, tp = R.render(out, layers, lufs, **kw)
     else:
         kw = dict(kw)
-        lu, d = R.render_loop(out, layers, lufs, kw.pop("length"), **kw)
-    return rel, cat, lu, d, os.path.getsize(out)
+        lu, d, tp = R.render_loop(out, layers, lufs, kw.pop("length"), **kw)
+    return rel, cat, lu, d, os.path.getsize(out), tp
 
 
 def write_credits_md(files):
@@ -478,8 +489,8 @@ def main():
         fn()
     results = {}
     with cf.ThreadPoolExecutor(max_workers=8) as ex:
-        for rel, cat, lu, d, size in ex.map(run_job, JOBS):
-            results[rel] = (cat, lu, d, size)
+        for rel, cat, lu, d, size, tp in ex.map(run_job, JOBS):
+            results[rel] = (cat, lu, d, size, tp)
     # Credits: one row per shipped file, every contributing source with licence.
     files = {}
     for rel in sorted(results):
@@ -490,7 +501,8 @@ def main():
             rows.append({k2: s[k2] for k2 in ("title", "author", "licence", "url", "original_file", "collection") if k2 in s})
             if "download" in s:
                 rows[-1]["download"] = s["download"]
-        files[rel] = {"sources": rows, "category": results[rel][0], "lufs": results[rel][1], "seconds": round(results[rel][2], 3), "bytes": results[rel][3]}
+        files[rel] = {"sources": rows, "category": results[rel][0], "lufs": results[rel][1], "seconds": round(results[rel][2], 3), "bytes": results[rel][3],
+                      "true_peak_db": results[rel][4], "lead": srcs.src(LEADS[rel])["url"]}
     os.makedirs(os.path.join(GAME, "data", "audio"), exist_ok=True)
     json.dump({"_about": "Every shipped file under res://assets/audio with its sources. Allowed licences only.", "allowed_licences": sorted(srcs.ALLOWED), "files": files},
               open(os.path.join(GAME, "data", "audio", "credits.json"), "w"), indent=1, sort_keys=True)
@@ -510,14 +522,14 @@ def main():
     write_credits_md(files)
     # Report: LUFS per category and size budget.
     by = collections.defaultdict(list)
-    for rel, (cat, lu, d, size) in results.items():
-        by[cat].append((lu, size, d))
+    for rel, (cat, lu, d, size, tp) in results.items():
+        by[cat].append((lu, size, d, tp))
     total = sum(r[3] for r in results.values())
     rep = {"total_bytes": total, "files": len(results), "categories": {}}
     for cat, rows in sorted(by.items()):
         lus = [r[0] for r in rows]
         rep["categories"][cat] = {"files": len(rows), "lufs_mean": round(sum(lus) / len(lus), 1), "lufs_min": min(lus), "lufs_max": max(lus),
-                                  "bytes": sum(r[1] for r in rows), "seconds": round(sum(r[2] for r in rows), 1)}
+                                  "bytes": sum(r[1] for r in rows), "seconds": round(sum(r[2] for r in rows), 1), "true_peak_max": max(r[3] for r in rows)}
     json.dump(rep, open(os.path.join(R.TMP, "report.json"), "w"), indent=1)
     print(json.dumps(rep, indent=1))
     # Stale files from earlier recipes must not ship.

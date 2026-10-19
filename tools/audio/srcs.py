@@ -47,7 +47,7 @@ OGA = {
     "oga-wet-squish": ("8-wet-squish-slurp-impacts", "qubodup", "independent_nu_ljudbank-wet_squish_slurp_impacts.7z"),
 }
 
-# Commons dir -> (upload url, licence, author)
+# Commons dir -> (upload url, licence, author); licences checked against each File: page's extmetadata
 COMMONS = {
     "c01": ("https://upload.wikimedia.org/wikipedia/commons/b/bf/27alligator2bellow.ogg", "Public Domain", "unknown (public domain, Wikimedia Commons)"),
     "c02": ("https://upload.wikimedia.org/wikipedia/commons/8/87/404114_felix-blume_toucans-singing-in-the-amazonian-rainforest-brazil.ogg", "CC0-1.0", "Felix Blume"),
@@ -123,7 +123,8 @@ def src(key):
         d = os.path.join(DL, "commons", rest)
         f = sorted(os.listdir(d))[0]
         title = url.rsplit("/", 1)[1]
-        return {"path": os.path.join(d, f), "title": title, "author": author, "licence": lic, "url": url,
-                "page": "https://commons.wikimedia.org/wiki/File:%s" % title, "original_file": f,
+        # url is the File: page that carries the licence; download is the media file itself.
+        return {"path": os.path.join(d, f), "title": title, "author": author, "licence": lic,
+                "url": "https://commons.wikimedia.org/wiki/File:%s" % title, "download": url, "original_file": f,
                 "collection": "Wikimedia Commons"}
     raise KeyError(key)
