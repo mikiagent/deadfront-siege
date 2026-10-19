@@ -79,6 +79,14 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   screenshots). One Blender instance: only one agent drives Blender MCP at a time; others use
   headless Blender scripts kept in tools/. Asset libraries (Poly Haven etc.) are off.
 
+- 2026-10-18 (owner): add a sound setting, and keep the game muted while agents test. Done for
+  tests: scratchpad gslot.sh forces `--audio-driver Dummy` on every Godot launch and exports
+  DEADFRONT_MUTE=1. Rule for every agent prompt: never play audio aloud (no afplay/ffplay/say);
+  judge audio by measurement. Required in the audio package (follow-up after its build): a Sound
+  settings panel (Master, Music, Ambience, SFX, Creatures, UI sliders + Mute all), persisted,
+  reachable from the menu with a one-line hook, a mute hotkey, and the game honouring `--mute` and
+  the DEADFRONT_MUTE env var by muting Master at boot.
+
 ## Owner questions (open)
 
 - none
