@@ -1,6 +1,6 @@
 {
  "_about": "Item rarity for UI rims and glows (W1-ICONART). Every item id in items.json is listed.",
- "_assumption": "ASSUMPTION: placeholder tiers until W2-DATA's rare-item design. Rule used: the material ladder (stone/bone common, flint/copper uncommon, obsidian/bronze rare, iron epic, steel legendary), creature parts by how hard the creature is, cooked food above raw, buff food rare, raid gear epic, the raid maul legendary.",
+ "_assumption": "ASSUMPTION: placeholder tiers until W2-DATA's rare-item design. Rule used: the material ladder (stone/bone common, flint/copper uncommon, obsidian/bronze rare, iron and steel rare (bulk materials are capped at rare so epic/legendary glow stays a gear signal)), creature parts by how hard the creature is, cooked food above raw, buff food rare, raid gear epic, the raid maul legendary.",
  "order": [
   "common",
   "uncommon",
@@ -29,8 +29,8 @@
   "ingot": "uncommon",
   "copper_ingot": "uncommon",
   "bronze_ingot": "rare",
-  "iron_ingot": "epic",
-  "steel_ingot": "legendary",
+  "iron_ingot": "rare",
+  "steel_ingot": "rare",
   "fibre_stalk": "common",
   "reed": "common",
   "root": "common",
@@ -116,7 +116,7 @@
   "pearl": "rare",
   "coral": "rare",
   "blue_dye": "uncommon",
-  "black_iron": "epic",
+  "black_iron": "rare",
   "lava": "rare",
   "sulphur": "uncommon",
   "ash": "common",

@@ -57,11 +57,22 @@ func _self_check() -> void:
 	var seen := {}
 	var rendered := 0
 	var overflow_ok := true
+	var count_ok := true
 	for s in slots:
 		seen[ItemArt.rarity(s.item_id)] = true
 		rendered += 1 if ItemArt.is_rendered(s.item_id) else 0
-		var lift := -s.art_rect().position.y / s.size.y
-		overflow_ok = overflow_ok and lift >= 0.12 and lift <= 0.20
-	var ok := slots.size() == 20 and seen.size() == ItemArt.rarity_order().size() and rendered == 20 and overflow_ok
-	print("[itemart] slots=%d rarities=%d rendered=%d overflow=%s ok=%s" % [slots.size(), seen.size(), rendered, overflow_ok, ok])
+		overflow_ok = overflow_ok and _framed(s)
+		var px := s.count_font_size() * s.get_screen_transform().get_scale().y
+		count_ok = count_ok and px >= ArtSlot.COUNT_PX - 0.5
+	var ok := slots.size() == 20 and seen.size() == ItemArt.rarity_order().size() and rendered == 20 and overflow_ok and count_ok
+	print("[itemart] slots=%d rarities=%d rendered=%d framed=%s count_px_ok=%s ok=%s" % [slots.size(), seen.size(), rendered, overflow_ok, count_ok, ok])
 	get_tree().quit(0 if ok else 1)
+
+## Every object stands on the slot floor with its centre inside the slot; tall ones rise 12-20 %.
+static func _framed(s: ArtSlot) -> bool:
+	var r := s.art_rect()
+	var lift := -r.position.y / s.size.y
+	var tall := r.size.y >= s.size.y * (ArtSlot.RISE + ArtSlot.FLOOR) - 0.5
+	var centred := Rect2(Vector2.ZERO, s.size).has_point(r.get_center())
+	var floor_ok := absf(r.end.y - s.size.y * ArtSlot.FLOOR) < 0.5
+	return centred and floor_ok and lift <= 0.20 and (not tall or lift >= 0.12)

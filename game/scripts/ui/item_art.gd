@@ -10,6 +10,20 @@ const UNKNOWN := RENDER_DIR + "_unknown.png"
 static var _rarity: Dictionary = {}
 static var _cache: Dictionary = {}
 static var _used: Dictionary = {}
+static var _rects: Dictionary = {}  # id -> [x, y, w, h] from manifest.json, written at render time
+
+static func _load_rects() -> void:
+	if not _rects.is_empty():
+		return
+	_rects = {"": []}  # sentinel: parse once even when the manifest is missing
+	var path := RENDER_DIR + "manifest.json"
+	if not FileAccess.file_exists(path):
+		return
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if parsed is Dictionary:
+		var items: Dictionary = parsed.get("items", {})
+		for k: String in items:
+			_rects[k] = items[k].get("rect", [])
 
 static func _load_rarity() -> void:
 	if not _rarity.is_empty():
@@ -40,13 +54,18 @@ static func texture_for(id: StringName) -> Texture2D:
 	return tex
 
 ## Opaque part of the texture in texture pixels, so slots can fit the object, not the padding.
+## Rendered items read it from the manifest; only symbol fallbacks pay a GPU readback.
 static func content_rect(id: StringName) -> Rect2:
 	var key := str(id)
 	if _used.has(key):
 		return _used[key]
+	_load_rects()
 	var tex := texture_for(id)
 	var r := Rect2()
-	if tex:
+	var mr: Array = _rects.get(key, []) if is_rendered(id) else []
+	if mr.size() == 4 and mr[2] > 0 and mr[3] > 0:
+		r = Rect2(mr[0], mr[1], mr[2], mr[3])
+	elif tex:
 		r = Rect2(Vector2.ZERO, tex.get_size())
 		var img := tex.get_image()
 		if img and not img.is_compressed():
