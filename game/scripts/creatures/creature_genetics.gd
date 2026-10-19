@@ -103,7 +103,22 @@ static func from_dict(data: Dictionary) -> CreatureGenetics:
 		out.ivs[stat] = clampi(int(data.get("ivs", {}).get(key, out.ivs[stat])), 0, IV_MAX)
 		out.evs[stat] = clampi(int(data.get("evs", {}).get(key, 0)), 0, EV_MAX_PER_STAT)
 		out.level_gains[stat] = maxi(0, int(data.get("level_gains", {}).get(key, 0)))
+	_cap_total(out.evs, EV_TOTAL_MAX)
 	return out
+
+## Level gains can never exceed what levelling grants (3 per level-up); the owner clamps with
+## its level since genetics alone do not know it.
+func clamp_level_gains(level: int) -> void:
+	_cap_total(level_gains, 3 * maxi(0, level - 1))
+
+## Trims a stat->points table to `total` points, keeping stats in STATS order (stored data is
+## not trusted: a hand-edited save could hold any number).
+static func _cap_total(table: Dictionary, total: int) -> void:
+	var room := total
+	for stat in STATS:
+		var v := mini(int(table.get(stat, 0)), room)
+		table[stat] = v
+		room -= v
 
 static func _string_keys(source: Dictionary) -> Dictionary:
 	var out := {}

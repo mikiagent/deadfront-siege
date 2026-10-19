@@ -35,6 +35,7 @@ func _process(_delta: float) -> bool:
 	_test_one_grade()
 	_test_identity()
 	_test_rules()
+	_test_untrusted_load()
 	if failures.is_empty():
 		print("[t_tame] PASS")
 		quit(0)
@@ -177,15 +178,14 @@ func _test_identity() -> void:
 	var bad_origin := 0
 	for i in 1000:
 		var rec = PetRecordS.from_def(def, &"", &"", null, 25)
-		if i % 2 == 1:
-			rec.origin = &"capture"  # the pen path sets this; field tames keep the default
 		if rec.uid == "":
 			continue
 		seen[rec.uid] = true
-		if not rec.origin in [&"tame", &"capture"]:
+		if rec.origin != &"tame":
 			bad_origin += 1
 	_expect(seen.size() == 1000, "1000 tames give 1000 distinct non-empty uids (got %d)" % seen.size())
-	_expect(bad_origin == 0, "every origin is tame or capture")
+	# The real field and pen paths set origin; capture_lab asserts tame/capture on both.
+	_expect(bad_origin == 0, "from_def defaults origin to tame")
 	var lv25 = PetRecordS.from_def(def, &"", &"", null, 25)
 	var lv75 = PetRecordS.from_def(def, &"", &"", null, 75)
 	_expect(lv25.level == 25 and lv25.wild_level == 25, "fresh tame keeps the wild level")
@@ -214,15 +214,35 @@ func _creature(id: StringName, hp_frac: float, knocked: bool):
 
 func _test_rules() -> void:
 	_expect(PetRecordS.RESPAWN_TIME == 180.0, "RESPAWN_TIME is 180 s (got %.0f)" % PetRecordS.RESPAWN_TIME)
+	# A real Player holding a tier-matching net: if the 30 % gate breaks, attempt() reaches the
+	# net and bag code and returns true instead of crashing into a false pass.
+	_data().set_survival_unlocked(&"capture_technique_II", true)
+	var player = (load("res://scripts/player/player.gd") as GDScript).new()
+	player.inventory.add(ItemStackS.make(&"capture_net_ii", 2))
 	var half = _creature(&"velociraptor", 0.5, true)
-	_expect(not CaptureS.attempt(null, half), "net refuses a creature at 50 % HP")
+	half.genetics = GeneticsS.neutral()
+	var at_half: bool = CaptureS.attempt(player, half, 1)
+	var nets_after_half: int = player.inventory.count_of(&"capture_net_ii")
+	var bagged_half: bool = player.inventory.find_first(&"captured_animal") >= 0
+	_expect(at_half == false and nets_after_half == 2 and not bagged_half, "net refuses at 50 %% HP (returned %s, nets %d, bagged %s)" % [at_half, nets_after_half, bagged_half])
 	half.free()
+	var low = _creature(&"velociraptor", 0.25, true)
+	low.genetics = GeneticsS.neutral()
+	var at_low: bool = CaptureS.attempt(player, low, 1)
+	var nets_after_low: int = player.inventory.count_of(&"capture_net_ii")
+	var bagged_low: bool = player.inventory.find_first(&"captured_animal") >= 0
+	_expect(at_low == true and nets_after_low == 1 and bagged_low, "net takes a creature at 25 %% HP (returned %s, nets %d, bagged %s)" % [at_low, nets_after_low, bagged_low])
+	if is_instance_valid(low) and not low.is_queued_for_deletion():
+		low.free()
+	player.free()
+	_data().set_survival_unlocked(&"capture_technique_II", false)
 	_expect(not _data().has_capture_technique(5), "fresh survivor lacks Capture Technique 5")
 	var cat = _creature(&"smilodon", 0.2, true)
 	var inv = InventoryS.new(10)
 	inv.add(ItemStackS.make(&"raw_meat", 3))
 	var hint: Dictionary = FieldTameS.plate_hint(cat, inv)
 	_expect(str(hint.get("text", "")) == "Needs Capture Technique 5", "smilodon plate hint names the technique (got '%s')" % str(hint.get("text", "")))
+	_expect(StringName(str(hint.get("food_id", "x"))) == &"", "locked plate shows no food icon (food_id '%s')" % str(hint.get("food_id", "")))
 	_expect(FieldTameS.food_in_bag(inv, cat) == &"", "a locked smilodon accepts no food")
 	_expect(FieldTameS.refuse_message(cat) == "Needs Capture Technique 5", "refusal names the technique")
 	_data().set_survival_unlocked(&"capture_technique_V", true)
@@ -232,4 +252,38 @@ func _test_rules() -> void:
 	var comp = _creature(&"compsognathus", 0.2, true)
 	_expect(FieldTameS.lock_reason(comp) == "", "tier-1 starter species needs no technique")
 	comp.free()
-	print("[t_tame] rules respawn=%.0f net@50%%=refused smilodon='%s'" % [PetRecordS.RESPAWN_TIME, str(hint.get("text", ""))])
+	print("[t_tame] rules respawn=%.0f net@50%%=%s net@25%%=%s nets=%d smilodon='%s' food_id='%s'" % [PetRecordS.RESPAWN_TIME, at_half, at_low, nets_after_low, str(hint.get("text", "")), str(hint.get("food_id", ""))])
+
+## A hand-edited save cannot buy stats or bag space: gains cap at 3 per level-up, EVs at 300,
+## bag rows at the species size (or the legacy 10).
+func _test_untrusted_load() -> void:
+	var rex = _def(&"tyrannosaurus")
+	var raptor = _def(&"velociraptor")
+	var rec = PetRecordS.from_def(raptor, &"", &"", null, 1)
+	var d: Dictionary = rec.to_dict()
+	var g: Dictionary = d["genetics"]
+	for s in GeneticsS.STATS:
+		g["evs"][str(s)] = 100
+	g["level_gains"]["health"] = 1000000
+	g["level_gains"]["melee_attack"] = 1000000
+	var rows: Array = []
+	rows.resize(50000)
+	d["bag"] = rows
+	var loaded = PetRecordS.from_dict(_json_round(d))
+	var gains := 0
+	for v in loaded.genetics.level_gains.values():
+		gains += int(v)
+	var evs := 0
+	for v in loaded.genetics.evs.values():
+		evs += int(v)
+	_expect(gains == 0, "Lv1 save keeps no level gains (got %d)" % gains)
+	_expect(evs <= GeneticsS.EV_TOTAL_MAX, "EV total capped at %d (got %d)" % [GeneticsS.EV_TOTAL_MAX, evs])
+	_expect(loaded.hp < rex.hp and loaded.attack < rex.attack, "forged genetics stay under the wild T. rex (hp %.0f atk %.0f)" % [loaded.hp, loaded.attack])
+	_expect(loaded.bag.slot_count == PetRecordS.bag_slots_for(raptor), "padded bag capped at the species size (got %d)" % loaded.bag.slot_count)
+	d["level"] = 60
+	var lv60 = PetRecordS.from_dict(_json_round(d))
+	var gains60 := 0
+	for v in lv60.genetics.level_gains.values():
+		gains60 += int(v)
+	_expect(gains60 == 3 * 59, "Lv60 save keeps at most 177 level gains (got %d)" % gains60)
+	print("[t_tame] untrusted load lv1 gains=%d evs=%d hp=%.0f atk=%.0f slots=%d lv60 gains=%d" % [gains, evs, loaded.hp, loaded.attack, loaded.bag.slot_count, gains60])

@@ -7,7 +7,8 @@ extends RefCounted
 ## own when it mints a pet; offline the uid is local and owner stays "".
 var uid: String = ""
 var owner: String = ""
-## tame (field) | capture (pen) | breed | market ... (contracts v2 origin list).
+## tame (field) | capture (pen) | breed (wave 2). ASSUMPTION: "capture" is not yet in the
+## contracts v2 origin list (section 0.5); the report asks the integrator to add it.
 var origin: StringName = &"tame"
 var tamer: String = ""
 var tamed_at: int = 0
@@ -87,6 +88,7 @@ func recompute(def: CreatureDef = null) -> void:
 	var d := def if def != null else Data.creature(species)
 	if genetics == null:
 		genetics = CreatureGenetics.neutral()
+	genetics.clamp_level_gains(level)
 	grade = genetics.overall_tier()
 	xp_rate = PetStats.grade_rate(grade)
 	hunger_efficiency = xp_rate
@@ -228,6 +230,7 @@ static func from_dict(d: Dictionary) -> PetRecord:
 	r.recompute(def)
 	var raw_bag: Variant = d.get("bag", [])
 	var bag_rows: Array = raw_bag if raw_bag is Array else []
-	r.bag = Inventory.new(bag_slots_for(def, bag_rows.size()))
+	# Saved rows only keep a legacy 10-slot bag; a padded save cannot grow the bag past that.
+	r.bag = Inventory.new(bag_slots_for(def, mini(bag_rows.size(), 10)))
 	r.bag.load_array(bag_rows)
 	return r

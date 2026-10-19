@@ -72,7 +72,7 @@ static func plate_hint(creature: Creature, inv: Inventory) -> Dictionary:
 		return {
 			"kind": &"need",
 			"text": locked,
-			"food_id": need,
+			"food_id": &"",  # no food icon: food cannot help until the technique is learned
 			"progress": creature.tame_feeds,
 			"needed": creature.def.feeds_needed,
 		}

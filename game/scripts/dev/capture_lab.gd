@@ -81,12 +81,13 @@ func _demo() -> void:
 	LabKit.give(_player, &"raw_meat", 3)
 	var hint := FieldTame.plate_hint(cat, _player.inventory)
 	_check(str(hint.get("text", "")) == "Needs Capture Technique 5" and not FieldTame.apply_feed(_player, cat, &"raw_meat"), "smilodon refused: '%s'" % str(hint.get("text", "")))
-	# Field tame: three preferred berries.
+	# Field tame: three preferred berries. _complete overwrites a.level, so read it first.
+	var wild_a := a.level
 	for _i in 3:
 		FieldTame.apply_feed(_player, a, &"berry")
 		await get_tree().create_timer(0.05).timeout
 	var field_rec: PetRecord = _player.bonded[-1] if _player.bonded.size() > bonded_before else null
-	_check(field_rec != null and a.is_pet and field_rec.origin == &"tame" and field_rec.uid != "" and field_rec.level == clampi(a.level, 1, 60), "field tame bonded %s" % _describe(field_rec))
+	_check(field_rec != null and a.is_pet and field_rec.origin == &"tame" and field_rec.uid != "" and field_rec.level == clampi(wild_a, 1, 60), "field tame bonded %s" % _describe(field_rec))
 	# Refusal: strip food, tap second downed animal.
 	for id in [&"berry", &"herb_leaf", &"fibre_stalk", &"raw_meat"]:
 		while _player.inventory.find_first(id) >= 0:
