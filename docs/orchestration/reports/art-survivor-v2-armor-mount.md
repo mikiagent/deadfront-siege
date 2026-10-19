@@ -21,11 +21,11 @@ Godot: `--headless --import` on a fresh worktree finished in 42 s with no errors
 
 **Important: the player already runs on v2.** `player.gd` loads `res://assets/characters/survivor/survivor.glb` by path, so the swap took effect with no code change; every clip name the game uses exists in v2. If something looks wrong before you've switched over, point `SURVIVOR_BASE_GLB`/`SURVIVOR_ANIM_DIR`/`SURVIVOR_JSON` at `survivor_v1` to roll back.
 
-Pending from the art side: **a rein-fit fix for the howdah is in progress.** The parent session will send a new `saddle.glb`; I'll drop it in at the same path with no `mount.json` changes, so nothing needs to change on your side.
+Saddle update (rein-fit fix, REPORT4): `saddle.glb` replaced at the same path. The reins now pass through the fists' grip slots, the harness material split is fixed, and there are no unweighted vertices. `mount.json` is unchanged; I re-ran `rider_in_mount` and it gives the same pose, (0, 7.083, -4.17). Godot import is clean and smoke passes. Review video: `/Users/milankinzy/Documents/DeepseekCLI/survivor-v2/anim/out/mount/review/trex_ride_v4_fit.mp4`. Known limit: at very close range the straps show a stair-step across their width.
 
 Review videos (outside the repo, watch before wiring):
 - Equip showcase: `/Users/milankinzy/Documents/DeepseekCLI/survivor-v2/kits/review/equip_showcase_v2.mp4`
-- T. rex ride: `/Users/milankinzy/Documents/DeepseekCLI/survivor-v2/anim/out/mount/review/trex_ride_v3_howdah.mp4`
+- T. rex ride: `/Users/milankinzy/Documents/DeepseekCLI/survivor-v2/anim/out/mount/review/trex_ride_v4_fit.mp4` (v3_howdah is the pre-fix ride)
 - Stegosaurus v2: `/Users/milankinzy/Documents/DeepseekCLI/bakeoff/review/steg2_tripo_v3/all.mp4`
 
 ---
@@ -131,5 +131,4 @@ Other mount-role creatures keep the current hips-offset path until they get thei
 ## Assumptions / open items
 - `# ASSUMPTION:` item stats, ids and tiers above (not in the PRD).
 - The `kit.json` `provenance` paths (`../sheet_v1.png` etc.) point at the source folders outside the repo (`/Users/milankinzy/Documents/DeepseekCLI/survivor-v2/kits/<kit>/`). They're informational only.
-- The saddle rein fix is still to come (same path).
 - Not done: no in-game visual check of v2 at gameplay scale, no equip or mount runs inside deadfront itself (they need the code above). The review videos are from the clip viewer, which uses the game's own `RiggedModel`.
