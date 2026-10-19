@@ -2,7 +2,8 @@ class_name StructartLab
 extends Node3D
 ## The Blender structure set (props_manifest `glb` rows) laid out on a plain floor with the
 ## drying-rack stages side by side in the middle row. Headless: loads every model, prints a
-## summary and quits non-zero on a missing one. Windowed: --shot=<png> [--cam-size=N].
+## summary and quits non-zero on a missing one. Windowed: --shot=<png> [--cam-size=N]
+## (10 frames the four drying-rack stages, 28 the whole set).
 
 const ROWS: Array = [
 	[&"tent", &"well", &"smoker", &"crock_pot", &"stone_fire_pit", &"catapult"],
@@ -16,6 +17,7 @@ const GAP := 0.9
 var _player: Player
 var _cam: IsoCamera
 var placed := 0
+var _layout: Node3D
 var missing: Array[String] = []
 
 static func glb_path(kind: StringName, stage: String = "") -> String:
@@ -63,11 +65,16 @@ func _ready() -> void:
 	var kit := LabKit.build(self, 70.0)
 	_player = kit["player"]
 	_cam = kit["cam"]
-	_player.global_position = Vector3(0.0, 1.0, 9.0)
-	_cam.size = maxf(_cam.size, 26.0)
-	_cam._snap()
+	# Rows run along the iso camera's screen-right axis so the sheet reads left to right.
+	_layout = Node3D.new()
+	_layout.name = "Layout"
+	_layout.rotation_degrees.y = 45.0
+	add_child(_layout)
 	for r in ROWS.size():
 		_lay_row(ROWS[r], ROW_Z[r])
+	# The camera follows the survivor; stand him just in front of the drying racks.
+	_player.global_position = _layout.transform * Vector3(0.0, 1.0, 2.9)
+	_cam._snap()
 	print("[structart] lab placed %d models, missing %s" % [placed, missing])
 	if DisplayServer.get_name() == "headless":
 		get_tree().quit(0 if missing.is_empty() else 1)
@@ -90,25 +97,10 @@ func _lay_row(names: Array, z: float) -> void:
 			missing.append(str(names[i]))
 		else:
 			inst.position = Vector3(x, 0.0, z)
-			add_child(inst)
+			_layout.add_child(inst)
 			placed += 1
-			_label(str(names[i]).replace(":", " "), Vector3(x, 0.15, z + _depth(kind) * 0.5 + 0.45))
 		x += widths[i] * 0.5 + GAP
 
 func _width(kind: StringName) -> float:
 	var a: Variant = _row(kind).get("aabb_m", [1.0, 1.0, 1.0])
 	return float((a as Array)[0]) if a is Array else 1.0
-
-func _depth(kind: StringName) -> float:
-	var a: Variant = _row(kind).get("aabb_m", [1.0, 1.0, 1.0])
-	return float((a as Array)[2]) if a is Array else 1.0
-
-func _label(text: String, at: Vector3) -> void:
-	var l := Label3D.new()
-	l.text = text
-	l.position = at
-	l.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
-	l.pixel_size = 0.008
-	l.font_size = 40
-	l.outline_size = 10
-	add_child(l)

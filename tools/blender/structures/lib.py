@@ -18,7 +18,7 @@ from mathutils import Matrix, Vector
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 OUT_DIR = os.path.join(REPO, "game", "assets", "props", "blender")
-ATLAS_PATH = os.path.join(HERE, "atlas_structures.png")
+ATLAS_PATH = os.path.join(OUT_DIR, "structures_atlas.png")  # also the Godot material texture
 ATLAS = 1024
 GRID = 8  # 8x8 tiles of 128 px
 TILE_PX = ATLAS // GRID
@@ -260,7 +260,7 @@ def paint_atlas():
                        _rgb((0.55, 0.47, 0.35)), np.clip(_fbm(_rng(10), TILE_PX, 3, 3) - 0.45, 0, 1)),
         "hide": _speckle(11, (0.62, 0.45, 0.31), (0.45, 0.31, 0.2), light=(0.72, 0.56, 0.4), scale=5),
         "rope": _stripes(12, (0.74, 0.62, 0.42), (0.45, 0.36, 0.22), freq=12, angle=0.7, sharp=2, noise=0.2),
-        "thatch": _stripes(13, (0.8, 0.67, 0.4), (0.5, 0.38, 0.2), freq=30, angle=0.03, sharp=3, noise=0.6),
+        "thatch": _stripes(13, (0.66, 0.55, 0.33), (0.42, 0.32, 0.17), freq=30, angle=0.03, sharp=3, noise=0.6),
         "weave": _weave(14, (0.72, 0.58, 0.36), (0.42, 0.31, 0.17), cell=9),
         "steamer_weave": _weave(15, (0.78, 0.7, 0.46), (0.52, 0.45, 0.26), cell=5),
         "leather_dark": _speckle(16, (0.36, 0.24, 0.15), (0.22, 0.14, 0.08), scale=6),
@@ -295,6 +295,7 @@ def paint_atlas():
 
 def atlas_image():
     """Paint (deterministic) and save the atlas PNG; return the bpy image."""
+    os.makedirs(OUT_DIR, exist_ok=True)
     pix = paint_atlas()
     name = "structures_atlas.png"
     im = bpy.data.images.get(name)
