@@ -31,6 +31,9 @@ func _process(_delta: float) -> bool:
 	_test_hit_while_asleep_stays_awake()
 	_test_temp_home_expires()
 	_test_pack_slots_clear_bodies()
+	_test_reacquire_hold()
+	_test_think_rate()
+	_test_flee_speed_floor()
 	if failures.is_empty():
 		print("[t_ai] PASS")
 		quit(0)
@@ -201,10 +204,10 @@ func _test_hit_while_asleep_stays_awake() -> void:
 func _test_temp_home_expires() -> void:
 	var c := _creature(&"velociraptor", 0, Vector3(3, 0, 4))
 	var real: Vector3 = c.spawn_home
-	c.brain._set_temp_home(real + Vector3(20, 0, 0))
+	c.brain.flight.set_temp_home(real + Vector3(20, 0, 0))
 	var moved: bool = c.spawn_home.distance_to(real) > 19.0
-	var lasts: float = c.brain._home_until - _now_s()
-	c.brain._home_until = _now_s() - 0.01
+	var lasts: float = c.brain.flight.home_until - _now_s()
+	c.brain.flight.home_until = _now_s() - 0.01
 	c.brain.tick(0.1)
 	_check(moved and lasts > 100.0 and c.spawn_home.distance_to(real) < 0.01, "temp home moved=%s lasts=%.0f s restored=%s" % [moved, lasts, c.spawn_home.distance_to(real) < 0.01])
 	c.free()
@@ -236,3 +239,61 @@ func _test_pack_slots_clear_bodies() -> void:
 	for c in pack:
 		c.free()
 	_fresh_packs()
+
+## After a leash break a survivor back inside perception is not re-acquired until the 0.5 s
+## hold (BrainFlight.REACQUIRE_HOLD_S) has run out, then it is.
+func _test_reacquire_hold() -> void:
+	game.time_of_day = 0.40
+	var p: Node = load("res://scenes/player/player.tscn").instantiate()
+	p.process_mode = Node.PROCESS_MODE_DISABLED
+	get_root().add_child(p)
+	var c := _creature(&"velociraptor")
+	var far := Node3D.new()
+	get_root().add_child(far)
+	far.global_position = Vector3(c.brain.aggro_radius() + 1.0, 0, 0)
+	c.brain.attack_target = far
+	c.brain._set_state(&"approach")
+	c.brain.flight.leash_break()
+	c.brain._set_state(&"roam")
+	p.global_position = Vector3(2.0, 0, 0)  # well inside perception
+	c.brain.tick(0.1)
+	var held: bool = c.brain.attack_target == null and c.brain.state == &"roam"
+	var hold_s: float = c.brain.flight.reacquire_at - _now_s()
+	c.brain.flight.reacquire_at = _now_s() - 0.01  # the hold has run out
+	c.brain.tick(0.1)
+	var took: bool = c.brain.attack_target == p
+	_check(held and took and hold_s > 0.4 and hold_s <= 0.501, "re-acquire hold: held=%s hold_s=%.2f took_after=%s state=%s" % [held, hold_s, took, c.brain.state])
+	c.free()
+	far.free()
+	p.free()
+
+## A brain thinks at THINK_HZ (10 of 60 physics frames); a tyrant in a timed move every frame.
+func _test_think_rate() -> void:
+	var c := _creature(&"velociraptor")
+	var n := 0
+	for f in 60:
+		if c.brain._should_think(f):
+			n += 1
+	var rex := _creature(&"tyrannosaurus")
+	rex.brain.phase = &"windup"
+	var m := 0
+	for f in 60:
+		if rex.brain._should_think(f):
+			m += 1
+	_check(n == 10 and m == 60, "think rate: raptor %d/60 (want 10), tyrant windup %d/60 (want 60)" % [n, m])
+	c.free()
+	rex.free()
+
+## Worst-IV (0 of 31, 85 % speed) zebraceratops in flee still beats the 5.5 m/s survivor walk.
+func _test_flee_speed_floor() -> void:
+	var zeb: Node = load(CREATURE_SCENE).instantiate()
+	get_root().add_child(zeb)
+	var g: RefCounted = load("res://scripts/creatures/creature_genetics.gd").neutral()
+	for stat in g.ivs:
+		g.ivs[stat] = 0
+	zeb.genetics = g
+	zeb.spawn(data.creature(&"zebraceratops"), &"", 0)
+	var base: float = zeb.move_speed_mps()
+	var flee: float = maxf(base * float(zeb.brain.profile.get("flee_speed_mult", 1.0)), float(zeb.brain.profile.get("flee_min_mps", 0.0)))
+	_check(flee >= 6.0, "worst-IV zebraceratops flees at %.2f m/s (base %.2f), want >= 6.0" % [flee, base])
+	zeb.free()

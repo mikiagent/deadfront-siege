@@ -11,10 +11,6 @@ signal state_changed(prev: StringName, next: StringName)
 const THINK_HZ := 10
 ## Idle brains farther than this from every player stop thinking (AI LOD, see BrainRest).
 const LOD_RADIUS := BrainRest.LOD_RADIUS
-## After a leash break nobody in the pack may re-acquire for this long (no flicker on the line).
-const REACQUIRE_HOLD_S := 0.5
-## ASSUMPTION: the post-kill / post-flight temporary home lasts two minutes, then the real one returns.
-const TEMP_HOME_S := 120.0
 ## Reach numbers were tuned against the survivor capsule (player.tscn radius 0.35); bigger
 ## bodies add their extra radius so pets and wild animals can reach a giant's flank.
 const SURVIVOR_RADIUS := 0.35
@@ -22,12 +18,7 @@ const SURVIVOR_RADIUS := 0.35
 ## they turn and fight for PROVOKE_SECONDS, then go back to their temperament.
 const PROVOKE_HITS := 3
 const PROVOKE_SECONDS := 15.0
-## A grazer hit in the last FRESH_HIT_S keeps fleeing even past the leash: a shot from beyond the
-## ring is still a reason to run, not to walk home.
-const FRESH_HIT_S := 3.0
 
-## Debug lines printed so far; labs assert it stays flat with the overlay off.
-static var debug_lines: int = 0
 static var _pack_cooldown_until: Dictionary = {} ## pack_id -> seconds
 
 var creature: Creature
@@ -40,7 +31,6 @@ var _roam_pause: float = 0.0
 var _roam_target: Vector3 = Vector3.ZERO
 var _attack_cd: float = 0.0
 var _alert_left: float = 0.0
-var _disengage_left: float = 0.0
 var _retreat_left: float = 0.0
 var _damage_window: Array[Dictionary] = []
 var _primary_chain: int = 0
@@ -56,10 +46,9 @@ var _retarget_cd: float = 0.0
 var _think_phase: int = 0
 var _think_dt: float = 0.0
 var _dt: float = 0.0
-var _reacquire_at: float = -1.0
 var _awake_until: float = -1.0
-var _true_home: Vector3 = Vector3.ZERO
-var _home_until: float = 0.0
+## Flight, leash and temporary home (see BrainFlight).
+var flight := BrainFlight.new(self)
 
 func _provoked() -> bool:
 	return _now_s() < _provoked_until
@@ -102,11 +91,10 @@ func on_player_killed(at: Vector3) -> void:
 				break
 	attack_target = null
 	_combat_memory_left = 0.0
-	_disengage_left = 0.0
 	_hits_taken = 0
 	_provoked_until = -1.0
 	# The retreat spot is home for a while so idle roam does not walk straight back to camp.
-	_set_temp_home(destination)
+	flight.set_temp_home(destination)
 	_set_state(&"disengage")
 	creature.move_to(destination)
 	_log("[ai] %s post-kill retreat %.1fm" % [creature.def.id, creature.global_position.distance_to(destination)])
@@ -123,7 +111,7 @@ func _is_herbivore() -> bool:
 func _flees_on_sight() -> bool:
 	return _is_herbivore() and bool(profile.get("flee_on_sight", true))
 
-## Leash radius: past this the chase ends at once (see _disengage_track). Drawn as the red
+## Leash radius: past this the chase ends at once (see BrainFlight.track). Drawn as the red
 ## dotted ring while the creature is on the survivor. A pack shares its alpha's leash.
 func aggro_radius() -> float:
 	var leader := _pack_leader()
@@ -150,7 +138,8 @@ func _physics_process(delta: float) -> void:
 		creature.stop_move()
 		return
 	_think_dt += delta
-	if (Engine.get_physics_frames() + _think_phase) % _think_every() != 0 and not _full_rate():
+	_face_target(delta)
+	if not _should_think(Engine.get_physics_frames()):
 		return
 	var dt := _think_dt
 	_think_dt = 0.0
@@ -158,12 +147,22 @@ func _physics_process(delta: float) -> void:
 		return
 	tick(dt)
 
+## Standing combat states turn every physics frame; thinking at 10 Hz made them snap. The turn
+## rates match the old every-frame calls (face_towards(p, delta) and face_towards(p, 0.05) at 60 Hz).
+func _face_target(delta: float) -> void:
+	if (state == &"alert" or state == &"attack") and not _full_rate() and _valid_target():
+		creature.face_towards(attack_target.global_position, delta if state == &"alert" else delta * 3.0)
+
 ## One think step: the shared rules, then the species think.
 func tick(dt: float) -> void:
 	_dt = dt
 	if not _pre_think(dt):
 		_think(dt)
 	creature.brain_state = state
+
+## THINK_HZ, staggered by _think_phase; a timed move (_full_rate) thinks every frame.
+func _should_think(frame: int) -> bool:
+	return _full_rate() or (frame + _think_phase) % _think_every() == 0
 
 ## Overrides return true while a timed move must resolve every physics frame.
 func _full_rate() -> bool:
@@ -182,12 +181,10 @@ func _pre_think(dt: float) -> bool:
 		return false
 	_attack_cd = maxf(0.0, _attack_cd - dt)
 	_combat_memory_left = maxf(0.0, _combat_memory_left - dt)
-	if _home_until > 0.0 and _now_s() >= _home_until:
-		creature.spawn_home = _true_home
-		_home_until = 0.0
+	flight.tick_home()
 	if state == &"downed":
 		_set_state(&"alert" if _valid_target() else &"roam")
-	_disengage_track(dt)
+	flight.track(dt)
 	if state == &"sleep":
 		BrainRest.sleep_tick(self)
 		return state == &"sleep"
@@ -196,7 +193,7 @@ func _pre_think(dt: float) -> bool:
 		creature.stop_move()
 		return true
 	if state == &"disengage":
-		_walk_home(dt)
+		flight.walk_home()
 		return true
 	return false
 
@@ -260,7 +257,7 @@ func note_damage(amount: float) -> void:
 func _think(delta: float) -> void:
 	# A dead pet is one target, not the end of the hunt. Keep the pack together and immediately
 	# select another live pet or the survivor instead of every dinosaur walking home.
-	if not _is_herbivore() and not _valid_target() and _combat_memory_left > 0.0 and _now_s() >= _reacquire_at:
+	if not _is_herbivore() and not _valid_target() and _combat_memory_left > 0.0 and flight.can_reacquire():
 		attack_target = _nearest_live_prey(aggro_radius())
 		if attack_target:
 			_set_state(&"approach")
@@ -272,8 +269,6 @@ func _think(delta: float) -> void:
 			# Do not call _scan here: refreshing alert_left every frame trapped
 			# creatures in alert and blocked approach / flee transitions.
 			_alert_left = maxf(0.0, _alert_left - delta)
-			if attack_target:
-				creature.face_towards(attack_target.global_position, delta)
 			if _alert_left <= 0.0:
 				if not _is_herbivore() or _provoked():
 					_set_state(&"approach")
@@ -292,7 +287,7 @@ func _think(delta: float) -> void:
 		&"retreat":
 			_retreat(delta)
 		&"flee":
-			_flee(delta)
+			flight.flee()
 
 func _roam(delta: float) -> void:
 	# Pack members travel behind their alpha while idle. Only the alpha chooses the roaming path;
@@ -345,7 +340,7 @@ func _idle_pack_slot(leader: Creature) -> Vector3:
 	return leader.global_position + Vector3(cos(angle), 0.0, sin(angle)) * radius
 
 func _scan() -> void:
-	if state != &"roam" or _now_s() < _reacquire_at:
+	if state != &"roam" or not flight.can_reacquire():
 		return
 	# Followers let the alpha acquire prey and path behind it. If prey reaches a follower first,
 	# it still alerts the whole pack through on_aggro.
@@ -461,7 +456,6 @@ func _do_attack() -> void:
 		_set_state(&"approach")
 		return
 	creature.stop_move()
-	creature.face_towards(attack_target.global_position, 0.05)
 	if _attack_cd > 0.0 or creature.anim._busy or creature.stagger_left > 0.0:
 		return
 	if _is_pack_member() and not _pack_ready():
@@ -491,95 +485,9 @@ func _retreat(delta: float) -> void:
 	if _retreat_left <= 0.0:
 		_set_state(&"approach")
 
-## Run from the last damage source (or whatever was spotted), straight away from it. The
-## target point comes from our own position, not the herd centre, so nothing clamps the run.
-func _flee(_delta: float) -> void:
-	if not _valid_target():
-		_disengage()
-		return
-	if _provoked():
-		_set_state(&"approach")
-		return
-	var here := creature.global_position
-	var away := here - attack_target.global_position
-	away.y = 0.0
-	if away.length_squared() <= 0.001:
-		away = Vector3.BACK
-	var flee_dist := float(profile.get("flee_tiles", 8.0))
-	var picked := _walkable_probe(here, here + away.normalized() * flee_dist, int(flee_dist) + 4)
-	if picked == here and _cornered():
-		_set_state(&"attack")
-		return
-	creature.move_to(picked)
-
-func _walk_home(_delta: float) -> void:
-	creature.move_to(creature.spawn_home)
-	if _flat_dist_to(creature.spawn_home) <= 1.0:  # flat: a home's y can sit off the terrain
-		_set_state(&"roam")
-		attack_target = null
-		_disengage_left = 0.0
-		_hits_taken = 0
-		_provoked_until = -1.0
-
-func _disengage_track(delta: float) -> void:
-	if not _valid_target():
-		_disengage_left = 0.0
-		return
-	var dist := _flat_dist(attack_target)
-	# Aggro leash: beyond aggro_radius the chase ends at once; beyond 1.2 x perception it ends
-	# after disengage_seconds. Running far enough away always works.
-	if dist > aggro_radius() and not _fresh_flight():
-		_log("[ai] %s disengage (left aggro radius)" % creature.def.id)
-		_leash_break()
-		return
-	# A fleeing animal runs until the threat is past the leash; the slow give-up is for chasers.
-	var far := dist > _effective_perception() * 1.2 and not attack_target is FieldCatapult and state != &"flee"
-	if far:
-		_disengage_left += delta
-		if _disengage_left >= float(profile.get("disengage_seconds", 3.0)):
-			_disengage()
-	else:
-		_disengage_left = 0.0
-
-## A grazer that was just hit runs from the hit, wherever the shooter stands.
-func _fresh_flight() -> bool:
-	return _is_herbivore() and (state == &"alert" or state == &"flee") and _now_s() - _last_hit_s < FRESH_HIT_S
-
-## The target crossed the pack's one leash: everyone on that target lets go together and none
-## re-acquires for REACQUIRE_HOLD_S. Per-member breaks made followers flicker on the line.
-func _leash_break() -> void:
-	var lost := attack_target
-	_let_go()
-	for c in _pack_members():
-		if c != creature and c.brain and c.brain.attack_target == lost:
-			c.brain._let_go()
-
-## Leaving the visible combat radius is an immediate de-aggro, not a walk-home chase.
-## Clear target/memory now so neither this animal nor pack retention reacquires the runner.
-func _let_go() -> void:
-	attack_target = null
-	_combat_memory_left = 0.0
-	_disengage_left = 0.0
-	_reacquire_at = _now_s() + REACQUIRE_HOLD_S
-	creature.mark_aggro_now()
-	_disengage()
-
-## End a fight or a flight. A fleeing animal stops where it is and treats that spot as home for
-## a while instead of walking back past the threat; everyone else walks home.
+## End a fight or a flight (BrainFlight.end); species brains call this.
 func _disengage() -> void:
-	if state == &"flee":
-		_set_temp_home(creature.global_position)
-		attack_target = null
-		creature.stop_move()
-		_set_state(&"roam")
-	else:
-		_set_state(&"disengage")
-
-func _set_temp_home(pos: Vector3) -> void:
-	if _home_until <= 0.0:
-		_true_home = creature.spawn_home
-	creature.spawn_home = pos
-	_home_until = _now_s() + TEMP_HOME_S
+	flight.end()
 
 func _approach_slot() -> Vector3:
 	if attack_target == null:
@@ -747,7 +655,6 @@ func _set_state(next: StringName) -> void:
 ## AI chatter prints only with the debug overlay on (F3, or a lab run without --shot).
 func _log(msg: String) -> void:
 	if Game and Game.debug_overlay:
-		debug_lines += 1
 		print(msg)
 
 func _now_s() -> float:

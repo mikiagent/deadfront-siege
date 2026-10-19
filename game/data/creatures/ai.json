@@ -29,11 +29,12 @@
     "_sleep": "ASSUMPTION: grazers asleep at night wake at dawn or when a survivor/pet comes within wake_m of the body; a woken grazer stays up woken_awake_s."
   },
   "temperaments": {
-    "_about": "ASSUMPTION (gap dino-ai-12): grazer temperaments. skittish flees on sight and fights back after provoke_hits hits; defensive ignores you until hit, then fights (its herd joins); territorial also charges anyone inside territory_m.",
+    "_about": "ASSUMPTION (gap dino-ai-12): grazer temperaments. skittish flees on sight and fights back after provoke_hits hits; defensive ignores you until hit, then fights (its herd joins); territorial also charges anyone inside territory_m. flee_min_mps 6.5: a worst-IV (85 %) zebraceratops flees at 5.44 m/s on the multiplier alone, under the 5.5 m/s survivor walk; 6.2 still ended 7.5 m ahead (path wiggle), 6.5 matches an average-IV flight.",
     "skittish": {
       "provoke_hits": 3,
       "flee_on_sight": true,
-      "flee_speed_mult": 1.6
+      "flee_speed_mult": 1.6,
+      "flee_min_mps": 6.5
     },
     "defensive": {
       "provoke_hits": 1,

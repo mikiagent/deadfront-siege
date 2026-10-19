@@ -85,7 +85,7 @@ func _after_idle() -> void:
 	follower_a.brain._combat_memory_left = 4.0
 	follower_a.brain.state = &"approach"
 	player.global_position = follower_a.global_position + Vector3(follower_a.brain.aggro_radius() + 0.5, 0, 0)
-	follower_a.brain._disengage_track(0.016)
+	follower_a.brain.flight.track(0.016)
 	var deaggro_ok := follower_a.brain.attack_target == null and follower_a.brain.state == &"disengage"
 	print("[aival] radius_deaggro=%s state=%s target=%s" % [deaggro_ok, follower_a.brain.state, follower_a.brain.attack_target])
 	if not deaggro_ok:

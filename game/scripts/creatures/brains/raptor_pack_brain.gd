@@ -20,11 +20,11 @@ func _think(delta: float) -> void:
 	_heavy_cd = maxf(0.0, _heavy_cd - delta)
 	if creature.health.fraction() < 0.30 and creature.def.archetype != &"apex_raptor" and _valid_target():
 		_set_state(&"flee")
-		_flee(delta)
+		flight.flee()
 		return
 
 	if not _valid_target():
-		if _combat_memory_left > 0.0 and _now_s() >= _reacquire_at:
+		if _combat_memory_left > 0.0 and flight.can_reacquire():
 			attack_target = _nearest_live_prey(aggro_radius())
 		if not _valid_target():
 			_set_state(&"roam")

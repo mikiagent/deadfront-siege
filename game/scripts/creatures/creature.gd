@@ -271,12 +271,14 @@ func _physics_process(delta: float) -> void:
 		_slide()
 		_update_label()
 		return
-	var speed := (pet_record.speed / 100.0 if is_pet and pet_record else move_speed_mps()) * statuses.move_mult() * (trap_move_mult if trap_left > 0.0 else 1.0)
+	var slow := statuses.move_mult() * (trap_move_mult if trap_left > 0.0 else 1.0)
+	var speed := (pet_record.speed / 100.0 if is_pet and pet_record else move_speed_mps()) * slow
 	if not is_pet and brain:
 		match brain.state:
 			# ASSUMPTION (owner decision pending, dino-ai-06): chase at chase_speed_mult (0.7) so a survivor can outrun.
 			&"approach", &"attack": speed *= float(brain.profile.get("chase_speed_mult", 0.7))
-			&"flee": speed *= float(brain.profile.get("flee_speed_mult", 1.0))
+			# flee_min_mps: a low-IV grazer still outruns a walking survivor (traps and statuses still slow it).
+			&"flee": speed = maxf(speed * float(brain.profile.get("flee_speed_mult", 1.0)), float(brain.profile.get("flee_min_mps", 0.0)) * slow)
 	if is_pet and hunger <= 0.0:
 		speed *= 0.85
 	var locomote := Vector3.ZERO
@@ -440,7 +442,7 @@ func _blood_trail() -> void:
 	get_tree().create_timer(20.0).timeout.connect(decal.queue_free)
 
 ## Red dotted ring on the ground at the leash radius while this creature hunts the survivor.
-## Step outside it and the chase ends (CreatureBrain._disengage_track). Vertices follow the
+## Step outside it and the chase ends (BrainFlight.track). Vertices follow the
 ## terrain so the ring reads on slopes; rebuilt at 10 Hz while the creature moves.
 func _update_aggro_ring(delta: float) -> void:
 	var show := not is_pet and not health.dead and brain != null and brain.has_method("hunting_player") and brain.hunting_player()

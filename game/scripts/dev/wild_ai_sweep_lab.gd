@@ -10,6 +10,16 @@ var player: Player
 var kit: Dictionary
 var failures: Array[String] = []
 
+## Counts real engine output lines that start with "[ai]" (any print path, not just _log).
+class AiLineCounter extends Logger:
+	var ai_lines := 0
+	var probe_seen := false
+	func _log_message(message: String, _error: bool) -> void:
+		if message.begins_with("[ai]"):
+			ai_lines += 1
+		elif message.begins_with("[aisweep] logger_probe"):
+			probe_seen = true
+
 func _ready() -> void:
 	kit = LabKit.build(self, FLOOR)
 	player = kit["player"]
@@ -42,13 +52,12 @@ func _check(ok: bool, what: String) -> void:
 	if not ok:
 		failures.append(what)
 
-func _spawn(id: StringName, at: Vector3, pack: int = 0) -> Creature:
+func _spawn(id: StringName, at: Vector3, pack: int = 0, genes: CreatureGenetics = null) -> Creature:
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 	add_child(c)
 	c.global_position = at
-	# Average IVs (100 % speed): the sweep tests the AI, not the genetics dice. A low-IV
-	# zebraceratops (85 % speed) flees at 5.4 m/s and a walking survivor does catch it.
-	c.genetics = CreatureGenetics.neutral()
+	# Average IVs unless a check names its own: the sweep tests the AI, not the genetics dice.
+	c.genetics = genes if genes else CreatureGenetics.neutral()
 	c.spawn(Data.creature(id), &"", pack)
 	return c
 
@@ -257,10 +266,18 @@ func _hit_react() -> void:
 	print("[aisweep] hit_react species=%d played=%d missed=%s no_rig=%s" % [ids.size(), played, missed, skipped])
 	_check(played > 0 and missed.is_empty(), "authored hit_react did not play: %s" % [missed])
 
-## A lone zebraceratops chased by a survivor walking at 5.5 m/s for 10 s.
+## A lone zebraceratops chased by a survivor walking at 5.5 m/s for 10 s, at average IVs and at
+## the worst IVs (all 0: 85 % speed, which the survivor caught before flee_min_mps).
 func _lone_flight() -> void:
+	var worst := CreatureGenetics.neutral()
+	for stat in worst.ivs:
+		worst.ivs[stat] = 0
+	for genes in [CreatureGenetics.neutral(), worst]:
+		await _lone_flight_one(genes, "avg" if genes != worst else "worst")
+
+func _lone_flight_one(genes: CreatureGenetics, label: String) -> void:
 	Game.time_of_day = 0.40
-	var zeb := _spawn(&"zebraceratops", Vector3(0, 0, 0))
+	var zeb := _spawn(&"zebraceratops", Vector3(0, 0, 0), 0, genes)
 	var home := zeb.spawn_home
 	player.global_position = Vector3(-6, 1, 0)
 	var t := 0.0
@@ -275,8 +292,8 @@ func _lone_flight() -> void:
 	var ran := _flat(zeb.global_position, home)
 	var ahead := _flat(zeb.global_position, player.global_position)
 	var from_home := _flat(zeb.global_position, home)
-	print("[aisweep] lone_flight ahead=%.2f from_home=%.2f avg_mps=%.2f state=%s" % [ahead, from_home, ran / 10.0, zeb.brain.state])
-	_check(ahead >= 8.0 and from_home >= 25.0, "lone zebraceratops flight ahead=%.2f from_home=%.2f (want >= 8, >= 25)" % [ahead, from_home])
+	print("[aisweep] lone_flight ivs=%s speed_mult=%.3f ahead=%.2f from_home=%.2f avg_mps=%.2f state=%s" % [label, genes.multiplier(&"speed"), ahead, from_home, ran / 10.0, zeb.brain.state])
+	_check(ahead >= 8.0 and from_home >= 25.0, "lone zebraceratops (%s IVs) flight ahead=%.2f from_home=%.2f (want >= 8, >= 25)" % [label, ahead, from_home])
 	await _clear()
 
 ## A pet bites a herbivore while the survivor is 90 m off: it runs from the pet, not the survivor.
@@ -322,17 +339,21 @@ func _pack_walkout() -> void:
 	var engaged := leader.brain.state
 	changes[0] = 0  # count only the walk-out, not the first engagement
 	trail.clear()
-	var lines0 := CreatureBrain.debug_lines
+	var counter := AiLineCounter.new()
+	OS.add_logger(counter)
+	print("[aisweep] logger_probe")  # proves the counter sees prints, so 0 below is real
 	var t := 0.0
 	while t < 10.0:
 		var dt := get_physics_process_delta_time()
 		await get_tree().physics_frame
 		t += dt
 		player.global_position += Vector3(-WALK * dt, 0, 0)
-	var lines := CreatureBrain.debug_lines - lines0
-	print("[aisweep] pack_walkout engaged=%s follower_changes=%d trail=%s debug_lines=%d" % [engaged, changes[0], trail, lines])
+	OS.remove_logger(counter)
+	var lines := counter.ai_lines
+	print("[aisweep] pack_walkout engaged=%s follower_changes=%d trail=%s ai_lines=%d logger_probe=%s" % [engaged, changes[0], trail, lines, counter.probe_seen])
 	_check(changes[0] <= 6, "raptor followers changed state %d times in 10 s (want <= 6)" % changes[0])
-	_check(lines == 0, "AI printed %d debug lines with the overlay off" % lines)
+	_check(counter.probe_seen, "the [ai] line counter saw no output at all")
+	_check(lines == 0, "AI printed %d '[ai]' lines with the overlay off" % lines)
 	await _clear()
 
 ## A velociraptor pet ordered onto a triceratops and onto a T. rex lands damage within 8 s.
@@ -364,18 +385,38 @@ func _perf(n: int, budget_ms: float) -> void:
 		var r := 20.0 + 35.0 * float(i % 7) / 6.0
 		_spawn(ids[(i / 3) % ids.size()], Vector3(cos(ang), 0.0, sin(ang)) * r, 500 + i / 3)
 	await _wait(2.0)
-	var total := 0.0
+	# Median of five 1 s windows: one busy second on the shared box does not fail the budget.
+	var windows: Array[float] = []
 	var frames := 0
-	var f0 := Engine.get_physics_frames()
-	var t0 := Time.get_ticks_msec()
-	while Time.get_ticks_msec() - t0 < 4000:
-		await get_tree().physics_frame
-		total += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
-		frames += 1
-	var avg := total / float(maxi(1, frames))
-	print("[aisweep] perf creatures=%d physics_ms_avg=%.2f frames=%d budget=%.1f" % [n, avg, Engine.get_physics_frames() - f0, budget_ms])
-	_check(avg <= budget_ms, "%d creatures physics_ms_avg=%.2f > %.1f" % [n, avg, budget_ms])
+	for w in 5:
+		var total := 0.0
+		var wf := 0
+		var t0 := Time.get_ticks_msec()
+		while Time.get_ticks_msec() - t0 < 1000:
+			await get_tree().physics_frame
+			total += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
+			wf += 1
+		windows.append(total / float(maxi(1, wf)))
+		frames += wf
+	var sorted := windows.duplicate()
+	sorted.sort()
+	var avg: float = sorted[2]
+	print("[aisweep] perf creatures=%d physics_ms_avg=%.2f (median of %s) frames=%d budget=%.1f load=%s" % [n, avg, _ms(windows), frames, budget_ms, _load_avg()])
+	_check(avg <= budget_ms, "%d creatures physics_ms_avg=%.2f > %.1f (load %s)" % [n, avg, budget_ms, _load_avg()])
 	await _clear()
+
+func _ms(xs: Array[float]) -> String:
+	var out: Array[String] = []
+	for x in xs:
+		out.append("%.2f" % x)
+	return "[%s]" % ", ".join(out)
+
+## Machine load next to every perf reading, so a FAIL on a busy shared box can be judged.
+func _load_avg() -> String:
+	var out: Array = []
+	if OS.execute("sysctl", ["-n", "vm.loadavg"], out) == 0 and not out.is_empty():
+		return str(out[0]).strip_edges()
+	return "?"
 
 func _level_stats() -> void:
 	var c := _spawn(&"velociraptor", Vector3(0, 0, 100))
