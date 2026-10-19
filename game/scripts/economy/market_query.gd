@@ -22,7 +22,7 @@ func _init(ledger: Ledger, history: PriceHistory, p_book: MarketBook, p_orders: 
 	orders = p_orders
 	cat = catalog
 
-func search(a: EconArgs) -> Dictionary:
+func search(me: int, a: EconArgs) -> Dictionary:
 	var R := L.rules
 	var lv_max := R.num("level_max")
 	var q := a.text("q", 0, 40, "").to_lower()
@@ -104,7 +104,7 @@ func search(a: EconArgs) -> Dictionary:
 		var num := keys[i] & NUM_MASK
 		if sort == "newest":
 			num = NUM_MASK - num
-		results.append(book.view(L.s.listings["L%d" % num]))
+		results.append(book.view(L.s.listings["L%d" % num], me))
 	return EconArgs.ok({"total": keys.size(), "page": page, "page_size": page_size, "results": results})
 
 ## Open orders, best first: highest unit price, then oldest.
@@ -167,34 +167,44 @@ func trades(a: EconArgs) -> Dictionary:
 		if out.size() >= limit:
 			break
 		if L.s.trades[i].key == key:
-			out.append(L.s.trades[i].duplicate(true))
+			var t: Dictionary = L.s.trades[i].duplicate(true)
+			t.erase("buyer") # the public tape does not name accounts; market.mine has your own
+			t.erase("seller")
+			out.append(t)
 	return EconArgs.ok({"key": key, "trades": out})
 
-func mine(me: int) -> Dictionary:
+## Open listings, bids and orders in full (each is capped by limits.json or by the wallet);
+## the last 7 days of closed listings and orders newest first, one page at a time.
+func mine(me: int, a: EconArgs) -> Dictionary:
+	var page := a.integer("page", 1, 100000, 1)
+	var page_size := a.integer("page_size", 1, L.rules.num("page_size_max"), L.rules.num("page_size_default"))
+	if a.err != "":
+		return a.fail()
 	var listings: Array = []
 	var bids: Array = []
 	for l in L.s.listings.values():
 		if int(l.seller) == me:
-			listings.append(book.view(l))
+			listings.append(book.view(l, me))
 		if int(l.bidder) == me:
-			bids.append(book.view(l))
-	for l in L.s.closed_listings.values():
-		if int(l.seller) == me:
-			listings.append(book.view(l))
+			bids.append(book.view(l, me))
 	var mine_orders: Array = []
 	for o in L.s.orders.values():
 		if int(o.buyer) == me:
 			mine_orders.append(orders.view(o))
-	for o in L.s.closed_orders.values():
-		if int(o.buyer) == me:
-			mine_orders.append(orders.view(o))
+	var closed_l: Array = L.s.closed_listings.values().filter(func (l: Dictionary) -> bool: return int(l.seller) == me)
+	var closed_o: Array = L.s.closed_orders.values().filter(func (o: Dictionary) -> bool: return int(o.buyer) == me)
 	var newest := func (x: Dictionary, y: Dictionary) -> bool: return Ledger.id_num(x.id) > Ledger.id_num(y.id)
-	listings.sort_custom(newest)
-	bids.sort_custom(newest)
-	mine_orders.sort_custom(newest)
+	for rows: Array in [listings, bids, mine_orders, closed_l, closed_o]:
+		rows.sort_custom(newest)
+	var from := (page - 1) * page_size
 	var trade_rows: Array = (L.acct(me).trades as Array).duplicate(true)
 	trade_rows.reverse()
-	return EconArgs.ok({"listings": listings, "bids": bids, "orders": mine_orders, "trades": trade_rows})
+	return EconArgs.ok({
+		"listings": listings, "bids": bids, "orders": mine_orders, "trades": trade_rows,
+		"closed_listings": closed_l.slice(from, from + page_size).map(func (l: Dictionary) -> Dictionary: return book.view(l, me)),
+		"closed_orders": closed_o.slice(from, from + page_size).map(func (o: Dictionary) -> Dictionary: return orders.view(o)),
+		"closed_total": {"listings": closed_l.size(), "orders": closed_o.size()}, "page": page, "page_size": page_size,
+	})
 
 ## T-stones an account has locked in standing bids and open orders.
 func held(me: int) -> int:

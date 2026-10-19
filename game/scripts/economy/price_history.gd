@@ -3,6 +3,12 @@ extends RefCounted
 ## Trades, hourly OHLC + volume per asset key for 7 days, and the damped reference price
 ## (contract 6.5): volume-weighted median of the window's trades, skipping prices outside
 ## 0.25x-4x the previous reference and the 3rd+ trade between one pair of accounts in 24 h.
+## The band is judged afresh on every recompute, and when more eligible trades fall outside
+## it than inside, the reference re-anchors on all of them: a price set by a couple of early
+## self-dealt trades cannot lock honest trades out, and a real move of more than 4x is followed.
+## With no trades left in the window there is no reference.
+# ASSUMPTION: Settler (npc) trades count toward volume and OHLC but not the reference, which
+# should reflect what players pay each other.
 ## Keys are "item:<def_id>" and "pet:<species>" so an item id can never collide with a species.
 
 var L: Ledger
@@ -54,36 +60,43 @@ func _bucket(key: String, unit: int, count: int, total: int) -> void:
 	b[4] = int(b[4]) + count
 	b[5] = int(b[5]) + total
 
+## Rows are [ts, unit, count, eligible]; eligible = 0 for wash and npc trades.
 func _reference(key: String, unit: int, count: int, buyer: int, seller: int) -> void:
 	var R := L.rules
 	var s := L.s
-	var prev := int(s.ref.get(key, 0))
-	var pair := "%d:%d" % [mini(buyer, seller), maxi(buyer, seller)]
-	var seen: Array = s.pairs.get(pair, [])
-	s.pairs[pair] = seen
-	var wash := seen.size() >= R.num("wash_pair_max")
-	seen.append(L.now)
-	var outlier := prev > 0 and (float(unit) < float(prev) * float(R.g("reference_outlier_low")) or float(unit) > float(prev) * float(R.g("reference_outlier_high")))
+	var eligible := 0
+	if buyer != Ledger.SETTLERS and seller != Ledger.SETTLERS:
+		var pair := "%d:%d" % [mini(buyer, seller), maxi(buyer, seller)]
+		var cut := L.now - R.num("wash_window_s")
+		var seen: Array = (s.pairs.get(pair, []) as Array).filter(func (t: int) -> bool: return t > cut)
+		eligible = 1 if seen.size() < R.num("wash_pair_max") else 0
+		seen.append(L.now)
+		s.pairs[pair] = seen
 	var rows: Array = s.ref_trades.get(key, [])
 	s.ref_trades[key] = rows
-	rows.append([L.now, unit, count, 0 if (wash or outlier) else 1])
+	rows.append([L.now, unit, count, eligible])
 	while rows.size() > R.num("reference_trades_keep"):
 		rows.pop_front()
 	_recompute(key)
 
 func _recompute(key: String) -> void:
-	var rows: Array = L.s.ref_trades.get(key, [])
-	var used: Array = []
+	var R := L.rules
+	var rows: Array = (L.s.ref_trades.get(key, []) as Array).filter(func (r: Array) -> bool: return int(r[3]) == 1)
+	if rows.is_empty():
+		L.s.ref.erase(key)
+		return
+	var prev := float(L.s.ref.get(key, 0))
+	var lo := prev * float(R.g("reference_outlier_low"))
+	var hi := prev * float(R.g("reference_outlier_high"))
+	var inside := rows if prev <= 0.0 else rows.filter(func (r: Array) -> bool: return float(r[1]) >= lo and float(r[1]) <= hi)
+	if inside.size() * 2 < rows.size():
+		inside = rows # most eligible trades disagree with the anchor: re-anchor on all of them
+	inside.sort_custom(func (x: Array, y: Array) -> bool: return int(x[1]) < int(y[1]))
 	var weight := 0
-	for r in rows:
-		if int(r[3]) == 1:
-			used.append(r)
-			weight += int(r[2])
-	if used.is_empty():
-		return # keep the last reference as the outlier anchor
-	used.sort_custom(func (x: Array, y: Array) -> bool: return int(x[1]) < int(y[1]))
+	for r in inside:
+		weight += int(r[2])
 	var half := 0
-	for r in used:
+	for r in inside:
 		half += int(r[2])
 		if half * 2 >= weight:
 			L.s.ref[key] = int(r[1])
@@ -113,7 +126,7 @@ func prune() -> bool:
 				s.ref_trades.erase(key)
 			else:
 				s.ref_trades[key] = keep
-				_recompute(key)
+			_recompute(key)
 	var wash_cut := L.now - R.num("wash_window_s")
 	for pair in s.pairs.keys():
 		var seen: Array = s.pairs[pair]
@@ -140,6 +153,8 @@ func buckets(key: String, ts: int) -> Array:
 			out.append([int(h) * size, b[0], b[1], b[2], b[3], b[4], b[5]])
 	return out
 
+## Units traded in the hourly buckets that overlap the last `window_s`, so the count can
+## include up to one bucket (an hour) of older trades.
 func volume(key: String, ts: int, window_s: int) -> int:
 	var units := 0
 	var size := L.rules.num("history_bucket_s")

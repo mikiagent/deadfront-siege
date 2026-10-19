@@ -8,6 +8,7 @@ const T0 := 1760000000
 const DIR := "user://econ_tests"
 const FUZZ_DEFS := ["stone", "wood_log", "fibre_stalk", "raw_meat", "copper_ore", "stone_knife"]
 const FUZZ_PETS := ["velociraptor", "triceratops", "compsognathus"]
+const HOSTILE := ["yes", {"x": 1}, [1, 2], null] ## wrong-typed values a client could send for any field
 
 var failures: Array[String] = []
 var cat: EconCatalog
@@ -16,7 +17,7 @@ var _rid := 0
 func run() -> Array[String]:
 	cat = EconCatalog.from_data()
 	# Each test returns true on its last line; a script error aborts it and returns null.
-	for test: Callable in [_test_accounts_wallet_objectives, _test_item_deposits, _test_pet_deposits, _test_withdraw, _test_fixed_listings, _test_auctions, _test_anti_snipe_and_settlement, _test_orders, _test_expiry, _test_search, _test_history_and_reference, _test_settlers, _test_idempotency, _test_float_grid, _test_journal_replay, _test_snapshots, _test_fuzz, _test_search_perf]:
+	for test: Callable in [_test_accounts_wallet_objectives, _test_item_deposits, _test_attribute_sources, _test_pet_deposits, _test_withdraw, _test_fixed_listings, _test_auctions, _test_anti_snipe_and_settlement, _test_orders, _test_expiry, _test_search, _test_history_and_reference, _test_reference_poisoning, _test_settlers, _test_idempotency, _test_market_views, _test_float_grid, _test_journal_replay, _test_torn_newline, _test_snapshots, _test_snapshot_failures, _test_fault_reload, _test_fuzz, _test_search_perf]:
 		if test.call() != true:
 			failures.append("econ: %s stopped early (script error)" % test.get_method())
 	return failures
@@ -218,6 +219,9 @@ func _test_item_deposits() -> bool:
 			var made := ItemStack.make(StringName(def_id), 1, {}, 30).to_dict()
 			var why: String = e.V.item(made, 1).msg
 			_expect(why == "", "a fresh %s from the catalog passes deposit checks (%s)" % [def_id, why])
+	for key in base.keys() + ["def_id"]:
+		for hostile in HOSTILE:
+			_bad_item(e, _with(base, key, hostile), "item %s = %s" % [key, var_to_str(hostile)])
 	var wire: Dictionary = JSON.parse_string(JSON.stringify(_stack("wood_log", 3, 7)))
 	got = _ok(e, "vault.deposit_item", 2, {"slot_dict": wire, "count": 3.0}, T0 + 86401)
 	_expect(typeof(got.item.level) == TYPE_INT and int(got.item.count) == 3, "JSON floats from the wire normalise to ints")
@@ -261,7 +265,21 @@ func _test_pet_deposits() -> bool:
 	_bad_pet(e, _with(t, "level", 0), "level 0")
 	_bad_pet(e, _with(t, "level", 4), "stats belong to another level")
 	_err(e, "vault.deposit_pet", 1, {"pet_dict": 5}, "bad_request", T0, "pet_dict not an object")
+	for key in t.keys() + ["summoned"]:
+		for hostile in HOSTILE:
+			_bad_pet(e, _with(t, key, hostile), "pet %s = %s" % [key, var_to_str(hostile)])
+	_bad_pet(e, _with(t, "summoned", 1), "summoned as 1")
+	_bad_pet(e, _with(t, "uid", "p1"), "unknown pet field")
+	_bad_pet(e, _with(t, "variant", "triceratops_golden"), "variant the def does not list")
+	_bad_pet(e, _with(t, "tamed_role", [1]), "tamed_role not names")
+	var labels: Array = []
+	for iv in CreatureGenetics.IV_MAX + 1:
+		labels.append(str(CreatureGenetics.tier_for_iv(iv)))
+	_expect(labels.all(func (g: String) -> bool: return g in AssetValidator.GRADES), "AssetValidator.GRADES covers every tier label")
+	_ok(e, "vault.deposit_pet", 1, {"pet_dict": _with(t, "summoned", 0)})
 	_ok(e, "vault.deposit_pet", 1, {"pet_dict": t})
+	var snow := _with(_pet("velociraptor", 1, 40), "variant", "velociraptor_snow")
+	_expect(str(_ok(e, "vault.deposit_pet", 3, {"pet_dict": snow}).pet.variant) == "velociraptor_snow", "a variant the def lists is accepted")
 	var noisy := _pet("triceratops", 2, 12)
 	noisy.hp = float(noisy.hp) * 1.004
 	got = _ok(e, "vault.deposit_pet", 2, {"pet_dict": noisy})
@@ -584,7 +602,8 @@ func _test_history_and_reference() -> bool:
 	var later := T0 + 8 * 86400
 	_ok(e, "sys.tick", 0, {}, later)
 	d = _ok(e, "market.item_detail", 1, {"def_id": "stone"}, later)
-	_expect(d.buckets.is_empty() and int(d.volume_7d) == 0 and int(d.ref_price) == 20, "history keeps 7 days; the reference survives as the anchor")
+	_expect(d.buckets.is_empty() and int(d.volume_7d) == 0, "history keeps 7 days")
+	_expect(int(d.ref_price) == 0 and not e.state().ref.has("item:stone"), "with no trades left in the window there is no reference (no stale anchor)")
 	_expect(not e.state().ref_trades.has("item:stone") and e.state().pairs.is_empty(), "windows are pruned")
 	return true
 
@@ -613,6 +632,7 @@ func _test_settlers() -> bool:
 	var paid := int(o.unit_price) * n
 	_expect(_wallet(e, 1) == w1 + paid - EconRules.ceil_bp(paid, 300), "selling to Settlers pays")
 	_expect(int(s.items_consumed[str(o.def_id)]) == n, "Settlers consume what they buy")
+	_expect(not s.ref.has("item:%s" % o.def_id), "Settler trades do not set a reference price")
 	_err(e, "market.order_cancel", 1, {"order_id": npc[npc.size() - 1].id}, "not_owner", t, "cancel a Settler order")
 	var seq := e.seq()
 	_ok(e, "sys.tick", 0, {}, t + 60)
@@ -660,8 +680,137 @@ func _test_idempotency() -> bool:
 	_ok(e, "market.buy", 3, buy)
 	_expect(e.state().closed_listings.has(lid), "rids are per account")
 	for i in 70:
-		_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "count": 1})
-	_expect(e.L.acct(4).rid_cache.size() == 64 and e.L.acct(4).rid_order.size() == 64, "the rid cache keeps the last 64")
+		_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "count": 1, "rid": "w%d" % i})
+	var cache: Dictionary = e.L.acct(4).rid_cache
+	_expect(cache.size() == 64 and not cache.has("w5") and cache.has("w6"), "the rid cache keeps the last 64")
+	_expect(cache.w69 is Array and JSON.stringify(cache).length() < 64 * 40, "the persisted cache holds [op, seq], not response bodies")
+	var stacks: int = e.L.acct(4).vault_items.size()
+	seq = e.seq()
+	_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "count": 1, "rid": "w0"})
+	_expect(e.seq() == seq + 1 and e.L.acct(4).vault_items.size() == stacks + 1, "an evicted rid applies again")
+	_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "count": 1, "rid": "w69"})
+	_expect(e.seq() == seq + 1 and e.L.acct(4).vault_items.size() == stacks + 1, "a recent rid still hits")
+	var reloaded := MarketEngine.new(_rules(), cat)
+	reloaded.load_state(JSON.parse_string(e.state_json()))
+	var repeat := _op(reloaded, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "count": 1, "rid": "w69"})
+	_expect(repeat.ok and repeat.r.get("duplicate") == true and reloaded.seq() == seq + 1, "after a restart a repeat is still a no-op and says duplicate")
+	_ok(e, "wallet.spend", 3, {"reason": "travel", "amount": 5, "rid": "late"}, T0 + 24 * 3600)
+	_ok(e, "sys.tick", 0, {}, T0 + 25 * 3600)
+	_expect(e.L.acct(4).rid_cache.is_empty() and e.L.acct(3).rid_cache.has("late"), "rid caches idle for a day are forgotten, active ones kept")
+	return true
+
+## Collects every value stored under `key` anywhere in a parsed JSON tree.
+static func _collect(node: Variant, key: String, out: Array) -> void:
+	if node is Dictionary:
+		for k in node:
+			if str(k) == key:
+				out.append(node[k])
+			else:
+				_collect(node[k], key, out)
+	elif node is Array:
+		for x in node:
+			_collect(x, key, out)
+
+## Every attribute the game writes onto a stack (drop tables, catalog defaults, harvest nodes,
+## crafting and combat) passes the deposit whitelist, so legitimate items are never refused.
+func _test_attribute_sources() -> bool:
+	var e := _engine()
+	var pairs: Array = [] ## [key, value, source]
+	var blocks: Array = []
+	_collect(EconRules.read_json("res://data/butchering.json"), "attributes", blocks)
+	for block in blocks:
+		for k in block:
+			pairs.append([str(k), block[k], "butchering.json"])
+	var bleed := 0
+	for def_id in cat.items:
+		var def := cat.item(def_id)
+		bleed = maxi(bleed, def.bleed_every_hits)
+		for k in def.default_attributes:
+			pairs.append([str(k), def.default_attributes[k], "items.json %s" % def_id])
+	var buffs: Array = []
+	_collect(EconRules.read_json("res://data/recipes.json"), "buff_id", buffs)
+	for b in buffs:
+		pairs.append(["food_buff", b, "recipes.json (crafting)"])
+	var climates: Array = ["grassland"] # IslandRuntime's default
+	_collect(Data.world_islands, "climate", climates)
+	var da := DirAccess.open("res://data/islands")
+	for fname in da.get_files() if da else []:
+		if fname.ends_with(".json"):
+			_collect(EconRules.read_json("res://data/islands/%s" % fname), "climate", climates)
+	for c in climates:
+		pairs.append(["climate", c, "island_runtime harvest"])
+	for tier in ProgressionScaling.TOOL_TIERS:
+		pairs.append(["material_tier", str(tier), "crafting"])
+	for n in [1, 60]:
+		pairs.append(["level", n, "corpse / harvest"])
+	for n in 4:
+		pairs.append(["toxin_hits", n, "player coat"])
+	for n in bleed:
+		pairs.append(["barbed_hits", n, "hunt"])
+	_expect(pairs.size() > 40 and buffs.size() > 0 and climates.size() > 3, "attribute sources were found (%d)" % pairs.size())
+	for row in pairs:
+		var why: String = e.V._attribute(row[0], Ledger.norm(row[1]))
+		_expect(why == "", "attribute %s = %s from %s is allowed (%s)" % [row[0], var_to_str(row[1]), row[2], why])
+	# End to end: the rare raptor bone drop, and a knife crafted from it (Crafting copies the
+	# primary's attributes and adds material_tier).
+	var bone := ItemStack.make(&"raptor_bone", 1, {"hardness": 4, "frill": 1}, 12).to_dict()
+	_ok(e, "vault.deposit_item", 1, {"slot_dict": bone, "count": 1})
+	var knife := ItemStack.make(&"stone_knife", 1, {"hardness": 4, "frill": 1, "material_tier": "bone"}, 12).to_dict()
+	_ok(e, "vault.deposit_item", 1, {"slot_dict": knife, "count": 1})
+	return true
+
+## Contract 6.5 damping must not be capturable: two self-dealt trades at 10x set the first
+## reference, and honest trades from more pairs than that must still move it back.
+func _test_reference_poisoning() -> bool:
+	var e := _engine(null, 8)
+	var key := "item:fibre_stalk"
+	var trade := func (seller: int, buyer: int, count: int, unit: int, ts: int) -> void:
+		var lid := _list(e, seller, _deposit(e, seller, "fibre_stalk", count, 1, ts), unit, -1, ts)
+		_ok(e, "market.buy", buyer, {"listing_id": lid, "count": count}, ts)
+	trade.call(1, 2, 1, 100, T0)
+	trade.call(2, 1, 1, 100, T0 + 60)
+	_expect(int(e.state().ref[key]) == 100, "two self-dealt trades set the first reference")
+	trade.call(3, 4, 20, 10, T0 + 120)
+	trade.call(5, 6, 20, 10, T0 + 180)
+	trade.call(7, 8, 20, 10, T0 + 240)
+	_expect(int(e.state().ref[key]) == 10, "honest trades from more pairs re-anchor the reference (got %d)" % int(e.state().ref.get(key, 0)))
+	trade.call(3, 5, 5, 11, T0 + 300)
+	_expect(int(e.state().ref[key]) == 10, "and the poisoned trades are now the outliers")
+	trade.call(1, 2, 1, 12, T0 + 86400 + 600)
+	var rows: Array = e.state().ref_trades[key]
+	_expect(int(rows.back()[3]) == 1, "pair trades older than 24 h no longer count, even before the hourly prune")
+	return true
+
+func _test_market_views() -> bool:
+	var r := _rules()
+	r.market.inbox_max = 2
+	var e := _engine(r)
+	var aid := _auction(e, 1, _deposit(e, 1, "copper_ore", 2), 10, 0, 12)
+	_ok(e, "market.bid", 2, {"listing_id": aid, "amount": 10})
+	var seen: Dictionary = _ok(e, "market.search", 3, {"kind": "auction"}).results[0]
+	_expect(not seen.has("bidder") and seen.has_bid == true and seen.my_bid == false, "search does not name the bidder")
+	_expect(_ok(e, "market.search", 2, {"kind": "auction"}).results[0].my_bid == true, "but tells the bidder the bid is theirs")
+	_expect(_ok(e, "market.mine", 2).bids[0].my_bid == true, "market.mine lists my bids")
+	var ends := int(e.state().listings[aid].ends)
+	_ok(e, "market.bid", 3, {"listing_id": aid, "amount": 20}, ends - 60)
+	_expect(int(e.state().listings[aid].ext) == 0 and int(e.state().listings[aid].ends) == ends, "a bid with exactly 60 s left neither moves the end nor spends an extension")
+	_ok(e, "market.bid", 2, {"listing_id": aid, "amount": 40}, ends - 59)
+	_expect(int(e.state().listings[aid].ext) == 1 and int(e.state().listings[aid].ends) == ends + 1, "a second later it extends")
+	_events(e, 1)
+	for i in 3:
+		_ok(e, "market.buy", 4, {"listing_id": _list(e, 1, _deposit(e, 1, "stone", 1), 5)})
+	var box := _ok(e, "inbox.take", 1)
+	_expect(box.events.size() == 2 and int(box.dropped) == 1, "inbox.take says how many events overflowed inbox_max")
+	_expect(int(_ok(e, "inbox.take", 1).dropped) == 0, "and resets the count")
+	var tape: Dictionary = _ok(e, "market.trades", 3, {"def_id": "stone"}).trades[0]
+	_expect(not tape.has("buyer") and not tape.has("seller") and _ok(e, "market.mine", 4).trades[0].has("buyer"), "the public tape names no accounts; my own trades do")
+	for i in 5:
+		_ok(e, "market.cancel", 4, {"listing_id": _list(e, 4, _deposit(e, 4, "stone", 1), 5)})
+	var p1 := _ok(e, "market.mine", 4, {"page_size": 2})
+	var p3 := _ok(e, "market.mine", 4, {"page_size": 2, "page": 3})
+	_expect(p1.closed_listings.size() == 2 and int(p1.closed_total.listings) == 5 and p3.closed_listings.size() == 1, "market.mine pages closed listings")
+	_expect(Ledger.id_num(p1.closed_listings[0].id) > Ledger.id_num(p1.closed_listings[1].id), "newest first")
+	_err(e, "market.mine", 4, {"page_size": 500}, "bad_request", T0, "page_size over the cap")
 	return true
 
 ## A deterministic scenario touching every mutating op, run through an EconStore.
@@ -769,6 +918,123 @@ func _test_snapshots() -> bool:
 	_wipe(dir)
 	return true
 
+func _spend(store: EconStore, who: int, rid: String) -> bool:
+	return bool(store.apply("wallet.spend", who, {"reason": "travel", "amount": 5, "rid": rid}, T0 + 13 * 3600).ok)
+
+## A crash can cut only the newline off the last line. That line is a whole op and stays; its
+## newline must come back, or the next append would fuse two ops into one corrupt line.
+func _test_torn_newline() -> bool:
+	var dir := DIR + "/newline"
+	_wipe(dir)
+	var store := EconStore.new(MarketEngine.new(_rules(), cat), dir)
+	store.snapshot_every_ops = 0
+	_expect(store.open() == "", "store opens")
+	_scenario(store)
+	var live := store.engine.state_json()
+	store.close()
+	var path := store.journal_path()
+	var f := FileAccess.open(path, FileAccess.READ_WRITE)
+	f.resize(f.get_length() - 1)
+	f.close()
+	var boot := EconStore.new(MarketEngine.new(_rules(), cat), dir)
+	boot.snapshot_every_ops = 0
+	_expect(boot.open() == "" and boot.engine.state_json() == live, "a last line missing only its newline is kept")
+	_expect(FileAccess.get_file_as_string(path).ends_with("}\n"), "and its newline is restored")
+	_expect(_spend(boot, 1, "nl-1") and _spend(boot, 2, "nl-2"), "two more ops are acknowledged")
+	var after := boot.engine.state_json()
+	boot.close()
+	var again := EconStore.new(MarketEngine.new(_rules(), cat), dir)
+	_expect(again.open() == "" and again.engine.state_json() == after, "the second reboot keeps every acknowledged op")
+	again.close()
+	_wipe(dir)
+	return true
+
+func _test_snapshot_failures() -> bool:
+	var dir := DIR + "/snapfail"
+	_wipe(dir)
+	var store := EconStore.new(MarketEngine.new(_rules(), cat), dir)
+	store.snapshot_every_ops = 7
+	_expect(store.open() == "", "store opens")
+	_scenario(store)
+	_expect(FileAccess.file_exists(store.snapshot_path(true)) and FileAccess.file_exists(store.journal_path(true)), "a second snapshot keeps the generation before it")
+	# A snapshot that cannot be written must not cost the old snapshot or the journal.
+	var tmp := store.snapshot_path() + ".tmp"
+	DirAccess.make_dir_absolute(tmp)
+	_expect(store.snapshot() != "" and store.broken == "", "a failed snapshot write is reported and the store keeps serving")
+	DirAccess.remove_absolute(tmp)
+	_expect(_spend(store, 1, "sf-1"), "ops still journal after a failed snapshot")
+	var live := store.engine.state_json()
+	store.close()
+	var boot := EconStore.new(MarketEngine.new(_rules(), cat), dir)
+	_expect(boot.open() == "" and boot.engine.state_json() == live, "nothing was lost to the failed snapshot")
+	boot.close()
+	# A snapshot that never fully reached the disk boots from the generation before.
+	var text := FileAccess.get_file_as_string(store.snapshot_path())
+	var w := FileAccess.open(store.snapshot_path(), FileAccess.WRITE)
+	w.store_string(text.substr(0, text.length() / 2))
+	w.close()
+	var fallback := EconStore.new(MarketEngine.new(_rules(), cat), dir)
+	fallback.snapshot_every_ops = 0
+	_expect(fallback.open() == "" and fallback.engine.state_json() == live, "a torn snapshot.json boots from snapshot.prev.json and both journals")
+	_expect(FileAccess.file_exists(dir + "/snapshot.bad.json") and not FileAccess.file_exists(store.snapshot_path()), "the bad snapshot is set aside")
+	_expect(fallback.snapshot() == "", "the next snapshot succeeds")
+	fallback.close()
+	var cold := EconStore.new(MarketEngine.new(_rules(), cat), dir)
+	_expect(cold.open() == "" and cold.engine.state_json() == live, "and boots to the same state")
+	cold.close()
+	for prev in [false, true]:
+		var bad := FileAccess.open(store.snapshot_path(prev), FileAccess.WRITE)
+		bad.store_string("{")
+		bad.close()
+	_expect(EconStore.new(MarketEngine.new(_rules(), cat), dir).open().begins_with("no readable snapshot"), "two unreadable snapshots stop boot instead of starting empty")
+	var old := FileAccess.open(store.snapshot_path(), FileAccess.WRITE)
+	old.store_string('{"v": 1, "seq": 0}')
+	old.close()
+	_expect(EconStore.new(MarketEngine.new(_rules(), cat), dir).open().contains("version"), "a snapshot from another state version stops boot")
+	_wipe(dir)
+	return true
+
+## wallet.spend with args.boom writes to the books, then hits an internal error part-way.
+class FaultyEngine extends MarketEngine:
+	func _init(r: EconRules, c: EconCatalog) -> void:
+		super(r, c)
+
+	func _dispatch(op: String, me: int, a: EconArgs) -> Dictionary:
+		if op == "wallet.spend" and a.has("boom"):
+			L.acct(me).wallet += 1000
+			if str(a.a.boom) == "debit":
+				L.debit(me, 1 << 40)
+			else:
+				var hostile: Variant = {}
+				if bool(hostile):
+					pass
+		return super._dispatch(op, me, a)
+
+func _test_fault_reload() -> bool:
+	var dir := DIR + "/fault"
+	_wipe(dir)
+	var store := EconStore.new(FaultyEngine.new(_rules(), cat), dir)
+	store.snapshot_every_ops = 0
+	_expect(store.open() == "", "fault store opens")
+	_scenario(store)
+	print("[econ] fault test: the next SCRIPT ERROR and ERROR lines are deliberate")
+	for kind in ["script", "debit"]:
+		var before := store.engine.state_json()
+		var res := store.apply("wallet.spend", 1, {"reason": "travel", "amount": 5, "boom": kind, "rid": "boom-" + kind}, T0 + 13 * 3600)
+		_expect(not res.ok and res.err == "server_error", "an op that errors part-way returns server_error (%s): %s" % [kind, str(res)])
+		_expect(store.engine.state_json() == before and store.broken == "", "and memory reloads from disk without it (%s)" % kind)
+	_expect(_spend(store, 1, "boom-script"), "the store keeps serving, and the faulted rid was never cached")
+	var live := store.engine.state_json()
+	store.close()
+	var fresh := MarketEngine.new(_rules(), cat)
+	_expect(EconStore.new(fresh, dir).replay_file(store.journal_path()) == "" and fresh.state_json() == live, "the journal never saw the faulted ops")
+	var e := FaultyEngine.new(_rules(), cat)
+	e.apply("account.ensure", 1, {"name": "Solo"}, T0)
+	var r := e.apply("wallet.spend", 1, {"reason": "travel", "amount": 5, "boom": "script", "rid": "x"}, T0)
+	_expect(r.err == "server_error" and e.fault != "", "a bare engine flags the fault for its owner")
+	_wipe(dir)
+	return true
+
 func _test_fuzz() -> bool:
 	var rules := _rules(false)
 	rules.market.starting_wallet = 400
@@ -803,13 +1069,15 @@ func _test_fuzz() -> bool:
 			if rng.randf() < 0.04 and last_write.has(who):
 				op = last_write[who][0]
 				args = last_write[who][1]
-				dup = true
+				dup = e.L.acct(who).rid_cache.has(str(args.rid)) # a rid idle for a day applies again
 			else:
 				args.rid = "f%d" % i
 		var before := e.state_json()
 		var seq := e.seq()
 		var res := store.apply(op, 0 if op == "sys.tick" else who, args, ts)
 		var bad := EconInvariants.check(e.state())
+		if res.get("err") == "server_error" or store.broken != "":
+			bad.append("internal error: %s" % str(res.get("msg", store.broken)))
 		if not bad.is_empty():
 			_expect(false, "fuzz op %d %s broke invariants: %s" % [i, op, str(bad)])
 			broken = true
@@ -861,9 +1129,14 @@ func _fuzz_op(e: MarketEngine, rng: RandomNumberGenerator, who: int, pets: Array
 			slot.flags = ["locked"]
 		if rng.randf() < 0.04:
 			slot.level = 99
+		if rng.randf() < 0.05:
+			slot[_any(rng, slot.keys(), "def_id")] = HOSTILE[rng.randi_range(0, HOSTILE.size() - 1)]
 		return ["vault.deposit_item", {"slot_dict": slot, "count": rng.randi_range(1, n)}]
 	if roll < 17:
-		return ["vault.deposit_pet", {"pet_dict": pets[rng.randi_range(0, pets.size() - 1)]}]
+		var pet: Dictionary = (pets[rng.randi_range(0, pets.size() - 1)] as Dictionary).duplicate(true)
+		if rng.randf() < 0.15:
+			pet[_any(rng, pet.keys(), "summoned")] = HOSTILE[rng.randi_range(0, HOSTILE.size() - 1)]
+		return ["vault.deposit_pet", {"pet_dict": pet}]
 	if roll < 21:
 		return ["vault.withdraw_item", {"uid": _any(rng, items, "i1"), "count": rng.randi_range(1, 20)}]
 	if roll < 22:
@@ -934,17 +1207,29 @@ func _test_search_perf() -> bool:
 				made += 1
 	_expect(made == 10000, "perf setup listed 10000 (got %d)" % made)
 	var best := 1.0e9
+	var first := 0.0
 	var res := {}
 	for i in 3:
 		var t0 := Time.get_ticks_usec()
 		res = e.apply("market.search", 1, {"sort": "price_asc", "page": 1, "page_size": 50}, T0 + 600)
-		best = minf(best, float(Time.get_ticks_usec() - t0) / 1000.0)
+		var ms := float(Time.get_ticks_usec() - t0) / 1000.0
+		first = ms if i == 0 else first
+		best = minf(best, ms)
 	var t1 := Time.get_ticks_usec()
 	var q := e.apply("market.search", 1, {"q": "stone", "sort": "newest", "page_size": 50}, T0 + 600)
 	var q_ms := float(Time.get_ticks_usec() - t1) / 1000.0
-	print("[econ] search over %d active listings: page 1 in %.1f ms (best of 3); q+newest in %.1f ms" % [made, best, q_ms])
+	print("[econ] search over %d active listings: page 1 in %.1f ms first call, %.1f ms best of 3; q+newest in %.1f ms" % [made, first, best, q_ms])
 	_expect(res.ok and int(res.r.total) == 10000 and res.r.results.size() == 50, "perf search returns page 1")
-	_expect(best < 50.0, "search page 1 over 10000 listings under 50 ms (%.1f ms)" % best)
+	_expect(first < 50.0 and best < 50.0, "search page 1 over 10000 listings under 50 ms (first %.1f ms, best %.1f ms)" % [first, best])
+	# Scale probe: every account here made 500 heavy writes; its persisted rid cache must stay
+	# a few bytes per entry (it held full listing responses once, about 56 KB per account).
+	var rid_bytes := 0
+	for who in range(1, 21):
+		rid_bytes = maxi(rid_bytes, JSON.stringify(e.L.acct(who).rid_cache).length())
+	var t2 := Time.get_ticks_usec()
+	var snap_len := e.state_json().length()
+	print("[econ] state with %d listings: %d KB, stringified in %.0f ms; largest rid cache %d bytes" % [made, snap_len / 1024, float(Time.get_ticks_usec() - t2) / 1000.0, rid_bytes])
+	_expect(rid_bytes < 64 * 40, "a full rid cache persists in under 2.5 KB (%d bytes)" % rid_bytes)
 	var sorted := true
 	for i in range(1, 50):
 		if int(res.r.results[i].unit_price) < int(res.r.results[i - 1].unit_price):

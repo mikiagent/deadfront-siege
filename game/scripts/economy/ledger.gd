@@ -6,6 +6,7 @@ extends RefCounted
 ## Escrow lives on the records that own it: an auction's `bid`, a buy order's `escrow`.
 
 const SETTLERS := 0
+const VERSION := 2 ## state shape; EconStore refuses a snapshot from another version
 
 var s: Dictionary
 var rules: EconRules
@@ -18,7 +19,7 @@ func _init(p_rules: EconRules, state: Dictionary = {}) -> void:
 
 static func genesis() -> Dictionary:
 	return {
-		"v": 1, "seq": 0, "last_ts": 0, "next_id": 1,
+		"v": VERSION, "seq": 0, "last_ts": 0, "next_id": 1,
 		"accounts": {}, "listings": {}, "closed_listings": {}, "orders": {}, "closed_orders": {},
 		"fee_sink": 0, "initial_grants": 0, "faucet": {"objectives": 0, "settlers": 0},
 		"items_in": {}, "items_out": {}, "items_consumed": {}, "pets_in": 0, "pets_out": 0,
@@ -32,8 +33,9 @@ func acct(id: int) -> Dictionary:
 func new_account(id: int, name: String) -> Dictionary:
 	var a := {
 		"id": id, "name": name, "created": now, "wallet": 0, "vault_items": {}, "vault_pets": {},
-		"claimed": [], "inbox": [], "rid_cache": {}, "rid_order": [], "deposits": {}, "trades": [],
-		"open_listings": 0, "open_orders": 0,
+		"claimed_objectives": [], "inbox": [], "inbox_dropped": 0,
+		"rid_cache": {}, "rid_last": 0, ## rid -> [op, seq]; MarketEngine keeps the responses in memory
+		"deposits": {}, "trades": [], "open_listings": 0, "open_orders": 0,
 	}
 	s.accounts[str(id)] = a
 	return a
@@ -55,13 +57,19 @@ func mint(id: int, amount: int, source: String) -> void:
 	acct(id).wallet += amount
 	s.faucet[source] = int(s.faucet.get(source, 0)) + amount
 
+## Callers check funds first; reaching the error is a bug. push_error (not assert, which
+## release builds strip) makes MarketEngine.apply fault the op and the store reload from disk.
 func debit(id: int, amount: int) -> void:
 	var a := acct(id)
-	assert(amount >= 0 and int(a.wallet) >= amount, "econ: debit past zero")
+	if amount < 0 or int(a.wallet) < amount:
+		push_error("[econ] debit of %d from account %d (wallet %d)" % [amount, id, int(a.get("wallet", 0))])
+		return
 	a.wallet = int(a.wallet) - amount
 
 func credit(id: int, amount: int) -> void:
-	assert(amount >= 0, "econ: negative credit")
+	if amount < 0:
+		push_error("[econ] negative credit %d to account %d" % [amount, id])
+		return
 	acct(id).wallet += amount
 
 func to_sink(amount: int) -> void:
@@ -110,6 +118,7 @@ func inbox(id: int, ev: String, d: Dictionary) -> void:
 	box.append(e)
 	while box.size() > rules.num("inbox_max"):
 		box.pop_front()
+		acct(id).inbox_dropped = int(acct(id).inbox_dropped) + 1 # inbox.take reports it
 	events.append([id, e.duplicate(true)])
 
 func name_of(id: int) -> String:

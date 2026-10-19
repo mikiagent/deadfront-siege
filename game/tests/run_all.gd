@@ -50,7 +50,8 @@ func _process(_delta: float) -> bool:
 	_test_mortar_well_kit_routes()
 	_test_empty_bucket_recipe()
 	_test_multistack_crafting()
-	failures.append_array(load("res://tests/economy_tests.gd").new().run()) # needs Data, so after the first frame
+	var econ := load("res://tests/economy_tests.gd") as GDScript # needs Data, so after the first frame
+	failures.append_array(econ.new().run() if econ != null and econ.can_instantiate() else ["econ: economy_tests.gd does not compile"])
 	_finish()
 	return true
 

@@ -5,6 +5,8 @@ extends RefCounted
 ## state. A mutating op validates everything, then writes; a failure changes nothing.
 ## A mutating success bumps state.seq, which is EconStore's cue to journal it (contract 5).
 ## Client write ops carry `rid` in args (contract 5.3); a repeat returns the cached response.
+## An op that hits an internal error part-way returns server_error and sets `fault`; EconStore
+## then rebuilds memory from disk, which never saw the op, so a half-applied op cannot persist.
 
 const READ := ["wallet.get", "vault.get", "market.search", "market.orders", "market.item_detail", "market.trades", "market.mine"]
 const WRITE := [
@@ -24,24 +26,47 @@ var book: MarketBook
 var orders: OrderBook
 var query: MarketQuery
 var settlers: Settlers
+var fault := "" ## set when the last op stopped part-way; memory may be ahead of the books
+var _responses := {} ## seq -> full response of a recent write, for rid repeats (memory only)
+static var _errors: ErrorCount
+
+## Counts engine and script errors, so apply() can tell when an op hit one part-way.
+## Errors logged by another thread during an op only cause a needless (safe) reload.
+class ErrorCount extends Logger:
+	var n := 0
+	func _log_error(_function: String, _file: String, _line: int, _code: String, _rationale: String, _editor_notify: bool, error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
+		if error_type != ERROR_TYPE_WARNING:
+			n += 1
 
 func _init(p_rules: EconRules, p_catalog: EconCatalog) -> void:
 	rules = p_rules
 	cat = p_catalog
+	if _errors == null:
+		_errors = ErrorCount.new()
+		OS.add_logger(_errors)
 	L = Ledger.new(rules)
-	L.new_account(Ledger.SETTLERS, str(rules.settler("name")))
 	H = PriceHistory.new(L)
 	V = AssetValidator.new(cat, rules)
 	book = MarketBook.new(L, H)
 	orders = OrderBook.new(L, H, cat)
 	query = MarketQuery.new(L, H, book, orders, cat)
 	settlers = Settlers.new(L, orders, cat)
+	reset()
+
+## Empty books holding only the Settlers account; EconStore.reload starts from here too.
+func reset() -> void:
+	load_state(Ledger.genesis())
+	L.now = 0
+	L.new_account(Ledger.SETTLERS, str(rules.settler("name")))
 
 ## Replaces the whole state (snapshot load). Derived caches are rebuilt lazily.
 func load_state(state: Dictionary) -> void:
 	L.s = Ledger.norm(state)
+	L.events = []
 	book.next_due = 0
 	orders.next_due = 0
+	_responses = {}
+	fault = ""
 
 func state() -> Dictionary:
 	return L.s
@@ -60,6 +85,7 @@ func drain_events() -> Array:
 
 func apply(op: String, account_id: int, args: Dictionary, ts: int) -> Dictionary:
 	L.events = []
+	fault = ""
 	var write := op in WRITE
 	if not (write or op in READ or op in SYSTEM):
 		return EconArgs.no("bad_request", "unknown op %s" % op)
@@ -78,19 +104,33 @@ func apply(op: String, account_id: int, args: Dictionary, ts: int) -> Dictionary
 		rid = a.text("rid", 1, 64)
 		if a.err != "":
 			return a.fail()
-		var hit: Dictionary = L.acct(account_id).rid_cache.get(rid, {})
+		var hit: Array = L.acct(account_id).rid_cache.get(rid, [])
 		if not hit.is_empty():
-			if hit.op != op:
-				return EconArgs.no("conflict", "rid already used for %s" % hit.op)
-			return (hit.res as Dictionary).duplicate(true)
-	var res := _dispatch(op, account_id, a)
+			if str(hit[0]) != op:
+				return EconArgs.no("conflict", "rid already used for %s" % str(hit[0]))
+			var full: Variant = _responses.get(int(hit[1]))
+			if full != null:
+				return (full as Dictionary).duplicate(true)
+			# shortcut: a repeat from before the last restart or older than rid_responses_kept ops
+			# gets this marker instead of the original body; the client re-reads its state.
+			return {"ok": true, "r": {"duplicate": true, "op": op, "seq": int(hit[1])}}
+	var errors := _errors.n
+	var got: Variant = _dispatch(op, account_id, a)
+	var res: Dictionary = got if got is Dictionary else {}
+	if not res.has("ok") or _errors.n != errors:
+		L.events = []
+		if op not in READ:
+			fault = "%s by account %d stopped on an internal error" % [op, account_id]
+		return EconArgs.no("server_error", "internal error in %s; nothing was applied" % op)
 	var changed := bool(res.ok) and not res.has("noop")
 	res.erase("noop")
 	if changed and op not in READ:
-		L.s.seq = int(L.s.seq) + 1
+		var seq := int(L.s.seq) + 1
+		L.s.seq = seq
 		L.s.last_ts = L.now
+		_responses.erase(seq - rules.num("rid_responses_kept"))
 		if write:
-			_remember(L.acct(account_id), rid, op, res)
+			_remember(L.acct(account_id), rid, op, seq, res)
 	return res
 
 func _dispatch(op: String, me: int, a: EconArgs) -> Dictionary:
@@ -114,20 +154,34 @@ func _dispatch(op: String, me: int, a: EconArgs) -> Dictionary:
 		"market.order_create": return orders.create(me, a)
 		"market.order_cancel": return orders.cancel(me, a)
 		"market.sell_to_order": return orders.sell(me, a)
-		"market.search": return query.search(a)
+		"market.search": return query.search(me, a)
 		"market.orders": return query.open_orders(a)
 		"market.item_detail": return query.item_detail(a)
 		"market.trades": return query.trades(a)
-		"market.mine": return query.mine(me)
+		"market.mine": return query.mine(me, a)
 		"inbox.take": return _inbox(me)
 	return EconArgs.no("bad_request", "unknown op %s" % op)
 
-func _remember(acct: Dictionary, rid: String, op: String, res: Dictionary) -> void:
-	acct.rid_cache[rid] = {"op": op, "res": res.duplicate(true)}
-	var order: Array = acct.rid_order
-	order.append(rid)
-	while order.size() > rules.num("rid_cache"):
-		acct.rid_cache.erase(order.pop_front())
+## The persisted cache holds rid -> [op, seq] (a few dozen bytes); full bodies stay in memory.
+func _remember(acct: Dictionary, rid: String, op: String, seq: int, res: Dictionary) -> void:
+	var cache: Dictionary = acct.rid_cache
+	cache[rid] = [op, seq]
+	acct.rid_last = L.now
+	_responses[seq] = res.duplicate(true)
+	if cache.size() > rules.num("rid_cache"):
+		var oldest := ""
+		for k in cache:
+			if oldest == "" or int(cache[k][1]) < int(cache[oldest][1]):
+				oldest = k
+		cache.erase(oldest)
+
+## Forgets the rid caches of accounts with no write for rid_keep_s.
+# ASSUMPTION: retries and replayed frames arrive within a day; older repeats apply again.
+func _prune_rids() -> void:
+	var cut := L.now - rules.num("rid_keep_s")
+	for acct: Dictionary in L.s.accounts.values():
+		if not (acct.rid_cache as Dictionary).is_empty() and int(acct.rid_last) < cut:
+			acct.rid_cache = {}
 
 func _summary(acct: Dictionary) -> Dictionary:
 	return {"account_id": acct.id, "name": acct.name, "wallet": acct.wallet, "created": acct.created}
@@ -153,6 +207,7 @@ func _tick() -> Dictionary:
 	var refreshed := false
 	if L.now / int(rules.settler("refresh_s")) != int(L.s.settlers.hour):
 		H.prune()
+		_prune_rids()
 		book.prune_closed()
 		orders.prune_closed()
 		refreshed = settlers.tick()
@@ -178,10 +233,10 @@ func _claim(me: int, a: EconArgs) -> Dictionary:
 	if a.err != "":
 		return a.fail()
 	var acct := L.acct(me)
-	if index in acct.claimed:
+	if index in acct.claimed_objectives:
 		return EconArgs.no("conflict", "objective %d already claimed" % index)
 	var reward := cat.objective_rewards[index]
-	acct.claimed.append(index)
+	acct.claimed_objectives.append(index)
 	L.mint(me, reward, "objectives")
 	return EconArgs.ok({"index": index, "reward": reward, "wallet": acct.wallet})
 
@@ -285,6 +340,8 @@ func _inbox(me: int) -> Dictionary:
 	var acct := L.acct(me)
 	var events: Array = acct.inbox
 	if events.is_empty():
-		return EconArgs.ok({"events": []}, false)
+		return EconArgs.ok({"events": [], "dropped": 0}, false)
+	var dropped := int(acct.inbox_dropped) ## older events pushed out past inbox_max
 	acct.inbox = []
-	return EconArgs.ok({"events": events.duplicate(true)})
+	acct.inbox_dropped = 0
+	return EconArgs.ok({"events": events.duplicate(true), "dropped": dropped})

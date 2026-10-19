@@ -5,10 +5,13 @@ extends RefCounted
 ## stored verbatim. Pet stats are recomputed the way PetRecord.from_def + add_xp build them.
 
 const ITEM_KEYS := ["id", "def_id", "count", "level", "process_count", "attributes", "flags", "durability", "max_durability"]
+## PetRecord.to_dict() keys plus the client's summoned flag; anything else is refused.
+const PET_KEYS := ["species", "variant", "grade", "hunger", "hunger_max", "hunger_efficiency", "xp_rate", "hp", "attack", "defense", "ranged_defense", "ranged_attack", "accuracy", "speed", "genetics", "tamed_role", "bag", "level", "xp", "respawn_left", "summoned"]
 ## Per-level growth PetRecord.add_xp applies; accuracy and speed never grow with level.
 const GROWTH := {"hp": 1.08, "attack": 1.05, "ranged_attack": 1.05, "defense": 1.04, "ranged_defense": 1.04, "accuracy": 1.0, "speed": 1.0}
 const GENE := {"hp": "health", "attack": "melee_attack", "ranged_attack": "ranged_attack", "defense": "melee_defense", "ranged_defense": "ranged_defense", "accuracy": "accuracy", "speed": "speed"}
 const GRADE_RATES := [1.3, 1.1, 1.0, 0.85] ## PetRecord.from_def hunger_efficiency / xp_rate
+const GRADES := ["D-", "D", "D+", "C-", "C", "C+", "B-", "B", "B+", "A-", "A", "A+", "S-", "S", "S+"] ## CreatureGenetics.tier_for_iv labels
 
 var cat: EconCatalog
 var rules: EconRules
@@ -116,16 +119,34 @@ func pet(raw: Variant) -> Dictionary:
 	if not raw is Dictionary:
 		return _no("pet_dict must be an object")
 	var d: Dictionary = raw
-	var species := str(d.get("species", ""))
-	var def := cat.creature(species)
+	for k in d:
+		if str(k) not in PET_KEYS:
+			return _no("unknown pet field %s" % str(k))
+	var species_v: Variant = d.get("species")
+	var def := cat.creature(str(species_v)) if species_v is String else null
 	if def == null:
-		return _no("unknown species %s" % species)
-	var variant := str(d.get("variant", ""))
-	# Variants are cosmetic and island spawn tables may name ones the def omits: shape check only.
-	if variant != "" and not EconArgs.is_id(variant):
-		return _no("bad variant")
-	if bool(d.get("summoned", false)):
+		return _no("unknown species %s" % str(species_v))
+	var species := str(species_v)
+	var variant_v: Variant = d.get("variant", "")
+	# Spawners only ever use "" or a variant the creature def lists.
+	if not variant_v is String or (variant_v != "" and StringName(variant_v) not in def.variants):
+		return _no("%s has no variant %s" % [species, str(variant_v)])
+	var variant := str(variant_v)
+	var summoned: Variant = d.get("summoned", false)
+	if not summoned is bool:
+		summoned = EconArgs.as_int(summoned)
+		if summoned == null or int(summoned) not in [0, 1]:
+			return _no("summoned must be true or false")
+		summoned = int(summoned) == 1
+	if summoned:
 		return _no("dismiss the pet before depositing it")
+	# Derived labels are rebuilt below; the client's copies only have to be the right type.
+	if d.has("grade") and (not d.grade is String or str(d.grade) not in GRADES):
+		return _no("grade must be a grade label")
+	if d.has("hunger_max") and not (d.hunger_max is float or d.hunger_max is int):
+		return _no("hunger_max must be a number")
+	if d.has("tamed_role") and (not d.tamed_role is Array or (d.tamed_role as Array).any(func (r: Variant) -> bool: return not r is String)):
+		return _no("tamed_role must be a list of names")
 	var level: Variant = EconArgs.as_int(d.get("level", 1))
 	if level == null or int(level) < 1 or int(level) > rules.num("level_max"):
 		return _no("pet level must be 1..%d" % rules.num("level_max"))

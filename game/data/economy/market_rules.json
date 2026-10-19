@@ -19,6 +19,8 @@
   "trades_keep": 5000,
   "account_trades_keep": 100,
   "rid_cache": 64,
+  "rid_keep_s": 86400,
+  "rid_responses_kept": 16384,
   "history_bucket_s": 3600,
   "history_keep_s": 604800,
   "reference_window_s": 604800,

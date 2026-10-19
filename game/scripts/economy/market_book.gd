@@ -73,7 +73,7 @@ func buy(me: int, a: EconArgs) -> Dictionary:
 	L.put_asset(me, lst.type, part)
 	if int(lst.left) == 0:
 		_close(lst, "sold")
-	return EconArgs.ok({"listing": view(lst), "asset": part.duplicate(true), "paid": total, "wallet": L.acct(me).wallet, "trade": trade})
+	return EconArgs.ok({"listing": view(lst, me), "asset": part.duplicate(true), "paid": total, "wallet": L.acct(me).wallet, "trade": trade})
 
 func bid(me: int, a: EconArgs) -> Dictionary:
 	var R := L.rules
@@ -107,11 +107,12 @@ func bid(me: int, a: EconArgs) -> Dictionary:
 	lst.bid = amount
 	lst.bidder = me
 	lst.bids = int(lst.bids) + 1
-	# Anti-sniping: a late bid pushes the end out, a bounded number of times.
-	if int(lst.ends) - L.now <= R.num("snipe_window_s") and int(lst.ext) < R.num("snipe_max_extensions"):
+	# Anti-sniping: a late bid pushes the end out, a bounded number of times; a bid that would
+	# not move the end (exactly snipe_window_s left) does not use up an extension.
+	if int(lst.ends) - L.now <= R.num("snipe_window_s") and L.now + R.num("snipe_extend_s") > int(lst.ends) and int(lst.ext) < R.num("snipe_max_extensions"):
 		lst.ends = L.now + R.num("snipe_extend_s")
 		lst.ext = int(lst.ext) + 1
-	return EconArgs.ok({"listing": view(lst), "wallet": L.acct(me).wallet})
+	return EconArgs.ok({"listing": view(lst, me), "wallet": L.acct(me).wallet})
 
 func buyout(me: int, a: EconArgs) -> Dictionary:
 	var id := a.text("listing_id", 2, 24)
@@ -138,7 +139,7 @@ func buyout(me: int, a: EconArgs) -> Dictionary:
 	var part := _release(lst, int(lst.left))
 	L.put_asset(me, lst.type, part)
 	_close(lst, "sold")
-	return EconArgs.ok({"listing": view(lst), "asset": part.duplicate(true), "paid": price, "wallet": L.acct(me).wallet, "trade": trade})
+	return EconArgs.ok({"listing": view(lst, me), "asset": part.duplicate(true), "paid": price, "wallet": L.acct(me).wallet, "trade": trade})
 
 func cancel(me: int, a: EconArgs) -> Dictionary:
 	var id := a.text("listing_id", 2, 24)
@@ -156,7 +157,7 @@ func cancel(me: int, a: EconArgs) -> Dictionary:
 	var part := _release(lst, int(lst.left))
 	L.put_asset(me, lst.type, part)
 	_close(lst, "cancelled")
-	return EconArgs.ok({"listing": view(lst), "asset": part.duplicate(true)})
+	return EconArgs.ok({"listing": view(lst, me), "asset": part.duplicate(true)})
 
 ## Settles every listing whose end has passed, oldest end first. Returns how many.
 func settle_due() -> int:
@@ -199,11 +200,15 @@ func prune_closed() -> int:
 			gone += 1
 	return gone
 
-func view(lst: Dictionary) -> Dictionary:
+## A copy for `me` to see. Other bidders stay anonymous: `bidder` becomes has_bid / my_bid.
+func view(lst: Dictionary, me: int) -> Dictionary:
 	var v := lst.duplicate(true)
 	v.seller_name = L.name_of(int(lst.seller))
 	v.price = price_of(lst)
 	v.npc = false
+	v.has_bid = int(lst.bidder) >= 0
+	v.my_bid = me >= 1 and int(lst.bidder) == me
+	v.erase("bidder")
 	return v
 
 static func price_of(lst: Dictionary) -> int:
@@ -261,7 +266,7 @@ func _open(me: int, kind: String, pick: Dictionary, fee: int, hours: int, extra:
 	acct.open_listings = int(acct.open_listings) + 1
 	if next_due != 0:
 		next_due = mini(next_due, int(lst.ends))
-	return EconArgs.ok({"listing": view(lst), "fee": fee, "wallet": acct.wallet})
+	return EconArgs.ok({"listing": view(lst, me), "fee": fee, "wallet": acct.wallet})
 
 func _active(id: String) -> Dictionary:
 	if L.s.listings.has(id):
