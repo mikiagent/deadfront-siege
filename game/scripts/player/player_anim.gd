@@ -4,6 +4,8 @@ extends Node
 
 signal attack_hit(clip: StringName)
 signal attack_done
+## A clip actually started on the rig (resolved name); AudioHooks keys sounds off it.
+signal clip_played(clip: StringName)
 
 var current_clip: StringName = &"idle"
 var rig: RiggedModel
@@ -194,6 +196,7 @@ func _play(clip: StringName) -> void:
 	if resolved in loco and (current_clip in [&"punch", &"attack_primary", &"attack_heavy"] or current_clip in GATHER_CLIPS):
 		blend = 0.12  # trimmed one-shots end mid-pose; ease back into locomotion
 	current_clip = resolved
+	clip_played.emit(resolved)
 	var speed := 1.0
 	if clip == &"attack_primary":
 		speed = 1.5

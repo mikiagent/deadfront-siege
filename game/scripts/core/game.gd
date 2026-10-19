@@ -28,6 +28,12 @@ var shot_path: String = ""
 var shot_delay_override: float = -1.0  # --shot-delay=SECONDS
 var pointer: Vector2 = Vector2.ZERO
 var creature_ui: CanvasLayer
+## Sound events, ambience and music. Made on first use as a child of this autoload (no autoload of its own).
+var audio: AudioDirector:
+	get:
+		ensure_audio()
+		return _audio
+var _audio: AudioDirector
 
 var _last_phase: StringName = &""
 var _perf: Label
@@ -197,6 +203,13 @@ func _finish_smoke() -> void:
 	var ok := player != null and player.global_position.y > -1.0
 	print("[smoke] %s player_pos=%s phase=%s" % ["ok" if ok else "FAIL", player.global_position if player else "none", phase_name()])
 	get_tree().quit(0 if ok else 1)
+
+func ensure_audio() -> void:
+	if _audio and is_instance_valid(_audio):
+		return
+	_audio = AudioDirector.new()
+	_audio.name = "Audio"
+	add_child(_audio)
 
 func ensure_creature_plates() -> void:
 	if creature_ui and is_instance_valid(creature_ui):

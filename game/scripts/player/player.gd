@@ -5,6 +5,11 @@ extends CharacterBody3D
 const SURVIVOR_JSON := "res://data/characters/survivor.json"
 const SURVIVOR_BASE_GLB := "res://assets/characters/survivor/survivor.glb"
 const SURVIVOR_ANIM_DIR := "res://assets/characters/survivor/anim"
+## HUD line, bag gain and context action as they happen (AudioHooks listens; nothing else needs to).
+signal noticed(text: String)
+signal item_gained(id: StringName, n: int)
+signal context_used(id: String)
+
 const PLAYER_CLIPS: Array[StringName] = [
 	&"idle", &"walk", &"run", &"hit_react", &"death",
 	&"attack_primary", &"attack_heavy", &"roll", &"gather", &"knockdown", &"mount_idle",
@@ -2143,6 +2148,7 @@ func _corpse_take_timer(corpse: Corpse, slot: int) -> void:
 # ---------------------------------------------------------------- toasts + context actions (HUD)
 
 func toast(id: StringName, n: int) -> void:
+	item_gained.emit(id, n)
 	var hud := get_tree().get_first_node_in_group("hud")
 	if hud and hud.has_method("toast"):
 		hud.toast(id, n)
@@ -2150,6 +2156,7 @@ func toast(id: StringName, n: int) -> void:
 ## Short on-screen line for refusals and hints (was print-only, so the game looked stuck).
 func notice(text: String) -> void:
 	print("[ui] notice %s" % text)
+	noticed.emit(text)
 	var hud := get_tree().get_first_node_in_group("hud")
 	if hud and hud.has_method("notice"):
 		hud.notice(text)
@@ -2205,6 +2212,7 @@ func context_actions() -> Array:
 	return out
 
 func context_action(id: String) -> void:
+	context_used.emit(id)
 	match id:
 		"catapult_stone", "catapult_toxin":
 			var catapult := _nearest_group("catapult") as FieldCatapult

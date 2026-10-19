@@ -8,6 +8,7 @@ extends Node3D
 
 func _ready() -> void:
 	sun.rotation_degrees = Vector3(-50.0, 30.0, 0.0)
+	Game.ensure_audio()
 	if Game.lab_name != "":
 		default_playfield.visible = false
 		default_playfield.process_mode = Node.PROCESS_MODE_DISABLED

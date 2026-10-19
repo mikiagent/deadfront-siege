@@ -5,6 +5,8 @@ extends Node
 
 const CANCEL_RANGE := 2.8
 
+signal crafted(recipe_id: StringName)
+
 var player: Player
 var menu: StationMenu
 var radial: StationRadial
@@ -295,6 +297,7 @@ func _finish_one() -> void:
 	var out := Crafting.finish_craft(player, rec, _refund)
 	_refund.clear()
 	if out:
+		crafted.emit(recipe_id)
 		if toast:
 			toast.show_gain(out.def_id, out.count)
 		player.toast(out.def_id, out.count)
