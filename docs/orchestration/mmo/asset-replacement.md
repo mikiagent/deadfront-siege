@@ -19,7 +19,7 @@ reviewer), `DONE` (shipped and pixel-checked). Evidence comes from the 2026-10-1
 | brachiosaurus | Box placeholder (does not spawn yet) | Tripo + dsc | W2-ARTC | REPLACE |
 | stegosaurus | Real GLB exists but a stale override forces the box (`creature_view.gd:65-66`); v2 merged with survivor branch | One-line fix + review v2 | W2-CVIEW | REPLACE |
 | gallimimus, compsognathus, coelophysis | Pure-white untextured patches, washed albedo, plastic look | Retexture or Tripo regen | W2-RERIG/ARTC | REPLACE |
-| velociraptor, utahraptor | Donor rig (no jaw, 5 tail bones); attack whips tail vertical; belly-up knockdown | dsc re-animation (running overnight in `~/Documents/DeepseekCLI/deadfront-reanim/bipeds`), bespoke rig later | W2-RERIG | IN PROGRESS |
+| velociraptor, utahraptor | Donor rig (no jaw, 5 tail bones); attack whips tail vertical; belly-up knockdown | Clips re-animated by dsc (d649aea: bite attacks, side-lying knockdown, sleep, feed); bespoke rig with jaw still to do | W2-RERIG | REVIEW (clips in game; owner to judge; rig still REPLACE) |
 | protoceratops, megaloceros | Procedural quadruped clips: attack = idle, legs-up knockdown | dsc re-animation (overnight, `.../quads`) | W2-RERIG | IN PROGRESS |
 | zebraceratops | Modelled from a Durango screenshot (IP risk; roster PRD says no Zebraceratops) | Replace with a real ceratopsian (owner to pick) | W2-ARTC | REPLACE (owner decision) |
 | All transplanted species | Low-poly donor skeleton (no jaw, 1 neck bone, no toes) | Bespoke dsc rigs | W2-RERIG | REPLACE |
