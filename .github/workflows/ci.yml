@@ -29,11 +29,12 @@ jobs:
         run: tools/test.sh
       - name: Smoke (main scene + real island)
         run: tools/smoke.sh --no-import
-      - name: Lab table
-        run: tools/labs.sh
-      - name: Display for the web-renderer stills
+      - name: Display for windowed rows and stills
         if: always()
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+      - name: Lab table
+        if: always()
+        run: xvfb-run -a -s "-screen 0 1600x900x24" tools/labs.sh
       - name: Web-renderer stills (shot rows)
         if: always()
         run: xvfb-run -a -s "-screen 0 1600x900x24" tools/labs.sh --shots artifacts/shots

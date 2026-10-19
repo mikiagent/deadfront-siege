@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Lab gate: runs every row of tools/labs.txt headless with its timeout and prints one table row
-# per lab. A row PASSes only with exit 0, a "] PASS" line and no "] FAIL" / "] PARTIAL" /
+# per lab (headless, or windowed for rows flagged "window"). A row PASSes only with exit 0, a "] PASS" line and no "] FAIL" / "] PARTIAL" /
 # 'SCRIPT ERROR' / 'Parse Error' line. Exit 1 if any row fails. Every row gets a throwaway HOME,
 # so no lab reads another lab's save (run order cannot matter) and none touches a real save.
 # NOISE counts engine ERROR/WARNING lines in a passing log (they used to be ignored silently).
@@ -34,7 +34,7 @@ run_godot() {  # run_godot <timeout> <log> <args...>: fresh HOME, no stdin (labs
   return $code
 }
 
-bad=0; total=0
+bad=0; total=0; gated=(); known=()
 printf '%-24s %-6s %5s %5s  %s\n' LAB RESULT SECS NOISE DETAIL
 while IFS= read -r line; do
   line="${line%%#*}"
@@ -51,14 +51,20 @@ while IFS= read -r line; do
       --resolution 1600x900 $args "--shot=$shots/$name.png"
     code=$?
     if [[ -s "$shots/$name.png" ]]; then r=SHOT; d="$shots/$name.png"; else r=FAIL; d="no still (exit $code)"; bad=$((bad + 1)); fi
+    if [[ -s "$shots/$name.png" ]]; then
+      if [[ "$flags" =~ \ shotxfail:([^ ]+)\  ]]; then known+=("$name:${BASH_REMATCH[1]}"); else gated+=("$shots/$name.png"); fi
+    fi
     printf '%-24s %-6s %5d %5s  %s\n' "$name" "$r" $((SECONDS - t0)) - "$d"
     continue
   fi
   total=$((total + 1))
   log="$LOGS/$name.log"
   t0=$SECONDS
+  mode="--headless"
+  # "window" rows need a real viewport (desktop mouse picking); silent, so still gate-safe.
+  [[ "$flags" == *" window "* ]] && mode="--audio-driver Dummy --resolution 1600x900"
   # shellcheck disable=SC2086
-  run_godot "$secs" "$log" --headless --path "$ROOT/game" $args
+  run_godot "$secs" "$log" $mode --path "$ROOT/game" $args
   code=$?
   took=$((SECONDS - t0))
   why=""
@@ -80,12 +86,22 @@ while IFS= read -r line; do
   printf '%-24s %-6s %5d %5s  %s\n' "$name" "$r" "$took" "$noise" "$d"
 done < "$LIST"
 
-if [[ -n "$shots" && $total -gt 0 ]]; then
-  run_godot 120 "$LOGS/shot_check.log" --headless --path "$ROOT/game" --script res://scripts/dev/shot_check.gd -- "$shots"/*.png
+if [[ ${#gated[@]} -gt 0 ]]; then
+  run_godot 120 "$LOGS/shot_check.log" --headless --path "$ROOT/game" --script res://scripts/dev/shot_check.gd -- "${gated[@]}"
   code=$?
   grep -E '^\[shot\]|SCRIPT ERROR' "$LOGS/shot_check.log"
   [[ $code -ne 0 ]] && bad=$((bad + 1))
 fi
+# Strict known-bad stills: each must still fail the exposure check (owner named in labs.txt).
+for k in ${known[@]+"${known[@]}"}; do
+  n="${k%%:*}"; owner="${k#*:}"
+  run_godot 120 "$LOGS/shot_check.$n.log" --headless --path "$ROOT/game" --script res://scripts/dev/shot_check.gd -- "$shots/$n.png"
+  if [[ $? -ne 0 ]] && ! grep -q 'SCRIPT ERROR' "$LOGS/shot_check.$n.log"; then
+    echo "[shot] XFAIL $n.png $owner owns it: $(grep -m1 '\] FAIL ' "$LOGS/shot_check.$n.log" | cut -c1-90)"
+  else
+    echo "[shot] XPASS $n.png passes now: drop shotxfail:$owner from labs.txt"; bad=$((bad + 1))
+  fi
+done
 echo "logs: $LOGS"
 if [[ $bad -eq 0 ]]; then echo "[labs] PASS rows=$total"; exit 0; fi
 echo "[labs] FAIL $bad/$total rows"; exit 1
