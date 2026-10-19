@@ -52,6 +52,16 @@ static func from_dict(d: Dictionary) -> Bonfire:
 	b.build_rot = int(d.get("rot", 0))
 	return b
 
+func pack_up(player: Player) -> bool:
+	return BuildPlacer.pack_up_node(self, player)
+
+# ASSUMPTION: a temporary campfire is consumed as it burns, so only an unlit one repacks
+# (otherwise pack + place would reset its 120 s forever).
+func pack_up_block_reason() -> String:
+	if kind == &"campfire" and seconds_left < CAMPFIRE_SECONDS:
+		return "A lit campfire can't be repacked"
+	return ""
+
 func set_grid_pose(cell: Vector2i, rot: int) -> void:
 	build_cell = cell
 	build_rot = posmod(rot, 4)
