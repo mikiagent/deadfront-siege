@@ -353,6 +353,8 @@ func _fade_to(cb: Callable) -> void:
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func _save_now() -> void:
+	if Game.net_probe:
+		return  # probes play the default playfield, not the save; the 60 s autosave must not overwrite it
 	(load("res://scripts/core/save_game.gd") as GDScript).save_now()
 
 func _save_exists() -> bool:
