@@ -123,7 +123,7 @@ Run with `gslot.sh perl -e 'alarm N; exec @ARGV' Godot --headless --path game ..
    uses `genetics.multiplier()`, which has no level term: up to 35 % ranged defense and 11.8 % ranged
    attack apart at Lv60). Replace the body with
    `return pet_record.stat_value(stat) if is_pet and pet_record else PetStats.value(def, genetics if genetics else CreatureGenetics.neutral(), level, stat)`
-   (use whatever field `become_pet(rec)` stores the record in), so stats also do not jump at the
+   (`become_pet(rec)` stores the record in `pet_record`), so stats also do not jump at the
    moment of taming.
 5. **tools/test.sh (W1-QA)**: `godot --script` exited **0** on a parse error in t_tame.gd during
    development. The runner must grep for `[t_tame] PASS` and not trust the exit code alone.
