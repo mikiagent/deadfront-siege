@@ -97,6 +97,12 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   walking survivor (data-driven, tuned per species). Market defaults (0.25x-4x bands, 30 min trade
   lock), faucet rate and steam cap use the planner's defaults as # ASSUMPTION until the owner tunes them.
 
+- 2026-10-18 owner answers: (1) merge the survivor-v2/armor/T. rex mount branch into the MMO
+  branch now; (2) the 7 new species' concept sheets are approved as one batch before any Tripo mesh;
+  (3) combat = keep tap-target auto-attack AND add an action mode (click-to-swing, dodge, block,
+  aimed ranged); (4) death = inventory drops in a recoverable loot bag at the death spot and
+  equipped gear loses durability; pets keep the 3-minute respawn rule.
+
 ## Owner questions (open)
 
 - none
