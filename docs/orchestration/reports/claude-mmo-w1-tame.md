@@ -56,9 +56,11 @@ Run with `gslot.sh perl -e 'alarm N; exec @ARGV' Godot --headless --path game ..
 | Stats after add_xp equal PetStats.compute exactly; train() raises the trained stat | `[t_tame] raptor lv=60 hp 711 -> 1903 (x2.68) attack trained 122.2 -> 126.5` (asserts `==` on all seven stats) |
 | 200 random genetics: rec.grade == overall_tier(), xp_rate from that grade | `[t_tame] grade 200 random genetics mismatches=0 IV0 grade=D- xp_rate=0.85` |
 | `grep -rn '_roll_grade' game/scripts` returns nothing | no output, `rc=1` |
-| 1,000 tames, 1,000 distinct non-empty uids, origin in {tame, capture}; level = wild level, capped at 60 | `[t_tame] uids distinct=1000/1000 sample=p_c61f3bbcd95e8376 level wild25=25 wild75=60` |
-| RESPAWN_TIME 180; net refuses at 50 % HP; fresh survivor's smilodon refused with the hint | `[capture] refused: velociraptor at 50% HP, needs under 30%` and `[t_tame] rules respawn=180 net@50%=refused smilodon='Needs Capture Technique 5'` |
-| capture_lab: below 30 %, one field tame, one pen tame, PASS line, exit 0 | `[capture] ok compsognathus down below 30 % HP (25%)`, `[capture] ok field tame bonded compsognathus grade=C+ lv=15 wild=15 origin=tame uid=p_976d46a18d17b554`, `[capture] ok pen tame bonded velociraptor grade=B lv=25 wild=25 origin=capture uid=p_faf9cbc0946a7fcf`, `[capture] PASS bonded+=2`, `capture_lab exit 0` |
+| 1,000 tames, 1,000 distinct non-empty uids, from_def origin defaults to tame (real tame/capture origins are asserted by capture_lab); level = wild level, capped at 60 | `[t_tame] uids distinct=1000/1000 sample=p_c61f3bbcd95e8376 level wild25=25 wild75=60` |
+| RESPAWN_TIME 180; net refuses at 50 % HP with a real Player holding two tier-II nets (returns false, nets and bag unchanged); at 25 % HP with force_result=1 it returns true, uses one net and bags a captured_animal; fresh survivor's smilodon refused with the hint and no food icon | `[capture] refused: velociraptor at 50% HP, needs under 30%`, `[capture] velociraptor attempt p=0.56 → success` and `[t_tame] rules respawn=180 net@50%=false net@25%=true nets=1 smilodon='Needs Capture Technique 5' food_id=''` |
+| The net test can fail: mutant with the gate loosened to `fraction < 0.6` (restored afterwards) | `[t_tame] FAIL net refuses at 50 % HP (returned true, nets 1, bagged true)`, `mutant rc=1` |
+| A forged save cannot buy stats or bag space: 1,000,000 level gains on a Lv1 pet, 100 EVs in all seven stats, 50,000 bag rows | `[t_tame] untrusted load lv1 gains=0 evs=300 hp=776 atk=100 slots=10 lv60 gains=177` |
+| capture_lab: below 30 %, one field tame, one pen tame, PASS line, exit 0 | `[capture] ok compsognathus down below 30 % HP (25%)`, `[capture] ok field tame bonded compsognathus grade=B lv=15 wild=15 origin=tame uid=p_6ac7ec2bf50c8cc6` (now compared with the level read before feeding), `[capture] ok pen tame bonded velociraptor grade=B- lv=25 wild=25 origin=capture uid=p_79f05756d5e8d351`, `[capture] PASS bonded+=2`, `capture_lab exit 0` |
 | capture_lab exits 1 otherwise (forced the pen to fail, then restored the file) | `[capture] FAIL pen tame bonded (none); bonded +1`, `forced-fail exit 1` |
 | pets_lab: five checks drive the exit code | `[petslab] PASS 5/5`, `pets_lab exit 0` |
 | Existing suite | `[tests] PASS` (run_all.gd, exit 0) |
@@ -86,7 +88,13 @@ Run with `gslot.sh perl -e 'alarm N; exec @ARGV' Godot --headless --path game ..
 4. Pets saved before uids get a fresh local uid and `origin=tame` on load.
 5. Offline uids are `p_` plus 16 random hex characters. The server issues its own `p<seq>` ids
    (contracts section 4). Offline `owner` is "".
-6. When a species declares no bag, the pet has 10 bag slots (unchanged from before).
+6. When a species declares no bag, the pet has 10 bag slots (unchanged from before). A loaded bag is
+   the species size, or 10 if a legacy save holds up to 10 rows; extra rows are dropped.
+7. `origin = capture` for pen tames. The contracts v2 origin list (section 0.5) does not have it yet;
+   see integrator hook 6.
+8. Untrusted genetics on load: the EV total is trimmed to 300 and level gains to 3 x (level - 1), in
+   `CreatureGenetics.STATS` order (the first stats keep their points). `PetRecord.recompute()` applies
+   the level-gain cap, so every path that builds a record is covered.
 
 ## Behaviour changes to know at merge
 
@@ -111,17 +119,41 @@ Run with `gslot.sh perl -e 'alarm N; exec @ARGV' Godot --headless --path game ..
    `notice(FieldTame.refuse_message(creature))`. The plate already shows the hint.
 3. **player.gd `bond_from_inventory` (W2-PLAYER, legacy items only)**: pass the level as the fifth
    argument, `PetRecord.from_def(def, grade, variant, genetics, int(stack.attributes.get("level", 1)))`.
-4. **creature.gd `stat_value` (W1-AI)**: if wild stats start scaling with level, use
-   `PetStats.value(def, genetics, level, stat)` so that a creature's stats do not jump at the moment
-   of taming.
+4. **creature.gd `stat_value` (W1-AI)**: the live pet and its record disagree today (the creature
+   uses `genetics.multiplier()`, which has no level term: up to 35 % ranged defense and 11.8 % ranged
+   attack apart at Lv60). Replace the body with
+   `return pet_record.stat_value(stat) if is_pet and pet_record else PetStats.value(def, genetics if genetics else CreatureGenetics.neutral(), level, stat)`
+   (use whatever field `become_pet(rec)` stores the record in), so stats also do not jump at the
+   moment of taming.
 5. **tools/test.sh (W1-QA)**: `godot --script` exited **0** on a parse error in t_tame.gd during
    development. The runner must grep for `[t_tame] PASS` and not trust the exit code alone.
+
+6. **contracts.md section 0.5 (orchestrator) and the server validator (W1-SRVDOM / W2-INT)**: add
+   `capture` to the origin list, which becomes
+   `gather|loot|craft|tame|capture|breed|settlers|objective|market`. Without it the validator refuses
+   pen tames.
+7. **tools/test.sh (W1-QA / integrator)**: register t_tame. Append after the run_all line:
+   `"$G" --headless --path "$ROOT/game" --script res://tests/t_tame.gd | tee /dev/stderr | grep -q '^\[t_tame\] PASS'`
 
 ## Labs to register
 
 No new labs. Existing labs that now fail honestly:
 - `capture_lab`: expect `[capture] PASS bonded+=2`, exit 0.
 - `pets_lab`: expect `[petslab] PASS 5/5`, exit 0.
+
+## Review round 1: findings and what changed
+
+| Finding | Result |
+|---|---|
+| Blocker: net test passed with a null player | Fixed. The test uses a real `Player` with two `capture_net_ii` and checks the return value, the net count and the bag at 50 % and 25 % HP. The summary prints the real return values. The 0.6 mutant now fails (see checklist). |
+| Genetics and bag trusted on load | Fixed in `CreatureGenetics.from_dict` (EV total <= 300), `PetRecord.recompute` (gains <= 3 x (level - 1)) and `PetRecord.from_dict` (bag <= max(species, 10)). Covered by `_test_untrusted_load`. |
+| `capture` missing from the contract origin list | Comment fixed in `pet_record.gd`, assumption 7, integrator hook 6. |
+| Tautological field-tame level check in capture_lab | Fixed: `wild_a` is read before feeding. |
+| Self-assigned origin in the identity test | The hand-set `capture` origin is removed. The test asserts the `from_def` default, and capture_lab asserts both real paths. |
+| Locked plate showed a food icon | `plate_hint` returns `food_id = &""` when locked, and `creature_plates._icon_for(&"")` returns null, so the icon hides. Asserted in t_tame. Not checked in pixels: only the focused creature gets the full plate in capture_lab. |
+| Live pet vs record stat mismatch | Outside my files (creature.gd is W1-AI). Hook 4 is extended to cover pets. |
+| Attack growth flattened | Not changed. This is an **owner question** (assumption 1). The other option is normal attack growth with a final per-species clamp at the wild T. rex attack. That is one line in `PetStats.value` if the owner prefers it. |
+| No hook to register t_tame | Integrator hook 7. |
 
 ## Not done / left for later packages
 
