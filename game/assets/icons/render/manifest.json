@@ -1,0 +1,871 @@
+{
+ "_about": "Rendered item art (W1-ICONART). Regenerate with tools/render_icons.py; models are procedural bpy builders in tools/blender/items/.",
+ "rig": {
+  "name": "studio_v1",
+  "engine": "BLENDER_EEVEE",
+  "samples": 64,
+  "render_px": 512,
+  "out_px": 256,
+  "camera": "orthographic, view dir (0.42,-1,0.62), fit to projected bounds, margin 0.085",
+  "lights": "key area 520W warm (-3,-4,5), fill area 170W cool (4,-2,1.5), rim area 700W (1,5,4), gradient world 0.45",
+  "view_transform": "Standard",
+  "post": "4px dark outline at 512, 2x box downsample, zeroed border rows, deterministic PNG encode"
+ },
+ "blender": "5.2.0 LTS",
+ "items": {
+  "_unknown": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "_unknown",
+   "png": "res://assets/icons/render/_unknown.png",
+   "sha256": "46b873533308ba91913687966ea2a11930d2e823bf430cf7a6ec3684f231a627",
+   "bytes": 4589
+  },
+  "armor_scute": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "armor_scute",
+   "png": "res://assets/icons/render/armor_scute.png",
+   "sha256": "c181138bc6954dd2e2ae442a44ec602b12db5e9dd24ef9e5243e70b99bc80443",
+   "bytes": 29351
+  },
+  "bamboo": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "bamboo",
+   "png": "res://assets/icons/render/bamboo.png",
+   "sha256": "680282d7406536a4d20d3d7a4a7db0c54742be8369b3ff5ad846a9a3b699edb1",
+   "bytes": 28265
+  },
+  "bandage": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "bandage",
+   "png": "res://assets/icons/render/bandage.png",
+   "sha256": "85708f6a85dcd30c415c384d0967845116797d0c1d3500c159b47330b6edbb8b",
+   "bytes": 42490
+  },
+  "barbed_knife": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "barbed_knife",
+   "png": "res://assets/icons/render/barbed_knife.png",
+   "sha256": "93a6bae8cdcf1ce9d9b69ce412e81e860787b0111da567d46af02280adcce353",
+   "bytes": 17370
+  },
+  "basket_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "basket_kit",
+   "png": "res://assets/icons/render/basket_kit.png",
+   "sha256": "a9806d05716b9ad55e1de5df5bc8447df7cd78fb889c22bc7c8d02c43c73e949",
+   "bytes": 64670
+  },
+  "berries": {
+   "script": "tools/blender/items/food.py",
+   "builder": "berries",
+   "png": "res://assets/icons/render/berries.png",
+   "sha256": "4e8196208994d920e48f95f3b812ac6f56357ae88f70a71fa1c3c9d2b79dfb98",
+   "bytes": 44930
+  },
+  "berry": {
+   "script": "tools/blender/items/food.py",
+   "builder": "berry",
+   "png": "res://assets/icons/render/berry.png",
+   "sha256": "03630144c61e7c1d197983d660812f231c3a160a99155c8b7afc018aeb31f844",
+   "bytes": 45454
+  },
+  "berry_seed": {
+   "script": "tools/blender/items/food.py",
+   "builder": "berry_seed",
+   "png": "res://assets/icons/render/berry_seed.png",
+   "sha256": "8240edac94ba1dfb3d3b9a7958dfbad187d6eb72fc6c6359e2dba707c26404e6",
+   "bytes": 45077
+  },
+  "black_iron": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "black_iron",
+   "png": "res://assets/icons/render/black_iron.png",
+   "sha256": "182ad2a46424c530401a64d8aa4ca7c5d2d4d518d86893171030dd19e98619f6",
+   "bytes": 30665
+  },
+  "blue_dye": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "blue_dye",
+   "png": "res://assets/icons/render/blue_dye.png",
+   "sha256": "ff100db3b84c8ab30ae3a69d1cd04bd0bcae78e608843a9dd5146e571b6b08f6",
+   "bytes": 41937
+  },
+  "boiled_meat": {
+   "script": "tools/blender/items/food.py",
+   "builder": "boiled_meat",
+   "png": "res://assets/icons/render/boiled_meat.png",
+   "sha256": "711f63b4b73c32f2f5e3e6191fee40838af507ded69fe2a29db4095810e5d661",
+   "bytes": 45342
+  },
+  "bone": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "bone",
+   "png": "res://assets/icons/render/bone.png",
+   "sha256": "de6de56646bca998dbc17929111c1aedda566b1e3f0908c43e49086b1f0324d3",
+   "bytes": 24734
+  },
+  "bone_hammer": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "bone_hammer",
+   "png": "res://assets/icons/render/bone_hammer.png",
+   "sha256": "a526ca28b6270ab3c1aec0149c651ebd9753c142d759d6a0f3bd3c334d9faa4c",
+   "bytes": 22827
+  },
+  "bonfire_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "bonfire_kit",
+   "png": "res://assets/icons/render/bonfire_kit.png",
+   "sha256": "dab08c802760e01804b3559d14213b9946521e18b75a14c34e8bda3f98359a3b",
+   "bytes": 48286
+  },
+  "branch": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "branch",
+   "png": "res://assets/icons/render/branch.png",
+   "sha256": "6dc464de642a1b53e892562ac529c5dd4e3270b32be950164f252cb218083eef",
+   "bytes": 18729
+  },
+  "bronze_ingot": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "bronze_ingot",
+   "png": "res://assets/icons/render/bronze_ingot.png",
+   "sha256": "df08c3876612b23d5b7ef79534900c12719c4c307f653caf659a23808f8bbdd7",
+   "bytes": 16324
+  },
+  "burnt_food": {
+   "script": "tools/blender/items/food.py",
+   "builder": "burnt_food",
+   "png": "res://assets/icons/render/burnt_food.png",
+   "sha256": "5eb6c70e06812b50f04a383003d9e7e9a34cdcabaf3343b4ced2a2385e353891",
+   "bytes": 42338
+  },
+  "cactus_flesh": {
+   "script": "tools/blender/items/food.py",
+   "builder": "cactus_flesh",
+   "png": "res://assets/icons/render/cactus_flesh.png",
+   "sha256": "851827001aec9c6e2a24419bb8f45d4aeb3699300a2827efda5b4fbe95df65ba",
+   "bytes": 31310
+  },
+  "camp_stew": {
+   "script": "tools/blender/items/food.py",
+   "builder": "camp_stew",
+   "png": "res://assets/icons/render/camp_stew.png",
+   "sha256": "e55535b18ba69b2e68d08118152a9571749be0a534ad172cf85d297405fd0f70",
+   "bytes": 45471
+  },
+  "campfire_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "campfire_kit",
+   "png": "res://assets/icons/render/campfire_kit.png",
+   "sha256": "faa332cd23158550ca857edd53ab601b0823657c09b722ec119eff4e6ba0ec1b",
+   "bytes": 43947
+  },
+  "capture_net_i": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "capture_net_i",
+   "png": "res://assets/icons/render/capture_net_i.png",
+   "sha256": "a64a66f157a81a38fabd58e4d7a09d009b0cac3a2737fbfc069446109895242c",
+   "bytes": 45639
+  },
+  "capture_net_ii": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "capture_net_ii",
+   "png": "res://assets/icons/render/capture_net_ii.png",
+   "sha256": "1ef2ada921b5ddc6ab3d74e74d68eb8185cc528620680791e548f3b0d7e63a38",
+   "bytes": 45593
+  },
+  "catapult_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "catapult_kit",
+   "png": "res://assets/icons/render/catapult_kit.png",
+   "sha256": "a9cd4c0307bd8ba39e0f5c88eb4ffa7e2ba66e29556f2469619d4a186b83a39a",
+   "bytes": 37411
+  },
+  "charcoal": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "charcoal",
+   "png": "res://assets/icons/render/charcoal.png",
+   "sha256": "404c02ebea984810783bb3807845cff7f9772f43b513c8c0bcad1ef3e56a2b8c",
+   "bytes": 24518
+  },
+  "claim_stake": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "claim_stake",
+   "png": "res://assets/icons/render/claim_stake.png",
+   "sha256": "3c92be233c2e3f4a4c11ae708390b0cb4e61223b0a5cb98b4f5e6797ec6d0090",
+   "bytes": 20185
+  },
+  "clay": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "clay",
+   "png": "res://assets/icons/render/clay.png",
+   "sha256": "f39cf0a777cf24fda32332415d1f221ed4582de2d145e766a1ddcf19a877c957",
+   "bytes": 30874
+  },
+  "cloth": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "cloth",
+   "png": "res://assets/icons/render/cloth.png",
+   "sha256": "c724021c28ec5a50913c9f7d42531d1c8d656ae74594aa860bf76e4962047211",
+   "bytes": 33508
+  },
+  "club": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "club",
+   "png": "res://assets/icons/render/club.png",
+   "sha256": "4d68cfa06cf1cea31fbdf4fd48fa92ea4e82d088ae3c81a25f48272f17ca0344",
+   "bytes": 24291
+  },
+  "coconut": {
+   "script": "tools/blender/items/food.py",
+   "builder": "coconut",
+   "png": "res://assets/icons/render/coconut.png",
+   "sha256": "b1fa6d34e7a09fdf2ca7c470db979265ffd8beb28ad8668ec6c21cfb790569cb",
+   "bytes": 32853
+  },
+  "copper_ingot": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "copper_ingot",
+   "png": "res://assets/icons/render/copper_ingot.png",
+   "sha256": "32f1aae4fe5aafa78c9db4a4ef74f051638448f42610c9ad34e017ce83e8238c",
+   "bytes": 16173
+  },
+  "copper_ore": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "copper_ore",
+   "png": "res://assets/icons/render/copper_ore.png",
+   "sha256": "40b50875e08d67febfc8a96f11f6fbe767845ed818d037eb7c065347029fed4e",
+   "bytes": 35211
+  },
+  "coral": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "coral",
+   "png": "res://assets/icons/render/coral.png",
+   "sha256": "d9cdf2aba0dac3fd40796391b914df2db237043b31ddba6b6dada6a2cb10c98f",
+   "bytes": 28772
+  },
+  "corn": {
+   "script": "tools/blender/items/food.py",
+   "builder": "corn",
+   "png": "res://assets/icons/render/corn.png",
+   "sha256": "170f7557bc9e0dbe5c68bc0ef0d5787fce9d0aca9d3d491459557c5ab4cba55b",
+   "bytes": 46131
+  },
+  "corn_seed": {
+   "script": "tools/blender/items/food.py",
+   "builder": "corn_seed",
+   "png": "res://assets/icons/render/corn_seed.png",
+   "sha256": "f58fb4c47716bfdb33274d28880a0e89e52c3fc54d9c571c5e081699b608cbfd",
+   "bytes": 51114
+  },
+  "crock_pot_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "crock_pot_kit",
+   "png": "res://assets/icons/render/crock_pot_kit.png",
+   "sha256": "74150305437bfb05bcc66e078b28eee6e08943ecfaf57f6dbba08fe6fe2e9490",
+   "bytes": 38863
+  },
+  "dense_bone": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "dense_bone",
+   "png": "res://assets/icons/render/dense_bone.png",
+   "sha256": "e3b2a3eaf9e8a21f240f0c5bba52c39a8721b30beb44c22f1ebbdc1eb3bd09fd",
+   "bytes": 29783
+  },
+  "dried_hide": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "dried_hide",
+   "png": "res://assets/icons/render/dried_hide.png",
+   "sha256": "80d246f220239fbbf747fe7fa387611060cdc7736e3d69efb0b158833408a41a",
+   "bytes": 26325
+  },
+  "dried_meat": {
+   "script": "tools/blender/items/food.py",
+   "builder": "dried_meat",
+   "png": "res://assets/icons/render/dried_meat.png",
+   "sha256": "eb8f948a43d41ea83ded48d64972cb6350e5c8b7ce45829d0cc5501fa44c0b4f",
+   "bytes": 41120
+  },
+  "dry_grass": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "dry_grass",
+   "png": "res://assets/icons/render/dry_grass.png",
+   "sha256": "8ff80c3680d8dd83fac012bce55d3c160d7e4da3b1ed26a98a5ddb8333fc87ec",
+   "bytes": 32913
+  },
+  "drying_rack_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "drying_rack_kit",
+   "png": "res://assets/icons/render/drying_rack_kit.png",
+   "sha256": "59a94c189c3a23aa78ce3f0d262e8cecf4faf6c4334fa271f2b1616aed3a0f22",
+   "bytes": 29287
+  },
+  "empty_bucket": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "empty_bucket",
+   "png": "res://assets/icons/render/empty_bucket.png",
+   "sha256": "e87ba593c715f95a57e660f41d0e658f6434e665aa2378a93b80f7eddcd520b1",
+   "bytes": 57055
+  },
+  "fence_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "fence_kit",
+   "png": "res://assets/icons/render/fence_kit.png",
+   "sha256": "dd0358d1db9b2863b56e05a6a41e5c27448e9423fb5ee29fed2581e405e6643a",
+   "bytes": 28006
+  },
+  "fibre_stalk": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "fibre_stalk",
+   "png": "res://assets/icons/render/fibre_stalk.png",
+   "sha256": "7afe7c1ef80236128ea39cafeaadbeffb50536e14178d0e8c6afcc0ae54dfbb1",
+   "bytes": 28457
+  },
+  "fish": {
+   "script": "tools/blender/items/food.py",
+   "builder": "fish",
+   "png": "res://assets/icons/render/fish.png",
+   "sha256": "eccd07d4ccf044e212b2140c4592ec48325a81c5d502c5eaf426cb2df1cdb525",
+   "bytes": 24302
+  },
+  "flax": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "flax",
+   "png": "res://assets/icons/render/flax.png",
+   "sha256": "9d78072b460863e9b9f1501493d4394b769d3cc85d318e935e7107fda043cb3b",
+   "bytes": 25570
+  },
+  "flax_seed": {
+   "script": "tools/blender/items/food.py",
+   "builder": "flax_seed",
+   "png": "res://assets/icons/render/flax_seed.png",
+   "sha256": "ce452da0343a5398a84adcf4c9239406fe9356d36c453f83b3d5496635b966b5",
+   "bytes": 49022
+  },
+  "flint": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "flint",
+   "png": "res://assets/icons/render/flint.png",
+   "sha256": "fdabb78389ddb985bb960b285154b2fa2deb6dcba3cff8354f82f3d461bfc1bc",
+   "bytes": 28750
+  },
+  "gate_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "gate_kit",
+   "png": "res://assets/icons/render/gate_kit.png",
+   "sha256": "895b81a501f69082bb70a26fc858b10a96b74dddbe47a27b6fdcaace88d24e14",
+   "bytes": 27136
+  },
+  "grilled_meat": {
+   "script": "tools/blender/items/food.py",
+   "builder": "grilled_meat",
+   "png": "res://assets/icons/render/grilled_meat.png",
+   "sha256": "203b256233ad50b3be53744e4ad04d3940c2677c44d4928f636ea4948b74fca0",
+   "bytes": 29952
+  },
+  "heavy_snare": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "heavy_snare",
+   "png": "res://assets/icons/render/heavy_snare.png",
+   "sha256": "9d45b7c12e9fa46624427fc474a6bcee5e9d6aa62d446089d36d0acd26431f89",
+   "bytes": 34963
+  },
+  "herb_buff_meal": {
+   "script": "tools/blender/items/food.py",
+   "builder": "herb_buff_meal",
+   "png": "res://assets/icons/render/herb_buff_meal.png",
+   "sha256": "4a27da8300a20a13744bdcd0a4e45b3eb534c4afe963a381de702004e235cd26",
+   "bytes": 53537
+  },
+  "herb_leaf": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "herb_leaf",
+   "png": "res://assets/icons/render/herb_leaf.png",
+   "sha256": "becccc7eee5b809dc6ff63343ffb6f20ed595460923abf433ed3d299d64de85d",
+   "bytes": 26803
+  },
+  "hide_strap": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "hide_strap",
+   "png": "res://assets/icons/render/hide_strap.png",
+   "sha256": "34ff1b37779358126cd55659183e5ee102d822b03a92412ef71fe3609d51da44",
+   "bytes": 28019
+  },
+  "hoe": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "hoe",
+   "png": "res://assets/icons/render/hoe.png",
+   "sha256": "1a8efebdb00a1917860c7af172f087c10c1838ea7e1195498551f073d80eb692",
+   "bytes": 18746
+  },
+  "ice": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "ice",
+   "png": "res://assets/icons/render/ice.png",
+   "sha256": "00061f0959a2ae1f0669449be0a3d83fa61c5ed053da656548abe70239d5d27e",
+   "bytes": 31085
+  },
+  "ingot": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "ingot",
+   "png": "res://assets/icons/render/ingot.png",
+   "sha256": "c191c85b5e1d7b2fb4ff0dd4c99f8e2ec56354b554108ccff745499fb7552eae",
+   "bytes": 16399
+  },
+  "iron_ingot": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "iron_ingot",
+   "png": "res://assets/icons/render/iron_ingot.png",
+   "sha256": "40c52228346cbdf78679b7ccfca4b52b61fca7ce4dd3b31e2d1b23bcb8b47b6f",
+   "bytes": 15214
+  },
+  "lava": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "lava",
+   "png": "res://assets/icons/render/lava.png",
+   "sha256": "219eb725b24c3111d201613d80c05067b335a65fde1a8857a7024f9a27952c2e",
+   "bytes": 47608
+  },
+  "mango": {
+   "script": "tools/blender/items/food.py",
+   "builder": "mango",
+   "png": "res://assets/icons/render/mango.png",
+   "sha256": "961dad38c19c979a6a10854860c4eec856ad20b7bab3aa2753c223a48958104a",
+   "bytes": 34736
+  },
+  "meatball": {
+   "script": "tools/blender/items/food.py",
+   "builder": "meatball",
+   "png": "res://assets/icons/render/meatball.png",
+   "sha256": "a598288fc623737b889422c912447340e982eaf995d95f849a4259ccced15b02",
+   "bytes": 51485
+  },
+  "meatball_mix": {
+   "script": "tools/blender/items/food.py",
+   "builder": "meatball_mix",
+   "png": "res://assets/icons/render/meatball_mix.png",
+   "sha256": "e2d624febe8bd056240df3a9a4ef87488e2c66be80e62278b696441d587ecc2c",
+   "bytes": 57336
+  },
+  "metal_shard": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "metal_shard",
+   "png": "res://assets/icons/render/metal_shard.png",
+   "sha256": "2677e0415b70790715c4a1b4b581d3a5be7fc2d54c56cec1808a688525b9c32d",
+   "bytes": 17935
+  },
+  "mortar_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "mortar_kit",
+   "png": "res://assets/icons/render/mortar_kit.png",
+   "sha256": "fa8757a6003a69a81f1d5442f7a54179fa9716249b4ad663f19acc91aa09c7b5",
+   "bytes": 45485
+  },
+  "mushroom": {
+   "script": "tools/blender/items/food.py",
+   "builder": "mushroom",
+   "png": "res://assets/icons/render/mushroom.png",
+   "sha256": "b83be6f71a0e7be765593e4cc46510098f735ee5f5de3c79a74fe36612c8d78c",
+   "bytes": 40870
+  },
+  "obsidian": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "obsidian",
+   "png": "res://assets/icons/render/obsidian.png",
+   "sha256": "014f291e5e8fcbdab997b8a8f5566144b9d1354dfdda419cb0d7568479b8d42d",
+   "bytes": 29699
+  },
+  "ore": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "ore",
+   "png": "res://assets/icons/render/ore.png",
+   "sha256": "dca0ec399d50cfc453546e41473081d8fcce099b45c1a772581e7c6ebf19e4fc",
+   "bytes": 32782
+  },
+  "palm_frond": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "palm_frond",
+   "png": "res://assets/icons/render/palm_frond.png",
+   "sha256": "013808e22467f8fb7965e2a69600b3d77e58556d7ad7e9951c9271e9174468b2",
+   "bytes": 31330
+  },
+  "pearl": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "pearl",
+   "png": "res://assets/icons/render/pearl.png",
+   "sha256": "8f57d7fa0739b6abba44fa523f96bec2f9a84b3ed0a97ac7f5cbb3abb8329500",
+   "bytes": 50685
+  },
+  "pillar": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "pillar",
+   "png": "res://assets/icons/render/pillar.png",
+   "sha256": "1e9b1be45b8983e10b6c1b3e47919f43485b1bd9586df0080723bad3c5aeef83",
+   "bytes": 21662
+  },
+  "pine_log": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "pine_log",
+   "png": "res://assets/icons/render/pine_log.png",
+   "sha256": "411b73f55f18dcc92faf69014e2bb110104ef7be8fd564fb78cdf729ed823ac1",
+   "bytes": 32720
+  },
+  "plank": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "plank",
+   "png": "res://assets/icons/render/plank.png",
+   "sha256": "b87820514db69b9457bb0fb201716b496de4af3127120c00ae3602525a7408f8",
+   "bytes": 37741
+  },
+  "predator_tendon": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "predator_tendon",
+   "png": "res://assets/icons/render/predator_tendon.png",
+   "sha256": "023c2d05e5193b410603dc42c4839d9eee255c81ef24bb3b1e19b25ce0bd4943",
+   "bytes": 60405
+  },
+  "raid_cuirass": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "raid_cuirass",
+   "png": "res://assets/icons/render/raid_cuirass.png",
+   "sha256": "a4c0b4fbd42d35ece539bf2c984f15fd4c9106552a8d3e733d3d7f70580089e5",
+   "bytes": 40790
+  },
+  "raid_greaves": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "raid_greaves",
+   "png": "res://assets/icons/render/raid_greaves.png",
+   "sha256": "11c5fa8001708b6157dc0ffb4840e077c00b0a36fb7453b2e2a3ee0be9672fe7",
+   "bytes": 33469
+  },
+  "raid_helm": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "raid_helm",
+   "png": "res://assets/icons/render/raid_helm.png",
+   "sha256": "bf998ab2347140d6791ad24eddcde1819a40ff94ea532c3f735a00ff7a4c632f",
+   "bytes": 32854
+  },
+  "raid_maul": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "raid_maul",
+   "png": "res://assets/icons/render/raid_maul.png",
+   "sha256": "1fd49c72190f34cc2b3d062e0be923bb6b8404cdf59e9df799619cff952dcbd7",
+   "bytes": 35758
+  },
+  "raptor_bone": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "raptor_bone",
+   "png": "res://assets/icons/render/raptor_bone.png",
+   "sha256": "c533f0c3e43d9b341c460c3459cc7dc1d73daaf9e7cb5705397d6e60ca0aa439",
+   "bytes": 20715
+  },
+  "raptor_hide": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "raptor_hide",
+   "png": "res://assets/icons/render/raptor_hide.png",
+   "sha256": "2e61124653277a84f1ea818aa06b02d22860b37186de1701f388145ed1824393",
+   "bytes": 29654
+  },
+  "raptor_meat": {
+   "script": "tools/blender/items/food.py",
+   "builder": "raptor_meat",
+   "png": "res://assets/icons/render/raptor_meat.png",
+   "sha256": "7acddac4919f367c4d034964d75ce6d35b2ff8ac25cbba354eda68aad332bad4",
+   "bytes": 33090
+  },
+  "raptor_talon": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "raptor_talon",
+   "png": "res://assets/icons/render/raptor_talon.png",
+   "sha256": "9e8a79a56b2574b7929d93ce5ad2def31d721c84e34890e3d1d840a5c4085978",
+   "bytes": 19945
+  },
+  "raw_hide": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "raw_hide",
+   "png": "res://assets/icons/render/raw_hide.png",
+   "sha256": "0320441ac4c6aa5f41b85c88164a9e8a0a98414316b7520a036a74b33cc64b60",
+   "bytes": 25952
+  },
+  "raw_meat": {
+   "script": "tools/blender/items/food.py",
+   "builder": "raw_meat",
+   "png": "res://assets/icons/render/raw_meat.png",
+   "sha256": "2538f511a4740e95cb8d39c938163f118f5658baa2f45fc3d153fc534dc39d62",
+   "bytes": 34030
+  },
+  "resin": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "resin",
+   "png": "res://assets/icons/render/resin.png",
+   "sha256": "4fda27a24d2dabe645505e4f700210a786af199d56889a744e73a595998d2b2b",
+   "bytes": 27832
+  },
+  "roast": {
+   "script": "tools/blender/items/food.py",
+   "builder": "roast",
+   "png": "res://assets/icons/render/roast.png",
+   "sha256": "96e6981214774193ec4cef30ff8b7e16b465d148b1a91995b6e9737733d43ba7",
+   "bytes": 32593
+  },
+  "rope": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "rope",
+   "png": "res://assets/icons/render/rope.png",
+   "sha256": "20d60ca1e6513034cf06ce0f9c7dab212691c4f3e49ec59471ff948347170a56",
+   "bytes": 58038
+  },
+  "rope_snare": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "rope_snare",
+   "png": "res://assets/icons/render/rope_snare.png",
+   "sha256": "1bab31bcb081745309b17b1c19f17e4f310591439ab9a62c15de3dea7a0fd943",
+   "bytes": 31724
+  },
+  "salt": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "salt",
+   "png": "res://assets/icons/render/salt.png",
+   "sha256": "a3dd599979f2d2e5bc9c22eea375e5720af7d3b8e5f6b1b8e3b0bc4b5dc38681",
+   "bytes": 25345
+  },
+  "sandstone": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "sandstone",
+   "png": "res://assets/icons/render/sandstone.png",
+   "sha256": "fca2455e9412cbbbe58957ca8427da731b32786bdb1614f6842229bf9bf63f7c",
+   "bytes": 45552
+  },
+  "sashimi": {
+   "script": "tools/blender/items/food.py",
+   "builder": "sashimi",
+   "png": "res://assets/icons/render/sashimi.png",
+   "sha256": "6c3af41cde13a1148bbe442344da78cdcb828de12bd1e1035135ab9fc5979fc5",
+   "bytes": 40276
+  },
+  "seasoned_roast": {
+   "script": "tools/blender/items/food.py",
+   "builder": "seasoned_roast",
+   "png": "res://assets/icons/render/seasoned_roast.png",
+   "sha256": "b84f286251a93708a663c344e45c96ca823591f313c8e006c16908dd862accd1",
+   "bytes": 35238
+  },
+  "sign_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "sign_kit",
+   "png": "res://assets/icons/render/sign_kit.png",
+   "sha256": "3776adcc05555184a60c29066236d014544410c268b7743fb28bc08846858556",
+   "bytes": 20316
+  },
+  "silver_ore": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "silver_ore",
+   "png": "res://assets/icons/render/silver_ore.png",
+   "sha256": "9b9e7fa61141c2c7b7ee63450f7162a26819779340fdb7378fc6a46363aa4e50",
+   "bytes": 33500
+  },
+  "skewer": {
+   "script": "tools/blender/items/food.py",
+   "builder": "skewer",
+   "png": "res://assets/icons/render/skewer.png",
+   "sha256": "3ff587d45fc62b5c34216fc82b8f0c29c346b1e41eb940a08d7075ff23744d05",
+   "bytes": 16045
+  },
+  "slingshot": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "slingshot",
+   "png": "res://assets/icons/render/slingshot.png",
+   "sha256": "f972ffdd8873ac39c16e6aa29c7fb64586b800c84c1e01a032c48990991de18a",
+   "bytes": 20747
+  },
+  "smoked_meat": {
+   "script": "tools/blender/items/food.py",
+   "builder": "smoked_meat",
+   "png": "res://assets/icons/render/smoked_meat.png",
+   "sha256": "e866ccb8d7d59a0214d563bc5e55764186e5f7af199bed447829ab171d914795",
+   "bytes": 46759
+  },
+  "spiced_skewer": {
+   "script": "tools/blender/items/food.py",
+   "builder": "spiced_skewer",
+   "png": "res://assets/icons/render/spiced_skewer.png",
+   "sha256": "b65ca5ec6e8a4f1ad06e0fda71c35210e8581c3f225766bbaeb5aeb980b06083",
+   "bytes": 17258
+  },
+  "splint": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "splint",
+   "png": "res://assets/icons/render/splint.png",
+   "sha256": "c1b89e6472c9597f590ae2e78cff724670b7ad5b2d9088689f1467aaf0c812cb",
+   "bytes": 31829
+  },
+  "split_wood": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "split_wood",
+   "png": "res://assets/icons/render/split_wood.png",
+   "sha256": "5559d90e5ef727db0337403ab0b4a543d65350a9c755976288f8c862f5577a49",
+   "bytes": 42561
+  },
+  "steamed_food": {
+   "script": "tools/blender/items/food.py",
+   "builder": "steamed_food",
+   "png": "res://assets/icons/render/steamed_food.png",
+   "sha256": "0b6b27427559c913e707c17f5bd4904bfc76cc7eec6e2a4d9021addf05c761dc",
+   "bytes": 57377
+  },
+  "steel_ingot": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "steel_ingot",
+   "png": "res://assets/icons/render/steel_ingot.png",
+   "sha256": "773fd73e8fe9d19f0eb7f27cfd721f4d4bc161e973e045eb93eb74f7678defa9",
+   "bytes": 15969
+  },
+  "stone": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "stone",
+   "png": "res://assets/icons/render/stone.png",
+   "sha256": "3849d6d2a577115f081682ebd1a2385f5b593be3716c074a179fe6f73262eca3",
+   "bytes": 37210
+  },
+  "stone_grill_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "stone_grill_kit",
+   "png": "res://assets/icons/render/stone_grill_kit.png",
+   "sha256": "a2174d3b2306eafd991544a10f7990d33c75980d3d63a40f0726a8fdb07f7e39",
+   "bytes": 35417
+  },
+  "stone_knife": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "stone_knife",
+   "png": "res://assets/icons/render/stone_knife.png",
+   "sha256": "9c9c9720c8ad0ebc9c5ee2f36a8bc134268785bfdeb1a46df8769286f541b882",
+   "bytes": 22981
+  },
+  "stone_knife_work": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "stone_knife_work",
+   "png": "res://assets/icons/render/stone_knife_work.png",
+   "sha256": "5ad81cf6fc22c719557c22cca0100ca9b0a151f5cb9ff85040a46fce5720f31a",
+   "bytes": 30004
+  },
+  "stone_shot": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "stone_shot",
+   "png": "res://assets/icons/render/stone_shot.png",
+   "sha256": "8a0ea9e886bff352f0ada9287514a4b02709106f668deccdfb4db98f1887a7bf",
+   "bytes": 39889
+  },
+  "straw_roll_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "straw_roll_kit",
+   "png": "res://assets/icons/render/straw_roll_kit.png",
+   "sha256": "17d7349cfd3a7824d0e17895e48cca3ab75b56aa2be65e83bfcd41c39bfbd7b5",
+   "bytes": 55596
+  },
+  "sulphur": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "sulphur",
+   "png": "res://assets/icons/render/sulphur.png",
+   "sha256": "54fd999646a7dc59a05b6d8951441ca2a3967e86f7adbec6d3c347c8d0960c30",
+   "bytes": 40046
+  },
+  "tent_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "tent_kit",
+   "png": "res://assets/icons/render/tent_kit.png",
+   "sha256": "f5dd544e4a908d95579a28b57cb0e7135fdeabc11fd6cb170f8d44cdb86d5643",
+   "bytes": 32685
+  },
+  "thread": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "thread",
+   "png": "res://assets/icons/render/thread.png",
+   "sha256": "d6e75f1348962f15b8a059fd21e1ea430e63c2cf55c142e867a1c5d8a0276c06",
+   "bytes": 46464
+  },
+  "toxin_coating": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "toxin_coating",
+   "png": "res://assets/icons/render/toxin_coating.png",
+   "sha256": "fac85da29b05f4355c1be46568160bf14b957a7d8e6806b4c5ff5ed8bac04263",
+   "bytes": 25198
+  },
+  "toxin_pot": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "toxin_pot",
+   "png": "res://assets/icons/render/toxin_pot.png",
+   "sha256": "71b961a71e9b7ea333283579f1d160e20455312f13a9c73fad1152519e6bc18c",
+   "bytes": 43620
+  },
+  "twine": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "twine",
+   "png": "res://assets/icons/render/twine.png",
+   "sha256": "73743c71368893ffd22cf1b9c516fa1b6de6a7edc1cc0c415da1d72eeb44dad3",
+   "bytes": 58816
+  },
+  "venom_gland": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "venom_gland",
+   "png": "res://assets/icons/render/venom_gland.png",
+   "sha256": "2b6c3a09978a0057b1d5b0112816e581490a000fa2245055505612c281cc88ff",
+   "bytes": 34444
+  },
+  "water_bucket": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "water_bucket",
+   "png": "res://assets/icons/render/water_bucket.png",
+   "sha256": "68af0b997311401b4930d15ce599f66b88fd222116d9e76f54eb490b72c6fcf8",
+   "bytes": 53413
+  },
+  "well_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "well_kit",
+   "png": "res://assets/icons/render/well_kit.png",
+   "sha256": "4952046f61f0ecd5b8f4f2a33b36c1da3d2f7aaae4bb8f7fce3195616bafdea4",
+   "bytes": 49180
+  },
+  "wheat": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "wheat",
+   "png": "res://assets/icons/render/wheat.png",
+   "sha256": "a13da7b4401b28c95dc45a0db9fd77fcd1e41923ac04e67210df8530f07da2af",
+   "bytes": 28212
+  },
+  "wheat_seed": {
+   "script": "tools/blender/items/food.py",
+   "builder": "wheat_seed",
+   "png": "res://assets/icons/render/wheat_seed.png",
+   "sha256": "21581a9973d3186c3d533f109f9212b8fe505e20e49709e367f46a251691b94a",
+   "bytes": 52541
+  },
+  "wood_log": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "wood_log",
+   "png": "res://assets/icons/render/wood_log.png",
+   "sha256": "911b79ab0fbb53ab8526b3cd25e38d5d559b2f42f6722c9f2d13fe05e78f48ed",
+   "bytes": 28319
+  },
+  "work_axe": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "work_axe",
+   "png": "res://assets/icons/render/work_axe.png",
+   "sha256": "b1c188d3bb2432fb28e0a9559d2e3093322478bc812dc8cabe07089c1635acee",
+   "bytes": 25121
+  },
+  "work_pick": {
+   "script": "tools/blender/items/gear.py",
+   "builder": "work_pick",
+   "png": "res://assets/icons/render/work_pick.png",
+   "sha256": "000c8399dd66b1a62e1b876ff0b3b2b1744ce06cf1d57ec5e999486b41ca7421",
+   "bytes": 20079
+  },
+  "workbench_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "workbench_kit",
+   "png": "res://assets/icons/render/workbench_kit.png",
+   "sha256": "aaa19ce5f878d74ff308e1ffb771a692b640740d7f3e2f8348b328db5fc724db",
+   "bytes": 43060
+  }
+ }
+}

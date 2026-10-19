@@ -1,44 +1,125 @@
 #!/usr/bin/env python3
-"""Render inventory icons (PNG, transparent) from GLB models. Blender headless.
-Usage: Blender --background --python tools/render_icons.py -- <out_dir> <size> <id=path.glb> [<id=path.glb> ...]
-Writes <out_dir>/<id>.png and prints ICON <id>."""
-import math, pathlib, sys
-import bpy
-from mathutils import Vector
-argv = sys.argv[sys.argv.index("--") + 1:]
-out, size, pairs = pathlib.Path(argv[0]), int(argv[1]), argv[2:]
-out.mkdir(parents=True, exist_ok=True)
-for pair in pairs:
-    iid, path = pair.split("=", 1)
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    bpy.ops.import_scene.gltf(filepath=path)
-    scene = bpy.context.scene
-    scene.render.engine = "BLENDER_EEVEE" if hasattr(bpy.types, "SceneEEVEE") else "BLENDER_WORKBENCH"
-    try:
-        scene.render.engine = "BLENDER_EEVEE_NEXT"
-    except TypeError:
-        try: scene.render.engine = "BLENDER_EEVEE"
-        except TypeError: scene.render.engine = "BLENDER_WORKBENCH"
-    scene.render.resolution_x = size; scene.render.resolution_y = size
-    scene.render.film_transparent = True
-    world = bpy.data.worlds.new("W"); world.use_nodes = True; scene.world = world
-    bg = world.node_tree.nodes.get("Background"); bg.inputs[0].default_value = (1, 1, 1, 1); bg.inputs[1].default_value = 1.2
-    lo = Vector((1e9,) * 3); hi = Vector((-1e9,) * 3)
-    for o in bpy.data.objects:
-        if o.type == "MESH":
-            for v in o.data.vertices:
-                w = o.matrix_world @ v.co; lo = Vector(map(min, lo, w)); hi = Vector(map(max, hi, w))
-    c = (lo + hi) / 2; L = max(hi - lo) or 1.0
-    cam_data = bpy.data.cameras.new("C"); cam_data.type = "ORTHO"; cam_data.ortho_scale = L * 1.15
-    cam = bpy.data.objects.new("C", cam_data); scene.collection.objects.link(cam); scene.camera = cam
-    d = Vector((1.0, -1.0, 0.8)).normalized() * L * 4
-    cam.location = c + d
-    cam.rotation_euler = (Vector((0, 0, -1))).rotation_difference(-d.normalized()).to_euler()
-    # look-at
-    direction = c - cam.location
-    cam.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
-    sun = bpy.data.lights.new("S", "SUN"); sun.energy = 3.0
-    so = bpy.data.objects.new("S", sun); scene.collection.objects.link(so); so.rotation_euler = (math.radians(50), 0, math.radians(30))
-    scene.render.filepath = str(out / f"{iid}.png")
+"""Render item art: procedural Blender models (tools/blender/items/*.py) under one studio rig
+to transparent 256 px PNGs in game/assets/icons/render/, plus manifest.json.
+
+Headless only (the Blender MCP lock belongs to another package):
+  Blender -b --factory-startup -P tools/render_icons.py --                 # every item
+  Blender -b --factory-startup -P tools/render_icons.py -- --only a,b      # some items
+  Blender -b --factory-startup -P tools/render_icons.py -- --verify a,b    # re-render, byte-compare
+  ... -- --out DIR   writes elsewhere (no manifest update)
+  ... -- id=path.glb renders an existing GLB through the same rig
+Prints ICON <id> <bytes> <sha> per item; --verify prints REPRO PASS|FAIL.
+"""
+import hashlib
+import importlib
+import json
+import pathlib
+import sys
+import tempfile
+
+HERE = pathlib.Path(__file__).resolve().parent
+ROOT = HERE.parent
+ITEMS_DIR = HERE / "blender" / "items"
+OUT = ROOT / "game" / "assets" / "icons" / "render"
+FAMILIES = ["resources", "gear", "food", "camp"]
+WHITE = {"_unknown"}  # the white symbol fallback is a silhouette, not coloured art
+MAX_BYTES = 64 * 1024
+
+sys.dont_write_bytecode = True  # keep __pycache__ out of tools/blender/items
+sys.path.insert(0, str(ITEMS_DIR))
+import kit  # noqa: E402
+
+
+def registry():
+    reg = {}
+    for fam in FAMILIES:
+        mod = importlib.import_module(fam)
+        for iid, fn in mod.ITEMS.items():
+            assert iid not in reg, "duplicate item %s" % iid
+            reg[iid] = ("tools/blender/items/%s.py" % fam, fn)
+    return reg
+
+
+def render_one(iid, build, out_dir, tmp):
+    kit.reset(iid)
+    if isinstance(build, str):
+        import bpy
+        bpy.ops.import_scene.gltf(filepath=build)
+        for ob in list(bpy.context.scene.objects):
+            if ob.parent is None and ob is not kit.ROOT:
+                ob.parent = kit.ROOT
+    else:
+        build()
+    kit.normalise()
+    kit.stage()
+    import bpy
+    raw = str(pathlib.Path(tmp) / ("%s_raw.png" % iid))
+    bpy.context.scene.render.filepath = raw
     bpy.ops.render.render(write_still=True)
-    print(f"ICON {iid}")
+    data = kit.encode_png(kit.post(raw, white=iid in WHITE))
+    path = pathlib.Path(out_dir) / ("%s.png" % iid)
+    path.write_bytes(data)
+    sha = hashlib.sha256(data).hexdigest()
+    flag = "" if len(data) <= MAX_BYTES else " OVER_64KB"
+    print("ICON %s %d %s%s" % (iid, len(data), sha[:16], flag), flush=True)
+    return sha, len(data)
+
+
+def main():
+    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    only, verify, out_dir, glbs = None, None, None, {}
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--only":
+            only = argv[i + 1].split(",")
+            i += 1
+        elif a == "--verify":
+            verify = argv[i + 1].split(",")
+            i += 1
+        elif a == "--out":
+            out_dir = pathlib.Path(argv[i + 1])
+            i += 1
+        elif "=" in a:
+            k, v = a.split("=", 1)
+            glbs[k] = v
+        i += 1
+    reg = registry()
+    for k, v in glbs.items():
+        reg[k] = ("glb:%s" % v, v)
+    tmp = tempfile.mkdtemp(prefix="icons_")
+    if verify:
+        ok = True
+        for iid in verify:
+            sha, _ = render_one(iid, reg[iid][1], tmp, tmp)
+            ref = OUT / ("%s.png" % iid)
+            same = ref.exists() and hashlib.sha256(ref.read_bytes()).hexdigest() == sha
+            print("REPRO %s %s" % (iid, "identical" if same else "DIFFERS"))
+            ok = ok and same
+        print("REPRO %s n=%d" % ("PASS" if ok else "FAIL", len(verify)))
+        sys.exit(0 if ok else 1)
+    ids = only or (list(glbs) if glbs else sorted(reg))
+    target = out_dir or OUT
+    target.mkdir(parents=True, exist_ok=True)
+    results = {iid: render_one(iid, reg[iid][1], target, tmp) for iid in ids}
+    if out_dir is None:
+        man_path = OUT / "manifest.json"
+        man = json.loads(man_path.read_text()) if man_path.exists() and only else {}
+        items = man.get("items", {})
+        for iid, (sha, n) in results.items():
+            script, fn = reg[iid]
+            items[iid] = {"script": script, "builder": iid, "png": "res://assets/icons/render/%s.png" % iid,
+                          "sha256": sha, "bytes": n}
+        man = {
+            "_about": "Rendered item art (W1-ICONART). Regenerate with tools/render_icons.py; "
+                      "models are procedural bpy builders in tools/blender/items/.",
+            "rig": kit.RIG,
+            "blender": __import__("bpy").app.version_string,
+            "items": dict(sorted(items.items())),
+        }
+        man_path.write_text(json.dumps(man, indent=1) + "\n")
+    over = [k for k, (_, n) in results.items() if n > MAX_BYTES]
+    print("ICONS DONE n=%d over_64kb=%d" % (len(results), len(over)))
+
+
+main()
