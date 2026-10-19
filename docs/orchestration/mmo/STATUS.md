@@ -133,6 +133,14 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   aimed ranged); (4) death = inventory drops in a recoverable loot bag at the death spot and
   equipped gear loses durability; pets keep the 3-minute respawn rule.
 
+- 2026-10-19 (owner): low-quality and low-poly assets are marked for replacement in
+  `asset-replacement.md`; every art package reads and updates it.
+- 2026-10-19 (owner): delegate long mechanical work to dsc overnight. Running: re-animation of
+  velociraptor+utahraptor and protoceratops+megaloceros in ~/Documents/DeepseekCLI/deadfront-reanim/
+  ({bipeds,quads}, $6 and 8 h cap each, verify.sh = creature-verify + contact sheets). Review before
+  anything enters the repo.
+- 2026-10-19: usage limit cut every running workflow; partial work is WIP-committed on each branch.
+
 ## Owner questions (open)
 
 - none
