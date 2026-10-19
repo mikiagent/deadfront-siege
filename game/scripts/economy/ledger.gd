@@ -34,7 +34,7 @@ func new_account(id: int, name: String) -> Dictionary:
 	var a := {
 		"id": id, "name": name, "created": now, "wallet": 0, "vault_items": {}, "vault_pets": {},
 		"claimed_objectives": [], "inbox": [], "inbox_dropped": 0,
-		"rid_cache": {}, "rid_last": 0, ## rid -> [op, seq]; MarketEngine keeps the responses in memory
+		"rid_cache": {}, "rid_last": 0, ## rid -> [op, seq] or [op, seq, response] (MarketEngine.KEEP_BODY)
 		"deposits": {}, "trades": [], "open_listings": 0, "open_orders": 0,
 	}
 	s.accounts[str(id)] = a
@@ -87,6 +87,14 @@ func take_item(id: int, uid: String, count: int) -> Dictionary:
 	part.count = count
 	part.uid = new_id("i")
 	return part
+
+## True when `id` has no room for one more item stack or pet (limits.json), counting `pending`
+## assets already promised to it. Ops that would add one refuse; settlement and returns of
+## assets already in escrow still deliver, so a vault can overshoot a little but loses nothing.
+func vault_full(id: int, kind: String, pending: int = 0) -> bool:
+	var pet := kind == "pet"
+	var held: Dictionary = acct(id).vault_pets if pet else acct(id).vault_items
+	return held.size() + pending >= rules.num("max_vault_pets" if pet else "max_vault_items")
 
 func put_item(id: int, stack: Dictionary) -> void:
 	acct(id).vault_items[stack.uid] = stack

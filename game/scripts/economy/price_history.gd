@@ -3,9 +3,11 @@ extends RefCounted
 ## Trades, hourly OHLC + volume per asset key for 7 days, and the damped reference price
 ## (contract 6.5): volume-weighted median of the window's trades, skipping prices outside
 ## 0.25x-4x the previous reference and the 3rd+ trade between one pair of accounts in 24 h.
-## The band is judged afresh on every recompute, and when more eligible trades fall outside
-## it than inside, the reference re-anchors on all of them: a price set by a couple of early
+## The band is judged afresh on every recompute, and when most eligible trades AND most units
+## sit outside it, the reference re-anchors on all of them: a price set by a couple of early
 ## self-dealt trades cannot lock honest trades out, and a real move of more than 4x is followed.
+## Needing both means many tiny trades cannot outvote fewer large ones, nor one large trade many.
+# ASSUMPTION: the re-anchor rule extends contract 6.5, which only says "exclude outliers".
 ## With no trades left in the window there is no reference.
 # ASSUMPTION: Settler (npc) trades count toward volume and OHLC but not the reference, which
 # should reflect what players pay each other.
@@ -89,18 +91,22 @@ func _recompute(key: String) -> void:
 	var lo := prev * float(R.g("reference_outlier_low"))
 	var hi := prev * float(R.g("reference_outlier_high"))
 	var inside := rows if prev <= 0.0 else rows.filter(func (r: Array) -> bool: return float(r[1]) >= lo and float(r[1]) <= hi)
-	if inside.size() * 2 < rows.size():
-		inside = rows # most eligible trades disagree with the anchor: re-anchor on all of them
+	if inside.size() * 2 < rows.size() and _units(inside) * 2 < _units(rows):
+		inside = rows # most eligible trades and volume disagree with the anchor: re-anchor on all
 	inside.sort_custom(func (x: Array, y: Array) -> bool: return int(x[1]) < int(y[1]))
-	var weight := 0
-	for r in inside:
-		weight += int(r[2])
+	var weight := _units(inside)
 	var half := 0
 	for r in inside:
 		half += int(r[2])
 		if half * 2 >= weight:
 			L.s.ref[key] = int(r[1])
 			return
+
+static func _units(rows: Array) -> int:
+	var n := 0
+	for r: Array in rows:
+		n += int(r[2])
+	return n
 
 ## Drops buckets, reference rows and pair counts that left their windows. Returns true if any did.
 func prune() -> bool:

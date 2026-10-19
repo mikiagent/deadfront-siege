@@ -34,6 +34,8 @@ func create(me: int, a: EconArgs) -> Dictionary:
 	var acct := L.acct(me)
 	if int(acct.open_orders) >= R.num("max_open_orders"):
 		return EconArgs.no("limit_reached", "at most %d open orders" % R.num("max_open_orders"))
+	if L.vault_full(me, "item"):
+		return EconArgs.no("limit_reached", "your vault is full; withdraw something first")
 	if int(acct.wallet) < qty * unit:
 		return EconArgs.no("insufficient_funds", "order escrow is %d T-stones" % (qty * unit))
 	var o := post(me, def_id, lo, hi, qty, unit, L.now + hours * 3600)
@@ -95,6 +97,9 @@ func sell(me: int, a: EconArgs) -> Dictionary:
 	if count > want:
 		return EconArgs.no("bad_request", "order wants only %d more" % want)
 	var buyer := int(o.buyer)
+	# Each fill is a new stack in the buyer's vault, so a full vault pauses the order.
+	if not o.npc and L.vault_full(buyer, "item"):
+		return EconArgs.no("limit_reached", "the buyer's vault is full; try another order")
 	var pay := int(o.unit_price) * count
 	var tax := EconRules.ceil_bp(pay, R.bp("sales_tax"))
 	o.escrow = int(o.escrow) - pay

@@ -17,7 +17,7 @@ var _rid := 0
 func run() -> Array[String]:
 	cat = EconCatalog.from_data()
 	# Each test returns true on its last line; a script error aborts it and returns null.
-	for test: Callable in [_test_accounts_wallet_objectives, _test_item_deposits, _test_attribute_sources, _test_pet_deposits, _test_withdraw, _test_fixed_listings, _test_auctions, _test_anti_snipe_and_settlement, _test_orders, _test_expiry, _test_search, _test_history_and_reference, _test_reference_poisoning, _test_settlers, _test_idempotency, _test_market_views, _test_float_grid, _test_journal_replay, _test_torn_newline, _test_snapshots, _test_snapshot_failures, _test_fault_reload, _test_fuzz, _test_search_perf]:
+	for test: Callable in [_test_accounts_wallet_objectives, _test_item_deposits, _test_attribute_sources, _test_pet_deposits, _test_withdraw, _test_fixed_listings, _test_auctions, _test_anti_snipe_and_settlement, _test_orders, _test_expiry, _test_search, _test_history_and_reference, _test_reference_poisoning, _test_settlers, _test_idempotency, _test_rid_bodies, _test_vault_caps, _test_clock, _test_market_views, _test_float_grid, _test_journal_replay, _test_torn_newline, _test_snapshots, _test_snapshot_failures, _test_fault_reload, _test_fuzz, _test_search_perf]:
 		if test.call() != true:
 			failures.append("econ: %s stopped early (script error)" % test.get_method())
 	return failures
@@ -188,6 +188,8 @@ func _test_item_deposits() -> bool:
 	_bad_item(e, _with(base, "attributes", {"evil": 1}), "unknown attribute")
 	_bad_item(e, _with(base, "attributes", {"hardness": 11}), "attribute out of range")
 	_bad_item(e, _with(base, "attributes", {"tint": "red"}), "tint not a colour")
+	_bad_item(e, _with(base, "attributes", {"tint": "#-12345"}), "tint with a sign")
+	_bad_item(e, _with(base, "attributes", {"tint": "#+1234567"}), "tint with a sign, 8 digits")
 	_bad_item(e, _with(base, "durability", 5), "durability on a plain item")
 	_bad_item(e, _with(base, "dupe", true), "unknown field")
 	_bad_item(e, _with(base, "process_count", 500), "process count")
@@ -779,6 +781,130 @@ func _test_reference_poisoning() -> bool:
 	trade.call(1, 2, 1, 12, T0 + 86400 + 600)
 	var rows: Array = e.state().ref_trades[key]
 	_expect(int(rows.back()[3]) == 1, "pair trades older than 24 h no longer count, even before the hourly prune")
+	# Re-anchoring needs most trades and most units: three 1-unit trades far below the band
+	# do not outvote 21 units traded inside it (by count alone they would, and drag it to 10).
+	# The 100-unit outlier in _test_history_and_reference covers the other side.
+	var stone := "item:stone"
+	var deal := func (seller: int, buyer: int, count: int, unit: int, ts: int) -> void:
+		var lid := _list(e, seller, _deposit(e, seller, "stone", count, 1, ts), unit, -1, ts)
+		_ok(e, "market.buy", buyer, {"listing_id": lid, "count": count}, ts)
+	var t := T0 + 2 * 86400
+	deal.call(1, 2, 10, 10, t)
+	deal.call(3, 4, 11, 20, t + 60)
+	_expect(int(e.state().ref[stone]) == 20, "two in-band trades set the reference (got %d)" % int(e.state().ref.get(stone, 0)))
+	deal.call(5, 6, 1, 1, t + 120)
+	deal.call(7, 8, 1, 1, t + 180)
+	deal.call(1, 3, 1, 1, t + 240)
+	_expect(int(e.state().ref[stone]) == 20, "many tiny outliers do not re-anchor the reference (got %d)" % int(e.state().ref.get(stone, 0)))
+	return true
+
+## Withdrawals and inbox.take hand out what the server no longer holds, so a repeated rid must
+## get the original body back after a snapshot and restart, and after any amount of traffic.
+func _test_rid_bodies() -> bool:
+	var dir := DIR + "/rid"
+	_wipe(dir)
+	var store := EconStore.new(MarketEngine.new(_rules(), cat), dir)
+	store.snapshot_every_ops = 0
+	_expect(store.open() == "", "rid store opens")
+	for id in [1, 2]:
+		store.apply("account.ensure", id, {"name": "Player %d" % id}, T0)
+	var uid := str(store.apply("vault.deposit_item", 1, {"slot_dict": _stack("stone", 10), "count": 10, "rid": "d1"}, T0).r.uid)
+	var pid := str(store.apply("vault.deposit_pet", 1, {"pet_dict": _pet("velociraptor", 2, 3), "rid": "d2"}, T0).r.uid)
+	var wood := str(store.apply("vault.deposit_item", 1, {"slot_dict": _stack("wood_log", 5), "count": 5, "rid": "d3"}, T0).r.uid)
+	var lid := str(store.apply("market.list_fixed", 1, {"asset": {"uid": wood}, "unit_price": 4, "duration_h": 24, "rid": "d4"}, T0).r.listing.id)
+	store.apply("market.buy", 2, {"listing_id": lid, "count": 1, "rid": "b1"}, T0)
+	var calls := [
+		["vault.withdraw_item", {"uid": uid, "rid": "w1"}],
+		["vault.withdraw_pet", {"uid": pid, "rid": "w2"}],
+		["inbox.take", {"rid": "t1"}],
+	]
+	var first := []
+	for c in calls:
+		first.append(store.apply(c[0], 1, c[1], T0))
+	_expect(first[0].ok and int(first[0].r.item.count) == 10 and first[1].ok and first[2].r.events.size() == 1, "withdrawals and a take succeed: %s" % str(first[2]))
+	_expect(store.snapshot() == "", "rid snapshot succeeds")
+	store.close()
+	var boot := EconStore.new(MarketEngine.new(_rules(), cat), dir)
+	boot.snapshot_every_ops = 0
+	_expect(boot.open() == "", "rid store reopens from the snapshot")
+	var seq := boot.engine.seq()
+	for i in calls.size():
+		var again := boot.apply(calls[i][0], 1, calls[i][1], T0 + 60)
+		_expect(again.ok and Ledger.canon(Ledger.norm(again)) == Ledger.canon(Ledger.norm(first[i])), "%s repeated after a snapshot and restart returns the original body, got %s" % [calls[i][0], str(again)])
+	_expect(boot.engine.seq() == seq and boot.engine.L.acct(1).vault_items.is_empty() and boot.engine.L.acct(1).vault_pets.is_empty(), "and applies nothing")
+	boot.close()
+	_wipe(dir)
+	var e := _engine(null, 2)
+	var part := _deposit(e, 1, "stone", 10)
+	var took := e.apply("vault.withdraw_item", 1, {"uid": part, "count": 4, "rid": "w"}, T0)
+	for i in e.rules.num("rid_responses_kept") + 1:
+		e.apply("wallet.spend", 2, {"reason": "travel", "amount": 5, "rid": "s%d" % i}, T0)
+	var later := e.apply("vault.withdraw_item", 1, {"uid": part, "count": 4, "rid": "w"}, T0)
+	_expect(Ledger.canon(Ledger.norm(later)) == Ledger.canon(Ledger.norm(took)), "a withdraw repeated after %d other writes returns the original item, got %s" % [e.rules.num("rid_responses_kept") + 1, str(later)])
+	_expect(int(e.L.acct(1).vault_items[part].count) == 6, "and withdraws nothing more")
+	_expect(EconInvariants.check(e.state()).is_empty(), "the cached bodies do not count as held assets")
+	return true
+
+## max_vault_items / max_vault_pets bound every op that adds an asset, not just deposits.
+## Assets already in escrow (auction wins, returns) still deliver: nothing is ever refused late.
+func _test_vault_caps() -> bool:
+	var r := _rules()
+	r.limits.max_vault_items = 3
+	r.limits.max_vault_pets = 1
+	var e := _engine(r, 3)
+	var lid := _list(e, 1, _deposit(e, 1, "stone", 20), 2)
+	var bought := 0
+	for i in 10:
+		if _op(e, "market.buy", 2, {"listing_id": lid, "count": 1}).ok:
+			bought += 1
+	_expect(bought == 3 and e.L.acct(2).vault_items.size() == 3, "ten 1-unit buys into a 3-stack vault stop at 3 (bought %d)" % bought)
+	_err(e, "market.buy", 2, {"listing_id": lid, "count": 1}, "limit_reached", T0, "buy into a full vault")
+	var a1 := _auction(e, 1, _deposit(e, 1, "wood_log", 2), 10, 100)
+	var a2 := _auction(e, 1, _deposit(e, 1, "fibre_stalk", 1), 10)
+	_err(e, "market.bid", 2, {"listing_id": a1, "amount": 10}, "limit_reached", T0, "bid with a full vault")
+	_err(e, "market.buyout", 2, {"listing_id": a1}, "limit_reached", T0, "buyout into a full vault")
+	_err(e, "market.order_create", 2, {"def_id": "stone", "qty": 5, "unit_price": 1, "duration_h": 24}, "limit_reached", T0, "order with a full vault")
+	_ok(e, "vault.withdraw_item", 2, {"uid": e.L.acct(2).vault_items.keys()[0]})
+	_ok(e, "market.bid", 2, {"listing_id": a1, "amount": 10})
+	_err(e, "market.bid", 2, {"listing_id": a2, "amount": 10}, "limit_reached", T0, "a leading bid holds the last slot")
+	_ok(e, "market.bid", 2, {"listing_id": a1, "amount": 20})
+	_deposit(e, 2, "copper_ore", 1)
+	_ok(e, "sys.tick", 0, {}, T0 + 25 * 3600)
+	_expect(e.state().closed_listings[a1].state == "sold" and e.L.acct(2).vault_items.size() == 4, "an auction won into a vault filled since still delivers (4 of 3)")
+	var t := T0 + 26 * 3600
+	var oid := _order(e, 3, "stone", 10, 2, 1, 60, 24, t)
+	var units := _deposit(e, 1, "stone", 10, 1, t)
+	for i in 3:
+		_ok(e, "market.sell_to_order", 1, {"order_id": oid, "uid": units, "count": 1}, t)
+	_err(e, "market.sell_to_order", 1, {"order_id": oid, "uid": units, "count": 1}, "limit_reached", t, "a fill into the buyer's full vault")
+	var pl := _list(e, 1, str(_ok(e, "vault.deposit_pet", 1, {"pet_dict": _pet("velociraptor", 1, 5)}, t).uid), 10, -1, t)
+	_ok(e, "vault.deposit_pet", 2, {"pet_dict": _pet("compsognathus", 1, 6)}, t)
+	_err(e, "market.buy", 2, {"listing_id": pl}, "limit_reached", t, "pet bought into a full pet vault")
+	return true
+
+## Through the store, time never runs backwards, even across failed and read-only ops.
+func _test_clock() -> bool:
+	var dir := DIR + "/clock"
+	_wipe(dir)
+	var store := EconStore.new(MarketEngine.new(_rules(), cat), dir)
+	store.snapshot_every_ops = 0
+	_expect(store.open() == "", "clock store opens")
+	for id in [1, 2]:
+		store.apply("account.ensure", id, {"name": "Player %d" % id}, T0)
+	var uid := str(store.apply("vault.deposit_item", 1, {"slot_dict": _stack("stone", 5), "count": 5, "rid": "c1"}, T0).r.uid)
+	var short := str(store.apply("market.list_fixed", 1, {"asset": {"uid": uid, "count": 2}, "unit_price": 3, "duration_h": 12, "rid": "c2"}, T0).r.listing.id)
+	var long := str(store.apply("market.list_fixed", 1, {"asset": {"uid": uid, "count": 2}, "unit_price": 3, "duration_h": 24, "rid": "c3"}, T0).r.listing.id)
+	var end_short := T0 + 12 * 3600
+	var late: Dictionary = store.apply("market.buy", 2, {"listing_id": short, "count": 1, "rid": "c4"}, end_short + 5)
+	_expect(not late.ok and late.err == "expired", "a buy after the end is refused: %s" % str(late))
+	var back: Dictionary = store.apply("market.buy", 2, {"listing_id": short, "count": 1, "rid": "c5"}, end_short - 30)
+	_expect(not back.ok and back.err == "expired", "a clock stepped back after a refusal cannot reopen the listing: %s" % str(back))
+	var end_long := T0 + 24 * 3600
+	_expect(store.apply("market.search", 2, {}, end_long + 5).ok, "a read at the later time")
+	back = store.apply("market.buy", 2, {"listing_id": long, "count": 1, "rid": "c6"}, end_long - 30)
+	_expect(not back.ok and back.err == "expired", "a clock stepped back after a read cannot reopen the listing: %s" % str(back))
+	store.close()
+	_wipe(dir)
 	return true
 
 func _test_market_views() -> bool:
@@ -981,7 +1107,19 @@ func _test_snapshot_failures() -> bool:
 	fallback.close()
 	var cold := EconStore.new(MarketEngine.new(_rules(), cat), dir)
 	_expect(cold.open() == "" and cold.engine.state_json() == live, "and boots to the same state")
+	_expect(_spend(cold, 1, "sf-2"), "an op after the post-fallback snapshot")
+	var live2 := cold.engine.state_json()
 	cold.close()
+	# snapshot.prev.json is still the generation before the bad one, so journal.prev must still
+	# bridge it: a second bad snapshot.json must boot, not stop on a seq gap.
+	text = FileAccess.get_file_as_string(store.snapshot_path())
+	w = FileAccess.open(store.snapshot_path(), FileAccess.WRITE)
+	w.store_string(text.substr(0, text.length() / 2))
+	w.close()
+	var second := EconStore.new(MarketEngine.new(_rules(), cat), dir)
+	var why := second.open()
+	_expect(why == "" and second.engine.state_json() == live2, "a bad snapshot after a fallback boot still boots from snapshot.prev and the journals (%s)" % why)
+	second.close()
 	for prev in [false, true]:
 		var bad := FileAccess.open(store.snapshot_path(prev), FileAccess.WRITE)
 		bad.store_string("{")
@@ -1230,6 +1368,17 @@ func _test_search_perf() -> bool:
 	var snap_len := e.state_json().length()
 	print("[econ] state with %d listings: %d KB, stringified in %.0f ms; largest rid cache %d bytes" % [made, snap_len / 1024, float(Time.get_ticks_usec() - t2) / 1000.0, rid_bytes])
 	_expect(rid_bytes < 64 * 40, "a full rid cache persists in under 2.5 KB (%d bytes)" % rid_bytes)
+	# Scale probe: the whole snapshot (stringify, write, read back, compare, rotate) runs on the
+	# caller's thread every snapshot_every_s; this is the stall a 10,000-listing state costs.
+	var sdir := DIR + "/perf"
+	_wipe(sdir)
+	var snap := EconStore.new(e, sdir)
+	var t3 := Time.get_ticks_usec()
+	var snap_why := snap.snapshot()
+	print("[econ] full snapshot of that state: %.0f ms" % (float(Time.get_ticks_usec() - t3) / 1000.0))
+	_expect(snap_why == "", "perf snapshot succeeds (%s)" % snap_why)
+	snap.close()
+	_wipe(sdir)
 	var sorted := true
 	for i in range(1, 50):
 		if int(res.r.results[i].unit_price) < int(res.r.results[i - 1].unit_price):

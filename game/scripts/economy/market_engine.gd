@@ -5,6 +5,8 @@ extends RefCounted
 ## state. A mutating op validates everything, then writes; a failure changes nothing.
 ## A mutating success bumps state.seq, which is EconStore's cue to journal it (contract 5).
 ## Client write ops carry `rid` in args (contract 5.3); a repeat returns the cached response.
+## Responses that hand out something the server no longer holds (KEEP_BODY) persist in the
+## account's rid_cache, so a repeat after any restart or any amount of traffic still gets them.
 ## An op that hits an internal error part-way returns server_error and sets `fault`; EconStore
 ## then rebuilds memory from disk, which never saw the op, so a half-applied op cannot persist.
 
@@ -16,6 +18,8 @@ const WRITE := [
 	"market.sell_to_order", "inbox.take",
 ]
 const SYSTEM := ["account.ensure", "sys.tick"] ## called by the server itself, never relayed from a client
+## A withdrawn asset or a taken event exists only in its response; re-reading state cannot recover it.
+const KEEP_BODY := ["vault.withdraw_item", "vault.withdraw_pet", "inbox.take"]
 
 var rules: EconRules
 var cat: EconCatalog
@@ -27,7 +31,7 @@ var orders: OrderBook
 var query: MarketQuery
 var settlers: Settlers
 var fault := "" ## set when the last op stopped part-way; memory may be ahead of the books
-var _responses := {} ## seq -> full response of a recent write, for rid repeats (memory only)
+var _responses := {} ## seq -> full response of a recent write not in KEEP_BODY (memory only)
 static var _errors: ErrorCount
 
 ## Counts engine and script errors, so apply() can tell when an op hit one part-way.
@@ -108,11 +112,11 @@ func apply(op: String, account_id: int, args: Dictionary, ts: int) -> Dictionary
 		if not hit.is_empty():
 			if str(hit[0]) != op:
 				return EconArgs.no("conflict", "rid already used for %s" % str(hit[0]))
-			var full: Variant = _responses.get(int(hit[1]))
+			var full: Variant = hit[2] if hit.size() > 2 else _responses.get(int(hit[1]))
 			if full != null:
 				return (full as Dictionary).duplicate(true)
-			# shortcut: a repeat from before the last restart or older than rid_responses_kept ops
-			# gets this marker instead of the original body; the client re-reads its state.
+			# shortcut: a repeat of a non-KEEP_BODY op from before the last restart or older than
+			# rid_responses_kept ops gets this marker; everything it did is in state to re-read.
 			return {"ok": true, "r": {"duplicate": true, "op": op, "seq": int(hit[1])}}
 	var errors := _errors.n
 	var got: Variant = _dispatch(op, account_id, a)
@@ -162,12 +166,16 @@ func _dispatch(op: String, me: int, a: EconArgs) -> Dictionary:
 		"inbox.take": return _inbox(me)
 	return EconArgs.no("bad_request", "unknown op %s" % op)
 
-## The persisted cache holds rid -> [op, seq] (a few dozen bytes); full bodies stay in memory.
+## The persisted cache holds rid -> [op, seq] (a few dozen bytes), plus the response for
+## KEEP_BODY ops; other bodies stay in memory, since state holds everything they report.
 func _remember(acct: Dictionary, rid: String, op: String, seq: int, res: Dictionary) -> void:
 	var cache: Dictionary = acct.rid_cache
-	cache[rid] = [op, seq]
+	if op in KEEP_BODY:
+		cache[rid] = [op, seq, Ledger.norm(res.duplicate(true))]
+	else:
+		cache[rid] = [op, seq]
+		_responses[seq] = res.duplicate(true)
 	acct.rid_last = L.now
-	_responses[seq] = res.duplicate(true)
 	if cache.size() > rules.num("rid_cache"):
 		var oldest := ""
 		for k in cache:
@@ -261,7 +269,7 @@ func _deposit_item(me: int, a: EconArgs) -> Dictionary:
 	if checked.msg != "":
 		return EconArgs.no("invalid_asset", checked.msg)
 	var acct := L.acct(me)
-	if acct.vault_items.size() >= rules.num("max_vault_items"):
+	if L.vault_full(me, "item"):
 		return EconArgs.no("limit_reached", "vault holds at most %d stacks" % rules.num("max_vault_items"))
 	var stack: Dictionary = checked.v
 	var def_id := str(stack.id)
@@ -282,7 +290,7 @@ func _deposit_pet(me: int, a: EconArgs) -> Dictionary:
 	if checked.msg != "":
 		return EconArgs.no("invalid_asset", checked.msg)
 	var acct := L.acct(me)
-	if acct.vault_pets.size() >= rules.num("max_vault_pets"):
+	if L.vault_full(me, "pet"):
 		return EconArgs.no("limit_reached", "vault holds at most %d pets" % rules.num("max_vault_pets"))
 	var pet: Dictionary = checked.v
 	var species_key := "pet:%s" % pet.species

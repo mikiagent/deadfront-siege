@@ -3,7 +3,9 @@
 Branch `claude/mmo-econ`. Pure domain code: no nodes, no networking, time passed in.
 Accounts are integer ids only; auth and transport belong to the net package.
 Second pass (2026-10-18): every blocker, major and minor from the independent review is
-fixed, each with a test; see "Review fixes" below.
+fixed, each with a test; see "Review fixes" below. Third pass (same day): the second review's
+blocker and six minors are fixed or answered, each with a test that fails on the code before
+it; see "Second review fixes".
 
 ## What shipped
 
@@ -50,13 +52,20 @@ store.apply("sys.tick", 0, {}, now)
   `account.ensure {name}` from `auth.hello` with the new account id (>= 1) before any other op.
 - Write ops need `args.rid` (1-64 chars). The envelope carries `rid` outside `a`, so copy it
   into `a.rid` before calling `apply`. The same rid on a different op returns `conflict`.
-  A repeated rid changes nothing and returns the original response while it is in memory
-  (the last 16,384 server-wide writes, including everything replayed since the last
-  snapshot). An older repeat, or one from before a restart, returns
-  `{ok:true, r:{duplicate:true, op, seq}}`: the client should re-read its state. The cache
-  is the last 64 rids per account, forgotten after a day with no writes.
-- Always go through `store.apply`, never `engine.apply` directly, or the op is not journaled
-  and a fault is not repaired.
+  A repeated rid changes nothing. The cache is the last 64 rids per account, forgotten after a
+  day with no writes.
+  - `vault.withdraw_item`, `vault.withdraw_pet` and `inbox.take` (`MarketEngine.KEEP_BODY`):
+    the full response is persisted in the account's `rid_cache`, so a repeat returns the
+    original item, pet or events after any restart and any amount of other traffic. These are
+    the only responses that carry something the server no longer holds.
+  - Every other write: the original response while it is in memory (the last 16,384
+    server-wide writes, including everything replayed since the last snapshot). An older
+    repeat, or one from before a restart, returns `{ok:true, r:{duplicate:true, op, seq}}`.
+    The client should re-read its state, which holds everything such an op did.
+- Always go through `store.apply`, never `engine.apply` directly, or the op is not journaled,
+  a fault is not repaired, and the clock is not guarded. `store.apply` never lets time run
+  backwards: every op, reads and refusals included, runs at the latest ts the store has seen,
+  and the journal records that ts.
 - `server_error` means one of two things. Either the disk could not be written (`store.broken`
   is set; the store refuses everything until restart, and a restart boots from what the disk
   holds, which matches what clients were told), or the op hit an internal error part-way
@@ -73,6 +82,8 @@ Response shapes changed in this pass (no consumer used them yet; checked `mmo-ne
   full, plus `closed_listings` and `closed_orders` (last 7 days, newest first, paged) and
   `closed_total`.
 - `inbox.take` returns `dropped`: how many older events were pushed out past `inbox_max`.
+- Third pass: `market.buy`, `market.buyout`, `market.bid`, `market.order_create` and
+  `market.sell_to_order` can now return `limit_reached` when a vault is full (see below).
 
 ### Deposit caps (how the per-def table was derived)
 
@@ -95,18 +106,24 @@ gains <= 3 per level, xp below the next level, empty bag, not summoned. Every fi
 its `PetRecord.to_dict()` type; unknown fields are refused; `variant` must be "" or one the
 creature def lists (spawners never set any other); grade, hunger_max and roles are rebuilt.
 
-## Tests (run on this branch, 2026-10-18, after the fixes)
+## Tests (run on this branch, 2026-10-18, after the third-pass fixes)
 
 Unit tests, then smoke, each through `gslot.sh` with a timeout (no new `class_name` files, so
 no import was needed):
 
 ```
 [econ] fuzz 3000 ops over 6 accounts, invariants after every op: order_cancel 18/56, deposit_item 405/467, get 46/46, buy 44/294, take 72/72, list_auction 149/175, tick 191/191, sell_to_order 7/232, spend 32/32, orders 40/40, bid 73/221, list_fixed 117/303, item_detail 45/45, get 51/51, order_create 114/160, cancel 45/117, search 54/54, deposit_pet 85/100, buyout 10/67, withdraw_item 24/99, mine 59/59, withdraw_pet 32/41, trades 46/46, claim 27/32
-[econ] search over 10000 active listings: page 1 in 15.8 ms first call, 9.9 ms best of 3; q+newest in 13.0 ms
-[econ] state with 10000 listings: 4283 KB, stringified in 67 ms; largest rid cache 2218 bytes
+[econ] search over 10000 active listings: page 1 in 23.3 ms first call, 16.6 ms best of 3; q+newest in 28.1 ms
+[econ] state with 10000 listings: 4283 KB, stringified in 108 ms; largest rid cache 2218 bytes
+[econ] full snapshot of that state: 111 ms
 [tests] PASS
 SMOKE PASS
 ```
+
+Timings vary run to run with machine load: stringify measured 67-108 ms across this pass's
+runs. Mutation check: with the six changed engine files put back to the previous commit and
+the new tests kept, the run fails 26 checks, covering every finding below. The log's
+`Save schema 4 is newer` error comes from the save-migration tests, not from this package.
 
 (`n/m` = successful / attempted.) The fuzz now also sends wrong-typed values in random item and
 pet fields, and fails on any `server_error`. The log shows one deliberate `SCRIPT ERROR` and
@@ -133,10 +150,24 @@ line, snapshot + tail.
 | Minor: report understated abuse and durability | Rewritten below | |
 | Minor: wash pairs judged against stale timestamps; NPC trades in the reference | Pair timestamps filtered by the 24 h window at read time; npc trades not eligible; `volume()` granularity documented (one hourly bucket) | Poisoning test (a pair trade 24 h later counts) and Settlers test |
 | Minor: a bid at exactly 60 s left spent an extension without moving the end | Extend only when `now + snipe_extend_s > ends` | `_test_market_views` |
-| Minor: state field names drifted from contract 4 | `claimed` is now `claimed_objectives`; `rid_order` is gone. `rid_cache` keeps the contract name but holds `[op, seq]`, not the response (orchestrator: please note this in contracts.md). State version is now 2 | Version test |
+| Minor: state field names drifted from contract 4 | `claimed` is now `claimed_objectives`; `rid_order` is gone. State version is now 2. (Third pass: `rid_cache` holds the full response for withdrawals and inbox.take, `[op, seq]` otherwise; orchestrator: please note this in contracts.md 4) | Version test |
 | Minor: `assert` guards vanish in release | `debit`/`credit` refuse and `push_error`, which faults the op | `_test_fault_reload` debit case |
 | Minor: `market.mine` unpaged, bidder ids public, silent inbox overflow | Paged closed history, `has_bid`/`my_bid`, anonymous public tape, `dropped` count | `_test_market_views` |
 | Minor: eviction and first-call timing untested | Asserted | `_test_idempotency`, `_test_search_perf` |
+
+## Second review fixes (third pass)
+
+Each test below fails on the code before this pass; I checked that by running it there.
+
+| Finding | Fix | Test |
+|---|---|---|
+| Blocker: a repeated `withdraw_item` / `withdraw_pet` rid after a snapshot + restart, or after 16,384 other writes, got `{duplicate:true}` with no asset: the asset was gone from the vault and never handed over. `inbox.take` lost events the same way | Responses of the `KEEP_BODY` ops are persisted in the account's `rid_cache` as `[op, seq, response]`, as contract 4 says; the rest keep `[op, seq]` (their effects are all in state to re-read, and persisting listing bodies cost about 56 KB per account, which the first review flagged) | `_test_rid_bodies`: withdraw item, withdraw pet and take, snapshot, reopen, repeat each rid: same body and nothing applied. Then a partial withdraw, 16,385 writes by another account, repeat: same item and the stack still holds 6 |
+| Minor: vault caps only checked on deposit | `Ledger.vault_full`. `buy`, `buyout` and `order_create` need a free slot; `bid` needs one counting the auctions the bidder already leads; `sell_to_order` refuses while the order owner's vault is full (each fill is a new stack, so the order pauses). Assets already in escrow still deliver (auction wins, returns from cancel and expiry): nothing is refused late or lost, and a vault can overshoot by at most its owner's own listings plus auctions it led | `_test_vault_caps`: ten 1-unit buys stop at 3, and buy, bid, buyout, order_create, a leading bid holding the last slot, fill into a full vault and a pet buy all return `limit_reached`; an auction won after the vault filled still delivers (4 of 3) |
+| Minor: wall clock stepping back contradicted an earlier "expired" | `EconStore.apply` keeps the latest ts it has seen and passes that to every op; the journal records the clamped ts, so replay is unchanged. The engine alone still clamps only to the last write | `_test_clock`: buy refused at end+5, then at end-30: still `expired`; same after a read at the later time |
+| Minor: re-anchor rule deviates from 6.5 and could be triggered by many small trades | Re-anchor now needs most eligible trades **and** most units outside the band, so neither many tiny trades nor one large one can do it. Marked `# ASSUMPTION:`. **Orchestrator: please amend contracts.md 6.5** to: "...excluding trades priced outside 0.25x-4x the previous reference, unless most of the window's eligible trades and units are outside it, in which case all eligible trades count" | `_test_reference_poisoning`: three 1-unit trades at 1 leave a reference of 20 (by count alone it drops to 10); the 100-unit outlier in `_test_history_and_reference` covers the other side |
+| Minor: after a fallback boot, the next snapshot deleted the journal bridging snapshot.prev | `snapshot()` appends the journal to `journal.prev` instead of replacing it whenever there is no `snapshot.json` to rotate, so `journal.prev` always bridges `snapshot.prev` to the new snapshot. A crash mid-append leaves lines in both files, and boot replays each seq once | `_test_snapshot_failures`: fallback boot, snapshot, one more op, then a second bad `snapshot.json` still boots to the live state (before: "jumps from seq 16 to 21") |
+| Minor: `#-12345` accepted as a tint | Each digit checked against `[0-9a-fA-F]` | `_test_item_deposits`: `#-12345` and `#+1234567` refused |
+| Minor: snapshot cost grows with closed history | Not changed in code; measured and documented under Limits (scaling ceiling). Moving closed history and the trade log into an append-only side file is the fix once the ceiling is near | `_test_search_perf` now times a full `snapshot()` |
 
 Not disputed: every finding reproduced by reading the code. One gap in the tests: no test makes
 a write fail after the file opened (a real full disk), so the read-back check before the
@@ -175,9 +206,32 @@ half-written-snapshot test covers what a bad write would leave behind.
   500 replayed ops). Errors logged by another thread during an op cause a needless reload.
   A client that finds a reproducible internal error can make the server do this repeatedly;
   it cannot corrupt the books.
-- Search is a linear scan (10-16 ms at 10,000 listings). Indexes are not needed until roughly
-  50,000 active listings. A 10,000-listing state is 4.3 MB and stringifies in about 70 ms per
-  snapshot.
+- Search is a linear scan (10-28 ms at 10,000 listings, depending on load). Indexes are not
+  needed until roughly 50,000 active listings.
+- **Snapshot scaling ceiling.** A snapshot stringifies, writes, reads back and compares the
+  whole state on the caller's thread, every 60 s or 500 ops. Measured: 10,000 active listings
+  = 4.3 MB, and a full snapshot takes about 70-110 ms. A closed listing (kept 7 days with its
+  asset copy) costs about the same as an active one, about 430 bytes. So 5,000 closed
+  listings a day adds about 15 MB, and each snapshot then stalls the server for roughly
+  300-500 ms. Keep active listings plus 7 days of closed listings and orders under about
+  25,000 (about 10 MB, about 200 ms per snapshot). Past that, move `closed_listings`,
+  `closed_orders` and `trades` into an append-only side file, or raise `snapshot_every_s`
+  (boot then replays a longer journal).
+- **Vault caps can overshoot a little.** Settlement never refuses: an auction won or a listing
+  returned after its owner's vault filled still lands there. Overshoot is at most the owner's
+  open listings (50) plus the auctions they led when the vault filled. A vault past the cap
+  can still withdraw and sell, but cannot deposit or buy until it is back under. A full vault
+  pauses its owner's buy orders (`sell_to_order` returns `limit_reached`), so instant sell
+  should fall back to the next best order.
+- **Persisted rid bodies.** A withdrawal body is one item or pet dict (about 0.4 or 1.2 KB),
+  so at most about 80 KB per account for 64 withdrawals. Cached `inbox.take` bodies hold at
+  most the events the account received across its last 64 writes. All of it is pruned after
+  a day with no writes. A repeat of a withdrawal evicted by 64 newer writes, or idle for a
+  day, applies again (by then the client has long had its answer).
+- **Clock guard is per process.** The latest-seen ts lives in `EconStore` memory. After a
+  restart it starts from the last write's ts, so a wall clock stepped back across a restart
+  can still contradict a read answered just before it. Use a clock that never steps back
+  (for example `CLOCK_MONOTONIC` plus a boot offset) if that matters.
 - Names are not checked for uniqueness here (`auth.hello` owns that); rate limits (5.4)
   belong to the transport.
 
@@ -188,6 +242,8 @@ half-written-snapshot test covers what a bad write would leave behind.
 - A bid at or above the buyout is refused; the buyer uses `market.buyout`.
 - Closed Settler orders are not kept, so they read as `not_found`, not `closed`.
 - Settler trades count toward volume and OHLC but not the reference price.
+- The reference re-anchors on all eligible trades when most trades and most units sit outside
+  the 0.25x-4x band (an extension of contract 6.5; see "Second review fixes").
 - Retries and replayed frames arrive within a day; a rid idle longer applies again.
 - Settlers only buy (contract 6.6): every refresh they cancel their orders and post up to 12 new
   ones with at most 500 escrowed, priced base x mean regional demand x scarce/abundant

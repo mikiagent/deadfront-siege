@@ -64,6 +64,8 @@ func buy(me: int, a: EconArgs) -> Dictionary:
 		return EconArgs.no("self_trade", "you cannot buy your own listing")
 	if count > int(lst.left):
 		return EconArgs.no("insufficient_items", "only %d left" % int(lst.left))
+	if L.vault_full(me, lst.type):
+		return _full()
 	var total := int(lst.unit_price) * count
 	if int(L.acct(me).wallet) < total:
 		return EconArgs.no("insufficient_funds", "needs %d T-stones" % total)
@@ -96,6 +98,8 @@ func bid(me: int, a: EconArgs) -> Dictionary:
 		need = maxi(need, current + maxi(R.num("auction_min_increment_abs"), EconRules.ceil_bp(current, R.bp("auction_min_increment"))))
 	if amount < need:
 		return EconArgs.no("bid_too_low", "bid at least %d" % need)
+	if L.vault_full(me, lst.type, _leading(me, lst.type, lst.id)):
+		return _full()
 	# ASSUMPTION: a bid at or above the buyout is refused; the buyer uses buyout instead.
 	if int(lst.buyout) > 0 and amount >= int(lst.buyout):
 		return EconArgs.no("bad_request", "bid reaches the buyout price; use buyout")
@@ -127,6 +131,8 @@ func buyout(me: int, a: EconArgs) -> Dictionary:
 		return EconArgs.no("expired", "auction has ended")
 	if int(lst.seller) == me:
 		return EconArgs.no("self_trade", "you cannot buy your own auction")
+	if L.vault_full(me, lst.type):
+		return _full()
 	var price := int(lst.buyout)
 	var held := int(lst.bid) if int(lst.bidder) == me else 0
 	if int(L.acct(me).wallet) + held < price:
@@ -301,6 +307,17 @@ func _pay_seller(lst: Dictionary, buyer: int, count: int, total: int, via: Strin
 	var trade := H.record(via, lst.id, lst.key, lst.type, buyer, seller, count, total, tax)
 	L.inbox(seller, "sold", {"listing_id": lst.id, "key": lst.key, "count": count, "total": total, "tax": tax, "net": total - tax, "buyer": L.name_of(buyer)})
 	return trade
+
+## Auctions of `kind` that `me` leads (other than `skip`): each delivers to their vault if it ends now.
+func _leading(me: int, kind: String, skip: String) -> int:
+	var n := 0
+	for l: Dictionary in L.s.listings.values():
+		if int(l.bidder) == me and l.type == kind and l.id != skip:
+			n += 1
+	return n
+
+static func _full() -> Dictionary:
+	return EconArgs.no("limit_reached", "your vault is full; withdraw something first")
 
 ## Hands a standing bid back to its bidder; tells them unless they are outbidding themselves.
 func _release_bid(lst: Dictionary, me: int, new_amount: int) -> void:

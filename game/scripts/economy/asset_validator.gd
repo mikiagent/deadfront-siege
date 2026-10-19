@@ -97,7 +97,7 @@ func _attribute(key: String, v: Variant) -> String:
 	match str(spec.get("type", "")):
 		"color":
 			var t := str(v)
-			if not (v is String) or not (t.length() == 7 or t.length() == 9) or not t.begins_with("#") or not t.substr(1).is_valid_hex_number():
+			if not (v is String) or not (t.length() == 7 or t.length() == 9) or not t.begins_with("#") or not _hex_digits(t.substr(1)):
 				return "attribute %s must be #rrggbb" % key
 		"enum":
 			if not (v is String) or str(v) not in spec.get("values", []):
@@ -272,3 +272,10 @@ static func _keyed(src: Dictionary) -> Dictionary:
 
 static func _no(msg: String) -> Dictionary:
 	return {"msg": msg}
+
+## Exactly [0-9a-fA-F]+ (String.is_valid_hex_number also takes a sign and a 0x prefix).
+static func _hex_digits(t: String) -> bool:
+	for ch in t:
+		if ch not in "0123456789abcdefABCDEF":
+			return false
+	return true

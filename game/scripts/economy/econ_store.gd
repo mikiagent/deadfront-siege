@@ -4,7 +4,7 @@ extends RefCounted
 ## and flushed before apply() returns, so a response is never sent for an op that could be
 ## lost. A snapshot is written to .tmp and read back before it replaces anything; then the
 ## journal it covers rotates to journal.prev.jsonl and the snapshot it replaces to
-## snapshot.prev.json. Boot = newest readable snapshot, then both journals (entries with
+## snapshot.prev.json (journal.prev always bridges snapshot.prev to snapshot.json). Boot = newest readable snapshot, then both journals (entries with
 ## seq > the snapshot's) through the same apply(), repairing a torn tail.
 ## Limit: Godot has no fsync. flush() hands bytes to the OS, so a process crash loses nothing
 ## that was acknowledged. A power cut can lose ops the OS had not yet written back; a snapshot
@@ -20,6 +20,7 @@ var broken := "" ## set when the disk cannot be trusted any more; the store then
 var _journal: FileAccess
 var _ops_since := 0
 var _snap_ts := 0
+var _clock := 0 ## latest ts any op has seen, reads and refusals included (memory only)
 
 func _init(p_engine: MarketEngine, p_dir: String) -> void:
 	engine = p_engine
@@ -135,7 +136,10 @@ func apply(op: String, account_id: int, args: Dictionary, ts: int) -> Dictionary
 	var text := JSON.stringify(args, "", true, true)
 	var wire: Variant = JSON.parse_string(text)
 	var before := engine.seq()
-	var res := engine.apply(op, account_id, wire if wire is Dictionary else {}, ts)
+	# A wall clock stepped back (NTP) must not contradict an answer already given, such as
+	# "expired". The engine clamps only to the last write; the journal records the clamped ts.
+	_clock = maxi(_clock, ts)
+	var res := engine.apply(op, account_id, wire if wire is Dictionary else {}, _clock)
 	if engine.fault != "":
 		push_warning("[econ] %s; reloading the books from disk" % engine.fault)
 		var why := reload()
@@ -179,8 +183,12 @@ func snapshot() -> String:
 		DirAccess.remove_absolute(tmp)
 		return "snapshot did not verify (%d); kept the old one and the journal" % err
 	close()
-	var why := _rotate(journal_path(), journal_path(true))
-	if why == "" and FileAccess.file_exists(snapshot_path()):
+	# journal.prev must bridge snapshot.prev to the new snapshot. With no snapshot.json to
+	# rotate (first snapshot, or after a fallback boot set a bad one aside), snapshot.prev
+	# stays, so the journal is appended to journal.prev instead of replacing it.
+	var keep_prev := not FileAccess.file_exists(snapshot_path())
+	var why := _append(journal_path(), journal_path(true)) if keep_prev else _rotate(journal_path(), journal_path(true))
+	if why == "" and not keep_prev:
 		why = _rotate(snapshot_path(), snapshot_path(true))
 	if why == "" and DirAccess.rename_absolute(tmp, snapshot_path()) != OK:
 		why = "cannot rename the snapshot into place"
@@ -202,6 +210,23 @@ static func _rotate(from: String, to: String) -> String:
 		return "cannot remove %s" % to.get_file()
 	if FileAccess.file_exists(from) and DirAccess.rename_absolute(from, to) != OK:
 		return "cannot rename %s" % from.get_file()
+	return ""
+
+## Appends `from` to `to`, then removes `from`. A crash in between leaves the lines in both
+## files; boot replays each seq once.
+static func _append(from: String, to: String) -> String:
+	if not FileAccess.file_exists(from):
+		return ""
+	var out := FileAccess.open(to, FileAccess.READ_WRITE if FileAccess.file_exists(to) else FileAccess.WRITE)
+	if out == null:
+		return "cannot open %s (%d)" % [to.get_file(), FileAccess.get_open_error()]
+	out.seek_end()
+	var ok := out.store_buffer(FileAccess.get_file_as_bytes(from))
+	out.flush()
+	ok = ok and out.get_error() == OK
+	out.close()
+	if not ok or DirAccess.remove_absolute(from) != OK:
+		return "cannot append %s to %s" % [from.get_file(), to.get_file()]
 	return ""
 
 func close() -> void:
