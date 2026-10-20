@@ -277,7 +277,8 @@ func _build_tree() -> void:
 		var l := Label.new()
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.text = "%s  ·  %s  ·  %d SP\n%s" % [str(n.get("id", "")).replace("_", " ").capitalize(), LevelDisplay.label(int(n.get("level", 1))), int(n.get("sp", 0)), str(n.get("unlocks", ""))]
+		var cost := "AUTO" if bool(n.get("auto", false)) else "%d SP" % int(n.get("sp", 0))
+		l.text = "%s  ·  %s  ·  %s\n%s" % [str(n.get("name", str(n.get("id", "")).replace("_", " ").capitalize())), LevelDisplay.label(int(n.get("level", 1))), cost, str(n.get("unlocks", ""))]
 		l.add_theme_font_size_override("font_size", UiTokens.meta(view) + 2)
 		match st[0]:
 			"owned":
@@ -288,7 +289,10 @@ func _build_tree() -> void:
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(120 if UiTokens.is_narrow(view) else 140, 56)
 		var nid := str(n.get("id", ""))
-		if st[0] == "owned":
+		if st[0] == "owned" and bool(n.get("auto", false)):
+			b.text = "Learned"
+			b.disabled = true
+		elif st[0] == "owned":
 			b.text = "Refund"
 			b.pressed.connect(func () -> void:
 				skills.refund(_tree, nid)
