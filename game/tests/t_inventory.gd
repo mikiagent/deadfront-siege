@@ -113,6 +113,13 @@ func _test_worn_out_of_bag() -> void:
 			j = i
 	inv.equip_at(j)
 	_expect(inv.equipped_in(&"head").level == 5 and inv.slots[j] != null and inv.slots[j].uid == uid, "equipping over worn gear swaps it into the vacated slot")
+	var wrong = INV.new(4)
+	wrong.add(IS.make(&"branch", 1))
+	wrong.add(_helm(1))
+	_expect(not wrong.equip_at(0, &"weapon") and not wrong.equip_at(1, &"legs") and wrong.used_slots() == 2, "an item only goes into its own slot")
+	var loot = INV.new(1)
+	loot.add_growing(IS.make(&"raw_meat", 3))
+	_expect(loot.count_of(&"raw_meat") == 3 and loot.slot_count == 3, "add_growing keeps every unit (corpse loot)")
 
 func _pick(tier: String):
 	return IS.make(&"work_pick", 1, {"material_tier": tier}, 1)

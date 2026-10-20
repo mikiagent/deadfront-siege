@@ -50,8 +50,10 @@ func equip_at(index: int, slot: StringName = &"") -> bool:
 	var item := slots[index]
 	if item == null or item.def_id == LOCK or item.is_locked() or item.count != 1:
 		return false
-	var target := slot if slot != &"" else slot_for(item.def())
-	if target == &"" or target not in EQUIP_SLOTS:
+	var want := slot_for(item.def())
+	var target := slot if slot != &"" else want
+	# Only into its own slot (a ring may take either accessory slot).
+	if want == &"" or not (target == want or (want == &"accessory1" and target == &"accessory2")):
 		return false
 	if target == &"accessory1" and worn(&"accessory1") != null and worn(&"accessory2") == null:
 		target = &"accessory2"
@@ -274,6 +276,12 @@ func can_accept(stack: ItemStack) -> bool:
 		elif stack.can_merge_with(s):
 			left -= maxi(0, cap - s.count)
 	return left <= 0
+
+## For containers sized by their contents (corpse loot): grows rather than refuse a unit.
+func add_growing(stack: ItemStack) -> void:
+	while add(stack) > 0:
+		slot_count += maxi(1, stack.slot_span())
+		slots.resize(slot_count)
 
 ## Returns the units that did not fit. Each placed unit of a non-stacking def is its own instance.
 func add(stack: ItemStack) -> int:
