@@ -85,9 +85,9 @@ func _composite() -> Node3D:
 		_prop(root, "tree-trunk", Vector3(x, DECK_H, -4.65), Vector3.ZERO, Vector3(0.3, 0.42, 0.3))
 		_rope(root, Vector3(x, DECK_H + 0.2, -4.65), 0.12, 0.2)
 	_rope(root, Vector3(-0.45, DECK_H + 0.03, -3.8), 0.18, 0.3)
-	# A log raft tied alongside, floating at the waterline (water is 0.7 m above the pile feet).
+	# A log raft moored alongside, floating at the waterline (water is 0.7 m above the pile feet).
 	for i in 3:
-		_prop(root, "tree-log-small", Vector3(1.55 + 0.42 * float(i), 0.55, -3.4), Vector3(0.0, 3.0, 0.0), Vector3(0.42, 0.4, 0.9))
+		_prop(root, "tree-log-small", Vector3(2.5 + 0.42 * float(i), 0.5, -3.9), Vector3(0.0, 8.0, 0.0), Vector3(0.42, 0.4, 0.8))
 	return root
 
 func _prop(parent: Node3D, model: String, pos: Vector3, rot_deg: Vector3 = Vector3.ZERO, scale_v: Vector3 = Vector3.ONE) -> void:
