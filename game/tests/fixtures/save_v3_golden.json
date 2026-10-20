@@ -1,0 +1,519 @@
+{
+	"clock": 0.350380104166667,
+	"ground_snares": [
+		{
+			"arm_left": 0.0,
+			"heavy": false,
+			"life_left": 100.0,
+			"position": [
+				3.5,
+				1.10203576087952,
+				11.5
+			]
+		}
+	],
+	"home": {
+		"buildings": [
+			{
+				"cargo": false,
+				"cell": [
+					-1.0,
+					8.0
+				],
+				"contents": [],
+				"kind": "tent",
+				"rot": 0.0,
+				"sleeps_left": 6.0,
+				"text": "",
+				"x": 0.5,
+				"z": 9.5
+			},
+			{
+				"cargo": false,
+				"cell": [
+					-1.0,
+					6.0
+				],
+				"contents": [
+					{
+						"attributes": {
+							"material_tier": "stone",
+							"tint": "#8a8a8a"
+						},
+						"count": 5.0,
+						"durability": 0.0,
+						"flags": [],
+						"id": "stone",
+						"level": 1.0,
+						"max_durability": 0.0,
+						"process_count": 0.0
+					},
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null
+				],
+				"kind": "basket",
+				"rot": 0.0,
+				"sleeps_left": -1.0,
+				"text": "",
+				"x": -0.5,
+				"z": 6.5
+			},
+			{
+				"cell": [
+					-1.0,
+					7.0
+				],
+				"kind": "campfire",
+				"rot": 0.0,
+				"seconds_left": 120.0,
+				"x": -0.5,
+				"z": 7.5
+			},
+			{
+				"cell": [
+					2.0,
+					9.0
+				],
+				"kind": "workbench",
+				"rot": 1.0,
+				"x": 2.5,
+				"z": 10.0
+			}
+		],
+		"camp_layout": {
+			"CampBench": {
+				"cell": [
+					-2.0,
+					6.0
+				],
+				"rot": 1.0
+			}
+		},
+		"cargo": [
+			{
+				"attributes": {
+					"material_tier": "flint"
+				},
+				"count": 4.0,
+				"durability": 0.0,
+				"flags": [],
+				"id": "flint",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"process_count": 0.0
+			},
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null
+		],
+		"claims": [
+			[
+				-7.0,
+				1.0,
+				14.0,
+				14.0
+			]
+		],
+		"terrain": "meadow"
+	},
+	"island_id": "home_grassland",
+	"objective": 2.0,
+	"objective_best": 1.0,
+	"occupation": "student",
+	"pending_refunds": [],
+	"pets": [
+		{
+			"accuracy": 103.387096774194,
+			"attack": 106.491935483871,
+			"bag": [
+				{
+					"attributes": {
+						"material_tier": "stone",
+						"tint": "#8a8a8a"
+					},
+					"count": 2.0,
+					"durability": 0.0,
+					"flags": [],
+					"id": "stone",
+					"level": 1.0,
+					"max_durability": 0.0,
+					"process_count": 0.0
+				},
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null
+			],
+			"defense": 34.7741935483871,
+			"genetics": {
+				"evs": {
+					"accuracy": 0.0,
+					"health": 0.0,
+					"melee_attack": 0.0,
+					"melee_defense": 0.0,
+					"ranged_attack": 0.0,
+					"ranged_defense": 0.0,
+					"speed": 0.0
+				},
+				"ivs": {
+					"accuracy": 19.0,
+					"health": 22.0,
+					"melee_attack": 28.0,
+					"melee_defense": 2.0,
+					"ranged_attack": 15.0,
+					"ranged_defense": 5.0,
+					"speed": 8.0
+				},
+				"level_gains": {
+					"accuracy": 0.0,
+					"health": 0.0,
+					"melee_attack": 0.0,
+					"melee_defense": 0.0,
+					"ranged_attack": 0.0,
+					"ranged_defense": 0.0,
+					"speed": 0.0
+				}
+			},
+			"grade": "B-",
+			"hp": 680.258064516129,
+			"hunger": 256.0,
+			"hunger_efficiency": 1.0,
+			"hunger_max": 256.0,
+			"level": 1.0,
+			"ranged_attack": 94.5403225806452,
+			"ranged_defense": 35.9354838709677,
+			"respawn_left": 0.0,
+			"species": "velociraptor",
+			"speed": 649.193548387097,
+			"tamed_role": [
+				"mount",
+				"scout"
+			],
+			"variant": "",
+			"xp": 0.0,
+			"xp_rate": 1.0
+		}
+	],
+	"pioneer_buildings": {},
+	"pioneer_crafts": {},
+	"pioneer_level": 4.0,
+	"pioneer_xp": 7.0,
+	"player": {
+		"inventory": [
+			{
+				"attributes": {},
+				"count": 1.0,
+				"durability": 34.0,
+				"flags": [],
+				"id": "stone_knife_work",
+				"level": 1.0,
+				"max_durability": 41.0,
+				"process_count": 0.0
+			},
+			{
+				"attributes": {},
+				"count": 1.0,
+				"durability": 51.0,
+				"flags": [],
+				"id": "work_axe",
+				"level": 1.0,
+				"max_durability": 51.0,
+				"process_count": 0.0
+			},
+			{
+				"attributes": {
+					"material_tier": "stone",
+					"tint": "#8a8a8a"
+				},
+				"count": 12.0,
+				"durability": 0.0,
+				"flags": [],
+				"id": "stone",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"process_count": 0.0
+			},
+			{
+				"attributes": {
+					"tint": "#7a5a32"
+				},
+				"count": 7.0,
+				"durability": 0.0,
+				"flags": [],
+				"id": "branch",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"process_count": 0.0
+			},
+			{
+				"attributes": {},
+				"count": 3.0,
+				"durability": 0.0,
+				"flags": [],
+				"id": "raw_meat",
+				"level": 1.0,
+				"max_durability": 0.0,
+				"process_count": 0.0
+			},
+			{
+				"attributes": {},
+				"count": 1.0,
+				"durability": 400.0,
+				"flags": [],
+				"id": "raid_helm",
+				"level": 1.0,
+				"max_durability": 400.0,
+				"process_count": 0.0
+			},
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null
+		],
+		"inventory_extras": {
+			"equipment": {
+				"head": "raid_helm"
+			},
+			"quick_food": [
+				"",
+				""
+			],
+			"tool_index": -1.0
+		},
+		"position": [
+			0.0,
+			2.10019326210022,
+			12.0
+		],
+		"statuses": [],
+		"vitals": {
+			"energy": 87.55,
+			"fatigue": 30.001240617284,
+			"health": 100.107189333333,
+			"max_energy": 103.0,
+			"max_fatigue": 100.0,
+			"max_health": 105.0
+		}
+	},
+	"player_name": "Golden",
+	"raid_victory": false,
+	"saved_unix": 4000000000,
+	"schema": 3.0,
+	"skills": {
+		"animal_management_I": false,
+		"animal_management_II": false,
+		"animal_management_III": false,
+		"animal_management_IV": false,
+		"butchering_I": false,
+		"butchering_II": false,
+		"capture_technique_I": false,
+		"capture_technique_II": false,
+		"capture_technique_III": false,
+		"capture_technique_IV": false,
+		"capture_technique_V": false
+	},
+	"skills_v2": {
+		"occupation": "student",
+		"sp_available": 270.0,
+		"sp_spent": 0.0,
+		"trees": {
+			"butchering": {
+				"level": 3.0,
+				"unlocked": [],
+				"xp": 36.0
+			},
+			"construction": {
+				"level": 0.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"cooking": {
+				"level": 0.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"defense": {
+				"level": 0.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"farming": {
+				"level": 0.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"gathering": {
+				"level": 20.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"melee": {
+				"level": 0.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"processing": {
+				"level": 0.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"ranged": {
+				"level": 0.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"survival": {
+				"level": 4.0,
+				"unlocked": [],
+				"xp": 2.0
+			},
+			"tailoring": {
+				"level": 0.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"weapon_tools": {
+				"level": 0.0,
+				"unlocked": [],
+				"xp": 0.0
+			}
+		}
+	},
+	"t_stones": 42.0,
+	"unstable": {
+		"crater_discovered": false,
+		"harvested": {},
+		"remaining": 0.0
+	},
+	"visited_islands": {
+		"home_grassland": true
+	}
+}
