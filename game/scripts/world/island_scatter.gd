@@ -99,7 +99,7 @@ static func _plant_family(rt: IslandRuntime, family: String, role: String, n: in
 			var ox := cx + rng.randf_range(-spread, spread)
 			var oz := cz + rng.randf_range(-spread, spread)
 			var pos := Vector3(ox, rt.surface_y(ox, oz), oz)
-			if not rt.spawn_ok(pos, false):
+			if not rt.spawn_ok(pos, false) or rt.near_harbour(pos):
 				continue
 			var tile := BuildGrid.tile_of(pos)
 			if rt._used_tiles.has(tile):
@@ -382,6 +382,8 @@ static func _spawn_special_family(rt: IslandRuntime, family: String, count: int,
 			continue
 		var pos := Vector3(wx, h, wz)
 		if family != "mud" and family != "clay" and not rt.spawn_ok(pos, false):
+			continue
+		if rt.near_harbour(pos):
 			continue
 		var uid := "%s_tile_%d" % [family, placed]
 		rt.harvest_count += plant_at(rt, family, uid, pos, fallback_id, tool, climate, rt.material_level(pos, tier), tint)

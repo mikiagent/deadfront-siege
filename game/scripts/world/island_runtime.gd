@@ -59,18 +59,19 @@ func land_radius() -> float:
 ## True when a creature may stand at pos: on dry land above the beach and the river,
 ## inside the land radius and (when strict) at least 25 m from camp and the harbour
 ## (rules.json landing ring: "nothing spawns within 25 m of camp").
+## Non-strict also accepts the harbour's approach strip (HarbourSite.APPROACH_M).
 func spawn_ok(pos: Vector3, strict: bool = true) -> bool:
 	if _heights.is_empty():
 		return true
-	if Vector2(pos.x, pos.z).length() > land_radius() - 2.0:
-		return false
-	if surface_y(pos.x, pos.z) < 0.4:
+	if not is_dry(pos) and (strict or not on_harbour_approach(pos)):
 		return false
 	if strict:
 		var keep := 25.0
 		if Vector2(pos.x - _camp_pos.x, pos.z - _camp_pos.z).length() < keep:
 			return false
-		if Vector2(pos.x - _harbour_pos.x, pos.z - _harbour_pos.z).length() < keep * 0.6:
+		# ASSUMPTION: the harbour is where travel lands the survivor, so it gets the camp's 25 m
+		# landing ring (was 15 m when it stood inland next to the camp).
+		if Vector2(pos.x - _harbour_pos.x, pos.z - _harbour_pos.z).length() < keep:
 			return false
 	return true
 
@@ -109,8 +110,13 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	_harbour_pos = _tile_at(float(harbour_a[0]), float(harbour_a[2]))
 	if _crater_hint != Vector3.ZERO:
 		_crater_pos = _tile_at(_crater_hint.x, _crater_hint.z)
+	# The json harbour is a hint: the dock goes on the legal coast pose nearest it (HarbourSite).
+	var hint := Vector2(float(harbour_a[0]), float(harbour_a[2])) if def.has("harbour") else Vector2(_camp_hint.x, _camp_hint.z)
+	var site := HarbourSite.find(self, hint)
+	if site.is_empty():
+		push_error("[world] island %s has no coast for the harbour" % def.get("id", ""))
 	harbour = (load("res://scripts/world/harbour.gd") as GDScript).new()
-	_camp_place(harbour, "Harbour", &"harbour", BuildGrid.tile_of(_harbour_pos) - Vector2i(1, 3))
+	_camp_place(harbour, "Harbour", &"harbour", site.get("cell", BuildGrid.tile_of(_harbour_pos) - Vector2i(1, 3)), int(site.get("rot", 0)))
 	_camp(_camp_pos)
 	cargo = (load("res://scripts/world/cargo_warp.gd") as GDScript).new()
 	_camp_place(cargo, "CargoWarp", &"chest", BuildGrid.tile_of(_tile_at(float(camp_a[0]) + 3.0, float(camp_a[2]))))
@@ -119,7 +125,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 		cargo_basket = PB.make(&"basket")
 		cargo_basket.is_cargo = true
 		cargo_basket.storage = World.cargo_home
-		cargo_basket.position = _tile_at(float(harbour_a[0]) + 3.0, float(harbour_a[2]))
+		cargo_basket.position = _dry_beside_harbour()
 		add_child(cargo_basket)
 		build_grid.reserve_kind(&"basket", BuildGrid.tile_of(cargo_basket.position), 0)
 	IslandClaims.setup(self, def)
@@ -216,21 +222,55 @@ func _setup_pathing() -> void:
 
 ## Camp pieces are real buildings (occupied cells, not reserved) so layout mode can move them;
 ## a moved pose is remembered in World.camp_layout and applied here on the next build.
-func _camp_place(node: Node3D, name: String, kind: StringName, default_cell: Vector2i) -> void:
+func _camp_place(node: Node3D, name: String, kind: StringName, default_cell: Vector2i, default_rot: int = 0) -> void:
 	node.name = name
 	var cell := default_cell
-	var rot := 0
+	var rot := default_rot
 	var saved: Variant = World.camp_layout.get(name, null) if World else null
 	if saved is Dictionary:
 		var cv: Variant = (saved as Dictionary).get("cell", null)
 		if cv is Array and (cv as Array).size() >= 2:
 			cell = Vector2i(int(cv[0]), int(cv[1]))
 		rot = int((saved as Dictionary).get("rot", 0))
+	# Saves from before the coast rule kept the dock inland; those poses snap back to the coast.
+	if kind == &"harbour" and HarbourSite.check(self, cell, rot) != "":
+		cell = default_cell
+		rot = default_rot
 	add_child(node)
 	node.global_transform = build_grid.placement_transform(kind, cell, rot)
 	if node.has_method("set_grid_pose"):
 		node.set_grid_pose(cell, rot)
 	build_grid.occupy(node, build_grid.cells_for(kind, cell, rot))
+
+## Dry land above the beach and inside the land radius.
+func is_dry(pos: Vector3) -> bool:
+	return Vector2(pos.x, pos.z).length() <= land_radius() - 2.0 and surface_y(pos.x, pos.z) >= 0.4
+
+func on_harbour_approach(pos: Vector3) -> bool:
+	return harbour != null and HarbourSite.on_approach(harbour.build_cell, harbour.build_rot, Vector2(pos.x, pos.z)) \
+		and surface_y(pos.x, pos.z) > HarbourSite.WATER_Y
+
+func harbour_approach_rect() -> Rect2i:
+	return HarbourSite.approach_rect(harbour.build_cell, harbour.build_rot) if harbour != null else Rect2i()
+
+## Travel lands the survivor here: the sand just behind the dock's base, at the water's edge.
+func arrival_point() -> Vector3:
+	var p := HarbourSite.arrival_point(harbour.build_cell, harbour.build_rot)
+	return _at(p.x, p.y)
+
+## Scatter keeps the dock, its approach and the cargo basket clear.
+func near_harbour(pos: Vector3) -> bool:
+	return Vector2(pos.x - _harbour_pos.x, pos.z - _harbour_pos.z).length() < 8.0 or on_harbour_approach(pos)
+
+## The home cargo basket: beside the dock's base, walked inland until it stands on dry land.
+func _dry_beside_harbour() -> Vector3:
+	var s := HarbourSite.seaward(harbour.build_rot)
+	var p := HarbourSite.base_point(harbour.build_cell, harbour.build_rot) + Vector2(s.y, -s.x) * 3.0
+	for _i in 24:
+		if is_dry(_at(p.x, p.y)):
+			break
+		p -= s
+	return _tile_at(p.x, p.y)
 
 func _camp(at: Vector3) -> void:
 	_coziness(at)

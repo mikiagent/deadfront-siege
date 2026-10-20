@@ -109,6 +109,11 @@
   "creature_cap_mobile": 24,
   "night_predator_perception_bonus": 0.5,
   "wet_after_seconds_in_water": 5,
+  "harbour": {
+    "_about": "The harbour stands on the coast (HarbourSite). Its 3x6 footprint's landward row 0 is on land, every cell from dock_from_row to the tip is over water (so the base is within dock_from_row metres of the shoreline), and the tip is at least boat_depth_m below the water line. A pose that breaks this is refused: island build snaps to the nearest legal coast, BuildGrid.can_place answers dock_needs_water / needs_shore. The island json 'harbour' is a hint plus the travel arrival point; t_harbour keeps it on the resolved site.",
+    "dock_from_row": 2,
+    "boat_depth_m": 0.4
+  },
   "attributes": {
     "light": "faster tool swing",
     "straight": "better pillars and planks",
