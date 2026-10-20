@@ -44,7 +44,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | 2a | W2-PLAYER (player split + PlayerActions), W2-BREED (breeding, growth, mutations, capture rule 09, bonded cap 3->7), W2-ECO (ecosystem, structure targeting) in claude/mmo-w2-<key>; builders hand mechanical parts to dsc sub-worktrees | running (wf_e4b5bc5d-f50) |
 | 2a+ | W2-OCCLUDE: shared see-through occlusion (tall trees, later roofs/walls; roof fades when the survivor is under it) | running (wf_6986c1a3-c0c) |
 | 2a+ | W2-BUILDSYS: modular foundations/walls/doorways/windows/ceilings/roofs/ramps/stairs with snapping, structure HP, tiers + upgrade/repair, owner-passable walls; stand-in meshes swap to Blender models by data (structures.json); roofs fade via the occlusion API | running (wf_dcd34d26-be7) |
-| finish-1/2 | finish-1 (wf_4523bd07-373) merged W1-STRUCTART (+ its building hooks, 0d0f8c2) and W1-ICONART, then a usage limit cut it; its resume re-ran finished reviews (parallel order breaks the replay prefix), so it was stopped. finish-2 (wf_d0f53dc5-358, script copy `.claude/worktrees/deadfront-finish-2.js`) restarts each package from its real state: minors integrate, UI and clips fix, the rest build; every package must hand mechanical parts to dsc (owner 2026-10-20) | running (2026-10-20 12:15) |
+| finish-1/2 | finish-1 (wf_4523bd07-373) merged W1-STRUCTART (+ its building hooks, 0d0f8c2) and W1-ICONART, then a usage limit cut it; its resume re-ran finished reviews (parallel order breaks the replay prefix), so it was stopped. finish-2 (wf_d0f53dc5-358) merged DSC-MINORS (1174800) and was replaced by finish-3 (wf_ffc48fe3-dc5, `.claude/worktrees/deadfront-finish-3.js`) for the owner's see-through correction; it restarts each package from its real state: minors integrate, UI and clips fix, the rest build; every package must hand mechanical parts to dsc (owner 2026-10-20) | running (2026-10-20 12:15) |
 | dsc | quads-loco2 (protoceratops/megaloceros walk/run in mesh units; gate on stride, game bake, skin stretch, hip height), mmo-camp (Blender models for the 18 camp kinds still on Kenney), mmo-icons2 (32 missing + 33 flagged item icons) | running (2026-10-20 12:05) |
 | 1-INT | merge econ/net/audio + sound settings + market over socket | after wave 1a and audio pass review |
 | 1-ART | ARTA/ARTB Tripo species | concept sheets generating (Higgsfield gpt_image_2_5, critic-checked, wf_4ea0904a-0e6); then one owner batch approval |
@@ -287,6 +287,12 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   from character creation (no level-up toast); skills keep their internal levels in W1-UI, and W2-SKILLS
   re-keys them to Durango's 1-60 scale with Lv1 AUTO nodes (spec 12), so "skills show Lv. 0" is a known
   item for W2-SKILLS, not a W1-UI blocker.
+
+- 2026-10-20 (owner) see-through occluders: "partially see through not fully see through, it should still
+  feel like the tree is there not a clear hole in it". A tree or rock between camera and survivor fades as a
+  whole object to about half coverage (keep 40-60 % of its pixels, no hard circular cut, soft 0.25 s fade);
+  roofs may fade further when the survivor is under them but keep a faint outline. W2-OCCLUDE restarted with
+  pixel gates for this in finish-3 (wf_ffc48fe3-dc5); W2-BUILDSYS walls/roofs follow the same rule.
 
 ## Owner questions (open)
 
