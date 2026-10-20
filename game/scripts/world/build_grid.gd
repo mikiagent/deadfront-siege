@@ -70,8 +70,8 @@ func can_place(kind: StringName, cell: Vector2i, rot: int) -> String:
 	for c in cells:
 		if _occupied.has(c):
 			return "overlap"
-	if kind == &"harbour":
-		return ""  # the dock may sit on the shore, outside the claim, on any slope
+	if kind == &"harbour":  # on the coast with the dock over water; outside the claim, any slope
+		return HarbourSite.check(runtime as IslandRuntime, cell, rot) if runtime is IslandRuntime else ""
 	if runtime and runtime.has_method("is_claimed"):
 		for c in cells:
 			if not runtime.is_claimed(c):
@@ -165,7 +165,7 @@ func placement_transform(kind: StringName, cell: Vector2i, rot: int) -> Transfor
 
 func footprint(kind: StringName) -> Vector2i:
 	if kind == &"harbour":
-		return Vector2i(3, 6)
+		return HarbourSite.FOOTPRINT
 	var row := _building_row(kind)
 	var fp: Variant = row.get("footprint", [1, 1])
 	if fp is Array and fp.size() >= 2:

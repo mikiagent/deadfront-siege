@@ -18,9 +18,9 @@ reviewer), `DONE` (shipped and pixel-checked). Evidence comes from the 2026-10-1
 | triceratops, styracosaurus, ankylosaurus, smilodon | Box placeholder | Tripo + dsc | W1-ARTB | REPLACE (same) |
 | brachiosaurus | Box placeholder (does not spawn yet) | Tripo + dsc | W2-ARTC | REPLACE |
 | stegosaurus | Real GLB exists but a stale override forces the box (`creature_view.gd:65-66`); v2 merged with survivor branch | One-line fix + review v2 | W2-CVIEW | REPLACE |
-| gallimimus, compsognathus, coelophysis | Pure-white untextured patches, washed albedo, plastic look | Retexture or Tripo regen | W2-RERIG/ARTC | REPLACE |
+| gallimimus, compsognathus, coelophysis | Pure-white untextured patches, washed albedo, plastic look; donor clips | Clips re-animated by dsc (bite attacks, side-lying knockdown, sleep, feed); textures still need retexture/regen | W2-RERIG/ARTC | REVIEW (clips) / REPLACE (textures) |
 | velociraptor, utahraptor | Donor rig (no jaw, 5 tail bones); attack whips tail vertical; belly-up knockdown | Clips re-animated by dsc (d649aea: bite attacks, side-lying knockdown, sleep, feed); bespoke rig with jaw still to do | W2-RERIG | REVIEW (clips in game; owner to judge; rig still REPLACE) |
-| protoceratops, megaloceros | Procedural quadruped clips: attack = idle, legs-up knockdown | dsc re-animation (overnight, `.../quads`) | W2-RERIG | IN PROGRESS |
+| protoceratops, megaloceros | Procedural quadruped clips: attack = idle, legs-up knockdown | Combat/ground/rest clips re-animated by dsc; walk/run still procedural | W2-RERIG | REVIEW (clips in game; walk/run still REPLACE) |
 | zebraceratops | Modelled from a Durango screenshot (IP risk; roster PRD says no Zebraceratops) | Replace with a real ceratopsian (owner to pick) | W2-ARTC | REPLACE (owner decision) |
 | All transplanted species | Low-poly donor skeleton (no jaw, 1 neck bone, no toes) | Bespoke dsc rigs | W2-RERIG | REPLACE |
 
