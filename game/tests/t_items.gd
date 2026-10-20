@@ -28,6 +28,7 @@ func _process(_delta: float) -> bool:
 	_test_merging()
 	_test_scaling()
 	_test_pick_gates()
+	_test_regen_blocked_by_occupant()
 	_test_yields()
 	_test_crafted_level()
 	_test_burn()
@@ -68,10 +69,27 @@ func _test_identity() -> void:
 	var reloaded: Dictionary = IS.from_dict(old_row).to_dict()
 	_expect(reloaded.keys().size() == old_row.keys().size() and not reloaded.has("uid"), "old fungible save rows keep their exact shape")
 	var hostile = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": 12345, "origin": null, "creator": null, "created_at": "soon"})
-	var forged = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": "l1", "origin": "admin_spawn", "created_at": -5})
+	var forged = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": "l1x", "origin": "admin_spawn", "created_at": -5})
 	print("[t_items] hostile provenance uid='%s' origin='%s' creator='%s' created=%d; forged origin='%s' created=%d" % [hostile.uid, hostile.origin, hostile.creator, hostile.created_at, forged.origin, forged.created_at])
 	_expect(hostile.origin == "" and hostile.creator == "" and hostile.created_at == 0, "null provenance loads as empty, never '<null>'")
 	_expect(forged.origin == "" and forged.created_at == 0, "an origin outside the whitelist is blanked")
+	_expect(hostile.uid == "" and forged.uid == "", "a non-string or non-format uid is blanked (got '%s', '%s')" % [hostile.uid, forged.uid])
+	var future = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": "l1a", "origin": "craft", "created_at": 1e300})
+	var shape = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": {"a": 1}, "created_at": null})
+	print("[t_items] future created_at loads as %d (now %d), dict uid as '%s'" % [future.created_at, int(Time.get_unix_time_from_system()), shape.uid])
+	_expect(future.created_at <= int(Time.get_unix_time_from_system()) + 86400, "created_at 1e300 clamps to now + slack (got %d)" % future.created_at)
+	_expect(shape.uid == "", "a dict uid is not stringified into a fake one (got '%s')" % shape.uid)
+	var newline = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": "i12\n"})
+	_expect(newline.uid == "", "a uid with a trailing newline is blanked (got %s)" % var_to_str(newline.uid))
+	# Splitting a uid'd stack must not leave both halves sharing one identity.
+	var share = INV.new(4)
+	var whole = IS.make(&"stone", 4, {}, 1)
+	whole.stamp_identity("loot")
+	share.add(whole)
+	var half = share.remove_at(0, 2)
+	var moved: bool = half != null and share.slots[0] != null and half.uid != "" and half.uid != share.slots[0].uid and half.count == 2 and share.slots[0].count == 2
+	print("[t_items] split uid kept='%s' taken='%s' shares=%s" % [share.slots[0].uid if share.slots[0] else "-", half.uid if half else "-", half != null and share.slots[0] != null and half.uid == share.slots[0].uid])
+	_expect(moved, "splitting a uid'd stack re-mints the taken half's uid")
 
 func _test_merging() -> void:
 	var bag = INV.new(5)
@@ -104,6 +122,37 @@ func _test_scaling() -> void:
 	var stone_pick = IS.make(&"work_pick", 1, {"material_tier": "stone"}, 1)
 	_expect(flint_pick.max_durability > stone_pick.max_durability and flint_pick.durability == flint_pick.max_durability, "durability follows material tier")
 	_expect(ProgressionScaling.material_tier(&"metal_shard", {"hardness": 3.0}) == &"flint", "untagged hardness maps onto the ladder")
+
+## phys-node-01: a depleted node does not regrow under a body (the collider would wrap around it),
+## and refills once the body steps away. A standalone node has no runtime parent, so it is added
+## to the tree here; its _process is called directly in fixed steps.
+func _test_regen_blocked_by_occupant() -> void:
+	var rock = _node("Rock", &"stone")
+	get_root().add_child(rock)
+	rock.regen_seconds = 1.0
+	var keep: int = rock.pool_units_left()
+	rock.mark_gathered()
+	rock.mark_gathered()
+	while rock.pool_units_left() > 0:
+		rock.mark_gathered()
+	var empty: bool = rock.depleted and rock.pool_units_left() == 0
+	var body := Node3D.new()
+	body.add_to_group("player")
+	get_root().add_child(body)
+	body.global_position = rock.global_position
+	for i in 40:
+		rock._process(0.1)  # 4 s at regen 1 s: would have refilled twice without the occupancy rule
+	var stayed: bool = rock.depleted and rock.pool_units_left() == 0
+	body.global_position = rock.global_position + Vector3(6.0, 0.0, 0.0)
+	for i in 50:
+		rock._process(0.1)
+	var refilled: bool = rock.pool_units_left() > 0
+	print("[t_items] occupied regen: emptied=%s under body stayed=%s after body left refilled=%s (%d units)" % [empty, stayed, refilled, rock.pool_units_left()])
+	_expect(empty, "a gathered-out node is depleted")
+	_expect(stayed, "a depleted node does not regrow while a body stands on it")
+	_expect(refilled, "a depleted node refills once the body moves away")
+	body.free()
+	rock.free()
 
 ## A harvest node of `family` with `item` as the active option.
 func _node(family: String, item: StringName):

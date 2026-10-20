@@ -51,8 +51,11 @@ func _run() -> void:
 	_test_pack_up_every_kind()
 	_test_pack_up_refusals()
 	_test_field_full_bag()
+	_test_pack_up_replacement_xp()
+	_test_pen_legacy_and_occupant()
 	_test_gate_state_and_path()
 	_test_tilepath_incremental()
+	_test_gather_refusal_notice()
 	if _fails.is_empty():
 		print("[t_build] PASS")
 		quit(0)
@@ -238,8 +241,110 @@ func _test_field_full_bag() -> void:
 	_player.inventory.consume(&"water_bucket", 2)
 	_grid.release(field)
 	field.free()
+	_test_field_overflow_pack_up()
+
+## A harvested field can hold bonus fertiliser past the yield; packing it up used to drop it.
+func _test_field_overflow_pack_up() -> void:
+	var field := _place(&"field_small", _free_cell(&"field_small"), 0)
+	if field == null:
+		_expect(false, "field overflow: could not place")
+		return
+	field.fertilizer_overflow = 2.0
+	var before: int = _player.inventory.count_of(&"fruit_fertilizer")
+	var packed := _pack(field)
+	var back: int = _player.inventory.count_of(&"fruit_fertilizer") - before
+	print("[build] field overflow pack-up: packed=%s fertiliser_back=%d (want 2)" % [packed, back])
+	_expect(packed and back == 2, "packing up a field with 2 overflow fertiliser returns 2 units (got %d)" % back)
+	_player.inventory.consume(&"fruit_fertilizer", back)
+	# fertilizer_overflow is a save field that becomes items on pack-up: a forged value is clamped.
+	var FP: GDScript = load("res://scripts/world/field_plot.gd")
+	var got: Array = []
+	for v in [INF, -INF, NAN, 1e9, -3.0, 2.5]:
+		var f = FP.from_dict({"kind": "field_small", "fertilizer_overflow": v})
+		got.append(f.fertilizer_overflow)
+		f.free()
+	print("[build] field overflow on load: INF/-INF/NAN/1e9/-3/2.5 -> %s" % [got])
+	_expect(got == [0.0, 0.0, 0.0, FP.OVERFLOW_MAX, 0.0, 2.5], "a forged fertilizer_overflow loads finite and clamped to 0..%.0f (got %s)" % [FP.OVERFLOW_MAX, got])
 
 # ---------------------------------------------------------------- gate + pathing
+
+## Place -> pack -> place is a move, not a new build: no +8 construction / +30 pioneer XP per cycle.
+func _test_pack_up_replacement_xp() -> void:
+	var bag: Variant = _player.inventory
+	var world: Node = root.get_node("World")
+	var xp0: float = _player.skills.xp_of("construction")
+	var pioneer0: int = int(world.pioneer_xp)
+	var first := _place(&"sign", _free_cell(&"sign"), 0)
+	if first == null:
+		_expect(false, "replacement XP: could not place")
+		return
+	var xp_built: float = _player.skills.xp_of("construction")
+	var pioneer_built: int = int(world.pioneer_xp)
+	var packed := _pack(first)
+	var kit_idx: int = bag.find_first(&"sign_kit")
+	var flags: Array = bag.slots[kit_idx].flags.duplicate() if kit_idx >= 0 else []
+	var second := _place(&"sign", _free_cell(&"sign"), 0)
+	var xp_reset: float = _player.skills.xp_of("construction")
+	var pioneer_reset: int = int(world.pioneer_xp)
+	print("[build] place/pack/place xp: build +%.0f (pioneer +%d), repack +%.0f (pioneer +%d), kit flags=%s" % [
+		xp_built - xp0, pioneer_built - pioneer0, xp_reset - xp_built, pioneer_reset - pioneer_built, flags])
+	_expect(xp_built > xp0 and pioneer_built > pioneer0, "a fresh build still pays construction and pioneer XP")
+	_expect(packed and second != null and is_equal_approx(xp_reset, xp_built) and pioneer_reset == pioneer_built,
+		"re-placing a repacked kit pays no XP (construction +%.0f, pioneer +%d)" % [xp_reset - xp_built, pioneer_reset - pioneer_built])
+	_expect(&"repacked" in flags, "a packed kit is marked repacked")
+	if second and is_instance_valid(second):
+		_grid.release(second)
+		second.free()
+	_player.inventory.consume(&"sign_kit", _player.inventory.count_of(&"sign_kit"))
+
+## Legacy tamed_animal + captured_animal in one bag: one tap bonds the legacy item AND starts the pen.
+## A running pen whose species left data keeps its occupant instead of aborting _process.
+func _test_pen_legacy_and_occupant() -> void:
+	var pen := _place(&"makeshift_taming_pen", _free_cell(&"makeshift_taming_pen"), 0)
+	if pen == null:
+		_expect(false, "pen: could not place")
+		return
+	var bonded0: int = _player.bonded.size()
+	_give(&"tamed_animal", 1)
+	_give(&"captured_animal", 1)
+	var started: bool = pen.try_insert(_player)
+	var bonded1: int = _player.bonded.size()
+	var legacy_left: int = _player.inventory.count_of(&"tamed_animal")
+	var got_occupant: bool = pen.occupant != null and str(pen.occupant.def_id) == "captured_animal"
+	print("[build] pen one tap: started=%s bonded %d->%d legacy_left=%d occupant=%s" % [started, bonded0, bonded1, legacy_left, got_occupant])
+	_expect(started and bonded1 == bonded0 + 1 and legacy_left == 0 and got_occupant, "one tap bonds the legacy animal and also takes the captured_animal")
+	# The species is no longer in data: the pen keeps the animal and does not raise.
+	pen.occupant.attributes["species"] = "dodo_gone"
+	pen.running = true
+	pen.remaining = 0.0
+	pen.force_result = 1
+	var kept: bool = pen.occupant != null
+	pen._process(1.0)
+	print("[build] pen unknown species: kept=%s occupant=%s" % [kept, pen.occupant != null])
+	_expect(kept and pen.occupant != null, "a pen whose species left data keeps its occupant instead of crashing")
+	# The next tap with a second captured animal must not overwrite the one still inside.
+	_give(&"captured_animal", 1)
+	var reinserted: bool = pen.try_insert(_player)
+	var still: String = str(pen.occupant.attributes.get("species", "")) if pen.occupant else "<none>"
+	print("[build] pen retry insert=%s occupant=%s running=%s bag_captured=%d" % [reinserted, still, pen.running, _player.inventory.count_of(&"captured_animal")])
+	_expect(not reinserted and still == "dodo_gone" and _player.inventory.count_of(&"captured_animal") == 1,
+		"a pen holding an unfinished animal refuses a second insert (insert=%s occupant=%s)" % [reinserted, still])
+	_player.inventory.consume(&"captured_animal", 1)
+	# Packing up an occupied pen hands the captured animal back (taming progress is not kept).
+	pen.occupant.attributes["species"] = "velociraptor"
+	var caps: int = _player.inventory.count_of(&"captured_animal")
+	var kit: StringName = _BP.kit_for(&"makeshift_taming_pen")
+	var kits: int = _player.inventory.count_of(kit)
+	var packed := _pack(pen)
+	var caps_back: int = _player.inventory.count_of(&"captured_animal") - caps
+	print("[build] pen occupied pack-up: packed=%s captured_back=%d kit_back=%d" % [packed, caps_back, _player.inventory.count_of(kit) - kits])
+	_expect(packed and caps_back == 1 and _player.inventory.count_of(kit) == kits + 1, "packing up an occupied pen returns the kit and the captured animal")
+	if not packed:
+		pen.occupant = null
+		_grid.release(pen)
+		pen.free()
+	_player.inventory.consume(kit, _player.inventory.count_of(kit))
+	_player.inventory.consume(&"captured_animal", _player.inventory.count_of(&"captured_animal"))
 
 func _test_gate_state_and_path() -> void:
 	var path: Node = root.get_node("World").runtime.get("pathing")
@@ -323,6 +428,45 @@ func _test_tilepath_incremental() -> void:
 	print("[build] tilepath full_rebuild=%.1f ms occupy=%.3f ms release=%.3f ms path_query=%.2f ms dirty_refresh+query=%.2f ms cell_blocked=%s cell_freed=%s (walkable before=%s)" % [full_ms, occupy_ms, release_ms, query_ms, refresh_ms, blocked, freed, pre])
 	_expect(occupy_ms <= 5.0 and release_ms <= 5.0, "occupy/release <= 5 ms (occupy %.3f, release %.3f)" % [occupy_ms, release_ms])
 	_expect(blocked and freed == pre, "occupy blocks and release restores the cell for pathing")
+	# path_result() hands back the points and the reachable flag together (the shared last_reachable
+	# member is only valid until the next call).
+	var block := _walkable_block(Vector2i(3, 3), path)
+	var rt: Node = root.get_node("World").runtime
+	var res: Dictionary = path.path_result(_BG.tile_centre(block, rt), _BG.tile_centre(block + Vector2i(2, 0), rt)) if block.x != -9999 \
+		else path.path_result(a, b)
+	_expect(res.has("points") and res.has("reachable") and res["points"] is PackedVector3Array,
+		"path_result() returns points and a reachable flag (got %s)" % [res.keys()])
+
+## _begin_gather asks the node before auto-equip, so bare hands at copper read "Needs obsidian
+## pick" on the HUD (not "need tool pick"), and other refusals keep their case past the first letter.
+func _test_gather_refusal_notice() -> void:
+	var hud_src := GDScript.new()
+	hud_src.source_code = "extends Node\nvar last := \"\"\nfunc notice(t: String) -> void:\n\tlast = t\n"
+	hud_src.reload()
+	var hud: Node = hud_src.new()
+	var real: Array = root.get_tree().get_nodes_in_group("hud")
+	for h in real:
+		h.remove_from_group("hud")  # LabKit's HuntHud would take the notice first
+	root.add_child(hud)
+	hud.add_to_group("hud")
+	var scene: PackedScene = load("res://scenes/world/harvest_node.tscn")
+	var got: Array[String] = []
+	for row in [["CopperOreNode", &"copper_ore", &"pick"], ["Tree", &"branch", &"axe"]]:
+		var n = scene.instantiate()
+		n.setup(StringName("t_" + row[0]), row[1], 1, 1, {"level": 1, "climate": "temperate"}, row[2], Color.GRAY, 1.2, 8.0, row[0])
+		for i in n.options().size():
+			if str(n.options()[i]["item"]) == str(row[1]):
+				n.select_option(i)
+		hud.last = ""
+		_player._begin_gather(n)
+		got.append(hud.last)
+		_expect(_player.gather_target != n, "a refused gather does not start (%s)" % row[0])
+		n.free()
+	print("[build] bare-hand gather notices: %s" % [got])
+	_expect(got == ["Needs obsidian pick", "Need tool axe"], "bare-hand gather refusals reach the HUD as 'Needs obsidian pick' / 'Need tool axe' (got %s)" % [got])
+	hud.free()
+	for h in real:
+		h.add_to_group("hud")
 
 # ---------------------------------------------------------------- helpers
 

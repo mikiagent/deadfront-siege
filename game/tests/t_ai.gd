@@ -8,6 +8,15 @@ extends SceneTree
 
 const CREATURE_SCENE := "res://scenes/creatures/creature.tscn"
 
+## Counts engine and script errors, so a check can assert a call logged none.
+class ErrorCounter extends Logger:
+	var count := 0
+	func _log_error(_function: String, _file: String, _line: int, _code: String, _rationale: String, _editor_notify: bool, _error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
+		count += 1
+	func _log_message(_message: String, _error: bool) -> void:
+		pass
+
+var errors := ErrorCounter.new()
 var failures: Array[String] = []
 var data: Node
 var game: Node
@@ -22,6 +31,7 @@ func _process(_delta: float) -> bool:
 	data = get_root().get_node("Data")
 	game = get_root().get_node("Game")
 	game.debug_overlay = false
+	OS.add_logger(errors)
 	_test_state_changed_once()
 	_test_profiles()
 	_test_level_scaling()
@@ -31,6 +41,7 @@ func _process(_delta: float) -> bool:
 	_test_hit_while_asleep_stays_awake()
 	_test_temp_home_expires()
 	_test_pack_slots_clear_bodies()
+	_test_pack_member_freed_in_frame()
 	_test_reacquire_hold()
 	_test_think_rate()
 	_test_flee_speed_floor()
@@ -240,6 +251,26 @@ func _test_pack_slots_clear_bodies() -> void:
 		c.free()
 	_fresh_packs()
 
+## A pack member freed inside the frame its list was built in drops out of members(); the other
+## two stay, and nothing logs an error (a typed filter lambda raised on the freed entry and
+## returned an empty list).
+func _test_pack_member_freed_in_frame() -> void:
+	var PI: GDScript = load("res://scripts/creatures/brains/pack_index.gd")
+	var pack: Array = []
+	for i in 3:
+		pack.append(_creature(&"velociraptor", 78, Vector3(i * 2.0, 0, 0)))
+	var before: int = PI.members(pack[0]).size()
+	var errs := errors.count
+	pack[2].free()
+	var after: Array = PI.members(pack[0])
+	var again: Array = PI.members(pack[1])
+	var ok: bool = before == 3 and after.size() == 2 and again.size() == 2 and pack[0] in after and pack[1] in after
+	print("[t_ai] pack member freed in frame: before=%d after=%d again=%d errors=%d" % [before, after.size(), again.size(), errors.count - errs])
+	_check(ok and errors.count == errs, "members() after a member is freed in-frame: before=%d after=%d again=%d errors=%d" % [before, after.size(), again.size(), errors.count - errs])
+	pack[0].free()
+	pack[1].free()
+	_fresh_packs()
+
 ## After a leash break a survivor back inside perception is not re-acquired until the 0.5 s
 ## hold (BrainFlight.REACQUIRE_HOLD_S) has run out, then it is.
 func _test_reacquire_hold() -> void:
@@ -294,6 +325,16 @@ func _test_flee_speed_floor() -> void:
 	zeb.genetics = g
 	zeb.spawn(data.creature(&"zebraceratops"), &"", 0)
 	var base: float = zeb.move_speed_mps()
-	var flee: float = maxf(base * float(zeb.brain.profile.get("flee_speed_mult", 1.0)), float(zeb.brain.profile.get("flee_min_mps", 0.0)))
+	# The physics step's own flee rule, not a copy of it: deleting the floor in creature.gd fails here.
+	var flee: float = zeb.flee_speed(base, 1.0)
 	_check(flee >= 6.0, "worst-IV zebraceratops flees at %.2f m/s (base %.2f), want >= 6.0" % [flee, base])
+	# And the real step: flee with a goal 2 m away, one physics frame, read the velocity it produced.
+	zeb.brain.state = &"flee"
+	zeb._path_active = true
+	zeb._path_goal = zeb.global_position + Vector3(2.0, 0.0, 0.0)
+	zeb.velocity = Vector3.ZERO
+	zeb._physics_process(1.0 / 60.0)
+	var stepped := Vector2(zeb.velocity.x, zeb.velocity.z).length()
+	zeb._path_active = false
+	_check(stepped >= 6.0, "worst-IV zebraceratops flee physics step moves at %.2f m/s, want >= 6.0 (floor deleted in creature.gd fails here)" % stepped)
 	zeb.free()

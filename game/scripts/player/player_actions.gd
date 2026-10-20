@@ -60,14 +60,15 @@ func gather(node: HarvestNode, option: int) -> bool:
 	return begin_gather(node)
 
 func begin_gather(node: HarvestNode) -> bool:
-	if node.required_tool_class != &"" and node.required_tool_class != &"none":
-		if not auto_equip_tool(node.required_tool_class):
-			print("[item] refused %s: need tool %s" % [node.node_id, node.required_tool_class])
-			return false
+	# Ask the node first: the tier gate lives in can_gather, and auto-equip used to answer a bare
+	# "need tool pick" before it. Refusals reach the HUD, not only the log.
 	var why := node.can_gather(p.inventory)
 	if why != "":
 		print("[item] refused %s: %s" % [node.node_id, why])
+		# Upper-case the first letter only: capitalize() Title-Cased "Need Tool Axe".
+		p.notice("Picked clean" if why == "depleted" else why.left(1).to_upper() + why.substr(1))
 		return false
+	auto_equip_tool(node.required_tool_class)  # can_gather found it with the same lookup
 	stop_gather_cycle(false)
 	p.butcher_target = null
 	p.gather_target = node

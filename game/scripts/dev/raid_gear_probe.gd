@@ -75,6 +75,7 @@ func run(_host: Node) -> void:
 		player.vitals.heal(999)
 		var before := player.vitals.health
 		seed(1)
+		CombatTuning.rng.seed = 1  # creature/survivor rolls go through CombatTuning.rng, which seed() does not touch
 		for i in 5: boss._on_hit(&"attack_primary")
 		check(player.vitals.health < before, "boss also hits edge3.4m")
 		player.dead = false
@@ -89,6 +90,7 @@ func run(_host: Node) -> void:
 		get_tree().quit(0 if failures.is_empty() else 1)
 		return
 	seed(12345)
+	CombatTuning.rng.seed = 12345
 	CreatureAttack._apply_token(&"fracture", &"attack_primary", player, boss)
 	CreatureAttack._apply_token(&"pinned", &"attack_primary", player, boss)
 	CreatureAttack._apply_token(&"deafened", &"attack_primary", player, boss)

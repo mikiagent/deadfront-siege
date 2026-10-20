@@ -19,7 +19,8 @@ var _kick_cd: float = 0.0
 var _net_cd: float = 0.0
 var _tactic_lock: float = 0.0
 var _swing_pending := false
-var _los_notice_s := -99.0
+var _notice_s: Dictionary = {}  ## notice text -> last shown (each message throttles on its own)
+const NOTICE_THROTTLE_S := 3.0
 var player: Player
 ## Last refusal or warning shown to the player (labs and tests read it).
 var last_notice: String = ""
@@ -252,7 +253,9 @@ func land_hit(t: Creature, w: ItemStack) -> bool:
 
 ## Weapons wear on every landed hit (durability-01: the market needs an item sink).
 func wear_weapon(w: ItemStack) -> void:
-	if w == null or w.max_durability <= 0:
+	if w == null or w.is_broken():
+		return  # stones still in flight after the snare broke it must not repeat "X broke."
+	if w.max_durability <= 0:
 		return
 	if not w.wear(int(CombatTuning.top("weapon_wear_per_hit", 1))):
 		print("[item] %s broke" % w.def_id)
@@ -269,10 +272,11 @@ func say(text: String) -> void:
 	player.notice(text)
 
 ## Auto-attack retries every frame; tell the player once every few seconds, not silently.
+## Per text: one shared timestamp let a "No clear shot" swallow a later "Something is in the way".
 func say_throttled(text: String) -> void:
 	var now := Time.get_ticks_msec() * 0.001
-	if now - _los_notice_s > 3.0:
-		_los_notice_s = now
+	if now - float(_notice_s.get(text, -99.0)) > NOTICE_THROTTLE_S:
+		_notice_s[text] = now
 		say(text)
 
 ## Chart feedback: strong above1, weak below1, otherwise neutral hit.
@@ -389,7 +393,9 @@ func fire_ranged() -> bool:
 		shot.weapon = weapon
 		shot.velocity = StoneProjectile.launch_velocity(offset)
 		shot.damage = weapon.scaled_damage()
-		shot.range_left = def.range_m * 1.5  # the arc is longer than the straight line
+		# The arc flies past the weapon's straight range so a lobbed stone can land on a target at
+		# the edge; the multiplier is tuning, not code (combat_tuning.json ranged.arc_range_mult).
+		shot.range_left = def.range_m * float(CombatTuning.section("ranged").get("arc_range_mult", 1.5))
 		shot.skill_level = player.skills.level_of("ranged") if player.skills else 0
 		runtime.add_child(shot)
 		shot.global_position = origin

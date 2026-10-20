@@ -219,6 +219,15 @@ func dodge_chance() -> float:
 func move_speed_mps() -> float:
 	return stat_value(&"speed") / 100.0
 
+## Fleeing ground speed from the already-slowed base (`base_mps`) and the slow factor. The floor is
+## here, not inline in _physics_process, so a test can call the physics code path (t_ai).
+## flee_min_mps: a low-IV grazer still outruns a walking survivor (traps and statuses still slow it).
+func flee_speed(base_mps: float, slow: float = 1.0) -> float:
+	if brain == null:
+		return base_mps
+	return maxf(base_mps * float(brain.profile.get("flee_speed_mult", 1.0)),
+		float(brain.profile.get("flee_min_mps", 0.0)) * slow)
+
 func capturable() -> bool:
 	return is_capturable and health.hp > 0.0 and def.tameable
 
@@ -279,8 +288,7 @@ func _physics_process(delta: float) -> void:
 		match brain.state:
 			# ASSUMPTION (owner decision pending, dino-ai-06): chase at chase_speed_mult (0.7) so a survivor can outrun.
 			&"approach", &"attack": speed *= float(brain.profile.get("chase_speed_mult", 0.7))
-			# flee_min_mps: a low-IV grazer still outruns a walking survivor (traps and statuses still slow it).
-			&"flee": speed = maxf(speed * float(brain.profile.get("flee_speed_mult", 1.0)), float(brain.profile.get("flee_min_mps", 0.0)) * slow)
+			&"flee": speed = flee_speed(speed, slow)
 	if is_pet and hunger <= 0.0:
 		speed *= 0.85
 	var locomote := Vector3.ZERO

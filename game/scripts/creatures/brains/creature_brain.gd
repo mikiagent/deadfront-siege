@@ -9,8 +9,6 @@ extends Node
 signal state_changed(prev: StringName, next: StringName)
 
 const THINK_HZ := 10
-## Idle brains farther than this from every player stop thinking (AI LOD, see BrainRest).
-const LOD_RADIUS := BrainRest.LOD_RADIUS
 ## Reach numbers were tuned against the survivor capsule (player.tscn radius 0.35); bigger
 ## bodies add their extra radius so pets and wild animals can reach a giant's flank.
 const SURVIVOR_RADIUS := 0.35

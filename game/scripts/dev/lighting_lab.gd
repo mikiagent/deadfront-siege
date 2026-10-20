@@ -2,7 +2,8 @@ extends Node3D
 ## Lighting acceptance (W1-LIGHT): temperate_25 under the shared WorldLighting. Measures the
 ## shadows of a 1x3x1 box, a 0.3 m pole and the survivor (all shadow-only) on lit grey ground,
 ## at the desktop atlas and again at the 1024 mobile atlas, then the camp view's blown pixels
-## and ground luminance; prints [lighting] lines and exits 0 on PASS, 1 on FAIL. Windowed only.
+## and ground luminance; prints [lighting] lines and exits 0 on PASS, 1 on FAIL, 2 when run
+## headless (nothing is measured; --allow-skip opts out).
 ## --light-shots=<dir> also saves the frames plus night (tod 0.0) and dusk (tod 0.73) views.
 
 ## ASSUMPTION: mid-morning (sun ~51 deg up) is the measured daylight; the spec names no time.
@@ -17,6 +18,9 @@ const MAX_BLOWN_PCT := 1.0
 const GROUND_LUM := Vector2(0.25, 0.55)
 ## Camp dirt within 20 % of the grass beside it (Durango: trodden earth, not pale sand).
 const DISC_RATIO := Vector2(0.8, 1.2)
+## At midnight the compat renderer's moon shadow made the pads near-black halos (0.087 vs 0.241 in
+## Forward+). A pad may read darker than the grass beside it, but not below 0.6x of it, per pad.
+const NIGHT_DISC_RATIO := 0.6
 ## ASSUMPTION: terrain 8-10 m out from the fire at midnight reads at >= 0.05 mean luminance.
 const MIN_NIGHT_LUM := 0.05
 const NIGHT_FROM_M := 8.0
@@ -51,8 +55,14 @@ func _ready() -> void:
 		print("[lighting] FAIL watchdog: no verdict after %d s" % int(WATCHDOG_S))
 		get_tree().quit(1))
 	if DisplayServer.get_name() == "headless":
-		print("[lighting] SKIP headless renders no pixels; run windowed")
-		get_tree().quit.call_deferred(0)
+		# Headless measures nothing: exiting 0 let a CI gate pass without a single pixel read.
+		# --allow-skip is for a job that knowingly runs the lab without a display.
+		if "--allow-skip" in OS.get_cmdline_user_args():
+			print("[lighting] SKIP headless renders no pixels (--allow-skip)")
+			get_tree().quit.call_deferred(0)
+		else:
+			print("[lighting] FAIL headless cannot render; run windowed or pass --allow-skip")
+			get_tree().quit.call_deferred(2)
 		return
 	_run.call_deferred()
 
@@ -86,16 +96,32 @@ func _run() -> void:
 	print("[lighting] ground_lum=%.3f" % ground)
 	print("[lighting] disc_lum=%.3f grass_lum=%.3f disc_ratio=%.2f" % [disc.x, disc.y, disc.x / maxf(disc.y, 0.0001)])
 	# Night must stay readable past the bonfire's reach on a phone screen.
-	var night := _ground_lum(await _shot_at(0.0, "night"), NIGHT_FROM_M)
+	var night_img := await _shot_at(0.0, "night")
+	var night := _ground_lum(night_img, NIGHT_FROM_M)
 	print("[lighting] night_lum=%.3f" % night)
+	# The dirt pads must not read as black holes on the web renderer at night (lv-dirt-18): the
+	# compat moon shadow plus the weak compat fire made them 0.087 vs 0.241 on Forward+.
+	var pads := _pad_ratios(night_img)
+	var night_ratio := 0.0
+	var worst := "<no pads>"
+	for pad in pads:
+		print("[lighting] night pad %s ratio=%.2f" % [pad, pads[pad]])
+		if worst == "<no pads>" or float(pads[pad]) < night_ratio:
+			night_ratio = float(pads[pad])
+			worst = pad
+	print("[lighting] night_worst_pad=%s night_disc_ratio=%.2f (want >= %.2f per pad)" % [worst, night_ratio, NIGHT_DISC_RATIO])
+	# Grass hue drift between the renderers (Forward+ olive vs compat lime); printed so it is visible.
+	var hue := _ground_hue(img)
+	print("[lighting] grass_hue_deg=%.0f sat=%.2f renderer=%s" % [hue.x, hue.y, _tag])
 	if _out != "":
 		await _shot_at(0.73, "dusk")
 	var thin_ok := maxf(maxf(r["pole"], r["survivor"]), maxf(rm["pole"], rm["survivor"])) <= MAX_THIN_RATIO
 	var disc_ratio := disc.x / maxf(disc.y, 0.0001)
 	var disc_ok := disc_ratio >= DISC_RATIO.x and disc_ratio <= DISC_RATIO.y
-	var ok: bool = ratio <= MAX_SHADOW_RATIO and rm["box"] <= MAX_SHADOW_RATIO and thin_ok and disc_ok and night >= MIN_NIGHT_LUM and blown <= MAX_BLOWN_PCT and ground >= GROUND_LUM.x and ground <= GROUND_LUM.y
-	print("[lighting] %s" % ("PASS" if ok else "FAIL (box <= %.2f at both atlases, pole and survivor <= %.2f, disc/grass %.1f-%.1f, night_lum >= %.2f, blown_pct <= %.1f, ground_lum %.2f-%.2f)" % [
-		MAX_SHADOW_RATIO, MAX_THIN_RATIO, DISC_RATIO.x, DISC_RATIO.y, MIN_NIGHT_LUM, MAX_BLOWN_PCT, GROUND_LUM.x, GROUND_LUM.y]))
+	var night_disc_ok := night_ratio >= NIGHT_DISC_RATIO
+	var ok: bool = ratio <= MAX_SHADOW_RATIO and rm["box"] <= MAX_SHADOW_RATIO and thin_ok and disc_ok and night_disc_ok and night >= MIN_NIGHT_LUM and blown <= MAX_BLOWN_PCT and ground >= GROUND_LUM.x and ground <= GROUND_LUM.y
+	print("[lighting] %s" % ("PASS" if ok else "FAIL (box <= %.2f at both atlases, pole and survivor <= %.2f, disc/grass %.1f-%.1f, night disc/grass >= %.2f, night_lum >= %.2f, blown_pct <= %.1f, ground_lum %.2f-%.2f)" % [
+		MAX_SHADOW_RATIO, MAX_THIN_RATIO, DISC_RATIO.x, DISC_RATIO.y, NIGHT_DISC_RATIO, MIN_NIGHT_LUM, MAX_BLOWN_PCT, GROUND_LUM.x, GROUND_LUM.y]))
 	get_tree().quit(0 if ok else 1)
 
 ## Waits out shader compiles (the web renderer can draw blank frames for seconds): at least
@@ -236,6 +262,32 @@ func _ground_lum(img: Image, from_m: float = 0.0) -> float:
 			n += 1
 	return acc / float(n)
 
+## Mean hue (degrees) and saturation of the sampled ground patches; renderer drift is visible here.
+func _ground_hue(img: Image) -> Vector2:
+	var rt := World.runtime as IslandRuntime
+	var p := _player.global_position
+	var hx := 0.0
+	var hy := 0.0
+	var sat := 0.0
+	var n := 0
+	for gz in range(-2, 3):
+		for gx in range(-2, 3):
+			var wx := p.x + gx * 2.0
+			var wz := p.z + gz * 2.0
+			var sp := _cam.unproject_position(Vector3(wx, rt.surface_y(wx, wz), wz))
+			var vr := get_viewport().get_visible_rect().size
+			var ix := clampi(int(sp.x * float(img.get_width()) / vr.x), 0, img.get_width() - 1)
+			var iy := clampi(int(sp.y * float(img.get_height()) / vr.y), 0, img.get_height() - 1)
+			var c := img.get_pixel(ix, iy)
+			hx += cos(c.h * TAU)
+			hy += sin(c.h * TAU)
+			sat += c.s
+			n += 1
+	if n == 0:
+		return Vector2.ZERO
+	var deg := fposmod(rad_to_deg(atan2(hy / n, hx / n)), 360.0)
+	return Vector2(deg, sat / float(n))
+
 func _coarse_mean(img: Image) -> float:
 	var acc := 0.0
 	var n := 0
@@ -254,14 +306,42 @@ func _shot_at(tod: float, label: String) -> Image:
 
 ## Median luminance on the camp's dirt discs (ring at 0.6 r) and on grass just outside them
 ## (ring at r + 1.2 m, skipping points inside any other disc). Medians shrug off the props.
-func _disc_vs_grass(img: Image) -> Vector2:
-	var rt := World.runtime as IslandRuntime
+## Camp pads near the survivor: [centre, radius, owner name].
+func _discs() -> Array:
 	var discs: Array = []
 	for n in get_tree().root.find_children("Foundation", "MeshInstance3D", true, false):
 		var mi := n as MeshInstance3D
 		var sm := mi.material_override as ShaderMaterial
 		if sm != null and mi.global_position.distance_to(_player.global_position) < 12.0:
-			discs.append([mi.global_position, float(sm.get_shader_parameter("radius"))])
+			discs.append([mi.global_position, float(sm.get_shader_parameter("radius")), str(mi.get_parent().name)])
+	return discs
+
+## Each pad's inner median over its own outer-ring median. A median over every pad let the
+## fire-lit bonfire pad hide two near-black ones; the worst pad is the one that has to pass.
+func _pad_ratios(img: Image) -> Dictionary:
+	var rt := World.runtime as IslandRuntime
+	var discs := _discs()
+	var out := {}
+	for d in discs:
+		var on: Array[float] = []
+		var off: Array[float] = []
+		for k in 16:
+			var dir := Vector3(cos(TAU * float(k) / 16.0), 0.0, sin(TAU * float(k) / 16.0))
+			var pin: Vector3 = d[0] + dir * d[1] * 0.6
+			on.append(_lum_at(img, Vector3(pin.x, rt.surface_y(pin.x, pin.z), pin.z)))
+			var pout: Vector3 = d[0] + dir * (d[1] + 1.2)
+			if discs.all(func(o: Array) -> bool: return Vector2(pout.x - o[0].x, pout.z - o[0].z).length() > o[1] + 0.5):
+				off.append(_lum_at(img, Vector3(pout.x, rt.surface_y(pout.x, pout.z), pout.z)))
+		if off.size() < 4:
+			continue  # boxed in by other pads: no grass of its own to compare against
+		on.sort()
+		off.sort()
+		out[d[2]] = on[on.size() / 2] / maxf(off[off.size() / 2], 0.0001)
+	return out
+
+func _disc_vs_grass(img: Image) -> Vector2:
+	var rt := World.runtime as IslandRuntime
+	var discs := _discs()
 	var on: Array[float] = []
 	var off: Array[float] = []
 	for d in discs:

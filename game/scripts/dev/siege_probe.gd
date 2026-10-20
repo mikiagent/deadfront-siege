@@ -34,9 +34,17 @@ func run(host: Node) -> void:
 	var platform := get_tree().get_first_node_in_group("catapult") as FieldCatapult
 	player.placer.cancel()
 	await get_tree().physics_frame
+	# A non-200 max_hp: the label reading "…/200" would then prove it is hard-coded, and a wrong
+	# label fails the probe instead of only printing.
+	platform.max_hp = 250.0
+	platform._refresh_label()
 	var label := platform.get_node_or_null("Label") as Label3D
 	var want := "Catapult %.0f/%.0f" % [platform.hp, platform.max_hp]
-	print("[siege] label=%s max_hp=%.0f label-uses-max-hp=%s" % [label.text if label else "<none>", platform.max_hp, label != null and label.text.begins_with(want)])
+	var label_ok: bool = label != null and label.text.begins_with(want)
+	print("[siege] label=%s max_hp=%.0f label-uses-max-hp=%s" % [label.text if label else "<none>", platform.max_hp, label_ok])
+	if not label_ok:
+		get_tree().quit(1)
+		return
 	player.global_position = platform.global_position+Vector3(2.5,0.5,0)
 	var sp := Spawner.new()
 	sp.species = &"protoceratops"
