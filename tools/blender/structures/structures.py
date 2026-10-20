@@ -490,7 +490,9 @@ def pier():
     end, cargo on the open deck (barrel, crates, a fish crate, a bucket, a coiled rope), mooring
     posts at the tip and a dugout log boat moored alongside with a ladder down to it.
     One glTF node per part: W1-HARBOUR's t_harbour wants the dock to be a composite of props."""
-    hw, hl, deck, dx = 1.0, 3.0, 1.2, -0.25  # deck shifted -X so the boat fits inside the 3 m width
+    # deck shifted +X so the boat fits inside the 3 m width on -X: the side the iso camera sees at the
+    # rotations HarbourSite picks (rot 1 on 13 islands, rot 2 on home_grassland)
+    hw, hl, deck, dx = 1.0, 3.0, 1.2, 0.25
     xl, xr = dx - hw, dx + hw
     parts = []
 
@@ -574,7 +576,7 @@ def pier():
         posts.append(x)
     # dugout log boat moored alongside, floating at the waterline (0.7 above the pile feet)
     bt = part("boat")
-    ox, oy, zb, zt = xr + 0.36, 1.6, 0.6, 0.84
+    ox, oy, zb, zt = xl - 0.36, 1.6, 0.55, 0.95  # 0.25 m freeboard above the water
     hull = [(ox, oy - 1.15, zb), (ox + 0.29, oy - 0.6, zb), (ox + 0.29, oy + 0.6, zb), (ox, oy + 1.15, zb),
             (ox - 0.29, oy + 0.6, zb), (ox - 0.29, oy - 0.6, zb)]
     bt.prism(hull, (0, 0, zt - zb), "bark", tile_m=1.2)
@@ -585,13 +587,13 @@ def pier():
     pd.plank((ox - 0.08, oy - 0.75, zt + 0.06), (ox + 0.02, oy + 0.35, zt + 0.06), 0.05, 0.03, "wood")
     pd.box((0.13, 0.32, 0.025), (ox + 0.04, oy + 0.5, zt + 0.06), "wood", rot=(0, 0, -5))
     ml = part("mooring_line")
-    ml.log((posts[1], hl - 0.15, deck + 0.32), (ox, oy + 1.05, zt + 0.03), 0.016, tile="rope", seg=4, end_tile="rope")
-    ml.log((posts[1], hl - 0.15, deck + 0.28), (posts[1] - 0.25, hl - 0.6, deck + 0.03), 0.016, tile="rope", seg=4, end_tile="rope")
+    ml.log((posts[0], hl - 0.15, deck + 0.32), (ox, oy + 1.05, zt + 0.03), 0.016, tile="rope", seg=4, end_tile="rope")
+    ml.log((posts[0], hl - 0.15, deck + 0.28), (posts[0] + 0.25, hl - 0.6, deck + 0.03), 0.016, tile="rope", seg=4, end_tile="rope")
     ld = part("ladder")  # down the deck's seaward side to the boat
     for y in (0.95, 1.35):
-        ld.log((xr + 0.03, y, deck + 0.05), (xr + 0.03, y, 0.5), 0.035, tile="wood_dark", seg=5)
+        ld.log((xl - 0.03, y, deck + 0.05), (xl - 0.03, y, 0.5), 0.035, tile="wood_dark", seg=5)
     for z in (0.62, 0.86, 1.1):
-        ld.log((xr + 0.04, 0.95, z), (xr + 0.04, 1.35, z), 0.025, tile="wood", seg=5)
+        ld.log((xl - 0.04, 0.95, z), (xl - 0.04, 1.35, z), 0.025, tile="wood", seg=5)
     return parts
 
 
