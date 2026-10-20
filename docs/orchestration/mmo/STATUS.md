@@ -301,6 +301,13 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   profiles in game/data/creatures/ragdoll.json written by a dsc worker; gates on posed-skin ground contact,
   lying height, joint limits, physics cost and a blind judge. The orchestrator integrates it after review.
 
+- 2026-10-20 (owner) "enlist codex for some debugging tasks but use a smaller model than astra". Codex runs on
+  gpt-reserve (the smaller model the ChatGPT plan accepts; gpt-6.1-sol/6-sol/6-luna are refused), medium
+  reasoning, one bug per worktree: codex-harbour (travel to a moved dock, basket follow, walkable pier, site
+  check rows), codex-animals (Animals screen 0x0 rect / no backdrop / CLOSE over HARBOUR), codex-errors
+  (the world.gd:124 / hunt_hud.gd:965 SCRIPT ERRORs and a lab sweep). Found so far: worktree clones copied a
+  stale import cache from mmo-overhaul; the base was re-imported and mkwt.sh now imports after cloning.
+
 ## Owner questions (open)
 
 - none
