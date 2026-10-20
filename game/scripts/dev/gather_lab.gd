@@ -80,6 +80,11 @@ func _ready() -> void:
 	var flint_before := _p.inventory.count_of(&"flint")
 	await _gather(rock, &"stone", 1, "rare", 0.35)
 	_check(_p.inventory.count_of(&"flint") > flint_before, "a rare flint landed in the bag")
+	# The touch flow: tap the rock, pick Stone on the radial; the picked hex shows the progress.
+	GatherService.rng.seed = _lucky_seed(rock)
+	flint_before = _p.inventory.count_of(&"flint")
+	await _gather(rock, &"stone", 1, "rare_radial", 0.35, true)
+	_check(_p.inventory.count_of(&"flint") > flint_before, "a rare flint landed through the radial")
 	for st in _p.inventory.slots:
 		if st and (st.def_id == &"flint" or st.def_id == &"stone"):
 			_check(st.level == 1, "starter-island %s is level 1 (got %d)" % [st.def_id, st.level])
@@ -127,7 +132,7 @@ func _option(node: HarvestNode, item: StringName) -> int:
 
 ## Gather `units` passes of `item` through PlayerActions; returns measured seconds per pass
 ## (the walk is excluded: timing starts when the first pass lands).
-func _gather(node: HarvestNode, item: StringName, units: int, shot: String, shot_after: float = 0.25) -> float:
+func _gather(node: HarvestNode, item: StringName, units: int, shot: String, shot_after: float = 0.25, via_radial: bool = false) -> float:
 	var idx := _option(node, item)
 	if idx < 0:
 		_fails.append("%s has no %s option" % [node.family, item])
@@ -138,13 +143,17 @@ func _gather(node: HarvestNode, item: StringName, units: int, shot: String, shot
 	var prev := _p.global_position
 	var max_step := 0.0
 	var ring_above := false
-	_p.actions.gather(node, idx)
+	if via_radial:
+		_p._gather_radial.open(node, node.options(), _p.inventory)
+		_p._gather_radial._on_pick(idx)
+	else:
+		_p.actions.gather(node, idx)
 	var deadline := Time.get_ticks_msec() + 30000
 	while passes < units and Time.get_ticks_msec() < deadline:
 		await get_tree().process_frame
 		max_step = maxf(max_step, _p.global_position.distance_to(prev))
 		prev = _p.global_position
-		ring_above = ring_above or _ring_above(node)
+		ring_above = ring_above or _ring_above(node) or (via_radial and _p._gather_radial.is_open() and _p._gather_radial.active_index == idx)
 		var now := _p.inventory.count_of(item)
 		if now > last:
 			passes += 1
@@ -155,12 +164,13 @@ func _gather(node: HarvestNode, item: StringName, units: int, shot: String, shot
 				_check(reach <= 3.2, "%s gathered from reach (%.2f m)" % [item, reach])
 	# GAUNTLET: gathering is from reach without teleport; progress appears above the node.
 	_check(max_step < 1.0, "%s: the survivor walked to the node (largest frame step %.2f m)" % [item, max_step])
-	_check(ring_above, "%s: the progress ring showed above the node" % item)
+	_check(ring_above, "%s: the progress ring (or the picked radial hex) showed" % item)
 	var per := (_now() - started) / float(maxi(1, passes - 1)) if passes > 1 else GatherService.unit_seconds(_p, node)
 	if passes < units:
 		_fails.append("gathered %d/%d %s" % [passes, units, item])
 	if shot != "":
 		await get_tree().create_timer(shot_after).timeout
+		_popup_clear(node)
 	# Stop before the capture: a slow windowed frame would otherwise keep the cycle running.
 	_p.actions.cancel_work()
 	if shot != "":
@@ -173,6 +183,22 @@ func _ring_above(node: HarvestNode) -> bool:
 	var cam := get_viewport().get_camera_3d()
 	return ring != null and cam != null and ring.visible and ring.target == node \
 			and ring._screen_pos.y < cam.unproject_position(node.global_position).y
+
+## The live "+n" stack sits clear of the ring, world pills, HUD text, plates and the radial.
+func _popup_clear(node: HarvestNode) -> void:
+	var layer := get_tree().current_scene.get_node_or_null(GatherFeedback.LAYER_NAME)
+	var box: Control = layer.get_child(layer.get_child_count() - 1) if layer and layer.get_child_count() > 0 else null
+	_check(box != null and box.visible, "a yield popup showed over %s" % node.family)
+	if box == null:
+		return
+	var a := get_viewport().get_camera_3d().unproject_position(node.global_position + Vector3(0, node.top_of_node() + 0.3, 0))
+	var r := box.get_global_rect()
+	var texts := []
+	for l in box.get_children():
+		texts.append((l as Label).text)
+	for t in GatherFeedback.taken_rects(_p, a):
+		_check(not r.intersects(t), "popup %s at %s clear of %s" % [texts, r, t])
+	print("[gather_lab] popup %s at %s" % [texts, r])
 
 func _move_cancels(node: HarvestNode) -> void:
 	var idx := _option(node, &"fibre_stalk")
@@ -196,6 +222,8 @@ func _summon_pet() -> void:
 	rec.hp = Data.creature(&"velociraptor").hp
 	_p.bonded.append(rec)
 	_p.summon_pet(_p.bonded.size() - 1)
+	for pet in _p.summoned_pets:
+		Game.reveal_creature_plate(pet, 60.0)
 
 func _now() -> float:
 	return float(Time.get_ticks_msec()) * 0.001

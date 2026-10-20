@@ -52,11 +52,10 @@ static func yield_multiplier_for(inv: Inventory, node: HarvestNode, skill: int) 
 	var zone := int(node.yield_attributes.get("level", 1))
 	return ProgressionScaling.gather_yield_multiplier(zone, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, skill))
 
-## After a gathered unit reached the bag: "+n Item" over the node, then the rare roll.
+## After a gathered unit reached the bag: the rare roll, then "+n Item" (and any find) over the node.
 ## Returns the rare item ids that landed in the bag.
 static func after_unit(p: Player, node: HarvestNode, item_id: StringName, gained: int, luck: float = 1.0) -> Array[StringName]:
 	var at := node.global_position + Vector3(0.0, node.top_of_node() + 0.3, 0.0)  # the gather ring's anchor
-	GatherFeedback.show_yield(p.get_tree(), at, item_id, gained)
 	var tool := effective_tool(p.inventory, node)
 	var tier: StringName = tool.material_tier() if tool else &""
 	var landed: Array[StringName] = []
@@ -72,7 +71,8 @@ static func after_unit(p: Player, node: HarvestNode, item_id: StringName, gained
 			continue
 		landed.append(id)
 		p.toast(id, 1)
-		GatherFeedback.announce_rare(p, at, id, landed.size())
+		GatherFeedback.notice_rare(p, id)
 		var xp := float(LootTables.rules().get("xp", {}).get("rare_gather_bonus", 0))
 		GatherXp.award(p, "gathering", xp, {"verb": "gather", "item": str(id), "rare": true, "node_level": level})
+	GatherFeedback.show_yield(p, at, item_id, gained, landed)
 	return landed

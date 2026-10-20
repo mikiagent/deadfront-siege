@@ -27,8 +27,9 @@ static func roll_into(corpse: Corpse, body: Node3D = null) -> Array[StringName]:
 	for id in res["rares"]:
 		rares.append(id)
 		if p:
-			var at := (body.global_position if body and body.is_inside_tree() else p.global_position) + Vector3(0, 1.4, 0)
-			GatherFeedback.announce_rare(p, at, id, rares.size(), " on the %s" % corpse.species_display_name().to_lower())
 			var xp := float(LootTables.rules().get("xp", {}).get("rare_butcher_bonus", 0))
 			GatherXp.award(p, "butchering", xp, {"verb": "butcher", "item": str(id), "rare": true, "node_level": corpse.level})
+	if p and not rares.is_empty():
+		var at := (body.global_position if body and body.is_inside_tree() else p.global_position) + Vector3(0, 1.4, 0)
+		GatherFeedback.announce_rares(p, at, rares, " on the %s" % corpse.species_display_name().to_lower())
 	return rares
