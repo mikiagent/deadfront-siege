@@ -62,6 +62,7 @@ const MAP_PX := 154.0
 const MAP_SCALE := 0.95  # metres per pixel
 const HEX := 64.0
 const CAPTION_H := 18.0  # room for the action word HexButton draws under a hex
+const NAME_PX := 15  # the survivor's name under its feet
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -581,7 +582,9 @@ func _refresh_context(delta: float) -> void:
 	_ctx_hexes.clear()
 	var r := get_viewport_rect().size
 	var inset := _safe_insets()
-	var x := r.x - 16.0 - inset.x - 74.0 - 60.0
+	var phone := UiTokens.is_phone(r)
+	# Portrait: no room beside the rail, so the context row sits one row above it, from the left.
+	var x := 16.0 + inset.w if phone else r.x - 16.0 - inset.x - 74.0 - 60.0
 	for a in actions:
 		var h := HexButton.new(70.0)
 		h.glyph = str(a.get("glyph", ""))
@@ -595,10 +598,11 @@ func _refresh_context(delta: float) -> void:
 		add_child(h)
 		if id == "claim":
 			# Land claim lives by the minimap (it is about the map, not the fight).
-			h.position = Vector2(_minimap.position.x + MAP_PX - 70.0, _minimap.position.y + MAP_PX + 44.0)
+			# Portrait: the quest card is under the map, so the claim hex goes under the card.
+			h.position = Vector2(_minimap.position.x + MAP_PX - 70.0, _minimap.position.y + MAP_PX + (52.0 + 72.0 + 8.0 if phone else 44.0))
 		else:
-			h.position = Vector2(x, r.y - 70.0 - 26.0 - inset.y)
-			x -= 78.0
+			h.position = Vector2(x, r.y - 70.0 - 26.0 - inset.y - (96.0 if phone else 0.0))
+			x += 78.0 if phone else -78.0
 		_ctx_hexes.append(h)
 
 func _refresh_place_hexes() -> void:
@@ -633,10 +637,17 @@ func _load_level_data() -> void:
 			else:
 				_level_gains = parsed
 
+## The survivor's name under its feet, in screen space. Radial labels keep off it (the gather
+## radial's option label covered it on a landscape phone).
+static func nameplate_rect(cam: Camera3D, who: Player, font: Font) -> Rect2:
+	var p := cam.unproject_position(who.get_global_transform_interpolated().origin - Vector3(0, 0.05, 0))
+	var nw := font.get_string_size(who.display_name(), HORIZONTAL_ALIGNMENT_CENTER, -1, NAME_PX).x
+	return Rect2(p.x - nw * 0.5, p.y + 20.0 - NAME_PX, nw + 1.0, NAME_PX + 6.0)
+
 ## Reference: a gold text stack at the top-left for ~6 s on level-up.
 func _on_level_up(level: int) -> void:
 	_levelup_lines.clear()
-	_levelup_lines.append(["Lv. %d" % level, 40, Color(1.0, 0.85, 0.35)])
+	_levelup_lines.append([LevelDisplay.player_label(), 40, Color(1.0, 0.85, 0.35)])
 	_levelup_lines.append(["👁 %d" % World.pioneer_xp, 18, Color.WHITE])
 	_levelup_lines.append(["◎ %d" % World.t_stones, 18, Color.WHITE])
 	var sp := Data.survival_nodes.size() - Data.survival_unlocked.size() if Data.get("survival_nodes") != null else 0
@@ -928,7 +939,7 @@ func _draw() -> void:
 	draw_rect(Rect2(x - 8.0, y - 6.0, panel_w, panel_h), UiTokens.INK)
 	var lvl_r := 18.0 if not phone else 16.0
 	draw_circle(Vector2(x + lvl_r, y + lvl_r), lvl_r, Color(0.08, 0.09, 0.11, 0.95))
-	draw_string(_font, Vector2(x, y + lvl_r + num_px * 0.36), str(World.pioneer_level), HORIZONTAL_ALIGNMENT_CENTER, lvl_r * 2.0, num_px, Color.WHITE)
+	draw_string(_font, Vector2(x, y + lvl_r + num_px * 0.36), str(LevelDisplay.player_level()), HORIZONTAL_ALIGNMENT_CENTER, lvl_r * 2.0, num_px, Color.WHITE)
 	x += lvl_r * 2.0 + 8.0
 	var yy := y
 	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", "%.0f / %.0f" % [v.health, v.effective_max_health()], num_px)
@@ -969,21 +980,18 @@ func _draw() -> void:
 	# --- XP bar along the bottom
 	# One bar: the pioneer level, which every skill XP grant also feeds.
 	var prog := World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
-	var char_lv := World.pioneer_level
 	draw_rect(Rect2(0, r.y - 4, r.x, 4), Color(0.05, 0.05, 0.07, 0.9))
 	draw_rect(Rect2(0, r.y - 4, r.x * prog, 4), Color(0.90, 0.68, 0.12))
-	var lv := "Lv. %d  %.1f%%" % [char_lv, prog * 100.0]
+	var lv := "%s  %.1f%%" % [LevelDisplay.player_label(), prog * 100.0]
 	var lw := _font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
 	var lv_pos := Vector2(r.x - lw - 16.0 - inset.x, r.y - HEX - 22.0) if phone else Vector2(r.x * 0.5 - lw * 0.5, r.y - 7.0)
 	draw_string(_font, lv_pos, lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 	# --- name under the survivor
 	var cam := get_viewport().get_camera_3d()
 	if cam:
-		var p := cam.unproject_position(player.get_global_transform_interpolated().origin - Vector3(0, 0.05, 0))
-		var name := player.display_name() if player.has_method("display_name") else "Survivor"
-		var nw := _font.get_string_size(name, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
-		draw_string(_font, Vector2(p.x - nw * 0.5 + 1, p.y + 21), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0, 0, 0, 0.7))
-		draw_string(_font, Vector2(p.x - nw * 0.5, p.y + 20), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.95, 0.95, 0.95))
+		var at := nameplate_rect(cam, player, _font).position + Vector2(0.0, NAME_PX)
+		draw_string(_font, at + Vector2.ONE, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0, 0, 0, 0.7))
+		draw_string(_font, at, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0.95, 0.95, 0.95))
 	# --- label pills on buildings and nodes within 30 m (reference: base building)
 	_draw_pills(cam)
 	_draw_bites(cam)

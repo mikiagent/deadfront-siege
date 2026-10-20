@@ -7,6 +7,8 @@ extends Node3D
 @onready var iso_camera: Camera3D = $IsoCamera
 
 func _ready() -> void:
+	DisplayMode.install(get_tree().root)
+	DisplayMode.install_theme()
 	sun.rotation_degrees = Vector3(-50.0, 30.0, 0.0)
 	if Game.lab_name != "":
 		default_playfield.visible = false

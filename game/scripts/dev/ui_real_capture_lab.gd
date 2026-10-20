@@ -170,6 +170,12 @@ func _run() -> void:
 			for j in range(i + 1, hexes.size()):
 				var d := hexes[i].get_global_rect().get_center().distance_to(hexes[j].get_global_rect().get_center())
 				_expect(d >= hexes[i].size.x - 0.5, "radial hexes %d and %d do not overlap (%.0f px)" % [i, j, d])
+		# Option labels keep off the survivor's nameplate (at 844x390 "Berries Lv. 1" covered it).
+		var plate := radial.nameplate()
+		_expect(plate.has_area() and not radial.label_rects.is_empty(), "radial: nameplate and option labels are on screen")
+		for lr in radial.label_rects:
+			_expect(not lr.intersects(plate), "radial: option label %s stays off the survivor's nameplate %s" % [lr, plate])
+		print("[uireal] radial: %d option labels, nameplate %s" % [radial.label_rects.size(), plate])
 		await _capture("radial", hexes, logical)
 		radial.close()
 	# creature plate with three status glyphs (letters must sit inside their rings)
@@ -344,10 +350,10 @@ static func hud_blocks(hud: HuntHud, player: Player, r: Vector2) -> Dictionary:
 	var origin := Vector2(mp.x, mp.y + HuntHud.MAP_PX + 52.0) if phone else Vector2(mp.x - w - 12.0, mp.y)
 	origin.x = maxf(origin.x, 8.0)
 	out["quest"] = Rect2(origin, Vector2(w, 72.0))
-	# The level line (hunt_hud.gd:975-977): right-aligned above the rail on is_phone, else bottom centre.
+	# The HUD level line: right-aligned above the rail on is_phone, else bottom centre.
 	var font := ThemeDB.fallback_font
 	var prog := World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
-	var lw := font.get_string_size("Lv. %d  %.1f%%" % [World.pioneer_level, prog * 100.0], HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
+	var lw := font.get_string_size("%s  %.1f%%" % [LevelDisplay.player_label(), prog * 100.0], HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
 	var base := Vector2(r.x - lw - 16.0 - inset.x, r.y - HuntHud.HEX - 22.0) if phone else Vector2(r.x * 0.5 - lw * 0.5, r.y - 7.0)
 	out["level"] = Rect2(base - Vector2(0.0, 12.0), Vector2(lw, 15.0))
 	return out

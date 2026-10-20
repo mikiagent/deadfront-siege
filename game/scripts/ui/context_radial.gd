@@ -25,6 +25,10 @@ static func hex_positions(anchor: Vector2, count: int, view: Vector2, safe: Vect
 		radius = maxf(radius, float(count) * hex * 1.08 / TAU)
 	# horizontal slots must clear the title band: hex inner edge outside the title half-width
 	radius = maxf(radius, clear_w * 0.5 + hex * 0.5 + 16.0)
+	# A huge finite anchor (unproject_position near the camera plane) lost float precision and
+	# stacked the hexes; past one ring off the view it slides in the same anyway.
+	var reach := Vector2.ONE * (radius + hex)
+	anchor = anchor.clamp(-reach, view + reach)
 	var angles: Array[float] = []
 	if count == 1:
 		angles = [-0.55]

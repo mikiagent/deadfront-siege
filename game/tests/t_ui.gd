@@ -25,6 +25,14 @@ var MS: GDScript
 var LD: GDScript
 var LAB: GDScript
 var CC: GDScript
+var _tally := Tally.new()
+
+## Counts engine errors and warnings while the checks run: one a check trips (grab_focus on a
+## FOCUS_NONE hex printed a warning and a backtrace) fails the run instead of littering the log.
+class Tally extends Logger:
+	var lines: PackedStringArray = []
+	func _log_error(function: String, file: String, line: int, code: String, rationale: String, _editor_notify: bool, error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
+		lines.append("%s %s (%s:%d %s)" % ["WARNING" if error_type == ERROR_TYPE_WARNING else "ERROR", rationale if rationale != "" else code, file, line, function])
 
 func _process(_delta: float) -> bool:
 	if _done:
@@ -32,6 +40,7 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_done = true
+	OS.add_logger(_tally)
 	UT = load("res://scripts/ui/ui_tokens.gd")
 	CU = load("res://scripts/ui/craft_ui.gd")
 	MS = load("res://scripts/ui/map_screen.gd")
@@ -50,6 +59,10 @@ func _process(_delta: float) -> bool:
 	_test_hex_focus()
 	_test_gate_verdict()
 	_test_review_fixes()
+	OS.remove_logger(_tally)
+	for l in _tally.lines:
+		failures.append("engine %s" % l)
+	print("[t_ui] engine errors/warnings during the checks: %d" % _tally.lines.size())
 	if failures.is_empty():
 		print("[t_ui] PASS")
 		quit(0)
@@ -101,8 +114,14 @@ func _test_owned_sources() -> void:
 		var text := FileAccess.get_file_as_string(path)
 		_expect(text != "", "owned file readable: %s" % path)
 		var lines := text.split("\n")
+		var first_func := -1
 		for n in lines.size():
 			var line := lines[n]
+			# House style: constants sit at the top, before the first function.
+			if first_func < 0 and (line.begins_with("func ") or line.begins_with("static func ")):
+				first_func = n
+			elif first_func >= 0 and line.begins_with("const "):
+				failures.append("const after the first func (line %d) at %s:%d" % [first_func + 1, path, n + 1])
 			for i in line.length():
 				var cp := line.unicode_at(i)
 				if cp >= 0x1F300 and cp <= 0x1FAFF:
@@ -255,12 +274,33 @@ func _test_legend_colours() -> void:
 			_expect(d >= 0.3, "legend colours %s and %s are distinct (%.2f)" % [kinds[i], kinds[j], d])
 	print("[t_ui] atlas legend: %d kinds, min colour distance %.2f" % [kinds.size(), min_d])
 
+## Screens that show the player level; each must read it through LevelDisplay (the HUD drew the stored
+## 0 while the bag drew 0 + 1, so a new survivor was "Lv. 0" on one screen and "Lv. 1" on the next).
+const LEVEL_SITES := ["res://scripts/ui/hunt_hud.gd", "res://scripts/ui/inventory_ui.gd", "res://scripts/dev/ui_real_capture_lab.gd"]
+
 func _test_level_display() -> void:
 	var world: Node = get_root().get_node("World")
 	var was: int = world.pioneer_level
+	world.pioneer_level = 0
+	var fresh: String = LD.player_label()
+	_expect(LD.player_level() == 1 and fresh == "Lv. 1", "a new survivor (stored level 0) reads Lv. 1 (got %s)" % fresh)
 	world.pioneer_level = 7
-	_expect(LD.player_level() == 7 and LD.player_label() == "Lv. 7", "one player level label")
+	_expect(LD.player_level() == 8 and LD.player_label() == "Lv. 8", "stored level 7 reads Lv. 8 (got %s)" % LD.player_label())
 	world.pioneer_level = was
+	# Writes (the levelup shot) and the signal argument are fine; any other read formats its own number.
+	var write_re := RegEx.new()
+	write_re.compile("World\\.pioneer_level\\s*\\+?=[^=]|emit\\(World\\.pioneer_level\\)")
+	var reads := 0
+	for path in OWNED + LEVEL_SITES:
+		if path.ends_with("level_display.gd"):
+			continue
+		var lines := FileAccess.get_file_as_string(path).split("\n")
+		for n in lines.size():
+			var line := write_re.sub(lines[n], "", true)
+			if not line.strip_edges().begins_with("#") and line.contains("World.pioneer_level"):
+				reads += 1
+				failures.append("player level read outside LevelDisplay at %s:%d" % [path, n + 1])
+	print("[t_ui] player level: new survivor reads %s; direct reads outside LevelDisplay=%d" % [fresh, reads])
 
 func _test_hex_focus() -> void:
 	var HB: GDScript = load("res://scripts/ui/hex_button.gd")
@@ -301,9 +341,9 @@ func _test_controller_focus(HB: GDScript) -> void:
 	var hud_hex: Control = HB.new()
 	get_root().add_child(hud_hex)
 	hud_hex.position = Vector2(600, 100)
-	hud_hex.grab_focus()
+	# No grab_focus here: on a FOCUS_NONE control it prints an engine warning (the Tally fails on it).
 	_push_click(hud_hex)
-	_expect(hud_hex.focus_mode == Control.FOCUS_NONE and not hud_hex.has_focus(), "a HUD hex (HexButton defaults) takes no focus from grab_focus or a click")
+	_expect(hud_hex.focus_mode == Control.FOCUS_NONE and not hud_hex.has_focus(), "a HUD hex (HexButton defaults) is FOCUS_NONE and a click gives it no focus")
 	UT.force_focus = true
 	var st := Node3D.new()
 	get_root().add_child(st)
@@ -372,6 +412,21 @@ func _test_review_fixes() -> void:
 		finite = finite and p.is_finite()
 	_expect(finite, "NaN anchor returns two finite hex positions (got %s)" % [nan_ring])
 	print("[t_ui] NaN anchor -> %s" % [nan_ring])
+	# A huge finite anchor (review probe: (-1e9, 1e9), 6 hexes gave min_dist=0.0) keeps its hexes apart.
+	var far := ContextRadial.hex_positions(Vector2(-1e9, 1e9), 6, Vector2(1600, 900), Vector4.ZERO)
+	var far_min := INF
+	for i in far.size():
+		for j in range(i + 1, far.size()):
+			far_min = minf(far_min, far[i].distance_to(far[j]))
+	_expect(far.size() == 6 and far_min >= ContextRadial.HEX - 0.5, "anchor (-1e9, 1e9) keeps six hexes apart (min %.1f)" % far_min)
+	print("[t_ui] huge anchor (-1e9, 1e9): six hexes, min_dist=%.1f" % far_min)
+	# The atlas is north-up: its layout carries no rotation (a "yaw" key stayed behind at 0.0).
+	var map: Control = MS.new()
+	get_root().add_child(map)
+	var keys: Array = (map.call("_layout") as Dictionary).keys()
+	keys.sort()
+	_expect(keys == ["centre", "fit", "scale", "size_m"], "atlas layout keys are centre/fit/scale/size_m (got %s)" % [keys])
+	map.free()
 	# station tab grammar
 	_expect(CU.recipe_count(1) == "1 recipe" and CU.recipe_count(3) == "3 recipes", "recipe count is pluralised")
 	# one level format: no hand-rolled "Lv %d" / "Lv —" outside LevelDisplay

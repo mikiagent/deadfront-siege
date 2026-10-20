@@ -30,6 +30,9 @@ const SWATCH_RING := Color(0.92, 0.92, 0.9, 0.85)
 ## Phone legend columns: four per row ran "Wild animal" into the "Pet" swatch at 390 px.
 const PHONE_LEGEND_COLS := 3
 const LEGEND_ROW_H := 22.0
+## Portrait phone bands, top to bottom: header, one island card, map, legend (three rows), zoom, actions.
+const PHONE_CARD_TOP := 108.0
+const PHONE_MAP_TOP := 236.0
 
 static func legend_color(kind: String) -> Color:
 	return (LEGEND[kind] as Array)[0]
@@ -252,10 +255,6 @@ func _process(_delta: float) -> void:
 		_zoom_label.add_theme_color_override("font_color", UiTokens.TEXT)
 	queue_redraw()
 
-## Portrait phone bands, top to bottom: header, one island card, map, legend (three rows), zoom, actions.
-const PHONE_CARD_TOP := 108.0
-const PHONE_MAP_TOP := 236.0
-
 static func phone_legend_y(r: Vector2) -> float:
 	return r.y - 64.0 - MARGIN - UiTokens.SPACE - 64.0 - UiTokens.SPACE * 2.0 - 30.0 - LEGEND_ROW_H
 
@@ -277,8 +276,7 @@ func _layout() -> Dictionary:
 		centre = Vector2((left + right) * 0.5, (top + bottom) * 0.5)
 	var rt := World.runtime
 	var size_m: float = float(rt.get("_size")) if rt and rt.get("_size") != null else 200.0
-	return {"centre": centre, "scale": fit / maxf(1.0, size_m) * _zoom, "fit": fit,
-		"yaw": 0.0, "size_m": size_m}
+	return {"centre": centre, "scale": fit / maxf(1.0, size_m) * _zoom, "fit": fit, "size_m": size_m}
 
 ## The map square at zoom 1 (the fit), in screen space.
 func _map_rect(L: Dictionary) -> Rect2:
@@ -301,11 +299,10 @@ func _draw() -> void:
 	var L := _layout()
 	var centre: Vector2 = L["centre"]
 	var s: float = L["scale"]
-	var yaw: float = L["yaw"]
 	var size_m: float = L["size_m"]
 	var to_map := func (w: Vector3) -> Vector2:
 		return Vector2(w.x * s, w.z * s)
-	draw_set_transform(centre, yaw, Vector2.ONE)
+	draw_set_transform(centre, 0.0, Vector2.ONE)  # north-up
 	var tex := hud.map_texture()
 	if tex:
 		var px := size_m * s
@@ -390,7 +387,7 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	accept_event()
 	var L := _layout()
-	var local := (pos - (L["centre"] as Vector2)).rotated(-float(L["yaw"]))
+	var local := pos - (L["centre"] as Vector2)
 	var s: float = L["scale"]
 	var world := Vector3(local.x / s, 0.0, local.y / s)
 	var rt := World.runtime

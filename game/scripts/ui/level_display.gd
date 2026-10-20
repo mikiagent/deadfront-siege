@@ -2,14 +2,14 @@ class_name LevelDisplay
 extends RefCounted
 ## Display words every screen shares: the one player level, recipe levels, item names and stat lines.
 ## Before this the HUD, the bag and the fatigue panel showed three different numbers (pioneer level, pioneer level + 1, skill-tree average).
-## ASSUMPTION: the pioneer level (World.pioneer_level, fed by every skill XP grant) is the player
-## level, shown as stored, matching the HUD badge, XP bar and level-up banner.
+## The pioneer level (World.pioneer_level, fed by every skill XP grant) is the player level. It is
+## stored from 0 but a new survivor reads "Lv. 1" (orchestrator 2026-10-20: Durango, ARK and the old bag start at 1).
 
 ## Shown where a level cannot be worked out yet (a recipe the bag cannot make).
 const NONE := "Lv. —"
 
 static func player_level() -> int:
-	return World.pioneer_level
+	return World.pioneer_level + 1
 
 ## Every level label goes through here, so the format is the same on every screen.
 static func label(level: int) -> String:

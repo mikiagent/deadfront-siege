@@ -201,7 +201,7 @@ func show_map() -> void:
 	if player:
 		fat = player.vitals.fatigue
 	var body := "Island %s\n%s\nPioneer %d   T-stones %d\nFatigue %.0f  (walk / gather / climate)\nCrater discovered: %s" % [
-		World.island_id, life, World.pioneer_level, World.t_stones, fat, crater]
+		World.island_id, life, LevelDisplay.player_level(), World.t_stones, fat, crater]
 	var rows: Array = [["Warp home", &"warp"], ["Harbour routes", &"harbour"]]
 	if World.is_unstable():
 		rows.append(["Return to camp", &"camp"])

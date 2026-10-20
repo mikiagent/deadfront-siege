@@ -23,6 +23,8 @@ var _icon_cache: Dictionary = {}
 var active_index: int = -1
 var _progress: float = 0.0
 var _ring3d: MeshInstance3D  # selection hexagon on the ground, depth-tested so the plant stands on it
+## Option label boxes as last drawn (the capture lab checks them against the nameplate).
+var label_rects: Array[Rect2] = []
 
 const HEX := 64.0
 
@@ -237,7 +239,11 @@ func _layout() -> void:
 	var view := get_viewport_rect().size
 	var tf := ThemeDB.fallback_font
 	var tw := tf.get_string_size(UiTokens.ellipsis(tf, _node_name(), 168.0, UiTokens.body(view)), HORIZONTAL_ALIGNMENT_CENTER, -1, UiTokens.body(view)).x + 20.0
-	var spots := ContextRadial.hex_positions(base, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX, tw, UiTokens.hud_reserved(view))
+	var avoid := UiTokens.hud_reserved(view)
+	var plate := nameplate()
+	if plate.has_area():
+		avoid.append(plate)
+	var spots := ContextRadial.hex_positions(base, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX, tw, avoid)
 	for i in _buttons.size():
 		if i < spots.size():
 			_buttons[i].position = spots[i]
@@ -277,19 +283,22 @@ func _draw() -> void:
 	draw_rect(Rect2(name_pos + Vector2(-10, -ns), Vector2(nw + 20, ns + 26)), UiTokens.INK)
 	draw_string(font, name_pos, name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
 	draw_string(font, Vector2(name_pos.x + nw * 0.5 - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
+	var plate := nameplate()
+	label_rects.clear()
 	for i in _buttons.size():
 		var b := _buttons[i]
 		var text: String = UiTokens.ellipsis(font, str(_labels[i]["text"]), 148.0, UiTokens.body(view))
 		var reason: String = str(_labels[i]["reason"])
 		var ts := UiTokens.body(view)
 		var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x
-		var blockers: Array[Rect2] = [title_rect]
+		var blockers: Array[Rect2] = [title_rect, plate]
 		for j in _buttons.size():
 			if j != i:
 				blockers.append(Rect2(_buttons[j].position, _buttons[j].size))
 		var rect := pick_label_rect(ContextRadial.label_on_left(b.position, b.size.x, view, base), Rect2(b.position, b.size), tw, view, blockers)
 		var pos := rect.position + Vector2(4.0, 14.0)
-		draw_rect(Rect2(pos + Vector2(-4, -14), Vector2(tw + 12, 26)), UiTokens.INK)
+		label_rects.append(Rect2(pos + Vector2(-4, -14), Vector2(tw + 12, 26)))
+		draw_rect(label_rects[-1], UiTokens.INK)
 		draw_string(font, pos + Vector2(2, 6), text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, Color(0.95, 0.95, 0.95) if reason == "" else Color(0.75, 0.75, 0.75))
 		if reason != "":
 			var short := UiTokens.ellipsis(font, reason, 148.0, UiTokens.meta(view))
@@ -307,6 +316,14 @@ func _draw() -> void:
 
 func _node_name() -> String:
 	return title
+
+## The player's nameplate on screen (empty without a camera or player); hexes and labels keep off it.
+func nameplate() -> Rect2:
+	var cam := get_viewport().get_camera_3d()
+	var who := get_tree().get_first_node_in_group("player") as Player
+	if cam == null or who == null:
+		return Rect2()
+	return HuntHud.nameplate_rect(cam, who, ThemeDB.fallback_font).grow(4.0)
 
 func _display_name(id: StringName) -> String:
 	var def := Data.item(id)
