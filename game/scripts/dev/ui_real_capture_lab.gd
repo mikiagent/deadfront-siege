@@ -284,7 +284,41 @@ func _run() -> void:
 	if symbols > 0:  # phone cards have no room for one
 		_check_white("charcreate", cc)
 	cc.queue_free()
+	await _resize(logical)
 	_finish(phone, logical)
+
+## The canvas changes under a running game (a browser window resized, a tablet turned, a phone's
+## toolbar collapsing): the HUD's context hexes and an open skills sheet lay out again on the new
+## canvas. CLAIM kept its 1600x900 spot, off an 844x390 view, and the sheet kept one desktop column.
+## The other size is a shot only for fonts (the type floor is gated on the run's own canvas).
+func _resize(logical: Vector2) -> void:
+	var win := get_window()
+	var start := win.size
+	var other := Vector2i(1600, 900) if UiTokens.is_compact(logical) else Vector2i(844, 390)
+	for step: Array in [["resize_other", other], ["resize_back", start]]:
+		var tag: String = step[0]
+		_hud.call("_toggle_skills")  # open, then the canvas changes under it
+		await _frames(3)
+		win.size = step[1]
+		await _frames(30)
+		var now := get_tree().root.get_visible_rect().size
+		var sheet := _hud.get_node_or_null("SkillsSheet") as SkillsSheet
+		var grid := sheet.find_child("SkillsGrid", true, false) as GridContainer if sheet else null
+		var panel := sheet.get_child(1) as Control if sheet else null
+		var want := 2 if SkillsSheet.is_sheet(now) else 1
+		print("[uireal] %s: window %s canvas %s, skills columns %d (want %d), panel %s" % [tag, win.size, now, grid.columns if grid else -1, want, panel.get_global_rect() if panel else "missing"])
+		_expect(grid != null and grid.columns == want, "%s: the open skills sheet lays out for the %s canvas (%d columns, want %d)" % [tag, now, grid.columns if grid else -1, want])
+		_expect(panel != null and Rect2(Vector2.ZERO, now).grow(1.0).encloses(panel.get_global_rect()), "%s: the skills panel sits inside the %s canvas (%s)" % [tag, now, panel.get_global_rect() if panel else "missing"])
+		await _capture(tag + "_skills", [panel] if panel else [], now, tag == "resize_back")
+		if sheet:
+			sheet.close()
+		await _frames(3)
+		var blocks := with_world_hexes(hud_blocks(_hud, _player, now), _hud)
+		var ctx: Array = _hud.get("_ctx_hexes")
+		print("[uireal] %s: %d context hexes %s" % [tag, ctx.size(), ctx.map(func (h: HexButton) -> String: return "%s %s" % [h.caption, h.hex_rect()])])
+		_expect(not ctx.is_empty(), "%s: a context hex shows on the %s canvas" % [tag, now])
+		_check_blocks(tag, blocks, now)
+		await _capture(tag, [], now, tag == "resize_back")
 
 func _finish(phone: bool, logical: Vector2) -> void:
 	var narrow := UiTokens.is_narrow(logical)
@@ -294,10 +328,13 @@ func _finish(phone: bool, logical: Vector2) -> void:
 	var min_px := int(floor(_min_font / stretch + 0.01)) if _min_font < INF else 0
 	var pts := DisplayMode.window_points(get_tree().root)
 	var min_pt := _min_font / DisplayMode.device_scale() if _min_font < INF else 0.0
+	# "phone" is UiTokens.is_compact (the phone layouts); is_phone keeps its old meaning (under 720 px
+	# wide) for the protected screens, so it reads false at 844x390.
+	print("[uireal] phone means is_compact=%s; is_phone=%s (under 720 px wide, protected screens)" % [phone, UiTokens.is_phone(logical)])
 	print("[uireal] phone=%s min_font_px=%d min_font_pt=%.2f logical_width=%d window_pt=%dx%d floor_pt=%.2f (smallest: %s)" % [phone, min_px, min_pt, int(logical.x), int(pts.x), int(pts.y), type_floor_pt(pts), _min_font_where])
 	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
 	if _fails.is_empty():
-		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
+		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
 		get_tree().quit(0)
 	else:
 		for f in _fails:
@@ -563,7 +600,7 @@ func _capture_plate(logical: Vector2) -> void:
 		_expect(glyphs == 0 and pill.size.y <= 42.0, "phone plate of a creature that is not the target: name and bar only (glyphs %d, pill %s)" % [glyphs, pill.size])
 	else:
 		_expect(glyphs >= 2, "plate shows its status glyphs")
-	_check_plate_pill("plate", node, pill)
+	_check_plate_pill("plate", node, pill, wild)
 	await _capture("plate", [pill], logical)
 	# In front of the survivor (toward the camera), where the plate, about 80 px over the creature's
 	# feet, would sit on the survivor's name unless it moves.
@@ -580,7 +617,7 @@ func _capture_plate(logical: Vector2) -> void:
 	print("[uireal] plate_front: compy %.2f m toward the camera, feet at y %.0f, name at y %.0f" % [best_d, cam.unproject_position(wild.global_position).y, name_y])
 	await get_tree().create_timer(0.5).timeout
 	_expect(node.visible, "plate_front: the plate finds a free spot and shows")
-	_check_plate_pill("plate_front", node, pill)
+	_check_plate_pill("plate_front", node, pill, wild)
 	await _capture("plate_front", [pill], logical)
 	wild.global_position = _player.global_position + Vector3(2.5, 0.0, 1.0)
 	# The hunt, pet still out: End Combat, the skills, Auto/Feed, whistles, the target plate. At 844x390
@@ -597,6 +634,7 @@ func _capture_plate(logical: Vector2) -> void:
 	# A target plate with no free spot hides (portrait: the combat cluster fills the screen round the
 	# survivor); the HUD's target plate then carries the statuses.
 	_expect(glyphs >= 2 or (not node.visible and blocks.has("plate")), "the target's plate shows its status glyphs, or hides under the HUD's target plate")
+	_check_plate_pill("combat", node, entry["pill"] as Control, wild)
 	await _capture("combat", [entry["pill"]], logical)
 	# 3x crop so the glyph letters can be checked by eye
 	var img := get_tree().root.get_texture().get_image()
@@ -683,14 +721,18 @@ static func count_prefix(blocks: Dictionary, prefix: String) -> int:
 	return n
 
 ## The opaque pill (layer 58, above the HUD) keeps off the survivor's name and every HUD block and
-## hex: beside a compy it hid the name whole.
-func _check_plate_pill(tag: String, node: Control, pill: Control) -> void:
+## hex (beside a compy it hid the name whole), and off the creature it names (pushed down off the
+## HUD, it covered the compy and its target ring at 667x375 and 844x390).
+func _check_plate_pill(tag: String, node: Control, pill: Control, who: Creature) -> void:
 	var pill_rect := pill.get_global_transform() * Rect2(Vector2.ZERO, pill.size)
 	var under := 0
 	for h in (_hud.taken_rects(PackedStringArray(["pill"])) if node.visible else []):
 		under += 1
 		_expect(not pill_rect.grow(-0.5).intersects(h), "%s: pill %s stays off the HUD rect %s" % [tag, pill_rect, h])
-	print("[uireal] %s pill %s shown=%s checked against %d HUD rects (nameplate %s)" % [tag, pill_rect, node.visible, under, _hud.drawn_blocks.get("nameplate")])
+	var body := CreaturePlates.creature_box(get_viewport().get_camera_3d(), who)
+	_expect(body.has_area(), "%s: the %s is on screen" % [tag, who.def.id])
+	_expect(not node.visible or not pill_rect.grow(-0.5).intersects(body), "%s: pill %s stays off its creature %s" % [tag, pill_rect, body])
+	print("[uireal] %s pill %s shown=%s checked against %d HUD rects (nameplate %s) and its %s %s" % [tag, pill_rect, node.visible, under, _hud.drawn_blocks.get("nameplate"), who.def.id, body])
 	_expect(_hud.drawn_blocks.has("nameplate"), "%s: the survivor's name is drawn" % tag)
 
 static func _plate_glyphs(entry: Dictionary) -> int:

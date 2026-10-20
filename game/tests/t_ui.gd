@@ -12,6 +12,7 @@ const OWNED := [
 	"res://scripts/ui/creature_plates.gd", "res://scripts/ui/context_radial.gd", "res://scripts/ui/gather_radial.gd",
 	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
 	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
+	"res://scripts/ui/hud_layout.gd", "res://scripts/ui/hud_pills.gd",
 ]
 const TYPE_MIN := 12
 ## The HUD and bag joined W1-UI late (orchestrator option a). The bag is emoji-free; the HUD's rail
@@ -26,6 +27,8 @@ var UT: GDScript
 var CU: GDScript
 var MS: GDScript
 var LD: GDScript
+var CR: GDScript  ## context_radial.gd and display_mode.gd, loaded like the rest (no class_name at parse time)
+var DM: GDScript
 var LAB: GDScript
 var CC: GDScript
 var _tally := Tally.new()
@@ -48,6 +51,8 @@ func _process(_delta: float) -> bool:
 	CU = load("res://scripts/ui/craft_ui.gd")
 	MS = load("res://scripts/ui/map_screen.gd")
 	LD = load("res://scripts/ui/level_display.gd")
+	CR = load("res://scripts/ui/context_radial.gd")
+	DM = load("res://scripts/core/display_mode.gd")
 	LAB = load("res://scripts/dev/ui_real_capture_lab.gd")
 	CC = load("res://scripts/ui/character_creation.gd")
 	_expect(UT.TYPE_MIN == TYPE_MIN, "type floor is %d" % TYPE_MIN)
@@ -173,16 +178,16 @@ func _test_draw_centered() -> void:
 
 func _test_context_radial() -> void:
 	var view := Vector2(1600, 900)
-	var hex := ContextRadial.HEX
+	var hex: float = CR.HEX
 	# The verifier's case: two options, anchor above the view. Per-hex clamping stacked them.
-	var spots := ContextRadial.hex_positions(Vector2(800, -200), 2, view, Vector4.ZERO, hex)
+	var spots: Array[Vector2] = CR.hex_positions(Vector2(800, -200), 2, view, Vector4.ZERO, hex)
 	_expect(spots.size() == 2, "two hexes returned")
 	if spots.size() == 2:
 		var d := spots[0].distance_to(spots[1])
 		_expect(d >= hex, "hex centres at least one hex apart above the view (got %.1f)" % d)
 		print("[t_ui] radial above view: centres %.1f px apart (hex %.0f)" % [d, hex])
 	for anchor in [Vector2(800, -200), Vector2(1590, 450), Vector2(10, 890), Vector2(800, 450)]:
-		var ring := ContextRadial.hex_positions(anchor, 5, view, Vector4.ZERO, hex)
+		var ring: Array[Vector2] = CR.hex_positions(anchor, 5, view, Vector4.ZERO, hex)
 		for p in ring:
 			_expect(p.x >= -0.5 and p.y >= -0.5 and p.x + hex <= view.x + 0.5 and p.y + hex <= view.y + 0.5, "hex inside the view for anchor %s (%s)" % [anchor, p])
 		for i in ring.size():
@@ -190,7 +195,7 @@ func _test_context_radial() -> void:
 				_expect(ring[i].distance_to(ring[j]) >= hex - 0.5, "five-hex ring keeps hexes apart at %s" % anchor)
 	# A ring next to a HUD block turns away from it when it can.
 	var avoid: Array[Rect2] = [Rect2(1150, 0, 450, 240)]
-	var near_hud := ContextRadial.hex_positions(Vector2(1000, 150), 2, view, Vector4.ZERO, hex, 0.0, avoid)
+	var near_hud: Array[Vector2] = CR.hex_positions(Vector2(1000, 150), 2, view, Vector4.ZERO, hex, 0.0, avoid)
 	for p in near_hud:
 		_expect(not Rect2(p, Vector2(hex, hex)).intersects(avoid[0]), "radial hex stays off the HUD block (%s)" % p)
 	# The ring turns as a whole: inside the view, with a block on both preferred (right-hand) slots,
@@ -198,9 +203,9 @@ func _test_context_radial() -> void:
 	# alone keeps the hexes apart but cannot clear it (review: TURN_STEPS := 1 still passed).
 	var centre := Vector2(800, 450)
 	var block: Array[Rect2] = [Rect2(820, 300, 300, 300)]
-	var unturned := ContextRadial._ring(centre, [-0.9, 0.9] as Array[float], 0.0, 96.0, hex)
+	var unturned: Array[Vector2] = CR._ring(centre, [-0.9, 0.9] as Array[float], 0.0, 96.0, hex)
 	_expect(Rect2(unturned[0], Vector2(hex, hex)).intersects(block[0]) and Rect2(unturned[1], Vector2(hex, hex)).intersects(block[0]), "the unturned ring sits on the block (test set-up)")
-	var turned := ContextRadial.hex_positions(centre, 2, view, Vector4.ZERO, hex, 0.0, block)
+	var turned: Array[Vector2] = CR.hex_positions(centre, 2, view, Vector4.ZERO, hex, 0.0, block)
 	var radii: PackedStringArray = []
 	for p in turned:
 		var d := (p + Vector2(hex, hex) * 0.5).distance_to(centre)
@@ -229,46 +234,46 @@ func _test_craft_level_text() -> void:
 	print("[t_ui] craft: %d unmakeable hand recipes read '%s'" % [tested, CU.NO_LEVEL])
 
 func _test_display_mode() -> void:
-	_expect(DisplayMode.logical_size(Vector2i(390, 844), 1.0) == Vector2i(390, 844), "390x844 window -> 390x844 logical")
-	_expect(DisplayMode.logical_size(Vector2i(1170, 2532), 3.0) == Vector2i(390, 844), "iPhone pixels at 3x -> 390x844 logical")
-	_expect(DisplayMode.logical_size(Vector2i(1600, 900), 1.0) == DisplayMode.DESIGN, "1600x900 desktop unchanged")
-	_expect(DisplayMode.logical_size(Vector2i(3200, 1800), 2.0) == DisplayMode.DESIGN, "retina browser at 1600x900 CSS unchanged")
+	_expect(DM.logical_size(Vector2i(390, 844), 1.0) == Vector2i(390, 844), "390x844 window -> 390x844 logical")
+	_expect(DM.logical_size(Vector2i(1170, 2532), 3.0) == Vector2i(390, 844), "iPhone pixels at 3x -> 390x844 logical")
+	_expect(DM.logical_size(Vector2i(1600, 900), 1.0) == DM.DESIGN, "1600x900 desktop unchanged")
+	_expect(DM.logical_size(Vector2i(3200, 1800), 2.0) == DM.DESIGN, "retina browser at 1600x900 CSS unchanged")
 	# The owner plays phones landscape: 844x390 pt gets a 1:1 canvas. It is compact (phone type and
 	# the owned landscape layouts) but not is_phone, so the protected HUD and bag keep their desktop
 	# rows (their portrait rows overlapped at 844x390).
-	var land := Vector2(DisplayMode.logical_size(Vector2i(844, 390), 1.0))
+	var land := Vector2(DM.logical_size(Vector2i(844, 390), 1.0))
 	_expect(land == Vector2(844, 390), "844x390 landscape window -> 844x390 logical (got %s)" % land)
-	_expect(DisplayMode.logical_size(Vector2i(2532, 1170), 3.0) == Vector2i(844, 390), "iPhone landscape pixels at 3x -> 844x390 logical")
+	_expect(DM.logical_size(Vector2i(2532, 1170), 3.0) == Vector2i(844, 390), "iPhone landscape pixels at 3x -> 844x390 logical")
 	_expect(UT.is_compact(land) and not UT.is_narrow(land) and not UT.is_phone(land), "the landscape canvas is compact, not narrow, not is_phone")
-	_expect(not UT.is_compact(Vector2(DisplayMode.DESIGN)) and not UT.is_phone(Vector2(DisplayMode.DESIGN)), "the 1600x900 desktop canvas is not a phone")
+	_expect(not UT.is_compact(Vector2(DM.DESIGN)) and not UT.is_phone(Vector2(DM.DESIGN)), "the 1600x900 desktop canvas is not a phone")
 	# Narrow landscape phones (iPhone SE 667x375, 640x360 Androids) get LANDSCAPE_MIN_W, never a
 	# canvas under 720 where is_phone would flip the protected HUD and bag to portrait rows, nor
 	# one too narrow for the bag's three columns (at 760 its close button ran off the edge).
-	var se := Vector2(DisplayMode.logical_size(Vector2i(667, 375), 1.0))
+	var se := Vector2(DM.logical_size(Vector2i(667, 375), 1.0))
 	_expect(se == Vector2(804, 452), "667x375 landscape window -> 804x452 logical (got %s)" % se)
-	_expect(DisplayMode.logical_size(Vector2i(640, 360), 1.0) == Vector2i(804, 452), "640x360 landscape window -> 804x452 logical")
+	_expect(DM.logical_size(Vector2i(640, 360), 1.0) == Vector2i(804, 452), "640x360 landscape window -> 804x452 logical")
 	# A notched iPhone (852x393 pt, 59 pt insets each side at 3x) keeps 804 px inside its safe area.
-	_expect(DisplayMode.logical_size(Vector2i(2556, 1179), 3.0, 354.0) == Vector2i(933, 430), "notched 852x393 landscape -> 933x430 logical (%s)" % DisplayMode.logical_size(Vector2i(2556, 1179), 3.0, 354.0))
+	_expect(DM.logical_size(Vector2i(2556, 1179), 3.0, 354.0) == Vector2i(933, 430), "notched 852x393 landscape -> 933x430 logical (%s)" % DM.logical_size(Vector2i(2556, 1179), 3.0, 354.0))
 	# A bogus inset (a portrait safe area reported in landscape, 1362 px at 3x) is clamped to a quarter of the width.
-	var bogus := DisplayMode.logical_size(Vector2i(2532, 1170), 3.0, 1362.0)
+	var bogus: Vector2i = DM.logical_size(Vector2i(2532, 1170), 3.0, 1362.0)
 	_expect(bogus == Vector2i(1072, 495), "a portrait safe area in landscape clamps to 1072x495 logical (got %s)" % bogus)
 	_expect(UT.is_compact(se) and not UT.is_narrow(se) and not UT.is_phone(se), "the SE canvas is compact, not narrow, not is_phone")
 	_expect(not UT.is_narrow(Vector2(668, 376)), "a landscape canvas is never narrow, whatever its width")
-	_expect(DisplayMode.logical_size(Vector2i(820, 1180), 1.0) == Vector2i(DisplayMode.TABLET_W, 1439), "portrait tablet -> TABLET_W wide canvas")
-	_expect(DisplayMode.is_phone_landscape(Vector2(844, 390)) and DisplayMode.is_phone_landscape(Vector2(667, 375)), "844x390 and 667x375 pt are landscape phones")
-	_expect(not DisplayMode.is_phone_landscape(Vector2(1947, 900)), "the unfitted 1947x900 canvas is not")
-	_expect(not DisplayMode.is_phone_landscape(Vector2(390, 844)) and not DisplayMode.is_phone_landscape(Vector2(1600, 900)), "portrait phone and desktop are not landscape phones")
-	_expect(DisplayMode.logical_size(Vector2i(0, 0), 1.0) == DisplayMode.DESIGN, "a zero window keeps the design canvas")
-	var port := Vector2(DisplayMode.logical_size(Vector2i(390, 844), 1.0))
+	_expect(DM.logical_size(Vector2i(820, 1180), 1.0) == Vector2i(DM.TABLET_W, 1439), "portrait tablet -> TABLET_W wide canvas")
+	_expect(DM.is_phone_landscape(Vector2(844, 390)) and DM.is_phone_landscape(Vector2(667, 375)), "844x390 and 667x375 pt are landscape phones")
+	_expect(not DM.is_phone_landscape(Vector2(1947, 900)), "the unfitted 1947x900 canvas is not")
+	_expect(not DM.is_phone_landscape(Vector2(390, 844)) and not DM.is_phone_landscape(Vector2(1600, 900)), "portrait phone and desktop are not landscape phones")
+	_expect(DM.logical_size(Vector2i(0, 0), 1.0) == DM.DESIGN, "a zero window keeps the design canvas")
+	var port := Vector2(DM.logical_size(Vector2i(390, 844), 1.0))
 	_expect(UT.is_phone(port) and UT.is_narrow(port) and UT.is_compact(port), "the portrait canvas is phone, narrow and compact")
-	print("[t_ui] canvas: 844x390 -> %s compact=%s narrow=%s is_phone=%s; 667x375 -> %s; 1600x900 -> %s compact=%s" % [land, UT.is_compact(land), UT.is_narrow(land), UT.is_phone(land), se, Vector2(DisplayMode.logical_size(Vector2i(1600, 900), 1.0)), UT.is_compact(Vector2(DisplayMode.DESIGN))])
+	print("[t_ui] canvas: 844x390 -> %s compact=%s narrow=%s is_phone=%s; 667x375 -> %s; 1600x900 -> %s compact=%s" % [land, UT.is_compact(land), UT.is_narrow(land), UT.is_phone(land), se, Vector2(DM.logical_size(Vector2i(1600, 900), 1.0)), UT.is_compact(Vector2(DM.DESIGN))])
 	# Character creation lays out for the fitted canvas with or without the fit: an unfitted 844x390
 	# phone (1947x900 canvas) gets the landscape layout at 2.3x, not the desktop one at 0.43.
 	var raw: Dictionary = CC.layout_for(Vector2(1947, 900), land)
 	_expect(bool(raw["short"]) and absf(float(raw["k"]) - 1947.0 / 844.0) < 0.01, "unfitted landscape charcreate: short layout scaled %.2f" % float(raw["k"]))
 	var fitted: Dictionary = CC.layout_for(land, land)
 	_expect(bool(fitted["short"]) and is_equal_approx(float(fitted["k"]), 1.0), "fitted landscape charcreate: short layout at 1x")
-	var desk: Dictionary = CC.layout_for(Vector2(1600, 900), Vector2(DisplayMode.DESIGN))
+	var desk: Dictionary = CC.layout_for(Vector2(1600, 900), Vector2(DM.DESIGN))
 	_expect(not bool(desk["phone"]) and is_equal_approx(float(desk["k"]), 1.0), "desktop charcreate: desktop layout at 1x")
 	var se_raw: Dictionary = CC.layout_for(Vector2(1601, 900), se)
 	_expect(bool(se_raw["short"]) and not bool(se_raw["narrow"]), "unfitted SE charcreate: landscape layout, not portrait")
@@ -295,12 +300,12 @@ func _test_display_mode() -> void:
 	_expect(zones[4].encloses(xp), "landscape HUD zones cover the XP line %s (%s)" % [xp, zones[4]])
 
 func _test_theme() -> void:
-	var t: Theme = DisplayMode.build_theme()
+	var t: Theme = DM.build_theme()
 	_expect(t.has_stylebox("focus", "Button"), "theme has a Button focus ring")
 	_expect(t.has_stylebox("normal", "Button") and t.has_stylebox("panel", "PanelContainer"), "theme styles buttons and panels")
 	for kind in ["Button", "Label", "LineEdit", "ProgressBar"]:
 		_expect(t.get_font_size("font_size", kind) >= TYPE_MIN, "theme font size >= %d for %s" % [TYPE_MIN, kind])
-	DisplayMode.install_theme()
+	DM.install_theme()
 	var focus := ThemeDB.get_default_theme().get_stylebox("focus", "Button") as StyleBoxFlat
 	_expect(focus != null and focus.border_color == UT.TEAL, "theme merged into the default theme")
 
@@ -477,19 +482,19 @@ func _test_gate_verdict() -> void:
 
 func _test_review_fixes() -> void:
 	# NaN anchor (source behind the camera) still yields a full, finite ring
-	var nan_ring := ContextRadial.hex_positions(Vector2(NAN, NAN), 2, Vector2(1600, 900), Vector4.ZERO)
+	var nan_ring: Array[Vector2] = CR.hex_positions(Vector2(NAN, NAN), 2, Vector2(1600, 900), Vector4.ZERO)
 	var finite := nan_ring.size() == 2
 	for p in nan_ring:
 		finite = finite and p.is_finite()
 	_expect(finite, "NaN anchor returns two finite hex positions (got %s)" % [nan_ring])
 	print("[t_ui] NaN anchor -> %s" % [nan_ring])
 	# A huge finite anchor (review probe: (-1e9, 1e9), 6 hexes gave min_dist=0.0) keeps its hexes apart.
-	var far := ContextRadial.hex_positions(Vector2(-1e9, 1e9), 6, Vector2(1600, 900), Vector4.ZERO)
+	var far: Array[Vector2] = CR.hex_positions(Vector2(-1e9, 1e9), 6, Vector2(1600, 900), Vector4.ZERO)
 	var far_min := INF
 	for i in far.size():
 		for j in range(i + 1, far.size()):
 			far_min = minf(far_min, far[i].distance_to(far[j]))
-	_expect(far.size() == 6 and far_min >= ContextRadial.HEX - 0.5, "anchor (-1e9, 1e9) keeps six hexes apart (min %.1f)" % far_min)
+	_expect(far.size() == 6 and far_min >= CR.HEX - 0.5, "anchor (-1e9, 1e9) keeps six hexes apart (min %.1f)" % far_min)
 	print("[t_ui] huge anchor (-1e9, 1e9): six hexes, min_dist=%.1f" % far_min)
 	# The atlas is north-up: its layout carries no rotation (a "yaw" key stayed behind at 0.0).
 	var map: Control = MS.new()
@@ -566,6 +571,10 @@ func _test_free_spot() -> void:
 		{"name": "nearer upward", "box": Rect2(10, 105, 50, 20), "taken": [Rect2(0, 100, 844, 40)] as Array[Rect2], "view": Vector2(844, 390), "want": Rect2(10, 76, 50, 20)},
 		{"name": "no room", "box": Rect2(10, 40, 50, 20), "taken": [Rect2(0, 0, 200, 100)] as Array[Rect2], "view": Vector2(200, 100), "want": Rect2()},
 		{"name": "chain down", "box": Rect2(10, 125, 50, 20), "taken": taken_stack, "view": Vector2(200, 400), "want": Rect2(10, 168, 50, 20)},
+		# A creature plate prefers the spot above (its creature is below it): down is nearer here.
+		{"name": "nearer down", "box": Rect2(10, 125, 50, 20), "taken": [Rect2(0, 120, 200, 10)] as Array[Rect2], "view": Vector2(200, 400), "want": Rect2(10, 134, 50, 20)},
+		{"name": "prefer up", "box": Rect2(10, 125, 50, 20), "taken": [Rect2(0, 120, 200, 10)] as Array[Rect2], "view": Vector2(200, 400), "want": Rect2(10, 96, 50, 20), "prefer_up": true},
+		{"name": "prefer up, no room above", "box": Rect2(10, 15, 50, 20), "taken": [Rect2(0, 10, 200, 10)] as Array[Rect2], "view": Vector2(200, 400), "want": Rect2(10, 24, 50, 20), "prefer_up": true},
 	]
 	var placed := 0
 	for row in rows:
@@ -574,7 +583,7 @@ func _test_free_spot() -> void:
 		var taken: Array[Rect2] = row["taken"]
 		var view: Vector2 = row["view"]
 		var want: Rect2 = row["want"]
-		var got: Rect2 = UT.free_spot(box, taken, view)
+		var got: Rect2 = UT.free_spot(box, taken, view, bool(row.get("prefer_up", false)))
 		_expect(got == want, "free_spot %s: %s -> %s, want %s" % [label, box, got, want])
 		if want.has_area():
 			placed += 1
@@ -650,16 +659,16 @@ func _test_current_title() -> void:
 ## touchscreen is a landscape phone (review: a 1200x480 browser got the phone layout).
 func _test_desktop_short_window() -> void:
 	var before := failures.size()
-	var desktop := DisplayMode.logical_size(Vector2i(1200, 480), 1.0, 0.0, false)
-	_expect(desktop == DisplayMode.DESIGN, "1200x480 without a touchscreen -> %s, want %s" % [desktop, DisplayMode.DESIGN])
+	var desktop: Vector2i = DM.logical_size(Vector2i(1200, 480), 1.0, 0.0, false)
+	_expect(desktop == DM.DESIGN, "1200x480 without a touchscreen -> %s, want %s" % [desktop, DM.DESIGN])
 	_expect(not UT.is_compact(Vector2(desktop)), "the desktop 1200x480 canvas %s is not compact" % desktop)
-	var touch := DisplayMode.logical_size(Vector2i(1200, 480), 1.0, 0.0, true)
+	var touch: Vector2i = DM.logical_size(Vector2i(1200, 480), 1.0, 0.0, true)
 	_expect(UT.is_compact(Vector2(touch)), "1200x480 on a touchscreen -> %s is compact" % touch)
-	var land := DisplayMode.logical_size(Vector2i(844, 390), 1.0, 0.0, true)
+	var land: Vector2i = DM.logical_size(Vector2i(844, 390), 1.0, 0.0, true)
 	_expect(land == Vector2i(844, 390), "844x390 on a touchscreen -> %s, want 844x390" % land)
-	_expect(DisplayMode.handheld(), "a native (non-web) run is handheld, so --resolution 844x390 stands in for a phone")
+	_expect(DM.handheld(), "a native (non-web) run is handheld, so --resolution 844x390 stands in for a phone")
 	if failures.size() == before:
-		print("[t_ui] ok desktop_short_window desktop=%s compact=false touch=%s compact=true 844x390=%s handheld=%s" % [desktop, touch, land, DisplayMode.handheld()])
+		print("[t_ui] ok desktop_short_window desktop=%s compact=false touch=%s compact=true 844x390=%s handheld=%s" % [desktop, touch, land, DM.handheld()])
 
 ## Share of an icon's pixels that are opaque (alpha > 0.5); 0 when the icon is missing.
 func _opaque_share(tex: Texture2D) -> float:
