@@ -391,7 +391,9 @@ func _process(delta: float) -> void:
 	if not _pending.is_empty():
 		_flush_pending()
 	var cam := get_viewport().get_camera_3d()
-	var who := get_tree().get_first_node_in_group("player") as Node3D
+	# The survivor this screen follows (IsoCamera's target), so other players never drive the fade.
+	var t: Variant = cam.get(&"_target") if cam else null
+	var who: Node3D = t if is_instance_valid(t) and t is Node3D else get_tree().get_first_node_in_group("player") as Node3D
 	var hits := {}
 	if cam and who and who.is_inside_tree():
 		var p := who.get_global_transform_interpolated().origin
