@@ -91,7 +91,17 @@ All 18 side by side with tent/workbench/well for comparison: `work/sheets/all.pn
   `tools/blender/structures/__pycache__` even under `-I`; that trips the scope check. Delete it (or
   `chmod a-w tools/blender/structures`) before running the gate, and restore write bits afterwards.
 
-## Full gate result (2026-10-20)
+## Full gate result (2026-10-20): VERIFY PASS
+
+`./tools/dsc/verify_camp.sh` exits 0 and prints `VERIFY PASS` (18/18 kinds, check_manifest, atlas and
+base-GLB hashes, sheets, Godot import, t_structart, t_build, run_all, build_lab, smoke).
+
+Earlier the scope step was red for two reasons, both fixed: Godot's import had extracted embedded
+textures from the six Meshy stump/log GLBs into `game/assets/props/meshy/` (now
+`gltf/embedded_image_handling=3` in those `.glb.import` files, so no JPGs are written), and this worktree
+was behind `claude/mmo-overhaul` (every file outside this task was synced from that branch unchanged).
+
+
 
 `./tools/dsc/verify_camp.sh` content steps all pass:
 
