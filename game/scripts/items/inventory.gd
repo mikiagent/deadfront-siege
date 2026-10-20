@@ -1,18 +1,33 @@
 class_name Inventory
 extends RefCounted
-## Fixed-slot bag. Slot-span items (captured animals) occupy consecutive empties.
+## Fixed-slot bag of item instances plus the equipment container. Materials and food are one
+## instance per slot (owner 2026-10-20, prompts 05/08); only ItemDef.STACKING_CATEGORIES merge.
+## Slot-span items (captured animals) occupy consecutive empties.
 
 signal changed
 
-var slot_count: int = 20
+## Pack 05 base player capacity (owner 2026-10-20). Equipment and Pocket bonuses are not in yet.
+const BASE_SLOTS := 100
+## A load never deletes, but a forged save must not allocate without bound.
+## ASSUMPTION: 100k units is far above any legit legacy container (60 cargo rows x 999).
+const MAX_LOAD_UNITS := 100000
+const LOCK := &"_slot_lock"
+
+var slot_count: int = BASE_SLOTS
 var slots: Array[ItemStack] = []
-## Equipped gather/work tool slot index, or -1 for auto (first find_gather_tool match).
+## Equipped gather/work tool slot index, or -1 for auto (best gather_power).
 var equipped_tool_index: int = -1
-## Equipment by slot (def id of an item that must still be in the bag) and two quick-food
-## slots (def ids) for the HUD food hexes + auto-feed.
 const EQUIP_SLOTS: Array[StringName] = [&"weapon", &"head", &"body", &"arms", &"legs", &"accessory1", &"accessory2"]
+## Equipment by slot name. An ItemStack value is worn gear held here, out of the bag (equip-02).
+## An int is a bag index whose item stays in the bag (the server's CharacterState keeps worn gear
+## in its bag by uid); a String is the pre-W2-INV def-id form, resolved to the first bag match.
 var equipment: Dictionary = {}
+## Two quick-food def ids for the HUD food hexes + auto-feed.
 var quick_food: Array = ["", ""]
+
+func _init(p_slots: int = BASE_SLOTS) -> void:
+	slot_count = p_slots
+	slots.resize(slot_count)
 
 static func slot_for(def: ItemDef) -> StringName:
 	if def == null:
@@ -25,22 +40,65 @@ static func slot_for(def: ItemDef) -> StringName:
 			return pair[1]
 	return &""
 
-func equip(slot: StringName, def_id: StringName) -> void:
-	if slot == &"accessory1" and str(equipment.get("accessory1", "")) != "" and str(equipment.get("accessory1", "")) != str(def_id):
-		slot = &"accessory2"
-	equipment[str(slot)] = str(def_id)
-	changed.emit()
+# ---------------------------------------------------------------- equipment
 
-func unequip(slot: StringName) -> void:
-	equipment.erase(str(slot))
+## Wear the exact item at bag `index`. Whatever was worn in that slot swaps into the vacated bag
+## slot, so equipping never needs a free slot.
+func equip_at(index: int, slot: StringName = &"") -> bool:
+	if index < 0 or index >= slot_count:
+		return false
+	var item := slots[index]
+	if item == null or item.def_id == LOCK or item.is_locked() or item.count != 1:
+		return false
+	var target := slot if slot != &"" else slot_for(item.def())
+	if target == &"" or target not in EQUIP_SLOTS:
+		return false
+	if target == &"accessory1" and worn(&"accessory1") != null and worn(&"accessory2") == null:
+		target = &"accessory2"
+	slots[index] = worn(target)
+	equipment[str(target)] = item
+	if equipped_tool_index == index:
+		equipped_tool_index = -1 # the held tool is the item just worn
 	changed.emit()
+	return true
+
+## Def-id form for callers without a bag index: wears the highest-level match.
+func equip(slot: StringName, def_id: StringName) -> bool:
+	var best := -1
+	for i in slot_count:
+		var s := slots[i]
+		if s and s.def_id == def_id and (best < 0 or s.level > slots[best].level):
+			best = i
+	return equip_at(best, slot) if best >= 0 else false
+
+## Back into the bag. Refused (the gear stays worn) when the bag has no room: never drop gear.
+func unequip(slot: StringName) -> bool:
+	var v: Variant = equipment.get(str(slot))
+	if v is ItemStack:
+		if not can_accept(v):
+			return false
+		equipment.erase(str(slot))
+		add(v)
+	else:
+		equipment.erase(str(slot))
+	changed.emit()
+	return true
+
+## The gear worn in `slot` (container form only).
+func worn(slot: StringName) -> ItemStack:
+	var v: Variant = equipment.get(str(slot))
+	return v if v is ItemStack else null
 
 func equipped_in(slot: StringName) -> ItemStack:
-	var id := str(equipment.get(str(slot), ""))
-	if id == "":
-		return null
-	var idx := find_first(StringName(id))
-	return slots[idx] if idx >= 0 else null
+	var v: Variant = equipment.get(str(slot))
+	if v is ItemStack:
+		return v
+	if v is int:
+		return slots[v] if v >= 0 and v < slot_count else null
+	if v is String and v != "":
+		var idx := find_first(StringName(v))
+		return slots[idx] if idx >= 0 else null
+	return null
 
 func equipped_armor() -> float:
 	var value := 0.0
@@ -71,61 +129,126 @@ func set_quick_food(i: int, def_id: StringName) -> void:
 	quick_food[i] = str(def_id)
 	changed.emit()
 
+## Worn gear saves whole under "worn": it is no longer in the bag rows.
 func extras_to_dict() -> Dictionary:
-	return {"equipment": equipment.duplicate(), "quick_food": quick_food.duplicate(), "tool_index": equipped_tool_index}
+	var w := {}
+	for slot in equipment:
+		if equipment[slot] is ItemStack:
+			w[slot] = (equipment[slot] as ItemStack).to_dict()
+	return {"worn": w, "quick_food": quick_food.duplicate(), "tool_index": equipped_tool_index}
 
+## Call after load_array. A pre-W2-INV save names worn gear by def id with the item still in the
+## bag: that item (highest level) moves out of the bag into its slot.
 func extras_from_dict(d: Dictionary) -> void:
-	var e: Variant = d.get("equipment", {})
-	if e is Dictionary:
-		equipment = (e as Dictionary).duplicate()
+	equipment.clear()
+	equipped_tool_index = int(d.get("tool_index", -1))
+	if equipped_tool_index < -1 or equipped_tool_index >= slot_count:
+		equipped_tool_index = -1
+	var w: Variant = d.get("worn", null)
+	if w is Dictionary:
+		for slot: Variant in w:
+			var row: Variant = w[slot]
+			if not row is Dictionary or StringName(str(slot)) not in EQUIP_SLOTS:
+				continue
+			var s := ItemStack.from_dict(row)
+			var want := slot_for(s.def())
+			# Trust boundary: a known wearable def in its own slot, one unit, a reachable level.
+			if want == &"" or not (want == StringName(str(slot)) or (want == &"accessory1" and str(slot) == "accessory2")):
+				continue
+			s.count = 1
+			s.level = clampi(s.level, 1, 60)
+			_mint(s)
+			equipment[str(slot)] = s
+	else:
+		var legacy: Variant = d.get("equipment", {})
+		if legacy is Dictionary:
+			for slot: Variant in legacy:
+				equip(StringName(str(slot)), StringName(str(legacy[slot])))
 	var q: Variant = d.get("quick_food", [])
 	if q is Array and (q as Array).size() >= 2:
 		quick_food = [str(q[0]), str(q[1])]
-	equipped_tool_index = int(d.get("tool_index", -1))
 	changed.emit()
 
-func _init(p_slots: int = 20) -> void:
-	slot_count = p_slots
-	slots.resize(slot_count)
+# ---------------------------------------------------------------- tools
 
 func set_equipped_tool_index(idx: int) -> void:
 	equipped_tool_index = idx
 	changed.emit()
 
+## The chosen tool, else the best gather tool of any class.
 func equipped_gather_tool() -> ItemStack:
-	if equipped_tool_index >= 0 and equipped_tool_index < slot_count:
-		var s := slots[equipped_tool_index]
-		if s and not s.is_locked() and not s.is_broken():
-			var d := s.def()
-			if d and d.tool_class != &"" and d.tool_class != &"none":
-				return s
-	# Auto: first work tool, else any gather tool.
-	var best: ItemStack = null
-	for s in slots:
-		if s == null or s.is_locked() or s.is_broken():
-			continue
-		var d := s.def()
-		if d == null or d.tool_class == &"" or d.tool_class == &"none":
-			continue
-		if best == null:
-			best = s
-			continue
-		var bd := best.def()
-		if d.is_work_tool and bd and not bd.is_work_tool:
-			best = s
-	return best
+	var held := _held_tool()
+	return held if held else _best_tool(&"")
 
 func gather_tools_in_bag() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for i in slot_count:
-		var s := slots[i]
-		if s == null or s.is_locked() or s.is_broken():
-			continue
-		var d := s.def()
-		if d == null or d.tool_class == &"" or d.tool_class == &"none":
-			continue
-		out.append({"index": i, "stack": s})
+		if _is_tool(slots[i], &""):
+			out.append({"index": i, "stack": slots[i]})
 	return out
+
+## The chosen tool when it is of class `tool`, else the best of that class (worn weapon included).
+func find_gather_tool(tool: StringName) -> ItemStack:
+	if tool == &"" or tool == &"none":
+		return null
+	var held := _held_tool()
+	if held and held.def().tool_class == tool:
+		return held
+	return _best_tool(tool)
+
+func has_tool_class(tool: StringName) -> bool:
+	if tool == &"" or tool == &"none":
+		return true
+	return find_gather_tool(tool) != null
+
+func wear_gather_tool(tool: StringName) -> bool:
+	var s := find_gather_tool(tool)
+	if s == null:
+		return false
+	var d := s.def()
+	# ASSUMPTION: work tools lose 1 durability per gather; combat weapons used as tools lose 3.
+	var cost := 1
+	if d and not d.is_work_tool:
+		cost = 3
+	var intact := s.wear(cost)
+	if not intact:
+		print("[item] %s broke" % s.def_id)
+	changed.emit()
+	return intact
+
+func _held_tool() -> ItemStack:
+	if equipped_tool_index >= 0 and equipped_tool_index < slot_count and _is_tool(slots[equipped_tool_index], &""):
+		return slots[equipped_tool_index]
+	return null
+
+## Work tools before weapons (weapons stay sheathed unless they are the only match), then the
+## highest gather_power (tool-01: a flint pick beats a stone pick); ties keep bag order.
+func _best_tool(tool: StringName) -> ItemStack:
+	var pool: Array[ItemStack] = []
+	pool.append_array(slots)
+	pool.append(worn(&"weapon"))
+	var best: ItemStack = null
+	for s in pool:
+		if not _is_tool(s, tool):
+			continue
+		if best == null:
+			best = s
+			continue
+		var w := s.def().is_work_tool
+		var bw := best.def().is_work_tool
+		if (w and not bw) or (w == bw and s.gather_power() > best.gather_power()):
+			best = s
+	return best
+
+func _is_tool(s: ItemStack, tool: StringName) -> bool:
+	if s == null or s.is_locked() or s.is_broken():
+		return false
+	var d := s.def()
+	if d == null or d.tool_class == &"" or d.tool_class == &"none":
+		return false
+	return tool == &"" or d.tool_class == tool
+
+# ---------------------------------------------------------------- bag
 
 func used_slots() -> int:
 	var n := 0
@@ -134,6 +257,25 @@ func used_slots() -> int:
 			n += 1
 	return n
 
+## Whether add(stack) would place every unit. Check it before consuming anything for an output.
+func can_accept(stack: ItemStack) -> bool:
+	if stack == null or stack.count <= 0:
+		return false
+	var span := stack.slot_span()
+	if span > 1:
+		return _find_span(span) >= 0
+	var cap := stack.def().stack_max if stack.def() else 1
+	var left := stack.count
+	for s in slots:
+		if left <= 0:
+			break
+		if s == null:
+			left -= cap
+		elif stack.can_merge_with(s):
+			left -= maxi(0, cap - s.count)
+	return left <= 0
+
+## Returns the units that did not fit. Each placed unit of a non-stacking def is its own instance.
 func add(stack: ItemStack) -> int:
 	if stack == null or stack.count <= 0:
 		return 0
@@ -145,15 +287,19 @@ func add(stack: ItemStack) -> int:
 				if stack.count <= 0:
 					changed.emit()
 					return 0
+		var d := stack.def()
+		var cap: int = d.stack_max if d else 1
+		var first := true
 		for i in slot_count:
 			if slots[i] == null:
-				var d := stack.def()
-				var cap: int = d.stack_max if d else 1
-				var place := mini(stack.count, cap)
 				var copy := stack.duplicate_stack()
-				copy.count = place
+				copy.count = mini(stack.count, cap)
+				if not first:
+					copy.remint_uid() # the source's uid stays with its first unit only
+				first = false
+				_mint(copy)
 				slots[i] = copy
-				stack.count -= place
+				stack.count -= copy.count
 				if stack.count <= 0:
 					changed.emit()
 					return 0
@@ -162,21 +308,16 @@ func add(stack: ItemStack) -> int:
 	var start := _find_span(span)
 	if start < 0:
 		return stack.count
-	var copy := stack.duplicate_stack()
-	slots[start] = copy
-	for k in range(1, span):
-		var lock := ItemStack.make(&"_slot_lock", 1)
-		lock.attributes = {"anchor": start}
-		slots[start + k] = lock
+	_place_span(stack.duplicate_stack(), start)
 	stack.count = 0
 	changed.emit()
 	return 0
 
 func remove_at(index: int, amount: int = 1) -> ItemStack:
-	if index < 0 or index >= slot_count or slots[index] == null:
+	if amount <= 0 or index < 0 or index >= slot_count or slots[index] == null:
 		return null
 	var s := slots[index]
-	if str(s.def_id) == "_slot_lock":
+	if s.def_id == LOCK:
 		return null
 	var span := s.slot_span()
 	var taken := s.duplicate_stack()
@@ -189,6 +330,8 @@ func remove_at(index: int, amount: int = 1) -> ItemStack:
 		for k in range(1, span):
 			if index + k < slot_count:
 				slots[index + k] = null
+		if equipped_tool_index == index:
+			equipped_tool_index = -1 # else the index would silently point at the next item put there
 	changed.emit()
 	return taken
 
@@ -197,7 +340,7 @@ func transfer_to(destination: Inventory, index: int) -> int:
 	if destination == null or destination == self or index < 0 or index >= slot_count:
 		return 0
 	var source := slots[index]
-	if source == null or source.is_locked() or str(source.def_id) == "_slot_lock":
+	if source == null or source.is_locked() or source.def_id == LOCK:
 		return 0
 	var copy := source.duplicate_stack()
 	var count := copy.count
@@ -205,6 +348,35 @@ func transfer_to(destination: Inventory, index: int) -> int:
 	var moved := count - left
 	if moved > 0: remove_at(index, moved)
 	return moved
+
+## Pack 05 sorting: name, then highest level, then oldest. Worn gear is not in the bag and the
+## chosen tool follows its item, so nothing equipped changes.
+func sort() -> void:
+	var held := _held_tool()
+	var items: Array[ItemStack] = []
+	for s in slots:
+		if s != null and s.def_id != LOCK:
+			items.append(s)
+	items.sort_custom(func(a: ItemStack, b: ItemStack) -> bool:
+		var an := a.def().display_name if a.def() else str(a.def_id)
+		var bn := b.def().display_name if b.def() else str(b.def_id)
+		if an != bn:
+			return an < bn
+		if a.level != b.level:
+			return a.level > b.level
+		return a.created_at < b.created_at)
+	for i in slot_count:
+		slots[i] = null
+	var at := 0
+	for s in items:
+		if s.slot_span() > 1:
+			_place_span(s, _find_span(s.slot_span())) # singles fill from 0, so the tail stays free
+			continue
+		while slots[at] != null:
+			at += 1
+		slots[at] = s
+	equipped_tool_index = slots.find(held) if held else -1
+	changed.emit()
 
 func find_by_category(cat: StringName) -> Array[int]:
 	var hits: Array[int] = []
@@ -219,7 +391,7 @@ func find_by_category(cat: StringName) -> Array[int]:
 
 func find_first(def_id: StringName) -> int:
 	for i in slot_count:
-		if slots[i] and slots[i].def_id == def_id and str(slots[i].def_id) != "_slot_lock":
+		if slots[i] and slots[i].def_id == def_id and slots[i].def_id != LOCK:
 			return i
 	return -1
 
@@ -231,7 +403,7 @@ func count_of(def_id: StringName) -> int:
 	return n
 
 func consume(def_id: StringName, amount: int) -> bool:
-	if count_of(def_id) < amount:
+	if amount <= 0 or count_of(def_id) < amount:
 		return false
 	var left := amount
 	for i in slot_count:
@@ -246,6 +418,8 @@ func consume(def_id: StringName, amount: int) -> bool:
 	return true
 
 func consume_by_category(cat: StringName, amount: int) -> bool:
+	if amount <= 0:
+		return false
 	var have := 0
 	for i in find_by_category(cat):
 		have += slots[i].count
@@ -284,53 +458,7 @@ func best_capture_net() -> ItemStack:
 			best_tier = d.capture_tier
 	return best
 
-func find_gather_tool(tool: StringName) -> ItemStack:
-	if tool == &"" or tool == &"none":
-		return null
-	# Prefer the explicitly equipped tool when it matches the required class.
-	if equipped_tool_index >= 0 and equipped_tool_index < slot_count:
-		var eq := slots[equipped_tool_index]
-		if eq and not eq.is_locked() and not eq.is_broken():
-			var ed := eq.def()
-			if ed and ed.tool_class == tool:
-				return eq
-	var best: ItemStack = null
-	for s in slots:
-		if s == null:
-			continue
-		if s.is_locked() or s.is_broken():
-			continue
-		var d := s.def()
-		if d == null or d.tool_class != tool:
-			continue
-		if best == null:
-			best = s
-			continue
-		var bd := best.def()
-		# Prefer work tools so combat weapons stay sheathed unless they are the only match.
-		if d.is_work_tool and bd and not bd.is_work_tool:
-			best = s
-	return best
-
-func has_tool_class(tool: StringName) -> bool:
-	if tool == &"" or tool == &"none":
-		return true
-	return find_gather_tool(tool) != null
-
-func wear_gather_tool(tool: StringName) -> bool:
-	var s := find_gather_tool(tool)
-	if s == null:
-		return false
-	var d := s.def()
-	# ASSUMPTION: work tools lose 1 durability per gather; combat weapons used as tools lose 3.
-	var cost := 1
-	if d and not d.is_work_tool:
-		cost = 3
-	var intact := s.wear(cost)
-	if not intact:
-		print("[item] %s broke" % s.def_id)
-	changed.emit()
-	return intact
+# ---------------------------------------------------------------- save
 
 func to_array() -> Array:
 	var out: Array = []
@@ -341,14 +469,100 @@ func to_array() -> Array:
 			out.append(s.to_dict())
 	return out
 
-func load_array(raw: Array) -> void:
+## Rows keep their slot. Migration (owner 2026-10-20): a stacked row of a non-stacking def splits
+## into one instance per unit; units with no free slot go to `overflow` (the player's home cargo),
+## else this container grows. Nothing is deleted; the move is logged.
+func load_array(raw: Array, overflow: Inventory = null) -> void:
 	for i in slot_count:
 		slots[i] = null
-	for i in mini(slot_count, raw.size()):
+	var extra: Array[ItemStack] = []
+	var units := 0
+	for i in raw.size():
 		var row: Variant = raw[i]
-		if row is Dictionary:
-			slots[i] = ItemStack.from_dict(row)
+		if not row is Dictionary:
+			continue
+		var s := ItemStack.from_dict(row)
+		if s.def_id == LOCK:
+			if i < slot_count:
+				slots[i] = s
+			continue
+		if s.count <= 0:
+			continue
+		units += s.count
+		if units > MAX_LOAD_UNITS:
+			push_warning("[inv] load stopped at %d units; row %d onward is not loaded" % [MAX_LOAD_UNITS, i])
+			break
+		var keep := mini(s.count, s.def().stack_max) if s.def() else s.count
+		for k in s.count - keep:
+			var unit := s.duplicate_stack()
+			unit.count = 1
+			unit.uid = ""
+			extra.append(unit)
+		s.count = keep
+		_mint(s)
+		if i < slot_count:
+			slots[i] = s
+		else:
+			extra.append(s)
+	_clear_orphan_locks()
+	if not extra.is_empty():
+		_place_extra(extra, overflow)
 	changed.emit()
+
+func _place_extra(extra: Array[ItemStack], overflow: Inventory) -> void:
+	var dest := overflow if overflow != null and overflow != self else self
+	var here := 0
+	var self_full := false
+	var dest_full := dest == self
+	for s in extra:
+		if not self_full:
+			if add(s) == 0:
+				here += 1
+				continue
+			self_full = true # nothing more fits; the rest skips the O(n) scan
+		if not dest_full:
+			if dest.add(s) == 0:
+				continue
+			dest_full = true
+		dest._append(s)
+		if dest == self:
+			here += 1
+	print("[inv] migration: %d more instances from split stacks, %d kept here, %d to overflow; bag %d/%d" % [extra.size(), here, extra.size() - here, used_slots(), slot_count])
+
+## Grow by the item's span and put it in the new tail slots.
+func _append(s: ItemStack) -> void:
+	var span := maxi(1, s.slot_span())
+	slot_count += span
+	slots.resize(slot_count)
+	var c := s.duplicate_stack()
+	s.count = 0
+	_mint(c)
+	if span > 1:
+		_place_span(c, slot_count - span)
+	else:
+		slots[slot_count - 1] = c
+
+## A lock whose anchor is gone would block its slot forever.
+func _clear_orphan_locks() -> void:
+	for i in slot_count:
+		var s := slots[i]
+		if s == null or s.def_id != LOCK:
+			continue
+		var a := int(s.attributes.get("anchor", -1))
+		if a < 0 or a >= i or slots[a] == null or slots[a].def_id == LOCK or a + slots[a].slot_span() <= i:
+			slots[i] = null
+
+## A non-stacking unit without an identity gets a local one (prompt 05: every instance has an id).
+func _mint(s: ItemStack) -> void:
+	if s.uid == "" and not s.is_fungible():
+		s.stamp_identity(s.origin, s.creator)
+
+func _place_span(s: ItemStack, start: int) -> void:
+	slots[start] = s
+	for k in range(1, s.slot_span()):
+		var lock := ItemStack.make(LOCK, 1)
+		lock.attributes = {"anchor": start}
+		slots[start + k] = lock
 
 func _find_span(span: int) -> int:
 	var i := 0

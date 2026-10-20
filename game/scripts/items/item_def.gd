@@ -1,6 +1,10 @@
 class_name ItemDef
 extends Resource
-## Catalog row for a stackable or unique item. Loaded from data/items.json.
+## Catalog row for an item. Loaded from data/items.json.
+
+## Consumables that still stack (prompt 05 allows per-category stacking). Everything else is one
+## instance per slot. # ASSUMPTION: the pack names no list; these are supplies used up by count.
+const STACKING_CATEGORIES: Array[StringName] = [&"ammunition", &"siege_ammunition", &"counter_supply", &"medicine", &"building"]
 
 @export var id: StringName = &""
 @export var display_name: String = ""
@@ -39,11 +43,12 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	def.id = StringName(str(d.get("id", "")))
 	def.display_name = str(d.get("display_name", def.id))
 	def.categories = _names(d.get("categories", []))
-	# Owner rule (2026-09-20): everything stacks to 999 until per-item stack sizes are decided.
-	# Tools/weapons with durability and multi-slot animals keep the data value.
-	var span := int(d.get("slot_span", 1))
-	var dur := int(d.get("max_durability", 0))
-	def.stack_max = int(d.get("stack_max", 1)) if (span > 1 or dur > 0) else 999
+	# Owner rule (2026-10-20, prompts 05/08): materials and food do not stack; each unit is its own
+	# instance and slot. Only the STACKING_CATEGORIES keep the data's stack_max.
+	var stacks := false
+	for cat in STACKING_CATEGORIES:
+		stacks = stacks or def.has_category(cat)
+	def.stack_max = maxi(1, int(d.get("stack_max", 1))) if stacks else 1
 	def.tool_class = StringName(str(d.get("tool_class", "none")))
 	def.base_level = int(d.get("base_level", 1))
 	def.attack_rate = float(d.get("attack_rate", 0.0))
@@ -88,15 +93,8 @@ static func _names(raw: Variant) -> Array[StringName]:
 func has_category(cat: StringName) -> bool:
 	return cat in categories
 
-func damage_at(level: int) -> float:
-	return _scaled(&"damage", damage, level)
-
-func max_durability_at(level: int) -> int:
-	return maxi(0, int(round(_scaled(&"max_durability", float(max_durability), level))))
-
-func armor_value_at(level: int) -> float:
-	return _scaled(&"armor_value", armor_value, level)
-
+## Level scaling belongs to ItemStack (stat_multiplier). These two remain only because
+## item_stack.gd still calls them; damage/armor/durability _at variants were dead and are gone.
 func health_bonus_at(level: int) -> float:
 	return _scaled(&"health_bonus", health_bonus, level)
 
