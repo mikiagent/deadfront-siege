@@ -57,6 +57,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - 2026-10-18 22:00 production: `548804ac8/f34e148e39` (claude/mmo-overhaul = main + survivor v2/armor/T. rex
   mount; wave 1 not yet merged). Local browser boot checked into the world before deploy; alias
   stamp verified.
+- 2026-10-20 16:25 GitHub: pushed `claude/mmo-overhaul` (255d0434) to origin; draft PR https://github.com/mikiagent/deadfront-siege/pull/17 to main (owner asked; not merging into main until the owner says). Push again as packages merge.
 
 ## Plan amendments for wave 2+ (from plan-critic.md)
 
