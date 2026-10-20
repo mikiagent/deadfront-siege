@@ -322,6 +322,16 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 
 - 2026-10-20 (owner) the non-stacking inventory save change is approved: merge it once its independent review passes and old saves migrate cleanly in tests.
 
+- 2026-10-20 (owner) spec 13 inventory and equipment UI (`docs/design/durango-prompts/13_inventory_equipment_ui.md`, references
+  `docs/reference/durango-{bag-instances,character-gear,equipment-myinfo}.webp`): recreate Durango's Bag, Character -> Gear and
+  Equipment / My Info screens on the instance inventory - dense ~7-column grid with every instance in its own slot, small grey
+  Lv labels, blue NEW tags, yellow corner brackets, Auto Sort + select/filter/lock toolbar, capacity from real data, a contextual
+  inspect panel (grey negative, gold positive, green rare attributes; only valid actions), Character panel (portrait, level/XP,
+  Combat/Crafting/Gathering Power, Detailed Stats), Gear | Decorative Gear tabs, numbered presets, silhouette slots, My Info
+  Attack/Defense/Accuracy; the same grid for storage, dinosaur cargo, the craft/cook ingredient picker and Sell on Market.
+  It supersedes W2-INV's grouped bag view (grouping only if it expands back to instances). Package INVUI (`claude/mmo-invui`,
+  stacked on `claude/mmo-w2-inv`), merged right after W2-INV.
+
 ## Owner questions (open)
 
 - none
