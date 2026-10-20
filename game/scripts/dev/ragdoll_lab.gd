@@ -618,7 +618,8 @@ func _run_suggest() -> void:
 # --- performance ------------------------------------------------------------------------------
 
 ## Four ragdolls at once on the real island: physics frame time while they simulate minus the
-## same creatures standing just before, median of PERF_PASSES passes.
+## same creatures standing just before, median of PERF_PASSES passes. Run headless with --fixed-fps 60.
+## Species without a profile yet are replaced by velociraptor so four bodies always simulate.
 func _run_perf() -> void:
 	var kit := LabKit.build(self, 20.0)
 	var player: Player = kit["player"]
@@ -637,14 +638,15 @@ func _run_perf() -> void:
 			var ang := TAU * float(k) / float(PERF_SPECIES.size()) + float(pass_i)
 			var at := player.global_position + Vector3(cos(ang), 0.0, sin(ang)) * (9.0 + 3.0 * k)
 			at.y = World.runtime.surface_y(at.x, at.z) + 0.1 if World.runtime else at.y
-			batch.append(_spawn(PERF_SPECIES[k], host, at))
-		await _frames(60)
+			var id: StringName = PERF_SPECIES[k] if not Ragdoll.profile(PERF_SPECIES[k]).is_empty() else &"velociraptor"
+			batch.append(_spawn(id, host, at))
+		await _frames(150)  # spawn hitches (trees, shaders, nav) are over
 		var base := await _physics_ms(60)
 		for cr in batch:
 			cr.health.take_damage(1e6, player)
 		await _frames(int(0.35 * Engine.physics_ticks_per_second))
 		var simulating := Ragdoll.active_count()
-		var during := await _physics_ms(60)
+		var during := await _physics_ms(45)
 		var still := Ragdoll.active_count()
 		var waited := 0
 		while waited < 600 and Ragdoll.active_count() > 0:
@@ -667,9 +669,19 @@ func _run_perf() -> void:
 		_failures.append("4 ragdolls add %.3f ms physics (max %.1f)" % [med, PERF_MAX_MS])
 	_verdict("perf")
 
+## Median wall time of one frame (ms) over `frames` frames. Run with --fixed-fps 60 headless: every
+## frame is then exactly one physics tick and no drawing, so the difference between two windows is
+## the physics cost of what changed between them (the ragdolls' step, state syncs, pose write-back
+## and their monitor). Performance.TIME_PHYSICS_PROCESS is a per-second MAX, useless for this, and
+## means were dominated by stalls of other processes on this shared machine, hence medians.
 func _physics_ms(frames: int) -> float:
-	var sum := 0.0
+	var samples: Array[float] = []
+	await get_tree().process_frame
+	var prev := Time.get_ticks_usec()
 	for k in frames:
 		await get_tree().process_frame
-		sum += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
-	return sum / float(frames) * 1000.0
+		var now := Time.get_ticks_usec()
+		samples.append(float(now - prev) / 1000.0)
+		prev = now
+	samples.sort()
+	return samples[samples.size() / 2]

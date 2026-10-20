@@ -23,6 +23,7 @@ func _run() -> void:
 	await _test_missing_profile()
 	await _test_injected_nan()
 	await _test_corpse_after_ragdoll()
+	await _test_placeholder_body()
 	_test_seam()
 	if failures.is_empty():
 		print("[t_ragdoll] PASS")
@@ -178,6 +179,20 @@ func _test_corpse_after_ragdoll() -> void:
 		_expect(taken != null and corpse.loot.used_slots() == before - 1, "take_slot moves one stack out")
 		var flat := Vector2(corpse.global_position.x - c.global_position.x, corpse.global_position.z - c.global_position.z).length()
 		_expect(flat < 0.01 and absf(corpse.global_position.y) < 0.05, "corpse at the body's resting point on the ground")
+	await _free_all([c])
+
+## The in-game stegosaurus is a box placeholder with no skeleton: death clip, then the body's lowest
+## box sits on the ground and the corpse is placed (no ragdoll, no crash).
+func _test_placeholder_body() -> void:
+	var c = _spawn(&"stegosaurus", Vector3(60.0, 0.05, -60.0))
+	_expect(not c.view.using_glb, "stegosaurus is the placeholder in game")
+	await _wait(0.3)
+	_kill(c)
+	await _wait_frozen([c])
+	var rd = _ragdoll(c)
+	_expect(rd != null and rd.mode == &"fallback" and rd.reason == "no skeleton" and rd.phase == &"frozen", "placeholder -> fallback (%s)" % (rd.reason if rd else "-"))
+	var corpse = rd.corpse if rd else null
+	_expect(corpse != null and absf(corpse.global_position.y) < 0.02, "placeholder corpse on the ground")
 	await _free_all([c])
 
 ## place_settled is the one seam for the corpse's authoritative position: corpse and body move.
