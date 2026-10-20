@@ -28,6 +28,8 @@ var hunger_max: float = 0.0
 var hunger_efficiency: float = 1.0
 var xp_rate: float = 1.0
 var hp: float = 0.0
+## HP the pet has now; -1 = full (never hurt, or it died). PlayerPets keeps it in sync while the pet is out.
+var hp_now: float = -1.0
 var attack: float = 0.0
 var defense: float = 0.0
 var ranged_defense: float = 0.0
@@ -187,6 +189,7 @@ func to_dict() -> Dictionary:
 		"hunger_efficiency": hunger_efficiency,
 		"xp_rate": xp_rate,
 		"hp": hp,
+		"hp_now": hp_now,
 		"attack": attack,
 		"defense": defense,
 		"ranged_defense": ranged_defense,
@@ -228,6 +231,7 @@ static func from_dict(d: Dictionary) -> PetRecord:
 	r.hunger_efficiency = float(d.get("hunger_efficiency", 1.0))
 	r.xp_rate = float(d.get("xp_rate", 1.0))
 	r.hp = float(d.get("hp", 0.0))
+	r.hp_now = float(d.get("hp_now", -1.0))
 	r.attack = float(d.get("attack", 0.0))
 	r.defense = float(d.get("defense", 0.0))
 	r.ranged_defense = float(d.get("ranged_defense", r.defense))
