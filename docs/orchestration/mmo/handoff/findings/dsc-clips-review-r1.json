@@ -1,0 +1,26 @@
+[
+ {
+  "severity": "blocker",
+  "where": "game/tests/t_canim.gd:289-300 (_test_optional_clips, new zebraceratops/velociraptor feed loop)",
+  "problem": "The new feed checks cannot fail. When a species has no feed.glb, CreatureClips (scripts/creatures/creature_clips.gd:180-181) adds a copy of idle under the name feed, so the feed state always exists and `pb.get_current_node() == &\"feed\"` always passes. To prove it, I ran this branch's t_canim.gd against the base tree, where zebraceratops has no feed.glb. Output: \"[t_canim] ok   zebraceratops play_clip(feed): state machine on feed\" (logs/t_canim_new_on_base.log). Only the sleep half catches a regression there (\"FAIL zebraceratops play_clip(sleep): state machine on idle\"). The comment says the check covers the 'authored sleep/feed clips', but it does not.",
+  "fix": "Assert that the feed animation is the authored one, not the idle copy. For example, sample a Head or Neck rotation track at 50% of feed and of idle, and require that they differ by more than a small epsilon. Comparing lengths will not work: zebraceratops feed and idle are both 2.54 s. Then confirm the check fails on the base tree."
+ },
+ {
+  "severity": "major",
+  "where": "game/assets/creatures/tyrannosaurus/anim/sleep.glb",
+  "problem": "The new belly-down sleep is grounded, which fixes the old pose. In-game the lowest bone moved from 0.80 m to 0.00 m and the top from 3.68 m to 2.33 m (bones.gd probe). But the pose has an obvious anatomy defect, visible from gameplay angles in both renderers. A hind foot sits on top of the hip with its toe claws pointing up (after_rex_fwd.png, after_rex_gl.png, after_rexside_fwd.png, after_canimlab_gl.png). A pale, flat wedge of belly skin with straight edges sticks out under the chest (after_rex_fwd.png, around x 420-600, y 520-600). From a camera 0.6 m off the ground, sky shows under the hip span (after_rexbelly_fwd.png). ARK's sleeping rex tucks its legs under the body. The integrator accepted it knowing about the defect.",
+  "fix": "Re-run trex-sleep with the metatarsals laid flat along the ground and the toes pointing forward, keeping the feet beside or under the thighs. Close the chest skin wedge. Re-vet from a 3/4 camera before merging. If the owner wants the interim clip anyway, record that sign-off in STATUS."
+ },
+ {
+  "severity": "minor",
+  "where": "game/tests/t_canim.gd:290",
+  "problem": "The variable `raptor` now holds a zebraceratops and the fallback species too, so the name misleads.",
+  "fix": "Rename it to `c` or `probe`."
+ },
+ {
+  "severity": "minor",
+  "where": "game/assets/creatures/zebraceratops/anim/*.glb",
+  "problem": "Each clip is about 2.5x larger: 38-47 KB grew to 78-137 KB, about +0.8 MB for zebraceratops alone. The cause is per-frame sampling of all 39 bones (117 channels). That size ships in the web build. Zebraceratops walk/run are also still the old gliding clips (baked walk 0.109 m/s), which no job here covers.",
+  "fix": "Optionally re-export with keyframe reduction. Queue a zebraceratops locomotion job beside the protoceratops re-run."
+ }
+]
