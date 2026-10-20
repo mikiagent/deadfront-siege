@@ -45,31 +45,86 @@ recipe-gated progression, and survivors that start at Lv. 1.
   today's prices)`. They are recomputed on load, on every `World.pioneer_changed`, and for saves with no skills
   block. A saved `sp_earned` is never trusted.
 - **Catalog.** `trees.json.reference` holds the spec-12 counts: 13 categories that sum to 918 nodes, plus the
-  Toxic Oil Islands unlock list as an optional, defined-only entry. **212 of 918 nodes are imported: 17
-  functional, 19 partial, 176 defined.** Every node has `status`, `source` (spec09/11/12 or prd7), `effects` and
+  Toxic Oil Islands unlock list as an optional, defined-only entry. **212 of 918 nodes are imported: 18
+  functional, 19 partial, 175 defined.** (Dry Leather moved from defined to functional in r2: it gates the
+  existing `dried_hide` recipe.) Every node has `status`, `source` (spec09/11/12 or prd7), `effects` and
   `sp_assumed` where the pack gives no SP.
 - **Skills sheet (trivial, listed):** node rows show the Durango name and "AUTO" in place of "0 SP". Owned auto
   nodes show a disabled "Learned" button in place of "Refund".
 
 Files: `game/data/skills/trees.json`, `game/scripts/skills/skill_state.gd`, new `game/scripts/skills/skill_rules.gd`,
-new `game/tests/t_w2_skills.gd`, `game/scripts/ui/skills_sheet.gd` (trivial). Migration test fixtures:
-`game/tests/fixtures/save_v3_golden.json` and `save_v3_away_golden.json` (skills_v2 only), plus one expectation
-in `game/tests/t_save.gd`.
+new `game/tests/t_w2_skills.gd`, `game/scripts/ui/skills_sheet.gd` (trivial), `game/tests/t_save.gd`, new
+`game/tests/fixtures/save_v3_skills_rev2.json`, and `game/scripts/world/taming_pen.gd` (orchestrator grant).
+The rev-1 goldens `save_v3_golden.json` and `save_v3_away_golden.json` are byte-identical to the base.
 
-## Save format change (owner decision to flag)
+## Save format change (owner approved: save rev 2 with migration of rev-1 saves)
 
-skills_v2 gains `"rev": 2` and `"sp_earned"` (informational). A rev-1 save migrates when it loads:
+skills_v2 gains `"rev": 2`, `"sp_earned"` (informational) and `"sp_extra"`. A rev-1 save migrates when it loads:
 - A level stored as 0 reads as Lv. 1.
 - SP are recomputed from the character level.
 - Every learned node is kept and re-priced at today's costs.
-- If the learned nodes cost more than the character level has paid, the save keeps them all and shows 0 SP
-  until the character catches up (ASSUMPTION, per the coordinator).
+- **Unspent SP are kept** (r1 minor 1): what the character level does not cover becomes `sp_extra`, a one-time
+  extra (spec 03:14 "award extra SP via appropriate one-time career tasks"). H6 caps `sp_extra` at what the
+  save's own tree levels paid under the old award, so a forged save cannot mint SP.
 - AUTO nodes are learned.
 - Nothing is deleted.
-The goldens were migrated by a script that mirrors `from_dict`, and t_save's "golden survives load + save
-unchanged" passes, which proves the GDScript migration and the script agree. In t_save's forged-save check,
-Stealth I (Survival Lv. 10, no prerequisite, per spec 12) is now reachable, so the expectation is
-`[island_access_15, stealth_1]` with sp_spent 7.
+
+The rev-1 goldens are untouched inputs again (r1 major). t_save loads each one through SaveGame and
+SaveSanitizer and compares the result with `save_v3_skills_rev2.json`, field for field in both directions.
+`_test_rev1_skills` loads a rev-1 golden that bought 19 nodes under the old award (old prices, Survival 55),
+then saves and loads it again. Both passes assert: levels kept, 0 reads Lv. 1, rev 2, the Lv1 AUTO nodes
+learned, every bought node kept, the 539 unspent SP kept, the SP budget = character Lv. 5 + `sp_extra`, and
+5 bonded slots. In the forged-save check, Stealth I (Survival Lv. 10, no prerequisite, spec 12) is reachable, so
+the expectation is `[island_access_15, stealth_1]` with sp_spent 7.
+
+## Review r1 (docs/orchestration/mmo/handoff/findings/w2-skills-review-r1.json)
+
+- **MAJOR, goldens rewritten: fixed** as above. Mutation proof: see Acceptance.
+- **Minor, rev-1 saves lose unspent SP: fixed** (`sp_extra`, above). Spec 03 does not say to drop them.
+- **Minor, the field kit waits for character Lv. 2: kept, per spec 12:80** "Till Small Field is Lv1/1 SP".
+  A Lv. 1 survivor has 0 SP (spec 03: SP come from character levels), so the lock now says where the SP come
+  from: "learn Till Small Field (Farming Lv. 1, 1 SP); you have 0 SP, reach Lv. 2 for +10 SP". Hook H7 shows
+  it on the craft card above the ingredients, so a phone shows it without scrolling.
+- **Minor, Processing gates at Lv. 10: kept, per spec 11:33** "| 10 | Charcoal; Leather Strap | 1–2 |" (Dry
+  Leather and Peeled Bark at 15, 11:34). The review found no dead end: every gated output has ungated
+  substitutes. Pacing (XP per character level) is an owner call and not part of this package.
+- **Minor, taming_pen bonds without the cap: fixed** (orchestrator grant, W2-BREED not running).
+  `Data.bonded_cap()` (hook H2) is the one function: 3 + Animal Handling I-IV, at most 7
+  (`SkillRules.bonded_capacity`, spec 09:48). Caged animals are items and never count (09:33). At the cap the
+  pen keeps the finished animal inside, unbonded, and says "Bonded roster full (n / cap)". It bonds on the
+  first frame a slot is free, so nothing is lost or rolled twice. Feeding a finished animal is refused, because
+  it would restart the timer. A legacy `tamed_animal` stays in the bag with the same notice. The market's
+  caged-pet unpack should call `Data.bonded_cap()`.
+
+## Vision fixes (vision-check.md) and whether they are needed
+
+The owner asked whether the vision check is really necessary. For this package: one of its two items was
+needed and the other was not, so only one was built.
+
+1. **Non-functional nodes cannot be bought: built.** Spec 12:215 says "Do not implement a decorative but inert
+   918-node UI" (checked). It was needed. 194 of the 212 nodes are partial or defined: the game reads nothing
+   from them, so every SP spent on one was lost. `SkillRules.buyable()` allows only functional nodes and the
+   prerequisite chain a functional node needs. Island Access 15-55, Belly Fat I and Climate Body I stay
+   buyable on the way to Capture Technique and Animal Handling; Cloth Clothes, Small Bag and Bandage stay
+   buyable on the way to Heat and Cold Resist. Every other node shows locked: "not in the game yet". Nodes a
+   save already owns stay owned and can still be refunded. AUTO nodes are still learned free.
+   - Checking this showed that Dry Leather was marked defined while it gates the existing `dried_hide` recipe
+     (hook H1). With the new rule that would have locked dried hide for good, a dead end once W2-DATA makes
+     straps need dried hide. It is now functional, and t_w2_skills asserts that every recipe-gating node is
+     functional.
+   - The W2-PROCESS hooks should flip Handicraft and Metalworking to functional when they read
+     `SkillRules.ability`, and W2-ACTION should do the same for Stealth and Slaughter. Until then those nodes
+     are not for sale.
+2. **Daily refund limit: not built.** docs/design/skills.md:9 does say "Refunds: 5 free unlearns a day, then
+   30 Warp Gems, max 10 a day", and spec 03:37 says "keep configurable, do not require monetization". Reasons
+   to skip it:
+   - Warp Gems do not exist, so the rule would be a hard 5 a day.
+   - Node purchases are client-side until W3-SRVACT, so a daily counter in a local save limits honest players
+     and stops nobody.
+   - It adds friction against the owner's "fun and playable first".
+   - The config already sits in trees.json (`refund`), so W3-SRVACT can enforce it server-side, where it
+     means something.
+   This is the one place this run departs from the computed task. Overrule it and it is about 25 lines.
 
 ## Acceptance (exact lines, after `git merge claude/mmo-overhaul` @ 1c89134a)
 
