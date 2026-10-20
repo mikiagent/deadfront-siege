@@ -282,6 +282,15 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   dsc workers (minors, audio, quads-loco, zebra, trex-sleep) and the player dsc worker finished; their
   results are vetted and integrated by finish-1 (audio waits for W1-INT).
 
+- 2026-10-20 (orchestrator) W1-UI open questions: the level-1 title "Venture into the World" is held
+  from character creation (no level-up toast); skills keep their internal levels in W1-UI, and W2-SKILLS
+  re-keys them to Durango's 1-60 scale with Lv1 AUTO nodes (spec 12), so "skills show Lv. 0" is a known
+  item for W2-SKILLS, not a W1-UI blocker.
+
 ## Owner questions (open)
 
 - none
+
+## Merge log
+
+- 2026-10-20 merged W1-STRUCTART (37b6de7): import exit 0; [tests] PASS; t_ai/t_build/t_canim/t_combat/t_harbour (islands=15)/t_items/t_light/t_lighting/t_save/t_structart/t_tame/t_web PASS; SMOKE PASS; island_lab exit 0, 0 SCRIPT ERROR, nodes=378 creatures=24 (unchanged); build_lab [build] PASS; harbour_lab rot=2 on the coast; creature lab 0 "couldn't resolve track"; home/harbour shots Forward+, compat, 844x390 checked (pier on the water, home unchanged); pending hooks: tools/blender/structures/integrator_hooks.patch (W1-BUILD prop_visuals.gd, placed_building.gd, field_catapult.gd; W1-HARBOUR harbour.gd tap box)
