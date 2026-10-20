@@ -27,6 +27,9 @@ func run() -> void:
 	if hud == null or not hud.has_method("open_structure"):
 		ex.call(false, "the HUD has the W2-BUILDSYS hook (open_structure)")
 		return
+	if DisplayServer.get_name() == "headless":
+		lab.get_window().size = Vector2i(844, 390)  # headless defaults to 64 x 64: no room for a phone layout
+		await _frames(3)
 	var mats := {&"plank": 60, &"twine": 30, &"stone": 40}
 	for id in mats:
 		LabKit.give(player, id, mats[id])
@@ -158,9 +161,24 @@ func _tap_control(c: Control) -> void:
 		return
 	await _tap(c.get_global_rect().get_center())
 
+## Tap a world point the way a player would: on visible ground, so when a HUD hex covers the point
+## the tap moves up to 0.6 m within the same module (the ghost still snaps to the same socket).
 func _tap_world(at: Vector3) -> void:
 	var cam := lab.get_viewport().get_camera_3d()
-	await _tap(cam.unproject_position(at))
+	var pos := cam.unproject_position(at)
+	for off in [Vector3.ZERO, Vector3(0.6, 0, 0), Vector3(0, 0, 0.6), Vector3(-0.6, 0, 0), Vector3(0, 0, -0.6), Vector3(0.5, 0, 0.5), Vector3(-0.5, 0, -0.5)]:
+		pos = cam.unproject_position(at + off)
+		if not await _covered(pos):
+			break
+	await _tap(pos)
+
+## The game's own test (PlayerInput.tap_blocked: the control under the pointer stops input).
+func _covered(pos: Vector2) -> bool:
+	var mv := InputEventMouseMotion.new()
+	mv.position = pos
+	Input.parse_input_event(mv)
+	await _frames(1)
+	return bool(player.controls.tap_blocked())
 
 func _tap(pos: Vector2) -> void:
 	var down := InputEventScreenTouch.new()
