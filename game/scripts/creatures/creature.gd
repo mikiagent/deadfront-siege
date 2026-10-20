@@ -276,11 +276,8 @@ func _physics_process(delta: float) -> void:
 	var slow := statuses.move_mult() * (trap_move_mult if trap_left > 0.0 else 1.0)
 	var speed := (pet_record.speed / 100.0 if is_pet and pet_record else move_speed_mps()) * slow
 	if not is_pet and brain:
-		match brain.state:
-			# ASSUMPTION (owner decision pending, dino-ai-06): chase at chase_speed_mult (0.7) so a survivor can outrun.
-			&"approach", &"attack": speed *= float(brain.profile.get("chase_speed_mult", 0.7))
-			# flee_min_mps: a low-IV grazer still outruns a walking survivor (traps and statuses still slow it).
-			&"flee": speed = maxf(speed * float(brain.profile.get("flee_speed_mult", 1.0)), float(brain.profile.get("flee_min_mps", 0.0)) * slow)
+		# ASSUMPTION (owner decision pending, dino-ai-06): the survivor chase stays at chase_speed_mult 0.7.
+		speed = brain.move_speed(speed, slow)  # chase, flee, hunt and charge speeds (ai.json)
 	if is_pet and hunger <= 0.0:
 		speed *= 0.85
 	var locomote := Vector3.ZERO
@@ -370,14 +367,7 @@ func _size_collision() -> void:
 	agent.radius = cap.radius
 
 func _make_brain() -> void:
-	if is_pet:
-		brain = PetBrain.new()
-	elif def and def.id == &"tyrannosaurus":
-		brain = TyrantBrain.new()
-	elif def and def.mapped_archetype() == &"raptor_pack":
-		brain = RaptorPackBrain.new()
-	else:
-		brain = CreatureBrain.new()
+	brain = BrainFactory.create(self)
 	brain.name = "Brain"
 	add_child(brain)
 	brain.setup(self)

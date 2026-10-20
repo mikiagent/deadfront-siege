@@ -20,15 +20,32 @@ static func lod_frozen(b: CreatureBrain) -> bool:
 			return false
 	return true
 
+## ai.json schedule: diurnal sleeps at night, nocturnal sleeps by day, cathemeral never sleeps.
+## ASSUMPTION: without a schedule grazers are diurnal and predators cathemeral (the old rule).
+static func schedule(b: CreatureBrain) -> StringName:
+	return StringName(str(b.profile.get("schedule", "diurnal" if b._is_herbivore() else "cathemeral")))
+
+static func sleeper(b: CreatureBrain) -> bool:
+	return schedule(b) != &"cathemeral"
+
+## Its rest time now. Dawn and dusk are awake for everyone (twilight is when both hunt).
+static func resting_now(b: CreatureBrain) -> bool:
+	match schedule(b):
+		&"diurnal":
+			return Game.phase_name() == &"night"
+		&"nocturnal":
+			return Game.phase_name() == &"day"
+	return false
+
 static func should_sleep(b: CreatureBrain) -> bool:
-	return b._is_herbivore() and Game.phase_name() == &"night" and b._now_s() >= b._awake_until \
+	return resting_now(b) and b._now_s() >= b._awake_until \
 		and not b._valid_target() and (b.state == &"roam" or b.state == &"disengage")
 
-## Asleep: stay put. Dawn wakes everyone; a survivor or pet within wake_m of the body wakes
-## this one (and a skittish grazer bolts). The old code had no way out of sleep at all.
+## Asleep: stay put. The end of its rest time wakes it; a survivor or pet within wake_m of the
+## body wakes this one (a skittish grazer bolts, a predator comes at it).
 static func sleep_tick(b: CreatureBrain) -> void:
 	b.creature.stop_move()
-	if Game.phase_name() != &"night":
+	if not resting_now(b):
 		wake(b, null)
 		return
 	var near := b._nearest_live_prey(float(b.profile.get("wake_m", 3.0)) + b.creature.body_radius())

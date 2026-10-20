@@ -1,6 +1,7 @@
 class_name TyrantBrain
 extends CreatureBrain
-## T-rex only: fixed-facing timed attacks and counter-earned punish openings.
+## Tyrant archetype (T. rex, Tarbosaurus): fixed-facing timed attacks and counter-earned punish
+## openings. The kit (roar) and structure siege run only between timed moves.
 var phase: StringName = &"idle"
 var phase_left := 0.0
 var windup_clip: StringName = &"attack_primary"
@@ -13,7 +14,10 @@ var telegraph: Telegraph
 
 ## Windup, impact and recovery are timed moves: resolve them every physics frame, not at 10 Hz.
 func _full_rate() -> bool:
-	return phase != &"idle"
+	return phase != &"idle" or super._full_rate()
+
+func _eco_tick(dt: float) -> bool:
+	return phase == &"idle" and super._eco_tick(dt)
 
 ## The shared leash can drop the target mid-swing; end the timed move with it.
 func _pre_think(dt: float) -> bool:

@@ -26,7 +26,23 @@
     "wake_m": 3.0,
     "woken_awake_s": 30.0,
     "_chase": "chase_speed_mult is today's 0.7 per carnivore archetype until the owner decides (gap dino-ai-06: a walking survivor outruns it).",
-    "_sleep": "ASSUMPTION: grazers asleep at night wake at dawn or when a survivor/pet comes within wake_m of the body; a woken grazer stays up woken_awake_s."
+    "_sleep": "ASSUMPTION: grazers asleep at night wake at dawn or when a survivor/pet comes within wake_m of the body; a woken grazer stays up woken_awake_s.",
+    "diet": "carnivore",
+    "schedule": "cathemeral",
+    "hearing_m": 4.0,
+    "hunger_full_s": 480.0,
+    "thirst_full_s": 360.0,
+    "hungry_below": 0.35,
+    "thirsty_below": 0.3,
+    "sated_above": 0.95,
+    "food_search_m": 30.0,
+    "water_search_m": 40.0,
+    "prey_size_ratio": 1.0,
+    "hunt_speed_mult": 1.0,
+    "telegraph_primary": true,
+    "circle_deg": 0.0,
+    "attacks": [],
+    "_eco": "W2-ECO. ASSUMPTION: needs are fullness 0..1 (1 = fed / quenched); a full animal gets hungry after hunger_full_s * (1 - hungry_below) seconds of thinking (frozen far-away brains do not get hungry). diet carnivore hunts prey up to prey_size_ratio x its own real_length_m and eats corpses; scavenger only eats corpses; herbivore grazes. schedule diurnal sleeps at night, nocturnal sleeps by day, cathemeral never sleeps. hunt_speed_mult replaces chase_speed_mult when the target is wild prey (the survivor chase stays at the owner-pending 0.7). hearing_m detects without line of sight; sight needs one clear ray."
   },
   "temperaments": {
     "_about": "ASSUMPTION (gap dino-ai-12): grazer temperaments. skittish flees on sight and fights back after provoke_hits hits; defensive ignores you until hit, then fights (its herd joins); territorial also charges anyone inside territory_m. flee_min_mps 6.5: a worst-IV (85 %) zebraceratops flees at 5.44 m/s on the multiplier alone, under the 5.5 m/s survivor walk; 6.2 still ended 7.5 m ahead (path wiggle), 6.5 matches an average-IV flight.",
@@ -45,8 +61,10 @@
       "provoke_hits": 1,
       "flee_on_sight": false,
       "flee_speed_mult": 1.2,
-      "territory_m": 6.0
-    }
+      "territory_m": 6.0,
+      "warn_m": 10.0
+    },
+    "_warn": "ASSUMPTION (W2-ECO): a territorial grazer warns (state warn: stops, faces, alert clip, 'warning' float) while an intruder is inside warn_m, and charges once it is inside territory_m."
   },
   "archetypes": {
     "pack_raptor": {
@@ -56,7 +74,8 @@
         "slashing"
       ],
       "resists": [],
-      "chase_speed_mult": 0.7
+      "chase_speed_mult": 0.7,
+      "prey_size_ratio": 1.2
     },
     "pack_flanker": {
       "attack_range": 2.0,
@@ -65,7 +84,8 @@
         "slashing"
       ],
       "resists": [],
-      "chase_speed_mult": 0.7
+      "chase_speed_mult": 0.7,
+      "prey_size_ratio": 1.2
     },
     "apex_raptor": {
       "attack_range": 2.2,
@@ -75,7 +95,8 @@
         "slashing"
       ],
       "resists": [],
-      "chase_speed_mult": 0.7
+      "chase_speed_mult": 0.7,
+      "prey_size_ratio": 1.2
     },
     "swarm": {
       "attack_range": 1.4,
@@ -102,7 +123,8 @@
         "blunt"
       ],
       "resists": [],
-      "chase_speed_mult": 0.7
+      "chase_speed_mult": 0.7,
+      "circle_deg": 35.0
     },
     "saber_cat": {
       "attack_range": 2.0,
@@ -110,7 +132,8 @@
         "slashing"
       ],
       "resists": [],
-      "chase_speed_mult": 0.7
+      "chase_speed_mult": 0.7,
+      "circle_deg": 35.0
     },
     "tyrant": {
       "attack_range": 2.6,
@@ -129,7 +152,9 @@
       "resists": [
         "slashing"
       ],
-      "temperament": "skittish"
+      "temperament": "skittish",
+      "diet": "herbivore",
+      "schedule": "diurnal"
     },
     "spiked_tail": {
       "is_herbivore": true,
@@ -140,7 +165,9 @@
       "resists": [
         "slashing"
       ],
-      "temperament": "defensive"
+      "temperament": "defensive",
+      "diet": "herbivore",
+      "schedule": "diurnal"
     },
     "runner": {
       "is_herbivore": true,
@@ -149,7 +176,9 @@
         "slashing"
       ],
       "resists": [],
-      "temperament": "skittish"
+      "temperament": "skittish",
+      "diet": "herbivore",
+      "schedule": "diurnal"
     },
     "antlered": {
       "is_herbivore": true,
@@ -158,7 +187,9 @@
         "blunt"
       ],
       "resists": [],
-      "temperament": "skittish"
+      "temperament": "skittish",
+      "diet": "herbivore",
+      "schedule": "diurnal"
     },
     "club_tail": {
       "is_herbivore": true,
@@ -169,7 +200,9 @@
       "resists": [
         "slashing"
       ],
-      "temperament": "defensive"
+      "temperament": "defensive",
+      "diet": "herbivore",
+      "schedule": "diurnal"
     },
     "horned_charger": {
       "is_herbivore": true,
@@ -180,7 +213,9 @@
       "resists": [
         "slashing"
       ],
-      "temperament": "territorial"
+      "temperament": "territorial",
+      "diet": "herbivore",
+      "schedule": "diurnal"
     },
     "titan": {
       "is_herbivore": true,
@@ -190,7 +225,137 @@
       "resists": [
         "slashing"
       ],
-      "temperament": "defensive"
+      "temperament": "defensive",
+      "diet": "herbivore",
+      "schedule": "diurnal"
+    },
+    "allosaur": {
+      "attack_range": 2.4,
+      "perception_base": 11.0,
+      "weak_to": [],
+      "resists": [
+        "slashing"
+      ],
+      "chase_speed_mult": 0.7,
+      "circle_deg": 35.0,
+      "prey_size_ratio": 1.0,
+      "_note": "W2-ECO: Allosaurus hunts alone (no pack flank): it circles between bites, lunges and roars. ASSUMPTION: values from apex_raptor with a longer reach and sight."
+    }
+  },
+  "attack_kits": {
+    "_about": "W2-ECO special moves. A species lists kinds in ai.json species.<id>.attacks (a name, or a dict with the kind plus overrides). range_min/range_max are flat centre distances to the target; cooldown_s per kind; windup_s is the telegraph time.",
+    "spit": {
+      "clip": "attack_heavy",
+      "range_min": 6.0,
+      "range_max": 14.0,
+      "cooldown_s": 6.0,
+      "windup_s": 0.6,
+      "speed_mps": 10.0,
+      "hit_radius_m": 0.3,
+      "recover_s": 0.6
+    },
+    "charge": {
+      "clip": "attack_heavy",
+      "range_min": 5.0,
+      "range_max": 16.0,
+      "cooldown_s": 10.0,
+      "windup_s": 0.8,
+      "speed_mult": 2.4,
+      "max_s": 1.4,
+      "knockback_m": 3.0,
+      "recover_s": 0.8
+    },
+    "tail_sweep": {
+      "clip": "tail_swipe",
+      "range_min": 0.0,
+      "range_max": 4.5,
+      "cooldown_s": 5.0,
+      "windup_s": 0.9,
+      "radius_extra_m": 2.5,
+      "rear_dot": 0.3,
+      "knockback_m": 1.5,
+      "recover_s": 0.6
+    },
+    "lunge": {
+      "clip": "attack_heavy",
+      "range_min": 3.5,
+      "range_max": 7.0,
+      "cooldown_s": 4.5,
+      "windup_s": 0.3,
+      "speed_mult": 3.0,
+      "max_s": 0.5,
+      "recover_s": 0.4
+    },
+    "roar": {
+      "clip": "alert",
+      "range_min": 0.0,
+      "range_max": 14.0,
+      "cooldown_s": 25.0,
+      "windup_s": 0.4,
+      "hold_s": 1.2,
+      "status": "deafened",
+      "fear_m": 14.0
+    }
+  },
+  "species": {
+    "_about": "W2-ECO per-species ecology and attack table: diet, schedule, prey_size_ratio, attacks, and an optional AI archetype override. Missing keys fall back to archetype, temperament, then default.",
+    "allosaurus": {
+      "archetype": "allosaur",
+      "diet": "carnivore",
+      "schedule": "cathemeral",
+      "attacks": [
+        "lunge",
+        "roar"
+      ]
+    },
+    "compsognathus": {
+      "diet": "scavenger",
+      "schedule": "cathemeral",
+      "food_search_m": 40.0,
+      "attacks": []
+    },
+    "dilophosaurus": {
+      "diet": "carnivore",
+      "schedule": "cathemeral",
+      "attacks": [
+        "spit"
+      ]
+    },
+    "smilodon": {
+      "diet": "carnivore",
+      "schedule": "nocturnal",
+      "prey_size_ratio": 1.5,
+      "attacks": [
+        "lunge"
+      ]
+    },
+    "stegosaurus": {
+      "diet": "herbivore",
+      "schedule": "diurnal",
+      "attacks": [
+        "tail_sweep"
+      ]
+    },
+    "tarbosaurus": {
+      "diet": "carnivore",
+      "schedule": "cathemeral",
+      "attacks": [
+        "roar"
+      ]
+    },
+    "triceratops": {
+      "diet": "herbivore",
+      "schedule": "diurnal",
+      "attacks": [
+        "charge"
+      ]
+    },
+    "velociraptor": {
+      "diet": "carnivore",
+      "schedule": "cathemeral",
+      "attacks": [
+        "lunge"
+      ]
     }
   }
 }

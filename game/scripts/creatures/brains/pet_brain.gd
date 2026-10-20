@@ -1,16 +1,46 @@
 class_name PetBrain
 extends CreatureBrain
-## Pet orders (whistles): "guard" (default) follows the owner and fights whatever the owner
-## fights or whatever hunts the owner; "attack" goes for one ordered target until it is dead;
-## "heel" stays at the owner's side and does not fight. A hungry pet still fights, just slower.
+## Pet orders. Stance (who it fights): "passive" never fights, "defend" (default; the old
+## "guard") fights what the owner fights and whatever hunts the owner or the pet, "aggressive"
+## also goes for any hostile wild animal near it. Movement: "follow" (default) keeps to the
+## owner's side, "stay" holds the spot it was told to stay on. "attack" goes for one ordered
+## target until it is dead; "heel" is passive at the owner's side (old whistle). A hungry pet
+## still fights, just slower.
+
+## ASSUMPTION: an aggressive pet picks fights within 9 m of itself; a staying pet chases no
+## farther than 12 m from its stay spot.
+const AGGRESSIVE_M := 9.0
+const STAY_LEASH_M := 12.0
 
 var hold: bool = false
 var mode: StringName = &"guard"
+var stance: StringName = &"defend"
+var staying: bool = false
+var stay_point: Vector3 = Vector3.ZERO
 var order_target: Creature
 
 func order(cmd: StringName, target: Creature = null) -> void:
-	mode = cmd
-	order_target = target if cmd == &"attack" else null
+	match cmd:
+		&"attack":
+			mode = &"attack"
+			order_target = target
+		&"heel":
+			mode = &"heel"
+			order_target = null
+			staying = false
+		&"guard", &"defend":
+			mode = &"guard"
+			stance = &"defend"
+			order_target = null
+		&"passive", &"aggressive":
+			mode = &"guard"
+			stance = cmd
+			order_target = null
+		&"stay":
+			staying = true
+			stay_point = creature.global_position
+		&"follow":
+			staying = false
 	print("[pet] %s order %s%s" % [creature.def.id, cmd, (" -> " + str(target.def.id)) if target else ""])
 
 func _pick_guard_target(player: Player) -> Creature:
@@ -22,9 +52,28 @@ func _pick_guard_target(player: Player) -> Creature:
 		var c := n as Creature
 		if c == null or c.is_pet or c.health.dead or c.brain == null:
 			continue
-		if not c.brain.has_method("hunting_player") or not c.brain.hunting_player():
+		var on_us := c.brain.attack_target == creature or (c.brain.has_method("hunting_player") and c.brain.hunting_player())
+		if not on_us:
 			continue
 		var d := c.global_position.distance_to(player.global_position)
+		if c.brain.attack_target == creature:
+			d = minf(d, c.global_position.distance_to(creature.global_position))
+		if d < best_d:
+			best_d = d
+			best = c
+	return best
+
+## Aggressive: the nearest wild animal near the pet that would fight (not a skittish grazer).
+func _pick_aggressive_target() -> Creature:
+	var best: Creature = null
+	var best_d := AGGRESSIVE_M
+	for n in creature.get_tree().get_nodes_in_group("creatures"):
+		var c := n as Creature
+		if c == null or c.is_pet or c.health.dead or c.brain == null:
+			continue
+		if c.brain._flees_on_sight():
+			continue
+		var d := c.global_position.distance_to(creature.global_position)
 		if d < best_d:
 			best_d = d
 			best = c
@@ -45,8 +94,12 @@ func _think(delta: float) -> void:
 		else:
 			mode = &"guard"
 			order_target = null
-	if mode == &"guard" and not hold:
+	if mode == &"guard" and not hold and stance != &"passive":
 		target = _pick_guard_target(player)
+		if target == null and stance == &"aggressive":
+			target = _pick_aggressive_target()
+	if target and staying and mode != &"attack" and target.global_position.distance_to(stay_point) > STAY_LEASH_M:
+		target = null
 	if target:
 		attack_target = target
 		var dist := creature.global_position.distance_to(target.global_position)
@@ -71,6 +124,13 @@ func _think(delta: float) -> void:
 				_do_attack()
 			return
 	attack_target = null
+	if staying:
+		_set_state(&"stay")
+		if creature.global_position.distance_to(stay_point) > 1.5:
+			creature.move_to(stay_point)
+		else:
+			creature.stop_move()
+		return
 	_set_state(&"alert" if mode == &"heel" else &"roam")
 	var side := player.global_basis.x * (1.2 if mode == &"heel" else 1.6)
 	var follow := player.global_position + side

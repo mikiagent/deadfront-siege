@@ -4,8 +4,6 @@ extends CreatureBrain
 ## only once the alpha commits to prey. Timers, the pack leash, sleep and the walk home run
 ## first in CreatureBrain._pre_think, so this think never has to repeat them.
 
-var _heavy_cd: float = 0.0
-
 func setup(c: Creature) -> void:
 	super.setup(c)
 	if c.def.archetype == &"apex_raptor":
@@ -17,7 +15,6 @@ func on_aggro(who: Node) -> void:
 		_propagate_alert(who as Node3D)
 
 func _think(delta: float) -> void:
-	_heavy_cd = maxf(0.0, _heavy_cd - delta)
 	if creature.health.fraction() < 0.30 and creature.def.archetype != &"apex_raptor" and _valid_target():
 		_set_state(&"flee")
 		flight.flee()
@@ -44,15 +41,10 @@ func _think(delta: float) -> void:
 	var reach := maxf(1.2, float(profile.get("attack_range", 2.0)) + 0.2) + excess
 	# Leave a bite only a little past reach, so a target stepping back does not flip the state.
 	if dist > reach + (0.4 if state == &"attack" else 0.0):
+		# The gap-closing pounce is the kit's lunge (ai.json), which moves; this used to pounce in place.
 		_set_state(&"approach")
 		creature.move_to(_flank_slot())
 		creature.face_towards(attack_target.global_position, delta)
-		if dist >= 4.0 + excess and dist <= 7.0 + excess and _heavy_cd <= 0.0 and _is_off_axis():
-			creature.stop_move()
-			creature.anim.play_clip(&"attack_heavy")
-			_heavy_cd = 4.5
-			_attack_cd = 1.8
-			_set_state(&"attack")
 		return
 	_set_state(&"attack")
 	creature.face_towards(attack_target.global_position, delta)
@@ -63,18 +55,7 @@ func _think(delta: float) -> void:
 		creature.stop_move()
 	elif _pack_ready():
 		creature.stop_move()
-		creature.anim.play_clip(&"attack_primary")
+		_play_attack(&"attack_primary")
 		_attack_cd = 1.1
 		if _is_pack_member():
 			_pack_cooldown_until[creature.pack_id] = _now_s() + 0.25
-
-func _is_off_axis() -> bool:
-	if attack_target == null:
-		return false
-	var to := creature.global_position - attack_target.global_position
-	to.y = 0.0
-	var fwd := -attack_target.global_basis.z
-	fwd.y = 0.0
-	if fwd.length_squared() < 0.01:
-		return true
-	return absf(fwd.normalized().dot(to.normalized())) < 0.55

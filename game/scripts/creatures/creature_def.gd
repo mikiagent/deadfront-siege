@@ -64,13 +64,25 @@ static func from_dict(d: Dictionary, file_id: StringName) -> CreatureDef:
 	c._apply_taming(d)
 	return c
 
+## This species' ai.json "species" row (diet, schedule, attacks, archetype override). Read on
+## demand: Data loads ai.json after the species files, so from_dict cannot see it.
+func eco() -> Dictionary:
+	var rows: Variant = Data.creature_ai.get("species", {}) if Data else {}
+	var row: Variant = (rows as Dictionary).get(str(id), {}) if rows is Dictionary else {}
+	return row if row is Dictionary else {}
+
+## The archetype the AI uses: the species row may give a species its own (Allosaurus), while
+## combat families and taming keep reading `archetype` from the species file.
+func ai_archetype() -> StringName:
+	return StringName(str(eco().get("archetype", archetype)))
+
 func mapped_archetype() -> StringName:
 	# ASSUMPTION: JSON uses pack_raptor / pack_flanker / apex_raptor; SCHEMA lists raptor_pack.
-	match archetype:
+	match ai_archetype():
 		&"pack_raptor", &"pack_flanker", &"apex_raptor", &"raptor_pack":
 			return &"raptor_pack"
-		_:
-			return archetype
+		var other:
+			return other
 
 func is_herbivore_diet() -> bool:
 	# Keep in sync with game/data/creatures/ai.json herbivore archetypes.
