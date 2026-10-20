@@ -188,14 +188,14 @@ func _test_rev1_skills() -> void:
 	var sv: Dictionary = d["skills_v2"]
 	var bought := {
 		"survival": ["island_access_15", "belly_fat_1", "capture_technique_1", "capture_tool_1", "stealth_1", "island_access_25", "capture_technique_2", "climate_body_1", "island_access_35", "capture_technique_3", "animal_management_1", "island_access_45", "capture_technique_4", "animal_management_2"],
-		"gathering": ["thickets", "mining_1", "herbs_1", "insects"],
+		"gathering": ["forage_1", "thickets", "mining_1", "herbs_1", "insects"], # forage_1 cost 5 then, AUTO now
 	}
 	sv["trees"]["survival"]["level"] = 55
 	for tree in bought:
 		sv["trees"][tree]["unlocked"] = bought[tree].duplicate()
-	# Old award for gathering 20 + butchering 3 + survival 55 = 880 SP; these nodes cost 336 at rev-1 prices.
-	sv["sp_spent"] = 336
-	sv["sp_available"] = 880 - 336
+	# Old award for gathering 20 + butchering 3 + survival 55 = 880 SP; these nodes cost 341 at rev-1 prices.
+	sv["sp_spent"] = 341
+	sv["sp_available"] = 880 - 341
 	var old_levels := {}
 	for tree in sv["trees"]:
 		old_levels[tree] = int(sv["trees"][tree]["level"])
@@ -217,8 +217,8 @@ func _test_rev1_skills() -> void:
 					missing.append(nid)
 		_check(missing.is_empty(), "%s: every node bought under rev 1 is kept (missing %s)" % [pass_name, missing])
 		var paid: int = Rules.paid_for_level(sk, 5) # pioneer_level 4 = character Lv. 5
-		_check(sk.sp_available == 880 - 336, "%s: the 544 unspent SP are kept (got %d)" % [pass_name, sk.sp_available])
-		_check(sk.sp_spent == 263 and sk.sp_extra == 544 + 263 - paid and sk.sp_earned == paid + sk.sp_extra, "%s: budget = character Lv. 5 (%d) + one-time extra %d, spent 263 at today's prices (earned %d, spent %d)" % [pass_name, paid, sk.sp_extra, sk.sp_earned, sk.sp_spent])
+		_check(sk.sp_available == 880 - 341, "%s: the 539 unspent SP are kept (got %d)" % [pass_name, sk.sp_available])
+		_check(sk.sp_spent == 263 and sk.sp_extra == 539 + 263 - paid and sk.sp_earned == paid + sk.sp_extra, "%s: budget = character Lv. 5 (%d) + one-time extra %d, spent 263 at today's prices (earned %d, spent %d)" % [pass_name, paid, sk.sp_extra, sk.sp_earned, sk.sp_spent])
 		_check(Rules.bonded_capacity(sk) == 5, "%s: Animal Handling I + II give 5 bonded slots (got %d)" % [pass_name, Rules.bonded_capacity(sk)])
 		SG.save_now()
 		SG.load_now(host)
