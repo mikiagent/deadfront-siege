@@ -28,7 +28,7 @@
       "glb": "res://assets/props/blender/campfire_stand.glb",
       "aabb_m": [
         0.932,
-        0.957,
+        0.942,
         0.908
       ],
       "upgrade": "low-poly hand-built Blender (796 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
@@ -157,10 +157,10 @@
       "glb": "res://assets/props/blender/bedroll.glb",
       "aabb_m": [
         0.84,
-        0.304,
-        1.82
+        0.379,
+        1.94
       ],
-      "upgrade": "low-poly hand-built Blender (292 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+      "upgrade": "low-poly hand-built Blender (304 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "basket": {
       "model": "box-open",
@@ -287,9 +287,9 @@
       "art_status": "REVIEW",
       "glb": "res://assets/props/blender/fence_fortified.glb",
       "aabb_m": [
-        2.049,
-        1.38,
-        0.557
+        2.059,
+        2.22,
+        0.561
       ],
       "upgrade": "low-poly hand-built Blender (1052 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "fortified palisade run, 2 m; neighbours meet end to end like the plain fence"
@@ -338,7 +338,7 @@
         1.872,
         0.343
       ],
-      "upgrade": "low-poly hand-built Blender (296 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "upgrade": "low-poly hand-built Blender (336 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "wooden signpost with two carved boards (placeable, decorative)"
     },
     "floor": {
@@ -429,10 +429,10 @@
       "glb": "res://assets/props/blender/field_small.glb",
       "aabb_m": [
         1.793,
-        0.823,
+        0.34,
         1.798
       ],
-      "upgrade": "low-poly hand-built Blender (816 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+      "upgrade": "low-poly hand-built Blender (756 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "field_large": {
       "model": "tent-canvas",
@@ -445,10 +445,10 @@
       "glb": "res://assets/props/blender/field_large.glb",
       "aabb_m": [
         2.793,
-        0.823,
+        0.34,
         2.798
       ],
-      "upgrade": "low-poly hand-built Blender (1104 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+      "upgrade": "low-poly hand-built Blender (1008 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "mortar": {
       "model": "workbench-grind",
@@ -528,7 +528,7 @@
         0.468,
         1.86
       ],
-      "upgrade": "low-poly hand-built Blender (180 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+      "upgrade": "low-poly hand-built Blender (324 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "crock_pot": {
       "model": "campfire-stand",
@@ -604,11 +604,11 @@
       "art_status": "REVIEW",
       "glb": "res://assets/props/blender/log_shelter.glb",
       "aabb_m": [
-        3.39,
-        2.758,
-        3.268
+        3.389,
+        3.137,
+        3.329
       ],
-      "upgrade": "low-poly hand-built Blender (1540 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+      "upgrade": "low-poly hand-built Blender (1636 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "cabin_bed": {
       "model": "bedroll-frame",
@@ -620,9 +620,9 @@
       "art_status": "REVIEW",
       "glb": "res://assets/props/blender/cabin_bed.glb",
       "aabb_m": [
-        1.995,
+        2.042,
         1.15,
-        0.998
+        1.29
       ],
       "upgrade": "low-poly hand-built Blender (620 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },

@@ -5,120 +5,138 @@ Kenney models. Each now has its own hand-built GLB from the same kit (`tools/ble
 the shared 1024 `structures_atlas.png`), the same palette and edge density as the tent/workbench/well set,
 and a manifest row (`art_status` REVIEW, upgrade path filled by `check_manifest.py --write`).
 
-Nothing existing was changed: the atlas, `lib.TILES`, all 24 previous builders and their GLBs are
-byte-identical (gate step 3 checks the hash file). Only new builder functions + `BUILDERS` entries in
-`tools/blender/structures/structures.py`, new `KIND_GLB`/`NOTES` entries in `check_manifest.py`, the 18 new
-GLBs, their manifest rows, the preview sheets in `work/sheets/`, and an atlas remap in `preview.py`.
+A dsc (DeepSeek) worker built the first pass. Claude Code (implementer, round 2) fixed the review findings
+listed below. The fixes were small parameter changes that needed visual judgment against in-game shots, so
+they were made directly in the builder, not handed to a second dsc worker.
 
-One GLB node per kind, origin at the ground centre, no embedded image, one `structures_atlas` material.
+The atlas and the 24 merged GLBs are byte-identical (gate step 3 checks the hash file). The only edits to
+shared helpers are optional arguments with defaults (`_teepee(z0=0.04)`, `_stone_ring(cx=0, cy=0)`), so the
+merged builders produce the same output.
+
+## Round 2 fixes (review of 2026-10-20)
+
+| finding | fix |
+|---|---|
+| **major** dirt disc buries ground detail: `PropVisuals.ensure_foundation` draws an opaque disc at y = 0.08 m under every building except straw_roll. 73-76 % of each field's top area was under it, so the fields read as empty pallets, and the fires showed no glow | New `GROUND = 0.08` in `structures.py`. Field: the bed top is at 0.10 m, a dark `soot` tilled layer sits over it as the furrow floor, ridges run from 0.105 to 0.19 m with narrower crowns so the dark furrows show between them, and the border logs are centred at 0.13 m. Bedroll, tent_canvas floor (sheet, mat, pillow, crate, pot, pole stones), campfire_stand, fishing_stand and stone_grill ember/ash beds, and the log_shelter yard fire, rope coil and firewood now sit on the disc. Measured with the reviewer's `buried.py`: 0 % of the upward-facing area is below 0.085 m for the eight affected pieces (cabin_bed was never affected and stays at 1 %, the boot soles). |
+| preview sheets had no disc | `preview.py` draws the disc (radius = half the footprint diagonal + 1 m, at 0.08 m, skipped for straw_roll) after framing, so the sheets show what the game shows. |
+| minor cabin_bed mattress 1.56 m, shorter than the 1.8 m survivor | Frame `L = 2.0`, mattress `L - 0.16 = 1.84 m`, foot rail moved out. The stool and lamp moved to the camera-side long edge by the head, and the boots moved beside the foot. The bed is centred on its AABB (2.04 x 1.29 m, within 2x2 + 5 %). |
+| minor bedroll pad 1.56 m | Pad 1.8 m on a 1.94 m sheet with seam bands at both ends. |
+| minor fence_fortified 1.38 m, lower than the plain fence | Stakes are 2.0-2.2 m with 0.32 m points, rails at 0.45 and 1.45 m, the front row reaches 1.3-1.5 m, and the brace runs up to 1.5 m. AABB height is 2.22 m. Still a 2 m modular run. |
+| minor log_shelter doorway 1.49 m | Eave 1.98 m, ridge 3.0 m: 1.9 m clear under the lintel. Side walls have five logs (about 0.9 m). 1636 tris. |
+| (found while fixing) log_shelter yard fire ring | The ring of stones was centred on the hut, under the roof, not on the yard fire at (-0.85, -1.4). It is now centred on the fire. |
+| minor field collider 0.82 m tall (hoe handle) | The hoe lies across the near rows, the stakes are shorter, and nothing rises above 0.33 m. AABB height is 0.34 m (field_small and field_large). |
+| minor out-of-scope files on the branch | Commit `009c6a00`: every file outside this package now matches `claude/mmo-overhaul` at `cdb2c165`, so `git diff claude/mmo-overhaul` lists only this package's paths. The six Meshy `.glb.import` files and 30 generated `.uid` files are untracked again (they stay on disk in this worktree), and `TASK.md` moved from the repo root to `tools/dsc/camp/TASK.md`. |
+| minor tri budget under the brief's 300 floor | straw_roll gets 16-segment roll and ties and a third tie (324 tris), bedroll gets the second seam band (304), signpost gets two nail heads (336). Every kind is now inside 300-2500. |
+| minor report contradicted itself | Rewritten (this file). |
 
 ## Per kind
 
-| kind | tris | AABB (m, x × y up × z) | sheet | atlas tiles |
-|---|---|---|---|---|
-| large_box | 568 | 1.95 × 1.46 × 1.05 | work/sheets/large_box.png | plank, wood, wood_dark, iron, rope, hide, weave, soot |
-| chest | 432 | 0.83 × 0.48 × 0.62 | work/sheets/chest.png | plank, wood, iron, wood_dark, soot |
-| barrel | 308 | 0.77 × 0.90 × 0.77 | work/sheets/barrel.png | wood, wood_dark, soot, water, iron |
-| bucket | 396 | 0.36 × 0.45 × 0.34 | work/sheets/bucket.png | wood, wood_dark, soot, water, iron, rope |
-| signpost | 296 | 1.01 × 1.87 × 0.34 | work/sheets/signpost.png | bark, wood, wood_dark, sign_board, rope, cobble, log_end |
-| bedroll | 292 | 0.84 × 0.30 × 1.82 | work/sheets/bedroll.png | hide, weave, fiber, leather_dark, rope, wood |
-| straw_roll | 180 | 0.82 × 0.47 × 1.86 | work/sheets/straw_roll.png | hide, thatch, fiber, rope |
-| campfire_stand | 796 | 0.93 × 0.96 × 0.91 | work/sheets/campfire_stand.png | stone, ash, ember, wood_dark, rope, bark, meat_drying, meat_raw, clay, clay_dark, char |
-| technical_workbench | 644 | 1.78 × 1.25 × 0.84 | work/sheets/technical_workbench.png | plank, deck_dark, wood, wood_dark, bark, log_end, iron, rope, stone_dark, water |
-| grindstone | 448 | 0.87 × 0.71 × 0.49 | work/sheets/grindstone.png | wood, wood_dark, stone_dark, stone, iron, rope, water, fiber |
-| fishing_stand | 1512 | 0.94 × 1.07 × 0.73 | work/sheets/fishing_stand.png | stone_dark, stone, ash, char, ember, wood_dark, wood, rope, fish, hide |
-| stone_grill | 840 | 1.34 × 0.54 × 1.35 | work/sheets/stone_grill.png | stone, stone_dark, cobble, ash, char, ember, fish, meat_drying, meat_raw, clay, clay_dark, iron |
-| tent_canvas | 804 | 2.90 × 2.27 × 1.85 | work/sheets/tent_canvas.png | wood, wood_dark, canvas, canvas_slope, leather_dark, rope, stone, hide, weave, fiber, clay, clay_dark, plank |
-| fence_fortified | 1052 | 2.05 × 1.38 × 0.56 | work/sheets/fence_fortified.png | bark, log_end, wood, wood_dark, rope, stone |
-| field_small | 816 | 1.79 × 0.82 × 1.80 | work/sheets/field_small.png | dirt, clay_dark, leather_dark, bark, log_end, wood, wood_dark, iron, weave, fiber, water |
-| field_large | 1104 | 2.79 × 0.82 × 2.80 | work/sheets/field_large.png | same as field_small |
-| log_shelter | 1540 | 3.39 × 2.76 × 3.27 | work/sheets/log_shelter.png | bark, log_end, wood, wood_dark, thatch, rope, hide, plank, fiber, clay, clay_dark, stone, ash, ember, char |
-| cabin_bed | 620 | 2.00 × 1.15 × 1.00 | work/sheets/cabin_bed.png | plank, wood, wood_dark, bark, log_end, hide, leather_dark, fiber, rope, canvas, clay, ember |
+| kind | tris | AABB (m, x × y up × z) | atlas tiles |
+|---|---|---|---|
+| large_box | 568 | 1.95 × 1.46 × 1.05 | plank, wood, wood_dark, iron, rope, hide, weave, soot |
+| chest | 432 | 0.83 × 0.48 × 0.62 | plank, wood, iron, wood_dark, soot |
+| barrel | 308 | 0.77 × 0.90 × 0.77 | wood, wood_dark, soot, water, iron |
+| bucket | 396 | 0.36 × 0.45 × 0.34 | wood, wood_dark, soot, water, iron, rope |
+| signpost | 336 | 1.01 × 1.87 × 0.34 | bark, wood, wood_dark, sign_board, rope, cobble, log_end, iron |
+| bedroll | 304 | 0.84 × 0.38 × 1.94 | hide, weave, fiber, leather_dark, rope, wood |
+| straw_roll | 324 | 0.82 × 0.47 × 1.86 | hide, thatch, fiber, rope |
+| campfire_stand | 796 | 0.93 × 0.94 × 0.91 | stone, ash, ember, wood_dark, rope, bark, meat_drying, meat_dried, iron, clay, clay_dark |
+| technical_workbench | 644 | 1.78 × 1.25 × 0.84 | plank, deck_dark, wood, wood_dark, bark, log_end, iron, rope, stone_dark, water |
+| grindstone | 448 | 0.87 × 0.71 × 0.49 | wood, wood_dark, stone_dark, stone, iron, rope, water, fiber |
+| fishing_stand | 1512 | 0.94 × 1.07 × 0.73 | stone_dark, stone, ash, char, ember, wood_dark, wood, rope, fish, hide, soot |
+| stone_grill | 840 | 1.34 × 0.54 × 1.35 | stone, stone_dark, cobble, ash, char, ember, fish, meat_drying, meat_raw, clay, clay_dark, iron |
+| tent_canvas | 804 | 2.90 × 2.27 × 1.85 | wood, wood_dark, canvas, canvas_slope, leather_dark, rope, stone, hide, weave, fiber, clay, clay_dark, plank |
+| fence_fortified | 1052 | 2.06 × 2.22 × 0.56 | bark, log_end, wood, wood_dark, rope, stone |
+| field_small | 756 | 1.79 × 0.34 × 1.80 | dirt, soot, bark, log_end, wood, wood_dark, iron, weave, fiber, water |
+| field_large | 1008 | 2.79 × 0.34 × 2.80 | same as field_small |
+| log_shelter | 1636 | 3.39 × 3.14 × 3.33 | bark, log_end, wood, wood_dark, thatch, rope, hide, plank, fiber, clay, clay_dark, stone, ash, ember, char |
+| cabin_bed | 620 | 2.04 × 1.15 × 1.29 | plank, wood, wood_dark, bark, log_end, hide, leather_dark, fiber, rope, canvas, clay, ember |
 
-All 18 side by side with tent/workbench/well for comparison: `work/sheets/all.png`.
+Sheets: `work/sheets/<kind>.png` and `work/sheets/all.png` (all 18 next to tent/workbench/well, with
+the foundation disc). The 12 changed kinds and all.png were rendered again in round 2. `work/` is review
+material and does not merge.
 
-## Decisions
+## Caveats for the integrator and Cursor
 
-- **Style rule followed:** no raw boxes. Everything is segmented, bevelled by rotation, or built from the
-  kit's `log`/`rock`/`cyl(seg=…)` primitives; long planes are split or layered so no single facet catches
-  the sun and reads as a plank (that bit the fields: 6 jittered ridge segments per row, dark furrow bands
-  between).
-- **Orientation:** front faces -Y (becomes +Z in Godot, the camera side) for every new piece except the
-  tent_canvas, which is open on its long side like the existing tent, so no reorientation rule is needed.
-- **Silhouette at the iso camera:** roofs are pitched towards the camera, never away — the first
-  `log_shelter` draft pitched the roof towards the viewer and hid the whole interior. Final: gable roof,
-  ridge running into the depth, open gable front.
-- **flat pieces** (fields, bedrolls) get small 3D relief (heaped ridges, rolled blanket cylinders) rather
-  than a textured plane, because the camera is high-iso and the atlas is albedo only.
-- **fence_fortified** keeps the plain fence's 2 m modular rhythm (neighbours meet end to end at ±1.0) so it
-  can be chained like `fence`.
-- **bucket / barrel** stay small and firmly under their 1 m cell (0.36–0.77 m), as asked.
+- **Foundation disc.** The models now assume the 0.08 m disc. If Cursor ever skips `ensure_foundation`
+  for a kind (straw_roll is already skipped and is built for bare terrain), that model's ground detail
+  floats about 8 cm above the terrain. The cleanest future rule is "a field is its own dirt": skip the
+  disc for field_small/field_large and drop their bed by 0.08 m in `_field`. That would be a coordinated
+  Cursor + builder change and was not done here.
+- **11 of the 18 kinds cannot be placed in game yet.** Only stone_grill, field_small, field_large,
+  straw_roll, log_shelter and cabin_bed have kits, and `BuildPlacer._spawn` handles only those. chest
+  shows only as the camp CargoWarp. campfire_stand, technical_workbench, grindstone, tent_canvas,
+  bedroll, large_box, barrel, bucket, fence_fortified, signpost and fishing_stand have no kit and no
+  `_spawn` case, so players never see them, and the chest/large_box storage and barrel water checks have
+  no in-game path. Orchestrator call: give them kits and `_spawn` cases (Cursor), or accept them as
+  art-only for now.
+- **Stray Meshy JPGs (separate fix).** `game/assets/props/meshy/{treestump,woodlog}*.glb` are tracked on
+  overhaul without their `.import` files. A fresh Godot import uses the default settings and extracts
+  `*_Image_0.jpg` next to them, as an untracked file. The dsc worker had set `embedded_image_handling=3` in
+  those `.import` files, which embeds the image uncompressed and grows each `.scn` to 2.8-3.6 MB in every
+  web pack. That change is dropped from this branch. Fix it on its own, by gitignoring the extracted JPGs
+  or adding them to the export filter.
 - **ASSUMPTION:** `fishing_stand` and `signpost` are decorative placeables (the PRDs give no mechanic for
-  them); `stone_grill` is a variant cooking station with no new mechanic.
+  them), and `stone_grill` is a cooking station variant with no new mechanic.
+
+## Design decisions (from the first pass, still true)
+
+- No raw boxes: shapes are segmented, bevelled by rotation, or built from the kit's `log`/`rock`/`cyl`
+  primitives. Long planes are split so that no single facet catches the sun and reads as a plank.
+- The front faces -Y (+Z in Godot, towards the camera) for every new piece. tent_canvas is the exception:
+  like the existing tent, it is open on its long side.
+- log_shelter: gable roof with the ridge running into the depth and the open gable front facing the
+  camera, so the interior reads.
+- fence_fortified keeps the plain fence's 2 m modular rhythm (neighbours meet end to end at ±1.0).
+- bucket and barrel stay under their 1 m cell (0.36-0.77 m).
 
 ## What I verified
 
-- `./tools/dsc/verify_camp.sh --fast` prints a PASS line for all 18 kinds and `VERIFY FAST PASS`
-  (kind→GLB mapping, unique GLB per kind, `check_manifest` PASS on tris/material/images/origin/footprint/
-  aabb, atlas + 24 base GLBs unchanged, scope, one sheet per kind).
-- Each sheet was inspected at full size from the game's iso angle (warm wood/stone/canvas palette, no
-  floating parts, no untextured grey, nothing below z = 0).
-- `./tools/dsc/verify_camp.sh` (full, imports the new GLBs into Godot, runs `t_structart`, `t_build`,
-  `run_all`, the build lab and `tools/smoke.sh`): see the result at the bottom of this file.
+- `python3 -I tools/blender/structures/check_manifest.py`: PASS for 41 kinds. The manifest rows were
+  rewritten with `--write` after the rebuild.
+- The atlas and the 24 base GLBs match `tools/dsc/camp_base_glbs.sha256`.
+- Burial: the reviewer's `buried.py` reports 0 % of the upward-facing area below 0.085 m for field_small,
+  field_large, bedroll, tent_canvas, campfire_stand, fishing_stand, stone_grill and log_shelter. Before
+  the fix the numbers were 73, 76, 51, 28, 37, 63, 20 and 1 %.
+- In game, with the reviewer's probe lab (all 18 placed plus workbench/well/tent, survivor stand-ins) in
+  Forward+ 1600x900, gl_compatibility 1600x900 and gl_compatibility 844x390: the fields read as tilled
+  soil, with light ridges and dark furrows inside a log frame, including at phone size. The campfire_stand
+  coals glow. The tent floor, the bedroll and the shelter's yard fire are visible. The fortified fence
+  stands taller than a survivor, a survivor fits under the shelter lintel, and the bed is longer than the
+  survivor.
+- Full gate: see below.
 
 ## What I would improve
 
-- **Fish** (`fishing_stand`, `stone_grill`) are the least convincing bodies: flattened icospheres with a
-  prism tail. Another 200 tris of a proper tapered body/fin profile would help at close zoom.
-- **fields** read as soil now, but crops would sell them; the PRD has no crop art yet, so shoots are
-  three or four fibre leaves only.
-- **log_shelter** is the heaviest (1540 tris). Its thatch could use a second, darker course to match the
-  smoker roof's layering.
-- **A normal map** would let the atlases' grain do real work on big surfaces (lid, roof, mattress); the
-  set is albedo-only by design, and the upgrade path in each manifest row says so.
-- `preview.py` now remaps `structures_atlas.png` onto imported GLBs (they embed no image by design, so it
-  rendered white before); worth keeping for every future contact sheet.
+- Fish (`fishing_stand`, `stone_grill`) are the least convincing shapes: flattened icospheres with a prism
+  tail.
+- Fields would sell better with crops. The PRD has no crop art yet, so the shoots are flat fibre leaves.
+- The `soot` furrow tile is grey-black more than dark brown. A dedicated `tilled` atlas tile would read
+  warmer, but it needs an atlas change, which the gate forbids for this package.
+- The set is albedo-only. A normal map would let the atlas grain work on big surfaces.
 
 ## Report for the next agent
 
-- `game/scripts`/`game/scenes` untouched, as required. The kinds reach the game purely through
-  `game/data/props_manifest.json` (`glb` + `aabb_m`), which `prop_visuals.gd` already reads; nothing else
-  needs wiring.
-- Rebuild a model with `Blender -b --factory-startup -P tools/blender/structures/build.py -- <name>`
-  (named builds only — a no-name build rewrites every GLB and fails the gate's hash check), then
-  `check_manifest.py --write`, then `preview.py -- work/sheets/<name>.png <name>`.
-- The gate's inline script `exec_module`s `check_manifest.py`, which makes Python write
-  `tools/blender/structures/__pycache__` even under `-I`; that trips the scope check. Delete it (or
-  `chmod a-w tools/blender/structures`) before running the gate, and restore write bits afterwards.
+- Squash only these paths: `tools/blender/structures/{structures,check_manifest,preview}.py`, the 18
+  GLBs and their `.glb.import` files in `game/assets/props/blender/`, `game/data/props_manifest.json`,
+  this report, and optionally `tools/dsc/{verify_camp.sh,camp_base_glbs.sha256,camp/TASK.md}`. Drop
+  `work/`. Everything else on the branch equals overhaul `cdb2c165`.
+- Rebuild a model with `Blender -b --factory-startup -P tools/blender/structures/build.py -- <name>`.
+  Build named models only: a build with no names rewrites every GLB. Then run
+  `python3 -I tools/blender/structures/check_manifest.py --write`, then
+  `preview.py -- work/sheets/<name>.png <name>`.
+- New `.glb.import` files are part of the change: without them, `t_structart` sees `StandardMaterial3D_*`
+  instead of `structures_atlas.tres`.
 
-## Full gate result (2026-10-20): VERIFY PASS
+## Full gate result
 
-`./tools/dsc/verify_camp.sh` exits 0 and prints `VERIFY PASS` (18/18 kinds, check_manifest, atlas and
-base-GLB hashes, sheets, Godot import, t_structart, t_build, run_all, build_lab, smoke).
-
-Earlier the scope step was red for two reasons, both fixed: Godot's import had extracted embedded
-textures from the six Meshy stump/log GLBs into `game/assets/props/meshy/` (now
-`gltf/embedded_image_handling=3` in those `.glb.import` files, so no JPGs are written), and this worktree
-was behind `claude/mmo-overhaul` (every file outside this task was synced from that branch unchanged).
-
-
-
-`./tools/dsc/verify_camp.sh` content steps all pass:
+`./tools/dsc/verify_camp.sh` (full), 2026-10-20, after the last rebuild: exit 0, `VERIFY PASS`.
 
 ```
 18/18  PASS <kind> -> <glb>
-[check_manifest] PASS 41 kinds resolve to existing GLBs (41 Blender (4 of them stand-ins marked REPLACE), 0 Kenney marked REPLACE)
-structures_atlas.png hash unchanged; 24 base GLBs match tools/dsc/camp_base_glbs.sha256
+check_manifest PASS, atlas and 24 base-GLB hashes unchanged, scope clean against claude/mmo-overhaul
 PASS t_structart / PASS t_build / PASS run_all / PASS build_lab / PASS smoke
 ```
 
-Step 4 (scope) fails with ~50 `out of scope` lines, none of them this task's files: the gate diffs
-against `claude/mmo-overhaul`, which has advanced ~11 commits past this branch's fork point (0caf2c5) with
-other packages (combat, creatures, lighting, meshy art, `verify_minors`, ...). Merging that in is not mine
-to do (Claude Code owns merges; `game/scripts` is Cursor's, and this sandbox denies git ref writes —
-`.git/worktrees/mmo-camp/*.lock: Operation not permitted`). **The integrator should merge
-`claude/mmo-overhaul` into `claude/mmo-camp` and re-run the gate; nothing else is needed from this task.**
-
-Also note: the new `*.glb.import` files are part of the change (the existing set tracks them) — without
-them `t_structart` sees `StandardMaterial3D_xxxxx` instead of `structures_atlas.tres`. Regenerate/repair with
-`python3 tools/blender/structures/godot_import_settings.py` after Godot first imports a new GLB.
+In-game shots for review (outside the repo, in the orchestrator scratchpad): `camp-fix/shots/fix_{fwd,gl,phone}_*.png`,
+taken with the same probe lab and camera set-ups as the reviewer's `camp-review/r1/shots/after_*`.

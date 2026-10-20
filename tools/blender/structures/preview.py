@@ -2,6 +2,7 @@
 
 Blender -b --factory-startup -P tools/blender/structures/preview.py -- <out.png> [names...]
 """
+import json
 import math
 import os
 import sys
@@ -45,12 +46,14 @@ cols = max(1, math.ceil(math.sqrt(len(names) * 1.6)))
 cell = 4.2
 lo = Vector((1e9, 1e9, 0))
 hi = Vector((-1e9, -1e9, 0))
+offsets = []
 for i, n in enumerate(names):
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=os.path.join(GLB_DIR, n + ".glb"))
     _remap_atlas()
     new = [o for o in bpy.data.objects if o not in before]
     off = Vector(((i % cols) * cell, -(i // cols) * cell, 0))
+    offsets.append((n, off))
     for o in new:
         if o.parent is None:
             o.location += off
@@ -82,6 +85,27 @@ bpy.context.scene.collection.objects.link(cam)
 cam.location = mid + d * 60
 cam.rotation_euler = rot.to_euler()
 bpy.context.scene.camera = cam
+
+# The game lays an opaque dirt disc at y = 0.08 m under every building but straw_roll
+# (PropVisuals.ensure_foundation, radius = half the footprint diagonal + 1 m); draw it so the sheet
+# shows what the camera sees, not detail the disc buries. Added after framing so it does not widen it.
+with open(os.path.join(GLB_DIR, "..", "..", "..", "data", "props_manifest.json")) as f:
+    rows = json.load(f)["buildings"]
+fp_by_glb = {}
+for kind, row in rows.items():
+    g = os.path.basename(str(row.get("glb", "")))[:-4]
+    if g and kind != "straw_roll":
+        fp_by_glb.setdefault(g, row.get("footprint", [1, 1]))
+dm = bpy.data.materials.new("foundation_disc")
+dm.use_nodes = True
+next(n for n in dm.node_tree.nodes if n.type == "BSDF_PRINCIPLED").inputs["Base Color"].default_value = (0.2, 0.14, 0.08, 1)
+for n, off in offsets:
+    fp = fp_by_glb.get(n)
+    if fp is None:
+        continue
+    r = 0.5 * math.hypot(fp[0], fp[1]) + 1.0
+    bpy.ops.mesh.primitive_circle_add(vertices=28, radius=r, fill_type="NGON", location=(off.x, off.y, 0.08))
+    bpy.context.object.data.materials.append(dm)
 
 sun_d = bpy.data.lights.new("sun", "SUN")
 sun_d.energy = 3.5

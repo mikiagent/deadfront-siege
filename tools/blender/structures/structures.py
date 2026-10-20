@@ -21,15 +21,15 @@ def _ring(n, radius, z=0.0, phase=0.0):
              math.sin(phase + i * 2 * math.pi / n) * radius, z) for i in range(n)]
 
 
-def _teepee(p, n, base_r, top_z, r, seed=0, phase=0.3, tile="bark", end="char"):
+def _teepee(p, n, base_r, top_z, r, seed=0, phase=0.3, tile="bark", end="char", z0=0.04):
     for i, (x, y, _) in enumerate(_ring(n, base_r, 0.0, phase)):
-        p.log((x, y, 0.04), (x * 0.12, y * 0.12, top_z), r, tile=tile, end_tile=end)
+        p.log((x, y, z0), (x * 0.12, y * 0.12, top_z), r, tile=tile, end_tile=end)
 
 
-def _stone_ring(p, n, radius, size, seed, tile="stone", z=0.0, squash=(1.2, 1.0, 0.75)):
+def _stone_ring(p, n, radius, size, seed, tile="stone", z=0.0, squash=(1.2, 1.0, 0.75), cx=0.0, cy=0.0):
     for i, (x, y, _) in enumerate(_ring(n, radius, 0, 0.2)):
         s = size * (0.85 + 0.3 * ((i * 37 + seed) % 7) / 6)
-        p.rock(s, (x, y, z + s * squash[2] * 0.9), tile=tile, squash=squash, seed=seed + i)
+        p.rock(s, (cx + x, cy + y, z + s * squash[2] * 0.9), tile=tile, squash=squash, seed=seed + i)
 
 
 # ------------------------------------------------------------------ camp
@@ -649,6 +649,9 @@ def roof():
 # ------------------------------------------------------------------ camp pieces (dsc camp set)
 # The 18 placeable kinds that used to fall back to Kenney models. Same kit, tiles and palette as the
 # camp above; footprints (X x Y) follow game/data/props_manifest.json, the front faces -Y.
+# PropVisuals.ensure_foundation lays an opaque dirt disc at y = 0.08 m under every building but
+# straw_roll, so ground detail (beds, mats, ash and ember beds, soil) starts at GROUND and up.
+GROUND = 0.08
 
 def large_box():
     """Big plank storage crate on skids, rope handles, lid propped ajar showing the load (2x1)."""
@@ -799,6 +802,8 @@ def signpost():
     # board ends chamfered with a dark edge strip
     p.box((0.05, 0.055, 0.24), (-0.5, -0.02, 1.42), "wood_dark", rot=(0, 0, -8))
     p.box((0.05, 0.055, 0.22), (0.45, 0.02, 1.08), "wood_dark", rot=(0, 0, 7))
+    for nx, nz in ((-0.1, 1.42), (0.1, 1.08)):
+        p.cyl(0.018, 0.02, (nx, -0.055 if nz > 1.2 else -0.015, nz), "iron", rot=(90, 0, 0), seg=6)
     # a small bundle of firewood and a tied rag at the foot
     p.log((-0.2, 0.12, 0.04), (0.18, 0.2, 0.04), 0.045, tile="bark", seg=6)
     p.log((-0.18, 0.2, 0.09), (0.2, 0.13, 0.09), 0.04, tile="bark", seg=6)
@@ -808,25 +813,27 @@ def signpost():
 
 def bedroll():
     """Hide bedroll on the ground: hide sheet, woven pad, a thick hide blanket rolled down over the
-    foot end, a fibre pillow at the head and corner pegs (1x2)."""
+    foot end, a fibre pillow at the head and corner pegs (1x2). Sits on the foundation disc."""
     p = Part("bedroll")
-    # hide sheet, with a stitched seam band across the foot
-    p.box((0.8, 1.82, 0.035), (0, 0, 0.02), "hide", tile_m=0.45)
-    p.box((0.84, 0.05, 0.045), (0, 0.88, 0.022), "leather_dark")
-    # woven sleeping pad down the middle
-    p.box((0.56, 1.56, 0.07), (0, 0.02, 0.06), "weave", tile_m=0.7)
+    z = GROUND - 0.005
+    # hide sheet, with stitched seam bands across both ends
+    p.box((0.8, 1.94, 0.035), (0, 0, z + 0.0175), "hide", tile_m=0.45)
+    for y in (-0.94, 0.94):
+        p.box((0.84, 0.05, 0.045), (0, y, z + 0.02), "leather_dark")
+    # woven sleeping pad down the middle, long enough for a 1.8 m sleeper
+    p.box((0.56, 1.8, 0.07), (0, 0.02, z + 0.06), "weave", tile_m=0.7)
     # the blanket rolled down over the foot half of the pad: an oval roll across the mat
-    p.cyl(0.12, 0.62, (0, 0.52, 0.16), "hide", rot=(0, 90, 0), seg=9, cap_tile="fiber")
-    p.box((0.62, 0.5, 0.06), (0, 0.62, 0.15), "hide", tile_m=0.5)
+    p.cyl(0.12, 0.62, (0, 0.6, z + 0.16), "hide", rot=(0, 90, 0), seg=9, cap_tile="fiber")
+    p.box((0.62, 0.56, 0.06), (0, 0.66, z + 0.15), "hide", tile_m=0.5)
     for x in (-0.19, 0.19):
-        p.cyl(0.126, 0.045, (x, 0.52, 0.16), "rope", rot=(0, 90, 0), seg=9)
+        p.cyl(0.126, 0.045, (x, 0.6, z + 0.16), "rope", rot=(0, 90, 0), seg=9)
     # pillow: a short fibre roll tied at the ends
-    p.cyl(0.085, 0.5, (0, -0.7, 0.105), "fiber", rot=(0, 90, 0), seg=8, cap_tile="fiber")
+    p.cyl(0.085, 0.5, (0, -0.76, z + 0.105), "fiber", rot=(0, 90, 0), seg=8, cap_tile="fiber")
     for x in (-0.16, 0.16):
-        p.cyl(0.09, 0.04, (x, -0.7, 0.105), "rope", rot=(0, 90, 0), seg=8)
-    # pegs holding the corners down
+        p.cyl(0.09, 0.04, (x, -0.76, z + 0.105), "rope", rot=(0, 90, 0), seg=8)
+    # pegs holding the corners down, driven through the sheet into the ground
     for sx, sy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-        p.log((sx * 0.34, sy * 0.86, -0.02), (sx * 0.34, sy * 0.86, 0.07), 0.018, tile="wood", seg=5)
+        p.log((sx * 0.34, sy * 0.92, -0.02), (sx * 0.34, sy * 0.92, z + 0.07), 0.018, tile="wood", seg=5)
     return [(p, (0, 0, 0))]
 
 
@@ -839,9 +846,9 @@ def straw_roll():
     p.box((0.72, 0.86, 0.07), (0, -0.46, 0.06), "thatch", tile_m=0.6)
     p.box((0.74, 0.05, 0.02), (0, -0.87, 0.1), "rope")
     # the roll: axis along Y, over the pad's back edge
-    p.cyl(0.22, 1.02, (0, 0.4, 0.23), "thatch", rot=(90, 0, 0), seg=10, cap_tile="fiber")
-    for y in (-0.02, 0.82):
-        p.cyl(0.234, 0.06, (0, y, 0.23), "rope", rot=(90, 0, 0), seg=10)
+    p.cyl(0.22, 1.02, (0, 0.4, 0.23), "thatch", rot=(90, 0, 0), seg=16, cap_tile="fiber")
+    for y in (-0.02, 0.4, 0.82):
+        p.cyl(0.234, 0.06, (0, y, 0.23), "rope", rot=(90, 0, 0), seg=16)
         p.box((0.05, 0.04, 0.12), (0.19, y + 0.05, 0.28), "rope", rot=(0, -22, 0))
     # a thatch strip where the pad meets the roll, so the transition is not a hard step
     p.box((0.7, 0.14, 0.05), (0, -0.02, 0.1), "fiber", rot=(18, 0, 0))
@@ -852,9 +859,9 @@ def campfire_stand():
     """Cooking fire upgrade: stone-ring fire with a hook post holding a small hanging pot, and a spit
     of meat skewered between two forked stakes in front of it (1x1)."""
     p = Part("campfire_stand")
-    _stone_ring(p, 10, 0.36, 0.095, 71)
-    p.cyl(0.28, 0.03, (0, 0, 0.015), "ash", seg=10, cap_tile="ember")
-    _teepee(p, 5, 0.2, 0.3, 0.032, phase=0.2, end="ember")
+    _stone_ring(p, 10, 0.36, 0.095, 71, z=GROUND - 0.03)
+    p.cyl(0.28, 0.03, (0, 0, GROUND + 0.02), "ash", seg=10, cap_tile="ember")
+    _teepee(p, 5, 0.2, 0.38, 0.032, phase=0.2, end="ember", z0=GROUND + 0.04)
     # spit: two forked stakes straddling the fire on the camera side
     for sx in (-1, 1):
         p.log((sx * 0.42, -0.1, 0), (sx * 0.42, -0.1, 0.56), 0.03, tile="wood_dark", seg=6)
@@ -876,7 +883,7 @@ def campfire_stand():
     p.cyl(0.072, 0.01, (px, py, 0.72), "meat_dried", seg=9, cap_tile="meat_dried")
     # split firewood stacked beside the ring
     for i in range(3):
-        p.log((0.22, 0.12 + 0.06 * i, 0.04 + 0.05 * i), (0.38, 0.16 + 0.06 * i, 0.05 + 0.05 * i), 0.028, tile="bark", seg=6)
+        p.log((0.22, 0.12 + 0.06 * i, GROUND + 0.03 + 0.05 * i), (0.38, 0.16 + 0.06 * i, GROUND + 0.04 + 0.05 * i), 0.028, tile="bark", seg=6)
     return [(p, (0, 0, 0))]
 
 
@@ -974,9 +981,9 @@ def fishing_stand():
     """Camp fish-drying rack: A-frame with a ridge pole and a drying line of fish hung between the
     front posts, a small smoulder pit beneath and today's catch on a hide (1x1)."""
     p = Part("fishing_stand")
-    _stone_ring(p, 7, 0.19, 0.045, 81, tile="stone_dark", squash=(1.1, 1, 0.6))
-    p.cyl(0.13, 0.02, (0, 0, 0.012), "ash", seg=8, cap_tile="ash")
-    p.log((-0.08, 0, 0.035), (0.08, 0.05, 0.035), 0.022, tile="char", seg=5, end_tile="ember")
+    _stone_ring(p, 7, 0.19, 0.045, 81, tile="stone_dark", squash=(1.1, 1, 0.6), z=GROUND - 0.01)
+    p.cyl(0.13, 0.02, (0, 0, GROUND + 0.012), "ash", seg=8, cap_tile="ember")
+    p.log((-0.08, 0, GROUND + 0.035), (0.08, 0.05, GROUND + 0.035), 0.022, tile="char", seg=5, end_tile="ember")
     # rack: four posts leaning to one ridge pole across the camera, at the back of the cell
     for sx in (-1, 1):
         for sy in (-1, 1):
@@ -988,9 +995,9 @@ def fishing_stand():
         p.log((fx, -0.04, 0.92), (fx, -0.05, 0.87), 0.005, tile="rope", seg=4)
         _fish(p, (fx, -0.06, 0.87), length=0.26, girth=0.032, depth=0.07, yaw=yaw)
     # today's catch on a hide beside the pit, and a coil of line
-    p.box((0.24, 0.17, 0.02), (0.24, -0.3, 0.01), "hide")
-    _fish_flat(p, (0.24, -0.3, 0.03), length=0.22, yaw=-30)
-    p.torus(0.06, 0.014, (-0.26, -0.3, 0.02), "rope", seg=10, tube=4)
+    p.box((0.24, 0.17, 0.02), (0.24, -0.3, GROUND + 0.01), "hide")
+    _fish_flat(p, (0.24, -0.3, GROUND + 0.03), length=0.22, yaw=-30)
+    p.torus(0.06, 0.014, (-0.26, -0.3, GROUND + 0.015), "rope", seg=10, tube=4)
     return [(p, (0, 0, 0))]
 
 
@@ -1016,10 +1023,10 @@ def stone_grill():
         s_ = 0.1 * (0.9 + 0.25 * ((i * 31) % 5) / 4)
         p.rock(s_, (x, y, 0.24), tile="stone", squash=(1.2, 1, 0.7), seed=150 + i)
     # fire inside: ash bed, two charred logs, embers
-    p.cyl(0.42, 0.03, (0, 0, 0.02), "ash", seg=12, cap_tile="ash")
-    p.log((-0.22, -0.06, 0.05), (0.22, 0.08, 0.05), 0.045, tile="char", seg=6, end_tile="ember")
-    p.log((-0.08, -0.22, 0.06), (0.1, 0.2, 0.06), 0.038, tile="char", seg=6, end_tile="ember")
-    p.cyl(0.13, 0.03, (0, 0, 0.045), "ember", seg=8, cap_tile="ember")
+    p.cyl(0.42, 0.03, (0, 0, GROUND + 0.015), "ash", seg=12, cap_tile="ash")
+    p.log((-0.22, -0.06, GROUND + 0.05), (0.22, 0.08, GROUND + 0.05), 0.045, tile="char", seg=6, end_tile="ember")
+    p.log((-0.08, -0.22, GROUND + 0.06), (0.1, 0.2, GROUND + 0.06), 0.038, tile="char", seg=6, end_tile="ember")
+    p.cyl(0.13, 0.03, (0, 0, GROUND + 0.04), "ember", seg=8, cap_tile="ember")
     # four squat stones carrying the slab, leaving the fire visible between them
     for sx in (-1, 1):
         for sy in (-1, 1):
@@ -1047,7 +1054,7 @@ def tent_canvas():
     for sx in (-1, 1):
         for sy in (-1, 1):
             p.log((sx * HL, sy * HW, 0), (sx * HL, sy * HW, H0), 0.048, tile="wood_dark", seg=7)
-            p.rock(0.11, (sx * HL, sy * HW, 0.06), tile="stone", squash=(1.2, 1.1, 0.7), seed=200 + sx * 3 + sy)
+            p.rock(0.11, (sx * HL, sy * HW, GROUND + 0.02), tile="stone", squash=(1.2, 1.1, 0.7), seed=200 + sx * 3 + sy)
         p.log((sx * HL, -HW, H0), (sx * HL, HW, H0), 0.035, tile="wood")
     p.log((-HL - 0.06, 0, H1), (HL + 0.06, 0, H1), 0.04, tile="wood")
     for sx in (-1, 1):  # ridge posts and braces
@@ -1076,11 +1083,12 @@ def tent_canvas():
             p.log((sx * HL, sy * (HW + 0.06), H0), (sx * 1.38, sy * 0.9, 0.06), 0.012, tile="rope", seg=4, end_tile="rope")
             p.log((sx * 1.4, sy * 0.9, -0.02), (sx * 1.42, sy * 0.9, 0.2), 0.028, tile="wood", seg=5)
     # shade floor: a hide groundsheet, a bedroll and a crate of supplies
-    p.box((1.5, 1.24, 0.025), (0.1, 0.02, 0.012), "hide", tile_m=0.6)
-    p.box((0.62, 0.95, 0.06), (-0.35, 0.1, 0.05), "weave", tile_m=0.6)
-    p.cyl(0.085, 0.55, (-0.35, -0.42, 0.1), "fiber", rot=(0, 90, 0), seg=8, cap_tile="fiber")
-    _crate(p, (0.44, 0.4, 0.36), (0.62, 0.22, 0.2), 9)
-    p.cyl(0.1, 0.16, (0.6, -0.24, 0.09), "clay", seg=8, r2=0.08, cap_tile="clay_dark")
+    g = GROUND - 0.005
+    p.box((1.5, 1.24, 0.025), (0.1, 0.02, g + 0.0125), "hide", tile_m=0.6)
+    p.box((0.62, 0.95, 0.06), (-0.35, 0.1, g + 0.05), "weave", tile_m=0.6)
+    p.cyl(0.085, 0.55, (-0.35, -0.42, g + 0.1), "fiber", rot=(0, 90, 0), seg=8, cap_tile="fiber")
+    _crate(p, (0.44, 0.4, 0.36), (0.62, 0.22, g + 0.205), 9)
+    p.cyl(0.1, 0.16, (0.6, -0.24, g + 0.105), "clay", seg=8, r2=0.08, cap_tile="clay_dark")
     return [(p, (0, 0, 0))]
 
 
@@ -1090,91 +1098,93 @@ def fence_fortified():
     p = Part("fence_fortified")
     n = 9
     xs = [-0.92 + i * (1.84 / (n - 1)) for i in range(n)]
-    for z in (0.34, 0.88):  # rails behind the palisade
+    rails = (0.45, 1.45)
+    for z in rails:  # rails behind the palisade
         p.log((-0.98, 0.13, z), (0.98, 0.13, z), 0.04, tile="wood_dark")
     for i, x in enumerate(xs):
-        h = 1.18 + 0.09 * ((i * 37) % 3)
-        r = 0.058 + 0.012 * (i % 2)
-        tip = 0.26
+        h = 2.0 + 0.1 * ((i * 37) % 3)
+        r = 0.064 + 0.012 * (i % 2)
+        tip = 0.32
         p.log((x, 0.0, -0.02), (x, 0.0, h - tip), r, seg=7)
         # sharpened tip: a long four-sided point in fresh pale wood
         p.cyl(r, tip, (x, 0.0, h - tip / 2), "wood", seg=4, r2=0.012, rot=(0, 0, 45), cap_tile="log_end")
         p.cyl(r + 0.006, 0.03, (x, 0.0, h - tip), "wood_dark", seg=7)
         # a shorter log in front of each tall one: the palisade has no see-through gaps
-        p.log((x + 0.1, -0.13, -0.02), (x + 0.1, -0.13, h - 0.5 - tip), r * 0.92, seg=6)
-        p.cyl(r * 0.92, tip, (x + 0.1, -0.13, h - 0.5 - tip / 2), "wood", seg=4, r2=0.01, rot=(0, 0, 45))
+        p.log((x + 0.1, -0.13, -0.02), (x + 0.1, -0.13, h - 0.7 - tip), r * 0.92, seg=6)
+        p.cyl(r * 0.92, tip, (x + 0.1, -0.13, h - 0.7 - tip / 2), "wood", seg=4, r2=0.01, rot=(0, 0, 45))
         if i in (2, 6):  # rope lashing round the stake at both rails
-            for z in (0.34, 0.88):
+            for z in rails:
                 p.cyl(r + 0.004, 0.05, (x, 0.0, z), "rope", seg=8)
 
     # a diagonal brace across the back and rocks at the feet
-    p.log((-0.6, 0.22, 0.06), (0.2, 0.22, 0.95), 0.028, tile="wood")
+    p.log((-0.6, 0.22, 0.06), (0.25, 0.22, 1.5), 0.032, tile="wood")
     for i, x in enumerate((-0.55, 0.3)):
-        p.rock(0.09, (x, -0.22, 0.035), tile="stone", squash=(1.2, 1.1, 0.5), seed=210 + i)
+        p.rock(0.09, (x, -0.22, GROUND + 0.01), tile="stone", squash=(1.2, 1.1, 0.5), seed=210 + i)
     return [(p, (0, 0, 0))]
 
 
 def _field(name, fx, fy, rows):
     """Tilled field: raised soil ridges and dark furrows running along X inside a low log border
-    with corner stakes, a hoe, a seed basket and a watering bucket. fx/fy are the footprint in
-    metres; rows is the number of ridges."""
+    with corner stakes, a hoe laid on the rows, a seed basket and a watering bucket. fx/fy are the
+    footprint in metres; rows is the number of ridges. The bed stands 0.1 m proud so the soil sits
+    above the foundation disc (y = 0.08), and nothing rises past ~0.33 m: a field must not block
+    like a crate (PropVisuals sizes the collider from the AABB)."""
     p = Part(name)
     hx, hy = fx / 2 - 0.09, fy / 2 - 0.09
-    # soil bed, a shade darker than the camp dirt tile so the border and ridges read
-    p.box((2 * hx, 2 * hy, 0.04), (0, 0, 0.02), "dirt", tile_m=0.55)
-    p.box((2 * hx - 0.02, 2 * hy - 0.02, 0.01), (0, 0, 0.03), "soot", tile_m=0.5)
+    top = GROUND + 0.02  # bed top
+    # soil bed, then a dark tilled layer over it: the furrow floor between the ridges
+    p.box((2 * hx, 2 * hy, top), (0, 0, top / 2), "dirt", tile_m=0.55)
+    p.box((2 * hx - 0.1, 2 * hy - 0.1, 0.012), (0, 0, top + 0.004), "soot", tile_m=0.5)
     # ridges: heaped soil, built as short segments with varied height so no long flat plane
-    # catches the light and reads as a plank; dark disturbed soil between neighbours is the furrow
+    # catches the light and reads as a plank; the dark layer shows between neighbours as the furrow
     pitch = 2 * hy / rows
     seg = 6
     span = 2 * hx - 0.24
     for i in range(rows):
         y = -hy + pitch * (i + 0.5)
-        hw_ = pitch * 0.4
+        hw_ = pitch * 0.34
         for k in range(seg):
             x0 = -hx + 0.12 + k * span / seg
-            hh = 0.05 + 0.04 * ((i * 7 + k * 5) % 4) / 3
-            yj = y + 0.025 * (((i * 11 + k * 7) % 3) - 1)  # break the seam line
-            p.prism([(x0, yj - hw_, 0.03), (x0, yj + hw_, 0.03), (x0, yj, 0.03 + hh)],
+            hh = 0.05 + 0.035 * ((i * 7 + k * 5) % 4) / 3
+            yj = y + 0.02 * (((i * 11 + k * 7) % 3) - 1)  # break the seam line
+            p.prism([(x0, yj - hw_, top + 0.005), (x0, yj + hw_, top + 0.005), (x0, yj, top + 0.005 + hh)],
                     (span / seg + 0.03, 0, 0), "dirt", tile_m=0.28)
-        if i < rows - 1:
-            p.box((2 * hx - 0.2, pitch * 0.26, 0.015), (0, y + pitch * 0.5, 0.038), "leather_dark", tile_m=0.25)
     # border: logs pinned with stakes on all four sides
     for sy in (-1, 1):
-        p.log((-hx - 0.02, sy * hy, 0.06), (hx + 0.02, sy * hy, 0.06), 0.062)
+        p.log((-hx - 0.02, sy * hy, GROUND + 0.05), (hx + 0.02, sy * hy, GROUND + 0.05), 0.062)
     for sx in (-1, 1):
-        p.log((sx * hx, -hy, 0.06), (sx * hx, hy, 0.06), 0.058)
+        p.log((sx * hx, -hy, GROUND + 0.05), (sx * hx, hy, GROUND + 0.05), 0.058)
     for sx in (-1, 1):
         for sy in (-1, 1):
             p.log((sx * hx, sy * hy, -0.02), (sx * hx, sy * hy, 0.26), 0.05, tile="wood_dark", seg=6)
-            p.cyl(0.05, 0.08, (sx * hx, sy * hy, 0.29), "wood", seg=5, r2=0.008)
-    # a hoe leaning on the border, a seed basket and a watering bucket in the far corner
-    p.log((hx - 0.12, -hy + 0.22, 0.04), (hx - 0.04, -hy + 0.1, 0.8), 0.02, tile="wood", seg=5)
-    p.box((0.12, 0.16, 0.03), (hx - 0.14, -hy + 0.26, 0.03), "iron", rot=(10, 0, 0))
-    p.cyl(0.1, 0.14, (-hx + 0.16, hy - 0.16, 0.07), "weave", seg=8, r2=0.12, cap_tile="fiber")
-    p.cyl(0.09, 0.18, (-hx + 0.4, hy - 0.15, 0.09), "wood", seg=8, r2=0.105, cap_tile="water")
+            p.cyl(0.05, 0.06, (sx * hx, sy * hy, 0.29), "wood", seg=5, r2=0.008)
+    # a hoe laid across the near rows, a seed basket and a watering bucket in the far corner
+    p.log((hx - 0.7, -hy + 0.3, top + 0.08), (hx - 0.14, -hy + 0.16, top + 0.05), 0.02, tile="wood", seg=5)
+    p.box((0.12, 0.16, 0.03), (hx - 0.12, -hy + 0.2, top + 0.04), "iron", rot=(8, 0, -14))
+    p.cyl(0.1, 0.14, (-hx + 0.16, hy - 0.16, top + 0.07), "weave", seg=8, r2=0.12, cap_tile="fiber")
+    p.cyl(0.09, 0.16, (-hx + 0.4, hy - 0.15, top + 0.08), "wood", seg=8, r2=0.105, cap_tile="water")
     return p
+
+
+def _shoots(p, xs, y, h=0.14, leaf=True):
+    """Young shoots standing on a ridge."""
+    z = GROUND + 0.06
+    for x in xs:
+        p.log((x, y, z), (x, y + 0.02, z + h), 0.014, tile="fiber", seg=4, end_tile="fiber")
+        if leaf:
+            p.box((0.09, 0.07, 0.012), (x + 0.02, y, z + h - 0.01), "fiber", rot=(0, 18, 0))
 
 
 def field_small():
     p = _field("field_small", 1.86, 1.86, 6)
-    # a few young shoots up in one corner of the rows
-    for k in range(5):
-        x, y = -0.4 + 0.2 * k, -0.42
-        p.log((x, y, 0.06), (x, y + 0.02, 0.2), 0.014, tile="fiber", seg=4, end_tile="fiber")
-        p.box((0.09, 0.07, 0.012), (x + 0.02, y, 0.19), "fiber", rot=(0, 18, 0))
+    _shoots(p, [-0.4 + 0.2 * k for k in range(5)], -0.42)  # a few young shoots in one row
     return [(p, (0, 0, 0))]
 
 
 def field_large():
     p = _field("field_large", 2.86, 2.86, 9)
-    for k in range(7):
-        x, y = -0.9 + 0.3 * k, 0.62
-        p.log((x, y, 0.06), (x, y + 0.02, 0.2), 0.014, tile="fiber", seg=4, end_tile="fiber")
-        p.box((0.09, 0.07, 0.012), (x + 0.02, y, 0.19), "fiber", rot=(0, 18, 0))
-    for k in range(5):
-        x, y = -0.2 + 0.24 * k, -0.9
-        p.log((x, y, 0.06), (x, y - 0.02, 0.18), 0.012, tile="fiber", seg=4, end_tile="fiber")
+    _shoots(p, [-0.9 + 0.3 * k for k in range(7)], 0.62)
+    _shoots(p, [-0.2 + 0.24 * k for k in range(5)], -0.9, h=0.12, leaf=False)
     return [(p, (0, 0, 0))]
 
 
@@ -1184,7 +1194,7 @@ def log_shelter():
     seat out front (4x4, the hut itself about 3 x 2.6 m so the yard reads). Front faces -Y."""
     p = Part("log_shelter")
     hw, hd = 1.5, 1.3     # half width (X), half depth (Y)
-    eave, ridge = 1.55, 2.62
+    eave, ridge = 1.98, 3.0  # 1.9 m clear under the lintel: a 1.8 m survivor walks in upright
     r = 0.1
     # back wall: stacked logs, ends interlocked at the corners
     z, row = r * 0.9, 0
@@ -1193,9 +1203,9 @@ def log_shelter():
         p.log((-hw - ex, hd, z), (hw + ex, hd, z), r * (1.0 if row % 2 else 0.92))
         z += 2 * r * 0.9
         row += 1
-    # side walls: four low logs each, open above
+    # side walls: five low logs each (~0.9 m), open above so the camera sees in
     for sx in (-1, 1):
-        for i in range(4):
+        for i in range(5):
             zz = r * 0.9 + i * 2 * r * 0.9
             p.log((sx * hw, hd, zz), (sx * hw, -hd, zz), r * (0.95 if i % 2 else 1.0))
     # front: corner posts to the eave, a lintel, and a centre post to the ridge
@@ -1232,15 +1242,15 @@ def log_shelter():
     p.cyl(0.085, 0.52, (0.78, 0.6, 0.44), "fiber", rot=(0, 90, 0), seg=8, cap_tile="fiber")
     _crate(p, (0.4, 0.38, 0.38), (-0.85, 1.0, 0.19), 4)
     p.cyl(0.08, 0.17, (-0.85, 0.72, 0.46), "clay", seg=9, r2=0.066, cap_tile="clay_dark")
-    p.torus(0.07, 0.018, (-0.5, 1.05, 0.02), "rope", seg=10, tube=4)
-    # front yard: fire pit, log seat and a firewood stack
-    _stone_ring(p, 8, 0.3, 0.09, 61, tile="stone")
-    p.cyl(0.22, 0.025, (-0.85, -1.4, 0.012), "ash", seg=8, cap_tile="ash")
-    p.cyl(0.11, 0.03, (-0.85, -1.4, 0.02), "ember", seg=7, cap_tile="ember")
-    p.log((-0.95, -1.4, 0.07), (-0.73, -1.36, 0.07), 0.033, tile="char", seg=5, end_tile="ember")
+    p.torus(0.07, 0.018, (-0.5, 1.05, GROUND + 0.015), "rope", seg=10, tube=4)
+    # front yard: fire pit (the ring around the yard fire, not the hut centre), log seat, firewood
+    _stone_ring(p, 8, 0.3, 0.09, 61, tile="stone", z=GROUND - 0.03, cx=-0.85, cy=-1.4)
+    p.cyl(0.22, 0.025, (-0.85, -1.4, GROUND + 0.012), "ash", seg=8, cap_tile="ash")
+    p.cyl(0.11, 0.03, (-0.85, -1.4, GROUND + 0.02), "ember", seg=7, cap_tile="ember")
+    p.log((-0.95, -1.4, GROUND + 0.07), (-0.73, -1.36, GROUND + 0.07), 0.033, tile="char", seg=5, end_tile="ember")
     p.log((0.35, -1.6, 0.11), (1.25, -1.6, 0.11), 0.11, tile="bark", seg=8)
     for i in range(3):
-        p.log((-1.62, 0.6 - 0.1 * i, 0.06 + 0.07 * i), (-1.62, -0.5, 0.06 + 0.07 * i), 0.045, tile="bark", seg=6)
+        p.log((-1.62, 0.6 - 0.1 * i, GROUND + 0.03 + 0.07 * i), (-1.62, -0.5, GROUND + 0.03 + 0.07 * i), 0.045, tile="bark", seg=6)
     return [(p, (0, 0, 0))]
 
 
@@ -1248,7 +1258,8 @@ def cabin_bed():
     """Wooden bed: plank frame and legs, hide mattress, a fur blanket folded over the foot end, a
     plank headboard, pillow, boots and a stool with a clay lamp (2x2)."""
     p = Part("cabin_bed")
-    L, W, H = 1.8, 0.94, 0.42
+    L, W, H = 2.0, 0.94, 0.42
+    M = L - 0.16  # mattress length: 1.84 m, longer than the 1.8 m survivor
     for sy in (-1, 1):
         p.box((L, 0.09, 0.1), (0, sy * (W / 2 - 0.05), H - 0.05), "plank", tile_m=1.3)
     for sx in (-1, 1):
@@ -1260,36 +1271,40 @@ def cabin_bed():
     hx = -L / 2 + 0.05
     for sy in (-1, 1):
         p.box((0.1, 0.1, 0.76), (hx, sy * (W / 2 - 0.05), H + 0.32), "wood", tile_m=0.7)
-        p.box((0.13, 0.13, 0.04), (hx, sy * (W / 2 - 0.05), H + 0.71), "wood_dark", tile_m=0.4)
+        p.box((0.12, 0.12, 0.04), (hx, sy * (W / 2 - 0.05), H + 0.71), "wood_dark", tile_m=0.4)
     for z in (H + 0.2, H + 0.4, H + 0.6):
         p.box((0.05, W - 0.1, 0.14), (hx, 0, z), "plank", tile_m=0.7)
     # foot rail on short posts
     for sy in (-1, 1):
-        p.log((L / 2 - 0.06, sy * (W / 2 - 0.05), H - 0.02), (L / 2 - 0.06, sy * (W / 2 - 0.05), H + 0.22), 0.045,
+        p.log((L / 2 - 0.04, sy * (W / 2 - 0.05), H - 0.02), (L / 2 - 0.04, sy * (W / 2 - 0.05), H + 0.22), 0.045,
               tile="wood_dark", seg=6)
-    p.log((L / 2 - 0.06, -W / 2 + 0.02, H + 0.2), (L / 2 - 0.06, W / 2 - 0.02, H + 0.2), 0.045, tile="wood")
+    p.log((L / 2 - 0.04, -W / 2 + 0.02, H + 0.2), (L / 2 - 0.04, W / 2 - 0.02, H + 0.2), 0.045, tile="wood")
     # slats and the hide mattress, with a worn leather top layer
     for i in range(5):
-        p.box((L - 0.24, (W - 0.2) / 5 - 0.04, 0.04), (0, -W / 2 + 0.1 + (i + 0.5) * (W - 0.2) / 5, H), "wood", tile_m=0.8)
-    p.box((L - 0.24, W - 0.1, 0.12), (0.0, 0, H + 0.07), "hide", tile_m=0.6)
-    p.box((L - 0.44, W - 0.26, 0.05), (0.03, 0, H + 0.15), "leather_dark", tile_m=0.6)
+        p.box((M, (W - 0.2) / 5 - 0.04, 0.04), (0, -W / 2 + 0.1 + (i + 0.5) * (W - 0.2) / 5, H), "wood", tile_m=0.8)
+    p.box((M, W - 0.1, 0.12), (0.0, 0, H + 0.07), "hide", tile_m=0.6)
+    p.box((M - 0.2, W - 0.26, 0.05), (0.03, 0, H + 0.15), "leather_dark", tile_m=0.6)
     # pillow at the head
     p.cyl(0.075, 0.5, (-L / 2 + 0.3, 0, H + 0.19), "fiber", rot=(0, 90, 0), seg=8, cap_tile="fiber")
     for y in (-0.16, 0.16):
         p.cyl(0.08, 0.035, (-L / 2 + 0.3, y, H + 0.19), "rope", rot=(0, 90, 0), seg=8)
     # fur blanket folded over the foot half: three thin layers, the top one turned back
-    for i, (zz, yy, ln, tile) in enumerate(((0.0, 0.42, 0.86, "hide"), (0.06, 0.4, 0.8, "fiber"), (0.11, 0.36, 0.6, "leather_dark"))):
-        p.box((ln * 0.96, W + 0.04 - 0.02 * i, 0.05), (0.1 + 0.02 * i, -0.02, H + 0.2 + zz), tile, rot=(0, 0, 2 * i), tile_m=0.7)
-    p.cyl(0.05, W - 0.06, (0.1 + 0.86 * 0.48, -0.02, H + 0.2), "hide", rot=(0, 90, 0), seg=7, cap_tile="fiber")
-    # a stool at the foot with a small clay lamp burning
-    sx_ = L / 2 + 0.04
-    p.cyl(0.14, 0.36, (sx_, W / 2 - 0.14, 0.18), "bark", seg=8, cap_tile="log_end")
-    p.cyl(0.055, 0.05, (sx_, W / 2 - 0.14, 0.39), "clay", seg=8, r2=0.07, cap_tile="ember")
-    # boots on the floor and a folded shirt over the foot rail
-    for y in (-0.18, -0.02):
-        p.box((0.1, 0.17, 0.12), (L / 2 - 0.32, y, 0.06), "leather_dark")
-        p.box((0.16, 0.17, 0.05), (L / 2 - 0.38, y, 0.025), "leather_dark")
-    p.box((0.26, 0.22, 0.03), (L / 2 - 0.08, 0.16, H + 0.24), "canvas", rot=(0, 0, 8), tile_m=0.4)
+    for i, (zz, yy, ln, tile) in enumerate(((0.0, 0.42, 0.9, "hide"), (0.06, 0.4, 0.84, "fiber"), (0.11, 0.36, 0.64, "leather_dark"))):
+        p.box((ln * 0.96, W + 0.04 - 0.02 * i, 0.05), (0.16 + 0.02 * i, -0.02, H + 0.2 + zz), tile, rot=(0, 0, 2 * i), tile_m=0.7)
+    p.cyl(0.05, W - 0.06, (0.16 + 0.9 * 0.48, -0.02, H + 0.2), "hide", rot=(0, 90, 0), seg=7, cap_tile="fiber")
+    # a stool by the head on the camera side with a small clay lamp burning
+    stx, sty = -L / 2 + 0.42, -W / 2 - 0.2
+    p.cyl(0.14, 0.36, (stx, sty, 0.18), "bark", seg=8, cap_tile="log_end")
+    p.cyl(0.055, 0.05, (stx, sty, 0.39), "clay", seg=8, r2=0.07, cap_tile="ember")
+    # boots on the floor beside the foot and a folded shirt over the foot rail
+    for x in (L / 2 - 0.5, L / 2 - 0.32):
+        p.box((0.09, 0.1, 0.18), (x, -W / 2 - 0.12, 0.09), "leather_dark")
+        p.box((0.09, 0.22, 0.05), (x, -W / 2 - 0.18, 0.025), "leather_dark")
+    p.box((0.2, 0.22, 0.03), (L / 2 - 0.1, 0.16, H + 0.24), "canvas", rot=(0, 0, 8), tile_m=0.4)
+    # centre the bed plus its stool on the origin (check_manifest: origin within 0.15 m)
+    lo = min(v.co.y for v in p.bm.verts)
+    hi = max(v.co.y for v in p.bm.verts)
+    bmesh.ops.translate(p.bm, verts=p.bm.verts, vec=(0, -(lo + hi) / 2, 0))
     return [(p, (0, 0, 0))]
 
 
