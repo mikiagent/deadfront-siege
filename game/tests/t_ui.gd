@@ -11,7 +11,7 @@ const OWNED := [
 	"res://scripts/ui/map_screen.gd", "res://scripts/ui/fatigue_panel.gd", "res://scripts/ui/world_ui.gd",
 	"res://scripts/ui/creature_plates.gd", "res://scripts/ui/context_radial.gd", "res://scripts/ui/gather_radial.gd",
 	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
-	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd", "res://scripts/ui/item_text.gd",
+	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
 ]
 const TYPE_MIN := 12
 
@@ -24,7 +24,6 @@ var CU: GDScript
 var MS: GDScript
 var LD: GDScript
 var LAB: GDScript
-var IT: GDScript
 var CC: GDScript
 
 func _process(_delta: float) -> bool:
@@ -38,7 +37,6 @@ func _process(_delta: float) -> bool:
 	MS = load("res://scripts/ui/map_screen.gd")
 	LD = load("res://scripts/ui/level_display.gd")
 	LAB = load("res://scripts/dev/ui_real_capture_lab.gd")
-	IT = load("res://scripts/ui/item_text.gd")
 	CC = load("res://scripts/ui/character_creation.gd")
 	_expect(UT.TYPE_MIN == TYPE_MIN, "type floor is %d" % TYPE_MIN)
 	_test_owned_sources()
@@ -175,8 +173,8 @@ func _test_craft_level_text() -> void:
 	_expect(tested > 0, "hand recipes with inputs exist")
 	_expect(CU.NO_LEVEL == LD.NONE and LD.NONE == "Lv. —", "missing-input level text is 'Lv. —', in the LevelDisplay format")
 	var data: Node = get_root().get_node("Data")
-	_expect(not (IT.stat_lines(data.item(&"work_axe")) as PackedStringArray).is_empty(), "a tool has stat lines")
-	_expect(IT.nice_name("no_such_thing") == "No Such Thing", "nice_name falls back to the capitalised id")
+	_expect(not (LD.stat_lines(data.item(&"work_axe")) as PackedStringArray).is_empty(), "a tool has stat lines")
+	_expect(LD.nice_name("no_such_thing") == "No Such Thing", "nice_name falls back to the capitalised id")
 	print("[t_ui] craft: %d unmakeable hand recipes read '%s'" % [tested, CU.NO_LEVEL])
 
 func _test_display_mode() -> void:
@@ -228,7 +226,9 @@ func _test_display_mode() -> void:
 	var SS: GDScript = load("res://scripts/ui/skills_sheet.gd")
 	var zones: Array[Rect2] = UT.hud_reserved(land)
 	var sheet: Rect2 = SS.panel_rect(land)
-	_expect(not sheet.intersects(zones[0]), "landscape skills panel %s clears the vitals band %s" % [sheet, zones[0]])
+	# A landscape phone gets an opaque full-screen sheet (under the vitals only 3 of 12 rows fitted).
+	_expect(SS.is_sheet(land) and sheet.encloses(zones[0]), "landscape skills sheet %s covers the vitals band %s" % [sheet, zones[0]])
+	_expect(not SS.is_sheet(Vector2(1600, 900)) and not SS.is_sheet(Vector2(390, 844)), "desktop and portrait skills keep the panel between the HUD blocks")
 	_expect(sheet.end.y <= land.y and sheet.size.y >= 4.0 * SS.ROW_H, "landscape skills panel fits the view with room for rows (%s)" % sheet)
 	_expect(zones.size() == 3 and zones[1].position.x > land.x * 0.7, "landscape HUD zones include the right map/rail column (%s)" % [zones])
 
@@ -369,3 +369,28 @@ func _test_review_fixes() -> void:
 	var SS: GDScript = load("res://scripts/ui/skills_sheet.gd")
 	_expect(SS.scrollbar_reserve(sc) >= 12 + UT.SPACE, "skills sheet reserves the scrollbar width (%d)" % SS.scrollbar_reserve(sc))
 	sc.free()
+	# skill symbols are white silhouettes: one that fills little of its icon reads as a thin line
+	# (the crossbow covered 6 %). Blob-shaped ones still need an eye on the skills shot.
+	var thinnest := 1.0
+	for id in SS.SYMBOLS:
+		var tex: Texture2D = icons.texture(StringName(str(SS.SYMBOLS[id])))
+		var share := _opaque_share(tex)
+		thinnest = minf(thinnest, share)
+		_expect(share >= 0.12, "skill %s symbol %s fills %.0f%% of its icon (>= 12%%)" % [id, SS.SYMBOLS[id], share * 100.0])
+	print("[t_ui] skill symbols: %d, thinnest silhouette %.2f" % [SS.SYMBOLS.size(), thinnest])
+
+## Share of an icon's pixels that are opaque (alpha > 0.5); 0 when the icon is missing.
+func _opaque_share(tex: Texture2D) -> float:
+	if tex == null:
+		return 0.0
+	var img := tex.get_image()
+	if img == null or img.is_empty():
+		return 0.0
+	if img.is_compressed():
+		img.decompress()
+	var n := 0
+	for y in img.get_height():
+		for x in img.get_width():
+			if img.get_pixel(x, y).a > 0.5:
+				n += 1
+	return float(n) / float(img.get_width() * img.get_height())

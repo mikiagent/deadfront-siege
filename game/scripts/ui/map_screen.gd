@@ -176,7 +176,7 @@ func _material_line(climate: String) -> String:
 	if block is Dictionary:
 		for row in (block as Dictionary).get("materials", []):
 			if row is Dictionary:
-				names.append(ItemText.nice_name(str((row as Dictionary).get("id", ""))))
+				names.append(LevelDisplay.nice_name(str((row as Dictionary).get("id", ""))))
 			if names.size() >= 3:
 				break
 	if names.is_empty():

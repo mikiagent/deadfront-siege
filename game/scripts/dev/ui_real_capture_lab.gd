@@ -116,8 +116,21 @@ func _run() -> void:
 				right = maxf(right, l.get_global_rect().end.x)
 			print("[uireal] skills: rightmost text %.0f, scrollbar starts %.0f" % [right, vbar.get_global_rect().position.x])
 			_expect(right <= vbar.get_global_rect().position.x + 0.5, "skills text stays left of the scrollbar (%.0f > %.0f)" % [right, vbar.get_global_rect().position.x])
+		# No text over the vitals: the panel clears them, or (landscape phone) hides them under an opaque sheet.
+		var opaque := (panel.get_theme_stylebox("panel") as StyleBoxFlat).bg_color.a >= 0.99
 		for zone in UiTokens.hud_reserved(logical).slice(0, 1):
-			_expect(not panel.get_global_rect().intersects(zone), "skills panel %s clears the vitals block %s" % [panel.get_global_rect(), zone])
+			var pr := panel.get_global_rect()
+			_expect(not pr.intersects(zone) or (opaque and pr.encloses(zone)), "skills panel %s clears the vitals block %s or covers it opaquely" % [pr, zone])
+		# Rows readable without scrolling: under the vitals at 844x390 only 3 of 12 showed.
+		var shown := 0
+		var total := 0
+		for c in _controls_in(sheet):
+			if c is Button and str(c.name).begins_with("Skill_"):
+				total += 1
+				if scroll.get_global_rect().grow(0.5).encloses(c.get_global_rect()):
+					shown += 1
+		print("[uireal] skills: rows fully visible %d/%d" % [shown, total])
+		_expect(shown >= mini(total, 8), "skills shows at least 8 of %d rows without scrolling (got %d)" % [total, shown])
 		await _capture("skills", [sheet], logical)
 		sheet.close()
 	# atlas
@@ -173,6 +186,27 @@ func _run() -> void:
 			cc_rects[str(c.name)] = c.get_global_rect()
 	_expect(cc_rects.has("EnterRift") and cc_rects.has("NameField"), "character creation has the name field and ENTER THE RIFT")
 	_check_blocks("charcreate", cc_rects, logical)
+	# Cards in one row line up: titles at one y, head-start lines at one y, every line inside its card.
+	var rows := {}
+	for c in _controls_in(cc):
+		if c is Button and str(c.name).begins_with("Card_"):
+			var lines := _labels_in(c)
+			for l in lines:
+				_expect(c.get_global_rect().grow(0.5).encloses(l.get_global_rect()), "charcreate: %s line \"%s\" inside its card" % [c.name, l.text.left(20)])
+			if not lines.is_empty():
+				(rows.get_or_add(roundi(c.get_global_rect().position.y), []) as Array).append(Vector2(lines[0].get_global_rect().position.y, lines[-1].get_global_rect().position.y))
+	var spread := Vector2.ZERO
+	for y in rows:
+		var lo := Vector2(INF, INF)
+		var hi := -lo
+		for v: Vector2 in rows[y]:
+			lo = lo.min(v)
+			hi = hi.max(v)
+		spread = spread.max(hi - lo)
+	print("[uireal] charcreate cards: rows=%d title_y_spread=%.1f start_y_spread=%.1f" % [rows.size(), spread.x, spread.y])
+	_expect(spread.x <= 1.0 and spread.y <= 1.0, "charcreate: card titles and head starts line up across each row (spread %s)" % spread)
+	for key in ["Body_f", "Body_m", "NameField", "EnterRift"]:
+		_expect(not cc_rects.has(key) or (cc_rects[key] as Rect2).size.y >= UiTokens.TARGET_PRIMARY - 0.5, "charcreate: %s is at least %d px tall (%s)" % [key, UiTokens.TARGET_PRIMARY, cc_rects.get(key)])
 	await _capture("charcreate", [cc.get_child(0) as Control], logical)
 	cc.queue_free()
 	_finish(phone, logical)

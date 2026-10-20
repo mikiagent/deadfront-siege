@@ -94,9 +94,18 @@ func _ready() -> void:
 		card.add_child(stack)
 		stack.add_child(_card_line(str(occupation.get("name", id)), _px(16 if phone else 24), UiTokens.TEXT))
 		if not phone:
+			# Title and story from the top, head start pinned to the bottom: centred stacks put a
+			# one-line story's title 13 px below its row neighbours.
+			stack.alignment = BoxContainer.ALIGNMENT_BEGIN
+			stack.offset_top = _px(24)
+			stack.offset_bottom = -_px(24)
 			var story := _card_line(str(occupation.get("story", "")), _px(16), UiTokens.META)
 			story.add_theme_constant_override("line_spacing", -_px(STORY_TIGHTEN))
 			stack.add_child(story)
+			var gap := Control.new()
+			gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			stack.add_child(gap)
 		stack.add_child(_card_line(("%s %s" if phone else "Starts: %s %s") % [skill, LevelDisplay.label(20)], _px(14 if phone else 18), START_COLOR))
 		card.toggle_mode = true
 		card.pressed.connect(func () -> void: _select(id))
@@ -116,7 +125,7 @@ func _ready() -> void:
 		var gb := Button.new()
 		gb.name = "Body_%s" % g[0]
 		gb.text = g[1]
-		gb.custom_minimum_size = Vector2(_px(100 if short else (120 if phone else 140)), _px(48 if short else 56))
+		gb.custom_minimum_size = Vector2(_px(100 if short else (120 if phone else 140)), _px(56))
 		gb.add_theme_font_size_override("font_size", _px(16 if short else 18))
 		gb.toggle_mode = true
 		gb.button_pressed = g[0] == _gender
@@ -132,13 +141,13 @@ func _ready() -> void:
 	_name.name = "NameField"
 	_name.placeholder_text = "Name"
 	_name.text = "Survivor"
-	_name.custom_minimum_size = Vector2(_px(200 if short else (fitted.x - 48.0 if phone else 300.0)), _px(48 if short else 56))
+	_name.custom_minimum_size = Vector2(_px(200 if short else (fitted.x - 48.0 if phone else 300.0)), _px(56))
 	_name.add_theme_font_size_override("font_size", _px(16 if short else 20))
 	details.add_child(_name)
 	_start = Button.new()
 	_start.name = "EnterRift"
 	_start.text = "ENTER THE RIFT"
-	_start.custom_minimum_size = Vector2(_px(200 if short else (fitted.x - 48.0 if phone else 320.0)), _px(52 if short else 64))
+	_start.custom_minimum_size = Vector2(_px(200 if short else (fitted.x - 48.0 if phone else 320.0)), _px(64))
 	_start.add_theme_font_size_override("font_size", _px(18 if short else 22))
 	_start.disabled = true
 	_start.pressed.connect(_finish)

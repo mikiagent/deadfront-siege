@@ -362,7 +362,7 @@ func _ingredients_row(rec: Dictionary) -> Control:
 		cell.add_child(ic)
 		var l := Label.new()
 		var d := Data.item(sample_id)
-		var nm := d.display_name if d and d.display_name != "" else ItemText.nice_name(str(cat))
+		var nm := d.display_name if d and d.display_name != "" else LevelDisplay.nice_name(str(cat))
 		l.text = "%s %d/%d" % [nm, mini(have, need), need]
 		l.add_theme_font_size_override("font_size", 14)
 		l.add_theme_color_override("font_color", Color(0.8, 0.85, 0.75) if have >= need else Color(1.0, 0.55, 0.45))
@@ -445,7 +445,7 @@ func _show_detail(info: Dictionary) -> void:
 	title.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 	title.add_theme_color_override("font_color", UiTokens.TEXT)
 	_detail.add_child(title)
-	var stats := ItemText.stat_lines(out_def)
+	var stats := LevelDisplay.stat_lines(out_def)
 	if not stats.is_empty():
 		var st := Label.new()
 		st.name = "DetailStats"
@@ -462,7 +462,7 @@ func _show_detail(info: Dictionary) -> void:
 	var missing := Crafting.missing_ingredient_name(player.inventory, rec)
 	if missing != "":
 		var lock := Label.new()
-		lock.text = "Needs %s" % ItemText.nice_name(missing)
+		lock.text = "Needs %s" % LevelDisplay.nice_name(missing)
 		lock.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		lock.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 		lock.add_theme_color_override("font_color", UiTokens.DANGER)
