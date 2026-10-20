@@ -2,7 +2,8 @@
 
 Branch `claude/mmo-w2-player` (work tree `.claude/worktrees/mmo-w2-player`). No credits spent.
 Spec: `docs/orchestration/mmo/plan-register.md` section "W2-PLAYER". Synced with `claude/mmo-overhaul`
-through `4cbc117` (DSC-MINORS and DSC-CLIPS merged in `55e2c42` and `cb688bb`; the one conflict,
+through `1e96dbc` (DSC-MINORS, DSC-CLIPS, codex-harbour and codex-animals merged in `55e2c42`, `cb688bb`,
+`29ae55f`; the one conflict,
 `_begin_gather`, is ported into `PlayerActions.begin_gather`: can_gather first, refusals on the HUD).
 
 ## What shipped
@@ -85,7 +86,8 @@ through `4cbc117` (DSC-MINORS and DSC-CLIPS merged in `55e2c42` and `cb688bb`; t
 
 ## Acceptance
 
-Run on `cb688bb` (after the last base merge) unless a line says otherwise. Godot 4.7.1 mono via gslot.
+Run on `cb688bb` unless a line says otherwise; after the last base merge (`29ae55f`) SMOKE, every
+t_*.gd, run_all, equip_mount_lab, pets_lab, capture_lab, player_lab and pet_passthrough_lab were rerun: all PASS. Godot 4.7.1 mono via gslot.
 
 - `wc -l`: player.gd 456 (<= 800); player_sim 585, player_view 406, player_input 545,
   player_actions 588, player_pets 334, player_registry 53 (each <= 600). PASS.
