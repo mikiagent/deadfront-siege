@@ -51,10 +51,16 @@ func _after_idle() -> void:
 	var hp0 := target.health.hp
 	var bites := [0]
 	target.health.damaged.connect(func (_a: float, _s: Node) -> void: bites[0] += 1)
+	# This section asks whether the pet keeps attacking (the old bug froze _attack_cd after one
+	# bite), not whether it rolls well: unforced rolls gave 1-3 bites across runs. Force the hits.
+	CombatTuning.force_accuracy = 1.0
+	CombatTuning.force_dodge = 0.0
 	for second in 5:
 		await get_tree().create_timer(1.0).timeout
 		print("[aival] pet_tick=%d damage=%.1f cd=%.2f busy=%s clip=%s state=%s dist=%.2f active=%s" % [second + 1, hp0 - target.health.hp, pet.brain._attack_cd, pet.anim._busy, pet.anim.current_clip, pet.brain.state, pet.global_position.distance_to(target.global_position), pet._path_active])
-	print("[aival] pet_repeat damage=%.1f bites=%d cd=%.2f target_live=%s" % [hp0 - target.health.hp, bites[0], pet.brain._attack_cd, not target.health.dead])
+	CombatTuning.force_accuracy = -1.0
+	CombatTuning.force_dodge = -1.0
+	print("[aival] pet_repeat damage=%.1f bites=%d cd=%.2f target_live=%s (accuracy forced)" % [hp0 - target.health.hp, bites[0], pet.brain._attack_cd, not target.health.dead])
 	# A SIC order must keep biting: one bite and a frozen cooldown was the old failure.
 	if bites[0] < 2 or hp0 - target.health.hp <= 0.0:
 		failures.append("pet repeat attack stalled: bites=%d damage=%.1f" % [bites[0], hp0 - target.health.hp])

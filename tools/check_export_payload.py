@@ -11,6 +11,7 @@ Usage: check_export_payload.py [PACK_OR_DIR] [--max-mb N] [--top N] [--soak]
 """
 from __future__ import annotations
 
+import argparse
 import collections
 import hashlib
 import json
@@ -114,7 +115,7 @@ def audit_pack(target: Path, max_mb: float, top: int, soak: bool = False) -> lis
         print(f"[payload]   {v / MB:8.1f} MB  {k}")
     print("[payload] by type: " + ", ".join(f"{k}={v / MB:.1f}MB" for k, v in by_ext.most_common(6)))
     if total > max_mb * MB:
-        errors.append(f"pack is {total / MB:.1f} MB, over the {max_mb:.0f} MB ceiling")
+        errors.append(f"pack is {total / MB:.1f} MB ({total} bytes), over the {max_mb:.0f} MB ({int(max_mb * MB)} byte) ceiling")
     # A release page must not offer ?soak=1: its pack has no scripts/dev/web_soak.gd to load.
     html = target / "index.html" if target.is_dir() else None
     if not soak and html and html.is_file() and "--web-soak" in html.read_text():
@@ -123,27 +124,21 @@ def audit_pack(target: Path, max_mb: float, top: int, soak: bool = False) -> lis
 
 
 def main() -> None:
-    args = sys.argv[1:]
-    max_mb, top = 220.0, 12
-    if "--max-mb" in args:
-        i = args.index("--max-mb")
-        max_mb = float(args[i + 1])
-        del args[i:i + 2]
-    if "--top" in args:
-        i = args.index("--top")
-        top = int(args[i + 1])
-        del args[i:i + 2]
-    soak = "--soak" in args
-    if soak:
-        args.remove("--soak")
+    parser = argparse.ArgumentParser(description="Shipping-payload gate: export presets and pack contents.")
+    parser.add_argument("pack", nargs="?", metavar="PACK_OR_DIR",
+                        help="a .pck, or an export dir holding index.pck or pack.manifest.json + parts")
+    parser.add_argument("--max-mb", type=float, default=220.0, metavar="N", help="pack ceiling in MB (default 220)")
+    parser.add_argument("--top", type=int, default=12, metavar="N", help="how many directory rows to print (default 12)")
+    parser.add_argument("--soak", action="store_true", help="WebSoak build: scripts/dev is allowed in the pack")
+    args = parser.parse_args()
     errors = check_presets()
-    if args:
-        errors += audit_pack(Path(args[0]), max_mb, top, soak)
+    if args.pack:
+        errors += audit_pack(Path(args.pack), args.max_mb, args.top, args.soak)
     if errors:
         print("\n".join(errors), file=sys.stderr)
         print("[payload] FAIL")
         raise SystemExit(1)
-    print("[payload] shipping presets exclude authoring and dev files" + (" and the pack is clean" if args else ""))
+    print("[payload] shipping presets exclude authoring and dev files" + (" and the pack is clean" if args.pack else ""))
     print("[payload] PASS")
 
 

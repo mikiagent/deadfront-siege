@@ -138,7 +138,7 @@ func _test_walls_block() -> void:
 	_expect(not CA.apply_for(raptor, &"attack_primary", player) and is_equal_approx(player.vitals.health, 1000.0), "bite through the fence lands nothing")
 	_expect(not MQ.clear(player, raptor), "survivor swing through the fence refused")
 	player.hunt.start(raptor)
-	player.hunt._los_notice_s = -99.0
+	player.hunt._notice_s.clear()
 	player.hunt.last_notice = ""
 	player.hunt._auto_attack()
 	_expect(player.hunt.last_notice.contains("in the way"), "melee blocked by the fence says so ('%s')" % player.hunt.last_notice)
@@ -286,8 +286,29 @@ func _test_wear() -> void:
 	_expect(club.durability == dur, "a missed swing does not wear the club")
 	club.durability = 0
 	_expect(player.hunt._weapon() == null, "a broken club fights as bare hands")
+	# Stones still in flight after the break must not wear it again (and re-print "X broke.").
+	player.hunt.say("")  # reset the notice sink so the check below sees only a fresh message
+	player.hunt.wear_weapon(club)
+	_expect(player.hunt.last_notice == "", "wear_weapon on an already-broken weapon does nothing (notice '%s')" % player.hunt.last_notice)
 	club.durability = club.max_durability
 	target.free()
+	_test_notice_throttle()
+
+## Two different messages within 3 s must both show; the same message twice must not.
+func _test_notice_throttle() -> void:
+	player.hunt._notice_s.clear()
+	player.hunt.last_notice = ""
+	player.hunt.say_throttled("Something is in the way.")
+	var first: String = player.hunt.last_notice
+	player.hunt.say_throttled("No clear shot: something is in the way.")
+	var second: String = player.hunt.last_notice
+	player.hunt.say_throttled("Something is in the way.")
+	var third: String = player.hunt.last_notice
+	print("[t_combat] throttle: first='%s' second='%s' repeat='%s'" % [first, second, third])
+	_expect(first.contains("Something") and second.contains("No clear shot"), "a second, different message is not swallowed by the first")
+	_expect(third == second, "the same message is still throttled within 3 s")
+	player.hunt._notice_s.clear()
+	player.hunt.last_notice = ""
 
 ## pc-data-01: 1,000 seeded swings by a groggy attacker hit at base x accuracy_mult (+-3 %).
 func _test_seeded_accuracy() -> void:
