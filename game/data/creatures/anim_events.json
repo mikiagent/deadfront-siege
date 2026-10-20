@@ -63,14 +63,14 @@
     },
     "protoceratops": {
       "height_m": 1.6,
-      "run_l": 0.63,
-      "run_len": 0.958,
-      "run_r": 0.63,
-      "walk_l": 0.174,
-      "walk_len": 1.625,
-      "walk_r": 0.174,
-      "walk": 0.174,
-      "run": 0.63
+      "run_l": 4.2,
+      "run_len": 0.417,
+      "run_r": 3.453,
+      "walk_l": 1.688,
+      "walk_len": 0.5,
+      "walk_r": 1.688,
+      "walk": 1.688,
+      "run": 3.827
     },
     "tyrannosaurus": {
       "height_m": 8.0,
