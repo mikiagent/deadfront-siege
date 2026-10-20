@@ -1,0 +1,134 @@
+diff --git a/game/data/ui_icons.json b/game/data/ui_icons.json
+index 018431f9..bb9c0358 100644
+--- a/game/data/ui_icons.json
++++ b/game/data/ui_icons.json
+@@ -85,6 +85,8 @@
+ 		"station_smoker": "res://assets/icons/ui/station_smoker.svg",
+ 		"station_grindstone": "res://assets/icons/ui/station_grindstone.svg",
+ 		"station_stone_fire_pit": "res://assets/icons/ui/station_fire.svg",
++		"station_forge": "res://assets/icons/ui/station_fire.svg",
++		"station_anvil": "res://assets/icons/ui/station_grindstone.svg",
+ 		"rotate": "res://assets/icons/ui/rotate.svg",
+ 		"place_rotate": "res://assets/icons/ui/rotate.svg",
+ 		"confirm": "res://assets/icons/ui/confirm.svg",
+diff --git a/game/scripts/core/save_restore.gd b/game/scripts/core/save_restore.gd
+index cd8df9b8..ac920efc 100644
+--- a/game/scripts/core/save_restore.gd
++++ b/game/scripts/core/save_restore.gd
+@@ -51,7 +51,7 @@ static func spawn(row: Dictionary) -> Node3D:
+ 	match kind:
+ 		&"catapult":
+ 			return FieldCatapult.from_dict(row) if float(row.get("hp",200)) > 0 else null
+-		&"workbench", &"drying_rack", &"smoker", &"crock_pot", &"mortar", &"stone_grill", &"steamer", &"well":
++		&"workbench", &"drying_rack", &"smoker", &"crock_pot", &"mortar", &"stone_grill", &"steamer", &"well", &"forge", &"anvil":
+ 			return CraftStation.from_dict(row)
+ 		&"bonfire", &"stone_fire_pit", &"campfire":
+ 			return Bonfire.from_dict(row)
+diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
+index e09baeef..f4cddf82 100644
+--- a/game/scripts/items/crafting.gd
++++ b/game/scripts/items/crafting.gd
+@@ -250,6 +250,9 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
+ 
+ ## Optional endgame gates. Existing recipes are unchanged.
+ static func progression_block(player: Player, rec: Dictionary) -> String:
++	var node := str(rec.get("requires_node", ""))
++	if node != "" and not _node_unlocked(player, node):
++		return "needs skill %s" % node.replace("_", " ")
+ 	var survival := int(rec.get("required_survival", 0))
+ 	if survival > 0 and (player == null or player.skills == null or player.skills.level_of("survival") < survival):
+ 		return "needs Survival %d" % survival
+@@ -262,6 +265,16 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
+ 			return "needs materials and crafting skill for level %d" % minimum
+ 	return ""
+ 
++## requires_node names a trees.json node; node ids are unique across trees (t_data checks it).
++static func _node_unlocked(player: Player, node_id: String) -> bool:
++	if player == null or player.skills == null:
++		return false
++	for tree in player.skills.defs:
++		for n in player.skills.nodes(str(tree)):
++			if n is Dictionary and str((n as Dictionary).get("id", "")) == node_id:
++				return player.skills.is_unlocked(str(tree), node_id)
++	return false
++
+ static func can_make(player: Player, rec: Dictionary, picks: Array[int]) -> bool:
+ 	if rec.is_empty():
+ 		return false
+diff --git a/game/scripts/items/item_def.gd b/game/scripts/items/item_def.gd
+index 632c7c9d..0278b945 100644
+--- a/game/scripts/items/item_def.gd
++++ b/game/scripts/items/item_def.gd
+@@ -19,6 +19,9 @@ extends Resource
+ @export var health_bonus: float = 0.0
+ @export var food_energy: float = 0.0
+ @export var capture_tier: int = 0
++@export var market_category: StringName = &""
++@export var rarity: StringName = &"common"
++@export var insulation: Dictionary = {} ## {"cold": points, "heat": points} against climate needs
+ @export var slot_span: int = 1
+ @export var clears: Array[StringName] = []
+ @export var diet: StringName = &""
+@@ -57,6 +60,9 @@ static func from_dict(d: Dictionary) -> ItemDef:
+ 	def.health_bonus = float(d.get("health_bonus", 0.0))
+ 	def.food_energy = float(d.get("food_energy", 0.0))
+ 	def.capture_tier = int(d.get("capture_tier", 0))
++	def.market_category = StringName(str(d.get("market_category", "")))
++	def.rarity = StringName(str(d.get("rarity", "common")))
++	def.insulation = (d.get("insulation", {}) as Dictionary).duplicate()
+ 	def.slot_span = int(d.get("slot_span", 1))
+ 	def.clears = _names(d.get("clears", []))
+ 	def.diet = StringName(str(d.get("diet", "")))
+diff --git a/game/scripts/ui/craft_ui.gd b/game/scripts/ui/craft_ui.gd
+index d7187dbb..fddac3f3 100644
+--- a/game/scripts/ui/craft_ui.gd
++++ b/game/scripts/ui/craft_ui.gd
+@@ -17,6 +17,7 @@ const STATIONS := [
+ 	["campfire", "Campfire", "skewer"], ["drying_rack", "Meat dryer", "drying_rack_kit"],
+ 	["crock_pot", "Crock pot", "boiled_meat"], ["mortar", "Mortar", "mortar_kit"],
+ 	["stone_grill", "Stone grill", "stone_grill_kit"], ["steamer", "Steamer", "steamer_kit"], ["well", "Well", "well_kit"],
++	["forge", "Forge", "ingot"], ["anvil", "Anvil", "hammer"],
+ ]
+ const NO_LEVEL := LevelDisplay.NONE
+ const FOOTER_H := 64.0
+diff --git a/game/scripts/world/build_placer.gd b/game/scripts/world/build_placer.gd
+index 66678c7c..675fc193 100644
+--- a/game/scripts/world/build_placer.gd
++++ b/game/scripts/world/build_placer.gd
+@@ -514,6 +514,10 @@ func _spawn(kind: StringName) -> Node3D:
+ 			return CraftStation.make(&"stone_grill")
+ 		&"steamer":
+ 			return CraftStation.make(&"steamer")
++		&"forge":
++			return CraftStation.make(&"forge")
++		&"anvil":
++			return CraftStation.make(&"anvil")
+ 		&"field_small", &"field_large":
+ 			return FieldPlot.make(kind)
+ 		&"straw_roll", &"tent", &"canvas_tent", &"log_shelter", &"cabin_bed", &"basket", &"fence", &"gate", &"sign":
+diff --git a/game/scripts/world/harvest_node.gd b/game/scripts/world/harvest_node.gd
+index eb78cd5d..45895129 100644
+--- a/game/scripts/world/harvest_node.gd
++++ b/game/scripts/world/harvest_node.gd
+@@ -211,7 +211,7 @@ func restore_pools(snap: Dictionary) -> void:
+ ## so gating stone behind a pick that itself needs stone made a fresh survivor unable to
+ ## craft anything at all. A pick still pays off (ProgressionScaling.tool_power = faster
+ ## passes and richer yields) and still gates ore and clay.
+-const OPTION_TOOLS := {"wood_log": "axe", "ore_chunk": "pick", "clay": "pick", "bark_strip": "knife", "hide": "knife"}
++const OPTION_TOOLS := {"wood_log": "axe", "pine_log": "axe", "snow_pine": "axe", "willow_wood": "axe", "acacia_wood": "axe", "ore_chunk": "pick", "clay": "pick", "bark_strip": "knife", "hide": "knife"}
+ ## One unit per pass; seconds per unit by item (bare-handed picks are quick, tool work is slow).
+ const OPTION_SECONDS := {"berries": 1.1, "berry": 1.1, "mushroom": 1.0, "petals": 1.0, "dry_grass": 0.9, "fibre_stalk": 1.3, "herb_leaf": 1.2, "reed": 1.2, "branch": 1.6, "palm_frond": 1.5, "coconut": 2.0, "root": 1.8, "cactus_flesh": 1.6, "bark_strip": 2.2, "clay": 2.4, "stone": 2.8, "wood_log": 3.0, "ore_chunk": 3.2, "hide": 2.4}
+ 
+diff --git a/game/tests/t_build.gd b/game/tests/t_build.gd
+index 5e18ccf6..051e77ac 100644
+--- a/game/tests/t_build.gd
++++ b/game/tests/t_build.gd
+@@ -101,7 +101,7 @@ func _test_kit_routes() -> void:
+ 		else:
+ 			print("[build] route %s FAIL kit=%s spawn=%s restore=%s" % [def.id, kit, spawned, restored_kind])
+ 		_expect(ok, "route %s" % def.id)
+-	_expect(n_ok == 24 and defs.size() == 24, "24 kits route (ok=%d of %d)" % [n_ok, defs.size()])
++	_expect(n_ok == 26 and defs.size() == 26, "26 kits route (ok=%d of %d)" % [n_ok, defs.size()])
+ 	holder.free()
+ 	placer.free()
+ 
