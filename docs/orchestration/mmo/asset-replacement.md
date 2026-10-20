@@ -47,7 +47,7 @@ reviewer), `DONE` (shipped and pixel-checked). Evidence comes from the 2026-10-1
 
 | Asset | Problem | Route | Package | Status |
 |---|---|---|---|---|
-| Item icons (game-icons.net symbols) | Flat glyphs; owner wants rendered art overflowing the slot with rarity rims | Headless Blender renders | W1-ICONART | IN PROGRESS (interrupted) |
+| Item icons (game-icons.net symbols) | Flat glyphs; owner wants rendered art overflowing the slot with rarity rims | Headless Blender renders | W1-ICONART | REPLACE (merged 2026-10-20: all icons are procedural_v1 renders, see `game/assets/icons/render/manifest.json` `replace` fields and `missing`; 28 flagged first; slots swap to ArtSlot in W2-SCREENS) |
 | Held weapons | Hand shows the gather tool, not the weapon | Existing props + W1-ITEMS | W1-ITEMS | IN PROGRESS |
 | Animal portraits | Hexagon with a letter | Rendered creature portraits | W2-SCREENS | REPLACE |
 
