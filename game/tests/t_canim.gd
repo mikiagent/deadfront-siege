@@ -6,13 +6,14 @@ extends SceneTree
 
 const DT := 1.0 / 60.0
 const FEET := ["BackFoot", "Toe", "Metatarsal"]  # + ".L" / ".R", as tools/bake_clip_speeds.py
-const STRIDE_SPECIES: Array[StringName] = [&"velociraptor", &"megaloceros", &"protoceratops", &"tyrannosaurus"]
+const STRIDE_SPECIES: Array[StringName] = [&"velociraptor", &"megaloceros", &"protoceratops", &"tyrannosaurus", &"zebraceratops"]
 ## ASSUMPTION: a species walks at 40 % of its listed speed; defs and the PRD give one top speed.
 const WALK_FRAC := 0.4
 ## A gait played far faster than authored is the gliding look: feet whirl while the body slides along. Species still on
 ## such clips are listed here (STATUS, DSC-CLIPS) so the list stays honest: they must still glide, everyone else must not.
+## The protoceratops and megaloceros walk/run are being redone by the dsc job quads-loco2; drop them when it lands.
 const MAX_CADENCE := 3.0
-const KNOWN_GLIDERS: Array[StringName] = []
+const KNOWN_GLIDERS: Array[StringName] = [&"protoceratops", &"megaloceros"]
 
 var failures: Array[String] = []
 var _started := false
