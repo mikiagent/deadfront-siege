@@ -117,6 +117,7 @@ func build(def: Dictionary, terrain: StringName) -> void:
 		push_error("[world] island %s has no coast for the harbour" % def.get("id", ""))
 	harbour = (load("res://scripts/world/harbour.gd") as GDScript).new()
 	_camp_place(harbour, "Harbour", &"harbour", site.get("cell", BuildGrid.tile_of(_harbour_pos) - Vector2i(1, 3)), int(site.get("rot", 0)))
+	_publish_harbour_arrival()
 	_camp(_camp_pos)
 	cargo = (load("res://scripts/world/cargo_warp.gd") as GDScript).new()
 	_camp_place(cargo, "CargoWarp", &"chest", BuildGrid.tile_of(_tile_at(float(camp_a[0]) + 3.0, float(camp_a[2]))))
@@ -271,6 +272,25 @@ func _dry_beside_harbour() -> Vector3:
 			break
 		p -= s
 	return _tile_at(p.x, p.y)
+
+func on_harbour_moved() -> void:
+	_harbour_pos = harbour.global_position
+	_publish_harbour_arrival()
+	if cargo_basket == null or build_grid == null:
+		return
+	var old_basket_cell := BuildGrid.tile_of(cargo_basket.global_position)
+	build_grid.release_reserved_kind(&"basket", old_basket_cell)
+	cargo_basket.position = _dry_beside_harbour()
+	build_grid.reserve_kind(&"basket", BuildGrid.tile_of(cargo_basket.position), 0)
+
+func _publish_harbour_arrival() -> void:
+	if World == null:
+		return
+	var row: Variant = World.islands.get(str(World.island_id), null)
+	if not row is Dictionary:
+		return
+	var p := arrival_point()
+	(row as Dictionary)["harbour"] = [p.x, 0.0, p.z]
 
 func _camp(at: Vector3) -> void:
 	_coziness(at)
