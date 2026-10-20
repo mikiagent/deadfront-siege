@@ -18,13 +18,13 @@ const CHANNEL := [Vector4(1, 0, 0, 0), Vector4(0, 1, 0, 0), Vector4(0, 0, 1, 0),
 static var _shaders: Dictionary = {}
 static var _warned: Dictionary = {}
 
-## A new ShaderMaterial equivalent to `src` for `mode` ("between" or "inside"), or null when `src`
-## is not a BaseMaterial3D (left solid; the caller logs it).
-static func derive(src: Material, mode: String) -> ShaderMaterial:
+## A new ShaderMaterial equivalent to `src` that can fade (both modes: the share to drop comes per
+## node or per instance), or null when `src` is not a BaseMaterial3D (left solid; the caller logs it).
+static func derive(src: Material) -> ShaderMaterial:
 	var b := src as BaseMaterial3D
 	if b == null:
 		return null
-	var defines: PackedStringArray = ["OCCL_INSIDE" if mode == "inside" else "OCCL_BETWEEN"]
+	var defines: PackedStringArray = []
 	var modes: PackedStringArray = ["blend_mix", DEPTH[b.depth_draw_mode], CULL[b.cull_mode],
 		DIFFUSE[b.diffuse_mode], SPECULAR[b.specular_mode]]
 	if b.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
