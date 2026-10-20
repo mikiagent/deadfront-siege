@@ -4,7 +4,8 @@
 # 'SCRIPT ERROR' / 'Parse Error' line. Exit 1 if any row fails. Every row gets a throwaway HOME,
 # so no lab reads another lab's save (run order cannot matter) and none touches a real save.
 # NOISE counts engine WARNING lines. Engine ERROR lines are gated: a row fails on more of them
-# than its "errors:N" flag allows (default 0, the baseline measured on 2026-10-19).
+# than its "errors:N" flag allows (default 0, the baseline measured on 2026-10-19). Row flags
+# (shot, window, xfail, shotxfail, flaky, retry, errors) are documented in tools/labs.txt.
 #
 # Usage: tools/labs.sh [name-filter]              headless gate, logs in $LABS_LOG_DIR (or a temp dir)
 #        tools/labs.sh --shots DIR [name-filter]  rows flagged "shot": windowed web renderer
@@ -70,24 +71,32 @@ while IFS= read -r line; do
   mode="--headless"
   # "window" rows need a real viewport (desktop mouse picking); silent, so still gate-safe.
   [[ "$flags" == *" window "* ]] && mode="--audio-driver Dummy --resolution 1600x900"
-  # shellcheck disable=SC2086
-  run_godot "$secs" "$log" $mode --path "$ROOT/game" $args
-  code=$?
-  took=$((SECONDS - t0))
-  why=""
-  grep -qE '\] PASS' "$log" || why="no PASS line"
-  hit="$(grep -m1 -E '\] (FAIL|PARTIAL)|SCRIPT ERROR|Parse Error' "$log")" && why="$hit"
-  crash="$(grep -m1 -E 'SCRIPT ERROR|Parse Error' "$log")"
-  if [[ $code -eq 142 ]]; then why="timeout ${secs}s${why:+; $why}"
-  elif [[ $code -ne 0 ]]; then why="exit $code${why:+; $why}"; fi
-  noise="$(grep -cE '^ *(USER )?WARNING:' "$log")"
-  errs="$(grep -cE '^ *(USER )?ERROR:' "$log")"
   allowed=0; [[ "$flags" =~ \ errors:([0-9]+)\  ]] && allowed="${BASH_REMATCH[1]}"
-  [[ $errs -gt $allowed ]] && why="${why:+$why; }$errs engine ERROR lines (allowed $allowed): $(grep -m1 -E '^ *(USER )?ERROR:' "$log" | cut -c1-60)"
+  tries=1; [[ "$flags" =~ \ retry:([0-9]+)\  ]] && tries=$((1 + BASH_REMATCH[1]))
+  for ((attempt = 1; ; attempt++)); do
+    # shellcheck disable=SC2086
+    run_godot "$secs" "$log" $mode --path "$ROOT/game" $args
+    code=$?
+    why=""
+    grep -qE '\] PASS' "$log" || why="no PASS line"
+    hit="$(grep -m1 -E '\] (FAIL|PARTIAL)|SCRIPT ERROR|Parse Error' "$log")" && why="$hit"
+    crash="$(grep -m1 -E 'SCRIPT ERROR|Parse Error' "$log")"
+    if [[ $code -eq 142 ]]; then why="timeout ${secs}s${why:+; $why}"
+    elif [[ $code -ne 0 ]]; then why="exit $code${why:+; $why}"; fi
+    noise="$(grep -cE '^ *(USER )?WARNING:' "$log")"
+    errs="$(grep -cE '^ *(USER )?ERROR:' "$log")"
+    [[ $errs -gt $allowed ]] && why="${why:+$why; }$errs engine ERROR lines (allowed $allowed): $(grep -m1 -E '^ *(USER )?ERROR:' "$log" | cut -c1-60)"
+    own="$(grep -m1 -E '\] (FAIL|PARTIAL)' "$log")"
+    # retry:N runs a row again only after its own FAIL verdict (never a crash or timeout): wall-clock
+    # timing checks flake on a loaded machine; a real regression fails every attempt.
+    [[ -n "$why" && -z "$crash" && -n "$own" && $code -ne 142 && $attempt -lt $tries ]] || break
+    mv "$log" "$log.try$attempt"
+  done
+  took=$((SECONDS - t0))
   xfail=""; [[ "$flags" =~ \ xfail:([^ ]+)\  ]] && xfail="${BASH_REMATCH[1]}"
   flaky=""; [[ "$flags" =~ \ flaky:([^ ]+)\  ]] && flaky="${BASH_REMATCH[1]}"
   verdict="$(grep -E '\] (PASS|FAIL|PARTIAL)' "$log" | tail -1 | cut -c1-110)"
-  own="$(grep -m1 -E '\] (FAIL|PARTIAL)' "$log")"
+  [[ $attempt -gt 1 ]] && verdict="${verdict:0:90} (attempt $attempt/$tries, earlier: $(grep -m1 -E '\] (FAIL|PARTIAL)' "$log.try1" | cut -c1-60))"
   if [[ -n "$xfail$flaky" ]]; then
     # Strict: an expected failure must be the lab's own FAIL/PARTIAL verdict line; a timeout, crash
     # or native abort without one fails the gate (same rule as tools/test.sh). A flaky row may also
