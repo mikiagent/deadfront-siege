@@ -25,8 +25,12 @@ var _progress: float = 0.0
 var _ring3d: MeshInstance3D  # selection hexagon on the ground, depth-tested so the plant stands on it
 ## Option label boxes as last drawn (the capture lab checks them against the nameplate).
 var label_rects: Array[Rect2] = []
+## The name + level backing as last drawn (the capture lab checks it against the HUD and the source).
+var title_box: Rect2
 
 const HEX := 64.0
+const RING_R := 1.15  # selection hexagon radius on the ground, m
+const RING_W := 0.07
 
 func _ready() -> void:
 	# Inside the tree set_anchors_preset keeps the current (empty) rect; reset the offsets too.
@@ -122,8 +126,8 @@ func _show_ring3d() -> void:
 	var c := node.global_position
 	var rt := World.runtime if World else null
 	var has_surf := rt != null and rt.has_method("surface_y")
-	var r := 1.15
-	var w := 0.07
+	var r := RING_R
+	var w := RING_W
 	for i in 6:
 		var a0 := deg_to_rad(60.0 * float(i))
 		var a1 := deg_to_rad(60.0 * float(i + 1))
@@ -243,6 +247,7 @@ func _layout() -> void:
 	var plate := nameplate()
 	if plate.has_area():
 		avoid.append(plate)
+	avoid.append(source_rect())
 	var spots := ContextRadial.hex_positions(base, _buttons.size(), view, UiTokens.safe_insets(get_viewport()), HEX, tw, avoid)
 	for i in _buttons.size():
 		if i < spots.size():
@@ -265,9 +270,18 @@ func _draw() -> void:
 	var name := UiTokens.ellipsis(font, _node_name(), 168.0, UiTokens.body(view))
 	var ns := UiTokens.body(view)
 	var nw := font.get_string_size(name, HORIZONTAL_ALIGNMENT_CENTER, -1, ns).x
-	# Name and level sit in the middle of the ring (Durango), not under it where the lower hexes go.
-	var name_pos := Vector2(ground.x - nw * 0.5, ground.y + 4.0)
+	# Name and level go under the selection ring, so the plant and its ring stay in sight (in the
+	# middle of the ring the box hid both on a phone); above the plant where the HUD, the bottom
+	# edge or the survivor's nameplate is in the way.
+	var src := source_rect()
+	var name_pos := Vector2(ground.x - nw * 0.5, src.end.y + 4.0 + float(ns))
 	name_pos.x = clampf(name_pos.x, 8.0, maxf(8.0, view.x - nw - 28.0))
+	var below := Rect2(name_pos + Vector2(-10, -ns), Vector2(nw + 20, ns + 26))
+	var blocked := below.end.y > view.y - 24.0 or below.intersects(nameplate())
+	for zone in UiTokens.hud_reserved(view):
+		blocked = blocked or below.intersects(zone)
+	if blocked:
+		name_pos.y = src.position.y - 30.0
 	# Near a screen edge the ring is clamped into a column; keep the name clear of every hex.
 	var title_rect := Rect2(name_pos + Vector2(-10, -ns), Vector2(nw + 20, ns + 30))
 	for b in _buttons:
@@ -280,7 +294,8 @@ func _draw() -> void:
 	var lv := LevelDisplay.label(level)
 	var lw := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, UiTokens.meta(view)).x
 	# One backing for both lines: the level alone sat on the bright bush and did not read.
-	draw_rect(Rect2(name_pos + Vector2(-10, -ns), Vector2(nw + 20, ns + 26)), UiTokens.INK)
+	title_box = Rect2(name_pos + Vector2(-10, -ns), Vector2(nw + 20, ns + 26))
+	draw_rect(title_box, UiTokens.INK)
 	draw_string(font, name_pos, name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
 	draw_string(font, Vector2(name_pos.x + nw * 0.5 - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
 	var plate := nameplate()
@@ -291,7 +306,7 @@ func _draw() -> void:
 		var reason: String = str(_labels[i]["reason"])
 		var ts := UiTokens.body(view)
 		var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x
-		var blockers: Array[Rect2] = [title_rect, plate]
+		var blockers: Array[Rect2] = [title_rect, plate, src]
 		blockers.append_array(UiTokens.hud_reserved(view))
 		for j in _buttons.size():
 			if j != i:
@@ -317,6 +332,18 @@ func _draw() -> void:
 
 func _node_name() -> String:
 	return title
+
+## The gathered source on screen: its selection ring up to its top. The title, labels and hexes keep off it.
+func source_rect() -> Rect2:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null or node == null:
+		return Rect2(_anchor(), Vector2.ZERO)
+	var c := node.global_position
+	var out := Rect2(cam.unproject_position(c + Vector3.UP * anchor_height), Vector2.ZERO)
+	for i in 6:
+		var a := deg_to_rad(60.0 * float(i))
+		out = out.expand(cam.unproject_position(c + Vector3(cos(a), 0.0, sin(a)) * (RING_R + RING_W)))
+	return out
 
 ## The player's nameplate on screen (empty without a camera or player); hexes and labels keep off it.
 func nameplate() -> Rect2:

@@ -9,6 +9,8 @@ var player: Player
 var _btn_row: HBoxContainer
 var _close: Button
 var _cards: VBoxContainer
+## The card column scrolls: a phone shows about 1.5 cards, and dropping the rest hid charted islands.
+var _card_scroll: ScrollContainer
 var _zoom_label: Label
 var _zoom: float = 1.0
 var _selected_region: String = ""
@@ -69,9 +71,13 @@ func _ready() -> void:
 	add_child(_btn_row)
 	_close = _btn("Close", close)
 	add_child(_close)
+	_card_scroll = ScrollContainer.new()
+	_card_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(_card_scroll)
 	_cards = VBoxContainer.new()
+	_cards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_cards.add_theme_constant_override("separation", UiTokens.SPACE)
-	add_child(_cards)
+	_card_scroll.add_child(_cards)
 	var zoom_row := HBoxContainer.new()
 	zoom_row.name = "ZoomRow"
 	zoom_row.add_theme_constant_override("separation", UiTokens.SPACE)
@@ -119,8 +125,7 @@ func _rebuild_cards() -> void:
 	var current := str(World.island_id)
 	if current != "" and catalogue.has(current):
 		ids.append(current)
-	# A phone (either way up) has room for the current island's card only; the map needs the rest.
-	var limit := 1 if UiTokens.is_compact(get_viewport_rect().size) else 4
+	var limit := 4  # the column scrolls where they do not fit
 	for key in catalogue.keys():
 		if ids.size() >= limit:
 			break
@@ -243,9 +248,9 @@ func _process(_delta: float) -> void:
 		if action:
 			action.custom_minimum_size = Vector2(action_w, 56)
 	_btn_row.position = Vector2(MARGIN, r.y - 64.0 - MARGIN)
-	if _cards:
-		_cards.position = Vector2(MARGIN, PHONE_CARD_TOP if phone else 96.0)
-		_cards.size = Vector2(240.0 if not phone else r.x - MARGIN * 2.0, 112.0 if phone else r.y - 220.0)
+	if _card_scroll:
+		_card_scroll.position = Vector2(MARGIN, PHONE_CARD_TOP if phone else 96.0)
+		_card_scroll.size = Vector2(240.0 if not phone else r.x - MARGIN * 2.0, 112.0 if phone else r.y - 220.0)
 	var zoom_row := get_node_or_null("ZoomRow") as Control
 	if zoom_row:
 		var zoom_w := 64.0 + 108.0 + 64.0 + UiTokens.SPACE * 2.0

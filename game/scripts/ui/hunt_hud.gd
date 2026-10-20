@@ -644,10 +644,13 @@ static func nameplate_rect(cam: Camera3D, who: Player, font: Font) -> Rect2:
 	var nw := font.get_string_size(who.display_name(), HORIZONTAL_ALIGNMENT_CENTER, -1, NAME_PX).x
 	return Rect2(p.x - nw * 0.5, p.y + 20.0 - NAME_PX, nw + 1.0, NAME_PX + 6.0)
 
-## Reference: a gold text stack at the top-left for ~6 s on level-up.
-func _on_level_up(level: int) -> void:
+## Reference: a gold text stack at the top-left for ~6 s on level-up. The signal carries the stored
+## level; the banner, the title key, the bonus stat, the log and the toast all use the shown one
+## (titles.json was keyed by the level the player reads).
+func _on_level_up(_stored: int) -> void:
+	var level := LevelDisplay.player_level()
 	_levelup_lines.clear()
-	_levelup_lines.append([LevelDisplay.player_label(), 40, Color(1.0, 0.85, 0.35)])
+	_levelup_lines.append([LevelDisplay.label(level), 40, Color(1.0, 0.85, 0.35)])
 	_levelup_lines.append(["👁 %d" % World.pioneer_xp, 18, Color.WHITE])
 	_levelup_lines.append(["◎ %d" % World.t_stones, 18, Color.WHITE])
 	var sp := Data.survival_nodes.size() - Data.survival_unlocked.size() if Data.get("survival_nodes") != null else 0

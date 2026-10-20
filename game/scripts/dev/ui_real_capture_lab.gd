@@ -11,7 +11,7 @@ extends Node3D
 ## Windowed: --resolution 844x390 -- --lab=ui_real_capture_lab [--shot-dir=DIR]
 ## (844x390 is the phone check: the owner plays phones landscape; 667x375, 390x844 and 1600x900 also
 ## run.) The verdict without the fit is unit-tested in t_ui (gate_failures), since boot now always fits.
-## Prints "[uireal] phone=<bool> min_font_px=<n> ..." then "[uireal] PASS" (exit 0) or FAIL lines (exit 1).
+## Prints "[uireal] phone=<bool> min_font_px=<n> min_font_pt=<f> ..." then "[uireal] PASS" (exit 0) or FAIL lines (exit 1).
 
 const SETTLE_S := 3.0
 const BLOWN_MAX := 0.2   ## share of near-white pixels allowed in a frame
@@ -143,6 +143,13 @@ func _run() -> void:
 	if map:
 		await _frames(2)
 		_check_blocks("atlas", atlas_blocks(map), logical)
+		# Every size lists the same charted islands (a phone once showed only the current one).
+		var charted := 0
+		for key in Data.world_islands.keys():
+			charted += 0 if str(key).begins_with("_") else 1
+		var cards := (map.get("_cards") as Control).get_child_count()
+		print("[uireal] atlas cards: %d of %d charted islands" % [cards, charted])
+		_expect(cards == mini(4, charted), "atlas lists %d island cards at every size (got %d)" % [mini(4, charted), cards])
 		await _capture("atlas", [map], logical)
 		map.close()
 	# gather radial on the nearest real harvest node
@@ -171,10 +178,13 @@ func _run() -> void:
 			parts["label%d" % i] = radial.label_rects[i]
 		for i in hexes.size():
 			parts["hex%d" % i] = hexes[i].get_global_rect()
+		parts["title"] = radial.title_box
+		# ...and off the plant being gathered and its selection ring (the title box hid both on a phone).
+		hud["source"] = radial.source_rect()
 		for k in parts:
 			for h in hud:
 				_expect(not (parts[k] as Rect2).intersects(hud[h] as Rect2), "radial: %s %s stays off %s %s" % [k, parts[k], h, hud[h]])
-		print("[uireal] radial: %d option labels and %d hexes checked against %d HUD blocks, nameplate %s" % [radial.label_rects.size(), hexes.size(), hud.size(), plate])
+		print("[uireal] radial: %d option labels, %d hexes and the title checked against %d HUD blocks and the source %s, nameplate %s" % [radial.label_rects.size(), hexes.size(), hud.size() - 1, hud["source"], plate])
 		await _capture("radial", hexes, logical)
 		radial.close()
 	# creature plate with three status glyphs (letters must sit inside their rings)
@@ -252,11 +262,13 @@ func _run() -> void:
 
 func _finish(phone: bool, logical: Vector2) -> void:
 	var narrow := UiTokens.is_narrow(logical)
-	# On-screen size in points (window px / device scale), the unit the 12 px floor is meant in.
-	var min_px := int(floor(_min_font / DisplayMode.device_scale())) if _min_font < INF else 0
+	# min_font_px: the smallest font size on the logical canvas; min_font_pt: its on-screen size in
+	# points (window px / device scale), the unit the phone floor is gated in.
+	var stretch := get_tree().root.get_final_transform().get_scale().x
+	var min_px := int(floor(_min_font / stretch + 0.01)) if _min_font < INF else 0
 	var pts := DisplayMode.window_points(get_tree().root)
 	var min_pt := _min_font / DisplayMode.device_scale() if _min_font < INF else 0.0
-	print("[uireal] phone=%s min_font_px=%d logical_width=%d window_pt=%dx%d min_pt=%.2f floor_pt=%.2f (smallest: %s)" % [phone, min_px, int(logical.x), int(pts.x), int(pts.y), min_pt, type_floor_pt(pts), _min_font_where])
+	print("[uireal] phone=%s min_font_px=%d min_font_pt=%.2f logical_width=%d window_pt=%dx%d floor_pt=%.2f (smallest: %s)" % [phone, min_px, min_pt, int(logical.x), int(pts.x), int(pts.y), type_floor_pt(pts), _min_font_where])
 	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
 	if _fails.is_empty():
 		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,plate,bag,charcreate shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
@@ -364,11 +376,13 @@ static func atlas_blocks(map: MapScreen) -> Dictionary:
 	var zoom_row := map.get_node_or_null("ZoomRow") as Control
 	if zoom_row:
 		out["zoom"] = zoom_row.get_global_rect()
+	# Cards scroll in their column: only the part inside it is on screen.
 	var cards := map.get("_cards") as Control
+	var column := (map.get("_card_scroll") as Control).get_global_rect()
 	for i in cards.get_child_count():
 		var card := cards.get_child(i) as Control
-		if card and not card.is_queued_for_deletion():
-			out["card%d" % i] = card.get_global_rect()
+		if card and not card.is_queued_for_deletion() and column.intersects(card.get_global_rect()):
+			out["card%d" % i] = column.intersection(card.get_global_rect())
 	var kinds: Array = map.call("_legend_kinds")
 	for i in kinds.size():
 		var row := Rect2(MapScreen.legend_slot(i, r) + Vector2(0.0, -15.0), Vector2(MapScreen.legend_col_w(r), 20.0))
@@ -529,7 +543,7 @@ func _scan_fonts_from(node: Node, screen: String, stretch: float) -> void:
 			var px := float(c.get_theme_font_size("font_size")) * stretch * c.get_global_transform_with_canvas().get_scale().x
 			if px < _min_font:
 				_min_font = px
-				_min_font_where = "%s %s \"%s\" %.1f px" % [screen, c.get_path(), text.left(24).replace("\n", " "), px]
+				_min_font_where = "%s %s \"%s\" %.1f px" % [screen, c.get_path(), text.left(24).replace("\n", " "), px / stretch]
 	for child in node.get_children():
 		_scan_fonts_from(child, screen, stretch)
 

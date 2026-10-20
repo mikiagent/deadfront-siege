@@ -14,6 +14,9 @@ const OWNED := [
 	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
 ]
 const TYPE_MIN := 12
+## The HUD and bag joined W1-UI late (orchestrator option a). The bag is emoji-free; the HUD's rail
+## and hunt glyphs have no white symbol yet and go to W2-HUD. Capped so the count cannot grow.
+const LATE_EMOJI_LINES := {"res://scripts/ui/hunt_hud.gd": 11, "res://scripts/ui/inventory_ui.gd": 0}
 
 var failures: Array[String] = []
 var _done := false
@@ -56,6 +59,7 @@ func _process(_delta: float) -> bool:
 	_test_theme()
 	_test_legend_colours()
 	_test_level_display()
+	_test_level_up_banner()
 	_test_hex_focus()
 	_test_gate_verdict()
 	_test_review_fixes()
@@ -144,6 +148,15 @@ func _test_owned_sources() -> void:
 					small_hits += 1
 					failures.append("font size %s under %d at %s:%d" % [s, TYPE_MIN, path, n + 1])
 	print("[t_ui] scanned %d owned files: emoji=%d small_font=%d" % [OWNED.size(), emoji_hits, small_hits])
+	for path in LATE_EMOJI_LINES:
+		var n := 0
+		for line in FileAccess.get_file_as_string(path).split("\n"):
+			for i in line.length():
+				if line.unicode_at(i) >= 0x1F300 and line.unicode_at(i) <= 0x1FAFF:
+					n += 1
+					break
+		_expect(n <= int(LATE_EMOJI_LINES[path]), "%s: %d lines with emoji, at most %d" % [path, n, LATE_EMOJI_LINES[path]])
+		print("[t_ui] %s: %d lines with emoji (cap %d, W2-HUD)" % [path.get_file(), n, LATE_EMOJI_LINES[path]])
 
 func _test_draw_centered() -> void:
 	_expect(is_equal_approx(UT.centered_x(100.0, 40.0), 80.0), "a 40 px string centred at x=100 starts at x=80")
@@ -305,6 +318,33 @@ func _test_level_display() -> void:
 				reads += 1
 				failures.append("player level read outside LevelDisplay at %s:%d" % [path, n + 1])
 	print("[t_ui] player level: new survivor reads %s; direct reads outside LevelDisplay=%d" % [fresh, reads])
+
+## After a level-up the banner and its title agree: the banner showed the shown level while the
+## title lookup used the stored one, so every title came one level late.
+func _test_level_up_banner() -> void:
+	var world: Node = get_root().get_node("World")
+	var was: int = world.pioneer_level
+	var hud: Control = load("res://scripts/ui/hunt_hud.gd").new()
+	hud.call("_load_level_data")
+	var titles: Dictionary = hud.get("_titles")
+	var checked := 0
+	for key in titles.keys():
+		if not str(key).is_valid_int() or int(key) < 2:  # level 1 is the start, never a level-up
+			continue
+		world.pioneer_level = int(key) - 1  # stored; World emits after the increment
+		hud.call("_on_level_up", world.pioneer_level)
+		var lines: Array = hud.get("_levelup_lines")
+		var title := ""
+		for l in lines:
+			if str(l[0]).begins_with("Title "):
+				title = str(l[0])
+		var want := "Title %s acquired." % titles[key]
+		_expect(str(lines[0][0]) == "Lv. %s" % key and title == want, "level-up to Lv. %s: banner \"%s\" with \"%s\" (got \"%s\")" % [key, lines[0][0], want, title])
+		checked += 1
+	world.pioneer_level = was
+	hud.free()
+	_expect(checked > 0, "titles.json has titles past level 1")
+	print("[t_ui] level-up banner: %d titled levels, banner level and title key agree" % checked)
 
 func _test_hex_focus() -> void:
 	var HB: GDScript = load("res://scripts/ui/hex_button.gd")
