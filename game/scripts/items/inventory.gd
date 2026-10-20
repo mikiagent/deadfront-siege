@@ -386,6 +386,23 @@ func sort() -> void:
 	equipped_tool_index = slots.find(held) if held else -1
 	changed.emit()
 
+## Visual grouping only (prompt 05: "12 Large Leg Bones" expands to 12 instances): bag slots by
+## item id, in bag order. Nothing is merged; each entry lists the slots of its instances.
+func groups() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var at := {}
+	for i in slot_count:
+		var s := slots[i]
+		if s == null or s.def_id == LOCK:
+			continue
+		if not at.has(s.def_id):
+			at[s.def_id] = out.size()
+			out.append({"def_id": s.def_id, "slots": [] as Array[int], "units": 0})
+		var g: Dictionary = out[at[s.def_id]]
+		(g.slots as Array[int]).append(i)
+		g.units = int(g.units) + s.count
+	return out
+
 func find_by_category(cat: StringName) -> Array[int]:
 	var hits: Array[int] = []
 	for i in slot_count:
@@ -520,6 +537,7 @@ func load_array(raw: Array, overflow: Inventory = null) -> void:
 func _place_extra(extra: Array[ItemStack], overflow: Inventory) -> void:
 	var dest := overflow if overflow != null and overflow != self else self
 	var here := 0
+	var moved := {} # id -> units sent to the overflow container, for the log
 	var self_full := false
 	var dest_full := dest == self
 	for s in extra:
@@ -528,6 +546,8 @@ func _place_extra(extra: Array[ItemStack], overflow: Inventory) -> void:
 				here += 1
 				continue
 			self_full = true # nothing more fits; the rest skips the O(n) scan
+		if dest != self:
+			moved[str(s.def_id)] = int(moved.get(str(s.def_id), 0)) + s.count # what add() left over
 		if not dest_full:
 			if dest.add(s) == 0:
 				continue
@@ -535,7 +555,10 @@ func _place_extra(extra: Array[ItemStack], overflow: Inventory) -> void:
 		dest._append(s)
 		if dest == self:
 			here += 1
-	print("[inv] migration: %d more instances from split stacks, %d kept here, %d to overflow; bag %d/%d" % [extra.size(), here, extra.size() - here, used_slots(), slot_count])
+	var parts := PackedStringArray()
+	for id: String in moved:
+		parts.append("%s x%d" % [id, moved[id]])
+	print("[inv] migration: %d more instances from split stacks, %d kept here, %d to home storage%s; bag %d/%d" % [extra.size(), here, extra.size() - here, " (%s)" % ", ".join(parts) if not parts.is_empty() else "", used_slots(), slot_count])
 
 ## Grow by the item's span and put it in the new tail slots.
 func _append(s: ItemStack) -> void:

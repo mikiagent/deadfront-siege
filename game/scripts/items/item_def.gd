@@ -2,9 +2,9 @@ class_name ItemDef
 extends Resource
 ## Catalog row for an item. Loaded from data/items.json.
 
-## Consumables that still stack (prompt 05 allows per-category stacking). Everything else is one
-## instance per slot. # ASSUMPTION: the pack names no list; these are supplies used up by count.
-const STACKING_CATEGORIES: Array[StringName] = [&"ammunition", &"siege_ammunition", &"counter_supply", &"medicine", &"building"]
+## What still stacks (prompt 05: "currency in a wallet, certain consumables"). Everything else is one
+## instance per slot. # ASSUMPTION: the pack names no consumable list; these are supplies used up by count.
+const STACKING_CATEGORIES: Array[StringName] = [&"currency", &"ammunition", &"siege_ammunition", &"counter_supply", &"medicine", &"building"]
 
 @export var id: StringName = &""
 @export var display_name: String = ""
@@ -51,9 +51,8 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	for cat in STACKING_CATEGORIES:
 		stacks = stacks or def.has_category(cat)
 	def.stack_max = maxi(1, int(d.get("stack_max", 1))) if stacks else 1
-	# The 2026-09-20 rule: what one pre-W2-INV saved row may hold. Inventory.load_array splits it.
-	var span := int(d.get("slot_span", 1))
-	def.legacy_stack_max = int(d.get("stack_max", 1)) if (span > 1 or int(d.get("max_durability", 0)) > 0) else maxi(999, def.stack_max)
+	# What one pre-W2-INV saved row could hold (the old sanitizer's ceiling); load_array splits it.
+	def.legacy_stack_max = maxi(1, int(d.get("stack_max", 1)))
 	def.tool_class = StringName(str(d.get("tool_class", "none")))
 	def.base_level = int(d.get("base_level", 1))
 	def.attack_rate = float(d.get("attack_rate", 0.0))
