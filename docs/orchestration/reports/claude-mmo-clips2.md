@@ -2,7 +2,81 @@
 
 Date: 2026-10-20. Agent: Claude Code (integrator). Branch `claude/mmo-clips2`. Credits spent: 0.
 
-## Round 2: review fixes (2026-10-20)
+## Round 3: review fixes (2026-10-20)
+
+All findings of the third review are handled on `claude/mmo-clips2`. The base `claude/mmo-overhaul` (85c2b63) is merged in (888a081).
+
+| finding | fix | commit |
+|---|---|---|
+| **blocker**: protoceratops and megaloceros walk/run are out of scope (quads-loco2 redoes them) | the 4 GLBs and both `natural_speeds` rows restored from `claude/mmo-overhaul`; both species in t_canim `KNOWN_GLIDERS` until quads-loco2 lands | c5c1158 |
+| **major**: the 1.125 s zebraceratops hit_react stunlocks the animal under a 1.0 s hit cadence | `anim_events.json` `clips.hit_react.speed = 2.0`; new t_canim check `_test_hit_react_window` (written by dsc) | c5c1158, 3290080 |
+| minor: zebraceratops not in `STRIDE_SPECIES` | added | c5c1158 |
+| minor: `KNOWN_GLIDERS` empty, dead branch | now lists protoceratops and megaloceros (blocker fix) | c5c1158 |
+| minor: T. rex sleep reads as a crouch from low behind | not done, see below | - |
+| minor: megaloceros plays its run at walk speed | moot here, the base rows are back; note for quads-loco2 below | - |
+
+`git diff claude/mmo-overhaul -- game/assets/creatures/{protoceratops,megaloceros}` is now empty. This branch changes `anim_events.json` only in the zebraceratops `natural_speeds` row and the new `hit_react` speed line.
+
+### The hit_react fix applies to every species
+
+The stunlock was not limited to zebraceratops. Seven species in the base already had long authored hurt clips: coelophysis, compsognathus, gallimimus, utahraptor and velociraptor at 1.25 s, protoceratops and megaloceros at 1.125 s. At x1.00 each of them, zebraceratops included, had 0.00 s free per second.
+
+`CreatureClips.clip_speed` keys on the clip name, so the only speed knob inside this package's files (`anim_events.json`) is global. `game/scripts` is out of scope, so a per-species speed was not an option. Every species' `authored_clips` note calls its clip a "0.6 s" recoil, and x2.0 plays the long clips in 0.56-0.63 s.
+
+Cost: deinonychus has the only short clip (0.625 s), and it now plays in 0.31 s. I did not judge that visually. If the quicker flinch reads badly, the alternative is to retime the eight long GLBs to about 0.6 s and drop the global speed. That means GLB edits in eight species' anim folders.
+
+The new check is `_test_hit_react_window` in t_canim. For every species with an authored hit_react, it:
+- calls the real `Creature._on_damaged` once per second of tree time, six times, resetting `_stagger_immune_until` before each call because the real code reads the wall clock;
+- steps `stagger_left` down as `_physics_process` would;
+- counts the frames where `anim.is_busy()` is false and `stagger_left` is 0, which is the brain's attack gate (`creature_brain.gd` around line 459);
+- requires at least 0.30 s free in every second after the first.
+
+With the fix (t_canim log, rc 0, `[t_canim] PASS`):
+- zebraceratops, protoceratops and megaloceros: 1.125 s clip at x2.00, `free to attack 0.42 s of each second`;
+- coelophysis, compsognathus, gallimimus, utahraptor and velociraptor: 1.250 s clip at x2.00, `free to attack 0.35 s`;
+- deinonychus: 0.625 s clip at x2.00, `free to attack 0.67 s`;
+- `9 species with an authored hit_react checked`.
+
+Without the fix, the dsc gate deletes the speed line from `anim_events.json`, reruns t_canim, then restores the file. t_canim exits 1, and the eight long-clip species print `FAIL <id> hit_react ... at x1.00 ... free to attack 0.00 s of each second`. I ran that gate myself and saw `VERIFY PASS`.
+
+### Checks that would have caught each finding
+
+- **Blocker.** If this branch ships non-gliding protoceratops or megaloceros clips again, the `KNOWN_GLIDERS` line fails: `<id> is a known glider (...); if it no longer glides, drop it from KNOWN_GLIDERS`. Today it prints `ok` with `run x16.00 at 7.60 m/s` (megaloceros) and `run x6.67 at 4.20 m/s` (protoceratops). The base clips still pass `_test_stride_match`.
+- **Major.** `_test_hit_react_window`, as above.
+- **STRIDE_SPECIES.** `zebraceratops set_move_speed(1.60) -> walk x1.00: planted feet ratio L 1.00 R 1.00` and `set_move_speed(4.00) -> run x1.14: ratio L 1.00 R 1.00`.
+
+### What dsc did, and what I changed in its diff
+
+- **Job.** Sub-worktree `mmo-clips2-dsc1`, branch `claude/mmo-clips2-dsc1`, `dsc cook start TASK.md --once --verify ./verify_hitwin.sh --budget 2 --max-hours 4 --effort high`. It finished done with 0 verify failures, $0.01, under a minute.
+- **dsc's part.** It wrote `_test_hit_react_window` (36 lines) and the call in `_process`.
+- **My part.** I wrote TASK.md and the read-only gate `verify_hitwin.sh` (555). The gate checks:
+  - only `t_canim.gd` changed;
+  - the function calls `_on_damaged(` and does not call `play_clip(&"hit_react")` itself;
+  - it reads `is_busy()`, `stagger_left` and `clip_speed(&"hit_react"`;
+  - there is one `ok` line at x2.00 for each species with an authored hit_react, read from the JSON;
+  - zebraceratops reports its 1.125 s clip and velociraptor its 1.250 s clip;
+  - with the speed line deleted, t_canim fails, and the file is restored afterwards.
+- **What could pass while wrong, and is covered.** A test that calls `play_clip` directly, or one that skips every species. The gate's `_on_damaged` grep and `checked >= 9` cover these.
+- **What I changed in its diff.** I took only `game/tests/t_canim.gd`; its commit also added TASK.md and verify_hitwin.sh at the repo root, and I left those out. I reworded the tail of its message from `was 0.00`, which is wrong for deinonychus, to `the 1.125-1.25 s clips at x1.00 left 0.00`.
+
+### Re-import, tests
+
+- I touched the four restored GLBs and ran `--import` (rc 0, 0 "couldn't resolve track"). Each `.godot/imported/<clip>.glb-*.md5` source_md5 equals the restored file.
+- t_canim: `[t_canim] PASS` on 3290080.
+- run_all: `[tests] PASS`, rc 0, on c5c1158. Since then only t_canim.gd has changed.
+- `tools/smoke.sh`: `SMOKE PASS` on c5c1158.
+- 0 "couldn't resolve track" in import, t_canim and run_all logs.
+- No new `Godot-*.ips` in DiagnosticReports.
+- No windowed shots this round. Nothing visible changed except the hit_react playback rate, which a still frame cannot show.
+
+### Not done
+
+- **T. rex sleep polish.** The review marked lowering the pelvis and laying the tail base flat as optional, for a later dsc pass. It needs a new Blender job and another visual review round, so I left it. The `trex-sleep2` gate (`~/Documents/DeepseekCLI/deadfront-reanim/trex-sleep2/verify.sh`) is the place to add a pelvis-height bound and a tail-under-sky ray test.
+- **For quads-loco2 (orchestrator).** Its gate should require that walk speed selects the walk clip. The base clips fail that as well: at walk speed both quads play their run (`megaloceros set_move_speed(3.04) -> run x7.31`, `protoceratops set_move_speed(1.68) -> run x2.67`). When quads-loco2 lands, drop both species from `KNOWN_GLIDERS`; the list line fails until someone does.
+
+No `# ASSUMPTION:` markers were added this round.
+
+## Round 2: review fixes (2026-10-20, superseded where round 3 says so)
 
 All four round-1 review findings are fixed on `claude/mmo-clips2`.
 
@@ -83,7 +157,7 @@ Shots are in session scratch and will not persist: `/private/tmp/claude-501/-Use
 - **Sleep mesh below the floor.** The deepest posed vertex is 0.30 m below the floor (a metatarsal flap; dsc report). In-game it reads as the body pressing into the ground, and terrain hides it.
 - **Small breath.** The breath is at most 0.7° per bone, because the pose sits near the stretch ceiling.
 
-### For the orchestrator: protoceratops and megaloceros walk/run are already on this branch
+### For the orchestrator: protoceratops and megaloceros walk/run (superseded: round 3 restored the base clips)
 
 Before this round, earlier DSC-CLIPS work committed these:
 - `73663d7`: protoceratops walk/run, dsc `proto-loco2`: walk x1.00, run x1.10 in game.
