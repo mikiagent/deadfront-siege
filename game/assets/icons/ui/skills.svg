@@ -1,6 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-<!-- DEADFRONT UI icon "skills". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<!-- DEADFRONT UI icon "skills". 64 grid, live area 6-58, solid shapes, white only. -->
 <g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
-<path d="M32 8.5 L38.17 25.01 L55.78 25.77 L41.99 36.74 L46.69 53.73 L32 44 L17.31 53.73 L22.01 36.74 L8.22 25.77 L25.83 25.01 Z"/>
+<path d="M43.6 51.18 L33.3 44.36 L33.3 37 Z"/>
+<path d="M52.87 27.59 L43.21 35.27 L36.21 33 Z"/>
+<path d="M42.4 37.75 L45.7 49.65 L35.4 35.47 Z"/>
+<path d="M33.3 11.48 L37.63 23.05 L33.3 29 Z"/>
+<path d="M39.73 24.57 L52.07 25.11 L35.4 30.53 Z"/>
+<path d="M18.3 49.65 L21.6 37.75 L28.6 35.47 Z"/>
+<path d="M30.7 44.36 L20.4 51.18 L30.7 37 Z"/>
+<path d="M11.93 25.11 L24.27 24.57 L28.6 30.53 Z"/>
+<path d="M20.79 35.27 L11.13 27.59 L27.79 33 Z"/>
+<path d="M26.37 23.05 L30.7 11.48 L30.7 29 Z"/>
 </g>
 </svg>

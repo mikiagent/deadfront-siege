@@ -1,7 +1,7 @@
 """Third drawing pass (review r2): the icons that still misread without their label at 24 px
 (roll, feed, deafened, harbour, cargo, heel), the pairs that read alike (cauterise vs bleed,
-wet vs auto), and stock pictograms given period material (settings, close, save, infected,
-tackle). Solid polygons only, centred optically by geo2.place like icons_g."""
+wet vs auto), and stock pictograms given period material (close, save, infected, tackle;
+the rest are in icons_i). Solid polygons only, centred optically by geo2.place like icons_g."""
 import math
 from geo2 import *
 from icons_g import chaikin, figure
@@ -54,7 +54,7 @@ def bone(a, b, w=7.0, knob=4.4, spread=3.4):
 
 # roll: a figure tucked into a ball rolling along the ground, a curved arrow carrying it over.
 G["roll"] = [(arc_arrow(31, 37, 21, 160, 338), False),
-             ([circle(29.5, 39.5, 10.5), circle(39.5, 27.5, 5.4)], False),
+             ([circle(29, 40, 10.5), circle(41.5, 25.5, 5.6)], False),  # head clear of the body so the tuck reads
              ([capsule((6.5, 52), (14, 52), 5), capsule((19, 57), (43, 57), 5)], False)]
 
 # feed (tame): the raptor head of the pet family, jaws open under a drumstick held out to it.
@@ -75,7 +75,7 @@ G["feed"] = [([xf(RAPTOR, **HEAD_XF), xf(circle(33.5, 22, 3.8), **HEAD_XF)], Tru
 # cut either side of the slash so the slash stands clear at 12-16 px.
 HELIX = path((19, 28), ((19, 15.5), (27, 8), (35.5, 8)), ((45, 8), (51.5, 15), (51.5, 24.5)), ((51.5, 33), (45, 37), (42.5, 43)),
              ((40.5, 48.5), (39, 55.5), (31.5, 55.5)), ((26.5, 55.5), (23.5, 52), (23.5, 48)))
-INNER = path((29.5, 29), ((29.5, 22.5), (32.5, 18.5), (36.5, 18.5)), ((40.5, 18.5), (43, 21.5), (43, 26)))
+INNER = path((29.5, 31), ((29.5, 23), (32.5, 18.5), (37, 18.5)), ((41, 18.5), (43.5, 22), (43, 26.5)), ((42.5, 31), (39, 33), (36, 36)))
 SL0, SL1 = (9, 9), (55, 55)
 G["deafened"] = [([q for part in (band(HELIX, 7.4), band(INNER, 6.2)) for q in cut(part, SL0, SL1, 5.6)], False),
                  ([capsule((11, 11), (53, 53), 6.2)], False)]
@@ -88,12 +88,19 @@ WAVE = path((7, 55), ((12, 50.5), (17, 50.5), (22, 55)), ((27, 59.5), (32, 59.5)
 G["harbour"] = [([HULL], False), ([band(WAVE, 5.0)], False),
                 ([circle(31, 12, 5.6), capsule((31, 21), (31, 28), 9.5), capsule((45, 8.5), (19, 31), 4.4)], False)]
 
-# cargo warp: a hide bundle tied across with rope (the ties are gaps, knotted where they cross),
-# speed marks behind it: goods sent away.
-BUNDLE = chaikin([(18, 8), (46, 8), (48, 22), (46, 36), (18, 36), (16, 22)], 2)
-TIES = [q for half in cut(BUNDLE, (32, 0), (32, 64), 1.5) for q in cut(half, (0, 22), (64, 22), 1.5)]
-G["cargo"] = [(TIES + [circle(32, 22, 4.2)], False),
-              ([ellipse(32, 49.5, 26, 9.5), ellipse(32, 49.5, 19.5, 4.6)], True)]
+# cargo warp: the package convention (a box seen from above the corner) as a hide-wrapped bale tied
+# with rope (the string is a gap across each face), speed marks behind it: goods sent away. (A tied
+# bundle over the warp ring read as a cushion over a hole.)
+def shrink(poly, k):
+    cx = sum(p[0] for p in poly) / len(poly)
+    cy = sum(p[1] for p in poly) / len(poly)
+    return [(x - (x - cx) / math.hypot(x - cx, y - cy) * k, y - (y - cy) / math.hypot(x - cx, y - cy) * k) for x, y in poly]
+
+
+BT, BR, BC, BL = (34, 8), (56, 19.5), (34, 31), (12, 19.5)
+G["cargo"] = [(cut(shrink([BT, BR, BC, BL], 1.6), (34, 19.5), (56, 8), 1.3) + cut(shrink([BL, BC, (34, 57), (12, 45.5)], 1.6), (23, 0), (23, 64), 1.3)
+               + cut(shrink([BC, BR, (56, 45.5), (34, 57)], 1.6), (45, 0), (45, 64), 1.3), False),
+              ([capsule((2.5, 30), (7.5, 30), 4.4), capsule((2.5, 39), (7.5, 39), 4.4)], False)]
 
 
 # heel: the survivor standing with the pet-family raptor head at their side, turned to them.
@@ -135,22 +142,6 @@ STELE_IN = [(18.5, 51.5), (45.5, 51.5)] + arcp(32, 26, 13.5, 0, -180, 20) + [(18
 G["save"] = [([clip(STELE, -1, 1, 37), clip(STELE_IN, -1, 1, 37 - 5.5 * math.sqrt(2))], True),
              ([capsule((32, 17.5), (32, 31), 5.4), [(23, 30), (41, 30), (32, 42.5)]], False)]
 
-
-# settings: a gear knapped from stone; every tooth chipped a different way.
-def stone_gear(cx, cy, ro, ri, teeth, chips):
-    pts = []
-    step = 360.0 / teeth
-    for i in range(teeth):
-        a = -90 + i * step
-        c0, c1 = chips[i]
-        for da, rr in ((-0.3, ri), (-0.19, ro - c0), (0.02, ro), (0.19, ro - c1), (0.3, ri)):
-            ang = math.radians(a + da * step)
-            pts.append((cx + rr * math.cos(ang), cy + rr * math.sin(ang)))
-    return pts
-
-
-G["settings"] = [([stone_gear(32, 32, 26, 18.5, 8, [(0, 2.5), (2, 0), (0.5, 3), (3, 0.5), (0, 2), (2.5, 0), (1, 3), (3, 1)]),
-                   circle(32, 32, 7.5)], True)]
 
 # close: two long bones crossed (an X that reads at any size, with bone knobs for material).
 G["close"] = [(bone((15.5, 15.5), (48.5, 48.5)) + bone((48.5, 15.5), (15.5, 48.5)), False)]

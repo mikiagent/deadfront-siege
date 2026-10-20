@@ -4,11 +4,9 @@ I = {}
 # hafted tools: handle is a 5 line; heads are solid; lashing is a short solid collar under the head.
 # axe head drawn in haft-local space (haft along local -y), placed on the haft with one transform
 
-
 I["pick"] = {"l": ['<path d="M46 56 C46 44 42 36 34 30"/>'],
              "s": ['<path d="M39 34 C34 28 33 20 39 14 C44 20 46 27 39 34 Z"/>', '<path d="M36 41 C28 42 19 38 16 30 C24 28 32 31 36 41 Z"/>',
                    '<path%s d="%s M12.5 15.5 A3.5 3.5 0 0 1 16 12 V14.5 A1 1 0 0 0 15 15.5 Z"/>' % (EO, circ(15.5, 15.5, 7.5)), '<path d="%s"/>' % circ(26, 9, 5)]}
-
 
 I["fish"] = {"s": ['<path%s d="M7 33 C13 21 28 16 40 22 L53 13 C51 20 50.5 26.5 51.5 33 C50.5 39.5 51 46 53 53 L40 44 C28 50 13 45 7 33 Z %s M26 22 C28 27 28 39 26 44 L23.5 43 C25.5 37 25.5 29 23.5 23 Z"/>' % (EO, circ(16, 29.5, 3.4))]}
 
@@ -34,6 +32,3 @@ I["station_well"] = {"l": ['<path d="M16 39 V13 M48 39 V13 M9 15 L32 6 L55 15 M3
                      "s": ['<path d="M26.5 24 H37.5 L36 34 H28 Z"/>',
                            '<path%s d="M10 39 H54 V56 H10 Z M10 46 H54 V49 H10 Z M24 39 H27.5 V46 H24 Z M38 39 H41.5 V46 H38 Z M17 49 H20.5 V56 H17 Z M31 49 H34.5 V56 H31 Z M45 49 H48.5 V56 H45 Z"/>' % EO]}
 
-I["lock"] = {"l": ['<path d="M21 28 V20 A11 11 0 0 1 43 20 V28"/>'],
-             "s": ['<path%s d="M19 27 H45 C48 27 50 29 50 32 V51 C50 54 48 56 45 56 H19 C16 56 14 54 14 51 V32 C14 29 16 27 19 27 Z M29.8 42.8 A4.8 4.8 0 1 1 34.2 42.8 L35 49 H29 Z"/>' % EO]}
-I["unlock"] = {"l": ['<path d="M21 28 V17 A11 11 0 0 1 43 17 V19"/>'], "s": I["lock"]["s"]}

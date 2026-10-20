@@ -78,7 +78,7 @@ func _init() -> void:
 		_test_glyph_scan()
 		_test_loader()
 	if failures.is_empty():
-		print("[t_uiicons] PASS ids=%d files=%d glyphs=%d code_ids=%d hook_ids=%d weight=%s worst_iou=%s" % [_icons.size(), _svg_files().size(), (_m.get("glyphs", {}) as Dictionary).size(), _code_ids, HOOK_IDS.size(), _weight, _worst_iou])
+		print("[t_uiicons] PASS ids=%d files=%d glyphs=%d code_ids=%d hook_ids=%d weight=%s worst_iou=%s regen='%s'" % [_icons.size(), _svg_files().size(), (_m.get("glyphs", {}) as Dictionary).size(), _code_ids, HOOK_IDS.size(), _weight, _worst_iou, _regen])
 		quit(0)
 	else:
 		for f in failures:
@@ -238,14 +238,21 @@ func _test_weight() -> void:
 	_weight = "%.2f..%.2f" % [vals[0] / med, vals[-1] / med]
 
 var _weight := ""
+var _regen := ""
 
-## Every SVG is the output of _src/build.py (its header names the file's own id), so editing
-## the source and rebuilding is the one way to change an icon.
+## Every SVG is the output of _src/build.py (its header names the file's own id), and the sources
+## regenerate every SVG byte for byte, so editing the source and rebuilding is the one way to change
+## an icon. Needs python3 on PATH (dev machines; the export never runs tests).
 func _test_sources() -> void:
 	_expect(FileAccess.file_exists(SRC + "build.py") and FileAccess.file_exists(SRC + ".gdignore"), "drawing sources are in %s" % SRC)
 	for f in _svg_files():
 		var txt := FileAccess.get_file_as_string(DIR + f)
 		_expect(txt.contains("<!-- DEADFRONT UI icon \"%s\"." % f.get_basename()), "%s carries the build.py header for its own id" % f)
+	var out: Array = []
+	var code := OS.execute("python3", [ProjectSettings.globalize_path(SRC + "build.py"), "--check"], out, true)
+	var msg := "\n".join(PackedStringArray(out)).strip_edges()
+	_expect(code == 0, "_src/build.py --check regenerates every SVG byte for byte (exit %d): %s" % [code, msg.replace("\n", " | ")])
+	_regen = msg.get_slice("\n", msg.get_slice_count("\n") - 1)
 
 ## No two drawings may read as the same shape at HUD size: rasterise each at 24 px and compare
 ## alpha masks (sum of min / sum of max). wet and bleed_deep once shared one silhouette.
@@ -414,14 +421,15 @@ func _strip_comment(line: String) -> String:
 	return line
 
 func _test_loader() -> void:
+	var ui: GDScript = load("res://scripts/ui/ui_icons.gd")  # by path, not class_name: tests resolve game classes at run time
 	for id in _icons:
-		var tex := UiIcons.icon(StringName(id))
+		var tex: Texture2D = ui.icon(StringName(id))
 		_expect(tex != null, "UiIcons.icon(%s) loads" % id)
-	var fb := UiIcons.icon(&"no_such_action_xyz")
-	_expect(fb != null and fb == UiIcons.icon(StringName(str(_m.get("fallback", "")))), "unknown id falls back to the fallback icon")
-	_expect(UiIcons.icon(&"") == null, "empty id gives null")
-	_expect(UiIcons.for_glyph("≡") == UiIcons.icon(&"menu"), "for_glyph maps the legacy menu glyph")
-	_expect(UiIcons.for_glyph("not a glyph") == null, "for_glyph returns null for unknown glyphs")
-	var t := UiIcons.icon(&"menu")
+	var fb: Texture2D = ui.icon(&"no_such_action_xyz")
+	_expect(fb != null and fb == ui.icon(StringName(str(_m.get("fallback", "")))), "unknown id falls back to the fallback icon")
+	_expect(ui.icon(&"") == null, "empty id gives null")
+	_expect(ui.for_glyph("≡") == ui.icon(&"menu"), "for_glyph maps the legacy menu glyph")
+	_expect(ui.for_glyph("not a glyph") == null, "for_glyph returns null for unknown glyphs")
+	var t: Texture2D = ui.icon(&"menu")
 	if t:
 		_expect(t.get_width() == 128 and t.get_image().has_mipmaps(), "icons import at 2x with mipmaps (%dpx)" % t.get_width())
