@@ -204,7 +204,8 @@ func _test_recipe_gates_and_abilities() -> void:
 	# W2-DATA gates recipes with requires_node (crafting.gd progression_block). A node a recipe
 	# names must be buyable, prerequisites included, or that recipe is locked for good.
 	var data: Node = get_root().get_node("Data")
-	_expect(not Rules.buyable(sk, "weapon_tools", "work_pick"), "Work Pick (defined) is not for sale while no recipe needs it")
+	if not Rules.recipe_nodes().has("work_pick"): # W2-DATA's recipes gate it once they land
+		_expect(not Rules.buyable(sk, "weapon_tools", "work_pick"), "Work Pick (defined) is not for sale while no recipe needs it")
 	data.recipes[&"t_w2_probe"] = {"id": "t_w2_probe", "requires_node": "work_pick"}
 	_expect(Rules.buyable(sk, "weapon_tools", "work_pick") and Rules.buyable(sk, "weapon_tools", "improvised_tools"), "a defined node a recipe names in requires_node is buyable with its prerequisite (work_pick)")
 	data.recipes.erase(&"t_w2_probe")
