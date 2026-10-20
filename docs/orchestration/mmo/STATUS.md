@@ -319,6 +319,8 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   unless the owner asks. finish-4 was replaced by finish-5 (wf_0472e0fd-634, `.claude/worktrees/deadfront-finish-5.js`)
   with ICONS2 added and the "delegate to dsc" rule removed.
 
+- 2026-10-20 (owner) the non-stacking inventory save change is approved: merge it once its independent review passes and old saves migrate cleanly in tests.
+
 ## Owner questions (open)
 
 - none
