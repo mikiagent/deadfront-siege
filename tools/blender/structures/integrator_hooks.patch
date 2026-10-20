@@ -79,3 +79,19 @@
  		for z in [-0.65,0.65]:
  			var wheel := MeshInstance3D.new()
  			var cylinder := CylinderMesh.new()
+--- a/game/tests/t_harbour.gd
++++ b/game/tests/t_harbour.gd
+@@ -84,7 +84,12 @@ func _check_island(id: String) -> void:
+ 	for m in meshes:
+ 		if (m as MeshInstance3D).mesh is BoxMesh:
+ 			boxes += 1
+-	_expect(meshes.size() >= 20 and boxes == 0, "%s harbour is a prop composite (%d meshes, %d boxes)" % [id, meshes.size(), boxes])
++	# W1-STRUCTART's props_manifest harbour row swaps the composite for the Blender pier (one mesh).
++	var rows: Dictionary = (root.get_node("Data").get("props_manifest") as Dictionary).get("buildings", {})
++	var pier_glb := str((rows.get("harbour", {}) as Dictionary).get("glb", ""))
++	var vis := h.get_node_or_null("Visual")
++	var is_pier := pier_glb != "" and vis != null and vis.scene_file_path == pier_glb
++	_expect(is_pier or (meshes.size() >= 20 and boxes == 0), "%s harbour is the manifest pier or a prop composite (%d meshes, %d boxes)" % [id, meshes.size(), boxes])
+ 	var near := INF
+ 	for c in _host.get_tree().get_nodes_in_group("creatures"):
+ 		if c is Node3D:
