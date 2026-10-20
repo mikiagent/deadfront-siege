@@ -36,13 +36,16 @@ static func nearest(pos: Vector3, max_d: float = INF) -> Player:
 	return best
 
 ## The survivor a pet is bonded to (its record is in their bonded list), or null for wild animals.
+## A pet nobody holds yet (field_tame calls become_pet before bonded.append; labs make unbonded
+## pets) belongs to the local survivor, as before the registry: the passthrough and the pet brain
+## act on the first frame. shortcut: offline has one survivor; W3 should pass the tamer in.
 static func owner_of(c: Creature) -> Player:
-	if c == null or c.pet_record == null:
+	if c == null or not c.is_pet or c.pet_record == null:
 		return null
 	for p in all():
 		if p.bonded.has(c.pet_record):
 			return p
-	return null
+	return local()
 
 ## Who earns credit for something `source` did: a survivor, the owner of a pet, else null.
 static func credit_for(source: Object) -> Player:

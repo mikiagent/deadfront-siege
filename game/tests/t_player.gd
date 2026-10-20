@@ -232,6 +232,12 @@ func _test_f_skips_pets() -> void:
 	var last: Dictionary = player.actions.sent.back() if not player.actions.sent.is_empty() else {}
 	_expect(str(last.get("op", "")) == "act.attack" and int(last["a"]["net_id"]) == wild.get_instance_id() and player.hunt.target == null,
 		"online F sends act.attack and applies nothing locally (%s)" % [last])
+	# A fresh tame runs become_pet before bonded.append: it already has an owner, a wild one never.
+	var reg: GDScript = load("res://scripts/core/player_registry.gd")
+	var fresh = _creature(&"compsognathus", Vector3(0, 0, 2.0))
+	fresh.become_pet(PetRecordS.new())
+	_expect(reg.owner_of(fresh) == player and reg.owner_of(wild) == null and reg.credit_for(wild) == null,
+		"an unbonded fresh tame belongs to the local survivor, a wild animal to nobody")
 	await _clear_creatures()
 
 func _out_for(rec):
