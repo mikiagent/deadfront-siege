@@ -72,6 +72,7 @@ func _init(size_px: float = 72.0) -> void:
 	# Out of focus by default: the HUD rails are hexes, and a focused one takes Space (roll) and the
 	# arrows (move). Menus that a controller drives (station menu) set FOCUS_ALL; _draw shows a teal
 	# ring on focus, and a tap or click drops it again (_gui_input).
+	# ASSUMPTION: the station menu is the only hex menu a controller drives; the radials do not call focus_first yet.
 	focus_mode = Control.FOCUS_NONE
 	focus_entered.connect(queue_redraw)
 	focus_exited.connect(queue_redraw)
