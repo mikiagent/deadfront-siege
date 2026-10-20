@@ -15,6 +15,9 @@ func _ready() -> void:
 	_cam = kit["cam"]
 	var nav: Node = kit["nav"]
 	nav.visible = false
+	# The 3.2 s acceptance beat must be one reproducible fight, not a roll of the day: combat
+	# rolls go through CombatTuning.rng (survivor HP at the beat ranged 18-80 over six runs).
+	CombatTuning.rng.seed = 20261018
 	Game.max_creatures_per_island = 0
 	World.harvested.clear()
 	World.load_island(self, &"temperate_25", Vector3(0, 1, 12), false)

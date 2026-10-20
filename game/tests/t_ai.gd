@@ -294,6 +294,16 @@ func _test_flee_speed_floor() -> void:
 	zeb.genetics = g
 	zeb.spawn(data.creature(&"zebraceratops"), &"", 0)
 	var base: float = zeb.move_speed_mps()
-	var flee: float = maxf(base * float(zeb.brain.profile.get("flee_speed_mult", 1.0)), float(zeb.brain.profile.get("flee_min_mps", 0.0)))
+	# The physics step's own flee rule, not a copy of it: deleting the floor in creature.gd fails here.
+	var flee: float = zeb.flee_speed(base, 1.0)
 	_check(flee >= 6.0, "worst-IV zebraceratops flees at %.2f m/s (base %.2f), want >= 6.0" % [flee, base])
+	# And the real step: flee with a goal 2 m away, one physics frame, read the velocity it produced.
+	zeb.brain.state = &"flee"
+	zeb._path_active = true
+	zeb._path_goal = zeb.global_position + Vector3(2.0, 0.0, 0.0)
+	zeb.velocity = Vector3.ZERO
+	zeb._physics_process(1.0 / 60.0)
+	var stepped := Vector2(zeb.velocity.x, zeb.velocity.z).length()
+	zeb._path_active = false
+	_check(stepped >= 6.0, "worst-IV zebraceratops flee physics step moves at %.2f m/s, want >= 6.0 (floor deleted in creature.gd fails here)" % stepped)
 	zeb.free()

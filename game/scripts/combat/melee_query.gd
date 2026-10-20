@@ -11,6 +11,8 @@ const REACH_UP_M := 0.6    # an attacker reaches this far above its own head
 const CAST_RADIUS_M := 0.22  # swept sphere: wider than any slot a body could bite through
 const GROUND_CLEAR_M := 0.12  # sphere bottom stays this far above the lower body's feet
 
+static var _sphere := SphereShape3D.new()
+
 ## True when nothing solid stands between a and b and their heights overlap.
 static func clear(a: Node3D, b: Node3D) -> bool:
 	if a == null or b == null or not a.is_inside_tree() or not b.is_inside_tree():
@@ -30,11 +32,11 @@ static func blocker(a: Node3D, b: Node3D) -> Node:
 	var knee_b := minf(KNEE_M, body_height(b) * 0.5)
 	var from := Vector3(a.global_position.x, feet_y(a) + knee_a, a.global_position.z)
 	var to := Vector3(b.global_position.x, feet_y(b) + knee_b, b.global_position.z)
-	var sphere := SphereShape3D.new()
-	# Stay clear of the ground each body stands on, or flat floor would count as a wall.
-	sphere.radius = clampf(minf(knee_a, knee_b) - GROUND_CLEAR_M, 0.02, CAST_RADIUS_M)
+	# One shared shape, retuned per call: a blocked survivor re-queries every frame, and a fresh
+	# SphereShape3D each time was a resource allocation per frame on top of the casts.
+	_sphere.radius = clampf(minf(knee_a, knee_b) - GROUND_CLEAR_M, 0.02, CAST_RADIUS_M)
 	var q := PhysicsShapeQueryParameters3D.new()
-	q.shape = sphere
+	q.shape = _sphere
 	var exclude: Array[RID] = []
 	for n in [a, b]:
 		if n is CollisionObject3D:

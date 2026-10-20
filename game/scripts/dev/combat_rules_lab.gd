@@ -279,7 +279,7 @@ func _ranged_phase() -> void:
 	_player.hunt.start(raptor)
 	_player.hunt.auto = false
 	_player.hunt._swing_cd = 0.0
-	_player.hunt._los_notice_s = -99.0
+	_player.hunt._notice_s.clear()
 	_player.hunt.last_notice = ""
 	var shot := _player.hunt.fire_ranged()
 	_check(not shot and _player.hunt.last_notice.contains("No clear shot"), "fence in the line of fire: fired=%s notice '%s'" % [shot, _player.hunt.last_notice])
