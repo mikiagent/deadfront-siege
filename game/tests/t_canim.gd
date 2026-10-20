@@ -9,6 +9,10 @@ const FEET := ["BackFoot", "Toe", "Metatarsal"]  # + ".L" / ".R", as tools/bake_
 const STRIDE_SPECIES: Array[StringName] = [&"velociraptor", &"megaloceros", &"protoceratops", &"tyrannosaurus"]
 ## ASSUMPTION: a species walks at 40 % of its listed speed; defs and the PRD give one top speed.
 const WALK_FRAC := 0.4
+## A gait played far faster than authored is the gliding look: feet whirl while the body slides along. Species still on
+## such clips are listed here (STATUS, DSC-CLIPS) so the list stays honest: they must still glide, everyone else must not.
+const MAX_CADENCE := 3.0
+const KNOWN_GLIDERS: Array[StringName] = [&"megaloceros"]
 
 var failures: Array[String] = []
 var _started := false
@@ -28,6 +32,7 @@ func _process(_d: float) -> bool:
 	_test_bad_input_and_stale_bake()
 	_test_stride_match()
 	_test_walk_loops_not_frozen()
+	_test_cadence_sane()
 	_test_optional_clips()
 	if failures.is_empty():
 		print("[t_canim] PASS")
@@ -275,6 +280,27 @@ func _test_walk_loops_not_frozen() -> void:
 		print("[t_canim] %s walk loop %.3f s, longest frozen span %.0f %%" % [id, walk.length, frac * 100.0])
 		c.free()
 	_expect(checked >= 6 and worst <= 0.25, "%d biped walk loops: longest frozen span %.0f %% (want <= 25 %%, was 51 %%)" % [checked, worst * 100.0])
+
+func _test_cadence_sane() -> void:
+	for id in data.creatures.keys():
+		if not ResourceLoader.exists("res://assets/creatures/%s/anim/walk.glb" % id):
+			continue
+		var c = _spawn(id)
+		var top: float = c.def.move_speed_mps
+		var worst := 0.0
+		var at := ""
+		for v in [top * WALK_FRAC, top]:
+			c.anim.set_move_speed(v)
+			_advance(c, 0.3)
+			var gait: StringName = c.anim.current_clip
+			if c.anim.cadence(gait) > worst:
+				worst = c.anim.cadence(gait)
+				at = "%s x%.2f at %.2f m/s" % [gait, worst, v]
+		c.free()
+		if id in KNOWN_GLIDERS:
+			_expect(worst > MAX_CADENCE, "%s is a known glider (%s); if it no longer glides, drop it from KNOWN_GLIDERS" % [id, at])
+		else:
+			_expect(worst <= MAX_CADENCE, "%s gait cadence %s (want <= %.1f, else its feet glide)" % [id, at, MAX_CADENCE])
 
 func _test_optional_clips() -> void:
 	var rex = _spawn(&"tyrannosaurus")
