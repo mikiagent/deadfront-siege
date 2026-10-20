@@ -38,7 +38,7 @@ const TEAR_MAX_FRAC := 0.005
 const CLIP_TORN := {&"compsognathus": 12, &"gallimimus": 82, &"megaloceros": 2166, &"protoceratops": 150,
 	&"utahraptor": 16, &"velociraptor": 2, &"zebraceratops": 206}
 ## Seconds after the blow at which the settle sequence grabs a frame (the 4th tile is the corpse).
-const SEQ_T: Array[float] = [0.2, 0.8, 1.6]
+var SEQ_T: Array[float] = [0.2, 0.8, 1.6]  # --rl-seq=a,b,c overrides
 const SETTLE_MAX_S := 3.5
 const PERF_PASSES := 5
 const PERF_MAX_MS := 2.0
@@ -71,6 +71,10 @@ func _ready() -> void:
 			suggest = true
 		elif a == "--rl-perf":
 			perf = true
+		elif a.begins_with("--rl-seq="):
+			SEQ_T.clear()
+			for t in a.substr(9).split(",", false):
+				SEQ_T.append(float(t))
 		elif a == "--rl-fallback":
 			Ragdoll.data()["budget"]["max_active"] = 0  # every death takes the fallback (clip + conform)
 		elif a.begins_with("--rl-shots="):
