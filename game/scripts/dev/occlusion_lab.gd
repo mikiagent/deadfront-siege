@@ -9,7 +9,8 @@ extends Node3D
 ## compared pixel by pixel; prints [occl] gate lines and saves <dir>/occl_gates_<renderer>.png
 ## (unfaded tree | faded tree, survivor behind both).
 ## --occl-perf (windowed): island_lab's island and camp view with the scatter hook applied; times
-## frames with every occludable prop on and released, alternating, and prints [occl] perf.
+## frames with every occludable prop on and released, alternating, and prints [occl] perf. With
+## --shot it only stands the survivor behind the camp tree for the picture.
 
 const TREE := "res://assets/nature/generated/tree-common-a.glb"
 const ROCK := "res://assets/nature/Rock_1.glb"
@@ -337,6 +338,8 @@ func _perf() -> void:
 	var at := tree.global_position - SIGHT * 1.8
 	_player.global_position = Vector3(at.x, World.runtime.surface_y(at.x, at.z) + 1.0, at.z)
 	_cam._snap()
+	if Game.shot_path != "":
+		return  # --shot: the island view with the camp tree faded, no timing
 	var vp := get_viewport().get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(vp, true)
 	for arg in OS.get_cmdline_user_args():
