@@ -15,6 +15,10 @@ func _ready() -> void:
 	_cam = kit["cam"]
 	var nav: Node = kit["nav"]
 	nav.visible = false
+	# The 3.2 s acceptance beat must be one reproducible fight, not a roll of the day: combat
+	# rolls go through CombatTuning.rng (survivor HP at the beat ranged 18-80 over six runs).
+	CombatTuning.rng.seed = 20261018
+	seed(20261018)  # brain jitter, spawn spread and other rolls use the global RNG
 	Game.max_creatures_per_island = 0
 	World.harvested.clear()
 	World.load_island(self, &"temperate_25", Vector3(0, 1, 12), false)
@@ -77,6 +81,7 @@ func _starter_level(c: Creature) -> void:
 	d.defense *= k
 	c.def = d
 	c.level = 1
+	c.genetics = CreatureGenetics.neutral()  # spawn rolled random IVs (a fresh, unseeded RNG)
 	c.health.setup(c.stat_value(&"health"))
 
 func _fail(msg: String) -> void:
