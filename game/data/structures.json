@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "doc": "W2-BUILDSYS modular building. Pieces snap on one global module lattice (module_m metres, even 1 m grid cells). Slots: cell (a module square at a level), edge (a module side at a level), corner (a module corner at a level), door (inside a doorway edge). Level 0 is the foundation floor; level k >= 1 is the ceiling/floor k storeys up. piece_tiers holds one blueprint per piece x tier in the spec-10 section-11 shape (material_slots, minimum/maximum_level, required_skill_node, required_building_ability, supported_building_effects) plus model (res:// GLB path; empty = procedural stand-in) and max_durability. Saved pieces are building instances: id, blueprint_id, tier, owner_id, level, inherited_attributes, max_durability, current_durability, position, rotation, container_id. placed_kinds gives the kit-placed kinds (workbench, fence, ...) their durability and repair materials.",
+  "doc": "W2-BUILDSYS modular building. Pieces snap on one global module lattice (module_m metres, even 1 m grid cells). Slots: cell (a module square at a level), edge (a module side at a level), corner (a module corner at a level), door (inside a doorway edge). Level 0 is the foundation floor; level k >= 1 is the ceiling/floor k storeys up. piece_tiers holds one blueprint per piece x tier in the spec-10 section-11 shape (material_slots, minimum/maximum_level, required_skill_node, required_building_ability, supported_building_effects) plus model (res:// GLB path; empty = procedural stand-in) and max_durability. Saved pieces are building instances: id, blueprint_id, tier, owner_id, level, inherited_attributes, max_durability, current_durability, position, rotation, container_id. placed_kinds gives the kit-placed kinds (workbench, fence, ...) their durability and repair materials. Storage: chest 100, large box 160 (PRD:582 baskets ~100 slots early -> boxes -> large boxes; spec 05:14 and 10:90 a level-60 Large Leaf Box holds 160). ASSUMPTION: flat until building level exists (spec 10: base_capacity_at_level, W2-CONSTRUCT).",
   "model_contract": "1 unit = 1 m, +Y up. cell pieces: origin at the module square's centre on its floor (2 x 2 m footprint); oriented pieces (roof, stairs, ramp) rise toward +Z at rot 0. edge pieces: origin at the edge midpoint on the floor, the wall plane runs along X (2 m wide), thickness on Z centred, height +Y (storey_m). corner pieces: origin on the corner, height +Y. door: origin at the doorway's edge midpoint, leaf hinged at -X of the opening. Rotation is applied by the game; the model needs no collision (the game builds it).",
   "module_m": 2.0,
   "storey_m": 2.5,
@@ -318,7 +318,7 @@
       "support": "floor",
       "sockets": [],
       "occlusion": "none",
-      "storage_slots": 20,
+      "storage_slots": 100,
       "interact": "open_storage",
       "xp": 2
     },
@@ -339,7 +339,7 @@
       "support": "floor",
       "sockets": [],
       "occlusion": "none",
-      "storage_slots": 40,
+      "storage_slots": 160,
       "interact": "open_storage",
       "xp": 3
     },

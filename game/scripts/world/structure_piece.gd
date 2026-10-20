@@ -197,28 +197,24 @@ func set_sign_text(text: String) -> void:
 	if l:
 		l.text = sign_text
 
-## A destroyed chest's contents go to the bag of whoever took it down, then the camp cargo; with
-## neither they are lost (logged). Called before the piece leaves the grid.
-# ASSUMPTION: no loot bag on the ground yet; contents are salvaged into the camp cargo.
+## A destroyed, collapsed or demolished chest never deletes what it held: StructureHealth.salvage
+## puts it in the bag of whoever took it down, then home cargo, then a loot bag at the spot.
 func spill_storage(player: Node = null) -> void:
+	var out := take_contents()
+	if not out.is_empty():
+		StructureHealth.salvage(out, pose(kind, slot, rot, floor0).origin, player)  # pose: valid off the tree too
+
+## Empties the storage and returns what it held (the units move; no copy stays behind).
+func take_contents() -> Array[ItemStack]:
+	var out: Array[ItemStack] = []
 	if storage == null:
-		return
-	var inv: Variant = player.get("inventory") if player else null
+		return out
 	for i in storage.slot_count:
-		var st: ItemStack = storage.slots[i]
-		if st == null:
-			continue
+		if storage.slots[i] != null:
+			out.append(storage.slots[i])
 		storage.slots[i] = null
-		if st.def_id == &"_slot_lock":
-			continue  # the tail of a multi-slot item; its anchor slot carries it
-		var left := st.count
-		if inv is Inventory:
-			left = (inv as Inventory).add(st)
-		if left > 0 and World.cargo_home:
-			left = World.cargo_home.add(st)
-		if left > 0:
-			print("[struct] %s lost %d %s" % [kind, left, st.def_id])
 	storage.changed.emit()
+	return out
 
 func is_wall_type() -> bool:
 	return kind in WALL_KINDS

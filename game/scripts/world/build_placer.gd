@@ -320,6 +320,12 @@ static func _pack_returns(n: Node) -> Array[ItemStack]:
 	# equal flag set, and the next placement consumes the unit that carries it.
 	kit.set_flag(&"repacked", true)
 	var out: Array[ItemStack] = [kit]
+	out.append_array(stored_items(n))
+	return out
+
+## Copies of everything a placed kind holds: storage, a pen's animal, a field's spare fertiliser.
+static func stored_items(n: Node) -> Array[ItemStack]:
+	var out: Array[ItemStack] = []
 	var storage: Variant = n.get("storage")
 	if storage is Inventory:
 		for s in (storage as Inventory).slots:

@@ -161,6 +161,7 @@ func restore(rows: Array, parent: Node) -> int:
 		if p == null or p.health.hp <= 0.0:
 			print("[struct] skipped a saved piece row that is not a valid piece")
 			if p:
+				p.spill_storage()  # a broken chest row still gives back what it held
 				p.free()
 			continue
 		pieces_in.append(p)
@@ -173,6 +174,7 @@ func restore(rows: Array, parent: Node) -> int:
 			taken = taken or piece_at(k) != null
 		if taken:
 			print("[struct] skipped saved %s at %s: slot taken" % [p.kind, p.slot])
+			p.spill_storage()
 			p.free()
 			continue
 		parent.add_child(p)

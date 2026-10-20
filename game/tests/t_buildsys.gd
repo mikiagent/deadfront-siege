@@ -71,7 +71,7 @@ func _run() -> void:
 	_claims_base = _rt.claims.duplicate()
 	_site = _find_site(around)
 	_stand_at(_site)
-	for case in ["data_rows", "costs", "reasons", "snap", "collapse", "damage_tiers", "kits_and_camp", "repair_upgrade", "paths", "rows_round_trip", "bad_rows", "migrations", "furniture", "building_all"]:
+	for case in ["data_rows", "costs", "reasons", "snap", "collapse", "damage_tiers", "kits_and_camp", "repair_upgrade", "paths", "rows_round_trip", "bad_rows", "migrations", "furniture", "building_all", "salvage", "snap_resources"]:
 		call("_test_" + case)
 	if _fails.is_empty():
 		print("[t_buildsys] PASS")
@@ -603,8 +603,19 @@ func _test_repair_upgrade() -> void:
 	var id_before: int = wall.get_instance_id()
 	var slot_before: Vector4i = wall.get("slot")
 	var pos_before: Vector3 = wall.global_position
-	_give_exact(_SP.cost(&"wall", &"stone"))
+	var up_cost: Dictionary = _SP.cost(&"wall", &"stone")
+	_give_exact(up_cost)
+	var up_short: StringName = up_cost.keys()[0]
+	_player.inventory.consume(up_short, 1)
+	_expect(not _player.placer.upgrade(wall, &"stone", _player), "an upgrade one item short is refused")
+	var kept_all: bool = wall.get("tier") == &"wood"
+	for id in up_cost:
+		kept_all = kept_all and _player.inventory.count_of(id) == int(up_cost[id]) - (1 if id == up_short else 0)
+	_expect(kept_all, "a refused upgrade takes nothing and keeps the tier")
+	load("res://scripts/dev/lab_kit.gd").give(_player, up_short, 1)
 	_expect(_player.placer.upgrade(wall, &"stone", _player), "wood -> stone upgrade accepted (%s)" % _player.placer.reason)
+	for id in up_cost:
+		_expect(_player.inventory.count_of(id) == 0, "the upgrade took exactly its %d %s (left %d)" % [int(up_cost[id]), id, _player.inventory.count_of(id)])
 	_expect(is_instance_valid(wall) and wall.get_instance_id() == id_before and wall.get("tier") == &"stone", "the upgrade swaps the tier in place (same node)")
 	_expect(wall.get("slot") == slot_before and wall.global_position.distance_to(pos_before) < 0.001, "the upgraded piece keeps its slot and position")
 	_expect(absf(float(wall.health.max_hp) - _SP.max_durability(&"wall", &"stone")) < 0.01, "the stone wall has stone durability (%.0f)" % float(wall.health.max_hp))
@@ -896,3 +907,200 @@ func _test_building_all() -> void:
 		full = full and is_equal_approx(q.health.hp, q.health.max_hp)
 	_expect(full, "repair-all restores every piece")
 	_done("building_all")
+
+# ------------------------------------------------------------------ 15. contents are never lost
+
+## n one-unit stacks of `id`, each its own instance (uid), so a test can tell copies from moves.
+func _stamped(id: StringName, n: int) -> Array:
+	var out: Array = []
+	for i in n:
+		var st: Variant = load("res://scripts/items/item_stack.gd").make(id, 1)
+		st.stamp_identity("t_buildsys")
+		out.append(st)
+	return out
+
+func _uids_in(inv: Variant) -> Array:
+	var out: Array = []
+	if inv != null:
+		for st in inv.slots:
+			if st != null and str(st.uid) != "":
+				out.append(str(st.uid))
+	return out
+
+func _live_bags() -> Array:
+	var out: Array = []
+	for n in get_nodes_in_group("placed_building"):
+		if is_instance_valid(n) and not n.is_queued_for_deletion() and n.get("kind") == &"loot_bag":
+			out.append(n)
+	return out
+
+## Every uid of `want` sits exactly once across the bag, home cargo and loot bags (and `extra`).
+func _each_once(want: Array, what: String, extra: Array = []) -> void:
+	var seen: Array = _uids_in(_player.inventory) + _uids_in(root.get_node("World").get("cargo_home"))
+	for b in _live_bags():
+		seen.append_array(_uids_in(b.storage))
+	for inv in extra:
+		seen.append_array(_uids_in(inv))
+	for u in want:
+		_expect(seen.count(u) == 1, "%s: item %s is kept exactly once (seen %d times)" % [what, u, seen.count(u)])
+
+## Leave exactly `free` empty slots in `inv` (filler instances, never the items under test).
+func _fill(inv: Variant, free: int) -> void:
+	for i in inv.slot_count:
+		if inv.slot_count - inv.used_slots() <= free:
+			return
+		if inv.slots[i] == null:
+			inv.slots[i] = _stamped(&"branch", 1)[0]
+
+func _test_salvage() -> void:
+	_begin_case()
+	var cargo: Variant = root.get_node("World").get("cargo_home")
+	var cargo_saved: Array = cargo.to_array()
+	var bag_saved: Array = _player.inventory.to_array()
+	var BP: GDScript = load("res://scripts/world/build_placer.gd")
+	var SG: GDScript = load("res://scripts/core/save_game.gd")
+	var SH: GDScript = load("res://scripts/world/structure_health.gd")
+	for b in _live_bags():
+		b.free()
+	# Pack up: a chest is not a kit; the refusal leaves it and its contents alone.
+	_reset_case()
+	var m := _site
+	_pad([m], &"wood")
+	var chest := _place_direct(&"chest", &"wood", _slot(m, 0, _SP.ON_FLOOR))
+	if chest == null: return
+	_expect(int(chest.storage.slot_count) >= 100, "a chest holds at least 100 (PRD:582 baskets ~100 early; got %d)" % int(chest.storage.slot_count))
+	_expect(int(_SP.piece_def(&"large_box").get("storage_slots", 0)) == 160, "a large box holds 160 (spec 05:14, 10:90)")
+	for st in _stamped(&"stone", 3):
+		chest.storage.add(st)
+	var held: Array = _uids_in(chest.storage)
+	_expect(not bool(BP.call("pack_up_node", chest, _player)), "a chest with items cannot be packed up")
+	_expect(is_instance_valid(chest) and not chest.is_queued_for_deletion() and _uids_in(chest.storage) == held, "the refused pack-up keeps the chest and its 3 stone")
+	# Demolish with a full bag and two free cargo slots: 2 to cargo, the rest to a loot bag.
+	for st in _stamped(&"stone", 3):
+		chest.storage.add(st)
+	held = _uids_in(chest.storage)
+	cargo.load_array([])
+	_fill(cargo, 2)
+	_fill(_player.inventory, 0)
+	_expect(_player.placer.demolish(chest, _player), "the full chest can be demolished")
+	_each_once(held, "demolish")
+	_expect(_uids_in(cargo).filter(func (u: String) -> bool: return u in held).size() == 2, "demolish: home cargo took the 2 it had room for")
+	_expect(_live_bags().size() == 1, "demolish: what neither the bag nor cargo could take is in one loot bag (%d bags)" % _live_bags().size())
+	for b in _live_bags():
+		b.free()
+	# A raptor destroys a chest: no demolisher, so cargo first, then a loot bag at the spot.
+	_player.inventory.load_array(bag_saved)
+	cargo.load_array([])
+	_fill(cargo, 1)
+	_reset_case()
+	_pad([m], &"wood")
+	chest = _place_direct(&"chest", &"wood", _slot(m, 0, _SP.ON_FLOOR))
+	if chest == null: return
+	for st in _stamped(&"plank", 4):
+		chest.storage.add(st)
+	var bitten: Array = _uids_in(chest.storage)
+	var spot: Vector3 = chest.global_position
+	chest.health.hp = 1.0
+	var raptor: Variant = _spawn_raptor(chest.global_position + Vector3(0, 0, -1.4))
+	if raptor == null: return
+	raptor.call("apply_species_on_hit", &"attack_primary", chest)
+	if is_instance_valid(raptor):
+		raptor.free()
+	_expect(not is_instance_valid(chest) or chest.is_queued_for_deletion(), "the raptor's bite destroys the 1 hp chest")
+	_each_once(bitten, "destroyed by a raptor")
+	_expect(_uids_in(_player.inventory).filter(func (u: String) -> bool: return u in bitten).is_empty(), "a raptor kill puts nothing in the survivor's bag")
+	var new_bags := _live_bags()
+	_expect(new_bags.size() == 1 and _uids_in(new_bags[0].storage).size() == 3, "the 3 that cargo could not take lie in a loot bag")
+	if new_bags.size() == 1:
+		_expect(Vector2(new_bags[0].position.x - spot.x, new_bags[0].position.z - spot.z).length() < 0.5, "the loot bag lies at the chest's spot")
+	# Save and load: loot bags are building rows; they come back with every instance, once.
+	var all_bagged: Array = []
+	for b in _live_bags():
+		all_bagged.append_array(_uids_in(b.storage))
+	var rows: Array = (SG.call("_live_buildings") as Array).filter(func (r: Variant) -> bool: return str(r.get("kind", "")) == "loot_bag")
+	_expect(rows.size() == _live_bags().size(), "every loot bag is saved as a building row (%d rows)" % rows.size())
+	rows = load("res://scripts/core/save_sanitizer.gd").call("_buildings", JSON.parse_string(JSON.stringify(rows)))
+	for b in _live_bags():
+		b.free()
+	SG.call("_restore_buildings", rows, 4)
+	var back: Array = []
+	for b in _live_bags():
+		back.append_array(_uids_in(b.storage))
+	back.sort()
+	all_bagged.sort()
+	_expect(back == all_bagged and not back.is_empty(), "loot bags load with the same %d instances (got %d)" % [all_bagged.size(), back.size()])
+	# A chest saved and loaded keeps its instances; a broken chest row still gives them back.
+	cargo.load_array([])
+	_reset_case()
+	_pad([m], &"wood")
+	chest = _place_direct(&"chest", &"wood", _slot(m, 0, _SP.ON_FLOOR))
+	if chest == null: return
+	for st in _stamped(&"clay", 5):
+		chest.storage.add(st)
+	var saved: Array = _uids_in(chest.storage)
+	var prow: Array = JSON.parse_string(JSON.stringify(_sg.to_rows()))
+	_reset_case()
+	_sg.restore(prow, _rt)
+	var again: Variant = _sg.piece_at(_slot(m, 0, _SP.ON_FLOOR))
+	_expect(again != null and _uids_in(again.storage) == saved, "a saved chest loads with the same 5 instances")
+	_reset_case()
+	for r in prow:
+		if str(r.get("kind", "")) == "chest":
+			r["current_durability"] = 0
+	_sg.restore(prow, _rt)
+	_each_once(saved, "a broken chest row")
+	# Kits: a basket's storage and a station's duck-typed salvage_contents() survive destruction.
+	cargo.load_array([])
+	var PB: GDScript = load("res://scripts/world/placed_building.gd")
+	var basket: Node3D = PB.call("make", &"basket")
+	basket.position = Vector3(float(m.x) * 2.0 - 6.0, _floor0_at(m), float(m.y) * 2.0)
+	_rt.add_child(basket)
+	for st in _stamped(&"stone", 2):
+		basket.storage.add(st)
+	var gd := GDScript.new()
+	gd.source_code = "extends StaticBody3D\nvar kind: StringName = &\"workbench\"\nvar held: Array = []\nfunc _ready() -> void:\n\tadd_to_group(\"placed_building\")\nfunc salvage_contents() -> Array:\n\tvar out := held\n\theld = []\n\treturn out\n"
+	gd.reload()
+	var station: Node3D = gd.new()
+	station.set("held", _stamped(&"plank", 2))
+	station.position = basket.position + Vector3(3, 0, 0)
+	_rt.add_child(station)
+	var kit_items: Array = _uids_in(basket.storage)
+	for st in station.get("held"):
+		kit_items.append(str(st.uid))
+	for n in [basket, station]:
+		SH.call("of", n, true).take_damage(1.0e9)
+	_expect(basket.is_queued_for_deletion() and station.is_queued_for_deletion(), "both kits are destroyed")
+	_each_once(kit_items, "destroyed kits")
+	for b in _live_bags():
+		b.free()
+	cargo.load_array(cargo_saved)
+	_player.inventory.load_array(bag_saved)
+	_done("salvage")
+
+# ------------------------------------------------------------------ 16. snapping vs resource nodes
+
+## A ghost aimed at a tree's module never lands a piece on it, whatever socket it snaps to.
+func _test_snap_resources() -> void:
+	_begin_case()
+	_reset_case()
+	var tree_m := _harvest_module()
+	_rt.claims.append(Rect2i(tree_m * 2 - Vector2i(4, 4), Vector2i(10, 10)))
+	var centre := Vector3((float(tree_m.x) + 0.5) * 2.0, _floor0_at(tree_m), (float(tree_m.y) + 0.5) * 2.0)
+	_player.global_position = centre + Vector3(0, 1, 3)  # within reach, so only the rules can refuse
+	# A foundation beside the tree gives the ghost valid sockets right next to it.
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if _why(&"foundation", _slot(tree_m + d, 0, _SP.CELL), 0, &"wood") == "":
+			_place_direct(&"foundation", &"wood", _slot(tree_m + d, 0, _SP.CELL))
+			break
+	for attempt in 2:  # the second aim comes after the first ghost took the nearest free socket
+		_give_exact(_SP.cost(&"foundation", &"wood"))
+		_player.placer.begin_piece(&"foundation", &"wood")
+		_player.placer.aim_at(centre)
+		var at: Dictionary = _player.placer.piece_at
+		var on_tree: bool = Vector2i(at.get("slot", Vector4i.ZERO).x, at.get("slot", Vector4i.ZERO).y) == tree_m
+		_expect(not (bool(_player.placer.valid) and on_tree), "a foundation ghost aimed at a tree is never valid on its module (try %d: %s)" % [attempt + 1, _player.placer.reason])
+		_player.placer.confirm(_player)
+		_player.placer.cancel()
+	for p in _sg.pieces():
+		_expect(Vector2i(p.slot.x, p.slot.y) != tree_m, "no piece stands on the tree's module (%s %s)" % [p.kind, p.slot])
+	_done("snap_resources")

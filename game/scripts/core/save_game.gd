@@ -293,8 +293,11 @@ static func _restore_buildings(rows: Array, schema: int) -> void:
 	var kits: Array = []
 	var pieces: Array = []
 	for row in rows:
-		var is_piece := row is Dictionary and StructurePiece.is_piece_kind(StringName(str((row as Dictionary).get("kind", ""))))
-		(pieces if is_piece else kits).append(row)
+		var k := str((row as Dictionary).get("kind", "")) if row is Dictionary else ""
+		if k == "loot_bag" and World.runtime:  # what a destroyed structure held, still on the ground
+			World.runtime.add_child(LootBag.from_dict(row))
+			continue
+		(pieces if StructurePiece.is_piece_kind(StringName(k)) else kits).append(row)
 	var grid: BuildGrid = World.runtime.get("build_grid") if World.runtime else null
 	if grid and not pieces.is_empty():
 		grid.structures.restore(pieces, World.runtime)

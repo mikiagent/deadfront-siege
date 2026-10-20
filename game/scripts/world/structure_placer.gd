@@ -208,7 +208,7 @@ static func repair(target: Node, player: Node) -> String:
 	return ""
 
 ## Take a piece down: demolish_refund of its blueprint, scaled by its health, back to the bag
-## (camp cargo takes what the bag cannot); whatever it held up collapses without a refund.
+## (then home cargo, then a loot bag); whatever it held up collapses without a refund.
 # ASSUMPTION: demolish_refund 0.5 x health share; collapsed pieces refund nothing.
 static func demolish(target: Node, player: Node) -> String:
 	if not target is StructurePiece:
@@ -217,15 +217,13 @@ static func demolish(target: Node, player: Node) -> String:
 	if p.owner_id != "local":
 		return "not_yours"
 	var share := float(StructurePiece.defs().get("demolish_refund", 0.5)) * p.health.fraction()
-	var inv: Inventory = player.get("inventory")
+	var back := p.take_contents()  # contents first: they get the bag's room before the refund
 	var cost := StructurePiece.cost(p.kind, p.tier)
 	for id in cost:
 		var n := floori(float(cost[id]) * share)
-		if n <= 0:
-			continue
-		var left := inv.add(ItemStack.make(id, n))
-		if left > 0 and World.cargo_home:
-			World.cargo_home.add(ItemStack.make(id, left))
+		if n > 0:
+			back.append(ItemStack.make(id, n))
+	StructureHealth.salvage(back, p.global_position, player)
 	p.destroy("demolished", player)
 	return ""
 

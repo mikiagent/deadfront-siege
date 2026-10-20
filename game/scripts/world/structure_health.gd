@@ -114,8 +114,33 @@ func take_damage(amount: float, source: Node = null) -> float:
 			(host as StructurePiece).destroy("destroyed")
 		elif host and not host.is_queued_for_deletion():
 			print("[struct] %s destroyed" % BuildPlacer.kind_of_building(host))
+			var held := BuildPlacer.stored_items(host)
+			if host.get("storage") is Inventory:
+				(host.get("storage") as Inventory).load_array([])  # the units move; an open panel keeps no copy
+			if host.has_method("salvage_contents"):  # W2-PROCESS stations: inputs, outputs, queued jobs
+				for s in host.call("salvage_contents"):
+					if s is ItemStack:
+						held.append(s)
+			salvage(held, (host as Node3D).global_position if host is Node3D else Vector3.ZERO)
 			host.queue_free()
 	return dealt
+
+## What a structure held never vanishes with it (spec 10:102, 11:155): the bag of whoever took it
+## down, then home cargo, then a loot bag on the ground at `at`.
+static func salvage(stacks: Array[ItemStack], at: Vector3, by: Node = null) -> void:
+	var inv: Variant = by.get("inventory") if by else null
+	var rest: Array[ItemStack] = []
+	for st in stacks:
+		if st == null or st.count <= 0 or st.def_id == &"_slot_lock":
+			continue  # a lock is the tail of a multi-slot item; its anchor carries it
+		if inv is Inventory:
+			(inv as Inventory).add(st)  # add() leaves what did not fit in st.count
+		if st.count > 0 and World.cargo_home:
+			World.cargo_home.add(st)
+		if st.count > 0:
+			rest.append(st)
+	if not rest.is_empty():
+		LootBag.drop(at, rest)
 
 func heal_full() -> void:
 	hp = max_hp
