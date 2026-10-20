@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "station_steamer". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+<path d="M21 30 C16 25 26 20.5 21 14.5 C17 10 23 7 21 4 M32 30 C27 25 37 20.5 32 14.5 C28 10 34 7 32 4 M43 30 C38 25 48 20.5 43 14.5 C39 10 45 7 43 4"/>
+</g>
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+<path d="M7 38 C9 34 13 33 16 36 C17 41 23 44 32 44 C41 44 47 41 48 36 C51 33 55 34 57 38 C57 49 46 56 32 56 C18 56 7 49 7 38 Z"/>
+</g>
+</svg>

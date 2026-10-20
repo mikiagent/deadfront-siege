@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "toxin". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+<path fill-rule="evenodd" d="M25 10 H39 C40.5 10 41 11 41 12 V14 C41 15 40.5 15.5 39.5 15.5 H38 V24 C45 26.5 49 32.5 49 39.5 C49 49 41.5 56 32 56 C22.5 56 15 49 15 39.5 C15 32.5 19 26.5 26 24 V15.5 H24.5 C23.5 15.5 23 15 23 14 V12 C23 11 23.5 10 25 10 Z M22.5 42 a4 4 0 1 0 8 0 a4 4 0 1 0 -8 0 Z M34 36 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0 Z M32.9 47.5 a2.6 2.6 0 1 0 5.2 0 a2.6 2.6 0 1 0 -5.2 0 Z"/>
+</g>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "station_pot". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+<path d="M13 31 H51 C51 45 43 55 32 55 C21 55 13 45 13 31 Z"/>
+<rect x="9" y="25" width="46" height="6.5" rx="3.25"/>
+<path d="M14 22 C15 15 22 11.5 32 11.5 C42 11.5 49 15 50 22 Z"/>
+<path d="M28.4 8.5 a3.6 3.6 0 1 0 7.2 0 a3.6 3.6 0 1 0 -7.2 0 Z"/>
+<path d="M6 39 L12 39 A3 3 0 0 0 12 33 L6 33 A3 3 0 0 0 6 39 Z M52 39 L58 39 A3 3 0 0 0 58 33 L52 33 A3 3 0 0 0 52 39 Z"/>
+</g>
+</svg>

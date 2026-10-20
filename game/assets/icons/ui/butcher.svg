@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "butcher". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+<path d="M20 37.5 L29 30 L29.5 27.5 L38 22.5 L38.5 20 L47 15 L47.5 12.5 L55 8.5 C54 20 47.5 31 38 38.5 L35 38.5 L33 41.5 L29.5 42.5 L26.5 44 Z"/>
+<path d="M13.01 57.01 L25.51 44.51 A4.25 4.25 0 0 0 19.49 38.49 L6.99 50.99 A4.25 4.25 0 0 0 13.01 57.01 Z"/>
+</g>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "chat". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+<path fill-rule="evenodd" d="M19 9 H45 C51.6 9 57 14.4 57 21 V33 C57 39.6 51.6 45 45 45 H29 L16 55 L18 44.5 C12 43 7 38.5 7 33 V21 C7 14.4 12.4 9 19 9 Z M17.2 27 a3.8 3.8 0 1 0 7.6 0 a3.8 3.8 0 1 0 -7.6 0 Z M28.2 27 a3.8 3.8 0 1 0 7.6 0 a3.8 3.8 0 1 0 -7.6 0 Z M39.2 27 a3.8 3.8 0 1 0 7.6 0 a3.8 3.8 0 1 0 -7.6 0 Z"/>
+</g>
+</svg>
