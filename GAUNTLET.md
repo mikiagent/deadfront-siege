@@ -1,8 +1,11 @@
 # DEADFRONT gauntlet handoff for Claude Fable
 
-Filed 2026-09-21 from Milan's pasted handoff. Standing context for every request; Milan's
-newest explicit correction wins. Companion documents: `HANDOFF.md`, `UI-REDESIGN-AUDIT.md`,
-`OPUS-UI-REDESIGN-PROMPT.md`, `docs/orchestration/prompts/` (newest superseding file wins).
+Filed 2026-09-21 from Milan's pasted handoff; loop and stale rules updated 2026-10-20 to the MMO program's
+working practice. Standing context for every request; Milan's newest explicit correction wins. Companion
+documents: `docs/orchestration/mmo/HANDOFF.md` (where everything is, open packages),
+`docs/orchestration/mmo/STATUS.md` (owner decisions, merge log), `docs/design/durango-prompts/01`-`12`
+(binding design input), `HANDOFF.md`, `UI-REDESIGN-AUDIT.md`, `OPUS-UI-REDESIGN-PROMPT.md`,
+`docs/orchestration/prompts/` (newest superseding file wins).
 
 **Classification: FABLE-CRITICAL for core gameplay/save/economy changes. UI-only passes may be delegated as OPUS-SAFE.**
 **Repository:** https://github.com/mikiagent/deadfront-siege
@@ -13,22 +16,25 @@ newest explicit correction wins. Companion documents: `HANDOFF.md`, `UI-REDESIGN
 
 Do not stop at "implemented." Repeat this loop until the build survives it.
 
-1. **Translate** Milan's words into one visible outcome, binding details, protected behavior and measurable gates. His newest explicit correction wins.
-2. **Ground** against current `origin/main`, the live production stamp and actual pixels. Never start from an old branch, report or remembered code shape.
-3. **Classify risk:**
+1. **Translate** Milan's words into one visible outcome, binding details, protected behavior and measurable gates. His newest explicit correction wins. Check `STATUS.md` "Owner decisions" and the Durango pack for rules that already apply. Do not invent lore, species or mechanics; where the specs are silent, pick the simplest thing and mark it `# ASSUMPTION:`.
+2. **Ground** against the integration branch `claude/mmo-overhaul` (until PR #17 merges it into `main`), `docs/orchestration/mmo/HANDOFF.md`, the live production stamp and actual pixels. Never start from an old branch, report or remembered code shape. After pulling merged assets or `class_name` files, run one `--import` first: a stale `.godot` cache shows missing-resource ERRORs that look like code bugs.
+3. **Classify risk and scope:**
    - `FABLE-CRITICAL`: gameplay loop, save compatibility, capture/taming, economy, inventory ownership, combat/progression or multiplayer authority.
    - `OPUS-SAFE`: isolated reversible presentation, UI screens, journal/content wiring, exact-note asset integration and test harnesses.
-4. **Reproduce** the exact defect/path first. For AI, reproduce the exact species brain. For UI, capture the exact current screen at desktop and phone sizes.
-5. **Implement narrowly** in the owning subsystem. Add data to schemas, presentation to views/UI and independent behavior to a focused component. Do not grow god files casually.
-6. **Prove behavior:** import/compile, full tests, smoke, exact targeted lab and save/migration coverage when relevant.
-7. **Prove appearance:** open the current build, inspect pixels, compare to the supplied Durango references, fix the first visible defect, and inspect again. Logs/node trees are not visual evidence.
-8. **Deploy the exact commit.** Preserve the DEADFRONT splash, one-buffer loader and cache-eviction behavior.
-9. **Verify production:** immutable URL, alias, manifest, and displayed `<commit>/<pack-hash>` stamp. If the alias is stale, the task is not delivered.
-10. **Report bluntly:** changed / unchanged / gates / screenshots / commit / immutable URL / alias stamp / remaining risk. A failed visual or interaction gate blocks promotion.
+   - Name the owning package and its files (`docs/orchestration/mmo/plan-register.md`). Work on its own branch `claude/mmo-<key>`. Files another package owns, and the integrator-only files (`game/scripts/core/{game,main,world}.gd`, `game/project.godot`, `game/tests/run_all.gd`, `game/scripts/ui/touch_controls.gd`), get exact compiling hooks in the report, not edits.
+4. **Reproduce** the exact defect/path first: write the probe or test and see it fail on the old code. For AI, reproduce the exact species brain. For UI, capture the exact current screen at 1600x900 and 844x390 landscape.
+5. **Implement narrowly** in the owning subsystem: typed GDScript, data in schemas, presentation in views/UI, independent behavior in a focused component; extract rather than grow god files. Commit early and often (usage limits cut work mid-run). Who does what: Claude agents build; Codex (`gpt-reserve`) for focused one-bug debugging; DeepSeek only if Milan asks; Tripo only for complex creatures and characters; headless Blender scripts for buildings and props.
+6. **Prove behavior:** `--import`, every `game/tests/t_*.gd` PASS, `run_all.gd` `[tests] PASS`, `tools/smoke.sh --no-import` `SMOKE PASS`, the exact labs with 0 SCRIPT ERROR lines (creature runs: 0 "couldn't resolve track"), and save/migration coverage when relevant. Tests are silent and use a git-excluded `game/override.cfg` so they never touch Milan's real save; a new `~/Library/Logs/DiagnosticReports/Godot-*.ips` is a failure to explain.
+7. **Prove appearance:** windowed shots at 1600x900 in Forward+ AND `--rendering-method gl_compatibility` (the web renderer), plus 844x390 landscape. Look at every one, compare to the Durango references, fix the first visible defect, and inspect again. Logs/node trees are not visual evidence.
+8. **Independent review:** someone who did not write the change reruns every acceptance item, tries to break it, and checks scope and code quality; a test that cannot fail is a blocker. Visual work also gets matched before/after shots for a blind A/B judge (not told which is new, order flipped per scene); the new build must win. Fix and re-review until no blocker or major remains.
+9. **Integrate:** test-merge into a scratch copy of `claude/mmo-overhaul`, apply the hooks, rerun steps 6-7 on the merged tree, then fast-forward the integration branch, add a line to the STATUS.md merge log and push to GitHub.
+10. **Deploy the exact commit only when Milan says.** Current condition: after the UI package passes (lighting is merged). Preserve the DEADFRONT splash, one-buffer loader and cache-eviction behavior.
+11. **Verify production:** immutable URL, alias, manifest, and displayed `<commit>/<pack-hash>` stamp. If the alias is stale, the task is not delivered.
+12. **Report bluntly:** changed / unchanged / gates / screenshots / review and judge verdicts / commit and PR / immutable URL / alias stamp / remaining risk. Record new owner decisions in STATUS.md. A failed visual or interaction gate blocks promotion.
 
 ### Gauntlet completion test
 
-A change is done only when a new tester can reload production and experience Milan's requested outcome without reading the implementation explanation. "Tests pass" is insufficient. "Easy to fix later" is insufficient. A placeholder Milan calls boxy, worm-like, gray, clipped, tiny or ugly has failed.
+A change is done only when a new tester can reload production and experience Milan's requested outcome without reading the implementation explanation. "Tests pass" is insufficient. "Easy to fix later" is insufficient. A placeholder Milan calls boxy, worm-like, gray, clipped, tiny or ugly has failed. While deploys are on hold (step 10), a change that passed steps 1-9 is integrated, not delivered: say so.
 
 ## Durango visual gauntlet
 
@@ -52,7 +58,7 @@ Read the implementation-ready UI artifacts at repo root:
 Binding UI rules:
 
 - **Color = things; white = actions.** Items/resources/creatures/gear are colored. Commands, menus, gather and HUD action glyphs are white.
-- Desktop Chrome 1600x900 is the native judge. Also verify 390x844.
+- Desktop Chrome 1600x900 is the native judge. Phones play landscape: verify 844x390 (the old portrait 390x844 check is superseded).
 - Use responsive anchors, not a phone canvas uniformly enlarged on desktop.
 - 8 px spacing rhythm; 44 px minimum target; 56-64 px contextual action target; no metadata below a legible size.
 - No overlapping world labels, cropped glyphs, vertical text clipping, controls outside safe areas or text baked into icons.
@@ -66,16 +72,19 @@ Fresh live audit corrections: workbench mouse input is fixed; bottom MENU/ANIMAL
 - Starter-island dinos and gatherables are level 1. Later ~5-level bands must feel materially harder and more rewarding.
 - Material ladder: Stone -> Bone -> Flint -> Obsidian -> Copper -> Bronze -> Iron -> Steel.
 - Crafted item level derives from input materials; a level 5 tool must feel clearly better than level 1.
-- Capture/feed requires knocked out **and under 30% HP**. The old 10% note is superseded.
+- Capture (spec 09): eligible when stunned/collapsed at ANY HP, or at HP <= 30 %; the chance uses real HP, level and Capture Ability. Supersedes "knocked out and under 30% HP".
 - Wild dinosaurs disengage immediately when the target crosses the displayed aggro radius. Verify every species override.
 - After dinosaurs kill the player, engaged wild dinosaurs clear combat memory and retreat beyond immediate re-aggro range before respawn.
-- Unlimited owned animals; three equipped/active. Wild genetics hidden until tame; tamed animals may show tier/growth.
+- Bonded companions (spec 09): 3 slots + 1 per Animal Handling I-IV (Survival 35/45/55/60) up to 7; caged animals are items and never count; three active at once. Captured or traded animals are shown in a cage. Wild genetics hidden until tame; tamed animals may show tier/growth.
 - Pets: no death loot bag; persisted HP/regen; combat XP; XP under HP; repeat attacks when sicced; spacing; no player collision; 3-minute death cooldown in Animals UI.
 - Packs follow the strongest alpha and remain coherent after a kill.
 - Workstations remain two-step: station selection, then expanded hex action.
 - Gathering is from reach without teleport; movement cancels; progress appears above the node.
 - Player walls may turn transparent/passable for the player while blocking enemies.
-- Never let first-run or death presentation look like a crash.
+- Never let first-run or death presentation look like a crash. Dinosaurs ragdoll onto the terrain on death, then freeze.
+- Gathered materials and food do not stack by name (specs 05/08): each is an instance; grouping is visual only.
+- Trees, rocks and walls between camera and survivor go partly see-through (about half), never a clear hole; a roof fades when the survivor is under it.
+- The harbour stands on the coast with its pier over water.
 - Aggro rings disappear on death. Gathering UI stays above pet plates.
 
 ## Current architecture
@@ -104,7 +113,7 @@ Repo instructions and old orchestration reports are historical source material, 
 export GODOT_PATH=/path/to/Godot_4.7
 export GODOT_WEB_PATH=/path/to/standard-non-Mono-Godot-4.7
 
-$GODOT_PATH --headless --path game --editor --quit
+$GODOT_PATH --headless --path game --import
 GODOT_PATH="$GODOT_PATH" ./tools/test.sh
 GODOT_PATH="$GODOT_PATH" ./tools/smoke.sh
 $GODOT_PATH --headless --path game -- --lab=ai_validation_lab
@@ -114,11 +123,11 @@ $GODOT_PATH --headless --path game -- --lab=ui_family_lab
 CHROME_PATH=/path/to/chrome node tools/production_soak.mjs https://durango-like.vercel.app/
 ```
 
-Use additional exact labs under `game/scripts/dev/*lab.gd`. `smoke.sh` must print `SMOKE PASS`. The deployed desktop route must exercise real mouse input. Inspect screenshots at 1600x900 and 390x844. Test longest strings, large counts and three-digit timers.
+Use additional exact labs under `game/scripts/dev/*lab.gd`. `smoke.sh` must print `SMOKE PASS`. The deployed desktop route must exercise real mouse input. Inspect screenshots at 1600x900 (Forward+ and gl_compatibility) and 844x390 landscape. Test longest strings, large counts and three-digit timers.
 
 Web export splits the PCK into content-hashed one-buffer chunks and injects `--build=<commit>/<pack hash>`. HTML/worker/manifests are no-store; hashed pack parts are immutable; the stub service worker removes old PWA caches. Do not break the branded splash or streaming loader.
 
-If this workspace lacks GitHub credentials, create one tested commit on exact `origin/main`, record `%H %P %an %ae %aI %cn %ce %cI`, generate a one-commit format patch, and route it to the authenticated push agent with exact `%cI`. `git format-patch` does not preserve committer time. Require exact SHA before push and remote readback after.
+The `gh` CLI is normally authenticated as `mikiagent`; push work branches and open draft PRs to `main`, and merge into `main` only when Milan says. If this workspace lacks GitHub credentials, create one tested commit on exact `origin/main`, record `%H %P %an %ae %aI %cn %ce %cI`, generate a one-commit format patch, and route it to the authenticated push agent with exact `%cI`. `git format-patch` does not preserve committer time. Require exact SHA before push and remote readback after.
 
 ## Asset and art service contract
 
@@ -130,9 +139,9 @@ Canonical concepts live at repo root `assets/concept-art/`, outside Godot packag
 - Per-clip states: `preset-confirmed`, `preset-needs-cleanup`, `custom-T2M-approved`, `Blender-authored`, `fallback-rejected`, `missing`.
 - `game/assets/creatures/<species>/ref/` is approved clean-input staging only; retain `.gdignore`.
 
-Existing Meshy web-subscription credits only. Never buy, top up, upgrade or use the API-credit route. Record task IDs, spend, source and rejected history. Current autonomous asset grant allows quality-first production within the established operating ceiling; weak output is diagnosed before another spend.
+Existing Meshy and Tripo balances only (spend approved, no cap). Never buy, top up, upgrade or use the API-credit route. Asset routing: Tripo for complex creatures and player characters; headless Blender scripts for buildings and most world objects; do not use Tripo for everything. Record task IDs, spend, source and rejected history. Current autonomous asset grant allows quality-first production within the established operating ceiling; weak output is diagnosed before another spend.
 
-Creature service: concept sheet -> review/grant provenance -> live web balance -> mesh -> geometry QA -> free Smart-Rig -> actual preset audit -> accepted clips -> approved T2M/Astra-Blender fallback -> Godot creature-lab and desktop pixel gate.
+Creature service: concept sheet (Milan approves, batch approvals allowed) -> four clean views -> Tripo multiview mesh -> geometry QA -> rig and clips in headless Blender (library retarget for humanoids) -> verifier gate (skeleton-only clip GLBs WITH the skin, strides in MESH units, limb and ground rules, skin stretch) -> re-import -> Godot creature lab and desktop pixel gate.
 
 Journal behavior art: herbivores get idle grazing/social + defensive scene; carnivores get stalk/rest + feeding on a plausible kill; no gore. Use the newest filed Journal spec.
 
@@ -140,17 +149,10 @@ The future `/showcase` route is the review range. It must be manifest-driven and
 
 ## Priority queue
 
-Use newest user instruction first. Otherwise:
-
-1. Stabilize current release and exact production proof.
-2. Durango-style UI gauntlet from the root audit/prompt.
-3. Survivor's Journal from the newest OPUS-SAFE filed spec.
-4. `/showcase` testing range with per-clip inspection.
-5. Biome gatherables from approved design: data-driven identity, yield/tool/climate/level; distinct silhouettes; no overlap/stale nodes.
-6. Dinosaur ecology: habitats, herds/packs, predator-prey, territory and population limits.
-7. Mistake/quality system: deterministic choice/skill-driven quality.
-8. Player bot (`todo-01M33A1W96ZQ88SZV3PNA7MKM4`): autonomous grind metrics plus in-world co-op/trade companion.
-9. Mounts, then server-authoritative global trading, then coherent icon set.
+Use the newest user instruction first. Otherwise follow `docs/orchestration/mmo/HANDOFF.md`: section 3 (half-done
+packages, UI first because the next deploy waits on it), then section 4 (not started). The old 2026-09-21 list
+(release proof, UI gauntlet, Journal, `/showcase`, gatherables, ecology, quality, player bot, mounts and trading)
+is folded into those packages.
 
 Do not fake backend/global trading state locally. Do not scale animals arbitrarily to force mount fit. Fish and birds start as showcase concepts with gameplay/readability/performance answers before deep production.
 
@@ -163,17 +165,18 @@ Milan sends rapid-fire ideas. Preserve all explicit requirements, surface contra
 ```text
 Classification
 - FABLE-CRITICAL or OPUS-SAFE, with one sentence why.
+- Owning package, branch (claude/mmo-<key>) and files; hooks needed in files others own.
 
 Outcome
 - One user-visible result in Milan's exact terms.
 
 Binding details
 - New requirements/corrections.
-- Protected behavior and HANDOFF rules.
+- Protected behavior, STATUS.md owner decisions, Durango pack rules that apply.
 
 Ground first
-- Reproduce on current production and inspect current origin/main.
-- Name exact species/state/screen/data path.
+- Reproduce on current production and on the integration branch claude/mmo-overhaul.
+- Name exact species/state/screen/data path; the failing probe or test.
 
 Implementation boundary
 - Likely files and schema changes.
@@ -181,15 +184,15 @@ Implementation boundary
 
 Acceptance
 - Functional result.
-- Desktop and phone pixels.
+- Pixels at 1600x900 (Forward+ and gl_compatibility) and 844x390 landscape.
 - Regression/save compatibility.
-- Expected production stamp.
+- Expected production stamp, or "integrated, deploy on hold".
 
 Required evidence
-- Import, tests, smoke, exact labs.
+- Import, every t_*.gd, run_all, smoke, exact labs.
 - Real desktop interaction soak.
-- Inspected screenshots.
-- Commit, immutable URL, alias manifest/stamp.
+- Inspected screenshots; independent review verdict; blind A/B judge for visual work.
+- Merge commit and PR; immutable URL and alias manifest/stamp when deployed.
 ```
 
 Ask one focused question only when ambiguity changes money, save compatibility, public behavior, multiplayer authority, species identity or a major visual direction. Fill small reversible gaps conservatively and continue the gauntlet.
