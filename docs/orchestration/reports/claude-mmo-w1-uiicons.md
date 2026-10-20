@@ -31,6 +31,25 @@ The hook findings (1, 3, 5) are fixed in the hooks patch, which the integrator a
 
 Also: the test now loads `UiIcons` by path (`load("res://scripts/ui/ui_icons.gd")`) instead of by class_name, as the test rules require.
 
+## Wiring step (after W1-UI merged)
+
+Branch merged with `claude/mmo-overhaul` at `6730ad4` (W1-UI and W1-SRVDOM in; merge `42bd543`, no conflicts). The hooks patch no longer applied to W1-UI's scripts, so the wiring was redone by hand, smaller:
+
+- `hex_button.gd`: `glyph` has a setter that looks the glyph up in `ui_icons.json` "glyphs"; `_draw` draws `icon` or that white drawing, so every legacy glyph on a hex (menu, build, skills, debug, chase/hold, done, rotate/confirm/cancel, station radials) shows the white icon without touching each call site. Hexes filter with mipmaps (the 128 px SVG imports have them). Badges (`⊘`, `✓`) stay text.
+- `hunt_hud.gd` (1345 -> 1344 lines): icons by id for NET, TACKLE, KICK, ROLL, SIC, HEEL, GUARD, FEED, AUTO (plus caption `AUTO`), the siege/ranged swaps (toxin, fire_ranged, siege) and context actions (id first, then the glyph; a word glyph only when neither has an icon). ANIMALS uses the `animals` raptor head instead of the talon item icon (W1-UI r3 minor). Quick food compares `"×%d" % n`, so it no longer reassigns and redraws every frame. No colour emoji left on the combat rail.
+- `creature_plates.gd`: the knife lock (already a fixed 16x16 TextureRect after W1-UI) shows `butcher` when a knife is held and `lock` otherwise (assigned only on change); status chips take the white UiIcons drawing, the item-manifest icon only when there is none. `status_glyph.gd`: mipmapped filtering (the chip stays 26 px; hook 6 is dropped).
+- `hud_layout.gd` (desktop only): the stance label moved left of KICK; under the cluster it overlapped Auto's new caption (`[uireal] FAIL combat: AUTO#18.caption ... overlaps @Label@170` at 1600x900 Forward+ before the move).
+
+Not wired (outside this step's grant): hooks 7 (craft_ui, skills_sheet, world_ui, inventory_ui, map_screen, station_menu Button icons) and 8 (tools/test.sh running t_uiicons). `claude-mmo-w1-uiicons-hooks.patch` is superseded for hooks 1-6.
+
+Gates on `4a40445` + the layout fix (each line seen):
+- `[tests] PASS` (run_all.gd), `[t_ui] PASS`, `[t_uiicons] PASS ids=168 files=113 glyphs=54 code_ids=39 hook_ids=45 weight=0.61..1.47 worst_iou=0.80 loot/store regen='[icons] PASS drawn=113 svgs=113'`
+- every `game/tests/t_*.gd` prints PASS (t_save's 5 SCRIPT ERRORs are its announced deliberate aborts)
+- `tools/smoke.sh --no-import`: `SMOKE PASS`
+- `ui_real_capture_lab` `[uireal] PASS screens=hud,craft,skills,...` at 844x390 gl_compatibility, 667x375 gl_compatibility, 1600x900 gl_compatibility and 1600x900 Forward+
+
+Shots looked at: hud, combat, pet_out, radial at 844x390 gl (with 3x crops of the rails), combat at 667x375 gl, combat at 1600x900 gl, hud, pet_out, radial at 1600x900 Forward+. ANIMALS reads as a dinosaur head at both sizes; SIC is the head with an arrow; plate status chips show the white drop/knockdown/groggy drawings.
+
 ## What shipped
 
 - `game/assets/icons/ui/*.svg`: 113 drawings on a 64x64 grid, live area 6..58, white `#FFFFFF` only, no text. Lines (stroke 5, round caps and joins) only for arrows and marks; figures and objects are solid, softened by a 1.5 edge stroke. Knockouts (the slash across the ear, the string across the bale, the keyhole) are real gaps in the geometry; masks are not allowed. Imported at `svg/scale=2.0` (128 px) with mipmaps.
@@ -238,8 +257,7 @@ None in code. Design choices the PRD does not state:
 
 ## What is left
 
-- The wiring (the patch above), after W1-UI merges. Until then the game shows the old glyphs; only the lab's `hud` mode shows the icons.
-- Hook 6 grows the status chip from 18 to 24 px; the creature plate's third line needs room for it (W1-UI).
+- Hooks 7 and 8 (menus' Button icons, t_uiicons in tools/test.sh): integrator or W2-SCREENS.
 - Forward icons with no screen yet: chat, market, settings, save, sound, mute. Drawn and mapped, not shown anywhere.
 - At 844x390 1x the combat hexes draw icons at about 14-20 px. Review on a device (or `--touch` at 2532x1170) after wiring to decide whether the HUD hexes grow (W1-UI).
 - `player.gd` context actions keep their `glyph` keys; they are dead text after hook 3, and player.gd is protected.

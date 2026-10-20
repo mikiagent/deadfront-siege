@@ -68,8 +68,9 @@ static func place_desktop(hud: HuntHud, r: Vector2, inset: Vector4) -> void:
 	# The whistle column stands on HANDS (bottom-right, held_item_slot.gd) with its caption clear of it.
 	for i in hud._whistle_hexes.size():
 		hud._whistle_hexes[i].position = Vector2(r.x - 16.0 - inset.x - 62.0, r.y - 262.0 - inset.y - float(i) * (66.0 + HuntHud.CAPTION_H))
-	# On the bottom edge, inside the view (at cy + 118 its 34 px box ran 2 px past the bottom).
-	hud._stance_label.position = Vector2(cx + 20.0, r.y - 8.0 - inset.y - hud._stance_label.get_combined_minimum_size().y)
+	# On the bottom edge left of KICK: under the cluster it sat on Auto's caption (W1-UIICONS gave Auto one).
+	var sw := hud._stance_label.get_combined_minimum_size()
+	hud._stance_label.position = Vector2(cx - 100.0 - sw.x, r.y - 8.0 - inset.y - sw.y)
 
 static func landscape_phone(r: Vector2) -> bool:
 	return UiTokens.is_compact(r) and not UiTokens.is_narrow(r)
