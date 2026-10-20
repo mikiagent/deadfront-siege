@@ -86,6 +86,7 @@ func _run() -> void:
 	await _test_refused_save_keeps_camp()
 	await _test_away_island()
 	await _test_hostile_types()
+	_test_gate_open_direct()
 	await _test_aborted_load()
 	await _test_sanitizer_abort()
 	_test_skill_purchases()
@@ -396,12 +397,26 @@ func _test_hostile_types() -> void:
 			_check(str(pet.origin) == "tame" and PetRecordS.UID_RE.search(pet.uid) != null, "an unknown origin loads as tame and a junk uid is re-minted")
 			_check(pet.wild_level <= pet.level and pet.name.length() <= PetRecordS.NAME_MAX, "wild_level <= level and name capped at %d (got %d / %d)" % [PetRecordS.NAME_MAX, pet.wild_level, pet.name.length()])
 			_check(pet.tamed_at < int(Time.get_unix_time_from_system()) + 86401, "a forged tamed_at clamps")
+			var nl_uid: String = PetRecordS.from_dict({"species": "velociraptor", "uid": "p_12\n"}).uid
+			_check(nl_uid != "p_12\n" and PetRecordS.UID_RE.search(nl_uid) != null, "a pet uid with a trailing newline is re-minted (got %s)" % var_to_str(nl_uid))
 		if label == "building gate open junk":
 			var gates := 0
 			for b in get_nodes_in_group("gate"):
 				gates += 1
 			_check(gates == 1 and SG.blocked_reason == "", "a gate with a string open flag still loads (gates=%d)" % gates)
 		await process_frame
+
+## SaveSanitizer coerces "open" before from_dict runs, so the case above cannot see from_dict raise.
+## Call it directly: a wrong-typed flag loads as a closed gate, with no script error.
+func _test_gate_open_direct() -> void:
+	var PB: GDScript = load("res://scripts/world/placed_building.gd")
+	for v in ["true", [], {}, 1, null, true]:
+		var errs := errors.script_errors
+		var b = PB.from_dict({"kind": "gate", "open": v})
+		var open: bool = b.gate_open
+		b.free()
+		print("[t_save] gate open=%s (%s) -> gate_open=%s script_errors=%d" % [var_to_str(v), type_string(typeof(v)), open, errors.script_errors - errs])
+		_check(errors.script_errors == errs and open == (v is bool and v), "from_dict with open=%s loads without a script error as %s" % [var_to_str(v), v is bool and v])
 
 ## The pen survives its junk occupant. A kept animal finishes taming without a script error; a
 ## dropped one leaves the pen idle (a running pen with no animal reads null when its timer ends).

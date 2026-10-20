@@ -15,7 +15,7 @@ var wild_level: int = 1
 ## Identity fields from the ORIGINS contract; anything else loads as "tame".
 const ORIGINS: Array[StringName] = [&"tame", &"capture", &"breed", &"settlers", &"objective", &"market"]
 ## Server uids are "p<seq>"; offline mints "p_<hex>" (new_uid). Both load.
-static var UID_RE := RegEx.create_from_string("^p_?[0-9a-f]+$")
+static var UID_RE := RegEx.create_from_string("^p_?[0-9a-f]+\\z") # \z, not $: $ also matches before a final newline
 const NAME_MAX := 24
 var name: String = ""
 ## Lineage for breeding (wave 2): the two parents' uids, empty for wild-caught animals.

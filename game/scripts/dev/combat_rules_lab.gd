@@ -8,12 +8,8 @@ extends Node3D
 var _player: Player
 var _cam: IsoCamera
 var _failures: Array[String] = []
-var _game_t := 0.0
-var _swing_probe := {}  # set while the swing timing phase watches the survivor
 
 func _ready() -> void:
-	# Runs after the survivor and Hunt each frame, so a swing is seen in the frame it starts.
-	process_priority = 1000
 	var kit := LabKit.build(self, 40.0)
 	_player = kit["player"]
 	_cam = kit["cam"]
@@ -21,17 +17,6 @@ func _ready() -> void:
 	Game.max_creatures_per_island = 0
 	print("[boot] lab=combat_rules_lab")
 	_run.call_deferred()
-
-## Game time (summed frame deltas), the clock the swing's hit timer runs on.
-func _process(delta: float) -> void:
-	_game_t += delta
-	if _swing_probe.is_empty():
-		return
-	var c: Creature = _swing_probe["c"]
-	if float(_swing_probe["swing_t"]) < 0.0 and _player.anim.current_clip == &"attack_primary":
-		_swing_probe["swing_t"] = _game_t
-	if float(_swing_probe["hit_t"]) < 0.0 and c.health.hp < float(_swing_probe["hp0"]) - 0.01:
-		_swing_probe["hit_t"] = _game_t
 
 func _check(ok: bool, msg: String) -> void:
 	print("[combatrules] %s %s" % ["ok" if ok else "FAIL", msg])

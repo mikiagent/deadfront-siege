@@ -36,9 +36,6 @@ static func attach_model(host: Node3D, kind: StringName) -> Node3D:
 	host.add_child(inst)
 	return inst
 
-## attach_tool_model was removed: HeldModel.attach is the one place a tool/weapon GLB goes into
-## the survivor's right fist (grip math lives there), and nothing else called this copy.
-
 static func tool_model_key(def_id: StringName) -> String:
 	var tools: Dictionary = Data.props_manifest.get("tools", {})
 	var key := str(def_id)

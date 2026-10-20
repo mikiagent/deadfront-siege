@@ -27,11 +27,17 @@ static func members(creature: Creature) -> Array[Creature]:
 			(_index[id] as Array[Creature]).sort_custom(stronger)
 	var live: Array[Creature] = _index.get(creature.pack_id, none)
 	# A member can be freed inside the frame this list was built in (island unload, despawn); callers
-	# read c.brain without is_instance_valid, so drop the stale entries before handing it out.
-	var kept := live.filter(func(c: Creature) -> bool: return is_instance_valid(c))
-	if kept.size() != live.size():
-		_index[creature.pack_id] = kept
-	return kept
+	# read c.brain without is_instance_valid, so drop the stale entries before handing it out. The
+	# loop variables stay untyped: a typed lambda or `for c: Creature` raises on a freed entry.
+	for c in live:
+		if not is_instance_valid(c):
+			var kept: Array[Creature] = []
+			for k in live:
+				if is_instance_valid(k):
+					kept.append(k)
+			_index[creature.pack_id] = kept
+			return kept
+	return live
 
 ## Forget this frame's lists (tests that build and free packs inside one frame).
 static func invalidate() -> void:

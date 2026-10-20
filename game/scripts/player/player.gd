@@ -828,12 +828,8 @@ func _begin_gather(node: HarvestNode) -> void:
 		_auto_equip_tool(node.required_tool_class)
 	else:
 		print("[item] refused %s: %s" % [node.node_id, why])
-		if why == "depleted":
-			notice("Picked clean")
-		elif why.begins_with("needs "):
-			notice("Needs %s" % why.trim_prefix("needs "))
-		else:
-			notice(why.capitalize())
+		# Upper-case the first letter only: capitalize() Title-Cased "Need Tool Axe".
+		notice("Picked clean" if why == "depleted" else why.left(1).to_upper() + why.substr(1))
 		return
 	_stop_gather_cycle(false)
 	butcher_target = null

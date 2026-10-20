@@ -79,6 +79,8 @@ func _test_identity() -> void:
 	print("[t_items] future created_at loads as %d (now %d), dict uid as '%s'" % [future.created_at, int(Time.get_unix_time_from_system()), shape.uid])
 	_expect(future.created_at <= int(Time.get_unix_time_from_system()) + 86400, "created_at 1e300 clamps to now + slack (got %d)" % future.created_at)
 	_expect(shape.uid == "", "a dict uid is not stringified into a fake one (got '%s')" % shape.uid)
+	var newline = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": "i12\n"})
+	_expect(newline.uid == "", "a uid with a trailing newline is blanked (got %s)" % var_to_str(newline.uid))
 	# Splitting a uid'd stack must not leave both halves sharing one identity.
 	var share = INV.new(4)
 	var whole = IS.make(&"stone", 4, {}, 1)

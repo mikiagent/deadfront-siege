@@ -35,9 +35,10 @@ static func from_dict(d: Dictionary):
 	if cell_v is Array and (cell_v as Array).size() >= 2:
 		b.build_cell = Vector2i(int(cell_v[0]), int(cell_v[1]))
 	b.build_rot = int(d.get("rot", 0))
-	# Compare with true instead of bool(): a hostile save ("open": "true", null, [] or {}) would make
-	# bool() raise and abort the whole restore after this row.
-	b.gate_open = b.kind == &"gate" and d.get("open", false) == true
+	# Only a real bool counts: bool() and `== true` both raise on a string, array or dict, which
+	# would abort the whole restore after this row.
+	var ov: Variant = d.get("open", false)
+	b.gate_open = b.kind == &"gate" and ov is bool and ov
 	# Older tents had no use field: give them the full six uses.
 	if b.sleeps_left >= 0:
 		b.sleeps_left = clampi(int(d.get("sleeps_left", b.sleeps_left)), 0, b.sleeps_left)

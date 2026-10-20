@@ -8,6 +8,15 @@ extends SceneTree
 
 const CREATURE_SCENE := "res://scenes/creatures/creature.tscn"
 
+## Counts engine and script errors, so a check can assert a call logged none.
+class ErrorCounter extends Logger:
+	var count := 0
+	func _log_error(_function: String, _file: String, _line: int, _code: String, _rationale: String, _editor_notify: bool, _error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
+		count += 1
+	func _log_message(_message: String, _error: bool) -> void:
+		pass
+
+var errors := ErrorCounter.new()
 var failures: Array[String] = []
 var data: Node
 var game: Node
@@ -22,6 +31,7 @@ func _process(_delta: float) -> bool:
 	data = get_root().get_node("Data")
 	game = get_root().get_node("Game")
 	game.debug_overlay = false
+	OS.add_logger(errors)
 	_test_state_changed_once()
 	_test_profiles()
 	_test_level_scaling()
@@ -31,6 +41,7 @@ func _process(_delta: float) -> bool:
 	_test_hit_while_asleep_stays_awake()
 	_test_temp_home_expires()
 	_test_pack_slots_clear_bodies()
+	_test_pack_member_freed_in_frame()
 	_test_reacquire_hold()
 	_test_think_rate()
 	_test_flee_speed_floor()
@@ -238,6 +249,26 @@ func _test_pack_slots_clear_bodies() -> void:
 	_check(leader != null and slots.size() == 4 and bad.is_empty(), "pack slots overlap bodies: %s" % [bad])
 	for c in pack:
 		c.free()
+	_fresh_packs()
+
+## A pack member freed inside the frame its list was built in drops out of members(); the other
+## two stay, and nothing logs an error (a typed filter lambda raised on the freed entry and
+## returned an empty list).
+func _test_pack_member_freed_in_frame() -> void:
+	var PI: GDScript = load("res://scripts/creatures/brains/pack_index.gd")
+	var pack: Array = []
+	for i in 3:
+		pack.append(_creature(&"velociraptor", 78, Vector3(i * 2.0, 0, 0)))
+	var before: int = PI.members(pack[0]).size()
+	var errs := errors.count
+	pack[2].free()
+	var after: Array = PI.members(pack[0])
+	var again: Array = PI.members(pack[1])
+	var ok: bool = before == 3 and after.size() == 2 and again.size() == 2 and pack[0] in after and pack[1] in after
+	print("[t_ai] pack member freed in frame: before=%d after=%d again=%d errors=%d" % [before, after.size(), again.size(), errors.count - errs])
+	_check(ok and errors.count == errs, "members() after a member is freed in-frame: before=%d after=%d again=%d errors=%d" % [before, after.size(), again.size(), errors.count - errs])
+	pack[0].free()
+	pack[1].free()
 	_fresh_packs()
 
 ## After a leash break a survivor back inside perception is not re-acquired until the 0.5 s

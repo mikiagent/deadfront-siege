@@ -271,11 +271,10 @@ func _test_rules() -> void:
 	_expect(FieldTameS.lock_reason(comp) == "", "tier-1 starter species needs no technique")
 	comp.free()
 	print("[t_tame] rules respawn=%.0f net@50%%=%s net@25%%=%s nets=%d smilodon='%s' food_id='%s'" % [PetRecordS.RESPAWN_TIME, at_half, at_low, nets_after_low, str(hint.get("text", "")), str(hint.get("food_id", ""))])
+	_sections += 1
 
 ## A hand-edited save cannot buy stats or bag space: gains cap at 3 per level-up, EVs at 300,
 ## bag rows at the species size (or the legacy 10).
-	_sections += 1
-
 func _test_untrusted_load() -> void:
 	var rex = _def(&"tyrannosaurus")
 	var raptor = _def(&"velociraptor")

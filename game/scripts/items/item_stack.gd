@@ -233,7 +233,7 @@ static func from_dict(d: Dictionary) -> ItemStack:
 	s.created_at = clampi(stamp, 0, int(Time.get_unix_time_from_system()) + CREATED_AT_SLACK_S)
 	return s
 
-static var UID_RE := RegEx.create_from_string("^[il][0-9a-f]+$")
+static var UID_RE := RegEx.create_from_string("^[il][0-9a-f]+\\z") # \z, not $: $ also matches before a final newline
 ## A save cannot claim to have been made in the future: clock skew plus a day of slack.
 const CREATED_AT_SLACK_S := 86400
 

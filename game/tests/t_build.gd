@@ -55,6 +55,7 @@ func _run() -> void:
 	_test_pen_legacy_and_occupant()
 	_test_gate_state_and_path()
 	_test_tilepath_incremental()
+	_test_gather_refusal_notice()
 	if _fails.is_empty():
 		print("[t_build] PASS")
 		quit(0)
@@ -255,6 +256,15 @@ func _test_field_overflow_pack_up() -> void:
 	print("[build] field overflow pack-up: packed=%s fertiliser_back=%d (want 2)" % [packed, back])
 	_expect(packed and back == 2, "packing up a field with 2 overflow fertiliser returns 2 units (got %d)" % back)
 	_player.inventory.consume(&"fruit_fertilizer", back)
+	# fertilizer_overflow is a save field that becomes items on pack-up: a forged value is clamped.
+	var FP: GDScript = load("res://scripts/world/field_plot.gd")
+	var got: Array = []
+	for v in [INF, -INF, NAN, 1e9, -3.0, 2.5]:
+		var f = FP.from_dict({"kind": "field_small", "fertilizer_overflow": v})
+		got.append(f.fertilizer_overflow)
+		f.free()
+	print("[build] field overflow on load: INF/-INF/NAN/1e9/-3/2.5 -> %s" % [got])
+	_expect(got == [0.0, 0.0, 0.0, FP.OVERFLOW_MAX, 0.0, 2.5], "a forged fertilizer_overflow loads finite and clamped to 0..%.0f (got %s)" % [FP.OVERFLOW_MAX, got])
 
 # ---------------------------------------------------------------- gate + pathing
 
@@ -312,6 +322,14 @@ func _test_pen_legacy_and_occupant() -> void:
 	pen._process(1.0)
 	print("[build] pen unknown species: kept=%s occupant=%s" % [kept, pen.occupant != null])
 	_expect(kept and pen.occupant != null, "a pen whose species left data keeps its occupant instead of crashing")
+	# The next tap with a second captured animal must not overwrite the one still inside.
+	_give(&"captured_animal", 1)
+	var reinserted: bool = pen.try_insert(_player)
+	var still: String = str(pen.occupant.attributes.get("species", "")) if pen.occupant else "<none>"
+	print("[build] pen retry insert=%s occupant=%s running=%s bag_captured=%d" % [reinserted, still, pen.running, _player.inventory.count_of(&"captured_animal")])
+	_expect(not reinserted and still == "dodo_gone" and _player.inventory.count_of(&"captured_animal") == 1,
+		"a pen holding an unfinished animal refuses a second insert (insert=%s occupant=%s)" % [reinserted, still])
+	_player.inventory.consume(&"captured_animal", 1)
 	# Packing up an occupied pen hands the captured animal back (taming progress is not kept).
 	pen.occupant.attributes["species"] = "velociraptor"
 	var caps: int = _player.inventory.count_of(&"captured_animal")
@@ -418,6 +436,37 @@ func _test_tilepath_incremental() -> void:
 		else path.path_result(a, b)
 	_expect(res.has("points") and res.has("reachable") and res["points"] is PackedVector3Array,
 		"path_result() returns points and a reachable flag (got %s)" % [res.keys()])
+
+## _begin_gather asks the node before auto-equip, so bare hands at copper read "Needs obsidian
+## pick" on the HUD (not "need tool pick"), and other refusals keep their case past the first letter.
+func _test_gather_refusal_notice() -> void:
+	var hud_src := GDScript.new()
+	hud_src.source_code = "extends Node\nvar last := \"\"\nfunc notice(t: String) -> void:\n\tlast = t\n"
+	hud_src.reload()
+	var hud: Node = hud_src.new()
+	var real: Array = root.get_tree().get_nodes_in_group("hud")
+	for h in real:
+		h.remove_from_group("hud")  # LabKit's HuntHud would take the notice first
+	root.add_child(hud)
+	hud.add_to_group("hud")
+	var scene: PackedScene = load("res://scenes/world/harvest_node.tscn")
+	var got: Array[String] = []
+	for row in [["CopperOreNode", &"copper_ore", &"pick"], ["Tree", &"branch", &"axe"]]:
+		var n = scene.instantiate()
+		n.setup(StringName("t_" + row[0]), row[1], 1, 1, {"level": 1, "climate": "temperate"}, row[2], Color.GRAY, 1.2, 8.0, row[0])
+		for i in n.options().size():
+			if str(n.options()[i]["item"]) == str(row[1]):
+				n.select_option(i)
+		hud.last = ""
+		_player._begin_gather(n)
+		got.append(hud.last)
+		_expect(_player.gather_target != n, "a refused gather does not start (%s)" % row[0])
+		n.free()
+	print("[build] bare-hand gather notices: %s" % [got])
+	_expect(got == ["Needs obsidian pick", "Need tool axe"], "bare-hand gather refusals reach the HUD as 'Needs obsidian pick' / 'Need tool axe' (got %s)" % [got])
+	hud.free()
+	for h in real:
+		h.add_to_group("hud")
 
 # ---------------------------------------------------------------- helpers
 
