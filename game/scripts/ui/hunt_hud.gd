@@ -188,6 +188,7 @@ func _layout() -> void:
 ## map and stacked End Combat on ROLL. Whistles go in a row under the vitals, End Combat under the
 ## map text (the claim and context hexes hide in a fight), the four skills in one row along the
 ## bottom right with Auto and Feed above it, the stance text to their left.
+# ASSUMPTION: these phone placements are ours; the combat reference only fixes End Combat right, skills bottom right.
 func _layout_landscape_phone(r: Vector2, inset: Vector4) -> void:
 	var under_vitals := _vitals_rect(r).end.y + 8.0
 	for i in _whistle_hexes.size():
@@ -246,6 +247,7 @@ func _vitals_rect(r: Vector2) -> Rect2:
 ## Landscape phone: the strip between the vitals and the minimap; portrait: the strip under the map
 ## text. The quest card lives in it; the target plate and the level-up banner take it over while
 ## they show. Empty on the desktop (the plate is top centre, the level-up stack top left).
+# ASSUMPTION: the quest card may yield to the plate and the banner on a phone; nothing else free fits them.
 func _centre_band(r: Vector2) -> Rect2:
 	if UiTokens.is_narrow(r):
 		return Rect2(12.0 + _safe_insets().w, _minimap.position.y + MAP_PX + 44.0, r.x - 24.0 - _safe_insets().w - _safe_insets().x, 84.0)
@@ -297,6 +299,7 @@ func _build_menu_row() -> void:
 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
 	_pets_hex = _hex("", HEX, "ANIMALS")
 	# A white raptor talon, not the colour emoji: no creature silhouette exists yet (W1-ICONART).
+	# ASSUMPTION: the talon stands in for an animals symbol until W1-ICONART draws one.
 	_pets_hex.icon = HexButton.symbol(["raptor_talon"])
 	_pets_hex.pressed.connect(_open_animals)
 	_build_hex = _hex("⌂", HEX, "BUILD")
@@ -767,6 +770,7 @@ func _on_level_up(stored: int) -> void:
 		var g := bonus if (i == level % maxi(1, stats.size())) else gain
 		_levelup_lines.append(["%s + %d" % [stats[i], g], 18, Color(1.0, 0.85, 0.35)])
 	# The landscape banner's one stat line. No pickup toast: "+5  level" read as five levels gained.
+	# ASSUMPTION: the banner alone announces a level-up (Durango shows one banner).
 	var top_stat := str(stats[level % stats.size()]) if not stats.is_empty() else "Stats"
 	_levelup_summary = "%s +%d · other stats +%d · Skill points %d" % [top_stat, bonus, gain, maxi(0, sp)]
 	_levelup_t = 0.0

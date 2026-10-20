@@ -286,6 +286,7 @@ func _layout() -> Dictionary:
 		centre = Vector2((left + right) * 0.5, (top + bottom) * 0.5)
 		# The square is height-bound (222 px of 390 at 844x390). Where the action row leaves the
 		# middle of the bottom free, it runs down between the actions and the zoom row instead.
+		# ASSUMPTION: the map may sit between the footer buttons on a landscape phone.
 		var low_left := maxf(left, MARGIN + _btn_row.get_combined_minimum_size().x + UiTokens.SPACE)
 		var low_right := minf(right, zoom_left(r) - UiTokens.SPACE)
 		var tall := minf(r.y - MARGIN - top, low_right - low_left)

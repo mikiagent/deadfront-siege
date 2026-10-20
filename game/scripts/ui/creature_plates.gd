@@ -370,6 +370,7 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 		hp_dbg.text = "%.0f/%.0f" % [c.health.hp, c.health.max_hp]
 	# Landscape phone: an emphasised creature that is neither the hunt target nor tameable shows its
 	# name and bar only; with its status and tame rows the 176x72 pill covered the survivor beside it.
+	# ASSUMPTION: statuses of a creature you are not fighting or taming can wait for the target plate.
 	var rows := full and (not UiTokens.is_compact(get_viewport().get_visible_rect().size) or _in_focus(c, player))
 	var line3 := entry["line3"] as Control
 	if line3:
