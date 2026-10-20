@@ -354,13 +354,31 @@ def rope_snare():
 
 
 def heavy_snare():
-    _snare(metal("#7c8188", 0.35), heavy=True)
+    """Heavy cable snare: a coiled steel cable with a swaged eye, a heavy iron lock and three cast
+    weights: built to hold something big (the rope snare is the flexible cord one)."""
+    cable = mat("#9aa0a8", 0.3, metal=0.9, color2="#6a7078", tex="wave", scale=30.0, bump=0.15)
+    pts = []
+    for i in range(80):
+        a = i * 0.19
+        r = 0.9 - 0.004 * i
+        pts.append((r * math.cos(a), 0.06 * math.sin(a * 1.5), r * math.sin(a) * 0.7))
+    tube(pts, 0.06, cable, segs=6)
+    pts2 = [(p[0] * 0.82 + 0.12, p[1] + 0.12, p[2] * 0.82 + 0.05) for p in pts]
+    tube(pts2, 0.05, cable, segs=6)
+    end = pts[-1]
+    tube([end, (end[0] + 0.2, end[1], end[2] + 0.25), (end[0] + 0.05, end[1], end[2] + 0.45)], 0.05, cable, segs=5)
+    loop = [(0.15 * math.cos(math.radians(a)) + end[0] + 0.02, end[1], 0.15 * math.sin(math.radians(a)) + end[2] + 0.5)
+            for a in range(0, 360, 30)]
+    tube(loop, 0.045, mat("#b0b6be", 0.25, metal=0.9), segs=6, closed=True)
+    iron = mat("#4a4e56", 0.4, metal=0.85)
+    box((0.3, 0.18, 0.16), loc=(0.55, 0.0, 0.5), rot=(0, 0, 30), m=iron, bev=0.03)
+    for a in (0, 120, 240):
+        r = math.radians(a)
+        cyl(0.12, 0.2, loc=(0.6 * math.cos(r), 0.1 * math.sin(r), -0.45), rot=(90, 0, a), m=iron, segs=6,
+            r2=0.09, smooth=False)
+    turn(32, "X")
+    lean(-24)
 
-
-
-# ---------------------------------------------------------------- dsc icons2: kits, feeds, medicine, cages
-# A kit is a bundle of the parts it builds, lashed with rope, leaning so it hints at the finished
-# piece (the existing tent_kit/sign_kit language, but with the parts and the tie both visible).
 
 def _pole(x, y, z0, z1, m, r=0.06, tilt=0.0, parent=None):
     cyl(r, z1 - z0, loc=(x, y, (z0 + z1) / 2), rot=(0, tilt, 0), m=m, segs=10, parent=parent)

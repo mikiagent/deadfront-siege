@@ -215,23 +215,41 @@ def boiled_meat():
     turn(28, "X")
 
 
+def _drum_radius(z):
+    """Radius of the drumstick's meat at height z (same profile as _drumstick)."""
+    prof = [(-1.0, 0.0), (-0.96, 0.3), (-0.72, 0.55), (-0.3, 0.63), (0.1, 0.56), (0.42, 0.38), (0.62, 0.2), (0.78, 0.13)]
+    for (z0, r0), (z1, r1) in zip(prof, prof[1:]):
+        if z0 <= z <= z1:
+            t = (z - z0) / (z1 - z0)
+            return r0 + (r1 - r0) * t
+    return 0.0
+
+
 def burnt_food():
-    """Burnt food: a drumstick burnt to black charcoal, ash-grey dust lying on its upper face, the
-    skin cracked in a few places to show a thin dull orange glow under the crust."""
-    char = mat("#20201e", 0.95, color2="#3e3832", tex="noise", scale=6.0, bump=0.8, ramp=(0.3, 0.7))
-    dust = mat("#a29e96", 1.0, color2="#6e6a62", tex="noise", scale=14.0, bump=0.4)
-    ember = mat("#2e2018", 0.85, color2="#5a3620", tex="noise", scale=6.0, emit="#ff5a18", emit_strength=2.0,
-                emit_mask=22.0)
-    # The meat: black, with the glow showing through thin cracks only.
+    """Burnt food: a drumstick burnt black, ash-grey crackle lines running across the charred skin and
+    a dull ember glow deep in two of them: scorched food, not a lava rock."""
+    char = mat("#26221e", 0.95, color2="#463e34", tex="noise", scale=6.0, bump=0.8, ramp=(0.3, 0.7))
+    ash = mat("#9a958c", 0.99, color2="#726d64", tex="noise", scale=14.0, bump=0.3)
+    ember = mat("#e86a24", 0.55, color2="#a84810", emit="#ff6a1a", emit_strength=0.9)
     lathe([(0, -1.0), (0.3, -0.96), (0.55, -0.72), (0.63, -0.3), (0.56, 0.1), (0.38, 0.42), (0.2, 0.62), (0.13, 0.78)],
-          m=ember)
-    lathe([(0, -1.02), (0.31, -0.98), (0.57, -0.74), (0.65, -0.3), (0.58, 0.1), (0.4, 0.42), (0.22, 0.62), (0.15, 0.8)],
-          m=char, scl=(0.94, 0.94, 0.97))
-    # Ash dust lying on the upper face and the shoulder.
-    for k in range(5):
-        blob(0.13, loc=(-0.25 + 0.13 * k, 0.05, 0.55 - 0.22 * abs(k - 2)), scl=(1.2, 0.5, 0.7), m=dust, amp=0.3,
-             sub=2)
-    blob(0.22, loc=(0.05, 0.1, 0.62), scl=(1.3, 0.8, 0.4), m=dust, amp=0.35, sub=2)
+          m=char)
+    # Crackle lines: thin ash-grey fissures lying on the char, plus two with embers in them.
+    for i in range(6):
+        a0 = math.radians(200 + 25 * i)
+        zs = -0.85 + 0.18 * (i % 3)
+        pts = []
+        for k in range(6):
+            z = zs + 0.07 * k
+            aa = a0 + 0.18 * math.sin(k * 1.3 + i)
+            r = _drum_radius(z) * 1.01
+            pts.append((r * math.cos(aa), r * math.sin(aa), z))
+        tube(pts, 0.018, ember if i in (1, 4) else ash, segs=4)
+    # A few ash flakes: flat chips clinging to the lower crust.
+    for (a0, z) in ((250, -0.75), (300, -0.55), (215, -0.4)):
+        aa = math.radians(a0)
+        r = _drum_radius(z) * 1.0
+        prism([(-0.08, -0.05), (0.06, -0.08), (0.1, 0.03), (0.0, 0.08), (-0.09, 0.04)], 0.012,
+              loc=(r * math.cos(aa), r * math.sin(aa), z), rot=(90, math.degrees(aa), 0), m=ash, bev=0.0)
     b = mat("#5e564c", 0.9, color2="#3e3830", tex="noise", scale=8.0, bump=0.4)
     cyl(0.1, 0.7, loc=(0, 0, 1.05), m=b)
     for dx in (-0.09, 0.09):

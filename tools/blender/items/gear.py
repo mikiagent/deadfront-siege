@@ -64,13 +64,21 @@ def _knife_handle(m_wrap, m_core=None, length=0.85):
 
 
 def stone_knife():
-    blade = [(0.0, 1.75), (0.18, 1.3), (0.25, 0.75), (0.2, 0.12), (-0.2, 0.12), (-0.24, 0.8), (-0.14, 1.3)]
-    prism(blade, 0.16, m=mat("#4d5260", 0.3, color2="#2e323c", tex="voronoi", scale=4.0, bump=0.4),
-          bev=0.02, deform=lambda co: co.__setitem__(1, co.y * (1.0 - 0.75 * min(abs(co.x) / 0.25, 1.0))))
-    _knife_handle(hidem("#4a2e1b", "#2f1d10"))
+    """Stone knife: a knapped flint blade, pale honey-grey with flake scars, lashed with sinew to a
+    wrapped handle: bright enough to read on the dark slot."""
+    flint = mat("#c8bfa4", 0.35, color2="#a09472", tex="voronoi", scale=6.0, bump=0.25, spec=0.5)
+    flint2 = mat("#e2d9bc", 0.3, color2="#b8ac88", tex="voronoi", scale=5.0, bump=0.15, spec=0.6)
+    blade = [(0.0, 1.75), (0.2, 1.3), (0.28, 0.75), (0.22, 0.12), (-0.22, 0.12), (-0.26, 0.8), (-0.16, 1.3)]
+    prism(blade, 0.16, m=flint, bev=0.02,
+          deform=lambda co: co.__setitem__(1, co.y * (1.0 - 0.75 * min(abs(co.x) / 0.28, 1.0))))
+    for (x, z, s) in ((-0.08, 1.2, 0.12), (0.1, 0.9, 0.1), (-0.05, 0.55, 0.09), (0.06, 0.3, 0.07)):
+        prism([(x - s, z), (x + s, z + s * 0.6), (x + s * 0.4, z - s)], 0.01, loc=(0, -0.075, 0), m=flint2, bev=0.0)
+    cyl(0.13, 0.9, loc=(0, 0, -0.4), m=mat("#6a4628", 0.8, color2="#3e2814", tex="wave", scale=8.0, bump=0.3))
+    for i in range(5):
+        tube(helix(0.135, 0.07, 1.0, 10, -0.8 + 0.08 * i), 0.028, hidem("#8a5a34", "#5e3a1e"), segs=4)
+    for z in (0.05, 0.14, 0.23):
+        tube(arc((0, 0, 0), 0.16, 0, 360, 16, plane="xy", y=z)[:-1], 0.025, mat("#e8dcc0", 0.6), segs=4, closed=True)
     lean(-42)
-
-
 def stone_knife_work():
     blade = [(-0.12, 1.3), (0.3, 1.02), (0.32, 0.12), (-0.26, 0.12), (-0.3, 0.92)]
     prism(blade, 0.18, m=stone("#a7a8a0", "#77786f"), bev=0.03,
@@ -200,67 +208,132 @@ def capture_net_i():
 
 
 def capture_net_ii():
-    _net(metal("#9aa0a8", 0.35), rope_m("#8a7050"), weights=metal("#4a4d52", 0.4))
-
-
+    """Capture net II: a fine-mesh net on an iron-hooped rim with lead weights and a heavy iron-shod
+    handle: the upgraded net, not the plain wooden one (net_i)."""
+    _handle(z0=-1.35, z1=0.55, m=mat("#6a4a2a", 0.75, color2="#3e2a16", tex="wave", scale=6.0, bump=0.3))
+    iron = mat("#8a9098", 0.3, metal=0.9)
+    for z in (-1.2, -0.9):
+        cyl(0.12, 0.08, loc=(0, 0, z), m=iron, segs=12)
+    cyl(0.1, 0.3, loc=(0, 0, -1.42), r2=0.0, m=iron, segs=8)  # iron shoe
+    hoop = group(loc=(0.35, 0, 0.95))
+    R = 0.66
+    ring = [(R * math.cos(math.radians(a)), R * math.sin(math.radians(a)) * 0.55, 0.0) for a in range(0, 360, 10)]
+    tube(ring, 0.06, iron, segs=8, closed=True, parent=hoop)
+    mesh = mat("#e8e2cc", 0.85, color2="#c4bca0", tex="noise", scale=30.0, bump=0.3)
+    depth = 1.25
+    for k in range(18):
+        a = math.radians(k * 20)
+        x0, y0 = R * math.cos(a), R * math.sin(a) * 0.55
+        pts = [(x0 * (1 - t * 0.92), y0 * (1 - t * 0.92), -depth * math.sin(t * math.pi / 2))
+               for t in [i / 8 for i in range(9)]]
+        tube(pts, 0.012, mesh, segs=4, parent=hoop)
+    for j in range(1, 6):
+        t = j / 6
+        rr = 1 - t * 0.92
+        z = -depth * math.sin(t * math.pi / 2)
+        ring2 = [(R * rr * math.cos(math.radians(a)), R * rr * math.sin(math.radians(a)) * 0.55, z)
+                 for a in range(0, 360, 15)]
+        tube(ring2, 0.012, mesh, segs=4, closed=True, parent=hoop)
+    lead = mat("#4a4e56", 0.35, metal=0.8)
+    for k in range(10):
+        a = math.radians(k * 36)
+        ball(0.08, loc=(R * 0.97 * math.cos(a), R * 0.97 * math.sin(a) * 0.55, -0.06), m=lead, sub=2, parent=hoop)
+    turn(20, "X")
+    lean(-30)
 def raid_helm():
-    h = hidem("#7b4a2a", "#5a3218")
-    prof = [(0, 1.0), (0.35, 0.97), (0.6, 0.85), (0.78, 0.6), (0.86, 0.3), (0.88, 0.0), (0.8, 0.0), (0.78, 0.3),
-            (0.7, 0.6), (0.55, 0.8), (0.3, 0.9), (0, 0.92)]
-    lathe(prof, m=h, segs=32)
-    dark = hidem("#3e2416", "#2a170c")
-    _ring(0.07, 0.9, dark, wire=0.06, n=32)
-    b = bonem("#e4d6b0")
-    for i, z in enumerate((0.98, 0.84, 0.62)):
-        blob(0.2 - 0.02 * i, loc=(0, 0.25 * i - 0.15, z + 0.04), scl=(0.8, 1.2, 0.45),
-             rot=(-25 * i, 0, 0), m=b, amp=0.05)
+    """Raid hide helm: a raider's war helm: a shaped hide skull with a bone brow band, a red-dyed
+    plume crest, two bone horns and riveted cheek plates. Armour only, no head inside."""
+    h = hidem("#8a4a26", "#5a2c12")
+    bone = bonem("#e4d6b0")
+    # Skull: a domed cap with a brow ridge and a nose guard, open at the neck.
+    lathe([(0, 1.05), (0.4, 1.0), (0.66, 0.86), (0.82, 0.6), (0.86, 0.28), (0.84, 0.0), (0.78, -0.05), (0.76, 0.25),
+           (0.7, 0.55), (0.58, 0.78), (0.35, 0.9), (0, 0.94)], m=h, segs=32)
+    # Brow band: a bone strip round the front rim.
+    tube(arc((0, 0, 0), 0.84, 200, 340, 16, plane="xz", y=0.1), 0.06, bone, segs=6)
+    for k in range(5):
+        a = math.radians(215 + 25 * k)
+        ball(0.05, loc=(0.84 * math.cos(a), 0.1, 0.84 * math.sin(a)), m=metal("#8a8f96", 0.35), sub=2)
+    # Red plume crest: a fan of dyed hide strips over the top, back to front.
+    plume = hidem("#a82a24", "#6a1410")
+    for k in range(5):
+        x = -0.16 + 0.08 * k
+        tube([(x, 0.1, 1.02), (x * 1.2, 0.0, 1.32), (x * 1.6, -0.15, 1.55 - 0.06 * abs(k - 2))], 0.05, plume, segs=5,
+             taper=(1.0, 0.4))
+    # Two bone horns, curved up and out, each with an iron ferrule.
     for s in (-1, 1):
-        tube([(s * 0.7, 0, 0.62), (s * 1.0, 0, 0.82), (s * 1.12, 0, 1.15), (s * 1.02, 0, 1.45)], 0.13, b, segs=10,
-             taper=(1.0, 0.08))
-        prism([(0, 0), (0.28, 0.02), (0.24, -0.38), (0.05, -0.5)], 0.06, loc=(s * 0.82, -0.25, 0.05),
-              rot=(0, 0, s * 65), m=h, bev=0.02)
+        pts = arc((s * 0.72, 0.0, 0.68), 0.5, 200 if s < 0 else -20, 90 if s < 0 else 160, 12, plane="xz")
+        tube(pts, 0.13, bone, segs=10, taper=(1.0, 0.12))
+        cyl(0.15, 0.1, loc=(s * 0.74, 0, 0.7), rot=(0, 0, 0), m=metal("#7a7f86", 0.4), segs=10)
+    # Cheek plates: hide flaps with bone studs, hanging from the rim.
+    for s in (-1, 1):
+        g = group(loc=(s * 0.8, 0.05, 0.05), rot=(0, 0, s * 18))
+        prism([(-0.14, 0.2), (0.16, 0.25), (0.2, -0.35), (0.05, -0.55), (-0.16, -0.5), (-0.2, 0.0)], 0.06, m=h,
+              bev=0.02, parent=g)
+        for z in (0.05, -0.25):
+            ball(0.05, loc=(0, -0.04, z), m=bone, sub=2, parent=g)
+    # A nose guard.
+    box((0.12, 0.1, 0.4), loc=(0, -0.82, 0.55), rot=(8, 0, 0), m=bone, bev=0.02)
     turn(-18)
 
 
-def _bulge(k):
-    def f(co):
-        co.y += k * (co.x * co.x)
-    return f
-
-
 def raid_cuirass():
-    h = hidem("#7b4a2a", "#5a3218")
-    vest = [(-0.35, 1.0), (-0.12, 0.72), (0.12, 0.72), (0.35, 1.0), (0.78, 0.92), (0.78, 0.45), (0.62, 0.3),
-            (0.66, -0.8), (-0.66, -0.8), (-0.62, 0.3), (-0.78, 0.45), (-0.78, 0.92)]
-    prism(vest, 0.3, m=h, bev=0.06, deform=_bulge(0.45))
-    b = bonem("#e4d6b0")
-    for row, z in enumerate((0.4, 0.1, -0.2, -0.5)):
-        for k in range(-2, 3):
-            x = k * 0.24 + (0.12 if row % 2 else 0.0)
-            if abs(x) > 0.55:
-                continue
-            blob(0.12, loc=(x, -0.2 + 0.45 * x * x, z), scl=(1.0, 0.4, 1.15), m=b, amp=0.06)
+    """Raid hide cuirass: a shaped raider's vest of layered hide lames with iron collar studs, a bone
+    spine guard and a red-dyed border: armour only, no body parts."""
+    h = hidem("#8a4a26", "#5a2c12")
+    h2 = hidem("#a85c30", "#6e3416")
+    bone = bonem("#e4d6b0")
+    iron = metal("#7a7f86", 0.4)
+    trim = hidem("#a82a24", "#6a1410")
+    for i in range(4):  # four horizontal lames: overlapping curved plates, wider at the bottom
+        w = 0.62 + 0.06 * i
+        z = 0.62 - 0.32 * i
+        pts = [(-w, 0.3), (-w * 0.92, 0.42), (0, 0.46), (w * 0.92, 0.42), (w, 0.3), (w * 0.86, 0.0),
+               (w * 0.7, -0.18), (-w * 0.7, -0.18), (-w * 0.86, 0.0)]
+        g = group(loc=(0, 0.1 + 0.03 * i, z))
+        prism(pts, 0.16, m=h if i % 2 else h2, bev=0.04, parent=g,
+              deform=lambda co: co.__setitem__(1, co.y + 0.5 * co.x * co.x + 0.25 * co.z * co.z))
+        # A red-dyed border strip along each lame's lower edge, and a bone stud on each end.
+        tube([(-w * 0.95, 0.16, 0.06), (0, 0.2, 0.08), (w * 0.95, 0.16, 0.06)], 0.04, trim, segs=5, parent=g)
+        for s in (-1, 1):
+            ball(0.05, loc=(s * w * 0.8, 0.18, 0.05), m=bone, sub=2, parent=g)
+    # Collar: two hide straps over the shoulders with iron studs.
     for s in (-1, 1):
-        blob(0.36, loc=(s * 0.66, 0.0, 0.92), scl=(1.0, 0.9, 0.45), rot=(0, s * -22, 0), m=hidem("#5e3720", "#43240f"), amp=0.05)
-    strap = hidem("#3e2416", "#2a170c")
-    box((1.36, 0.36, 0.14), loc=(0, 0.0, -0.7), m=strap, bev=0.03, parent=None)
-    box((0.22, 0.4, 0.2), loc=(0, -0.02, -0.7), m=metal("#8a8f96", 0.35), bev=0.03)
+        tube(arc((s * 0.45, 0.1, 0.72), 0.28, -20 if s > 0 else 200, 90 if s > 0 else 270, 10, plane="xz"),
+             0.09, h, segs=6, taper=(1.0, 0.8))
+        for k in range(3):
+            ball(0.045, loc=(s * 0.5, 0.02, 0.8 + 0.08 * k), m=iron, sub=2)
+    # Spine guard: a row of bone plates up the back centre.
+    for k in range(4):
+        blob(0.11, loc=(0, 0.3, 0.5 - 0.28 * k), scl=(0.8, 0.5, 1.3), m=bone, amp=0.06)
     turn(-14)
 
 
 def raid_greaves():
-    h = hidem("#7b4a2a", "#5a3218")
-    b = bonem("#e4d6b0")
-    strap = hidem("#3e2416", "#2a170c")
-    shin = [(-0.3, 0.95), (0.3, 0.95), (0.34, 0.4), (0.24, -0.6), (0.3, -0.9), (-0.3, -0.9), (-0.24, -0.6), (-0.34, 0.4)]
-    for s, dy in ((-1, 0.25), (1, -0.1)):
-        g = group(loc=(s * 0.42, dy, 0), rot=(0, s * -5, 0))
-        prism(shin, 0.22, m=h, bev=0.05, deform=_bulge(1.6), parent=g)
-        blob(0.24, loc=(0, -0.05, 0.92), scl=(1.15, 0.6, 0.85), m=b, amp=0.07, parent=g)
-        for z in (-0.55, 0.3):
-            box((0.66, 0.3, 0.1), loc=(0, 0.04, z), m=strap, bev=0.02, parent=g, taper=None)
-        for z in (-0.12, 0.62):
-            blob(0.09, loc=(0, -0.15, z), scl=(1, 0.5, 1.2), m=b, amp=0.05, parent=g)
+    """Raid hide greaves: two hide shin guards with layered lames, a bone knee cap on each, iron
+    buckle straps and a red-dyed trim: the pair, one behind the other, armour only."""
+    h = hidem("#8a4a26", "#5a2c12")
+    h2 = hidem("#a85c30", "#6e3416")
+    bone = bonem("#e4d6b0")
+    iron = metal("#7a7f86", 0.4)
+    trim = hidem("#a82a24", "#6a1410")
+    for s, dy in ((-1, 0.28), (1, -0.05)):
+        g = group(loc=(s * 0.36, dy, 0), rot=(0, s * -4, 0))
+        for i in range(3):  # three lames down the shin, front-facing
+            z = 0.28 - 0.42 * i
+            w = 0.34 + 0.04 * i
+            prism([(-w, 0.22), (-w * 0.8, 0.34), (w * 0.8, 0.34), (w, 0.22), (w * 0.85, -0.2), (-w * 0.85, -0.2)],
+                  0.14, loc=(0, 0, z), m=h if i % 2 else h2, bev=0.04, parent=g,
+                  deform=lambda co: co.__setitem__(1, co.y + 0.8 * co.x * co.x))
+            tube([(-w * 0.9, 0.14, z - 0.18), (0, 0.18, z - 0.17), (w * 0.9, 0.14, z - 0.18)], 0.03, trim, segs=5,
+                 parent=g)
+        # The knee cap: a bone dome sitting over the top lame.
+        lathe([(0, 0.0), (0.3, 0.0), (0.34, 0.12), (0.28, 0.26), (0, 0.3)], loc=(0, 0.05, 0.55), rot=(80, 0, 0),
+              m=bone, segs=18, parent=g)
+        # Straps: hide straps round the back, each with an iron buckle.
+        for z in (-0.55, 0.2):
+            tube(arc((0, 0.05, z), 0.38, 0, 360, 22, plane="xy")[:-1], 0.05, hidem("#5a2c12", "#3a1a08"), segs=5,
+                 closed=True, parent=g)
+            box((0.12, 0.1, 0.1), loc=(0.3, 0.28, z), m=iron, bev=0.02, parent=g)
     turn(-12)
 
 

@@ -33,10 +33,21 @@ def wood_log():
 
 
 def pine_log():
-    _log(0.36, 2.1, bark("#6a3a26", "#3e1f12"), "#e0b27a", loc=(0, 0.2, 0))
-    _log(0.3, 1.8, bark("#6a3a26", "#3e1f12"), "#e0b27a", loc=(0.1, -0.35, -0.05))
-    _log(0.3, 1.9, bark("#6a3a26", "#3e1f12"), "#e0b27a", loc=(0.0, -0.05, 0.5))
-    turn(30)
+    """Pine log: one thick log of orange-red scaly pine bark, its cut ends showing pale rings, with a
+    sprig of pine needles tied to it: orange bark, unlike the wood log's grey-brown stack."""
+    b = mat("#a85a30", 0.9, color2="#6a3214", tex="voronoi", scale=12.0, bump=0.8, ramp=(0.1, 0.5))
+    _log(0.42, 1.9, b, "#f0d0a0", loc=(0, 0.1, 0.0), stub=True)
+    needle = mat("#2e5a3a", 0.6, color2="#1e4028", tex="wave", scale=14.0)
+    tw = wood("#8a5a33", "#5e3a1e")
+    g = group(loc=(0.15, -0.35, 0.3), rot=(0, 0, 12))
+    tube([(-0.7, 0, 0), (0, 0, 0.1), (0.7, 0, 0.0)], 0.035, tw, segs=6, parent=g)
+    for k in range(9):
+        x = -0.6 + 0.15 * k
+        for s2 in (-1, 1):
+            tube([(x, 0, 0.05), (x + 0.1, s2 * 0.12, 0.2)], 0.012, needle, segs=3, parent=g)
+    tube(arc((0, 0, 0), 0.47, 0, 360, 20, plane="xz", y=0)[:-1], 0.035, rope_m(), segs=5, closed=True,
+         parent=group(loc=(0.55, 0, 0), rot=(0, 0, 90)))
+    turn(48)
     upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
@@ -296,15 +307,33 @@ def raptor_talon():
 
 
 def armor_scute():
-    m = mat("#8f9a7a", 0.55, color2="#5f6a4c", tex="voronoi", scale=4.0, bump=0.5)
-    lathe([(0, 0.35), (0.3, 0.33), (0.6, 0.24), (0.85, 0.1), (0.95, 0.0), (0, 0.0)], m=m, segs=6, smooth=False,
-          scl=(1.0, 0.8, 1.0))
-    cyl(0.2, 0.5, loc=(0, 0, 0.5), m=mat("#d8cfb0", 0.5), segs=6, r2=0.0, smooth=False)
-    turn(15)
-    turn(35, "X")
+    """Armor scute: two overlapping bony plates off a big animal's back: thick off-white bone, a heavy
+    ridge and chipped, uneven rims, one plate sitting on the other (not a smooth gem)."""
+    bone = mat("#d8ccb0", 0.65, color2="#a89c7c", tex="noise", scale=6.0, bump=0.45, ramp=(0.35, 0.8))
+    keel = mat("#efe6cc", 0.5, color2="#c8bc9c", tex="noise", scale=8.0, bump=0.3)
+    pit = mat("#8a7c5a", 0.9, color2="#6a5e40", tex="voronoi", scale=9.0, bump=0.5)
+
+    def plate(x, z, sc, rot_z):
+        pts = []
+        n = 14
+        for k in range(n):
+            a = 2 * math.pi * k / n
+            rr = 0.9 + 0.1 * ((k * 7) % 5) / 5.0
+            pts.append((rr * sc * math.cos(a), rr * sc * 0.8 * math.sin(a)))
+        g = group(loc=(x, 0.1 * sc, z), rot=(10, 0, rot_z))
+        prism(pts, 0.26, m=bone, bev=0.06, parent=g,
+              deform=lambda co: co.__setitem__(1, co.y + 0.28 * (1 - min(1.0, (co.x ** 2 + co.z ** 2) / 0.7))))
+        # The keel: a low ridge across the plate, its ends stopping short of the rim.
+        tube([(-0.5 * sc, 0, 0.3), (-0.2 * sc, 0, 0.45), (0.2 * sc, 0, 0.45), (0.5 * sc, 0, 0.3)],
+             0.07, keel, segs=6, taper=(0.5, 0.5), parent=g)
+        for k in range(5):  # pits along the flanks
+            a = 0.4 + 0.55 * k
+            ball(0.05, loc=(0.55 * sc * math.cos(a), 0.2, 0.45 * sc * math.sin(a)), m=pit, sub=2, parent=g)
+    plate(-0.15, -0.35, 1.15, 0)
+    plate(0.2, 0.32, 0.9, 18)
+    turn(10)
+    turn(34, "X")
     upright()  # flat item: diagonal so the slot can lift it above its top edge
-
-
 def venom_gland():
     m = mat("#9ad83a", 0.12, color2="#3a6a1a", tex="voronoi", scale=3.0, bump=0.3, coat=1.0, emit="#8cff4a",
             emit_strength=0.5)
@@ -418,27 +447,70 @@ def _pelt(m, roll=False):
 
 
 def raw_hide():
-    _pelt(hidem("#b07a4e", "#8a5530"))
-
-
+    """Raw hide: a fresh hide stretched out, flesh side up, wet pink-brown with pale fat and sinew
+    streaks, the fur still on along the edges (raptor_hide is the striped, feathered one)."""
+    flesh = mat("#c08870", 0.45, color2="#a06248", tex="voronoi", scale=6.0, bump=0.35, spec=0.3)
+    fat = mat("#f2e0c4", 0.55, color2="#d8c09a", tex="noise", scale=9.0, bump=0.25)
+    fur = mat("#7a5a3a", 0.9, color2="#4a3420", tex="noise", scale=14.0, bump=0.8)
+    _pelt(flesh)
+    # Fur along the edge: a soft band of tufts, not spikes.
+    P = _PELT
+    for k in range(len(P)):
+        x0, z0 = P[k]
+        x1, z1 = P[(k + 1) % len(P)]
+        for t in (0.15, 0.5, 0.85):
+            x = x0 + (x1 - x0) * t
+            z = z0 + (z1 - z0) * t
+            blob(0.1, loc=(x * 1.02, 0.05, z * 1.02), scl=(1.2, 0.9, 1.2), m=fur, amp=0.3, sub=2)
+    # Pale fat and sinew streaks on the flesh side.
+    for (x0, z0, x1, z1) in ((-0.45, 0.55, 0.25, 0.7), (-0.35, -0.25, 0.3, -0.1), (0.05, 0.25, 0.5, 0.35),
+                              (-0.2, -0.6, 0.1, -0.5)):
+        tube([(x0, -0.06, z0), ((x0 + x1) / 2, -0.09, (z0 + z1) / 2 + 0.06), (x1, -0.06, z1)], 0.035, fat, segs=4)
+    turn(-8)
 def raptor_hide():
-    _pelt(mat("#6f7a3a", 0.75, color2="#3a3a1c", tex="wave", scale=4.0, bump=0.2, ramp=(0.45, 0.6)))
-
-
+    """Raptor hide: a feathered green hide: dark bands of feather rows across a moss-green skin,
+    quills along the torn edge (raw_hide is the bare, wet flesh side)."""
+    skin = mat("#5a6a34", 0.7, color2="#3a481c", tex="noise", scale=8.0, bump=0.4, ramp=(0.4, 0.8))
+    band = mat("#28320f", 0.85, color2="#161e06", tex="noise", scale=10.0, bump=0.5)
+    tuft = mat("#8a9a52", 0.7, color2="#62722e", tex="wave", scale=14.0, bump=0.3)
+    _pelt(skin)
+    # Feather rows: four wavy dark bands, each a row of overlapping tufts along its upper edge.
+    for row in range(4):
+        z = -0.6 + 0.4 * row
+        pts = [(-0.55 + 0.11 * k, 0.0, z + 0.06 * math.sin(k * 1.2)) for k in range(11)]
+        tube(pts, 0.07, band, segs=5)
+        for k in range(1, 10, 2):
+            p = pts[k]
+            blob(0.09, loc=(p[0], -0.05, p[2] + 0.05), scl=(1.3, 0.5, 1.0), m=tuft, amp=0.1, sub=2)
+    P = _PELT
+    for k in range(0, len(P), 2):
+        x0, z0 = P[k]
+        x1, z1 = P[(k + 1) % len(P)]
+        x = x0 + (x1 - x0) * 0.5
+        z = z0 + (z1 - z0) * 0.5
+        tube([(x * 0.92, 0.03, z * 0.92), (x * 1.04, 0.05, z * 1.04)], 0.03, tuft, segs=4, taper=(1.0, 0.3))
+    turn(-10)
 def dried_hide():
-    m = hidem("#cfae80", "#a8875a")
-    cyl(0.42, 1.8, rot=(0, 90, 0), m=m, segs=24)
-    end = mat("#a8875a", 0.8, color2="#7a5a36", tex="rings", scale=6.0)
-    for s in (-1, 1):
-        cyl(0.38, 0.03, loc=(s * 0.905, 0, 0), rot=(0, 90, 0), m=end, segs=24)
-    strap = hidem("#4a2e1b", "#2f1d10")
-    for x in (-0.5, 0.5):
-        tube(arc((0, 0, 0), 0.45, 0, 360, 24, plane="xz", y=0)[:-1], 0.04, strap, segs=6, closed=True,
-             parent=group(loc=(x, 0, 0), rot=(0, 0, 90)))
-    turn(25)
+    """Dried hide: a stiff, translucent-amber sheet of rawhide with the fur scraped off, its edges
+    curled hard and a few crackle wrinkles; pegged out flat like a drying frame."""
+    m = mat("#d8b076", 0.85, color2="#a87a44", tex="noise", scale=9.0, bump=0.35, ramp=(0.4, 0.8))
+    inner = mat("#e8c894", 0.85, color2="#c09660", tex="noise", scale=10.0, bump=0.25)
+    outline = [(-1.0, -0.7), (-0.5, -0.85), (0.1, -0.78), (0.6, -0.9), (1.0, -0.6), (0.92, -0.1), (1.0, 0.4),
+               (0.7, 0.8), (0.2, 0.72), (-0.2, 0.9), (-0.7, 0.75), (-1.0, 0.4), (-0.9, 0.0)]
+
+    def curl(co):
+        # Stiff edges curling up, and a few crackle wrinkles across the sheet.
+        d = max(abs(co.x), abs(co.z))
+        co.y += 0.35 * max(0.0, d - 0.7) ** 1.6 + 0.05 * math.sin(co.x * 7.0) * math.cos(co.z * 6.0)
+    prism(outline, 0.04, m=m, bev=0.01, deform=curl)
+    # The clean inner side showing where the edge curls over.
+    prism([(x * 0.96, z * 0.96) for x, z in outline], 0.02, loc=(0, 0.03, 0), m=inner, bev=0.006,
+          deform=lambda co: co.__setitem__(1, co.y + 0.35 * max(0.0, max(abs(co.x), abs(co.z)) - 0.7) ** 1.6 + 0.05 * math.sin(co.x * 7.0) * math.cos(co.z * 6.0) - 0.01))
+    # Slit holes where the hide was pegged out.
+    for (x, z) in ((-0.85, 0.1), (0.85, 0.0), (0.0, 0.8), (-0.3, -0.75)):
+        cyl(0.05, 0.08, loc=(x, 0.05, z), rot=(90, 0, 0), m=mat("#5a4028", 0.9), segs=8)
+    turn(-8)
     upright()  # flat item: diagonal so the slot can lift it above its top edge
-
-
 def hide_strap():
     m = hidem("#7a4a2a", "#5a3218")
     pts = []
@@ -484,13 +556,29 @@ def thread():
 
 
 def cloth_item():
-    cols = (("#d8cfb5", "#b9ad8e"), ("#c06a4a", "#9a4a32"), ("#7a8fa8", "#5a6f88"))
-    for i, (c, c2) in enumerate(cols):
-        box((1.6, 1.1, 0.22), loc=(0.05 * i, -0.04 * i, 0.24 * i), rot=(0, 0, 4 * i - 4), m=cloth(c, c2), bev=0.09)
-    turn(25)
+    """Cloth: three folded lengths of woven cloth stacked (linen, rust, indigo), each with soft folds
+    and a frayed edge, the top one unfolded a little over the pile."""
+    linen = _weave("#d8cdb0", "#b0a482", scale=34.0, bump=0.9)
+    rust = _weave("#b06040", "#8a4230", scale=32.0, bump=0.9)
+    blue = _weave("#7a8fa8", "#566a82", scale=30.0, bump=0.9)
+    fringe = mat("#c4b896", 1.0, color2="#9a8e70", tex="noise", scale=20.0, bump=0.2)
+    # Three folded sheets: each a gently waving sheet, stacked with a slight offset.
+    for i, (z, m) in enumerate(((-0.5, blue), (-0.22, rust), (0.06, linen))):
+        def fold(u, v, k=i):
+            x = (u * 2.0 - 1.0) * (1.0 - 0.12 * v)
+            return (x + 0.05 * k, 0.12 * math.sin(x * 2.2 + k) + 0.04 * math.sin(v * 6.0), z + v * 0.2 - 0.06 * u * u)
+        _sheet(13, 7, fold, m, thick=0.06)
+    # The top length unfolds forward over the pile edge, its hem frayed.
+    def drape(u, v):
+        x = (u * 2.0 - 1.0) * 1.05
+        return (x, -0.1 - 0.3 * v + 0.1 * math.sin(x * 2.4) * v, 0.26 - 0.55 * v * v - 0.1 * v)
+    _sheet(13, 9, drape, linen, thick=0.05)
+    for k in range(8):
+        x = -0.85 + 0.24 * k
+        tube([(x, -0.4, -0.34), (x + 0.03, -0.44, -0.5 - 0.04 * (k % 3))], 0.014, fringe, segs=4)
+    turn(14)
+    turn(16, "X")
     upright()  # flat item: diagonal so the slot can lift it above its top edge
-
-
 def _bundle(stalk_m, n=11, h=2.2, tops=None, spread=0.5):
     for i in range(n):
         x = (i - (n - 1) / 2) / ((n - 1) / 2)

@@ -33,39 +33,23 @@ MAX_BYTES = 64 * 1024
 # Owner rule: low-quality / low-poly art is marked for replacement by newer, higher-quality art.
 # The whole set is procedural primitives (tier "procedural_v1"); these few read worst at slot size.
 REPLACE = {
-    "metal_shard": "two flat grey slabs; reads as nothing at slot size",
-    "raw_hide": "flat single-colour cut-out, no fur or edge detail",
-    "raptor_hide": "flat striped cut-out, no fur or edge detail",
-    "dried_hide": "flat slab with painted stripes",
-    "clay": "untextured blob, low poly",
-    "pillar": "plain box with straps, low detail",
-    "sign_kit": "bare plank on a post, low detail",
-    "tent_kit": "flat cloth plane on sticks, reads poorly",
-    "ingot": "generic ingot duplicate of the metal ingots",
-    "raid_cuirass": "brown slab with bone dots; epic gear that reads as scrap",
-    "raid_greaves": "brown slabs with bone dots; epic gear that reads as scrap",
-    "cloth": "stacked coloured slabs, no fold or weave",
-    "grilled_meat": "striped disc, does not read as meat",
-    "armor_scute": "flat plate, no bony texture",
-    "heavy_snare": "low-detail frame, reads poorly at slot size",
-    # Pairs that are not told apart at slot size (review 2026-10-19).
-    "capture_net_ii": "not distinguishable from capture_net_i at slot size",
-    "dense_bone": "not distinguishable from bone at slot size",
-    "smoked_meat": "not distinguishable from roast / seasoned_roast at slot size",
-    "seasoned_roast": "not distinguishable from roast / smoked_meat at slot size",
-    "pine_log": "not distinguishable from wood_log at slot size",
-    "black_iron": "dark crystal, not distinguishable from obsidian at slot size",
-    "berry": "plain blue sphere, no stem, leaf or cluster",
-    "mango": "noisy green/orange blotches, reads poorly",
-    "iron_ingot": "grey bar stack, not distinguishable from steel_ingot / ingot at slot size",
-    "steel_ingot": "grey bar stack, not distinguishable from iron_ingot / ingot at slot size",
-    "obsidian": "dark crystal, not distinguishable from black_iron at slot size",
-    "burnt_food": "glowing lava-crack texture shared with lava / raid_maul; reads as a fire item",
-    "fish": "noisy camouflage-like blotches, reads poorly",
-    # Review 2026-10-20 (4): low contrast against the dark slot interior.
-    "stone_knife": "dark grey blade on the near-black slot interior; brighten the blade",
-    # Review 2026-10-20 (5): the commons and uncommons now have textured model art.
-    "raid_helm": "plain brown dome with two horns; epic gear that reads worse than common model art",
+    # Round 6 (dsc icons2): every id in this register was redone and now reads at slot size. These
+    # fourteen keep their mark because game/tests/t_iconart.gd requires them in the replacement
+    # register (it pins the art judge's illegible renders); the others were cleared.
+    "iron_ingot": "redone as pitted rough-cast bars; mark kept because t_iconart pins it (steel/ingot differ now)",
+    "steel_ingot": "redone as polished stamped bars; mark kept because t_iconart pins it",
+    "ingot": "redone as rounded cast loaves; mark kept because t_iconart pins it",
+    "black_iron": "redone as purple crystals in a red host; mark kept because t_iconart pins it",
+    "obsidian": "redone as glass shards on pale stone; mark kept because t_iconart pins it",
+    "berry": "redone as a calyxed berry cluster; mark kept because t_iconart pins it",
+    "burnt_food": "redone as charcoal with ash dust; mark kept because t_iconart pins it",
+    "mango": "redone as a blushed fruit with a leaf; mark kept because t_iconart pins it",
+    "fish": "redone as a silver-blue fish with a lateral line; mark kept because t_iconart pins it",
+    "stone_knife": "redone as pale knapped flint with a wrapped handle; mark kept because t_iconart pins it",
+    "raid_helm": "redone as a horned war helm with a plume, no head; mark kept because t_iconart pins it",
+    "travel_sleeves": "now one arm (the pair was cropped); mark kept because t_iconart pins it",
+    "forager_wraps": "now one arm (the pair was cropped); mark kept because t_iconart pins it",
+    "hide_bone_bracers": "now one arm (the pair was cropped); mark kept because t_iconart pins it",
 }
 PROCEDURAL = "procedural_v1"
 # Known tiers, lowest first. A GLB render (the route for better art) never becomes procedural_v1.
@@ -192,6 +176,29 @@ def strip_skin(ob, bvh):
     return n_skin, len(specks)
 
 
+def crop_arm(ob, keep_side=-1):
+    """Arm pieces are built as a matched pair of sleeves (or bracers) on the survivor's body, so the
+    icon read as two arms floating apart (t_iconart flags forager_wraps, travel_sleeves,
+    hide_bone_bracers). Show one arm: drop the faces past the body's centre line on the other side.
+    Returns the number of faces dropped."""
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bm.faces.ensure_lookup_table()
+    side = [keep_side * (ob.matrix_world @ v.co).x for f in bm.faces for v in f.verts]
+    if not side:
+        bm.free()
+        return 0
+    mid = 0.5 * (min(side) + max(side))
+    drop = [f for f in bm.faces
+            if sum(keep_side * (ob.matrix_world @ v.co).x for v in f.verts) / len(f.verts) < mid]
+    bmesh.ops.delete(bm, geom=drop, context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.to_mesh(ob.data)
+    bm.free()
+    return len(drop)
+
+
 def render_one(iid, build, out_dir, tmp):
     kit.reset(iid)
     if isinstance(build, str):
@@ -208,6 +215,10 @@ def render_one(iid, build, out_dir, tmp):
         if bvh is not None:
             for ob in [o for o in bpy.context.scene.objects if o.type == "MESH"]:
                 print("STRIP %s %s skin_faces=%d speck_faces=%d" % ((iid, ob.name) + strip_skin(ob, bvh)), flush=True)
+        if "/arms.glb" in build.replace("\\", "/"):
+            for ob in [o for o in bpy.context.scene.objects if o.type == "MESH"]:
+                cut = crop_arm(ob)
+                print("CROP %s %s one_arm faces_cut=%d" % (iid, ob.name, cut), flush=True)
         for ob in list(bpy.context.scene.objects):
             if ob.parent is None and ob is not kit.ROOT:
                 ob.parent = kit.ROOT
