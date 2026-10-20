@@ -367,6 +367,7 @@ static func hud_blocks(hud: HuntHud, player: Player, _r: Vector2) -> Dictionary:
 ## The menu and build sheets (at 844x390 the menu ran 192 px off the top and HANDS sat on its Close),
 ## then a level-up (its 13-line stack ran over the rail and off the bottom).
 func _hud_sheets_and_level_up(logical: Vector2) -> void:
+	Game.ensure_creature_plates()  # its layer sits above the HUD's: plates must hide under a sheet
 	for kind in ["menu", "build"]:
 		_hud.call("_toggle_sheet", StringName(kind))
 		await _frames(3)
@@ -419,6 +420,8 @@ func _check_sheet(kind: String, sheet: Control, logical: Vector2) -> void:
 		_expect(shown == total, "sheet menu shows all %d rows without scrolling (got %d)" % [total, shown])
 	var held: Control = _player.station_craft.held_slot if _player.station_craft else null
 	_expect(held == null or not held.is_visible_in_tree() or not held.get_global_rect().intersects(rect), "sheet %s: HANDS is hidden or off the sheet (%s)" % [kind, held.get_global_rect() if held else ""])
+	var plates := Game.creature_ui as CreaturePlates
+	_expect(plates == null or not (plates.get("_root") as Control).visible, "sheet %s: creature plates hide while it is open" % kind)
 	var above := false
 	for c in _hud.get_children():
 		if c == sheet:

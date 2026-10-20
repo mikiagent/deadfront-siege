@@ -42,6 +42,9 @@ func _process(delta: float) -> void:
 	var player := get_tree().get_first_node_in_group("player") as Player
 	if cam == null or player == null:
 		return
+	# This layer (58) is above the HUD's: a plate drew over an open HUD sheet.
+	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
+	_root.visible = hud == null or not hud.sheet_open()
 	_tick_creatures(cam, player, delta)
 	_tick_corpses(cam, player, delta)
 
@@ -367,7 +370,7 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 		hp_dbg.text = "%.0f/%.0f" % [c.health.hp, c.health.max_hp]
 	# Landscape phone: an emphasised creature that is neither the hunt target nor tameable shows its
 	# name and bar only; with its status and tame rows the 176x72 pill covered the survivor beside it.
-	var rows := full and (not UiTokens.is_compact(get_viewport_rect().size) or _in_focus(c, player))
+	var rows := full and (not UiTokens.is_compact(get_viewport().get_visible_rect().size) or _in_focus(c, player))
 	var line3 := entry["line3"] as Control
 	if line3:
 		line3.visible = rows

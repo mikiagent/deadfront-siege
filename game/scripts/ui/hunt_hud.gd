@@ -162,6 +162,8 @@ func _layout() -> void:
 	_chase_hex.position = Vector2(16.0 + inset.w + 2.0 * (HEX + 10.0), y - HEX - CAPTION_H - 12.0)
 	if _landscape_phone(r):
 		_layout_landscape_phone(r, inset)
+	elif UiTokens.is_narrow(r):
+		_layout_portrait(r, inset, y)
 	else:
 		_end_btn.custom_minimum_size = Vector2(184, 64)
 		_end_btn.size = _end_btn.custom_minimum_size
@@ -172,12 +174,13 @@ func _layout() -> void:
 		var slots := [Vector2(-90, -60), Vector2(-10, -20), Vector2(-90, 40), Vector2(70, -50)]
 		for i in _skill_hexes.size():
 			_skill_hexes[i].position = Vector2(cx, cy) + slots[i]
-		_auto_hex.position = Vector2(cx + 60.0, cy + 30.0)
+		_auto_hex.position = Vector2(cx + 84.0, cy + 40.0)  # under ROLL's caption (at +60/+30 it sat on it)
 		_feed_hex.position = Vector2(cx - 170.0, cy - 20.0)
 		# The whistle column stands on HANDS (bottom-right, held_item_slot.gd) with its caption clear of it.
 		for i in _whistle_hexes.size():
 			_whistle_hexes[i].position = Vector2(r.x - 16.0 - inset.x - 62.0, r.y - 262.0 - inset.y - float(i) * (66.0 + CAPTION_H))
-		_stance_label.position = Vector2(cx + 20.0, cy + 118.0)
+		# On the bottom edge, inside the view (at cy + 118 its 34 px box ran 2 px past the bottom).
+		_stance_label.position = Vector2(cx + 20.0, r.y - 8.0 - inset.y - _stance_label.get_combined_minimum_size().y)
 	if _sheet:
 		_fit_sheet(r, inset, y)
 
@@ -204,6 +207,29 @@ func _layout_landscape_phone(r: Vector2, inset: Vector4) -> void:
 	var sw := _stance_label.get_combined_minimum_size()
 	_stance_label.position = Vector2(net.x - 8.0 - sw.x, row_y + SKILL_HEX * 0.5 - sw.y * 0.5)
 
+## A portrait phone's 390 px wide canvas: the desktop cluster ran off the left edge, onto the rail and
+## onto CHASE, and the whistle column onto HANDS. From the quick-food row up: the whistle row with End
+## Combat at its right (mid-screen, a creature's plate covered it), the four skills in one row, then
+## Feed, Auto and the stance text.
+func _layout_portrait(r: Vector2, inset: Vector4, rail_y: float) -> void:
+	var whistle_y := rail_y - 2.0 * (HEX + CAPTION_H) - 20.0  # over the quick-food row
+	for i in _whistle_hexes.size():
+		_whistle_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (HEX + 10.0), whistle_y)
+	var row_y := whistle_y - 8.0 - CAPTION_H - SKILL_HEX
+	var x := r.x - 16.0 - inset.x - SKILL_HEX
+	for i in range(_skill_hexes.size() - 1, -1, -1):  # ROLL at the right edge, NET leftmost
+		_skill_hexes[i].position = Vector2(x, row_y)
+		x -= SKILL_HEX + 8.0
+	var up := row_y - 8.0 - CAPTION_H - HEX
+	_feed_hex.position = Vector2(16.0 + inset.w, up)
+	_auto_hex.position = Vector2(16.0 + inset.w + HEX + 10.0, up)
+	var end_x := 16.0 + inset.w + 3.0 * (HEX + 10.0) + 4.0
+	_end_btn.custom_minimum_size = Vector2(r.x - 16.0 - inset.x - end_x, UiTokens.TARGET_PRIMARY)
+	_end_btn.size = _end_btn.custom_minimum_size
+	_end_btn.position = Vector2(end_x, whistle_y + 4.0)
+	var sw := _stance_label.get_combined_minimum_size()
+	_stance_label.position = Vector2(_auto_hex.position.x + HEX + 10.0, up + HEX * 0.5 - sw.y * 0.5)
+
 static func _landscape_phone(r: Vector2) -> bool:
 	return UiTokens.is_compact(r) and not UiTokens.is_narrow(r)
 
@@ -217,9 +243,12 @@ func _vitals_rect(r: Vector2) -> Rect2:
 	var panel_w := 300.0 if not phone else maxf(148.0, _minimap.position.x - x - 8.0)
 	return Rect2(x - 8.0, 6.0 + inset.z, panel_w, big * 2.0 + small + 6.0 * 2.0 + 36.0)
 
-## Landscape phone: the strip between the vitals and the minimap. The quest card lives in it; the
-## target plate and the level-up banner take it over while they show. Empty elsewhere.
+## Landscape phone: the strip between the vitals and the minimap; portrait: the strip under the map
+## text. The quest card lives in it; the target plate and the level-up banner take it over while
+## they show. Empty on the desktop (the plate is top centre, the level-up stack top left).
 func _centre_band(r: Vector2) -> Rect2:
+	if UiTokens.is_narrow(r):
+		return Rect2(12.0 + _safe_insets().w, _minimap.position.y + MAP_PX + 44.0, r.x - 24.0 - _safe_insets().w - _safe_insets().x, 84.0)
 	if not _landscape_phone(r):
 		return Rect2()
 	var v := _vitals_rect(r)
@@ -852,9 +881,11 @@ func _toggle_sheet(kind: StringName) -> void:
 					fp_txt = "  %d×%d" % [int(fp[0]), int(fp[1])]
 				_sheet_btn(box, "%s%s  ×%d" % [def.display_name, fp_txt, s.count], func () -> void: _close_sheet(); player.placer.begin(kind_id))
 			if not any:
+				# Under the rows, wrapped to the sheet's width (in the two-column grid it stretched the sheet to 708 px).
 				var l := Label.new()
 				l.text = "No building kits in the bag. Craft one at the workbench."
-				box.add_child(l)
+				l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				outer.add_child(l)
 	add_child(_sheet)
 	_layout()
 	await get_tree().process_frame
@@ -882,9 +913,10 @@ func _fit_sheet(r: Vector2, inset: Vector4, rail_y: float) -> void:
 	_sheet.size = Vector2.ZERO  # shrink to the new minimum
 	_sheet.position = Vector2(16.0 + inset.w, bottom - _sheet.size.y)
 
-## HANDS (held_item_slot.gd, on a canvas layer above the HUD's) hides while one of the HUD's sheets
-## is open: on a landscape phone it sat on the sheet's Close, so a tap there swapped the held tool.
-func covers_hands() -> bool:
+## True while one of the HUD's sheets is open. HANDS (held_item_slot.gd) and the creature plates sit
+## on canvas layers above the HUD's and hide meanwhile: on a landscape phone HANDS sat on the sheet's
+## Close, so a tap there swapped the held tool.
+func sheet_open() -> bool:
 	return _sheet != null or (_skills_sheet != null and _skills_sheet.visible)
 
 ## Rebuild the open sheet in place (e.g. a pet finished respawning and Summon is back).
