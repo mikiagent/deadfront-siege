@@ -265,7 +265,7 @@
           1,
           2
         ],
-        "spine": [
+        "cactus_spine": [
           1,
           3
         ]
@@ -524,6 +524,10 @@
         "reed": [
           1,
           2
+        ],
+        "leech": [
+          0,
+          1
         ]
       },
       "tool_class": null,
@@ -578,6 +582,10 @@
         "resin": [
           0,
           1
+        ],
+        "pine_log": [
+          0,
+          1
         ]
       },
       "tool_class": "axe",
@@ -625,6 +633,10 @@
         "wood_log": [
           1,
           2
+        ],
+        "snow_pine": [
+          0,
+          1
         ]
       },
       "tool_class": "axe",
@@ -648,6 +660,10 @@
         "herb_leaf": [
           1,
           2
+        ],
+        "mushroom": [
+          0,
+          1
         ]
       },
       "tool_class": null,
@@ -672,13 +688,14 @@
           2,
           4
         ],
-        "ore_chunk": [
+        "ore": [
           0,
           1
         ]
       },
       "tool_class": "pick",
-      "collision": "box"
+      "collision": "box",
+      "min_pick_tier": {"ore": "stone"}
     },
     "Rock_Moss": {
       "models": [
@@ -750,6 +767,10 @@
         "wood_log": [
           1,
           1
+        ],
+        "root": [
+          0,
+          1
         ]
       },
       "tool_class": "axe",
@@ -767,6 +788,10 @@
       "harvest": {
         "wood_log": [
           1,
+          1
+        ],
+        "root": [
+          0,
           1
         ]
       },
@@ -787,6 +812,10 @@
         "wood_log": [
           2,
           2
+        ],
+        "root": [
+          0,
+          1
         ]
       },
       "tool_class": "axe",
@@ -845,6 +874,10 @@
           4
         ],
         "reed": [
+          1,
+          2
+        ],
+        "willow_wood": [
           1,
           2
         ]
@@ -1257,6 +1290,10 @@
         "stone": [
           1,
           3
+        ],
+        "lava": [
+          0,
+          1
         ]
       },
       "tool_class": "pick",
@@ -1530,6 +1567,10 @@
         "herb_leaf": [
           1,
           2
+        ],
+        "spice_herb": [
+          0,
+          1
         ]
       },
       "tool_class": "none",
@@ -1678,6 +1719,34 @@
       "height": [
         0.5,
         0.8
+      ]
+    },
+    "TinOreNode": {
+      "models": [
+        "res://assets/resources/generated/min4-silver_ore-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "temperate",
+        "tundra"
+      ],
+      "harvest": {
+        "tin_ore": [
+          1,
+          2
+        ],
+        "stone": [
+          1,
+          2
+        ]
+      },
+      "min_pick_tier": {"tin_ore": "flint"},
+      "tool_class": "pick",
+      "collision": "box",
+      "count": 8,
+      "height": [
+        0.8,
+        1.3
       ]
     }
   }
