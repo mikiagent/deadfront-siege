@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "fracture". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+<path d="M4.5 48.5 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0 Z M10.5 54.5 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0 Z M16.01 54.01 L27.01 43.01 A4.25 4.25 0 0 0 20.99 36.99 L9.99 47.99 A4.25 4.25 0 0 0 16.01 54.01 Z M17 41 L30.5 27.5 L28 34.5 L33.5 33 L23 47 Z"/>
+<path d="M49.5 15.5 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0 Z M43.5 9.5 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0 Z M47.99 9.99 L36.99 20.99 A4.25 4.25 0 0 0 43.01 27.01 L54.01 16.01 A4.25 4.25 0 0 0 47.99 9.99 Z M47 23 L33.5 36.5 L36 29.5 L30.5 31 L41 17 Z"/>
+</g>
+</svg>

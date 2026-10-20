@@ -16,10 +16,11 @@ QUALITY BAR
 - "Works" is not done. Done = acceptance gates pass, an independent reviewer passes it, a blind A/B judge prefers it for anything visual, it is merged with all tests green, and (when I allow deploys) a tester sees it on production.
 
 PRIORITY ORDER (unless I say otherwise)
-1. Finish the half-done packages in HANDOFF section 3, UI first (the next deploy waits on it).
-2. The core loop: gather -> process -> craft -> build, with a rare-item economy and recipe-gated progression (specs 03-05, 08, 10-12).
+1. Merge the built packages in the HANDOFF merge order: items/recipes ladder (hooks + review) -> skill trees (fix the save-test review issue) -> non-stacking inventory (I approved the save change: merge once its review passes and old saves migrate cleanly in tests) -> processing stations (fix packing up a station destroying its contents first) -> gathering and loot (review) -> modular building (review) -> market engine (finish and test the fix so a player cannot send their own deposit call). Ragdolls and item icons: finish their few fixes alongside.
+2. The core loop end to end: gather -> process -> craft -> build, with a rare-item economy and recipe-gated progression (specs 03-05, 08, 10-12).
 3. The market over the real server (Island Market, auctions, buy orders, caged pets), then the server-simulated world.
 4. Art: Tripo creatures from concept sheets I approve, rigged and animated to the verifier gates.
+Production runs 31c064a08/2284b9bf56; deploy the merged state only when I say.
 
 HOW TO WORK
 - One package per branch (claude/mmo-<key>) with an owned-files list; shared files get hooks, not edits.

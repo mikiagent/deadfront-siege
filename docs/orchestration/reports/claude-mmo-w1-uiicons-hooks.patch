@@ -1,0 +1,453 @@
+--- a/game/scripts/ui/hex_button.gd
++++ b/game/scripts/ui/hex_button.gd
+@@ -65,6 +65,7 @@
+ 	size = Vector2(size_px, size_px)
+ 	mouse_filter = Control.MOUSE_FILTER_STOP
+ 	pivot_offset = size * 0.5
++	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+ 
+ func _hex(r: float, c: Vector2) -> PackedVector2Array:
+ 	var pts := PackedVector2Array()
+@@ -93,7 +94,7 @@
+ 	if icon:
+ 		var isz := r * 1.05
+ 		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0)
+-		var shown: Texture2D = icon if color_icon else _white_symbol(icon)
++		var shown: Texture2D = icon if color_icon or icon.resource_path.begins_with(UiIcons.DIR) else _white_symbol(icon)
+ 		draw_texture_rect(shown, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
+ 	elif glyph != "":
+ 		var short := glyph.length() <= 2
+@@ -124,9 +125,13 @@
+ 	if badge != "":
+ 		var bc := c + Vector2(r * 0.55, -r * 0.55)
+ 		draw_circle(bc, r * 0.26, badge_color)
+-		var bsz := int(r * 0.34)
+-		var w := font.get_string_size(badge, HORIZONTAL_ALIGNMENT_CENTER, -1, bsz).x
+-		draw_string(font, Vector2(bc.x - w * 0.5, bc.y + bsz * 0.36), badge, HORIZONTAL_ALIGNMENT_LEFT, -1, bsz, Color.WHITE)
++		var badge_icon := UiIcons.for_glyph(badge)  # "⊘" -> blocked, "✓" -> confirm
++		if badge_icon:
++			draw_texture_rect(badge_icon, Rect2(bc - Vector2.ONE * r * 0.21, Vector2.ONE * r * 0.42), false)
++		else:
++			var bsz := int(r * 0.34)
++			var w := font.get_string_size(badge, HORIZONTAL_ALIGNMENT_CENTER, -1, bsz).x
++			draw_string(font, Vector2(bc.x - w * 0.5, bc.y + bsz * 0.36), badge, HORIZONTAL_ALIGNMENT_LEFT, -1, bsz, Color.WHITE)
+ 
+ 	if cooldown > 0.0:
+ 		# Durango-style progress: a translucent circular dial fills in discrete slices.
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -195,25 +195,25 @@
+ 	_map_island = &""
+ 	_minimap.queue_redraw()
+ 
+-func _hex(glyph: String, size_px: float = HEX, caption: String = "") -> HexButton:
++func _hex(id: StringName, size_px: float = HEX, caption: String = "") -> HexButton:
+ 	var h := HexButton.new(size_px)
+-	h.glyph = glyph
++	h.icon = UiIcons.icon(id)
+ 	h.caption = caption
+ 	add_child(h)
+ 	return h
+ 
+ func _build_menu_row() -> void:
+-	_menu_hex = _hex("≡", HEX, "MENU")
++	_menu_hex = _hex(&"menu", HEX, "MENU")
+ 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
+-	_pets_hex = _hex("🦖", HEX, "ANIMALS")
++	_pets_hex = _hex(&"animals", HEX, "ANIMALS")
+ 	_pets_hex.pressed.connect(_open_animals)
+-	_build_hex = _hex("⌂", HEX, "BUILD")
++	_build_hex = _hex(&"build", HEX, "BUILD")
+ 	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
+-	_skills_hex = _hex("★", HEX, "SKILLS")
++	_skills_hex = _hex(&"skills", HEX, "SKILLS")
+ 	_skills_hex.pressed.connect(_toggle_skills)
+ 	for i in 2:
+ 		var fh := HexButton.new(HEX)
+-		fh.glyph = "🍖"
++		fh.icon = UiIcons.icon(&"eat")
+ 		fh.caption = "EAT"
+ 		fh.color_icon = true
+ 		fh.visible = false
+@@ -221,7 +221,7 @@
+ 		fh.pressed.connect(func () -> void: _eat_quick(qi))
+ 		add_child(fh)
+ 		_food_hexes.append(fh)
+-	_inspect_hex = _hex("🔍", 56.0, "DEBUG")
++	_inspect_hex = _hex(&"inspect", 56.0, "DEBUG")
+ 	_inspect_hex.pressed.connect(_toggle_debug)
+ 	_inspect_hex.selected = Game.debug_overlay
+ 	_inspect_hex.visible = Game.debug_overlay
+@@ -240,10 +240,11 @@
+ 			h.visible = show
+ 		if show:
+ 			var tex := ItemIcons.texture(StringName(fid))
+-			if h.icon != tex or h.bottom_text != str(n):
+-				h.icon = tex
++			var want: Texture2D = tex if tex else UiIcons.icon(&"eat")
++			if h.icon != want or h.bottom_text != "×%d" % n:
++				h.icon = want
+ 				h.color_icon = tex != null
+-				h.glyph = "" if tex else "🍖"
++				h.glyph = ""
+ 				h.bottom_text = "×%d" % n
+ 				h.queue_redraw()
+ 
+@@ -280,6 +281,8 @@
+ func _build_combat() -> void:
+ 	_end_btn = Button.new()
+ 	_end_btn.text = "End Combat"
++	_end_btn.icon = UiIcons.icon(&"end_combat")
++	_end_btn.add_theme_constant_override("icon_max_width", 28)
+ 	_end_btn.custom_minimum_size = Vector2(184, 64)
+ 	_end_btn.add_theme_font_size_override("font_size", 16)
+ 	_end_btn.add_theme_color_override("font_color", UiTokens.ACTION)
+@@ -296,14 +299,15 @@
+ 	var specs := [["🕸", "net", "NET"], ["💥", "tackle", "TACKLE"], ["🦵", "kick", "KICK"], ["↯", "roll", "ROLL"]]
+ 	for s in specs:
+ 		var h := HexButton.new(72.0)
+-		h.glyph = s[0]
++		h.icon = UiIcons.icon(StringName(s[1]))
+ 		h.caption = s[2]
+ 		h.visible = false
+ 		h.pressed.connect(_on_skill.bind(StringName(s[1])))
+ 		add_child(h)
+ 		_skill_hexes.append(h)
+ 	_auto_hex = HexButton.new(64.0)
+-	_auto_hex.glyph = "Auto"
++	_auto_hex.icon = UiIcons.icon(&"auto")
++	_auto_hex.caption = "AUTO"
+ 	_auto_hex.visible = false
+ 	_auto_hex.pressed.connect(func () -> void:
+ 		if player and player.hunt:
+@@ -314,7 +318,7 @@
+ 	add_child(_auto_hex)
+ 	for spec in [["attack", "🦖", "SIC"], ["heel", "↩", "HEEL"], ["guard", "🛡", "GUARD"]]:
+ 		var wh := HexButton.new(64.0)
+-		wh.glyph = spec[1]
++		wh.icon = UiIcons.icon(&"sic" if spec[0] == "attack" else StringName(spec[0]))
+ 		wh.caption = spec[2]
+ 		wh.visible = false
+ 		var cmd := StringName(str(spec[0]))
+@@ -325,7 +329,7 @@
+ 		add_child(wh)
+ 		_whistle_hexes.append(wh)
+ 	_feed_hex = HexButton.new(64.0)
+-	_feed_hex.glyph = "FEED"
++	_feed_hex.icon = UiIcons.icon(&"feed")
+ 	_feed_hex.caption = "FEED"
+ 	_feed_hex.visible = false
+ 	_feed_hex.pressed.connect(func () -> void:
+@@ -341,14 +345,14 @@
+ 	_stance_label.visible = false
+ 	add_child(_stance_label)
+ 	_chase_hex = HexButton.new(HEX)
+-	_chase_hex.glyph = "🏃"
++	_chase_hex.icon = UiIcons.icon(&"chase")
+ 	_chase_hex.caption = "CHASE"
+ 	_chase_hex.visible = false
+ 	_chase_hex.pressed.connect(func () -> void:
+ 		if player and player.hunt:
+ 			player.hunt.hold = not player.hunt.hold
+ 			_chase_hex.selected = player.hunt.hold
+-			_chase_hex.glyph = "✋" if player.hunt.hold else "🏃"
++			_chase_hex.icon = UiIcons.icon(&"hold" if player.hunt.hold else &"chase")
+ 			_chase_hex.caption = "HOLD" if player.hunt.hold else "CHASE"
+ 			_chase_hex.queue_redraw()
+ 	)
+@@ -478,7 +482,7 @@
+ 
+ func _build_place_hexes() -> void:
+ 	_done_hex = HexButton.new(64.0)
+-	_done_hex.glyph = "✓"
++	_done_hex.icon = UiIcons.icon(&"confirm")
+ 	_done_hex.caption = "DONE"
+ 	_done_hex.accent = UiTokens.TEAL
+ 	_done_hex.visible = false
+@@ -491,7 +495,7 @@
+ 	var specs := [["↻", "rotate", "ROTATE", "R"], ["✓", "confirm", "PLACE", "Enter"], ["✕", "cancel", "CANCEL", "Esc"]]
+ 	for sp in specs:
+ 		var h := HexButton.new(64.0)
+-		h.glyph = sp[0]
++		h.icon = UiIcons.icon(StringName(sp[1]))
+ 		h.caption = sp[2]
+ 		h.top_text = sp[3]
+ 		if sp[1] == "confirm":
+@@ -584,13 +588,10 @@
+ 	var x := r.x - 16.0 - inset.x - 74.0 - 60.0
+ 	for a in actions:
+ 		var h := HexButton.new(70.0)
+-		h.glyph = str(a.get("glyph", ""))
++		var id := str(a["id"])
++		h.icon = UiIcons.icon(StringName(id))
+ 		h.caption = str(a["label"]).to_upper()
+ 		h.bottom_text = str(a.get("uses", ""))
+-		if h.glyph == "":
+-			h.glyph = h.caption
+-			h.caption = ""
+-		var id := str(a["id"])
+ 		h.pressed.connect(func () -> void: player.context_action(id))
+ 		add_child(h)
+ 		if id == "claim":
+@@ -637,8 +638,8 @@
+ func _on_level_up(level: int) -> void:
+ 	_levelup_lines.clear()
+ 	_levelup_lines.append(["Lv. %d" % level, 40, Color(1.0, 0.85, 0.35)])
+-	_levelup_lines.append(["👁 %d" % World.pioneer_xp, 18, Color.WHITE])
+-	_levelup_lines.append(["◎ %d" % World.t_stones, 18, Color.WHITE])
++	_levelup_lines.append(["%d" % World.pioneer_xp, 18, Color.WHITE, &"xp"])
++	_levelup_lines.append(["%d" % World.t_stones, 18, Color.WHITE, &"t_stone"])
+ 	var sp := Data.survival_nodes.size() - Data.survival_unlocked.size() if Data.get("survival_nodes") != null else 0
+ 	_levelup_lines.append(["Available Skill Points: %d" % maxi(0, sp), 18, Color.WHITE])
+ 	var title := str(_titles.get(str(level), ""))
+@@ -865,16 +866,16 @@
+ 		var catapult := player._nearest_group("catapult") as FieldCatapult
+ 		var siege := catapult != null and player.global_position.distance_to(catapult.global_position) <= 3.0
+ 		_skill_hexes[1].caption = "TOXIN %d" % player.inventory.count_of(&"toxin_pot") if siege else "TACKLE"
+-		_skill_hexes[1].glyph = "V" if siege else "💥"
++		_skill_hexes[1].icon = UiIcons.icon(&"toxin" if siege else &"tackle")
+ 		_skill_hexes[1].queue_redraw()
+ 		var weapon := player.inventory.equipped_weapon()
+ 		var ranged := weapon != null and weapon.def() != null and weapon.def().range_m > 0.0
+ 		_skill_hexes[0].caption = "FIRE %d" % player.inventory.count_of(weapon.def().ammo_id) if ranged else "NET"
+-		_skill_hexes[0].glyph = "F" if ranged else "🕸"
++		_skill_hexes[0].icon = UiIcons.icon(&"fire_ranged" if ranged else &"net")
+ 		_skill_hexes[0].disabled = player.inventory.count_of(weapon.def().ammo_id) <= 0 if ranged else not (player.hunt.target.capturable() and player.hunt._best_net_ok())
+ 		if siege:
+ 			_skill_hexes[0].caption = "SIEGE %d" % player.inventory.count_of(&"stone_shot")
+-			_skill_hexes[0].glyph = "C"
++			_skill_hexes[0].icon = UiIcons.icon(&"siege")
+ 			_skill_hexes[0].disabled = catapult.reload_left > 0 or player.inventory.count_of(&"stone_shot") == 0
+ 		_skill_hexes[0].queue_redraw()
+ 		_skill_hexes[1].disabled = (catapult.reload_left > 0 or player.inventory.count_of(&"toxin_pot") == 0) if siege else player.hunt._tackle_cd > 0.0
+@@ -994,8 +995,13 @@
+ 		for line in _levelup_lines:
+ 			var col: Color = line[2]
+ 			col.a *= la
+-			draw_string(_font, Vector2(31, ly + 1), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), Color(0, 0, 0, 0.6 * la))
+-			draw_string(_font, Vector2(30, ly), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), col)
++			var tx := 30.0
++			if line.size() > 3:  # [text, size, colour, icon id]: the icon sits before the number
++				var isz := float(line[1])
++				draw_texture_rect(UiIcons.icon(line[3]), Rect2(tx, ly - isz * 0.85, isz, isz), false, Color(1, 1, 1, la))
++				tx += isz + 6.0
++			draw_string(_font, Vector2(tx + 1, ly + 1), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), Color(0, 0, 0, 0.6 * la))
++			draw_string(_font, Vector2(tx, ly), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), col)
+ 			ly += float(line[1]) + 8.0
+ 	# --- pickup toasts near the top-centre, rising and fading
+ 	for i in _events.toasts.size():
+--- a/game/scripts/ui/held_item_slot.gd
++++ b/game/scripts/ui/held_item_slot.gd
+@@ -43,7 +43,7 @@
+ 	if tool == null:
+ 		# Bare hands: fists while fighting, open hands while gathering.
+ 		_fighting_shown = _fighting()
+-		_icon = ItemIcons.texture(&"fists" if _fighting_shown else &"hands")
++		_icon = UiIcons.icon(&"fists" if _fighting_shown else &"hands")
+ 		_caption = "FISTS" if _fighting_shown else "HANDS"
+ 	if tool:
+ 		_icon = ItemIcons.texture(tool.def_id)
+@@ -151,5 +151,4 @@
+ 		draw_string(font, Vector2(cx, c.y + r + 15.0), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, Color.WHITE)
+ 		var bc := c + Vector2(r * 0.55, -r * 0.55)
+ 		draw_circle(bc, r * 0.24, Color(0.2, 0.22, 0.26, 0.95))
+-		var sw := font.get_string_size("⇄", HORIZONTAL_ALIGNMENT_CENTER, -1, 11).x
+-		draw_string(font, Vector2(bc.x - sw * 0.5, bc.y + 4.0), "⇄", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.95, 0.95, 0.9))
++		draw_texture_rect(UiIcons.icon(&"swap"), Rect2(bc - Vector2.ONE * r * 0.18, Vector2.ONE * r * 0.36), false)
+--- a/game/scripts/ui/creature_plates.gd
++++ b/game/scripts/ui/creature_plates.gd
+@@ -87,11 +87,11 @@
+ 		var node := e["node"] as Control
+ 		node.visible = alpha > 0.02
+ 		node.modulate.a = alpha
+-		var knife := e.get("knife", null) as Label
++		var knife := e.get("knife", null) as TextureRect
+ 		if knife:
+ 			knife.visible = corpse.tapped_recently(4.0)
+ 			var unlocked := player.inventory.has_tool_class(&"knife")
+-			knife.text = "🔪" if unlocked else "🔒"
++			knife.texture = UiIcons.icon(&"butcher" if unlocked else &"lock")
+ 			knife.modulate = Color.WHITE if unlocked else Color(1.0, 0.4, 0.35)
+ 		var world := corpse.plate_anchor()
+ 		var screen := cam.unproject_position(world)
+@@ -266,16 +266,17 @@
+ 	label.text = "Loot · %s" % corpse.species_display_name()
+ 	label.add_theme_color_override("font_color", Color(0.85, 0.9, 0.78))
+ 	node.add_child(label)
+-	# Small action lock in the bag corner. A TextureRect inherited the source image minimum
+-	# and produced a giant world knife; the glyph has a fixed 16 px box and cannot escape it.
+-	var knife := Label.new()
++	# Small action lock in the bag corner. A TextureRect once inherited the source image minimum
++	# and produced a giant world knife: EXPAND_IGNORE_SIZE keeps it in its fixed 16 px box.
++	var knife := TextureRect.new()
+ 	knife.name = "KnifeLock"
+-	knife.text = "🔪"
++	knife.texture = UiIcons.icon(&"butcher")
++	knife.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
++	knife.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
++	knife.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+ 	knife.custom_minimum_size = Vector2(16, 16)
+ 	knife.size = Vector2(16, 16)
+ 	knife.position = Vector2(node.size.x - 17.0, 1.0)
+-	knife.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+-	knife.add_theme_font_size_override("font_size", 12)
+ 	knife.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ 	node.add_child(knife)
+ 	_root.add_child(node)
+@@ -432,7 +433,7 @@
+ 				str(row.get("glyph", "?")),
+ 				row.get("color", Color.WHITE),
+ 				float(row.get("frac", 1.0)),
+-				_icon_for(StringName(str(row.get("icon_id", ""))))
++				UiIcons.icon(StringName(str(row.get("icon_id", ""))))
+ 			)
+ 
+ func _status_rows(c: Creature) -> Array[Dictionary]:
+--- a/game/scripts/ui/status_glyph.gd
++++ b/game/scripts/ui/status_glyph.gd
+@@ -9,7 +9,8 @@
+ 
+ func _ready() -> void:
+ 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+-	custom_minimum_size = Vector2(18, 18)
++	custom_minimum_size = Vector2(24, 24)
++	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+ 	size = custom_minimum_size
+ 
+ func configure(text: String, color: Color, frac: float, tex: Texture2D = null) -> void:
+@@ -25,7 +26,8 @@
+ 	draw_circle(c, radius, Color(0.05, 0.05, 0.05, 0.82))
+ 	draw_arc(c, radius, -PI * 0.5, -PI * 0.5 + TAU * progress, 32, glyph_color, 2.6, true)
+ 	if icon:
+-		draw_texture_rect(icon, Rect2(c - Vector2(6, 6), Vector2(12, 12)), false)
++		var s := radius * 1.6  # 16 px on the 24 px chip
++		draw_texture_rect(icon, Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), false)
+ 	else:
+ 		var font := ThemeDB.fallback_font
+ 		if font:
+--- a/game/scripts/ui/craft_ui.gd
++++ b/game/scripts/ui/craft_ui.gd
+@@ -165,7 +165,9 @@
+ 			status = "○ none built"
+ 			col = Color(0.6, 0.6, 0.6)
+ 		var count := Crafting.recipes_for_station(StringName(sid)).size()
+-		var b := _mk_btn("%s %s\n%s · %d" % [row[2], row[1], status, count], _pick_station.bind(sid), Vector2(190, 64))
++		var b := _mk_btn("%s\n%s · %d" % [row[1], status, count], _pick_station.bind(sid), Vector2(190, 64))
++		b.icon = UiIcons.icon(&"craft_hand" if sid == "" else StringName("station_" + sid))
++		b.add_theme_constant_override("icon_max_width", 28)
+ 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+ 		b.clip_text = true
+ 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+--- a/game/scripts/ui/skills_sheet.gd
++++ b/game/scripts/ui/skills_sheet.gd
+@@ -87,7 +87,9 @@
+ 		var lvl := skills.level_of(id)
+ 		var xp := skills.xp_of(id)
+ 		var need := SkillState.xp_to_next(lvl)
+-		row.text = "%s  %-16s Lv. %2d     %3.0f / %3.0f XP    owned %d" % [SkillState.GLYPHS.get(id, "•"), SkillState.NAMES.get(id, id), lvl, xp, need, (skills.trees[id]["unlocked"] as Array).size()]
++		row.text = "%-16s Lv. %2d     %3.0f / %3.0f XP    owned %d" % [SkillState.NAMES.get(id, id), lvl, xp, need, (skills.trees[id]["unlocked"] as Array).size()]
++		row.icon = UiIcons.icon(StringName(id))
++		row.add_theme_constant_override("icon_max_width", 28)
+ 		row.add_theme_font_size_override("font_size", 17)
+ 		var tree_id := id
+ 		row.pressed.connect(func () -> void:
+@@ -108,7 +110,7 @@
+ 	_box.add_child(close_btn)
+ 
+ func _build_tree() -> void:
+-	_header("%s %s  Lv. %d" % [SkillState.GLYPHS.get(_tree, ""), SkillState.NAMES.get(_tree, _tree), skills.level_of(_tree)], "SP %d" % skills.sp_available)
++	_header("%s  Lv. %d" % [SkillState.NAMES.get(_tree, _tree), skills.level_of(_tree)], "SP %d" % skills.sp_available)
+ 	var info := Label.new()
+ 	info.text = str((skills.defs.get(_tree, {}) as Dictionary).get("levels_by", ""))
+ 	info.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
+@@ -150,7 +152,9 @@
+ 		h.add_child(b)
+ 		_box.add_child(h)
+ 	var back := Button.new()
+-	back.text = "◀ All skills"
++	back.text = "All skills"
++	back.icon = UiIcons.icon(&"back")
++	back.add_theme_constant_override("icon_max_width", 28)
+ 	back.custom_minimum_size = Vector2(0, 56)
+ 	back.pressed.connect(func () -> void:
+ 		_tree = ""
+--- a/game/scripts/ui/world_ui.gd
++++ b/game/scripts/ui/world_ui.gd
+@@ -99,7 +99,9 @@
+ 	]
+ 	for row in terrains:
+ 		var b := Button.new()
+-		b.text = "%s  %s\n%s" % [row[2], row[0], row[1]]
++		b.text = "%s\n%s" % [row[0], row[1]]
++		b.icon = UiIcons.icon(row[4])
++		b.add_theme_constant_override("icon_max_width", 28)
+ 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ 		b.custom_minimum_size = Vector2(0, 86)
+ 		b.add_theme_font_size_override("font_size", 18)
+--- a/game/scripts/ui/inventory_ui.gd
++++ b/game/scripts/ui/inventory_ui.gd
+@@ -80,7 +80,10 @@
+ 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ 	_title.add_theme_color_override("font_color", INK)
+ 	header.add_child(_title)
+-	_close_btn = _btn("✕", Vector2(44, 44))
++	_close_btn = _btn("", Vector2(44, 44))
++	_close_btn.icon = UiIcons.icon(&"close")
++	_close_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
++	_close_btn.add_theme_constant_override("icon_max_width", 24)
+ 	_close_btn.pressed.connect(hide_ui)
+ 	header.add_child(_close_btn)
+ 	var load := HBoxContainer.new()
+--- a/game/scripts/ui/map_screen.gd
++++ b/game/scripts/ui/map_screen.gd
+@@ -31,14 +31,14 @@
+ 	zoom_row.name = "ZoomRow"
+ 	zoom_row.add_theme_constant_override("separation", UiTokens.SPACE)
+ 	add_child(zoom_row)
+-	zoom_row.add_child(_zoom_btn("−", func () -> void: _set_zoom(_zoom - 0.25)))
++	zoom_row.add_child(_zoom_btn(&"zoom_out", func () -> void: _set_zoom(_zoom - 0.25)))
+ 	_zoom_label = Label.new()
+ 	_zoom_label.text = "Zoom 1.0×"
+ 	_zoom_label.custom_minimum_size = Vector2(108, 56)
+ 	_zoom_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+ 	_zoom_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+ 	zoom_row.add_child(_zoom_label)
+-	zoom_row.add_child(_zoom_btn("+", func () -> void: _set_zoom(_zoom + 0.25)))
++	zoom_row.add_child(_zoom_btn(&"zoom_in", func () -> void: _set_zoom(_zoom + 0.25)))
+ 
+ func open() -> void:
+ 	visible = true
+@@ -148,8 +148,11 @@
+ func is_open() -> bool:
+ 	return visible
+ 
+-func _zoom_btn(text: String, cb: Callable) -> Button:
+-	var b := _btn(text, cb)
++func _zoom_btn(id: StringName, cb: Callable) -> Button:
++	var b := _btn("", cb)
++	b.icon = UiIcons.icon(id)
++	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
++	b.add_theme_constant_override("icon_max_width", 28)
+ 	b.custom_minimum_size = Vector2(64, 56)
+ 	return b
+ 
+--- a/game/scripts/ui/station_menu.gd
++++ b/game/scripts/ui/station_menu.gd
+@@ -71,9 +71,8 @@
+ 		# HexButton only emits after receiving its own press and release. Because this is
+ 		# created after the station press, that opening gesture cannot activate the action.
+ 		# Station entry is an action, so the glyph stays white. Item thumbnails live on the gather radial.
+-		btn.icon = null
++		btn.icon = UiIcons.icon(StringName(str(row.get("id", "action"))))
+ 		btn.color_icon = false
+-		btn.glyph = str(row.get("glyph", "✦"))
+ 		btn.bottom_text = str(row.get("label", ""))
+ 		var aid := StringName(str(row.get("id", "")))
+ 		btn.pressed.connect(_on_pressed.bind(aid))
+--- a/tools/test.sh
++++ b/tools/test.sh
+@@ -4,3 +4,4 @@
+ G="$($ROOT/tools/find_godot.sh)"
+ "$G" --headless --path "$ROOT/game" --import
+ "$G" --headless --path "$ROOT/game" --script res://tests/run_all.gd
++"$G" --headless --path "$ROOT/game" --script res://tests/t_uiicons.gd
