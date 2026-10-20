@@ -122,6 +122,11 @@ func _separate_visible_creature_plates() -> void:
 		if node and node.visible:
 			visible.append(node)
 	visible.sort_custom(func(a: Control, b: Control) -> bool: return a.position.y < b.position.y)
+	# This layer is above the HUD's: an opaque plate hid the survivor's name and the HUD's hexes and
+	# text. A plate lifts above the HUD rect its pill covers (the name under the survivor's feet), and
+	# hides when that is not enough. World pills do not count: the plate is opaque over them on purpose.
+	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
+	var hud_rects: Array[Rect2] = hud.taken_rects(PackedStringArray(["pill"])) if hud else []
 	for node in visible:
 		var pos := node.position
 		var sz := node.size * node.scale
@@ -138,8 +143,27 @@ func _separate_visible_creature_plates() -> void:
 			if not hit:
 				break
 			attempts += 1
+		var pill := node.get_node_or_null("Pill") as Control
+		var shown := Rect2(pos + pill.position * node.scale, pill.size * node.scale).grow(2.0) if pill else rect
+		for i in 4:
+			var cover := Rect2()
+			for h in hud_rects:
+				if shown.intersects(h):
+					cover = h
+					break
+			if not cover.has_area():
+				break
+			var lift := shown.end.y - cover.position.y + 2.0
+			pos.y -= lift
+			shown.position.y -= lift
+			rect.position.y -= lift
+		var clear := shown.position.y >= 0.0
+		for h in hud_rects:
+			clear = clear and not shown.intersects(h)
+		node.visible = clear
 		node.position = pos
-		placed.append(rect)
+		if clear:
+			placed.append(rect)
 
 func _forced_visible(c: Creature, player: Player, now: float) -> bool:
 	if player.hunt and player.hunt.target == c:

@@ -133,16 +133,18 @@ static func ellipsis(font: Font, text: String, width: float, size_px: int) -> St
 			hi = mid - 1
 	return best
 
-## Greedy screen-space labels. Higher priority keeps its anchor; the rest step away.
+## Greedy screen-space labels. Higher priority keeps its anchor; the rest step away, from each other
+## and from `avoid` (the HUD's blocks and hexes: camp labels drew over the quest card on a phone).
+## A label with no free spot within three rows under its anchor is dropped, not drawn on top.
 ## Each item is {anchor: Vector2, w: float, h: float, priority: int, ...}.
-static func layout_labels(items: Array, view: Vector2) -> Array:
+static func layout_labels(items: Array, view: Vector2, avoid: Array[Rect2] = []) -> Array:
 	var ordered: Array = []
 	for item in items:
 		if item is Dictionary:
 			ordered.append((item as Dictionary).duplicate())
 	ordered.sort_custom(func (a: Dictionary, b: Dictionary) -> bool:
 		return int(a.get("priority", 0)) > int(b.get("priority", 0)))
-	var placed: Array[Rect2] = []
+	var placed: Array[Rect2] = avoid.duplicate()
 	var out: Array = []
 	for item in ordered:
 		var row := item as Dictionary
@@ -161,11 +163,44 @@ static func layout_labels(items: Array, view: Vector2) -> Array:
 		rect.position.y = clampf(rect.position.y, 8.0, maxf(8.0, view.y - h - 8.0))
 		if _hits(rect, placed):
 			rect.position.y = clampf(anchor.y - h * 2.0 - 8.0, 8.0, maxf(8.0, view.y - h - 8.0))
+		if _hits(rect, placed):  # next to whatever it covers (a label under the quest card)
+			rect = free_spot(rect, placed, view)
+		# Dropped: no free spot, one more than four rows off its object (it read as part of the HUD),
+		# or an object the HUD itself hides.
+		if not rect.has_area() or absf(rect.end.y - anchor.y) > (h + float(SPACE) * 0.5) * 4.0 or _covers(avoid, anchor):
+			continue
 		placed.append(rect)
 		row["rect"] = rect
 		row["w"] = w
 		out.append(row)
 	return out
+
+## The nearest spot straight up or down from `box` where it covers nothing in `taken` (2 px apart),
+## inside the view; empty when there is none. Toasts, notices and crowded labels take it.
+static func free_spot(box: Rect2, taken: Array[Rect2], view: Vector2) -> Rect2:
+	var down := _slide(box, taken, view, 1.0)
+	var up := _slide(box, taken, view, -1.0)
+	if not up.has_area() or (down.has_area() and down.position.y - box.position.y <= box.position.y - up.position.y):
+		return down
+	return up
+
+static func _slide(box: Rect2, taken: Array[Rect2], view: Vector2, dir: float) -> Rect2:
+	var moved := true
+	while moved:
+		moved = false
+		for t in taken:
+			if box.intersects(t.grow(2.0)):
+				box.position.y = t.end.y + 4.0 if dir > 0.0 else t.position.y - 4.0 - box.size.y
+				moved = true
+		if box.end.y > view.y - 8.0 or box.position.y < 8.0:
+			return Rect2()
+	return box
+
+static func _covers(rects: Array[Rect2], p: Vector2) -> bool:
+	for r in rects:
+		if r.has_point(p):
+			return true
+	return false
 
 static func _hits(rect: Rect2, placed: Array[Rect2]) -> bool:
 	var grown := rect.grow(2.0)
@@ -223,7 +258,8 @@ static func hud_reserved(view: Vector2) -> Array[Rect2]:
 		# The fourth zone is the row above the rail (quick food, chase, HANDS stacked over the rail's
 		# last hex, held_item_slot.gd) with captions; the fifth is the XP line at the bottom centre (a
 		# gather label landed on it); the sixth is the pet whistle row under the vitals (hunt_hud.gd).
-		return [Rect2(0, 0, view.x, 96.0), Rect2(view.x - 190.0, 0, 190.0, view.y), Rect2(0, view.y - 104.0, 330.0, 104.0), Rect2(0.0, view.y - 200.0, 308.0, 96.0), xp_line_zone(view), Rect2(0.0, 96.0, 240.0, 96.0)]
+		# The first runs to 112: the quest card ends at 106 (a station hex sat on its last line).
+		return [Rect2(0, 0, view.x, 112.0), Rect2(view.x - 190.0, 0, 190.0, view.y), Rect2(0, view.y - 104.0, 330.0, 104.0), Rect2(0.0, view.y - 200.0, 308.0, 96.0), xp_line_zone(view), Rect2(0.0, 96.0, 240.0, 96.0)]
 	return [
 		Rect2(0, 0, 330.0, 112.0),
 		Rect2(view.x - 450.0, 0, 450.0, 240.0),

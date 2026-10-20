@@ -99,8 +99,9 @@ func _process(delta: float) -> void:
 		refresh()
 	# Off while a HUD sheet is open: this layer sits above the HUD's, and on a landscape phone the
 	# slot covered the sheet's Close (a tap there swapped the held tool instead of closing).
+	# Also off under character creation (layer 60, below this one): HANDS drew on its cards.
 	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
-	var covered := hud != null and hud.sheet_open()
+	var covered := (hud != null and hud.sheet_open()) or get_tree().get_first_node_in_group(&"character_creation") != null
 	if visible == covered:
 		visible = not covered
 		_pressing = false

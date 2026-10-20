@@ -929,6 +929,36 @@ func _fit_sheet(r: Vector2, inset: Vector4, rail_y: float) -> void:
 func sheet_open() -> bool:
 	return _sheet != null or (_skills_sheet != null and _skills_sheet.visible)
 
+## Screen rects the HUD holds this frame: the blocks _draw has painted so far (drawn_blocks, minus
+## keys starting with one of `skip`), every visible hex on screen (HUD, station and gather radials)
+## with its caption, the HUD's other controls and HANDS. Moving text (world pills, toasts, notices)
+## and the creature plates keep off them: at 844x390 they drew over the quest card and the COOK hex.
+func taken_rects(skip: PackedStringArray = []) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for k in drawn_blocks:
+		var keep := true
+		for p in skip:
+			keep = keep and not str(k).begins_with(p)
+		if keep:
+			out.append(drawn_blocks[k])
+	for n in get_tree().get_nodes_in_group(&"hex_button"):
+		var h := n as HexButton
+		if h and h.is_visible_in_tree():
+			out.append(h.hex_rect())
+			if h.caption != "":
+				out.append(h.caption_rect())
+	for c in get_children():
+		var ctl := c as Control
+		if ctl == null or ctl is HexButton or not ctl.is_visible_in_tree() or ctl.size.x < 8.0 or ctl.size.y < 8.0:
+			continue
+		if ctl is Label and (ctl as Label).text.strip_edges() == "":
+			continue
+		out.append(ctl.get_global_rect())
+	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
+	if held and held.is_visible_in_tree():
+		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
+	return out
+
 ## Rebuild the open sheet in place (e.g. a pet finished respawning and Summon is back).
 func _refresh_sheet() -> void:
 	if _sheet == null:
@@ -1164,11 +1194,10 @@ func _draw() -> void:
 	# --- name under the survivor
 	var cam := get_viewport().get_camera_3d()
 	if cam:
-		var at := nameplate_rect(cam, player, _font).position + Vector2(0.0, NAME_PX)
+		drawn_blocks["nameplate"] = nameplate_rect(cam, player, _font)
+		var at := (drawn_blocks["nameplate"] as Rect2).position + Vector2(0.0, NAME_PX)
 		draw_string(_font, at + Vector2.ONE, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0, 0, 0, 0.7))
 		draw_string(_font, at, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0.95, 0.95, 0.95))
-	# --- label pills on buildings and nodes within 30 m (reference: base building)
-	_draw_pills(cam)
 	_draw_bites(cam)
 	# --- level-up: a gold stack top-left under the bars; on a landscape phone a short banner in the
 	# centre band (its 13 lines ran over the rail and off the bottom of a 390 px canvas)
@@ -1191,17 +1220,31 @@ func _draw() -> void:
 				stack = lr if not stack.has_area() else stack.merge(lr)
 				ly += float(line[1]) + 8.0
 			drawn_blocks["levelup"] = stack
-	# --- pickup toasts near the top-centre, rising and fading
+	# --- pickup toasts near the top-centre, rising and fading, then the notices: each takes the nearest
+	# free spot up or down its column, off every block and hex (on a landscape phone they crossed the
+	# quest card at y 100-128). On a landscape phone the toasts stack under the vitals instead: in the
+	# centre they covered the survivor. One with no room left on screen is skipped.
+	# ASSUMPTION: pickup toasts may move to the left edge on a landscape phone (no reference for it).
+	var taken := taken_rects()
+	var toast_left := _landscape_phone(r)
 	for i in _events.toasts.size():
 		var t: Dictionary = _events.toasts[i]
 		var k: float = t["t"]
 		var alpha := 1.0 - smoothstep(0.7, 1.3, k)
-		var ty := 120.0 + float(i) * 30.0 - k * 35.0
 		var def := Data.item(t["id"])
 		var label := "+%d  %s" % [int(t["n"]), def.display_name if def else str(t["id"])]
 		var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, 18).x
-		draw_rect(Rect2(r.x * 0.5 - tw * 0.5 - 10, ty - 20, tw + 20, 28), Color(0.05, 0.06, 0.08, 0.8 * alpha))
-		draw_string(_font, Vector2(r.x * 0.5 - tw * 0.5, ty), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, alpha))
+		var rise := 35.0 * (1.0 - minf(k, 1.0))
+		var cand := Rect2(r.x * 0.5 - tw * 0.5 - 10, 65.0 + rise, tw + 20, 28)
+		if toast_left:
+			cand.position = Vector2(vitals.position.x, vitals.end.y + 8.0 + rise)
+		var box := UiTokens.free_spot(cand, taken, r)
+		if not box.has_area():
+			continue
+		taken.append(box)
+		drawn_blocks["toast%d" % i] = box
+		draw_rect(box, Color(0.05, 0.06, 0.08, 0.8 * alpha))
+		draw_string(_font, box.position + Vector2(10, 20), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, alpha))
 	if player.placer and player.placer.layout_mode:
 		var hint := "Layout mode: drag a building to move it · tap one to rotate · blue = ok, red = blocked · DONE saves" if player.placer.moving == null else "Release to drop (red snaps it back)"
 		var hw := _font.get_string_size(hint, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
@@ -1212,11 +1255,18 @@ func _draw() -> void:
 		var n: Dictionary = _events.notices[i]
 		var k: float = n["t"]
 		var alpha := 1.0 - smoothstep(2.4, 3.2, k)
-		var ny := 190.0 + float(i) * 30.0
-		var txt: String = n["text"]
+		var txt: String = UiTokens.ellipsis(_font, n["text"], r.x - 48.0, 17)
 		var tw := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, 17).x
-		draw_rect(Rect2(r.x * 0.5 - tw * 0.5 - 12, ny - 20, tw + 24, 30), Color(0.35, 0.08, 0.06, 0.85 * alpha))
-		draw_string(_font, Vector2(r.x * 0.5 - tw * 0.5, ny + 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 0.9, 0.8, alpha))
+		var box := UiTokens.free_spot(Rect2(r.x * 0.5 - tw * 0.5 - 12, 170.0, tw + 24, 30), taken, r)
+		if not box.has_area():
+			continue
+		taken.append(box)
+		drawn_blocks["notice%d" % i] = box
+		draw_rect(box, Color(0.35, 0.08, 0.06, 0.85 * alpha))
+		draw_string(_font, box.position + Vector2(12, 21), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 0.9, 0.8, alpha))
+	# --- label pills on buildings and nodes within 8 m (reference: base building), last: they give way
+	# to everything above and to the open radials
+	_draw_pills(cam, taken)
 	# --- combat layer
 	if _combat_alpha > 0.01:
 		var a := _combat_alpha
@@ -1472,14 +1522,19 @@ func _tools_for_node(n3: Node3D, grp: String) -> Array:
 		out.append([ItemIcons.texture(StringName(str(TOOL_ICON_ITEM.get(c, "hands")))), have])
 	return out
 
-func _draw_pills(cam: Camera3D) -> void:
+## World labels keep off `avoid` (the HUD's blocks and every hex, taken_rects) and off the open
+## gather radial's labels and title; one with no free spot near its anchor is not drawn.
+func _draw_pills(cam: Camera3D, avoid: Array[Rect2]) -> void:
 	if cam == null or player == null:
 		return
 	var radial_node: Node3D = null
+	avoid = avoid.duplicate()
 	if player.has_node("GatherRadialLayer/GatherRadial"):
-		var gr := player.get_node("GatherRadialLayer/GatherRadial")
+		var gr := player.get_node("GatherRadialLayer/GatherRadial") as GatherRadial
 		if gr.is_open():
 			radial_node = gr.node
+			avoid.append_array(gr.label_rects)
+			avoid.append(gr.title_box)
 	var rows: Array = []
 	var pp := player.global_position
 	# A bonfire is in "placed_building", "craft_station" AND "bonfire", so without this the camp
@@ -1551,16 +1606,24 @@ func _draw_pills(cam: Camera3D) -> void:
 		var working := (grp == "harvest" and (n3 == player.gather_target or (_gather_radial_node() == n3))) or (grp == "corpse" and n3 is Corpse and (n3 as Corpse).tapped_recently(4.0))
 		var tools: Array = _tools_for_node(n3, grp) if working else []
 		var w := minf(tw + 28.0, UiTokens.LABEL_MAX_W)
+		if timer != "":
+			w = maxf(w, _font.get_string_size(timer, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(get_viewport_rect().size)).x + 16.0)
 		var sp := cam.unproject_position(n3.global_position + Vector3(0, top + 0.35, 0))
+		# The box covers what is drawn: tool icons poke 8 px over the pill, a regrow timer hangs under it.
 		pending.append({
-			"anchor": sp, "w": w, "h": 22.0, "priority": priority,
+			"anchor": sp, "w": w, "h": 22.0 + (8.0 if not tools.is_empty() else 0.0) + (20.0 if timer != "" else 0.0), "priority": priority,
 			"text": text, "dot": dot, "timer": timer, "tools": tools,
 			"a": 1.0 if n3 == radial_node else 1.0 - smoothstep(5.5, 8.0, d),
 		})
 		shown += 1
 	var view := get_viewport_rect().size
-	for item in UiTokens.layout_labels(pending, view):
-		var rect: Rect2 = item["rect"]
+	var pill_i := 0
+	for item in UiTokens.layout_labels(pending, view, avoid):
+		var box: Rect2 = item["rect"]
+		drawn_blocks["pill%d" % pill_i] = box
+		pill_i += 1
+		var tools: Array = item["tools"]
+		var rect := Rect2(box.position + Vector2(0.0, 8.0 if not tools.is_empty() else 0.0), Vector2(box.size.x, 22.0))
 		var a: float = item["a"]
 		var text: String = item["text"]
 		var dot: Color = item["dot"]
@@ -1569,7 +1632,6 @@ func _draw_pills(cam: Camera3D) -> void:
 		draw_rect(rect, bg)
 		draw_circle(Vector2(rect.position.x + 10.0, rect.position.y + 11.0), 4.0, Color(dot.r, dot.g, dot.b, a))
 		draw_string(_font, Vector2(rect.position.x + 20.0, rect.position.y + 16.0), text, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 24.0, 14, Color(1, 1, 1, a))
-		var tools: Array = item["tools"]
 		var ix := rect.position.x + rect.size.x - 6.0 - float(tools.size()) * 14.0
 		for t in tools:
 			var tex: Texture2D = t[0]

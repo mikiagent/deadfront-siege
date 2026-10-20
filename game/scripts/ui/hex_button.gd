@@ -76,6 +76,8 @@ func _init(size_px: float = 72.0) -> void:
 	focus_mode = Control.FOCUS_NONE
 	focus_entered.connect(queue_redraw)
 	focus_exited.connect(queue_redraw)
+	# HuntHud.taken_rects finds every hex on screen (HUD, station and gather radials) through this.
+	add_to_group(&"hex_button")
 
 func _hex(r: float, c: Vector2) -> PackedVector2Array:
 	var pts := PackedVector2Array()

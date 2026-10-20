@@ -23,6 +23,20 @@ static func label(level: int) -> String:
 static func player_label() -> String:
 	return label(player_level())
 
+static var _titles: Dictionary = {}
+
+## The title a survivor at shown `level` holds: the highest titles.json key at or under it. A new
+## survivor holds key 1, "Venture into the World", from character creation (orchestrator 2026-10-20).
+static func current_title(level: int) -> String:
+	if _titles.is_empty() and FileAccess.file_exists("res://data/skills/titles.json"):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/skills/titles.json"))
+		_titles = parsed if parsed is Dictionary else {}
+	var best := 0
+	for key in _titles:
+		if str(key).is_valid_int() and int(key) <= level and int(key) > best:
+			best = int(key)
+	return str(_titles.get(str(best), ""))
+
 ## A recipe's level: "Lv. 12", or NONE when the bag cannot make it yet. Crafting.preview_level
 ## reports the recipe's top level for an invalid pick, which read as "Lv. 60" on every row the
 ## player could not craft.

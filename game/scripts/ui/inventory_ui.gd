@@ -435,8 +435,10 @@ func _refresh_profile() -> void:
 	name = UiTokens.ellipsis(font, name, name_w, body_px)
 	_profile.add_theme_font_size_override("font_size", body_px)
 	_profile.add_theme_constant_override("line_spacing", UiTokens.SPACE)
-	_profile.custom_minimum_size = Vector2(minf(180.0, name_w), body_px * 2 + UiTokens.SPACE)
-	_profile.text = "%s\n%s  ·  %s" % [name, occupation, LevelDisplay.player_label()]
+	_profile.custom_minimum_size = Vector2(minf(180.0, name_w), body_px * 3 + UiTokens.SPACE * 2)
+	# The held title sits under the name from character creation on (level 1 holds "Venture into the World").
+	var title := UiTokens.ellipsis(font, LevelDisplay.current_title(LevelDisplay.player_level()), name_w, body_px)
+	_profile.text = "%s\n%s\n%s  ·  %s" % [name, title, occupation, LevelDisplay.player_label()]
 	var lines: PackedStringArray = [
 		"HP        %.0f" % hp,
 		"Energy    %.0f" % energy,

@@ -34,6 +34,7 @@ func _px(v: float) -> int:
 
 func _ready() -> void:
 	layer = 60
+	add_to_group(&"character_creation")  # HANDS (layer 64) hides while this is up
 	# Phones: ~390 px wide in portrait (two columns, wrapped details), ~390 px tall in landscape
 	# (four columns, everything on one screen).
 	var lay := layout_for(get_viewport().get_visible_rect().size, DisplayMode.fitted_size(get_window()))

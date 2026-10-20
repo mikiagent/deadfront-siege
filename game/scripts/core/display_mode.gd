@@ -45,11 +45,12 @@ static func label() -> String:
 ## than LANDSCAPE_MIN_W are scaled up to it. Portrait tablets get a TABLET_W-wide canvas, so desktop
 ## layouts keep their columns at ~0.8 scale instead of 0.48. Everything else keeps 1600x900.
 ## `inset_px`: left + right safe-area insets in window px (a notch in landscape).
-static func logical_size(window_px: Vector2i, device_scale: float, inset_px: float = 0.0) -> Vector2i:
+## `handheld`: false for a desktop browser (no touchscreen), whose short wide window is not a phone.
+static func logical_size(window_px: Vector2i, device_scale: float, inset_px: float = 0.0, handheld: bool = true) -> Vector2i:
 	var pts := Vector2(window_px) / maxf(1.0, device_scale)
 	if pts.x <= 0.0 or pts.y <= 0.0:
 		return DESIGN
-	if is_phone_landscape(pts):
+	if handheld and is_phone_landscape(pts):
 		# Clamped: an empty safe area at boot, or the other orientation's, reads as a huge inset and
 		# would shrink the whole UI to dust. Real notches take well under a quarter of the width.
 		var usable := clampf(pts.x - inset_px / maxf(1.0, device_scale), pts.x * MIN_USABLE, pts.x)
@@ -77,7 +78,14 @@ static func window_points(win: Window) -> Vector2:
 ## The canvas fit() gives this window, whether or not install() ran: screens that must look right
 ## before the boot hook lands lay out for this and scale by (actual canvas / this).
 static func fitted_size(win: Window) -> Vector2:
-	return Vector2(logical_size(win.size, device_scale(), side_inset_px())) if win else Vector2(DESIGN)
+	return Vector2(logical_size(win.size, device_scale(), side_inset_px(), handheld())) if win else Vector2(DESIGN)
+
+## Can this be a phone held sideways? A desktop browser window 1200x480 is short and wide too, and
+## got the phone layouts; on the web it takes a touchscreen. Native windows keep the shape rule, so
+## --resolution 844x390 still stands in for a phone in the labs.
+# ASSUMPTION: a web page without a touchscreen is a desktop; a touch laptop gets phone layouts when short.
+static func handheld() -> bool:
+	return OS.has_feature("mobile") or not OS.has_feature("web") or DisplayServer.is_touchscreen_available()
 
 ## Left + right safe-area insets of the window, in window px; 0 off mobile (desktop and browser
 ## windows report the screen's work area, not a notch).
@@ -103,7 +111,7 @@ static func is_phone_window(pts: Vector2) -> bool:
 static func fit(win: Window) -> void:
 	if win == null:
 		return
-	var want := logical_size(win.size, device_scale(), side_inset_px())
+	var want := logical_size(win.size, device_scale(), side_inset_px(), handheld())
 	if win.content_scale_size != want:
 		win.content_scale_size = want
 		print("[display] window %s -> logical %s" % [win.size, want])
