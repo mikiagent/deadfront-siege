@@ -10,6 +10,165 @@ const KINDS := ["fence", "campfire", "bonfire", "sign", "workbench", "nope"]
 const FOODS := ["berry", "herb_leaf", "raw_meat", "stone", "fibre_stalk"]
 const FORGED := {"id": "raid_helm", "count": 5000, "level": 9999, "uid": "i1.0", "origin": "gather", "seq": 1}
 
+## One hostile request per line: [op, args, the handler's literal refusal code]. Every op
+## but char.get appears; the fixture is a fresh server character so nothing here can commit.
+## ASSUMPTION: an op that answers a hostile input with server_error is a bug, so none may say so.
+const HOSTILE := [
+	["act.gather", {}, "bad_request"],
+	["act.gather", {"node_id": 7}, "bad_request"],
+	["act.gather", {"option": 0}, "bad_request"],
+	["act.gather", {"node_id": "rock", "option": true}, "bad_request"],
+	["act.gather", {"node_id": "rock", "option": 1.5}, "bad_request"],
+	["act.gather", {"node_id": "rock", "option": -1}, "bad_request"],
+	["act.gather", {"node_id": "rock", "option": 32}, "bad_request"],
+	["act.gather", {"node_id": "rock", "option": "0"}, "bad_request"],
+	["act.gather", {"node_id": "rock", "option": 1}, "bad_request"],
+	["act.gather", {"node_id": {"a": 1}}, "bad_request"],
+	["act.gather", {"node_id": ["rock"]}, "bad_request"],
+	["act.gather", {"node_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "bad_request"],
+	["act.gather", {"node_id": "nope"}, "not_found"],
+	["act.gather", {"node_id": "bare"}, "depleted"],
+	["act.gather", {"node_id": "ore"}, "missing_tool"],
+	["act.gather", {"node_id": "far"}, "out_of_range"],
+	["act.loot", {}, "bad_request"],
+	["act.loot", {"corpse_id": 3}, "bad_request"],
+	["act.loot", {"corpse_id": "carcass", "slot": -1}, "bad_request"],
+	["act.loot", {"corpse_id": "carcass", "slot": 256}, "bad_request"],
+	["act.loot", {"corpse_id": "carcass", "slot": 1.5}, "bad_request"],
+	["act.loot", {"corpse_id": "carcass", "slot": 1}, "not_found"],
+	["act.loot", {"corpse_id": "carcass", "slot": 9}, "not_found"],
+	["act.loot", {"corpse_id": "carcass", "count": 0}, "bad_request"],
+	["act.loot", {"corpse_id": "carcass", "count": -5}, "bad_request"],
+	["act.loot", {"corpse_id": "nope", "slot": 0}, "not_found"],
+	["act.loot", {"corpse_id": {"id": "carcass"}}, "bad_request"],
+	["act.craft", {}, "bad_request"],
+	["act.craft", {"recipe_id": 7}, "bad_request"],
+	["act.craft", {"recipe_id": ["twine"]}, "bad_request"],
+	["act.craft", {"recipe_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "bad_request"],
+	["act.craft", {"recipe_id": "nope"}, "not_found"],
+	["act.craft", {"recipe_id": "twine", "picks": []}, "bad_request"],
+	["act.craft", {"recipe_id": "twine", "picks": "0"}, "bad_request"],
+	["act.craft", {"recipe_id": "twine", "picks": {}}, "bad_request"],
+	["act.craft", {"recipe_id": "twine", "picks": [0]}, "insufficient_items"],
+	["act.craft", {"recipe_id": "twine", "picks": [1]}, "insufficient_items"],
+	["act.craft", {"recipe_id": "twine", "picks": [-1]}, "insufficient_items"],
+	["act.craft", {"recipe_id": "twine", "picks": [1.5]}, "insufficient_items"],
+	["act.craft", {"recipe_id": "twine", "picks": [{"a": 1}]}, "insufficient_items"],
+	["act.craft", {"recipe_id": "twine", "picks": [99]}, "insufficient_items"],
+	["act.craft", {"recipe_id": "capture_net_i"}, "insufficient_items"],
+	["act.place", {}, "bad_request"],
+	["act.place", {"kind": "fence"}, "bad_request"],
+	["act.place", {"kind": 7, "cell": [0, 0]}, "bad_request"],
+	["act.place", {"kind": "fence", "cell": [0, 0], "rot": 4}, "bad_request"],
+	["act.place", {"kind": "fence", "cell": [0, 0], "rot": -1}, "bad_request"],
+	["act.place", {"kind": "fence", "cell": [0, 0], "rot": 1.5}, "bad_request"],
+	["act.place", {"kind": "fence", "cell": [0, 0.5]}, "bad_request"],
+	["act.place", {"kind": "fence", "cell": [0, 0, 0]}, "bad_request"],
+	["act.place", {"kind": "fence", "cell": "0,0"}, "bad_request"],
+	["act.place", {"kind": "fence", "cell": {"x": 0, "z": 0}}, "bad_request"],
+	["act.place", {"kind": "fence", "cell": [200000, 0]}, "bad_request"],
+	["act.place", {"kind": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "cell": [0, 0]}, "bad_request"],
+	["act.place", {"kind": "fence", "cell": [0, 0]}, "insufficient_items"],
+	["act.place", {"kind": "nope", "cell": [0, 0]}, "insufficient_items"],
+	["act.equip", {}, "bad_request"],
+	["act.equip", {"bag_slot": -1}, "bad_request"],
+	["act.equip", {"bag_slot": 999}, "bad_request"],
+	["act.equip", {"bag_slot": 1.5}, "bad_request"],
+	["act.equip", {"bag_slot": "0"}, "bad_request"],
+	["act.equip", {"clear": "yes"}, "bad_request"],
+	["act.equip", {"clear": 1}, "bad_request"],
+	["act.equip", {"clear": []}, "bad_request"],
+	["act.equip", {"clear": true, "slot": "bogus"}, "bad_request"],
+	["act.equip", {"clear": true, "slot": 7}, "bad_request"],
+	["act.equip", {"clear": true, "slot": "xxxxxxxxxxxxxxxxx"}, "bad_request"],
+	["act.equip", {"bag_slot": 1}, "not_found"],
+	["act.equip", {"bag_slot": 0}, "bad_request"],
+	["act.eat", {}, "bad_request"],
+	["act.eat", {"bag_slot": -1}, "bad_request"],
+	["act.eat", {"bag_slot": 999}, "bad_request"],
+	["act.eat", {"bag_slot": 1.5}, "bad_request"],
+	["act.eat", {"bag_slot": "0"}, "bad_request"],
+	["act.eat", {"bag_slot": 1}, "not_found"],
+	["act.eat", {"bag_slot": 0}, "bad_request"],
+	["act.tame", {}, "bad_request"],
+	["act.tame", {"net_id": "compy1"}, "bad_request"],
+	["act.tame", {"food": "berry"}, "bad_request"],
+	["act.tame", {"net_id": 5, "food": "berry"}, "bad_request"],
+	["act.tame", {"net_id": "compy1", "food": 7}, "bad_request"],
+	["act.tame", {"net_id": "compy1", "food": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "bad_request"],
+	["act.tame", {"net_id": "nope", "food": "berry"}, "not_found"],
+	["act.tame", {"net_id": "compy1", "food": "berry"}, "not_ready"],
+	["act.tame", {"net_id": ["compy1"], "food": "berry"}, "bad_request"],
+	["act.capture", {}, "bad_request"],
+	["act.capture", {"net_id": 5}, "bad_request"],
+	["act.capture", {"net_id": {}}, "bad_request"],
+	["act.capture", {"net_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "bad_request"],
+	["act.capture", {"net_id": "nope"}, "not_found"],
+	["act.capture", {"net_id": "compy1"}, "not_ready"],
+	["act.attack", {}, "bad_request"],
+	["act.attack", {"net_id": 5}, "bad_request"],
+	["act.attack", {"net_id": [1]}, "bad_request"],
+	["act.attack", {"net_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "bad_request"],
+	["act.attack", {"net_id": "nope"}, "not_found"],
+	["act.deposit", {}, "bad_request"],
+	["act.deposit", {"bag_slot": -1}, "bad_request"],
+	["act.deposit", {"bag_slot": 1.5}, "bad_request"],
+	["act.deposit", {"bag_slot": 999}, "bad_request"],
+	["act.deposit", {"bag_slot": 1}, "not_found"],
+	["act.deposit", {"bag_slot": 0, "count": 0}, "bad_request"],
+	["act.deposit", {"bag_slot": 0, "count": -3}, "bad_request"],
+	["act.deposit", {"pet_uid": "p0.0"}, "not_found"],
+	["act.deposit", {"pet_uid": 5}, "not_found"],
+	["act.deposit", {"slot_dict": {}}, "invalid_asset"],
+	["act.deposit", {"item": {"id": "stone", "count": 1}}, "invalid_asset"],
+	["act.deposit", {"save": "x"}, "invalid_asset"],
+	["act.deposit", {"pets": []}, "invalid_asset"],
+	["char.import", {}, "invalid_asset"],
+	["char.import", {"save": {}}, "invalid_asset"],
+	["char.import", {"save": [1, 2]}, "invalid_asset"],
+	["char.import", {"save": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "invalid_asset"],
+	["char.create", {}, "bad_request"],
+	["char.create", {"name": "ab"}, "bad_request"],
+	["char.create", {"name": 7}, "bad_request"],
+	["char.create", {"name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "bad_request"],
+	["char.create", {"name": "bad!name"}, "bad_request"],
+	["char.create", {"name": {"n": "abc"}}, "bad_request"],
+	["char.create", {"name": true}, "bad_request"],
+	["char.move", {}, "bad_request"],
+	["char.move", {"p": "0,0,0"}, "bad_request"],
+	["char.move", {"p": [0, 0]}, "bad_request"],
+	["char.move", {"p": [0, 0, 0, 0]}, "bad_request"],
+	["char.move", {"p": [NAN, 0, 0]}, "bad_request"],
+	["char.move", {"p": [0, INF, 0]}, "bad_request"],
+	["char.move", {"p": [0, 0, -INF]}, "bad_request"],
+	["char.move", {"p": ["0", 0, 0]}, "bad_request"],
+	["char.move", {"p": [1000000, 0, 0]}, "bad_request"],
+	["char.move", {"p": [0, 0, 0], "reset": "yes"}, "bad_request"],
+	["char.move", {"p": [0, 0, 0], "reset": 1}, "bad_request"],
+	["char.move", {"p": [0, 0, 0], "reset": {}}, "bad_request"],
+	["char.move", {"p": {}}, "bad_request"],
+	["char.move", {"p": [[0], 0, 0]}, "bad_request"],
+	["char.wallet", {}, "bad_request"],
+	["char.wallet", {"wallet": -1}, "bad_request"],
+	["char.wallet", {"wallet": 1.5}, "bad_request"],
+	["char.wallet", {"wallet": "5"}, "bad_request"],
+	["char.wallet", {"wallet": {}}, "bad_request"],
+	["char.wallet", {"wallet": 9007199254740992}, "bad_request"],
+	["char.receive", {}, "invalid_asset"],
+	["char.receive", {"asset": "stone"}, "invalid_asset"],
+	["char.receive", {"asset": []}, "invalid_asset"],
+	["char.receive", {"asset": {}}, "invalid_asset"],
+	["char.receive", {"asset": {"id": "stone", "count": 1}}, "invalid_asset"],
+	["char.receive", {"asset": {"id": "stone", "count": 1, "uid": "i9.0", "origin": "gather", "seq": 1}}, "invalid_asset"],
+	["char.receive", {"asset": {"species": "tyrannosaurus", "uid": "p99999.0", "origin": "tame", "seq": 1}}, "invalid_asset"],
+	["char.settled", {}, "bad_request"],
+	["char.settled", {"uid": 7}, "bad_request"],
+	["char.settled", {"uid": ""}, "bad_request"],
+	["char.settled", {"uid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "bad_request"],
+	["char.settled", {"uid": ["i1.0"]}, "bad_request"],
+	["char.settled", {"uid": "i1.0"}, "not_found"],
+]
+
 var failures: Array[String] = []
 
 func run(fuzz_ops: int = 10000) -> Array[String]:
@@ -23,6 +182,7 @@ func run(fuzz_ops: int = 10000) -> Array[String]:
 	_write_checks()
 	_capture_checks()
 	_hardening_checks()
+	_hostile_arg_checks()
 	_fuzz_and_replay(fuzz_ops, 20261018)
 	_disk_checks()
 	return failures
@@ -371,6 +531,49 @@ func _hardening_checks() -> void:
 	var tuned: bool = miss.r.get("kind") == "dodge" and absf(float(hit.r.get("dealt", 0.0)) - want) < 0.001
 	expect(tuned, "melee follows combat_tuning.json: forced dodge -> %s, unarmed 20 dealt %.3f (want %.3f)" % [miss.r.get("kind"), float(hit.r.get("dealt", 0.0)), want])
 	print("[srvdom] hardening flags=%s junk_dropped=%s journal_line_bytes=%d settled=%s receive_after_settle=%s settle_twice=%s forced_dodge=%s unarmed20_dealt=%.2f want=%.2f" % [",".join(codes), trimmed, junk_line, dropped, back.get("err", "ok"), again.get("err", "ok"), miss.r.get("kind"), float(hit.r.get("dealt", 0.0)), want])
+
+## Every op against hostile args: each HOSTILE row must be refused with its literal code and leave
+## the hash, the journal and the error count alone. Then each op keeps only its allow-listed keys.
+func _hostile_arg_checks() -> void:
+	var w := make_world()
+	var st := _store(16, w)
+	_gather_until(st, 1, "rock", 0, "stone", 2, 2) # bag slot 0 holds stone for the bag-slot rows
+	var start_errors := CharacterStore._errors.n
+	var ops := {}
+	var matched := 0
+	var unchanged := true
+	for i in HOSTILE.size():
+		var row: Array = HOSTILE[i]
+		var op := str(row[0])
+		var args: Dictionary = row[1]
+		var want := str(row[2])
+		ops[op] = true
+		var h := st.state_hash()
+		var lines := st.lines.size()
+		var errs := CharacterStore._errors.n
+		var res := st.apply(op, 1, args, 3)
+		var same := st.state_hash() == h and st.lines.size() == lines
+		var hit: bool = not bool(res.get("ok", false)) and str(res.get("err", "")) == want
+		# An engine error here means the handler hit a script error (apply() would have said server_error).
+		var quiet := CharacterStore._errors.n == errs
+		if hit:
+			matched += 1
+		unchanged = unchanged and same
+		expect(hit and same and quiet, "HOSTILE[%d] %s %s -> want %s, got %s (%s), unchanged=%s errors=%d" % [i, op, args, want, res.get("err", "ok"), res.get("msg", ""), same, CharacterStore._errors.n - errs])
+	var allowlist := 0
+	for op: String in IntentHandlers.ARG_KEYS:
+		var allowed: Array = (IntentHandlers.ARG_KEYS[op] as Array).duplicate()
+		var a := {"rid": "r", "junk": 1}
+		for k: String in allowed:
+			a[k] = 1
+		var got := IntentHandlers.known_args(op, a)
+		var keys := got.keys()
+		keys.sort()
+		allowed.append("rid")
+		allowed.sort()
+		allowlist += 1
+		expect(keys == allowed and not got.has("junk") and not got.has("missing"), "allowlist %s keeps %s, want %s" % [op, keys, allowed])
+	print("[srvdom] hostile rows=%d ops_covered=%d matched=%d script_errors=%d unchanged=%s allowlist_ops=%d" % [HOSTILE.size(), ops.size(), matched, CharacterStore._errors.n - start_errors, unchanged, allowlist])
 
 # --- fuzz ----------------------------------------------------------------------------------
 
