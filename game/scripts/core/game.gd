@@ -109,7 +109,7 @@ func _make_perf() -> void:
 
 func _ready_controller_notice() -> void:
 	Input.joy_connection_changed.connect(func (device: int, connected: bool) -> void:
-		var player := PlayerRegistry.local()
+		var player := _local_player()
 		var pad := Input.get_joy_name(device)
 		print("[input] controller %s: %s" % ["connected" if connected else "disconnected", pad])
 		if player and player.has_method("notice"):
@@ -215,3 +215,8 @@ func reveal_creature_plate(creature: Creature, seconds: float = 3.0) -> void:
 	ensure_creature_plates()
 	if creature_ui and creature_ui.has_method("reveal_creature"):
 		creature_ui.reveal_creature(creature, seconds)
+
+func _local_player() -> Player:
+	# Indirection: Godot 4.7.1 Mono crashes while tearing down the engine at headless exit when this
+	# lambda captures its player straight from a static call (see W2-PLAYER report); behaviour is identical.
+	return PlayerRegistry.local()
