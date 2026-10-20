@@ -68,6 +68,12 @@ def tent():
     for sx in (-1, 1):
         for y in (-0.8, 0.0, 0.8):
             p.log((sx * (hw + 0.12), y, -0.02), (sx * (hw + 0.14), y, 0.14), 0.025, tile="wood", seg=5)
+        # tie-downs: a guy line from mid-slope out to a peg on each side, so the slopes do not read
+        # as bare flat planes; a dark leather hem along the eave edges the canvas
+        for y in (-0.75, 0.75):
+            p.log((sx * hw * 0.52, y, top * 0.5), (sx * 1.42, y, 0.08), 0.012, tile="rope", seg=4, end_tile="rope")
+            p.log((sx * 1.42, y, -0.02), (sx * 1.44, y, 0.18), 0.03, tile="wood", seg=5)
+        p.box((0.14, 2 * hl + 0.16, 0.045), (sx * (hw - 0.015), 0, 0.085), "leather_dark", rot=(0, sx * ang, 0))
     # W1-LIGHT's sun crosses from -X (yaw -35..-85), so a +X slope is shade all day and rendered as a
     # black slab. Turned +90 deg (Godot rot_step 1) the camera-side slope faces +Z and catches the sun.
     bmesh.ops.rotate(p.bm, verts=p.bm.verts, cent=(0, 0, 0), matrix=Matrix.Rotation(R(90), 3, "Z"))
@@ -470,51 +476,123 @@ def catapult():
     return [(body, (0, 0, 0)), (arm, pv)]
 
 
-DECK_TILES = ("weathered", "wood", "weathered", "wood_dark", "wood")
+DECK_TILES = ("deck", "deck_old", "deck", "deck_dark", "deck", "deck_old")
+
+
+def _crate(p, size, loc, rot_z=0.0):
+    p.box(size, loc, "plank", rot=(0, 0, rot_z), tile_m=0.6)
 
 
 def pier():
-    """The harbour dock: plank deck on log piles, 3 x 6 m to fit HarbourSite's 3x6 footprint (the
-    landward end stops where travel lands the survivor), deck 1.2 m above the pile feet, a canvas
-    shed with cargo at the landward end, mooring posts and rope at the seaward end (+Y in Blender =
-    -Z in Godot)."""
-    p = Part("pier")
-    hw, hl, deck = 1.38, 3.0, 1.2
-    ys = [-hl + 0.15 + i * (2 * hl - 0.3) / 4 for i in range(5)]
-    for y in ys:
-        for sx in (-1, 1):
-            p.log((sx * (hw - 0.1), y, 0.0), (sx * (hw - 0.1), y, deck - 0.12), 0.11)
-        p.plank((-hw, y, deck - 0.2), (hw, y, deck - 0.2), 0.14, 0.12, "wood_dark")
-    for x in (-hw + 0.25, 0.0, hw - 0.25):
-        p.plank((x, -hl, deck - 0.1), (x, hl, deck - 0.1), 0.14, 0.1, "wood_dark")
+    """The harbour dock, 3 x 6 m to fit HarbourSite's 3x6 footprint (the landward end stops where
+    travel lands the survivor; +Y in Blender = -Z in Godot = out to sea). A 2 m plank deck 1.2 m
+    above the pile feet (the water is at 0.7) on five pile bents, a thatched shed at the landward
+    end, cargo on the open deck (barrel, crates, a fish crate, a bucket, a coiled rope), mooring
+    posts at the tip and a dugout log boat moored alongside with a ladder down to it.
+    One glTF node per part: W1-HARBOUR's t_harbour wants the dock to be a composite of props."""
+    hw, hl, deck, dx = 1.0, 3.0, 1.2, -0.25  # deck shifted -X so the boat fits inside the 3 m width
+    xl, xr = dx - hw, dx + hw
+    parts = []
+
+    def part(name):
+        q = Part("pier_" + name)
+        parts.append((q, (0, 0, 0)))
+        return q
+
+    # deck first: it is the root node the rest hang under
+    d = part("deck")
     n = 20
     step = 2 * hl / n
     for i in range(n):
         y = -hl + (i + 0.5) * step
-        # each board is three ~0.9 m lengths with staggered butt joints, so the grain tile maps at
-        # ~1 m instead of being stretched across the whole deck width
-        cuts = [-hw, -hw / 3 + 0.25 * ((i % 3) - 1), hw / 3 + 0.25 * ((i % 3) - 1), hw]
-        for j, (a, b) in enumerate(zip(cuts, cuts[1:])):
-            # neighbouring lengths differ in value and hue (bleached, fresh, dark) so the deck reads as
-            # separate timber boards, not a uniform paved surface
-            tile = DECK_TILES[zlib.crc32(b"%d,%d" % (i, j)) % len(DECK_TILES)]  # no diagonal pattern
-            p.box((b - a - 0.025, step - 0.035, 0.06), ((a + b) / 2, y, deck - 0.03), tile, tile_m=1.0)
-    for sx in (-1, 1):
-        p.cyl(0.1, 0.5, (sx * (hw - 0.1), hl - 0.15, deck + 0.25), "bark", seg=7, cap_tile="log_end")
-        p.cyl(0.115, 0.08, (sx * (hw - 0.1), hl - 0.15, deck + 0.3), "rope", seg=7)
-    p.cyl(0.22, 0.1, (0.6, hl - 0.6, deck + 0.05), "rope", seg=10, cap_tile="rope")
-    p.box((0.5, 0.5, 0.45), (-0.7, hl - 0.8, deck + 0.225), "plank", tile_m=0.6)
-    # landward shed: four posts, a canvas roof pitched towards the sea, cargo in its shade
-    y0, y1, h = -hl + 0.2, -hl + 1.7, 2.0
+        # full-width boards, butt joints over nothing: the grain runs along each board's length
+        tile = DECK_TILES[zlib.crc32(b"board%d" % i) % len(DECK_TILES)]
+        d.box((2 * hw - 0.02 * (i % 3), step - 0.035, 0.06), (dx + 0.01 * ((i % 3) - 1), y, deck - 0.03), tile, tile_m=1.0)
+    for i, y in enumerate(-hl + 0.15 + k * (2 * hl - 0.3) / 4 for k in range(5)):
+        b = part("bent%d" % i)  # two piles and the cap beam they carry
+        for x in (xl + 0.1, xr - 0.1):
+            b.log((x, y, 0.0), (x, y, deck - 0.12), 0.11)
+        b.plank((xl, y, deck - 0.2), (xr, y, deck - 0.2), 0.14, 0.12, "wood_dark")
+    st = part("stringers")
+    for x in (xl + 0.25, dx, xr - 0.25):
+        st.plank((x, -hl, deck - 0.1), (x, hl, deck - 0.1), 0.14, 0.1, "wood_dark")
+    # landward shed: four posts and a thatched lean-to roof pitched towards the sea
+    y0, y1, h = -hl + 0.2, -hl + 1.5, 2.0
+    fr = part("shed_frame")
     for y in (y0, y1):
-        for sx in (-1, 1):
-            p.log((sx * (hw - 0.18), y, deck - 0.02), (sx * (hw - 0.18), y, deck + h - (y - y0) * 0.2), 0.06, tile="wood_dark")
-    p.box((2 * hw - 0.1, y1 - y0 + 0.5, 0.04), (0, (y0 + y1) / 2, deck + h - 0.15), "canvas", rot=(-math.degrees(math.atan(0.2)), 0, 0), tile_m=1.3)
-    p.box((0.62, 0.62, 0.55), (0.62, y0 + 0.6, deck + 0.275), "plank", tile_m=0.6)
-    p.box((0.45, 0.45, 0.4), (0.6, y0 + 0.62, deck + 0.75), "plank", rot=(0, 0, 20), tile_m=0.6)
-    p.cyl(0.26, 0.6, (-0.6, y0 + 0.75, deck + 0.3), "wood_dark", seg=10, r2=0.24, cap_tile="log_end")
-    p.cyl(0.27, 0.05, (-0.6, y0 + 0.75, deck + 0.42), "iron", seg=10)
-    return [(p, (0, 0, 0))]
+        for x in (xl + 0.12, xr - 0.12):
+            fr.log((x, y, deck - 0.02), (x, y, deck + h - (y - y0) * 0.2), 0.06, tile="wood_dark")
+    fr.plank((xl + 0.05, y1, deck + h - 0.3), (xr - 0.05, y1, deck + h - 0.3), 0.1, 0.1, "wood_dark")
+    rf = part("shed_roof")
+    rf.box((2 * hw + 0.2, y1 - y0 + 0.45, 0.12), (dx, (y0 + y1) / 2, deck + h - 0.13), "thatch",
+           rot=(-math.degrees(math.atan(0.2)), 0, 0), tile_m=0.8)
+    sk = part("sacks")  # in the shed's shade
+    sk.rock(0.26, (dx - 0.45, y0 + 0.45, deck + 0.16), tile="fiber", squash=(1.0, 0.75, 0.62), seed=5)
+    sk.rock(0.22, (dx - 0.05, y0 + 0.35, deck + 0.14), tile="hide", squash=(1.0, 0.8, 0.62), seed=9)
+    _crate(part("shed_crate"), (0.5, 0.5, 0.45), (dx + 0.5, y0 + 0.5, deck + 0.225), 8)
+    # cargo on the open deck, where the iso camera sees it
+    br = part("barrel")
+    bx, by = dx - 0.5, y1 + 0.55
+    br.cyl(0.26, 0.62, (bx, by, deck + 0.31), "wood_dark", seg=10, r2=0.24, cap_tile="log_end")
+    for z in (0.12, 0.5):
+        br.cyl(0.272 - z * 0.04, 0.05, (bx, by, deck + z), "iron", seg=10)
+    cr = part("crates")
+    _crate(cr, (0.6, 0.6, 0.52), (dx + 0.45, y1 + 0.5, deck + 0.26), 6)
+    _crate(cr, (0.44, 0.44, 0.38), (dx + 0.43, y1 + 0.52, deck + 0.71), -18)
+    fc = part("fish_crate")  # open crate of the day's catch
+    fx, fy = dx + 0.42, 0.55
+    fc.box((0.62, 0.46, 0.05), (fx, fy, deck + 0.025), "plank", tile_m=0.6)
+    for sx in (-1, 1):
+        fc.box((0.62, 0.04, 0.2), (fx, fy + sx * 0.21, deck + 0.1), "plank", tile_m=0.6)
+        fc.box((0.04, 0.38, 0.2), (fx + sx * 0.29, fy, deck + 0.1), "plank", tile_m=0.6)
+    fi = part("fish")
+    for k, (ox, oy, rz) in enumerate(((-0.12, -0.08, 8), (0.1, 0.02, -12), (-0.04, 0.1, 20))):
+        c = Vector((fx + ox, fy + oy, deck + 0.09 + 0.02 * k))
+        body = bmesh.ops.create_icosphere(fi.bm, subdivisions=1, radius=1.0,
+                                          matrix=Part._mat(c, (0, 0, rz), (0.15, 0.05, 0.04)))["verts"]
+        fi.bm.normal_update()
+        fi._finish(body, "fish", smooth=True)
+        tail = Matrix.Rotation(R(rz), 3, "Z")
+        tip = [c + tail @ Vector(v) for v in ((-0.13, 0, 0), (-0.22, 0.06, 0), (-0.22, -0.06, 0))]
+        fi.prism(tip, (0, 0, 0.02), "fish")
+    bu = part("bucket")
+    ux, uy = dx - 0.55, 1.0
+    bu.cyl(0.14, 0.3, (ux, uy, deck + 0.15), "wood", seg=10, r2=0.17, cap_tile="wood_dark")
+    bu.cyl(0.155, 0.04, (ux, uy, deck + 0.08), "iron", seg=10)
+    bu.cyl(0.15, 0.01, (ux, uy, deck + 0.28), "water", seg=10)
+    bu.log((ux - 0.16, uy, deck + 0.3), (ux + 0.16, uy, deck + 0.3), 0.012, tile="iron", seg=4, end_tile="iron")
+    co = part("rope_coil")  # three turns stacked, so the coil has volume
+    cx, cy = dx - 0.45, 2.1
+    for k, rr in enumerate((0.21, 0.18, 0.15)):
+        co.torus(rr, 0.045, (cx + 0.01 * k, cy, deck + 0.045 + 0.075 * k), "rope")
+    # mooring posts at the seaward end
+    posts = []
+    for side, x in (("l", xl + 0.1), ("r", xr - 0.1)):
+        mp = part("post_" + side)
+        mp.cyl(0.1, 0.5, (x, hl - 0.15, deck + 0.25), "bark", seg=7, cap_tile="log_end")
+        mp.cyl(0.115, 0.08, (x, hl - 0.15, deck + 0.3), "rope", seg=7)
+        posts.append(x)
+    # dugout log boat moored alongside, floating at the waterline (0.7 above the pile feet)
+    bt = part("boat")
+    ox, oy, zb, zt = xr + 0.36, 1.6, 0.6, 0.84
+    hull = [(ox, oy - 1.15, zb), (ox + 0.29, oy - 0.6, zb), (ox + 0.29, oy + 0.6, zb), (ox, oy + 1.15, zb),
+            (ox - 0.29, oy + 0.6, zb), (ox - 0.29, oy - 0.6, zb)]
+    bt.prism(hull, (0, 0, zt - zb), "bark", tile_m=1.2)
+    inner = [(ox + (x - ox) * 0.72, oy + (y - oy) * 0.82, zt + 0.004) for x, y, _ in hull]
+    bt.prism(inner, (0, 0, 0.008), "soot")  # the hollowed-out inside
+    bt.plank((ox - 0.22, oy + 0.15, zt + 0.02), (ox + 0.22, oy + 0.15, zt + 0.02), 0.12, 0.04, "wood")
+    pd = part("paddle")
+    pd.plank((ox - 0.08, oy - 0.75, zt + 0.06), (ox + 0.02, oy + 0.35, zt + 0.06), 0.05, 0.03, "wood")
+    pd.box((0.13, 0.32, 0.025), (ox + 0.04, oy + 0.5, zt + 0.06), "wood", rot=(0, 0, -5))
+    ml = part("mooring_line")
+    ml.log((posts[1], hl - 0.15, deck + 0.32), (ox, oy + 1.05, zt + 0.03), 0.016, tile="rope", seg=4, end_tile="rope")
+    ml.log((posts[1], hl - 0.15, deck + 0.28), (posts[1] - 0.25, hl - 0.6, deck + 0.03), 0.016, tile="rope", seg=4, end_tile="rope")
+    ld = part("ladder")  # down the deck's seaward side to the boat
+    for y in (0.95, 1.35):
+        ld.log((xr + 0.03, y, deck + 0.05), (xr + 0.03, y, 0.5), 0.035, tile="wood_dark", seg=5)
+    for z in (0.62, 0.86, 1.1):
+        ld.log((xr + 0.04, 0.95, z), (xr + 0.04, 1.35, z), 0.025, tile="wood", seg=5)
+    return parts
 
 
 # ------------------------------------------------------------------ building-system stand-ins

@@ -33,7 +33,7 @@ TILES = [
     "canvas", "hide", "rope", "thatch", "weave", "steamer_weave", "leather_dark", "fiber",
     "stone", "stone_dark", "cobble", "clay", "clay_dark", "iron", "ash", "ember",
     "meat_raw", "meat_drying", "meat_dried", "water", "soot", "sign_board", "dirt", "bone",
-    "meat_fat", "canvas_slope",
+    "meat_fat", "canvas_slope", "deck", "deck_old", "deck_dark", "fish",
 ]
 TILE_INDEX = {n: i for i, n in enumerate(TILES)}
 
@@ -84,13 +84,13 @@ def _mix(a, b, t):
     return a * (1 - t) + b * t
 
 
-def _grain(seed, base, dark, rings=9.0, knots=True):
+def _grain(seed, base, dark, rings=9.0, knots=True, warp_amt=0.25, phase=3.0):
     """Wood: grain runs along U (horizontal in the tile), varying in V."""
     n = TILE_PX
     r = _rng(seed)
     warp = _fbm(r, n, 3, 3)
-    v = np.linspace(0, 1, n)[:, None] + 0.25 * warp
-    stripes = 0.5 + 0.5 * np.sin(v * rings * 2 * math.pi + 3 * _fbm(r, n, 2, 2))
+    v = np.linspace(0, 1, n)[:, None] + warp_amt * warp
+    stripes = 0.5 + 0.5 * np.sin(v * rings * 2 * math.pi + phase * _fbm(r, n, 2, 2))
     fine = _fbm(r, n, 16, 2)
     t = np.clip(0.55 * stripes ** 3 + 0.35 * fine, 0, 1)
     img = _mix(_rgb(base), _rgb(dark), t)
@@ -115,6 +115,23 @@ def _planks(seed, base, dark, count=4):
         for x in r.integers(6, n - 6, 2):  # nail heads
             img[y0 + 5:y0 + 8, x:x + 3] = _rgb((0.16, 0.15, 0.14))
     return img
+
+
+def _deck(seed, base, dark):
+    """Deck boards: straight dense grain along U (the board's length; `wood`'s warp swirled across a
+    0.3 m board), with a slow tint drift along V so each board, a random V window, gets its own shade."""
+    img = _grain(seed, base, dark, rings=24.0, knots=False, warp_amt=0.02, phase=0.4)
+    drift = 0.84 + 0.32 * _fbm(_rng(seed + 5), TILE_PX, 3, 2)[:, :1]
+    return img * drift[:, :, None]
+
+
+def _fish():
+    """Silver belly (low V) to dark blue-grey speckled back (high V)."""
+    n = TILE_PX
+    v = np.linspace(0, 1, n)[:, None] * np.ones((1, n))
+    img = _mix(_rgb((0.8, 0.82, 0.8)), _rgb((0.24, 0.32, 0.38)), np.clip(v * 1.5 - 0.25, 0, 1))
+    spots = np.clip((_fbm(_rng(43), n, 14, 2) - 0.6) * 5, 0, 1) * (v > 0.45)
+    return _mix(img, _rgb((0.12, 0.17, 0.2)), spots)
 
 
 def _speckle(seed, base, dark, light=None, scale=6, crack=0.0):
@@ -309,6 +326,11 @@ def paint_atlas():
         "soot": _speckle(29, (0.17, 0.15, 0.14), (0.08, 0.07, 0.07), scale=5),
         "sign_board": _sign_board(),
         "dirt": _speckle(31, (0.45, 0.34, 0.24), (0.3, 0.22, 0.15), light=(0.55, 0.44, 0.32), scale=8),
+        # pier deck: darker and more saturated than `wood` so it does not wash out to beige in gl_compatibility
+        "deck": _deck(36, (0.52, 0.37, 0.23), (0.33, 0.22, 0.12)),
+        "deck_old": _deck(37, (0.57, 0.47, 0.35), (0.37, 0.29, 0.2)),
+        "deck_dark": _deck(38, (0.4, 0.27, 0.16), (0.24, 0.15, 0.08)),
+        "fish": _fish(),
         "bone": _speckle(32, (0.88, 0.84, 0.74), (0.7, 0.65, 0.55), scale=6),
     }
     img = np.zeros((ATLAS, ATLAS, 4))
@@ -480,6 +502,26 @@ class Part:
             vv.co = c + (vv.co - c) * rng.uniform(0.82, 1.12)
         self.bm.normal_update()
         return self._finish(v, tile, tile_m=0.6)
+
+    def torus(self, big_r, r, loc, tile, seg=14, tube=6):
+        """Ring lying flat (axis Z) at loc: a rope coil turn with volume."""
+        rows = []
+        for i in range(seg):
+            a = 2 * math.pi * i / seg
+            ring = []
+            for j in range(tube):
+                b = 2 * math.pi * j / tube
+                rr = big_r + r * math.cos(b)
+                ring.append(self.bm.verts.new((loc[0] + rr * math.cos(a), loc[1] + rr * math.sin(a), loc[2] + r * math.sin(b))))
+            rows.append(ring)
+        faces = []
+        for i in range(seg):
+            for j in range(tube):
+                i2, j2 = (i + 1) % seg, (j + 1) % tube
+                faces.append(self.bm.faces.new((rows[i][j], rows[i2][j], rows[i2][j2], rows[i][j2])))
+        bmesh.ops.recalc_face_normals(self.bm, faces=faces)
+        self.bm.normal_update()
+        return self._finish([v for ring in rows for v in ring], tile, smooth=True, tile_m=0.4)
 
     def prism(self, pts, offset, tile, tile_m=1.0):
         """Extrude a flat convex polygon (list of xyz, any winding) by the vector `offset`."""

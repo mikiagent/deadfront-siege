@@ -22,6 +22,8 @@ const TOL := 0.05
 ## Rows whose GLB is one piece of a larger assembly: aabb_m is the assembly (the collider), which must
 ## cover the footprint; the piece itself is only checked for triangles and material.
 const ASSEMBLIES := ["taming_pen"]
+## W1-HARBOUR's t_harbour: the dock must be a composite of at least this many meshes.
+const HARBOUR_MIN_PARTS := 20
 
 var failures: Array[String] = []
 var _done := false
@@ -229,7 +231,34 @@ func _check_harbour(buildings: Dictionary) -> void:
 		var box := _aabb(vis, Transform3D.IDENTITY)  # harbour space
 		if box.size.x > fp.x * (1.0 + TOL) or box.position.z < -fp.y * 0.5 * (1.0 + TOL) or box.end.z > fp.y * 0.5 * (1.0 + TOL):
 			failures.append("harbour pier %s overruns its %s footprint" % [box, fp])
-		print("[t_structart] harbour shows %s: x %.2f m, z %.2f..%.2f m, deck at y %.2f (footprint %s)" % [glb.get_file(), box.size.x, box.position.z, box.end.z, vis.position.y + 1.2, fp])
+		# W1-HARBOUR's t_harbour rule, so this branch cannot turn that test red: the dock is a
+		# composite of >= 20 props and never a BoxMesh.
+		var meshes := _meshes(vis)
+		var boxes := meshes.filter(func(m: MeshInstance3D) -> bool: return m.mesh is BoxMesh).size()
+		if meshes.size() < HARBOUR_MIN_PARTS or boxes > 0:
+			failures.append("harbour pier is %d meshes (%d boxes); t_harbour wants a prop composite (>= %d meshes, no BoxMesh)" % [meshes.size(), boxes, HARBOUR_MIN_PARTS])
+		var col := _harbour_collider(h)
+		print("[t_structart] harbour shows %s: %d parts, x %.2f m, z %.2f..%.2f m, deck at y %.2f (footprint %s); tap box z %.2f..%.2f" % [glb.get_file(), meshes.size(), box.size.x, box.position.z, box.end.z, vis.position.y + 1.2, fp, col.position.z, col.end.z])
+	h.free()
+
+## The harbour's tap box in harbour space (zero when it has none).
+func _harbour_collider(h: Node3D) -> AABB:
+	for c in h.get_children():
+		if c is CollisionShape3D and (c as CollisionShape3D).shape is BoxShape3D:
+			var size: Vector3 = ((c as CollisionShape3D).shape as BoxShape3D).size
+			return AABB((c as CollisionShape3D).position - size * 0.5, size)
+	return AABB()
+
+## harbour.gd hook: with the manifest pier the tap box ends where the pier does, not 2 m out over water.
+func _check_harbour_collider_hook() -> void:
+	var h: Node3D = (load("res://scripts/world/harbour.gd") as GDScript).new()
+	get_root().add_child(h)
+	var vis := h.get_node_or_null("Visual") as Node3D
+	if vis:
+		var pier := _aabb(vis, Transform3D.IDENTITY)
+		var col := _harbour_collider(h)
+		if absf(col.position.z - pier.position.z) > 0.25 or absf(col.end.z - pier.end.z) > 0.25 or col.size.x < pier.size.x - 0.1:
+			failures.append("hook: harbour tap box z %.2f..%.2f x %.2f does not match the pier z %.2f..%.2f x %.2f" % [col.position.z, col.end.z, col.size.x, pier.position.z, pier.end.z, pier.size.x])
 	h.free()
 
 func _check_atlas() -> void:
@@ -295,7 +324,8 @@ func _check_hooks(buildings: Dictionary) -> bool:
 		failures.append("hook: taming pen collider %s is a fence segment, not the 4x4 ring" % pen)
 	_check_gate_hook()
 	_check_catapult_hook()
-	print("[t_structart] hooks applied: gate leaves, catapult model and pen collider checked")
+	_check_harbour_collider_hook()
+	print("[t_structart] hooks applied: gate leaves, catapult model, pen collider and harbour tap box checked")
 	return true
 
 func _check_gate_hook() -> void:

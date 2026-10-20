@@ -1,7 +1,7 @@
 extends SceneTree
 ## Structart review shot (W1-STRUCTART acceptance, adapted from the 2026-10-18 audit set-up): boot the real build_lab windowed, place a small base through the real
-## BuildPlacer.confirm path, swap each placed visual for its Blender GLB (StructartLab.swap_visual,
-## the integrator hook previewed) and screenshot the base plus a close-up of the four drying racks
+## BuildPlacer.confirm path, swap each placed visual for its Blender GLB (swap_visual below, the
+## integrator hook previewed) and screenshot the base plus a close-up of the four drying racks
 ## (<out>_racks.png). No save/load, no repo writes.
 ## Run: Godot --path game [--rendering-method gl_compatibility] --resolution 1600x900 \
 ##   --script $PWD/tools/blender/structures/built_base_shot.gd -- --lab=build_lab --out=<png>
@@ -56,7 +56,6 @@ func _go() -> void:
 		print("[audit] place %s at %s ok=%s reason=%s" % [p[0], target, ok, placer.get("reason")])
 		placer.cancel()
 	# STRUCTART: preview the integrator hook by swapping each placed visual for its Blender GLB.
-	var SL := load("res://scripts/dev/structart_lab.gd")
 	var stages := ["empty", "raw", "drying", "dried"]
 	var racks := 0
 	var swapped := 0
@@ -67,7 +66,7 @@ func _go() -> void:
 		if str(n.get("kind")) == "drying_rack":
 			st = stages[racks % 4]
 			racks += 1
-		if SL.swap_visual(n, st):
+		if swap_visual(n, st):
 			swapped += 1
 	print("[audit] swapped %d visuals, racks %d" % [swapped, racks])
 	player.global_position = grid.tile_centre(anchor + Vector2i(4, 2), grid.runtime) + Vector3(0, 1, 0)
@@ -99,3 +98,36 @@ func _go() -> void:
 	img2.save_png(out2)
 	print("[audit] shot %s" % out2)
 	quit(0)
+
+## Manifest GLB for a kind, or for one of its processing stages (`stages[i].glb`, the lookup W2-PROCESS uses).
+func glb_path(kind: StringName, stage: String = "") -> String:
+	var row: Variant = ((root.get_node("Data").get("props_manifest") as Dictionary).get("buildings", {}) as Dictionary).get(str(kind), {})
+	if not row is Dictionary:
+		return ""
+	if stage == "":
+		return str((row as Dictionary).get("glb", ""))
+	for st: Variant in (row as Dictionary).get("stages", []):
+		if st is Dictionary and str((st as Dictionary).get("id", "")) == stage:
+			return str((st as Dictionary).get("glb", ""))
+	return ""
+
+## Preview of the integrator hook: swap a placed building's Kenney or procedural visual for its
+## Blender GLB. Returns false when the kind has no glb row.
+func swap_visual(building: Node3D, stage: String = "") -> bool:
+	var kind := StringName(str(building.get("kind")))
+	if kind == &"" and building.get("station_id") != null:
+		kind = StringName(str(building.get("station_id")))
+	if kind == &"gate":
+		kind = &"fence_gate"
+	var path := glb_path(kind, stage)
+	if path == "" or not ResourceLoader.exists(path):
+		return false
+	var inst := (load(path) as PackedScene).instantiate() as Node3D
+	for child in building.get_children():
+		# FieldCatapult builds its body from bare MeshInstance3D children; buildings use Prop.
+		if child.name == &"Prop" or child.name == &"FallbackMesh" or (child is MeshInstance3D and child.name != &"Foundation"):
+			building.remove_child(child)
+			child.queue_free()
+	inst.name = "Prop"
+	building.add_child(inst)
+	return true
