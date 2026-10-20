@@ -287,9 +287,9 @@ func _flush_overflow() -> void:
 		i -= 1
 
 func _process(delta: float) -> void:
-	_flush_overflow()
 	if player == null:
 		return
+	_flush_overflow()
 	_sync_hand_tool()
 	if recipe_id != &"" and not crafting and station and is_instance_valid(station):
 		if not player.nav_active and player.global_position.distance_to(station.global_position) <= Crafting.STATION_RANGE + 0.35:

@@ -1,5 +1,5 @@
 {
-	"_about": "Per-climate lighting profiles read by scripts/world/world_lighting.gd (islands and LabKit labs). 'default' fills every key a climate leaves out. Colours are [r, g, b] 0..1; energies are Godot light energies. Dawn and dusk warmth follow Game.phase_name(): dawn 0.22-0.30, day 0.30-0.72, dusk 0.72-0.80, night otherwise (time_of_day 0 = midnight, 0.5 = noon). exposure is the AgX tonemap exposure per renderer; moon_energy_compat is the moon on the web renderer (gl_compatibility), whose nights came out a third as bright; saturation_compat pulls the web renderer's grass back from lime toward the Forward+ olive (hue 96 vs 76 deg in matched day shots); exposure_scale lets a bright climate (snow, sand) pull it down. Climate rows are ASSUMPTION tints: the PRD gives no per-climate lighting values.",
+	"_about": "Per-climate lighting profiles read by scripts/world/world_lighting.gd (islands and LabKit labs). 'default' fills every key a climate leaves out. Colours are [r, g, b] 0..1; energies are Godot light energies. Dawn and dusk warmth follow Game.phase_name(): dawn 0.22-0.30, day 0.30-0.72, dusk 0.72-0.80, night otherwise (time_of_day 0 = midnight, 0.5 = noon). exposure is the AgX tonemap exposure per renderer; moon_energy_compat is the moon on the web renderer (gl_compatibility), whose nights came out a third as bright; saturation_compat is the web renderer's saturation (1.2 matches Forward+ grass saturation in lighting_lab: 0.42 vs 0.43; it cannot move the hue gap, 88 vs 58 deg); exposure_scale lets a bright climate (snow, sand) pull it down. Climate rows are ASSUMPTION tints: the PRD gives no per-climate lighting values.",
 	"default": {
 		"sun_energy": 2.2,
 		"sun_color": [1.0, 0.95, 0.86],
@@ -18,7 +18,7 @@
 		"exposure_compat": 1.0,
 		"exposure_scale": 1.0,
 		"saturation": 1.25,
-		"saturation_compat": 1.1,
+		"saturation_compat": 1.2,
 		"glow_intensity": 0.3,
 		"fog_density": 0.0022,
 		"fog_night_density": 0.004,

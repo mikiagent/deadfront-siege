@@ -824,13 +824,9 @@ func _begin_gather(node: HarvestNode) -> void:
 	# obsidian pick". Refusals now reach the HUD, not only the log.
 	var why := node.can_gather(inventory)
 	if why == "":
-		if node.required_tool_class != &"" and node.required_tool_class != &"none":
-			_auto_equip_tool(node.required_tool_class)  # axe/knife in hand for the work clip
-	elif why.begins_with("need tool"):
-		# The class is in the bag but not in hand: equip it and ask again.
-		if _auto_equip_tool(node.required_tool_class):
-			why = node.can_gather(inventory)
-	if why != "":
+		# can_gather found the tool in the bag (same find_gather_tool lookup): put it in hand for the clip.
+		_auto_equip_tool(node.required_tool_class)
+	else:
 		print("[item] refused %s: %s" % [node.node_id, why])
 		if why == "depleted":
 			notice("Picked clean")
