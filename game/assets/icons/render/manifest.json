@@ -700,6 +700,62 @@
    ],
    "quality": "procedural_v1"
   },
+  "forager_hood": {
+   "script": "glb:game/assets/characters/survivor/armor/forager/helmet.glb",
+   "builder": "forager_hood",
+   "png": "res://assets/icons/render/forager_hood.png",
+   "sha256": "eaad36bd7f7e2e914f780e74045adfea5770fe110ce8d5b0a8d12c7f11d73d19",
+   "bytes": 52293,
+   "rect": [
+    19,
+    32,
+    218,
+    192
+   ],
+   "quality": "model_v2"
+  },
+  "forager_leggings": {
+   "script": "glb:game/assets/characters/survivor/armor/forager/legs.glb",
+   "builder": "forager_leggings",
+   "png": "res://assets/icons/render/forager_leggings.png",
+   "sha256": "726208c4da01c1843bbeecc0a4645ed0075516f5a10eacb51577bab311d168b4",
+   "bytes": 35900,
+   "rect": [
+    66,
+    19,
+    124,
+    218
+   ],
+   "quality": "model_v2"
+  },
+  "forager_vest": {
+   "script": "glb:game/assets/characters/survivor/armor/forager/chest.glb",
+   "builder": "forager_vest",
+   "png": "res://assets/icons/render/forager_vest.png",
+   "sha256": "e3d26fd231aa513a940ed8b228a973864e6db61882eb4999dcbfa91761c78aa0",
+   "bytes": 60380,
+   "rect": [
+    41,
+    19,
+    174,
+    218
+   ],
+   "quality": "model_v2"
+  },
+  "forager_wraps": {
+   "script": "glb:game/assets/characters/survivor/armor/forager/arms.glb",
+   "builder": "forager_wraps",
+   "png": "res://assets/icons/render/forager_wraps.png",
+   "sha256": "9e4c325868c8f16f07b29bd25b6666fa93360514a3d39655723889302d4685b9",
+   "bytes": 31131,
+   "rect": [
+    19,
+    30,
+    218,
+    196
+   ],
+   "quality": "model_v2"
+  },
   "gate_kit": {
    "script": "tools/blender/items/camp.py",
    "builder": "gate_kit",
@@ -771,6 +827,62 @@
     218
    ],
    "quality": "procedural_v1"
+  },
+  "hide_bone_bracers": {
+   "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/arms.glb",
+   "builder": "hide_bone_bracers",
+   "png": "res://assets/icons/render/hide_bone_bracers.png",
+   "sha256": "f045810d6efe99416897cda4c339a77fd40be77cd3de5c0b259328c291af7b5d",
+   "bytes": 35550,
+   "rect": [
+    19,
+    25,
+    218,
+    206
+   ],
+   "quality": "model_v2"
+  },
+  "hide_bone_cuirass": {
+   "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/chest.glb",
+   "builder": "hide_bone_cuirass",
+   "png": "res://assets/icons/render/hide_bone_cuirass.png",
+   "sha256": "3048ec627b555de79fb486262cd985c5202be64a231bb019613b1f4e6c2d27fd",
+   "bytes": 63082,
+   "rect": [
+    43,
+    19,
+    171,
+    218
+   ],
+   "quality": "model_v2"
+  },
+  "hide_bone_greaves": {
+   "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/legs.glb",
+   "builder": "hide_bone_greaves",
+   "png": "res://assets/icons/render/hide_bone_greaves.png",
+   "sha256": "3f920b8a1c7b55c025b2ef168dea3ec3c64626ae0249ba40d13cc7506941630b",
+   "bytes": 40981,
+   "rect": [
+    64,
+    19,
+    128,
+    218
+   ],
+   "quality": "model_v2"
+  },
+  "hide_bone_helm": {
+   "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/helmet.glb",
+   "builder": "hide_bone_helm",
+   "png": "res://assets/icons/render/hide_bone_helm.png",
+   "sha256": "8b41dc1eafac1485a1aca72bcfc8df33925d09c4c00a5950d5e618c696be97ba",
+   "bytes": 55163,
+   "rect": [
+    24,
+    19,
+    208,
+    218
+   ],
+   "quality": "model_v2"
   },
   "hide_strap": {
    "script": "tools/blender/items/resources.py",
@@ -1615,6 +1727,48 @@
    ],
    "quality": "procedural_v1"
   },
+  "travel_shirt": {
+   "script": "glb:game/assets/characters/survivor/armor/travel_clothes/chest.glb",
+   "builder": "travel_shirt",
+   "png": "res://assets/icons/render/travel_shirt.png",
+   "sha256": "f35f9b27cdea2f73f5ca4eb3f6d0283b035d7b806a8dc30758e728e97d045907",
+   "bytes": 50910,
+   "rect": [
+    48,
+    19,
+    160,
+    218
+   ],
+   "quality": "model_v2"
+  },
+  "travel_sleeves": {
+   "script": "glb:game/assets/characters/survivor/armor/travel_clothes/arms.glb",
+   "builder": "travel_sleeves",
+   "png": "res://assets/icons/render/travel_sleeves.png",
+   "sha256": "653ffd1480a8029c02d83a8eb2715e9623e9de46d8610a1395a244f1f5aa9c9c",
+   "bytes": 27454,
+   "rect": [
+    19,
+    29,
+    218,
+    198
+   ],
+   "quality": "model_v2"
+  },
+  "travel_trousers": {
+   "script": "glb:game/assets/characters/survivor/armor/travel_clothes/legs.glb",
+   "builder": "travel_trousers",
+   "png": "res://assets/icons/render/travel_trousers.png",
+   "sha256": "1584ad051b21358a06354fdcce609bd1066175e836314dcd12d5845567834e9a",
+   "bytes": 34181,
+   "rect": [
+    68,
+    19,
+    120,
+    218
+   ],
+   "quality": "model_v2"
+  },
   "twine": {
    "script": "tools/blender/items/resources.py",
    "builder": "twine",
@@ -1768,16 +1922,8 @@
   "cloth_scrap",
   "field_large_kit",
   "field_small_kit",
-  "forager_hood",
-  "forager_leggings",
-  "forager_vest",
-  "forager_wraps",
   "fruit_fertilizer",
   "herbivore_feed",
-  "hide_bone_bracers",
-  "hide_bone_cuirass",
-  "hide_bone_greaves",
-  "hide_bone_helm",
   "leech",
   "log_shelter_kit",
   "makeshift_taming_pen",
@@ -1795,9 +1941,6 @@
   "steamer_kit",
   "stone_fire_pit_kit",
   "tamed_animal",
-  "travel_shirt",
-  "travel_sleeves",
-  "travel_trousers",
   "vine",
   "willow_wood"
  ]

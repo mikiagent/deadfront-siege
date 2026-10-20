@@ -89,6 +89,13 @@ def render_one(iid, build, out_dir, tmp):
     if isinstance(build, str):
         import bpy
         bpy.ops.import_scene.gltf(filepath=build)
+        # Armour kit GLBs carry a stray unskinned 2 m Icosphere that shrank the framed piece to a
+        # speck: when a GLB has a skinned mesh, only skinned meshes are the item.
+        meshes = [ob for ob in bpy.context.scene.objects if ob.type == "MESH"]
+        if any(m.type == "ARMATURE" for ob in meshes for m in ob.modifiers):
+            for ob in meshes:
+                if not any(m.type == "ARMATURE" for m in ob.modifiers):
+                    bpy.data.objects.remove(ob)
         for ob in list(bpy.context.scene.objects):
             if ob.parent is None and ob is not kit.ROOT:
                 ob.parent = kit.ROOT
