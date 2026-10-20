@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "station_mortar". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+<path d="M8 31 H56 C56 42 48 49.5 41 51 L43 57 H21 L23 51 C16 49.5 8 42 8 31 Z"/>
+<path d="M35.07 27.56 L50.07 9.56 A4 4 0 0 0 43.93 4.44 L28.93 22.44 A4 4 0 0 0 35.07 27.56 Z"/>
+</g>
+</svg>
