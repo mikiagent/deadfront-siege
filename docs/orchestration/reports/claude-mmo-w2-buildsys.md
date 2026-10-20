@@ -1,11 +1,75 @@
 # W2-BUILDSYS: ARK-style modular building with structure HP, tiers and repair
 
-Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last at 131f3210, base tip 1c89134a,
-which brings W2-OCCLUDE, W1-UIICONS and DSC-CAMP). Never reviewed before this pass.
+Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last at e2320ec8, base tip 6e26ef2a:
+docs only since 1c89134a, which brought W2-OCCLUDE, W1-UIICONS and DSC-CAMP). Review r1 stopped before any run.
 Closes build-struct-01, build-def-01, build-tier-01, build-place-02, phys-wall-01, build-storage-01 (chest and
 large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
 
-## Finishing pass (this session)
+## Contents-never-lost pass (2026-10-20 evening, finish-6)
+
+- **Owner's question, "this vision check is too exhaustive, is it really necessary?"** For this package its two
+  items were cheap and both are real, but neither needed a multi-agent audit: reading the four cited lines took
+  minutes. Item 1 closed live loss paths (below). Item 2 is two numbers, and one part of it overreaches the doc
+  (the flat 160, see below). The audit itself was already stopped (`vision-check.md`); nothing more was audited here.
+- **Docs, checked line by line.** Spec 10:102 "A change in building state must not silently delete stored
+  items." Spec 11:155 "Handle demolished stations, ... without losing items or duplicating output." PRD:582
+  "Storage: baskets (~100 slots early) → boxes → large boxes (pillar requirements)". Spec 05:14 "basket about 100
+  slots; level-60 Large Leaf Box up to 160 ... These are references rather than universal capacities." Spec 10:90
+  "a level-60 Large Leaf Box holding 160 spaces. Do not impose this value on every box." Sign text: the specs and
+  PRDs give no limit (PRD:972 names "sign flair" as a cosmetic, nothing more), so 48 characters stays an assumption.
+- **Capacity (structures.json):** chest 20 -> 100, large box 40 -> 160. The chest is the "box" rung after the
+  ~100-slot basket. 160 is a level-60 figure (10:90); pieces have no building level in play yet (all level 1), so
+  it is flat for now: # ASSUMPTION in the file's doc, and W2-CONSTRUCT's base_capacity_at_level replaces it. The
+  basket kit stays at 60 (placed_building.gd's existing assumption).
+- **Nothing a structure held is deleted any more.** What was lost before (proved by running the new test on the
+  old code, 24 FAIL lines such as `FAIL demolish: item l35643c0344bd7322 is kept exactly once (seen 0 times)`):
+  a demolished chest's contents after its refund had filled the cargo, a destroyed chest's contents past a full
+  cargo ("lost (logged)"), every item in a kit destroyed by damage (a basket's storage, a pen's animal), demolish
+  refunds past a full cargo, and a chest whose save row was skipped on load. Now one function,
+  `StructureHealth.salvage(stacks, at, by)`, puts them in the bag of whoever took the structure down, then home
+  cargo, then a **loot bag** at the spot (`loot_bag.gd`, new: a tappable bag icon in the placed_building group, so
+  the existing building tap opens it with Take all; saved as a building row `{kind: loot_bag, x, y, z, contents}`
+  and restored by `SaveGame._restore_buildings`; gone when emptied; it settles on the floor still under it). A
+  build without this code refunds such a row into the cargo (unknown kind), so nothing is lost there either.
+  Demolish puts contents first, then the refund, in one salvage (one bag). A kit destroyed by damage gives back
+  `BuildPlacer.stored_items` (split out of the pack-up returns) and, when it has one, the duck-typed
+  `salvage_contents() -> Array` of ItemStack, which W2-PROCESS stations implement (they remove what they return).
+  Pack-up is unchanged: `pack_up_blocker` still calls the structure's `pack_up_block_reason()` (W2-PROCESS's
+  loaded-station refusal needs no change here); a chest is not a kit, so pack-up refuses it and keeps it whole.
+- **t_buildsys** gains `salvage` (pack-up refused, demolish with a full bag and 2 free cargo slots, a raptor's
+  bite destroying a 1 hp chest, loot bags through `_live_buildings` -> JSON -> SaveSanitizer -> restore, a chest
+  row round trip, a broken chest row, a basket and a station with `salvage_contents()` destroyed by damage; every
+  stamped instance counted exactly once across bag, cargo and loot bags) and `snap_resources` (a foundation ghost
+  aimed at a tree, with a free socket beside it, never lands on the tree's module), and `repair_upgrade` now
+  checks the upgrade takes exactly its blueprint and that one item short takes nothing. Proved: the old code
+  fails `salvage` (24 lines); two mutations (no resource rule; upgrade checks but does not pay) give
+  `FAIL a foundation ghost aimed at a tree is never valid on its module (try 1: )`, `FAIL no piece stands on the
+  tree's module (foundation (-14, -9, 0, 0))` and `FAIL the upgrade took exactly its 8 stone (left 8)`.
+- **Hook 4**: the base has no lab registry (no tools/labs.txt; main.gd loads `res://scenes/dev/<lab>.tscn` by
+  name), so there is nothing to register: run it as `--lab=snap_build_lab`. The patch holds hooks 1-3, unchanged.
+
+### Gates (this pass; scratch tree at 2c993dda, then 8d4e2ed1, hooks 1-3 applied, lines seen)
+
+- `--import`: 0 SCRIPT ERROR / "Failed to compile". Every `game/tests/t_*.gd` PASS, 0 SCRIPT ERROR except t_save's 5
+  deliberate ones: t_ai, t_build, t_buildsys, t_canim, t_combat, t_harbour (`islands=15`), t_iconart, t_items,
+  t_light, t_lighting, t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons,
+  t_web. run_all `[tests] PASS`; `tools/smoke.sh --no-import` `SMOKE PASS`. Re-run on 8d4e2ed1 (the loot bag's
+  settle): `[t_buildsys] ok salvage`, `ok snap_resources`, `[t_buildsys] PASS`, snap_build_lab `[snap] PASS`.
+- Labs headless, 0 SCRIPT ERROR, 0 "couldn't resolve track": snap_build_lab `[snap] PASS`, `--snap-touch`
+  `[snap] PASS`, build_lab `[build] PASS`, siege probe `[siege] destroyed-after=12s occupancy-cleared=true` exit 0.
+- Windowed on 8d4e2ed1, looked at each (scratchpad `bs2/`): `house_fwd.png` / `house_glc.png` (1600x900): the
+  snapped 2-storey house, plank walls, storey band, framed door and windows on both storeys, ramp, gable roof; the
+  same in both renderers. `inside_fwd.png` / `inside_glc.png`: roof and upper storey fade to a dithered outline,
+  the front wall to about half; on gl_compatibility the survivor behind the dithered front wall is fainter than on
+  Forward+ (W2-OCCLUDE's look, not changed here). Touch at 844x390 glc with `--touch`: `[snap] PASS`;
+  `touch_ghost.png` (ghost, snap points, ROTATE/PLACE/CANCEL hexes, cost label), `touch_card.png` (Wood Wall
+  card: Upgrade to Stone with its cost, Demolish, Building to Stone (5)), `touch_chest.png` (the bag panel opens;
+  the chest's grid, now 100 slots, is below the fold as before).
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (newest is still 2026-10-20-131531).
+- Not done: no shot of a loot bag on the ground (it reuses the corpse's loot-bag icon; tested headless only);
+  no blind A/B (the house look is unchanged from the reviewed shots).
+
+## Finishing pass (earlier session)
 
 - Merged the base twice (W2-PLAYER split, W1-UI HUD split, W2-OCCLUDE, W1-UIICONS). One merge fix in an owned
   file: `build_grid.gd` called `_cells_changed` (base name) where this branch has `cells_changed`; game.gd
@@ -174,8 +238,9 @@ large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
 
 ## Integrator hooks
 
-`docs/orchestration/reports/claude-mmo-w2-buildsys-hooks.patch` holds hooks 1-3 as one patch against 131f3210;
-`git apply --check` passes, and the hooked tree passed the whole suite and --snap-touch (above).
+`docs/orchestration/reports/claude-mmo-w2-buildsys-hooks.patch` holds hooks 1-3 as one patch; `git apply --check`
+passes on 8d4e2ed1, whose four hooked files are byte-identical to claude/mmo-overhaul 6e26ef2a, so it applies there
+too. The hooked tree passed the whole suite and --snap-touch (below).
 
 1. **W2-PLAYER, `game/scripts/player/player_input.gd`**: `interact_tap_target`: `elif col is StructurePiece:`
    find the `hud` group node and call `hud.open_structure(col)`; `is_interactable`: a `StructurePiece` is
@@ -189,9 +254,10 @@ large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
 3. **W2-ECO, `game/scripts/creatures/brains/creature_brain.gd`**: unchanged from the first pass: `_break_in()`
    before `_think` retargets the blocking wall from `StructureHealth.siege_target` once a second;
    `hunting_player` and the leash treat any structure like the catapult.
-4. **W2-INT, `tools/labs.txt`**: register `snap_build_lab` (headless `[snap] PASS`; `--shot=<png>` frames the
-   house, `--snap-inside` puts the survivor inside, `--snap-ghost` stages a ghost; `--snap-touch` runs the touch
-   loop and needs hooks 1-2, `--snap-shots=<stem>` saves a PNG per touch step).
+4. **No registration needed**: the base has no lab registry, labs load by scene name. `--lab=snap_build_lab`
+   (headless `[snap] PASS`; `--shot=<png>` frames the house, `--snap-inside` puts the survivor inside,
+   `--snap-ghost` stages a ghost; `--snap-touch` runs the touch loop and needs hooks 1-2, `--snap-shots=<stem>`
+   saves a PNG per touch step).
 5. **Already done here, outside the owned list** (first pass): `game/tests/t_save.gd` skips `/schema` in the v3
    golden comparison and checks the re-save is at the current schema. Revert only with the schema bump.
 6. **W2-OCCLUDE**: nothing to change; the adapter (`StructurePiece._occlusion`) works against the merged
@@ -209,9 +275,11 @@ large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
 - Camp pieces, the harbour and cargo are indestructible (they are rebuilt every load anyway).
 - Pieces use the kits' 8 m reach, measured flat.
 - A schema-3 save needs no rewrite; schema 4 only adds piece rows and kit `durability`.
-- Chest 20 slots, large box 40, signboard 48 characters, one piece of furniture per floor module; furniture
-  costs and durability (structures.json) are first-pass.
-- Destroyed or collapsed chests salvage their contents into camp cargo (no loot bag on the ground yet).
+- Chest 100 slots, large box 160 flat (the level-60 reference, until building level exists); signboard 48
+  characters (the docs give no limit); one piece of furniture per floor module; furniture costs and durability
+  (structures.json) are first-pass.
+- A structure destroyed by damage or collapse has no demolisher, so its contents skip the bag: home cargo, then a
+  loot bag. A loot bag does not occupy build cells (a kit can be placed over one; the bag stays tappable).
 - Whole-building actions cover pieces connected within one module and one storey; Upgrade all lifts every
   piece below the next tier to it, paid up front.
 
