@@ -13,6 +13,9 @@ static var _used: Dictionary = {}
 static var _rects: Dictionary = {}  # id -> [x, y, w, h] from manifest.json, written at render time
 # A flag, not a sentinel key: a "" key made the empty slot id look rendered (review 2026-10-20).
 static var _rects_loaded := false
+# Held for the process: junk ids are not cached, and a texture only a caller's local var held was
+# freed before the canvas drew it, so the slot drew a white box (review 2026-10-20 (5)).
+static var _unknown: Texture2D = null
 
 static func _load_rects() -> void:
 	if _rects_loaded:
@@ -53,8 +56,10 @@ static func texture_for(id: StringName) -> Texture2D:
 		tex = load(RENDER_DIR + key + ".png") as Texture2D
 	if tex == null and Data.item(id) != null:
 		tex = ItemIcons.texture(id)
-	if tex == null and ResourceLoader.exists(UNKNOWN):
-		tex = load(UNKNOWN) as Texture2D
+	if tex == null:
+		if _unknown == null and ResourceLoader.exists(UNKNOWN):
+			_unknown = load(UNKNOWN) as Texture2D
+		tex = _unknown
 	if is_rendered(id) or Data.item(id) != null:  # only real ids, so arbitrary ids cannot grow the cache
 		_cache[key] = tex
 	return tex
@@ -68,7 +73,8 @@ static func content_rect(id: StringName) -> Rect2:
 	_load_rects()
 	var tex := texture_for(id)
 	var r := Rect2()
-	var mr: Array = _rects.get(key, []) if is_rendered(id) else []
+	# The silhouette's own manifest rect: junk ids are not cached, so a readback here ran on every redraw.
+	var mr: Array = _rects.get(key if is_rendered(id) else ("_unknown" if tex != null and tex == _unknown else ""), [])
 	if mr.size() == 4 and mr[2] > 0 and mr[3] > 0:
 		r = Rect2(mr[0], mr[1], mr[2], mr[3])
 	elif tex:

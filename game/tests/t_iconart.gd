@@ -16,6 +16,7 @@ func _process(_delta: float) -> bool:
 	_done = true
 	IA = load("res://scripts/ui/item_art.gd") as GDScript
 	II = load("res://scripts/ui/item_icons.gd") as GDScript
+	_test_unknown_outlives_caller()
 	_test_pngs_and_manifest()
 	_test_rarity_covers_items()
 	_test_fallback()
@@ -108,6 +109,15 @@ func _test_rarity_covers_items() -> void:
 		# Kept strict on purpose: an unlisted item would silently rim as common.
 		_check(listed.has(str(id)), "%s listed in item_rarity.json (give it a tier there)" % id)
 		_check(order.has(str(listed.get(str(id), ""))), "%s has a known rarity" % id)
+
+## Review 2026-10-20 (5): the uncached junk-id fallback was freed as soon as the caller dropped it,
+## before the canvas drew it, so ArtSlot drew a white box for no_such_id. Runs first, while nothing
+## else holds _unknown.png, so the weakref sees only what ItemArt itself keeps.
+func _test_unknown_outlives_caller() -> void:
+	var w: WeakRef = weakref(IA.texture_for(&"junk_a"))
+	_check(w.get_ref() != null, "junk id fallback stays alive after the caller drops it")
+	var ur: Array = (IA._rects as Dictionary).get("_unknown", [])
+	_check(ur.size() == 4 and IA.content_rect(&"junk_a") == Rect2(ur[0], ur[1], ur[2], ur[3]), "junk id fits the _unknown manifest rect, no readback")
 
 func _test_fallback() -> void:
 	var tex: Texture2D = IA.texture_for(&"no_such_id")
