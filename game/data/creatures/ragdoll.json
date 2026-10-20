@@ -605,7 +605,7 @@
             "type": "cone",
             "swing": 45,
             "side": 33.94,
-            "twist": 10,
+            "twist": 8,
             "damping": 1.132780262552823
           }
         },
@@ -616,7 +616,7 @@
             "type": "cone",
             "swing": 45,
             "side": 33.94,
-            "twist": 10,
+            "twist": 8,
             "damping": 1.132780262552823
           }
         },
@@ -1189,16 +1189,12 @@
       "hit_react_s": 0.3
     },
     "megaloceros": {
-      "hips": "Hips",
+      "hips": "Back",
       "feet": [
-        "BackFoot.L",
-        "BackFoot.R",
-        "FrontFoot.L",
-        "FrontFoot.R",
-        "BackFoot.L_end",
-        "BackFoot.R_end",
-        "FrontFoot.L_end",
-        "FrontFoot.R_end"
+        "BackLowLeg.L_end",
+        "BackLowLeg.R_end",
+        "FrontLowLeg.L_end",
+        "FrontLowLeg.R_end"
       ],
       "mass_kg": 40.2,
       "reparent": {
@@ -1213,18 +1209,19 @@
           "bone": "Body",
           "from": "Tail2",
           "to": "Shoulders",
-          "radius": 0.477,
-          "mass_frac": 0.34,
+          "radius": 0.367,
+          "mass_frac": 0.3,
           "angular_damp": 3.0
         },
         {
           "bone": "Shoulders",
-          "radius": 0.485,
+          "radius": 0.597,
           "angular_damp": 4.0,
           "joint": {
             "type": "cone",
-            "swing": 20.700607626686054,
+            "swing": 20,
             "twist": 15,
+            "side": 30,
             "axis": [
               1,
               0,
@@ -1242,12 +1239,13 @@
             1.0
           ],
           "length": 1.0,
-          "radius": 0.529,
+          "radius": 0.773,
           "angular_damp": 4.0,
           "joint": {
             "type": "cone",
             "swing": 20,
             "twist": 15,
+            "side": 30,
             "axis": [
               1,
               0,
@@ -1258,10 +1256,43 @@
           }
         },
         {
+          "bone": "Tail2",
+          "to": "Tail4",
+          "radius": 0.279,
+          "angular_damp": 4.0,
+          "joint": {
+            "type": "cone",
+            "swing": 14,
+            "twist": 10,
+            "axis": [
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "bone": "Tail4",
+          "to": "Tail5_end",
+          "extend": 0.051,
+          "radius": 0.928,
+          "angular_damp": 4.0,
+          "joint": {
+            "type": "cone",
+            "swing": 14,
+            "twist": 10,
+            "axis": [
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
           "bone": "BackUpLeg.L",
           "from": "BackLeg.L",
           "to": "BackLowLeg.L",
-          "radius": 0.286,
+          "radius": 0.307,
           "joint": {
             "type": "cone",
             "swing": 45,
@@ -1272,15 +1303,15 @@
               0,
               0
             ],
-            "min": -10,
-            "max": 60
+            "min": -45,
+            "max": 90
           }
         },
         {
           "bone": "BackUpLeg.R",
           "from": "BackLeg.R",
           "to": "BackLowLeg.R",
-          "radius": 0.285,
+          "radius": 0.31,
           "joint": {
             "type": "cone",
             "swing": 45,
@@ -1291,15 +1322,15 @@
               0,
               0
             ],
-            "min": -10,
-            "max": 60
+            "min": -45,
+            "max": 90
           }
         },
         {
           "bone": "BackLowLeg.L",
           "from": "BackLowLeg.L",
           "to": "BackLowLeg.L_end",
-          "radius": 0.268,
+          "radius": 0.303,
           "joint": {
             "type": "hinge",
             "axis": [
@@ -1307,7 +1338,7 @@
               0,
               0
             ],
-            "min": -2,
+            "min": -10,
             "max": 60
           }
         },
@@ -1315,7 +1346,7 @@
           "bone": "BackLowLeg.R",
           "from": "BackLowLeg.R",
           "to": "BackLowLeg.R_end",
-          "radius": 0.181,
+          "radius": 0.223,
           "joint": {
             "type": "hinge",
             "axis": [
@@ -1323,45 +1354,15 @@
               0,
               0
             ],
-            "min": -2,
+            "min": -10,
             "max": 60
-          }
-        },
-        {
-          "bone": "BackFoot.L",
-          "to": "BackFoot.L_end",
-          "radius": 0.061,
-          "joint": {
-            "type": "hinge",
-            "axis": [
-              1,
-              0,
-              0
-            ],
-            "min": -30,
-            "max": 40
-          }
-        },
-        {
-          "bone": "BackFoot.R",
-          "to": "BackFoot.R_end",
-          "radius": 0.061,
-          "joint": {
-            "type": "hinge",
-            "axis": [
-              1,
-              0,
-              0
-            ],
-            "min": -30,
-            "max": 40
           }
         },
         {
           "bone": "FrontUpLeg.L",
           "from": "FrontLeg.L",
           "to": "FrontLowLeg.L",
-          "radius": 0.326,
+          "radius": 0.333,
           "joint": {
             "type": "cone",
             "swing": 45,
@@ -1372,15 +1373,15 @@
               0,
               0
             ],
-            "min": -5,
-            "max": 59.62512178885122
+            "min": -60,
+            "max": 90
           }
         },
         {
           "bone": "FrontUpLeg.R",
           "from": "FrontLeg.R",
           "to": "FrontLowLeg.R",
-          "radius": 0.327,
+          "radius": 0.33,
           "joint": {
             "type": "cone",
             "swing": 45,
@@ -1391,15 +1392,15 @@
               0,
               0
             ],
-            "min": -5,
-            "max": 59.62512178885122
+            "min": -60,
+            "max": 90
           }
         },
         {
           "bone": "FrontLowLeg.L",
           "from": "FrontLowLeg.L",
           "to": "FrontLowLeg.L_end",
-          "radius": 0.146,
+          "radius": 0.222,
           "joint": {
             "type": "hinge",
             "axis": [
@@ -1415,7 +1416,7 @@
           "bone": "FrontLowLeg.R",
           "from": "FrontLowLeg.R",
           "to": "FrontLowLeg.R_end",
-          "radius": 0.148,
+          "radius": 0.21,
           "joint": {
             "type": "hinge",
             "axis": [
@@ -1425,36 +1426,6 @@
             ],
             "min": -10,
             "max": 60
-          }
-        },
-        {
-          "bone": "FrontFoot.L",
-          "to": "FrontFoot.L_end",
-          "radius": 0.061,
-          "joint": {
-            "type": "hinge",
-            "axis": [
-              1,
-              0,
-              0
-            ],
-            "min": -38.49864245641731,
-            "max": 40
-          }
-        },
-        {
-          "bone": "FrontFoot.R",
-          "to": "FrontFoot.R_end",
-          "radius": 0.061,
-          "joint": {
-            "type": "hinge",
-            "axis": [
-              1,
-              0,
-              0
-            ],
-            "min": -38.49864245641731,
-            "max": 40
           }
         }
       ]
@@ -1471,26 +1442,26 @@
         "FrontFoot.L_end",
         "FrontFoot.R_end"
       ],
-      "mass_kg": 15.3,
+      "mass_kg": 17.8,
       "reparent": {
         "BackFoot.L": "BackLowLeg.L",
         "BackFoot.R": "BackLowLeg.R",
         "FrontFoot.L": "FrontLowLeg.L",
         "FrontFoot.R": "FrontLowLeg.R"
       },
-      "hit_react_s": 0.293,
+      "hit_react_s": 0.3,
       "bodies": [
         {
           "bone": "Body",
           "from": "Tail2",
           "to": "Shoulders",
-          "radius": 0.463,
+          "radius": 0.435,
           "mass_frac": 0.34,
           "angular_damp": 3.0
         },
         {
           "bone": "Shoulders",
-          "radius": 0.386,
+          "radius": 0.363,
           "angular_damp": 4.0,
           "joint": {
             "type": "cone",
@@ -1513,7 +1484,7 @@
             1.0
           ],
           "length": 1.0,
-          "radius": 0.269,
+          "radius": 0.253,
           "angular_damp": 4.0,
           "joint": {
             "type": "cone",
@@ -1535,8 +1506,8 @@
           "radius": 0.28,
           "joint": {
             "type": "cone",
-            "swing": 31.083274481443524,
-            "twist": 19.572867671765938,
+            "swing": 45,
+            "twist": 15,
             "side": 30,
             "axis": [
               1,
@@ -1554,8 +1525,8 @@
           "radius": 0.284,
           "joint": {
             "type": "cone",
-            "swing": 31.083274481443524,
-            "twist": 19.572867671765938,
+            "swing": 45,
+            "twist": 15,
             "side": 30,
             "axis": [
               1,
@@ -1578,7 +1549,7 @@
               0,
               0
             ],
-            "min": -2,
+            "min": -10,
             "max": 60
           }
         },
@@ -1594,7 +1565,7 @@
               0,
               0
             ],
-            "min": -2,
+            "min": -10,
             "max": 60
           }
         },
@@ -1609,8 +1580,8 @@
               0,
               0
             ],
-            "min": -6.9329748096423245,
-            "max": 36.53637432505859
+            "min": -30,
+            "max": 51.4098303563416
           }
         },
         {
@@ -1624,8 +1595,8 @@
               0,
               0
             ],
-            "min": -6.9329748096423245,
-            "max": 36.53637432505859
+            "min": -30,
+            "max": 51.4098303563416
           }
         },
         {
@@ -1635,15 +1606,15 @@
           "radius": 0.21,
           "joint": {
             "type": "cone",
-            "swing": 31.083274481443524,
-            "twist": 19.572867671765938,
+            "swing": 45,
+            "twist": 15,
             "side": 30,
             "axis": [
               1,
               0,
               0
             ],
-            "min": -6.000724279259104,
+            "min": -10,
             "max": 60
           }
         },
@@ -1654,15 +1625,15 @@
           "radius": 0.212,
           "joint": {
             "type": "cone",
-            "swing": 31.083274481443524,
-            "twist": 19.572867671765938,
+            "swing": 45,
+            "twist": 15,
             "side": 30,
             "axis": [
               1,
               0,
               0
             ],
-            "min": -6.000724279259104,
+            "min": -10,
             "max": 60
           }
         },
@@ -1679,7 +1650,7 @@
               0
             ],
             "min": -10,
-            "max": 60
+            "max": 46.73789205838912
           }
         },
         {
@@ -1695,7 +1666,7 @@
               0
             ],
             "min": -10,
-            "max": 60
+            "max": 46.73789205838912
           }
         },
         {
@@ -1731,16 +1702,12 @@
       ]
     },
     "zebraceratops": {
-      "hips": "Hips",
+      "hips": "Back",
       "feet": [
-        "BackFoot.L",
-        "BackFoot.R",
-        "FrontFoot.L",
-        "FrontFoot.R",
-        "BackFoot.L_end",
-        "BackFoot.R_end",
-        "FrontFoot.L_end",
-        "FrontFoot.R_end"
+        "BackLowLeg.L_end",
+        "BackLowLeg.R_end",
+        "FrontLowLeg.L_end",
+        "FrontLowLeg.R_end"
       ],
       "mass_kg": 4.3,
       "reparent": {
@@ -1749,24 +1716,25 @@
         "FrontFoot.L": "FrontLowLeg.L",
         "FrontFoot.R": "FrontLowLeg.R"
       },
-      "hit_react_s": 0.3,
+      "hit_react_s": 0.308,
       "bodies": [
         {
           "bone": "Body",
           "from": "Tail2",
           "to": "Shoulders",
-          "radius": 0.274,
-          "mass_frac": 0.34,
+          "radius": 0.22,
+          "mass_frac": 0.3,
           "angular_damp": 3.0
         },
         {
           "bone": "Shoulders",
-          "radius": 0.27,
+          "radius": 0.255,
           "angular_damp": 4.0,
           "joint": {
             "type": "cone",
-            "swing": 18.69981392150194,
-            "twist": 12.485695772563655,
+            "swing": 20,
+            "twist": 15,
+            "side": 29.978707876870924,
             "axis": [
               1,
               0,
@@ -1774,7 +1742,12 @@
             ],
             "min": -35,
             "max": 15
-          }
+          },
+          "offset": [
+            0.0,
+            0.002,
+            0.0
+          ]
         },
         {
           "bone": "Neck",
@@ -1784,12 +1757,13 @@
             1.0
           ],
           "length": 1.0,
-          "radius": 0.195,
+          "radius": 0.184,
           "angular_damp": 4.0,
           "joint": {
             "type": "cone",
-            "swing": 20,
+            "swing": 19.385952383522742,
             "twist": 15,
+            "side": 30,
             "axis": [
               1,
               0,
@@ -1800,48 +1774,81 @@
           }
         },
         {
+          "bone": "Tail2",
+          "to": "Tail4",
+          "radius": 0.172,
+          "angular_damp": 4.0,
+          "joint": {
+            "type": "cone",
+            "swing": 14.602091079364248,
+            "twist": 8.901184378970234,
+            "axis": [
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "bone": "Tail4",
+          "to": "Tail5_end",
+          "extend": 0.049,
+          "radius": 0.176,
+          "angular_damp": 4.0,
+          "joint": {
+            "type": "cone",
+            "swing": 14.602091079364248,
+            "twist": 8.901184378970234,
+            "axis": [
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
           "bone": "BackUpLeg.L",
           "from": "BackLeg.L",
           "to": "BackLowLeg.L",
-          "radius": 0.174,
+          "radius": 0.105,
           "joint": {
             "type": "cone",
-            "swing": 40.351372470019456,
-            "twist": 15,
-            "side": 30,
+            "swing": 60,
+            "twist": 13.671659287445806,
+            "side": 50,
             "axis": [
               1,
               0,
               0
             ],
-            "min": -10,
-            "max": 60
+            "min": -45,
+            "max": 97.32266316649651
           }
         },
         {
           "bone": "BackUpLeg.R",
           "from": "BackLeg.R",
           "to": "BackLowLeg.R",
-          "radius": 0.175,
+          "radius": 0.105,
           "joint": {
             "type": "cone",
-            "swing": 40.351372470019456,
-            "twist": 15,
-            "side": 30,
+            "swing": 60,
+            "twist": 13.671659287445806,
+            "side": 50,
             "axis": [
               1,
               0,
               0
             ],
-            "min": -10,
-            "max": 60
+            "min": -45,
+            "max": 97.32266316649651
           }
         },
         {
           "bone": "BackLowLeg.L",
           "from": "BackLowLeg.L",
           "to": "BackLowLeg.L_end",
-          "radius": 0.119,
+          "radius": 0.082,
           "joint": {
             "type": "hinge",
             "axis": [
@@ -1849,15 +1856,15 @@
               0,
               0
             ],
-            "min": -10,
-            "max": 36.77540287948853
+            "min": -24.9762621088871,
+            "max": 23.93930785989557
           }
         },
         {
           "bone": "BackLowLeg.R",
           "from": "BackLowLeg.R",
           "to": "BackLowLeg.R_end",
-          "radius": 0.121,
+          "radius": 0.083,
           "joint": {
             "type": "hinge",
             "axis": [
@@ -1865,83 +1872,53 @@
               0,
               0
             ],
-            "min": -10,
-            "max": 36.77540287948853
-          }
-        },
-        {
-          "bone": "BackFoot.L",
-          "to": "BackFoot.L_end",
-          "radius": 0.059,
-          "joint": {
-            "type": "hinge",
-            "axis": [
-              1,
-              0,
-              0
-            ],
-            "min": -30,
-            "max": 40
-          }
-        },
-        {
-          "bone": "BackFoot.R",
-          "to": "BackFoot.R_end",
-          "radius": 0.059,
-          "joint": {
-            "type": "hinge",
-            "axis": [
-              1,
-              0,
-              0
-            ],
-            "min": -30,
-            "max": 40
+            "min": -24.9762621088871,
+            "max": 23.93930785989557
           }
         },
         {
           "bone": "FrontUpLeg.L",
           "from": "FrontLeg.L",
           "to": "FrontLowLeg.L",
-          "radius": 0.147,
+          "radius": 0.083,
           "joint": {
             "type": "cone",
-            "swing": 40.351372470019456,
-            "twist": 15,
-            "side": 30,
+            "swing": 60,
+            "twist": 13.671659287445806,
+            "side": 50,
             "axis": [
               1,
               0,
               0
             ],
-            "min": -5,
-            "max": 54.75526842557846
+            "min": -60,
+            "max": 75
           }
         },
         {
           "bone": "FrontUpLeg.R",
           "from": "FrontLeg.R",
           "to": "FrontLowLeg.R",
-          "radius": 0.144,
+          "radius": 0.084,
           "joint": {
             "type": "cone",
-            "swing": 40.351372470019456,
-            "twist": 15,
-            "side": 30,
+            "swing": 60,
+            "twist": 13.671659287445806,
+            "side": 50,
             "axis": [
               1,
               0,
               0
             ],
-            "min": -5,
-            "max": 54.75526842557846
+            "min": -60,
+            "max": 75
           }
         },
         {
           "bone": "FrontLowLeg.L",
           "from": "FrontLowLeg.L",
           "to": "FrontLowLeg.L_end",
-          "radius": 0.11,
+          "radius": 0.062,
           "joint": {
             "type": "hinge",
             "axis": [
@@ -1950,14 +1927,14 @@
               0
             ],
             "min": -10,
-            "max": 60
+            "max": 22.720593853950447
           }
         },
         {
           "bone": "FrontLowLeg.R",
           "from": "FrontLowLeg.R",
           "to": "FrontLowLeg.R_end",
-          "radius": 0.109,
+          "radius": 0.061,
           "joint": {
             "type": "hinge",
             "axis": [
@@ -1966,37 +1943,7 @@
               0
             ],
             "min": -10,
-            "max": 60
-          }
-        },
-        {
-          "bone": "FrontFoot.L",
-          "to": "FrontFoot.L_end",
-          "radius": 0.059,
-          "joint": {
-            "type": "hinge",
-            "axis": [
-              1,
-              0,
-              0
-            ],
-            "min": -30,
-            "max": 40
-          }
-        },
-        {
-          "bone": "FrontFoot.R",
-          "to": "FrontFoot.R_end",
-          "radius": 0.059,
-          "joint": {
-            "type": "hinge",
-            "axis": [
-              1,
-              0,
-              0
-            ],
-            "min": -30,
-            "max": 40
+            "max": 22.720593853950447
           }
         }
       ]
