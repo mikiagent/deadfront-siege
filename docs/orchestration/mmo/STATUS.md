@@ -333,6 +333,12 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   It supersedes W2-INV's grouped bag view (grouping only if it expands back to instances). Package INVUI (`claude/mmo-invui`,
   stacked on `claude/mmo-w2-inv`), merged right after W2-INV.
 
+- 2026-10-20 (owner) Island Market UI: "Gameplay HUD → Main Menu → Island Market → Buy / My Market / Sell" with two Durango
+  screenshots (`docs/design/durango-prompts/14_island_market_ui.md`, `docs/reference/durango-market-buy-{search,taming}.webp`).
+  Package W3-EXCHANGE (`claude/mmo-exchange`, stacked on `claude/mmo-econ`): the market screens on the REAL ECON engine through
+  `VaultBridge.client()` (local authority until a host is picked; no fake listings: spec 06's honest offline harness),
+  one row per instance, caged pets as cages; merged after ECON (and INVUI for the Sell picker).
+
 ## Owner questions (open)
 
 - none
