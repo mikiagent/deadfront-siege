@@ -2,8 +2,9 @@
   "_about": "W2-GATHER rare drops and butcher yield scaling. Owned by game/scripts/gather/. Every item id must exist in items.json (t_gather checks). Chances are per gathered unit / per carcass and are illustrative defaults, kept configurable here (spec 12 sections 1-2, spec 04).",
   "_assumption": "ASSUMPTION: the PRDs give no gather rare odds; these are the simplest numbers that make a rare find happen a few times per session (about one per 25 units of wood or stone).",
   "gather_rare": {
+    "_skill_bonus": "0 by spec 12 s1: 'never silently grant rare material traits purely for reaching a high level'. Better tools raise the odds (ASSUMPTION); skill level does not.",
     "tool_tier_bonus": 0.15,
-    "skill_bonus_per_level": 0.01,
+    "skill_bonus_per_level": 0.0,
     "max_chance": 0.5,
     "by_role": {
       "tree": [{"item": "resin", "chance": 0.04}],
@@ -24,7 +25,7 @@
   },
   "butcher": {
     "default_rare_chance": 0.12,
-    "rare_skill_bonus_per_level": 0.01,
+    "rare_skill_bonus_per_level": 0.0,
     "rare_tool_tier_bonus": 0.15,
     "max_rare_chance": 0.6,
     "count_bonus_per_tier": 0.15,

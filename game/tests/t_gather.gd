@@ -122,6 +122,18 @@ func _test_gather_rares() -> void:
 	var a: Array = LR.roll_gather_rares("PineTree", "tree", &"", 1, _seeded(99))
 	var b: Array = LR.roll_gather_rares("PineTree", "tree", &"", 1, _seeded(99))
 	_expect(a == b, "rare rolls are deterministic per seed")
+	# Spec 12 s1: no rares purely for reaching a high level. Same tool, Lv60 vs Lv1, same odds.
+	var hi := _seeded(5)
+	var lo := _seeded(5)
+	var same := true
+	for i in 2000:
+		if LR.roll_gather_rares("Rock", "rock", &"stone", 60, hi) != LR.roll_gather_rares("Rock", "rock", &"stone", 1, lo):
+			same = false
+	_expect(same, "Gathering level alone does not raise rare find odds")
+	var bc: Dictionary = LT.butcher_cfg()
+	var c1: float = LR.scaled_chance(0.12, 1, 1, float(bc.get("rare_tool_tier_bonus", 0.0)), float(bc.get("rare_skill_bonus_per_level", 0.0)), float(bc.get("max_rare_chance", 0.6)))
+	var c60: float = LR.scaled_chance(0.12, 1, 60, float(bc.get("rare_tool_tier_bonus", 0.0)), float(bc.get("rare_skill_bonus_per_level", 0.0)), float(bc.get("max_rare_chance", 0.6)))
+	_expect(is_equal_approx(c1, c60), "Butchering level alone does not raise rare part odds (%.3f vs %.3f)" % [c1, c60])
 	_finished += 1
 
 func _seeded(s: int) -> RandomNumberGenerator:

@@ -55,7 +55,7 @@ static func yield_multiplier_for(inv: Inventory, node: HarvestNode, skill: int) 
 ## After a gathered unit reached the bag: "+n Item" over the node, then the rare roll.
 ## Returns the rare item ids that landed in the bag.
 static func after_unit(p: Player, node: HarvestNode, item_id: StringName, gained: int, luck: float = 1.0) -> Array[StringName]:
-	var at := node.global_position + Vector3(0.0, node.top_of_node() + 0.2, 0.0)
+	var at := node.global_position + Vector3(0.0, node.top_of_node() + 0.3, 0.0)  # the gather ring's anchor
 	GatherFeedback.show_yield(p.get_tree(), at, item_id, gained)
 	var tool := effective_tool(p.inventory, node)
 	var tier: StringName = tool.material_tier() if tool else &""

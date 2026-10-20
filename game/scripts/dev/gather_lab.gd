@@ -2,6 +2,8 @@ extends Node3D
 ## W2-GATHER play session on the home island: the survivor gathers fibre, branches and stone
 ## bare-handed, then with stone tools (faster, logs unlocked), finds a rare, butchers a raptor
 ## by knife, and watches a node deplete and regrow. Every unit goes through PlayerActions.
+## GAUNTLET gather rules checked on every pass: walked into reach (no teleport), the progress
+## ring above the node, movement cancels, starter-island finds are level 1.
 ## Shots: --shot=<path.png> --shot-delay=900 saves <path>-<stage>.png per stage.
 
 var _p: Player
@@ -64,6 +66,12 @@ func _ready() -> void:
 	for k in ["fibre", "branch", "stone"]:
 		_check(tool[k] < hand[k], "%s is faster with the stone tool (%.2f < %.2f)" % [k, tool[k], hand[k]])
 
+	# 2b. Movement cancels: a move input mid-pass stops the cycle and no further unit lands.
+	await _move_cancels(bush)
+
+	# A pet beside the survivor, so the rare shot shows its plate next to the popups.
+	_summon_pet()
+
 	# 3. Rare find at the real data odds. The seed is picked so the very next stone unit rolls
 	# a find (odds themselves are measured in t_gather: 0.0485 vs 0.05 over 20 000 rolls).
 	var seed := _lucky_seed(rock)
@@ -72,6 +80,9 @@ func _ready() -> void:
 	var flint_before := _p.inventory.count_of(&"flint")
 	await _gather(rock, &"stone", 1, "rare", 0.35)
 	_check(_p.inventory.count_of(&"flint") > flint_before, "a rare flint landed in the bag")
+	for st in _p.inventory.slots:
+		if st and (st.def_id == &"flint" or st.def_id == &"stone"):
+			_check(st.level == 1, "starter-island %s is level 1 (got %d)" % [st.def_id, st.level])
 
 	# 4. Butcher a raptor with the stone knife: meat, hide, bone scale with the knife.
 	await _butcher()
@@ -124,16 +135,27 @@ func _gather(node: HarvestNode, item: StringName, units: int, shot: String, shot
 	var passes := 0
 	var started := -1.0
 	var last := _p.inventory.count_of(item)
+	var prev := _p.global_position
+	var max_step := 0.0
+	var ring_above := false
 	_p.actions.gather(node, idx)
 	var deadline := Time.get_ticks_msec() + 30000
 	while passes < units and Time.get_ticks_msec() < deadline:
 		await get_tree().process_frame
+		max_step = maxf(max_step, _p.global_position.distance_to(prev))
+		prev = _p.global_position
+		ring_above = ring_above or _ring_above(node)
 		var now := _p.inventory.count_of(item)
 		if now > last:
 			passes += 1
 			last = now
 			if started < 0.0:
 				started = _now()
+				var reach := Vector2(_p.global_position.x - node.global_position.x, _p.global_position.z - node.global_position.z).length()
+				_check(reach <= 3.2, "%s gathered from reach (%.2f m)" % [item, reach])
+	# GAUNTLET: gathering is from reach without teleport; progress appears above the node.
+	_check(max_step < 1.0, "%s: the survivor walked to the node (largest frame step %.2f m)" % [item, max_step])
+	_check(ring_above, "%s: the progress ring showed above the node" % item)
 	var per := (_now() - started) / float(maxi(1, passes - 1)) if passes > 1 else GatherService.unit_seconds(_p, node)
 	if passes < units:
 		_fails.append("gathered %d/%d %s" % [passes, units, item])
@@ -144,6 +166,36 @@ func _gather(node: HarvestNode, item: StringName, units: int, shot: String, shot
 	if shot != "":
 		await _capture(shot)
 	return per
+
+## The floating progress ring is up and drawn above the node's base on screen.
+func _ring_above(node: HarvestNode) -> bool:
+	var ring: GatherRing = _p._gather_ring
+	var cam := get_viewport().get_camera_3d()
+	return ring != null and cam != null and ring.visible and ring.target == node \
+			and ring._screen_pos.y < cam.unproject_position(node.global_position).y
+
+func _move_cancels(node: HarvestNode) -> void:
+	var idx := _option(node, &"fibre_stalk")
+	_p.actions.gather(node, idx)
+	var deadline := Time.get_ticks_msec() + 15000
+	while not _p._gathering and Time.get_ticks_msec() < deadline:
+		await get_tree().process_frame
+	await get_tree().create_timer(0.2).timeout
+	Input.action_press("move_down")
+	await get_tree().create_timer(0.25).timeout
+	Input.action_release("move_down")
+	var after := _p.inventory.count_of(&"fibre_stalk")
+	_check(not _p._gathering and _p.gather_target == null, "a move input cancels the gather")
+	await get_tree().create_timer(GatherService.unit_seconds(_p, node) * 1.5).timeout
+	_check(_p.inventory.count_of(&"fibre_stalk") == after, "no unit lands after the move cancelled the gather")
+	print("[gather_lab] move cancels: gathering=%s fibre %d" % [_p._gathering, _p.inventory.count_of(&"fibre_stalk")])
+
+func _summon_pet() -> void:
+	var rec := PetRecord.new()
+	rec.species = &"velociraptor"
+	rec.hp = Data.creature(&"velociraptor").hp
+	_p.bonded.append(rec)
+	_p.summon_pet(_p.bonded.size() - 1)
 
 func _now() -> float:
 	return float(Time.get_ticks_msec()) * 0.001
