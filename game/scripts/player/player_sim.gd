@@ -71,7 +71,7 @@ func tick(delta: float) -> void:
 			_end_roll()
 	if _roll_buffer_left > 0.0:
 		_roll_buffer_left -= delta
-		if not p.rolling and _stagger_left <= 0.0:
+		if not p.rolling:
 			try_roll(_roll_buffer_dir)
 	# Fight or move, not both: no walking while a swing or punch plays.
 	if anim and anim._busy and anim.current_clip in [&"attack_primary", &"attack_heavy", &"punch"]:
@@ -229,8 +229,8 @@ func cam_dir(input: Vector2) -> Vector3:
 
 # ---------------------------------------------------------------- roll and stagger
 
-## Roll toward `dir` (camera-relative input; zero = where she faces). Cancels a swing, a flinch or a
-## work clip, buffers ROLL_BUFFER s while another roll or a stagger finishes, says why when refused.
+## Roll toward `dir` (camera-relative input; zero = where she faces). Cancels a swing, a flinch (and
+## its stagger) or a work clip, buffers ROLL_BUFFER s while another roll finishes, says why when refused.
 func try_roll(dir: Vector3 = Vector3.ZERO) -> bool:
 	var why := roll_refusal()
 	if why == "busy":
@@ -253,6 +253,7 @@ func try_roll(dir: Vector3 = Vector3.ZERO) -> bool:
 	p.visual.rotation.y = atan2(-_roll_direction.x, -_roll_direction.z)
 	p.rolling = true
 	_roll_left = ROLL_SECONDS
+	_stagger_left = 0.0
 	p.clear_nav()
 	p.actions.cancel_work()  # a swing in flight is lost: Hunt checks rolling when it would land
 	p.velocity.x = _roll_direction.x * ROLL_SPEED
@@ -275,7 +276,7 @@ func try_roll(dir: Vector3 = Vector3.ZERO) -> bool:
 func roll_refusal() -> String:
 	if p.dead:
 		return "dead"
-	if p.rolling or _stagger_left > 0.0:
+	if p.rolling:
 		return "busy"
 	if p.mounted_on:
 		return "Dismount to roll."

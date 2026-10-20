@@ -85,9 +85,9 @@ func _process(delta: float) -> void:
 		if target:
 			stop()
 		return
-	if hold or not auto:
-		return
-	if player.global_position.distance_to(target.global_position) > 28.0:
+	if not auto:
+		return  # Auto off: only F / pad X / a tap swings (swing_now)
+	if not hold and player.global_position.distance_to(target.global_position) > 28.0:
 		stop()
 		return
 	# Square up to the target while close and not walking, so swings and punches land facing it.
@@ -132,6 +132,24 @@ func _auto_attack() -> void:
 		say_throttled("Something is in the way.")
 		return  # a wall or a ridge between: no swing through it
 	begin_swing()
+
+## Manual swing (F, pad X, a tap on the target): swings now when the target is in reach and the
+## last swing has recovered, with Auto off or on HOLD too. False = nothing started (out of reach,
+## cooling down, rolling); auto-attack still walks over when Auto is on and HOLD is off.
+func swing_now() -> bool:
+	if target == null or player.rolling or _tactic_lock > 0.0 or _swing_cd > 0.0 or _swing_pending \
+			or player.statuses.has_flag(&"cannot_act"):
+		return false
+	var w := _weapon()
+	if w and w.def() and w.def().range_m > 0.0:
+		return fire_ranged()
+	var offset := player.global_position - target.global_position
+	if Vector2(offset.x, offset.z).length() > melee_reach(target) or not MeleeQuery.clear(player, target):
+		return false
+	player.clear_nav()
+	player.face_world(target.global_position)
+	begin_swing()
+	return true
 
 ## Start a swing now; damage lands at the swing's hit fraction (pc-combat-03), not on the press.
 ## The basic swing/punch is free: stamina only pays for sprint, roll, tackle and kick.
