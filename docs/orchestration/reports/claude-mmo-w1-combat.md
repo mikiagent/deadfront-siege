@@ -14,7 +14,7 @@
 - `Hunt.start` rejects pets. A ranged shot with a blocked line of sight shows "No clear shot" (throttled to once every 3 s). Stone shots fly a gravity arc. Nets follow the 30 % rule: the Net hex is hidden above 30 % health.
 - AoE and traps now measure to the body edge (siege burst, ground snare).
 - `hunt_lab`: a pack of two raptors and three protoceratops rebased to level-1 stats (see Assumptions). It asserts the survivor is alive at 3.2 s with no guard or top-up, and exits 1 when there is no corpse or the loot never reaches the bag.
-- `game/scripts/combat/combat_tactics.gd` (new, `CombatTactics`): tackle, kick, mass proxy and the reach gate, moved out of `hunt.gd`. `Hunt.use_tackle/use_kick` stay as one-line delegates and the cooldowns stay on Hunt because `hunt_hud.gd` reads them. `hunt.gd` is now 367 lines, down from 444.
+- `game/scripts/combat/combat_tactics.gd` (new, `CombatTactics`): tackle, kick, mass proxy and the reach gate, moved out of `hunt.gd`. `Hunt.use_tackle/use_kick` stay as one-line delegates and the cooldowns stay on Hunt because `hunt_hud.gd` reads them. Correction (review round 2): `hunt.gd` grew against the base branch, from 320 lines on `claude/mmo-overhaul` to 379 now (it was 444 before the extraction, which is where the earlier "down from 444" came from). The growth is the swing timer, `land_hit`, wear and the throttled notices.
 - New `combat_rules_lab` and `game/tests/t_combat.gd`.
 - Removed 15 stray `.uid` files that the interrupted WIP commit had picked up.
 
@@ -46,6 +46,21 @@ hunt_lab, survivor HP at the 3.2 s beat, no guard: three starter raptors gave 12
 
 The corner slot itself is a real 0.4 m gap where a ring row and a column fail to meet in `BuildGrid` fence placement. Melee no longer leaks through it. A stone shot can still pass, but no body is narrow enough to. Filed for W1-BUILD below.
 
+## Review round 2 fixes
+
+| Finding | Fix | Check that would have caught it (output from runs on 80eeb0f) |
+|---|---|---|
+| major: ranged arc, ranged wear, tackle reach, stone evasion untested | `combat_rules_lab` `_ranged_phase` (island loaded by the fence phase, flat 12 m strip, slingshot, 2 stones per distance) and `_tackle_phase`. `t_combat` `_test_stone_evasion` calls `StoneProjectile.impact` with forced dodge, then forced hit. | `[combatrules] ok slingshot at 4 m: 2 fired, 2/2 stones landed, durability -1 per landed stone=true (now 138, clip attack_primary)` / `[combatrules] ok slingshot at 11 m: 2 fired, 2/2 stones landed, durability -1 per landed stone=true (now 136, clip attack_primary)` / `[combatrules] ok fence in the line of fire: fired=false notice 'No clear shot: something is in the way.'` / `[combatrules] ok tackle tyrannosaurus at gap 0.05 m accepted (notice '')` / `[combatrules] ok tackle velociraptor at gap 2.50 m refused, notice 'Too far to tackle: get closer.'` / `[t_combat] ok dodged stone: hp 550.19 -> 550.19, durability 140 -> 140` / `[t_combat] ok landed stone: hp 550.19 -> 547.94, durability 140 -> 139` |
+| minor: pc-hitreact-02 open until hooks 1 and 4 | The fence bout now counts survivor hit reactions (`receive_creature_hit` stamps `_last_hit_taken_s`; the lab clears it before each bite and reads it after). It is an info line, because the fix lives in creature.gd (W1-AI). When hook 1 lands, the integrator turns it into `_check(fenced["reactions"] == 0, ...)`, as the comment in `_fence_phase` says. | `[combatrules] info fence bout: 9 survivor hit reactions on blocked bites (want 0 after integrator hook 1)`. That is the reviewer's bug, measured: 9 blocked bites, 9 hit reactions. |
+| minor: hunt_lab `_starter_level` masks wild balance | Kept, with its ASSUMPTION. Handoff line added under "Failed or left": W1-AI and the integrator delete `_starter_level` once wild stats scale by level, then rerun hunt_lab without it. | none (a balance dependency, not a rule) |
+| minor: a pending swing lands after `Hunt.stop()` | `_on_swing_hit` returns when `t != target`, so stopping or retargeting mid-swing loses the swing | `[t_combat] ok swing pending at Hunt.stop() is lost: hp 729.81 -> 729.81` |
+| minor: any attack_hit collapses every ring of the attacker | `Telegraph` stores its `clip`; `_on_attacker_hit` shortens only on a matching clip | `[t_combat] ok telegraph ring 1.60 s, 1.60 s after a stray attack_primary hit, 0.10 s after its own attack_heavy hit` |
+| minor: CombatTactics reaches into Hunt privates | Hunt now exposes `say()`, `can_start_tactic()`, `cooldown_left(kind)` and `commit_tactic(kind, cooldown, lock)`; CombatTactics uses only those plus `target`/`player`. The `_tackle_cd`/`_kick_cd` fields keep their names because the protected `hunt_hud.gd:880-881` reads them. Line-count claim corrected above. | `grep -n "h\._" game/scripts/combat/combat_tactics.gd` prints nothing |
+| minor: pause row reads "544 paused, 544 after" | two decimals, labelled bare hands | `[t_combat] ok swing waits out a pause: hp 698.84 paused, 698.46 after (bare hands)` |
+| minor: hitstop not shipped | Not implemented. Listed under "Failed or left" (a global `Engine.time_scale` dip would also slow the server-authoritative sim, so it needs a client-only design). | none |
+
+Two flakes found and fixed while adding these rows: `refresh_equipment_vitals` clamps health to max health every frame, so the tests' "1000 health" was really 100. A raptor heavy crit (108-135 damage) then killed the survivor. In t_combat that failed the control row once (`[t_combat] FAIL control: a landed heavy applies knockdown + bleed`, log showed `dmg=135.1`). In the lab the survivor died in the camera and control phases and stayed in the `death` clip, which swallowed every ranged shot (`... 0/2 stones landed ... clip death`). Both now set `max_health = 1000` with the health. After the fix: t_combat 2 of 2 runs PASS, combat_rules_lab 3 of 3 runs PASS with `grep -c "[player] died"` = 0.
+
 ## Acceptance checklist (lines copied from runs on this branch)
 
 | Item | Output |
@@ -64,6 +79,9 @@ The corner slot itself is a real 0.4 m gap where a ring row and a column fail to
 | t_combat | `[t_combat] PASS` |
 | existing suite | `[tests] PASS` (run_all.gd) |
 | smoke | `SMOKE PASS` (tools/smoke.sh --no-import) |
+| round 2: ranged, tackle, evasion, swing-after-stop, telegraph clip | see the round 2 table above |
+
+Round 2 re-run on 80eeb0f (all through gslot, exit 0): `[t_combat] PASS` (2 runs), `[combatrules] PASS` (3 runs), `[hunt_lab] survivor alive=true hp=73 at 3.2 s` + `[item] +2 raptor_meat (loot velociraptor)` + `[hunt_lab] PASS`, `[tests] PASS`, `SMOKE PASS`.
 
 ## Screenshots inspected
 
@@ -100,6 +118,10 @@ The corner slot itself is a real 0.4 m gap where a ring row and a column fail to
 - `combat_rules_lab` (`game/scripts/dev/combat_rules_lab.gd` + `game/scenes/dev/combat_rules_lab.tscn`)
 
 ## Failed or left
+
+- pc-feel-01: the gap row also says "no hitstop". Only the camera shake shipped. Hitstop is left: a global `Engine.time_scale` dip would also slow the server-authoritative simulation, so it needs a client-only presentation pause (for example, freezing the hit pair's AnimationPlayers for 60-80 ms). That belongs with W2-PANIM or the netcode presentation layer.
+- pc-hitreact-02 stays open until the integrator applies hooks 1 and 4. combat_rules_lab measures it today (`info fence bout: 9 survivor hit reactions on blocked bites`). After hook 1, change that print to a `_check(... == 0)`.
+- For W1-AI and the integrator: `hunt_lab._starter_level` divides species stats down to level 1 inside the lab. Delete it once wild stats scale by level in creature.gd, then rerun hunt_lab without it. Until then the lab passes while real wild raptors at this island level can still kill a fresh survivor.
 
 - For W1-BUILD: a closed `BuildGrid` fence ring leaves a 0.4 m slot where a row (rot 0) and a column (rot 1) meet. In the lab ring the slot is at the row z=16.5 and the column x=10.5, which starts at z=17. Melee is now blocked there, but projectiles can still pass.
 - Ranged LOS still uses a zero-width ray (`Hunt.fire_ranged`), which is fine for a projectile. The projectile can pass the same corner slot.
