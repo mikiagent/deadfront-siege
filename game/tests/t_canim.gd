@@ -6,9 +6,14 @@ extends SceneTree
 
 const DT := 1.0 / 60.0
 const FEET := ["BackFoot", "Toe", "Metatarsal"]  # + ".L" / ".R", as tools/bake_clip_speeds.py
-const STRIDE_SPECIES: Array[StringName] = [&"velociraptor", &"megaloceros", &"protoceratops", &"tyrannosaurus"]
+const STRIDE_SPECIES: Array[StringName] = [&"velociraptor", &"megaloceros", &"protoceratops", &"tyrannosaurus", &"zebraceratops"]
 ## ASSUMPTION: a species walks at 40 % of its listed speed; defs and the PRD give one top speed.
 const WALK_FRAC := 0.4
+## A gait played far faster than authored is the gliding look: feet whirl while the body slides along. Species still on
+## such clips are listed here (STATUS, DSC-CLIPS) so the list stays honest: they must still glide, everyone else must not.
+## The protoceratops and megaloceros walk/run are being redone by the dsc job quads-loco2; drop them when it lands.
+const MAX_CADENCE := 3.0
+const KNOWN_GLIDERS: Array[StringName] = [&"protoceratops", &"megaloceros"]
 
 var failures: Array[String] = []
 var _started := false
@@ -28,6 +33,8 @@ func _process(_d: float) -> bool:
 	_test_bad_input_and_stale_bake()
 	_test_stride_match()
 	_test_walk_loops_not_frozen()
+	_test_cadence_sane()
+	_test_hit_react_window()
 	_test_optional_clips()
 	if failures.is_empty():
 		print("[t_canim] PASS")
@@ -276,6 +283,63 @@ func _test_walk_loops_not_frozen() -> void:
 		c.free()
 	_expect(checked >= 6 and worst <= 0.25, "%d biped walk loops: longest frozen span %.0f %% (want <= 25 %%, was 51 %%)" % [checked, worst * 100.0])
 
+func _test_cadence_sane() -> void:
+	for id in data.creatures.keys():
+		if not ResourceLoader.exists("res://assets/creatures/%s/anim/walk.glb" % id):
+			continue
+		var c = _spawn(id)
+		var top: float = c.def.move_speed_mps
+		var worst := 0.0
+		var at := ""
+		for v in [top * WALK_FRAC, top]:
+			c.anim.set_move_speed(v)
+			_advance(c, 0.3)
+			var gait: StringName = c.anim.current_clip
+			if c.anim.cadence(gait) > worst:
+				worst = c.anim.cadence(gait)
+				at = "%s x%.2f at %.2f m/s" % [gait, worst, v]
+		c.free()
+		if id in KNOWN_GLIDERS:
+			_expect(worst > MAX_CADENCE, "%s is a known glider (%s); if it no longer glides, drop it from KNOWN_GLIDERS" % [id, at])
+		else:
+			_expect(worst <= MAX_CADENCE, "%s gait cadence %s (want <= %.1f, else its feet glide)" % [id, at, MAX_CADENCE])
+
+## A hit animal must still fight back: under a 1.0 s hit cadence the hurt stagger and its hit_react clip
+## must leave it free (not busy, no stagger) long enough for the brain to start an attack. A 1.25 s clip at
+## authored speed kept it busy the whole second, a stunlock. The real damage path is the only driver here.
+func _test_hit_react_window() -> void:
+	var tyrant_brain := load("res://scripts/creatures/brains/tyrant_brain.gd")
+	var checked := 0
+	for id in data.creatures.keys():
+		var def = data.creature(id)
+		if def == null or not def.pipeline.get("authored_clips", {}).has("hit_react"):
+			continue
+		var c = _spawn(id)
+		if c.brain == null or c.brain.get_script() == tyrant_brain or not c.view.using_glb:
+			print("[t_canim] note: %s skipped: %s" % [id, "tyrant brain" if c.brain and c.brain.get_script() == tyrant_brain else "no GLB rig"])
+			c.free()
+			continue
+		var worst_free := INF
+		for hit in 6:
+			c._stagger_immune_until = -1.0  # one wall-clock second has passed; manual advance cannot move the clock
+			c._on_damaged(1.0, null)  # the real gate: stagger, then play_clip(hit_react) when authored
+			if hit == 0:
+				_expect(c.anim.current_clip == &"hit_react", "%s _on_damaged starts hit_react (got %s)" % [id, c.anim.current_clip])
+			var free_frames := 0
+			for f in 60:
+				c.anim.tree.advance(DT)
+				c.stagger_left = maxf(0.0, c.stagger_left - DT)  # _physics_process is off in this test
+				if not c.anim.is_busy() and c.stagger_left <= 0.0:
+					free_frames += 1
+			if hit > 0:  # the first second starts from idle and would flatter the result
+				worst_free = minf(worst_free, free_frames * DT)
+		var length: float = c.anim.player.get_animation(&"hit_react").length
+		var speed: float = clips.clip_speed(&"hit_react", c.def)
+		_expect(worst_free >= 0.3, "%s hit_react %.3f s at x%.2f under a 1.0 s hit cadence: free to attack %.2f s of each second (want >= 0.30; the 1.125-1.25 s clips at x1.00 left 0.00)" % [id, length, speed, worst_free])
+		checked += 1
+		c.free()
+	_expect(checked >= 9, "%d species with an authored hit_react checked (want >= 9)" % checked)
+
 func _test_optional_clips() -> void:
 	var rex = _spawn(&"tyrannosaurus")
 	var pb: AnimationNodeStateMachinePlayback = rex.anim.tree.get("parameters/playback")
@@ -285,14 +349,22 @@ func _test_optional_clips() -> void:
 		_expect(pb.get_current_node() == clip and rex.anim.current_clip == clip, "tyrannosaurus play_clip(%s): state machine on %s" % [clip, pb.get_current_node()])
 		rex.anim.play_clip(&"idle")
 		_advance(rex, 0.25)
+	_expect_authored_feed(rex, &"tyrannosaurus")
+	_expect_rest_sleep(rex)
 	rex.free()
-	# The velociraptor gained authored sleep/feed clips (dsc re-animation).
-	var raptor = _spawn(&"velociraptor")
-	pb = raptor.anim.tree.get("parameters/playback")
-	raptor.anim.play_clip(&"sleep", true)
-	_advance(raptor, 0.25)
-	_expect(pb.get_current_node() == &"sleep" and raptor.anim.current_clip == &"sleep", "velociraptor play_clip(sleep): state machine on %s" % pb.get_current_node())
-	raptor.free()
+	# The velociraptor and the zebraceratops gained authored sleep/feed clips (dsc re-animation).
+	var c
+	for id in [&"velociraptor", &"zebraceratops"]:
+		c = _spawn(id)
+		pb = c.anim.tree.get("parameters/playback")
+		for clip in [&"sleep", &"feed"]:
+			c.anim.play_clip(clip, true)
+			_advance(c, 0.25)
+			_expect(pb.get_current_node() == clip and c.anim.current_clip == clip, "%s play_clip(%s): state machine on %s" % [id, clip, pb.get_current_node()])
+			c.anim.play_clip(&"idle")
+			_advance(c, 0.25)
+		_expect_authored_feed(c, id)
+		c.free()
 	# Fallback: any rigged species still without a sleep clip must stay on idle (species gain clips over time).
 	var fallback_id: StringName = &""
 	for id in [&"deinonychus", &"zebraceratops", &"stegosaurus", &"compsognathus"]:
@@ -305,11 +377,65 @@ func _test_optional_clips() -> void:
 			fallback_id = id
 			break
 	if fallback_id != &"":
-		raptor = _spawn(fallback_id)
-		pb = raptor.anim.tree.get("parameters/playback")
-		raptor.anim.play_clip(&"sleep", true)
-		_advance(raptor, 0.25)
-		_expect(pb.get_current_node() == &"idle" and raptor.anim.current_clip == &"idle", "%s play_clip(sleep) has no sleep node and stays on %s" % [fallback_id, pb.get_current_node()])
-		raptor.free()
+		c = _spawn(fallback_id)
+		pb = c.anim.tree.get("parameters/playback")
+		c.anim.play_clip(&"sleep", true)
+		_advance(c, 0.25)
+		_expect(pb.get_current_node() == &"idle" and c.anim.current_clip == &"idle", "%s play_clip(sleep) has no sleep node and stays on %s" % [fallback_id, pb.get_current_node()])
+		c.free()
 	else:
 		print("[t_canim] note: every probed species has a sleep clip; fallback check skipped")
+
+## A species without feed.glb still gets a feed state (CreatureClips copies idle), so the state check alone
+## cannot fail: the authored feed must pose the bones differently from idle at mid-clip.
+func _expect_authored_feed(c, id: StringName) -> void:
+	var gap := _pose_gap(c.anim.player.get_animation(&"idle"), c.anim.player.get_animation(&"feed"))
+	_expect(gap > 0.1, "%s feed is authored, not the idle copy: largest bone-rotation gap to idle %.3f rad (want > 0.1)" % [id, gap])
+
+## The T. rex sleeps belly-down like a resting bird (DSC-CLIPS review): lowest bone on the floor, each foot flat on
+## the ground on its own side with the toes forward, the arms not crossing. The first clip floated 0.8 m up; the
+## interim one crossed the legs and put a foot on top of the hip with its claws up.
+func _expect_rest_sleep(c) -> void:
+	var skel: Skeleton3D = c.view.rig.skeleton
+	var pos := func (b: int) -> Vector3: return c.view.to_local(skel.global_transform * skel.get_bone_global_pose(b).origin)
+	var dir := func (b: String) -> Vector3: return (c.view.global_basis.inverse() * skel.global_basis * skel.get_bone_global_pose(skel.find_bone(b)).basis.y).normalized()
+	c.anim.play_clip(&"idle")
+	_advance(c, 0.5)
+	var hip_h: float = pos.call(skel.find_bone("Thigh.L")).y
+	c.anim.play_clip(&"sleep", true)
+	_advance(c, 1.0)  # crossfade done; mid-breath
+	var floor_y := INF
+	for b in skel.get_bone_count():
+		floor_y = minf(floor_y, pos.call(b).y)
+	var hl: Vector3 = pos.call(skel.find_bone("Thigh.L"))
+	var hr: Vector3 = pos.call(skel.find_bone("Thigh.R"))
+	var mid := (hl + hr) * 0.5
+	var lat := (hr - hl).normalized()
+	var fwd: Vector3 = pos.call(skel.find_bone("Head")) - mid
+	fwd = Vector3(fwd.x, 0.0, fwd.z).normalized()
+	var bad: Array[String] = []
+	for side in [["L", -1.0], ["R", 1.0]]:
+		var toe: Vector3 = pos.call(skel.find_bone("Toe." + side[0]))
+		var hand: Vector3 = pos.call(skel.find_bone("Hand." + side[0]))
+		var mt: Vector3 = dir.call("Metatarsal." + side[0])
+		var td: Vector3 = dir.call("Toe." + side[0])
+		if toe.y - floor_y > 0.12 * hip_h:
+			bad.append("Toe.%s %.2f m off the floor" % [side[0], toe.y - floor_y])
+		if (toe - mid).dot(lat) * side[1] <= 0.0 or (hand - mid).dot(lat) * side[1] <= 0.0:
+			bad.append("%s foot or hand crosses the midline" % side[0])
+		if absf(mt.y) > 0.5 or mt.dot(fwd) < 0.5 or td.dot(fwd) < 0.6:
+			bad.append("%s foot not flat heel-back toes-forward (metatarsal up %.2f fwd %.2f, toe fwd %.2f)" % [side[0], mt.y, mt.dot(fwd), td.dot(fwd)])
+	_expect(floor_y < 0.03 * hip_h and bad.is_empty(), "tyrannosaurus sleep rests on its belly: lowest bone %.2f m (idle hip %.2f m) %s" % [floor_y, hip_h, ", ".join(bad) if bad else "feet flat on their own side, toes forward"])
+
+## Largest bone-rotation difference (radians) between two clips at 25/50/75 %; 0 means b is a copy of a.
+func _pose_gap(a: Animation, b: Animation) -> float:
+	var gap := 0.0
+	for i in a.get_track_count():
+		if a.track_get_type(i) != Animation.TYPE_ROTATION_3D:
+			continue
+		var j := b.find_track(a.track_get_path(i), Animation.TYPE_ROTATION_3D)
+		if j < 0:
+			continue
+		for f in [0.25, 0.5, 0.75]:
+			gap = maxf(gap, a.rotation_track_interpolate(i, a.length * f).angle_to(b.rotation_track_interpolate(j, b.length * f)))
+	return gap
