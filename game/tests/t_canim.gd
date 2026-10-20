@@ -34,6 +34,7 @@ func _process(_d: float) -> bool:
 	_test_stride_match()
 	_test_walk_loops_not_frozen()
 	_test_cadence_sane()
+	_test_hit_react_window()
 	_test_optional_clips()
 	if failures.is_empty():
 		print("[t_canim] PASS")
@@ -302,6 +303,42 @@ func _test_cadence_sane() -> void:
 			_expect(worst > MAX_CADENCE, "%s is a known glider (%s); if it no longer glides, drop it from KNOWN_GLIDERS" % [id, at])
 		else:
 			_expect(worst <= MAX_CADENCE, "%s gait cadence %s (want <= %.1f, else its feet glide)" % [id, at, MAX_CADENCE])
+
+## A hit animal must still fight back: under a 1.0 s hit cadence the hurt stagger and its hit_react clip
+## must leave it free (not busy, no stagger) long enough for the brain to start an attack. A 1.25 s clip at
+## authored speed kept it busy the whole second, a stunlock. The real damage path is the only driver here.
+func _test_hit_react_window() -> void:
+	var tyrant_brain := load("res://scripts/creatures/brains/tyrant_brain.gd")
+	var checked := 0
+	for id in data.creatures.keys():
+		var def = data.creature(id)
+		if def == null or not def.pipeline.get("authored_clips", {}).has("hit_react"):
+			continue
+		var c = _spawn(id)
+		if c.brain == null or c.brain.get_script() == tyrant_brain or not c.view.using_glb:
+			print("[t_canim] note: %s skipped: %s" % [id, "tyrant brain" if c.brain and c.brain.get_script() == tyrant_brain else "no GLB rig"])
+			c.free()
+			continue
+		var worst_free := INF
+		for hit in 6:
+			c._stagger_immune_until = -1.0  # one wall-clock second has passed; manual advance cannot move the clock
+			c._on_damaged(1.0, null)  # the real gate: stagger, then play_clip(hit_react) when authored
+			if hit == 0:
+				_expect(c.anim.current_clip == &"hit_react", "%s _on_damaged starts hit_react (got %s)" % [id, c.anim.current_clip])
+			var free_frames := 0
+			for f in 60:
+				c.anim.tree.advance(DT)
+				c.stagger_left = maxf(0.0, c.stagger_left - DT)  # _physics_process is off in this test
+				if not c.anim.is_busy() and c.stagger_left <= 0.0:
+					free_frames += 1
+			if hit > 0:  # the first second starts from idle and would flatter the result
+				worst_free = minf(worst_free, free_frames * DT)
+		var length: float = c.anim.player.get_animation(&"hit_react").length
+		var speed: float = clips.clip_speed(&"hit_react", c.def)
+		_expect(worst_free >= 0.3, "%s hit_react %.3f s at x%.2f under a 1.0 s hit cadence: free to attack %.2f s of each second (want >= 0.30; the 1.125-1.25 s clips at x1.00 left 0.00)" % [id, length, speed, worst_free])
+		checked += 1
+		c.free()
+	_expect(checked >= 9, "%d species with an authored hit_react checked (want >= 9)" % checked)
 
 func _test_optional_clips() -> void:
 	var rex = _spawn(&"tyrannosaurus")
