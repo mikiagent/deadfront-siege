@@ -172,6 +172,7 @@ func _ready() -> void:
 	add_child(_snap_points)
 
 func begin(kind: StringName) -> void:
+	_ghost_label.position.y = 3.2
 	_last_sync = [Vector2i(999999, 999999), -1, ""]
 	_snap_key = []
 	_aim_locked = false
@@ -200,6 +201,7 @@ func begin_piece(kind: StringName, tier: StringName = &"thatch") -> bool:
 	piece_tier = tier
 	piece_at = {}
 	begin(kind)
+	_ghost_label.position.y = 2.0  # pieces have no name plate: keep the cost near the ghost, clear of the top HUD
 	# The sheet button that started this is under the finger: start a step in front of the survivor
 	# and let taps on the world move the aim (tap_ground), never the pointer over the HUD.
 	var who := get_parent() as Node3D
