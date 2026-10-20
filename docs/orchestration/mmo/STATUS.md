@@ -39,7 +39,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | Wave | Packages | State |
 |---|---|---|
 | 0 | 16-system audit with adversarial verify and plan | plan done: `plan-register.md` (ranked gaps, waves 1-4, 21 owner questions) |
-| 1 (merged) | W1-TAME, W1-CANIM, W1-BUILD, W1-ITEMS, W1-WEB, W1-AI, raptor re-animation (dsc) passed review and are merged into `claude/mmo-overhaul`; gates: import, [tests] PASS, t_tame/t_canim/t_build/t_items PASS, SMOKE PASS | done |
+| 1 (merged) | W1-TAME, W1-CANIM, W1-BUILD, W1-ITEMS, W1-WEB, W1-AI, W1-LIGHT (blind judge 6/6), W1-COMBAT, W1-SAVE, raptor re-animation (dsc) passed review and are merged into `claude/mmo-overhaul`; gates: import, [tests] PASS, t_tame/t_canim/t_build/t_items PASS, SMOKE PASS | done |
 | 1 | W1-LIGHT, SAVE, TAME, AI, CANIM, COMBAT, BUILD, ITEMS, SRVDOM, QA, UI, ICONART, WEB, BIOME, STRUCTART (each `claude/mmo-w1-<key>`) | launching, reviewer-gated, blind A/B judge on visual packages |
 | 1-INT | merge econ/net/audio + sound settings + market over socket | after wave 1a and audio pass review |
 | 1-ART | ARTA/ARTB Tripo species | concept sheets generating (Higgsfield gpt_image_2_5, critic-checked, wf_4ea0904a-0e6); then one owner batch approval |
@@ -144,6 +144,59 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 
 - 2026-10-19 (owner): the mobile view is HORIZONTAL (landscape). Phone checks use 844x390, not
   390x844 (GAUNTLET.md's 390x844 is superseded). project.godot already uses sensor-landscape.
+
+- 2026-10-19 (owner): next production deploy waits until W1-LIGHT and W1-UI pass review and merge;
+  then deploy everything merged and verify the stamp.
+
+- 2026-10-19 (owner): the UI pass may want new custom icons for many UI elements. Plan: a W1-UIICONS
+  package after W1-UI merges (it owns hex_button/status_glyph): one coherent custom white action
+  icon set (menu, animals, build, skills, hands/held tool, claim, harbour, gather verbs, combat verbs,
+  craft/cook, settings, market) authored as SVG, rendered to PNG at HUD sizes, replacing system emoji
+  and game-icons glyphs; reviewed at real HUD size on desktop and landscape phone.
+- Quad dsc clips (protoceratops, megaloceros) reverted: the skeleton-only re-export dropped the skin
+  (skins=0), so Godot could not resolve tracks. Redo with a skin-preserving export.
+
+- 2026-10-19 (owner) pets as items: tamed animals show an icon of that animal. As an item an animal is
+  in a CAGE (when traded or freshly captured). Taming consumes the caged animal (pen/tame turns the
+  cage into a bonded pet; already true for captured_animal). A tame can be REPACKAGED into a caged item
+  and sold. Plan W2-CAGE: repackage (bonded pet -> unique caged item carrying the full PetRecord, uid,
+  lineage; refused while summoned/active or with items in its bag) and unpack (caged tame -> bonded pet,
+  no re-taming); per-species portrait icons and caged-animal item art (species render inside a cage,
+  rarity rim from grade) via headless Blender; Animals screen uses the portraits (W2-SCREENS consumes
+  them); the Exchange lists pets as caged items. Captured (untamed) and repackaged (tamed) cages read
+  differently (e.g. rope-tied wild vs tagged tame).
+
+- 2026-10-19 (owner): a caged animal (captured or repackaged) can also be RELEASED as a wild dinosaur
+  that you can fight (it turns hostile/wild at its own level and genetics; pet ownership ends; the
+  cage is consumed). There must be a MOB LIMIT and a PLAYER LIMIT per area for performance. Plan:
+  data-driven caps per area/island (rules.json: max_creatures_area, max_players_area); released
+  animals count toward the mob cap and a release at the cap is refused with a notice; the population
+  director (W2-SPAWN) never spawns past the cap; on the server (W3-SRVWORLD) a full area/instance sends
+  new players to another instance (channel) and presence rooms enforce max_players_area. Caps get a
+  perf test (perf_budget_lab at the cap stays inside the frame budget on web).
+
+- 2026-10-19 (owner): "functionally fine, but the symbols/icons need work; the building system needs real
+  buildings; the harbour is a grey block in the middle of land and must be attached to water; stuff
+  like that is holding the game back from AAA." Re-prioritised: W1-HARBOUR (coast-forced placement,
+  dock over water, real composite instead of the box) and W1-UIICONS (custom white SVG action set)
+  started now (wf_8598d187-a3f); W1-STRUCTART (Blender buildings + 4-stage drying rack + dock) is the
+  next wave-1 batch; W2-BUILDSYS (modular foundations/walls/roofs, tiers, HP, repair) starts as soon as
+  W1-STRUCTART and W1-HARBOUR merge.
+
+- 2026-10-20 (owner) Durango prompt pack: `docs/design/durango-prompts/01..07` (fatigue/energy/stamina;
+  taming pen and companions; level 60, 12 categories, SP, research gates, resets; instance loot with
+  Firm/Lightweight/... attributes, processing, primary/secondary slots, crafting ability, flawless;
+  instance inventory, capacity, containers, dino cargo, one-location rule; fixed-price Island Market
+  with exact instances, fees/tax, Receive All; semi-auto combat, stances, telegraph + timed roll, net
+  capture). Binding as design input; values the pack marks illustrative stay configurable. Refs:
+  docs/reference/durango-{fatigue-meter,gather-hud-levelup,bag-caged-animal}.*. Package mapping:
+  01 -> W2-SURVIVAL; 02 -> W2-CAGE + taming depth; 03 -> W2-SKILLS (new); 04 -> W2-DATA/W2-PROCESS +
+  W2-CRAFT (new); 05 -> W2-INV; 06 -> W3-EXCHANGE (Durango tabs Buy/Sell/My Listings/Sold/Expired/
+  History + Receive All, on top of the owner's auctions and buy orders); 07 -> W2-ACTION + combat.
+  Kept from earlier binding rules unless the owner says otherwise: capture below 30 % HP (pack says
+  ~50 %, configurable); unlimited owned pets with 3 active (pack says 7 bonded, configurable).
+  Note: fatigue/exhaustion returns (owner removed exhaustion on 2026-09-20; the pack, being newer,
+  reintroduces it with no unrecoverable state).
 
 ## Owner questions (open)
 
