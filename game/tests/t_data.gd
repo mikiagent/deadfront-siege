@@ -59,6 +59,7 @@ func _process(_delta: float) -> bool:
 	_check_nets()
 	_check_armor()
 	_check_no_multiplying_loops()
+	_check_structures()
 	_check_planner()
 	if fails.is_empty():
 		print("[t_data] PASS items=%d recipes=%d" % [items.size(), recipes.size()])
@@ -408,6 +409,29 @@ func _check_no_multiplying_loops() -> void:
 			continue
 		for s: Dictionary in r.get("slots", []):
 			_expect(not _has_cat(out, str(s.get("category", ""))), "recipe %s output %s feeds its own %s slot" % [r["id"], out, s.get("category", "")])
+
+## W2-BUILDSYS pieces consume material_slots directly (spec 10 construction sites), so they need no
+## kit recipe here; every item a piece tier or placed kind spends must be reachable.
+func _check_structures() -> void:
+	if not FileAccess.file_exists(D + "structures.json"):
+		return
+	var doc: Dictionary = _json("structures.json")
+	var used := {}
+	_collect_items(doc.get("piece_tiers", {}), used)
+	_collect_items(doc.get("placed_kinds", {}), used)
+	for id in used:
+		_expect(cost.has(id), "structures.json spends %s, which is reachable" % id)
+	print("[t_data] structures.json items reachable: %d" % used.size())
+
+func _collect_items(v: Variant, out: Dictionary) -> void:
+	if v is Dictionary:
+		for k in v:
+			if str(k) == "item":
+				out[str(v[k])] = true
+			_collect_items(v[k], out)
+	elif v is Array:
+		for e in v:
+			_collect_items(e, out)
 
 ## The real crafting planner (Crafting.preview) accepts the walk's materials for every rung tool and
 ## the forge/anvil chain, and the output carries the rung's material tier.
