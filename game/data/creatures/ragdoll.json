@@ -186,7 +186,6 @@
       "hit_react_s": 0.3,
       "bodies": [
         {"bone": "Body", "from": "Tail2", "to": "Shoulders", "radius": 0.33, "mass_frac": 0.3, "angular_damp": 2.912, "offset": [0.0, -0.061, 0.0]},
-        {"bone": "Shoulders", "radius": 0.42, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 20, "twist": 10, "side": 25, "axis": [1, 0, 0], "min": -30, "max": 30}, "offset": [0.0, -0.026, 0.0]},
         {"bone": "Neck", "dir": [0.0, -0.3, 1.0], "length": 1.0, "radius": 0.48, "angular_damp": 3.935, "joint": {"type": "cone", "swing": 20, "twist": 15, "side": 30, "axis": [1, 0, 0], "min": -30, "max": 20}},
         {"bone": "Tail2", "to": "Tail5_end", "extend": 0.052, "radius": 0.209, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 14, "twist": 15.575, "axis": [1, 0, 0]}},
         {"bone": "BackUpLeg.L", "from": "BackLeg.L", "to": "BackLowLeg.L", "radius": 0.27, "joint": {"type": "cone", "swing": 60, "side": 35, "twist": 12}},

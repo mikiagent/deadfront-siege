@@ -570,7 +570,8 @@ func _shoot(c: Dictionary) -> void:
 ## One frame of the settle sequence, framed on the body as it is (one drawn frame = one physics tick).
 func _seq_grab(c: Dictionary, i: int) -> void:
 	_frame_corpse(c, 30.0 if c["terrain"] == "slope" else 18.0, 50.0 if c["terrain"] == "slope" else -60.0)
-	await RenderingServer.frame_post_draw
+	await get_tree().process_frame
+	RenderingServer.force_draw(false)  # an occluded window never emits frame_post_draw by itself
 	_seq_tile(c, get_viewport().get_texture().get_image(), i)
 
 func _seq_tile(c: Dictionary, img: Image, i: int) -> void:
