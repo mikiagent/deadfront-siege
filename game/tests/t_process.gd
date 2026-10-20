@@ -189,7 +189,7 @@ func _start_rack() -> void:
 	var row: Dictionary = JSON.parse_string(JSON.stringify(_rack.to_dict()))
 	var left_before: float = _t0 + secs - FOOD.now_s()
 	_rack.free()
-	_rack = CS.from_dict(row)
+	_rack = load("res://scripts/core/save_restore.gd").spawn(row)  # the island-load path
 	get_root().add_child(_rack)
 	ps = PS.of(_rack)
 	var left_after: float = float(ps.jobs[0]["started"]) + secs - FOOD.now_s() if ps.jobs.size() == 4 else -1.0

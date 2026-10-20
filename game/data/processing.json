@@ -5,7 +5,8 @@
       "label": "Drying",
       "slots": 4,
       "fx": "smoke",
-      "fx_offset": [0.0, 0.25, 0.35],
+      "fx_offset": [0.0, 0.1, 0.2],
+      "fx_alpha": 0.42,
       "stages": [
         { "at": 0.0, "id": "raw" },
         { "at": 0.34, "id": "drying" },

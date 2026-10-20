@@ -332,6 +332,8 @@ func _redraw() -> void:
 	if _glow:
 		_glow.visible = active
 	if _label:
+		# fixed_size text shrinks with the window; hold it near HUD size on a 390 px phone.
+		_label.pixel_size = 0.0012 * clampf(900.0 / maxf(1.0, get_viewport().get_visible_rect().size.y), 1.0, 2.4)
 		_label.text = label_text()
 		_label.visible = _label.text != ""
 
@@ -410,11 +412,12 @@ func _build_fx() -> void:
 		grow.add_point(Vector2(1.0, 1.6))
 		_fx.scale_amount_curve = grow
 		var ramp := Gradient.new()
-		var c := Color(0.96, 0.97, 1.0) if steam else Color(0.62, 0.6, 0.56)
+		var c := Color(0.96, 0.97, 1.0) if steam else Color(0.55, 0.53, 0.5)
+		var a := float(cfg.get("fx_alpha", 0.55 if steam else 0.5))
 		ramp.set_color(0, Color(c, 0.0))
 		ramp.set_color(1, Color(c, 0.0))
-		ramp.add_point(0.15, Color(c, 0.55 if steam else 0.5))
-		ramp.add_point(0.6, Color(c, 0.3))
+		ramp.add_point(0.15, Color(c, a))
+		ramp.add_point(0.6, Color(c, a * 0.55))
 		_fx.color_ramp = ramp
 		var quad := QuadMesh.new()
 		quad.size = Vector2(0.6, 0.6)
@@ -443,14 +446,16 @@ func _build_fx() -> void:
 	_label.name = "ProcessLabel"
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_label.no_depth_test = true
+	_label.render_priority = 10  # over the smoke it floats in
 	_label.fixed_size = true
-	_label.pixel_size = 0.0011
-	_label.font_size = 30
-	_label.outline_size = 10
-	_label.modulate = Color(1.0, 0.92, 0.62)
-	_label.outline_modulate = Color(0.08, 0.06, 0.04, 0.9)
+	_label.pixel_size = 0.0012
+	_label.font_size = 32
+	_label.outline_size = 14
+	# Saturated: the tonemapper turns a pale yellow into beige that vanishes on grass.
+	_label.modulate = Color(1.0, 0.82, 0.25)
+	_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
 	var aabb: Variant = ((Data.props_manifest.get("buildings", {}) as Dictionary).get(str(station_id), {}) as Dictionary).get("aabb_m", [1, 1.4, 1])
-	_label.position = Vector3(0.0, (float(aabb[1]) if aabb is Array and (aabb as Array).size() >= 2 else 1.4) + 0.45, 0.0)
+	_label.position = Vector3(0.0, (float(aabb[1]) if aabb is Array and (aabb as Array).size() >= 2 else 1.4) + 0.9, 0.0)  # clear of the name chip
 	_label.visible = false
 	add_child(_label)
 
