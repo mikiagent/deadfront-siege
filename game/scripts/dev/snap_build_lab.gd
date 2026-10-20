@@ -229,11 +229,8 @@ func _frame_for_shot() -> void:
 	var inside := "--snap-inside" in OS.get_cmdline_user_args()
 	_player.global_position = _centre(1, 1, 0) + Vector3(0.3, 1.0, 0.4) if inside else _centre(1, 4, 0) + Vector3(0.8, 1.0, 0.6)
 	_player.reset_physics_interpolation()
-	var look := Marker3D.new()  # outside: frame the whole house, not the survivor at its door
-	add_child(look)
-	look.global_position = _player.global_position if inside else _centre(1, 1, 1) + Vector3(0.8, 0, 0.8)
-	_cam._target = look
-	_cam.size = 17.0 if inside else 19.0
+	_cam._target = _player  # the survivor: the see-through system fades for the camera's target
+	_cam.size = 17.0 if inside else 22.0
 	_cam._snap()
 	print("[snap] framed %s" % ("inside" if inside else "outside"))
 
