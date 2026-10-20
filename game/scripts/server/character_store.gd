@@ -70,7 +70,8 @@ func apply(op: String, account: int, args: Dictionary, ts: int) -> Dictionary:
 		return IntentHandlers.no("server_error", "character store is not writable (%s)" % broken)
 	if dir != "" and _journal == null:
 		return IntentHandlers.no("server_error", "character store is not open; call open() first")
-	var a := IntentHandlers.known_args(op, wire(args))
+	var parsed: Variant = wire(args) # null when args do not survive JSON (NaN, INF)
+	var a := IntentHandlers.known_args(op, parsed if parsed is Dictionary else {})
 	var tape: Array = []
 	var res := _run(op, account, a, ts, tape, false)
 	if not res.has("_seq"):
