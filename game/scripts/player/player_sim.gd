@@ -177,7 +177,10 @@ func _nav_dir(delta: float, dir: Vector3) -> Vector3:
 		finished = true
 	var remain := p._path_goal - p.global_position
 	remain.y = 0.0
-	if remain.length() > _arrive_tolerance() and (finished or _stalled(delta)):
+	# A router with no direction (map not ready) also falls back; it used to creep one frame per
+	# 1.2 s stall because moving reset the stall timer.
+	var stalled := _stalled(delta)
+	if remain.length() > _arrive_tolerance() and (finished or stalled or next_dir == Vector3.ZERO):
 		if _path_stuck > 5.0:
 			print("[path] abandoned route to %.0f,%.0f after %.1fs stuck" % [p._path_goal.x, p._path_goal.z, _path_stuck])
 			_path_stuck = 0.0

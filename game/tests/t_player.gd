@@ -334,8 +334,9 @@ func _test_corpse_full_bag() -> void:
 	corpse.queue_free()
 	await process_frame
 
-## phys-climb-01: walking into a compsognathus, zebraceratops and velociraptor for 5 s raises her
-## at most 0.15 m (was +0.97, +1.16 and +1.82 m); unstick never steps into a creature.
+## phys-climb-01: a tap-to-walk route straight through a compsognathus, zebraceratops and
+## velociraptor, held for 5 s, raises her at most 0.15 m (was +0.97, +1.16 and +1.82 m: the stall
+## fallback hopped her onto their backs); unstick never steps into a creature.
 func _test_no_creature_climb() -> void:
 	for sp: StringName in [&"compsognathus", &"zebraceratops", &"velociraptor"]:
 		await _reset_at(Vector3(0, 0.9, 10))
@@ -344,16 +345,16 @@ func _test_no_creature_climb() -> void:
 		var y0: float = player.global_position.y
 		var top := y0
 		var touched := false
-		Input.action_press(&"move_up")
 		for i in 300:
+			if not player.nav_active:
+				player.nav_to(Vector3(0, 0.9, 0))  # the goal is behind the animal
 			await physics_frame
 			top = maxf(top, player.global_position.y)
 			for k in player.get_slide_collision_count():
 				touched = touched or player.get_slide_collision(k).get_collider() == c
-		Input.action_release(&"move_up")
-		_expect(touched and top - y0 <= 0.15, "walking into a %s for 5 s (contact=%s) raises her %.2f m" % [sp, touched, top - y0])
-		var before: Vector3 = player.global_position
-		var stepped: bool = player.sim.unstick((c.global_position - before).normalized())
+		player.clear_nav()
+		_expect(touched and top - y0 <= 0.15, "routed into a %s for 5 s (contact=%s) raises her %.2f m" % [sp, touched, top - y0])
+		var stepped: bool = player.sim.unstick((c.global_position - player.global_position).normalized())
 		_expect(not stepped or not _inside_creature(), "unstick toward a %s does not step into it" % sp)
 		await _clear_creatures()
 

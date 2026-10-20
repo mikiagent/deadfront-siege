@@ -93,15 +93,17 @@ func _walk_into(sp: StringName) -> void:
 	await get_tree().create_timer(0.3).timeout
 	var rise := 0.0
 	var touched := false
-	Input.action_press(&"move_up")
+	var goal := start + _cam_forward() * 8.0  # a tap-to-walk route through the animal
 	for i in 300:
+		if not player.nav_active:
+			player.nav_to(player.sim.closest_nav_point(goal))
 		await get_tree().physics_frame
 		var feet := player.feet_position()
 		rise = maxf(rise, feet.y - float(World.runtime.surface_y(feet.x, feet.z)))
 		for k in player.get_slide_collision_count():
 			touched = touched or player.get_slide_collision(k).get_collider() == c
-	Input.action_release(&"move_up")
-	_check(touched and rise <= 0.15, "walking into a %s for 5 s (contact=%s) lifts her %.2f m above the terrain" % [sp, touched, rise])
+	player.clear_nav()
+	_check(touched and rise <= 0.15, "routed into a %s for 5 s (contact=%s) lifts her %.2f m above the terrain" % [sp, touched, rise])
 	c.queue_free()
 
 func _cam_forward() -> Vector3:
