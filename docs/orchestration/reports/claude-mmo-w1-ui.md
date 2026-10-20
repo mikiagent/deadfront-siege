@@ -1,6 +1,33 @@
 # W1-UI report (claude, branch claude/mmo-w1-ui)
 
-Third review pass, 2026-10-19. The reviewer found two blockers, two majors and four minors. All are
+## Fourth pass, 2026-10-20 (resumed after the usage limit)
+
+- **Safe-area clamp (finished from the interrupted edit).** `DisplayMode.side_inset_px` returns 0 when
+  the safe area is empty (not reported yet at boot). `logical_size` keeps at least `MIN_USABLE` = 75 % of
+  a landscape phone's width usable, so a bogus inset can't shrink the canvas toward 1 px. t_ui:
+  `a portrait safe area in landscape clamps to 1072x495 logical`.
+- **Portrait HANDS caption** (owned, held_item_slot.gd) sat on the HUD's drawn `Lv. 0 5.0%` line. On
+  `is_phone` canvases the slot lifts 24 px. The lab's `hud_blocks` now mirrors that drawn level line
+  (hunt_hud.gd:975-977), so the gate checks it: `HeldItemSlot=310,648 64x82 ... level=309,746 65x15`
+  at 390x844. Before the lift the slot spanned y 672-754, which overlaps the line.
+- **New regression from the base branch, in a protected file.** The armor merge (836839a) gave the bag
+  four equipment columns (Head/Body/Arms/Legs) on every non-`is_phone` canvas. A landscape phone needs
+  868 px for that, so at 844x390 the Legs/Ring column and the close button run 12 px off the right edge
+  (`r17/bag_844x390.png`). The lab catches it and exits 1 at 844x390 on exactly two lines (below).
+  I did not raise `LANDSCAPE_MIN_W` to 868. That would put 12 px text at 11.67 pt on an 844 pt phone,
+  and the spec's acceptance requires `min_font_px >= 12` there (on glass, not logical px). The fix
+  belongs in inventory_ui.gd: integrator hook 5, tested in one run and then reverted.
+- **Portrait HUD hook tested.** Hook 6 (hunt_hud.gd, protected) moves CLAIM under the quest card and
+  puts the context row one row above the rail. With it the 390x844 lab passes every screen. It was
+  applied for one run and then reverted.
+- **Branch hygiene.** The sync commit d2c8e8a had copied STATUS.md, which conflicted with the base's
+  8ca2496. STATUS.md is now back to the merge-base version, and `git merge-tree --write-tree --name-only
+  HEAD claude/mmo-overhaul` prints only a tree id (rc 0). There was one `--import` after the base merge,
+  because new class_name files (PetStats, PlayerEquipment, BrainRest) had failed to parse before it.
+
+## Third review pass, 2026-10-19
+
+ The reviewer found two blockers, two majors and four minors. All are
 fixed, and each has a lab or test check that fails on the old code. The protected screens (HUD,
 bag) now keep their landscape rows on every landscape phone, so boot hook 1 can land without hook 2.
 
@@ -33,12 +60,16 @@ hex in landscape. On a landscape phone it now ends the left rail (`r16/hud_844x3
   focusable HexButton with a ring, `LevelDisplay`, `ItemText`.
 - `ui_real_capture_lab` (real island, root viewport, eight screens) and `t_ui`.
 
-## Acceptance checklist (final code, logs in scratchpad `w1/ui/`)
+## Acceptance checklist (logs in scratchpad `w1/ui/`; r17-r19 are this pass on the merged base, r15/r16 the third pass)
 
 | Item | Output line |
 |---|---|
-| Lab 844x390, Forward+ (`lab844x390_r16.log`) | `[uireal] phone=true min_font_px=12 logical_width=844 window_pt=844x390 min_pt=12.00 floor_pt=12.00 (smallest: craft .../CraftHint "Hand recipes craft anywh" 12.0 px)` then `[uireal] PASS screens=hud,craft,skills,atlas,radial,plate,bag,charcreate shots=.../w1/ui/r16` (exit 0) |
-| Lab 844x390, web renderer gl_compatibility (`lab844x390_r16_glc.log`) | same `phone=true min_font_px=12 logical_width=844` line, `[uireal] PASS screens=hud,craft,skills,atlas,radial,plate,bag,charcreate shots=.../w1/ui/r16_glc` (exit 0) |
+| Lab 844x390, Forward+, final code (`lab844x390_r19.log`) | `[uireal] phone=true min_font_px=12 logical_width=844 window_pt=844x390 min_pt=12.00 floor_pt=12.00 (smallest: craft .../CraftHint "Hand recipes craft anywh" 12.0 px)`, then exit 1 on the protected bag only: `[uireal] FAIL bag: equip_col [P: (576.0, 114.0), S: (280.0, 372.0)] inside the 844x390 view`, `[uireal] FAIL bag: close_btn [P: (812.0, 12.0), S: (44.0, 44.0)] inside the 844x390 view`. HUD, craft, skills, atlas, radial, plate and charcreate raise no failures |
+| Lab 844x390 with bag hook 5 applied for one run (`lab844x390_r17_bagfix.log`) | same `phone=true min_font_px=12 logical_width=844` line, then `[uireal] PASS screens=hud,craft,skills,atlas,radial,plate,bag,charcreate shots=.../w1/ui/r17_bagfix` (exit 0) |
+| Lab 1600x900, web renderer gl_compatibility, final code (`lab1600x900_r19_glc.log`) | `[uireal] phone=false min_font_px=13 logical_width=1600 window_pt=1600x900 min_pt=13.00 floor_pt=12.00 (...)` then `[uireal] PASS screens=hud,craft,skills,atlas,radial,plate,bag,charcreate shots=.../w1/ui/r19_glc` (exit 0) |
+| Lab 390x844, final code (`lab390x844_r18.log`) | `[uireal] phone=true min_font_px=12 logical_width=390 ...`, then exit 1 on protected hunt_hud only: `FAIL hud: SKILLS#7 [P: (244.02, 750.0), ...] overlaps HARBOUR#9 [P: (246.422, 750.0), ...]` (plus its two caption lines) and `FAIL hud: CLAIM#11 [P: (310.422, 234.0), ...] overlaps quest [P: (220.0, 240.0), ...]` (plus its caption line) |
+| Lab 390x844 with HUD hook 6 applied for one run (`lab390x844_r18_hudfix.log`) | `[uireal] PASS screens=hud,craft,craft_detail,skills,atlas,radial,plate,bag,charcreate shots=.../w1/ui/r18_hudfix` (exit 0) |
+| Lab 844x390, gl_compatibility, third pass (`lab844x390_r16_glc.log`) | `[uireal] PASS ...` before the base's bag change; not re-run this pass |
 | Lab 1600x900 (`lab1600x900_r16.log`) | `[uireal] phone=false min_font_px=13 logical_width=1600 window_pt=1600x900 min_pt=13.00 floor_pt=12.00 (...)` then `[uireal] PASS screens=hud,craft,skills,atlas,radial,plate,bag,charcreate shots=.../w1/ui/r16` (exit 0) |
 | Lab 667x375 (macOS opens 668x376; `lab667x375_r16.log`) | `[uireal] window=668x376 logical=804x453 content_scale=(804, 453)`, `[uireal] phone=true min_font_px=9 logical_width=804 window_pt=668x376 min_pt=9.97 floor_pt=9.97 (...)`, `[uireal] PASS screens=hud,craft,skills,atlas,radial,plate,bag,charcreate ...` (exit 0) |
 | Gate fails without the fit (`lab844x390_r16_nofit.log`) | `[uireal] FAIL a 844x390 pt phone window must get the 844 px phone canvas (is_compact false, logical width 1947)`, `[uireal] FAIL phone window 844x390 pt: text at least 12.0 pt on screen (got 5.6)` (exit 1) |
@@ -53,15 +84,33 @@ hex in landscape. On a landscape phone it now ends the left rail (`r16/hud_844x3
 | Radial, anchor above the view | `[t_ui] radial above view: centres 150.4 px apart (hex 64)` |
 | Craft `Lv —` | `[t_ui] craft: 5 unmakeable hand recipes read 'Lv. —'`. Lab: `[uireal] craft rows=35 with_lv_dash=35 first="Lv. — · 2.0s  ·  Missing items"` |
 | Distinct legend colours | `[t_ui] atlas legend: 8 kinds, min colour distance 0.35` |
-| t_ui | `[t_ui] PASS` (exit 0) |
-| Existing suite (`run_all_r16.log`) | `[tests] PASS` (exit 0) |
-| Smoke (`smoke_r16.log`) | `SMOKE PASS` (`tools/smoke.sh --no-import` through gslot) |
+| Safe-area clamp (`t_ui_r19.log`) | covered by the `[t_ui] PASS` run: `a portrait safe area in landscape clamps to 1072x495 logical` is an `_expect` that prints only on failure |
+| t_ui (`t_ui_r19.log`) | `[t_ui] PASS` (exit 0) |
+| Existing suite (`run_all_r19.log`) | `[tests] PASS` (exit 0) |
+| Smoke (`smoke_r19.log`) | `[smoke] ok player_pos=(0.0, 0.900182, 0.0) phase=day` then `SMOKE PASS` (`tools/smoke.sh --no-import` through gslot) |
 
 The spec writes `'Lv —'`. The screens print `Lv. —`, the one level format every screen uses.
 
 ## Screenshots inspected (Read tool)
 
 Directory: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/w1/ui/`
+
+This pass:
+- `r17/bag_844x390.png`: the base's four-column equipment grid cut at the right edge (Legs, second
+  Ring), with the close button half off.
+- `r17_bagfix/bag_844x390.png`: with hook 5, three equipment columns (Head/Body/Arms, Legs/Weapon/Tool,
+  Ring/Ring/Food 1) and the close button inside the view.
+- `r19/hud_844x390.png`: the landscape HUD on the merged base. Rail plus HANDS at bottom left, HARBOUR
+  and CLAIM at bottom right, quest card left of the map. Nothing overlaps.
+- `r17_glc/hud_1600x900.png`, `r17_glc/craft_1600x900.png`, `r17_glc/skills_1600x900.png` (web renderer):
+  clean. `r17_glc/bag_1600x900.png`: four equipment columns fit, with the Legs/Ring slots flush against
+  the panel's right border (protected bag; the gate passes).
+- `r17/hud_390x844.png`: portrait before this pass's changes. CLAIM on the quest card, HARBOUR on SKILLS,
+  HANDS caption on `Lv. 0 5.0%`.
+- `r18_hudfix/hud_390x844.png`: portrait with the HANDS lift and hook 6. CLAIM under the quest card,
+  HARBOUR above MENU, HANDS caption above the level line. Nothing overlaps.
+
+Third pass:
 
 - `r16_glc/hud_844x390.png`, `r13/hud_844x390.png`: the HUD's landscape rows. The vitals block is
   300 px, the quest card sits left of the map, CLAIM is under the map and HARBOUR is at the bottom
@@ -87,8 +136,10 @@ Directory: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/
 
 ## Left for W2-HUD and W2-SCREENS (protected files)
 
-- Portrait 390x844 (not the shipped orientation, but the package note asks for it): the lab exits 1
-  there, and only on protected HUD geometry (`lab390x844_r16.log`):
+- Landscape bag at 844x390: hook 5 (above, tested). Until it lands the lab exits 1 at 844x390 on the
+  two bag lines, and players see the Legs/Ring column and the close button cut at the right edge.
+- Portrait 390x844 (not the shipped orientation, but the package note asks for it): hook 6 (above,
+  tested) fixes it. Without it the lab exits 1 there, and only on protected HUD geometry (`lab390x844_r18.log`):
   `FAIL hud: SKILLS#7 [P: (244.02, 750.0), ...] overlaps HARBOUR#9 [P: (246.422, 750.0), ...]`. The
   context row starts at `r.x - 150` (hunt_hud.gd:584) and lands on the left rail when the canvas is
   under ~460 px. Also `FAIL hud: CLAIM#11 [P: (310.422, 234.0), ...] overlaps quest [P: (220.0, 240.0), ...]`:
@@ -110,7 +161,9 @@ Directory: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/
 - `display_mode.gd` `side_inset_px`: on mobile the left and right safe-area insets are subtracted
   before the floor applies, so a notched iPhone keeps 804 px inside its safe area. Not tested on a device.
 - `held_item_slot.gd`: the landscape position mirrors hunt_hud's rail (four 64 px hexes, 10 px apart, 96 px up).
-- `ui_real_capture_lab.gd` `hud_blocks`: the vitals and quest rects mirror hunt_hud.gd `_draw` and `_draw_quest`.
+- `ui_real_capture_lab.gd` `hud_blocks`: the vitals, quest and level-line rects mirror hunt_hud.gd `_draw` and `_draw_quest`.
+- `held_item_slot.gd`: on `is_phone` (portrait) canvases the slot sits 24 px higher, to clear the level line hunt_hud draws at `r.y - HEX - 22`.
+- `display_mode.gd` `MIN_USABLE := 0.75`: a landscape safe area never leaves less than 75 % of the width usable.
 - `craft_ui.gd` STATIONS: crock pot uses the `boiled_meat` cauldron symbol and campfire uses `skewer`.
   Their kit icons alias the stone grill and bonfire symbols in the protected manifest.
 - `character_creation.gd` `STORY_TIGHTEN := 8`.
@@ -129,7 +182,35 @@ Directory: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/
 2. `game/scripts/ui/hunt_hud.gd:68` (W2-HUD): `set_anchors_preset(Control.PRESET_FULL_RECT)` ->
    `set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)`.
 3. `game/tests/run_all.gd`: run `res://tests/t_ui.gd` and require `[t_ui] PASS`.
-4. Merge: no conflicts with `claude/mmo-overhaul` (bd75fa0); `git merge-tree` reports none.
+4. Merge: no conflicts with `claude/mmo-overhaul` (8ca2496). `git merge-tree --write-tree --name-only HEAD claude/mmo-overhaul`
+   prints only a tree id.
+5. `game/scripts/ui/inventory_ui.gd` `_apply_slot_metrics` (protected: the owner UI pass / W2-SCREENS). It fits
+   the bag on landscape phones without shrinking type. Tested at 844x390 (`r17_bagfix`), then reverted:
+   ```gdscript
+   	var slot := 64.0
+   	# Four equipment columns need 9 slots of 64 px beside the 180 px profile; compact landscape canvases get three.
+   	var equip_cols := 4 if panel_w >= 180.0 + 9.0 * 64.0 + sep * 11.0 else 3
+   	...
+   		var inner_seps := sep * float(3 + equip_cols)                      # was sep * 7.0
+   		var by_w := floorf((panel_w - h_gaps - profile_floor - inner_seps) / float(5 + equip_cols))   # was / 9.0
+   		var equip_w := float(equip_cols) * slot + sep * float(equip_cols - 1)   # was 4.0 * slot + sep * 3.0
+   	...
+   		_equip_grid.columns = 3 if phone else equip_cols                  # was 3 if phone else 4
+   ```
+6. `game/scripts/ui/hunt_hud.gd` `_refresh_context` (protected: W2-HUD). With it portrait 390x844 passes
+   the lab. Tested (`r18_hudfix`), then reverted. Landscape and desktop are unchanged (`is_phone` is false there):
+   ```gdscript
+   	var phone := UiTokens.is_phone(r)
+   	# Portrait: no room beside the rail, so the context row sits one row above it, from the left.
+   	var x := 16.0 + inset.w if phone else r.x - 16.0 - inset.x - 74.0 - 60.0
+   	...
+   			# Portrait: the quest card is under the map, so the claim hex goes under the card.
+   			h.position = Vector2(_minimap.position.x + MAP_PX - 70.0, _minimap.position.y + MAP_PX + (52.0 + 72.0 + 8.0 if phone else 44.0))
+   		else:
+   			h.position = Vector2(x, r.y - 70.0 - 26.0 - inset.y - (96.0 if phone else 0.0))
+   			x += 78.0 if phone else -78.0
+   ```
+   Portrait fits three context hexes left of HANDS. A fourth would reach the HANDS slot (x 310).
 
 ## Labs to register
 
@@ -145,12 +226,14 @@ Directory: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/
 
 ## Not done / risks
 
-- Not tested on a device or in desktop Chrome. Windowed runs only: Forward+ at 844x390, 667x375,
-  1600x900 and 390x844, and gl_compatibility at 844x390.
+- Not tested on a device, and not in desktop Chrome: no web export was made, to spare the shared machine
+  a 180 MB export. The stand-in is the web renderer (gl_compatibility) at 1600x900, which passes this pass
+  on the merged base. Windowed runs: Forward+ at 844x390, 667x375 (third pass), 1600x900 and 390x844.
+- The lab exits 1 at 844x390 until hook 5 lands, and at 390x844 until hook 6 lands. Both failures are in
+  protected files. Every screen this package owns passes at both sizes.
+- 667x375 and gl_compatibility at 844x390 were not re-run after the base's bag change. The bag needs
+  868 px there too, so expect the same two bag lines at 667x375 (804 px canvas) until hook 5.
 - The notch inset path (`side_inset_px`) only runs on mobile, so it has a unit test but no device run.
-- Portrait 390x844: the HANDS caption (held_item_slot.gd, owned) sits on the HUD's drawn `Lv. 0 5.0%`
-  line (`r14/hud_390x844.png`). The gate does not see it because that line is drawn text. Left as it is
-  because the portrait bottom row also needs the hunt_hud fixes above.
 - map_screen is 421 lines (base 305). The gate's `layout_rects`, the N marker and the landscape
   layout account for the growth.
 - The atlas card shows the home island as `Lv. 10`, its tier in world data, while starter creatures
