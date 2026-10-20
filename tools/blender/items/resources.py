@@ -179,21 +179,24 @@ def silver_ore():
 
 
 def black_iron():
-    """Black iron: a dark rust-red host rock studded with purple-black metallic crystals: one large
-    cluster and a few small ones, their faces catching a violet sheen. Unlike obsidian's unhosted
-    glass shards."""
-    host = mat("#6a3a2c", 0.9, color2="#402018", tex="noise", scale=6.0, bump=0.6)
-    rock(0.95, scl=(1.3, 1.0, 0.8), m=host, jitter=0.16, sub=2)
-    xtal = mat("#2e2846", 0.14, metal=1.0, color2="#7a68b0", tex="noise", scale=5.0, bump=0.15, spec=1.0)
-    for (x, y, z, h, w) in ((-0.25, -0.3, 0.15, 1.5, 0.27), (0.1, -0.45, 0.0, 1.1, 0.2),
-                             (0.45, -0.2, 0.05, 0.95, 0.18), (-0.5, 0.0, 0.0, 0.8, 0.15),
-                             (0.2, 0.15, 0.3, 0.7, 0.13)):
-        tilt = (10 * (x > 0), 14 * (y < 0), 0)
-        cyl(w, h, loc=(x, y, z + h * 0.35), rot=tilt, m=xtal, segs=6, r2=w * 0.4, smooth=False)
-    fleck = mat("#c87a3a", 0.5, color2="#8a4a1a", tex="voronoi", scale=9.0, bump=0.3)
-    for p_ in ((0.75, -0.35, -0.05), (-0.8, -0.2, -0.15)):
-        rock(0.1, loc=p_, m=fleck, jitter=0.3, sub=0)
+    """Black iron: a rust-red host rock with big blocky gunmetal crystals growing out of it, cubic
+    like magnetite, their polished faces catching a cold blue-white glint against the dark slot.
+    Unlike obsidian's violet glass shards (review: dark crystal, not told from obsidian; the first
+    redo's crystals were too small and too dark to read)."""
+    host = mat("#7a4030", 0.9, color2="#4a241a", tex="noise", scale=6.0, bump=0.6)
+    rock(0.9, loc=(0, 0.15, -0.25), scl=(1.3, 1.0, 0.7), m=host, jitter=0.16, sub=2)
+    xtal = mat("#4a505c", 0.18, metal=1.0, color2="#8a94a8", tex="noise", scale=4.0, bump=0.1)
+    for (x, y, z, e, rot) in ((-0.2, -0.25, 0.35, 0.62, (20, 35, 15)), (0.45, -0.3, 0.1, 0.44, (-10, 20, 40)),
+                               (-0.65, -0.15, -0.05, 0.36, (30, -15, 10)), (0.2, -0.55, -0.35, 0.3, (15, 45, -20)),
+                               (0.75, 0.0, 0.35, 0.26, (40, 10, 30))):
+        box((e, e, e), loc=(x, y, z), rot=rot, m=xtal, bev=0.02)
+    rust = mat("#c86a2a", 0.7, color2="#8a3e14", tex="noise", scale=9.0, bump=0.3)
+    for p_ in ((0.75, -0.35, -0.3), (-0.85, -0.25, -0.35), (-0.3, -0.6, -0.4)):
+        rock(0.11, loc=p_, m=rust, jitter=0.3, sub=0)
+    turn(10)
     upright()  # flat item: diagonal so the slot can lift it above its top edge
+
+
 def metal_shard():
     """Metal shard: a jagged piece torn off a riveted plate, its ripped edge bright bare metal, a
     line of rivets down the clean edge, lying over a smaller torn-off corner."""
@@ -314,33 +317,34 @@ def raptor_talon():
 
 
 def armor_scute():
-    """Armor scute: two overlapping bony plates off a big animal's back: thick off-white bone, a heavy
-    ridge and chipped, uneven rims, one plate sitting on the other (not a smooth gem)."""
-    bone = mat("#d8ccb0", 0.65, color2="#a89c7c", tex="noise", scale=6.0, bump=0.45, ramp=(0.35, 0.8))
-    keel = mat("#efe6cc", 0.5, color2="#c8bc9c", tex="noise", scale=8.0, bump=0.3)
-    pit = mat("#8a7c5a", 0.9, color2="#6a5e40", tex="voronoi", scale=9.0, bump=0.5)
+    """Armor scute: an osteoderm off a big animal's back: a thick oval bone plate, pitted, with a
+    tall keel fin along its length rising to a blunt point and a darker horn-brown rim; a smaller
+    scute overlaps behind it (review: a flat plate, no bony texture; the first redo read as a pale
+    stone, a hexagon with radial ridges as a game tile)."""
+    bone = mat("#e2d4b0", 0.6, color2="#a8946c", tex="noise", scale=9.0, bump=0.9, ramp=(0.35, 0.75))
+    rim = mat("#7a5a36", 0.7, color2="#5a3e22", tex="noise", scale=8.0, bump=0.3)
+    keel = mat("#f0e4c4", 0.5, color2="#d0c09a", tex="noise", scale=10.0, bump=0.2)
 
-    def plate(x, z, sc, rot_z):
-        pts = []
-        n = 14
-        for k in range(n):
-            a = 2 * math.pi * k / n
-            rr = 0.9 + 0.1 * ((k * 7) % 5) / 5.0
-            pts.append((rr * sc * math.cos(a), rr * sc * 0.8 * math.sin(a)))
-        g = group(loc=(x, 0.1 * sc, z), rot=(10, 0, rot_z))
-        prism(pts, 0.26, m=bone, bev=0.06, parent=g,
-              deform=lambda co: co.__setitem__(1, co.y + 0.28 * (1 - min(1.0, (co.x ** 2 + co.z ** 2) / 0.7))))
-        # The keel: a low ridge across the plate, its ends stopping short of the rim.
-        tube([(-0.5 * sc, 0, 0.3), (-0.2 * sc, 0, 0.45), (0.2 * sc, 0, 0.45), (0.5 * sc, 0, 0.3)],
-             0.07, keel, segs=6, taper=(0.5, 0.5), parent=g)
-        for k in range(5):  # pits along the flanks
-            a = 0.4 + 0.55 * k
-            ball(0.05, loc=(0.55 * sc * math.cos(a), 0.2, 0.45 * sc * math.sin(a)), m=pit, sub=2, parent=g)
-    plate(-0.15, -0.35, 1.15, 0)
-    plate(0.2, 0.32, 0.9, 18)
-    turn(10)
-    turn(34, "X")
+    def scute(loc, sc, rz):
+        g = group(loc=loc, rot=(0, 0, rz))
+        oval = [(math.cos(2 * math.pi * k / 12) * (1.0 + 0.06 * ((k * 5) % 3)) * sc,
+                 math.sin(2 * math.pi * k / 12) * 0.68 * sc) for k in range(12)]
+
+        def dome(co):
+            d = (co.x / sc) ** 2 + (co.z / (0.68 * sc)) ** 2
+            co.y -= 0.22 * sc * max(0.0, 1.0 - d)
+        prism([(x * 1.07, z * 1.1) for x, z in oval], 0.12 * sc, loc=(0, 0.04 * sc, 0), m=rim, bev=0.03, parent=g)
+        prism(oval, 0.2 * sc, m=bone, bev=0.05, parent=g, deform=dome)
+        # Keel fin: a thick wedge along the long axis, highest just behind the middle.
+        prism([(-0.85 * sc, 0.0), (-0.1 * sc, 0.5 * sc), (0.25 * sc, 0.55 * sc), (0.85 * sc, 0.0)], 0.16 * sc,
+              loc=(0, -0.12 * sc, 0), rot=(90, 0, 0), m=keel, bev=0.04, parent=g)
+    scute((0.5, 0.35, 0.55), 0.7, 14)
+    scute((-0.1, 0, -0.15), 1.0, -6)
+    turn(-30, "X")
+    turn(-50)  # three-quarter view so the keel stands out in profile
     upright()  # flat item: diagonal so the slot can lift it above its top edge
+
+
 def venom_gland():
     m = mat("#9ad83a", 0.12, color2="#3a6a1a", tex="voronoi", scale=3.0, bump=0.3, coat=1.0, emit="#8cff4a",
             emit_strength=0.5)
@@ -477,50 +481,60 @@ def raw_hide():
     turn(-8)
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def raptor_hide():
-    """Raptor hide: a feathered green hide: dark bands of feather rows across a moss-green skin,
-    quills along the torn edge (raw_hide is the bare, wet flesh side)."""
-    skin = mat("#5a6a34", 0.7, color2="#3a481c", tex="noise", scale=8.0, bump=0.4, ramp=(0.4, 0.8))
-    band = mat("#28320f", 0.85, color2="#161e06", tex="noise", scale=10.0, bump=0.5)
-    tuft = mat("#8a9a52", 0.7, color2="#62722e", tex="wave", scale=14.0, bump=0.3)
-    _pelt(skin)
-    # Feather rows: four wavy dark bands, each a row of overlapping tufts along its upper edge.
-    for row in range(4):
-        z = -0.6 + 0.4 * row
-        pts = [(-0.55 + 0.11 * k, 0.0, z + 0.06 * math.sin(k * 1.2)) for k in range(11)]
-        tube(pts, 0.07, band, segs=5)
-        for k in range(1, 10, 2):
-            p = pts[k]
-            blob(0.09, loc=(p[0], -0.05, p[2] + 0.05), scl=(1.3, 0.5, 1.0), m=tuft, amp=0.1, sub=2)
+    """Raptor hide: a feathered pelt in the raptor's tawny brown (items.json tint #6b5a3e): rows of
+    overlapping feathers laid like shingles, banded tan and near-black, with long quills fringing
+    the torn edge (raw_hide is the bare, wet flesh side). Review: a flat striped cut-out; the
+    first redo's green skin and bead tufts read as a cactus pad."""
+    skin = mat("#6b5a3e", 0.8, color2="#4a3c26", tex="noise", scale=8.0, bump=0.4)
+    tan = mat("#b8955c", 0.6, color2="#8a6c3e", tex="wave", scale=18.0, bump=0.3)
+    dark = mat("#3a2e1c", 0.6, color2="#241a0e", tex="wave", scale=18.0, bump=0.3)
+    prism(_PELT, 0.07, m=skin, bev=0.02)
+    rows = [(0.78, 2), (0.5, 3), (0.22, 3), (-0.06, 3), (-0.34, 3), (-0.6, 2)]
+    for r, (z, n) in enumerate(rows):
+        fm = dark if r % 2 else tan
+        for k in range(n):
+            x = (k - (n - 1) / 2.0) * 0.36 + 0.06 * (r % 2)
+            leaf(0.5, 0.2, loc=(x, -0.05 - 0.012 * (len(rows) - r), z + 0.2), rot=(0, 180 + 8 * (k - 1), 0),
+                 m=fm, curl=0.06)
+    # Long quills fringing the edge.
     P = _PELT
     for k in range(0, len(P), 2):
-        x0, z0 = P[k]
-        x1, z1 = P[(k + 1) % len(P)]
-        x = x0 + (x1 - x0) * 0.5
-        z = z0 + (z1 - z0) * 0.5
-        tube([(x * 0.92, 0.03, z * 0.92), (x * 1.04, 0.05, z * 1.04)], 0.03, tuft, segs=4, taper=(1.0, 0.3))
-    turn(-10)
+        x, z = P[k]
+        leaf(0.35, 0.08, loc=(x * 0.9, -0.02, z * 0.9), rot=(0, -math.degrees(math.atan2(x, z)), 0), m=tan, curl=0.04)
+    turn(-25, "X")
+    turn(22)  # face the camera (it looks in from +x)
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
-def dried_hide():
-    """Dried hide: a stiff, translucent-amber sheet of rawhide with the fur scraped off, its edges
-    curled hard and a few crackle wrinkles; pegged out flat like a drying frame."""
-    m = mat("#d8b076", 0.85, color2="#a87a44", tex="noise", scale=9.0, bump=0.35, ramp=(0.4, 0.8))
-    inner = mat("#e8c894", 0.85, color2="#c09660", tex="noise", scale=10.0, bump=0.25)
-    outline = [(-1.0, -0.7), (-0.5, -0.85), (0.1, -0.78), (0.6, -0.9), (1.0, -0.6), (0.92, -0.1), (1.0, 0.4),
-               (0.7, 0.8), (0.2, 0.72), (-0.2, 0.9), (-0.7, 0.75), (-1.0, 0.4), (-0.9, 0.0)]
 
-    def curl(co):
-        # Stiff edges curling up, and a few crackle wrinkles across the sheet.
-        d = max(abs(co.x), abs(co.z))
-        co.y += 0.35 * max(0.0, d - 0.7) ** 1.6 + 0.05 * math.sin(co.x * 7.0) * math.cos(co.z * 6.0)
-    prism(outline, 0.04, m=m, bev=0.01, deform=curl)
-    # The clean inner side showing where the edge curls over.
-    prism([(x * 0.96, z * 0.96) for x, z in outline], 0.02, loc=(0, 0.03, 0), m=inner, bev=0.006,
-          deform=lambda co: co.__setitem__(1, co.y + 0.35 * max(0.0, max(abs(co.x), abs(co.z)) - 0.7) ** 1.6 + 0.05 * math.sin(co.x * 7.0) * math.cos(co.z * 6.0) - 0.01))
-    # Slit holes where the hide was pegged out.
-    for (x, z) in ((-0.85, 0.1), (0.85, 0.0), (0.0, 0.8), (-0.3, -0.75)):
-        cyl(0.05, 0.08, loc=(x, 0.05, z), rot=(90, 0, 0), m=mat("#5a4028", 0.9), segs=8)
-    turn(-8)
+
+def dried_hide():
+    """Dried hide: a stiff amber rawhide laced into a square drying frame of lashed sticks, the
+    lacing cords running from its edge to the poles (review: a flat slab with painted stripes; a
+    bare sheet still read as a slab, the frame is what says 'dried')."""
+    m = mat("#e0b070", 0.75, color2="#b07a3e", tex="noise", scale=5.0, bump=0.3, ramp=(0.35, 0.8))
+    w = wood("#7a5634", "#55391e")
+    cord = rope_m("#d8c08a")
+    outline = [(-0.72, -0.62), (-0.3, -0.75), (0.15, -0.66), (0.62, -0.74), (0.75, -0.3), (0.68, 0.2),
+               (0.76, 0.62), (0.3, 0.72), (-0.15, 0.64), (-0.66, 0.74), (-0.75, 0.3), (-0.68, -0.15)]
+
+    def ripple(co):
+        co.y += 0.04 * math.sin(co.x * 6.0) * math.cos(co.z * 5.0) - 0.08 * (1 - co.x * co.x) * (1 - co.z * co.z)
+    prism(outline, 0.04, m=m, bev=0.012, deform=ripple)
+    F = 0.98
+    for (p0, p1) in (((-F - 0.12, 0, F), (F + 0.12, 0, F)), ((-F - 0.12, 0, -F), (F + 0.12, 0, -F)),
+                     ((-F, 0, F + 0.12), (-F, 0, -F - 0.12)), ((F, 0, F + 0.12), (F, 0, -F - 0.12))):
+        tube([p0, p1], 0.055, w, segs=8)
+    for (x, z) in ((-F, F), (F, F), (-F, -F), (F, -F)):
+        tube(arc((x, 0, z), 0.08, 0, 360, 10, plane="xy")[:-1], 0.02, cord, segs=4, closed=True)
+    for (x, z) in outline:  # lacing from each point of the hide out to the nearest pole
+        if abs(x) > abs(z):
+            tube([(x, 0.0, z), (math.copysign(F, x), 0.0, z * 1.05)], 0.018, cord, segs=4)
+        else:
+            tube([(x, 0.0, z), (x * 1.05, 0.0, math.copysign(F, z))], 0.018, cord, segs=4)
+    turn(-14)
+    turn(8, "X")
     upright()  # flat item: diagonal so the slot can lift it above its top edge
+
+
 def hide_strap():
     m = hidem("#7a4a2a", "#5a3218")
     pts = []
@@ -566,33 +580,25 @@ def thread():
 
 
 def cloth_item():
-    """Cloth: a bolt of woven cloth stood on end: a roll of linen with its layered end toward the
-    camera, two folded lengths stacked on it (rust, indigo) and a fringed length falling forward."""
-    linen = _weave("#d8cdb0", "#b0a482", scale=34.0, bump=0.9)
-    rust = _weave("#b06040", "#8a4230", scale=32.0, bump=0.9)
-    blue = _weave("#7a8fa8", "#566a82", scale=30.0, bump=0.9)
-    fringe = mat("#c4b896", 1.0, color2="#9a8e70", tex="noise", scale=20.0, bump=0.2)
-    # The bolt stood on end: a cylinder with its layered end facing the camera.
-    cyl(0.42, 1.3, m=linen, segs=26)
-    for r in (0.34, 0.24, 0.14):
-        cyl(r, 0.03, loc=(0, -0.66, 0), rot=(90, 0, 0),
-            m=mat("#c8bc9a", 0.9, color2="#a89a78", tex="wave", scale=40.0), segs=26)
-    # Two folded lengths stacked on top of the bolt.
-    for (z, m, rot_) in ((0.78, rust, 6), (0.98, blue, -5)):
-        def fold(u, v, k=z):
-            x = (u * 2.0 - 1.0) * 0.55
-            return (x, 0.12 * math.sin(x * 3.0 + k) + 0.04 * math.sin(v * 6.0), z + v * 0.18 - 0.04 * u * u)
-        _sheet(11, 7, fold, m, thick=0.05)
-    # The fringed end of the linen falling forward off the bolt.
-    def drape(u, v):
+    """Cloth: a stack of three folded lengths (linen on rust on indigo), each with a soft rolled fold
+    toward the camera and the weave showing; the top length's end hangs
+    down over the front (review: the old art was stacked coloured slabs with no fold or weave)."""
+    linen = _weave("#e2d8bc", "#c4b692", scale=44.0, bump=0.3)
+    rust = _weave("#c0683e", "#94482a", scale=44.0, bump=0.3)
+    blue = _weave("#5c7cb0", "#3e5888", scale=44.0, bump=0.3)
+    for (z, m, rz) in ((-0.42, blue, -4), (-0.08, rust, 5), (0.26, linen, -2)):
+        g = group(loc=(0, 0, z), rot=(0, 0, rz))
+        box((1.7, 1.15, 0.3), m=m, bev=0.13, parent=g)
+        # The fold: a soft roll along the front edge, so each length reads as folded fabric.
+        cyl(0.15, 1.66, loc=(0, -0.56, 0), rot=(0, 90, 0), m=m, segs=16, parent=g)
+
+    def hang(u, v):
         x = (u * 2.0 - 1.0) * 0.62
-        return (x, -0.35 - 0.16 * v + 0.06 * math.sin(x * 3.0), 0.3 - 0.95 * v * v - 0.1 * v)
-    _sheet(11, 9, drape, linen, thick=0.045)
-    for k in range(7):
-        x = -0.55 + 0.18 * k
-        tube([(x, -0.5, -0.62), (x + 0.03, -0.54, -0.76 - 0.04 * (k % 3))], 0.013, fringe, segs=4)
-    turn(14)
-    turn(10, "X")
+        return (x + 0.1, -0.72 - 0.05 * math.sin(x * 5.0) - 0.05 * v,
+                0.36 - 0.95 * v + 0.06 * math.sin(u * math.pi * 3.0) * v)
+    _sheet(10, 9, hang, linen, thick=0.05)
+    turn(-24)
+    turn(12, "X")
     upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
@@ -834,9 +840,10 @@ def _weave(c, c2, scale=60.0, bump=0.45):
     mix.data_type = "RGBA"
     mix.blend_type = "MULTIPLY"
     mix.inputs["Factor"].default_value = 0.3
-    mix.inputs[6].default_value = srgb("#8a7c60")
+    # Mix lerps A -> A*B: the cloth colour is A, so the threads only darken it where they cross.
+    mix.inputs[7].default_value = srgb("#8a7c60")
     src = next(n for n in nt.nodes if n.type == "VALTORGB")
-    nt.links.new(src.outputs["Color"], mix.inputs[7])
+    nt.links.new(src.outputs["Color"], mix.inputs[6])
     nt.links.new(mul.outputs["Value"], mix.inputs[0])
     nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
     return m
@@ -861,41 +868,46 @@ def _sheet(nu, nv, fn, m, thick=0.03):
     me.materials.append(m)
     ob = bpy.data.objects.new("sheet", me)
     bpy.context.scene.collection.objects.link(ob)
-    ob.parent = ROOT
+    ob.parent = __import__("kit").ROOT  # not the ROOT name bound at import: reset() makes a new one
     md = ob.modifiers.new("solid", "SOLIDIFY")
     md.thickness = thick
     return ob
 
 
 def cloth_scrap():
-    """Torn linen: a faded linen-coloured cloth square heaped over itself in folds, the weave showing,
-    the hem torn ragged with a few loose threads. Irregular outline, soft folds; not a flat plane."""
-    face = _weave("#dcd2b4", "#bdb08e", scale=30.0, bump=0.9)
-    back = _weave("#c8bc9c", "#a89a78", scale=26.0, bump=0.8)
-    thread = mat("#d8ccae", 0.95, color2="#b0a482", tex="noise", scale=30.0, bump=0.3)
+    """Torn linen: a scrap of pale woven cloth with a faded red band, hung over a stick so it falls
+    in soft folds on both sides, its hem torn uneven with loose threads trailing (review: a flat
+    or heaped scrap read as paper or pastry; a hanging drape only reads as cloth)."""
+    face = _weave("#e4dbc0", "#c8bb98", scale=44.0, bump=0.3)
+    band = _weave("#b8503c", "#8e3a2a", scale=44.0, bump=0.3)
+    thread = mat("#dcd0b0", 0.95)
+    R = 0.09  # stick radius
 
-    def cloth(u, v):
-        # Width narrows with a torn, wavy edge; the hem is uneven; the cloth piles into folds at the
-        # bottom where it doubles over itself.
-        half = 0.85 * (0.82 + 0.18 * math.sin(v * 5.0 + 0.4)) * (1.0 - 0.22 * v)
-        x = (u * 2.0 - 1.0) * half
-        z = 0.95 - (1.55 + 0.22 * math.sin(u * 9.0 + 1.1)) * v
-        heap = 0.42 * max(0.0, v - 0.55) ** 1.5 * (0.6 + 0.4 * math.sin(u * math.pi * 2.2))
-        fold = 0.2 * math.sin(u * math.pi * 3.1 + 0.6) * (0.3 + 0.7 * v)
-        return (x, fold - 0.16 * v + 0.05 * math.sin(v * 8.0 + u * 5.0) - heap, z)
-    _sheet(15, 15, cloth, face, thick=0.03)
-    # The bottom corner folded up over the heap: a soft triangle of the other face of the weave.
-    def flap(u, v):
-        w = 0.62 * (1.0 - v)
-        return (-0.3 + (u - 0.5) * 2.0 * w, -0.55 - 0.06 * math.sin(u * 4.0) + 0.06 * v,
-                -0.55 + v * 0.85 + 0.05 * math.sin(u * math.pi))
-    _sheet(9, 9, flap, back, thick=0.025)
-    for i in range(9):   # loose threads from the torn hem
-        u = 0.08 + 0.1 * i
-        e = cloth(u, 1.0)
-        tube([(e[0], e[1], e[2] + 0.02), (e[0] + 0.03, e[1] + 0.02, e[2] - 0.08 - 0.04 * (i % 3)),
-              (e[0] - 0.01, e[1] + 0.03, e[2] - 0.15 - 0.04 * (i % 2))], 0.011, thread, segs=4)
-    turn(8)
+    def path(v, u, off=0.0):
+        # v 0..1: front hem -> up the front -> over the stick -> down the back to a shorter hem.
+        x = (u * 2.0 - 1.0) * 0.85
+        hem = 0.16 * (((u * 6.0 + 0.3) % 1.0)) + 0.05 * math.sin(u * 19.0)
+        front, back = 1.25 - hem, 0.8 - 0.6 * hem
+        L = front + math.pi * R + back
+        d = v * L
+        fold = 0.09 * math.sin(x * 8.0 + 0.5)
+        if d < front:
+            depth = front - d
+            return (x, -(R + off) - fold * depth - 0.12 * depth * depth, -depth)
+        if d < front + math.pi * R:
+            t = (d - front) / R
+            return (x, -(R + off) * math.cos(t), (R + off) * math.sin(t))
+        depth = d - front - math.pi * R
+        return (x, (R + off) + fold * depth + 0.08 * depth * depth, -depth)
+    _sheet(18, 26, lambda u, v: path(v, u), face, thick=0.03)
+    _sheet(18, 3, lambda u, v: path(0.14 + 0.07 * v, u, 0.045), band, thick=0.005)
+    cyl(R, 2.2, rot=(0, 90, 0), m=wood("#8a6a44", "#6a4c2c"), segs=12)
+    for i in range(5):   # loose threads off the torn front hem
+        u = 0.1 + 0.2 * i
+        x, y, z = path(0.0, u)
+        tube([(x, y, z + 0.02), (x + 0.02, y - 0.02, z - 0.12 - 0.04 * (i % 3)),
+              (x - 0.02, y - 0.03, z - 0.2 - 0.03 * (i % 2))], 0.016, thread, segs=4)
+    turn(-30)
     upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 

@@ -548,20 +548,20 @@ def makeshift_taming_pen():
 def smoker_kit():
     """Smoker kit: a lashed A-frame of green poles with two cross rails, a bundle of hanging meat
     strips and a pouch of wood chips tied at its foot."""
-    w = wood("#5e4a2a", "#3a2e18")
+    w = bark("#9a7650", "#6a4c30")  # lighter than the first try, which sank into the dark slot
     for s in (-1, 1):
         for y in (-0.35, 0.35):
-            tube([(s * 0.95, y, -1.0), (0, y, 1.0)], 0.06, w, segs=8)
+            tube([(s * 0.95, y, -1.0), (0, y, 1.0)], 0.1, w, segs=8)
     for z in (0.1, 0.75):
-        cyl(0.05, 0.75, loc=(0, 0, z), rot=(90, 0, 0), m=w, segs=8)
+        cyl(0.075, 0.95, loc=(0, 0, z), rot=(90, 0, 0), m=w, segs=8)
     for y in (-0.35, 0.35):
         _lash(0, y, 0.9, rope_m(), r=0.08)
-    meat = mat("#8e3420", 0.6, color2="#6a2012", tex="noise", scale=5.0, bump=0.35, coat=0.3)
-    for i, x in enumerate((-0.28, 0.0, 0.28)):
-        h = 0.55 + 0.08 * (i % 2)
-        tube([(x, 0, 0.72), (x, 0, 0.72 - h)], 0.02, rope_m("#d7c08a"), segs=4)
-        prism([(-0.07, 0), (0.07, 0), (0.09, -h * 0.5), (0.03, -h), (-0.08, -h * 0.8), (-0.1, -h * 0.3)], 0.04,
-              loc=(x, 0, 0.7 - h * 0.05), rot=(15, 0, 0), m=meat, bev=0.01,
+    meat = mat("#b8482a", 0.55, color2="#8a3018", tex="noise", scale=5.0, bump=0.35, coat=0.3)
+    for i, x in enumerate((-0.26, 0.0, 0.26)):
+        h = 0.6 + 0.1 * (i % 2)
+        tube([(x, -0.12, 0.14), (x, -0.12, 0.02)], 0.02, rope_m("#d7c08a"), segs=4)
+        prism([(-0.11, 0), (0.11, 0), (0.13, -h * 0.5), (0.04, -h), (-0.11, -h * 0.8), (-0.14, -h * 0.3)], 0.05,
+              loc=(x, -0.12, 0.06), rot=(15, 0, 0), m=meat, bev=0.01,
               deform=lambda co: co.__setitem__(1, co.y + 0.03 * math.sin(co.z * 9)))
     pouch = mat("#b89a6a", 0.9, color2="#8a7044", tex="wave", scale=16.0, bump=0.3)
     blob(0.3, loc=(0.75, -0.3, -0.85), scl=(1.0, 0.9, 0.9), m=pouch, amp=0.14)
@@ -569,7 +569,7 @@ def smoker_kit():
     for k in range(5):
         chip = mat("#c8a878", 0.8, color2="#9a7a4a", tex="noise", scale=8.0)
         box((0.12, 0.08, 0.03), loc=(0.55 + 0.1 * k, -0.55, -1.05), rot=(0, 0, 20 * k), m=chip, bev=0.005)
-    turn(-20)
+    turn(28)  # face the A so the hanging meat shows between its legs
     turn(8, "X")
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 

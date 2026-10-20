@@ -199,6 +199,38 @@ def crop_arm(ob, keep_side=-1):
     return len(drop)
 
 
+def close_gaps(ob, keep=0.004):
+    """With the skin cut away an arm piece is a sleeve cuff and a glove (or pauldron and bracer) with
+    empty forearm between them, which reads as slivers floating apart. Slide the parts along the
+    arm's long axis so each empty stretch shrinks to `keep` and the pieces touch.
+    Returns the total length removed (scene units)."""
+    import bmesh
+    import numpy as np
+    from mathutils import Vector
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    mw = ob.matrix_world
+    co = np.array([tuple(mw @ v.co) for v in bm.verts])
+    if len(bm.faces) < 2:
+        bm.free()
+        return 0.0
+    axis = np.linalg.svd(co - co.mean(0), full_matrices=False)[2][0]
+    t = co @ axis
+    spans = sorted((min(t[v.index] for v in f.verts), max(t[v.index] for v in f.verts)) for f in bm.faces)
+    gaps, hi = [], spans[0][1]
+    for a, b in spans[1:]:
+        if a - hi > keep:
+            gaps.append((hi, a - hi - keep))
+        hi = max(hi, b)
+    back = mw.inverted_safe().to_3x3()
+    for v in bm.verts:
+        shift = sum(g for start, g in gaps if t[v.index] > start)
+        v.co -= back @ Vector(tuple(axis * shift))
+    bm.to_mesh(ob.data)
+    bm.free()
+    return float(sum(g for _, g in gaps))
+
+
 def render_one(iid, build, out_dir, tmp):
     kit.reset(iid)
     if isinstance(build, str):
@@ -218,7 +250,7 @@ def render_one(iid, build, out_dir, tmp):
         if "/arms.glb" in build.replace("\\", "/"):
             for ob in [o for o in bpy.context.scene.objects if o.type == "MESH"]:
                 cut = crop_arm(ob)
-                print("CROP %s %s one_arm faces_cut=%d" % (iid, ob.name, cut), flush=True)
+                print("CROP %s %s one_arm faces_cut=%d gap_closed=%.3f" % (iid, ob.name, cut, close_gaps(ob)), flush=True)
         for ob in list(bpy.context.scene.objects):
             if ob.parent is None and ob is not kit.ROOT:
                 ob.parent = kit.ROOT

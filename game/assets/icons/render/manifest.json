@@ -50,13 +50,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "armor_scute",
    "png": "res://assets/icons/render/armor_scute.png",
-   "sha256": "367f879b23f0d696ffcd2d200dd907fd8614bfb702f433e326638cce23d09a63",
-   "bytes": 34849,
+   "sha256": "4926d034efa7a1ba2eb79d4f97450073c49655c2082feeb728667455867bcda4",
+   "bytes": 53564,
    "rect": [
     19,
-    44,
+    34,
     218,
-    168
+    188
    ],
    "quality": "procedural_v1"
   },
@@ -191,13 +191,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "black_iron",
    "png": "res://assets/icons/render/black_iron.png",
-   "sha256": "6bc2d9d4c1b97ce4a46ceff4db64274e180ab84fbe0ed8e94bfebfbe752d2152",
-   "bytes": 33919,
+   "sha256": "f17c25a8c2b178fe8b86bd2ac2b6cd1a32871b8ba0c9f16b9bc94265466a7cae",
+   "bytes": 41676,
    "rect": [
     19,
-    41,
+    43,
     218,
-    174
+    170
    ],
    "quality": "procedural_v1",
    "replace": "redone as purple crystals in a red host; mark kept because t_iconart pins it"
@@ -515,13 +515,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "cloth",
    "png": "res://assets/icons/render/cloth.png",
-   "sha256": "ff41cec6defada70e312a990e5f99e3cf098418788d992cc5ecdf40e25c465c0",
-   "bytes": 42906,
+   "sha256": "6b3c53a6435d2dfc419b992a34e15520e0b3063b599faa15aa6294aea6eb78e9",
+   "bytes": 58981,
    "rect": [
-    55,
     19,
-    145,
-    218
+    22,
+    218,
+    212
    ],
    "quality": "procedural_v1"
   },
@@ -529,12 +529,12 @@
    "script": "tools/blender/items/resources.py",
    "builder": "cloth_scrap",
    "png": "res://assets/icons/render/cloth_scrap.png",
-   "sha256": "d64873cdeaadc3151f6908ce9742861ccdea3cc14177aebf2d1ae6e3e6db56bc",
-   "bytes": 54918,
+   "sha256": "77b4c603d814a4152445e997de1e5e3a1d1552c5ed7b36c45a65be52f398231d",
+   "bytes": 41200,
    "rect": [
-    20,
+    49,
     19,
-    216,
+    158,
     218
    ],
    "quality": "procedural_v1"
@@ -669,12 +669,12 @@
    "script": "tools/blender/items/resources.py",
    "builder": "dried_hide",
    "png": "res://assets/icons/render/dried_hide.png",
-   "sha256": "7291d440df25b08f1b0c7c1ec4313c65defce6bd7fb03df738805f5b8c57ac6a",
-   "bytes": 48435,
+   "sha256": "8330886f899bbd10dc73f6773a4a7ac5323b32f99054557f3c3e7d7e2aad970d",
+   "bytes": 45183,
    "rect": [
-    23,
+    42,
     19,
-    210,
+    172,
     218
    ],
    "quality": "procedural_v1"
@@ -1007,12 +1007,12 @@
    "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/arms.glb",
    "builder": "hide_bone_bracers",
    "png": "res://assets/icons/render/hide_bone_bracers.png",
-   "sha256": "a2395e5f5cad2de56ac37e3788bc259df1cf9efd147c2cc84cc9b6ba415ee533",
-   "bytes": 26593,
+   "sha256": "570da5bcb2a5fb01b2c0aaadb14ed024c11f165a1077bd92e6b0ff6f78b6ea15",
+   "bytes": 28457,
    "rect": [
-    63,
+    62,
     19,
-    130,
+    132,
     218
    ],
    "quality": "model_v2",
@@ -1192,13 +1192,13 @@
    "script": "tools/blender/items/food.py",
    "builder": "mango",
    "png": "res://assets/icons/render/mango.png",
-   "sha256": "13c9de3b1e0fa84836a5ce35a3d2a4ee26fce7afc04da26807f55d73949869a8",
-   "bytes": 29838,
+   "sha256": "e89c0149d4c99f175dc901ded2b9e938cdba229dbd270eaeaa7da7f69119b926",
+   "bytes": 32103,
    "rect": [
+    52,
     19,
-    42,
-    218,
-    172
+    152,
+    218
    ],
    "quality": "procedural_v1",
    "replace": "redone as a blushed fruit with a leaf; mark kept because t_iconart pins it"
@@ -1545,12 +1545,12 @@
    "script": "tools/blender/items/resources.py",
    "builder": "raptor_hide",
    "png": "res://assets/icons/render/raptor_hide.png",
-   "sha256": "585c60f029eedebf5ad65c8d1086bc6beca215114a77834abf52b6d53ece7f81",
-   "bytes": 31307,
+   "sha256": "0d2359850390d939279fb1b1b5ef011af070de16fc27c8a733d831108f1b41e9",
+   "bytes": 34572,
    "rect": [
-    66,
+    67,
     19,
-    124,
+    122,
     218
    ],
    "quality": "procedural_v1"
@@ -1825,12 +1825,12 @@
    "script": "tools/blender/items/camp.py",
    "builder": "smoker_kit",
    "png": "res://assets/icons/render/smoker_kit.png",
-   "sha256": "e9a2ada5b44af23e56b9d389fd8ed951d258df912bf706dfec3853aa0ff28a68",
-   "bytes": 30332,
+   "sha256": "088dd32e5bf3f97c431a6e0a7f3ac0088ccbf4ef878a62e190866e93d1b3f8af",
+   "bytes": 42497,
    "rect": [
-    42,
+    24,
     19,
-    172,
+    209,
     218
    ],
    "quality": "procedural_v1"
@@ -2149,12 +2149,12 @@
    "script": "glb:game/assets/characters/survivor/armor/travel_clothes/arms.glb",
    "builder": "travel_sleeves",
    "png": "res://assets/icons/render/travel_sleeves.png",
-   "sha256": "28b433a116a18a4b1d0c02ddae7bc68568a1154a2920141a02f63741dc654126",
-   "bytes": 21105,
+   "sha256": "5ed7b24d6ddc533a4cf44f7b9b8be7400d9daa80d16b5229027a6164f2e25d79",
+   "bytes": 27317,
    "rect": [
-    51,
+    48,
     19,
-    154,
+    160,
     218
    ],
    "quality": "model_v2",

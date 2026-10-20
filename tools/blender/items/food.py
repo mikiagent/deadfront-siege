@@ -330,17 +330,25 @@ def berry():
 
 
 def mango():
-    """Mango: one ripe fruit, a red-orange blush over a yellow-green flank, a dark stem and a leaf,
-    beside a smaller green unripe fruit."""
-    skin = mat("#e8a83a", 0.4, color2="#d8402a", tex="noise", scale=1.6, spec=0.35, ramp=(0.55, 0.8))
-    green = mat("#a8c040", 0.5, color2="#7aa030", tex="noise", scale=2.0, spec=0.3)
-    blob(0.85, loc=(-0.2, 0, 0.12), scl=(0.78, 0.7, 1.05), m=skin, amp=0.05, rot=(0, 22, 0))
-    blob(0.52, loc=(0.62, -0.2, -0.5), scl=(0.9, 0.8, 1.0), m=green, amp=0.06)
-    tube([(-0.62, 0, 0.95), (-0.7, 0, 1.15)], 0.045, mat("#5a4a2a", 0.6), segs=6)
-    leaf(0.85, 0.27, loc=(-0.7, 0, 1.1), rot=(10, -50, 0),
-         m=mat("#3e7a34", 0.5, color2="#2a5a24", tex="wave", scale=8.0), curl=0.12)
-    turn(20)
-    turn(12, "X")
+    """Mango: one long kidney-shaped fruit, green at the stem blushing to red-orange, a dark stem and
+    a leaf, beside a cut cheek showing the deep orange flesh (review: blotchy; a round fruit next
+    to a green ball read as an orange and a lime)."""
+    skin = mat("#a8c03a", 0.4, color2="#e0502a", tex="noise", scale=0.45, spec=0.35, ramp=(0.4, 0.6))
+    flesh = mat("#ffa020", 0.35, color2="#f08010", tex="noise", scale=4.0, spec=0.4, coat=0.3)
+    g = group(loc=(-0.25, 0.1, 0.1), rot=(0, 30, 0))
+    blob(0.85, scl=(0.66, 0.6, 1.12), m=skin, amp=0.06, parent=g, seed=(3, 1, 4))
+    ball(0.16, loc=(0.22, 0, -0.84), scl=(1, 1, 0.8), m=skin, parent=g)  # the beak at the tip
+    tube([(-0.05, 0, 0.9), (-0.08, 0, 1.12)], 0.05, mat("#5a4a2a", 0.6), segs=6, parent=g)
+    leaf(0.85, 0.24, loc=(-0.08, 0, 1.08), rot=(10, -60, 0),
+         m=mat("#3e7a34", 0.5, color2="#2a5a24", tex="wave", scale=8.0), curl=0.12, parent=g)
+    cheek = group(loc=(0.62, -0.35, -0.45), rot=(-105, 0, 15))
+    lathe([(0, 0.0), (0.5, 0.0), (0.48, 0.12), (0.38, 0.26), (0.2, 0.34), (0, 0.36)], m=skin,
+          scl=(0.72, 1.0, 1.0), parent=cheek)
+    lathe([(0, -0.02), (0.43, -0.02), (0.43, 0.01), (0, 0.01)], m=flesh, scl=(0.72, 1.0, 1.0), parent=cheek)
+    # The pale fibrous stone showing through the middle of the cut face.
+    lathe([(0, -0.03), (0.2, -0.03), (0.2, 0.0), (0, 0.0)], m=mat("#ffe0a0", 0.6, color2="#f0c070", tex="wave", scale=12.0),
+          scl=(0.6, 1.0, 1.0), parent=cheek)
+    turn(10)
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
