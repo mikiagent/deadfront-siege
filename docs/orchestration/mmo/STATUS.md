@@ -294,6 +294,13 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   roofs may fade further when the survivor is under them but keep a faint outline. W2-OCCLUDE restarted with
   pixel gates for this in finish-3 (wf_ffc48fe3-dc5); W2-BUILDSYS walls/roofs follow the same rule.
 
+- 2026-10-20 (owner) "if you're having issues with dead dinosaurs not staying on the ground, try having them
+  ragdoll on death". New package W2-RAGDOLL (wf_2cc5d74a-087, branch claude/mmo-w2-ragdoll): the death clip's
+  first beat as the hit reaction, then PhysicalBone3D ragdoll onto the terrain collider, freeze once settled
+  (no per-frame cost), at most 4 simulating, fallback to the clip plus terrain-conformed pose; per-species
+  profiles in game/data/creatures/ragdoll.json written by a dsc worker; gates on posed-skin ground contact,
+  lying height, joint limits, physics cost and a blind judge. The orchestrator integrates it after review.
+
 ## Owner questions (open)
 
 - none
