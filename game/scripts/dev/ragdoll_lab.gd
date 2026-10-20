@@ -602,15 +602,21 @@ func _run_suggest() -> void:
 			var past_tip := 0.0
 			var before_head := 0.0
 			var ab := b2 - a
+			var mean_off := Vector3.ZERO
 			for p in per[k]:
 				var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 1e-9), -1e9, 1e9)
 				past_tip = maxf(past_tip, (t - 1.0) * ab.length() * rig.scale)
 				before_head = maxf(before_head, -t * ab.length() * rig.scale)
-				dists.append((p - (a + ab * clampf(t, 0.0, 1.0))).length() * rig.scale)
+				var off := (p - (a + ab * clampf(t, 0.0, 1.0))) * rig.scale
+				mean_off += off
+				dists.append(off.length())
+			if not per[k].is_empty():
+				mean_off /= float((per[k] as Array).size())
 			dists.sort()
 			var q := func(f: float) -> float: return dists[int(f * (dists.size() - 1))] if not dists.is_empty() else 0.0
-			print("[rl-suggest]   %-16s r_now=%.3f len=%.3f p50=%.3f p80=%.3f p95=%.3f past_tip=%.3f before_head=%.3f verts=%d" % [
-				sk.get_bone_name(int(row["bone"])), row["radius_m"], row["length_m"], q.call(0.5), q.call(0.8), q.call(0.95), past_tip, before_head, dists.size()])
+			print("[rl-suggest]   %-16s r_now=%.3f len=%.3f p50=%.3f p80=%.3f p95=%.3f past_tip=%.3f before_head=%.3f mean_off=(%.2f,%.2f,%.2f) verts=%d" % [
+				sk.get_bone_name(int(row["bone"])), row["radius_m"], row["length_m"], q.call(0.5), q.call(0.8), q.call(0.95), past_tip, before_head,
+				mean_off.x, mean_off.y, mean_off.z, dists.size()])
 		host.queue_free()
 		await _frames(1)
 	get_tree().quit(0)
