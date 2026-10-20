@@ -712,41 +712,11 @@ func _sync_piece(grid: BuildGrid) -> void:
 		_ghost_mat_valid = valid
 		_ghost_mat_fresh = true
 		_apply_ghost_material(_ghost_visual, _mat_valid if valid else _mat_invalid)
-	_draw_snap_points(piece_at.get("sockets", []))
-	var parts: PackedStringArray = []
-	var cost := StructurePiece.cost(placing, piece_tier)
-	for id in cost:
-		parts.append("%s ×%d" % [str(id).replace("_", " "), int(cost[id])])
-	var label := "%s %s  %s" % [str(StructurePiece.tier_def(piece_tier).get("label", piece_tier)), str(StructurePiece.piece_def(placing).get("label", placing)), " · ".join(parts)]
-	if not valid:
-		label = reason_text(reason)
+	_snap_points.mesh = StructurePlacer.snap_points_mesh(piece_at.get("sockets", []))
+	var label := StructurePlacer.label(placing, piece_tier) if valid else reason_text(reason)
 	if label != _last_label:
 		_last_label = label
 		_ghost_label.text = label
-
-## Green diamonds on free sockets that take the piece, red on ones that refuse it.
-func _draw_snap_points(sockets: Array) -> void:
-	var verts := PackedVector3Array()
-	var cols := PackedColorArray()
-	for row in sockets:
-		var c: Vector3 = row[0] + Vector3(0, 0.08, 0)
-		var col := Color(0.25, 0.95, 0.45, 0.9) if bool(row[1]) else Color(0.95, 0.25, 0.2, 0.75)
-		var r := 0.13
-		var tips := [c + Vector3(r, 0, 0), c + Vector3(0, 0, r), c + Vector3(-r, 0, 0), c + Vector3(0, 0, -r)]
-		for i in 4:
-			for y in [r * 1.4, -r * 1.4]:
-				verts.append_array(PackedVector3Array([tips[i], tips[(i + 1) % 4], c + Vector3(0, y, 0)]))
-				cols.append_array(PackedColorArray([col, col, col]))
-	if verts.is_empty():
-		_snap_points.mesh = null
-		return
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_COLOR] = cols
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	_snap_points.mesh = mesh
 
 func _grid() -> BuildGrid:
 	if World.runtime == null:
