@@ -19,7 +19,9 @@ func _ready() -> void:
 	shape.shape = box
 	shape.position.y = 0.6
 	add_child(shape)
+	var model := PropVisuals.attach_model(self, kind)  # Blender catapult (manifest glb); primitives are the fallback
 	for spec in [[Vector3(2.0,0.25,2.0),Vector3(0,0.25,0)],[Vector3(0.25,1.5,0.25),Vector3(-0.7,1.0,0)],[Vector3(0.25,1.5,0.25),Vector3(0.7,1.0,0)],[Vector3(0.2,0.2,2.4),Vector3(0,1.4,0)]]:
+		if model != null: continue
 		var mesh := MeshInstance3D.new()
 		var b := BoxMesh.new()
 		b.size = spec[0]
@@ -30,6 +32,7 @@ func _ready() -> void:
 		mesh.material_override = mat
 		add_child(mesh)
 	for x in [-0.85,0.85]:
+		if model != null: continue
 		for z in [-0.65,0.65]:
 			var wheel := MeshInstance3D.new()
 			var cylinder := CylinderMesh.new()

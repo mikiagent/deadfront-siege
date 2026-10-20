@@ -44,6 +44,8 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | 2a | W2-PLAYER (player split + PlayerActions), W2-BREED (breeding, growth, mutations, capture rule 09, bonded cap 3->7), W2-ECO (ecosystem, structure targeting) in claude/mmo-w2-<key>; builders hand mechanical parts to dsc sub-worktrees | running (wf_e4b5bc5d-f50) |
 | 2a+ | W2-OCCLUDE: shared see-through occlusion (tall trees, later roofs/walls; roof fades when the survivor is under it) | running (wf_6986c1a3-c0c) |
 | 2a+ | W2-BUILDSYS: modular foundations/walls/doorways/windows/ceilings/roofs/ramps/stairs with snapping, structure HP, tiers + upgrade/repair, owner-passable walls; stand-in meshes swap to Blender models by data (structures.json); roofs fade via the occlusion API | running (wf_dcd34d26-be7) |
+| finish-1/2 | finish-1 (wf_4523bd07-373) merged W1-STRUCTART (+ its building hooks, 0d0f8c2) and W1-ICONART, then a usage limit cut it; its resume re-ran finished reviews (parallel order breaks the replay prefix), so it was stopped. finish-2 (wf_d0f53dc5-358, script copy `.claude/worktrees/deadfront-finish-2.js`) restarts each package from its real state: minors integrate, UI and clips fix, the rest build; every package must hand mechanical parts to dsc (owner 2026-10-20) | running (2026-10-20 12:15) |
+| dsc | quads-loco2 (protoceratops/megaloceros walk/run in mesh units; gate on stride, game bake, skin stretch, hip height), mmo-camp (Blender models for the 18 camp kinds still on Kenney), mmo-icons2 (32 missing + 33 flagged item icons) | running (2026-10-20 12:05) |
 | 1-INT | merge econ/net/audio + sound settings + market over socket | after wave 1a and audio pass review |
 | 1-ART | ARTA/ARTB Tripo species | concept sheets generating (Higgsfield gpt_image_2_5, critic-checked, wf_4ea0904a-0e6); then one owner batch approval |
 | merge | survivor-v2/armor/T. rex mount merged into `claude/mmo-overhaul` (0fef2a3) | import, [tests] PASS, SMOKE PASS |
@@ -252,6 +254,46 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   workstation levels and queues) after W2-INV, W2-CRAFT and W2-SKILLS. The camp reference is the art
   target for W1-STRUCTART/W2-PROCESS stations (dye vats, loom, spinning wheel, kiln, hide racks).
 
+- 2026-10-20 (owner) spec 11 `docs/design/durango-prompts/11_processing_skill_material_transformations.md`
+  + UI references `docs/reference/durango-craft-build-menu.webp` (category column, sectioned recipe list,
+  detail card with Max Level / Related Ability / Skill Category, a material slot that takes a FAMILY
+  such as "Leaf, Stalk 0/2" filled with exact picked instances, yellow Craft) and
+  `docs/reference/durango-skill-screen.webp` (12-category icon grid with levels, Career Guide banner,
+  detail panel with skill level and Used SP, SP counter). Processing = component manufacture,
+  in-place modification (finite processing attempts per instance, trade-off traits), and alloys;
+  Handicraft and Metal Processing Ability separate from category level; station type/level and tool
+  gates; delegated queue jobs; one shared transformation + preview service. Mapping: 11 -> W2-PROCESS
+  (engine, recipes, stations, queues) + W2-SKILLS (Processing tree nodes, abilities, research gates);
+  the two screens are layout targets for W1-UI (skills sheet grid, craft card) now and W2-SCREENS later.
+
+- 2026-10-20 (owner) spec 12 `docs/design/durango-prompts/12_remaining_skill_trees.md`: coverage for the
+  undercovered categories (13 incl. optional Toxic Oil Islands; 918 reference nodes, import as data, mark each
+  node functional/partial/defined, never an inert tree). Extends existing data (game/data/butchering.json,
+  farming.json, skills/), no second XP/item/combat systems. Mapping, in the spec's priority order:
+  1) gathering parts + techniques + abilities and carcass part selection -> new W2-GATHER and W2-BUTCHER
+  (after W2-INV + W2-SKILLS); 2) fields/seed instances/growth -> W2-FARM, clothing slots + fabric-trait
+  climate bonuses -> W2-TAILOR (with W2-SURVIVAL climate); 3) tool/weapon part branches, saws gating
+  harvest tiers -> W2-CRAFT; 4) Barrage, Roll Duration, parry -> W2-ACTION; 5) Stealth Ability in the
+  real AI detection + mineral nodes -> W2-SKILLS/eco; Toxic Oil Islands -> optional W3 content pack.
+
+- 2026-10-20 (orchestrator) W1-UI's last blocker was a lab gate on the bag that needed edits to
+  hunt_hud.gd/inventory_ui.gd. W2-HUD/W2-SCREENS have not started, so W1-UI now owns those two files and
+  lands its hooks patch on its own branch (option a). New survivors show "Lv. 1" (Durango, ARK and the
+  old bag all start at 1). W1-UIICONS wires its icons into the HUD itself after W1-UI merges. All five
+  dsc workers (minors, audio, quads-loco, zebra, trex-sleep) and the player dsc worker finished; their
+  results are vetted and integrated by finish-1 (audio waits for W1-INT).
+
+- 2026-10-20 (orchestrator) W1-UI open questions: the level-1 title "Venture into the World" is held
+  from character creation (no level-up toast); skills keep their internal levels in W1-UI, and W2-SKILLS
+  re-keys them to Durango's 1-60 scale with Lv1 AUTO nodes (spec 12), so "skills show Lv. 0" is a known
+  item for W2-SKILLS, not a W1-UI blocker.
+
 ## Owner questions (open)
 
 - none
+
+## Merge log
+
+- 2026-10-20 merged W1-STRUCTART (37b6de7): import exit 0; [tests] PASS; t_ai/t_build/t_canim/t_combat/t_harbour (islands=15)/t_items/t_light/t_lighting/t_save/t_structart/t_tame/t_web PASS; SMOKE PASS; island_lab exit 0, 0 SCRIPT ERROR, nodes=378 creatures=24 (unchanged); build_lab [build] PASS; harbour_lab rot=2 on the coast; creature lab 0 "couldn't resolve track"; home/harbour shots Forward+, compat, 844x390 checked (pier on the water, home unchanged); pending hooks: tools/blender/structures/integrator_hooks.patch (W1-BUILD prop_visuals.gd, placed_building.gd, field_catapult.gd; W1-HARBOUR harbour.gd tap box)
+- 2026-10-20 merged W1-ICONART (519f5c0): import exit 0; [tests] PASS; t_ai/t_build/t_canim/t_combat/t_harbour (islands=15)/t_iconart/t_items/t_light/t_lighting/t_save/t_structart/t_tame/t_web PASS; SMOKE PASS; island_lab exit 0, 0 SCRIPT ERROR, nodes=378 creatures=24 (unchanged); build_lab [build] PASS; harbour_lab rot=2; item_art_lab [itemart] ok=true; creature lab 0 "couldn't resolve track"; base moved (structart hooks 0d0f8c2) and was merged in, run_all/smoke/t_iconart/t_structart/t_harbour rerun PASS; home shots Forward+, compat, 844x390 unchanged; asset register icon row updated; pending hooks: t_iconart in tools/smoke.sh or CI (gates already run every t_*.gd), W2-SCREENS swaps inventory_ui/item_icons to ArtSlot/ItemArt
+- 2026-10-20 merged DSC-MINORS (1174800): clean merge, no conflicts; import exit 0; [tests] PASS; t_ai/t_build/t_canim/t_combat/t_harbour (islands=15)/t_iconart/t_items/t_light/t_lighting/t_save (5 deliberate SCRIPT ERRORs, as on base)/t_structart/t_tame/t_web PASS; SMOKE PASS; island_lab exit 0, 0 SCRIPT ERROR, nodes=378 creatures=24 (unchanged); build_lab [build] PASS; harbour_lab rot=2; item_art_lab ok=true; package labs combat_rules/aival/hunt_lab/capture/petslab/aisweep PASS, foundation_lab fibre merged line; creature_anim_lab 0 "couldn't resolve track"; no new Godot .ips; home shots Forward+, compat (grass a little more saturated, camp pad lighter, as intended), 844x390 checked; lighting_lab windowed Forward+ PASS (worst pad 1.42), compat FAIL on mobile survivor shadow 0.803 > 0.80, identical on base b221e24 (pre-existing, not this package; compat worst pad 0.80 PASS); pending hooks: player.gd `_begin_gather` refusal hunk (finding 18) must be carried into PlayerActions by W2-PLAYER (running)

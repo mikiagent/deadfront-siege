@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Split Godot's index.pck into <100 MB parts so Vercel Hobby can host it.
 
-Godot's loader expects one file named index.pck. Usage: web_pack_for_vercel.py OUT_DIR [--soak] We download the parts in the
-browser, concatenate them, and preload the buffer as index.pck.
+Godot's loader expects one file named index.pck. We download the parts in the browser,
+concatenate them, and preload the buffer as index.pck.
+
+Usage: web_pack_for_vercel.py OUT_DIR [--soak]
 """
 from __future__ import annotations
 

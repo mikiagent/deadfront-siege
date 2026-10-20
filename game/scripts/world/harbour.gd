@@ -16,10 +16,12 @@ var build_rot: int = 0
 var persist_building: bool = false
 var _visual: Node3D
 var _shape: CollisionShape3D
+var _pier_glb := false  # Visual is the props_manifest pier (W1-STRUCTART), not the Kenney composite
 
 func _ready() -> void:
 	add_to_group("harbour")
 	_visual = _manifest_model()
+	_pier_glb = _visual != null
 	if _visual == null:
 		_visual = _composite()
 	_visual.name = "Visual"
@@ -27,6 +29,8 @@ func _ready() -> void:
 	_shape = CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(2.2, 2.3, 8.0)  # deck, shed and cargo, out to the pier's seaward end
+	if _pier_glb:
+		box.size = Vector3(2.8, 2.3, 6.0)  # pier.glb spans z +3..-3 with its boat; the composite reaches -5
 	_shape.shape = box
 	add_child(_shape)
 	_level()
@@ -52,7 +56,7 @@ func _level() -> void:
 	if _visual == null or not is_inside_tree():
 		return
 	_visual.position.y = FEET_Y - global_position.y
-	_shape.position = Vector3(0.0, _visual.position.y + DECK_H + 0.85, -1.0)
+	_shape.position = Vector3(0.0, _visual.position.y + DECK_H + 0.85, 0.0 if _pier_glb else -1.0)
 
 func _manifest_model() -> Node3D:
 	var row: Variant = (Data.props_manifest.get("buildings", {}) as Dictionary).get("harbour", null)
