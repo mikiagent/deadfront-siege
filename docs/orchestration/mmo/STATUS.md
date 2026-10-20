@@ -166,6 +166,15 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   them); the Exchange lists pets as caged items. Captured (untamed) and repackaged (tamed) cages read
   differently (e.g. rope-tied wild vs tagged tame).
 
+- 2026-10-19 (owner): a caged animal (captured or repackaged) can also be RELEASED as a wild dinosaur
+  that you can fight (it turns hostile/wild at its own level and genetics; pet ownership ends; the
+  cage is consumed). There must be a MOB LIMIT and a PLAYER LIMIT per area for performance. Plan:
+  data-driven caps per area/island (rules.json: max_creatures_area, max_players_area); released
+  animals count toward the mob cap and a release at the cap is refused with a notice; the population
+  director (W2-SPAWN) never spawns past the cap; on the server (W3-SRVWORLD) a full area/instance sends
+  new players to another instance (channel) and presence rooms enforce max_players_area. Caps get a
+  perf test (perf_budget_lab at the cap stays inside the frame budget on web).
+
 ## Owner questions (open)
 
 - none
