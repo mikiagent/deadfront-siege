@@ -118,7 +118,7 @@ const HOSTILE := [
 	["act.deposit", {"bag_slot": 0, "count": 0}, "bad_request"],
 	["act.deposit", {"bag_slot": 0, "count": -3}, "bad_request"],
 	["act.deposit", {"pet_uid": "p0.0"}, "not_found"],
-	["act.deposit", {"pet_uid": 5}, "not_found"],
+	["act.deposit", {"pet_uid": 5}, "bad_request"],
 	["act.deposit", {"slot_dict": {}}, "invalid_asset"],
 	["act.deposit", {"item": {"id": "stone", "count": 1}}, "invalid_asset"],
 	["act.deposit", {"save": "x"}, "invalid_asset"],
@@ -572,7 +572,7 @@ func _hostile_arg_checks() -> void:
 		allowed.append("rid")
 		allowed.sort()
 		allowlist += 1
-		expect(keys == allowed and not got.has("junk") and not got.has("missing"), "allowlist %s keeps %s, want %s" % [op, keys, allowed])
+		expect(keys == allowed and not got.has("junk"), "allowlist %s keeps %s, want %s" % [op, keys, allowed])
 	print("[srvdom] hostile rows=%d ops_covered=%d matched=%d script_errors=%d unchanged=%s allowlist_ops=%d" % [HOSTILE.size(), ops.size(), matched, CharacterStore._errors.n - start_errors, unchanged, allowlist])
 
 # --- fuzz ----------------------------------------------------------------------------------

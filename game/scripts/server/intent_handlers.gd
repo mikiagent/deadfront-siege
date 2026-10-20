@@ -454,8 +454,10 @@ func _deposit(ch: CharacterState, a: Dictionary) -> Dictionary:
 			return no("invalid_asset", "deposits take a bag slot or a pet uid of the server character")
 	if a.has("pet_uid"):
 		var uid: Variant = text(a, "pet_uid")
-		if uid == null or not ch.d.pets.has(uid):
-			return no("not_found", "no pet %s" % str(a.pet_uid))
+		if uid == null:
+			return no("bad_request", "pet_uid must be a 1..64 character string")
+		if not ch.d.pets.has(uid):
+			return no("not_found", "no pet %s" % uid)
 		var pet: Dictionary = ch.d.pets[uid]
 		if not Provenance.is_server(pet):
 			return no("invalid_asset", "pet %s has no server provenance" % uid)
