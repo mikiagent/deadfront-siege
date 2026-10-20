@@ -13,10 +13,14 @@ float occl_bayer4(vec2 p) {
 	return fract(b.x * 0.5 + b.y * b.y * 0.75) * 0.25 + fract(a.x * 0.5 + a.y * a.y * 0.75);
 }
 
+// Shadow and probe cameras look another way, so faded props keep their whole shadow.
+bool occl_main_view(mat4 inv_view) {
+	return dot(-inv_view[2].xyz, occl_view.xyz) >= 0.999;
+}
+
 // 0..1: how much of this fragment to drop because it sits between the camera and the survivor.
 float occl_between(vec3 v_view, mat4 view, mat4 inv_view, mat4 proj) {
-	// Shadow and probe cameras look another way, so trees keep their whole shadow.
-	if (occl_target.w <= 0.0 || dot(-inv_view[2].xyz, occl_view.xyz) < 0.999) {
+	if (occl_target.w <= 0.0 || !occl_main_view(inv_view)) {
 		return 0.0;
 	}
 	vec3 s = (view * vec4(occl_target.xyz, 1.0)).xyz;

@@ -63,7 +63,8 @@ void fragment() {
 	EMISSION = emission.rgb * emission_energy;
 #endif
 #ifdef OCCL_INSIDE
-	float occl = occl_fade;
+	// A faded roof still shades the floor under it.
+	float occl = occl_main_view(INV_VIEW_MATRIX) ? occl_fade : 0.0;
 #else
 	// 0.8: a faint screen-door ghost of the crown stays, so the tree reads as see-through, not cut.
 	float occl = occl_between(VERTEX, VIEW_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX) * 0.8;

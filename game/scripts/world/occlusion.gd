@@ -102,11 +102,10 @@ static func driver() -> Occlusion:
 
 static func _ensure_driver() -> void:
 	if not _globals_ready:
+		# Added from code, once per run, so project.godot stays untouched (get_list is editor-only).
 		_globals_ready = true
-		var have := RenderingServer.global_shader_parameter_get_list()
 		for g in [&"occl_target", &"occl_view"]:
-			if not g in have:
-				RenderingServer.global_shader_parameter_add(g, RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4.ZERO)
+			RenderingServer.global_shader_parameter_add(g, RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4.ZERO)
 	if is_instance_valid(_driver):
 		return
 	var tree := Engine.get_main_loop() as SceneTree
