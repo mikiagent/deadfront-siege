@@ -58,7 +58,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "mud_2",
@@ -161,7 +161,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "capture_technique_2",
@@ -225,7 +225,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "capture_technique_3",
@@ -307,7 +307,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "marble",
@@ -402,7 +402,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "capture_technique_5",
@@ -852,7 +852,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "yield_1",
@@ -924,7 +924,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "quality_bone",
@@ -957,7 +957,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "yield_2",
@@ -1016,7 +1016,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "trophy",
@@ -1049,7 +1049,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         }
       ]
     },
@@ -1207,7 +1207,7 @@
               "amount": 4
             }
           ],
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "smelting_1",
@@ -1240,7 +1240,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "trimmed_material",
@@ -1312,7 +1312,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "glue",
@@ -1358,7 +1358,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "smelting_2",
@@ -1391,7 +1391,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "cord",
@@ -1450,7 +1450,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "ceramics",
@@ -1483,7 +1483,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "adhesive_accessory",
@@ -1545,7 +1545,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "copper_alloy",
@@ -1620,7 +1620,7 @@
             }
           ],
           "sp_assumed": true,
-          "status": "defined"
+          "status": "partial"
         },
         {
           "id": "precision_processing",

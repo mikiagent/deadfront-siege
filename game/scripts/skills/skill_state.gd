@@ -202,7 +202,7 @@ func refund(tree: String, node_id: String) -> bool:
 			if bool(n.get("auto", false)):
 				print("[skill] cannot refund %s: learned automatically" % node_id)
 				return false
-			var deps := SkillRules.learned_dependents(self, tree, node_id)
+			var deps: Array = SkillRules.learned_dependents(self, tree, node_id)
 			if not deps.is_empty():
 				print("[skill] cannot refund %s: %s needs it" % [node_id, ", ".join(deps)])
 				return false
@@ -283,8 +283,10 @@ func from_dict(d: Dictionary) -> void:
 	for id in ORDER:
 		var row: Dictionary = td.get(id, {}) if td.get(id) is Dictionary else {}
 		var stored := int(row.get("level", MIN_LEVEL if rev >= REV else 0))
-		# rev 1 paid SP for levels 1..L and stored a new tree as 0; it now reads Lv. 1.
-		bound += SkillRules.paid_for_level(self, stored) + (sp_for_level(1) if rev < REV and stored >= 1 else 0)
+		# rev 1 paid SP for levels 1..L and stored a new tree as 0 (it now reads Lv. 1), so the bound
+		# counts level 1 too, like save_sanitizer: at most sp_for_level(1) of slack per tree.
+		for l in range(1, stored + 1):
+			bound += sp_for_level(l)
 		trees[id] = {"level": clampi(stored, MIN_LEVEL, MAX_LEVEL), "xp": float(row.get("xp", 0.0)), "unlocked": (row.get("unlocked", []) as Array).duplicate()}
 	# SP are derived, never trusted: earned (rev 1: what its levels paid) minus what the learned
 	# nodes cost today, so a cost changed in trees.json refunds or charges the difference.
