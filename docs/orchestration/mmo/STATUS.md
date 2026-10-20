@@ -42,6 +42,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | 1 (merged) | W1-TAME, W1-CANIM, W1-BUILD, W1-ITEMS, W1-WEB, W1-AI, W1-LIGHT (blind judge 6/6), W1-COMBAT, W1-SAVE, W1-HARBOUR (blind judge 6/6), dsc re-animations (velociraptor, utahraptor, protoceratops, megaloceros combat/ground/rest, compsognathus, coelophysis, gallimimus) passed review and are merged into `claude/mmo-overhaul`; gates: import, [tests] PASS, t_tame/t_canim/t_build/t_items PASS, SMOKE PASS | done |
 | 1 | W1-LIGHT, SAVE, TAME, AI, CANIM, COMBAT, BUILD, ITEMS, SRVDOM, QA, UI, ICONART, WEB, BIOME, STRUCTART (each `claude/mmo-w1-<key>`) | launching, reviewer-gated, blind A/B judge on visual packages |
 | 2a | W2-PLAYER (player split + PlayerActions), W2-BREED (breeding, growth, mutations, capture rule 09, bonded cap 3->7), W2-ECO (ecosystem, structure targeting) in claude/mmo-w2-<key>; builders hand mechanical parts to dsc sub-worktrees | running (wf_e4b5bc5d-f50) |
+| 2a+ | W2-OCCLUDE: shared see-through occlusion (tall trees, later roofs/walls; roof fades when the survivor is under it) | running (wf_6986c1a3-c0c) |
 | 1-INT | merge econ/net/audio + sound settings + market over socket | after wave 1a and audio pass review |
 | 1-ART | ARTA/ARTB Tripo species | concept sheets generating (Higgsfield gpt_image_2_5, critic-checked, wf_4ea0904a-0e6); then one owner batch approval |
 | merge | survivor-v2/armor/T. rex mount merged into `claude/mmo-overhaul` (0fef2a3) | import, [tests] PASS, SMOKE PASS |
@@ -230,6 +231,10 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   lighting and coast read well; harbour is a pier on the shore. Defects logged: world label overlap
   (Harbour over Survivor) -> W1-UI/W2-HUD; blown white sun glare on water and a hard water band at the
   screen bottom -> W2-TERRAIN water; salmon prop palette -> W1-STRUCTART.
+
+- 2026-10-20 (owner): tall trees that obscure the survivor must turn see-through; modular buildings need
+  square foundations and roofs that are visible from outside but transparent when the survivor is under
+  them. One shared occlusion system (W2-OCCLUDE) serves trees now and W2-BUILDSYS roofs/walls later.
 
 ## Owner questions (open)
 
