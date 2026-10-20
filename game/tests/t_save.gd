@@ -208,7 +208,8 @@ func _test_forged() -> void:
 	var cuirass: int = W.cargo_home.find_first(&"raid_cuirass")
 	_check(cuirass >= 0 and W.cargo_home.slots[cuirass].count == 1, "cargo raid_cuirass x3000 loads as x1")
 	var bought: Array = player.skills.trees["survival"]["unlocked"]
-	_check(bought == ["island_access_15"] and player.skills.sp_spent == 5, "survival L10 listing every node keeps only island_access_15, sp_spent 5 (got %s, %d)" % [bought, player.skills.sp_spent])
+	# Stealth I is a Survival Lv. 10 node with no prerequisite since W2-SKILLS (spec 12), so it is reachable too.
+	_check(bought == ["island_access_15", "stealth_1"] and player.skills.sp_spent == 5 + 2, "survival L10 listing every node keeps only island_access_15 and stealth_1, sp_spent 7 (got %s, %d)" % [bought, player.skills.sp_spent])
 	var d = root.get_node("Data")
 	_check(not d.is_survival_unlocked(&"capture_technique_I") and not d.survival_unlocked.has(&"made_up_node"), "legacy skills true without a bought tree node, or an unknown id, unlock nothing")
 	await process_frame
