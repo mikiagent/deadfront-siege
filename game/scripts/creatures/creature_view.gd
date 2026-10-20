@@ -33,6 +33,9 @@ var _fx_darken: float = 0.0
 var _fx_tint: Color = Color.WHITE
 var _wobble: float = 0.0
 var _mount: Marker3D
+var _saddle: Array[MeshInstance3D] = []
+var _rider_bone: int = -1
+var _rider_offset: Transform3D = Transform3D.IDENTITY
 var _hit_flash_left: float = 0.0
 var _flinch_tw: Tween
 
@@ -99,6 +102,40 @@ func animation_player() -> AnimationPlayer:
 
 func mount_socket() -> Marker3D:
 	return _mount
+
+## Saddled mount (assets/creatures/<id>/mount/mount.json): attaches the saddle skinned to this skeleton and
+## returns true; the rider then follows rider_transform() on rig.skeleton.skeleton_updated. False means no
+## saddle for this species, so the caller keeps the hips-socket path.
+func begin_ride() -> bool:
+	var path := "res://assets/creatures/%s/mount/mount.json" % def.id
+	if not (using_glb and rig and rig.skeleton and FileAccess.file_exists(path)):
+		return false
+	var mj: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not (mj is Dictionary and (mj as Dictionary).has("rider_in_mount")):
+		return false
+	var sk := rig.skeleton
+	_rider_bone = sk.find_bone(str(mj.get("socket", "")))
+	if _rider_bone < 0:
+		return false
+	end_ride()
+	_saddle = RiggedModel.attach_skinned(sk, "%s/%s" % [path.get_base_dir(), str(mj.get("saddle", "saddle.glb"))])
+	# rider_in_mount is the rider's root in the mount's glTF model space at rest (NOT rider_offset, which is in
+	# Blender's re-oriented bone frames). Express it relative to the socket bone's rest pose at the live scale.
+	var m: Array = mj["rider_in_mount"]
+	var in_model := Transform3D(Basis(Vector3(m[0], m[1], m[2]), Vector3(m[4], m[5], m[6]), Vector3(m[8], m[9], m[10])), Vector3(m[12], m[13], m[14]))
+	var bone_rest_world := sk.global_transform * sk.get_bone_global_rest(_rider_bone)
+	_rider_offset = bone_rest_world.affine_inverse() * rig.mesh_root.global_transform * in_model
+	return true
+
+func end_ride() -> void:
+	for mi in _saddle:
+		mi.queue_free()
+	_saddle.clear()
+
+## Where the rider's model root goes this frame. Read it on skeleton_updated, not in _process.
+func rider_transform() -> Transform3D:
+	var sk := rig.skeleton
+	return sk.global_transform * sk.get_bone_global_pose(_rider_bone) * _rider_offset
 
 func set_status_fx(darken: float, tint: Color, wobble: float) -> void:
 	_fx_darken = darken

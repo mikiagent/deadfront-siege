@@ -1,16 +1,16 @@
 extends Node
+## Seeded raid kit fixture: real craft allocation and formulas, neutral boss genetics, fixed RNG.
+## Expected numbers follow W1-ITEMS scaling: base x (1 + 0.08 x 59) x tier(metal_shard = flint 1.25).
+const MAUL_L60 := 220.0 * 5.72 * 1.25
+const KIT_ARMOR_L60 := (300.0 + 700.0 + 300.0) * 5.72 * 1.25
 var failures: Array[String] = []
 var started := false
 func check(ok: bool, label: String) -> void:
 	print("[gear] %s %s" % ["PASS" if ok else "FAIL", label])
 	if not ok: failures.append(label)
+## Catalog stacks as the game makes them (default attributes carry the material tier).
 func stack(id: StringName, n: int = 1, level: int = 60) -> ItemStack:
-	var s := ItemStack.new()
-	s.def_id = id
-	s.level = level
-	s.count = n
-	s.apply_level_stats()
-	return s
+	return ItemStack.make(id, n, {}, level)
 func run(_host: Node) -> void:
 	await get_tree().create_timer(1.0).timeout
 	for node in get_tree().root.find_children("CharacterCreation", "CharacterCreation", true, false):
@@ -38,8 +38,10 @@ func run(_host: Node) -> void:
 		check(out.def_id == id and out.level == 60, "%s crafted output level60" % id)
 		player.inventory.add(out)
 		player.inventory.equip(Inventory.slot_for(out.def()), id)
-	check(is_equal_approx(player.inventory.equipped_weapon().scaled_damage(), 484.0), "raid maul actual damage484")
-	check(is_equal_approx(player.inventory.equipped_armor(), 2860.0), "full kit armor2860")
+	var maul := player.inventory.equipped_weapon()
+	print("[gear] maul L%d %s dmg=%.1f kit armor=%.1f" % [maul.level, maul.material_tier(), maul.scaled_damage(), player.inventory.equipped_armor()])
+	check(is_equal_approx(maul.scaled_damage(), MAUL_L60), "raid maul actual damage%.0f" % MAUL_L60)
+	check(is_equal_approx(player.inventory.equipped_armor(), KIT_ARMOR_L60), "full kit armor%.0f" % KIT_ARMOR_L60)
 	check(player.inventory.has_raid_protection(), "complete quality kit protects fracture/pinned")
 	player.vitals.health = 100
 	player.refresh_equipment_vitals()
@@ -59,8 +61,9 @@ func run(_host: Node) -> void:
 	var spawned := sp.spawn_now()
 	var boss: Creature = spawned[0]
 	boss.set_physics_process(false)
+	# Rolled genetics moved the boss's attack run to run (qa-flaky-01); the fixture uses neutral IVs.
+	boss.genetics = CreatureGenetics.neutral()
 	if "--combat-reach-probe" in OS.get_cmdline_user_args():
-		boss.genetics = CreatureGenetics.neutral()
 		boss.global_position = player.global_position + Vector3(3.4, 0, 0)
 		player.statuses.from_array([])
 		player.hunt.start(boss)
@@ -72,6 +75,7 @@ func run(_host: Node) -> void:
 		player.vitals.heal(999)
 		var before := player.vitals.health
 		seed(1)
+		CombatTuning.rng.seed = 1  # creature/survivor rolls go through CombatTuning.rng, which seed() does not touch
 		for i in 5: boss._on_hit(&"attack_primary")
 		check(player.vitals.health < before, "boss also hits edge3.4m")
 		player.dead = false
@@ -86,6 +90,7 @@ func run(_host: Node) -> void:
 		get_tree().quit(0 if failures.is_empty() else 1)
 		return
 	seed(12345)
+	CombatTuning.rng.seed = 12345
 	CreatureAttack._apply_token(&"fracture", &"attack_primary", player, boss)
 	CreatureAttack._apply_token(&"pinned", &"attack_primary", player, boss)
 	CreatureAttack._apply_token(&"deafened", &"attack_primary", player, boss)
@@ -97,6 +102,9 @@ func run(_host: Node) -> void:
 		get_viewport().get_texture().get_image().save_png("/tmp/dfs-raid-gear.png")
 		get_tree().quit(0)
 		return
+	# The kit's armour outweighs the bite, so every hit is the 5 % floor, x1.5 on a crit.
+	var cap := boss.attack_for(false) * 0.05 * 1.5 + 0.01
+	print("[gear] boss attack=%.1f floor=%.1f crit cap=%.2f" % [boss.attack_for(false), boss.attack_for(false) * 0.05, cap])
 	var hits := 0
 	var safety := 0
 	while not player.dead and safety < 40:
@@ -105,7 +113,7 @@ func run(_host: Node) -> void:
 		var dealt := before - player.vitals.health
 		if dealt > 0:
 			hits += 1
-			check(dealt <= 82.51, "real boss damage capped only by existing floor/crit")
+			check(dealt <= cap, "real boss damage capped only by existing floor/crit")
 		safety += 1
 	check(player.dead and hits >= 4 and hits <= 6, "real boss contact kills in4-6 landed hits")
 	player.inventory.unequip(&"head")

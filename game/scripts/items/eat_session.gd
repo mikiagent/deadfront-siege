@@ -1,6 +1,9 @@
 class_name EatSession
 extends Node
 ## 3 s eat with progress ring + keep-still hint. Move cancels remaining restore; Full still applies.
+## Past half the meal is eaten: a cancel still rolls the raw-food risk (sec-eat-23).
+
+const RAW_RISK_CANCEL_AT := 0.5
 
 var player: Player
 var progress_ui: EatProgress
@@ -10,6 +13,10 @@ var _slot_index: int = -1
 var _total_energy: float = 0.0
 var _applied_energy: float = 0.0
 var _stack_snapshot: ItemStack
+## Injectable for reproducible raw-food rolls (tests, server).
+var rng: RandomNumberGenerator = null
+var risk_rolled: bool = false
+var last_risk: StringName = &""
 
 func setup(p: Player, layer: CanvasLayer) -> void:
 	player = p
@@ -39,6 +46,8 @@ func begin_eat(slot_index: int) -> bool:
 	_total_energy = Food.energy_restore(_stack_snapshot)
 	_applied_energy = 0.0
 	progress = 0.0
+	risk_rolled = false
+	last_risk = &""
 	eating = true
 	var taken := player.inventory.remove_at(slot_index, 1)
 	if taken == null:
@@ -76,16 +85,22 @@ func _apply_energy(amount: float) -> void:
 		player.vitals.eat(amount * 1.5)
 
 func _finish() -> void:
-	Food.apply_raw_risks(player, _stack_snapshot)
+	_roll_raw_risk()
 	Food.apply_buffs(player, _stack_snapshot)
 	_apply_full()
 	print("[food] eat done +%.1f energy=%.0f" % [_applied_energy, player.vitals.energy])
 	_clear()
 
 func _cancel_with_full() -> void:
-	print("[food] eat cancelled by move; Full applied restored=%.1f" % _applied_energy)
+	print("[food] eat cancelled by move at %d%%; Full applied restored=%.1f" % [int(progress * 100.0), _applied_energy])
+	if progress >= RAW_RISK_CANCEL_AT:
+		_roll_raw_risk()
 	_apply_full()
 	_clear()
+
+func _roll_raw_risk() -> void:
+	risk_rolled = true
+	last_risk = Food.apply_raw_risks(player, _stack_snapshot, rng)
 
 func _apply_full() -> void:
 	if player and player.statuses:

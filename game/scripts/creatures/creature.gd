@@ -86,7 +86,9 @@ var _path_replan_left: float = 0.0
 var _path_blocked_left: float = 0.0
 var _path_anchor: Vector3 = Vector3.ZERO
 
-func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> void:
+## p_runtime: the IslandRuntime placing this spawn (Spawner passes its parent), so ring level
+## offsets apply even before World.runtime is assigned. p_tier_offset: the island row's tier_offset.
+func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_runtime: Node = null, p_tier_offset: int = 0) -> void:
 	# A live character is not a moving floor. Giants must not ride a survivor away.
 	platform_floor_layers = 0
 	platform_wall_layers = 0
@@ -100,14 +102,15 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> 
 	_set_vis_range(view, 0.0)
 	if genetics == null:
 		genetics = CreatureGenetics.roll()
+	level = _spawn_level(p_runtime, p_tier_offset)
 	health.setup(stat_value(&"health"))
 	health.healed.connect(_on_healed)
 	# ASSUMPTION: pet hunger budget is 0.4 * wild HP when JSON has no hunger field.
 	hunger_max = def.hp * 0.4
 	hunger = hunger_max
-	level = _spawn_level_from_ring()
 	spawn_tile = BuildGrid.tile_of(global_position)
-	spawn_home = BuildGrid.tile_centre(spawn_tile, World.runtime if World else null)
+	# World.runtime is still null while an island builds, which put every home at y=0.
+	spawn_home = BuildGrid.tile_centre(spawn_tile, p_runtime if p_runtime else (World.runtime if World else null))
 	_size_collision()
 	var clip_player := view.animation_player()
 	if clip_player == null:
@@ -127,7 +130,8 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0) -> 
 	_make_drip()
 	if Game and Game.has_method("ensure_creature_plates"):
 		Game.ensure_creature_plates()
-	print("[creature] %s spawned pack=%s" % [def.id, pack_id])
+	if Game and Game.debug_overlay:
+		print("[creature] %s spawned pack=%s level=%d" % [def.id, pack_id, level])
 
 func on_anim_event(kind: String, clip: String) -> void:
 	anim.on_event(kind, clip)
@@ -168,14 +172,28 @@ func apply_species_on_hit(clip: StringName, target: Node) -> void:
 	CreatureAttack.apply_for(self, clip, target)
 
 func stat_value(stat: StringName) -> float:
+	if is_pet and pet_record:
+		return pet_record.stat_value(stat)  # PetStats is the one source for pets (W1-TAME hook 4)
 	var base := 0.0
 	match stat:
-		&"health": base = def.hp
-		&"melee_defense", &"ranged_defense": base = def.defense
-		&"melee_attack", &"ranged_attack": base = def.attack
+		&"health": base = def.hp * _level_factor()
+		&"melee_defense", &"ranged_defense": base = def.defense * _level_factor()
+		&"melee_attack", &"ranged_attack": base = def.attack * _level_factor()
 		&"accuracy": base = 100.0
 		&"speed": base = def.speed
 	return base * (genetics.multiplier(stat) if genetics else 1.0)
+
+## Wild animals above their species tier hit and soak harder (rules.json wild_level_stat_rate).
+## ASSUMPTION: at or below the tier they keep the listed stats (starter island unchanged).
+## Read live, but Health's max is set once at spawn.
+func _level_factor() -> float:
+	if is_pet or def == null:
+		return 1.0
+	return 1.0 + float(maxi(0, level - def.tier)) * float(Data.world_rules.get("wild_level_stat_rate", 0.08))
+
+## Collision capsule radius; brains size reach, pack slots and wake distance from it.
+func body_radius() -> float:
+	return maxf(0.18, def.real_length_m * 0.12)
 
 func defense_for(ranged: bool = false) -> float:
 	return stat_value(&"ranged_defense" if ranged else &"melee_defense")
@@ -201,6 +219,15 @@ func dodge_chance() -> float:
 func move_speed_mps() -> float:
 	return stat_value(&"speed") / 100.0
 
+## Fleeing ground speed from the already-slowed base (`base_mps`) and the slow factor. The floor is
+## here, not inline in _physics_process, so a test can call the physics code path (t_ai).
+## flee_min_mps: a low-IV grazer still outruns a walking survivor (traps and statuses still slow it).
+func flee_speed(base_mps: float, slow: float = 1.0) -> float:
+	if brain == null:
+		return base_mps
+	return maxf(base_mps * float(brain.profile.get("flee_speed_mult", 1.0)),
+		float(brain.profile.get("flee_min_mps", 0.0)) * slow)
+
 func capturable() -> bool:
 	return is_capturable and health.hp > 0.0 and def.tameable
 
@@ -210,6 +237,7 @@ func field_tame_open() -> bool:
 func become_pet(rec: PetRecord) -> void:
 	is_pet = true
 	pet_record = rec
+	pack_id = 0  # a tame leaves its wild pack: no more following the old alpha or its alerts
 	hunger = rec.hunger
 	hunger_max = rec.hunger_max
 	tame_attempting = false
@@ -251,16 +279,16 @@ func _physics_process(delta: float) -> void:
 	if health.dead or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act") or stagger_left > 0.0:
 		velocity.x = 0.0
 		velocity.z = 0.0
-		# A creature that is fading out has a collapsed scale; sliding it inverts a singular basis
-		# and logged an engine error every physics frame (found by the survivor bot).
-		if absf(global_transform.basis.determinant()) > 0.0001:
-			move_and_slide()
+		_slide()
 		_update_label()
 		return
-	var speed := (pet_record.speed / 100.0 if is_pet and pet_record else move_speed_mps()) * statuses.move_mult() * (trap_move_mult if trap_left > 0.0 else 1.0)
-	if not is_pet and brain and (brain.state == &"approach" or brain.state == &"attack"):
-		# ASSUMPTION: wild animals chase at 70 % of their listed speed so a survivor can outrun them.
-		speed *= float(brain.profile.get("chase_speed_mult", 0.7)) if brain.get("profile") != null else 0.7
+	var slow := statuses.move_mult() * (trap_move_mult if trap_left > 0.0 else 1.0)
+	var speed := (pet_record.speed / 100.0 if is_pet and pet_record else move_speed_mps()) * slow
+	if not is_pet and brain:
+		match brain.state:
+			# ASSUMPTION (owner decision pending, dino-ai-06): chase at chase_speed_mult (0.7) so a survivor can outrun.
+			&"approach", &"attack": speed *= float(brain.profile.get("chase_speed_mult", 0.7))
+			&"flee": speed = flee_speed(speed, slow)
 	if is_pet and hunger <= 0.0:
 		speed *= 0.85
 	var locomote := Vector3.ZERO
@@ -269,11 +297,7 @@ func _physics_process(delta: float) -> void:
 			locomote = _tile_path_direction(delta)
 		else:
 			if not agent.is_navigation_finished():
-				var next := agent.get_next_path_position()
-				var to := next - global_position
-				to.y = 0.0
-				if to.length_squared() > 0.0001:
-					locomote = to.normalized()
+				locomote = _agent_direction()
 			# Runtime nav maps can take a frame to sync and sparse labs occasionally return the
 			# current point. A nearby AI goal is still safe to steer toward directly.
 			if locomote.length_squared() <= 0.0:
@@ -282,8 +306,7 @@ func _physics_process(delta: float) -> void:
 				if direct.length() > 0.3 and direct.length() <= 12.0:
 					locomote = direct.normalized()
 	if locomote.length_squared() > 0.0:
-		var sep := _separation_steer()
-		var dir := (locomote + sep).normalized()
+		var dir := locomote.normalized()
 		velocity.x = dir.x * speed
 		velocity.z = dir.z * speed
 		face_towards(global_position + dir, delta)
@@ -294,8 +317,7 @@ func _physics_process(delta: float) -> void:
 		velocity.z = 0.0
 		if not anim._busy and not anim._forced:
 			anim.play_idle()
-	if absf(global_transform.basis.determinant()) > 0.0001:  # same guard as above: a collapsed scale cannot slide
-		move_and_slide()
+	_slide()
 	current_clip = anim.current_clip
 	_status_fx()
 	_blood_trail()
@@ -331,9 +353,23 @@ func _physics_process(delta: float) -> void:
 		hunger = maxf(0.0, hunger - drain)
 		pet_record.hunger = hunger
 
+## An animal standing still on the ground has nothing to slide (most of the idle cost), so it
+## slides only every IDLE_SLIDE_EVERY frames: often enough to notice a floor that went away. The
+## dead always slide: the corpse teleports them and the cached is_on_floor() is stale.
+## A fading creature has a collapsed scale; sliding it inverts a singular basis and logged an
+## engine error every physics frame (found by the survivor bot).
+const IDLE_SLIDE_EVERY := 8
+
+func _slide() -> void:
+	if not health.dead and is_on_floor() and velocity.length_squared() < 0.000001 \
+			and (Engine.get_physics_frames() + get_instance_id()) % IDLE_SLIDE_EVERY != 0:
+		return
+	if absf(global_transform.basis.determinant()) > 0.0001:
+		move_and_slide()
+
 func _size_collision() -> void:
 	var cap := CapsuleShape3D.new()
-	cap.radius = maxf(0.18, def.real_length_m * 0.12)
+	cap.radius = body_radius()
 	cap.height = maxf(cap.radius * 2.0 + 0.1, def.height_meters)
 	shape.shape = cap
 	shape.position.y = cap.height * 0.5
@@ -375,6 +411,9 @@ func _make_drip() -> void:
 	add_child(_fx_drip)
 	_last_bleed_pos = global_position
 
+var _fx_last := Vector2(-1.0, -1.0)
+var _fx_tint_last := Color.WHITE
+
 func _status_fx() -> void:
 	var dark := 0.0
 	var tint := Color.WHITE
@@ -392,7 +431,12 @@ func _status_fx() -> void:
 		wobble = 1.0
 	if statuses.has(&"fracture"):
 		ap.speed_scale = 0.65
-	view.set_status_fx(dark, tint, wobble)
+	# set_status_fx rewrites every material; call it on change, or while the hit flash decays.
+	var fx := Vector2(dark, wobble)
+	if fx != _fx_last or tint != _fx_tint_last or view._hit_flash_left > 0.0:
+		_fx_last = fx
+		_fx_tint_last = tint
+		view.set_status_fx(dark, tint, wobble)
 
 func _blood_trail() -> void:
 	if not statuses.has(&"bleeding_target"):
@@ -408,7 +452,7 @@ func _blood_trail() -> void:
 	get_tree().create_timer(20.0).timeout.connect(decal.queue_free)
 
 ## Red dotted ring on the ground at the leash radius while this creature hunts the survivor.
-## Step outside it and the chase ends (CreatureBrain._disengage_track). Vertices follow the
+## Step outside it and the chase ends (BrainFlight.track). Vertices follow the
 ## terrain so the ring reads on slopes; rebuilt at 10 Hz while the creature moves.
 func _update_aggro_ring(delta: float) -> void:
 	var show := not is_pet and not health.dead and brain != null and brain.has_method("hunting_player") and brain.hunting_player()
@@ -431,7 +475,8 @@ func _update_aggro_ring(delta: float) -> void:
 		_aggro_ring.material_override = m
 		_aggro_ring.mesh = ImmediateMesh.new()
 		add_child(_aggro_ring)
-		print("[ai] %s aggro ring r=%.1f" % [def.id, brain.aggro_radius()])
+		if Game.debug_overlay:
+			print("[ai] %s aggro ring r=%.1f" % [def.id, brain.aggro_radius()])
 	_aggro_ring.visible = true
 	_aggro_ring_t -= delta
 	var r: float = brain.aggro_radius()
@@ -467,10 +512,12 @@ func _update_aggro_ring(delta: float) -> void:
 func _update_label() -> void:
 	if label == null:
 		return
-	var st := brain.state if brain else brain_state
-	label.text = "%s\n%s / %s" % [def.id, st, anim.current_clip]
-	label.position.y = def.height_meters + 0.4
 	label.visible = Game.debug_overlay
+	if not label.visible:
+		return  # the text was formatted every frame for every animal even while hidden
+	var st := brain.state if brain else brain_state
+	label.text = "%s\nLv %d %s / %s" % [def.id, level, st, anim.current_clip]
+	label.position.y = def.height_meters + 0.4
 
 func _on_windup(clip: StringName) -> void:
 	Telegraph.show_for(self, clip)
@@ -481,7 +528,7 @@ func _on_hit(clip: StringName) -> void:
 	if target:
 		# A contact attack lands at impact, not anywhere the target ran during windup.
 		var offset := global_position - target.global_position
-		if brain and Vector2(offset.x, offset.z).length() > brain.contact_reach() + 0.3:
+		if brain and Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3:
 			return
 		apply_species_on_hit(clip, target)
 		if target is Player:
@@ -535,15 +582,19 @@ func _on_damaged(_amount: float, source: Node) -> void:
 		statuses.apply(&"knockdown", source)
 		anim.play_clip(&"knockdown")
 		return
+	var staggered := false
 	if not brain is TyrantBrain and _now_s() >= _stagger_immune_until:
 		stagger_left = 0.45 if kind == &"crit" else 0.3
 		_stagger_immune_until = _now_s() + 1.0
+		staggered = true
 	if not brain is TyrantBrain and not str(anim.current_clip).begins_with("attack"):
 		var authored: Dictionary = def.pipeline.get("authored_clips", {})
-		if authored.has("hit_react") or not view.using_glb:
-			view.flinch(1.4 if kind == &"crit" else 1.0)  # no real hurt clip: shove + nod instead
-		else:
+		# The authored hurt clip plays when the rig has one (the test was inverted), gated by the
+		# stagger's once-a-second immunity so a pinned animal can still fight back.
+		if staggered and authored.has("hit_react") and view.using_glb:
 			anim.play_clip(&"hit_react")
+		else:
+			view.flinch(1.4 if kind == &"crit" else 1.0)  # no real hurt clip: shove + nod instead
 	if source:
 		aggroed.emit(source)
 		if brain:
@@ -670,6 +721,26 @@ func _fall_guard() -> void:
 	global_position.y = y
 	print("[creature] %s fell out of the world; re-seated at y=%.2f" % [def.id if def else "?", y])
 
+## NavigationAgent3D advances its waypoint by 3D distance, but lab nav meshes sit ~0.5 m above the
+## floor, so it kept handing back the waypoint under our feet (an in-place jitter once brains
+## stopped re-targeting every frame). Take the first waypoint that is far enough in the flat plane
+## and not already behind us (the stuck start waypoint pulled the alpha back and forth in place).
+func _agent_direction() -> Vector3:
+	agent.get_next_path_position()  # refreshes the path for a new target; reading it alone went stale
+	var path := agent.get_current_navigation_path()
+	var here := Vector2(global_position.x, global_position.z)
+	for i in range(agent.get_current_navigation_path_index(), path.size()):
+		var wp := Vector2(path[i].x, path[i].z)
+		if here.distance_to(wp) <= agent.path_desired_distance:
+			continue
+		if i + 1 < path.size():
+			var nxt := Vector2(path[i + 1].x, path[i + 1].z)
+			if here.distance_to(nxt) < wp.distance_to(nxt):
+				continue  # already past this waypoint
+		var to := wp - here
+		return Vector3(to.x, 0.0, to.y).normalized()
+	return Vector3.ZERO
+
 func _use_tile_path() -> bool:
 	if World == null or World.runtime == null:
 		return false
@@ -744,41 +815,22 @@ func _replan_path() -> void:
 	if _path_points.size() == 1 and _path_points[0].distance_to(global_position) <= 0.25:
 		_path_index = 1
 
-func _separation_steer() -> Vector3:
-	var want := agent.radius * 0.6
-	if want <= 0.0:
-		return Vector3.ZERO
-	var steer := Vector3.ZERO
-	for n in get_tree().get_nodes_in_group("creatures"):
-		var other := n as Creature
-		if other == null or other == self or other.health.dead:
-			continue
-		var to_me := global_position - other.global_position
-		to_me.y = 0.0
-		var d := to_me.length()
-		if d <= 0.001 or d > want:
-			continue
-		steer += to_me.normalized() * (1.0 - d / want)
-	if steer.length_squared() <= 0.0:
-		return Vector3.ZERO
-	return steer.normalized()
-
-func _spawn_level_from_ring() -> int:
-	# island_def is set before IslandRuntime.build() starts spawning creatures. Use it first:
-	# World.runtime is intentionally assigned only after build completes, so consulting runtime
-	# first made every starter creature fall back to its species tier (often Lv. 20).
-	if World != null:
-		var resolved := ProgressionScaling.resolved_spawn_level(def.tier, World.island_def, int(Data.world_rules.get("level_cap", 60)))
-		if resolved != def.tier or int(World.island_def.get("level_override", 0)) > 0:
-			return resolved
-	if World == null or World.runtime == null:
-		return def.tier
-	if get_parent() != World.runtime:
+## Starter overrides win; otherwise species tier + the ring's level_offset + the island row's
+## tier_offset. The runtime comes from the Spawner because World.runtime is only assigned after
+## the island build that spawns everything (the old lookup fell back to the bare tier).
+func _spawn_level(rt: Node, tier_offset: int) -> int:
+	var cap := int(Data.world_rules.get("level_cap", 60))
+	var island: Dictionary = World.island_def if World else {}
+	if int(island.get("level_override", 0)) > 0:
+		return ProgressionScaling.resolved_spawn_level(def.tier, island, cap)
+	if rt == null and World and World.runtime and get_parent() == World.runtime:
+		rt = World.runtime
+	if rt == null or not rt.has_method("ring_name"):
 		return def.tier
 	var rings: Dictionary = Data.world_rules.get("rings", {})
-	var ring: StringName = World.runtime.ring_name(global_position)
-	var row: Dictionary = rings.get(str(ring), {})
-	return maxi(1, def.tier + int(row.get("level_offset", 0)))
+	var row: Variant = rings.get(str(rt.ring_name(global_position)), {})
+	var offset := int((row as Dictionary).get("level_offset", 0)) if row is Dictionary else 0
+	return clampi(def.tier + offset + tier_offset, 1, cap)
 
 func _now_s() -> float:
 	return float(Time.get_ticks_msec()) * 0.001

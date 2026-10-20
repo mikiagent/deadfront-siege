@@ -38,12 +38,12 @@ func _demo() -> void:
 	_player.vitals.fatigue = 80.0
 	var SG := load("res://scripts/core/save_game.gd") as GDScript
 	SG.save_now()
-	var raw := FileAccess.get_file_as_string("user://save_1.json")
+	var raw := FileAccess.get_file_as_string(SG.path)
 	var parsed: Variant = JSON.parse_string(raw)
 	if parsed is Dictionary:
 		var d: Dictionary = parsed
 		d["saved_unix"] = int(Time.get_unix_time_from_system()) - 120
-		var f := FileAccess.open("user://save_1.json", FileAccess.WRITE)
+		var f := FileAccess.open(SG.path, FileAccess.WRITE)
 		if f:
 			f.store_string(JSON.stringify(d))
 	SG.load_now(self)

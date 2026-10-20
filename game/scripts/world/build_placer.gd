@@ -19,6 +19,8 @@ var valid: bool = false
 var reason: String = ""
 var cell: Vector2i = Vector2i.ZERO
 var rot_step: int = 0
+var _rot_manual: bool = false  # once the player rotates, fence/gate auto-alignment stops overriding it
+var _repacked: bool = false  # the kit just paid for came from pack-up: place it without XP
 
 var _ghost_root: Node3D
 var _ghost_visual: Node3D
@@ -37,52 +39,43 @@ var _mat_invalid: StandardMaterial3D
 var _grid_mat: StandardMaterial3D
 var _cell_mat: StandardMaterial3D  # vertex-coloured: one mesh draws every overlay quad
 
+static var _kit_by_kind: Dictionary = {}  # place_as -> kit item id, built once from items.json
+
+## The bag item that places (and packs back into) this kind: the item whose place_as names it.
+static func kit_for(kind: StringName) -> StringName:
+	if _kit_by_kind.is_empty():
+		for id in Data.items:
+			var def: ItemDef = Data.items[id]
+			if def and def.place_as != &"" and not _kit_by_kind.has(def.place_as):
+				_kit_by_kind[def.place_as] = StringName(id)
+	return _kit_by_kind.get(kind, &"")
+
 func _kit_id(kind: StringName) -> String:
-	match kind:
-		&"catapult":
-			return "catapult_kit"
-		&"makeshift_taming_pen":
-			return "makeshift_taming_pen"
-		&"bonfire":
-			return "bonfire_kit"
-		&"stone_fire_pit":
-			return "stone_fire_pit_kit"
-		&"campfire":
-			return "campfire_kit"
-		&"workbench":
-			return "workbench_kit"
-		&"mortar":
-			return "mortar_kit"
-		&"well":
-			return "well_kit"
-		&"drying_rack":
-			return "drying_rack_kit"
-		&"smoker":
-			return "smoker_kit"
-		&"crock_pot":
-			return "crock_pot_kit"
-		&"stone_grill":
-			return "stone_grill_kit"
-		&"tent":
-			return "tent_kit"
-		&"canvas_tent":
-			return "canvas_tent_kit"
-		&"log_shelter":
-			return "log_shelter_kit"
-		&"cabin_bed":
-			return "cabin_bed_kit"
-		&"straw_roll":
-			return "straw_roll_kit"
-		&"basket":
-			return "basket_kit"
-		&"fence":
-			return "fence_kit"
-		&"gate":
-			return "gate_kit"
-		&"sign":
-			return "sign_kit"
-		_:
+	return str(kit_for(kind))
+
+## Player-facing text for a can_place() code; the ghost and notices never show raw codes.
+static func reason_text(code: String) -> String:
+	match code:
+		"too_far":
+			return "Too far away"
+		"reserved":
+			return "Reserved for the camp"
+		"overlap":
+			return "Spot is taken"
+		"unclaimed":
+			return "Outside your claim"
+		"water":
+			return "Can't build on water"
+		"slope":
+			return "Ground too steep"
+		"missing_kit":
+			return "No kit in your bag"
+		"no_runtime", "spawn_failed":
+			return "Can't build here"
+		"":
 			return ""
+		_:
+			return code.replace("_", " ").capitalize()
 
 func _ready() -> void:
 	_build_materials()
@@ -96,9 +89,16 @@ func _ready() -> void:
 	_ghost_root.add_child(_ghost_visual)
 	_ghost_label = Label3D.new()
 	_ghost_label.name = "GhostLabel"
-	_ghost_label.position = Vector3(0.0, 2.6, 0.0)
+	_ghost_label.position = Vector3(0.0, 3.2, 0.0)  # above the building name plates
 	_ghost_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_ghost_label.modulate = Color(1.0, 1.0, 1.0, 0.92)
+	# The default 32 px at 0.005 m/px rendered ~8 px tall at the build camera's distance; this is
+	# ~17 px at 1600x900 and still fits a 390 px wide phone at the default 15 m zoom.
+	_ghost_label.font_size = 48
+	_ghost_label.pixel_size = 0.006
+	_ghost_label.outline_size = 12
+	_ghost_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
+	_ghost_label.no_depth_test = true
 	_ghost_root.add_child(_ghost_label)
 	var contact := MeshInstance3D.new()
 	contact.name = "ContactShadow"
@@ -132,6 +132,7 @@ func begin(kind: StringName) -> void:
 	_last_sync = [Vector2i(999999, 999999), -1, ""]
 	placing = kind
 	rot_step = 0
+	_rot_manual = false
 	reason = ""
 	valid = false
 	_rebuild_ghost_visual()
@@ -164,6 +165,91 @@ static func is_movable(n: Node) -> bool:
 	if n == null or not (n is Node3D):
 		return false
 	return n.has_method("set_grid_pose") and kind_of_building(n) != &""
+
+## One pack-up for every placed kind. The kit and everything stored inside go back to the bag,
+## all or nothing: when anything is refused (not your land, a camp piece, a used one-shot,
+## or a bag without room for every unit) the structure and the bag are left exactly as they were.
+static func pack_up_node(n: Node, player: Player) -> bool:
+	if n == null or player == null or n.is_queued_for_deletion():
+		return false
+	var kind := kind_of_building(n)
+	var why := pack_up_blocker(n)
+	var back: Array[ItemStack] = []
+	if why == "":
+		back = _pack_returns(n)
+		if not fits_in_bag(player.inventory, back):
+			why = "Your bag has no room"
+	if why != "":
+		print("[build] pack_up refused %s: %s" % [kind, why])
+		player.notice("Can't pack up: %s" % why)
+		return false
+	for s in back:
+		player.inventory.add(s)
+	var storage: Variant = n.get("storage")
+	if storage is Inventory:
+		(storage as Inventory).load_array([])  # the units now live in the bag; no second copy
+	if n.get("occupant") is ItemStack:
+		n.set("occupant", null)
+	if World.runtime and World.runtime.get("build_grid") is BuildGrid:
+		(World.runtime.get("build_grid") as BuildGrid).release(n)
+	n.queue_free()
+	print("[item] packed %s" % kind)
+	return true
+
+## Why this structure cannot be packed up right now ("" = it can). Kind-specific rules live on
+## the structure's own pack_up_block_reason().
+static func pack_up_blocker(n: Node) -> String:
+	var kind := kind_of_building(n)
+	if kit_for(kind) == &"":
+		return "This can't be packed up"
+	if n.get("is_cargo") == true or n.get("persist_building") == false:
+		return "Camp pieces stay put"
+	if not _on_owned_land(n):
+		return "Not on your land"
+	if n.has_method("pack_up_block_reason"):
+		return str(n.call("pack_up_block_reason"))
+	return ""
+
+## ASSUMPTION: owned land = the home island or a claimed tile (single player owns every claim;
+## per-player ownership arrives with server-side structures).
+static func _on_owned_land(n: Node) -> bool:
+	if World.is_home():
+		return true
+	var cell: Variant = n.get("build_cell")
+	if not cell is Vector2i or World.runtime == null or not World.runtime.has_method("is_claimed"):
+		return false
+	return bool(World.runtime.is_claimed(cell))
+
+static func _pack_returns(n: Node) -> Array[ItemStack]:
+	var kit := ItemStack.make(kit_for(kind_of_building(n)), 1)
+	# A repacked kit is not a new build: place -> pack -> place must not farm construction or
+	# pioneer XP (the report documents the +8/+30 loop). The flag survives merging only with an
+	# equal flag set, and the next placement consumes the unit that carries it.
+	kit.set_flag(&"repacked", true)
+	var out: Array[ItemStack] = [kit]
+	var storage: Variant = n.get("storage")
+	if storage is Inventory:
+		for s in (storage as Inventory).slots:
+			if s != null and str(s.def_id) != "_slot_lock":
+				out.append(s.duplicate_stack())
+	var occ: Variant = n.get("occupant")
+	if occ is ItemStack:
+		out.append((occ as ItemStack).duplicate_stack())
+	# A harvested field keeps bonus fertiliser as units; packing it up used to destroy them.
+	var fert: Variant = n.get("fertilizer_overflow")
+	if fert != null and float(fert) >= 1.0:
+		out.append(ItemStack.make(&"fruit_fertilizer", int(floor(float(fert)))))
+	return out
+
+## Dry run on a copy of the bag: true only when every unit of every stack would land.
+static func fits_in_bag(inv: Inventory, stacks: Array[ItemStack]) -> bool:
+	var sim := Inventory.new(inv.slot_count)
+	for i in inv.slot_count:
+		sim.slots[i] = inv.slots[i].duplicate_stack() if inv.slots[i] else null
+	for s in stacks:
+		if sim.add(s.duplicate_stack()) > 0:
+			return false
+	return true
 
 func begin_layout() -> void:
 	layout_mode = true
@@ -224,7 +310,7 @@ func drag_end(player: Player) -> void:
 		else:
 			put_back()
 			if player.has_method("notice"):
-				player.notice("Can't rotate here: %s" % reason.replace("_", " "))
+				player.notice("Can't rotate here: %s" % reason_text(reason))
 		return
 	_sync_grid_state()
 	if valid:
@@ -233,7 +319,7 @@ func drag_end(player: Player) -> void:
 		var why := reason
 		put_back()
 		if player.has_method("notice"):
-			player.notice("Can't drop here: %s" % why.replace("_", " "))
+			player.notice("Can't drop here: %s" % reason_text(why))
 
 ## While dragging, preserve the grabbed point under the finger.
 func _snap_centered() -> void:
@@ -317,6 +403,7 @@ func rotate_clockwise() -> void:
 	if placing == &"":
 		return
 	rot_step = posmod(rot_step + 1, 4)
+	_rot_manual = true
 	_sync_grid_state()
 
 func tap_ground() -> void:
@@ -341,7 +428,7 @@ func confirm(player: Player) -> bool:
 	if not valid:
 		print("[build] rejected %s" % (reason if reason != "" else "invalid"))
 		if player.has_method("notice"):
-			player.notice("Can't place here: %s" % reason.replace("_", " "))
+			player.notice("Can't place here: %s" % reason_text(reason))
 		return false
 	if moving:
 		var g := _grid()
@@ -365,18 +452,24 @@ func confirm(player: Player) -> bool:
 		_ghost_grid.visible = false
 		_ghost_cells.visible = false
 		return true
-	if not _pay(player):
-		print("[build] rejected missing_kit")
-		return false
-	var node := _spawn(placing)
-	if node == null:
-		return false
 	var runtime := World.runtime
 	var grid := _grid()
 	if runtime == null or grid == null:
-		if node:
-			node.queue_free()
 		print("[build] rejected no_runtime")
+		return false
+	if not _can_pay(player):
+		print("[build] rejected missing_kit")
+		if player.has_method("notice"):
+			player.notice("Can't place here: %s" % reason_text("missing_kit"))
+		return false
+	# Spawn before paying: a kind that fails to spawn must not eat the kit.
+	var node := _spawn(placing)
+	if node == null:
+		print("[build] rejected spawn_failed %s" % placing)
+		return false
+	if not _pay(player):
+		node.free()
+		print("[build] rejected missing_kit")
 		return false
 	runtime.add_child(node)
 	var pose := grid.placement_transform(placing, cell, rot_step)
@@ -385,9 +478,11 @@ func confirm(player: Player) -> bool:
 		node.set_grid_pose(cell, rot_step)
 	grid.occupy(node, grid.cells_for(placing, cell, rot_step))
 	print("[build] placed %s at (%d,%d) rot=%d" % [placing, cell.x, cell.y, posmod(rot_step, 4) * 90])
-	if player.skills:
-		player.skills.add_xp("construction", 8)
-	World.note_building(placing)
+	if not _repacked:
+		if player.skills:
+			player.skills.add_xp("construction", 8)
+		World.note_building(placing)
+	_repacked = false
 	cancel()
 	return true
 
@@ -417,53 +512,55 @@ func _spawn(kind: StringName) -> Node3D:
 			return CraftStation.make(&"crock_pot")
 		&"stone_grill":
 			return CraftStation.make(&"stone_grill")
+		&"steamer":
+			return CraftStation.make(&"steamer")
+		&"field_small", &"field_large":
+			return FieldPlot.make(kind)
 		&"straw_roll", &"tent", &"canvas_tent", &"log_shelter", &"cabin_bed", &"basket", &"fence", &"gate", &"sign":
 			return (load("res://scripts/world/placed_building.gd") as GDScript).make(kind)
 		_:
 			return null
 
+## Raw materials some kinds accept when the bag holds no kit (pre-kit recipes).
+const _RAW_COST := {
+	&"makeshift_taming_pen": {&"branch": 4, &"twine": 2},
+	&"bonfire": {&"branch": 2},
+	&"workbench": {&"branch": 4, &"twine": 2},
+	&"drying_rack": {&"branch": 4, &"twine": 2},
+}
+
+## Consumes one kit unit and says whether it was a repacked one (then this build is not new).
+static func _take_kit(inv: Inventory, kit: StringName) -> bool:
+	var idx := inv.find_first(kit)
+	if idx < 0:
+		return false
+	var repacked := &"repacked" in inv.slots[idx].flags
+	inv.remove_at(idx, 1)
+	return repacked
+
+func _can_pay(player: Player) -> bool:
+	var kit := kit_for(placing)
+	if kit != &"" and player.inventory.count_of(kit) > 0:
+		return true
+	var raw: Dictionary = _RAW_COST.get(placing, {})
+	if raw.is_empty():
+		return false
+	for id in raw:
+		if player.inventory.count_of(id) < int(raw[id]):
+			return false
+	return true
+
 func _pay(player: Player) -> bool:
-	var kit_id := StringName(str(_kit_id(placing)))
-	if kit_id != &"" and player.inventory.count_of(kit_id) > 0:
-		return player.inventory.consume(kit_id, 1)
-	if placing == &"makeshift_taming_pen":
-		if player.inventory.count_of(&"branch") < 4 or player.inventory.count_of(&"twine") < 2:
-			return false
-		player.inventory.consume(&"branch", 4)
-		player.inventory.consume(&"twine", 2)
+	if not _can_pay(player):
+		return false
+	var kit := kit_for(placing)
+	if kit != &"" and player.inventory.count_of(kit) > 0:
+		_repacked = _take_kit(player.inventory, kit)
 		return true
-	if placing == &"bonfire":
-		if player.inventory.count_of(&"branch") < 2:
-			return false
-		player.inventory.consume(&"branch", 2)
-		return true
-	if placing == &"workbench":
-		if player.inventory.count_of(&"branch") < 4 or player.inventory.count_of(&"twine") < 2:
-			return false
-		player.inventory.consume(&"branch", 4)
-		player.inventory.consume(&"twine", 2)
-		return true
-	if placing == &"drying_rack":
-		if player.inventory.count_of(&"branch") < 4 or player.inventory.count_of(&"twine") < 2:
-			return false
-		player.inventory.consume(&"branch", 4)
-		player.inventory.consume(&"twine", 2)
-		return true
-	if placing == &"tent":
-		return player.inventory.consume(&"tent_kit", 1)
-	if placing == &"canvas_tent":
-		return player.inventory.consume(&"canvas_tent_kit", 1)
-	if placing == &"straw_roll":
-		return player.inventory.consume(&"straw_roll_kit", 1)
-	if placing == &"basket":
-		return player.inventory.consume(&"basket_kit", 1)
-	if placing == &"fence":
-		return player.inventory.consume(&"fence_kit", 1)
-	if placing == &"gate":
-		return player.inventory.consume(&"gate_kit", 1)
-	if placing == &"sign":
-		return player.inventory.consume(&"sign_kit", 1)
-	return false
+	var raw: Dictionary = _RAW_COST.get(placing, {})
+	for id in raw:
+		player.inventory.consume(id, int(raw[id]))
+	return true
 
 func _sync_grid_state() -> void:
 	if placing == &"":
@@ -473,7 +570,9 @@ func _sync_grid_state() -> void:
 		valid = false
 		reason = "no_runtime"
 		return
-	rot_step = grid.suggested_fence_rot(placing, cell, rot_step)
+	# Auto-alignment is only a suggestion for a fresh placement; a moved building keeps its pose.
+	if not _rot_manual and moving == null:
+		rot_step = grid.suggested_fence_rot(placing, cell, rot_step)
 	# Rebuilding the grid overlay (an ImmediateMesh plus ~80 tile quads) every frame made dragging
 	# stutter; only redo it when the ghost actually moved, rotated or changed kind.
 	if _last_sync[0] == cell and _last_sync[1] == rot_step and _last_sync[2] == str(placing):
@@ -684,9 +783,9 @@ func _update_label(grid: BuildGrid) -> void:
 	var label := "%dx%d" % [fp.x, fp.y]
 	var cost := _cost_text()
 	if cost != "":
-		label += "\n%s" % cost
+		label += "  %s" % cost
 	if not valid and reason != "":
-		label += " · %s" % reason
+		label = reason_text(reason)  # the cost line only adds noise when the spot is refused
 	var contact := _ghost_root.get_node_or_null("ContactShadow") as MeshInstance3D
 	if contact and contact.mesh is PlaneMesh:
 		(contact.mesh as PlaneMesh).size = Vector2(maxf(0.8, float(fp.x)) * 0.92, maxf(0.8, float(fp.y)) * 0.92)

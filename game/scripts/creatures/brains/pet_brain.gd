@@ -53,24 +53,25 @@ func _think(delta: float) -> void:
 		if dist > 45.0:
 			target = null
 		else:
-			var reach := maxf(1.2, float(profile.get("attack_range", 1.8)) + 0.2)
+			# Reach is measured to the target's body: a raptor can bite a triceratops' flank.
+			var reach := maxf(1.2, float(profile.get("attack_range", 1.8)) + 0.2) + _size_excess(target)
 			# Use a wider exit threshold than entry. Without hysteresis, contact separation nudges the
 			# pet a few centimetres outside reach after a bite and it oscillates instead of reattacking.
 			var attack_exit := reach + 0.65
 			if state != &"attack" and dist > reach:
-				state = &"chase"
+				_set_state(&"chase")
 				creature.move_to(target.global_position)
 				creature.face_towards(target.global_position, delta)
 			elif dist > attack_exit:
-				state = &"chase"
+				_set_state(&"chase")
 				creature.move_to(target.global_position)
 				creature.face_towards(target.global_position, delta)
 			else:
-				state = &"attack"
+				_set_state(&"attack")
 				_do_attack()
 			return
 	attack_target = null
-	state = &"alert" if mode == &"heel" else &"roam"
+	_set_state(&"alert" if mode == &"heel" else &"roam")
 	var side := player.global_basis.x * (1.2 if mode == &"heel" else 1.6)
 	var follow := player.global_position + side
 	if creature.global_position.distance_to(follow) > (1.6 if mode == &"heel" else 2.4):

@@ -11,6 +11,20 @@ extends Camera3D
 @export var default_size: float = 15.0
 
 var _target: Node3D
+## 0..1 impact shake; decays linearly, offset grows with trauma^2 so small knocks stay subtle.
+var trauma: float = 0.0
+var _shake_t: float = 0.0
+
+## Shake the camera that follows `subject` (no-op on a headless server or for other bodies).
+static func shake(subject: Node, amount: float) -> void:
+	if subject == null or not subject.is_inside_tree():
+		return
+	var cam := subject.get_viewport().get_camera_3d() as IsoCamera
+	if cam and cam._target == subject:
+		cam.add_trauma(amount)
+
+func add_trauma(amount: float) -> void:
+	trauma = clampf(trauma + amount, 0.0, 1.0)
 
 func _ready() -> void:
 	projection = PROJECTION_ORTHOGONAL
@@ -26,12 +40,25 @@ func _ready() -> void:
 		_snap()
 
 func _process(delta: float) -> void:
+	_update_shake(delta)
 	if not _target:
 		return
 	# Interpolated origin: the survivor moves on physics ticks, the camera every frame. Without
 	# this the survivor stepped 60 Hz under a 120 Hz camera and read as a doubled, smeared image.
 	var desired := _target.get_global_transform_interpolated().origin + (-global_basis.z) * -distance
 	global_position = global_position.lerp(desired, clampf(follow_lerp * delta, 0.0, 1.0))
+
+## Screen-space offsets, so the shake never fights the follow lerp.
+func _update_shake(delta: float) -> void:
+	if trauma <= 0.0:
+		h_offset = 0.0
+		v_offset = 0.0
+		return
+	trauma = maxf(0.0, trauma - CombatTuning.num("camera", "trauma_decay_per_s", 1.4) * delta)
+	_shake_t += delta
+	var amp := trauma * trauma * CombatTuning.num("camera", "max_offset_m", 0.45)
+	h_offset = amp * sin(_shake_t * 57.0)
+	v_offset = amp * sin(_shake_t * 43.0 + 1.3)
 
 func _snap() -> void:
 	global_position = _target.global_position + (-global_basis.z) * -distance

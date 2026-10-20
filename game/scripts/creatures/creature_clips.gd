@@ -7,6 +7,14 @@ const CONTRACT: Array[StringName] = [
 	&"hit_react", &"knockdown", &"death", &"alert", &"feed",
 ]
 const LOOPING: Array[StringName] = [&"idle", &"walk", &"run"]
+## Authored on some species only (the T. rex); CreatureAnim falls back to idle where missing.
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe"]
+## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
+const FROZEN_TAIL_MIN := 0.25
+const TRIM_SAMPLES := 120
+
+static var _trim_cache: Dictionary = {}  ## "species/clip" -> cut length, so each species pays once
+static var _stale_warned: Dictionary = {}  ## "species/clip" of stale natural-speed bakes already reported
 
 static func attach(player: AnimationPlayer, view: CreatureView, def: CreatureDef) -> AnimationLibrary:
 	if player.root_node == NodePath(""):
@@ -45,6 +53,91 @@ static func clip_speed(clip: StringName, def: CreatureDef = null) -> float:
 	if clip == &"run" and def and not def.pipeline.is_empty() and def.pipeline.has("stand_in"):
 		return 1.6
 	return 1.0
+
+## Planted-foot ground speed (m/s) of a gait at cadence 1, baked by tools/bake_clip_speeds.py
+## into anim_events.json "natural_speeds" and scaled with the creature's height. 0 = unknown, marked
+## for replacement, or stale: a bake measured on a clip length more than 1 % off clip_len (the GLB
+## was swapped since) is ignored, with one warning per species and gait.
+static func natural_speed(def: CreatureDef, clip: StringName, clip_len: float = -1.0) -> float:
+	if def == null:
+		return 0.0
+	var row: Dictionary = (Data.anim_events.get("natural_speeds", {}) as Dictionary).get(str(def.id), {})
+	var baked_len := float(row.get(str(clip) + "_len", -1.0))
+	if clip_len > 0.0 and baked_len > 0.0 and absf(baked_len - clip_len) > clip_len * 0.01:
+		var key := "%s/%s" % [def.id, clip]
+		if not _stale_warned.has(key):
+			_stale_warned[key] = true
+			print("[creature] %s natural speed baked on a %.3f s clip, clip is %.3f s: ignored, rerun tools/bake_clip_speeds.py" % [key, baked_len, clip_len])
+		return 0.0
+	var baked_h := float(row.get("height_m", def.height_meters))
+	return float(row.get(str(clip), 0.0)) * (def.height_meters / baked_h if baked_h > 0.0 else 1.0)
+
+## Donor biped walks play one stride and then hold the start pose for the other half of the loop
+## (51 % frozen). Cut a looping clip where a static tail of FROZEN_TAIL_MIN or more begins; the
+## pose there matches the first frame, so the shortened loop is seamless. Returns the cut length.
+static func trim_frozen_tail(anim: Animation, cache_key: String = "") -> float:
+	if anim == null or anim.loop_mode == Animation.LOOP_NONE:
+		return 0.0
+	if cache_key != "" and _trim_cache.has(cache_key):
+		anim.length = minf(anim.length, float(_trim_cache[cache_key]))
+		return anim.length
+	var length := anim.length
+	var n := TRIM_SAMPLES
+	var tail := n  # first sample index of the static tail
+	var tracks: Array[PackedFloat32Array] = []  # per track: distance of each sample from the last
+	for t in anim.get_track_count():
+		var dev := _track_deviation(anim, t, n)
+		if not dev.is_empty():
+			tracks.append(dev)
+	if tracks.is_empty():
+		return length
+	var tols: Array[float] = []
+	for dev in tracks:
+		var peak := 0.0
+		for d in dev:
+			peak = maxf(peak, d)
+		tols.append(maxf(peak * 0.05, 0.0001))  # 5 % of the track's own swing counts as still
+	while tail > 1:
+		var still := true
+		for k in tracks.size():
+			if tracks[k][tail - 1] > tols[k]:
+				still = false
+				break
+		if not still:
+			break
+		tail -= 1
+	var cut := length * float(tail) / float(n)
+	if 1.0 - float(tail) / float(n) >= FROZEN_TAIL_MIN and cut > length * 0.3:
+		anim.length = cut
+	if cache_key != "":
+		_trim_cache[cache_key] = anim.length
+	return anim.length
+
+## Distance of each of n + 1 evenly spaced samples from the final sample; empty for non-bone tracks.
+static func _track_deviation(anim: Animation, t: int, n: int) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	var kind := anim.track_get_type(t)
+	if kind != Animation.TYPE_POSITION_3D and kind != Animation.TYPE_ROTATION_3D and kind != Animation.TYPE_SCALE_3D:
+		return out
+	var last: Variant = _sample(anim, t, kind, anim.length)
+	for i in n + 1:
+		var v: Variant = _sample(anim, t, kind, anim.length * float(i) / float(n))
+		if kind == Animation.TYPE_ROTATION_3D:
+			var a: Quaternion = v
+			var b: Quaternion = last
+			out.append(minf((a - b).length(), (a + b).length()))  # q and -q are the same rotation
+		else:
+			out.append(((v as Vector3) - (last as Vector3)).length())
+	return out
+
+static func _sample(anim: Animation, t: int, kind: int, at: float) -> Variant:
+	match kind:
+		Animation.TYPE_POSITION_3D:
+			return anim.position_track_interpolate(t, at)
+		Animation.TYPE_ROTATION_3D:
+			return anim.rotation_track_interpolate(t, at)
+		_:
+			return anim.scale_track_interpolate(t, at)
 
 static func _from_glb(path: String, view: CreatureView, player: AnimationPlayer, clip: StringName) -> Animation:
 	return RiggedModel.animation_from_glb(path, player, view, clip, "creature")

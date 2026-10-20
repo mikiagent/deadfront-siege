@@ -164,7 +164,18 @@
     "slingshot": "club",
     "stone_shot": "stone",
     "catapult_kit": "workbench_kit",
-    "toxin_pot": "herb_leaf"
+    "toxin_pot": "herb_leaf",
+    "travel_shirt": "raw_hide",
+    "travel_sleeves": "hide_strap",
+    "travel_trousers": "hide_strap",
+    "forager_hood": "dried_hide",
+    "forager_vest": "raw_hide",
+    "forager_wraps": "hide_strap",
+    "forager_leggings": "hide_strap",
+    "hide_bone_helm": "dried_hide",
+    "hide_bone_cuirass": "raw_hide",
+    "hide_bone_bracers": "hide_strap",
+    "hide_bone_greaves": "hide_strap"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

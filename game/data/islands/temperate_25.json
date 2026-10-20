@@ -8,7 +8,8 @@
   "kind": "unstable",
   "lifetime_seconds": 7200,
   "sail_cost": 5,
-  "harbour": [0, 0, 24],
+  "harbour": [72.5, 0, 177.5],
+  "_harbour_note": "Dock arrival point on the coast; see home_grassland.json.",
   "camp": [0, 0, 12],
   "crater": [0, 0, -185],
   "creatures": [
