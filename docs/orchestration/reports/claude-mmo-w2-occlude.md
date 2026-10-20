@@ -71,12 +71,13 @@ by the 120 Hz cap. Every row is within the 0.3 ms budget.
 
 Tests, all headless, after the merge with claude/mmo-overhaul:
 - `tools/smoke.sh` -> `SMOKE PASS`
-- `t_occlude` -> `[t_occlude] PASS` (TODO numbers)
+- `t_occlude` -> `[t_occlude] PASS`. 20 cases, each printing an ok line; the nature sweep
+  converts all 97 tree and rock models.
 - `run_all` -> `[tests] PASS`
 - t_ai, t_build, t_canim, t_combat, t_harbour (islands=15), t_iconart, t_items, t_light,
   t_lighting, t_save, t_structart, t_tame, t_web -> PASS
 
-No Godot crash report appeared during this session. The newest `Godot-*.ips` is from 02:03,
+No Godot crash report appeared during this session (checked again after the last run). The newest `Godot-*.ips` is from 02:03,
 before the session started.
 
 ## Screenshots looked at
@@ -87,8 +88,13 @@ All are in `docs/orchestration/reports/`:
   the trunk and the outline all still read as the tree, and the survivor shows through as a
   half-tone. There is no clear hole. Zoomed to 3x, the dither is a pixel checkerboard and not a
   coarse screen.
-- `w2-occlude-roof-inside-gl.png`: the roof over the survivor is a faint outline and the posts
-  stay solid. `w2-occlude-roof-outside-gl.png`: from outside, the roof is solid.
+- `w2-occlude-island-fwd.png`, `w2-occlude-island-gl.png`: temperate_25 in island_lab's camp
+  view (`--occl-perf --shot=...`), with the survivor behind the camp tree. These are the real
+  scatter path (VegBatch plus the hook). Both trees on the sight line fade as whole trees, and
+  the survivor shows through.
+- `w2-occlude-roof-inside-gl.png`, `w2-occlude-roof-inside-fwd.png`: the roof over the survivor
+  is a faint outline and the posts stay solid. `w2-occlude-roof-outside-gl.png`: from outside,
+  the roof is solid.
 - `w2-occlude-rock-fwd.png`: a 3 m rock in front of the survivor fades as a whole.
 - `w2-occlude-phone-gl.png`: landscape phone at 844x390 in the web renderer. The tree reads as a
   tree and the survivor is visible through it.
@@ -137,18 +143,39 @@ W2-BUILDSYS: the two calls in the API section above, from the code that spawns a
 
 ## dsc usage
 
-TODO
+dsc (DeepSeek V4.1 Flash) wrote `game/tests/t_occlude.gd`. The work was in sub-worktree
+`mmo-w2-occlude-dsc1`, branch `claude/mmo-w2-occlude-dsc1`.
+- Round 1 (previous session, $0.04) wrote the test for the first, cylinder-cut version.
+- Round 2 (this session: 0.3 h, $0.10 of a $2 budget, 4/4 milestones, 0 verify failures) moved
+  the 13 old cases to the new API and added 7 cases: a 12-row `ray_hits_cylinder` table, the
+  between-node fade timing and parameter, the dither share read from the shader include, MultiMesh
+  instance fades and slots, the 8-slot cap with ten trees on the sight line, forgetting a freed
+  prop, and release after a fade.
+- I wrote the task and the read-only verify script (`verify_occlude.sh`, chmod 555). The script is
+  the spec. The test has to pass on the real code and fail on each of 15 broken copies of the
+  system: release that does nothing, a roof that never notices the survivor, a dropped albedo,
+  `--no-occlusion` ignored, late meshes left solid, multi-surface twins missing, wrong culling, a
+  roof fade that never reaches the mesh, `BETWEEN_DROP` 0.8 (the hole), node props or MultiMesh
+  trees never in the way, a fade that pops instead of easing, an uncapped node parameter, freed
+  props left in the grid, and slots past 8. I ran it myself afterwards:
+  `VERIFY PASS (cases=20, nature models=97, 15/15 mutations caught)`.
+- I reviewed the whole diff and took it unchanged. Only the test file came into this branch
+  (`git checkout claude/mmo-w2-occlude-dsc1 -- game/tests/t_occlude.gd`). The worker's
+  checkpoint commit also carried TASK.md and the verify script, and those files stay out of the
+  repo root.
+- Everything else in this package is design and integration: the fade model, the shader lookup,
+  the pixel gates and the perf measurement. None of it was mechanical enough to hand off.
 
 ## Assumptions
 
-- `# ASSUMPTION`-free code. Decisions the PRDs do not make:
-  - The faded share is 9/16 dropped for "between" and 14/16 for "inside". This is the nearest
-    ordered-dither level that keeps the tree inside 40-60 % and still shows at least half of a
-    survivor fully behind it.
-  - TALL_M = 2.4 m. Every scattered rock today is 0.4-1.4 m tall (nature_manifest), so in game
-    only trees and palms fade. A bigger rock family turns occludable through the same hook.
-  - The survivor is the camera's own follow target (IsoCamera), falling back to the first node in
-    group "player".
+Each of these is marked `# ASSUMPTION:` in `game/scripts/world/occlusion.gd`:
+- `BETWEEN_DROP` 0.55 and `INSIDE_DROP` 0.85: 9/16 and 14/16 of the pixels dropped. 9/16 is the
+  ordered-dither level nearest half that keeps the tree inside 40-60 % and still shows at least
+  half of a survivor fully behind it.
+- `TALL_M` = 2.4 m. Every scattered rock today is 0.4-1.4 m tall (nature_manifest), so in game
+  only trees and palms fade. A bigger rock family becomes occludable through the same hook.
+- The survivor is the camera's own follow target (IsoCamera), falling back to the first node in
+  group "player".
 
 ## Limits
 

@@ -18,11 +18,13 @@ extends Node
 const BETWEEN := "between"
 const INSIDE := "inside"
 ## Props at least this tall can cover the survivor at the iso pitch (island_scatter's hook).
+## ASSUMPTION: 2.4 m; every scattered rock today is under 1.5 m, so only trees and palms fade.
 const TALL_M := 2.4
 ## Share of pixels a faded prop drops: 9 of the 16 dither cells, so the prop keeps 7/16 (44 %) and
 ## a survivor fully behind it shows 9/16 (56 %). Owner 2026-10-20: partly see-through, never a hole.
+## ASSUMPTION: 9/16, the dither level nearest half that still shows at least half the survivor.
 const BETWEEN_DROP := 0.55
-## 14 of 16 cells: a roof over the survivor keeps a faint readable outline.
+## ASSUMPTION: 14 of 16 cells: a roof over the survivor keeps a faint readable outline.
 const INSIDE_DROP := 0.85
 const FADE_S := 0.25
 const CHEST_UP_M := 0.3  # the player's origin is its capsule centre, 0.9 m above the feet
@@ -391,7 +393,8 @@ func _process(delta: float) -> void:
 	if not _pending.is_empty():
 		_flush_pending()
 	var cam := get_viewport().get_camera_3d()
-	# The survivor this screen follows (IsoCamera's target), so other players never drive the fade.
+	# ASSUMPTION: the survivor is the one this screen follows (IsoCamera's target), so other players
+	# never drive the fade; the first "player" in the group otherwise.
 	var t: Variant = cam.get(&"_target") if cam else null
 	var who: Node3D = t if is_instance_valid(t) and t is Node3D else get_tree().get_first_node_in_group("player") as Node3D
 	var hits := {}
