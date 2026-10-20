@@ -41,8 +41,16 @@ static func of(node: Node, create: bool = false) -> StructureHealth:
 	node.add_child(h)
 	return h
 
+## Camp pieces (rebuilt from the camp layout every load) and cargo are not structures: they would
+## come back whole, so nothing may wear them down.
 static func is_structure(node: Node) -> bool:
-	return node != null and (node is StructurePiece or node.is_in_group("placed_building") or node.is_in_group("craft_station"))
+	if node == null or not is_instance_valid(node):
+		return false
+	if node is StructurePiece:
+		return true
+	if not (node.is_in_group("placed_building") or node.is_in_group("craft_station")):
+		return false
+	return node.get("persist_building") != false and node.get("is_cargo") != true
 
 ## The structure between a creature (or any body) and a world point at knee height, or null.
 static func blocker_between(a: Node3D, to: Vector3) -> Node3D:
@@ -72,6 +80,9 @@ func missing() -> float:
 func take_damage(amount: float, source: Node = null) -> float:
 	if dead or amount <= 0.0:
 		return 0.0
+	var host0 := get_parent()
+	if host0 and not host0 is StructurePiece and host0.get("hp") != null:
+		hp = clampf(float(host0.get("hp")), 0.0, max_hp)  # the kit may have changed its own hp
 	var dealt := minf(hp, amount * damage_mult * float(StructurePiece.defs().get("creature_damage_mult", 1.0)))
 	hp -= dealt
 	_mirror()

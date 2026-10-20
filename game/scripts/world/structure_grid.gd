@@ -116,6 +116,45 @@ static func module_of(world: Vector3) -> Vector2i:
 	var m := StructurePiece.module_m()
 	return Vector2i(floori(world.x / m), floori(world.z / m))
 
+## Saved piece rows back onto the island (save load, coming home). Rows are checked one by one
+## (StructurePiece.from_dict); a malformed row, a taken slot or a broken piece is skipped and
+## logged; whatever the restored set cannot hold up then collapses. Returns the pieces restored.
+func restore(rows: Array, parent: Node) -> int:
+	var pieces_in: Array[StructurePiece] = []
+	for row in rows:
+		var p: StructurePiece = StructurePiece.from_dict(row) if row is Dictionary else null
+		if p == null or p.health.hp <= 0.0:
+			print("[struct] skipped a saved piece row that is not a valid piece")
+			if p:
+				p.free()
+			continue
+		pieces_in.append(p)
+	pieces_in.sort_custom(func (a: StructurePiece, b: StructurePiece) -> bool:
+		return a.slot.z < b.slot.z or (a.slot.z == b.slot.z and a.slot.w < b.slot.w))
+	var n := 0
+	for p in pieces_in:
+		var taken := false
+		for k in p.keys():
+			taken = taken or piece_at(k) != null
+		if taken:
+			print("[struct] skipped saved %s at %s: slot taken" % [p.kind, p.slot])
+			p.free()
+			continue
+		parent.add_child(p)
+		register(p)
+		n += 1
+	var fell := collapse_unsupported()
+	print("[struct] restored %d pieces (%d unsupported)" % [n - fell.size(), fell.size()])
+	return n - fell.size()
+
+## Rows of every live piece (SaveGame writes them beside the kit rows).
+func to_rows() -> Array:
+	var out: Array = []
+	for p in pieces():
+		if not p.is_queued_for_deletion():
+			out.append(p.to_dict())
+	return out
+
 # ------------------------------------------------------------------ queries used by the rules
 
 ## The walkable floor at a module cell and level: a foundation (level 0) or a ceiling (level >= 1).

@@ -10,11 +10,12 @@ extends StaticBody3D
 ## DOOR_Z (the door inside a doorway on that edge), ON_FLOOR (stairs standing on a slab) and STAIRWELL
 ## (the open slab slots a staircase keeps clear above itself).
 ##
-## Physics: walkable pieces are on LAYER_WALK; walls, doorways, windows, closed doors and pillars are
-## on LAYER_STRUCTURE only, which creatures collide with (creature.tscn mask 1 | 16) and the survivor
-## (mask 1) does not: owned walls let the owner through while blocking enemies (HANDOFF section 8).
+## Physics: walkable pieces are on LAYER_WALK. Walls, doorways, windows, closed doors and pillars are
+## on LAYER_WALK | LAYER_STRUCTURE, so creatures (mask 1) collide with them, and the owning survivor
+## gets a collision exception: owned walls let the owner through while blocking enemies (HANDOFF
+## section 8). TilePath does the same for paths (StructureGrid.enemy_cells, TilePath for_owner).
 # ASSUMPTION: offline every structure belongs to the local survivor (owner_id "local"); W3 replaces
-# the layer rule with a per-owner check on the server.
+# the exception with a per-owner check on the server.
 
 const LAYER_WALK := 1
 const LAYER_TAP := 2
@@ -170,10 +171,11 @@ func keys() -> Array[Vector4i]:
 func _ready() -> void:
 	add_to_group("structure_piece")
 	collision_mask = 0
-	transform = pose(kind, slot, rot, floor0)
+	global_transform = pose(kind, slot, rot, floor0)
 	_rebuild()
 	_apply_layer()
 	_occlusion(self, StringName(str(piece_def(kind).get("occlusion", "none"))))
+	_let_owner_through()
 
 func is_wall_type() -> bool:
 	return kind in WALL_KINDS
@@ -228,7 +230,17 @@ func _apply_layer() -> void:
 	elif str(piece_def(kind).get("blocks", "none")) == "none":
 		collision_layer = LAYER_WALK
 	else:
-		collision_layer = LAYER_STRUCTURE
+		collision_layer = LAYER_WALK | LAYER_STRUCTURE
+
+## The owner walks through its own blockers; creatures do not (they have no exception).
+# shortcut: the exception lives on the current Player node; a re-instanced Player loses it until
+# the pieces reload. Upgrade with the W3 per-owner server check.
+func _let_owner_through() -> void:
+	if str(piece_def(kind).get("blocks", "none")) == "none" or owner_id != "local":
+		return
+	var who := get_tree().get_first_node_in_group("player") as PhysicsBody3D
+	if who:
+		who.add_collision_exception_with(self)
 
 func _apply_door_pose() -> void:
 	var hinge := _visual.get_node_or_null("Hinge") as Node3D if _visual else null
@@ -303,34 +315,47 @@ func to_dict() -> Dictionary:
 		"container_id": "",
 	}
 
-## Rows were shaped by SaveSanitizer (known kind and tier, int position, clamped numbers).
+## A saved row back into a piece, or null when the row is not a well-formed piece. Save files are
+## user-editable and SaveSanitizer only shapes kit fields, so every field is type-checked here.
 static func from_dict(row: Dictionary) -> StructurePiece:
-	var pos: Array = row.get("position", [0, 0, 0, 0])
+	var k := StringName(str(row.get("kind", "")))
+	var pos: Variant = row.get("position")
+	if not is_piece_kind(k) or not pos is Array or (pos as Array).size() != 4:
+		return null
+	for v in pos:
+		if not (v is int or v is float) or absf(float(v)) > 4000.0:
+			return null
+	var code := int(pos[3])
+	if code < CELL or code > ON_FLOOR:
+		return null  # STAIRWELL is never a piece's own slot
 	var t := StringName(str(row.get("tier", "thatch")))
-	var p := make(StringName(str(row.get("kind", ""))), t if is_tier(t) else &"thatch",
-		Vector4i(int(pos[0]), int(pos[1]), int(pos[2]), int(pos[3])) if pos.size() >= 4 else Vector4i.ZERO,
-		int(row.get("rotation", 0)), float(row.get("floor_y", 0.0)), int(row.get("variant", 0)))
+	var p := make(k, t if is_tier(t) else &"thatch", Vector4i(int(pos[0]), int(pos[1]), clampi(int(pos[2]), 0, 8), code),
+		int(_num(row.get("rotation"), 0.0, 3.0, 0.0)), _num(row.get("floor_y"), -500.0, 500.0, 0.0), int(_num(row.get("variant"), 0.0, 40.0, 0.0)))
 	if str(row.get("id", "")) != "":
-		p.uid = str(row["id"])
-	p.owner_id = str(row.get("owner_id", "local"))
-	p.build_level = clampi(int(row.get("level", 1)), 1, 60)
+		p.uid = str(row["id"]).left(32)
+	p.owner_id = str(row.get("owner_id", "local")).left(64)
+	p.build_level = int(_num(row.get("level"), 1.0, 60.0, 1.0))
 	var attrs: Variant = row.get("inherited_attributes", [])
 	p.inherited_attributes = (attrs as Array).duplicate(true) if attrs is Array else []
-	p.health.hp = clampf(float(row.get("current_durability", p.health.max_hp)), 0.0, p.health.max_hp)
-	p.door_open = p.kind == &"door" and row.get("open", false) == true
+	p.health.hp = _num(row.get("current_durability"), 0.0, p.health.max_hp, p.health.max_hp)
+	p.door_open = k == &"door" and row.get("open", false) == true
 	return p
 
-## The one adapter to W2-OCCLUDE: roofs and ceilings fade entirely while the survivor is under them,
-## walls and pillars fade while they stand between the camera and the survivor. Guarded so this
-## branch works (pieces simply stay opaque) before the occlusion package merges.
-static func _occlusion(node: Node3D, mode: StringName) -> bool:
+static func _num(v: Variant, lo: float, hi: float, fallback: float) -> float:
+	return clampf(float(v), lo, hi) if (v is int or v is float) and not is_nan(float(v)) else fallback
+
+## The one adapter to W2-OCCLUDE (Occlusion.make_occludable(node, "inside" | "between")): roofs and
+## ceilings fade while the survivor is under them, walls and pillars where they stand between the
+## camera and the survivor. How far they fade is the occlusion package's rule (owner 2026-10-20:
+## partly see-through, never a clear hole; roofs keep a faint outline). Guarded so pieces simply
+## stay opaque until that package merges. Returns the surfaces that now fade.
+static func _occlusion(node: Node3D, mode: StringName) -> int:
 	if mode == &"none" or not ResourceLoader.exists(OCCLUSION_SCRIPT):
-		return false
+		return 0
 	var occ: Variant = load(OCCLUSION_SCRIPT)
 	if not occ is GDScript:
-		return false
+		return 0
 	for m in (occ as GDScript).get_script_method_list():
 		if str(m.get("name", "")) == "make_occludable":
-			(occ as GDScript).call("make_occludable", node, {"mode": "inside" if mode == &"roof" else "between"})
-			return true
-	return false
+			return int((occ as GDScript).call("make_occludable", node, "inside" if mode == &"roof" else "between"))
+	return 0

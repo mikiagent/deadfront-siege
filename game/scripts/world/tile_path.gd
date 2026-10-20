@@ -47,7 +47,27 @@ func update_cells(cells: Array) -> void:
 func is_walkable(tile: Vector2i) -> bool:
 	return _region.has_point(tile) and not _astar.is_point_solid(tile)
 
-func path(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN) -> PackedVector3Array:
+## for_owner: the owning survivor's path, which goes through its own walls and closed doors
+## (HANDOFF section 8); creatures and everyone else get the default.
+func path(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN, for_owner: bool = false) -> PackedVector3Array:
+	if not for_owner:
+		return _path(from_world, to_world, max_len)
+	if _dirty:
+		_refresh()
+	# The owner's walls are a handful of cells: open them for this one query, then close them again.
+	var grid := _grid()
+	var opened: Array[Vector2i] = []
+	if grid:
+		for c in grid.structures.path_blocked_cells():
+			if _region.has_point(c) and not _terrain_blocked.has(c) and _astar.is_point_solid(c) and not _harvest.has(c) and not grid.blocks_path(c, true):
+				_astar.set_point_solid(c, false)
+				opened.append(c)
+	var out := _path(from_world, to_world, max_len)
+	for c in opened:
+		_apply(c)
+	return out
+
+func _path(from_world: Vector3, to_world: Vector3, max_len: int) -> PackedVector3Array:
 	last_reachable = false
 	if runtime == null:
 		return PackedVector3Array()
@@ -81,8 +101,8 @@ func path(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN
 	return out
 
 ## path() with its reachable flag, for callers that cannot read a shared member right away.
-func path_result(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN) -> Dictionary:
-	var points := path(from_world, to_world, max_len)
+func path_result(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN, for_owner: bool = false) -> Dictionary:
+	var points := path(from_world, to_world, max_len, for_owner)
 	return {"points": points, "reachable": last_reachable}
 
 func _log_len(length: int) -> void:
@@ -167,6 +187,8 @@ func _build_blockers() -> Dictionary:
 		if grid.blocks_path(cell):
 			out[cell] = true
 	for cell in grid.reserved_cells():
+		out[cell] = true
+	for cell in grid.structures.path_blocked_cells():  # level-0 walls and closed doors
 		out[cell] = true
 	return out
 

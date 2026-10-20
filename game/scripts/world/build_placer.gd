@@ -1,6 +1,12 @@
 class_name BuildPlacer
 extends Node
-## Grid-snap placement flow used by inventory and crafting.
+## Grid-snap placement flow used by inventory and crafting, and the modular-building API:
+##   begin_piece(kind, tier)  select a piece (foundation, wall, doorway, door, window, ceiling, roof,
+##                            roof_peak, pillar, stairs, ramp) in a tier; the ghost snaps to the
+##                            nearest free socket around the pointer (or aim_at()) with green/red
+##                            snap points; rotate_clockwise(), confirm(player) and cancel() as for kits
+##   upgrade(target, tier, player) / repair(target, player) / demolish(target, player) -> bool
+## StructurePlacer does the snapping and the costs; structures.json holds every number.
 
 const GRID_HALF_SPAN := 4
 
@@ -21,6 +27,12 @@ var cell: Vector2i = Vector2i.ZERO
 var rot_step: int = 0
 var _rot_manual: bool = false  # once the player rotates, fence/gate auto-alignment stops overriding it
 var _repacked: bool = false  # the kit just paid for came from pack-up: place it without XP
+var piece_tier: StringName = &"thatch"
+var piece_at: Dictionary = {}  # the last StructurePlacer.snap() result while placing a piece
+var _aim: Vector3 = Vector3.ZERO
+var _aim_locked: bool = false  # aim_at() pins the aim (labs, tests); the pointer ray drives it otherwise
+var _snap_points: MeshInstance3D
+var _snap_key: Array = []
 
 var _ghost_root: Node3D
 var _ghost_visual: Node3D
@@ -70,6 +82,28 @@ static func reason_text(code: String) -> String:
 			return "Ground too steep"
 		"missing_kit":
 			return "No kit in your bag"
+		"occupied":
+			return "Socket is taken"
+		"no_support", "no_socket":
+			return "Needs a foundation, wall or pillar to snap to"
+		"stairwell":
+			return "Needs open headroom"
+		"max_level":
+			return "Too high to build"
+		"resource":
+			return "A tree or rock is in the way"
+		"floor_edge":
+			return "Must stand fully on the floor"
+		"missing_materials":
+			return "Not enough materials"
+		"locked":
+			return "Needs a higher Construction level"
+		"not_higher":
+			return "Already this tier or better"
+		"undamaged":
+			return "Not damaged"
+		"not_yours":
+			return "Not yours"
 		"no_runtime", "spawn_failed":
 			return "Can't build here"
 		"":
@@ -127,9 +161,20 @@ func _ready() -> void:
 	_ghost_cells.material_override = _cell_mat
 	_ghost_cells.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_ghost_cells)
+	_snap_points = MeshInstance3D.new()
+	_snap_points.name = "SnapPoints"
+	_snap_points.top_level = true
+	_snap_points.visible = false
+	_snap_points.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var snap_mat := _cell_mat.duplicate() as StandardMaterial3D
+	snap_mat.no_depth_test = true  # sockets behind a wall stay visible
+	_snap_points.material_override = snap_mat
+	add_child(_snap_points)
 
 func begin(kind: StringName) -> void:
 	_last_sync = [Vector2i(999999, 999999), -1, ""]
+	_snap_key = []
+	_aim_locked = false
 	placing = kind
 	rot_step = 0
 	_rot_manual = false
@@ -139,13 +184,48 @@ func begin(kind: StringName) -> void:
 	_snap_to_pointer()
 	_sync_grid_state()
 	_ghost_root.visible = true
-	_ghost_grid.visible = true
-	_ghost_cells.visible = true
+	_ghost_grid.visible = not is_piece()
+	_ghost_cells.visible = not is_piece()
+	_snap_points.visible = is_piece()
 	var grid := _grid()
 	if grid:
 		grid.set_actor(get_parent() as Node3D)
 	Game.show_grid = true
 	TouchControls.set_context(&"place")
+
+## Select a modular piece in a tier; the HUD's rotate / confirm / cancel then drive it like a kit.
+func begin_piece(kind: StringName, tier: StringName = &"thatch") -> bool:
+	if not StructurePiece.is_piece_kind(kind) or StructurePiece.blueprint(kind, tier).is_empty():
+		return false
+	piece_tier = tier
+	piece_at = {}
+	begin(kind)
+	return true
+
+func is_piece() -> bool:
+	return StructurePiece.is_piece_kind(placing)
+
+## Pin the ghost's aim to a world point (labs and tests; a tap or drag drives it otherwise).
+func aim_at(world: Vector3) -> void:
+	_aim = world
+	_aim_locked = true
+	_sync_grid_state()
+
+func upgrade(target: Node, tier: StringName, player: Player) -> bool:
+	return _report("upgrade", StructurePlacer.upgrade(target, tier, player), player)
+
+func repair(target: Node, player: Player) -> bool:
+	return _report("repair", StructurePlacer.repair(target, player), player)
+
+func demolish(target: Node, player: Player) -> bool:
+	return _report("demolish", StructurePlacer.demolish(target, player), player)
+
+func _report(what: String, why: String, player: Player) -> bool:
+	if why != "":
+		print("[struct] %s refused: %s" % [what, why])
+		if player and player.has_method("notice"):
+			player.notice("Can't %s: %s" % [what, reason_text(why)])
+	return why == ""
 
 static func kind_of_building(n: Node) -> StringName:
 	if n == null:
@@ -393,9 +473,11 @@ func cancel() -> void:
 	placing = &""
 	valid = false
 	reason = ""
+	_aim_locked = false
 	_ghost_root.visible = false
 	_ghost_grid.visible = false
 	_ghost_cells.visible = false
+	_snap_points.visible = false
 	if not layout_mode:
 		TouchControls.set_context(&"explore")
 
@@ -414,6 +496,13 @@ func tap_ground() -> void:
 
 func _process(_delta: float) -> void:
 	if placing == &"":
+		return
+	if is_piece():
+		if not _aim_locked:
+			var hit := _ground()
+			if not hit.is_empty():
+				_aim = hit.position
+		_sync_grid_state()
 		return
 	if moving == null:
 		_snap_to_pointer()
@@ -457,6 +546,11 @@ func confirm(player: Player) -> bool:
 	if runtime == null or grid == null:
 		print("[build] rejected no_runtime")
 		return false
+	if is_piece():
+		var res := StructurePlacer.place(grid.structures, runtime, placing, piece_tier, piece_at, player)
+		_snap_key = []  # the grid changed: re-snap (the ghost stays up for the next piece)
+		_sync_grid_state()
+		return _report("place", str(res["reason"]), player)
 	if not _can_pay(player):
 		print("[build] rejected missing_kit")
 		if player.has_method("notice"):
@@ -570,6 +664,9 @@ func _sync_grid_state() -> void:
 		valid = false
 		reason = "no_runtime"
 		return
+	if is_piece():
+		_sync_piece(grid)
+		return
 	# Auto-alignment is only a suggestion for a fresh placement; a moved building keeps its pose.
 	if not _rot_manual and moving == null:
 		rot_step = grid.suggested_fence_rot(placing, cell, rot_step)
@@ -587,6 +684,64 @@ func _sync_grid_state() -> void:
 		_apply_ghost_material(_ghost_visual, _mat_valid if valid else _mat_invalid)
 	_draw_overlay(grid)
 	_update_label(grid)
+
+## Re-snap only when the aim moved 5 cm, the rotation, piece, tier or grid changed.
+func _sync_piece(grid: BuildGrid) -> void:
+	var key := [Vector3i((_aim * 20.0).round()), rot_step, _rot_manual, placing, piece_tier]
+	if key == _snap_key:
+		return
+	_snap_key = key
+	var old_variant := int(piece_at.get("variant", -1))
+	piece_at = StructurePlacer.snap(grid.structures, placing, piece_tier, _aim, rot_step, _rot_manual)
+	reason = str(piece_at["reason"])
+	var player := get_parent()
+	if reason == "" and player and player.get("inventory") is Inventory:
+		reason = StructurePlacer.tier_gate(player, piece_tier)
+		if reason == "" and not StructurePlacer.can_pay(player.get("inventory"), StructurePiece.cost(placing, piece_tier)):
+			reason = "missing_materials"
+	valid = reason == ""
+	if int(piece_at.get("variant", 0)) != old_variant:
+		_rebuild_ghost_visual()
+	_ghost_root.global_transform = StructurePiece.pose(placing, piece_at["slot"], int(piece_at["rot"]), float(piece_at["floor0"]))
+	if not _ghost_mat_fresh or _ghost_mat_valid != valid:
+		_ghost_mat_valid = valid
+		_ghost_mat_fresh = true
+		_apply_ghost_material(_ghost_visual, _mat_valid if valid else _mat_invalid)
+	_draw_snap_points(piece_at.get("sockets", []))
+	var parts: PackedStringArray = []
+	var cost := StructurePiece.cost(placing, piece_tier)
+	for id in cost:
+		parts.append("%s ×%d" % [str(id).replace("_", " "), int(cost[id])])
+	var label := "%s %s  %s" % [str(StructurePiece.tier_def(piece_tier).get("label", piece_tier)), str(StructurePiece.piece_def(placing).get("label", placing)), " · ".join(parts)]
+	if not valid:
+		label = reason_text(reason)
+	if label != _last_label:
+		_last_label = label
+		_ghost_label.text = label
+
+## Green diamonds on free sockets that take the piece, red on ones that refuse it.
+func _draw_snap_points(sockets: Array) -> void:
+	var verts := PackedVector3Array()
+	var cols := PackedColorArray()
+	for row in sockets:
+		var c: Vector3 = row[0] + Vector3(0, 0.08, 0)
+		var col := Color(0.25, 0.95, 0.45, 0.9) if bool(row[1]) else Color(0.95, 0.25, 0.2, 0.75)
+		var r := 0.13
+		var tips := [c + Vector3(r, 0, 0), c + Vector3(0, 0, r), c + Vector3(-r, 0, 0), c + Vector3(0, 0, -r)]
+		for i in 4:
+			for y in [r * 1.4, -r * 1.4]:
+				verts.append_array(PackedVector3Array([tips[i], tips[(i + 1) % 4], c + Vector3(0, y, 0)]))
+				cols.append_array(PackedColorArray([col, col, col]))
+	if verts.is_empty():
+		_snap_points.mesh = null
+		return
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_COLOR] = cols
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_snap_points.mesh = mesh
 
 func _grid() -> BuildGrid:
 	if World.runtime == null:
@@ -640,6 +795,17 @@ func _rebuild_ghost_visual() -> void:
 	_ghost_mat_fresh = false
 	for c in _ghost_visual.get_children():
 		c.queue_free()
+	var contact := _ghost_root.get_node_or_null("ContactShadow") as Node3D
+	if contact:
+		contact.visible = not is_piece()
+	if is_piece():
+		var mi := MeshInstance3D.new()
+		mi.mesh = StructureMesh.mesh_for(placing, piece_tier, int(piece_at.get("variant", 0)))
+		if placing == &"door":  # the leaf mesh starts at its hinge, as on the placed door
+			mi.position.x = -float((StructurePiece.piece_def(&"doorway").get("opening", [1.1]) as Array)[0]) * 0.5 + 0.03
+		_ghost_visual.add_child(mi)
+		_apply_ghost_material(_ghost_visual, _mat_valid)
+		return
 	var path := PropVisuals.model_path(placing)
 	if path != "" and ResourceLoader.exists(path):
 		var packed := load(path)
