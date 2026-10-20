@@ -92,11 +92,15 @@ static func check(s: Dictionary) -> Array[String]:
 			bad.append("items %s: in-out-consumed %d != held %d" % [def_id, net, int(units.get(def_id, 0))])
 	if int(s.pets_in) - int(s.pets_out) != pets:
 		bad.append("pets: in-out %d != held %d" % [int(s.pets_in) - int(s.pets_out), pets])
+	for uid in s.src:
+		if not where.has(uid) or s.retired.has(uid):
+			bad.append("exported %s is %s" % [uid, "retired too" if where.has(uid) else "not held"])
 	return bad
 
 static func _place(where: Dictionary, uid: String, container: String, next_id: int, bad: Array[String]) -> void:
 	if where.has(uid):
 		bad.append("uid %s in %s and %s" % [uid, where[uid], container])
 	where[uid] = container
-	if Ledger.id_num(uid) <= 0 or Ledger.id_num(uid) >= next_id:
+	# Character-store uids ("i<seq>.<k>") come from its own counter; the books issue the rest.
+	if not "." in uid and (Ledger.id_num(uid) <= 0 or Ledger.id_num(uid) >= next_id):
 		bad.append("uid %s was never issued" % uid)

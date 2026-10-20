@@ -13,11 +13,12 @@ const HOSTILE := ["yes", {"x": 1}, [1, 2], null] ## wrong-typed values a client 
 var failures: Array[String] = []
 var cat: EconCatalog
 var _rid := 0
+var _seq := 0 ## character-store seq for the provenance stamps test assets carry
 
 func run() -> Array[String]:
 	cat = EconCatalog.from_data()
 	# Each test returns true on its last line; a script error aborts it and returns null.
-	for test: Callable in [_test_accounts_wallet_objectives, _test_item_deposits, _test_attribute_sources, _test_pet_deposits, _test_withdraw, _test_fixed_listings, _test_auctions, _test_anti_snipe_and_settlement, _test_orders, _test_expiry, _test_search, _test_history_and_reference, _test_reference_poisoning, _test_settlers, _test_idempotency, _test_rid_bodies, _test_vault_caps, _test_clock, _test_market_views, _test_float_grid, _test_journal_replay, _test_torn_newline, _test_snapshots, _test_snapshot_failures, _test_fault_reload, _test_fuzz, _test_search_perf]:
+	for test: Callable in [_test_accounts_wallet_objectives, _test_item_deposits, _test_attribute_sources, _test_pet_deposits, _test_withdraw, _test_fixed_listings, _test_auctions, _test_anti_snipe_and_settlement, _test_orders, _test_expiry, _test_search, _test_history_and_reference, _test_reference_poisoning, _test_settlers, _test_idempotency, _test_rid_bodies, _test_vault_caps, _test_clock, _test_market_views, _test_journal_replay, _test_torn_newline, _test_snapshots, _test_snapshot_failures, _test_fault_reload, _test_fuzz, _test_search_perf]:
 		if test.call() != true:
 			failures.append("econ: %s stopped early (script error)" % test.get_method())
 	return failures
@@ -43,7 +44,7 @@ func _engine(r: EconRules = null, accounts: int = 4) -> MarketEngine:
 ## Applies an op, adding a fresh rid to write ops, and asserts the 6.7 invariants plus
 ## "a failed or read-only op changes nothing" after every call.
 func _op(e: MarketEngine, op: String, who: int, args: Dictionary = {}, ts: int = T0) -> Dictionary:
-	if op in MarketEngine.WRITE and not args.has("rid"):
+	if (op in MarketEngine.WRITE or op in MarketEngine.BRIDGE) and not args.has("rid"):
 		_rid += 1
 		args = args.duplicate()
 		args.rid = "r%d" % _rid
@@ -103,11 +104,16 @@ static func _with(d: Dictionary, key: String, value: Variant) -> Dictionary:
 	out[key] = value
 	return out
 
+## A stack as act.deposit exports it: the gameplay fields plus a fresh server provenance stamp.
 func _stack(def_id: String, count: int, level: int = 1) -> Dictionary:
-	return ItemStack.make(StringName(def_id), count, {}, level).to_dict()
+	return _stamp(ItemStack.make(StringName(def_id), count, {}, level).to_dict(), "i", "gather")
+
+func _stamp(d: Dictionary, prefix: String, origin: String) -> Dictionary:
+	_seq += 1
+	return Provenance.stamp(d, "%s%d.0" % [prefix, _seq], origin, _seq)
 
 func _deposit(e: MarketEngine, who: int, def_id: String, count: int, level: int = 1, ts: int = T0) -> String:
-	return str(_ok(e, "vault.deposit_item", who, {"slot_dict": _stack(def_id, count, level), "count": count}, ts).get("uid", ""))
+	return str(_ok(e, "vault.deposit_item", who, {"slot_dict": _stack(def_id, count, level)}, ts).get("uid", ""))
 
 func _pet(species: String, level: int = 1, seed: int = 1) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
@@ -115,7 +121,7 @@ func _pet(species: String, level: int = 1, seed: int = 1) -> Dictionary:
 	var rec := PetRecord.from_def(Data.creature(StringName(species)), &"B", &"", CreatureGenetics.roll(rng))
 	while rec.level < level:
 		rec.add_xp(PetRecord.xp_to_next(rec.level) / rec.xp_rate + 0.01)
-	return rec.to_dict()
+	return _stamp(rec.to_dict(), "p", "tame")
 
 func _list(e: MarketEngine, who: int, uid: String, price: int, count: int = -1, ts: int = T0, hours: int = 24) -> String:
 	var asset := {"uid": uid}
@@ -166,15 +172,19 @@ func _test_accounts_wallet_objectives() -> bool:
 	return true
 
 func _bad_item(e: MarketEngine, slot: Dictionary, why: String) -> void:
-	_err(e, "vault.deposit_item", 1, {"slot_dict": slot, "count": 1}, "invalid_asset", T0, why)
+	_err(e, "vault.deposit_item", 1, {"slot_dict": slot}, "invalid_asset", T0, why)
 
 func _test_item_deposits() -> bool:
 	var r := _rules()
 	r.limits.deposit_caps.stone = 30
 	r.limits.max_vault_items = 6
 	var e := _engine(r)
-	var uid := _deposit(e, 1, "stone", 10)
-	_expect(uid.begins_with("i") and e.L.acct(1).vault_items.has(uid), "a deposit lands in the vault under an i<seq> uid")
+	var stone := _stack("stone", 10)
+	var uid := str(_ok(e, "vault.deposit_item", 1, {"slot_dict": stone}).uid)
+	_expect(uid == stone.uid and Ledger.canon(e.L.acct(1).vault_items[uid]) == Ledger.canon(Ledger.norm(stone)), "a deposit keeps its own uid, origin and seq, byte for byte")
+	_err(e, "vault.deposit_item", 2, {"slot_dict": stone}, "conflict", T0, "the same uid deposited twice (a dupe)")
+	_bad_item(e, Provenance.strip(_stack("stone", 1)), "no server provenance (a client dict)")
+	_bad_item(e, _with(_stack("stone", 1), "origin", "cheat"), "an origin the server never stamps")
 	var base := _stack("stone", 5)
 	_bad_item(e, _with(base, "id", "unobtainium"), "unknown def")
 	_bad_item(e, _stack("tamed_animal", 1), "pet in item form")
@@ -199,34 +209,42 @@ func _test_item_deposits() -> bool:
 	_bad_item(e, _with(knife, "durability", cap + 1), "durability over max")
 	_bad_item(e, _with(_with(knife, "max_durability", cap + 50), "durability", cap + 50), "max durability over the level cap")
 	_bad_item(e, _with(knife, "count", 2), "durability items do not stack")
-	_ok(e, "vault.deposit_item", 1, {"slot_dict": knife, "count": 1})
+	_ok(e, "vault.deposit_item", 1, {"slot_dict": knife})
 	var fancy := _with(_with(base, "flags", ["raw"]), "attributes", {"tint": "#8a8a8a", "hardness": 2, "level": 5, "climate": "tundra"})
-	var got := _ok(e, "vault.deposit_item", 1, {"slot_dict": fancy, "count": 5})
+	var got := _ok(e, "vault.deposit_item", 1, {"slot_dict": fancy})
 	_expect(got.item.flags == ["raw"] and int(got.item.attributes.hardness) == 2, "whitelisted flags and attributes survive")
-	_err(e, "vault.deposit_item", 1, {"slot_dict": base, "count": 6}, "invalid_asset", T0, "count above the slot")
-	_err(e, "vault.deposit_item", 1, {"count": 1}, "bad_request", T0, "no slot_dict")
-	_err(e, "vault.deposit_item", 1, {"slot_dict": "stone", "count": 1}, "bad_request", T0, "slot_dict not an object")
+	_err(e, "vault.deposit_item", 1, {}, "bad_request", T0, "no slot_dict")
+	_err(e, "vault.deposit_item", 1, {"slot_dict": "stone"}, "bad_request", T0, "slot_dict not an object")
 	_deposit(e, 1, "stone", 15) # 10 + 5 + 15 = the 30 cap
-	_err(e, "vault.deposit_item", 1, {"slot_dict": _stack("stone", 1), "count": 1}, "limit_reached", T0 + 60, "rolling 24 h cap")
+	_err(e, "vault.deposit_item", 1, {"slot_dict": _stack("stone", 1)}, "limit_reached", T0 + 60, "rolling 24 h cap")
 	_deposit(e, 1, "stone", 1, 1, T0 + 86401)
 	_deposit(e, 1, "wood_log", 1, 1, T0 + 86401)
-	_err(e, "vault.deposit_item", 1, {"slot_dict": _stack("wood_log", 1), "count": 1}, "limit_reached", T0 + 86401, "vault full")
+	_err(e, "vault.deposit_item", 1, {"slot_dict": _stack("wood_log", 1)}, "limit_reached", T0 + 86401, "vault full")
 	var derived := EconRules.load_default()
 	var pinned: Dictionary = derived.limits.deposit_caps
 	derived.limits.deposit_caps = {}
 	for def_id in pinned:
 		_expect(cat.item(def_id) != null and derived.deposit_cap(def_id, cat.item(def_id).categories) == int(pinned[def_id]), "limits.json pins %s to its category rule" % def_id)
 	for def_id in cat.items:
-		if def_id not in r.g("denied_defs"):
+		if def_id not in r.g("denied_defs") and def_id != AssetValidator.CAGE: # a cage needs its animal (tested below)
 			var made := ItemStack.make(StringName(def_id), 1, {}, 30).to_dict()
-			var why: String = e.V.item(made, 1).msg
+			var why: String = e.V.item(made)
 			_expect(why == "", "a fresh %s from the catalog passes deposit checks (%s)" % [def_id, why])
 	for key in base.keys() + ["def_id"]:
 		for hostile in HOSTILE:
 			_bad_item(e, _with(base, key, hostile), "item %s = %s" % [key, var_to_str(hostile)])
 	var wire: Dictionary = JSON.parse_string(JSON.stringify(_stack("wood_log", 3, 7)))
-	got = _ok(e, "vault.deposit_item", 2, {"slot_dict": wire, "count": 3.0}, T0 + 86401)
+	got = _ok(e, "vault.deposit_item", 2, {"slot_dict": wire}, T0 + 86401)
 	_expect(typeof(got.item.level) == TYPE_INT and int(got.item.count) == 3, "JSON floats from the wire normalise to ints")
+	# Contract 6.1: a captured (untamed) animal trades as its cage; the buyer still tames it.
+	var genes := CreatureGenetics.neutral()
+	genes.ivs = {&"health": 3, &"melee_defense": 4, &"ranged_defense": 5, &"melee_attack": 6, &"ranged_attack": 7, &"accuracy": 8, &"speed": 9}
+	var cage := _stamp(ItemStack.make(&"captured_animal", 1, {"species": "compsognathus", "variant": "", "grade_seed": 77, "genetics": genes.to_dict()}).to_dict(), "i", "tame")
+	_expect(e.V.item(Provenance.strip(cage)) == "", "a captured cage passes deposit checks (%s)" % e.V.item(Provenance.strip(cage)))
+	_bad_item(e, _with(cage, "attributes", _with(cage.attributes, "species", "dragon")), "a cage of an unknown species")
+	_bad_item(e, _with(cage, "attributes", _with(cage.attributes, "tint", "#ffffff")), "a cage with a foreign attribute")
+	_bad_item(e, _with(cage, "attributes", _with(cage.attributes, "genetics", {"ivs": {"health": 40}})), "a cage with impossible genetics")
+	_err(e, "market.order_create", 2, {"def_id": "captured_animal", "min_level": 1, "qty": 1, "unit_price": 50, "duration_h": 24}, "invalid_asset", T0 + 86401, "cages trade by listing only")
 	return true
 
 func _bad_pet(e: MarketEngine, pet: Dictionary, why: String) -> void:
@@ -238,13 +256,17 @@ func _test_pet_deposits() -> bool:
 	var e := _engine(r)
 	var p := _pet("velociraptor", 1, 7)
 	var got := _ok(e, "vault.deposit_pet", 1, {"pet_dict": p})
-	_expect(str(got.uid).begins_with("p"), "pet uids are p<seq>")
-	_expect(got.pet.grade == str(CreatureGenetics.from_dict(p.genetics).overall_tier()) and got.pet.bag == [], "grade and bag are canonical")
+	_expect(got.uid == p.uid and Ledger.canon(got.pet) == Ledger.canon(Ledger.norm(p)), "a pet keeps its uid, origin, lineage and stats byte for byte")
+	_err(e, "vault.deposit_pet", 2, {"pet_dict": p}, "conflict", T0, "the same pet deposited twice")
 	var levelled := _pet("velociraptor", 6, 8)
 	got = _ok(e, "vault.deposit_pet", 1, {"pet_dict": JSON.parse_string(JSON.stringify(levelled))})
 	_expect(int(got.pet.level) == 6, "a levelled pet's stats recompute from species, level and genetics")
 	_err(e, "vault.deposit_pet", 1, {"pet_dict": _pet("velociraptor", 1, 9)}, "limit_reached", T0, "per-species daily cap")
 	var t := _pet("triceratops", 3, 11)
+	_bad_pet(e, Provenance.strip(t), "a pet without server provenance (a client dict)")
+	_bad_pet(e, _with(t, "grade", "S+" if t.grade != "S+" else "D-"), "a grade its genetics do not give")
+	_bad_pet(e, _with(t, "parent_uids", ["p1", "p2", "p3"]), "three parents")
+	_bad_pet(e, _with(t, "name", "x".repeat(PetRecord.NAME_MAX + 1)), "a name over the limit")
 	_bad_pet(e, _with(t, "hp", float(t.hp) * 1.01), "hp +1 %")
 	_bad_pet(e, _with(t, "speed", float(t.speed) * 0.99), "speed -1 %")
 	_bad_pet(e, _with(t, "attack", "lots"), "attack not a number")
@@ -269,23 +291,20 @@ func _test_pet_deposits() -> bool:
 	_err(e, "vault.deposit_pet", 1, {"pet_dict": 5}, "bad_request", T0, "pet_dict not an object")
 	for key in t.keys() + ["summoned"]:
 		for hostile in HOSTILE:
-			_bad_pet(e, _with(t, key, hostile), "pet %s = %s" % [key, var_to_str(hostile)])
+			if not (hostile is String and key in ["owner", "tamer", "name"]): # any string is a name
+				_bad_pet(e, _with(t, key, hostile), "pet %s = %s" % [key, var_to_str(hostile)])
 	_bad_pet(e, _with(t, "summoned", 1), "summoned as 1")
-	_bad_pet(e, _with(t, "uid", "p1"), "unknown pet field")
+	_bad_pet(e, _with(t, "uid", "p1"), "a uid the server never issues")
 	_bad_pet(e, _with(t, "variant", "triceratops_golden"), "variant the def does not list")
 	_bad_pet(e, _with(t, "tamed_role", [1]), "tamed_role not names")
-	var labels: Array = []
-	for iv in CreatureGenetics.IV_MAX + 1:
-		labels.append(str(CreatureGenetics.tier_for_iv(iv)))
-	_expect(labels.all(func (g: String) -> bool: return g in AssetValidator.GRADES), "AssetValidator.GRADES covers every tier label")
-	_ok(e, "vault.deposit_pet", 1, {"pet_dict": _with(t, "summoned", 0)})
+	_ok(e, "vault.deposit_pet", 1, {"pet_dict": _with(_pet("triceratops", 3, 11), "summoned", 0)})
 	_ok(e, "vault.deposit_pet", 1, {"pet_dict": t})
 	var snow := _with(_pet("velociraptor", 1, 40), "variant", "velociraptor_snow")
 	_expect(str(_ok(e, "vault.deposit_pet", 3, {"pet_dict": snow}).pet.variant) == "velociraptor_snow", "a variant the def lists is accepted")
 	var noisy := _pet("triceratops", 2, 12)
 	noisy.hp = float(noisy.hp) * 1.004
 	got = _ok(e, "vault.deposit_pet", 2, {"pet_dict": noisy})
-	_expect(absf(float(got.pet.hp) - float(noisy.hp) / 1.004) < 0.001, "float noise under 0.5 % is accepted and stored canonical")
+	_expect(float(got.pet.hp) == float(noisy.hp), "float noise under 0.5 % is accepted and stored as exported")
 	return true
 
 func _test_withdraw() -> bool:
@@ -682,19 +701,19 @@ func _test_idempotency() -> bool:
 	_ok(e, "market.buy", 3, buy)
 	_expect(e.state().closed_listings.has(lid), "rids are per account")
 	for i in 70:
-		_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "count": 1, "rid": "w%d" % i})
+		_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "rid": "w%d" % i})
 	var cache: Dictionary = e.L.acct(4).rid_cache
 	_expect(cache.size() == 64 and not cache.has("w5") and cache.has("w6"), "the rid cache keeps the last 64")
 	_expect(cache.w69 is Array and JSON.stringify(cache).length() < 64 * 40, "the persisted cache holds [op, seq], not response bodies")
 	var stacks: int = e.L.acct(4).vault_items.size()
 	seq = e.seq()
-	_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "count": 1, "rid": "w0"})
+	_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "rid": "w0"})
 	_expect(e.seq() == seq + 1 and e.L.acct(4).vault_items.size() == stacks + 1, "an evicted rid applies again")
-	_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "count": 1, "rid": "w69"})
+	_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "rid": "w69"})
 	_expect(e.seq() == seq + 1 and e.L.acct(4).vault_items.size() == stacks + 1, "a recent rid still hits")
 	var reloaded := MarketEngine.new(_rules(), cat)
 	reloaded.load_state(JSON.parse_string(e.state_json()))
-	var repeat := _op(reloaded, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "count": 1, "rid": "w69"})
+	var repeat := _op(reloaded, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "rid": "w69"})
 	_expect(repeat.ok and repeat.r.get("duplicate") == true and reloaded.seq() == seq + 1, "after a restart a repeat is still a no-op and says duplicate")
 	_ok(e, "wallet.spend", 3, {"reason": "travel", "amount": 5, "rid": "late"}, T0 + 24 * 3600)
 	_ok(e, "sys.tick", 0, {}, T0 + 25 * 3600)
@@ -755,10 +774,10 @@ func _test_attribute_sources() -> bool:
 		_expect(why == "", "attribute %s = %s from %s is allowed (%s)" % [row[0], var_to_str(row[1]), row[2], why])
 	# End to end: the rare raptor bone drop, and a knife crafted from it (Crafting copies the
 	# primary's attributes and adds material_tier).
-	var bone := ItemStack.make(&"raptor_bone", 1, {"hardness": 4, "frill": 1}, 12).to_dict()
-	_ok(e, "vault.deposit_item", 1, {"slot_dict": bone, "count": 1})
-	var knife := ItemStack.make(&"stone_knife", 1, {"hardness": 4, "frill": 1, "material_tier": "bone"}, 12).to_dict()
-	_ok(e, "vault.deposit_item", 1, {"slot_dict": knife, "count": 1})
+	var bone := _stamp(ItemStack.make(&"raptor_bone", 1, {"hardness": 4, "frill": 1}, 12).to_dict(), "i", "loot")
+	_ok(e, "vault.deposit_item", 1, {"slot_dict": bone})
+	var knife := _stamp(ItemStack.make(&"stone_knife", 1, {"hardness": 4, "frill": 1, "material_tier": "bone"}, 12).to_dict(), "i", "craft")
+	_ok(e, "vault.deposit_item", 1, {"slot_dict": knife})
 	return true
 
 ## Contract 6.5 damping must not be capturable: two self-dealt trades at 10x set the first
@@ -808,9 +827,9 @@ func _test_rid_bodies() -> bool:
 	_expect(store.open() == "", "rid store opens")
 	for id in [1, 2]:
 		store.apply("account.ensure", id, {"name": "Player %d" % id}, T0)
-	var uid := str(store.apply("vault.deposit_item", 1, {"slot_dict": _stack("stone", 10), "count": 10, "rid": "d1"}, T0).r.uid)
+	var uid := str(store.apply("vault.deposit_item", 1, {"slot_dict": _stack("stone", 10), "rid": "d1"}, T0).r.uid)
 	var pid := str(store.apply("vault.deposit_pet", 1, {"pet_dict": _pet("velociraptor", 2, 3), "rid": "d2"}, T0).r.uid)
-	var wood := str(store.apply("vault.deposit_item", 1, {"slot_dict": _stack("wood_log", 5), "count": 5, "rid": "d3"}, T0).r.uid)
+	var wood := str(store.apply("vault.deposit_item", 1, {"slot_dict": _stack("wood_log", 5), "rid": "d3"}, T0).r.uid)
 	var lid := str(store.apply("market.list_fixed", 1, {"asset": {"uid": wood}, "unit_price": 4, "duration_h": 24, "rid": "d4"}, T0).r.listing.id)
 	store.apply("market.buy", 2, {"listing_id": lid, "count": 1, "rid": "b1"}, T0)
 	var calls := [
@@ -891,7 +910,7 @@ func _test_clock() -> bool:
 	_expect(store.open() == "", "clock store opens")
 	for id in [1, 2]:
 		store.apply("account.ensure", id, {"name": "Player %d" % id}, T0)
-	var uid := str(store.apply("vault.deposit_item", 1, {"slot_dict": _stack("stone", 5), "count": 5, "rid": "c1"}, T0).r.uid)
+	var uid := str(store.apply("vault.deposit_item", 1, {"slot_dict": _stack("stone", 5), "rid": "c1"}, T0).r.uid)
 	var short := str(store.apply("market.list_fixed", 1, {"asset": {"uid": uid, "count": 2}, "unit_price": 3, "duration_h": 12, "rid": "c2"}, T0).r.listing.id)
 	var long := str(store.apply("market.list_fixed", 1, {"asset": {"uid": uid, "count": 2}, "unit_price": 3, "duration_h": 24, "rid": "c3"}, T0).r.listing.id)
 	var end_short := T0 + 12 * 3600
@@ -944,7 +963,7 @@ func _scenario(store: EconStore) -> void:
 	var t := T0
 	for id in [1, 2, 3]:
 		store.apply("account.ensure", id, {"name": "Journal %d" % id}, t)
-	var dep := store.apply("vault.deposit_item", 1, {"slot_dict": _stack("stone", 20, 4), "count": 20, "rid": "a"}, t)
+	var dep := store.apply("vault.deposit_item", 1, {"slot_dict": _stack("stone", 20, 4), "rid": "a"}, t)
 	var uid := str(dep.r.uid)
 	var pet := store.apply("vault.deposit_pet", 2, {"pet_dict": _pet("velociraptor", 4, 31), "rid": "b"}, t)
 	var lid := str(store.apply("market.list_fixed", 1, {"asset": {"uid": uid, "count": 8}, "unit_price": 7, "duration_h": 12, "rid": "c"}, t + 10).r.listing.id)
@@ -961,7 +980,7 @@ func _scenario(store: EconStore) -> void:
 	store.apply("sys.tick", 0, {}, t + 12 * 3600)
 	store.apply("inbox.take", 1, {"rid": "m"}, t + 12 * 3600 + 5)
 	store.apply("market.order_cancel", 3, {"order_id": oid, "rid": "n"}, t + 12 * 3600 + 10)
-	store.apply("vault.deposit_item", 3, {"slot_dict": JSON.parse_string(JSON.stringify(_stack("stone_knife", 1, 9))), "count": 1, "rid": "o"}, t + 12 * 3600 + 20)
+	store.apply("vault.deposit_item", 3, {"slot_dict": JSON.parse_string(JSON.stringify(_stack("stone_knife", 1, 9))), "rid": "o"}, t + 12 * 3600 + 20)
 
 func _wipe(dir: String) -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -969,19 +988,6 @@ func _wipe(dir: String) -> void:
 	if da:
 		for f in da.get_files():
 			da.remove(f)
-
-## Replay equality rests on stored floats surviving JSON text exactly (AssetValidator.q).
-func _test_float_grid() -> bool:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7
-	var bad := 0
-	for i in 100000:
-		var x := AssetValidator.q(rng.randf_range(0.0, 5000.0) * pow(10.0, rng.randi_range(-3, 3)))
-		var back: Variant = JSON.parse_string(JSON.stringify([x], "", true, true))[0]
-		if float(back) != x or AssetValidator.q(float(back)) != x:
-			bad += 1
-	_expect(bad == 0, "0.001-grid floats round-trip through JSON (%d of 100000 did not)" % bad)
-	return true
 
 func _test_journal_replay() -> bool:
 	var dir := DIR + "/journal"
@@ -1203,7 +1209,7 @@ func _test_fuzz() -> bool:
 		var op: String = pick[0]
 		var args: Dictionary = pick[1]
 		var dup := false
-		if op in MarketEngine.WRITE:
+		if op in MarketEngine.WRITE or op in MarketEngine.BRIDGE:
 			if rng.randf() < 0.04 and last_write.has(who):
 				op = last_write[who][0]
 				args = last_write[who][1]
@@ -1226,7 +1232,7 @@ func _test_fuzz() -> bool:
 			break
 		if dup and seq != e.seq():
 			_expect(false, "fuzz op %d: a repeated rid applied twice" % i)
-		if res.ok and op in MarketEngine.WRITE and not dup and e.seq() != seq:
+		if res.ok and (op in MarketEngine.WRITE or op in MarketEngine.BRIDGE) and not dup and e.seq() != seq:
 			last_write[who] = [op, args]
 		var row: Array = tally.get(op, [0, 0])
 		row[0 if res.ok else 1] += 1
@@ -1269,9 +1275,11 @@ func _fuzz_op(e: MarketEngine, rng: RandomNumberGenerator, who: int, pets: Array
 			slot.level = 99
 		if rng.randf() < 0.05:
 			slot[_any(rng, slot.keys(), "def_id")] = HOSTILE[rng.randi_range(0, HOSTILE.size() - 1)]
-		return ["vault.deposit_item", {"slot_dict": slot, "count": rng.randi_range(1, n)}]
+		return ["vault.deposit_item", {"slot_dict": slot}]
 	if roll < 17:
-		var pet: Dictionary = (pets[rng.randi_range(0, pets.size() - 1)] as Dictionary).duplicate(true)
+		var pet := _stamp(Provenance.strip(pets[rng.randi_range(0, pets.size() - 1)]), "p", "tame") # each deposit is another animal
+		if rng.randf() < 0.05 and not acct.vault_pets.is_empty():
+			pet = (acct.vault_pets.values()[0] as Dictionary).duplicate(true) # one already held: a dupe attempt
 		if rng.randf() < 0.15:
 			pet[_any(rng, pet.keys(), "summoned")] = HOSTILE[rng.randi_range(0, HOSTILE.size() - 1)]
 		return ["vault.deposit_pet", {"pet_dict": pet}]
@@ -1338,7 +1346,7 @@ func _test_search_perf() -> bool:
 	var made := 0
 	for who in range(1, 21):
 		e.apply("account.ensure", who, {}, T0)
-		var uid := str(e.apply("vault.deposit_item", who, {"slot_dict": _stack("stone", 999), "count": 999, "rid": "d"}, T0).r.uid)
+		var uid := str(e.apply("vault.deposit_item", who, {"slot_dict": _stack("stone", 999), "rid": "d"}, T0).r.uid)
 		for k in 500:
 			var res := e.apply("market.list_fixed", who, {"asset": {"uid": uid, "count": 1}, "unit_price": rng.randi_range(1, 5000), "duration_h": 72, "rid": "l%d" % k}, T0 + k)
 			if res.ok:

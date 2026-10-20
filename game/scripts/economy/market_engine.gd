@@ -12,12 +12,15 @@ extends RefCounted
 
 const READ := ["wallet.get", "vault.get", "market.search", "market.orders", "market.item_detail", "market.trades", "market.mine"]
 const WRITE := [
-	"wallet.spend", "objective.claim", "vault.deposit_item", "vault.deposit_pet", "vault.withdraw_item",
-	"vault.withdraw_pet", "market.list_fixed", "market.list_auction", "market.buy", "market.bid",
-	"market.buyout", "market.cancel", "market.order_create", "market.order_cancel",
+	"wallet.spend", "objective.claim", "market.list_fixed", "market.list_auction", "market.buy",
+	"market.bid", "market.buyout", "market.cancel", "market.order_create", "market.order_cancel",
 	"market.sell_to_order", "inbox.take",
 ]
-const SYSTEM := ["account.ensure", "sys.tick"] ## called by the server itself, never relayed from a client
+## Vault moves carry a rid like WRITE ops, but only VaultBridge calls them (contract v2 section
+## 0.5): a deposit is an asset the character store exported, never a client's dict.
+const BRIDGE := ["vault.deposit_item", "vault.deposit_pet", "vault.withdraw_item", "vault.withdraw_pet"]
+const SYSTEM := ["account.ensure", "sys.tick", "bridge.begin", "bridge.end", "bridge.settled"] ## called by the server itself, never relayed from a client
+const SERVER := ["sys.tick", "bridge.end", "bridge.settled"] ## run as account 0, not as a player
 ## A withdrawn asset or a taken event exists only in its response; re-reading state cannot recover it.
 const KEEP_BODY := ["vault.withdraw_item", "vault.withdraw_pet", "inbox.take"]
 
@@ -89,13 +92,14 @@ func drain_events() -> Array:
 
 func apply(op: String, account_id: int, args: Dictionary, ts: int) -> Dictionary:
 	L.events = []
+	L.touched = {}
 	fault = ""
-	var write := op in WRITE
+	var write := op in WRITE or op in BRIDGE
 	if not (write or op in READ or op in SYSTEM):
 		return EconArgs.no("bad_request", "unknown op %s" % op)
-	if op == "sys.tick":
+	if op in SERVER:
 		if account_id != Ledger.SETTLERS:
-			return EconArgs.no("unauthorized", "sys.tick is server-only")
+			return EconArgs.no("unauthorized", "%s is server-only" % op)
 	elif op == "account.ensure":
 		if account_id < 1:
 			return EconArgs.no("bad_request", "account_id must be positive")
@@ -141,12 +145,15 @@ func _dispatch(op: String, me: int, a: EconArgs) -> Dictionary:
 	match op:
 		"account.ensure": return _ensure(me, a)
 		"sys.tick": return _tick()
+		"bridge.begin": return _begin(me, a)
+		"bridge.end": return _end()
+		"bridge.settled": return _settled(a)
 		"wallet.get": return EconArgs.ok({"wallet": L.acct(me).wallet, "held": query.held(me)})
 		"wallet.spend": return _spend(me, a)
 		"objective.claim": return _claim(me, a)
 		"vault.get": return _vault(me)
-		"vault.deposit_item": return _deposit_item(me, a)
-		"vault.deposit_pet": return _deposit_pet(me, a)
+		"vault.deposit_item": return _deposit(me, a, "item")
+		"vault.deposit_pet": return _deposit(me, a, "pet")
 		"vault.withdraw_item": return _withdraw_item(me, a)
 		"vault.withdraw_pet": return _withdraw_pet(me, a)
 		"market.list_fixed": return book.list_fixed(me, a)
@@ -260,48 +267,81 @@ static func _sorted_copies(vault: Dictionary) -> Array:
 		out.append((vault[id] as Dictionary).duplicate(true))
 	return out
 
-func _deposit_item(me: int, a: EconArgs) -> Dictionary:
-	var slot := a.dict("slot_dict")
-	var count := a.integer("count", 1, 999999, slot.get("count", 1) if EconArgs.as_int(slot.get("count")) != null else 1)
-	if a.err != "":
-		return a.fail()
-	var checked := V.item(slot, count)
-	if checked.msg != "":
-		return EconArgs.no("invalid_asset", checked.msg)
+## Why vault.deposit_* would refuse `asset` for `me`, or {} (read-only). VaultBridge asks
+## first, so act.deposit never takes an asset from a character that the vault would refuse.
+func deposit_refusal(me: int, kind: String, asset: Variant) -> Dictionary:
+	if not Provenance.is_server(asset):
+		return EconArgs.no("invalid_asset", "only assets with server provenance enter the vault")
+	var body := Provenance.strip(asset)
+	var why := V.pet(body) if kind == "pet" else V.item(body)
+	if why != "":
+		return EconArgs.no("invalid_asset", why)
+	if L.s.src.has(asset.uid) or L.s.retired.has(asset.uid):
+		return EconArgs.no("conflict", "%s is already in the economy" % asset.uid)
+	if L.vault_full(me, kind):
+		var cap := rules.num("max_vault_pets" if kind == "pet" else "max_vault_items")
+		return EconArgs.no("limit_reached", "vault holds at most %d %s" % [cap, "pets" if kind == "pet" else "stacks"])
 	var acct := L.acct(me)
-	if L.vault_full(me, "item"):
-		return EconArgs.no("limit_reached", "vault holds at most %d stacks" % rules.num("max_vault_items"))
-	var stack: Dictionary = checked.v
-	var def_id := str(stack.id)
+	if kind == "pet":
+		if _deposited(acct, "pet:%s" % body.species) >= rules.num("pet_species_cap") or _deposited(acct, "pets") >= rules.num("pet_daily_cap"):
+			return EconArgs.no("limit_reached", "pet deposit cap reached for the next 24 h")
+		return {}
+	var def_id := str(body.id)
 	var cap_left := rules.deposit_cap(def_id, cat.item(def_id).categories) - _deposited(acct, def_id)
-	if count > cap_left:
+	if int(body.count) > cap_left:
 		return EconArgs.no("limit_reached", "%s deposit cap: %d more in the next 24 h" % [def_id, maxi(0, cap_left)])
-	_log_deposit(acct, def_id, count)
-	stack.uid = L.new_id("i")
-	L.put_item(me, stack)
-	L.bump("items_in", def_id, count)
-	return EconArgs.ok({"uid": stack.uid, "item": stack.duplicate(true)})
+	return {}
 
-func _deposit_pet(me: int, a: EconArgs) -> Dictionary:
-	var raw := a.dict("pet_dict")
+## vault.deposit_item {slot_dict} / vault.deposit_pet {pet_dict}: the whole asset act.deposit
+## exported, kept byte for byte under its own uid, so a withdrawal hands char.receive the
+## exact body it recorded.
+func _deposit(me: int, a: EconArgs, kind: String) -> Dictionary:
+	var asset: Dictionary = Ledger.norm(a.dict("pet_dict" if kind == "pet" else "slot_dict")) # wire floats -> ints, as stored
 	if a.err != "":
 		return a.fail()
-	var checked := V.pet(raw)
-	if checked.msg != "":
-		return EconArgs.no("invalid_asset", checked.msg)
+	var no := deposit_refusal(me, kind, asset)
+	if not no.is_empty():
+		return no
+	var body := asset.duplicate(true)
 	var acct := L.acct(me)
-	if L.vault_full(me, "pet"):
-		return EconArgs.no("limit_reached", "vault holds at most %d pets" % rules.num("max_vault_pets"))
-	var pet: Dictionary = checked.v
-	var species_key := "pet:%s" % pet.species
-	if _deposited(acct, species_key) >= rules.num("pet_species_cap") or _deposited(acct, "pets") >= rules.num("pet_daily_cap"):
-		return EconArgs.no("limit_reached", "pet deposit cap reached for the next 24 h")
-	_log_deposit(acct, species_key, 1)
-	_log_deposit(acct, "pets", 1)
-	pet.uid = L.new_id("p")
-	L.put_pet(me, pet)
-	L.s.pets_in = int(L.s.pets_in) + 1
-	return EconArgs.ok({"uid": pet.uid, "pet": pet.duplicate(true)})
+	if kind == "pet":
+		_log_deposit(acct, "pet:%s" % body.species, 1)
+		_log_deposit(acct, "pets", 1)
+		L.put_pet(me, body)
+		L.s.pets_in = int(L.s.pets_in) + 1
+	else:
+		_log_deposit(acct, str(body.id), int(body.count))
+		L.put_item(me, body)
+		L.bump("items_in", str(body.id), int(body.count))
+	L.s.src[body.uid] = true
+	L.s.inflight = {}
+	return EconArgs.ok({"uid": body.uid, kind: body.duplicate(true)})
+
+## bridge.begin {rid}: VaultBridge's mark before act.deposit takes an asset from a character;
+## vault.deposit_* (or bridge.end) clears it. Boot reads it to finish or undo that deposit.
+func _begin(me: int, a: EconArgs) -> Dictionary:
+	var rid := a.text("rid", 1, 64)
+	if a.err != "":
+		return a.fail()
+	L.s.inflight = {"account": me, "rid": rid}
+	return EconArgs.ok({})
+
+func _end() -> Dictionary:
+	if L.s.inflight.is_empty():
+		return EconArgs.ok({}, false)
+	L.s.inflight = {}
+	return EconArgs.ok({})
+
+## bridge.settled {uids}: the character store dropped these retired exports (char.settled).
+func _settled(a: EconArgs) -> Dictionary:
+	var uids: Variant = a.a.get("uids")
+	if not uids is Array:
+		return EconArgs.no("bad_request", "uids must be a list")
+	var n := 0
+	for uid in uids:
+		if L.s.retired.erase(str(uid)):
+			n += 1
+	return EconArgs.ok({"settled": n}, n > 0)
 
 ## Units deposited under `key` within the rolling window (read-only).
 func _deposited(acct: Dictionary, key: String) -> int:
@@ -332,6 +372,7 @@ func _withdraw_item(me: int, a: EconArgs) -> Dictionary:
 		return EconArgs.no("insufficient_items", "stack holds %d" % int(vault[uid].count))
 	var part := L.take_item(me, uid, count)
 	L.bump("items_out", str(part.id), count)
+	L.s.src.erase(part.uid)
 	return EconArgs.ok({"item": part.duplicate(true)})
 
 func _withdraw_pet(me: int, a: EconArgs) -> Dictionary:
@@ -342,6 +383,7 @@ func _withdraw_pet(me: int, a: EconArgs) -> Dictionary:
 		return EconArgs.no("not_found", "%s is not in your vault" % uid)
 	var pet := L.take_pet(me, uid)
 	L.s.pets_out = int(L.s.pets_out) + 1
+	L.s.src.erase(uid)
 	return EconArgs.ok({"pet": pet.duplicate(true)})
 
 func _inbox(me: int) -> Dictionary:

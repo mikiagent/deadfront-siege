@@ -60,7 +60,7 @@ static func demand_table(cat: EconCatalog, R: EconRules) -> Array:
 	var ids := cat.items.keys()
 	ids.sort()
 	for def_id in ids:
-		if def_id in R.g("denied_defs"):
+		if def_id in R.g("denied_defs") or def_id == AssetValidator.CAGE:
 			continue
 		var mc := market_category(cat.item(def_id), base, alias)
 		if mc == "" or mc in excluded:

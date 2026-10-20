@@ -1,17 +1,15 @@
 class_name AssetValidator
 extends RefCounted
-## The deposit trust boundary (contract 4). A deposit is a client's claim, so every field is
-## checked against the catalog and rebuilt into a canonical dict; nothing the client sent is
-## stored verbatim. Pet stats are recomputed the way PetRecord.from_def + add_xp build them.
+## Defence in depth behind contract v2 section 0: deposits come from the server character
+## store, which minted them, and are kept byte for byte (char.receive takes back only the exact
+## body it exported). Every field is still checked against the catalog, and pet stats against
+## PetStats.compute, so a bug or a forged body upstream cannot mint value here.
 
-const ITEM_KEYS := ["id", "def_id", "count", "level", "process_count", "attributes", "flags", "durability", "max_durability"]
-## PetRecord.to_dict() keys plus the client's summoned flag; anything else is refused.
-const PET_KEYS := ["species", "variant", "grade", "hunger", "hunger_max", "hunger_efficiency", "xp_rate", "hp", "attack", "defense", "ranged_defense", "ranged_attack", "accuracy", "speed", "genetics", "tamed_role", "bag", "level", "xp", "respawn_left", "summoned"]
-## Per-level growth PetRecord.add_xp applies; accuracy and speed never grow with level.
-const GROWTH := {"hp": 1.08, "attack": 1.05, "ranged_attack": 1.05, "defense": 1.04, "ranged_defense": 1.04, "accuracy": 1.0, "speed": 1.0}
+const ITEM_KEYS := ["id", "count", "level", "process_count", "attributes", "flags", "durability", "max_durability"]
+## PetRecord.to_dict() keys plus the summoned flag; anything else is refused.
+const PET_KEYS := ["uid", "owner", "origin", "tamer", "tamed_at", "wild_level", "name", "parent_uids", "species", "variant", "grade", "hunger", "hunger_max", "hunger_efficiency", "xp_rate", "hp", "hp_now", "attack", "defense", "ranged_defense", "ranged_attack", "accuracy", "speed", "genetics", "tamed_role", "bag", "level", "xp", "respawn_left", "summoned"]
+const CAGE := "captured_animal"
 const GENE := {"hp": "health", "attack": "melee_attack", "ranged_attack": "ranged_attack", "defense": "melee_defense", "ranged_defense": "ranged_defense", "accuracy": "accuracy", "speed": "speed"}
-const GRADE_RATES := [1.3, 1.1, 1.0, 0.85] ## PetRecord.from_def hunger_efficiency / xp_rate
-const GRADES := ["D-", "D", "D+", "C-", "C", "C+", "B-", "B", "B+", "A-", "A", "A+", "S-", "S", "S+"] ## CreatureGenetics.tier_for_iv labels
 
 var cat: EconCatalog
 var rules: EconRules
@@ -20,75 +18,90 @@ func _init(p_catalog: EconCatalog, p_rules: EconRules) -> void:
 	cat = p_catalog
 	rules = p_rules
 
-## Returns {"msg": "" or why it was refused, "v": canonical stack of `count` units}.
-func item(slot: Variant, count: int) -> Dictionary:
+## "" or why the stack is refused. `slot` is a stack dict without its provenance stamp.
+func item(slot: Variant) -> String:
 	if not slot is Dictionary:
-		return _no("slot_dict must be an object")
+		return "slot_dict must be an object"
 	var d: Dictionary = slot
 	for k in d:
 		if str(k) not in ITEM_KEYS:
-			return _no("unknown item field %s" % str(k))
-	var id_v: Variant = d.get("id", d.get("def_id"))
-	if d.has("id") and d.has("def_id") and str(d.id) != str(d.def_id):
-		return _no("id and def_id disagree")
+			return "unknown item field %s" % str(k)
+	var id_v: Variant = d.get("id")
 	if not (id_v is String or id_v is StringName):
-		return _no("item id missing")
+		return "item id missing"
 	var def_id := str(id_v)
 	var def := cat.item(def_id)
 	if def == null:
-		return _no("unknown item %s" % def_id)
+		return "unknown item %s" % def_id
 	if def_id in rules.g("denied_defs"):
-		return _no("%s cannot be traded; bond or release it first" % def_id)
+		return "%s cannot be traded; bond or release it first" % def_id
 	var have: Variant = EconArgs.as_int(d.get("count"))
 	if have == null or int(have) < 1 or int(have) > def.stack_max:
-		return _no("count must be 1..%d" % def.stack_max)
-	if count < 1 or count > int(have):
-		return _no("deposit count must be 1..%d" % int(have))
+		return "count must be 1..%d" % def.stack_max
 	var level: Variant = EconArgs.as_int(d.get("level", 1))
 	if level == null or int(level) < rules.num("level_min") or int(level) > rules.num("level_max"):
-		return _no("level must be %d..%d" % [rules.num("level_min"), rules.num("level_max")])
+		return "level must be %d..%d" % [rules.num("level_min"), rules.num("level_max")]
 	var process: Variant = EconArgs.as_int(d.get("process_count", 0))
 	if process == null or int(process) < 0 or int(process) > rules.num("process_count_max"):
-		return _no("process_count out of range")
-	var flags_out: Array = []
+		return "process_count out of range"
 	var flags_in: Variant = d.get("flags", [])
 	if not flags_in is Array:
-		return _no("flags must be an array")
+		return "flags must be an array"
+	var seen: Array = []
 	for f in flags_in:
 		var flag := str(f)
 		if flag in rules.g("refused_flags"):
-			return _no("%s items cannot be traded" % flag)
-		if flag not in rules.g("allowed_flags") or flag in flags_out:
-			return _no("flag %s not allowed" % flag)
-		flags_out.append(flag)
-	flags_out.sort()
-	var attrs_in: Variant = d.get("attributes", {})
-	if not attrs_in is Dictionary:
-		return _no("attributes must be an object")
-	var attrs := {}
-	for k in attrs_in:
-		var why := _attribute(str(k), attrs_in[k])
-		if why != "":
-			return _no(why)
-		attrs[str(k)] = Ledger.norm(attrs_in[k])
+			return "%s items cannot be traded" % flag
+		if not f is String or flag not in rules.g("allowed_flags") or flag in seen:
+			return "flag %s not allowed" % flag
+		seen.append(flag)
+	var attrs: Variant = d.get("attributes", {})
+	if not attrs is Dictionary:
+		return "attributes must be an object"
+	var why := ""
+	if def_id == CAGE:
+		why = _cage(attrs)
+	else:
+		for k in attrs:
+			why = _attribute(str(k), attrs[k])
+			if why != "":
+				break
+	if why != "":
+		return why
 	var dur: Variant = EconArgs.as_int(d.get("durability", 0))
 	var dur_max: Variant = EconArgs.as_int(d.get("max_durability", 0))
 	if dur == null or dur_max == null:
-		return _no("durability must be integers")
+		return "durability must be integers"
 	if def.max_durability > 0:
-		var cap := def.max_durability_at(int(level))
+		# The cap ItemStack itself gives a fresh stack of this level and material tier.
+		var cap := ItemStack.make(StringName(def_id), 1, attrs, int(level)).max_durability
 		if int(dur_max) < 1 or int(dur_max) > cap:
-			return _no("max_durability must be 1..%d at level %d" % [cap, int(level)])
+			return "max_durability must be 1..%d at level %d" % [cap, int(level)]
 		if int(dur) < 1:
-			return _no("broken items cannot be traded")
+			return "broken items cannot be traded"
 		if int(dur) > int(dur_max):
-			return _no("durability above max")
+			return "durability above max"
 	elif int(dur) != 0 or int(dur_max) != 0:
-		return _no("%s has no durability" % def_id)
-	return {"msg": "", "v": {
-		"id": def_id, "count": count, "level": int(level), "process_count": int(process),
-		"attributes": attrs, "flags": flags_out, "durability": int(dur), "max_durability": int(dur_max),
-	}}
+		return "%s has no durability" % def_id
+	return ""
+
+## A captured (untamed) animal's cage: CaptureSystem writes exactly species, variant,
+## grade_seed and the wild genetics. The buyer still has to tame it in a pen.
+func _cage(attrs: Dictionary) -> String:
+	for k in attrs:
+		if str(k) not in ["species", "variant", "grade_seed", "genetics"]:
+			return "attribute %s not allowed on a cage" % str(k)
+	var species_v: Variant = attrs.get("species")
+	var def := cat.creature(str(species_v)) if species_v is String else null
+	if def == null:
+		return "unknown species %s" % str(species_v)
+	var variant_v: Variant = attrs.get("variant", "")
+	if not variant_v is String or (variant_v != "" and StringName(variant_v) not in def.variants):
+		return "%s has no variant %s" % [str(species_v), str(variant_v)]
+	if EconArgs.as_int(attrs.get("grade_seed", 0)) == null:
+		return "grade_seed must be an integer"
+	var genes := _genetics(attrs.get("genetics"), 1)
+	return str(genes.get("msg", ""))
 
 func _attribute(key: String, v: Variant) -> String:
 	var spec: Variant = (rules.g("attributes") as Dictionary).get(key)
@@ -113,95 +126,91 @@ func _attribute(key: String, v: Variant) -> String:
 			return "attribute %s has no rule" % key
 	return ""
 
-## Returns {"msg", "v": canonical PetDict}. Derived labels (grade, roles, hunger_max) are
-## rebuilt from the catalog; stats must match the recomputation within the tolerance.
-func pet(raw: Variant) -> Dictionary:
+## "" or why the pet is refused. Stats must match PetStats.compute for its species, level and
+## genetics; grade and the grade rates must be the ones its genetics give.
+func pet(raw: Variant) -> String:
 	if not raw is Dictionary:
-		return _no("pet_dict must be an object")
+		return "pet_dict must be an object"
 	var d: Dictionary = raw
 	for k in d:
 		if str(k) not in PET_KEYS:
-			return _no("unknown pet field %s" % str(k))
+			return "unknown pet field %s" % str(k)
 	var species_v: Variant = d.get("species")
 	var def := cat.creature(str(species_v)) if species_v is String else null
 	if def == null:
-		return _no("unknown species %s" % str(species_v))
+		return "unknown species %s" % str(species_v)
 	var species := str(species_v)
 	var variant_v: Variant = d.get("variant", "")
 	# Spawners only ever use "" or a variant the creature def lists.
 	if not variant_v is String or (variant_v != "" and StringName(variant_v) not in def.variants):
-		return _no("%s has no variant %s" % [species, str(variant_v)])
-	var variant := str(variant_v)
+		return "%s has no variant %s" % [species, str(variant_v)]
 	var summoned: Variant = d.get("summoned", false)
 	if not summoned is bool:
 		summoned = EconArgs.as_int(summoned)
 		if summoned == null or int(summoned) not in [0, 1]:
-			return _no("summoned must be true or false")
+			return "summoned must be true or false"
 		summoned = int(summoned) == 1
 	if summoned:
-		return _no("dismiss the pet before depositing it")
-	# Derived labels are rebuilt below; the client's copies only have to be the right type.
-	if d.has("grade") and (not d.grade is String or str(d.grade) not in GRADES):
-		return _no("grade must be a grade label")
-	if d.has("hunger_max") and not (d.hunger_max is float or d.hunger_max is int):
-		return _no("hunger_max must be a number")
+		return "dismiss the pet before depositing it"
+	for k in ["owner", "tamer", "name", "grade"]:
+		if d.has(k) and not d[k] is String:
+			return "%s must be a string" % k
+	if str(d.get("name", "")).length() > PetRecord.NAME_MAX:
+		return "name longer than %d" % PetRecord.NAME_MAX
+	var parents: Variant = d.get("parent_uids", [])
+	if not parents is Array or (parents as Array).size() > 2 or (parents as Array).any(func (p: Variant) -> bool: return not p is String):
+		return "parent_uids must be up to two uids"
 	if d.has("tamed_role") and (not d.tamed_role is Array or (d.tamed_role as Array).any(func (r: Variant) -> bool: return not r is String)):
-		return _no("tamed_role must be a list of names")
+		return "tamed_role must be a list of names"
 	var level: Variant = EconArgs.as_int(d.get("level", 1))
 	if level == null or int(level) < 1 or int(level) > rules.num("level_max"):
-		return _no("pet level must be 1..%d" % rules.num("level_max"))
+		return "pet level must be 1..%d" % rules.num("level_max")
 	var lv := int(level)
+	for k in ["tamed_at", "wild_level"]:
+		var n: Variant = EconArgs.as_int(d.get(k, 1))
+		if n == null or int(n) < 0 or (k == "wild_level" and int(n) > rules.num("level_max")):
+			return "%s out of range" % k
 	var bag: Variant = d.get("bag", [])
 	if not bag is Array:
-		return _no("bag must be an array")
+		return "bag must be an array"
 	for slot in bag:
 		if slot != null:
-			return _no("empty the pet bag before depositing it")
+			return "empty the pet bag before depositing it"
 	var genes := _genetics(d.get("genetics"), lv)
 	if genes.has("msg"):
-		return genes
+		return genes.msg
+	var g := CreatureGenetics.from_dict(genes)
 	var tol := float(rules.g("pet_stat_tolerance"))
-	var out := {"species": species, "variant": variant, "level": lv}
-	for stat in GROWTH:
+	var want := PetStats.compute(def, g, lv)
+	for stat: String in GENE:
 		var have: Variant = d.get(stat)
-		if not (have is float or have is int) or not is_finite(float(have)):
-			return _no("%s missing" % stat)
-		var want := _expected(def, stat, int(genes.ivs[GENE[stat]]), lv)
-		if absf(float(have) - want) > tol * absf(want) + 0.000001:
-			return _no("%s %.3f does not match species, level and genetics (%.3f)" % [stat, float(have), want])
-		out[stat] = q(want)
-	var rate: Variant = d.get("hunger_efficiency", 1.0)
-	var grade_rate := _grade_rate(rate)
-	if grade_rate < 0.0 or _grade_rate(d.get("xp_rate")) != grade_rate:
-		return _no("hunger_efficiency / xp_rate do not match a grade")
-	out.hunger_efficiency = grade_rate
-	out.xp_rate = grade_rate
-	out.hunger_max = q(def.hp * 0.4)
-	var hunger: Variant = d.get("hunger", 0.0)
-	if not (hunger is float or hunger is int) or float(hunger) < 0.0 or float(hunger) > out.hunger_max * (1.0 + tol):
-		return _no("hunger out of range")
-	out.hunger = minf(q(float(hunger)), out.hunger_max)
+		var w: float = want[StringName(GENE[stat])]
+		if not (have is float or have is int) or not is_finite(float(have)) or absf(float(have) - w) > tol * absf(w) + 0.000001:
+			return "%s %s does not match species, level and genetics (%.3f)" % [stat, str(have), w]
+	var grade := g.overall_tier()
+	if str(d.get("grade", grade)) != str(grade):
+		return "grade must be %s" % grade
+	var rate := PetStats.grade_rate(grade)
+	for k in ["hunger_efficiency", "xp_rate"]:
+		var v: Variant = d.get(k, rate)
+		if not (v is float or v is int) or absf(float(v) - rate) > 0.000001:
+			return "%s must be %.2f for grade %s" % [k, rate, grade]
+	var hunger_max := def.hp * 0.4
+	for k in ["hunger", "hunger_max"]:
+		var v: Variant = d.get(k, 0.0)
+		if not (v is float or v is int) or float(v) < 0.0 or float(v) > hunger_max * (1.0 + tol):
+			return "%s out of range" % k
+	var hp_now: Variant = d.get("hp_now", -1.0)
+	if not (hp_now is float or hp_now is int) or float(hp_now) < -1.0 or float(hp_now) > float(d.hp) * (1.0 + tol):
+		return "hp_now out of range"
 	var xp: Variant = d.get("xp", 0.0)
 	var xp_cap := PetRecord.xp_to_next(lv) if lv < rules.num("level_max") else 1.0e9
 	if not (xp is float or xp is int) or float(xp) < 0.0 or float(xp) >= xp_cap:
-		return _no("xp out of range")
-	out.xp = q(float(xp))
-	if out.xp >= xp_cap:
-		return _no("xp out of range")
+		return "xp out of range"
 	var respawn: Variant = d.get("respawn_left", 0.0)
 	if not (respawn is float or respawn is int) or float(respawn) < 0.0 or float(respawn) > PetRecord.RESPAWN_TIME:
-		return _no("respawn_left out of range")
-	out.respawn_left = q(float(respawn))
-	var g := CreatureGenetics.new()
-	g.ivs = _keyed(genes.ivs)
-	out.grade = str(g.overall_tier())
-	out.genetics = {"ivs": genes.ivs, "evs": genes.evs, "level_gains": genes.level_gains}
-	var roles: Array = []
-	for r in def.tamed_role:
-		roles.append(str(r))
-	out.tamed_role = roles
-	out.bag = []
-	return {"msg": "", "v": Ledger.norm(out)}
+		return "respawn_left out of range"
+	return ""
 
 ## IVs 0..31 for every stat, EVs 0..100 with total <= 300, level gains no more than the
 ## three per level PetRecord.add_xp grants.
@@ -235,39 +244,6 @@ func _genetics(raw: Variant, level: int) -> Dictionary:
 		return _no("EV total above %d" % CreatureGenetics.EV_TOTAL_MAX)
 	if gain_total > 3 * (level - 1):
 		return _no("more level gains than levels")
-	return out
-
-## PetRecord.from_def snapshots base x IV multiplier at capture (level 1, no gains or EVs);
-## add_xp then multiplies by the growth rate per level.
-static func _expected(def: CreatureDef, stat: String, iv: int, level: int) -> float:
-	var base := 100.0
-	match stat:
-		"hp": base = def.hp
-		"attack", "ranged_attack": base = def.attack
-		"defense", "ranged_defense": base = def.defense
-		"speed": base = def.speed
-	var mult := 0.85 + 0.30 * float(iv) / float(CreatureGenetics.IV_MAX)
-	return base * mult * pow(float(GROWTH[stat]), float(level - 1))
-
-## Stored pet floats sit on a 0.001 grid. Godot's JSON reader is not exact for 17-digit
-## doubles (about 1 in 8 comes back an ulp off), but grid values survive the trip, so the
-## journal and snapshot reload to byte-identical state. economy_tests checks the round trip.
-static func q(x: float) -> float:
-	return roundf(x * 1000.0) / 1000.0
-
-## The grade rate `v` names (within float noise), or -1.
-static func _grade_rate(v: Variant) -> float:
-	if not (v is float or v is int):
-		return -1.0
-	for r in GRADE_RATES:
-		if absf(float(v) - r) < 0.000001:
-			return r
-	return -1.0
-
-static func _keyed(src: Dictionary) -> Dictionary:
-	var out := {}
-	for k in src:
-		out[StringName(k)] = src[k]
 	return out
 
 static func _no(msg: String) -> Dictionary:

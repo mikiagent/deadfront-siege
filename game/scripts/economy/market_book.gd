@@ -292,6 +292,7 @@ func _release(lst: Dictionary, count: int) -> Dictionary:
 		lst.left = 0
 		return asset
 	asset.count = int(asset.count) - count
+	L.retire(str(asset.uid))
 	lst.left = int(lst.left) - count
 	var part := asset.duplicate(true)
 	part.count = count

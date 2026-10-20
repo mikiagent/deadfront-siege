@@ -6,12 +6,13 @@ extends RefCounted
 ## Escrow lives on the records that own it: an auction's `bid`, a buy order's `escrow`.
 
 const SETTLERS := 0
-const VERSION := 2 ## state shape; EconStore refuses a snapshot from another version
+const VERSION := 3 ## state shape; EconStore refuses a snapshot from another version
 
 var s: Dictionary
 var rules: EconRules
 var now: int = 0
 var events: Array = [] ## [account_id, event] created by the current op, for the transport to push
+var touched := {} ## account ids whose wallet the current op moved, for VaultBridge's char.wallet mirror
 
 func _init(p_rules: EconRules, state: Dictionary = {}) -> void:
 	rules = p_rules
@@ -25,6 +26,11 @@ static func genesis() -> Dictionary:
 		"items_in": {}, "items_out": {}, "items_consumed": {}, "pets_in": 0, "pets_out": 0,
 		"trades": [], "history": {}, "ref": {}, "ref_trades": {}, "pairs": {},
 		"settlers": {"day": -1, "hour": -1},
+		## Contract v2 provenance (VaultBridge): uids of character assets the books hold byte for
+		## byte as the character store exported them; retired = such uids whose body changed (a
+		## split or a Settler consume), awaiting char.settled; inflight = the deposit between the
+		## two stores (bridge.begin), so boot can finish or undo it.
+		"src": {}, "retired": {}, "inflight": {},
 	}
 
 func acct(id: int) -> Dictionary:
@@ -51,10 +57,12 @@ static func id_num(id: String) -> int:
 
 func grant_start(id: int, amount: int) -> void:
 	acct(id).wallet += amount
+	touched[id] = true
 	s.initial_grants += amount
 
 func mint(id: int, amount: int, source: String) -> void:
 	acct(id).wallet += amount
+	touched[id] = true
 	s.faucet[source] = int(s.faucet.get(source, 0)) + amount
 
 ## Callers check funds first; reaching the error is a bug. push_error (not assert, which
@@ -65,12 +73,14 @@ func debit(id: int, amount: int) -> void:
 		push_error("[econ] debit of %d from account %d (wallet %d)" % [amount, id, int(a.get("wallet", 0))])
 		return
 	a.wallet = int(a.wallet) - amount
+	touched[id] = true
 
 func credit(id: int, amount: int) -> void:
 	if amount < 0:
 		push_error("[econ] negative credit %d to account %d" % [amount, id])
 		return
 	acct(id).wallet += amount
+	touched[id] = true
 
 func to_sink(amount: int) -> void:
 	s.fee_sink += amount
@@ -83,6 +93,7 @@ func take_item(id: int, uid: String, count: int) -> Dictionary:
 		vault.erase(uid)
 		return stack
 	stack.count = int(stack.count) - count
+	retire(uid)
 	var part := stack.duplicate(true)
 	part.count = count
 	part.uid = new_id("i")
@@ -95,6 +106,12 @@ func vault_full(id: int, kind: String, pending: int = 0) -> bool:
 	var pet := kind == "pet"
 	var held: Dictionary = acct(id).vault_pets if pet else acct(id).vault_items
 	return held.size() + pending >= rules.num("max_vault_pets" if pet else "max_vault_items")
+
+## An exported body that no longer exists as exported (split or consumed) can never go back
+## through char.receive; VaultBridge tells the character store with char.settled.
+func retire(uid: String) -> void:
+	if s.src.erase(uid):
+		s.retired[uid] = true
 
 func put_item(id: int, stack: Dictionary) -> void:
 	acct(id).vault_items[stack.uid] = stack

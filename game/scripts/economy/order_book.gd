@@ -29,7 +29,8 @@ func create(me: int, a: EconArgs) -> Dictionary:
 		return a.fail()
 	if hi < lo:
 		return EconArgs.no("bad_request", "max_level is below min_level")
-	if cat.item(def_id) == null or def_id in R.g("denied_defs"):
+	# A cage is one animal (contract 6.1: pets are unique), so it trades by listing only.
+	if cat.item(def_id) == null or def_id in R.g("denied_defs") or def_id == AssetValidator.CAGE:
 		return EconArgs.no("invalid_asset", "%s cannot be ordered" % def_id)
 	var acct := L.acct(me)
 	if int(acct.open_orders) >= R.num("max_open_orders"):
@@ -108,6 +109,7 @@ func sell(me: int, a: EconArgs) -> Dictionary:
 	var units := L.take_item(me, uid, count)
 	if o.npc:
 		L.bump("items_consumed", str(units.id), count) # Settlers use what they buy
+		L.retire(str(units.uid))
 	else:
 		L.put_item(buyer, units)
 	o.filled = int(o.filled) + count
