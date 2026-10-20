@@ -168,14 +168,15 @@ index 0bbbcb56..d19f8337 100644
  	dealt *= CombatCounters.multiplier(def.archetype, dtype)
  	var kind := "hit"
 diff --git a/game/scripts/ui/craft_ui.gd b/game/scripts/ui/craft_ui.gd
-index d7187dbb..38394e10 100644
+index d7187dbb..999bafaf 100644
 --- a/game/scripts/ui/craft_ui.gd
 +++ b/game/scripts/ui/craft_ui.gd
-@@ -460,6 +460,16 @@ func _show_detail(info: Dictionary) -> void:
- 	need.add_theme_color_override("font_color", UiTokens.META)
- 	_detail.add_child(need)
- 	_detail.add_child(_ingredients_row(rec))
-+	# W2-SKILLS: a recipe a skill node gates is listed but locked (spec 03); say what unlocks it.
+@@ -454,6 +454,17 @@ func _show_detail(info: Dictionary) -> void:
+ 		st.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
+ 		st.add_theme_color_override("font_color", UiTokens.META)
+ 		_detail.add_child(st)
++	# W2-SKILLS: a recipe a skill node gates is listed but locked (spec 03): say what unlocks it,
++	# above the ingredients so a phone shows it without scrolling.
 +	var locked := Crafting.progression_block(player, rec)
 +	if locked != "":
 +		var why := Label.new()
@@ -185,6 +186,6 @@ index d7187dbb..38394e10 100644
 +		why.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 +		why.add_theme_color_override("font_color", UiTokens.DANGER)
 +		_detail.add_child(why)
- 	var missing := Crafting.missing_ingredient_name(player.inventory, rec)
- 	if missing != "":
- 		var lock := Label.new()
+ 	var need := Label.new()
+ 	need.text = "INGREDIENTS"
+ 	need.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))

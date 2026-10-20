@@ -30,7 +30,7 @@ static func recipe_block(sk: SkillState, recipe_id: String) -> String:
 	# A Lv. 1 survivor has 0 SP (spec 03: SP come from character levels), so say where the SP come from.
 	var lv: int = sk.character_level()
 	if sk.sp_available < cost and lv < SkillState.MAX_LEVEL:
-		msg += "; you have %d SP, character %s pays %d" % [sk.sp_available, LevelDisplay.label(lv + 1), sk.sp_for_level(lv + 1)]
+		msg += "; you have %d SP, reach %s for +%d SP" % [sk.sp_available, LevelDisplay.label(lv + 1), sk.sp_for_level(lv + 1)]
 	return msg
 
 ## Sum of {"type": "ability", "ability": name, "amount": n} over learned nodes.

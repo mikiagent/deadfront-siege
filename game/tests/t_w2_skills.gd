@@ -133,7 +133,7 @@ func _test_new_survivor() -> void:
 	_expect(sk.sp_available == 0 and sk.sp_spent == 0 and sk.sp_earned == 0, "a new survivor has 0 SP and auto nodes cost nothing (avail %d spent %d)" % [sk.sp_available, sk.sp_spent])
 	_expect(sk.character_level() == 1, "character level of a new survivor is 1 (got %d)" % sk.character_level())
 	var field: String = Rules.recipe_block(sk, "field_small")
-	_expect(field.contains("Till Small Field") and field.contains("character Lv. 2 pays 10"), "a Lv. 1 survivor's field kit lock says where the SP come from: '%s'" % field)
+	_expect(field.contains("Till Small Field") and field.contains("you have 0 SP, reach Lv. 2 for +10 SP"), "a Lv. 1 survivor's field kit lock says where the SP come from: '%s'" % field)
 	_expect(not sk.refund("processing", "cordage") and sk.is_unlocked("processing", "cordage"), "an auto node cannot be refunded")
 	_done_with(sk)
 	_sections += 1
