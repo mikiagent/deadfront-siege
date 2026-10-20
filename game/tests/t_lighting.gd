@@ -28,6 +28,7 @@ func _process(_delta: float) -> bool:
 	_test_key_light_never_from_below(wl)
 	_test_phase_thresholds()
 	_test_profiles()
+	_test_fallback_colours()
 	_test_rain_streaks()
 	_test_env_reused(host, wl)
 	if failures.is_empty():
@@ -132,6 +133,37 @@ func _test_profiles() -> void:
 		var sun := float(p.get("sun_energy", 0.0))
 		var amb := float(p.get("ambient_energy", 0.0))
 		_check(sun >= 2.0 and sun <= 2.5 and amb >= 0.25 and amb <= 0.35, "%s sun %.2f / ambient %.2f out of band" % [climate, sun, amb])
+
+## A broken lighting.json falls back to FALLBACK: that profile must still give a dark night fog
+## and a sky, not _c()'s WHITE for every missing colour.
+func _test_fallback_colours() -> void:
+	var host := Node3D.new()
+	get_root().add_child(host)
+	var saved: Dictionary = WL._profiles
+	WL._profiles = {"default": WL.FALLBACK.duplicate()}
+	# install() reuses the viewport's environment and nulls the previous owners: put it back after.
+	var keep_env: Environment = null
+	for we in get_root().find_children("*", "WorldEnvironment", true, false):
+		if (we as WorldEnvironment).environment != null:
+			keep_env = (we as WorldEnvironment).environment
+			break
+	var wl = WL.install(host, "temperate")
+	wl.drive(0.0)
+	var e: Environment = wl.world_env.environment
+	var fog_l: float = _lum(e.fog_light_color)
+	var sky: Color = wl._sky_mat.sky_top_color
+	print("[t_light] fallback: night fog lum=%.3f sky_night_top=%s fog=%s" % [fog_l, sky, e.fog_light_color])
+	_check(fog_l <= 0.15, "FALLBACK night fog luminance %.3f > 0.15" % fog_l)
+	_check(sky.r + sky.g + sky.b < 0.5, "FALLBACK night sky is not white (%s)" % sky)
+	WL._profiles = saved
+	# install() took over the viewport's environment and the test host owns this one: hand the
+	# original back before the host (and its WorldEnvironment) is freed.
+	for we in get_root().find_children("*", "WorldEnvironment", true, false):
+		if (we as WorldEnvironment).environment == null:
+			(we as WorldEnvironment).environment = keep_env
+			break
+	wl.set_process(false)
+	host.free()
 
 func _test_rain_streaks() -> void:
 	var rt: Node3D = load("res://scripts/world/island_runtime.gd").new()

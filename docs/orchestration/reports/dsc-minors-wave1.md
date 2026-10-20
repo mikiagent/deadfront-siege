@@ -20,13 +20,13 @@ One line per finding: fixed (file:line) / skipped (why). Status: in progress.
 16. fixed — `game/scripts/pets/pet_record.gd:100` (unknown species neutralises the cached stats)
 17. fixed — `game/scripts/pets/pet_record.gd:203` (see 9; the duplicate-uid hook is left to the W2-INT validator)
 18. pending
-19. pending
+19. fixed — `game/tests/t_items.gd:113` `_test_regen_blocked_by_occupant`: a depleted node stays empty under a body and refills once it moves
 20. pending
 21. fixed — `game/scripts/world/prop_visuals.gd:39` (dead `attach_tool_model` removed; `HeldModel.attach` is the only path)
 22. fixed — `game/scripts/creatures/brains/pack_index.gd:30` (members() drops entries failing is_instance_valid before returning)
 23. fixed — `game/scripts/creatures/creature.gd:224` (`flee_speed()` shared by the physics step and `t_ai`, which also steps a real physics frame)
 24. fixed — `game/scripts/creatures/brains/creature_brain.gd:13` (unused LOD_RADIUS alias deleted)
-25. pending
+25. fixed — `game/tests/t_tame.gd:33-45,95` (each _test_* bumps `_sections`; PASS needs all 7). Mutant-checked: a runtime error in _test_rules now prints FAIL instead of PASS
 26. fixed — `game/scripts/world/taming_pen.gd:127` (species missing from data: print, keep the occupant, leave the pen waiting)
 27. fixed — `game/scripts/creatures/creature_genetics.gd:104`
 28. pending
@@ -38,5 +38,5 @@ One line per finding: fixed (file:line) / skipped (why). Status: in progress.
 34. fixed — `game/scripts/combat/hunt.gd:237` (wear_weapon returns early on a broken weapon)
 35. pending
 36. pending
-37. pending
+37. fixed — `game/scripts/world/world_lighting.gd:19` (FALLBACK carries every colour key) + `game/tests/t_lighting.gd:145` (fallback night fog luminance check)
 38. pending

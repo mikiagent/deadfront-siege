@@ -5,6 +5,7 @@ extends SceneTree
 
 var failures: Array[String] = []
 var _done := false
+var _sections := 0  ## bumped at the end of every _test_*; see the completion sentinel in _process
 
 # Pet scripts reference the Data autoload, so they load on the first frame it exists
 # (same pattern as run_all.gd).
@@ -29,6 +30,8 @@ func _process(_delta: float) -> bool:
 	CaptureS = load("res://scripts/pets/capture_system.gd")
 	ItemStackS = load("res://scripts/items/item_stack.gd")
 	InventoryS = load("res://scripts/items/inventory.gd")
+	# Each section bumps `_sections` on its last line: a runtime error aborts only that function,
+	# so without this a crash mid-section skipped its asserts and still printed PASS.
 	_test_bag_survives_reload()
 	_test_growth_bounded()
 	_test_add_xp_and_train_match_compute()
@@ -36,6 +39,9 @@ func _process(_delta: float) -> bool:
 	_test_identity()
 	_test_rules()
 	_test_untrusted_load()
+	var want := 7
+	if _sections != want:
+		failures.append("only %d of %d test sections completed (a runtime error aborted the rest)" % [_sections, want])
 	if failures.is_empty():
 		print("[t_tame] PASS")
 		quit(0)
@@ -86,6 +92,8 @@ func _test_bag_survives_reload() -> void:
 	_expect(old.bag.slot_count == 140, "legacy 10-slot bag re-expands to 140 (got %d)" % old.bag.slot_count)
 	_expect(old.uid != "", "legacy pet gets a uid on load")
 	print("[t_tame] bag slots fresh=%d roundtrip=%d legacy=%d slot50=%s" % [rec.bag.slot_count, back.bag.slot_count, old.bag.slot_count, "stone x%d" % s50.count if s50 else "MISSING"])
+	_sections += 1
+
 
 func _test_growth_bounded() -> void:
 	var rex = _def(&"tyrannosaurus")
@@ -114,6 +122,8 @@ func _test_growth_bounded() -> void:
 		_expect(atk60 <= rex.attack and ratk60 <= rex.attack, "%s Lv60 attack %.0f exceeds wild T. rex %.0f" % [id, maxf(atk60, ratk60), rex.attack])
 	_expect(count >= 16, "tameable species found (%d)" % count)
 	print("[t_tame] growth species=%d worst Lv60/Lv1 hp=x%.2f attack=x%.2f (was x93.8 / x17.8) rex hp=%.0f atk=%.0f" % [count, worst_hp, worst_atk, rex.hp, rex.attack])
+	_sections += 1
+
 
 func _test_add_xp_and_train_match_compute() -> void:
 	var raptor = _def(&"velociraptor")
@@ -154,6 +164,8 @@ func _test_add_xp_and_train_match_compute() -> void:
 	d["attack"] = 1675.0
 	var loaded = PetRecordS.from_dict(_json_round(d))
 	_expect(loaded.hp == PetStatsS.value(raptor, loaded.genetics, 60, &"health"), "load recomputes HP from PetStats (got %.0f)" % loaded.hp)
+	_sections += 1
+
 
 func _test_one_grade() -> void:
 	var rng := RandomNumberGenerator.new()
@@ -173,6 +185,8 @@ func _test_one_grade() -> void:
 	var r = PetRecordS.from_def(def, &"S", &"", low, 1)
 	_expect(r.grade == &"D-" and is_equal_approx(r.xp_rate, 0.85), "IV0 pet is D- with the low rate, not S (grade=%s xp_rate=%.2f)" % [r.grade, r.xp_rate])
 	print("[t_tame] grade 200 random genetics mismatches=%d IV0 grade=%s xp_rate=%.2f" % [bad, r.grade, r.xp_rate])
+	_sections += 1
+
 
 func _test_identity() -> void:
 	var def = _def(&"velociraptor")
@@ -199,6 +213,7 @@ func _test_identity() -> void:
 	_expect(back.uid == lv25.uid and back.origin == lv25.origin and back.tamer == "Milan" and back.name == "Rex Jr" \
 		and back.tamed_at == lv25.tamed_at and back.tamed_at > 0 and back.wild_level == 25 and back.parent_uids == lv25.parent_uids, "identity fields round-trip")
 	print("[t_tame] uids distinct=%d/1000 sample=%s level wild25=%d wild75=%d" % [seen.size(), lv25.uid, lv25.level, lv75.level])
+	_sections += 1
 
 func _creature(id: StringName, hp_frac: float, knocked: bool):
 	var cr = (load("res://scripts/creatures/creature.gd") as GDScript).new()
@@ -213,6 +228,7 @@ func _creature(id: StringName, hp_frac: float, knocked: bool):
 	if knocked:
 		cr.statuses.apply(&"knockdown")
 	return cr
+
 
 func _test_rules() -> void:
 	_expect(PetRecordS.RESPAWN_TIME == 180.0, "RESPAWN_TIME is 180 s (got %.0f)" % PetRecordS.RESPAWN_TIME)
@@ -258,6 +274,8 @@ func _test_rules() -> void:
 
 ## A hand-edited save cannot buy stats or bag space: gains cap at 3 per level-up, EVs at 300,
 ## bag rows at the species size (or the legacy 10).
+	_sections += 1
+
 func _test_untrusted_load() -> void:
 	var rex = _def(&"tyrannosaurus")
 	var raptor = _def(&"velociraptor")
@@ -289,3 +307,4 @@ func _test_untrusted_load() -> void:
 		gains60 += int(v)
 	_expect(gains60 == 3 * 59, "Lv60 save keeps at most 177 level gains (got %d)" % gains60)
 	print("[t_tame] untrusted load lv1 gains=%d evs=%d hp=%.0f atk=%.0f slots=%d lv60 gains=%d" % [gains, evs, loaded.hp, loaded.attack, loaded.bag.slot_count, gains60])
+	_sections += 1

@@ -28,6 +28,7 @@ func _process(_delta: float) -> bool:
 	_test_merging()
 	_test_scaling()
 	_test_pick_gates()
+	_test_regen_blocked_by_occupant()
 	_test_yields()
 	_test_crafted_level()
 	_test_burn()
@@ -119,6 +120,37 @@ func _test_scaling() -> void:
 	var stone_pick = IS.make(&"work_pick", 1, {"material_tier": "stone"}, 1)
 	_expect(flint_pick.max_durability > stone_pick.max_durability and flint_pick.durability == flint_pick.max_durability, "durability follows material tier")
 	_expect(ProgressionScaling.material_tier(&"metal_shard", {"hardness": 3.0}) == &"flint", "untagged hardness maps onto the ladder")
+
+## phys-node-01: a depleted node does not regrow under a body (the collider would wrap around it),
+## and refills once the body steps away. A standalone node has no runtime parent, so it is added
+## to the tree here; its _process is called directly in fixed steps.
+func _test_regen_blocked_by_occupant() -> void:
+	var rock = _node("Rock", &"stone")
+	get_root().add_child(rock)
+	rock.regen_seconds = 1.0
+	var keep: int = rock.pool_units_left()
+	rock.mark_gathered()
+	rock.mark_gathered()
+	while rock.pool_units_left() > 0:
+		rock.mark_gathered()
+	var empty: bool = rock.depleted and rock.pool_units_left() == 0
+	var body := Node3D.new()
+	body.add_to_group("player")
+	get_root().add_child(body)
+	body.global_position = rock.global_position
+	for i in 40:
+		rock._process(0.1)  # 4 s at regen 1 s: would have refilled twice without the occupancy rule
+	var stayed: bool = rock.depleted and rock.pool_units_left() == 0
+	body.global_position = rock.global_position + Vector3(6.0, 0.0, 0.0)
+	for i in 50:
+		rock._process(0.1)
+	var refilled: bool = rock.pool_units_left() > 0
+	print("[t_items] occupied regen: emptied=%s under body stayed=%s after body left refilled=%s (%d units)" % [empty, stayed, refilled, rock.pool_units_left()])
+	_expect(empty, "a gathered-out node is depleted")
+	_expect(stayed, "a depleted node does not regrow while a body stands on it")
+	_expect(refilled, "a depleted node refills once the body moves away")
+	body.free()
+	rock.free()
 
 ## A harvest node of `family` with `item` as the active option.
 func _node(family: String, item: StringName):
