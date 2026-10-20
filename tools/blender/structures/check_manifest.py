@@ -47,6 +47,9 @@ NODES = {
                    "note": "leaf origins sit on the hinges; swing about local Y"},
     "catapult": {"arm": "Arm", "note": "arm origin on its axle; throw = rotate about local Z"},
 }
+# The taming_pen row's GLB is one 2 m ring segment, but its collider is the whole pen: taming_pen.gd
+# _ring_layout puts fence/gate segments at +-1.92 m, so aabb_m is the ring's extent, not the segment's.
+ASSEMBLY_AABB = {"taming_pen": [4.05, 1.84, 4.12]}
 NEW_ROWS = {
     "pier": {"footprint": [3, 8], "note": "harbour pier/dock; deck 1.2 m above the pile feet, seaward end towards -Z. # ASSUMPTION: W2-TERRAIN sinks the piles into the water and snaps it to the coast"},
 }
@@ -73,7 +76,7 @@ def write(manifest):
             continue
         s = glb_info.summary(res_to_path(RES % name))
         row["glb"] = RES % name
-        row["aabb_m"] = [round(s["aabb_max"][k] - s["aabb_min"][k], 3) for k in range(3)]
+        row["aabb_m"] = list(ASSEMBLY_AABB.get(kind) or [round(s["aabb_max"][k] - s["aabb_min"][k], 3) for k in range(3)])
         row["art_status"] = "REPLACE" if kind in STAND_INS else "REVIEW"
         row["upgrade"] = STAND_IN_UPGRADE if kind in STAND_INS else UPGRADE % s["tris"]
         if kind in STAGES:
@@ -133,7 +136,12 @@ def main():
     for kind, row in manifest["buildings"].items():
         fp = row.get("footprint", [1, 1])
         if row.get("glb"):
-            check_glb(kind, res_to_path(row["glb"]), fp, row.get("aabb_m"), errors)
+            aabb = row.get("aabb_m")
+            if kind in ASSEMBLY_AABB:
+                if aabb != ASSEMBLY_AABB[kind] or min(aabb[0], aabb[2]) < 0.9 * min(fp):
+                    errors.append("%s: aabb_m %s is not the assembled ring %s" % (kind, aabb, ASSEMBLY_AABB[kind]))
+                aabb = None  # the segment GLB is checked for size against its footprint only
+            check_glb(kind, res_to_path(row["glb"]), fp, aabb, errors)
             seen = {}
             for st in row.get("stages", []):
                 path = res_to_path(st["glb"])

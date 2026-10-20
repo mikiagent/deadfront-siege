@@ -5,6 +5,7 @@ Axes (Blender, Z up): the front faces -Y, which becomes +Z in Godot (towards the
 Footprints follow game/data/props_manifest.json: X is the first footprint number, Y the second.
 """
 import math
+import zlib
 
 from mathutils import Euler, Vector
 
@@ -464,6 +465,9 @@ def catapult():
     return [(body, (0, 0, 0)), (arm, pv)]
 
 
+DECK_TILES = ("weathered", "wood", "weathered", "wood_dark", "wood")
+
+
 def pier():
     """Plank dock on log piles, 3 x 8 m, deck 1.2 m above the pile feet, mooring posts and a
     coil of rope at the seaward end (+Y in Blender = -Z in Godot)."""
@@ -483,8 +487,11 @@ def pier():
         # each board is three ~0.9 m lengths with staggered butt joints, so the grain tile maps at
         # ~1 m instead of being stretched across the whole deck width
         cuts = [-hw, -hw / 3 + 0.25 * ((i % 3) - 1), hw / 3 + 0.25 * ((i % 3) - 1), hw]
-        for a, b in zip(cuts, cuts[1:]):
-            p.box((b - a - 0.025, step - 0.035, 0.06), ((a + b) / 2, y, deck - 0.03), "weathered", tile_m=1.0)
+        for j, (a, b) in enumerate(zip(cuts, cuts[1:])):
+            # neighbouring lengths differ in value and hue (bleached, fresh, dark) so the deck reads as
+            # separate timber boards, not a uniform paved surface
+            tile = DECK_TILES[zlib.crc32(b"%d,%d" % (i, j)) % len(DECK_TILES)]  # no diagonal pattern
+            p.box((b - a - 0.025, step - 0.035, 0.06), ((a + b) / 2, y, deck - 0.03), tile, tile_m=1.0)
     for sx in (-1, 1):
         p.cyl(0.1, 0.5, (sx * (hw - 0.1), hl - 0.15, deck + 0.25), "bark", seg=7, cap_tile="log_end")
         p.cyl(0.115, 0.08, (sx * (hw - 0.1), hl - 0.15, deck + 0.3), "rope", seg=7)

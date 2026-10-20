@@ -231,9 +231,9 @@
       "art_status": "REVIEW",
       "glb": "res://assets/props/blender/fence.glb",
       "aabb_m": [
-        2.006,
-        1.47,
-        0.211
+        4.05,
+        1.84,
+        4.12
       ],
       "upgrade": "low-poly hand-built Blender (384 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },

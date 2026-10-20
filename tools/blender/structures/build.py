@@ -18,7 +18,7 @@ importlib.reload(lib)
 importlib.reload(structures)
 
 
-def build(name, keep=False):
+def build(name):
     scn = lib.new_scene(name)
     objs = []
     for part, origin in structures.BUILDERS[name]():
@@ -30,14 +30,14 @@ def build(name, keep=False):
     return path
 
 
-def main(args, keep=False):
+def main(args):
     names = args or list(structures.BUILDERS)
     for n in names:
-        build(n, keep)
+        build(n)
     print("[structart] built %d" % len(names))
 
 
 _args = globals().get("ARGS")
 if _args is None:
     _args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-main(list(_args), bool(globals().get("KEEP", False)))
+main(list(_args))

@@ -16,6 +16,9 @@ const DRIED_VS_FRAME := 20.0
 const STAND_INS := ["floor", "wall", "wall_doorway", "roof"]
 const MAX_TRIS := 4000
 const TOL := 0.05
+## Rows whose GLB is one piece of a larger assembly: aabb_m is the assembly (the collider), which must
+## cover the footprint; the piece itself is only checked for triangles and material.
+const ASSEMBLIES := ["taming_pen"]
 
 var failures: Array[String] = []
 var _done := false
@@ -34,6 +37,9 @@ func _process(_delta: float) -> bool:
 	_check_pivots(buildings)
 	_check_atlas()
 	_check_replacement_marks(buildings)
+	# a GDScript runtime error returns the default (false) and carries on, so an aborted check must fail
+	if not _check_hooks(buildings):
+		failures.append("hook checks aborted by a script error (see above)")
 	if failures.is_empty():
 		print("[t_structart] PASS")
 		quit(0)
@@ -56,7 +62,13 @@ func _check_rows(buildings: Dictionary) -> void:
 				failures.append("%s uses a Kenney placeholder without art_status REPLACE" % kind)
 			continue
 		blender += 1
-		_check_glb(kind, glb, row.get("aabb_m", []))
+		var aabb: Variant = row.get("aabb_m", [])
+		if kind in ASSEMBLIES:
+			var fp: Array = row.get("footprint", [1, 1])
+			if not (aabb is Array and (aabb as Array).size() >= 3 and float(aabb[0]) >= 0.9 * float(fp[0]) and float(aabb[2]) >= 0.9 * float(fp[1])):
+				failures.append("%s: aabb_m %s does not cover its %s footprint (it sizes the collider)" % [kind, aabb, fp])
+			aabb = null
+		_check_glb(kind, glb, aabb)
 	if blender < 20:
 		failures.append("only %d kinds use Blender GLBs" % blender)
 
@@ -85,7 +97,7 @@ func _check_glb(kind: String, path: String, aabb_m: Variant) -> void:
 			if absf(size[k] - want[k]) > TOL * maxf(want[k], 0.2):
 				failures.append("%s: AABB %s vs manifest %s" % [kind, size, want])
 				break
-	else:
+	elif aabb_m != null:
 		failures.append("%s: no aabb_m" % kind)
 	root.free()
 
@@ -96,13 +108,15 @@ func _check_stages(buildings: Dictionary) -> void:
 	var uvs: Array[PackedVector2Array] = []
 	for st: Dictionary in stages:
 		ids.append(str(st.get("id", "")))
-		_check_glb("drying_rack." + str(st.get("id", "")), str(st.get("glb", "")), row.get("aabb_m", []))
-		var root := (load(str(st.get("glb", ""))) as PackedScene).instantiate() as Node3D
+		var glb := str(st.get("glb", ""))
+		_check_glb("drying_rack." + str(st.get("id", "")), glb, row.get("aabb_m", []))
 		var all_uv := PackedVector2Array()
-		for mi: MeshInstance3D in _meshes(root):
-			all_uv.append_array(mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV] as PackedVector2Array)
+		if ResourceLoader.exists(glb):  # a missing stage is already a failure from _check_glb
+			var root := (load(glb) as PackedScene).instantiate() as Node3D
+			for mi: MeshInstance3D in _meshes(root):
+				all_uv.append_array(mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV] as PackedVector2Array)
+			root.free()
 		uvs.append(all_uv)
-		root.free()
 	if ids != ["empty", "raw", "drying", "dried"]:
 		failures.append("drying_rack stages %s" % [ids])
 		return
@@ -171,6 +185,73 @@ func _check_replacement_marks(buildings: Dictionary) -> void:
 		var row: Dictionary = buildings[kind]
 		if str(row.get("glb", "")) != "" and str(row.get("upgrade", "")) == "":
 			failures.append("%s: low-poly Blender row has no upgrade path" % kind)
+
+## Integrator hooks (tools/blender/structures/integrator_hooks.patch on W1-BUILD's files). Checked only
+## once applied, i.e. when PropVisuals resolves the gate to the Blender GLB; before that the Kenney
+## gate is expected and this is skipped.
+func _check_hooks(buildings: Dictionary) -> bool:
+	# loaded at run time: PropVisuals reads the Data autoload, which a --script cannot see at compile time
+	var pv := load("res://scripts/world/prop_visuals.gd") as GDScript
+	var gate_glb := str((buildings.get("fence_gate", {}) as Dictionary).get("glb", ""))
+	if str(pv.call("model_path", &"gate")) != gate_glb:
+		print("[t_structart] hooks not applied (gate resolves to %s), hook checks skipped" % pv.call("model_path", &"gate"))
+		return true
+	for kind: String in buildings:
+		var glb := str((buildings[kind] as Dictionary).get("glb", ""))
+		var as_kind: StringName = &"gate" if kind == "fence_gate" else (&"makeshift_taming_pen" if kind == "taming_pen" else StringName(kind))
+		if glb != "" and str(pv.call("model_path", as_kind)) != glb:
+			failures.append("hook: %s resolves to %s, not %s" % [kind, pv.call("model_path", as_kind), glb])
+	var pen: Vector3 = pv.call("collision_size", &"makeshift_taming_pen", null)
+	if pen.x < 3.6 or pen.z < 3.6:
+		failures.append("hook: taming pen collider %s is a fence segment, not the 4x4 ring" % pen)
+	_check_gate_hook()
+	_check_catapult_hook()
+	print("[t_structart] hooks applied: gate leaves swing, catapult and pen use the Blender set")
+	return true
+
+func _check_gate_hook() -> void:
+	var gate: Node3D = (load("res://scripts/world/placed_building.gd") as GDScript).call("make", &"gate")
+	get_root().add_child(gate)
+	var prop := gate.get_node_or_null("Prop")
+	var leaves: Array[MeshInstance3D] = []
+	for n: String in ["LeafL", "LeafR"]:
+		var leaf: MeshInstance3D = prop.find_child(n, true, false) as MeshInstance3D if prop else null
+		if leaf == null:
+			failures.append("hook: placed gate has no Prop/%s" % n)
+		else:
+			leaves.append(leaf)
+	# W1-BUILD's plank leaf was placed for the Kenney doorway; on the Blender gate it is a stray panel.
+	if gate.get_node_or_null("GateHinge") != null:
+		failures.append("hook: the Kenney plank GateHinge leaf still spawns on the Blender gate")
+	if leaves.size() == 2:
+		if not _doorway_blocked(gate, leaves):
+			failures.append("hook: closed gate leaves do not span the doorway")
+		gate.call("set_gate_open", true)
+		if _doorway_blocked(gate, leaves):
+			failures.append("hook: open gate leaves still cross the doorway (L %.0f deg, R %.0f deg)" % [leaves[0].rotation_degrees.y, leaves[1].rotation_degrees.y])
+		gate.call("set_gate_open", false)
+		if not _doorway_blocked(gate, leaves):
+			failures.append("hook: gate leaves do not close again")
+	gate.free()
+
+## True when any leaf covers the middle of the 1.6 m doorway (|x| < 0.5 in gate space).
+func _doorway_blocked(gate: Node3D, leaves: Array[MeshInstance3D]) -> bool:
+	for leaf in leaves:
+		var box := gate.global_transform.affine_inverse() * leaf.global_transform * leaf.mesh.get_aabb()
+		if box.position.x < 0.5 and box.end.x > -0.5:
+			return true
+	return false
+
+func _check_catapult_hook() -> void:
+	var cat: Node3D = (load("res://scripts/world/field_catapult.gd") as GDScript).new()
+	get_root().add_child(cat)
+	if cat.get_node_or_null("Prop") == null:
+		failures.append("hook: field catapult did not attach the Blender model")
+	for c in cat.get_children():
+		if c is MeshInstance3D and ((c as MeshInstance3D).mesh is BoxMesh or (c as MeshInstance3D).mesh is CylinderMesh):
+			failures.append("hook: field catapult still builds its primitive placeholder")
+			break
+	cat.free()
 
 ## Same corner-transform measure PropVisuals uses for colliders, kept local so this test does not
 ## depend on W1-BUILD's file.

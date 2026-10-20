@@ -175,14 +175,19 @@ def _stripes(seed, base, dark, freq=10, angle=0.0, sharp=2.0, noise=0.3):
     return _mix(_rgb(base), _rgb(dark), t)
 
 
-def _meat(seed, base, dark, fat, fat_amt):
-    """Muscle fibre streaks along U with fat marbling."""
-    img = _stripes(seed, base, dark, freq=18, angle=math.pi / 2 * 0 + 0.0, sharp=1.5, noise=0.5)
+def _meat(seed, base, dark, fat, fat_amt, veins=0.0):
+    """Muscle fibre streaks along U with fat patches; `veins` adds thin wavy fat marbling lines."""
+    img = _stripes(seed, base, dark, freq=18, angle=0.0, sharp=1.5, noise=0.5)
     n = TILE_PX
     r = _rng(seed + 9)
     m = _fbm(r, n, 5, 3)
     streak = np.clip((m - (1 - fat_amt)) * 6, 0, 1)
-    return _mix(img, _rgb(fat), streak)
+    img = _mix(img, _rgb(fat), streak)
+    if veins > 0:
+        # contour lines of a warped noise field give branching marbling, not plastic flat colour
+        v = np.abs(_fbm(_rng(seed + 17), n, 3, 3) - 0.5)
+        img = _mix(img, _rgb(fat), np.clip(1 - v / 0.035, 0, 1) * veins)
+    return img
 
 
 def _wheel():
@@ -256,9 +261,13 @@ def paint_atlas():
         "log_end": _log_end(),
         "char": _speckle(6, (0.13, 0.11, 0.1), (0.05, 0.04, 0.04), light=(0.3, 0.28, 0.26), crack=1),
         "wheel": _wheel(),
-        "weathered": _grain(8, (0.55, 0.49, 0.41), (0.36, 0.31, 0.26), rings=12),
-        "canvas": _mix(_weave(9, (0.72, 0.65, 0.51), (0.6, 0.53, 0.4), cell=3),
-                       _rgb((0.55, 0.47, 0.35)), np.clip(_fbm(_rng(10), TILE_PX, 3, 3) - 0.45, 0, 1)),
+        # weathered: sun-bleached but still warm timber (gate pickets, smoker door, pier deck); a cold
+        # grey read as stone paving on the pier at set distance
+        "weathered": _grain(8, (0.6, 0.48, 0.35), (0.36, 0.27, 0.18), rings=12),
+        # canvas: warm tan, a step below cream, so the shaded slopes stay canvas under the blue sky
+        # ambient (Forward+) and the lit ones do not blow out in gl_compatibility
+        "canvas": _mix(_weave(9, (0.66, 0.55, 0.39), (0.54, 0.44, 0.3), cell=3),
+                       _rgb((0.48, 0.38, 0.26)), np.clip(_fbm(_rng(10), TILE_PX, 3, 3) - 0.45, 0, 1)),
         "hide": _speckle(11, (0.62, 0.45, 0.31), (0.45, 0.31, 0.2), light=(0.72, 0.56, 0.4), scale=5),
         "rope": _stripes(12, (0.74, 0.62, 0.42), (0.45, 0.36, 0.22), freq=12, angle=0.7, sharp=2, noise=0.2),
         "thatch": _stripes(13, (0.66, 0.55, 0.33), (0.42, 0.32, 0.17), freq=30, angle=0.03, sharp=3, noise=0.6),
@@ -275,9 +284,9 @@ def paint_atlas():
         "ash": _speckle(24, (0.48, 0.46, 0.43), (0.28, 0.27, 0.26), light=(0.62, 0.6, 0.57), scale=9),
         "ember": _ember(),
         # Drying-rack stages separate by value as well as hue (tile-mean Rec.709 luma, checked by
-        # t_structart): wet bright red ~65 -> deep maroon ~28 -> near-black brown ~16 with amber
+        # t_structart): wet marbled red ~70 -> deep maroon ~28 -> near-black brown ~16 with amber
         # fat speckle; the dried stage also gets meat_fat rim geometry (structures._strips) so it reads on the dirt disc.
-        "meat_raw": _meat(25, (0.86, 0.17, 0.15), (0.62, 0.08, 0.08), (0.95, 0.74, 0.68), 0.2),
+        "meat_raw": _meat(25, (0.72, 0.2, 0.17), (0.5, 0.1, 0.09), (0.92, 0.78, 0.7), 0.18, veins=0.85),
         "meat_drying": _meat(26, (0.38, 0.06, 0.05), (0.24, 0.035, 0.03), (0.56, 0.24, 0.18), 0.16),
         "meat_dried": _meat(27, (0.14, 0.065, 0.04), (0.07, 0.03, 0.02), (0.62, 0.46, 0.32), 0.14),
         "meat_fat": _speckle(33, (0.6, 0.38, 0.22), (0.44, 0.26, 0.14), light=(0.72, 0.52, 0.34), scale=6),
