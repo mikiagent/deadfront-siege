@@ -105,6 +105,11 @@ and t_items all exit 1 on the new cases (gate from_dict raises on "true"; pen in
 the occupant is lost; members after=0 errors=2; uid "i12\n" / "p_12\n" kept; notice
 "Need Tool Axe"; overflow loads INF), and with the fixes restored all four PASS.
 
+Gate after the round-2 fixes (run through gslot, 4 min 20 s): `tools/dsc/verify_minors.sh`
+exited 0 with all 12 test scripts, all 8 labs and smoke PASS. lighting_lab is windowed and not
+in that gate; its two windowed runs are under 35. Base `claude/mmo-overhaul` (e93b863) has not
+moved since the last merge.
+
 Minors:
 - uid regexes anchored with `\z` (13); fertilizer_overflow clamped on load (4); gather notice
   test and first-letter capitalisation (18); prop_visuals tombstone removed (21).
