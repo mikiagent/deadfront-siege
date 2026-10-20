@@ -1,6 +1,7 @@
 # W2-BUILDSYS: ARK-style modular building with structure HP, tiers and repair
 
-Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last at 5d21c491, base tip 85c2b63b).
+Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last at 44730650, base tip 4cbc1178,
+which brought DSC-CLIPS).
 Closes build-struct-01, build-def-01, build-tier-01, build-place-02, phys-wall-01, dino-ai-17 (with the W2-ECO
 hook below). Not closed: build-storage-01 (chests/large box) and build-sign-01 (sign text), see Limits.
 
@@ -86,13 +87,18 @@ ceilings its "inside" fade (a faint outline stays). I bound to it in a scratch m
   target (door_5_8_0_5)`, `schema 4 save holds 57 piece rows`, `load restores every piece: 57/57, 0 differ`,
   `the basket on the foundation comes back`, `a schema-3 save migrates to 4`, `the schema-3 save loads with its
   kits and no pieces`.
-- **build_lab** `[build] PASS`; **siege probe** exit 0, `destroyed-after=21s occupancy-cleared=true` (the
-  catapult now takes the raptor's bites through StructureHealth); **island_lab** exit 0,
-  `island temperate_25 nodes=378 creatures=24` (unchanged from the merge log). Final-code reruns: see the
-  gate lines at the end of this file.
-- **Every test**: run_all `[tests] PASS`, SMOKE PASS, t_ai, t_build, t_buildsys, t_canim, t_combat,
-  t_harbour (islands=15), t_iconart, t_items, t_light, t_lighting, t_save (its 5 deliberate SCRIPT ERRORs, as
-  on base), t_structart, t_tame, t_web all PASS.
+- **build_lab** `[build] PASS`; **siege probe** exit 0, `destroyed-after=12s occupancy-cleared=true` (the
+  catapult takes the raptor's bites through StructureHealth); **island_lab** exit 0,
+  `island temperate_25 nodes=378 creatures=24` (unchanged from the merge log); 0 SCRIPT ERROR in all four.
+  Before the DSC-CLIPS merge the probe was flaky on this branch (one run at 23 s, two over its 25 s window):
+  the raptor spent t=1-16 s in hit_react, which DSC-CLIPS halved; the merged base alone destroyed the platform
+  at 12, 12 and 13 s in three runs, and this branch after the merge at 12 s. Damage per bite is unchanged
+  (45.2, same as `receive_siege_hit` before).
+- **Every test** on the merged branch (44730650): run_all `[tests] PASS`, SMOKE PASS, t_ai, t_build,
+  t_buildsys, t_canim, t_combat, t_harbour (islands=15), t_iconart, t_items, t_light, t_lighting, t_save (its 5
+  deliberate SCRIPT ERRORs, as on base), t_structart, t_tame, t_web all PASS; snap_build_lab `[snap] PASS`.
+- **Hooks applied** (scratch tree: this branch + W2-OCCLUDE + the hooks patch): the same full suite, all PASS
+  (t_save with its 5 deliberate errors), before the DSC-CLIPS merge.
 - **Wild dinosaurs attack structures that block them**: with the W2-ECO hook applied (scratch tree), a real
   velociraptor with its brain on, aggro on a survivor shut in a one-module room, retargeted the north wall and
   bit it within 2 s: `[probe] t=1 state=approach target=wall_6_9_0_2`, `[struct] wall hit dmg=74.2
@@ -135,8 +141,8 @@ ceilings its "inside" fade (a faint outline stays). I bound to it in a scratch m
 ## Integrator hooks
 
 Files other packages own. `docs/orchestration/reports/claude-mmo-w2-buildsys-hooks.patch` holds hooks 1-3 as
-one patch; `git apply --check` passes on this branch, it compiles (import + run), and the hooked scratch tree
-ran the probe above (full-suite result at the end of this file).
+one patch; `git apply --check` passes on this branch (also after the DSC-CLIPS merge), it compiles (import +
+run), and the hooked scratch tree passed the full suite and the probe above.
 
 1. **W2-PLAYER, `game/scripts/player/player.gd`**: `signal structure_tapped(piece: StructurePiece)`; taps on a
    piece: a door toggles (`interact`), any other piece emits `structure_tapped`; `_is_interactable` accepts
