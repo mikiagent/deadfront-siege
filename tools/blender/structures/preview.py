@@ -86,7 +86,7 @@ cam.location = mid + d * 60
 cam.rotation_euler = rot.to_euler()
 bpy.context.scene.camera = cam
 
-# The game lays an opaque dirt disc at y = 0.08 m under every building but straw_roll
+# The game lays an opaque dirt disc at y = 0.08 m under every building but straw_roll and the fields
 # (PropVisuals.ensure_foundation, radius = half the footprint diagonal + 1 m); draw it so the sheet
 # shows what the camera sees, not detail the disc buries. Added after framing so it does not widen it.
 with open(os.path.join(GLB_DIR, "..", "..", "..", "data", "props_manifest.json")) as f:
@@ -94,7 +94,7 @@ with open(os.path.join(GLB_DIR, "..", "..", "..", "data", "props_manifest.json")
 fp_by_glb = {}
 for kind, row in rows.items():
     g = os.path.basename(str(row.get("glb", "")))[:-4]
-    if g and kind != "straw_roll":
+    if g and kind not in ("straw_roll", "field_small", "field_large"):
         fp_by_glb.setdefault(g, row.get("footprint", [1, 1]))
 dm = bpy.data.materials.new("foundation_disc")
 dm.use_nodes = True

@@ -650,7 +650,7 @@ def roof():
 # The 18 placeable kinds that used to fall back to Kenney models. Same kit, tiles and palette as the
 # camp above; footprints (X x Y) follow game/data/props_manifest.json, the front faces -Y.
 # PropVisuals.ensure_foundation lays an opaque dirt disc at y = 0.08 m under every building but
-# straw_roll, so ground detail (beds, mats, ash and ember beds, soil) starts at GROUND and up.
+# straw_roll and the fields, so ground detail (beds, mats, ash and ember beds) starts at GROUND and up.
 GROUND = 0.08
 
 def large_box():
@@ -1126,9 +1126,9 @@ def fence_fortified():
 def _field(name, fx, fy, rows):
     """Tilled field: raised soil ridges and dark furrows running along X inside a low log border
     with corner stakes, a hoe laid on the rows, a seed basket and a watering bucket. fx/fy are the
-    footprint in metres; rows is the number of ridges. The bed stands 0.1 m proud so the soil sits
-    above the foundation disc (y = 0.08), and nothing rises past ~0.33 m: a field must not block
-    like a crate (PropVisuals sizes the collider from the AABB)."""
+    footprint in metres; rows is the number of ridges. A field gets no foundation disc (it is its own
+    dirt); the bed stands 0.1 m proud as a raised bed on the terrain, and nothing rises past ~0.33 m:
+    a field must not block like a crate (PropVisuals sizes the collider from the AABB)."""
     p = Part(name)
     hx, hy = fx / 2 - 0.09, fy / 2 - 0.09
     top = GROUND + 0.02  # bed top
@@ -1148,7 +1148,7 @@ def _field(name, fx, fy, rows):
             hh = 0.05 + 0.035 * ((i * 7 + k * 5) % 4) / 3
             yj = y + 0.02 * (((i * 11 + k * 7) % 3) - 1)  # break the seam line
             p.prism([(x0, yj - hw_, top + 0.005), (x0, yj + hw_, top + 0.005), (x0, yj, top + 0.005 + hh)],
-                    (span / seg + 0.03, 0, 0), "dirt", tile_m=0.28)
+                    (span / seg + 0.03, 0, 0), "clay_dark", tile_m=0.28)
     # border: logs pinned with stakes on all four sides
     for sy in (-1, 1):
         p.log((-hx - 0.02, sy * hy, GROUND + 0.05), (hx + 0.02, sy * hy, GROUND + 0.05), 0.062)
