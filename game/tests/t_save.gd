@@ -159,10 +159,8 @@ func _test_round_trip(name: String) -> void:
 	if name.begins_with("save_v3_"):
 		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
 		var gd: Array[String] = []
-		# y is re-seated on the terrain at load; the schema marker moves on to the current one.
-		_same(golden, s1, "", gd, ["/player/position/1", "/schema"])
+		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
 		_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
-		_check(int(s1.get("schema", -1)) == int(SG.SCHEMA), "v3 golden re-saves at the current schema")
 	print("[t_save] round trip %s fields=%d diffs=%d" % [name, s1.size(), diffs.size()])
 	await process_frame
 

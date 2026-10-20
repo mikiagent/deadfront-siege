@@ -128,3 +128,19 @@ index 04f53003..5500ef26 100644
  func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
  	var b := Button.new()
  	b.text = text
+diff --git a/game/tests/t_save.gd b/game/tests/t_save.gd
+index 973340ac..1e2bd0a9 100644
+--- a/game/tests/t_save.gd
++++ b/game/tests/t_save.gd
+@@ -159,8 +159,10 @@ func _test_round_trip(name: String) -> void:
+ 	if name.begins_with("save_v3_"):
+ 		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
+ 		var gd: Array[String] = []
+-		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
++		# y is re-seated on the terrain at load; the schema marker moves on to the current one.
++		_same(golden, s1, "", gd, ["/player/position/1", "/schema"])
+ 		_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
++		_check(int(s1.get("schema", -1)) == int(SG.SCHEMA), "v3 golden re-saves at the current schema")
+ 	print("[t_save] round trip %s fields=%d diffs=%d" % [name, s1.size(), diffs.size()])
+ 	await process_frame
+ 
