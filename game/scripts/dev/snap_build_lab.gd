@@ -335,6 +335,12 @@ func _check_paths() -> void:
 	_expect(tp.last_reachable, "the owner's path goes through its own door")
 	tp.path(outside, inside)
 	_expect(not tp.last_reachable, "the owner's query leaves the creature map closed")
+	var probe := Node3D.new()  # where a raptor outside the door would stand
+	World.runtime.add_child(probe)
+	probe.global_position = Vector3(inside.x, _floor0 - 0.3, outside.z)
+	var target := StructureHealth.siege_target(probe, inside)
+	_expect(target is StructurePiece and (target as StructurePiece).kind in [&"door", &"doorway", &"wall", &"window"], "a creature locked out gets the blocking piece as its siege target (%s)" % (target.name if target else "none"))
+	probe.queue_free()
 	if door:
 		door.interact(_player)
 		tp.path(outside, inside)

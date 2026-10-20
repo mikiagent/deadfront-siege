@@ -104,6 +104,13 @@ static func tier_gate(player: Node, tier: StringName) -> String:
 		return "locked"
 	return ""
 
+## The tier one rank up (the HUD's Upgrade button), or &"" at the top.
+static func next_tier(tier: StringName) -> StringName:
+	for t in (StructurePiece.defs().get("tiers", {}) as Dictionary):
+		if StructurePiece.tier_rank(StringName(t)) == StructurePiece.tier_rank(tier) + 1:
+			return StringName(t)
+	return &""
+
 static func can_pay(inv: Inventory, cost: Dictionary) -> bool:
 	for id in cost:
 		if inv.count_of(id) < int(cost[id]):

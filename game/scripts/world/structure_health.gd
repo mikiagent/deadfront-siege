@@ -9,9 +9,10 @@ extends Node
 ##   StructureHealth.of(node)                    -> StructureHealth or null (null = not a structure)
 ##   StructureHealth.of(node, true)              -> creates one on a placed kind that has none yet
 ##   StructureHealth.is_structure(node)          -> true for pieces and placed kinds
-##   StructureHealth.blocker_between(a, b_pos)   -> the structure body on the knee-height line from
-##                                                  node a to a world point, or null (attack it when
-##                                                  TilePath.path(..., false) says the goal is unreachable)
+##   StructureHealth.blocker_between(a, b_pos)   -> the wall, door, window, pillar or kit on the
+##                                                  knee-height line from node a to a world point, or null
+##   StructureHealth.siege_target(a, b_pos)      -> that blocker, but only when TilePath says the goal
+##                                                  cannot be reached (the brain's one-line hook)
 ##   health.take_damage(amount, source)          -> damage dealt after the tier multiplier
 ##   health.hp / health.max_hp / health.fraction()
 ##   signals damaged(amount, source), destroyed(source)
@@ -52,18 +53,34 @@ static func is_structure(node: Node) -> bool:
 		return false
 	return node.get("persist_building") != false and node.get("is_cargo") != true
 
-## The structure between a creature (or any body) and a world point at knee height, or null.
+## The structure between a creature (or any body) and a world point at knee height, or null. Floors
+## the line grazes (a foundation's skirt, a ramp) are looked past: the wall behind them is the target.
 static func blocker_between(a: Node3D, to: Vector3) -> Node3D:
 	if a == null or not a.is_inside_tree():
 		return null
 	var from := a.global_position + Vector3(0, 0.5, 0)
 	var q := PhysicsRayQueryParameters3D.create(from, Vector3(to.x, from.y, to.z))
 	q.collision_mask = StructurePiece.LAYER_WALK | StructurePiece.LAYER_STRUCTURE
+	var skip: Array[RID] = []
 	if a is CollisionObject3D:
-		q.exclude = [(a as CollisionObject3D).get_rid()]
-	var hit := a.get_world_3d().direct_space_state.intersect_ray(q)
-	var col: Variant = hit.get("collider")
-	return col as Node3D if col is Node3D and is_structure(col as Node) else null
+		skip.append((a as CollisionObject3D).get_rid())
+	for i in 4:
+		q.exclude = skip
+		var col: Variant = a.get_world_3d().direct_space_state.intersect_ray(q).get("collider")
+		if not col is Node3D or not is_structure(col as Node):
+			return null
+		if col is StructurePiece and str(StructurePiece.piece_def((col as StructurePiece).kind).get("blocks", "none")) == "none":
+			skip.append((col as StructurePiece).get_rid())
+			continue
+		return col as Node3D
+	return null
+
+## For brains: the structure to break on the way to `goal`, or null while a path still exists.
+static func siege_target(a: Node3D, goal: Vector3) -> Node3D:
+	var tp: Variant = World.runtime.get("pathing") if World.runtime else null
+	if a == null or not tp is TilePath:
+		return null
+	return null if bool((tp as TilePath).path_result(a.global_position, goal)["reachable"]) else blocker_between(a, goal)
 
 func setup(p_max: float, p_hp: float = -1.0, p_mult: float = 1.0) -> void:
 	max_hp = maxf(1.0, p_max)
