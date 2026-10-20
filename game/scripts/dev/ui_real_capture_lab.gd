@@ -179,12 +179,23 @@ func _run() -> void:
 		for i in hexes.size():
 			parts["hex%d" % i] = hexes[i].get_global_rect()
 		parts["title"] = radial.title_box
-		# ...and off the plant being gathered and its selection ring (the title box hid both on a phone).
-		hud["source"] = radial.source_rect()
+		# The name + level box keeps off the hexes and their labels (above the plant it sat under a hex).
+		for k in parts:
+			if k != "title":
+				_expect(not radial.title_box.intersects(parts[k] as Rect2), "radial: title %s stays off %s %s" % [radial.title_box, k, parts[k]])
+		# ...and off the plant being gathered and its selection ring: the title box hid both on a phone,
+		# so it may not touch them. A hex or label may graze the ring (at most 5 % of its own box):
+		# where the plant sits under the HUD at a screen edge (portrait) no ring keeps fully clear.
+		var hull := radial.source_hull()
+		_expect(hull.size() >= 3, "radial: the gathered source is on screen")
+		var worst := 0.0
 		for k in parts:
 			for h in hud:
 				_expect(not (parts[k] as Rect2).intersects(hud[h] as Rect2), "radial: %s %s stays off %s %s" % [k, parts[k], h, hud[h]])
-		print("[uireal] radial: %d option labels, %d hexes and the title checked against %d HUD blocks and the source %s, nameplate %s" % [radial.label_rects.size(), hexes.size(), hud.size() - 1, hud["source"], plate])
+			var share := cover_share(parts[k] as Rect2, hull)
+			worst = maxf(worst, share)
+			_expect(share <= (0.0 if k == "title" else 0.05), "radial: %s %s stays off the plant and its ring %s (covers %.0f%% of it)" % [k, parts[k], radial.source_rect(), share * 100.0])
+		print("[uireal] radial: %d option labels, %d hexes and the title checked against %d HUD blocks and the source %s (most of a part on it %.1f%%), nameplate %s" % [radial.label_rects.size(), hexes.size(), hud.size(), radial.source_rect(), worst * 100.0, plate])
 		await _capture("radial", hexes, logical)
 		radial.close()
 	# creature plate with three status glyphs (letters must sit inside their rings)
@@ -368,6 +379,17 @@ static func hud_blocks(hud: HuntHud, player: Player, r: Vector2) -> Dictionary:
 	var base := Vector2(r.x - lw - 16.0 - inset.x, r.y - HuntHud.HEX - 22.0) if phone else Vector2(r.x * 0.5 - lw * 0.5, r.y - 7.0)
 	out["level"] = Rect2(base - Vector2(0.0, 12.0), Vector2(lw, 15.0))
 	return out
+
+## Share of `r` that lies on the convex polygon `hull` (0 when they only touch).
+static func cover_share(r: Rect2, hull: PackedVector2Array) -> float:
+	var poly := PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
+	var area := 0.0
+	for piece in Geometry2D.intersect_polygons(poly, hull):
+		var a := 0.0
+		for i in piece.size():
+			a += piece[i].cross(piece[(i + 1) % piece.size()])
+		area += absf(a) * 0.5
+	return area / maxf(1.0, r.get_area())
 
 ## Atlas blocks: the map square, Close, the action row, zoom, the island cards and the legend.
 static func atlas_blocks(map: MapScreen) -> Dictionary:

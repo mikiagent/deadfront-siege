@@ -11,8 +11,10 @@ const TURN_STEPS := 24
 ## Top-left positions for `count` hexes on a ring around `anchor` (Durango tree wheel: the
 ## source name sits in the middle, hexes surround it, labels face outward). `clear_w` is the
 ## width of the centred title so the ring radius keeps the hexes off it. `avoid` are screen rects
-## the hexes should stay off (UiTokens.hud_reserved).
-static func hex_positions(anchor: Vector2, count: int, view: Vector2, safe: Vector4, hex: float = HEX, clear_w: float = 0.0, avoid: Array[Rect2] = []) -> Array[Vector2]:
+## the hexes should stay off (UiTokens.hud_reserved). With `label_w`, each hex's outward label slot
+## must stay off them too (and off the other hexes): a ring with its hexes clear still put a label
+## on the plant or into the HUD column on a small landscape phone.
+static func hex_positions(anchor: Vector2, count: int, view: Vector2, safe: Vector4, hex: float = HEX, clear_w: float = 0.0, avoid: Array[Rect2] = [], label_w: float = 0.0) -> Array[Vector2]:
 	var positions: Array[Vector2] = []
 	if count <= 0:
 		return positions
@@ -46,6 +48,8 @@ static func hex_positions(anchor: Vector2, count: int, view: Vector2, safe: Vect
 		var turn := TAU * float(step) / float(TURN_STEPS)
 		var ring := _ring(anchor, angles, turn, radius, hex)
 		var score := _overflow(ring, hex, bounds) * 1000.0 + _overlap(ring, hex, avoid)
+		if label_w > 0.0:
+			score += _label_cover(ring, hex, anchor, view, label_w, avoid)
 		if score <= 0.0:
 			return ring
 		if score < best_score:
@@ -76,6 +80,21 @@ static func _overlap(ring: Array[Vector2], hex: float, avoid: Array[Rect2]) -> f
 		var r := Rect2(p, Vector2(hex, hex))
 		for a in avoid:
 			total += r.intersection(a).get_area()
+	return total
+
+## Area of the outward label slots (as GatherRadial.label_rect places them) off screen, on `avoid`
+## or on another hex.
+static func _label_cover(ring: Array[Vector2], hex: float, anchor: Vector2, view: Vector2, label_w: float, avoid: Array[Rect2]) -> float:
+	var total := 0.0
+	for p in ring:
+		var left := label_on_left(p, hex, view, anchor)
+		var x := p.x - label_w - 14.0 if left else p.x + hex + 8.0
+		var r := Rect2(Vector2(x - 4.0, p.y + hex * 0.5 - 14.0), Vector2(label_w + 12.0, 26.0))
+		total += r.get_area() - r.intersection(Rect2(Vector2.ZERO, view)).get_area()
+		for a in avoid:
+			total += r.intersection(a).get_area()
+		for q in ring:
+			total += r.intersection(Rect2(q, Vector2(hex, hex))).get_area()
 	return total
 
 static func _slide_inside(ring: Array[Vector2], hex: float, bounds: Rect2) -> Array[Vector2]:
