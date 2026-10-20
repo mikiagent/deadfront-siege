@@ -98,13 +98,21 @@ func to_dict() -> Dictionary:
 
 static func from_dict(data: Dictionary) -> CreatureGenetics:
 	var out := neutral()
+	# Each table is untrusted: a save holding "ivs": 5 or [] would raise on .get() and abort the load.
+	var ivs_in := _table(data.get("ivs"))
+	var evs_in := _table(data.get("evs"))
+	var gains_in := _table(data.get("level_gains"))
 	for stat in STATS:
 		var key := str(stat)
-		out.ivs[stat] = clampi(int(data.get("ivs", {}).get(key, out.ivs[stat])), 0, IV_MAX)
-		out.evs[stat] = clampi(int(data.get("evs", {}).get(key, 0)), 0, EV_MAX_PER_STAT)
-		out.level_gains[stat] = maxi(0, int(data.get("level_gains", {}).get(key, 0)))
+		out.ivs[stat] = clampi(int(ivs_in.get(key, out.ivs[stat])), 0, IV_MAX)
+		out.evs[stat] = clampi(int(evs_in.get(key, 0)), 0, EV_MAX_PER_STAT)
+		out.level_gains[stat] = maxi(0, int(gains_in.get(key, 0)))
 	_cap_total(out.evs, EV_TOTAL_MAX)
 	return out
+
+## A saved stat table, or {} when the row is any other type.
+static func _table(v: Variant) -> Dictionary:
+	return v if v is Dictionary else {}
 
 ## Level gains can never exceed what levelling grants (3 per level-up); the owner clamps with
 ## its level since genetics alone do not know it.

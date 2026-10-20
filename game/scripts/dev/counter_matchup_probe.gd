@@ -12,6 +12,7 @@ var correct := false
 var species: StringName = &"velociraptor"
 func run(host: Node) -> void:
 	seed(41)
+	CombatTuning.rng.seed = 41  # CombatTuning.rng is the combat RNG; seed() does not reach it
 	for arg in OS.get_cmdline_user_args():
 		if arg == "--correct-kit": correct = true
 		if arg.begins_with("--match-species="): species = StringName(arg.substr(16))

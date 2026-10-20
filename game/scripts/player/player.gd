@@ -819,16 +819,17 @@ func _closest_nav_point(pos: Vector3) -> Vector3:
 	return NavigationServer3D.map_get_closest_point(map, pos)
 
 func _begin_gather(node: HarvestNode) -> void:
-	if node.required_tool_class != &"" and node.required_tool_class != &"none":
-		if not _auto_equip_tool(node.required_tool_class):
-			print("[item] refused %s: need tool %s" % [node.node_id, node.required_tool_class])
-			return
+	# Ask the node first: the tier gate lives in can_gather, and auto-equip used to answer a bare
+	# "need tool pick" before it, so a survivor with a flint pick at copper never saw "needs
+	# obsidian pick". Refusals now reach the HUD, not only the log.
 	var why := node.can_gather(inventory)
-	if why != "" and why != "depleted":
+	if why == "":
+		# can_gather found the tool in the bag (same find_gather_tool lookup): put it in hand for the clip.
+		_auto_equip_tool(node.required_tool_class)
+	else:
 		print("[item] refused %s: %s" % [node.node_id, why])
-		return
-	if why == "depleted":
-		print("[item] refused %s: depleted" % node.node_id)
+		# Upper-case the first letter only: capitalize() Title-Cased "Need Tool Axe".
+		notice("Picked clean" if why == "depleted" else why.left(1).to_upper() + why.substr(1))
 		return
 	_stop_gather_cycle(false)
 	butcher_target = null

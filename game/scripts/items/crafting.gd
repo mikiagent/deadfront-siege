@@ -419,7 +419,8 @@ static func consume_for_craft(inv: Inventory, rec: Dictionary, picks: Array[int]
 			if taken: refund.append(taken)
 	return refund
 
-## Units that do not fit go to `overflow` (the caller keeps them, e.g. at the station).
+## Units that do not fit go to `overflow`: the caller owns them and must put them back (StationCraft
+## re-adds them after the craft). output_fits should make this unreachable: it is a last resort.
 static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemStack], burnt: bool = false, overflow: Array[ItemStack] = []) -> ItemStack:
 	if rec.is_empty() or consumed.is_empty():
 		return null
