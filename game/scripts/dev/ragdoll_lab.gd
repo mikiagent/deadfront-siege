@@ -6,8 +6,10 @@ extends Node3D
 ## Run: Godot --headless --fixed-fps 60 --path game -- --lab=ragdoll_lab [--rl-species=a,b]
 ##   [--rl-terrain=flat,slope,rock]   cases to run (default: all 11 species x 3)
 ##   [--rl-suggest]                   skin-based radius suggestions per profile body, no physics
+##   [--rl-fallback]                  budget 0: every case takes the fallback path (gates expect ragdoll)
 ##   [--rl-perf]                      4 simultaneous ragdolls on temperate_25: added physics ms
-##   [--rl-shots=<dir>]               windowed: contact sheet per terrain + one PNG per case
+##   [--rl-shots=<dir>]               windowed: contact sheet per terrain + one PNG per case + a
+##                                    settle sequence per case (hit react, falling, landing, frozen)
 ##   [--rl-phone=<png>]               windowed 844x390: one corpse under the game's iso camera
 
 const SPECIES: Array[StringName] = [&"coelophysis", &"compsognathus", &"deinonychus", &"gallimimus",
@@ -20,8 +22,23 @@ const BATCH := 4
 const TOUCH_M := 0.06  # skin gap allowed above and below the ground
 const LIE_FRAC := 0.5  # hips at most this share of the standing hips height
 const FOOT_FRAC := 0.75  # no foot higher than this share of the standing hips height
-const LIMIT_TOL_DEG := 8.0
+const LIMIT_TOL_DEG := 8.0  # hinges: knees, elbows, ankles, tail and neck hinges
+## Cones (hips, shoulders, neck, tail): the engine's 6DOF clamps per axis in its own frame, this
+## lab decomposes twist-then-swing from rest; past ~40 deg of swing the two disagree by 10-20 deg.
+const CONE_TOL_DEG := 20.0
 const STRETCH_TOL := 0.01
+## Skin tear: a mesh edge over TEAR_RATIO x its idle length AND over TEAR_LEN_FRAC of the
+## creature's height is pulled skin. The ragdoll may tear at most TEAR_MAX_FRAC of the mesh's
+## edges, or as many as the species' own death clip already tears (CLIP_TORN, measured on flat
+## ground with --rl-fallback; the donor rigs' skinning stretches at folded joints and megaloceros'
+## clip tears its antler and flank).
+const TEAR_RATIO := 3.0
+const TEAR_LEN_FRAC := 0.08
+const TEAR_MAX_FRAC := 0.005
+const CLIP_TORN := {&"compsognathus": 12, &"gallimimus": 82, &"megaloceros": 2166, &"protoceratops": 150,
+	&"utahraptor": 16, &"velociraptor": 2, &"zebraceratops": 206}
+## Seconds after the blow at which the settle sequence grabs a frame (the 4th tile is the corpse).
+const SEQ_T: Array[float] = [0.2, 0.8, 1.6]
 const SETTLE_MAX_S := 3.5
 const PERF_PASSES := 5
 const PERF_MAX_MS := 2.0
@@ -34,6 +51,7 @@ var _phone := ""
 var _failures: Array[String] = []
 var _cam: Camera3D
 var _sheets: Dictionary = {}  # terrain -> Image
+var _seqs: Dictionary = {}  # "species/terrain" -> Image (2x2 settle sequence)
 
 func _ready() -> void:
 	_species = SPECIES.duplicate()
@@ -53,6 +71,8 @@ func _ready() -> void:
 			suggest = true
 		elif a == "--rl-perf":
 			perf = true
+		elif a == "--rl-fallback":
+			Ragdoll.data()["budget"]["max_active"] = 0  # every death takes the fallback (clip + conform)
 		elif a.begins_with("--rl-shots="):
 			_shots = a.substr(11)
 		elif a.begins_with("--rl-phone="):
@@ -67,6 +87,7 @@ func _ready() -> void:
 	WorldLighting.install(self, "temperate")
 	_cam = Camera3D.new()
 	_cam.fov = 45.0
+	_cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF  # it jumps from case to case
 	add_child(_cam)
 	_cam.current = true
 	if suggest:
@@ -183,13 +204,20 @@ func _run_cases() -> void:
 		await _frames(30)  # idle pose settles, capsules land on the floor
 		for c in batch:
 			c["stand_hips"] = _hips_height(c)
+			c["idle_skin"] = _skin_now(c)
 		for c in batch:
 			var cr: Creature = c["creature"]
 			cr.health.take_damage(cr.health.hp + 1.0, c["source"])
 		var waited := 0.0
+		var seq_i := 0
 		while waited < 8.0 and not _all_frozen(batch):
 			await get_tree().physics_frame
 			waited += get_physics_process_delta_time()
+			if _shots != "" and seq_i < SEQ_T.size() and waited >= SEQ_T[seq_i]:
+				for c in batch:
+					await _seq_grab(c, seq_i)
+					waited += get_physics_process_delta_time()
+				seq_i += 1
 		await _frames(2)
 		for c in batch:
 			_keep_corpse(c)
@@ -204,6 +232,9 @@ func _run_cases() -> void:
 		i += BATCH
 	if _shots != "":
 		var rm := RenderingServer.get_current_rendering_method()
+		for k in _seqs:
+			var path := "%s/seq_%s_%s.png" % [_shots, str(k).replace("/", "_"), rm]
+			(_seqs[k] as Image).save_png(path)
 		for t in _sheets:
 			var path := "%s/ragdoll_%s_%s.png" % [_shots, t, rm]
 			(_sheets[t] as Image).save_png(path)
@@ -330,14 +361,22 @@ func _measure(c: Dictionary) -> bool:
 		line += " up_y=%+.2f" % up
 		if up < -0.35:
 			bad.append("legs up (body up axis y %.2f)" % up)
+		var tear := _skin_tear(c)
+		line += " torn=%d/%d(max x%.2f %s)" % [tear[0], tear[1], tear[2], tear[3] if tear.size() > 3 else ""]
+		var tear_cap := maxi(int(TEAR_MAX_FRAC * float(tear[1])), int(CLIP_TORN.get(cr.def.id, 0)))
+		if int(tear[0]) > tear_cap:
+			bad.append("skin torn: %d long edges over x%.1f their idle length (cap %d, max x%.2f)" % [tear[0], TEAR_RATIO, tear_cap, tear[2]])
 		var stretch := _worst_stretch(sk, rd)
 		line += " stretch=%.3f" % stretch
 		if stretch > STRETCH_TOL:
 			bad.append("bone stretched %.1f %%" % (stretch * 100.0))
-		var lim := _worst_limit(sk, rd)
-		line += " limit_over=%.1fdeg(%s)" % [lim[0], lim[1]]
+		var lim := _worst_limit(sk, rd, "hinge")
+		var cone := _worst_limit(sk, rd, "cone")
+		line += " hinge_over=%.1fdeg(%s) cone_over=%.1fdeg(%s)" % [lim[0], lim[1], cone[0], cone[1]]
 		if float(lim[0]) > LIMIT_TOL_DEG:
 			bad.append("joint %s %.1f deg past its limit" % [lim[1], lim[0]])
+		if float(cone[0]) > CONE_TOL_DEG:
+			bad.append("joint %s %.1f deg past its limit" % [cone[1], cone[0]])
 		# Every Skeleton3D carries an inactive internal compat simulator; only active modifiers cost.
 		var left := sk.find_children("*", "SkeletonModifier3D", true, false).filter(func(m: Node) -> bool: return (m as SkeletonModifier3D).active) \
 			+ cr.find_children("*", "PhysicalBone3D", true, false)
@@ -426,12 +465,12 @@ func _worst_stretch(sk: Skeleton3D, rd: Ragdoll) -> float:
 ## Largest overshoot of any simulated joint past its profile limit, measured from rest. Cones are
 ## checked per axis like the 6DOF joint that builds them: twist about the bone line, bend about the
 ## profile axis made square to it, side about the third axis.
-func _worst_limit(sk: Skeleton3D, rd: Ragdoll) -> Array:
+func _worst_limit(sk: Skeleton3D, rd: Ragdoll, only: String) -> Array:
 	var worst := 0.0
 	var who := "-"
 	for j in rd.joints:
 		var kind := str(j["joint"])
-		if kind == "" or kind == "pin":
+		if kind != only:
 			continue
 		var cb := int(j["bone"])
 		var pb := int(j["parent_bone"])
@@ -490,7 +529,17 @@ func _frame_corpse(c: Dictionary, elev_deg: float, az_deg: float) -> void:
 	var box := AABB(cr.global_position, Vector3.ZERO)
 	var mi := rd.mesh_instance() if rd else null
 	if mi and cr.view.rig and cr.view.rig.skeleton:
-		for p in RagdollSkin.posed_points(mi, cr.view.rig.skeleton, 61):
+		var pts := RagdollSkin.posed_points(mi, cr.view.rig.skeleton, 61)
+		if rd.rig:
+			# Mid-fall the skeleton's own poses lag the simulator: frame the bodies themselves.
+			pts = PackedVector3Array()
+			for k in rd.rig.bodies.size():
+				var r := float(rd.rig.info[k]["radius_m"])
+				for o in [Vector3(r, r, r), Vector3(-r, -r, -r)]:
+					pts.append(rd.rig.bodies[k].global_position + o)
+		if not pts.is_empty():
+			box = AABB(pts[0], Vector3.ZERO)  # mid-fall the body is no longer at the creature root
+		for p in pts:
 			box = box.expand(p)
 	var centre := box.get_center()
 	var radius := maxf(0.6, box.size.length() * 0.5)
@@ -516,6 +565,93 @@ func _shoot(c: Dictionary) -> void:
 	var tile := img.duplicate() as Image
 	tile.resize(400, 225, Image.INTERPOLATE_BILINEAR)
 	(_sheets[t] as Image).blit_rect(tile, Rect2i(0, 0, 400, 225), Vector2i((idx % 4) * 400, (idx / 4) * 225 + 112))
+	_seq_tile(c, img, SEQ_T.size())
+
+## One frame of the settle sequence, framed on the body as it is (one drawn frame = one physics tick).
+func _seq_grab(c: Dictionary, i: int) -> void:
+	_frame_corpse(c, 30.0 if c["terrain"] == "slope" else 18.0, 50.0 if c["terrain"] == "slope" else -60.0)
+	await RenderingServer.frame_post_draw
+	_seq_tile(c, get_viewport().get_texture().get_image(), i)
+
+func _seq_tile(c: Dictionary, img: Image, i: int) -> void:
+	var key := "%s/%s" % [c["species"], c["terrain"]]
+	if not _seqs.has(key):
+		var sheet := Image.create(1600, 900, false, img.get_format())
+		sheet.fill(Color(0.1, 0.1, 0.1))
+		_seqs[key] = sheet
+	var tile := img.duplicate() as Image
+	tile.convert((_seqs[key] as Image).get_format())
+	tile.resize(800, 450, Image.INTERPOLATE_BILINEAR)
+	(_seqs[key] as Image).blit_rect(tile, Rect2i(0, 0, 800, 450), Vector2i((i % 2) * 800, (i / 2) * 450))
+
+## Every vertex of the creature's skinned mesh, posed, in world space (stride 1).
+func _skin_now(c: Dictionary) -> PackedVector3Array:
+	var cr: Creature = c["creature"]
+	var mi := Ragdoll._first_skinned(cr.view.rig.mesh_root) if cr.view.rig and cr.view.rig.mesh_root else null
+	if mi == null or cr.view.rig.skeleton == null:
+		return PackedVector3Array()
+	return RagdollSkin.posed_points(mi, cr.view.rig.skeleton, 1)
+
+## [torn edges, edges, worst ratio of a long edge]: triangle edges of the frozen skin against the same edges in
+## the idle pose. Bone stretch and joint limits can all pass while the skin between two bodies is
+## pulled into long sheets (a body whose skin is weighted to a bone that follows another one).
+func _skin_tear(c: Dictionary) -> Array:
+	var idle: PackedVector3Array = c.get("idle_skin", PackedVector3Array())
+	var now := _skin_now(c)
+	var cr: Creature = c["creature"]
+	var mi := Ragdoll._first_skinned(cr.view.rig.mesh_root) if cr.view.rig and cr.view.rig.mesh_root else null
+	if mi == null or idle.size() != now.size() or idle.is_empty():
+		return [0, 0, 0.0, ""]
+	var torn := 0
+	var edges := 0
+	var worst := 0.0
+	var base := 0
+	var long_m := TEAR_LEN_FRAC * cr.def.height_meters
+	var smp := RagdollSkin.sample(mi, 1)
+	var sk := cr.view.rig.skeleton
+	var by_bone: Dictionary = {}
+	for si in mi.mesh.get_surface_count():
+		var arr := mi.mesh.surface_get_arrays(si)
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var b: Variant = arr[Mesh.ARRAY_BONES]
+		var w: Variant = arr[Mesh.ARRAY_WEIGHTS]
+		# Same skip rule as RagdollSkin.sample, so indices line up with its points.
+		if v.is_empty() or b == null or (b as PackedInt32Array).size() < v.size() or w == null or (w as PackedFloat32Array).size() != (b as PackedInt32Array).size():
+			continue
+		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		var k := 0
+		while k + 2 < idx.size():
+			for e in 3:
+				var i0 := base + idx[k + e]
+				var i1 := base + idx[k + (e + 1) % 3]
+				var rest := idle[i0].distance_to(idle[i1])
+				if rest < 0.002:
+					continue
+				var len_now := now[i0].distance_to(now[i1])
+				var r := len_now / rest
+				edges += 1
+				if len_now > long_m:
+					worst = maxf(worst, r)
+					if r > TEAR_RATIO:
+						torn += 1
+						for vi in [i0, i1]:
+							var bn := _dominant_bone(smp, vi, mi, sk)
+							by_bone[bn] = int(by_bone.get(bn, 0)) + 1
+			k += 3
+		base += v.size()
+	var names := by_bone.keys()
+	names.sort_custom(func(x, y) -> bool: return int(by_bone[x]) > int(by_bone[y]))
+	return [torn, edges, worst, ",".join(names.slice(0, 4).map(func(n) -> String: return "%s:%d" % [n, by_bone[n]]))]
+
+func _dominant_bone(smp: Dictionary, i: int, mi: MeshInstance3D, sk: Skeleton3D) -> String:
+	var w: PackedFloat32Array = smp["weights"]
+	var b: PackedInt32Array = smp["bones"]
+	var top := 0
+	for k in 4:
+		if w[i * 4 + k] > w[i * 4 + top]:
+			top = k
+	var bone := mi.skin.get_bind_bone(b[i * 4 + top])
+	return sk.get_bone_name(bone) if bone >= 0 else str(mi.skin.get_bind_name(b[i * 4 + top]))
 
 func _run_phone() -> void:
 	var c := {"species": &"velociraptor", "terrain": "flat"}
@@ -603,7 +739,7 @@ func _run_suggest() -> void:
 			var before_head := 0.0
 			var ab := b2 - a
 			var mean_off := Vector3.ZERO
-			for p in per[k]:
+			for p: Vector3 in per[k]:
 				var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 1e-9), -1e9, 1e9)
 				past_tip = maxf(past_tip, (t - 1.0) * ab.length() * rig.scale)
 				before_head = maxf(before_head, -t * ab.length() * rig.scale)
