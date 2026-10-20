@@ -20,11 +20,12 @@ fi
 # run_one <log> <script>: a test that crashes inside _init/_process never quits, so stop it as soon
 # as a SCRIPT ERROR / Parse Error line appears (1 s grace for the backtrace) instead of waiting out
 # the 120 s alarm. The subshell keeps bash's "Terminated" / "Alarm clock" job notices out of the output.
-# A test may cause a script error on purpose if it says so first: each "[t_x] the next SCRIPT ERROR"
-# line (t_save counts its own errors this way) excuses one engine "SCRIPT ERROR:" line.
-crash_line() {  # crash_line <log>: the first Parse Error or unannounced SCRIPT ERROR line, if any
-  local said; said="$(grep -cE '^\[t_[a-z0-9_]+\] the next SCRIPT ERROR' "$1")"
-  grep -m1 -E 'Parse Error' "$1" || grep -E '^SCRIPT ERROR' "$1" | sed -n "$((said + 1))p" | grep .
+# A test that causes script errors on purpose announces them ("[t_x] the next SCRIPT ERROR ...") and
+# must count them itself (t_save fails on any it did not expect, via a Logger), so once it has
+# announced one only a Parse Error counts as a crash here; its own verdict covers the rest.
+crash_line() {  # crash_line <log>: the first line that counts as a crash, if any
+  if grep -qE '^\[t_[a-z0-9_]+\] the next SCRIPT ERROR' "$1"; then grep -m1 -E 'Parse Error' "$1"
+  else grep -m1 -E 'SCRIPT ERROR|Parse Error' "$1"; fi
 }
 run_one() {
   ( perl -e 'alarm 120; exec @ARGV' "$G" --headless --path "$ROOT/game" --script "$2" > "$1" 2>&1 < /dev/null &

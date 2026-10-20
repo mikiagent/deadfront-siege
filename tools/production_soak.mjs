@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** Run the deployed web build through its deterministic soak route.
  * Usage: npm --prefix tools/web_soak install && node tools/production_soak.mjs [URL] [--expect-stamp=<commit>/<pack>]
+ * The URL must serve a WebSoak build (tools/export_web.sh --soak): release builds carry no soak route.
  * PASS needs '[soak] PASS', no error line, no black checkpoint frame, the in-game '[soak] stamp'
  * equal to the expected stamp (flag or EXPECTED_STAMP; without one the stamp is only printed),
  * a requestAnimationFrame p95 at or under RAF_P95_MS (default 100 ms) once the route runs, and no
@@ -42,11 +43,13 @@ await page.addInitScript(() => {
 let failure = '';
 let stamp = '';
 let checkpoint = 0;
+let mainReadyAt = 0;
 function writeLog() { fs.writeFileSync(path.join(out, 'console.log'), log.join('\n') + '\n'); }
 page.on('console', async msg => {
   const line = `[console.${msg.type()}] ${msg.text()}`;
   log.push(line);
   console.log(line);
+  if (line.includes('[boot] main scene ready')) mainReadyAt ||= Date.now();
   const st = line.match(/\[soak\] stamp (\S+)/);
   if (st) {
     stamp = st[1];
@@ -92,6 +95,9 @@ try {
   const deadline = Date.now() + 360_000;
   while (!failure && Date.now() < deadline && !log.some(line => line.includes('[soak] PASS'))) {
     await page.waitForTimeout(1000);
+    // Release exports drop scripts/dev and the ?soak=1 hook (W1-WEB): say so instead of timing out.
+    if (mainReadyAt && Date.now() - mainReadyAt > 60_000 && !log.some(line => line.includes('[soak] start')))
+      failure = 'no [soak] start 60 s after the main scene: this build has no soak route (release exports strip it; soak a tools/export_web.sh --soak build)';
   }
   if (!failure && !log.some(line => line.includes('[soak] PASS'))) failure = 'timed out waiting for [soak] PASS';
   if (!failure && !stamp) failure = 'no [soak] stamp line: cannot tell which build was tested';

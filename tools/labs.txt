@@ -41,7 +41,9 @@ counter_protoceratops   | 150 | -- --counter-matchup-probe --correct-kit --match
 tyrant_window           | 200 | --fixed-fps 60 -- --tyrant-window-probe
 bot_gate                | 600 | --fixed-fps 60 -- --bot --bot-gate --bot-minutes=8 | xfail:W2-DATA
 web_soak                | 200 | -- --web-soak                          | window
-ai_validation_lab       |  90 | -- --lab=ai_validation_lab
+# ai_validation_lab: 1 of 6 runs on 2026-10-19 failed two timing checks ("flat pack member stayed
+# stationary", "pet repeat attack stalled: bites=1") on the loaded shared machine. W1-AI's lab; AI: W2-ECO.
+ai_validation_lab       |  90 | -- --lab=ai_validation_lab             | flaky:W2-ECO
 resource_visibility_lab |  30 | -- --lab=resource_visibility_lab
 wild_ai_sweep_lab       | 180 | -- --lab=wild_ai_sweep_lab
 build_lab               |  60 | -- --lab=build_lab
