@@ -354,7 +354,7 @@
         1.0
       ],
       "art_status": "REPLACE",
-      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
+      "upgrade": "superseded by W2-BUILDSYS: modular pieces live in game/data/structures.json; a Blender model swaps in at piece_tiers.<kind>.<tier>.model (2 m module, see model_contract there)"
     },
     "wall": {
       "model": "structure",
@@ -370,7 +370,7 @@
         0.228
       ],
       "art_status": "REPLACE",
-      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
+      "upgrade": "superseded by W2-BUILDSYS: modular pieces live in game/data/structures.json; a Blender model swaps in at piece_tiers.<kind>.<tier>.model (2 m module, see model_contract there)"
     },
     "wall_doorway": {
       "model": "structure-metal-doorway",
@@ -385,7 +385,7 @@
         0.25
       ],
       "art_status": "REPLACE",
-      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
+      "upgrade": "superseded by W2-BUILDSYS: modular pieces live in game/data/structures.json; a Blender model swaps in at piece_tiers.<kind>.<tier>.model (2 m module, see model_contract there)"
     },
     "roof": {
       "model": "structure-roof",
@@ -400,7 +400,7 @@
         1.036
       ],
       "art_status": "REPLACE",
-      "upgrade": "stand-in only; W2-BUILDSYS replaces it with the tiered modular building kit"
+      "upgrade": "superseded by W2-BUILDSYS: modular pieces live in game/data/structures.json; a Blender model swaps in at piece_tiers.<kind>.<tier>.model (2 m module, see model_contract there)"
     },
     "fishing_stand": {
       "model": "campfire-fishing-stand",
