@@ -1,11 +1,12 @@
 extends Node3D
 ## W2-PROCESS lab: a drying rack, smoker, crock pot and steamer running real jobs.
 ## Headless: the survivor hangs 4 raw strips through the craft route, walks 50 m away, the rack
-## finishes on its own clock, COLLECT pays once, the meat is the same instance one step on, and
-## eating it applies its own stored energy.
+## finishes on its own clock, COLLECT pays once, the meat is the same instance one step on, eating
+## it applies its stored energy plus the Dried property's fatigue relief, and a smoked meat gives
+## the Warming Meal. Shift-tap pack-up refuses while the rack is loaded.
 ## Prints "[process_lab] PASS" or exits 1.
-## Windowed: --lab=process_lab --shot=<png> [--proc=0|50|100] [--proc-view=rack|all]
-## sets every station's jobs to that progress and frames the rack or the whole row.
+## Windowed: --lab=process_lab --shot=<png> [--proc=0|50|100] [--proc-view=rack|smoker|crock_pot|steamer|all]
+## sets every station's jobs to that progress and frames one station or the whole row.
 
 var _player: Player
 var _cam: IsoCamera
@@ -60,26 +61,34 @@ func _shot_setup() -> void:
 	ProcessStation.of(_smoker).load_from(inv, &"smoke_meat", 3)
 	ProcessStation.of(_pot).load_from(inv, &"camp_stew", 1)
 	ProcessStation.of(_steamer).load_from(inv, &"steam", 2)
-	var rack_secs := ProcessStation.job_seconds(&"drying_rack", &"dry_meat")
-	# 100 % shows the finished rack: dried strips, smoke out, "Ready" label.
-	ProcessStation.clock_skew_s = rack_secs * pct + (1.0 if pct >= 1.0 else 0.0)
-	for s in [_rack, _smoker, _pot, _steamer]:
+	var stations: Array[CraftStation] = [_rack, _smoker, _pot, _steamer]
+	var longest := 0.0
+	for s in stations:
+		for j in ProcessStation.of(s).jobs:
+			longest = maxf(longest, ProcessStation.job_seconds(ProcessStation.of(s).station_id, StringName(str(j["recipe"]))))
+	# 100 % finishes every station (smoke out, "Ready" labels); below that every job sits at pct.
+	ProcessStation.clock_skew_s = longest + 1.0 if pct >= 1.0 else 0.0
+	for s in stations:
 		var ps := ProcessStation.of(s)
-		if pct < 1.0 and s != _rack:
-			# Keep the other stations mid-job whatever their length, so smoke/steam shows.
+		if pct < 1.0:
 			for j in ps.jobs:
-				j["started"] = ProcessStation.now_s() - ProcessStation.job_seconds(ps.station_id, StringName(str(j["recipe"]))) * maxf(pct, 0.3)
+				j["started"] = ProcessStation.now_s() - ProcessStation.job_seconds(ps.station_id, StringName(str(j["recipe"]))) * pct
 		ps.advance(ProcessStation.now_s())
 		ps._redraw()
 	var view := _arg("proc-view", "rack")
-	_player.global_position = Vector3(1.6, 0, 2.2) if view == "rack" else Vector3(-1.5, 0, 3.2)
-	_player.face_world(_rack.global_position)
-	_cam._target = _rack if view == "rack" else _pot
-	_cam.size = 4.2 if view == "rack" else 9.0
+	var target: CraftStation = _pot
+	for s in stations:
+		if str(s.station_id) == view or (view == "rack" and s == _rack):
+			target = s
+	_player.global_position = target.global_position + (Vector3(1.6, 0, 2.2) if view != "all" else Vector3(1.9, 0, 3.0))
+	_player.face_world(target.global_position)
+	_cam._target = target
+	_cam.size = 9.0 if view == "all" else 4.2
 	_cam._snap()
-	print("[process_lab] shot ready proc=%d%% view=%s rack stage=%s label='%s' smoke=%s" % [
-		int(pct * 100.0), view, ProcessStation.of(_rack).stage_id(), ProcessStation.of(_rack).label_text(),
-		(ProcessStation.of(_rack).get_node("ProcessFx") as CPUParticles3D).emitting])
+	var tps := ProcessStation.of(target)
+	print("[process_lab] shot ready proc=%d%% view=%s stage=%s label='%s' fx=%s" % [
+		int(pct * 100.0), view, tps.stage_id(), tps.label_text(),
+		(tps.get_node("ProcessFx") as CPUParticles3D).emitting if tps.has_node("ProcessFx") else false])
 
 func _demo() -> void:
 	await get_tree().process_frame
@@ -121,9 +130,25 @@ func _demo() -> void:
 	_check(_player.eat_session.begin_eat(idx), "eating dried meat starts")
 	var meal := _player.eat_session._total_energy
 	_check(is_equal_approx(meal, expect), "the meal is the stored item's own %.1f energy (eating %.1f)" % [expect, meal])
+	_player.vitals.fatigue = 60.0
 	await get_tree().create_timer(Food.EAT_SECONDS + 0.5).timeout
 	_check(_player.vitals.energy > 10.0 and not _player.eat_session.eating, "eaten (energy 10 -> %.1f)" % _player.vitals.energy)
+	# The meal's energy break (EatSession: 1.5 x energy into Vitals.eat) plus the Dried property.
+	var expect_rest := expect * 1.5 * 0.25 + Food.fatigue_relief(dried)
+	_check(Food.fatigue_relief(dried) > 0.0 and _player.vitals.fatigue <= 60.0 - expect_rest + 0.5, "Dried eases fatigue: 60 -> %.1f (energy break + %.0f)" % [_player.vitals.fatigue, Food.fatigue_relief(dried)])
 	_check(_player.food_buffs._active.is_empty(), "no invented buff: dried meat carries none (%s)" % [_player.food_buffs._active.keys()])
+	# Smoked meat: the property's Warming Meal (the existing cold_resist row) from its stored history.
+	var smoked := Crafting.build_output(Crafting.recipe(&"smoke_meat"), ItemStack.make(&"raw_meat", 1), 1)
+	_player.statuses.clear_id(&"full")
+	_player.inventory.add(smoked)
+	_check(_player.eat_session.begin_eat(_player.inventory.find_first(&"smoked_meat")), "eating smoked meat starts")
+	await get_tree().create_timer(Food.EAT_SECONDS + 0.5).timeout
+	_check(_player.climate_resistance()["cold"] >= 1.0, "Smoked gives the Warming Meal: cold resistance %.0f" % _player.climate_resistance()["cold"])
+	# Shift-tap pack-up (BuildPlacer.pack_up_node) refuses while the rack holds anything.
+	World.island_def = {"kind": "private"}
+	LabKit.give(_player, &"raw_meat", 1)
+	ps.load_from(_player.inventory, &"dry_meat", 1, _player)
+	_check(not BuildPlacer.pack_up_node(_rack, _player) and is_instance_valid(_rack) and ps.jobs.size() == 1, "shift-tap pack-up refuses a loaded rack: '%s'" % BuildPlacer.pack_up_blocker(_rack))
 	ProcessStation.clock_skew_s = 0.0
 	if _fails.is_empty():
 		print("[process_lab] PASS")
