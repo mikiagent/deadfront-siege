@@ -1,0 +1,336 @@
+class_name StructurePiece
+extends StaticBody3D
+## One modular building piece (foundation, wall, doorway, door, window, ceiling, roof, roof ridge,
+## pillar, stairs, ramp) at a slot of the global module lattice. Everything a piece is comes from
+## structures.json: its model (a GLB path per tier; empty or missing = StructureMesh stand-in), slot,
+## sockets, durability and material cost. A saved piece is a spec-10 building instance (to_dict).
+##
+## Slot = Vector4i(module x, module z, level, code). Codes: CELL (a module square's slab), EDGE_X
+## (the line x = module x * M, running along Z), EDGE_Z (z = module z * M, along X), CORNER, DOOR_X /
+## DOOR_Z (the door inside a doorway on that edge), ON_FLOOR (stairs standing on a slab) and STAIRWELL
+## (the open slab slots a staircase keeps clear above itself).
+##
+## Physics: walkable pieces are on LAYER_WALK; walls, doorways, windows, closed doors and pillars are
+## on LAYER_STRUCTURE only, which creatures collide with (creature.tscn mask 1 | 16) and the survivor
+## (mask 1) does not: owned walls let the owner through while blocking enemies (HANDOFF section 8).
+# ASSUMPTION: offline every structure belongs to the local survivor (owner_id "local"); W3 replaces
+# the layer rule with a per-owner check on the server.
+
+const LAYER_WALK := 1
+const LAYER_TAP := 2
+const LAYER_STRUCTURE := 16
+
+const CELL := 0
+const EDGE_X := 1
+const EDGE_Z := 2
+const CORNER := 3
+const DOOR_X := 4
+const DOOR_Z := 5
+const ON_FLOOR := 6
+const STAIRWELL := 7
+
+const WALL_KINDS: Array[StringName] = [&"wall", &"doorway", &"window"]
+const SLAB_KINDS: Array[StringName] = [&"foundation", &"ceiling", &"roof", &"roof_peak", &"ramp"]
+## Rise direction of an oriented piece at rot 0..3, in module (x, z) steps.
+const FWD: Array[Vector2i] = [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]
+
+## The one binding to W2-OCCLUDE's see-through system (see _occlusion()).
+const OCCLUSION_SCRIPT := "res://scripts/world/occlusion.gd"
+
+static var _defs: Dictionary = {}
+
+var kind: StringName = &"foundation"
+var tier: StringName = &"thatch"
+var slot: Vector4i = Vector4i.ZERO
+var rot: int = 0
+var floor0: float = 0.0     # the structure's level-0 floor height (world y)
+var variant: int = 0        # foundation skirt / ramp drop in 0.1 m steps (picks the mesh + collider)
+var span: int = 0           # slabs: modules from the nearest wall or pillar (structural support)
+var uid: String = ""
+var owner_id: String = "local"
+var build_level: int = 1    # spec 10 finished building level
+var inherited_attributes: Array = []
+var door_open: bool = false
+var health: StructureHealth
+var _visual: Node3D
+
+# ------------------------------------------------------------------ definitions
+
+static func defs() -> Dictionary:
+	if _defs.is_empty():
+		var f := FileAccess.open("res://data/structures.json", FileAccess.READ)
+		var parsed: Variant = JSON.parse_string(f.get_as_text()) if f else null
+		_defs = parsed if parsed is Dictionary else {"pieces": {}, "tiers": {}, "piece_tiers": {}}
+	return _defs
+
+static func piece_def(p_kind: StringName) -> Dictionary:
+	var v: Variant = (defs().get("pieces", {}) as Dictionary).get(str(p_kind), {})
+	return v if v is Dictionary else {}
+
+static func tier_def(p_tier: StringName) -> Dictionary:
+	var v: Variant = (defs().get("tiers", {}) as Dictionary).get(str(p_tier), {})
+	return v if v is Dictionary else {}
+
+static func blueprint(p_kind: StringName, p_tier: StringName) -> Dictionary:
+	var row: Variant = (defs().get("piece_tiers", {}) as Dictionary).get(str(p_kind), {})
+	var v: Variant = (row as Dictionary).get(str(p_tier), {}) if row is Dictionary else {}
+	return v if v is Dictionary else {}
+
+static func is_piece_kind(p_kind: StringName) -> bool:
+	return (defs().get("pieces", {}) as Dictionary).has(str(p_kind))
+
+static func is_tier(p_tier: StringName) -> bool:
+	return (defs().get("tiers", {}) as Dictionary).has(str(p_tier))
+
+static func tier_rank(p_tier: StringName) -> int:
+	return int(tier_def(p_tier).get("rank", -1))
+
+static func module_m() -> float:
+	return float(defs().get("module_m", 2.0))
+
+static func storey_m() -> float:
+	return float(defs().get("storey_m", 2.5))
+
+## Bag materials one piece costs: item id -> count, summed over the blueprint's material_slots.
+static func cost(p_kind: StringName, p_tier: StringName) -> Dictionary:
+	var out := {}
+	for s in blueprint(p_kind, p_tier).get("material_slots", []):
+		if s is Dictionary and str(s.get("item", "")) != "":
+			var id := StringName(str(s["item"]))
+			out[id] = int(out.get(id, 0)) + maxi(0, int(s.get("quantity", 0)))
+	return out
+
+static func max_durability(p_kind: StringName, p_tier: StringName) -> float:
+	return maxf(1.0, float(blueprint(p_kind, p_tier).get("max_durability", 100.0)))
+
+## Durability and repair materials of a kit-placed kind (structures.json placed_kinds, else "default").
+static func placed_kind(p_kind: StringName) -> Dictionary:
+	var kinds: Dictionary = defs().get("placed_kinds", {})
+	var v: Variant = kinds.get(str(p_kind), kinds.get("default", {}))
+	return v if v is Dictionary else {}
+
+## World pose of a piece at a slot. Edge pieces run along X on EDGE_Z lines and along Z on EDGE_X.
+static func pose(p_kind: StringName, p_slot: Vector4i, p_rot: int, p_floor0: float) -> Transform3D:
+	var m := module_m()
+	var y := p_floor0 + float(p_slot.z) * storey_m()
+	var x := float(p_slot.x) * m
+	var z := float(p_slot.y) * m
+	match p_slot.w:
+		EDGE_X, DOOR_X:
+			return Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(x, y, z + m * 0.5))
+		EDGE_Z, DOOR_Z:
+			return Transform3D(Basis(), Vector3(x + m * 0.5, y, z))
+		CORNER:
+			return Transform3D(Basis(), Vector3(x, y, z))
+	var basis := Basis(Vector3.UP, float(posmod(p_rot, 4)) * PI * 0.5) if bool(piece_def(p_kind).get("oriented", false)) else Basis()
+	return Transform3D(basis, Vector3(x + m * 0.5, y, z + m * 0.5))
+
+## Every slot key a piece fills: its own slot, plus the second cell and stairwell of a staircase.
+static func keys_for(p_kind: StringName, p_slot: Vector4i, p_rot: int) -> Array[Vector4i]:
+	var out: Array[Vector4i] = [p_slot]
+	if p_kind == &"stairs":
+		var f := FWD[posmod(p_rot, 4)]
+		out.append(Vector4i(p_slot.x + f.x, p_slot.y + f.y, p_slot.z, ON_FLOOR))
+		out.append(Vector4i(p_slot.x, p_slot.y, p_slot.z + 1, STAIRWELL))
+		out.append(Vector4i(p_slot.x + f.x, p_slot.y + f.y, p_slot.z + 1, STAIRWELL))
+	return out
+
+## The slot code a kind lives in.
+static func slot_code(p_kind: StringName, edge_axis: int = EDGE_Z) -> int:
+	match str(piece_def(p_kind).get("slot", "cell")):
+		"edge":
+			return edge_axis
+		"door":
+			return DOOR_X if edge_axis == EDGE_X else DOOR_Z
+		"corner":
+			return CORNER
+	return ON_FLOOR if p_kind == &"stairs" else CELL
+
+static func make(p_kind: StringName, p_tier: StringName, p_slot: Vector4i, p_rot: int, p_floor0: float, p_variant: int = 0) -> StructurePiece:
+	var p := StructurePiece.new()
+	p.kind = p_kind
+	p.tier = p_tier
+	p.slot = p_slot
+	p.rot = posmod(p_rot, 4)
+	p.floor0 = p_floor0
+	p.variant = p_variant
+	p.uid = "b%08x%08x" % [randi(), randi()]
+	p.name = "%s_%d_%d_%d_%d" % [p_kind, p_slot.x, p_slot.y, p_slot.z, p_slot.w]
+	p.health = StructureHealth.new()
+	p.health.name = StructureHealth.NODE_NAME
+	p.health.setup(max_durability(p_kind, p_tier), -1.0, float(tier_def(p_tier).get("creature_mult", 1.0)))
+	p.add_child(p.health)
+	return p
+
+# ------------------------------------------------------------------ instance
+
+func keys() -> Array[Vector4i]:
+	return keys_for(kind, slot, rot)
+
+func _ready() -> void:
+	add_to_group("structure_piece")
+	collision_mask = 0
+	transform = pose(kind, slot, rot, floor0)
+	_rebuild()
+	_apply_layer()
+	_occlusion(self, StringName(str(piece_def(kind).get("occlusion", "none"))))
+
+func is_wall_type() -> bool:
+	return kind in WALL_KINDS
+
+func is_floor() -> bool:
+	return kind == &"foundation" or kind == &"ceiling"
+
+## Rebuild the look and colliders for the current kind/tier/variant (placement, upgrade, load).
+func _rebuild() -> void:
+	for c in get_children():
+		if c is CollisionShape3D or c == _visual:
+			remove_child(c)
+			c.queue_free()
+	_visual = Node3D.new()
+	_visual.name = "Visual"
+	var holder := _visual
+	if kind == &"door":  # the leaf swings on a hinge at the opening's -X jamb
+		var o := float((piece_def(&"doorway").get("opening", [1.1]) as Array)[0])
+		var hinge := Node3D.new()
+		hinge.name = "Hinge"
+		hinge.position = Vector3(-o * 0.5 + 0.03, 0.02, 0.0)
+		_visual.add_child(hinge)
+		holder = hinge
+	var model := _model_path()
+	if model != "":
+		var inst := (load(model) as PackedScene).instantiate()
+		inst.name = "Model"
+		holder.add_child(inst)
+	else:
+		var mi := MeshInstance3D.new()
+		mi.name = "StandIn"
+		mi.mesh = StructureMesh.mesh_for(kind, tier, variant)
+		holder.add_child(mi)
+	add_child(_visual)
+	for row in StructureMesh.shapes_for(kind, variant):
+		var cs := CollisionShape3D.new()
+		cs.shape = row[0]
+		cs.transform = row[1]
+		add_child(cs)
+	_apply_door_pose()
+
+## Blueprint model when it names an existing GLB, else "" (the stand-in mesh is used).
+func _model_path() -> String:
+	var path := str(blueprint(kind, tier).get("model", ""))
+	if path == "" or not ResourceLoader.exists(path):
+		return ""
+	return path if load(path) is PackedScene else ""
+
+func _apply_layer() -> void:
+	if kind == &"door" and door_open:
+		collision_layer = LAYER_TAP  # still tappable to close; nothing collides with it
+	elif str(piece_def(kind).get("blocks", "none")) == "none":
+		collision_layer = LAYER_WALK
+	else:
+		collision_layer = LAYER_STRUCTURE
+
+func _apply_door_pose() -> void:
+	var hinge := _visual.get_node_or_null("Hinge") as Node3D if _visual else null
+	if hinge:
+		hinge.rotation.y = deg_to_rad(-100.0) if door_open else 0.0
+
+## Tap on a door toggles it (W2-PLAYER routes the survivor's structure tap here).
+func interact(_player: Node = null) -> bool:
+	if kind != &"door":
+		return false
+	set_door_open(not door_open)
+	return true
+
+func set_door_open(on: bool) -> void:
+	door_open = on
+	_apply_layer()
+	_apply_door_pose()
+	var g := grid()
+	if g:
+		g.refresh_piece(self)
+	print("[struct] door %s" % ("open" if on else "closed"))
+
+## Upgrade in place: same node, slot and pose; new look, colliders and full durability of the tier.
+func set_tier(p_tier: StringName) -> void:
+	tier = p_tier
+	health.setup(max_durability(kind, tier), -1.0, float(tier_def(tier).get("creature_mult", 1.0)))
+	if is_inside_tree():
+		_rebuild()
+		_apply_layer()
+
+## Leave the grid, collapse whatever this held up, and free. Returns the pieces that fell with it.
+func destroy(reason: String = "demolished") -> Array[StructurePiece]:
+	var fell: Array[StructurePiece] = []
+	if is_queued_for_deletion():
+		return fell
+	var g := grid()
+	if g:
+		g.unregister(self)
+	print("[struct] %s %s %s at %s" % [tier, kind, reason, slot])
+	queue_free()
+	if g:
+		fell = g.collapse_unsupported()
+	return fell
+
+func grid() -> StructureGrid:
+	var rt: Node = World.runtime if World else null
+	var bg: Variant = rt.get("build_grid") if rt else null
+	return (bg as BuildGrid).structures if bg is BuildGrid else null
+
+func _exit_tree() -> void:
+	var g := grid()
+	if g and g.piece_at(slot) == self:
+		g.unregister(self)
+
+## Spec-10 building instance row (plus the slot fields the grid needs to rebuild it).
+func to_dict() -> Dictionary:
+	return {
+		"kind": str(kind),
+		"blueprint_id": str(kind),
+		"tier": str(tier),
+		"id": uid,
+		"owner_id": owner_id,
+		"level": build_level,
+		"inherited_attributes": inherited_attributes.duplicate(true),
+		"max_durability": health.max_hp,
+		"current_durability": health.hp,
+		"position": [slot.x, slot.y, slot.z, slot.w],
+		"rotation": rot,
+		"floor_y": floor0,
+		"variant": variant,
+		"open": door_open,
+		"container_id": "",
+	}
+
+## Rows were shaped by SaveSanitizer (known kind and tier, int position, clamped numbers).
+static func from_dict(row: Dictionary) -> StructurePiece:
+	var pos: Array = row.get("position", [0, 0, 0, 0])
+	var t := StringName(str(row.get("tier", "thatch")))
+	var p := make(StringName(str(row.get("kind", ""))), t if is_tier(t) else &"thatch",
+		Vector4i(int(pos[0]), int(pos[1]), int(pos[2]), int(pos[3])) if pos.size() >= 4 else Vector4i.ZERO,
+		int(row.get("rotation", 0)), float(row.get("floor_y", 0.0)), int(row.get("variant", 0)))
+	if str(row.get("id", "")) != "":
+		p.uid = str(row["id"])
+	p.owner_id = str(row.get("owner_id", "local"))
+	p.build_level = clampi(int(row.get("level", 1)), 1, 60)
+	var attrs: Variant = row.get("inherited_attributes", [])
+	p.inherited_attributes = (attrs as Array).duplicate(true) if attrs is Array else []
+	p.health.hp = clampf(float(row.get("current_durability", p.health.max_hp)), 0.0, p.health.max_hp)
+	p.door_open = p.kind == &"door" and row.get("open", false) == true
+	return p
+
+## The one adapter to W2-OCCLUDE: roofs and ceilings fade entirely while the survivor is under them,
+## walls and pillars fade while they stand between the camera and the survivor. Guarded so this
+## branch works (pieces simply stay opaque) before the occlusion package merges.
+static func _occlusion(node: Node3D, mode: StringName) -> bool:
+	if mode == &"none" or not ResourceLoader.exists(OCCLUSION_SCRIPT):
+		return false
+	var occ: Variant = load(OCCLUSION_SCRIPT)
+	if not occ is GDScript:
+		return false
+	for m in (occ as GDScript).get_script_method_list():
+		if str(m.get("name", "")) == "make_occludable":
+			(occ as GDScript).call("make_occludable", node, {"mode": "inside" if mode == &"roof" else "between"})
+			return true
+	return false
