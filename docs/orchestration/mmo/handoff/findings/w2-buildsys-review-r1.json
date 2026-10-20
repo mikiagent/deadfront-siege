@@ -1,0 +1,24 @@
+{
+  "review": "w2-buildsys-review-r1",
+  "status": "partial",
+  "pass": null,
+  "stopped_because": "owner asked for a clean stop before any Godot gate ran",
+  "verified": [
+    "merge-tree claude/mmo-overhaul claude/mmo-w2-buildsys: clean, tree d695ab01; base tip 1c89134a is already an ancestor of 5ef8d3ee",
+    "hooks patch (claude-mmo-w2-buildsys-hooks.patch) applies cleanly with git apply on 5ef8d3ee; it touches creature_brain.gd, player_input.gd, player_sim.gd, hunt_hud.gd"
+  ],
+  "not_done": [
+    "no Godot run: run_all, t_*.gd (t_buildsys, t_build, t_occlude, t_ui), smoke, build_lab, snap_build_lab, --snap-touch headless and 844x390 glc, ui_real_capture_lab at 844x390 and 1600x900",
+    "break attempts (overlap, unsupported floors/roofs, supporting-wall demolish, all-or-nothing upgrade/repair, chest contents on demolish/destroy/save-load, refunds, wild dino vs walls, 2-storey save/load, large-build perf)",
+    "doc check of chest 20 / large box 40 / signboard 48 chars / furniture costs / destroyed-chest contents to camp cargo against spec 10 and STATUS.md",
+    "own screenshots and the blind A/B against claude/mmo-overhaul"
+  ],
+  "findings": [
+    {
+      "severity": "minor",
+      "where": "docs/orchestration/reports/claude-mmo-w2-buildsys-hooks.patch",
+      "problem": "The review brief and the report name hooks 1-4, but the patch holds hooks 1-3 only; hook 4 (register snap_build_lab in tools/labs.txt) is described in the report but is not in the patch, so an integrator applying the patch alone does not get the lab registered.",
+      "fix": "Add the tools/labs.txt line to the patch, or state in the report that hook 4 is a manual step."
+    }
+  ]
+}
