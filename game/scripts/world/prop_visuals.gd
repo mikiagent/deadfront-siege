@@ -85,6 +85,9 @@ static func tool_model_key(def_id: StringName) -> String:
 
 static func model_path(kind: StringName) -> String:
 	var row := _building_row(kind)
+	var glb := str(row.get("glb", ""))  # W1-STRUCTART Blender set wins; Kenney `model` is the fallback
+	if glb != "" and ResourceLoader.exists(glb):
+		return glb
 	var model := str(row.get("model", ""))
 	if model == "":
 		return ""
@@ -92,6 +95,10 @@ static func model_path(kind: StringName) -> String:
 
 static func collision_size(kind: StringName, model_root: Node3D, fallback_size: Vector3 = Vector3.ONE) -> Vector3:
 	var row := _building_row(kind)
+	var glb := str(row.get("glb", ""))
+	var aabb: Variant = row.get("aabb_m", null)  # measured Blender size, Godot axes (x, y up, z)
+	if glb != "" and ResourceLoader.exists(glb) and aabb is Array and (aabb as Array).size() >= 3:
+		return Vector3(maxf(0.2, float(aabb[0])), maxf(0.2, float(aabb[1])), maxf(0.2, float(aabb[2])))
 	var model_name := str(row.get("model", ""))
 	if model_name != "":
 		var sizes: Dictionary = Data.props_manifest.get("model_sizes_m", {})

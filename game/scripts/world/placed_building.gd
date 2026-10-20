@@ -115,6 +115,12 @@ func _apply_gate_state() -> void:
 	var hinge := get_node_or_null("GateHinge") as Node3D
 	if hinge:
 		hinge.rotation.y = deg_to_rad(-100.0) if gate_open else 0.0
+	# Blender gate: both leaves swing about their hinge origins, away from the front (+Z).
+	var left := _model_leaf("LeafL")
+	var right := _model_leaf("LeafR")
+	if left and right:
+		left.rotation.y = deg_to_rad(100.0) if gate_open else 0.0
+		right.rotation.y = deg_to_rad(-100.0) if gate_open else 0.0
 	if is_inside_tree() and World.runtime and World.runtime.get("build_grid") is BuildGrid:
 		var grid := World.runtime.get("build_grid") as BuildGrid
 		grid.refresh_path(self)
@@ -123,8 +129,8 @@ func _apply_gate_state() -> void:
 # leaf; plain planks until W1-STRUCTART ships a gate model. The model's opening is 1.25 m wide,
 # centred on x, on the back edge of the cell (z = -0.92 after its x4 scale).
 func _build_gate_leaf() -> void:
-	if get_node_or_null("GateHinge") != null:
-		return
+	if get_node_or_null("GateHinge") != null or _model_leaf("LeafL") != null:
+		return  # the Blender gate carries its own hinged leaves; the plank leaf is for the Kenney frame
 	var hinge := Node3D.new()
 	hinge.name = "GateHinge"
 	hinge.position = Vector3(-0.6, 0.0, -0.92)
@@ -140,6 +146,11 @@ func _build_gate_leaf() -> void:
 	mat.roughness = 0.9
 	leaf.material_override = mat
 	hinge.add_child(leaf)
+
+## A hinged leaf of the Blender gate model (props_manifest fence_gate.nodes), or null on the Kenney frame.
+func _model_leaf(leaf_name: String) -> Node3D:
+	var prop := get_node_or_null("Prop")
+	return prop.find_child(leaf_name, true, false) as Node3D if prop else null
 
 func sleep_duration() -> float:
 	return 12.0 if kind == &"straw_roll" else (8.0 if kind == &"canvas_tent" else (7.0 if kind == &"log_shelter" else (5.0 if kind == &"cabin_bed" else 10.0)))
