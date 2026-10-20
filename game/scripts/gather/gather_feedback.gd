@@ -1,14 +1,16 @@
 class_name GatherFeedback
 extends RefCounted
-## Yield numbers over the worked node: "+2 Branch" rises from just above the gather ring, a rare
-## find rides on top of it in bigger gold and is announced on the HUD. The stack keeps off the
-## ring, world pills, HUD text, creature plates and the open gather radial.
+## Yield numbers by the worked node: "+2 Branch" rises from just above (or beside) the gather ring,
+## a rare find rides on top of it in bigger gold and is announced on the HUD. The stack keeps off
+## the ring, world pills, HUD text and zones, creature plates and the open gather radial.
 
 const LIFE := 1.4
-## Screen px between the anchor (the gather ring's centre) and the stack's bottom: the ring is a
-## 72 px hex, so the text starts clear of it at any zoom or screen size.
+## The ring is a 72 px hex on the anchor: the stack starts this far above its centre, or this far
+## to its side, so it never covers the ring at any zoom or screen size.
 const RING_CLEAR := 44.0
-const RISE_PX := 56.0
+const RISE_PX := 32.0
+## A stack nudged further than this from the ring no longer reads as that node's: not drawn.
+const MAX_SHIFT := 120.0
 ## Gathering UI stays above pet plates (GAUNTLET): over plates (58), under the radial (64) and ring (65).
 const LAYER := 60
 const LAYER_NAME := "GatherPopups"
@@ -16,7 +18,7 @@ const GOLD := Color(1.0, 0.9, 0.3)
 const CREAM := Color(1.0, 0.97, 0.88)
 
 ## A stack of lines ([text, color, big], top to bottom) rising from a 3D anchor in screen space.
-## Its whole rise is placed once, straight up from the ring and nudged off whatever is taken.
+## Its whole rise is placed once: above the ring, else right or left of it, nudged off what is taken.
 static func popup(p: Player, at: Vector3, lines: Array) -> Control:
 	if p == null or not p.is_inside_tree() or lines.is_empty():
 		return null
@@ -33,27 +35,48 @@ static func popup(p: Player, at: Vector3, lines: Array) -> Control:
 	# One survivor works one node at a time: a new unit's stack replaces the last one.
 	for old in layer.get_children():
 		old.queue_free()
+	var view := p.get_viewport().get_visible_rect().size
+	var px := UiTokens.heading(view)  # 24 desktop, 20 on a phone
 	var box := VBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_theme_constant_override("separation", 0)
+	box.add_theme_constant_override("separation", -6)
 	for ln in lines:
 		var big: bool = ln[2]
 		var l := Label.new()
 		l.text = ln[0]
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		l.add_theme_font_size_override("font_size", 30 if big else 24)
+		l.add_theme_font_size_override("font_size", px + 4 if big else px - 2)
 		l.add_theme_color_override("font_color", ln[1])
 		l.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.03, 0.95))
-		l.add_theme_constant_override("outline_size", 10 if big else 8)
+		l.add_theme_constant_override("outline_size", 8 if big else 6)
 		box.add_child(l)
 	layer.add_child(box)
 	var sz := box.get_combined_minimum_size()
 	box.size = sz
 	var a0 := cam.unproject_position(at)
-	var col := Rect2(a0 - Vector2(sz.x * 0.5, RING_CLEAR + RISE_PX + sz.y), Vector2(sz.x, sz.y + RISE_PX))
-	var spot := UiTokens.free_spot(col, taken_rects(p, a0), p.get_viewport().get_visible_rect().size, true)
-	var off := (spot.position if spot.has_area() else col.position) - a0
+	var taken := taken_rects(p, a0)
+	taken.append_array(UiTokens.hud_reserved(view))
+	var h := sz.y + RISE_PX
+	var cols: Array[Rect2] = [
+		Rect2(a0.x - sz.x * 0.5, a0.y - RING_CLEAR - h, sz.x, h),
+		Rect2(a0.x + RING_CLEAR, a0.y + sz.y * 0.5 - h, sz.x, h),
+		Rect2(a0.x - RING_CLEAR - sz.x, a0.y + sz.y * 0.5 - h, sz.x, h),
+	]
+	var off := Vector2.INF
+	var best := MAX_SHIFT + 1.0
+	for col in cols:
+		if col.position.x < 8.0 or col.end.x > view.x - 8.0:
+			continue
+		var spot := UiTokens.free_spot(col, taken, view)
+		var shift := absf(spot.position.y - col.position.y)
+		if spot.has_area() and shift < best:
+			best = shift
+			off = spot.position - a0
+	if off == Vector2.INF:
+		# Like a world label with no free spot near its anchor: not drawn (the HUD toast and notice say it).
+		box.queue_free()
+		return null
 	var follow := func(t: float) -> void:
 		if not is_instance_valid(cam) or not is_instance_valid(box):
 			return

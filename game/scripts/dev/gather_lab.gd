@@ -186,6 +186,8 @@ func _ring_above(node: HarvestNode) -> bool:
 
 ## The live "+n" stack sits clear of the ring, world pills, HUD text, plates and the radial.
 func _popup_clear(node: HarvestNode) -> void:
+	if DisplayServer.get_name() == "headless":
+		return  # no real screen layout headless: the windowed runs check placement
 	var layer := get_tree().current_scene.get_node_or_null(GatherFeedback.LAYER_NAME)
 	var box: Control = layer.get_child(layer.get_child_count() - 1) if layer and layer.get_child_count() > 0 else null
 	_check(box != null and box.visible, "a yield popup showed over %s" % node.family)
@@ -196,7 +198,9 @@ func _popup_clear(node: HarvestNode) -> void:
 	var texts := []
 	for l in box.get_children():
 		texts.append((l as Label).text)
-	for t in GatherFeedback.taken_rects(_p, a):
+	var taken := GatherFeedback.taken_rects(_p, a)
+	taken.append_array(UiTokens.hud_reserved(get_viewport().get_visible_rect().size))
+	for t in taken:
 		_check(not r.intersects(t), "popup %s at %s clear of %s" % [texts, r, t])
 	print("[gather_lab] popup %s at %s" % [texts, r])
 
