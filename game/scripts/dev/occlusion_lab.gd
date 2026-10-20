@@ -339,7 +339,13 @@ func _perf() -> void:
 	_cam._snap()
 	var vp := get_viewport().get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(vp, true)
-	var ms := {true: Vector3.ZERO, false: Vector3.ZERO}  # x cpu render, y gpu, z process
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--occl-perf-scale="):
+			# Supersampled 3D: makes the GPU the bottleneck when the display caps the frame rate anyway.
+			get_viewport().scaling_3d_scale = float(arg.substr(18))
+	# x: wall time between drawn frames (run with --disable-vsync, so it is the real frame cost),
+	# y: CPU render time. Rounds alternate on/off so drift and other load hit both alike.
+	var ms := {true: Vector2.ZERO, false: Vector2.ZERO}
 	var faded := 0
 	for r in PERF_ROUNDS * 2:
 		var on := r % 2 == 0
@@ -352,13 +358,28 @@ func _perf() -> void:
 			await RenderingServer.frame_post_draw
 		if on:
 			faded = Occlusion.driver()._active.size()
+		var t0 := Time.get_ticks_usec()
 		for i in PERF_FRAMES:
 			await RenderingServer.frame_post_draw
-			ms[on] += Vector3(RenderingServer.viewport_get_measured_render_time_cpu(vp) + RenderingServer.get_frame_setup_time_cpu(),
-				RenderingServer.viewport_get_measured_render_time_gpu(vp), Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
+			ms[on] += Vector2(0.0, RenderingServer.viewport_get_measured_render_time_cpu(vp) + RenderingServer.get_frame_setup_time_cpu())
+		ms[on].x += float(Time.get_ticks_usec() - t0) / 1000.0
 	var n_frames := float(PERF_ROUNDS * PERF_FRAMES)
-	var a: Vector3 = ms[true] / n_frames
-	var b: Vector3 = ms[false] / n_frames
-	print("[occl] perf props=%d fading=%d on cpu=%.3f gpu=%.3f process=%.3f | off cpu=%.3f gpu=%.3f process=%.3f | delta frame=%.3f ms" % [
-		occ.size(), faded, a.x, a.y, a.z, b.x, b.y, b.z, maxf(a.x, a.y) - maxf(b.x, b.y)])
+	var a: Vector2 = ms[true] / n_frames
+	var b: Vector2 = ms[false] / n_frames
+	# The driver's own per-frame work (sight test + fades), timed in isolation with every prop on.
+	for n in occ:
+		Occlusion.make_occludable(n, Occlusion.BETWEEN)
+	for i in PERF_SETTLE:
+		await RenderingServer.frame_post_draw
+	var drv := Occlusion.driver()
+	var chest := _player.global_position + Vector3.UP * Occlusion.CHEST_UP_M
+	var t1 := Time.get_ticks_usec()
+	for i in 200:
+		drv.step_between(drv.in_the_way(chest, _cam.global_basis.z), 0.0, -_cam.global_basis.z)
+	var drv_ms := float(Time.get_ticks_usec() - t1) / 200.0 / 1000.0
+	var objs := 0
+	for k in drv._owned:
+		objs += (drv._owned[k] as Array).size()
+	print("[occl] perf scale3d=%.1f props=%d objects=%d fading=%d on frame=%.3f cpu=%.3f | off frame=%.3f cpu=%.3f | delta frame=%.3f ms, driver=%.3f ms/frame" % [
+		get_viewport().scaling_3d_scale, occ.size(), objs, faded, a.x, a.y, b.x, b.y, a.x - b.x, drv_ms])
 	get_tree().quit(0)
