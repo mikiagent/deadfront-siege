@@ -1,6 +1,6 @@
 # Durango: Wild Lands — Claude implementation prompt bundle
 
-Seven independent Markdown prompts covering the systems we discussed, arranged for sequential use:
+Eleven independent Markdown prompts covering the systems we discussed, arranged for sequential use:
 
 1. **01_fatigue_and_exhaustion.md** — stamina vs energy vs fatigue, environment, rest.
 2. **02_dinosaur_taming_and_companions.md** — capture-to-pen, feeding, bonding, companion roles.
@@ -14,3 +14,12 @@ Seven independent Markdown prompts covering the systems we discussed, arranged f
 Upload the relevant individual file(s), plus your existing game project context. Ask Claude to inspect existing code first and implement each system incrementally. Files **02 and 07 overlap intentionally in capture**, and explicitly require **one shared capture implementation**. Start with core architecture and persist item identity consistently across 02, 04, 05, and 06.
 
 These files are newly consolidated, implementation-ready versions of the prompts from this conversation, not byte-for-byte exports of the previously displayed writing blocks. Values marked illustrative or community-reconstructed are not guaranteed original game server parameters.
+
+## Added guides
+- `08_cooking_food_traits_and_individual_ingredients.md`: Complete cooking system, exact berry identities, nonstacking, food processing, recipe inheritance, buffs and eating.
+- `09_capture_threshold_and_bonded_pet_limits.md`: Capture at ~50% HP when stunned, 30%-or-stun rule clarification, original-style 3-to-7 bonded pet capacity and Animal Handling skill unlocks.
+
+- `10_construction_building_quality.md`: Construction, housing, quality traits, station performance and durability.
+- `11_processing_skill_material_transformations.md`: Processing progression, recipes, individual material enhancement, tanning, metalwork, alloys and delegated jobs.
+
+- `12_remaining_skill_trees.md` — Remaining/undercovered skill trees: Gathering, Butchering, Farming, Tailoring, Weapon/Tool, Ranged, Defense, Survival, Toxic Oil Islands.
