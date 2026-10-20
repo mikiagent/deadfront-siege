@@ -84,7 +84,6 @@ func open(p_skills: SkillState, tree: String = "") -> void:
 	_tree = tree
 	visible = true
 	_layout()
-	rebuild()
 
 func close() -> void:
 	visible = false
@@ -126,6 +125,9 @@ func _layout() -> void:
 	var scroll := _panel.find_child("SkillsScroll", true, false) as ScrollContainer
 	if scroll:
 		scroll.custom_minimum_size = Vector2(r.size.x - 32.0, 0.0)
+	# Columns, widths and type sizes come from the canvas: an open sheet kept its desktop rows on a phone resize.
+	if visible:
+		rebuild()
 
 func rebuild() -> void:
 	for c in _box.get_children():

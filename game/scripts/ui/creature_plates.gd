@@ -116,11 +116,14 @@ func _separate_visible_creature_plates() -> void:
 	# longer overlaps an earlier one; horizontal separation still keeps unrelated plates free.
 	var placed: Array[Rect2] = []
 	var visible: Array[Control] = []
-	for e_v in _entries.values():
-		var e := e_v as Dictionary
-		var node := e.get("node", null) as Control
+	var bodies := {}  ## plate node -> its creature's screen box
+	var cam := get_viewport().get_camera_3d()
+	for key in _entries:
+		var node := (_entries[key] as Dictionary).get("node", null) as Control
 		if node and node.visible:
 			visible.append(node)
+			var c := instance_from_id(int(key)) as Creature
+			bodies[node] = creature_box(cam, c) if cam and c else Rect2()
 	visible.sort_custom(func(a: Control, b: Control) -> bool: return a.position.y < b.position.y)
 	# This layer is above the HUD's: an opaque plate hid the survivor's name and the HUD's hexes and
 	# text. A plate's pill takes the nearest free spot up or down off the HUD's rects and the plates
@@ -149,7 +152,10 @@ func _separate_visible_creature_plates() -> void:
 		var shown := Rect2(pos + pill.position * node.scale, pill.size * node.scale) if pill else rect
 		var taken := hud_rects.duplicate()
 		taken.append_array(placed)
-		var spot := UiTokens.free_spot(shown, taken, view)
+		# Its own creature too, above it first: pushed down off the HUD, the pill hid the compy it named.
+		if (bodies[node] as Rect2).has_area():
+			taken.append(bodies[node])
+		var spot := UiTokens.free_spot(shown, taken, view, true)
 		var clear := spot.has_area()
 		if clear:
 			pos.y += spot.position.y - shown.position.y
@@ -158,6 +164,23 @@ func _separate_visible_creature_plates() -> void:
 		node.position = pos
 		if clear:
 			placed.append(rect)
+
+## The creature on screen: a box as long as the def along its facing, body_radius to each side and
+## def height tall, projected and bounded. Empty when a corner is behind the camera.
+static func creature_box(cam: Camera3D, c: Creature) -> Rect2:
+	var xf := c.get_global_transform_interpolated()
+	var fwd := Vector3(xf.basis.z.x, 0.0, xf.basis.z.z)  # yaw only: a fading creature's basis collapses
+	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
+	var side := fwd.cross(Vector3.UP) * c.body_radius()
+	fwd *= c.def.real_length_m * 0.5
+	var out := Rect2()
+	for i in 8:
+		var p := xf.origin + (side if (i & 1) != 0 else -side) + (fwd if (i & 2) != 0 else -fwd) + Vector3(0.0, c.def.height_meters if (i & 4) != 0 else 0.0, 0.0)
+		if cam.is_position_behind(p):
+			return Rect2()
+		var s := cam.unproject_position(p)
+		out = Rect2(s, Vector2.ZERO) if i == 0 else out.expand(s)
+	return out
 
 func _forced_visible(c: Creature, player: Player, now: float) -> bool:
 	if player.hunt and player.hunt.target == c:

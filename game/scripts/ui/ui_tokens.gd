@@ -179,11 +179,12 @@ static func layout_labels(items: Array, view: Vector2, avoid: Array[Rect2] = [],
 	return out
 
 ## The nearest spot straight up or down from `box` where it covers nothing in `taken` (2 px apart),
-## inside the view; empty when there is none. Toasts, notices and crowded labels take it.
-static func free_spot(box: Rect2, taken: Array[Rect2], view: Vector2) -> Rect2:
+## inside the view; empty when there is none. Toasts, notices and crowded labels take it. With
+## `prefer_up` any free spot above wins (a creature plate belongs over its creature, not under it).
+static func free_spot(box: Rect2, taken: Array[Rect2], view: Vector2, prefer_up: bool = false) -> Rect2:
 	var down := _slide(box, taken, view, 1.0)
 	var up := _slide(box, taken, view, -1.0)
-	if not up.has_area() or (down.has_area() and down.position.y - box.position.y <= box.position.y - up.position.y):
+	if not up.has_area() or (not prefer_up and down.has_area() and down.position.y - box.position.y <= box.position.y - up.position.y):
 		return down
 	return up
 

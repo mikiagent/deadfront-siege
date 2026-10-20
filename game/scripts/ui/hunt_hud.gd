@@ -183,6 +183,9 @@ func _layout() -> void:
 		_stance_label.position = Vector2(cx + 20.0, r.y - 8.0 - inset.y - _stance_label.get_combined_minimum_size().y)
 	if _sheet:
 		_fit_sheet(r, inset, y)
+	# Context hexes are placed when built: rebuild them on the new canvas (CLAIM stayed off a resized view).
+	_ctx_ids = []
+	_ctx_timer = 0.0
 
 ## A landscape phone's 390-452 px canvas: the desktop places ran the whistles off the top over the
 ## map and stacked End Combat on ROLL. Whistles go in a row under the vitals, End Combat under the
