@@ -6,6 +6,7 @@ extends StaticBody3D
 ## composite of textured Kenney props: plank pier on log piles, canvas shed, cargo, rope, log raft.
 
 const KENNEY := "res://assets/props/kenney/%s.glb"
+# ASSUMPTION: deck 0.5 m above the water (-0.05), so it clears the beach at the base row.
 const FEET_Y := -0.75  # world height of the pile feet; the deck stands DECK_H above them
 const DECK_H := 1.2  # same as the Blender pier.glb, so it can replace the composite by data alone
 

@@ -69,7 +69,8 @@ func spawn_ok(pos: Vector3, strict: bool = true) -> bool:
 		var keep := 25.0
 		if Vector2(pos.x - _camp_pos.x, pos.z - _camp_pos.z).length() < keep:
 			return false
-		# The harbour is where travel lands the survivor, so it gets the camp's landing ring.
+		# ASSUMPTION: the harbour is where travel lands the survivor, so it gets the camp's 25 m
+		# landing ring (was 15 m when it stood inland next to the camp).
 		if Vector2(pos.x - _harbour_pos.x, pos.z - _harbour_pos.z).length() < keep:
 			return false
 	return true

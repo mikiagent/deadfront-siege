@@ -10,6 +10,7 @@ const WATER_Y := -0.05  # IslandTerrain's water plane
 const SEAWARD: Array[Vector2] = [Vector2(0, -1), Vector2(-1, 0), Vector2(0, 1), Vector2(1, 0)]
 ## The coast on 480 m islands lies ~15 m past the land radius, where tap-to-move ends; the 3 m
 ## strip from the arrival point this far inland is walkable so the survivor can reach the dock.
+# ASSUMPTION: 30 m covers the widest gap measured (land radius to waterline ~15-20 m).
 const APPROACH_M := 30.0
 
 static func seaward(rot: int) -> Vector2:
@@ -54,6 +55,7 @@ static func approach_rect(cell: Vector2i, rot: int) -> Rect2i:
 
 ## "" when the pose is a legal harbour, else a refusal code for BuildPlacer.reason_text().
 static func check(rt: IslandRuntime, cell: Vector2i, rot: int) -> String:
+	# ASSUMPTION: the PRDs give no draft; a 0.4 m-deep tip, 2 m from the shore, floats a raft.
 	var rules: Dictionary = Data.world_rules.get("harbour", {})
 	var from_row := int(rules.get("dock_from_row", 2))
 	var depth := float(rules.get("boat_depth_m", 0.4))
