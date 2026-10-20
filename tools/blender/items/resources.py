@@ -490,10 +490,10 @@ def blue_dye():
 
 def acacia_wood():
     """Pale gold acacia: thin bark, two slender logs crossed, one split face showing heartwood."""
-    b = mat("#d9b074", 0.75, color2="#b8894a", tex="wave", scale=9.0, bump=0.35, ramp=(0.32, 0.78))
-    _log(0.27, 2.2, b, "#f0d49a", loc=(0, 0.18, 0.0), stub=True)
-    _log(0.22, 1.9, b, "#f0d49a", loc=(0.12, -0.34, 0.05))
-    heart = mat("#f6dca8", 0.7, color2="#c89a5a", tex="rings", scale=5.5, bump=0.1)
+    b = mat("#8a5a2e", 0.8, color2="#5e3a16", tex="wave", scale=8.0, bump=0.5, ramp=(0.3, 0.75))
+    _log(0.27, 2.2, b, "#e8b864", loc=(0, 0.18, 0.0), stub=True)
+    _log(0.22, 1.9, b, "#e8b864", loc=(0.12, -0.34, 0.05))
+    heart = mat("#e8bc6e", 0.7, color2="#b8843c", tex="rings", scale=5.5, bump=0.1)
     prism([(0, 0)] + [(math.cos(math.radians(a)) * 0.34, math.sin(math.radians(a)) * 0.34) for a in range(10, 171, 16)],
           1.3, loc=(0.1, -0.05, -0.55), rot=(0, 0, -140), m=heart, bev=0.015)
     turn(62)
@@ -520,70 +520,79 @@ def willow_wood():
 
 def snow_pine():
     """Pine log with red-brown scaly bark, snow on the top, a needle sprig: winter pine."""
-    b = mat("#7a4428", 0.85, color2="#4a2414", tex="voronoi", scale=10.0, bump=0.55)
-    _log(0.32, 2.0, b, "#e8c48c", loc=(0, 0.12, -0.05))
-    _log(0.24, 1.7, b, "#e8c48c", loc=(0.1, -0.36, 0.02), stub=True)
-    snow = mat("#f4f8ff", 0.5, color2="#cfdcec", tex="noise", scale=5.0, bump=0.2)
-    for x, y, z, l in ((-0.35, 0.0, 0.3, 1.2), (0.35, -0.15, 0.32, 1.0), (0.1, -0.5, 0.03, 0.9)):
-        blob(0.2, loc=(x, y, z), scl=(l * 2.0, 0.9, 0.22), m=snow, amp=0.25, sub=2)
+    b = mat("#9a5a30", 0.9, color2="#5a2e12", tex="voronoi", scale=9.0, bump=0.7, ramp=(0.15, 0.55))
+    _log(0.32, 2.0, b, "#b87840", loc=(0, 0.12, -0.05))
+    _log(0.24, 1.7, b, "#b87840", loc=(0.1, -0.36, 0.02), stub=True)
+    snow = mat("#eaf2ff", 0.7, color2="#c8d8ee", tex="noise", scale=4.0, bump=0.25)
+    # Snow: a soft slab lying along the top of each log, thicker in the middle, its edge broken up.
+    for (cx, cy, z, ln) in ((-0.15, 0.12, 0.24, 1.95), (0.1, -0.36, 0.2, 1.65)):
+        n = 14
+        top = [(cx - ln / 2 + ln * i / n, z + 0.24 * math.sin(math.pi * i / n) ** 0.7) for i in range(n + 1)]
+        bottom = [(x, z - 0.12) for x, _ in top[::-1]]
+        prism(top + bottom, 0.52, loc=(0, cy, 0), rot=(0, 0, 0), m=snow, bev=0.06)
     needle = mat("#2e5a3a", 0.6, color2="#1e4028", tex="wave", scale=14.0)
-    for k in range(5):
-        tube([(0.3, -0.1, 0.4 + 0.02 * k), (0.62 + 0.04 * k, -0.25, 0.62 + 0.09 * k)], 0.025, needle, segs=5)
+    for k in range(4):
+        tube([(0.25, -0.05, 0.35 + 0.03 * k), (0.7 + 0.05 * k, -0.2, 0.75 + 0.08 * k)], 0.03, needle, segs=5)
     turn(58)
     upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def ash():
-    """A heap of cold ash: a mound of soft, dusty lumps of different sizes with two charred stubs
-    and a thin spill of powder running off the front (a rock heap is faceted and one colour)."""
-    m = mat("#b4b0a8", 0.99, color2="#8e8a84", tex="noise", scale=26.0, bump=1.0)
-    m2 = mat("#9c988f", 0.99, color2="#767268", tex="noise", scale=24.0, bump=1.0)
-    lumps = ((0.0, 0.05, -0.25, 0.62, (1.35, 1.0, 0.75), m), (0.55, -0.3, -0.35, 0.42, (1.2, 1.0, 0.8), m2),
-             (-0.6, -0.05, -0.35, 0.45, (1.1, 1.0, 0.75), m), (0.1, 0.45, -0.3, 0.38, (1.3, 1.0, 0.7), m),
-             (-0.2, -0.45, -0.42, 0.35, (1.3, 1.0, 0.65), m2), (0.35, 0.25, 0.02, 0.3, (1.2, 1.0, 0.8), m),
-             (-0.32, 0.18, 0.0, 0.26, (1.2, 1.0, 0.8), m2), (0.0, -0.1, 0.2, 0.24, (1.3, 1.0, 0.7), m))
-    for (x, y, z, r, scl, mm) in lumps:
-        blob(r, loc=(x, y, z), scl=scl, m=mm, amp=0.34, freq=3.2, sub=3)
-    lump = mat("#4a4642", 0.85, color2="#2e2a26", tex="voronoi", scale=8.0, bump=0.5)
-    for a, r in ((-10, 0.5), (30, -0.55)):
-        rad = math.radians(a)
-        tube([(0.15 * math.cos(rad), 0.15 * math.sin(rad), 0.42), (r * math.cos(rad), r * math.sin(rad), 0.2),
-              (r * 1.45 * math.cos(rad), r * 1.45 * math.sin(rad), 0.0)], 0.06, lump, segs=6, taper=(1.0, 0.6))
-    blob(0.28, loc=(0.75, -0.55, -0.5), scl=(1.4, 0.9, 0.2), m=m2, amp=0.35, sub=2)
-    turn(10)
-    upright()  # flat item: diagonal so the slot can lift it above its top edge
+    """Cold ash gathered in a wooden scoop: a bowl of pale grey powder heaped above the rim, a
+    charred stick and a couple of cinders lying in it."""
+    scoop = mat("#8a6a44", 0.8, color2="#6a4c2c", tex="noise", scale=18.0, bump=0.3)
+    lathe([(0, -0.1), (0.5, -0.12), (0.95, 0.05), (1.15, 0.45), (1.22, 0.62), (1.12, 0.62), (1.02, 0.42),
+           (0.85, 0.12), (0.45, 0.02), (0, 0.02)], m=scoop, segs=36, scl=(1.15, 0.85, 1.0))
+    # The scoop's handle, sticking up and back.
+    tube([(0.9, 0.25, 0.45), (1.35, 0.35, 0.7), (1.65, 0.4, 0.95)], 0.11, scoop, segs=10, taper=(1.0, 0.8))
+    ball(0.13, loc=(1.68, 0.4, 0.98), m=scoop, sub=2)
+    # The ash: a soft heaped mound inside the bowl, well above the rim.
+    dust = mat("#9a968e", 1.0, color2="#726e66", tex="noise", scale=26.0, bump=0.6, spec=0.2, ramp=(0.35, 0.65))
+    dust2 = mat("#b0aca4", 1.0, color2="#8a867e", tex="noise", scale=30.0, bump=0.55, spec=0.2, ramp=(0.35, 0.65))
+    blob(0.95, loc=(0, 0, 0.35), scl=(1.1, 0.85, 0.5), m=dust, amp=0.08, freq=4.0, sub=3)
+    for (x, y, r) in ((0.5, -0.15, 0.35), (-0.45, 0.1, 0.38), (0.1, 0.35, 0.3)):
+        blob(r, loc=(x, y, 0.45), scl=(1.1, 1.0, 0.6), m=dust2, amp=0.12, freq=4.0, sub=3)
+    # A pinch spilled over the rim and a charred stick lying across the heap.
+    blob(0.3, loc=(1.05, -0.3, 0.1), scl=(1.4, 0.8, 0.3), m=dust2, amp=0.2, sub=2)
+    char = mat("#26221e", 0.95, color2="#464038", tex="noise", scale=10.0, bump=0.6)
+    tube([(-0.7, -0.1, 0.55), (-0.2, -0.05, 0.68), (0.35, 0.0, 0.62), (0.7, 0.05, 0.5)], 0.055, char, segs=6,
+         taper=(1.0, 0.7))
+    for p_ in ((-0.3, 0.25, 0.6), (0.15, -0.3, 0.58)):
+        blob(0.09, loc=p_, scl=(1.2, 1.0, 0.7), m=char, amp=0.2, sub=2)
+    ember = mat("#6a6058", 0.8, color2="#8a7e72", tex="noise", scale=12.0, emit="#ff7a2a", emit_strength=0.8)
+    blob(0.06, loc=(0.05, 0.2, 0.66), m=ember, amp=0.2, sub=2)
+    turn(15)
+    turn(18, "X")
 
 
 def bark_strip():
-    """A peeled bark strip curling off the trunk: C-shaped sheet standing on edge, dark ridged
-    outer face, pale inner face along the concave side."""
+    """A strip of bark peeled off a log: a long curved sheet standing on edge, dark ridged outer
+    face, pale inner face showing where it curls toward the viewer."""
     outer = mat("#6e4a2a", 0.9, color2="#3a2412", tex="wave", scale=7.0, bump=0.6, ramp=(0.25, 0.7))
-    inner = mat("#e8bc84", 0.8, color2="#c08c54", tex="noise", scale=10.0, bump=0.15)
+    inner = mat("#e6bc84", 0.85, color2="#bc8a52", tex="noise", scale=12.0, bump=0.2)
     ridge = mat("#4a3018", 0.9, color2="#2a1a0c", tex="noise", scale=14.0, bump=0.4)
-    R0, R1 = 0.62, 1.0          # inner / outer radius of the C-shaped band
-    a0, a1 = -125.0, 115.0
-    n = 16
+    n = 18
 
-    def band(r0, r1):
-        pts = [(r1 * math.cos(math.radians(a0 + (a1 - a0) * i / n)), r1 * math.sin(math.radians(a0 + (a1 - a0) * i / n)))
-               for i in range(n + 1)]
-        pts += [(r0 * math.cos(math.radians(a0 + (a1 - a0) * i / n)), r0 * math.sin(math.radians(a0 + (a1 - a0) * i / n)))
-                for i in range(n, -1, -1)]
-        return pts
+    def edge(r, a_off=0.0):
+        return [(r * math.cos(math.radians(-118 + 236 * i / n) + a_off), r * math.sin(math.radians(-118 + 236 * i / n) + a_off))
+                for i in range(n + 1)]
+    # The sheet: an arc band, edges curling forward (toward the camera).
+    R0, R1 = 0.55, 1.05
+    sheet = edge(R1) + edge(R0)[::-1]
 
-    def cup(co):
-        co.y += 0.22 * (co.x ** 2 + co.z ** 2)   # edges of the sheet bend toward the camera
-    prism(band(R0, R1), 0.07, m=outer, bev=0.012, deform=cup)
-    prism(band(R0 - 0.015, R1 - 0.16), 0.075, m=inner, bev=0.008, deform=cup)
-    for k in range(5):
-        r = R1 - 0.03 - 0.012 * k
-        pts = [(r * math.cos(math.radians(a0 + 8 + (a1 - a0 - 16) * i / 12)),
-                r * math.sin(math.radians(a0 + 8 + (a1 - a0 - 16) * i / 12))) for i in range(13)]
-        tube([(x, -0.06 + 0.22 * (x * x + z * z), z) for x, z in pts], 0.022, ridge, segs=4)
-    # The torn end lifting away from the trunk.
-    prism([(0.9, 1.05), (1.25, 1.2), (1.15, 0.75), (1.0, 0.6)], 0.06, loc=(0, -0.1, 0), rot=(0, 0, 0), m=outer,
-          bev=0.01, deform=lambda co: co.__setitem__(1, co.y - 0.2))
-    turn(-15)
+    def curl(co):
+        co.y -= 0.3 * (co.x ** 2 + co.z ** 2) * 0.5
+    prism(sheet, 0.07, m=outer, bev=0.012, deform=curl)
+    # The inner face: a narrower band on the concave side, its surface facing the viewer.
+    iband = edge(R0 + 0.12) + edge(R0 + 0.01)[::-1]
+    prism(iband, 0.05, loc=(0.0, -0.06, 0.0), m=inner, bev=0.008,
+          deform=lambda co: co.__setitem__(1, co.y - 0.3 * (co.x ** 2 + co.z ** 2) * 0.5 - 0.03))
+    # Ridges running along the outer face.
+    for k in range(6):
+        r = R1 - 0.04 - 0.03 * k
+        pts = [(x, -0.3 * (x ** 2 + z ** 2) * 0.5 - 0.045, z) for x, z in edge(r, math.radians(-2 + 1.2 * k))]
+        tube(pts, 0.022, ridge, segs=4)
+    turn(-14)
     upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
@@ -606,47 +615,133 @@ def cactus_spine():
     lean(-30)
 
 
-def cloth_scrap():
-    """Torn linen: a folded square of cloth with a loose rag scrap draped over its corner."""
-    m = cloth("#ece2c6", "#c9bc99")
-    edge = cloth("#d8ceb0", "#b3a684")
-    # The folded square: three stacked folds, each a squashed box with soft edges.
-    for i, (z, w, d) in enumerate(((-0.55, 1.5, 1.15), (-0.3, 1.4, 1.05), (-0.06, 1.3, 0.95))):
-        box((w, d, 0.28), loc=(0.02 * i, -0.02 * i, z), rot=(0, 0, -3 + 2.5 * i), m=m if i % 2 else edge, bev=0.12,
-            taper=(0.97, 0.97))
-    # The scrap: a torn rectangle draped over the top and hanging down the front.
-    rag = [(-0.75, 0.55), (0.35, 0.6), (0.5, 0.1), (0.42, -0.6), (0.2, -0.9), (0.0, -0.55), (-0.18, -0.85),
-           (-0.4, -0.5), (-0.62, -0.3)]
+def _weave(c, c2, scale=60.0, bump=0.45):
+    """Cloth material: a linen colour ramped by noise, with a woven cross-hatch bump (two wave
+    textures at right angles multiplied). Reads as fabric at slot size by its texture, not its shape."""
+    import bpy
+    m = mat(c, 1.0, color2=c2, tex="noise", scale=6.0, bump=0.0, spec=0.15, ramp=(0.35, 0.65))
+    nt = m.node_tree
+    bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    coord = next(n for n in nt.nodes if n.type == "TEX_COORD")
+    waves, facs = [], []
+    for rot in (0.0, math.pi / 2):
+        t = nt.nodes.new("ShaderNodeTexWave")
+        t.wave_type = "BANDS"
+        t.bands_direction = "Z"
+        t.inputs["Scale"].default_value = scale
+        t.inputs["Distortion"].default_value = 1.6
+        t.inputs["Detail"].default_value = 1.0
+        mp = nt.nodes.new("ShaderNodeMapping")
+        mp.inputs["Rotation"].default_value = (0.0, rot, 0.0)
+        nt.links.new(coord.outputs["Object"], mp.inputs["Vector"])
+        nt.links.new(mp.outputs["Vector"], t.inputs["Vector"])
+        waves.append(t)
+        facs.append(t.outputs["Fac"])
+    mul = nt.nodes.new("ShaderNodeMath")
+    mul.operation = "MULTIPLY"
+    nt.links.new(facs[0], mul.inputs[0])
+    nt.links.new(facs[1], mul.inputs[1])
+    bn = nt.nodes.new("ShaderNodeBump")
+    bn.inputs["Strength"].default_value = bump
+    bn.inputs["Distance"].default_value = 0.03
+    nt.links.new(mul.outputs["Value"], bn.inputs["Height"])
+    nt.links.new(bn.outputs["Normal"], bsdf.inputs["Normal"])
+    # Thread lines in the colour as well, so the weave survives the 2x downsample.
+    mix = nt.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.blend_type = "MULTIPLY"
+    mix.inputs["Factor"].default_value = 0.3
+    mix.inputs[6].default_value = srgb("#8a7c60")
+    src = next(n for n in nt.nodes if n.type == "VALTORGB")
+    nt.links.new(src.outputs["Color"], mix.inputs[7])
+    nt.links.new(mul.outputs["Value"], mix.inputs[0])
+    nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
+    return m
 
-    def droop(co):
-        co.y += 0.55 * max(0.0, -co.z) ** 1.2
-    prism(rag, 0.035, loc=(0.05, -0.42, 0.12), rot=(0, 0, 0), m=edge, bev=0.008, deform=droop)
-    for i in range(8):  # frayed hem
-        x = -0.35 + 0.12 * i
-        tube([(x, -0.55, -0.72 + 0.03 * (i % 3)), (x + 0.03, -0.6, -0.95 + 0.05 * (i % 3))], 0.012, edge, segs=4)
-    turn(12)
+
+def _sheet(nu, nv, fn, m, thick=0.03):
+    """A grid surface (nu x nv quads) from fn(u, v) -> (x, y, z), given thickness. Cloth needs real
+    drape: folds only read if the surface curves, so a folded sheet is a displaced grid, not a prism."""
+    import bmesh
+    import bpy
+    bm = bmesh.new()
+    grid = [[bm.verts.new(fn(i / (nu - 1), j / (nv - 1))) for j in range(nv)] for i in range(nu)]
+    for i in range(nu - 1):
+        for j in range(nv - 1):
+            bm.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new("sheet")
+    bm.to_mesh(me)
+    bm.free()
+    for poly in me.polygons:
+        poly.use_smooth = True
+    me.materials.append(m)
+    ob = bpy.data.objects.new("sheet", me)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.parent = ROOT
+    md = ob.modifiers.new("solid", "SOLIDIFY")
+    md.thickness = thick
+    return ob
+
+
+def cloth_scrap():
+    """Torn linen: a faded linen-coloured cloth square heaped over itself in folds, the weave showing,
+    the hem torn ragged with a few loose threads. Irregular outline, soft folds; not a flat plane."""
+    face = _weave("#dcd2b4", "#bdb08e", scale=30.0, bump=0.9)
+    back = _weave("#c8bc9c", "#a89a78", scale=26.0, bump=0.8)
+    thread = mat("#d8ccae", 0.95, color2="#b0a482", tex="noise", scale=30.0, bump=0.3)
+
+    def cloth(u, v):
+        # Width narrows with a torn, wavy edge; the hem is uneven; the cloth piles into folds at the
+        # bottom where it doubles over itself.
+        half = 0.85 * (0.82 + 0.18 * math.sin(v * 5.0 + 0.4)) * (1.0 - 0.22 * v)
+        x = (u * 2.0 - 1.0) * half
+        z = 0.95 - (1.55 + 0.22 * math.sin(u * 9.0 + 1.1)) * v
+        heap = 0.42 * max(0.0, v - 0.55) ** 1.5 * (0.6 + 0.4 * math.sin(u * math.pi * 2.2))
+        fold = 0.2 * math.sin(u * math.pi * 3.1 + 0.6) * (0.3 + 0.7 * v)
+        return (x, fold - 0.16 * v + 0.05 * math.sin(v * 8.0 + u * 5.0) - heap, z)
+    _sheet(15, 15, cloth, face, thick=0.03)
+    # The bottom corner folded up over the heap: a soft triangle of the other face of the weave.
+    def flap(u, v):
+        w = 0.62 * (1.0 - v)
+        return (-0.3 + (u - 0.5) * 2.0 * w, -0.55 - 0.06 * math.sin(u * 4.0) + 0.06 * v,
+                -0.55 + v * 0.85 + 0.05 * math.sin(u * math.pi))
+    _sheet(9, 9, flap, back, thick=0.025)
+    for i in range(9):   # loose threads from the torn hem
+        u = 0.08 + 0.1 * i
+        e = cloth(u, 1.0)
+        tube([(e[0], e[1], e[2] + 0.02), (e[0] + 0.03, e[1] + 0.02, e[2] - 0.08 - 0.04 * (i % 3)),
+              (e[0] - 0.01, e[1] + 0.03, e[2] - 0.15 - 0.04 * (i % 2))], 0.011, thread, segs=4)
+    turn(8)
     upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def leech():
-    """A fat blood-leeched worm, body arched and ringed, one sucker at each end."""
-    body = mat("#5a2a34", 0.35, color2="#2e121a", tex="wave", scale=16.0, bump=0.35, coat=0.5)
+    """A fat blood leech: dark red, ringed, arched over the ground with a sucker at each end."""
+    body = mat("#7a2634", 0.3, color2="#4a1220", tex="noise", scale=12.0, bump=0.3, coat=0.6, spec=0.7)
+    ring = mat("#4a1220", 0.35, color2="#2a0a12", tex="noise", scale=14.0, bump=0.2, coat=0.6)
     pts = []
-    for i in range(17):
-        t = i / 16
-        a = math.pi * (0.15 + 0.75 * t)
-        pts.append((1.25 * math.cos(math.pi - a), 0.0, -0.9 + 1.75 * math.sin(a) * 0.95 + 0.15 * t))
-    tube(pts, 0.24, body, segs=14, taper=(0.55, 1.0))
-    dark = mat("#3e1a22", 0.3, color2="#1e0a0e", tex="wave", scale=13.0, bump=0.2, coat=0.6)
-    for i in range(1, 10):
+    for i in range(19):
+        t = i / 18
+        a = math.pi * (0.12 + 0.76 * t)
+        pts.append((1.3 * math.cos(math.pi - a), 0.0, -1.0 + 1.9 * math.sin(a) + 0.1 * t))
+    tube(pts, 0.3, body, segs=16, taper=(0.5, 1.0))
+    for i in range(1, 10):  # rings: thin darker bands around the body
         u = i / 10
         k = int(u * (len(pts) - 1))
         p = pts[k]
-        r = 0.24 * (0.55 + 0.45 * u)
-        tube(arc((p[0], p[1], p[2]), r * 1.02, 0, 360, 12, plane="xz")[:-1], 0.028, dark, segs=5, closed=True)
-    for p in (pts[0], pts[-1]):
-        cyl(0.16, 0.06, loc=(p[0], p[1], p[2]), rot=(90, 0, 0), m=dark, segs=14)
-    lean(-12)
+        q = pts[min(k + 1, len(pts) - 1)]
+        r = 0.3 * (0.5 + 0.5 * u) * 1.02
+        d = (q[0] - p[0], q[2] - p[2])
+        n = math.hypot(*d) or 1.0
+        band = [(p[0] + r * math.cos(t) * (-d[1] / n), r * math.sin(t),
+                 p[2] + r * math.cos(t) * (d[0] / n)) for t in (j * 0.4 for j in range(16))]
+        tube(band, 0.035, ring, segs=5, closed=True)
+    for p in (pts[0], pts[-1]):  # suckers
+        cyl(0.15, 0.07, loc=(p[0], p[1], p[2]), rot=(90, 0, 0), m=ring, segs=16)
+        cyl(0.08, 0.09, loc=(p[0], p[1] - 0.02, p[2]), rot=(90, 0, 0), m=mat("#2a0a12", 0.3), segs=12)
+    turn(-6)
+    turn(8, "X")
 
 
 def marsh_herb():
@@ -695,29 +790,30 @@ def spice_herb():
 
 
 def petals():
-    """Five separate rose petals scattered on the ground: pale pink, blush and deep crimson."""
-    pinks = (mat("#ee8aa4", 0.6, color2="#dc6c8c", tex="noise", scale=4.0, bump=0.2),
-             mat("#f8b2c4", 0.6, color2="#ec94ac", tex="noise", scale=4.0, bump=0.2),
-             mat("#c8426a", 0.6, color2="#a8264c", tex="noise", scale=4.0, bump=0.2))
+    """A scatter of thin rose petals: dusty rose, blush and deep crimson, each a flat petal with a
+    crease down its middle and a curled tip."""
+    pinks = (mat("#c05a72", 0.85, color2="#9a3a52", tex="noise", scale=3.0, bump=0.3, spec=0.25),
+             mat("#d88094", 0.85, color2="#b05c70", tex="noise", scale=3.0, bump=0.3, spec=0.25),
+             mat("#9a2848", 0.85, color2="#741634", tex="noise", scale=3.0, bump=0.3, spec=0.25))
 
     def outline(length, width):
         pts = []
-        n = 10
+        n = 12
         for i in range(n + 1):
             t = i / n
-            pts.append((width * math.sin(math.pi * min(t * 1.06, 1.0)) ** 0.45, length * t))
+            pts.append((width * math.sin(math.pi * t ** 0.62) ** 0.75, length * t))
         for i in range(n - 1, 0, -1):
             t = i / n
-            pts.append((-width * 0.9 * math.sin(math.pi * t) ** 0.6 * (1 - 0.15 * t), length * t))
+            pts.append((-width * 0.94 * math.sin(math.pi * t ** 0.62) ** 0.75, length * t))
         return pts
 
-    def curl(co):
-        co.y -= 0.14 * (co.z / 1.2) ** 2
-    spots = (((-0.55, 0.15, -0.25), (80, 30, 0), 1.0, pinks[0]), ((0.1, 0.25, -0.1), (84, -10, 0), 1.1, pinks[1]),
-             ((0.62, -0.05, -0.3), (80, -50, 0), 0.9, pinks[2]), ((-0.25, -0.35, -0.25), (86, 15, 0), 0.9, pinks[1]),
-             ((0.4, -0.45, -0.3), (88, 65, 0), 0.8, pinks[0]))
+    def curled(co):
+        co.y += 0.35 * max(0.0, co.z - 0.55) ** 1.5 - 0.06 * (co.x / 0.4) ** 2   # tip lifts, petal cups
+    spots = (((-0.55, 0.2, -0.4), (86, 25, 0), 0.95, pinks[0]), ((0.08, 0.3, -0.3), (92, -8, 0), 1.0, pinks[1]),
+             ((0.58, -0.05, -0.4), (86, -45, 0), 0.9, pinks[2]), ((-0.2, -0.3, -0.42), (92, 12, 0), 0.9, pinks[1]),
+             ((0.38, -0.45, -0.45), (94, 60, 0), 0.8, pinks[0]), ((0.0, -0.02, -0.25), (80, 45, 0), 0.85, pinks[2]))
     for (loc, rot_, ln, m) in spots:
-        prism(outline(ln, 0.38), 0.06, loc=loc, rot=rot_, m=m, bev=0.02, deform=curl)
+        prism(outline(ln, 0.36), 0.022, loc=loc, rot=rot_, m=m, bev=0.004, deform=curled)
     turn(15)
     upright()  # flat item: diagonal so the slot can lift it above its top edge
 
@@ -781,26 +877,30 @@ def vine():
     tip = pts[-1]
     tube([tip, (tip[0] + 0.25, tip[1] - 0.2, tip[2] + 0.45), (tip[0] + 0.5, tip[1] - 0.35, tip[2] + 0.6)], 0.08, m,
          segs=6, taper=(1.0, 0.5))
-    g_m = mat("#6a9a3a", 0.5, color2="#4a7a28", tex="wave", scale=8.0)
-    for k, ang in ((10, 40), (36, -45), (62, 30)):
+    g_m = mat("#78a840", 0.45, color2="#54802a", tex="wave", scale=6.0, bump=0.1)
+    for k, ang, ln in ((6, 35, 0.8), (34, -40, 0.75), (64, 25, 0.7), (90, -20, 0.6)):
         p = pts[k]
-        leaf(0.55, 0.22, loc=(p[0], p[1], p[2]), rot=(30, ang, 0), m=g_m, curl=0.12)
+        leaf(ln, 0.3, loc=(p[0], p[1] + 0.04, p[2] + 0.08), rot=(20, ang, 0), m=g_m, curl=0.14)
     turn(35, "X")
 
 
 def mud():
-    """Wet mud: three matte brown clumps with darker wet patches and a drip running off the side."""
-    wet = mat("#5e462c", 0.7, color2="#3e2c18", tex="noise", scale=5.0, bump=0.8, spec=0.3)
-    damp = mat("#3a2a16", 0.22, color2="#261a0c", tex="noise", scale=6.0, bump=0.5, spec=0.5)
-    for (x, y, z, r, scl) in ((0.0, 0.0, -0.5, 0.7, (1.3, 1.0, 0.75)), (0.65, -0.25, -0.55, 0.42, (1.2, 1.0, 0.8)),
-                              (-0.6, 0.15, -0.5, 0.45, (1.1, 1.0, 0.8))):
-        rock(r, loc=(x, y, z), scl=scl, m=wet, jitter=0.22, sub=2, smooth=True)
-    for (x, y, r) in ((0.15, -0.3, 0.36), (-0.4, 0.05, 0.24)):
-        blob(r, loc=(x, y, -0.08), scl=(1.25, 0.9, 0.18), m=damp, amp=0.2, sub=2)
-    tube([(0.55, -0.45, -0.15), (0.62, -0.5, -0.55), (0.58, -0.48, -0.85)], 0.05, damp, segs=6, taper=(1.0, 0.5))
-    ball(0.06, loc=(0.57, -0.47, -0.9), scl=(1, 1, 1.3), m=damp, sub=2)
-    turn(10)
-    upright()  # flat item: diagonal so the slot can lift it above its top edge
+    """Wet mud: a rough, matte clod of brown soil with cracks across it and a couple of grass blades
+    stuck in it; wet dark rims where the water has soaked in, but no shine."""
+    wet = mat("#6a4e2c", 0.9, color2="#46301a", tex="noise", scale=9.0, bump=0.9, spec=0.3)
+    wet2 = mat("#7e6038", 0.9, color2="#55391c", tex="noise", scale=11.0, bump=0.9, spec=0.3)
+    dark = mat("#3a2814", 0.8, color2="#26180a", tex="noise", scale=12.0, bump=0.6)
+    rock(0.85, loc=(0, 0, -0.05), scl=(1.15, 0.95, 0.85), m=wet, jitter=0.26, sub=2, smooth=True)
+    rock(0.4, loc=(0.75, -0.3, -0.45), scl=(1.2, 1.0, 0.8), m=wet2, jitter=0.3, sub=2, smooth=True)
+    rock(0.34, loc=(-0.75, 0.1, -0.45), scl=(1.1, 1.0, 0.85), m=wet2, jitter=0.3, sub=1, smooth=True)
+    for (x0, y0, x1, y1, z) in ((-0.55, -0.45, 0.2, 0.1, 0.5), (0.1, 0.35, 0.55, 0.1, 0.0), (-0.2, 0.55, -0.3, 0.2, 0.1)):
+        pts = [(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, z - 0.45 + 0.03 * math.sin(t * 11)) for t in (i / 6 for i in range(7))]
+        tube(pts, 0.02, dark, segs=4)
+    blade = mat("#6a9a3a", 0.5, color2="#4a7a28", tex="wave", scale=7.0)
+    leaf(0.95, 0.1, loc=(0.2, -0.1, 0.5), rot=(0, 40, 0), m=blade, curl=0.2)
+    leaf(0.8, 0.09, loc=(-0.25, -0.15, 0.45), rot=(0, -50, 0), m=blade, curl=0.15)
+    turn(12)
+    turn(10, "X")
 
 
 def ochre():
@@ -817,21 +917,21 @@ def ochre():
 
 
 def peat():
-    """Peat: a cut turf brick of dark fibrous soil beside a second half-brick, crumbs around them."""
-    m = mat("#3a2818", 0.98, color2="#20140a", tex="wave", scale=22.0, bump=1.0, ramp=(0.2, 0.6))
-    cut = mat("#6a4a2a", 0.98, color2="#3e2a16", tex="noise", scale=18.0, bump=0.9)
+    """Peat: a cut turf brick, dark brown fibrous soil with a mossy green top, beside a half brick;
+    the chopped end shows the tight pale fibre layers and a few crumbs lie around."""
+    m = mat("#4a3420", 0.98, color2="#2a1a0a", tex="noise", scale=40.0, bump=1.0, ramp=(0.35, 0.7))
+    moss = mat("#4c5a2a", 0.95, color2="#333e18", tex="noise", scale=30.0, bump=0.5)
+    cut = mat("#8a6a3e", 0.98, color2="#5a4022", tex="noise", scale=44.0, bump=0.7)
     box((1.5, 1.0, 0.7), m=m, bev=0.07)
-    box((0.95, 0.9, 0.6), loc=(0.35, 0.12, 0.62), rot=(0, 0, 14), m=m, bev=0.07)
-    # Cut faces: the turf's inner soil, lighter and full of root fibres.
-    box((0.04, 0.9, 0.6), loc=(-0.72, 0.0, 0.0), m=cut, bev=0.0)
-    fibre = mat("#c08a52", 0.95, color2="#8a5a2e", tex="wave", scale=30.0, bump=0.6)
-    for k in range(5):
-        z = -0.22 + 0.11 * k
-        tube([(-0.74, -0.35, z), (-0.74, 0.0, z + 0.03), (-0.74, 0.35, z - 0.02)], 0.012, fibre, segs=4)
-    for k in range(4):
-        y = -0.28 + 0.18 * k
-        tube([(-0.5, y, 0.36), (-0.1, y + 0.02, 0.37), (0.4, y - 0.01, 0.36)], 0.012, fibre, segs=4)
-    crumb = mat("#4a3420", 0.98, color2="#2a1c10", tex="voronoi", scale=10.0, bump=0.6)
+    box((1.42, 0.92, 0.06), loc=(0, 0, 0.36), m=moss, bev=0.03)
+    box((0.95, 0.9, 0.6), loc=(0.38, 0.12, 0.62), rot=(0, 0, 14), m=m, bev=0.07)
+    box((0.88, 0.82, 0.05), loc=(0.38, 0.12, 0.93), rot=(0, 0, 14), m=moss, bev=0.02)
+    box((0.04, 0.92, 0.62), loc=(-0.72, 0.0, 0.0), m=cut, bev=0.0)
+    for k in range(6):
+        z = -0.2 + 0.08 * k
+        tube([(-0.74, -0.4, z), (-0.74, 0.0, z + 0.01), (-0.74, 0.4, z - 0.01)], 0.022,
+             mat("#3e2a12", 0.98, color2="#2a1a08", tex="noise", scale=40.0), segs=4)
+    crumb = mat("#4a3420", 0.98, color2="#2a1a0a", tex="voronoi", scale=12.0, bump=0.6)
     for p_ in ((-0.95, -0.3, -0.42), (-0.78, -0.5, -0.45), (0.95, -0.2, -0.43), (0.9, 0.2, -0.45)):
         rock(0.09, loc=p_, m=crumb, jitter=0.35, sub=1)
     turn(15)

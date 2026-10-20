@@ -32,6 +32,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "acacia_wood": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "acacia_wood",
+   "png": "res://assets/icons/render/acacia_wood.png",
+   "sha256": "3162708af5bebe9102fea6c39bc67a65f917e49d8cf20df01fa52251c49c901a",
+   "bytes": 43874,
+   "rect": [
+    19,
+    43,
+    218,
+    170
+   ],
+   "quality": "procedural_v1"
+  },
   "armor_scute": {
    "script": "tools/blender/items/resources.py",
    "builder": "armor_scute",
@@ -46,6 +60,20 @@
    ],
    "quality": "procedural_v1",
    "replace": "flat plate, no bony texture"
+  },
+  "ash": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "ash",
+   "png": "res://assets/icons/render/ash.png",
+   "sha256": "c1ff91340d5b6177fd604abd07eec7eaa6832a7335e6d12e1c557f5a9dfd55fc",
+   "bytes": 36957,
+   "rect": [
+    19,
+    67,
+    218,
+    122
+   ],
+   "quality": "procedural_v1"
   },
   "bamboo": {
    "script": "tools/blender/items/resources.py",
@@ -85,6 +113,20 @@
     79,
     19,
     98,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "bark_strip": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "bark_strip",
+   "png": "res://assets/icons/render/bark_strip.png",
+   "sha256": "6515434e4729643cb07f7398414b24eed79c07f4cabcfa5dc47e7dc90c521004",
+   "bytes": 36722,
+   "rect": [
+    54,
+    19,
+    148,
     218
    ],
    "quality": "procedural_v1"
@@ -288,6 +330,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "cactus_spine": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "cactus_spine",
+   "png": "res://assets/icons/render/cactus_spine.png",
+   "sha256": "b06d9eb5197452cc400e78b78adb5da9c2992daa460d2b357cc58ba6b9a01dca",
+   "bytes": 33606,
+   "rect": [
+    36,
+    19,
+    183,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "camp_stew": {
    "script": "tools/blender/items/food.py",
    "builder": "camp_stew",
@@ -416,6 +472,20 @@
    ],
    "quality": "procedural_v1",
    "replace": "stacked coloured slabs, no fold or weave"
+  },
+  "cloth_scrap": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "cloth_scrap",
+   "png": "res://assets/icons/render/cloth_scrap.png",
+   "sha256": "29f8b8d689e68dbf8ab5f23a7eeeda39869c641549740ff3121a3ea1902ba2eb",
+   "bytes": 34834,
+   "rect": [
+    52,
+    19,
+    152,
+    218
+   ],
+   "quality": "procedural_v1"
   },
   "club": {
    "script": "tools/blender/items/gear.py",
@@ -972,6 +1042,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "leech": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "leech",
+   "png": "res://assets/icons/render/leech.png",
+   "sha256": "3fb84634aa9eebd0d8d9456fbe9280308f8167770ad3a723e7e59d5532b3428c",
+   "bytes": 30010,
+   "rect": [
+    19,
+    56,
+    218,
+    144
+   ],
+   "quality": "procedural_v1"
+  },
   "mango": {
    "script": "tools/blender/items/food.py",
    "builder": "mango",
@@ -986,6 +1070,20 @@
    ],
    "quality": "procedural_v1",
    "replace": "noisy green/orange blotches, reads poorly"
+  },
+  "marsh_herb": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "marsh_herb",
+   "png": "res://assets/icons/render/marsh_herb.png",
+   "sha256": "1145b8f81012c58bab84bd918931df675023d178b9ce0d616a85e1a1638ca4c3",
+   "bytes": 42725,
+   "rect": [
+    50,
+    19,
+    156,
+    218
+   ],
+   "quality": "procedural_v1"
   },
   "meatball": {
    "script": "tools/blender/items/food.py",
@@ -1044,6 +1142,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "mud": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "mud",
+   "png": "res://assets/icons/render/mud.png",
+   "sha256": "d56a5183b0aa27f26851bdf8608bad6b6c2cc65cb9e6f068adb1b3952d097d91",
+   "bytes": 37159,
+   "rect": [
+    19,
+    47,
+    218,
+    162
+   ],
+   "quality": "procedural_v1"
+  },
   "mushroom": {
    "script": "tools/blender/items/food.py",
    "builder": "mushroom",
@@ -1072,6 +1184,20 @@
    ],
    "quality": "procedural_v1",
    "replace": "dark crystal, not distinguishable from black_iron at slot size"
+  },
+  "ochre": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "ochre",
+   "png": "res://assets/icons/render/ochre.png",
+   "sha256": "3606041cfbe4300f6af583fc1871670c12a4ead03e43d349aa6d208c72a48b38",
+   "bytes": 41823,
+   "rect": [
+    19,
+    37,
+    218,
+    182
+   ],
+   "quality": "procedural_v1"
   },
   "ore": {
    "script": "tools/blender/items/resources.py",
@@ -1107,6 +1233,34 @@
    "png": "res://assets/icons/render/pearl.png",
    "sha256": "d475cec3e4a9af1a026e0ce219c147bc52fce687a5c5b4ae567a110fd15d019b",
    "bytes": 59972,
+   "rect": [
+    19,
+    43,
+    218,
+    170
+   ],
+   "quality": "procedural_v1"
+  },
+  "peat": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "peat",
+   "png": "res://assets/icons/render/peat.png",
+   "sha256": "5ee89babf1ac62c1168f317c995dad015ca30bb1dd365d6e66665a8454ca02e6",
+   "bytes": 42931,
+   "rect": [
+    19,
+    31,
+    218,
+    194
+   ],
+   "quality": "procedural_v1"
+  },
+  "petals": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "petals",
+   "png": "res://assets/icons/render/petals.png",
+   "sha256": "87b802723ee1a16ebb85d48e6d60e1aa7f5952513c4463647f5ac77598d624ca",
+   "bytes": 33260,
    "rect": [
     19,
     43,
@@ -1318,6 +1472,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "reed": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "reed",
+   "png": "res://assets/icons/render/reed.png",
+   "sha256": "6a14fa34306166f9c3dcc703448560ec1843d588882f7919f23e53eae94779d3",
+   "bytes": 23404,
+   "rect": [
+    80,
+    19,
+    96,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "resin": {
    "script": "tools/blender/items/resources.py",
    "builder": "resin",
@@ -1342,6 +1510,20 @@
     26,
     19,
     204,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "root": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "root",
+   "png": "res://assets/icons/render/root.png",
+   "sha256": "f9d8dea4e0a6a48a317a6f2ab729589eb5c32d76b66243a7ff58f17490865dd7",
+   "bytes": 23728,
+   "rect": [
+    44,
+    19,
+    168,
     218
    ],
    "quality": "procedural_v1"
@@ -1502,6 +1684,34 @@
    ],
    "quality": "procedural_v1",
    "replace": "not distinguishable from roast / seasoned_roast at slot size"
+  },
+  "snow_pine": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "snow_pine",
+   "png": "res://assets/icons/render/snow_pine.png",
+   "sha256": "60a805506f5ecd28acd12ff056ca0ad6486b02429ecf7298821db74e8039b7a0",
+   "bytes": 28071,
+   "rect": [
+    19,
+    43,
+    218,
+    171
+   ],
+   "quality": "procedural_v1"
+  },
+  "spice_herb": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "spice_herb",
+   "png": "res://assets/icons/render/spice_herb.png",
+   "sha256": "d61f8ff922940dc218380dcb06bad0a074dd74ac81da48ce42b53e918f6e28ae",
+   "bytes": 23527,
+   "rect": [
+    67,
+    19,
+    122,
+    218
+   ],
+   "quality": "procedural_v1"
   },
   "spiced_skewer": {
    "script": "tools/blender/items/food.py",
@@ -1801,6 +2011,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "vine": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "vine",
+   "png": "res://assets/icons/render/vine.png",
+   "sha256": "48c15bbedb9839772719dc86bb54b8f43374e22ed4db0b8e3756ff5cba624a55",
+   "bytes": 43558,
+   "rect": [
+    19,
+    67,
+    218,
+    122
+   ],
+   "quality": "procedural_v1"
+  },
   "water_bucket": {
    "script": "tools/blender/items/gear.py",
    "builder": "water_bucket",
@@ -1854,6 +2078,20 @@
     34,
     218,
     188
+   ],
+   "quality": "procedural_v1"
+  },
+  "willow_wood": {
+   "script": "tools/blender/items/resources.py",
+   "builder": "willow_wood",
+   "png": "res://assets/icons/render/willow_wood.png",
+   "sha256": "084d582d8c3f530709ced8507e90e4b628167382d050de35702546946917be50",
+   "bytes": 35321,
+   "rect": [
+    28,
+    19,
+    200,
+    218
    ],
    "quality": "procedural_v1"
   },
@@ -1915,37 +2153,20 @@
   }
  },
  "missing": [
-  "acacia_wood",
-  "ash",
-  "bark_strip",
   "cabin_bed_kit",
-  "cactus_spine",
   "canvas_tent_kit",
   "captured_animal",
   "carnivore_feed",
-  "cloth_scrap",
   "field_large_kit",
   "field_small_kit",
   "fruit_fertilizer",
   "herbivore_feed",
-  "leech",
   "log_shelter_kit",
   "makeshift_taming_pen",
-  "marsh_herb",
-  "mud",
-  "ochre",
-  "peat",
-  "petals",
   "pressure_dressing",
-  "reed",
-  "root",
   "smoker_kit",
-  "snow_pine",
-  "spice_herb",
   "steamer_kit",
   "stone_fire_pit_kit",
-  "tamed_animal",
-  "vine",
-  "willow_wood"
+  "tamed_animal"
  ]
 }
