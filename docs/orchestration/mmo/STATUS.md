@@ -45,6 +45,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | 1 (merged) | W1-TAME, W1-CANIM, W1-BUILD, W1-ITEMS, W1-WEB, W1-AI, W1-LIGHT (blind judge 6/6), W1-COMBAT, W1-SAVE, W1-HARBOUR (blind judge 6/6), dsc re-animations (velociraptor, utahraptor, protoceratops, megaloceros combat/ground/rest, compsognathus, coelophysis, gallimimus) passed review and are merged into `claude/mmo-overhaul`; gates: import, [tests] PASS, t_tame/t_canim/t_build/t_items PASS, SMOKE PASS | done |
 | finish-6 | 2026-10-20 night, new session (owner program prompt, priority 1): wf_c321f8a4-028, script `handoff/workflows/finish-6.js`. Fix -> independent review (branch + hooks) -> blind A/B for visual -> base sync + delta review -> one serialized integrator that pushes. Merge order W2-DATA -> W2-SKILLS -> W2-INV -> W2-PROCESS -> W2-GATHER -> W2-BUILDSYS -> ECON; alongside W2-RAGDOLL, ICONS2 and new FORGEART (forge/anvil Blender models, after W2-DATA). Orchestrator grants: W2-SKILLS owns the single bonded-cap function and the taming_pen bond refusal (W2-BREED not running); ICONS2 may change t_iconart.gd. Review trees: scratchpad mkscratch.sh. Resumed once (same run id) after a docs check: ten fixes the docs settle were added to W2-DATA, W2-SKILLS, W2-INV, W2-PROCESS, W2-GATHER, W2-BUILDSYS and ECON (`vision-check.md`, which also ranks the next core-loop packages) | running |
 | invui | 2026-10-20 night: owner spec 13 (Durango Bag, Character -> Gear, Equipment / My Info), wf_cdb79ed1-deb, script `handoff/workflows/invui.js`, branch claude/mmo-invui stacked on claude/mmo-w2-inv: scouts -> design (invui-spec.md, bag_ui_lab, t_invui) -> builds B1 bag+inspect, B2 character/gear, B3 storage/cargo/picker, B4 polish -> reviewer + fidelity judge vs the Durango references + blind A/B. Ends ready-to-merge; integrated after W2-INV lands | running |
+| exchange | 2026-10-20 night: owner spec 14 (Island Market: HUD > Main Menu > Island Market > Buy / My Market / Sell), wf_4cbd48e0-5b9, script `handoff/workflows/exchange.js`, branch claude/mmo-exchange stacked on claude/mmo-econ: scouts -> design (transport decision; one owner question if single-player selling needs server-owned characters) -> B1 shell+Buy, B2 Sell, B3 My Market, B4 polish -> reviewer + fidelity judge vs the market references. Ends ready-to-merge; integrated after ECON (and INVUI) | running |
 | 1 | W1-LIGHT, SAVE, TAME, AI, CANIM, COMBAT, BUILD, ITEMS, SRVDOM, QA, UI, ICONART, WEB, BIOME, STRUCTART (each `claude/mmo-w1-<key>`) | launching, reviewer-gated, blind A/B judge on visual packages |
 | 2a | W2-PLAYER (player split + PlayerActions), W2-BREED (breeding, growth, mutations, capture rule 09, bonded cap 3->7), W2-ECO (ecosystem, structure targeting) in claude/mmo-w2-<key>; builders hand mechanical parts to dsc sub-worktrees | running (wf_e4b5bc5d-f50) |
 | 2a+ | W2-OCCLUDE: shared see-through occlusion (tall trees, later roofs/walls; roof fades when the survivor is under it) | running (wf_6986c1a3-c0c) |
@@ -332,6 +333,17 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   Attack/Defense/Accuracy; the same grid for storage, dinosaur cargo, the craft/cook ingredient picker and Sell on Market.
   It supersedes W2-INV's grouped bag view (grouping only if it expands back to instances). Package INVUI (`claude/mmo-invui`,
   stacked on `claude/mmo-w2-inv`), merged right after W2-INV.
+
+- 2026-10-20 (owner) Island Market UI: "Gameplay HUD → Main Menu → Island Market → Buy / My Market / Sell" with two Durango
+  screenshots (`docs/design/durango-prompts/14_island_market_ui.md`, `docs/reference/durango-market-buy-{search,taming}.webp`).
+  Package W3-EXCHANGE (`claude/mmo-exchange`, stacked on `claude/mmo-econ`): the market screens on the REAL ECON engine through
+  `VaultBridge.client()` (local authority until a host is picked; no fake listings: spec 06's honest offline harness),
+  one row per instance, caged pets as cages; merged after ECON (and INVUI for the Sell picker).
+
+- 2026-10-20 (owner) "this will be an online multiplayer game at some point": the Island Market is an online feature on the
+  server (contracts v2: server-owned characters, clients send intents). W3-EXCHANGE builds the screens for the server path
+  (socket transport; a local server for dev and tests until a host is picked) and shows an honest "market offline" state in
+  offline single-player. It does NOT move single-player characters into a server store to make offline selling work.
 
 ## Owner questions (open)
 
