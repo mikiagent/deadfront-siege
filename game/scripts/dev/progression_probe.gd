@@ -82,7 +82,8 @@ func run(host: Node) -> void:
 	check(Objectives.current(player)["done"], "final standing order reads victory")
 	World.island_id = &"home_grassland"
 	World._save_now()
-	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(World.SAVE_PATH))
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(SaveGame.path))  # probes save under user://runs/
+	var data: Dictionary = parsed if parsed is Dictionary else {}
 	check(bool(data.get("raid_victory", false)) and data.get("visited_islands", {}).size() == 15, "save includes victory and all voyages")
 	World.raid_victory = false
 	World.visited_islands.clear()

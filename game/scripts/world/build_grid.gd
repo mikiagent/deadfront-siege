@@ -50,7 +50,7 @@ func reserve_kind(kind: StringName, cell: Vector2i, rot: int = 0) -> void:
 func reserve_cells(cells: Array[Vector2i], tag: StringName = &"reserved") -> void:
 	for c in cells:
 		_reserved[c] = tag
-	_mark_pathing_dirty()
+	_cells_changed(cells)
 
 func cells_for(kind: StringName, cell: Vector2i, rot: int) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
@@ -90,7 +90,7 @@ func occupy(node: Node, cells: Array[Vector2i]) -> void:
 	_node_cells[key] = cells.duplicate()
 	for c in cells:
 		_occupied[c] = node
-	_mark_pathing_dirty()
+	_cells_changed(cells)
 
 func release(node: Node) -> void:
 	if node == null:
@@ -103,7 +103,35 @@ func release(node: Node) -> void:
 		if c is Vector2i and _occupied.get(c, null) == node:
 			_occupied.erase(c)
 	_node_cells.erase(key)
-	_mark_pathing_dirty()
+	_cells_changed(cells)
+
+## Cells a node occupies (empty when it is not on the grid).
+func cells_of(node: Node) -> Array:
+	if node == null:
+		return []
+	return _node_cells.get(node.get_instance_id(), [])
+
+## Re-flag a node's cells for pathing after its passability changed (a gate opened or closed).
+func refresh_path(node: Node) -> void:
+	_cells_changed(cells_of(node))
+
+## Whether a creature or the survivor can path through this cell. An open gate is passable.
+func blocks_path(c: Vector2i) -> bool:
+	if _reserved.has(c):
+		return true
+	var occ: Variant = _occupied.get(c, null)
+	if not is_instance_valid(occ):
+		return false
+	var open: Variant = (occ as Object).get("gate_open")
+	return not (open is bool and open)
+
+## Tell pathing exactly which cells changed so it re-flags those instead of rebuilding the island.
+func _cells_changed(cells: Array) -> void:
+	var p: Variant = runtime.get("pathing") if is_instance_valid(runtime) else null
+	if is_instance_valid(p) and p is TilePath:
+		(p as TilePath).update_cells(cells)
+	else:
+		_mark_pathing_dirty()
 
 func occupied_cells() -> Array[Vector2i]:
 	var out: Array[Vector2i] = []

@@ -35,9 +35,10 @@ func _physics_process(delta: float) -> void:
 	for node in get_tree().get_nodes_in_group("creatures"):
 		var creature := node as Creature
 		if creature == null or creature.def == null: continue
+		# Body edge, not the feet origin: a big animal steps on the ring with a foot, not its centre.
 		var offset := creature.global_position - global_position
 		offset.y = 0
-		if offset.length() <= RADIUS and creature.apply_trap_control(heavy):
+		if offset.length() - MeleeQuery.body_radius(creature) <= RADIUS and creature.apply_trap_control(heavy):
 			queue_free()
 			return
 

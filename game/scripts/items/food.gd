@@ -75,18 +75,28 @@ static func can_eat(player: Player, stack: ItemStack) -> String:
 		return "full"
 	return ""
 
-static func apply_raw_risks(player: Player, stack: ItemStack) -> void:
-	if player == null or stack == null or not is_raw(stack):
-		return
+## The raw-food roll alone: &"stomachache", &"tastes_bad" or &"". Seed `rng` to reproduce it.
+static func raw_risk_roll(stack: ItemStack, rng: RandomNumberGenerator = null) -> StringName:
+	if stack == null or not is_raw(stack):
+		return &""
 	var d := stack.def()
 	var poison_p := d.poison_chance if d else 0.0
 	var bad_p := d.tastes_bad_chance if d else 0.0
-	if is_poisoned(stack) or (poison_p > 0.0 and randf() < poison_p):
-		player.statuses.apply(&"stomachache", player)
-		print("[food] stomachache from %s" % stack.def_id)
-	elif bad_p > 0.0 and randf() < bad_p:
-		player.statuses.apply(&"tastes_bad", player)
-		print("[food] tastes_bad from %s" % stack.def_id)
+	if is_poisoned(stack) or (poison_p > 0.0 and _roll(rng) < poison_p):
+		return &"stomachache"
+	if bad_p > 0.0 and _roll(rng) < bad_p:
+		return &"tastes_bad"
+	return &""
+
+static func apply_raw_risks(player: Player, stack: ItemStack, rng: RandomNumberGenerator = null) -> StringName:
+	var hit := raw_risk_roll(stack, rng)
+	if hit != &"" and player and player.statuses:
+		player.statuses.apply(hit, player)
+		print("[food] %s from %s" % [hit, stack.def_id])
+	return hit
+
+static func _roll(rng: RandomNumberGenerator) -> float:
+	return rng.randf() if rng else randf()
 
 static func apply_buffs(player: Player, stack: ItemStack) -> void:
 	if player == null or stack == null:

@@ -196,7 +196,7 @@ func _play(clip: StringName) -> void:
 	current_clip = resolved
 	var speed := 1.0
 	if clip == &"attack_primary":
-		speed = 1.5
+		speed = 1.0  # v2 clip is 1.21 s; the 1.5 floor was for the 3 s Meshy swing. The weapon-rate fit below still applies.
 	elif clip == &"punch":
 		speed = 1.3
 	elif _resolved_missing and clip in [&"attack_heavy", &"roll", &"gather", &"knockdown"]:
