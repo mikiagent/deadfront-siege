@@ -1,3 +1,211 @@
+diff --git a/game/data/nature_manifest.json b/game/data/nature_manifest.json
+index 417f39de..de8f4d96 100644
+--- a/game/data/nature_manifest.json
++++ b/game/data/nature_manifest.json
+@@ -265,7 +265,7 @@
+           1,
+           2
+         ],
+-        "spine": [
++        "cactus_spine": [
+           1,
+           3
+         ]
+@@ -524,6 +524,10 @@
+         "reed": [
+           1,
+           2
++        ],
++        "leech": [
++          0,
++          1
+         ]
+       },
+       "tool_class": null,
+@@ -578,6 +582,10 @@
+         "resin": [
+           0,
+           1
++        ],
++        "pine_log": [
++          0,
++          1
+         ]
+       },
+       "tool_class": "axe",
+@@ -625,6 +633,10 @@
+         "wood_log": [
+           1,
+           2
++        ],
++        "snow_pine": [
++          0,
++          1
+         ]
+       },
+       "tool_class": "axe",
+@@ -648,6 +660,10 @@
+         "herb_leaf": [
+           1,
+           2
++        ],
++        "mushroom": [
++          0,
++          1
+         ]
+       },
+       "tool_class": null,
+@@ -671,10 +687,6 @@
+         "stone": [
+           2,
+           4
+-        ],
+-        "ore_chunk": [
+-          0,
+-          1
+         ]
+       },
+       "tool_class": "pick",
+@@ -750,6 +762,10 @@
+         "wood_log": [
+           1,
+           1
++        ],
++        "root": [
++          0,
++          1
+         ]
+       },
+       "tool_class": "axe",
+@@ -768,6 +784,10 @@
+         "wood_log": [
+           1,
+           1
++        ],
++        "root": [
++          0,
++          1
+         ]
+       },
+       "tool_class": "axe",
+@@ -787,6 +807,10 @@
+         "wood_log": [
+           2,
+           2
++        ],
++        "root": [
++          0,
++          1
+         ]
+       },
+       "tool_class": "axe",
+@@ -847,6 +871,10 @@
+         "reed": [
+           1,
+           2
++        ],
++        "willow_wood": [
++          1,
++          2
+         ]
+       },
+       "tool_class": "axe",
+@@ -1066,7 +1094,7 @@
+           2
+         ]
+       },
+-      "min_pick_tier": {"flint": "stone"},
++      "min_pick_tier": {"flint": "bone"},
+       "tool_class": "pick",
+       "collision": "box",
+       "count": 8,
+@@ -1214,7 +1242,7 @@
+           2
+         ]
+       },
+-      "min_pick_tier": {"black_iron": "copper"},
++      "min_pick_tier": {"black_iron": "bronze"},
+       "tool_class": "pick",
+       "collision": "box",
+       "count": 8,
+@@ -1257,6 +1285,10 @@
+         "stone": [
+           1,
+           3
++        ],
++        "lava": [
++          0,
++          1
+         ]
+       },
+       "tool_class": "pick",
+@@ -1395,6 +1427,10 @@
+         "stone": [
+           2,
+           3
++        ],
++        "ore": [
++          0,
++          1
+         ]
+       },
+       "tool_class": "pick",
+@@ -1403,7 +1439,8 @@
+       "height": [
+         0.9,
+         1.4
+-      ]
++      ],
++      "min_pick_tier": {"ore": "stone"}
+     },
+     "FlaxPlant": {
+       "models": [
+@@ -1530,6 +1567,10 @@
+         "herb_leaf": [
+           1,
+           2
++        ],
++        "spice_herb": [
++          0,
++          1
+         ]
+       },
+       "tool_class": "none",
+@@ -1679,6 +1720,34 @@
+         0.5,
+         0.8
+       ]
++    },
++    "TinOreNode": {
++      "models": [
++        "res://assets/resources/generated/min4-silver_ore-final.glb"
++      ],
++      "role": "rock",
++      "climates": [
++        "temperate",
++        "tundra"
++      ],
++      "harvest": {
++        "tin_ore": [
++          1,
++          2
++        ],
++        "stone": [
++          1,
++          2
++        ]
++      },
++      "min_pick_tier": {"tin_ore": "flint"},
++      "tool_class": "pick",
++      "collision": "box",
++      "count": 8,
++      "height": [
++        0.8,
++        1.3
++      ]
+     }
+   }
+ }
 diff --git a/game/data/ui_icons.json b/game/data/ui_icons.json
 index 018431f9..bb9c0358 100644
 --- a/game/data/ui_icons.json
@@ -11,6 +219,23 @@ index 018431f9..bb9c0358 100644
  		"rotate": "res://assets/icons/ui/rotate.svg",
  		"place_rotate": "res://assets/icons/ui/rotate.svg",
  		"confirm": "res://assets/icons/ui/confirm.svg",
+diff --git a/game/data/world/rules.json b/game/data/world/rules.json
+index c2e07db2..c25b3b40 100644
+--- a/game/data/world/rules.json
++++ b/game/data/world/rules.json
+@@ -95,9 +95,9 @@
+     ],
+     "loot": [
+       "cloth_scrap",
+-      "wire",
+-      "medicine",
+-      "rare_seed"
++      "metal_shard",
++      "pressure_dressing",
++      "corn_seed"
+     ]
+   },
+   "lifetime_hours": {
 diff --git a/game/scripts/core/save_restore.gd b/game/scripts/core/save_restore.gd
 index cd8df9b8..ac920efc 100644
 --- a/game/scripts/core/save_restore.gd
@@ -132,3 +357,41 @@ index 5e18ccf6..051e77ac 100644
  	holder.free()
  	placer.free()
  
+diff --git a/game/tests/t_items.gd b/game/tests/t_items.gd
+index 586db7c5..1612b993 100644
+--- a/game/tests/t_items.gd
++++ b/game/tests/t_items.gd
+@@ -178,13 +178,15 @@ func _test_pick_gates() -> void:
+ 	var iron_why: String = iron.can_gather(bare)
+ 	print("[t_items] bare hands: copper_ore='%s' black_iron='%s'" % [copper_why, iron_why])
+ 	_expect(copper_why == "needs obsidian pick", "copper_ore refuses bare hands with 'needs obsidian pick' (got '%s')" % copper_why)
+-	_expect(iron_why == "needs copper pick", "black_iron refuses bare hands with 'needs copper pick' (got '%s')" % iron_why)
++	_expect(iron_why == "needs bronze pick", "black_iron refuses bare hands with 'needs bronze pick' (got '%s')" % iron_why)
++	# W2-DATA: each mined rung needs the rung below, so bronze cannot be skipped on the way to iron.
++	_expect(iron.can_gather(_bag_with_pick("copper")) == "needs bronze pick", "a copper pick is below black iron's tier")
+ 	_expect(copper.can_gather(_bag_with_pick("flint")) == "needs obsidian pick", "a flint pick is below copper's tier")
+ 	_expect(copper.can_gather(_bag_with_pick("obsidian")) == "", "an obsidian pick mines copper")
+ 	var mixed = INV.new(20)
+ 	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "stone"}, 1))
+-	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "copper"}, 1))
+-	_expect(iron.can_gather(mixed) == "" and mixed.slots[mixed.equipped_tool_index].material_tier() == &"copper", "the qualifying pick is the one equipped")
++	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "bronze"}, 1))
++	_expect(iron.can_gather(mixed) == "" and mixed.slots[mixed.equipped_tool_index].material_tier() == &"bronze", "the qualifying pick is the one equipped")
+ 	var spare = INV.new(20)
+ 	spare.add(IS.make(&"work_pick", 1, {"material_tier": "copper"}, 1))
+ 	spare.add(IS.make(&"work_pick", 1, {"material_tier": "obsidian"}, 1))
+@@ -199,10 +201,11 @@ func _test_pick_gates() -> void:
+ 	var picked = _bag_with_pick("flint")
+ 	_expect(rock.can_gather(picked) == "" and rock.gather_seconds < rock._base_seconds, "a held pick works loose stone faster")
+ 	var flint = _node("FlintNode", &"flint")
+-	_expect(flint.can_gather(bare) == "needs stone pick", "flint needs at least a stone pick")
+-	var at_min: float = flint.seconds_for(_bag_with_pick("stone"))
++	_expect(flint.can_gather(bare) == "needs bone pick", "flint needs at least a bone pick")
++	_expect(flint.can_gather(_bag_with_pick("stone")) == "needs bone pick", "a stone pick is below flint's tier (the bone rung comes first)")
++	var at_min: float = flint.seconds_for(_bag_with_pick("bone"))
+ 	var flint_s: float = flint.seconds_for(_bag_with_pick("flint"))
+-	print("[t_items] flint node seconds: stone pick (minimum tier) %.2f, flint pick %.2f, base %.2f" % [at_min, flint_s, flint._base_seconds])
++	print("[t_items] flint node seconds: bone pick (minimum tier) %.2f, flint pick %.2f, base %.2f" % [at_min, flint_s, flint._base_seconds])
+ 	_expect(flint_s < at_min and at_min <= flint._base_seconds, "a flint pick gathers flint faster than the minimum tier")
+ 	_expect(flint._collision_size().y <= 1.3, "rock collider height comes from the manifest span")
+ 	for n in [copper, iron, rock, copper_stone, flint]:

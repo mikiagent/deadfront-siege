@@ -230,7 +230,11 @@
     "steel_bracers": "hide_strap",
     "steel_greaves": "hide_strap",
     "antivenom": "bandage",
-    "antibiotic": "bandage"
+    "antibiotic": "bandage",
+    "bone_knife": "stone_knife_work",
+    "bone_axe": "work_axe",
+    "bone_pick": "work_pick",
+    "bone_spear": "stone_knife"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

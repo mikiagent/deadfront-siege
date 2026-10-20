@@ -234,6 +234,10 @@
   "steel_bracers": "epic",
   "steel_greaves": "epic",
   "antivenom": "uncommon",
-  "antibiotic": "uncommon"
+  "antibiotic": "uncommon",
+  "bone_knife": "common",
+  "bone_axe": "common",
+  "bone_pick": "common",
+  "bone_spear": "common"
  }
 }

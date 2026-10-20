@@ -7,11 +7,15 @@ extends SceneTree
 ##    butchering, farming, the capture/taming systems and recipes (stations need their kit, min_level
 ##    needs reachable material levels). Faction crates are never a source. Any item or recipe it cannot
 ##    reach fails, except items that name the system they wait on in "source_pending".
-## 3. Ladder, nets, armour bands and the real crafting planner agree with the walk.
+## 3. Ladder, nets, armour bands and the real crafting planner agree with the walk. The ladder is
+##    GAUNTLET's Stone -> Bone -> Flint -> Obsidian -> Copper -> Bronze -> Iron -> Steel: every rung has
+##    tools, no rung costs less or unlocks earlier than the one below, each mined ore needs the pick of
+##    the rung below it, and no ungated recipe turns obsidian or metal into gear.
+## 4. Crafting.progression_block refuses a requires_node recipe until the node is learned (hook 6).
 ## Item scripts reference the Data autoload, so they load on the first frame after it exists.
 
 const D := "res://data/"
-const RUNGS := ["stone", "flint", "obsidian", "copper", "bronze", "iron", "steel"]
+const RUNGS := ["stone", "bone", "flint", "obsidian", "copper", "bronze", "iron", "steel"]
 ## Special families IslandScatter._scatter_special_tiles plants on every island.
 const SPECIAL_FAMILIES := ["mud", "clay", "berry_bush", "tree_stump"]
 ## cleared_by entries in statuses.json that are actions or places, not items.
@@ -56,11 +60,14 @@ func _process(_delta: float) -> bool:
 	_walk()
 	_check_reachability()
 	_check_ladder()
+	_check_pick_chain()
+	_check_ungated_gear()
 	_check_nets()
 	_check_armor()
 	_check_no_multiplying_loops()
 	_check_structures()
 	_check_planner()
+	_check_node_gate()
 	if fails.is_empty():
 		print("[t_data] PASS items=%d recipes=%d" % [items.size(), recipes.size()])
 		quit(0)
@@ -350,21 +357,72 @@ func _staged_output(id: String) -> bool:
 func _rung_tools(tier: String) -> Array:
 	if tier == "stone":
 		return ["stone_knife_work", "work_axe", "work_pick", "stone_knife"]
-	var wpn := "spear" if tier in ["flint", "obsidian"] else "sword"
+	var wpn := "spear" if tier in ["bone", "flint", "obsidian"] else "sword"
 	return ["%s_knife" % tier, "%s_axe" % tier, "%s_pick" % tier, "%s_%s" % [tier, wpn]]
 
 func _check_ladder() -> void:
+	var prev_worst := 0.0
+	var prev_gate := 0
 	for tier: String in RUNGS:
 		var worst := 0.0
+		var gate := 0
 		for id: String in _rung_tools(tier):
 			_expect(cost.has(id), "rung %s tool %s is reachable" % [tier, id])
 			if tier != "stone":
 				_expect(str(PS.material_tier(StringName(id), {})) == tier, "%s reads as tier %s" % [id, tier])
 			worst = maxf(worst, float(cost.get(id, 0.0)))
-		print("[t_data] rung %-8s %s  ~%d s of gathering+crafting per tool (stations excluded)" % [tier, ", ".join(_rung_tools(tier)), int(worst)])
+			gate = maxi(gate, _gate_level(id))
+		print("[t_data] rung %-8s %s  ~%d s of gathering+crafting per tool (stations excluded), skill gate Lv %d" % [tier, ", ".join(_rung_tools(tier)), int(worst), gate])
+		# A later rung never costs less time or unlocks at a lower skill level than the rung below it.
+		_expect(worst >= prev_worst, "rung %s tools (~%.1f s) cost at least the rung below (~%.1f s)" % [tier, worst, prev_worst])
+		_expect(gate >= prev_gate, "rung %s skill gate Lv %d is not below the rung below (Lv %d)" % [tier, gate, prev_gate])
+		prev_worst = worst
+		prev_gate = gate
 	_expect(pick_tier == PS.TOOL_TIERS.find(&"steel"), "a steel pick is reachable (best %d)" % pick_tier)
 	for id in ["tin_ore", "tin_ingot", "copper_ingot", "bronze_ingot", "iron_ingot", "steel_ingot", "forge_kit", "anvil_kit", "steamer_kit", "hoe"]:
 		_expect(cost.has(id), "%s is reachable" % id)
+
+## Level of the trees.json node a recipe for `out` requires (0 when ungated).
+func _gate_level(out: String) -> int:
+	var lv := 0
+	var trees: Dictionary = _json("skills/trees.json").get("trees", {})
+	for r: Dictionary in recipes:
+		if str(r.get("output", {}).get("id", "")) != out or not r.has("requires_node"):
+			continue
+		var t := str(trees_nodes.get(str(r["requires_node"]), ""))
+		for n in trees.get(t, {}).get("nodes", []):
+			if str(n.get("id", "")) == str(r["requires_node"]):
+				lv = maxi(lv, int(n.get("level", 0)))
+	return lv
+
+## Ladder tier index of an item from its id and default attributes (stone = 0).
+func _ladder_tier(id: String) -> int:
+	return PS.TOOL_TIERS.find(PS.material_tier(StringName(id), items.get(id, {}).get("default_attributes", {})))
+
+## Each mined rung needs the pick of the rung right below it, so no rung can be skipped
+## (bone is butchered: flint opens with a bone pick; bronze is alloyed: iron opens with a bronze pick).
+func _check_pick_chain() -> void:
+	for fam in nature:
+		var gates: Dictionary = nature[fam].get("min_pick_tier", {})
+		for k in gates:
+			var t := _ladder_tier(str(k))
+			if t >= 1:
+				_expect(PS.TOOL_TIERS.find(StringName(str(gates[k]))) == t - 1, "%s %s needs a %s pick, the rung below it (has %s)" % [fam, k, PS.TOOL_TIERS[t - 1], gates[k]])
+
+## Gear takes its material tier from the primary input, so a recipe with no skill node, min_level or
+## survival gate must not accept obsidian or metal there (else a work pick of steel skips every rung gate).
+func _check_ungated_gear() -> void:
+	var cap := PS.TOOL_TIERS.find(&"flint") ## metal_shard and raptor_talon read as flint by hardness
+	for r: Dictionary in recipes:
+		if r.has("requires_node") or int(r.get("min_level", 0)) > 0 or int(r.get("required_survival", 0)) > 0:
+			continue
+		var out: Dictionary = items.get(str(r.get("output", {}).get("id", "")), {})
+		if str(out.get("tool_class", "none")) == "none" and float(out.get("damage", 0)) <= 0.0 and float(out.get("armor_value", 0)) <= 0.0:
+			continue
+		for s: Dictionary in r.get("slots", []):
+			if bool(s.get("primary", false)):
+				for id in _ids_with_cat(str(s.get("category", ""))):
+					_expect(_ladder_tier(id) <= cap, "ungated recipe %s takes %s (%s tier) as its primary" % [r["id"], id, PS.TOOL_TIERS[_ladder_tier(id)]])
 
 func _check_nets() -> void:
 	var techniques := {}
@@ -462,3 +520,20 @@ func _check_planner() -> void:
 			var want := str(rid).get_slice("_", 0) if rid != "work_pick" else ""
 			if want in RUNGS:
 				_expect(str(out.material_tier()) == want, "%s comes out %s tier (got %s)" % [rid, want, out.material_tier()])
+
+## Hook 6: Crafting.progression_block names the missing node and opens once it is learned.
+func _check_node_gate() -> void:
+	var CR: GDScript = load("res://scripts/items/crafting.gd")
+	var p: Node = (load("res://scripts/player/player.gd") as GDScript).new()
+	var sk: Node = (load("res://scripts/skills/skill_state.gd") as GDScript).new()
+	sk.call("_load")
+	p.set("skills", sk)
+	var rec: Dictionary = CR.recipe(&"smelt_copper")
+	var locked := str(CR.progression_block(p, rec))
+	var node := str(rec.get("requires_node", ""))
+	(sk.get("trees")[str(trees_nodes.get(node, ""))]["unlocked"] as Array).append(node)
+	var open := str(CR.progression_block(p, rec))
+	print("[t_data] smelt_copper gate: before '%s', after learning %s '%s'" % [locked, node, open])
+	_expect(locked != "" and open == "", "progression_block refuses smelt_copper until %s is learned (before '%s', after '%s')" % [node, locked, open])
+	sk.free()
+	p.free()

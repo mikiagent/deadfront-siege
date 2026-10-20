@@ -144,7 +144,6 @@
       "display_name": "Crude Ingot",
       "categories": [
         "metal",
-        "blade_mat",
         "ingot"
       ],
       "stack_max": 10,
@@ -162,7 +161,6 @@
       "display_name": "Copper Ingot",
       "categories": [
         "metal",
-        "blade_mat",
         "ingot",
         "tier_copper"
       ],
@@ -182,7 +180,6 @@
       "display_name": "Bronze Ingot",
       "categories": [
         "metal",
-        "blade_mat",
         "ingot",
         "tier_bronze"
       ],
@@ -202,7 +199,6 @@
       "display_name": "Iron Ingot",
       "categories": [
         "metal",
-        "blade_mat",
         "ingot",
         "tier_iron"
       ],
@@ -222,7 +218,6 @@
       "display_name": "Steel Ingot",
       "categories": [
         "metal",
-        "blade_mat",
         "ingot",
         "tier_steel"
       ],
@@ -666,7 +661,8 @@
       "categories": [
         "bone",
         "blade_mat",
-        "handle"
+        "handle",
+        "tier_bone"
       ],
       "stack_max": 10,
       "tool_class": "none",
@@ -1172,7 +1168,6 @@
       "display_name": "Flint",
       "categories": [
         "stone",
-        "blade_mat",
         "tier_flint"
       ],
       "stack_max": 20,
@@ -1306,7 +1301,6 @@
       "display_name": "Obsidian",
       "categories": [
         "stone",
-        "blade_mat",
         "tier_obsidian"
       ],
       "stack_max": 10,
@@ -1360,7 +1354,8 @@
       "display_name": "Bone",
       "categories": [
         "bone",
-        "blade_mat"
+        "blade_mat",
+        "tier_bone"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -1401,7 +1396,6 @@
       "display_name": "Copper Ore",
       "categories": [
         "ore",
-        "blade_mat",
         "copper_ore_mat"
       ],
       "stack_max": 20,
@@ -1541,7 +1535,6 @@
       "display_name": "Black Iron",
       "categories": [
         "ore",
-        "blade_mat",
         "iron_ore"
       ],
       "stack_max": 10,
@@ -2249,7 +2242,8 @@
       "categories": [
         "dense_bone",
         "bone",
-        "blade_mat"
+        "blade_mat",
+        "tier_bone"
       ],
       "stack_max": 999,
       "base_level": 1,
@@ -2775,6 +2769,89 @@
       "base_level": 1,
       "rarity": "epic",
       "market_category": "tool"
+    },
+    {
+      "id": "bone_knife",
+      "display_name": "Bone Knife",
+      "categories": [
+        "tool",
+        "blade",
+        "weapon"
+      ],
+      "tool_class": "knife",
+      "attack_rate": 1.15,
+      "damage": 18,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 40,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "common",
+      "market_category": "tool"
+    },
+    {
+      "id": "bone_axe",
+      "display_name": "Bone Axe",
+      "categories": [
+        "tool",
+        "weapon"
+      ],
+      "tool_class": "axe",
+      "attack_rate": 0.9,
+      "damage": 22,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "common",
+      "market_category": "tool"
+    },
+    {
+      "id": "bone_pick",
+      "display_name": "Bone Pick",
+      "categories": [
+        "tool"
+      ],
+      "tool_class": "pick",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "common",
+      "market_category": "tool"
+    },
+    {
+      "id": "bone_spear",
+      "display_name": "Bone Spear",
+      "categories": [
+        "weapon"
+      ],
+      "tool_class": "none",
+      "attack_rate": 1.0,
+      "damage": 30,
+      "damage_type": "slashing",
+      "is_work_tool": false,
+      "max_durability": 80,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "common",
+      "market_category": "weapon"
     },
     {
       "id": "flint_knife",

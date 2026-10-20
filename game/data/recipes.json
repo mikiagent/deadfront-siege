@@ -2277,6 +2277,138 @@
       "process_add": 1
     },
     {
+      "id": "bone_knife",
+      "display_name": "Bone Knife",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bone",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bone_knife",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone."
+    },
+    {
+      "id": "bone_axe",
+      "display_name": "Bone Axe",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bone",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bone_axe",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone."
+    },
+    {
+      "id": "bone_pick",
+      "display_name": "Bone Pick",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bone",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bone_pick",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone."
+    },
+    {
+      "id": "bone_spear",
+      "display_name": "Bone Spear",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bone",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bone_spear",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone."
+    },
+    {
       "id": "flint_knife",
       "display_name": "Flint Knife",
       "skill": "weapon_tools",
@@ -3913,10 +4045,11 @@
         "count": 1
       },
       "station": "forge",
-      "seconds": 10.0,
+      "seconds": 24.0,
       "process_step": "smelt",
       "process_add": 1,
-      "requires_node": "smelting_2"
+      "requires_node": "smelting_2",
+      "note": "ASSUMPTION: iron needs a hotter, 3x longer smelt than copper (24 s), so an iron tool costs more than a bronze one (t_data checks the rung order)."
     },
     {
       "id": "refine_steel",
