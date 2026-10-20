@@ -1,7 +1,8 @@
 extends Node3D
 ## W2-PROCESS lab: a drying rack, smoker, crock pot and steamer running real jobs.
 ## Headless: the survivor hangs 4 raw strips through the craft route, walks 50 m away, the rack
-## finishes on its own clock, COLLECT pays once, and eating dried meat applies its buff.
+## finishes on its own clock, COLLECT pays once, the meat is the same instance one step on, and
+## eating it applies its own stored energy.
 ## Prints "[process_lab] PASS" or exits 1.
 ## Windowed: --lab=process_lab --shot=<png> [--proc=0|50|100] [--proc-view=rack|all]
 ## sets every station's jobs to that progress and frames the rack or the whole row.
@@ -20,7 +21,7 @@ func _check(ok: bool, label: String) -> void:
 		_fails.append(label)
 
 func _ready() -> void:
-	Food.clock_skew_s = 0.0
+	ProcessStation.clock_skew_s = 0.0
 	var kit := LabKit.build(self)
 	_player = kit["player"]
 	_cam = kit["cam"]
@@ -61,14 +62,14 @@ func _shot_setup() -> void:
 	ProcessStation.of(_steamer).load_from(inv, &"steam", 2)
 	var rack_secs := ProcessStation.job_seconds(&"drying_rack", &"dry_meat")
 	# 100 % shows the finished rack: dried strips, smoke out, "Ready" label.
-	Food.clock_skew_s = rack_secs * pct + (1.0 if pct >= 1.0 else 0.0)
+	ProcessStation.clock_skew_s = rack_secs * pct + (1.0 if pct >= 1.0 else 0.0)
 	for s in [_rack, _smoker, _pot, _steamer]:
 		var ps := ProcessStation.of(s)
 		if pct < 1.0 and s != _rack:
 			# Keep the other stations mid-job whatever their length, so smoke/steam shows.
 			for j in ps.jobs:
-				j["started"] = Food.now_s() - ProcessStation.job_seconds(ps.station_id, StringName(str(j["recipe"]))) * maxf(pct, 0.3)
-		ps.advance(Food.now_s())
+				j["started"] = ProcessStation.now_s() - ProcessStation.job_seconds(ps.station_id, StringName(str(j["recipe"]))) * maxf(pct, 0.3)
+		ps.advance(ProcessStation.now_s())
 		ps._redraw()
 	var view := _arg("proc-view", "rack")
 	_player.global_position = Vector3(1.6, 0, 2.2) if view == "rack" else Vector3(-1.5, 0, 3.2)
@@ -94,7 +95,7 @@ func _demo() -> void:
 	_check(not _player.station_craft.crafting, "the survivor is free: no stand-and-wait craft")
 	_check(ps.stage_id() == "raw" and (ps.get_node("ProcessFx") as CPUParticles3D).emitting, "raw stage, smoke on")
 	_player.global_position = _rack.global_position + Vector3(50, 0, 0)
-	Food.clock_skew_s = ProcessStation.job_seconds(&"drying_rack", &"dry_meat") + 2.0
+	ProcessStation.clock_skew_s = ProcessStation.job_seconds(&"drying_rack", &"dry_meat") + 2.0
 	await get_tree().create_timer(0.6).timeout
 	_check(ps.ready_count() == 4 and ps.stage_id() == "dried", "finished with the survivor 50 m away (ready %d, %s)" % [ps.ready_count(), ps.stage_id()])
 	_player.global_position = _rack.global_position + Vector3(1.2, 0, 0.8)
@@ -111,17 +112,19 @@ func _demo() -> void:
 	var xp_once := _xp()
 	_player.station_craft._on_menu_action(_rack, &"collect")
 	_check(_xp() == xp_once, "a second collect pays nothing")
-	# Raw meat in the same bag spoils; the dried meat keeps and its buff applies when eaten.
-	Food.clock_skew_s = 0.0
-	LabKit.give(_player, &"raw_meat", 1)
-	Food.clock_skew_s = 4000.0
-	var raw := _player.inventory.slots[_player.inventory.find_first(&"raw_meat")]
-	_check(Food.is_spoiled(raw) and not Food.is_spoiled(_player.inventory.slots[idx]), "raw meat spoiled, dried meat did not")
+	# In place (spec 08): the same meat, one processing opportunity spent, the raw tag gone.
+	var dried := _player.inventory.slots[idx]
+	_check(dried.attributes.get("processed", []) == ["dry"] and not Food.is_raw(dried), "dried meat records the dry step and is no longer raw (%s)" % [dried.attributes.get("processed")])
+	# Eating applies what the stored item carries: its energy, and no buff it does not have.
+	var expect := Food.energy_restore(dried)
 	_player.vitals.energy = 10.0
 	_check(_player.eat_session.begin_eat(idx), "eating dried meat starts")
+	var meal := _player.eat_session._total_energy
+	_check(is_equal_approx(meal, expect), "the meal is the stored item's own %.1f energy (eating %.1f)" % [expect, meal])
 	await get_tree().create_timer(Food.EAT_SECONDS + 0.5).timeout
-	_check(_player.food_buffs._active.has("trail_ration") and _player.food_buffs.added("cold_resist") > 0.0, "dried meat applied its Trail Ration buff (%s)" % [_player.food_buffs._active.keys()])
-	Food.clock_skew_s = 0.0
+	_check(_player.vitals.energy > 10.0 and not _player.eat_session.eating, "eaten (energy 10 -> %.1f)" % _player.vitals.energy)
+	_check(_player.food_buffs._active.is_empty(), "no invented buff: dried meat carries none (%s)" % [_player.food_buffs._active.keys()])
+	ProcessStation.clock_skew_s = 0.0
 	if _fails.is_empty():
 		print("[process_lab] PASS")
 		get_tree().quit(0)

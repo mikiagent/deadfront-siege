@@ -1,32 +1,55 @@
 {
-  "_about": "W2-PROCESS rules. `stations`: placed kinds that run process jobs in the world (inputs leave the bag, sit on the station, finish on the wall clock while the player is away or offline, outputs wait on the station until collected). `recipes` per station: recipe ids from recipes.json with the station duration in real seconds (overrides recipes.json `seconds`, which stays the old stand-and-craft time). `stages`: progress thresholds that pick a props_manifest buildings.<kind>.stages[].id model. `fx`: smoke|steam emitter while a job runs. `spoil`: seconds until a food stack spoils, first matching category wins; `keeps` categories never spoil. `item_buffs`: food that carries a buff (rows in `buffs`, same shape as food_buffs.json). `steam_cap`: most times one dish can be steamed. Timings and spoil times are # ASSUMPTION values (spec 11 lists Durango:0 delegated times as unverified); tune here.",
+  "_about": "W2-PROCESS rules. `stations`: placed kinds that run process jobs in the world (inputs leave the bag, sit on the station, finish on the wall clock while the player is away or offline, outputs wait on the station until collected). `recipes` per station: recipe ids from recipes.json with the station duration in real seconds (overrides recipes.json `seconds`, which stays the old stand-and-craft time). `stages`: progress thresholds that pick a props_manifest buildings.<kind>.stages[].id model. `fx`: smoke|steam emitter while a job runs. `in_place`: spec 08 processing opportunities. Station times are # ASSUMPTION values (spec 11 lists Durango:0 delegated times as unverified); tune here. No spoilage: spec 08 forbids a freshness timer the design does not require.",
   "stations": {
     "drying_rack": {
       "label": "Drying",
       "slots": 4,
       "fx": "smoke",
-      "fx_offset": [0.0, 0.1, 0.2],
+      "fx_offset": [
+        0.0,
+        0.1,
+        0.2
+      ],
       "fx_alpha": 0.42,
       "stages": [
-        { "at": 0.0, "id": "raw" },
-        { "at": 0.34, "id": "drying" },
-        { "at": 0.67, "id": "dried" }
+        {
+          "at": 0.0,
+          "id": "raw"
+        },
+        {
+          "at": 0.34,
+          "id": "drying"
+        },
+        {
+          "at": 0.67,
+          "id": "dried"
+        }
       ],
       "idle_stage": "empty",
       "ready_stage": "dried",
       "recipes": {
-        "dry_meat": { "seconds": 600 },
-        "dried_hide": { "seconds": 600 }
+        "dry_meat": {
+          "seconds": 600
+        },
+        "dried_hide": {
+          "seconds": 600
+        }
       }
     },
     "smoker": {
       "label": "Smoking",
       "slots": 4,
       "fx": "smoke",
-      "fx_offset": [0.0, 2.0, 0.0],
+      "fx_offset": [
+        0.0,
+        2.0,
+        0.0
+      ],
       "light": "#ff8a3a",
       "recipes": {
-        "smoke_meat": { "seconds": 900 }
+        "smoke_meat": {
+          "seconds": 900
+        }
       }
     },
     "crock_pot": {
@@ -34,10 +57,16 @@
       "slots": 1,
       "queue": 3,
       "fx": "steam",
-      "fx_offset": [0.0, 1.1, 0.0],
+      "fx_offset": [
+        0.0,
+        1.1,
+        0.0
+      ],
       "light": "#ff7a2a",
       "recipes": {
-        "camp_stew": { "seconds": 180 }
+        "camp_stew": {
+          "seconds": 180
+        }
       }
     },
     "steamer": {
@@ -45,37 +74,25 @@
       "slots": 2,
       "queue": 2,
       "fx": "steam",
-      "fx_offset": [0.0, 1.25, 0.0],
+      "fx_offset": [
+        0.0,
+        1.25,
+        0.0
+      ],
       "recipes": {
-        "steam": { "seconds": 60 }
+        "steam": {
+          "seconds": 60
+        }
       }
     }
   },
-  "spoil": {
-    "by_category": {
-      "raw_meat": 1800,
-      "raw": 1800
-    },
-    "keeps": ["preserved", "cooked"],
-    "spoiled_energy_mult": 0.25
-  },
-  "item_buffs": {
-    "dried_meat": "trail_ration",
-    "smoked_meat": "smokehouse_ration"
-  },
-  "buffs": {
-    "trail_ration": {
-      "display_name": "Trail Ration",
-      "stat": "cold_resist",
-      "add": 1.0,
-      "duration": 900.0
-    },
-    "smokehouse_ration": {
-      "display_name": "Smokehouse Ration",
-      "stat": "defense",
-      "add": 8.0,
-      "duration": 600.0
-    }
-  },
-  "steam_cap": 3
+  "in_place": {
+    "_about": "Spec 08 \u00a72 in-place processing: recipes whose process_step is listed change the chosen instance itself (identity, provenance and properties carry, raw tag removed) and spend one processing opportunity, recorded in attributes.processed. `opportunities` per instance: # ASSUMPTION 2, spec 08's reconstruction estimate, not a confirmed constant. Steam spends one like any step; the PRD's steam-steam question stays open.",
+    "steps": [
+      "dry",
+      "smoke",
+      "steam"
+    ],
+    "opportunities": 2
+  }
 }

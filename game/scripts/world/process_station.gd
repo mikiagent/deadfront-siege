@@ -1,13 +1,18 @@
 class_name ProcessStation
 extends Node3D
 ## Process jobs on a placed station (drying rack, smoker, crock pot, steamer; processing.json).
-## Inputs leave the bag and sit on the station; a job finishes on the wall clock (Food.now_s), so it
+## Inputs leave the bag and sit on the station; a job finishes on the wall clock (now_s), so it
 ## keeps running with the player 50 m away, on another island or with the game closed. Outputs wait
 ## on the station until collected. State is only timestamps: no ticking is needed for correctness,
 ## _process just advances and redraws (stage model, smoke/steam, glow, label).
 
 const NODE_NAME := "Process"
 const REDRAW_S := 0.25
+const RULES_PATH := "res://data/processing.json"
+
+static var _rules: Dictionary = {}
+## Added to the wall clock: labs and tests fast-forward station jobs with it.
+static var clock_skew_s: float = 0.0
 
 var station_id: StringName = &""
 var cfg: Dictionary = {}
@@ -23,8 +28,20 @@ var _fx: CPUParticles3D
 var _glow: OmniLight3D
 var _label: Label3D
 
+## The clock jobs run on: wall time, so they keep going while the game is closed.
+static func now_s() -> float:
+	return Time.get_unix_time_from_system() + clock_skew_s
+
+## processing.json, parsed once.
+static func rules() -> Dictionary:
+	if _rules.is_empty() and FileAccess.file_exists(RULES_PATH):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(RULES_PATH))
+		if parsed is Dictionary:
+			_rules = parsed as Dictionary
+	return _rules
+
 static func config_for(sid: StringName) -> Dictionary:
-	var st: Variant = (Food.rules().get("stations", {}) as Dictionary).get(str(sid), {})
+	var st: Variant = (rules().get("stations", {}) as Dictionary).get(str(sid), {})
 	return st if st is Dictionary else {}
 
 ## Seconds a job of this recipe takes on this station; 0 = the station does not run it.
@@ -54,7 +71,7 @@ func _ready() -> void:
 	if cfg.is_empty():
 		cfg = config_for(station_id)
 	_build_fx()
-	advance(Food.now_s())
+	advance(now_s())
 	_redraw()
 
 func slots() -> int:
@@ -78,7 +95,7 @@ func is_active() -> bool:
 
 ## 0..1 for a job, by the station clock.
 func job_progress(j: Dictionary, now: float = -1.0) -> float:
-	var t := Food.now_s() if now < 0.0 else now
+	var t := now_s() if now < 0.0 else now
 	if float(j["started"]) < 0.0:
 		return 0.0
 	return clampf((t - float(j["started"])) / maxf(0.1, job_seconds(station_id, StringName(str(j["recipe"])))), 0.0, 1.0)
@@ -94,14 +111,14 @@ func refuse_reason(inv: Inventory, rid: StringName, player: Player = null) -> St
 		return Crafting.progression_block(player, rec)
 	if _picks(inv, rec).is_empty():
 		var missing := Crafting.missing_ingredient_name(inv, rec)
-		return "Spoiled food cannot be processed." if missing == "" else "Needs %s." % missing
+		return "No processing left on that one." if missing == "" else "Needs %s." % missing
 	return ""
 
 ## Load up to `count` jobs of `rid` from the bag. Inputs leave the bag now; returns jobs loaded.
 func load_from(inv: Inventory, rid: StringName, count: int = 1, player: Player = null, rng: RandomNumberGenerator = null) -> int:
 	var rec := Crafting.recipe(rid)
 	var loaded := 0
-	var now := Food.now_s()
+	var now := now_s()
 	advance(now)
 	while loaded < count and refuse_reason(inv, rid, player) == "":
 		var picks := _picks(inv, rec)
@@ -124,17 +141,16 @@ func load_from(inv: Inventory, rid: StringName, count: int = 1, player: Player =
 		_redraw()
 	return loaded
 
-## Default picks, with spoiled leads swapped for fresh stacks; [] when no fresh full set exists.
+## Default picks, with a primary that has no processing left swapped for one that has; [] when
+## no valid set exists.
 func _picks(inv: Inventory, rec: Dictionary) -> Array[int]:
 	var picks := Crafting.default_picks(inv, rec)
-	var slots_v: Array = rec.get("slots", [])
-	for i in picks.size():
-		if picks[i] < 0 or not Food.is_spoiled(inv.slots[picks[i]]):
-			continue
-		picks[i] = -1
-		for idx in Crafting.stacks_for_slot(inv, slots_v[i]):
-			if idx not in picks and not Food.is_spoiled(inv.slots[idx]):
-				picks[i] = idx
+	var pi := Crafting.primary_index(rec)
+	if pi < picks.size() and picks[pi] >= 0 and Crafting.processing_left(rec, inv.slots[picks[pi]]) == 0:
+		picks[pi] = -1
+		for idx in Crafting.stacks_for_slot(inv, (rec.get("slots", []) as Array)[pi]):
+			if idx not in picks and Crafting.processing_left(rec, inv.slots[idx]) != 0:
+				picks[pi] = idx
 				break
 	if -1 in picks or not Crafting.picks_valid(inv, rec, picks):
 		return []
@@ -174,7 +190,7 @@ func _finish(i: int) -> void:
 	for s in inputs:
 		consumed.append(s as ItemStack)
 	var out := Crafting.build_output(rec, consumed[0], int(j["level"]), consumed, bool(j.get("burnt", false)))
-	if not out.is_fungible():
+	if not out.is_fungible() and out.uid == "":  # in-place output keeps its identity
 		out.stamp_identity("craft", str(j.get("by", "")))
 	outputs.append({"recipe": str(j["recipe"]), "stack": out})
 	print("[process] %s finished %s -> %s x%d lv%d" % [station_id, j["recipe"], out.def_id, out.count, out.level])
@@ -188,7 +204,7 @@ func ready_count() -> int:
 ## Move finished outputs into `inv`; what does not fit stays on the station. XP is paid once, when
 ## a job's last unit leaves the station. Returns units moved.
 func collect_into(inv: Inventory, player: Player = null) -> int:
-	advance(Food.now_s())
+	advance(now_s())
 	var moved := 0
 	while not outputs.is_empty():
 		var o: Dictionary = outputs[0]
@@ -256,7 +272,7 @@ func to_dict() -> Dictionary:
 func load_dict(d: Dictionary) -> void:
 	jobs.clear()
 	outputs.clear()
-	var now := Food.now_s()
+	var now := now_s()
 	for row in d.get("jobs", []):
 		if not row is Dictionary:
 			continue
@@ -303,7 +319,7 @@ func _process(delta: float) -> void:
 	if _redraw_left > 0.0:
 		return
 	_redraw_left = REDRAW_S
-	advance(Food.now_s())
+	advance(now_s())
 	_redraw()
 
 func stage_id() -> String:
@@ -338,7 +354,7 @@ func _redraw() -> void:
 		_label.visible = _label.text != ""
 
 func label_text() -> String:
-	var now := Food.now_s()
+	var now := now_s()
 	if is_active():
 		var soonest := INF
 		for j in jobs:

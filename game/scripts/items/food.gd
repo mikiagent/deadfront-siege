@@ -6,53 +6,8 @@ extends RefCounted
 const EAT_SECONDS := 3.0
 const PROCESS_ENERGY_FACTOR := 0.35
 const BUFFS_PATH := "res://data/food_buffs.json"
-const PROCESSING_PATH := "res://data/processing.json"
 
 static var _buffs: Dictionary = {}
-static var _rules: Dictionary = {}
-## Added to the wall clock: labs and tests fast-forward spoilage and station jobs with it.
-static var clock_skew_s: float = 0.0
-
-## The clock spoilage and process stations run on: wall time, so both keep going while the
-## game is closed. # ASSUMPTION: offline time counts (owner: queues keep running while away).
-static func now_s() -> float:
-	return Time.get_unix_time_from_system() + clock_skew_s
-
-## processing.json, parsed once.
-static func rules() -> Dictionary:
-	if _rules.is_empty() and FileAccess.file_exists(PROCESSING_PATH):
-		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(PROCESSING_PATH))
-		if parsed is Dictionary:
-			_rules = parsed as Dictionary
-	return _rules
-
-## Seconds a fresh stack of this item keeps before it spoils; 0 = never.
-static func spoil_seconds(d: ItemDef) -> int:
-	if d == null:
-		return 0
-	var spoil: Dictionary = rules().get("spoil", {})
-	for k in spoil.get("keeps", []):
-		if d.has_category(StringName(str(k))):
-			return 0
-	var by_cat: Dictionary = spoil.get("by_category", {})
-	for c in d.categories:
-		if by_cat.has(str(c)):
-			return maxi(0, int(by_cat[str(c)]))
-	return 0
-
-## Start the spoil clock on a new stack (ItemStack.make).
-static func stamp_spoil(stack: ItemStack) -> void:
-	var secs := spoil_seconds(stack.def())
-	stack.spoil_at = int(now_s()) + secs if secs > 0 else 0
-
-static func is_spoiled(stack: ItemStack) -> bool:
-	return stack != null and stack.spoil_at > 0 and now_s() >= float(stack.spoil_at)
-
-## Seconds left before the stack spoils; -1 when it never does.
-static func spoil_left(stack: ItemStack) -> float:
-	if stack == null or stack.spoil_at <= 0:
-		return -1.0
-	return maxf(0.0, float(stack.spoil_at) - now_s())
 
 static func is_food(stack: ItemStack) -> bool:
 	if stack == null:
@@ -71,16 +26,13 @@ static func is_raw(stack: ItemStack) -> bool:
 	return d != null and d.raw
 
 static func is_poisoned(stack: ItemStack) -> bool:
-	return stack != null and (&"poisoned" in stack.flags or is_spoiled(stack))
+	return stack != null and &"poisoned" in stack.flags
 
 static func energy_restore(stack: ItemStack) -> float:
 	if stack == null:
 		return 0.0
 	var base := stack.scaled_food_energy()
-	var e := base * (1.0 + PROCESS_ENERGY_FACTOR * float(stack.process_count))
-	if is_spoiled(stack):
-		e *= float((rules().get("spoil", {}) as Dictionary).get("spoiled_energy_mult", 0.25))
-	return e
+	return base * (1.0 + PROCESS_ENERGY_FACTOR * float(stack.process_count))
 
 static func buff_ids(stack: ItemStack) -> Array[StringName]:
 	var out: Array[StringName] = []
@@ -89,9 +41,6 @@ static func buff_ids(stack: ItemStack) -> Array[StringName]:
 	var d := stack.def()
 	if d and d.food_buff != &"":
 		out.append(d.food_buff)
-	var kept := str((rules().get("item_buffs", {}) as Dictionary).get(str(stack.def_id), ""))
-	if kept != "" and not is_spoiled(stack) and StringName(kept) not in out:
-		out.append(StringName(kept))
 	var attr := str(stack.attributes.get("food_buff", ""))
 	if attr != "" and StringName(attr) not in out:
 		out.append(StringName(attr))
@@ -109,7 +58,6 @@ static func inspector_text(stack: ItemStack) -> String:
 	]
 	if is_raw(stack):
 		lines.append("RAW")
-	lines.append_array(spoil_lines(stack))
 	if is_poisoned(stack):
 		lines.append("POISONED")
 	var buffs := buff_ids(stack)
@@ -119,16 +67,6 @@ static func inspector_text(stack: ItemStack) -> String:
 			names.append(str(b))
 		lines.append("buffs: %s" % ", ".join(names))
 	return "\n".join(lines)
-
-## "SPOILED" or "spoils in 12m" for tooltips and the inspector; empty for food that keeps.
-static func spoil_lines(stack: ItemStack) -> PackedStringArray:
-	var out: PackedStringArray = []
-	if is_spoiled(stack):
-		out.append("SPOILED")
-	elif spoil_left(stack) >= 0.0:
-		var left := int(spoil_left(stack))
-		out.append("spoils in %s" % ("%dh %02dm" % [left / 3600, (left / 60) % 60] if left >= 3600 else "%dm" % maxi(1, ceili(left / 60.0))))
-	return out
 
 static func can_eat(player: Player, stack: ItemStack) -> String:
 	if player == null or stack == null or not is_food(stack):
@@ -212,13 +150,10 @@ static func _pet_accepts(creature: Creature, stack: ItemStack) -> bool:
 static func _ensure_buffs() -> void:
 	if not _buffs.is_empty():
 		return
-	if FileAccess.file_exists(BUFFS_PATH):
-		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(BUFFS_PATH))
-		if parsed is Dictionary:
-			var block: Variant = (parsed as Dictionary).get("buffs", {})
-			if block is Dictionary:
-				_buffs = (block as Dictionary).duplicate()
-	# Preserved-food buffs live beside the processing rules (items.json is W2-DATA's).
-	var kept: Variant = rules().get("buffs", {})
-	if kept is Dictionary:
-		_buffs.merge(kept as Dictionary)
+	if not FileAccess.file_exists(BUFFS_PATH):
+		return
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(BUFFS_PATH))
+	if parsed is Dictionary:
+		var block: Variant = (parsed as Dictionary).get("buffs", {})
+		if block is Dictionary:
+			_buffs = block as Dictionary

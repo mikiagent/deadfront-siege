@@ -102,14 +102,24 @@ static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> b
 	if _plan(inv, rec, picks).is_empty():
 		return false
 	var pi := primary_index(rec)
-	return pi >= picks.size() or picks[pi] < 0 or not steam_capped(rec, inv.slots[picks[pi]])
+	return pi >= picks.size() or picks[pi] < 0 or processing_left(rec, inv.slots[picks[pi]]) != 0
 
-## Steaming again adds energy every time (food-01); processing.json steam_cap bounds it.
-## # ASSUMPTION: the planner's default cap of 3 steams per dish until the owner tunes it.
-static func steam_capped(rec: Dictionary, stack: ItemStack) -> bool:
-	if stack == null or str(rec.get("process_step", "")) != "steam":
-		return false
-	return int(stack.attributes.get("steams", 0)) >= int(Food.rules().get("steam_cap", 3))
+## In-place processing (spec 08 §2): drying, smoking, steaming... change the chosen instance itself
+## and spend one of its processing opportunities. Which steps are in place is processing.json data.
+static func is_in_place(rec: Dictionary) -> bool:
+	var steps: Array = (ProcessStation.rules().get("in_place", {}) as Dictionary).get("steps", [])
+	return str(rec.get("process_step", "")) in steps
+
+## Opportunities an instance has left for an in-place recipe: -1 when the recipe is not in place.
+## The steps already taken live in attributes.processed (the instance's processing history).
+## # ASSUMPTION: 2 opportunities (spec 08: a reconstruction estimate, not a confirmed constant);
+## the PRD's steam-steam question (open question 13) stays open, so steam spends one like any step.
+static func processing_left(rec: Dictionary, stack: ItemStack) -> int:
+	if stack == null or not is_in_place(rec):
+		return -1
+	var total := int((ProcessStation.rules().get("in_place", {}) as Dictionary).get("opportunities", 2))
+	var done: Variant = stack.attributes.get("processed", [])
+	return maxi(0, total - ((done as Array).size() if done is Array else 0))
 
 static func primary_index(rec: Dictionary) -> int:
 	var slots: Array = rec.get("slots", [])
@@ -200,8 +210,19 @@ static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int
 		out.process_count = primary.process_count + int(rec.get("process_add", 1))
 	else:
 		out.process_count = int(rec.get("process_add", 1))
-	if str(rec.get("process_step", "")) == "steam":
-		out.attributes["steams"] = int(primary.attributes.get("steams", 0) if primary else 0) + 1
+	if primary and is_in_place(rec):
+		# Same instance, next state: identity, provenance and properties carry, one opportunity spent.
+		var done: Variant = primary.attributes.get("processed", [])
+		var hist: Array = (done as Array).duplicate() if done is Array else []
+		hist.append(str(rec.get("process_step", "")))
+		out.attributes["processed"] = hist
+		out.uid = primary.uid
+		out.origin = primary.origin
+		out.creator = primary.creator
+		out.created_at = primary.created_at
+		out.set_flag(&"raw", false)
+	else:
+		out.attributes.erase("processed")  # a new food starts with fresh opportunities
 	var buff := str(rec.get("buff_id", ""))
 	if buff != "":
 		out.attributes["food_buff"] = buff
@@ -443,7 +464,7 @@ static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemSt
 			for _n in s.count:
 				levels.append(s.level)
 	var out := build_output(rec, primary, crafted_level_for(rec, levels, player), consumed, burnt)
-	if not out.is_fungible():
+	if not out.is_fungible() and out.uid == "":  # in-place output keeps its instance identity
 		out.stamp_identity("craft", World.player_name)
 	var gained := out.count
 	var left := player.inventory.add(out)

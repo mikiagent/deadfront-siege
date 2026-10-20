@@ -1,5 +1,5 @@
 extends SceneTree
-## W2-PROCESS: spoilage, process-station jobs on the wall clock (running with nobody near), save
+## W2-PROCESS: in-place processing opportunities and identity (spec 08), process-station jobs on the wall clock (running with nobody near), save
 ## round trip mid-process, queue catch-up, stage models, steam cap, pack-up returns what hangs.
 ## Item scripts reference the Data autoload, so they load once it exists.
 
@@ -29,9 +29,9 @@ func _process(_delta: float) -> bool:
 			FOOD = load("res://scripts/items/food.gd")
 			CS = load("res://scripts/world/craft_station.gd")
 			PS = load("res://scripts/world/process_station.gd")
-			FOOD.clock_skew_s = 0.0
-			_test_spoilage()
-			_test_steam_cap()
+			PS.clock_skew_s = 0.0
+			_test_in_place()
+			_test_station_identity()
 			_test_queue_catch_up()
 			_start_rack()
 			_phase = 1
@@ -40,7 +40,7 @@ func _process(_delta: float) -> bool:
 			# Nobody within 50 m: jump the clock past the drying time and let the station's own
 			# _process (not a test call) finish the jobs.
 			if _frames == 2:
-				FOOD.clock_skew_s = 610.0
+				PS.clock_skew_s = 610.0
 				_wait_until = Time.get_ticks_msec() + 800  # the station redraws 4x a second
 			if _frames > 2 and Time.get_ticks_msec() > _wait_until:
 				_check_rack_finished()
@@ -55,7 +55,7 @@ func _expect(ok: bool, label: String) -> void:
 		failures.append(label)
 
 func _finish() -> void:
-	FOOD.clock_skew_s = 0.0
+	PS.clock_skew_s = 0.0
 	if failures.is_empty():
 		print("[t_process] PASS")
 		quit(0)
@@ -71,74 +71,89 @@ func _count(inv, id: StringName) -> int:
 			n += s.count
 	return n
 
-func _test_spoilage() -> void:
-	FOOD.clock_skew_s = 0.0
-	var raw = IS.make(&"raw_meat", 1)
-	var dried = IS.make(&"dried_meat", 1)
-	var secs: int = FOOD.spoil_seconds(raw.def())
-	_expect(secs > 0 and raw.spoil_at > 0, "raw meat starts a spoil clock (%ds)" % secs)
-	_expect(dried.spoil_at == 0, "dried meat keeps (no spoil clock)")
-	var e_fresh: float = FOOD.energy_restore(raw)
-	FOOD.clock_skew_s = float(secs) + 1.0
-	_expect(FOOD.is_spoiled(raw), "raw meat spoils after its processing.json time")
-	_expect(not FOOD.is_spoiled(dried), "dried meat in the same bag does not spoil")
-	_expect(FOOD.energy_restore(raw) < e_fresh * 0.5, "spoiled meat restores less energy (%.1f < %.1f)" % [FOOD.energy_restore(raw), e_fresh])
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 1
-	_expect(FOOD.raw_risk_roll(raw, rng) == &"stomachache", "spoiled meat always gives a stomachache")
-	_expect(&"trail_ration" in FOOD.buff_ids(dried), "dried meat carries its buff (%s)" % [FOOD.buff_ids(dried)])
-	_expect("SPOILED" in raw.tooltip(), "tooltip says SPOILED")
-	# A spoiled stack cannot go on the rack; a fresh one beside it can.
-	var inv = INV.new(6)
-	inv.add(raw)
+## Spec 08 §2: in-place processing keeps the instance (uid, provenance, properties), spends one of
+## its opportunities and drops the raw tag; a new-food recipe starts fresh; none left = refused.
+func _test_in_place() -> void:
+	var rec_dry: Dictionary = CR.recipe(&"dry_meat")
+	var rec_steam: Dictionary = CR.recipe(&"steam")
+	var total := int((PS.rules().get("in_place", {}) as Dictionary).get("opportunities", 0))
+	var raw = IS.make(&"raw_meat", 1, {"marbling": 3}, 17)
+	raw.stamp_identity("loot", "tester")
+	_expect(CR.processing_left(rec_dry, raw) == total, "fresh meat has %d processing opportunities" % total)
+	var dried = CR.build_output(rec_dry, raw, raw.level)
+	_expect(dried.def_id == &"dried_meat" and dried.uid == raw.uid and dried.origin == "loot" and dried.creator == "tester" and dried.created_at == raw.created_at, "drying keeps the instance identity (uid %s)" % dried.uid)
+	_expect(int(dried.attributes.get("marbling", 0)) == 3 and dried.level == 17, "drying keeps the instance's properties and level")
+	_expect(dried.attributes.get("processed") == ["dry"] and CR.processing_left(rec_steam, dried) == total - 1, "drying spends one opportunity (history %s)" % [dried.attributes.get("processed")])
+	_expect(not FOOD.is_raw(dried), "drying removes the raw tag")
+	var steamed = CR.build_output(rec_steam, dried, dried.level)
+	_expect(CR.processing_left(rec_steam, steamed) == 0 and steamed.uid == raw.uid, "steaming spends the second; still the same instance")
+	var bag = INV.new(4)
+	bag.add(steamed.duplicate_stack())
+	var picks: Array[int] = [0]
+	_expect(not CR.picks_valid(bag, rec_steam, picks), "no opportunities left: a third in-place step is refused")
+	var plain = IS.make(&"dried_meat", 1)
+	_expect(not dried.can_merge_with(plain) and not plain.can_merge_with(dried), "a processed instance never merges into a plain stack")
+	# New-food recipe: sashimi is a new item with fresh opportunities (kitchen's sashimi-steam-steam).
+	var sash = CR.build_output(CR.recipe(&"sashimi"), dried, dried.level)
+	_expect(not sash.attributes.has("processed") and CR.processing_left(rec_steam, sash) == total, "a new-food recipe starts with fresh opportunities")
+	# Saved history survives JSON.
+	var back = IS.from_dict(JSON.parse_string(JSON.stringify(steamed.to_dict())))
+	_expect(back.uid == raw.uid and CR.processing_left(rec_steam, back) == 0, "identity and spent opportunities survive save/load")
+	# A rack refuses meat with nothing left and picks one that has.
 	var rack: Node3D = CS.make(&"drying_rack")
 	get_root().add_child(rack)
 	var ps = PS.of(rack)
-	_expect(ps != null, "drying rack gets a ProcessStation")
-	_expect(ps.load_from(inv, &"dry_meat", 1) == 0 and _count(inv, &"raw_meat") == 1, "spoiled meat is refused and stays in the bag")
-	_expect(ps.refuse_reason(inv, &"dry_meat").contains("Spoiled"), "refusal says why: '%s'" % ps.refuse_reason(inv, &"dry_meat"))
-	var fresh = IS.make(&"raw_meat", 1)  # bought now, at the skewed clock
-	inv.slots[3] = fresh
-	_expect(ps.load_from(inv, &"dry_meat", 1) == 1 and _count(inv, &"raw_meat") == 1, "the fresh stack is picked over the spoiled lead")
-	rack.free()
-	FOOD.clock_skew_s = 0.0
-	# Save rows: a saved clock can only be earlier than a fresh one; old rows get a fresh clock.
-	var row: Dictionary = IS.make(&"raw_meat", 1).to_dict()
-	_expect(row.has("spoil_at"), "raw meat rows save spoil_at")
-	row["spoil_at"] = int(FOOD.now_s()) - 5
-	_expect(IS.from_dict(row).spoil_at == row["spoil_at"], "an earlier saved spoil time survives a load")
-	row["spoil_at"] = int(FOOD.now_s()) + 999999
-	_expect(IS.from_dict(row).spoil_at <= int(FOOD.now_s()) + secs, "a save cannot push spoilage into the future")
-	row.erase("spoil_at")
-	_expect(IS.from_dict(row).spoil_at > 0, "an old row without spoil_at gets a fresh clock (nothing spoils on upgrade)")
-	_expect(not IS.make(&"stone", 1).to_dict().has("spoil_at"), "rows of things that keep keep the old shape")
-	# Merging fresh units onto an older stack keeps the older clock.
-	var old = IS.make(&"raw_meat", 1)
-	old.spoil_at -= 100
-	var young = IS.make(&"raw_meat", 1)
-	young.take_into(old)
-	var older = IS.make(&"raw_meat", 1)
-	older.spoil_at -= 300
-	older.take_into(old)
-	_expect(old.count == 3 and old.spoil_at == older.spoil_at, "a merged stack spoils with its oldest units")
-
-func _test_steam_cap() -> void:
-	var rec: Dictionary = CR.recipe(&"steam")
-	var dish = IS.make(&"sashimi", 1)
-	var cap := int(FOOD.rules().get("steam_cap", 0))
-	for i in cap:
-		_expect(not CR.steam_capped(rec, dish), "steam %d of %d allowed" % [i + 1, cap])
-		dish = CR.build_output(rec, dish, dish.level)
-	_expect(CR.steam_capped(rec, dish) and int(dish.attributes.get("steams", 0)) == cap, "steam %d refused (steams=%s)" % [cap + 1, dish.attributes.get("steams")])
+	var spent = IS.make(&"raw_meat", 1)
+	spent.attributes["processed"] = ["dry", "smoke"]
 	var inv = INV.new(4)
-	inv.add(dish)
-	var picks: Array[int] = [0]
-	_expect(not CR.picks_valid(inv, rec, picks), "picks_valid refuses a capped dish")
+	inv.add(spent)
+	_expect(ps.load_from(inv, &"dry_meat", 1) == 0 and ps.refuse_reason(inv, &"dry_meat").contains("No processing left"), "the rack refuses meat with no opportunities left: '%s'" % ps.refuse_reason(inv, &"dry_meat"))
+	inv.slots[2] = IS.make(&"raw_meat", 1)
+	_expect(ps.load_from(inv, &"dry_meat", 1) == 1 and inv.slots[0] != null and inv.slots[2] == null, "the instance that still has one is picked instead")
+	rack.free()
+
+## One uid'd instance through a station: the same instance comes out, exactly once (XP once is in process_lab).
+func _test_station_identity() -> void:
+	var rack: Node3D = CS.make(&"drying_rack")
+	get_root().add_child(rack)
+	var ps = PS.of(rack)
+	var inv = INV.new(6)
+	var a = IS.make(&"raw_meat", 1, {}, 9)
+	a.stamp_identity("loot", "tester")
+	var b = IS.make(&"raw_meat", 1, {}, 31)
+	b.stamp_identity("loot", "tester")
+	inv.add(a)
+	inv.add(b)
+	_expect(inv.used_slots() == 2, "two identically named meats with uids keep two slots")
+	var uids := [a.uid, b.uid]
+	_expect(ps.load_from(inv, &"dry_meat", 2) == 2 and inv.used_slots() == 0, "both instances leave the bag onto the rack")
+	ps.advance(PS.now_s() + PS.job_seconds(&"drying_rack", &"dry_meat") + 1.0)
+	ps.advance(PS.now_s() + PS.job_seconds(&"drying_rack", &"dry_meat") + 2.0)  # a repeated poll finishes nothing twice
+	_expect(ps.ready_count() == 2, "two outputs, not more, after repeated advances (ready %d)" % ps.ready_count())
+	var row: Dictionary = JSON.parse_string(JSON.stringify(rack.to_dict()))
+	rack.free()
+	rack = load("res://scripts/core/save_restore.gd").spawn(row)
+	get_root().add_child(rack)
+	ps = PS.of(rack)
+	_expect(ps.ready_count() == 2, "finished outputs survive save/load (ready %d)" % ps.ready_count())
+	var bag = INV.new(6)
+	_expect(ps.collect_into(bag) == 2 and ps.collect_into(bag) == 0, "collect moves 2, a second collect moves nothing")
+	var got: Array = []
+	var levels: Array = []
+	for st in bag.slots:
+		if st:
+			got.append(st.uid)
+			levels.append(st.level)
+	got.sort()
+	uids.sort()
+	levels.sort()
+	_expect(got == uids and levels == [9, 31], "the same two instances came back, levels kept (%s %s)" % [got, levels])
+	rack.free()
 
 ## Steamer: 2 slots + 2 queue. Four dishes: the waiting two start the moment the first two finish,
 ## so a catch-up after 130 s matches a watched run exactly.
 func _test_queue_catch_up() -> void:
-	FOOD.clock_skew_s = 0.0
+	PS.clock_skew_s = 0.0
 	var st: Node3D = CS.make(&"steamer")
 	get_root().add_child(st)
 	var ps = PS.of(st)
@@ -169,7 +184,7 @@ func _test_queue_catch_up() -> void:
 	st2.free()
 
 func _start_rack() -> void:
-	FOOD.clock_skew_s = 0.0
+	PS.clock_skew_s = 0.0
 	_rack = CS.make(&"drying_rack")
 	get_root().add_child(_rack)
 	var ps = PS.of(_rack)
@@ -182,21 +197,21 @@ func _start_rack() -> void:
 	_expect(fx != null and fx.emitting, "smoke is on while the rack works")
 	_t0 = ps.jobs[0]["started"]
 	var secs: float = PS.job_seconds(&"drying_rack", &"dry_meat")
-	FOOD.clock_skew_s = secs * 0.5
-	ps.advance(FOOD.now_s())
+	PS.clock_skew_s = secs * 0.5
+	ps.advance(PS.now_s())
 	_expect(ps.stage_id() == "drying", "50 %%: drying stage (%s)" % ps.stage_id())
 	# Save at 50 % and reload into a new rack: same start time, same remaining time.
 	var row: Dictionary = JSON.parse_string(JSON.stringify(_rack.to_dict()))
-	var left_before: float = _t0 + secs - FOOD.now_s()
+	var left_before: float = _t0 + secs - PS.now_s()
 	_rack.free()
 	_rack = load("res://scripts/core/save_restore.gd").spawn(row)  # the island-load path
 	get_root().add_child(_rack)
 	ps = PS.of(_rack)
-	var left_after: float = float(ps.jobs[0]["started"]) + secs - FOOD.now_s() if ps.jobs.size() == 4 else -1.0
+	var left_after: float = float(ps.jobs[0]["started"]) + secs - PS.now_s() if ps.jobs.size() == 4 else -1.0
 	_expect(absf(left_after - left_before) < 1.0, "reload mid-process resumes with %.0fs left (was %.0fs)" % [left_after, left_before])
 	_expect(ps.label_text().begins_with("Drying 4/4"), "label: '%s'" % ps.label_text())
-	FOOD.clock_skew_s = secs * 0.8
-	ps.advance(FOOD.now_s())
+	PS.clock_skew_s = secs * 0.8
+	ps.advance(PS.now_s())
 	_expect(ps.stage_id() == "dried", "80 %%: dried stage (%s)" % ps.stage_id())
 	# The only survivor-like node is 50 m away; the station never looks for one.
 	_far = Node3D.new()
