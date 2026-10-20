@@ -268,7 +268,7 @@ func _hips_height(c: Dictionary) -> float:
 	return p.y - _ground_at(c, p)
 
 func _ground_at(c: Dictionary, p: Vector3) -> float:
-	var ex: Array[RID] = []
+	var ex: Array[RID] = [(c["creature"] as Creature).get_rid()]  # a live creature's own capsule is on layer 1
 	var rd := (c["creature"] as Creature).get_node_or_null("Ragdoll") as Ragdoll
 	if rd and rd.corpse:
 		ex.append(rd.corpse.get_rid())

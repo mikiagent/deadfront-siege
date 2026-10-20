@@ -108,7 +108,8 @@ func _physics_process(delta: float) -> void:
 	since_death += delta
 	match phase:
 		&"hit_react":
-			if since_death >= float(_timing().get("hit_react_s", 0.3)):
+			var prof := profile(creature.def.id if creature.def else &"")
+			if since_death >= float(prof.get("hit_react_s", _timing().get("hit_react_s", 0.3))):
 				_hand_off()
 		&"simulate":
 			_step(delta)
