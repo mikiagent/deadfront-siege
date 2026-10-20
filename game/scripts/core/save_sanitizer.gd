@@ -32,21 +32,28 @@ const SHAPE := {
 }
 ## Fields the building from_dicts read with int()/float()/bool() (placed_building, bonfire,
 ## field_plot, field_catapult, taming_pen, craft_station). Strings go through str(), which takes anything.
+## "open" is the overhaul tip's gate flag (placed_building.gd), listed ahead of the merge.
 const BUILDING_ROW := {
 	"kind": "", "rot": 0, "x": 0.0, "z": 0.0, "sleeps_left": 0, "hp": 0.0, "reload_left": 0.0,
 	"seconds_left": 0.0, "growth": 0.0, "watered": 0.0, "fertilizer": 0.0, "fertilizer_overflow": 0.0,
-	"remaining": 0.0, "cargo": false, "running": false, "mature": false, "failed": false,
+	"remaining": 0.0, "cargo": false, "running": false, "mature": false, "failed": false, "open": false,
 }
 const SNARE_ROW := {"heavy": false, "life_left": 0.0, "arm_left": 0.0}
 const STATUS_ROW := {"id": "", "stacks": 0, "time_left": 0.0}
 const CAMP_ROW := {"rot": 0}
-## PetRecord.from_dict and CreatureGenetics.from_dict cast these with float()/int().
+## CreatureGenetics.from_dict reads these parts with .get() and casts each leaf with int().
+const GENETICS := {"ivs": {}, "evs": {}, "level_gains": {}}
+## PetRecord.from_dict and CreatureGenetics.from_dict cast these with float()/int(). tamed_at and
+## wild_level are the overhaul tip's (W1-TAME), listed ahead of the merge.
 const PET_ROW := {
 	"hunger": 0.0, "hunger_max": 0.0, "hunger_efficiency": 0.0, "xp_rate": 0.0, "hp": 0.0,
 	"attack": 0.0, "defense": 0.0, "ranged_defense": 0.0, "ranged_attack": 0.0, "accuracy": 0.0,
 	"speed": 0.0, "level": 0, "xp": 0.0, "respawn_left": 0.0, "tamed_role": [], "bag": [],
-	"genetics": {"ivs": {}, "evs": {}, "level_gains": {}},
+	"tamed_at": 0, "wild_level": 0, "genetics": GENETICS,
 }
+## Stack attributes read with int() (taming pen, hunt, material tier) or handed to
+## CreatureGenetics.from_dict (taming pen, tamed animal release).
+const ATTR_ROW := {"grade_seed": 0, "barbed_hits": 0, "toxin_hits": 0, "hardness": 0, "genetics": GENETICS}
 
 static func clean(data: Dictionary) -> Dictionary:
 	_shape(data, SHAPE)
@@ -151,6 +158,13 @@ static func _stack(row: Variant) -> Variant:
 	for key in ["attributes", "flags"]:
 		if s.has(key) and not (s[key] is Dictionary if key == "attributes" else s[key] is Array):
 			s.erase(key)
+	var attrs: Variant = s.get("attributes")
+	if attrs is Dictionary:
+		# A captured or tamed animal must be of a known species, as a bonded pet must.
+		if (attrs as Dictionary).has("species") and Data.creature(StringName(str(attrs["species"]))) == null:
+			return null
+		_shape(attrs, ATTR_ROW)
+		_genetics((attrs as Dictionary).get("genetics"))
 	if s.has("durability") or s.has("max_durability"):
 		# A fresh stack of the same id, level and attributes knows the real ceiling.
 		var fresh := ItemStack.make(StringName(id), 1, s.get("attributes", {}), int(s.get("level", -1)))
@@ -172,8 +186,10 @@ static func _buildings(rows: Array) -> Array:
 			b.erase("cell")
 		if b.has("contents"):
 			b["contents"] = stacks(b["contents"]) if b["contents"] is Array else []
-		if b.has("occupant") and not (b["occupant"] == null or b["occupant"] is Dictionary):
-			b["occupant"] = null
+		if b.has("occupant") or str(b["kind"]) == "makeshift_taming_pen":
+			b["occupant"] = _stack(b.get("occupant")) # null when it is not a known, well-formed stack
+			if b["occupant"] == null:
+				b["running"] = false # a running pen reads its occupant when the timer ends
 		out.append(b)
 	return out
 
@@ -184,18 +200,24 @@ static func _pets(rows: Array) -> Array:
 			continue
 		var p: Dictionary = row
 		_shape(p, PET_ROW)
-		for part in (p.get("genetics", {}) as Dictionary).values():
-			if not part is Dictionary:
-				continue # keys other than ivs/evs/level_gains are never read
-			for stat in (part as Dictionary).keys():
-				if not (part[stat] is int or part[stat] is float):
-					(part as Dictionary).erase(stat)
+		_genetics(p.get("genetics"))
 		if p.has("level"):
 			p["level"] = _int(p["level"], 1, MAX_LEVEL)
 		if p.has("bag"):
 			p["bag"] = stacks(p["bag"])
 		out.append(p)
 	return out
+
+## Keep only numeric stats under each genetics part (keys other than ivs/evs/level_gains are never read).
+static func _genetics(g: Variant) -> void:
+	if not g is Dictionary:
+		return
+	for part in (g as Dictionary).values():
+		if not part is Dictionary:
+			continue
+		for stat in (part as Dictionary).keys():
+			if not (part[stat] is int or part[stat] is float):
+				(part as Dictionary).erase(stat)
 
 ## Tree levels cap at 60 and SP can never exceed what those levels paid out (SkillState.add_xp).
 ## Bought nodes must exist in trees.json and be reachable (tree level, prerequisite); walking the

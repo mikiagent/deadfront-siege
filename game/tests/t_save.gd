@@ -20,9 +20,12 @@ const LEGACY := {
 ## Counts SCRIPT ERRORs so the run asserts "none unexpected" itself instead of relying on the log.
 class ErrorCounter extends Logger:
 	var script_errors := 0
+	var engine_errors := 0
 	func _log_error(_function: String, _file: String, _line: int, _code: String, _rationale: String, _editor_notify: bool, error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
 		if error_type == ERROR_TYPE_SCRIPT:
 			script_errors += 1
+		elif error_type == ERROR_TYPE_ERROR:
+			engine_errors += 1
 	func _log_message(_message: String, _error: bool) -> void:
 		pass
 
@@ -32,6 +35,7 @@ var failures: Array[String] = []
 var _started := false
 var W: Node
 var SG: GDScript
+var SR: GDScript
 var IS: GDScript
 var host: Node3D
 var player: Node
@@ -49,6 +53,7 @@ func _process(_delta: float) -> bool:
 func _run() -> void:
 	W = root.get_node("World")
 	SG = load("res://scripts/core/save_game.gd")
+	SR = load("res://scripts/core/save_restore.gd")
 	IS = load("res://scripts/items/item_stack.gd")
 	_check(str(SG.path) == RUN_DIR + "/save_1.json", "a --script run saves under user://runs/t_save/ (got %s)" % SG.path)
 	_test_run_names()
@@ -75,6 +80,8 @@ func _run() -> void:
 	await _test_backup_fallback()
 	await _test_restore_refunds()
 	await _test_full_cargo_refund()
+	await _test_pen_refunds()
+	await _test_refused_save_keeps_camp()
 	await _test_away_island()
 	await _test_hostile_types()
 	await _test_aborted_load()
@@ -109,6 +116,9 @@ func _test_fresh_run_dir() -> void:
 		fa.close()
 	var again: String = SG._pick_path()
 	_check(again == RUN_DIR + "/save_1.json" and not SG.exists(), "picking the run path wipes a leftover save, .bak and .tmp (exists=%s)" % SG.exists())
+	var e0 := errors.engine_errors
+	(load("res://scripts/core/save_migrations.gd") as GDScript).wipe_dir("user://runs/t_save_never_made")
+	_check(errors.engine_errors == e0, "a new run name's first launch logs no engine ERROR (got %d)" % (errors.engine_errors - e0))
 
 func _test_offline_clamp() -> void:
 	var now := int(Time.get_unix_time_from_system())
@@ -294,7 +304,7 @@ func _test_away_island() -> void:
 	var cell := _free_cell(&"basket")
 	var b: Node3D = (load("res://scripts/world/placed_building.gd") as GDScript).make(&"basket")
 	W.runtime.add_child(b)
-	SG._place_building(b, {"kind": "basket", "cell": [cell.x, cell.y], "rot": 0}, W.runtime.get("build_grid"))
+	SR.place(b, {"kind": "basket", "cell": [cell.x, cell.y], "rot": 0}, W.runtime.get("build_grid"))
 	b.storage.add(IS.make(&"stone", 9))
 	_check(SG.save_now(), "save on an away island")
 	SG.load_now(host)
@@ -311,6 +321,11 @@ func _test_away_island() -> void:
 ## Wrong-typed leaves the loader casts with int()/float()/bool(): each must load completely
 ## (the golden's 42 t_stones and 6 stacks arrive) and keep saving, never abort halfway.
 func _test_hostile_types() -> void:
+	_clean()
+	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	SG.load_now(host) # the golden camp layout, so the pen cell below is free under it
+	await process_frame
+	var pen := _free_cell(&"makeshift_taming_pen")
 	var cases := {
 		"building rot {}": func (d: Dictionary) -> void: d["home"]["buildings"][0]["rot"] = {},
 		"building hp/bool strings": func (d: Dictionary) -> void:
@@ -333,6 +348,16 @@ func _test_hostile_types() -> void:
 		pet["genetics"] = {"ivs": "x", "evs": {"hp": {}, "attack": "3"}, "level_gains": [], "extra": 1}
 		pet["tamed_role"] = 5
 		pet["bag"] = "no"
+	# Pen occupants: [occupant row, whether the pen keeps an animal].
+	var pens := {
+		"pen occupant count {}": [{"id": "captured_animal", "count": {}, "attributes": {"species": "velociraptor"}}, false],
+		"pen occupant unknown species": [{"id": "captured_animal", "count": 1, "attributes": {"species": {}, "grade_seed": {}}}, false],
+		"pen occupant unknown id": [{"id": "dodo_egg_of_doom", "count": 1}, false],
+		"pen occupant attribute junk": [{"id": "captured_animal", "count": 1, "level": "9", "attributes": {"species": "velociraptor", "grade_seed": {}, "variant": [], "genetics": {"ivs": "x", "evs": {"hp": {}, "attack": 3}, "level_gains": []}}}, true],
+	}
+	for label in pens:
+		var row := _pen_row(pen, pens[label][0])
+		cases[label] = func (d: Dictionary) -> void: d["home"]["buildings"] = [row]
 	for label in cases:
 		_clean()
 		var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
@@ -340,16 +365,37 @@ func _test_hostile_types() -> void:
 		_put(JSON.stringify(d))
 		W.t_stones = 0
 		player.inventory.load_array([])
+		var errs := errors.script_errors # counted from before the load: a load-time abort is the bug
 		SG.load_now(host)
 		var stacks := 0
 		for st in player.inventory.slots:
 			if st != null: stacks += 1
-		var errs := errors.script_errors
 		var ok: bool = SG.blocked_reason == "" and int(W.t_stones) == 42 and stacks == 6 and player.bonded.size() == 1 and not null in player.bonded
 		var saved: bool = SG.save_now()
 		_check(ok and saved and errors.script_errors == errs, "hostile '%s' loads completely and saves (blocked='%s' t_stones=%d stacks=%d pets=%d script_errors=%d)" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), errors.script_errors - errs])
 		print("[t_save] hostile '%s' blocked='%s' t_stones=%d stacks=%d pets=%d saved=%s" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), saved])
+		if pens.has(label):
+			_check_pen(label, pens[label][1])
 		await process_frame
+
+## The pen survives its junk occupant. A kept animal finishes taming without a script error; a
+## dropped one leaves the pen idle (a running pen with no animal reads null when its timer ends).
+func _check_pen(label: String, keeps: bool) -> void:
+	var live := _live_pens()
+	_check(live.size() == 1, "hostile '%s': the pen is rebuilt (pens=%d)" % [label, live.size()])
+	if live.size() != 1:
+		return
+	var p = live[0]
+	var errs := errors.script_errors
+	var tamed: int = player.inventory.count_of(&"tamed_animal")
+	if p.occupant != null:
+		p.force_result = 1
+		p.running = true
+		p.remaining = 0.0
+		p._process(1.0)
+	var done: bool = player.inventory.count_of(&"tamed_animal") == tamed + 1 if keeps else p.occupant == null
+	_check(done and not p.running and errors.script_errors == errs, "hostile '%s': keeps animal=%s, the pen finishes without a script error (tamed +%d, running=%s, script_errors=%d)" % [label, keeps, player.inventory.count_of(&"tamed_animal") - tamed, p.running, errors.script_errors - errs])
+	print("[t_save] hostile '%s' pen kept_animal=%s tamed=+%d script_errors=%d" % [label, keeps, player.inventory.count_of(&"tamed_animal") - tamed, errors.script_errors - errs])
 
 ## A load that dies halfway (here: an unsanitized row handed straight to _apply) must leave saving
 ## refused, so the next autosave cannot write the half-built world over the good file. A later good
@@ -445,6 +491,85 @@ func _test_sanitizer_abort() -> void:
 	print("[t_save] sanitizer abort read=%s" % [r.get("error", "applied")])
 	await process_frame
 
+## A pen or field that cannot be rebuilt gives back everything it holds: the kit, the pen's captured
+## animal, the field's seed. With full cargo all of it stays on disk until the cargo has room, and a
+## pen the grid still accepts keeps its animal.
+func _test_pen_refunds() -> void:
+	_clean()
+	var golden := FileAccess.get_file_as_string(FIX + "save_v3_golden.json")
+	_put(golden)
+	SG.load_now(host)
+	await process_frame
+	var free := _free_cell(&"makeshift_taming_pen")
+	var off := free + Vector2i(60, 60)
+	var off_field := off + Vector2i(0, 8)
+	var grid = W.runtime.get("build_grid")
+	grid.ignore_distance = true
+	var whys := [grid.can_place(&"makeshift_taming_pen", off, 0), grid.can_place(&"field_small", off_field, 0)]
+	grid.ignore_distance = false
+	_check(whys[0] != "" and whys[1] != "", "the refund cells are rejected by the grid (%s)" % [whys])
+	var occ := {"id": "captured_animal", "count": 1, "attributes": {"species": "velociraptor", "variant": "", "grade_seed": 7, "genetics": {}}}
+	var rows := [_pen_row(off, occ), {"kind": "field_small", "cell": [off_field.x, off_field.y], "rot": 0, "crop_id": "corn", "growth": 0.5}]
+	var d: Dictionary = JSON.parse_string(golden)
+	d["home"]["cargo"] = []
+	d["home"]["buildings"] = rows.duplicate(true)
+	_put(JSON.stringify(d))
+	SG.load_now(host)
+	var c = W.cargo_home
+	var at: int = c.find_first(&"captured_animal")
+	var species: String = str(c.slots[at].attributes.get("species", "")) if at >= 0 else ""
+	var got := [c.count_of(&"captured_animal"), species, c.count_of(&"makeshift_taming_pen"), c.count_of(&"field_small_kit"), c.count_of(&"corn_seed")]
+	_check(got == [1, "velociraptor", 1, 1, 1], "a refunded pen and field give back the animal, both kits and the seed (got %s)" % [got])
+	print("[t_save] pen refund cargo [animal, species, pen kit, field kit, corn_seed]=%s whys=%s" % [got, whys])
+	var branch: Dictionary = IS.make(&"branch", maxi(1, root.get_node("Data").item(&"branch").stack_max)).to_dict()
+	var full: Array = []
+	for i in W.cargo_home.slot_count:
+		full.append(branch.duplicate(true))
+	d["home"]["cargo"] = full
+	_put(JSON.stringify(d))
+	SG.load_now(host)
+	SG.save_now()
+	var kept := 0
+	for row in _saved().get("pending_refunds", []):
+		if row.get("occupant") is Dictionary and str(row["occupant"].get("id", "")) == "captured_animal":
+			kept += 1
+	_check(kept == 1, "full cargo: the pen's captured animal stays on disk in pending_refunds (got %d)" % kept)
+	W.cargo_home.load_array([])
+	SG.save_now()
+	SG.load_now(host)
+	_check(c.count_of(&"captured_animal") == 1 and c.count_of(&"corn_seed") == 1, "with room again the kept animal and seed are refunded (animal=%d seed=%d)" % [c.count_of(&"captured_animal"), c.count_of(&"corn_seed")])
+	d["home"]["cargo"] = []
+	d["home"]["buildings"] = [_pen_row(free, occ)]
+	_put(JSON.stringify(d))
+	SG.load_now(host)
+	var live := _live_pens()
+	_check(live.size() == 1 and live[0].occupant != null and c.count_of(&"captured_animal") == 0, "a pen on a free claimed cell keeps its animal (pens=%d)" % live.size())
+	print("[t_save] pen refund full_cargo_kept=%d free_cell_pens=%d" % [kept, live.size()])
+	await process_frame
+
+## World.travel snapshots the home camp through save_now() and rebuilds it from that cache: a refused
+## save must still record this session's buildings, or sailing away and back loses them.
+func _test_refused_save_keeps_camp() -> void:
+	_clean()
+	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	SG.load_now(host) # the golden basket holds 5 stone
+	await process_frame
+	var cell := _free_cell(&"basket")
+	var b: Node3D = (load("res://scripts/world/placed_building.gd") as GDScript).make(&"basket")
+	W.runtime.add_child(b)
+	SR.place(b, {"kind": "basket", "cell": [cell.x, cell.y], "rot": 0}, W.runtime.get("build_grid"))
+	b.storage.add(IS.make(&"stone", 11))
+	SG.blocked_reason = SG.LOAD_UNFINISHED
+	var saved: bool = SG.save_now()
+	# What World.travel does next: a new runtime, then the camp rebuilt from the cache.
+	W.load_island(host, &"home_grassland", Vector3(0, 1, 12), false)
+	SG._restore_buildings(W._home_buildings_cache, SG.SCHEMA)
+	await process_frame
+	var got := _baskets()
+	_check(not saved and got == [2, 16], "a refused save still refreshes the home camp cache: both baskets and 16 stone come back (got %s)" % [got])
+	print("[t_save] refused save camp cache baskets=%d stone=%d" % [got[0], got[1]])
+	SG.blocked_reason = ""
+
 ## Purchases are checked against trees.json and the SP the levels paid, not just type-checked.
 func _test_skill_purchases() -> void:
 	var San: GDScript = load("res://scripts/core/save_sanitizer.gd")
@@ -499,7 +624,7 @@ func _write_golden() -> void:
 		var cell := _free_cell(kind)
 		var node: Node3D = SG._spawn_building({"kind": str(kind), "cell": [cell.x, cell.y], "rot": 1 if kind == &"workbench" else 0})
 		W.runtime.add_child(node)
-		SG._place_building(node, {"kind": str(kind), "cell": [cell.x, cell.y], "rot": 1 if kind == &"workbench" else 0}, grid)
+		SR.place(node, {"kind": str(kind), "cell": [cell.x, cell.y], "rot": 1 if kind == &"workbench" else 0}, grid)
 		if kind == &"basket":
 			node.storage.add(IS.make(&"stone", 5))
 		placed += 1
@@ -527,7 +652,7 @@ func _write_golden() -> void:
 	var cell := _free_cell(&"basket")
 	var b: Node3D = PB.make(&"basket")
 	W.runtime.add_child(b)
-	SG._place_building(b, {"kind": "basket", "cell": [cell.x, cell.y], "rot": 0}, W.runtime.get("build_grid"))
+	SR.place(b, {"kind": "basket", "cell": [cell.x, cell.y], "rot": 0}, W.runtime.get("build_grid"))
 	b.storage.add(IS.make(&"stone", 9))
 	SG.save_now()
 	SG.load_now(host)
@@ -565,6 +690,12 @@ func _camp_cell(name: String) -> Array:
 	var c: Vector2i = n.get("build_cell") if n else Vector2i.ZERO
 	_check(n != null, "camp piece %s exists" % name)
 	return [c.x, c.y]
+
+func _pen_row(cell: Vector2i, occupant: Dictionary) -> Dictionary:
+	return {"kind": "makeshift_taming_pen", "cell": [cell.x, cell.y], "rot": 0, "running": true, "remaining": 100.0, "occupant": occupant.duplicate(true)}
+
+func _live_pens() -> Array:
+	return get_nodes_in_group("taming_pen").filter(func (p: Node) -> bool: return not p.is_queued_for_deletion() and W.runtime.is_ancestor_of(p))
 
 ## [count, stone] of live, non-cargo baskets on the current island.
 func _baskets() -> Array:

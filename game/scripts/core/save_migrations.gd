@@ -45,7 +45,7 @@ static func _v0_to_v1(data: Dictionary) -> Dictionary:
 
 static func _v1_to_v2(data: Dictionary) -> Dictionary:
 	# Schema 2 introduced grid-cell building poses. Old x/z rows remain valid and
-	# are converted by SaveGame._normalize_build_row using source_schema.
+	# are converted by SaveRestore._normalize using source_schema.
 	data["schema"] = 2
 	return data
 
@@ -132,5 +132,7 @@ static func quarantine(p: String, move: bool) -> String:
 ## Empty an automated run's save folder so every launch of it starts from a fresh world.
 static func wipe_dir(dir_path: String) -> void:
 	var dir := ProjectSettings.globalize_path(dir_path)
+	if not DirAccess.dir_exists_absolute(dir):
+		return # a run's first launch: get_files_at would print an engine ERROR
 	for f in DirAccess.get_files_at(dir):
 		DirAccess.remove_absolute(dir.path_join(f))

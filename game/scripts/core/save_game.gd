@@ -15,9 +15,6 @@ static var blocked_reason: String = ""
 ## Held while a save is being applied: a load that aborts partway leaves it set, so the half-built
 ## world is never autosaved over the good file.
 const LOAD_UNFINISHED := "the last load did not finish"
-## Building rows that could not be rebuilt and whose kit and contents do not fit in camp cargo yet.
-## Saved as-is and retried on every load, so a full cargo never destroys items.
-static var pending_refunds: Array = []
 
 static func _pick_path() -> String:
 	var run := run_name(OS.get_cmdline_user_args(), OS.get_cmdline_args())
@@ -52,6 +49,11 @@ static func exists() -> bool:
 	return FileAccess.file_exists(path) or FileAccess.file_exists(path + ".bak")
 
 static func save_now() -> bool:
+	var buildings := _live_buildings()
+	# Before any refusal: World.travel rebuilds the home camp from this cache after saving, so a
+	# refused save must still record what was built this session.
+	if World.is_home() and World.runtime:
+		World._home_buildings_cache = buildings
 	if blocked_reason != "":
 		if blocked_reason == LOAD_UNFINISHED:
 			print("[save] refused: the load of %s did not finish this session, so the file is left untouched" % path)
@@ -62,19 +64,6 @@ static func save_now() -> bool:
 	if player == null:
 		return false
 	World._snapshot_harvest()
-	var buildings: Array = []
-	if World.runtime:
-		for n in World.runtime.get_tree().get_nodes_in_group("placed_building"):
-			# The old island may still be queue_free pending during a travel callback.
-			if n.is_queued_for_deletion() or not World.runtime.is_ancestor_of(n): continue
-			var b = n
-			var persist := true
-			if b and b.has_method("get"):
-				var pv: Variant = b.get("persist_building")
-				if pv != null:
-					persist = bool(pv)
-			if b and b.has_method("to_dict") and persist and b.get("is_cargo") != true:
-				buildings.append(b.to_dict())
 	var snares: Array = []
 	if World.runtime:
 		for n in World.runtime.get_tree().get_nodes_in_group("ground_snare"):
@@ -100,7 +89,7 @@ static func save_now() -> bool:
 		"skills": skills,
 		"home": {
 			"terrain": str(World.home_terrain),
-			"buildings": buildings if World.is_home() else World._home_buildings_cache,
+			"buildings": World._home_buildings_cache, # refreshed above when the survivor is home
 			"cargo": World.cargo_home.to_array(),
 			"claims": World.home_claims,
 			"camp_layout": World.camp_layout,
@@ -125,11 +114,9 @@ static func save_now() -> bool:
 		},
 		"clock": Game.time_of_day,
 		"saved_unix": int(Time.get_unix_time_from_system()),
-		"pending_refunds": pending_refunds,
+		"pending_refunds": SaveRestore.pending_refunds,
 	}
-	if World.is_home():
-		World._home_buildings_cache = buildings
-	else:
+	if not World.is_home():
 		# The island the survivor is standing on: its buildings, storage and staked claims.
 		payload["away"] = {"buildings": buildings, "claims": World.unstable_claims}
 	if not SaveMigrations.write_atomic(path, JSON.stringify(payload)):
@@ -214,7 +201,7 @@ static func offline_seconds(saved_unix: int) -> int:
 
 static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup: bool) -> void:
 	blocked_reason = LOAD_UNFINISHED # cleared as the last statement; also lifts an older block
-	pending_refunds = []
+	SaveRestore.pending_refunds = []
 	if source_schema != SCHEMA:
 		print("[world] migrated save schema=%d -> %d" % [source_schema, SCHEMA])
 	var schema := source_schema
@@ -250,11 +237,8 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	# After the island: arriving fires island_changed, whose survival XP is for travel, not for loading.
 	World.pioneer_level = int(data.get("pioneer_level", 0))
 	World.pioneer_xp = int(data.get("pioneer_xp", 0))
-	_restore_buildings(World._home_buildings_cache if World.is_home() else away.get("buildings", []), schema)
-	var kits := _kits_by_kind()
-	for row in data.get("pending_refunds", []):
-		var kind := StringName(str(row.get("kind", "")))
-		_refund(row, kits.get(kind, &""), "retry")
+	SaveRestore.buildings(World._home_buildings_cache if World.is_home() else away.get("buildings", []), schema)
+	SaveRestore.retry_refunds(data.get("pending_refunds", []))
 	var saved_unix := int(data.get("saved_unix", Time.get_unix_time_from_system()))
 	var elapsed := offline_seconds(saved_unix)
 	if int(Time.get_unix_time_from_system()) - saved_unix > elapsed:
@@ -303,113 +287,30 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 		player.notice("Your last save was damaged; the backup before it was loaded")
 	blocked_reason = ""
 
-## Saved rows are rebuilt only where the grid would accept them now. An unknown kind or a row that
-## fails can_place (overlap, off the claim, water, slope) is refunded to the camp cargo instead,
-## or kept in pending_refunds while the cargo cannot take all of it.
+## Kept for callers outside this package (World.travel, run_all, kitchen_lab, siege_probe).
 static func _restore_buildings(rows: Array, schema: int) -> void:
-	if World.runtime == null:
-		return
-	var grid := World.runtime.get("build_grid") as BuildGrid
-	var was_ignoring := false
-	# No clear_occupancy(): the runtime is fresh, and the cells it holds are the island's own camp
-	# pieces, which restored rows must not overlap.
-	if grid:
-		was_ignoring = grid.ignore_distance
-		grid.ignore_distance = true # nobody stands beside a building while it is loaded
-	var kits := _kits_by_kind()
-	for row in rows:
-		if not row is Dictionary:
-			continue
-		var normalized := _normalize_build_row(row as Dictionary, schema)
-		var kind := StringName(str(normalized.get("kind", "")))
-		var why := "" if kits.has(kind) else "unknown kind"
-		if why == "" and grid:
-			why = grid.can_place(kind, _cell_of(normalized), int(normalized.get("rot", 0)))
-		if why != "":
-			_refund(normalized, kits.get(kind, &""), why)
-			continue
-		var b := _spawn_building(normalized)
-		if b == null:
-			continue
-		World.runtime.add_child(b)
-		_place_building(b, normalized, grid)
-	if grid:
-		grid.ignore_distance = was_ignoring
-
-## Placeable kinds -> the kit item that places them (items.json place_as).
-static func _kits_by_kind() -> Dictionary:
-	var out := {}
-	for id in Data.items:
-		var def: ItemDef = Data.items[id]
-		if def.place_as != &"":
-			out[def.place_as] = id
-	return out
-
-## All or nothing: tried on a scratch copy of the cargo first, so a partial fit never drops items.
-static func _refund(row: Dictionary, kit: StringName, why: String) -> void:
-	var back: Array[ItemStack] = []
-	if kit != &"":
-		back.append(ItemStack.make(kit, 1))
-	for s in row.get("contents", []):
-		if s is Dictionary and str(s.get("id", "")) != SaveSanitizer.SLOT_LOCK:
-			back.append(ItemStack.from_dict(s))
-	var scratch := Inventory.new(World.cargo_home.slot_count)
-	scratch.load_array(World.cargo_home.to_array())
-	var left := 0
-	for stack in back:
-		left += scratch.add(stack.duplicate_stack())
-	if left > 0:
-		pending_refunds.append(row)
-		print("[save] kept %s at %s (%s) for a later refund: camp cargo is short of room for %d items" % [row.get("kind", "?"), _cell_of(row), why, left])
-		return
-	for stack in back:
-		World.cargo_home.add(stack)
-	print("[save] refunded %s at %s (%s): %d stacks to camp cargo" % [row.get("kind", "?"), _cell_of(row), why, back.size()])
-
-static func _normalize_build_row(row: Dictionary, schema: int) -> Dictionary:
-	var out := row.duplicate(true)
-	if schema >= 2 and out.has("cell"):
-		return out
-	var x := float(out.get("x", 0.0))
-	var z := float(out.get("z", 0.0))
-	var tile := BuildGrid.tile_of(Vector3(x, 0.0, z))
-	out["cell"] = [tile.x, tile.y]
-	out["rot"] = int(out.get("rot", 0))
-	return out
+	SaveRestore.buildings(rows, schema)
 
 static func _spawn_building(row: Dictionary) -> Node3D:
-	var kind := StringName(str(row.get("kind", "basket")))
-	match kind:
-		&"catapult":
-			return FieldCatapult.from_dict(row) if float(row.get("hp",200)) > 0 else null
-		&"workbench", &"drying_rack", &"smoker", &"crock_pot", &"mortar", &"stone_grill", &"steamer", &"well":
-			return CraftStation.from_dict(row)
-		&"bonfire", &"stone_fire_pit", &"campfire":
-			return Bonfire.from_dict(row)
-		&"makeshift_taming_pen":
-			return TamingPen.from_dict(row)
-		&"field_small", &"field_large":
-			return FieldPlot.from_dict(row)
-		_:
-			return (load("res://scripts/world/placed_building.gd") as GDScript).from_dict(row)
+	return SaveRestore.spawn(row)
 
-static func _cell_of(row: Dictionary) -> Vector2i:
-	var cell_v: Variant = row.get("cell", [0, 0])
-	if cell_v is Array and (cell_v as Array).size() >= 2:
-		return Vector2i(int(cell_v[0]), int(cell_v[1]))
-	return Vector2i.ZERO
-
-static func _place_building(node: Node3D, row: Dictionary, grid: BuildGrid) -> void:
-	var kind := StringName(str(row.get("kind", "basket")))
-	var cell := _cell_of(row)
-	var rot := int(row.get("rot", 0))
-	if grid:
-		node.global_transform = grid.placement_transform(kind, cell, rot)
-		if node.has_method("set_grid_pose"):
-			node.set_grid_pose(cell, rot)
-		grid.occupy(node, grid.cells_for(kind, cell, rot))
-		return
-	node.global_position = Vector3(float(row.get("x", 0.0)), 0.0, float(row.get("z", 0.0)))
+## Rows of the persistent, non-cargo buildings on the live island.
+static func _live_buildings() -> Array:
+	var out: Array = []
+	if World.runtime == null:
+		return out
+	for n in World.runtime.get_tree().get_nodes_in_group("placed_building"):
+		# The old island may still be queue_free pending during a travel callback.
+		if n.is_queued_for_deletion() or not World.runtime.is_ancestor_of(n): continue
+		var b = n
+		var persist := true
+		if b and b.has_method("get"):
+			var pv: Variant = b.get("persist_building")
+			if pv != null:
+				persist = bool(pv)
+		if b and b.has_method("to_dict") and persist and b.get("is_cargo") != true:
+			out.append(b.to_dict())
+	return out
 
 static func _player() -> Player:
 	return Engine.get_main_loop().root.get_tree().get_first_node_in_group("player") as Player
