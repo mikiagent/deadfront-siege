@@ -131,6 +131,7 @@ func _layout() -> void:
 
 func rebuild() -> void:
 	for c in _box.get_children():
+		_box.remove_child(c)  # now, not at frame end: the new SkillsGrid kept a generated name beside the old one
 		c.queue_free()
 	if skills == null:
 		return
