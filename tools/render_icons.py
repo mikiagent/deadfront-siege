@@ -54,6 +54,11 @@ REPLACE = {
     "black_iron": "dark crystal, not distinguishable from obsidian at slot size",
     "berry": "plain blue sphere, no stem, leaf or cluster",
     "mango": "noisy green/orange blotches, reads poorly",
+    "iron_ingot": "grey bar stack, not distinguishable from steel_ingot / ingot at slot size",
+    "steel_ingot": "grey bar stack, not distinguishable from iron_ingot / ingot at slot size",
+    "obsidian": "dark crystal, not distinguishable from black_iron at slot size",
+    "burnt_food": "glowing lava-crack texture shared with lava / raid_maul; reads as a fire item",
+    "fish": "noisy camouflage-like blotches, reads poorly",
 }
 PROCEDURAL = "procedural_v1"
 # Known tiers, lowest first. A GLB render (the route for better art) never becomes procedural_v1.

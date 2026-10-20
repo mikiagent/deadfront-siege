@@ -90,6 +90,7 @@ def tent_kit():
         cyl(0.05, 0.35, loc=(0.0, s * 1.62, 0.05), rot=(s * 15, 0, 0), m=p, segs=6)
     turn(-55)
     turn(8, "X")
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def fence_kit():

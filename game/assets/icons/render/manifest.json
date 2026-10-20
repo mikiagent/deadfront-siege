@@ -35,13 +35,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "armor_scute",
    "png": "res://assets/icons/render/armor_scute.png",
-   "sha256": "ae0e426946b40c84a6ff02cf512bf3aef2fb9bf2ffb66cc34d43f8b5151dc021",
-   "bytes": 31317,
+   "sha256": "135ac7a26bc60d4cca5fe87c2215298f67f2910bd0ec6e680a0ace1c78586836",
+   "bytes": 34974,
    "rect": [
     19,
-    56,
+    42,
     218,
-    144
+    172
    ],
    "quality": "procedural_v1",
    "replace": "flat plate, no bony texture"
@@ -270,7 +270,8 @@
     204,
     218
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "glowing lava-crack texture shared with lava / raid_maul; reads as a fire item"
   },
   "cactus_flesh": {
    "script": "tools/blender/items/food.py",
@@ -361,13 +362,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "charcoal",
    "png": "res://assets/icons/render/charcoal.png",
-   "sha256": "c5769a2ed6437fa1671dcfa899d12e28bd754c668b8f0dcc9ece37d274120ecc",
-   "bytes": 25721,
+   "sha256": "17830c4938e7900ae5062a1e1bce22fb365c5f9d9efc699cfd4645bfb93a0621",
+   "bytes": 30544,
    "rect": [
     19,
-    69,
+    44,
     218,
-    118
+    169
    ],
    "quality": "procedural_v1"
   },
@@ -404,13 +405,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "cloth",
    "png": "res://assets/icons/render/cloth.png",
-   "sha256": "b7b45c5c2b11f7269f7dbca29a4f8bef744afa734dcdcdb2aa753d1a7913983b",
-   "bytes": 36061,
+   "sha256": "391dfe111f786115eedce46d6a87a8a235885d2f60dd6b9903785d89af5e0922",
+   "bytes": 42399,
    "rect": [
     19,
-    59,
+    42,
     218,
-    138
+    171
    ],
    "quality": "procedural_v1",
    "replace": "stacked coloured slabs, no fold or weave"
@@ -461,13 +462,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "copper_ore",
    "png": "res://assets/icons/render/copper_ore.png",
-   "sha256": "d0660a2dc55d623693f21b0d538a08ee97748de5e82b0e0390a930f14ba87ec1",
-   "bytes": 36332,
+   "sha256": "7a55990a1ac43ffa60bba08135a9f14c3b743b032fb3f94cb7c688a2b6754846",
+   "bytes": 38363,
    "rect": [
     19,
-    52,
+    43,
     218,
-    152
+    170
    ],
    "quality": "procedural_v1"
   },
@@ -546,13 +547,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "dried_hide",
    "png": "res://assets/icons/render/dried_hide.png",
-   "sha256": "36065eacbf28c84b43719a31c5e29619c5fa98d870c5650f6bc9fcba923c0b88",
-   "bytes": 28044,
+   "sha256": "673b5db8f9f5457a13b7a43e3ab727115f85788a0b1c590676ce186b459ec831",
+   "bytes": 31771,
    "rect": [
     19,
-    69,
+    41,
     218,
-    118
+    174
    ],
    "quality": "procedural_v1",
    "replace": "flat slab with painted stripes"
@@ -653,7 +654,8 @@
     218,
     188
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "noisy camouflage-like blotches, reads poorly"
   },
   "flax": {
    "script": "tools/blender/items/resources.py",
@@ -838,19 +840,20 @@
     218,
     178
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "grey bar stack, not distinguishable from steel_ingot / ingot at slot size"
   },
   "lava": {
    "script": "tools/blender/items/resources.py",
    "builder": "lava",
    "png": "res://assets/icons/render/lava.png",
-   "sha256": "e86d6e3eafda7c18a2f7b3d6ca5a3c40b6480a9985a74f7e9883bd0f075c5e05",
-   "bytes": 49169,
+   "sha256": "79ad1f185b992a85b6b00f378f62fef5f581d86092845403d538358dbf65e675",
+   "bytes": 52303,
    "rect": [
     19,
-    52,
+    43,
     218,
-    152
+    170
    ],
    "quality": "procedural_v1"
   },
@@ -952,19 +955,20 @@
     196,
     218
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "dark crystal, not distinguishable from black_iron at slot size"
   },
   "ore": {
    "script": "tools/blender/items/resources.py",
    "builder": "ore",
    "png": "res://assets/icons/render/ore.png",
-   "sha256": "bef8c6535dc15807f15349165024679b85d43f97615bf826a2f883c101f820fb",
-   "bytes": 33981,
+   "sha256": "dcce1727d53f07717a05d0ee6a894b023a424aec88b0ef35093b42112cc0dc95",
+   "bytes": 39380,
    "rect": [
     19,
-    59,
+    43,
     218,
-    138
+    170
    ],
    "quality": "procedural_v1"
   },
@@ -1015,13 +1019,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "pine_log",
    "png": "res://assets/icons/render/pine_log.png",
-   "sha256": "532e2bfa8f0f99cb474abc7745cff580ed402deb24c6e14a59e1fa63bf9e8663",
-   "bytes": 33319,
+   "sha256": "9883defe77a688df61ac529b87e98389aae058f614c3251238b923ec99026877",
+   "bytes": 36711,
    "rect": [
     19,
-    62,
+    42,
     218,
-    132
+    172
    ],
    "quality": "procedural_v1",
    "replace": "not distinguishable from wood_log at slot size"
@@ -1188,13 +1192,13 @@
    "script": "tools/blender/items/food.py",
    "builder": "raw_meat",
    "png": "res://assets/icons/render/raw_meat.png",
-   "sha256": "6e230172df818509ac5677778dab52fde135e5b41f7c24572903b8f9e5f3ea9c",
-   "bytes": 35319,
+   "sha256": "f71c34cd665d73320534254b7b48f653a5694d9ae2dac4d6df1b9fbc5168b489",
+   "bytes": 40022,
    "rect": [
     19,
-    57,
+    43,
     218,
-    142
+    170
    ],
    "quality": "procedural_v1"
   },
@@ -1258,13 +1262,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "salt",
    "png": "res://assets/icons/render/salt.png",
-   "sha256": "a313f538f730c2489c3d752083d607d99238d7c933da66f80054eb5d8e8e47af",
-   "bytes": 26154,
+   "sha256": "0166ecb44fe29b742930890e20a792aa8bde0f2eed2306768c722628e59a4096",
+   "bytes": 27517,
    "rect": [
     19,
-    57,
+    43,
     218,
-    142
+    170
    ],
    "quality": "procedural_v1"
   },
@@ -1286,13 +1290,13 @@
    "script": "tools/blender/items/food.py",
    "builder": "sashimi",
    "png": "res://assets/icons/render/sashimi.png",
-   "sha256": "c62071e660fdef76e7d0a6ee2cda2d0952548ded194b5c8958d17a27f57ac0ad",
-   "bytes": 42156,
+   "sha256": "6318eaa678a42536ab7e04c0a8275b5336deb2b5ade47927a18cbbed07c0c933",
+   "bytes": 54908,
    "rect": [
     19,
-    65,
+    42,
     218,
-    126
+    172
    ],
    "quality": "procedural_v1"
   },
@@ -1330,13 +1334,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "silver_ore",
    "png": "res://assets/icons/render/silver_ore.png",
-   "sha256": "07f4aaee42cb4db4de5f6c5a5d064ed2ef3cbb3cfa76e46568094e1d34bcca44",
-   "bytes": 34262,
+   "sha256": "162a200172a3432d9934e3e89239c71c38310cf91de7836bb313003205098a06",
+   "bytes": 36672,
    "rect": [
     19,
-    52,
+    43,
     218,
-    152
+    170
    ],
    "quality": "procedural_v1"
   },
@@ -1451,7 +1455,8 @@
     218,
     178
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "grey bar stack, not distinguishable from iron_ingot / ingot at slot size"
   },
   "stone": {
    "script": "tools/blender/items/resources.py",
@@ -1555,13 +1560,13 @@
    "script": "tools/blender/items/camp.py",
    "builder": "tent_kit",
    "png": "res://assets/icons/render/tent_kit.png",
-   "sha256": "2ad53ad06f7c36f772a069093230b57cbc1b2bff059a846adab7d21fae7f2baa",
-   "bytes": 33407,
+   "sha256": "9e3380ffa1ec75446940ecec09cf24fa4b6df95c6b97f16140d0ab6333b7ccde",
+   "bytes": 40013,
    "rect": [
     19,
-    55,
+    43,
     218,
-    146
+    170
    ],
    "quality": "procedural_v1",
    "replace": "flat cloth plane on sticks, reads poorly"
@@ -1696,13 +1701,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "wood_log",
    "png": "res://assets/icons/render/wood_log.png",
-   "sha256": "4ac3e257ac1994c638df76e91d972636cdfb8fb274428c265cb7edfb67d2f7b8",
-   "bytes": 28617,
+   "sha256": "bf2ab0354bc994f44bb7e94b2d7ab7e30b0b96733f69fbb9ace528bb6a94eeb5",
+   "bytes": 32358,
    "rect": [
     19,
-    55,
+    42,
     218,
-    146
+    172
    ],
    "quality": "procedural_v1"
   },

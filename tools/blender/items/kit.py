@@ -401,6 +401,31 @@ def lean(deg):
     ROOT.rotation_quaternion = Quaternion(VIEW, math.radians(deg)) @ ROOT.rotation_quaternion
 
 
+def upright(max_aspect=1.3):
+    """Lean a flat item onto the diagonal just enough that its silhouette is at most
+    max_aspect wide:tall. A slot can only lift art up to ~1.39:1 above its top edge."""
+    bpy.context.view_layer.update()
+    q = (-VIEW).to_track_quat("-Z", "Y")
+    right, up = q @ Vector((1, 0, 0)), q @ Vector((0, 1, 0))
+    pts = [(p.dot(right), p.dot(up)) for p in _mesh_points()]
+
+    def aspect(deg):
+        c, s = math.cos(math.radians(deg)), math.sin(math.radians(deg))
+        xs = [x * c - y * s for x, y in pts]
+        ys = [x * s + y * c for x, y in pts]
+        return (max(xs) - min(xs)) / max(max(ys) - min(ys), 1e-6)
+
+    for deg in range(0, 61, 2):
+        for d in (deg, -deg):
+            if aspect(d) <= max_aspect:
+                # lean() turns the item about the view axis, the same 2D rotation as aspect().
+                if d:
+                    lean(d)
+                return d
+    lean(45)
+    return 45
+
+
 def turn(deg, axis="Z"):
     ax = {"X": Vector((1, 0, 0)), "Y": Vector((0, 1, 0)), "Z": Vector((0, 0, 1))}[axis]
     ROOT.rotation_quaternion = Quaternion(ax, math.radians(deg)) @ ROOT.rotation_quaternion

@@ -44,6 +44,7 @@ def _drumstick(m, herbs=False):
 def raw_meat():
     _haunch(_raw())
     lean(10)
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def raptor_meat():
@@ -135,6 +136,7 @@ def sashimi():
     blob(0.18, loc=(0.85, -0.25, -0.78), m=mat("#9ac83a", 0.6), amp=0.1)
     turn(-10)
     turn(25, "X")
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def _plate(r=1.1):

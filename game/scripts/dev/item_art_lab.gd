@@ -2,7 +2,8 @@ class_name ItemArtLab
 extends Node
 ## --lab=item_art_lab: a 5x4 ArtSlot grid covering every rarity, with a row of white
 ## HUD action hexes beside it to show ArtSlot leaves action glyphs untouched.
-## Headless (no --shot) it self-checks and quits 0/1.
+## Headless (no --shot) it self-checks and quits 0/1. Add --light (after --) for a light
+## background: HANDOFF P7 asks icons to be checked against dark and light contexts.
 
 const IDS: Array[StringName] = [
 	&"copper_ingot", &"bronze_ingot", &"iron_ingot", &"steel_ingot", &"straw_roll_kit",
@@ -18,6 +19,8 @@ func _ready() -> void:
 	add_child(layer)
 	var bg := ColorRect.new()
 	bg.color = Color(0.16, 0.19, 0.17)  # muted ground green, close to the island behind the HUD
+	if "--light" in OS.get_cmdline_user_args():
+		bg.color = Color(0.86, 0.84, 0.78)  # sunlit sand / parchment
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(bg)
 	var view := get_viewport().get_visible_rect().size
@@ -68,12 +71,13 @@ func _self_check() -> void:
 	print("[itemart] slots=%d rarities=%d rendered=%d framed=%s count_px_ok=%s ok=%s" % [slots.size(), seen.size(), rendered, overflow_ok, count_ok, ok])
 	get_tree().quit(0 if ok else 1)
 
-## Every lab object (wide ones included) rises 12-20 % above the slot, its centre inside the
-## slot and its bottom on or at most HOVER above the slot floor.
+## Every lab object (wide ones included) rises 12-20 % above the slot, between the side rims,
+## its centre inside the slot and its bottom on or at most HOVER above the slot floor.
 static func _framed(s: ArtSlot) -> bool:
 	var r := s.art_rect()
 	var lift := -r.position.y / s.size.y
 	var centred := Rect2(Vector2.ZERO, s.size).has_point(r.get_center())
+	var sides_ok := r.position.x >= -0.5 and r.end.x <= s.size.x + 0.5  # never past the side rims
 	var bottom := r.end.y / s.size.y
 	var floor_ok := bottom <= ArtSlot.FLOOR + 0.005 and bottom >= ArtSlot.FLOOR - ArtSlot.HOVER - 0.005
-	return centred and floor_ok and lift <= 0.20 + 0.005 and lift >= 0.12 - 0.005
+	return centred and sides_ok and floor_ok and lift <= 0.20 + 0.005 and lift >= 0.12 - 0.005

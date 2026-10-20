@@ -29,6 +29,7 @@ def _log(r, length, bark_m, end_c, loc=(0, 0, 0), rot=(0, 90, 0), parent=None, s
 def wood_log():
     _log(0.5, 1.9, bark("#5b3d24", "#3a2614"), "#d4a066")
     turn(52)
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def pine_log():
@@ -36,6 +37,7 @@ def pine_log():
     _log(0.3, 1.8, bark("#6a3a26", "#3e1f12"), "#e0b27a", loc=(0.1, -0.35, -0.05))
     _log(0.3, 1.9, bark("#6a3a26", "#3e1f12"), "#e0b27a", loc=(0.0, -0.05, 0.5))
     turn(30)
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def plank():
@@ -118,6 +120,7 @@ def lava():
     m = mat("#2b2522", 0.8, color2="#3d332c", tex="noise", scale=4.0, bump=0.6,
             emit="#ff5a14", emit_strength=10.0, emit_mask=2.5)
     rock(1.0, scl=(1.2, 0.95, 0.8), m=m, jitter=0.18, sub=2)
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def _ore(nug_m, host=None, n=5, big=0.24):
@@ -130,16 +133,19 @@ def _ore(nug_m, host=None, n=5, big=0.24):
 
 def ore():
     _ore(metal("#c9a85a", 0.3))
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def copper_ore():
     _ore(metal("#d07a3e", 0.3))
     for p in [(-0.2, -0.75, -0.2), (0.9, -0.1, 0.0)]:
         rock(0.16, loc=p, m=mat("#3fae8c", 0.5), jitter=0.3, sub=0)
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def silver_ore():
     _ore(metal("#e4e8ee", 0.15), host=stone("#5c6068", "#3a3d44"), n=6)
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def black_iron():
@@ -192,6 +198,7 @@ def charcoal():
         rock(r, loc=p, scl=s, m=m, jitter=0.2, sub=1)
     ember = mat("#2a1e1a", 0.6, emit="#ff5a14", emit_strength=6.0, emit_mask=4.0)
     rock(0.3, loc=(0.2, -0.45, 0.35), m=ember, jitter=0.2, sub=1)
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 # ---------------------------------------------------------------- bone and creature parts
@@ -236,6 +243,7 @@ def armor_scute():
     cyl(0.2, 0.5, loc=(0, 0, 0.5), m=mat("#d8cfb0", 0.5), segs=6, r2=0.0, smooth=False)
     turn(15)
     turn(35, "X")
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def venom_gland():
@@ -296,6 +304,7 @@ def salt():
         r = 0.2 + 0.08 * i
         box((0.42, 0.42, 0.42), loc=(r * math.cos(a), r * math.sin(a), 0.3 - 0.05 * i), rot=(rnd(0, 40), rnd(0, 40), rnd(0, 90)),
             m=m, bev=0.02)
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def sulphur():
@@ -359,6 +368,7 @@ def dried_hide():
         tube(arc((0, 0, 0), 0.45, 0, 360, 24, plane="xz", y=0)[:-1], 0.04, strap, segs=6, closed=True,
              parent=group(loc=(x, 0, 0), rot=(0, 0, 90)))
     turn(25)
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def hide_strap():
@@ -410,6 +420,7 @@ def cloth_item():
     for i, (c, c2) in enumerate(cols):
         box((1.6, 1.1, 0.22), loc=(0.05 * i, -0.04 * i, 0.24 * i), rot=(0, 0, 4 * i - 4), m=cloth(c, c2), bev=0.09)
     turn(25)
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
 def _bundle(stalk_m, n=11, h=2.2, tops=None, spread=0.5):

@@ -72,6 +72,9 @@ func _test_pngs_and_manifest() -> void:
 		var mr: Array = entry.get("rect", [0, 0, 0, 0])  # JSON numbers are floats
 		_check(mr.size() == 4 and Rect2i(int(mr[0]), int(mr[1]), int(mr[2]), int(mr[3])) == used, "%s manifest rect %s matches pixels %s" % [id, mr, used])
 	_check(n >= 60, "at least 60 PNGs (got %d)" % n)
+	# Review 2026-10-19: the art judge's illegible renders must be in the replacement register.
+	for id in ["iron_ingot", "steel_ingot", "ingot", "black_iron", "obsidian", "berry", "burnt_food", "mango", "fish"]:
+		_check(str(items.get(id, {}).get("replace", "")) != "", "%s carries a replace mark" % id)
 	for id in [&"copper_ingot", &"bronze_ingot", &"iron_ingot", &"steel_ingot", &"straw_roll_kit"]:
 		_check(IA.is_rendered(id), "%s has rendered art" % id)
 	var unrendered: Array = []
@@ -112,11 +115,17 @@ func _test_slot_overflow() -> void:
 	_check(Rect2(Vector2.ZERO, s.size).has_point(r.get_center()), "wide steel_ingot art centre lies inside the slot (%s)" % r)
 	_check(r.end.y <= 80.0 * 0.80 + 0.5 and r.end.y >= 80.0 * 0.60 - 0.5, "steel_ingot bottom within the floor band")
 	_check(s.rim == IA.color_for_rarity(&"rare"), "steel ingot (a bulk material) rims rare, not legendary")
-	# Review 2026-10-19: wide flat items never rose above the slot top.
-	for wide in [&"copper_ingot", &"bronze_ingot", &"iron_ingot", &"steel_ingot", &"pearl", &"fish"]:
-		s.set_item(wide, 1)
-		var wl: float = -s.art_rect().position.y / s.size.y
-		_check(wl >= 0.12 - 0.005 and wl <= 0.20 + 0.005, "wide %s rises 12-20 %% above the slot (got %.2f)" % [wide, wl])
+	# Review 2026-10-19: wide flat items never rose above the slot top and spilled past the side
+	# rims. Every rendered item must rise 12-20 % and stay between the side rims.
+	var man: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(IA.RENDER_DIR + "manifest.json"))
+	var low: Array[String] = []
+	for id: String in man.get("items", {}):
+		s.set_item(StringName(id), 1)
+		var ar: Rect2 = s.art_rect()
+		var wl: float = -ar.position.y / s.size.y
+		if wl < 0.12 - 0.005 or wl > 0.20 + 0.005 or ar.position.x < -0.5 or ar.end.x > s.size.x + 0.5:
+			low.append("%s(lift %.2f, x %.1f..%.1f)" % [id, wl, ar.position.x, ar.end.x])
+	_check(low.is_empty(), "every item rises 12-20 %% above the slot inside the side rims: %s" % ", ".join(low))
 	s.set_item(&"raid_maul", 1)
 	var lift: float = -s.art_rect().position.y / s.size.y
 	_check(lift >= 0.12 and lift <= 0.20, "tall raid_maul rises 12-20 %% above the slot (got %.2f)" % lift)

@@ -42,9 +42,9 @@ func set_item(id: StringName, p_count: int = 1) -> void:
 	queue_redraw()
 
 ## Where the object's opaque pixels land. Tall items stand on FLOOR and their top rises RISE
-## above the slot. Wide items may use the full slot width and lift off the floor (at most
-## HOVER) until their top rises RISE_MIN; only very flat art (> ~1.45:1) stays below that,
-## and the art builders stage such items on a diagonal or as a stack instead.
+## above the slot. Wide items may use the full slot width (never past the rim) and lift off the
+## floor (at most HOVER) until their top rises RISE_MIN; art wider than ~1.39:1 cannot, so the
+## art builders stage flat items on a diagonal (kit.upright) or as a stack instead.
 func art_rect() -> Rect2:
 	var s := minf(size.x, size.y)
 	var box := Rect2(Vector2(size.x * 0.06, -s * RISE), Vector2(size.x * 0.88, s * (RISE + FLOOR)))
@@ -52,7 +52,7 @@ func art_rect() -> Rect2:
 	if src.size.x <= 0.0 or src.size.y <= 0.0:
 		return box
 	if src.size.x / src.size.y > box.size.x / box.size.y:
-		box = box.grow_individual(size.x * 0.08, 0.0, size.x * 0.08, 0.0)
+		box = box.grow_individual(size.x * 0.06, 0.0, size.x * 0.06, 0.0)  # out to the rim, not past it
 	var k := minf(box.size.x / src.size.x, box.size.y / src.size.y)
 	var dst := src.size * k
 	var top := box.end.y - dst.y
