@@ -61,6 +61,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   mount; wave 1 not yet merged). Local browser boot checked into the world before deploy; alias
   stamp verified.
 - 2026-10-20 16:25 GitHub: pushed `claude/mmo-overhaul` (255d0434) to origin; draft PR https://github.com/mikiagent/deadfront-siege/pull/17 to main (owner asked; not merging into main until the owner says). Push again as packages merge.
+- 2026-10-20 16:35 production (owner: "deploy now if its working well enough"): `31c064a08/2284b9bf56` (W1-UI, W1-SRVDOM, W2-PLAYER on top of wave 1), dpl_A5KprWiU5R8LZ1VSyBbigEs8w4cA, alias https://durango-like.vercel.app verified (index.html build stamp + pack.manifest.json). Pack 254.0 MB: over the W1-WEB 220 MB ceiling, exported with PAYLOAD_MAX_MB=260 after dropping survivor_v1 (unused) from the Web preset; trimming survivor (69 MB) and nature/generated (51 MB) is open. Local browser boot: character creation -> island pick -> world -> gather ring, no console errors. Seen defects: Lv. 0 on a new survivor's badge and XP line, HANDS hex over character creation, a grey harbour slab on the meadow home.
 
 ## Plan amendments for wave 2+ (from plan-critic.md)
 
