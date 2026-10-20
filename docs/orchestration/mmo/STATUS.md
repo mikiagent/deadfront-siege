@@ -39,8 +39,11 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | Wave | Packages | State |
 |---|---|---|
 | 0 | 16-system audit with adversarial verify and plan | plan done: `plan-register.md` (ranked gaps, waves 1-4, 21 owner questions) |
-| 1 (merged) | W1-TAME, W1-CANIM, W1-BUILD, W1-ITEMS, W1-WEB, W1-AI, W1-LIGHT (blind judge 6/6), W1-COMBAT, W1-SAVE, raptor re-animation (dsc) passed review and are merged into `claude/mmo-overhaul`; gates: import, [tests] PASS, t_tame/t_canim/t_build/t_items PASS, SMOKE PASS | done |
+| 1 (merged) | W1-TAME, W1-CANIM, W1-BUILD, W1-ITEMS, W1-WEB, W1-AI, W1-LIGHT (blind judge 6/6), W1-COMBAT, W1-SAVE, W1-HARBOUR (blind judge 6/6), dsc re-animations (velociraptor, utahraptor, protoceratops, megaloceros combat/ground/rest, compsognathus, coelophysis, gallimimus) passed review and are merged into `claude/mmo-overhaul`; gates: import, [tests] PASS, t_tame/t_canim/t_build/t_items PASS, SMOKE PASS | done |
 | 1 | W1-LIGHT, SAVE, TAME, AI, CANIM, COMBAT, BUILD, ITEMS, SRVDOM, QA, UI, ICONART, WEB, BIOME, STRUCTART (each `claude/mmo-w1-<key>`) | launching, reviewer-gated, blind A/B judge on visual packages |
+| 2a | W2-PLAYER (player split + PlayerActions), W2-BREED (breeding, growth, mutations, capture rule 09, bonded cap 3->7), W2-ECO (ecosystem, structure targeting) in claude/mmo-w2-<key>; builders hand mechanical parts to dsc sub-worktrees | running (wf_e4b5bc5d-f50) |
+| 2a+ | W2-OCCLUDE: shared see-through occlusion (tall trees, later roofs/walls; roof fades when the survivor is under it) | running (wf_6986c1a3-c0c) |
+| 2a+ | W2-BUILDSYS: modular foundations/walls/doorways/windows/ceilings/roofs/ramps/stairs with snapping, structure HP, tiers + upgrade/repair, owner-passable walls; stand-in meshes swap to Blender models by data (structures.json); roofs fade via the occlusion API | running (wf_dcd34d26-be7) |
 | 1-INT | merge econ/net/audio + sound settings + market over socket | after wave 1a and audio pass review |
 | 1-ART | ARTA/ARTB Tripo species | concept sheets generating (Higgsfield gpt_image_2_5, critic-checked, wf_4ea0904a-0e6); then one owner batch approval |
 | merge | survivor-v2/armor/T. rex mount merged into `claude/mmo-overhaul` (0fef2a3) | import, [tests] PASS, SMOKE PASS |
@@ -182,6 +185,84 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   started now (wf_8598d187-a3f); W1-STRUCTART (Blender buildings + 4-stage drying rack + dock) is the
   next wave-1 batch; W2-BUILDSYS (modular foundations/walls/roofs, tiers, HP, repair) starts as soon as
   W1-STRUCTART and W1-HARBOUR merge.
+
+- 2026-10-20 (owner) Durango prompt pack: `docs/design/durango-prompts/01..07` (fatigue/energy/stamina;
+  taming pen and companions; level 60, 12 categories, SP, research gates, resets; instance loot with
+  Firm/Lightweight/... attributes, processing, primary/secondary slots, crafting ability, flawless;
+  instance inventory, capacity, containers, dino cargo, one-location rule; fixed-price Island Market
+  with exact instances, fees/tax, Receive All; semi-auto combat, stances, telegraph + timed roll, net
+  capture). Binding as design input; values the pack marks illustrative stay configurable. Refs:
+  docs/reference/durango-{fatigue-meter,gather-hud-levelup,bag-caged-animal}.*. Package mapping:
+  01 -> W2-SURVIVAL; 02 -> W2-CAGE + taming depth; 03 -> W2-SKILLS (new); 04 -> W2-DATA/W2-PROCESS +
+  W2-CRAFT (new); 05 -> W2-INV; 06 -> W3-EXCHANGE (Durango tabs Buy/Sell/My Listings/Sold/Expired/
+  History + Receive All, on top of the owner's auctions and buy orders); 07 -> W2-ACTION + combat.
+  Note: fatigue/exhaustion returns (owner removed exhaustion on 2026-09-20; the pack, being newer,
+  reintroduces it with no unrecoverable state).
+
+- 2026-10-20 (owner) addenda 08 and 09 (docs/design/durango-prompts/), superseding my earlier calls and
+  the older HANDOFF rules they contradict:
+  * STACKING: gathered materials, food and cooking ingredients do NOT stack by name. Each is its own
+    instance with level/traits/processing state and its own bag slot; visual grouping only. Stacking
+    stays configurable per category (currency, some consumables). Save migration splits old stacks into
+    instances without ever deleting any (overflow goes to home cargo/storage, logged). Bag capacity per
+    pack 05 (base 100 + equipment/Pocket bonuses).
+  * CAPTURE: eligible when the animal is stunned/collapsed at ANY HP, OR HP <= 30 % (supersedes
+    "knocked out AND under 30 %"); chance uses actual current HP, level and Capture Ability; ~50 % HP
+    tutorial hint "Stun the dinosaur to capture it safely"; never force damaging a stunned animal down.
+  * BONDED PETS: capacity 3, raised by Survival -> Animal Taming -> Animal Handling I-IV (Survival 35/
+    45/55/60, SP 4/5/5/6, +1 each) to 7; checked when forming a bond; caged/unbonded animals and pens
+    never count; a reset keeps existing pets but blocks new bonds until under capacity (supersedes
+    "unlimited owned, 3 active"). Pets UI shows "n / cap".
+  * COOKING (08): in-place processing vs new-food recipes from exact ingredient instances; slot roles
+    main/topping/sauce/broth/spice with per-recipe inheritance flags; topping/broth buffs; digestion;
+    buff stacking rules; Cooking category + crafting ability + flawless via the shared pipeline.
+    Package W2-COOK (with W2-PROCESS and W2-INV).
+
+- 2026-10-20 (owner): use DeepSeek (dsc) subagent workers for coding tasks. Standing rule for every
+  package from now on: Claude agents design, review and integrate; MECHANICAL coding (fix lists, data
+  entry, test writing, wiring, migrations with a clear spec, repetitive edits across files) goes to dsc
+  via a TASK.md + a read-only verify script (`dsc cook start TASK.md --once --verify <script> --budget N
+  --max-hours N --effort high` in the package worktree), and the Claude agent reviews dsc's diff before
+  committing it as its own. dsc runs Godot only through gslot.sh. First dsc coding batch: 38 reviewer
+  minors on the merged wave-1 packages (worktree mmo-dsc-minors, gate tools/dsc/verify_minors.sh).
+- 2026-10-20 (owner): parallelize dsc workers, up to 6 at a time. Split big mechanical jobs into several
+  independent workers (one folder or worktree each, own fast milestone gate, full gate at the end).
+
+- 2026-10-20 orchestrator pixel check of the merged build (home island, web renderer, harbour_lab wide):
+  lighting and coast read well; harbour is a pier on the shore. Defects logged: world label overlap
+  (Harbour over Survivor) -> W1-UI/W2-HUD; blown white sun glare on water and a hard water band at the
+  screen bottom -> W2-TERRAIN water; salmon prop palette -> W1-STRUCTART.
+
+- 2026-10-20 (owner): tall trees that obscure the survivor must turn see-through; modular buildings need
+  square foundations and roofs that are visible from outside but transparent when the survivor is under
+  them. One shared occlusion system (W2-OCCLUDE) serves trees now and W2-BUILDSYS roofs/walls later.
+
+- 2026-10-20 (owner) spec 10 `docs/design/durango-prompts/10_construction_building_quality.md` + reference
+  `docs/reference/durango-camp-workstations.webp` (a working camp: kiln with fire, hides on drying racks,
+  loom, spinning wheel, colour dye vats, workbench, all visibly in use). Buildings are CRAFTED objects:
+  blueprint unlocked in the Construction tree -> construction site -> exact material instances ->
+  finished level = min(clamp(avg material level, bp min, bp max), construction level); material traits
+  convert to building effects (Lightweight -> storage space, High Density -> durability, Beautiful
+  Pattern -> comfort, disinfectant -> antibiotic...); storage capacity, comfort/antibiotic recovery,
+  house complexity, workstation types/levels/parallel job slots, durability and repair.
+  Split: W2-BUILDSYS (running) keeps the modular pieces/snapping/HP/tiers/roof fade but MUST keep its
+  data compatible with spec 10 section 11 (blueprint material_slots, building instance with level,
+  inherited_attributes, max/current durability, owner, container_id). New package W2-CONSTRUCT does the
+  spec-10 quality layer (sites, level/attribute inheritance, storage/comfort/antibiotic/complexity,
+  workstation levels and queues) after W2-INV, W2-CRAFT and W2-SKILLS. The camp reference is the art
+  target for W1-STRUCTART/W2-PROCESS stations (dye vats, loom, spinning wheel, kiln, hide racks).
+
+- 2026-10-20 (owner) spec 11 `docs/design/durango-prompts/11_processing_skill_material_transformations.md`
+  + UI references `docs/reference/durango-craft-build-menu.webp` (category column, sectioned recipe list,
+  detail card with Max Level / Related Ability / Skill Category, a material slot that takes a FAMILY
+  such as "Leaf, Stalk 0/2" filled with exact picked instances, yellow Craft) and
+  `docs/reference/durango-skill-screen.webp` (12-category icon grid with levels, Career Guide banner,
+  detail panel with skill level and Used SP, SP counter). Processing = component manufacture,
+  in-place modification (finite processing attempts per instance, trade-off traits), and alloys;
+  Handicraft and Metal Processing Ability separate from category level; station type/level and tool
+  gates; delegated queue jobs; one shared transformation + preview service. Mapping: 11 -> W2-PROCESS
+  (engine, recipes, stations, queues) + W2-SKILLS (Processing tree nodes, abilities, research gates);
+  the two screens are layout targets for W1-UI (skills sheet grid, craft card) now and W2-SCREENS later.
 
 ## Owner questions (open)
 
