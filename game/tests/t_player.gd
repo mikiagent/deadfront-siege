@@ -343,12 +343,15 @@ func _test_no_creature_climb() -> void:
 		await _frames(10)
 		var y0: float = player.global_position.y
 		var top := y0
+		var touched := false
 		Input.action_press(&"move_up")
 		for i in 300:
 			await physics_frame
 			top = maxf(top, player.global_position.y)
+			for k in player.get_slide_collision_count():
+				touched = touched or player.get_slide_collision(k).get_collider() == c
 		Input.action_release(&"move_up")
-		_expect(top - y0 <= 0.15, "walking into a %s for 5 s raises her %.2f m" % [sp, top - y0])
+		_expect(touched and top - y0 <= 0.15, "walking into a %s for 5 s (contact=%s) raises her %.2f m" % [sp, touched, top - y0])
 		var before: Vector3 = player.global_position
 		var stepped: bool = player.sim.unstick((c.global_position - before).normalized())
 		_expect(not stepped or not _inside_creature(), "unstick toward a %s does not step into it" % sp)

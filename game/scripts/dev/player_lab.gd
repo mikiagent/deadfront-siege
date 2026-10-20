@@ -57,8 +57,7 @@ func _island() -> void:
 		c.queue_free()
 	cam.current = false
 	await get_tree().create_timer(1.0).timeout
-	var rt := World.runtime
-	var ground := rt.surface_y(player.global_position.x, player.global_position.z)
+	var ground: float = World.runtime.surface_y(player.global_position.x, player.global_position.z)
 	_check(absf(_lowest_bone_y() - ground) <= 0.08, "island idle lowest bone %.3f m from the terrain" % (_lowest_bone_y() - ground))
 	# Three pets summoned at the island origin.
 	for sp: StringName in [&"velociraptor", &"protoceratops", &"compsognathus"]:
@@ -80,26 +79,29 @@ func _island() -> void:
 
 func _walk_into(sp: StringName) -> void:
 	var start := Vector3(6.0, 0.0, 6.0)
-	start.y = World.runtime.surface_y(start.x, start.z) + player.half_height() + 0.05
+	start.y = float(World.runtime.surface_y(start.x, start.z)) + player.half_height() + 0.05
 	player.velocity = Vector3.ZERO
 	player.global_position = start
 	await get_tree().create_timer(0.4).timeout
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 	var at := start + _cam_forward() * 3.0
-	at.y = World.runtime.surface_y(at.x, at.z)
+	at.y = float(World.runtime.surface_y(at.x, at.z))
 	c.position = World.runtime.to_local(at)
 	World.runtime.add_child(c)
 	c.spawn(Data.creature(sp))
 	c.brain.process_mode = Node.PROCESS_MODE_DISABLED
 	await get_tree().create_timer(0.3).timeout
 	var rise := 0.0
+	var touched := false
 	Input.action_press(&"move_up")
 	for i in 300:
 		await get_tree().physics_frame
 		var feet := player.feet_position()
-		rise = maxf(rise, feet.y - World.runtime.surface_y(feet.x, feet.z))
+		rise = maxf(rise, feet.y - float(World.runtime.surface_y(feet.x, feet.z)))
+		for k in player.get_slide_collision_count():
+			touched = touched or player.get_slide_collision(k).get_collider() == c
 	Input.action_release(&"move_up")
-	_check(rise <= 0.15, "walking into a %s for 5 s lifts her %.2f m above the terrain" % [sp, rise])
+	_check(touched and rise <= 0.15, "walking into a %s for 5 s (contact=%s) lifts her %.2f m above the terrain" % [sp, touched, rise])
 	c.queue_free()
 
 func _cam_forward() -> Vector3:

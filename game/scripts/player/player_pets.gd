@@ -15,10 +15,10 @@ const MENU := {
 	&"heel": {"id": &"heel", "label": "HEEL", "glyph": "↩"},
 	&"guard": {"id": &"guard", "label": "GUARD", "glyph": "◎"},
 }
-## HP a dismissed pet keeps, on its record (PetRecord has no field for it yet).
-# shortcut: record metadata survives dismiss/summon but not save/load; integrator hook adds
-# PetRecord.hp_now to to_dict/from_dict, then these two meta calls become the field.
-const HP_META := &"hp_now"
+## HP a pet out of the bag has now, kept on its record so a dismissed pet comes back hurt and a save
+## keeps it. Uses PetRecord.hp_now once that field exists (integrator hook, saved with the record).
+# shortcut: until then it is record metadata, kept through dismiss/summon but not through save/load.
+const HP_KEY := &"hp_now"
 
 var p: Player
 var summoned: Array[Creature] = []
@@ -38,8 +38,20 @@ func prune() -> void:
 		if c == null or not is_instance_valid(c) or c.health.dead:
 			if c and is_instance_valid(c) and c.pet_record:
 				c.pet_record.summoned = false
-				c.pet_record.remove_meta(HP_META)  # a pet that died comes back at full health
+				_store_hp(c.pet_record, -1.0)  # a pet that died comes back at full health
 			summoned.remove_at(i)
+		elif c.pet_record:
+			_store_hp(c.pet_record, c.health.hp)
+
+## -1 = nothing stored (full health).
+static func stored_hp(rec: PetRecord) -> float:
+	return float(rec.get(HP_KEY) if HP_KEY in rec else rec.get_meta(HP_KEY, -1.0))
+
+static func _store_hp(rec: PetRecord, hp: float) -> void:
+	if HP_KEY in rec:
+		rec.set(HP_KEY, hp)
+	else:
+		rec.set_meta(HP_KEY, hp)
 
 func live() -> Array[Creature]:
 	prune()
@@ -110,8 +122,9 @@ func summon(index: int = 0) -> Creature:
 	c.hunger = rec.hunger
 	c.hunger_max = rec.hunger_max
 	c.health.max_hp = rec.hp
-	# A pet dismissed hurt comes back hurt (tame-11); no stored value = full health.
-	c.health.hp = clampf(float(rec.get_meta(HP_META, rec.hp)), 1.0, rec.hp)
+	# A pet dismissed hurt comes back hurt (tame-11); nothing stored = full health.
+	var kept := stored_hp(rec)
+	c.health.hp = clampf(kept, 1.0, rec.hp) if kept >= 0.0 else rec.hp
 	c.level = rec.level
 	summoned.append(c)
 	rec.summoned = true
@@ -124,7 +137,7 @@ func dismiss(c: Creature) -> void:
 	if p.mounted_on == c:
 		p.dismount()
 	if rec:
-		rec.set_meta(HP_META, c.health.hp)
+		_store_hp(rec, c.health.hp)
 		rec.summoned = false
 		print("[capture] dismissed %s hp=%.0f/%.0f" % [rec.species, c.health.hp, c.health.max_hp])
 	if focus == c:
