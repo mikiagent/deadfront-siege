@@ -175,6 +175,14 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   new players to another instance (channel) and presence rooms enforce max_players_area. Caps get a
   perf test (perf_budget_lab at the cap stays inside the frame budget on web).
 
+- 2026-10-19 (owner): "functionally fine, but the symbols/icons need work; the building system needs real
+  buildings; the harbour is a grey block in the middle of land and must be attached to water; stuff
+  like that is holding the game back from AAA." Re-prioritised: W1-HARBOUR (coast-forced placement,
+  dock over water, real composite instead of the box) and W1-UIICONS (custom white SVG action set)
+  started now (wf_8598d187-a3f); W1-STRUCTART (Blender buildings + 4-stage drying rack + dock) is the
+  next wave-1 batch; W2-BUILDSYS (modular foundations/walls/roofs, tiers, HP, repair) starts as soon as
+  W1-STRUCTART and W1-HARBOUR merge.
+
 ## Owner questions (open)
 
 - none
