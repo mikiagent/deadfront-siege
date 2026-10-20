@@ -782,6 +782,9 @@ func _test_migrations() -> void:
 func _test_furniture() -> void:
 	_begin_case()
 	_reset_case()
+	# A piece kind must never share a name with a kit kind: BuildPlacer.begin would take the kit for a piece.
+	for k in (_SP.defs().get("placed_kinds", {}) as Dictionary):
+		_expect(not _SP.is_piece_kind(StringName(str(k))), "kit kind %s is not also a piece kind" % k)
 	var m := _site
 	_expect(_why(&"chest", _slot(m, 0, _SP.ON_FLOOR)) == "no_support", "a chest needs a floor under it")
 	_pad([m], &"wood")
@@ -826,9 +829,9 @@ func _test_furniture() -> void:
 	# Sign text: trimmed, capped at text_max, saved and type-checked on load.
 	_reset_case()
 	_pad([m], &"wood")
-	var sign := _place_direct(&"sign", &"wood", _slot(m, 0, _SP.ON_FLOOR))
+	var sign := _place_direct(&"signboard", &"wood", _slot(m, 0, _SP.ON_FLOOR))
 	if sign == null: return
-	var cap := int(_SP.piece_def(&"sign").get("text_max", 48))
+	var cap := int(_SP.piece_def(&"signboard").get("text_max", 48))
 	sign.set_sign_text("  " + "x".repeat(cap + 20) + "  ")
 	_expect(sign.sign_text.length() == cap, "sign text is capped at %d (got %d)" % [cap, sign.sign_text.length()])
 	var row: Dictionary = sign.to_dict()

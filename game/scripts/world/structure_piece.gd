@@ -272,7 +272,7 @@ func _rebuild() -> void:
 		mi.name = "StandIn"
 		mi.mesh = StructureMesh.mesh_for(kind, tier, variant)
 		holder.add_child(mi)
-	if kind == &"sign":
+	if kind == &"signboard":
 		var l := Label3D.new()
 		l.name = "SignText"
 		l.text = sign_text
@@ -423,7 +423,7 @@ static func from_dict(row: Dictionary) -> StructurePiece:
 	if p.storage and contents is Array:
 		p.storage.load_array(contents)
 	var text: Variant = row.get("text", "")
-	if k == &"sign" and text is String:
+	if k == &"signboard" and text is String:
 		p.sign_text = (text as String).strip_edges().left(int(piece_def(k).get("text_max", 48)))
 	return p
 

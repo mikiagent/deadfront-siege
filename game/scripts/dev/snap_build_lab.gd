@@ -101,7 +101,7 @@ func _build_house() -> void:
 		_snap_place(&"roof_peak", &"thatch", _centre(x, 1, 2), Vector4i(_o.x + x, _o.y + 1, 2, StructurePiece.CELL), 0)
 	_snap_place(&"ramp", &"stone", _centre(1, 3, 0), Vector4i(_o.x + 1, _o.y + 3, 0, StructurePiece.CELL))
 	_snap_place(&"chest", &"wood", _centre(0, 2, 0), Vector4i(_o.x, _o.y + 2, 0, StructurePiece.ON_FLOOR), 1)
-	_snap_place(&"sign", &"wood", _centre(2, 0, 0), Vector4i(_o.x + 2, _o.y, 0, StructurePiece.ON_FLOOR), 0)
+	_snap_place(&"signboard", &"wood", _centre(2, 0, 0), Vector4i(_o.x + 2, _o.y, 0, StructurePiece.ON_FLOOR), 0)
 	_player.placer.cancel()
 
 ## The doorway: north wall, middle module (the face the iso camera sees).

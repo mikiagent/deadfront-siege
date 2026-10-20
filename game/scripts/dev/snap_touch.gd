@@ -78,14 +78,14 @@ func run() -> void:
 	await _tap_world(_ground(a) + Vector3(-0.3, 0, -0.3))
 	await _tap_hex(1)
 	await _tap_hex(2)
-	await _pick_piece("", "Sign")
+	await _pick_piece("", "Signboard")
 	await _tap_world(_ground(b) + Vector3(-0.3, 0, 0.3))
 	await _tap_hex(1)
 	await _tap_hex(2)
 	var chest := sg.piece_at(Vector4i(o.x + 5, o.y, 0, StructurePiece.ON_FLOOR))
 	var sign := sg.piece_at(Vector4i(o.x + 5, o.y + 1, 0, StructurePiece.ON_FLOOR))
 	ex.call(chest != null and chest.kind == &"chest" and chest.storage != null, "touch: a chest stands on the first foundation")
-	ex.call(sign != null and sign.kind == &"sign", "touch: a sign stands on the second foundation")
+	ex.call(sign != null and sign.kind == &"signboard", "touch: a sign stands on the second foundation")
 	await _shot("placed")
 	if wall == null or chest == null or sign == null:
 		return
@@ -129,12 +129,17 @@ func run() -> void:
 		var whole := _find(hud, func (n: Node) -> bool: return n is Button and (n as Button).text.begins_with("Building to"))
 		ex.call(whole != null, "touch: a house wall's card offers the whole building's upgrade (%s)" % ((whole as Button).text.replace("\n", " ") if whole else "none"))
 		await _shot("house_card")
-		hud.call("_close_sheet")
+		await _tap_control(hud.find_child("SheetClose", true, false) as Control)
 
 # ------------------------------------------------------------------ touches
 
 func _pick_piece(tier_prefix: String, piece: String) -> void:
+	if hud.get("_sheet_kind") != &"":
+		print("[snap] a sheet was still open: tapping its Close")
+		await _tap_control(hud.find_child("SheetClose", true, false) as Control)
 	await _tap_control(hud.get("_build_hex"))
+	if hud.get("_sheet_kind") != &"build":
+		lab.call("_expect", false, "touch: BUILD opens the build sheet")
 	if tier_prefix != "":
 		await _tap_button(tier_prefix)
 	await _tap_button(piece + "\n")
@@ -150,10 +155,15 @@ func _tap_button(prefix: String) -> void:
 		lab.call("_expect", false, "touch: a '%s' button on screen" % prefix.strip_edges())
 		return
 	var sc := hud.get("_sheet_rows") as ScrollContainer
-	if sc:
+	var r := (b as Control).get_global_rect()
+	if sc and sc.is_ancestor_of(b):
 		sc.ensure_control_visible(b as Control)
-		await _frames(2)
-	await _tap_control(b as Control)
+		await _frames(3)
+		r = (b as Control).get_global_rect().intersection(sc.get_global_rect())  # tap the part the player sees
+	if r.size.y < 8.0:
+		lab.call("_expect", false, "touch: '%s' scrolled into view" % prefix.strip_edges())
+		return
+	await _tap(r.get_center())
 
 func _tap_control(c: Control) -> void:
 	if c == null or not c.is_visible_in_tree():

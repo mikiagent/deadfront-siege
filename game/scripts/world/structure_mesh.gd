@@ -33,7 +33,7 @@ static func mesh_for(kind: StringName, tier: StringName, variant: int = 0) -> Ar
 		&"ramp": _ramp(b, variant * 0.1)
 		&"chest": _chest(b, Vector3(1.0, 0.55, 0.6))
 		&"large_box": _chest(b, Vector3(1.6, 0.8, 1.0))
-		&"sign": _sign(b)
+		&"signboard": _sign(b)
 		_: b.box(Vector3(0, 0.5, 0), Vector3(1, 1, 1), b.tint, 0.05)
 	st.set_material(material_for(tier))
 	var mesh := st.commit()
@@ -78,7 +78,7 @@ static func shapes_for(kind: StringName, variant: int = 0) -> Array:
 			return [[_box_shape(Vector3(1.0, 0.6, 0.6)), Transform3D(Basis(), Vector3(0, 0.3, 0))]]
 		&"large_box":
 			return [[_box_shape(Vector3(1.6, 0.85, 1.0)), Transform3D(Basis(), Vector3(0, 0.425, 0))]]
-		&"sign":
+		&"signboard":
 			return [[_box_shape(Vector3(1.0, 1.6, 0.2)), Transform3D(Basis(), Vector3(0, 0.8, 0))]]
 		&"stairs":
 			return [[_hull([Vector3(-0.9, 0, -1), Vector3(0.9, 0, -1), Vector3(-0.9, 0, 3), Vector3(0.9, 0, 3), Vector3(-0.9, h, 3), Vector3(0.9, h, 3)]), Transform3D()]]

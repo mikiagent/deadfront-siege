@@ -42,11 +42,11 @@ static func fill_card(box: Container, player: Player, btn: Callable, close: Call
 			close.call()
 			if player.ui:
 				player.ui.show_storage(sp.storage, player, {"title": label, "allow_deposit": true}))
-	if sp.kind == &"sign":
+	if sp.kind == &"signboard":
 		var edit := LineEdit.new()
 		edit.text = sp.sign_text
 		edit.placeholder_text = "Sign text"
-		edit.max_length = int(StructurePiece.piece_def(&"sign").get("text_max", 48))
+		edit.max_length = int(StructurePiece.piece_def(&"signboard").get("text_max", 48))
 		edit.custom_minimum_size = Vector2(150, UiTokens.TARGET_PRIMARY)
 		box.add_child(edit)
 		btn.call("Save text", func () -> void:

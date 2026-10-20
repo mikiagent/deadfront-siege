@@ -343,8 +343,8 @@
       "interact": "open_storage",
       "xp": 3
     },
-    "sign": {
-      "label": "Sign",
+    "signboard": {
+      "label": "Signboard",
       "slot": "on_floor",
       "levels": [
         0,
@@ -1796,7 +1796,7 @@
         ]
       }
     },
-    "sign": {
+    "signboard": {
       "thatch": {
         "model": "",
         "max_durability": 80,
