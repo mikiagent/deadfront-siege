@@ -513,6 +513,7 @@ func _process(_delta: float) -> void:
 func confirm(player: Player) -> bool:
 	if placing == &"":
 		return false
+	_snap_key = []  # a piece re-snaps now: the bag or the grid may have changed since the last frame
 	_sync_grid_state()
 	if not valid:
 		print("[build] rejected %s" % (reason if reason != "" else "invalid"))
@@ -699,6 +700,10 @@ func _sync_piece(grid: BuildGrid) -> void:
 		reason = StructurePlacer.tier_gate(player, piece_tier)
 		if reason == "" and not StructurePlacer.can_pay(player.get("inventory"), StructurePiece.cost(placing, piece_tier)):
 			reason = "missing_materials"
+	var who := player as Node3D
+	var at: Vector3 = StructurePiece.pose(placing, piece_at["slot"], int(piece_at["rot"]), float(piece_at["floor0"])).origin
+	if reason == "" and who and not grid.ignore_distance and Vector2(at.x - who.global_position.x, at.z - who.global_position.z).length() > BuildGrid.MAX_PLACE_DISTANCE:
+		reason = "too_far"
 	valid = reason == ""
 	if int(piece_at.get("variant", 0)) != old_variant:
 		_rebuild_ghost_visual()

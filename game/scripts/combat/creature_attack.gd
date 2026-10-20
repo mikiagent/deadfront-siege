@@ -7,7 +7,8 @@ extends RefCounted
 static func apply_for(attacker: Creature, clip: StringName, target: Node) -> bool:
 	if attacker == null or attacker.def == null or target == null:
 		return false
-	if target is Node3D and not MeleeQuery.clear(attacker, target as Node3D):
+	# A structure is the obstacle itself (and stands on its own foundation), so only reach applies.
+	if target is Node3D and not StructureHealth.is_structure(target) and not MeleeQuery.clear(attacker, target as Node3D):
 		print("[combat] %s %s blocked: no clear reach to %s" % [attacker.def.id, clip, target.name])
 		return false
 	if not _deal_damage(attacker, target, clip):
