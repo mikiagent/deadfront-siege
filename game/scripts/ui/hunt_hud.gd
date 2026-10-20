@@ -213,9 +213,7 @@ func _build_menu_row() -> void:
 	_menu_hex = _hex("≡", HEX, "MENU")
 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
 	_pets_hex = _hex("", HEX, "ANIMALS")
-	# A white raptor talon, not the colour emoji: no creature silhouette exists yet (W1-ICONART).
-	# ASSUMPTION: the talon stands in for an animals symbol until W1-ICONART draws one.
-	_pets_hex.icon = HexButton.symbol(["raptor_talon"])
+	_pets_hex.icon = UiIcons.icon(&"animals")
 	_pets_hex.pressed.connect(_open_animals)
 	_build_hex = _hex("⌂", HEX, "BUILD")
 	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
@@ -250,7 +248,7 @@ func _refresh_food_hexes() -> void:
 			h.visible = show
 		if show:
 			var tex := ItemIcons.texture(StringName(fid))
-			if h.icon != tex or h.bottom_text != str(n):
+			if h.icon != tex or h.bottom_text != "×%d" % n:
 				h.icon = tex
 				h.color_icon = tex != null
 				h.glyph = "" if tex else "🍖"
@@ -303,17 +301,17 @@ func _build_combat() -> void:
 	)
 	_end_btn.visible = false
 	add_child(_end_btn)
-	var specs := [["🕸", "net", "NET"], ["💥", "tackle", "TACKLE"], ["🦵", "kick", "KICK"], ["↯", "roll", "ROLL"]]
-	for s in specs:
+	for s in [["net", "NET"], ["tackle", "TACKLE"], ["kick", "KICK"], ["roll", "ROLL"]]:
 		var h := HexButton.new(SKILL_HEX)
-		h.glyph = s[0]
-		h.caption = s[2]
+		h.icon = UiIcons.icon(StringName(str(s[0])))
+		h.caption = s[1]
 		h.visible = false
-		h.pressed.connect(_on_skill.bind(StringName(s[1])))
+		h.pressed.connect(_on_skill.bind(StringName(s[0])))
 		add_child(h)
 		_skill_hexes.append(h)
 	_auto_hex = HexButton.new(64.0)
-	_auto_hex.glyph = "Auto"
+	_auto_hex.icon = UiIcons.icon(&"auto")
+	_auto_hex.caption = "AUTO"
 	_auto_hex.visible = false
 	_auto_hex.pressed.connect(func () -> void:
 		if player and player.hunt:
@@ -322,9 +320,9 @@ func _build_combat() -> void:
 			_auto_hex.queue_redraw()
 	)
 	add_child(_auto_hex)
-	for spec in [["attack", "🦖", "SIC"], ["heel", "↩", "HEEL"], ["guard", "🛡", "GUARD"]]:
+	for spec in [["attack", "sic", "SIC"], ["heel", "heel", "HEEL"], ["guard", "guard", "GUARD"]]:
 		var wh := HexButton.new(64.0)
-		wh.glyph = spec[1]
+		wh.icon = UiIcons.icon(StringName(str(spec[1])))
 		wh.caption = spec[2]
 		wh.visible = false
 		var cmd := StringName(str(spec[0]))
@@ -335,7 +333,7 @@ func _build_combat() -> void:
 		add_child(wh)
 		_whistle_hexes.append(wh)
 	_feed_hex = HexButton.new(64.0)
-	_feed_hex.glyph = "FEED"
+	_feed_hex.icon = UiIcons.icon(&"feed")
 	_feed_hex.caption = "FEED"
 	_feed_hex.visible = false
 	_feed_hex.pressed.connect(func () -> void:
@@ -596,13 +594,14 @@ func _refresh_context(delta: float) -> void:
 	var x := 16.0 + inset.w if phone else r.x - 16.0 - inset.x - 74.0 - 60.0
 	for a in actions:
 		var h := HexButton.new(70.0)
+		var id := str(a["id"])
 		h.glyph = str(a.get("glyph", ""))
+		h.icon = UiIcons.icon(StringName(id)) if UiIcons.path_for(StringName(id)) != "" else null
 		h.caption = str(a["label"]).to_upper()
 		h.bottom_text = str(a.get("uses", ""))
-		if h.glyph == "":
+		if h.glyph == "" and h.icon == null:
 			h.glyph = h.caption
 			h.caption = ""
-		var id := str(a["id"])
 		h.pressed.connect(func () -> void: player.context_action(id))
 		add_child(h)
 		if id == "claim":
@@ -930,16 +929,16 @@ func _process(delta: float) -> void:
 		var catapult := player._nearest_group("catapult") as FieldCatapult
 		var siege := catapult != null and player.global_position.distance_to(catapult.global_position) <= 3.0
 		_skill_hexes[1].caption = "TOXIN %d" % player.inventory.count_of(&"toxin_pot") if siege else "TACKLE"
-		_skill_hexes[1].glyph = "V" if siege else "💥"
+		_skill_hexes[1].icon = UiIcons.icon(&"toxin" if siege else &"tackle")
 		_skill_hexes[1].queue_redraw()
 		var weapon := player.inventory.equipped_weapon()
 		var ranged := weapon != null and weapon.def() != null and weapon.def().range_m > 0.0
 		_skill_hexes[0].caption = "FIRE %d" % player.inventory.count_of(weapon.def().ammo_id) if ranged else "NET"
-		_skill_hexes[0].glyph = "F" if ranged else "🕸"
+		_skill_hexes[0].icon = UiIcons.icon(&"fire_ranged" if ranged else &"net")
 		_skill_hexes[0].disabled = player.inventory.count_of(weapon.def().ammo_id) <= 0 if ranged else not (player.hunt.target.capturable() and player.hunt._best_net_ok())
 		if siege:
 			_skill_hexes[0].caption = "SIEGE %d" % player.inventory.count_of(&"stone_shot")
-			_skill_hexes[0].glyph = "C"
+			_skill_hexes[0].icon = UiIcons.icon(&"siege")
 			_skill_hexes[0].disabled = catapult.reload_left > 0 or player.inventory.count_of(&"stone_shot") == 0
 		_skill_hexes[0].queue_redraw()
 		_skill_hexes[1].disabled = (catapult.reload_left > 0 or player.inventory.count_of(&"toxin_pot") == 0) if siege else player.hunt._tackle_cd > 0.0

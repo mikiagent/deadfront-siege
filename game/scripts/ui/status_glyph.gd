@@ -9,6 +9,7 @@ var icon: Texture2D
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS  # 128 px UiIcons drawn at ~14 px
 	# 14 px letter: plates shrink to 0.86 with distance, which keeps it at the 12 px floor.
 	custom_minimum_size = Vector2(26, 26)
 	size = custom_minimum_size

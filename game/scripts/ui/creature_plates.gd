@@ -102,6 +102,9 @@ func _tick_corpses(cam: Camera3D, player: Player, delta: float) -> void:
 			var unlocked := player.inventory.has_tool_class(&"knife")
 			# White knife = ready to butcher; red and dim = needs a knife first.
 			knife.modulate = Color.WHITE if unlocked else Color(1.0, 0.4, 0.35, 0.8)
+			var want := UiIcons.icon(&"butcher" if unlocked else &"lock")
+			if knife.texture != want:
+				knife.texture = want
 		var world := corpse.plate_anchor()
 		var screen := cam.unproject_position(world)
 		node.position = screen + Vector2(-70, -28)
@@ -341,8 +344,8 @@ func _ensure_corpse_entry(corpse: Corpse) -> Dictionary:
 	# that kept the source image minimum once drew a giant world knife.
 	var knife := TextureRect.new()
 	knife.name = "KnifeLock"
-	knife.texture = HexButton.symbol(["stone_knife", "stone_knife_work"])
-	knife.material = HexButton.white_material()
+	knife.texture = UiIcons.icon(&"butcher")
+	knife.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	knife.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	knife.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	knife.custom_minimum_size = Vector2(16, 16)
@@ -540,7 +543,7 @@ func _tick_status_icons(entry: Dictionary, c: Creature) -> void:
 				str(row.get("glyph", "?")),
 				row.get("color", Color.WHITE),
 				float(row.get("frac", 1.0)),
-				_icon_for(StringName(str(row.get("icon_id", ""))))
+				_status_icon(StringName(str(row.get("icon_id", ""))))
 			)
 
 func _status_rows(c: Creature) -> Array[Dictionary]:
@@ -731,6 +734,10 @@ func _load_icon_manifest() -> void:
 		var icons: Variant = (parsed as Dictionary).get("icons", {})
 		if icons is Dictionary:
 			_icons = icons as Dictionary
+
+## White status drawing from the UiIcons set; the coloured item-manifest icon only when it has none.
+func _status_icon(id: StringName) -> Texture2D:
+	return UiIcons.icon(id) if UiIcons.path_for(id) != "" else _icon_for(id)
 
 func _icon_for(id: StringName) -> Texture2D:
 	if id == &"":
