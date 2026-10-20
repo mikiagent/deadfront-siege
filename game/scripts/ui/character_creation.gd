@@ -10,6 +10,8 @@ var _gender: String = "f"
 var _name: LineEdit
 var _start: Button
 var _cards: Dictionary = {}
+## Gold, like SP: it reads on the dark card and on the teal selected one (teal text did not).
+const START_COLOR := Color(1.0, 0.85, 0.35)
 
 func _ready() -> void:
 	layer = 60
@@ -61,9 +63,20 @@ func _ready() -> void:
 		card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		card.custom_minimum_size = Vector2(0, 56 if short else (88 if phone else 150))
 		var skill := str(SkillState.NAMES.get(str(occupation.get("tree", "")), str(occupation.get("tree", ""))))
-		card.text = "%s\n%s 20" % [str(occupation.get("name", id)), skill] if phone else "%s\n%s\nStarts: %s Lv. 20" % [str(occupation.get("name", id)), str(occupation.get("story", "")), skill]
-		card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		card.add_theme_font_size_override("font_size", 16)
+		# Name, story and head start as separate lines: one 16 px button string left the desktop
+		# cards mostly empty with no hierarchy.
+		var stack := VBoxContainer.new()
+		stack.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		stack.offset_left = 12
+		stack.offset_right = -12
+		stack.alignment = BoxContainer.ALIGNMENT_CENTER
+		stack.add_theme_constant_override("separation", 2 if phone else 10)
+		stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(stack)
+		stack.add_child(_card_line(str(occupation.get("name", id)), 16 if phone else 24, UiTokens.TEXT))
+		if not phone:
+			stack.add_child(_card_line(str(occupation.get("story", "")), 16, UiTokens.META))
+		stack.add_child(_card_line(("%s %s" if phone else "Starts: %s %s") % [skill, LevelDisplay.label(20)], 14 if phone else 18, START_COLOR))
 		card.toggle_mode = true
 		card.pressed.connect(func () -> void: _select(id))
 		grid.add_child(card)
@@ -111,6 +124,16 @@ func _ready() -> void:
 		if a.begins_with("--occupation="):
 			_select(a.substr(13))
 			call_deferred("_finish")
+
+func _card_line(text: String, size_px: int, color: Color) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_font_size_override("font_size", size_px)
+	l.add_theme_color_override("font_color", color)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
 
 func _select(id: String) -> void:
 	_selected = id
