@@ -15,13 +15,8 @@ completion test" (done only when a new tester can reload production and see the 
 "Next-request prompt frame" (Classification / Outcome / Binding details / Ground first / Implementation boundary /
 Acceptance / Required evidence).
 
-Where GAUNTLET.md (written 2026-09-21) is out of date, these newer owner decisions win:
-- **Ground against `claude/mmo-overhaul`**, the integration branch, not `origin/main`, until PR #17 is merged.
-- **Phone checks are landscape 844x390**, not portrait 390x844; desktop Chrome 1600x900 stays the judge.
-- **Deploy only when the owner says.** Current condition: deploy once the UI package passes (lighting already
-  merged). Steps 8-9 of the loop wait for that; everything else runs on every request.
-- **The Durango prompt pack** (`docs/design/durango-prompts/01`-`12`) and `docs/reference/durango-*` extend the
-  visual gauntlet as binding design input.
+GAUNTLET.md was updated on 2026-10-20 to this program's practice (integration branch, landscape phone,
+independent review + blind judge, serialized integrator, deploy on the owner's say), so it is current.
 
 **The program loop.** The multi-package program ran under this `/loop` prompt (self-paced, "Ultracode" means a
 workflow per substantive task with independent review and blind A/B judging):

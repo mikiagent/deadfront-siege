@@ -14,7 +14,7 @@ func run(host: Node) -> void:
 
 	# Real input acceptance for the two-stage CraftStation flow. Project the live bench
 	# and generated CRAFT hex to screen, then feed touch press/release pairs through Godot.
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	var bench := get_tree().get_first_node_in_group("workbench") as Node3D
 	if player == null or bench == null:
 		_fail("station acceptance missing player or workbench")
@@ -76,6 +76,9 @@ func run(host: Node) -> void:
 	hud._close_sheet()
 	await _checkpoint("build-closed")
 
+	var st = PlayerRegistry.local().skills
+	if st and st.trees.has("survival"):
+		st.trees["survival"]["level"] = maxi(int(st.trees["survival"]["level"]), 20)
 	World.travel(&"temperate_25", &"sail")
 	await World.island_changed
 	await _checkpoint("travelled")

@@ -39,7 +39,7 @@ func reveal_creature(creature: Creature, seconds: float = 3.0) -> void:
 
 func _process(delta: float) -> void:
 	var cam := get_viewport().get_camera_3d()
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	if cam == null or player == null:
 		return
 	# This layer (58) is above the HUD's: a plate drew over an open HUD sheet.

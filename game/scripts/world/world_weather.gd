@@ -41,7 +41,7 @@ func install(rt: IslandRuntime) -> void:
 
 func tick(rt: IslandRuntime, delta: float) -> void:
 	_rain_cd -= delta
-	var p := rt.get_tree().get_first_node_in_group("player") as Player
+	var p := PlayerRegistry.local()
 	if raining:
 		_rain_left -= delta
 		if p:
