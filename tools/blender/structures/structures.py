@@ -678,21 +678,22 @@ def large_box():
             p.cyl(0.018, 0.03, (x, -W / 2 - 0.035, z), "iron", rot=(90, 0, 0), seg=4)
     # rope handles on each end
     for sx in (-1, 1):
-        p.box((0.04, 0.26, 0.05), (sx * (L / 2 + 0.015), 0, 0.5), "rope")
-        p.box((0.03, 0.04, 0.12), (sx * (L / 2 + 0.03), 0, 0.56), "rope")
-    # lid propped open, hinged on the back rim: its lower edge sits on the rim, its face tilts back
-    D = W - 0.04
-    ang = 62.0
-    across = Vector((0, math.cos(R(ang)), math.sin(R(ang))))
-    normal = Vector((0, -math.sin(R(ang)), math.cos(R(ang))))
-    hinge = Vector((0, W / 2 - 0.01, H - 0.01))
-    c = hinge + across * (D / 2)
-    p.plank((-L / 2 + 0.03, c.y, c.z), (L / 2 - 0.03, c.y, c.z), D, 0.07, "plank", up=normal)
+        x = sx * (L / 2 + 0.02)
+        p.box((0.05, 0.035, 0.13), (x, -0.14, 0.48), "rope")
+        p.box((0.05, 0.035, 0.13), (x, 0.14, 0.48), "rope")
+        p.box((0.05, 0.32, 0.04), (x, 0, 0.55), "rope")
+        for y in (-0.14, 0.14):
+            p.cyl(0.03, 0.03, (x, y, 0.41), "iron", rot=(0, 90, 0), seg=6)
+    # lid propped open against the back rim, leaning forward so it stays inside the 2x1 cell
+    D = math.hypot(0.42, 0.72)
+    up = Vector((0, -0.42, 0.72)).normalized()  # from the hinge up to the lid's free edge
+    normal = Vector((0, -up.z, -up.y)) * -1  # faces the camera
+    hinge = Vector((0, W / 2 - 0.01, H - 0.02))
+    c = hinge + up * (D / 2)
+    p.plank((-L / 2 + 0.03, c.y, c.z), (L / 2 - 0.03, c.y, c.z), D, 0.07, "plank", up=up)
     c2 = c + normal * 0.05
-    p.plank((-L / 2 + 0.12, c2.y, c2.z), (L / 2 - 0.12, c2.y, c2.z), 0.1, 0.03, "wood_dark", up=normal)
+    p.plank((-L / 2 + 0.12, c2.y, c2.z), (L / 2 - 0.12, c2.y, c2.z), 0.1, 0.03, "wood_dark", up=up)
     # iron hinges on the back rim
-    for sx in (-1, 1):
-        p.cyl(0.045, 0.08, (sx * (L / 2 - 0.16), W / 2 + 0.005, H + 0.01), "iron", rot=(90, 0, 0), seg=8)
     for sx in (-1, 1):
         p.cyl(0.06, 0.03, (sx * (L / 2 - 0.1), -W / 2 + 0.14, H + 0.02), "iron", seg=8)
         p.cyl(0.055, 0.04, (sx * (L / 2 - 0.1), -W / 2 + 0.14, H + 0.015), "rope", seg=8)
@@ -785,18 +786,19 @@ def signpost():
     """Leaning wooden post, two carved boards pointing opposite ways, rope lashings (1x1)."""
     p = Part("signpost")
     top = (0.04, 0.03, 1.72)
-    p.cyl(0.08, 0.12, (0, 0, 0.04), "stone", seg=8)
+    p.cyl(0.1, 0.1, (0, 0, 0.04), "cobble", seg=8, r2=0.08, cap_tile="cobble")
     p.log((0, 0, -0.02), top, 0.058)
-    p.cyl(0.07, 0.06, (0.0, 0.0, 1.7), "wood", seg=6, r2=0.02, cap_tile="log_end")
+    p.cyl(0.058, 0.14, (0.0, 0.0, 1.78), "wood", seg=7, r2=0.008, cap_tile="log_end")
     # upper board points -X (slightly towards camera), lower board points +X
-    p.box((0.62, 0.05, 0.24), (-0.3, -0.02, 1.42), "sign_board", rot=(0, 0, -8), tile_m=0.7)
-    p.box((0.55, 0.05, 0.22), (0.27, 0.02, 1.08), "sign_board", rot=(0, 0, 7), tile_m=0.7)
-    for (bx, bz, rz) in ((-0.3, 1.42, -8), (0.27, 1.08, 7)):
-        for dx in (-0.14, 0.14):
-            p.box((0.03, 0.08, 0.26), (bx + dx, -0.02 if bz > 1.2 else 0.02, bz), "rope", rot=(0, 0, rz))
+    p.box((0.52, 0.05, 0.24), (-0.24, -0.02, 1.42), "sign_board", rot=(0, 0, -8), tile_m=0.7)
+    p.box((0.46, 0.05, 0.22), (0.22, 0.02, 1.08), "sign_board", rot=(0, 0, 7), tile_m=0.7)
+    for (bx, bz, rz) in ((-0.26, 1.42, -8), (0.24, 1.08, 7)):
+        # rope band wrapped round the post where the board is tied on
+        for dz in (-0.085, 0.085):
+            p.cyl(0.075, 0.045, (0, 0, bz + dz), "rope", seg=8)
     # board ends chamfered with a dark edge strip
-    p.box((0.05, 0.055, 0.24), (-0.6, -0.02, 1.42), "wood_dark", rot=(0, 0, -8))
-    p.box((0.05, 0.055, 0.22), (0.54, 0.02, 1.08), "wood_dark", rot=(0, 0, 7))
+    p.box((0.05, 0.055, 0.24), (-0.5, -0.02, 1.42), "wood_dark", rot=(0, 0, -8))
+    p.box((0.05, 0.055, 0.22), (0.45, 0.02, 1.08), "wood_dark", rot=(0, 0, 7))
     # a small bundle of firewood and a tied rag at the foot
     p.log((-0.2, 0.12, 0.04), (0.18, 0.2, 0.04), 0.045, tile="bark", seg=6)
     p.log((-0.18, 0.2, 0.09), (0.2, 0.13, 0.09), 0.04, tile="bark", seg=6)
@@ -805,19 +807,19 @@ def signpost():
 
 
 def bedroll():
-    """Hide bedroll on the ground: hide sheet, woven pad, straw-stuffed blanket folded back at the
-    foot, a small pillow roll at the head and corner pegs (1x2)."""
+    """Hide bedroll on the ground: hide sheet, woven pad, a thick hide blanket rolled down over the
+    foot end, a fibre pillow at the head and corner pegs (1x2)."""
     p = Part("bedroll")
-    # hide sheet, a touch wider than the pad, with a stitched seam along one side
+    # hide sheet, with a stitched seam band across the foot
     p.box((0.8, 1.82, 0.035), (0, 0, 0.02), "hide", tile_m=0.45)
-    p.box((0.84, 0.06, 0.045), (0, 0.9, 0.022), "leather_dark")
+    p.box((0.84, 0.05, 0.045), (0, 0.88, 0.022), "leather_dark")
     # woven sleeping pad down the middle
-    p.box((0.56, 1.5, 0.07), (0, 0.02, 0.06), "weave", tile_m=0.7)
-    # straw-stuffed blanket over the lower half, folded back: two stacked slabs with a soft edge
-    p.box((0.62, 0.62, 0.12), (0, 0.48, 0.15), "thatch", tile_m=0.6)
-    p.box((0.6, 0.16, 0.1), (0, 0.82, 0.17), "thatch", rot=(-22, 0, 0), tile_m=0.6)
-    p.box((0.64, 0.05, 0.02), (0, 0.18, 0.13), "rope")
-    p.box((0.03, 0.6, 0.02), (-0.2, 0.46, 0.215), "rope")
+    p.box((0.56, 1.56, 0.07), (0, 0.02, 0.06), "weave", tile_m=0.7)
+    # the blanket rolled down over the foot half of the pad: an oval roll across the mat
+    p.cyl(0.12, 0.62, (0, 0.52, 0.16), "hide", rot=(0, 90, 0), seg=9, cap_tile="fiber")
+    p.box((0.62, 0.5, 0.06), (0, 0.62, 0.15), "hide", tile_m=0.5)
+    for x in (-0.19, 0.19):
+        p.cyl(0.126, 0.045, (x, 0.52, 0.16), "rope", rot=(0, 90, 0), seg=9)
     # pillow: a short fibre roll tied at the ends
     p.cyl(0.085, 0.5, (0, -0.7, 0.105), "fiber", rot=(0, 90, 0), seg=8, cap_tile="fiber")
     for x in (-0.16, 0.16):
@@ -829,28 +831,209 @@ def bedroll():
 
 
 def straw_roll():
-    """Rolled straw bed: a thatch roll lashed with two rope ties, one end unrolled flat onto the
-    ground, loose straw at the cut end, on a hide ground sheet (1x2)."""
+    """Rolled straw bed: a thick thatch roll lashed with two rope ties, part unrolled into a flat
+    straw pad at the near end, on a hide ground sheet (1x2)."""
     p = Part("straw_roll")
     p.box((0.82, 1.86, 0.03), (0, 0, 0.015), "hide", tile_m=0.45)
-    # the roll itself: body along Y, thick and slightly oval
-    p.cyl(0.25, 1.28, (0, 0.24, 0.25), "thatch", rot=(0, 90, 0), seg=10, cap_tile="fiber")
-    p.box((0.42, 1.28, 0.06), (0, 0.24, 0.49), "thatch", tile_m=0.6)  # flatten the top a little
-    # rope ties sitting proud of the roll
-    for y in (-0.16, 0.64):
-        p.cyl(0.262, 0.07, (0, y, 0.25), "rope", rot=(0, 90, 0), seg=10)
-        p.box((0.08, 0.03, 0.14), (0.1, y + 0.05, 0.42), "rope", rot=(0, 20, 0))
-    # the unrolled end: a thinner flat pad running to the near end of the cell
-    p.box((0.72, 0.62, 0.07), (0, -0.54, 0.055), "thatch", tile_m=0.6)
-    p.box((0.74, 0.06, 0.09), (0, -0.24, 0.06), "fiber")
-    p.box((0.72, 0.05, 0.02), (0, -0.8, 0.09), "rope")
-    # loose straw at the cut end and a few wisps on the floor
-    for k in range(5):
-        a = k * 1.25 + 0.3
-        p.log((0.08 * math.cos(a), 0.86, 0.25 + 0.12 * math.sin(a)),
-              (0.11 * math.cos(a), 0.95, 0.24 + 0.17 * math.sin(a)), 0.012, tile="fiber", seg=4, end_tile="fiber")
-    for k in range(3):
-        p.log((-0.3 + 0.25 * k, -0.8, 0.03), (-0.22 + 0.25 * k, -0.92, 0.03), 0.012, tile="fiber", seg=4)
+    # the unrolled pad, low and flat, from the near end up to under the roll
+    p.box((0.72, 0.86, 0.07), (0, -0.46, 0.06), "thatch", tile_m=0.6)
+    p.box((0.74, 0.05, 0.02), (0, -0.87, 0.1), "rope")
+    # the roll: axis along Y, over the pad's back edge
+    p.cyl(0.22, 1.02, (0, 0.4, 0.23), "thatch", rot=(90, 0, 0), seg=10, cap_tile="fiber")
+    for y in (-0.02, 0.82):
+        p.cyl(0.234, 0.06, (0, y, 0.23), "rope", rot=(90, 0, 0), seg=10)
+        p.box((0.05, 0.04, 0.12), (0.19, y + 0.05, 0.28), "rope", rot=(0, -22, 0))
+    # a thatch strip where the pad meets the roll, so the transition is not a hard step
+    p.box((0.7, 0.14, 0.05), (0, -0.02, 0.1), "fiber", rot=(18, 0, 0))
+    return [(p, (0, 0, 0))]
+
+
+def campfire_stand():
+    """Cooking fire upgrade: stone-ring fire with a hook post holding a small hanging pot, and a spit
+    of meat skewered between two forked stakes in front of it (1x1)."""
+    p = Part("campfire_stand")
+    _stone_ring(p, 10, 0.36, 0.095, 71)
+    p.cyl(0.28, 0.03, (0, 0, 0.015), "ash", seg=10, cap_tile="ember")
+    _teepee(p, 5, 0.2, 0.3, 0.032, phase=0.2, end="ember")
+    # spit: two forked stakes straddling the fire on the camera side
+    for sx in (-1, 1):
+        p.log((sx * 0.42, -0.1, 0), (sx * 0.42, -0.1, 0.56), 0.03, tile="wood_dark", seg=6)
+        p.log((sx * 0.42, -0.1, 0.48), (sx * 0.39, -0.1, 0.63), 0.017, tile="wood_dark", seg=5)
+        p.log((sx * 0.42, -0.1, 0.48), (sx * 0.45, -0.1, 0.63), 0.017, tile="wood_dark", seg=5)
+        p.cyl(0.037, 0.035, (sx * 0.42, -0.1, 0.43), "rope", seg=6)
+    p.cyl(0.011, 0.86, (0, -0.1, 0.575), "iron", rot=(0, 90, 0), seg=5)
+    for fx, rr in ((-0.09, 0.045), (0.09, 0.04)):
+        p.cyl(rr, 0.1, (fx, -0.1, 0.575), "meat_drying", rot=(0, 90, 0), seg=8, cap_tile="meat_drying")
+    # tall hook post at the back corner, over the coals; a small clay pot hangs low from it
+    hx, hy = -0.26, 0.36
+    p.log((hx, hy, 0), (hx, hy, 0.92), 0.032, tile="wood_dark", seg=6)
+    p.log((hx, hy, 0.88), (hx + 0.3, hy - 0.16, 0.92), 0.022, tile="wood_dark", seg=5)
+    p.cyl(0.044, 0.05, (hx, hy, 0.78), "rope", seg=6)
+    px, py = hx + 0.3, hy - 0.16
+    p.log((px, py, 0.91), (px, py, 0.74), 0.007, tile="iron", seg=4, end_tile="iron")
+    p.cyl(0.075, 0.11, (px, py, 0.66), "clay", seg=9, r2=0.085, cap_tile="clay_dark")
+    p.cyl(0.088, 0.022, (px, py, 0.715), "clay_dark", seg=9)
+    p.cyl(0.072, 0.01, (px, py, 0.72), "meat_dried", seg=9, cap_tile="meat_dried")
+    # split firewood stacked beside the ring
+    for i in range(3):
+        p.log((0.22, 0.12 + 0.06 * i, 0.04 + 0.05 * i), (0.38, 0.16 + 0.06 * i, 0.05 + 0.05 * i), 0.028, tile="bark", seg=6)
+    return [(p, (0, 0, 0))]
+
+
+def technical_workbench():
+    """Heavy bench: thick plank top on lashed log legs with a lower shelf, stone-and-iron anvil,
+    bench vise, hammer and tongs, quench bucket (2x1)."""
+    p = Part("technical_workbench")
+    L, W, H = 1.78, 0.8, 0.9
+    for i, y in enumerate((-0.26, 0.0, 0.26)):
+        p.box((L, 0.255, 0.08), (0, y, H - 0.04), "plank" if i != 1 else "deck_dark", tile_m=1.8)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * (L / 2 - 0.16), sy * (W / 2 - 0.12)
+            p.log((x, y, 0), (x * 0.97, y * 0.94, H - 0.08), 0.065)
+            p.cyl(0.075, 0.07, (x * 0.99, y * 0.97, H - 0.14), "rope", seg=6)
+        p.plank((sx * (L / 2 - 0.16), -W / 2 + 0.1, 0.28), (sx * (L / 2 - 0.16), W / 2 - 0.1, 0.28), 0.08, 0.06, "wood_dark")
+    p.box((L - 0.5, W - 0.2, 0.04), (0, 0, 0.29), "plank", tile_m=1.5)
+    # the anvil: plank stump carrying a stone block with an iron face and a horn
+    p.box((0.34, 0.3, 0.04), (0.44, 0.02, H + 0.02), "iron")
+    p.box((0.26, 0.2, 0.07), (0.44, 0.02, H + 0.055), "iron", tile_m=0.3)  # base pad
+    p.box((0.14, 0.12, 0.12), (0.44, 0.02, H + 0.15), "iron", tile_m=0.3)  # waist
+    p.box((0.34, 0.17, 0.09), (0.42, 0.02, H + 0.255), "iron", tile_m=0.3)  # face
+    p.box((0.1, 0.06, 0.05), (0.42, 0.02, H + 0.32), "iron", tile_m=0.3)  # hardie block
+    p.cyl(0.05, 0.17, (0.62, 0.02, H + 0.255), "iron", rot=(0, 90, 0), seg=7, r2=0.014, cap_tile="iron")
+    for sx in (-1, 1):
+        p.cyl(0.016, 0.025, (0.44 + sx * 0.15, 0.02, H + 0.035), "iron", seg=4)
+    # bench vise at the left front corner, jaws on a length of stock
+    p.box((0.22, 0.14, 0.09), (-0.56, -W / 2 + 0.13, H + 0.045), "iron", tile_m=0.3)
+    p.box((0.2, 0.05, 0.12), (-0.56, -W / 2 + 0.15, H + 0.13), "iron", tile_m=0.3)
+    p.cyl(0.022, 0.16, (-0.56, -W / 2 + 0.05, H + 0.13), "iron", rot=(90, 0, 0), seg=6)
+    p.cyl(0.04, 0.025, (-0.56, -W / 2 - 0.04, H + 0.13), "iron", rot=(90, 0, 0), seg=6)
+    p.box((0.3, 0.045, 0.045), (-0.5, -W / 2 + 0.16, H + 0.21), "wood", rot=(0, 4, 0))
+    # hammer and tongs laid out on the deck between the vise and the anvil
+    p.log((-0.26, 0.22, H + 0.02), (-0.08, 0.12, H + 0.02), 0.022, tile="wood", seg=5)
+    p.box((0.11, 0.045, 0.05), (-0.05, 0.1, H + 0.02), "iron", rot=(0, 0, -20), tile_m=0.3)
+    p.log((-0.18, -0.22, H + 0.015), (0.04, -0.3, H + 0.015), 0.011, tile="iron", seg=4, end_tile="iron")
+    p.box((0.05, 0.04, 0.035), (0.05, -0.3, H + 0.02), "iron")
+    # quench bucket on the top, near corner; water just below the rim
+    bx, by = L / 2 - 0.28, -0.16
+    p.cyl(0.095, 0.19, (bx, by, H + 0.095), "wood", seg=8, r2=0.11, cap_tile="water")
+    p.cyl(0.1, 0.025, (bx, by, H + 0.185), "iron", seg=8)
+    p.cyl(0.09, 0.02, (bx, by, H + 0.18), "water", seg=8)
+    # a coil of twine and a spare wedge
+    p.torus(0.06, 0.016, (-0.36, 0.26, H + 0.015), "rope", seg=8, tube=4)
+    p.box((0.1, 0.05, 0.04), (-0.7, 0.22, H + 0.02), "wood_dark", rot=(0, 0, 18))
+    return [(p, (0, 0, 0))]
+
+
+def grindstone():
+    """Sharpening station: a round stone on an axle between two timber posts, crank on the near end,
+    water trough beneath and a blade leaning against the wheel (1x1)."""
+    p = Part("grindstone")
+    Z, R = 0.52, 0.19  # axle height, wheel radius: a hand-cranked stone, not a mill wheel
+    for sx in (-1, 1):
+        p.log((sx * 0.34, 0.02, 0), (sx * 0.28, 0.0, Z + 0.12), 0.042, tile="wood", seg=7)
+        p.box((0.14, 0.34, 0.06), (sx * 0.34, 0.02, 0.03), "wood_dark")
+        p.log((sx * 0.1, 0.02, 0.14), (sx * 0.29, 0.0, 0.36), 0.026, tile="wood_dark", seg=6)
+        p.cyl(0.046, 0.05, (sx * 0.295, 0.0, Z - 0.02), "rope", seg=7)
+    # the wheel: axis along X so the camera sees the round face and the rim
+    p.cyl(R, 0.15, (0, 0, Z), "stone_dark", rot=(0, 90, 0), seg=14, cap_tile="stone")
+    p.log((-0.4, 0, Z), (0.4, 0, Z), 0.026, tile="iron", end_tile="iron")
+    for sx in (-1, 1):
+        p.cyl(R + 0.005, 0.025, (sx * 0.09, 0, Z), "iron", rot=(0, 90, 0), seg=14)
+    # crank arm on the near end (+X) turning a wooden handle
+    p.box((0.045, 0.13, 0.035), (0.42, 0.0, Z), "iron", tile_m=0.3)
+    p.box((0.045, 0.035, 0.17), (0.42, -0.065, Z + 0.08), "iron", tile_m=0.3)
+    p.cyl(0.026, 0.12, (0.42, -0.13, Z + 0.16), "wood", rot=(90, 0, 0), seg=6)
+    # trough under the wheel
+    p.box((0.4, 0.26, 0.11), (0, 0, 0.055), "wood_dark", tile_m=0.45)
+    p.box((0.34, 0.2, 0.01), (0, 0, 0.108), "water", tile_m=0.5)
+    # a blade leaning on the wheel's rim, handle on the trough, and a fibre rag
+    p.box((0.028, 0.16, 0.12), (0.12, -0.16, 0.3), "iron", rot=(24, 0, 0), tile_m=0.3)
+    p.cyl(0.02, 0.1, (0.12, -0.2, 0.21), "wood_dark", rot=(-24, 0, 0), seg=5)
+    p.box((0.13, 0.15, 0.035), (-0.34, -0.2, 0.07), "fiber", rot=(0, 0, 25))
+    return [(p, (0, 0, 0))]
+
+
+def _fish(p, c, length=0.3, girth=0.032, depth=0.07, yaw=0.0):
+    """A fish hung by the tail from c (the tail tie): flattened oval body along -Z with a tail fin."""
+    c = Vector(c)
+    rot = Matrix.Rotation(R(yaw), 3, "Z")
+    body_c = c + rot @ Vector((0, 0, -length * 0.55))
+    body = bmesh.ops.create_icosphere(p.bm, subdivisions=2, radius=1.0,
+                                      matrix=Matrix.Translation(body_c) @ rot.to_4x4() @
+                                      Matrix.Diagonal((girth, depth, length * 0.5, 1)))["verts"]
+    p.bm.normal_update()
+    p._finish(body, "fish", smooth=True, tile_m=0.3)
+    tip = [c + rot @ Vector(v) for v in ((0, 0, 0.03), (0.075, 0, -0.1), (-0.075, 0, -0.1))]
+    p.prism(tip, rot @ Vector((0, 0.008, 0)), "fish")
+    for sx in (-1, 1):  # eye
+        p.cyl(0.008, 0.004, tuple(c + rot @ Vector((sx * girth * 0.9, 0, -length * 0.85))), "soot", seg=4)
+
+
+def fishing_stand():
+    """Camp fish-drying rack: A-frame with a ridge line of hanging fish over a small smoulder pit (1x1)."""
+    p = Part("fishing_stand")
+    # small fire pit under the rack
+    _stone_ring(p, 7, 0.22, 0.05, 81, tile="stone_dark", squash=(1.1, 1, 0.6))
+    p.cyl(0.16, 0.02, (0, 0, 0.012), "ash", seg=8, cap_tile="ember")
+    p.log((-0.1, 0, 0.04), (0.1, 0.04, 0.04), 0.025, tile="char", seg=5, end_tile="ember")
+    # rack: four posts and two ridge poles running X (across the camera)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.log((sx * 0.4, sy * 0.3, 0), (sx * 0.3, sy * 0.1, 1.0), 0.028, tile="wood_dark", seg=6)
+    for sy in (-1, 1):
+        p.log((-0.44, sy * 0.1, 1.02), (0.44, sy * 0.1, 1.02), 0.026, tile="wood")
+    # fish hang from the camera-side pole
+    for k, (fx, yaw) in enumerate(((-0.26, 10), (0.0, -8), (0.26, 16))):
+        p.log((fx, -0.13, 1.0), (fx, -0.13, 0.9), 0.007, tile="rope", seg=4)
+        _fish(p, (fx, -0.13, 0.9), length=0.34, yaw=yaw)
+    # one more gutted fish laid on a hide beside the pit, and a coil of line
+    p.box((0.28, 0.2, 0.02), (0.26, 0.28, 0.01), "hide")
+    p.cyl(0.035, 0.16, (0.26, 0.28, 0.035), "fish", rot=(0, 90, 20), seg=6, cap_tile="fish")
+    p.torus(0.07, 0.016, (-0.26, 0.3, 0.02), "rope", seg=10, tube=4)
+    return [(p, (0, 0, 0))]
+
+
+def _fish_flat(p, c, length=0.32, yaw=0.0):
+    """A whole fish lying flat (the pier's fish read: a squashed oval body with a forked tail)."""
+    c = Vector(c)
+    rot = Matrix.Rotation(R(yaw), 3, "Z")
+    body = bmesh.ops.create_icosphere(p.bm, subdivisions=1, radius=1.0,
+                                      matrix=Part._mat(c, (0, 0, yaw), (length * 0.42, length * 0.17, length * 0.13)))["verts"]
+    p.bm.normal_update()
+    p._finish(body, "fish", smooth=True, tile_m=0.3)
+    tip = [c + rot @ Vector(v) for v in ((-length * 0.36, 0, 0.0), (-length * 0.58, length * 0.12, 0.0), (-length * 0.58, -length * 0.12, 0.0))]
+    p.prism([tuple(v) for v in tip], rot @ Vector((0, 0, 0.02)), "fish", tile_m=0.25)
+
+
+def stone_grill():
+    """Cooking station: a flat stone slab laid over a ring of hearth stones, coals glowing between
+    the stones, food set out on top (2x2)."""
+    p = Part("stone_grill")
+    # hearth ring: two courses of stones, the top course carrying the slab
+    _stone_ring(p, 12, 0.7, 0.13, 91, tile="cobble")
+    for i, (x, y, _) in enumerate(_ring(11, 0.7, 0, 0.3)):
+        s_ = 0.11 * (0.9 + 0.2 * ((i * 29) % 5) / 4)
+        p.rock(s_, (x, y, 0.3), tile="stone", squash=(1.25, 1, 0.6), seed=150 + i)
+    # fire inside: ash bed, charred logs, ember chunks
+    p.cyl(0.52, 0.03, (0, 0, 0.02), "ash", seg=12, cap_tile="ash")
+    for i, (x, y, _) in enumerate(_ring(5, 0.28, 0, 0.6)):
+        p.log((x * 0.25, y * 0.25, 0.06), (x * 1.15, y * 1.15, 0.08), 0.05, tile="char", seg=6, end_tile="ember")
+    for i, (x, y, _) in enumerate(_ring(5, 0.2, 0, 1.1)):
+        p.rock(0.08, (x, y, 0.06), tile="ember", squash=(1.2, 1.1, 0.45), seed=160 + i)
+    # the slab: an irregular flat stone, tilted a hair, edges chipped with small stones
+    p.box((0.98, 0.92, 0.09), (0, 0, 0.44), "stone", rot=(1.5, 0, 2), tile_m=1.1)
+    p.box((0.9, 0.84, 0.02), (0, 0, 0.492), "stone_dark", rot=(1.5, 0, 2), tile_m=1.4)
+    for i, (x, y, _) in enumerate(_ring(7, 0.52, 0, 0.4)):
+        p.rock(0.06, (x, y, 0.48), tile="stone", squash=(1.3, 1, 0.5), seed=170 + i)
+    # food on the slab, at slab-top height
+    _fish_flat(p, (-0.16, -0.14, 0.5), length=0.36, yaw=26)
+    p.box((0.2, 0.14, 0.03), (0.17, 0.14, 0.51), "meat_drying", rot=(0, 0, 12))
+    p.box((0.17, 0.12, 0.025), (0.14, -0.18, 0.51), "meat_raw", rot=(0, 0, -8))
+    p.cyl(0.06, 0.08, (-0.24, 0.24, 0.54), "clay", seg=8, r2=0.05, cap_tile="clay_dark")
+    # tongs leaning against the lip in front
+    p.log((0.3, -0.6, 0.5), (0.2, -0.68, 0.32), 0.011, tile="iron", seg=4, end_tile="iron")
+    p.box((0.045, 0.02, 0.1), (0.31, -0.61, 0.53), "iron")
     return [(p, (0, 0, 0))]
 
 
@@ -886,4 +1069,9 @@ BUILDERS = {
     "signpost": signpost,
     "bedroll": bedroll,
     "straw_roll": straw_roll,
+    "campfire_stand": campfire_stand,
+    "technical_workbench": technical_workbench,
+    "grindstone": grindstone,
+    "fishing_stand": fishing_stand,
+    "stone_grill": stone_grill,
 }

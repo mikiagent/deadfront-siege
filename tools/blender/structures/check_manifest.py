@@ -39,6 +39,9 @@ KIND_GLB = {
     "wall_doorway": "wall_doorway", "roof": "roof",
     "taming_pen": "fence",  # the pen ring is built from fence segments; same style as fence/gate
     "harbour": "pier",  # harbour.gd reads buildings.harbour.glb; the pier fits HarbourSite's 3x6 footprint
+    # camp pieces that used to be Kenney placeholders (dsc camp set)
+    "large_box": "large_box", "chest": "chest", "barrel": "barrel", "bucket": "bucket",
+    "signpost": "signpost", "bedroll": "bedroll", "straw_roll": "straw_roll",
 }
 # Owner rule (2026-10-19): low-quality and low-poly assets are marked for replacement. The
 # building-system pieces are bare 1 m stand-ins for W2-BUILDSYS, so they are REPLACE outright; the
@@ -72,6 +75,13 @@ NOTES = {
     "canvas_tent": "twelve completed sleeps, eight seconds each",
     "smoker": "smoking station; no fuel/weather system yet",
     "catapult": "Manual destructible siege platform",
+    "large_box": "bulk storage, ~120 slots: plank crate on skids, rope handles, lid propped open",
+    "chest": "locked storage: plank chest with iron straps and a lock plate",
+    "barrel": "water/brine barrel, part filled; not a drink source, fill it from a well or the sea",
+    "bucket": "small wooden bucket with a rope bail",
+    "signpost": "wooden signpost with two carved boards (placeable, decorative)",
+    "bedroll": "minimal rest: hide bedroll with a pillow and a blanket",
+    "straw_roll": "single-use straw rest roll",
     "harbour": "harbour dock: plank pier on log piles with a canvas shed, 3x6 like HarbourSite.FOOTPRINT; "
                "deck 1.2 m above the pile feet, seaward end towards -Z. HarbourSite keeps it on the coast",
 }
