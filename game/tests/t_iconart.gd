@@ -6,6 +6,7 @@ var failures: Array[String] = []
 var _done := false
 # ItemArt/ArtSlot reference the Data autoload, so they load at runtime, after autoloads exist.
 var IA: GDScript
+var II: GDScript
 
 func _process(_delta: float) -> bool:
 	if _done:
@@ -14,12 +15,14 @@ func _process(_delta: float) -> bool:
 		return false
 	_done = true
 	IA = load("res://scripts/ui/item_art.gd") as GDScript
+	II = load("res://scripts/ui/item_icons.gd") as GDScript
 	_test_pngs_and_manifest()
 	_test_rarity_covers_items()
 	_test_fallback()
 	_test_slot_overflow()
 	_test_slot_states()
 	_test_mipmaps()
+	_test_stretch()
 	if failures.is_empty():
 		print("[t_iconart] PASS")
 		quit(0)
@@ -75,17 +78,26 @@ func _test_pngs_and_manifest() -> void:
 		_check(mr.size() == 4 and Rect2i(int(mr[0]), int(mr[1]), int(mr[2]), int(mr[3])) == used, "%s manifest rect %s matches pixels %s" % [id, mr, used])
 	_check(n >= 60, "at least 60 PNGs (got %d)" % n)
 	# Review 2026-10-19: the art judge's illegible renders must be in the replacement register.
-	for id in ["iron_ingot", "steel_ingot", "ingot", "black_iron", "obsidian", "berry", "burnt_food", "mango", "fish"]:
+	# Review 2026-10-20 (4): stone_knife's dark blade has low contrast on the slot interior.
+	for id in ["iron_ingot", "steel_ingot", "ingot", "black_iron", "obsidian", "berry", "burnt_food", "mango", "fish", "stone_knife"]:
 		_check(str(items.get(id, {}).get("replace", "")) != "", "%s carries a replace mark" % id)
 	for id in [&"copper_ingot", &"bronze_ingot", &"iron_ingot", &"steel_ingot", &"straw_roll_kit"]:
 		_check(IA.is_rendered(id), "%s has rendered art" % id)
-	var unrendered: Array = []
-	for id: StringName in get_root().get_node("Data").items.keys():
-		if not IA.is_rendered(id):
-			unrendered.append(str(id))
-	unrendered.sort()
-	_check(man.get("missing", []) == unrendered, "manifest 'missing' lists every unrendered item (%d)" % unrendered.size())
-	print("[t_iconart] pngs=%d missing=%d" % [n, unrendered.size()])
+	# Review 2026-10-20 (4): an exact-equality check broke whenever another package added an item.
+	# 'missing' is regenerated on every render run; between runs it may lag new items, which still
+	# show their white symbol. It must hold no stale ids, and an unrendered item with no symbol
+	# at all (it would show the _unknown silhouette) must be listed.
+	var data_items: Dictionary = get_root().get_node("Data").items
+	var missing: Array = man.get("missing", [])
+	var unrendered := 0
+	for id: String in missing:
+		_check(data_items.has(StringName(id)) and not IA.is_rendered(StringName(id)), "manifest 'missing' id %s is a real unrendered item" % id)
+	for id: StringName in data_items.keys():
+		if IA.is_rendered(id):
+			continue
+		unrendered += 1
+		_check(II.path_for(id) != "" or missing.has(str(id)), "%s has no render and no symbol but is not in manifest 'missing'" % id)
+	print("[t_iconart] pngs=%d missing=%d unrendered=%d" % [n, missing.size(), unrendered])
 
 func _test_rarity_covers_items() -> void:
 	var order: Array = IA.rarity_order()
@@ -93,12 +105,25 @@ func _test_rarity_covers_items() -> void:
 	# Read the JSON itself: rarity() defaults to common and would hide a missing entry.
 	var listed: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(IA.RARITY_PATH)).get("items", {})
 	for id in get_root().get_node("Data").items.keys():
-		_check(listed.has(str(id)), "%s listed in item_rarity.json" % id)
+		# Kept strict on purpose: an unlisted item would silently rim as common.
+		_check(listed.has(str(id)), "%s listed in item_rarity.json (give it a tier there)" % id)
 		_check(order.has(str(listed.get(str(id), ""))), "%s has a known rarity" % id)
 
 func _test_fallback() -> void:
 	var tex: Texture2D = IA.texture_for(&"no_such_id")
-	_check(tex != null, "no_such_id falls back to a symbol texture")
+	_check(tex != null and tex.resource_path == IA.UNKNOWN, "no_such_id falls back to the _unknown silhouette (%s)" % (tex.resource_path if tex else "null"))
+	# Review 2026-10-20 (4): a non-null check alone would pass a wrong texture.
+	var sym_id := &""
+	for id: StringName in get_root().get_node("Data").items.keys():
+		if not IA.is_rendered(id) and II.path_for(id) != "":
+			sym_id = id
+			break
+	_check(sym_id != &"", "some unrendered item has a symbol to test the fallback with")
+	if sym_id != &"":
+		var st: Texture2D = IA.texture_for(sym_id)
+		_check(st != null and st.resource_path == II.path_for(sym_id), "unrendered %s resolves to its ItemIcons symbol" % sym_id)
+	var rt: Texture2D = IA.texture_for(&"steel_ingot")
+	_check(rt != null and rt.resource_path == IA.RENDER_DIR + "steel_ingot.png", "rendered steel_ingot resolves to its render")
 	_check(not IA.is_rendered(&"no_such_id"), "no_such_id is not rendered")
 	_check(IA.rim_color(&"no_such_id") == IA.color_for_rarity(&"common"), "unknown item rims as common")
 	# Review 2026-10-19: lookup must be exact-case on every platform, and junk ids must not be cached.
@@ -135,6 +160,23 @@ func _test_slot_states() -> void:
 		seen[s.pips] = true
 	_check(seen.size() == 5, "five tiers give five pip counts (%s)" % [seen.keys()])
 	_check(s.texture_filter == CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS, "slot samples mipmaps")
+	# Review 2026-10-20 (4): ~6 px pips at a 64 px slot sat at the legibility floor. Pips are floored
+	# in physical px and climb the left rim, so they never run into a right-aligned "x999".
+	var font: Font = s.get_theme_default_font()
+	for id: StringName in [&"heavy_snare", &"raid_maul"]:
+		s.set_item(id, 999)
+		var h: float = s.pip_half()
+		_check(h >= s.PIP_PX, "%s pip half-size %.1f >= %.0f px (outside the tree the scale is 1)" % [id, h, s.PIP_PX])
+		var fs: int = s.count_font_size()
+		var w: float = font.get_string_size("x999", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var base: float = s.cell().end.y - 6.0
+		var count_box := Rect2(s.size.x - w - 6.0, base - font.get_ascent(fs), w, font.get_ascent(fs) + font.get_descent(fs))
+		for c: Vector2 in s.pip_centres():
+			var pip_box := Rect2(c - Vector2(h + 1.5, h + 1.5), Vector2(h + 1.5, h + 1.5) * 2.0)
+			_check(not pip_box.intersects(count_box), "%s pip %s clear of the x999 count %s" % [id, pip_box, count_box])
+			_check(s.cell().encloses(pip_box), "%s pip %s inside the frame" % [id, pip_box])
+	# Review 2026-10-20 (4): dark items vanished on the near-black interior.
+	_check(s.INTERIOR.get_luminance() >= UiTokens.INK_SOLID.get_luminance() + 0.05, "slot interior sits a step above INK_SOLID")
 	s.free()
 
 ## Review 2026-10-20: 256 px art at ~60 px with no mipmaps risks shimmer on noisy textures.
@@ -157,17 +199,45 @@ func _test_slot_overflow() -> void:
 	_check(s.rim == IA.color_for_rarity(&"rare"), "steel ingot (a bulk material) rims rare, not legendary")
 	# Review 2026-10-19: wide flat items never rose above the slot top and spilled past the side
 	# rims. Every rendered item must rise 12-20 % and stay between the side rims.
+	# Review 2026-10-20 (4): a 64x120 slot lifted every item only 6-9 %; the rise is measured
+	# against the framed square cell, so tall and wide slots must hold the band too.
 	var man: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(IA.RENDER_DIR + "manifest.json"))
-	var low: Array[String] = []
-	for id: String in man.get("items", {}):
-		s.set_item(StringName(id), 1)
-		var ar: Rect2 = s.art_rect()
-		var wl: float = -ar.position.y / s.size.y
-		if wl < 0.12 - 0.005 or wl > 0.20 + 0.005 or ar.position.x < -0.5 or ar.end.x > s.size.x + 0.5:
-			low.append("%s(lift %.2f, x %.1f..%.1f)" % [id, wl, ar.position.x, ar.end.x])
-	_check(low.is_empty(), "every item rises 12-20 %% above the slot inside the side rims: %s" % ", ".join(low))
+	for sz: Vector2 in [Vector2(80, 80), Vector2(64, 120), Vector2(140, 64), Vector2(64, 64)]:
+		s.size = sz
+		var c: Rect2 = s.cell()
+		_check(c.size.y <= c.size.x + 0.5 and c.size.y >= minf(sz.x, sz.y) - 0.5, "%s slot frames a cell no taller than wide (%s)" % [sz, c])
+		var low: Array[String] = []
+		for id: String in man.get("items", {}):
+			s.set_item(StringName(id), 1)
+			var ar: Rect2 = s.art_rect()
+			var wl: float = (c.position.y - ar.position.y) / c.size.y
+			if wl < 0.12 - 0.005 or wl > 0.20 + 0.005 or ar.position.x < -0.5 or ar.end.x > sz.x + 0.5:
+				low.append("%s(lift %.2f, x %.1f..%.1f)" % [id, wl, ar.position.x, ar.end.x])
+		_check(low.is_empty(), "%s: every item rises 12-20 %% above the frame inside the side rims: %s" % [sz, ", ".join(low)])
+	s.size = Vector2(80, 80)
 	s.set_item(&"raid_maul", 1)
 	var lift: float = -s.art_rect().position.y / s.size.y
 	_check(lift >= 0.12 and lift <= 0.20, "tall raid_maul rises 12-20 %% above the slot (got %.2f)" % lift)
 	_check(s.count_font_size() >= 14, "count font floor holds outside the tree")
 	s.free()
+
+## Review 2026-10-20 (4): get_screen_transform() leaves out the canvas_items stretch (1.0 in an
+## 844x390 window where the stretch is 0.433), so the count and pip floors never applied on a
+## phone. Halve the root stretch and check what lands on screen.
+func _test_stretch() -> void:
+	var root := get_root()
+	var old := root.content_scale_factor
+	# The headless window is tiny, so its stretch is not 1: scale the factor to land on 0.5.
+	root.content_scale_factor = old * 0.5 / maxf(root.get_final_transform().get_scale().y, 0.001)
+	var s: Button = (load("res://scripts/ui/art_slot.gd") as GDScript).new()
+	s.size = Vector2(130, 130)  # the lab's slot at 844x390
+	root.add_child(s)
+	s.set_item(&"raid_maul", 12)
+	var want: float = root.get_final_transform().get_scale().y
+	var k: float = s.screen_scale()
+	print("[t_iconart] stretch final=%.3f slot=%.3f" % [want, k])
+	_check(absf(k - 0.5) < 0.01 and absf(k - want) < 0.01, "slot scale follows the window stretch (%.3f vs %.3f)" % [k, want])
+	_check(s.count_font_size() * k >= s.COUNT_PX - 0.5, "count %.1f px on screen >= 14 under the stretch" % (s.count_font_size() * k))
+	_check(s.pip_half() * k >= s.PIP_PX - 0.05, "pip half-size %.1f px on screen >= 4 under the stretch" % (s.pip_half() * k))
+	s.free()
+	root.content_scale_factor = old

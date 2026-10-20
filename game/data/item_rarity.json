@@ -1,6 +1,6 @@
 {
  "_about": "Item rarity for UI rims and glows (W1-ICONART). Every item id in items.json is listed.",
- "_assumption": "ASSUMPTION: placeholder tiers until W2-DATA's rare-item design. Rule used: the material ladder (stone/bone common, flint/copper uncommon, obsidian/bronze rare, iron and steel rare (bulk materials are capped at rare so epic/legendary glow stays a gear signal)), creature parts by how hard the creature is, cooked food above raw, buff food rare, raid gear epic, the raid maul legendary.",
+ "_assumption": "ASSUMPTION: placeholder tiers until W2-DATA's rare-item design. Rule used: the material ladder (stone/bone common, flint/copper uncommon, obsidian/bronze rare, iron and steel rare (bulk materials are capped at rare so epic/legendary glow stays a gear signal)), creature parts by how hard the creature is, cooked food above raw, buff food rare, the armour ladder by armour value (travel clothing common, forager uncommon, hide and bone rare, raid gear epic), the raid maul legendary.",
  "order": [
   "common",
   "uncommon",
@@ -169,6 +169,17 @@
   "slingshot": "uncommon",
   "stone_shot": "uncommon",
   "catapult_kit": "epic",
-  "toxin_pot": "epic"
+  "toxin_pot": "epic",
+  "travel_shirt": "common",
+  "travel_sleeves": "common",
+  "travel_trousers": "common",
+  "forager_hood": "uncommon",
+  "forager_vest": "uncommon",
+  "forager_wraps": "uncommon",
+  "forager_leggings": "uncommon",
+  "hide_bone_helm": "rare",
+  "hide_bone_cuirass": "rare",
+  "hide_bone_bracers": "rare",
+  "hide_bone_greaves": "rare"
  }
 }

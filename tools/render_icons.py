@@ -62,6 +62,8 @@ REPLACE = {
     "obsidian": "dark crystal, not distinguishable from black_iron at slot size",
     "burnt_food": "glowing lava-crack texture shared with lava / raid_maul; reads as a fire item",
     "fish": "noisy camouflage-like blotches, reads poorly",
+    # Review 2026-10-20 (4): low contrast against the dark slot interior.
+    "stone_knife": "dark grey blade on the near-black slot interior; brighten the blade",
 }
 PROCEDURAL = "procedural_v1"
 # Known tiers, lowest first. A GLB render (the route for better art) never becomes procedural_v1.

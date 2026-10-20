@@ -1499,7 +1499,8 @@
     202,
     218
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "dark grey blade on the near-black slot interior; brighten the blade"
   },
   "stone_knife_work": {
    "script": "tools/blender/items/gear.py",
@@ -1767,8 +1768,16 @@
   "cloth_scrap",
   "field_large_kit",
   "field_small_kit",
+  "forager_hood",
+  "forager_leggings",
+  "forager_vest",
+  "forager_wraps",
   "fruit_fertilizer",
   "herbivore_feed",
+  "hide_bone_bracers",
+  "hide_bone_cuirass",
+  "hide_bone_greaves",
+  "hide_bone_helm",
   "leech",
   "log_shelter_kit",
   "makeshift_taming_pen",
@@ -1786,6 +1795,9 @@
   "steamer_kit",
   "stone_fire_pit_kit",
   "tamed_animal",
+  "travel_shirt",
+  "travel_sleeves",
+  "travel_trousers",
   "vine",
   "willow_wood"
  ]

@@ -74,8 +74,9 @@ func _self_check() -> void:
 		seen[ItemArt.rarity(s.item_id)] = true
 		rendered += 1 if ItemArt.is_rendered(s.item_id) else 0
 		overflow_ok = overflow_ok and _framed(s)
-		var px := s.count_font_size() * s.get_screen_transform().get_scale().y
-		count_ok = count_ok and px >= ArtSlot.COUNT_PX - 0.5
+		# This runs headless, whose window has no physical size (its stretch reads ~0.02), so
+		# sizes are checked 1:1 here; t_iconart._test_stretch checks them under a real stretch.
+		count_ok = count_ok and s.count_font_size() >= ArtSlot.COUNT_PX - 0.5 and s.pip_half() >= ArtSlot.PIP_PX - 0.05
 	var ok := slots.size() == 20 and seen.size() == ItemArt.rarity_order().size() and rendered == 20 and overflow_ok and count_ok
 	print("[itemart] slots=%d rarities=%d rendered=%d framed=%s count_px_ok=%s ok=%s" % [slots.size(), seen.size(), rendered, overflow_ok, count_ok, ok])
 	get_tree().quit(0 if ok else 1)
