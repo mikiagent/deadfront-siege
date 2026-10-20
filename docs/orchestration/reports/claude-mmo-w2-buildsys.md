@@ -1,9 +1,19 @@
 # W2-BUILDSYS: ARK-style modular building with structure HP, tiers and repair
 
-Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last to base tip dd7ff218:
+Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last to base tip dc6417cc:
 docs only since 1c89134a, which brought W2-OCCLUDE, W1-UIICONS and DSC-CAMP). Review r1 stopped before any run.
 Closes build-struct-01, build-def-01, build-tier-01, build-place-02, phys-wall-01, build-storage-01 (chest and
 large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
+
+## Re-review pass (2026-10-20, findings: none)
+
+- The reviewer returned an empty findings list, so nothing needed fixing.
+- Base merged (dc6417cc: spec 14 and STATUS, docs only). `git diff 404c365a HEAD -- game/ tools/` is empty, so the
+  game code is byte-identical to the state the gates and the pixel runs above were run on.
+- Hooks patch unchanged, no regeneration needed: `git apply --cached --check` through a throwaway index prints
+  `APPLY OK on dc6417cc` and `APPLY OK on branch HEAD`.
+- No gate, lab or screenshot run was repeated: no finding to recheck and no game code changed. A repeat would
+  have re-proved results already listed below. Hook 4 is still "no registry needed" (see Integrator hooks).
 
 ## Review r1 fixes (2026-10-20, finish-6)
 
