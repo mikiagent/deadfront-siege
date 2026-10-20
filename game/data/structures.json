@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "doc": "W2-BUILDSYS modular building. Pieces snap on one global module lattice (module_m metres, even 1 m grid cells). Slots: cell (a module square at a level), edge (a module side at a level), corner (a module corner at a level), door (inside a doorway edge). Level 0 is the foundation floor; level k >= 1 is the ceiling/floor k storeys up. piece_tiers holds every piece x tier: model (res:// GLB path, empty = procedural stand-in), hp and cost (bag materials). placed_kinds gives the kit-placed kinds (workbench, fence, ...) their StructureHealth hp and repair materials.",
+  "doc": "W2-BUILDSYS modular building. Pieces snap on one global module lattice (module_m metres, even 1 m grid cells). Slots: cell (a module square at a level), edge (a module side at a level), corner (a module corner at a level), door (inside a doorway edge). Level 0 is the foundation floor; level k >= 1 is the ceiling/floor k storeys up. piece_tiers holds one blueprint per piece x tier in the spec-10 section-11 shape (material_slots, minimum/maximum_level, required_skill_node, required_building_ability, supported_building_effects) plus model (res:// GLB path; empty = procedural stand-in) and max_durability. Saved pieces are building instances: id, blueprint_id, tier, owner_id, level, inherited_attributes, max_durability, current_durability, position, rotation, container_id. placed_kinds gives the kit-placed kinds (workbench, fence, ...) their durability and repair materials.",
   "model_contract": "1 unit = 1 m, +Y up. cell pieces: origin at the module square's centre on its floor (2 x 2 m footprint); oriented pieces (roof, stairs, ramp) rise toward +Z at rot 0. edge pieces: origin at the edge midpoint on the floor, the wall plane runs along X (2 m wide), thickness on Z centred, height +Y (storey_m). corner pieces: origin on the corner, height +Y. door: origin at the doorway's edge midpoint, leaf hinged at -X of the opening. Rotation is applied by the game; the model needs no collision (the game builds it).",
   "module_m": 2.0,
   "storey_m": 2.5,
@@ -14,36 +14,514 @@
   "demolish_refund": 0.5,
   "creature_damage_mult": 1.0,
   "tiers": {
-    "thatch": {"rank": 0, "label": "Thatch", "tint": "#c4a160", "trim": "#6e5230", "creature_mult": 1.0, "requires_level": 1, "requires_node": ""},
-    "wood": {"rank": 1, "label": "Wood", "tint": "#9a6a3c", "trim": "#4f3520", "creature_mult": 0.8, "requires_level": 5, "requires_node": ""},
-    "stone": {"rank": 2, "label": "Stone", "tint": "#9c9a94", "trim": "#5e5c58", "creature_mult": 0.35, "requires_level": 20, "requires_node": ""},
-    "metal": {"rank": 3, "label": "Metal", "tint": "#6f7a82", "trim": "#3a4046", "creature_mult": 0.15, "requires_level": 35, "requires_node": ""}
+    "thatch": {
+      "rank": 0,
+      "label": "Thatch",
+      "tint": "#c4a160",
+      "trim": "#6e5230",
+      "creature_mult": 1.0,
+      "requires_level": 1,
+      "requires_node": ""
+    },
+    "wood": {
+      "rank": 1,
+      "label": "Wood",
+      "tint": "#9a6a3c",
+      "trim": "#4f3520",
+      "creature_mult": 0.8,
+      "requires_level": 5,
+      "requires_node": ""
+    },
+    "stone": {
+      "rank": 2,
+      "label": "Stone",
+      "tint": "#9c9a94",
+      "trim": "#5e5c58",
+      "creature_mult": 0.35,
+      "requires_level": 20,
+      "requires_node": ""
+    },
+    "metal": {
+      "rank": 3,
+      "label": "Metal",
+      "tint": "#6f7a82",
+      "trim": "#3a4046",
+      "creature_mult": 0.15,
+      "requires_level": 35,
+      "requires_node": ""
+    }
   },
   "pieces": {
-    "foundation": {"label": "Foundation", "slot": "cell", "levels": [0, 0], "footprint": [2.0, 2.0], "walkable": true, "blocks": "none", "support": "ground", "sockets": ["cell_neighbours", "edges", "corners", "stairs_on_top"], "occlusion": "none", "xp": 4},
-    "wall": {"label": "Wall", "slot": "edge", "levels": [0, 3], "footprint": [2.0, 0.2], "height": 2.5, "walkable": false, "blocks": "enemies", "support": "floor_or_wall_below", "sockets": ["edge_above", "cells_above"], "occlusion": "wall", "xp": 2},
-    "doorway": {"label": "Doorway", "slot": "edge", "levels": [0, 3], "footprint": [2.0, 0.2], "height": 2.5, "opening": [1.1, 2.1], "walkable": false, "blocks": "enemies_unless_open", "support": "floor_or_wall_below", "sockets": ["edge_above", "cells_above", "door"], "occlusion": "wall", "xp": 2},
-    "door": {"label": "Door", "slot": "door", "levels": [0, 3], "footprint": [1.1, 0.08], "height": 2.1, "walkable": false, "blocks": "enemies_when_closed", "support": "doorway", "sockets": [], "occlusion": "wall", "interact": "toggle_open", "xp": 1},
-    "window": {"label": "Window", "slot": "edge", "levels": [0, 3], "footprint": [2.0, 0.2], "height": 2.5, "opening": [0.9, 0.8, 1.0], "walkable": false, "blocks": "enemies", "support": "floor_or_wall_below", "sockets": ["edge_above", "cells_above"], "occlusion": "wall", "xp": 2},
-    "ceiling": {"label": "Ceiling", "slot": "cell", "levels": [1, 4], "footprint": [2.0, 2.0], "thickness": 0.2, "walkable": true, "blocks": "none", "support": "walls_or_span", "sockets": ["cell_neighbours", "edges", "corners", "stairs_on_top"], "occlusion": "roof", "xp": 2},
-    "roof": {"label": "Roof", "slot": "cell", "levels": [1, 4], "footprint": [2.0, 2.0], "rise": 1.25, "oriented": true, "walkable": true, "blocks": "none", "support": "walls_or_span", "sockets": ["cell_neighbours"], "occlusion": "roof", "xp": 2},
-    "roof_peak": {"label": "Roof ridge", "slot": "cell", "levels": [1, 4], "footprint": [2.0, 2.0], "rise": 1.25, "peak": 0.6, "oriented": true, "walkable": true, "blocks": "none", "support": "walls_or_span", "sockets": ["cell_neighbours"], "occlusion": "roof", "xp": 2},
-    "pillar": {"label": "Pillar", "slot": "corner", "levels": [0, 3], "footprint": [0.3, 0.3], "height": 2.5, "walkable": false, "blocks": "none", "support": "ground_pillar_or_floor", "sockets": ["corner_above", "cells_above"], "occlusion": "wall", "xp": 1},
-    "stairs": {"label": "Stairs", "slot": "cell", "levels": [0, 3], "footprint": [2.0, 4.0], "span": 2, "oriented": true, "walkable": true, "blocks": "none", "support": "floor", "sockets": [], "occlusion": "none", "xp": 3},
-    "ramp": {"label": "Ramp", "slot": "cell", "levels": [0, 0], "footprint": [2.0, 2.0], "oriented": true, "walkable": true, "blocks": "none", "support": "foundation_beside", "sockets": [], "occlusion": "none", "xp": 1}
+    "foundation": {
+      "label": "Foundation",
+      "slot": "cell",
+      "levels": [
+        0,
+        0
+      ],
+      "footprint": [
+        2.0,
+        2.0
+      ],
+      "walkable": true,
+      "blocks": "none",
+      "support": "ground",
+      "sockets": [
+        "cell_neighbours",
+        "edges",
+        "corners",
+        "stairs_on_top"
+      ],
+      "occlusion": "none",
+      "xp": 4
+    },
+    "wall": {
+      "label": "Wall",
+      "slot": "edge",
+      "levels": [
+        0,
+        3
+      ],
+      "footprint": [
+        2.0,
+        0.2
+      ],
+      "height": 2.5,
+      "walkable": false,
+      "blocks": "enemies",
+      "support": "floor_or_wall_below",
+      "sockets": [
+        "edge_above",
+        "cells_above"
+      ],
+      "occlusion": "wall",
+      "xp": 2
+    },
+    "doorway": {
+      "label": "Doorway",
+      "slot": "edge",
+      "levels": [
+        0,
+        3
+      ],
+      "footprint": [
+        2.0,
+        0.2
+      ],
+      "height": 2.5,
+      "opening": [
+        1.1,
+        2.1
+      ],
+      "walkable": false,
+      "blocks": "enemies_unless_open",
+      "support": "floor_or_wall_below",
+      "sockets": [
+        "edge_above",
+        "cells_above",
+        "door"
+      ],
+      "occlusion": "wall",
+      "xp": 2
+    },
+    "door": {
+      "label": "Door",
+      "slot": "door",
+      "levels": [
+        0,
+        3
+      ],
+      "footprint": [
+        1.1,
+        0.08
+      ],
+      "height": 2.1,
+      "walkable": false,
+      "blocks": "enemies_when_closed",
+      "support": "doorway",
+      "sockets": [],
+      "occlusion": "wall",
+      "interact": "toggle_open",
+      "xp": 1
+    },
+    "window": {
+      "label": "Window",
+      "slot": "edge",
+      "levels": [
+        0,
+        3
+      ],
+      "footprint": [
+        2.0,
+        0.2
+      ],
+      "height": 2.5,
+      "opening": [
+        0.9,
+        0.8,
+        1.0
+      ],
+      "walkable": false,
+      "blocks": "enemies",
+      "support": "floor_or_wall_below",
+      "sockets": [
+        "edge_above",
+        "cells_above"
+      ],
+      "occlusion": "wall",
+      "xp": 2
+    },
+    "ceiling": {
+      "label": "Ceiling",
+      "slot": "cell",
+      "levels": [
+        1,
+        4
+      ],
+      "footprint": [
+        2.0,
+        2.0
+      ],
+      "thickness": 0.2,
+      "walkable": true,
+      "blocks": "none",
+      "support": "walls_or_span",
+      "sockets": [
+        "cell_neighbours",
+        "edges",
+        "corners",
+        "stairs_on_top"
+      ],
+      "occlusion": "roof",
+      "xp": 2
+    },
+    "roof": {
+      "label": "Roof",
+      "slot": "cell",
+      "levels": [
+        1,
+        4
+      ],
+      "footprint": [
+        2.0,
+        2.0
+      ],
+      "rise": 1.25,
+      "oriented": true,
+      "walkable": true,
+      "blocks": "none",
+      "support": "walls_or_span",
+      "sockets": [
+        "cell_neighbours"
+      ],
+      "occlusion": "roof",
+      "xp": 2
+    },
+    "roof_peak": {
+      "label": "Roof ridge",
+      "slot": "cell",
+      "levels": [
+        1,
+        4
+      ],
+      "footprint": [
+        2.0,
+        2.0
+      ],
+      "rise": 1.25,
+      "peak": 0.6,
+      "oriented": true,
+      "walkable": true,
+      "blocks": "none",
+      "support": "walls_or_span",
+      "sockets": [
+        "cell_neighbours"
+      ],
+      "occlusion": "roof",
+      "xp": 2
+    },
+    "pillar": {
+      "label": "Pillar",
+      "slot": "corner",
+      "levels": [
+        0,
+        3
+      ],
+      "footprint": [
+        0.3,
+        0.3
+      ],
+      "height": 2.5,
+      "walkable": false,
+      "blocks": "none",
+      "support": "ground_pillar_or_floor",
+      "sockets": [
+        "corner_above",
+        "cells_above"
+      ],
+      "occlusion": "wall",
+      "xp": 1
+    },
+    "stairs": {
+      "label": "Stairs",
+      "slot": "cell",
+      "levels": [
+        0,
+        3
+      ],
+      "footprint": [
+        2.0,
+        4.0
+      ],
+      "span": 2,
+      "oriented": true,
+      "walkable": true,
+      "blocks": "none",
+      "support": "floor",
+      "sockets": [],
+      "occlusion": "none",
+      "xp": 3
+    },
+    "ramp": {
+      "label": "Ramp",
+      "slot": "cell",
+      "levels": [
+        0,
+        0
+      ],
+      "footprint": [
+        2.0,
+        2.0
+      ],
+      "oriented": true,
+      "walkable": true,
+      "blocks": "none",
+      "support": "foundation_beside",
+      "sockets": [],
+      "occlusion": "none",
+      "xp": 1
+    }
   },
   "piece_tiers": {
     "foundation": {
-      "thatch": {"model": "", "hp": 600, "cost": {"branch": 6, "fibre_stalk": 6}},
-      "wood": {"model": "", "hp": 1800, "cost": {"plank": 6, "twine": 3}},
-      "stone": {"model": "", "hp": 4500, "cost": {"stone": 12, "plank": 3}},
-      "metal": {"model": "", "hp": 10500, "cost": {"iron_ingot": 6, "stone": 6}}
+      "thatch": {
+        "model": "",
+        "max_durability": 600,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "branch",
+            "quantity": 6,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "fibre_stalk",
+            "quantity": 6,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "wood": {
+        "model": "",
+        "max_durability": 1800,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "plank",
+            "quantity": 6,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "twine",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "stone": {
+        "model": "",
+        "max_durability": 4500,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "stone",
+            "quantity": 12,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "plank",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "metal": {
+        "model": "",
+        "max_durability": 10500,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "iron_ingot",
+            "quantity": 6,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "stone",
+            "quantity": 6,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      }
     },
     "wall": {
-      "thatch": {"model": "", "hp": 400, "cost": {"branch": 4, "fibre_stalk": 4}},
-      "wood": {"model": "", "hp": 1200, "cost": {"plank": 4, "twine": 2}},
-      "stone": {"model": "", "hp": 3000, "cost": {"stone": 8, "plank": 2}},
-      "metal": {"model": "", "hp": 7000, "cost": {"iron_ingot": 4, "stone": 4}}
+      "thatch": {
+        "model": "",
+        "max_durability": 400,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "branch",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "fibre_stalk",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "wood": {
+        "model": "",
+        "max_durability": 1200,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "plank",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "twine",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "stone": {
+        "model": "",
+        "max_durability": 3000,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "stone",
+            "quantity": 8,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "plank",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "metal": {
+        "model": "",
+        "max_durability": 7000,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "iron_ingot",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "stone",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      }
     }
   },
   "placed_kinds": {}
