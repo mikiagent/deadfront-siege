@@ -59,6 +59,8 @@ func pack_up(player: Player) -> bool:
 	return BuildPlacer.pack_up_node(self, player)
 
 # ASSUMPTION: a planted field refuses so seeds, water and fertiliser are never silently lost.
+# A harvested field can hold overflow fertiliser (bonus units past the yield): that is stored goods
+# like a basket's contents, so it packs up with the kit instead of being dropped.
 func pack_up_block_reason() -> String:
 	if crop_id != &"":
 		return "Harvest or clear the field first"

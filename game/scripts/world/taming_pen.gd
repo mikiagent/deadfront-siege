@@ -69,10 +69,15 @@ static func from_dict(d: Dictionary) -> TamingPen:
 func try_insert(player: Player) -> bool:
 	if running:
 		return false
-	# Older saves can hold a tamed_animal item from the pen's old ending; a pen bonds it.
+	# Older saves can hold a tamed_animal item from the pen's old ending; a pen bonds it, then still
+	# takes a captured_animal in the same tap (a survivor can hold both).
 	if player.inventory.find_first(&"tamed_animal") >= 0:
+		var before := player.bonded.size()
 		player.bond_from_inventory()
-		return true
+		if player.bonded.size() > before:
+			player.notice("Bonded the animal from your bag.")
+		else:
+			return true  # at the bonded cap: the legacy item stays, nothing else can start
 	var idx := player.inventory.find_first(&"captured_animal")
 	if idx < 0:
 		return false
@@ -107,6 +112,9 @@ func _process(delta: float) -> void:
 	var species := StringName(str(occupant.attributes.get("species", "velociraptor")))
 	var def := Data.creature(species)
 	if def == null:
+		# The species left data while the animal was in the pen: keep the occupant (a retried
+		# try_insert would overwrite and lose it) and let a later load/data restore finish it.
+		print("[capture] pen occupant %s is not in data; pen left waiting" % species)
 		return
 	var ok := randf() < SUCCESS_CHANCE
 	if force_result > 0:

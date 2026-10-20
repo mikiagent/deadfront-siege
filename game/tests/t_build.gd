@@ -51,6 +51,8 @@ func _run() -> void:
 	_test_pack_up_every_kind()
 	_test_pack_up_refusals()
 	_test_field_full_bag()
+	_test_pack_up_replacement_xp()
+	_test_pen_legacy_and_occupant()
 	_test_gate_state_and_path()
 	_test_tilepath_incremental()
 	if _fails.is_empty():
@@ -238,8 +240,82 @@ func _test_field_full_bag() -> void:
 	_player.inventory.consume(&"water_bucket", 2)
 	_grid.release(field)
 	field.free()
+	_test_field_overflow_pack_up()
+
+## A harvested field can hold bonus fertiliser past the yield; packing it up used to drop it.
+func _test_field_overflow_pack_up() -> void:
+	var field := _place(&"field_small", _free_cell(&"field_small"), 0)
+	if field == null:
+		_expect(false, "field overflow: could not place")
+		return
+	field.fertilizer_overflow = 2.0
+	var before: int = _player.inventory.count_of(&"fruit_fertilizer")
+	var packed := _pack(field)
+	var back: int = _player.inventory.count_of(&"fruit_fertilizer") - before
+	print("[build] field overflow pack-up: packed=%s fertiliser_back=%d (want 2)" % [packed, back])
+	_expect(packed and back == 2, "packing up a field with 2 overflow fertiliser returns 2 units (got %d)" % back)
+	_player.inventory.consume(&"fruit_fertilizer", back)
 
 # ---------------------------------------------------------------- gate + pathing
+
+## Place -> pack -> place is a move, not a new build: no +8 construction / +30 pioneer XP per cycle.
+func _test_pack_up_replacement_xp() -> void:
+	var bag: Variant = _player.inventory
+	var world: Node = root.get_node("World")
+	var xp0: float = _player.skills.xp_of("construction")
+	var pioneer0: int = int(world.pioneer_xp)
+	var first := _place(&"sign", _free_cell(&"sign"), 0)
+	if first == null:
+		_expect(false, "replacement XP: could not place")
+		return
+	var xp_built: float = _player.skills.xp_of("construction")
+	var pioneer_built: int = int(world.pioneer_xp)
+	var packed := _pack(first)
+	var kit_idx: int = bag.find_first(&"sign_kit")
+	var flags: Array = bag.slots[kit_idx].flags.duplicate() if kit_idx >= 0 else []
+	var second := _place(&"sign", _free_cell(&"sign"), 0)
+	var xp_reset: float = _player.skills.xp_of("construction")
+	var pioneer_reset: int = int(world.pioneer_xp)
+	print("[build] place/pack/place xp: build +%.0f (pioneer +%d), repack +%.0f (pioneer +%d), kit flags=%s" % [
+		xp_built - xp0, pioneer_built - pioneer0, xp_reset - xp_built, pioneer_reset - pioneer_built, flags])
+	_expect(xp_built > xp0 and pioneer_built > pioneer0, "a fresh build still pays construction and pioneer XP")
+	_expect(packed and second != null and is_equal_approx(xp_reset, xp_built) and pioneer_reset == pioneer_built,
+		"re-placing a repacked kit pays no XP (construction +%.0f, pioneer +%d)" % [xp_reset - xp_built, pioneer_reset - pioneer_built])
+	_expect(&"repacked" in flags, "a packed kit is marked repacked")
+	if second and is_instance_valid(second):
+		_grid.release(second)
+		second.free()
+	_player.inventory.consume(&"sign_kit", _player.inventory.count_of(&"sign_kit"))
+
+## Legacy tamed_animal + captured_animal in one bag: one tap bonds the legacy item AND starts the pen.
+## A running pen whose species left data keeps its occupant instead of aborting _process.
+func _test_pen_legacy_and_occupant() -> void:
+	var pen := _place(&"makeshift_taming_pen", _free_cell(&"makeshift_taming_pen"), 0)
+	if pen == null:
+		_expect(false, "pen: could not place")
+		return
+	var bonded0: int = _player.bonded.size()
+	_give(&"tamed_animal", 1)
+	_give(&"captured_animal", 1)
+	var started: bool = pen.try_insert(_player)
+	var bonded1: int = _player.bonded.size()
+	var legacy_left: int = _player.inventory.count_of(&"tamed_animal")
+	var got_occupant: bool = pen.occupant != null and str(pen.occupant.def_id) == "captured_animal"
+	print("[build] pen one tap: started=%s bonded %d->%d legacy_left=%d occupant=%s" % [started, bonded0, bonded1, legacy_left, got_occupant])
+	_expect(started and bonded1 == bonded0 + 1 and legacy_left == 0 and got_occupant, "one tap bonds the legacy animal and also takes the captured_animal")
+	# The species is no longer in data: the pen keeps the animal and does not raise.
+	pen.occupant.attributes["species"] = "dodo_gone"
+	pen.running = true
+	pen.remaining = 0.0
+	pen.force_result = 1
+	var kept: bool = pen.occupant != null
+	pen._process(1.0)
+	print("[build] pen unknown species: kept=%s occupant=%s" % [kept, pen.occupant != null])
+	_expect(kept and pen.occupant != null, "a pen whose species left data keeps its occupant instead of crashing")
+	pen.occupant = null
+	_grid.release(pen)
+	pen.free()
+	_player.inventory.consume(&"captured_animal", _player.inventory.count_of(&"captured_animal"))
 
 func _test_gate_state_and_path() -> void:
 	var path: Node = root.get_node("World").runtime.get("pathing")
