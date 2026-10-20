@@ -256,9 +256,8 @@ large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
 
 ## Integrator hooks
 
-`docs/orchestration/reports/claude-mmo-w2-buildsys-hooks.patch` holds hooks 1-3 as one patch; `git apply --check`
-passes on 8d4e2ed1, whose four hooked files are byte-identical to claude/mmo-overhaul 6e26ef2a, so it applies there
-too. The hooked tree passed the whole suite and --snap-touch (below).
+`docs/orchestration/reports/claude-mmo-w2-buildsys-hooks.patch` holds hooks 1-3 and 5 as one patch; `git apply --check`
+passes on claude/mmo-overhaul dd7ff218 (review r1 pass). The hooked tree passed the whole suite and --snap-touch (below).
 
 1. **W2-PLAYER, `game/scripts/player/player_input.gd`**: `interact_tap_target`: `elif col is StructurePiece:`
    find the `hud` group node and call `hud.open_structure(col)`; `is_interactable`: a `StructurePiece` is
