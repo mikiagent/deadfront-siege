@@ -1,0 +1,104 @@
+diff --git a/game/scripts/combat/hunt.gd b/game/scripts/combat/hunt.gd
+index 7f54da55..d2cf0228 100644
+--- a/game/scripts/combat/hunt.gd
++++ b/game/scripts/combat/hunt.gd
+@@ -226,7 +226,8 @@ func land_hit(t: Creature, w: ItemStack) -> bool:
+ 	var behind := _is_behind_of(t)
+ 	if behind:
+ 		dealt *= float(tune.get("behind_mult", 1.25))
+-	var melee_lv := player.skills.level_of("melee") if player.skills else 0
++	# Bonuses count from Lv. 1 (W2-SKILLS: trees start at 1), so a new survivor hits as before.
++	var melee_lv := maxi(0, player.skills.level_of("melee") - SkillState.MIN_LEVEL) if player.skills else 0
+ 	dealt *= 1.0 + float(tune.get("damage_per_melee_level", 0.01)) * float(melee_lv)  # ASSUMPTION +1 % per Melee level
+ 	# Data-driven combat matchup, then a crit roll (x1.75 red): 8 % base, +20 % from behind,
+ 	# +0.2 % per Melee level.
+@@ -396,7 +397,7 @@ func fire_ranged() -> bool:
+ 		# The arc flies past the weapon's straight range so a lobbed stone can land on a target at
+ 		# the edge; the multiplier is tuning, not code (combat_tuning.json ranged.arc_range_mult).
+ 		shot.range_left = def.range_m * float(CombatTuning.section("ranged").get("arc_range_mult", 1.5))
+-		shot.skill_level = player.skills.level_of("ranged") if player.skills else 0
++		shot.skill_level = maxi(0, player.skills.level_of("ranged") - SkillState.MIN_LEVEL) if player.skills else 0
+ 		runtime.add_child(shot)
+ 		shot.global_position = origin
+ 	)
+diff --git a/game/scripts/core/data.gd b/game/scripts/core/data.gd
+index aa02b967..15879636 100644
+--- a/game/scripts/core/data.gd
++++ b/game/scripts/core/data.gd
+@@ -47,9 +47,10 @@ func is_survival_unlocked(node_id: StringName) -> bool:
+ func set_survival_unlocked(node_id: StringName, on: bool) -> void:
+ 	survival_unlocked[node_id] = on
+ 
++## Spec 09: 3 bonded companions + Animal Handling I-IV (W2-SKILLS) -> 7. Caged animals are items.
+ func bonded_cap() -> int:
+-	# Roster storage is unlimited; Player.MAX_PETS_OUT governs the three active companions.
+-	return 2147483647
++	var p := PlayerRegistry.local()
++	return SkillRules.bonded_capacity(p.skills) if p != null and p.skills != null else 3
+ 
+ func has_capture_technique(tier: int) -> bool:
+ 	for id in survival_nodes:
+diff --git a/game/scripts/dev/ui_family_lab.gd b/game/scripts/dev/ui_family_lab.gd
+index 08a7438c..eb33c240 100644
+--- a/game/scripts/dev/ui_family_lab.gd
++++ b/game/scripts/dev/ui_family_lab.gd
+@@ -28,7 +28,7 @@ func _ready() -> void:
+ 		player.ui.rebuild()
+ 
+ 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
+-		var unlimited_ok := Data.bonded_cap() > 1000000
++		var unlimited_ok := Data.bonded_cap() == 3 # spec 09: 3 bonded + Animal Handling I-IV, no longer unlimited
+ 		var animal := AnimalScreen.new()
+ 		var layer := CanvasLayer.new()
+ 		add_child(layer)
+diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
+index e09baeef..a16c4d17 100644
+--- a/game/scripts/items/crafting.gd
++++ b/game/scripts/items/crafting.gd
+@@ -250,6 +250,11 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
+ 
+ ## Optional endgame gates. Existing recipes are unchanged.
+ static func progression_block(player: Player, rec: Dictionary) -> String:
++	# W2-SKILLS: a recipe a skill node gates stays shown but locked until the node is learned.
++	if player != null and player.skills != null:
++		var learn := SkillRules.recipe_block(player.skills, str(rec.get("id", "")))
++		if learn != "":
++			return learn
+ 	var survival := int(rec.get("required_survival", 0))
+ 	if survival > 0 and (player == null or player.skills == null or player.skills.level_of("survival") < survival):
+ 		return "needs Survival %d" % survival
+diff --git a/game/scripts/server/character_state.gd b/game/scripts/server/character_state.gd
+index 79c8b05c..b69eaabb 100644
+--- a/game/scripts/server/character_state.gd
++++ b/game/scripts/server/character_state.gd
+@@ -92,7 +92,7 @@ func pos() -> Vector3:
+ 	return WorldFacade.v3(d.pos)
+ 
+ func level_of(tree: String) -> int:
+-	return int((d.skills.get(tree, {}) as Dictionary).get("level", 0))
++	return int((d.skills.get(tree, {}) as Dictionary).get("level", SkillState.MIN_LEVEL))
+ 
+ ## SkillState.add_xp's rules on plain data: every gain also trains Survival.
+ # shortcut: skill points and unlocked nodes stay client-side; they move here with W3-SRVACT.
+@@ -101,7 +101,7 @@ func add_xp(tree: String, amount: float, mirrored: bool = false) -> void:
+ 		return
+ 	if not mirrored and tree != "survival":
+ 		add_xp("survival", amount, true)
+-	var t: Dictionary = d.skills.get(tree, {"level": 0, "xp": 0})
++	var t: Dictionary = d.skills.get(tree, {"level": SkillState.MIN_LEVEL, "xp": 0})
+ 	d.skills[tree] = t
+ 	if int(t.level) >= SkillState.MAX_LEVEL:
+ 		return
+diff --git a/game/scripts/server/intent_handlers.gd b/game/scripts/server/intent_handlers.gd
+index 0bbbcb56..d19f8337 100644
+--- a/game/scripts/server/intent_handlers.gd
++++ b/game/scripts/server/intent_handlers.gd
+@@ -435,7 +435,7 @@ func _attack(ch: CharacterState, a: Dictionary) -> Dictionary:
+ 	if rng.randf() >= CombatTuning.hit_chance(float(tune.get("base_accuracy", 1.0)), float(c.get("dodge", 0.0))):
+ 		return ok({"dealt": 0.0, "kind": "dodge"}) # commits: the swing spent this seq's rolls
+ 	var dealt := maxf(dmg * float(tune.get("min_damage_frac", 0.05)), dmg - float(c.get("defense", 0.0)) * float(tune.get("defense_factor", 0.5)))
+-	var melee := ch.level_of("melee")
++	var melee := maxi(0, ch.level_of("melee") - SkillState.MIN_LEVEL) # bonuses count from Lv. 1
+ 	dealt *= 1.0 + float(tune.get("damage_per_melee_level", 0.01)) * float(melee)
+ 	dealt *= CombatCounters.multiplier(def.archetype, dtype)
+ 	var kind := "hit"
