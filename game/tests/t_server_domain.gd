@@ -12,8 +12,12 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_done = true
-	var checks: RefCounted = (load("res://scripts/server/domain_checks.gd") as GDScript).new()
-	var failures: Array = checks.call("run")
+	var script := load("res://tests/srvdom_checks.gd") as GDScript
+	if script == null or not script.can_instantiate(): # a parse error must fail the run, not exit 0
+		print("[%s] FAIL tests/srvdom_checks.gd did not compile" % tag)
+		quit(1)
+		return true
+	var failures: Array = (script.new() as RefCounted).call("run")
 	if failures.is_empty():
 		print("[%s] PASS" % tag)
 		quit(0)

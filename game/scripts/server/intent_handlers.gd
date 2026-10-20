@@ -10,14 +10,29 @@ extends RefCounted
 # not_ready) are new stable strings for intents; the orchestrator adds them to the contract.
 
 const CLIENT_OPS := ["act.gather", "act.loot", "act.craft", "act.place", "act.equip", "act.eat", "act.tame", "act.capture", "act.attack", "act.deposit", "char.import", "char.get"]
-const SYSTEM_OPS := ["char.create", "char.move", "char.wallet", "char.receive"] ## the server itself, never relayed from a client
+const SYSTEM_OPS := ["char.create", "char.move", "char.wallet", "char.receive", "char.settled"] ## the server itself, never relayed from a client
 const READ_OPS := ["char.get"]
 const GATHER_REACH := Player.INTERACT_GATHER_RANGE ## 2.6 m, the client's own gather reach
 const LOOT_REACH := 2.6 ## Player corpse reach
-const REACH_SLACK := 0.5 ## ASSUMPTION: latency allowance on top of a creature's body reach
+## ASSUMPTION: latency allowance on top of a creature's body reach. Deliberately wider than the
+## client's own swing check (combat_tuning hit_reach_slack_m 0.3): the server judges a position
+## that is a presence update old.
+const REACH_SLACK := 0.5
 const RUN_SPEED := 7.0 ## ASSUMPTION: Player.run_speed (an export var, so not a constant there)
 ## Request fields that carry an asset dict. Online characters only move assets by slot or uid.
 const ASSET_DICT_KEYS := ["slot_dict", "pet_dict", "item", "pet", "stack", "asset", "save", "bag", "pets"]
+## The args each op reads. CharacterStore.apply() keeps only these (and rid) before the op runs
+## and is journaled, so junk keys can neither reach a handler nor grow the journal. act.deposit
+## keeps the asset-dict keys only to refuse them.
+const ARG_KEYS := {
+	"act.gather": ["node_id", "option"], "act.loot": ["corpse_id", "slot", "count"],
+	"act.craft": ["recipe_id", "picks"], "act.place": ["kind", "cell", "rot"],
+	"act.equip": ["bag_slot", "slot", "clear"], "act.eat": ["bag_slot"],
+	"act.tame": ["net_id", "food"], "act.capture": ["net_id"], "act.attack": ["net_id"],
+	"act.deposit": ["bag_slot", "count", "pet_uid", "slot_dict", "pet_dict", "item", "pet", "stack", "asset", "save", "bag", "pets"],
+	"char.import": [], "char.get": [], "char.create": ["name"], "char.move": ["p", "reset"],
+	"char.wallet": ["wallet"], "char.receive": ["asset"], "char.settled": ["uid"],
+}
 
 var world: WorldFacade
 var s: Dictionary         ## CharacterStore state, for the minted/consumed/exported counters
@@ -61,6 +76,7 @@ func run(op: String, ch: CharacterState, a: Dictionary) -> Dictionary:
 		"char.move": return _move(ch, a)
 		"char.wallet": return _wallet(ch, a)
 		"char.receive": return _receive(ch, a)
+		"char.settled": return _settled(a)
 	return no("bad_request", "unknown op %s" % op)
 
 # --- intents -----------------------------------------------------------------------------
@@ -184,8 +200,7 @@ func _craft(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if minimum > 0 and level < minimum:
 		return no("not_ready", "needs materials and crafting skill for level %d" % minimum)
 	var consumed := Crafting.consume_for_craft(inv, rec, picks)
-	ServerRng.seed_global(int(s.world_seed), seq)
-	var out := Crafting.build_output(rec, consumed[0], level, consumed)
+	var out := Crafting.build_output(rec, consumed[0], level, consumed, Crafting.rolls_burn(rec, ch.level_of(tree), rng))
 	var made := out.count
 	var out_id := out.def_id
 	if out.def() == null or made <= 0:
@@ -230,7 +245,10 @@ func _place(ch: CharacterState, a: Dictionary) -> Dictionary:
 
 ## act.equip {bag_slot} equips by uid; {slot, clear: true} empties a slot ("tool" for the gather tool).
 func _equip(ch: CharacterState, a: Dictionary) -> Dictionary:
-	if bool(a.get("clear", false)):
+	var clear: Variant = a.get("clear", false)
+	if not clear is bool: # bool() on a String or Dictionary is a script error, not a refusal
+		return no("bad_request", "clear must be true or false")
+	if clear:
 		var name: Variant = text(a, "slot", 16)
 		if name == null or (StringName(str(name)) not in Inventory.EQUIP_SLOTS and name != "tool"):
 			return no("bad_request", "slot must be tool or one of %s" % str(Inventory.EQUIP_SLOTS))
@@ -385,8 +403,10 @@ func _capture(ch: CharacterState, a: Dictionary) -> Dictionary:
 	count("minted", &"captured_animal", 1)
 	return ok({"captured": true, "chance": chance, "uids": uids})
 
-## act.attack {net_id}: one melee swing, Hunt._auto_attack's damage on the server RNG.
-# shortcut: melee only and never "from behind"; ranged shots and facing come with W3-SRVACT.
+## act.attack {net_id}: one melee swing, Hunt.land_hit's formula and data/combat_tuning.json
+## numbers on the server RNG. The creature's `dodge` is its effective dodge (evasion included).
+# shortcut: melee only, never "from behind", no attacker statuses (accuracy_mult) or target
+# statuses (defense_mult); ranged shots, facing and statuses come with W3-SRVACT.
 func _attack(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var net_id: Variant = text(a, "net_id")
 	if net_id == null:
@@ -407,22 +427,23 @@ func _attack(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var wd := w.def() if w else null
 	if wd and wd.range_m > 0.0:
 		return no("bad_request", "ranged attacks are not server-side yet")
-	var dmg := w.scaled_damage() if w else 8.0
+	var tune := CombatTuning.section("player_melee")
+	var dmg := w.scaled_damage() if w else float(tune.get("unarmed_damage", 8.0))
 	var dtype := wd.damage_type if wd else &"blunt"
 	if wd and wd.is_work_tool:
-		dmg *= 0.45
-	var dealt := maxf(dmg * 0.05, dmg - float(c.get("defense", 0.0)) * 0.5)
-	if rng.randf() < float(c.get("dodge", 0.0)):
+		dmg *= float(tune.get("work_tool_mult", 0.45))
+	if rng.randf() >= CombatTuning.hit_chance(float(tune.get("base_accuracy", 1.0)), float(c.get("dodge", 0.0))):
 		return ok({"dealt": 0.0, "kind": "dodge"}) # commits: the swing spent this seq's rolls
+	var dealt := maxf(dmg * float(tune.get("min_damage_frac", 0.05)), dmg - float(c.get("defense", 0.0)) * float(tune.get("defense_factor", 0.5)))
 	var melee := ch.level_of("melee")
-	dealt *= 1.0 + 0.01 * float(melee)
+	dealt *= 1.0 + float(tune.get("damage_per_melee_level", 0.01)) * float(melee)
 	dealt *= CombatCounters.multiplier(def.archetype, dtype)
 	var kind := "hit"
-	if rng.randf() < 0.08 + 0.002 * float(melee):
-		dealt *= 1.75
+	if rng.randf() < float(tune.get("crit_base", 0.08)) + float(tune.get("crit_per_melee_level", 0.002)) * float(melee):
+		dealt *= float(tune.get("crit_mult", 1.75))
 		kind = "crit"
 	_write("damage_creature", [net_id, dealt])
-	ch.add_xp("melee", 2)
+	ch.add_xp("melee", int(tune.get("xp_per_hit", 2)))
 	return ok({"dealt": dealt, "kind": kind, "hp": maxf(0.0, float(c.hp) - dealt)})
 
 ## act.deposit {bag_slot, count?} | {pet_uid}: hands a server-provenance asset to the economy
@@ -485,7 +506,9 @@ func _move(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var elapsed := mini(now - int(ch.d.pos_ts), 2) # a long silence banks at most 2 s of distance
 	var used := 0.0 if elapsed > 0 else float(ch.d.get("move_cm", 0)) / 100.0
 	var limit := 1.6 * RUN_SPEED * float(maxi(1, elapsed)) + 1.0 - used
-	var reset := bool(a.get("reset", false))
+	var reset: Variant = a.get("reset", false)
+	if not reset is bool:
+		return no("bad_request", "reset must be true or false")
 	if not reset and step > limit:
 		return no("bad_request", "moved %.1f m, more than the %.1f m left this second" % [step, maxf(0.0, limit)])
 	ch.d.pos = p
@@ -535,7 +558,27 @@ func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
 	count("exported", stack.def_id, -n)
 	return ok({"kind": "item", "item": str(stack.def_id), "count": n, "uids": uids})
 
+## char.settled {uid}: the vault bridge reports that the economy kept an exported asset for
+## good (sold, consumed). It can never come back, so its exported_assets record is dropped and
+## the registry holds only assets in flight.
+func _settled(a: Dictionary) -> Dictionary:
+	var uid: Variant = text(a, "uid")
+	if uid == null:
+		return no("bad_request", "uid is required")
+	if not s.exported_assets.has(uid):
+		return no("not_found", "%s is not an exported asset in flight" % uid)
+	s.exported_assets.erase(uid)
+	return ok({"uid": uid})
+
 # --- helpers -----------------------------------------------------------------------------
+
+## The op's args with every key it does not read dropped (see ARG_KEYS).
+static func known_args(op: String, a: Dictionary) -> Dictionary:
+	var out := {}
+	for k: String in (ARG_KEYS.get(op, []) as Array) + ["rid"]:
+		if a.has(k):
+			out[k] = a[k]
+	return out
 
 ## Hunt.melee_reach on a def: the edge of large bodies, at least 2.1 m.
 static func body_reach(def: CreatureDef) -> float:

@@ -14,7 +14,7 @@ const VERSION := 1
 const RIDS_KEPT := 64
 ## The data the handlers read. Replay re-runs them, so a snapshot records this hash and boot
 ## warns when it changed. shortcut: creature defs (tame, capture) are not hashed yet.
-const DATA_FILES := ["res://data/items.json", "res://data/recipes.json", "res://data/combat_counters.json", "res://data/world/rules.json"]
+const DATA_FILES := ["res://data/items.json", "res://data/recipes.json", "res://data/combat_counters.json", "res://data/combat_tuning.json", "res://data/world/rules.json"]
 
 var s: Dictionary
 var world: WorldFacade
@@ -63,15 +63,16 @@ func character(account: int) -> CharacterState:
 # --- the one entry point -------------------------------------------------------------------
 
 ## -> {ok, r} | {ok: false, err, msg}. The handlers see the args parsed back from the exact
-## text the journal stores, so a replay reads the same numbers the live op did.
+## text the journal stores, so a replay reads the same numbers the live op did. Keys the op
+## does not read are dropped first (IntentHandlers.ARG_KEYS).
 func apply(op: String, account: int, args: Dictionary, ts: int) -> Dictionary:
 	if broken != "":
 		return IntentHandlers.no("server_error", "character store is not writable (%s)" % broken)
 	if dir != "" and _journal == null:
 		return IntentHandlers.no("server_error", "character store is not open; call open() first")
-	var a: Variant = wire(args)
+	var a := IntentHandlers.known_args(op, wire(args))
 	var tape: Array = []
-	var res := _run(op, account, a if a is Dictionary else {}, ts, tape, false)
+	var res := _run(op, account, a, ts, tape, false)
 	if not res.has("_seq"):
 		return res
 	res.erase("_seq")

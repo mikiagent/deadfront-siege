@@ -21,6 +21,8 @@ func run(fuzz_ops: int = 10000) -> Array[String]:
 	_move_checks()
 	_receive_checks()
 	_write_checks()
+	_capture_checks()
+	_hardening_checks()
 	_fuzz_and_replay(fuzz_ops, 20261018)
 	_disk_checks()
 	return failures
@@ -293,11 +295,82 @@ func _write_checks() -> void:
 	st.handlers._write("take_node_unit", ["rock", "stone"]) # as a handler does just before failing
 	var queued_untouched := int(w.nodes.rock.options[0].left) == left
 	var refused := st.apply("act.gather", 1, {"node_id": "far"}, 2) # next op starts with an empty queue
-	var dropped := int(w.nodes.rock.options[0].left) == left and st.handlers.writes.is_empty()
+	var dropped: bool = int(w.nodes.rock.options[0].left) == left and st.handlers.writes.is_empty()
 	_ok(st.apply("act.gather", 1, {"node_id": "rock"}, 3), "committed gather")
 	var landed := int(w.nodes.rock.options[0].left) == left - 1
 	expect(queued_untouched and refused.get("err") == "out_of_range" and dropped and landed, "world writes land only on commit: queued_untouched=%s dropped=%s landed=%s" % [queued_untouched, dropped, landed])
 	print("[srvdom] world writes queued_untouched=%s uncommitted_dropped=%s committed_landed=%s" % [queued_untouched, dropped, landed])
+
+## A scripted capture: craft a tier-1 net, knock the compy under 30 %, throw until it lands.
+func _capture_checks() -> void:
+	var w := make_world()
+	var st := _store(14, w)
+	_gather_until(st, 1, "bush", 1, "fibre_stalk", 4, 2)
+	_gather_until(st, 1, "bush", 2, "branch", 1, 2)
+	for i in 2: # explicit picks: twine is itself a fibre, so default picks could eat the first twine
+		var fibre := st.character(1).inventory().find_first(&"fibre_stalk")
+		_ok(st.apply("act.craft", 1, {"recipe_id": "twine", "picks": [fibre]}, 3), "twine %d" % i)
+	_ok(st.apply("act.craft", 1, {"recipe_id": "capture_net_i"}, 4), "craft capture_net_i")
+	var h := st.state_hash()
+	var awake := st.apply("act.capture", 1, {"net_id": "compy1"}, 5)
+	expect(awake.get("err") == "not_ready" and st.state_hash() == h, "capture refuses a creature that is not knocked out (%s)" % awake.get("err", "ok"))
+	w.creatures.compy1.hp = 10.0
+	var throws := 0
+	var got := {}
+	while throws < 30:
+		w.creatures.compy1.knocked = true # a missed net wakes it; the fixture knocks it down again
+		throws += 1
+		got = _ok(st.apply("act.capture", 1, {"net_id": "compy1"}, 5 + throws), "capture throw %d" % throws)
+		if not got.get("ok", false) or bool(got.r.get("captured", false)):
+			break
+	var captured := bool(got.get("r", {}).get("captured", false))
+	var row := _row_for(st, 1, got.r.uids[0] if captured and not (got.r.uids as Array).is_empty() else "")
+	var bagged: bool = row.get("id") == "captured_animal" and row.get("origin") == "tame" and Provenance.is_server(row)
+	var spent: bool = int(_units(st, 1).get("capture_net_i", 0)) == 0 and not w.creatures.has("compy1")
+	expect(captured and bagged and spent and st.invariants().is_empty(), "a capture lands: captured=%s bagged=%s net_spent_creature_gone=%s invariants=%s" % [captured, bagged, spent, st.invariants()])
+	print("[srvdom] capture throws=%d captured=%s stack=%s origin=%s net_spent=%s awake_refused=%s" % [throws, captured, row.get("uid"), row.get("origin"), spent, awake.get("err", "ok")])
+
+## Review round 3 probes: non-bool flags are refused (not a script error), keys an op does not
+## read never reach the journal, char.settled drops an export record, and melee follows
+## data/combat_tuning.json.
+func _hardening_checks() -> void:
+	var w := make_world()
+	var st := _store(15, w)
+	var h := st.state_hash()
+	var codes: PackedStringArray = []
+	for req in [["act.equip", {"slot": "weapon", "clear": "yes"}], ["act.equip", {"slot": "weapon", "clear": {"x": 1}}], ["char.move", {"p": [0, 0, 0], "reset": "yes"}]]:
+		codes.append(str(st.apply(req[0], 1, req[1], 2).get("err", "ok")))
+	var flags_ok := codes == PackedStringArray(["bad_request", "bad_request", "bad_request"]) and st.state_hash() == h
+	expect(flags_ok, "non-bool clear/reset are bad_request with nothing changed: %s" % [codes])
+	var g := _ok(st.apply("act.gather", 1, {"node_id": "rock", "option": 0, "junk": "x".repeat(200000)}, 3), "gather with junk")
+	var junk_line := st.lines[-1].length()
+	var last: Dictionary = JSON.parse_string(st.lines[-1])
+	var trimmed: bool = g.ok and not (last.a as Dictionary).has("junk") and junk_line < 2000
+	expect(trimmed, "junk args are dropped before the journal (line %d bytes, keys %s)" % [junk_line, (last.a as Dictionary).keys()])
+	var d := _ok(st.apply("act.deposit", 1, {"bag_slot": 0, "count": 1}, 4), "deposit to settle")
+	var asset: Dictionary = d.r.get("asset", {}) if d.ok else {}
+	var uid := str(asset.get("uid", ""))
+	var was_held := (st.s.exported_assets as Dictionary).has(uid)
+	var settled := st.apply("char.settled", 1, {"uid": uid}, 5)
+	var dropped: bool = settled.get("ok", false) and not (st.s.exported_assets as Dictionary).has(uid)
+	var back := st.apply("char.receive", 1, {"asset": asset}, 6)
+	var again := st.apply("char.settled", 1, {"uid": uid}, 6)
+	expect(was_held and dropped and back.get("err") == "invalid_asset" and again.get("err") == "not_found" and st.invariants().is_empty(), "char.settled drops the record and the asset cannot come back: held=%s dropped=%s receive=%s again=%s" % [was_held, dropped, back.get("err", "ok"), again.get("err", "ok")])
+	# Melee reads combat_tuning.json: a forced dodge always misses, and a changed unarmed_damage
+	# changes the server's damage.
+	w.creatures.compy1.dodge = 0.0
+	CombatTuning.force_dodge = 1.0
+	var miss := _ok(st.apply("act.attack", 1, {"net_id": "compy1"}, 7), "attack, forced dodge")
+	CombatTuning.reset_overrides()
+	var tune := CombatTuning.section("player_melee")
+	tune["unarmed_damage"] = 20.0 # the cached section; dropped again below
+	var hit := _ok(st.apply("act.attack", 1, {"net_id": "compy1"}, 8), "attack, unarmed 20")
+	CombatTuning._data = {} # the next section() reloads the file
+	var base := maxf(20.0 * float(tune.min_damage_frac), 20.0 - 10.0 * float(tune.defense_factor)) * CombatCounters.multiplier(Data.creature(&"compsognathus").archetype, &"blunt")
+	var want := base * (float(tune.crit_mult) if hit.r.get("kind") == "crit" else 1.0)
+	var tuned: bool = miss.r.get("kind") == "dodge" and absf(float(hit.r.get("dealt", 0.0)) - want) < 0.001
+	expect(tuned, "melee follows combat_tuning.json: forced dodge -> %s, unarmed 20 dealt %.3f (want %.3f)" % [miss.r.get("kind"), float(hit.r.get("dealt", 0.0)), want])
+	print("[srvdom] hardening flags=%s junk_dropped=%s journal_line_bytes=%d settled=%s receive_after_settle=%s settle_twice=%s forced_dodge=%s unarmed20_dealt=%.2f want=%.2f" % [",".join(codes), trimmed, junk_line, dropped, back.get("err", "ok"), again.get("err", "ok"), miss.r.get("kind"), float(hit.r.get("dealt", 0.0)), want])
 
 # --- fuzz ----------------------------------------------------------------------------------
 
@@ -330,7 +403,9 @@ func _fuzz_and_replay(n: int, seed: int) -> void:
 	for acct in [1, 2, 3]:
 		for k in _units(st, acct):
 			held += int(_units(st, acct)[k])
-	for op in ["act.gather", "act.craft", "act.loot", "act.equip", "act.eat", "act.attack", "act.tame", "act.capture", "act.place", "act.deposit", "char.move"]:
+	# act.capture's success path is _capture_checks()'s job: in the fuzz it lands about once in
+	# 10,000 ops, so requiring it here would fail on any odds or tuning change.
+	for op in ["act.gather", "act.craft", "act.loot", "act.equip", "act.eat", "act.attack", "act.tame", "act.place", "act.deposit", "char.move"]:
 		expect(int(stats.get(op, [0, 0])[0]) > 0, "fuzz exercised a successful %s (stats %s)" % [op, stats.get(op)])
 	print("[srvdom] fuzz ops=%d seq=%d ms=%d held_units=%d pets_minted=%d invariants=held_after_every_op stats=%s" % [n, int(st.s.seq), ms, held, int(st.s.pets_minted), CharacterStore.canon(stats)])
 	# Replay from empty, with an empty island: the journal alone rebuilds the characters.
