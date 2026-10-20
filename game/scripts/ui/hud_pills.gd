@@ -4,13 +4,13 @@ extends RefCounted
 ## one, the tool icons they need, and drawing them onto the HUD's canvas off its taken rects. Static
 ## functions over the HUD, split out of hunt_hud.gd (review: no god-file growth).
 
+const TOOL_ICON_ITEM := {"axe": "work_axe", "pick": "work_pick", "knife": "stone_knife", "none": "hands", "": "hands"}
+
 static func gather_radial_node(hud: HuntHud) -> Node3D:
 	var gr: Variant = hud.player.get("_gather_radial")
 	if gr and gr.has_method("is_open") and gr.is_open():
 		return gr.node
 	return null
-
-const TOOL_ICON_ITEM := {"axe": "work_axe", "pick": "work_pick", "knife": "stone_knife", "none": "hands", "": "hands"}
 
 ## [[icon, have]] per distinct tool the node's yields need; corpses need a knife.
 static func tools_for_node(hud: HuntHud, n3: Node3D, grp: String) -> Array:
