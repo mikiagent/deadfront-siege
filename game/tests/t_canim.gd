@@ -12,7 +12,7 @@ const WALK_FRAC := 0.4
 ## A gait played far faster than authored is the gliding look: feet whirl while the body slides along. Species still on
 ## such clips are listed here (STATUS, DSC-CLIPS) so the list stays honest: they must still glide, everyone else must not.
 const MAX_CADENCE := 3.0
-const KNOWN_GLIDERS: Array[StringName] = [&"megaloceros"]
+const KNOWN_GLIDERS: Array[StringName] = []
 
 var failures: Array[String] = []
 var _started := false
