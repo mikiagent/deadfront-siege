@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Read-only gate for the dsc t_occlude task. It is the spec: the test must pass on the real code AND
-# fail on each of eight deliberate breakages of the occlusion system (a test that passes everything
+# fail on each of fifteen deliberate breakages of the occlusion system (a test that passes everything
 # proves nothing). Run from the worktree root: ./verify_occlude.sh
 set -u
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -23,7 +23,9 @@ if grep -nE '\b(Occlusion|OcclusionMaterial|VegBatch|IslandScatter)\.' "$T"; the
 fi
 for f in _test_between_mesh _test_override_paths _test_release_restores _test_mode_switch _test_disabled \
          _test_non_base_material _test_multimesh_single _test_multimesh_multi_surface _test_late_child \
-         _test_inside_fade _test_parity _test_shared_cache_and_leak _test_nature_sweep; do
+         _test_inside_fade _test_parity _test_shared_cache_and_leak _test_nature_sweep \
+         _test_cylinder_table _test_between_node_fade _test_whole_object_share _test_multimesh_instances \
+         _test_slots_cap _test_forget_on_free _test_release_between; do
   grep -q "^func $f(" "$T" || fail "missing case func $f"
 done
 grep -q 'nature_families' "$T" || fail "_test_nature_sweep must walk Data.nature_families"
@@ -47,7 +49,11 @@ if grep -E 'SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Cannot call' "$
   fail "clean run logged script errors"
 fi
 cases=$(grep -c '^\[t_occlude\] ok ' "$LOGD/clean.log")
-[[ "$cases" -ge 13 ]] || fail "expected one '[t_occlude] ok <case>' line per case (13+), saw $cases"
+[[ "$cases" -ge 20 ]] || fail "expected one '[t_occlude] ok <case>' line per case (20+), saw $cases"
+# The table cases must be tables, and the share case must read the shader, not trust a constant.
+rows=$(awk '/^func /{on=($0 ~ /^func _test_cylinder_table\(/)} on' "$T" | grep -c 'Vector3(' )
+[[ "$rows" -ge 10 ]] || fail "_test_cylinder_table needs a table of 10+ rows (saw ~$rows Vector3 rows)"
+grep -q 'occlusion.gdshaderinc' "$T" || fail "_test_whole_object_share must read shaders/occlusion/occlusion.gdshaderinc"
 sweep=$(grep -E '^\[t_occlude\] ok nature_sweep models=[0-9]+' "$LOGD/clean.log" | grep -oE 'models=[0-9]+' | cut -d= -f2)
 [[ -n "$sweep" && "$sweep" -ge 20 ]] || fail "nature sweep must report models=N with N >= 20 tree/rock models (saw '${sweep:-none}')"
 
@@ -74,10 +80,17 @@ mutate under_never "$OCC" 's/(static func _under\(geoms: Array, p: Vector3\) -> 
 mutate no_albedo "$MAT" 's/\tm\.set_shader_parameter\("albedo", b\.albedo_color\)\n//' "the derived material drops the albedo colour"
 mutate ignores_enabled "$OCC" 's/if not enabled or node == null/if node == null/' "--no-occlusion is ignored"
 mutate adopt_noop "$OCC" 's/(func _adopt\(child: Node, owner_node: Node\) -> void:\n)/$1\treturn\n/' "meshes added later stay solid"
-mutate twin_null "$OCC" 's/(static func _twin\(mesh: Mesh, mode: String\) -> Mesh:\n)/$1\treturn null\n/' "multi-surface MultiMeshes stay solid"
+mutate twin_null "$OCC" 's/(static func _twin\(mesh: Mesh\) -> Mesh:\n)/$1\treturn null\n/' "multi-surface MultiMeshes stay solid"
 mutate cull_wrong "$MAT" 's/const CULL := \["cull_back", "cull_front", "cull_disabled"\]/const CULL := ["cull_back", "cull_back", "cull_back"]/' "double-sided leaves become back-face culled"
-mutate fade_not_written "$OCC" 's/\t\t\t\t\(gi as GeometryInstance3D\)\.set_instance_shader_parameter\(&"occl_fade", f\)\n/\t\t\t\tpass\n/' "the roof fade never reaches the mesh"
+mutate fade_not_written "$OCC" 's/set_instance_shader_parameter\(&"occl_fade", f \* INSIDE_DROP\)/set_instance_shader_parameter(&"occl_fade", 0.0)/' "the roof fade never reaches the mesh"
+mutate drop_hole "$OCC" 's/const BETWEEN_DROP := 0\.55/const BETWEEN_DROP := 0.8/' "a faded tree keeps only 3 of 16 pixels (the hole the owner rejected)"
+mutate box_never "$OCC" 's/(static func _box_hit\(box: AABB, chest: Vector3, back: Vector3, reach: float\) -> bool:\n)/$1\treturn false\n/' "a prop node in the way never fades"
+mutate instance_never "$OCC" 's/(static func _instance_hit\(o: Obj, chest: Vector3, back: Vector3\) -> bool:\n)/$1\treturn false\n/' "a MultiMesh tree in the way never fades"
+mutate fade_instant "$OCC" 's/o\.fade = move_toward\(o\.fade, 1\.0 if hits\.has\(o\) else 0\.0, delta \/ FADE_S\)/o.fade = 1.0 if hits.has(o) else 0.0/' "the between fade pops instead of easing over FADE_S"
+mutate param_uncapped "$OCC" 's/\(&"occl_fade", o\.fade \* BETWEEN_DROP\)/(&"occl_fade", o.fade)/' "a faded prop node drops all its pixels"
+mutate no_forget "$OCC" 's/(func _forget\(id: int\) -> void:\n)/$1\treturn\n/' "freed or released props stay in the sight grid"
+mutate slots_uncapped "$OCC" 's/var used := mini\(slotted\.size\(\), SLOTS\)/var used := slotted.size()/' "more than SLOTS MultiMesh instances overflow the shader slots"
 restore
 trap - EXIT INT TERM
 git diff --quiet "$BASE" -- "$OCC" "$MAT" || fail "occlusion sources differ from base after restore"
-echo "VERIFY PASS (cases=$cases, nature models=$sweep, 8/8 mutations caught)"
+echo "VERIFY PASS (cases=$cases, nature models=$sweep, 15/15 mutations caught)"
