@@ -41,7 +41,7 @@ def tent():
     ang = math.degrees(math.atan2(top, hw))
     slope = math.hypot(top, hw) + 0.08
     for sx in (-1, 1):
-        p.box((slope, 2 * hl + 0.16, 0.035), (sx * hw / 2, 0, top / 2), "canvas", rot=(0, sx * ang, 0), tile_m=1.3)
+        p.box((slope, 2 * hl + 0.16, 0.035), (sx * hw / 2, 0, top / 2), "canvas_slope", rot=(0, sx * ang, 0), tile_m=1.3)
         # hide patches stitched on the canvas
         p.box((0.36, 0.42, 0.02), (sx * hw * 0.55, sx * 0.35, top * 0.45 + 0.02), "hide", rot=(0, sx * ang, 0))
     # back wall
@@ -474,10 +474,12 @@ DECK_TILES = ("weathered", "wood", "weathered", "wood_dark", "wood")
 
 
 def pier():
-    """Plank dock on log piles, 3 x 8 m, deck 1.2 m above the pile feet, mooring posts and a
-    coil of rope at the seaward end (+Y in Blender = -Z in Godot)."""
+    """The harbour dock: plank deck on log piles, 3 x 6 m to fit HarbourSite's 3x6 footprint (the
+    landward end stops where travel lands the survivor), deck 1.2 m above the pile feet, a canvas
+    shed with cargo at the landward end, mooring posts and rope at the seaward end (+Y in Blender =
+    -Z in Godot)."""
     p = Part("pier")
-    hw, hl, deck = 1.38, 3.9, 1.2
+    hw, hl, deck = 1.38, 3.0, 1.2
     ys = [-hl + 0.15 + i * (2 * hl - 0.3) / 4 for i in range(5)]
     for y in ys:
         for sx in (-1, 1):
@@ -485,7 +487,7 @@ def pier():
         p.plank((-hw, y, deck - 0.2), (hw, y, deck - 0.2), 0.14, 0.12, "wood_dark")
     for x in (-hw + 0.25, 0.0, hw - 0.25):
         p.plank((x, -hl, deck - 0.1), (x, hl, deck - 0.1), 0.14, 0.1, "wood_dark")
-    n = 26
+    n = 20
     step = 2 * hl / n
     for i in range(n):
         y = -hl + (i + 0.5) * step
@@ -502,6 +504,16 @@ def pier():
         p.cyl(0.115, 0.08, (sx * (hw - 0.1), hl - 0.15, deck + 0.3), "rope", seg=7)
     p.cyl(0.22, 0.1, (0.6, hl - 0.6, deck + 0.05), "rope", seg=10, cap_tile="rope")
     p.box((0.5, 0.5, 0.45), (-0.7, hl - 0.8, deck + 0.225), "plank", tile_m=0.6)
+    # landward shed: four posts, a canvas roof pitched towards the sea, cargo in its shade
+    y0, y1, h = -hl + 0.2, -hl + 1.7, 2.0
+    for y in (y0, y1):
+        for sx in (-1, 1):
+            p.log((sx * (hw - 0.18), y, deck - 0.02), (sx * (hw - 0.18), y, deck + h - (y - y0) * 0.2), 0.06, tile="wood_dark")
+    p.box((2 * hw - 0.1, y1 - y0 + 0.5, 0.04), (0, (y0 + y1) / 2, deck + h - 0.15), "canvas", rot=(-math.degrees(math.atan(0.2)), 0, 0), tile_m=1.3)
+    p.box((0.62, 0.62, 0.55), (0.62, y0 + 0.6, deck + 0.275), "plank", tile_m=0.6)
+    p.box((0.45, 0.45, 0.4), (0.6, y0 + 0.62, deck + 0.75), "plank", rot=(0, 0, 20), tile_m=0.6)
+    p.cyl(0.26, 0.6, (-0.6, y0 + 0.75, deck + 0.3), "wood_dark", seg=10, r2=0.24, cap_tile="log_end")
+    p.cyl(0.27, 0.05, (-0.6, y0 + 0.75, deck + 0.42), "iron", seg=10)
     return [(p, (0, 0, 0))]
 
 

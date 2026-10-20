@@ -48,7 +48,7 @@ def _node_matrix(node):
 
 
 def summary(path):
-    """{'tris', 'materials', 'images', 'image_uris', 'aabb_min', 'aabb_max', 'nodes'} in glTF axes (Y up)."""
+    """{'tris', 'materials', 'material_names', 'images', 'image_uris', 'aabb_min', 'aabb_max', 'nodes'} in glTF axes (Y up)."""
     doc, _ = read_glb(path)
     acc = doc.get("accessors", [])
     meshes = doc.get("meshes", [])
@@ -86,6 +86,7 @@ def summary(path):
     return {
         "tris": tris,
         "materials": len(doc.get("materials", [])),
+        "material_names": [m.get("name", "") for m in doc.get("materials", [])],
         "images": len(doc.get("images", [])),
         "image_uris": [im.get("uri", "<embedded>") for im in doc.get("images", [])],
         "aabb_min": lo,

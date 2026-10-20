@@ -4,9 +4,11 @@ python3 tools/blender/structures/check_manifest.py           -> prints PASS or F
 python3 tools/blender/structures/check_manifest.py --write   -> (re)writes glb/aabb_m/stages rows first
 
 Rules: every building kind resolves to an existing GLB (a Blender `glb`, else the Kenney `model`
-fallback, which is flagged art_status REPLACE). Blender GLBs: <= 4000 triangles, one material,
-one atlas image, origin at the ground centre, horizontal size inside the footprint +5 %, and the
-measured AABB within 5 % of the manifest's aabb_m.
+fallback, which is flagged art_status REPLACE). Blender GLBs: <= 4000 triangles, one material named
+structures_atlas and no embedded image (Godot maps that name to the shared atlas .tres), origin at the
+ground centre, horizontal size inside the footprint +5 %, and the measured AABB within 5 % of the
+manifest's aabb_m. A row whose glb lives outside assets/props/blender belongs to another package:
+--write leaves it alone and the check only asks that the file exists.
 """
 import hashlib
 import json
@@ -21,6 +23,8 @@ import glb_info  # noqa: E402
 GAME = os.path.abspath(os.path.join(HERE, "..", "..", "..", "game"))
 MANIFEST = os.path.join(GAME, "data", "props_manifest.json")
 RES = "res://assets/props/blender/%s.glb"
+OWN_PREFIX = "res://assets/props/blender/"
+MAT_NAME = "structures_atlas"  # lib.MAT_NAME; the .import files remap it to structures_atlas.tres
 MAX_TRIS = 4000
 TOL = 0.05
 ORIGIN_TOL_M = 0.15  # origin must sit at the ground centre: a fixed limit, not one that grows with the footprint
@@ -31,9 +35,10 @@ KIND_GLB = {
     "sign": "sign", "fence": "fence", "fence_gate": "gate", "campfire": "campfire",
     "bonfire": "bonfire", "stone_fire_pit": "stone_fire_pit", "drying_rack": "drying_rack",
     "smoker": "smoker", "crock_pot": "crock_pot", "steamer": "steamer", "mortar": "mortar",
-    "well": "well", "catapult": "catapult", "pier": "pier", "floor": "floor", "wall": "wall",
+    "well": "well", "catapult": "catapult", "floor": "floor", "wall": "wall",
     "wall_doorway": "wall_doorway", "roof": "roof",
     "taming_pen": "fence",  # the pen ring is built from fence segments; same style as fence/gate
+    "harbour": "pier",  # harbour.gd reads buildings.harbour.glb; the pier fits HarbourSite's 3x6 footprint
 }
 # Owner rule (2026-10-19): low-quality and low-poly assets are marked for replacement. The
 # building-system pieces are bare 1 m stand-ins for W2-BUILDSYS, so they are REPLACE outright; the
@@ -52,7 +57,7 @@ NODES = {
 # _ring_layout puts fence/gate segments at +-1.92 m, so aabb_m is the ring's extent, not the segment's.
 ASSEMBLY_AABB = {"taming_pen": [4.05, 1.84, 4.12]}
 NEW_ROWS = {
-    "pier": {"footprint": [3, 8], "note": "harbour pier/dock; deck 1.2 m above the pile feet, seaward end towards -Z. # ASSUMPTION: W2-TERRAIN sinks the piles into the water and snaps it to the coast"},
+    "harbour": {"footprint": [3, 6]},
 }
 
 
@@ -67,6 +72,8 @@ NOTES = {
     "canvas_tent": "twelve completed sleeps, eight seconds each",
     "smoker": "smoking station; no fuel/weather system yet",
     "catapult": "Manual destructible siege platform",
+    "harbour": "harbour dock: plank pier on log piles with a canvas shed, 3x6 like HarbourSite.FOOTPRINT; "
+               "deck 1.2 m above the pile feet, seaward end towards -Z. HarbourSite keeps it on the coast",
 }
 STALE_NOTE = ("kenney", "placeholder", "until a dedicated")
 
@@ -87,8 +94,11 @@ def write(manifest):
     for kind, row in b.items():
         name = KIND_GLB.get(kind)
         if name is None:
+            glb = str(row.get("glb", ""))
+            if glb and not glb.startswith(OWN_PREFIX):
+                continue  # another package's model: never strip it
+            row.pop("glb", None)  # only a stale row of this set's own GLBs is dropped
             row["art_status"] = "REPLACE"
-            row.pop("glb", None)
             continue
         s = glb_info.summary(res_to_path(RES % name))
         row["glb"] = RES % name
@@ -123,8 +133,8 @@ def check_glb(kind, path, fp, aabb_m, errors):
     name = os.path.basename(path)
     if s["tris"] > MAX_TRIS:
         errors.append("%s: %s has %d tris > %d" % (kind, name, s["tris"], MAX_TRIS))
-    if s["materials"] != 1 or s["images"] != 1:
-        errors.append("%s: %s has %d materials / %d images (want 1/1)" % (kind, name, s["materials"], s["images"]))
+    if s["material_names"] != [MAT_NAME] or s["images"] != 0:
+        errors.append("%s: %s has materials %s / %d images (want [%s] / 0)" % (kind, name, s["material_names"], s["images"], MAT_NAME))
     if not (-0.06 <= lo[1] <= 0.03):
         errors.append("%s: %s base at y=%.3f, not on the ground" % (kind, name, lo[1]))
     for k, dim in ((0, fp[0]), (2, fp[1])):
@@ -151,7 +161,11 @@ def main():
     replace = []
     for kind, row in manifest["buildings"].items():
         fp = row.get("footprint", [1, 1])
-        if row.get("glb"):
+        if row.get("glb") and not row["glb"].startswith(OWN_PREFIX):
+            if not os.path.exists(res_to_path(row["glb"])):
+                errors.append("%s: %s missing" % (kind, row["glb"]))
+            print("[check_manifest] %-16s %s (not this set's; existence only)" % (kind, row["glb"]))
+        elif row.get("glb"):
             aabb = row.get("aabb_m")
             if kind in ASSEMBLY_AABB:
                 if aabb != ASSEMBLY_AABB[kind] or min(aabb[0], aabb[2]) < 0.9 * min(fp):

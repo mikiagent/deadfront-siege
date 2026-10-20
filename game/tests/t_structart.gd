@@ -1,14 +1,14 @@
 extends SceneTree
 ## Structure-set checks: every building kind resolves to a GLB; Blender GLBs import with the one
 ## shared atlas material, stay under 4k triangles, match the manifest AABB within 5 %, carry the
-## named pivot nodes, and the four drying-rack stages are distinct models.
+## named pivot nodes, the four drying-rack stages are distinct models, and the harbour shows the pier.
 ## Run: Godot --headless --path game --script res://tests/t_structart.gd
 
 const ATLAS_MAT := "res://assets/props/blender/structures_atlas.tres"
 const ATLAS_PNG := "res://assets/props/blender/structures_atlas.png"
 const GRID := 8
 ## Atlas tile order (lib.TILES); only the tiles the stage check reads.
-const TILE_INDEX := {"wood": 0, "bark": 3, "canvas": 8, "meat_raw": 24, "meat_drying": 25, "meat_dried": 26}
+const TILE_INDEX := {"wood": 0, "bark": 3, "canvas": 8, "meat_raw": 24, "meat_drying": 25, "meat_dried": 26, "canvas_slope": 33}
 const LIGHTING_JSON := "res://data/world/lighting.json"
 ## Area-weighted mean of N.sun over the canvas the iso camera sees on the tent at rot 0.
 const TENT_MIN_SUNLIT := 0.35
@@ -39,6 +39,7 @@ func _process(_delta: float) -> bool:
 	_check_stages(buildings)
 	_check_tent_faces_sun(buildings)
 	_check_pivots(buildings)
+	_check_harbour(buildings)
 	_check_atlas()
 	_check_replacement_marks(buildings)
 	# a GDScript runtime error returns the default (false) and carries on, so an aborted check must fail
@@ -169,7 +170,8 @@ func _check_tent_faces_sun(buildings: Dictionary) -> void:
 				var b := idx[t + 1]
 				var c := idx[t + 2]
 				var cuv := (uv[a] + uv[b] + uv[c]) / 3.0
-				if int(cuv.y * GRID) * GRID + int(cuv.x * GRID) != int(TILE_INDEX["canvas"]):
+				var tile := int(cuv.y * GRID) * GRID + int(cuv.x * GRID)
+				if tile != int(TILE_INDEX["canvas"]) and tile != int(TILE_INDEX["canvas_slope"]):
 					continue
 				var n := (xf.basis * (nrm[a] + nrm[b] + nrm[c])).normalized()
 				var facing := n.dot(to_cam)
@@ -204,6 +206,31 @@ func _check_pivots(buildings: Dictionary) -> void:
 		elif n.position.length() < 0.3:
 			failures.append("%s/%s origin %s is not on its hinge/axle" % [pair[0], pair[1], n.position])
 		root.free()
+
+## world-harbour-07: harbour.gd shows buildings.harbour.glb in place of its Kenney composite. The row's
+## footprint must be HarbourSite's (the layout ghost reads it) and the pier must fit it: its landward
+## end stops at the base row, where travel lands the survivor.
+func _check_harbour(buildings: Dictionary) -> void:
+	var row: Dictionary = buildings.get("harbour", {})
+	var glb := str(row.get("glb", ""))
+	if glb == "":
+		failures.append("harbour has no glb row, so the dock stays the Kenney composite")
+		return
+	var fp: Vector2i = (load("res://scripts/world/harbour_site.gd") as GDScript).get_script_constant_map()["FOOTPRINT"]
+	var row_fp: Array = row.get("footprint", [])
+	if row_fp.size() != 2 or Vector2i(int(row_fp[0]), int(row_fp[1])) != fp:
+		failures.append("harbour footprint %s is not HarbourSite.FOOTPRINT %s" % [row.get("footprint"), fp])
+	var h: Node3D = (load("res://scripts/world/harbour.gd") as GDScript).new()
+	get_root().add_child(h)
+	var vis := h.get_node_or_null("Visual") as Node3D
+	if vis == null or vis.scene_file_path != glb:
+		failures.append("harbour Visual is %s, not %s" % [vis.scene_file_path if vis else "<none>", glb])
+	else:
+		var box := _aabb(vis, Transform3D.IDENTITY)  # harbour space
+		if box.size.x > fp.x * (1.0 + TOL) or box.position.z < -fp.y * 0.5 * (1.0 + TOL) or box.end.z > fp.y * 0.5 * (1.0 + TOL):
+			failures.append("harbour pier %s overruns its %s footprint" % [box, fp])
+		print("[t_structart] harbour shows %s: x %.2f m, z %.2f..%.2f m, deck at y %.2f (footprint %s)" % [glb.get_file(), box.size.x, box.position.z, box.end.z, vis.position.y + 1.2, fp])
+	h.free()
 
 func _check_atlas() -> void:
 	# Without mipmaps the grain aliases and shimmers at iso distance (the pier deck went moire).

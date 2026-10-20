@@ -9,7 +9,7 @@ const ROWS: Array = [
 	[&"tent", &"well", &"smoker", &"crock_pot", &"stone_fire_pit", &"catapult"],
 	[&"workbench", &"basket", &"mortar", &"steamer", &"campfire", &"bonfire", &"sign"],
 	[&"drying_rack:empty", &"drying_rack:raw", &"drying_rack:drying", &"drying_rack:dried"],
-	[&"fence", &"fence_gate", &"floor", &"wall", &"wall_doorway", &"roof", &"pier"],
+	[&"fence", &"fence_gate", &"floor", &"wall", &"wall_doorway", &"roof", &"harbour"],
 ]
 const ROW_Z: Array[float] = [-7.5, -3.0, 0.8, 5.0]
 const GAP := 0.9

@@ -1,7 +1,8 @@
 """Shared kit for the DEADFRONT structure set: one painted 1024 atlas, bmesh primitives that
 UV themselves into atlas tiles, and a GLB exporter. Every structure script imports this.
 
-Runs inside Blender (live via MCP, or headless: Blender -b -P build.py -- <names>).
+Runs only in a headless Blender (Blender -b --factory-startup -P build.py -- <names>); a live
+session is used just to import the finished GLBs and look at them (see new_scene).
 Blender is Z up, metres; glTF export turns it into Y up. Models are built with their base at
 z = 0 and centred on x = y = 0 so the GLB origin is the ground centre.
 """
@@ -32,7 +33,7 @@ TILES = [
     "canvas", "hide", "rope", "thatch", "weave", "steamer_weave", "leather_dark", "fiber",
     "stone", "stone_dark", "cobble", "clay", "clay_dark", "iron", "ash", "ember",
     "meat_raw", "meat_drying", "meat_dried", "water", "soot", "sign_board", "dirt", "bone",
-    "meat_fat",
+    "meat_fat", "canvas_slope",
 ]
 TILE_INDEX = {n: i for i, n in enumerate(TILES)}
 
@@ -175,6 +176,14 @@ def _stripes(seed, base, dark, freq=10, angle=0.0, sharp=2.0, noise=0.3):
     return _mix(_rgb(base), _rgb(dark), t)
 
 
+def _seams(img, count=3):
+    """Darken thin bands across V: stitched canvas panels."""
+    for i in range(count):
+        y0 = i * TILE_PX // count
+        img[y0:y0 + 2] *= 0.72
+    return img
+
+
 def _meat(seed, base, dark, fat, fat_amt, veins=0.0):
     """Muscle fibre streaks along U with fat patches; `veins` adds thin wavy fat marbling lines."""
     img = _stripes(seed, base, dark, freq=18, angle=0.0, sharp=1.5, noise=0.5)
@@ -269,6 +278,11 @@ def paint_atlas():
         # slope near neutral-warm, and the sunlit slope no longer blows out in gl_compatibility.
         "canvas": _mix(_weave(9, (0.7, 0.47, 0.27), (0.56, 0.36, 0.2), cell=3),
                        _rgb((0.5, 0.32, 0.18)), np.clip(_fbm(_rng(10), TILE_PX, 3, 3) - 0.45, 0, 1)),
+        # canvas_slope: the tent's two long slopes. Each one faces away from the sun at rot 1 or rot 3
+        # and then gets only the dim blue sky ambient, so it is lighter and warmer than the gables'
+        # canvas, with stitched panel seams so a shaded slope reads as cloth, not a flat slab.
+        "canvas_slope": _seams(_mix(_weave(34, (0.9, 0.62, 0.34), (0.76, 0.5, 0.27), cell=3),
+                                    _rgb((0.7, 0.45, 0.24)), np.clip(_fbm(_rng(35), TILE_PX, 3, 3) - 0.45, 0, 1))),
         "hide": _speckle(11, (0.62, 0.45, 0.31), (0.45, 0.31, 0.2), light=(0.72, 0.56, 0.4), scale=5),
         "rope": _stripes(12, (0.74, 0.62, 0.42), (0.45, 0.36, 0.22), freq=12, angle=0.7, sharp=2, noise=0.2),
         "thatch": _stripes(13, (0.66, 0.55, 0.33), (0.42, 0.32, 0.17), freq=30, angle=0.03, sharp=3, noise=0.6),
@@ -535,7 +549,8 @@ def export(scn, objs, name):
         ob.select_set(ob in objs)
     bpy.ops.export_scene.gltf(
         filepath=path, export_format="GLB", use_selection=True, export_yup=True,
-        export_apply=True, export_image_format="JPEG", export_jpeg_quality=88,
+        # no embedded image: every .import discards it and remaps the material to the shared atlas .tres
+        export_apply=True, export_image_format="NONE",
         export_animations=False, export_cameras=False, export_lights=False,
         export_extras=False)
     print("[structart] wrote %s tris=%d" % (path, tri_count(objs)))
