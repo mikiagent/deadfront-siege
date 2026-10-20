@@ -553,9 +553,11 @@ func _clear_orphan_locks() -> void:
 			slots[i] = null
 
 ## A non-stacking unit without an identity gets a local one (prompt 05: every instance has an id).
+## Only the uid: a wall-clock created_at would make the server's journal replay non-deterministic
+## (CharacterState.commit replaces the uid with the server's own).
 func _mint(s: ItemStack) -> void:
 	if s.uid == "" and not s.is_fungible():
-		s.stamp_identity(s.origin, s.creator)
+		s.uid = "l" + Crypto.new().generate_random_bytes(8).hex_encode()
 
 func _place_span(s: ItemStack, start: int) -> void:
 	slots[start] = s

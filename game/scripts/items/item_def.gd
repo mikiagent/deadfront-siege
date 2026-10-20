@@ -10,6 +10,8 @@ const STACKING_CATEGORIES: Array[StringName] = [&"ammunition", &"siege_ammunitio
 @export var display_name: String = ""
 @export var categories: Array[StringName] = []
 @export var stack_max: int = 1
+## Units a saved row from before the no-stacking rule may hold (the save sanitizer's ceiling).
+@export var legacy_stack_max: int = 1
 @export var tool_class: StringName = &"none"
 @export var base_level: int = 1
 @export var attack_rate: float = 0.0
@@ -49,6 +51,9 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	for cat in STACKING_CATEGORIES:
 		stacks = stacks or def.has_category(cat)
 	def.stack_max = maxi(1, int(d.get("stack_max", 1))) if stacks else 1
+	# The 2026-09-20 rule: what one pre-W2-INV saved row may hold. Inventory.load_array splits it.
+	var span := int(d.get("slot_span", 1))
+	def.legacy_stack_max = int(d.get("stack_max", 1)) if (span > 1 or int(d.get("max_durability", 0)) > 0) else maxi(999, def.stack_max)
 	def.tool_class = StringName(str(d.get("tool_class", "none")))
 	def.base_level = int(d.get("base_level", 1))
 	def.attack_rate = float(d.get("attack_rate", 0.0))
