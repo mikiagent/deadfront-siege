@@ -687,15 +687,10 @@
         "stone": [
           2,
           4
-        ],
-        "ore": [
-          0,
-          1
         ]
       },
       "tool_class": "pick",
-      "collision": "box",
-      "min_pick_tier": {"ore": "stone"}
+      "collision": "box"
     },
     "Rock_Moss": {
       "models": [
@@ -1432,6 +1427,10 @@
         "stone": [
           2,
           3
+        ],
+        "ore": [
+          0,
+          1
         ]
       },
       "tool_class": "pick",
@@ -1440,7 +1439,8 @@
       "height": [
         0.9,
         1.4
-      ]
+      ],
+      "min_pick_tier": {"ore": "stone"}
     },
     "FlaxPlant": {
       "models": [
