@@ -10,6 +10,7 @@ const SURVIVOR_ANIM_DIR := "res://assets/characters/survivor/anim"
 const STRIDE_WALK := 0.75
 const STRIDE_RUN := 1.0
 ## The ear sits where a head would be, not at the iso camera 40 m away (audio-spatial-12).
+# ASSUMPTION: 1.65 m above the feet (head height of the 1.72 m model before its 1.18 lift).
 const EAR_ABOVE_FEET := 1.65
 
 var p: Player

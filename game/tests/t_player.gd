@@ -224,6 +224,14 @@ func _test_f_skips_pets() -> void:
 	attack.pressed = true
 	player.controls.handle_unhandled(attack)
 	_expect(player.hunt.target == null, "F with only a pet nearby starts no hunt")
+	# Online (W3 stub): the verb becomes an act.attack intent and nothing changes locally.
+	var wild = _creature(&"velociraptor", Vector3(-1.5, 0, 0))
+	player.actions.online = true
+	player.controls.handle_unhandled(attack)
+	player.actions.online = false
+	var last: Dictionary = player.actions.sent.back() if not player.actions.sent.is_empty() else {}
+	_expect(str(last.get("op", "")) == "act.attack" and int(last["a"]["net_id"]) == wild.get_instance_id() and player.hunt.target == null,
+		"online F sends act.attack and applies nothing locally (%s)" % [last])
 	await _clear_creatures()
 
 func _out_for(rec):

@@ -142,7 +142,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	controls.handle_unhandled(event)
 
 ## Capsule half height: the body's origin is the capsule centre, her feet are this far below it.
-## The capsule is 2.0 m to hold the 1.72 m model with its 1.18 legibility lift (pc-misc-01).
+# ASSUMPTION: a 2.0 m capsule holds the 1.72 m model with its 1.18 legibility lift (pc-misc-01).
 func half_height() -> float:
 	var shape := get_node_or_null("Shape") as CollisionShape3D
 	var cap := shape.shape as CapsuleShape3D if shape else null

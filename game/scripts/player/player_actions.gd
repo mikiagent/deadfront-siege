@@ -10,7 +10,8 @@ extends RefCounted
 
 const GATHER_FATIGUE_PER_UNIT := 1.5 / 4.0 # ASSUMPTION: per-unit fatigue is one quarter of legacy per-gather cost.
 const CORPSE_TAKE_SECONDS := 1.6
-## F with no target: hunt the nearest wild animal within this range (Hunt's own 28 m leash).
+## F with no target: hunt the nearest wild animal within this range.
+# ASSUMPTION: Hunt's own 28 m leash (F used to pick the nearest creature at any range, pets included).
 const ATTACK_SEEK_RANGE := 28.0
 
 var p: Player
