@@ -1,19 +1,51 @@
 # W2-BUILDSYS: ARK-style modular building with structure HP, tiers and repair
 
-Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last at 44730650, base tip 4cbc1178,
-which brought DSC-CLIPS).
-Closes build-struct-01, build-def-01, build-tier-01, build-place-02, phys-wall-01, dino-ai-17 (with the W2-ECO
-hook below). Not closed: build-storage-01 (chests/large box) and build-sign-01 (sign text), see Limits.
+Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last at 131f3210, base tip 1c89134a,
+which brings W2-OCCLUDE, W1-UIICONS and DSC-CAMP). Never reviewed before this pass.
+Closes build-struct-01, build-def-01, build-tier-01, build-place-02, phys-wall-01, build-storage-01 (chest and
+large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
 
-The owner's 2026-10-20 see-through correction ("partially see through, not a clear hole") applies here
-through W2-OCCLUDE: walls use its whole-object "between" fade (about half the pixels stay), roofs and
-ceilings its "inside" fade (a faint outline stays). I bound to it in a scratch merge and looked at the pixels.
+## Finishing pass (this session)
+
+- Merged the base twice (W2-PLAYER split, W1-UI HUD split, W2-OCCLUDE, W1-UIICONS). One merge fix in an owned
+  file: `build_grid.gd` called `_cells_changed` (base name) where this branch has `cells_changed`; game.gd
+  failed to parse until fixed.
+- **Chests, large box, signboard**: three new pieces in structures.json (`slot: "on_floor"`, one per floor
+  module, all four tiers). Chest 20 slots, large box 40 (`storage_slots`), signboard text up to 48 characters
+  (`text_max`) drawn on the board. Contents and text ride in the piece row (`contents`, `text`,
+  `container_id` = piece id) and are type-checked on load. A demolished chest's contents go to the demolisher's
+  bag, then camp cargo; a collapsed or destroyed one goes to camp cargo (logged when there is none). Kits and
+  furniture never share a floor module (both directions refused with `overlap`). The piece was first called
+  `sign`, which is also the sign kit's kind: BuildPlacer took the kit for a piece (t_build caught it), so it is
+  `signboard` and t_buildsys now fails on any piece/kit name clash.
+- **Whole building**: `StructurePlacer.building_of/upgrade_all/repair_all` (+ BuildPlacer wrappers): a wall's
+  card offers "Building to Stone (45) stone ×344 · plank ×88" and "Repair building", all or nothing.
+- **Touch** (`structure_sheet.gd`, new): the HUD's Build sheet gets a tier row (Thatch/Wood/Stone/Metal, a locked
+  tier shows its Construction level) and one two-line button per piece ("Wall / plank ×4 · twine ×2"). A tapped
+  piece opens its card: Open/Close door, Open chest (n / 20 slots), signboard text field + Save text, Upgrade to
+  <next tier> with cost, Repair with cost (when damaged), Demolish, and the whole-building rows. Floors, stairs
+  and ramps are not tap targets (a tap there stays a move); only a direct ray hit opens a card, never the 1 m
+  pick bubble (indoors every spot is within 1 m of a wall).
+- **Placer for touch**: a piece ghost no longer follows the pointer (on a phone the pointer is wherever the
+  last finger was, e.g. the PLACE hex, so the ghost jumped under the button). It starts one module in front of
+  the survivor and moves only by taps on the world (`tap_ground` aims, then it snaps to the nearest free
+  socket). The ghost's cost label scales with the orthographic camera to ~20 px on any screen (it was ~7 px on
+  a 390 px tall phone) and sits 2 m up for pieces.
+- **snap_build_lab --snap-touch** (`snap_touch.gd`, new): the whole loop by screen touches only
+  (InputEventScreenTouch press/release at the controls' and world points): BUILD hex, tier, piece, tap ground,
+  ROTATE, PLACE, CANCEL, tap a wall, Upgrade, Repair, chest Open, signboard text, Demolish, the house door's
+  whole-building row. Headless it sizes the window to 844x390 (headless defaults to 64x64). It needs hooks 1-2
+  and fails with `the HUD has the W2-BUILDSYS hook (open_structure)` without them.
+- The lab house now also holds a chest and a signboard; its save/load check covers their contents and text.
+- props_manifest.json: the four 1 m building stand-in rows' `upgrade` now points at structures.json (art_status
+  stays REPLACE, t_structart requires it).
 
 ## What shipped
 
 - `game/data/structures.json`: one lattice (2 m modules, 2.5 m storeys), four tiers (thatch/wood/stone/metal:
-  rank, tint, creature damage multiplier 1.0/0.8/0.35/0.15, Construction level 0/5/20/35), eleven pieces
-  (foundation, wall, doorway, door, window, ceiling, roof, roof ridge, pillar, stairs, ramp) with slot,
+  rank, tint, creature damage multiplier 1.0/0.8/0.35/0.15, Construction level 0/5/20/35), eleven building pieces
+  (foundation, wall, doorway, door, window, ceiling, roof, roof ridge, pillar, stairs, ramp; plus chest, large
+  box and signboard from the finishing pass, 56 blueprints in all) with slot,
   footprint, levels, support rule, what they block, occlusion mode and XP; `piece_tiers`: 44 blueprints in the
   spec-10 section-11 shape (material_slots with role/item/quantity/counts_for_level/counts_for_attributes,
   minimum/maximum_level, required_skill_node, required_building_ability, supported_building_effects,
@@ -70,57 +102,59 @@ ceilings its "inside" fade (a faint outline stays). I bound to it in a scratch m
   has nothing to rewrite; the step marks the version so a schema-3 build refuses a schema-4 file).
 - `snap_build_lab` (+ scene) and `game/tests/t_buildsys.gd` (dsc2, below).
 
-## Acceptance (run here, lines seen)
+## Acceptance (run this session on 131f3210 + 23d4a548, lines seen)
 
-- **t_buildsys PASS**: `[t_buildsys] PASS` with `ok data_rows`, `ok costs`, `ok reasons cases=14`, `ok snap`,
-  `ok collapse`, `ok damage_tiers`, `ok kits_and_camp`, `ok repair_upgrade`, `ok paths`, `ok rows_round_trip`,
-  `ok bad_rows cases=9`, `ok migrations` (final run on 4b2da0ef; ASSUMPTION comments added after).
-- **snap_build_lab** headless: `[snap] PASS`, 36 ok lines, among them `house: 52 pieces and its ramp placed
-  through socket snapping (got 53)`, `every piece within 1 cm of its socket (worst 0.0000 m)` (sockets worked
-  out in the lab from the lattice alone, the placer aimed 0.3-0.4 m off each), `stairs keep their stairwell
-  clear`, `no ceiling over the stairs`, `the pillar still holds the ceiling`, `removing the last support
-  collapses the ceiling and the wall on it (fell 2)`, `creatures collide with walls (layer 17, mask 1)`, `the
-  owner walks through its own wall`, `raptor bite on the wood wall through StructureHealth: 69.0 (want 69.0)`,
-  `repair took exactly 1 plank / 1 twine`, `the upgrade swaps in place (same node, same socket)`, `stone
-  durability 3000`, `a creature cannot path into the closed house`, `the owner's path goes through its own
-  door`, `an open door lets a creature path in`, `a creature locked out gets the blocking piece as its siege
-  target (door_5_8_0_5)`, `schema 4 save holds 57 piece rows`, `load restores every piece: 57/57, 0 differ`,
-  `the basket on the foundation comes back`, `a schema-3 save migrates to 4`, `the schema-3 save loads with its
-  kits and no pieces`.
-- **build_lab** `[build] PASS`; **siege probe** exit 0, `destroyed-after=12s occupancy-cleared=true` (the
-  catapult takes the raptor's bites through StructureHealth); **island_lab** exit 0,
-  `island temperate_25 nodes=378 creatures=24` (unchanged from the merge log); 0 SCRIPT ERROR in all four.
-  Before the DSC-CLIPS merge the probe was flaky on this branch (one run at 23 s, two over its 25 s window):
-  the raptor spent t=1-16 s in hit_react, which DSC-CLIPS halved; the merged base alone destroyed the platform
-  at 12, 12 and 13 s in three runs, and this branch after the merge at 12 s. Damage per bite is unchanged
-  (45.2, same as `receive_siege_hit` before).
-- **Every test** on the merged branch (44730650): run_all `[tests] PASS`, SMOKE PASS, t_ai, t_build,
-  t_buildsys, t_canim, t_combat, t_harbour (islands=15), t_iconart, t_items, t_light, t_lighting, t_save (its 5
-  deliberate SCRIPT ERRORs, as on base), t_structart, t_tame, t_web all PASS; snap_build_lab `[snap] PASS`.
-- **Hooks applied** (scratch tree: this branch + W2-OCCLUDE + the hooks patch): the same full suite, all PASS
-  (t_save with its 5 deliberate errors), before the DSC-CLIPS merge.
-- **Wild dinosaurs attack structures that block them**: with the W2-ECO hook applied (scratch tree), a real
-  velociraptor with its brain on, aggro on a survivor shut in a one-module room, retargeted the north wall and
-  bit it within 2 s: `[probe] t=1 state=approach target=wall_6_9_0_2`, `[struct] wall hit dmg=74.2
-  hp=1126/1200`, `[probe] PASS raptor broke into the wall` (probe script not committed; it is the hook's check).
+- **snap_build_lab** headless: `[snap] PASS`, among its 40 ok lines: `house: 52 pieces, its ramp, a chest and a
+  sign placed through socket snapping (got 55)`, `every piece within 1 cm of its socket (worst 0.0000 m)`,
+  `removing the last support collapses the ceiling and the wall on it (fell 2)`, `raptor bite on the wood wall
+  through StructureHealth: 86.7 (want 86.7)`, `repair took exactly 1 plank`, `the upgrade swaps in place (same
+  node, same socket)`, `stone durability 3000`, `a creature cannot path into the closed house`, `the owner's path
+  goes through its own door`, `a kit cannot stand on the chest's module (overlap)`, `schema 4 save holds 59 piece
+  rows (got 59)`, `load restores every piece: 59/59, 0 differ`, `the chest comes back with its 7 stone`, `the sign
+  comes back with its text`, `a schema-3 save migrates to 4`.
+- **Touch, 844x390**: `--snap-touch` windowed at 844x390 gl_compatibility with `--touch`: `[snap] PASS` (three
+  runs), and headless `[snap] PASS`; ok lines: `touch: BUILD, Wood, Foundation select a wood foundation ghost`,
+  `a tap on the ground snaps the ghost`, `PLACE puts the foundation in the tapped module`, `the foundation took
+  its planks`, `ROTATE turns the ghost`, `a wall placed on the tapped edge`, `a chest stands on the first
+  foundation`, `tapping the wall opens its card`, `Upgrade to Stone swaps the wall in place at full stone
+  durability`, `the upgrade took the stone blueprint`, `Repair brings the bitten wall back (2685 -> 3000 for
+  { &"stone": 1, &"plank": 1 })`, `Open chest shows the chest's storage`, `the sign card saves its text ('Raptors
+  east')`, `Demolish takes the wall down`, `the demolished wall refunds part of its stone`, `a house wall's card
+  offers the whole building's upgrade (Building to Stone (45) stone ×344 · plank ×88)`. With hooks 1-2 applied
+  (scratch, not committed).
+- **t_buildsys** `[t_buildsys] PASS`: data_rows, costs, reasons cases=14, snap, collapse, damage_tiers,
+  kits_and_camp, repair_upgrade, paths, rows_round_trip, bad_rows cases=9, migrations, furniture, building_all.
+  New cases checked against three mutations, all caught: no spill on destroy (`its 5 stone come back to the
+  bag (bag has 0)`), upgrade-all not all-or-nothing (`upgrade-all one item short is refused`), furniture
+  ignoring kits (`a chest cannot go where a kit stands`).
+- **Whole suite**, committed branch (no hooks): SMOKE PASS (`tools/smoke.sh --no-import`), run_all `[tests]
+  PASS`, t_ai, t_build, t_buildsys, t_canim, t_combat, t_harbour (islands=15), t_iconart, t_items, t_light,
+  t_lighting, t_occlude, t_player, t_save (its 5 deliberate SCRIPT ERRORs, as on base), t_server_domain, t_srvdom,
+  t_structart, t_tame, t_ui, t_uiicons, t_web all PASS; build_lab `[build] PASS`; siege probe `destroyed-after=12s
+  occupancy-cleared=true` exit 0; snap_build_lab PASS; --snap-touch FAILs as designed (no hooks).
+- **Same suite with hooks 1-3 applied** (scratch): all of the above PASS, --snap-touch PASS.
+- Not re-run this session: the wild-raptor break-in probe for hook 3 (its script was never committed; the hook
+  is byte-identical to the one it passed with).
 
-## Screenshots inspected (scratchpad/shots/, 1600x900 windowed unless noted)
+## Screenshots inspected (scratchpad bs/, looked at each)
 
-- `house_out_fwd.png` (Forward+) and `house_out_compat.png` (gl_compatibility), this branch alone: a snapped
-  2-storey 3x3 house reads as a house: plank walls with posts, sill and cap bands at each storey, framed door
-  and windows on both storeys, a stone ramp to the door, thatch gable roof in visible courses; same look in both
-  renderers. Not grey boxes.
-- With W2-OCCLUDE bound (scratch merge of `claude/mmo-w2-occlude` 22d25492 + this branch, not committed):
-  `house_out_fwd_bound.png`, `house_out_compat_bound.png`: survivor outside at the door, house fully solid.
-  `house_in_fwd.png`, `house_in_compat.png`: survivor inside on the ground floor; the whole roof and the upper
-  floor fade to a faint dithered outline (not a hole), the two front walls between camera and survivor fade
-  to about half, the survivor is visible through them, the far walls and the upper window stay solid, the
-  house keeps its shadow. Same in both renderers.
-- `ghost_fwd.png` and `ghost_phone_compat.png` (844x390 landscape, compat): a wood foundation ghost snapped
-  beside the house, green snap points on the free cells around it, the HUD's ROTATE / PLACE / CANCEL hexes
-  under it. On the phone the ghost and points read; the ghost's cost label is too small (Limits).
-- One bad framing found and fixed: an outside shot that pointed the camera at a marker in the house made the
-  occlusion system treat the marker as the survivor and fade the roof; the lab now always follows the survivor.
+- `house_fwd.png` (1600x900 Forward+), `house_glc.png` (1600x900 gl_compatibility): the snapped 2-storey 3x3
+  house: plank walls with posts, storey bands, framed door and windows on both storeys, stone ramp, thatch
+  gable roof in courses; same look in both renderers.
+- `house_phone_glc.png` (844x390 glc, --touch): the house reads at phone size; the lab's fixture XP raises a
+  level-up banner over its roof line for a few seconds (lab artefact).
+- `inside_fwd.png`, `inside_glc.png`, `inside_phone_glc.png` (survivor inside, W2-OCCLUDE from the base): roof and
+  upper storey fade to a dithered outline, the front walls to about half, the survivor shows through, the house
+  keeps its shadow; no adapter errors. The ground-floor interior reads dark through the dithered ceiling, so the
+  chest inside is not visible from outside (W2-OCCLUDE's look, unchanged here).
+- Touch steps at 844x390 glc: `touch_ghost.png` (ghost with green/red snap points, ROTATE/PLACE/CANCEL hexes,
+  cost label readable), `touch_card.png` (Wood Wall card: Upgrade to Stone, Demolish, Building to Stone (5), 64 px
+  buttons in two columns), `touch_chest.png` (bag panel with the chest storage open), `touch_sign.png`
+  (signboard and chest on the new foundations), `touch_house_card.png` (Wood Door card: Open door, Upgrade,
+  Demolish, Building to Stone (45)).
+- Found and fixed through the shots: the Build sheet's "No building kits" note ate the rows area on the phone
+  (one row visible); a stale-frame capture (window throttled, fixed with force_draw); a first run where a wall
+  in front hid the chest from the tap (the probe builds the wall on the far side now).
 
 ## DeepSeek workers
 
@@ -140,41 +174,28 @@ ceilings its "inside" fade (a faint outline stays). I bound to it in a scratch m
 
 ## Integrator hooks
 
-Files other packages own. `docs/orchestration/reports/claude-mmo-w2-buildsys-hooks.patch` holds hooks 1-3 as
-one patch; `git apply --check` passes on this branch (also after the DSC-CLIPS merge), it compiles (import +
-run), and the hooked scratch tree passed the full suite and the probe above.
+`docs/orchestration/reports/claude-mmo-w2-buildsys-hooks.patch` holds hooks 1-3 as one patch against 131f3210;
+`git apply --check` passes, and the hooked tree passed the whole suite and --snap-touch (above).
 
-1. **W2-PLAYER, `game/scripts/player/player.gd`**: `signal structure_tapped(piece: StructurePiece)`; taps on a
-   piece: a door toggles (`interact`), any other piece emits `structure_tapped`; `_is_interactable` accepts
-   `StructurePiece`; the survivor's own click-to-move path goes through its own walls:
-   `_path_points = p.path(global_position, _path_goal, 96, true)`.
-2. **W1-UI / W2-HUD, `game/scripts/ui/hunt_hud.gd`**: `var _build_tier: StringName = &"thatch"` and
-   `var _structure: StructurePiece`; `bind()` connects `structure_tapped` to a `&"structure"` sheet; the Build
-   sheet gets a tier row (Thatch / Wood / Stone / Metal, 72x64 buttons) and one button per piece
-   (`StructurePlacer.label(kind, tier)`, e.g. "Wood Wall  plank ×4 · twine ×2") calling
-   `player.placer.begin_piece(kind, _build_tier)`; the structure sheet shows tier, piece and hp, and
-   Upgrade to the next tier (`StructurePlacer.next_tier`), Repair with its cost (`repair_cost`) and Demolish.
-   Rotate / place / cancel need nothing: the existing hexes already drive a piece ghost.
-3. **W2-ECO, `game/scripts/creatures/brains/creature_brain.gd`**: every brain, in `tick()` before `_think`:
-   `_break_in()` asks `StructureHealth.siege_target(creature, attack_target.global_position)` once a second and
-   retargets the blocking wall; `hunting_player` and the leash treat any structure like the catapult
-   (`StructureHealth.is_structure`, `not StructureHealth.of(t, true).dead`). A destroyed piece is freed, so
-   `_valid_target()` ends the attack and the hunter re-acquires its prey through the gap.
-4. **dsc camp worker, `game/data/props_manifest.json`** (not edited here): the four W1-STRUCTART stand-in rows
-   `buildings.floor`, `buildings.wall`, `buildings.wall_doorway`, `buildings.roof` (1 m, `art_status
-   "REPLACE"`) are superseded by structures.json. Set each row's `"upgrade"` to
-   `"superseded: W2-BUILDSYS modular pieces live in game/data/structures.json; a Blender model swaps in at piece_tiers.<kind>.<tier>.model (2 m module, see model_contract)"`
-   and `"art_status": "superseded"`. New Blender pieces need no manifest row.
-5. **W2-INT, `tools/labs.txt`**: register `snap_build_lab` (headless prints `[snap] PASS`; `--shot=<png>`
-   frames the house, `--snap-inside` puts the survivor inside, `--snap-ghost` stages a ghost).
-6. **Already done here, outside the owned list**: `game/tests/t_save.gd` (W1-SAVE, merged) compared the
-   re-saved v3 golden field by field, so the schema bump failed it on `/schema: 3.0 vs 4.0`. I added `/schema`
-   to that comparison's skip list and a check that the re-save is at the current schema (3 lines). Revert it
-   only together with the schema bump.
-7. **W2-OCCLUDE**: nothing to change. Notes: roofs register a group node with no meshes yet and rely on
-   `child_entered_tree` adoption (works on 22d25492); on a group merge the adapter calls `release` on the old
-   group first so its meshes are re-adopted; the derived material warned `uv1_triplanar is not replicated`,
-   which is why the stand-ins now carry UVs.
+1. **W2-PLAYER, `game/scripts/player/player_input.gd`**: `interact_tap_target`: `elif col is StructurePiece:`
+   find the `hud` group node and call `hud.open_structure(col)`; `is_interactable`: a `StructurePiece` is
+   interactable when `is_tap_target()`; `pick_interactable`'s 1 m bubble skips `StructurePiece` (direct hits
+   only). **`player_sim.gd`**: `pathing.path(p.global_position, p._path_goal, 96, true)` (the owner walks through
+   its own walls and doors, HANDOFF 8).
+2. **W1-UI / W2-HUD, `game/scripts/ui/hunt_hud.gd`** (+10 lines): in the `&"build"` sheet after the kit rows
+   `StructureSheet.fill_build(player, func (t, cb): _sheet_btn(box, t, cb), _refresh_sheet, _close_sheet)` and
+   `any = true`; a `&"structure"` sheet whose title is `StructureSheet.fill_card(box, player, btn, _close_sheet)`;
+   `func open_structure(sp: StructurePiece)` sets `StructureSheet.card` and opens that sheet.
+3. **W2-ECO, `game/scripts/creatures/brains/creature_brain.gd`**: unchanged from the first pass: `_break_in()`
+   before `_think` retargets the blocking wall from `StructureHealth.siege_target` once a second;
+   `hunting_player` and the leash treat any structure like the catapult.
+4. **W2-INT, `tools/labs.txt`**: register `snap_build_lab` (headless `[snap] PASS`; `--shot=<png>` frames the
+   house, `--snap-inside` puts the survivor inside, `--snap-ghost` stages a ghost; `--snap-touch` runs the touch
+   loop and needs hooks 1-2, `--snap-shots=<stem>` saves a PNG per touch step).
+5. **Already done here, outside the owned list** (first pass): `game/tests/t_save.gd` skips `/schema` in the v3
+   golden comparison and checks the re-save is at the current schema. Revert only with the schema bump.
+6. **W2-OCCLUDE**: nothing to change; the adapter (`StructurePiece._occlusion`) works against the merged
+   `Occlusion.make_occludable(node, "between"|"inside")` / `release`.
 
 ## Assumptions (# ASSUMPTION in code, or values in structures.json)
 
@@ -188,11 +209,22 @@ run), and the hooked scratch tree passed the full suite and the probe above.
 - Camp pieces, the harbour and cargo are indestructible (they are rebuilt every load anyway).
 - Pieces use the kits' 8 m reach, measured flat.
 - A schema-3 save needs no rewrite; schema 4 only adds piece rows and kit `durability`.
+- Chest 20 slots, large box 40, signboard 48 characters, one piece of furniture per floor module; furniture
+  costs and durability (structures.json) are first-pass.
+- Destroyed or collapsed chests salvage their contents into camp cargo (no loot bag on the ground yet).
+- Whole-building actions cover pieces connected within one module and one storey; Upgrade all lifts every
+  piece below the next tier to it, paid up front.
 
 ## Limits and what is left
 
-- **Chests, the large box and sign text** (build-storage-01, build-sign-01) are not done: chests need new kit
-  items and recipes, which this package may not add (W2-DATA). `container_id` is in every piece row for spec 10.
+- Floors (foundations, ceilings), stairs and ramps have no card of their own on touch (a tap there walks);
+  they are upgraded and repaired through any wall's whole-building rows, but cannot be demolished one by one
+  by touch.
+- A piece hidden behind another (a chest behind a wall from the iso camera) takes the front piece's card; walls
+  only fade when the survivor is behind them.
+- The chest opens in the bag panel (inventory_ui.gd, W2-INV/W1-UI): at 844x390 the storage grid is below the
+  fold and the HUD hexes draw over the panel. Signboard text is legible at 1600x900 but not at the phone's
+  default zoom.
 - **Spec 10 (construction quality)** is a later layer (W2-CONSTRUCT): the data is in its shape (blueprints with
   material_slots and level bounds; instances with level, inherited_attributes, max/current_durability, owner,
   container_id), but pieces are built from counted materials, level 1, no attributes, no construction sites.
@@ -203,10 +235,10 @@ run), and the hooked scratch tree passed the full suite and the probe above.
 - A wall blocks one row of 1 m path cells on one side of its edge, so path tests are about crossing, not about
   the exact inner cells; pets (creatures) are blocked by owned walls like wild ones.
 - Stand-ins only: no Blender modular models yet (the four 1 m W1-STRUCTART stand-ins do not fit the 2 m
-  lattice). The ghost's cost label (Label3D, 48 px at 0.006) is unreadable on a phone at the lab's zoom.
+  lattice).
 - The lab and test seed materials and set Construction 40 as fixtures; nothing here was earned in play.
 - Godot crash report: `~/Library/Logs/DiagnosticReports/Godot-2026-10-20-131531.ips` appeared at 13:15:29
-  during this session: SIGABRT in HIServices `_RegisterApplication` 47 ms after launch, before any project code,
+  during the first pass: SIGABRT in HIServices `_RegisterApplication` 47 ms after launch, before any project code,
   parent process already exited. I could not tie it to one command: my Godot launches in flight then were a
   headless `--import` in the scratch tree and a scratch probe, both through gslot, and other agents' runs share
   the same coalition. No other new .ips since the session began.
