@@ -103,8 +103,9 @@ func _ready() -> void:
 			print("[gather_lab] FAIL %s" % f)
 	get_tree().quit(0 if _fails.is_empty() else 1)
 
+## Climate and level come from the island, as scatter plants them (so the level-1 check is real).
 func _plant(rt: Node3D, family: String, id: String, pos: Vector3) -> HarvestNode:
-	rt._plant_at(family, id, pos, &"fibre_stalk", &"none", "grassland", 1, Color.GREEN)
+	rt._plant_at(family, id, pos, &"fibre_stalk", &"none", rt._climate, rt.material_level(pos, rt._tier), Color.GREEN)
 	return rt._harvest_nodes[id]
 
 func _check(ok: bool, label: String) -> void:
