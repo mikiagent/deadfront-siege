@@ -59,8 +59,13 @@ static func check(rt: IslandRuntime, cell: Vector2i, rot: int) -> String:
 	var rules: Dictionary = Data.world_rules.get("harbour", {})
 	var from_row := int(rules.get("dock_from_row", 2))
 	var depth := float(rules.get("boat_depth_m", 0.4))
-	if _h(rt, base_point(cell, rot)) <= WATER_Y:
-		return "needs_shore"
+	for col in [-1, 0, 1]:
+		var base := row_point(cell, rot, 0, col)
+		var shed_edge := row_point(cell, rot, 1, col)
+		if _h(rt, base) < 0.15 or _tile(rt, base) == IslandTerrain.TileType.MUD:
+			return "needs_shore"
+		if _h(rt, shed_edge) <= WATER_Y or _tile(rt, shed_edge) == IslandTerrain.TileType.MUD:
+			return "needs_shore"
 	for k in range(from_row, FOOTPRINT.y):
 		for col in [-1, 0, 1]:
 			if _h(rt, row_point(cell, rot, k, col)) > WATER_Y:
@@ -120,3 +125,6 @@ static func _reaches_dry(rt: IslandRuntime, cell: Vector2i, rot: int) -> bool:
 
 static func _h(rt: IslandRuntime, p: Vector2) -> float:
 	return rt.surface_y(p.x, p.y)
+
+static func _tile(rt: IslandRuntime, p: Vector2) -> int:
+	return rt._tile_type_at_world(p.x, p.y)
