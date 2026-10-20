@@ -200,7 +200,7 @@
     170
    ],
    "quality": "procedural_v1",
-   "replace": "redone as purple crystals in a red host; mark kept because t_iconart pins it"
+   "replace": "redone as gunmetal cubes in a rust-red host; mark kept because t_iconart pins it"
   },
   "blue_dye": {
    "script": "tools/blender/items/resources.py",
@@ -903,7 +903,7 @@
     218
    ],
    "quality": "model_v2",
-   "replace": "worn-pose arm piece: reads as two arms with hands, not an item; stage as one crossed pair"
+   "replace": "now one arm (the pair was cropped), parts touching; mark kept because t_iconart pins it"
   },
   "fruit_fertilizer": {
    "script": "tools/blender/items/camp.py",
@@ -1016,7 +1016,7 @@
     218
    ],
    "quality": "model_v2",
-   "replace": "worn-pose arm piece: with the skin cut away, pauldrons and bracers float apart; stage as one crossed pair"
+   "replace": "now one arm, pauldron and bracer slid together (gap closed); mark kept because t_iconart pins it"
   },
   "hide_bone_cuirass": {
    "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/chest.glb",
@@ -1201,7 +1201,7 @@
     218
    ],
    "quality": "procedural_v1",
-   "replace": "redone as a blushed fruit with a leaf; mark kept because t_iconart pins it"
+   "replace": "redone as a kidney-shaped blushed fruit with a cut cheek; mark kept because t_iconart pins it"
   },
   "marsh_herb": {
    "script": "tools/blender/items/resources.py",
@@ -2158,7 +2158,7 @@
     218
    ],
    "quality": "model_v2",
-   "replace": "worn-pose arm piece: with the skin cut away, two sleeve cuffs and two gloves float apart and read as slivers at slot size; stage as one crossed pair"
+   "replace": "now one arm, cuff and glove slid together (gap closed); mark kept because t_iconart pins it"
   },
   "travel_trousers": {
    "script": "glb:game/assets/characters/survivor/armor/travel_clothes/legs.glb",

@@ -33,23 +33,23 @@ MAX_BYTES = 64 * 1024
 # Owner rule: low-quality / low-poly art is marked for replacement by newer, higher-quality art.
 # The whole set is procedural primitives (tier "procedural_v1"); these few read worst at slot size.
 REPLACE = {
-    # Round 6 (dsc icons2): every id in this register was redone and now reads at slot size. These
+    # Round 6 (ICONS2, dsc then Claude): every id in this register was redone and now reads at slot size. These
     # fourteen keep their mark because game/tests/t_iconart.gd requires them in the replacement
     # register (it pins the art judge's illegible renders); the others were cleared.
     "iron_ingot": "redone as pitted rough-cast bars; mark kept because t_iconart pins it (steel/ingot differ now)",
     "steel_ingot": "redone as polished stamped bars; mark kept because t_iconart pins it",
     "ingot": "redone as rounded cast loaves; mark kept because t_iconart pins it",
-    "black_iron": "redone as purple crystals in a red host; mark kept because t_iconart pins it",
+    "black_iron": "redone as gunmetal cubes in a rust-red host; mark kept because t_iconart pins it",
     "obsidian": "redone as glass shards on pale stone; mark kept because t_iconart pins it",
     "berry": "redone as a calyxed berry cluster; mark kept because t_iconart pins it",
     "burnt_food": "redone as charcoal with ash dust; mark kept because t_iconart pins it",
-    "mango": "redone as a blushed fruit with a leaf; mark kept because t_iconart pins it",
+    "mango": "redone as a kidney-shaped blushed fruit with a cut cheek; mark kept because t_iconart pins it",
     "fish": "redone as a silver-blue fish with a lateral line; mark kept because t_iconart pins it",
     "stone_knife": "redone as pale knapped flint with a wrapped handle; mark kept because t_iconart pins it",
     "raid_helm": "redone as a horned war helm with a plume, no head; mark kept because t_iconart pins it",
-    "travel_sleeves": "now one arm (the pair was cropped); mark kept because t_iconart pins it",
-    "forager_wraps": "now one arm (the pair was cropped); mark kept because t_iconart pins it",
-    "hide_bone_bracers": "now one arm (the pair was cropped); mark kept because t_iconart pins it",
+    "travel_sleeves": "now one arm, cuff and glove slid together (gap closed); mark kept because t_iconart pins it",
+    "forager_wraps": "now one arm (the pair was cropped), parts touching; mark kept because t_iconart pins it",
+    "hide_bone_bracers": "now one arm, pauldron and bracer slid together (gap closed); mark kept because t_iconart pins it",
 }
 PROCEDURAL = "procedural_v1"
 # Known tiers, lowest first. A GLB render (the route for better art) never becomes procedural_v1.
