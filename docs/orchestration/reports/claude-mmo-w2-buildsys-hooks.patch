@@ -1,0 +1,155 @@
+diff --git a/game/scripts/creatures/brains/creature_brain.gd b/game/scripts/creatures/brains/creature_brain.gd
+index 1220ad26..417e67b7 100644
+--- a/game/scripts/creatures/brains/creature_brain.gd
++++ b/game/scripts/creatures/brains/creature_brain.gd
+@@ -22,6 +22,7 @@ static var _pack_cooldown_until: Dictionary = {} ## pack_id -> seconds
+ var creature: Creature
+ var state: StringName = &"roam"
+ var attack_target: Node3D
++var _siege_cd := 0.0  # next time _approach may ask StructureHealth.siege_target
+ var perception: float = 12.0
+ var profile: Dictionary = {}
+ var _roam_cd: float = 0.0
+@@ -114,7 +115,7 @@ func _flees_on_sight() -> bool:
+ func aggro_radius() -> float:
+ 	var leader := _pack_leader()
+ 	var src: CreatureBrain = leader.brain if leader and leader != creature and leader.brain else self
+-	return maxf(26.0 if attack_target is FieldCatapult else 0.0, src._effective_perception() * float(src.profile.get("leash_mult", 2.2)))
++	return maxf(26.0 if StructureHealth.is_structure(attack_target) else 0.0, src._effective_perception() * float(src.profile.get("leash_mult", 2.2)))
+ 
+ ## True while this creature is actively on the survivor (ring shown).
+ func hunting_player() -> bool:
+@@ -122,7 +123,7 @@ func hunting_player() -> bool:
+ 		return false
+ 	var on_player := attack_target is Player and not (attack_target as Player).dead
+ 	var on_pet := attack_target is Creature and (attack_target as Creature).is_pet and not (attack_target as Creature).health.dead
+-	var on_siege := attack_target is FieldCatapult and (attack_target as FieldCatapult).hp > 0
++	var on_siege := StructureHealth.is_structure(attack_target) and not StructureHealth.of(attack_target, true).dead
+ 	if not (on_player or on_pet or on_siege):
+ 		return false
+ 	return state in [&"alert", &"approach", &"attack", &"retreat"]
+@@ -155,9 +156,19 @@ func _face_target(delta: float) -> void:
+ func tick(dt: float) -> void:
+ 	_dt = dt
+ 	if not _pre_think(dt):
++		_break_in()
+ 		_think(dt)
+ 	creature.brain_state = state
+ 
++## W2-BUILDSYS: prey behind walls the creature cannot path around: the blocking wall comes down first.
++func _break_in() -> void:
++	if not _valid_target() or StructureHealth.is_structure(attack_target) or _now_s() < _siege_cd:
++		return
++	_siege_cd = _now_s() + 1.0  # one TilePath query a second per hunter, not one per think
++	var wall := StructureHealth.siege_target(creature, attack_target.global_position)
++	if wall:
++		attack_target = wall
++
+ ## THINK_HZ, staggered by _think_phase; a timed move (_full_rate) thinks every frame.
+ func _should_think(frame: int) -> bool:
+ 	return _full_rate() or (frame + _think_phase) % _think_every() == 0
+diff --git a/game/scripts/player/player.gd b/game/scripts/player/player.gd
+index d42eb5b4..7f26bc08 100644
+--- a/game/scripts/player/player.gd
++++ b/game/scripts/player/player.gd
+@@ -26,6 +26,8 @@ const TAP_PICK_RADIUS := 1.0
+ @onready var anim: PlayerAnim = $Anim
+ @onready var agent: NavigationAgent3D = get_node_or_null("Agent")
+ 
++## A modular piece other than a door was tapped (the HUD opens its Upgrade / Repair / Demolish card).
++signal structure_tapped(piece: StructurePiece)
+ var inventory: Inventory = Inventory.new(20)
+ var vitals: Vitals
+ var statuses: StatusEffects
+@@ -759,6 +761,9 @@ func _interact_tap_target(col: Object) -> void:
+ 		col.open()
+ 	elif col is Node and (col as Node).is_in_group("cargo_warp"):
+ 		col.use(self)
++	elif col is StructurePiece:
++		if not (col as StructurePiece).interact(self):  # a door opens or closes; other pieces open their card
++			structure_tapped.emit(col as StructurePiece)
+ 	elif col is Node and (col as Node).is_in_group("placed_building"):
+ 		_building_interact(col)
+ 
+@@ -802,7 +807,7 @@ func _is_interactable(col: Object) -> bool:
+ 		var owner := (col as Area3D).get_parent()
+ 		if owner is HarvestNode or owner is CraftStation or owner is Bonfire:
+ 			return true
+-	if col is HarvestNode or col is Corpse or col is Creature or col is Bonfire or col is CraftStation or col is TamingPen:
++	if col is HarvestNode or col is Corpse or col is Creature or col is Bonfire or col is CraftStation or col is TamingPen or col is StructurePiece:
+ 		return true
+ 	if col is Node:
+ 		var n := col as Node
+@@ -1251,7 +1256,7 @@ func _request_tile_path() -> void:
+ 	var p: Variant = World.runtime.get("pathing")
+ 	if p == null:
+ 		return
+-	_path_points = p.path(global_position, _path_goal, 96)
++	_path_points = p.path(global_position, _path_goal, 96, true)  # the owner walks through its own walls (HANDOFF 8)
+ 	_path_index = 0
+ 	# Skip waypoints already behind us (a re-plan starts at the current tile's centre, which
+ 	# would otherwise make the survivor step back to it and jitter).
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index 70ee0d15..3bb20938 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -20,6 +20,8 @@ var _skills_hex: HexButton
+ var _inspect_hex: HexButton
+ var _fatigue_rect := Rect2() ## screen rect of the fatigue face and bar, recorded in _draw; a tap opens the panel
+ var _fatigue_panel: FatiguePanel
++var _build_tier: StringName = &"thatch"  # the tier the Build sheet's piece buttons place
++var _structure: StructurePiece  # the piece whose card is open
+ var _sheet: PanelContainer
+ var _sheet_kind: StringName = &""
+ var _skills_panel: Control
+@@ -129,6 +131,10 @@ func _ready() -> void:
+ 
+ func bind(p: Player) -> void:
+ 	player = p
++	p.structure_tapped.connect(func (sp: StructurePiece) -> void:
++		_structure = sp
++		_close_sheet()
++		_toggle_sheet(&"structure"))
+ 
+ # ---------------------------------------------------------------- layout
+ 
+@@ -744,6 +750,39 @@ func _toggle_sheet(kind: StringName) -> void:
+ 				var l := Label.new()
+ 				l.text = "No building kits in the bag. Craft one at the workbench."
+ 				box.add_child(l)
++			# Modular pieces in the chosen tier (structures.json); the ghost snaps to free sockets.
++			var tiers := HBoxContainer.new()
++			for t in (StructurePiece.defs().get("tiers", {}) as Dictionary):
++				var tier := StringName(str(t))
++				var tb := Button.new()
++				tb.text = str(StructurePiece.tier_def(tier).get("label", t))
++				tb.disabled = tier == _build_tier
++				tb.custom_minimum_size = Vector2(72, 64)
++				tb.pressed.connect(func () -> void:
++					_build_tier = tier
++					_close_sheet()
++					_toggle_sheet(&"build"))
++				tiers.add_child(tb)
++			box.add_child(tiers)
++			for piece_kind in (StructurePiece.defs().get("pieces", {}) as Dictionary):
++				var k := StringName(str(piece_kind))
++				_sheet_btn(box, StructurePlacer.label(k, _build_tier), func () -> void: _close_sheet(); player.placer.begin_piece(k, _build_tier))
++		&"structure":
++			var sp := _structure
++			if not is_instance_valid(sp) or sp.is_queued_for_deletion():
++				title.text = "Structure"
++			else:
++				title.text = "%s %s  %.0f / %.0f" % [StructurePiece.tier_def(sp.tier).get("label", sp.tier), StructurePiece.piece_def(sp.kind).get("label", sp.kind), sp.health.hp, sp.health.max_hp]
++				var up := StructurePlacer.next_tier(sp.tier)
++				if up != &"":
++					_sheet_btn(box, "Upgrade to %s" % StructurePlacer.label(sp.kind, up), func () -> void: _close_sheet(); player.placer.upgrade(sp, up, player))
++				var cost := StructurePlacer.repair_cost(sp)
++				if not cost.is_empty():
++					var parts: PackedStringArray = []
++					for id in cost:
++						parts.append("%s ×%d" % [str(id).replace("_", " "), int(cost[id])])
++					_sheet_btn(box, "Repair  %s" % " · ".join(parts), func () -> void: _close_sheet(); player.placer.repair(sp, player))
++				_sheet_btn(box, "Demolish (half back)", func () -> void: _close_sheet(); player.placer.demolish(sp, player))
+ 	var close := Button.new()
+ 	close.text = "Close"
+ 	close.custom_minimum_size = Vector2(240, 56)
