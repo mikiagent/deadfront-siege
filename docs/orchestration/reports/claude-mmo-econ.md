@@ -6,7 +6,94 @@ Second pass (2026-10-18): every blocker, major and minor from the independent re
 fixed, each with a test; see "Review fixes" below. Third pass (same day): the second review's
 blocker and six minors are fixed or answered, each with a test that fails on the code before
 it; see "Second review fixes". Fourth pass (2026-10-20): contracts v2, bridged to the
-server characters; read that section first, it supersedes the deposit parts below.
+server characters. Fifth pass (2026-10-20, evening): every review r3 item is fixed; read
+"Review r3 fixes" first, then the fourth pass; both supersede the deposit parts below.
+
+## Review r3 fixes (fifth pass, 2026-10-20)
+
+Findings: `docs/orchestration/mmo/handoff/findings/econ-review-r3.json` (1 blocker, 3 majors,
+5 minors). I fixed every item or answered it below. Each fix has a test that fails on the
+reviewed commit. The FAIL lines come from copying the new `game/tests/econ_bridge_checks.gd` and
+`game/tests/economy_tests.gd` into a scratch tree at `d50324df` (the commit r3 reviewed) and
+running `t_econ.gd` and `run_all.gd` there. On that code the bridge tests reach the relay the
+way the old hook described it: `VaultBridge.apply` for economy ops, `chars.apply` for
+`IntentHandlers.CLIENT_OPS`. Old run: `[t_econ] FAIL count=29`, `[tests] FAIL count=13`.
+
+**Ownership.** The WIP commit had edited W1-SRVDOM's `game/scripts/server/intent_handlers.gd`
+on the branch. An earlier pass had edited the integrator's `game/tests/run_all.gd`. Both edits
+now ship only in the hooks patch `docs/orchestration/reports/claude-mmo-econ-hooks.patch`;
+the branch's copies of both files match the base byte for byte. `git apply --check` is clean
+on `claude/mmo-overhaul` 3213777f. I ran the gates with the patch applied (below).
+
+| # | Item | Fix | Test (passes now) | FAIL on d50324df |
+|---|---|---|---|---|
+| B | A client could send `act.deposit` | Hooks: `act.deposit` moves from `IntentHandlers.CLIENT_OPS` to `SYSTEM_OPS`. `VaultBridge.client(op, account, args, ts)` is the transport's one relay: economy `CLIENT_OPS` go to `apply()`, `IntentHandlers.CLIENT_OPS` go to `chars.apply()`, and anything else is answered `unauthorized` and logged (`push_warning "[econ] refused server-only op ..."`). `bridge.begin` now records `{account, rid, uid, op}`, and the bridge computes the uid `act.deposit` will export before it runs. `recover()` puts only that uid into that account's vault. Any other export in no vault is reported, inflight or not, and never moved. | `t_econ` `_test_client_gate`, `_test_strays` | `FAIL act.deposit is a server-only op of the character store`; `FAIL a client's act.deposit, char.*, bridge.*, vault dicts and objective.claim are refused: ok,...,ok,...`; `FAIL a refused client act.deposit is logged (0 warning lines)`; `FAIL vault.deposit left the stores inconsistent: stone: characters exported 13, the vaults took in 0 net, export i7.0 is in no vault`; `FAIL recover() reports an export in no vault even with no move marked: ''`; `FAIL a stray export never lands in the vault of a marked deposit (account 2 holds ["i16.0"])` |
+| M1 | Split assets could never be withdrawn | `vault.withdraw {rid, uid, count?}`. The whole of an exported asset still goes through `char.receive` (exact body, own uid). Anything else goes through `char.grant`: a split part, a remainder, an order fill, or part of any stack. The grant path checks bag room, runs `bridge.begin {op: grant}`, then `vault.withdraw_item` (KEEP_BODY keeps the units under the rid), then `char.grant` with rid `g<econ seq>`, then `bridge.end`. `recover()` finishes a cut grant from the rid cache exactly once. Hooks: `char.grant` refuses more units than are out (`s.exported`), so it cannot mint, and it keeps the stack's origin. | `t_econ` `_test_sales` (partial buy, seller's remainder, part listing, order fill, `count: 1`, every stone in exactly one place), `_test_crash_recovery` 5 and 6 | `FAIL a partial buy reaches the buyer's character (not_withdrawable)`; `FAIL the seller's remainder comes back to the bag (not_withdrawable): 0 of 8`; `FAIL a part listing's remainder comes back to the bag (not_withdrawable)`; `FAIL units bought through a buy order reach the buyer's character (not_withdrawable)`; `FAIL a grant cut after the vault let go reaches the character at boot: 0 -> 0` |
+| M2 | Contract 0.6/0.7: `objective.claim` minted on request, tradable start, no trade lock | `objective.claim` moved from `MarketEngine.WRITE` to `SYSTEM`, so it is no longer in `VaultBridge.CLIENT_OPS`. The server calls it on observed state, and the reward is bound. Accounts carry `bound`: the starting wallet (`starting_wallet_bound`, 20 = all of it) plus objective rewards. `wallet.spend` pays from bound coins first. Listing fees, buys, bids, buyouts and order escrow need `wallet - bound` (`Ledger.tradable`). `trade_lock_s: 1800` from account creation refuses list, auction, buy, bid, buyout, order_create and sell_to_order with `limit_reached`. `wallet.get` reports `bound`. Invariant: `0 <= bound <= wallet`. | `run_all` `_test_bound_wallet_and_trade_lock`; `t_econ` `_test_client_gate` (objective.claim refused) | `econ: objective.claim is not a client op: rewards fire on server-observed state`; `econ: the starting wallet is bound: { "wallet": 20, "held": 0 }`; `econ: market.list_fixed (list inside the trade lock) should fail with limit_reached, got { "ok": true ...`; `econ: market.buy (a buy that needs bound coins) should fail with insufficient_funds, got { "ok": true ...` |
+| M3 | Bridge recovery only at boot | `recover()` is state-based and can run at any time. `apply()` and `client()` call it right after any move that could not finish (`broken` set). While it cannot finish, every op is refused with `server_error`, so a copy held in two places can never be listed. `bridge.begin` answers `conflict` while a move is marked. A double refusal (vault and `char.receive`) keeps the mark, so the next op lands the asset. A failed `vault.withdraw_*` after `char.receive` is retried at once. Orphans are scanned on every `recover()`. | `t_econ` `_test_recover_any_time` (a test-only `FlakyEngine` faults `vault.withdraw_item` / `vault.deposit_item` for one uid; EconStore reloads from disk, as in production), `_test_crash_recovery` 2 | `FAIL a vault fault after char.receive is finished in the same request (server_error): stone: characters exported 0, the vaults took in 5 net, i11.0 is held as exported but the character store has no export`; `FAIL while the character and the vault both hold i13.0 nothing can list it (ok)`; `FAIL an asset both stores refused is in the vault before the next deposit runs: stranded ["i16.0"]`; `FAIL bridge.begin refuses while another move is marked (ok)` |
+| m1 | A bought pet kept the seller's `owner` | Hooks: `char.receive` sets `owner = str(account)` after the canonical match. `tamer` keeps the lineage. A re-deposit exports the new owner. | `t_econ` `_test_pets_and_cages` | `FAIL a bought pet answers to its buyer (owner 1, was 1)`; `FAIL a re-deposit exports the pet under its new owner` |
+| m2 | 6.1 shape and the bonded cap | Hooks: `char.receive` of a pet refuses `limit_reached` at `Data.bonded_cap()` (pack 09: the cap is checked when a bond forms; cages never count). The orchestrator should either amend contract 6.1 to "pets trade as kind `pet` in the books and are shown as cages", or plan the switch to `caged_animal` items with W2-CAGE. Behaviour already matches the contract: the pet keeps its uid, lineage and genetics, and nobody re-tames it. | None yet: `Data.bonded_cap()` returns 2147483647 on the base, so nothing can trip it. Sync step when W2-SKILLS merges its single cap function: point the check at it and add a `t_econ` case where a full roster refuses the withdrawal and the pet stays in the vault. | n/a |
+| m3 | Malformed `vault.deposit` args answered `not_found` | `bag_slot`, `count` and `pet_uid` are read with `EconArgs` and answer `bad_request` when they fail validation. `not_found` is kept for an empty slot or an unknown pet. | `t_econ` `_test_deposit` (2.5, -1, 0, "3", 1e300, INF, 0.5, -1, 999, ["x"], 7) | `FAIL malformed deposit args answer bad_request: not_found,not_found,...` |
+| m4 | `vault.withdraw` ignored `count` | `count` is honoured (`insufficient_items` above the stack, as contract 4's `vault.withdraw_item`). A part leaves through `char.grant`. | `t_econ` `_test_sales` | `FAIL vault.withdraw {uid, count: 1} takes one unit, not the stack (left 7 of 7)` |
+| m5 | 64 newer writes evicted a deposit's rid | Vault moves (`MarketEngine.BRIDGE`) have their own cap, `rid_cache_bridge: 256`, so market traffic never evicts them. They are still dropped by the daily idle prune. | `run_all` `_test_idempotency` | `econ: market writes keep their last 64 rids and never evict a vault move's rid (size 64, keep=false)`; `econ: a deposit replayed after 70 market writes moves nothing` |
+
+**Fuzz.** The bridge fuzz runs 3600 ops through `client()` (the engine fuzz in `run_all`
+runs 3000) with every cross-store invariant after every op: no currency or item is created or
+destroyed outside faucets and sinks. It covers withdrawals with `count`, grants,
+`objective.claim` from the server, hostile frames (`act.deposit`, `char.grant` and
+`bridge.begin` from a client, client dicts), and cut deposits, receives and grants with a
+restart. Both journals then replay from empty byte for byte.
+
+### Acceptance (fifth pass; scratch tree at @@HEAD@@ + hooks patch, through gslot)
+
+@@GATES@@
+
+### Integrator hooks (current; replaces the fourth pass's list)
+
+1. **Apply `docs/orchestration/reports/claude-mmo-econ-hooks.patch`.** It changes:
+   - `intent_handlers.gd`: `act.deposit` becomes a system op, and it adds `char.grant`, the
+     pet owner rewrite and the bonded cap on receive.
+   - `run_all.gd`: runs `economy_tests.gd`.
+
+   `t_econ.gd` follows the t_*.gd convention, so no registration is needed.
+2. **Boot and per request** (net server):
+   ```gdscript
+   var econ := EconStore.new(MarketEngine.new(EconRules.load_default(), EconCatalog.from_data()), data_dir.path_join("econ"))
+   var chars := CharacterStore.new(world_facade, data_dir.path_join("chars"), world_seed)
+   for why in [econ.open(), chars.open()]:
+   	if why != "": push_error(why); return   # refuse to start
+   var bridge := VaultBridge.new(econ, chars)
+   var stuck := bridge.recover(int(Time.get_unix_time_from_system()))
+   if stuck != "": push_error("[econ] %s" % stuck); return   # an asset is in no vault: a person looks
+   # auth.hello:          bridge.hello(account_id, name, now)
+   # EVERY client frame:  res = bridge.client(op, account_id, a, now)   (economy and act.* alike)
+   # once a second:       bridge.apply("sys.tick", 0, {}, now)
+   # objective observed:  bridge.apply("objective.claim", account_id, {"index": i}, now)
+   ```
+   Do not relay client frames to `chars.apply` or `econ.apply` directly. `client()` holds the
+   list of what a client may send.
+3. Still W1-INT's (contract 0.7, not in r3): Settlers issuance per active account per day.
+   W3 must observe objectives and call `objective.claim`; nothing does yet.
+
+### Assumptions added (fifth pass)
+
+- `# ASSUMPTION` (market_engine.gd): the trade lock runs from account creation (wall
+  clock). Contract 0.6 says "30 min of server-observed play"; W3 can switch it once
+  presence reports play time. The refusal uses the existing `limit_reached` code, so no
+  contract change is needed.
+- Bound T-stones pay `wallet.spend` only. Listing fees count as trading (one rule: market
+  ops spend tradable coins). Objective rewards are bound, as plan items W1-INT and W2-INT
+  ask.
+- `starting_wallet_bound` (20) lives in `market_rules.json` next to `starting_wallet`. Tests
+  raise `starting_wallet` to get tradable coins, and `_rules()` sets `trade_lock_s = 0`.
+- `rid_cache_bridge: 256` per account. A withdrawal body is about 0.4-1.2 KB, so this is at
+  most about 300 KB per active account. It is pruned after a day without writes.
+- While a move cannot finish, the bridge refuses every op for every account. This is a
+  global stop: the simplest choice that can never trade a duplicate. With `act.deposit`
+  server-only, only a store fault (a disk or engine error) can cause it.
+- When the bridge finishes a withdrawal on its own after a fault, the client still gets
+  `server_error`, but the asset is in its bag. A retry of that rid answers `not_found`.
+- `bag_full` (srvdom's assumption code) answers a withdrawal the bag has no room for.
 
 ## Fourth pass (2026-10-20): contracts v2, bridged to the server characters
 
@@ -70,139 +157,25 @@ listing only: buy orders and Settlers refuse `captured_animal` (one cage is one 
   covers a uid deposited twice (`conflict`), an unstamped client dict and a forged origin.
 - No screenshots: no visuals in this package.
 
-### Integrator hooks (W1-INT / W3; nothing here edits files outside this package)
+### Integrator hooks (fourth pass)
 
-1. **Boot and per request** (net server):
-   ```gdscript
-   var econ := EconStore.new(MarketEngine.new(EconRules.load_default(), EconCatalog.from_data()), data_dir.path_join("econ"))
-   var chars := CharacterStore.new(world_facade, data_dir.path_join("chars"), world_seed)
-   for why in [econ.open(), chars.open()]:
-   	if why != "": push_error(why); return   # refuse to start
-   var bridge := VaultBridge.new(econ, chars)
-   var stuck := bridge.recover(int(Time.get_unix_time_from_system()))
-   if stuck != "": push_error("[econ] %s" % stuck); return
-   # auth.hello:   bridge.hello(account_id, name, now)
-   # economy ops:  if op in VaultBridge.CLIENT_OPS: res = bridge.apply(op, account_id, a, now)
-   # once a second: bridge.apply("sys.tick", 0, {}, now)
-   ```
-   Relay character ops through `chars.apply` as srvdom says, **except `act.deposit`**: run
-   alone it takes an asset out of a character with no vault to receive it, and `recover()`
-   then reports it as an export in no vault. Either drop it from the relay or move it in
-   `game/scripts/server/intent_handlers.gd`:
-   ```gdscript
-   const CLIENT_OPS := ["act.gather", "act.loot", "act.craft", "act.place", "act.equip", "act.eat", "act.tame", "act.capture", "act.attack", "char.import", "char.get"]
-   const SYSTEM_OPS := ["char.create", "char.move", "char.wallet", "char.receive", "char.settled", "act.deposit"] ## the server itself, never relayed from a client
-   ```
-   (check srvdom_checks' hostile table, which may list `act.deposit` under client ops).
-2. **`char.grant` for economy-made stacks** (srvdom's "integration trap"). A part of a split
-   stack (a partial buy or listing, an order fill) has an economy uid and no export record, so
-   `vault.withdraw` answers `not_withdrawable` and it stays in the vault (counted, never lost).
-   To let it out, add to `intent_handlers.gd` (`SYSTEM_OPS` += `"char.grant"`,
-   `ARG_KEYS["char.grant"] = ["asset"]`, `run()`: `"char.grant": return _grant(ch, a)`):
-   ```gdscript
-   ## char.grant {asset}: a stack the economy split off an export comes back to a character.
-   ## Server-only; units count as exported coming home, like char.receive.
-   func _grant(ch: CharacterState, a: Dictionary) -> Dictionary:
-   	var asset: Variant = a.get("asset")
-   	if not asset is Dictionary:
-   		return no("bad_request", "asset must be an object")
-   	var stack := ItemStack.from_dict(Provenance.strip(asset))
-   	if stack.def() == null or stack.count < 1:
-   		return no("invalid_asset", "not a valid stack")
-   	var n := stack.count
-   	var inv := ch.inventory()
-   	if inv.add(stack) > 0:
-   		return no("bag_full", "no room for %s" % stack.def_id)
-   	var uids := ch.commit(inv, "market", seq)
-   	count("exported", stack.def_id, -n)
-   	return ok({"item": str(stack.def_id), "count": n, "uids": uids})
-   ```
-   Then `VaultBridge._withdraw` needs a second branch for non-`src` uids: `bridge.begin`
-   with the uid, econ `vault.withdraw_item` (KEEP_BODY keeps the body under the rid), then
-   `char.grant`; `recover()` re-grants from the rid cache when the vault no longer holds the
-   marked uid. Not written here: there is no op to test it against.
-3. **Pet owner after a sale.** `char.receive` keeps the exact body, so a bought pet still
-   carries the seller's `owner` string. srvdom should rewrite `owner` to the receiving account
-   inside `_receive` after the canonical match.
-4. `run_all.gd` already runs `economy_tests.gd`; register `t_econ.gd` wherever the t_*.gd
-   list lives (no edit made).
+Superseded by "Integrator hooks (current)" in the review r3 section: the hooks now ship as a
+patch, and every client frame goes through `VaultBridge.client()`.
 
 ### Owner decisions (money rules; none changed silently)
 
 - **Cages trade by listing only**: buy orders and Settlers refuse `captured_animal`.
-- **Partial deposits** are allowed (the part leaves with a new character uid); **withdrawals
-  are whole assets only** through the bridge.
-- **Split stacks stay in the vault** until `char.grant` lands (hook 2). Until then a buyer of
-  part of a stack can re-list or sell it to an order, but not take it out.
-- Still open from contract v2 (W1-INT owns them): starting wallet bound (non-tradable),
-  objective rewards on server-observed state, Settlers issuance per active account per day,
-  the 30-minute trade lock. `objective.claim` still pays on request.
+- **Partial deposits** are allowed (the part leaves with a new character uid). Since the
+  fifth pass, withdrawals take `count`, and split stacks leave through `char.grant`.
+- Contract v2 0.6/0.7 since the fifth pass: bound starting wallet and objective rewards,
+  `objective.claim` server-only, 30-minute trade lock. Still W1-INT's: Settlers issuance per
+  active account per day.
 
 ### Assumptions added
 
 - `# ASSUMPTION`-free in code; listed here: cage genetics are wild (no level gains), so they
   are checked as level 1; a cage of any species fills no order.
 - State version 3: snapshots from v2 builds are refused (no server data exists yet).
-
-## Review r3 (2026-10-20): status at the owner's clean stop
-
-Findings: `docs/orchestration/mmo/handoff/findings/econ-review-r3.json`. The work stopped
-part-way through. The WIP commit changes `game/scripts/server/intent_handlers.gd` only.
-**No gate has been run on it**: the last gate lines I saw (above) are from `d50324df`,
-before these edits.
-
-In the WIP commit (written, not yet tested):
-- Blocker part 1: `act.deposit` moved from `CLIENT_OPS` to `SYSTEM_OPS`. srvdom's hostile
-  table still calls it through `CharacterStore.apply`, which accepts both lists, so it should
-  stay green. Unverified.
-- Major 1, srvdom side: server-only `char.grant {asset}` (ARG_KEYS, dispatch, `_grant`).
-  Units count as exported units coming home (`exported -n`), with the asset's origin, or
-  `market` when it has none.
-- Minor (owner): `char.receive` of a pet sets `owner = str(account)`.
-- Minor (bond cap): `char.receive` of a pet refuses `limit_reached` at `Data.bonded_cap()`.
-
-Still open, with the next steps:
-1. **Blocker part 2:** `bridge.begin` should record the expected uid. That is the pet uid,
-   the row uid for a whole stack, or `Provenance.item_uid(chars.s.seq + 1, 0)` for a part.
-   `recover()` then claims only that uid, for the marked account. It must always scan for
-   exports that are in no vault and report them, even with no mark.
-   Tests: a direct `act.deposit`, with and without a cut deposit.
-2. **Major 1, bridge side:** `_withdraw` uses the grant branch for non-`src` uids and for
-   `{uid, count}`:
-   - check `ch.inventory().add()` on a copy for bag room first;
-   - then `bridge.begin {uid, count, rid}`;
-   - then econ `vault.withdraw_item {rid, uid, count}` (KEEP_BODY);
-   - then `char.grant` with rid `g<econ seq>`.
-
-   `recover()` re-grants from the rid cache when the mark is a withdraw and the vault no
-   longer holds the units. Tests: a partial buy, a part listing, an order fill and the seller's
-   remainder all withdrawn; a crash after the vault lets go grants exactly once.
-   Also update `t_econ` `_test_sales`, which still expects `not_withdrawable`.
-3. **Major 2 (contract 0.6 and 0.7):**
-   - Move `objective.claim` from WRITE to SYSTEM (server-observed claims only).
-   - Add `acct.bound` (starting wallet plus objective rewards). It is spendable through
-     `wallet.spend` (bound first), but buys, bids, buyouts, orders and listing fees need
-     `wallet - bound`.
-   - Add `trade_lock_s: 1800` in `market_rules.json`, enforced on list, buy, bid, buyout,
-     order_create and sell_to_order (`trade_locked`). Test rules set it to 0, plus one lock test.
-   - Add `VaultBridge.client()`, which refuses ops outside `CLIENT_OPS`.
-4. **Major 3:**
-   - `bridge.begin` answers `conflict` while a mark exists.
-   - When `_into_vault` is refused twice, or `_out_of_vault` fails after a retry, the mark
-     stays and the bridge sets `broken`, refusing every op until `recover()` at restart.
-   - Test with a forced `vault.withdraw_item` fault after `char.receive` (economy_tests'
-     FaultyEngine pattern).
-5. **Minors:**
-   - `_deposit` should answer `bad_request` for malformed bag_slot, count or pet_uid.
-   - `_withdraw` should honour count (step 2).
-   - Bridge rids should not be evicted by count (cap 512 per account; dropped by the daily
-     idle prune).
-   - 6.1 shape: ask the orchestrator to amend 6.1 to "kind pet in the books, shown as
-     cages", or plan the switch with W2-CAGE.
-   - `t_econ` `_test_pets_and_cages` compares the whole pet body, so it needs an owner
-     exception plus an assert that `owner == "2"`.
-6. Then rerun everything: import, `run_all`, `t_econ`, `t_srvdom`, `t_server_domain`, every
-   other t_*.gd, and smoke.
 
 ## What shipped
 
@@ -395,11 +368,11 @@ half-written-snapshot test covers what a bad write would leave behind.
   pet with IV 31 in every stat and the S-grade hunger/xp rate. The integrity checks only
   ensure the numbers are self-consistent. Accounts are free (contract 3), so sybil accounts
   multiply all of this, and the market lets them move it to one account.
-- **Coin faucet.** `objective.claim` pays all 28 objectives (72 T-stones) on request, with no
-  proof the objective was done. With the 20 starting T-stones, that is 92 T-stones per
-  account, unbounded across sybil accounts and movable through the market (fees and tax
-  take 8 %). Settlers add at most 2,000 a day server-wide. Server-simulated islands (v2) and
-  some account cost (auth's call) are the real fixes.
+- **Coin faucet (fifth pass).** `objective.claim` is server-only now and its 72 T-stones are
+  bound, like the 20 starting T-stones: they pay travel and claims but never reach another
+  account. Sybil accounts can no longer funnel coins through the market. What is left is W3's
+  job: calling `objective.claim` only when the server saw the objective done. Settlers add at
+  most 2,000 a day server-wide.
 - `wallet.spend travel` accepts any sail cost that exists, not the voyage actually taken.
 - `process_count` is capped at 99 (steaming adds one each time; no smaller legitimate bound).
 - `volume_24h` / `volume_7d` sum whole hourly buckets, so they can include up to an hour of
