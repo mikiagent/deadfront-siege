@@ -31,6 +31,15 @@ The hook findings (1, 3, 5) are fixed in the hooks patch, which the integrator a
 
 Also: the test now loads `UiIcons` by path (`load("res://scripts/ui/ui_icons.gd")`) instead of by class_name, as the test rules require.
 
+## After the merge with DSC-CAMP, W2-PLAYER and W2-OCCLUDE (`6889934`)
+
+On the merged tree `t_uiicons` failed: the code inventory found 23 ids, and `station_grindstone` had only the fallback icon.
+- W2-PLAYER moved the `context_actions` / `context_action` bodies into `scripts/player/player_input.gd`; `player.gd` only forwards to them. The inventory and the glyph scan now read `player_input.gd`. A new check requires at least 10 ids from `context_actions` there, so a future move fails with a clear error instead of quietly shrinking the inventory. The `> 30` floor is unchanged; the inventory is back to 40 ids.
+- `station_grindstone` (the only station among DSC-CAMP's new kinds per props_manifest's notes): a stone wheel on an axle between two posts on a sill, drawn in `_src/icons_g.py`, mapped in ui_icons.json, imported like the rest of the set.
+- The new SVG got Godot's default import (64 px, no mipmaps, VRAM compressed). I fixed its .import to match the set, and `t_uiicons` now checks that every icon imports at `svg/scale=2.0`, `mipmaps/generate=true` and `compress/mode=0`.
+
+Gates on `6889934`: `[tests] PASS`; every `game/tests/t_*.gd` PASS, including the new t_occlude and t_player (t_save's 5 SCRIPT ERRORs are its announced deliberate aborts); `[t_uiicons] PASS ids=169 files=114 glyphs=47 code_ids=40 hook_ids=45 weight=0.61..1.46 worst_iou=0.80 loot/store regen='[icons] PASS drawn=114 svgs=114'`; `SMOKE PASS`.
+
 ## Review r3 (wiring): findings and fixes (`e9ce0dc`)
 
 - Major, HUD status chips drew two-letter codes: new `scripts/ui/hud_status_chip.gd` (`HudStatusChip.draw`) draws the white UiIcons drawing in the 26 px box (3 px inset, faded with the target frame); letters remain only for a status with no icon (none today). Both loops in hunt_hud call it; HuntHud filters with mipmaps. hunt_hud.gd is 1343 lines (was 1344).
