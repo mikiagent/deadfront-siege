@@ -148,7 +148,7 @@ Seen `rc=1`: t_build and t_uiicons. Both are the expected forge/anvil hook gap; 
 patch applied (see the table above).
 
 The smoke run on the merged tree was killed at the stop. The last line seen was `SMOKE PASS`, on the
-pre-merge tip 2a… (the run before the base merge).
+pre-merge tip 87394e99 (the run before the base merge).
 
 ## What is left (exact next steps)
 
