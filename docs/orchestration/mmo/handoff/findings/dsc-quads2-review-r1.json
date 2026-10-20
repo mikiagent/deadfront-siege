@@ -1,0 +1,59 @@
+{
+  "package": "DSC-QUADS2",
+  "branch": "claude/mmo-quads2",
+  "reviewed_head": "62bc09b9",
+  "pass": false,
+  "gates": {
+    "run_all": "[tests] PASS",
+    "t_canim": "[t_canim] PASS",
+    "other_t": "t_ai t_build t_combat t_harbour t_iconart t_items t_light t_lighting t_save t_structart t_tame t_web all PASS",
+    "smoke": "SMOKE PASS (tools/smoke.sh --no-import)",
+    "merge_tree": "clean, tree 019644d445398e0d31a967e77f2d95b12b9fb2b1"
+  },
+  "method": "In-game Creature + CreatureAnim.set_move_speed at the lab speeds (walk 0.4 x top, run top). Windowed 1600x900 side-view frames at time_scale 0.2, plus a headless probe of foot-bone world positions at 960 samples/s (1 s per gait).",
+  "findings": [
+    {
+      "severity": "high",
+      "where": "game/assets/creatures/megaloceros/anim/run.glb (in game at 7.6 m/s, x1.41)",
+      "problem": "The run does not read as a run. The legs stay almost straight, the body barely moves, and the feet lift 3.8 cm (ankle y range 0.038 m) on a 2.1 m deer. Between plants the hooves travel forward within 4 cm of the ground at 5-11 m/s, so the deer looks like a standing pose skating across the ground. Frames: f2/megaloceros_run_010/016/018/022.png.",
+      "fix": "Re-author it as a gallop or bound with real swing flexion: lift the hooves 25-40 cm, fold the carpus and hock in swing, and add a suspension phase. If the rig's reach can't do it at the mesh-unit target, accept a higher time scale (the old x1.4 is fine) and don't trade leg motion for a measured stride."
+    },
+    {
+      "severity": "high",
+      "where": "megaloceros/anim/run.glb, mid-cycle (f2/megaloceros_run_016.png)",
+      "problem": "A dark, sharp, triangular skin tear opens on the flank behind the shoulder: the torn-seam artifact the v1 rejection named. The REPORT's own stretch figure is 2.97/16 edges, right at the 3.0 ceiling.",
+      "fix": "Smaller trunk rotation in that pose, or fix the weights on the shoulder/flank seam. Re-check by rendering every frame in the game, not just the measured edges."
+    },
+    {
+      "severity": "high",
+      "where": "all four clips (protoceratops walk/run, megaloceros walk/run)",
+      "problem": "Left and right legs move in exact lockstep. In game, FrontFoot.L and FrontFoot.R have identical world x/y on every sample, and so do BackFoot.L and BackFoot.R. The front pair and the hind pair alternate, so every gait, the walk included, is a two-beat bunny-hop bound with both front feet off the ground at once. TASK.md asked for a lateral-sequence four-beat walk (LH, LF, RH, RF) and a trot or gallop for the run. REPORT.md says it chose a 'two-beat bound' to stay under the skin-stretch gate.",
+      "fix": "Walk: four-beat lateral sequence with L/R offset by half a cycle. Run: trot (diagonal pairs) for protoceratops, and a gallop or bound with L/R offset of at least 0.1 cycle for megaloceros. If the skin gate blocks that, fix the seam weights rather than the gait."
+    },
+    {
+      "severity": "medium",
+      "where": "megaloceros/anim/walk.glb (cycle 0.25 s, 6 frames) and the 8-frame protoceratops clips",
+      "problem": "The cycles are very short. The 2.1 m deer walks at 4 strides/s with 6 cm of hoof lift, a fast, shuffling patter with no weight shift. REPORT.md says short cycles were chosen to minimise seam damage, not for the look.",
+      "fix": "Megaloceros walk around 1.0-1.3 s per cycle, protoceratops walk around 0.7-0.9 s, with matching stride lengths. That needs the seam weights fixed, or a lower bake speed with a higher game time scale."
+    },
+    {
+      "severity": "medium",
+      "where": "megaloceros walk and run, front feet",
+      "problem": "The front ankles bottom out at y 0.091 (run) and 0.085 (walk) against 0.048 for the hind feet. REPORT.md says the front stance 'rides ~3 cm above the floor' and that a front-only swing floor was added so the measurement tool still finds contact. That shapes the curve to pass the tool rather than plant the hoof, and the front hooves risk hovering.",
+      "fix": "Plant the front hooves on the ground (sole y about 0) in stance. Get the reach from the leg-root carry or a slight shoulder drop, not a raised stance floor."
+    },
+    {
+      "severity": "low",
+      "where": "game/tests/t_canim.gd output, megaloceros walk",
+      "problem": "In game, the planted feet move 2.48 m/s against a 3.04 m/s body speed (ratio 0.82): about 18 % skate. This is inside the 0.75-1.30 band, but anim_events.json bakes walk=3.038, so the bake and the in-game measurement disagree.",
+      "fix": "Re-bake walk from the in-game measurement, or tighten the clip so the ratio is 0.95-1.05."
+    },
+    {
+      "severity": "info",
+      "where": "protoceratops walk/run",
+      "problem": "Apart from the lockstep gait: the hind feet hold position across frames (probe slip about 0 at a 1 cm tolerance), there is no crouch (stands at idle height), and no knee or elbow bends backwards or twists in the side frames. The run lifts the feet 13 cm. These are acceptable once the gait is fixed.",
+      "fix": "none"
+    }
+  ],
+  "screenshots": "/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/b2302670-e08e-4f7f-8e24-c720e0f2b372/scratchpad/q2/f2/{protoceratops,megaloceros}_{walk,run}_001..045.png; foot probe logs ../fp_*.log"
+}
