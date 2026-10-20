@@ -6,6 +6,33 @@ The program's running memory is `docs/orchestration/mmo/STATUS.md` (owner decisi
 the package specs are in `docs/orchestration/mmo/plan-register.md`; the owner's design input is
 `docs/design/durango-prompts/01`-`12`.
 
+## 0. How every request is run
+
+**The gauntlet loop applies to every request**: `GAUNTLET.md` at the repo root, section "The gauntlet loop - run
+this on every request" (translate -> ground -> classify risk -> reproduce -> implement narrowly -> prove behavior ->
+prove appearance -> deploy the exact commit -> verify the production stamp -> report bluntly), its "Gauntlet
+completion test" (done only when a new tester can reload production and see the requested outcome) and its
+"Next-request prompt frame" (Classification / Outcome / Binding details / Ground first / Implementation boundary /
+Acceptance / Required evidence).
+
+Where GAUNTLET.md (written 2026-09-21) is out of date, these newer owner decisions win:
+- **Ground against `claude/mmo-overhaul`**, the integration branch, not `origin/main`, until PR #17 is merged.
+- **Phone checks are landscape 844x390**, not portrait 390x844; desktop Chrome 1600x900 stays the judge.
+- **Deploy only when the owner says.** Current condition: deploy once the UI package passes (lighting already
+  merged). Steps 8-9 of the loop wait for that; everything else runs on every request.
+- **The Durango prompt pack** (`docs/design/durango-prompts/01`-`12`) and `docs/reference/durango-*` extend the
+  visual gauntlet as binding design input.
+
+**The program loop.** The multi-package program ran under this `/loop` prompt (self-paced, "Ultracode" means a
+workflow per substantive task with independent review and blind A/B judging):
+
+```text
+/loop Continue the DEADFRONT AAA survival-MMO program in /Users/milankinzy/Documents/deadfront-siege/.claude/worktrees/mmo-overhaul: read docs/orchestration/mmo/STATUS.md, run the next wave (implement in parallel worktrees → independent critical review → fix → integrate → tests/smoke/labs → real screenshots inspected), update STATUS.md, and stop only when every system meets its acceptance criteria or is blocked on an owner decision. Ultracode.
+```
+
+To continue it from this folder, use the same prompt with the path changed to `~/Documents/deadfront` (the
+integration branch is now this checkout, not the old `.claude/worktrees/mmo-overhaul`).
+
 ## 1. Where things are
 
 | What | Where |
