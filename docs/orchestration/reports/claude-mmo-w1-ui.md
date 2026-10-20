@@ -148,6 +148,9 @@ Directory: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/
 - Not tested on a device or in desktop Chrome. Windowed runs only: Forward+ at 844x390, 667x375,
   1600x900 and 390x844, and gl_compatibility at 844x390.
 - The notch inset path (`side_inset_px`) only runs on mobile, so it has a unit test but no device run.
+- Portrait 390x844: the HANDS caption (held_item_slot.gd, owned) sits on the HUD's drawn `Lv. 0 5.0%`
+  line (`r14/hud_390x844.png`). The gate does not see it because that line is drawn text. Left as it is
+  because the portrait bottom row also needs the hunt_hud fixes above.
 - map_screen is 421 lines (base 305). The gate's `layout_rects`, the N marker and the landscape
   layout account for the growth.
 - The atlas card shows the home island as `Lv. 10`, its tier in world data, while starter creatures
