@@ -3,21 +3,27 @@ extends RefCounted
 ## Trust boundary for save files. The JSON on disk is user-editable, so after migration every
 ## field the loader reads is coerced to its type, unknown ids are dropped and numbers are clamped
 ## to what play can reach. A save written by this build passes through unchanged. Anything missed
-## here still cannot cost the save: SaveGame refuses to save after a load that did not finish.
+## here and aborting clean() itself is caught by the CHECKED sentinel; a callee that aborts during
+## SaveGame._apply is not caught in general, so every field a from_dict casts must be shaped here.
 
 const MAX_LEVEL := 60
 const MAX_T_STONES := 100000 # ASSUMPTION: no shipped faucet comes near this; it only stops forged balances
 const WORLD_LIMIT := 2000.0 # ASSUMPTION: metres from the island origin; islands are a few hundred across
 const DEFAULT_POSITION := [0.0, 1.0, 12.0] # the loader's own fallback spawn
+const MAX_CLAIM_TILES := 14 # IslandRuntime.claim_at's plot side; a bigger rect is forged
 const SLOT_LOCK := "_slot_lock" # placeholder Inventory.add writes behind a multi-slot item
+## Set by clean() as its last statement: SaveMigrations.read applies only data that carries it.
+const CHECKED := "__sanitized"
+## Test hook: makes clean() hit a script error just before CHECKED, as a missed edge case would.
+static var abort_for_test := false
 
 ## Expected type of each field the loader reads; the value is only a type sample. A field of the
 ## wrong type is erased so the loader's own default applies.
 const SHAPE := {
-	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {}, "position": []},
+	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "quick_food": [], "tool_index": 0}, "position": []},
 	"pets": [], "ground_snares": [], "skills": {}, "skills_v2": {},
 	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}},
-	"away": {"buildings": [], "claims": []},
+	"away": {"buildings": [], "claims": []}, "pending_refunds": [],
 	"pioneer_xp": 0, "pioneer_level": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
 	"player_name": "", "occupation": "", "t_stones": 0, "visited_islands": {}, "raid_victory": false,
 	"objective": 0, "objective_best": 0, "island_id": "",
@@ -34,6 +40,13 @@ const BUILDING_ROW := {
 const SNARE_ROW := {"heavy": false, "life_left": 0.0, "arm_left": 0.0}
 const STATUS_ROW := {"id": "", "stacks": 0, "time_left": 0.0}
 const CAMP_ROW := {"rot": 0}
+## PetRecord.from_dict and CreatureGenetics.from_dict cast these with float()/int().
+const PET_ROW := {
+	"hunger": 0.0, "hunger_max": 0.0, "hunger_efficiency": 0.0, "xp_rate": 0.0, "hp": 0.0,
+	"attack": 0.0, "defense": 0.0, "ranged_defense": 0.0, "ranged_attack": 0.0, "accuracy": 0.0,
+	"speed": 0.0, "level": 0, "xp": 0.0, "respawn_left": 0.0, "tamed_role": [], "bag": [],
+	"genetics": {"ivs": {}, "evs": {}, "level_gains": {}},
+}
 
 static func clean(data: Dictionary) -> Dictionary:
 	_shape(data, SHAPE)
@@ -67,12 +80,16 @@ static func clean(data: Dictionary) -> Dictionary:
 			layout.erase(key)
 		else:
 			_shape(row, CAMP_ROW)
+	if data.has("pending_refunds"):
+		data["pending_refunds"] = _buildings(data["pending_refunds"])
 	for block in [home, data.get("away", {})]:
 		if (block as Dictionary).has("buildings"):
 			block["buildings"] = _buildings(block["buildings"])
 		if (block as Dictionary).has("claims"):
 			block["claims"] = (block["claims"] as Array).filter(func (r: Variant) -> bool:
-				return r is Array and (r as Array).size() >= 4 and _all_numbers((r as Array).slice(0, 4)))
+				return r is Array and (r as Array).size() >= 4 and _all_numbers((r as Array).slice(0, 4)) \
+					and absf(r[0]) <= WORLD_LIMIT and absf(r[1]) <= WORLD_LIMIT \
+					and r[2] >= 1 and r[2] <= MAX_CLAIM_TILES and r[3] >= 1 and r[3] <= MAX_CLAIM_TILES)
 	if data.has("pets"):
 		data["pets"] = _pets(data["pets"])
 	if data.has("ground_snares"):
@@ -91,6 +108,10 @@ static func clean(data: Dictionary) -> Dictionary:
 		data["saved_unix"] = _int(data["saved_unix"], 0, int(Time.get_unix_time_from_system()))
 	if data.has("island_id") and not World.islands.has(str(data["island_id"])):
 		data["island_id"] = "home_grassland"
+	if abort_for_test:
+		var none: Object = null
+		none.call("abort") # a real script error, so the test exercises the engine's abort path
+	data[CHECKED] = true
 	return data
 
 ## One bag as Inventory.to_array writes it. Slot positions are kept (dropped stacks become null).
@@ -125,6 +146,8 @@ static func _stack(row: Variant) -> Variant:
 		s["count"] = mini(int(count), maxi(1, def.stack_max))
 	if s.has("level"):
 		s["level"] = _int(s["level"], 1, MAX_LEVEL)
+	if s.has("process_count"):
+		s["process_count"] = _int(s["process_count"], 0, 1000000)
 	for key in ["attributes", "flags"]:
 		if s.has(key) and not (s[key] is Dictionary if key == "attributes" else s[key] is Array):
 			s.erase(key)
@@ -160,10 +183,17 @@ static func _pets(rows: Array) -> Array:
 		if not row is Dictionary or Data.creature(StringName(str((row as Dictionary).get("species", "")))) == null:
 			continue
 		var p: Dictionary = row
+		_shape(p, PET_ROW)
+		for part in (p.get("genetics", {}) as Dictionary).values():
+			if not part is Dictionary:
+				continue # keys other than ivs/evs/level_gains are never read
+			for stat in (part as Dictionary).keys():
+				if not (part[stat] is int or part[stat] is float):
+					(part as Dictionary).erase(stat)
 		if p.has("level"):
 			p["level"] = _int(p["level"], 1, MAX_LEVEL)
 		if p.has("bag"):
-			p["bag"] = stacks(p["bag"]) if p["bag"] is Array else []
+			p["bag"] = stacks(p["bag"])
 		out.append(p)
 	return out
 

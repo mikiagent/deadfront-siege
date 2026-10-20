@@ -1,6 +1,17 @@
 {
-	"clock": 0.350197768055556,
-	"ground_snares": [],
+	"clock": 0.350380104166667,
+	"ground_snares": [
+		{
+			"arm_left": 0.0,
+			"heavy": false,
+			"life_left": 100.0,
+			"position": [
+				3.5,
+				1.10203576087952,
+				11.5
+			]
+		}
+	],
 	"home": {
 		"buildings": [
 			{
@@ -20,7 +31,7 @@
 			{
 				"cargo": false,
 				"cell": [
-					-2.0,
+					-1.0,
 					6.0
 				],
 				"contents": [
@@ -101,19 +112,19 @@
 				"rot": 0.0,
 				"sleeps_left": -1.0,
 				"text": "",
-				"x": -1.5,
+				"x": -0.5,
 				"z": 6.5
 			},
 			{
 				"cell": [
 					-1.0,
-					6.0
+					7.0
 				],
 				"kind": "campfire",
 				"rot": 0.0,
 				"seconds_left": 120.0,
 				"x": -0.5,
-				"z": 6.5
+				"z": 7.5
 			},
 			{
 				"cell": [
@@ -126,7 +137,15 @@
 				"z": 10.0
 			}
 		],
-		"camp_layout": {},
+		"camp_layout": {
+			"CampBench": {
+				"cell": [
+					-2.0,
+					6.0
+				],
+				"rot": 1.0
+			}
+		},
 		"cargo": [
 			{
 				"attributes": {
@@ -214,25 +233,59 @@
 	"objective": 2.0,
 	"objective_best": 1.0,
 	"occupation": "student",
-	"pets": [],
-	"pioneer_buildings": {},
-	"pioneer_crafts": {},
-	"pioneer_level": 4.0,
-	"pioneer_xp": 7.0,
-	"player": {
-		"inventory": [
-			{
-				"attributes": {},
-				"count": 1.0,
-				"durability": 34.0,
-				"flags": [],
-				"id": "stone_knife_work",
-				"level": 1.0,
-				"max_durability": 41.0,
-				"process_count": 0.0
-			},
-			{
-				"attributes": {},
-				"count": 1.0,
-				"durability": 51.0,
-				"flags":
+	"pending_refunds": [],
+	"pets": [
+		{
+			"accuracy": 103.387096774194,
+			"attack": 106.491935483871,
+			"bag": [
+				{
+					"attributes": {
+						"material_tier": "stone",
+						"tint": "#8a8a8a"
+					},
+					"count": 2.0,
+					"durability": 0.0,
+					"flags": [],
+					"id": "stone",
+					"level": 1.0,
+					"max_durability": 0.0,
+					"process_count": 0.0
+				},
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null
+			],
+			"defense": 34.7741935483871,
+			"genetics": {
+				"evs": {
+					"accuracy": 0.0,
+					"health": 0.0,
+					"melee_attack": 0.0,
+					"melee_defense": 0.0,
+					"ranged_attack": 0.0,
+					"ranged_defense": 0.0,
+					"speed": 0.0
+				},
+				"ivs": {
+					"accuracy": 19.0,
+					"health": 22.0,
+					"melee_attack": 28.0,
+					"melee_defense": 2.0,
+					"ranged_attack": 15.0,
+					"ranged_defense": 5.0,
+					"speed": 8.0
+				},
+				"level_gains": {
+					"accuracy": 0.0,
+					"health": 0.0,
+					"melee_attack": 0.0,
+					"melee_defense": 0.0,
+					"ranged_attack": 0.0,
+					"ranged_defens

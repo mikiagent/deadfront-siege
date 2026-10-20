@@ -7,7 +7,8 @@ extends SceneTree
 const FIX := "res://tests/fixtures/"
 const RUN_DIR := "user://runs/t_save"
 ## Island state regenerated on load, not save format: excluded from field-for-field compares.
-const IGNORE := ["/saved_unix", "/unstable/harvested"]
+## A snare's life_left loses the 0-1 s of offline time each load counts.
+const IGNORE := ["/saved_unix", "/unstable/harvested", "/ground_snares/0/life_left"]
 ## What each legacy fixture must still hold after its first load + save (not just idempotence):
 ## [building kinds, {item id: count} in the player's bag, t_stones, island_id].
 const LEGACY := {
@@ -16,6 +17,17 @@ const LEGACY := {
 	"save_v2.json": [[], {}, 20, "home_grassland"],
 }
 
+## Counts SCRIPT ERRORs so the run asserts "none unexpected" itself instead of relying on the log.
+class ErrorCounter extends Logger:
+	var script_errors := 0
+	func _log_error(_function: String, _file: String, _line: int, _code: String, _rationale: String, _editor_notify: bool, error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
+		if error_type == ERROR_TYPE_SCRIPT:
+			script_errors += 1
+	func _log_message(_message: String, _error: bool) -> void:
+		pass
+
+var errors := ErrorCounter.new()
+var expected_script_errors := 0
 var failures: Array[String] = []
 var _started := false
 var W: Node
@@ -30,6 +42,7 @@ func _process(_delta: float) -> bool:
 	if root.get_node_or_null("Data") == null or root.get_node_or_null("World") == null:
 		return false
 	_started = true
+	OS.add_logger(errors)
 	_run.call_deferred()
 	return false
 
@@ -54,16 +67,18 @@ func _run() -> void:
 		quit(0)
 		return
 	_test_two_saves()
-	for name in ["save_v0.json", "save_v1.json", "save_v2.json", "save_v3_golden.json"]:
+	for name in ["save_v0.json", "save_v1.json", "save_v2.json", "save_v3_golden.json", "save_v3_away_golden.json"]:
 		await _test_round_trip(name)
 	await _test_forged()
 	await _test_truncated()
 	await _test_future()
 	await _test_backup_fallback()
 	await _test_restore_refunds()
+	await _test_full_cargo_refund()
 	await _test_away_island()
 	await _test_hostile_types()
 	await _test_aborted_load()
+	await _test_sanitizer_abort()
 	_test_skill_purchases()
 	_finish()
 
@@ -77,6 +92,8 @@ func _test_run_names() -> void:
 		[["--occupation=soldier"], ["--path", "game"], ""],
 		[["--lab=../../evil"], [], "______evil"],
 		[["--lab=.."], [], "__"],
+		[["--shot=/tmp/a.png", "--shot-delay=4"], [], "shot"],
+		[["--lab=build_lab", "--shot=/tmp/a.png"], [], "build_lab"],
 	]
 	for c in cases:
 		var got: String = SG.run_name(PackedStringArray(c[0]), PackedStringArray(c[1]))
@@ -126,7 +143,7 @@ func _test_round_trip(name: String) -> void:
 	_check(diffs.is_empty(), "%s re-saves field-for-field equal: %s" % [name, diffs.slice(0, 6)])
 	if LEGACY.has(name):
 		_check_legacy(name, s1)
-	if name == "save_v3_golden.json":
+	if name.begins_with("save_v3_"):
 		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
 		var gd: Array[String] = []
 		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
@@ -173,6 +190,8 @@ func _test_forged() -> void:
 	_check(player.skills.sp_available < 99999 and player.skills.sp_spent >= 0, "forged SP clamps to what the levels paid (sp=%d)" % player.skills.sp_available)
 	_check(absf(player.global_position.x) < 0.01 and absf(player.global_position.z - 12.0) < 0.01, "empty position loads at the default spawn")
 	_check(player.bonded.size() == 1 and player.bonded[0].level <= 60, "unknown pet species dropped, pet level clamps")
+	var giant: Array = W.home_claims.filter(func (r: Array) -> bool: return r[2] > 14 or r[3] > 14)
+	_check(giant.is_empty() and W.home_claims.size() == 1, "a forged 2000x2000 home claim is dropped, a 14x14 one kept (got %s)" % [W.home_claims])
 	var cuirass: int = W.cargo_home.find_first(&"raid_cuirass")
 	_check(cuirass >= 0 and W.cargo_home.slots[cuirass].count == 1, "cargo raid_cuirass x3000 loads as x1")
 	var bought: Array = player.skills.trees["survival"]["unlocked"]
@@ -305,6 +324,15 @@ func _test_hostile_types() -> void:
 			d["ground_snares"] = [{"heavy": "y", "life_left": "z", "position": [0, 1, 12]}]
 			d["home"]["camp_layout"] = {"CampFire": {"cell": [{}, 1], "rot": "r"}, "CampBench": {"rot": []}},
 	}
+	cases["stack process_count {}"] = func (d: Dictionary) -> void: d["player"]["inventory"][0]["process_count"] = {}
+	cases["extras tool_index {}"] = func (d: Dictionary) -> void: d["player"]["inventory_extras"]["tool_index"] = {}
+	cases["pet numbers and genetics junk"] = func (d: Dictionary) -> void:
+		var pet: Dictionary = d["pets"][0]
+		for key in ["hp", "attack", "defense", "speed", "xp", "hunger", "hunger_max", "xp_rate", "respawn_left", "level"]:
+			pet[key] = {}
+		pet["genetics"] = {"ivs": "x", "evs": {"hp": {}, "attack": "3"}, "level_gains": [], "extra": 1}
+		pet["tamed_role"] = 5
+		pet["bag"] = "no"
 	for label in cases:
 		_clean()
 		var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
@@ -316,9 +344,11 @@ func _test_hostile_types() -> void:
 		var stacks := 0
 		for st in player.inventory.slots:
 			if st != null: stacks += 1
-		var ok: bool = SG.blocked_reason == "" and int(W.t_stones) == 42 and stacks == 6
-		_check(ok and SG.save_now(), "hostile '%s' loads completely and saves (blocked='%s' t_stones=%d stacks=%d)" % [label, SG.blocked_reason, W.t_stones, stacks])
-		print("[t_save] hostile '%s' blocked='%s' t_stones=%d stacks=%d" % [label, SG.blocked_reason, W.t_stones, stacks])
+		var errs := errors.script_errors
+		var ok: bool = SG.blocked_reason == "" and int(W.t_stones) == 42 and stacks == 6 and player.bonded.size() == 1 and not null in player.bonded
+		var saved: bool = SG.save_now()
+		_check(ok and saved and errors.script_errors == errs, "hostile '%s' loads completely and saves (blocked='%s' t_stones=%d stacks=%d pets=%d script_errors=%d)" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), errors.script_errors - errs])
+		print("[t_save] hostile '%s' blocked='%s' t_stones=%d stacks=%d pets=%d saved=%s" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), saved])
 		await process_frame
 
 ## A load that dies halfway (here: an unsanitized row handed straight to _apply) must leave saving
@@ -331,6 +361,7 @@ func _test_aborted_load() -> void:
 	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
 	raw["t_stones"] = {}
 	print("[t_save] the next SCRIPT ERROR (Nonexistent 'int' constructor) is the deliberate abort")
+	expected_script_errors += 1
 	SG._apply_guarded(host, raw, 3, false)
 	_check(SG.blocked_reason == SG.LOAD_UNFINISHED and not SG.save_now(), "an aborted load refuses saves (blocked='%s')" % SG.blocked_reason)
 	for i in 70:
@@ -340,6 +371,78 @@ func _test_aborted_load() -> void:
 	_check(FileAccess.file_exists(SG.path), "confirm_new_game() never deletes a readable save after an aborted load")
 	SG.load_now(host)
 	_check(SG.blocked_reason == "" and SG.save_now(), "a later complete load clears the block")
+	await process_frame
+
+## A row that cannot be rebuilt while camp cargo is full is kept, never thrown away: no item may
+## vanish across load + save, and the refund lands once the cargo has room.
+func _test_full_cargo_refund() -> void:
+	_clean()
+	SG.save_now()
+	var d := _saved()
+	var branch: Dictionary = IS.make(&"branch", maxi(1, root.get_node("Data").item(&"branch").stack_max)).to_dict()
+	var full: Array = []
+	for i in W.cargo_home.slot_count:
+		full.append(branch.duplicate(true))
+	d["home"]["cargo"] = full
+	d["home"]["buildings"] = [{"kind": "basket", "cell": _camp_cell("CampFire"), "rot": 0,
+		"contents": [IS.make(&"flint", 3).to_dict(), IS.make(&"stone", 7).to_dict()]}]
+	_put(JSON.stringify(d))
+	SG.load_now(host)
+	SG.save_now()
+	var held := _held_on_disk(_saved())
+	_check(held == [3, 7, 1], "full cargo: flint, stone and the basket kit stay on disk after load + save (got %s, want [3, 7, 1])" % [held])
+	W.cargo_home.load_array([])
+	SG.save_now()
+	SG.load_now(host)
+	SG.save_now()
+	var after := _saved()
+	var c = W.cargo_home
+	var cargo_ok: bool = c.count_of(&"flint") == 3 and c.count_of(&"stone") == 7 and c.count_of(&"basket_kit") == 1
+	_check(cargo_ok and (after.get("pending_refunds", []) as Array).is_empty() and _held_on_disk(after) == [3, 7, 1],
+		"with room again the kept row is refunded once (flint=%d stone=%d kit=%d pending=%d)" % [c.count_of(&"flint"), c.count_of(&"stone"), c.count_of(&"basket_kit"), (after.get("pending_refunds", []) as Array).size()])
+	print("[t_save] full cargo refund held_on_disk=%s after_room=%s" % [held, _held_on_disk(after)])
+	await process_frame
+
+## [flint, stone, basket kits] anywhere in a save: cargo, building contents, pending refund rows.
+func _held_on_disk(d: Dictionary) -> Array:
+	var bag: Array = (d.get("home", {}).get("cargo", []) as Array).duplicate()
+	var kits := 0
+	for row in d.get("home", {}).get("buildings", []) + d.get("pending_refunds", []):
+		bag.append_array(row.get("contents", []))
+	for row in d.get("pending_refunds", []):
+		if str(row.get("kind", "")) == "basket":
+			kits += 1
+	var n := {"flint": 0, "stone": 0, "basket_kit": kits}
+	for s in bag:
+		if s is Dictionary and n.has(str(s.get("id", ""))):
+			n[str(s["id"])] += int(s.get("count", 1))
+	return [n["flint"], n["stone"], n["basket_kit"]]
+
+## A script error inside clean() still returns a (half-checked) Dictionary in Godot 4.7: read()
+## must treat it as unreadable rather than apply it.
+func _test_sanitizer_abort() -> void:
+	_clean()
+	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	var San: GDScript = load("res://scripts/core/save_sanitizer.gd")
+	San.set("abort_for_test", true)
+	print("[t_save] the next SCRIPT ERROR (call on a null instance) is the deliberate sanitizer abort")
+	expected_script_errors += 1
+	var sha0 := FileAccess.get_sha256(SG.path)
+	var r: Dictionary = (load("res://scripts/core/save_migrations.gd") as GDScript).read(SG.path)
+	_check(r.has("error") and not r.has("data"), "an aborted sanitizer makes read() report an error (got %s)" % [r.keys()])
+	expected_script_errors += 1
+	SG.load_now(host) # the whole loader path, as a launch would take it
+	San.set("abort_for_test", false)
+	_check(SG.blocked_reason != "" and not SG.save_now(), "an aborted sanitizer refuses saves (blocked='%s')" % SG.blocked_reason)
+	for i in 70:
+		W._process(1.0)
+	_check(FileAccess.get_sha256(SG.path) == sha0, "aborted sanitizer: bytes unchanged after 70 s of autosave")
+	var forged: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	forged[San.get("CHECKED")] = true
+	_put(JSON.stringify(forged))
+	var ok: Dictionary = (load("res://scripts/core/save_migrations.gd") as GDScript).read(SG.path)
+	_check(ok.has("data") and not (ok["data"] as Dictionary).has(San.get("CHECKED")), "the sentinel never reaches the loader")
+	print("[t_save] sanitizer abort read=%s" % [r.get("error", "applied")])
 	await process_frame
 
 ## Purchases are checked against trees.json and the SP the levels paid, not just type-checked.
@@ -380,6 +483,15 @@ func _write_golden() -> void:
 	W.cargo_home.load_array([])
 	W.cargo_home.add(IS.make(&"flint", 4))
 	player.vitals.fatigue = 30.0
+	player.statuses.apply(&"bleeding")
+	var pet = (load("res://scripts/pets/pet_record.gd") as GDScript).from_def(root.get_node("Data").creature(&"velociraptor"), &"B")
+	pet.bag.add(IS.make(&"stone", 2))
+	player.bonded.clear()
+	player.bonded.append(pet)
+	var bench := _free_cell(&"workbench")
+	W.camp_layout = {"CampBench": {"cell": [bench.x, bench.y], "rot": 1}}
+	W.load_island(host, &"home_grassland", Vector3(0, 1, 12), false) # rebuild the camp with the moved bench
+	await process_frame
 	var grid = W.runtime.get("build_grid")
 	var PB := load("res://scripts/world/placed_building.gd") as GDScript
 	var placed := 0
@@ -391,12 +503,14 @@ func _write_golden() -> void:
 		if kind == &"basket":
 			node.storage.add(IS.make(&"stone", 5))
 		placed += 1
+	var snare_at: Vector3 = W.runtime.get("_camp_pos") + Vector3(3, 0, 3)
+	(load("res://scripts/combat/ground_snare.gd") as GDScript).restore({"position": [snare_at.x, W.runtime.surface_y(snare_at.x, snare_at.z), snare_at.z], "life_left": 100.0, "arm_left": 0.0, "heavy": false}, W.runtime)
 	SG.save_now()
 	SG.load_now(host)
 	SG.save_now()
 	var d := _saved()
 	d["unstable"]["harvested"] = {}
-	d["saved_unix"] = 1792000000
+	d["saved_unix"] = 4000000000 # clamps to now at load: no offline time, so the snare round-trips
 	var out := ProjectSettings.globalize_path(FIX + "save_v3_golden.json")
 	var text := JSON.stringify(d, "\t")
 	var f := FileAccess.open(out, FileAccess.WRITE)
@@ -405,7 +519,26 @@ func _write_golden() -> void:
 	var t := FileAccess.open(ProjectSettings.globalize_path(FIX + "save_truncated.json"), FileAccess.WRITE)
 	t.store_string(text.left(text.length() / 2)) # a save cut off mid-write
 	t.close()
-	print("[t_save] wrote golden (%d buildings, %d bytes) and truncated fixtures" % [placed, text.length()])
+	print("[t_save] wrote golden (%d buildings, %d pets, %d snares, %d bytes) and truncated fixtures" % [placed, d["pets"].size(), d["ground_snares"].size(), text.length()])
+	# Away golden: the survivor standing on an unstable island with a stocked basket there.
+	W.remaining_lifetime = 0.0
+	W.load_island(host, &"temperate_25", Vector3(0, 1, 12), false)
+	await process_frame
+	var cell := _free_cell(&"basket")
+	var b: Node3D = PB.make(&"basket")
+	W.runtime.add_child(b)
+	SG._place_building(b, {"kind": "basket", "cell": [cell.x, cell.y], "rot": 0}, W.runtime.get("build_grid"))
+	b.storage.add(IS.make(&"stone", 9))
+	SG.save_now()
+	SG.load_now(host)
+	SG.save_now()
+	var a := _saved()
+	a["unstable"]["harvested"] = {}
+	a["saved_unix"] = 4000000000
+	var af := FileAccess.open(ProjectSettings.globalize_path(FIX + "save_v3_away_golden.json"), FileAccess.WRITE)
+	af.store_string(JSON.stringify(a, "\t") + "\n")
+	af.close()
+	print("[t_save] wrote away golden island=%s away_buildings=%d" % [a.get("island_id"), (a.get("away", {}).get("buildings", []) as Array).size()])
 
 # ---------------------------------------------------------------- helpers
 
@@ -497,6 +630,7 @@ func _check(ok: bool, what: String) -> void:
 		print("[t_save] FAIL %s" % what)
 
 func _finish() -> void:
+	_check(errors.script_errors == expected_script_errors, "no unexpected SCRIPT ERROR (got %d, %d deliberate)" % [errors.script_errors, expected_script_errors])
 	if failures.is_empty():
 		print("[t_save] PASS")
 		quit(0)

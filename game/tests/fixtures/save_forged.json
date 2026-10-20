@@ -21,7 +21,7 @@
 	"t_stones": -5,
 	"pioneer_level": 2,
 	"island_id": "home_grassland",
-	"home": {"terrain": "meadow", "buildings": [], "cargo": [{"id": "raid_cuirass", "count": 3000, "level": 60}], "claims": [], "camp_layout": {}},
+	"home": {"terrain": "meadow", "buildings": [], "cargo": [{"id": "raid_cuirass", "count": 3000, "level": 60}], "claims": [[-1000, -1000, 2000, 2000], [20, 20, 14, 14]], "camp_layout": {}},
 	"unstable": {},
 	"clock": 0.4,
 	"saved_unix": 0

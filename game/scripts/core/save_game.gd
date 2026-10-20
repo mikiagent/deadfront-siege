@@ -15,12 +15,17 @@ static var blocked_reason: String = ""
 ## Held while a save is being applied: a load that aborts partway leaves it set, so the half-built
 ## world is never autosaved over the good file.
 const LOAD_UNFINISHED := "the last load did not finish"
+## Building rows that could not be rebuilt and whose kit and contents do not fit in camp cargo yet.
+## Saved as-is and retried on every load, so a full cargo never destroys items.
+static var pending_refunds: Array = []
 
 static func _pick_path() -> String:
 	var run := run_name(OS.get_cmdline_user_args(), OS.get_cmdline_args())
 	if run == "":
 		return "user://save_1.json"
-	SaveFile.wipe_dir("user://runs/%s" % run) # also any .bak/.tmp/.corrupt-* a previous launch left
+	# shortcut: two runs launched at once under the same name share (and wipe) one folder; add the pid
+	# to the folder name if parallel runs of one lab ever need their own saves.
+	SaveMigrations.wipe_dir("user://runs/%s" % run) # also any .bak/.tmp/.corrupt-* a previous launch left
 	return "user://runs/%s/save_1.json" % run
 
 static func run_name(user_args: PackedStringArray, args: PackedStringArray) -> String:
@@ -32,6 +37,8 @@ static func _raw_run_name(user_args: PackedStringArray, args: PackedStringArray)
 		if a.begins_with("--lab=") and a.length() > 6:
 			return a.substr(6)
 	for a in user_args:
+		if a.begins_with("--shot="): # the house screenshot flag: a capture must never touch the real slot
+			return "shot"
 		if a in ["--smoke", "--bot", "--web-soak"] or a.ends_with("-probe") or a.ends_with("-test"):
 			return a.trim_prefix("--")
 	if "--web-soak" in args:
@@ -46,7 +53,10 @@ static func exists() -> bool:
 
 static func save_now() -> bool:
 	if blocked_reason != "":
-		print("[save] refused: %s is unreadable (%s); confirm a new game first" % [path, blocked_reason])
+		if blocked_reason == LOAD_UNFINISHED:
+			print("[save] refused: the load of %s did not finish this session, so the file is left untouched" % path)
+		else:
+			print("[save] refused: %s is unreadable (%s); confirm a new game first" % [path, blocked_reason])
 		return false
 	var player := _player()
 	if player == null:
@@ -71,7 +81,8 @@ static func save_now() -> bool:
 			if n.get_parent() == World.runtime and not n.is_queued_for_deletion(): snares.append(n.to_dict())
 	var pets: Array = []
 	for rec in player.bonded:
-		pets.append(rec.to_dict())
+		if rec != null:
+			pets.append(rec.to_dict())
 	var skills: Dictionary = {}
 	for id in Data.survival_unlocked:
 		skills[str(id)] = bool(Data.survival_unlocked[id])
@@ -114,13 +125,14 @@ static func save_now() -> bool:
 		},
 		"clock": Game.time_of_day,
 		"saved_unix": int(Time.get_unix_time_from_system()),
+		"pending_refunds": pending_refunds,
 	}
 	if World.is_home():
 		World._home_buildings_cache = buildings
 	else:
 		# The island the survivor is standing on: its buildings, storage and staked claims.
 		payload["away"] = {"buildings": buildings, "claims": World.unstable_claims}
-	if not SaveFile.write_atomic(path, JSON.stringify(payload)):
+	if not SaveMigrations.write_atomic(path, JSON.stringify(payload)):
 		print("[world] save failed")
 		return false
 	World.last_save_unix = int(payload["saved_unix"])
@@ -137,22 +149,23 @@ static func confirm_new_game() -> void:
 	print("[save] new game confirmed; saving to %s again" % path)
 
 static func load_now(host: Node) -> void:
-	var main := SaveFile.read(path)
+	var main := SaveMigrations.read(path)
 	if main.has("data"):
 		_apply_guarded(host, main["data"], int(main["schema"]), false)
 		return
-	var bak := SaveFile.read(path + ".bak")
+	var bak := SaveMigrations.read(path + ".bak")
 	if bak.has("data"):
 		if main.has("error"):
 			# Moved aside: left in place, the next save would rotate these bytes into .bak.
-			print("[save] %s unreadable (%s); kept as %s" % [path, main["error"], SaveFile.quarantine(path, true).get_file()])
+			print("[save] %s unreadable (%s); kept as %s" % [path, main["error"], SaveMigrations.quarantine(path, true).get_file()])
 		print("[save] restored %s.bak" % path)
-		_apply_guarded(host, bak["data"], int(bak["schema"]), true)
+		# Only a damaged main file is worth a notice; a missing one (crash before the rename) is not.
+		_apply_guarded(host, bak["data"], int(bak["schema"]), main.has("error"))
 		return
 	var kept := ""
 	for r in [bak, main]:
 		if r.has("error"):
-			kept = SaveFile.quarantine(r["path"], false).get_file()
+			kept = SaveMigrations.quarantine(r["path"], false).get_file()
 			blocked_reason = r["error"]
 			print("[save] %s unreadable (%s); kept as %s" % [r["path"], r["error"], kept])
 	World.start_new(host)
@@ -201,6 +214,7 @@ static func offline_seconds(saved_unix: int) -> int:
 
 static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup: bool) -> void:
 	blocked_reason = LOAD_UNFINISHED # cleared as the last statement; also lifts an older block
+	pending_refunds = []
 	if source_schema != SCHEMA:
 		print("[world] migrated save schema=%d -> %d" % [source_schema, SCHEMA])
 	var schema := source_schema
@@ -237,6 +251,10 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World.pioneer_level = int(data.get("pioneer_level", 0))
 	World.pioneer_xp = int(data.get("pioneer_xp", 0))
 	_restore_buildings(World._home_buildings_cache if World.is_home() else away.get("buildings", []), schema)
+	var kits := _kits_by_kind()
+	for row in data.get("pending_refunds", []):
+		var kind := StringName(str(row.get("kind", "")))
+		_refund(row, kits.get(kind, &""), "retry")
 	var saved_unix := int(data.get("saved_unix", Time.get_unix_time_from_system()))
 	var elapsed := offline_seconds(saved_unix)
 	if int(Time.get_unix_time_from_system()) - saved_unix > elapsed:
@@ -271,7 +289,9 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	player.bonded.clear()
 	for row in data.get("pets", []):
 		if row is Dictionary:
-			player.bonded.append(PetRecord.from_dict(row))
+			var rec := PetRecord.from_dict(row)
+			if rec != null: # an aborted from_dict would otherwise break every later save_now
+				player.bonded.append(rec)
 	# Field growth catch-up (same offline window as tent rest).
 	if elapsed > 0 and World.runtime:
 		for n in World.runtime.get_tree().get_nodes_in_group("field"):
@@ -284,7 +304,8 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	blocked_reason = ""
 
 ## Saved rows are rebuilt only where the grid would accept them now. An unknown kind or a row that
-## fails can_place (overlap, off the claim, water, slope) is refunded to the camp cargo instead.
+## fails can_place (overlap, off the claim, water, slope) is refunded to the camp cargo instead,
+## or kept in pending_refunds while the cargo cannot take all of it.
 static func _restore_buildings(rows: Array, schema: int) -> void:
 	if World.runtime == null:
 		return
@@ -324,6 +345,7 @@ static func _kits_by_kind() -> Dictionary:
 			out[def.place_as] = id
 	return out
 
+## All or nothing: tried on a scratch copy of the cargo first, so a partial fit never drops items.
 static func _refund(row: Dictionary, kit: StringName, why: String) -> void:
 	var back: Array[ItemStack] = []
 	if kit != &"":
@@ -331,10 +353,18 @@ static func _refund(row: Dictionary, kit: StringName, why: String) -> void:
 	for s in row.get("contents", []):
 		if s is Dictionary and str(s.get("id", "")) != SaveSanitizer.SLOT_LOCK:
 			back.append(ItemStack.from_dict(s))
-	var lost := 0
+	var scratch := Inventory.new(World.cargo_home.slot_count)
+	scratch.load_array(World.cargo_home.to_array())
+	var left := 0
 	for stack in back:
-		lost += World.cargo_home.add(stack)
-	print("[save] refunded %s at %s (%s): %d stacks to camp cargo, %d items lost" % [row.get("kind", "?"), _cell_of(row), why, back.size(), lost])
+		left += scratch.add(stack.duplicate_stack())
+	if left > 0:
+		pending_refunds.append(row)
+		print("[save] kept %s at %s (%s) for a later refund: camp cargo is short of room for %d items" % [row.get("kind", "?"), _cell_of(row), why, left])
+		return
+	for stack in back:
+		World.cargo_home.add(stack)
+	print("[save] refunded %s at %s (%s): %d stacks to camp cargo" % [row.get("kind", "?"), _cell_of(row), why, back.size()])
 
 static func _normalize_build_row(row: Dictionary, schema: int) -> Dictionary:
 	var out := row.duplicate(true)
