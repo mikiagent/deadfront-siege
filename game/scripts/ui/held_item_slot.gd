@@ -8,6 +8,7 @@ signal equip_requested(slot_index: int)
 signal unequip_requested
 
 const SLOT := 64.0
+const RAIL_HEXES := 4.0  ## hexes in the HUD's bottom-left rail (menu, animals, build, skills)
 
 var player: Player
 var _icon: Texture2D
@@ -103,6 +104,12 @@ func _process(delta: float) -> void:
 	var right := 16.0 + maxf(0.0, win.x - float(safe.end.x)) * scale.x
 	var bottom := 108.0 + maxf(0.0, win.y - float(safe.end.y)) * scale.y
 	position = Vector2(vp.x - right - SLOT, vp.y - bottom - SLOT)
+	if UiTokens.is_compact(vp) and not UiTokens.is_narrow(vp):
+		# Landscape phone: under the map the claim hex and the context row fill the bottom-right
+		# corner (the slot sat on the claim hex), so the slot ends the left rail instead.
+		# ASSUMPTION: mirrors hunt_hud.gd _layout's rail (four 64 px hexes, 10 px apart, 96 px up).
+		var inset := UiTokens.safe_insets(get_viewport())
+		position = Vector2(16.0 + inset.w + RAIL_HEXES * (SLOT + 10.0), vp.y - 96.0 - inset.y)
 	if _pressing:
 		_long_left -= delta
 		if _long_left <= 0.0:

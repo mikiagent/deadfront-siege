@@ -117,7 +117,7 @@ func _rebuild_cards() -> void:
 	if current != "" and catalogue.has(current):
 		ids.append(current)
 	# A phone (either way up) has room for the current island's card only; the map needs the rest.
-	var limit := 1 if UiTokens.is_phone(get_viewport_rect().size) else 4
+	var limit := 1 if UiTokens.is_compact(get_viewport_rect().size) else 4
 	for key in catalogue.keys():
 		if ids.size() >= limit:
 			break
@@ -176,7 +176,7 @@ func _material_line(climate: String) -> String:
 	if block is Dictionary:
 		for row in (block as Dictionary).get("materials", []):
 			if row is Dictionary:
-				names.append(CraftUI._nice(str((row as Dictionary).get("id", ""))))
+				names.append(ItemText.nice_name(str((row as Dictionary).get("id", ""))))
 			if names.size() >= 3:
 				break
 	if names.is_empty():
@@ -267,7 +267,7 @@ func _layout() -> Dictionary:
 		var map_h := phone_legend_y(r) - 24.0 - PHONE_MAP_TOP
 		fit = minf(r.x - MARGIN * 2.0, map_h)
 		centre = Vector2(r.x * 0.5, PHONE_MAP_TOP + fit * 0.5)
-	elif UiTokens.is_phone(r):
+	elif UiTokens.is_compact(r):
 		# Landscape phone: between the card column and the legend, under the header, over the buttons.
 		var top := MARGIN + 48.0
 		var bottom := r.y - 64.0 - MARGIN - UiTokens.SPACE
@@ -279,6 +279,35 @@ func _layout() -> Dictionary:
 	var size_m: float = float(rt.get("_size")) if rt and rt.get("_size") != null else 200.0
 	return {"centre": centre, "scale": fit / maxf(1.0, size_m) * _zoom, "fit": fit,
 		"yaw": 0.0, "size_m": size_m}
+
+## The map square at zoom 1 (the fit), in screen space.
+func _map_rect(L: Dictionary) -> Rect2:
+	var side: float = L["fit"]
+	return Rect2((L["centre"] as Vector2) - Vector2(side, side) * 0.5, Vector2(side, side))
+
+## Screen rect of every block, for the real-scene gate: none may leave the view or overlap another.
+func layout_rects() -> Dictionary:
+	var r := get_viewport_rect().size
+	var out := {"map": _map_rect(_layout()), "close": _close.get_global_rect(), "actions": _btn_row.get_global_rect()}
+	var zoom_row := get_node_or_null("ZoomRow") as Control
+	if zoom_row:
+		out["zoom"] = zoom_row.get_global_rect()
+	for i in _cards.get_child_count():
+		var card := _cards.get_child(i) as Control
+		if card and not card.is_queued_for_deletion():
+			out["card%d" % i] = card.get_global_rect()
+	var kinds := _legend_kinds()
+	for i in kinds.size():
+		var at := legend_slot(i, r)
+		var row := Rect2(at + Vector2(0.0, -15.0), Vector2(legend_col_w(r), 20.0))
+		out["legend"] = row if i == 0 else (out["legend"] as Rect2).merge(row)
+	return out
+
+func _legend_kinds() -> Array:
+	var kinds: Array = LEGEND.keys()
+	if not World.crater_discovered:
+		kinds.erase("crater")
+	return kinds
 
 func _draw() -> void:
 	if player == null or hud == null:
@@ -335,6 +364,12 @@ func _draw() -> void:
 		draw_circle(goal, 5.0, Color(1.0, 1.0, 1.0, 0.0))
 		draw_arc(goal, 6.0, 0.0, TAU, 24, Color(1, 1, 1, 0.9), 2.0, true)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# North marker: the atlas is north-up while the HUD minimap turns with the camera.
+	var mr := _map_rect(L)
+	var np := Vector2(mr.end.x - 18.0, mr.position.y + 22.0)
+	draw_circle(np, 14.0, Color(0.03, 0.035, 0.04, 0.85))
+	draw_colored_polygon(PackedVector2Array([np + Vector2(0, -12), np + Vector2(-4, -6), np + Vector2(4, -6)]), Color.WHITE)
+	UiTokens.draw_centered(self, font, np + Vector2(0, 3), "N", UiTokens.TYPE_MIN, Color.WHITE)
 	# header + legend (screen space)
 	var title := "WORLD ATLAS"
 	var head := UiTokens.heading(r)
@@ -351,9 +386,7 @@ func _draw() -> void:
 	var meta_y := MARGIN + head + (44.0 if phone else 22.0)
 	draw_string(font, Vector2(MARGIN, meta_y), UiTokens.ellipsis(font, meta, text_w, UiTokens.meta(r)), HORIZONTAL_ALIGNMENT_LEFT, text_w, UiTokens.meta(r), UiTokens.META)
 	# Legend: a column under Close, or three rows over the buttons on a portrait phone.
-	var kinds: Array = LEGEND.keys()
-	if not World.crater_discovered:
-		kinds.erase("crater")
+	var kinds := _legend_kinds()
 	var meta_px := UiTokens.meta(r)
 	var label_w := legend_col_w(r) - 22.0
 	for i in kinds.size():

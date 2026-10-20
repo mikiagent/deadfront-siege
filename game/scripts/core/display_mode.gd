@@ -6,8 +6,14 @@ extends RefCounted
 
 ## The design canvas every desktop screen is laid out for (project.godot viewport size).
 const DESIGN := Vector2i(1600, 900)
-## Same threshold as UiTokens.is_narrow: narrower than this in points is a portrait phone.
+## Same threshold as UiTokens.is_phone / is_narrow: narrower than this in points is a phone.
 const PHONE_MAX_PT := 720.0
+## Narrowest landscape phone canvas. The protected HUD's landscape (desktop) rows need about 740 px:
+## vitals 300 + quest card 240 + minimap 154 + gaps. A narrower phone (iPhone SE 667x375, 640x360
+## Androids) gets this width at a slightly smaller scale (12 px = 10.5 pt at 667) instead of a 1:1
+## canvas, where is_phone would send the HUD and bag into their portrait rows.
+## ASSUMPTION: 10.5 pt smallest text on the narrowest phones beats overlapping HUD blocks.
+const LANDSCAPE_MIN_W := 760.0
 ## Portrait windows narrower than this (iPad mini 768, iPad Air 820) are tablets.
 const TABLET_MAX_PT := 1100.0
 const TABLET_W := 1000
@@ -28,16 +34,19 @@ static func label() -> String:
 	return "Exit full screen" if is_fullscreen() else "Full screen"
 
 ## Logical canvas for a window. The project stretches a 1600x900 canvas (aspect expand), which on a
-## 390-pt-tall phone drew the HUD at 24 % and left every is_phone branch dead. Phones, held either
-## way, now get one logical px per point, so the 12 px type floor is 12 pt on the glass and
-## UiTokens.is_phone holds (narrow when portrait, short when landscape, the shipped orientation).
-## Portrait tablets get a TABLET_W-wide canvas, so desktop layouts keep their columns at ~0.8 scale
-## instead of 0.48. Everything else keeps 1600x900.
+## 390-pt-tall phone drew the HUD at 24 % and left every phone branch dead. Phones get one logical
+## px per point, so the 12 px type floor is 12 pt on the glass and UiTokens.is_compact holds
+## (narrow when portrait, short when landscape, the shipped orientation); landscape phones narrower
+## than LANDSCAPE_MIN_W are scaled up to it. Portrait tablets get a TABLET_W-wide canvas, so desktop
+## layouts keep their columns at ~0.8 scale instead of 0.48. Everything else keeps 1600x900.
 static func logical_size(window_px: Vector2i, device_scale: float) -> Vector2i:
 	var pts := Vector2(window_px) / maxf(1.0, device_scale)
 	if pts.x <= 0.0 or pts.y <= 0.0:
 		return DESIGN
-	if pts.x < PHONE_MAX_PT or is_phone_landscape(pts):
+	if is_phone_landscape(pts):
+		var k := maxf(1.0, LANDSCAPE_MIN_W / pts.x)
+		return Vector2i(roundi(pts.x * k), roundi(pts.y * k))
+	if pts.x < PHONE_MAX_PT:
 		return Vector2i(roundi(pts.x), roundi(pts.y))
 	if pts.y > pts.x and pts.x < TABLET_MAX_PT:
 		return Vector2i(TABLET_W, roundi(pts.y * float(TABLET_W) / pts.x))
@@ -56,13 +65,18 @@ static func window_points(win: Window) -> Vector2:
 		return Vector2.ZERO
 	return Vector2(win.size) / device_scale()
 
+## The canvas fit() gives this window, whether or not install() ran: screens that must look right
+## before the boot hook lands lay out for this and scale by (actual canvas / this).
+static func fitted_size(win: Window) -> Vector2:
+	return Vector2(logical_size(win.size, device_scale())) if win else Vector2(DESIGN)
+
 ## A phone held sideways: short (under UiTokens.SHORT_MAX pt) and wide (>= 1.75:1), the shipped handheld orientation
 ## (project.godot sensor landscape). logical_size() gives it a 1:1 canvas.
 static func is_phone_landscape(pts: Vector2) -> bool:
 	return pts.y > 0.0 and pts.y < UiTokens.SHORT_MAX and pts.x / pts.y >= 1.75
 
-## A window narrower than a phone, in points: the canvas fit must make UiTokens.is_phone true
-## there and text must stay at least UiTokens.TYPE_MIN.
+## A window narrower than a phone, in points: the canvas fit must make UiTokens.is_compact true
+## there and text must stay at least UiTokens.TYPE_MIN logical px.
 static func is_phone_window(pts: Vector2) -> bool:
 	return pts.x > 0.0 and pts.x < PHONE_MAX_PT
 

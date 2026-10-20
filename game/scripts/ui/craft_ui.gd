@@ -11,10 +11,11 @@ extends Control
 ## pinned in a footer (three stacked scroll panes hid the Craft button below a nested scroll).
 
 ## [station id, name, symbol icon id]. Symbols are white (HexButton.symbol); system emoji drew in colour.
+## Campfire and crock pot have their own symbols: their kit icons alias the bonfire and grill ones.
 const STATIONS := [
 	["", "By hand", "hands"], ["workbench", "Workbench", "workbench_kit"], ["bonfire", "Bonfire", "bonfire_kit"],
-	["campfire", "Campfire", "campfire_kit"], ["drying_rack", "Meat dryer", "drying_rack_kit"],
-	["crock_pot", "Crock pot", "crock_pot_kit"], ["mortar", "Mortar", "mortar_kit"],
+	["campfire", "Campfire", "skewer"], ["drying_rack", "Meat dryer", "drying_rack_kit"],
+	["crock_pot", "Crock pot", "boiled_meat"], ["mortar", "Mortar", "mortar_kit"],
 	["stone_grill", "Stone grill", "stone_grill_kit"], ["steamer", "Steamer", "steamer_kit"], ["well", "Well", "well_kit"],
 ]
 const NO_LEVEL := LevelDisplay.NONE
@@ -213,7 +214,7 @@ func _single_pane() -> bool:
 ## Phones, either way up, pin Craft / Craft x5 in the footer: in a landscape phone's 230 px tall
 ## detail column they sat below the fold of its scroll.
 func _pinned_actions() -> bool:
-	return UiTokens.is_phone(get_viewport_rect().size)
+	return UiTokens.is_compact(get_viewport_rect().size)
 
 func _refresh_list() -> void:
 	for c in _list.get_children():
@@ -249,13 +250,6 @@ func _refresh_list() -> void:
 		_list.add_child(_recipe_row(rec, info))
 	_show_detail(info)
 
-## "Lv. 12", or "Lv. —" when the bag cannot make it yet. Crafting.preview_level reports the recipe's
-## top level for an invalid pick, which read as "Lv. 60" on every row the player could not craft.
-static func level_text(inv: Inventory, rec: Dictionary) -> String:
-	if inv == null or not Crafting.picks_valid(inv, rec, Crafting.default_picks(inv, rec)):
-		return NO_LEVEL
-	return LevelDisplay.label(Crafting.preview_level(inv, rec))
-
 ## Why a recipe cannot start now ("" = it can).
 func _block_reason(rec: Dictionary, info: Dictionary) -> String:
 	var blocked := Crafting.progression_block(player, rec)
@@ -273,7 +267,7 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	var can := reason == ""
 	var chosen := str(rec.get("id", "")) == _selected_id
 	var view := get_viewport_rect().size
-	var phone := UiTokens.is_phone(view)
+	var phone := UiTokens.is_compact(view)
 	var row := Button.new()
 	row.toggle_mode = false
 	row.custom_minimum_size = Vector2(0, 60)
@@ -311,7 +305,7 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	text.add_child(name)
 	var meta := Label.new()
 	meta.name = "RecipeMeta"
-	meta.text = "%s · %.1fs%s" % [level_text(player.inventory, rec), Crafting.recipe_seconds(rec), ("  ·  " + reason) if reason != "" else ""]
+	meta.text = "%s · %.1fs%s" % [LevelDisplay.recipe_label(player.inventory, rec), Crafting.recipe_seconds(rec), ("  ·  " + reason) if reason != "" else ""]
 	meta.clip_text = true
 	meta.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	meta.add_theme_font_size_override("font_size", UiTokens.meta(view))
@@ -332,38 +326,6 @@ func _output_name(rec: Dictionary) -> String:
 	if out_def and out_def.display_name != "":
 		return out_def.display_name
 	return str(rec.get("display_name", rec.get("id", "?"))).replace("_", " ").capitalize()
-
-## Readable name for an ingredient category or item id ("lashing" -> "Lashing").
-static func _nice(id: String) -> String:
-	var d := Data.item(StringName(id))
-	if d and d.display_name != "":
-		return d.display_name
-	return id.replace("_", " ").capitalize()
-
-## What the item does, from its definition (base values; crafted level scales them).
-static func stat_lines(def: ItemDef) -> PackedStringArray:
-	var out: PackedStringArray = []
-	if def == null:
-		return out
-	if def.damage > 0.0:
-		out.append("Damage %.0f" % def.damage)
-	if def.attack_rate > 0.0:
-		out.append("Attack rate %.1f/s" % def.attack_rate)
-	if def.range_m > 0.0:
-		out.append("Range %.0f m" % def.range_m)
-	if def.armor_value > 0.0:
-		out.append("Armor %.0f" % def.armor_value)
-	if def.health_bonus > 0.0:
-		out.append("Health +%.0f" % def.health_bonus)
-	if def.food_energy > 0.0:
-		out.append("Energy +%.0f" % def.food_energy)
-	if def.capture_tier > 0:
-		out.append("Capture tier %d" % def.capture_tier)
-	if def.tool_class != &"none" and def.tool_class != &"":
-		out.append("Tool: %s" % str(def.tool_class).capitalize())
-	if def.max_durability > 0:
-		out.append("Durability %d" % def.max_durability)
-	return out
 
 ## Icon + "have/need" per slot; red when short.
 func _ingredients_row(rec: Dictionary) -> Control:
@@ -400,7 +362,7 @@ func _ingredients_row(rec: Dictionary) -> Control:
 		cell.add_child(ic)
 		var l := Label.new()
 		var d := Data.item(sample_id)
-		var nm := d.display_name if d and d.display_name != "" else _nice(str(cat))
+		var nm := d.display_name if d and d.display_name != "" else ItemText.nice_name(str(cat))
 		l.text = "%s %d/%d" % [nm, mini(have, need), need]
 		l.add_theme_font_size_override("font_size", 14)
 		l.add_theme_color_override("font_color", Color(0.8, 0.85, 0.75) if have >= need else Color(1.0, 0.55, 0.45))
@@ -478,12 +440,12 @@ func _show_detail(info: Dictionary) -> void:
 	_detail.add_child(icon)
 	var title := Label.new()
 	title.name = "DetailTitle"
-	title.text = "%s\n%s · %.1fs    ×%d" % [out_name, level_text(player.inventory, rec), Crafting.recipe_seconds(rec), int(out_row.get("count", 1))]
+	title.text = "%s\n%s · %.1fs    ×%d" % [out_name, LevelDisplay.recipe_label(player.inventory, rec), Crafting.recipe_seconds(rec), int(out_row.get("count", 1))]
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 	title.add_theme_color_override("font_color", UiTokens.TEXT)
 	_detail.add_child(title)
-	var stats := stat_lines(out_def)
+	var stats := ItemText.stat_lines(out_def)
 	if not stats.is_empty():
 		var st := Label.new()
 		st.name = "DetailStats"
@@ -500,7 +462,7 @@ func _show_detail(info: Dictionary) -> void:
 	var missing := Crafting.missing_ingredient_name(player.inventory, rec)
 	if missing != "":
 		var lock := Label.new()
-		lock.text = "Needs %s" % _nice(missing)
+		lock.text = "Needs %s" % ItemText.nice_name(missing)
 		lock.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		lock.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 		lock.add_theme_color_override("font_color", UiTokens.DANGER)

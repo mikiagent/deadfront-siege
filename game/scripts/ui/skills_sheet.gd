@@ -18,6 +18,7 @@ const ROW_H := 56.0
 var skills: SkillState
 var _panel: PanelContainer
 var _box: VBoxContainer
+var _head: HBoxContainer
 var _tree: String = ""
 
 func _ready() -> void:
@@ -40,9 +41,20 @@ func _ready() -> void:
 	_panel = PanelContainer.new()
 	_panel.add_theme_stylebox_override("panel", UiTokens.panel_style(1.0))
 	add_child(_panel)
+	# Header (title, SP, Close) pinned above the scroll: at the end of the list Close sat below
+	# the fold on desktop.
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 6)
+	_panel.add_child(column)
+	_head = HBoxContainer.new()
+	_head.name = "SkillsHeader"
+	_head.add_theme_constant_override("separation", UiTokens.SPACE)
+	column.add_child(_head)
 	var scroll := ScrollContainer.new()
+	scroll.name = "SkillsScroll"
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_panel.add_child(scroll)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(scroll)
 	# Reserve the scrollbar's width: without it the SP label and every row's right edge ran under it.
 	var pad := MarginContainer.new()
 	pad.name = "ScrollPad"
@@ -80,7 +92,7 @@ static func panel_rect(view: Vector2) -> Rect2:
 	var top := 24.0
 	var bottom := 24.0
 	var w := minf(PANEL_MAX_W, view.x - 2.0 * 340.0)
-	if UiTokens.is_phone(view) or w < 480.0:
+	if UiTokens.is_compact(view) or w < 480.0:
 		w = view.x - 16.0
 		top = 100.0
 		bottom = 8.0 if view.y < UiTokens.SHORT_MAX else 100.0
@@ -93,9 +105,9 @@ func _layout() -> void:
 	var r := panel_rect(view)
 	_panel.position = r.position
 	_panel.size = r.size
-	var scroll := _panel.get_child(0) as ScrollContainer
+	var scroll := _panel.find_child("SkillsScroll", true, false) as ScrollContainer
 	if scroll:
-		scroll.custom_minimum_size = r.size - Vector2(32, 32)
+		scroll.custom_minimum_size = Vector2(r.size.x - 32.0, 0.0)
 
 func rebuild() -> void:
 	for c in _box.get_children():
@@ -109,8 +121,10 @@ func rebuild() -> void:
 
 func _header(text: String, right: String = "", symbol_id: String = "") -> void:
 	var view := get_viewport_rect().size
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", UiTokens.SPACE)
+	var h := _head
+	for c in h.get_children():
+		h.remove_child(c)
+		c.queue_free()
 	if symbol_id != "":
 		h.add_child(_symbol(symbol_id, 32.0))
 	var l := Label.new()
@@ -126,7 +140,12 @@ func _header(text: String, right: String = "", symbol_id: String = "") -> void:
 		r.add_theme_font_size_override("font_size", UiTokens.body(view) + 4)
 		r.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
 		h.add_child(r)
-	_box.add_child(h)
+	var close_btn := Button.new()
+	close_btn.name = "SkillsClose"
+	close_btn.text = "Close"
+	close_btn.custom_minimum_size = Vector2(112, 56)
+	close_btn.pressed.connect(close)
+	h.add_child(close_btn)
 
 func _symbol(id: String, px: float) -> TextureRect:
 	var t := TextureRect.new()
@@ -203,11 +222,6 @@ func _build_overview() -> void:
 		)
 		_box.add_child(row)
 		rows.append(row)
-	var close_btn := Button.new()
-	close_btn.text = "Close"
-	close_btn.custom_minimum_size = Vector2(0, 56)
-	close_btn.pressed.connect(close)
-	_box.add_child(close_btn)
 	UiTokens.focus_first(rows)
 
 func _build_tree() -> void:

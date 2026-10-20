@@ -33,7 +33,7 @@ func show_for(st: Node3D, recipes: Array[Dictionary], inv: Inventory) -> void:
 		var out_id := StringName(str(out_row.get("id", rid)))
 		var secs := Crafting.recipe_seconds(rec)
 		var missing := Crafting.missing_ingredient_name(inv, rec)
-		var label := "%s %s" % [str(rec.get("display_name", rid)), CraftUI.level_text(inv, rec)]
+		var label := "%s %s" % [str(rec.get("display_name", rid)), LevelDisplay.recipe_label(inv, rec)]
 		btn.setup(_icon_for(out_id), _glyph_for(out_id), label, "%.1fs" % secs, "×%d" % int(out_row.get("count", 1)))
 		if missing != "":
 			btn.set_blocked(missing)

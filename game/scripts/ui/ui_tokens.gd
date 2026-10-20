@@ -26,23 +26,30 @@ const META := Color(0.78, 0.76, 0.70, 1.0)
 const ACTION := Color(1, 1, 1, 1)
 
 
-## Phone type sizes and density: a narrow canvas (portrait) or a short one (landscape, the shipped
-## handheld orientation). DisplayMode gives both a 1:1 canvas, so 844x390 pt is 844x390 here.
+## Under 720 px wide. Kept at its original meaning: the protected HUD, bag and animal screen pick
+## their portrait layouts with it, and DisplayMode never gives a landscape phone a canvas that
+## narrow, so they keep their desktop rows there (their portrait rows overlapped at 844x390).
 static func is_phone(view: Vector2) -> bool:
-	return is_narrow(view) or view.y < SHORT_MAX
-
-## Too narrow for side-by-side columns: screens stack one pane at a time (portrait phone).
-static func is_narrow(view: Vector2) -> bool:
 	return view.x < 720.0
 
+## Portrait phone: too narrow for side-by-side columns, so screens stack one pane at a time.
+## Decided by shape too: a landscape canvas is never narrow, whatever its width.
+static func is_narrow(view: Vector2) -> bool:
+	return view.x < 720.0 and view.y > view.x
+
+## Phone type sizes and density, either way up: narrow (portrait) or short (landscape, the shipped
+## handheld orientation). Owned screens pick their landscape layouts with this, never is_phone.
+static func is_compact(view: Vector2) -> bool:
+	return is_narrow(view) or view.y < SHORT_MAX
+
 static func heading(view: Vector2) -> int:
-	return 20 if is_phone(view) else 24
+	return 20 if is_compact(view) else 24
 
 static func body(view: Vector2) -> int:
-	return 14 if is_phone(view) else 16
+	return 14 if is_compact(view) else 16
 
 static func meta(view: Vector2) -> int:
-	return 12 if is_phone(view) else 13
+	return 12 if is_compact(view) else 13
 
 static func panel_style(alpha: float = 0.94) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
@@ -210,7 +217,7 @@ static func first_focusable(controls: Array) -> Control:
 static func hud_reserved(view: Vector2) -> Array[Rect2]:
 	if is_narrow(view):
 		return [Rect2(0, 0, view.x, 96.0), Rect2(0, view.y - 96.0, view.x, 96.0)]
-	if is_phone(view):  # landscape: vitals band, the map/quest/rail column on the right, left rail
+	if is_compact(view):  # landscape: vitals + quest band, the map/claim/rail column on the right, left rail
 		return [Rect2(0, 0, view.x, 96.0), Rect2(view.x - 190.0, 0, 190.0, view.y), Rect2(0, view.y - 104.0, 330.0, 104.0)]
 	return [
 		Rect2(0, 0, 330.0, 112.0),

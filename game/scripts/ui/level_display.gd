@@ -17,3 +17,11 @@ static func label(level: int) -> String:
 
 static func player_label() -> String:
 	return label(player_level())
+
+## A recipe's level: "Lv. 12", or NONE when the bag cannot make it yet. Crafting.preview_level
+## reports the recipe's top level for an invalid pick, which read as "Lv. 60" on every row the
+## player could not craft.
+static func recipe_label(inv: Inventory, rec: Dictionary) -> String:
+	if inv == null or not Crafting.picks_valid(inv, rec, Crafting.default_picks(inv, rec)):
+		return NONE
+	return label(Crafting.preview_level(inv, rec))

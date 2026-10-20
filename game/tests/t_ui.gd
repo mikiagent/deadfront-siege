@@ -11,7 +11,7 @@ const OWNED := [
 	"res://scripts/ui/map_screen.gd", "res://scripts/ui/fatigue_panel.gd", "res://scripts/ui/world_ui.gd",
 	"res://scripts/ui/creature_plates.gd", "res://scripts/ui/context_radial.gd", "res://scripts/ui/gather_radial.gd",
 	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
-	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
+	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd", "res://scripts/ui/item_text.gd",
 ]
 const TYPE_MIN := 12
 
@@ -24,6 +24,8 @@ var CU: GDScript
 var MS: GDScript
 var LD: GDScript
 var LAB: GDScript
+var IT: GDScript
+var CC: GDScript
 
 func _process(_delta: float) -> bool:
 	if _done:
@@ -36,6 +38,8 @@ func _process(_delta: float) -> bool:
 	MS = load("res://scripts/ui/map_screen.gd")
 	LD = load("res://scripts/ui/level_display.gd")
 	LAB = load("res://scripts/dev/ui_real_capture_lab.gd")
+	IT = load("res://scripts/ui/item_text.gd")
+	CC = load("res://scripts/ui/character_creation.gd")
 	_expect(UT.TYPE_MIN == TYPE_MIN, "type floor is %d" % TYPE_MIN)
 	_test_owned_sources()
 	_test_draw_centered()
@@ -163,7 +167,7 @@ func _test_craft_level_text() -> void:
 	for rec in crafting.recipes_for_station(&""):
 		if (rec.get("slots", []) as Array).is_empty():
 			continue
-		var got: String = CU.level_text(inv, rec)
+		var got: String = LD.recipe_label(inv, rec)
 		_expect(got == CU.NO_LEVEL, "empty bag shows %s for %s (got %s)" % [CU.NO_LEVEL, rec.get("id", "?"), got])
 		tested += 1
 		if tested >= 5:
@@ -171,7 +175,8 @@ func _test_craft_level_text() -> void:
 	_expect(tested > 0, "hand recipes with inputs exist")
 	_expect(CU.NO_LEVEL == LD.NONE and LD.NONE == "Lv. —", "missing-input level text is 'Lv. —', in the LevelDisplay format")
 	var data: Node = get_root().get_node("Data")
-	_expect(not (CU.stat_lines(data.item(&"work_axe")) as PackedStringArray).is_empty(), "a tool has stat lines")
+	_expect(not (IT.stat_lines(data.item(&"work_axe")) as PackedStringArray).is_empty(), "a tool has stat lines")
+	_expect(IT.nice_name("no_such_thing") == "No Such Thing", "nice_name falls back to the capitalised id")
 	print("[t_ui] craft: %d unmakeable hand recipes read '%s'" % [tested, CU.NO_LEVEL])
 
 func _test_display_mode() -> void:
@@ -179,19 +184,40 @@ func _test_display_mode() -> void:
 	_expect(DisplayMode.logical_size(Vector2i(1170, 2532), 3.0) == Vector2i(390, 844), "iPhone pixels at 3x -> 390x844 logical")
 	_expect(DisplayMode.logical_size(Vector2i(1600, 900), 1.0) == DisplayMode.DESIGN, "1600x900 desktop unchanged")
 	_expect(DisplayMode.logical_size(Vector2i(3200, 1800), 2.0) == DisplayMode.DESIGN, "retina browser at 1600x900 CSS unchanged")
-	# The owner plays phones landscape: 844x390 pt gets a 1:1 canvas, short, so is_phone holds.
+	# The owner plays phones landscape: 844x390 pt gets a 1:1 canvas. It is compact (phone type and
+	# the owned landscape layouts) but not is_phone, so the protected HUD and bag keep their desktop
+	# rows (their portrait rows overlapped at 844x390).
 	var land := Vector2(DisplayMode.logical_size(Vector2i(844, 390), 1.0))
 	_expect(land == Vector2(844, 390), "844x390 landscape window -> 844x390 logical (got %s)" % land)
 	_expect(DisplayMode.logical_size(Vector2i(2532, 1170), 3.0) == Vector2i(844, 390), "iPhone landscape pixels at 3x -> 844x390 logical")
-	_expect(UT.is_phone(land) and not UT.is_narrow(land), "is_phone holds on the landscape canvas, which is not narrow")
-	_expect(not UT.is_phone(Vector2(DisplayMode.DESIGN)), "the 1600x900 desktop canvas is not a phone")
+	_expect(UT.is_compact(land) and not UT.is_narrow(land) and not UT.is_phone(land), "the landscape canvas is compact, not narrow, not is_phone")
+	_expect(not UT.is_compact(Vector2(DisplayMode.DESIGN)) and not UT.is_phone(Vector2(DisplayMode.DESIGN)), "the 1600x900 desktop canvas is not a phone")
+	# Narrow landscape phones (iPhone SE 667x375, 640x360 Androids) get LANDSCAPE_MIN_W, never a
+	# canvas under 720 where is_phone would flip the protected HUD and bag to portrait rows.
+	var se := Vector2(DisplayMode.logical_size(Vector2i(667, 375), 1.0))
+	_expect(se == Vector2(760, 427), "667x375 landscape window -> 760x427 logical (got %s)" % se)
+	_expect(DisplayMode.logical_size(Vector2i(640, 360), 1.0) == Vector2i(760, 428), "640x360 landscape window -> 760x428 logical")
+	_expect(UT.is_compact(se) and not UT.is_narrow(se) and not UT.is_phone(se), "the SE canvas is compact, not narrow, not is_phone")
+	_expect(not UT.is_narrow(Vector2(668, 376)), "a landscape canvas is never narrow, whatever its width")
 	_expect(DisplayMode.logical_size(Vector2i(820, 1180), 1.0) == Vector2i(DisplayMode.TABLET_W, 1439), "portrait tablet -> TABLET_W wide canvas")
-	_expect(DisplayMode.is_phone_landscape(Vector2(844, 390)), "844x390 pt is a landscape phone")
+	_expect(DisplayMode.is_phone_landscape(Vector2(844, 390)) and DisplayMode.is_phone_landscape(Vector2(667, 375)), "844x390 and 667x375 pt are landscape phones")
 	_expect(not DisplayMode.is_phone_landscape(Vector2(1947, 900)), "the unfitted 1947x900 canvas is not")
 	_expect(not DisplayMode.is_phone_landscape(Vector2(390, 844)) and not DisplayMode.is_phone_landscape(Vector2(1600, 900)), "portrait phone and desktop are not landscape phones")
 	_expect(DisplayMode.logical_size(Vector2i(0, 0), 1.0) == DisplayMode.DESIGN, "a zero window keeps the design canvas")
-	_expect(UT.is_phone(Vector2(DisplayMode.logical_size(Vector2i(390, 844), 1.0))), "is_phone holds on the portrait canvas")
-	print("[t_ui] canvas: 844x390 -> %s phone=%s narrow=%s; 1600x900 -> %s phone=%s" % [land, UT.is_phone(land), UT.is_narrow(land), Vector2(DisplayMode.logical_size(Vector2i(1600, 900), 1.0)), UT.is_phone(Vector2(DisplayMode.DESIGN))])
+	var port := Vector2(DisplayMode.logical_size(Vector2i(390, 844), 1.0))
+	_expect(UT.is_phone(port) and UT.is_narrow(port) and UT.is_compact(port), "the portrait canvas is phone, narrow and compact")
+	print("[t_ui] canvas: 844x390 -> %s compact=%s narrow=%s is_phone=%s; 667x375 -> %s; 1600x900 -> %s compact=%s" % [land, UT.is_compact(land), UT.is_narrow(land), UT.is_phone(land), se, Vector2(DisplayMode.logical_size(Vector2i(1600, 900), 1.0)), UT.is_compact(Vector2(DisplayMode.DESIGN))])
+	# Character creation lays out for the fitted canvas with or without the fit: an unfitted 844x390
+	# phone (1947x900 canvas) gets the landscape layout at 2.3x, not the desktop one at 0.43.
+	var raw: Dictionary = CC.layout_for(Vector2(1947, 900), land)
+	_expect(bool(raw["short"]) and absf(float(raw["k"]) - 1947.0 / 844.0) < 0.01, "unfitted landscape charcreate: short layout scaled %.2f" % float(raw["k"]))
+	var fitted: Dictionary = CC.layout_for(land, land)
+	_expect(bool(fitted["short"]) and is_equal_approx(float(fitted["k"]), 1.0), "fitted landscape charcreate: short layout at 1x")
+	var desk: Dictionary = CC.layout_for(Vector2(1600, 900), Vector2(DisplayMode.DESIGN))
+	_expect(not bool(desk["phone"]) and is_equal_approx(float(desk["k"]), 1.0), "desktop charcreate: desktop layout at 1x")
+	var se_raw: Dictionary = CC.layout_for(Vector2(1601, 900), se)
+	_expect(bool(se_raw["short"]) and not bool(se_raw["narrow"]), "unfitted SE charcreate: landscape layout, not portrait")
+	print("[t_ui] charcreate: unfitted 844x390 k=%.2f short=%s; fitted k=%.2f" % [float(raw["k"]), raw["short"], float(fitted["k"])])
 	# Landscape screens keep off the HUD: skills sits under the vitals band, radials avoid the right column.
 	var SS: GDScript = load("res://scripts/ui/skills_sheet.gd")
 	var zones: Array[Rect2] = UT.hud_reserved(land)
@@ -271,18 +297,24 @@ func _test_hex_focus() -> void:
 ## The real-scene gate must fail when the phone canvas fit is missing (review: it printed PASS
 ## for "phone=false min_font_px=3 logical_width=1600" at 390x844).
 func _test_gate_verdict() -> void:
-	var land: Array = LAB.gate_failures(Vector2(844, 390), false, 5, 1947)
+	var land: Array = LAB.gate_failures(Vector2(844, 390), false, 5.0, 1947)
 	_expect(land.size() == 2, "844x390 without the fit fails twice (got %s)" % [land])
-	_expect((LAB.gate_failures(Vector2(844, 390), true, 12, 844) as Array).is_empty(), "844x390 with the fit passes")
-	_expect((LAB.gate_failures(Vector2(844, 390), false, 13, 844) as Array).size() == 1, "844x390 with is_phone false fails")
+	_expect((LAB.gate_failures(Vector2(844, 390), true, 12.0, 844) as Array).is_empty(), "844x390 with the fit passes")
+	_expect((LAB.gate_failures(Vector2(844, 390), false, 13.0, 844) as Array).size() == 1, "844x390 with is_compact false fails")
 	print("[t_ui] gate: 844x390 without fit -> %d failures" % land.size())
-	var broken: Array = LAB.gate_failures(Vector2(390, 844), false, 3, 1600)
+	var broken: Array = LAB.gate_failures(Vector2(390, 844), false, 3.0, 1600)
 	_expect(broken.size() == 2, "390x844 without the fit fails twice (got %s)" % [broken])
-	_expect((LAB.gate_failures(Vector2(390, 844), true, 12, 390) as Array).is_empty(), "390x844 with the fit passes")
-	_expect(not (LAB.gate_failures(Vector2(600, 500), true, 9, 600) as Array).is_empty(), "any phone-width window under 12 px fails")
-	_expect((LAB.gate_failures(Vector2(1600, 900), false, 13, 1600) as Array).is_empty(), "1600x900 desktop passes")
-	_expect(not (LAB.gate_failures(Vector2(1600, 900), false, 13, 1947) as Array).is_empty(), "1600x900 with a wrong canvas fails")
-	print("[t_ui] gate: 390x844 without fit -> %d failures" % broken.size())
+	_expect((LAB.gate_failures(Vector2(390, 844), true, 12.0, 390) as Array).is_empty(), "390x844 with the fit passes")
+	_expect(not (LAB.gate_failures(Vector2(600, 500), true, 9.0, 600) as Array).is_empty(), "any phone-width window under 12 px fails")
+	# SE: the 760 px canvas at 0.88 puts 12 px at 10.5 pt, which passes; a 1:1 667 px canvas fails.
+	var se_floor: float = LAB.type_floor_pt(Vector2(667, 375))
+	_expect(absf(se_floor - 12.0 * 667.0 / 760.0) < 0.01, "SE type floor is 12 px on the 760 px canvas (%.2f pt)" % se_floor)
+	_expect((LAB.gate_failures(Vector2(667, 375), true, se_floor, 760) as Array).is_empty(), "667x375 with the fit passes")
+	_expect((LAB.gate_failures(Vector2(667, 375), true, 12.0, 667) as Array).size() == 1, "667x375 on a 1:1 canvas fails")
+	_expect((LAB.gate_failures(Vector2(667, 375), true, 9.0, 760) as Array).size() == 1, "667x375 with 9 pt text fails")
+	_expect((LAB.gate_failures(Vector2(1600, 900), false, 13.0, 1600) as Array).is_empty(), "1600x900 desktop passes")
+	_expect(not (LAB.gate_failures(Vector2(1600, 900), false, 13.0, 1947) as Array).is_empty(), "1600x900 with a wrong canvas fails")
+	print("[t_ui] gate: 390x844 without fit -> %d failures; SE floor %.1f pt" % [broken.size(), se_floor])
 
 func _test_review_fixes() -> void:
 	# NaN anchor (source behind the camera) still yields a full, finite ring
@@ -315,7 +347,16 @@ func _test_review_fixes() -> void:
 		_expect(w + 22.0 <= col_w, "phone legend label '%s' (%.0f px) fits its %.0f px column" % [MS.LEGEND[kind][1], w, col_w])
 	# plate pill hides world labels behind it
 	var CP: GDScript = load("res://scripts/ui/creature_plates.gd")
-	_expect(CP.PILL_ALPHA >= 0.88, "plate pill is near-opaque (%.2f)" % CP.PILL_ALPHA)
+	_expect(is_equal_approx(CP.PILL_ALPHA, 1.0), "plate pill is opaque (%.2f): at 0.96 a world label still ghosted through" % CP.PILL_ALPHA)
+	# every craft station has its own symbol (crock pot borrowed the stone grill's through an alias)
+	var icons: GDScript = load("res://scripts/ui/item_icons.gd")
+	var seen := {}
+	for row in CU.STATIONS:
+		var tex: Texture2D = icons.texture(StringName(str(row[2])))
+		var key := tex.resource_path if tex else ""
+		_expect(key != "" and not seen.has(key), "station %s has its own symbol (%s, also %s)" % [row[0], key, seen.get(key, "-")])
+		seen[key] = row[0]
+	print("[t_ui] craft stations: %d with %d distinct symbols" % [CU.STATIONS.size(), seen.size()])
 	# skills: the scroll content leaves room for the scrollbar
 	var sc := ScrollContainer.new()
 	var SS: GDScript = load("res://scripts/ui/skills_sheet.gd")

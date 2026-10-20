@@ -2,8 +2,8 @@ class_name CreaturePlates
 extends CanvasLayer
 ## Screen-space creature and loot plates.
 
-## Near-opaque: at 0.72 a world label behind the plate ("Harbour") read as ghost text between glyphs.
-const PILL_ALPHA := 0.96
+## Opaque: at 0.72, and still at 0.96, a world label behind the plate ("Harbour") ghosted between glyphs.
+const PILL_ALPHA := 1.0
 const MAX_DIST := 45.0
 const NEAR_DIST := 10.0
 const BASE_WIDTH := 176.0
