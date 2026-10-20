@@ -92,6 +92,8 @@ static func snap_points_mesh(sockets: Array) -> ArrayMesh:
 # ------------------------------------------------------------------ costs and gates
 
 ## "" when the survivor may build this tier (Construction level and node from structures.json).
+# ASSUMPTION: tiers open at Construction 0/5/20/35 (thatch/wood/stone/metal) with no skill node until
+# W2-SKILLS defines the Construction tree's building nodes (structures.json requires_node).
 static func tier_gate(player: Node, tier: StringName) -> String:
 	var td := StructurePiece.tier_def(tier)
 	var skills: Variant = player.get("skills") if player else null
@@ -126,6 +128,8 @@ static func pay(inv: Inventory, cost: Dictionary) -> bool:
 
 ## Materials to bring a damaged structure back to full: a piece pays repair_fraction of its tier's
 ## blueprint, a kit its placed_kinds repair list, both scaled by the missing fraction, rounded up.
+# ASSUMPTION: repair_fraction 0.5 and the placed_kinds repair lists are placeholders until the owner
+# tunes them; spec 10's repair rules replace this with W2-CONSTRUCT.
 static func repair_cost(target: Node) -> Dictionary:
 	var h := StructureHealth.of(target, true)
 	if h == null or h.missing() <= 0.0:
@@ -171,6 +175,7 @@ static func place(sg: StructureGrid, parent: Node, kind: StringName, tier: Strin
 	return {"reason": "", "piece": p}
 
 ## Upgrade in place to a higher tier for that tier's full blueprint cost.
+# ASSUMPTION: an upgrade costs the new tier's whole blueprint (as in ARK), with no credit for the old one.
 static func upgrade(target: Node, tier: StringName, player: Node) -> String:
 	if not target is StructurePiece or not StructurePiece.is_tier(tier):
 		return "not_a_piece"
@@ -208,6 +213,7 @@ static func repair(target: Node, player: Node) -> String:
 
 ## Take a piece down: demolish_refund of its blueprint, scaled by its health, back to the bag
 ## (camp cargo takes what the bag cannot); whatever it held up collapses without a refund.
+# ASSUMPTION: demolish_refund 0.5 x health share; collapsed pieces refund nothing.
 static func demolish(target: Node, player: Node) -> String:
 	if not target is StructurePiece:
 		return "not_a_piece"

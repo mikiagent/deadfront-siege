@@ -702,6 +702,7 @@ func _sync_piece(grid: BuildGrid) -> void:
 			reason = "missing_materials"
 	var who := player as Node3D
 	var at: Vector3 = StructurePiece.pose(placing, piece_at["slot"], int(piece_at["rot"]), float(piece_at["floor0"])).origin
+	# ASSUMPTION: pieces use the kits' 8 m reach, measured flat so a roof two storeys up is in reach.
 	if reason == "" and who and not grid.ignore_distance and Vector2(at.x - who.global_position.x, at.z - who.global_position.z).length() > BuildGrid.MAX_PLACE_DISTANCE:
 		reason = "too_far"
 	valid = reason == ""

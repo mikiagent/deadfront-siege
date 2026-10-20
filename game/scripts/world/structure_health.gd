@@ -44,6 +44,7 @@ static func of(node: Node, create: bool = false) -> StructureHealth:
 
 ## Camp pieces (rebuilt from the camp layout every load) and cargo are not structures: they would
 ## come back whole, so nothing may wear them down.
+# ASSUMPTION: the island's camp pieces, harbour and cargo are indestructible.
 static func is_structure(node: Node) -> bool:
 	if node == null or not is_instance_valid(node):
 		return false
