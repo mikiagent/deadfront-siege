@@ -264,6 +264,16 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   (engine, recipes, stations, queues) + W2-SKILLS (Processing tree nodes, abilities, research gates);
   the two screens are layout targets for W1-UI (skills sheet grid, craft card) now and W2-SCREENS later.
 
+- 2026-10-20 (owner) spec 12 `docs/design/durango-prompts/12_remaining_skill_trees.md`: coverage for the
+  undercovered categories (13 incl. optional Toxic Oil Islands; 918 reference nodes, import as data, mark each
+  node functional/partial/defined, never an inert tree). Extends existing data (game/data/butchering.json,
+  farming.json, skills/), no second XP/item/combat systems. Mapping, in the spec's priority order:
+  1) gathering parts + techniques + abilities and carcass part selection -> new W2-GATHER and W2-BUTCHER
+  (after W2-INV + W2-SKILLS); 2) fields/seed instances/growth -> W2-FARM, clothing slots + fabric-trait
+  climate bonuses -> W2-TAILOR (with W2-SURVIVAL climate); 3) tool/weapon part branches, saws gating
+  harvest tiers -> W2-CRAFT; 4) Barrage, Roll Duration, parry -> W2-ACTION; 5) Stealth Ability in the
+  real AI detection + mineral nodes -> W2-SKILLS/eco; Toxic Oil Islands -> optional W3 content pack.
+
 ## Owner questions (open)
 
 - none
