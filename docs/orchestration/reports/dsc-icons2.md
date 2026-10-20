@@ -151,7 +151,7 @@ Kits, feeds, medicine and cages, `camp.py` (15):
    renders in one Blender process (it is the first id in the flagged list; check the material cache
    key / `blob`-style unseeded noise in its builder, or render it with the same neighbours the gate
    uses). Fix the builder so it is order-independent, re-render it with `--only armor_scute`, then
-   rerun `--verify` on all 65 (the last 7 ids after `smoker_kit`... were not reached) and the full gate.
+   rerun `--verify` on all 65 (7 ids were not reached before the stop) and the full gate.
 2. Gate will still print `FAIL out of scope: game/tests/t_iconart.gd`: the one-check test change is
    required (t_iconart cannot pass once every item is rendered). The orchestrator decides whether to
    take it in the squash merge (recommended) - it is the only out-of-allowlist path.
