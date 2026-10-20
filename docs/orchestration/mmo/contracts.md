@@ -145,7 +145,10 @@ Numbers live in `game/data/economy/market_rules.json` (create it); defaults belo
 - Item key = `def_id`. Units are fungible for buy orders only when `level >= order.min_level` and
   `level <= order.max_level` (default 60) and the stack has no `unstable`/`locked` flags. Listings
   sell the exact stack (with its level, attributes, durability) shown to the buyer.
-- Pets are unique assets; key = species.
+- Pets are unique assets; key = species. Owner rule (2026-10-19): a traded pet IS a caged item. A
+  bonded pet is repackaged into a unique `caged_animal` stack (attributes carry the full PetDict, uid,
+  origin, lineage) before it can enter the vault or a listing; the buyer unpacks the cage into a
+  bonded pet without re-taming. Captured (untamed) cages are tradable too and still need taming.
 
 ### 6.2 Fixed-price listing (instant buy)
 - `market.list_fixed {asset:{uid, count?}, unit_price, duration_h}`: moves the asset (or `count`
@@ -214,6 +217,9 @@ simulated market as the price floor.
   the last accepted update (teleport check; travel between islands resets), and relays accepted
   states to the room at 10 Hz as `evt presence {players:[{id,name,p,yaw,anim}]}`; leaves as
   `evt presence_leave {id}`.
+- Area caps (owner rule 2026-10-19): a room (island/area instance) holds at most `max_players_area`
+  players (rules.json); `presence.join` into a full room returns `limit_reached` with the next instance
+  id to join. Creatures per area are capped by `max_creatures_area` (spawns and released animals).
 - `chat.send {text}` ≤ 200 chars, rate limited, control chars stripped → `evt chat {from, text, ts}`
   to the room.
 - **Honest limit (v1):** creatures, combat and gathering nodes are still simulated per client, so
