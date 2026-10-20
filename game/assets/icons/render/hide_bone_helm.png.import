@@ -15,9 +15,9 @@ dest_files=["res://.godot/imported/hide_bone_helm.png-a9f61e27596ad20d40f58c9c1a
 
 [params]
 
-compress/mode=4
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.8
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

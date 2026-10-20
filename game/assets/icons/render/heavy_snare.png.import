@@ -15,9 +15,9 @@ dest_files=["res://.godot/imported/heavy_snare.png-2b9a5cfa28178558e07a16a4971fc
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.8
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

@@ -15,9 +15,9 @@ dest_files=["res://.godot/imported/wheat.png-6987dc489b3e42c008d1558710ce3be2.ct
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.8
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

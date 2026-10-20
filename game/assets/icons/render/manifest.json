@@ -704,13 +704,13 @@
    "script": "glb:game/assets/characters/survivor/armor/forager/helmet.glb",
    "builder": "forager_hood",
    "png": "res://assets/icons/render/forager_hood.png",
-   "sha256": "eaad36bd7f7e2e914f780e74045adfea5770fe110ce8d5b0a8d12c7f11d73d19",
-   "bytes": 52293,
+   "sha256": "dea62f0c6f4386aa2bac7239af06755611fd7b36734318f945420a0e70c4bcdb",
+   "bytes": 50666,
    "rect": [
     19,
-    32,
+    43,
     218,
-    192
+    170
    ],
    "quality": "model_v2"
   },
@@ -732,8 +732,8 @@
    "script": "glb:game/assets/characters/survivor/armor/forager/chest.glb",
    "builder": "forager_vest",
    "png": "res://assets/icons/render/forager_vest.png",
-   "sha256": "e3d26fd231aa513a940ed8b228a973864e6db61882eb4999dcbfa91761c78aa0",
-   "bytes": 60380,
+   "sha256": "857e79770c58efc6a2c36017196663f73e137ffa4600ac2662e9ad3a73d96c23",
+   "bytes": 59723,
    "rect": [
     41,
     19,
@@ -746,15 +746,16 @@
    "script": "glb:game/assets/characters/survivor/armor/forager/arms.glb",
    "builder": "forager_wraps",
    "png": "res://assets/icons/render/forager_wraps.png",
-   "sha256": "9e4c325868c8f16f07b29bd25b6666fa93360514a3d39655723889302d4685b9",
-   "bytes": 31131,
+   "sha256": "c4d54843aabc6e521bb8179afb834c68505e86175c978098ecf98d8fcd5fcb27",
+   "bytes": 31139,
    "rect": [
     19,
     30,
     218,
     196
    ],
-   "quality": "model_v2"
+   "quality": "model_v2",
+   "replace": "worn-pose arm piece: reads as two arms with hands, not an item; stage as one crossed pair"
   },
   "gate_kit": {
    "script": "tools/blender/items/camp.py",
@@ -832,26 +833,27 @@
    "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/arms.glb",
    "builder": "hide_bone_bracers",
    "png": "res://assets/icons/render/hide_bone_bracers.png",
-   "sha256": "f045810d6efe99416897cda4c339a77fd40be77cd3de5c0b259328c291af7b5d",
-   "bytes": 35550,
+   "sha256": "6996b80cd9a9952c98fbaf04d9ec7c400d4f27c68f4ff126f57d4b605626933c",
+   "bytes": 34367,
    "rect": [
     19,
     25,
     218,
     206
    ],
-   "quality": "model_v2"
+   "quality": "model_v2",
+   "replace": "worn-pose arm piece: with the skin cut away, pauldrons and bracers float apart; stage as one crossed pair"
   },
   "hide_bone_cuirass": {
    "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/chest.glb",
    "builder": "hide_bone_cuirass",
    "png": "res://assets/icons/render/hide_bone_cuirass.png",
-   "sha256": "3048ec627b555de79fb486262cd985c5202be64a231bb019613b1f4e6c2d27fd",
-   "bytes": 63082,
+   "sha256": "c0634ab602f4a378ef46251697be88fe44d46eb83b7d0b475cfef74cd93ae8cb",
+   "bytes": 62913,
    "rect": [
-    43,
+    41,
     19,
-    171,
+    174,
     218
    ],
    "quality": "model_v2"
@@ -860,8 +862,8 @@
    "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/legs.glb",
    "builder": "hide_bone_greaves",
    "png": "res://assets/icons/render/hide_bone_greaves.png",
-   "sha256": "3f920b8a1c7b55c025b2ef168dea3ec3c64626ae0249ba40d13cc7506941630b",
-   "bytes": 40981,
+   "sha256": "df70df7a9db03635c53ffabaef69b0afed7dd32481d929ab981a59bb296be71a",
+   "bytes": 40838,
    "rect": [
     64,
     19,
@@ -874,12 +876,12 @@
    "script": "glb:game/assets/characters/survivor/armor/hide_and_bone/helmet.glb",
    "builder": "hide_bone_helm",
    "png": "res://assets/icons/render/hide_bone_helm.png",
-   "sha256": "8b41dc1eafac1485a1aca72bcfc8df33925d09c4c00a5950d5e618c696be97ba",
-   "bytes": 55163,
+   "sha256": "a1fda38f788fd876d5e4f1455c0bb27eb61766dd018d0facf9498b6dc3c565d8",
+   "bytes": 58570,
    "rect": [
-    24,
+    40,
     19,
-    208,
+    176,
     218
    ],
    "quality": "model_v2"
@@ -1213,7 +1215,8 @@
     180,
     218
    ],
-   "quality": "procedural_v1"
+   "quality": "procedural_v1",
+   "replace": "plain brown dome with two horns; epic gear that reads worse than common model art"
   },
   "raid_maul": {
    "script": "tools/blender/items/gear.py",
@@ -1731,8 +1734,8 @@
    "script": "glb:game/assets/characters/survivor/armor/travel_clothes/chest.glb",
    "builder": "travel_shirt",
    "png": "res://assets/icons/render/travel_shirt.png",
-   "sha256": "f35f9b27cdea2f73f5ca4eb3f6d0283b035d7b806a8dc30758e728e97d045907",
-   "bytes": 50910,
+   "sha256": "6581f5368cfcda9240d8bbae0bb2c56a9e2f62332a4e59c48bfe5787edbe2586",
+   "bytes": 50491,
    "rect": [
     48,
     19,
@@ -1745,22 +1748,23 @@
    "script": "glb:game/assets/characters/survivor/armor/travel_clothes/arms.glb",
    "builder": "travel_sleeves",
    "png": "res://assets/icons/render/travel_sleeves.png",
-   "sha256": "653ffd1480a8029c02d83a8eb2715e9623e9de46d8610a1395a244f1f5aa9c9c",
-   "bytes": 27454,
+   "sha256": "7158cc060c961bee123e7b580904f191699d5fb6ee7ef45ede4c8891f1ec12e0",
+   "bytes": 23315,
    "rect": [
     19,
-    29,
+    33,
     218,
-    198
+    190
    ],
-   "quality": "model_v2"
+   "quality": "model_v2",
+   "replace": "worn-pose arm piece: with the skin cut away, two sleeve cuffs and two gloves float apart and read as slivers at slot size; stage as one crossed pair"
   },
   "travel_trousers": {
    "script": "glb:game/assets/characters/survivor/armor/travel_clothes/legs.glb",
    "builder": "travel_trousers",
    "png": "res://assets/icons/render/travel_trousers.png",
-   "sha256": "1584ad051b21358a06354fdcce609bd1066175e836314dcd12d5845567834e9a",
-   "bytes": 34181,
+   "sha256": "a00d8135e26d4c15c2b4890b6a0def9a42913e12097802099c2c1b5653c00c44",
+   "bytes": 34118,
    "rect": [
     68,
     19,

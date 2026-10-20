@@ -15,9 +15,9 @@ dest_files=["res://.godot/imported/raid_helm.png-d41716c11ed5b7c7a5ac3ec800a565c
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.8
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

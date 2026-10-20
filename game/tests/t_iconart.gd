@@ -77,10 +77,17 @@ func _test_pngs_and_manifest() -> void:
 		var used := img.get_used_rect()
 		var mr: Array = entry.get("rect", [0, 0, 0, 0])  # JSON numbers are floats
 		_check(mr.size() == 4 and Rect2i(int(mr[0]), int(mr[1]), int(mr[2]), int(mr[3])) == used, "%s manifest rect %s matches pixels %s" % [id, mr, used])
+		# Review 2026-10-20 (5): armour kit pieces kept the survivor's skin (heads under helmets, bare
+		# forearms). Skin-toned pixels were 9-17 % of those renders, 0-3 % once it is cut away.
+		if script.contains("/armor/"):
+			var sk := _skin_share(img)
+			_check(sk < 0.05, "%s armour render shows no body (skin-toned share %.3f)" % [id, sk])
 	_check(n >= 60, "at least 60 PNGs (got %d)" % n)
 	# Review 2026-10-19: the art judge's illegible renders must be in the replacement register.
 	# Review 2026-10-20 (4): stone_knife's dark blade has low contrast on the slot interior.
-	for id in ["iron_ingot", "steel_ingot", "ingot", "black_iron", "obsidian", "berry", "burnt_food", "mango", "fish", "stone_knife"]:
+	# Review 2026-10-20 (5): raid_helm reads worse than the common model art; the worn-pose arm pieces.
+	for id in ["iron_ingot", "steel_ingot", "ingot", "black_iron", "obsidian", "berry", "burnt_food", "mango", "fish", "stone_knife",
+			"raid_helm", "travel_sleeves", "forager_wraps", "hide_bone_bracers"]:
 		_check(str(items.get(id, {}).get("replace", "")) != "", "%s carries a replace mark" % id)
 	for id in [&"copper_ingot", &"bronze_ingot", &"iron_ingot", &"steel_ingot", &"straw_roll_kit"]:
 		_check(IA.is_rendered(id), "%s has rendered art" % id)
@@ -99,6 +106,20 @@ func _test_pngs_and_manifest() -> void:
 		unrendered += 1
 		_check(II.path_for(id) != "" or missing.has(str(id)), "%s has no render and no symbol but is not in manifest 'missing'" % id)
 	print("[t_iconart] pngs=%d missing=%d unrendered=%d" % [n, missing.size(), unrendered])
+
+## Share of opaque pixels in the survivor's lit skin tone (hue 8-26 deg, sat 0.28-0.65, value >= 0.55).
+func _skin_share(img: Image) -> float:
+	var op := 0
+	var sk := 0
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			if c.a <= 0.9:
+				continue
+			op += 1
+			if c.r >= c.g and c.r >= c.b and c.h * 360.0 >= 8.0 and c.h * 360.0 <= 26.0 and c.s >= 0.28 and c.s <= 0.65 and c.v >= 0.55:
+				sk += 1
+	return float(sk) / maxf(op, 1.0)
 
 func _test_rarity_covers_items() -> void:
 	var order: Array = IA.rarity_order()
@@ -190,12 +211,15 @@ func _test_slot_states() -> void:
 	s.free()
 
 ## Review 2026-10-20: 256 px art at ~60 px with no mipmaps risks shimmer on noisy textures.
+## Review 2026-10-20 (5): a fresh render takes the project default (Basis Universal, compress/mode=4)
+## and the rest were lossless (6 MB in the web pack); lossy WebP 0.8 is 1.9 MB and looks the same.
 func _test_mipmaps() -> void:
 	var off: Array[String] = []
 	for f in DirAccess.get_files_at(IA.RENDER_DIR):
-		if f.ends_with(".png") and not FileAccess.get_file_as_string(IA.RENDER_DIR + f + ".import").contains("mipmaps/generate=true"):
+		var imp := FileAccess.get_file_as_string(IA.RENDER_DIR + f + ".import") if f.ends_with(".png") else ""
+		if f.ends_with(".png") and not (imp.contains("mipmaps/generate=true") and imp.contains("compress/mode=1\n") and imp.contains("compress/lossy_quality=0.8\n")):
 			off.append(f)
-	_check(off.is_empty(), "every render imports with mipmaps: %s" % ", ".join(off))
+	_check(off.is_empty(), "every render imports lossy 0.8 with mipmaps (sed the .import: compress/mode=1, lossy_quality=0.8, mipmaps/generate=true): %s" % ", ".join(off))
 	var img: Image = (load(IA.RENDER_DIR + "fish.png") as Texture2D).get_image()
 	_check(img != null and img.has_mipmaps(), "imported fish texture carries mipmaps")
 

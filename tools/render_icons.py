@@ -64,10 +64,19 @@ REPLACE = {
     "fish": "noisy camouflage-like blotches, reads poorly",
     # Review 2026-10-20 (4): low contrast against the dark slot interior.
     "stone_knife": "dark grey blade on the near-black slot interior; brighten the blade",
+    # Review 2026-10-20 (5): the commons and uncommons now have textured model art.
+    "raid_helm": "plain brown dome with two horns; epic gear that reads worse than common model art",
 }
 PROCEDURAL = "procedural_v1"
 # Known tiers, lowest first. A GLB render (the route for better art) never becomes procedural_v1.
 QUALITY_TIERS = [PROCEDURAL, "model_v2"]
+
+# The armour kits were cut with `extract_armor --keep-skin`, so a helmet piece carries the survivor's
+# face and an arm piece the bare forearms and hands. Their base-colour textures put that skin at hue
+# 21-23 deg, sat ~0.44, value ~0.75 (sRGB); straw, hide, cloth and bone sit at hue 28-35 or darker.
+# A face is skin when it has that colour and lies within near_m of the base body's surface.
+SKIN = {"hue": (10.0, 26.0), "sat": (0.28, 0.60), "val": 0.58, "near_m": 0.03}
+SPECK = 0.01  # loose islands under 1 % of a piece's faces (eyes, brows, stray scan specks) go too
 
 sys.dont_write_bytecode = True  # keep __pycache__ out of tools/blender/items
 sys.path.insert(0, str(ITEMS_DIR))
@@ -84,6 +93,105 @@ def registry():
     return reg
 
 
+def body_bvh(glb):
+    """BVH of the base body beside an armour kit piece (<char>/armor/<kit>/<slot>.glb ->
+    <char>/body/body_*.glb), or None for any other GLB. Its objects are removed again."""
+    import bpy
+    from mathutils.bvhtree import BVHTree
+    p = pathlib.Path(glb).resolve()
+    bodies = sorted((p.parent.parent.parent / "body").glob("body_*.glb")) if p.parent.parent.name == "armor" else []
+    if not bodies:
+        return None
+    before = set(bpy.data.objects)
+    for b in bodies:
+        bpy.ops.import_scene.gltf(filepath=str(b))
+    bpy.context.view_layer.update()
+    new = [o for o in bpy.data.objects if o not in before]
+    verts, faces = [], []
+    for o in new:
+        if o.type == "MESH" and o.vertex_groups:  # the skinned body, not bone-display shapes
+            off = len(verts)
+            verts += [o.matrix_world @ v.co for v in o.data.vertices]
+            faces += [[off + i for i in f.vertices] for f in o.data.polygons]
+    for o in new:
+        bpy.data.objects.remove(o)
+    return BVHTree.FromPolygons(verts, faces)
+
+
+def strip_skin(ob, bvh):
+    """Deletes the survivor's skin (see SKIN) and loose specks from an armour piece, so the icon
+    shows the armour alone (review 2026-10-20 (5): heads under helmets, bare forearms and hands)."""
+    import colorsys
+    import bmesh
+    import numpy as np
+    img = next((ln.from_node.image for sl in ob.material_slots if sl.material and sl.material.node_tree
+                for n in sl.material.node_tree.nodes if n.type == "BSDF_PRINCIPLED"
+                for ln in n.inputs["Base Color"].links if ln.from_node.type == "TEX_IMAGE"), None)
+    if img is None:
+        return 0, 0
+    w, h = img.size
+    px = np.empty(w * h * 4, np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(h, w, 4)
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    uv = bm.loops.layers.uv.active
+    bm.verts.index_update()
+    bm.faces.index_update()
+    near = [bvh.find_nearest(ob.matrix_world @ v.co)[3] for v in bm.verts]
+
+    def is_skin(f):
+        if max(near[v.index] for v in f.verts) > SKIN["near_m"]:
+            return False
+        c = np.mean([px[min(h - 1, int(lp[uv].uv.y * h)), min(w - 1, int(lp[uv].uv.x * w)), :3] for lp in f.loops], axis=0)
+        hu, sa, va = colorsys.rgb_to_hsv(*c)
+        return SKIN["hue"][0] <= hu * 360.0 <= SKIN["hue"][1] and SKIN["sat"][0] <= sa <= SKIN["sat"][1] and va >= SKIN["val"]
+
+    cand = [is_skin(f) for f in bm.faces]
+    # Neighbours by edge position, not edge: glTF import splits vertices at UV seams, so every UV
+    # island would otherwise count as a loose part.
+    by_edge = {}
+
+    def ekey(e):
+        return tuple(sorted(tuple(round(c, 5) for c in v.co) for v in e.verts))
+
+    def index_edges():
+        by_edge.clear()
+        for f in bm.faces:
+            for e in f.edges:
+                by_edge.setdefault(ekey(e), []).append(f.index)
+    index_edges()
+
+    def nbrs(f):
+        return {g for e in f.edges for g in by_edge[ekey(e)] if g != f.index}
+    # One majority pass over edge neighbours: texture noise leaves pinholes in armour and dots on skin.
+    kill = [f for f in bm.faces if 2 * (cand[f.index] + sum(cand[g] for g in nbrs(f))) > 1 + len(nbrs(f))]
+    n_skin = len(kill)
+    bmesh.ops.delete(bm, geom=kill, context="FACES")
+    bm.faces.index_update()
+    bm.faces.ensure_lookup_table()
+    index_edges()
+    seen, islands = set(), []
+    for f in bm.faces:
+        if f.index in seen:
+            continue
+        seen.add(f.index)
+        isl, todo = [f], [f]
+        while todo:
+            for g in nbrs(todo.pop()):
+                if g not in seen:
+                    seen.add(g)
+                    isl.append(bm.faces[g])
+                    todo.append(bm.faces[g])
+        islands.append(isl)
+    specks = [f for isl in islands if len(isl) < SPECK * len(bm.faces) for f in isl]
+    bmesh.ops.delete(bm, geom=specks, context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.to_mesh(ob.data)
+    bm.free()
+    return n_skin, len(specks)
+
+
 def render_one(iid, build, out_dir, tmp):
     kit.reset(iid)
     if isinstance(build, str):
@@ -96,9 +204,16 @@ def render_one(iid, build, out_dir, tmp):
             for ob in meshes:
                 if not any(m.type == "ARMATURE" for m in ob.modifiers):
                     bpy.data.objects.remove(ob)
+        bvh = body_bvh(build)
+        if bvh is not None:
+            for ob in [o for o in bpy.context.scene.objects if o.type == "MESH"]:
+                print("STRIP %s %s skin_faces=%d speck_faces=%d" % ((iid, ob.name) + strip_skin(ob, bvh)), flush=True)
         for ob in list(bpy.context.scene.objects):
             if ob.parent is None and ob is not kit.ROOT:
                 ob.parent = kit.ROOT
+        # A brim with no head under it is wider than a slot can lift (forager_hood 1.56:1): lean it
+        # like the flat procedural items. A no-op for art already narrow enough.
+        kit.upright()
     else:
         build()
     kit.normalise()
@@ -161,6 +276,21 @@ def plan(reg, man, only, glbs):
     return reg, ids, base
 
 
+def entry(iid, script, sha, n, rect, prev, glbs, quality):
+    """Manifest entry for a fresh render of iid; prev is its old entry ({} if none)."""
+    e = {"script": script, "builder": iid, "png": "res://assets/icons/render/%s.png" % iid,
+         "sha256": sha, "bytes": n, "rect": rect}
+    if script.startswith("glb:"):
+        # New model art takes this run's --quality and clears the mark; a held model re-rendered
+        # from its GLB keeps its tier and any hand-set mark (review 2026-10-20 (5): it dropped them).
+        e["quality"] = quality if iid in glbs else prev.get("quality", quality)
+        if iid not in glbs and "replace" in prev:
+            e["replace"] = prev["replace"]
+    elif "replace" in prev and iid not in REPLACE:
+        e["replace"] = prev["replace"]  # keep a hand-set mark
+    return e
+
+
 def selftest(reg):
     """Checks plan() against a synthetic manifest; renders nothing."""
     a, b = sorted(reg)[:2]
@@ -183,6 +313,11 @@ def selftest(reg):
     r3, ids3, base3 = plan(reg, man, [b], {})
     if ids3 or "x_proc" not in base3:
         fails.append("--only of a missing-GLB model is skipped and the merge keeps other entries")
+    held = {"script": "glb:x.glb", "quality": "model_v2", "replace": "why"}
+    if entry("m", "glb:x.glb", "s", 1, [0, 0, 1, 1], held, {}, "model_v2").get("replace") != "why":
+        fails.append("a re-render of held model art keeps its hand-set replace mark")
+    if "replace" in entry("m", "glb:y.glb", "s", 1, [0, 0, 1, 1], held, {"m": "y.glb"}, "model_v2"):
+        fails.append("new model art clears the replace mark")
     for f in fails:
         print("SELFTEST FAIL %s" % f)
     print("SELFTEST %s" % ("FAIL" if fails else "PASS"))
@@ -223,7 +358,11 @@ def main():
     man_path = OUT / "manifest.json"
     old = json.loads(man_path.read_text()) if man_path.exists() else {}
     reg, ids, items = plan(reg, old, only, glbs)
-    tmp = tempfile.mkdtemp(prefix="icons_")
+    with tempfile.TemporaryDirectory(prefix="icons_") as tmp:  # 512 px raw renders, removed on exit
+        run(reg, ids, items, verify, out_dir, glbs, quality, man_path, tmp)
+
+
+def run(reg, ids, items, verify, out_dir, glbs, quality, man_path, tmp):
     if verify:
         if verify == ["all"]:
             verify = sorted(reg)
@@ -247,23 +386,14 @@ def main():
         for iid, (sha, n, rect) in results.items():
             if n > MAX_BYTES:
                 continue
-            script, fn = reg[iid]
-            prev = items.get(iid, {})
-            items[iid] = {"script": script, "builder": iid, "png": "res://assets/icons/render/%s.png" % iid,
-                          "sha256": sha, "bytes": n, "rect": rect}
-            if script.startswith("glb:"):
-                # New model art takes this run's --quality (replacement mark cleared); a held model
-                # re-rendered from its GLB keeps the tier it had.
-                items[iid]["quality"] = quality if iid in glbs else prev.get("quality", quality)
-            elif "replace" in prev and iid not in REPLACE:
-                items[iid]["replace"] = prev["replace"]  # keep a hand-set mark
-        for iid, entry in items.items():
-            if entry["script"].startswith("glb:"):
-                entry.setdefault("quality", quality)
-                continue  # never restamp model art as procedural, never re-mark it
-            entry["quality"] = PROCEDURAL
+            items[iid] = entry(iid, reg[iid][0], sha, n, rect, items.get(iid, {}), glbs, quality)
+        for iid, e in items.items():
+            if e["script"].startswith("glb:"):
+                e.setdefault("quality", quality)
+                continue  # never restamp model art as procedural; its marks are hand-set
+            e["quality"] = PROCEDURAL
             if iid in REPLACE:
-                entry["replace"] = REPLACE[iid]
+                e["replace"] = REPLACE[iid]
         man = {
             "_about": "Rendered item art (W1-ICONART). Regenerate with tools/render_icons.py; "
                       "models are procedural bpy builders in tools/blender/items/.",
