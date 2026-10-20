@@ -1,0 +1,233 @@
+extends Node3D
+## W2-GATHER play session on the home island: the survivor gathers fibre, branches and stone
+## bare-handed, then with stone tools (faster, logs unlocked), finds a rare, butchers a raptor
+## by knife, and watches a node deplete and regrow. Every unit goes through PlayerActions.
+## Shots: --shot=<path.png> --shot-delay=900 saves <path>-<stage>.png per stage.
+
+var _p: Player
+var _fails: Array[String] = []
+var _shot_base := ""
+
+func _ready() -> void:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--shot="):
+			_shot_base = a.substr(7).trim_suffix(".png")
+	var kit := LabKit.build(self, 24.0)
+	_p = kit["player"]
+	Game.max_creatures_per_island = 0
+	Game.debug_overlay = false
+	World.home_terrain = &"meadow"
+	World.load_island(self, &"home_grassland", Vector3(0, 1, 12), false)
+	var floor := get_node_or_null("Nav/Floor")
+	if floor:
+		floor.queue_free()
+	await get_tree().create_timer(0.6).timeout
+	var rt: Node3D = World.runtime
+	# Off the home camp so its station labels do not sit on the yield popups.
+	var base := _p.global_position + Vector3(9.0, 0.0, 7.0)
+	_p.global_position = base + Vector3(0.0, 0.0, 1.5)
+	var bush := _plant(rt, "Bush", "glab_bush", base + Vector3(-3.0, 0, -3.0))
+	var tree := _plant(rt, "CommonTree", "glab_tree", base + Vector3(0.0, 0, -4.0))
+	var rock := _plant(rt, "Rock", "glab_rock", base + Vector3(3.0, 0, -3.0))
+	for b in rt._batches:
+		b.commit()
+	for n in rt._harvest_nodes.values():
+		n.refresh_batched_visual()
+	var cam: IsoCamera = kit["cam"]
+	cam.size = 11
+	cam._snap()
+	_empty_bag()
+	await get_tree().create_timer(0.5).timeout
+
+	# 1. Bare hands: fibre, branches, loose stone. Logs refuse without an axe.
+	var hand := {}
+	hand["fibre"] = await _gather(bush, &"fibre_stalk", 2, "")
+	hand["branch"] = await _gather(tree, &"branch", 2, "hands")
+	hand["stone"] = await _gather(rock, &"stone", 2, "")
+	var log_why := tree.can_gather(_p.inventory) if _select(tree, &"wood_log") else "no log option"
+	_check(log_why != "", "logs refuse bare hands (got '%s')" % log_why)
+	print("[gather_lab] hands s/unit fibre %.2f branch %.2f stone %.2f; log refusal '%s'" % [hand["fibre"], hand["branch"], hand["stone"], log_why])
+
+	# 2. Stone tools: the role's tool works each node faster, and an axe unlocks logs.
+	# ASSUMPTION: the lab hands over the starter tools; the craft loop itself is craft_lab's proof.
+	LabKit.give(_p, &"stone_knife_work", 1)
+	LabKit.give(_p, &"work_axe", 1)
+	LabKit.give(_p, &"work_pick", 1)
+	var tool := {}
+	tool["fibre"] = await _gather(bush, &"fibre_stalk", 2, "")
+	tool["branch"] = await _gather(tree, &"branch", 2, "")
+	tool["stone"] = await _gather(rock, &"stone", 2, "")
+	var logs_before := _p.inventory.count_of(&"wood_log")
+	tool["log"] = await _gather(tree, &"wood_log", 1, "tools")
+	print("[gather_lab] tools s/unit fibre %.2f branch %.2f stone %.2f log %.2f" % [tool["fibre"], tool["branch"], tool["stone"], tool["log"]])
+	_check(_p.inventory.count_of(&"wood_log") > logs_before, "a stone axe gathers logs")
+	for k in ["fibre", "branch", "stone"]:
+		_check(tool[k] < hand[k], "%s is faster with the stone tool (%.2f < %.2f)" % [k, tool[k], hand[k]])
+
+	# 3. Rare find at the real data odds. The seed is picked so the very next stone unit rolls
+	# a find (odds themselves are measured in t_gather: 0.0485 vs 0.05 over 20 000 rolls).
+	var seed := _lucky_seed(rock)
+	GatherService.rng.seed = seed
+	print("[gather_lab] rare seed %d" % seed)
+	var flint_before := _p.inventory.count_of(&"flint")
+	await _gather(rock, &"stone", 1, "rare", 0.35)
+	_check(_p.inventory.count_of(&"flint") > flint_before, "a rare flint landed in the bag")
+
+	# 4. Butcher a raptor with the stone knife: meat, hide, bone scale with the knife.
+	await _butcher()
+
+	# 5. Deplete and regrow.
+	_deplete_and_regrow(bush)
+
+	print("[gather_lab] bag %s" % _bag_summary())
+	if _fails.is_empty():
+		print("[gather_lab] PASS")
+	else:
+		for f in _fails:
+			print("[gather_lab] FAIL %s" % f)
+	get_tree().quit(0 if _fails.is_empty() else 1)
+
+func _plant(rt: Node3D, family: String, id: String, pos: Vector3) -> HarvestNode:
+	rt._plant_at(family, id, pos, &"fibre_stalk", &"none", "grassland", 1, Color.GREEN)
+	return rt._harvest_nodes[id]
+
+func _check(ok: bool, label: String) -> void:
+	if not ok:
+		_fails.append(label)
+
+func _empty_bag() -> void:
+	for i in _p.inventory.slot_count:
+		_p.inventory.slots[i] = null
+
+func _select(node: HarvestNode, item: StringName) -> bool:
+	var opts := node.options()
+	for i in opts.size():
+		if StringName(str(opts[i]["item"])) == item:
+			node.select_option(i)
+			return true
+	return false
+
+func _option(node: HarvestNode, item: StringName) -> int:
+	var opts := node.options()
+	for i in opts.size():
+		if StringName(str(opts[i]["item"])) == item:
+			return i
+	return -1
+
+## Gather `units` passes of `item` through PlayerActions; returns measured seconds per pass
+## (the walk is excluded: timing starts when the first pass lands).
+func _gather(node: HarvestNode, item: StringName, units: int, shot: String, shot_after: float = 0.25) -> float:
+	var idx := _option(node, item)
+	if idx < 0:
+		_fails.append("%s has no %s option" % [node.family, item])
+		return 0.0
+	var passes := 0
+	var started := -1.0
+	var last := _p.inventory.count_of(item)
+	_p.actions.gather(node, idx)
+	var deadline := Time.get_ticks_msec() + 30000
+	while passes < units and Time.get_ticks_msec() < deadline:
+		await get_tree().process_frame
+		var now := _p.inventory.count_of(item)
+		if now > last:
+			passes += 1
+			last = now
+			if started < 0.0:
+				started = _now()
+	var per := (_now() - started) / float(maxi(1, passes - 1)) if passes > 1 else GatherService.unit_seconds(_p, node)
+	if passes < units:
+		_fails.append("gathered %d/%d %s" % [passes, units, item])
+	if shot != "":
+		await get_tree().create_timer(shot_after).timeout
+	# Stop before the capture: a slow windowed frame would otherwise keep the cycle running.
+	_p.actions.cancel_work()
+	if shot != "":
+		await _capture(shot)
+	return per
+
+func _now() -> float:
+	return float(Time.get_ticks_msec()) * 0.001
+
+## First seed whose first stone-unit rare roll lands a find with the held pick.
+func _lucky_seed(rock: HarvestNode) -> int:
+	var tool := GatherService.effective_tool(_p.inventory, rock)
+	var tier: StringName = tool.material_tier() if tool else &""
+	var skill := maxi(1, _p.skills.level_of("gathering")) if _p.skills else 1
+	var probe := RandomNumberGenerator.new()
+	for s in range(1, 5000):
+		probe.seed = s
+		if LootRoller.roll_gather_rares(rock.family, "rock", tier, skill, probe).has(&"flint"):
+			return s
+	return 1
+
+func _butcher() -> void:
+	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
+	add_child(c)
+	c.global_position = _p.global_position + Vector3(1.6, 0, 1.2)
+	c.spawn(Data.creature(&"velociraptor"), &"")
+	await get_tree().create_timer(0.3).timeout
+	c.health.take_damage(9999.0, _p)
+	await get_tree().create_timer(0.4).timeout
+	var corpse: Corpse = null
+	for n in get_tree().get_nodes_in_group("corpse"):
+		corpse = n as Corpse
+		if corpse:
+			break
+	_check(corpse != null, "the kill leaves a corpse")
+	if corpse == null:
+		return
+	var parts := []
+	for st in corpse.loot.slots:
+		if st:
+			parts.append("%s x%d L%d" % [st.def_id, st.count, st.level])
+	print("[gather_lab] raptor carcass (stone knife): %s" % ", ".join(parts))
+	_p.actions.open_corpse_loot(corpse)
+	var deadline := Time.get_ticks_msec() + 8000
+	while Time.get_ticks_msec() < deadline and not (_p.ui and _p.ui.visible):
+		await get_tree().process_frame
+	await get_tree().create_timer(0.4).timeout
+	await _capture("loot_screen")
+	if _p.ui:
+		_p.ui.hide_ui()
+	var took := 0
+	for i in corpse.loot.slot_count:
+		if corpse.loot.slots[i]:
+			took += _p.actions.loot(corpse, i)
+	await get_tree().create_timer(0.3).timeout
+	await _capture("butcher")
+	_check(_p.inventory.count_of(&"raptor_meat") > 0 and _p.inventory.count_of(&"raptor_hide") > 0 and _p.inventory.count_of(&"raptor_bone") > 0, "butchering gave meat, hide and bone")
+	print("[gather_lab] butchered %d units: meat %d hide %d bone %d" % [took, _p.inventory.count_of(&"raptor_meat"), _p.inventory.count_of(&"raptor_hide"), _p.inventory.count_of(&"raptor_bone")])
+
+func _deplete_and_regrow(node: HarvestNode) -> void:
+	_p.global_position = node.global_position + Vector3(0, 1, 6)
+	_select(node, &"fibre_stalk")
+	# The same consume path a pass uses, run to empty (the real passes above proved the pass).
+	var guard := 0
+	while not node.depleted and guard < 200:
+		for item in node.pools.keys():
+			_select(node, StringName(str(item)))
+			while node.units_left_for(StringName(str(item))) > 0 and guard < 200:
+				node.consume_unit()
+				guard += 1
+	var why := node.can_gather(_p.inventory)
+	_check(node.depleted and why == "depleted", "an emptied bush is depleted and refuses ('%s')" % why)
+	var wait := node.regen_left()
+	node._process(wait + 0.1)
+	_check(not node.depleted and node.units_left_for(&"fibre_stalk") > 0, "the bush regrows after its %.0f s regen" % wait)
+	print("[gather_lab] bush depleted after %d units, regrew after %.0f s, fibre %d" % [guard, wait, node.units_left_for(&"fibre_stalk")])
+
+func _bag_summary() -> String:
+	var parts := []
+	for s in _p.inventory.slots:
+		if s:
+			parts.append("%s x%d" % [s.def_id, s.count])
+	return ", ".join(parts)
+
+func _capture(stage: String) -> void:
+	if DisplayServer.get_name() == "headless" or _shot_base == "":
+		return
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	var path := "%s-%s.png" % [_shot_base, stage]
+	get_viewport().get_texture().get_image().save_png(path)
+	print("[gather_lab] shot %s" % path)

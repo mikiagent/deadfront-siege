@@ -72,7 +72,7 @@ static func after_unit(p: Player, node: HarvestNode, item_id: StringName, gained
 			continue
 		landed.append(id)
 		p.toast(id, 1)
-		GatherFeedback.announce_rare(p, at, id, 1 + landed.size())
+		GatherFeedback.announce_rare(p, at, id, landed.size())
 		var xp := float(LootTables.rules().get("xp", {}).get("rare_gather_bonus", 0))
 		GatherXp.award(p, "gathering", xp, {"verb": "gather", "item": str(id), "rare": true, "node_level": level})
 	return landed
