@@ -30,7 +30,8 @@ func _process(_delta: float) -> bool:
 	_test_migration()
 	_test_occupation()
 	_test_sp_from_character_level()
-	var want := 8
+	_test_sanitizer_budget()
+	var want := 9
 	if _sections != want:
 		failures.append("only %d of %d test sections completed (a runtime error aborted the rest)" % [_sections, want])
 	if failures.is_empty():
@@ -251,4 +252,31 @@ func _test_sp_from_character_level() -> void:
 	_expect((over.trees["survival"]["unlocked"] as Array).size() == 4 and over.sp_spent == 23 and over.sp_available == 0, "an over-budget migrated save keeps its 4 nodes with 0 SP (spent %d, available %d)" % [over.sp_spent, over.sp_available])
 	_expect(get_root().get_node("Data").has_capture_technique(1), "the kept Capture Technique I still works")
 	_done_with(over)
+	_sections += 1
+
+## Integrator hook H6 (save_sanitizer._skills budget by character level). Until H6 lands the
+## sanitizer takes one argument and this section only reports that; once it lands it must hold.
+func _test_sanitizer_budget() -> void:
+	var San: GDScript = load("res://scripts/core/save_sanitizer.gd")
+	var args := -1
+	for m in San.get_script_method_list():
+		if str(m.get("name", "")) == "_skills":
+			args = (m.get("args", []) as Array).size()
+	if args < 2:
+		print("[t_w2_skills] H6 not applied: sanitizer budget check skipped")
+		_sections += 1
+		return
+	var bought := ["island_access_15", "belly_fat_1", "capture_technique_1", "animal_management_1"] # 23 SP
+	var poor := {"rev": 2, "trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
+	San._skills(poor, 0) # character Lv. 1 paid 0 SP
+	_expect((poor["trees"]["survival"]["unlocked"] as Array).is_empty() and int(poor["sp_spent"]) == 0, "H6: a rev-2 save at character Lv. 1 cannot hold 23 SP of nodes (kept %s)" % [poor["trees"]["survival"]["unlocked"]])
+	var rich := {"rev": 2, "sp_available": 99999, "trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
+	San._skills(rich, 39) # character Lv. 40
+	var paid := 0
+	for l in range(2, 41):
+		paid += 10 if l <= 20 else 12
+	_expect((rich["trees"]["survival"]["unlocked"] as Array).size() == 4 and int(rich["sp_available"]) == paid - 23, "H6: character Lv. 40 keeps the 4 nodes and clamps SP to %d (got %s)" % [paid - 23, rich["sp_available"]])
+	var legacy := {"trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
+	San._skills(legacy, 0)
+	_expect((legacy["trees"]["survival"]["unlocked"] as Array).size() == 4 and int(legacy["sp_available"]) == 0, "H6: a rev-1 save keeps every node it bought under the old award, with 0 SP")
 	_sections += 1

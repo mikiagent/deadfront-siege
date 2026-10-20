@@ -271,6 +271,7 @@ func to_dict() -> Dictionary:
 
 func from_dict(d: Dictionary) -> void:
 	if d.is_empty():
+		_recount_sp() # no skills block (pre-skills saves): SP still follow the loaded character level
 		return
 	occupation = str(d.get("occupation", ""))
 	var rev := int(d.get("rev", 1))

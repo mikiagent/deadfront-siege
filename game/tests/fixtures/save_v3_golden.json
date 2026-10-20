@@ -451,8 +451,8 @@
 	"skills_v2": {
 		"occupation": "student",
 		"rev": 2.0,
-		"sp_available": 270.0,
-		"sp_earned": 270.0,
+		"sp_available": 40.0,
+		"sp_earned": 40.0,
 		"sp_spent": 0.0,
 		"trees": {
 			"butchering": {
