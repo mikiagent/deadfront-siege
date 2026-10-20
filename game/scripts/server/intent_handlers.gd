@@ -12,7 +12,7 @@ extends RefCounted
 const CLIENT_OPS := ["act.gather", "act.loot", "act.craft", "act.place", "act.equip", "act.eat", "act.tame", "act.capture", "act.attack", "act.deposit", "char.import", "char.get"]
 const SYSTEM_OPS := ["char.create", "char.move", "char.wallet", "char.receive", "char.settled"] ## the server itself, never relayed from a client
 const READ_OPS := ["char.get"]
-const GATHER_REACH := Player.INTERACT_GATHER_RANGE ## 2.6 m, the client's own gather reach
+const GATHER_REACH := PlayerInput.INTERACT_GATHER_RANGE ## 2.6 m, the client's own gather reach
 const LOOT_REACH := 2.6 ## Player corpse reach
 ## ASSUMPTION: latency allowance on top of a creature's body reach. Deliberately wider than the
 ## client's own swing check (combat_tuning hit_reach_slack_m 0.3): the server judges a position

@@ -104,6 +104,7 @@ func _ready() -> void:
 ## kill it, press Loot; expect groggy, a push, and the chest screen with items.
 func _combat_test(player: Player) -> void:
 	await get_tree().create_timer(2.5).timeout
+	await _test_island()
 	var sp := Spawner.new()
 	sp.species = &"compsognathus"
 	sp.count = 1
@@ -152,6 +153,7 @@ func _combat_test(player: Player) -> void:
 ## units to land in the bag. Prints [gathertest] lines and quits 0 on success.
 func _gather_test(player: Player) -> void:
 	await get_tree().create_timer(2.5).timeout
+	await _test_island()
 	var best: HarvestNode = null
 	var best_d := INF
 	var best_i := -1
@@ -187,6 +189,16 @@ func _gather_test(player: Player) -> void:
 			return
 	print("[gathertest] FAIL no branches gathered")
 	get_tree().quit(1)
+
+## A fresh user:// opens character creation and never loads an island; the headless tests need one.
+func _test_island() -> void:
+	if World.runtime == null:
+		var cc := get_node_or_null("CharacterCreation")
+		if cc:
+			cc.queue_free()
+		World.load_island(self, &"home_grassland", Vector3(0, 1, 18), false)
+		await get_tree().create_timer(1.0).timeout
+
 
 func _process(_delta: float) -> void:
 	debug_label.visible = false

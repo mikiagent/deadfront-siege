@@ -366,7 +366,7 @@ func source_rect() -> Rect2:
 ## The player's nameplate on screen (empty without a camera or player); hexes and labels keep off it.
 func nameplate() -> Rect2:
 	var cam := get_viewport().get_camera_3d()
-	var who := get_tree().get_first_node_in_group("player") as Player
+	var who := PlayerRegistry.local()
 	if cam == null or who == null:
 		return Rect2()
 	return HudLayout.nameplate_rect(cam, who, ThemeDB.fallback_font).grow(4.0)

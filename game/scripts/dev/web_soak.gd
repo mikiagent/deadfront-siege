@@ -76,6 +76,9 @@ func run(host: Node) -> void:
 	hud._close_sheet()
 	await _checkpoint("build-closed")
 
+	var st = PlayerRegistry.local().skills
+	if st and st.trees.has("survival"):
+		st.trees["survival"]["level"] = maxi(int(st.trees["survival"]["level"]), 20)
 	World.travel(&"temperate_25", &"sail")
 	await World.island_changed
 	await _checkpoint("travelled")

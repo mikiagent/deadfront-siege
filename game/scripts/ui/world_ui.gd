@@ -32,7 +32,7 @@ func _ready() -> void:
 	add_child(_panel)
 
 func _unhandled_input(event: InputEvent) -> void:
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	if player and player.placer and player.placer.placing != &"" and event.is_action_pressed("pause"):
 		return
 	if event.is_action_pressed("map"):
@@ -162,7 +162,7 @@ func _show_arrival(host: Node) -> void:
 
 func show_harbour() -> void:
 	var rows: Array = []
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	var level := player.skills.level_of("survival") if player and player.skills else 0
 	if not World.is_home():
 		rows.append(["Free return home", &"home"])
@@ -196,7 +196,7 @@ func show_map() -> void:
 		return
 	var life := "permanent" if World.is_home() else "%.0fs left" % World.remaining_lifetime
 	var crater := "yes" if World.crater_discovered else "no"
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	var fat := 0.0
 	if player:
 		fat = player.vitals.fatigue
