@@ -126,9 +126,9 @@ needed and the other was not, so only one was built.
      means something.
    This is the one place this run departs from the computed task. Overrule it and it is about 25 lines.
 
-## Acceptance (r2: branch merged with claude/mmo-overhaul @ 6e26ef2a, hooks applied in a scratch tree)
+## Acceptance (r2: branch merged with claude/mmo-overhaul @ c2b373f3, hooks applied in a scratch tree)
 
-Hooks patch: `git apply --check` clean after the merge. The branch touches none of the hooked files, so it
+Hooks patch: `git apply --check` clean after the merge. The last base commit (c2b373f3) is docs only (spec 13), so the gates below, which ran before it, still hold. The branch touches none of the hooked files, so it
 applies to the base the same way.
 
 Every gate below ran in a scratch tree with hooks H1-H7 applied. The full run was at 4e20d6b5. The data fix in
