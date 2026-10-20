@@ -195,6 +195,10 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   History + Receive All, on top of the owner's auctions and buy orders); 07 -> W2-ACTION + combat.
   Kept from earlier binding rules unless the owner says otherwise: capture below 30 % HP (pack says
   ~50 %, configurable); unlimited owned pets with 3 active (pack says 7 bonded, configurable).
+  Stacking decision (orchestrator, compatible with pack 05 'configurable category-specific stacking'
+  and with existing saves): items stack only when def, level, every attribute, flags and durability
+  match exactly (today's ItemStack rule); trait-bearing materials therefore stay individual, plain
+  goods still stack; the bag shows optional visual grouping. Owner may switch to strict non-stacking.
   Note: fatigue/exhaustion returns (owner removed exhaustion on 2026-09-20; the pack, being newer,
   reintroduces it with no unrecoverable state).
 
