@@ -81,6 +81,7 @@ func _starter_level(c: Creature) -> void:
 	d.defense *= k
 	c.def = d
 	c.level = 1
+	c.genetics = CreatureGenetics.neutral()  # spawn rolled random IVs (a fresh, unseeded RNG)
 	c.health.setup(c.stat_value(&"health"))
 
 func _fail(msg: String) -> void:
