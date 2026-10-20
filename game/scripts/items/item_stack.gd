@@ -81,6 +81,13 @@ func stamp_identity(p_origin: String, p_creator: String = "", p_uid: String = ""
 	creator = p_creator
 	created_at = int(Time.get_unix_time_from_system())
 
+## After a split the taken units are a new instance: keeping the source uid gave both halves the
+## same identity (probe: '[probe] split shares uid=true'), which vault and market key on.
+func remint_uid() -> void:
+	if uid == "":
+		return
+	uid = "l" + Crypto.new().generate_random_bytes(8).hex_encode()
+
 func slot_span() -> int:
 	var d := def()
 	return d.slot_span if d else 1
@@ -214,14 +221,21 @@ static func from_dict(d: Dictionary) -> ItemStack:
 	if raw is Array:
 		for f in raw:
 			s.flags.append(StringName(str(f)))
-	# Provenance is trusted later by vault and market: null becomes "", unknown origins are blanked.
-	s.uid = _text(d.get("uid"))
+	# Provenance is trusted later by vault and market: null becomes "", unknown origins are blanked,
+	# a uid must be a string in the minted format, and a timestamp is clamped to now + slack.
+	var u: Variant = d.get("uid")
+	s.uid = u if u is String and UID_RE.search(u) != null else ""
 	var o := _text(d.get("origin"))
 	s.origin = o if o in ORIGINS else ""
 	s.creator = _text(d.get("creator"))
 	var t: Variant = d.get("created_at", 0)
-	s.created_at = maxi(0, int(t)) if (t is int or t is float) else 0
+	var stamp := int(t) if (t is int or t is float) and is_finite(float(t)) else 0
+	s.created_at = clampi(stamp, 0, int(Time.get_unix_time_from_system()) + CREATED_AT_SLACK_S)
 	return s
+
+const UID_RE := RegEx.create_from_string("^[il][0-9a-f]+$")
+## A save cannot claim to have been made in the future: clock skew plus a day of slack.
+const CREATED_AT_SLACK_S := 86400
 
 static func _text(v: Variant) -> String:
 	return "" if v == null else str(v)

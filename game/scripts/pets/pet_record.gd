@@ -7,12 +7,16 @@ extends RefCounted
 ## own when it mints a pet; offline the uid is local and owner stays "".
 var uid: String = ""
 var owner: String = ""
-## tame (field) | capture (pen) | breed (wave 2). ASSUMPTION: "capture" is not yet in the
-## contracts v2 origin list (section 0.5); the report asks the integrator to add it.
+## tame (field) | capture (pen) | breed (wave 2) | settlers | objective | market.
 var origin: StringName = &"tame"
 var tamer: String = ""
 var tamed_at: int = 0
 var wild_level: int = 1
+## Identity fields from the ORIGINS contract; anything else loads as "tame".
+const ORIGINS: Array[StringName] = [&"tame", &"capture", &"breed", &"settlers", &"objective", &"market"]
+## Server uids are "p<seq>"; offline mints "p_<hex>" (new_uid). Both load.
+const UID_RE := RegEx.create_from_string("^p_?[0-9a-f]+$")
+const NAME_MAX := 24
 var name: String = ""
 ## Lineage for breeding (wave 2): the two parents' uids, empty for wild-caught animals.
 var parent_uids: Array[String] = []
@@ -93,7 +97,16 @@ func recompute(def: CreatureDef = null) -> void:
 	xp_rate = PetStats.grade_rate(grade)
 	hunger_efficiency = xp_rate
 	if d == null:
-		return  # unknown species (removed from data): keep the stored numbers
+		# Unknown species (removed from data): no base stats to compute from, and a stored row is
+		# untrusted (probe loaded species "dodo" with hp 1e9), so neutralise instead of keeping them.
+		hp = 0.0
+		attack = 0.0
+		ranged_attack = 0.0
+		defense = 0.0
+		ranged_defense = 0.0
+		accuracy = 100.0
+		speed = 0.0
+		return
 	var st := PetStats.compute(d, genetics, level)
 	hp = st[&"health"]
 	attack = st[&"melee_attack"]
@@ -190,16 +203,19 @@ func to_dict() -> Dictionary:
 
 ## Stored stats, grade and rates are not trusted: they are recomputed (legacy saves carry the
 ## old compounding numbers). Missing identity fields get defaults so old saves keep loading.
+## Identity fields are untrusted too (the market will key pets by uid): an unknown origin or a
+## malformed uid is replaced here, and the W2-INT AssetValidator still has to reject duplicate
+## uids within one owner's roster (from_dict cannot see the roster).
 static func from_dict(d: Dictionary) -> PetRecord:
 	var r := PetRecord.new()
-	r.uid = str(d.get("uid", ""))
-	if r.uid == "":
-		r.uid = new_uid()
+	var raw_uid: Variant = d.get("uid", "")
+	r.uid = raw_uid if raw_uid is String and UID_RE.search(raw_uid) != null else new_uid()
 	r.owner = str(d.get("owner", ""))
-	r.origin = StringName(str(d.get("origin", "tame"))) ## ASSUMPTION: pre-uid saves were tames.
+	var o := StringName(str(d.get("origin", "tame"))) ## ASSUMPTION: pre-uid saves were tames.
+	r.origin = o if o in ORIGINS else &"tame"
 	r.tamer = str(d.get("tamer", ""))
-	r.tamed_at = int(d.get("tamed_at", 0))
-	r.name = str(d.get("name", ""))
+	r.tamed_at = clampi(int(d.get("tamed_at", 0)), 0, int(Time.get_unix_time_from_system()) + 86400)
+	r.name = str(d.get("name", "")).strip_edges().substr(0, NAME_MAX)
 	var parents: Variant = d.get("parent_uids", [])
 	if parents is Array:
 		for p in parents:
@@ -223,7 +239,8 @@ static func from_dict(d: Dictionary) -> PetRecord:
 	for v in d.get("tamed_role", []):
 		r.tamed_role.append(StringName(str(v)))
 	r.level = clampi(int(d.get("level", 1)), 1, PetStats.MAX_LEVEL)
-	r.wild_level = clampi(int(d.get("wild_level", 1)), 1, PetStats.MAX_LEVEL)
+	# A pet was caught at or below the level it has now; a wild_level above level is forged.
+	r.wild_level = clampi(int(d.get("wild_level", 1)), 1, r.level)
 	r.xp = float(d.get("xp", 0.0))
 	r.respawn_left = clampf(float(d.get("respawn_left", 0.0)), 0.0, RESPAWN_TIME)
 	var def := Data.creature(r.species)
