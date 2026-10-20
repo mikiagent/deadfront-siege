@@ -558,7 +558,8 @@ func _place_extra(extra: Array[ItemStack], overflow: Inventory) -> void:
 	var parts := PackedStringArray()
 	for id: String in moved:
 		parts.append("%s x%d" % [id, moved[id]])
-	print("[inv] migration: %d more instances from split stacks, %d kept here, %d to home storage%s; bag %d/%d" % [extra.size(), here, extra.size() - here, " (%s)" % ", ".join(parts) if not parts.is_empty() else "", used_slots(), slot_count])
+	var away := ", %d to home storage (%s)" % [extra.size() - here, ", ".join(parts)] if not parts.is_empty() else ""
+	print("[inv] migration: %d more instances from split stacks, %d kept here%s; bag %d/%d" % [extra.size(), here, away, used_slots(), slot_count])
 
 ## Grow by the item's span and put it in the new tail slots.
 func _append(s: ItemStack) -> void:

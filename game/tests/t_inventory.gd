@@ -385,11 +385,12 @@ func _test_overflow_to_home_storage() -> void:
 	_expect(_total(want) > 100 and got == want, "a full old bag (%d units) keeps every unit: %s vs %s" % [_total(want), got, want])
 	# 99: the bag fills to 100, then the old head=raid_helm leaves it for its worn slot.
 	_expect(c.bag.slot_count == 100 and c.bag.used_slots() == 99 and cargo_stone > 0 and c.cargo.count_of(&"flint") == 4, "the bag fills, the rest goes to home cargo (bag %d/%d, cargo stone %d)" % [c.bag.used_slots(), c.bag.slot_count, cargo_stone])
-	var logged := false
+	var logged := ""
 	for l in lines:
-		logged = logged or (l.contains("to home storage") and l.contains("stone x%d" % cargo_stone))
-	_expect(logged, "the overflow is logged with what moved (%s)" % [lines])
-	print("[t_inventory] overflow units=%d bag=%d cargo_stone=%d log=%s" % [_total(got), c.bag.used_slots(), cargo_stone, lines[-1] if not lines.is_empty() else "none"])
+		if l.contains("to home storage") and l.contains("stone x%d" % cargo_stone):
+			logged = l.strip_edges()
+	_expect(logged != "", "the overflow is logged with what moved (%s)" % [lines])
+	print("[t_inventory] overflow units=%d bag=%d cargo_stone=%d log=\"%s\"" % [_total(got), c.bag.used_slots(), cargo_stone, logged])
 
 ## One old row bigger than the whole bag: armor_scute x150 (old stack_max 999).
 func _test_stack_bigger_than_bag() -> void:
