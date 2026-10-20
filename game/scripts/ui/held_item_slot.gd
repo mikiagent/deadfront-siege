@@ -8,6 +8,7 @@ signal equip_requested(slot_index: int)
 signal unequip_requested
 
 const SLOT := 64.0
+const RAIL_HEXES := 4.0  ## hexes in the HUD's bottom-left rail (menu, animals, build, skills)
 
 var player: Player
 var _icon: Texture2D
@@ -96,6 +97,14 @@ func _gui_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if player and player.inventory.equipped_gather_tool() == null and _fighting() != _fighting_shown:
 		refresh()
+	# Off while a HUD sheet is open: this layer sits above the HUD's, and on a landscape phone the
+	# slot covered the sheet's Close (a tap there swapped the held tool instead of closing).
+	# Also off under character creation (layer 60, below this one): HANDS drew on its cards.
+	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
+	var covered := (hud != null and hud.sheet_open()) or get_tree().get_first_node_in_group(&"character_creation") != null
+	if visible == covered:
+		visible = not covered
+		_pressing = false
 	var safe := DisplayServer.get_display_safe_area()
 	var vp := get_viewport_rect().size
 	var win := Vector2(DisplayServer.window_get_size())
@@ -103,6 +112,17 @@ func _process(delta: float) -> void:
 	var right := 16.0 + maxf(0.0, win.x - float(safe.end.x)) * scale.x
 	var bottom := 108.0 + maxf(0.0, win.y - float(safe.end.y)) * scale.y
 	position = Vector2(vp.x - right - SLOT, vp.y - bottom - SLOT)
+	if UiTokens.is_phone(vp):
+		# Portrait: the HUD draws its level line right-aligned just above the rail (hunt_hud.gd:976),
+		# where the caption sat; lift the slot so the caption clears it.
+		position.y -= 24.0
+	if UiTokens.is_compact(vp) and not UiTokens.is_narrow(vp):
+		# Landscape phone: under the map the claim hex and the context row fill the bottom-right
+		# corner (the slot sat on the claim hex), so the slot stacks above the rail's last hex. At the
+		# rail's end its caption ran into the HUD's centred level line on 804 px and notched canvases.
+		# ASSUMPTION: mirrors hunt_hud.gd _layout's rail (four 64 px hexes, 10 px apart, 96 px up).
+		var inset := UiTokens.safe_insets(get_viewport())
+		position = Vector2(16.0 + inset.w + (RAIL_HEXES - 1.0) * (SLOT + 10.0), vp.y - 96.0 - inset.y - SLOT - 34.0)
 	if _pressing:
 		_long_left -= delta
 		if _long_left <= 0.0:
@@ -151,5 +171,4 @@ func _draw() -> void:
 		draw_string(font, Vector2(cx, c.y + r + 15.0), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, Color.WHITE)
 		var bc := c + Vector2(r * 0.55, -r * 0.55)
 		draw_circle(bc, r * 0.24, Color(0.2, 0.22, 0.26, 0.95))
-		var sw := font.get_string_size("⇄", HORIZONTAL_ALIGNMENT_CENTER, -1, 11).x
-		draw_string(font, Vector2(bc.x - sw * 0.5, bc.y + 4.0), "⇄", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.95, 0.95, 0.9))
+		UiTokens.draw_centered(self, font, bc, "⇄", UiTokens.TYPE_MIN, Color(0.95, 0.95, 0.9))

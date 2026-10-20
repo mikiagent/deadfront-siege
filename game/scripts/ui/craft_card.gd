@@ -168,10 +168,6 @@ class _SlotRing extends Control:
 		if icon:
 			draw_texture_rect(icon, Rect2(c - Vector2(16, 16), Vector2(32, 32)), false)
 		else:
-			var font := ThemeDB.fallback_font
-			if font:
-				draw_string(font, c + Vector2(0, 4), glyph, HORIZONTAL_ALIGNMENT_CENTER, 40.0, 14, Color(0.9, 0.9, 0.85))
+			UiTokens.draw_centered(self, ThemeDB.fallback_font, c, glyph, 14, Color(0.9, 0.9, 0.85))
 		if count > 1:
-			var font2 := ThemeDB.fallback_font
-			if font2:
-				draw_string(font2, c + Vector2(14, 18), str(count), HORIZONTAL_ALIGNMENT_LEFT, 30.0, 11, Color(1, 1, 1, 0.95))
+			UiTokens.draw_centered(self, ThemeDB.fallback_font, c + Vector2(SLOT_R * 0.62, SLOT_R * 0.62), str(count), UiTokens.TYPE_MIN, Color(1, 1, 1, 0.95))
