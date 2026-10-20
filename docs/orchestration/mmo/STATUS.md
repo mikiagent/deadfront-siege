@@ -4,6 +4,9 @@ Owner request (2026-10-18): raise every system to an ARK: Survival Ascended bar 
 into a persistent multiplayer MMO with a real, server-validated marketplace. This file is the loop's
 memory: each iteration reads it, runs the next wave, and updates it.
 
+**2026-10-20 16:30: the orchestration loop is stopped and the work is handed over to `~/Documents/deadfront`.
+Read `HANDOFF.md` (same folder) first.**
+
 Integration branch: `claude/mmo-overhaul` (worktree `.claude/worktrees/mmo-overhaul`), cut from
 local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 
@@ -57,6 +60,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - 2026-10-18 22:00 production: `548804ac8/f34e148e39` (claude/mmo-overhaul = main + survivor v2/armor/T. rex
   mount; wave 1 not yet merged). Local browser boot checked into the world before deploy; alias
   stamp verified.
+- 2026-10-20 16:25 GitHub: pushed `claude/mmo-overhaul` (255d0434) to origin; draft PR https://github.com/mikiagent/deadfront-siege/pull/17 to main (owner asked; not merging into main until the owner says). Push again as packages merge.
 
 ## Plan amendments for wave 2+ (from plan-critic.md)
 
