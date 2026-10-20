@@ -142,7 +142,7 @@ All under /private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/18
   head (forager_hood is a face under a straw hat; hide_bone_helm is a face inside a skull). They read fine at slot size, but
   W2 art should cut the face from the helmet piece. They are not marked `replace`, because a GLB render clears marks on
   re-render. hide_bone_helm has two stray specks of loose geometry at the sides, which widen its rect slightly.
-- For the armour kit owner: every armour kit GLB (travel_clothes, forager, hide_and_bone; all 11 checked by the import)
+- For the armour kit owner: every armour kit GLB (travel_clothes, forager, hide_and_bone: all 11 framed as specks before the fix; I listed the objects of 3 of them)
   carries an unskinned `Icosphere` mesh of radius 1 m at the origin, beside the skinned slot mesh. render_icons.py now drops it.
   I did not check whether it shows in game.
 - t_iconart is standalone (see Integrator hooks).
