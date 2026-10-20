@@ -232,6 +232,13 @@ func _frame_for_shot() -> void:
 	_cam._target = _player  # the survivor: the see-through system fades for the camera's target
 	_cam.size = 17.0 if inside else 22.0
 	_cam._snap()
+	if "--snap-ghost" in OS.get_cmdline_user_args():
+		# A wood wall ghost aimed beside the doorway's ramp: one green socket, the taken ones skipped.
+		var cost := StructurePiece.cost(&"foundation", &"wood")
+		for id in cost:
+			LabKit.give(_player, id, int(cost[id]))
+		_player.placer.begin_piece(&"foundation", &"wood")
+		_player.placer.aim_at(_centre(3, 3, 0) + Vector3(0.6, 0, 0.4))
 	print("[snap] framed %s" % ("inside" if inside else "outside"))
 
 # ------------------------------------------------------------------ stairs, pillar, collapse
