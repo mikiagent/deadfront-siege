@@ -44,6 +44,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | 2a | W2-PLAYER (player split + PlayerActions), W2-BREED (breeding, growth, mutations, capture rule 09, bonded cap 3->7), W2-ECO (ecosystem, structure targeting) in claude/mmo-w2-<key>; builders hand mechanical parts to dsc sub-worktrees | running (wf_e4b5bc5d-f50) |
 | 2a+ | W2-OCCLUDE: shared see-through occlusion (tall trees, later roofs/walls; roof fades when the survivor is under it) | running (wf_6986c1a3-c0c) |
 | 2a+ | W2-BUILDSYS: modular foundations/walls/doorways/windows/ceilings/roofs/ramps/stairs with snapping, structure HP, tiers + upgrade/repair, owner-passable walls; stand-in meshes swap to Blender models by data (structures.json); roofs fade via the occlusion API | running (wf_dcd34d26-be7) |
+| finish-1 | One workflow (wf_4523bd07-373) finishing, reviewing and integrating every open package in priority order (UI, dsc minors, structart, uiicons, iconart, dsc clips, player, occlude, srvdom, buildsys, breed, eco, qa, biome, econ, net), 6 at a time; a single serialized integrator test-merges in `mmo-int`, runs every gate and screenshot, then fast-forwards `claude/mmo-overhaul` and logs it under "Merge log" | running (2026-10-20 04:50) |
 | 1-INT | merge econ/net/audio + sound settings + market over socket | after wave 1a and audio pass review |
 | 1-ART | ARTA/ARTB Tripo species | concept sheets generating (Higgsfield gpt_image_2_5, critic-checked, wf_4ea0904a-0e6); then one owner batch approval |
 | merge | survivor-v2/armor/T. rex mount merged into `claude/mmo-overhaul` (0fef2a3) | import, [tests] PASS, SMOKE PASS |
@@ -273,6 +274,13 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   climate bonuses -> W2-TAILOR (with W2-SURVIVAL climate); 3) tool/weapon part branches, saws gating
   harvest tiers -> W2-CRAFT; 4) Barrage, Roll Duration, parry -> W2-ACTION; 5) Stealth Ability in the
   real AI detection + mineral nodes -> W2-SKILLS/eco; Toxic Oil Islands -> optional W3 content pack.
+
+- 2026-10-20 (orchestrator) W1-UI's last blocker was a lab gate on the bag that needed edits to
+  hunt_hud.gd/inventory_ui.gd. W2-HUD/W2-SCREENS have not started, so W1-UI now owns those two files and
+  lands its hooks patch on its own branch (option a). New survivors show "Lv. 1" (Durango, ARK and the
+  old bag all start at 1). W1-UIICONS wires its icons into the HUD itself after W1-UI merges. All five
+  dsc workers (minors, audio, quads-loco, zebra, trex-sleep) and the player dsc worker finished; their
+  results are vetted and integrated by finish-1 (audio waits for W1-INT).
 
 ## Owner questions (open)
 
