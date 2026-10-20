@@ -193,13 +193,17 @@ func _func_body(src: String, fname: String) -> String:
 	var end := src.find("\nfunc ", at + 1)
 	return src.substr(at, (end if end > 0 else src.length()) - at)
 
-## Every `&"id"` passed to UiIcons.icon() in the report's integrator hooks resolves directly.
+## Every `&"id"` passed to UiIcons.icon() in the report's "Integrator hooks" section resolves directly.
 func _test_hook_ids() -> void:
 	var path := ProjectSettings.globalize_path("res://").path_join(REPORT)
 	_expect(FileAccess.file_exists(path), "report %s exists" % REPORT)
 	var n := 0
 	var tok := RegEx.create_from_string("&\"([a-z_]+)\"")
-	for line in FileAccess.get_file_as_string(path).split("\n"):
+	var text := FileAccess.get_file_as_string(path)
+	var at := text.find("\n## Integrator hooks")
+	_expect(at >= 0, "report has an Integrator hooks section")
+	var end := text.find("\n## ", at + 1)
+	for line in text.substr(at, (end if end > 0 else text.length()) - at).split("\n"):
 		if not line.contains("UiIcons.icon("):
 			continue
 		for m in tok.search_all(line.substr(line.find("UiIcons.icon("))):
