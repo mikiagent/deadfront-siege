@@ -106,7 +106,10 @@ func _ready() -> void:
 			gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			stack.add_child(gap)
-		stack.add_child(_card_line(("%s %s" if phone else "Starts: %s %s") % [skill, LevelDisplay.label(20)], _px(14 if phone else 18), START_COLOR))
+		# Phone: the skill alone (the subtitle gives the Lv. 20); "Weapon / Tools Lv. 20" wrapped in a
+		# portrait card and dropped its title below its neighbour's.
+		var start_text := skill if phone else "Starts: %s %s" % [skill, LevelDisplay.label(20)]
+		stack.add_child(_card_line(start_text, _px(14 if phone else 18), START_COLOR))
 		card.toggle_mode = true
 		card.pressed.connect(func () -> void: _select(id))
 		grid.add_child(card)

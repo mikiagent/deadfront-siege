@@ -110,10 +110,11 @@ func _process(delta: float) -> void:
 		position.y -= 24.0
 	if UiTokens.is_compact(vp) and not UiTokens.is_narrow(vp):
 		# Landscape phone: under the map the claim hex and the context row fill the bottom-right
-		# corner (the slot sat on the claim hex), so the slot ends the left rail instead.
+		# corner (the slot sat on the claim hex), so the slot stacks above the rail's last hex. At the
+		# rail's end its caption ran into the HUD's centred level line on 804 px and notched canvases.
 		# ASSUMPTION: mirrors hunt_hud.gd _layout's rail (four 64 px hexes, 10 px apart, 96 px up).
 		var inset := UiTokens.safe_insets(get_viewport())
-		position = Vector2(16.0 + inset.w + RAIL_HEXES * (SLOT + 10.0), vp.y - 96.0 - inset.y)
+		position = Vector2(16.0 + inset.w + (RAIL_HEXES - 1.0) * (SLOT + 10.0), vp.y - 96.0 - inset.y - SLOT - 34.0)
 	if _pressing:
 		_long_left -= delta
 		if _long_left <= 0.0:

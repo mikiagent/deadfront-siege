@@ -225,9 +225,9 @@ func _build_overview() -> void:
 		if narrow:
 			name_cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cols.add_child(name_cell)
-		cols.add_child(_cell(LevelDisplay.label(lvl), 56.0, body, UiTokens.TEXT, HORIZONTAL_ALIGNMENT_RIGHT))
+		cols.add_child(_cell(LevelDisplay.label(lvl), 48.0 if narrow else 56.0, body, UiTokens.TEXT, HORIZONTAL_ALIGNMENT_RIGHT))
 		var xp_col := VBoxContainer.new()
-		xp_col.custom_minimum_size = Vector2(96.0, 0)
+		xp_col.custom_minimum_size = Vector2(72.0, 0)  # portrait: room for "Weapon / Tools" (was cut at 96)
 		if not narrow:
 			xp_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		xp_col.alignment = BoxContainer.ALIGNMENT_CENTER

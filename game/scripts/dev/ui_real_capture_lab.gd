@@ -130,6 +130,10 @@ func _run() -> void:
 				if scroll.get_global_rect().grow(0.5).encloses(c.get_global_rect()):
 					shown += 1
 		print("[uireal] skills: rows fully visible %d/%d" % [shown, total])
+		# No label cut short: portrait cut "Weapon / Tools" to "Weapon / ...".
+		for l in _labels_in(sheet):
+			var tw := l.get_theme_font("font").get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, l.get_theme_font_size("font_size")).x
+			_expect(not l.clip_text or tw <= l.size.x + 0.5, "skills: \"%s\" fits its %.0f px column (needs %.0f)" % [l.text, l.size.x, tw])
 		_expect(shown >= mini(total, 8), "skills shows at least 8 of %d rows without scrolling (got %d)" % [total, shown])
 		await _capture("skills", [sheet], logical)
 		sheet.close()
