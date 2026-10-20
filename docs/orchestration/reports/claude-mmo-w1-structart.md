@@ -9,7 +9,8 @@ world-harbour-07 (pier model only; placing it on the coast is W2-TERRAIN).
   nodes with their origins on the hinges), campfire, bonfire, stone_fire_pit (with spit), drying_rack in four
   stages (`drying_rack`, `_raw`, `_drying`, `_dried`), smoker, crock_pot, steamer, mortar, well, catapult (textured
   spoked wheels, `Arm` node with its origin on the axle), pier (3 x 8 m dock), and floor/wall/wall_doorway/roof
-  stand-ins for W2-BUILDSYS. 36-1416 triangles each, one material, origin at the ground centre, front faces +Z.
+  stand-ins for W2-BUILDSYS. 36-1416 triangles each, one material, origin at the ground centre, front faces +Z
+  (the tent's door faces +X so that at rot 0 the camera sees its sunlit slope; see review round 4).
 - **One 1024 atlas for the whole set** (`structures_atlas.png`, 8x8 tiles of 128 px painted procedurally: wood
   grains, planks, bark, log ends, canvas, hide, rope, thatch, weave, stone, cobble, clay, iron, ash, embers,
   water, soot, carved sign board, cart wheel, and the three meat stages). Godot uses one shared material
@@ -43,10 +44,23 @@ world-harbour-07 (pier model only; placing it on the coast is W2-TERRAIN).
   `glb_info.py` (pure-Python GLB reader), lab `structart_lab`, test `game/tests/t_structart.gd` (it also checks
   the hooks once they are applied), and the review shot `tools/blender/structures/built_base_shot.gd`.
 
-Commits: ddc1aef (WIP helper), 04027fe, 5cb3f5c, 59f1f3f, 209539f, 8fb71cf, 825ef4c, 82f06dc, 45efa5f (first
+Commits: review round 4: 03bc8bd (orchestrator docs back to the merge base), 36266bc (tent, checks, notes), and
+the commit carrying this report. Earlier: ddc1aef (WIP helper), 04027fe, 5cb3f5c, 59f1f3f, 209539f, 8fb71cf, 825ef4c, 82f06dc, 45efa5f (first
 report); review round: 1c2417a, 8be17c1, 78a251d, 3018e79; resumed round: c00a1e9, 8813169, 796ec3a; review round 3:
 c06733a (marbled raw meat, warmer deck, pen collider, applyable hooks, test hook checks), 25435fd (ochre canvas,
 GLBs rebuilt on the final atlas), d44ef93 and the commit carrying this correction (report).
+
+## Review round 4: findings and responses
+
+| # | Finding | Fix | What would have caught it (now in place) |
+|---|---|---|---|
+| 1 blocker | Branch edited orchestrator docs; STATUS.md conflicted with claude/mmo-overhaul 8d872e3 | 03bc8bd: `git checkout ea2d167 -- docs/orchestration/mmo/STATUS.md docs/orchestration/mmo/contracts.md` and `git rm` of docs/design/durango-prompts/ and the three docs/reference/durango-* images. `git diff --name-status ea2d167 HEAD` now lists only this report under docs/ | `git merge-tree --write-tree HEAD claude/mmo-overhaul` prints only a tree id (`bcbce0c...` after 03bc8bd, `a89eb26...` after 36266bc), exit 0 |
+| 2 major | Round 1 crashed the owner's live Blender while its file was unsaved | No code change possible. Builds are headless-only and `lib.new_scene` raises unless `bpy.app.background`. This round did not touch the owner's Blender (no MCP call) | **Owner: please confirm nothing was lost before merge** (see "What failed or is left") |
+| 3 minor | At rot 0 the tent showed the camera its shaded slope, a near-black slab | The tent is built turned +90 deg (`structures.tent`, `bmesh.ops.rotate`): at rot 0 its camera-side slope faces +Z and the door +X. W1-LIGHT's sun crosses from -X (yaw band -35 to -85), so the old +X slope was shaded all day | `t_structart._check_tent_faces_sun`: area-weighted N.sun over the canvas the iso camera sees, at W1-LIGHT's noon (read from `data/world/lighting.json`, default band when absent). Old GLB: `[t_structart] tent at rot 0: camera-side canvas sunlit 0.10 (min 0.35), sun yaw -60 elevation 58` / `[t_structart] FAIL tent at rot 0 shows its shaded slope to the camera (sunlit 0.10 < 0.35)`, exit 1. New: `... sunlit 0.43 ...`, PASS. Shots `r9/tent_fwd_crop.png`, `r9/tent_compat_crop.png` |
+| 4 minor | `_check_stages` printed "distinct" even after recording a failure | It prints only when it added no failure | Mutation probe (dried stage pointed at the raw GLB, manifest restored after, `cmp` identical): exit 1, `[t_structart] FAIL drying_rack raw and dried look identical`, and no "distinct" line |
+| 5 minor | Stale drying_rack note | `check_manifest.write()` sets the note from a `NOTES` table. Five more Blender rows had placeholder notes (mortar, well, crock_pot, canvas_tent, smoker, catapult) and are fixed the same way | check_manifest fails a Blender row whose note mentions "kenney", "placeholder" or "until a dedicated". On the old manifest: `[check_manifest] FAIL drying_rack: note still describes the placeholder: 'use the canvas frame as a rack until a dedicated model exists'` (and the five others) |
+| 6 minor | Origin tolerance grew with the footprint (about 1 m on the pier); PASS line double counted stand-ins | Fixed `ORIGIN_TOL_M = 0.15`. The worst real offset is 0.108 m (workbench.glb, x). PASS line now reads `23 Blender (4 of them stand-ins marked REPLACE)` | Probe with the pier's AABB shifted 1 m: `pier: pier.glb origin off centre on axis 2 by 1.00 m`. The old limit (0.12 x 8 + 0.05 = 1.01 m) passed it |
+| 7 minor | No hook drives the four rack stages from station state | Deliberate (W2-PROCESS owns station state). Register row proposed below (proc-vis-01). The lookup is `row.stages[i].glb`, the same as `StructartLab.swap_visual(node, stage)` | Register row |
 
 ## Review round 3: findings and responses
 
@@ -63,31 +77,47 @@ GLBs rebuilt on the final atlas), d44ef93 and the commit carrying this correctio
 
 ## Acceptance checklist
 
-Branch = this work tree at 25435fd. Hooked tree = `git merge-tree` of c06733a with claude/mmo-overhaul 8ca2496,
-then `git apply tools/blender/structures/integrator_hooks.patch` (it applied with no fuzz: `Checking patch
-game/scripts/world/prop_visuals.gd... placed_building.gd... field_catapult.gd...`), then 25435fd's atlas, test
-and manifest copied in (`cmp`-identical), in `scratchpad/w1/structart/r8/tree`.
+Round 4 reruns: branch = this work tree at 36266bc. Hooked tree = `git archive` of `git merge-tree --write-tree
+36266bc claude/mmo-overhaul` (8d872e3, tree a89eb26) laid over the round-3 tree (to reuse its import cache), then
+`git apply -v tools/blender/structures/integrator_hooks.patch` (`Applied patch game/scripts/world/prop_visuals.gd
+cleanly.`, same for placed_building.gd and field_catapult.gd), in `scratchpad/w1/structart/r9/tree`; tent.glb and
+t_structart.gd `cmp`-identical to the branch. Rows not rerun in round 4 keep their round-3 evidence (r8, at
+25435fd); round 4 changed only the tent GLB, notes and checks, so those rows are unaffected.
 
 | Item | Result (exact line) |
 |---|---|
-| check_manifest prints PASS, every kind resolves to an existing GLB | `[check_manifest] PASS 41 kinds resolve to existing GLBs (23 Blender, 18 Kenney marked REPLACE, 4 Blender stand-ins marked REPLACE)` (rerun after the final rebuild) |
+| check_manifest prints PASS, every kind resolves to an existing GLB | `[check_manifest] PASS 41 kinds resolve to existing GLBs (23 Blender (4 of them stand-ins marked REPLACE), 18 Kenney marked REPLACE)` (round 4, after the tent rebuild and `--write`) |
 | Each GLB <= 4k tris, one atlas material, origin at ground centre, footprint within manifest AABB +-5 % | enforced by the same check_manifest PASS (largest: pier and drying_rack_dried, 1416 tris) and in Godot by `[t_structart] PASS` |
-| Four drying-rack stages differ | `[t_structart] drying_rack stages ["empty", "raw", "drying", "dried"] distinct`; seen in `ochre_fwd_racks_crop.png` and `ochre_compat_racks_crop.png` |
+| Four drying-rack stages differ | `[t_structart] drying_rack stages ["empty", "raw", "drying", "dried"] distinct` (round 4, printed only when the stage check passed); seen in `r9/tent_fwd_racks.png`, `ochre_fwd_racks_crop.png`, `ochre_compat_racks_crop.png` |
+| Tent shows sunlit canvas at rot 0 | `[t_structart] tent at rot 0: camera-side canvas sunlit 0.43 (min 0.35), sun yaw -60 elevation 58` (branch and hooked tree); seen in `r9/tent_fwd_crop.png`, `r9/tent_compat_crop.png` |
 | Stages separate by value, dried clear of the frame | `[t_structart] stage luma raw 75 drying 27 dried 16, frame bark 59` |
-| t_structart, branch | `[t_structart] hooks not applied (gate resolves to res://assets/props/kenney/fence-doorway.glb), hook checks skipped` / `[t_structart] PASS` (exit 0, after an --import) |
-| t_structart, hooked tree | `[build] gate open` / `[build] gate closed` / `[t_structart] hooks applied: gate leaves, catapult model and pen collider checked` / `[t_structart] PASS` |
-| run_all suite | branch `[tests] PASS`; hooked tree `[tests] PASS` |
-| smoke | branch `SMOKE PASS` (tools/smoke.sh --no-import through gslot) |
+| t_structart, branch | round 4: `[t_structart] hooks not applied (gate resolves to res://assets/props/kenney/fence-doorway.glb), hook checks skipped` / `[t_structart] PASS` (exit 0, after an --import for the rebuilt tent) |
+| t_structart, hooked tree | round 4: `[build] gate open` / `[build] gate closed` / `[t_structart] hooks applied: gate leaves, catapult model and pen collider checked` / `[t_structart] PASS` (exit 0) |
+| run_all suite | round 4 branch `[tests] PASS` (exit 0); hooked tree `[tests] PASS` (round 3) |
+| smoke | round 4 branch `SMOKE PASS` (tools/smoke.sh --no-import through gslot, exit 0) |
 | --lab=build_lab headless | branch exit 0, `[build] restored 6` (this base predates W1-BUILD's PASS line); hooked tree exit 0, `[build] restored 6` / `[build] PASS` (colliders now come from aabb_m) |
-| Windowed 1600x900 scripted base, Forward+, hooked tree | `Metal 4.0 - Forward+` / `[audit] swapped 24 visuals, racks 4` / `[audit] shot .../r8/hooked_fwd.png` (+ `_racks.png`); with a second tent at rot 1: `[audit] swapped 25 visuals, racks 4`, `ochre_fwd.png` |
+| Windowed 1600x900, two tents (rot 0 and rot 1), round 4 hooked tree | Forward+: `Metal 4.0 - Forward+ - Using Device #0: Apple - Apple M5 Pro (Apple9)` / `[audit] swapped 25 visuals, racks 4` / `[audit] shot .../r9/tent_fwd.png`; compat: `OpenGL API 4.1 Metal - 90.5 - Compatibility - Using Device: Apple - Apple M5 Pro` / `[audit] swapped 25 visuals, racks 4` / `[audit] shot .../r9/tent_compat.png` |
+| Windowed 1600x900 scripted base, Forward+, hooked tree (round 3) | `Metal 4.0 - Forward+` / `[audit] swapped 24 visuals, racks 4` / `[audit] shot .../r8/hooked_fwd.png` (+ `_racks.png`); with a second tent at rot 1: `[audit] swapped 25 visuals, racks 4`, `ochre_fwd.png` |
 | Same in gl_compatibility | `OpenGL API 4.1 Metal - 90.5 - Compatibility - Using Device: Apple - Apple M5 Pro` / `[audit] swapped 25 visuals, racks 4`, `ochre_compat.png` (+ `_racks.png`) |
 | build_lab gate shots, hooked tree | `[build] gate open` / `[boot] shot .../r8/hooked_gate_open.png`; shut: `[boot] shot .../r8/hooked_gate_shut.png` |
 | structart lab (windowed), hooked tree | `[structart] lab placed 24 models, missing []` / `[boot] shot .../r8/lab_set.png` |
-| Merges cleanly into claude/mmo-overhaul | **Not now.** Against 8ca2496 it was clean (`git merge-tree --write-tree` printed only the tree id). claude/mmo-overhaul has since moved to 8d872e3 and edited STATUS.md again; `git merge-tree --write-tree HEAD claude/mmo-overhaul` now prints `CONFLICT (content): Merge conflict in docs/orchestration/mmo/STATUS.md`. It is the only conflict listed. See "What failed or is left" |
+| Merges cleanly into claude/mmo-overhaul | `git merge-tree --write-tree HEAD claude/mmo-overhaul` (8d872e3) prints only a tree id (`a89eb266304a0f9c41cda1ecb27cbcda6db4f7f5` at 36266bc), exit 0; rechecked after the report commit |
 
 ## Screenshots inspected
 
 All under `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/w1/structart/`.
+
+Review round 4 (`r9/`, merged W1-LIGHT lighting, hooks applied, tents at rot 0 and rot 1):
+
+- `r9/review_tents_crop.png` (crop of the reviewer's `w1-review/structart/after_fwd.png`): before. Both rot-0
+  tents show the camera a dark slate slope; the door gable faces lower-left.
+- `r9/tent_fwd.png`, crop `r9/tent_fwd_crop.png`: after, Forward+. Both rot-0 tents show a warm ochre slope with
+  the door gable on the lower right. The rot-1 tent (upper right) shows the dark slope: rot 1 and rot 3 now carry
+  the residual (see "What failed or is left").
+- `r9/tent_compat.png`, crop `r9/tent_compat_crop.png`: the same in gl_compatibility, slightly paler ochre, same
+  read.
+- `r9/tent_fwd_racks.png`: close-up. The rot-0 tent is warm ochre. The four racks still read empty, raw red,
+  drying maroon and dried dark.
 
 Review round 3 (`r8/`, merged lighting, hooks applied):
 
@@ -215,7 +245,15 @@ Notes for the integrator:
   fence and gate (one style). Its collider stays the explicit 4 x 1.8 x 4 in `_build_visual`; the row's
   `aabb_m` is now the ring extent too, so the `placed <= 0` fallback gets the same size.
 - Drying rack (W2-PROCESS): swap the Prop to `row.stages[i].glb` per stage; `StructartLab.glb_path(kind, stage)`
-  and `StructartLab.swap_visual(node, stage)` show the lookup.
+  and `StructartLab.swap_visual(node, stage)` show the lookup. Until W2-PROCESS does this, the rack always shows
+  the empty model in game (register row proc-vis-01 below).
+
+Plan register (`docs/orchestration/mmo/plan-register.md` section 6, orchestrator-owned): proposed gap rows.
+
+| id | Sev | Adj | V | blocker | Eff | Gap | Evidence | Pkg |
+|---|---|---|---|---|---|---|---|---|
+| proc-vis-01 | P1 | | C | none | S | In game the drying rack always shows the empty model: nothing swaps `props_manifest.drying_rack.stages[i].glb` (empty, raw, drying, dried) from station state, so the owner's "processing must be visible" is unmet in game | stage GLBs shown only by `StructartLab.swap_visual` (lab, `built_base_shot.gd`); `r9/tent_fwd_racks.png` | W2-PROCESS |
+| build-art-02 | P2 | | C | none | S | At rot 1 and rot 3 the tent shows the camera the slope W1-LIGHT's sun never reaches (yaw band -35 to -85), and it renders near-black. Rot 0 and 2 are fixed | `r9/tent_fwd_crop.png` (upper-right tent) | W1-LIGHT follow-up (fill/ambient) or a later art pass |
 
 Asset-replacement register (`docs/orchestration/mmo/asset-replacement.md`, orchestrator-owned and not on this
 branch): proposed rows, Structures and props table:
@@ -245,42 +283,36 @@ branch): proposed rows, Structures and props table:
 - Canvas colour: oiled ochre rather than cream, chosen from the measured shade illuminant and the art bible's
   "warmer against cooler wilderness". If the owner wants a pale canvas back, W1-LIGHT's sky-lit ambient
   needs to carry less blue first.
+- The tent's door faces +X, not +Z like the rest of the set. Nothing in code reads the tent's front. This choice
+  depends on W1-LIGHT's sun staying on the -X side (yaw band -35 to -85); if that band moves to the +X side,
+  rotate the tent back (`t_structart` reads the band from lighting.json and will fail).
 - The gate opens away from its front (+Z). The PRD does not say which way; the plank leaf swung the other way.
 - The hero stations keep their low-poly budgets (largest 1416 tris). I chose to mark them REVIEW with an upgrade
   path rather than spend more triangles now; the owner may prefer an immediate higher-poly pass.
 
 ## What failed or is left
 
-- **Merge conflict on STATUS.md (blocked on permission).** Earlier rounds copied orchestrator docs into this
-  branch (6b72675, c00a1e9: STATUS.md, contracts.md, docs/design/durango-prompts/, three docs/reference images) so
-  I could read them. claude/mmo-overhaul has since edited STATUS.md again (8d872e3), so the merge now conflicts
-  there. The fix is to put those paths back to the merge base (ea2d167), after which the merge always takes the
-  target's versions:
-  `git checkout ea2d167 -- docs/orchestration/mmo/STATUS.md docs/orchestration/mmo/contracts.md && git rm -r
-  docs/design/durango-prompts docs/reference/durango-bag-caged-animal.webp docs/reference/durango-fatigue-meter.png
-  docs/reference/durango-gather-hud-levelup.webp`. The permission classifier refused that command ("Modify
-  Shared Resources"), so it is not done and I did not try another route. Either the owner allows it, or the
-  integrator takes theirs at merge (`git checkout --theirs docs/orchestration/mmo/STATUS.md`). No other path
-  conflicts.
-- **Hooked tree basis.** The hooked-tree runs merged c06733a with claude/mmo-overhaul at 8ca2496. The two newer
-  target commits (55c6541, 8d872e3) were not in that tree. `git diff --stat 8ca2496 claude/mmo-overhaul` shows
-  they touch only docs: two Durango addenda (08 cooking, 09 capture) and STATUS.md.
+- The STATUS.md merge conflict is fixed (03bc8bd); see review round 4, finding 1.
+- **Tent at rot 1 and rot 3.** The shaded slope now faces the camera at those rotations, which are not the
+  default. A brighter canvas would help only a little: the slope gets only sky ambient (about 0.31/0.5/0.8 of
+  R/G/B, round 3 measurement), so by my estimate (not measured) a 1.5x albedo moves it from about 50 to about 61
+  sRGB. Proposed register row build-art-02.
 - **Owner, please confirm about Blender.** In round 1 my first live MCP build segfaulted the owner's Blender 5.2
   (it switched the window to a temporary scene and ran the glTF exporter under `temp_override`; crash log
   `~/Library/Logs/DiagnosticReports/Blender-2026-10-19-085350.ips`). The open file was unsaved and I believe it
   held only the default 3-object scene, but I cannot verify that nothing was lost; the owner should confirm
   before merge. Every build since then ran headless (`Blender -b --factory-startup -P`). `lib.new_scene` refuses
-  to run inside a live session, and this round did not touch Blender MCP.
+  to run inside a live session. Rounds 3 and 4 made no Blender MCP call at all.
 - Rebuilds are not byte-identical (a few bytes differ inside normal/tangent buffers). The atlas PNG is
   deterministic: the final rebuild reproduced the tested atlas byte for byte (`cmp`). Geometry, JSON and all
   checks are stable.
-- The shaded tent slope is a dark near-neutral grey, not warm. A warmer shade needs W1-LIGHT's sky ambient
+- Shaded surfaces stay dark near-neutral grey, not warm. A warmer shade needs W1-LIGHT's sky ambient
   (`world_lighting.gd` `ambient_light_sky_contribution = 1.0`) to carry less blue. That holds for every shaded
-  surface in the game; the large flat tent slope just shows it most.
+  surface in the game.
 - gl_compatibility lights the drying-stage maroon a little brighter than Forward+; raw vs drying stays distinct.
 - The art is not in game until the hooks land (deliberate: the three files belong to W1-BUILD).
 - Not built: technical_workbench, grindstone, bedroll, large_box, chest, barrel, bucket, fortified fence,
   signpost, fishing stand, fields, stone_grill, straw_roll, log_shelter, cabin_bed, campfire_stand, tent_canvas
   (all marked REPLACE). Cargo Warp is procedural and needs a register row (proposed above).
-- The register itself is not edited: it is orchestrator-owned and not on this branch.
+- The registers are not edited: they are orchestrator-owned. Proposed rows are listed under Integrator hooks.
 - No credits spent (no Meshy/Tripo/generate_3d).
