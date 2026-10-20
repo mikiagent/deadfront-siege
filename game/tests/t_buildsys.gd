@@ -7,8 +7,7 @@ extends SceneTree
 ## vs creature paths through walls and closed doors, save-row round trips with clamping, malformed
 ## rows, and save schema migration to 4.
 ## Run: Godot --headless --path game --script res://tests/t_buildsys.gd
-## Game classes are load()ed on the first frame (`--script` compiles this file before autoloads
-## exist); nothing here names one at parse time or as a static type.
+## Game classes are load()ed on the first frame (`--script` compiles this file before autoloads exist).
 
 var _fails: PackedStringArray = []
 var _case_fails := 0
@@ -27,16 +26,14 @@ var _claims_base: Array = []
 func _process(_delta: float) -> bool:
 	if _started or root.get_node_or_null("Data") == null:
 		return false
-	_started = true
-	_run()
+	_started = true ; _run()
 	return false
 
 # ------------------------------------------------------------------ harness
 
 func _expect(ok: bool, what: String) -> void:
 	if not ok:
-		_fails.append(what)
-		print("[t_buildsys] FAIL %s" % what)
+		_fails.append(what) ; print("[t_buildsys] FAIL %s" % what)
 
 func _begin_case() -> void:
 	_case_fails = _fails.size()
@@ -46,41 +43,28 @@ func _done(name: String, extra: String = "") -> void:
 		print("[t_buildsys] ok %s%s" % [name, extra])
 
 func _run() -> void:
-	_SP = load("res://scripts/world/structure_piece.gd")
-	_BG = load("res://scripts/world/build_grid.gd")
-	_host = Node3D.new()
-	_host.name = "TBuildsysHost"
-	root.add_child(_host)
-	var kit: Dictionary = load("res://scripts/dev/lab_kit.gd").build(_host, 20.0)
-	_player = kit["player"]
-	var world: Node = root.get_node("World")
-	world.set("home_terrain", &"meadow")
-	world.call("load_island", _host, &"home_grassland", Vector3(0, 1, 12), false)
+	_SP = load("res://scripts/world/structure_piece.gd") ; _BG = load("res://scripts/world/build_grid.gd")
+	_host = Node3D.new() ; _host.name = "TBuildsysHost"
+	root.add_child(_host) ; var kit: Dictionary = load("res://scripts/dev/lab_kit.gd").build(_host, 20.0)
+	_player = kit["player"] ; var world: Node = root.get_node("World")
+	world.set("home_terrain", &"meadow") ; world.call("load_island", _host, &"home_grassland", Vector3(0, 1, 12), false)
 	var kit_floor := _host.get_node_or_null("Floor")
 	if kit_floor:
 		kit_floor.queue_free()
-	await process_frame
-	await physics_frame
-	_player.skills.trees["construction"]["level"] = 40
-	_rt = world.get("runtime")
-	_bg = _rt.get("build_grid")
-	_sg = _bg.get("structures")
+	await process_frame ; await physics_frame
+	_player.skills.trees["construction"]["level"] = 40 ; _rt = world.get("runtime")
+	_bg = _rt.get("build_grid") ; _sg = _bg.get("structures")
 	_bg.set("ignore_distance", true)
 	# Fixture: one long-lived claim over the test area (a staked plot is only 14x14 tiles).
 	var around: Vector2i = _sg.call("module_of", Vector3(0, 0, 12))
-	_rt.claims.append(Rect2i(around * 2 - Vector2i(50, 50), Vector2i(100, 100)))
-	_claims_base = _rt.claims.duplicate()
-	_site = _find_site(around)
-	_stand_at(_site)
-	for case in ["data_rows", "costs", "reasons", "snap", "collapse", "damage_tiers", "kits_and_camp",
-			"repair_upgrade", "paths", "rows_round_trip", "bad_rows", "migrations"]:
+	_rt.claims.append(Rect2i(around * 2 - Vector2i(50, 50), Vector2i(100, 100))) ; _claims_base = _rt.claims.duplicate()
+	_site = _find_site(around) ; _stand_at(_site)
+	for case in ["data_rows", "costs", "reasons", "snap", "collapse", "damage_tiers", "kits_and_camp", "repair_upgrade", "paths", "rows_round_trip", "bad_rows", "migrations"]:
 		call("_test_" + case)
 	if _fails.is_empty():
-		print("[t_buildsys] PASS")
-		quit(0)
+		print("[t_buildsys] PASS") ; quit(0)
 	else:
-		print("[t_buildsys] FAIL count=%d" % _fails.size())
-		quit(1)
+		print("[t_buildsys] FAIL count=%d" % _fails.size()) ; quit(1)
 
 ## The flattest 2x2-module pad near the camp where every foundation fits.
 func _find_site(around: Vector2i) -> Vector2i:
@@ -95,12 +79,10 @@ func _find_site(around: Vector2i) -> Vector2i:
 			for d in _square():
 				var c: Vector2i = o + d
 				var span: Vector2 = _sg.call("_terrain_span", c)
-				ok = ok and _why(&"foundation", _slot(c, 0, 0)) == ""
-				lo = minf(lo, span.x)
+				ok = ok and _why(&"foundation", _slot(c, 0, 0)) == "" ; lo = minf(lo, span.x)
 				hi = maxf(hi, span.y)
 			if ok and hi - lo < best_span:
-				best_span = hi - lo
-				best = o
+				best_span = hi - lo ; best = o
 	_expect(best_span <= 0.6, "a flat 2x2-module pad exists near the camp (spread %.2f m)" % best_span)
 	return best
 
@@ -136,15 +118,13 @@ func _reset_case() -> void:
 	for n in get_nodes_in_group("structure_piece"):
 		if is_instance_valid(n) and not n.is_queued_for_deletion():
 			n.free()
-	_rt.claims = _claims_base.duplicate()
-	_bg.get("_reserved").clear()
+	_rt.claims = _claims_base.duplicate() ; _bg.get("_reserved").clear()
 	_stand_at(_site)
 
 ## Put exactly `cost` of each item in the bag, nothing else of those items.
 func _give_exact(cost: Dictionary) -> void:
 	for id in cost:
-		_player.inventory.consume(id, _player.inventory.count_of(id))
-		load("res://scripts/dev/lab_kit.gd").give(_player, id, int(cost[id]))
+		_player.inventory.consume(id, _player.inventory.count_of(id)) ; load("res://scripts/dev/lab_kit.gd").give(_player, id, int(cost[id]))
 
 ## A piece placed straight into the grid (no placer) at the floor/variant/span the rules picked.
 func _place_direct(kind: StringName, tier: StringName, slot: Vector4i, rot: int = 0) -> Node:
@@ -154,8 +134,7 @@ func _place_direct(kind: StringName, tier: StringName, slot: Vector4i, rot: int 
 		return null
 	var res: Dictionary = _sg.check(kind, slot, rot, tier)
 	var p: Node = _SP.make(kind, tier, slot, rot, float(res["floor0"]), int(res["variant"]))
-	p.set("span", int(res["span"]))
-	_rt.add_child(p)
+	p.set("span", int(res["span"])) ; _rt.add_child(p)
 	_sg.register(p)
 	return p
 
@@ -166,8 +145,7 @@ func _pad(cells: Array, tier: StringName = &"thatch") -> void:
 # ------------------------------------------------------------------ 1. data rows
 
 func _test_data_rows() -> void:
-	_begin_case()
-	var items: Node = root.get_node("Data")
+	_begin_case() ; var items: Node = root.get_node("Data")
 	var tiers: Array = [&"thatch", &"wood", &"stone", &"metal"]
 	var pieces: Dictionary = _SP.defs().get("pieces", {})
 	for i in tiers.size():
@@ -178,31 +156,26 @@ func _test_data_rows() -> void:
 		var last := -1.0
 		for t in tiers:
 			var bp: Dictionary = _SP.blueprint(k, t)
-			_expect(not bp.is_empty(), "%s has a %s blueprint" % [k, t])
-			var good := true
+			_expect(not bp.is_empty(), "%s has a %s blueprint" % [k, t]) ; var good := true
 			for sl in bp.get("material_slots", []):
 				var it := StringName(str((sl as Dictionary).get("item", "")))
 				good = good and items.get("items").has(it) and int((sl as Dictionary).get("quantity", 0)) > 0
 			_expect(good, "%s %s blueprint costs real items with quantities > 0 (%s)" % [k, t, bp.get("material_slots", [])])
 			var dur: float = _SP.max_durability(k, t)
-			_expect(dur > last, "%s durability rises with tier (%s %.0f after %.0f)" % [k, t, dur, last])
-			last = dur
+			_expect(dur > last, "%s durability rises with tier (%s %.0f after %.0f)" % [k, t, dur, last]) ; last = dur
 	var kits := 0
 	for id in items.get("items"):
 		var def: Variant = items.get("items")[id]
 		if def == null or str(def.get("place_as")) == "":
 			continue
-		kits += 1
-		var row: Dictionary = _SP.placed_kind(StringName(str(def.get("place_as"))))
+		kits += 1 ; var row: Dictionary = _SP.placed_kind(StringName(str(def.get("place_as"))))
 		_expect(float(row.get("max_durability", 0)) > 0.0, "kit kind %s has a placed_kinds durability row" % def.get("place_as"))
-	_expect(kits >= 20, "every kit kind was checked (%d)" % kits)
-	_done("data_rows")
+	_expect(kits >= 20, "every kit kind was checked (%d)" % kits) ; _done("data_rows")
 
 # ------------------------------------------------------------------ 2. costs
 
 func _test_costs() -> void:
-	_begin_case()
-	_reset_case()
+	_begin_case() ; _reset_case()
 	# Hand-read from structures.json's piece_tiers.
 	var rows := [
 		[&"wall", &"wood", {&"plank": 4, &"twine": 2}], [&"foundation", &"stone", {&"stone": 12, &"plank": 3}],
@@ -225,23 +198,19 @@ func _test_costs() -> void:
 	if f == null: return
 	var floor0: float = f.get("floor0")
 	var edge := Vector4i(_site.x, _site.y, 0, _SP.EDGE_Z)
-	_give_exact(_SP.cost(&"wall", &"wood"))
-	_player.placer.begin_piece(&"wall", &"wood")
-	_player.placer.aim_at(_SP.pose(&"wall", edge, 0, floor0).origin + Vector3(0.3, 0.2, 0.0))
-	var ok: bool = _player.placer.confirm(_player)
+	_give_exact(_SP.cost(&"wall", &"wood")) ; _player.placer.begin_piece(&"wall", &"wood")
+	_player.placer.aim_at(_SP.pose(&"wall", edge, 0, floor0).origin + Vector3(0.3, 0.2, 0.0)) ; var ok: bool = _player.placer.confirm(_player)
 	var wall: Variant = _sg.piece_at(edge)
 	_expect(ok and wall != null and wall.kind == &"wall", "wood wall placed on the wood foundation (%s)" % _player.placer.reason)
 	for id in _SP.cost(&"wall", &"wood"):
 		_expect(_player.inventory.count_of(id) == 0, "the wall took all its %s (%d left)" % [id, _player.inventory.count_of(id)])
 	# One plank short: refused, nothing placed, nothing spent.
 	var edge2 := Vector4i(_site.x, _site.y, 0, _SP.EDGE_X)
-	_give_exact({&"plank": 3, &"twine": 2})
-	_player.placer.begin_piece(&"wall", &"wood")
+	_give_exact({&"plank": 3, &"twine": 2}) ; _player.placer.begin_piece(&"wall", &"wood")
 	_player.placer.aim_at(_SP.pose(&"wall", edge2, 0, floor0).origin + Vector3(0.3, 0.2, 0.3))
 	_expect(not bool(_player.placer.confirm(_player)), "one plank short: the wall is not placed")
 	_expect(_sg.piece_at(edge2) == null, "one plank short: no piece at the socket")
-	_expect(_player.inventory.count_of(&"plank") == 3, "a refused placement takes no materials")
-	_player.placer.cancel()
+	_expect(_player.inventory.count_of(&"plank") == 3, "a refused placement takes no materials") ; _player.placer.cancel()
 	_done("costs")
 
 # ------------------------------------------------------------------ 3. placement reasons
@@ -278,8 +247,7 @@ func _harvest_module() -> Vector2i:
 	return _site + Vector2i(400, 0)
 
 func _test_reasons() -> void:
-	_begin_case()
-	_reset_case()
+	_begin_case() ; _reset_case()
 	var ma := _site
 	var mb := _site + Vector2i(2, 0)
 	var ms := _site + Vector2i(0, 2)
@@ -290,8 +258,7 @@ func _test_reasons() -> void:
 	var water_m := _scan(&"water")
 	var tree_m := _harvest_module()
 	var free_m := _scan(&"unclaimed")
-	_rt.claims.append(Rect2i(water_m * 2 - Vector2i(1, 1), Vector2i(6, 6)))
-	_rt.claims.append(Rect2i(tree_m * 2 - Vector2i(1, 1), Vector2i(6, 6)))
+	_rt.claims.append(Rect2i(water_m * 2 - Vector2i(1, 1), Vector2i(6, 6))) ; _rt.claims.append(Rect2i(tree_m * 2 - Vector2i(1, 1), Vector2i(6, 6)))
 	_bg.call("reserve_cells", _sg.call("module_cells", mr))
 	var table: Array = [
 		["valid", &"foundation", _slot(ma, 0, _SP.CELL), ""],
@@ -315,43 +282,40 @@ func _test_reasons() -> void:
 		_expect(why == row[3], "reason for %s is '%s' (got '%s')" % [row[0], row[3], why])
 		if row[0] == "valid" and why == "":
 			_place_direct(&"foundation", &"thatch", row[2])  # the occupied row needs it there
-	_bg.get("_reserved").clear()
-	_done("reasons", " cases=%d" % table.size())
+	_bg.get("_reserved").clear() ; _done("reasons", " cases=%d" % table.size())
 
 # ------------------------------------------------------------------ 4. socket snapping
 
 func _test_snap() -> void:
-	_begin_case()
-	_reset_case()
+	_begin_case() ; _reset_case()
 	var f := _place_direct(&"foundation", &"wood", _slot(_site, 0, _SP.CELL))
 	if f == null: return
 	var floor0: float = f.get("floor0")
 	var costs: Dictionary = _SP.cost(&"wall", &"wood")
-	var near := Vector4i(_site.x, _site.y, 0, _SP.EDGE_Z)
-	for e in [near, near + Vector4i(1, 0, 0, _SP.EDGE_X - _SP.EDGE_Z), near + Vector4i(0, 1, 0, 0), near + Vector4i(0, 0, 0, _SP.EDGE_X)]:
-		_give_exact(costs)
-		_player.placer.begin_piece(&"wall", &"wood")
-		_player.placer.aim_at(_SP.pose(&"wall", e, 0, floor0).origin + Vector3(0.22, 0.18, -0.2))
-		var snapped: Dictionary = _player.placer.piece_at
-		_expect(snapped.get("slot", Vector4i.ZERO) == e, "aim 0.3 m off %s snaps onto that edge (got %s)" % [e, snapped.get("slot")])
-		_expect(bool(_player.placer.valid), "a wall on its edge is valid (%s)" % _player.placer.reason)
-		_player.placer.cancel()
-	# Aim 10 m from the only piece: nothing valid out there.
-	_give_exact(costs)
-	_player.placer.begin_piece(&"wall", &"wood")
+	var zx: int = _SP.EDGE_Z ; var xx: int = _SP.EDGE_X
+	var s := _site
+	for e in [Vector4i(s.x, s.y, 0, zx), Vector4i(s.x + 1, s.y, 0, xx), Vector4i(s.x, s.y + 1, 0, zx), Vector4i(s.x, s.y, 0, xx)]:
+		_give_exact(costs) ; _player.placer.begin_piece(&"wall", &"wood")
+		_player.placer.aim_at(_SP.pose(&"wall", e, 0, floor0).origin + Vector3(0.18, 0.18, 0.18)) ; var snapped: Dictionary = _player.placer.piece_at
+		_expect(snapped.get("slot", Vector4i.ZERO) == e, "aim 0.3 m off edge %s snaps onto it (got %s)" % [e, snapped.get("slot")])
+		_expect(bool(_player.placer.valid), "a wall on its edge is valid (%s)" % _player.placer.reason) ; _player.placer.cancel()
+	# Aim 10 m from the only piece: nothing valid out there, and nothing is placed.
+	_give_exact(costs) ; _player.placer.begin_piece(&"wall", &"wood")
 	_player.placer.aim_at(Vector3(float(_site.x) * 2.0 + 11.0, floor0, float(_site.y) * 2.0 + 1.0))
 	_expect(not bool(_player.placer.valid), "aiming 10 m from any piece is not valid")
-	_player.placer.cancel()
+	# 4 m out is past snap_radius_m (3 m) but still inside the socket search: no valid snap there.
+	_player.placer.aim_at(Vector3(float(_site.x) * 2.0 + 1.0, floor0, float(_site.y) * 2.0 + 6.0))
+	_expect(not bool(_player.placer.valid), "aiming 4 m past the nearest socket is not valid (%s)" % _player.placer.reason)
+	_expect(not bool(_player.placer.confirm(_player)), "confirming past snap_radius_m places nothing")
+	_expect(_sg.pieces().size() == 1, "only the foundation is in the grid (%d pieces)" % _sg.pieces().size()) ; _player.placer.cancel()
 	# Rotation: rotate_clockwise moves the step, and oriented pieces keep it after confirm.
-	_player.placer.begin_piece(&"ramp", &"wood")
-	var before: int = _player.placer.rot_step
+	_player.placer.begin_piece(&"ramp", &"wood") ; var before: int = _player.placer.rot_step
 	_player.placer.rotate_clockwise()
 	_expect(_player.placer.rot_step != before, "rotate_clockwise() changes rot_step (%d -> %d)" % [before, _player.placer.rot_step])
 	_player.placer.cancel()
 	# Ramp rot 1 rises toward +X onto the foundation; its own module is the free one beside it.
 	var ramp_m := _site + Vector2i(-1, 0)
-	_give_exact(_SP.cost(&"ramp", &"wood"))
-	_player.placer.begin_piece(&"ramp", &"wood")
+	_give_exact(_SP.cost(&"ramp", &"wood")) ; _player.placer.begin_piece(&"ramp", &"wood")
 	while int(_player.placer.rot_step) != 1:
 		_player.placer.rotate_clockwise()
 	_player.placer.aim_at(Vector3((float(ramp_m.x) + 0.5) * 2.0, floor0, (float(ramp_m.y) + 0.5) * 2.0))
@@ -361,12 +325,10 @@ func _test_snap() -> void:
 	var me := _site + Vector2i(0, 1)
 	var w := _place_direct(&"wall", &"wood", Vector4i(me.x, me.y, 0, _SP.EDGE_Z))
 	if w == null: return
-	_give_exact(_SP.cost(&"roof", &"wood"))
-	_player.placer.begin_piece(&"roof", &"wood")
+	_give_exact(_SP.cost(&"roof", &"wood")) ; _player.placer.begin_piece(&"roof", &"wood")
 	var turns := 0
 	while int(_player.placer.rot_step) != 2 and turns < 6:
-		_player.placer.rotate_clockwise()
-		turns += 1
+		_player.placer.rotate_clockwise() ; turns += 1
 	_player.placer.aim_at(Vector3((float(me.x) + 0.5) * 2.0, float(w.get("floor0")) + 2.5, (float(me.y) + 0.5) * 2.0))
 	var roof: Variant = _sg.piece_at(_slot(me, 1, _SP.CELL)) if bool(_player.placer.confirm(_player)) else null
 	_expect(roof != null and roof.kind == &"roof" and int(roof.rot) == 2, "the roof keeps rot 2 after confirm (%s)" % str(roof.rot if roof else "none"))
@@ -402,22 +364,19 @@ func _free_row3() -> Vector2i:
 func _test_collapse() -> void:
 	_begin_case()
 	# a) Destroy the only wall that holds the ceiling: the ceiling and the wall on it fall.
-	_reset_case()
-	var a := _lean_to(_site)
+	_reset_case() ; var a := _lean_to(_site)
 	if a["wall"] == null: return
 	var fell: Array = a["wall"].destroy("test")
 	_expect(fell.size() == 2 and a["ceiling"] in fell and a["upper"] in fell, "destroying the wall drops the ceiling and the wall on it (fell %d)" % fell.size())
 	# b) A pillar on the far corner holds the ceiling: 0 fall, then the pillar takes it all.
-	_reset_case()
-	var b := _lean_to(_site + Vector2i(4, 0), &"thatch", true)
+	_reset_case() ; var b := _lean_to(_site + Vector2i(4, 0), &"thatch", true)
 	if b["pillar"] == null: return
 	fell = b["wall"].destroy("test")
 	_expect(fell.size() == 0 and not b["ceiling"].is_queued_for_deletion(), "the pillar still holds the ceiling: nothing falls (fell %d)" % fell.size())
 	fell = b["pillar"].destroy("test")
 	_expect(fell.size() == 2 and b["ceiling"] in fell and b["upper"] in fell, "removing the pillar drops the ceiling and the wall on it (fell %d)" % fell.size())
 	# c) Ceilings one and two modules out from a supported one stay, then fall with it.
-	_reset_case()
-	var span_m := _free_row3()
+	_reset_case() ; var span_m := _free_row3()
 	var base := _lean_to(span_m)
 	if base["ceiling"] == null: return
 	var spans: Array = []
@@ -430,14 +389,11 @@ func _test_collapse() -> void:
 	fell = base["ceiling"].destroy("test")
 	_expect(fell.size() == 3 and spans.all(func (n: Node) -> bool: return n in fell), "spanned ceilings fall with the one that held them (fell %d)" % fell.size())
 	# d) A doorway holds its door: destroying the doorway drops the door.
-	_reset_case()
-	var dm := _free_row3() + Vector2i(0, 4)
-	_pad([dm, dm + Vector2i(0, 1)])
-	var dw := _place_direct(&"doorway", &"wood", Vector4i(dm.x, dm.y, 0, _SP.EDGE_Z))
+	_reset_case() ; var dm := _free_row3() + Vector2i(0, 4)
+	_pad([dm, dm + Vector2i(0, 1)]) ; var dw := _place_direct(&"doorway", &"wood", Vector4i(dm.x, dm.y, 0, _SP.EDGE_Z))
 	var door: Node = _place_direct(&"door", &"wood", Vector4i(dm.x, dm.y, 0, _SP.DOOR_Z))
 	if dw == null or door == null: return
-	fell = dw.destroy("test")
-	_expect(fell.size() == 1 and door in fell, "destroying a doorway drops its door (fell %d)" % fell.size())
+	fell = dw.destroy("test") ; _expect(fell.size() == 1 and door in fell, "destroying a doorway drops its door (fell %d)" % fell.size())
 	_done("collapse")
 
 # ------------------------------------------------------------------ 6. tiers and creature damage
@@ -445,10 +401,8 @@ func _test_collapse() -> void:
 ## A lone raptor with its brain and physics off, so a bite is one deliberate on-hit call.
 func _spawn_raptor(at: Vector3) -> Variant:
 	var sp: Node3D = load("res://scripts/world/spawner.gd").new()
-	sp.position = at
-	sp.set("count", 1)
-	sp.set("radius", 0.1)
-	_rt.add_child(sp)
+	sp.position = at ; sp.set("count", 1)
+	sp.set("radius", 0.1) ; _rt.add_child(sp)
 	var pack: Array = sp.call("spawn_now")
 	sp.queue_free()
 	if pack.is_empty():
@@ -461,14 +415,12 @@ func _spawn_raptor(at: Vector3) -> Variant:
 	return c
 
 func _test_damage_tiers() -> void:
-	_begin_case()
-	_reset_case()
+	_begin_case() ; _reset_case()
 	var mults := {&"thatch": 1.0, &"wood": 0.8, &"stone": 0.35, &"metal": 0.15}
 	var i := 0
 	for tier in mults:
 		var m := _site + Vector2i(i * 3, 0)
-		i += 1
-		_pad([m], tier)
+		i += 1 ; _pad([m], tier)
 		var w := _place_direct(&"wall", tier, Vector4i(m.x, m.y, 0, _SP.EDGE_Z))
 		if w == null: return
 		var hp: float = w.health.hp
@@ -476,8 +428,7 @@ func _test_damage_tiers() -> void:
 		var want: float = 100.0 * float(mults[tier])
 		_expect(absf(dealt - want) < 0.01 and absf((hp - float(w.health.hp)) - want) < 0.01, "%s wall takes %.1f from 100 (got %.2f)" % [tier, want, dealt])
 	# A raptor bite on a wood wall goes through the creature's own on-hit path.
-	_reset_case()
-	_pad([_site], &"wood")
+	_reset_case() ; _pad([_site], &"wood")
 	var wall := _place_direct(&"wall", &"wood", Vector4i(_site.x, _site.y, 0, _SP.EDGE_Z))
 	if wall == null: return
 	var raptor: Variant = _spawn_raptor(wall.global_position + Vector3(0, 0, -1.4))
@@ -488,13 +439,10 @@ func _test_damage_tiers() -> void:
 	if is_instance_valid(raptor):
 		raptor.free()
 	# Enough damage destroys the wall and the ceiling it alone held.
-	_reset_case()
-	var lean := _lean_to(_site, &"wood")
+	_reset_case() ; var lean := _lean_to(_site, &"wood")
 	if lean["wall"] == null: return
-	lean["wall"].health.take_damage(100000.0)
-	_expect(lean["wall"].is_queued_for_deletion(), "enough damage destroys the wall")
-	_expect(lean["ceiling"].is_queued_for_deletion(), "the ceiling the wall held collapses with it")
-	_done("damage_tiers")
+	lean["wall"].health.take_damage(100000.0) ; _expect(lean["wall"].is_queued_for_deletion(), "enough damage destroys the wall")
+	_expect(lean["ceiling"].is_queued_for_deletion(), "the ceiling the wall held collapses with it") ; _done("damage_tiers")
 
 # ------------------------------------------------------------------ 7. kits, camp, cargo, catapult
 
@@ -508,17 +456,12 @@ func _kit_cell(kind: StringName) -> Vector2i:
 	return Vector2i(-9999, -9999)
 
 func _test_kits_and_camp() -> void:
-	_begin_case()
-	_reset_case()
-	_SH = load("res://scripts/world/structure_health.gd")
-	var cell := _kit_cell(&"fence")
+	_begin_case() ; _reset_case()
+	_SH = load("res://scripts/world/structure_health.gd") ; var cell := _kit_cell(&"fence")
 	if cell.x == -9999: return
-	load("res://scripts/dev/lab_kit.gd").give(_player, &"fence_kit", 1)
-	_player.placer.begin(&"fence")
-	_player.placer.set("cell", cell)
-	var ok: bool = _player.placer.confirm(_player)
-	_player.placer.cancel()
-	var fence: Node = null
+	load("res://scripts/dev/lab_kit.gd").give(_player, &"fence_kit", 1) ; _player.placer.begin(&"fence")
+	_player.placer.set("cell", cell) ; var ok: bool = _player.placer.confirm(_player)
+	_player.placer.cancel() ; var fence: Node = null
 	for n in get_nodes_in_group("fence"):
 		if is_instance_valid(n) and not n.is_queued_for_deletion():
 			fence = n
@@ -539,10 +482,8 @@ func _test_kits_and_camp() -> void:
 	# Camp pieces (rebuilt from the layout each load) and cargo come back whole: not structures.
 	var PB: GDScript = load("res://scripts/world/placed_building.gd")
 	var camp: Node = PB.call("make", &"tent")
-	camp.set("persist_building", false)
-	var cargo: Node = PB.call("make", &"basket")
-	cargo.set("is_cargo", true)
-	var loose: Node = PB.call("make", &"basket")
+	camp.set("persist_building", false) ; var cargo: Node = PB.call("make", &"basket")
+	cargo.set("is_cargo", true) ; var loose: Node = PB.call("make", &"basket")
 	for n in [camp, cargo, loose]:
 		_rt.add_child(n)
 	_expect(_SH.of(camp, true) == null and not _SH.is_structure(camp), "a camp piece (persist_building false) is not a structure")
@@ -552,21 +493,17 @@ func _test_kits_and_camp() -> void:
 		n.free()
 	# Catapult: a siege hit wears its own hp down and destroys it at 0.
 	var cat: Node3D = load("res://scripts/world/field_catapult.gd").new()
-	cat.position = Vector3(float(_site.x) * 2.0 - 8.0, _floor0_at(_site), float(_site.y) * 2.0)
-	_rt.add_child(cat)
+	cat.position = Vector3(float(_site.x) * 2.0 - 8.0, _floor0_at(_site), float(_site.y) * 2.0) ; _rt.add_child(cat)
 	cat.call("receive_siege_hit", 50.0)
 	_expect(absf(float(cat.get("hp")) - (float(cat.get("max_hp")) - 50.0)) < 0.01, "a catapult hit takes 50 hp (%s)" % str(cat.get("hp")))
-	cat.call("receive_siege_hit", 100000.0)
-	_expect(cat.is_queued_for_deletion() or not is_instance_valid(cat), "a catapult at 0 hp is destroyed")
+	cat.call("receive_siege_hit", 100000.0) ; _expect(cat.is_queued_for_deletion() or not is_instance_valid(cat), "a catapult at 0 hp is destroyed")
 	_done("kits_and_camp")
 
 # ------------------------------------------------------------------ 8. repair and upgrade
 
 func _test_repair_upgrade() -> void:
-	_begin_case()
-	_reset_case()
-	_pad([_site], &"wood")
-	var wall := _place_direct(&"wall", &"wood", Vector4i(_site.x, _site.y, 0, _SP.EDGE_Z))
+	_begin_case() ; _reset_case()
+	_pad([_site], &"wood") ; var wall := _place_direct(&"wall", &"wood", Vector4i(_site.x, _site.y, 0, _SP.EDGE_Z))
 	if wall == null: return
 	var max_hp: float = wall.health.max_hp
 	wall.health.take_damage(750.0)  # wood takes 0.8 of it: 600 of 1200 gone
@@ -582,10 +519,8 @@ func _test_repair_upgrade() -> void:
 	for id in want_cost:
 		_expect(int(cost.get(id, -1)) == int(want_cost[id]), "repair needs %d %s (got %s)" % [int(want_cost[id]), id, str(cost.get(id))])
 	# One item short: refused, nothing changes, nothing spent.
-	_give_exact(want_cost)
-	var short_id: StringName = cost.keys()[0]
-	_player.inventory.consume(short_id, 1)
-	var hp_before: float = h.hp
+	_give_exact(want_cost) ; var short_id: StringName = cost.keys()[0]
+	_player.inventory.consume(short_id, 1) ; var hp_before: float = h.hp
 	_expect(not _player.placer.repair(wall, _player), "repair with one item short is refused")
 	_expect(absf(float(h.hp) - hp_before) < 0.01, "a refused repair changes nothing")
 	# With the exact cost it restores full durability and empties the bag of it.
@@ -603,33 +538,30 @@ func _test_repair_upgrade() -> void:
 	_expect(is_instance_valid(wall) and wall.get_instance_id() == id_before and wall.get("tier") == &"stone", "the upgrade swaps the tier in place (same node)")
 	_expect(wall.get("slot") == slot_before and wall.global_position.distance_to(pos_before) < 0.001, "the upgraded piece keeps its slot and position")
 	_expect(absf(float(wall.health.max_hp) - _SP.max_durability(&"wall", &"stone")) < 0.01, "the stone wall has stone durability (%.0f)" % float(wall.health.max_hp))
+	# The bag holds the cost each time, so only the rank rule can refuse these.
+	_give_exact(_SP.cost(&"wall", &"wood"))
 	_expect(not _player.placer.upgrade(wall, &"wood", _player), "stone -> wood is refused")
+	_expect(wall.get("tier") == &"stone" and _player.inventory.count_of(&"plank") == 4, "a refused downgrade changes nothing and takes nothing")
+	_give_exact(_SP.cost(&"wall", &"stone"))
 	_expect(not _player.placer.upgrade(wall, &"stone", _player), "stone -> stone is refused")
 	# Gates: stone needs Construction 20, thatch needs nothing.
-	_reset_case()
-	var m2 := _site + Vector2i(3, 0)
-	_pad([m2])
-	var tw := _place_direct(&"wall", &"thatch", Vector4i(m2.x, m2.y, 0, _SP.EDGE_Z))
+	_reset_case() ; var m2 := _site + Vector2i(3, 0)
+	_pad([m2]) ; var tw := _place_direct(&"wall", &"thatch", Vector4i(m2.x, m2.y, 0, _SP.EDGE_Z))
 	if tw == null: return
-	_player.skills.trees["construction"]["level"] = 0
-	_give_exact(_SP.cost(&"wall", &"stone"))
+	_player.skills.trees["construction"]["level"] = 0 ; _give_exact(_SP.cost(&"wall", &"stone"))
 	_expect(not _player.placer.upgrade(tw, &"stone", _player), "a stone upgrade is locked at Construction 0")
-	_expect(tw.get("tier") == &"thatch", "a refused upgrade leaves the tier alone")
-	_give_exact(_SP.cost(&"wall", &"wood"))
+	_expect(tw.get("tier") == &"thatch", "a refused upgrade leaves the tier alone") ; _give_exact(_SP.cost(&"wall", &"wood"))
 	_expect(not _player.placer.upgrade(tw, &"wood", _player), "a wood upgrade is locked at Construction 0 too")
 	_expect(load("res://scripts/world/structure_placer.gd").call("tier_gate", _player, &"thatch") == "", "thatch needs no Construction level")
 	_expect(load("res://scripts/world/structure_placer.gd").call("tier_gate", _player, &"stone") == "locked", "stone is locked at Construction 0")
-	_player.skills.trees["construction"].set("level", 40)
-	_done("repair_upgrade")
+	_player.skills.trees["construction"].set("level", 40) ; _done("repair_upgrade")
 
 # ------------------------------------------------------------------ 9. paths through walls
 
 func _test_paths() -> void:
-	_begin_case()
-	_reset_case()
+	_begin_case() ; _reset_case()
 	var m := _site
-	_pad([m])
-	var tp: Variant = _rt.get("pathing")
+	_pad([m]) ; var tp: Variant = _rt.get("pathing")
 	# Three walls and a doorway with a closed door seal one foundation into a room.
 	for e in [[m.x, m.y, _SP.EDGE_X], [m.x + 1, m.y, _SP.EDGE_X], [m.x, m.y, _SP.EDGE_Z]]:
 		_place_direct(&"wall", &"wood", Vector4i(e[0], e[1], 0, e[2]))
@@ -643,26 +575,20 @@ func _test_paths() -> void:
 	var reach := func (owner: bool) -> bool: tp.path(outside, inside, 96, owner); return bool(tp.last_reachable)
 	_expect(not reach.call(false), "a creature cannot path into the closed room")
 	_expect(reach.call(true), "the owner's path goes through its own closed door")
-	_expect(not reach.call(false), "right after the owner query the creature path is closed again")
-	door.interact(_player)
-	_expect(bool(door.get("door_open")), "interacting with the door opens it")
-	_expect(reach.call(false), "an open door lets a creature path in")
-	door.interact(_player)
-	_expect(not reach.call(false), "the door closes again for creatures")
+	_expect(not reach.call(false), "right after the owner query the creature path is closed again") ; door.interact(_player)
+	_expect(bool(door.get("door_open")), "interacting with the door opens it") ; _expect(reach.call(false), "an open door lets a creature path in")
+	door.interact(_player) ; _expect(not reach.call(false), "the door closes again for creatures")
 	# Only level-0 blockers close 1 m cells: a wall one storey up never does.
 	var up_m := _site + Vector2i(0, 3)
-	_pad([up_m])
-	var base := _place_direct(&"wall", &"wood", Vector4i(up_m.x, up_m.y, 0, _SP.EDGE_Z))
-	_place_direct(&"ceiling", &"wood", _slot(up_m, 1, _SP.CELL))
-	var up := _place_direct(&"wall", &"wood", Vector4i(up_m.x, up_m.y + 1, 1, _SP.EDGE_Z))
+	_pad([up_m]) ; var base := _place_direct(&"wall", &"wood", Vector4i(up_m.x, up_m.y, 0, _SP.EDGE_Z))
+	_place_direct(&"ceiling", &"wood", _slot(up_m, 1, _SP.CELL)) ; var up := _place_direct(&"wall", &"wood", Vector4i(up_m.x, up_m.y + 1, 1, _SP.EDGE_Z))
 	_expect(base != null and up != null, "a wall stands one storey up")
 	if base == null or up == null: return
 	var n: int = _sg.call("cells_per_module")
 	var base_cell := Vector2i(base.slot.x * n, base.slot.y * n)
 	var up_cell := Vector2i(up.slot.x * n, up.slot.y * n)
 	_expect(bool(_sg.blocks_cell(base_cell)), "a level-0 wall blocks its cells (%s)" % base_cell)
-	_expect(not bool(_sg.blocks_cell(up_cell)), "a level-1 wall blocks nothing (%s)" % up_cell)
-	_done("paths")
+	_expect(not bool(_sg.blocks_cell(up_cell)), "a level-1 wall blocks nothing (%s)" % up_cell) ; _done("paths")
 
 # ------------------------------------------------------------------ 10. save rows round trip
 
@@ -676,8 +602,7 @@ func _test_rows_round_trip() -> void:
 		var k := StringName(kinds[i])
 		var level := 1 if k in [&"wall", &"doorway", &"door", &"window", &"ceiling", &"pillar"] else 0
 		rows.append([k, tiers[i % 4], Vector4i(100 + i, 200 + i, level, _SP.slot_code(k, _SP.EDGE_Z if i % 2 == 0 else _SP.EDGE_X)), i % 4])
-	rows.append([&"wall", &"stone", Vector4i(140, 240, 0, _SP.EDGE_Z), 1])
-	rows.append([&"door", &"wood", Vector4i(141, 241, 0, _SP.DOOR_X), 2])
+	rows.append([&"wall", &"stone", Vector4i(140, 240, 0, _SP.EDGE_Z), 1]) ; rows.append([&"door", &"wood", Vector4i(141, 241, 0, _SP.DOOR_X), 2])
 	for r in rows:
 		var made: Node = _SP.make(r[0], r[1], r[2], r[3], 12.5, 3)
 		var damaged: bool = r[0] == &"wall" and r[1] == &"stone"
@@ -697,19 +622,16 @@ func _test_rows_round_trip() -> void:
 			back.free()
 	_expect(rows.size() >= 11, "every piece kind round trips (%d rows)" % rows.size())
 	# restore(): a supported set comes back; a piece whose support row is missing is dropped.
-	_reset_case()
-	var m := _site
+	_reset_case() ; var m := _site
 	var live: Array = []
 	var orphan: Array = []
-	for spec in [[&"foundation", _slot(m, 0, _SP.CELL)], [&"wall", Vector4i(m.x, m.y + 1, 0, _SP.EDGE_Z)],
-			[&"ceiling", _slot(m, 1, _SP.CELL)], [&"wall", Vector4i(m.x, m.y, 1, _SP.EDGE_Z)]]:
+	for spec in [[&"foundation", _slot(m, 0, _SP.CELL)], [&"wall", Vector4i(m.x, m.y + 1, 0, _SP.EDGE_Z)], [&"ceiling", _slot(m, 1, _SP.CELL)], [&"wall", Vector4i(m.x, m.y, 1, _SP.EDGE_Z)]]:
 		live.append(_SP.make(spec[0], &"wood", spec[1], 0, 0.0).call("to_dict"))
 	orphan.append(_SP.make(&"foundation", &"wood", _slot(m + Vector2i(4, 0), 0, _SP.CELL), 0, 0.0).call("to_dict"))
 	orphan.append(_SP.make(&"ceiling", &"wood", _slot(m + Vector2i(4, 0), 1, _SP.CELL), 0, 0.0).call("to_dict"))
 	_expect(_sg.restore(live, _rt) == 4, "restore rebuilds a supported set of 4")
 	_expect(_sg.piece_at(_slot(m, 0, _SP.CELL)) != null and _sg.piece_at(Vector4i(m.x, m.y, 1, _SP.EDGE_Z)) != null, "the restored pieces are in the grid")
-	_expect(_sg.to_rows().size() == 4, "to_rows lists every restored piece (%d)" % _sg.to_rows().size())
-	_reset_case()
+	_expect(_sg.to_rows().size() == 4, "to_rows lists every restored piece (%d)" % _sg.to_rows().size()) ; _reset_case()
 	var n: int = _sg.restore(orphan, _rt)
 	_expect(n == 1 and _sg.pieces().size() == 1, "a piece whose support row is missing is dropped (restored %d, %d left)" % [n, _sg.pieces().size()])
 	_done("rows_round_trip")
@@ -717,8 +639,7 @@ func _test_rows_round_trip() -> void:
 # ------------------------------------------------------------------ 11. malformed rows
 
 func _test_bad_rows() -> void:
-	_begin_case()
-	var base: Dictionary = _SP.make(&"wall", &"wood", Vector4i(3, 4, 0, _SP.EDGE_Z), 0, 0.0).call("to_dict")
+	_begin_case() ; var base: Dictionary = _SP.make(&"wall", &"wood", Vector4i(3, 4, 0, _SP.EDGE_Z), 0, 0.0).call("to_dict")
 	var bad: Array = [
 		{"kind": &"banana", "position": [3, 4, 0, 1], "tier": "wood"},
 		{"kind": "wall", "tier": "wood"},
@@ -739,8 +660,7 @@ func _test_bad_rows() -> void:
 	var max_hp: float = _SP.max_durability(&"wall", &"wood")
 	for row in [[{"tier": "gold"}, "tier", &"thatch"], [{"current_durability": 1e9}, "hp", max_hp], [{"level": 999}, "build_level", 60]]:
 		var r: Dictionary = base.duplicate(true)
-		r.merge(row[0], true)
-		var p: Variant = _SP.from_dict(r)
+		r.merge(row[0], true) ; var p: Variant = _SP.from_dict(r)
 		var got: Variant = null if p == null else (p.health.hp if row[1] == "hp" else p.get(row[1]))
 		var same: bool = p != null and (got == row[2] if row[1] == "tier" else is_equal_approx(float(got), float(row[2])))
 		_expect(same, "a row with %s loads clamped to %s (got %s)" % [str(row[0]), str(row[2]), str(got)])
@@ -751,8 +671,7 @@ func _test_bad_rows() -> void:
 # ------------------------------------------------------------------ 12. save schema
 
 func _test_migrations() -> void:
-	_begin_case()
-	var SM: GDScript = load("res://scripts/core/save_migrations.gd")
+	_begin_case() ; var SM: GDScript = load("res://scripts/core/save_migrations.gd")
 	_expect(int(SM.CURRENT_SCHEMA) == 4, "CURRENT_SCHEMA is 4 (got %d)" % int(SM.CURRENT_SCHEMA))
 	var row: Dictionary = _SP.make(&"wall", &"wood", Vector4i(3, 4, 0, _SP.EDGE_Z), 0, 0.0).call("to_dict")
 	for sv in [0, 1, 2, 3]:
@@ -766,5 +685,4 @@ func _test_migrations() -> void:
 		if back != null:
 			back.free()
 	var newer: Dictionary = SM.migrate({"schema": 5, "home": {}})
-	_expect(newer.is_empty(), "a schema 5 save is rejected (got %s)" % str(newer))
-	_done("migrations")
+	_expect(newer.is_empty(), "a schema 5 save is rejected (got %s)" % str(newer)) ; _done("migrations")
