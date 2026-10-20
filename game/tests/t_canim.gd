@@ -285,19 +285,21 @@ func _test_optional_clips() -> void:
 		_expect(pb.get_current_node() == clip and rex.anim.current_clip == clip, "tyrannosaurus play_clip(%s): state machine on %s" % [clip, pb.get_current_node()])
 		rex.anim.play_clip(&"idle")
 		_advance(rex, 0.25)
+	_expect_authored_feed(rex, &"tyrannosaurus")
 	rex.free()
 	# The velociraptor and the zebraceratops gained authored sleep/feed clips (dsc re-animation).
-	var raptor
+	var c
 	for id in [&"velociraptor", &"zebraceratops"]:
-		raptor = _spawn(id)
-		pb = raptor.anim.tree.get("parameters/playback")
+		c = _spawn(id)
+		pb = c.anim.tree.get("parameters/playback")
 		for clip in [&"sleep", &"feed"]:
-			raptor.anim.play_clip(clip, true)
-			_advance(raptor, 0.25)
-			_expect(pb.get_current_node() == clip and raptor.anim.current_clip == clip, "%s play_clip(%s): state machine on %s" % [id, clip, pb.get_current_node()])
-			raptor.anim.play_clip(&"idle")
-			_advance(raptor, 0.25)
-		raptor.free()
+			c.anim.play_clip(clip, true)
+			_advance(c, 0.25)
+			_expect(pb.get_current_node() == clip and c.anim.current_clip == clip, "%s play_clip(%s): state machine on %s" % [id, clip, pb.get_current_node()])
+			c.anim.play_clip(&"idle")
+			_advance(c, 0.25)
+		_expect_authored_feed(c, id)
+		c.free()
 	# Fallback: any rigged species still without a sleep clip must stay on idle (species gain clips over time).
 	var fallback_id: StringName = &""
 	for id in [&"deinonychus", &"zebraceratops", &"stegosaurus", &"compsognathus"]:
@@ -310,11 +312,30 @@ func _test_optional_clips() -> void:
 			fallback_id = id
 			break
 	if fallback_id != &"":
-		raptor = _spawn(fallback_id)
-		pb = raptor.anim.tree.get("parameters/playback")
-		raptor.anim.play_clip(&"sleep", true)
-		_advance(raptor, 0.25)
-		_expect(pb.get_current_node() == &"idle" and raptor.anim.current_clip == &"idle", "%s play_clip(sleep) has no sleep node and stays on %s" % [fallback_id, pb.get_current_node()])
-		raptor.free()
+		c = _spawn(fallback_id)
+		pb = c.anim.tree.get("parameters/playback")
+		c.anim.play_clip(&"sleep", true)
+		_advance(c, 0.25)
+		_expect(pb.get_current_node() == &"idle" and c.anim.current_clip == &"idle", "%s play_clip(sleep) has no sleep node and stays on %s" % [fallback_id, pb.get_current_node()])
+		c.free()
 	else:
 		print("[t_canim] note: every probed species has a sleep clip; fallback check skipped")
+
+## A species without feed.glb still gets a feed state (CreatureClips copies idle), so the state check alone
+## cannot fail: the authored feed must pose the bones differently from idle at mid-clip.
+func _expect_authored_feed(c, id: StringName) -> void:
+	var gap := _pose_gap(c.anim.player.get_animation(&"idle"), c.anim.player.get_animation(&"feed"))
+	_expect(gap > 0.1, "%s feed is authored, not the idle copy: largest bone-rotation gap to idle %.3f rad (want > 0.1)" % [id, gap])
+
+## Largest bone-rotation difference (radians) between two clips at 25/50/75 %; 0 means b is a copy of a.
+func _pose_gap(a: Animation, b: Animation) -> float:
+	var gap := 0.0
+	for i in a.get_track_count():
+		if a.track_get_type(i) != Animation.TYPE_ROTATION_3D:
+			continue
+		var j := b.find_track(a.track_get_path(i), Animation.TYPE_ROTATION_3D)
+		if j < 0:
+			continue
+		for f in [0.25, 0.5, 0.75]:
+			gap = maxf(gap, a.rotation_track_interpolate(i, a.length * f).angle_to(b.rotation_track_interpolate(j, b.length * f)))
+	return gap
