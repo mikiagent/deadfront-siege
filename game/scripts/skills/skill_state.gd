@@ -166,14 +166,7 @@ func unlock(tree: String, node_id: String) -> bool:
 		sp_spent += cost
 		(trees[tree]["unlocked"] as Array).append(node_id)
 		if tree == "survival":
-			Data.set_survival_unlocked(StringName(node_id), true)
-			# trees.json numbers these nodes capture_technique_1..5, survival.json numbers the
-			# same nodes capture_technique_I..V. With no id in common the bridge never fired, so
-			# Data.has_capture_technique() was permanently false: net capture always bailed and
-			# every skill-gated rare butchering drop was unreachable. Mirror to both spellings.
-			var roman := _roman_id(node_id)
-			if roman != "":
-				Data.set_survival_unlocked(StringName(roman), true)
+			_mirror_survival(node_id, true)
 		print("[skill] unlocked %s (%s, %d SP)" % [node_id, tree, cost])
 		skill_changed.emit(StringName(tree), level_of(tree))
 		return true

@@ -201,6 +201,24 @@ func _test_recipe_gates_and_abilities() -> void:
 	_expect(not sk.unlock("processing", "handicraft_1") and sk.node_state("processing", _node(sk, "processing", "handicraft_1"))[1] == "not in the game yet", "a partial node cannot be bought: Handicraft I says 'not in the game yet'")
 	_expect(not sk.unlock("survival", "obsidian") and sk.node_state("survival", _node(sk, "survival", "obsidian"))[1] == "not in the game yet", "a defined node no functional node needs cannot be bought (Obsidian)")
 	_expect(Rules.buyable(sk, "survival", "island_access_15") and Rules.buyable(sk, "survival", "belly_fat_1"), "defined prerequisites of Capture Technique I stay buyable")
+	# W2-DATA gates recipes with requires_node (crafting.gd progression_block). A node a recipe
+	# names must be buyable, prerequisites included, or that recipe is locked for good.
+	var data: Node = get_root().get_node("Data")
+	_expect(not Rules.buyable(sk, "weapon_tools", "work_pick"), "Work Pick (defined) is not for sale while no recipe needs it")
+	data.recipes[&"t_w2_probe"] = {"id": "t_w2_probe", "requires_node": "work_pick"}
+	_expect(Rules.buyable(sk, "weapon_tools", "work_pick") and Rules.buyable(sk, "weapon_tools", "improvised_tools"), "a defined node a recipe names in requires_node is buyable with its prerequisite (work_pick)")
+	data.recipes.erase(&"t_w2_probe")
+	var tree_of := {}
+	for t in SkillStateS.ORDER:
+		for n in sk.nodes(t):
+			tree_of[str(n.get("id", ""))] = t
+	var gated := 0
+	for rid in data.recipes:
+		var need := str((data.recipes[rid] as Dictionary).get("requires_node", ""))
+		if need != "":
+			gated += 1
+			_expect(tree_of.has(need) and Rules.buyable(sk, str(tree_of.get(need, "")), need), "recipe %s requires_node %s: a trees.json node SP can buy" % [rid, need])
+	print("[t_w2_skills] recipes gated by requires_node: %d" % gated)
 	(sk.trees["processing"]["unlocked"] as Array).append_array(["handicraft_1", "handicraft_2"])
 	_expect(Rules.ability(sk, "handicraft") == 8 and Rules.ability(sk, "metal_processing") == 0, "Handicraft I + II = +8 Handicraft, no Metal Processing (got %d)" % Rules.ability(sk, "handicraft"))
 	_done_with(sk)

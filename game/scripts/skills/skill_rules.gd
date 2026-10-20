@@ -68,13 +68,15 @@ static func paid_for_level(sk: SkillState, level: int) -> int:
 	return total
 
 ## Spec 12:215 "do not implement a decorative but inert" tree: SP buy only what the game enforces
-## (status functional) and the prerequisite chain a functional node needs; the rest show locked.
+## (status functional, or named by a recipe's requires_node) and the prerequisite chain such a
+## node needs; the rest show locked.
 static func buyable(sk: SkillState, tree: String, node_id: String) -> bool:
 	var by_id := {}
 	for n in sk.nodes(tree):
 		by_id[str(n.get("id", ""))] = n
+	var gating := recipe_nodes()
 	for n in sk.nodes(tree):
-		if str(n.get("status", "functional")) != "functional":
+		if str(n.get("status", "functional")) != "functional" and not gating.has(str(n.get("id", ""))):
 			continue
 		var cur: Variant = n
 		while cur is Dictionary:
@@ -82,6 +84,16 @@ static func buyable(sk: SkillState, tree: String, node_id: String) -> bool:
 				return true
 			cur = by_id.get(str(cur.get("requires", "")))
 	return false
+
+## Node ids that a loaded recipe names in requires_node (W2-DATA's crafting gate). Learning one
+## opens a recipe, so it is not inert whatever its trees.json status says.
+static func recipe_nodes() -> Dictionary:
+	var out := {}
+	for rec in Data.recipes.values():
+		var node := str((rec as Dictionary).get("requires_node", ""))
+		if node != "":
+			out[node] = true
+	return out
 
 ## Node ids in `tree` that list `node_id` as their prerequisite and are learned.
 static func learned_dependents(sk: SkillState, tree: String, node_id: String) -> Array:
