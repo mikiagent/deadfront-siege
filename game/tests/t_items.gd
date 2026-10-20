@@ -68,10 +68,25 @@ func _test_identity() -> void:
 	var reloaded: Dictionary = IS.from_dict(old_row).to_dict()
 	_expect(reloaded.keys().size() == old_row.keys().size() and not reloaded.has("uid"), "old fungible save rows keep their exact shape")
 	var hostile = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": 12345, "origin": null, "creator": null, "created_at": "soon"})
-	var forged = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": "l1", "origin": "admin_spawn", "created_at": -5})
+	var forged = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": "l1x", "origin": "admin_spawn", "created_at": -5})
 	print("[t_items] hostile provenance uid='%s' origin='%s' creator='%s' created=%d; forged origin='%s' created=%d" % [hostile.uid, hostile.origin, hostile.creator, hostile.created_at, forged.origin, forged.created_at])
 	_expect(hostile.origin == "" and hostile.creator == "" and hostile.created_at == 0, "null provenance loads as empty, never '<null>'")
 	_expect(forged.origin == "" and forged.created_at == 0, "an origin outside the whitelist is blanked")
+	_expect(hostile.uid == "" and forged.uid == "", "a non-string or non-format uid is blanked (got '%s', '%s')" % [hostile.uid, forged.uid])
+	var future = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": "l1a", "origin": "craft", "created_at": 1e300})
+	var shape = IS.from_dict({"id": "stone_knife_work", "count": 1, "uid": {"a": 1}, "created_at": null})
+	print("[t_items] future created_at loads as %d (now %d), dict uid as '%s'" % [future.created_at, int(Time.get_unix_time_from_system()), shape.uid])
+	_expect(future.created_at <= int(Time.get_unix_time_from_system()) + 86400, "created_at 1e300 clamps to now + slack (got %d)" % future.created_at)
+	_expect(shape.uid == "", "a dict uid is not stringified into a fake one (got '%s')" % shape.uid)
+	# Splitting a uid'd stack must not leave both halves sharing one identity.
+	var share = INV.new(4)
+	var whole = IS.make(&"stone", 4, {}, 1)
+	whole.stamp_identity("loot")
+	share.add(whole)
+	var half = share.remove_at(0, 2)
+	var moved: bool = half != null and share.slots[0] != null and half.uid != "" and half.uid != share.slots[0].uid and half.count == 2 and share.slots[0].count == 2
+	print("[t_items] split uid kept='%s' taken='%s' shares=%s" % [share.slots[0].uid if share.slots[0] else "-", half.uid if half else "-", half != null and share.slots[0] != null and half.uid == share.slots[0].uid])
+	_expect(moved, "splitting a uid'd stack re-mints the taken half's uid")
 
 func _test_merging() -> void:
 	var bag = INV.new(5)

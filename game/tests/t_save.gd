@@ -36,6 +36,7 @@ var _started := false
 var W: Node
 var SG: GDScript
 var SR: GDScript
+var PetRecordS: GDScript
 var IS: GDScript
 var host: Node3D
 var player: Node
@@ -54,6 +55,7 @@ func _run() -> void:
 	W = root.get_node("World")
 	SG = load("res://scripts/core/save_game.gd")
 	SR = load("res://scripts/core/save_restore.gd")
+	PetRecordS = load("res://scripts/pets/pet_record.gd")
 	IS = load("res://scripts/items/item_stack.gd")
 	_check(str(SG.path) == RUN_DIR + "/save_1.json", "a --script run saves under user://runs/t_save/ (got %s)" % SG.path)
 	_test_run_names()
@@ -348,6 +350,16 @@ func _test_hostile_types() -> void:
 		pet["genetics"] = {"ivs": "x", "evs": {"hp": {}, "attack": "3"}, "level_gains": [], "extra": 1}
 		pet["tamed_role"] = 5
 		pet["bag"] = "no"
+	cases["pet identity junk"] = func (d: Dictionary) -> void:
+		var pet: Dictionary = d["pets"][0]
+		pet["origin"] = "market_dupe"
+		pet["uid"] = {"a": 1}
+		pet["wild_level"] = 60
+		pet["level"] = 3
+		pet["name"] = "x".repeat(400)
+		pet["tamed_at"] = 1e300
+	cases["building gate open junk"] = func (d: Dictionary) -> void:
+		d["home"]["buildings"] = [{"kind": "gate", "open": "true", "cell": [0, 12], "rot": 0}]
 	# Pen occupants: [occupant row, whether the pen keeps an animal].
 	var pens := {
 		"pen occupant count {}": [{"id": "captured_animal", "count": {}, "attributes": {"species": "velociraptor"}}, false],
@@ -376,6 +388,19 @@ func _test_hostile_types() -> void:
 		print("[t_save] hostile '%s' blocked='%s' t_stones=%d stacks=%d pets=%d saved=%s" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), saved])
 		if pens.has(label):
 			_check_pen(label, pens[label][1])
+		if label == "pet identity junk":
+			# from_dict sees one row only: the roster-level duplicate uid is the W2-INT validator's.
+			var pet = player.bonded[0]
+			print("[t_save] pet junk loads origin=%s uid_len=%d uid_ok=%s wild=%d lv=%d name_len=%d tamed_at=%d" % [
+				pet.origin, pet.uid.length(), PetRecordS.UID_RE.search(pet.uid) != null, pet.wild_level, pet.level, pet.name.length(), pet.tamed_at])
+			_check(str(pet.origin) == "tame" and PetRecordS.UID_RE.search(pet.uid) != null, "an unknown origin loads as tame and a junk uid is re-minted")
+			_check(pet.wild_level <= pet.level and pet.name.length() <= PetRecordS.NAME_MAX, "wild_level <= level and name capped at %d (got %d / %d)" % [PetRecordS.NAME_MAX, pet.wild_level, pet.name.length()])
+			_check(pet.tamed_at < int(Time.get_unix_time_from_system()) + 86401, "a forged tamed_at clamps")
+		if label == "building gate open junk":
+			var gates := 0
+			for b in get_nodes_in_group("gate"):
+				gates += 1
+			_check(gates == 1 and SG.blocked_reason == "", "a gate with a string open flag still loads (gates=%d)" % gates)
 		await process_frame
 
 ## The pen survives its junk occupant. A kept animal finishes taming without a script error; a
