@@ -2,7 +2,9 @@ extends SceneTree
 ## W1-UIICONS: every id in data/ui_icons.json resolves to an existing SVG; every SVG is white
 ## single-colour on the 64 grid with the house stroke weights, inside the canvas and optically
 ## centred; every inventoried action, status and skill tree has an icon; every emoji or symbol
-## in a UI string literal is mapped to an icon or listed as typographic; UiIcons falls back safely.
+## in a UI string literal is mapped to an icon or listed as typographic; every id the integrator
+## hooks use resolves; ink weight stays in a band; no two drawings share a silhouette or a
+## composition; every SVG comes from _src/build.py; UiIcons falls back safely.
 
 const MANIFEST := "res://data/ui_icons.json"
 const DIR := "res://assets/icons/ui/"

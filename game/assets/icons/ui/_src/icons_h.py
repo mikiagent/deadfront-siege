@@ -164,4 +164,11 @@ G["dismount"] = [([capsule((8, 55), (56, 55), 6.4), band(path((12, 13), ((28, 9)
 G["end_combat"] = [([band(arcp(26, 32, 18, a0, a1), 6.2) for a0, a1 in ((40, 100), (130, 230), (260, 320))]
                     + [capsule((26, 32), (46, 32), 6.4), [(59.5, 32), (44.5, 21.5), (48, 32), (44.5, 42.5)]], False)]
 
+# stone grill: meat lying on a hot stone slab, two support stones, fire between them. (Grill bars over
+# flames read as the meat dryer's hanging strips in the blind read.)
+G["station_grill"] = [([chaikin([(7, 27), (57, 27), (57, 35), (7, 35)], 1)], False),
+                      ([chaikin([(9.5, 38.5), (21.5, 38.5), (22.5, 57), (8.5, 57)], 1), chaikin([(42.5, 38.5), (54.5, 38.5), (55.5, 57), (41.5, 57)], 1)], False),
+                      ([xf(FLAME, scale=0.72, dx=32, dy=57), xf(TONGUE, scale=0.72, dx=32, dy=57)], True),
+                      ([ellipse(26, 17.5, 12.5, 6.8)] + drum_bone((36, 17.5), (49.5, 17.5)), False)]
+
 I = place(G)

@@ -27,9 +27,6 @@ I["station_pot"] = {"s": ['<path d="M13 31 H51 C51 45 43 55 32 55 C21 55 13 45 1
 
 I["station_mortar"] = {"s": ['<path d="M8 31 H56 C56 42 48 49.5 41 51 L43 57 H21 L23 51 C16 49.5 8 42 8 31 Z"/>', '<path d="%s"/>' % cap(32, 25, 47, 7, 8)]}
 
-I["station_grill"] = {"l": ['<path d="M8 18 H56 M8 30 H56 M18 18 V30 M32 18 V30 M46 18 V30"/>'],
-                      "s": [g("translate(20 57) scale(0.78)", flame(False)), g("translate(32 56) scale(0.95)", flame(False)), g("translate(44 57) scale(0.78)", flame(False))]}
-
 I["station_steamer"] = {"l": ['<path d="M21 30 C16 25 26 20.5 21 14.5 C17 10 23 7 21 4 M32 30 C27 25 37 20.5 32 14.5 C28 10 34 7 32 4 M43 30 C38 25 48 20.5 43 14.5 C39 10 45 7 43 4"/>'],
                         "s": ['<path d="M7 38 C9 34 13 33 16 36 C17 41 23 44 32 44 C41 44 47 41 48 36 C51 33 55 34 57 38 C57 49 46 56 32 56 C18 56 7 49 7 38 Z"/>']}
 

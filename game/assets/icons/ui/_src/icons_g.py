@@ -120,11 +120,12 @@ TINE = taper([B] + cubic(B, (20.5, 30), (17.5, 38), (16, 47.5), 10), 12.5, 1.5)
 GROUND = chaikin([(6, 57.5), (6, 53), (12, 50.5), (20, 51.5), (28, 50), (38, 51.5), (47, 50.5), (55, 52), (58, 57.5)], 2)
 G["dig"] = [(G_HAFT + [TINE], False), ([GROUND, chaikin([(27, 40), (32, 38.5), (33.5, 43), (28.5, 44.5)], 1), chaikin([(34.5, 31), (38.5, 30), (39.5, 33.5), (35.5, 34.5)], 1)], False)]
 
-# butcher: knapped flint blade on a sinew-wrapped grip.
-BLADE = [(0, -31), (4.5, -26.5), (7.6, -20), (8.6, -13), (7.8, -7.5), (5, -4), (-4.5, -4), (-6.3, -8), (-6.8, -14), (-5.8, -21),
-         (-3.4, -27)]
+# butcher: single-edged flint knife (straight spine, curved knapped edge, point) on a sinew-wrapped
+# grip; a symmetric leaf blade read as a club at 24 px (review r2 blind read).
+BLADE = [(-3.5, -36), (1.5, -31), (5.5, -25), (8.5, -18.5), (8.2, -16.5), (9.5, -12), (9.5, -7.5), (7.5, -4), (-5, -4), (-5, -14),
+         (-4.8, -26)]
 GRIP = [capsule((0, -2.5), (0, 18.5), 7.5)] + wraps(4, -1.5, 3.6, 1.8, 11.5, slant=-16) + [circle(0, 23, 5.2)]
-G["butcher"] = [([xf(p, rot=45, dx=32, dy=32) for p in [[(x * 1.3, y) for x, y in BLADE]] + GRIP], False)]
+G["butcher"] = [([xf(p, rot=45, dx=32, dy=32) for p in [BLADE] + GRIP], False)]
 
 # construction: dry-stacked stone wall (rounded stones in courses), not bricks.
 def stone(x0, y0, x1, y1, j=(0.0, 0.0, 0.0, 0.0)):
