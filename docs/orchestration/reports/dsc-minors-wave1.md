@@ -88,7 +88,11 @@ original bug (a frozen `_attack_cd` after one bite) but no longer fails on a bad
   `player._begin_gather` was dropped: can_gather and auto-equip use the same
   `find_gather_tool`, so the retry could never succeed. Added the occupied-pen pack-up case to
   t_build.
-- Gate: see the last section.
+- Gate, run through gslot by the finisher: `tools/dsc/verify_minors.sh` exited 0 twice. The
+  first run was right after the merge. The second ran on the review fixes: all 12 test
+  scripts, all 8 labs and smoke PASS. After the last test edit (occupied-pen case),
+  `verify_minors_partial.sh` exited 0 and t_build printed the pen line
+  `packed=true captured_back=1 kit_back=1`.
 
 ## Follow-ups this leaves open (not in the 38)
 
