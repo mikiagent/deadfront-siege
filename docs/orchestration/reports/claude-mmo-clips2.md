@@ -2,6 +2,106 @@
 
 Date: 2026-10-20. Agent: Claude Code (integrator). Branch `claude/mmo-clips2`. Credits spent: 0.
 
+## Round 2: review fixes (2026-10-20)
+
+All four round-1 review findings are fixed on `claude/mmo-clips2`.
+
+| finding | fix | commit |
+|---|---|---|
+| **blocker**: t_canim's feed check could not fail (CreatureClips copies idle into `feed`) | `_expect_authored_feed`: feed must rotate some bone > 0.1 rad away from idle at 25/50/75 % | f87e0f0 |
+| **major**: T. rex sleep crossed the legs, a foot over the hip with claws up, a skin wedge under the chest, sky under the hips | dsc job `trex-sleep2` re-keyed the clip against a gate that measures each flaw. t_canim now checks the rest pose in the game | c05d888 |
+| minor: misleading `raptor` variable | renamed to `c` / `probe` | f87e0f0 |
+| minor: zebraceratops clips 2.5x larger; walk/run still glided | keyframe-reduced re-export (1.03 MB -> 0.53 MB, 0 pose drift); dsc `zebra-loco` walk/run (run x1.14, was x10) | d422a8d, 25073a3 |
+
+### Checks that fail on the old behaviour
+
+- **Feed.** I ran a throwaway script (deleted, never committed) that applies the same `_pose_gap` to species with no `feed.glb`:
+  - `deinonychus has feed state true, gap 0.0054 rad -> FAIL`
+  - `stegosaurus has feed state true, gap 0.0000 rad -> FAIL`
+
+  The authored clips measure 0.578 (T. rex), 0.481 (velociraptor) and 0.597 (zebraceratops).
+- **T. rex sleep.** `_expect_rest_sleep` samples the sleep in the game and requires:
+  - lowest bone within 3 % of idle hip height of the floor;
+  - each toe within 12 % of hip height of the floor and on its own side of the midline, measured on the hip-to-hip axis, so yaw does not matter;
+  - each metatarsal flat (|up| <= 0.5) and running heel-back toes-forward (>= 0.5), each toe forward (>= 0.6);
+  - hands not crossing the midline.
+
+  On the interim clip it printed: `FAIL tyrannosaurus sleep rests on its belly: lowest bone 0.00 m (idle hip 3.43 m) L foot or hand crosses the midline, L foot not flat heel-back toes-forward (metatarsal up -0.45 fwd -0.88, toe fwd -0.77), R ...` (same for R).
+
+  On the new clip: `ok ... lowest bone 0.00 m (idle hip 3.43 m) feet flat on their own side, toes forward`.
+
+  Not run: the oldest clip, which floated 0.8 m up. The floor rule targets it, but I did not swap that clip back in to watch the rule fail.
+
+### What dsc did, and what I changed in its diff
+
+`~/Documents/DeepseekCLI/deadfront-reanim/trex-sleep2` (dsc cook, `--budget 2 --max-hours 4`): finished done, verify failures 0, $1.21, 2.1 h. dsc did the following in headless Blender:
+- searched a leg fold: thigh near rest, shin folded about +80°, metatarsal and toe laid flat;
+- re-searched the trunk, tail and arms around that fold;
+- baked a 121-frame breathing loop (5.0 s, first frame == last) and exported it skeleton-only with the skin and keyframe reduction (52 KB).
+
+My part:
+- I wrote TASK.md, the read-only gate (`verify.sh`, 555) and two measuring tools (`check_rest_legs.py`, `measure_skin.py`, 444).
+- I re-ran the gate myself and saw `VERIFY PASS`:
+  - `sleep POSE top=3.551 bottom=0.000 near_floor=6` (idle top 6.632)
+  - `LEGS ok frames=121`
+  - `STRETCH max=3.41 over2=43` (interim: 804 edges past 2x)
+  - `BELLY gap=0.133`
+- `git diff` of the job shows TASK.md, verify.sh, input/ and ref/ untouched. The mesh and the other 11 T. rex clips are byte-identical to the game's.
+- **I changed nothing in its clip.** It went into the game as-is.
+
+What the gate could pass while it looks wrong:
+- feet tucked but floating;
+- the wedge moved somewhere else;
+- sky under the trunk.
+
+The gate's belly ray profile and stretch count cover those. I also looked at gameplay angles (below).
+
+### Re-import, tests
+
+- I replaced `sleep.glb`, touched it and ran `--import` (rc 0). `.godot/imported/sleep.glb-*.md5` source_md5 is `1c6ea802…`, which equals the new file.
+- t_canim: `[t_canim] PASS`, including the new rest-pose and feed lines.
+- run_all: `[tests] PASS`, rc 0.
+- `tools/smoke.sh`: `SMOKE PASS`.
+- 0 "couldn't resolve track" warnings in the import, t_canim, run_all and all 14 lab logs of this round.
+- No new `Godot-*.ips` in DiagnosticReports.
+
+### What I looked at (windowed, 1600x900)
+
+Throwaway lab `zz_clips3_lab`, deleted and never committed:
+- **T. rex sleep, 3/4 view, Forward+ and gl_compatibility.** Belly, jaw and tail on the ground. Each hind foot is tucked flat beside the belly on its own side with the claws forward. The arms are under the chest. No pale wedge.
+- **T. rex sleep, low camera 0.6 m up.** No sky under the hip span. One small sky gap shows between the tucked thigh and the chest, above the foot. Minor.
+- **T. rex sleep, side view, gl_compatibility.** Body grounded. No foot above the hip.
+- **Zebraceratops:**
+  - sleep: side-lying, grounded, legs folded.
+  - feed, held at the dip: the head goes down with the beak at the ground. In-game Head bone height is 0.54 -> 0.41 m, two dips per 2.54 s loop.
+  - attack_heavy and walk (gl_compatibility): feet on the ground, standing height.
+
+Shots are in session scratch and will not persist: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/clips3/shots/` (`rex_q34.png`, `rex_q34_gl.png`, `rex_low.png`, `rex_side_gl.png`, `zeb_sleep.png`, `zeb_feed_dip.png`, `zeb_heavy_gl.png`, `zeb_walk_gl.png`; `before_*.png` is the interim sleep, `proto_*`/`meg_*`/`zebra_*` the earlier loco vetting). The durable dsc sheets are `trex-sleep2/out/tyrannosaurus/sheets/sleep.png` and `sleep_34.png`.
+
+### Still imperfect
+
+- **Sleep mesh below the floor.** The deepest posed vertex is 0.30 m below the floor (a metatarsal flap; dsc report). In-game it reads as the body pressing into the ground, and terrain hides it.
+- **Small breath.** The breath is at most 0.7° per bone, because the pose sits near the stretch ceiling.
+
+### For the orchestrator: protoceratops and megaloceros walk/run are already on this branch
+
+Before this round, earlier DSC-CLIPS work committed these:
+- `73663d7`: protoceratops walk/run, dsc `proto-loco2`: walk x1.00, run x1.10 in game.
+- `75d1dd9`: megaloceros walk/run, dsc `meg-loco2`: run x0.78 / x1.96, short hind stride because of the rump weights.
+- `2276472`: t_canim's gait-cadence check (no species above x3.0).
+
+The running `quads-loco2` job, which I did not touch, redoes the same four clips from the round-1 state. When it lands, choose one set:
+- If you take quads-loco2's clips, they must also pass `_test_cadence_sane` and `_test_stride_match`.
+- If you keep these, stop that job.
+
+I did not revert them. Reverting would bring back the x6.67 / x16 gliding, which the cadence check fails.
+
+No `# ASSUMPTION:` markers were added this round.
+
+---
+
+# Round 1 (superseded where round 2 says so)
+
 ## Result
 
 | job | clips | verdict |
@@ -62,7 +162,7 @@ Each new clip is clearly better than the current one:
 
 All of these were checked in a windowed lab shot, Forward+ and gl_compatibility, every lane grounded and readable.
 
-### T. rex sleep: accepted, with one flaw
+### T. rex sleep: accepted, with one flaw (fixed in round 2)
 
 The current clip is rolled onto its side about 0.8 m above the floor, and its legs stick out sideways. The new clip lies belly-down: chest, jaw and tail on the ground, loop delta 0.
 
