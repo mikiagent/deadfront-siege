@@ -86,6 +86,11 @@ for leg in LEGS.values():
     leg["ankle0"] = bones[leg["foot"]].head_local.copy()
     leg["toe0"] = bones[leg["foot"]].tail_local.copy()
     leg["hip0"] = bones[up].head_local.copy()
+    if "pole" not in leg:  # bend the way the rest pose already bends
+        h, k, an = leg["hip0"], bones[low].head_local, leg["ankle0"]
+        line = an - h
+        off = (k - h) - line * ((k - h).dot(line) / line.length_squared)
+        leg["pole"] = list(off.normalized())
 
 
 def leg_phase(leg, t):

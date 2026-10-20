@@ -52,6 +52,9 @@ Newest lessons go at the end of their section; per-species results are in the ta
 
 | species | walk | run | base weights | review | status |
 |---|---|---|---|---|---|
+| protoceratops | LS walk, 24 f, stride .55 | trot, 12 f, stride 1.2, duty .4 | original kept (fix made it worse) | blind A/B: new won walk and run; then fore curl cut to 15/20 deg | candidate clips in docs/.../locomotion/protoceratops, NOT copied into game; re-review then ship |
+| zebraceratops | LS walk, 24 f, stride .55 | trot, 11 f, stride .9, duty .45 | original kept (fix made it worse) | blind A/B: new won both; run had dark smear under chest at stride 1.2, re-made at .9, not re-reviewed | candidate in docs/.../locomotion/zebraceratops; old clips already stride, ship only if re-review clearly prefers new |
+| velociraptor | biped walk, 22 f, stride .4 | run, 11 f, stride .85, duty .36 | not checked | none yet (first render only) | config + candidate only |
 | megaloceros | LS walk, 28 f, stride 1.3, duty .65 | transverse gallop, 14 f, stride 3.0, duty .3 | fixed | blind A/B: new won walk (65 %) and run (90 %); fixed its notes (prance fold, nose-dive pitch) | in branch, needs in-game look + speed rebake |
 
 9. Blind review notes on the first megaloceros pass: the lifted foreleg folded like a prance (swing curl
@@ -60,3 +63,25 @@ Newest lessons go at the end of their section; per-species results are in the ta
 10. Godot slots were full the whole first session (gameplay tests), so in-game checks and the natural
     speed rebake are left for the integrator. Blender textured strips + scrolling-ground MP4s are the
     review material (`docs/orchestration/mmo/locomotion/<species>/`).
+
+11. Check a species' weights before "fixing" them: protoceratops and zebraceratops deform fine as they
+    are and `fix_weights.py` made both worse. Run measure_skin on idle + the new clip with old and fixed
+    base, keep whichever is better.
+12. Short-legged quadrupeds (zebraceratops, leg ~0.46 m mesh) need a shorter trot stride (0.9) than the
+    reach allows, or the run looks frantic and the chest seam smears.
+13. Bipeds use the same tool with two legs and one body end (no pitch). Pole defaults to the rest-pose
+    bend when a leg has no "pole" in the json. Raptor FrontFoot is parented to the arm, so arms are not legs.
+
+## Handoff (stopped 2026-10-20 on the owner's request)
+
+- Branch `claude/mmo-locomotion` (off `claude/mmo-overhaul`). In the game: megaloceros walk.glb, run.glb and a
+  re-weighted megaloceros.glb. Integrator: re-import, rebake natural speeds (`tools/bake_clip_speeds.py`), look
+  at walk/run in game (anim lab), then merge.
+- Candidates not in the game yet: `docs/orchestration/mmo/locomotion/{protoceratops,zebraceratops,velociraptor}/`.
+- Next steps, in order: re-review protoceratops (+ zebraceratops) strips, copy into game/assets/creatures/<s>/anim;
+  tune velociraptor and review; then utahraptor, deinonychus, gallimimus, compsognathus, coelophysis (same
+  Meshy biped rig, copy velociraptor.json and scale stride/view to hip height); T. rex and stegosaurus have
+  different rigs (Thigh/Shin/Metatarsal/Toe, hind_thigh/shin/foot/toe): three-bone legs, so IK the shin to
+  the metatarsal head and pose the metatarsal, or extend solve_leg.
+- Review loop that worked: `tools/gait/make_gait.py ... --frames-dir D --textured`, `render_clip.py` for the
+  old clip, `strip12.sh` both, blind A/B by a subagent (randomise A/B), fix its notes, ship.
