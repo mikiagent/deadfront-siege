@@ -198,6 +198,11 @@ def smoke(x, y0, y1, amp, ph):
     return band([(x + amp * math.sin(ph + i / 12 * 2 * math.pi), y0 + (y1 - y0) * i / 12) for i in range(13)], 4.8)
 G["station_smoker"] = [([DOME, DOOR], True), ([smoke(25, 26.5, 12.5, 2.6, 0.0), smoke(39, 26.5, 12.5, 2.6, 0.0)], False)]
 
+# grindstone station (DSC-CAMP): a stone wheel with a hub, turning on an axle between two posts on a sill.
+G["station_grindstone"] = [([circle(32, 27, 15), circle(32, 27, 4.2)], True),
+                           ([capsule((11, 21), (11, 52), 5.5), capsule((53, 21), (53, 52), 5.5), capsule((11, 27), (53, 27), 3.6)], False),
+                           ([capsule((7, 55), (57, 55), 5)], False)]
+
 # pack up: the hide tent with arrows closing in on it (it was a tent in a focus frame, the same
 # composition as equip).
 TENT = [(32, 15), (47.5, 52), (36.5, 52), (32, 41), (27.5, 52), (16.5, 52)]
