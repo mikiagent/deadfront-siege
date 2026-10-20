@@ -23,6 +23,7 @@ func run(tree: SceneTree) -> Array[String]:
 	_test_step_phase()
 	_test_bus_defaults(tree)
 	_test_beds_release(tree)
+	_test_settings_panel(tree)
 	_test_live(tree)
 	return failures
 
@@ -288,6 +289,53 @@ func _test_beds_release(tree: SceneTree) -> void:
 	for i in 4:
 		d.beds._fade(0.05)
 	_expect(not d.beds._layers.has(&"shore") and layer != null and layer.is_queued_for_deletion(), "audio: a faded-out bed slot is kept playing at -80 dB")
+	tree.root.remove_child(d)
+	d.free()
+
+## The sound settings sheet: every bus has a slider, a slider moves that bus only and persists through
+## Settings, and Mute all silences Master without losing the slider levels.
+func _test_settings_panel(tree: SceneTree) -> void:
+	var d := AudioDirector.new()
+	tree.root.add_child(d)
+	d.beds.manual = true
+	var panel_script := load("res://scripts/audio/audio_settings.gd") as GDScript
+	_expect(panel_script != null, "audio: no sound settings script under scripts/audio")
+	if panel_script == null:
+		tree.root.remove_child(d)
+		d.free()
+		return
+	_expect(AudioSettings.MIX_BUSES.has(&"Master") and AudioSettings.MIX_BUSES.has(&"Creatures") and AudioSettings.MIX_BUSES.size() == 6,
+		"audio: settings panel does not offer Master/Music/Ambience/SFX/Creatures/UI")
+	var panel := panel_script.new() as Control
+	tree.root.add_child(panel)
+	panel.open()
+	for bus in AudioSettings.MIX_BUSES:
+		var s: Variant = panel._sliders.get(bus)
+		_expect(s is HSlider, "audio: settings panel has no %s slider" % bus)
+		_expect(s != null and (s as HSlider).custom_minimum_size.y >= 60.0, "audio: %s slider is under a 60 px tap target" % bus)
+	_expect(panel._mute is CheckButton, "audio: settings panel has no Mute all control")
+	var sfx := AudioServer.get_bus_index(&"SFX")
+	var before := AudioServer.get_bus_volume_db(sfx)
+	(panel._sliders[&"SFX"] as HSlider).value = 0.25  # what dragging the slider does
+	_expect(absf(AudioServer.get_bus_volume_db(sfx) - (before - 12.04)) < 0.2, "audio: the SFX slider did not move the SFX bus by 0.25")
+	_expect(is_equal_approx(d.bus_volume(&"SFX"), 0.25), "audio: the SFX slider was not saved to Settings")
+	(panel._sliders[&"SFX"] as HSlider).value = 1.0
+	panel._mute.button_pressed = true
+	_expect(AudioServer.is_bus_mute(0), "audio: Mute all did not mute Master")
+	_expect(d.muted, "audio: Mute all did not set the director's mute state")
+	panel._mute.button_pressed = false
+	_expect(not AudioServer.is_bus_mute(0), "audio: unmuting left Master muted")
+	_expect(is_equal_approx(d.bus_volume(&"SFX"), 1.0), "audio: unmuting lost the slider level")
+	_expect(InputMap.has_action(&"mute_audio"), "audio: no mute hotkey action")
+	var hotkey := false
+	for ev in InputMap.action_get_events(&"mute_audio"):
+		hotkey = hotkey or (ev is InputEventKey and (ev as InputEventKey).physical_keycode == KEY_F10)
+	_expect(hotkey, "audio: the mute hotkey is not on a key")
+	d.set_muted(true)
+	_expect(AudioServer.is_bus_mute(0) and d.muted, "audio: set_muted did not silence Master")
+	d.set_muted(false)
+	tree.root.remove_child(panel)
+	panel.free()
 	tree.root.remove_child(d)
 	d.free()
 

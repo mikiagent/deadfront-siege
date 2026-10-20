@@ -30,6 +30,7 @@ const ACTIONS: Dictionary = {
 	"place_confirm": [KEY_ENTER, KEY_KP_ENTER],
 	"place_cancel": [KEY_ESCAPE],
 	"fullscreen": [KEY_F11],
+	"mute_audio": [KEY_F10],
 }
 
 ## Gamepad layout (Xbox naming; Godot maps PlayStation and Switch pads to the same indices).
@@ -52,6 +53,7 @@ const JOY_BUTTONS: Dictionary = {
 	"place_confirm": [JOY_BUTTON_A],
 	"place_cancel": [JOY_BUTTON_B],
 	"place_rotate": [JOY_BUTTON_RIGHT_SHOULDER],
+	"mute_audio": [JOY_BUTTON_DPAD_LEFT],
 }
 ## [axis, sign] pairs. Stick directions drive movement; triggers are tactics 3 and 4.
 const JOY_AXES: Dictionary = {

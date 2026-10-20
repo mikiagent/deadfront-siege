@@ -44,6 +44,9 @@ var _last_file: Dictionary = {}       # event -> index, so a variation never rep
 var _streams: Dictionary = {}         # path -> AudioStream (one-shots; loops load on demand)
 var _bus_default_db: Dictionary = {}
 var _warned: Dictionary = {}
+## Master mute (settings sheet, mute hotkey, --mute, DEADFRONT_MUTE). Kept apart from the Master
+## slider so unmuting restores the level the player set.
+var muted: bool = false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -61,6 +64,7 @@ func _ready() -> void:
 	hooks.name = "Hooks"
 	hooks.director = self
 	add_child(hooks)
+	_restore_mute()
 	print("[audio] director ready events=%d species=%d" % [events.size(), (creature_voices.get("species", {}) as Dictionary).size()])
 
 func _load_tables() -> void:
@@ -118,7 +122,47 @@ func _apply_bus(bus: StringName, linear: float) -> void:
 	if idx < 0:
 		return
 	AudioServer.set_bus_volume_db(idx, float(_bus_default_db.get(bus, 0.0)) + linear_to_db(maxf(linear, 0.0001)))
-	AudioServer.set_bus_mute(idx, linear <= 0.001)
+	AudioServer.set_bus_mute(idx, linear <= 0.001 or (bus == &"Master" and muted))
+
+## ---------------------------------------------------------------- mute
+
+const MUTE_ENV := "DEADFRONT_MUTE"
+const MUTE_KEYS := ["1", "true", "on", "yes"]
+
+## Mute all: silences Master only, so every bus level is exactly where the sliders left it.
+## Persisted for the settings sheet, the mute hotkey and the menu; `--mute` and DEADFRONT_MUTE
+## mute for the session without changing the saved preference.
+func set_muted(on: bool, persist: bool = true) -> void:
+	muted = on
+	if persist:
+		Settings.set_value("audio", "muted", on)
+	_sync_mute()
+
+## Master mute at boot: the saved setting, the `--mute` command-line flag and the DEADFRONT_MUTE
+## environment variable (used by the headless runners so no test ever makes a sound).
+func _restore_mute() -> void:
+	var flag := "--mute" in OS.get_cmdline_user_args()
+	var env := OS.get_environment(MUTE_ENV).strip_edges().to_lower() in MUTE_KEYS
+	muted = bool(Settings.get_value("audio", "muted", false)) or flag or env
+	_sync_mute()
+	if flag:
+		print("[audio] master muted (flag)")
+	elif env:
+		print("[audio] master muted (env %s)" % MUTE_ENV)
+	elif muted:
+		print("[audio] master muted (saved setting)")
+
+func _sync_mute() -> void:
+	var idx := AudioServer.get_bus_index(&"Master")
+	if idx >= 0:
+		AudioServer.set_bus_mute(idx, muted)
+
+## The mute hotkey (`mute_audio`, F10) and the settings sheet share this.
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"mute_audio"):
+		set_muted(not muted)
+		print("[audio] master %s (hotkey)" % ("muted" if muted else "unmuted"))
+		get_viewport().set_input_as_handled()
 
 ## Weather layer for the beds: kind rain | storm | wind | snow | sandstorm | ash_storm | clear,
 ## intensity 0..1. &"auto" hands control back to the island's own rain.
