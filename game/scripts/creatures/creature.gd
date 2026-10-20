@@ -619,7 +619,7 @@ func _on_died(_source: Node) -> void:
 	if not is_pet:
 		var killer_pet: Creature = _source as Creature if (_source is Creature and (_source as Creature).is_pet) else null
 		var owner := get_tree().get_first_node_in_group("player") as Player
-		var pets: Array[Creature] = owner.live_pets() if owner else []
+		var pets: Array[Creature] = owner.live_pets() if owner else ([] as Array[Creature])  # untyped [] failed with no player (labs)
 		for pet in pets:
 			if pet == null or pet.pet_record == null or pet.health.dead:
 				continue
@@ -652,11 +652,14 @@ func _on_died(_source: Node) -> void:
 	stop_move()
 	# Bonded animals enter their respawn cooldown without creating a harvestable corpse or
 	# loot bag. Wild kills still use the normal corpse/loot flow.
+	var corpse: Corpse = null
 	if not is_pet:
-		var corpse := Corpse.new()
+		corpse = Corpse.new()
 		corpse.setup(self)
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position
+	# Client-side presentation: hit reaction, ragdoll (or death clip) and the corpse's resting place.
+	Ragdoll.on_death(self, _source, corpse)
 
 ## Status landed: float its name over the plate and puff a burst in its colour. The lasting
 ## look (blood drip, venom tint, wobble) is _status_fx every frame.

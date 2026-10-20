@@ -1,6 +1,7 @@
 class_name Corpse
 extends StaticBody3D
-## Loot marker + timed corpse lifecycle. The dead creature mesh stays in its death pose.
+## Loot marker + timed corpse lifecycle. The dead creature's Ragdoll poses the body and calls
+## place_settled with where it came to rest; the mesh then keeps that pose until the fade.
 
 var species: StringName = &""
 var level: int = 1
@@ -28,7 +29,6 @@ func setup(c: Creature) -> void:
 	name = "Corpse_%s" % species
 	poison_spoiled = c.statuses.has_flag(&"meat_inedible")
 	_roll_loot()
-	_snap_owner_to_ground()
 
 func _ready() -> void:
 	add_to_group("corpse")
@@ -250,12 +250,13 @@ func _place_on_tile() -> void:
 	if _marker:
 		_marker.position = Vector3(0.0, 0.08, 0.0)
 
-func _snap_owner_to_ground() -> void:
-	if _owner == null or World.runtime == null:
-		return
-	var tile := BuildGrid.tile_of(_owner.global_position)
-	var ground := BuildGrid.tile_centre(tile, World.runtime)
-	_owner.global_position = ground + Vector3(0.0, 0.1, 0.0)
+## The one seam for the corpse's authoritative resting place: the ragdoll calls it when the body
+## settles (the ground under its hips); a server can call it later with its own position. The loot
+## marker moves there and the dead body's root follows, keeping its pose.
+func place_settled(world_pos: Vector3) -> void:
+	global_position = world_pos
+	if _owner and is_instance_valid(_owner) and _owner.is_inside_tree():
+		_owner.global_position = world_pos
 
 func _begin_fade() -> void:
 	if _fading:

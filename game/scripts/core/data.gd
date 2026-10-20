@@ -109,7 +109,7 @@ func _load_creatures(dir: String) -> void:
 	da.list_dir_begin()
 	var fname := da.get_next()
 	while fname != "":
-		if not da.current_is_dir() and fname.ends_with(".json") and fname != "anim_events.json" and fname != "ai.json":
+		if not da.current_is_dir() and fname.ends_with(".json") and fname != "anim_events.json" and fname != "ai.json" and fname != "ragdoll.json":
 			var path := "%s/%s" % [dir, fname]
 			var root := _parse_json(path)
 			if not root.has("species"):
