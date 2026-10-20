@@ -18,7 +18,7 @@ const GOLD := Color(1.0, 0.9, 0.3)
 const CREAM := Color(1.0, 0.97, 0.88)
 
 ## A stack of lines ([text, color, big], top to bottom) rising from a 3D anchor in screen space.
-## Its whole rise is placed once: above the ring, else right or left of it, nudged off what is taken.
+## Its whole rise is placed once, a frame later: above the ring, else right or left of it, nudged off what is taken.
 static func popup(p: Player, at: Vector3, lines: Array) -> Control:
 	if p == null or not p.is_inside_tree() or lines.is_empty():
 		return null
@@ -52,8 +52,19 @@ static func popup(p: Player, at: Vector3, lines: Array) -> Control:
 		l.add_theme_constant_override("outline_size", 8 if big else 6)
 		box.add_child(l)
 	layer.add_child(box)
-	var sz := box.get_combined_minimum_size()
-	box.size = sz
+	box.size = box.get_combined_minimum_size()
+	box.visible = false
+	# Placed next frame: by then the HUD has drawn this unit's toast and rare notice, which the stack keeps off.
+	tree.process_frame.connect(_place.bind(p, cam, at, box), CONNECT_ONE_SHOT)
+	return box
+
+static func _place(p: Player, cam: Camera3D, at: Vector3, box: Control) -> void:
+	if not is_instance_valid(box) or not is_instance_valid(cam) or not is_instance_valid(p) or cam.is_position_behind(at):
+		if is_instance_valid(box):
+			box.queue_free()
+		return
+	var view := p.get_viewport().get_visible_rect().size
+	var sz := box.size
 	var a0 := cam.unproject_position(at)
 	# Roomiest first. A phone's HUD band can leave no room by the node: nature-node pills give way,
 	# then the stack holds still (no rise); the ring, HUD, plates and radial never give way.
@@ -67,7 +78,7 @@ static func popup(p: Player, at: Vector3, lines: Array) -> Control:
 	if off == Vector2.INF:
 		# Like a world label with no free spot near its anchor: not drawn (the HUD toast and notice say it).
 		box.queue_free()
-		return null
+		return
 	var follow := func(t: float) -> void:
 		if not is_instance_valid(cam) or not is_instance_valid(box):
 			return
@@ -78,7 +89,6 @@ static func popup(p: Player, at: Vector3, lines: Array) -> Control:
 	tw.tween_method(follow, 0.0, 1.0, LIFE).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(box, "modulate:a", 0.0, LIFE * 0.45).set_delay(LIFE * 0.55)
 	tw.tween_callback(box.queue_free)
-	return box
 
 ## Where a stack of size `sz` rising `h` px may sit: above the ring, else right or left of it.
 static func _columns(a0: Vector2, sz: Vector2, h: float) -> Array[Rect2]:
