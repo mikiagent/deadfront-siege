@@ -6,6 +6,81 @@ Branch `claude/mmo-w2-process`, cut from `claude/mmo-overhaul` 36299a96. Base me
 - c00f7179: process_lab, label and smoke tuning
 - ccf9a9bf: round 2, following spec 08 (below)
 - two base merges, and the commit carrying this report
+- round 3 (review r1 fixes): base merge c59dd1de (5daa97ef, docs only), ff8d6c4c (pack-up, payoff, level,
+  tests), 4b5b88eb and 0ec9253f (process_lab), plus this report
+
+## Round 3: review r1 fixes
+
+| r1 finding | Fix | Proof |
+|---|---|---|
+| **Blocker**: shift-tap pack-up (`player_actions.gd:568` -> `BuildPlacer.pack_up_node`) destroyed what was on the station | `CraftStation.pack_up_block_reason()` -> `ProcessStation.pack_up_block_reason()`: refuses while any job (running or waiting) or uncollected output is on the station ("the drying rack is still working: collect it when it is ready" / "collect the drying rack first"). `BuildPlacer.pack_up_blocker` already calls `pack_up_block_reason` duck-typed before any side effect, and every pack-up path (shift-tap, `CraftStation.pack_up`, t_build) goes through `pack_up_node` -> `pack_up_blocker`. W2-BUILDSYS's `build_placer.gd` keeps the same call (line 302 on 58c3a87d), so **no hooks patch is needed** | `[t_process] ok shift-tap pack-up refuses a working rack and touches nothing: 'the drying rack is still working: collect it when it is ready'`; `ok a rack with dried meat waiting refuses: 'collect the drying rack first'`; `ok an empty rack packs up: kit and both dried meats in the bag`; `[process_lab] PASS shift-tap pack-up refuses a loaded rack` |
+| **Major**: a refused pack-up had already cancelled the jobs (`return_all` ran before `pack_up_node`'s own checks) | `return_all` and the `CraftStation.pack_up` override are gone; the station's rule is a pure check that runs first, so a refusal changes nothing | `ok a refused pack-up cancels no job and moves nothing (jobs 2)` (bag with room for the meat but not the kit: the r1 scenario) |
+| **Major**: slow stations strictly worse than the grill | Cooking properties, from spec 08/11/04 (next section) | `ok drying: dried meat eases more fatigue than grilled (20.7 vs 12.3)` and the table below |
+| Minor: no test that a uid exists once after collect | Added | `ok after collect each uid exists once (bag 2, station 0, save row false)` |
+| Minor: clock moved back could show a timer above the job length | `label_text` clamps the remaining time to the job length (`load_dict` already clamps a future start) | read in code |
+| Minor: COLLECT toast showed mixed outputs as one item | `collect_into` records `last_collected` per item id; the toast shows each | `ok collect moves both and names each ({ &"dried_meat": 1, &"dried_hide": 1 })` |
+
+Found while testing: an in-place output took the skill-capped crafted level, so a lv 31 meat dried by a
+Processing 1 survivor came off the rack at lv 1 (and lost energy, which scales with level). Spec 11 §8: "For
+in-place processing, use the existing item as the base; only change level when the actual process rules
+require it." `Crafting.build_output` now keeps `primary.level` for in-place steps. Proof: with a survivor in
+the test scene the old code printed `FAIL the same two instances came back, levels kept (... [1, 1])`; now
+`ok ... levels kept (... [9, 31])`.
+
+**Each new test fails on the old behaviour.** Mutation run (station rule removed, the old return-first
+`pack_up` restored, the property rows deleted):
+```
+[t_process] FAIL drying: dried meat eases more fatigue than grilled (8.7 vs 12.3)
+[t_process] FAIL smoking: more relief than grilled (11.8 vs 12.3) and a Warming Meal the grill does not give
+[t_process] FAIL shift-tap pack-up refuses a working rack and touches nothing: ''
+[t_process] FAIL a refused pack-up cancels no job and moves nothing (jobs 0)
+[t_process] FAIL a rack with dried meat waiting refuses: ''
+```
+
+### What each slow station gives (spec answer, all values in `processing.json`)
+
+What the specs say:
+- Spec 08 §2: "in-place recipes add cooking properties, remove `raw_food` and `wet` tags when applicable, and
+  generally consume a processing opportunity. Verify method-specific behavior rather than making every
+  method identical."
+- Spec 08 §4: "Food benefits may include immediate Energy, digestion-delayed Energy, fullness/satiety, Health,
+  reduced Fatigue when supported, temporary stat/ability buffs, and environmental effects. Food benefits must
+  be calculated from the actual prepared item's stored state."
+- Spec 08 §1: no freshness/decay timer, so "keeps while raw spoils" is not available.
+- Spec 11 §1: in-place modification changes one existing material's tags or attributes and spends
+  processing opportunities.
+- Spec 04: the effects are attributes of the instance.
+
+The specs name the kinds of effect but not which method gives which, so the mapping is `# ASSUMPTION`.
+
+What the game consumes decides the kind. Energy refills by itself out of combat (16/s, `vitals.gd`), so energy
+alone does not reward a slow station. Fatigue is the session governor (PRD §6.4), and climate resistance already
+cuts climate fatigue (`Player.climate_resistance`). The same PRD gives "Food does not restore Health".
+
+| Station (time) | Mode | What the output carries | Effect when eaten |
+|---|---|---|---|
+| Drying rack (10 min) | in place, spends 1 of 2 | `Dried` (processing history `dry`) | eases fatigue 12, on top of the meal's own energy break |
+| Smoker (15 min) | in place, spends 1 of 2 | `Smoked` (history `smoke`) | eases fatigue 6, plus the existing Warming Meal (`food_buffs.json` cold_resist +1 for 600 s). No food granted it before, so cold islands had no food answer |
+| Steamer (1 min) | in place, spends 1 of 2 | process count +1 | +35 % energy per steam (PRD §9.3 "Dumping all process counts into steam explodes energy"), and so a bigger energy break. Its payoff is on cooked food |
+| Crock pot (3 min) | new food from meat + herb + fruit | a new instance with fresh opportunities | 32 base energy, which can then be steamed twice |
+
+Measured per raw meat at level 1 (`t_process`, on a real `Vitals` fed the way `EatSession` feeds it):
+`grilled e=32.7 rel=12.3 | dried e=23.2 rel=20.7 | smoked e=31.4 rel=17.8 buffs=[&"cold_resist"] | stew e=43.6
+rel=16.4 | grilled+steam e=41.2 rel=15.5` (e = energy, rel = fatigue eased, out of 100).
+
+Against the grill, dried meat eases 1.7x the fatigue. Smoked meat eases 1.45x and adds cold resistance. The
+stew eases 1.33x and starts fresh. Steaming a grilled meat adds +26 % energy.
+
+How it works:
+- `Food.cooking_properties(stack)` reads one `in_place.properties` row per step in the instance's
+  `attributes.processed`.
+- `Food.buff_ids` adds a row's `buff`. `EatSession._finish` applies `Food.fatigue_relief` through `Vitals.rest`.
+- The food inspector shows `Dried: eases fatigue 12`.
+- No new save field: the history was already saved, so old saves load unchanged.
+- A dried meat made before this package has no history and no property (the effect comes from the stored
+  state, not the name: `ok the effect comes from the stored history, not the item name`).
+- A stew made from dried meat starts plain (spec 08 §3: recipes that do not inherit).
+- Dried hide is not a meal. Its payoff is the hide -> dried hide -> straps route (PRD "Hide -> dried hide -> straps").
 
 ## Round 2: spec 08 corrections (coordinator, owner: "the docs decide")
 
@@ -43,7 +118,7 @@ rules loader moved to `ProcessStation.rules()`.
     `CraftStation.from_dict`, so no migration is needed.
   - On load, a start time in the future is clamped to now. Rows for recipes the station no longer runs come back
     as collectable items and are never deleted.
-  - Pack-up returns everything on the station first, and refuses if the bag cannot take it all.
+  - Pack-up is refused while anything is on the station (round 3), so it never destroys or cancels anything.
 
 ## Acceptance
 
@@ -98,12 +173,24 @@ All in `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/b2302
   Durango:0 times as unverified.
 - **In-place steps and opportunities:** `dry`, `smoke` and `steam` are in place, with 2 opportunities per
   instance (spec 08's estimate). Steam spends one; the PRD's steam-steam question stays open.
-- **Output level:** an in-place output keeps the existing skill-capped crafted level.
+- **Output level:** an in-place output keeps the instance's own level (spec 11 §8, round 3); new foods use
+  the skill-capped crafted level as before.
+- **Cooking properties (round 3):** Dried eases fatigue 12; Smoked eases fatigue 6 and gives the Warming
+  Meal (cold_resist +1, 600 s). Steam has no property: it adds a process count. The kinds come from spec 08 §4;
+  the method-to-effect mapping and the amounts are not in the specs (`processing.json` `in_place.properties`).
+- **Pack-up while loaded (round 3):** refused, not "return everything": a running job's inputs are mid-process,
+  and spec 11 §9 asks that cancellations lose nothing. A cancel action that hands inputs back is not built.
 - **Burn:** process jobs never burn unless the recipe has `burn_on_fail`. The roll happens at load.
 
 ## Integrator hooks
 
-None are required. Two optional notes:
+None are required, so there is no hooks patch. The pack-up fix needs no change in `build_placer.gd` or
+`player_actions.gd`: `BuildPlacer.pack_up_blocker` already asks `pack_up_block_reason()` duck-typed before any
+side effect, on the base and on W2-BUILDSYS (58c3a87d, line 302). Notes:
+- **W2-BUILDSYS merge:** its `StructureHealth.take_damage` `queue_free()`s any `craft_station` at 0 hp, which
+  would drop what hangs on a process station (and a basket's storage) with no refund. Whoever merges
+  BUILDSYS after this should hand `ProcessStation.contents()` to the bag or `World.cargo_home` on that path,
+  as `StructurePlacer.demolish` does for refunds.
 - t_process is not in run_all; run it like the other `t_*.gd`.
 - For W3-SRVACT: load and collect are local calls, not PlayerActions intents.
 
@@ -112,7 +199,13 @@ None are required. Two optional notes:
 - **Not built:**
   - crafting quality windows (HANDOFF P3);
   - the rest of the spec 11 Processing profession: material in-place methods with attribute trade-offs, Handicraft/Metal ability, alloys, and tool and station-level gates;
-  - the rest of the spec 08 cooking work (W2-COOK): slot roles, digestion, and property-driven buffs with refresh rules.
+  - the rest of the spec 08 cooking work (W2-COOK): slot roles, digestion and inheritance. Property buffs use
+    FoodBuffState's refresh-by-id rule (eating a second smoked meat restarts the Warming Meal; it does not stack);
+  - a cancel action that takes a running job's inputs back;
+  - market value from processing history (ECON is not merged; nothing fake in the economy).
+- **Steamer pick:** the steamer takes the first food in the bag, raw meat included. Steaming raw meat
+  (21.6 energy) is worse than grilling it; steaming cooked food is where it pays. A "prefer cooked" pick or a
+  recipe selector belongs to the craft-sheet work (W2-SCREENS).
 - **Needs other packages:** a tanning frame and kiln/smelting need a model, placement and items from
   W1-STRUCTART, W2-BUILDSYS and W2-DATA. Hide drying already runs on the rack.
 - **Visual limits:**

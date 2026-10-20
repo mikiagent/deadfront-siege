@@ -29,6 +29,7 @@ var _models: Dictionary = {}  # stage id -> PackedScene
 var _fx: CPUParticles3D
 var _glow: OmniLight3D
 var _label: Label3D
+var _label_r: float = 0.8  # metres from the station's centre to its front corner
 
 ## The clock jobs run on: wall time, so they keep going while the game is closed.
 static func now_s() -> float:
@@ -353,6 +354,18 @@ func _redraw() -> void:
 		_label.pixel_size = 0.0012 * clampf(900.0 / maxf(1.0, get_viewport().get_visible_rect().size.y), 1.0, 2.4)
 		_label.text = label_text()
 		_label.visible = _label.text != ""
+		_place_label()
+
+## Under the station, at its corner nearest the camera. Over the roof it sat in the top band a phone
+## gives to the HUD (orders panel, vitals) and was hidden whenever the survivor stood beside it.
+func _place_label() -> void:
+	var cam := get_viewport().get_camera_3d()
+	var host := get_parent() as Node3D
+	if cam == null or host == null:
+		return
+	var toward := cam.global_basis.z * Vector3(1.0, 0.0, 1.0)
+	if toward.length_squared() > 0.0001:
+		_label.global_position = host.global_position + toward.normalized() * _label_r
 
 func label_text() -> String:
 	var now := now_s()
@@ -473,8 +486,10 @@ func _build_fx() -> void:
 	# Saturated: the tonemapper turns a pale yellow into beige that vanishes on grass.
 	_label.modulate = Color(1.0, 0.82, 0.25)
 	_label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
+	_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP  # the text hangs below its anchor
 	var aabb: Variant = ((Data.props_manifest.get("buildings", {}) as Dictionary).get(str(station_id), {}) as Dictionary).get("aabb_m", [1, 1.4, 1])
-	_label.position = Vector3(0.0, (float(aabb[1]) if aabb is Array and (aabb as Array).size() >= 2 else 1.4) + 0.9, 0.0)  # clear of the name chip
+	if aabb is Array and (aabb as Array).size() >= 3:
+		_label_r = 0.5 * Vector2(float(aabb[0]), float(aabb[2])).length() + 0.1
 	_label.visible = false
 	add_child(_label)
 
