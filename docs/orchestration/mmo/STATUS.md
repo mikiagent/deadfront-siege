@@ -193,14 +193,27 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   01 -> W2-SURVIVAL; 02 -> W2-CAGE + taming depth; 03 -> W2-SKILLS (new); 04 -> W2-DATA/W2-PROCESS +
   W2-CRAFT (new); 05 -> W2-INV; 06 -> W3-EXCHANGE (Durango tabs Buy/Sell/My Listings/Sold/Expired/
   History + Receive All, on top of the owner's auctions and buy orders); 07 -> W2-ACTION + combat.
-  Kept from earlier binding rules unless the owner says otherwise: capture below 30 % HP (pack says
-  ~50 %, configurable); unlimited owned pets with 3 active (pack says 7 bonded, configurable).
-  Stacking decision (orchestrator, compatible with pack 05 'configurable category-specific stacking'
-  and with existing saves): items stack only when def, level, every attribute, flags and durability
-  match exactly (today's ItemStack rule); trait-bearing materials therefore stay individual, plain
-  goods still stack; the bag shows optional visual grouping. Owner may switch to strict non-stacking.
   Note: fatigue/exhaustion returns (owner removed exhaustion on 2026-09-20; the pack, being newer,
   reintroduces it with no unrecoverable state).
+
+- 2026-10-20 (owner) addenda 08 and 09 (docs/design/durango-prompts/), superseding my earlier calls and
+  the older HANDOFF rules they contradict:
+  * STACKING: gathered materials, food and cooking ingredients do NOT stack by name. Each is its own
+    instance with level/traits/processing state and its own bag slot; visual grouping only. Stacking
+    stays configurable per category (currency, some consumables). Save migration splits old stacks into
+    instances without ever deleting any (overflow goes to home cargo/storage, logged). Bag capacity per
+    pack 05 (base 100 + equipment/Pocket bonuses).
+  * CAPTURE: eligible when the animal is stunned/collapsed at ANY HP, OR HP <= 30 % (supersedes
+    "knocked out AND under 30 %"); chance uses actual current HP, level and Capture Ability; ~50 % HP
+    tutorial hint "Stun the dinosaur to capture it safely"; never force damaging a stunned animal down.
+  * BONDED PETS: capacity 3, raised by Survival -> Animal Taming -> Animal Handling I-IV (Survival 35/
+    45/55/60, SP 4/5/5/6, +1 each) to 7; checked when forming a bond; caged/unbonded animals and pens
+    never count; a reset keeps existing pets but blocks new bonds until under capacity (supersedes
+    "unlimited owned, 3 active"). Pets UI shows "n / cap".
+  * COOKING (08): in-place processing vs new-food recipes from exact ingredient instances; slot roles
+    main/topping/sauce/broth/spice with per-recipe inheritance flags; topping/broth buffs; digestion;
+    buff stacking rules; Cooking category + crafting ability + flawless via the shared pipeline.
+    Package W2-COOK (with W2-PROCESS and W2-INV).
 
 ## Owner questions (open)
 
