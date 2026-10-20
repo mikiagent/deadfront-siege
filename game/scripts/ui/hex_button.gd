@@ -117,17 +117,8 @@ func _draw() -> void:
 	if bottom_text != "":
 		UiTokens.draw_centered(self, font, Vector2(c.x, c.y + r * 0.62), bottom_text, int(r * 0.40), Color.WHITE)
 	if caption != "":
-		var cs := 13
-		var cap := UiTokens.ellipsis(font, caption, size.x * 1.25, cs)
-		var cw := font.get_string_size(cap, HORIZONTAL_ALIGNMENT_CENTER, -1, cs).x
-		var cx := c.x - cw * 0.5
-		# keep the word on screen when the hex hugs a screen edge (harbour / whistle hexes, right side)
-		var vw := get_viewport_rect().size.x
-		var gx := global_position.x
-		if gx + size.x > vw - 40.0:
-			cx = minf(cx, size.x + 6.0 - cw)
-		cx = maxf(cx, 4.0 - gx)
-		draw_string(font, Vector2(cx, c.y + r + 15.0), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, cs, Color(1, 1, 1, 0.55 if disabled else 1.0))
+		var at := _caption_at(font)
+		draw_string(font, Vector2(at.x, at.y), _caption_text(font), HORIZONTAL_ALIGNMENT_LEFT, -1, CAPTION_PX, Color(1, 1, 1, 0.55 if disabled else 1.0))
 	if badge != "":
 		var bc := c + Vector2(r * 0.55, -r * 0.55)
 		draw_circle(bc, r * 0.26, badge_color)
@@ -172,6 +163,37 @@ static var _symbol_cache: Dictionary = {}
 ## White silhouette of a texture (alpha kept, RGB dropped). HUD commands, menu actions and
 ## controls are monochrome white; system emoji render in colour on macOS/iOS, so action
 ## glyphs use these instead. Cached per source texture.
+const CAPTION_PX := 13
+
+func _caption_text(font: Font) -> String:
+	return UiTokens.ellipsis(font, caption, size.x * 1.25, CAPTION_PX)
+
+## Caption baseline origin (x, y) and width (z), local. Shared by _draw and caption_rect().
+func _caption_at(font: Font) -> Vector3:
+	var c := size * 0.5
+	var r := minf(size.x, size.y) * 0.5 - 2.0
+	var cw := font.get_string_size(_caption_text(font), HORIZONTAL_ALIGNMENT_CENTER, -1, CAPTION_PX).x
+	var cx := c.x - cw * 0.5
+	# keep the word on screen when the hex hugs a screen edge (harbour / whistle hexes, right side)
+	var vw := get_viewport_rect().size.x
+	var gx := global_position.x
+	if gx + size.x > vw - 40.0:
+		cx = minf(cx, size.x + 6.0 - cw)
+	cx = maxf(cx, 4.0 - gx)
+	return Vector3(cx, c.y + r + 15.0, cw)
+
+## The drawn hexagon's box, global: pointy-top, so sqrt(3) * r wide, not the control's full width.
+func hex_rect() -> Rect2:
+	var r := minf(size.x, size.y) * 0.5 - 2.0
+	return Rect2(get_global_rect().get_center() - Vector2(r * 0.866, r), Vector2(r * 1.732, r * 2.0))
+
+## The caption's box under the hex, global (empty without a caption). Layout gates check it.
+func caption_rect() -> Rect2:
+	if caption == "":
+		return Rect2()
+	var at := _caption_at(ThemeDB.fallback_font)
+	return Rect2(global_position + Vector2(at.x, at.y - float(CAPTION_PX)), Vector2(at.z, float(CAPTION_PX) + 4.0))
+
 static func white_symbol(source: Texture2D) -> Texture2D:
 	if source == null:
 		return null

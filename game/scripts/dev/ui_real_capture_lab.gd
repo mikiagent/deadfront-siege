@@ -36,8 +36,8 @@ func _ready() -> void:
 		DisplayMode.install(get_tree().root)
 	DisplayMode.install_theme()
 	DirAccess.make_dir_recursive_absolute(_out)
+	Game.debug_overlay = false  # before the HUD builds: players never see the DEBUG hex (labs default it on)
 	var kit := LabKit.build(self, 4.0)
-	Game.debug_overlay = false
 	_player = kit["player"]
 	var ui := kit["ui"] as CanvasLayer
 	for c in ui.get_children():
@@ -149,11 +149,18 @@ func _run() -> void:
 		radial.close()
 	# creature plate with three status glyphs (letters must sit inside their rings)
 	await _capture_plate(logical)
-	# bag (protected inventory_ui): its columns must sit side by side inside the view
+	# bag (protected inventory_ui): it scrolls down, so its columns are checked across the view,
+	# and off a portrait phone they must start side by side near the top (the portrait rows pushed
+	# the slots and equipment below a 390 px landscape view).
 	_player.ui.visible = true
 	_player.ui.call("rebuild")
 	await _frames(3)
-	_check_blocks("bag", bag_blocks(_player.ui), logical, narrow)
+	var bag := bag_blocks(_player.ui)
+	_check_blocks("bag", bag, logical, true)
+	if not narrow:
+		for col in ["profile_col", "bag_col", "equip_col"]:
+			var top: float = (bag[col] as Rect2).position.y if bag.has(col) else INF
+			_expect(top < logical.y * 0.5 and absf(top - (bag["profile_col"] as Rect2).position.y) < 8.0, "bag: %s starts beside the others in the top half (y %.0f)" % [col, top])
 	await _capture("bag", [], logical)
 	_player.ui.visible = false
 	# character creation: every card and control inside the view, none overlapping
@@ -176,7 +183,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
 	var min_px := int(floor(_min_font / DisplayMode.device_scale())) if _min_font < INF else 0
 	var pts := DisplayMode.window_points(get_tree().root)
 	var min_pt := _min_font / DisplayMode.device_scale() if _min_font < INF else 0.0
-	print("[uireal] phone=%s min_font_px=%d logical_width=%d window_pt=%dx%d floor_pt=%.1f (smallest: %s)" % [phone, min_px, int(logical.x), int(pts.x), int(pts.y), type_floor_pt(pts), _min_font_where])
+	print("[uireal] phone=%s min_font_px=%d logical_width=%d window_pt=%dx%d min_pt=%.2f floor_pt=%.2f (smallest: %s)" % [phone, min_px, int(logical.x), int(pts.x), int(pts.y), min_pt, type_floor_pt(pts), _min_font_where])
 	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
 	if _fails.is_empty():
 		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,plate,bag,charcreate shots=%s" % ["craft_detail," if narrow else "", _out])
@@ -211,7 +218,7 @@ static func gate_failures(pts: Vector2, phone: bool, min_pt: float, logical_w: i
 		out.append("desktop keeps a %d px logical width (got %d)" % [DisplayMode.DESIGN.x, logical_w])
 	return out
 
-## Every rect inside the view (only across it, when `x_only`: a portrait bag scrolls down) and no
+## Every rect inside the view (only across it, when `x_only`: the bag scrolls down) and no
 ## two overlapping. Prints the blocks so a failure names what hit what.
 func _check_blocks(screen: String, rects: Dictionary, logical: Vector2, x_only: bool = false) -> void:
 	var view := Rect2(Vector2.ZERO, logical).grow(1.0)
@@ -241,10 +248,14 @@ static func hud_blocks(hud: HuntHud, player: Player, r: Vector2) -> Dictionary:
 			continue
 		if ctl is Label and (ctl as Label).text.strip_edges() == "":
 			continue
-		var rect := ctl.get_global_rect()
-		if ctl is HexButton and (ctl as HexButton).caption != "":
-			rect.size.y += 18.0  # the caption under the hex
-		out["%s#%d" % [ctl.name, out.size()]] = rect
+		var key := "%s#%d" % [ctl.name if not ctl is HexButton else (ctl as HexButton).caption, out.size()]
+		if ctl is HexButton:
+			# the drawn hexagon and its caption, not the control's square
+			out[key] = (ctl as HexButton).hex_rect()
+			if (ctl as HexButton).caption != "":
+				out[key + ".caption"] = (ctl as HexButton).caption_rect()
+		else:
+			out[key] = ctl.get_global_rect()
 		if ctl.name == "Minimap":
 			minimap = ctl
 	var held: Control = player.station_craft.held_slot if player and player.station_craft else null

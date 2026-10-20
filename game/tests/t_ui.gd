@@ -193,10 +193,13 @@ func _test_display_mode() -> void:
 	_expect(UT.is_compact(land) and not UT.is_narrow(land) and not UT.is_phone(land), "the landscape canvas is compact, not narrow, not is_phone")
 	_expect(not UT.is_compact(Vector2(DisplayMode.DESIGN)) and not UT.is_phone(Vector2(DisplayMode.DESIGN)), "the 1600x900 desktop canvas is not a phone")
 	# Narrow landscape phones (iPhone SE 667x375, 640x360 Androids) get LANDSCAPE_MIN_W, never a
-	# canvas under 720 where is_phone would flip the protected HUD and bag to portrait rows.
+	# canvas under 720 where is_phone would flip the protected HUD and bag to portrait rows, nor
+	# one too narrow for the bag's three columns (at 760 its close button ran off the edge).
 	var se := Vector2(DisplayMode.logical_size(Vector2i(667, 375), 1.0))
-	_expect(se == Vector2(760, 427), "667x375 landscape window -> 760x427 logical (got %s)" % se)
-	_expect(DisplayMode.logical_size(Vector2i(640, 360), 1.0) == Vector2i(760, 428), "640x360 landscape window -> 760x428 logical")
+	_expect(se == Vector2(804, 452), "667x375 landscape window -> 804x452 logical (got %s)" % se)
+	_expect(DisplayMode.logical_size(Vector2i(640, 360), 1.0) == Vector2i(804, 452), "640x360 landscape window -> 804x452 logical")
+	# A notched iPhone (852x393 pt, 59 pt insets each side at 3x) keeps 804 px inside its safe area.
+	_expect(DisplayMode.logical_size(Vector2i(2556, 1179), 3.0, 354.0) == Vector2i(933, 430), "notched 852x393 landscape -> 933x430 logical (%s)" % DisplayMode.logical_size(Vector2i(2556, 1179), 3.0, 354.0))
 	_expect(UT.is_compact(se) and not UT.is_narrow(se) and not UT.is_phone(se), "the SE canvas is compact, not narrow, not is_phone")
 	_expect(not UT.is_narrow(Vector2(668, 376)), "a landscape canvas is never narrow, whatever its width")
 	_expect(DisplayMode.logical_size(Vector2i(820, 1180), 1.0) == Vector2i(DisplayMode.TABLET_W, 1439), "portrait tablet -> TABLET_W wide canvas")
@@ -306,12 +309,13 @@ func _test_gate_verdict() -> void:
 	_expect(broken.size() == 2, "390x844 without the fit fails twice (got %s)" % [broken])
 	_expect((LAB.gate_failures(Vector2(390, 844), true, 12.0, 390) as Array).is_empty(), "390x844 with the fit passes")
 	_expect(not (LAB.gate_failures(Vector2(600, 500), true, 9.0, 600) as Array).is_empty(), "any phone-width window under 12 px fails")
-	# SE: the 760 px canvas at 0.88 puts 12 px at 10.5 pt, which passes; a 1:1 667 px canvas fails.
+	# SE: the 804 px canvas at 0.83 puts 12 px at 10 pt, which passes; a 1:1 667 px canvas fails.
 	var se_floor: float = LAB.type_floor_pt(Vector2(667, 375))
-	_expect(absf(se_floor - 12.0 * 667.0 / 760.0) < 0.01, "SE type floor is 12 px on the 760 px canvas (%.2f pt)" % se_floor)
-	_expect((LAB.gate_failures(Vector2(667, 375), true, se_floor, 760) as Array).is_empty(), "667x375 with the fit passes")
+	_expect(absf(se_floor - 12.0 * 667.0 / 804.0) < 0.01, "SE type floor is 12 px on the 804 px canvas (%.2f pt)" % se_floor)
+	_expect((LAB.gate_failures(Vector2(667, 375), true, se_floor, 804) as Array).is_empty(), "667x375 with the fit passes")
 	_expect((LAB.gate_failures(Vector2(667, 375), true, 12.0, 667) as Array).size() == 1, "667x375 on a 1:1 canvas fails")
-	_expect((LAB.gate_failures(Vector2(667, 375), true, 9.0, 760) as Array).size() == 1, "667x375 with 9 pt text fails")
+	_expect((LAB.gate_failures(Vector2(667, 375), true, 9.0, 804) as Array).size() == 1, "667x375 with 9 pt text fails")
+	_expect((LAB.gate_failures(Vector2(667, 375), true, se_floor, 760) as Array).size() == 1, "667x375 on a 760 px canvas fails")
 	_expect((LAB.gate_failures(Vector2(1600, 900), false, 13.0, 1600) as Array).is_empty(), "1600x900 desktop passes")
 	_expect(not (LAB.gate_failures(Vector2(1600, 900), false, 13.0, 1947) as Array).is_empty(), "1600x900 with a wrong canvas fails")
 	print("[t_ui] gate: 390x844 without fit -> %d failures; SE floor %.1f pt" % [broken.size(), se_floor])

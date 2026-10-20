@@ -8,12 +8,15 @@ extends RefCounted
 const DESIGN := Vector2i(1600, 900)
 ## Same threshold as UiTokens.is_phone / is_narrow: narrower than this in points is a phone.
 const PHONE_MAX_PT := 720.0
-## Narrowest landscape phone canvas. The protected HUD's landscape (desktop) rows need about 740 px:
-## vitals 300 + quest card 240 + minimap 154 + gaps. A narrower phone (iPhone SE 667x375, 640x360
-## Androids) gets this width at a slightly smaller scale (12 px = 10.5 pt at 667) instead of a 1:1
-## canvas, where is_phone would send the HUD and bag into their portrait rows.
-## ASSUMPTION: 10.5 pt smallest text on the narrowest phones beats overlapping HUD blocks.
-const LANDSCAPE_MIN_W := 760.0
+## Narrowest usable (inside the safe area) landscape phone canvas. The protected screens' landscape
+## (desktop) rows need it: the bag's three columns about 804 px, the HUD's vitals + quest card +
+## minimap about 740. A narrower phone (iPhone SE 667x375, 640x360 Androids, a notched iPhone once
+## its side insets are off) gets this width at a smaller scale (12 px = 10 pt on an SE) instead of a
+## 1:1 canvas, where is_phone would send the HUD and bag into their portrait rows, or a 760 px one,
+## where the bag's equipment column and close button ran off the right edge.
+## ASSUMPTION: 10 pt smallest text on the narrowest phones beats clipped or overlapping screens;
+## lower this once W2-HUD / W2-SCREENS make those rows narrower.
+const LANDSCAPE_MIN_W := 804.0
 ## Portrait windows narrower than this (iPad mini 768, iPad Air 820) are tablets.
 const TABLET_MAX_PT := 1100.0
 const TABLET_W := 1000
@@ -39,12 +42,14 @@ static func label() -> String:
 ## (narrow when portrait, short when landscape, the shipped orientation); landscape phones narrower
 ## than LANDSCAPE_MIN_W are scaled up to it. Portrait tablets get a TABLET_W-wide canvas, so desktop
 ## layouts keep their columns at ~0.8 scale instead of 0.48. Everything else keeps 1600x900.
-static func logical_size(window_px: Vector2i, device_scale: float) -> Vector2i:
+## `inset_px`: left + right safe-area insets in window px (a notch in landscape).
+static func logical_size(window_px: Vector2i, device_scale: float, inset_px: float = 0.0) -> Vector2i:
 	var pts := Vector2(window_px) / maxf(1.0, device_scale)
 	if pts.x <= 0.0 or pts.y <= 0.0:
 		return DESIGN
 	if is_phone_landscape(pts):
-		var k := maxf(1.0, LANDSCAPE_MIN_W / pts.x)
+		var usable := maxf(1.0, pts.x - inset_px / maxf(1.0, device_scale))
+		var k := maxf(1.0, LANDSCAPE_MIN_W / usable)
 		return Vector2i(roundi(pts.x * k), roundi(pts.y * k))
 	if pts.x < PHONE_MAX_PT:
 		return Vector2i(roundi(pts.x), roundi(pts.y))
@@ -68,7 +73,16 @@ static func window_points(win: Window) -> Vector2:
 ## The canvas fit() gives this window, whether or not install() ran: screens that must look right
 ## before the boot hook lands lay out for this and scale by (actual canvas / this).
 static func fitted_size(win: Window) -> Vector2:
-	return Vector2(logical_size(win.size, device_scale())) if win else Vector2(DESIGN)
+	return Vector2(logical_size(win.size, device_scale(), side_inset_px())) if win else Vector2(DESIGN)
+
+## Left + right safe-area insets of the window, in window px; 0 off mobile (desktop and browser
+## windows report the screen's work area, not a notch).
+static func side_inset_px() -> float:
+	if not OS.has_feature("mobile"):
+		return 0.0
+	var safe := DisplayServer.get_display_safe_area()
+	var w := float(DisplayServer.window_get_size().x)
+	return maxf(0.0, float(safe.position.x)) + maxf(0.0, w - float(safe.end.x))
 
 ## A phone held sideways: short (under UiTokens.SHORT_MAX pt) and wide (>= 1.75:1), the shipped handheld orientation
 ## (project.godot sensor landscape). logical_size() gives it a 1:1 canvas.
@@ -83,7 +97,7 @@ static func is_phone_window(pts: Vector2) -> bool:
 static func fit(win: Window) -> void:
 	if win == null:
 		return
-	var want := logical_size(win.size, device_scale())
+	var want := logical_size(win.size, device_scale(), side_inset_px())
 	if win.content_scale_size != want:
 		win.content_scale_size = want
 		print("[display] window %s -> logical %s" % [win.size, want])
