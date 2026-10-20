@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "action". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+<path d="M32 8 Q37.28 26.72 56 32 Q37.28 37.28 32 56 Q26.72 37.28 8 32 Q26.72 26.72 32 8 Z"/>
+<path d="M51 6.5 Q52.43 11.57 57.5 13 Q52.43 14.43 51 19.5 Q49.57 14.43 44.5 13 Q49.57 11.57 51 6.5 Z"/>
+</g>
+</svg>

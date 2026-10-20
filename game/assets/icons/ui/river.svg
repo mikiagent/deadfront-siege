@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "river". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+<path d="M7 19 C13 13 19 13 25 19 C31 25 37 25 43 19 C49 13 55 14 57 16 M7 32 C13 26 19 26 25 32 C31 38 37 38 43 32 C49 26 55 27 57 29 M7 45 C13 39 19 39 25 45 C31 51 37 51 43 45 C49 39 55 40 57 42"/>
+</g>
+</svg>
