@@ -8,14 +8,17 @@ static func scaled_chance(base: float, tier_idx: int, skill: int, per_tier: floa
 	var mult := 1.0 + per_tier * float(maxi(0, tier_idx)) + per_skill * float(maxi(0, skill))
 	return clampf(base * mult, 0.0, cap)
 
-## Rare extras for one gathered unit. tool_tier &"" = bare hands.
+## Rare extras for one gathered unit on a node of `climate` (its island's). tool_tier &"" = bare hands.
 ## Returns item ids (each one unit) that hit their odds.
-static func roll_gather_rares(family: String, role: String, tool_tier: StringName, skill: int, rng: RandomNumberGenerator, luck: float = 1.0) -> Array[StringName]:
+static func roll_gather_rares(family: String, role: String, climate: String, tool_tier: StringName, skill: int, rng: RandomNumberGenerator, luck: float = 1.0) -> Array[StringName]:
 	var cfg := LootTables.gather_cfg()
 	var tier_idx := ProgressionScaling.tier_index(tool_tier) if tool_tier != &"" else -1
 	var out: Array[StringName] = []
 	for row_v in LootTables.gather_rare_rows(family, role):
 		var row := row_v as Dictionary
+		# A climate's own materials only (world-design s4): no flint or copper off the home grassland.
+		if not (climate in (row.get("climates", []) as Array)):
+			continue
 		var need := StringName(str(row.get("min_tool_tier", "")))
 		if need != &"" and (tier_idx < 0 or tier_idx < ProgressionScaling.tier_index(need)):
 			continue

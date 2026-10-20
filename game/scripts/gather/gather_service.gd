@@ -61,7 +61,7 @@ static func after_unit(p: Player, node: HarvestNode, item_id: StringName, gained
 	var landed: Array[StringName] = []
 	# Same downrank as the main yield (rules.json gathering_downrank, floor 5).
 	var level := mini(int(node.yield_attributes.get("level", 1)), maxi(_skill(p), 5))
-	for id in LootRoller.roll_gather_rares(node.family, role_of(node), tier, _skill(p), rng, luck):
+	for id in LootRoller.roll_gather_rares(node.family, role_of(node), str(node.yield_attributes.get("climate", "")), tier, _skill(p), rng, luck):
 		# A find only rolls into a free slot: never mint an item the bag would drop (sec-loss-08).
 		if Data.item(id) == null or p.inventory.used_slots() >= p.inventory.slot_count:
 			continue

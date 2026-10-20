@@ -1,6 +1,6 @@
 extends Node3D
 ## W2-GATHER play session on the home island: the survivor gathers fibre, branches and stone
-## bare-handed, then with stone tools (faster, logs unlocked), finds a rare, butchers a raptor
+## bare-handed, then with stone tools (faster, logs unlocked), finds a rare berry seed, butchers a raptor
 ## by knife, and watches a node deplete and regrow. Every unit goes through PlayerActions.
 ## GAUNTLET gather rules checked on every pass: walked into reach (no teleport), the progress
 ## ring above the node, movement cancels, starter-island finds are level 1.
@@ -72,21 +72,21 @@ func _ready() -> void:
 	# A pet beside the survivor, so the rare shot shows its plate next to the popups.
 	_summon_pet()
 
-	# 3. Rare find at the real data odds. The seed is picked so the very next stone unit rolls
-	# a find (odds themselves are measured in t_gather: 0.0485 vs 0.05 over 20 000 rolls).
-	var seed := _lucky_seed(rock)
-	GatherService.rng.seed = seed
-	print("[gather_lab] rare seed %d" % seed)
-	var flint_before := _p.inventory.count_of(&"flint")
-	await _gather(rock, &"stone", 1, "rare", 0.35)
-	_check(_p.inventory.count_of(&"flint") > flint_before, "a rare flint landed in the bag")
-	# The touch flow: tap the rock, pick Stone on the radial; the picked hex shows the progress.
-	GatherService.rng.seed = _lucky_seed(rock)
-	flint_before = _p.inventory.count_of(&"flint")
-	await _gather(rock, &"stone", 1, "rare_radial", 0.35, true)
-	_check(_p.inventory.count_of(&"flint") > flint_before, "a rare flint landed through the radial")
+	# 3. Rare find at the real data odds. Home grassland finds are its own materials (world-design s4:
+	# no flint or copper here), so the bush gives a berry seed. The seed is picked so the very next
+	# fibre unit rolls a find (the odds themselves are measured in t_gather).
+	GatherService.rng.seed = _lucky_seed(bush, &"berry_seed")
+	var seeds_before := _p.inventory.count_of(&"berry_seed")
+	await _gather(bush, &"fibre_stalk", 1, "rare", 0.35)
+	_check(_p.inventory.count_of(&"berry_seed") > seeds_before, "a rare berry seed landed in the bag")
+	# The touch flow: tap the bush, pick Fibre on the radial; the picked hex shows the progress.
+	GatherService.rng.seed = _lucky_seed(bush, &"berry_seed")
+	seeds_before = _p.inventory.count_of(&"berry_seed")
+	await _gather(bush, &"fibre_stalk", 1, "rare_radial", 0.35, true)
+	_check(_p.inventory.count_of(&"berry_seed") > seeds_before, "a rare berry seed landed through the radial")
+	_check(_p.inventory.count_of(&"flint") == 0 and _p.inventory.count_of(&"copper_ore") == 0, "no flint or copper off home-grassland rock")
 	for st in _p.inventory.slots:
-		if st and (st.def_id == &"flint" or st.def_id == &"stone"):
+		if st and st.def_id in [&"berry_seed", &"fibre_stalk", &"branch", &"stone", &"wood_log"]:
 			_check(st.level == 1, "starter-island %s is level 1 (got %d)" % [st.def_id, st.level])
 
 	# 4. Butcher a raptor with the stone knife: meat, hide, bone scale with the knife.
@@ -232,15 +232,15 @@ func _summon_pet() -> void:
 func _now() -> float:
 	return float(Time.get_ticks_msec()) * 0.001
 
-## First seed whose first stone-unit rare roll lands a find with the held pick.
-func _lucky_seed(rock: HarvestNode) -> int:
-	var tool := GatherService.effective_tool(_p.inventory, rock)
+## First seed whose first rare roll on this node lands `item` with the held tool.
+func _lucky_seed(node: HarvestNode, item: StringName) -> int:
+	var tool := GatherService.effective_tool(_p.inventory, node)
 	var tier: StringName = tool.material_tier() if tool else &""
 	var skill := maxi(1, _p.skills.level_of("gathering")) if _p.skills else 1
 	var probe := RandomNumberGenerator.new()
 	for s in range(1, 5000):
 		probe.seed = s
-		if LootRoller.roll_gather_rares(rock.family, "rock", tier, skill, probe).has(&"flint"):
+		if LootRoller.roll_gather_rares(node.family, GatherService.role_of(node), str(node.yield_attributes.get("climate", "")), tier, skill, probe).has(item):
 			return s
 	return 1
 

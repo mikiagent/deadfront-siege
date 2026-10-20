@@ -71,6 +71,8 @@ func _test_data_ids() -> void:
 			for row in cfg[group][k]:
 				if data.item(StringName(str(row["item"]))) == null:
 					missing.append(str(row["item"]))
+				var cl: Array = row.get("climates", [])
+				_expect(not cl.is_empty() and cl.all(func(c): return data.world_climates.has(c)), "%s/%s lists real climates (%s)" % [k, row["item"], cl])
 	for k in LT.butcher_cfg().get("part_min_tier", {}):
 		if data.item(StringName(str(k))) == null:
 			missing.append(str(k))
@@ -102,12 +104,12 @@ func _test_tools() -> void:
 		n.free()
 	_finished += 1
 
-func _rate(family: String, role: String, tier: StringName, item: StringName, n: int, seed: int) -> float:
+func _rate(family: String, role: String, tier: StringName, item: StringName, n: int, seed: int, climate := "temperate") -> float:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var hits := 0
 	for i in n:
-		if LR.roll_gather_rares(family, role, tier, 1, rng).has(item):
+		if LR.roll_gather_rares(family, role, climate, tier, 1, rng).has(item):
 			hits += 1
 	return float(hits) / float(n)
 
@@ -117,17 +119,23 @@ func _test_gather_rares() -> void:
 	print("[t_gather] flint per stone unit: bare %.4f obsidian pick %.4f (data 0.05)" % [bare, obs])
 	_expect(absf(bare - 0.05) < 0.008, "bare-hand flint find rate matches the 0.05 data odds (got %.4f)" % bare)
 	_expect(obs > bare * 1.3, "a better pick raises the find rate")
-	_expect(_rate("Rock", "rock", &"flint", &"copper_ore", 5000, 3) == 0.0, "copper_ore never drops below its obsidian tool gate")
-	_expect(_rate("Rock", "rock", &"obsidian", &"copper_ore", 20000, 3) > 0.0, "copper_ore drops with an obsidian pick")
-	var a: Array = LR.roll_gather_rares("PineTree", "tree", &"", 1, _seeded(99))
-	var b: Array = LR.roll_gather_rares("PineTree", "tree", &"", 1, _seeded(99))
+	_expect(_rate("Rock", "rock", &"flint", &"copper_ore", 5000, 3, "desert") == 0.0, "copper_ore never drops below its obsidian tool gate")
+	_expect(_rate("Rock", "rock", &"obsidian", &"copper_ore", 20000, 3, "desert") > 0.0, "copper_ore drops with an obsidian pick")
+	# world-design s4: each climate gives its own materials. Home grassland rock: no flint, no copper.
+	for item in [&"flint", &"copper_ore"]:
+		var home := _rate("Rock", "rock", &"obsidian", item, 20000, 11, "grassland")
+		_expect(home == 0.0, "a home-grassland rock never yields %s (rate %.4f)" % [item, home])
+	_expect(_rate("Rock", "rock", &"obsidian", &"copper_ore", 20000, 3, "temperate") == 0.0, "copper_ore (desert) never rolls on a temperate rock")
+	_expect(_rate("Bush", "bush", &"", &"berry_seed", 20000, 5, "grassland") > 0.0, "the home grassland still has a find: berry_seed on a bush")
+	var a: Array = LR.roll_gather_rares("PineTree", "tree", "tundra", &"", 1, _seeded(99))
+	var b: Array = LR.roll_gather_rares("PineTree", "tree", "tundra", &"", 1, _seeded(99))
 	_expect(a == b, "rare rolls are deterministic per seed")
 	# Spec 12 s1: no rares purely for reaching a high level. Same tool, Lv60 vs Lv1, same odds.
 	var hi := _seeded(5)
 	var lo := _seeded(5)
 	var same := true
 	for i in 2000:
-		if LR.roll_gather_rares("Rock", "rock", &"stone", 60, hi) != LR.roll_gather_rares("Rock", "rock", &"stone", 1, lo):
+		if LR.roll_gather_rares("Rock", "rock", "temperate", &"stone", 60, hi) != LR.roll_gather_rares("Rock", "rock", "temperate", &"stone", 1, lo):
 			same = false
 	_expect(same, "Gathering level alone does not raise rare find odds")
 	var bc: Dictionary = LT.butcher_cfg()
