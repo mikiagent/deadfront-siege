@@ -3,17 +3,22 @@ extends RefCounted
 ## The one path between a server-owned character (CharacterStore, contract v2 section 0) and the
 ## economy (EconStore). Assets move only through the character store's own ops:
 ## act.deposit hands an asset to the vault, char.receive takes back the exact body it exported,
-## char.settled drops an export the books split or consumed, char.wallet mirrors the ledger.
-## The two stores journal separately, so recover() finishes or undoes a move a crash cut in
-## half: a deposit is marked in the economy first (bridge.begin), and a withdrawal runs
-## char.receive first, so a held export the character store no longer lists was received.
-## Single writer: call apply() on the server's main thread, one request at a time.
+## char.grant takes back units the books split off an export, char.settled drops an export the
+## books split or consumed, char.wallet mirrors the ledger.
+## The two stores journal separately. A deposit or a grant is marked in the economy first
+## (bridge.begin: account, rid, uid), and recover() finishes or undoes exactly that move; a
+## whole-asset withdrawal runs char.receive first, so a held export the character store no
+## longer lists was received. recover() runs at boot and right after any move that could not
+## finish; until it succeeds the bridge refuses every op, so nothing in two places is traded.
+## Single writer: call client() / apply() on the server's main thread, one request at a time.
 
-## What the transport may relay from a client; everything else is server-only.
+## Economy ops the transport may relay from a client; client() adds the character intents a
+## client may send (IntentHandlers.CLIENT_OPS). Everything else is server-only.
 const CLIENT_OPS := MarketEngine.READ + MarketEngine.WRITE + ["vault.deposit", "vault.withdraw"]
 
 var econ: EconStore
 var chars: CharacterStore
+var broken := "" ## a move the stores could not finish; every op first retries recover()
 
 func _init(p_econ: EconStore, p_chars: CharacterStore) -> void:
 	econ = p_econ
@@ -33,9 +38,34 @@ func hello(account: int, name: String, ts: int) -> Dictionary:
 	_mirror(account, ts)
 	return e
 
-## Client ops (CLIENT_OPS) and the server's own (sys.tick, account 0). Responses are the
-## economy's shapes; vault.deposit / vault.withdraw answer like vault.deposit_* / withdraw_*.
+## The transport's one entry for a client frame: economy ops go to apply(), the intents a client
+## may send go to the character store, and anything else (act.deposit, char.receive, char.grant,
+## bridge.*, objective.claim, ...) is refused and logged, never relayed.
+func client(op: String, account: int, args: Dictionary, ts: int) -> Dictionary:
+	if op in CLIENT_OPS:
+		return apply(op, account, args, ts)
+	if op not in IntentHandlers.CLIENT_OPS:
+		push_warning("[econ] refused server-only op %s from account %d" % [op, account])
+		return EconArgs.no("unauthorized", "%s is server-only" % op)
+	if broken != "" and recover(ts) != "":
+		return _stalled()
+	return chars.apply(op, account, args, ts)
+
+## Client ops (CLIENT_OPS) and the server's own: sys.tick as account 0, objective.claim when the
+## server observed the objective. Responses are the economy's shapes; vault.deposit /
+## vault.withdraw answer like vault.deposit_* / withdraw_*.
 func apply(op: String, account: int, args: Dictionary, ts: int) -> Dictionary:
+	if broken != "" and recover(ts) != "":
+		return _stalled()
+	var res := _route(op, account, args, ts)
+	if broken != "":
+		recover(ts) # finish the cut move now, not at the next boot
+	return res
+
+func _stalled() -> Dictionary:
+	return EconArgs.no("server_error", "the vault bridge is finishing a move: %s" % broken)
+
+func _route(op: String, account: int, args: Dictionary, ts: int) -> Dictionary:
 	if op == "vault.deposit" or op == "vault.withdraw":
 		var cached := _repeat(op, account, args, ts)
 		if not cached.is_empty():
@@ -72,76 +102,130 @@ func _deposit(me: int, args: Dictionary, ts: int) -> Dictionary:
 	for k: String in args:
 		if k not in ["rid", "bag_slot", "count", "pet_uid"]:
 			return EconArgs.no("invalid_asset", "deposits take a bag slot or a pet uid of your character, not %s" % k)
+	var a := EconArgs.new(args)
 	var take := {}
 	var preview: Variant = null
-	var kind := "item"
-	if args.has("pet_uid"):
-		kind = "pet"
-		take = {"pet_uid": args.pet_uid}
-		preview = ch.d.pets.get(args.pet_uid) if args.pet_uid is String else null
+	var uid := "" ## the uid act.deposit will export, so recover() claims that asset and no other
+	var kind := "pet" if args.has("pet_uid") else "item"
+	if kind == "pet":
+		uid = a.text("pet_uid", 1, 64)
+		if a.err != "":
+			return a.fail()
+		take = {"pet_uid": uid}
+		preview = ch.d.pets.get(uid)
 	else:
-		var slot: Variant = EconArgs.as_int(args.get("bag_slot"))
-		var n: Variant = EconArgs.as_int(args.get("count", 1000000))
 		var bag: Array = ch.d.bag
-		var row: Variant = bag[int(slot)] if slot != null and int(slot) >= 0 and int(slot) < bag.size() else null
+		var slot := a.integer("bag_slot", 0, bag.size() - 1)
+		var n := a.integer("count", 1, 1000000, 1000000)
+		if a.err != "":
+			return a.fail()
 		take = {"bag_slot": slot, "count": n}
-		if row is Dictionary and str(row.id) != str(CharacterState.LOCK) and n != null and int(n) >= 1:
+		var row: Variant = bag[slot]
+		if row is Dictionary and str(row.id) != str(CharacterState.LOCK):
 			preview = (row as Dictionary).duplicate(true)
-			preview.count = mini(int(n), int(row.count))
+			preview.count = mini(n, int(row.count))
+			# A whole stack leaves under its own uid; a part gets the first uid of the act.deposit op.
+			uid = str(row.get("uid", "")) if n >= int(row.count) else Provenance.item_uid(int(chars.s.seq) + 1, 0)
 	if not preview is Dictionary:
-		return EconArgs.no("not_found", "no such pet, bag slot or count on your character")
+		return EconArgs.no("not_found", "no such pet or bag slot on your character")
 	var no := econ.engine.deposit_refusal(me, kind, preview)
 	if not no.is_empty():
 		return no
-	var begun := econ.apply("bridge.begin", me, {"rid": args.rid}, ts)
+	var begun := econ.apply("bridge.begin", me, {"rid": args.rid, "uid": uid, "op": "deposit"}, ts)
 	if not begun.ok:
 		return begun
 	var out := chars.apply("act.deposit", me, take, ts)
 	if not out.ok:
-		econ.apply("bridge.end", Ledger.SETTLERS, {}, ts)
+		_end(ts)
 		return out
 	return _into_vault(me, str(args.rid), out.r.asset, ts)
 
-## Second half of a deposit (also boot recovery): the exported asset into the vault, or back
-## to the character when the vault refuses it after all.
+## Second half of a deposit (also recovery): the exported asset into the vault, or back to the
+## character when the vault refuses it after all. If both refuse, the mark stays for recover().
 func _into_vault(me: int, rid: String, asset: Dictionary, ts: int) -> Dictionary:
 	var pet := str(asset.uid).begins_with("p")
 	var res := econ.apply("vault.deposit_pet" if pet else "vault.deposit_item", me, {"rid": rid, "pet_dict" if pet else "slot_dict": asset}, ts)
 	if not res.ok:
 		var back := chars.apply("char.receive", me, {"asset": asset}, ts)
 		if not back.ok:
-			push_error("[econ] %s refused by the vault and by char.receive (%s); recover() retries at boot" % [asset.uid, back.get("err", "")])
+			broken = "%s is in no vault (the vault said %s, char.receive %s)" % [asset.uid, res.get("err", ""), back.get("err", "")]
 			return res
-		econ.apply("bridge.end", Ledger.SETTLERS, {}, ts)
+		_end(ts)
 	_after(me, ts)
 	return res
 
-## vault.withdraw {rid, uid}: a whole vault asset back to the account's server character.
-## char.receive takes only bodies the character store exported, byte for byte; a part of a
-## split stack stays in the vault until the store has an economy-mint op (see the report).
-## char.receive runs first: a crash before the vault lets go is finished by recover().
+## vault.withdraw {rid, uid, count?}: vault units back to the account's server character.
+## The whole of an exported asset goes through char.receive (the exact body, its own uid),
+## which runs first: a crash before the vault lets go is finished by recover(). Anything else
+## (a stack the books split, a remainder, part of a stack) goes through char.grant.
 func _withdraw(me: int, args: Dictionary, ts: int) -> Dictionary:
 	if chars.character(me) == null:
 		return EconArgs.no("unauthorized", "account %d has no server character" % me)
-	var uid: Variant = args.get("uid")
+	var a := EconArgs.new(args)
+	var uid := a.text("uid", 2, 64)
+	var want := a.integer("count", 1, 1000000, 0) ## 0: the whole stack
+	if a.err != "":
+		return a.fail()
 	var acct := _books().acct(me)
-	var pet: bool = uid is String and acct.vault_pets.has(uid)
-	if not (uid is String and (pet or acct.vault_items.has(uid))):
-		return EconArgs.no("not_found", "%s is not in your vault" % str(uid))
-	if not _books().s.src.has(uid):
-		return EconArgs.no("not_withdrawable", "%s was split or bought in part; it stays in the vault until the server can mint it back" % uid)
-	var body: Dictionary = acct.vault_pets[uid] if pet else acct.vault_items[uid]
-	var got := chars.apply("char.receive", me, {"asset": body}, ts)
-	if not got.ok:
-		return got
-	return _out_of_vault(me, str(args.rid), str(uid), pet, ts)
+	var pet: bool = acct.vault_pets.has(uid)
+	if not (pet or acct.vault_items.has(uid)):
+		return EconArgs.no("not_found", "%s is not in your vault" % uid)
+	var held := 1 if pet else int(acct.vault_items[uid].count)
+	var n := want if want > 0 else held
+	if n > held:
+		return EconArgs.no("insufficient_items", "%s holds %d" % [uid, held])
+	if _books().s.src.has(uid) and n == held:
+		var got := chars.apply("char.receive", me, {"asset": acct.vault_pets[uid] if pet else acct.vault_items[uid]}, ts)
+		if not got.ok:
+			return got
+		return _out_of_vault(me, str(args.rid), uid, pet, ts)
+	if pet: # pets are never split, so every vault pet is an export
+		return EconArgs.no("not_withdrawable", "%s is not a pet this server exported" % uid)
+	return _grant(me, str(args.rid), uid, n, ts)
 
 func _out_of_vault(me: int, rid: String, uid: String, pet: bool, ts: int) -> Dictionary:
 	var res := econ.apply("vault.withdraw_pet" if pet else "vault.withdraw_item", me, {"rid": rid, "uid": uid}, ts)
 	if not res.ok:
-		push_error("[econ] %s reached the character but not out of the vault (%s); recover() retries at boot" % [uid, res.get("err", "")])
+		# The character holds it now; nobody may list or sell the vault copy until this finishes.
+		broken = "%s reached the character but is still in the vault (%s)" % [uid, res.get("err", "")]
 	_after(me, ts)
 	return res
+
+## Units the books made (a split part, a remainder) or part of a stack: the vault lets go of
+## exactly those units, then char.grant gives them to the character. The mark comes first and
+## the units stay in the rid's cached response, so recover() can finish a grant a crash cut.
+func _grant(me: int, rid: String, uid: String, n: int, ts: int) -> Dictionary:
+	var part: Dictionary = _books().acct(me).vault_items[uid].duplicate(true)
+	part.count = n
+	if chars.character(me).inventory().add(ItemStack.from_dict(Provenance.strip(part))) > 0:
+		return EconArgs.no("bag_full", "no room in the bag for %d %s" % [n, part.id])
+	var begun := econ.apply("bridge.begin", me, {"rid": rid, "uid": uid, "op": "grant"}, ts)
+	if not begun.ok:
+		return begun
+	var res := econ.apply("vault.withdraw_item", me, {"rid": rid, "uid": uid, "count": n}, ts)
+	if not res.ok:
+		_end(ts)
+		return res
+	_grant_out(me, rid, ts)
+	_after(me, ts)
+	return res
+
+## Second half of a grant (also recovery): the units vault.withdraw_item let go of under `rid`
+## reach the character exactly once (char.grant's own rid is that withdrawal's seq).
+func _grant_out(me: int, rid: String, ts: int) -> void:
+	var hit: Array = _books().acct(me).rid_cache.get(rid, [])
+	if hit.size() > 2 and str(hit[0]) == "vault.withdraw_item":
+		var units: Dictionary = hit[2].r.item
+		var got := chars.apply("char.grant", me, {"asset": units, "rid": "g%d" % int(hit[1])}, ts)
+		if not got.ok:
+			broken = "%d %s left the vault under %s but char.grant refused them (%s)" % [int(units.count), units.id, rid, got.get("err", "")]
+			return
+	_end(ts) # granted, or the vault never let go
+
+func _end(ts: int) -> void:
+	var res := econ.apply("bridge.end", Ledger.SETTLERS, {}, ts)
+	if not res.ok:
+		broken = "bridge.end failed (%s)" % res.get("err", "")
 
 ## After every economy op: retired exports are settled in the character store, and every
 ## wallet the op moved is mirrored to its character.
@@ -168,21 +252,23 @@ func _mirror(id: int, ts: int) -> void:
 	if id >= 1 and chars.character(id) != null and not _books().acct(id).is_empty():
 		chars.apply("char.wallet", id, {"wallet": int(_books().acct(id).wallet)}, ts)
 
-## Boot, after both stores open(): finishes or undoes the move a crash cut in half, settles
-## retired exports, and mirrors every wallet. Returns "" or why the books need a person.
+## Boot, and any time a move could not finish: finishes or undoes the one marked move (for its
+## account and uid only), takes a received export out of the vault, settles retired exports,
+## mirrors every wallet, and reports any export in no vault (it left a character outside this
+## bridge, so no owner is guessed). Returns "" or why the books need a person.
 func recover(ts: int) -> String:
-	var why := ""
+	broken = ""
 	var books := _books()
 	var exported: Dictionary = chars.s.exported_assets
 	var f: Dictionary = books.s.inflight.duplicate()
 	if not f.is_empty():
-		# act.deposit ran iff an export is neither in the books nor retired; one op runs at a time.
-		var orphans := exported.keys().filter(func (u: String) -> bool: return not books.s.src.has(u) and not books.s.retired.has(u))
-		if orphans.size() == 1:
-			_into_vault(int(f.account), str(f.rid), JSON.parse_string(exported[orphans[0]]), ts)
-		elif orphans.size() > 1:
-			why = "%d exports are in no vault (%s); act.deposit must only run through VaultBridge" % [orphans.size(), ", ".join(orphans)]
-		econ.apply("bridge.end", Ledger.SETTLERS, {}, ts)
+		var uid := str(f.get("uid", ""))
+		if str(f.get("op", "")) == "grant":
+			_grant_out(int(f.account), str(f.rid), ts)
+		elif exported.has(uid) and not books.s.src.has(uid) and not books.s.retired.has(uid):
+			_into_vault(int(f.account), str(f.rid), JSON.parse_string(exported[uid]), ts)
+		else:
+			_end(ts) # act.deposit never ran, or its asset already came back
 	# A held export the character store no longer lists came back through char.receive.
 	for uid: String in books.s.src.keys():
 		if exported.has(uid):
@@ -195,4 +281,8 @@ func recover(ts: int) -> String:
 	_settle(0, ts)
 	for key: String in chars.s.chars:
 		_mirror(int(key), ts)
-	return why
+	var marked := str(books.s.inflight.get("uid", ""))
+	var lost := exported.keys().filter(func (u: String) -> bool: return u != marked and not books.s.src.has(u) and not books.s.retired.has(u))
+	if broken == "" and not lost.is_empty():
+		broken = "%d exports are in no vault (%s); only VaultBridge may run act.deposit" % [lost.size(), ", ".join(lost)]
+	return broken

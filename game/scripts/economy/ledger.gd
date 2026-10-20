@@ -39,6 +39,7 @@ func acct(id: int) -> Dictionary:
 func new_account(id: int, name: String) -> Dictionary:
 	var a := {
 		"id": id, "name": name, "created": now, "wallet": 0, "vault_items": {}, "vault_pets": {},
+		"bound": 0, ## part of `wallet` that never trades (start and objective rewards, contract v2 0.6)
 		"claimed_objectives": [], "inbox": [], "inbox_dropped": 0,
 		"rid_cache": {}, "rid_last": 0, ## rid -> [op, seq] or [op, seq, response] (MarketEngine.KEEP_BODY)
 		"deposits": {}, "trades": [], "open_listings": 0, "open_orders": 0,
@@ -54,6 +55,14 @@ func new_id(prefix: String) -> String:
 
 static func id_num(id: String) -> int:
 	return int(id.substr(1))
+
+## Bound T-stones pay wallet.spend only; `get` keeps snapshots from before the field readable.
+func bound(id: int) -> int:
+	return int(acct(id).get("bound", 0))
+
+## What a market op may spend: the wallet minus its bound part.
+func tradable(id: int) -> int:
+	return int(acct(id).wallet) - bound(id)
 
 func grant_start(id: int, amount: int) -> void:
 	acct(id).wallet += amount

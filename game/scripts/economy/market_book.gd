@@ -67,8 +67,8 @@ func buy(me: int, a: EconArgs) -> Dictionary:
 	if L.vault_full(me, lst.type):
 		return _full()
 	var total := int(lst.unit_price) * count
-	if int(L.acct(me).wallet) < total:
-		return EconArgs.no("insufficient_funds", "needs %d T-stones" % total)
+	if L.tradable(me) < total:
+		return EconArgs.no("insufficient_funds", "needs %d tradable T-stones" % total)
 	L.debit(me, total)
 	var trade := _pay_seller(lst, me, count, total, "fixed")
 	var part := _release(lst, count)
@@ -104,8 +104,8 @@ func bid(me: int, a: EconArgs) -> Dictionary:
 	if int(lst.buyout) > 0 and amount >= int(lst.buyout):
 		return EconArgs.no("bad_request", "bid reaches the buyout price; use buyout")
 	var held := current if int(lst.bidder) == me else 0
-	if int(L.acct(me).wallet) + held < amount:
-		return EconArgs.no("insufficient_funds", "needs %d T-stones" % amount)
+	if L.tradable(me) + held < amount:
+		return EconArgs.no("insufficient_funds", "needs %d tradable T-stones" % amount)
 	_release_bid(lst, me, amount)
 	L.debit(me, amount)
 	lst.bid = amount
@@ -135,8 +135,8 @@ func buyout(me: int, a: EconArgs) -> Dictionary:
 		return _full()
 	var price := int(lst.buyout)
 	var held := int(lst.bid) if int(lst.bidder) == me else 0
-	if int(L.acct(me).wallet) + held < price:
-		return EconArgs.no("insufficient_funds", "needs %d T-stones" % price)
+	if L.tradable(me) + held < price:
+		return EconArgs.no("insufficient_funds", "needs %d tradable T-stones" % price)
 	_release_bid(lst, me, price)
 	L.debit(me, price)
 	lst.bid = price
@@ -251,8 +251,8 @@ func _can_open(me: int, fee: int) -> Dictionary:
 	var acct := L.acct(me)
 	if int(acct.open_listings) >= L.rules.num("max_open_listings"):
 		return EconArgs.no("limit_reached", "at most %d open listings" % L.rules.num("max_open_listings"))
-	if int(acct.wallet) < fee:
-		return EconArgs.no("insufficient_funds", "listing fee is %d T-stones" % fee)
+	if L.tradable(me) < fee:
+		return EconArgs.no("insufficient_funds", "listing fee is %d tradable T-stones" % fee)
 	return {}
 
 func _open(me: int, kind: String, pick: Dictionary, fee: int, hours: int, extra: Dictionary) -> Dictionary:

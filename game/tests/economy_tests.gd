@@ -18,7 +18,7 @@ var _seq := 0 ## character-store seq for the provenance stamps test assets carry
 func run() -> Array[String]:
 	cat = EconCatalog.from_data()
 	# Each test returns true on its last line; a script error aborts it and returns null.
-	for test: Callable in [_test_accounts_wallet_objectives, _test_item_deposits, _test_attribute_sources, _test_pet_deposits, _test_withdraw, _test_fixed_listings, _test_auctions, _test_anti_snipe_and_settlement, _test_orders, _test_expiry, _test_search, _test_history_and_reference, _test_reference_poisoning, _test_settlers, _test_idempotency, _test_rid_bodies, _test_vault_caps, _test_clock, _test_market_views, _test_journal_replay, _test_torn_newline, _test_snapshots, _test_snapshot_failures, _test_fault_reload, _test_fuzz, _test_search_perf]:
+	for test: Callable in [_test_accounts_wallet_objectives, _test_bound_wallet_and_trade_lock, _test_item_deposits, _test_attribute_sources, _test_pet_deposits, _test_withdraw, _test_fixed_listings, _test_auctions, _test_anti_snipe_and_settlement, _test_orders, _test_expiry, _test_search, _test_history_and_reference, _test_reference_poisoning, _test_settlers, _test_idempotency, _test_rid_bodies, _test_vault_caps, _test_clock, _test_market_views, _test_journal_replay, _test_torn_newline, _test_snapshots, _test_snapshot_failures, _test_fault_reload, _test_fuzz, _test_search_perf]:
 		if test.call() != true:
 			failures.append("econ: %s stopped early (script error)" % test.get_method())
 	return failures
@@ -27,12 +27,14 @@ func _expect(cond: bool, msg: String) -> void:
 	if not cond:
 		failures.append("econ: " + msg)
 
-## Test rules: rich wallets and Settlers off unless a test turns them on.
+## Test rules: rich wallets (all but starting_wallet_bound of it tradable), no trade lock and
+## Settlers off, unless a test turns them on.
 func _rules(rich: bool = true) -> EconRules:
 	var r := EconRules.load_default()
 	if rich:
 		r.market.starting_wallet = 100000
 	r.market.settlers.daily_budget = 0
+	r.market.trade_lock_s = 0
 	return r
 
 func _engine(r: EconRules = null, accounts: int = 4) -> MarketEngine:
@@ -169,6 +171,47 @@ func _test_accounts_wallet_objectives() -> bool:
 	_expect(int(e.state().faucet.objectives) == 2, "objective rewards are booked as faucet")
 	r = _ok(e, "wallet.get", 1)
 	_expect(int(r.wallet) == 17 and int(r.held) == 0, "wallet.get reports wallet and holds")
+	return true
+
+## Contract v2 0.6/0.7: the starting wallet and objective rewards are bound (they pay
+## wallet.spend, never another account), objective.claim is server-only, and a new account
+## cannot trade for trade_lock_s.
+func _test_bound_wallet_and_trade_lock() -> bool:
+	_expect("objective.claim" not in MarketEngine.WRITE and "objective.claim" not in VaultBridge.CLIENT_OPS, "objective.claim is not a client op: rewards fire on server-observed state")
+	var r := _rules(false)
+	r.market.trade_lock_s = 1800
+	var e := MarketEngine.new(r, cat)
+	for id in [1, 2, 3]:
+		_ok(e, "account.ensure", id, {"name": "Fresh %d" % id})
+	var w := _ok(e, "wallet.get", 2)
+	_expect(int(w.wallet) == 20 and int(w.get("bound", 0)) == 20, "the starting wallet is bound: %s" % str(w))
+	var uid := _deposit(e, 1, "stone", 10)
+	var t := T0 + 60
+	_err(e, "market.list_fixed", 1, {"asset": {"uid": uid}, "unit_price": 1, "duration_h": 24}, "limit_reached", t, "list inside the trade lock")
+	_err(e, "market.order_create", 2, {"def_id": "stone", "qty": 1, "unit_price": 1, "duration_h": 24}, "limit_reached", t, "order inside the trade lock")
+	t = T0 + 1800
+	_err(e, "market.list_fixed", 1, {"asset": {"uid": uid}, "unit_price": 1, "duration_h": 24}, "insufficient_funds", t, "a listing fee paid from bound coins")
+	_ok(e, "wallet.spend", 2, {"reason": "travel", "amount": 5}, t)
+	w = _ok(e, "wallet.get", 2, {}, t)
+	_expect(int(w.wallet) == 15 and int(w.bound) == 15, "wallet.spend pays from the bound part first: %s" % str(w))
+	var idx := cat.objective_rewards.find(2)
+	_ok(e, "objective.claim", 2, {"index": idx}, t)
+	_expect(int(e.L.acct(2).get("bound", 0)) == 17 and _wallet(e, 2) == 17, "an objective reward is bound too")
+	# 30 tradable of 50: anything that needs more than that would spend bound coins.
+	var r2 := _rules(false)
+	r2.market.starting_wallet = 50 # 20 bound, 30 tradable
+	var f := MarketEngine.new(r2, cat)
+	for id in [1, 2]:
+		_ok(f, "account.ensure", id, {"name": "Half %d" % id})
+	var stone := _deposit(f, 1, "stone", 10)
+	var lid := _list(f, 1, stone, 31, 1)
+	_err(f, "market.buy", 2, {"listing_id": lid, "count": 1}, "insufficient_funds", T0, "a buy that needs bound coins")
+	var aid := _auction(f, 1, _deposit(f, 1, "stone", 5), 31)
+	_err(f, "market.bid", 2, {"listing_id": aid, "amount": 31}, "insufficient_funds", T0, "a bid that needs bound coins")
+	_err(f, "market.order_create", 2, {"def_id": "stone", "qty": 1, "unit_price": 31, "duration_h": 24}, "insufficient_funds", T0, "an order escrow that needs bound coins")
+	var paid := _ok(f, "market.buy", 2, {"listing_id": _list(f, 1, stone, 30, 1), "count": 1})
+	_expect(int(paid.wallet) == 20 and int(f.L.acct(2).get("bound", 0)) == 20, "tradable coins buy; the bound 20 stays: %s" % str(paid))
+	print("[econ] bound start=20 after_spend=15 with_reward=%d lock=%ds buy_bid_order_with_bound=refused" % [int(e.L.acct(2).get("bound", 0)), r.num("trade_lock_s")])
 	return true
 
 func _bad_item(e: MarketEngine, slot: Dictionary, why: String) -> void:
@@ -700,21 +743,30 @@ func _test_idempotency() -> bool:
 	_expect(_wallet(e, 2) == w2 - 10, "a double-submitted buy pays once")
 	_ok(e, "market.buy", 3, buy)
 	_expect(e.state().closed_listings.has(lid), "rids are per account")
+	var kept := _ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "rid": "keep"})
 	for i in 70:
-		_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "rid": "w%d" % i})
+		_ok(e, "wallet.spend", 4, {"reason": "travel", "amount": 5, "rid": "w%d" % i})
 	var cache: Dictionary = e.L.acct(4).rid_cache
-	_expect(cache.size() == 64 and not cache.has("w5") and cache.has("w6"), "the rid cache keeps the last 64")
-	_expect(cache.w69 is Array and JSON.stringify(cache).length() < 64 * 40, "the persisted cache holds [op, seq], not response bodies")
+	_expect(cache.has("keep") and cache.size() == 65 and not cache.has("w5") and cache.has("w6"), "market writes keep their last 64 rids and never evict a vault move's rid (size %d, keep=%s)" % [cache.size(), cache.has("keep")])
+	_expect(cache.w69 is Array and JSON.stringify(cache).length() < 65 * 40, "the persisted cache holds [op, seq], not response bodies")
 	var stacks: int = e.L.acct(4).vault_items.size()
+	var coins := _wallet(e, 4)
 	seq = e.seq()
-	_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "rid": "w0"})
-	_expect(e.seq() == seq + 1 and e.L.acct(4).vault_items.size() == stacks + 1, "an evicted rid applies again")
-	_ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "rid": "w69"})
-	_expect(e.seq() == seq + 1 and e.L.acct(4).vault_items.size() == stacks + 1, "a recent rid still hits")
+	_ok(e, "wallet.spend", 4, {"reason": "travel", "amount": 5, "rid": "w0"})
+	_expect(e.seq() == seq + 1 and _wallet(e, 4) == coins - 5, "an evicted rid applies again")
+	_ok(e, "wallet.spend", 4, {"reason": "travel", "amount": 5, "rid": "w69"})
+	_expect(e.seq() == seq + 1 and _wallet(e, 4) == coins - 5, "a recent rid still hits")
+	var replayed := _ok(e, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "rid": "keep"})
+	_expect(e.seq() == seq + 1 and e.L.acct(4).vault_items.size() == stacks and replayed.get("uid") == kept.uid, "a deposit replayed after 70 market writes moves nothing")
+	e.rules.market.rid_cache_bridge = 2
+	for i in 3:
+		_ok(e, "vault.deposit_item", 3, {"slot_dict": _stack("wood_log", 1), "rid": "v%d" % i})
+	_expect(not e.L.acct(3).rid_cache.has("v0") and e.L.acct(3).rid_cache.has("v1") and e.L.acct(3).rid_cache.has("v2"), "vault moves have their own cap (rid_cache_bridge)")
+	e.rules.market.rid_cache_bridge = 256
 	var reloaded := MarketEngine.new(_rules(), cat)
 	reloaded.load_state(JSON.parse_string(e.state_json()))
-	var repeat := _op(reloaded, "vault.deposit_item", 4, {"slot_dict": _stack("wood_log", 1), "rid": "w69"})
-	_expect(repeat.ok and repeat.r.get("duplicate") == true and reloaded.seq() == seq + 1, "after a restart a repeat is still a no-op and says duplicate")
+	var repeat := _op(reloaded, "wallet.spend", 4, {"reason": "travel", "amount": 5, "rid": "w69"})
+	_expect(repeat.ok and repeat.r.get("duplicate") == true and reloaded.seq() == e.seq(), "after a restart a repeat is still a no-op and says duplicate")
 	_ok(e, "wallet.spend", 3, {"reason": "travel", "amount": 5, "rid": "late"}, T0 + 24 * 3600)
 	_ok(e, "sys.tick", 0, {}, T0 + 25 * 3600)
 	_expect(e.L.acct(4).rid_cache.is_empty() and e.L.acct(3).rid_cache.has("late"), "rid caches idle for a day are forgotten, active ones kept")

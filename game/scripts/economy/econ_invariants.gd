@@ -23,6 +23,8 @@ static func check(s: Dictionary) -> Array[String]:
 			bad.append("account %s holds id %s" % [key, str(acct.id)])
 		if int(acct.wallet) < 0:
 			bad.append("account %s wallet %d" % [key, int(acct.wallet)])
+		if int(acct.get("bound", 0)) < 0 or int(acct.get("bound", 0)) > int(acct.wallet):
+			bad.append("account %s bound %d outside 0..wallet %d" % [key, int(acct.get("bound", 0)), int(acct.wallet)])
 		coins += int(acct.wallet)
 		for uid in acct.vault_items:
 			var st: Dictionary = acct.vault_items[uid]

@@ -12,14 +12,19 @@ extends RefCounted
 
 const READ := ["wallet.get", "vault.get", "market.search", "market.orders", "market.item_detail", "market.trades", "market.mine"]
 const WRITE := [
-	"wallet.spend", "objective.claim", "market.list_fixed", "market.list_auction", "market.buy",
+	"wallet.spend", "market.list_fixed", "market.list_auction", "market.buy",
 	"market.bid", "market.buyout", "market.cancel", "market.order_create", "market.order_cancel",
 	"market.sell_to_order", "inbox.take",
 ]
+## Ops that move value to or from another account: refused while the account is trade-locked
+## (contract v2 0.6) and paid only from tradable T-stones (the bound start never trades).
+const TRADE := ["market.list_fixed", "market.list_auction", "market.buy", "market.bid", "market.buyout", "market.order_create", "market.sell_to_order"]
 ## Vault moves carry a rid like WRITE ops, but only VaultBridge calls them (contract v2 section
 ## 0.5): a deposit is an asset the character store exported, never a client's dict.
 const BRIDGE := ["vault.deposit_item", "vault.deposit_pet", "vault.withdraw_item", "vault.withdraw_pet"]
-const SYSTEM := ["account.ensure", "sys.tick", "bridge.begin", "bridge.end", "bridge.settled"] ## called by the server itself, never relayed from a client
+## Called by the server itself, never relayed from a client. objective.claim is here because
+## rewards fire on server-observed state (contract v2 0.7), never on a client's word.
+const SYSTEM := ["account.ensure", "sys.tick", "bridge.begin", "bridge.end", "bridge.settled", "objective.claim"]
 const SERVER := ["sys.tick", "bridge.end", "bridge.settled"] ## run as account 0, not as a player
 ## A withdrawn asset or a taken event exists only in its response; re-reading state cannot recover it.
 const KEEP_BODY := ["vault.withdraw_item", "vault.withdraw_pet", "inbox.take"]
@@ -122,6 +127,11 @@ func apply(op: String, account_id: int, args: Dictionary, ts: int) -> Dictionary
 			# shortcut: a repeat of a non-KEEP_BODY op from before the last restart or older than
 			# rid_responses_kept ops gets this marker; everything it did is in state to re-read.
 			return {"ok": true, "r": {"duplicate": true, "op": op, "seq": int(hit[1])}}
+	if op in TRADE:
+		# ASSUMPTION: the lock runs from account creation; W3 can switch it to server-observed play time.
+		var locked := int(L.acct(account_id).created) + rules.num("trade_lock_s") - L.now
+		if locked > 0:
+			return EconArgs.no("limit_reached", "new accounts can trade in %d min" % ceili(locked / 60.0))
 	var errors := _errors.n
 	var got: Variant = _dispatch(op, account_id, a)
 	var res: Dictionary = got if got is Dictionary else {}
@@ -148,7 +158,7 @@ func _dispatch(op: String, me: int, a: EconArgs) -> Dictionary:
 		"bridge.begin": return _begin(me, a)
 		"bridge.end": return _end()
 		"bridge.settled": return _settled(a)
-		"wallet.get": return EconArgs.ok({"wallet": L.acct(me).wallet, "held": query.held(me)})
+		"wallet.get": return EconArgs.ok({"wallet": L.acct(me).wallet, "bound": L.bound(me), "held": query.held(me)})
 		"wallet.spend": return _spend(me, a)
 		"objective.claim": return _claim(me, a)
 		"vault.get": return _vault(me)
@@ -175,6 +185,8 @@ func _dispatch(op: String, me: int, a: EconArgs) -> Dictionary:
 
 ## The persisted cache holds rid -> [op, seq] (a few dozen bytes), plus the response for
 ## KEEP_BODY ops; other bodies stay in memory, since state holds everything they report.
+## Vault moves are counted apart (rid_cache_bridge), so market traffic cannot evict the rid of a
+## deposit and let a replayed frame take a second item from the same bag slot.
 func _remember(acct: Dictionary, rid: String, op: String, seq: int, res: Dictionary) -> void:
 	var cache: Dictionary = acct.rid_cache
 	if op in KEEP_BODY:
@@ -183,11 +195,15 @@ func _remember(acct: Dictionary, rid: String, op: String, seq: int, res: Diction
 		cache[rid] = [op, seq]
 		_responses[seq] = res.duplicate(true)
 	acct.rid_last = L.now
-	if cache.size() > rules.num("rid_cache"):
-		var oldest := ""
-		for k in cache:
+	var vault := op in BRIDGE
+	var n := 0
+	var oldest := ""
+	for k in cache:
+		if (str(cache[k][0]) in BRIDGE) == vault:
+			n += 1
 			if oldest == "" or int(cache[k][1]) < int(cache[oldest][1]):
 				oldest = k
+	if n > rules.num("rid_cache_bridge" if vault else "rid_cache"):
 		cache.erase(oldest)
 
 ## Forgets the rid caches of accounts with no write for rid_keep_s.
@@ -214,6 +230,7 @@ func _ensure(me: int, a: EconArgs) -> Dictionary:
 		return EconArgs.ok(_summary(acct), false)
 	acct = L.new_account(me, name if name != "" else "Player%d" % me)
 	L.grant_start(me, rules.num("starting_wallet"))
+	acct.bound = mini(rules.num("starting_wallet"), rules.num("starting_wallet_bound")) # contract v2 0.6
 	return EconArgs.ok(_summary(acct))
 
 func _tick() -> Dictionary:
@@ -237,12 +254,17 @@ func _spend(me: int, a: EconArgs) -> Dictionary:
 	# ASSUMPTION: the server does not know where a client sails in v1, so any listed cost is legal.
 	if amount not in cat.spend_costs[reason]:
 		return EconArgs.no("bad_request", "%s costs %s" % [reason, str(cat.spend_costs[reason])])
-	if int(L.acct(me).wallet) < amount:
+	var acct := L.acct(me)
+	if int(acct.wallet) < amount:
 		return EconArgs.no("insufficient_funds", "needs %d T-stones" % amount)
 	L.debit(me, amount)
 	L.to_sink(amount)
-	return EconArgs.ok({"reason": reason, "spent": amount, "wallet": L.acct(me).wallet})
+	acct.bound = maxi(0, L.bound(me) - amount) # bound T-stones pay first
+	return EconArgs.ok({"reason": reason, "spent": amount, "wallet": acct.wallet})
 
+## objective.claim {index}: server-only (SYSTEM). The server calls it when it has observed the
+## objective done; the reward is bound like the starting wallet, so it can pay travel and claims
+## but never reach another account through the market.
 func _claim(me: int, a: EconArgs) -> Dictionary:
 	var index := a.integer("index", 0, cat.objective_rewards.size() - 1)
 	if a.err != "":
@@ -253,6 +275,7 @@ func _claim(me: int, a: EconArgs) -> Dictionary:
 	var reward := cat.objective_rewards[index]
 	acct.claimed_objectives.append(index)
 	L.mint(me, reward, "objectives")
+	acct.bound = L.bound(me) + reward
 	return EconArgs.ok({"index": index, "reward": reward, "wallet": acct.wallet})
 
 func _vault(me: int) -> Dictionary:
@@ -317,13 +340,20 @@ func _deposit(me: int, a: EconArgs, kind: String) -> Dictionary:
 	L.s.inflight = {}
 	return EconArgs.ok({"uid": body.uid, kind: body.duplicate(true)})
 
-## bridge.begin {rid}: VaultBridge's mark before act.deposit takes an asset from a character;
-## vault.deposit_* (or bridge.end) clears it. Boot reads it to finish or undo that deposit.
+## bridge.begin {rid, uid, op}: VaultBridge's mark before a move between the two stores.
+## op "deposit": act.deposit is about to export `uid`; vault.deposit_* (or bridge.end) clears it.
+## op "grant": vault.withdraw_item {rid} is about to let go of units of `uid` that char.grant
+## then hands to the character; bridge.end clears it. VaultBridge.recover() reads it to finish
+## or undo that one move, for that account and that uid only. One move at a time.
 func _begin(me: int, a: EconArgs) -> Dictionary:
 	var rid := a.text("rid", 1, 64)
+	var uid := a.text("uid", 2, 64)
+	var kind := a.choice("op", ["deposit", "grant"])
 	if a.err != "":
 		return a.fail()
-	L.s.inflight = {"account": me, "rid": rid}
+	if not L.s.inflight.is_empty():
+		return EconArgs.no("conflict", "the move under rid %s is not finished" % str(L.s.inflight.rid))
+	L.s.inflight = {"account": me, "rid": rid, "uid": uid, "op": kind}
 	return EconArgs.ok({})
 
 func _end() -> Dictionary:

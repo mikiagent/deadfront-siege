@@ -1,6 +1,10 @@
 {
   "_about": "Online marketplace numbers (docs/orchestration/mmo/contracts.md section 6). Fractions are rates; the engine turns them into basis points so fees are exact integers. Fees and tax round up (ceil) and never exceed the amount.",
   "starting_wallet": 20,
+  "starting_wallet_bound": 20,
+  "_bound_about": "Contract v2 0.6: the starting wallet is bound (non-tradable). starting_wallet_bound of the starting T-stones (and every objective reward) pay wallet.spend only, never listing fees, buys, bids or orders. Keep it equal to starting_wallet (tests raise starting_wallet above it to get tradable coins).",
+  "trade_lock_s": 1800,
+  "_trade_lock_about": "Contract v2 0.6 / STATUS 2026-10-18 planner default (ASSUMPTION): a new account cannot list, buy, bid, buy out, post or fill orders for this many seconds after account.ensure.",
   "listing_fee": 0.05,
   "listing_fee_min": 1,
   "sales_tax": 0.03,
@@ -19,6 +23,7 @@
   "trades_keep": 5000,
   "account_trades_keep": 100,
   "rid_cache": 64,
+  "rid_cache_bridge": 256,
   "rid_keep_s": 86400,
   "rid_responses_kept": 16384,
   "history_bucket_s": 3600,
