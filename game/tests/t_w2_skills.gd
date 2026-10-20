@@ -195,7 +195,11 @@ func _test_recipe_gates_and_abilities() -> void:
 	_expect(sk.unlock("processing", "charcoal") and Rules.recipe_block(sk, "charcoal") == "", "learning Charcoal opens the charcoal recipe")
 	_expect(sk.refund("processing", "charcoal") and Rules.recipe_block(sk, "charcoal") != "", "refunding Charcoal locks it again")
 	_expect(Rules.ability(sk, "handicraft") == 0, "Handicraft Ability 0 before Handicraft I")
-	_expect(sk.unlock("processing", "handicraft_1") and sk.unlock("processing", "handicraft_2"), "buy Handicraft I and II")
+	# Handicraft is partial (no system reads it until W2-PROCESS): not for sale, so set it as a save would.
+	_expect(not sk.unlock("processing", "handicraft_1") and sk.node_state("processing", _node(sk, "processing", "handicraft_1"))[1] == "not in the game yet", "a partial node cannot be bought: Handicraft I says 'not in the game yet'")
+	_expect(not sk.unlock("survival", "obsidian") and sk.node_state("survival", _node(sk, "survival", "obsidian"))[1] == "not in the game yet", "a defined node no functional node needs cannot be bought (Obsidian)")
+	_expect(Rules.buyable(sk, "survival", "island_access_15") and Rules.buyable(sk, "survival", "belly_fat_1"), "defined prerequisites of Capture Technique I stay buyable")
+	(sk.trees["processing"]["unlocked"] as Array).append_array(["handicraft_1", "handicraft_2"])
 	_expect(Rules.ability(sk, "handicraft") == 8 and Rules.ability(sk, "metal_processing") == 0, "Handicraft I + II = +8 Handicraft, no Metal Processing (got %d)" % Rules.ability(sk, "handicraft"))
 	_done_with(sk)
 	_sections += 1

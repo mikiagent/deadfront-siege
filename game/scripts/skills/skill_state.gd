@@ -142,6 +142,8 @@ func node_state(tree: String, node: Dictionary) -> Array:
 		return ["owned", ""]
 	if bool(node.get("auto", false)) and level_of(tree) < int(node.get("level", 1)):
 		return ["locked", "learned free at %s %d" % [NAMES.get(tree, tree), int(node.get("level", 1))]]
+	if not bool(node.get("auto", false)) and not SkillRules.buyable(self, tree, id):
+		return ["locked", "not in the game yet"]
 	if level_of(tree) < int(node.get("level", 1)):
 		return ["locked", "needs %s %d" % [NAMES.get(tree, tree), int(node.get("level", 1))]]
 	var req: Variant = node.get("requires", null)

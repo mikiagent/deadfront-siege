@@ -67,6 +67,22 @@ static func paid_for_level(sk: SkillState, level: int) -> int:
 		total += sk.sp_for_level(l)
 	return total
 
+## Spec 12:215 "do not implement a decorative but inert" tree: SP buy only what the game enforces
+## (status functional) and the prerequisite chain a functional node needs; the rest show locked.
+static func buyable(sk: SkillState, tree: String, node_id: String) -> bool:
+	var by_id := {}
+	for n in sk.nodes(tree):
+		by_id[str(n.get("id", ""))] = n
+	for n in sk.nodes(tree):
+		if str(n.get("status", "functional")) != "functional":
+			continue
+		var cur: Variant = n
+		while cur is Dictionary:
+			if str(cur.get("id", "")) == node_id:
+				return true
+			cur = by_id.get(str(cur.get("requires", "")))
+	return false
+
 ## Node ids in `tree` that list `node_id` as their prerequisite and are learned.
 static func learned_dependents(sk: SkillState, tree: String, node_id: String) -> Array:
 	var out: Array = []
