@@ -83,7 +83,7 @@ func _shot_setup() -> void:
 	_player.global_position = target.global_position + (Vector3(1.6, 0, 2.2) if view != "all" else Vector3(1.9, 0, 3.0))
 	_player.face_world(target.global_position)
 	_cam._target = target
-	_cam.size = 9.0 if view == "all" else 4.2
+	_cam.size = _cam.default_size if view == "all" else _cam.min_size  # the game's own zoom range, closest for one station
 	_cam._snap()
 	var tps := ProcessStation.of(target)
 	print("[process_lab] shot ready proc=%d%% view=%s stage=%s label='%s' fx=%s" % [
