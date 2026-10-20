@@ -103,8 +103,9 @@ func job_progress(j: Dictionary, now: float = -1.0) -> float:
 		return 0.0
 	return clampf((t - float(j["started"])) / maxf(0.1, job_seconds(station_id, StringName(str(j["recipe"])))), 0.0, 1.0)
 
-## Why `inv` cannot load one `rid` now, or "" when it can.
-func refuse_reason(inv: Inventory, rid: StringName, player: Player = null) -> String:
+## Why `inv` cannot load one `rid` now, or "" when it can. `picks` (bag index per recipe slot) are
+## the instances to use; empty = the default picks.
+func refuse_reason(inv: Inventory, rid: StringName, player: Player = null, picks: Array[int] = []) -> String:
 	var rec := Crafting.recipe(rid)
 	if rec.is_empty() or not runs(rid) or Crafting.station_id(rec) != str(station_id):
 		return "%s does not run %s" % [str(cfg.get("label", station_id)), rid]
@@ -112,21 +113,33 @@ func refuse_reason(inv: Inventory, rid: StringName, player: Player = null) -> St
 		return "The %s is full." % str(station_id).replace("_", " ")
 	if player and Crafting.progression_block(player, rec) != "":
 		return Crafting.progression_block(player, rec)
-	if _picks(inv, rec).is_empty():
+	var use := picks if not picks.is_empty() else Crafting.default_picks(inv, rec)
+	if not Crafting.picks_valid(inv, rec, use):
 		var missing := Crafting.missing_ingredient_name(inv, rec)
-		return "No processing left on that one." if missing == "" else "Needs %s." % missing
+		if missing != "":
+			return "Needs %s." % missing
+		var pi := Crafting.primary_index(rec)
+		var lead := use[pi] if pi < use.size() else -1
+		var spent := lead >= 0 and lead < inv.slot_count and inv.slots[lead] != null and Crafting.processing_left(rec, inv.slots[lead]) == 0
+		return "No processing left on that one." if spent else "That one is no longer in your bag."
 	return ""
 
 ## Load up to `count` jobs of `rid` from the bag. Inputs leave the bag now; returns jobs loaded.
-func load_from(inv: Inventory, rid: StringName, count: int = 1, player: Player = null, rng: RandomNumberGenerator = null) -> int:
+## The first job takes exactly `picks`, the instances the craft card showed, or nothing: spec 08:98
+## "a multi-material recipe consumes specific instance IDs atomically", so no substitute. Queued
+## repeats take the default picks.
+func load_from(inv: Inventory, rid: StringName, count: int = 1, player: Player = null, rng: RandomNumberGenerator = null, picks: Array[int] = []) -> int:
 	var rec := Crafting.recipe(rid)
 	var loaded := 0
 	var now := now_s()
 	advance(now)
-	while loaded < count and refuse_reason(inv, rid, player) == "":
-		var picks := _picks(inv, rec)
-		var levels := Crafting.consumed_levels(inv, rec, picks)
-		var inputs := Crafting.consume_for_craft(inv, rec, picks)
+	var use := picks
+	while loaded < count and refuse_reason(inv, rid, player, use) == "":
+		if use.is_empty():
+			use = Crafting.default_picks(inv, rec)
+		var levels := Crafting.consumed_levels(inv, rec, use)
+		var inputs := Crafting.consume_for_craft(inv, rec, use)
+		use = []
 		if inputs.is_empty():
 			break
 		jobs.append({
@@ -143,21 +156,6 @@ func load_from(inv: Inventory, rid: StringName, count: int = 1, player: Player =
 		print("[process] %s loaded %d x %s (%d/%d) %.0fs each" % [station_id, loaded, rid, jobs.size(), capacity(), job_seconds(station_id, rid)])
 		_redraw()
 	return loaded
-
-## Default picks, with a primary that has no processing left swapped for one that has; [] when
-## no valid set exists.
-func _picks(inv: Inventory, rec: Dictionary) -> Array[int]:
-	var picks := Crafting.default_picks(inv, rec)
-	var pi := Crafting.primary_index(rec)
-	if pi < picks.size() and picks[pi] >= 0 and Crafting.processing_left(rec, inv.slots[picks[pi]]) == 0:
-		picks[pi] = -1
-		for idx in Crafting.stacks_for_slot(inv, (rec.get("slots", []) as Array)[pi]):
-			if idx not in picks and Crafting.processing_left(rec, inv.slots[idx]) != 0:
-				picks[pi] = idx
-				break
-	if -1 in picks or not Crafting.picks_valid(inv, rec, picks):
-		return []
-	return picks
 
 ## Finish every job due by `now`, in time order; a freed slot starts the next waiting job at the
 ## moment it freed (not at the next frame), so offline catch-up matches a watched run.
@@ -242,6 +240,32 @@ func contents() -> Array[ItemStack]:
 			out.append(s as ItemStack)
 	for o in outputs:
 		out.append(o["stack"] as ItemStack)
+	return out
+
+## What a destroyed station held, handed over and cleared so no copy stays behind (spec 10:102 "A
+## change in building state must not silently delete stored items"; 11:155 demolished stations).
+func salvage_contents() -> Array[ItemStack]:
+	var out := contents()
+	jobs.clear()
+	outputs.clear()
+	_redraw()
+	return out
+
+## The stacks in a saved process dict (to_dict), for a row that is refunded instead of rebuilt.
+static func saved_stacks(d: Dictionary) -> Array[ItemStack]:
+	var out: Array[ItemStack] = []
+	var rows: Array = []
+	for j in d.get("jobs", []):
+		if j is Dictionary:
+			rows.append_array((j as Dictionary).get("inputs", []))
+	for o in d.get("outputs", []):
+		if o is Dictionary:
+			rows.append((o as Dictionary).get("stack"))
+	for sd in rows:
+		if sd is Dictionary:
+			var s := ItemStack.from_dict(sd)
+			if s.def() != null and s.count > 0:
+				out.append(s)
 	return out
 
 ## Why the station cannot be packed up now ("" = it can). BuildPlacer.pack_up_blocker asks this (via

@@ -92,6 +92,14 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
 		var picks: Array[int] = []
 		for row in plan:
 			picks.append(int(row["lead"]))
+		# An in-place primary with no processing left is swapped for one that has, so the card
+		# previews the instance a station will really use.
+		var pi := primary_index(rec)
+		if pi < picks.size() and processing_left(rec, inv.slots[picks[pi]]) == 0:
+			for idx in stacks_for_slot(inv, (rec.get("slots", []) as Array)[pi]):
+				if idx not in picks and processing_left(rec, inv.slots[idx]) != 0:
+					picks[pi] = idx
+					break
 		return picks
 	var missing: Array[int] = []
 	missing.resize(rec.get("slots", []).size())

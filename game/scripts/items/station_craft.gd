@@ -229,19 +229,20 @@ func _start_craft_cycle() -> void:
 		print("[craft] blocked %s: needs %s" % [recipe_id, missing])
 		_clear_session()
 		return
-	if not Crafting.picks_valid(player.inventory, rec, _picks):
-		print("[craft] blocked %s: needs %s" % [recipe_id, Crafting.missing_ingredient_name(player.inventory, rec)])
-		_clear_session()
-		return
 	# Process stations take the inputs and run the job themselves; the survivor is free to leave.
+	# The first job takes exactly the picks the card showed, or refuses with a notice.
 	var ps := ProcessStation.of(station) if station and is_instance_valid(station) else null
 	if ps and ps.runs(recipe_id):
-		var why := ps.refuse_reason(player.inventory, recipe_id, player)
-		var n := ps.load_from(player.inventory, recipe_id, queue_left + 1, player, rng)
+		var why := ps.refuse_reason(player.inventory, recipe_id, player, _picks)
+		var n := ps.load_from(player.inventory, recipe_id, queue_left + 1, player, rng, _picks)
 		if n > 0:
 			player.notice("%s: %d on the %s, ready in %s." % [str(rec.get("display_name", recipe_id)), n, str(ps.station_id).replace("_", " "), ps.label_text().get_slice("·", 1).strip_edges()])
 		elif why != "":
 			player.notice(why)
+		_clear_session()
+		return
+	if not Crafting.picks_valid(player.inventory, rec, _picks):
+		print("[craft] blocked %s: needs %s" % [recipe_id, Crafting.missing_ingredient_name(player.inventory, rec)])
 		_clear_session()
 		return
 	_burnt = Crafting.rolls_burn(rec, Crafting.skill_level_for(rec, player), rng)

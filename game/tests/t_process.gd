@@ -2,8 +2,9 @@ extends SceneTree
 ## W2-PROCESS: in-place processing opportunities and identity (spec 08), process-station jobs on the
 ## wall clock (running with nobody near), save round trip mid-process (running and waiting jobs), queue
 ## catch-up, two recipes at once, stage models, collect into a full bag, what each slow station's
-## output is worth against the grill, and pack-up through every path refusing while anything is on the
-## station (review r1 blocker: shift-tap pack-up destroyed what hung on the rack).
+## output is worth against the grill, pack-up through every path refusing while anything is on the
+## station (review r1 blocker: shift-tap pack-up destroyed what hung on the rack), the exact picked
+## instances (spec 08:98), and a destroyed or refunded station keeping its contents (spec 10:102, 11:155).
 ## Item scripts reference the Data autoload, so they load once it exists.
 
 var failures: Array[String] = []
@@ -44,6 +45,9 @@ func _process(_delta: float) -> bool:
 			_test_station_identity()
 			_test_queue_catch_up()
 			_test_two_recipes_at_once()
+			_test_exact_picks()
+			_test_destroyed()
+			_test_refund_row()
 			_start_rack()
 			_phase = 1
 			_frames = 0
@@ -343,3 +347,109 @@ func _test_pack_up() -> void:
 	ok = BP.pack_up_node(rack, _player)
 	_expect(ok and rack.is_queued_for_deletion() and inv.count_of(&"drying_rack_kit") == 1 and _count(inv, &"dried_meat") == 2, "an empty rack packs up: kit and both dried meats in the bag")
 	world.island_def = was
+
+## Spec 08:98: the first job takes exactly the instances the card picked, never a substitute; only
+## queued repeats auto-pick.
+func _test_exact_picks() -> void:
+	var rack: Node3D = CS.make(&"drying_rack")
+	get_root().add_child(rack)
+	var ps = PS.of(rack)
+	var inv = INV.new(6)
+	var a = IS.make(&"raw_meat", 1, {}, 9)
+	a.stamp_identity("loot", "tester")
+	var b = IS.make(&"raw_meat", 1, {}, 31)
+	b.stamp_identity("loot", "tester")
+	inv.slots[0] = a
+	inv.slots[1] = b
+	var pick_b: Array[int] = [1]
+	_expect(ps.load_from(inv, &"dry_meat", 1, null, null, pick_b) == 1 and (ps.jobs[0]["inputs"][0]).uid == b.uid and inv.slots[0] != null and inv.slots[0].uid == a.uid, "the rack takes the picked lv 31 meat, not the default lv 9")
+	var spent = IS.make(&"raw_meat", 1)
+	spent.attributes["processed"] = ["dry", "smoke"]
+	inv.slots[2] = spent
+	var pick_spent: Array[int] = [2]
+	var why: String = ps.refuse_reason(inv, &"dry_meat", null, pick_spent)
+	_expect(ps.load_from(inv, &"dry_meat", 1, null, null, pick_spent) == 0 and ps.jobs.size() == 1 and inv.slots[0] != null and inv.slots[2] != null and why == "No processing left on that one.", "a spent pick is refused, the other meat is not substituted: '%s'" % why)
+	var pick_gone: Array[int] = [4]
+	why = ps.refuse_reason(inv, &"dry_meat", null, pick_gone)
+	_expect(ps.load_from(inv, &"dry_meat", 1, null, null, pick_gone) == 0 and why == "That one is no longer in your bag.", "a pick that left the bag is refused: '%s'" % why)
+	rack.free()
+	# A batch of 2: the pick first, the repeat auto-picks.
+	rack = CS.make(&"drying_rack")
+	get_root().add_child(rack)
+	ps = PS.of(rack)
+	inv = INV.new(6)
+	var c = IS.make(&"raw_meat", 1, {}, 4)
+	c.stamp_identity("loot", "tester")
+	var d = IS.make(&"raw_meat", 1, {}, 22)
+	d.stamp_identity("loot", "tester")
+	inv.slots[0] = c
+	inv.slots[3] = d
+	var pick_d: Array[int] = [3]
+	_expect(ps.load_from(inv, &"dry_meat", 2, null, null, pick_d) == 2 and (ps.jobs[0]["inputs"][0]).uid == d.uid and (ps.jobs[1]["inputs"][0]).uid == c.uid, "a batch takes the pick first, then auto-picks the repeat")
+	rack.free()
+
+## Spec 10:102 / 11:155: a station destroyed by damage never deletes what is on it. W2-BUILDSYS's
+## StructureHealth child emits `destroyed` before it frees the station.
+func _test_destroyed() -> void:
+	var world: Node = get_root().get_node("World")
+	var SR: GDScript = load("res://scripts/core/save_restore.gd")
+	var was_cargo = world.cargo_home
+	var was_pending: Array = SR.pending_refunds
+	var fake := GDScript.new()
+	fake.source_code = "extends Node\nsignal destroyed(source: Node)\n"
+	fake.reload()
+	for cargo_slots in [8, 1]:
+		world.cargo_home = INV.new(cargo_slots)
+		world.cargo_home.add(IS.make(&"stone", 1))
+		SR.pending_refunds = []
+		var rack: Node3D = CS.make(&"drying_rack")
+		get_root().add_child(rack)
+		var ps = PS.of(rack)
+		var inv = INV.new(6)
+		var m = IS.make(&"raw_meat", 1, {}, 12)
+		m.stamp_identity("loot", "tester")
+		inv.add(m)
+		inv.add(IS.make(&"raw_hide", 1))
+		ps.load_from(inv, &"dry_meat", 1)
+		ps.advance(PS.now_s() + PS.job_seconds(&"drying_rack", &"dry_meat") + 1.0)  # meat done
+		ps.load_from(inv, &"dried_hide", 1)  # hide still drying
+		var health := Node.new()
+		health.name = "StructureHealth"
+		health.set_script(fake)
+		rack.add_child(health)
+		health.emit_signal("destroyed", null)
+		var on_rack: int = ps.contents().size()
+		rack.free()
+		if cargo_slots == 8:
+			var uid_ok := false
+			for s in world.cargo_home.slots:
+				if s and s.uid == m.uid:
+					uid_ok = true
+			_expect(on_rack == 0 and uid_ok and _count(world.cargo_home, &"dried_meat") == 1 and _count(world.cargo_home, &"raw_hide") == 1, "a destroyed rack's dried meat (same uid) and drying hide go to camp cargo")
+		else:
+			_expect(on_rack == 0 and SR.pending_refunds.size() == 1 and _count(world.cargo_home, &"dried_meat") == 0, "cargo full: the contents wait in pending_refunds (%d rows)" % SR.pending_refunds.size())
+			world.cargo_home = INV.new(8)
+			SR.retry_refunds(SR.pending_refunds.duplicate())
+			_expect(_count(world.cargo_home, &"dried_meat") == 1 and _count(world.cargo_home, &"raw_hide") == 1, "with room, the next load's retry hands both over")
+	world.cargo_home = was_cargo
+	SR.pending_refunds = was_pending
+
+## A saved station row that the grid refuses on load is refunded with its jobs and outputs, not just
+## the kit (hooks patch: SaveRestore._items_of reads the row's process dict).
+func _test_refund_row() -> void:
+	var world: Node = get_root().get_node("World")
+	var SR: GDScript = load("res://scripts/core/save_restore.gd")
+	var was_cargo = world.cargo_home
+	world.cargo_home = INV.new(8)
+	var rack: Node3D = CS.make(&"drying_rack")
+	get_root().add_child(rack)
+	var ps = PS.of(rack)
+	var inv = INV.new(6)
+	inv.add(IS.make(&"raw_meat", 2))
+	ps.load_from(inv, &"dry_meat", 2)
+	ps.advance(PS.now_s() + PS.job_seconds(&"drying_rack", &"dry_meat") * 0.5)
+	var row: Dictionary = JSON.parse_string(JSON.stringify(rack.to_dict()))
+	rack.free()
+	SR._refund(row, &"drying_rack_kit", "test")
+	_expect(_count(world.cargo_home, &"drying_rack_kit") == 1 and _count(world.cargo_home, &"raw_meat") == 2, "a refunded rack row returns its kit and the 2 meats on it (cargo meat %d)" % _count(world.cargo_home, &"raw_meat"))
+	world.cargo_home = was_cargo
