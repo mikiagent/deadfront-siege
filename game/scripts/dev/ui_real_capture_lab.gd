@@ -157,7 +157,7 @@ func _run() -> void:
 	await _frames(3)
 	var bag := bag_blocks(_player.ui)
 	_check_blocks("bag", bag, logical, true)
-	if not narrow:
+	if logical.x > logical.y:  # by shape, not by the predicates under test
 		for col in ["profile_col", "bag_col", "equip_col"]:
 			var top: float = (bag[col] as Rect2).position.y if bag.has(col) else INF
 			_expect(top < logical.y * 0.5 and absf(top - (bag["profile_col"] as Rect2).position.y) < 8.0, "bag: %s starts beside the others in the top half (y %.0f)" % [col, top])
