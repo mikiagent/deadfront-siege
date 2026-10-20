@@ -200,6 +200,9 @@ func _test_display_mode() -> void:
 	_expect(DisplayMode.logical_size(Vector2i(640, 360), 1.0) == Vector2i(804, 452), "640x360 landscape window -> 804x452 logical")
 	# A notched iPhone (852x393 pt, 59 pt insets each side at 3x) keeps 804 px inside its safe area.
 	_expect(DisplayMode.logical_size(Vector2i(2556, 1179), 3.0, 354.0) == Vector2i(933, 430), "notched 852x393 landscape -> 933x430 logical (%s)" % DisplayMode.logical_size(Vector2i(2556, 1179), 3.0, 354.0))
+	# A bogus inset (a portrait safe area reported in landscape, 1362 px at 3x) is clamped to a quarter of the width.
+	var bogus := DisplayMode.logical_size(Vector2i(2532, 1170), 3.0, 1362.0)
+	_expect(bogus == Vector2i(1072, 495), "a portrait safe area in landscape clamps to 1072x495 logical (got %s)" % bogus)
 	_expect(UT.is_compact(se) and not UT.is_narrow(se) and not UT.is_phone(se), "the SE canvas is compact, not narrow, not is_phone")
 	_expect(not UT.is_narrow(Vector2(668, 376)), "a landscape canvas is never narrow, whatever its width")
 	_expect(DisplayMode.logical_size(Vector2i(820, 1180), 1.0) == Vector2i(DisplayMode.TABLET_W, 1439), "portrait tablet -> TABLET_W wide canvas")

@@ -157,12 +157,10 @@ func _draw() -> void:
 			var hint := UiTokens.ellipsis(font, hint_text, 140.0, UiTokens.TYPE_MIN)
 			draw_string(font, Vector2(origin_x + 6.0, c.y + ls * 1.45), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.TYPE_MIN, UiTokens.DANGER)
 
-## Durango-style HUD language: action symbols are white silhouettes.
+## white_symbol() results, keyed by source texture path (or RID for runtime textures).
 static var _symbol_cache: Dictionary = {}
 
-## White silhouette of a texture (alpha kept, RGB dropped). HUD commands, menu actions and
-## controls are monochrome white; system emoji render in colour on macOS/iOS, so action
-## glyphs use these instead. Cached per source texture.
+## Caption type size under the hex, shared by _draw and caption_rect().
 const CAPTION_PX := 13
 
 func _caption_text(font: Font) -> String:
@@ -194,6 +192,9 @@ func caption_rect() -> Rect2:
 	var at := _caption_at(ThemeDB.fallback_font)
 	return Rect2(global_position + Vector2(at.x, at.y - float(CAPTION_PX)), Vector2(at.z, float(CAPTION_PX) + 4.0))
 
+## Durango-style HUD language: action symbols are white silhouettes. White silhouette of a
+## texture (alpha kept, RGB dropped): system emoji render in colour on macOS/iOS, so action
+## glyphs use these instead. Cached per source texture.
 static func white_symbol(source: Texture2D) -> Texture2D:
 	if source == null:
 		return null

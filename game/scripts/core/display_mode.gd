@@ -17,6 +17,8 @@ const PHONE_MAX_PT := 720.0
 ## ASSUMPTION: 10 pt smallest text on the narrowest phones beats clipped or overlapping screens;
 ## lower this once W2-HUD / W2-SCREENS make those rows narrower.
 const LANDSCAPE_MIN_W := 804.0
+## Smallest share of a landscape phone's width the safe area may leave (logical_size clamps to it).
+const MIN_USABLE := 0.75
 ## Portrait windows narrower than this (iPad mini 768, iPad Air 820) are tablets.
 const TABLET_MAX_PT := 1100.0
 const TABLET_W := 1000
@@ -48,7 +50,9 @@ static func logical_size(window_px: Vector2i, device_scale: float, inset_px: flo
 	if pts.x <= 0.0 or pts.y <= 0.0:
 		return DESIGN
 	if is_phone_landscape(pts):
-		var usable := maxf(1.0, pts.x - inset_px / maxf(1.0, device_scale))
+		# Clamped: an empty safe area at boot, or the other orientation's, reads as a huge inset and
+		# would shrink the whole UI to dust. Real notches take well under a quarter of the width.
+		var usable := clampf(pts.x - inset_px / maxf(1.0, device_scale), pts.x * MIN_USABLE, pts.x)
 		var k := maxf(1.0, LANDSCAPE_MIN_W / usable)
 		return Vector2i(roundi(pts.x * k), roundi(pts.y * k))
 	if pts.x < PHONE_MAX_PT:
@@ -81,6 +85,8 @@ static func side_inset_px() -> float:
 	if not OS.has_feature("mobile"):
 		return 0.0
 	var safe := DisplayServer.get_display_safe_area()
+	if safe.size.x <= 0 or safe.size.y <= 0:
+		return 0.0  # not reported yet (boot): no notch beats a full-width one
 	var w := float(DisplayServer.window_get_size().x)
 	return maxf(0.0, float(safe.position.x)) + maxf(0.0, w - float(safe.end.x))
 
