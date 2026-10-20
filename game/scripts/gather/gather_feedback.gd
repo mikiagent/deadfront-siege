@@ -55,24 +55,17 @@ static func popup(p: Player, at: Vector3, lines: Array) -> Control:
 	var sz := box.get_combined_minimum_size()
 	box.size = sz
 	var a0 := cam.unproject_position(at)
-	var taken := taken_rects(p, a0)
-	taken.append_array(UiTokens.hud_reserved(view))
 	var h := sz.y + RISE_PX
 	var cols: Array[Rect2] = [
 		Rect2(a0.x - sz.x * 0.5, a0.y - RING_CLEAR - h, sz.x, h),
 		Rect2(a0.x + RING_CLEAR, a0.y + sz.y * 0.5 - h, sz.x, h),
 		Rect2(a0.x - RING_CLEAR - sz.x, a0.y + sz.y * 0.5 - h, sz.x, h),
 	]
-	var off := Vector2.INF
-	var best := MAX_SHIFT + 1.0
-	for col in cols:
-		if col.position.x < 8.0 or col.end.x > view.x - 8.0:
-			continue
-		var spot := UiTokens.free_spot(col, taken, view)
-		var shift := absf(spot.position.y - col.position.y)
-		if spot.has_area() and shift < best:
-			best = shift
-			off = spot.position - a0
+	var off := _best_offset(cols, taken_rects(p, a0), a0, view)
+	if off == Vector2.INF:
+		# A phone's HUD band can leave no room above the node: nature-node pills give way for 1.4 s
+		# before the numbers go unseen (the ring, HUD, plates and radial never do).
+		off = _best_offset(cols, taken_rects(p, a0, false), a0, view)
 	if off == Vector2.INF:
 		# Like a world label with no free spot near its anchor: not drawn (the HUD toast and notice say it).
 		box.queue_free()
@@ -89,14 +82,32 @@ static func popup(p: Player, at: Vector3, lines: Array) -> Control:
 	tw.tween_callback(box.queue_free)
 	return box
 
+## The offset from the anchor to the free column spot nudged least (at most MAX_SHIFT), or INF.
+static func _best_offset(cols: Array[Rect2], taken: Array[Rect2], a0: Vector2, view: Vector2) -> Vector2:
+	taken.append_array(UiTokens.hud_reserved(view))
+	var off := Vector2.INF
+	var best := MAX_SHIFT + 1.0
+	for col in cols:
+		if col.position.x < 8.0 or col.end.x > view.x - 8.0:
+			continue
+		var spot := UiTokens.free_spot(col, taken, view)
+		var shift := absf(spot.position.y - col.position.y)
+		if spot.has_area() and shift < best:
+			best = shift
+			off = spot.position - a0
+	return off
+
 ## Screen rects a stack keeps off: the gather ring around the anchor, the HUD's drawn blocks (world
-## pills, toasts, notices, nameplate), visible creature plates and the open radial's hexes and labels.
-static func taken_rects(p: Player, anchor: Vector2) -> Array[Rect2]:
+## pills unless with_pills is false, toasts, notices, nameplate), visible creature plates and the
+## open radial's hexes and labels.
+static func taken_rects(p: Player, anchor: Vector2, with_pills: bool = true) -> Array[Rect2]:
 	var out: Array[Rect2] = [Rect2(anchor - Vector2(40.0, 40.0), Vector2(80.0, 80.0))]
 	var hud := p.get_tree().get_first_node_in_group("hud") as Control
 	if hud and hud.get("drawn_blocks") is Dictionary:
-		for r in (hud.get("drawn_blocks") as Dictionary).values():
-			if r is Rect2:
+		var blocks := hud.get("drawn_blocks") as Dictionary
+		for k in blocks:
+			var r: Variant = blocks[k]
+			if r is Rect2 and (with_pills or not str(k).begins_with("pill")):
 				out.append(Rect2((r as Rect2).position + hud.global_position, (r as Rect2).size))
 	if Game.creature_ui and is_instance_valid(Game.creature_ui):
 		for pill in Game.creature_ui.find_children("Pill", "Control", true, false):

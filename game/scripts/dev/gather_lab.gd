@@ -185,7 +185,7 @@ func _ring_above(node: HarvestNode) -> bool:
 	return ring != null and cam != null and ring.visible and ring.target == node \
 			and ring._screen_pos.y < cam.unproject_position(node.global_position).y
 
-## The live "+n" stack sits clear of the ring, world pills, HUD text, plates and the radial.
+## The live "+n" stack sits clear of the ring, HUD text and zones, plates and the radial.
 func _popup_clear(node: HarvestNode) -> void:
 	if DisplayServer.get_name() == "headless":
 		return  # no real screen layout headless: the windowed runs check placement
@@ -199,7 +199,8 @@ func _popup_clear(node: HarvestNode) -> void:
 	var texts := []
 	for l in box.get_children():
 		texts.append((l as Label).text)
-	var taken := GatherFeedback.taken_rects(_p, a)
+	# Hard limits only: nature-node pills may give way when nothing else is free (gather_feedback.gd).
+	var taken := GatherFeedback.taken_rects(_p, a, false)
 	taken.append_array(UiTokens.hud_reserved(get_viewport().get_visible_rect().size))
 	for t in taken:
 		_check(not r.intersects(t), "popup %s at %s clear of %s" % [texts, r, t])
