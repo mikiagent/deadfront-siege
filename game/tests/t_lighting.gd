@@ -153,6 +153,7 @@ func _test_fallback_colours() -> void:
 	var fog_l: float = _lum(e.fog_light_color)
 	var sky: Color = wl._sky_mat.sky_top_color
 	print("[t_light] fallback: night fog lum=%.3f sky_night_top=%s fog=%s" % [fog_l, sky, e.fog_light_color])
+	_check(WL.FALLBACK.has("saturation_compat") and WL.FALLBACK.has("saturation"), "FALLBACK carries both saturation keys")
 	_check(fog_l <= 0.15, "FALLBACK night fog luminance %.3f > 0.15" % fog_l)
 	_check(sky.r + sky.g + sky.b < 0.5, "FALLBACK night sky is not white (%s)" % sky)
 	WL._profiles = saved

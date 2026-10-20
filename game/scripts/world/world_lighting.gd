@@ -21,7 +21,7 @@ const TOD_STEP := 1.0 / 1440.0
 const FALLBACK := {"sun_energy": 2.2, "sun_warm_energy_scale": 0.8, "sun_max_elevation_deg": 58.0,
 	"moon_energy": 1.1, "moon_energy_compat": 2.0, "moon_elevation_deg": 55.0, "moon_yaw_deg": -70.0, "ambient_energy": 0.3,
 	"ambient_night_energy": 0.4, "exposure": 1.0, "exposure_compat": 1.0, "exposure_scale": 1.0,
-	"saturation": 1.1, "glow_intensity": 0.3, "fog_density": 0.0022, "fog_night_density": 0.004,
+	"saturation": 1.1, "saturation_compat": 1.1, "glow_intensity": 0.3, "fog_density": 0.0022, "fog_night_density": 0.004,
 	"sun_color": [1.0, 0.95, 0.86], "sun_warm_color": [1.0, 0.68, 0.42], "moon_color": [0.52, 0.64, 1.0],
 	"fog_color": [0.62, 0.72, 0.82], "fog_dusk_color": [0.74, 0.6, 0.52], "fog_night_color": [0.04, 0.06, 0.11],
 	"sky_top": [0.2, 0.42, 0.66], "sky_horizon": [0.66, 0.78, 0.92],
@@ -152,7 +152,7 @@ func _make_env(reuse: Environment = null) -> Environment:
 	e.glow_intensity = _f("glow_intensity")
 	e.glow_hdr_threshold = 1.0
 	e.adjustment_enabled = true
-	e.adjustment_saturation = _f("saturation")
+	e.adjustment_saturation = _f("saturation_compat" if _compat else "saturation")
 	e.fog_enabled = true
 	e.fog_sun_scatter = _f("fog_sun_scatter")
 	e.fog_aerial_perspective = 0.2

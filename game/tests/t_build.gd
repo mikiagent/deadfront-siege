@@ -399,6 +399,14 @@ func _test_tilepath_incremental() -> void:
 	print("[build] tilepath full_rebuild=%.1f ms occupy=%.3f ms release=%.3f ms path_query=%.2f ms dirty_refresh+query=%.2f ms cell_blocked=%s cell_freed=%s (walkable before=%s)" % [full_ms, occupy_ms, release_ms, query_ms, refresh_ms, blocked, freed, pre])
 	_expect(occupy_ms <= 5.0 and release_ms <= 5.0, "occupy/release <= 5 ms (occupy %.3f, release %.3f)" % [occupy_ms, release_ms])
 	_expect(blocked and freed == pre, "occupy blocks and release restores the cell for pathing")
+	# path_result() hands back the points and the reachable flag together (the shared last_reachable
+	# member is only valid until the next call).
+	var block := _walkable_block(Vector2i(3, 3), path)
+	var rt: Node = root.get_node("World").runtime
+	var res: Dictionary = path.path_result(_BG.tile_centre(block, rt), _BG.tile_centre(block + Vector2i(2, 0), rt)) if block.x != -9999 \
+		else path.path_result(a, b)
+	_expect(res.has("points") and res.has("reachable") and res["points"] is PackedVector3Array,
+		"path_result() returns points and a reachable flag (got %s)" % [res.keys()])
 
 # ---------------------------------------------------------------- helpers
 
