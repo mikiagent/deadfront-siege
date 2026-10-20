@@ -25,13 +25,9 @@ uniform float alpha_scissor_threshold = 0.5;
 uniform vec4 emission : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float emission_energy = 1.0;
 #endif
-#ifdef OCCL_INSIDE
-// Per node, so one shared material serves every roof while each fades on its own.
-instance uniform float occl_fade = 0.0;
-#endif
-
 void vertex() {
 	UV = UV * uv1_scale.xy + uv1_offset.xy;
+	occl_drop = occl_drop_of(MODEL_MATRIX, INV_VIEW_MATRIX);
 #ifdef OCCL_VCOLOR_SRGB
 	if (!OUTPUT_IS_SRGB) {
 		COLOR.rgb = mix(pow((COLOR.rgb + vec3(0.055)) * (1.0 / (1.0 + 0.055)), vec3(2.4)), COLOR.rgb * (1.0 / 12.92), lessThan(COLOR.rgb, vec3(0.04045)));
@@ -62,15 +58,8 @@ void fragment() {
 #ifdef OCCL_EMISSION
 	EMISSION = emission.rgb * emission_energy;
 #endif
-#ifdef OCCL_INSIDE
-	// A faded roof still shades the floor under it.
-	float occl = occl_main_view(INV_VIEW_MATRIX) ? occl_fade : 0.0;
-#else
-	// 0.8: a faint screen-door ghost of the crown stays, so the tree reads as see-through, not cut.
-	float occl = occl_between(VERTEX, VIEW_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX) * 0.8;
-#endif
 	// Last, so the texture reads above keep their derivatives in every lane.
-	if (occl > occl_bayer4(FRAGCOORD.xy)) {
+	if (occl_drop > occl_bayer4(FRAGCOORD.xy)) {
 		discard;
 	}
 }
