@@ -148,15 +148,12 @@ GOURD = [circle(0, 9, 15.5), circle(0, -11.5, 9.5), chaikin([(-4.5, -25.5), (4.5
          chaikin([(-6.5, -29), (6.5, -29), (6.5, -25), (-6.5, -25)], 1)]
 G["toxin"] = [([xf(p, rot=28, dx=27, dy=34) for p in GOURD], False), ([droppoly(48.5, 26, 6.8)], False)]
 
-# claim: a horned skull on a stake driven into the ground.
-SKULL = chaikin([(23, 12), (27, 8), (37, 8), (41, 12), (41.5, 21), (38, 27), (36.5, 31), (27.5, 31), (26, 27), (22.5, 21)], 2)
-HORN_L = taper([(25, 14)] + cubic((25, 14), (17, 14), (11, 12), (7.5, 5.5), 8), 7.5, 1.2)
-HORN_R = [(64 - x, y) for x, y in HORN_L]
-G["claim"] = [([SKULL, chaikin([(25.5, 15.5), (30.5, 16.5), (29.5, 21), (26.5, 20)], 1), chaikin([(38.5, 15.5), (33.5, 16.5), (34.5, 21), (37.5, 20)], 1),
-                [(30.5, 25), (33.5, 25), (32, 28.5)]], True),
-              ([HORN_L, HORN_R], False),
-              ([[(28, 34), (36, 34), (36, 48), (32, 56), (28, 48)]], False),
-              ([chaikin([(6, 50.5), (23.5, 50.5), (23.5, 56.5), (6, 56.5)], 1), chaikin([(40.5, 50.5), (58, 50.5), (58, 56.5), (40.5, 56.5)], 1)], False)]
+# claim: a stake driven into the ground flying a hide pennant (the horned skull on a stake read as a
+# danger sign at phone size, review r3).
+POLE = [capsule((21.5, 9), (21.5, 47), 5.5), [(18.75, 46), (24.25, 46), (21.5, 55)]]
+PENNANT = chaikin([(24, 10.5), (37, 11.5), (51, 13), (44, 20.5), (51.5, 28), (37, 28), (24, 28.5)], 1)
+G["claim"] = [(POLE, False), ([PENNANT], False),
+              ([capsule((7, 55), (14, 55), 5), capsule((29, 55), (48, 55), 5)], False)]
 
 # ---------------------------------------------------------------- solid-bodied figures and verbs
 def figure(head, limbs, w=8.0, torso=None):

@@ -77,6 +77,7 @@ func _init() -> void:
 		_test_composition()
 		_test_glyph_scan()
 		_test_loader()
+		_test_hud_chips()
 	if failures.is_empty():
 		print("[t_uiicons] PASS ids=%d files=%d glyphs=%d code_ids=%d hook_ids=%d weight=%s worst_iou=%s regen='%s'" % [_icons.size(), _svg_files().size(), (_m.get("glyphs", {}) as Dictionary).size(), _code_ids, HOOK_IDS.size(), _weight, _worst_iou, _regen])
 		quit(0)
@@ -404,6 +405,33 @@ func _test_glyph_scan() -> void:
 					found += 1
 					_expect(glyphs.has(ch) or typo.has(ch), "%s:%d symbol %s (U+%04X) has no icon mapping" % [path.get_file(), i + 1, ch, ch.unicode_at(0)])
 	_expect(found > 20, "the scan sees the legacy glyphs (%d)" % found)
+
+## Review r3: the HUD's status chips (player row, target frame) drew two-letter codes (KN GR BL).
+## Every status draws its icon through HudStatusChip; hunt_hud keeps no letter-code path and no colour
+## emoji outside a hex glyph; generic symbols are not mapped to icons (a "−" meaning "remove one"
+## must not turn into a zoom lens).
+func _test_hud_chips() -> void:
+	var chip: GDScript = load("res://scripts/ui/hud_status_chip.gd")
+	var statuses: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/statuses.json"))
+	var n := 0
+	for st in (statuses as Dictionary).get("statuses", []):
+		var id := StringName(str((st as Dictionary).get("id", "")))
+		_expect(chip.icon_for(id) != null, "HUD status chip %s draws an icon, not letters" % id)
+		n += 1
+	_expect(n > 5, "statuses.json lists the statuses (%d)" % n)
+	var src := FileAccess.get_file_as_string("res://scripts/ui/hunt_hud.gd")
+	_expect(not src.contains(".left(2).to_upper()"), "hunt_hud.gd draws no two-letter status codes")
+	_expect(src.count("HudStatusChip.draw(") == 2, "both HUD chip rows draw through HudStatusChip")
+	var lines := src.split("\n")
+	for i in lines.size():
+		var code := _strip_comment(lines[i])
+		if code.contains("glyph") or code.contains("_hex("):  # HexButton glyphs resolve to white icons
+			continue
+		for ch in code:
+			if ch.unicode_at(0) >= 0x1F000:
+				_expect(false, "hunt_hud.gd:%d colour emoji %s outside a hex glyph" % [i + 1, ch])
+	for g in ["−", "●", "♣", "▲", "≈", "◒", "◎"]:
+		_expect(not (_m.get("glyphs", {}) as Dictionary).has(g), "generic symbol %s is not mapped to an icon" % g)
 
 func _strip_comment(line: String) -> String:
 	var in_str := false

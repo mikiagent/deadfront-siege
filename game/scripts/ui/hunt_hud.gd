@@ -74,6 +74,7 @@ const NAME_PX := 15  # the survivor's name under its feet
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS  # status-chip icons: 128 px SVGs at 20 px
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	_font = ThemeDB.fallback_font
 	if TouchControls:
@@ -655,8 +656,8 @@ func _on_level_up(stored: int) -> void:
 	_levelup_lines.clear()
 	_levelup_title = ""
 	_levelup_lines.append([LevelDisplay.label(level), 40, Color(1.0, 0.85, 0.35)])
-	_levelup_lines.append(["👁 %d" % World.pioneer_xp, 18, Color.WHITE])
-	_levelup_lines.append(["◎ %d" % World.t_stones, 18, Color.WHITE])
+	_levelup_lines.append(["Pioneer XP %d" % World.pioneer_xp, 18, Color.WHITE])
+	_levelup_lines.append(["T-stones %d" % World.t_stones, 18, Color.WHITE])
 	var sp := Data.survival_nodes.size() - Data.survival_unlocked.size() if Data.get("survival_nodes") != null else 0
 	_levelup_lines.append(["Available Skill Points: %d" % maxi(0, sp), 18, Color.WHITE])
 	var title := str(_titles.get(str(level), ""))
@@ -1022,8 +1023,7 @@ func _draw() -> void:
 	if player.statuses:
 		var sx0 := sx
 		for inst in player.statuses.instances():
-			draw_rect(Rect2(sx, sy, 26, 26), Color(0.1, 0.1, 0.12, 0.85))
-			draw_string(_font, Vector2(sx + 4, sy + 19), str(inst.id).left(2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.75, 0.45))
+			HudStatusChip.draw(self, _font, Vector2(sx, sy), inst.id, Color(1, 0.75, 0.45))
 			draw_string(_font, Vector2(sx, sy + 40), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UiTokens.META)
 			sx += 30
 		if sx > sx0:
@@ -1174,8 +1174,7 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 			var ix := px
 			if t.statuses:
 				for inst in t.statuses.instances():
-					draw_rect(Rect2(ix, py + 74, 26, 26), Color(0.1, 0.1, 0.12, 0.85 * a))
-					draw_string(_font, Vector2(ix + 4, py + 93), str(inst.id).left(2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.6, 0.5, a))
+					HudStatusChip.draw(self, _font, Vector2(ix, py + 74), inst.id, Color(1, 0.6, 0.5), a)
 					block = block.merge(Rect2(ix, py + 74.0, 26.0, 26.0))
 					ix += 30
 			drawn_blocks["plate"] = block
