@@ -237,8 +237,8 @@ func _check_blocks(screen: String, rects: Dictionary, logical: Vector2, x_only: 
 	print("[uireal] %s blocks: %s" % [screen, " ".join(parts)])
 
 ## HUD blocks: its visible controls (hexes with their caption, the minimap), the held-tool slot, and
-## the two blocks it draws (vitals, quest card), mirrored from hunt_hud.gd _draw (:916-930) and
-## _draw_quest (:1071-1074) with the HUD's own is_phone branch.
+## the blocks it draws (vitals, quest card, level line), mirrored from hunt_hud.gd _draw (:916-930,
+## :975-977) and _draw_quest (:1071-1074) with the HUD's own is_phone branch.
 static func hud_blocks(hud: HuntHud, player: Player, r: Vector2) -> Dictionary:
 	var out := {}
 	var minimap: Control = null
@@ -276,6 +276,12 @@ static func hud_blocks(hud: HuntHud, player: Player, r: Vector2) -> Dictionary:
 	var origin := Vector2(mp.x, mp.y + HuntHud.MAP_PX + 52.0) if phone else Vector2(mp.x - w - 12.0, mp.y)
 	origin.x = maxf(origin.x, 8.0)
 	out["quest"] = Rect2(origin, Vector2(w, 72.0))
+	# The level line (hunt_hud.gd:975-977): right-aligned above the rail on is_phone, else bottom centre.
+	var font := ThemeDB.fallback_font
+	var prog := World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
+	var lw := font.get_string_size("Lv. %d  %.1f%%" % [World.pioneer_level, prog * 100.0], HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
+	var base := Vector2(r.x - lw - 16.0 - inset.x, r.y - HuntHud.HEX - 22.0) if phone else Vector2(r.x * 0.5 - lw * 0.5, r.y - 7.0)
+	out["level"] = Rect2(base - Vector2(0.0, 12.0), Vector2(lw, 15.0))
 	return out
 
 ## Bag columns (profile, slots, equipment) and its close button.

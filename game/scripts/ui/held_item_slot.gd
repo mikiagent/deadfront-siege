@@ -104,6 +104,10 @@ func _process(delta: float) -> void:
 	var right := 16.0 + maxf(0.0, win.x - float(safe.end.x)) * scale.x
 	var bottom := 108.0 + maxf(0.0, win.y - float(safe.end.y)) * scale.y
 	position = Vector2(vp.x - right - SLOT, vp.y - bottom - SLOT)
+	if UiTokens.is_phone(vp):
+		# Portrait: the HUD draws its level line right-aligned just above the rail (hunt_hud.gd:976),
+		# where the caption sat; lift the slot so the caption clears it.
+		position.y -= 24.0
 	if UiTokens.is_compact(vp) and not UiTokens.is_narrow(vp):
 		# Landscape phone: under the map the claim hex and the context row fill the bottom-right
 		# corner (the slot sat on the claim hex), so the slot ends the left rail instead.
