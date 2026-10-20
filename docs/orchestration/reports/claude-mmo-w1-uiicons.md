@@ -1,79 +1,75 @@
 # W1-UIICONS: one custom white icon set for every UI action and HUD element
 
-Branch `claude/mmo-w1-uiicons`, cut from `claude/mmo-overhaul`. Commits:
+Branch `claude/mmo-w1-uiicons`, cut from `claude/mmo-overhaul` and synced with it by merge (latest `2262a6e`, no conflicts; the branch only adds files the package owns). Package commits:
 
-- `efd7ce2` first drawing pass: 112 white SVG icons, `data/ui_icons.json`, `UiIcons` loader
-- `29ebb17` docs copied from `claude/mmo-overhaul`, reverted by `a030e90` (not package work; see review r1)
-- `a69d827` optical-centring nudges, the lab (`ui_icons_lab`) and `t_uiicons`
-- `db25569` first report
-- `8572ab7` review r1: 28 icons redrawn plus the new `station_smoker`, three new ids, inventory read from code, silhouette and composition checks, 12/16 px and status-chip columns in the lab
-- this report update
+- `efd7ce2` first drawing pass: 112 white SVG icons, `data/ui_icons.json`, the `UiIcons` loader
+- `a69d827` the lab (`ui_icons_lab`) and `t_uiicons`; `db25569` first report
+- `29ebb17` docs copied from the base by hand, reverted in `a030e90`
+- `8572ab7`, `d0834a3` review r1: 28 icons redrawn, inventory read from code, silhouette and composition checks
+- `466215b` review r2: the drawing sources committed under `game/assets/icons/ui/_src/`
+- `713dca8` review r2: misreads redrawn, period material, even optical weight, hook ids as a const list, lab hides the player and the hands slot, hooks as a checked patch
+- `740840b`, `8e1b995`, `df736a0`, `df9c2b9` review r2, finished: butcher and stone grill (blind-read misses), material for the remaining stock pictograms, parcel cargo, byte-identical regeneration in t_uiicons
 
-No Meshy or Tripo credits spent. Owner complaint (2026-10-19): "functionally it's fine but the symbols/icons need work".
+No Meshy or Tripo credits spent. Owner (2026-10-19): "the symbols/icons need work".
 
-## Review r1: findings and what changed
+## Review r2: findings and what changed
 
-| # | Finding | Fix | Check that now catches it |
+The hook findings (1, 3, 5) are fixed in the hooks patch, which the integrator applies after W1-UI merges. Everything else is fixed in this branch.
+
+| # | Finding | Fix | Check |
 |---|---|---|---|
-| 1 major | `wet` and `bleed_deep` had one composition (big drop left, two small right) | `wet` is rain streaks falling onto a water line (no drop shapes). `bleed_deep` is three equal drops (one drop = bleed, three = deep bleed) | `_test_composition`: the parts of each drawing (area share, centre in the ink box, aspect, fill) are compared, and 3+ parts that all pair up fail. Run on the old pair through the same code (`probe/comp.gd`): `parts 3 3 same=true`. The suggested IoU check is also in (`_test_distinct`, 24 px, cap 0.85), but alone it would not have caught this pair: the old wet/bleed_deep IoU is 0.63 at 24 px, 0.65 at 12 px and 0.65 at 6 px, because the drops sit a few units apart |
-| 2 major | status icons unreadable at 9-12 px; hook 6 shrank the icon | Status glyphs redrawn solid with fewer, heavier parts: venom (heavy jaw, two fangs, one drip), pinned (bold stake through split ground), deafened (8.6-wide ear bands, slash with a cut gap), infected (spore ball), groggy (one 7.5-wide spiral band), stomachache (solid J stomach, bolt cut out), tastes_bad (solid face, eyes and mouth cut out), snare (6.6-wide noose band). Hook 6 rewritten: a 24 px chip with a 16 px icon (it was 18 px and 12 px; the old hook made it about 9.4 px) | Lab `sizes` rows now have 12 and 16 px columns, plus the chip as drawn today (18 px, 12 px icon) and as hook 6 draws it (24 px, 16 px icon). Looked at: `r1_zoom_chips_left.png`, `r1_zoom_chips_right.png` |
-| 3 major | inventory was hand-typed; `sleeping` and `station_smoker` fell back | New ids: `sleeping` -> sleep.svg, `station_smoker` -> new station_smoker.svg (domed smoke hut), `station_stone_fire_pit` -> station_fire.svg | `_test_code_inventory` reads the ids from the code: every `icon_id` and `_add_status(..., &"id")` in creature_plates.gd, every `station` in recipes.json (`station_<id>`, or `craft_hand` for null), every row of craft_ui.gd `STATIONS`, every props_manifest building whose note says station, every `"id"` in `player.context_actions()` and every match arm of `player.context_action()`. 39 ids, each must have its own entry (no fallback) |
-| 4 major | about 40% of the set were stock modern pictograms | Redrawn for the period: chop is a knapped flint axe head lashed to a haft, mine a long knapped stone pick lashed across a haft, dig an antler-tine hoe lashed to a haft striking the ground with clods, butcher a knapped flint blade on a sinew-wrapped grip, construction a dry-stacked stone wall, tailoring a fringed hide tunic with a laced neck, toxin a stoppered gourd with a drip, claim a horned skull on a stake driven into the ground, cargo a rope-tied hide bale moving (speed marks), save a carved stone slab with the store-down mark cut in, harbour a dugout canoe on the water with a paddle | Looked at in the lab and the contact sheets (list below). The motif text in this report now matches the drawings |
-| 5 minor | thin stick figures next to solid silhouettes; feed, roll, auto, hold/hands misread | chase, kick and roll are solid-bodied figures (10-wide torso, 7-8.5-wide limbs, round head). roll is a figure mid-tumble, head down and legs over, with motion marks. feed is meat lying on an open palm-up hand. auto is three claw slashes inside a cycle arrow. hold is a stop palm with the fingers together, standing on a bar (hands stays the spread palm). pack_up (a tent in equip's focus frame) is now a tent with arrows closing in | Style rule now: figures and objects solid; the 5-unit line is kept for arrows and marks only (menu, swap, rotate, end_combat, dismount, stance, survival, net, knockdown). `_test_composition` caught pack_up sharing equip's composition |
-| 6 minor | hook 3 redraw loop and duplicate `var id` | Hook 3 rewritten: the food hex compares against the resolved texture, and the context block is one full replacement with one `id` declaration | `_test_hook_ids` (below) |
-| 7 minor | sync commit copied 12 docs files | Reverted in `a030e90` (no history rewrite). `git diff bd75fa0..HEAD --stat -- docs` shows only this report | |
-| 8 minor | `UiIcons.icon()` caches the fallback, so a typo warns once | Kept `icon()`. `_test_hook_ids` reads this report and checks that every `&"id"` passed to `UiIcons.icon(` in the hooks resolves without the fallback | t_uiicons fails on any hook id typo |
+| 1 major | Hook 5 did not compile (`knife` is a Label; `unlocked` out of scope) | The patch swaps the Label for a fixed 16x16 TextureRect (`EXPAND_IGNORE_SIZE`, `STRETCH_KEEP_ASPECT_CENTERED`, mipmaps), sets `texture` inside the `unlocked` scope at :94 and `UiIcons.icon(&"butcher")` at :273 | `git apply --check docs/orchestration/reports/claude-mmo-w1-uiicons-hooks.patch` exits 0 on the merged tree |
+| 2 major | roll, feed, deafened, harbour, cargo, heel unreadable without labels | roll: a tucked body with the head clear of it, under a curved arrow, on the ground. feed: the raptor head of the pet family taking a drumstick. deafened: an ear (helix into the lobe, inner curl) struck through. harbour: a paddler in one unbroken canoe hull on a water line. cargo: the package convention, a rope-tied hide bale seen from above the corner, with speed marks. heel: the survivor standing with the raptor at their side | Blind read: lab `--icons=blind` shuffles every icon onto a 50 px hex at 24 px with a number and no id (key printed separately). All eight read as intended (list under Screenshots). Two other icons missed in an earlier blind read and were redrawn: butcher (a leaf blade read as a club; now a single-edged flint knife) and station_grill (bars over flames read as the drying rack; now meat on a hot stone slab over fire between two stones) |
+| 3 major | Hook 3 left the auto hex with no label | The patch adds `_auto_hex.caption = "AUTO"`; the lab's hud mode shows it | `hud_gl_phone_r.png` |
+| 4 major | 60 SVGs were machine dumps whose generators lived only in the scratchpad | Sources committed in `game/assets/icons/ui/_src/` (with `.gdignore`): `build.py`, the path helpers `geo.py` and `geo2.py`, `offsets.py`, and one module per drawing pass `icons_a.py` .. `icons_i.py`, each id drawn in exactly one module. Every SVG carries a header naming its id | t_uiicons runs `python3 _src/build.py --check`: `regen='[icons] PASS drawn=113 svgs=113'`. Adding one space to roll.svg made it fail: `[t_uiicons] FAIL _src/build.py --check regenerates every SVG byte for byte (exit 1): [icons] DIFFERS roll.svg` |
+| 5 minor | Quick-food hook still redrew every frame | The patch compares `h.bottom_text != "×%d" % n` | `git apply --check` |
+| 6 minor | A third of the set were stock modern pictograms | Conventions kept, material added. `713dca8`: crossed bones (close), carved stele (save), gash with spores (infected), figure driving into an impact burst (tackle). `8e1b995` (new module `icons_i.py`): knapped-flint gear with scalloped flake scars and an uneven bored hole (settings), rough-hewn stone padlock with a bone shackle whose knobbed end shows when open (lock, unlock), hide speech bubble with leg lobes (chat), blown animal horn with sound waves, or with an X (sound, mute), magnifier on a knobbed bone handle (zoom_in, zoom_out), balance on a post set in a stone, beam lashed on, rope cords and gourd pans (market), star knapped from flint with scalloped edges (skills), tapping hand with a wrapped wrist (use). confirm keeps the plain check | `stock.png` (before) against `mat1.png`, `mat2.png`, `star2.png` (after) |
+| 7 minor | Uneven optical weight; no check | Heavier menu, back, swap, rotate, fire_ranged, end_combat, dismount, gathering and the tool hafts; lighter pen, chest, chat, notice, t_stone, processing, tunic, wall, face, pot | `_test_weight`: mean alpha at 24 px of every icon within 0.6..1.5 x the set median. This run: `weight=0.61..1.47` |
+| 8 minor | Test read the report; t_uiicons not registered | `HOOK_IDS` is a const list in the test (45 ids) and `BADGES` checks the two badge glyph mappings. The patch adds t_uiicons to `tools/test.sh` | `hook_ids=45` in the PASS line |
+| 9 minor | HeldItemSlot and the player drew over the sheet and size pages | Hidden outside `hud` mode (`ui_icons_lab.gd` `_ready`) | `sheet_fwd.png`: no player, no hands slot |
+| 10 minor | cauterise read as a drop beside bleed; wet repeated auto's slashes | cauterise: a flame over a stitched cut. wet: vertical rain onto water | Blind read, below |
+
+Also: the test now loads `UiIcons` by path (`load("res://scripts/ui/ui_icons.gd")`) instead of by class_name, as the test rules require.
 
 ## What shipped
 
-- `game/assets/icons/ui/*.svg`: 113 drawings on a 64x64 grid, live area 6..58, white `#FFFFFF` only, no text in any icon.
-  - First-pass icons (84 files): one line weight (`stroke-width 5`, round caps and joins) for arrows and marks, and solid shapes softened by a 1.5 edge stroke.
-  - Review-r1 icons (29 files: 28 redrawn, 1 new): solid polygons only, with the same 1.5 edge stroke. Knockout gaps (the slash across the ear, the cuts beside the ropes on the bale, the paddle across the hull) are real gaps in the geometry, because masks are not allowed. Each is centred optically (mean of the ink centroid and the bounding-box centre) and scaled into the live area.
-  - Motifs, as drawn: knapped flint axe, stone pick and antler hoe lashed to hafts (chop, mine, dig), knapped flint knife on a wrapped grip (butcher), bone club (attack), dry-stone wall (construction), fringed hide tunic (tailoring), horned skull on a stake (claim), rope-tied hide bale (cargo), carved stone slab (save), dugout canoe (harbour), stoppered gourd (toxin), hide tent (build, pack_up, warp_home), lashed fence (pen), knotted net (net), rope noose (snare), raptor head (animals, sic, dismiss), drying rack (station_dryer), domed smoke hut (station_smoker), crock pot, mortar and stone grill.
-  - Import: `svg/scale=2.0` (128 px texture) with mipmaps, so icons stay crisp from 12 to 64 px and when the HUD scales.
-- `game/data/ui_icons.json`: 168 action ids map to the 113 files (aliases such as `capture` -> net.svg). It also has `glyphs`, a table of 54 legacy emoji and symbol characters with the action id that replaces each, `typographic` (symbols that stay text: `× · • … — – → ○ ≥`), and `fallback: "action"`.
-- `game/scripts/ui/ui_icons.gd`: `UiIcons.icon(id) -> Texture2D` returns the cached texture. An unknown id returns the `action` sparkle with a warning, and `""` returns null. `UiIcons.path_for(id)` returns the file path, and `UiIcons.for_glyph("🏃")` maps a legacy glyph. Spec deviation: the brief asked for `UiIcons.get(id)`, but a static `get()` shadows `Object.get` and does not compile, so the method is `icon()`.
-- `game/scripts/dev/ui_icons_lab.gd` and `game/scenes/dev/ui_icons_lab.tscn`. Modes, chosen with `--icons=`:
-  - `sheet`: every icon in a real 64 px `HexButton` over the lab world, with its id.
-  - `sizes:<page>`, pages 0 to 5: each icon at 12, 16, 24, 32, 48 and 64 px on the dark `UiTokens.INK` panel; at 24, 32 and 48 px in ink on a light panel; as a creature-plate status chip today (18 px chip, 12 px icon) and per hook 6 (24 px chip, 16 px icon); and in a 72 px hex.
-  - `hud`: the real HuntHud with its legacy glyphs swapped for icons at runtime, a preview of the hooks.
-  - `filter`: linear filtering compared with linear plus mipmaps at 24 and 32 px.
+- `game/assets/icons/ui/*.svg`: 113 drawings on a 64x64 grid, live area 6..58, white `#FFFFFF` only, no text. Lines (stroke 5, round caps and joins) only for arrows and marks; figures and objects are solid, softened by a 1.5 edge stroke. Knockouts (the slash across the ear, the string across the bale, the keyhole) are real gaps in the geometry; masks are not allowed. Imported at `svg/scale=2.0` (128 px) with mipmaps.
+- `game/assets/icons/ui/_src/` (ignored by Godot): the drawing sources. To change an icon, edit its module and regenerate:
+  ```
+  python3 game/assets/icons/ui/_src/build.py           # redraw every SVG
+  python3 game/assets/icons/ui/_src/build.py --check   # write nothing; exit 1 if any SVG differs
+  ```
+  Then run one `--import`. `icons_a`..`icons_f` are the first pass (line and solid elements written as SVG path syntax, nudged by `offsets.py`); `icons_g`, `icons_h` and `icons_i` are solid polygons placed by hand and centred optically by `geo2.place`.
+- `game/data/ui_icons.json`: 168 action ids map to the 113 files (aliases such as `capture` -> net.svg), a `glyphs` table of 54 legacy emoji and symbols with the id that replaces each, `typographic` (`× · • … — – → ○ ≥` stay text), and `fallback: "action"`.
+- `game/scripts/ui/ui_icons.gd`: `UiIcons.icon(id) -> Texture2D` (cached; unknown id -> the `action` sparkle with a warning; `""` -> null), `UiIcons.path_for(id)`, `UiIcons.for_glyph(glyph)`. The brief named it `get()`; a static `get()` shadows `Object.get` and does not compile.
+- `game/scripts/dev/ui_icons_lab.gd`, `game/scenes/dev/ui_icons_lab.tscn`, modes via `--icons=`: `sheet` (every icon in a 64 px HexButton with its id), `blind` (shuffled, numbered, no ids, 24 px), `sizes:0`..`sizes:5` (12 to 64 px on dark and light panels, the status chip today and per hook 6, a 72 px hex), `hud` (the real HuntHud with the hooks previewed at runtime), `filter` (linear vs mipmaps). Headless without `--shot` it loads every icon and checks size and mipmaps.
+- `game/tests/t_uiicons.gd`: ids resolve and every SVG is used; white only, house stroke weights, inside the canvas, optically centred; inventory, statuses, skill trees and 39 ids read from code have icons; hook ids and badge glyphs resolve; ink weight band; byte-identical regeneration from `_src`; no shared silhouette (IoU <= 0.85 at 24 px, three opposite-action pairs <= 0.95); no shared composition of 3+ parts; every non-ASCII symbol in HUD string literals is mapped or typographic; loader fallback and 2x mipmapped import.
 
-  Headless without `--shot`, the lab loads every icon through `UiIcons` and checks it is 128 px with mipmaps.
-- `game/tests/t_uiicons.gd` checks:
-  - Every id resolves to an existing SVG, and every SVG is used by some id.
-  - Every SVG is on the 64 grid and has no style, opacity, gradient, image, text or `currentColor`. Every fill and stroke is white, and every stroke-width is a house weight (5 or 1.5).
-  - Each SVG rasterised by the engine has no off-white pixel, stays inside 2..61, and its optical centre is within 3 grid units of 32,32.
-  - The hand-kept inventory, every `statuses.json` status, every skill tree in `trees.json`, and the 39 ids read from code (`_test_code_inventory`, above) have their own icons.
-  - Every `&"id"` passed to `UiIcons.icon(` in this report's hooks resolves (`_test_hook_ids`).
-  - No two files share a silhouette: soft IoU of alpha masks at 24 px is at most 0.85 (`_test_distinct`). Three opposite-action pairs that differ by one conventional mark are capped at 0.95 instead: lock/unlock (0.88 at 24 px), store/take_all (0.88), zoom_in/zoom_out (0.93). They sit side by side or swap in one slot, so the mark is the message.
-  - No two files share a composition of 3+ parts (`_test_composition`, above).
-  - Every non-ASCII symbol in a string literal of `scripts/ui/*.gd`, `scripts/world/*.gd`, `player.gd` and `skill_state.gd` is mapped to an icon or listed as typographic.
-  - The loader falls back safely, `for_glyph` works, and textures import at 2x with mipmaps.
-
-## Acceptance (run on the commit that adds this report; every line copied from the run's output)
+## Acceptance (run on `df9c2b9` plus this report; every line copied from the output)
 
 | Check | Command | Result |
 |---|---|---|
-| t_uiicons | `gslot.sh Godot --headless --path game --script res://tests/t_uiicons.gd` | `[t_uiicons] PASS ids=168 files=113 glyphs=54 code_ids=39 worst_iou=0.80 notice/save` (exit 0) |
+| t_uiicons | `gslot.sh Godot --headless --path game --script res://tests/t_uiicons.gd` | `[t_uiicons] PASS ids=168 files=113 glyphs=54 code_ids=39 hook_ids=45 weight=0.61..1.47 worst_iou=0.80 loot/store regen='[icons] PASS drawn=113 svgs=113'` (exit 0) |
 | run_all | `gslot.sh Godot --headless --path game --script res://tests/run_all.gd` | `[tests] PASS` (exit 0) |
 | smoke | `gslot.sh tools/smoke.sh --no-import` | `[smoke] ok player_pos=(0.0, 0.900182, 0.0) phase=day` / `SMOKE PASS` (exit 0) |
 | lab headless | `gslot.sh Godot --headless --path game -- --lab=ui_icons_lab` | `[uiicons_lab] icons=113 bad=[] fallback=true` (exit 0) |
-| at least 48 icons | t_uiicons | 113 files, 168 ids |
+| sources | `python3 game/assets/icons/ui/_src/build.py --check` | `[icons] PASS drawn=113 svgs=113` |
+| hooks patch | `git apply --check docs/orchestration/reports/claude-mmo-w1-uiicons-hooks.patch` | exit 0 |
 
-The warning `[ui_icons] no icon for 'no_such_action_xyz', using fallback` is expected; it comes from the fallback test. In the t_uiicons line, `worst_iou` is the most similar pair outside the three capped pairs.
+The warning `[ui_icons] no icon for 'no_such_action_xyz', using fallback` comes from the fallback test. `worst_iou` is the most similar pair outside the three capped pairs.
 
 ## Screenshots looked at
 
-All screenshots are in `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/w1x/uiicons/`. They are windowed runs taken after the import that followed the r1 redraw. Each one listed was opened with Read.
+In `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/w1x/uiicons/r3/`, each opened with Read after the import that followed the last redraw (the ladders are rendered by the engine's SVG rasteriser at 128 px and downsampled, as mipmaps do).
 
-- `r1_fwd_sheet_1600.png` (Forward+) and its zoom `r1_zoom_sheet_row1.png`; `r1_zoom_gl_row7.png` (a zoom of `r1_gl_sheet_1600.png`, gl_compatibility): all 113 icons on real 64 px hexes. One family: solid silhouettes, the same edge softening, no colour, centred in the hex. The renderers match.
-- `r1_gl_sheet_phone.png` (844x390 landscape, gl_compatibility): every hex still reads as a shape.
-- `r1_fwd_sizes_p0.png`, `r1_fwd_sizes_p1.png`, `r1_fwd_sizes_p2.png`, `r1_fwd_sizes_p3.png`, `r1_fwd_sizes_p4.png`, `r1_fwd_sizes_p5.png` and `r1_gl_sizes_p4.png`: every icon from 12 to 64 px on dark and light panels, the two status chips and the 72 px hex. No blurry edges and no off-centre glyphs. At 12 px the status set separates by silhouette: one drop (bleed), three drops (bleed_deep), streaks over a wave (wet), jaw (venom), bone (fracture), stake (pinned), slashed ear (deafened), spore (infected), spiral (groggy), chevrons (knockdown), noose (snare), face with brows (enraged), bowl (full), J stomach (stomachache), round face (tastes_bad), moon (sleep).
-- `r1_zoom_chips_left.png`, `r1_zoom_chips_right.png`: the status chip today (18 px, 12 px icon) beside the hook 6 chip (24 px, 16 px icon). The 24 px chip is clearly more legible; this is the case for hook 6.
-- `r1_gl_hud_phone.png` with the zooms `r1_zoom_gl_hud_phone_r.png` and `r1_zoom_fwd_hud_phone_l.png`: the real HUD at 844x390 with the hooks previewed. The combat cluster (feed, net, kick, tackle, roll, auto) and the rail (menu, animals, build, skills) plus chase. The solid kick, roll and chase figures now carry the same weight as tackle and net. At 1x phone scale the auto claws inside the ring are small (about 14 px icon); a 2x or 3x device renders them sharper.
+- `redraw.png`: the eight review icons plus butcher and station_grill at 12, 16, 20, 24 and 48 px. `weak.png`: the eight at 24 and 64 px.
+- `stock.png` (before) and `mat1.png`, `mat2.png`, `star2.png`, `star2_ladder.png` (after): the stock pictograms. The first stone padlock used scalloped edges and read as a postage stamp, and rope lashing on the magnifier handle read as key teeth; both were dropped (`mat2.png`). A faceted star (`star.png`, cuts to the centre) read as a hollow grey star on the phone rail; the kept star is solid with knapped edges.
+- `c1.png`, `c2.png`: rejected candidates. A crouched figure for roll read as a chess knight; a knotted bundle for cargo read as a rabbit. The parcel and the ball-with-head were kept.
+- `blind_gl.png` (gl_compatibility, 1600x900) and zooms `blind_a.png` .. `blind_d.png`: the blind read. With the key, the eight review icons are 41 roll (ball and head under an arrow on the ground), 79 feed (raptor jaws on a drumstick), 76 deafened (ear struck through), 46 harbour (paddler in a canoe), 36 cargo (parcel with speed marks), 38 heel (person with the raptor beside them), 68 cauterise (flame over a cut, unlike the 85 bleed drop), 31 wet (rain onto water, unlike the 57 auto slashes). The material icons still read by convention at 24 px (3 gear, 7/107 padlock, 23 bubble, 63/71 horn, 16/88 magnifier, 73 balance, 17 star, 70 tapping hand); the material shows from about 48 px up.
+- `sheet_fwd.png` (Forward+): all 113 on 64 px hexes with ids, with no player and no hands slot over them.
+- `hud_gl_phone.png` (844x390 landscape, gl_compatibility) and zooms `hud_gl_phone_r.png`, `hud_gl_phone_l.png`: the combat cluster (feed, net, tackle, kick, roll, auto with its AUTO caption) and the rail (menu, animals, build, skills, chase). The faceted skills star read light here. `hud_gl_phone2_l.png` (fuller faceted star, still grey) and `hud_gl_phone3_l.png` (final solid knapped star): the star now carries the same weight as menu, animals and build.
 
-Taken but not opened this round: `r1_gl_sheet_1600.png` as a whole (only its zoom), `r1_fwd_sheet_phone.png`, `r1_gl_sizes_p0..p3,p5.png`, `r1_fwd_hud_1600.png`, `r1_fwd_hud_phone.png` as a whole (only its zoom), `r1_zoom_small_right.png`.
+Taken but not opened: `sheet_gl.png`, and `hud_gl_phone2.png` / `hud_gl_phone3.png` as wholes (only their rail zooms). The blind sheet and the full sheet were taken before the final star change.
 
 ## Glyph and icon inventory
 
@@ -208,104 +204,44 @@ The hooks below therefore wire by action id, not by glyph.
 
 Typographic symbols that stay text: `× · • … — – → ○ ≥` (counts, separators, ellipsis). Note that `craft_ui.gd:160 "● here"` is a bullet, not the meadow icon.
 
-## Integrator hooks (UI package: hex_button.gd, hunt_hud.gd, status_glyph.gd and the other ui/*.gd)
+## Integrator hooks
 
-This package does not edit any UI script. Each change below is exact. t_uiicons checks that every `&"id"` named here resolves without the fallback. After these hooks, `UiIcons` is the only source of action art, and the `glyph` strings become dead text.
+This package edits no UI script. The hooks are one patch, `docs/orchestration/reports/claude-mmo-w1-uiicons-hooks.patch`; `git apply --check` passes on this branch after the base merge. W1-UI owns the HUD and bag scripts, so the wiring waits until W1-UI merges; the patch will need a refresh against W1-UI's edits then. Every id it passes to `UiIcons.icon()` is in `HOOK_IDS` in t_uiicons, which checks they resolve without the fallback.
 
-1. `hex_button.gd`: keep icons crisp when scaled, and skip whitening icons that are already white. Add this line to `_init`:
-   ```gdscript
-   texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-   ```
-   In `_draw` (line 96), replace
-   `var shown: Texture2D = icon if color_icon else _white_symbol(icon)`
-   with
-   ```gdscript
-   var shown: Texture2D = icon if color_icon or icon.resource_path.begins_with(UiIcons.DIR) else _white_symbol(icon)
-   ```
-   `_white_symbol` copies each icon into an `ImageTexture` once, with a per-pixel loop. That work is wasted on these icons, which are already white. The lab sets this filter on its own hexes (`ui_icons_lab.gd` `_hex`, comment "integrator hook 1").
-2. `hex_button.gd` badges: `set_blocked` (line 43, `badge = "⊘"`) and `set_ok_badge` (line 49, `badge = "✓"`) draw text in the badge circle. Draw `UiIcons.icon(&"blocked")` and `UiIcons.icon(&"confirm")` in that circle at 0.8 of its radius instead. `gather_radial.gd:83` and `:186` (`b.badge = "⊘"`) need no change once the badge draws the icon.
-3. `hunt_hud.gd`:
-   - `_hex()` (lines 198-203): change the parameter to `id: StringName` and replace `h.glyph = glyph` with `h.icon = UiIcons.icon(id)`. Callers: `206 _hex(&"menu", HEX, "MENU")`, `208 _hex(&"animals", ...)`, `210 _hex(&"build", ...)`, `212 _hex(&"skills", ...)`, `224 _hex(&"inspect", 56.0, "DEBUG")`.
-   - Line 216, `fh.glyph = "🍖"`: replace with `fh.icon = UiIcons.icon(&"eat")`.
-   - Lines 242-247, the quick-food hexes. Replace the whole block from `var tex := ItemIcons.texture(StringName(fid))` to `h.bottom_text = "×%d" % n` (line 248 `h.queue_redraw()` stays inside the `if`) with:
-     ```gdscript
-     			var tex := ItemIcons.texture(StringName(fid))
-     			var want: Texture2D = tex if tex else UiIcons.icon(&"eat")
-     			if h.icon != want or h.bottom_text != str(n):
-     				h.icon = want
-     				h.color_icon = tex != null
-     				h.glyph = ""
-     				h.bottom_text = "×%d" % n
-     ```
-     Comparing against `want` (not `tex`) stops the per-frame reassign and redraw when the food has no item icon.
-   - Line 299, combat specs: replace `h.glyph = s[0]` with `h.icon = UiIcons.icon(StringName(s[1]))` (net, tackle, kick, roll).
-   - Line 306: replace `_auto_hex.glyph = "Auto"` with `_auto_hex.icon = UiIcons.icon(&"auto")`.
-   - Line 317, whistles: replace `wh.glyph = spec[1]` with `wh.icon = UiIcons.icon(&"sic" if spec[0] == "attack" else StringName(spec[0]))` (sic, heel, guard).
-   - Line 328: replace `_feed_hex.glyph = "FEED"` with `_feed_hex.icon = UiIcons.icon(&"feed")`.
-   - Line 344: replace `_chase_hex.glyph = "🏃"` with `_chase_hex.icon = UiIcons.icon(&"chase")`. Line 351: replace it with `_chase_hex.icon = UiIcons.icon(&"hold" if player.hunt.hold else &"chase")`.
-   - Line 481: replace `_done_hex.glyph = "✓"` with `_done_hex.icon = UiIcons.icon(&"confirm")`.
-   - Line 494, placement: replace `h.glyph = sp[0]` with `h.icon = UiIcons.icon(StringName(sp[1]))` (rotate, confirm, cancel).
-   - Lines 586-593, context actions. Replace these eight lines, from `var h := HexButton.new(70.0)` through `var id := str(a["id"])`, as one block with:
-     ```gdscript
-     		var h := HexButton.new(70.0)
-     		var id := str(a["id"])
-     		h.icon = UiIcons.icon(StringName(id))
-     		h.caption = str(a["label"]).to_upper()
-     		h.bottom_text = str(a.get("uses", ""))
-     ```
-     There is one `id` declaration; line 594 (`h.pressed.connect(...)`) and everything after it stay as they are. Every id that `player.context_actions()` emits has an icon, and t_uiicons reads them from player.gd: dismount, catapult_stone, catapult_toxin, fire_ranged, coat_weapon, rope_snare, heavy_snare, drink, wash, sleep, cook, cauterise, loot, harbour, warp, pen, claim. The `glyph` keys in player.gd become unused.
-   - Line 868: replace with `_skill_hexes[1].icon = UiIcons.icon(&"toxin" if siege else &"tackle")`.
-   - Line 873: replace with `_skill_hexes[0].icon = UiIcons.icon(&"fire_ranged" if ranged else &"net")`.
-   - Line 877: replace with `_skill_hexes[0].icon = UiIcons.icon(&"siege")`.
-   - Lines 640-641, the level-up lines: drop `👁 ` and `◎ ` from the strings. In the `_levelup_lines` draw loop (line 994), draw `UiIcons.icon(&"xp")` or `UiIcons.icon(&"t_stone")` as a square at font height before the text. A third array slot (`[text, size, color, icon_id]`) carries the icon id.
-4. `held_item_slot.gd`:
-   - Line 46: replace `ItemIcons.texture(&"fists" if _fighting_shown else &"hands")` with `UiIcons.icon(&"fists" if _fighting_shown else &"hands")`. Bare hands are an action, not an item.
-   - Lines 154-155: replace the `⇄` string with `draw_texture_rect(UiIcons.icon(&"swap"), Rect2(bc - Vector2.ONE * r * 0.18, Vector2.ONE * r * 0.36), false)`.
-5. `creature_plates.gd:435`, status rows: pass `UiIcons.icon(StringName(str(row.get("icon_id", ""))))` as the 4th `configure` argument in place of `_icon_for(...)`. Every `icon_id` the plates emit (each `statuses.json` id and `sleeping`) has its own icon; t_uiicons reads them from creature_plates.gd. At lines 94 and 273 (`knife.text = "🔪"` / `"🔒"`), set `knife.icon = UiIcons.icon(&"butcher" if unlocked else &"lock")` and clear the text.
-6. `status_glyph.gd`: make the chip 24 px and the icon 16 px (today 18 px and a fixed 12 px; the status icons are drawn for 12-16 px). In `_ready`, replace `custom_minimum_size = Vector2(18, 18)` with
-   ```gdscript
-   	custom_minimum_size = Vector2(24, 24)
-   	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-   ```
-   In `_draw` (line 28), replace `draw_texture_rect(icon, Rect2(c - Vector2(6, 6), Vector2(12, 12)), false)` with
-   ```gdscript
-   		var s := radius * 1.6  # 16 px on the 24 px chip
-   		draw_texture_rect(icon, Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), false)
-   ```
-   The lab's `sizes` view draws both chips side by side (`_draw_chip`).
-7. Text buttons that carry emoji inside `text`. Set `b.icon = UiIcons.icon(<id>)` with `b.expand_icon = true` and `b.add_theme_constant_override("icon_max_width", 28)`, and drop the emoji from `text`:
-   - `craft_ui.gd:168`: id `&"craft_hand"` when `sid == ""`, otherwise `StringName("station_" + sid)`. Every station in recipes.json, the craft tabs and the station buildings is mapped, including `station_smoker` (recipes.json uses it; the tab list does not show it yet) and `station_stone_fire_pit`.
-   - `skills_sheet.gd:90` and `:111` (`SkillState.GLYPHS`): `UiIcons.icon(StringName(tree_id))`. All twelve trees are mapped.
-   - `skills_sheet.gd:153` "◀ All skills": `&"back"`.
-   - `world_ui.gd:102` terrain cards: id `row[4]` (meadow, forest, rocky, riverside, coastal).
-   - `inventory_ui.gd:83` close "✕": `&"close"`.
-   - `map_screen.gd:34`, zoom "−" and "+": `&"zoom_out"` and `&"zoom_in"`.
-   - `station_menu.gd:76` `btn.glyph = str(row.get("glyph", "✦"))`: replace with `btn.icon = UiIcons.icon(StringName(str(row.get("id", "action"))))` (sleep, craft, cook, cauterise and the other station verbs).
-8. Optional: the `"Attack Stance ◎"` label (`hunt_hud.gd:337`) can become a TextureRect with `UiIcons.icon(&"stance")` beside a plain label.
+What the patch does, by file:
+
+1. `hex_button.gd`: mipmapped filtering in `_init`; skip `_white_symbol` for icons under `UiIcons.DIR` (they are already white).
+2. `hex_button.gd` badges: the badge circle draws `UiIcons.for_glyph(badge)` (`⊘` -> blocked, `✓` -> confirm; t_uiicons `BADGES` checks both mappings) and falls back to the text for any other badge.
+3. `hunt_hud.gd`: `_hex()` takes an id; menu, animals, build, skills, inspect, eat, quick food (compares `h.bottom_text != "×%d" % n`, so no per-frame redraw), combat specs (net, tackle, kick, roll), auto (icon plus `_auto_hex.caption = "AUTO"`), whistles (sic, heel, guard), feed, chase/hold, done, placement (rotate, confirm, cancel), context actions by id (one `id` declaration), skill hexes (toxin, tackle, fire_ranged, net, siege), level-up lines draw the xp and t_stone icons.
+4. `held_item_slot.gd`: fists and hands from `UiIcons`; the swap mark is the swap icon.
+5. `creature_plates.gd`: status rows take `UiIcons.icon(icon_id)`; the knife lock is a fixed 16x16 TextureRect (`EXPAND_IGNORE_SIZE`, `STRETCH_KEEP_ASPECT_CENTERED`, mipmaps) set to butcher or lock inside the `unlocked` scope.
+6. `status_glyph.gd`: 24 px chip with a 16 px icon (today 18 and 12).
+7. `craft_ui.gd`, `skills_sheet.gd`, `world_ui.gd`, `inventory_ui.gd`, `map_screen.gd`, `station_menu.gd`: Button icons by id instead of emoji in the text.
+8. `tools/test.sh`: runs `res://tests/t_uiicons.gd` after `run_all.gd`. (`run_all.gd` is one file of inline checks, not a list, so the gate is the script.)
 
 ## Labs to register
 
-- `ui_icons_lab` (`game/scenes/dev/ui_icons_lab.tscn`). Add it to `tools/labs.txt` at merge; that file does not exist on this branch. Shot commands (1600x900 or 844x390, optionally with `--rendering-method gl_compatibility`):
+- `ui_icons_lab` (`game/scenes/dev/ui_icons_lab.tscn`). `tools/labs.txt` does not exist on this branch; add it wherever labs are listed at merge. Shots (1600x900 or 844x390; add `--rendering-method gl_compatibility` for the web renderer):
   ```
   Godot --path game --resolution 1600x900 -- --lab=ui_icons_lab --icons=sheet --shot=<png> --shot-delay=3.5
-  ... --icons=sizes:0 .. sizes:5 | --icons=hud | --icons=filter
+  ... --icons=blind | --icons=sizes:0 .. sizes:5 | --icons=hud | --icons=filter
   ```
 
 ## ASSUMPTION markers
 
-None in code. Design choices, none of them stated in the PRD:
-- Every status effect and skill tree gets a white icon. The rule "colour = things, white = actions" is read as covering HUD state glyphs as well. Severity colour stays on the ring that status_glyph draws, not on the icon.
-- The `xp` icon is an eye, because the legacy `👁` stood for pioneer XP. `t_stone` is a holed disc (a whetstone).
-- Deep bleed is drawn as three drops (more drops, worse bleeding); wet is rain onto water.
-- claim is a horned skull on a stake (a territory marker), not a flag.
+None in code. Design choices the PRD does not state:
+- Every status effect and skill tree gets a white icon: "colour = things, white = actions" is read as covering HUD state glyphs. Severity colour stays on the ring that status_glyph draws.
+- `xp` is an eye (the legacy `👁` stood for pioneer XP); `t_stone` is a holed disc (a whetstone).
+- Deep bleed is three drops; wet is rain onto water; claim is a horned skull on a stake.
+- Material for conventional pictograms: stone, bone, hide, rope and gourd, as listed in finding 6. confirm stays a plain check.
+- t_uiicons needs `python3` on PATH for the regeneration check (dev machines; exports never run tests). Without it the check fails with its exit code rather than skipping.
 
 ## What is left
 
-- The hooks above. Until the UI package wires them, the game still shows the old glyphs. Only the lab's `hud` mode shows the result.
-- Hook 6 grows the status chip from 18 to 24 px; the creature plate's third line must have room for it (UI package).
-- Forward icons with no screen yet: chat, market/exchange, settings, save, sound and mute. They are drawn and mapped, but nothing shows them.
-- The phone HUD at 1x draws icons at about 20 px (combat hexes about 14-20 px). After the hooks land, review on a device, or with `--touch` at 2532x1170, to decide whether the HUD hexes need to grow (UI package).
-- `player.gd` context actions still carry `glyph` keys. They are dead text once hook 3 lands, and player.gd is protected.
-- Lines remain for arrows and marks (menu, swap, rotate, end_combat, dismount, stance, survival, net, knockdown); figures and objects are solid.
-- No blind A/B against the old emoji set was run. That is the reviewer's call.
-- The drawing sources (python geometry in the scratchpad: `uiicons_tools/icons_*.py`, `geo.py`, `geo2.py`, `write.py`) are not in the repo; the SVGs are the source of truth.
+- The wiring (the patch above), after W1-UI merges. Until then the game shows the old glyphs; only the lab's `hud` mode shows the icons.
+- Hook 6 grows the status chip from 18 to 24 px; the creature plate's third line needs room for it (W1-UI).
+- Forward icons with no screen yet: chat, market, settings, save, sound, mute. Drawn and mapped, not shown anywhere.
+- At 844x390 1x the combat hexes draw icons at about 14-20 px. Review on a device (or `--touch` at 2532x1170) after wiring to decide whether the HUD hexes grow (W1-UI).
+- `player.gd` context actions keep their `glyph` keys; they are dead text after hook 3, and player.gd is protected.
+- The material on the conventional pictograms shows from about 48 px; at 24 px they read by convention only. That is intended (the convention is what a player taps on).
+- The file:line references in the inventory table were taken on the r1 tree; the test reads the ids from the code, so it does not depend on them.
