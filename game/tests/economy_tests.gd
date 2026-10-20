@@ -243,6 +243,10 @@ func _test_item_deposits() -> bool:
 	_bad_item(e, _with(base, "attributes", {"tint": "red"}), "tint not a colour")
 	_bad_item(e, _with(base, "attributes", {"tint": "#-12345"}), "tint with a sign")
 	_bad_item(e, _with(base, "attributes", {"tint": "#+1234567"}), "tint with a sign, 8 digits")
+	_bad_item(e, _with(base, "attributes", {"processed": ["fry"]}), "an unknown processing step")
+	_bad_item(e, _with(base, "attributes", {"processed": ["dry", "smoke", "steam"]}), "more steps than opportunities")
+	_bad_item(e, _with(base, "attributes", {"processed": "dry"}), "a processing history that is not a list")
+	_bad_item(e, _with(base, "attributes", {"processed": [["dry"]]}), "a nested processing history")
 	_bad_item(e, _with(base, "durability", 5), "durability on a plain item")
 	_bad_item(e, _with(base, "dupe", true), "unknown field")
 	_bad_item(e, _with(base, "process_count", 500), "process count")
@@ -253,9 +257,9 @@ func _test_item_deposits() -> bool:
 	_bad_item(e, _with(_with(knife, "max_durability", cap + 50), "durability", cap + 50), "max durability over the level cap")
 	_bad_item(e, _with(knife, "count", 2), "durability items do not stack")
 	_ok(e, "vault.deposit_item", 1, {"slot_dict": knife})
-	var fancy := _with(_with(base, "flags", ["raw"]), "attributes", {"tint": "#8a8a8a", "hardness": 2, "level": 5, "climate": "tundra"})
+	var fancy := _with(_with(base, "flags", ["raw"]), "attributes", {"tint": "#8a8a8a", "hardness": 2, "level": 5, "climate": "tundra", "processed": ["steam", "steam"]})
 	var got := _ok(e, "vault.deposit_item", 1, {"slot_dict": fancy})
-	_expect(got.item.flags == ["raw"] and int(got.item.attributes.hardness) == 2, "whitelisted flags and attributes survive")
+	_expect(got.item.flags == ["raw"] and int(got.item.attributes.hardness) == 2 and got.item.attributes.processed == ["steam", "steam"], "whitelisted flags and attributes survive")
 	_err(e, "vault.deposit_item", 1, {}, "bad_request", T0, "no slot_dict")
 	_err(e, "vault.deposit_item", 1, {"slot_dict": "stone"}, "bad_request", T0, "slot_dict not an object")
 	_deposit(e, 1, "stone", 15) # 10 + 5 + 15 = the 30 cap
@@ -820,6 +824,14 @@ func _test_attribute_sources() -> bool:
 		pairs.append(["toxin_hits", n, "player coat"])
 	for n in bleed:
 		pairs.append(["barbed_hits", n, "hunt"])
+	# W2-PROCESS's in-place history, once it merges (review r3 sync step): every step, a full-length history.
+	if FileAccess.file_exists("res://data/processing.json"):
+		var inplace: Dictionary = EconRules.read_json("res://data/processing.json").get("in_place", {})
+		for step in inplace.get("steps", []):
+			var hist: Array = []
+			hist.resize(int(inplace.get("opportunities", 0)))
+			hist.fill(step)
+			pairs.append(["processed", hist, "processing.json in_place"])
 	_expect(pairs.size() > 40 and buffs.size() > 0 and climates.size() > 3, "attribute sources were found (%d)" % pairs.size())
 	for row in pairs:
 		var why: String = e.V._attribute(row[0], Ledger.norm(row[1]))

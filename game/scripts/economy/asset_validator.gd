@@ -122,6 +122,11 @@ func _attribute(key: String, v: Variant) -> String:
 			var n: Variant = EconArgs.as_int(v)
 			if n == null or int(n) < int(spec.get("min", 0)) or int(n) > int(spec.get("max", 0)):
 				return "attribute %s out of range" % key
+		"steps":
+			# A processing history: known step ids, at most `max`. Repeats stay legal (spec 08's steam-steam is open).
+			var known: Array = spec.get("values", [])
+			if not v is Array or (v as Array).size() > int(spec.get("max", 0)) or not (v as Array).all(func (s: Variant) -> bool: return s is String and s in known):
+				return "attribute %s value not allowed" % key
 		_:
 			return "attribute %s has no rule" % key
 	return ""

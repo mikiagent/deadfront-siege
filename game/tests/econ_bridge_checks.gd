@@ -15,7 +15,7 @@ var _world: WorldFacade
 var _rules: EconRules
 
 func run() -> Array[String]:
-	for test: Callable in [_test_deposit, _test_refusals, _test_client_gate, _test_sales, _test_pets_and_cages, _test_crash_recovery, _test_strays, _test_recover_any_time, _test_fuzz]:
+	for test: Callable in [_test_deposit, _test_refusals, _test_client_gate, _test_sales, _test_processed, _test_pets_and_cages, _test_crash_recovery, _test_strays, _test_recover_any_time, _test_fuzz]:
 		if test.call() != true:
 			failures.append("%s stopped early (script error)" % test.get_method())
 	return failures
@@ -385,6 +385,30 @@ func _test_sales() -> bool:
 		stone += int(l.left) if str(l.asset.id) == "stone" else 0
 	_expect(stone == int(b.chars.s.minted.get("stone", 0)) - int(b.chars.s.consumed.get("stone", 0)), "every stone gathered is in exactly one bag, vault or listing (%d of %d)" % [stone, int(b.chars.s.minted.get("stone", 0))])
 	print("[econ-bridge] sale whole=%d stone paid=%d partial_buy=%s remainder=%s part_listing=%s order_fill=%s count1=%s" % [n, int(bought.paid), mine.get("err", "ok"), rest.get("err", "ok"), left.get("err", "ok"), fill.get("err", "ok"), one.get("err", "ok")])
+	return true
+
+## Review r3 minor: a processed food (W2-PROCESS records its in-place steps in attributes.processed)
+## deposits, sells and withdraws with that history intact; PRD:131 processed goods sell on the market.
+func _test_processed() -> bool:
+	var b := _rig("processed")
+	_gather(b, 1, "bush", 0, "berry", 3)
+	var slot := _slot(b, 1, "berry")
+	var row: Dictionary = b.chars.character(1).d.bag[slot]
+	var attrs: Dictionary = row.get("attributes", {})
+	attrs["processed"] = ["dry"] # what W2-PROCESS's dry step leaves on the instance
+	row["attributes"] = attrs
+	var n := int(row.count)
+	var dep := _op(b, "vault.deposit", 1, {"bag_slot": slot})
+	if not _expect(dep.ok, "a dried stack deposits: %s" % str(dep)):
+		return true
+	var uid := str(dep.r.uid)
+	var lid := str(_ok(b, "market.list_fixed", 1, {"asset": {"uid": uid}, "unit_price": 3, "duration_h": 24}).listing.id)
+	_ok(b, "market.buy", 2, {"listing_id": lid, "count": n})
+	_expect(_slot(b, 2, "berry") < 0, "the buyer starts without berries")
+	_ok(b, "vault.withdraw", 2, {"uid": uid})
+	var got: Dictionary = b.chars.character(2).d.bag[_slot(b, 2, "berry")] if _slot(b, 2, "berry") >= 0 else {}
+	_expect(got.get("attributes", {}).get("processed") == ["dry"] and int(got.get("count", 0)) == n and got.get("origin") == row.origin, "the buyer's character holds the %d dried berries with their history and origin: %s" % [n, str(got)])
+	print("[econ-bridge] processed deposit=%s count=%d history=%s origin=%s" % [uid, n, str(got.get("attributes", {}).get("processed")), got.get("origin")])
 	return true
 
 func _test_pets_and_cages() -> bool:

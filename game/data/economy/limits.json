@@ -94,6 +94,16 @@
         "cold_resist",
         "heat_resist"
       ]
+    },
+    "processed": {
+      "_why": "W2-PROCESS's in-place history (processing.json in_place.steps; max = its opportunities, # ASSUMPTION 2). Sync step at its merge: keep these equal to processing.json.",
+      "type": "steps",
+      "values": [
+        "dry",
+        "smoke",
+        "steam"
+      ],
+      "max": 2
     }
   },
   "category_caps": {
