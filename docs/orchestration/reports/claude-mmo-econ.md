@@ -8,6 +8,59 @@ blocker and six minors are fixed or answered, each with a test that fails on the
 it; see "Second review fixes". Fourth pass (2026-10-20): contracts v2, bridged to the
 server characters. Fifth pass (2026-10-20, evening): every review r3 item is fixed; read
 "Review r3 fixes" first, then the fourth pass; both supersede the deposit parts below.
+Sixth pass (2026-10-20, night): the one minor from the review of 5498f04b; see "Processed goods".
+
+## Processed goods (sixth pass, 2026-10-20)
+
+Finding (minor, review of 5498f04b; also the vision check's ECON row, PRD:131 "processed goods
+sell on the island market"): W2-PROCESS (unmerged, claude/mmo-w2-process 0ec9253f) records its
+in-place steps in `attributes.processed`, an Array such as `["dry"]`. The deposit whitelist
+had no such key and no array type, so dried meat would have been refused.
+
+**Fix.** `AssetValidator._attribute` gains one rule type, `steps`: an Array of known step ids,
+at most `max` long. `limits.json` gains one `processed` row: values `dry`, `smoke`, `steam`
+(W2-PROCESS `processing.json` `in_place.steps`) and `max: 2` (its `opportunities`). Nothing
+else is whitelisted.
+
+**Where I differ from the finding.** It asked for unique strings. W2-PROCESS does not forbid a
+repeated step: `processing_left` only counts the history, and its processing.json says the
+steam-steam question "stays open". A uniqueness rule would refuse a stack it can make, such
+as `["steam", "steam"]`. The length cap bounds the field instead.
+
+| Test (passes now) | FAIL with the old validator and limits.json (new tests kept, `git stash` of the two files) |
+|---|---|
+| `t_econ` `_test_processed`: berries with `processed: ["dry"]` deposit, list, sell and withdraw into the buyer's bag with the history and origin intact: `[econ-bridge] processed deposit=i7.0 count=4 history=["dry"] origin=gather` | `[t_econ] FAIL a dried stack deposits: { "ok": false, "err": "invalid_asset", "msg": "attribute processed not allowed" }` |
+| `run_all` `_test_item_deposits`: `["steam", "steam"]` survives a deposit; `["fry"]`, three steps, `"dry"` (not a list) and `[["dry"]]` are refused | `ERROR: [tests] econ: vault.deposit_item should succeed: { "ok": false, "err": "invalid_asset", "msg": "attribute processed not allowed" }`, `[tests] FAIL count=2` |
+
+**Sync step, now a check.** `_test_attribute_sources` reads `res://data/processing.json` when
+it exists and runs a full-length history of every in-place step through the whitelist. The
+file is not on the base yet, so today this adds nothing. At W2-PROCESS's merge it fails if
+that package's steps or opportunities differ from the `processed` row; update the row then.
+
+Assumption: `max: 2` inherits W2-PROCESS's `# ASSUMPTION` of 2 opportunities (spec 08's
+estimate). Both live in data.
+
+No pixels: this is server-side validation with no UI, so no lab or screenshot applies.
+
+### Acceptance (sixth pass; package tree at 1dccc874 with the hooks patch applied, through gslot)
+
+Code at 1dccc874 (base 6e26ef2a merged; that merge only touched docs, so no `--import` was
+needed). The working tree carried exactly the hooks patch (`git diff` equals
+`claude-mmo-econ-hooks.patch` byte for byte).
+
+- Hooks patch: `git apply --cached --check` on a `claude/mmo-overhaul` 6e26ef2a index is
+  clean. The base did not touch its two files, so the patch is unchanged.
+- `t_econ.gd`: `[t_econ] PASS`, with `[econ-bridge] processed deposit=i7.0 count=4 history=["dry"] origin=gather`.
+- `run_all.gd`: `[tests] PASS`. Its three SCRIPT ERROR lines are the deliberate fault tests,
+  announced by `[econ] fault test: the next SCRIPT ERROR and ERROR lines are deliberate`.
+- All 20 `game/tests/t_*.gd` exit 0 with their PASS line (`t_ai`, `t_build`, `t_canim`,
+  `t_combat`, `t_econ`, `t_harbour`, `t_iconart`, `t_items`, `t_light`, `t_lighting`,
+  `t_occlude`, `t_player`, `t_save`, `t_server_domain`, `t_srvdom`, `t_structart`, `t_tame`,
+  `t_ui`, `t_uiicons`, `t_web`). `t_save` prints its 5 deliberate SCRIPT ERRORs; every other
+  test prints 0. No test prints "couldn't resolve track".
+- `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (25 before, 25 after).
+- Labs: none. ECON has no lab or UI.
 
 ## Review r3 fixes (fifth pass, 2026-10-20)
 
@@ -23,7 +76,7 @@ way the old hook described it: `VaultBridge.apply` for economy ops, `chars.apply
 on the branch. An earlier pass had edited the integrator's `game/tests/run_all.gd`. Both edits
 now ship only in the hooks patch `docs/orchestration/reports/claude-mmo-econ-hooks.patch`;
 the branch's copies of both files match the base byte for byte. `git apply --check` is clean
-on `claude/mmo-overhaul` 3213777f. I ran the gates with the patch applied (below).
+on `claude/mmo-overhaul` 6e26ef2a (sixth pass). I ran the gates with the patch applied (below).
 
 | # | Item | Fix | Test (passes now) | FAIL on d50324df |
 |---|---|---|---|---|
@@ -44,9 +97,10 @@ destroyed outside faucets and sinks. It covers withdrawals with `count`, grants,
 `bridge.begin` from a client, client dicts), and cut deposits, receives and grants with a
 restart. Both journals then replay from empty byte for byte.
 
-### Acceptance (fifth pass; scratch tree at @@HEAD@@ + hooks patch, through gslot)
+### Acceptance (fifth pass)
 
-@@GATES@@
+The fifth pass was committed with its gates pending. The sixth-pass acceptance above covers
+that code too.
 
 ### Integrator hooks (current; replaces the fourth pass's list)
 
