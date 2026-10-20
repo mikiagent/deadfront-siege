@@ -1,7 +1,14 @@
 extends Node3D
 ## M7 kitchen lab: cooking path (sashimi-steam-steam), boil uprank, eat cancel, farming field.
+## Headless run asserts every step, prints "[kitchen_lab] PASS" and exits 1 on any FAIL.
 
 var _player: Player
+var _fails: Array[String] = []
+
+func _check(ok: bool, label: String) -> void:
+	print("[kitchen_lab] %s %s" % ["PASS" if ok else "FAIL", label])
+	if not ok:
+		_fails.append(label)
 var _bonfire: Bonfire
 var _mortar: CraftStation
 var _grill: CraftStation
@@ -65,10 +72,47 @@ func _demo() -> void:
 	_demo_boil_uprank()
 	_demo_sashimi_steam_steam()
 	_demo_eat_cancel()
+	_demo_raw_cancel()
+	_demo_burn_skill()
 	_demo_farm_save()
 	await _demo_pet_feed()
 	if DisplayServer.get_name() == "headless":
-		get_tree().quit()
+		if _fails.is_empty():
+			print("[kitchen_lab] PASS")
+		else:
+			print("[kitchen_lab] FAIL count=%d" % _fails.size())
+		get_tree().quit(0 if _fails.is_empty() else 1)
+
+## sec-eat-23: past half a raw meal, walking away still applies the raw-food risk. A poisoned
+## meal always hits, so the status itself is checked, not just that a roll happened.
+func _demo_raw_cancel() -> void:
+	for at in [0.6, 0.4]:
+		_player.statuses.clear_id(&"full")
+		_player.statuses.clear_id(&"stomachache")
+		var meal := ItemStack.make(&"raw_meat", 1)
+		meal.set_flag(&"poisoned", true)
+		_player.inventory.add(meal)
+		var idx := -1
+		for i in _player.inventory.slot_count:
+			var s := _player.inventory.slots[i]
+			if s and s.def_id == &"raw_meat" and Food.is_poisoned(s):
+				idx = i
+		var session := _player.eat_session
+		_check(_player.begin_eat_slot(idx), "poisoned raw meal starts at %d%%" % int(at * 100.0))
+		session.progress = at
+		session._cancel_with_full()
+		var sick := _player.statuses.has(&"stomachache")
+		print("[food] poisoned raw meal cancelled at %d%% stomachache=%s" % [int(at * 100.0), sick])
+		_check(sick == (at >= EatSession.RAW_RISK_CANCEL_AT), "raw meal cancel at %d%% %s a stomachache" % [int(at * 100.0), "applies" if at >= 0.5 else "skips"])
+	_player.statuses.clear_id(&"full")
+	_player.statuses.clear_id(&"stomachache")
+
+func _demo_burn_skill() -> void:
+	var grill := Crafting.recipe(&"stone_grill")
+	var novice := Crafting.burn_chance(grill, 0)
+	var cook := Crafting.burn_chance(grill, _player.skills.level_of("cooking"))
+	print("[food] grill burn chance novice=%.3f cook%d=%.3f" % [novice, _player.skills.level_of("cooking"), cook])
+	_check(cook < novice, "cooking skill lowers the grill burn chance")
 
 func _demo_skewer_cap() -> void:
 	_player.global_position = _bonfire.global_position + Vector3(1.0, 0, 0)
@@ -88,10 +132,9 @@ func _demo_skewer_cap() -> void:
 	var out := Crafting.craft(_player, rec, picks)
 	if out:
 		print("[craft] skewer level=%d (cap 19)" % out.level)
-		if out.level > 19:
-			print("[craft] ERROR skewer exceeded level 19")
 	else:
 		print("[craft] skewer craft failed picks=%s" % [picks])
+	_check(out != null and out.level <= 19, "skewer respects its level-19 cap")
 
 func _demo_boil_uprank() -> void:
 	var meat := ItemStack.make(&"raw_meat", 1)
@@ -113,6 +156,7 @@ func _demo_boil_uprank() -> void:
 	var out := Crafting.craft(_player, rec, picks)
 	if out:
 		print("[craft] boil level=%d (want ~30)" % out.level)
+	_check(out != null and out.level == 30, "boil in level-40 water upranks level-20 meat to 30")
 
 func _demo_sashimi_steam_steam() -> void:
 	_player.global_position = _bonfire.global_position + Vector3(1.0, 0, 0)
@@ -140,8 +184,10 @@ func _demo_sashimi_steam_steam() -> void:
 			picks[0] = i
 			break
 	var sash := Crafting.craft(_player, sash_rec, picks)
+	_check(skewer != null and skewer_energy > 0.0, "skewer baseline crafts")
 	if sash == null:
 		print("[food] sashimi craft failed")
+		_check(false, "sashimi crafts")
 		return
 	print("[food] sashimi count=%d process=%d" % [sash.count if sash.count > 0 else 3, sash.process_count])
 	# Steam twice at steamer; keep_output_id preserves sashimi. Prefer highest process.
@@ -178,6 +224,7 @@ func _demo_sashimi_steam_steam() -> void:
 		best_e, best_p, per_meat, skewer_energy])
 	if per_meat > skewer_energy:
 		print("[food] sashimi-steam-steam wins energy/raw")
+	_check(per_meat > skewer_energy, "sashimi-steam-steam beats a skewer per raw meat")
 
 func _demo_eat_cancel() -> void:
 	_player.vitals.energy = 20.0
@@ -204,6 +251,8 @@ func _demo_eat_cancel() -> void:
 		_player.eat_session._cancel_with_full()
 		has_full = _player.statuses.has(&"full")
 		print("[food] eat cancel forced full=%s" % has_full)
+	_check(hint_on, "eat shows the keep-still hint")
+	_check(has_full and mid > 20.0, "cancelled meal keeps what was eaten and applies Full")
 
 func _demo_farm_save() -> void:
 	# Force success rolls: high water.
@@ -239,6 +288,7 @@ func _demo_farm_save() -> void:
 	var restored := FieldPlot.from_dict(row)
 	print("[farm] save/load crop=%s fert=%.1f growth=%.2f schema=%d" % [
 		restored.crop_id, restored.fertilizer, restored.growth, int((parsed as Dictionary).get("schema", 0))])
+	_check(restored.crop_id == &"flax" and is_equal_approx(restored.fertilizer, _field.fertilizer), "field survives save/load")
 	# Also exercise SaveGame building restore path without island_runtime.
 	var SG := load("res://scripts/core/save_game.gd") as GDScript
 	var built: Node3D = SG._spawn_building(_field.to_dict()) as Node3D
@@ -249,6 +299,7 @@ func _demo_pet_feed() -> void:
 	var def := Data.creature(&"velociraptor")
 	if def == null:
 		print("[food] pet feed skipped: no velociraptor")
+		_check(false, "pet feed fixture species exists")
 		return
 	var rec := PetRecord.from_def(def, &"B")
 	_player.bonded.append(rec)
@@ -257,9 +308,11 @@ func _demo_pet_feed() -> void:
 	await get_tree().process_frame
 	if _player.summoned_pet == null:
 		print("[food] pet feed skipped: summon failed")
+		_check(false, "pet summons for feeding")
 		return
 	_player.summoned_pet.hunger = 10.0
 	LabKit.give(_player, &"meatball", 1)
 	var idx := _player.inventory.find_first(&"meatball")
 	_player.feed_summoned_pet_slot(idx)
 	print("[food] pet hunger after feed=%.0f" % _player.summoned_pet.hunger)
+	_check(_player.summoned_pet.hunger > 10.0, "feeding the summoned pet raises its hunger bar")

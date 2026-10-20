@@ -1,13 +1,15 @@
 class_name Telegraph
 extends Node3D
-## Yellow ring at the heavy-attack impact. Hidden while the player is deafened.
+## Yellow ring at the heavy-attack impact. It lives until the attack actually lands plus
+## LINGER, so a roll timed on the impact still counts. Deafened hides the ring, never the
+## dodge window.
+
+const LINGER := 0.1
 
 static var _active: Array[Telegraph] = []
 
 static func show_for(creature: Creature, clip: StringName) -> void:
 	var player := creature.get_tree().get_first_node_in_group("player") as Player
-	if player and player.statuses.has_flag(&"hide_telegraphs"):
-		return
 	var t := Telegraph.new()
 	t.name = "Telegraph"
 	creature.get_parent().add_child(t)
@@ -15,7 +17,24 @@ static func show_for(creature: Creature, clip: StringName) -> void:
 	t.global_position = impact
 	var radius := 1.8 if clip == &"attack_heavy" else 1.1
 	t._build(radius, creature)
+	t.visible = not (player and player.statuses.has_flag(&"hide_telegraphs"))
+	t.clip = clip
+	t._life = _clip_seconds(creature, clip) + LINGER  # fallback if the hit never fires
+	if creature.anim and not creature.anim.attack_hit.is_connected(t._on_attacker_hit):
+		creature.anim.attack_hit.connect(t._on_attacker_hit)
 	_active.append(t)
+
+## Live rings for this attacker (combat_rules_lab counts them at the hit frame).
+static func live_for(attacker: Creature) -> int:
+	var n := 0
+	for t in _active:
+		if is_instance_valid(t) and t.attacker == attacker and t._life > 0.0:
+			n += 1
+	return n
+
+static func _clip_seconds(creature: Creature, clip: StringName) -> float:
+	var ap := creature.anim.player if creature.anim else null
+	return ap.get_animation(clip).length if ap and ap.has_animation(clip) else 0.6
 
 static func player_dodged(attacker: Creature) -> bool:
 	var player := attacker.get_tree().get_first_node_in_group("player") as Player
@@ -29,14 +48,11 @@ static func player_dodged(attacker: Creature) -> bool:
 var attacker: Creature
 var _radius: float = 1.5
 var _life: float = 0.9
+var clip: StringName  # only this clip's hit ends the ring; a stray hit from another clip does not
 
 func _build(radius: float, who: Creature) -> void:
 	attacker = who
 	_radius = radius
-	var decal := Decal.new()
-	decal.size = Vector3(radius * 2.0, 3.0, radius * 2.0)
-	decal.modulate = Color(1.0, 0.86, 0.15, 0.85)
-	add_child(decal)
 	var ring := MeshInstance3D.new()
 	var torus := TorusMesh.new()
 	torus.inner_radius = radius * 0.88
@@ -47,7 +63,12 @@ func _build(radius: float, who: Creature) -> void:
 	mat.albedo_color = Color(1.0, 0.9, 0.2)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	ring.material_override = mat
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(ring)
+
+func _on_attacker_hit(hit_clip: StringName) -> void:
+	if hit_clip == clip:
+		_life = minf(_life, LINGER)
 
 func covers(pos: Vector3) -> bool:
 	var d := Vector2(pos.x - global_position.x, pos.z - global_position.z).length()
@@ -78,3 +99,5 @@ static func show_tyrant(creature: Creature, radius: float, duration: float, clip
 
 func _exit_tree() -> void:
 	_active.erase(self)
+	if is_instance_valid(attacker) and attacker.anim and attacker.anim.attack_hit.is_connected(_on_attacker_hit):
+		attacker.anim.attack_hit.disconnect(_on_attacker_hit)

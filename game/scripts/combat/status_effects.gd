@@ -152,6 +152,15 @@ func accuracy_mult() -> float:
 			m *= def.accuracy_mult
 	return m
 
+## Dodge percentage points from statuses (dizziness -40); callers scale by evasion_add_scale.
+func evasion_add() -> float:
+	var e := 0.0
+	for inst in _active:
+		var def := Data.status(inst.id)
+		if def:
+			e += def.evasion_add
+	return e
+
 func blocks_regen() -> bool:
 	return has_flag(&"blocks_regen")
 

@@ -8,7 +8,7 @@
   "tier": 60,
   "climate": "volcanic",
   "archetype": "tyrant",
-  "tameable": false,
+  "tameable": true,
   "capture_tier": 0,
   "verb": "three-phase raid: stomp, roar, tail",
   "status_applied": [
@@ -22,7 +22,7 @@
     "defense": 400,
     "speed": 450
   },
-  "tamed_role": [],
+  "tamed_role": ["mount"],
   "look": "12 meter Tyrannosaurus rex, massive deep skull, tiny two-fingered arms, huge legs, thick tail, ash-dark scales with a rust-red back and pale belly,",
   "texture_prompt": "ash-dark scaly hide with rust-red dorsal colouring, pale belly, matte surface",
   "clips": {
