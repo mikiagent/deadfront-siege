@@ -215,6 +215,14 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
     buff stacking rules; Cooking category + crafting ability + flawless via the shared pipeline.
     Package W2-COOK (with W2-PROCESS and W2-INV).
 
+- 2026-10-20 (owner): use DeepSeek (dsc) subagent workers for coding tasks. Standing rule for every
+  package from now on: Claude agents design, review and integrate; MECHANICAL coding (fix lists, data
+  entry, test writing, wiring, migrations with a clear spec, repetitive edits across files) goes to dsc
+  via a TASK.md + a read-only verify script (`dsc cook start TASK.md --once --verify <script> --budget N
+  --max-hours N --effort high` in the package worktree), and the Claude agent reviews dsc's diff before
+  committing it as its own. dsc runs Godot only through gslot.sh. First dsc coding batch: 38 reviewer
+  minors on the merged wave-1 packages (worktree mmo-dsc-minors, gate tools/dsc/verify_minors.sh).
+
 ## Owner questions (open)
 
 - none
