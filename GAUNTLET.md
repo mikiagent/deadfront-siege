@@ -23,14 +23,15 @@ Do not stop at "implemented." Repeat this loop until the build survives it.
    - `OPUS-SAFE`: isolated reversible presentation, UI screens, journal/content wiring, exact-note asset integration and test harnesses.
    - Name the owning package and its files (`docs/orchestration/mmo/plan-register.md`). Work on its own branch `claude/mmo-<key>`. Files another package owns, and the integrator-only files (`game/scripts/core/{game,main,world}.gd`, `game/project.godot`, `game/tests/run_all.gd`, `game/scripts/ui/touch_controls.gd`), get exact compiling hooks in the report, not edits.
 4. **Reproduce** the exact defect/path first: write the probe or test and see it fail on the old code. For AI, reproduce the exact species brain. For UI, capture the exact current screen at 1600x900 and 844x390 landscape.
-5. **Implement narrowly** in the owning subsystem: typed GDScript, data in schemas, presentation in views/UI, independent behavior in a focused component; extract rather than grow god files. Commit early and often (usage limits cut work mid-run). Who does what: Claude agents build; Codex (`gpt-reserve`) for focused one-bug debugging; DeepSeek only if Milan asks; Tripo only for complex creatures and characters; headless Blender scripts for buildings and props.
+5. **Implement narrowly** in the owning subsystem: typed GDScript, data in schemas, presentation in views/UI, independent behavior in a focused component; extract rather than grow god files. Commit early and often (usage limits cut work mid-run). Who does what: Claude agents design, review and integrate; DeepSeek (dsc) workers take narrow, gated mechanical jobs (see "DeepSeek workers" below); Codex (`gpt-reserve`) for focused one-bug debugging; Tripo only for complex creatures and characters; headless Blender scripts for buildings and props.
 6. **Prove behavior:** `--import`, every `game/tests/t_*.gd` PASS, `run_all.gd` `[tests] PASS`, `tools/smoke.sh --no-import` `SMOKE PASS`, the exact labs with 0 SCRIPT ERROR lines (creature runs: 0 "couldn't resolve track"), and save/migration coverage when relevant. Tests are silent and use a git-excluded `game/override.cfg` so they never touch Milan's real save; a new `~/Library/Logs/DiagnosticReports/Godot-*.ips` is a failure to explain.
 7. **Prove appearance:** windowed shots at 1600x900 in Forward+ AND `--rendering-method gl_compatibility` (the web renderer), plus 844x390 landscape. Look at every one, compare to the Durango references, fix the first visible defect, and inspect again. Logs/node trees are not visual evidence.
 8. **Independent review:** someone who did not write the change reruns every acceptance item, tries to break it, and checks scope and code quality; a test that cannot fail is a blocker. Visual work also gets matched before/after shots for a blind A/B judge (not told which is new, order flipped per scene); the new build must win. Fix and re-review until no blocker or major remains.
 9. **Integrate:** test-merge into a scratch copy of `claude/mmo-overhaul`, apply the hooks, rerun steps 6-7 on the merged tree, then fast-forward the integration branch, add a line to the STATUS.md merge log and push to GitHub.
 10. **Deploy the exact commit only when Milan says.** Current condition: after the UI package passes (lighting is merged). Preserve the DEADFRONT splash, one-buffer loader and cache-eviction behavior.
 11. **Verify production:** immutable URL, alias, manifest, and displayed `<commit>/<pack-hash>` stamp. If the alias is stale, the task is not delivered.
-12. **Report bluntly:** changed / unchanged / gates / screenshots / review and judge verdicts / commit and PR / immutable URL / alias stamp / remaining risk. Record new owner decisions in STATUS.md. A failed visual or interaction gate blocks promotion.
+12. **Improve the tools:** after every dsc job, log what made it succeed or stall and file a DeepseekCLI improvement prompt (see "DeepSeek workers").
+13. **Report bluntly:** changed / unchanged / gates / screenshots / review and judge verdicts / commit and PR / immutable URL / alias stamp / remaining risk. Record new owner decisions in STATUS.md. A failed visual or interaction gate blocks promotion.
 
 ### Gauntlet completion test
 
@@ -128,6 +129,52 @@ Use additional exact labs under `game/scripts/dev/*lab.gd`. `smoke.sh` must prin
 Web export splits the PCK into content-hashed one-buffer chunks and injects `--build=<commit>/<pack hash>`. HTML/worker/manifests are no-store; hashed pack parts are immutable; the stub service worker removes old PWA caches. Do not break the branded splash or streaming loader.
 
 The `gh` CLI is normally authenticated as `mikiagent`; push work branches and open draft PRs to `main`, and merge into `main` only when Milan says. If this workspace lacks GitHub credentials, create one tested commit on exact `origin/main`, record `%H %P %an %ae %aI %cn %ce %cI`, generate a one-commit format patch, and route it to the authenticated push agent with exact `%cI`. `git format-patch` does not preserve committer time. Require exact SHA before push and remote readback after.
+
+## DeepSeek workers
+
+DeepSeek (`dsc`, https://github.com/mikiagent/deepseekcli) is cheap but literal: it follows the brief and the
+verify script exactly and stalls on open-ended work. Use it where that is a strength.
+
+**Give dsc:** narrow, mechanical, measurable jobs with a fast verify gate: data rows, table-driven tests,
+call-site sweeps, renames, Blender batch builds from an existing kit, clip re-keys with measured targets, icon
+renders. Proven: 18 Blender camp pieces in 0.8 h ($0.51); quad walk/run with stride, stretch and hip gates in
+2.4 h ($1.26). **Keep for Claude:** design, open-ended tuning, anything judged only by eye, cross-package work.
+Stalled (stopped after 0/4 milestones): item icons (3.5 h, 20-minute gate per attempt) and ragdoll profile tuning
+(2.1 h).
+
+**Brief and gate rules:**
+- Sub-worktree off the package branch, `.dsc.json` `{ "sandbox": "workspace-write" }`, Godot only through the
+  shared slot wrapper, run `--import` for it when it adds a class_name.
+- TASK.md says why (with measured numbers), the files, the rules, milestones that can each pass on their own,
+  and the trailer `Co-Authored-By: DeepSeek (dsc) <noreply@deepseek.com>`.
+- The read-only verify script IS the spec: measure what could look right while wrong (units, skin stretch,
+  hidden-by-floor, scope), calibrate limits on known-good and known-bad inputs, keep a fast `--partial` gate under
+  2 minutes for milestones and the full gate for "done".
+- `dsc cook start TASK.md --once --verify <gate> --milestone-verify "<fast gate>" --budget 2-3 --max-hours 4-6 --effort high`.
+- Inspect the first milestone yourself; coach with `dsc cook say` (what passed, what failed with numbers, the
+  exact command). Stop it after ~1 h with no milestone; commit its work as WIP and take over.
+- Count workers with `pgrep -f 'node .*dsc cook run' | wc -l` (each also shows a caffeinate line); cap 6.
+- Review its diff before merging: it commits previews, root files and import churn; squash-merge in-scope paths.
+
+**Improve DeepseekCLI as you go.** After each job, append to `docs/orchestration/dsc-improvements.md` a dated
+entry: job, outcome, cost, time, cause, and a paste-ready prompt for the DeepseekCLI repo. Prompts already due:
+
+1. *Milestone gate per milestone.* "Let `--milestone-verify` take a per-milestone command (e.g. a `verify:`
+   line under each milestone in TASK.md) so an early milestone does not fail on later work; today a full gate on
+   milestone 1 blocked two jobs for hours."
+2. *Stop that stops.* "Make `dsc cook stop` cancel the running tool call (kill its child process group) after a
+   grace period, with `--now` for immediate; today it waits out a 15-20 minute verify run."
+3. *Stall detector.* "Track time since the last ticked milestone and since the last verify improvement; after a
+   configurable limit, pause and write a stall report (what was tried, the failing lines, the best result) instead
+   of looping."
+4. *Slow-gate awareness.* "Time each verify run; if one takes over N minutes, prefer the partial gate and only run
+   the full gate when the partial passes."
+5. *Scope guard.* "Read an allowed-paths list from TASK.md and refuse to `git add` files outside it (previews,
+   root files, .import/.uid churn), so merges need no clean-up."
+6. *Accurate process listing.* "Give `dsc cook status --all` a machine-wide list of running workers with their
+   directories, so orchestrators stop double-counting node and caffeinate processes."
+7. *Visual self-check that is real.* "Ship a `view_image` check that rejects blank or near-uniform renders and
+   requires the worker to state what it sees before accepting its own sheet."
 
 ## Asset and art service contract
 
