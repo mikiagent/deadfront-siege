@@ -12,6 +12,8 @@ const TARGET_PRIMARY := 56.0
 const LABEL_MAX_W := 168.0
 ## Smallest text any screen draws, in logical px (the phone canvas is one px per point).
 const TYPE_MIN := 12
+## A canvas shorter than this is a landscape phone (same bound as DisplayMode.is_phone_landscape).
+const SHORT_MAX := 500.0
 
 const INK := Color(0.035, 0.04, 0.048, 0.94)
 const INK_SOLID := Color(0.05, 0.055, 0.062, 0.97)
@@ -24,7 +26,13 @@ const META := Color(0.78, 0.76, 0.70, 1.0)
 const ACTION := Color(1, 1, 1, 1)
 
 
+## Phone type sizes and density: a narrow canvas (portrait) or a short one (landscape, the shipped
+## handheld orientation). DisplayMode gives both a 1:1 canvas, so 844x390 pt is 844x390 here.
 static func is_phone(view: Vector2) -> bool:
+	return is_narrow(view) or view.y < SHORT_MAX
+
+## Too narrow for side-by-side columns: screens stack one pane at a time (portrait phone).
+static func is_narrow(view: Vector2) -> bool:
 	return view.x < 720.0
 
 static func heading(view: Vector2) -> int:
@@ -200,8 +208,10 @@ static func first_focusable(controls: Array) -> Control:
 ## ASSUMPTION: mirrors hunt_hud.gd geometry (vitals top-left, quest + minimap top-right, rails in the
 ## bottom corners) until W2-HUD exports its own rects.
 static func hud_reserved(view: Vector2) -> Array[Rect2]:
-	if is_phone(view):
+	if is_narrow(view):
 		return [Rect2(0, 0, view.x, 96.0), Rect2(0, view.y - 96.0, view.x, 96.0)]
+	if is_phone(view):  # landscape: vitals band, the map/quest/rail column on the right, left rail
+		return [Rect2(0, 0, view.x, 96.0), Rect2(view.x - 190.0, 0, 190.0, view.y), Rect2(0, view.y - 104.0, 330.0, 104.0)]
 	return [
 		Rect2(0, 0, 330.0, 112.0),
 		Rect2(view.x - 450.0, 0, 450.0, 240.0),

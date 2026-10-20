@@ -186,7 +186,7 @@ func _refresh_tabs() -> void:
 			status = "none built"
 			col = Color(0.6, 0.6, 0.6)
 		var count := Crafting.recipes_for_station(StringName(sid)).size()
-		var b := _mk_btn("%s\n%s · %s" % [row[1], status, recipe_count(count)], _pick_station.bind(sid), Vector2(228 if _is_phone() else 190, 64))
+		var b := _mk_btn("%s\n%s · %s" % [row[1], status, recipe_count(count)], _pick_station.bind(sid), Vector2(228 if _single_pane() else 190, 64))
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.clip_text = true
 		b.icon = HexButton.symbol([row[2], "hammer"])
@@ -206,7 +206,13 @@ func _pick_station(sid: String) -> void:
 static func recipe_count(n: int) -> String:
 	return "%d recipe%s" % [n, "" if n == 1 else "s"]
 
-func _is_phone() -> bool:
+## Portrait phone: one pane at a time (station chips + recipes, or the detail sheet).
+func _single_pane() -> bool:
+	return UiTokens.is_narrow(get_viewport_rect().size)
+
+## Phones, either way up, pin Craft / Craft x5 in the footer: in a landscape phone's 230 px tall
+## detail column they sat below the fold of its scroll.
+func _pinned_actions() -> bool:
 	return UiTokens.is_phone(get_viewport_rect().size)
 
 func _refresh_list() -> void:
@@ -404,7 +410,7 @@ func _ingredients_row(rec: Dictionary) -> Control:
 
 func _choose_recipe(rid: String) -> void:
 	_selected_id = rid
-	_phone_detail = _is_phone()
+	_phone_detail = _single_pane()
 	rebuild()
 	_apply_phone_pane()
 
@@ -412,14 +418,15 @@ func _back_to_list() -> void:
 	_phone_detail = false
 	_apply_phone_pane()
 
-## Phone: chips + list, or the detail sheet with its pinned footer. Desktop: all three panes.
+## Portrait phone: chips + list, or the detail sheet with its pinned footer. Otherwise all three
+## panes, with the footer pinned under them on a landscape phone.
 func _apply_phone_pane() -> void:
-	var phone := _is_phone()
-	var sheet := phone and _phone_detail
+	var single := _single_pane()
+	var sheet := single and _phone_detail
 	(_tabs.get_parent() as Control).visible = not sheet
 	(_list.get_parent() as Control).visible = not sheet
-	(_detail.get_parent() as Control).visible = sheet or not phone
-	_footer.visible = sheet
+	(_detail.get_parent() as Control).visible = sheet or not single
+	_footer.visible = sheet or (_pinned_actions() and not single)
 
 func _start(rec: Dictionary, count: int) -> void:
 	hide_ui()
@@ -444,8 +451,7 @@ func _show_detail(info: Dictionary) -> void:
 		for c in pane.get_children():
 			pane.remove_child(c)
 			c.queue_free()
-	var phone := _is_phone()
-	if phone:
+	if _single_pane():
 		var back := _mk_btn("Back to recipes", _back_to_list, Vector2(0, UiTokens.TARGET_PRIMARY))
 		back.name = "CraftBack"
 		_detail.add_child(back)
@@ -509,12 +515,13 @@ func _show_detail(info: Dictionary) -> void:
 	# The repeated per-row buttons live here once: craft one or five of the selected recipe.
 	# On a phone they sit in the pinned footer, never below the fold of a scroll.
 	var can := _block_reason(rec, info) == ""
+	var pinned := _pinned_actions()
 	var actions := _footer as HBoxContainer
-	if not phone:
+	if not pinned:
 		actions = HBoxContainer.new()
 		actions.add_theme_constant_override("separation", UiTokens.SPACE)
 		_detail.add_child(actions)
-	var btn_h := FOOTER_H if phone else 56.0
+	var btn_h := FOOTER_H if pinned else 56.0
 	var one := _mk_btn("Craft", _start.bind(rec, 1), Vector2(120, btn_h))
 	one.name = "CraftOne"
 	one.disabled = not can
@@ -522,7 +529,9 @@ func _show_detail(info: Dictionary) -> void:
 	five.name = "CraftFive"
 	five.disabled = not can
 	for b in [one, five]:
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phone else Control.SIZE_FILL
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _single_pane() else Control.SIZE_FILL
+		if pinned and not _single_pane():
+			b.custom_minimum_size.x = 180.0  # right-aligned under the detail column
 		actions.add_child(b)
 
 func _selected_recipe() -> Dictionary:
@@ -540,7 +549,7 @@ func _layout_safe() -> void:
 	_root.offset_top = 12.0 + safe.z
 	_root.offset_right = -(16.0 + safe.x)
 	_root.offset_bottom = -(12.0 + safe.y)
-	var phone := UiTokens.is_phone(view)
+	var phone := UiTokens.is_narrow(view)  # one column of panes; a landscape phone keeps three
 	if _body:
 		_body.columns = 1 if phone else 3
 	if _list:
@@ -568,6 +577,7 @@ func _layout_safe() -> void:
 		if pane:
 			(pane.get_parent() as Control).custom_minimum_size = Vector2(0, 0) if phone else Vector2(220, 220)
 	if _footer:
+		_footer.alignment = BoxContainer.ALIGNMENT_BEGIN if phone else BoxContainer.ALIGNMENT_END
 		_apply_phone_pane()
 	if _title:
 		_title.add_theme_font_size_override("font_size", UiTokens.heading(view))

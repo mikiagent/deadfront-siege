@@ -75,6 +75,7 @@ func close() -> void:
 
 ## Panel rect: centred between the vitals (top-left) and the map/quest block (top-right) on
 ## desktop; on a phone full width from just under the vitals (the opaque panel covers the map).
+## A landscape phone has 390 px of height, so there the panel runs down to the bottom edge.
 static func panel_rect(view: Vector2) -> Rect2:
 	var top := 24.0
 	var bottom := 24.0
@@ -82,7 +83,7 @@ static func panel_rect(view: Vector2) -> Rect2:
 	if UiTokens.is_phone(view) or w < 480.0:
 		w = view.x - 16.0
 		top = 100.0
-		bottom = 100.0
+		bottom = 8.0 if view.y < UiTokens.SHORT_MAX else 100.0
 	return Rect2(Vector2((view.x - w) * 0.5, top), Vector2(w, maxf(200.0, view.y - top - bottom)))
 
 func _layout() -> void:
@@ -154,7 +155,7 @@ func _cell(text: String, w: float, size_px: int, color: Color = UiTokens.TEXT, a
 
 func _build_overview() -> void:
 	var view := get_viewport_rect().size
-	var phone := UiTokens.is_phone(view)
+	var narrow := UiTokens.is_narrow(view)  # a landscape phone has room for every column
 	var body := UiTokens.body(view)
 	var meta := UiTokens.meta(view)
 	_header("Skills", "SP %d" % skills.sp_available)
@@ -179,7 +180,7 @@ func _build_overview() -> void:
 		cols.add_child(name_cell)
 		cols.add_child(_cell(LevelDisplay.label(lvl), 56.0, body, UiTokens.TEXT, HORIZONTAL_ALIGNMENT_RIGHT))
 		var xp_col := VBoxContainer.new()
-		xp_col.custom_minimum_size = Vector2(96.0 if phone else 150.0, 0)
+		xp_col.custom_minimum_size = Vector2(96.0 if narrow else 150.0, 0)
 		xp_col.alignment = BoxContainer.ALIGNMENT_CENTER
 		xp_col.add_theme_constant_override("separation", 2)
 		xp_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -192,7 +193,7 @@ func _build_overview() -> void:
 		bar.show_percentage = false
 		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		xp_col.add_child(bar)
-		if not phone:
+		if not narrow:
 			var owned := (skills.trees[id]["unlocked"] as Array).size()
 			cols.add_child(_cell("%d owned" % owned, 76.0, meta, UiTokens.META, HORIZONTAL_ALIGNMENT_RIGHT))
 		var tree_id := id
@@ -236,7 +237,7 @@ func _build_tree() -> void:
 				l.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 		h.add_child(l)
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(120 if UiTokens.is_phone(view) else 140, 56)
+		b.custom_minimum_size = Vector2(120 if UiTokens.is_narrow(view) else 140, 56)
 		var nid := str(n.get("id", ""))
 		if st[0] == "owned":
 			b.text = "Refund"

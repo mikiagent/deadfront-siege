@@ -271,10 +271,11 @@ func _draw() -> void:
 			var right_x := hr.end.x + 8.0
 			name_pos.x = (left_x if left_x >= 8.0 else minf(right_x, view.x - nw - 28.0)) + 10.0
 			title_rect.position.x = name_pos.x - 10.0
-	draw_rect(Rect2(name_pos + Vector2(-10, -ns), Vector2(nw + 20, ns + 8)), UiTokens.INK)
-	draw_string(font, name_pos, name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
 	var lv := LevelDisplay.label(level)
 	var lw := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, UiTokens.meta(view)).x
+	# One backing for both lines: the level alone sat on the bright bush and did not read.
+	draw_rect(Rect2(name_pos + Vector2(-10, -ns), Vector2(nw + 20, ns + 26)), UiTokens.INK)
+	draw_string(font, name_pos, name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
 	draw_string(font, Vector2(name_pos.x + nw * 0.5 - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
 	for i in _buttons.size():
 		var b := _buttons[i]

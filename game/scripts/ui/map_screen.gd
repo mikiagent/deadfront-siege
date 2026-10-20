@@ -45,14 +45,15 @@ func _mark(at: Vector2, radius: float, kind: String, ring: Color) -> void:
 	draw_circle(at, radius, legend_color(kind))
 	draw_circle(at, radius, ring, false, 1.0)
 
-## Legend slot for item i of n: a column on desktop, PHONE_LEGEND_COLS per row on a phone.
+## Legend slot for item i of n: a column on desktop and landscape phones, PHONE_LEGEND_COLS per
+## row on a portrait phone.
 static func legend_slot(i: int, r: Vector2) -> Vector2:
-	if UiTokens.is_phone(r):
+	if UiTokens.is_narrow(r):
 		return Vector2(MARGIN + legend_col_w(r) * float(i % PHONE_LEGEND_COLS), phone_legend_y(r) + LEGEND_ROW_H * floorf(float(i) / float(PHONE_LEGEND_COLS)))
 	return Vector2(r.x - MARGIN - 200.0, MARGIN + 100.0 + LEGEND_ROW_H * float(i))
 
 static func legend_col_w(r: Vector2) -> float:
-	return (r.x - MARGIN * 2.0) / float(PHONE_LEGEND_COLS) if UiTokens.is_phone(r) else 200.0
+	return (r.x - MARGIN * 2.0) / float(PHONE_LEGEND_COLS) if UiTokens.is_narrow(r) else 200.0
 
 func _ready() -> void:
 	visible = false
@@ -115,7 +116,7 @@ func _rebuild_cards() -> void:
 	var current := str(World.island_id)
 	if current != "" and catalogue.has(current):
 		ids.append(current)
-	# A phone has room for the current island's card only; the map needs the rest.
+	# A phone (either way up) has room for the current island's card only; the map needs the rest.
 	var limit := 1 if UiTokens.is_phone(get_viewport_rect().size) else 4
 	for key in catalogue.keys():
 		if ids.size() >= limit:
@@ -227,7 +228,7 @@ func _process(_delta: float) -> void:
 	if not visible:
 		return
 	var r := get_viewport_rect().size
-	var phone := UiTokens.is_phone(r)
+	var phone := UiTokens.is_narrow(r)  # portrait bands; a landscape phone keeps the desktop places
 	var close_w := minf(160.0, maxf(96.0, r.x * 0.36))
 	_close.custom_minimum_size = Vector2(close_w, 56)
 	_close.size = Vector2(close_w, 56)
@@ -251,7 +252,7 @@ func _process(_delta: float) -> void:
 		_zoom_label.add_theme_color_override("font_color", UiTokens.TEXT)
 	queue_redraw()
 
-## Phone bands, top to bottom: header, one island card, map, legend (three rows), zoom, actions.
+## Portrait phone bands, top to bottom: header, one island card, map, legend (three rows), zoom, actions.
 const PHONE_CARD_TOP := 108.0
 const PHONE_MAP_TOP := 236.0
 
@@ -261,12 +262,21 @@ static func phone_legend_y(r: Vector2) -> float:
 func _layout() -> Dictionary:
 	var r := get_viewport_rect().size
 	var fit := minf(r.x, r.y) - MARGIN * 2.0 - 90.0
-	if UiTokens.is_phone(r):
+	var centre := Vector2(r.x * 0.58, r.y * 0.48)
+	if UiTokens.is_narrow(r):
 		var map_h := phone_legend_y(r) - 24.0 - PHONE_MAP_TOP
 		fit = minf(r.x - MARGIN * 2.0, map_h)
+		centre = Vector2(r.x * 0.5, PHONE_MAP_TOP + fit * 0.5)
+	elif UiTokens.is_phone(r):
+		# Landscape phone: between the card column and the legend, under the header, over the buttons.
+		var top := MARGIN + 48.0
+		var bottom := r.y - 64.0 - MARGIN - UiTokens.SPACE
+		var left := MARGIN + 240.0
+		var right := r.x - MARGIN - 200.0
+		fit = minf(bottom - top, right - left - UiTokens.SPACE * 2.0)
+		centre = Vector2((left + right) * 0.5, (top + bottom) * 0.5)
 	var rt := World.runtime
 	var size_m: float = float(rt.get("_size")) if rt and rt.get("_size") != null else 200.0
-	var centre := Vector2(r.x * 0.58, r.y * 0.48) if not UiTokens.is_phone(r) else Vector2(r.x * 0.5, PHONE_MAP_TOP + fit * 0.5)
 	return {"centre": centre, "scale": fit / maxf(1.0, size_m) * _zoom, "fit": fit,
 		"yaw": 0.0, "size_m": size_m}
 
@@ -328,7 +338,7 @@ func _draw() -> void:
 	# header + legend (screen space)
 	var title := "WORLD ATLAS"
 	var head := UiTokens.heading(r)
-	var phone := UiTokens.is_phone(r)
+	var phone := UiTokens.is_narrow(r)
 	var close_w := minf(160.0, maxf(96.0, r.x * 0.36))
 	var text_w := r.x - MARGIN * 2.0 - close_w - 12.0
 	draw_string(font, Vector2(MARGIN, MARGIN + head), title, HORIZONTAL_ALIGNMENT_LEFT, text_w, head, Color.WHITE)
@@ -340,7 +350,7 @@ func _draw() -> void:
 	var meta := "You  X %d  Y %d    %s    T-stones %d" % [tile.x, tile.y, LevelDisplay.player_label(), World.t_stones]
 	var meta_y := MARGIN + head + (44.0 if phone else 22.0)
 	draw_string(font, Vector2(MARGIN, meta_y), UiTokens.ellipsis(font, meta, text_w, UiTokens.meta(r)), HORIZONTAL_ALIGNMENT_LEFT, text_w, UiTokens.meta(r), UiTokens.META)
-	# Legend: a column under Close on desktop, two rows over the buttons on a phone.
+	# Legend: a column under Close, or three rows over the buttons on a portrait phone.
 	var kinds: Array = LEGEND.keys()
 	if not World.crater_discovered:
 		kinds.erase("crater")

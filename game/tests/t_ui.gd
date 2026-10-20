@@ -179,13 +179,26 @@ func _test_display_mode() -> void:
 	_expect(DisplayMode.logical_size(Vector2i(1170, 2532), 3.0) == Vector2i(390, 844), "iPhone pixels at 3x -> 390x844 logical")
 	_expect(DisplayMode.logical_size(Vector2i(1600, 900), 1.0) == DisplayMode.DESIGN, "1600x900 desktop unchanged")
 	_expect(DisplayMode.logical_size(Vector2i(3200, 1800), 2.0) == DisplayMode.DESIGN, "retina browser at 1600x900 CSS unchanged")
-	_expect(DisplayMode.logical_size(Vector2i(844, 390), 1.0) == DisplayMode.DESIGN, "landscape keeps the design canvas")
-	# Landscape phones are told apart by the window in points: the logical canvas is ~1947x900 there.
+	# The owner plays phones landscape: 844x390 pt gets a 1:1 canvas, short, so is_phone holds.
+	var land := Vector2(DisplayMode.logical_size(Vector2i(844, 390), 1.0))
+	_expect(land == Vector2(844, 390), "844x390 landscape window -> 844x390 logical (got %s)" % land)
+	_expect(DisplayMode.logical_size(Vector2i(2532, 1170), 3.0) == Vector2i(844, 390), "iPhone landscape pixels at 3x -> 844x390 logical")
+	_expect(UT.is_phone(land) and not UT.is_narrow(land), "is_phone holds on the landscape canvas, which is not narrow")
+	_expect(not UT.is_phone(Vector2(DisplayMode.DESIGN)), "the 1600x900 desktop canvas is not a phone")
+	_expect(DisplayMode.logical_size(Vector2i(820, 1180), 1.0) == Vector2i(DisplayMode.TABLET_W, 1439), "portrait tablet -> TABLET_W wide canvas")
 	_expect(DisplayMode.is_phone_landscape(Vector2(844, 390)), "844x390 pt is a landscape phone")
-	_expect(not DisplayMode.is_phone_landscape(Vector2(1947, 900)), "the 1947x900 logical canvas is not (the old charcreate test)")
+	_expect(not DisplayMode.is_phone_landscape(Vector2(1947, 900)), "the unfitted 1947x900 canvas is not")
 	_expect(not DisplayMode.is_phone_landscape(Vector2(390, 844)) and not DisplayMode.is_phone_landscape(Vector2(1600, 900)), "portrait phone and desktop are not landscape phones")
 	_expect(DisplayMode.logical_size(Vector2i(0, 0), 1.0) == DisplayMode.DESIGN, "a zero window keeps the design canvas")
-	_expect(UT.is_phone(Vector2(DisplayMode.logical_size(Vector2i(390, 844), 1.0))), "is_phone holds on the phone canvas")
+	_expect(UT.is_phone(Vector2(DisplayMode.logical_size(Vector2i(390, 844), 1.0))), "is_phone holds on the portrait canvas")
+	print("[t_ui] canvas: 844x390 -> %s phone=%s narrow=%s; 1600x900 -> %s phone=%s" % [land, UT.is_phone(land), UT.is_narrow(land), Vector2(DisplayMode.logical_size(Vector2i(1600, 900), 1.0)), UT.is_phone(Vector2(DisplayMode.DESIGN))])
+	# Landscape screens keep off the HUD: skills sits under the vitals band, radials avoid the right column.
+	var SS: GDScript = load("res://scripts/ui/skills_sheet.gd")
+	var zones: Array[Rect2] = UT.hud_reserved(land)
+	var sheet: Rect2 = SS.panel_rect(land)
+	_expect(not sheet.intersects(zones[0]), "landscape skills panel %s clears the vitals band %s" % [sheet, zones[0]])
+	_expect(sheet.end.y <= land.y and sheet.size.y >= 4.0 * SS.ROW_H, "landscape skills panel fits the view with room for rows (%s)" % sheet)
+	_expect(zones.size() == 3 and zones[1].position.x > land.x * 0.7, "landscape HUD zones include the right map/rail column (%s)" % [zones])
 
 func _test_theme() -> void:
 	var t: Theme = DisplayMode.build_theme()
@@ -258,6 +271,11 @@ func _test_hex_focus() -> void:
 ## The real-scene gate must fail when the phone canvas fit is missing (review: it printed PASS
 ## for "phone=false min_font_px=3 logical_width=1600" at 390x844).
 func _test_gate_verdict() -> void:
+	var land: Array = LAB.gate_failures(Vector2(844, 390), false, 5, 1947)
+	_expect(land.size() == 2, "844x390 without the fit fails twice (got %s)" % [land])
+	_expect((LAB.gate_failures(Vector2(844, 390), true, 12, 844) as Array).is_empty(), "844x390 with the fit passes")
+	_expect((LAB.gate_failures(Vector2(844, 390), false, 13, 844) as Array).size() == 1, "844x390 with is_phone false fails")
+	print("[t_ui] gate: 844x390 without fit -> %d failures" % land.size())
 	var broken: Array = LAB.gate_failures(Vector2(390, 844), false, 3, 1600)
 	_expect(broken.size() == 2, "390x844 without the fit fails twice (got %s)" % [broken])
 	_expect((LAB.gate_failures(Vector2(390, 844), true, 12, 390) as Array).is_empty(), "390x844 with the fit passes")

@@ -13,11 +13,11 @@ var _cards: Dictionary = {}
 
 func _ready() -> void:
 	layer = 60
-	# Portrait phone: the logical canvas (DisplayMode) is ~390 px wide, so is_phone holds.
-	# Landscape phone: the canvas stays 1600x900-ish, so decide from the window in points.
+	# DisplayMode gives phones a 1:1 canvas: ~390 px wide in portrait (two columns, wrapped
+	# details), ~390 px tall in landscape (four columns, everything on one screen).
 	var view := get_viewport().get_visible_rect().size
-	var phone_landscape := DisplayMode.is_phone_landscape(DisplayMode.window_points(get_window()))
 	var phone := UiTokens.is_phone(view)
+	var short := phone and not UiTokens.is_narrow(view)
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -28,61 +28,61 @@ func _ready() -> void:
 	root.add_child(bg)
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var edge := 10 if phone_landscape else 24
+	var edge := 10 if short else 24
 	for side in ["margin_left", "margin_top", "margin_right", "margin_bottom"]:
 		margin.add_theme_constant_override(side, edge)
 	root.add_child(margin)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6 if phone_landscape else 14)
+	box.add_theme_constant_override("separation", 6 if short else 14)
 	margin.add_child(box)
 	var title := Label.new()
 	title.text = "CREATE YOUR SURVIVOR"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 38 if phone_landscape else (24 if phone else 34))
+	title.add_theme_font_size_override("font_size", 22 if short else (24 if phone else 34))
 	box.add_child(title)
 	var sub := Label.new()
-	sub.text = "Pick a background. It starts one skill at Lv. 20." if phone_landscape or phone else "Choose a background for one Lv. 20 head start. Then claim your island and begin."
+	sub.text = "Pick a background. It starts one skill at Lv. 20." if phone else "Choose a background for one Lv. 20 head start. Then claim your island and begin."
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	sub.add_theme_font_size_override("font_size", 30 if phone_landscape else (14 if phone else 18))
+	sub.add_theme_font_size_override("font_size", 14 if phone else 18)
 	sub.add_theme_color_override("font_color", Color(0.75, 0.82, 0.84))
 	box.add_child(sub)
 	var grid := GridContainer.new()
-	grid.columns = 2 if phone else 4
+	grid.columns = 2 if UiTokens.is_narrow(view) else 4
 	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", 6 if phone_landscape else 12)
-	grid.add_theme_constant_override("v_separation", 6 if phone_landscape else 12)
+	grid.add_theme_constant_override("h_separation", 6 if short else 12)
+	grid.add_theme_constant_override("v_separation", 6 if short else 12)
 	box.add_child(grid)
 	for occupation in SkillState.occupations():
 		var id := str(occupation.get("id", ""))
 		var card := Button.new()
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		card.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		card.custom_minimum_size = Vector2(0, 74 if phone_landscape else (88 if phone else 150))
+		card.custom_minimum_size = Vector2(0, 56 if short else (88 if phone else 150))
 		var skill := str(SkillState.NAMES.get(str(occupation.get("tree", "")), str(occupation.get("tree", ""))))
-		card.text = "%s\n%s 20" % [str(occupation.get("name", id)), skill] if phone_landscape or phone else "%s\n%s\nStarts: %s Lv. 20" % [str(occupation.get("name", id)), str(occupation.get("story", "")), skill]
+		card.text = "%s\n%s 20" % [str(occupation.get("name", id)), skill] if phone else "%s\n%s\nStarts: %s Lv. 20" % [str(occupation.get("name", id)), str(occupation.get("story", "")), skill]
 		card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		card.add_theme_font_size_override("font_size", 34 if phone_landscape else 16)
+		card.add_theme_font_size_override("font_size", 16)
 		card.toggle_mode = true
 		card.pressed.connect(func () -> void: _select(id))
 		grid.add_child(card)
 		_cards[id] = card
 	# Flow, not a row: on a phone the name field and the start button wrap onto their own lines.
 	var details := HFlowContainer.new()
-	details.add_theme_constant_override("h_separation", 8 if phone_landscape else 12)
+	details.add_theme_constant_override("h_separation", 8 if short else 12)
 	details.add_theme_constant_override("v_separation", 8)
 	details.alignment = FlowContainer.ALIGNMENT_CENTER
 	box.add_child(details)
 	var gl := Label.new()
 	gl.text = "Body"
-	gl.add_theme_font_size_override("font_size", 30 if phone_landscape else 18)
+	gl.add_theme_font_size_override("font_size", 16 if short else 18)
 	details.add_child(gl)
 	for g in [["f", "Woman"], ["m", "Man"]]:
 		var gb := Button.new()
 		gb.text = g[1]
-		gb.custom_minimum_size = Vector2(100 if phone_landscape else (120 if phone else 140), 48 if phone_landscape else 56)
-		gb.add_theme_font_size_override("font_size", 30 if phone_landscape else 18)
+		gb.custom_minimum_size = Vector2(100 if short else (120 if phone else 140), 48 if short else 56)
+		gb.add_theme_font_size_override("font_size", 16 if short else 18)
 		gb.toggle_mode = true
 		gb.button_pressed = g[0] == _gender
 		var gid: String = g[0]
@@ -96,13 +96,13 @@ func _ready() -> void:
 	_name = LineEdit.new()
 	_name.placeholder_text = "Name"
 	_name.text = "Survivor"
-	_name.custom_minimum_size = Vector2(170 if phone_landscape else (view.x - 48.0 if phone else 300.0), 48 if phone_landscape else 56)
-	_name.add_theme_font_size_override("font_size", 32 if phone_landscape else 20)
+	_name.custom_minimum_size = Vector2(200 if short else (view.x - 48.0 if phone else 300.0), 48 if short else 56)
+	_name.add_theme_font_size_override("font_size", 16 if short else 20)
 	details.add_child(_name)
 	_start = Button.new()
 	_start.text = "ENTER THE RIFT"
-	_start.custom_minimum_size = Vector2(190 if phone_landscape else (view.x - 48.0 if phone else 320.0), 52 if phone_landscape else 64)
-	_start.add_theme_font_size_override("font_size", 32 if phone_landscape else 22)
+	_start.custom_minimum_size = Vector2(200 if short else (view.x - 48.0 if phone else 320.0), 52 if short else 64)
+	_start.add_theme_font_size_override("font_size", 18 if short else 22)
 	_start.disabled = true
 	_start.pressed.connect(_finish)
 	details.add_child(_start)
