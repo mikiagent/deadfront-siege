@@ -243,6 +243,8 @@ func _process(_delta: float) -> void:
 	_close.position = Vector2(r.x - close_w - MARGIN, MARGIN)
 	var actions := _btn_row.get_child_count()
 	var action_w := 200.0 if not phone else maxf(96.0, (r.x - MARGIN * 2.0 - UiTokens.SPACE * float(maxi(actions - 1, 0))) / float(maxi(actions, 1)))
+	if UiTokens.is_compact(r) and not phone:  # landscape phone: away from home three 200 px actions ran under the zoom row
+		action_w = minf(action_w, maxf(96.0, (zoom_left(r) - UiTokens.SPACE - MARGIN - UiTokens.SPACE * float(maxi(actions - 1, 0))) / float(maxi(actions, 1))))
 	for child in _btn_row.get_children():
 		var action := child as Control
 		if action:
@@ -253,12 +255,15 @@ func _process(_delta: float) -> void:
 		_card_scroll.size = Vector2(240.0 if not phone else r.x - MARGIN * 2.0, 112.0 if phone else r.y - 220.0)
 	var zoom_row := get_node_or_null("ZoomRow") as Control
 	if zoom_row:
-		var zoom_w := 64.0 + 108.0 + 64.0 + UiTokens.SPACE * 2.0
-		zoom_row.position = Vector2(r.x - zoom_w - MARGIN, r.y - 64.0 - MARGIN) if not phone else Vector2(MARGIN, r.y - 64.0 - MARGIN - 64.0 - UiTokens.SPACE)
+		zoom_row.position = Vector2(zoom_left(r), r.y - 64.0 - MARGIN) if not phone else Vector2(MARGIN, r.y - 64.0 - MARGIN - 64.0 - UiTokens.SPACE)
 	if _zoom_label:
 		_zoom_label.add_theme_font_size_override("font_size", UiTokens.body(r))
 		_zoom_label.add_theme_color_override("font_color", UiTokens.TEXT)
 	queue_redraw()
+
+## Left edge of the zoom row (bottom right, off a portrait phone).
+static func zoom_left(r: Vector2) -> float:
+	return r.x - (64.0 + 108.0 + 64.0 + UiTokens.SPACE * 2.0) - MARGIN
 
 static func phone_legend_y(r: Vector2) -> float:
 	return r.y - 64.0 - MARGIN - UiTokens.SPACE - 64.0 - UiTokens.SPACE * 2.0 - 30.0 - LEGEND_ROW_H
@@ -275,10 +280,18 @@ func _layout() -> Dictionary:
 		# Landscape phone: between the card column and the legend, under the header, over the buttons.
 		var top := MARGIN + 48.0
 		var bottom := r.y - 64.0 - MARGIN - UiTokens.SPACE
-		var left := MARGIN + 240.0
-		var right := r.x - MARGIN - 200.0
-		fit = minf(bottom - top, right - left - UiTokens.SPACE * 2.0)
+		var left := MARGIN + 240.0 + UiTokens.SPACE
+		var right := r.x - MARGIN - 200.0 - UiTokens.SPACE
+		fit = minf(bottom - top, right - left)
 		centre = Vector2((left + right) * 0.5, (top + bottom) * 0.5)
+		# The square is height-bound (222 px of 390 at 844x390). Where the action row leaves the
+		# middle of the bottom free, it runs down between the actions and the zoom row instead.
+		var low_left := maxf(left, MARGIN + _btn_row.get_combined_minimum_size().x + UiTokens.SPACE)
+		var low_right := minf(right, zoom_left(r) - UiTokens.SPACE)
+		var tall := minf(r.y - MARGIN - top, low_right - low_left)
+		if tall > fit:
+			fit = tall
+			centre = Vector2((low_left + low_right) * 0.5, top + fit * 0.5)
 	var rt := World.runtime
 	var size_m: float = float(rt.get("_size")) if rt and rt.get("_size") != null else 200.0
 	return {"centre": centre, "scale": fit / maxf(1.0, size_m) * _zoom, "fit": fit, "size_m": size_m}

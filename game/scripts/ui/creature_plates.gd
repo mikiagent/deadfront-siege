@@ -365,11 +365,14 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	hp_dbg.visible = Game.debug_overlay
 	if Game.debug_overlay:
 		hp_dbg.text = "%.0f/%.0f" % [c.health.hp, c.health.max_hp]
+	# Landscape phone: an emphasised creature that is neither the hunt target nor tameable shows its
+	# name and bar only; with its status and tame rows the 176x72 pill covered the survivor beside it.
+	var rows := full and (not UiTokens.is_compact(get_viewport_rect().size) or _in_focus(c, player))
 	var line3 := entry["line3"] as Control
 	if line3:
-		line3.visible = full
+		line3.visible = rows
 	_tick_status_icons(entry, c)
-	_tick_tame_hint(entry, c, player, full)
+	_tick_tame_hint(entry, c, player, rows)
 	_tick_xp(entry, c, full)
 	_tick_floaters(entry, delta)
 	_fit_pill(entry, full)
@@ -395,6 +398,10 @@ func _fit_pill(entry: Dictionary, full: bool) -> void:
 		bottom = 94.0
 	pill.position = Vector2(2, -2)
 	pill.size = Vector2(BASE_WIDTH - 4.0, bottom + 2.0)
+
+## The hunt target, or a creature the survivor can tame now: its plate keeps every row.
+static func _in_focus(c: Creature, player: Player) -> bool:
+	return (player.hunt != null and player.hunt.target == c) or FieldTame.can_attempt(c)
 
 func _pick_emphasis(player: Player) -> int:
 	if player.hunt and player.hunt.target and is_instance_valid(player.hunt.target) and not player.hunt.target.health.dead:

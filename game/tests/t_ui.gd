@@ -16,7 +16,7 @@ const OWNED := [
 const TYPE_MIN := 12
 ## The HUD and bag joined W1-UI late (orchestrator option a). The bag is emoji-free; the HUD's rail
 ## and hunt glyphs have no white symbol yet and go to W2-HUD. Capped so the count cannot grow.
-const LATE_EMOJI_LINES := {"res://scripts/ui/hunt_hud.gd": 11, "res://scripts/ui/inventory_ui.gd": 0}
+const LATE_EMOJI_LINES := {"res://scripts/ui/hunt_hud.gd": 10, "res://scripts/ui/inventory_ui.gd": 0}
 
 var failures: Array[String] = []
 var _done := false
@@ -189,6 +189,21 @@ func _test_context_radial() -> void:
 	var near_hud := ContextRadial.hex_positions(Vector2(1000, 150), 2, view, Vector4.ZERO, hex, 0.0, avoid)
 	for p in near_hud:
 		_expect(not Rect2(p, Vector2(hex, hex)).intersects(avoid[0]), "radial hex stays off the HUD block (%s)" % p)
+	# The ring turns as a whole: inside the view, with a block on both preferred (right-hand) slots,
+	# it must come out clear of the block with every hex still one radius from the anchor. Sliding
+	# alone keeps the hexes apart but cannot clear it (review: TURN_STEPS := 1 still passed).
+	var centre := Vector2(800, 450)
+	var block: Array[Rect2] = [Rect2(820, 300, 300, 300)]
+	var unturned := ContextRadial._ring(centre, [-0.9, 0.9] as Array[float], 0.0, 96.0, hex)
+	_expect(Rect2(unturned[0], Vector2(hex, hex)).intersects(block[0]) and Rect2(unturned[1], Vector2(hex, hex)).intersects(block[0]), "the unturned ring sits on the block (test set-up)")
+	var turned := ContextRadial.hex_positions(centre, 2, view, Vector4.ZERO, hex, 0.0, block)
+	var radii: PackedStringArray = []
+	for p in turned:
+		var d := (p + Vector2(hex, hex) * 0.5).distance_to(centre)
+		radii.append("%.1f" % d)
+		_expect(not Rect2(p, Vector2(hex, hex)).intersects(block[0]), "turned ring clears the block (hex at %s)" % p)
+		_expect(absf(d - 96.0) < 0.5, "turned ring keeps its radius: hex centre %.1f px from the anchor, not 96 (a slide, not a turn)" % d)
+	print("[t_ui] radial turn: 2 hexes off the block at %s, radii %s" % [turned, ", ".join(radii)])
 
 func _test_craft_level_text() -> void:
 	var crafting: GDScript = load("res://scripts/items/crafting.gd")
@@ -262,11 +277,14 @@ func _test_display_mode() -> void:
 	_expect(SS.is_sheet(land) and sheet.encloses(zones[0]), "landscape skills sheet %s covers the vitals band %s" % [sheet, zones[0]])
 	_expect(not SS.is_sheet(Vector2(1600, 900)) and not SS.is_sheet(Vector2(390, 844)), "desktop and portrait skills keep the panel between the HUD blocks")
 	_expect(sheet.end.y <= land.y and sheet.size.y >= 4.0 * SS.ROW_H, "landscape skills panel fits the view with room for rows (%s)" % sheet)
-	_expect(zones.size() == 5 and zones[1].position.x > land.x * 0.7, "landscape HUD zones include the right map/rail column (%s)" % [zones])
+	_expect(zones.size() == 6 and zones[1].position.x > land.x * 0.7, "landscape HUD zones include the right map/rail column (%s)" % [zones])
 	# HANDS stacks above the rail's last hex on landscape (the gather label landed on it).
 	var HS: GDScript = load("res://scripts/ui/held_item_slot.gd")
 	var hands := Rect2(16.0 + (HS.RAIL_HEXES - 1.0) * (HS.SLOT + 10.0), land.y - 96.0 - HS.SLOT - 34.0, HS.SLOT, HS.SLOT + 18.0)
-	_expect(zones.size() == 5 and zones[3].encloses(hands), "landscape HUD zones cover the HANDS slot %s" % hands)
+	_expect(zones.size() == 6 and zones[3].encloses(hands), "landscape HUD zones cover the HANDS slot %s" % hands)
+	# ...the quick-food row beside it, and the pet whistle row under the vitals (hunt_hud.gd).
+	_expect(zones[3].encloses(Rect2(16.0, land.y - 96.0 - 64.0 - 30.0, 64.0, 82.0)), "landscape HUD zones cover the first quick-food hex")
+	_expect(zones[5].encloses(Rect2(16.0, 104.0, 3.0 * 74.0 - 10.0, 82.0)), "landscape HUD zones cover the whistle row under the vitals (%s)" % zones[5])
 	# The XP line at the bottom centre (a gather label landed on it at 844x390).
 	var xp_w := ThemeDB.fallback_font.get_string_size("Lv. 100  100.0%", HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
 	var xp := Rect2(land.x * 0.5 - xp_w * 0.5, land.y - 19.0, xp_w, 15.0)
@@ -335,8 +353,8 @@ func _test_level_up_banner() -> void:
 	for key in titles.keys():
 		if not str(key).is_valid_int() or int(key) < 2:  # level 1 is the start, never a level-up
 			continue
-		world.pioneer_level = int(key) - 1  # stored; World emits after the increment
-		hud.call("_on_level_up", world.pioneer_level)
+		world.pioneer_level = 0  # the handler formats the signal's stored level, not World's
+		hud.call("_on_level_up", int(key) - 1)
 		var lines: Array = hud.get("_levelup_lines")
 		var title := ""
 		for l in lines:
@@ -344,6 +362,7 @@ func _test_level_up_banner() -> void:
 				title = str(l[0])
 		var want := "Title %s acquired." % titles[key]
 		_expect(str(lines[0][0]) == "Lv. %s" % key and title == want, "level-up to Lv. %s: banner \"%s\" with \"%s\" (got \"%s\")" % [key, lines[0][0], want, title])
+		_expect(str(hud.get("_levelup_title")) == want and str(hud.get("_levelup_summary")).contains("Skill points"), "level-up to Lv. %s: the phone banner has the title and one stat line (\"%s\")" % [key, hud.get("_levelup_summary")])
 		checked += 1
 	world.pioneer_level = was
 	hud.free()

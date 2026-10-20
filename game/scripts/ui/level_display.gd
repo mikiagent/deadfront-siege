@@ -9,7 +9,12 @@ extends RefCounted
 const NONE := "Lv. —"
 
 static func player_level() -> int:
-	return World.pioneer_level + 1
+	return shown(World.pioneer_level)
+
+## The level a stored pioneer level reads as. World.pioneer_changed carries the stored value; a
+## handler that formats it goes through here instead of re-reading World.
+static func shown(stored: int) -> int:
+	return stored + 1
 
 ## Every level label goes through here, so the format is the same on every screen.
 static func label(level: int) -> String:

@@ -6,7 +6,9 @@ extends Node3D
 ## screen must have size, sit inside the view, draw no text under 12 logical px and be neither blank
 ## nor blown out; the HUD, atlas, bag and character creation also check that their blocks and
 ## controls stay inside the view and do not overlap each other, and the gather radial's hexes and
-## labels stay off the HUD and the survivor's nameplate. The animal screen (protected) is a
+## labels stay off the HUD and the survivor's nameplate. The HUD is also gated past idle: the menu
+## and build sheets, a level-up, a bonded pet out, and a hunt with the pet out (review: five
+## overlaps passed while only the idle HUD was checked). The animal screen (protected) is a
 ## shot only, for an eye check of the token theme on it; nothing on it is gated.
 ## Windowed: --resolution 844x390 -- --lab=ui_real_capture_lab [--shot-dir=DIR]
 ## (844x390 is the phone check: the owner plays phones landscape; 667x375, 390x844 and 1600x900 also
@@ -199,7 +201,9 @@ func _run() -> void:
 		print("[uireal] radial: %d option labels, %d hexes and the title checked against %d HUD blocks and the source %s (most of a part on it %.1f%%), nameplate %s" % [radial.label_rects.size(), hexes.size(), hud.size(), radial.source_rect(), worst * 100.0, plate])
 		await _capture("radial", hexes, logical)
 		radial.close()
-	# creature plate with three status glyphs (letters must sit inside their rings)
+	# the HUD past idle, then the creature plate idle and in a hunt (letters inside their rings)
+	await _hud_sheets_and_level_up(logical)
+	await _pet_out(logical)
 	await _capture_plate(logical)
 	# bag (protected inventory_ui): it scrolls down, so its columns are checked across the view,
 	# and off a portrait phone they must start side by side near the top (the portrait rows pushed
@@ -283,7 +287,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
 	print("[uireal] phone=%s min_font_px=%d min_font_pt=%.2f logical_width=%d window_pt=%dx%d floor_pt=%.2f (smallest: %s)" % [phone, min_px, min_pt, int(logical.x), int(pts.x), int(pts.y), type_floor_pt(pts), _min_font_where])
 	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
 	if _fails.is_empty():
-		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,plate,bag,charcreate shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
+		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,combat,bag,charcreate shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
 		get_tree().quit(0)
 	else:
 		for f in _fails:
@@ -333,15 +337,15 @@ func _check_blocks(screen: String, rects: Dictionary, logical: Vector2, x_only: 
 			_expect(not a.grow(-0.5).intersects(b.grow(-0.5)), "%s: %s %s overlaps %s %s" % [screen, names[i], a, names[j], b])
 	print("[uireal] %s blocks: %s" % [screen, " ".join(parts)])
 
-## HUD blocks: its visible controls (hexes with their caption, the minimap), the held-tool slot, and
-## the blocks it draws (vitals, quest card, level line), mirrored from hunt_hud.gd _draw (:916-930,
-## :975-977) and _draw_quest (:1071-1074) with the HUD's own is_phone branch.
-static func hud_blocks(hud: HuntHud, player: Player, r: Vector2) -> Dictionary:
+## HUD blocks: its visible controls (hexes with their caption, the minimap, End Combat, the stance
+## text), the held-tool slot, and the blocks it draws as HuntHud.drawn_blocks records them (vitals,
+## quest card, map text, status badges, level line, target plate, level-up banner). An open sheet is
+## checked on its own (_check_sheet): it covers the HUD on purpose.
+static func hud_blocks(hud: HuntHud, player: Player, _r: Vector2) -> Dictionary:
 	var out := {}
-	var minimap: Control = null
 	for c in hud.get_children():
 		var ctl := c as Control
-		if ctl == null or not ctl.is_visible_in_tree() or ctl.top_level or ctl.size.x < 8.0 or ctl.size.y < 8.0:
+		if ctl == null or not ctl.is_visible_in_tree() or ctl.top_level or ctl.size.x < 8.0 or ctl.size.y < 8.0 or ctl.name == "HudSheet":
 			continue
 		if ctl is Label and (ctl as Label).text.strip_edges() == "":
 			continue
@@ -353,33 +357,88 @@ static func hud_blocks(hud: HuntHud, player: Player, r: Vector2) -> Dictionary:
 				out[key + ".caption"] = (ctl as HexButton).caption_rect()
 		else:
 			out[key] = ctl.get_global_rect()
-		if ctl.name == "Minimap":
-			minimap = ctl
 	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
 	if held and held.is_visible_in_tree():
 		out["HeldItemSlot"] = Rect2(held.get_global_rect().position, held.size + Vector2(0, 18))
-	if minimap == null:
-		return out
-	var inset := UiTokens.safe_insets(hud.get_viewport())
-	var phone := UiTokens.is_phone(r)
-	var x := 16.0 + inset.w
-	var y := 12.0 + inset.z
-	var mp := minimap.position
-	var panel_w := 300.0 if not phone else maxf(148.0, mp.x - x - 8.0)
-	var big := 16.0 if not phone else 12.0
-	var small := 10.0 if not phone else 8.0
-	out["vitals"] = Rect2(x - 8.0, y - 6.0, panel_w, big * 2.0 + small + 12.0 + 36.0)
-	var w := HuntHud.MAP_PX if phone else 240.0
-	var origin := Vector2(mp.x, mp.y + HuntHud.MAP_PX + 52.0) if phone else Vector2(mp.x - w - 12.0, mp.y)
-	origin.x = maxf(origin.x, 8.0)
-	out["quest"] = Rect2(origin, Vector2(w, 72.0))
-	# The HUD level line: right-aligned above the rail on is_phone, else bottom centre.
-	var font := ThemeDB.fallback_font
-	var prog := World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
-	var lw := font.get_string_size("%s  %.1f%%" % [LevelDisplay.player_label(), prog * 100.0], HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
-	var base := Vector2(r.x - lw - 16.0 - inset.x, r.y - HuntHud.HEX - 22.0) if phone else Vector2(r.x * 0.5 - lw * 0.5, r.y - 7.0)
-	out["level"] = Rect2(base - Vector2(0.0, 12.0), Vector2(lw, 15.0))
+	for k in hud.drawn_blocks:
+		out[k] = hud.drawn_blocks[k]
 	return out
+
+## The menu and build sheets (at 844x390 the menu ran 192 px off the top and HANDS sat on its Close),
+## then a level-up (its 13-line stack ran over the rail and off the bottom).
+func _hud_sheets_and_level_up(logical: Vector2) -> void:
+	for kind in ["menu", "build"]:
+		_hud.call("_toggle_sheet", StringName(kind))
+		await _frames(3)
+		var sheet := _hud.get("_sheet") as Control
+		_check_sheet(kind, sheet, logical)
+		await _capture("sheet_" + kind, [sheet] if sheet else [], logical)
+		_hud.call("_close_sheet")
+		await _frames(2)
+	# Stored level 4 -> "Lv. 5", which brings a title: the banner's longest form. World is untouched.
+	_hud.call("_on_level_up", 4)
+	await _frames(3)
+	var blocks := hud_blocks(_hud, _player, logical)
+	_expect(blocks.has("levelup"), "levelup: the banner is drawn")
+	_check_blocks("levelup", blocks, logical)
+	await _capture("levelup", [], logical)
+	_hud.set("_levelup_t", -1.0)
+	await _frames(2)
+
+## A sheet sits inside the view with its title and Close pinned above the rows; every row button is
+## fully inside the rows' window or the rows scroll; nothing drawn after it (HANDS, a HUD hex added
+## later) covers it.
+func _check_sheet(kind: String, sheet: Control, logical: Vector2) -> void:
+	_expect(sheet != null and sheet.is_visible_in_tree(), "sheet %s opens" % kind)
+	if sheet == null:
+		return
+	var view := Rect2(Vector2.ZERO, logical).grow(0.5)
+	var rect := sheet.get_global_rect()
+	_expect(view.encloses(rect), "sheet %s %s inside the %dx%d view" % [kind, rect, logical.x, logical.y])
+	var rows := sheet.find_child("SheetRows", true, false) as ScrollContainer
+	var close := sheet.find_child("SheetClose", true, false) as Control
+	_expect(rows != null and close != null and not rows.is_ancestor_of(close), "sheet %s: Close is pinned outside the rows" % kind)
+	if rows == null or close == null:
+		return
+	_expect(view.encloses(close.get_global_rect()) and close.size.y >= UiTokens.TARGET_PRIMARY - 0.5, "sheet %s: Close %s inside the view, >= %d px" % [kind, close.get_global_rect(), UiTokens.TARGET_PRIMARY])
+	for l in _labels_in(sheet):
+		if not rows.is_ancestor_of(l):
+			_expect(view.encloses(l.get_global_rect()), "sheet %s: title \"%s\" %s inside the view" % [kind, l.text, l.get_global_rect()])
+	var shown := 0
+	var total := 0
+	for b in sheet.find_children("*", "Button", true, false):
+		if b == close:
+			continue
+		total += 1
+		if rows.get_global_rect().grow(0.5).encloses((b as Control).get_global_rect()):
+			shown += 1
+	var scrolls := rows.get_v_scroll_bar().visible
+	print("[uireal] sheet %s %s: %d/%d rows fully shown, rows scroll=%s" % [kind, rect, shown, total, scrolls])
+	_expect(total > 0 and (shown == total or scrolls), "sheet %s: rows past its window scroll (%d/%d shown)" % [kind, shown, total])
+	if kind == "menu":  # Bag, Craft, Map, Save, Debug: one look, no scroll
+		_expect(shown == total, "sheet menu shows all %d rows without scrolling (got %d)" % [total, shown])
+	var held: Control = _player.station_craft.held_slot if _player.station_craft else null
+	_expect(held == null or not held.is_visible_in_tree() or not held.get_global_rect().intersects(rect), "sheet %s: HANDS is hidden or off the sheet (%s)" % [kind, held.get_global_rect() if held else ""])
+	var above := false
+	for c in _hud.get_children():
+		if c == sheet:
+			above = true
+		elif above and c is Control and (c as Control).is_visible_in_tree() and (c as Control).get_global_rect().intersects(rect):
+			_fail("sheet %s: %s %s draws over it" % [kind, c.name, (c as Control).get_global_rect()])
+
+## A bonded raptor out: the whistle hexes join the HUD (at 844x390 they sat on the minimap and ran
+## off the top).
+func _pet_out(logical: Vector2) -> void:
+	_player.bonded.append(PetRecord.from_def(Data.creature(&"velociraptor"), &"A"))
+	_player.summon_pet(_player.bonded.size() - 1)
+	await get_tree().create_timer(0.6).timeout
+	var whistles := 0
+	for h in _hud.get("_whistle_hexes"):
+		whistles += 1 if (h as Control).is_visible_in_tree() else 0
+	print("[uireal] pet out: pets=%d whistles=%d" % [_player.live_pets().size(), whistles])
+	_expect(whistles == 3, "pet out: three whistle hexes show (got %d)" % whistles)
+	_check_blocks("pet_out", hud_blocks(_hud, _player, logical), logical)
+	await _capture("pet_out", [], logical)
 
 ## Share of `r` that lies on the convex polygon `hull` (0 when they only touch).
 static func cover_share(r: Rect2, hull: PackedVector2Array) -> float:
@@ -466,16 +525,32 @@ func _capture_plate(logical: Vector2) -> void:
 	var plates := Game.creature_ui as CreaturePlates
 	var entry: Dictionary = plates._entries.get(wild.get_instance_id(), {}) if plates else {}
 	var node := entry.get("node", null) as Control
-	_expect(node != null and node.visible, "the wild creature shows a full plate")
+	_expect(node != null and node.visible, "the wild creature shows a plate")
 	if node == null:
 		return
-	var glyphs := 0
-	for g in (entry["line3"] as Control).get_children():
-		if (g as Control).visible:
-			glyphs += 1
-	print("[uireal] plate %s glyphs=%d" % [(entry["line1"] as Label).text, glyphs])
-	_expect(glyphs >= 2, "plate shows its status glyphs")
+	# Recently hit but not the target: on a phone the plate is name and bar only (with its status row
+	# the 176x72 pill covered the survivor beside a compy at 844x390); the desktop keeps every row.
+	var pill := entry["pill"] as Control
+	var glyphs := _plate_glyphs(entry)
+	print("[uireal] plate %s glyphs=%d pill=%s" % [(entry["line1"] as Label).text, glyphs, pill.size])
+	if UiTokens.is_compact(logical):
+		_expect(glyphs == 0 and pill.size.y <= 42.0, "phone plate of a creature that is not the target: name and bar only (glyphs %d, pill %s)" % [glyphs, pill.size])
+	else:
+		_expect(glyphs >= 2, "plate shows its status glyphs")
 	await _capture("plate", [node], logical)
+	# The hunt, pet still out: End Combat, the skills, Auto/Feed, whistles, the target plate. At 844x390
+	# End Combat sat on ROLL and the target bar ran across the vitals and the quest card.
+	_player.hunt.start(wild)
+	_player.hunt.auto = false  # no swings: the plate shot needs it alive
+	_player.hunt.hold = true
+	await get_tree().create_timer(0.6).timeout
+	var blocks := hud_blocks(_hud, _player, logical)
+	_expect(blocks.has("plate") and (_hud.get("_end_btn") as Control).is_visible_in_tree(), "combat: the target plate and End Combat show")
+	_check_blocks("combat", blocks, logical)
+	glyphs = _plate_glyphs(entry)
+	print("[uireal] combat plate %s glyphs=%d" % [(entry["line1"] as Label).text, glyphs])
+	_expect(glyphs >= 2, "the target's plate shows its status glyphs")
+	await _capture("combat", [node], logical)
 	# 3x crop so the glyph letters can be checked by eye
 	var img := get_tree().root.get_texture().get_image()
 	var stretch := get_tree().root.get_final_transform().get_scale().x
@@ -485,7 +560,15 @@ func _capture_plate(logical: Vector2) -> void:
 		var crop := img.get_region(r)
 		crop.resize(crop.get_width() * 3, crop.get_height() * 3, Image.INTERPOLATE_NEAREST)
 		crop.save_png(_out.path_join("plate_zoom_%dx%d.png" % [get_tree().root.size.x, get_tree().root.size.y]))
+	_player.hunt.stop()
 	wild.process_mode = Node.PROCESS_MODE_INHERIT
+
+static func _plate_glyphs(entry: Dictionary) -> int:
+	var line3 := entry["line3"] as Control
+	var n := 0
+	for g in line3.get_children():
+		n += 1 if line3.is_visible_in_tree() and (g as Control).visible else 0
+	return n
 
 ## Checks one open screen and saves the root viewport as <name>_<w>x<h>.png.
 func _capture(name: String, roots: Array, logical: Vector2, gated: bool = true) -> void:

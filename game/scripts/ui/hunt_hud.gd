@@ -21,6 +21,7 @@ var _inspect_hex: HexButton
 var _fatigue_rect := Rect2() ## screen rect of the fatigue face and bar, recorded in _draw; a tap opens the panel
 var _fatigue_panel: FatiguePanel
 var _sheet: PanelContainer
+var _sheet_rows: ScrollContainer  ## the open sheet's rows; on a short canvas they scroll under a pinned header
 var _sheet_kind: StringName = &""
 var _skills_panel: Control
 var _animal_screen: AnimalScreen
@@ -44,7 +45,13 @@ var _ctx_timer: float = 0.0
 var _place_hexes: Array[HexButton] = []
 var _done_hex: HexButton
 var _levelup_lines: Array = []
+var _levelup_title: String = ""  ## the title line and one stat summary: the landscape-phone banner
+var _levelup_summary: String = ""
 var _levelup_t: float = -1.0
+## Screen rects of the blocks _draw paints (vitals, quest card, map text, status badges, level line,
+## target plate, level-up banner), rebuilt every draw. Layout gates check them with the controls, so
+## nothing mirrors this file's geometry.
+var drawn_blocks: Dictionary = {}
 var _titles: Dictionary = {}
 var _level_gains: Dictionary = {}
 # hits on the survivor: bite/crunch jaws + red numbers
@@ -61,6 +68,7 @@ var _death_btn: Button
 const MAP_PX := 154.0
 const MAP_SCALE := 0.95  # metres per pixel
 const HEX := 64.0
+const SKILL_HEX := 72.0  # the hunt skill hexes (net / tackle / kick / roll)
 const CAPTION_H := 18.0  # room for the action word HexButton draws under a hex
 const NAME_PX := 15  # the survivor's name under its feet
 
@@ -150,21 +158,73 @@ func _layout() -> void:
 		_inspect_hex.position = Vector2(r.x - HEX - 16.0 - inset.x, r.y - HEX * 2.0 - 36.0 - inset.y)
 	else:
 		_inspect_hex.position = Vector2(_minimap.position.x - 56.0 - 12.0, _minimap.position.y + (MAP_PX - 56.0) * 0.5)
-	_end_btn.position = Vector2(r.x - 200.0 - inset.x, r.y * 0.42)
-	# Honeycomb cluster bottom-right: net / tackle / kick / roll, Auto below-right, stance text.
-	var cx := r.x - 250.0 - inset.x
-	var cy := r.y - 150.0 - inset.y
-	var slots := [Vector2(-90, -60), Vector2(-10, -20), Vector2(-90, 40), Vector2(70, -50)]
-	for i in _skill_hexes.size():
-		_skill_hexes[i].position = Vector2(cx, cy) + slots[i]
-	_auto_hex.position = Vector2(cx + 60.0, cy + 30.0)
-	_feed_hex.position = Vector2(cx - 170.0, cy - 20.0)
-	for i in _whistle_hexes.size():
-		_whistle_hexes[i].position = Vector2(r.x - 16.0 - inset.x - 62.0, r.y - 250.0 - inset.y - float(i) * (66.0 + CAPTION_H))
-	_stance_label.position = Vector2(cx + 20.0, cy + 118.0)
-	_chase_hex.position = Vector2(16.0 + inset.w, r.y - HEX * 2.0 - CAPTION_H * 2.0 - 40.0 - inset.y)
+	# Chase joins the quick-food row (slot 2): at the rail's left edge it sat on the first food hex.
+	_chase_hex.position = Vector2(16.0 + inset.w + 2.0 * (HEX + 10.0), y - HEX - CAPTION_H - 12.0)
+	if _landscape_phone(r):
+		_layout_landscape_phone(r, inset)
+	else:
+		_end_btn.custom_minimum_size = Vector2(184, 64)
+		_end_btn.size = _end_btn.custom_minimum_size
+		_end_btn.position = Vector2(r.x - 200.0 - inset.x, r.y * 0.42)
+		# Honeycomb cluster bottom-right: net / tackle / kick / roll, Auto below-right, stance text.
+		var cx := r.x - 250.0 - inset.x
+		var cy := r.y - 150.0 - inset.y
+		var slots := [Vector2(-90, -60), Vector2(-10, -20), Vector2(-90, 40), Vector2(70, -50)]
+		for i in _skill_hexes.size():
+			_skill_hexes[i].position = Vector2(cx, cy) + slots[i]
+		_auto_hex.position = Vector2(cx + 60.0, cy + 30.0)
+		_feed_hex.position = Vector2(cx - 170.0, cy - 20.0)
+		# The whistle column stands on HANDS (bottom-right, held_item_slot.gd) with its caption clear of it.
+		for i in _whistle_hexes.size():
+			_whistle_hexes[i].position = Vector2(r.x - 16.0 - inset.x - 62.0, r.y - 262.0 - inset.y - float(i) * (66.0 + CAPTION_H))
+		_stance_label.position = Vector2(cx + 20.0, cy + 118.0)
 	if _sheet:
-		_sheet.position = Vector2(16.0 + inset.w, r.y - HEX - CAPTION_H - 30.0 - inset.y - _sheet.size.y)
+		_fit_sheet(r, inset, y)
+
+## A landscape phone's 390-452 px canvas: the desktop places ran the whistles off the top over the
+## map and stacked End Combat on ROLL. Whistles go in a row under the vitals, End Combat under the
+## map text (the claim and context hexes hide in a fight), the four skills in one row along the
+## bottom right with Auto and Feed above it, the stance text to their left.
+func _layout_landscape_phone(r: Vector2, inset: Vector4) -> void:
+	var under_vitals := _vitals_rect(r).end.y + 8.0
+	for i in _whistle_hexes.size():
+		_whistle_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (HEX + 10.0), under_vitals)
+	_end_btn.custom_minimum_size = Vector2(MAP_PX, UiTokens.TARGET_PRIMARY)
+	_end_btn.size = _end_btn.custom_minimum_size
+	_end_btn.position = _minimap.position + Vector2(0.0, MAP_PX + 42.0)
+	var row_y := r.y - 8.0 - CAPTION_H - SKILL_HEX - inset.y
+	var x := r.x - 16.0 - inset.x - SKILL_HEX
+	for i in range(_skill_hexes.size() - 1, -1, -1):  # ROLL at the right edge, NET leftmost
+		_skill_hexes[i].position = Vector2(x, row_y)
+		x -= SKILL_HEX + 8.0
+	var net := _skill_hexes[0].position
+	var up := row_y - 8.0 - CAPTION_H - HEX
+	_auto_hex.position = Vector2(net.x + SKILL_HEX + 4.0 - HEX * 0.5, up)  # over the NET/TACKLE seam
+	_feed_hex.position = _auto_hex.position - Vector2(HEX + 8.0, 0.0)
+	var sw := _stance_label.get_combined_minimum_size()
+	_stance_label.position = Vector2(net.x - 8.0 - sw.x, row_y + SKILL_HEX * 0.5 - sw.y * 0.5)
+
+static func _landscape_phone(r: Vector2) -> bool:
+	return UiTokens.is_compact(r) and not UiTokens.is_narrow(r)
+
+## The vitals panel _draw paints top-left (also the anchor for what sits under it).
+func _vitals_rect(r: Vector2) -> Rect2:
+	var inset := _safe_insets()
+	var phone := UiTokens.is_phone(r)
+	var x := 16.0 + inset.w
+	var big := 16.0 if not phone else 12.0
+	var small := 10.0 if not phone else 8.0
+	var panel_w := 300.0 if not phone else maxf(148.0, _minimap.position.x - x - 8.0)
+	return Rect2(x - 8.0, 6.0 + inset.z, panel_w, big * 2.0 + small + 6.0 * 2.0 + 36.0)
+
+## Landscape phone: the strip between the vitals and the minimap. The quest card lives in it; the
+## target plate and the level-up banner take it over while they show. Empty elsewhere.
+func _centre_band(r: Vector2) -> Rect2:
+	if not _landscape_phone(r):
+		return Rect2()
+	var v := _vitals_rect(r)
+	var left := v.end.x + 12.0
+	return Rect2(left, v.position.y, _minimap.position.x - 12.0 - left, maxf(v.size.y, _minimap.position.y + 72.0 - v.position.y))
 
 func _safe_insets() -> Vector4:  # x=right, y=bottom, z=top, w=left
 	return UiTokens.safe_insets(get_viewport())
@@ -206,7 +266,9 @@ func _hex(glyph: String, size_px: float = HEX, caption: String = "") -> HexButto
 func _build_menu_row() -> void:
 	_menu_hex = _hex("≡", HEX, "MENU")
 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
-	_pets_hex = _hex("🦖", HEX, "ANIMALS")
+	_pets_hex = _hex("", HEX, "ANIMALS")
+	# A white raptor talon, not the colour emoji: no creature silhouette exists yet (W1-ICONART).
+	_pets_hex.icon = HexButton.symbol(["raptor_talon"])
 	_pets_hex.pressed.connect(_open_animals)
 	_build_hex = _hex("⌂", HEX, "BUILD")
 	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
@@ -296,7 +358,7 @@ func _build_combat() -> void:
 	add_child(_end_btn)
 	var specs := [["🕸", "net", "NET"], ["💥", "tackle", "TACKLE"], ["🦵", "kick", "KICK"], ["↯", "roll", "ROLL"]]
 	for s in specs:
-		var h := HexButton.new(72.0)
+		var h := HexButton.new(SKILL_HEX)
 		h.glyph = s[0]
 		h.caption = s[2]
 		h.visible = false
@@ -604,6 +666,8 @@ func _refresh_context(delta: float) -> void:
 			h.position = Vector2(x, r.y - 70.0 - 26.0 - inset.y - (96.0 if phone else 0.0))
 			x += 78.0 if phone else -78.0
 		_ctx_hexes.append(h)
+	if _sheet:
+		move_child(_sheet, -1)  # a context hex added later drew (and took taps) over the open sheet
 
 func _refresh_place_hexes() -> void:
 	var placing := player.placer != null and player.placer.placing != &""
@@ -645,11 +709,12 @@ static func nameplate_rect(cam: Camera3D, who: Player, font: Font) -> Rect2:
 	return Rect2(p.x - nw * 0.5, p.y + 20.0 - NAME_PX, nw + 1.0, NAME_PX + 6.0)
 
 ## Reference: a gold text stack at the top-left for ~6 s on level-up. The signal carries the stored
-## level; the banner, the title key, the bonus stat, the log and the toast all use the shown one
-## (titles.json was keyed by the level the player reads).
-func _on_level_up(_stored: int) -> void:
-	var level := LevelDisplay.player_level()
+## level; the banner, the title key, the bonus stat and the log use the shown one (titles.json was
+## keyed by the level the player reads), from the argument, so a deferred emit stays right.
+func _on_level_up(stored: int) -> void:
+	var level := LevelDisplay.shown(stored)
 	_levelup_lines.clear()
+	_levelup_title = ""
 	_levelup_lines.append([LevelDisplay.label(level), 40, Color(1.0, 0.85, 0.35)])
 	_levelup_lines.append(["👁 %d" % World.pioneer_xp, 18, Color.WHITE])
 	_levelup_lines.append(["◎ %d" % World.t_stones, 18, Color.WHITE])
@@ -657,7 +722,8 @@ func _on_level_up(_stored: int) -> void:
 	_levelup_lines.append(["Available Skill Points: %d" % maxi(0, sp), 18, Color.WHITE])
 	var title := str(_titles.get(str(level), ""))
 	if title != "":
-		_levelup_lines.append(["Title %s acquired." % title, 18, Color(1.0, 0.85, 0.35)])
+		_levelup_title = "Title %s acquired." % title
+		_levelup_lines.append([_levelup_title, 18, Color(1.0, 0.85, 0.35)])
 		print("[world] pioneer level %d title=\"%s\"" % [level, title])
 	else:
 		print("[world] pioneer level %d" % level)
@@ -671,9 +737,10 @@ func _on_level_up(_stored: int) -> void:
 	for i in stats.size():
 		var g := bonus if (i == level % maxi(1, stats.size())) else gain
 		_levelup_lines.append(["%s + %d" % [stats[i], g], 18, Color(1.0, 0.85, 0.35)])
+	# The landscape banner's one stat line. No pickup toast: "+5  level" read as five levels gained.
+	var top_stat := str(stats[level % stats.size()]) if not stats.is_empty() else "Stats"
+	_levelup_summary = "%s +%d · other stats +%d · Skill points %d" % [top_stat, bonus, gain, maxi(0, sp)]
 	_levelup_t = 0.0
-	if player:
-		player.toast(&"level", level)
 
 # ---------------------------------------------------------------- sheets
 
@@ -684,8 +751,10 @@ func _toggle_sheet(kind: StringName) -> void:
 	_close_sheet()
 	_sheet_kind = kind
 	_sheet = PanelContainer.new()
+	_sheet.name = "HudSheet"
+	var land := _landscape_phone(get_viewport_rect().size)
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.06, 0.07, 0.09, 0.94)
+	sb.bg_color = Color(0.06, 0.07, 0.09, 1.0 if land else 0.94)  # opaque where it may cover the vitals
 	sb.corner_radius_top_left = 10
 	sb.corner_radius_top_right = 10
 	sb.content_margin_left = 14
@@ -693,12 +762,40 @@ func _toggle_sheet(kind: StringName) -> void:
 	sb.content_margin_top = 12
 	sb.content_margin_bottom = 12
 	_sheet.add_theme_stylebox_override("panel", sb)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
-	_sheet.add_child(box)
+	# Title and Close pinned on top; the rows scroll under them when the canvas is short. A landscape
+	# phone lays the rows in two columns so the menu fits without a scroll.
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 8)
+	_sheet.add_child(outer)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 12)
+	outer.add_child(head)
 	var title := Label.new()
 	title.add_theme_font_size_override("font_size", 20)
-	box.add_child(title)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.add_child(title)
+	var close := Button.new()
+	close.name = "SheetClose"
+	close.text = "Close"
+	close.custom_minimum_size = Vector2(110, UiTokens.TARGET_PRIMARY)
+	close.pressed.connect(_close_sheet)
+	head.add_child(close)
+	_sheet_rows = ScrollContainer.new()
+	_sheet_rows.name = "SheetRows"
+	_sheet_rows.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	outer.add_child(_sheet_rows)
+	var box: Container
+	if land:
+		var grid := GridContainer.new()
+		grid.columns = 2
+		grid.add_theme_constant_override("h_separation", 8)
+		grid.add_theme_constant_override("v_separation", 8)
+		box = grid
+	else:
+		box = VBoxContainer.new()
+		box.add_theme_constant_override("separation", 8)
+	_sheet_rows.add_child(box)
 	match kind:
 		&"menu":
 			title.text = "Menu"
@@ -758,23 +855,37 @@ func _toggle_sheet(kind: StringName) -> void:
 				var l := Label.new()
 				l.text = "No building kits in the bag. Craft one at the workbench."
 				box.add_child(l)
-	var close := Button.new()
-	close.text = "Close"
-	close.custom_minimum_size = Vector2(240, 56)
-	close.pressed.connect(_close_sheet)
-	box.add_child(close)
 	add_child(_sheet)
-	_sheet.size = Vector2(320, 0)
+	_layout()
 	await get_tree().process_frame
 	_layout()
 
-func _sheet_btn(box: VBoxContainer, text: String, cb: Callable) -> void:
+func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(300, 60)
-	b.add_theme_font_size_override("font_size", 18)
+	var land := _landscape_phone(get_viewport_rect().size)
+	b.custom_minimum_size = Vector2(150, UiTokens.TARGET_PRIMARY) if land else Vector2(300, 60)
+	b.add_theme_font_size_override("font_size", 16 if land else 18)
 	b.pressed.connect(cb)
 	box.add_child(b)
+
+## The sheet stands on the rail and grows up to the top of the view; past that its rows scroll
+## (on a 390 px canvas the menu ran 192 px off the top, title, Bag and Craft out of reach).
+func _fit_sheet(r: Vector2, inset: Vector4, rail_y: float) -> void:
+	if _sheet_rows == null or _sheet_rows.get_child_count() == 0:
+		return
+	var bottom := rail_y - 10.0
+	_sheet_rows.custom_minimum_size.y = 0.0
+	var room := bottom - (8.0 + inset.z) - _sheet.get_combined_minimum_size().y
+	var rows_h := (_sheet_rows.get_child(0) as Control).get_combined_minimum_size().y
+	_sheet_rows.custom_minimum_size.y = minf(rows_h, maxf(room, UiTokens.TARGET_PRIMARY))
+	_sheet.size = Vector2.ZERO  # shrink to the new minimum
+	_sheet.position = Vector2(16.0 + inset.w, bottom - _sheet.size.y)
+
+## HANDS (held_item_slot.gd, on a canvas layer above the HUD's) hides while one of the HUD's sheets
+## is open: on a landscape phone it sat on the sheet's Close, so a tap there swapped the held tool.
+func covers_hands() -> bool:
+	return _sheet != null or (_skills_sheet != null and _skills_sheet.visible)
 
 ## Rebuild the open sheet in place (e.g. a pet finished respawning and Summon is back).
 func _refresh_sheet() -> void:
@@ -788,6 +899,7 @@ func _close_sheet() -> void:
 	if _sheet:
 		_sheet.queue_free()
 		_sheet = null
+		_sheet_rows = null
 	_sheet_kind = &""
 
 var _skills_sheet: SkillsSheet
@@ -921,6 +1033,7 @@ func _draw() -> void:
 	if player == null or player.dead:
 		return
 	var r := get_viewport_rect().size
+	drawn_blocks.clear()
 	var v := player.vitals
 	if player.placer and player.placer.placing != &"":
 		draw_rect(Rect2(Vector2.ZERO, r), Color(0.02, 0.03, 0.04, 0.28))
@@ -928,18 +1041,18 @@ func _draw() -> void:
 	var x := 16.0 + inset.w
 	var y := 12.0 + inset.z
 	var phone := UiTokens.is_phone(r)
-	var map_left := _minimap.position.x
 	# Desktop: 300 px panel, 16 px HP/energy bars with body-size numbers (the audit called the
 	# old 176 px / 12 px block "tiny desktop typography"). Phone keeps the compact block.
-	var panel_w := 300.0 if not phone else maxf(148.0, map_left - x - 8.0)
+	var vitals := _vitals_rect(r)
+	var panel_w := vitals.size.x
 	var bar_w := 232.0 if not phone else maxf(88.0, panel_w - 54.0)
 	var big := 16.0 if not phone else 12.0
 	var small := 10.0 if not phone else 8.0
-	var gap := 6.0 if not phone else 6.0
+	var gap := 6.0
 	var num_px := UiTokens.body(r) - 1 if not phone else 12
 	var bar_px := UiTokens.meta(r) if not phone else 12
-	var panel_h := big * 2.0 + small + gap * 2.0 + 36.0
-	draw_rect(Rect2(x - 8.0, y - 6.0, panel_w, panel_h), UiTokens.INK)
+	draw_rect(vitals, UiTokens.INK)
+	drawn_blocks["vitals"] = vitals
 	var lvl_r := 18.0 if not phone else 16.0
 	draw_circle(Vector2(x + lvl_r, y + lvl_r), lvl_r, Color(0.08, 0.09, 0.11, 0.95))
 	draw_string(_font, Vector2(x, y + lvl_r + num_px * 0.36), str(LevelDisplay.player_level()), HORIZONTAL_ALIGNMENT_CENTER, lvl_r * 2.0, num_px, Color.WHITE)
@@ -960,26 +1073,42 @@ func _draw() -> void:
 	_fatigue_rect = Rect2(x, face_pos.y - 14.0, bar_w, maxf(UiTokens.TARGET_MIN, yy + small - face_pos.y + 14.0))
 	if _fatigue_panel and _fatigue_panel.visible:
 		_fatigue_panel.position = Vector2(_fatigue_rect.position.x, _fatigue_rect.end.y + 8.0)
-	# status badges live under the minimap (right side), left of the Claim hex
+	# status badges live under the minimap (right side), left of the Claim hex; on a landscape phone
+	# End Combat stands there, so they go under the vitals, after the whistle row
 	var mp0 := _minimap.position
 	var sx := mp0.x
 	var sy := mp0.y + MAP_PX + 50.0
+	if _landscape_phone(r):
+		sx = 16.0 + inset.w + (3.0 * (HEX + 10.0) if _whistle_hexes[0].visible else 0.0)
+		sy = vitals.end.y + 8.0
 	if player.statuses:
+		var sx0 := sx
 		for inst in player.statuses.instances():
 			draw_rect(Rect2(sx, sy, 26, 26), Color(0.1, 0.1, 0.12, 0.85))
 			draw_string(_font, Vector2(sx + 4, sy + 19), str(inst.id).left(2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.75, 0.45))
 			draw_string(_font, Vector2(sx, sy + 40), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UiTokens.META)
 			sx += 30
+		if sx > sx0:
+			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - 4.0, 44.0)
 	var mp := _minimap.position
 	var top := "Home" if World.is_home() else ("Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0)))
 	if World.island_id == &"":
 		top = "Lab"
 	var meta_px := UiTokens.meta(r)
 	draw_string(_font, Vector2(mp.x, mp.y - 16.0), UiTokens.ellipsis(_font, top, MAP_PX, meta_px), HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, Color.WHITE)
+	drawn_blocks["map_title"] = Rect2(mp.x, mp.y - 16.0 - meta_px, MAP_PX, meta_px + 4.0)
 	var tile := BuildGrid.tile_of(player.global_position)
 	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 16), "X %d  Y %d" % [tile.x, tile.y], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
 	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 32), "%s  %s" % [Game.clock_label(), Game.phase_name()], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
-	_draw_quest(r, mp)
+	drawn_blocks["map_text"] = Rect2(mp.x, mp.y + MAP_PX + 16.0 - meta_px, MAP_PX, 16.0 + meta_px + 4.0)
+	# The target plate (current hunt target, else the last creature attacked while it lives) and the
+	# level-up banner take over the landscape phone's centre band from the quest card while they show.
+	var plate_t: Creature = player.hunt.target if (player.hunt and player.hunt.target and is_instance_valid(player.hunt.target)) else null
+	if plate_t == null and _last_target and is_instance_valid(_last_target) and not _last_target.health.dead and player.global_position.distance_to(_last_target.global_position) < 40.0:
+		plate_t = _last_target
+	var band := _centre_band(r)
+	if not band.has_area() or (plate_t == null and _levelup_t < 0.0):
+		_draw_quest(r, mp)
 	# --- XP bar along the bottom
 	# One bar: the pioneer level, which every skill XP grant also feeds.
 	var prog := World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
@@ -989,6 +1118,7 @@ func _draw() -> void:
 	var lw := _font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
 	var lv_pos := Vector2(r.x - lw - 16.0 - inset.x, r.y - HEX - 22.0) if phone else Vector2(r.x * 0.5 - lw * 0.5, r.y - 7.0)
 	draw_string(_font, lv_pos, lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
+	drawn_blocks["level"] = Rect2(lv_pos - Vector2(0.0, 12.0), Vector2(lw, 15.0))
 	# --- name under the survivor
 	var cam := get_viewport().get_camera_3d()
 	if cam:
@@ -998,16 +1128,27 @@ func _draw() -> void:
 	# --- label pills on buildings and nodes within 30 m (reference: base building)
 	_draw_pills(cam)
 	_draw_bites(cam)
-	# --- level-up stack (gold, top-left under the bars)
+	# --- level-up: a gold stack top-left under the bars; on a landscape phone a short banner in the
+	# centre band (its 13 lines ran over the rail and off the bottom of a 390 px canvas)
+	if plate_t:
+		_draw_target_plate(plate_t, maxf(_combat_alpha, 0.85), band)
 	if _levelup_t >= 0.0:
 		var la := 1.0 - smoothstep(5.5, 6.5, _levelup_t)
-		var ly := 160.0
-		for line in _levelup_lines:
-			var col: Color = line[2]
-			col.a *= la
-			draw_string(_font, Vector2(31, ly + 1), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), Color(0, 0, 0, 0.6 * la))
-			draw_string(_font, Vector2(30, ly), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), col)
-			ly += float(line[1]) + 8.0
+		if band.has_area():
+			var below := maxf(band.end.y, (drawn_blocks.get("plate", band) as Rect2).end.y) + 8.0
+			_draw_levelup_banner(band if plate_t == null else Rect2(band.position.x, below, band.size.x, 84.0), la)
+		else:
+			var ly := 160.0
+			var stack := Rect2()
+			for line in _levelup_lines:
+				var col: Color = line[2]
+				col.a *= la
+				draw_string(_font, Vector2(31, ly + 1), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), Color(0, 0, 0, 0.6 * la))
+				draw_string(_font, Vector2(30, ly), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), col)
+				var lr := Rect2(30.0, ly - float(line[1]), _font.get_string_size(str(line[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1])).x + 1.0, float(line[1]) + 6.0)
+				stack = lr if not stack.has_area() else stack.merge(lr)
+				ly += float(line[1]) + 8.0
+			drawn_blocks["levelup"] = stack
 	# --- pickup toasts near the top-centre, rising and fading
 	for i in _events.toasts.size():
 		var t: Dictionary = _events.toasts[i]
@@ -1039,20 +1180,35 @@ func _draw() -> void:
 		var a := _combat_alpha
 		draw_rect(Rect2(0, 0, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
 		draw_rect(Rect2(0, r.y - 6, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
-	# --- target plate: the current hunt target, else the last creature attacked while it lives
-	var plate_t: Creature = player.hunt.target if (player.hunt and player.hunt.target and is_instance_valid(player.hunt.target)) else null
-	if plate_t == null and _last_target and is_instance_valid(_last_target) and not _last_target.health.dead and player.global_position.distance_to(_last_target.global_position) < 40.0:
-		plate_t = _last_target
-	if plate_t:
-		_draw_target_plate(plate_t, maxf(_combat_alpha, 0.85))
 
-func _draw_target_plate(t: Creature, a: float) -> void:
+## Landscape phone level-up: the level, the title it brings and one stat line, in an ink box.
+func _draw_levelup_banner(box: Rect2, a: float) -> void:
+	draw_rect(box, Color(UiTokens.INK, UiTokens.INK.a * a))
+	draw_rect(Rect2(box.position, Vector2(3.0, box.size.y)), Color(1.0, 0.85, 0.35, a))
+	var w := box.size.x - 24.0
+	var lv := str(_levelup_lines[0][0]) if not _levelup_lines.is_empty() else LevelDisplay.player_label()
+	var lw := _font.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
+	draw_string(_font, box.position + Vector2(12, 34), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1.0, 0.85, 0.35, a))
+	draw_string(_font, box.position + Vector2(24 + lw, 32), "LEVEL UP", HORIZONTAL_ALIGNMENT_LEFT, maxf(1.0, w - lw - 12.0), UiTokens.meta(get_viewport_rect().size), Color(UiTokens.META, a))
+	var ly := 58.0
+	if _levelup_title != "":
+		draw_string(_font, box.position + Vector2(12, ly), UiTokens.ellipsis(_font, _levelup_title, w, 14), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.85, 0.35, a))
+		ly += 22.0
+	draw_string(_font, box.position + Vector2(12, ly), UiTokens.ellipsis(_font, _levelup_summary, w, 13), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1, a))
+	drawn_blocks["levelup"] = box
+
+func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 	var r := get_viewport_rect().size
 	if true:
 		if t and is_instance_valid(t):
 			var pw := minf(520.0, r.x - 24.0)
 			var px := r.x * 0.5 - pw * 0.5
 			var py := 14.0 + _safe_insets().z
+			if band.has_area():  # landscape phone: between the vitals and the map, not across them
+				pw = band.size.x
+				px = band.position.x
+				py = band.position.y + 8.0
+			var block := Rect2(px, py - 4.0, pw, 70.0)
 			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
 			var name_px := UiTokens.heading(r)
 			nm = UiTokens.ellipsis(_font, nm, pw - 150.0, name_px)
@@ -1071,12 +1227,15 @@ func _draw_target_plate(t: Creature, a: float) -> void:
 				var label := (t.brain as TyrantBrain).opening_label()
 				draw_rect(Rect2(px,py+108,pw,26),Color(0.1,0.1,0.12,0.9*a))
 				draw_string(_font,Vector2(px+8,py+128),label,HORIZONTAL_ALIGNMENT_LEFT,pw-16,16,Color(1,0.85,0.2,a))
+				block = block.merge(Rect2(px, py + 108.0, pw, 26.0))
 			var ix := px
 			if t.statuses:
 				for inst in t.statuses.instances():
 					draw_rect(Rect2(ix, py + 74, 26, 26), Color(0.1, 0.1, 0.12, 0.85 * a))
 					draw_string(_font, Vector2(ix + 4, py + 93), str(inst.id).left(2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.6, 0.5, a))
+					block = block.merge(Rect2(ix, py + 74.0, 26.0, 26.0))
 					ix += 30
+			drawn_blocks["plate"] = block
 
 func _draw_quest(r: Vector2, mp: Vector2) -> void:
 	var phone := UiTokens.is_phone(r)
@@ -1086,6 +1245,7 @@ func _draw_quest(r: Vector2, mp: Vector2) -> void:
 		origin.x = 8.0
 	draw_rect(Rect2(origin, Vector2(w, 72.0)), UiTokens.INK)
 	draw_rect(Rect2(origin, Vector2(3.0, 72.0)), UiTokens.TEAL)
+	drawn_blocks["quest"] = Rect2(origin, Vector2(w, 72.0))
 	var step := Objectives.current(player)
 	var head := UiTokens.heading(r) - 4
 	var meta_px := UiTokens.meta(r)
