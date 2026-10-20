@@ -18,7 +18,7 @@ func _ready() -> void:
 	# The 3.2 s acceptance beat must be one reproducible fight, not a roll of the day: combat
 	# rolls go through CombatTuning.rng (survivor HP at the beat ranged 18-80 over six runs).
 	CombatTuning.rng.seed = 20261018
-	seed(20261018)  # spawn genetics, brain jitter and other rolls use the global RNG
+	seed(20261018)  # brain jitter, spawn spread and other rolls use the global RNG
 	Game.max_creatures_per_island = 0
 	World.harvested.clear()
 	World.load_island(self, &"temperate_25", Vector3(0, 1, 12), false)
