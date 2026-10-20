@@ -90,15 +90,11 @@ G["market"] = [([band([(32, 18), (32, 50)], 5.6), chaikin([(19, 57), (21, 50.5),
                 + [band(c, 3.2) for c in ([(12, 19), (5.5, 36)], [(12, 19), (20.5, 36)], [(52, 19), (43.5, 36)], [(52, 19), (58.5, 36)])]
                 + [chaikin(BOWL_L, 1), chaikin(BOWL_R, 1)], False)]
 
-# skills: the star, carved: a ridge cut from every point to the centre so it reads as faceted stone
-# (drawn fuller than the plain star: the cuts take ink away).
-STAR = [(32 + (27 if i % 2 == 0 else 12.5) * math.cos(math.radians(-90 + 36 * i)),
-         34 + (27 if i % 2 == 0 else 12.5) * math.sin(math.radians(-90 + 36 * i))) for i in range(10)]
-FACETS = [STAR]
-for i in range(5):
-    tip = STAR[2 * i]
-    FACETS = [q for p in FACETS for q in cut(p, (32, 34), tip, 1.3)]
-G["skills"] = [(FACETS, False)]
+# skills: the star, knapped from flint (scalloped flake scars along every edge). Facet cuts to the
+# centre read as a hollow grey star at phone size, so the material is on the edge only.
+STAR = [(32 + (26 if i % 2 == 0 else 12) * math.cos(math.radians(-90 + 36 * i)),
+         34 + (26 if i % 2 == 0 else 12) * math.sin(math.radians(-90 + 36 * i))) for i in range(10)]
+G["skills"] = [([scallop(STAR, 1.1, 6.0)], False)]
 
 # use: the tapping hand, wrist bound in a hide wrap.
 PALM = chaikin([(24, 30), (43, 30), (48.5, 33.5), (49, 43), (44.5, 49.5), (29, 49.5), (23, 45), (15, 37.5), (16.5, 34), (24, 36.5)], 2)
