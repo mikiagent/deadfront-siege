@@ -50,7 +50,8 @@ recipe-gated progression, and survivors that start at Lv. 1.
   existing `dried_hide` recipe.) Every node has `status`, `source` (spec09/11/12 or prd7), `effects` and
   `sp_assumed` where the pack gives no SP.
 - **Skills sheet (trivial, listed):** node rows show the Durango name and "AUTO" in place of "0 SP". Owned auto
-  nodes show a disabled "Learned" button in place of "Refund".
+  nodes collapse into one "Learned automatically: Leaf, Branch, ..." line under the tree, so the first screen
+  holds rows the player can act on. A description that only repeats the node name is not shown.
 
 Files: `game/data/skills/trees.json`, `game/scripts/skills/skill_state.gd`, new `game/scripts/skills/skill_rules.gd`,
 new `game/tests/t_w2_skills.gd`, `game/scripts/ui/skills_sheet.gd` (trivial), `game/tests/t_save.gd`, new
@@ -96,6 +97,33 @@ the expectation is `[island_access_15, stealth_1]` with sp_spent 7.
   it would restart the timer. A legacy `tamed_animal` stays in the bag with the same notice. The market's
   caged-pet unpack should call `Data.bonded_cap()`.
 
+## Review r2 (blocker, three minors)
+
+- **BLOCKER, W2-DATA's `requires_node` recipes locked for good: fixed.** W2-DATA gates 52 recipes on 16 nodes
+  that are `defined` here (work_pick, combat_knife, copper_tools, blade_shapes, iron_weapons, armor_1,
+  scute_armor, furnace_kiln, hammer, smelting_1, smelting_2, nails_pillars, steam, fertilizer, antivenom,
+  antibiotic). `SkillRules.buyable()` now treats any node a loaded recipe names in `requires_node` as
+  functional (`SkillRules.recipe_nodes()`, read from `Data.recipes`), prerequisites included. This works in
+  either merge order, and trees.json keeps its statuses because the effect lives in W2-DATA's data. Staged
+  recipes are not loaded, so they unlock nothing.
+  - Check: t_w2_skills asserts that every loaded recipe's `requires_node` is a trees.json node that SP can buy.
+    It also injects a `requires_node: work_pick` recipe on this branch's data, where no recipe names a node yet.
+  - With W2-DATA's recipes.json and items.json checked out over this branch (hooks applied):
+    `[t_w2_skills] recipes gated by requires_node: 52`, then `[t_w2_skills] PASS`.
+  - The same data with the old `buyable()` prints 53 FAIL lines, among them
+    `[t_w2_skills] FAIL recipe flint_knife requires_node work_pick: a trees.json node SP can buy`,
+    `... smelt_copper requires_node smelting_1 ...`, `... iron_sword requires_node iron_weapons ...`,
+    `... forge_kit requires_node furnace_kiln ...` and `... anvil_kit requires_node hammer ...`.
+  - On this branch's data with the old `buyable()`:
+    `[t_w2_skills] FAIL a defined node a recipe names in requires_node is buyable with its prerequisite (work_pick)`.
+- **Minor, 10 "Learned" rows open the Gathering tree: fixed** (skills sheet, above). `lab_phone_glc_tree.png`
+  (844x390, gl_compatibility) now opens on Thickets, Mining 1, Herbs 1 and Insects. `lab_desk_glc_tree.png`
+  shows "Long Branch · Lv. 45 · 5 SP" with no repeated "Long Branch" line under it.
+- **Minor, two copies of the survival id bridge: fixed.** `unlock()` calls `_mirror_survival(node_id, true)`,
+  as `refund()` and `from_dict()` do. The mirror now writes only ids survival.json knows, the same rule loading
+  uses (t_save: "an unknown id unlocks nothing").
+- **Minor, the daily refund limit: no change**, as the review accepts. The `# ASSUMPTION` on `refund()` stays.
+
 ## Vision fixes (vision-check.md) and whether they are needed
 
 The owner asked whether the vision check is really necessary. For this package: one of its two items was
@@ -106,7 +134,9 @@ needed and the other was not, so only one was built.
    from them, so every SP spent on one was lost. `SkillRules.buyable()` allows only functional nodes and the
    prerequisite chain a functional node needs. Island Access 15-55, Belly Fat I and Climate Body I stay
    buyable on the way to Capture Technique and Animal Handling; Cloth Clothes, Small Bag and Bandage stay
-   buyable on the way to Heat and Cold Resist. Every other node shows locked: "not in the game yet". Nodes a
+   buyable on the way to Heat and Cold Resist. A node a loaded recipe names in `requires_node` (W2-DATA's
+   gate) also counts, with its prerequisite chain (review r2 blocker, below). Every other node shows locked:
+   "not in the game yet". Nodes a
    save already owns stay owned and can still be refunded. AUTO nodes are still learned free.
    - Checking this showed that Dry Leather was marked defined while it gates the existing `dried_hide` recipe
      (hook H1). With the new rule that would have locked dried hide for good, a dead end once W2-DATA makes
@@ -126,23 +156,23 @@ needed and the other was not, so only one was built.
      means something.
    This is the one place this run departs from the computed task. Overrule it and it is about 25 lines.
 
-## Acceptance (r2: branch merged with claude/mmo-overhaul @ c2b373f3, hooks applied in a scratch tree)
+## Acceptance (r3: branch merged with claude/mmo-overhaul @ dd7ff218, hooks applied in a scratch tree)
 
-Hooks patch: `git apply --check` clean after the merge. The last base commit (c2b373f3) is docs only (spec 13), so the gates below, which ran before it, still hold. The branch touches none of the hooked files, so it
-applies to the base the same way.
+Hooks patch: unchanged, `git apply --check` clean on claude/mmo-overhaul @ dd7ff218 and on the branch. That
+base move is docs only (STATUS, invui.js), and the r2 fixes touch no hooked file.
 
-Every gate below ran in a scratch tree with hooks H1-H7 applied. The full run was at 4e20d6b5. The data fix in
-41297c64 was re-checked with t_w2_skills, the mutations and the shots.
+Every gate below ran at the r2 fix commit in a scratch tree with hooks H1-H7 applied.
 - `--import`: 0 SCRIPT ERROR.
 - All 20 `t_*.gd` print PASS: t_ai, t_build, t_canim, t_combat, t_harbour, t_iconart, t_items, t_light,
   t_lighting, t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons,
   t_w2_skills, t_web.
 - Only t_save prints SCRIPT ERRORs: its 5 deliberate ones, as on the base.
 - `[t_save] rev-1 skills migrate: 19 nodes kept, SP 539/802`
-- `[t_w2_skills] catalog 212 of 918 nodes: functional 18, partial 19, defined 175`, then `[t_w2_skills] PASS`
+- `[t_w2_skills] catalog 212 of 918 nodes: functional 18, partial 19, defined 175`,
+  `[t_w2_skills] recipes gated by requires_node: 0` (52 with W2-DATA's recipes, above), then `[t_w2_skills] PASS`
 - run_all: `[tests] PASS`
 - `tools/smoke.sh --no-import`: `SMOKE PASS`
-- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (the newest is 2026-10-20-131531, before this run).
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (the list is the same before and after the run).
 
 The tests fail when the code is wrong:
 - **Migration (t_save).** With the rev-1 unspent-SP line in `SkillState.from_dict` replaced by `sp_extra = 0`:
@@ -164,7 +194,10 @@ Labs, all with 0 SCRIPT ERROR:
   rows fit their columns.
 - skills_lab: `[skill] character level 1`, roundtrip with sp=0.
 
-Screenshots looked at (scratchpad `trees/w2skills-shots/`). The skills sheet opened from the HUD in
+r2 screenshots looked at (scratchpad `trees/w2s-r3-shots/`): `lab_phone_glc_tree.png` and
+`lab_desk_glc_tree.png`, described under Review r2.
+
+r1 screenshots looked at (scratchpad `trees/w2skills-shots/`). The skills sheet opened from the HUD in
 skills_lab:
 - `lab_desk_fwd_tree.png` (1600x900 Forward+) and `lab_desk_glc_tree.png` (1600x900 gl_compatibility):
   - The header reads "Gathering Lv. 1" and "SP 0".
