@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "warp_home". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+<path d="M11.22 44 A24 24 0 1 1 52.78 44"/>
+<path d="M17.5 50 L35 19 M46.5 50 L29 19"/>
+</g>
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+<path d="M22 48 L32 30 L42 48 L35 48 L32 41.5 L29 48 Z"/>
+<path d="M53.5 51 L45.32 40.48 L52.97 42.75 L60.28 39.52 Z"/>
+</g>
+</svg>

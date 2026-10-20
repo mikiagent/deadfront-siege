@@ -209,6 +209,9 @@ static func _attach_batched(rt: IslandRuntime, node: HarvestNode, path: String, 
 	var basis := Basis.IDENTITY.rotated(Vector3.UP, yaw).scaled(Vector3.ONE * scale)
 	var xf := Transform3D(basis, pos)
 	var idx := batch.add(xf)
+	# Tall props can hide the survivor at the iso pitch: the part on the sight line dithers away.
+	if scale * h >= Occlusion.TALL_M:
+		Occlusion.make_occludable(batch, Occlusion.BETWEEN)
 	var variants: Dictionary = Data.nature_families.get(family, {}).get("depleted_models", {})
 	var empty_path := str(variants.get(path, ""))
 	var empty_batch: VegBatch = VegBatch.get_for(rt, empty_path) if empty_path != "" else null

@@ -103,7 +103,8 @@ static func ensure_collision(host: Node3D, size: Vector3) -> void:
 
 static func ensure_foundation(host: Node3D, kind: StringName) -> void:
 	# Portable bedding lies directly on terrain; a large dirt footprint dwarfs it.
-	if kind == &"straw_roll":
+	# A field is its own dirt: its raised soil bed would sit in a round patch twice its size.
+	if kind in [&"straw_roll", &"field_small", &"field_large"]:
 		return
 	# Durango reference: a rough circular dirt patch under every structure, not a slab.
 	var dims := footprint(kind)
