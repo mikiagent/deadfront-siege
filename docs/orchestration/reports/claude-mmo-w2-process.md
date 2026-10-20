@@ -8,6 +8,63 @@ Branch `claude/mmo-w2-process`, cut from `claude/mmo-overhaul` 36299a96. Base me
 - two base merges, and the commit carrying this report
 - round 3 (review r1 fixes): base merge c59dd1de (5daa97ef, docs only), ff8d6c4c (pack-up, payoff, level,
   tests), 4b5b88eb and 0ec9253f (process_lab), plus this report
+- round 4 (vision-check fixes): 10a2993b (label placement), base merge 4afcb170 (6e26ef2a, docs only),
+  6a385058 (exact picks, destroyed-station salvage, hooks patch), plus this report
+
+## Round 4: vision-check fixes (docs/orchestration/mmo/vision-check.md)
+
+The owner judged the full vision audit too exhaustive and it was stopped early (vision-check.md, first
+paragraph). Two of its reader findings are for this package. Both cited lines say what the finding claims, and
+both fixes are small, so both are built:
+
+| Fix | Cited line (checked) | What changed | Proof |
+|---|---|---|---|
+| A station uses the instances the player picked | Spec 08:98: "A multi-material recipe consumes *specific instance IDs* atomically" (and 08:98 "Support a material-preview before committing a food process") | `ProcessStation.load_from(..., picks)`: the first job takes exactly the bag picks the craft card showed, or nothing. There is no substitute. `refuse_reason` names why ("No processing left on that one." / "That one is no longer in your bag."), and `StationCraft` shows it as a notice. Queued repeats auto-pick with `Crafting.default_picks`, which now does the spent-primary swap that `ProcessStation._picks` used to do, so the card previews the instance the station really takes. `_picks` is deleted | `ok the rack takes the picked lv 31 meat, not the default lv 9`; `ok a spent pick is refused, the other meat is not substituted: 'No processing left on that one.'`; `ok a pick that left the bag is refused`; `ok a batch takes the pick first, then auto-picks the repeat` |
+| A destroyed station never deletes its contents | Spec 10:102: "A change in building state must not silently delete stored items." Spec 11:155: "Handle demolished stations, cancellations, full output containers and server restarts without losing items or duplicating output." | `CraftStation.salvage_contents()` / `ProcessStation.salvage_contents()` hand over and clear the inputs, outputs and waiting jobs. W2-BUILDSYS's `StructureHealth` child emits `destroyed` before it `queue_free()`s the station, and `CraftStation` listens to it duck-typed (`child_entered_tree`). The contents go into camp cargo all-or-nothing through `SaveRestore._refund`. When the cargo is full they wait in `SaveRestore.pending_refunds`, which is saved and retried on every load. So BUILDSYS needs no change and merge order does not matter | `ok a destroyed rack's dried meat (same uid) and drying hide go to camp cargo`; `ok cargo full: the contents wait in pending_refunds (1 rows)`; `ok with room, the next load's retry hands both over` |
+| Found on the way: a saved station row the grid refuses on load lost its jobs | Same spec 11:155 ("server restarts") | Hooks patch: `SaveRestore._items_of` also returns `ProcessStation.saved_stacks(row.process)`, so a refunded rack row gives back its kit and the meat on it | `ok a refunded rack row returns its kit and the 2 meats on it (cargo meat 2)` (with the hooks patch) |
+
+Mutation run (picks ignored, the `destroyed` connect removed, the base `save_restore.gd`):
+```
+[t_process] FAIL the rack takes the picked lv 31 meat, not the default lv 9
+[t_process] FAIL a spent pick is refused, the other meat is not substituted: 'No processing left on that one.'
+[t_process] FAIL a batch takes the pick first, then auto-picks the repeat
+[t_process] FAIL a destroyed rack's dried meat (same uid) and drying hide go to camp cargo
+[t_process] FAIL cargo full: the contents wait in pending_refunds (0 rows)
+[t_process] FAIL with room, the next load's retry hands both over
+[t_process] FAIL a refunded rack row returns its kit and the 2 meats on it (cargo meat 0)
+```
+
+Limits (shortcuts):
+- Picks are bag indices from the same default order the card previews, resolved when the survivor arrives.
+  There is no per-slot picker yet; that is W2-CRAFT ("family slots filled by exact picked instances",
+  vision-check.md next packages #1).
+- "Least valuable first" for repeats is W2-INV's change to the default order. This package uses
+  `Crafting.default_picks` and adds no ordering of its own.
+- The destroyed path was checked by reading W2-BUILDSYS 58c3a87d (`signal destroyed(source)`, emitted before
+  `host.queue_free()`, child named `StructureHealth`). The test uses a stand-in node with the same signal, not
+  a merged tree.
+
+Round 4 gates (scratch tree at 6a385058 with the hooks patch applied, every Godot run under gslot):
+- `--import`: 0 errors in the log.
+- All 20 `t_*.gd` PASS, e.g. `[t_process] PASS`, `[t_build] PASS`, `[t_save] PASS` (its 5 deliberate SCRIPT
+  ERRORs only), `[t_uiicons] PASS ids=169`, `[t_web] PASS`. t_lighting prints `[t_light] PASS`.
+- `[tests] PASS` (run_all), `SMOKE PASS` (`tools/smoke.sh --no-import`).
+- `[process_lab] PASS`, `[kitchen_lab] PASS`, `[craft_lab] PASS`, 0 SCRIPT ERROR lines each.
+- 0 "couldn't resolve track" lines; no new `Godot-*.ips` in DiagnosticReports.
+
+Round 4 shots, 844x390 (phone, landscape), all opened and looked at
+(`/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/shots_proc/`):
+- **gl_compatibility (the judge):**
+  - `glc_rack_{0,50,100}`: the strips go bright red, then maroon, then dark brown. Smoke rises from the
+    rack and the smoker until 100 %; at 100 % the smoke stops and every label reads `Ready: ...`.
+  - `glc_{smoker,crock_pot,steamer}_50`: the smoker and steamer give off their puffs and the crock pot glows.
+    Each label hangs under its station.
+  - `glc_all_100`: every station is done.
+- **Forward+:** `fwd_rack_50` and `fwd_all_50` look the same as glc.
+- **Seen and not fixed:**
+  - The label at the camera-side corner sits on the survivor's name chip when the survivor stands at that
+    corner. It stays readable.
+  - In the lab row (stations about 3 m apart) the steamer's name chip touches the orders panel.
 
 ## Round 3: review r1 fixes
 
@@ -184,13 +241,17 @@ All in `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/b2302
 
 ## Integrator hooks
 
-None are required, so there is no hooks patch. The pack-up fix needs no change in `build_placer.gd` or
-`player_actions.gd`: `BuildPlacer.pack_up_blocker` already asks `pack_up_block_reason()` duck-typed before any
-side effect, on the base and on W2-BUILDSYS (58c3a87d, line 302). Notes:
-- **W2-BUILDSYS merge:** its `StructureHealth.take_damage` `queue_free()`s any `craft_station` at 0 hp, which
-  would drop what hangs on a process station (and a basket's storage) with no refund. Whoever merges
-  BUILDSYS after this should hand `ProcessStation.contents()` to the bag or `World.cargo_home` on that path,
-  as `StructurePlacer.demolish` does for refunds.
+`docs/orchestration/reports/claude-mmo-w2-process-hooks.patch` (round 4): 3 lines in `game/scripts/core/save_restore.gd`
+(W1-SAVE's file). `SaveRestore._items_of` adds a station row's process contents, so a row the grid refuses on
+load is refunded with what hung on it. It applies clean on claude/mmo-overhaul 6e26ef2a (the file's blob
+cd8df9b8 is the patch's index line).
+
+The pack-up fix needs no change in `build_placer.gd` or `player_actions.gd`: `BuildPlacer.pack_up_blocker`
+already asks `pack_up_block_reason()` duck-typed before any side effect, on the base and on W2-BUILDSYS
+(58c3a87d, line 302). Notes:
+- **W2-BUILDSYS merge:** no hook needed for process stations. `CraftStation` listens to the `destroyed`
+  signal of BUILDSYS's `StructureHealth` child and salvages first. A basket's `storage` on that path is
+  BUILDSYS's to handle (`salvage_contents()` is the duck-typed name to reuse).
 - t_process is not in run_all; run it like the other `t_*.gd`.
 - For W3-SRVACT: load and collect are local calls, not PlayerActions intents.
 
