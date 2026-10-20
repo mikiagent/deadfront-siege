@@ -23,6 +23,7 @@ MANIFEST = os.path.join(GAME, "data", "props_manifest.json")
 RES = "res://assets/props/blender/%s.glb"
 MAX_TRIS = 4000
 TOL = 0.05
+ORIGIN_TOL_M = 0.15  # origin must sit at the ground centre: a fixed limit, not one that grows with the footprint
 
 # kind -> GLB name. Kinds not listed keep their Kenney model and are marked REPLACE.
 KIND_GLB = {
@@ -55,6 +56,21 @@ NEW_ROWS = {
 }
 
 
+# Notes that described the Kenney/procedural placeholder this set replaces.
+NOTES = {
+    "drying_rack": "Blender rack in four stages (empty, raw red strips, darker drying strips, dark dried strips); "
+                   "`stages[i].glb` is the model per stage, swapped by W2-PROCESS",
+    "taming_pen": "ring of 2 m Blender fence segments (fence.glb) with the gate as doorway; centre marker for the animal",
+    "mortar": "placed mortar unlocks raw-meat grinding",
+    "well": "placed water source for fill-bucket recipe; no finite water reserve",
+    "crock_pot": "crock-pot cooking station",
+    "canvas_tent": "twelve completed sleeps, eight seconds each",
+    "smoker": "smoking station; no fuel/weather system yet",
+    "catapult": "Manual destructible siege platform",
+}
+STALE_NOTE = ("kenney", "placeholder", "until a dedicated")
+
+
 def res_to_path(res):
     return os.path.join(GAME, res[len("res://"):])
 
@@ -83,8 +99,8 @@ def write(manifest):
             row["stages"] = [{"id": st, "glb": RES % stage_glb(kind, st)} for st in STAGES[kind]]
         if kind in NODES:
             row["nodes"] = NODES[kind]
-        if kind == "taming_pen":
-            row["note"] = "ring of 2 m Blender fence segments (fence.glb) with the gate as doorway; centre marker for the animal"
+        if kind in NOTES:
+            row["note"] = NOTES[kind]
     manifest["_about"] = (
         "Building visuals. `glb` (res:// path) is the hand-built Blender structure set "
         "(tools/blender/structures, one shared 1024 atlas) and wins when present; `aabb_m` is its "
@@ -113,7 +129,7 @@ def check_glb(kind, path, fp, aabb_m, errors):
         errors.append("%s: %s base at y=%.3f, not on the ground" % (kind, name, lo[1]))
     for k, dim in ((0, fp[0]), (2, fp[1])):
         centre = (lo[k] + hi[k]) / 2
-        if abs(centre) > 0.12 * dim + 0.05:
+        if abs(centre) > ORIGIN_TOL_M:
             errors.append("%s: %s origin off centre on axis %d by %.2f m" % (kind, name, k, centre))
         if size[k] > dim * (1 + TOL):
             errors.append("%s: %s %.2f m wide on axis %d, footprint %d" % (kind, name, size[k], k, dim))
@@ -155,6 +171,8 @@ def main():
                 errors.append("%s: building-system stand-in not marked art_status REPLACE" % kind)
             if not row.get("upgrade"):
                 errors.append("%s: low-poly Blender row has no upgrade path" % kind)
+            if any(w in row.get("note", "").lower() for w in STALE_NOTE):
+                errors.append("%s: note still describes the placeholder: %r" % (kind, row["note"]))
         elif row.get("model"):
             p = os.path.join(GAME, "assets", "props", "kenney", row["model"] + ".glb")
             if not os.path.exists(p):
@@ -170,9 +188,9 @@ def main():
         print("[check_manifest] FAIL " + e)
     if errors:
         sys.exit(1)
-    print("[check_manifest] PASS %d kinds resolve to existing GLBs (%d Blender, %d Kenney marked REPLACE, "
-          "%d Blender stand-ins marked REPLACE)" % (len(manifest["buildings"]), len(manifest["buildings"]) - len(replace),
-                                                    len(replace), len(STAND_INS)))
+    print("[check_manifest] PASS %d kinds resolve to existing GLBs (%d Blender (%d of them stand-ins marked REPLACE), "
+          "%d Kenney marked REPLACE)" % (len(manifest["buildings"]), len(manifest["buildings"]) - len(replace),
+                                         len(STAND_INS), len(replace)))
 
 
 if __name__ == "__main__":

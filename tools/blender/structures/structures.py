@@ -2,12 +2,14 @@
 glTF node. Most structures are one node; the gate has hinged leaves and the catapult a pivoting arm.
 
 Axes (Blender, Z up): the front faces -Y, which becomes +Z in Godot (towards the iso camera).
+The tent is the exception: its door faces +X in Godot so the camera sees a sunlit slope at rot 0.
 Footprints follow game/data/props_manifest.json: X is the first footprint number, Y the second.
 """
 import math
 import zlib
 
-from mathutils import Euler, Vector
+import bmesh
+from mathutils import Euler, Matrix, Vector
 
 from lib import Part
 
@@ -66,6 +68,9 @@ def tent():
     for sx in (-1, 1):
         for y in (-0.8, 0.0, 0.8):
             p.log((sx * (hw + 0.12), y, -0.02), (sx * (hw + 0.14), y, 0.14), 0.025, tile="wood", seg=5)
+    # W1-LIGHT's sun crosses from -X (yaw -35..-85), so a +X slope is shade all day and rendered as a
+    # black slab. Turned +90 deg (Godot rot_step 1) the camera-side slope faces +Z and catches the sun.
+    bmesh.ops.rotate(p.bm, verts=p.bm.verts, cent=(0, 0, 0), matrix=Matrix.Rotation(R(90), 3, "Z"))
     return [(p, (0, 0, 0))]
 
 

@@ -64,7 +64,7 @@
         2,
         1
       ],
-      "note": "use the canvas frame as a rack until a dedicated model exists",
+      "note": "Blender rack in four stages (empty, raw red strips, darker drying strips, dark dried strips); `stages[i].glb` is the model per stage, swapped by W2-PROCESS",
       "glb": "res://assets/props/blender/drying_rack.glb",
       "aabb_m": [
         1.94,
@@ -101,9 +101,9 @@
       "note": "field tent, six completed sleeps before it wears out",
       "glb": "res://assets/props/blender/tent.glb",
       "aabb_m": [
-        2.827,
+        2.934,
         2.317,
-        2.934
+        2.827
       ],
       "art_status": "REVIEW",
       "upgrade": "low-poly hand-built Blender (420 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
@@ -353,7 +353,7 @@
         1,
         1
       ],
-      "note": "placed mortar unlocks raw-meat grinding; placeholder Kenney grindstone",
+      "note": "placed mortar unlocks raw-meat grinding",
       "glb": "res://assets/props/blender/mortar.glb",
       "aabb_m": [
         0.69,
@@ -394,7 +394,7 @@
         2,
         2
       ],
-      "note": "placed water source for fill-bucket recipe; placeholder Kenney barrel, no finite water reserve",
+      "note": "placed water source for fill-bucket recipe; no finite water reserve",
       "glb": "res://assets/props/blender/well.glb",
       "aabb_m": [
         1.96,
@@ -419,7 +419,7 @@
         2,
         2
       ],
-      "note": "temporary Kenney cooking stand until dedicated crock-pot art passes in-world pixel check",
+      "note": "crock-pot cooking station",
       "glb": "res://assets/props/blender/crock_pot.glb",
       "aabb_m": [
         1.477,
@@ -467,12 +467,12 @@
         3,
         3
       ],
-      "note": "twelve completed sleeps, eight seconds each; temporary Kenney visual",
+      "note": "twelve completed sleeps, eight seconds each",
       "glb": "res://assets/props/blender/tent.glb",
       "aabb_m": [
-        2.827,
+        2.934,
         2.317,
-        2.934
+        2.827
       ],
       "art_status": "REVIEW",
       "upgrade": "low-poly hand-built Blender (420 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
@@ -501,7 +501,7 @@
         2,
         2
       ],
-      "note": "smoking station; Kenney stand placeholder, no fuel/weather system yet",
+      "note": "smoking station; no fuel/weather system yet",
       "glb": "res://assets/props/blender/smoker.glb",
       "aabb_m": [
         1.585,
@@ -516,7 +516,7 @@
         3,
         3
       ],
-      "note": "Manual destructible siege platform; procedural placeholder visual",
+      "note": "Manual destructible siege platform",
       "glb": "res://assets/props/blender/catapult.glb",
       "aabb_m": [
         2.7,

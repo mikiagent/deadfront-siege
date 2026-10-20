@@ -8,7 +8,10 @@ const ATLAS_MAT := "res://assets/props/blender/structures_atlas.tres"
 const ATLAS_PNG := "res://assets/props/blender/structures_atlas.png"
 const GRID := 8
 ## Atlas tile order (lib.TILES); only the tiles the stage check reads.
-const TILE_INDEX := {"wood": 0, "bark": 3, "meat_raw": 24, "meat_drying": 25, "meat_dried": 26}
+const TILE_INDEX := {"wood": 0, "bark": 3, "canvas": 8, "meat_raw": 24, "meat_drying": 25, "meat_dried": 26}
+const LIGHTING_JSON := "res://data/world/lighting.json"
+## Area-weighted mean of N.sun over the canvas the iso camera sees on the tent at rot 0.
+const TENT_MIN_SUNLIT := 0.35
 ## Owner rule: the stages must read by value, not hue alone. Minimum Rec.709 luma steps between
 ## tile means, and dried must stay clear of the rack's own bark poles.
 const STAGE_LUMA_STEP := 10.0
@@ -34,6 +37,7 @@ func _process(_delta: float) -> bool:
 	var buildings: Dictionary = (data.get("props_manifest") as Dictionary).get("buildings", {})
 	_check_rows(buildings)
 	_check_stages(buildings)
+	_check_tent_faces_sun(buildings)
 	_check_pivots(buildings)
 	_check_atlas()
 	_check_replacement_marks(buildings)
@@ -102,6 +106,7 @@ func _check_glb(kind: String, path: String, aabb_m: Variant) -> void:
 	root.free()
 
 func _check_stages(buildings: Dictionary) -> void:
+	var before := failures.size()
 	var row: Dictionary = buildings.get("drying_rack", {})
 	var stages: Array = row.get("stages", [])
 	var ids: Array[String] = []
@@ -127,7 +132,64 @@ func _check_stages(buildings: Dictionary) -> void:
 				failures.append("drying_rack %s and %s look identical" % [ids[i], ids[j]])
 	if uvs[0].size() >= uvs[1].size():
 		failures.append("empty drying rack is not lighter than the raw stage")
-	print("[t_structart] drying_rack stages %s distinct" % [ids])
+	if failures.size() == before:  # only claim "distinct" when this check added no failure
+		print("[t_structart] drying_rack stages %s distinct" % [ids])
+
+## At rot 0 the iso camera must see sunlit canvas on the tent, not the slope in shade all day (review:
+## the default tent rendered as a near-black slab). Sun = W1-LIGHT's noon (mid yaw band, peak elevation).
+func _check_tent_faces_sun(buildings: Dictionary) -> void:
+	var path := str((buildings.get("tent", {}) as Dictionary).get("glb", ""))
+	if not ResourceLoader.exists(path):
+		return  # already a failure from _check_rows
+	var yaw_band: Array = [-35.0, -85.0]  # W1-LIGHT default profile, used until lighting.json is merged
+	var elevation := 58.0
+	if FileAccess.file_exists(LIGHTING_JSON):
+		var prof: Variant = JSON.parse_string(FileAccess.get_file_as_string(LIGHTING_JSON))
+		if prof is Dictionary and (prof as Dictionary).get("default") is Dictionary:
+			var d: Dictionary = prof["default"]
+			yaw_band = d.get("sun_yaw_deg", yaw_band)
+			elevation = float(d.get("sun_max_elevation_deg", elevation))
+	var yaw := (float(yaw_band[0]) + float(yaw_band[1])) * 0.5
+	# A DirectionalLight3D shines along -Z and the camera looks along -Z, so +Z points at each.
+	var to_sun := Basis.from_euler(Vector3(deg_to_rad(-elevation), deg_to_rad(yaw), 0.0)).z
+	var to_cam := Basis.from_euler(Vector3(deg_to_rad(-35.264), deg_to_rad(45.0), 0.0)).z
+	var seen := 0.0
+	var lit := 0.0
+	var root := (load(path) as PackedScene).instantiate() as Node3D
+	for mi: MeshInstance3D in _meshes(root):
+		var xf := _xform_in(root, mi)
+		for sidx in mi.mesh.get_surface_count():
+			var arr := mi.mesh.surface_get_arrays(sidx)
+			var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var nrm: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+			var uv: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV]
+			var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array(range(v.size()))
+			for t in range(0, idx.size(), 3):
+				var a := idx[t]
+				var b := idx[t + 1]
+				var c := idx[t + 2]
+				var cuv := (uv[a] + uv[b] + uv[c]) / 3.0
+				if int(cuv.y * GRID) * GRID + int(cuv.x * GRID) != int(TILE_INDEX["canvas"]):
+					continue
+				var n := (xf.basis * (nrm[a] + nrm[b] + nrm[c])).normalized()
+				var facing := n.dot(to_cam)
+				if facing <= 0.05:
+					continue
+				var area := (xf * v[b] - xf * v[a]).cross(xf * v[c] - xf * v[a]).length() * 0.5 * facing
+				seen += area
+				lit += area * maxf(0.0, n.dot(to_sun))
+	root.free()
+	var ratio := lit / seen if seen > 0.0 else 0.0
+	print("[t_structart] tent at rot 0: camera-side canvas sunlit %.2f (min %.2f), sun yaw %.0f elevation %.0f" % [ratio, TENT_MIN_SUNLIT, yaw, elevation])
+	if ratio < TENT_MIN_SUNLIT:
+		failures.append("tent at rot 0 shows its shaded slope to the camera (sunlit %.2f < %.2f)" % [ratio, TENT_MIN_SUNLIT])
+
+func _xform_in(root: Node, n: Node) -> Transform3D:
+	var xf := Transform3D.IDENTITY
+	while n != root and n is Node3D:
+		xf = (n as Node3D).transform * xf
+		n = n.get_parent()
+	return xf
 
 func _check_pivots(buildings: Dictionary) -> void:
 	for pair: Array in [["fence_gate", "LeafL"], ["fence_gate", "LeafR"], ["catapult", "Arm"]]:
