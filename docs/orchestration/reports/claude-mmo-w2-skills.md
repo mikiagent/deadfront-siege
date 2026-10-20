@@ -156,10 +156,11 @@ needed and the other was not, so only one was built.
      means something.
    This is the one place this run departs from the computed task. Overrule it and it is about 25 lines.
 
-## Acceptance (r3: branch merged with claude/mmo-overhaul @ dd7ff218, hooks applied in a scratch tree)
+## Acceptance (r3: branch merged with claude/mmo-overhaul @ 548059bc, hooks applied in a scratch tree)
 
-Hooks patch: unchanged, `git apply --check` clean on claude/mmo-overhaul @ dd7ff218 and on the branch. That
-base move is docs only (STATUS, invui.js), and the r2 fixes touch no hooked file.
+Hooks patch: unchanged, `git apply --check` clean on claude/mmo-overhaul @ 548059bc and on the branch. The
+base moves since c2b373f3 are docs only (STATUS, workflows, spec 14), and the r2 fixes touch no hooked file. Gates
+ran before the 548059bc merge.
 
 Every gate below ran at the r2 fix commit in a scratch tree with hooks H1-H7 applied.
 - `--import`: 0 SCRIPT ERROR.
