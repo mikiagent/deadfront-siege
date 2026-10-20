@@ -59,11 +59,7 @@ static func _base_floor(sg: StructureGrid, aim: Vector3) -> float:
 
 ## "Wood Wall  plank ×4 · twine ×2": the ghost's label for a piece in a tier.
 static func label(kind: StringName, tier: StringName) -> String:
-	var parts: PackedStringArray = []
-	var cost := StructurePiece.cost(kind, tier)
-	for id in cost:
-		parts.append("%s ×%d" % [str(id).replace("_", " "), int(cost[id])])
-	return "%s %s  %s" % [str(StructurePiece.tier_def(tier).get("label", tier)), str(StructurePiece.piece_def(kind).get("label", kind)), " · ".join(parts)]
+	return "%s %s  %s" % [str(StructurePiece.tier_def(tier).get("label", tier)), str(StructurePiece.piece_def(kind).get("label", kind)), cost_text(StructurePiece.cost(kind, tier))]
 
 ## Snap points for the ghost: a green diamond on each free socket that takes the piece, red on the
 ## ones that refuse it (vertex colours; null when there are none).
@@ -230,5 +226,83 @@ static func demolish(target: Node, player: Node) -> String:
 		var left := inv.add(ItemStack.make(id, n))
 		if left > 0 and World.cargo_home:
 			World.cargo_home.add(ItemStack.make(id, left))
-	p.destroy("demolished")
+	p.destroy("demolished", player)
 	return ""
+
+# ------------------------------------------------------------------ whole building
+
+## Every piece connected to `p` (module cells side by side or diagonal, one storey apart at most):
+## the building a wall's card offers Repair all / Upgrade all for, floors and roofs included.
+static func building_of(p: StructurePiece) -> Array[StructurePiece]:
+	var out: Array[StructurePiece] = [p]
+	var g := p.grid()
+	if g == null:
+		return out
+	var left := g.pieces()
+	left.erase(p)
+	var i := 0
+	while i < out.size():
+		var a := out[i]
+		for b in left.duplicate():
+			if absi(a.slot.x - b.slot.x) <= 1 and absi(a.slot.y - b.slot.y) <= 1 and absi(a.slot.z - b.slot.z) <= 1:
+				out.append(b)
+				left.erase(b)
+		i += 1
+	return out
+
+static func _add_cost(into: Dictionary, cost: Dictionary) -> void:
+	for id in cost:
+		into[id] = int(into.get(id, 0)) + int(cost[id])
+
+## Pieces of the building below `tier` that have a blueprint in it, and what lifting them all costs.
+static func upgrade_all_plan(p: StructurePiece, tier: StringName) -> Dictionary:
+	var todo: Array[StructurePiece] = []
+	var cost := {}
+	for q in building_of(p):
+		if q.owner_id == "local" and StructurePiece.tier_rank(q.tier) < StructurePiece.tier_rank(tier) and not StructurePiece.blueprint(q.kind, tier).is_empty():
+			todo.append(q)
+			_add_cost(cost, StructurePiece.cost(q.kind, tier))
+	return {"pieces": todo, "cost": cost}
+
+static func repair_all_plan(p: StructurePiece) -> Dictionary:
+	var todo: Array[StructurePiece] = []
+	var cost := {}
+	for q in building_of(p):
+		var c := repair_cost(q)
+		if q.owner_id == "local" and not c.is_empty():
+			todo.append(q)
+			_add_cost(cost, c)
+	return {"pieces": todo, "cost": cost}
+
+## All or nothing: the whole building's upgrade is paid up front or nothing changes.
+static func upgrade_all(p: StructurePiece, tier: StringName, player: Node) -> String:
+	var gate := tier_gate(player, tier)
+	if gate != "":
+		return gate
+	var plan := upgrade_all_plan(p, tier)
+	if (plan["pieces"] as Array).is_empty():
+		return "not_higher"
+	if not pay(player.get("inventory"), plan["cost"]):
+		return "missing_materials"
+	for q in plan["pieces"]:
+		(q as StructurePiece).set_tier(tier)
+	print("[struct] upgraded %d pieces to %s for %s" % [(plan["pieces"] as Array).size(), tier, plan["cost"]])
+	return ""
+
+static func repair_all(p: StructurePiece, player: Node) -> String:
+	var plan := repair_all_plan(p)
+	if (plan["pieces"] as Array).is_empty():
+		return "undamaged"
+	if not pay(player.get("inventory"), plan["cost"]):
+		return "missing_materials"
+	for q in plan["pieces"]:
+		(q as StructurePiece).health.heal_full()
+	print("[struct] repaired %d pieces for %s" % [(plan["pieces"] as Array).size(), plan["cost"]])
+	return ""
+
+## "plank ×4 · twine ×2"
+static func cost_text(cost: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	for id in cost:
+		parts.append("%s ×%d" % [str(id).replace("_", " "), int(cost[id])])
+	return " · ".join(parts)

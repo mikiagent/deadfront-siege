@@ -330,6 +330,13 @@ func check(kind: StringName, s: Vector4i, rot: int, p_tier: StringName = &"thatc
 				return out
 			out["floor0"] = dw.floor0
 			return out
+	if is_furniture(kind):  # chests, boxes, signs: one per floor module, not on a stair run
+		var fl := floor_at(m, s.z)
+		if fl == null:
+			out["reason"] = "no_support"
+			return out
+		out["floor0"] = fl.floor0
+		return out
 	# Wall types: on a floor at this level (either side) or on a wall-type one storey down.
 	for c in edge_cells(s):
 		var fl2 := floor_at(c, s.z)
@@ -457,7 +464,7 @@ func collapse_unsupported() -> Array[StructurePiece]:
 					ok[n] = true
 					n.span = q.span + 1
 					queue.append(n)
-		for pass_kind in [&"ramp", &"pillar", &"stairs", &"wall", &"door"]:
+		for pass_kind in [&"ramp", &"pillar", &"stairs", &"wall", &"door", &"furniture"]:
 			for p in here:
 				var sp2 := p as StructurePiece
 				if not ok.has(sp2) and _kind_group(sp2.kind) == pass_kind and _supported(sp2, ok):
@@ -467,13 +474,20 @@ func collapse_unsupported() -> Array[StructurePiece]:
 		if not ok.has(p) and not p.is_queued_for_deletion():
 			fell.append(p)
 	for p in fell:
+		p.spill_storage()
 		unregister(p)
 		print("[struct] %s %s collapsed at %s" % [p.tier, p.kind, p.slot])
 		p.queue_free()
 	return fell
 
 static func _kind_group(k: StringName) -> StringName:
+	if is_furniture(k):
+		return &"furniture"
 	return &"wall" if k in StructurePiece.WALL_KINDS else k
+
+## Pieces that stand on a floor module (structures.json slot "on_floor"): chest, large box, sign.
+static func is_furniture(k: StringName) -> bool:
+	return str(StructurePiece.piece_def(k).get("slot", "")) == "on_floor"
 
 func _slab_supported(p: StructurePiece, ok: Dictionary) -> bool:
 	for e in cell_edges(Vector2i(p.slot.x, p.slot.y), p.slot.z - 1):
@@ -510,6 +524,9 @@ func _supported(p: StructurePiece, ok: Dictionary) -> bool:
 		&"door":
 			var dw := piece_at(Vector4i(p.slot.x, p.slot.y, p.slot.z, StructurePiece.EDGE_X if p.slot.w == StructurePiece.DOOR_X else StructurePiece.EDGE_Z))
 			return dw != null and ok.has(dw)
+	if is_furniture(p.kind):
+		var under := floor_at(m, p.slot.z)
+		return under != null and ok.has(under)
 	for c in edge_cells(p.slot):
 		var fl2 := floor_at(c, p.slot.z)
 		if fl2 and ok.has(fl2):
@@ -554,7 +571,7 @@ func candidates(kind: StringName, around: Vector3, radius: int = 2) -> Array[Vec
 						out.append(Vector4i(x, z, level, StructurePiece.CORNER))
 					_:
 						if dx <= radius and dz <= radius:
-							out.append(Vector4i(x, z, level, StructurePiece.ON_FLOOR if kind == &"stairs" else StructurePiece.CELL))
+							out.append(Vector4i(x, z, level, StructurePiece.slot_code(kind)))
 	return out
 
 ## Where a slot reads as "aimed at": the middle of the piece it would hold.

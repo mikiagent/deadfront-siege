@@ -1,7 +1,7 @@
 class_name StructurePiece
 extends StaticBody3D
 ## One modular building piece (foundation, wall, doorway, door, window, ceiling, roof, roof ridge,
-## pillar, stairs, ramp) at a slot of the global module lattice. Everything a piece is comes from
+## pillar, stairs, ramp, and the chest, large box and sign that stand on a floor) at a slot of the global module lattice. Everything a piece is comes from
 ## structures.json: its model (a GLB path per tier; empty or missing = StructureMesh stand-in), slot,
 ## sockets, durability and material cost. A saved piece is a spec-10 building instance (to_dict).
 ##
@@ -52,6 +52,8 @@ var owner_id: String = "local"
 var build_level: int = 1    # spec 10 finished building level
 var inherited_attributes: Array = []
 var door_open: bool = false
+var storage: Inventory      # chests and large boxes (structures.json storage_slots), else null
+var sign_text: String = ""  # signs (structures.json text_max)
 var health: StructureHealth
 var _visual: Node3D
 
@@ -145,6 +147,8 @@ static func slot_code(p_kind: StringName, edge_axis: int = EDGE_Z) -> int:
 			return DOOR_X if edge_axis == EDGE_X else DOOR_Z
 		"corner":
 			return CORNER
+		"on_floor":
+			return ON_FLOOR
 	return ON_FLOOR if p_kind == &"stairs" else CELL
 
 static func make(p_kind: StringName, p_tier: StringName, p_slot: Vector4i, p_rot: int, p_floor0: float, p_variant: int = 0) -> StructurePiece:
@@ -161,6 +165,9 @@ static func make(p_kind: StringName, p_tier: StringName, p_slot: Vector4i, p_rot
 	p.health.name = StructureHealth.NODE_NAME
 	p.health.setup(max_durability(p_kind, p_tier), -1.0, float(tier_def(p_tier).get("creature_mult", 1.0)))
 	p.add_child(p.health)
+	var slots := int(piece_def(p_kind).get("storage_slots", 0))
+	if slots > 0:
+		p.storage = Inventory.new(slots)
 	return p
 
 # ------------------------------------------------------------------ instance
@@ -178,6 +185,40 @@ func _ready() -> void:
 	if occl == &"wall":  # roofs and ceilings fade per storey of a building (StructureGrid.roof_group)
 		_occlusion(self, occl)
 	_let_owner_through()
+
+## A tap on this piece opens its card (HUD). Floors, stairs and ramps are walked on, so a tap
+## there stays a move; the card of a building's floors is reached from any wall's card.
+func is_tap_target() -> bool:
+	return not (kind in [&"foundation", &"ceiling", &"stairs", &"ramp"])
+
+func set_sign_text(text: String) -> void:
+	sign_text = text.strip_edges().left(int(piece_def(kind).get("text_max", 48)))
+	var l := _visual.find_child("SignText", true, false) as Label3D if _visual else null
+	if l:
+		l.text = sign_text
+
+## A destroyed chest's contents go to the bag of whoever took it down, then the camp cargo; with
+## neither they are lost (logged). Called before the piece leaves the grid.
+# ASSUMPTION: no loot bag on the ground yet; contents are salvaged into the camp cargo.
+func spill_storage(player: Node = null) -> void:
+	if storage == null:
+		return
+	var inv: Variant = player.get("inventory") if player else null
+	for i in storage.slot_count:
+		var st: ItemStack = storage.slots[i]
+		if st == null:
+			continue
+		storage.slots[i] = null
+		if st.def_id == &"_slot_lock":
+			continue  # the tail of a multi-slot item; its anchor slot carries it
+		var left := st.count
+		if inv is Inventory:
+			left = (inv as Inventory).add(st)
+		if left > 0 and World.cargo_home:
+			left = World.cargo_home.add(st)
+		if left > 0:
+			print("[struct] %s lost %d %s" % [kind, left, st.def_id])
+	storage.changed.emit()
 
 func is_wall_type() -> bool:
 	return kind in WALL_KINDS
@@ -231,6 +272,17 @@ func _rebuild() -> void:
 		mi.name = "StandIn"
 		mi.mesh = StructureMesh.mesh_for(kind, tier, variant)
 		holder.add_child(mi)
+	if kind == &"sign":
+		var l := Label3D.new()
+		l.name = "SignText"
+		l.text = sign_text
+		l.position = Vector3(0, 1.25, 0.06)
+		l.font_size = 40
+		l.pixel_size = 0.004
+		l.width = 220.0
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.modulate = Color(0.12, 0.09, 0.06)
+		holder.add_child(l)
 	add_child(_visual)
 	attach_visual(group)  # an upgraded roof keeps its place in the building's roof group
 	for row in StructureMesh.shapes_for(kind, variant):
@@ -295,11 +347,12 @@ func set_tier(p_tier: StringName) -> void:
 		_apply_layer()
 
 ## Leave the grid, collapse whatever this held up, and free. Returns the pieces that fell with it.
-func destroy(reason: String = "demolished") -> Array[StructurePiece]:
+func destroy(reason: String = "demolished", by: Node = null) -> Array[StructurePiece]:
 	var fell: Array[StructurePiece] = []
 	if is_queued_for_deletion():
 		return fell
 	var g := grid()
+	spill_storage(by)
 	if g:
 		g.unregister(self)
 	print("[struct] %s %s %s at %s" % [tier, kind, reason, slot])
@@ -337,7 +390,9 @@ func to_dict() -> Dictionary:
 		"floor_y": floor0,
 		"variant": variant,
 		"open": door_open,
-		"container_id": "",
+		"container_id": uid if storage else "",
+		"contents": storage.to_array() if storage else [],
+		"text": sign_text,
 	}
 
 ## A saved row back into a piece, or null when the row is not a well-formed piece. Save files are
@@ -364,6 +419,12 @@ static func from_dict(row: Dictionary) -> StructurePiece:
 	p.inherited_attributes = (attrs as Array).duplicate(true) if attrs is Array else []
 	p.health.hp = _num(row.get("current_durability"), 0.0, p.health.max_hp, p.health.max_hp)
 	p.door_open = k == &"door" and row.get("open", false) == true
+	var contents: Variant = row.get("contents", [])
+	if p.storage and contents is Array:
+		p.storage.load_array(contents)
+	var text: Variant = row.get("text", "")
+	if k == &"sign" and text is String:
+		p.sign_text = (text as String).strip_edges().left(int(piece_def(k).get("text_max", 48)))
 	return p
 
 static func _num(v: Variant, lo: float, hi: float, fallback: float) -> float:

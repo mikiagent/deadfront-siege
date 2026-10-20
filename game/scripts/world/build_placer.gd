@@ -200,6 +200,11 @@ func begin_piece(kind: StringName, tier: StringName = &"thatch") -> bool:
 	piece_tier = tier
 	piece_at = {}
 	begin(kind)
+	# The sheet button that started this is under the finger: start a step in front of the survivor
+	# and let taps on the world move the aim (tap_ground), never the pointer over the HUD.
+	var who := get_parent() as Node3D
+	if who:
+		aim_at(who.global_position - who.global_basis.z * StructurePiece.module_m())
 	return true
 
 func is_piece() -> bool:
@@ -219,6 +224,12 @@ func repair(target: Node, player: Player) -> bool:
 
 func demolish(target: Node, player: Player) -> bool:
 	return _report("demolish", StructurePlacer.demolish(target, player), player)
+
+func upgrade_all(target: StructurePiece, tier: StringName, player: Player) -> bool:
+	return _report("upgrade", StructurePlacer.upgrade_all(target, tier, player), player)
+
+func repair_all(target: StructurePiece, player: Player) -> bool:
+	return _report("repair", StructurePlacer.repair_all(target, player), player)
 
 func _report(what: String, why: String, player: Player) -> bool:
 	if why != "":
@@ -491,24 +502,34 @@ func rotate_clockwise() -> void:
 func tap_ground() -> void:
 	if placing == &"":
 		return
+	if is_piece():
+		var hit := _ground()
+		if not hit.is_empty():
+			aim_at(hit.position)  # the ghost snaps to the free socket nearest the tap
+		return
 	_snap_to_pointer()
 	_sync_grid_state()
 
 func _process(_delta: float) -> void:
 	if placing == &"":
 		return
+	_fit_label()
 	if is_piece():
-		if not _aim_locked:
-			var hit := _ground()
-			if not hit.is_empty():
-				_aim = hit.position
-		_sync_grid_state()
+		_sync_grid_state()  # the aim moves only by taps (tap_ground) and aim_at
 		return
 	if moving == null:
 		_snap_to_pointer()
 	elif dragging:
 		_snap_centered()  # follows the finger while held
 	_sync_grid_state()
+
+## Keep the ghost's cost/refusal label about 20 px tall on any screen: the iso camera is orthographic,
+## so a fixed pixel_size shrank to ~7 px on a 390 px tall phone.
+func _fit_label() -> void:
+	var cam := get_viewport().get_camera_3d()
+	var h := get_viewport().get_visible_rect().size.y
+	if cam and cam.projection == Camera3D.PROJECTION_ORTHOGONAL and h > 0.0:
+		_ghost_label.pixel_size = maxf(0.006, 20.0 * cam.size / (48.0 * h))
 
 func confirm(player: Player) -> bool:
 	if placing == &"":
@@ -744,6 +765,8 @@ func _ground_at(screen_pos: Vector2) -> Dictionary:
 	var from := cam.project_ray_origin(screen_pos)
 	var to := from + cam.project_ray_normal(screen_pos) * 200.0
 	var q := PhysicsRayQueryParameters3D.create(from, to)
+	if get_parent() is CollisionObject3D:
+		q.exclude = [(get_parent() as CollisionObject3D).get_rid()]  # a tap on the survivor aims at the ground under it
 	return get_tree().root.get_world_3d().direct_space_state.intersect_ray(q)
 
 func _build_materials() -> void:

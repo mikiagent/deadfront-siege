@@ -31,6 +31,9 @@ static func mesh_for(kind: StringName, tier: StringName, variant: int = 0) -> Ar
 		&"pillar": _pillar(b)
 		&"stairs": _stairs(b)
 		&"ramp": _ramp(b, variant * 0.1)
+		&"chest": _chest(b, Vector3(1.0, 0.55, 0.6))
+		&"large_box": _chest(b, Vector3(1.6, 0.8, 1.0))
+		&"sign": _sign(b)
 		_: b.box(Vector3(0, 0.5, 0), Vector3(1, 1, 1), b.tint, 0.05)
 	st.set_material(material_for(tier))
 	var mesh := st.commit()
@@ -71,6 +74,12 @@ static func shapes_for(kind: StringName, variant: int = 0) -> Array:
 				Vector3(-1, rise2 + peak, 0), Vector3(1, rise2 + peak, 0)]), Transform3D()]]
 		&"pillar":
 			return [[_box_shape(Vector3(0.28, h, 0.28)), Transform3D(Basis(), Vector3(0, h * 0.5, 0))]]
+		&"chest":
+			return [[_box_shape(Vector3(1.0, 0.6, 0.6)), Transform3D(Basis(), Vector3(0, 0.3, 0))]]
+		&"large_box":
+			return [[_box_shape(Vector3(1.6, 0.85, 1.0)), Transform3D(Basis(), Vector3(0, 0.425, 0))]]
+		&"sign":
+			return [[_box_shape(Vector3(1.0, 1.6, 0.2)), Transform3D(Basis(), Vector3(0, 0.8, 0))]]
 		&"stairs":
 			return [[_hull([Vector3(-0.9, 0, -1), Vector3(0.9, 0, -1), Vector3(-0.9, 0, 3), Vector3(0.9, 0, 3), Vector3(-0.9, h, 3), Vector3(0.9, h, 3)]), Transform3D()]]
 		&"ramp":
@@ -270,6 +279,21 @@ static func _pillar(b: _Builder) -> void:
 	b.box(Vector3(0, 0.08, 0), Vector3(0.36, 0.16, 0.36), b.trim, 0.03)
 	b.box(Vector3(0, h * 0.5, 0), Vector3(0.26, h - 0.2, 0.26), b.jit(b.tint, 0.05) if b.tier != &"thatch" else b.trim.lightened(0.15), 0.04)
 	b.box(Vector3(0, h - 0.07, 0), Vector3(0.34, 0.14, 0.34), b.trim, 0.03)
+
+## A lidded box: tier body, a lid course, two straps and a front latch (chest, large box).
+static func _chest(b: _Builder, size: Vector3) -> void:
+	var body := size.y * 0.72
+	b.box(Vector3(0, body * 0.5, 0), Vector3(size.x, body, size.z), b.jit(b.tint, 0.05), 0.03)
+	b.box(Vector3(0, body + (size.y - body) * 0.5, 0), Vector3(size.x + 0.04, size.y - body, size.z + 0.04), b.jit(b.tint.lightened(0.08), 0.04), 0.04)
+	for sx in [-0.3, 0.3]:
+		b.box(Vector3(size.x * sx, size.y * 0.5, 0), Vector3(0.08, size.y + 0.02, size.z + 0.06), b.trim, 0.01)
+	b.box(Vector3(0, body, size.z * 0.5 + 0.03), Vector3(0.16, 0.18, 0.04), b.trim.darkened(0.2), 0.01)
+
+## A post and a board facing +Z; the text is a Label3D on the board (StructurePiece).
+static func _sign(b: _Builder) -> void:
+	b.box(Vector3(0, 0.55, -0.05), Vector3(0.12, 1.1, 0.12), b.trim, 0.02)
+	b.box(Vector3(0, 1.25, 0), Vector3(1.0, 0.6, 0.06), b.jit(b.tint.lightened(0.15), 0.03), 0.02)
+	b.box(Vector3(0, 1.57, 0), Vector3(1.04, 0.05, 0.08), b.trim, 0.01)
 
 static func _stairs(b: _Builder) -> void:
 	var h := _h()
