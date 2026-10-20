@@ -336,7 +336,7 @@ func _node_name() -> String:
 static func title_spot(src: Rect2, size: Vector2, view: Vector2, blockers: Array[Rect2]) -> Rect2:
 	var x := clampf(src.get_center().x - size.x * 0.5, 8.0, maxf(8.0, view.x - size.x - 8.0))
 	var below := Rect2(Vector2(x, src.end.y + 4.0), size)
-	var ok := below.end.y <= view.y - 24.0
+	var ok := below.end.y <= view.y - 24.0  # ASSUMPTION: 24 px keeps the box off the bottom XP line
 	for b in blockers:
 		ok = ok and not below.intersects(b)
 	return below if ok else Rect2(Vector2(x, src.position.y - 4.0 - size.y), size)
@@ -448,7 +448,7 @@ static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view:
 		for blocker in blockers:
 			cover += rect.intersection(blocker as Rect2).get_area()
 		for blocker in soft:
-			cover += rect.intersection(blocker as Rect2).get_area() * 0.1
+			cover += rect.intersection(blocker as Rect2).get_area() * 0.1  # ASSUMPTION: leaves weigh a tenth of text
 		if cover <= 0.0:
 			return rect
 		if cover < best_cover:

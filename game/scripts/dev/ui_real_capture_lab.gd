@@ -194,6 +194,7 @@ func _run() -> void:
 				_expect(not (parts[k] as Rect2).intersects(hud[h] as Rect2), "radial: %s %s stays off %s %s" % [k, parts[k], h, hud[h]])
 			var share := cover_share(parts[k] as Rect2, hull)
 			worst = maxf(worst, share)
+			# ASSUMPTION: a 5 % graze of a hex or label reads as clear; the title may not touch.
 			_expect(share <= (0.0 if k == "title" else 0.05), "radial: %s %s stays off the plant and its ring %s (covers %.0f%% of it)" % [k, parts[k], radial.source_rect(), share * 100.0])
 		print("[uireal] radial: %d option labels, %d hexes and the title checked against %d HUD blocks and the source %s (most of a part on it %.1f%%), nameplate %s" % [radial.label_rects.size(), hexes.size(), hud.size(), radial.source_rect(), worst * 100.0, plate])
 		await _capture("radial", hexes, logical)

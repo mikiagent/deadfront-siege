@@ -232,6 +232,7 @@ static func hud_reserved(view: Vector2) -> Array[Rect2]:
 	]
 
 ## The "Lv. 1  5.0%" line hunt_hud draws centred at the bottom (off a portrait phone).
+## ASSUMPTION: 180x26 covers hunt_hud's 13 px line at r.y - 7 up to "Lv. 100  100.0%".
 static func xp_line_zone(view: Vector2) -> Rect2:
 	return Rect2(view.x * 0.5 - 90.0, view.y - 26.0, 180.0, 26.0)
 
