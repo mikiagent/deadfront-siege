@@ -1,5 +1,6 @@
-"""Point every structure GLB's Godot import at the one shared atlas material and drop the copy of
-the atlas embedded in each GLB, so Godot loads a single texture for the whole set.
+"""Point every structure GLB's Godot import at the one shared atlas material, so Godot loads a single
+texture for the whole set. The GLBs carry no image (lib.export); embedded_image_handling=0 stays as a
+guard in case one ever does.
 
 Run after the first `Godot --headless --path game --import` has written the .import files, then
 import again: python3 tools/blender/structures/godot_import_settings.py
