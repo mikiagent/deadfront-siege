@@ -286,16 +286,30 @@ func _test_optional_clips() -> void:
 		rex.anim.play_clip(&"idle")
 		_advance(rex, 0.25)
 	rex.free()
-	# The velociraptor gained authored sleep/feed clips (dsc re-animation); the compy still has none.
+	# The velociraptor gained authored sleep/feed clips (dsc re-animation).
 	var raptor = _spawn(&"velociraptor")
 	pb = raptor.anim.tree.get("parameters/playback")
 	raptor.anim.play_clip(&"sleep", true)
 	_advance(raptor, 0.25)
 	_expect(pb.get_current_node() == &"sleep" and raptor.anim.current_clip == &"sleep", "velociraptor play_clip(sleep): state machine on %s" % pb.get_current_node())
 	raptor.free()
-	raptor = _spawn(&"compsognathus")
-	pb = raptor.anim.tree.get("parameters/playback")
-	raptor.anim.play_clip(&"sleep", true)
-	_advance(raptor, 0.25)
-	_expect(pb.get_current_node() == &"idle" and raptor.anim.current_clip == &"idle" and not raptor.anim.has_state(&"sleep"), "compsognathus play_clip(sleep) has no sleep node and stays on %s" % pb.get_current_node())
-	raptor.free()
+	# Fallback: any rigged species still without a sleep clip must stay on idle (species gain clips over time).
+	var fallback_id: StringName = &""
+	for id in [&"deinonychus", &"zebraceratops", &"stegosaurus", &"compsognathus"]:
+		if data.creature(id) == null:
+			continue
+		var probe = _spawn(id)
+		var has_sleep: bool = probe.anim.has_state(&"sleep")
+		probe.free()
+		if not has_sleep:
+			fallback_id = id
+			break
+	if fallback_id != &"":
+		raptor = _spawn(fallback_id)
+		pb = raptor.anim.tree.get("parameters/playback")
+		raptor.anim.play_clip(&"sleep", true)
+		_advance(raptor, 0.25)
+		_expect(pb.get_current_node() == &"idle" and raptor.anim.current_clip == &"idle", "%s play_clip(sleep) has no sleep node and stays on %s" % [fallback_id, pb.get_current_node()])
+		raptor.free()
+	else:
+		print("[t_canim] note: every probed species has a sleep clip; fallback check skipped")

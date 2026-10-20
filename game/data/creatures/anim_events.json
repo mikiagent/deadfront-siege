@@ -8,25 +8,25 @@
   "natural_speeds": {
     "coelophysis": {
       "height_m": 2.0,
-      "run_l": 0.406,
-      "run_len": 0.625,
-      "run_r": 1.111,
-      "walk_l": 0.436,
-      "walk_len": 1.229,
-      "walk_r": 0.216,
-      "walk_replace": "feet disagree: L 0.436 R 0.216 m/s",
-      "run_replace": "feet disagree: L 0.406 R 1.111 m/s"
+      "run_l": 3.843,
+      "run_len": 0.708,
+      "run_r": 3.843,
+      "walk_l": 0.507,
+      "walk_len": 2.458,
+      "walk_r": 0.507,
+      "walk": 0.507,
+      "run": 3.843
     },
     "compsognathus": {
       "height_m": 1.2,
-      "run_l": 2.193,
-      "run_len": 0.625,
-      "run_r": 4.267,
-      "walk_l": 0.805,
-      "walk_len": 1.209,
-      "walk_r": 1.007,
-      "walk": 0.906,
-      "run_replace": "feet disagree: L 2.193 R 4.267 m/s"
+      "run_l": 2.508,
+      "run_len": 0.708,
+      "run_r": 2.508,
+      "walk_l": 0.331,
+      "walk_len": 2.458,
+      "walk_r": 0.331,
+      "walk": 0.331,
+      "run": 2.508
     },
     "deinonychus": {
       "height_m": 3.6,
@@ -41,14 +41,14 @@
     },
     "gallimimus": {
       "height_m": 3.8,
-      "run_l": 2.789,
-      "run_len": 0.625,
-      "run_r": 13.45,
-      "walk_l": 2.37,
-      "walk_len": 1.209,
-      "walk_r": 3.19,
-      "walk": 2.78,
-      "run_replace": "feet disagree: L 2.789 R 13.450 m/s"
+      "run_l": 7.842,
+      "run_len": 0.708,
+      "run_r": 7.842,
+      "walk_l": 1.034,
+      "walk_len": 2.458,
+      "walk_r": 1.034,
+      "walk": 1.034,
+      "run": 7.842
     },
     "megaloceros": {
       "height_m": 2.1,
