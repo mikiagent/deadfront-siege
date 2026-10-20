@@ -19,7 +19,7 @@ const GROUND_LUM := Vector2(0.25, 0.55)
 ## Camp dirt within 20 % of the grass beside it (Durango: trodden earth, not pale sand).
 const DISC_RATIO := Vector2(0.8, 1.2)
 ## At midnight the compat renderer's moon shadow made the pads near-black halos (0.087 vs 0.241 in
-## Forward+). A pad may read darker than the grass beside it, but not below 0.6x of it.
+## Forward+). A pad may read darker than the grass beside it, but not below 0.6x of it, per pad.
 const NIGHT_DISC_RATIO := 0.6
 ## ASSUMPTION: terrain 8-10 m out from the fire at midnight reads at >= 0.05 mean luminance.
 const MIN_NIGHT_LUM := 0.05
@@ -101,9 +101,15 @@ func _run() -> void:
 	print("[lighting] night_lum=%.3f" % night)
 	# The dirt pads must not read as black holes on the web renderer at night (lv-dirt-18): the
 	# compat moon shadow plus the weak compat fire made them 0.087 vs 0.241 on Forward+.
-	var night_disc := _disc_vs_grass(night_img)
-	var night_ratio := night_disc.x / maxf(night_disc.y, 0.0001)
-	print("[lighting] night_disc_lum=%.3f night_grass_lum=%.3f night_disc_ratio=%.2f (want >= %.2f)" % [night_disc.x, night_disc.y, night_ratio, NIGHT_DISC_RATIO])
+	var pads := _pad_ratios(night_img)
+	var night_ratio := 0.0
+	var worst := "<no pads>"
+	for pad in pads:
+		print("[lighting] night pad %s ratio=%.2f" % [pad, pads[pad]])
+		if worst == "<no pads>" or float(pads[pad]) < night_ratio:
+			night_ratio = float(pads[pad])
+			worst = pad
+	print("[lighting] night_worst_pad=%s night_disc_ratio=%.2f (want >= %.2f per pad)" % [worst, night_ratio, NIGHT_DISC_RATIO])
 	# Grass hue drift between the renderers (Forward+ olive vs compat lime); printed so it is visible.
 	var hue := _ground_hue(img)
 	print("[lighting] grass_hue_deg=%.0f sat=%.2f renderer=%s" % [hue.x, hue.y, _tag])
@@ -300,14 +306,42 @@ func _shot_at(tod: float, label: String) -> Image:
 
 ## Median luminance on the camp's dirt discs (ring at 0.6 r) and on grass just outside them
 ## (ring at r + 1.2 m, skipping points inside any other disc). Medians shrug off the props.
-func _disc_vs_grass(img: Image) -> Vector2:
-	var rt := World.runtime as IslandRuntime
+## Camp pads near the survivor: [centre, radius, owner name].
+func _discs() -> Array:
 	var discs: Array = []
 	for n in get_tree().root.find_children("Foundation", "MeshInstance3D", true, false):
 		var mi := n as MeshInstance3D
 		var sm := mi.material_override as ShaderMaterial
 		if sm != null and mi.global_position.distance_to(_player.global_position) < 12.0:
-			discs.append([mi.global_position, float(sm.get_shader_parameter("radius"))])
+			discs.append([mi.global_position, float(sm.get_shader_parameter("radius")), str(mi.get_parent().name)])
+	return discs
+
+## Each pad's inner median over its own outer-ring median. A median over every pad let the
+## fire-lit bonfire pad hide two near-black ones; the worst pad is the one that has to pass.
+func _pad_ratios(img: Image) -> Dictionary:
+	var rt := World.runtime as IslandRuntime
+	var discs := _discs()
+	var out := {}
+	for d in discs:
+		var on: Array[float] = []
+		var off: Array[float] = []
+		for k in 16:
+			var dir := Vector3(cos(TAU * float(k) / 16.0), 0.0, sin(TAU * float(k) / 16.0))
+			var pin: Vector3 = d[0] + dir * d[1] * 0.6
+			on.append(_lum_at(img, Vector3(pin.x, rt.surface_y(pin.x, pin.z), pin.z)))
+			var pout: Vector3 = d[0] + dir * (d[1] + 1.2)
+			if discs.all(func(o: Array) -> bool: return Vector2(pout.x - o[0].x, pout.z - o[0].z).length() > o[1] + 0.5):
+				off.append(_lum_at(img, Vector3(pout.x, rt.surface_y(pout.x, pout.z), pout.z)))
+		if off.size() < 4:
+			continue  # boxed in by other pads: no grass of its own to compare against
+		on.sort()
+		off.sort()
+		out[d[2]] = on[on.size() / 2] / maxf(off[off.size() / 2], 0.0001)
+	return out
+
+func _disc_vs_grass(img: Image) -> Vector2:
+	var rt := World.runtime as IslandRuntime
+	var discs := _discs()
 	var on: Array[float] = []
 	var off: Array[float] = []
 	for d in discs:
