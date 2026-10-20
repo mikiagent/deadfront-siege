@@ -92,11 +92,16 @@ static func material_for(tier: StringName) -> StandardMaterial3D:
 		_noise.height = 128
 		_noise.seamless = true
 		_noise.noise = n
+		# Grain, not grime: the noise only darkens the vertex colour by up to ~18 %.
+		var ramp := Gradient.new()
+		ramp.set_color(0, Color(0.82, 0.82, 0.82))
+		ramp.set_color(1, Color(1.0, 1.0, 1.0))
+		_noise.color_ramp = ramp
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
 	m.albedo_texture = _noise
 	m.uv1_triplanar = true
-	m.uv1_scale = Vector3.ONE * (0.9 if tier == &"stone" else 0.6)
+	m.uv1_scale = Vector3.ONE * (1.6 if tier == &"stone" else 1.2)
 	m.roughness = 0.9
 	if tier == &"metal":
 		m.metallic = 0.55
@@ -150,10 +155,14 @@ static func _wall(b: _Builder, rects: Array) -> void:
 	var t := _t()
 	for r in rects:
 		_fill(b, r as Rect2, t)
-	# End posts finish every corner where two walls meet.
+	# End posts finish every corner where two walls meet; a sill and a cap band mark each storey.
 	for x in [-0.96, 0.96]:
 		b.box(Vector3(x, _h() * 0.5, 0), Vector3(0.1, _h(), t + 0.05), b.trim if b.tier != &"stone" else b.jit(b.tint, 0.05).darkened(0.08), 0.025)
-	b.box(Vector3(0, _h() - 0.05, 0), Vector3(2.0, 0.1, t + 0.06), b.trim, 0.025)
+	b.box(Vector3(0, _h() - 0.07, 0), Vector3(2.0, 0.14, t + 0.1), b.trim, 0.03)
+	for r in rects:
+		var rr := r as Rect2
+		if rr.position.y < 0.01:  # sill only under the solid parts, not across a doorway
+			b.box(Vector3(rr.get_center().x, 0.06, 0), Vector3(rr.size.x, 0.12, t + 0.08), b.trim.darkened(0.15), 0.02)
 
 static func _doorway(b: _Builder) -> void:
 	_wall(b, _solid_rects(&"doorway"))
@@ -247,7 +256,9 @@ static func _slope(b: _Builder, lo: Vector3, hi: Vector3, eave: float) -> void:
 				var x := -1.05 + (2.1 / tiles) * (j + 0.5) + (0.08 if i % 2 else 0.0)
 				b.oriented_box(c + basis.x * clampf(x, -0.9, 0.9), basis, Vector3(2.1 / tiles - 0.03, 0.06, row * 1.15), b.jit(b.tint.darkened(0.12), 0.1), 0.015)
 		else:
-			b.oriented_box(c, basis, Vector3(2.14, 0.1 if b.tier == &"thatch" else 0.05, row * 1.25), b.jit(b.tint, 0.09), 0.03 if b.tier == &"thatch" else 0.012)
+			# Roof courses sit a shade toward the trim, alternating, so they read as rows in full sun.
+			var shade := b.tint.lerp(b.trim, 0.18).darkened(0.1 * float(i % 2))
+			b.oriented_box(c, basis, Vector3(2.14, 0.1 if b.tier == &"thatch" else 0.05, row * 1.25), b.jit(shade, 0.09), 0.03 if b.tier == &"thatch" else 0.012)
 
 ## Gable end walls at x = +-1: `poly` is (z, y) in the piece frame.
 static func _gable(b: _Builder, poly: PackedVector2Array) -> void:

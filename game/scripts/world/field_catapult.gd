@@ -65,7 +65,13 @@ func _refresh_label() -> void:
 
 ## Kept for callers that hit the platform directly; damage goes through its StructureHealth.
 func receive_siege_hit(amount: float) -> void:
-	StructureHealth.of(self, true).take_damage(amount)
+	var h := StructureHealth.of(self, true)
+	if h:
+		h.take_damage(amount)
+		return
+	hp = maxf(0, hp - amount)  # off the island (tests build platforms outside the tree): no health node
+	if hp <= 0:
+		queue_free()
 
 func fire(player: Player, victim: Creature, poison: bool = false) -> bool:
 	if hp <= 0 or is_queued_for_deletion() or reload_left > 0 or not is_instance_valid(player) or World.runtime == null or player.dead or player.rolling or player.anim._busy or player.statuses.has_flag(&"cannot_act") or not is_instance_valid(victim) or victim.health.dead or victim.is_pet: return false

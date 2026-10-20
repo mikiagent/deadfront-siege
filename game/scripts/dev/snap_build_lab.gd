@@ -78,13 +78,14 @@ func _build_house() -> void:
 	for level in 2:
 		for e in _perimeter(level):
 			var kind := &"wall"
-			if level == 0 and e == Vector4i(_o.x + 1, _o.y, 0, StructurePiece.EDGE_Z):
+			if level == 0 and e == _door_edge():
 				kind = &"doorway"
 			elif e in [Vector4i(_o.x + 3, _o.y + 1, 0, StructurePiece.EDGE_X), Vector4i(_o.x + 1, _o.y, 1, StructurePiece.EDGE_Z), Vector4i(_o.x + 1, _o.y + 3, 1, StructurePiece.EDGE_Z)]:
 				kind = &"window"
 			_snap_place(kind, &"wood", _edge_point(e), e)
 		if level == 0:
-			_snap_place(&"door", &"wood", _edge_point(Vector4i(_o.x + 1, _o.y, 0, StructurePiece.EDGE_Z)), Vector4i(_o.x + 1, _o.y, 0, StructurePiece.DOOR_Z))
+			var d := _door_edge()
+			_snap_place(&"door", &"wood", _edge_point(d), Vector4i(d.x, d.y, 0, StructurePiece.DOOR_Z))
 			for z in 3:
 				for x in 3:
 					_snap_place(&"ceiling", &"wood", _centre(x, z, 1), Vector4i(_o.x + x, _o.y + z, 1, StructurePiece.CELL))
@@ -93,8 +94,12 @@ func _build_house() -> void:
 		_snap_place(&"roof", &"thatch", _centre(x, 2, 2), Vector4i(_o.x + x, _o.y + 2, 2, StructurePiece.CELL), 2)
 	for x in 3:
 		_snap_place(&"roof_peak", &"thatch", _centre(x, 1, 2), Vector4i(_o.x + x, _o.y + 1, 2, StructurePiece.CELL), 0)
-	_snap_place(&"ramp", &"stone", _centre(1, -1, 0), Vector4i(_o.x + 1, _o.y - 1, 0, StructurePiece.CELL))
+	_snap_place(&"ramp", &"stone", _centre(1, 3, 0), Vector4i(_o.x + 1, _o.y + 3, 0, StructurePiece.CELL))
 	_player.placer.cancel()
+
+## The doorway: north wall, middle module (the face the iso camera sees).
+func _door_edge() -> Vector4i:
+	return Vector4i(_o.x + 1, _o.y + 3, 0, StructurePiece.EDGE_Z)
 
 ## Seed the piece's exact cost, aim the placer 0.3-0.4 m off the socket, confirm, and check that it
 ## snapped onto `want`, at the independently computed point, and took exactly its materials.
@@ -189,14 +194,21 @@ func _find_site() -> Vector2i:
 	for dz in range(-8, 9):
 		for dx in range(-8, 9):
 			var o := around + Vector2i(dx, dz)
-			var cells: Array[Vector2i] = [o + Vector2i(1, -1), o + Vector2i(5, 0), o + Vector2i(5, 1), o + Vector2i(5, 3)]
+			var cells: Array[Vector2i] = [o + Vector2i(1, 3), o + Vector2i(5, 0), o + Vector2i(5, 1), o + Vector2i(5, 3)]
 			for z in 3:
 				for x in 3:
 					cells.append(o + Vector2i(x, z))
 			var lo := INF
 			var hi := -INF
 			var fine := true
+			# One module of clear ground around the house: no camp piece, kit or tree against its walls.
+			for z in range(-1, 5):
+				for x in range(-1, 4):
+					var why: String = sg.check(&"foundation", Vector4i(o.x + x, o.y + z, 0, StructurePiece.CELL), 0, &"stone")["reason"]
+					fine = fine and not why in ["reserved", "overlap", "resource"]
 			for c in cells:
+				if not fine:
+					break
 				if sg.check(&"foundation", Vector4i(c.x, c.y, 0, StructurePiece.CELL), 0, &"stone")["reason"] != "":
 					fine = false
 					break
@@ -207,7 +219,7 @@ func _find_site() -> Vector2i:
 				best_span = hi - lo
 				best = o
 	World.runtime.claims.erase(search)
-	var plot := Rect2i(best * 2 - Vector2i(0, 2), Vector2i(14, 14))
+	var plot := Rect2i(best * 2, Vector2i(14, 14))
 	World.runtime.claims.append(plot)
 	World.home_claims.append([plot.position.x, plot.position.y, plot.size.x, plot.size.y])
 	print("[snap] site module=%s terrain span=%.2f m, claim %s" % [best, best_span, plot])
@@ -215,9 +227,12 @@ func _find_site() -> Vector2i:
 
 func _frame_for_shot() -> void:
 	var inside := "--snap-inside" in OS.get_cmdline_user_args()
-	_player.global_position = _centre(1, 1, 0) + Vector3(0.3, 1.0, 0.4) if inside else _centre(1, -3, 0) + Vector3(2.6, 1.0, 0.0)
+	_player.global_position = _centre(1, 1, 0) + Vector3(0.3, 1.0, 0.4) if inside else _centre(1, 4, 0) + Vector3(0.8, 1.0, 0.6)
 	_player.reset_physics_interpolation()
-	_cam._target = _player
+	var look := Marker3D.new()  # outside: frame the whole house, not the survivor at its door
+	add_child(look)
+	look.global_position = _player.global_position if inside else _centre(1, 1, 1) + Vector3(0.8, 0, 0.8)
+	_cam._target = look
 	_cam.size = 17.0 if inside else 19.0
 	_cam._snap()
 	print("[snap] framed %s" % ("inside" if inside else "outside"))
@@ -306,9 +321,9 @@ func _check_raptor_repair_upgrade() -> void:
 
 func _check_paths() -> void:
 	var tp := World.runtime.get("pathing") as TilePath
-	var outside := _centre(1, -4, 0)
+	var outside := _centre(1, 7, 0)
 	var inside := _centre(1, 1, 0)
-	var door := _sg().piece_at(Vector4i(_o.x + 1, _o.y, 0, StructurePiece.DOOR_Z))
+	var door := _sg().piece_at(Vector4i(_door_edge().x, _door_edge().y, 0, StructurePiece.DOOR_Z))
 	_expect(door != null and not door.door_open, "door closed")
 	tp.path(outside, inside)
 	_expect(not tp.last_reachable, "a creature cannot path into the closed house")
