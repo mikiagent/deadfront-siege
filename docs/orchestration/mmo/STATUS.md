@@ -4,6 +4,9 @@ Owner request (2026-10-18): raise every system to an ARK: Survival Ascended bar 
 into a persistent multiplayer MMO with a real, server-validated marketplace. This file is the loop's
 memory: each iteration reads it, runs the next wave, and updates it.
 
+**2026-10-20 16:30: the orchestration loop is stopped and the work is handed over to `~/Documents/deadfront`.
+Read `HANDOFF.md` (same folder) first.**
+
 Integration branch: `claude/mmo-overhaul` (worktree `.claude/worktrees/mmo-overhaul`), cut from
 local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 
@@ -44,7 +47,8 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | 2a | W2-PLAYER (player split + PlayerActions), W2-BREED (breeding, growth, mutations, capture rule 09, bonded cap 3->7), W2-ECO (ecosystem, structure targeting) in claude/mmo-w2-<key>; builders hand mechanical parts to dsc sub-worktrees | running (wf_e4b5bc5d-f50) |
 | 2a+ | W2-OCCLUDE: shared see-through occlusion (tall trees, later roofs/walls; roof fades when the survivor is under it) | running (wf_6986c1a3-c0c) |
 | 2a+ | W2-BUILDSYS: modular foundations/walls/doorways/windows/ceilings/roofs/ramps/stairs with snapping, structure HP, tiers + upgrade/repair, owner-passable walls; stand-in meshes swap to Blender models by data (structures.json); roofs fade via the occlusion API | running (wf_dcd34d26-be7) |
-| finish-1 | One workflow (wf_4523bd07-373) finishing, reviewing and integrating every open package in priority order (UI, dsc minors, structart, uiicons, iconart, dsc clips, player, occlude, srvdom, buildsys, breed, eco, qa, biome, econ, net), 6 at a time; a single serialized integrator test-merges in `mmo-int`, runs every gate and screenshot, then fast-forwards `claude/mmo-overhaul` and logs it under "Merge log" | running (2026-10-20 04:50) |
+| finish-1..4 | finish-1 merged W1-STRUCTART (+hooks) and W1-ICONART; finish-2 merged DSC-MINORS; finish-3 merged DSC-CLIPS (judge 6/6); each was cut by a usage limit. finish-5 (wf_0472e0fd-634, replaced finish-4 at 16:10 after the owner took DeepSeek off) continues all open packages from their real state: UI fix r3, reviews for W2-OCCLUDE / W2-BUILDSYS / W2-PLAYER / W1-SRVDOM (builds done), DSC-CAMP fix r1 (dirt disc hides the fields; bed/shelter/fence scale) with a squash-merge, DSC-QUADS2 (new walk/run, megaloceros run 71 % of target by rig reach), W2-RAGDOLL, W1-UIICONS wiring after UI, then BREED, ECO, QA, BIOME, ECON, NET | running |
+| dsc | quads-loco2 done (VERIFY PASS, $1.26), mmo-camp done (VERIFY PASS, $0.51; review r1 found the field/disc issue), mmo-icons2 and mmo-w2-ragdoll-dsc1 stopped by the owner's call (0/4 milestones), taken over by Claude in finish-5 | 2026-10-20 16:10 |
 | 1-INT | merge econ/net/audio + sound settings + market over socket | after wave 1a and audio pass review |
 | 1-ART | ARTA/ARTB Tripo species | concept sheets generating (Higgsfield gpt_image_2_5, critic-checked, wf_4ea0904a-0e6); then one owner batch approval |
 | merge | survivor-v2/armor/T. rex mount merged into `claude/mmo-overhaul` (0fef2a3) | import, [tests] PASS, SMOKE PASS |
@@ -56,6 +60,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - 2026-10-18 22:00 production: `548804ac8/f34e148e39` (claude/mmo-overhaul = main + survivor v2/armor/T. rex
   mount; wave 1 not yet merged). Local browser boot checked into the world before deploy; alias
   stamp verified.
+- 2026-10-20 16:25 GitHub: pushed `claude/mmo-overhaul` (255d0434) to origin; draft PR https://github.com/mikiagent/deadfront-siege/pull/17 to main (owner asked; not merging into main until the owner says). Push again as packages merge.
 
 ## Plan amendments for wave 2+ (from plan-critic.md)
 
@@ -282,6 +287,45 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   dsc workers (minors, audio, quads-loco, zebra, trex-sleep) and the player dsc worker finished; their
   results are vetted and integrated by finish-1 (audio waits for W1-INT).
 
+- 2026-10-20 (orchestrator) W1-UI open questions: the level-1 title "Venture into the World" is held
+  from character creation (no level-up toast); skills keep their internal levels in W1-UI, and W2-SKILLS
+  re-keys them to Durango's 1-60 scale with Lv1 AUTO nodes (spec 12), so "skills show Lv. 0" is a known
+  item for W2-SKILLS, not a W1-UI blocker.
+
+- 2026-10-20 (owner) see-through occluders: "partially see through not fully see through, it should still
+  feel like the tree is there not a clear hole in it". A tree or rock between camera and survivor fades as a
+  whole object to about half coverage (keep 40-60 % of its pixels, no hard circular cut, soft 0.25 s fade);
+  roofs may fade further when the survivor is under them but keep a faint outline. W2-OCCLUDE restarted with
+  pixel gates for this in finish-3 (wf_ffc48fe3-dc5); W2-BUILDSYS walls/roofs follow the same rule.
+
+- 2026-10-20 (owner) "if you're having issues with dead dinosaurs not staying on the ground, try having them
+  ragdoll on death". New package W2-RAGDOLL (wf_2cc5d74a-087, branch claude/mmo-w2-ragdoll): the death clip's
+  first beat as the hit reaction, then PhysicalBone3D ragdoll onto the terrain collider, freeze once settled
+  (no per-frame cost), at most 4 simulating, fallback to the clip plus terrain-conformed pose; per-species
+  profiles in game/data/creatures/ragdoll.json written by a dsc worker; gates on posed-skin ground contact,
+  lying height, joint limits, physics cost and a blind judge. The orchestrator integrates it after review.
+
+- 2026-10-20 (owner) "enlist codex for some debugging tasks but use a smaller model than astra". Codex runs on
+  gpt-reserve (the smaller model the ChatGPT plan accepts; gpt-6.1-sol/6-sol/6-luna are refused), medium
+  reasoning, one bug per worktree: codex-harbour (travel to a moved dock, basket follow, walkable pier, site
+  check rows), codex-animals (Animals screen 0x0 rect / no backdrop / CLOSE over HARBOUR), codex-errors
+  (the world.gd:124 / hunt_hud.gd:965 SCRIPT ERRORs and a lab sweep). Found so far: worktree clones copied a
+  stale import cache from mmo-overhaul; the base was re-imported and mkwt.sh now imports after cloning.
+
+- 2026-10-20 (owner) "take over deepseek's work because i don't think they are making progress". The icons2
+  (3.5 h) and ragdoll-profile (2.1 h) dsc workers had ticked 0 of 4 milestones; both stopped, their work kept as
+  WIP commits, and Claude agents took them over. Claude agents now do all package work; no new dsc workers
+  unless the owner asks. finish-4 was replaced by finish-5 (wf_0472e0fd-634, `.claude/worktrees/deadfront-finish-5.js`)
+  with ICONS2 added and the "delegate to dsc" rule removed.
+
 ## Owner questions (open)
 
 - none
+
+## Merge log
+
+- 2026-10-20 merged W1-STRUCTART (37b6de7): import exit 0; [tests] PASS; t_ai/t_build/t_canim/t_combat/t_harbour (islands=15)/t_items/t_light/t_lighting/t_save/t_structart/t_tame/t_web PASS; SMOKE PASS; island_lab exit 0, 0 SCRIPT ERROR, nodes=378 creatures=24 (unchanged); build_lab [build] PASS; harbour_lab rot=2 on the coast; creature lab 0 "couldn't resolve track"; home/harbour shots Forward+, compat, 844x390 checked (pier on the water, home unchanged); pending hooks: tools/blender/structures/integrator_hooks.patch (W1-BUILD prop_visuals.gd, placed_building.gd, field_catapult.gd; W1-HARBOUR harbour.gd tap box)
+- 2026-10-20 merged W1-ICONART (519f5c0): import exit 0; [tests] PASS; t_ai/t_build/t_canim/t_combat/t_harbour (islands=15)/t_iconart/t_items/t_light/t_lighting/t_save/t_structart/t_tame/t_web PASS; SMOKE PASS; island_lab exit 0, 0 SCRIPT ERROR, nodes=378 creatures=24 (unchanged); build_lab [build] PASS; harbour_lab rot=2; item_art_lab [itemart] ok=true; creature lab 0 "couldn't resolve track"; base moved (structart hooks 0d0f8c2) and was merged in, run_all/smoke/t_iconart/t_structart/t_harbour rerun PASS; home shots Forward+, compat, 844x390 unchanged; asset register icon row updated; pending hooks: t_iconart in tools/smoke.sh or CI (gates already run every t_*.gd), W2-SCREENS swaps inventory_ui/item_icons to ArtSlot/ItemArt
+- 2026-10-20 merged DSC-MINORS (1174800): clean merge, no conflicts; import exit 0; [tests] PASS; t_ai/t_build/t_canim/t_combat/t_harbour (islands=15)/t_iconart/t_items/t_light/t_lighting/t_save (5 deliberate SCRIPT ERRORs, as on base)/t_structart/t_tame/t_web PASS; SMOKE PASS; island_lab exit 0, 0 SCRIPT ERROR, nodes=378 creatures=24 (unchanged); build_lab [build] PASS; harbour_lab rot=2; item_art_lab ok=true; package labs combat_rules/aival/hunt_lab/capture/petslab/aisweep PASS, foundation_lab fibre merged line; creature_anim_lab 0 "couldn't resolve track"; no new Godot .ips; home shots Forward+, compat (grass a little more saturated, camp pad lighter, as intended), 844x390 checked; lighting_lab windowed Forward+ PASS (worst pad 1.42), compat FAIL on mobile survivor shadow 0.803 > 0.80, identical on base b221e24 (pre-existing, not this package; compat worst pad 0.80 PASS); pending hooks: player.gd `_begin_gather` refusal hunk (finding 18) must be carried into PlayerActions by W2-PLAYER (running)
+- 2026-10-20 merged DSC-CLIPS (4def2d1): clean merge, no integrator hooks in the report; import exit 0, 0 "couldn't resolve track"; [tests] PASS; t_ai/t_build/t_canim/t_combat/t_harbour (islands=15)/t_iconart/t_items/t_light/t_lighting/t_save (5 deliberate SCRIPT ERRORs, as on base)/t_structart/t_tame/t_web PASS; SMOKE PASS; island_lab exit 0, 0 SCRIPT ERROR, nodes=378 creatures=24 (unchanged); build_lab [build] PASS; sleep_lab ok; creature_anim_lab 0 "couldn't resolve track", 0 SCRIPT ERROR (quads still run x6.67/x16 at speed, known, quads-loco2); base moved (dd3b110 docs) and was merged in, run_all/smoke rerun PASS; home shots Forward+, compat, 844x390 identical to DSC-MINORS; creature_anim_lab windowed shot grounded; one Godot-2026-10-20-131531.ips appeared mid-run (AppKit abort 47 ms after launch, before project code; every run of mine produced its output, so not attributable to this package); pending hooks: none from DSC-CLIPS (quads-loco2 must drop protoceratops/megaloceros from t_canim KNOWN_GLIDERS when it lands)
+- 2026-10-20 merged codex-harbour (fc202c39) and codex-animals (1e96dbc7), Codex gpt-reserve fixes verified by the orchestrator: every t_*.gd PASS, run_all [tests] PASS, SMOKE PASS, harbour_lab/island_lab 0 SCRIPT ERROR, windowed harbour and Animals shots looked at. codex-errors code change rejected (it hid a failed script load; its test grepped source text); its finding (stale cloned import cache) fixed in mkwt.sh. DSC-CLIPS merged by finish-3 (3317960b, judge 6/6).

@@ -250,6 +250,9 @@ func _build_tree() -> void:
 			if _param.has(hub):
 				_trans(sm, hub, clip, XFADE)
 		_trans(sm, clip, &"idle", XFADE)
+		# A self-transition (attack -> attack) would fade a back-to-back replay, but Godot's state
+		# machine made the node report a zero length and broke hit/done timing, so the one-frame
+		# replay pop stays (accepted polish in the report; attacks are gated by _busy anyway).
 	tree.tree_root = sm
 
 func _clip_node(clip: StringName) -> AnimationNodeBlendTree:

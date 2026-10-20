@@ -210,7 +210,7 @@ func _dot(inst: StatusInstance) -> void:
 func _expire(inst: StatusInstance) -> void:
 	var def := Data.status(inst.id)
 	if def and def.on_untreated_expire != &"" and not inst.treated:
-		if randf() < def.on_untreated_chance:
+		if CombatTuning.roll(def.on_untreated_chance):
 			_drop(inst, false)
 			apply(def.on_untreated_expire)
 			return

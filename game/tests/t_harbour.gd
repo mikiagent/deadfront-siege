@@ -12,6 +12,7 @@ const TILE_DEEP := 8
 var _fails: PackedStringArray = []
 var _started := false
 var _HS: GDScript
+var _BG: GDScript
 var _host: Node3D
 var _world: Node
 
@@ -29,6 +30,7 @@ func _expect(ok: bool, what: String) -> void:
 
 func _run() -> void:
 	_HS = load("res://scripts/world/harbour_site.gd")
+	_BG = load("res://scripts/world/build_grid.gd")
 	_host = Node3D.new()
 	_host.name = "THarbourHost"
 	root.add_child(_host)
@@ -42,6 +44,7 @@ func _run() -> void:
 		_check_island(str(id))
 	await _test_refusals()
 	await _test_old_save_snaps_to_coast()
+	await _test_moved_harbour_follows()
 	if _fails.is_empty():
 		print("[t_harbour] PASS islands=%d" % ids.size())
 		quit(0)
@@ -119,6 +122,41 @@ func _test_old_save_snaps_to_coast() -> void:
 	await process_frame
 	var h: Node3D = _world.runtime.harbour
 	_expect(h.build_cell != Vector2i(-1, 15) and _HS.check(_world.runtime, h.build_cell, h.build_rot) == "", "old inland save pose snaps back to the coast (%s)" % h.build_cell)
+	_world.camp_layout.erase("Harbour")
+
+## A moved home harbour remains the source of travel, basket placement and walkable deck state.
+func _test_moved_harbour_follows() -> void:
+	var site: Dictionary = _HS.find(_world.runtime, Vector2(61.0, -7.0))
+	_expect(not site.is_empty(), "found a legal moved harbour pose")
+	if site.is_empty():
+		return
+	var moved_cell: Vector2i = site["cell"]
+	var moved_rot: int = int(site["rot"])
+	var fixed: Array = _world.def_of(&"home_grassland").get("harbour", []).duplicate()
+	_world.camp_layout["Harbour"] = {"cell": [moved_cell.x, moved_cell.y], "rot": moved_rot}
+	_world.load_island(_host, &"home_grassland", Vector3.ZERO, false)
+	await process_frame
+	var rt = _world.runtime
+	var h: Node3D = rt.harbour
+	if h == null or rt.cargo_basket == null:
+		_expect(false, "moved harbour runtime rebuilt")
+		_world.camp_layout.erase("Harbour")
+		return
+	var arrival: Vector3 = rt.arrival_point()
+	var fixed_pos := Vector3(float(fixed[0]), 0.0, float(fixed[2]))
+	_expect(h.build_cell == moved_cell and h.build_rot == moved_rot, "moved harbour pose survives reload")
+	_expect(arrival.distance_to(fixed_pos) > 50.0, "moved harbour repro is away from the old json point")
+	_expect(Vector2(float(_world.camp_layout["Harbour"]["cell"][0]), float(_world.camp_layout["Harbour"]["cell"][1])) == Vector2(moved_cell.x, moved_cell.y), "moved harbour pose is persisted")
+	var basket_pos: Vector3 = rt.cargo_basket.global_position
+	_expect(basket_pos.distance_to(rt._dry_beside_harbour()) < 0.1, "cargo basket follows moved harbour")
+	_expect(rt.build_grid.reserved_cells().has(_BG.tile_of(basket_pos)), "cargo basket re-reserves its moved cell")
+	var shapes := []
+	for child in h.get_children():
+		if child is CollisionShape3D:
+			shapes.append(child)
+	_expect(shapes.size() >= 2, "harbour uses separate deck and shed colliders")
+	var why: String = _HS.check(rt, h.build_cell, h.build_rot)
+	_expect(why == "", "moved harbour pose remains legal (%s)" % why)
 	_world.camp_layout.erase("Harbour")
 
 ## Metres from p to the nearest point at or below the water line (0 when p is over water).

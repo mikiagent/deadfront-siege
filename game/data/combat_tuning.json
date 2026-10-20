@@ -30,6 +30,7 @@
     "crit_mult": 1.5
   },
   "ranged": {
+    "arc_range_mult": 1.5,
     "defense_factor": 0.5,
     "min_damage_frac": 0.05,
     "gravity": 9.8,

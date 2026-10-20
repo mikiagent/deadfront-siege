@@ -1,7 +1,7 @@
 extends Node3D
-## Opens the major screens at 1600x900 and 390x844 and checks clipping, long strings and counts.
+## Opens the major screens at 1600x900 and 844x390 and checks clipping, long strings and counts.
 
-const SIZES: Array[Vector2i] = [Vector2i(1600, 900), Vector2i(390, 844)]
+const SIZES: Array[Vector2i] = [Vector2i(1600, 900), Vector2i(844, 390)]
 const SHOT_DIR := "/tmp/deadfront-ui-shots"
 
 var _fails: Array[String] = []
@@ -57,16 +57,24 @@ func _audit_size(player: Player, size: Vector2i) -> void:
 	await _shot(host, "inventory_%dx%d" % [size.x, size.y])
 	ui.queue_free()
 	var animals := AnimalScreen.new()
-	host.add_child(animals)
+	var animal_layer := CanvasLayer.new()
+	animal_layer.layer = 96
+	host.add_child(animal_layer)
+	animal_layer.add_child(animals)
 	animals.open(player)
 	await get_tree().process_frame
 	_audit_tree(animals, view, "animals")
+	var animals_rect := _local_rect(animals, host)
+	_expect(animals_rect.size.x > 1.0 and animals_rect.size.y > 1.0, "animals root is not 0x0 at %s" % size)
+	if UiTokens.is_phone(view):
+		var hud_rail := Rect2(0.0, view.y - 80.0, view.x, 80.0)
+		_expect(animals_rect.encloses(hud_rail), "animals backdrop leaves HUD rail exposed at %s" % size)
 	_expect(animals._list.get_child_count() == 3, "animal roster count at %s" % size)
 	_expect(animals._detail.text.contains("GROWTH / POTENTIAL"), "growth header stays visible at %s" % size)
 	_expect(animals._detail.text.contains("Ranged Defense") or animals._detail.text.contains("Ranged defense"), "long stat name is reserved at %s" % size)
 	_expect(animals._active.get_child_count() == Player.MAX_PETS_OUT, "three active slots are pinned at %s" % size)
 	await _shot(host, "animals_%dx%d" % [size.x, size.y])
-	animals.queue_free()
+	animal_layer.free()
 	var craft: CraftUI = preload("res://scenes/ui/craft.tscn").instantiate()
 	host.add_child(craft)
 	craft.bind(player)
@@ -145,6 +153,13 @@ func _audit_size(player: Player, size: Vector2i) -> void:
 		edge.open_options(edge_anchor, "Birch Tree", 1, 1.0, edge_options, player.inventory)
 		await get_tree().process_frame
 		await _shot(host, "radial_edge_%dx%d" % [size.x, size.y])
+		# The title box keeps off every label and hex (with the title under the ring, "Branch" covered it).
+		var parts: Array[Rect2] = edge.label_rects.duplicate()
+		for b in edge._buttons:
+			parts.append(b.get_global_rect())
+		for part in parts:
+			_expect(not edge.title_box.intersects(part), "edge radial title %s stays off %s" % [edge.title_box, part])
+		print("[uishot] edge radial: title %s, %d labels, source %s" % [edge.title_box, edge.label_rects.size(), edge.source_rect()])
 		edge.queue_free()
 	hud.queue_free()
 

@@ -20,6 +20,7 @@ var reason: String = ""
 var cell: Vector2i = Vector2i.ZERO
 var rot_step: int = 0
 var _rot_manual: bool = false  # once the player rotates, fence/gate auto-alignment stops overriding it
+var _repacked: bool = false  # the kit just paid for came from pack-up: place it without XP
 
 var _ghost_root: Node3D
 var _ghost_visual: Node3D
@@ -220,7 +221,12 @@ static func _on_owned_land(n: Node) -> bool:
 	return bool(World.runtime.is_claimed(cell))
 
 static func _pack_returns(n: Node) -> Array[ItemStack]:
-	var out: Array[ItemStack] = [ItemStack.make(kit_for(kind_of_building(n)), 1)]
+	var kit := ItemStack.make(kit_for(kind_of_building(n)), 1)
+	# A repacked kit is not a new build: place -> pack -> place must not farm construction or
+	# pioneer XP (the report documents the +8/+30 loop). The flag survives merging only with an
+	# equal flag set, and the next placement consumes the unit that carries it.
+	kit.set_flag(&"repacked", true)
+	var out: Array[ItemStack] = [kit]
 	var storage: Variant = n.get("storage")
 	if storage is Inventory:
 		for s in (storage as Inventory).slots:
@@ -229,6 +235,10 @@ static func _pack_returns(n: Node) -> Array[ItemStack]:
 	var occ: Variant = n.get("occupant")
 	if occ is ItemStack:
 		out.append((occ as ItemStack).duplicate_stack())
+	# A harvested field keeps bonus fertiliser as units; packing it up used to destroy them.
+	var fert: Variant = n.get("fertilizer_overflow")
+	if fert != null and float(fert) >= 1.0:
+		out.append(ItemStack.make(&"fruit_fertilizer", int(floor(float(fert)))))
 	return out
 
 ## Dry run on a copy of the bag: true only when every unit of every stack would land.
@@ -468,9 +478,11 @@ func confirm(player: Player) -> bool:
 		node.set_grid_pose(cell, rot_step)
 	grid.occupy(node, grid.cells_for(placing, cell, rot_step))
 	print("[build] placed %s at (%d,%d) rot=%d" % [placing, cell.x, cell.y, posmod(rot_step, 4) * 90])
-	if player.skills:
-		player.skills.add_xp("construction", 8)
-	World.note_building(placing)
+	if not _repacked:
+		if player.skills:
+			player.skills.add_xp("construction", 8)
+		World.note_building(placing)
+	_repacked = false
 	cancel()
 	return true
 
@@ -517,6 +529,15 @@ const _RAW_COST := {
 	&"drying_rack": {&"branch": 4, &"twine": 2},
 }
 
+## Consumes one kit unit and says whether it was a repacked one (then this build is not new).
+static func _take_kit(inv: Inventory, kit: StringName) -> bool:
+	var idx := inv.find_first(kit)
+	if idx < 0:
+		return false
+	var repacked := &"repacked" in inv.slots[idx].flags
+	inv.remove_at(idx, 1)
+	return repacked
+
 func _can_pay(player: Player) -> bool:
 	var kit := kit_for(placing)
 	if kit != &"" and player.inventory.count_of(kit) > 0:
@@ -534,7 +555,8 @@ func _pay(player: Player) -> bool:
 		return false
 	var kit := kit_for(placing)
 	if kit != &"" and player.inventory.count_of(kit) > 0:
-		return player.inventory.consume(kit, 1)
+		_repacked = _take_kit(player.inventory, kit)
+		return true
 	var raw: Dictionary = _RAW_COST.get(placing, {})
 	for id in raw:
 		player.inventory.consume(id, int(raw[id]))
