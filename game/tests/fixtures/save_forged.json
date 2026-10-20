@@ -1,0 +1,28 @@
+{
+	"schema": 3,
+	"player": {
+		"vitals": {},
+		"statuses": [],
+		"inventory": [
+			{"id": "raid_helm", "count": 5000, "level": 9999, "durability": 999999, "max_durability": 999999, "attributes": {}, "flags": []},
+			{"id": "no_such_item_xyz", "count": 42},
+			{"id": "stone", "count": -7},
+			{"id": "branch", "count": 1000000, "level": 60}
+		],
+		"inventory_extras": {"equipment": {"head": "raid_helm", "chest": "no_such_item_xyz"}},
+		"position": []
+	},
+	"pets": [
+		{"species": "velociraptor", "grade": "S", "level": 9999, "bag": [{"id": "no_such_item_xyz", "count": 3}]},
+		{"species": "no_such_dragon", "level": 5}
+	],
+	"skills_v2": {"trees": {"gathering": {"level": 99, "xp": 0}, "butchering": {"level": 5, "xp": -40}, "survival": {"level": 10, "xp": 0, "unlocked": ["island_access_15", "belly_fat_1", "capture_technique_1", "capture_tool_1", "stealth_1", "island_access_25", "capture_technique_2", "climate_body_1", "island_access_35", "capture_technique_3", "animal_management_1", "island_access_45", "capture_technique_4", "animal_management_2", "island_access_55", "capture_technique_5", "animal_management_3", "animal_management_4", "made_up_node"]}}, "sp_available": 99999, "sp_spent": 0},
+	"skills": {"capture_technique_I": true, "island_access_15": true, "made_up_node": true, "animal_management_I": "yes"},
+	"t_stones": -5,
+	"pioneer_level": 2,
+	"island_id": "home_grassland",
+	"home": {"terrain": "meadow", "buildings": [], "cargo": [{"id": "raid_cuirass", "count": 3000, "level": 60}], "claims": [[-1000, -1000, 2000, 2000], [20, 20, 14, 14]], "camp_layout": {}},
+	"unstable": {},
+	"clock": 0.4,
+	"saved_unix": 0
+}

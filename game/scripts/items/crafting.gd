@@ -3,6 +3,8 @@ extends RefCounted
 ## Flexible recipes: category slots, primary-slot attribute inheritance (PRD §9.1).
 
 const STATION_RANGE := 2.0
+## ASSUMPTION: a master cook (skill 60) burns a quarter as often as a novice.
+const BURN_SKILL_CUT := 0.75
 
 static func recipe(id: StringName) -> Dictionary:
 	return Data.recipes.get(id, {}) as Dictionary
@@ -132,39 +134,51 @@ static func slot_level_contributions(inv: Inventory, rec: Dictionary, picks: Arr
 			out.append({"slot": i, "level": stack.level, "count": int(part["count"]), "def_id": str(stack.def_id)})
 	return out
 
+## The crafting skill that clamps output level. A survivor's 0 is a real 0 (cap 1, sec-skill0-16);
+## only a caller with no survivor at all (pure data checks) gets the recipe's own max.
 static func skill_level_for(rec: Dictionary, player: Player = null) -> int:
 	var skill := str(rec.get("skill", "processing"))
 	var p := player
 	if p == null:
 		p = _player()
 	if p and p.skills:
-		var lvl := p.skills.level_of(skill)
-		# Lab / early game: if the tree is still 0, fall back so recipes remain testable.
-		# ASSUMPTION: skill 0 means "not started"; use recipe max as soft unlock until SP spent.
-		if lvl > 0:
-			return lvl
-	return 60
+		return p.skills.level_of(skill)
+	return int(rec.get("max_level", 60))
 
 static func crafted_level_for(rec: Dictionary, levels: Array[int], player: Player = null) -> int:
 	return ProgressionScaling.crafted_level(levels, int(rec.get("max_level", 60)), skill_level_for(rec, player))
 
-static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int, consumed: Array[ItemStack] = []) -> ItemStack:
+## Burn odds for burn_on_fail recipes: the recipe's base chance, cut by the cooking skill.
+static func burn_chance(rec: Dictionary, skill_level: int) -> float:
+	if not bool(rec.get("burn_on_fail", false)):
+		return 0.0
+	var skill := clampf(float(skill_level) / 60.0, 0.0, 1.0)
+	return float(rec.get("burn_chance", 0.2)) * (1.0 - BURN_SKILL_CUT * skill)
+
+## One burn roll. Pass a seeded RNG to reproduce it (tests, server).
+static func rolls_burn(rec: Dictionary, skill_level: int, rng: RandomNumberGenerator = null) -> bool:
+	var chance := burn_chance(rec, skill_level)
+	if chance <= 0.0:
+		return false
+	return (rng.randf() if rng else randf()) < chance
+
+## The output stack. `burnt` comes from rolls_burn (decided by the caller so previews never burn).
+static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int, consumed: Array[ItemStack] = [], burnt: bool = false) -> ItemStack:
 	var out_row: Dictionary = rec.get("output", {})
 	var out_id := StringName(str(out_row.get("id", "")))
 	if bool(rec.get("keep_output_id", false)) and primary:
 		var pd := primary.def()
 		if pd and (pd.has_category(&"cooked") or primary.process_count >= 2):
 			out_id = primary.def_id
-	if bool(rec.get("burn_on_fail", false)):
-		var chance := float(rec.get("burn_chance", 0.2))
-		if randf() < chance:
-			out_id = StringName(str(rec.get("burn_output", "burnt_food")))
-			print("[craft] burnt %s" % rec.get("id", ""))
+	if burnt:
+		out_id = StringName(str(rec.get("burn_output", "burnt_food")))
+		print("[craft] burnt %s" % rec.get("id", ""))
 	var out := ItemStack.make(out_id, int(out_row.get("count", 1)))
 	if primary:
 		out.attributes = primary.attributes.duplicate(true)
-		# Tool quality follows the primary material; level follows the weighted material mean.
-		if out.def() and out.def().has_category(&"tool"):
+		# Gear quality follows the primary material; level follows the weighted material mean.
+		var od := out.def()
+		if od and (od.has_category(&"tool") or od.damage > 0.0 or od.armor_value > 0.0):
 			out.attributes["material_tier"] = str(ProgressionScaling.material_tier(primary.def_id, primary.attributes))
 		# Poison persists through cooking (PRD §9.3 MAY keep).
 		if &"poisoned" in primary.flags:
@@ -189,7 +203,7 @@ static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int
 static func _player() -> Player:
 	var tree := Engine.get_main_loop()
 	if tree is SceneTree:
-		return (tree as SceneTree).get_first_node_in_group("player") as Player
+		return PlayerRegistry.local()
 	return null
 
 static func station_id(rec: Dictionary) -> String:
@@ -285,11 +299,34 @@ static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
 	else:
 		World.add_xp(6 + int(recipe_seconds(rec)))
 
-static func craft(player: Player, rec: Dictionary, picks: Array[int]) -> ItemStack:
+static func craft(player: Player, rec: Dictionary, picks: Array[int], rng: RandomNumberGenerator = null) -> ItemStack:
 	if not can_make(player, rec, picks):
 		return null
+	var burnt := rolls_burn(rec, skill_level_for(rec, player), rng)
+	if not output_fits(player.inventory, rec, picks, burnt, player):
+		refuse_full(player, rec)
+		return null
 	var consumed := consume_for_craft(player.inventory, rec, picks)
-	return finish_craft(player, rec, consumed)
+	return finish_craft(player, rec, consumed, burnt)
+
+## Would the output still fit after the inputs leave the bag? Checked on a scratch copy so a
+## full bag refuses before anything is consumed (sec-loss-08).
+static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burnt: bool = false, player: Player = null) -> bool:
+	if inv == null or not picks_valid(inv, rec, picks):
+		return false
+	var scratch := Inventory.new(inv.slot_count)
+	for i in inv.slot_count:
+		if inv.slots[i]:
+			scratch.slots[i] = inv.slots[i].duplicate_stack()
+	var primary := scratch.slots[picks[primary_index(rec)]].duplicate_stack()
+	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
+	consume_for_craft(scratch, rec, picks)
+	return scratch.add(out) == 0
+
+static func refuse_full(player: Player, rec: Dictionary) -> void:
+	print("[craft] refused %s: bag full" % rec.get("id", ""))
+	if player:
+		player.notice("Bag is full: make room before crafting.")
 
 static func recipe_seconds(rec: Dictionary) -> float:
 	# ASSUMPTION: 3 s when recipes.json omits seconds.
@@ -325,10 +362,11 @@ static func missing_ingredient_name(inv: Inventory, rec: Dictionary) -> String:
 			return _category_hint(cat)
 	return "materials"
 
+## -1 when the bag cannot make it: the UI must not advertise a level it cannot reach (craft-04).
 static func preview_level(inv: Inventory, rec: Dictionary) -> int:
 	var picks := default_picks(inv, rec)
 	if not picks_valid(inv, rec, picks):
-		return int(rec.get("max_level", 1)) if rec.has("max_level") else 1
+		return -1
 	return crafted_level_for(rec, consumed_levels(inv, rec, picks))
 
 static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringName:
@@ -381,7 +419,9 @@ static func consume_for_craft(inv: Inventory, rec: Dictionary, picks: Array[int]
 			if taken: refund.append(taken)
 	return refund
 
-static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemStack]) -> ItemStack:
+## Units that do not fit go to `overflow`: the caller owns them and must put them back (StationCraft
+## re-adds them after the craft). output_fits should make this unreachable: it is a last resort.
+static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemStack], burnt: bool = false, overflow: Array[ItemStack] = []) -> ItemStack:
 	if rec.is_empty() or consumed.is_empty():
 		return null
 	var primary := consumed[0]
@@ -390,11 +430,16 @@ static func finish_craft(player: Player, rec: Dictionary, consumed: Array[ItemSt
 		if s:
 			for _n in s.count:
 				levels.append(s.level)
-	var out := build_output(rec, primary, crafted_level_for(rec, levels, player), consumed)
+	var out := build_output(rec, primary, crafted_level_for(rec, levels, player), consumed, burnt)
+	if not out.is_fungible():
+		out.stamp_identity("craft", World.player_name)
 	var gained := out.count
 	var left := player.inventory.add(out)
 	if left > 0:
 		print("[craft] bag full remainder=%d" % left)
+		var rest := out.duplicate_stack()
+		rest.count = left
+		overflow.append(rest)
 		gained -= left
 	print("[item] +%d %s" % [gained, out.def_id])
 	print("[craft] level=%d from %s" % [out.level, levels])

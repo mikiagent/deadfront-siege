@@ -16,3 +16,5 @@ game/assets/**/work/
 
 # Local dependencies for the production web soak harness.
 tools/web_soak/node_modules/
+.dsc/
+.dsc.json

@@ -10,7 +10,7 @@ var slots: Array[ItemStack] = []
 var equipped_tool_index: int = -1
 ## Equipment by slot (def id of an item that must still be in the bag) and two quick-food
 ## slots (def ids) for the HUD food hexes + auto-feed.
-const EQUIP_SLOTS: Array[StringName] = [&"weapon", &"head", &"body", &"legs", &"accessory1", &"accessory2"]
+const EQUIP_SLOTS: Array[StringName] = [&"weapon", &"head", &"body", &"arms", &"legs", &"accessory1", &"accessory2"]
 var equipment: Dictionary = {}
 var quick_food: Array = ["", ""]
 
@@ -19,7 +19,8 @@ static func slot_for(def: ItemDef) -> StringName:
 		return &""
 	if def.has_category(&"weapon") and def.damage > 0.0:
 		return &"weapon"
-	for pair in [[&"armor_head", &"head"], [&"helmet", &"head"], [&"armor_body", &"body"], [&"armor", &"body"], [&"clothing", &"body"], [&"armor_legs", &"legs"], [&"accessory", &"accessory1"], [&"bag", &"accessory1"]]:
+	# Specific slots before the generic armor/clothing fallbacks (travel_sleeves is armor_arms + clothing).
+	for pair in [[&"armor_head", &"head"], [&"helmet", &"head"], [&"armor_body", &"body"], [&"armor_arms", &"arms"], [&"gloves", &"arms"], [&"armor_legs", &"legs"], [&"armor", &"body"], [&"clothing", &"body"], [&"accessory", &"accessory1"], [&"bag", &"accessory1"]]:
 		if def.has_category(pair[0]):
 			return pair[1]
 	return &""
@@ -43,7 +44,7 @@ func equipped_in(slot: StringName) -> ItemStack:
 
 func equipped_armor() -> float:
 	var value := 0.0
-	for slot in [&"head", &"body", &"legs"]:
+	for slot in [&"head", &"body", &"arms", &"legs"]:
 		var item := equipped_in(slot)
 		if item and not item.is_broken():
 			value += item.scaled_armor()
@@ -58,7 +59,7 @@ func has_raid_protection() -> bool:
 
 func equipped_health_bonus() -> float:
 	var value := 0.0
-	for slot in [&"head", &"body", &"legs"]:
+	for slot in [&"head", &"body", &"arms", &"legs"]:
 		var item := equipped_in(slot)
 		if item and not item.is_broken() and item.def():
 			value += item.def().health_bonus_at(item.level)
@@ -181,6 +182,8 @@ func remove_at(index: int, amount: int = 1) -> ItemStack:
 	var taken := s.duplicate_stack()
 	taken.count = mini(amount, s.count)
 	s.count -= taken.count
+	if s.count > 0:
+		taken.remint_uid()  # a split makes a second instance; uid is unique per stack
 	if s.count <= 0:
 		slots[index] = null
 		for k in range(1, span):

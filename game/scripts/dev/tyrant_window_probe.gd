@@ -15,7 +15,7 @@ func run(host: Node) -> void:
 	World.home_terrain = &"meadow"
 	World.load_island(host,&"volcanic_60",Vector3(0,1,18),false)
 	await get_tree().create_timer(0.3).timeout
-	player = get_tree().get_first_node_in_group("player") as Player
+	player = PlayerRegistry.local()
 	# Keep real island creatures and select the actual far-shore boss.
 	for cr in get_tree().get_nodes_in_group("creatures"):
 		if cr.def.id == &"tyrannosaurus": boss = cr

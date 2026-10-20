@@ -31,6 +31,8 @@ extends Resource
 @export var poison_chance: float = 0.0
 @export var tastes_bad_chance: float = 0.0
 @export var food_buff: StringName = &""
+## Survivor armor piece shown when equipped, "<kit>/<piece>" under assets/characters/survivor/armor.
+@export var visual: String = ""
 
 static func from_dict(d: Dictionary) -> ItemDef:
 	var def := ItemDef.new()
@@ -73,6 +75,7 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	def.poison_chance = float(d.get("poison_chance", 0.0))
 	def.tastes_bad_chance = float(d.get("tastes_bad_chance", 0.0))
 	def.food_buff = StringName(str(d.get("food_buff", "")))
+	def.visual = str(d.get("visual", ""))
 	return def
 
 static func _names(raw: Variant) -> Array[StringName]:

@@ -1,0 +1,43 @@
+{
+ "mount": "tyrannosaurus",
+ "saddle": "saddle.glb",
+ "socket": "Spine2",
+ "rider_offset": [
+  -1.0,
+  0.0,
+  -0.0,
+  0.0,
+  -0.0,
+  -0.995037,
+  0.099504,
+  0.0,
+  -0.0,
+  0.099504,
+  0.995037,
+  0.0,
+  -0.0,
+  0.694824,
+  1.219816,
+  1.0
+ ],
+ "notes": "rider_offset is the survivor armature root relative to the socket bone (Spine2, the back just behind the shoulders), column-major, T. rex rest pose at 8 m scale; it includes the 180 deg turn that makes the rider face where the T. rex faces; the root stands on the howdah footboard (z 7.083) at y 4.17, with the bench cushion at z 7.531",
+ "rider_in_mount": [
+  -1.0,
+  7.413600400241194e-09,
+  7.413594182992256e-10,
+  0.0,
+  7.413603508865663e-09,
+  0.9999998211860657,
+  -3.203749656677246e-07,
+  0.0,
+  -7.413624714125433e-10,
+  -3.2782554626464844e-07,
+  -0.9999997615814209,
+  0.0,
+  9.088337193929874e-09,
+  7.082900047302246,
+  -4.1700005531311035,
+  1.0
+ ],
+ "rider_in_mount_note": "rider armature root in the mount's glTF model space (Y-up), mount rest pose; preferred over rider_offset"
+}

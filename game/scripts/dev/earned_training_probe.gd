@@ -8,7 +8,7 @@ func run(host: Node) -> void:
 	await get_tree().create_timer(0.5).timeout
 	var bot:=BotSurvivor.new()
 	add_child(bot)
-	bot.player=get_tree().get_first_node_in_group("player") as Player
+	bot.player = PlayerRegistry.local()
 	bot.minutes=30.0
 	bot._last_pos=bot.player.global_position
 	print("[earnedtrain] START fresh0skills bag%d coins%d no occupation; accelerated20x interactions, no items/XP/vital seeds" % [bot.player.inventory.used_slots(),World.t_stones])

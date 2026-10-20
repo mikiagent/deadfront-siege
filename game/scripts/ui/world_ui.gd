@@ -32,7 +32,7 @@ func _ready() -> void:
 	add_child(_panel)
 
 func _unhandled_input(event: InputEvent) -> void:
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	if player and player.placer and player.placer.placing != &"" and event.is_action_pressed("pause"):
 		return
 	if event.is_action_pressed("map"):
@@ -112,6 +112,7 @@ func show_terrain() -> void:
 		var id: StringName = row[4]
 		b.pressed.connect(func () -> void: _choose_terrain(id))
 		cards.add_child(b)
+	UiTokens.focus_first(cards.get_children())
 
 func _choose_terrain(id: StringName) -> void:
 	World.home_terrain = id
@@ -161,7 +162,7 @@ func _show_arrival(host: Node) -> void:
 
 func show_harbour() -> void:
 	var rows: Array = []
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	var level := player.skills.level_of("survival") if player and player.skills else 0
 	if not World.is_home():
 		rows.append(["Free return home", &"home"])
@@ -195,12 +196,12 @@ func show_map() -> void:
 		return
 	var life := "permanent" if World.is_home() else "%.0fs left" % World.remaining_lifetime
 	var crater := "yes" if World.crater_discovered else "no"
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	var fat := 0.0
 	if player:
 		fat = player.vitals.fatigue
 	var body := "Island %s\n%s\nPioneer %d   T-stones %d\nFatigue %.0f  (walk / gather / climate)\nCrater discovered: %s" % [
-		World.island_id, life, World.pioneer_level, World.t_stones, fat, crater]
+		World.island_id, life, LevelDisplay.player_level(), World.t_stones, fat, crater]
 	var rows: Array = [["Warp home", &"warp"], ["Harbour routes", &"harbour"]]
 	if World.is_unstable():
 		rows.append(["Return to camp", &"camp"])
@@ -306,3 +307,4 @@ func _fill(title: String, rows: Array, cb: Callable) -> void:
 		var id: StringName = row[1]
 		b.pressed.connect(func () -> void: cb.call(id))
 		actions.add_child(b)
+	UiTokens.focus_first(actions.get_children())

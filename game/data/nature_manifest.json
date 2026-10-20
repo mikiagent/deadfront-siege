@@ -1,5 +1,5 @@
 {
-  "_about": "Quaternius Ultimate Nature Pack, CC0. Models under res://assets/nature/<name>.glb, metres, Y up, origin at base. Harvest yields reference item ids; ids not yet in items.json must be added by the island milestone.",
+  "_about": "Quaternius Ultimate Nature Pack, CC0. Models under res://assets/nature/<name>.glb, metres, Y up, origin at base. Harvest yields reference item ids; ids not yet in items.json must be added by the island milestone. Harvest [min, max] is the yield per pass; min_pick_tier {item: tier} gates that item behind a pick of at least that material tier (other items, like loose stone, stay bare-handed).",
   "families": {
     "BirchTree": {
       "models": [
@@ -1066,6 +1066,7 @@
           2
         ]
       },
+      "min_pick_tier": {"flint": "stone"},
       "tool_class": "pick",
       "collision": "box",
       "count": 8,
@@ -1092,6 +1093,7 @@
           2
         ]
       },
+      "min_pick_tier": {"obsidian": "flint"},
       "tool_class": "pick",
       "collision": "box",
       "count": 8,
@@ -1141,6 +1143,7 @@
           2
         ]
       },
+      "min_pick_tier": {"copper_ore": "obsidian"},
       "tool_class": "pick",
       "collision": "box",
       "count": 8,
@@ -1211,6 +1214,7 @@
           2
         ]
       },
+      "min_pick_tier": {"black_iron": "copper"},
       "tool_class": "pick",
       "collision": "box",
       "count": 8,

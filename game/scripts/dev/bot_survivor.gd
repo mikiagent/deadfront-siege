@@ -82,7 +82,7 @@ func run(host: Node) -> void:
 	if World.island_id == &"" or World.runtime == null:
 		World.load_island(host, &"home_grassland", Vector3(0, 1, 18), false)
 	await get_tree().create_timer(1.0).timeout
-	player = get_tree().get_first_node_in_group("player") as Player
+	player = PlayerRegistry.local()
 	if player == null:
 		print("[bot] FAIL no player")
 		get_tree().quit(1)
