@@ -29,6 +29,24 @@ merged builders produce the same output.
 | minor tri budget under the brief's 300 floor | straw_roll gets 16-segment roll and ties and a third tie (324 tris), bedroll gets the second seam band (304), signpost gets two nail heads (336). Every kind is now inside 300-2500. |
 | minor report contradicted itself | Rewritten (this file). |
 
+## Round 3 (finishing the r1 findings, 2026-10-20)
+
+- **Fields skip the foundation disc.** `PropVisuals.ensure_foundation` returns early for field_small and
+  field_large as it does for straw_roll; `preview.py` skips the disc for them too, so the sheets match.
+  The bed (solid from the terrain up to 0.10 m) stays as a raised bed.
+- **Furrows clearly darker than ridges.** The ridges use `clay_dark` (warm brown) over the `soot` furrow
+  floor. The round-2 `dirt` ridges read pale tan, like slats; now the fields read as tilled soil in
+  Forward+, gl_compatibility and at 844x390.
+- `verify_camp.sh` step 4 accepts `game/scripts/world/prop_visuals.gd` (allowed by the brief).
+- Branch merged with `claude/mmo-overhaul` (W1-UI, W1-SRVDOM, codex-animals, W2-PLAYER); `git diff
+  claude/mmo-overhaul` outside `work/` and `tools/` lists only the report, `props_manifest.json` and
+  `prop_visuals.gd`.
+- In-game shots after the change (probe lab with all 18 kinds plus workbench/well/tent and survivor
+  stand-ins; Forward+ 1600x900, gl_compatibility 1600x900, gl_compatibility 844x390), looked at:
+  fields read as dark-furrowed soil inside a log frame with no dirt disc; fence taller than a survivor;
+  survivor fits under the shelter lintel; bed longer than the survivor; campfire coals glow; tent floor
+  and bedroll visible. Shots: implementer scratchpad `camp/shots/{fwd,gl,phone}_*.png`.
+
 ## Per kind
 
 | kind | tris | AABB (m, x × y up × z) | atlas tiles |
@@ -47,7 +65,7 @@ merged builders produce the same output.
 | stone_grill | 840 | 1.34 × 0.54 × 1.35 | stone, stone_dark, cobble, ash, char, ember, fish, meat_drying, meat_raw, clay, clay_dark, iron |
 | tent_canvas | 804 | 2.90 × 2.27 × 1.85 | wood, wood_dark, canvas, canvas_slope, leather_dark, rope, stone, hide, weave, fiber, clay, clay_dark, plank |
 | fence_fortified | 1052 | 2.06 × 2.22 × 0.56 | bark, log_end, wood, wood_dark, rope, stone |
-| field_small | 756 | 1.79 × 0.34 × 1.80 | dirt, soot, bark, log_end, wood, wood_dark, iron, weave, fiber, water |
+| field_small | 756 | 1.79 × 0.34 × 1.80 | dirt, clay_dark, soot, bark, log_end, wood, wood_dark, iron, weave, fiber, water |
 | field_large | 1008 | 2.79 × 0.34 × 2.80 | same as field_small |
 | log_shelter | 1636 | 3.39 × 3.14 × 3.33 | bark, log_end, wood, wood_dark, thatch, rope, hide, plank, fiber, clay, clay_dark, stone, ash, ember, char |
 | cabin_bed | 620 | 2.04 × 1.15 × 1.29 | plank, wood, wood_dark, bark, log_end, hide, leather_dark, fiber, rope, canvas, clay, ember |
@@ -58,11 +76,10 @@ material and does not merge.
 
 ## Caveats for the integrator and Cursor
 
-- **Foundation disc.** The models now assume the 0.08 m disc. If Cursor ever skips `ensure_foundation`
-  for a kind (straw_roll is already skipped and is built for bare terrain), that model's ground detail
-  floats about 8 cm above the terrain. The cleanest future rule is "a field is its own dirt": skip the
-  disc for field_small/field_large and drop their bed by 0.08 m in `_field`. That would be a coordinated
-  Cursor + builder change and was not done here.
+- **Foundation disc.** The models assume the 0.08 m disc, except straw_roll and the two fields, which
+  `PropVisuals.ensure_foundation` now skips (round 3, the one `prop_visuals.gd` edit the brief allows).
+  A field is its own dirt: its 0.10 m raised bed stands on the terrain, not in a round patch twice its
+  size. If Cursor ever skips the disc for another kind, that model's ground detail floats about 8 cm up.
 - **11 of the 18 kinds cannot be placed in game yet.** Only stone_grill, field_small, field_large,
   straw_roll, log_shelter and cabin_bed have kits, and `BuildPlacer._spawn` handles only those. chest
   shows only as the camp CargoWarp. campfire_stand, technical_workbench, grindstone, tent_canvas,
@@ -119,7 +136,7 @@ material and does not merge.
 
 - Squash only these paths: `tools/blender/structures/{structures,check_manifest,preview}.py`, the 18
   GLBs and their `.glb.import` files in `game/assets/props/blender/`, `game/data/props_manifest.json`,
-  this report, and optionally `tools/dsc/{verify_camp.sh,camp_base_glbs.sha256,camp/TASK.md}`. Drop
+  `game/scripts/world/prop_visuals.gd` (fields skip the disc), this report, and optionally `tools/dsc/{verify_camp.sh,camp_base_glbs.sha256,camp/TASK.md}`. Drop
   `work/`. Everything else on the branch equals overhaul `cdb2c165`.
 - Rebuild a model with `Blender -b --factory-startup -P tools/blender/structures/build.py -- <name>`.
   Build named models only: a build with no names rewrites every GLB. Then run
