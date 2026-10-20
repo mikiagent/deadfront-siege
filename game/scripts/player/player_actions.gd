@@ -584,30 +584,3 @@ func building_interact(b: Node) -> void:
 		return
 	if str(b.get("kind")) == "well" or str(b.get("station_id")) == "well":
 		p.open_station_craft(b as Node3D)
-
-# ---------------------------------------------------------------- autofeed
-
-var _autofeed_cd: float = 0.0
-
-## Offer quick food when energy is low or exhaustion is high, outside combat.
-func tick_autofeed(delta: float) -> void:
-	_autofeed_cd = maxf(0.0, _autofeed_cd - delta)
-	var v := p.vitals
-	if _autofeed_cd > 0.0 or v == null or p._sleep_left > 0.0 or p.dead \
-			or (v.energy > v.max_energy * 0.5 and v.fatigue < v.max_fatigue * 0.6):
-		return
-	if p.eat_session == null or p.eat_session.eating or p.nav_active or p._gathering or Vector2(p.velocity.x, p.velocity.z).length() > 0.3:
-		return
-	if p.hunt and p.hunt.target:
-		return
-	for fid in p.inventory.quick_food:
-		if str(fid) == "":
-			continue
-		var idx := p.inventory.find_first(StringName(str(fid)))
-		if idx >= 0 and Food.can_eat(p, p.inventory.slots[idx]) == "":
-			if eat(idx):
-				var def := Data.item(StringName(str(fid)))
-				p.notice("Auto-eating %s" % (def.display_name if def else str(fid)))
-				_autofeed_cd = 12.0
-				return
-	_autofeed_cd = 3.0

@@ -76,16 +76,22 @@ var _path_goal: Vector3 = Vector3.ZERO
 ## Pets out right now (PlayerPets keeps the list). `summoned_pet` is the first one, for old callers.
 var summoned_pets: Array[Creature]:
 	get:
-		if pets == null:
-			return []
 		return pets.live()
 var summoned_pet: Creature:
 	get:
 		var out := summoned_pets
 		return out[0] if not out.is_empty() else null
 	set(v):
-		if pets and v and is_instance_valid(v) and not pets.summoned.has(v):
+		if v and is_instance_valid(v) and not pets.summoned.has(v):
 			pets.summoned.append(v)
+
+## The parts exist from construction, so a Player made with new() (tests, fixtures) can act too.
+func _init() -> void:
+	sim = PlayerSim.new(self)
+	view = PlayerView.new(self)
+	controls = PlayerInput.new(self)
+	actions = PlayerActions.new(self)
+	pets = PlayerPets.new(self)
 
 func _ready() -> void:
 	if Game.lab_name != "" and get_parent() and get_parent().name == "DefaultPlayfield":
@@ -95,11 +101,6 @@ func _ready() -> void:
 		set_process_unhandled_input(false)
 		return
 	add_to_group(PlayerRegistry.GROUP)
-	sim = PlayerSim.new(self)
-	view = PlayerView.new(self)
-	controls = PlayerInput.new(self)
-	actions = PlayerActions.new(self)
-	pets = PlayerPets.new(self)
 	if agent == null:
 		agent = _child(NavigationAgent3D.new(), "Agent")
 	vitals = _child(Vitals.new(), "Vitals")
@@ -129,7 +130,7 @@ func _physics_process(delta: float) -> void:
 		view.draw_path_line(delta)
 		food_buffs.tick(delta)
 		sim.tick_survival_xp(delta)
-		actions.tick_autofeed(delta)
+		sim.tick_autofeed(delta)
 		controls.tick_hold_walk(delta)
 		sim.tick(delta)
 	view.tick(delta)
@@ -141,10 +142,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	controls.handle_unhandled(event)
 
 ## Capsule half height: the body's origin is the capsule centre, her feet are this far below it.
+## The capsule is 2.0 m to hold the 1.72 m model with its 1.18 legibility lift (pc-misc-01).
 func half_height() -> float:
 	var shape := get_node_or_null("Shape") as CollisionShape3D
 	var cap := shape.shape as CapsuleShape3D if shape else null
-	return cap.height * 0.5 if cap else 0.9
+	return cap.height * 0.5 if cap else 1.0
 
 func feet_position() -> Vector3:
 	return global_position - Vector3(0.0, half_height(), 0.0)

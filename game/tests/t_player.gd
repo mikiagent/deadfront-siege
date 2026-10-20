@@ -56,7 +56,7 @@ func _run() -> void:
 	cam.look_at(Vector3.ZERO)
 	cam.current = true
 	player = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
-	player.position = Vector3(0, 0.9, 0)
+	player.position = Vector3(0, 1.0, 0)
 	host.add_child(player)
 	var ui_layer := CanvasLayer.new()
 	host.add_child(ui_layer)
@@ -131,7 +131,7 @@ func _test_roll() -> void:
 	var worst_dir := 1.0
 	var worst_busy := 0.0
 	for i in 20:
-		await _reset_at(Vector3(0, 0.9, 0))
+		await _reset_at(Vector3(0, 1.0, 0))
 		player.play_attack()
 		await create_timer(0.3, true, true).timeout
 		var mid_swing: bool = player.anim._busy and player.anim.current_clip == &"attack_primary"
@@ -162,7 +162,7 @@ func _test_roll() -> void:
 	_expect(player.sim.roll_refusal() == "Can't roll while resting.", "a refused roll says why (%s)" % player.sim.roll_refusal())
 	player._sleep_left = 0.0
 	# A real swing in reach, rolled out of at 0.3 s: its hit (due at ~0.39 s) is lost.
-	await _reset_at(Vector3(0, 0.9, 0))
+	await _reset_at(Vector3(0, 1.0, 0))
 	CombatTuning.force_accuracy = 1.0
 	CombatTuning.force_dodge = 0.0
 	var dummy = _creature(&"velociraptor", Vector3(0, 0, -1.4))
@@ -185,7 +185,7 @@ func _test_roll() -> void:
 ## pc-combat-04: HOLD with a target in reach lands at least one hit per swing period; Auto off,
 ## F (attack) still swings.
 func _test_hold_and_manual_swing() -> void:
-	await _reset_at(Vector3(0, 0.9, 0))
+	await _reset_at(Vector3(0, 1.0, 0))
 	CombatTuning.force_accuracy = 1.0
 	CombatTuning.force_dodge = 0.0
 	var raptor = _creature(&"velociraptor", Vector3(0, 0, -1.4))
@@ -216,7 +216,7 @@ func _test_hold_and_manual_swing() -> void:
 
 ## pc-bug-01: F with only a pet nearby starts no hunt.
 func _test_f_skips_pets() -> void:
-	await _reset_at(Vector3(0, 0.9, 0))
+	await _reset_at(Vector3(0, 1.0, 0))
 	var pet = _creature(&"velociraptor", Vector3(1.5, 0, 0))
 	pet.is_pet = true
 	var attack := InputEventAction.new()
@@ -243,7 +243,7 @@ func _test_pet_hp_and_summon() -> void:
 	block.add_child(bs)
 	block.position = Vector3(0, 0.75, 0)
 	host.add_child(block)
-	await _reset_at(Vector3(4, 0.9, 4))
+	await _reset_at(Vector3(4, 1.0, 4))
 	var rec = PetRecordS.from_def(data.creature(&"velociraptor"), &"A")
 	player.bonded.append(rec)
 	var idx: int = player.bonded.size() - 1
@@ -270,7 +270,7 @@ func _test_pet_hp_and_summon() -> void:
 ## bag), Bag opens that bag, Feed reaches the pet whose menu was opened (not just the first one),
 ## and a bag dump into full storage keeps what did not fit.
 func _test_pet_menu_bag_feed_dump() -> void:
-	await _reset_at(Vector3(0, 0.9, 0))
+	await _reset_at(Vector3(0, 1.0, 0))
 	var raptor_rec = PetRecordS.from_def(data.creature(&"velociraptor"), &"A")
 	var proto_rec = PetRecordS.from_def(data.creature(&"protoceratops"), &"A")
 	player.bonded.append(raptor_rec)
@@ -312,7 +312,7 @@ func _test_pet_menu_bag_feed_dump() -> void:
 ## sec-loss-08 + sec-xpfarm-07: a radial take with a full bag leaves the stack in the corpse and
 ## pays no XP; with room it moves and pays Butchering XP once.
 func _test_corpse_full_bag() -> void:
-	await _reset_at(Vector3(0, 0.9, 0))
+	await _reset_at(Vector3(0, 1.0, 0))
 	var corpse = CorpseS.new()
 	host.add_child(corpse)
 	corpse.global_position = Vector3(1.2, 0, 0)
@@ -339,7 +339,7 @@ func _test_corpse_full_bag() -> void:
 ## fallback hopped her onto their backs); unstick never steps into a creature.
 func _test_no_creature_climb() -> void:
 	for sp: StringName in [&"compsognathus", &"zebraceratops", &"velociraptor"]:
-		await _reset_at(Vector3(0, 0.9, 10))
+		await _reset_at(Vector3(0, 1.0, 10))
 		var c = _creature(sp, Vector3(0, 0, 7))
 		await _frames(10)
 		var y0: float = player.global_position.y
@@ -347,7 +347,7 @@ func _test_no_creature_climb() -> void:
 		var touched := false
 		for i in 300:
 			if not player.nav_active:
-				player.nav_to(Vector3(0, 0.9, 0))  # the goal is behind the animal
+				player.nav_to(Vector3(0, 1.0, 0))  # the goal is behind the animal
 			await physics_frame
 			top = maxf(top, player.global_position.y)
 			for k in player.get_slide_collision_count():
@@ -372,7 +372,7 @@ func _inside_creature() -> bool:
 
 ## audio-footsteps-08 + audio-spatial-12: walking emits footsteps; the ear is current at head height.
 func _test_footsteps_and_ear() -> void:
-	await _reset_at(Vector3(0, 0.9, 0))
+	await _reset_at(Vector3(0, 1.0, 0))
 	var steps := [0]
 	var count := func (_foot: int, _surface: int, _speed: float) -> void: steps[0] += 1
 	player.footstep.connect(count)
