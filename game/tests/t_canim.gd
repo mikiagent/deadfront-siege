@@ -11,9 +11,9 @@ const STRIDE_SPECIES: Array[StringName] = [&"velociraptor", &"megaloceros", &"pr
 const WALK_FRAC := 0.4
 ## A gait played far faster than authored is the gliding look: feet whirl while the body slides along. Species still on
 ## such clips are listed here (STATUS, DSC-CLIPS) so the list stays honest: they must still glide, everyone else must not.
-## The protoceratops and megaloceros walk/run are being redone by the dsc job quads-loco2; drop them when it lands.
+## Empty since DSC-QUADS2 gave protoceratops and megaloceros planted-foot walk/run loops.
 const MAX_CADENCE := 3.0
-const KNOWN_GLIDERS: Array[StringName] = [&"protoceratops", &"megaloceros"]
+const KNOWN_GLIDERS: Array[StringName] = []
 
 var failures: Array[String] = []
 var _started := false
