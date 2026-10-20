@@ -17,6 +17,8 @@ var origin: String = ""  # one of ORIGINS
 const ORIGINS := ["gather", "loot", "craft", "tame", "breed", "settlers", "objective", "market"]
 var creator: String = ""
 var created_at: int = 0
+## Unix second (Food.now_s clock) at which this food spoils; 0 = it keeps (processing.json spoil).
+var spoil_at: int = 0
 ## Where a stack came from does not make it a different good (inv-01): climate never splits stacks.
 const MERGE_IGNORED_ATTRS := ["climate"]
 
@@ -34,6 +36,7 @@ func duplicate_stack() -> ItemStack:
 	s.origin = origin
 	s.creator = creator
 	s.created_at = created_at
+	s.spoil_at = spoil_at
 	return s
 
 func def() -> ItemDef:
@@ -146,6 +149,9 @@ func take_into(other: ItemStack) -> int:
 	var moved: int = mini(count, room)
 	other.count += moved
 	count -= moved
+	# A merged stack spoils with its oldest units: fresh meat on old meat is the cautious read.
+	if moved > 0 and spoil_at > 0:
+		other.spoil_at = spoil_at if other.spoil_at <= 0 else mini(other.spoil_at, spoil_at)
 	return count
 
 func tooltip() -> String:
@@ -170,6 +176,7 @@ func tooltip() -> String:
 		lines.append("energy %.1f" % Food.energy_restore(self))
 		if Food.is_raw(self):
 			lines.append("RAW")
+		lines.append_array(Food.spoil_lines(self))
 		if Food.is_poisoned(self):
 			lines.append("POISONED")
 		var buffs := Food.buff_ids(self)
@@ -203,6 +210,9 @@ func to_dict() -> Dictionary:
 		"durability": durability,
 		"max_durability": max_durability,
 	}
+	# Rows of food that keeps stay byte for byte the old shape.
+	if spoil_at > 0:
+		out["spoil_at"] = spoil_at
 	# Fungible rows keep the old save shape byte for byte.
 	if uid != "":
 		out["uid"] = uid
@@ -231,6 +241,10 @@ static func from_dict(d: Dictionary) -> ItemStack:
 	var t: Variant = d.get("created_at", 0)
 	var stamp := int(t) if (t is int or t is float) and is_finite(float(t)) else 0
 	s.created_at = clampi(stamp, 0, int(Time.get_unix_time_from_system()) + CREATED_AT_SLACK_S)
+	# make() started a fresh clock; a saved one may only be earlier (a save cannot un-spoil meat).
+	var sp: Variant = d.get("spoil_at", 0)
+	if s.spoil_at > 0 and (sp is int or sp is float) and is_finite(float(sp)) and int(sp) > 0:
+		s.spoil_at = mini(s.spoil_at, int(sp))
 	return s
 
 static var UID_RE := RegEx.create_from_string("^[il][0-9a-f]+\\z") # \z, not $: $ also matches before a final newline
@@ -255,6 +269,8 @@ static func make(id: StringName, amount: int = 1, attrs: Dictionary = {}, lvl: i
 		s.attributes[k] = attrs[k]
 	# After attrs: durability depends on the material tier they carry.
 	s.apply_level_stats()
+	if d:
+		Food.stamp_spoil(s)
 	return s
 
 static func _attrs_equal(a: Dictionary, b: Dictionary) -> bool:

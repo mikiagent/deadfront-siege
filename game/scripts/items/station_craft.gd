@@ -75,6 +75,10 @@ func open_station_menu(st: Node3D) -> void:
 		menu.hide_menu()
 		return
 	var actions := StationMenu.actions_for(station_id_of(st), player)
+	var ps := ProcessStation.of(st)
+	if ps and ps.ready_count() > 0:
+		var first: ItemStack = ps.outputs[0]["stack"]
+		actions.push_front({"id": &"collect", "label": "COLLECT %d" % ps.ready_count(), "icon": str(first.def_id), "glyph": "+"})
 	if actions.is_empty():
 		print("[craft] no actions for station %s" % station_id_of(st))
 		return
@@ -93,6 +97,13 @@ func _on_menu_action(st: Node3D, action_id: StringName) -> void:
 				open_station(st)
 		&"sleep":
 			player._start_sleep(st)
+		&"collect":
+			var ps := ProcessStation.of(st)
+			if ps:
+				var first_id: StringName = (ps.outputs[0]["stack"] as ItemStack).def_id if not ps.outputs.is_empty() else &""
+				var got := ps.collect_into(player.inventory, player)
+				if got > 0 and toast:
+					toast.show_gain(first_id, got)
 		&"cauterise":
 			if st is Bonfire:
 				(st as Bonfire).cauterise(player)
@@ -222,6 +233,17 @@ func _start_craft_cycle() -> void:
 		return
 	if not Crafting.picks_valid(player.inventory, rec, _picks):
 		print("[craft] blocked %s: needs %s" % [recipe_id, Crafting.missing_ingredient_name(player.inventory, rec)])
+		_clear_session()
+		return
+	# Process stations take the inputs and run the job themselves; the survivor is free to leave.
+	var ps := ProcessStation.of(station) if station and is_instance_valid(station) else null
+	if ps and ps.runs(recipe_id):
+		var why := ps.refuse_reason(player.inventory, recipe_id, player)
+		var n := ps.load_from(player.inventory, recipe_id, queue_left + 1, player, rng)
+		if n > 0:
+			player.notice("%s: %d on the %s, ready in %s." % [str(rec.get("display_name", recipe_id)), n, str(ps.station_id).replace("_", " "), ps.label_text().get_slice("·", 1).strip_edges()])
+		elif why != "":
+			player.notice(why)
 		_clear_session()
 		return
 	_burnt = Crafting.rolls_burn(rec, Crafting.skill_level_for(rec, player), rng)

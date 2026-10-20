@@ -99,7 +99,17 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
 	return missing
 
 static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
-	return not _plan(inv, rec, picks).is_empty()
+	if _plan(inv, rec, picks).is_empty():
+		return false
+	var pi := primary_index(rec)
+	return pi >= picks.size() or picks[pi] < 0 or not steam_capped(rec, inv.slots[picks[pi]])
+
+## Steaming again adds energy every time (food-01); processing.json steam_cap bounds it.
+## # ASSUMPTION: the planner's default cap of 3 steams per dish until the owner tunes it.
+static func steam_capped(rec: Dictionary, stack: ItemStack) -> bool:
+	if stack == null or str(rec.get("process_step", "")) != "steam":
+		return false
+	return int(stack.attributes.get("steams", 0)) >= int(Food.rules().get("steam_cap", 3))
 
 static func primary_index(rec: Dictionary) -> int:
 	var slots: Array = rec.get("slots", [])
@@ -190,6 +200,8 @@ static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int
 		out.process_count = primary.process_count + int(rec.get("process_add", 1))
 	else:
 		out.process_count = int(rec.get("process_add", 1))
+	if str(rec.get("process_step", "")) == "steam":
+		out.attributes["steams"] = int(primary.attributes.get("steams", 0) if primary else 0) + 1
 	var buff := str(rec.get("buff_id", ""))
 	if buff != "":
 		out.attributes["food_buff"] = buff

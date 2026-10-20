@@ -1,12 +1,14 @@
 class_name CraftStation
 extends StaticBody3D
 ## Workbench or drying rack. Recipes with a matching station_id need the player within 2 m.
+## Kinds with a processing.json row also run timed jobs through a ProcessStation child.
 
 @export var station_id: StringName = &"workbench"
 var kind: StringName = &"workbench"
 var persist_building: bool = true
 var build_cell: Vector2i = Vector2i.ZERO
 var build_rot: int = 0
+var _pending_process: Dictionary = {}  # saved jobs, applied once the ProcessStation exists
 
 func _ready() -> void:
 	kind = station_id
@@ -16,6 +18,10 @@ func _ready() -> void:
 	if get_node_or_null("Shape") == null and get_node_or_null("Prop") == null and get_node_or_null("FallbackMesh") == null:
 		PropVisuals.apply_building_visual(self, station_id, _fallback_size(), _fallback_color())
 	_ensure_tap_zone()
+	var ps := ProcessStation.attach_to(self, station_id)
+	if ps and not _pending_process.is_empty():
+		ps.load_dict(_pending_process)
+		_pending_process = {}
 
 func _exit_tree() -> void:
 	if World.runtime == null:
@@ -25,6 +31,11 @@ func _exit_tree() -> void:
 		(grid as BuildGrid).release(self)
 
 func pack_up(player: Player) -> bool:
+	# What hangs on the station goes back first; a bag that cannot take it all keeps it standing.
+	var ps := ProcessStation.of(self)
+	if ps and not ps.contents().is_empty() and not ps.return_all(player.inventory):
+		player.notice("Bag is full: make room for what is on the %s first." % str(station_id).replace("_", " "))
+		return false
 	return BuildPlacer.pack_up_node(self, player)
 
 func set_grid_pose(cell: Vector2i, rot: int) -> void:
@@ -33,13 +44,19 @@ func set_grid_pose(cell: Vector2i, rot: int) -> void:
 	rotation.y = deg_to_rad(float(build_rot) * 90.0)
 
 func to_dict() -> Dictionary:
-	return {
+	var d := {
 		"kind": str(station_id),
 		"cell": [build_cell.x, build_cell.y],
 		"rot": posmod(build_rot, 4),
 		"x": global_position.x,
 		"z": global_position.z,
 	}
+	var ps := ProcessStation.of(self)
+	if ps and not ps.contents().is_empty():
+		d["process"] = ps.to_dict()
+	elif not _pending_process.is_empty():
+		d["process"] = _pending_process
+	return d
 
 static func from_dict(d: Dictionary) -> CraftStation:
 	var id := StringName(str(d.get("kind", "workbench")))
@@ -48,6 +65,9 @@ static func from_dict(d: Dictionary) -> CraftStation:
 	if cell_v is Array and (cell_v as Array).size() >= 2:
 		s.build_cell = Vector2i(int(cell_v[0]), int(cell_v[1]))
 	s.build_rot = int(d.get("rot", 0))
+	var proc: Variant = d.get("process", {})
+	if proc is Dictionary:
+		s._pending_process = proc as Dictionary
 	return s
 
 static func make(id: StringName) -> CraftStation:
