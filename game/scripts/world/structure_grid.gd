@@ -335,6 +335,11 @@ func check(kind: StringName, s: Vector4i, rot: int, p_tier: StringName = &"thatc
 		if fl == null:
 			out["reason"] = "no_support"
 			return out
+		if s.z == 0:
+			for c in module_cells(m):
+				if build_grid.occupant(c) != null:
+					out["reason"] = "overlap"  # a kit (basket, bench...) already stands on this foundation
+					return out
 		out["floor0"] = fl.floor0
 		return out
 	# Wall types: on a floor at this level (either side) or on a wall-type one storey down.

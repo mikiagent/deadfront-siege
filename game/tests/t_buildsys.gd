@@ -71,7 +71,7 @@ func _run() -> void:
 	_claims_base = _rt.claims.duplicate()
 	_site = _find_site(around)
 	_stand_at(_site)
-	for case in ["data_rows", "costs", "reasons", "snap", "collapse", "damage_tiers", "kits_and_camp", "repair_upgrade", "paths", "rows_round_trip", "bad_rows", "migrations"]:
+	for case in ["data_rows", "costs", "reasons", "snap", "collapse", "damage_tiers", "kits_and_camp", "repair_upgrade", "paths", "rows_round_trip", "bad_rows", "migrations", "furniture", "building_all"]:
 		call("_test_" + case)
 	if _fails.is_empty():
 		print("[t_buildsys] PASS")
@@ -776,3 +776,120 @@ func _test_migrations() -> void:
 	var newer: Dictionary = SM.migrate({"schema": 5, "home": {}})
 	_expect(newer.is_empty(), "a schema 5 save is rejected (got %s)" % str(newer))
 	_done("migrations")
+
+# ------------------------------------------------------------------ 13. chests, boxes, signs
+
+func _test_furniture() -> void:
+	_begin_case()
+	_reset_case()
+	var m := _site
+	_expect(_why(&"chest", _slot(m, 0, _SP.ON_FLOOR)) == "no_support", "a chest needs a floor under it")
+	_pad([m], &"wood")
+	var chest := _place_direct(&"chest", &"wood", _slot(m, 0, _SP.ON_FLOOR))
+	if chest == null: return
+	_expect(chest.storage != null and chest.storage.slot_count == int(_SP.piece_def(&"chest").get("storage_slots", 0)), "a chest has its structures.json storage slots")
+	_expect(_why(&"large_box", _slot(m, 0, _SP.ON_FLOOR)) == "occupied", "one piece of furniture per floor module")
+	_expect(_why(&"stairs", _slot(m, 0, _SP.ON_FLOOR)) == "occupied", "stairs cannot start on the chest's module")
+	_expect(_bg.can_place(&"basket", m * 2, 0) == "overlap", "a kit cannot stand on the chest's module")
+	# And the other way round: a basket kit on a foundation keeps furniture off that module.
+	var m2 := m + Vector2i(1, 0)
+	_place_direct(&"foundation", &"wood", _slot(m2, 0, _SP.CELL))
+	load("res://scripts/dev/lab_kit.gd").give(_player, &"basket_kit", 1)
+	_player.placer.begin(&"basket")
+	_player.placer.set("cell", m2 * 2)
+	var kit_ok: bool = _player.placer.confirm(_player)
+	_player.placer.cancel()
+	_expect(kit_ok, "setup: a basket kit on the second foundation (%s)" % _player.placer.reason)
+	_expect(_why(&"chest", _slot(m2, 0, _SP.ON_FLOOR)) == "overlap", "a chest cannot go where a kit stands")
+	for n in get_nodes_in_group("basket"):
+		if is_instance_valid(n) and n.get("is_cargo") != true:
+			n.free()
+	# Demolish: the contents go to the demolisher's bag, never vanish.
+	chest.storage.add(load("res://scripts/items/item_stack.gd").make(&"stone", 5))
+	_player.inventory.consume(&"stone", _player.inventory.count_of(&"stone"))
+	_expect(_player.placer.demolish(chest, _player), "the chest can be demolished")
+	_expect(_player.inventory.count_of(&"stone") >= 5, "its 5 stone come back to the bag (bag has %d)" % _player.inventory.count_of(&"stone"))
+	# Collapse: a chest on a ceiling falls with it and its contents are salvaged, not duplicated.
+	_reset_case()
+	var parts := _lean_to(m, &"wood")
+	var ceil: Variant = parts.get("ceiling")
+	if ceil == null:
+		_expect(false, "setup: lean-to ceiling")
+		return
+	var up := _place_direct(&"large_box", &"wood", _slot(m, 1, _SP.ON_FLOOR))
+	if up == null: return
+	up.storage.add(load("res://scripts/items/item_stack.gd").make(&"plank", 3))
+	var kept: Array = [up]
+	(parts["wall"] as Node).destroy("destroyed")
+	var gone := not is_instance_valid(kept[0]) or (kept[0] as Node).is_queued_for_deletion()
+	_expect(gone, "a box on a ceiling collapses with the ceiling")
+	# Sign text: trimmed, capped at text_max, saved and type-checked on load.
+	_reset_case()
+	_pad([m], &"wood")
+	var sign := _place_direct(&"sign", &"wood", _slot(m, 0, _SP.ON_FLOOR))
+	if sign == null: return
+	var cap := int(_SP.piece_def(&"sign").get("text_max", 48))
+	sign.set_sign_text("  " + "x".repeat(cap + 20) + "  ")
+	_expect(sign.sign_text.length() == cap, "sign text is capped at %d (got %d)" % [cap, sign.sign_text.length()])
+	var row: Dictionary = sign.to_dict()
+	var back: Variant = _SP.from_dict(row)
+	_expect(back != null and back.sign_text == sign.sign_text, "sign text survives a row round trip")
+	row["text"] = {"evil": 1}
+	var bad: Variant = _SP.from_dict(row)
+	_expect(bad != null and bad.sign_text == "", "a non-string sign text loads as blank")
+	if back: back.free()
+	if bad: bad.free()
+	var crow: Dictionary = {"kind": "chest", "tier": "wood", "position": [m.x, m.y, 0, _SP.ON_FLOOR], "contents": [{"id": "stone", "count": 2}]}
+	var c2: Variant = _SP.from_dict(crow)
+	_expect(c2 != null and c2.storage != null and str(c2.to_dict()["container_id"]) == c2.uid, "a chest row loads with storage and a container id")
+	if c2: c2.free()
+	_done("furniture")
+
+# ------------------------------------------------------------------ 14. whole building
+
+func _test_building_all() -> void:
+	_begin_case()
+	_reset_case()
+	var m := _site
+	_pad([m, m + Vector2i(1, 0)], &"thatch")
+	var w := _place_direct(&"wall", &"thatch", Vector4i(m.x, m.y, 0, _SP.EDGE_Z))
+	var far := _site + Vector2i(5, 0)
+	_pad([far], &"thatch")
+	if w == null: return
+	var SPl: GDScript = load("res://scripts/world/structure_placer.gd")
+	var bld: Array = SPl.call("building_of", w)
+	_expect(bld.size() == 3, "the building is the wall and its two foundations, not the far pad (got %d)" % bld.size())
+	var plan: Dictionary = SPl.call("upgrade_all_plan", w, &"wood")
+	var want := {}
+	for q in bld:
+		for id in _SP.cost(q.kind, &"wood"):
+			want[id] = int(want.get(id, 0)) + int(_SP.cost(q.kind, &"wood")[id])
+	_expect(plan["cost"] == want, "upgrade-all costs the sum of the pieces' wood blueprints (%s vs %s)" % [plan["cost"], want])
+	_give_exact(want)
+	var short: StringName = want.keys()[0]
+	_player.inventory.consume(short, 1)
+	_expect(not _player.placer.upgrade_all(w, &"wood", _player), "upgrade-all one item short is refused")
+	var still := true
+	for q in bld:
+		still = still and q.tier == &"thatch"
+	_expect(still, "a refused upgrade-all changes no piece")
+	load("res://scripts/dev/lab_kit.gd").give(_player, short, 1)
+	_expect(_player.placer.upgrade_all(w, &"wood", _player), "upgrade-all with the exact cost is accepted")
+	var all_wood := true
+	for q in bld:
+		all_wood = all_wood and q.tier == &"wood"
+	_expect(all_wood, "every piece of the building is wood")
+	for id in want:
+		_expect(_player.inventory.count_of(id) == 0, "upgrade-all took exactly its %s" % id)
+	_expect(_sg.piece_at(_slot(far, 0, _SP.CELL)).tier == &"thatch", "the separate pad is untouched")
+	for q in bld:
+		q.health.take_damage(300.0)
+	var fix: Dictionary = SPl.call("repair_all_plan", w)
+	_expect((fix["pieces"] as Array).size() == 3, "repair-all covers the three damaged pieces")
+	_give_exact(fix["cost"])
+	_expect(_player.placer.repair_all(w, _player), "repair-all with its cost is accepted")
+	var full := true
+	for q in bld:
+		full = full and is_equal_approx(q.health.hp, q.health.max_hp)
+	_expect(full, "repair-all restores every piece")
+	_done("building_all")

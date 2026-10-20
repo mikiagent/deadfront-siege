@@ -50,8 +50,13 @@ func _run() -> void:
 	_o = _find_site()
 	_player.global_position = _centre(1, 1, 0) + Vector3(0, 1.0, 0)
 	_build_house()
-	_expect(_built == 53, "house: 52 pieces and its ramp placed through socket snapping (got %d)" % _built)
+	_expect(_built == 55, "house: 52 pieces, its ramp, a chest and a sign placed through socket snapping (got %d)" % _built)
 	_expect(_max_err <= TOL, "every piece within 1 cm of its socket (worst %.4f m)" % _max_err)
+	if "--snap-touch" in OS.get_cmdline_user_args():
+		await (load("res://scripts/dev/snap_touch.gd") as GDScript).new(self).run()
+		print("[snap] PASS" if _fails.is_empty() else "[snap] FAIL count=%d" % _fails.size())
+		get_tree().quit(0 if _fails.is_empty() else 1)
+		return
 	if DisplayServer.get_name() != "headless":
 		_frame_for_shot()
 		return
@@ -95,6 +100,8 @@ func _build_house() -> void:
 	for x in 3:
 		_snap_place(&"roof_peak", &"thatch", _centre(x, 1, 2), Vector4i(_o.x + x, _o.y + 1, 2, StructurePiece.CELL), 0)
 	_snap_place(&"ramp", &"stone", _centre(1, 3, 0), Vector4i(_o.x + 1, _o.y + 3, 0, StructurePiece.CELL))
+	_snap_place(&"chest", &"wood", _centre(0, 2, 0), Vector4i(_o.x, _o.y + 2, 0, StructurePiece.ON_FLOOR), 1)
+	_snap_place(&"sign", &"wood", _centre(2, 0, 0), Vector4i(_o.x + 2, _o.y, 0, StructurePiece.ON_FLOOR), 0)
 	_player.placer.cancel()
 
 ## The doorway: north wall, middle module (the face the iso camera sees).
@@ -356,6 +363,16 @@ func _check_save_load() -> void:
 	var want := {}
 	for p in _sg().pieces():
 		want[p.slot] = [p.kind, p.tier, p.health.hp, p.global_position, p.rot]
+	var chest := _sg().piece_at(Vector4i(_o.x, _o.y + 2, 0, StructurePiece.ON_FLOOR))
+	var sign := _sg().piece_at(Vector4i(_o.x + 2, _o.y, 0, StructurePiece.ON_FLOOR))
+	chest.storage.add(ItemStack.make(&"stone", 7))
+	sign.set_sign_text("  Home of the survivor  ")
+	_expect(sign.sign_text == "Home of the survivor", "the sign keeps its trimmed text")
+	var bg := World.runtime.get("build_grid") as BuildGrid
+	bg.ignore_distance = true  # the rule under test is the overlap, not the reach
+	var why := bg.can_place(&"basket", BuildGrid.tile_of(_centre(0, 2, 0)), 0)
+	bg.ignore_distance = false
+	_expect(why == "overlap", "a kit cannot stand on the chest's module (%s)" % why)
 	LabKit.give(_player, &"basket_kit", 1)
 	_player.placer.begin(&"basket")
 	_player.placer.cell = BuildGrid.tile_of(_centre(2, 2, 0))
@@ -376,6 +393,10 @@ func _check_save_load() -> void:
 		if w == null or w[0] != p.kind or w[1] != p.tier or absf(float(w[2]) - p.health.hp) > 0.01 or (w[3] as Vector3).distance_to(p.global_position) > TOL or int(w[4]) != p.rot:
 			bad += 1
 	_expect(got == want.size() and bad == 0, "load restores every piece: %d/%d, %d differ" % [got, want.size(), bad])
+	chest = _sg().piece_at(Vector4i(_o.x, _o.y + 2, 0, StructurePiece.ON_FLOOR))
+	sign = _sg().piece_at(Vector4i(_o.x + 2, _o.y, 0, StructurePiece.ON_FLOOR))
+	_expect(chest != null and chest.storage.count_of(&"stone") == 7, "the chest comes back with its 7 stone")
+	_expect(sign != null and sign.sign_text == "Home of the survivor", "the sign comes back with its text")
 	var baskets := get_tree().get_nodes_in_group("basket").filter(func (n: Node) -> bool: return not n.is_queued_for_deletion() and n.get("is_cargo") != true)
 	_expect(baskets.size() == 1, "the basket on the foundation comes back (got %d)" % baskets.size())
 	# An old (schema 3) save: no piece rows existed then. It must load, migrate and keep its kits.

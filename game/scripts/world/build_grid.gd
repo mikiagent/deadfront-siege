@@ -57,7 +57,7 @@ func reserve_kind(kind: StringName, cell: Vector2i, rot: int = 0) -> void:
 func release_reserved_kind(kind: StringName, cell: Vector2i, rot: int = 0) -> void:
 	for c in cells_for(kind, cell, rot):
 		_reserved.erase(c)
-	_cells_changed(cells_for(kind, cell, rot))
+	cells_changed(cells_for(kind, cell, rot))
 
 func reserve_cells(cells: Array[Vector2i], tag: StringName = &"reserved") -> void:
 	for c in cells:
@@ -93,8 +93,10 @@ func can_place(kind: StringName, cell: Vector2i, rot: int) -> String:
 	for c in cells:
 		var fp := structures.floor_piece_at_cell(c)
 		if fp != null:
-			if fp.kind != &"foundation":
-				return "overlap"
+			var n := StructureGrid.cells_per_module()
+			var m := Vector2i(floori(float(c.x) / n), floori(float(c.y) / n))
+			if fp.kind != &"foundation" or structures.piece_at(Vector4i(m.x, m.y, 0, StructurePiece.ON_FLOOR)) != null:
+				return "overlap"  # a ramp, or stairs / a chest / a sign already on that module
 			on_floor += 1
 	if on_floor == cells.size():
 		return ""

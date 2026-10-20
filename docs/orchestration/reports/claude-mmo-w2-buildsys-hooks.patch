@@ -1,5 +1,5 @@
 diff --git a/game/scripts/creatures/brains/creature_brain.gd b/game/scripts/creatures/brains/creature_brain.gd
-index 1220ad26..417e67b7 100644
+index 81067c7a..0f553690 100644
 --- a/game/scripts/creatures/brains/creature_brain.gd
 +++ b/game/scripts/creatures/brains/creature_brain.gd
 @@ -22,6 +22,7 @@ static var _pack_cooldown_until: Dictionary = {} ## pack_id -> seconds
@@ -48,108 +48,83 @@ index 1220ad26..417e67b7 100644
  ## THINK_HZ, staggered by _think_phase; a timed move (_full_rate) thinks every frame.
  func _should_think(frame: int) -> bool:
  	return _full_rate() or (frame + _think_phase) % _think_every() == 0
-diff --git a/game/scripts/player/player.gd b/game/scripts/player/player.gd
-index d42eb5b4..7f26bc08 100644
---- a/game/scripts/player/player.gd
-+++ b/game/scripts/player/player.gd
-@@ -26,6 +26,8 @@ const TAP_PICK_RADIUS := 1.0
- @onready var anim: PlayerAnim = $Anim
- @onready var agent: NavigationAgent3D = get_node_or_null("Agent")
- 
-+## A modular piece other than a door was tapped (the HUD opens its Upgrade / Repair / Demolish card).
-+signal structure_tapped(piece: StructurePiece)
- var inventory: Inventory = Inventory.new(20)
- var vitals: Vitals
- var statuses: StatusEffects
-@@ -759,6 +761,9 @@ func _interact_tap_target(col: Object) -> void:
+diff --git a/game/scripts/player/player_input.gd b/game/scripts/player/player_input.gd
+index 53380b23..41680dd9 100644
+--- a/game/scripts/player/player_input.gd
++++ b/game/scripts/player/player_input.gd
+@@ -270,6 +270,10 @@ func interact_tap_target(col: Object) -> void:
  		col.open()
  	elif col is Node and (col as Node).is_in_group("cargo_warp"):
- 		col.use(self)
+ 		col.use(p)
 +	elif col is StructurePiece:
-+		if not (col as StructurePiece).interact(self):  # a door opens or closes; other pieces open their card
-+			structure_tapped.emit(col as StructurePiece)
++		var hud := p.get_tree().get_first_node_in_group("hud")
++		if hud and hud.has_method("open_structure"):
++			hud.open_structure(col)  # W2-BUILDSYS card: door, chest, sign, upgrade, repair, demolish
  	elif col is Node and (col as Node).is_in_group("placed_building"):
- 		_building_interact(col)
+ 		p.actions.building_interact(col)
  
-@@ -802,7 +807,7 @@ func _is_interactable(col: Object) -> bool:
+@@ -289,8 +293,8 @@ func pick_interactable(hit: Dictionary) -> Object:
+ 	var best_d := 9999.0
+ 	for row in p.get_world_3d().direct_space_state.intersect_shape(query, 16):
+ 		var col: Object = row.get("collider", null)
+-		if not is_interactable(col):
+-			continue
++		if col is StructurePiece or not is_interactable(col):
++			continue  # a piece is tapped only by a direct hit: indoors every spot is near a wall
+ 		var n := col as Node3D
+ 		if n == null:
+ 			continue
+@@ -308,6 +312,8 @@ func unwrap_tap(col: Object) -> Object:
+ 	return col
+ 
+ func is_interactable(col: Object) -> bool:
++	if col is StructurePiece:
++		return (col as StructurePiece).is_tap_target()
+ 	if col is Area3D:
  		var owner := (col as Area3D).get_parent()
  		if owner is HarvestNode or owner is CraftStation or owner is Bonfire:
- 			return true
--	if col is HarvestNode or col is Corpse or col is Creature or col is Bonfire or col is CraftStation or col is TamingPen:
-+	if col is HarvestNode or col is Corpse or col is Creature or col is Bonfire or col is CraftStation or col is TamingPen or col is StructurePiece:
- 		return true
- 	if col is Node:
- 		var n := col as Node
-@@ -1251,7 +1256,7 @@ func _request_tile_path() -> void:
- 	var p: Variant = World.runtime.get("pathing")
- 	if p == null:
+diff --git a/game/scripts/player/player_sim.gd b/game/scripts/player/player_sim.gd
+index 1595640d..357b1c0e 100644
+--- a/game/scripts/player/player_sim.gd
++++ b/game/scripts/player/player_sim.gd
+@@ -361,7 +361,7 @@ func _request_tile_path() -> void:
+ 	var pathing: Variant = World.runtime.get("pathing")
+ 	if pathing == null:
  		return
--	_path_points = p.path(global_position, _path_goal, 96)
-+	_path_points = p.path(global_position, _path_goal, 96, true)  # the owner walks through its own walls (HANDOFF 8)
+-	_path_points = pathing.path(p.global_position, p._path_goal, 96)
++	_path_points = pathing.path(p.global_position, p._path_goal, 96, true)  # the owner walks through its own walls (HANDOFF 8)
  	_path_index = 0
- 	# Skip waypoints already behind us (a re-plan starts at the current tile's centre, which
- 	# would otherwise make the survivor step back to it and jitter).
+ 	# A plain ground move to a tile nothing reaches stops at the closest reachable tile and says
+ 	# so, instead of pressing into the wall for 10 s (phys-path-01). Targets keep their own goal.
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
-index 70ee0d15..3bb20938 100644
+index 04f53003..5500ef26 100644
 --- a/game/scripts/ui/hunt_hud.gd
 +++ b/game/scripts/ui/hunt_hud.gd
-@@ -20,6 +20,8 @@ var _skills_hex: HexButton
- var _inspect_hex: HexButton
- var _fatigue_rect := Rect2() ## screen rect of the fatigue face and bar, recorded in _draw; a tap opens the panel
- var _fatigue_panel: FatiguePanel
-+var _build_tier: StringName = &"thatch"  # the tier the Build sheet's piece buttons place
-+var _structure: StructurePiece  # the piece whose card is open
- var _sheet: PanelContainer
- var _sheet_kind: StringName = &""
- var _skills_panel: Control
-@@ -129,6 +131,10 @@ func _ready() -> void:
- 
- func bind(p: Player) -> void:
- 	player = p
-+	p.structure_tapped.connect(func (sp: StructurePiece) -> void:
-+		_structure = sp
-+		_close_sheet()
-+		_toggle_sheet(&"structure"))
- 
- # ---------------------------------------------------------------- layout
- 
-@@ -744,6 +750,39 @@ func _toggle_sheet(kind: StringName) -> void:
+@@ -792,17 +792,27 @@ func _toggle_sheet(kind: StringName) -> void:
+ 				if fp is Array and (fp as Array).size() >= 2:
+ 					fp_txt = "  %d×%d" % [int(fp[0]), int(fp[1])]
+ 				_sheet_btn(box, "%s%s  ×%d" % [def.display_name, fp_txt, s.count], func () -> void: _close_sheet(); player.placer.begin(kind_id))
++			StructureSheet.fill_build(player, func (t: String, cb: Callable) -> void: _sheet_btn(box, t, cb), _refresh_sheet, _close_sheet)
++			any = true  # modular pieces are always buildable from materials: no "no kits" note eating the rows
+ 			if not any:
+ 				# Under the rows, wrapped to the sheet's width (in the two-column grid it stretched the sheet to 708 px).
  				var l := Label.new()
  				l.text = "No building kits in the bag. Craft one at the workbench."
- 				box.add_child(l)
-+			# Modular pieces in the chosen tier (structures.json); the ghost snaps to free sockets.
-+			var tiers := HBoxContainer.new()
-+			for t in (StructurePiece.defs().get("tiers", {}) as Dictionary):
-+				var tier := StringName(str(t))
-+				var tb := Button.new()
-+				tb.text = str(StructurePiece.tier_def(tier).get("label", t))
-+				tb.disabled = tier == _build_tier
-+				tb.custom_minimum_size = Vector2(72, 64)
-+				tb.pressed.connect(func () -> void:
-+					_build_tier = tier
-+					_close_sheet()
-+					_toggle_sheet(&"build"))
-+				tiers.add_child(tb)
-+			box.add_child(tiers)
-+			for piece_kind in (StructurePiece.defs().get("pieces", {}) as Dictionary):
-+				var k := StringName(str(piece_kind))
-+				_sheet_btn(box, StructurePlacer.label(k, _build_tier), func () -> void: _close_sheet(); player.placer.begin_piece(k, _build_tier))
+ 				l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+ 				outer.add_child(l)
 +		&"structure":
-+			var sp := _structure
-+			if not is_instance_valid(sp) or sp.is_queued_for_deletion():
-+				title.text = "Structure"
-+			else:
-+				title.text = "%s %s  %.0f / %.0f" % [StructurePiece.tier_def(sp.tier).get("label", sp.tier), StructurePiece.piece_def(sp.kind).get("label", sp.kind), sp.health.hp, sp.health.max_hp]
-+				var up := StructurePlacer.next_tier(sp.tier)
-+				if up != &"":
-+					_sheet_btn(box, "Upgrade to %s" % StructurePlacer.label(sp.kind, up), func () -> void: _close_sheet(); player.placer.upgrade(sp, up, player))
-+				var cost := StructurePlacer.repair_cost(sp)
-+				if not cost.is_empty():
-+					var parts: PackedStringArray = []
-+					for id in cost:
-+						parts.append("%s ×%d" % [str(id).replace("_", " "), int(cost[id])])
-+					_sheet_btn(box, "Repair  %s" % " · ".join(parts), func () -> void: _close_sheet(); player.placer.repair(sp, player))
-+				_sheet_btn(box, "Demolish (half back)", func () -> void: _close_sheet(); player.placer.demolish(sp, player))
- 	var close := Button.new()
- 	close.text = "Close"
- 	close.custom_minimum_size = Vector2(240, 56)
++			title.text = StructureSheet.fill_card(box, player, func (t: String, cb: Callable) -> void: _sheet_btn(box, t, cb), _close_sheet)
+ 	add_child(_sheet)
+ 	_layout()
+ 	await get_tree().process_frame
+ 	_layout()
+ 
++## A tapped modular piece (W2-BUILDSYS): its card in the bottom sheet.
++func open_structure(sp: StructurePiece) -> void:
++	StructureSheet.card = sp
++	_close_sheet()
++	_toggle_sheet(&"structure")
++
+ func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
+ 	var b := Button.new()
+ 	b.text = text

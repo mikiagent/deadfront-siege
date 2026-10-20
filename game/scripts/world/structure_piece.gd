@@ -277,9 +277,9 @@ func _rebuild() -> void:
 		l.name = "SignText"
 		l.text = sign_text
 		l.position = Vector3(0, 1.25, 0.06)
-		l.font_size = 40
-		l.pixel_size = 0.004
-		l.width = 220.0
+		l.font_size = 56
+		l.pixel_size = 0.005  # ~0.28 m letters: two lines fill the 1 x 0.6 m board, readable at iso zoom
+		l.width = 180.0
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.modulate = Color(0.12, 0.09, 0.06)
 		holder.add_child(l)
