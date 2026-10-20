@@ -395,7 +395,7 @@ func _measure(c: Dictionary) -> bool:
 		bad.append("mode %s (%s)" % [rd.mode, rd.reason])
 	if rd.settle_time > SETTLE_MAX_S or rd.settle_time < 0.0:
 		bad.append("settle %.2f s" % rd.settle_time)
-	var line := "%s mode=%s%s settle=%.2fs%s peak=%.1fm/s drift=%.2fm" % [tag, rd.mode, "(%s)" % rd.reason if rd.mode == &"fallback" else "", rd.settle_time, "(cap: %s)" % rd.restless if rd.capped else "", rd.peak_speed, rd.drift_m]
+	var line := "%s mode=%s%s settle=%.2fs%s peak=%.1fm/s drift=%.2fm limbs=%d" % [tag, rd.mode, "(%s)" % rd.reason if rd.mode == &"fallback" else "", rd.settle_time, "(cap: %s)" % rd.restless if rd.capped else "", rd.peak_speed, rd.drift_m, rd.limb_turns]
 	if rd.peak_speed >= 30.0:
 		bad.append("peak %.1f m/s" % rd.peak_speed)
 	if sk and mi:

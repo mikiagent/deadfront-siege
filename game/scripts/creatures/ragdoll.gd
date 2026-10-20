@@ -34,6 +34,8 @@ var capped: bool = false
 var conform_us: int = 0
 ## Vertical shift the ground conform applied to the posed body (+ = lifted out of the ground).
 var conform_m: float = 0.0
+## Limbs turned back out of the ground at the freeze (RagdollSkin.lift_limbs).
+var limb_turns: int = 0
 ## The first body still moving on the last simulated frame (why a capped settle was capped).
 var restless: String = ""
 ## The joints the ragdoll simulated (RagdollRig.info rows), kept after the freeze for the lab gates.
@@ -430,6 +432,9 @@ func _finish() -> void:
 	creature.view.global_transform = view_xf
 	var conform: Dictionary = data().get("conform", {})
 	var t0 := Time.get_ticks_usec()
+	var mi := mesh_instance()
+	if sk and mi and mi.skin:
+		limb_turns = RagdollSkin.lift_limbs(space, mi, sk, _body_bones(sk, prof), _exclude, int(conform.get("stride", 97)), float(conform.get("limb_max_deg", 50.0)))
 	var gap := _visual_gap(space, sk, int(conform.get("stride", 97)))
 	conform_us = Time.get_ticks_usec() - t0
 	var limit := maxf(float(conform.get("max_shift_m", 0.3)), float(conform.get("max_shift_frac", 0.1)) * (creature.def.height_meters if creature.def else 1.0))
@@ -438,8 +443,8 @@ func _finish() -> void:
 	creature.reset_physics_interpolation()
 	if corpse and is_instance_valid(corpse):
 		corpse.place_settled(ground)
-	print("[ragdoll] %s %s settled in %.2f s%s (peak %.1f m/s, conform %+.3f m in %.1f ms)" % [
-		creature.def.id if creature.def else &"?", mode, settle_time, " capped" if capped else "", peak_speed, -gap, conform_us / 1000.0])
+	print("[ragdoll] %s %s settled in %.2f s%s (peak %.1f m/s, %d limbs lifted, conform %+.3f m in %.1f ms)" % [
+		creature.def.id if creature.def else &"?", mode, settle_time, " capped" if capped else "", peak_speed, limb_turns, -gap, conform_us / 1000.0])
 	settled.emit(mode)
 
 ## Gap from the lowest posed skin vertex to the ground under it (placeholder meshes: AABB bottom).
@@ -457,6 +462,15 @@ func _visual_gap(space: PhysicsDirectSpaceState3D, sk: Skeleton3D, stride: int) 
 	if bottom == INF:
 		return 0.0
 	return bottom - RagdollSkin.ground_y(space, creature.global_position, _exclude, creature.global_position.y)
+
+## The profile's simulated bones (bone index -> true): limbs below them are what lift_limbs turns.
+func _body_bones(sk: Skeleton3D, prof: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for d in prof.get("bodies", []):
+		var b := sk.find_bone(str((d as Dictionary).get("bone", "")))
+		if b >= 0:
+			out[b] = true
+	return out
 
 func mesh_instance() -> MeshInstance3D:
 	if creature == null or creature.view.rig == null or creature.view.rig.mesh_root == null:
