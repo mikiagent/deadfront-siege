@@ -123,10 +123,12 @@ func _separate_visible_creature_plates() -> void:
 			visible.append(node)
 	visible.sort_custom(func(a: Control, b: Control) -> bool: return a.position.y < b.position.y)
 	# This layer is above the HUD's: an opaque plate hid the survivor's name and the HUD's hexes and
-	# text. A plate lifts above the HUD rect its pill covers (the name under the survivor's feet), and
-	# hides when that is not enough. World pills do not count: the plate is opaque over them on purpose.
+	# text. A plate's pill takes the nearest free spot up or down off the HUD's rects and the plates
+	# before it (lifting only, a portrait plate climbed off the top), or hides when there is none.
+	# World pills do not count: the plate is opaque over them on purpose.
 	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
 	var hud_rects: Array[Rect2] = hud.taken_rects(PackedStringArray(["pill"])) if hud else []
+	var view := get_viewport().get_visible_rect().size
 	for node in visible:
 		var pos := node.position
 		var sz := node.size * node.scale
@@ -144,22 +146,14 @@ func _separate_visible_creature_plates() -> void:
 				break
 			attempts += 1
 		var pill := node.get_node_or_null("Pill") as Control
-		var shown := Rect2(pos + pill.position * node.scale, pill.size * node.scale).grow(2.0) if pill else rect
-		for i in 4:
-			var cover := Rect2()
-			for h in hud_rects:
-				if shown.intersects(h):
-					cover = h
-					break
-			if not cover.has_area():
-				break
-			var lift := shown.end.y - cover.position.y + 2.0
-			pos.y -= lift
-			shown.position.y -= lift
-			rect.position.y -= lift
-		var clear := shown.position.y >= 0.0
-		for h in hud_rects:
-			clear = clear and not shown.intersects(h)
+		var shown := Rect2(pos + pill.position * node.scale, pill.size * node.scale) if pill else rect
+		var taken := hud_rects.duplicate()
+		taken.append_array(placed)
+		var spot := UiTokens.free_spot(shown, taken, view)
+		var clear := spot.has_area()
+		if clear:
+			pos.y += spot.position.y - shown.position.y
+			rect.position.y += spot.position.y - shown.position.y
 		node.visible = clear
 		node.position = pos
 		if clear:
@@ -560,6 +554,8 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 	var key := c.get_instance_id()
 	if not _entries.has(key):
 		return
+	if amount < 0.5 and kind != &"heal" and kind != &"xp" and kind != &"dodge":
+		return  # a bleed tick under 1 HP read "-0" over the plate
 	var entry: Dictionary = _entries[key]
 	var layer := entry["floats"] as Control
 	var label := Label.new()
@@ -617,10 +613,11 @@ func _on_status_float(id: StringName, c: Creature) -> void:
 	var label := Label.new()
 	label.text = (def.display_name if def else str(id)).replace("_", " ").to_upper() + ("!" if def == null else "")
 	var nodes: Array = entry.get("float_nodes", [])
-	# Statuses applied together (knockdown + groggy + bleed) stack instead of printing over each other.
+	# Statuses applied together (knockdown + groggy + bleed) stack down over the plate instead of
+	# printing over each other; stacked upward they rose into the HUD above a lifted plate.
 	var y0 := -6.0
 	for row in nodes:
-		y0 -= 18.0 if (row as Dictionary).has("y0") else 0.0
+		y0 += 18.0 if (row as Dictionary).has("y0") else 0.0
 	label.position = Vector2(40 + randf_range(-10.0, 10.0), y0)
 	label.add_theme_font_size_override("font_size", 15)
 	label.add_theme_color_override("font_color", Creature.status_color(id))

@@ -957,7 +957,22 @@ func taken_rects(skip: PackedStringArray = []) -> Array[Rect2]:
 	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
 	if held and held.is_visible_in_tree():
 		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
+	var fig := figure_rect()
+	if fig.has_area():
+		out.append(fig)
 	return out
+
+## The survivor on screen, head to name. Moving text keeps off it (a notice and a creature plate sat
+## on the survivor at the centre of a landscape phone); the HUD's fixed controls do not need to.
+# ASSUMPTION: the survivor stands about 1.8 m tall.
+func figure_rect() -> Rect2:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null or player == null:
+		return Rect2()
+	var plate := nameplate_rect(cam, player, _font)
+	var head := cam.unproject_position(player.get_global_transform_interpolated().origin + Vector3(0.0, 1.8, 0.0))
+	var w := maxf(plate.size.x, 44.0)
+	return Rect2(plate.get_center().x - w * 0.5, head.y, w, maxf(0.0, plate.end.y - head.y))
 
 ## Rebuild the open sheet in place (e.g. a pet finished respawning and Summon is back).
 func _refresh_sheet() -> void:
@@ -1222,11 +1237,12 @@ func _draw() -> void:
 			drawn_blocks["levelup"] = stack
 	# --- pickup toasts near the top-centre, rising and fading, then the notices: each takes the nearest
 	# free spot up or down its column, off every block and hex (on a landscape phone they crossed the
-	# quest card at y 100-128). On a landscape phone the toasts stack under the vitals instead: in the
-	# centre they covered the survivor. One with no room left on screen is skipped.
-	# ASSUMPTION: pickup toasts may move to the left edge on a landscape phone (no reference for it).
+	# quest card at y 100-128). On a phone the toasts stack under the vitals instead: in the centre
+	# they covered the survivor. One with no room left on screen is skipped.
+	# ASSUMPTION: pickup toasts may move to the left edge on a phone (no reference for it).
 	var taken := taken_rects()
-	var toast_left := _landscape_phone(r)
+	var toast_left := UiTokens.is_compact(r)
+	var cx := band.get_center().x if band.has_area() else r.x * 0.5  # a phone's free middle, off HANDS and the map
 	for i in _events.toasts.size():
 		var t: Dictionary = _events.toasts[i]
 		var k: float = t["t"]
@@ -1235,7 +1251,7 @@ func _draw() -> void:
 		var label := "+%d  %s" % [int(t["n"]), def.display_name if def else str(t["id"])]
 		var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, 18).x
 		var rise := 35.0 * (1.0 - minf(k, 1.0))
-		var cand := Rect2(r.x * 0.5 - tw * 0.5 - 10, 65.0 + rise, tw + 20, 28)
+		var cand := Rect2(cx - tw * 0.5 - 10, 65.0 + rise, tw + 20, 28)
 		if toast_left:
 			cand.position = Vector2(vitals.position.x, vitals.end.y + 8.0 + rise)
 		var box := UiTokens.free_spot(cand, taken, r)
@@ -1257,7 +1273,7 @@ func _draw() -> void:
 		var alpha := 1.0 - smoothstep(2.4, 3.2, k)
 		var txt: String = UiTokens.ellipsis(_font, n["text"], r.x - 48.0, 17)
 		var tw := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, 17).x
-		var box := UiTokens.free_spot(Rect2(r.x * 0.5 - tw * 0.5 - 12, 170.0, tw + 24, 30), taken, r)
+		var box := UiTokens.free_spot(Rect2(cx - tw * 0.5 - 12, 170.0, tw + 24, 30), taken, r)
 		if not box.has_area():
 			continue
 		taken.append(box)
@@ -1618,7 +1634,14 @@ func _draw_pills(cam: Camera3D, avoid: Array[Rect2]) -> void:
 		shown += 1
 	var view := get_viewport_rect().size
 	var pill_i := 0
-	for item in UiTokens.layout_labels(pending, view, avoid):
+	# The survivor is only stepped away from: a building behind it keeps its label.
+	var fig := figure_rect()
+	var hard: Array[Rect2] = []
+	for x in avoid:
+		if x != fig:
+			hard.append(x)
+	var soft: Array[Rect2] = [fig]
+	for item in UiTokens.layout_labels(pending, view, hard, soft):
 		var box: Rect2 = item["rect"]
 		drawn_blocks["pill%d" % pill_i] = box
 		pill_i += 1

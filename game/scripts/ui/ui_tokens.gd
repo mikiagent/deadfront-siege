@@ -135,9 +135,11 @@ static func ellipsis(font: Font, text: String, width: float, size_px: int) -> St
 
 ## Greedy screen-space labels. Higher priority keeps its anchor; the rest step away, from each other
 ## and from `avoid` (the HUD's blocks and hexes: camp labels drew over the quest card on a phone).
-## A label with no free spot within three rows under its anchor is dropped, not drawn on top.
+## A label with no free spot within three rows under its anchor is dropped, not drawn on top, and so
+## is one whose anchor `avoid` covers. `keep_off` is only stepped away from (the survivor: a building
+## behind it keeps its label).
 ## Each item is {anchor: Vector2, w: float, h: float, priority: int, ...}.
-static func layout_labels(items: Array, view: Vector2, avoid: Array[Rect2] = []) -> Array:
+static func layout_labels(items: Array, view: Vector2, avoid: Array[Rect2] = [], keep_off: Array[Rect2] = []) -> Array:
 	var ordered: Array = []
 	for item in items:
 		if item is Dictionary:
@@ -145,6 +147,7 @@ static func layout_labels(items: Array, view: Vector2, avoid: Array[Rect2] = [])
 	ordered.sort_custom(func (a: Dictionary, b: Dictionary) -> bool:
 		return int(a.get("priority", 0)) > int(b.get("priority", 0)))
 	var placed: Array[Rect2] = avoid.duplicate()
+	placed.append_array(keep_off)
 	var out: Array = []
 	for item in ordered:
 		var row := item as Dictionary
@@ -253,7 +256,9 @@ static func first_focusable(controls: Array) -> Control:
 ## bottom corners) until W2-HUD exports its own rects.
 static func hud_reserved(view: Vector2) -> Array[Rect2]:
 	if is_narrow(view):
-		return [Rect2(0, 0, view.x, 96.0), Rect2(0, view.y - 96.0, view.x, 96.0)]
+		# The third is the portrait map column: minimap, its text, the quest card and the claim hex
+		# under it (hunt_hud.gd); a station menu hex sat on the map text.
+		return [Rect2(0, 0, view.x, 96.0), Rect2(0, view.y - 96.0, view.x, 96.0), Rect2(view.x - 178.0, 0.0, 178.0, 396.0)]
 	if is_compact(view):  # landscape: vitals + quest band, the map/claim/rail column on the right, left rail
 		# The fourth zone is the row above the rail (quick food, chase, HANDS stacked over the rail's
 		# last hex, held_item_slot.gd) with captions; the fifth is the XP line at the bottom centre (a

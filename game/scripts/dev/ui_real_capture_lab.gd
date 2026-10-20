@@ -297,7 +297,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
 	print("[uireal] phone=%s min_font_px=%d min_font_pt=%.2f logical_width=%d window_pt=%dx%d floor_pt=%.2f (smallest: %s)" % [phone, min_px, min_pt, int(logical.x), int(pts.x), int(pts.y), type_floor_pt(pts), _min_font_where])
 	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
 	if _fails.is_empty():
-		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
+		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
 		get_tree().quit(0)
 	else:
 		for f in _fails:
@@ -328,6 +328,15 @@ static func gate_failures(pts: Vector2, phone: bool, min_pt: float, logical_w: i
 	elif pts.x >= float(DisplayMode.DESIGN.x) and logical_w != DisplayMode.DESIGN.x:
 		out.append("desktop keeps a %d px logical width (got %d)" % [DisplayMode.DESIGN.x, logical_w])
 	return out
+
+## Moving text (toasts, notices, building labels) keeps off the survivor's figure (HuntHud.figure_rect):
+## at 844x390 the notices sat on the survivor at the centre of the screen.
+func _check_figure(tag: String, blocks: Dictionary) -> void:
+	var fig := _hud.figure_rect()
+	_expect(fig.has_area(), "%s: the survivor's figure is on screen" % tag)
+	for k in blocks:
+		if str(k).begins_with("toast") or str(k).begins_with("notice") or str(k).begins_with("pill"):
+			_expect(not (blocks[k] as Rect2).grow(-0.5).intersects(fig), "%s: %s %s stays off the survivor %s" % [tag, k, blocks[k], fig])
 
 ## Every rect inside the view (only across it, when `x_only`: the bag scrolls down) and no
 ## two overlapping. Prints the blocks so a failure names what hit what.
@@ -554,16 +563,26 @@ func _capture_plate(logical: Vector2) -> void:
 		_expect(glyphs == 0 and pill.size.y <= 42.0, "phone plate of a creature that is not the target: name and bar only (glyphs %d, pill %s)" % [glyphs, pill.size])
 	else:
 		_expect(glyphs >= 2, "plate shows its status glyphs")
-	# The opaque pill (layer 58, above the HUD) keeps off the survivor's name and every HUD block and
-	# hex: beside a compy it hid the name whole.
-	var pill_rect := pill.get_global_transform() * Rect2(Vector2.ZERO, pill.size)
-	var under := 0
-	for h in _hud.taken_rects(PackedStringArray(["pill"])):
-		under += 1
-		_expect(not pill_rect.grow(-0.5).intersects(h), "plate pill %s stays off the HUD rect %s" % [pill_rect, h])
-	print("[uireal] plate pill %s checked against %d HUD rects (nameplate %s)" % [pill_rect, under, _hud.drawn_blocks.get("nameplate")])
-	_expect(_hud.drawn_blocks.has("nameplate"), "plate: the survivor's name is drawn")
-	await _capture("plate", [node], logical)
+	_check_plate_pill("plate", node, pill)
+	await _capture("plate", [pill], logical)
+	# In front of the survivor (toward the camera), where the plate, about 80 px over the creature's
+	# feet, would sit on the survivor's name unless it moves.
+	var cam := get_viewport().get_camera_3d()
+	var toward := cam.global_position - _player.global_position
+	toward.y = 0.0
+	var name_y: float = (_hud.drawn_blocks.get("nameplate", Rect2()) as Rect2).position.y
+	var best_d := 1.0
+	for i in 24:
+		var d := 0.5 + 0.25 * float(i)
+		if absf(cam.unproject_position(_player.global_position + toward.normalized() * d).y - name_y - 80.0) < absf(cam.unproject_position(_player.global_position + toward.normalized() * best_d).y - name_y - 80.0):
+			best_d = d
+	wild.global_position = _player.global_position + toward.normalized() * best_d
+	print("[uireal] plate_front: compy %.2f m toward the camera, feet at y %.0f, name at y %.0f" % [best_d, cam.unproject_position(wild.global_position).y, name_y])
+	await get_tree().create_timer(0.5).timeout
+	_expect(node.visible, "plate_front: the plate finds a free spot and shows")
+	_check_plate_pill("plate_front", node, pill)
+	await _capture("plate_front", [pill], logical)
+	wild.global_position = _player.global_position + Vector3(2.5, 0.0, 1.0)
 	# The hunt, pet still out: End Combat, the skills, Auto/Feed, whistles, the target plate. At 844x390
 	# End Combat sat on ROLL and the target bar ran across the vitals and the quest card.
 	_player.hunt.start(wild)
@@ -575,8 +594,10 @@ func _capture_plate(logical: Vector2) -> void:
 	_check_blocks("combat", blocks, logical)
 	glyphs = _plate_glyphs(entry)
 	print("[uireal] combat plate %s glyphs=%d" % [(entry["line1"] as Label).text, glyphs])
-	_expect(glyphs >= 2, "the target's plate shows its status glyphs")
-	await _capture("combat", [node], logical)
+	# A target plate with no free spot hides (portrait: the combat cluster fills the screen round the
+	# survivor); the HUD's target plate then carries the statuses.
+	_expect(glyphs >= 2 or (not node.visible and blocks.has("plate")), "the target's plate shows its status glyphs, or hides under the HUD's target plate")
+	await _capture("combat", [entry["pill"]], logical)
 	# 3x crop so the glyph letters can be checked by eye
 	var img := get_tree().root.get_texture().get_image()
 	var stretch := get_tree().root.get_final_transform().get_scale().x
@@ -604,8 +625,12 @@ func _camp_and_station(logical: Vector2) -> void:
 		var blocks := with_world_hexes(hud_blocks(_hud, _player, logical), _hud)
 		var pills := count_prefix(blocks, "pill")
 		print("[uireal] camp %s: %d labels, quest card %s" % [sid, pills, blocks.get("quest", "hidden")])
-		_expect(pills >= 2 and blocks.has("quest"), "camp_%s: the camp labels and the quest card are drawn (labels %d)" % [sid, pills])
+		# Portrait: the map column covers half the camp, and a label never steps sideways off it.
+		# shortcut: portrait keeps one label; let layout_labels try a sideways step if portrait comes back.
+		var want := 1 if UiTokens.is_narrow(logical) else 2
+		_expect(pills >= want and blocks.has("quest"), "camp_%s: at least %d camp labels and the quest card are drawn (labels %d)" % [sid, want, pills])
 		_check_blocks("camp_%s" % sid, blocks, logical)
+		_check_figure("camp_%s" % sid, blocks)
 		await _capture("camp_%s" % sid, [], logical)
 		_player.open_station_craft(st)
 		await get_tree().create_timer(0.6).timeout
@@ -613,6 +638,7 @@ func _camp_and_station(logical: Vector2) -> void:
 		print("[uireal] station %s: %d hexes, %d labels" % [sid, count_prefix(blocks, "xhex"), count_prefix(blocks, "pill")])
 		_expect(count_prefix(blocks, "xhex") >= 1, "station_%s: the station menu shows hexes" % sid)
 		_check_blocks("station_%s" % sid, blocks, logical)
+		_check_figure("station_%s" % sid, blocks)
 		await _capture("station_%s" % sid, [], logical)
 		_player.station_craft.menu.hide_menu()
 		await get_tree().create_timer(0.3).timeout
@@ -634,6 +660,7 @@ func _busy(logical: Vector2) -> void:
 		print("[uireal] %s: toasts=%d notices=%d levelup=%s" % [tag, toasts, notices, blocks.has("levelup")])
 		_expect(toasts >= 3 and notices >= 2, "%s: all 3 toasts and 2 notices are drawn (got %d, %d)" % [tag, toasts, notices])
 		_check_blocks(tag, blocks, logical)
+		_check_figure(tag, blocks)
 		await _capture(tag, [], logical)
 	_hud.set("_levelup_t", -1.0)
 
@@ -654,6 +681,17 @@ static func count_prefix(blocks: Dictionary, prefix: String) -> int:
 	for k in blocks:
 		n += 1 if str(k).begins_with(prefix) and not str(k).contains(".") else 0
 	return n
+
+## The opaque pill (layer 58, above the HUD) keeps off the survivor's name and every HUD block and
+## hex: beside a compy it hid the name whole.
+func _check_plate_pill(tag: String, node: Control, pill: Control) -> void:
+	var pill_rect := pill.get_global_transform() * Rect2(Vector2.ZERO, pill.size)
+	var under := 0
+	for h in (_hud.taken_rects(PackedStringArray(["pill"])) if node.visible else []):
+		under += 1
+		_expect(not pill_rect.grow(-0.5).intersects(h), "%s: pill %s stays off the HUD rect %s" % [tag, pill_rect, h])
+	print("[uireal] %s pill %s shown=%s checked against %d HUD rects (nameplate %s)" % [tag, pill_rect, node.visible, under, _hud.drawn_blocks.get("nameplate")])
+	_expect(_hud.drawn_blocks.has("nameplate"), "%s: the survivor's name is drawn" % tag)
 
 static func _plate_glyphs(entry: Dictionary) -> int:
 	var line3 := entry["line3"] as Control
