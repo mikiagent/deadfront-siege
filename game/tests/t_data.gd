@@ -372,7 +372,7 @@ func _check_ladder() -> void:
 				_expect(str(PS.material_tier(StringName(id), {})) == tier, "%s reads as tier %s" % [id, tier])
 			worst = maxf(worst, float(cost.get(id, 0.0)))
 			gate = maxi(gate, _gate_level(id))
-		print("[t_data] rung %-8s %s  ~%d s of gathering+crafting per tool (stations excluded), skill gate Lv %d" % [tier, ", ".join(_rung_tools(tier)), int(worst), gate])
+		print("[t_data] rung %-8s %s  ~%.1f s of gathering+crafting per tool (stations excluded), skill gate Lv %d" % [tier, ", ".join(_rung_tools(tier)), worst, gate])
 		# A later rung never costs less time or unlocks at a lower skill level than the rung below it.
 		_expect(worst >= prev_worst, "rung %s tools (~%.1f s) cost at least the rung below (~%.1f s)" % [tier, worst, prev_worst])
 		_expect(gate >= prev_gate, "rung %s skill gate Lv %d is not below the rung below (Lv %d)" % [tier, gate, prev_gate])
