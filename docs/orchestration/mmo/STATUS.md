@@ -145,6 +145,9 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - 2026-10-19 (owner): the mobile view is HORIZONTAL (landscape). Phone checks use 844x390, not
   390x844 (GAUNTLET.md's 390x844 is superseded). project.godot already uses sensor-landscape.
 
+- 2026-10-19 (owner): next production deploy waits until W1-LIGHT and W1-UI pass review and merge;
+  then deploy everything merged and verify the stamp.
+
 ## Owner questions (open)
 
 - none
