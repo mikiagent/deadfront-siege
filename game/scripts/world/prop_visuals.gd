@@ -36,30 +36,6 @@ static func attach_model(host: Node3D, kind: StringName) -> Node3D:
 	host.add_child(inst)
 	return inst
 
-static func attach_tool_model(anchor: Node3D, def_id: StringName) -> Node3D:
-	## Kenney tool GLB parented to the survivor's right-hand anchor.
-	if anchor == null:
-		return null
-	var model_key := tool_model_key(def_id)
-	if model_key == "":
-		return null
-	var path := "res://assets/props/kenney/%s.glb" % model_key
-	if not ResourceLoader.exists(path):
-		return null
-	var packed := load(path)
-	if not (packed is PackedScene):
-		return null
-	var inst := (packed as PackedScene).instantiate() as Node3D
-	if inst == null:
-		return null
-	inst.name = "HeldTool"
-	anchor.add_child(inst)
-	# ASSUMPTION: handle spans the hand; Kenney tools face +Y up, rotate to grip.
-	inst.rotation_degrees = Vector3(0.0, 0.0, -80.0)
-	inst.position = Vector3(0.02, 0.02, 0.0)
-	inst.scale = Vector3.ONE * 0.55
-	return inst
-
 static func tool_model_key(def_id: StringName) -> String:
 	var tools: Dictionary = Data.props_manifest.get("tools", {})
 	var key := str(def_id)
