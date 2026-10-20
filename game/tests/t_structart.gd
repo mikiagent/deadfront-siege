@@ -206,7 +206,7 @@ func _check_hooks(buildings: Dictionary) -> bool:
 		failures.append("hook: taming pen collider %s is a fence segment, not the 4x4 ring" % pen)
 	_check_gate_hook()
 	_check_catapult_hook()
-	print("[t_structart] hooks applied: gate leaves swing, catapult and pen use the Blender set")
+	print("[t_structart] hooks applied: gate leaves, catapult model and pen collider checked")
 	return true
 
 func _check_gate_hook() -> void:

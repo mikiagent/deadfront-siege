@@ -264,10 +264,11 @@ def paint_atlas():
         # weathered: sun-bleached but still warm timber (gate pickets, smoker door, pier deck); a cold
         # grey read as stone paving on the pier at set distance
         "weathered": _grain(8, (0.6, 0.48, 0.35), (0.36, 0.27, 0.18), rings=12),
-        # canvas: warm tan, a step below cream, so the shaded slopes stay canvas under the blue sky
-        # ambient (Forward+) and the lit ones do not blow out in gl_compatibility
-        "canvas": _mix(_weave(9, (0.66, 0.55, 0.39), (0.54, 0.44, 0.3), cell=3),
-                       _rgb((0.48, 0.38, 0.26)), np.clip(_fbm(_rng(10), TILE_PX, 3, 3) - 0.45, 0, 1)),
+        # canvas: oiled ochre, not cream. The sky-lit shade (W1-LIGHT) passes ~0.31/0.5/0.8 of R/G/B,
+        # so cream turned slate blue on the slope facing away from the sun; R/B >= 2.6 lands that
+        # slope near neutral-warm, and the sunlit slope no longer blows out in gl_compatibility.
+        "canvas": _mix(_weave(9, (0.7, 0.47, 0.27), (0.56, 0.36, 0.2), cell=3),
+                       _rgb((0.5, 0.32, 0.18)), np.clip(_fbm(_rng(10), TILE_PX, 3, 3) - 0.45, 0, 1)),
         "hide": _speckle(11, (0.62, 0.45, 0.31), (0.45, 0.31, 0.2), light=(0.72, 0.56, 0.4), scale=5),
         "rope": _stripes(12, (0.74, 0.62, 0.42), (0.45, 0.36, 0.22), freq=12, angle=0.7, sharp=2, noise=0.2),
         "thatch": _stripes(13, (0.66, 0.55, 0.33), (0.42, 0.32, 0.17), freq=30, angle=0.03, sharp=3, noise=0.6),
