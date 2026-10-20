@@ -312,6 +312,7 @@ func _test_optional_clips() -> void:
 		rex.anim.play_clip(&"idle")
 		_advance(rex, 0.25)
 	_expect_authored_feed(rex, &"tyrannosaurus")
+	_expect_rest_sleep(rex)
 	rex.free()
 	# The velociraptor and the zebraceratops gained authored sleep/feed clips (dsc re-animation).
 	var c
@@ -352,6 +353,41 @@ func _test_optional_clips() -> void:
 func _expect_authored_feed(c, id: StringName) -> void:
 	var gap := _pose_gap(c.anim.player.get_animation(&"idle"), c.anim.player.get_animation(&"feed"))
 	_expect(gap > 0.1, "%s feed is authored, not the idle copy: largest bone-rotation gap to idle %.3f rad (want > 0.1)" % [id, gap])
+
+## The T. rex sleeps belly-down like a resting bird (DSC-CLIPS review): lowest bone on the floor, each foot flat on
+## the ground on its own side with the toes forward, the arms not crossing. The first clip floated 0.8 m up; the
+## interim one crossed the legs and put a foot on top of the hip with its claws up.
+func _expect_rest_sleep(c) -> void:
+	var skel: Skeleton3D = c.view.rig.skeleton
+	var pos := func (b: int) -> Vector3: return c.view.to_local(skel.global_transform * skel.get_bone_global_pose(b).origin)
+	var dir := func (b: String) -> Vector3: return (c.view.global_basis.inverse() * skel.global_basis * skel.get_bone_global_pose(skel.find_bone(b)).basis.y).normalized()
+	c.anim.play_clip(&"idle")
+	_advance(c, 0.5)
+	var hip_h: float = pos.call(skel.find_bone("Thigh.L")).y
+	c.anim.play_clip(&"sleep", true)
+	_advance(c, 1.0)  # crossfade done; mid-breath
+	var floor_y := INF
+	for b in skel.get_bone_count():
+		floor_y = minf(floor_y, pos.call(b).y)
+	var hl: Vector3 = pos.call(skel.find_bone("Thigh.L"))
+	var hr: Vector3 = pos.call(skel.find_bone("Thigh.R"))
+	var mid := (hl + hr) * 0.5
+	var lat := (hr - hl).normalized()
+	var fwd: Vector3 = pos.call(skel.find_bone("Head")) - mid
+	fwd = Vector3(fwd.x, 0.0, fwd.z).normalized()
+	var bad: Array[String] = []
+	for side in [["L", -1.0], ["R", 1.0]]:
+		var toe: Vector3 = pos.call(skel.find_bone("Toe." + side[0]))
+		var hand: Vector3 = pos.call(skel.find_bone("Hand." + side[0]))
+		var mt: Vector3 = dir.call("Metatarsal." + side[0])
+		var td: Vector3 = dir.call("Toe." + side[0])
+		if toe.y - floor_y > 0.12 * hip_h:
+			bad.append("Toe.%s %.2f m off the floor" % [side[0], toe.y - floor_y])
+		if (toe - mid).dot(lat) * side[1] <= 0.0 or (hand - mid).dot(lat) * side[1] <= 0.0:
+			bad.append("%s foot or hand crosses the midline" % side[0])
+		if absf(mt.y) > 0.5 or mt.dot(fwd) < 0.5 or td.dot(fwd) < 0.6:
+			bad.append("%s foot not flat heel-back toes-forward (metatarsal up %.2f fwd %.2f, toe fwd %.2f)" % [side[0], mt.y, mt.dot(fwd), td.dot(fwd)])
+	_expect(floor_y < 0.03 * hip_h and bad.is_empty(), "tyrannosaurus sleep rests on its belly: lowest bone %.2f m (idle hip %.2f m) %s" % [floor_y, hip_h, ", ".join(bad) if bad else "feet flat on their own side, toes forward"])
 
 ## Largest bone-rotation difference (radians) between two clips at 25/50/75 %; 0 means b is a copy of a.
 func _pose_gap(a: Animation, b: Animation) -> float:
