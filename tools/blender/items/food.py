@@ -79,6 +79,7 @@ def seasoned_roast():
     leaf(0.5, 0.18, loc=(0.35, -0.55, 0.4), rot=(70, 20, 0), m=g_m, curl=0.06)
     turn(10)
     lean(-42)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def grilled_meat():
@@ -99,6 +100,7 @@ def grilled_meat():
     leaf(0.45, 0.16, loc=(-0.75, -0.4, 0.0), rot=(60, 30, 0), m=mat("#4f9a3a", 0.5), curl=0.05)
     turn(24)
     turn(40, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def dried_meat():
     _strips(mat("#8e3420", 0.6, color2="#d8906a", tex="noise", scale=4.0, bump=0.4, ramp=(0.6, 0.75)))
 
@@ -124,6 +126,7 @@ def smoked_meat():
               loc=(-0.75 + 0.09 * i, 0.35 + 0.06 * i, -0.1), rot=(0, 12 + 14 * i, 0), m=jerky, bev=0.01)
     turn(12)
     lean(-40)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def skewer():
@@ -151,6 +154,7 @@ def fish():
     ball(0.13, loc=(1.02, -0.3, 0.14), m=mat("#f0f4f0", 0.25), sub=3)
     ball(0.075, loc=(1.05, -0.4, 0.15), m=mat("#0a0a0a", 0.1, coat=1.0), sub=2)
     lean(52)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def sashimi():
@@ -255,6 +259,7 @@ def burnt_food():
     for dx in (-0.09, 0.09):
         ball(0.15, loc=(dx, 0, 1.42), m=b, sub=2)
     lean(-42)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def steamed_food():
@@ -321,6 +326,7 @@ def berry():
     leaf(0.65, 0.26, loc=(0.18, 0.0, 1.0), rot=(5, 55, 0), m=calyx, curl=0.12)
     turn(18)
     turn(10, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def mango():
@@ -335,6 +341,7 @@ def mango():
          m=mat("#3e7a34", 0.5, color2="#2a5a24", tex="wave", scale=8.0), curl=0.12)
     turn(20)
     turn(12, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def coconut():

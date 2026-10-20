@@ -79,6 +79,7 @@ def stone_knife():
     for z in (0.05, 0.14, 0.23):
         tube(arc((0, 0, 0), 0.16, 0, 360, 16, plane="xy", y=z)[:-1], 0.025, mat("#e8dcc0", 0.6), segs=4, closed=True)
     lean(-42)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def stone_knife_work():
     blade = [(-0.12, 1.3), (0.3, 1.02), (0.32, 0.12), (-0.26, 0.12), (-0.3, 0.92)]
     prism(blade, 0.18, m=stone("#a7a8a0", "#77786f"), bev=0.03,
@@ -240,6 +241,7 @@ def capture_net_ii():
         ball(0.08, loc=(R * 0.97 * math.cos(a), R * 0.97 * math.sin(a) * 0.55, -0.06), m=lead, sub=2, parent=hoop)
     turn(20, "X")
     lean(-30)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def raid_helm():
     """Raid hide helm: a raider's war helm: a shaped hide skull with a bone brow band, a red-dyed
     plume crest, two bone horns and riveted cheek plates. Armour only, no head inside."""
@@ -274,6 +276,7 @@ def raid_helm():
     # A nose guard.
     box((0.12, 0.1, 0.4), loc=(0, -0.82, 0.55), rot=(8, 0, 0), m=bone, bev=0.02)
     turn(-18)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def raid_cuirass():
@@ -306,6 +309,7 @@ def raid_cuirass():
     for k in range(4):
         blob(0.11, loc=(0, 0.3, 0.5 - 0.28 * k), scl=(0.8, 0.5, 1.3), m=bone, amp=0.06)
     turn(-14)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def raid_greaves():
@@ -335,6 +339,7 @@ def raid_greaves():
                  closed=True, parent=g)
             box((0.12, 0.1, 0.1), loc=(0.3, 0.28, z), m=iron, bev=0.02, parent=g)
     turn(-12)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 ITEMS = {

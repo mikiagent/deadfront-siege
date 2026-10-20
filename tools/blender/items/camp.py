@@ -268,6 +268,7 @@ def sign_kit():
     _lash(0, 0, 0.05, rope_m(), r=0.16)
     tube(arc((0, 0, 1.0), 0.14, 0, 180, 12, plane="xz"), 0.035, rope_m(), segs=5)
     turn(-20)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def bandage():
@@ -378,6 +379,7 @@ def heavy_snare():
             r2=0.09, smooth=False)
     turn(32, "X")
     lean(-24)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def _pole(x, y, z0, z1, m, r=0.06, tilt=0.0, parent=None):
@@ -488,11 +490,13 @@ def field_large_kit():
     """Large field kit: long frame planks, a bundle of stakes, a seed pouch and a heavy hoe blade,
     all lashed with rope."""
     _field_kit(1.15, 5)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def field_small_kit():
     """Small field kit: a short bundle of frame planks and three stakes, a small seed pouch tied on."""
     _field_kit(0.7, 3)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def log_shelter_kit():
@@ -538,6 +542,7 @@ def makeshift_taming_pen():
     box((0.36, 0.08, 0.08), loc=(-0.15, -0.25, 0.62), rot=(0, 0, 20), m=bonem("#e2d2a8"), bev=0.02)
     box((0.1, 0.08, 0.3), loc=(0.05, -0.25, 0.7), rot=(0, 0, 20), m=w, bev=0.02)
     turn(-14)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def smoker_kit():
@@ -566,6 +571,7 @@ def smoker_kit():
         box((0.12, 0.08, 0.03), loc=(0.55 + 0.1 * k, -0.55, -1.05), rot=(0, 0, 20 * k), m=chip, bev=0.005)
     turn(-20)
     turn(8, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def steamer_kit():
@@ -625,6 +631,7 @@ def stone_fire_pit_kit():
         tube([(x, -0.5, z) for x in (-0.75, -0.25)], 0.03, rp, segs=5)
     turn(-22)
     turn(10, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def carnivore_feed():
@@ -670,6 +677,7 @@ def herbivore_feed():
           segs=20, loc=(-0.65, 0.35, 0.3), rot=(20, 0, 0))
     turn(18)
     turn(14, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def fruit_fertilizer():
@@ -690,6 +698,7 @@ def fruit_fertilizer():
     leaf(0.5, 0.2, loc=(1.0, -0.2, 0.42), rot=(0, 40, 0), m=lid, curl=0.08)
     turn(16)
     turn(16, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def pressure_dressing():
@@ -713,6 +722,7 @@ def pressure_dressing():
           m=strap, bev=0.02, deform=lambda co: co.__setitem__(1, co.y + 0.18 * co.x * co.x))
     turn(12)
     turn(22, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 # ---------------------------------------------------------------- cages (owner rule)
@@ -750,7 +760,7 @@ def _cage(door_deg=0.0):
                 cyl(0.032, 2 * H - 0.2, loc=(fixed, t, 0), m=w2, segs=6)
     # The near sides carry fewer bars than the far ones, so the animal inside stays readable at
     # slot size while the cage still reads as slatted on every side.
-    bars(-D, "x", 3, -W + 0.3, W - 0.3)
+    bars(-D, "x", 2, -W + 0.36, W - 0.36)
     bars(D, "x", 9, -W + 0.1, W - 0.1)
     bars(-W, "y", 5, -D + 0.16, D - 0.16)
     bars(W, "y", 4, -D + 0.2, D - 0.2)
@@ -818,9 +828,10 @@ def captured_animal():
     _cage()
     # Neck and head rise out of the open top: at 64 px the animal inside a closed cage would be
     # just bars.
-    _small_dino(loc=(-0.15, 0.2, 0.0), rot=(0, 0, -30)).scale = (1.4, 1.4, 1.4)
+    _small_dino(loc=(-0.12, 0.18, 0.12), rot=(0, 0, -32)).scale = (1.85, 1.85, 1.85)
     turn(-22)
-    turn(14, "X")
+    turn(30, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def tamed_animal():
@@ -828,7 +839,7 @@ def tamed_animal():
     collar and lead hung on the door: an animal that has been tamed and walks with you (owner rule)."""
     door = _cage(door_deg=78.0)
     tame = hidem("#a85a2a", "#6a3010")
-    _small_dino(loc=(-0.05, 0.28, -0.02), rot=(0, 0, 22), collar=tame).scale = (1.4, 1.4, 1.4)
+    _small_dino(loc=(-0.02, 0.26, 0.1), rot=(0, 0, 20), collar=tame).scale = (1.8, 1.8, 1.8)
     collar = hidem("#8a4a20", "#5a2c10")
     # A spare hide collar hung over the open door's top rail, with its lead and a bone ring.
     tube(arc((0, 0, 0), 0.26, 20, 340, 20, plane="xz", y=0), 0.06, collar, segs=6, parent=door)
@@ -837,7 +848,8 @@ def tamed_animal():
     tube(arc((0.44, -0.06, -1.20), 0.07, 0, 360, 12, plane="xz")[:-1], 0.022, bonem(), segs=4, closed=True,
          parent=door)
     turn(-22)
-    turn(14, "X")
+    turn(30, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def _unknown():

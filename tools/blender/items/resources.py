@@ -94,6 +94,7 @@ def pillar():
              closed=True)
     turn(28)
     lean(-15)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def bamboo():
     g_m = mat("#86b83f", 0.35, color2="#5e8f2a", tex="wave", scale=6.0, coat=0.4)
     node = mat("#c9c86a", 0.45)
@@ -136,6 +137,7 @@ def obsidian():
         tube([(p_[0], p_[1] - r * 0.5, p_[2] - r * scl[2] * 0.85),
               (p_[0] + 0.05, p_[1] - r * 0.58, p_[2] + r * scl[2] * 0.85)], 0.024, edge, segs=4)
     rock(0.72, loc=(0, 0.28, -0.9), scl=(1.35, 0.9, 0.35), m=stone("#a8a8a2", "#74746e"), jitter=0.1, sub=2)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def sandstone():
     cols = ("#dcb47c", "#c99a5e", "#e3c08a")
     for i, z in enumerate((-0.5, -0.1, 0.3)):
@@ -212,6 +214,7 @@ def metal_shard():
           rot=(0, 0, 18), m=plate, bev=0.02)
     lean(-18)
     turn(20)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def _ingot(c, rough=0.28, shape="bar"):
     """An ingot stack. shape: 'bar' (tapered cast bar), 'loaf' (a flat rounded cast loaf, the
     generic ingot)."""
@@ -230,6 +233,7 @@ def ingot():
     """A generic ingot: a rounded loaf of pale grey metal, cast in a hollow, without sharp edges, so
     it reads apart from the iron and steel bars."""
     _ingot("#9ea4ae", 0.42, shape="loaf")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def copper_ingot():
     _ingot("#c8743c")
 
@@ -246,6 +250,7 @@ def iron_ingot():
         for s in (-1, 1):
             box((0.18, 0.5, 0.24), loc=(loc[0] + s * 0.56, loc[1], loc[2] - 0.01), m=m, bev=0.07)
     turn(24)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def steel_ingot():
     """Steel: bright polished bars, sharp true edges, a cold blue sheen and a stamped mark on top."""
     m = mat("#dfe8f2", 0.1, metal=0.95, color2="#8fa0b4", tex="noise", scale=5.0, bump=0.03)
@@ -255,6 +260,7 @@ def steel_ingot():
              mat("#f4f8ff", 0.05, metal=1.0), segs=4)
     box((0.4, 0.2, 0.02), loc=(0, 0, 0.53), m=mat("#4e5a68", 0.3), bev=0.004)
     turn(24)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def charcoal():
     m = mat("#1e1e20", 0.55, color2="#3a3a3e", tex="voronoi", scale=5.0, bump=0.4, spec=0.6)
     for p, r, s in (((0, 0, 0), 0.6, (1.3, 0.9, 0.8)), ((0.85, -0.1, -0.15), 0.4, (1.2, 1.0, 0.8)),
@@ -299,6 +305,7 @@ def dense_bone():
     for k in range(6):  # pits and scars
         rock(0.05, loc=(-0.4 + 0.16 * k, -0.2, 0.1 * (k % 2) - 0.05), m=mat("#7a6440", 0.9), jitter=0.4, sub=0)
     lean(-40)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def raptor_talon():
     pts = arc((-0.6, 0, -0.3), 1.0, -15, 80, 16)
     tube(pts, 0.28, mat("#3a3128", 0.3, color2="#d8c39a", tex="noise", scale=1.5, coat=0.6), segs=14, taper=(1.0, 0.04))
@@ -419,6 +426,7 @@ def clay():
     blob(0.32, loc=(0.75, -0.4, -0.45), scl=(1.3, 1.0, 0.4), m=m, amp=0.3, sub=2)  # a pinch of trimmings
     turn(14)
     turn(10, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def resin():
     m = mat("#e8941e", 0.08, color2="#c8641a", tex="noise", scale=2.0, coat=1.0, emit="#ff9a2a", emit_strength=0.8)
     lathe([(0, 1.2), (0.12, 1.0), (0.4, 0.6), (0.62, 0.25), (0.66, 0.0), (0.55, -0.25), (0.3, -0.4), (0, -0.42)], m=m)
@@ -467,6 +475,7 @@ def raw_hide():
                               (-0.2, -0.6, 0.1, -0.5)):
         tube([(x0, -0.06, z0), ((x0 + x1) / 2, -0.09, (z0 + z1) / 2 + 0.06), (x1, -0.06, z1)], 0.035, fat, segs=4)
     turn(-8)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def raptor_hide():
     """Raptor hide: a feathered green hide: dark bands of feather rows across a moss-green skin,
     quills along the torn edge (raw_hide is the bare, wet flesh side)."""
@@ -490,6 +499,7 @@ def raptor_hide():
         z = z0 + (z1 - z0) * 0.5
         tube([(x * 0.92, 0.03, z * 0.92), (x * 1.04, 0.05, z * 1.04)], 0.03, tuft, segs=4, taper=(1.0, 0.3))
     turn(-10)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 def dried_hide():
     """Dried hide: a stiff, translucent-amber sheet of rawhide with the fur scraped off, its edges
     curled hard and a few crackle wrinkles; pegged out flat like a drying frame."""
@@ -556,29 +566,36 @@ def thread():
 
 
 def cloth_item():
-    """Cloth: three folded lengths of woven cloth stacked (linen, rust, indigo), each with soft folds
-    and a frayed edge, the top one unfolded a little over the pile."""
+    """Cloth: a bolt of woven cloth stood on end: a roll of linen with its layered end toward the
+    camera, two folded lengths stacked on it (rust, indigo) and a fringed length falling forward."""
     linen = _weave("#d8cdb0", "#b0a482", scale=34.0, bump=0.9)
     rust = _weave("#b06040", "#8a4230", scale=32.0, bump=0.9)
     blue = _weave("#7a8fa8", "#566a82", scale=30.0, bump=0.9)
     fringe = mat("#c4b896", 1.0, color2="#9a8e70", tex="noise", scale=20.0, bump=0.2)
-    # Three folded sheets: each a gently waving sheet, stacked with a slight offset.
-    for i, (z, m) in enumerate(((-0.5, blue), (-0.22, rust), (0.06, linen))):
-        def fold(u, v, k=i):
-            x = (u * 2.0 - 1.0) * (1.0 - 0.12 * v)
-            return (x + 0.05 * k, 0.12 * math.sin(x * 2.2 + k) + 0.04 * math.sin(v * 6.0), z + v * 0.2 - 0.06 * u * u)
-        _sheet(13, 7, fold, m, thick=0.06)
-    # The top length unfolds forward over the pile edge, its hem frayed.
+    # The bolt stood on end: a cylinder with its layered end facing the camera.
+    cyl(0.42, 1.3, m=linen, segs=26)
+    for r in (0.34, 0.24, 0.14):
+        cyl(r, 0.03, loc=(0, -0.66, 0), rot=(90, 0, 0),
+            m=mat("#c8bc9a", 0.9, color2="#a89a78", tex="wave", scale=40.0), segs=26)
+    # Two folded lengths stacked on top of the bolt.
+    for (z, m, rot_) in ((0.78, rust, 6), (0.98, blue, -5)):
+        def fold(u, v, k=z):
+            x = (u * 2.0 - 1.0) * 0.55
+            return (x, 0.12 * math.sin(x * 3.0 + k) + 0.04 * math.sin(v * 6.0), z + v * 0.18 - 0.04 * u * u)
+        _sheet(11, 7, fold, m, thick=0.05)
+    # The fringed end of the linen falling forward off the bolt.
     def drape(u, v):
-        x = (u * 2.0 - 1.0) * 1.05
-        return (x, -0.1 - 0.3 * v + 0.1 * math.sin(x * 2.4) * v, 0.26 - 0.55 * v * v - 0.1 * v)
-    _sheet(13, 9, drape, linen, thick=0.05)
-    for k in range(8):
-        x = -0.85 + 0.24 * k
-        tube([(x, -0.4, -0.34), (x + 0.03, -0.44, -0.5 - 0.04 * (k % 3))], 0.014, fringe, segs=4)
+        x = (u * 2.0 - 1.0) * 0.62
+        return (x, -0.35 - 0.16 * v + 0.06 * math.sin(x * 3.0), 0.3 - 0.95 * v * v - 0.1 * v)
+    _sheet(11, 9, drape, linen, thick=0.045)
+    for k in range(7):
+        x = -0.55 + 0.18 * k
+        tube([(x, -0.5, -0.62), (x + 0.03, -0.54, -0.76 - 0.04 * (k % 3))], 0.013, fringe, segs=4)
     turn(14)
-    turn(16, "X")
+    turn(10, "X")
     upright()  # flat item: diagonal so the slot can lift it above its top edge
+
+
 def _bundle(stalk_m, n=11, h=2.2, tops=None, spread=0.5):
     for i in range(n):
         x = (i - (n - 1) / 2) / ((n - 1) / 2)
@@ -672,6 +689,7 @@ def willow_wood():
     for i, (x, z, ang) in enumerate(((0.62, 1.0, 30), (0.72, 0.35, 55), (-0.6, 0.8, -35), (-0.62, 0.25, -60))):
         leaf(0.62, 0.09, loc=(x, 0.06, z), rot=(0, ang, 0), m=g_m, curl=0.12, parent=g)
     lean(-22)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def snow_pine():
@@ -727,6 +745,7 @@ def ash():
     blob(0.06, loc=(0.05, 0.2, 0.66), m=ember, amp=0.2, sub=2)
     turn(15)
     turn(18, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def bark_strip():
@@ -776,6 +795,7 @@ def cactus_spine():
         cyl(0.02, 0.16, loc=(0.3 * math.cos(a), 0.1, -0.82 + 0.1 * math.sin(a)), rot=(20, 0, 70 * math.cos(a)),
             r2=0.0, m=m, segs=5)
     lean(-30)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def _weave(c, c2, scale=60.0, bump=0.45):
@@ -905,6 +925,7 @@ def leech():
         cyl(0.08, 0.09, loc=(p[0], p[1] - 0.02, p[2]), rot=(90, 0, 0), m=mat("#2a0a12", 0.3), segs=12)
     turn(-6)
     turn(8, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def marsh_herb():
@@ -926,6 +947,7 @@ def marsh_herb():
         tube([(0, 0, 0.6 + 0.08 * k), (0.4 * math.cos(a), 0.15 * math.sin(a), 0.85 + 0.05 * k)], 0.02, stem, segs=4)
     turn(12)
     lean(-8)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def spice_herb():
@@ -950,6 +972,7 @@ def spice_herb():
         tube([(0, 0, 1.1), (0.3 * math.cos(a), 0.1, 1.3)], 0.02, stem, segs=4)
         ball(0.07, loc=(0.33 * math.cos(a), 0.1, 1.33), scl=(1, 1, 1.6), m=pod, sub=1)
     lean(-18)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def petals():
@@ -1007,6 +1030,7 @@ def reed():
     tie = rope_m("#b85a2a")
     tube(arc((0, 0, 0), 0.27, 0, 360, 16, plane="xy", y=-0.12)[:-1], 0.045, tie, segs=6, closed=True)
     lean(-16)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def root():
@@ -1026,6 +1050,7 @@ def root():
     for p in ((0.25, -0.15, 0.35), (-0.3, -0.1, -0.15), (0.15, 0.15, -0.35)):
         rock(0.14, loc=p, m=soil, jitter=0.3, sub=1)
     lean(-20)
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def vine():
@@ -1045,6 +1070,7 @@ def vine():
         p = pts[k]
         leaf(ln, 0.3, loc=(p[0], p[1] + 0.04, p[2] + 0.08), rot=(20, ang, 0), m=g_m, curl=0.14)
     turn(35, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def mud():
@@ -1064,6 +1090,7 @@ def mud():
     leaf(0.8, 0.09, loc=(-0.25, -0.15, 0.45), rot=(0, -50, 0), m=blade, curl=0.15)
     turn(12)
     turn(10, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def ochre():
@@ -1099,6 +1126,7 @@ def peat():
         rock(0.09, loc=p_, m=crumb, jitter=0.35, sub=1)
     turn(15)
     turn(12, "X")
+    upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 ITEMS = {
