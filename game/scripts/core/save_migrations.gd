@@ -98,12 +98,15 @@ static func read(p: String) -> Dictionary:
 		return out
 	# A script error aborts clean() but still hands back a Dictionary (half-checked), so success is
 	# the sentinel it sets as its last statement; a forged copy of the key is erased first.
-	data.erase(SaveSanitizer.CHECKED)
-	var cleaned: Dictionary = SaveSanitizer.clean(data)
-	if cleaned.get(SaveSanitizer.CHECKED) != true:
+	# Loaded, not named: the sanitizer reads autoloads, and run_all.gd compiles this file before they exist.
+	var san: GDScript = load("res://scripts/core/save_sanitizer.gd")
+	var checked: String = san.CHECKED
+	data.erase(checked)
+	var cleaned: Dictionary = san.clean(data)
+	if cleaned.get(checked) != true:
 		out["error"] = "it could not be checked"
 		return out
-	cleaned.erase(SaveSanitizer.CHECKED)
+	cleaned.erase(checked)
 	out["data"] = cleaned
 	out["schema"] = schema
 	return out
