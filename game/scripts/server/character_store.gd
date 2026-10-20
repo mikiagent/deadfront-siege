@@ -193,6 +193,7 @@ func open() -> String:
 		return ""
 	DirAccess.make_dir_recursive_absolute(dir)
 	var snap := dir.path_join("snapshot.json")
+	var migrated := 0
 	if FileAccess.file_exists(snap):
 		var parsed: Variant = _parse(FileAccess.get_file_as_string(snap))
 		if not parsed is Dictionary or int(parsed.get("v", 0)) != VERSION:
@@ -202,6 +203,7 @@ func open() -> String:
 		s.erase("data") # lives only in the file, so the state hash does not depend on it
 		if int(s.world_seed) != _seed:
 			return "world_seed differs from the one this store was written under"
+		migrated = migrate_stacks() # before the journal: a clean shutdown left it empty
 	var path := dir.path_join("journal.jsonl")
 	if not FileAccess.file_exists(snap):
 		# Genesis goes to disk first, so world_seed is never only in memory (a journal replayed
@@ -240,7 +242,26 @@ func open() -> String:
 		# The journal just replayed under new rules; snapshot so later boots do not repeat that.
 		push_warning("[srv] data files changed since the last snapshot; the journal replayed under the new rules")
 		return snapshot()
-	return ""
+	return snapshot() if migrated > 0 else ""
+
+## W2-INV: characters stored while materials stacked get one row per unit (CharacterState.
+## split_stacks); what the 100-slot bag cannot hold goes to their home storage. Logged per
+## character. Returns how many characters changed.
+func migrate_stacks() -> int:
+	var changed := 0
+	for key: String in s.chars:
+		var got := CharacterState.split_stacks(s.chars[key])
+		if got.is_empty():
+			continue
+		changed += 1
+		s.chars[key] = norm(s.chars[key])
+		var parts := PackedStringArray()
+		var stored := 0
+		for id: String in got.stored:
+			parts.append("%s x%d" % [id, got.stored[id]])
+			stored += int(got.stored[id])
+		print("[srv] migration: char %s: bag %d slots, %d rows split from stacks, %d units to home storage%s" % [key, (s.chars[key].bag as Array).size(), got.split, stored, " (%s)" % ", ".join(parts) if not parts.is_empty() else ""])
+	return changed
 
 ## Verified write of the snapshot, then a fresh journal (everything in it is now covered).
 func snapshot() -> String:
@@ -301,7 +322,7 @@ func invariants() -> Array[String]:
 	var pets := 0
 	for key: String in s.chars:
 		var ch: Dictionary = s.chars[key]
-		for row: Variant in ch.bag:
+		for row: Variant in (ch.bag as Array) + (ch.get("storage", []) as Array): # storage: W2-INV home storage
 			if not row is Dictionary or str(row.id) == str(CharacterState.LOCK):
 				continue
 			if int(row.count) < 1 or int(row.durability) < 0:

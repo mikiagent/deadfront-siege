@@ -264,8 +264,9 @@ func _full_bag_craft() -> void:
 	var out := Crafting.craft(_player, rec, Crafting.default_picks(_player.inventory, rec))
 	var hud := get_tree().get_first_node_in_group("hud")
 	var notices := str(hud.get("_events").notices) if hud and hud.get("_events") else ""
-	_check(out == null and _player.inventory.to_array() == before, "full bag: craft refused, inputs unchanged")
-	_check(notices.contains("Bag is full"), "full bag: refusal notice shown")
+	# W2-INV: inputs are one instance per slot, so spending them frees the slot the knife needs.
+	_check(out != null and _player.inventory.count_of(&"stone_knife_work") == 1 and _player.inventory.count_of(&"stone") == 1, "full bag: the craft goes through on the slots its inputs free")
+	_check(not notices.contains("Bag is full"), "full bag: no refusal notice")
 
 ## Start a skewer at `fire` with one meat and one branch (level 4) in an otherwise empty bag.
 func _start_skewer(fire: Node3D, meat: int = 1, branch: int = 1) -> StationCraft:
@@ -308,8 +309,9 @@ func _finish_waits_for_room() -> void:
 	sc._process(0.1)
 	var hud := get_tree().get_first_node_in_group("hud")
 	var notices := str(hud.get("_events").notices) if hud and hud.get("_events") else ""
-	_check(sc.crafting and _inputs_home(2, 2) and _player.inventory.count_of(&"skewer") == 0, "a finished craft with a full bag waits, inputs untouched")
-	_check(notices.contains("make room to finish"), "the wait tells the player to make room")
+	# W2-INV: the spent meat and branch instances free a slot, so the skewer lands without a wait.
+	_check(not sc.crafting and _inputs_home(1, 1) and _player.inventory.count_of(&"skewer") == 1, "a finished craft with a full bag lands in the slot its inputs freed")
+	_check(not notices.contains("make room to finish"), "no make-room wait")
 	_player.inventory.remove_at(_player.inventory.slot_count - 1, 1)
 	sc._process(FULL_RETRY)
 	_check(not sc.crafting and _player.inventory.count_of(&"skewer") == 1 and _inputs_home(1, 1), "it finishes once a slot frees up")

@@ -341,10 +341,11 @@ func _test_corpse_full_bag() -> void:
 	var take_s: float = (load("res://scripts/player/player_actions.gd") as GDScript).get_script_constant_map()["CORPSE_TAKE_SECONDS"]
 	await create_timer(take_s + 0.3, true, true).timeout
 	var left = corpse.loot.slots[slot]
-	_expect(left != null and left.count == 3 and is_equal_approx(player.skills.xp_of("butchering"), xp0), "full bag: the stack stays in the corpse, no XP (count %d)" % (left.count if left else 0))
+	_expect(left != null and corpse.loot.count_of(&"raw_meat") == 3 and is_equal_approx(player.skills.xp_of("butchering"), xp0), "full bag: the meat stays in the corpse, no XP (count %d)" % corpse.loot.count_of(&"raw_meat"))
 	player.inventory = bag
 	var moved: int = player.actions.loot(corpse, slot)
-	_expect(moved == 3 and corpse.loot.slots[slot] == null and is_equal_approx(player.skills.xp_of("butchering") - xp0, 3.0), "with room: moved %d, XP +%.0f once" % [moved, player.skills.xp_of("butchering") - xp0])
+	# W2-INV: three meat are three instances; a take moves the one in its slot.
+	_expect(moved == 1 and corpse.loot.slots[slot] == null and is_equal_approx(player.skills.xp_of("butchering") - xp0, 3.0), "with room: moved %d, XP +%.0f once" % [moved, player.skills.xp_of("butchering") - xp0])
 	corpse.queue_free()
 	await process_frame
 

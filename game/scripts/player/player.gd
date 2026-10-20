@@ -30,7 +30,7 @@ var controls: PlayerInput
 var actions: PlayerActions
 var pets: PlayerPets
 
-var inventory: Inventory = Inventory.new(20)
+var inventory: Inventory = Inventory.new() # Inventory.BASE_SLOTS (pack 05)
 var vitals: Vitals
 var statuses: StatusEffects
 var hunt: Hunt

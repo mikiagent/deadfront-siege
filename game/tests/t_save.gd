@@ -1,10 +1,17 @@
 extends SceneTree
 ## W1-SAVE: crash-safe, sanitized, isolated saves. Prints "[t_save] PASS" (or FAIL lines), exits 0/1.
 ##   Godot --headless --path game --script res://tests/t_save.gd
-## `-- --write-golden` re-stages a camp and rewrites save_v3_golden.json and save_truncated.json.
+## `-- --write-golden` re-stages a camp and rewrites the instance-format goldens (GOLDEN, AWAY_GOLDEN).
+## save_v3_golden.json, save_v3_away_golden.json and save_truncated.json are the base's stacked
+## saves from before W2-INV: kept byte for byte, they are the real old saves the migration must load.
 ## Scripts that touch autoloads load on the first frame (see run_all.gd), so everything is load()ed.
 
 const FIX := "res://tests/fixtures/"
+## W2-INV: the current format (one instance per row, worn gear under inventory_extras.worn).
+const GOLDEN := "save_v3_inst_golden.json"
+const AWAY_GOLDEN := "save_v3_inst_away_golden.json"
+## Stacked saves from before W2-INV; their round trip checks the split instead of byte equality.
+const STACKED := ["save_v3_golden.json", "save_v3_away_golden.json"]
 const RUN_DIR := "user://runs/t_save"
 ## Island state regenerated on load, not save format: excluded from field-for-field compares.
 ## A snare's life_left loses the 0-1 s of offline time each load counts.
@@ -74,9 +81,10 @@ func _run() -> void:
 		quit(0)
 		return
 	_test_two_saves()
-	for name in ["save_v0.json", "save_v1.json", "save_v2.json", "save_v3_golden.json", "save_v3_away_golden.json"]:
+	for name in ["save_v0.json", "save_v1.json", "save_v2.json", "save_v3_golden.json", "save_v3_away_golden.json", GOLDEN, AWAY_GOLDEN]:
 		await _test_round_trip(name)
 	await _test_forged()
+	await _test_stacked_migration()
 	await _test_truncated()
 	await _test_future()
 	await _test_backup_fallback()
@@ -156,7 +164,21 @@ func _test_round_trip(name: String) -> void:
 	_check(diffs.is_empty(), "%s re-saves field-for-field equal: %s" % [name, diffs.slice(0, 6)])
 	if LEGACY.has(name):
 		_check_legacy(name, s1)
-	if name.begins_with("save_v3_"):
+	if name in STACKED:
+		var old: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
+		var away := str(s1.get("island_id", "")) != "home_grassland"
+		_check_split(name, old, s1, away)
+		if away:
+			# The home camp's contents wait as saved rows while the survivor is away; they split
+			# when the camp is rebuilt on the way home (World.travel's two steps).
+			W.load_island(host, &"home_grassland", Vector3(0, 1, 12), false)
+			SG._restore_buildings(W._home_buildings_cache, SaveMigrations.CURRENT_SCHEMA)
+			await process_frame
+			SG.save_now()
+			var home_old := old.duplicate(true)
+			home_old.erase("away") # what was built on the island left behind stays there
+			_check_split(name + " back home", home_old, _saved())
+	elif name.begins_with("save_v3_"):
 		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
 		var gd: Array[String] = []
 		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
@@ -177,12 +199,91 @@ func _check_legacy(name: String, s1: Dictionary) -> void:
 	_check(ok, "%s content survives migration: buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
 	print("[t_save] legacy %s buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
 
+## W2-INV: an old stacked save keeps every unit (per item id), each non-stacking unit in its own
+## row with a distinct uid, and its def-id worn gear becomes a worn instance.
+func _check_split(name: String, old: Dictionary, s1: Dictionary, skip_home_camp: bool = false) -> void:
+	var want := _units(old)
+	var got := _units(s1)
+	var st := _instance_stats(s1, skip_home_camp)
+	var worn: Dictionary = s1["player"]["inventory_extras"].get("worn", {})
+	_check(got == want, "%s: no unit is lost splitting stacks: %s vs %s" % [name, got, want])
+	_check(st[0] == 0 and st[1] == st[2] and st[2] > 0 and not st[3], "%s: every non-stacking unit is its own row with a distinct uid (rows=%d uids=%d multi=%d)" % [name, st[2], st[1], st[0]])
+	_check(str(worn.get("head", {}).get("id", "")) == "raid_helm" and not s1["player"]["inventory_extras"].has("equipment"), "%s: def-id head=raid_helm became a worn instance" % name)
+	print("[t_save] stacked %s units=%s instances=%d" % [name, got, st[2]])
+
+## [non-stacking rows with count != 1, distinct uids, such rows, a row without a uid].
+func _instance_stats(d: Dictionary, skip_home_camp: bool = false) -> Array:
+	var uids := {}
+	var multi := 0
+	var rows := 0
+	for row in _rows(d, skip_home_camp):
+		var def = root.get_node("Data").item(StringName(str(row.get("id", ""))))
+		if def and def.stack_max == 1:
+			rows += 1
+			multi += 1 if int(row.get("count", 1)) != 1 else 0
+			uids[str(row.get("uid", ""))] = true
+	return [multi, uids.size(), rows, uids.has("")]
+
+## The base's stacked golden with its empty bag rows filled with legal old stacks (stone x20, the
+## old stack_max): more units than the 100-slot bag. The bag fills, the rest lands in home cargo,
+## and the migrated save re-saves unchanged.
+func _test_stacked_migration() -> void:
+	var src: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	var rows: Array = src["player"]["inventory"]
+	for i in rows.size():
+		if rows[i] == null:
+			rows[i] = {"id": "stone", "count": 20}
+	var want := _units(src)
+	_clean()
+	_put(JSON.stringify(src))
+	SG.load_now(host)
+	_check(SG.blocked_reason == "", "the full stacked save loads")
+	SG.save_now()
+	var s1 := _saved()
+	_check_split("full stacked save", src, s1)
+	var bag_used := 0
+	for row in s1["player"]["inventory"]:
+		bag_used += 1 if row is Dictionary else 0
+	var cargo_stone := 0
+	for row in s1["home"]["cargo"]:
+		if row is Dictionary and str(row.get("id")) == "stone":
+			cargo_stone += int(row.get("count", 1))
+	# 99: the bag filled to 100, then the legacy head=raid_helm moved out of it into its slot.
+	_check(bag_used == 99 and (s1["player"]["inventory"] as Array).size() == 100 and cargo_stone > 0, "the bag fills to 100 and the rest goes to home cargo (bag=%d cargo stone=%d of %d)" % [bag_used, cargo_stone, want.get("stone", 0)])
+	SG.load_now(host)
+	SG.save_now()
+	var diffs: Array[String] = []
+	_same(s1, _saved(), "", diffs)
+	_check(diffs.is_empty(), "the migrated save re-saves unchanged: %s" % [diffs.slice(0, 4)])
+	print("[t_save] stacked migration units=%s bag=%d cargo_stone=%d" % [_units(s1), bag_used, cargo_stone])
+
+## Every item row in a save: bag, worn gear, home cargo, building contents, pet bags.
+func _rows(d: Dictionary, skip_home_camp: bool = false) -> Array:
+	var out: Array = []
+	out.append_array(d.get("player", {}).get("inventory", []))
+	var extras: Dictionary = d.get("player", {}).get("inventory_extras", {})
+	out.append_array((extras.get("worn", {}) as Dictionary).values())
+	out.append_array(d.get("home", {}).get("cargo", []))
+	for b in ([] if skip_home_camp else d.get("home", {}).get("buildings", [])) + d.get("away", {}).get("buildings", []):
+		if b.get("contents") is Array:
+			out.append_array(b.contents)
+	for p in d.get("pets", []):
+		if p.get("bag") is Array:
+			out.append_array(p.bag)
+	return out.filter(func (r: Variant) -> bool: return r is Dictionary)
+
+func _units(d: Dictionary) -> Dictionary:
+	var n := {}
+	for row in _rows(d):
+		n[str(row["id"])] = int(n.get(str(row["id"]), 0)) + int(row.get("count", 1))
+	return n
+
 func _test_forged() -> void:
 	_clean()
 	_put(FileAccess.get_file_as_string(FIX + "save_forged.json"))
 	SG.load_now(host)
 	var inv = player.inventory
-	var helm = inv.slots[inv.find_first(&"raid_helm")] if inv.find_first(&"raid_helm") >= 0 else null
+	var helm = inv.equipped_in(&"head") # the forged head=raid_helm wears it (W2-INV: worn gear leaves the bag)
 	_check(helm != null and helm.count == 1 and helm.level == 60, "forged raid_helm x5000 L9999 loads as x1 L60")
 	_check(helm != null and helm.durability <= helm.max_durability and helm.max_durability == IS.make(&"raid_helm", 1, {}, 60).max_durability, "forged durability clamps to the item's ceiling")
 	var unknown := 0
@@ -325,7 +426,7 @@ func _test_away_island() -> void:
 ## (the golden's 42 t_stones and 6 stacks arrive) and keep saving, never abort halfway.
 func _test_hostile_types() -> void:
 	_clean()
-	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	_put(FileAccess.get_file_as_string(FIX + GOLDEN))
 	SG.load_now(host) # the golden camp layout, so the pen cell below is free under it
 	await process_frame
 	var pen := _free_cell(&"makeshift_taming_pen")
@@ -373,7 +474,7 @@ func _test_hostile_types() -> void:
 		cases[label] = func (d: Dictionary) -> void: d["home"]["buildings"] = [row]
 	for label in cases:
 		_clean()
-		var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+		var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + GOLDEN))
 		(cases[label] as Callable).call(d)
 		_put(JSON.stringify(d))
 		W.t_stones = 0
@@ -383,7 +484,7 @@ func _test_hostile_types() -> void:
 		var stacks := 0
 		for st in player.inventory.slots:
 			if st != null: stacks += 1
-		var ok: bool = SG.blocked_reason == "" and int(W.t_stones) == 42 and stacks == 6 and player.bonded.size() == 1 and not null in player.bonded
+		var ok: bool = SG.blocked_reason == "" and int(W.t_stones) == 42 and stacks == 25 and player.bonded.size() == 1 and not null in player.bonded
 		var saved: bool = SG.save_now()
 		_check(ok and saved and errors.script_errors == errs, "hostile '%s' loads completely and saves (blocked='%s' t_stones=%d stacks=%d pets=%d script_errors=%d)" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), errors.script_errors - errs])
 		print("[t_save] hostile '%s' blocked='%s' t_stones=%d stacks=%d pets=%d saved=%s" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), saved])
@@ -442,9 +543,9 @@ func _check_pen(label: String, keeps: bool) -> void:
 ## load lifts the block.
 func _test_aborted_load() -> void:
 	_clean()
-	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	_put(FileAccess.get_file_as_string(FIX + GOLDEN))
 	var sha0 := FileAccess.get_sha256(SG.path)
-	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + GOLDEN))
 	raw["t_stones"] = {}
 	print("[t_save] the next SCRIPT ERROR (Nonexistent 'int' constructor) is the deliberate abort")
 	expected_script_errors += 1
@@ -508,7 +609,7 @@ func _held_on_disk(d: Dictionary) -> Array:
 ## must treat it as unreadable rather than apply it.
 func _test_sanitizer_abort() -> void:
 	_clean()
-	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	_put(FileAccess.get_file_as_string(FIX + GOLDEN))
 	var San: GDScript = load("res://scripts/core/save_sanitizer.gd")
 	San.set("abort_for_test", true)
 	print("[t_save] the next SCRIPT ERROR (call on a null instance) is the deliberate sanitizer abort")
@@ -523,7 +624,7 @@ func _test_sanitizer_abort() -> void:
 	for i in 70:
 		W._process(1.0)
 	_check(FileAccess.get_sha256(SG.path) == sha0, "aborted sanitizer: bytes unchanged after 70 s of autosave")
-	var forged: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	var forged: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + GOLDEN))
 	forged[San.get("CHECKED")] = true
 	_put(JSON.stringify(forged))
 	var ok: Dictionary = (load("res://scripts/core/save_migrations.gd") as GDScript).read(SG.path)
@@ -536,7 +637,7 @@ func _test_sanitizer_abort() -> void:
 ## pen the grid still accepts keeps its animal.
 func _test_pen_refunds() -> void:
 	_clean()
-	var golden := FileAccess.get_file_as_string(FIX + "save_v3_golden.json")
+	var golden := FileAccess.get_file_as_string(FIX + GOLDEN)
 	_put(golden)
 	SG.load_now(host)
 	await process_frame
@@ -591,7 +692,7 @@ func _test_pen_refunds() -> void:
 ## save must still record this session's buildings, or sailing away and back loses them.
 func _test_refused_save_keeps_camp() -> void:
 	_clean()
-	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	_put(FileAccess.get_file_as_string(FIX + GOLDEN))
 	SG.load_now(host) # the golden basket holds 5 stone
 	await process_frame
 	var cell := _free_cell(&"basket")
@@ -643,6 +744,7 @@ func _write_golden() -> void:
 	inv.add(IS.make(&"stone", 12))
 	inv.add(IS.make(&"branch", 7))
 	inv.add(IS.make(&"raw_meat", 3))
+	inv.add(IS.make(&"raid_helm", 1))
 	inv.equip(&"head", &"raid_helm")
 	inv.add(IS.make(&"raid_helm", 1))
 	W.cargo_home.load_array([])
@@ -676,15 +778,13 @@ func _write_golden() -> void:
 	var d := _saved()
 	d["unstable"]["harvested"] = {}
 	d["saved_unix"] = 4000000000 # clamps to now at load: no offline time, so the snare round-trips
-	var out := ProjectSettings.globalize_path(FIX + "save_v3_golden.json")
+	var out := ProjectSettings.globalize_path(FIX + GOLDEN)
 	var text := JSON.stringify(d, "\t")
 	var f := FileAccess.open(out, FileAccess.WRITE)
 	f.store_string(text + "\n")
 	f.close()
-	var t := FileAccess.open(ProjectSettings.globalize_path(FIX + "save_truncated.json"), FileAccess.WRITE)
-	t.store_string(text.left(text.length() / 2)) # a save cut off mid-write
-	t.close()
-	print("[t_save] wrote golden (%d buildings, %d pets, %d snares, %d bytes) and truncated fixtures" % [placed, d["pets"].size(), d["ground_snares"].size(), text.length()])
+	# save_truncated.json stays the base's (any cut-off save tests the same path).
+	print("[t_save] wrote golden (%d buildings, %d pets, %d snares, %d bytes)" % [placed, d["pets"].size(), d["ground_snares"].size(), text.length()])
 	# Away golden: the survivor standing on an unstable island with a stocked basket there.
 	W.remaining_lifetime = 0.0
 	W.load_island(host, &"temperate_25", Vector3(0, 1, 12), false)
@@ -700,7 +800,7 @@ func _write_golden() -> void:
 	var a := _saved()
 	a["unstable"]["harvested"] = {}
 	a["saved_unix"] = 4000000000
-	var af := FileAccess.open(ProjectSettings.globalize_path(FIX + "save_v3_away_golden.json"), FileAccess.WRITE)
+	var af := FileAccess.open(ProjectSettings.globalize_path(FIX + AWAY_GOLDEN), FileAccess.WRITE)
 	af.store_string(JSON.stringify(a, "\t") + "\n")
 	af.close()
 	print("[t_save] wrote away golden island=%s away_buildings=%d" % [a.get("island_id"), (a.get("away", {}).get("buildings", []) as Array).size()])

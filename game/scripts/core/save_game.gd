@@ -260,7 +260,8 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 		seat.y = World.runtime.surface_y(pos.x, pos.z) + 1.0
 	player.global_position = seat
 	print("[world] loaded player at %s (saved y=%.2f)" % [seat.snapped(Vector3.ONE * 0.1), pos.y])
-	player.inventory.load_array(data.get("player", {}).get("inventory", []))
+	# Legacy stacks split into instances; what no longer fits the bag goes to home cargo (W2-INV).
+	player.inventory.load_array(data.get("player", {}).get("inventory", []), World.cargo_home)
 	var extras: Variant = data.get("player", {}).get("inventory_extras", null)
 	if extras is Dictionary:
 		player.inventory.extras_from_dict(extras as Dictionary)

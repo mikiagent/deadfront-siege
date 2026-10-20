@@ -68,9 +68,14 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
 		if lead < 0:
 			return []
 		var parts: Array[Dictionary] = []
+		# The lead's own material first: with one instance per slot (W2-INV) the remaining units come
+		# from other slots, and a fibre twine must not be spent when more fibre stalk is there.
 		var order: Array[int] = [lead]
 		for idx in candidates:
-			if idx != lead:
+			if idx != lead and inv.slots[idx].def_id == inv.slots[lead].def_id:
+				order.append(idx)
+		for idx in candidates:
+			if idx not in order:
 				order.append(idx)
 		for idx in order:
 			var available := int(remaining.get(idx, inv.slots[idx].count))
