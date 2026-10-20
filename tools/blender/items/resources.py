@@ -519,20 +519,28 @@ def willow_wood():
 
 
 def snow_pine():
-    """Pine log with red-brown scaly bark, snow on the top, a needle sprig: winter pine."""
-    b = mat("#9a5a30", 0.9, color2="#5a2e12", tex="voronoi", scale=9.0, bump=0.7, ramp=(0.15, 0.55))
-    _log(0.32, 2.0, b, "#b87840", loc=(0, 0.12, -0.05))
-    _log(0.24, 1.7, b, "#b87840", loc=(0.1, -0.36, 0.02), stub=True)
-    snow = mat("#eaf2ff", 0.7, color2="#c8d8ee", tex="noise", scale=4.0, bump=0.25)
-    # Snow: a soft slab lying along the top of each log, thicker in the middle, its edge broken up.
-    for (cx, cy, z, ln) in ((-0.15, 0.12, 0.24, 1.95), (0.1, -0.36, 0.2, 1.65)):
-        n = 14
-        top = [(cx - ln / 2 + ln * i / n, z + 0.24 * math.sin(math.pi * i / n) ** 0.7) for i in range(n + 1)]
-        bottom = [(x, z - 0.12) for x, _ in top[::-1]]
-        prism(top + bottom, 0.52, loc=(0, cy, 0), rot=(0, 0, 0), m=snow, bev=0.06)
+    """Snow pine: two pine logs, one on top of the other, each carrying a lumpy ridge of snow along
+    its top and a sprig of dark needles at its end. Snow flakes still cling to the bark."""
+    b = mat("#7a4428", 0.9, color2="#4a2414", tex="voronoi", scale=10.0, bump=0.6, ramp=(0.15, 0.5))
+    snow = mat("#f2f6ff", 0.65, color2="#cddcee", tex="noise", scale=4.0, bump=0.25)
+    _log(0.3, 2.0, b, "#c08650", loc=(0, 0.2, -0.1))
+    _log(0.24, 1.7, b, "#c08650", loc=(0.05, -0.3, 0.28))
+    for (cy, cz, ln, r) in ((0.2, 0.18, 1.85, 0.26), (-0.3, 0.5, 1.6, 0.2)):
+        # Lumpy snow ridge: overlapping soft lumps along the log's top, thicker in the middle.
+        for i in range(9):
+            t = i / 8.0
+            s_ = 0.35 + 0.65 * math.sin(math.pi * (0.15 + 0.7 * t))
+            blob(0.17 * s_ + 0.05, loc=(-ln / 2 + ln * t, cy, cz + 0.03),
+                 scl=(1.5, 1.1, 0.55 + 0.25 * s_), m=snow, amp=0.2, freq=3.0, sub=2)
+    # Snow caught on the bark: pale patches on the underside and the near side.
+    for (x, y, z) in ((-0.6, 0.02, 0.02), (0.15, 0.06, 0.05), (0.55, 0.0, 0.0)):
+        blob(0.1, loc=(x, y, z), scl=(1.4, 1.0, 0.4), m=snow, amp=0.3, sub=2)
     needle = mat("#2e5a3a", 0.6, color2="#1e4028", tex="wave", scale=14.0)
-    for k in range(4):
-        tube([(0.25, -0.05, 0.35 + 0.03 * k), (0.7 + 0.05 * k, -0.2, 0.75 + 0.08 * k)], 0.03, needle, segs=5)
+    tube([(0.7, -0.35, 0.4), (0.95, -0.4, 0.62)], 0.03, needle, segs=5)
+    for k in range(5):
+        a = -1.0 + 0.5 * k
+        tube([(0.95, -0.4, 0.6), (0.95 + 0.22 * math.cos(a), -0.4 + 0.12 * math.sin(a), 0.62 + 0.26 + 0.08 * math.sin(a))],
+             0.022, needle, segs=4)
     turn(58)
     upright()  # flat item: diagonal so the slot can lift it above its top edge
 
@@ -566,33 +574,32 @@ def ash():
 
 
 def bark_strip():
-    """A strip of bark peeled off a log: a long curved sheet standing on edge, dark ridged outer
-    face, pale inner face showing where it curls toward the viewer."""
+    """Bark strips: a piece of bark rolled up like a scroll (its pale inner face and its ridged dark
+    outer face both showing) and a second flat strip lying against it."""
     outer = mat("#6e4a2a", 0.9, color2="#3a2412", tex="wave", scale=7.0, bump=0.6, ramp=(0.25, 0.7))
     inner = mat("#e6bc84", 0.85, color2="#bc8a52", tex="noise", scale=12.0, bump=0.2)
     ridge = mat("#4a3018", 0.9, color2="#2a1a0c", tex="noise", scale=14.0, bump=0.4)
-    n = 18
-
-    def edge(r, a_off=0.0):
-        return [(r * math.cos(math.radians(-118 + 236 * i / n) + a_off), r * math.sin(math.radians(-118 + 236 * i / n) + a_off))
-                for i in range(n + 1)]
-    # The sheet: an arc band, edges curling forward (toward the camera).
-    R0, R1 = 0.55, 1.05
-    sheet = edge(R1) + edge(R0)[::-1]
-
-    def curl(co):
-        co.y -= 0.3 * (co.x ** 2 + co.z ** 2) * 0.5
-    prism(sheet, 0.07, m=outer, bev=0.012, deform=curl)
-    # The inner face: a narrower band on the concave side, its surface facing the viewer.
-    iband = edge(R0 + 0.12) + edge(R0 + 0.01)[::-1]
-    prism(iband, 0.05, loc=(0.0, -0.06, 0.0), m=inner, bev=0.008,
-          deform=lambda co: co.__setitem__(1, co.y - 0.3 * (co.x ** 2 + co.z ** 2) * 0.5 - 0.03))
-    # Ridges running along the outer face.
-    for k in range(6):
-        r = R1 - 0.04 - 0.03 * k
-        pts = [(x, -0.3 * (x ** 2 + z ** 2) * 0.5 - 0.045, z) for x, z in edge(r, math.radians(-2 + 1.2 * k))]
-        tube(pts, 0.022, ridge, segs=4)
-    turn(-14)
+    # The scroll: a spiral band, its outer face dark and ridged, its cut edges pale.
+    turns, n = 1.6, 60
+    band_o, band_i = [], []
+    for i in range(n + 1):
+        a = turns * 2 * math.pi * i / n
+        r = 0.72 - 0.26 * (i / n)
+        band_o.append((r * math.cos(a), 0.0, r * math.sin(a)))
+        band_i.append(((r - 0.09) * math.cos(a), 0.0, (r - 0.09) * math.sin(a)))
+    tube(band_o, 0.045, outer, segs=6)
+    tube(band_i, 0.04, inner, segs=6)
+    for k in range(n):
+        if k % 2 == 0:
+            tube([band_o[k], band_i[k]], 0.035, ridge, segs=4)
+    # A second, flat strip: a long curved sheet leaning on the scroll, ridged outer face up.
+    pts = [(-1.0 + 2.0 * i / 10.0, 0.0, 0.25 * math.sin(math.pi * i / 10.0)) for i in range(11)]
+    tube(pts, 0.11, outer, segs=8, taper=(1.0, 0.8))
+    for k in range(1, 10, 2):
+        p = pts[k]
+        tube([(p[0], -0.09, p[2]), (p[0], 0.09, p[2])], 0.02, ridge, segs=4)
+    turn(-12)
+    turn(22, "X")
     upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 

@@ -327,6 +327,471 @@ def heavy_snare():
     _snare(metal("#7c8188", 0.35), heavy=True)
 
 
+
+# ---------------------------------------------------------------- dsc icons2: kits, feeds, medicine, cages
+# A kit is a bundle of the parts it builds, lashed with rope, leaning so it hints at the finished
+# piece (the existing tent_kit/sign_kit language, but with the parts and the tie both visible).
+
+def _pole(x, y, z0, z1, m, r=0.06, tilt=0.0, parent=None):
+    cyl(r, z1 - z0, loc=(x, y, (z0 + z1) / 2), rot=(0, tilt, 0), m=m, segs=10, parent=parent)
+
+
+def _tie(x, y, z, r, m=None, parent=None, axis="z"):
+    """A rope loop around a bundle: a flat ellipse ring plus its knot."""
+    m = m or rope_m()
+    if axis == "z":
+        tube(arc((x, y, z), r, 0, 360, 20, plane="xy")[:-1], 0.035, m, segs=5, closed=True, parent=parent)
+        tube([(x + r, y, z), (x + r + 0.08, y - 0.05, z + 0.1), (x + r + 0.02, y - 0.08, z - 0.12)], 0.03, m, segs=5,
+             parent=parent)
+    else:  # around an X-aligned bundle
+        tube([(x, p[1], p[2]) for p in arc((0, 0, 0), r, 0, 360, 20, plane="yz", y=0)[:-1]], 0.035, m, segs=5,
+             closed=True, parent=parent)
+
+
+def _plank_bundle(n, length, width, thick, m, z0=-0.8, dy=0.13, seed_rot=0.0):
+    """A stack of planks, slightly askew, for a kit bundle."""
+    for i in range(n):
+        box((length - 0.04 * (i % 3), width, thick), loc=(0.02 * (i % 2), (i - (n - 1) / 2) * dy, z0 + i * (thick + 0.01)),
+            rot=(0, 0, seed_rot + 2.0 * (i % 2) - 1.0), m=m, bev=0.012)
+
+
+def cabin_bed_kit():
+    """Bed kit: four frame planks stacked and lashed, a log leg bundle, and a folded straw mattress
+    roll on top with a hide blanket strapped to it."""
+    w = wood("#b07a46", "#7a4a24")
+    w2 = wood("#9a6a3a", "#6a4220")
+    g = group(rot=(0, 0, 0))
+    for i in range(4):
+        box((2.2, 0.22, 0.1), loc=(0, (i - 1.5) * 0.24, -0.75 + i * 0.11), rot=(0, 0, 1.5 * (i % 2)), m=w if i % 2 else w2,
+            bev=0.012, parent=g)
+    for (x, y) in ((-0.95, 0.42), (0.95, 0.42), (-0.95, -0.42), (0.95, -0.42)):
+        cyl(0.08, 0.62, loc=(x, y, -0.22), rot=(0, 0, 0), m=w2, segs=8, parent=g)
+    straw = mat("#e0c070", 0.85, color2="#b8923a", tex="wave", scale=26.0, bump=0.35)
+    cyl(0.3, 1.9, rot=(0, 90, 0), loc=(0, 0, 0.22), m=straw, segs=20, parent=g)
+    for s in (-1, 1):
+        cyl(0.27, 0.03, loc=(s * 0.96, 0, 0.22), rot=(0, 90, 0), m=mat("#c8a050", 0.85, color2="#9a7428",
+                                                                        tex="rings", scale=9.0), segs=20, parent=g)
+    h = hidem("#9a5a34", "#6a3a1e")
+    box((1.5, 0.9, 0.12), loc=(0.1, 0.05, 0.56), rot=(0, 4, -6), m=h, bev=0.05, parent=g)
+    for y in (-0.32, 0.32):
+        _lash(0, 0, 0, rope_m(), r=0.07)
+        tube([(x, y, 0.5) for x in (-0.75, 0.75)], 0.04, rope_m(), segs=5, parent=g)
+    for x in (-0.5, 0.5):
+        tube(arc((x, 0, 0), 0.62, 0, 360, 18, plane="xz")[:-1], 0.035, rope_m(), segs=5, closed=True, parent=g)
+    turn(-18)
+    turn(12, "X")
+    upright()
+
+
+def canvas_tent_kit():
+    """Canvas tent kit: a long canvas roll, two poles and a fistful of pegs under two rope ties,
+    with a loose corner of canvas unrolled at one end."""
+    canvas = mat("#d8c8a0", 0.9, color2="#b0a074", tex="wave", scale=34.0, bump=0.15)
+    cyl(0.34, 2.0, rot=(0, 90, 0), loc=(0, -0.12, -0.05), m=canvas, segs=24)
+    for s in (-1, 1):
+        cyl(0.3, 0.03, loc=(s * 1.01, -0.12, -0.05), rot=(0, 90, 0), m=mat("#c4b48a", 0.9, color2="#a0906a",
+                                                                          tex="rings", scale=11.0), segs=24)
+    # The unrolled flap: a slack sheet spilling off the near end.
+    prism([(0.9, 0.3), (1.55, 0.1), (1.75, -0.35), (1.5, -0.55), (1.0, -0.45), (0.85, -0.2)], 0.03,
+          loc=(0, -0.34, 0.02), rot=(0, 0, 0), m=canvas, bev=0.006,
+          deform=lambda co: co.__setitem__(1, co.y + 0.12 * math.sin(co.x * 3.0)))
+    p = wood("#c9965a", "#9a6a35")
+    for (y, z) in ((0.34, 0.12), (0.3, -0.3)):
+        cyl(0.05, 2.3, rot=(0, 90, 0), loc=(0, y, z), m=p, segs=8)
+    for i in range(5):  # pegs, fanned out at the far end
+        a = -35 + 15 * i
+        cyl(0.035, 0.4, loc=(-1.12, 0.1 + 0.05 * (i % 2), -0.05 + 0.16 * (i - 2)), rot=(0, 0, a), m=p, segs=6,
+            r2=0.012)
+    for x in (-0.55, 0.55):
+        tube(arc((x, 0, 0), 0.47, 270, 450, 16, plane="xz", y=-0.05)[:-1], 0.035, rope_m(), segs=5, closed=True,
+             parent=group(loc=(0, 0, -0.05), rot=(0, 0, 90)))
+    turn(-20)
+    upright()
+
+
+def _field_kit(scale, n_planks):
+    """Furrow stakes and frame planks in a bundle, a seed pouch tied on and a hoe blade strapped to
+    the side. The large kit is longer, with more planks and a heavier blade."""
+    w = wood("#a87444", "#7a4a24")
+    w2 = wood("#c48d55", "#93602f")
+    for i in range(n_planks):
+        box((1.7 * scale, 0.16, 0.09), loc=(0, (i - (n_planks - 1) / 2) * 0.19, -0.55 + i * 0.1),
+            rot=(0, 0, 1.2 * (i % 2)), m=w if i % 2 else w2, bev=0.012)
+    for i in range(4):  # stakes
+        a = -18 + 9 * i
+        cyl(0.05, 1.2 * scale, loc=(0.15 * (i - 1.5), 0.32, 0.35), rot=(6 * (i % 2), a, 0), m=wood("#8a5a33", "#5e3a1e"),
+            segs=6, r2=0.015)
+    # Seed pouch, tied on.
+    pouch = hidem("#b08a52", "#8a6434")
+    blob(0.26 * scale, loc=(-0.45, -0.2, 0.3), scl=(1.0, 0.9, 1.15), m=pouch, amp=0.12)
+    _lash(-0.45, -0.2, 0.42, rope_m("#d7c08a"), r=0.13)
+    # A hoe blade strapped against the planks.
+    prism([(-0.05, 0.3), (0.12, 0.34), (0.62 * scale, 0.15), (0.68 * scale, -0.15), (0.4 * scale, -0.05), (0.05, 0.12)],
+          0.08, loc=(0.35, -0.24, 0.1), rot=(0, 0, 10), m=stone("#9a9488", "#6a645a"), bev=0.02)
+    for x in (-0.4, 0.35):
+        tube(arc((x, 0, 0), 0.28, 0, 360, 18, plane="xz")[:-1], 0.035, rope_m(), segs=5, closed=True,
+             parent=group(loc=(0, 0, 0.0), rot=(0, 0, 90)))
+    turn(-18)
+    turn(10, "X")
+    upright()
+
+
+def field_large_kit():
+    """Large field kit: long frame planks, a bundle of stakes, a seed pouch and a heavy hoe blade,
+    all lashed with rope."""
+    _field_kit(1.15, 5)
+
+
+def field_small_kit():
+    """Small field kit: a short bundle of frame planks and three stakes, a small seed pouch tied on."""
+    _field_kit(0.7, 3)
+
+
+def log_shelter_kit():
+    """Log shelter kit: notched logs stacked in a bundle (their ends show the notch cuts), roof planks
+    on top and a rope sling around the whole load with a loop to carry it."""
+    b = bark("#6b4a2c", "#4a3019")
+    end = mat("#d4a066", 0.75, color2="#8a5a30", tex="rings", scale=4.0)
+    for layer in range(3):
+        for s in (-1, 1):
+            g = group(loc=(0, 0, -0.62 + layer * 0.34), rot=(0, 90, 90 * (layer % 2)))
+            cyl(0.15, 1.8, loc=(0, s * 0.36, 0), m=b, segs=14, parent=g)
+            for e in (-1, 1):
+                cyl(0.14, 0.03, loc=(0, s * 0.36, e * 0.9), m=end, segs=14, parent=g)
+                # The notch cut where a crossing log sits.
+                box((0.2, 0.3, 0.08), loc=(0, s * 0.36, e * 0.86), m=end, bev=0.01, parent=g)
+    w = wood("#b88452", "#8a5a30")
+    for i in range(3):
+        box((1.9, 0.24, 0.07), loc=(0, (i - 1) * 0.26, 0.44), rot=(0, 0, 2 * (i % 2)), m=w, bev=0.01)
+    for x in (-0.6, 0.6):
+        tube([(x, p[1], p[2]) for p in arc((0, 0, 0), 0.62, 0, 360, 20, plane="yz", y=0)[:-1]], 0.04, rope_m(),
+             segs=5, closed=True)
+    tube(arc((0, 0, 0.5), 0.3, 0, 180, 14, plane="xz", y=0), 0.035, rope_m(), segs=5)  # carry loop
+    turn(-24)
+    turn(10, "X")
+    upright()
+
+
+def makeshift_taming_pen():
+    """Makeshift taming pen: a bundle of sharpened stakes lashed to two rails, a coil of rope and a
+    gate latch, the parts of a quick pen bundled together."""
+    w = wood("#9a6a3a", "#6a4220")
+    for i in range(7):
+        _pole(-0.55 + 0.18 * i, 0.0, -0.9, 1.0, w, r=0.055, tilt=2.0 * (i % 3) - 2.0)
+        cyl(0.055, 0.2, loc=(-0.55 + 0.18 * i, 0.0, 1.1), r2=0.0, m=wood("#b88452", "#8a5a30"), segs=6)
+    for z in (-0.3, 0.35):
+        box((1.6, 0.1, 0.14), loc=(0, -0.13, z), rot=(0, 0, 0), m=wood("#a87444", "#7a4a24"), bev=0.02)
+    for x in (-0.62, 0.62):
+        tube([(x, p[1] - 0.13, p[2]) for p in arc((0, 0, 0), 0.11, 0, 360, 14, plane="xz", y=0)[:-1]], 0.03, rope_m(),
+             segs=5, closed=True)
+    # A coil of rope hanging off the bundle and a latch of bone and wood.
+    g = group(loc=(0.72, -0.28, 0.0), rot=(90, 0, 0))
+    tube(helix(0.24, 0.06, 3.2, 16, -0.2), 0.04, rope_m("#c8a86a"), segs=5, parent=g)
+    box((0.36, 0.08, 0.08), loc=(-0.15, -0.25, 0.62), rot=(0, 0, 20), m=bonem("#e2d2a8"), bev=0.02)
+    box((0.1, 0.08, 0.3), loc=(0.05, -0.25, 0.7), rot=(0, 0, 20), m=w, bev=0.02)
+    turn(-14)
+
+
+def smoker_kit():
+    """Smoker kit: a lashed A-frame of green poles with two cross rails, a bundle of hanging meat
+    strips and a pouch of wood chips tied at its foot."""
+    w = wood("#5e4a2a", "#3a2e18")
+    for s in (-1, 1):
+        for y in (-0.35, 0.35):
+            tube([(s * 0.95, y, -1.0), (0, y, 1.0)], 0.06, w, segs=8)
+    for z in (0.1, 0.75):
+        cyl(0.05, 0.75, loc=(0, 0, z), rot=(90, 0, 0), m=w, segs=8)
+    for y in (-0.35, 0.35):
+        _lash(0, y, 0.9, rope_m(), r=0.08)
+    meat = mat("#8e3420", 0.6, color2="#6a2012", tex="noise", scale=5.0, bump=0.35, coat=0.3)
+    for i, x in enumerate((-0.28, 0.0, 0.28)):
+        h = 0.55 + 0.08 * (i % 2)
+        tube([(x, 0, 0.72), (x, 0, 0.72 - h)], 0.02, rope_m("#d7c08a"), segs=4)
+        prism([(-0.07, 0), (0.07, 0), (0.09, -h * 0.5), (0.03, -h), (-0.08, -h * 0.8), (-0.1, -h * 0.3)], 0.04,
+              loc=(x, 0, 0.7 - h * 0.05), rot=(15, 0, 0), m=meat, bev=0.01,
+              deform=lambda co: co.__setitem__(1, co.y + 0.03 * math.sin(co.z * 9)))
+    pouch = mat("#b89a6a", 0.9, color2="#8a7044", tex="wave", scale=16.0, bump=0.3)
+    blob(0.3, loc=(0.75, -0.3, -0.85), scl=(1.0, 0.9, 0.9), m=pouch, amp=0.14)
+    _tie(0.75, -0.3, -0.7, 0.12, rope_m("#d7c08a"))
+    for k in range(5):
+        chip = mat("#c8a878", 0.8, color2="#9a7a4a", tex="noise", scale=8.0)
+        box((0.12, 0.08, 0.03), loc=(0.55 + 0.1 * k, -0.55, -1.05), rot=(0, 0, 20 * k), m=chip, bev=0.005)
+    turn(-20)
+    turn(8, "X")
+
+
+def steamer_kit():
+    """Steamer kit: a stack of bamboo steamer trays bound with twine, a lid askew on top, a bundle of
+    green leaves and a pair of wooden tongs beside them."""
+    bam = mat("#c9a35a", 0.72, color2="#a8844a", tex="noise", scale=6.0, bump=0.2)
+    bam2 = mat("#d8b86e", 0.72, color2="#b08e50", tex="noise", scale=6.0, bump=0.2)
+    for i in range(3):
+        r = 0.8 - 0.02 * i
+        lathe([(0, 0.0), (r, 0.0), (r, 0.26), (r - 0.08, 0.26), (r - 0.08, 0.06), (0, 0.06)],
+              loc=(0, 0, -0.75 + i * 0.3), m=bam if i % 2 else bam2, segs=30, smooth=False)
+        tube(arc((0, 0, 0), r + 0.01, 0, 360, 30, plane="xy", y=-0.6 + i * 0.3)[:-1], 0.03, mat("#8a6a34", 0.8),
+             segs=4, closed=True)
+    # Lid, tilted open on top.
+    lid = group(loc=(0.06, 0, 0.25), rot=(-12, 8, 0))
+    lathe([(0, 0.0), (0.78, 0.0), (0.78, 0.1), (0.6, 0.16), (0.2, 0.2), (0.06, 0.26), (0, 0.27)], m=bam2, segs=30,
+          parent=lid)
+    lathe([(0, 0.0), (0.26, 0.0), (0.26, 0.05), (0.16, 0.14), (0.16, 0.32), (0.26, 0.42), (0.26, 0.47), (0, 0.47)],
+          loc=(0, 0, 0.22), m=wood("#b07a46", "#7a4a24"), segs=14, parent=lid)
+    for a in (20, 140, 260):
+        rad = math.radians(a)
+        tube([(0.76 * math.cos(rad), 0.76 * math.sin(rad), -0.9), (0.86 * math.cos(rad), 0.86 * math.sin(rad), 0.35)],
+             0.03, mat("#d7c08a", 0.9), segs=4)
+    leaf(0.9, 0.3, loc=(-0.95, -0.1, -0.55), rot=(0, 60, 20), m=mat("#5aa04a", 0.5, color2="#3e7a32", tex="wave",
+                                                                   scale=8.0), curl=0.15)
+    leaf(0.8, 0.26, loc=(-0.9, 0.15, -0.5), rot=(0, 40, -30), m=mat("#4e8a46", 0.5, color2="#2e6234", tex="wave",
+                                                                   scale=8.0), curl=0.1)
+    for s in (-1, 1):  # tongs
+        tube([(0.55 + s * 0.06, -0.72, -0.85), (0.75 + s * 0.02, -0.8, -0.4), (0.7 + s * 0.04, -0.76, -0.1)], 0.035,
+             mat("#b88452", 0.75, color2="#8a5a30", tex="noise", scale=3.0, bump=0.1), segs=5)
+    turn(18)
+    turn(20, "X")
+    upright()
+
+
+def stone_fire_pit_kit():
+    """Fire pit kit: a stack of fire-ring stones in a rope sling that hangs from a stick, with a
+    bundle of split firewood tied beside it."""
+    st = stone("#8a8c8a", "#5e605e")
+    for i in range(7):
+        a = i * 0.9
+        rock(0.24, loc=(0.7 * math.cos(a), 0.7 * math.sin(a), -0.55 + 0.08 * (i % 2)), scl=(1.3, 1.0, 0.75),
+             m=st if i % 2 else stone("#7a7c7a", "#525452"), jitter=0.14, sub=2, smooth=False)
+    rock(0.26, loc=(0.1, 0.05, -0.2), scl=(1.2, 1.0, 0.8), m=st, jitter=0.12, sub=2)
+    rock(0.2, loc=(-0.15, -0.1, 0.05), scl=(1.2, 1.0, 0.8), m=stone("#9a9c98", "#6a6c68"), jitter=0.12, sub=2)
+    rp = rope_m()
+    tube([(0.75, 0.4, -0.6), (0.35, 0.2, 0.35), (0.0, 0.0, 0.85), (-0.45, -0.2, 0.4), (-0.8, -0.35, -0.6)], 0.035, rp,
+         segs=5)
+    tube(arc((0, 0, 0.9), 0.18, 0, 180, 12, plane="xz", y=0), 0.035, rp, segs=5)
+    # Split firewood, tied, leaning against the stones.
+    inner = mat("#e0b07a", 0.75, color2="#a87440", tex="rings", scale=5.0)
+    for i in range(4):
+        g = group(loc=(-0.5, -0.55 + 0.12 * i, 0.1), rot=(-8, 0, 90))
+        cyl(0.11, 1.1, m=inner, segs=8, parent=g)
+        cyl(0.1, 0.03, loc=(0, 0, 0.56), m=bark("#5b3d24", "#3a2614"), segs=8, parent=g)
+    for z in (-0.25, 0.25):
+        tube([(x, -0.5, z) for x in (-0.75, -0.25)], 0.03, rp, segs=5)
+    turn(-22)
+    turn(10, "X")
+
+
+def carnivore_feed():
+    """Carnivore feed: a pile of raw meat cuts on a scrap of hide, a bone through the middle and a
+    strip draped over the edge."""
+    meat = mat("#b83a3a", 0.35, color2="#f0b0a8", tex="noise", scale=4.0, bump=0.3, coat=0.4, ramp=(0.55, 0.75))
+    hide = hidem("#8a5a34", "#5e3a1e")
+    prism([(-0.9, 0.5), (-0.4, 0.85), (0.4, 0.9), (1.0, 0.55), (1.05, -0.3), (0.6, -0.75), (-0.2, -0.8),
+           (-0.9, -0.5)], 0.05, rot=(80, 0, 0), loc=(0, 0.05, -0.55), m=hide, bev=0.02,
+          deform=lambda co: co.__setitem__(1, co.y + 0.06 * math.sin(co.x * 4)))
+    for (x, y, z, r, scl, rot_) in ((-0.3, -0.1, -0.2, 0.36, (1.2, 1.0, 0.8), (0, 20, 0)),
+                                     (0.35, 0.05, -0.15, 0.33, (1.1, 1.0, 0.85), (0, -25, 0)),
+                                     (0.0, -0.3, 0.1, 0.3, (1.2, 1.0, 0.9), (10, 0, 0)),
+                                     (0.5, -0.25, -0.35, 0.24, (1.1, 1.0, 0.8), (0, 30, 0))):
+        blob(r, loc=(x, y, z), scl=scl, rot=rot_, m=meat, amp=0.18)
+    b = bonem()
+    cyl(0.08, 1.5, loc=(0.05, 0.0, 0.15), rot=(12, 72, 0), m=b, segs=12)
+    for s in (-1, 1):
+        ball(0.13, loc=(0.05 + s * 0.72 * 0.95, 0.0, 0.15 + s * 0.72 * 0.3), m=b, sub=2)
+    # A strip draped over the hide's edge.
+    prism([(-0.15, 0.55), (0.15, 0.6), (0.2, 0.0), (0.1, -0.5), (0.0, -0.2), (-0.12, -0.55), (-0.2, 0.0)], 0.04,
+          loc=(0.7, -0.35, -0.35), rot=(30, 0, -10), m=meat, bev=0.012)
+    turn(15)
+    upright()
+
+
+def herbivore_feed():
+    """Herbivore feed: a woven basket of greens, a corn cob, a bunch of stalks and a halved fruit."""
+    weave = mat("#c8a05a", 0.8, color2="#a8844a", tex="noise", scale=4.0, bump=0.2)
+    lathe([(0, 0), (0.6, 0.0), (0.78, 0.1), (0.98, 0.8), (1.04, 0.9), (0.96, 0.9), (0.9, 0.8), (0.7, 0.16), (0, 0.16)],
+          m=weave, segs=32, loc=(0, 0, -0.6))
+    tube(arc((0, 0, 0.3), 1.02, 0, 360, 26, plane="xy")[:-1], 0.05, rope_m("#9a7a42"), segs=6, closed=True)
+    greens = mat("#5fb04a", 0.6, color2="#448a38", tex="noise", scale=4.0, bump=0.15)
+    for i, (x, y, z, r) in enumerate(((-0.3, -0.15, 0.45, 0.32), (0.25, -0.2, 0.42, 0.3), (0.05, 0.25, 0.5, 0.34))):
+        blob(r, loc=(x, y, z), scl=(1.2, 1.0, 0.8), m=greens, amp=0.2)
+    for (x, ang) in ((-0.55, 40), (0.55, -45), (0.6, 30), (-0.6, -25)):  # leaves sticking out of the basket
+        leaf(0.8, 0.26, loc=(x, -0.1, 0.55), rot=(15, ang, 0), m=greens, curl=0.15)
+    corn = mat("#f2c23a", 0.4, color2="#d8961a", tex="voronoi", scale=13.0, bump=0.6)
+    blob(0.2, loc=(0.0, -0.35, 0.7), scl=(1.0, 1.0, 1.9), rot=(0, 30, 0), m=corn, amp=0.05)
+    leaf(0.55, 0.16, loc=(0.0, -0.4, 0.45), rot=(0, -30, 0), m=greens, curl=0.1)
+    fruit = mat("#d86a3a", 0.4, coat=0.4, color2="#f0a070", tex="noise", scale=6.0)
+    lathe([(0, 0), (0.02, 0.22), (0.24, 0.3), (0.36, 0.18), (0.38, 0.0), (0.36, -0.02), (0, -0.02)], m=fruit,
+          segs=20, loc=(-0.65, 0.35, 0.3), rot=(20, 0, 0))
+    turn(18)
+    turn(14, "X")
+
+
+def fruit_fertilizer():
+    """Fruit fertilizer: a gourd of mashed fruit with a broad leaf lid, a scoop stick in it and a
+    couple of over-ripe fruits beside it."""
+    pulp = mat("#8a4a2a", 0.2, color2="#c8783a", tex="noise", scale=5.0, bump=0.4, coat=0.7)
+    gourd = mat("#c8a860", 0.7, color2="#9a7a3a", tex="noise", scale=6.0, bump=0.3)
+    lathe([(0, 0), (0.5, 0.02), (0.8, 0.25), (0.92, 0.6), (0.8, 0.9), (0.6, 1.02), (0.62, 1.08), (0.5, 1.1), (0, 1.05)],
+          m=gourd, segs=30)
+    cyl(0.56, 0.03, loc=(0, 0, 1.02), m=pulp, segs=28)
+    blob(0.5, loc=(0, 0, 1.02), scl=(1.0, 1.0, 0.25), m=pulp, amp=0.2, sub=2)
+    lid = mat("#4f9a3a", 0.5, color2="#3a7a2a", tex="wave", scale=6.0)
+    leaf(0.9, 0.45, loc=(-0.45, 0.0, 1.12), rot=(20, 70, 0), m=lid, curl=0.12)
+    tube([(0.15, -0.1, 1.05), (0.35, -0.2, 1.45), (0.3, -0.25, 1.7)], 0.04, wood("#c9965a", "#9a6a35"), segs=6)
+    fruit = mat("#b85a2a", 0.35, color2="#e09a5a", tex="noise", scale=5.0, coat=0.5)
+    for (x, y, r) in ((0.95, -0.25, 0.22), (1.15, 0.15, 0.18)):
+        blob(r, loc=(x, y, 0.15), scl=(1.0, 1.0, 0.9), m=fruit, amp=0.1)
+    leaf(0.5, 0.2, loc=(1.0, -0.2, 0.42), rot=(0, 40, 0), m=lid, curl=0.08)
+    turn(16)
+    turn(16, "X")
+
+
+def pressure_dressing():
+    """Pressure dressing: a thick folded linen pad (cream, three layers) with two hide straps crossed
+    over the top face, a bone buckle and a knot, the loose end of one strap trailing off."""
+    pad = mat("#e6dcc0", 0.92, color2="#c2b48e", tex="wave", scale=44.0, bump=0.18)
+    strap = hidem("#6e3e1e", "#46240e")
+    for i, (z, w, d) in enumerate(((-0.42, 1.45, 1.05), (-0.2, 1.38, 1.0), (0.02, 1.28, 0.92))):
+        box((w, d, 0.22), loc=(0, 0, z), rot=(0, 2 * i - 2, 0), m=pad, bev=0.08)
+    # Straps crossing over the top face of the pad, and down both sides.
+    for ang in (28, -34):
+        g = group(loc=(0, 0, 0.14), rot=(0, 0, ang))
+        box((2.1, 0.22, 0.07), loc=(0, 0, 0.0), m=strap, bev=0.02, parent=g)
+        for s in (-1, 1):
+            box((0.07, 0.22, 0.75), loc=(s * 0.72, 0, -0.34), rot=(0, 0, 0), m=strap, bev=0.015, parent=g)
+    buckle = bonem("#e2d2a8")
+    box((0.3, 0.12, 0.1), loc=(0.05, -0.2, 0.24), rot=(0, 0, 28), m=buckle, bev=0.03)
+    box((0.12, 0.22, 0.07), loc=(0.05, -0.2, 0.32), rot=(0, 0, 28), m=buckle, bev=0.015)
+    tube(arc((0.55, 0.35, 0.16), 0.12, 0, 360, 14, plane="xz")[:-1], 0.035, rope_m(), segs=5, closed=True)
+    prism([(0.2, 0.3), (0.8, 0.15), (0.9, -0.05), (0.25, -0.1)], 0.2, loc=(0.55, -0.45, -0.05), rot=(0, 0, 10),
+          m=strap, bev=0.02, deform=lambda co: co.__setitem__(1, co.y + 0.18 * co.x * co.x))
+    turn(12)
+    turn(22, "X")
+
+
+# ---------------------------------------------------------------- cages (owner rule)
+
+def _cage(door_deg=0.0):
+    """A lashed wooden cage: a slatted floor, four corner posts, vertical bars on every side and a
+    lashed roof hatch. open_door swings the front panel out on its hinge."""
+    # Flat fills where possible: the cage is many thin bars, and noisy materials push the PNG
+    # over the 64 KB budget.
+    w = mat("#9a6a3a", 0.75, color2="#7a4e26", tex="noise", scale=3.0, bump=0.1)
+    w2 = mat("#bb8a56", 0.7, color2="#8a5a30", tex="noise", scale=3.0, bump=0.1)
+    rp = rope_m()
+    W, D, H = 0.9, 0.66, 0.92
+    # Floor slats and a rim.
+    for i in range(5):
+        box((2 * W + 0.1, 0.26, 0.07), loc=(0, -D + 0.28 * i, -H + 0.06), m=w if i % 2 else w2, bev=0.012)
+    for y in (-D - 0.04, D + 0.04):
+        box((2 * W + 0.16, 0.09, 0.1), loc=(0, y, -H + 0.05), m=w, bev=0.015)
+    for x in (-W - 0.04, W + 0.04):
+        box((0.09, 2 * D + 0.16, 0.1), loc=(x, 0, -H + 0.05), m=w, bev=0.015)
+    # Corner posts, lashed at top and bottom.
+    for x in (-W, W):
+        for y in (-D, D):
+            cyl(0.075, 2 * H, loc=(x, y, 0), m=w2, segs=8)
+            for z in (-H + 0.18, H - 0.1):
+                tube([(x, p[1], p[2]) for p in arc((0, 0, 0), 0.11, 0, 360, 12, plane="xy", y=z)[:-1]], 0.03, rp,
+                     segs=5, closed=True)
+    # Bars: sides and back, tighter than the slats, so it reads as a cage and not a crate.
+    def bars(fixed, axis, n, lo, hi):
+        for i in range(n):
+            t = lo + (hi - lo) * i / (n - 1)
+            if axis == "x":
+                cyl(0.032, 2 * H - 0.2, loc=(t, fixed, 0), m=w2, segs=6)
+            else:
+                cyl(0.032, 2 * H - 0.2, loc=(fixed, t, 0), m=w2, segs=6)
+    # The near sides carry fewer bars than the far ones, so the animal inside stays readable at
+    # slot size while the cage still reads as slatted on every side.
+    bars(-D, "x", 3, -W + 0.3, W - 0.3)
+    bars(D, "x", 9, -W + 0.1, W - 0.1)
+    bars(-W, "y", 5, -D + 0.16, D - 0.16)
+    bars(W, "y", 4, -D + 0.2, D - 0.2)
+    # The front panel: a frame with bars, hanging from a hinge on the left post.
+    door = group(loc=(-W, -D, 0), rot=(0, 0, -door_deg))
+    box((2 * W, 0.07, 0.09), loc=(W, 0, H - 0.08), m=w, bev=0.012, parent=door)
+    box((2 * W, 0.07, 0.09), loc=(W, 0, -H + 0.12), m=w, bev=0.012, parent=door)
+    for i in range(5):
+        x = 0.2 + (2 * W - 0.4) * i / 4
+        cyl(0.03, 2 * H - 0.24, loc=(x, 0, 0), m=w2, segs=6, parent=door)
+    if door_deg == 0.0:
+        for z in (-H + 0.4, H - 0.3):
+            box((0.3, 0.08, 0.06), loc=(W - 0.18, 0, z), m=rp, bev=0.01, parent=door)
+    # Roof: open, so the animal inside shows through: only the frame beams and a hinged hatch at
+    # the back, lashed on.
+    for x in (-W, W):
+        box((0.1, 2 * D + 0.16, 0.09), loc=(x, 0, H), m=w, bev=0.012)
+    for y in (-D, D):
+        box((2 * W + 0.16, 0.1, 0.09), loc=(0, y, H), m=w, bev=0.012)
+    # A loose roof slat pushed back over the far beams (the cage is open from above, so the animal
+    # inside shows).
+    box((1.4, 0.4, 0.05), loc=(-0.75, D - 0.12, H + 0.1), rot=(-18, 0, 4), m=w2, bev=0.01)
+    for x in (-0.45, 0.45):
+        tube([(x, p[1], p[2]) for p in arc((0, 0, 0), 0.09, 0, 360, 12, plane="xy", y=H + 0.07)[:-1]], 0.03, rp,
+             segs=5, closed=True)
+    return door
+
+
+def _small_dino(loc=(0, 0, 0), rot=(0, 0, 0), collar=None):
+    """A small generic theropod standing in the cage, neck and head up: body, S-neck, head with a
+    blunt snout, tail, two legs and little arms. Not a named species (the PRD's roster is not needed
+    for a generic captured animal)."""
+    g = group(loc=loc, rot=rot)
+    # A cool green animal against the warm wood cage: it reads through the bars at slot size.
+    skin = mat("#5e8a52", 0.7, color2="#3e6838", tex="noise", scale=2.5, bump=0.2)
+    belly = mat("#cfd8a8", 0.75, color2="#a8b880", tex="noise", scale=3.0, bump=0.15)
+    dark = mat("#2e4a28", 0.8)
+    blob(0.3, loc=(0, 0, 0.0), scl=(1.3, 0.85, 0.85), m=skin, amp=0.07, parent=g)
+    blob(0.2, loc=(0.08, -0.12, -0.04), scl=(1.3, 0.6, 0.65), m=belly, amp=0.05, parent=g)
+    # S-neck rising from the shoulders to a head held level with the top of the cage.
+    neck = [(0.24, 0, 0.12), (0.36, 0, 0.3), (0.36, 0, 0.5), (0.44, 0, 0.62), (0.55, 0, 0.66)]
+    tube(neck, 0.1, skin, segs=10, taper=(1.0, 0.75), parent=g)
+    blob(0.15, loc=(0.62, 0, 0.68), scl=(1.5, 0.85, 0.9), m=skin, amp=0.05, parent=g)
+    tube([(0.72, 0, 0.66), (0.86, 0, 0.62)], 0.075, skin, segs=8, taper=(1.0, 0.7), parent=g)  # snout
+    for y in (-0.08, 0.08):
+        ball(0.038, loc=(0.66, y, 0.74), m=mat("#1a1a14", 0.2, coat=1.0), sub=2, parent=g)
+    for k in range(3):  # dorsal stripes, so it is not a plain egg
+        cyl(0.1, 0.03, loc=(-0.08 + 0.1 * k, 0, 0.22), m=dark, segs=10, parent=g)
+    tube([(-0.3, 0, 0.04), (-0.6, 0.06, -0.16), (-0.92, 0.1, -0.34)], 0.1, skin, segs=8, taper=(1.0, 0.15),
+         parent=g)
+    for y in (-0.15, 0.15):  # legs
+        tube([(0.05, y, -0.12), (-0.02, y, -0.38), (0.02, y, -0.62)], 0.065, skin, segs=8, taper=(1.0, 0.7),
+             parent=g)
+        tube([(0.02, y, -0.62), (0.17, y, -0.68)], 0.04, skin, segs=6, parent=g)
+    for y in (-0.17, 0.17):  # little arms
+        tube([(0.26, y * 0.7, 0.12), (0.34, y, 0.0)], 0.03, skin, segs=6, taper=(1.0, 0.5), parent=g)
+    if collar:
+        cyl(0.115, 0.06, loc=(0.36, 0, 0.45), rot=(0, 40, 0), m=collar, segs=12, parent=g)
+    return g
+
+
+def captured_animal():
+    """A captured animal is shown in its cage: a lashed wooden cage shut, a small generic dinosaur
+    standing inside it (owner rule)."""
+    _cage()
+    # Neck and head rise out of the open top: at 64 px the animal inside a closed cage would be
+    # just bars.
+    _small_dino(loc=(-0.15, 0.2, 0.0), rot=(0, 0, -30)).scale = (1.4, 1.4, 1.4)
+    turn(-22)
+    turn(14, "X")
+
+
+def tamed_animal():
+    """The same cage with its door swung open, a hide collar round the animal's neck and a spare
+    collar and lead hung on the door: an animal that has been tamed and walks with you (owner rule)."""
+    door = _cage(door_deg=78.0)
+    tame = hidem("#a85a2a", "#6a3010")
+    _small_dino(loc=(-0.05, 0.28, -0.02), rot=(0, 0, 22), collar=tame).scale = (1.4, 1.4, 1.4)
+    collar = hidem("#8a4a20", "#5a2c10")
+    # A spare hide collar hung over the open door's top rail, with its lead and a bone ring.
+    tube(arc((0, 0, 0), 0.26, 20, 340, 20, plane="xz", y=0), 0.06, collar, segs=6, parent=door)
+    tube([(0.12, 0, -0.24), (0.1, -0.06, -0.6), (0.24, -0.12, -0.95), (0.42, -0.06, -1.15)], 0.04, collar, segs=5,
+         parent=door)
+    tube(arc((0.44, -0.06, -1.20), 0.07, 0, 360, 12, plane="xz")[:-1], 0.022, bonem(), segs=4, closed=True,
+         parent=door)
+    turn(-22)
+    turn(14, "X")
+
+
 def _unknown():
     blob(0.9, loc=(0, 0, -0.2), scl=(1.0, 0.9, 1.0), m=flat("#ffffff"), amp=0.08)
     cyl(0.2, 0.25, loc=(0, 0, 0.75), m=flat("#ffffff"), segs=12)
@@ -340,4 +805,11 @@ ITEMS = {
     "crock_pot_kit": crock_pot_kit, "stone_grill_kit": stone_grill_kit, "mortar_kit": mortar_kit,
     "claim_stake": claim_stake, "sign_kit": sign_kit, "bandage": bandage, "splint": splint, "toxin_pot": toxin_pot,
     "toxin_coating": toxin_coating, "rope_snare": rope_snare, "heavy_snare": heavy_snare, "_unknown": _unknown,
+    # dsc icons2: the kits, feeds, medicine and cages that had no render.
+    "cabin_bed_kit": cabin_bed_kit, "canvas_tent_kit": canvas_tent_kit, "field_large_kit": field_large_kit,
+    "field_small_kit": field_small_kit, "log_shelter_kit": log_shelter_kit,
+    "makeshift_taming_pen": makeshift_taming_pen, "smoker_kit": smoker_kit, "steamer_kit": steamer_kit,
+    "stone_fire_pit_kit": stone_fire_pit_kit, "carnivore_feed": carnivore_feed,
+    "herbivore_feed": herbivore_feed, "fruit_fertilizer": fruit_fertilizer,
+    "pressure_dressing": pressure_dressing, "captured_animal": captured_animal, "tamed_animal": tamed_animal,
 }

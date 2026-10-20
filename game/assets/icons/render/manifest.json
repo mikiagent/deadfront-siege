@@ -316,6 +316,20 @@
    "quality": "procedural_v1",
    "replace": "glowing lava-crack texture shared with lava / raid_maul; reads as a fire item"
   },
+  "cabin_bed_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "cabin_bed_kit",
+   "png": "res://assets/icons/render/cabin_bed_kit.png",
+   "sha256": "a75d6592a6d7f45c0eaff0bf02f64c611b0f542ef7af017d990396f8c74ab683",
+   "bytes": 62378,
+   "rect": [
+    19,
+    19,
+    218,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "cactus_flesh": {
    "script": "tools/blender/items/food.py",
    "builder": "cactus_flesh",
@@ -372,6 +386,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "canvas_tent_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "canvas_tent_kit",
+   "png": "res://assets/icons/render/canvas_tent_kit.png",
+   "sha256": "0da4f445cd02dc87e6eafbc218547e1c3888d274c5ba196096fd62e4c3d17e71",
+   "bytes": 48527,
+   "rect": [
+    19,
+    29,
+    218,
+    198
+   ],
+   "quality": "procedural_v1"
+  },
   "capture_net_i": {
    "script": "tools/blender/items/gear.py",
    "builder": "capture_net_i",
@@ -400,6 +428,34 @@
    ],
    "quality": "procedural_v1",
    "replace": "not distinguishable from capture_net_i at slot size"
+  },
+  "captured_animal": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "captured_animal",
+   "png": "res://assets/icons/render/captured_animal.png",
+   "sha256": "1dbbf422e167039a325d8afc765dd05e006c840cafc58f9129c06143ea0ceaa6",
+   "bytes": 55155,
+   "rect": [
+    39,
+    19,
+    178,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "carnivore_feed": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "carnivore_feed",
+   "png": "res://assets/icons/render/carnivore_feed.png",
+   "sha256": "38bec83d3127fca11e477272796029ed1e5991942ccc42acc13b33b604b030d4",
+   "bytes": 41253,
+   "rect": [
+    19,
+    42,
+    218,
+    172
+   ],
+   "quality": "procedural_v1"
   },
   "catapult_kit": {
    "script": "tools/blender/items/camp.py",
@@ -713,6 +769,34 @@
    ],
    "quality": "procedural_v1"
   },
+  "field_large_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "field_large_kit",
+   "png": "res://assets/icons/render/field_large_kit.png",
+   "sha256": "761077fedf81451d27502c70a1b897533433e8a39d63641ad3310a7d2a520d85",
+   "bytes": 51242,
+   "rect": [
+    25,
+    19,
+    206,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "field_small_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "field_small_kit",
+   "png": "res://assets/icons/render/field_small_kit.png",
+   "sha256": "a4e774794000c2e9ce8cefb1dd9caf5a4b52c6304ac85c94414182882ec5e85a",
+   "bytes": 43435,
+   "rect": [
+    43,
+    19,
+    170,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "fish": {
    "script": "tools/blender/items/food.py",
    "builder": "fish",
@@ -827,6 +911,20 @@
    "quality": "model_v2",
    "replace": "worn-pose arm piece: reads as two arms with hands, not an item; stage as one crossed pair"
   },
+  "fruit_fertilizer": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "fruit_fertilizer",
+   "png": "res://assets/icons/render/fruit_fertilizer.png",
+   "sha256": "4073f02d91846e69be2ef526ca48c414ac0974a10ad50ee8c7a4bd0c7f4fbbae",
+   "bytes": 41058,
+   "rect": [
+    19,
+    52,
+    218,
+    152
+   ],
+   "quality": "procedural_v1"
+  },
   "gate_kit": {
    "script": "tools/blender/items/camp.py",
    "builder": "gate_kit",
@@ -896,6 +994,20 @@
     19,
     108,
     218
+   ],
+   "quality": "procedural_v1"
+  },
+  "herbivore_feed": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "herbivore_feed",
+   "png": "res://assets/icons/render/herbivore_feed.png",
+   "sha256": "b992d85a837a3103faa564d77318065340cf0c229d15ac6a87f20685b35f85b0",
+   "bytes": 56180,
+   "rect": [
+    19,
+    32,
+    218,
+    192
    ],
    "quality": "procedural_v1"
   },
@@ -1053,6 +1165,34 @@
     56,
     218,
     144
+   ],
+   "quality": "procedural_v1"
+  },
+  "log_shelter_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "log_shelter_kit",
+   "png": "res://assets/icons/render/log_shelter_kit.png",
+   "sha256": "eccbbfef7c9bc3e18a0ce94ce4aad564b6d8412acde85a8d34c61843f4b6f09e",
+   "bytes": 59195,
+   "rect": [
+    23,
+    19,
+    210,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
+  "makeshift_taming_pen": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "makeshift_taming_pen",
+   "png": "res://assets/icons/render/makeshift_taming_pen.png",
+   "sha256": "b3ec782c73956e3efcf6c4e60300673b137b3be92e432343bbc9e0e5d7600c0a",
+   "bytes": 39754,
+   "rect": [
+    52,
+    19,
+    152,
+    218
    ],
    "quality": "procedural_v1"
   },
@@ -1324,6 +1464,20 @@
     19,
     212,
     218
+   ],
+   "quality": "procedural_v1"
+  },
+  "pressure_dressing": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "pressure_dressing",
+   "png": "res://assets/icons/render/pressure_dressing.png",
+   "sha256": "e456994a96a690f785a69edadd9ce156f10ec53853432f8aa2ec91deb93b8fef",
+   "bytes": 34305,
+   "rect": [
+    19,
+    63,
+    218,
+    131
    ],
    "quality": "procedural_v1"
   },
@@ -1685,6 +1839,20 @@
    "quality": "procedural_v1",
    "replace": "not distinguishable from roast / seasoned_roast at slot size"
   },
+  "smoker_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "smoker_kit",
+   "png": "res://assets/icons/render/smoker_kit.png",
+   "sha256": "e9a2ada5b44af23e56b9d389fd8ed951d258df912bf706dfec3853aa0ff28a68",
+   "bytes": 30332,
+   "rect": [
+    42,
+    19,
+    172,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "snow_pine": {
    "script": "tools/blender/items/resources.py",
    "builder": "snow_pine",
@@ -1769,6 +1937,20 @@
    ],
    "quality": "procedural_v1"
   },
+  "steamer_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "steamer_kit",
+   "png": "res://assets/icons/render/steamer_kit.png",
+   "sha256": "2ed74fa73ed3bd3fd6f06371d07b1761bfea0981c7403a6da48cdffe61ab7bb6",
+   "bytes": 57252,
+   "rect": [
+    33,
+    19,
+    190,
+    218
+   ],
+   "quality": "procedural_v1"
+  },
   "steel_ingot": {
    "script": "tools/blender/items/resources.py",
    "builder": "steel_ingot",
@@ -1795,6 +1977,20 @@
     44,
     218,
     168
+   ],
+   "quality": "procedural_v1"
+  },
+  "stone_fire_pit_kit": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "stone_fire_pit_kit",
+   "png": "res://assets/icons/render/stone_fire_pit_kit.png",
+   "sha256": "e68cdff6938caf8c1f61a1a22bf3108cbacf195b02d1bcc7340997981024fd66",
+   "bytes": 54665,
+   "rect": [
+    22,
+    19,
+    212,
+    218
    ],
    "quality": "procedural_v1"
   },
@@ -1880,6 +2076,20 @@
     19,
     214,
     218
+   ],
+   "quality": "procedural_v1"
+  },
+  "tamed_animal": {
+   "script": "tools/blender/items/camp.py",
+   "builder": "tamed_animal",
+   "png": "res://assets/icons/render/tamed_animal.png",
+   "sha256": "3e87b24bf640efc8fe7ca069aae436b82fb53764f6831a3e92f6a36ac091a1d7",
+   "bytes": 59938,
+   "rect": [
+    19,
+    21,
+    218,
+    214
    ],
    "quality": "procedural_v1"
   },
@@ -2152,21 +2362,5 @@
    "quality": "procedural_v1"
   }
  },
- "missing": [
-  "cabin_bed_kit",
-  "canvas_tent_kit",
-  "captured_animal",
-  "carnivore_feed",
-  "field_large_kit",
-  "field_small_kit",
-  "fruit_fertilizer",
-  "herbivore_feed",
-  "log_shelter_kit",
-  "makeshift_taming_pen",
-  "pressure_dressing",
-  "smoker_kit",
-  "steamer_kit",
-  "stone_fire_pit_kit",
-  "tamed_animal"
- ]
+ "missing": []
 }
