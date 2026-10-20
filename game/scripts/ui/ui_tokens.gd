@@ -24,6 +24,8 @@ const DANGER := Color(0.86, 0.22, 0.18, 1.0)
 const TEXT := Color(0.95, 0.95, 0.93, 1.0)
 const META := Color(0.78, 0.76, 0.70, 1.0)
 const ACTION := Color(1, 1, 1, 1)
+## Tests turn this on to run the controller focus path without a joypad (wants_focus()).
+static var force_focus := false
 
 
 ## Under 720 px wide. Kept at its original meaning: the protected HUD, bag and animal screen pick
@@ -194,7 +196,7 @@ static func draw_centered(ci: CanvasItem, font: Font, center: Vector2, text: Str
 ## Menus put focus on their first control only when a controller is connected; with a mouse the
 ## ring would just be noise and Space would press it.
 static func wants_focus() -> bool:
-	return not Input.get_connected_joypads().is_empty()
+	return force_focus or not Input.get_connected_joypads().is_empty()
 
 static func focus_first(controls: Array) -> void:
 	if not wants_focus():

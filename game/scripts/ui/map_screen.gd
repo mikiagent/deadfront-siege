@@ -285,24 +285,6 @@ func _map_rect(L: Dictionary) -> Rect2:
 	var side: float = L["fit"]
 	return Rect2((L["centre"] as Vector2) - Vector2(side, side) * 0.5, Vector2(side, side))
 
-## Screen rect of every block, for the real-scene gate: none may leave the view or overlap another.
-func layout_rects() -> Dictionary:
-	var r := get_viewport_rect().size
-	var out := {"map": _map_rect(_layout()), "close": _close.get_global_rect(), "actions": _btn_row.get_global_rect()}
-	var zoom_row := get_node_or_null("ZoomRow") as Control
-	if zoom_row:
-		out["zoom"] = zoom_row.get_global_rect()
-	for i in _cards.get_child_count():
-		var card := _cards.get_child(i) as Control
-		if card and not card.is_queued_for_deletion():
-			out["card%d" % i] = card.get_global_rect()
-	var kinds := _legend_kinds()
-	for i in kinds.size():
-		var at := legend_slot(i, r)
-		var row := Rect2(at + Vector2(0.0, -15.0), Vector2(legend_col_w(r), 20.0))
-		out["legend"] = row if i == 0 else (out["legend"] as Rect2).merge(row)
-	return out
-
 func _legend_kinds() -> Array:
 	var kinds: Array = LEGEND.keys()
 	if not World.crater_discovered:

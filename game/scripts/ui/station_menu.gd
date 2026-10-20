@@ -66,6 +66,7 @@ func show_for(st: Node3D, actions: Array) -> void:
 	for a in actions:
 		var row: Dictionary = a
 		var btn := HexButton.new(HEX_SIZE)
+		btn.focus_mode = Control.FOCUS_ALL  # controller menu (HexButton defaults out of focus)
 		# HexButton only emits after receiving its own press and release. Because this is
 		# created after the station press, that opening gesture cannot activate the action.
 		# Station entry is an action, so the symbol is drawn white. Item thumbnails live on the gather radial.

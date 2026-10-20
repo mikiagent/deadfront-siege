@@ -14,6 +14,10 @@ var _cards: Dictionary = {}
 var _k := 1.0
 ## Gold, like SP: it reads on the dark card and on the teal selected one (teal text did not).
 const START_COLOR := Color(1.0, 0.85, 0.35)
+## The fallback font's 16 px lines sit ~37 px apart; two-line stories read as two loose captions.
+const STORY_TIGHTEN := 8
+## Desktop cards: the head-start skill's white symbol fills the band between story and head start.
+const CARD_SYMBOL_PX := 56.0
 
 ## Layout choice for a canvas `view` whose window DisplayMode would fit to `fitted`. Decided on the
 ## fitted canvas, then scaled by k, so the screen is the same with or without the canvas fit (the
@@ -102,10 +106,13 @@ func _ready() -> void:
 			var story := _card_line(str(occupation.get("story", "")), _px(16), UiTokens.META)
 			story.add_theme_constant_override("line_spacing", -_px(STORY_TIGHTEN))
 			stack.add_child(story)
-			var gap := Control.new()
-			gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			stack.add_child(gap)
+			# The band between story and head start (~130 px at 1600x900) was empty.
+			var band := CenterContainer.new()
+			band.name = "CardSymbol"
+			band.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			band.add_child(SkillsSheet.symbol_rect(str(occupation.get("tree", "")), _px(CARD_SYMBOL_PX)))
+			stack.add_child(band)
 		# Phone: the skill alone (the subtitle gives the Lv. 20); "Weapon / Tools Lv. 20" wrapped in a
 		# portrait card and dropped its title below its neighbour's.
 		var start_text := skill if phone else "Starts: %s %s" % [skill, LevelDisplay.label(20)]
@@ -160,9 +167,6 @@ func _ready() -> void:
 		if a.begins_with("--occupation="):
 			_select(a.substr(13))
 			call_deferred("_finish")
-
-## The fallback font's 16 px lines sit ~37 px apart; two-line stories read as two loose captions.
-const STORY_TIGHTEN := 8
 
 func _card_line(text: String, size_px: int, color: Color) -> Label:
 	var l := Label.new()

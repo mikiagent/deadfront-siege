@@ -144,7 +144,7 @@ func _header(text: String, right: String = "", symbol_id: String = "") -> void:
 		h.remove_child(c)
 		c.queue_free()
 	if symbol_id != "":
-		h.add_child(_symbol(symbol_id, 32.0))
+		h.add_child(symbol_rect(symbol_id, 32.0))
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", UiTokens.heading(view))
@@ -165,9 +165,11 @@ func _header(text: String, right: String = "", symbol_id: String = "") -> void:
 	close_btn.pressed.connect(close)
 	h.add_child(close_btn)
 
-func _symbol(id: String, px: float) -> TextureRect:
+## A skill's white symbol, `px` square (also on the character creation cards).
+static func symbol_rect(id: String, px: float) -> TextureRect:
 	var t := TextureRect.new()
 	t.texture = HexButton.symbol([SYMBOLS.get(id, id), "hammer"])
+	t.material = HexButton.white_material()
 	t.custom_minimum_size = Vector2(px, px)
 	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -220,7 +222,7 @@ func _build_overview() -> void:
 		cols.add_theme_constant_override("separation", 10)
 		cols.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(cols)
-		cols.add_child(_symbol(id, 28.0))
+		cols.add_child(symbol_rect(id, 28.0))
 		var name_cell := _cell(str(SkillState.NAMES.get(id, id)), 0.0 if narrow else (NAME_W_COMPACT if compact else NAME_W), body)
 		if narrow:
 			name_cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL

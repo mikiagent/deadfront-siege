@@ -297,6 +297,7 @@ func _ensure_corpse_entry(corpse: Corpse) -> Dictionary:
 	var knife := TextureRect.new()
 	knife.name = "KnifeLock"
 	knife.texture = HexButton.symbol(["stone_knife", "stone_knife_work"])
+	knife.material = HexButton.white_material()
 	knife.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	knife.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	knife.custom_minimum_size = Vector2(16, 16)

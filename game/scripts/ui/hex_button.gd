@@ -27,6 +27,11 @@ var color_icon: bool = false
 
 var _down: bool = false
 var _hold: float = 0.0
+## Shared by every white symbol (white_material()).
+static var _white: ShaderMaterial
+
+## Caption type size under the hex, shared by _draw and caption_rect().
+const CAPTION_PX := 13
 
 ## Compatibility with the station radial (M8e): icon or glyph, label, seconds on top, count below.
 func setup(p_icon: Texture2D, p_glyph: String, p_label: String, p_seconds: String = "", p_count: String = "") -> void:
@@ -64,9 +69,10 @@ func _init(size_px: float = 72.0) -> void:
 	size = Vector2(size_px, size_px)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	pivot_offset = size * 0.5
-	# Keyboard and controller users reach every hex; _draw shows a teal ring on focus. A tap or
-	# click drops focus again (_gui_input) so a HUD hex never keeps arrows/Space from the game.
-	focus_mode = Control.FOCUS_ALL
+	# Out of focus by default: the HUD rails are hexes, and a focused one takes Space (roll) and the
+	# arrows (move). Menus that a controller drives (station menu) set FOCUS_ALL; _draw shows a teal
+	# ring on focus, and a tap or click drops it again (_gui_input).
+	focus_mode = Control.FOCUS_NONE
 	focus_entered.connect(queue_redraw)
 	focus_exited.connect(queue_redraw)
 
@@ -78,6 +84,9 @@ func _hex(r: float, c: Vector2) -> PackedVector2Array:
 	return pts
 
 func _draw() -> void:
+	var want: Material = white_material() if icon and not color_icon else null
+	if material != want:
+		material = want
 	var c := size * 0.5
 	var r := minf(size.x, size.y) * 0.5 - 2.0
 	var f := fill
@@ -104,8 +113,7 @@ func _draw() -> void:
 		var isz := r * (0.8 if has_texts else 1.05)
 		var ic := c + Vector2(0.0, 2.0 if top_text != "" else 0.0)
 		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0)
-		var shown: Texture2D = icon if color_icon else white_symbol(icon)
-		draw_texture_rect(shown, Rect2(ic - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
+		draw_texture_rect(icon, Rect2(ic - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
 	elif glyph != "":
 		var short := glyph.length() <= 2
 		var gs := maxi(UiTokens.TYPE_MIN, int(r * (0.72 if bottom_text != "" else 0.9)) if short else (int(r * 0.40) if glyph.length() <= 4 else int(r * 0.30)))
@@ -157,12 +165,6 @@ func _draw() -> void:
 			var hint := UiTokens.ellipsis(font, hint_text, 140.0, UiTokens.TYPE_MIN)
 			draw_string(font, Vector2(origin_x + 6.0, c.y + ls * 1.45), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.TYPE_MIN, UiTokens.DANGER)
 
-## white_symbol() results, keyed by source texture path (or RID for runtime textures).
-static var _symbol_cache: Dictionary = {}
-
-## Caption type size under the hex, shared by _draw and caption_rect().
-const CAPTION_PX := 13
-
 func _caption_text(font: Font) -> String:
 	return UiTokens.ellipsis(font, caption, size.x * 1.25, CAPTION_PX)
 
@@ -192,35 +194,25 @@ func caption_rect() -> Rect2:
 	var at := _caption_at(ThemeDB.fallback_font)
 	return Rect2(global_position + Vector2(at.x, at.y - float(CAPTION_PX)), Vector2(at.z, float(CAPTION_PX) + 4.0))
 
-## Durango-style HUD language: action symbols are white silhouettes. White silhouette of a
-## texture (alpha kept, RGB dropped): system emoji render in colour on macOS/iOS, so action
-## glyphs use these instead. Cached per source texture.
-static func white_symbol(source: Texture2D) -> Texture2D:
-	if source == null:
-		return null
-	var key := source.resource_path if source.resource_path != "" else str(source.get_rid())
-	if _symbol_cache.has(key):
-		return _symbol_cache[key] as Texture2D
-	var image := source.get_image()
-	if image == null or image.is_empty():
-		return source
-	image = image.duplicate() as Image
-	if image.is_compressed():
-		image.decompress()
-	image.convert(Image.FORMAT_RGBA8)
-	for y in image.get_height():
-		for x in image.get_width():
-			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, image.get_pixel(x, y).a))
-	var white := ImageTexture.create_from_image(image)
-	_symbol_cache[key] = white
-	return white
+## Durango-style HUD language: action symbols are white silhouettes (system emoji render in colour
+## on macOS/iOS). This material draws every texture on its canvas item in the draw's tint, keeping the
+## texture's alpha; shapes and text keep their colours. A shader, not a CPU copy: whitening 128 px
+## icons pixel by pixel in GDScript hitched the first skills and craft open on a phone.
+static func white_material() -> ShaderMaterial:
+	if _white == null:
+		var shader := Shader.new()
+		shader.code = "shader_type canvas_item;\nvarying vec4 tint;\nvoid vertex() { tint = COLOR; }\nvoid fragment() { COLOR.rgb = tint.rgb; }\n"
+		_white = ShaderMaterial.new()
+		_white.shader = shader
+	return _white
 
-## White symbol for the first id in `ids` that has an icon (item ids from icons_manifest.json).
+## Icon for the first id in `ids` that has one (item ids from icons_manifest.json). Draw it white
+## with white_material(); a HexButton does that itself unless color_icon is set.
 static func symbol(ids: Array) -> Texture2D:
 	for id in ids:
 		var tex := ItemIcons.texture(StringName(str(id)))
 		if tex:
-			return white_symbol(tex)
+			return tex
 	return null
 
 func _gui_input(event: InputEvent) -> void:

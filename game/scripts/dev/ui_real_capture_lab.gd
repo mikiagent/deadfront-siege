@@ -1,15 +1,16 @@
 extends Node3D
 ## Real-scene UI gate (W1-UI). Boots the home island with the real HUD, fits the logical canvas and
 ## installs the theme the way boot does (DisplayMode.install, DisplayMode.install_theme), then opens
-## the HUD, craft, skills, atlas, a gather radial, the bag and character creation in the ROOT
+## the HUD, craft, skills, atlas, a gather radial, the bag, the animal screen and character creation in the ROOT
 ## viewport (not a sized SubViewport, which hid the phone problem) and saves a PNG of each. Every
 ## screen must have size, sit inside the view, draw no text under 12 logical px and be neither blank
 ## nor blown out; the HUD, atlas, bag and character creation also check that their blocks and
-## controls stay inside the view and do not overlap each other.
+## controls stay inside the view and do not overlap each other. The animal screen (protected) is a
+## shot only, for an eye check of the token theme on it; nothing on it is gated.
 ## Windowed: --resolution 844x390 -- --lab=ui_real_capture_lab [--shot-dir=DIR] [--no-fit]
 ## (844x390 is the phone check: the owner plays phones landscape; 667x375, 390x844 and 1600x900 also
 ## run.) --no-fit skips DisplayMode.install: the gate's self-test, which must then FAIL on a phone
-## window. Prints "[uireal] phone=<bool> min_font_px=<n> ..." then "[uireal] PASS" (exit 0) or FAIL
+## window. --no-theme skips the token theme, for before/after shots of the protected screens. Prints "[uireal] phone=<bool> min_font_px=<n> ..." then "[uireal] PASS" (exit 0) or FAIL
 ## lines (exit 1).
 
 const SETTLE_S := 3.0
@@ -26,15 +27,19 @@ var _shots: PackedStringArray = []
 
 func _ready() -> void:
 	var fit := true
+	var theme := true
 	_out = OS.get_user_data_dir().path_join("ui-real")
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot-dir="):
 			_out = a.substr(11)
 		elif a == "--no-fit":
 			fit = false
+		elif a == "--no-theme":
+			theme = false
 	if fit:
 		DisplayMode.install(get_tree().root)
-	DisplayMode.install_theme()
+	if theme:
+		DisplayMode.install_theme()
 	DirAccess.make_dir_recursive_absolute(_out)
 	Game.debug_overlay = false  # before the HUD builds: players never see the DEBUG hex (labs default it on)
 	var kit := LabKit.build(self, 4.0)
@@ -80,6 +85,9 @@ func _run() -> void:
 			dash += 1
 	print("[uireal] craft rows=%d with_lv_dash=%d first=\"%s\"" % [metas.size(), dash, metas[0].text if not metas.is_empty() else ""])
 	_expect(dash > 0, "craft shows '%s' on a recipe the bag cannot make" % CraftUI.NO_LEVEL)
+	# Portrait cut the header hint to "Hand reci...": shown means it fits.
+	var hint := craft.find_child("CraftHint", true, false) as Label
+	_expect(hint == null or not hint.is_visible_in_tree() or text_fits(hint), "craft: header hint \"%s\" fits its %.0f px, or is hidden" % [hint.text.left(24) if hint else "", hint.size.x if hint else 0.0])
 	if narrow:
 		_expect(_visible_vscrolls(craft) == 1, "portrait craft shows one vertical scroll pane, not %d" % _visible_vscrolls(craft))
 	await _capture("craft", [craft], logical)
@@ -132,10 +140,10 @@ func _run() -> void:
 		print("[uireal] skills: rows fully visible %d/%d" % [shown, total])
 		# No label cut short: portrait cut "Weapon / Tools" to "Weapon / ...".
 		for l in _labels_in(sheet):
-			var tw := l.get_theme_font("font").get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, l.get_theme_font_size("font_size")).x
-			_expect(not l.clip_text or tw <= l.size.x + 0.5, "skills: \"%s\" fits its %.0f px column (needs %.0f)" % [l.text, l.size.x, tw])
+			_expect(not l.clip_text or text_fits(l), "skills: \"%s\" fits its %.0f px column" % [l.text, l.size.x])
 		_expect(shown >= mini(total, 8), "skills shows at least 8 of %d rows without scrolling (got %d)" % [total, shown])
 		await _capture("skills", [sheet], logical)
+		_check_white("skills", sheet)
 		sheet.close()
 	# atlas
 	_hud.open_map()
@@ -144,7 +152,7 @@ func _run() -> void:
 	_expect(map != null and map.visible, "atlas opens from the HUD")
 	if map:
 		await _frames(2)
-		_check_blocks("atlas", map.layout_rects(), logical)
+		_check_blocks("atlas", atlas_blocks(map), logical)
 		await _capture("atlas", [map], logical)
 		map.close()
 	# gather radial on the nearest real harvest node
@@ -178,8 +186,20 @@ func _run() -> void:
 		for col in ["profile_col", "bag_col", "equip_col"]:
 			var top: float = (bag[col] as Rect2).position.y if bag.has(col) else INF
 			_expect(top < logical.y * 0.5 and absf(top - (bag["profile_col"] as Rect2).position.y) < 8.0, "bag: %s starts beside the others in the top half (y %.0f)" % [col, top])
+	# One player level: the bag printed pioneer level + 1 ("Lv. 1") beside the HUD's and atlas's "Lv. 0".
+	var profile := _player.ui.get("_profile") as Label
+	_expect(profile != null and profile.text.ends_with(LevelDisplay.player_label()), "bag: profile shows the player level %s like the HUD and atlas (got \"%s\")" % [LevelDisplay.player_label(), profile.text.replace("\n", " / ") if profile else "missing"])
 	await _capture("bag", [], logical)
 	_player.ui.visible = false
+	# animal screen (protected): shot only, for the eye check of the token theme on it
+	_hud.call("_open_animals")
+	await _frames(3)
+	await _capture("animals", [], logical, false)
+	var animals := _hud.get_node_or_null("AnimalLayer/AnimalScreen") as Control
+	if animals:
+		# Its dim backdrop and sheet fill the screen's own rect; a zero rect leaves the world showing.
+		print("[uireal] animals (protected, not gated): screen rect %s, backdrop %s" % [animals.get_global_rect(), (animals.get_child(0) as Control).size])
+		animals.call("close_screen")
 	# character creation: every card and control inside the view, none overlapping
 	var cc := CharacterCreation.new()
 	root.add_child(cc)
@@ -192,8 +212,16 @@ func _run() -> void:
 	_check_blocks("charcreate", cc_rects, logical)
 	# Cards in one row line up: titles at one y, head-start lines at one y, every line inside its card.
 	var rows := {}
+	var symbols := 0
 	for c in _controls_in(cc):
 		if c is Button and str(c.name).begins_with("Card_"):
+			# Desktop cards: the head-start symbol fills the band that sat empty (~130 px).
+			var band := c.find_child("CardSymbol", true, false) as Control
+			var sym := band.get_child(0) as TextureRect if band and band.get_child_count() > 0 else null
+			if sym and sym.texture and sym.is_visible_in_tree() and c.get_global_rect().encloses(sym.get_global_rect()):
+				symbols += 1
+			elif not phone:
+				_fail("charcreate: %s shows its head-start symbol inside the card" % c.name)
 			var lines := _labels_in(c)
 			for l in lines:
 				_expect(c.get_global_rect().grow(0.5).encloses(l.get_global_rect()), "charcreate: %s line \"%s\" inside its card" % [c.name, l.text.left(20)])
@@ -207,11 +235,13 @@ func _run() -> void:
 			lo = lo.min(v)
 			hi = hi.max(v)
 		spread = spread.max(hi - lo)
-	print("[uireal] charcreate cards: rows=%d title_y_spread=%.1f start_y_spread=%.1f" % [rows.size(), spread.x, spread.y])
+	print("[uireal] charcreate cards: rows=%d title_y_spread=%.1f start_y_spread=%.1f symbols=%d" % [rows.size(), spread.x, spread.y, symbols])
 	_expect(spread.x <= 1.0 and spread.y <= 1.0, "charcreate: card titles and head starts line up across each row (spread %s)" % spread)
 	for key in ["Body_f", "Body_m", "NameField", "EnterRift"]:
 		_expect(not cc_rects.has(key) or (cc_rects[key] as Rect2).size.y >= UiTokens.TARGET_PRIMARY - 0.5, "charcreate: %s is at least %d px tall (%s)" % [key, UiTokens.TARGET_PRIMARY, cc_rects.get(key)])
 	await _capture("charcreate", [cc.get_child(0) as Control], logical)
+	if symbols > 0:  # phone cards have no room for one
+		_check_white("charcreate", cc)
 	cc.queue_free()
 	_finish(phone, logical)
 
@@ -224,7 +254,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
 	print("[uireal] phone=%s min_font_px=%d logical_width=%d window_pt=%dx%d min_pt=%.2f floor_pt=%.2f (smallest: %s)" % [phone, min_px, int(logical.x), int(pts.x), int(pts.y), min_pt, type_floor_pt(pts), _min_font_where])
 	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
 	if _fails.is_empty():
-		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,plate,bag,charcreate shots=%s" % ["craft_detail," if narrow else "", _out])
+		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,plate,bag,charcreate shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
 		get_tree().quit(0)
 	else:
 		for f in _fails:
@@ -322,6 +352,24 @@ static func hud_blocks(hud: HuntHud, player: Player, r: Vector2) -> Dictionary:
 	out["level"] = Rect2(base - Vector2(0.0, 12.0), Vector2(lw, 15.0))
 	return out
 
+## Atlas blocks: the map square, Close, the action row, zoom, the island cards and the legend.
+static func atlas_blocks(map: MapScreen) -> Dictionary:
+	var r := map.get_viewport_rect().size
+	var out := {"map": map.call("_map_rect", map.call("_layout")), "close": (map.get("_close") as Control).get_global_rect(), "actions": (map.get("_btn_row") as Control).get_global_rect()}
+	var zoom_row := map.get_node_or_null("ZoomRow") as Control
+	if zoom_row:
+		out["zoom"] = zoom_row.get_global_rect()
+	var cards := map.get("_cards") as Control
+	for i in cards.get_child_count():
+		var card := cards.get_child(i) as Control
+		if card and not card.is_queued_for_deletion():
+			out["card%d" % i] = card.get_global_rect()
+	var kinds: Array = map.call("_legend_kinds")
+	for i in kinds.size():
+		var row := Rect2(MapScreen.legend_slot(i, r) + Vector2(0.0, -15.0), Vector2(MapScreen.legend_col_w(r), 20.0))
+		out["legend"] = row if i == 0 else (out["legend"] as Rect2).merge(row)
+	return out
+
 ## Bag columns (profile, slots, equipment) and its close button.
 static func bag_blocks(bag: Node) -> Dictionary:
 	var out := {}
@@ -398,9 +446,16 @@ func _capture_plate(logical: Vector2) -> void:
 	wild.process_mode = Node.PROCESS_MODE_INHERIT
 
 ## Checks one open screen and saves the root viewport as <name>_<w>x<h>.png.
-func _capture(name: String, roots: Array, logical: Vector2) -> void:
+func _capture(name: String, roots: Array, logical: Vector2, gated: bool = true) -> void:
 	await _frames(2)
 	await RenderingServer.frame_post_draw
+	if not gated:
+		var shot := get_tree().root.get_texture().get_image()
+		if shot and shot.get_width() >= 8:
+			var at := _out.path_join("%s_%dx%d.png" % [name, get_tree().root.size.x, get_tree().root.size.y])
+			shot.save_png(at)
+			print("[uireal] shot %s (not gated)" % at)
+		return
 	var view := Rect2(Vector2.ZERO, logical)
 	for r in roots:
 		var c := r as Control
@@ -422,6 +477,37 @@ func _capture(name: String, roots: Array, logical: Vector2) -> void:
 	print("[uireal] shot %s mean=%.2f dev=%.3f blown=%.3f" % [path, stats.x, stats.y, stats.z])
 	_expect(stats.y >= FLAT_MIN, "%s: frame is not blank (luma deviation %.3f)" % [name, stats.y])
 	_expect(stats.z <= BLOWN_MAX, "%s: not blown out (%.0f%% near-white)" % [name, stats.z * 100.0])
+
+## A clipped label's text is no wider than the label.
+static func text_fits(l: Label) -> bool:
+	return l.get_theme_font("font").get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, l.get_theme_font_size("font_size")).x <= l.size.x + 0.5
+
+## White symbols (HexButton.white_material) must render white on the GPU: of the bright pixels
+## under each visible TextureRect in `node`, under 10 % may be coloured (the item icons are brown,
+## green, red). Reads the frame _capture just drew.
+func _check_white(screen: String, node: Node) -> void:
+	var img := get_tree().root.get_texture().get_image()
+	var xf := get_tree().root.get_final_transform()
+	var worst := 0.0
+	var n := 0
+	for c in _controls_in(node):
+		var t := c as TextureRect
+		if t == null or t.texture == null or t.material != HexButton.white_material() or not on_screen(t):
+			continue
+		n += 1
+		var r := Rect2i(Rect2(xf * t.get_global_rect().position, t.get_global_rect().size * xf.get_scale())).intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+		var bright := 0
+		var coloured := 0
+		for y in range(r.position.y, r.end.y):
+			for x in range(r.position.x, r.end.x):
+				var p := img.get_pixel(x, y)
+				if p.v > 0.6:
+					bright += 1
+					if p.s > 0.35:
+						coloured += 1
+		worst = maxf(worst, float(coloured) / maxf(1.0, float(bright)))
+	print("[uireal] %s white symbols: %d checked, most coloured %.2f" % [screen, n, worst])
+	_expect(n > 0 and worst < 0.1, "%s: white symbols render white (%d checked, worst %.0f%% coloured)" % [screen, n, worst * 100.0])
 
 ## Smallest on-screen size of any visible text control, after content scale and plate scaling.
 func _scan_fonts(node: Node, screen: String) -> void:

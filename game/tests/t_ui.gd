@@ -263,8 +263,10 @@ func _test_level_display() -> void:
 	world.pioneer_level = was
 
 func _test_hex_focus() -> void:
-	var b: Control = (load("res://scripts/ui/hex_button.gd") as GDScript).new()
-	_expect(b.focus_mode == Control.FOCUS_ALL, "HexButton is focusable")
+	var HB: GDScript = load("res://scripts/ui/hex_button.gd")
+	_test_controller_focus(HB)
+	var b: Control = HB.new()
+	b.focus_mode = Control.FOCUS_ALL  # as a menu hex
 	get_root().add_child(b)
 	b.position = Vector2(100, 100)
 	var hits := [0]
@@ -275,16 +277,7 @@ func _test_hex_focus() -> void:
 	accept.pressed = true
 	get_root().push_input(accept)
 	_expect(hits[0] == 1, "ui_accept presses a focused HexButton (pressed x%d)" % hits[0])
-	var click := InputEventMouseButton.new()
-	click.button_index = MOUSE_BUTTON_LEFT
-	click.pressed = true
-	# push_input takes window pixels; the root stretches its canvas into the window
-	click.position = get_root().get_final_transform() * b.get_global_rect().get_center()
-	click.global_position = click.position
-	get_root().push_input(click)
-	var up := click.duplicate() as InputEventMouseButton
-	up.pressed = false
-	get_root().push_input(up)
+	_push_click(b)
 	_expect(not b.has_focus(), "a tap drops the hex's focus")
 	_expect(hits[0] == 2, "the tap itself still presses the hex (pressed x%d)" % hits[0])
 	print("[t_ui] hex focus: accept pressed=%d, focus after tap=%s" % [hits[0], b.has_focus()])
@@ -299,6 +292,54 @@ func _test_hex_focus() -> void:
 	_expect(UT.first_focusable([hidden, inert, first, second]) == first, "focus_first picks the first visible focusable control")
 	for c in [hidden, inert, first, second]:
 		c.queue_free()
+
+## The controller path end to end (wants_focus forced on, no joypad needed). A HUD hex never takes
+## focus (hunt_hud builds its rail with HexButton's defaults; a focused one took Space, roll, and the
+## arrows, move). A station menu opens on its first hex, ui_right walks along its hexes, and
+## closing it leaves nothing focused.
+func _test_controller_focus(HB: GDScript) -> void:
+	var hud_hex: Control = HB.new()
+	get_root().add_child(hud_hex)
+	hud_hex.position = Vector2(600, 100)
+	hud_hex.grab_focus()
+	_push_click(hud_hex)
+	_expect(hud_hex.focus_mode == Control.FOCUS_NONE and not hud_hex.has_focus(), "a HUD hex (HexButton defaults) takes no focus from grab_focus or a click")
+	UT.force_focus = true
+	var st := Node3D.new()
+	get_root().add_child(st)
+	var menu: Control = (load("res://scripts/ui/station_menu.gd") as GDScript).new()
+	get_root().add_child(menu)
+	menu.call("show_for", st, [{"id": &"craft", "label": "CRAFT", "glyph": "C"}, {"id": &"cook", "label": "COOK", "glyph": "K"}])
+	var hexes: Array = menu.get("_buttons")
+	for i in hexes.size():
+		(hexes[i] as Control).position = Vector2(300.0 + 90.0 * i, 300.0)
+	_expect(hexes.size() == 2 and (hexes[0] as Control).has_focus(), "a controller opens the station menu with its first hex focused")
+	var path: PackedStringArray = []
+	for i in 2:
+		var right := InputEventAction.new()
+		right.action = &"ui_right"
+		right.pressed = true
+		get_root().push_input(right)
+		path.append(str(hexes.find(get_root().gui_get_focus_owner())))
+	_expect(",".join(path) == "1,1", "ui_right moves to the second menu hex and stays in the menu (focus at hex %s)" % ",".join(path))
+	menu.call("hide_menu")
+	_expect(get_root().gui_get_focus_owner() == null, "closing the menu leaves nothing focused (%s)" % get_root().gui_get_focus_owner())
+	print("[t_ui] controller focus: menu opens on hex 0, ui_right x2 -> hex %s, after close: %s; HUD hex focus=%s" % [",".join(path), get_root().gui_get_focus_owner(), hud_hex.has_focus()])
+	UT.force_focus = false
+	for n in [menu, st, hud_hex]:
+		n.free()
+
+## Left press and release at a control's centre, in window pixels (the root stretches its canvas).
+func _push_click(c: Control) -> void:
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = get_root().get_final_transform() * c.get_global_rect().get_center()
+	click.global_position = click.position
+	get_root().push_input(click)
+	var up := click.duplicate() as InputEventMouseButton
+	up.pressed = false
+	get_root().push_input(up)
 
 ## The real-scene gate must fail when the phone canvas fit is missing (review: it printed PASS
 ## for "phone=false min_font_px=3 logical_width=1600" at 390x844).
@@ -378,6 +419,14 @@ func _test_review_fixes() -> void:
 		thinnest = minf(thinnest, share)
 		_expect(share >= 0.12, "skill %s symbol %s fills %.0f%% of its icon (>= 12%%)" % [id, SS.SYMBOLS[id], share * 100.0])
 	print("[t_ui] skill symbols: %d, thinnest silhouette %.2f" % [SS.SYMBOLS.size(), thinnest])
+	# White symbols are one shared material, not a CPU copy per icon (the per-pixel copy hitched the
+	# first skills and craft open). The lab checks they render white.
+	var HB: GDScript = load("res://scripts/ui/hex_button.gd")
+	var club: Texture2D = icons.texture(&"club")
+	_expect(club != null and HB.symbol(["club"]) == club, "HexButton.symbol hands back the icon itself, not a copy")
+	var rect: TextureRect = SS.symbol_rect("melee", 28.0)
+	_expect(rect.texture == club and rect.material == HB.white_material(), "skill symbols draw through the shared white material")
+	rect.free()
 
 ## Share of an icon's pixels that are opaque (alpha > 0.5); 0 when the icon is missing.
 func _opaque_share(tex: Texture2D) -> float:

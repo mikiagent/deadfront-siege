@@ -191,6 +191,7 @@ func _refresh_tabs() -> void:
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.clip_text = true
 		b.icon = HexButton.symbol([row[2], "hammer"])
+		b.material = HexButton.white_material()
 		b.expand_icon = true
 		b.add_theme_constant_override("icon_max_width", 28)
 		b.add_theme_color_override("font_color", col)
@@ -545,6 +546,9 @@ func _layout_safe() -> void:
 		_title.add_theme_font_size_override("font_size", UiTokens.heading(view))
 	if _hint:
 		_hint.add_theme_font_size_override("font_size", UiTokens.meta(view))
+		# Phones cut it ("Hand reci..." in portrait, "...once per it..." on the 804 px canvas); the
+		# station tabs already say where each station is.
+		_hint.visible = not UiTokens.is_compact(view)
 
 func _mk_btn(text: String, cb: Callable, minsz: Vector2) -> Button:
 	var b := Button.new()
