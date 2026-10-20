@@ -42,6 +42,21 @@ One line per finding: fixed (file:line) / skipped (why). Status: complete — ev
 38. fixed — `game/scripts/dev/lighting_lab.gd:57` (headless exits 2 unless `--allow-skip` is passed)
 
 
+## Lab flakiness fixed on the way (not in the 38, but it blocked the gate)
+
+`game/scripts/dev/combat_rules_lab.gd` failed at random with 2-3 different checks; each was a
+measurement artefact, not a regression:
+- kick/tackle: `use_kick()`/`use_tackle()` are no-ops while the survivor's clip is busy or a
+  tactic lock is left, and the lab fired them after a fixed 1.2 s wait. It now waits on
+  `Hunt.can_start_tactic()`.
+- swing timing: the swing start was read by polling `anim.current_clip` per process frame, which
+  recorded it 1-2 frames late and made the measured gap 0.208 s instead of 0.39 s. It now stamps
+  `swing_started` and `hit_landed` on Hunt's own signals (steady 0.278 s).
+- fence/control bouts: bite and dodge rolls decided whether the control reached its bite count
+  (1, 2 and 7 seen). The bouts now force accuracy 1.0 / dodge 0.0, so the control only asks whether
+  the raptor can reach and bite (>= 2 in 10 s); the fence still has to hold at 0 against an
+  attacker that cannot miss.
+
 ## W1-QA follow-ups this leaves open (not in the 38)
 
 - `lighting_lab` still needs a windowed run on both renderers (night disc ratio, grass hue).
