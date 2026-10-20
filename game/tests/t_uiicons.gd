@@ -30,7 +30,9 @@ const INVENTORY := [
 ]
 ## Scripts whose string literals may carry HUD glyphs.
 const SCAN_DIRS := ["res://scripts/ui", "res://scripts/world"]
-const SCAN_FILES := ["res://scripts/player/player.gd", "res://scripts/skills/skill_state.gd"]
+const SCAN_FILES := ["res://scripts/player/player.gd", "res://scripts/player/player_input.gd", "res://scripts/skills/skill_state.gd"]
+## The context-action bodies (W2-PLAYER split player.gd; player.gd only forwards to its controls part).
+const ACTIONS_SRC := "res://scripts/player/player_input.gd"
 ## Two different drawings must not share a silhouette: soft IoU of their alpha masks at 24 px.
 const MASK_PX := 24
 const MAX_IOU := 0.85
@@ -123,6 +125,10 @@ func _test_svgs() -> void:
 		for m in widths.search_all(txt):
 			_expect(m.get_string(1) in STROKE_WIDTHS, "%s stroke-width %s is a house weight" % [f, m.get_string(1)])
 		_test_pixels(f, txt)
+		# 128 px, mipmapped, lossless: Godot's default import (64 px, no mipmaps) aliases on the HUD.
+		var imp := FileAccess.get_file_as_string(DIR + f + ".import")
+		for want in ["svg/scale=2.0", "mipmaps/generate=true", "compress/mode=0"]:
+			_expect(imp.contains(want), "%s.import has %s" % [f, want])
 
 ## Rasterise at 64 px with the engine's own SVG renderer: every visible pixel is white, the
 ## drawing stays inside the canvas, and its optical centre (mean of the bounding-box centre and
@@ -190,10 +196,14 @@ func _test_code_inventory() -> void:
 	for b in buildings:
 		if str((buildings[b] as Dictionary).get("note", "")).contains("station"):
 			ids["station_" + str(b)] = "props_manifest.json"
-	var player := FileAccess.get_file_as_string("res://scripts/player/player.gd")
+	var player := FileAccess.get_file_as_string(ACTIONS_SRC)
 	var ctx := _func_body(player, "context_actions")
+	var n_ctx := 0
 	for m in RegEx.create_from_string("\"id\"\\s*:\\s*\"([a-z_]+)\"").search_all(ctx):
 		ids[m.get_string(1)] = "player.context_actions"
+		n_ctx += 1
+	# A further move of the bodies must fail here, not shrink the inventory quietly.
+	_expect(n_ctx >= 10, "%s context_actions emits the action ids (%d)" % [ACTIONS_SRC.get_file(), n_ctx])
 	for line in _func_body(player, "context_action").split("\n"):
 		if line.begins_with("\t\t\""):
 			for m in RegEx.create_from_string("\"([a-z_]+)\"").search_all(line.substr(0, line.find(":"))):
