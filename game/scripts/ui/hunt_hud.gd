@@ -901,17 +901,23 @@ func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
 	box.add_child(b)
 
 ## The sheet stands on the rail and grows up to the top of the view; past that its rows scroll
-## (on a 390 px canvas the menu ran 192 px off the top, title, Bag and Craft out of reach).
+## (on a 390 px canvas the menu ran 192 px off the top, title, Bag and Craft out of reach). A
+## landscape phone has no room above the rail, so there it hangs from the vitals' corner and covers
+## them whole (standing on the rail it hid half of them).
 func _fit_sheet(r: Vector2, inset: Vector4, rail_y: float) -> void:
 	if _sheet_rows == null or _sheet_rows.get_child_count() == 0:
 		return
+	var land := _landscape_phone(r)
+	var v := _vitals_rect(r)
 	var bottom := rail_y - 10.0
+	var top := v.position.y if land else 8.0 + inset.z
+	_sheet.custom_minimum_size.x = v.size.x if land else 0.0
 	_sheet_rows.custom_minimum_size.y = 0.0
-	var room := bottom - (8.0 + inset.z) - _sheet.get_combined_minimum_size().y
+	var room := bottom - top - _sheet.get_combined_minimum_size().y
 	var rows_h := (_sheet_rows.get_child(0) as Control).get_combined_minimum_size().y
 	_sheet_rows.custom_minimum_size.y = minf(rows_h, maxf(room, UiTokens.TARGET_PRIMARY))
 	_sheet.size = Vector2.ZERO  # shrink to the new minimum
-	_sheet.position = Vector2(16.0 + inset.w, bottom - _sheet.size.y)
+	_sheet.position = v.position if land else Vector2(16.0 + inset.w, bottom - _sheet.size.y)
 
 ## True while one of the HUD's sheets is open. HANDS (held_item_slot.gd) and the creature plates sit
 ## on canvas layers above the HUD's and hide meanwhile: on a landscape phone HANDS sat on the sheet's

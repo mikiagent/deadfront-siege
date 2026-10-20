@@ -396,6 +396,10 @@ func _check_sheet(kind: String, sheet: Control, logical: Vector2) -> void:
 	var view := Rect2(Vector2.ZERO, logical).grow(0.5)
 	var rect := sheet.get_global_rect()
 	_expect(view.encloses(rect), "sheet %s %s inside the %dx%d view" % [kind, rect, logical.x, logical.y])
+	# The vitals stay whole: clear of the sheet, or under it entirely (it is opaque there).
+	var vitals: Rect2 = _hud.drawn_blocks.get("vitals", Rect2())
+	var opaque := (sheet.get_theme_stylebox("panel") as StyleBoxFlat).bg_color.a >= 0.99
+	_expect(not rect.intersects(vitals) or (opaque and rect.encloses(vitals)), "sheet %s %s clears the vitals %s or covers them whole and opaque" % [kind, rect, vitals])
 	var rows := sheet.find_child("SheetRows", true, false) as ScrollContainer
 	var close := sheet.find_child("SheetClose", true, false) as Control
 	_expect(rows != null and close != null and not rows.is_ancestor_of(close), "sheet %s: Close is pinned outside the rows" % kind)
