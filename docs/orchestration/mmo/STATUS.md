@@ -340,6 +340,11 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   `VaultBridge.client()` (local authority until a host is picked; no fake listings: spec 06's honest offline harness),
   one row per instance, caged pets as cages; merged after ECON (and INVUI for the Sell picker).
 
+- 2026-10-20 (owner) "this will be an online multiplayer game at some point": the Island Market is an online feature on the
+  server (contracts v2: server-owned characters, clients send intents). W3-EXCHANGE builds the screens for the server path
+  (socket transport; a local server for dev and tests until a host is picked) and shows an honest "market offline" state in
+  offline single-player. It does NOT move single-player characters into a server store to make offline selling work.
+
 ## Owner questions (open)
 
 - none
