@@ -126,47 +126,69 @@ needed and the other was not, so only one was built.
      means something.
    This is the one place this run departs from the computed task. Overrule it and it is about 25 lines.
 
-## Acceptance (exact lines, after `git merge claude/mmo-overhaul` @ 1c89134a)
+## Acceptance (r2: branch merged with claude/mmo-overhaul @ 6e26ef2a, hooks applied in a scratch tree)
 
-- `[t_w2_skills] catalog 212 of 918 nodes: functional 17, partial 19, defined 176`
-- `[t_w2_skills] PASS` (9 sections, including the H6 checks when H6 is applied). The test fails when it should:
-  - With `bonded_base` set to 4 it printed `FAIL capacity 4, 5, 6, 7 (got [5, 6, 7, 8])`.
-  - With the old per-tree SP award restored it printed `FAIL character Lv. 5 pays levels 2-5 (40 SP), the
-    released tree levels pay nothing`, `FAIL three trees at Lv. 10 pay no SP of their own (earned 90, want 90)`
-    and `FAIL character Lv. 20 pays its SP with no tree XP (190)`.
-- `[tests] PASS` (run_all)
-- Every other test prints PASS: t_ai, t_build, t_canim, t_combat, t_harbour, t_iconart, t_items, t_light,
-  t_lighting, t_occlude, t_player, t_save (its 5 SCRIPT ERRORs are its own deliberate aborts), t_server_domain,
-  t_srvdom, t_structart, t_tame, t_ui, t_uiicons, t_web.
-- `tools/smoke.sh --no-import` -> `SMOKE PASS`
+Hooks patch: `git apply --check` clean after the merge. The branch touches none of the hooked files, so it
+applies to the base the same way.
 
-**Final code at edd86f5f with hooks H1-H6 applied temporarily (not committed):**
-- run_all `[tests] PASS`, all 21 t_*.gd PASS, and t_w2_skills ran its H6 section.
-- `SMOKE PASS`.
-- Labs PASS: craft_lab, kitchen_lab, capture_lab (bonded+=2), pets_lab 5/5, raid gear probe and progression
-  probe. ui_family_lab printed `unlimited=true`, which with H5 means its cap-of-3 check holds.
-- Earlier, with H1-H5 on the pre-SP-change code: `[uireal] PASS screens=hud,craft,skills,...` at 1600x900 on
-  gl_compatibility. t_srvdom and t_server_domain had failed with H3 alone (a Lv. 1 melee hit for +1 %); H4 fixes
-  that.
+Every gate below ran in a scratch tree with hooks H1-H7 applied. The full run was at 4e20d6b5. The data fix in
+41297c64 was re-checked with t_w2_skills, the mutations and the shots.
+- `--import`: 0 SCRIPT ERROR.
+- All 20 `t_*.gd` print PASS: t_ai, t_build, t_canim, t_combat, t_harbour, t_iconart, t_items, t_light,
+  t_lighting, t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons,
+  t_w2_skills, t_web.
+- Only t_save prints SCRIPT ERRORs: its 5 deliberate ones, as on the base.
+- `[t_save] rev-1 skills migrate: 19 nodes kept, SP 539/802`
+- `[t_w2_skills] catalog 212 of 918 nodes: functional 18, partial 19, defined 175`, then `[t_w2_skills] PASS`
+- run_all: `[tests] PASS`
+- `tools/smoke.sh --no-import`: `SMOKE PASS`
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (the newest is 2026-10-20-131531, before this run).
 
-Screenshots looked at (scratchpad `w2skills/shots/`):
-- `desk/skills_processing_1600x900.png`: Processing Lv. 1. Rope · Lv. 1 · AUTO shows Learned, the
-  Durango-named nodes show their lock reasons, and SP is 0.
-- `phone/skills_844x390.png`: every tree reads Lv. 1.
-- `phone/skills_survival_844x390.png`: Stealth I, Mud II and Wild Seed I with their level locks.
+The tests fail when the code is wrong:
+- **Migration (t_save).** With the rev-1 unspent-SP line in `SkillState.from_dict` replaced by `sp_extra = 0`:
+  - `[t_save] FAIL save_v3_golden.json skills_v2 migrates to its rev-2 expectation: ["/skills_v2/sp_available: 270.0 vs 40.0", ...]`
+  - `[t_save] FAIL first load: the 539 unspent SP are kept (got 0)`
+  - `[t_save] FAIL re-load: every node bought under rev 1 is kept (missing ["island_access_25", ...])`
+  - `[t_save] FAIL count=7`
+- **No inert purchases.** With the lock line in `node_state` disabled:
+  - `[t_w2_skills] FAIL a partial node cannot be bought: Handicraft I says 'not in the game yet'`
+  - `[t_w2_skills] FAIL a defined node no functional node needs cannot be bought (Obsidian)`
+- **Recipe gates stay buyable.** On the old data:
+  - `[t_w2_skills] FAIL processing/dry_leather gates a recipe, so it must be functional (it is 'defined')`
+- The earlier proofs still hold:
+  - With `bonded_base` set to 4: `FAIL capacity 4, 5, 6, 7 (got [5, 6, 7, 8])`.
+  - With the old per-tree SP award restored: `FAIL character Lv. 5 pays levels 2-5 (40 SP), ...`.
+
+Labs, all with 0 SCRIPT ERROR:
+- `[uireal] PASS screens=hud,craft,skills,...` at 844x390 on gl_compatibility. It also checks that the skills
+  rows fit their columns.
+- skills_lab: `[skill] character level 1`, roundtrip with sp=0.
+
+Screenshots looked at (scratchpad `trees/w2skills-shots/`). The skills sheet opened from the HUD in
+skills_lab:
+- `lab_desk_fwd_tree.png` (1600x900 Forward+) and `lab_desk_glc_tree.png` (1600x900 gl_compatibility):
+  - The header reads "Gathering Lv. 1" and "SP 0".
+  - The AUTO rows show a disabled "Learned".
+  - "Thickets · Lv. 5 · 6 SP" shows a grey, disabled "not in the game yet" that is readable.
+  - No "Lv. 0" anywhere.
+- `lab_phone_glc_tree.png` (844x390): the same tree, readable at phone size, with Close inside the view.
+- `uireal/skills_844x390.png`: the overview shows every tree at Lv. 1.
+- The plain main-game shot shows character creation over the sheet, so it was not used.
 
 ## Integrator hooks (`docs/orchestration/reports/claude-mmo-w2-skills-hooks.patch`, `git apply` checked)
 
 - **H1** `game/scripts/items/crafting.gd` `progression_block()`: check `SkillRules.recipe_block` first. This makes
   the recipe gates real. station_craft and craft_ui already route through `progression_block`.
 - **H2** `game/scripts/core/data.gd` `bonded_cap()`: `SkillRules.bonded_capacity(PlayerRegistry.local().skills)`,
-  or 3 with no player. This replaces "unlimited", per spec 09. It reaches field_tame.apply_feed and
-  player_pets.bond_from_inventory. **taming_pen.gd:132 bonds without any cap check.** W2-BREED owns that file;
-  it should call `Data.bonded_cap()` / `SkillRules.can_bond`.
+  or 3 with no player. This replaces "unlimited", per spec 09. It is the one bonded-cap function. It reaches
+  field_tame.apply_feed, player_pets.bond_from_inventory and (on the branch) taming_pen. The market's caged-pet
+  unpack should call it too.
 - **H3** `game/scripts/server/character_state.gd`: a missing tree defaults to `SkillState.MIN_LEVEL`, not 0.
 - **H4** `game/scripts/combat/hunt.gd` (melee and ranged) and `game/scripts/server/intent_handlers.gd` (melee):
   per-level damage and crit bonuses count from Lv. 1 (`level - SkillState.MIN_LEVEL`), so balance is unchanged.
 - **H5** `game/scripts/dev/ui_family_lab.gd`: it asserted an unlimited roster. It now expects 3.
+- **H7** `game/scripts/ui/craft_ui.gd` `_show_detail`: a gated recipe's detail shows what unlocks it, in red,
+  above the ingredients.
 - **H6** `game/scripts/core/save_sanitizer.gd` `_skills(sv, pioneer_level)`:
   - The node-purchase budget is the SP the character level paid.
   - For a rev-1 save, the budget is what its tree levels paid under the old award, so the migration never drops
@@ -202,7 +224,7 @@ Wanted from other packages:
 ## Left (not done)
 
 - Research timers (spec 03 table).
-- Daily refund limits.
+- Daily refund limits (vision fix 2, not built; see above).
 - Career Guides.
 - Attribute service.
 - Server-side recipe gates and node purchases online: CharacterState keeps levels only (W3-SRVACT).
