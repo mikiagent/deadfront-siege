@@ -125,7 +125,7 @@ index 70ddf6cb..78c3af7a 100644
  var statuses: StatusEffects
  var hunt: Hunt
 diff --git a/game/scripts/server/character_state.gd b/game/scripts/server/character_state.gd
-index 79c8b05c..4fd9885f 100644
+index 79c8b05c..828b0a63 100644
 --- a/game/scripts/server/character_state.gd
 +++ b/game/scripts/server/character_state.gd
 @@ -5,7 +5,7 @@ extends RefCounted
@@ -137,20 +137,297 @@ index 79c8b05c..4fd9885f 100644
  const LOCK := &"_slot_lock"
  
  var d: Dictionary
+@@ -23,6 +23,52 @@ static func fresh(id: int, name: String, ts: int) -> Dictionary:
+ 		"wallet": 0, "pets": {}, "skills": {}, "pos": [0, 0, 0], "pos_ts": ts, "rids": {},
+ 	}
+ 
++## W2-INV migration (owner 2026-10-20, prompts 05/08): a character stored before items stopped
++## stacking. Each unit over the def's stack_max becomes its own row with the stack's origin and
++## seq; the first unit keeps the stack's uid and the k-th more gets "<uid>.<k>" (deterministic, so
++## every boot and replay agrees; minted uids never hold two dots). The bag grows to BAG_SLOTS;
++## units with no free slot go to d.storage (home storage). Nothing is deleted. Returns
++## {split: rows made, stored: {id: units}}, or {} when the character needed nothing.
++static func split_stacks(d: Dictionary) -> Dictionary:
++	var bag: Array = d.bag
++	var grew := bag.size() < BAG_SLOTS
++	if grew:
++		bag.resize(BAG_SLOTS)
++	var extra: Array = []
++	for row: Variant in bag:
++		if not row is Dictionary or str(row.get("id", "")) == str(LOCK):
++			continue
++		var def := Data.item(StringName(str(row.id)))
++		var cap: int = def.stack_max if def else int(row.count)
++		var left := int(row.count) - cap
++		if left <= 0:
++			continue
++		row.count = cap
++		var k := 0
++		while left > 0:
++			k += 1
++			var unit: Dictionary = (row as Dictionary).duplicate(true)
++			unit.count = mini(cap, left)
++			unit.uid = "%s.%d" % [str(row.get("uid", "")), k]
++			left -= unit.count
++			extra.append(unit)
++	if extra.is_empty():
++		return {"split": 0, "stored": {}} if grew else {}
++	var stored := {}
++	var storage: Array = d.get("storage", [])
++	var free := 0
++	for unit: Dictionary in extra:
++		while free < bag.size() and bag[free] != null:
++			free += 1
++		if free < bag.size():
++			bag[free] = unit
++		else:
++			storage.append(unit)
++			stored[str(unit.id)] = int(stored.get(str(unit.id), 0)) + int(unit.count)
++	if not storage.is_empty():
++		d["storage"] = storage # ASSUMPTION: the server's home storage; W3 adds the ops that take from it
++	return {"split": extra.size(), "stored": stored}
++
+ ## A fresh Inventory over a deep copy of the bag (so a refused op cannot have touched state),
+ ## with equipment and the chosen gather tool mapped from uids to what Inventory expects.
+ func inventory() -> Inventory:
+@@ -40,7 +86,7 @@ func inventory() -> Inventory:
+ 	for slot: String in d.equipment:
+ 		var i := find_uid(str(d.equipment[slot]))
+ 		if i >= 0:
+-			inv.equipment[slot] = str(inv.slots[i].def_id)
++			inv.equipment[slot] = i # the exact worn item by bag index: two same-id items no longer share a stack
+ 	inv.equipped_tool_index = find_uid(str(d.tool))
+ 	return inv
+ 
+diff --git a/game/scripts/server/character_store.gd b/game/scripts/server/character_store.gd
+index dfb25ece..92cebff5 100644
+--- a/game/scripts/server/character_store.gd
++++ b/game/scripts/server/character_store.gd
+@@ -193,6 +193,7 @@ func open() -> String:
+ 		return ""
+ 	DirAccess.make_dir_recursive_absolute(dir)
+ 	var snap := dir.path_join("snapshot.json")
++	var migrated := 0
+ 	if FileAccess.file_exists(snap):
+ 		var parsed: Variant = _parse(FileAccess.get_file_as_string(snap))
+ 		if not parsed is Dictionary or int(parsed.get("v", 0)) != VERSION:
+@@ -202,6 +203,7 @@ func open() -> String:
+ 		s.erase("data") # lives only in the file, so the state hash does not depend on it
+ 		if int(s.world_seed) != _seed:
+ 			return "world_seed differs from the one this store was written under"
++		migrated = migrate_stacks() # before the journal: a clean shutdown left it empty
+ 	var path := dir.path_join("journal.jsonl")
+ 	if not FileAccess.file_exists(snap):
+ 		# Genesis goes to disk first, so world_seed is never only in memory (a journal replayed
+@@ -240,7 +242,26 @@ func open() -> String:
+ 		# The journal just replayed under new rules; snapshot so later boots do not repeat that.
+ 		push_warning("[srv] data files changed since the last snapshot; the journal replayed under the new rules")
+ 		return snapshot()
+-	return ""
++	return snapshot() if migrated > 0 else ""
++
++## W2-INV: characters stored while materials stacked get one row per unit (CharacterState.
++## split_stacks); what the 100-slot bag cannot hold goes to their home storage. Logged per
++## character. Returns how many characters changed.
++func migrate_stacks() -> int:
++	var changed := 0
++	for key: String in s.chars:
++		var got := CharacterState.split_stacks(s.chars[key])
++		if got.is_empty():
++			continue
++		changed += 1
++		s.chars[key] = norm(s.chars[key])
++		var parts := PackedStringArray()
++		var stored := 0
++		for id: String in got.stored:
++			parts.append("%s x%d" % [id, got.stored[id]])
++			stored += int(got.stored[id])
++		print("[srv] migration: char %s: bag %d slots, %d rows split from stacks, %d units to home storage%s" % [key, (s.chars[key].bag as Array).size(), got.split, stored, " (%s)" % ", ".join(parts) if not parts.is_empty() else ""])
++	return changed
+ 
+ ## Verified write of the snapshot, then a fresh journal (everything in it is now covered).
+ func snapshot() -> String:
+@@ -301,7 +322,7 @@ func invariants() -> Array[String]:
+ 	var pets := 0
+ 	for key: String in s.chars:
+ 		var ch: Dictionary = s.chars[key]
+-		for row: Variant in ch.bag:
++		for row: Variant in (ch.bag as Array) + (ch.get("storage", []) as Array): # storage: W2-INV home storage
+ 			if not row is Dictionary or str(row.id) == str(CharacterState.LOCK):
+ 				continue
+ 			if int(row.count) < 1 or int(row.durability) < 0:
 diff --git a/game/scripts/ui/inventory_ui.gd b/game/scripts/ui/inventory_ui.gd
-index c2ae65f0..de74c555 100644
+index c2ae65f0..b62401b4 100644
 --- a/game/scripts/ui/inventory_ui.gd
 +++ b/game/scripts/ui/inventory_ui.gd
-@@ -376,6 +376,8 @@ func rebuild() -> void:
+@@ -47,6 +47,11 @@ const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "
+ const INK := Color(0.95, 0.95, 0.93)
+ 
+ var _split: GridContainer
++## Visual grouping (W2-INV, prompt 05): the bag grid shows one cell per item id with a ×N badge;
++## a group of several opens into its instances, one cell each, behind a back cell. Instances never
++## merge. Each entry: {"slot": i} | {"group": id, "slots": [i...], "units": n} | {"back": true}.
++var _cells: Array = []
++var _open_group: StringName = &""
+ 
+ func _ready() -> void:
+ 	visible = false
+@@ -261,7 +266,13 @@ func _slot_style(b: Button, selected: bool = false) -> void:
+ 	b.add_theme_stylebox_override("hover", hov)
+ 	b.add_theme_stylebox_override("pressed", UiTokens.slot_style(true))
+ 	b.add_theme_color_override("font_color", UiTokens.TEXT)
+-	b.add_theme_font_size_override("font_size", 12)
++	_fit_slot(b)
++
++## Icon and caption grow with the slot: desktop slots are twice the phone's 64 px, where a 36 px
++## icon and 12 px caption read as specks (W2-INV bag shots).
++func _fit_slot(b: Button) -> void:
++	b.add_theme_font_size_override("font_size", clampi(int(_slot_px / 8.0), 12, UiTokens.body(get_viewport_rect().size)))
++	b.add_theme_constant_override("icon_max_width", maxi(36, int(_slot_px * 0.45)))
+ 
+ func _slot_vec() -> Vector2:
+ 	return Vector2(_slot_px, _slot_px)
+@@ -285,7 +296,7 @@ func _mk_slot(index: int) -> Button:
+ 	var b := _btn("", _slot_vec())
+ 	_slot_style(b)
+ 	if index >= 0:
+-		b.pressed.connect(func () -> void: _select(index))
++		b.pressed.connect(func () -> void: _on_cell(index))
+ 	return b
+ 
+ func _mk_storage_slot(index: int) -> Button:
+@@ -304,6 +315,7 @@ func bind(inv: Inventory, owner_player: Player = null) -> void:
+ 
+ func hide_ui() -> void:
+ 	visible = false
++	_open_group = &""
+ 	pet_bag = null
+ 	_storage_opts = {}
+ 
+@@ -376,25 +388,14 @@ func rebuild() -> void:
  		return
  	_refresh_profile()
  	_refresh_equipped()
-+	while _grid.get_child_count() < inventory.slot_count: # W2-INV: the bag is 100 slots (pack 05)
+-	for i in mini(_grid.get_child_count(), inventory.slot_count):
+-		var btn := _grid.get_child(i) as Button
+-		var s := inventory.slots[i]
+-		if s == null:
+-			btn.text = ""
+-			btn.icon = null
+-			btn.tooltip_text = ""
+-		elif str(s.def_id) == "_slot_lock":
+-			btn.text = "—"
+-			btn.icon = null
+-			btn.tooltip_text = "occupied"
+-		else:
+-			var pip := ""
+-			if s.is_locked():
+-				pip = "L "
+-			if s.is_unstable():
+-				pip += "U "
+-			ItemIcons.style_slot(btn, s.def_id, "%s%d" % [pip, s.count])
+-			btn.tooltip_text = s.tooltip()
++	_cells = _bag_cells()
++	while _grid.get_child_count() < _cells.size():
 +		_grid.add_child(_mk_slot(_grid.get_child_count()))
- 	for i in mini(_grid.get_child_count(), inventory.slot_count):
- 		var btn := _grid.get_child(i) as Button
- 		var s := inventory.slots[i]
-@@ -626,7 +628,7 @@ func _on_equip_pressed() -> void:
++	for k in _grid.get_child_count():
++		var btn := _grid.get_child(k) as Button
++		btn.visible = k < _cells.size()
++		if btn.visible:
++			_style_cell(btn, _cells[k])
+ 	for c in _pet_grid.get_children():
+ 		c.queue_free()
+ 	var has_storage := pet_bag != null
+@@ -407,6 +408,7 @@ func rebuild() -> void:
+ 				b.disabled = true
+ 			else:
+ 				ItemIcons.style_slot(b, s.def_id, str(s.count))
++				_fit_slot(b)
+ 				b.tooltip_text = s.tooltip()
+ 				b.disabled = false
+ 				b.modulate = Color(0.7, 0.7, 0.7, 0.8) if _readonly_reason() != "" else Color.WHITE
+@@ -420,6 +422,57 @@ func rebuild() -> void:
+ 	_title.text = "CHARACTER" if not has_storage else "CHARACTER  ·  %s" % str(_storage_opts.get("title", "Storage"))
+ 	_select(_selected if _selected >= 0 else -1)
+ 
++func _bag_cells() -> Array:
++	var groups := inventory.groups()
++	for g in groups:
++		if g.def_id == _open_group and (g.slots as Array).size() > 1:
++			var open: Array = [{"back": true}]
++			for i: int in g.slots:
++				open.append({"slot": i})
++			return open
++	_open_group = &"" # the open group emptied or is down to one
++	var out: Array = []
++	for g in groups:
++		var at: Array = g.slots
++		out.append({"slot": at[0]} if at.size() == 1 else {"group": g.def_id, "slots": at, "units": g.units})
++	return out
++
++func _style_cell(btn: Button, cell: Dictionary) -> void:
++	btn.modulate = Color.WHITE
++	if cell.has("back"):
++		btn.icon = null
++		btn.text = "‹ All"
++		btn.tooltip_text = "Back to the whole bag"
++		return
++	if cell.has("group"):
++		var first := inventory.slots[int(cell.slots[0])]
++		ItemIcons.style_slot(btn, first.def_id, "×%d" % int(cell.units))
++		btn.tooltip_text = "%d × %s: tap to see each one" % [(cell.slots as Array).size(), first.def().display_name if first.def() else str(first.def_id)]
++		return
++	var s := inventory.slots[int(cell.slot)]
++	var pip := ""
++	if s.is_locked():
++		pip = "L "
++	if s.is_unstable():
++		pip += "U "
++	# A unique instance shows its level; a stack (ammo, coins) its count.
++	ItemIcons.style_slot(btn, s.def_id, pip + ("×%d" % s.count if s.count > 1 else "Lv %d" % s.level))
++	btn.tooltip_text = s.tooltip()
++
++func _on_cell(k: int) -> void:
++	if k < 0 or k >= _cells.size():
++		return
++	var cell: Dictionary = _cells[k]
++	if cell.has("back"):
++		_open_group = &""
++		rebuild()
++	elif cell.has("group"):
++		_open_group = cell.group
++		_selected = int(cell.slots[0])
++		rebuild()
++	else:
++		_select(int(cell.slot))
++
+ func _refresh_profile() -> void:
+ 	if _profile == null or inventory == null:
+ 		return
+@@ -549,6 +602,7 @@ func _refresh_equipped() -> void:
+ 			caption = "%.0f" % st.scaled_armor()
+ 		if st:
+ 			ItemIcons.style_slot(b, st.def_id, caption)
++			_fit_slot(b)
+ 			b.tooltip_text = st.tooltip()
+ 			b.modulate = Color.WHITE
+ 		else:
+@@ -564,10 +618,11 @@ func _select(index: int) -> void:
+ 	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null
+ 	for b in [_store_btn, _lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn]:
+ 		b.visible = false
+-	for i in _grid.get_child_count():
+-		var slot_btn := _grid.get_child(i) as Button
++	for k in mini(_grid.get_child_count(), _cells.size()):
++		var slot_btn := _grid.get_child(k) as Button
++		var cell: Dictionary = _cells[k]
+ 		if slot_btn:
+-			_slot_style(slot_btn, i == index)
++			_slot_style(slot_btn, index >= 0 and (int(cell.get("slot", -1)) == index or index in (cell.get("slots", []) as Array)))
+ 	if none:
+ 		_tip.text = "Tap an item."
+ 		return
+@@ -626,7 +681,7 @@ func _on_equip_pressed() -> void:
  	var d := st.def()
  	var slot := Inventory.slot_for(d)
  	if slot != &"":
@@ -159,2204 +436,239 @@ index c2ae65f0..de74c555 100644
  	elif d and d.tool_class != &"" and d.tool_class != &"none":
  		inventory.set_equipped_tool_index(_selected)
  	_select(_selected)
-diff --git a/game/tests/fixtures/save_truncated.json b/game/tests/fixtures/save_truncated.json
-index f5ebc9a6..73f9bc3b 100644
---- a/game/tests/fixtures/save_truncated.json
-+++ b/game/tests/fixtures/save_truncated.json
-@@ -1,5 +1,5 @@
- {
--	"clock": 0.350380353703704,
-+	"clock": 0.35037352962963,
- 	"ground_snares": [
- 		{
- 			"arm_left": 0.0,
-@@ -40,18 +40,86 @@
- 							"material_tier": "stone",
- 							"tint": "#8a8a8a"
- 						},
--						"count": 5.0,
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
- 						"durability": 0.0,
- 						"flags": [],
- 						"id": "stone",
- 						"level": 1.0,
- 						"max_durability": 0.0,
--						"process_count": 0.0
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "lc545b462c11661d3"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "le8631bc39e707f35"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "lca9e06d548ebc749"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "leb669dbaf2d37583"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "l45e585db6b17f661"
- 					},
--					null,
--					null,
--					null,
--					null,
- 					null,
- 					null,
- 					null,
-@@ -151,17 +219,66 @@
- 				"attributes": {
- 					"material_tier": "flint"
- 				},
--				"count": 4.0,
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 0.0,
- 				"flags": [],
- 				"id": "flint",
- 				"level": 1.0,
- 				"max_durability": 0.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l78e959b3c1fcfbb2"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "flint"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "flint",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "la65139a9b184d882"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "flint"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "flint",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l4cd3d9f5696e5702"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "flint"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "flint",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l5b6fc92da957168f"
- 			},
--			null,
--			null,
--			null,
- 			null,
- 			null,
- 			null,
-@@ -236,23 +353,43 @@
- 	"pending_refunds": [],
- 	"pets": [
- 		{
--			"accuracy": 110.161290322581,
--			"attack": 105.572580645161,
-+			"accuracy": 89.8387096774193,
-+			"attack": 95.4596774193548,
- 			"bag": [
- 				{
- 					"attributes": {
- 						"material_tier": "stone",
- 						"tint": "#8a8a8a"
- 					},
--					"count": 2.0,
-+					"count": 1.0,
-+					"created_at": 0.0,
-+					"creator": "",
- 					"durability": 0.0,
- 					"flags": [],
- 					"id": "stone",
- 					"level": 1.0,
- 					"max_durability": 0.0,
--					"process_count": 0.0
-+					"origin": "",
-+					"process_count": 0.0,
-+					"uid": "l71aed18b05e556c5"
-+				},
-+				{
-+					"attributes": {
-+						"material_tier": "stone",
-+						"tint": "#8a8a8a"
-+					},
-+					"count": 1.0,
-+					"created_at": 0.0,
-+					"creator": "",
-+					"durability": 0.0,
-+					"flags": [],
-+					"id": "stone",
-+					"level": 1.0,
-+					"max_durability": 0.0,
-+					"origin": "",
-+					"process_count": 0.0,
-+					"uid": "lea383d796d1b7e59"
- 				},
--				null,
- 				null,
- 				null,
- 				null,
-@@ -262,7 +399,7 @@
- 				null,
- 				null
- 			],
--			"defense": 45.2258064516129,
-+			"defense": 35.9354838709677,
- 			"genetics": {
- 				"evs": {
- 					"accuracy": 0.0,
-@@ -274,13 +411,13 @@
- 					"speed": 0.0
- 				},
- 				"ivs": {
--					"accuracy": 26.0,
--					"health": 18.0,
--					"melee_attack": 27.0,
--					"melee_defense": 29.0,
--					"ranged_attack": 11.0,
--					"ranged_defense": 5.0,
--					"speed": 11.0
-+					"accuracy": 5.0,
-+					"health": 20.0,
-+					"melee_attack": 16.0,
-+					"melee_defense": 5.0,
-+					"ranged_attack": 5.0,
-+					"ranged_defense": 25.0,
-+					"speed": 18.0
- 				},
- 				"level_gains": {
- 					"accuracy": 0.0,
-@@ -292,5 +429,117 @@
- 					"speed": 0.0
- 				}
- 			},
--			"grade": "B+",
--			"hp": 655.483870967742,
-\ No newline at end of file
-+			"grade": "B-",
-+			"hp": 667.870967741935,
-+			"hp_now": -1.0,
-+			"hunger": 256.0,
-+			"hunger_efficiency": 1.0,
-+			"hunger_max": 256.0,
-+			"level": 1.0,
-+			"name": "",
-+			"origin": "tame",
-+			"owner": "",
-+			"parent_uids": [],
-+			"ranged_attack": 85.3467741935484,
-+			"ranged_defense": 43.6774193548387,
-+			"respawn_left": 0.0,
-+			"species": "velociraptor",
-+			"speed": 716.935483870968,
-+			"tamed_at": 1792534349.0,
-+			"tamed_role": [
-+				"mount",
-+				"scout"
-+			],
-+			"tamer": "",
-+			"uid": "p_c79b3e9937107aa3",
-+			"variant": "",
-+			"wild_level": 1.0,
-+			"xp": 0.0,
-+			"xp_rate": 1.0
-+		}
-+	],
-+	"pioneer_buildings": {},
-+	"pioneer_crafts": {},
-+	"pioneer_level": 4.0,
-+	"pioneer_xp": 7.0,
-+	"player": {
-+		"inventory": [
-+			{
-+				"attributes": {},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 33.0,
-+				"flags": [],
-+				"id": "stone_knife_work",
-+				"level": 1.0,
-+				"max_durability": 40.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "leecd89812b19637a"
-+			},
-+			{
-+				"attributes": {},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 50.0,
-+				"flags": [],
-+				"id": "work_axe",
-+				"level": 1.0,
-+				"max_durability": 50.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l9ea0bafb5b04b838"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l3a2f152eee01d171"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l431ba3c135b43f7c"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lb06cab9e58f9884d"
-+			},
-\ No newline at end of file
-diff --git a/game/tests/fixtures/save_v3_away_golden.json b/game/tests/fixtures/save_v3_away_golden.json
-index 4d81e9f9..52f76343 100644
---- a/game/tests/fixtures/save_v3_away_golden.json
-+++ b/game/tests/fixtures/save_v3_away_golden.json
-@@ -13,22 +13,154 @@
- 							"material_tier": "stone",
- 							"tint": "#8a8a8a"
- 						},
--						"count": 9.0,
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
- 						"durability": 0.0,
- 						"flags": [],
- 						"id": "stone",
- 						"level": 1.0,
- 						"max_durability": 0.0,
--						"process_count": 0.0
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "l8ca4d08c71610144"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "lff4df8e7d0ecafdb"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "l7308e2edf346022e"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "l19fb8f33c54b96a6"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "l2f9b6ec70955848a"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "l373adcd277ed1766"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "l34300c727d4f76df"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "l8615489631200386"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "l367dc0489ba917c1"
- 					},
--					null,
--					null,
--					null,
--					null,
--					null,
--					null,
--					null,
--					null,
- 					null,
- 					null,
- 					null,
-@@ -91,7 +223,7 @@
- 		],
- 		"claims": []
- 	},
--	"clock": 0.350575657870371,
-+	"clock": 0.350574536574074,
- 	"ground_snares": [],
- 	"home": {
- 		"buildings": [
-@@ -121,18 +253,86 @@
- 							"material_tier": "stone",
- 							"tint": "#8a8a8a"
- 						},
--						"count": 5.0,
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
- 						"durability": 0.0,
- 						"flags": [],
- 						"id": "stone",
- 						"level": 1.0,
- 						"max_durability": 0.0,
--						"process_count": 0.0
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "lc545b462c11661d3"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "le8631bc39e707f35"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "lca9e06d548ebc749"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "leb669dbaf2d37583"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "l45e585db6b17f661"
- 					},
--					null,
--					null,
--					null,
--					null,
- 					null,
- 					null,
- 					null,
-@@ -232,17 +432,66 @@
- 				"attributes": {
- 					"material_tier": "flint"
- 				},
--				"count": 4.0,
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 0.0,
- 				"flags": [],
- 				"id": "flint",
- 				"level": 1.0,
- 				"max_durability": 0.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l78e959b3c1fcfbb2"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "flint"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "flint",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "la65139a9b184d882"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "flint"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "flint",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l4cd3d9f5696e5702"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "flint"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "flint",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l5b6fc92da957168f"
- 			},
--			null,
--			null,
--			null,
- 			null,
- 			null,
- 			null,
-@@ -317,23 +566,43 @@
- 	"pending_refunds": [],
- 	"pets": [
- 		{
--			"accuracy": 110.161290322581,
--			"attack": 105.572580645161,
-+			"accuracy": 89.8387096774193,
-+			"attack": 95.4596774193548,
- 			"bag": [
- 				{
- 					"attributes": {
- 						"material_tier": "stone",
- 						"tint": "#8a8a8a"
- 					},
--					"count": 2.0,
-+					"count": 1.0,
-+					"created_at": 0.0,
-+					"creator": "",
- 					"durability": 0.0,
- 					"flags": [],
- 					"id": "stone",
- 					"level": 1.0,
- 					"max_durability": 0.0,
--					"process_count": 0.0
-+					"origin": "",
-+					"process_count": 0.0,
-+					"uid": "l71aed18b05e556c5"
-+				},
-+				{
-+					"attributes": {
-+						"material_tier": "stone",
-+						"tint": "#8a8a8a"
-+					},
-+					"count": 1.0,
-+					"created_at": 0.0,
-+					"creator": "",
-+					"durability": 0.0,
-+					"flags": [],
-+					"id": "stone",
-+					"level": 1.0,
-+					"max_durability": 0.0,
-+					"origin": "",
-+					"process_count": 0.0,
-+					"uid": "lea383d796d1b7e59"
- 				},
--				null,
- 				null,
- 				null,
- 				null,
-@@ -343,7 +612,7 @@
- 				null,
- 				null
- 			],
--			"defense": 45.2258064516129,
-+			"defense": 35.9354838709677,
- 			"genetics": {
- 				"evs": {
- 					"accuracy": 0.0,
-@@ -355,13 +624,13 @@
- 					"speed": 0.0
- 				},
- 				"ivs": {
--					"accuracy": 26.0,
--					"health": 18.0,
--					"melee_attack": 27.0,
--					"melee_defense": 29.0,
--					"ranged_attack": 11.0,
--					"ranged_defense": 5.0,
--					"speed": 11.0
-+					"accuracy": 5.0,
-+					"health": 20.0,
-+					"melee_attack": 16.0,
-+					"melee_defense": 5.0,
-+					"ranged_attack": 5.0,
-+					"ranged_defense": 25.0,
-+					"speed": 18.0
- 				},
- 				"level_gains": {
- 					"accuracy": 0.0,
-@@ -373,8 +642,9 @@
- 					"speed": 0.0
- 				}
- 			},
--			"grade": "B+",
--			"hp": 655.483870967742,
-+			"grade": "B-",
-+			"hp": 667.870967741935,
-+			"hp_now": -1.0,
- 			"hunger": 256.0,
- 			"hunger_efficiency": 1.0,
- 			"hunger_max": 256.0,
-@@ -383,18 +653,18 @@
- 			"origin": "tame",
- 			"owner": "",
- 			"parent_uids": [],
--			"ranged_attack": 90.8629032258064,
--			"ranged_defense": 35.9354838709677,
-+			"ranged_attack": 85.3467741935484,
-+			"ranged_defense": 43.6774193548387,
- 			"respawn_left": 0.0,
- 			"species": "velociraptor",
--			"speed": 669.516129032258,
--			"tamed_at": 1792457403.0,
-+			"speed": 716.935483870968,
-+			"tamed_at": 1792534349.0,
- 			"tamed_role": [
- 				"mount",
- 				"scout"
- 			],
- 			"tamer": "",
--			"uid": "p_33fb628ddde0326a",
-+			"uid": "p_c79b3e9937107aa3",
- 			"variant": "",
- 			"wild_level": 1.0,
- 			"xp": 0.0,
-@@ -410,67 +680,402 @@
- 			{
- 				"attributes": {},
- 				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 33.0,
- 				"flags": [],
- 				"id": "stone_knife_work",
- 				"level": 1.0,
- 				"max_durability": 40.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "leecd89812b19637a"
- 			},
- 			{
- 				"attributes": {},
- 				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 50.0,
- 				"flags": [],
- 				"id": "work_axe",
- 				"level": 1.0,
- 				"max_durability": 50.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l9ea0bafb5b04b838"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l3a2f152eee01d171"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l431ba3c135b43f7c"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lb06cab9e58f9884d"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lbd44631b9f78f547"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l1f54cf92beed1481"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l19a81337a9799b68"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l510cca824cf96ca9"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l939647f9e15fdb5a"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l65238f8055e8cc18"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l22c6fb2794980aff"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lbe96848af73e1edf"
- 			},
- 			{
- 				"attributes": {
- 					"material_tier": "stone",
- 					"tint": "#8a8a8a"
- 				},
--				"count": 12.0,
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 0.0,
- 				"flags": [],
- 				"id": "stone",
- 				"level": 1.0,
- 				"max_durability": 0.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lc00a16cb8d156881"
-+			},
-+			{
-+				"attributes": {
-+					"tint": "#7a5a32"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "branch",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lc9021c378c5aec83"
-+			},
-+			{
-+				"attributes": {
-+					"tint": "#7a5a32"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "branch",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lcb07c876b9428033"
- 			},
- 			{
- 				"attributes": {
- 					"tint": "#7a5a32"
- 				},
--				"count": 7.0,
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 0.0,
- 				"flags": [],
- 				"id": "branch",
- 				"level": 1.0,
- 				"max_durability": 0.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lce7069d4c239de58"
-+			},
-+			{
-+				"attributes": {
-+					"tint": "#7a5a32"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "branch",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lf719e32f1aada2f8"
-+			},
-+			{
-+				"attributes": {
-+					"tint": "#7a5a32"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "branch",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lbb535e15b51f60ab"
-+			},
-+			{
-+				"attributes": {
-+					"tint": "#7a5a32"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "branch",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l8432471ed858583c"
-+			},
-+			{
-+				"attributes": {
-+					"tint": "#7a5a32"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "branch",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l4a1049e4b55c3f27"
-+			},
-+			{
-+				"attributes": {},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "raw_meat",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "ldbfc31775598dbfd"
-+			},
-+			{
-+				"attributes": {},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "raw_meat",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l488cbca6b094b060"
- 			},
- 			{
- 				"attributes": {},
--				"count": 3.0,
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 0.0,
- 				"flags": [],
- 				"id": "raw_meat",
- 				"level": 1.0,
- 				"max_durability": 0.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lafac3fa96c077bda"
- 			},
- 			{
- 				"attributes": {},
- 				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 400.0,
- 				"flags": [],
- 				"id": "raid_helm",
- 				"level": 1.0,
- 				"max_durability": 400.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l6a611dc9b5f38aa3"
- 			},
- 			null,
- 			null,
-@@ -485,28 +1090,102 @@
- 			null,
- 			null,
- 			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
- 			null
- 		],
- 		"inventory_extras": {
--			"equipment": {
--				"head": "raid_helm"
--			},
- 			"quick_food": [
- 				"",
- 				""
- 			],
--			"tool_index": -1.0
-+			"tool_index": -1.0,
-+			"worn": {
-+				"head": {
-+					"attributes": {},
-+					"count": 1.0,
-+					"created_at": 0.0,
-+					"creator": "",
-+					"durability": 400.0,
-+					"flags": [],
-+					"id": "raid_helm",
-+					"level": 1.0,
-+					"max_durability": 400.0,
-+					"origin": "",
-+					"process_count": 0.0,
-+					"uid": "l6e7e7181c91852d4"
-+				}
-+			}
- 		},
- 		"position": [
--			0.0,
--			2.07777214050293,
--			12.0
-+			-0.220829740166664,
-+			2.08180284500122,
-+			12.210729598999
- 		],
- 		"statuses": [],
- 		"vitals": {
- 			"energy": 87.55,
--			"fatigue": 30.0024544907408,
--			"health": 100.212068,
-+			"fatigue": 30.0024854722222,
-+			"health": 100.2147448,
- 			"max_energy": 103.0,
- 			"max_fatigue": 100.0,
- 			"max_health": 105.0
-@@ -600,7 +1279,7 @@
- 	"unstable": {
- 		"crater_discovered": false,
- 		"harvested": {},
--		"remaining": 7199.859381
-+		"remaining": 7199.855275
- 	},
- 	"visited_islands": {
- 		"home_grassland": true,
-diff --git a/game/tests/fixtures/save_v3_golden.json b/game/tests/fixtures/save_v3_golden.json
-index a10218d3..f16e0fdd 100644
---- a/game/tests/fixtures/save_v3_golden.json
-+++ b/game/tests/fixtures/save_v3_golden.json
-@@ -1,5 +1,5 @@
- {
--	"clock": 0.350380353703704,
-+	"clock": 0.35037352962963,
- 	"ground_snares": [
- 		{
- 			"arm_left": 0.0,
-@@ -40,18 +40,86 @@
- 							"material_tier": "stone",
- 							"tint": "#8a8a8a"
- 						},
--						"count": 5.0,
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
- 						"durability": 0.0,
- 						"flags": [],
- 						"id": "stone",
- 						"level": 1.0,
- 						"max_durability": 0.0,
--						"process_count": 0.0
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "lc545b462c11661d3"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "le8631bc39e707f35"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "lca9e06d548ebc749"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "leb669dbaf2d37583"
-+					},
-+					{
-+						"attributes": {
-+							"material_tier": "stone",
-+							"tint": "#8a8a8a"
-+						},
-+						"count": 1.0,
-+						"created_at": 0.0,
-+						"creator": "",
-+						"durability": 0.0,
-+						"flags": [],
-+						"id": "stone",
-+						"level": 1.0,
-+						"max_durability": 0.0,
-+						"origin": "",
-+						"process_count": 0.0,
-+						"uid": "l45e585db6b17f661"
- 					},
--					null,
--					null,
--					null,
--					null,
- 					null,
- 					null,
- 					null,
-@@ -151,17 +219,66 @@
- 				"attributes": {
- 					"material_tier": "flint"
- 				},
--				"count": 4.0,
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 0.0,
- 				"flags": [],
- 				"id": "flint",
- 				"level": 1.0,
- 				"max_durability": 0.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l78e959b3c1fcfbb2"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "flint"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "flint",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "la65139a9b184d882"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "flint"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "flint",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l4cd3d9f5696e5702"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "flint"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "flint",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l5b6fc92da957168f"
- 			},
--			null,
--			null,
--			null,
- 			null,
- 			null,
- 			null,
-@@ -236,23 +353,43 @@
- 	"pending_refunds": [],
- 	"pets": [
- 		{
--			"accuracy": 110.161290322581,
--			"attack": 105.572580645161,
-+			"accuracy": 89.8387096774193,
-+			"attack": 95.4596774193548,
- 			"bag": [
- 				{
- 					"attributes": {
- 						"material_tier": "stone",
- 						"tint": "#8a8a8a"
- 					},
--					"count": 2.0,
-+					"count": 1.0,
-+					"created_at": 0.0,
-+					"creator": "",
- 					"durability": 0.0,
- 					"flags": [],
- 					"id": "stone",
- 					"level": 1.0,
- 					"max_durability": 0.0,
--					"process_count": 0.0
-+					"origin": "",
-+					"process_count": 0.0,
-+					"uid": "l71aed18b05e556c5"
-+				},
-+				{
-+					"attributes": {
-+						"material_tier": "stone",
-+						"tint": "#8a8a8a"
-+					},
-+					"count": 1.0,
-+					"created_at": 0.0,
-+					"creator": "",
-+					"durability": 0.0,
-+					"flags": [],
-+					"id": "stone",
-+					"level": 1.0,
-+					"max_durability": 0.0,
-+					"origin": "",
-+					"process_count": 0.0,
-+					"uid": "lea383d796d1b7e59"
- 				},
--				null,
- 				null,
- 				null,
- 				null,
-@@ -262,7 +399,7 @@
- 				null,
- 				null
- 			],
--			"defense": 45.2258064516129,
-+			"defense": 35.9354838709677,
- 			"genetics": {
- 				"evs": {
- 					"accuracy": 0.0,
-@@ -274,13 +411,13 @@
- 					"speed": 0.0
- 				},
- 				"ivs": {
--					"accuracy": 26.0,
--					"health": 18.0,
--					"melee_attack": 27.0,
--					"melee_defense": 29.0,
--					"ranged_attack": 11.0,
--					"ranged_defense": 5.0,
--					"speed": 11.0
-+					"accuracy": 5.0,
-+					"health": 20.0,
-+					"melee_attack": 16.0,
-+					"melee_defense": 5.0,
-+					"ranged_attack": 5.0,
-+					"ranged_defense": 25.0,
-+					"speed": 18.0
- 				},
- 				"level_gains": {
- 					"accuracy": 0.0,
-@@ -292,8 +429,9 @@
- 					"speed": 0.0
- 				}
- 			},
--			"grade": "B+",
--			"hp": 655.483870967742,
-+			"grade": "B-",
-+			"hp": 667.870967741935,
-+			"hp_now": -1.0,
- 			"hunger": 256.0,
- 			"hunger_efficiency": 1.0,
- 			"hunger_max": 256.0,
-@@ -302,18 +440,18 @@
- 			"origin": "tame",
- 			"owner": "",
- 			"parent_uids": [],
--			"ranged_attack": 90.8629032258064,
--			"ranged_defense": 35.9354838709677,
-+			"ranged_attack": 85.3467741935484,
-+			"ranged_defense": 43.6774193548387,
- 			"respawn_left": 0.0,
- 			"species": "velociraptor",
--			"speed": 669.516129032258,
--			"tamed_at": 1792457403.0,
-+			"speed": 716.935483870968,
-+			"tamed_at": 1792534349.0,
- 			"tamed_role": [
- 				"mount",
- 				"scout"
- 			],
- 			"tamer": "",
--			"uid": "p_33fb628ddde0326a",
-+			"uid": "p_c79b3e9937107aa3",
- 			"variant": "",
- 			"wild_level": 1.0,
- 			"xp": 0.0,
-@@ -329,67 +467,402 @@
- 			{
- 				"attributes": {},
- 				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 33.0,
- 				"flags": [],
- 				"id": "stone_knife_work",
- 				"level": 1.0,
- 				"max_durability": 40.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "leecd89812b19637a"
- 			},
- 			{
- 				"attributes": {},
- 				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 50.0,
- 				"flags": [],
- 				"id": "work_axe",
- 				"level": 1.0,
- 				"max_durability": 50.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l9ea0bafb5b04b838"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l3a2f152eee01d171"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l431ba3c135b43f7c"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lb06cab9e58f9884d"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lbd44631b9f78f547"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l1f54cf92beed1481"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l19a81337a9799b68"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l510cca824cf96ca9"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l939647f9e15fdb5a"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l65238f8055e8cc18"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l22c6fb2794980aff"
-+			},
-+			{
-+				"attributes": {
-+					"material_tier": "stone",
-+					"tint": "#8a8a8a"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "stone",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lbe96848af73e1edf"
- 			},
- 			{
- 				"attributes": {
- 					"material_tier": "stone",
- 					"tint": "#8a8a8a"
- 				},
--				"count": 12.0,
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 0.0,
- 				"flags": [],
- 				"id": "stone",
- 				"level": 1.0,
- 				"max_durability": 0.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lc00a16cb8d156881"
-+			},
-+			{
-+				"attributes": {
-+					"tint": "#7a5a32"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "branch",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lc9021c378c5aec83"
-+			},
-+			{
-+				"attributes": {
-+					"tint": "#7a5a32"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "branch",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lcb07c876b9428033"
-+			},
-+			{
-+				"attributes": {
-+					"tint": "#7a5a32"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "branch",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lce7069d4c239de58"
- 			},
- 			{
- 				"attributes": {
- 					"tint": "#7a5a32"
- 				},
--				"count": 7.0,
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "branch",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lf719e32f1aada2f8"
-+			},
-+			{
-+				"attributes": {
-+					"tint": "#7a5a32"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 0.0,
- 				"flags": [],
- 				"id": "branch",
- 				"level": 1.0,
- 				"max_durability": 0.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lbb535e15b51f60ab"
-+			},
-+			{
-+				"attributes": {
-+					"tint": "#7a5a32"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "branch",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l8432471ed858583c"
-+			},
-+			{
-+				"attributes": {
-+					"tint": "#7a5a32"
-+				},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "branch",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l4a1049e4b55c3f27"
-+			},
-+			{
-+				"attributes": {},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "raw_meat",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "ldbfc31775598dbfd"
-+			},
-+			{
-+				"attributes": {},
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
-+				"durability": 0.0,
-+				"flags": [],
-+				"id": "raw_meat",
-+				"level": 1.0,
-+				"max_durability": 0.0,
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l488cbca6b094b060"
- 			},
- 			{
- 				"attributes": {},
--				"count": 3.0,
-+				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 0.0,
- 				"flags": [],
- 				"id": "raw_meat",
- 				"level": 1.0,
- 				"max_durability": 0.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "lafac3fa96c077bda"
- 			},
- 			{
- 				"attributes": {},
- 				"count": 1.0,
-+				"created_at": 0.0,
-+				"creator": "",
- 				"durability": 400.0,
- 				"flags": [],
- 				"id": "raid_helm",
- 				"level": 1.0,
- 				"max_durability": 400.0,
--				"process_count": 0.0
-+				"origin": "",
-+				"process_count": 0.0,
-+				"uid": "l6a611dc9b5f38aa3"
- 			},
- 			null,
- 			null,
-@@ -404,17 +877,91 @@
- 			null,
- 			null,
- 			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
-+			null,
- 			null
- 		],
- 		"inventory_extras": {
--			"equipment": {
--				"head": "raid_helm"
--			},
- 			"quick_food": [
- 				"",
- 				""
- 			],
--			"tool_index": -1.0
-+			"tool_index": -1.0,
-+			"worn": {
-+				"head": {
-+					"attributes": {},
-+					"count": 1.0,
-+					"created_at": 0.0,
-+					"creator": "",
-+					"durability": 400.0,
-+					"flags": [],
-+					"id": "raid_helm",
-+					"level": 1.0,
-+					"max_durability": 400.0,
-+					"origin": "",
-+					"process_count": 0.0,
-+					"uid": "l6e7e7181c91852d4"
-+				}
-+			}
- 		},
- 		"position": [
- 			0.0,
-@@ -424,8 +971,8 @@
- 		"statuses": [],
- 		"vitals": {
- 			"energy": 87.55,
--			"fatigue": 30.001152462963,
--			"health": 100.0995728,
-+			"fatigue": 30.0011454259259,
-+			"health": 100.0989648,
- 			"max_energy": 103.0,
- 			"max_fatigue": 100.0,
- 			"max_health": 105.0
-diff --git a/game/tests/fixtures/save_v3_stacked.json b/game/tests/fixtures/save_v3_stacked.json
+diff --git a/game/tests/fixtures/save_v3_inst_away_golden.json b/game/tests/fixtures/save_v3_inst_away_golden.json
 new file mode 100644
-index 00000000..a10218d3
+index 00000000..a6c199f1
 --- /dev/null
-+++ b/game/tests/fixtures/save_v3_stacked.json
-@@ -0,0 +1,527 @@
++++ b/game/tests/fixtures/save_v3_inst_away_golden.json
+@@ -0,0 +1,1288 @@
 +{
-+	"clock": 0.350380353703704,
-+	"ground_snares": [
-+		{
-+			"arm_left": 0.0,
-+			"heavy": false,
-+			"life_left": 100.0,
-+			"position": [
-+				3.5,
-+				1.10203576087952,
-+				11.5
-+			]
-+		}
-+	],
++	"away": {
++		"buildings": [
++			{
++				"cargo": false,
++				"cell": [
++					-2.0,
++					10.0
++				],
++				"contents": [
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "lda8e242445b585cf"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l2fe9e1443e991f9d"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l8210260758cbf08a"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l09c13bc8ae1e5fab"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "lffe6a8824283b77a"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l14cf30c6216aa076"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "lf0eff033c132a98b"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l8a9368781fcc08ae"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "lf030b081e912ed6b"
++					},
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null
++				],
++				"kind": "basket",
++				"rot": 0.0,
++				"sleeps_left": -1.0,
++				"text": "",
++				"x": -1.5,
++				"z": 10.5
++			}
++		],
++		"claims": []
++	},
++	"clock": 0.350569,
++	"ground_snares": [],
 +	"home": {
 +		"buildings": [
 +			{
@@ -2385,18 +697,86 @@ index 00000000..a10218d3
 +							"material_tier": "stone",
 +							"tint": "#8a8a8a"
 +						},
-+						"count": 5.0,
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
 +						"durability": 0.0,
 +						"flags": [],
 +						"id": "stone",
 +						"level": 1.0,
 +						"max_durability": 0.0,
-+						"process_count": 0.0
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l542c6ee456d0ac72"
 +					},
-+					null,
-+					null,
-+					null,
-+					null,
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l2711251898f6dfae"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l1a70862bb67f5d31"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l36da72aab010a86b"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "lf9a0bd3e3214d06d"
++					},
 +					null,
 +					null,
 +					null,
@@ -2496,17 +876,1147 @@ index 00000000..a10218d3
 +				"attributes": {
 +					"material_tier": "flint"
 +				},
-+				"count": 4.0,
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
 +				"durability": 0.0,
 +				"flags": [],
 +				"id": "flint",
 +				"level": 1.0,
 +				"max_durability": 0.0,
-+				"process_count": 0.0
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l1f6a4830a025e540"
++			},
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l43932d67c21c10b2"
++			},
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lbbcb0f9312147ef5"
++			},
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ldc8c8d0d88bfcdf2"
 +			},
 +			null,
 +			null,
 +			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null
++		],
++		"claims": [
++			[
++				-7.0,
++				1.0,
++				14.0,
++				14.0
++			]
++		],
++		"terrain": "meadow"
++	},
++	"island_id": "temperate_25",
++	"objective": 2.0,
++	"objective_best": 1.0,
++	"occupation": "student",
++	"pending_refunds": [],
++	"pets": [
++		{
++			"accuracy": 85.9677419354839,
++			"attack": 90.8629032258064,
++			"bag": [
++				{
++					"attributes": {
++						"material_tier": "stone",
++						"tint": "#8a8a8a"
++					},
++					"count": 1.0,
++					"created_at": 0.0,
++					"creator": "",
++					"durability": 0.0,
++					"flags": [],
++					"id": "stone",
++					"level": 1.0,
++					"max_durability": 0.0,
++					"origin": "",
++					"process_count": 0.0,
++					"uid": "l2e62d0314139099c"
++				},
++				{
++					"attributes": {
++						"material_tier": "stone",
++						"tint": "#8a8a8a"
++					},
++					"count": 1.0,
++					"created_at": 0.0,
++					"creator": "",
++					"durability": 0.0,
++					"flags": [],
++					"id": "stone",
++					"level": 1.0,
++					"max_durability": 0.0,
++					"origin": "",
++					"process_count": 0.0,
++					"uid": "l68242c1a0f32f2c7"
++				},
++				null,
++				null,
++				null,
++				null,
++				null,
++				null,
++				null,
++				null
++			],
++			"defense": 44.8387096774194,
++			"genetics": {
++				"evs": {
++					"accuracy": 0.0,
++					"health": 0.0,
++					"melee_attack": 0.0,
++					"melee_defense": 0.0,
++					"ranged_attack": 0.0,
++					"ranged_defense": 0.0,
++					"speed": 0.0
++				},
++				"ivs": {
++					"accuracy": 1.0,
++					"health": 6.0,
++					"melee_attack": 11.0,
++					"melee_defense": 28.0,
++					"ranged_attack": 16.0,
++					"ranged_defense": 11.0,
++					"speed": 30.0
++				},
++				"level_gains": {
++					"accuracy": 0.0,
++					"health": 0.0,
++					"melee_attack": 0.0,
++					"melee_defense": 0.0,
++					"ranged_attack": 0.0,
++					"ranged_defense": 0.0,
++					"speed": 0.0
++				}
++			},
++			"grade": "B",
++			"hp": 581.161290322581,
++			"hp_now": -1.0,
++			"hunger": 256.0,
++			"hunger_efficiency": 1.0,
++			"hunger_max": 256.0,
++			"level": 1.0,
++			"name": "",
++			"origin": "tame",
++			"owner": "",
++			"parent_uids": [],
++			"ranged_attack": 95.4596774193548,
++			"ranged_defense": 38.258064516129,
++			"respawn_left": 0.0,
++			"species": "velociraptor",
++			"speed": 798.225806451613,
++			"tamed_at": 1792537695.0,
++			"tamed_role": [
++				"mount",
++				"scout"
++			],
++			"tamer": "",
++			"uid": "p_5691e1f4f26ddb1f",
++			"variant": "",
++			"wild_level": 1.0,
++			"xp": 0.0,
++			"xp_rate": 1.0
++		}
++	],
++	"pioneer_buildings": {},
++	"pioneer_crafts": {},
++	"pioneer_level": 4.0,
++	"pioneer_xp": 12.0,
++	"player": {
++		"inventory": [
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 33.0,
++				"flags": [],
++				"id": "stone_knife_work",
++				"level": 1.0,
++				"max_durability": 40.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lb7f21bf4b5e17f87"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 50.0,
++				"flags": [],
++				"id": "work_axe",
++				"level": 1.0,
++				"max_durability": 50.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l047d77403d001462"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l33bf22a7183e25e8"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ldbe37c6043281335"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l77fb242ba5f66d7a"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld8827ba8f6457938"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l39ebe00f6666efcc"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l24436ffc28742340"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld34f29d61d5f32be"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l2dde56cae64d6d3f"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lb22bb7f1707cd4a5"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld749ba2edf016625"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l9c44585f83dfecb9"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l27ef3d5ef45729a4"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l04564e5285d7175e"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lf0c42bd8fdc2580e"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l6fc711c8e209672e"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l95e15a66d046728f"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l2b58e80fdcf0d378"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ldb68bb37078ca616"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l72c5ac6c86bfc74e"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "raw_meat",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld18c13b3c2a619ce"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "raw_meat",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l5bbdc10d1795d34d"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "raw_meat",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l608b3cc832bc3549"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 400.0,
++				"flags": [],
++				"id": "raid_helm",
++				"level": 1.0,
++				"max_durability": 400.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l95d815808806d5dc"
++			},
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null
++		],
++		"inventory_extras": {
++			"quick_food": [
++				"",
++				""
++			],
++			"tool_index": -1.0,
++			"worn": {
++				"head": {
++					"attributes": {},
++					"count": 1.0,
++					"created_at": 0.0,
++					"creator": "",
++					"durability": 400.0,
++					"flags": [],
++					"id": "raid_helm",
++					"level": 1.0,
++					"max_durability": 400.0,
++					"origin": "",
++					"process_count": 0.0,
++					"uid": "lf267172c981fe1db"
++				}
++			}
++		},
++		"position": [
++			-0.220829740166664,
++			2.08180284500122,
++			12.210729598999
++		],
++		"statuses": [],
++		"vitals": {
++			"energy": 87.55,
++			"fatigue": 30.0024985123457,
++			"health": 100.215871466667,
++			"max_energy": 103.0,
++			"max_fatigue": 100.0,
++			"max_health": 105.0
++		}
++	},
++	"player_name": "Golden",
++	"raid_victory": false,
++	"saved_unix": 4000000000,
++	"schema": 3.0,
++	"skills": {
++		"animal_management_I": false,
++		"animal_management_II": false,
++		"animal_management_III": false,
++		"animal_management_IV": false,
++		"butchering_I": false,
++		"butchering_II": false,
++		"capture_technique_I": false,
++		"capture_technique_II": false,
++		"capture_technique_III": false,
++		"capture_technique_IV": false,
++		"capture_technique_V": false
++	},
++	"skills_v2": {
++		"occupation": "student",
++		"sp_available": 270.0,
++		"sp_spent": 0.0,
++		"trees": {
++			"butchering": {
++				"level": 3.0,
++				"unlocked": [],
++				"xp": 36.0
++			},
++			"construction": {
++				"level": 0.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"cooking": {
++				"level": 0.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"defense": {
++				"level": 0.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"farming": {
++				"level": 0.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"gathering": {
++				"level": 20.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"melee": {
++				"level": 0.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"processing": {
++				"level": 0.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"ranged": {
++				"level": 0.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"survival": {
++				"level": 4.0,
++				"unlocked": [],
++				"xp": 7.0
++			},
++			"tailoring": {
++				"level": 0.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"weapon_tools": {
++				"level": 0.0,
++				"unlocked": [],
++				"xp": 0.0
++			}
++		}
++	},
++	"t_stones": 42.0,
++	"unstable": {
++		"crater_discovered": false,
++		"harvested": {},
++		"remaining": 7199.865684
++	},
++	"visited_islands": {
++		"home_grassland": true,
++		"temperate_25": true
++	}
++}
+diff --git a/game/tests/fixtures/save_v3_inst_golden.json b/game/tests/fixtures/save_v3_inst_golden.json
+new file mode 100644
+index 00000000..14847463
+--- /dev/null
++++ b/game/tests/fixtures/save_v3_inst_golden.json
+@@ -0,0 +1,1074 @@
++{
++	"clock": 0.35038245,
++	"ground_snares": [
++		{
++			"arm_left": 0.0,
++			"heavy": false,
++			"life_left": 100.0,
++			"position": [
++				3.5,
++				1.10203576087952,
++				11.5
++			]
++		}
++	],
++	"home": {
++		"buildings": [
++			{
++				"cargo": false,
++				"cell": [
++					-1.0,
++					8.0
++				],
++				"contents": [],
++				"kind": "tent",
++				"rot": 0.0,
++				"sleeps_left": 6.0,
++				"text": "",
++				"x": 0.5,
++				"z": 9.5
++			},
++			{
++				"cargo": false,
++				"cell": [
++					-1.0,
++					6.0
++				],
++				"contents": [
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l542c6ee456d0ac72"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l2711251898f6dfae"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l1a70862bb67f5d31"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l36da72aab010a86b"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "lf9a0bd3e3214d06d"
++					},
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null
++				],
++				"kind": "basket",
++				"rot": 0.0,
++				"sleeps_left": -1.0,
++				"text": "",
++				"x": -0.5,
++				"z": 6.5
++			},
++			{
++				"cell": [
++					-1.0,
++					7.0
++				],
++				"kind": "campfire",
++				"rot": 0.0,
++				"seconds_left": 120.0,
++				"x": -0.5,
++				"z": 7.5
++			},
++			{
++				"cell": [
++					2.0,
++					9.0
++				],
++				"kind": "workbench",
++				"rot": 1.0,
++				"x": 2.5,
++				"z": 10.0
++			}
++		],
++		"camp_layout": {
++			"CampBench": {
++				"cell": [
++					-2.0,
++					6.0
++				],
++				"rot": 1.0
++			}
++		},
++		"cargo": [
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l1f6a4830a025e540"
++			},
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l43932d67c21c10b2"
++			},
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lbbcb0f9312147ef5"
++			},
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ldc8c8d0d88bfcdf2"
++			},
 +			null,
 +			null,
 +			null,
@@ -2581,23 +2091,43 @@ index 00000000..a10218d3
 +	"pending_refunds": [],
 +	"pets": [
 +		{
-+			"accuracy": 110.161290322581,
-+			"attack": 105.572580645161,
++			"accuracy": 85.9677419354839,
++			"attack": 90.8629032258064,
 +			"bag": [
 +				{
 +					"attributes": {
 +						"material_tier": "stone",
 +						"tint": "#8a8a8a"
 +					},
-+					"count": 2.0,
++					"count": 1.0,
++					"created_at": 0.0,
++					"creator": "",
 +					"durability": 0.0,
 +					"flags": [],
 +					"id": "stone",
 +					"level": 1.0,
 +					"max_durability": 0.0,
-+					"process_count": 0.0
++					"origin": "",
++					"process_count": 0.0,
++					"uid": "l2e62d0314139099c"
 +				},
-+				null,
++				{
++					"attributes": {
++						"material_tier": "stone",
++						"tint": "#8a8a8a"
++					},
++					"count": 1.0,
++					"created_at": 0.0,
++					"creator": "",
++					"durability": 0.0,
++					"flags": [],
++					"id": "stone",
++					"level": 1.0,
++					"max_durability": 0.0,
++					"origin": "",
++					"process_count": 0.0,
++					"uid": "l68242c1a0f32f2c7"
++				},
 +				null,
 +				null,
 +				null,
@@ -2607,7 +2137,7 @@ index 00000000..a10218d3
 +				null,
 +				null
 +			],
-+			"defense": 45.2258064516129,
++			"defense": 44.8387096774194,
 +			"genetics": {
 +				"evs": {
 +					"accuracy": 0.0,
@@ -2619,13 +2149,13 @@ index 00000000..a10218d3
 +					"speed": 0.0
 +				},
 +				"ivs": {
-+					"accuracy": 26.0,
-+					"health": 18.0,
-+					"melee_attack": 27.0,
-+					"melee_defense": 29.0,
-+					"ranged_attack": 11.0,
-+					"ranged_defense": 5.0,
-+					"speed": 11.0
++					"accuracy": 1.0,
++					"health": 6.0,
++					"melee_attack": 11.0,
++					"melee_defense": 28.0,
++					"ranged_attack": 16.0,
++					"ranged_defense": 11.0,
++					"speed": 30.0
 +				},
 +				"level_gains": {
 +					"accuracy": 0.0,
@@ -2637,8 +2167,9 @@ index 00000000..a10218d3
 +					"speed": 0.0
 +				}
 +			},
-+			"grade": "B+",
-+			"hp": 655.483870967742,
++			"grade": "B",
++			"hp": 581.161290322581,
++			"hp_now": -1.0,
 +			"hunger": 256.0,
 +			"hunger_efficiency": 1.0,
 +			"hunger_max": 256.0,
@@ -2647,18 +2178,18 @@ index 00000000..a10218d3
 +			"origin": "tame",
 +			"owner": "",
 +			"parent_uids": [],
-+			"ranged_attack": 90.8629032258064,
-+			"ranged_defense": 35.9354838709677,
++			"ranged_attack": 95.4596774193548,
++			"ranged_defense": 38.258064516129,
 +			"respawn_left": 0.0,
 +			"species": "velociraptor",
-+			"speed": 669.516129032258,
-+			"tamed_at": 1792457403.0,
++			"speed": 798.225806451613,
++			"tamed_at": 1792537695.0,
 +			"tamed_role": [
 +				"mount",
 +				"scout"
 +			],
 +			"tamer": "",
-+			"uid": "p_33fb628ddde0326a",
++			"uid": "p_5691e1f4f26ddb1f",
 +			"variant": "",
 +			"wild_level": 1.0,
 +			"xp": 0.0,
@@ -2674,68 +2205,464 @@ index 00000000..a10218d3
 +			{
 +				"attributes": {},
 +				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
 +				"durability": 33.0,
 +				"flags": [],
 +				"id": "stone_knife_work",
 +				"level": 1.0,
 +				"max_durability": 40.0,
-+				"process_count": 0.0
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lb7f21bf4b5e17f87"
 +			},
 +			{
 +				"attributes": {},
 +				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
 +				"durability": 50.0,
 +				"flags": [],
 +				"id": "work_axe",
 +				"level": 1.0,
 +				"max_durability": 50.0,
-+				"process_count": 0.0
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l047d77403d001462"
 +			},
 +			{
 +				"attributes": {
 +					"material_tier": "stone",
 +					"tint": "#8a8a8a"
 +				},
-+				"count": 12.0,
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
 +				"durability": 0.0,
 +				"flags": [],
 +				"id": "stone",
 +				"level": 1.0,
 +				"max_durability": 0.0,
-+				"process_count": 0.0
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l33bf22a7183e25e8"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ldbe37c6043281335"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l77fb242ba5f66d7a"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld8827ba8f6457938"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l39ebe00f6666efcc"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l24436ffc28742340"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld34f29d61d5f32be"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l2dde56cae64d6d3f"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lb22bb7f1707cd4a5"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld749ba2edf016625"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l9c44585f83dfecb9"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l27ef3d5ef45729a4"
 +			},
 +			{
 +				"attributes": {
 +					"tint": "#7a5a32"
 +				},
-+				"count": 7.0,
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
 +				"durability": 0.0,
 +				"flags": [],
 +				"id": "branch",
 +				"level": 1.0,
 +				"max_durability": 0.0,
-+				"process_count": 0.0
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l04564e5285d7175e"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lf0c42bd8fdc2580e"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l6fc711c8e209672e"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l95e15a66d046728f"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l2b58e80fdcf0d378"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ldb68bb37078ca616"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l72c5ac6c86bfc74e"
 +			},
 +			{
 +				"attributes": {},
-+				"count": 3.0,
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
 +				"durability": 0.0,
 +				"flags": [],
 +				"id": "raw_meat",
 +				"level": 1.0,
 +				"max_durability": 0.0,
-+				"process_count": 0.0
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld18c13b3c2a619ce"
 +			},
 +			{
 +				"attributes": {},
 +				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "raw_meat",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l5bbdc10d1795d34d"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "raw_meat",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l608b3cc832bc3549"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
 +				"durability": 400.0,
 +				"flags": [],
 +				"id": "raid_helm",
 +				"level": 1.0,
 +				"max_durability": 400.0,
-+				"process_count": 0.0
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l95d815808806d5dc"
 +			},
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
 +			null,
 +			null,
 +			null,
@@ -2752,14 +2679,27 @@ index 00000000..a10218d3
 +			null
 +		],
 +		"inventory_extras": {
-+			"equipment": {
-+				"head": "raid_helm"
-+			},
 +			"quick_food": [
 +				"",
 +				""
 +			],
-+			"tool_index": -1.0
++			"tool_index": -1.0,
++			"worn": {
++				"head": {
++					"attributes": {},
++					"count": 1.0,
++					"created_at": 0.0,
++					"creator": "",
++					"durability": 400.0,
++					"flags": [],
++					"id": "raid_helm",
++					"level": 1.0,
++					"max_durability": 400.0,
++					"origin": "",
++					"process_count": 0.0,
++					"uid": "lf267172c981fe1db"
++				}
++			}
 +		},
 +		"position": [
 +			0.0,
@@ -2769,8 +2709,8 @@ index 00000000..a10218d3
 +		"statuses": [],
 +		"vitals": {
 +			"energy": 87.55,
-+			"fatigue": 30.001152462963,
-+			"health": 100.0995728,
++			"fatigue": 30.001254845679,
++			"health": 100.108418666667,
 +			"max_energy": 103.0,
 +			"max_fatigue": 100.0,
 +			"max_health": 105.0
@@ -3089,47 +3029,109 @@ index 037f42f1..6b19e113 100644
  	await process_frame
  
 diff --git a/game/tests/t_save.gd b/game/tests/t_save.gd
-index 973340ac..0010104a 100644
+index 973340ac..780c8f95 100644
 --- a/game/tests/t_save.gd
 +++ b/game/tests/t_save.gd
-@@ -77,6 +77,7 @@ func _run() -> void:
- 	for name in ["save_v0.json", "save_v1.json", "save_v2.json", "save_v3_golden.json", "save_v3_away_golden.json"]:
+@@ -1,10 +1,17 @@
+ extends SceneTree
+ ## W1-SAVE: crash-safe, sanitized, isolated saves. Prints "[t_save] PASS" (or FAIL lines), exits 0/1.
+ ##   Godot --headless --path game --script res://tests/t_save.gd
+-## `-- --write-golden` re-stages a camp and rewrites save_v3_golden.json and save_truncated.json.
++## `-- --write-golden` re-stages a camp and rewrites the instance-format goldens (GOLDEN, AWAY_GOLDEN).
++## save_v3_golden.json, save_v3_away_golden.json and save_truncated.json are the base's stacked
++## saves from before W2-INV: kept byte for byte, they are the real old saves the migration must load.
+ ## Scripts that touch autoloads load on the first frame (see run_all.gd), so everything is load()ed.
+ 
+ const FIX := "res://tests/fixtures/"
++## W2-INV: the current format (one instance per row, worn gear under inventory_extras.worn).
++const GOLDEN := "save_v3_inst_golden.json"
++const AWAY_GOLDEN := "save_v3_inst_away_golden.json"
++## Stacked saves from before W2-INV; their round trip checks the split instead of byte equality.
++const STACKED := ["save_v3_golden.json", "save_v3_away_golden.json"]
+ const RUN_DIR := "user://runs/t_save"
+ ## Island state regenerated on load, not save format: excluded from field-for-field compares.
+ ## A snare's life_left loses the 0-1 s of offline time each load counts.
+@@ -74,9 +81,10 @@ func _run() -> void:
+ 		quit(0)
+ 		return
+ 	_test_two_saves()
+-	for name in ["save_v0.json", "save_v1.json", "save_v2.json", "save_v3_golden.json", "save_v3_away_golden.json"]:
++	for name in ["save_v0.json", "save_v1.json", "save_v2.json", "save_v3_golden.json", "save_v3_away_golden.json", GOLDEN, AWAY_GOLDEN]:
  		await _test_round_trip(name)
  	await _test_forged()
 +	await _test_stacked_migration()
  	await _test_truncated()
  	await _test_future()
  	await _test_backup_fallback()
-@@ -177,12 +178,73 @@ func _check_legacy(name: String, s1: Dictionary) -> void:
+@@ -156,7 +164,21 @@ func _test_round_trip(name: String) -> void:
+ 	_check(diffs.is_empty(), "%s re-saves field-for-field equal: %s" % [name, diffs.slice(0, 6)])
+ 	if LEGACY.has(name):
+ 		_check_legacy(name, s1)
+-	if name.begins_with("save_v3_"):
++	if name in STACKED:
++		var old: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
++		var away := str(s1.get("island_id", "")) != "home_grassland"
++		_check_split(name, old, s1, away)
++		if away:
++			# The home camp's contents wait as saved rows while the survivor is away; they split
++			# when the camp is rebuilt on the way home (World.travel's two steps).
++			W.load_island(host, &"home_grassland", Vector3(0, 1, 12), false)
++			SG._restore_buildings(W._home_buildings_cache, SaveMigrations.CURRENT_SCHEMA)
++			await process_frame
++			SG.save_now()
++			var home_old := old.duplicate(true)
++			home_old.erase("away") # what was built on the island left behind stays there
++			_check_split(name + " back home", home_old, _saved())
++	elif name.begins_with("save_v3_"):
+ 		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
+ 		var gd: Array[String] = []
+ 		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
+@@ -177,12 +199,91 @@ func _check_legacy(name: String, s1: Dictionary) -> void:
  	_check(ok, "%s content survives migration: buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
  	print("[t_save] legacy %s buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
  
-+## W2-INV: a pre-instance save (stacked rows, def-id equipment) loads with every unit kept, one
-+## instance per slot with its own uid; what the 100-slot bag cannot hold lands in home cargo.
-+func _test_stacked_migration() -> void:
-+	var src: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_stacked.json"))
-+	src["player"]["inventory"][2]["count"] = 150 # 150 stone + 13 other units: more than the bag holds
-+	var want := _units(src)
-+	_clean()
-+	_put(JSON.stringify(src))
-+	SG.load_now(host)
-+	_check(SG.blocked_reason == "", "the stacked save loads")
-+	SG.save_now()
-+	var s1 := _saved()
++## W2-INV: an old stacked save keeps every unit (per item id), each non-stacking unit in its own
++## row with a distinct uid, and its def-id worn gear becomes a worn instance.
++func _check_split(name: String, old: Dictionary, s1: Dictionary, skip_home_camp: bool = false) -> void:
++	var want := _units(old)
 +	var got := _units(s1)
-+	_check(got == want, "no unit is lost splitting stacks: %s vs %s" % [got, want])
++	var st := _instance_stats(s1, skip_home_camp)
++	var worn: Dictionary = s1["player"]["inventory_extras"].get("worn", {})
++	_check(got == want, "%s: no unit is lost splitting stacks: %s vs %s" % [name, got, want])
++	_check(st[0] == 0 and st[1] == st[2] and st[2] > 0 and not st[3], "%s: every non-stacking unit is its own row with a distinct uid (rows=%d uids=%d multi=%d)" % [name, st[2], st[1], st[0]])
++	_check(str(worn.get("head", {}).get("id", "")) == "raid_helm" and not s1["player"]["inventory_extras"].has("equipment"), "%s: def-id head=raid_helm became a worn instance" % name)
++	print("[t_save] stacked %s units=%s instances=%d" % [name, got, st[2]])
++
++## [non-stacking rows with count != 1, distinct uids, such rows, a row without a uid].
++func _instance_stats(d: Dictionary, skip_home_camp: bool = false) -> Array:
 +	var uids := {}
 +	var multi := 0
 +	var rows := 0
-+	for row in _rows(s1):
++	for row in _rows(d, skip_home_camp):
 +		var def = root.get_node("Data").item(StringName(str(row.get("id", ""))))
 +		if def and def.stack_max == 1:
 +			rows += 1
 +			multi += 1 if int(row.get("count", 1)) != 1 else 0
 +			uids[str(row.get("uid", ""))] = true
-+	_check(multi == 0 and uids.size() == rows and not uids.has(""), "every non-stacking unit is its own row with a distinct uid (rows=%d uids=%d multi=%d)" % [rows, uids.size(), multi])
-+	var worn: Dictionary = s1["player"]["inventory_extras"].get("worn", {})
-+	_check(str(worn.get("head", {}).get("id", "")) == "raid_helm" and not s1["player"]["inventory_extras"].has("equipment"), "def-id head=raid_helm became a worn instance")
++	return [multi, uids.size(), rows, uids.has("")]
++
++## The base's stacked golden with its empty bag rows filled with legal old stacks (stone x20, the
++## old stack_max): more units than the 100-slot bag. The bag fills, the rest lands in home cargo,
++## and the migrated save re-saves unchanged.
++func _test_stacked_migration() -> void:
++	var src: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	var rows: Array = src["player"]["inventory"]
++	for i in rows.size():
++		if rows[i] == null:
++			rows[i] = {"id": "stone", "count": 20}
++	var want := _units(src)
++	_clean()
++	_put(JSON.stringify(src))
++	SG.load_now(host)
++	_check(SG.blocked_reason == "", "the full stacked save loads")
++	SG.save_now()
++	var s1 := _saved()
++	_check_split("full stacked save", src, s1)
 +	var bag_used := 0
 +	for row in s1["player"]["inventory"]:
 +		bag_used += 1 if row is Dictionary else 0
@@ -3138,25 +3140,27 @@ index 973340ac..0010104a 100644
 +		if row is Dictionary and str(row.get("id")) == "stone":
 +			cargo_stone += int(row.get("count", 1))
 +	# 99: the bag filled to 100, then the legacy head=raid_helm moved out of it into its slot.
-+	_check(bag_used == 99 and (s1["player"]["inventory"] as Array).size() == 100 and cargo_stone > 0, "the bag fills to 100 and the rest goes to home cargo (bag=%d cargo stone=%d)" % [bag_used, cargo_stone])
++	_check(bag_used == 99 and (s1["player"]["inventory"] as Array).size() == 100 and cargo_stone > 0, "the bag fills to 100 and the rest goes to home cargo (bag=%d cargo stone=%d of %d)" % [bag_used, cargo_stone, want.get("stone", 0)])
 +	SG.load_now(host)
 +	SG.save_now()
 +	var diffs: Array[String] = []
 +	_same(s1, _saved(), "", diffs)
 +	_check(diffs.is_empty(), "the migrated save re-saves unchanged: %s" % [diffs.slice(0, 4)])
-+	print("[t_save] stacked migration units=%s bag=%d cargo_stone=%d instances=%d" % [got, bag_used, cargo_stone, rows])
++	print("[t_save] stacked migration units=%s bag=%d cargo_stone=%d" % [_units(s1), bag_used, cargo_stone])
 +
 +## Every item row in a save: bag, worn gear, home cargo, building contents, pet bags.
-+func _rows(d: Dictionary) -> Array:
++func _rows(d: Dictionary, skip_home_camp: bool = false) -> Array:
 +	var out: Array = []
 +	out.append_array(d.get("player", {}).get("inventory", []))
 +	var extras: Dictionary = d.get("player", {}).get("inventory_extras", {})
 +	out.append_array((extras.get("worn", {}) as Dictionary).values())
 +	out.append_array(d.get("home", {}).get("cargo", []))
-+	for b in d.get("home", {}).get("buildings", []) + d.get("away", {}).get("buildings", []):
-+		out.append_array(b.get("contents", []))
++	for b in ([] if skip_home_camp else d.get("home", {}).get("buildings", [])) + d.get("away", {}).get("buildings", []):
++		if b.get("contents") is Array:
++			out.append_array(b.contents)
 +	for p in d.get("pets", []):
-+		out.append_array(p.get("bag", []))
++		if p.get("bag") is Array:
++			out.append_array(p.bag)
 +	return out.filter(func (r: Variant) -> bool: return r is Dictionary)
 +
 +func _units(d: Dictionary) -> Dictionary:
@@ -3175,7 +3179,25 @@ index 973340ac..0010104a 100644
  	_check(helm != null and helm.count == 1 and helm.level == 60, "forged raid_helm x5000 L9999 loads as x1 L60")
  	_check(helm != null and helm.durability <= helm.max_durability and helm.max_durability == IS.make(&"raid_helm", 1, {}, 60).max_durability, "forged durability clamps to the item's ceiling")
  	var unknown := 0
-@@ -383,7 +445,7 @@ func _test_hostile_types() -> void:
+@@ -325,7 +426,7 @@ func _test_away_island() -> void:
+ ## (the golden's 42 t_stones and 6 stacks arrive) and keep saving, never abort halfway.
+ func _test_hostile_types() -> void:
+ 	_clean()
+-	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	_put(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 	SG.load_now(host) # the golden camp layout, so the pen cell below is free under it
+ 	await process_frame
+ 	var pen := _free_cell(&"makeshift_taming_pen")
+@@ -373,7 +474,7 @@ func _test_hostile_types() -> void:
+ 		cases[label] = func (d: Dictionary) -> void: d["home"]["buildings"] = [row]
+ 	for label in cases:
+ 		_clean()
+-		var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++		var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 		(cases[label] as Callable).call(d)
+ 		_put(JSON.stringify(d))
+ 		W.t_stones = 0
+@@ -383,7 +484,7 @@ func _test_hostile_types() -> void:
  		var stacks := 0
  		for st in player.inventory.slots:
  			if st != null: stacks += 1
@@ -3184,7 +3206,55 @@ index 973340ac..0010104a 100644
  		var saved: bool = SG.save_now()
  		_check(ok and saved and errors.script_errors == errs, "hostile '%s' loads completely and saves (blocked='%s' t_stones=%d stacks=%d pets=%d script_errors=%d)" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), errors.script_errors - errs])
  		print("[t_save] hostile '%s' blocked='%s' t_stones=%d stacks=%d pets=%d saved=%s" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), saved])
-@@ -643,6 +705,7 @@ func _write_golden() -> void:
+@@ -442,9 +543,9 @@ func _check_pen(label: String, keeps: bool) -> void:
+ ## load lifts the block.
+ func _test_aborted_load() -> void:
+ 	_clean()
+-	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	_put(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 	var sha0 := FileAccess.get_sha256(SG.path)
+-	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 	raw["t_stones"] = {}
+ 	print("[t_save] the next SCRIPT ERROR (Nonexistent 'int' constructor) is the deliberate abort")
+ 	expected_script_errors += 1
+@@ -508,7 +609,7 @@ func _held_on_disk(d: Dictionary) -> Array:
+ ## must treat it as unreadable rather than apply it.
+ func _test_sanitizer_abort() -> void:
+ 	_clean()
+-	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	_put(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 	var San: GDScript = load("res://scripts/core/save_sanitizer.gd")
+ 	San.set("abort_for_test", true)
+ 	print("[t_save] the next SCRIPT ERROR (call on a null instance) is the deliberate sanitizer abort")
+@@ -523,7 +624,7 @@ func _test_sanitizer_abort() -> void:
+ 	for i in 70:
+ 		W._process(1.0)
+ 	_check(FileAccess.get_sha256(SG.path) == sha0, "aborted sanitizer: bytes unchanged after 70 s of autosave")
+-	var forged: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	var forged: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 	forged[San.get("CHECKED")] = true
+ 	_put(JSON.stringify(forged))
+ 	var ok: Dictionary = (load("res://scripts/core/save_migrations.gd") as GDScript).read(SG.path)
+@@ -536,7 +637,7 @@ func _test_sanitizer_abort() -> void:
+ ## pen the grid still accepts keeps its animal.
+ func _test_pen_refunds() -> void:
+ 	_clean()
+-	var golden := FileAccess.get_file_as_string(FIX + "save_v3_golden.json")
++	var golden := FileAccess.get_file_as_string(FIX + GOLDEN)
+ 	_put(golden)
+ 	SG.load_now(host)
+ 	await process_frame
+@@ -591,7 +692,7 @@ func _test_pen_refunds() -> void:
+ ## save must still record this session's buildings, or sailing away and back loses them.
+ func _test_refused_save_keeps_camp() -> void:
+ 	_clean()
+-	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	_put(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 	SG.load_now(host) # the golden basket holds 5 stone
+ 	await process_frame
+ 	var cell := _free_cell(&"basket")
+@@ -643,6 +744,7 @@ func _write_golden() -> void:
  	inv.add(IS.make(&"stone", 12))
  	inv.add(IS.make(&"branch", 7))
  	inv.add(IS.make(&"raw_meat", 3))
@@ -3192,6 +3262,34 @@ index 973340ac..0010104a 100644
  	inv.equip(&"head", &"raid_helm")
  	inv.add(IS.make(&"raid_helm", 1))
  	W.cargo_home.load_array([])
+@@ -676,15 +778,13 @@ func _write_golden() -> void:
+ 	var d := _saved()
+ 	d["unstable"]["harvested"] = {}
+ 	d["saved_unix"] = 4000000000 # clamps to now at load: no offline time, so the snare round-trips
+-	var out := ProjectSettings.globalize_path(FIX + "save_v3_golden.json")
++	var out := ProjectSettings.globalize_path(FIX + GOLDEN)
+ 	var text := JSON.stringify(d, "\t")
+ 	var f := FileAccess.open(out, FileAccess.WRITE)
+ 	f.store_string(text + "\n")
+ 	f.close()
+-	var t := FileAccess.open(ProjectSettings.globalize_path(FIX + "save_truncated.json"), FileAccess.WRITE)
+-	t.store_string(text.left(text.length() / 2)) # a save cut off mid-write
+-	t.close()
+-	print("[t_save] wrote golden (%d buildings, %d pets, %d snares, %d bytes) and truncated fixtures" % [placed, d["pets"].size(), d["ground_snares"].size(), text.length()])
++	# save_truncated.json stays the base's (any cut-off save tests the same path).
++	print("[t_save] wrote golden (%d buildings, %d pets, %d snares, %d bytes)" % [placed, d["pets"].size(), d["ground_snares"].size(), text.length()])
+ 	# Away golden: the survivor standing on an unstable island with a stocked basket there.
+ 	W.remaining_lifetime = 0.0
+ 	W.load_island(host, &"temperate_25", Vector3(0, 1, 12), false)
+@@ -700,7 +800,7 @@ func _write_golden() -> void:
+ 	var a := _saved()
+ 	a["unstable"]["harvested"] = {}
+ 	a["saved_unix"] = 4000000000
+-	var af := FileAccess.open(ProjectSettings.globalize_path(FIX + "save_v3_away_golden.json"), FileAccess.WRITE)
++	var af := FileAccess.open(ProjectSettings.globalize_path(FIX + AWAY_GOLDEN), FileAccess.WRITE)
+ 	af.store_string(JSON.stringify(a, "\t") + "\n")
+ 	af.close()
+ 	print("[t_save] wrote away golden island=%s away_buildings=%d" % [a.get("island_id"), (a.get("away", {}).get("buildings", []) as Array).size()])
 diff --git a/game/tests/t_tame.gd b/game/tests/t_tame.gd
 index 975571d6..fa51da33 100644
 --- a/game/tests/t_tame.gd
