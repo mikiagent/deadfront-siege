@@ -175,29 +175,6 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   new players to another instance (channel) and presence rooms enforce max_players_area. Caps get a
   perf test (perf_budget_lab at the cap stays inside the frame budget on web).
 
-- 2026-10-19 (owner): "functionally fine, but the symbols/icons need work; the building system needs real
-  buildings; the harbour is a grey block in the middle of land and must be attached to water; stuff
-  like that is holding the game back from AAA." Re-prioritised: W1-HARBOUR (coast-forced placement,
-  dock over water, real composite instead of the box) and W1-UIICONS (custom white SVG action set)
-  started now (wf_8598d187-a3f); W1-STRUCTART (Blender buildings + 4-stage drying rack + dock) is the
-  next wave-1 batch; W2-BUILDSYS (modular foundations/walls/roofs, tiers, HP, repair) starts as soon as
-  W1-STRUCTART and W1-HARBOUR merge.
-
-- 2026-10-20 (owner) Durango prompt pack: `docs/design/durango-prompts/01..07` (fatigue/energy/stamina;
-  taming pen and companions; level 60, 12 categories, SP, research gates, resets; instance loot with
-  Firm/Lightweight/... attributes, processing, primary/secondary slots, crafting ability, flawless;
-  instance inventory, capacity, containers, dino cargo, one-location rule; fixed-price Island Market
-  with exact instances, fees/tax, Receive All; semi-auto combat, stances, telegraph + timed roll, net
-  capture). Binding as design input; values the pack marks illustrative stay configurable. Refs:
-  docs/reference/durango-{fatigue-meter,gather-hud-levelup,bag-caged-animal}.*. Package mapping:
-  01 -> W2-SURVIVAL; 02 -> W2-CAGE + taming depth; 03 -> W2-SKILLS (new); 04 -> W2-DATA/W2-PROCESS +
-  W2-CRAFT (new); 05 -> W2-INV; 06 -> W3-EXCHANGE (Durango tabs Buy/Sell/My Listings/Sold/Expired/
-  History + Receive All, on top of the owner's auctions and buy orders); 07 -> W2-ACTION + combat.
-  Kept from earlier binding rules unless the owner says otherwise: capture below 30 % HP (pack says
-  ~50 %, configurable); unlimited owned pets with 3 active (pack says 7 bonded, configurable).
-  Note: fatigue/exhaustion returns (owner removed exhaustion on 2026-09-20; the pack, being newer,
-  reintroduces it with no unrecoverable state).
-
 ## Owner questions (open)
 
 - none
