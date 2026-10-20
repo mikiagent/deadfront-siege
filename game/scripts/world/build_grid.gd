@@ -162,10 +162,10 @@ func occupant(c: Vector2i) -> Node:
 ## or it would regrow inside the structure.
 func harvest_at(c: Vector2i) -> HarvestNode:
 	if not _harvest_built and is_instance_valid(runtime):
-		_harvest_built = true
 		for n in runtime.get_tree().get_nodes_in_group("harvest"):
 			if n is HarvestNode and runtime.is_ancestor_of(n):
 				_harvest_cells[tile_of((n as HarvestNode).global_position)] = n
+		_harvest_built = not _harvest_cells.is_empty()  # asked before the scatter ran: look again next time
 	var h: Variant = _harvest_cells.get(c)
 	return h as HarvestNode if is_instance_valid(h) else null
 
