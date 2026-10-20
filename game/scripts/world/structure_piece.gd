@@ -174,7 +174,9 @@ func _ready() -> void:
 	global_transform = pose(kind, slot, rot, floor0)
 	_rebuild()
 	_apply_layer()
-	_occlusion(self, StringName(str(piece_def(kind).get("occlusion", "none"))))
+	var occl := StringName(str(piece_def(kind).get("occlusion", "none")))
+	if occl == &"wall":  # roofs and ceilings fade per storey of a building (StructureGrid.roof_group)
+		_occlusion(self, occl)
 	_let_owner_through()
 
 func is_wall_type() -> bool:
@@ -183,12 +185,32 @@ func is_wall_type() -> bool:
 func is_floor() -> bool:
 	return kind == &"foundation" or kind == &"ceiling"
 
+## Roofs and ceilings: their look hangs under the building's roof group, not under the piece.
+func is_roof() -> bool:
+	return str(piece_def(kind).get("occlusion", "none")) == "roof"
+
+## Move the look under `group` (or back under the piece for null), keeping it where it is.
+func attach_visual(group: Node3D) -> void:
+	var to: Node = group if group else self
+	if _visual == null or _visual.get_parent() == to:
+		return
+	if _visual.get_parent():
+		_visual.reparent(to)
+	else:
+		to.add_child(_visual)
+	_visual.global_transform = global_transform
+
 ## Rebuild the look and colliders for the current kind/tier/variant (placement, upgrade, load).
 func _rebuild() -> void:
 	for c in get_children():
-		if c is CollisionShape3D or c == _visual:
+		if c is CollisionShape3D:
 			remove_child(c)
 			c.queue_free()
+	var group: Node3D = _visual.get_parent() as Node3D if _visual and _visual.get_parent() != self else null
+	if _visual:
+		if _visual.get_parent():
+			_visual.get_parent().remove_child(_visual)
+		_visual.queue_free()
 	_visual = Node3D.new()
 	_visual.name = "Visual"
 	var holder := _visual
@@ -210,6 +232,7 @@ func _rebuild() -> void:
 		mi.mesh = StructureMesh.mesh_for(kind, tier, variant)
 		holder.add_child(mi)
 	add_child(_visual)
+	attach_visual(group)  # an upgraded roof keeps its place in the building's roof group
 	for row in StructureMesh.shapes_for(kind, variant):
 		var cs := CollisionShape3D.new()
 		cs.shape = row[0]
@@ -294,6 +317,8 @@ func _exit_tree() -> void:
 	var g := grid()
 	if g and g.piece_at(slot) == self:
 		g.unregister(self)
+	if _visual and _visual.get_parent() != self and is_instance_valid(_visual):
+		_visual.queue_free()  # a roof's look lives under its group: it goes with the piece
 
 ## Spec-10 building instance row (plus the slot fields the grid needs to rebuild it).
 func to_dict() -> Dictionary:
@@ -348,14 +373,19 @@ static func _num(v: Variant, lo: float, hi: float, fallback: float) -> float:
 ## ceilings fade while the survivor is under them, walls and pillars where they stand between the
 ## camera and the survivor. How far they fade is the occlusion package's rule (owner 2026-10-20:
 ## partly see-through, never a clear hole; roofs keep a faint outline). Guarded so pieces simply
-## stay opaque until that package merges. Returns the surfaces that now fade.
+## stay opaque until that package merges. Mode &"none" releases the node (materials restored).
+## Returns the surfaces that now fade.
 static func _occlusion(node: Node3D, mode: StringName) -> int:
-	if mode == &"none" or not ResourceLoader.exists(OCCLUSION_SCRIPT):
+	if not ResourceLoader.exists(OCCLUSION_SCRIPT):
 		return 0
 	var occ: Variant = load(OCCLUSION_SCRIPT)
 	if not occ is GDScript:
 		return 0
+	var fn := "release" if mode == &"none" else "make_occludable"
 	for m in (occ as GDScript).get_script_method_list():
-		if str(m.get("name", "")) == "make_occludable":
-			return int((occ as GDScript).call("make_occludable", node, "inside" if mode == &"roof" else "between"))
+		if str(m.get("name", "")) == fn:
+			if mode == &"none":
+				(occ as GDScript).call(fn, node)
+				return 0
+			return int((occ as GDScript).call(fn, node, "inside" if mode == &"roof" else "between"))
 	return 0

@@ -10,6 +10,7 @@ var _slots: Dictionary = {}       # Vector4i -> StructurePiece
 var _floor_cells: Dictionary = {} # Vector2i (1 m) -> StructurePiece: level-0 foundations and ramps
 var _path_cells: Dictionary = {}  # Vector2i (1 m) -> StructurePiece: blocks creatures
 var _piece_cells: Dictionary = {} # piece instance id -> Array of 1 m cells it registered
+var _roof_groups: Dictionary = {} # roof/ceiling piece instance id -> its storey's roof group Node3D
 
 func _init(owner_grid: BuildGrid) -> void:
 	build_grid = owner_grid
@@ -52,8 +53,42 @@ func register(p: StructurePiece) -> void:
 			cells.append(c)
 	_piece_cells[p.get_instance_id()] = cells
 	refresh_piece(p)
+	if p.is_roof():
+		p.attach_visual(roof_group(p))
+
+## One node per storey of a connected building that its roofs and ceilings hang their looks under,
+## made occludable "inside" (W2-OCCLUDE): the survivor under any part of it fades the whole storey's
+## roof, which a per-piece fade cannot do (from the iso pitch the roof between the camera and a
+## survivor indoors is the piece nearest the camera, not the one overhead). Pieces that bridge two
+## groups merge them.
+# shortcut: a group is never split when a piece in its middle goes; the two halves keep fading
+# together until the island reloads. Upgrade if separate buildings ever share a roof line.
+func roof_group(p: StructurePiece) -> Node3D:
+	var found: Array[Node3D] = []
+	for nb in neighbours(Vector2i(p.slot.x, p.slot.y)):
+		var n := piece_at(Vector4i(nb.x, nb.y, p.slot.z, StructurePiece.CELL))
+		var g: Variant = _roof_groups.get(n.get_instance_id()) if n else null
+		if is_instance_valid(g) and not found.has(g):
+			found.append(g as Node3D)
+	var group: Node3D = found[0] if not found.is_empty() else null
+	if group == null:
+		group = Node3D.new()
+		group.name = "RoofGroup"
+		build_grid.runtime.add_child(group)
+		StructurePiece._occlusion(group, &"roof")
+	for other in found.slice(1):
+		StructurePiece._occlusion(other, &"none")  # its meshes are re-adopted by the group they join
+		for id in _roof_groups:
+			if _roof_groups[id] == other:
+				_roof_groups[id] = group
+		for c in other.get_children():
+			c.reparent(group)
+		other.queue_free()
+	_roof_groups[p.get_instance_id()] = group
+	return group
 
 func unregister(p: StructurePiece) -> void:
+	_roof_groups.erase(p.get_instance_id())
 	for k in p.keys():
 		if _slots.get(k) == p:
 			_slots.erase(k)

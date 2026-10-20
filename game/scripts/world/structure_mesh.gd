@@ -99,8 +99,7 @@ static func material_for(tier: StringName) -> StandardMaterial3D:
 		_noise.color_ramp = ramp
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
-	m.albedo_texture = _noise
-	m.uv1_triplanar = true
+	m.albedo_texture = _noise  # mapped by the box-projected UVs the builder writes (see _Builder.tri)
 	m.uv1_scale = Vector3.ONE * (1.6 if tier == &"stone" else 1.2)
 	m.roughness = 0.9
 	if tier == &"metal":
@@ -408,9 +407,11 @@ class _Builder:
 			var tmp := b
 			b = c
 			c = tmp
+		var an := n.abs()  # box projection: the plane the face is most parallel to
 		for p in [a, b, c]:
 			st.set_color(col)
 			st.set_normal(n)
+			st.set_uv(Vector2(p.z, p.y) if an.x >= an.y and an.x >= an.z else (Vector2(p.x, p.z) if an.y >= an.z else Vector2(p.x, p.y)))
 			st.add_vertex(p)
 
 	func quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, col: Color) -> void:
