@@ -108,6 +108,8 @@ func _test_catalog() -> void:
 				var kind := str(e.get("type", ""))
 				wired = wired or WIRED.has(kind)
 				if kind == "recipe":
+					# SP buy only functional nodes, so a gate on anything else would lock its recipe for good.
+					_expect(st == "functional", "%s/%s gates a recipe, so it must be functional (it is '%s')" % [tree, id, st])
 					for rid in e.get("recipes", []):
 						_expect(recipes.has(str(rid)), "%s/%s gates unknown recipe %s" % [tree, id, rid])
 			_expect(st != "functional" or wired, "%s/%s is 'functional' with no effect the game reads" % [tree, id])
