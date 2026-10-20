@@ -31,21 +31,22 @@ static func from_dict(d: Dictionary) -> LootBag:
 	var b := LootBag.new()
 	b.storage = Inventory.new(maxi(1, rows.size()))
 	b.storage.load_array(rows)
-	var x: Variant = d.get("x", 0.0)
-	var z: Variant = d.get("z", 0.0)
-	b.position = Vector3(float(x) if x is float or x is int else 0.0, 0.0, float(z) if z is float or z is int else 0.0)
+	var at := Vector3.ZERO
+	for i in 3:
+		var v: Variant = d.get(["x", "y", "z"][i], 0.0)
+		at[i] = clampf(float(v), -4000.0, 4000.0) if (v is float or v is int) and not is_nan(float(v)) else 0.0
+	if not (d.get("y") is float or d.get("y") is int) and World.runtime and World.runtime.has_method("surface_y"):
+		at.y = float(World.runtime.surface_y(at.x, at.z))
+	b.position = at
 	return b
 
 func to_dict() -> Dictionary:
-	return {"kind": str(kind), "x": position.x, "z": position.z, "contents": storage.to_array()}
+	return {"kind": str(kind), "x": position.x, "y": position.y, "z": position.z, "contents": storage.to_array()}
 
 func _ready() -> void:
 	add_to_group("placed_building")  # the survivor's building tap reaches interact()
 	collision_layer = StructurePiece.LAYER_TAP  # tappable; creatures and the survivor walk through
 	collision_mask = 0
-	var rt := World.runtime
-	if rt and rt.has_method("surface_y"):
-		position.y = float(rt.surface_y(position.x, position.z))
 	var cs := CollisionShape3D.new()
 	var sh := SphereShape3D.new()
 	sh.radius = 0.5
@@ -64,6 +65,24 @@ func _ready() -> void:
 		add_child(icon)
 	if storage.used_slots() <= 0:
 		queue_free()
+
+## One physics step after the drop, when the pieces that fell with the structure are gone: rest on
+## whatever is under the spot (a floor that still stands, else the ground).
+func _physics_process(_delta: float) -> void:
+	set_physics_process(false)
+	var from := global_position + Vector3(0, 0.3, 0)
+	var q := PhysicsRayQueryParameters3D.create(from, from - Vector3(0, 60, 0), StructurePiece.LAYER_WALK)
+	var skip: Array[RID] = []
+	for i in 4:
+		q.exclude = skip
+		var hit := get_world_3d().direct_space_state.intersect_ray(q)
+		if hit.is_empty():
+			return
+		if hit["collider"] is CharacterBody3D:  # a survivor or a creature standing on the spot
+			skip.append(hit["rid"])
+			continue
+		global_position.y = float(hit["position"].y)
+		return
 
 func interact(player: Node) -> bool:
 	var ui: Variant = player.get("ui")
