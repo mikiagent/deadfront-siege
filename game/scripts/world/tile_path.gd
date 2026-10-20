@@ -147,7 +147,10 @@ func _build_region() -> Rect2i:
 	var rad: int = 80
 	if runtime.has_method("land_radius"):
 		rad = int(ceil(float(runtime.land_radius()))) + REBUILD_MARGIN
-	return Rect2i(Vector2i(-rad, -rad), Vector2i(rad * 2 + 1, rad * 2 + 1))
+	var region := Rect2i(Vector2i(-rad, -rad), Vector2i(rad * 2 + 1, rad * 2 + 1))
+	if runtime.has_method("harbour_approach_rect"):  # the dock's approach can lie past the land radius
+		region = region.merge(runtime.harbour_approach_rect())
+	return region
 
 func _grid() -> BuildGrid:
 	if runtime == null:
