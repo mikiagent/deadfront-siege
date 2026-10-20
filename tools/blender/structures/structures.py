@@ -1123,18 +1123,22 @@ def _field(name, fx, fy, rows):
     # soil bed, a shade darker than the camp dirt tile so the border and ridges read
     p.box((2 * hx, 2 * hy, 0.04), (0, 0, 0.02), "dirt", tile_m=0.55)
     p.box((2 * hx - 0.02, 2 * hy - 0.02, 0.01), (0, 0, 0.03), "soot", tile_m=0.5)
-    # ridges: one tented mound of soil per row, cross-section extruded along X; the flat soil
-    # between them is the furrow, with a darker band of damp earth down its middle
+    # ridges: heaped soil, built as short segments with varied height so no long flat plane
+    # catches the light and reads as a plank; dark disturbed soil between neighbours is the furrow
     pitch = 2 * hy / rows
-    rh = 0.11
-    x0 = -hx + 0.12
+    seg = 6
+    span = 2 * hx - 0.24
     for i in range(rows):
         y = -hy + pitch * (i + 0.5)
-        hw_ = pitch * 0.38
-        p.prism([(x0, y - hw_, 0.03), (x0, y + hw_, 0.03), (x0, y, 0.03 + rh)],
-                (2 * hx - 0.24, 0, 0), "dirt", tile_m=0.5)
+        hw_ = pitch * 0.4
+        for k in range(seg):
+            x0 = -hx + 0.12 + k * span / seg
+            hh = 0.05 + 0.04 * ((i * 7 + k * 5) % 4) / 3
+            yj = y + 0.025 * (((i * 11 + k * 7) % 3) - 1)  # break the seam line
+            p.prism([(x0, yj - hw_, 0.03), (x0, yj + hw_, 0.03), (x0, yj, 0.03 + hh)],
+                    (span / seg + 0.03, 0, 0), "dirt", tile_m=0.28)
         if i < rows - 1:
-            p.box((2 * hx - 0.2, pitch * 0.18, 0.02), (0, y + pitch * 0.5, 0.04), "clay_dark", tile_m=0.3)
+            p.box((2 * hx - 0.2, pitch * 0.26, 0.015), (0, y + pitch * 0.5, 0.038), "leather_dark", tile_m=0.25)
     # border: logs pinned with stakes on all four sides
     for sy in (-1, 1):
         p.log((-hx - 0.02, sy * hy, 0.06), (hx + 0.02, sy * hy, 0.06), 0.062)

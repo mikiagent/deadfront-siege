@@ -15,6 +15,9 @@ var mature: bool = false
 var failed: bool = false
 
 const DATA_PATH := "res://data/farming.json"
+## ASSUMPTION: one stack of fruit_fertilizer (stack_max 20). Real overflow is the fraction left
+## after a harvest (< 1 at fertilizer_yield_bonus 1.0).
+const OVERFLOW_MAX := 20.0
 
 static var _data: Dictionary = {}
 
@@ -34,7 +37,9 @@ static func from_dict(d: Dictionary) -> FieldPlot:
 	f.growth = float(d.get("growth", 0.0))
 	f.watered = float(d.get("watered", 0.0))
 	f.fertilizer = float(d.get("fertilizer", 0.0))
-	f.fertilizer_overflow = float(d.get("fertilizer_overflow", 0.0))
+	# Pack-up turns overflow into fruit_fertilizer items: a forged save value must not mint a pile.
+	var over := float(d.get("fertilizer_overflow", 0.0))
+	f.fertilizer_overflow = clampf(over, 0.0, OVERFLOW_MAX) if is_finite(over) else 0.0
 	f.mature = bool(d.get("mature", false))
 	f.failed = bool(d.get("failed", false))
 	return f
@@ -59,6 +64,8 @@ func pack_up(player: Player) -> bool:
 	return BuildPlacer.pack_up_node(self, player)
 
 # ASSUMPTION: a planted field refuses so seeds, water and fertiliser are never silently lost.
+# A harvested field can hold overflow fertiliser (bonus units past the yield): that is stored goods
+# like a basket's contents, so it packs up with the kit instead of being dropped.
 func pack_up_block_reason() -> String:
 	if crop_id != &"":
 		return "Harvest or clear the field first"

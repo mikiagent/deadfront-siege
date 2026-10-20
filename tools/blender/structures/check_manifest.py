@@ -42,6 +42,10 @@ KIND_GLB = {
     # camp pieces that used to be Kenney placeholders (dsc camp set)
     "large_box": "large_box", "chest": "chest", "barrel": "barrel", "bucket": "bucket",
     "signpost": "signpost", "bedroll": "bedroll", "straw_roll": "straw_roll",
+    "campfire_stand": "campfire_stand", "technical_workbench": "technical_workbench",
+    "grindstone": "grindstone", "fishing_stand": "fishing_stand", "stone_grill": "stone_grill",
+    "tent_canvas": "tent_canvas", "fence_fortified": "fence_fortified", "field_small": "field_small",
+    "field_large": "field_large", "log_shelter": "log_shelter", "cabin_bed": "cabin_bed",
 }
 # Owner rule (2026-10-19): low-quality and low-poly assets are marked for replacement. The
 # building-system pieces are bare 1 m stand-ins for W2-BUILDSYS, so they are REPLACE outright; the
@@ -82,6 +86,17 @@ NOTES = {
     "signpost": "wooden signpost with two carved boards (placeable, decorative)",
     "bedroll": "minimal rest: hide bedroll with a pillow and a blanket",
     "straw_roll": "single-use straw rest roll",
+    "campfire_stand": "cooking upgrade of the campfire: stone fire, spit and hanging pot",
+    "technical_workbench": "heavy workbench with anvil, vise, hammer and tongs",
+    "grindstone": "tool repair station: cranked round stone with a water trough",
+    "fishing_stand": "fish-drying rack over a smoulder pit (placeable, decorative)",
+    "stone_grill": "flat stone grill over a hearth ring",
+    "tent_canvas": "cheap shade tent: canvas fly on poles with open sides",
+    "fence_fortified": "fortified palisade run, 2 m; neighbours meet end to end like the plain fence",
+    "field_small": "small tilled farm plot (hoe + seed) inside a log border",
+    "field_large": "large tilled farm plot inside a log border",
+    "log_shelter": "small log hut with a thatch roof and an open front",
+    "cabin_bed": "wooden bed with a hide mattress and fur blanket",
     "harbour": "harbour dock: plank pier on log piles with a canvas shed, 3x6 like HarbourSite.FOOTPRINT; "
                "deck 1.2 m above the pile feet, seaward end towards -Z. HarbourSite keeps it on the coast",
 }
