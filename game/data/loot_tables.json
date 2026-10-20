@@ -1,0 +1,39 @@
+{
+  "_about": "W2-GATHER rare drops and butcher yield scaling. Owned by game/scripts/gather/. Every item id must exist in items.json (t_gather checks). Chances are per gathered unit / per carcass and are illustrative defaults, kept configurable here (spec 12 sections 1-2, spec 04).",
+  "_assumption": "ASSUMPTION: the PRDs give no gather rare odds; these are the simplest numbers that make a rare find happen a few times per session (about one per 25 units of wood or stone).",
+  "gather_rare": {
+    "tool_tier_bonus": 0.15,
+    "skill_bonus_per_level": 0.01,
+    "max_chance": 0.5,
+    "by_role": {
+      "tree": [{"item": "resin", "chance": 0.04}],
+      "tree_dead": [{"item": "resin", "chance": 0.03}],
+      "prop": [{"item": "resin", "chance": 0.02}],
+      "rock": [
+        {"item": "flint", "chance": 0.05},
+        {"item": "copper_ore", "chance": 0.015, "min_tool_tier": "obsidian"}
+      ],
+      "bush": [{"item": "berry_seed", "chance": 0.05}],
+      "plant": [{"item": "spice_herb", "chance": 0.04}],
+      "ground": [{"item": "flax_seed", "chance": 0.03}]
+    },
+    "by_family": {
+      "CoralNode": [{"item": "pearl", "chance": 0.03}],
+      "BlackIronNode": [{"item": "silver_ore", "chance": 0.02, "min_tool_tier": "copper"}]
+    }
+  },
+  "butcher": {
+    "default_rare_chance": 0.12,
+    "rare_skill_bonus_per_level": 0.01,
+    "rare_tool_tier_bonus": 0.15,
+    "max_rare_chance": 0.6,
+    "count_bonus_per_tier": 0.15,
+    "count_bonus_per_skill_level": 0.01,
+    "_part_gates": "Parts a knife below this tier cannot cut free; they stay out of the carcass loot. ASSUMPTION: Durango gates parts by Butchering nodes (spec 12 s2); until W2-BUTCHER lands those nodes the knife tier stands in.",
+    "part_min_tier": {
+      "dense_bone": "bone",
+      "armor_scute": "flint",
+      "venom_gland": "flint"
+    }
+  }
+}
