@@ -39,7 +39,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | Wave | Packages | State |
 |---|---|---|
 | 0 | 16-system audit with adversarial verify and plan | plan done: `plan-register.md` (ranked gaps, waves 1-4, 21 owner questions) |
-| 1 (merged) | W1-TAME, W1-CANIM, W1-BUILD, W1-ITEMS, W1-WEB, W1-AI, raptor re-animation (dsc) passed review and are merged into `claude/mmo-overhaul`; gates: import, [tests] PASS, t_tame/t_canim/t_build/t_items PASS, SMOKE PASS | done |
+| 1 (merged) | W1-TAME, W1-CANIM, W1-BUILD, W1-ITEMS, W1-WEB, W1-AI, W1-LIGHT (blind judge 6/6), W1-COMBAT, W1-SAVE, raptor re-animation (dsc) passed review and are merged into `claude/mmo-overhaul`; gates: import, [tests] PASS, t_tame/t_canim/t_build/t_items PASS, SMOKE PASS | done |
 | 1 | W1-LIGHT, SAVE, TAME, AI, CANIM, COMBAT, BUILD, ITEMS, SRVDOM, QA, UI, ICONART, WEB, BIOME, STRUCTART (each `claude/mmo-w1-<key>`) | launching, reviewer-gated, blind A/B judge on visual packages |
 | 1-INT | merge econ/net/audio + sound settings + market over socket | after wave 1a and audio pass review |
 | 1-ART | ARTA/ARTB Tripo species | concept sheets generating (Higgsfield gpt_image_2_5, critic-checked, wf_4ea0904a-0e6); then one owner batch approval |
@@ -147,6 +147,14 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 
 - 2026-10-19 (owner): next production deploy waits until W1-LIGHT and W1-UI pass review and merge;
   then deploy everything merged and verify the stamp.
+
+- 2026-10-19 (owner): the UI pass may want new custom icons for many UI elements. Plan: a W1-UIICONS
+  package after W1-UI merges (it owns hex_button/status_glyph): one coherent custom white action
+  icon set (menu, animals, build, skills, hands/held tool, claim, harbour, gather verbs, combat verbs,
+  craft/cook, settings, market) authored as SVG, rendered to PNG at HUD sizes, replacing system emoji
+  and game-icons glyphs; reviewed at real HUD size on desktop and landscape phone.
+- Quad dsc clips (protoceratops, megaloceros) reverted: the skeleton-only re-export dropped the skin
+  (skins=0), so Godot could not resolve tracks. Redo with a skin-preserving export.
 
 ## Owner questions (open)
 
