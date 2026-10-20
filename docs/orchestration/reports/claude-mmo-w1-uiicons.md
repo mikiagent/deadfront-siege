@@ -31,6 +31,18 @@ The hook findings (1, 3, 5) are fixed in the hooks patch, which the integrator a
 
 Also: the test now loads `UiIcons` by path (`load("res://scripts/ui/ui_icons.gd")`) instead of by class_name, as the test rules require.
 
+## Review r3 (wiring): findings and fixes (`e9ce0dc`)
+
+- Major, HUD status chips drew two-letter codes: new `scripts/ui/hud_status_chip.gd` (`HudStatusChip.draw`) draws the white UiIcons drawing in the 26 px box (3 px inset, faded with the target frame); letters remain only for a status with no icon (none today). Both loops in hunt_hud call it; HuntHud filters with mipmaps. hunt_hud.gd is 1343 lines (was 1344).
+- Plate chips: icon at 1.65x the ring radius (about 18 px of the 26 px chip, was 1.3x), ring 2 px.
+- Stance label: the desktop cluster sits 20 px higher and "Attack Stance" is centred under Auto's caption on the bottom edge.
+- Level-up fallback stack: "Pioneer XP %d" and "T-stones %d" (the wording world_ui already uses) instead of the eye emoji and the ring.
+- CLAIM: redrawn in `_src/icons_g.py` as a stake driven into the ground flying a swallowtail hide pennant; `build.py --check` passes.
+- Glyph table: the generic symbols `−`, `●`, `♣`, `▲`, `≈`, `◒` and `◎` moved from "glyphs" to "typographic", so no HexButton turns them into an icon; their only uses are text (map zoom button, biome legend, stance label).
+- Test: `t_uiicons` `_test_hud_chips` fails if any status in statuses.json has no chip icon, if hunt_hud.gd contains `.left(2).to_upper()`, if both chip rows do not go through `HudStatusChip.draw(`, if a colour emoji appears in a hunt_hud string outside a hex glyph, or if a generic symbol is mapped.
+
+Gates on `e9ce0dc`: `[tests] PASS`; every `game/tests/t_*.gd` PASS (t_save's 5 SCRIPT ERRORs are its announced deliberate aborts); `[t_uiicons] PASS ids=168 files=113 glyphs=47 code_ids=39 hook_ids=45 weight=0.61..1.47 worst_iou=0.80 loot/store regen='[icons] PASS drawn=113 svgs=113'`; `SMOKE PASS`; `[uireal] PASS screens=hud,...` at 844x390 glc, 667x375 glc, 1600x900 glc and 1600x900 Forward+. Shots looked at: combat (844 glc, 1600 Forward+, plate crop from 1600 glc), pet_out (844 glc, 1600 glc).
+
 ## Wiring step (after W1-UI merged)
 
 Branch merged with `claude/mmo-overhaul` at `6730ad4` (W1-UI and W1-SRVDOM in; merge `42bd543`, no conflicts). The hooks patch no longer applied to W1-UI's scripts, so the wiring was redone by hand, smaller:
