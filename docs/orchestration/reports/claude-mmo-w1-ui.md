@@ -1,106 +1,137 @@
 # W1-UI report (claude, branch claude/mmo-w1-ui)
 
+Rerun 2026-10-19 after the owner's ruling that the phone view is landscape. The phone check is now
+844x390 (plan-register W1-UI acceptance, STATUS owner decision). The earlier passes built the phone
+canvas for portrait 390x844 only. At 844x390 that gave `phone=false`, the skills panel over the
+vitals, a broken atlas and a broken character creation screen (`r7/` shots). This pass fixes all of that.
+
 ## What shipped
 
-- `DisplayMode.logical_size/fit/install`: a portrait phone (narrower than 720 pt) gets one logical px per point, so `UiTokens.is_phone` is true at runtime. A 1600x900 desktop keeps the 1600x900 design canvas. Closes ui-phone-01.
-- `UiTokens`: 12 px type floor (`TYPE_MIN`), `draw_centered` (used by hex_button, status_glyph, gather_ring, respawn_ring, eat_progress, held_item_slot and craft_card) and controller focus helpers (`focus_first`, `first_focusable`). `UiSymbols` (new, `ui_symbols.gd`): white symbol icons in place of system emoji. `UiTheme` (new, `ui_theme.gd`): `build()`/`install()`, a token Theme merged into the default theme at runtime. HexButton is focusable and draws a focus ring.
-- ContextRadial turns the whole ring when it hits the view edge, instead of clamping each hex onto the same spot.
-- Craft: a recipe the bag cannot make reads `Lv. —`; the card shows stat lines and has one action row; the background is opaque so the HUD vitals do not show through. On a phone it shows one pane at a time: a horizontal chip row of stations over the recipe list, then the detail as a sheet with a Back button, and Craft / Craft ×5 pinned in a 64 px footer.
-- Skills sheet: an aligned grid inside the content area, with an opaque panel. It is `top_level` because its host HUD has zero size.
-- Atlas: north-up, distinct legend colours, display names. On a phone the layout is header, one island card, map, a two-row legend, zoom, then actions.
-- Creature plates: a backing pill, and the status glyph letters are centred inside their rings.
-- `LevelDisplay`: the single source for the player level and the one level format (`Lv. N`, `Lv. —`). Fatigue panel, atlas, craft, skills, plates and the gather radial all print through it.
-- `set_anchors_and_offsets_preset` fixes for owned screens whose rect was empty: gather_radial, map_screen, pickup_toast, station_menu and skills_sheet.
-- New `game/tests/t_ui.gd` and a real-scene capture lab `ui_real_capture_lab`.
-- Cleanup: the interrupted WIP commit had picked up 15 unrelated `.uid` files. They are now untracked again (commit f3421e4).
+- **Phone canvas, either way up.** `DisplayMode.logical_size` gives a phone one logical px per point:
+  844x390 pt becomes an 844x390 canvas (iPhone landscape pixels at 3x as well). A 1600x900 desktop
+  keeps 1600x900, and a portrait tablet gets a canvas 1000 px wide. `UiTokens.is_phone(view)` is now
+  `is_narrow(view) or view.y < SHORT_MAX`: narrow (portrait) or short (landscape). The new
+  `UiTokens.is_narrow` picks the one-pane portrait layouts. `hud_reserved` has a landscape set: a
+  vitals band, the map/quest/rail column on the right, and the left rail. Closes ui-phone-01.
+- **Landscape layouts (844x390)** for the screens this package owns:
+  - Craft keeps its three columns. Craft / Craft ×5 are pinned in a footer under them, because the
+    detail column is about 230 px tall and the buttons were below its fold.
+  - Skills runs from under the vitals band to the bottom edge with every column visible. The panel
+    is 282 px tall instead of 200: three full rows instead of two.
+  - Atlas: one island card, the map placed between the card and the legend and above the buttons.
+    Before this, "Harbour routes" was drawn over the island cards.
+  - Character creation fits on one screen: 4x2 cards, then Body / name / Enter on one row. Before
+    this it used 34 px type and showed only one row of cards.
+- **Character cards** on every size now have three lines: the name (24 px on desktop), the story,
+  and a gold `Starts: <skill> Lv. 20`. Before, each card was one 16 px string in a large empty card.
+- Gather radial: the node name and its level share one backing. The teal `Lv. 1` used to sit on the
+  bright bush with nothing behind it. Plate pill alpha is now 0.96: the world label behind it was
+  still readable at 0.9.
+- Carried from the earlier passes, unchanged: the runtime token Theme (`DisplayMode.build_theme`/
+  `install_theme`), white symbols (`HexButton.symbol`/`white_symbol`), `UiTokens.draw_centered` and
+  the 12 px floor, the radial that turns the whole ring, focusable HexButton with a focus ring,
+  `LevelDisplay` (`Lv. N`, `Lv. —`), craft stat lines, the atlas legend and display names, the plate
+  pill and centred glyphs, the portrait one-pane craft, and `ui_real_capture_lab`.
+- Fix: t_ui still expected landscape to keep the design canvas. The plan-sync commit had already
+  changed `logical_size`, so t_ui failed on that commit. It is updated, and it passes now.
 
-## Acceptance checklist (rerun 2026-10-19 after the review, logs in scratchpad/w1/ui/*_r6.log)
+## Acceptance checklist (logs in scratchpad `w1/ui/`, final code)
 
 | Item | Output line |
 |---|---|
-| Lab at 390x844 is a phone with a 12 px floor | `[uireal] phone=true min_font_px=12 logical_width=390 window_pt=390x844 (...)` then `[uireal] PASS screens=hud,craft,craft_detail,skills,atlas,radial,plate,charcreate shots=.../w1/ui/r6` (exit 0) |
-| Same, web renderer (gl_compatibility) | same `phone=true min_font_px=12` line, `[uireal] PASS ...r6_glc` (exit 0) |
-| Lab at 1600x900 is desktop with width 1600 | `[uireal] phone=false min_font_px=13 logical_width=1600 window_pt=1600x900 (...)` then `[uireal] PASS screens=hud,craft,skills,atlas,radial,plate,charcreate ...` (exit 0) |
-| Gate fails without the canvas fit (review blocker 1) | `--no-fit` at 390x844: `[uireal] phone=false min_font_px=3 logical_width=1600 window_pt=390x844`, `[uireal] FAIL a portrait 390x844 pt window must get the phone canvas (is_phone is false, logical width 1600)`, `[uireal] FAIL phone-width window: text at least 12 px on screen (got 3)` (exit 1). Unit: `[t_ui] gate: 390x844 without fit -> 2 failures` |
-| Phone craft: Craft pinned, one scroll pane (review major) | `[uireal] craft sheet: CraftOne [P: (16.0, 768.0), S: (175.0, 64.0)] in footer=true vscrolls=1` |
-| Skills text clears the scrollbar | `[uireal] skills: rightmost text 1136, scrollbar starts 1156` (1600x900), `rightmost text 338, scrollbar starts 358` (390x844) |
-| No emoji, no font literal below 12 in owned ui files | `[t_ui] scanned 25 owned files: emoji=0 small_font=0` |
-| draw_centered unit test | `[t_ui] draw_centered: 40 px at x=100 starts at 80.0` |
-| Radial with an anchor above the view keeps hexes apart | `[t_ui] radial above view: centres 150.4 px apart (hex 64)` |
-| NaN anchor gives a finite ring | `[t_ui] NaN anchor -> [(827.6746, 342.8006), (827.6746, 493.1994)]` |
-| Hex focus: accept presses, a tap drops focus | `[t_ui] hex focus: accept pressed=2, focus after tap=false` |
-| Craft card 'Lv. —' | `[t_ui] craft: 5 unmakeable hand recipes read 'Lv. —'`; lab: `[uireal] craft rows=35 with_lv_dash=35 first="Lv. — · 2.0s  ·  Missing items"` |
-| Distinct atlas legend colours | `[t_ui] atlas legend: 8 kinds, min colour distance 0.35` |
-| t_ui overall | `[t_ui] PASS` |
-| Existing suite | `[tests] PASS` (run_all.gd, exit 0) |
-| Smoke | `SMOKE PASS` (tools/smoke.sh --no-import through gslot) |
+| Lab 844x390 (Forward+), `lab844_r12.log` | `[uireal] phone=true min_font_px=12 logical_width=844 window_pt=844x390 (smallest: craft .../CraftHint "Hand recipes craft anywh" 12.0 px)` then `[uireal] PASS screens=hud,craft,skills,atlas,radial,plate,charcreate shots=w1/ui/r12` (exit 0) |
+| Lab 844x390 web renderer (gl_compatibility), `lab844_glc_r10.log` | same `phone=true min_font_px=12 logical_width=844` line, `[uireal] PASS ... shots=w1/ui/r10_glc` (exit 0) |
+| Lab 1600x900, `lab1600_r11.log` | `[uireal] phone=false min_font_px=13 logical_width=1600 window_pt=1600x900 (...)` then `[uireal] PASS screens=hud,craft,skills,atlas,radial,plate,charcreate shots=w1/ui/r11` (exit 0) |
+| Portrait still works, `lab390_r10.log` | `[uireal] phone=true min_font_px=12 logical_width=390 window_pt=390x844 (...)` then `[uireal] PASS screens=hud,craft,craft_detail,skills,atlas,radial,plate,charcreate shots=w1/ui/r10` (exit 0) |
+| Gate fails without the fit at 844x390, `lab844_nofit_r10.log` | `[uireal] phone=false min_font_px=5 logical_width=1947 window_pt=844x390`, `[uireal] FAIL a 844x390 pt phone window must get the phone canvas (is_phone is false, logical width 1947)`, `[uireal] FAIL phone window 844x390 pt: text at least 12 pt on screen (got 5)` (exit 1) |
+| Landscape craft: Craft pinned and inside the view | `[uireal] craft sheet: CraftOne [P: (460.0, 314.0), S: (180.0, 64.0)] in footer=true vscrolls=3` |
+| Skills text clears the scrollbar | `[uireal] skills: rightmost text 792, scrollbar starts 812` (844x390); `1136` / `1156` (1600x900) |
+| Skills panel clears the vitals | the lab's vitals-overlap check passes at 844x390 and 1600x900 (it failed at 844x390 in `lab844_r7.log`: `FAIL skills panel [P: (8.0, 100.0), S: (828.0, 200.0)] clears the vitals block ...`) |
+| Canvas unit lines, `t_ui_r11.log` | `[t_ui] canvas: 844x390 -> (844.0, 390.0) phone=true narrow=false; 1600x900 -> (1600.0, 900.0) phone=false`, `[t_ui] gate: 844x390 without fit -> 2 failures` |
+| No emoji, no font literal under 12 | `[t_ui] scanned 23 owned files: emoji=0 small_font=0` |
+| draw_centered | `[t_ui] draw_centered: 40 px at x=100 starts at 80.0` |
+| Radial, anchor above the view | `[t_ui] radial above view: centres 150.4 px apart (hex 64)` |
+| Craft 'Lv —' | `[t_ui] craft: 5 unmakeable hand recipes read 'Lv. —'`; lab: `[uireal] craft rows=35 with_lv_dash=35 first="Lv. — · 2.0s  ·  Missing items"` |
+| Distinct legend colours | `[t_ui] atlas legend: 8 kinds, min colour distance 0.35` |
+| t_ui | `[t_ui] PASS` (exit 0) |
+| Existing suite, `run_all_r11.log` | `[tests] PASS` (exit 0) |
+| Smoke, `smoke_r11.log` | `SMOKE PASS` (`tools/smoke.sh --no-import` through gslot) |
 
-The spec text says `'Lv —'`. It now reads `Lv. —` because the review asked for one level format and every other screen, including the protected HUD, prints `Lv. N`. The dash meaning is unchanged.
-
-## Review findings and what changed
-
-| Finding | Fix | Check that catches it |
-|---|---|---|
-| Blocker: gate passes with no canvas fit | `gate_failures()` in the lab: a window narrower than 720 pt must have `phone=true` (when portrait) and text of at least 12 pt. The size is in points (`DisplayMode.window_points`). | `--no-fit` run exits 1 (above); t_ui `_test_gate_verdict` |
-| Blocker: landscape charcreate at 5-7 px | `phone_landscape` uses `DisplayMode.is_phone_landscape(window_points)`, not the logical canvas. Seen: `r6/charcreate_844x390.png` shows 8 readable cards and 34 px type | t_ui: `is_phone_landscape(844x390)` true, `(1947x900)` false |
-| Major: phone craft has 3 nested scroll panes | One pane at a time. Stations become a chip row, recipes fill the screen, the detail opens as a sheet, and Craft / Craft ×5 sit in a 64 px footer | lab: `vscrolls=1`, CraftOne in the footer and inside the view |
-| Minor: HUD overlaps once the hook lands | Not fixable here (hunt_hud.gd and touch_controls.gd are protected). See Integrator hooks: land `DisplayMode.install` with or after W2-HUD | none in this package |
-| Minor: SP label under the scrollbar | `ScrollPad` margin = scrollbar width + 8 | lab `skills:` line; t_ui `scrollbar_reserve` |
-| Minor: legend tree swatch, harbour dot, phone legend overlap | Light ring round every swatch. The harbour is a square with a dark edge on the map and in the legend. The phone legend uses 3 columns with labels ellipsised to the column | t_ui: ring luminance, each phone label fits its column; seen in `r6/atlas_390x844.png` |
-| Minor: translucent plate pill | `PILL_ALPHA` 0.9. In `r6/plate_zoom_1600x900.png` the world label behind is now a faint shape, not readable text | t_ui `PILL_ALPHA >= 0.88` |
-| Minor: "1 recipes", Lv format | `CraftUI.recipe_count`; every level string goes through `LevelDisplay.label`/`NONE` | t_ui: plural check; a scan for hand-written `Lv %d`/`Lv —` strings in owned files |
-| Minor: ui_tokens god file | Theme moved to `UiTheme` (ui_theme.gd), symbols to `UiSymbols` (ui_symbols.gd). ui_tokens.gd drops from 314 to 221 lines | compile + t_ui `_test_theme` |
-| Minor: NaN anchor returns [] | A non-finite anchor centres the ring; an empty best falls back to the unturned ring | t_ui NaN line |
-| Minor: focus test too thin | push_input `ui_accept` to a focused HexButton (pressed), a mouse tap (focus dropped), `first_focusable` skips hidden and non-focusable controls | t_ui hex focus line |
+The spec writes `'Lv —'`. The screens print `Lv. —`, the one level format every screen uses (an
+earlier review asked for that). The dash means the same thing.
 
 ## Screenshots inspected (Read tool)
 
-Directory: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/w1/ui/r6/` (plus `r6_glc/`)
+Directory: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/w1/ui/`
 
-- `craft_390x844.png`: a chip row (By hand, Workbench, then a partly visible next chip), then 10 recipe rows reading `Lv. — · Ns · Missing items`. Only one vertical scroll is visible.
-- `craft_detail_390x844.png` and `r6_glc/craft_detail_390x844.png`: Back to recipes, result, stats, ingredients and `Needs Stone`. Craft and Craft ×5 sit in the footer at the bottom of the screen (disabled because the bag is empty).
-- `craft_1600x900.png`: three columns. The tabs read `1 recipe`/`N recipes` and the Craft buttons sit in the detail. The header hint line is not visible here (see Not done).
-- `skills_1600x900.png`: `SP 0` and the row right edges end left of the scrollbar.
-- `atlas_390x844.png`: a 3-column legend with no overlap. The harbour is a blue square. The tree swatch has a light ring and is visible.
-- `plate_zoom_1600x900.png`: B, K and G sit inside their rings. The world label behind the pill shows only as a faint shape.
-- `charcreate_844x390.png`: 8 cards in 4 columns with readable names and skills, and the body/name/start row at the bottom.
+- `r8/craft_844x390.png` and `r10_glc/craft_844x390.png`: three columns. The full hint line
+  fits. The Craft / Craft ×5 footer is under the detail column. No vitals: the screen is opaque.
+- `r8/skills_844x390.png`: the panel starts under the vitals band, and Survival, Gathering and
+  Butchering are fully visible with level, XP bar and owned count. No text over the vitals.
+- `r8/atlas_844x390.png`: header, one island card, the map clear of the legend and of the buttons,
+  7 legend rows with separate colours, Harbour routes, and zoom. Nothing overlaps.
+- `r10_glc/charcreate_844x390.png`: 8 cards in 4 columns with a white name and a gold skill line.
+  Body / Woman / Man / name / ENTER THE RIFT sit on one row inside the view.
+- `r12/radial_844x390.png` and `r9/radial_1600x900.png`: "Berry Bush / Lv. 1" on one backing,
+  next to the hex.
+- `r12/plate_zoom_844x390.png`, `r9/plate_zoom_1600x900.png`: the B, K and G letters sit inside
+  their rings. The label behind the pill shows only as a faint shape.
+- `r9/craft_1600x900.png`, `r9/skills_1600x900.png`, `r9/atlas_1600x900.png`,
+  `r11/charcreate_1600x900.png`: the desktop layouts are unchanged, apart from the new card hierarchy.
+- `r10/charcreate_390x844.png`, `r10/atlas_390x844.png`: portrait is intact.
+- `r8/hud_844x390.png` and `r12/radial_844x390.png` show the protected HUD's portrait phone branch
+  running in landscape. See "Left for W2-HUD".
 
-## Left for W2-HUD (seen in screenshots, files protected for this package)
+## Left for W2-HUD and W2-SCREENS (protected files; seen in the screenshots)
 
-- In the phone HUD (`radial_390x844.png`) several labels overlap: SKILLS and the HARBOUR hex, HANDS/DEBUG and the `Lv. 0 5.0%` line, and CLAIM over the orders card. All of these come from hunt_hud.gd and touch_controls.gd.
-- The HuntHud root has zero size (hunt_hud.gd:68 uses `set_anchors_preset` in `_ready`). The lab reports this as `[uireal] KNOWN hud: ...` and does not fail on it. Delete the `KNOWN_ZERO_SIZE` entry in ui_real_capture_lab.gd when the fix lands.
+- Because `is_phone` is true at 844x390, `hunt_hud.gd` now takes its portrait phone branch there. The
+  vitals strip stretches to the minimap. The quest card drops under the minimap onto HANDS/CLAIM and
+  the `Lv. 0 5.0%` line (`r8/hud_844x390.png`). The fix is three lines, listed under Integrator hooks.
+  Evidence that it works: `r7/hud_844x390.png` is the same 1:1 canvas with the desktop branch. It is
+  clean: 300 px vitals and the quest card left of the map.
+- `inventory_ui.gd:344,453,465` and `animal_screen.gd:77` also switch to their portrait layouts at
+  844x390 (one column, slots about 155 px wide). Use `is_narrow` there as well. Not captured, so not verified.
+- `HuntHud` root has zero size (`hunt_hud.gd:68`). The lab reports it as `[uireal] KNOWN hud: ...`.
+  Delete `KNOWN_ZERO_SIZE` in the lab when that is fixed.
+- World label pills (hunt_hud.gd:1327) draw over the survivor's name ("Harbour" over "Survivor").
 
 ## Assumptions
 
-- `skills_sheet.gd:9`: item symbols stand in for skill art until skill icons exist.
-- `level_display.gd:5`: the pioneer level (`World.pioneer_level`) is the one player level.
-- `display_mode.gd` shortcut: landscape phones and portrait tablets keep the 1600x900 design canvas. Only character creation has a landscape layout. At 844x390 the lab prints `[uireal] WARN landscape phone 844x390 pt: smallest text 5 pt ...` and does not fail. Landscape is the shipped handheld orientation, so this is the main gap left (see Not done).
-- No `game/ui/deadfront_theme.tres`. The theme is built from tokens at runtime by `UiTheme.build()`, so one source of truth stays in code.
-- `ui_theme.gd` and `ui_symbols.gd` are new files in `game/scripts/ui/`, a directory this package does not own. The review asked for the split. No other package creates these names.
+- `ui_tokens.gd` `SHORT_MAX := 500.0`: a canvas shorter than this is a landscape phone (the same
+  bound as `DisplayMode.is_phone_landscape`, which also needs a 1.75:1 shape).
+- `level_display.gd:5`: the pioneer level is the one player level.
+- `skills_sheet.gd:9`: item symbols stand in for skill art.
+- `ui_tokens.gd` `hud_reserved` mirrors hunt_hud geometry until W2-HUD exports rects. The landscape set was measured from `r8/hud_844x390.png`.
+- No `game/ui/deadfront_theme.tres`: the theme is built from tokens at runtime, so one source stays in code.
+- Landscape character creation uses 48 px controls, to fit 390 px of height. That is above `TARGET_MIN` 44 and below the AGENTS 64 px guideline.
 
 ## Integrator hooks
 
-In `game/scripts/core/main.gd` `_ready()`, first lines. Land these together with, or after, the W2-HUD overlap fixes: with the phone canvas on, the protected HUD overlaps CLAIM/ORDERS, HARBOUR/SKILLS and HANDS/DEBUG/`Lv. 0 5.0%` (see Left for W2-HUD). Until then, gate the first line behind a flag:
-
-```gdscript
-	# ASSUMPTION: flag name; drop the condition once W2-HUD's phone overlap fixes are merged.
-	if OS.get_cmdline_user_args().has("--phone-canvas") or ProjectSettings.get_setting("deadfront/ui/phone_canvas", false):
-		DisplayMode.install(get_tree().root)
-	UiTheme.install()
-```
-
-In `game/tests/run_all.gd` (or the test runner list): run `res://tests/t_ui.gd` and require `[t_ui] PASS`.
-
-For W2-HUD, in `game/scripts/ui/hunt_hud.gd:68`: replace `set_anchors_preset(Control.PRESET_FULL_RECT)` with `set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)`.
+1. `game/scripts/core/main.gd` `_ready()`, first lines:
+   ```gdscript
+   	DisplayMode.install(get_tree().root)
+   	DisplayMode.install_theme()
+   ```
+   Land this together with hook 2. If hook 2 cannot land yet, gate the first line behind a flag:
+   `if OS.get_cmdline_user_args().has("--phone-canvas"):`. Without the canvas, landscape phones keep the 1947x900 canvas and 5 pt text.
+2. `game/scripts/ui/hunt_hud.gd` (protected; W2-HUD or the owner): replace `UiTokens.is_phone(r)` with
+   `UiTokens.is_narrow(r)` at lines 148, 916 and 1071 (also at 421 and 425 for the death card).
+   Type sizes still follow `is_phone` through `UiTokens.body/meta/heading`.
+3. `game/scripts/ui/hunt_hud.gd:68`: `set_anchors_preset(Control.PRESET_FULL_RECT)` ->
+   `set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)`.
+4. `game/tests/run_all.gd`: run `res://tests/t_ui.gd` and require `[t_ui] PASS`.
+5. Merge: the only conflict with `claude/mmo-overhaul` is `docs/orchestration/mmo/STATUS.md` (the plan-sync commit copied it). Take overhaul's version. The code merges cleanly (`git merge-tree`).
 
 ## Labs to register
 
-- `ui_real_capture_lab` (`game/scripts/dev/ui_real_capture_lab.gd` + `game/scenes/dev/ui_real_capture_lab.tscn`). Run windowed: `--resolution 390x844 -- --lab=ui_real_capture_lab --shot-dir=DIR`. Add `--no-fit` for the gate's self-test, which must exit 1 at 390x844.
+- `ui_real_capture_lab` (`game/scripts/dev/ui_real_capture_lab.gd` + `game/scenes/dev/ui_real_capture_lab.tscn`).
+  Windowed: `--resolution 844x390 -- --lab=ui_real_capture_lab --shot-dir=DIR` (also 1600x900, 390x844).
+  `--no-fit` is the gate's self-test and must exit 1 on a phone window.
 
 ## Not done / risks
 
-- The phone HUD overlaps listed above are outside this package.
-- Landscape phones (844x390) still use the 1600x900 canvas. Every screen except character creation draws text at about 5 pt there. Fixing this needs a landscape layout per screen, including the protected HUD. That is outside the review's scope, and the lab prints a WARN for it.
-- The desktop craft header hint (`Hand recipes craft anywhere...`) is not visible in `craft_1600x900.png`. It was already like this before this pass and was not investigated.
-- Not tested on a real device. Windowed runs: Forward+ at 390x844, 1600x900 and 844x390, gl_compatibility at 390x844.
-- The screenshots also show untextured stand-in props (basket crate, workbench, harbour slab). They belong in the asset replacement register, not in this UI package.
+- The protected HUD in landscape needs hook 2 (above). Until then, turning on the phone canvas trades
+  5 pt text for overlapping HUD blocks.
+- Not tested on a device or in desktop Chrome. Windowed runs only: Forward+ at 844x390, 1600x900 and 390x844, and gl_compatibility at 844x390.
+- On desktop, a two-line card story has loose line spacing (`r11/charcreate_1600x900.png`). It is readable. Not investigated.
+- The atlas card shows the home island as `Lv. 10`, its tier in world data, while starter creatures are Lv. 1. That is a data question, not a UI one.
