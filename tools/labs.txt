@@ -14,6 +14,8 @@
 # time. Never on perf rows (they time real frames), and never on the counter_* fight rows: combat
 # cooldowns read the wall clock (Time.get_ticks_msec in creature_brain.gd, creature.gd, player.gd,
 # vitals.gd), so a faster-than-realtime run changes who wins. New labs: one line each, appended at merge.
+# Rows below resource_visibility_lab: labs of the packages merged into claude/mmo-overhaul by
+# 2026-10-19 (their reports' "Labs to register"), checked on that merge, not on this branch alone.
 island_lab              |  90 | -- --lab=island_lab                    | shot
 creature_lab            |  45 | -- --lab=creature_lab                  | shot
 raptor_scale_lab        |  30 | -- --lab=raptor_scale_lab              | shot
@@ -41,3 +43,15 @@ bot_gate                | 600 | --fixed-fps 60 -- --bot --bot-gate --bot-minutes
 web_soak                | 200 | -- --web-soak                          | window
 ai_validation_lab       |  90 | -- --lab=ai_validation_lab
 resource_visibility_lab |  30 | -- --lab=resource_visibility_lab
+wild_ai_sweep_lab       | 180 | -- --lab=wild_ai_sweep_lab
+build_lab               |  60 | -- --lab=build_lab
+combat_rules_lab        |  90 | -- --lab=combat_rules_lab
+capture_lab             |  90 | -- --lab=capture_lab
+pets_lab                |  90 | -- --lab=pets_lab
+craft_lab               |  60 | -- --lab=craft_lab
+# kitchen_lab: 2 leak lines at exit ("1 resources still in use", "2 RID allocations of type
+# 'P11GodotBody3D' were leaked"); W1-ITEMS' lab. Drop the allowance once it frees them.
+kitchen_lab             |  60 | -- --lab=kitchen_lab                   | errors:2
+hunt_lab                |  90 | -- --lab=hunt_lab
+equip_mount_lab         |  60 | -- --lab=equip_mount_lab
+lighting_lab            | 120 | -- --lab=lighting_lab                  | window
