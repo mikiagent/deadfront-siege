@@ -312,9 +312,20 @@ func _test_pen_legacy_and_occupant() -> void:
 	pen._process(1.0)
 	print("[build] pen unknown species: kept=%s occupant=%s" % [kept, pen.occupant != null])
 	_expect(kept and pen.occupant != null, "a pen whose species left data keeps its occupant instead of crashing")
-	pen.occupant = null
-	_grid.release(pen)
-	pen.free()
+	# Packing up an occupied pen hands the captured animal back (taming progress is not kept).
+	pen.occupant.attributes["species"] = "velociraptor"
+	var caps: int = _player.inventory.count_of(&"captured_animal")
+	var kit: StringName = _BP.kit_for(&"makeshift_taming_pen")
+	var kits: int = _player.inventory.count_of(kit)
+	var packed := _pack(pen)
+	var caps_back: int = _player.inventory.count_of(&"captured_animal") - caps
+	print("[build] pen occupied pack-up: packed=%s captured_back=%d kit_back=%d" % [packed, caps_back, _player.inventory.count_of(kit) - kits])
+	_expect(packed and caps_back == 1 and _player.inventory.count_of(kit) == kits + 1, "packing up an occupied pen returns the kit and the captured animal")
+	if not packed:
+		pen.occupant = null
+		_grid.release(pen)
+		pen.free()
+	_player.inventory.consume(kit, _player.inventory.count_of(kit))
 	_player.inventory.consume(&"captured_animal", _player.inventory.count_of(&"captured_animal"))
 
 func _test_gate_state_and_path() -> void:
