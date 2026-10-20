@@ -522,7 +522,1287 @@
           "durability"
         ]
       }
+    },
+    "doorway": {
+      "thatch": {
+        "model": "",
+        "max_durability": 340,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "branch",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "fibre_stalk",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "wood": {
+        "model": "",
+        "max_durability": 1020,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "plank",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "twine",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "stone": {
+        "model": "",
+        "max_durability": 2550,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "stone",
+            "quantity": 7,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "plank",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "metal": {
+        "model": "",
+        "max_durability": 5950,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "iron_ingot",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "stone",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      }
+    },
+    "door": {
+      "thatch": {
+        "model": "",
+        "max_durability": 200,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "branch",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "fibre_stalk",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "wood": {
+        "model": "",
+        "max_durability": 600,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "plank",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "twine",
+            "quantity": 1,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "stone": {
+        "model": "",
+        "max_durability": 1500,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "stone",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "plank",
+            "quantity": 1,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "metal": {
+        "model": "",
+        "max_durability": 3500,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "iron_ingot",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "stone",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      }
+    },
+    "window": {
+      "thatch": {
+        "model": "",
+        "max_durability": 340,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "branch",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "fibre_stalk",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "wood": {
+        "model": "",
+        "max_durability": 1020,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "plank",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "twine",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "stone": {
+        "model": "",
+        "max_durability": 2550,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "stone",
+            "quantity": 7,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "plank",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "metal": {
+        "model": "",
+        "max_durability": 5950,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "iron_ingot",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "stone",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      }
+    },
+    "ceiling": {
+      "thatch": {
+        "model": "",
+        "max_durability": 400,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "branch",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "fibre_stalk",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "wood": {
+        "model": "",
+        "max_durability": 1200,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "plank",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "twine",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "stone": {
+        "model": "",
+        "max_durability": 3000,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "stone",
+            "quantity": 8,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "plank",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "metal": {
+        "model": "",
+        "max_durability": 7000,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "iron_ingot",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "stone",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      }
+    },
+    "roof": {
+      "thatch": {
+        "model": "",
+        "max_durability": 400,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "branch",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "fibre_stalk",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "wood": {
+        "model": "",
+        "max_durability": 1200,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "plank",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "twine",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "stone": {
+        "model": "",
+        "max_durability": 3000,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "stone",
+            "quantity": 8,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "plank",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "metal": {
+        "model": "",
+        "max_durability": 7000,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "iron_ingot",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "stone",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      }
+    },
+    "roof_peak": {
+      "thatch": {
+        "model": "",
+        "max_durability": 400,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "branch",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "fibre_stalk",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "wood": {
+        "model": "",
+        "max_durability": 1200,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "plank",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "twine",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "stone": {
+        "model": "",
+        "max_durability": 3000,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "stone",
+            "quantity": 8,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "plank",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "metal": {
+        "model": "",
+        "max_durability": 7000,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "iron_ingot",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "stone",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      }
+    },
+    "pillar": {
+      "thatch": {
+        "model": "",
+        "max_durability": 200,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "branch",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "fibre_stalk",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "wood": {
+        "model": "",
+        "max_durability": 600,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "plank",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "twine",
+            "quantity": 1,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "stone": {
+        "model": "",
+        "max_durability": 1500,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "stone",
+            "quantity": 4,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "plank",
+            "quantity": 1,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "metal": {
+        "model": "",
+        "max_durability": 3500,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "iron_ingot",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "stone",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      }
+    },
+    "stairs": {
+      "thatch": {
+        "model": "",
+        "max_durability": 600,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "branch",
+            "quantity": 6,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "fibre_stalk",
+            "quantity": 6,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "wood": {
+        "model": "",
+        "max_durability": 1800,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "plank",
+            "quantity": 6,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "twine",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "stone": {
+        "model": "",
+        "max_durability": 4500,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "stone",
+            "quantity": 12,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "plank",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "metal": {
+        "model": "",
+        "max_durability": 10500,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "iron_ingot",
+            "quantity": 6,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "stone",
+            "quantity": 6,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      }
+    },
+    "ramp": {
+      "thatch": {
+        "model": "",
+        "max_durability": 300,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "branch",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "fibre_stalk",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "wood": {
+        "model": "",
+        "max_durability": 900,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "plank",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "twine",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "stone": {
+        "model": "",
+        "max_durability": 2250,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "stone",
+            "quantity": 6,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "plank",
+            "quantity": 2,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      },
+      "metal": {
+        "model": "",
+        "max_durability": 5250,
+        "material_slots": [
+          {
+            "role": "primary",
+            "item": "iron_ingot",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": true
+          },
+          {
+            "role": "binding",
+            "item": "stone",
+            "quantity": 3,
+            "counts_for_level": true,
+            "counts_for_attributes": false
+          }
+        ],
+        "minimum_level": 1,
+        "maximum_level": 60,
+        "required_skill_node": "",
+        "required_building_ability": 0,
+        "supported_building_effects": [
+          "durability"
+        ]
+      }
     }
   },
-  "placed_kinds": {}
+  "placed_kinds": {
+    "default": {
+      "max_durability": 300,
+      "repair": [
+        {
+          "item": "branch",
+          "quantity": 2
+        },
+        {
+          "item": "fibre_stalk",
+          "quantity": 2
+        }
+      ]
+    },
+    "catapult": {
+      "max_durability": 200,
+      "repair": [
+        {
+          "item": "plank",
+          "quantity": 4
+        },
+        {
+          "item": "rope",
+          "quantity": 2
+        }
+      ]
+    },
+    "fence": {
+      "max_durability": 250,
+      "repair": [
+        {
+          "item": "branch",
+          "quantity": 2
+        },
+        {
+          "item": "twine",
+          "quantity": 1
+        }
+      ]
+    },
+    "gate": {
+      "max_durability": 300,
+      "repair": [
+        {
+          "item": "branch",
+          "quantity": 3
+        },
+        {
+          "item": "twine",
+          "quantity": 1
+        }
+      ]
+    },
+    "tent": {
+      "max_durability": 200,
+      "repair": [
+        {
+          "item": "fibre_stalk",
+          "quantity": 4
+        },
+        {
+          "item": "branch",
+          "quantity": 2
+        }
+      ]
+    },
+    "canvas_tent": {
+      "max_durability": 300,
+      "repair": [
+        {
+          "item": "twine",
+          "quantity": 3
+        },
+        {
+          "item": "branch",
+          "quantity": 2
+        }
+      ]
+    },
+    "log_shelter": {
+      "max_durability": 900,
+      "repair": [
+        {
+          "item": "plank",
+          "quantity": 4
+        },
+        {
+          "item": "twine",
+          "quantity": 2
+        }
+      ]
+    },
+    "straw_roll": {
+      "max_durability": 100,
+      "repair": [
+        {
+          "item": "fibre_stalk",
+          "quantity": 3
+        }
+      ]
+    },
+    "cabin_bed": {
+      "max_durability": 400,
+      "repair": [
+        {
+          "item": "plank",
+          "quantity": 3
+        },
+        {
+          "item": "twine",
+          "quantity": 1
+        }
+      ]
+    },
+    "basket": {
+      "max_durability": 150,
+      "repair": [
+        {
+          "item": "fibre_stalk",
+          "quantity": 3
+        }
+      ]
+    },
+    "sign": {
+      "max_durability": 150,
+      "repair": [
+        {
+          "item": "branch",
+          "quantity": 2
+        }
+      ]
+    },
+    "workbench": {
+      "max_durability": 500,
+      "repair": [
+        {
+          "item": "branch",
+          "quantity": 4
+        },
+        {
+          "item": "twine",
+          "quantity": 2
+        }
+      ]
+    },
+    "drying_rack": {
+      "max_durability": 250,
+      "repair": [
+        {
+          "item": "branch",
+          "quantity": 3
+        },
+        {
+          "item": "twine",
+          "quantity": 1
+        }
+      ]
+    },
+    "smoker": {
+      "max_durability": 500,
+      "repair": [
+        {
+          "item": "stone",
+          "quantity": 4
+        },
+        {
+          "item": "clay",
+          "quantity": 2
+        }
+      ]
+    },
+    "crock_pot": {
+      "max_durability": 400,
+      "repair": [
+        {
+          "item": "clay",
+          "quantity": 3
+        }
+      ]
+    },
+    "mortar": {
+      "max_durability": 400,
+      "repair": [
+        {
+          "item": "stone",
+          "quantity": 3
+        }
+      ]
+    },
+    "stone_grill": {
+      "max_durability": 600,
+      "repair": [
+        {
+          "item": "stone",
+          "quantity": 5
+        }
+      ]
+    },
+    "steamer": {
+      "max_durability": 400,
+      "repair": [
+        {
+          "item": "clay",
+          "quantity": 2
+        },
+        {
+          "item": "branch",
+          "quantity": 2
+        }
+      ]
+    },
+    "well": {
+      "max_durability": 1200,
+      "repair": [
+        {
+          "item": "stone",
+          "quantity": 6
+        },
+        {
+          "item": "plank",
+          "quantity": 2
+        }
+      ]
+    },
+    "bonfire": {
+      "max_durability": 300,
+      "repair": [
+        {
+          "item": "branch",
+          "quantity": 3
+        }
+      ]
+    },
+    "campfire": {
+      "max_durability": 200,
+      "repair": [
+        {
+          "item": "branch",
+          "quantity": 2
+        }
+      ]
+    },
+    "stone_fire_pit": {
+      "max_durability": 700,
+      "repair": [
+        {
+          "item": "stone",
+          "quantity": 4
+        }
+      ]
+    },
+    "makeshift_taming_pen": {
+      "max_durability": 600,
+      "repair": [
+        {
+          "item": "branch",
+          "quantity": 4
+        },
+        {
+          "item": "twine",
+          "quantity": 2
+        }
+      ]
+    },
+    "field_small": {
+      "max_durability": 300,
+      "repair": [
+        {
+          "item": "branch",
+          "quantity": 2
+        },
+        {
+          "item": "fibre_stalk",
+          "quantity": 2
+        }
+      ]
+    },
+    "field_large": {
+      "max_durability": 500,
+      "repair": [
+        {
+          "item": "branch",
+          "quantity": 4
+        },
+        {
+          "item": "fibre_stalk",
+          "quantity": 4
+        }
+      ]
+    }
+  }
 }
