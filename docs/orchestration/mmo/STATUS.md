@@ -237,6 +237,21 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   square foundations and roofs that are visible from outside but transparent when the survivor is under
   them. One shared occlusion system (W2-OCCLUDE) serves trees now and W2-BUILDSYS roofs/walls later.
 
+- 2026-10-20 (owner) spec 10 `docs/design/durango-prompts/10_construction_building_quality.md` + reference
+  `docs/reference/durango-camp-workstations.webp` (a working camp: kiln with fire, hides on drying racks,
+  loom, spinning wheel, colour dye vats, workbench, all visibly in use). Buildings are CRAFTED objects:
+  blueprint unlocked in the Construction tree -> construction site -> exact material instances ->
+  finished level = min(clamp(avg material level, bp min, bp max), construction level); material traits
+  convert to building effects (Lightweight -> storage space, High Density -> durability, Beautiful
+  Pattern -> comfort, disinfectant -> antibiotic...); storage capacity, comfort/antibiotic recovery,
+  house complexity, workstation types/levels/parallel job slots, durability and repair.
+  Split: W2-BUILDSYS (running) keeps the modular pieces/snapping/HP/tiers/roof fade but MUST keep its
+  data compatible with spec 10 section 11 (blueprint material_slots, building instance with level,
+  inherited_attributes, max/current durability, owner, container_id). New package W2-CONSTRUCT does the
+  spec-10 quality layer (sites, level/attribute inheritance, storage/comfort/antibiotic/complexity,
+  workstation levels and queues) after W2-INV, W2-CRAFT and W2-SKILLS. The camp reference is the art
+  target for W1-STRUCTART/W2-PROCESS stations (dye vats, loom, spinning wheel, kiln, hide racks).
+
 ## Owner questions (open)
 
 - none
