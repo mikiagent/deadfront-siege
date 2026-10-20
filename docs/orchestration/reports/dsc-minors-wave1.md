@@ -57,6 +57,20 @@ measurement artefact, not a regression:
   the raptor can reach and bite (>= 2 in 10 s); the fence still has to hold at 0 against an
   attacker that cannot miss.
 
+`game/scripts/dev/wild_ai_sweep_lab.gd` also failed intermittently on its 24-creature perf budget
+(2.05 ms vs 2.0 ms at load 2.7/4.2/5.5, no code change). `_perf` now takes the best median of up
+to three five-window passes, 10 s apart, and logs every pass with its load average. Budgets are
+unchanged (2.0 ms at 24 creatures, 8.0 ms at 120). Regression check (Claude, finisher): with a
+temporary `OS.delay_usec(50)` at the top of `Creature._physics_process` the lab still FAILS: 24
+creatures read 35.30 / 2.76 / 3.05 ms over three passes (best 2.76 > 2.0), 120 creatures 14.74 /
+13.99 / 14.09 (best 13.99 > 8.0), rc=1. Clean run: 1.01 ms and 3.60 ms on the first pass, PASS,
+112 s; the injected run took 171 s, under the gate's 300 s alarm.
+
+`game/scripts/dev/ai_validation_lab.gd` failed intermittently on "pet repeat attack stalled:
+bites=1": the same attack cadence produced 1 or 3-4 bites depending on the pet's hit rolls, so the
+section now forces accuracy 1.0 / dodge 0.0 (and restores the overrides). It still catches the
+original bug (a frozen `_attack_cd` after one bite) but no longer fails on a bad roll.
+
 ## W1-QA follow-ups this leaves open (not in the 38)
 
 - `lighting_lab` still needs a windowed run on both renderers (night disc ratio, grass hue).
