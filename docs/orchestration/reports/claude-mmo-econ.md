@@ -144,6 +144,66 @@ listing only: buy orders and Settlers refuse `captured_animal` (one cage is one 
   are checked as level 1; a cage of any species fills no order.
 - State version 3: snapshots from v2 builds are refused (no server data exists yet).
 
+## Review r3 (2026-10-20): status at the owner's clean stop
+
+Findings: `docs/orchestration/mmo/handoff/findings/econ-review-r3.json`. The work stopped
+part-way through. The WIP commit changes `game/scripts/server/intent_handlers.gd` only.
+**No gate has been run on it**: the last gate lines I saw (above) are from `d50324df`,
+before these edits.
+
+In the WIP commit (written, not yet tested):
+- Blocker part 1: `act.deposit` moved from `CLIENT_OPS` to `SYSTEM_OPS`. srvdom's hostile
+  table still calls it through `CharacterStore.apply`, which accepts both lists, so it should
+  stay green. Unverified.
+- Major 1, srvdom side: server-only `char.grant {asset}` (ARG_KEYS, dispatch, `_grant`).
+  Units count as exported units coming home (`exported -n`), with the asset's origin, or
+  `market` when it has none.
+- Minor (owner): `char.receive` of a pet sets `owner = str(account)`.
+- Minor (bond cap): `char.receive` of a pet refuses `limit_reached` at `Data.bonded_cap()`.
+
+Still open, with the next steps:
+1. **Blocker part 2:** `bridge.begin` should record the expected uid. That is the pet uid,
+   the row uid for a whole stack, or `Provenance.item_uid(chars.s.seq + 1, 0)` for a part.
+   `recover()` then claims only that uid, for the marked account. It must always scan for
+   exports that are in no vault and report them, even with no mark.
+   Tests: a direct `act.deposit`, with and without a cut deposit.
+2. **Major 1, bridge side:** `_withdraw` uses the grant branch for non-`src` uids and for
+   `{uid, count}`:
+   - check `ch.inventory().add()` on a copy for bag room first;
+   - then `bridge.begin {uid, count, rid}`;
+   - then econ `vault.withdraw_item {rid, uid, count}` (KEEP_BODY);
+   - then `char.grant` with rid `g<econ seq>`.
+
+   `recover()` re-grants from the rid cache when the mark is a withdraw and the vault no
+   longer holds the units. Tests: a partial buy, a part listing, an order fill and the seller's
+   remainder all withdrawn; a crash after the vault lets go grants exactly once.
+   Also update `t_econ` `_test_sales`, which still expects `not_withdrawable`.
+3. **Major 2 (contract 0.6 and 0.7):**
+   - Move `objective.claim` from WRITE to SYSTEM (server-observed claims only).
+   - Add `acct.bound` (starting wallet plus objective rewards). It is spendable through
+     `wallet.spend` (bound first), but buys, bids, buyouts, orders and listing fees need
+     `wallet - bound`.
+   - Add `trade_lock_s: 1800` in `market_rules.json`, enforced on list, buy, bid, buyout,
+     order_create and sell_to_order (`trade_locked`). Test rules set it to 0, plus one lock test.
+   - Add `VaultBridge.client()`, which refuses ops outside `CLIENT_OPS`.
+4. **Major 3:**
+   - `bridge.begin` answers `conflict` while a mark exists.
+   - When `_into_vault` is refused twice, or `_out_of_vault` fails after a retry, the mark
+     stays and the bridge sets `broken`, refusing every op until `recover()` at restart.
+   - Test with a forced `vault.withdraw_item` fault after `char.receive` (economy_tests'
+     FaultyEngine pattern).
+5. **Minors:**
+   - `_deposit` should answer `bad_request` for malformed bag_slot, count or pet_uid.
+   - `_withdraw` should honour count (step 2).
+   - Bridge rids should not be evicted by count (cap 512 per account; dropped by the daily
+     idle prune).
+   - 6.1 shape: ask the orchestrator to amend 6.1 to "kind pet in the books, shown as
+     cages", or plan the switch with W2-CAGE.
+   - `t_econ` `_test_pets_and_cages` compares the whole pet body, so it needs an owner
+     exception plus an assert that `owner == "2"`.
+6. Then rerun everything: import, `run_all`, `t_econ`, `t_srvdom`, `t_server_domain`, every
+   other t_*.gd, and smoke.
+
 ## What shipped
 
 `game/scripts/economy/` (about 2,300 lines across 13 files, one class each):
