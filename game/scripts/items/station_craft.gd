@@ -17,6 +17,8 @@ var toast: PickupToast
 var held_slot: HeldItemSlot
 
 var station: Node3D
+var _pending_overflow: Array[ItemStack] = []  ## crafted units waiting for bag room
+var _no_hand_model: Dictionary = {}  ## "<def_id>/<hunting>" -> true: no GLB, do not retry every frame
 var recipe_id: StringName = &""
 var crafting: bool = false
 var progress: float = 0.0
@@ -276,7 +278,16 @@ func _show_card(rec: Dictionary) -> void:
 		})
 	card.show_recipe(station, str(rec.get("display_name", recipe_id)), rows, progress, queue_left + 1)
 
+## Overflow units waiting for a free slot (see _finish_one); put back as soon as the bag takes them.
+func _flush_overflow() -> void:
+	var i := _pending_overflow.size() - 1
+	while i >= 0:
+		if player.inventory.add(_pending_overflow[i]) <= 0:
+			_pending_overflow.remove_at(i)
+		i -= 1
+
 func _process(delta: float) -> void:
+	_flush_overflow()
 	if player == null:
 		return
 	_sync_hand_tool()
@@ -323,7 +334,11 @@ func _finish_one() -> void:
 	var overflow: Array[ItemStack] = []
 	var out := Crafting.finish_craft(player, rec, consumed, _burnt, overflow)
 	if not overflow.is_empty():
-		push_error("[craft] output_fits passed but %d units overflowed" % overflow[0].count)
+		# output_fits runs first, so this should be unreachable; if it is ever hit, the units are
+		# held here and retried every tick instead of being dropped silently.
+		push_error("[craft] output_fits passed but %d units overflowed; retrying the add" % overflow[0].count)
+		for left in overflow:
+			_pending_overflow.append(left)
 	if out:
 		if toast:
 			toast.show_gain(out.def_id, out.count)
@@ -394,9 +409,16 @@ func _sync_hand_tool() -> void:
 			_hand_tool = null
 	if want_id == &"" or (_hand_tool and is_instance_valid(_hand_tool)):
 		return
+	# A weapon with no model (spear, bow: props_manifest model null) resolves to null, and this
+	# runs every frame: remember the answer per def so the attach is not retried.
+	var cache_key := "%s/%s" % [str(want_id), hunting]
+	if _no_hand_model.has(cache_key):
+		return
 	_hand_tool = HeldModel.attach(anchor, want_id, hunting)
 	if _hand_tool:
 		_hand_tool.set_meta("tool_id", str(want_id))
+	else:
+		_no_hand_model[cache_key] = true
 
 func held_model_id() -> StringName:
 	return StringName(str(_hand_tool.get_meta("tool_id", ""))) if _hand_tool and is_instance_valid(_hand_tool) else &""
