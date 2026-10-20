@@ -145,7 +145,10 @@ Numbers live in `game/data/economy/market_rules.json` (create it); defaults belo
 - Item key = `def_id`. Units are fungible for buy orders only when `level >= order.min_level` and
   `level <= order.max_level` (default 60) and the stack has no `unstable`/`locked` flags. Listings
   sell the exact stack (with its level, attributes, durability) shown to the buyer.
-- Pets are unique assets; key = species.
+- Pets are unique assets; key = species. Owner rule (2026-10-19): a traded pet IS a caged item. A
+  bonded pet is repackaged into a unique `caged_animal` stack (attributes carry the full PetDict, uid,
+  origin, lineage) before it can enter the vault or a listing; the buyer unpacks the cage into a
+  bonded pet without re-taming. Captured (untamed) cages are tradable too and still need taming.
 
 ### 6.2 Fixed-price listing (instant buy)
 - `market.list_fixed {asset:{uid, count?}, unit_price, duration_h}`: moves the asset (or `count`

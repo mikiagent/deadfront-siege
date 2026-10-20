@@ -156,6 +156,16 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - Quad dsc clips (protoceratops, megaloceros) reverted: the skeleton-only re-export dropped the skin
   (skins=0), so Godot could not resolve tracks. Redo with a skin-preserving export.
 
+- 2026-10-19 (owner) pets as items: tamed animals show an icon of that animal. As an item an animal is
+  in a CAGE (when traded or freshly captured). Taming consumes the caged animal (pen/tame turns the
+  cage into a bonded pet; already true for captured_animal). A tame can be REPACKAGED into a caged item
+  and sold. Plan W2-CAGE: repackage (bonded pet -> unique caged item carrying the full PetRecord, uid,
+  lineage; refused while summoned/active or with items in its bag) and unpack (caged tame -> bonded pet,
+  no re-taming); per-species portrait icons and caged-animal item art (species render inside a cage,
+  rarity rim from grade) via headless Blender; Animals screen uses the portraits (W2-SCREENS consumes
+  them); the Exchange lists pets as caged items. Captured (untamed) and repackaged (tamed) cages read
+  differently (e.g. rope-tied wild vs tagged tame).
+
 ## Owner questions (open)
 
 - none
