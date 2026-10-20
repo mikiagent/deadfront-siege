@@ -170,12 +170,21 @@ func _run() -> void:
 			for j in range(i + 1, hexes.size()):
 				var d := hexes[i].get_global_rect().get_center().distance_to(hexes[j].get_global_rect().get_center())
 				_expect(d >= hexes[i].size.x - 0.5, "radial hexes %d and %d do not overlap (%.0f px)" % [i, j, d])
-		# Option labels keep off the survivor's nameplate (at 844x390 "Berries Lv. 1" covered it).
+		# Option labels keep off the survivor's nameplate (at 844x390 "Berries Lv. 1" covered it) and,
+		# with the hexes, off every HUD block (turned away from the nameplate, it landed on HANDS).
 		var plate := radial.nameplate()
 		_expect(plate.has_area() and not radial.label_rects.is_empty(), "radial: nameplate and option labels are on screen")
-		for lr in radial.label_rects:
-			_expect(not lr.intersects(plate), "radial: option label %s stays off the survivor's nameplate %s" % [lr, plate])
-		print("[uireal] radial: %d option labels, nameplate %s" % [radial.label_rects.size(), plate])
+		var hud := hud_blocks(_hud, _player, logical)
+		hud["nameplate"] = plate
+		var parts := {}
+		for i in radial.label_rects.size():
+			parts["label%d" % i] = radial.label_rects[i]
+		for i in hexes.size():
+			parts["hex%d" % i] = hexes[i].get_global_rect()
+		for k in parts:
+			for h in hud:
+				_expect(not (parts[k] as Rect2).intersects(hud[h] as Rect2), "radial: %s %s stays off %s %s" % [k, parts[k], h, hud[h]])
+		print("[uireal] radial: %d option labels and %d hexes checked against %d HUD blocks, nameplate %s" % [radial.label_rects.size(), hexes.size(), hud.size(), plate])
 		await _capture("radial", hexes, logical)
 		radial.close()
 	# creature plate with three status glyphs (letters must sit inside their rings)

@@ -292,6 +292,7 @@ func _draw() -> void:
 		var ts := UiTokens.body(view)
 		var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x
 		var blockers: Array[Rect2] = [title_rect, plate]
+		blockers.append_array(UiTokens.hud_reserved(view))
 		for j in _buttons.size():
 			if j != i:
 				blockers.append(Rect2(_buttons[j].position, _buttons[j].size))
@@ -370,8 +371,9 @@ static func label_rect(hex: Rect2, label_w: float, left: bool, view_w: float) ->
 ## Where a hex's label goes. ContextRadial.label_on_left only looks at where the hex is, not how wide its
 ## label is, so a label that could not fit beside its hex was clamped back over it and lost its first
 ## letters. Try the preferred side, the other side, then above and below the hex, and keep the first spot
-## that is inside the screen and clear of this hex and every blocker (other hexes, the title box).
-## If nothing is clear, keep the preferred side.
+## that is inside the screen and clear of this hex and every blocker (other hexes, the title box, HUD).
+## If nothing is clear, take the on-screen spot that covers the least blocker area (the preferred side
+## on a tie): keeping the preferred side put a label on HANDS when the other side was nearly clear.
 static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view: Vector2, blockers: Array = []) -> Rect2:
 	var w := label_w + 12.0
 	var cx := clampf(hex.get_center().x - w * 0.5, 8.0, maxf(8.0, view.x - w - 8.0))
@@ -381,16 +383,19 @@ static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view:
 		Rect2(Vector2(cx, hex.position.y - 30.0), Vector2(w, 26.0)),
 		Rect2(Vector2(cx, hex.end.y + 4.0), Vector2(w, 26.0)),
 	]
+	var best := candidates[0]
+	var best_cover := INF
 	for rect in candidates:
 		if rect.position.y < 0.0 or rect.end.y > view.y or rect.position.x < 0.0 or rect.end.x > view.x:
 			continue
 		if rect.intersects(hex):
 			continue
-		var clear := true
+		var cover := 0.0
 		for blocker in blockers:
-			if rect.intersects(blocker as Rect2):
-				clear = false
-				break
-		if clear:
+			cover += rect.intersection(blocker as Rect2).get_area()
+		if cover <= 0.0:
 			return rect
-	return candidates[0]
+		if cover < best_cover:
+			best_cover = cover
+			best = rect
+	return best

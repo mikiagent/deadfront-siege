@@ -249,7 +249,11 @@ func _test_display_mode() -> void:
 	_expect(SS.is_sheet(land) and sheet.encloses(zones[0]), "landscape skills sheet %s covers the vitals band %s" % [sheet, zones[0]])
 	_expect(not SS.is_sheet(Vector2(1600, 900)) and not SS.is_sheet(Vector2(390, 844)), "desktop and portrait skills keep the panel between the HUD blocks")
 	_expect(sheet.end.y <= land.y and sheet.size.y >= 4.0 * SS.ROW_H, "landscape skills panel fits the view with room for rows (%s)" % sheet)
-	_expect(zones.size() == 3 and zones[1].position.x > land.x * 0.7, "landscape HUD zones include the right map/rail column (%s)" % [zones])
+	_expect(zones.size() == 4 and zones[1].position.x > land.x * 0.7, "landscape HUD zones include the right map/rail column (%s)" % [zones])
+	# HANDS stacks above the rail's last hex on landscape (the gather label landed on it).
+	var HS: GDScript = load("res://scripts/ui/held_item_slot.gd")
+	var hands := Rect2(16.0 + (HS.RAIL_HEXES - 1.0) * (HS.SLOT + 10.0), land.y - 96.0 - HS.SLOT - 34.0, HS.SLOT, HS.SLOT + 18.0)
+	_expect(zones.size() == 4 and zones[3].encloses(hands), "landscape HUD zones cover the HANDS slot %s" % hands)
 
 func _test_theme() -> void:
 	var t: Theme = DisplayMode.build_theme()

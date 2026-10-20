@@ -220,7 +220,8 @@ static func hud_reserved(view: Vector2) -> Array[Rect2]:
 	if is_narrow(view):
 		return [Rect2(0, 0, view.x, 96.0), Rect2(0, view.y - 96.0, view.x, 96.0)]
 	if is_compact(view):  # landscape: vitals + quest band, the map/claim/rail column on the right, left rail
-		return [Rect2(0, 0, view.x, 96.0), Rect2(view.x - 190.0, 0, 190.0, view.y), Rect2(0, view.y - 104.0, 330.0, 104.0)]
+		# The fourth zone is HANDS, stacked above the rail's last hex (held_item_slot.gd) with its caption.
+		return [Rect2(0, 0, view.x, 96.0), Rect2(view.x - 190.0, 0, 190.0, view.y), Rect2(0, view.y - 104.0, 330.0, 104.0), Rect2(232.0, view.y - 200.0, 76.0, 96.0)]
 	return [
 		Rect2(0, 0, 330.0, 112.0),
 		Rect2(view.x - 450.0, 0, 450.0, 240.0),
