@@ -92,3 +92,9 @@ static func ground_y(space: PhysicsDirectSpaceState3D, p: Vector3, exclude: Arra
 	var q := PhysicsRayQueryParameters3D.create(p + Vector3(0.0, 2.0, 0.0), p - Vector3(0.0, 8.0, 0.0), mask, exclude)
 	var hit := space.intersect_ray(q)
 	return (hit["position"] as Vector3).y if not hit.is_empty() else fallback
+
+## Ground normal under a point (same ray rule), or UP when nothing is there.
+static func ground_normal(space: PhysicsDirectSpaceState3D, p: Vector3, exclude: Array[RID], mask: int = 1) -> Vector3:
+	var q := PhysicsRayQueryParameters3D.create(p + Vector3(0.0, 2.0, 0.0), p - Vector3(0.0, 8.0, 0.0), mask, exclude)
+	var hit := space.intersect_ray(q)
+	return (hit["normal"] as Vector3).normalized() if not hit.is_empty() else Vector3.UP

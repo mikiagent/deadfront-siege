@@ -1,10 +1,14 @@
 extends Node3D
-## W2-RAGDOLL gate. Every species is killed on a heightmap collider (the island's collider type) in
-## three set-ups: flat, a 20-degree slope (pushed downhill) and against a rock. After the freeze the
-## POSED SKIN is measured (skinned vertices, not bone heads). Four cases run at once (the budget).
+## W2-RAGDOLL gate. Every species is killed on a heightmap collider (the island's collider type) on
+## flat ground and 10/20/30-degree slopes, facing 4 headings, hit from its left flank and from the
+## front (the way players mostly hit), plus once against a rock. After the freeze the POSED SKIN is
+## measured (skinned vertices, not bone heads). Four cases run at once (the budget). Every case,
+## ragdoll or fallback, must lie on the ground; fallbacks are also capped in total (FALLBACK_MAX_FRAC).
 ## Headless prints one [ragdoll_lab] line per case and a final PASS/FAIL line (exit code 0/1).
 ## Run: Godot --headless --fixed-fps 60 --path game -- --lab=ragdoll_lab [--rl-species=a,b]
-##   [--rl-terrain=flat,slope,rock]   cases to run (default: all 11 species x 3)
+##   [--rl-terrain=flat,slope10,slope20,slope30,rock]   terrains (rock: heading 0, side blow only)
+##   [--rl-headings=0,90,180,270] [--rl-blows=side,front]   subsets of the sweep
+##   [--rl-set=guards.pose_k=20,species.velociraptor.mass_kg=80]  try ragdoll.json values (no file edit)
 ##   [--rl-suggest]                   skin-based radius suggestions per profile body, no physics
 ##   [--rl-fallback]                  budget 0: every case takes the fallback path (gates expect ragdoll)
 ##   [--rl-perf]                      4 simultaneous ragdolls on temperate_25: added physics ms
@@ -15,9 +19,14 @@ extends Node3D
 const SPECIES: Array[StringName] = [&"coelophysis", &"compsognathus", &"deinonychus", &"gallimimus",
 	&"megaloceros", &"protoceratops", &"stegosaurus", &"tyrannosaurus", &"utahraptor",
 	&"velociraptor", &"zebraceratops"]
-const TERRAINS: Array[String] = ["flat", "slope", "rock"]
-const SLOPE_DEG := 20.0
-const SPACING := 300.0  # metres between arenas
+const TERRAINS: Array[String] = ["flat", "slope10", "slope20", "slope30", "rock"]
+const HEADINGS: Array[int] = [0, 90, 180, 270]  # creature yaw, degrees; the slopes fall toward +X
+## side: the blow comes from the creature's left flank; front: from in front of its head.
+const BLOWS: Array[String] = ["side", "front"]
+## Share of all cases allowed to take the fallback (aborted simulation); each one must still lie on
+## the ground. ASSUMPTION: 3 %, the reviewer saw 12.5 % (10 of 80) before the hand-off depenetration.
+const FALLBACK_MAX_FRAC := 0.03
+const SPACING := 300.0  # metres between the arenas of one batch (they are freed after each batch)
 const BATCH := 4
 const TOUCH_M := 0.06  # skin gap allowed above and below the ground
 const LIE_FRAC := 0.5  # hips at most this share of the standing hips height
@@ -46,16 +55,22 @@ const PERF_SPECIES: Array[StringName] = [&"tyrannosaurus", &"utahraptor", &"mega
 
 var _species: Array[StringName] = []
 var _terrains: Array[String] = []
+var _headings: Array[int] = []
+var _blows: Array[String] = []
+var _all_fallback := false
 var _shots := ""
 var _phone := ""
 var _failures: Array[String] = []
 var _cam: Camera3D
-var _sheets: Dictionary = {}  # terrain -> Image
+var _sheets: Dictionary = {}  # "<terrain>_p<page>" -> Image, 16 corpses per page in run order
+var _sheet_n: Dictionary = {}  # terrain -> corpses shot so far
 var _seqs: Dictionary = {}  # "species/terrain" -> Image (2x2 settle sequence)
 
 func _ready() -> void:
 	_species = SPECIES.duplicate()
 	_terrains = TERRAINS.duplicate()
+	_headings = HEADINGS.duplicate()
+	_blows = BLOWS.duplicate()
 	var suggest := false
 	var perf := false
 	for a in OS.get_cmdline_user_args():
@@ -67,6 +82,21 @@ func _ready() -> void:
 			_terrains.clear()
 			for t in a.substr(13).split(",", false):
 				_terrains.append(t)
+		elif a.begins_with("--rl-headings="):
+			_headings.clear()
+			for h in a.substr(14).split(",", false):
+				_headings.append(int(h))
+		elif a.begins_with("--rl-blows="):
+			_blows.clear()
+			for b in a.substr(11).split(",", false):
+				_blows.append(b)
+		elif a.begins_with("--rl-set="):
+			for kv in a.substr(9).split(",", false):
+				var path := kv.get_slice("=", 0).split(".")
+				var node: Dictionary = Ragdoll.data()
+				for k in path.size() - 1:
+					node = node[path[k]]
+				node[path[-1]] = str_to_var(kv.get_slice("=", 1))
 		elif a == "--rl-suggest":
 			suggest = true
 		elif a == "--rl-perf":
@@ -77,6 +107,7 @@ func _ready() -> void:
 				SEQ_T.append(float(t))
 		elif a == "--rl-fallback":
 			Ragdoll.data()["budget"]["max_active"] = 0  # every death takes the fallback (clip + conform)
+			_all_fallback = true
 		elif a.begins_with("--rl-shots="):
 			_shots = a.substr(11)
 		elif a.begins_with("--rl-phone="):
@@ -103,8 +134,14 @@ func _ready() -> void:
 
 # --- arenas -----------------------------------------------------------------------------------
 
+## "slopeNN" falls NN degrees toward +X ("slope" alone is 20); flat and rock are level.
+static func slope_deg(terrain: String) -> float:
+	if not terrain.begins_with("slope"):
+		return 0.0
+	return float(terrain.substr(5)) if terrain.length() > 5 else 20.0
+
 func _height(terrain: String, x: float) -> float:
-	return -tan(deg_to_rad(SLOPE_DEG)) * x if terrain == "slope" else 0.0
+	return -tan(deg_to_rad(slope_deg(terrain))) * x
 
 ## A heightmap floor like the island's (HeightMapShape3D scaled by its cell), a matching mesh with
 ## a 1 m grid, and for "rock" a box rock beside the creature on the side it is pushed to.
@@ -198,16 +235,19 @@ func _run_cases() -> void:
 	var cases: Array[Dictionary] = []
 	for t in _terrains:
 		for s in _species:
-			cases.append({"species": s, "terrain": t})
+			for h in ([0] if t == "rock" else _headings):
+				for b in (["side"] if t == "rock" else _blows):
+					cases.append({"species": s, "terrain": t, "heading": h, "blow": b})
 	var ok_count := 0
+	var fallbacks: Array[String] = []
 	var i := 0
 	while i < cases.size():
 		var batch := cases.slice(i, i + BATCH)
 		for k in batch.size():
-			_setup_case(batch[k], Vector3((i + k) * SPACING, 0.0, 0.0))
+			_setup_case(batch[k], Vector3(k * SPACING, 0.0, 0.0))
 		await _frames(30)  # idle pose settles, capsules land on the floor
 		for c in batch:
-			c["stand_hips"] = _hips_height(c)
+			c["stand_hips"] = _stand_hips(c)
 			c["idle_skin"] = _skin_now(c)
 		for c in batch:
 			var cr: Creature = c["creature"]
@@ -228,6 +268,9 @@ func _run_cases() -> void:
 		for c in batch:
 			if _measure(c):
 				ok_count += 1
+			var rd := (c["creature"] as Creature).get_node_or_null("Ragdoll") as Ragdoll
+			if rd and rd.mode == &"fallback":
+				fallbacks.append("%s (%s)" % [_tag(c), rd.reason])
 			if _shots != "":
 				await _shoot(c)
 		for c in batch:
@@ -243,25 +286,36 @@ func _run_cases() -> void:
 			var path := "%s/ragdoll_%s_%s.png" % [_shots, t, rm]
 			(_sheets[t] as Image).save_png(path)
 			print("[ragdoll_lab] sheet %s" % path)
-	_verdict("cases=%d ok=%d" % [cases.size(), ok_count])
+	var allowed := int(FALLBACK_MAX_FRAC * cases.size())
+	print("[ragdoll_lab] fallbacks %d/%d (max %d): %s" % [fallbacks.size(), cases.size(), allowed, ", ".join(fallbacks)])
+	if fallbacks.size() > allowed and not _all_fallback:
+		_failures.append("fallback rate: %d of %d deaths aborted the ragdoll (max %d)" % [fallbacks.size(), cases.size(), allowed])
+	_verdict("cases=%d ok=%d fallbacks=%d" % [cases.size(), ok_count, fallbacks.size()])
+
+func _tag(c: Dictionary) -> String:
+	return "%s/%s/h%d/%s" % [c["species"], c["terrain"], int(c.get("heading", 0)), c.get("blow", "side")]
 
 func _setup_case(c: Dictionary, at: Vector3) -> void:
 	var def: CreatureDef = Data.creature(c["species"])
 	var length := maxf(2.0, def.real_length_m)
 	var size := maxf(30.0, length * 3.0)
-	var push := Vector3.RIGHT  # the source stands on the creature's left (-X): the blow pushes +X
+	# Heading 0 faces -Z, so its right is +X. side: the source stands on the creature's left and the
+	# blow pushes it to its right; front: the source stands ahead of it (forward = -Z) and pushes it back.
+	var yaw := deg_to_rad(float(c.get("heading", 0)))
+	var push := (Vector3.RIGHT if c.get("blow", "side") == "side" else Vector3.BACK).rotated(Vector3.UP, yaw)
 	# A low rock (15 % of the creature's height) where the blow lays its head and neck down, so the
 	# front of the body comes to rest across it.
 	var rock_size := Vector3(maxf(0.5, def.height_meters * 0.45), maxf(0.15, def.height_meters * 0.15), maxf(0.6, length * 0.2))
 	var rock_at := Vector3(def.height_meters * 0.5, _height(c["terrain"], 0.0) + rock_size.y * 0.5 - 0.05, -length * 0.42)
 	var host := _arena(c["terrain"], at, size, rock_at, rock_size)
 	var cr := _spawn(c["species"], host, at + Vector3(0.0, 0.05, 0.0))
+	cr.rotation.y = yaw
 	var src := Node3D.new()
 	src.name = "Blow"
 	host.add_child(src)
 	src.global_position = at - push * 3.0
 	var tag := Label3D.new()
-	tag.text = "%s · %s" % [c["species"], c["terrain"]]
+	tag.text = "%s · %s · %d° · %s" % [c["species"], c["terrain"], int(c.get("heading", 0)), c.get("blow", "side")]
 	tag.font_size = 48
 	tag.pixel_size = maxf(0.004, def.height_meters * 0.0035)
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -291,16 +345,31 @@ func _frames(n: int) -> void:
 	for k in n:
 		await get_tree().physics_frame
 
-func _hips_height(c: Dictionary) -> float:
+func _hips_world(c: Dictionary) -> Vector3:
 	var cr: Creature = c["creature"]
 	var sk := cr.view.rig.skeleton if cr.view.rig else null
-	if sk == null:
-		return cr.def.height_meters * 0.5
-	var hb := sk.find_bone(str(Ragdoll.profile(cr.def.id).get("hips", "Hips")))
+	var hb := sk.find_bone(str(Ragdoll.profile(cr.def.id).get("hips", "Hips"))) if sk else -1
 	if hb < 0:
-		return cr.def.height_meters * 0.5
-	var p := sk.global_transform * sk.get_bone_global_pose(hb).origin
-	return p.y - _ground_at(c, p)
+		return cr.global_position + Vector3(0.0, cr.def.height_meters * 0.5, 0.0)
+	return sk.global_transform * sk.get_bone_global_pose(hb).origin
+
+## Standing hips height above the creature's root (its feet), so it is the species' own height
+## whatever the slope or heading (the ground straight under the hips of a creature facing up a
+## slope is not where it stands).
+func _stand_hips(c: Dictionary) -> float:
+	return _hips_world(c).y - (c["creature"] as Creature).global_position.y
+
+## Lying hips height, measured along the ground normal (on a slope the vertical gap overstates it).
+func _hips_height(c: Dictionary) -> float:
+	return _above_ground(c, _hips_world(c))
+
+func _above_ground(c: Dictionary, p: Vector3) -> float:
+	var ex: Array[RID] = [(c["creature"] as Creature).get_rid()]
+	var rd := (c["creature"] as Creature).get_node_or_null("Ragdoll") as Ragdoll
+	if rd and rd.corpse:
+		ex.append(rd.corpse.get_rid())
+	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(p + Vector3(0.0, 2.0, 0.0), p - Vector3(0.0, 8.0, 0.0), 1, ex))
+	return (p - (hit["position"] as Vector3)).dot(hit["normal"] as Vector3) if not hit.is_empty() else INF
 
 func _ground_at(c: Dictionary, p: Vector3) -> float:
 	var ex: Array[RID] = [(c["creature"] as Creature).get_rid()]  # a live creature's own capsule is on layer 1
@@ -313,7 +382,7 @@ func _ground_at(c: Dictionary, p: Vector3) -> float:
 func _measure(c: Dictionary) -> bool:
 	var cr: Creature = c["creature"]
 	var rd := cr.get_node_or_null("Ragdoll") as Ragdoll
-	var tag := "%s/%s" % [c["species"], c["terrain"]]
+	var tag := _tag(c)
 	var bad: Array[String] = []
 	if rd == null:
 		_fail(tag, ["no Ragdoll node"])
@@ -322,11 +391,11 @@ func _measure(c: Dictionary) -> bool:
 	var mi := rd.mesh_instance()
 	if rd.phase != &"frozen":
 		bad.append("not frozen (%s)" % rd.phase)
-	if rd.mode != &"ragdoll":
+	if rd.mode != &"ragdoll" and rd.mode != &"fallback":
 		bad.append("mode %s (%s)" % [rd.mode, rd.reason])
 	if rd.settle_time > SETTLE_MAX_S or rd.settle_time < 0.0:
 		bad.append("settle %.2f s" % rd.settle_time)
-	var line := "%s mode=%s settle=%.2fs%s peak=%.1fm/s" % [tag, rd.mode, rd.settle_time, "(cap: %s)" % rd.restless if rd.capped else "", rd.peak_speed]
+	var line := "%s mode=%s%s settle=%.2fs%s peak=%.1fm/s drift=%.2fm" % [tag, rd.mode, "(%s)" % rd.reason if rd.mode == &"fallback" else "", rd.settle_time, "(cap: %s)" % rd.restless if rd.capped else "", rd.peak_speed, rd.drift_m]
 	if rd.peak_speed >= 30.0:
 		bad.append("peak %.1f m/s" % rd.peak_speed)
 	if sk and mi:
@@ -361,7 +430,7 @@ func _measure(c: Dictionary) -> bool:
 		line += " foot_max=%.2fm" % foot
 		if foot > stand * FOOT_FRAC:
 			bad.append("a foot %.2f m up (limb in the air; max %.0f %% of standing hips)" % [foot, FOOT_FRAC * 100.0])
-		var up := _belly_up(sk, cr)
+		var up := _belly_up(sk, cr, c)
 		line += " up_y=%+.2f" % up
 		if up < -0.35:
 			bad.append("legs up (body up axis y %.2f)" % up)
@@ -430,23 +499,25 @@ func _lowest_parts(mi: MeshInstance3D, sk: Skeleton3D, stride: int, pts: PackedV
 		out.append("%s %+.2f" % [n, float(best[n])])
 	return ", ".join(out)
 
-## Height above the ground of the highest of the profile's `feet` bones (a limb left in the air).
+## Height above the ground (along its normal) of the highest of the profile's `feet` bones (a limb
+## left in the air).
 func _highest_foot(c: Dictionary, sk: Skeleton3D, cr: Creature) -> float:
 	var top := 0.0
 	for f in Ragdoll.profile(cr.def.id).get("feet", []):
 		var b := sk.find_bone(str(f))
 		if b >= 0:
-			var p := sk.global_transform * sk.get_bone_global_pose(b).origin
-			top = maxf(top, p.y - _ground_at(c, p))
+			top = maxf(top, _above_ground(c, sk.global_transform * sk.get_bone_global_pose(b).origin))
 	return top
 
-## World y of the creature's up axis carried by its hips bone: 1 standing, ~0 on a flank, -1 legs up.
-func _belly_up(sk: Skeleton3D, cr: Creature) -> float:
+## The creature's up axis carried by its hips bone, along the ground normal under it: 1 standing,
+## ~0 on a flank, -1 legs up.
+func _belly_up(sk: Skeleton3D, cr: Creature, c: Dictionary) -> float:
 	var hb := sk.find_bone(str(Ragdoll.profile(cr.def.id).get("hips", "Hips")))
 	if hb < 0:
 		return 1.0
 	var rot := sk.get_bone_global_pose(hb).basis.orthonormalized() * sk.get_bone_global_rest(hb).basis.orthonormalized().inverse()
-	return (sk.global_basis.orthonormalized() * rot * Vector3.UP).normalized().y
+	var n := RagdollSkin.ground_normal(get_world_3d().direct_space_state, _hips_world(c), [cr.get_rid()] as Array[RID])
+	return (sk.global_basis.orthonormalized() * rot * Vector3.UP).normalized().dot(n)
 
 ## Bones keep their rest length (the ragdoll's root body is the only free one).
 func _worst_stretch(sk: Skeleton3D, rd: Ragdoll) -> float:
@@ -554,32 +625,42 @@ func _frame_corpse(c: Dictionary, elev_deg: float, az_deg: float) -> void:
 	_cam.look_at_from_position(centre + dir * dist, centre)
 
 func _shoot(c: Dictionary) -> void:
-	_frame_corpse(c, 30.0 if c["terrain"] == "slope" else 18.0, 50.0 if c["terrain"] == "slope" else -60.0)
+	_frame_corpse(c, _elev(c), _azim(c))
 	await _frames(3)
 	RenderingServer.force_draw(false)  # an occluded window on a busy desktop may not draw by itself
 	var img := get_viewport().get_texture().get_image()
 	var rm := RenderingServer.get_current_rendering_method()
-	img.save_png("%s/%s_%s_%s.png" % [_shots, c["species"], c["terrain"], rm])
+	img.save_png("%s/%s_%s.png" % [_shots, _tag(c).replace("/", "_"), rm])
 	var t: String = c["terrain"]
-	if not _sheets.has(t):
+	var idx := int(_sheet_n.get(t, 0))
+	_sheet_n[t] = idx + 1
+	var key := "%s_p%d" % [t, idx / 16]
+	if not _sheets.has(key):
 		var sheet := Image.create(1600, 900, false, img.get_format())
 		sheet.fill(Color(0.1, 0.1, 0.1))
-		_sheets[t] = sheet
-	var idx := SPECIES.find(c["species"])
+		_sheets[key] = sheet
+	idx %= 16
 	var tile := img.duplicate() as Image
 	tile.resize(400, 225, Image.INTERPOLATE_BILINEAR)
-	(_sheets[t] as Image).blit_rect(tile, Rect2i(0, 0, 400, 225), Vector2i((idx % 4) * 400, (idx / 4) * 225 + 112))
+	(_sheets[key] as Image).blit_rect(tile, Rect2i(0, 0, 400, 225), Vector2i((idx % 4) * 400, (idx / 4) * 225))
 	_seq_tile(c, img, SEQ_T.size())
 
 ## One frame of the settle sequence, framed on the body as it is (one drawn frame = one physics tick).
 func _seq_grab(c: Dictionary, i: int) -> void:
-	_frame_corpse(c, 30.0 if c["terrain"] == "slope" else 18.0, 50.0 if c["terrain"] == "slope" else -60.0)
+	_frame_corpse(c, _elev(c), _azim(c))
 	await get_tree().process_frame
 	RenderingServer.force_draw(false)  # an occluded window never emits frame_post_draw by itself
 	_seq_tile(c, get_viewport().get_texture().get_image(), i)
 
+## Slopes are seen from across the fall line, a little downhill, so the uphill side is visible.
+func _elev(c: Dictionary) -> float:
+	return 30.0 if slope_deg(c["terrain"]) > 0.0 else 18.0
+
+func _azim(c: Dictionary) -> float:
+	return 50.0 if slope_deg(c["terrain"]) > 0.0 else -60.0
+
 func _seq_tile(c: Dictionary, img: Image, i: int) -> void:
-	var key := "%s/%s" % [c["species"], c["terrain"]]
+	var key := _tag(c)
 	if not _seqs.has(key):
 		var sheet := Image.create(1600, 900, false, img.get_format())
 		sheet.fill(Color(0.1, 0.1, 0.1))
@@ -664,7 +745,7 @@ func _run_phone() -> void:
 		c["species"] = _species[0]
 	_setup_case(c, Vector3.ZERO)
 	await _frames(30)
-	c["stand_hips"] = _hips_height(c)
+	c["stand_hips"] = _stand_hips(c)
 	(c["creature"] as Creature).health.take_damage(1e6, c["source"])
 	while not _all_frozen([c]):
 		await get_tree().physics_frame

@@ -14,7 +14,8 @@ const PROFILE_PATH := "res://data/creatures/ragdoll.json"
 
 static var _data: Dictionary = {}
 static var _simulating: Array[Ragdoll] = []
-## Tests and the lab force the next starts into a fault: &"nan" poisons one body reading.
+## Tests and the lab force the next starts into a fault: &"nan" poisons one body reading, &"abort"
+## aborts on the first simulated frame (like a stretch guard tripping at hand-off).
 static var inject_fault: StringName = &""
 
 var creature: Creature
@@ -37,6 +38,9 @@ var conform_m: float = 0.0
 var restless: String = ""
 ## The joints the ragdoll simulated (RagdollRig.info rows), kept after the freeze for the lab gates.
 var joints: Array[Dictionary] = []
+## Largest gap at the freeze between a body and the bone the frozen pose puts there (metres): the
+## frozen pose keeps rest lengths, so a sagging joint chain moves the skin away from its bodies.
+var drift_m: float = 0.0
 var _dir: Vector3 = Vector3.ZERO
 var _damage: float = -1.0
 var _quiet: float = 0.0
@@ -44,9 +48,20 @@ var _fallback_left: float = 0.0
 var _fault: StringName = &""
 var _exclude: Array[RID] = []
 var _root_body: int = -1
-var _up_in_root: Vector3 = Vector3.UP  ## the creature's up axis in the root body's frame at hand-off
+var _creature_in_root: Basis = Basis.IDENTITY  ## the creature's axes in the root body's frame at hand-off
 var _side: Vector3 = Vector3.RIGHT  ## the flank it is rolled onto
+## Where the carcass should end: lying on _side, its up axis in the ground plane. On a steep slope
+## (_align) also with its length along the fall line, the only way a body on its flank stays put
+## there (across the slope it rolls onto its back or props itself up on its legs).
+var _target: Basis = Basis.IDENTITY
+var _align := false
+var _resting := false  ## reached its target: every body got the rest damping
+var _ground_n: Vector3 = Vector3.UP  ## terrain normal where it died: "on a flank" is judged against it
 var _stretch_bone: String = ""
+## Fallback on a slope: the view leans from _tilt_from to the terrain normal while the clip plays.
+var _tilt_from: Transform3D
+var _tilt: Quaternion = Quaternion.IDENTITY
+var _fallback_total: float = 0.0
 
 static func data() -> Dictionary:
 	if _data.is_empty():
@@ -115,6 +130,8 @@ func _physics_process(delta: float) -> void:
 			_step(delta)
 		&"fallback":
 			_fallback_left -= delta
+			var f := clampf(1.0 - _fallback_left / maxf(0.01, _fallback_total), 0.0, 1.0)
+			creature.view.transform = Transform3D(Basis(Quaternion.IDENTITY.slerp(_tilt, f)), Vector3.ZERO) * _tilt_from
 			if _fallback_left <= 0.0:
 				_finish()
 
@@ -153,16 +170,37 @@ func _hand_off() -> void:
 		_resume_clip()
 		_fall_back("profile does not fit the rig")
 		return
+	_depenetrate()
+	_ground_n = RagdollSkin.ground_normal(creature.get_world_3d().direct_space_state, creature.global_position, _exclude)
 	rig.start(_exclude)
 	for k in rig.info.size():
 		if int(rig.info[k]["parent_body"]) < 0:
 			_root_body = k
 	if _root_body >= 0:
-		_up_in_root = rig.bodies[_root_body].global_basis.inverse() * creature.global_basis.y.normalized()
+		_creature_in_root = rig.bodies[_root_body].global_basis.orthonormalized().inverse() * creature.global_basis.orthonormalized()
 	_push()
+	_plan_pose()
 	phase = &"simulate"
 	mode = &"ragdoll"
 	_simulating.append(self)
+
+## Lifts the posed body until no capsule starts inside the ground. On a slope the clip's flat-ground
+## feet sit in the uphill terrain (and wide foot capsules dip into flat ground); the solver tearing
+## them out in the first frames tripped the stretch guard.
+func _depenetrate() -> void:
+	var space := creature.get_world_3d().direct_space_state
+	var sk := rig.skeleton
+	var xf := sk.global_transform
+	var above := Vector3(0.0, creature.def.height_meters if creature.def else 2.0, 0.0)  # rays start above deep points
+	var lift := 0.0
+	for row in rig.info:
+		var b := int(row["bone"])
+		var to_world := xf * sk.get_bone_global_pose(b) * sk.get_bone_global_rest(b).affine_inverse()
+		for pt: Vector3 in [row["head_skel"], row["tip_skel"]]:
+			var w := to_world * pt
+			lift = maxf(lift, RagdollSkin.ground_y(space, w + above, _exclude, -INF) + float(row["radius_m"]) - w.y)
+	if lift > 0.0:
+		creature.view.global_position.y += lift + float(data().get("guards", {}).get("lift_margin_m", 0.01))
 
 ## Starts the fall: every body gets the velocity of the whole creature tipping over its feet onto
 ## the flank away from the blow (rigid rotation at topple_k * sqrt(g / hips height), so tall and
@@ -187,6 +225,9 @@ func _push() -> void:
 
 func _step(delta: float) -> void:
 	sim_time += delta
+	if _fault == &"abort":
+		_abort("injected abort at %.2f s" % sim_time)
+		return
 	var guard: Dictionary = data().get("guards", {})
 	var max_v := float(guard.get("max_body_mps", 30.0))
 	var t := _timing()
@@ -213,11 +254,13 @@ func _step(delta: float) -> void:
 			all_quiet = false
 		if not PhysicsServer3D.body_get_state(pb.get_rid(), PhysicsServer3D.BODY_STATE_SLEEPING):
 			all_asleep = false
+	if Engine.get_physics_frames() % 15 == 0:
+		_refresh_exclude()  # a creature, player or corpse that arrived since the death
 	var stretch := _worst_stretch()
 	if stretch > float(guard.get("max_stretch_frac", 0.35)):
 		_abort("joint %s stretched %.0f %% at %.2f s" % [_stretch_bone, stretch * 100.0, sim_time])
 		return
-	_roll_guards()
+	_pose_guard(delta)
 	_quiet = _quiet + delta if all_quiet else 0.0
 	if all_asleep or _quiet >= float(t.get("quiet_s", 0.35)):
 		_freeze()
@@ -225,29 +268,65 @@ func _step(delta: float) -> void:
 		capped = true
 		_freeze()
 
-## Keeps the carcass on a flank. Early on (roll_s) a body still sitting upright on folded legs
-## (up axis y above flank_up_y) is rolled toward the side the blow chose, like the collapse a death
-## clip would play; at any time a body rolling past its flank onto its back (y below belly_up_y)
-## is turned back, so it never ends legs-up.
-func _roll_guards() -> void:
+## The resting orientation (see _target). Flat or gentle ground: up axis toward _side, heading kept.
+## Steeper than align_slope_deg: also turned to the nearer end of the fall line.
+func _plan_pose() -> void:
+	var g: Dictionary = data().get("guards", {})
+	var n := _ground_n
+	var fwd := -creature.global_basis.z.normalized()
+	var up := (_side - n * _side.dot(n)).normalized()
+	_align = n.angle_to(Vector3.UP) > deg_to_rad(float(g.get("align_slope_deg", 15.0)))
+	if _align:
+		var down := (Vector3.DOWN - n * Vector3.DOWN.dot(n)).normalized()
+		var contour := down.cross(n).normalized()
+		up = contour * signf(contour.dot(_side) if absf(contour.dot(_side)) > 1e-3 else 1.0)
+		fwd = down * signf(fwd.dot(down) if absf(fwd.dot(down)) > 1e-3 else 1.0)
+	else:
+		fwd = (fwd - up * fwd.dot(up)).normalized()
+	_target = Basis(up.cross(-fwd), up, -fwd)
+
+## Steers the carcass to _target with a damped spring on the root body (pose_k on the angle,
+## pose_c on the spin, scaled by the carcass' inertia about the turn axis), so it never ends sitting
+## on folded legs or rolled onto its back, while the limbs and tail flop freely. On flat ground only
+## the up axis is steered. Once there, every body gets heavy damping: dead weight stops rolling.
+func _pose_guard(delta: float) -> void:
 	if _root_body < 0:
 		return
 	var g: Dictionary = data().get("guards", {})
 	var rb := rig.bodies[_root_body]
-	var up := rb.global_basis * _up_in_root
-	var lever := rb.mass * maxf(0.5, float(rig.info[_root_body]["length_m"]))
-	var flank := float(g.get("flank_up_y", 0.3))
-	var belly := float(g.get("belly_up_y", -0.2))
-	var axis := Vector3.ZERO
-	var amount := 0.0
-	if sim_time < float(g.get("roll_s", 1.5)) and up.y > flank:
-		axis = up.cross(_side)
-		amount = float(g.get("roll_rate", 8.0)) * (up.y - flank)
-	elif up.y < belly:
-		axis = up.cross(Vector3.UP)
-		amount = float(g.get("belly_up_rate", 6.0)) * (belly - up.y)
-	if amount > 0.0 and axis.length_squared() > 1e-6:
-		PhysicsServer3D.body_apply_torque_impulse(rb.get_rid(), axis.normalized() * amount * lever * get_physics_process_delta_time() * 60.0)
+	var now := rb.global_basis.orthonormalized() * _creature_in_root
+	var axis: Vector3
+	var angle: float
+	if _align:
+		var q := (_target * now.inverse()).get_rotation_quaternion()
+		axis = q.get_axis()
+		angle = q.get_angle()
+		if angle > PI:
+			angle = TAU - angle
+			axis = -axis
+	else:
+		axis = now.y.cross(_target.y)
+		angle = now.y.angle_to(_target.y)
+	if axis.length_squared() < 1e-8:
+		return
+	axis = axis.normalized()
+	var accel := float(g.get("pose_k", 16.0)) * angle - float(g.get("pose_c", 8.0)) * rb.angular_velocity.dot(axis)
+	PhysicsServer3D.body_apply_torque_impulse(rb.get_rid(), axis * accel * _inertia_about(axis, rb.global_position) * delta)
+	if not _resting and sim_time > float(g.get("rest_after_s", 0.3)) and angle < float(g.get("rest_angle", 0.45)):
+		_resting = true
+		for pb in rig.bodies:
+			pb.angular_damp = maxf(pb.angular_damp, float(g.get("rest_angular_damp", 20.0)))
+			pb.linear_damp = maxf(pb.linear_damp, float(g.get("rest_linear_damp", 3.0)))
+
+## Sum of m (r^2 / 2 + d^2) over the bodies, d = a body's distance from the axis through `at`.
+func _inertia_about(axis: Vector3, at: Vector3) -> float:
+	var sum := 0.0
+	for k in rig.bodies.size():
+		var off := rig.bodies[k].global_position - at
+		var d := (off - axis * off.dot(axis)).length()
+		var r := float(rig.info[k]["radius_m"])
+		sum += rig.bodies[k].mass * (r * r * 0.5 + d * d)
+	return maxf(sum, 0.01)
 
 ## Largest gap between a body's bone head and where its parent body says that head should be,
 ## as a fraction of the child's length.
@@ -277,9 +356,17 @@ func _abort(why: String) -> void:
 	_resume_clip()
 	_fall_back(why)
 
+## Switching the tree back on restarts its state machine (it sat on Start and the body stayed in the
+## ragdoll's standing pose), so put it back on the death clip where it would be by now.
 func _resume_clip() -> void:
-	if creature.anim and creature.anim.tree:
-		creature.anim.tree.active = true
+	var anim := creature.anim
+	if anim == null or anim.tree == null:
+		return
+	anim.tree.active = true
+	var pb := anim.tree.get("parameters/playback") as AnimationNodeStateMachinePlayback
+	if pb and anim.has_state(&"death"):
+		pb.start(&"death")
+		anim.tree.advance(since_death)
 
 func _fall_back(why: String) -> void:
 	reason = why
@@ -290,11 +377,20 @@ func _fall_back(why: String) -> void:
 	if ap and ap.has_animation(&"death"):
 		clip_s = ap.get_animation(&"death").length / maxf(0.05, CreatureClips.clip_speed(&"death", creature.def))
 	_fallback_left = maxf(0.0, clip_s - since_death) + 0.05
+	_fallback_total = _fallback_left
+	# The clip lies down on flat ground: on a slope lean the body onto the terrain while it falls.
+	_tilt_from = creature.view.transform
+	var n := RagdollSkin.ground_normal(creature.get_world_3d().direct_space_state, creature.global_position, _exclude)
+	var up := creature.global_basis.y.normalized()
+	_tilt = (creature.global_basis.inverse() * Basis(Quaternion(up, n)) * creature.global_basis).get_rotation_quaternion() if up.dot(n) < 0.9999 else Quaternion.IDENTITY
 	print("[ragdoll] %s fallback: %s" % [creature.def.id if creature.def else &"?", why])
 
 func _freeze() -> void:
 	joints = rig.info.duplicate()
 	var globals := rig.settled_globals()
+	for k in rig.bodies.size():
+		var d := (globals[int(rig.info[k]["bone"])].origin - rig.body_bone_pose(k).origin).length() * rig.scale
+		drift_m = maxf(drift_m, d)
 	rig.release()
 	_simulating.erase(self)
 	rig.apply_globals(globals)
@@ -317,6 +413,7 @@ func _finish() -> void:
 		# updating each frame; a frozen corpse needs no modifier at all.
 		for m in sk.find_children("*", "SkeletonModifier3D", false, false):
 			(m as SkeletonModifier3D).active = false
+	_refresh_exclude()  # the ground rays must not measure off a corpse or creature that came later
 	var space := creature.get_world_3d().direct_space_state
 	var hips_w := creature.global_position
 	var prof := profile(creature.def.id if creature.def else &"")
@@ -326,6 +423,9 @@ func _finish() -> void:
 			hips_w = sk.global_transform * sk.get_bone_global_pose(hb).origin
 	var ground := Vector3(hips_w.x, RagdollSkin.ground_y(space, hips_w, _exclude, creature.global_position.y), hips_w.z)
 	var view_xf := creature.view.global_transform
+	if corpse and is_instance_valid(corpse) and corpse.server_placed:
+		view_xf.origin += corpse.global_position - ground  # the server's resting place wins; the pose moves there
+		ground = corpse.global_position
 	creature.global_position = ground
 	creature.view.global_transform = view_xf
 	var conform: Dictionary = data().get("conform", {})
@@ -368,6 +468,16 @@ static func _first_skinned(root: Node) -> MeshInstance3D:
 		if (n as MeshInstance3D).skin:
 			return n
 	return null
+
+## Adds bodies that arrived since the death to the ground-ray excludes and, while simulating, to
+## the ragdoll's collision exceptions.
+func _refresh_exclude() -> void:
+	for rid in _nearby_bodies():
+		if rid in _exclude:
+			continue
+		_exclude.append(rid)
+		if rig and rig.simulator:
+			rig.simulator.physical_bones_add_collision_exception(rid)
 
 ## Live characters and corpses near the body: the ragdoll passes through them and the ground rays
 ## ignore them (they are on layer 1 with the terrain).

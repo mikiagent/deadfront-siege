@@ -22,9 +22,11 @@ func _run() -> void:
 	await _test_budget_fallback()
 	await _test_missing_profile()
 	await _test_injected_nan()
+	await _test_abort_lies_down()
 	await _test_corpse_after_ragdoll()
 	await _test_placeholder_body()
 	_test_seam()
+	await _test_server_seam()
 	if failures.is_empty():
 		print("[t_ragdoll] PASS")
 		quit(0)
@@ -159,6 +161,30 @@ func _test_injected_nan() -> void:
 	_expect(rd != null and rd.phase == &"frozen", "NaN fallback still freezes")
 	await _free_all([c])
 
+## A simulation that aborts on its first frame (the stretch guard at hand-off) still ends lying on
+## the ground: the death clip restarts where it would be and plays to its end, then the conform.
+func _test_abort_lies_down() -> void:
+	var c = _spawn(&"velociraptor", Vector3(-60.0, 0.05, -60.0))
+	var sk: Skeleton3D = c.view.rig.skeleton
+	var hips: int = sk.find_bone("Hips")
+	await _wait(0.3)
+	var stand: float = (sk.global_transform * sk.get_bone_global_pose(hips).origin).y
+	R.inject_fault = &"abort"
+	_kill(c)
+	R.inject_fault = &""
+	await _wait_frozen([c])
+	var rd = _ragdoll(c)
+	_expect(rd != null and rd.mode == &"fallback" and str(rd.reason).begins_with("injected abort"), "first-frame abort -> fallback (%s)" % (rd.reason if rd else "no ragdoll"))
+	var lying: float = (sk.global_transform * sk.get_bone_global_pose(hips).origin).y
+	_expect(lying <= stand * 0.5, "aborted ragdoll lies down after the clip (hips %.2f m, standing %.2f m)" % [lying, stand])
+	var gap := 1.0
+	if rd and rd.mesh_instance():
+		var skin: GDScript = load("res://scripts/creatures/ragdoll_skin.gd")
+		var cl: Dictionary = skin.clearance(c.get_world_3d().direct_space_state, skin.posed_points(rd.mesh_instance(), sk, 7), [rd.corpse.get_rid()] as Array[RID])
+		gap = float(cl["min"])
+	_expect(absf(gap) <= 0.06, "aborted ragdoll's lowest skin vertex on the ground (%+.3f m)" % gap)
+	await _free_all([c])
+
 ## After a real ragdoll the corpse keeps its loot, its knife rule and its take path.
 func _test_corpse_after_ragdoll() -> void:
 	var c = _spawn(&"velociraptor", Vector3(-60.0, 0.05, 0.0))
@@ -206,3 +232,20 @@ func _test_seam() -> void:
 	_expect(corpse.global_position.is_equal_approx(p) and c.global_position.is_equal_approx(p), "place_settled moves corpse and body")
 	corpse.free()
 	c.free()
+
+## A server placement wins: the client's ragdoll result does not move the corpse afterwards, and the
+## frozen body is moved to the server's spot with its pose.
+func _test_server_seam() -> void:
+	var c = _spawn(&"velociraptor", Vector3(90.0, 0.05, 90.0))
+	await _wait(0.3)
+	_kill(c)
+	await _wait(0.5)
+	var rd = _ragdoll(c)
+	var p := Vector3(92.0, 0.0, 93.0)
+	rd.corpse.place_settled(p, true)
+	rd.corpse.place_settled(Vector3(80.0, 0.0, 80.0))
+	_expect(rd.corpse.global_position.is_equal_approx(p), "a client placement after the server's is ignored")
+	await _wait_frozen([c])
+	var flat := Vector2(c.global_position.x - p.x, c.global_position.z - p.z).length()
+	_expect(rd.corpse.global_position.is_equal_approx(p) and flat < 0.01, "the frozen body and corpse rest at the server's spot (%.2f m off)" % flat)
+	await _free_all([c])

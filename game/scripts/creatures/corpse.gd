@@ -19,6 +19,8 @@ var poison_spoiled: bool = false
 ## Loot units left when Butchering XP was last paid; a take only pays when units really moved
 ## (a full bag used to pay +3 XP per tap with nothing taken).
 var _units_paid: int = 0
+## Set once a server placed the corpse (place_settled from_server); the client never overrides it.
+var server_placed := false
 
 func setup(c: Creature) -> void:
 	level = maxi(1, int(c.get("level")) if c.get("level") != null else 1)
@@ -251,9 +253,13 @@ func _place_on_tile() -> void:
 		_marker.position = Vector3(0.0, 0.08, 0.0)
 
 ## The one seam for the corpse's authoritative resting place: the ragdoll calls it when the body
-## settles (the ground under its hips); a server can call it later with its own position. The loot
-## marker moves there and the dead body's root follows, keeping its pose.
-func place_settled(world_pos: Vector3) -> void:
+## settles (the ground under its hips); a server calls it with from_server = true, and from then on
+## the client's ragdoll result no longer moves it (the ragdoll moves its posed body there instead).
+## The loot marker moves there and the dead body's root follows, keeping its pose.
+func place_settled(world_pos: Vector3, from_server: bool = false) -> void:
+	if server_placed and not from_server:
+		return
+	server_placed = server_placed or from_server
 	global_position = world_pos
 	if _owner and is_instance_valid(_owner) and _owner.is_inside_tree():
 		_owner.global_position = world_pos
