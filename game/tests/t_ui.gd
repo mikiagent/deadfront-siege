@@ -63,6 +63,10 @@ func _process(_delta: float) -> bool:
 	_test_hex_focus()
 	_test_gate_verdict()
 	_test_review_fixes()
+	_test_free_spot()
+	_test_layout_avoid()
+	_test_current_title()
+	_test_desktop_short_window()
 	OS.remove_logger(_tally)
 	for l in _tally.lines:
 		failures.append("engine %s" % l)
@@ -549,6 +553,113 @@ func _test_review_fixes() -> void:
 	var rect: TextureRect = SS.symbol_rect("melee", 28.0)
 	_expect(rect.texture == club and rect.material == HB.white_material(), "skill symbols draw through the shared white material")
 	rect.free()
+
+## Guards: a pickup toast on the quest card takes the nearest free spot above or below it, never a
+## spot on the card and never one off the screen (review: toasts drew across the quest card).
+func _test_free_spot() -> void:
+	var before := failures.size()
+	var taken_card: Array[Rect2] = [Rect2(422, 34, 240, 72)]
+	var taken_stack: Array[Rect2] = [Rect2(0, 100, 200, 30), Rect2(0, 134, 200, 30)]
+	var rows: Array = [
+		{"name": "quest card", "box": Rect2(380, 100, 100, 28), "taken": taken_card, "view": Vector2(844, 390), "want": Rect2(380, 110, 100, 28)},
+		{"name": "already free", "box": Rect2(10, 200, 50, 20), "taken": taken_card, "view": Vector2(844, 390), "want": Rect2(10, 200, 50, 20)},
+		{"name": "nearer upward", "box": Rect2(10, 105, 50, 20), "taken": [Rect2(0, 100, 844, 40)] as Array[Rect2], "view": Vector2(844, 390), "want": Rect2(10, 76, 50, 20)},
+		{"name": "no room", "box": Rect2(10, 40, 50, 20), "taken": [Rect2(0, 0, 200, 100)] as Array[Rect2], "view": Vector2(200, 100), "want": Rect2()},
+		{"name": "chain down", "box": Rect2(10, 125, 50, 20), "taken": taken_stack, "view": Vector2(200, 400), "want": Rect2(10, 168, 50, 20)},
+	]
+	var placed := 0
+	for row in rows:
+		var label := str(row["name"])
+		var box: Rect2 = row["box"]
+		var taken: Array[Rect2] = row["taken"]
+		var view: Vector2 = row["view"]
+		var want: Rect2 = row["want"]
+		var got: Rect2 = UT.free_spot(box, taken, view)
+		_expect(got == want, "free_spot %s: %s -> %s, want %s" % [label, box, got, want])
+		if want.has_area():
+			placed += 1
+			_expect(Rect2(0.0, 8.0, view.x, view.y - 16.0).encloses(got), "free_spot %s: %s stays inside the view %s" % [label, got, view])
+			for t in taken:
+				_expect(not got.intersects(t.grow(2.0)), "free_spot %s: %s clears the taken block %s" % [label, got, t])
+	if failures.size() == before:
+		print("[t_ui] ok free_spot %d rows, %d placed clear of the taken blocks" % [rows.size(), placed])
+
+## Guards: screen-space labels keep off the HUD blocks and each other, and a label whose object the
+## HUD hides is dropped rather than drawn on top (review: camp labels over the quest text).
+func _test_layout_avoid() -> void:
+	var before := failures.size()
+	var view := Vector2(844, 390)
+	var quest := Rect2(422, 34, 240, 72)
+	var avoid_quest: Array[Rect2] = [quest]
+	var one: Array = [{"anchor": Vector2(540, 120), "w": 80.0, "h": 22.0, "priority": 1}]
+	var a: Array = UT.layout_labels(one, view, avoid_quest)
+	_expect(a.size() == 1, "layout_avoid a: one label off the card -> %d rows" % a.size())
+	if a.size() == 1:
+		var r: Rect2 = (a[0] as Dictionary)["rect"]
+		var far := absf(r.end.y - 120.0)
+		_expect(not r.intersects(quest.grow(2.0)), "layout_avoid a: label %s stays off the quest card %s" % [r, quest])
+		_expect(Rect2(Vector2.ZERO, view).encloses(r), "layout_avoid a: label %s inside the view %s" % [r, view])
+		_expect(far <= (22.0 + UT.SPACE * 0.5) * 4.0, "layout_avoid a: label ends %.1f px under its anchor (at most %.1f)" % [far, (22.0 + UT.SPACE * 0.5) * 4.0])
+	var inside: Array = [{"anchor": Vector2(540, 70), "w": 80.0, "h": 22.0, "priority": 1}]
+	var b: Array = UT.layout_labels(inside, view, avoid_quest)
+	_expect(b.is_empty(), "layout_avoid b: a label anchored inside the card is dropped (%d rows)" % b.size())
+	var c: Array = UT.layout_labels(inside, view, [] as Array[Rect2])
+	_expect(c.size() == 1, "layout_avoid c: the same label with no avoid is placed (%d rows)" % c.size())
+	var crowd: Array = [
+		{"anchor": Vector2(300, 200), "w": 80.0, "h": 22.0, "priority": 3},
+		{"anchor": Vector2(300, 200), "w": 80.0, "h": 22.0, "priority": 2},
+		{"anchor": Vector2(300, 200), "w": 80.0, "h": 22.0, "priority": 1},
+	]
+	var block: Array[Rect2] = [Rect2(250, 150, 100, 30)]
+	var d: Array = UT.layout_labels(crowd, view, block)
+	_expect(d.size() == 3, "layout_avoid d: three labels on one anchor all placed (%d rows)" % d.size())
+	var rects: Array[Rect2] = []
+	for row in d:
+		rects.append((row as Dictionary)["rect"] as Rect2)
+	for i in rects.size():
+		_expect(not rects[i].intersects(block[0]), "layout_avoid d: label %s clears the HUD block %s" % [rects[i], block[0]])
+		for j in range(i + 1, rects.size()):
+			_expect(not rects[i].intersects(rects[j]), "layout_avoid d: labels %s and %s do not overlap" % [rects[i], rects[j]])
+	if failures.size() == before:
+		print("[t_ui] ok layout_avoid single=%s inside_dropped=%s three=%d" % [a.size(), b.is_empty(), d.size()])
+
+## Guards: a survivor holds the highest title at or under their level, and a new survivor holds the
+## level-1 title from character creation (review: a new survivor showed no title).
+func _test_current_title() -> void:
+	var before := failures.size()
+	var rows: Array = [
+		[0, ""], [1, "Venture into the World"], [2, "Venture into the World"], [3, "Castaway No More"],
+		[4, "Castaway No More"], [5, "Camp Builder"], [19, "Wild Lands Veteran"], [20, "Frontier Legend"],
+		[99, "Frontier Legend"],
+	]
+	for row in rows:
+		var level: int = row[0]
+		var want: String = row[1]
+		var got: String = LD.current_title(level)
+		_expect(got == want, "current_title(%d) = \"%s\", want \"%s\"" % [level, got, want])
+	var world: Node = get_root().get_node("World")
+	var was: int = world.pioneer_level
+	world.pioneer_level = 0
+	var fresh: String = LD.current_title(LD.player_level())
+	_expect(fresh == "Venture into the World", "a new survivor (stored level 0) holds \"Venture into the World\" (got \"%s\")" % fresh)
+	world.pioneer_level = was
+	if failures.size() == before:
+		print("[t_ui] ok current_title %d levels, new survivor holds \"%s\"" % [rows.size(), fresh])
+
+## Guards: a short desktop browser window keeps the desktop canvas, while the same shape on a
+## touchscreen is a landscape phone (review: a 1200x480 browser got the phone layout).
+func _test_desktop_short_window() -> void:
+	var before := failures.size()
+	var desktop := DisplayMode.logical_size(Vector2i(1200, 480), 1.0, 0.0, false)
+	_expect(desktop == DisplayMode.DESIGN, "1200x480 without a touchscreen -> %s, want %s" % [desktop, DisplayMode.DESIGN])
+	_expect(not UT.is_compact(Vector2(desktop)), "the desktop 1200x480 canvas %s is not compact" % desktop)
+	var touch := DisplayMode.logical_size(Vector2i(1200, 480), 1.0, 0.0, true)
+	_expect(UT.is_compact(Vector2(touch)), "1200x480 on a touchscreen -> %s is compact" % touch)
+	var land := DisplayMode.logical_size(Vector2i(844, 390), 1.0, 0.0, true)
+	_expect(land == Vector2i(844, 390), "844x390 on a touchscreen -> %s, want 844x390" % land)
+	_expect(DisplayMode.handheld(), "a native (non-web) run is handheld, so --resolution 844x390 stands in for a phone")
+	if failures.size() == before:
+		print("[t_ui] ok desktop_short_window desktop=%s compact=false touch=%s compact=true 844x390=%s handheld=%s" % [desktop, touch, land, DisplayMode.handheld()])
 
 ## Share of an icon's pixels that are opaque (alpha > 0.5); 0 when the icon is missing.
 func _opaque_share(tex: Texture2D) -> float:

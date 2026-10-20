@@ -7,9 +7,11 @@ extends Node3D
 ## nor blown out; the HUD, atlas, bag and character creation also check that their blocks and
 ## controls stay inside the view and do not overlap each other, and the gather radial's hexes and
 ## labels stay off the HUD and the survivor's nameplate. The HUD is also gated past idle: the menu
-## and build sheets, a level-up, a bonded pet out, and a hunt with the pet out (review: five
-## overlaps passed while only the idle HUD was checked). The animal screen (protected) is a
-## shot only, for an eye check of the token theme on it; nothing on it is gated.
+## and build sheets, a level-up, a bonded pet out, a hunt with the pet out, the camp's labels and
+## station menus, and toasts and notices over a level-up (review: five overlaps passed while only the
+## idle HUD was checked; then moving text crossed the quest card at 844x390 and 667x375). The
+## animal screen (protected) is a shot only, for an eye check of the token theme on it; nothing on
+## it is gated.
 ## Windowed: --resolution 844x390 -- --lab=ui_real_capture_lab [--shot-dir=DIR]
 ## (844x390 is the phone check: the owner plays phones landscape; 667x375, 390x844 and 1600x900 also
 ## run.) The verdict without the fit is unit-tested in t_ui (gate_failures), since boot now always fits.
@@ -205,6 +207,8 @@ func _run() -> void:
 	await _hud_sheets_and_level_up(logical)
 	await _pet_out(logical)
 	await _capture_plate(logical)
+	await _camp_and_station(logical)
+	await _busy(logical)
 	# bag (protected inventory_ui): it scrolls down, so its columns are checked across the view,
 	# and off a portrait phone they must start side by side near the top (the portrait rows pushed
 	# the slots and equipment below a 390 px landscape view).
@@ -220,6 +224,9 @@ func _run() -> void:
 	# One player level: the bag printed pioneer level + 1 ("Lv. 1") beside the HUD's and atlas's "Lv. 0".
 	var profile := _player.ui.get("_profile") as Label
 	_expect(profile != null and profile.text.ends_with(LevelDisplay.player_label()), "bag: profile shows the player level %s like the HUD and atlas (got \"%s\")" % [LevelDisplay.player_label(), profile.text.replace("\n", " / ") if profile else "missing"])
+	# The held title from character creation on (orchestrator 2026-10-20: level 1 holds titles.json "1").
+	var held_title := LevelDisplay.current_title(LevelDisplay.player_level())
+	_expect(held_title != "" and profile != null and profile.text.contains(held_title), "bag: profile shows the held title \"%s\"" % held_title)
 	await _capture("bag", [], logical)
 	_player.ui.visible = false
 	# animal screen (protected): shot only, for the eye check of the token theme on it
@@ -235,6 +242,9 @@ func _run() -> void:
 	var cc := CharacterCreation.new()
 	root.add_child(cc)
 	await _frames(3)
+	# HANDS (layer 64) drew on the creation cards (layer 60) on a fresh save.
+	var hands: Control = _player.station_craft.held_slot if _player.station_craft else null
+	_expect(hands == null or not hands.is_visible_in_tree(), "charcreate: HANDS hides while character creation is up")
 	var cc_rects := {}
 	for c in _controls_in(cc):
 		if c is Button or c is LineEdit:
@@ -287,7 +297,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
 	print("[uireal] phone=%s min_font_px=%d min_font_pt=%.2f logical_width=%d window_pt=%dx%d floor_pt=%.2f (smallest: %s)" % [phone, min_px, min_pt, int(logical.x), int(pts.x), int(pts.y), type_floor_pt(pts), _min_font_where])
 	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
 	if _fails.is_empty():
-		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,combat,bag,charcreate shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
+		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
 		get_tree().quit(0)
 	else:
 		for f in _fails:
@@ -544,6 +554,15 @@ func _capture_plate(logical: Vector2) -> void:
 		_expect(glyphs == 0 and pill.size.y <= 42.0, "phone plate of a creature that is not the target: name and bar only (glyphs %d, pill %s)" % [glyphs, pill.size])
 	else:
 		_expect(glyphs >= 2, "plate shows its status glyphs")
+	# The opaque pill (layer 58, above the HUD) keeps off the survivor's name and every HUD block and
+	# hex: beside a compy it hid the name whole.
+	var pill_rect := pill.get_global_transform() * Rect2(Vector2.ZERO, pill.size)
+	var under := 0
+	for h in _hud.taken_rects(PackedStringArray(["pill"])):
+		under += 1
+		_expect(not pill_rect.grow(-0.5).intersects(h), "plate pill %s stays off the HUD rect %s" % [pill_rect, h])
+	print("[uireal] plate pill %s checked against %d HUD rects (nameplate %s)" % [pill_rect, under, _hud.drawn_blocks.get("nameplate")])
+	_expect(_hud.drawn_blocks.has("nameplate"), "plate: the survivor's name is drawn")
 	await _capture("plate", [node], logical)
 	# The hunt, pet still out: End Combat, the skills, Auto/Feed, whistles, the target plate. At 844x390
 	# End Combat sat on ROLL and the target bar ran across the vitals and the quest card.
@@ -569,6 +588,72 @@ func _capture_plate(logical: Vector2) -> void:
 		crop.save_png(_out.path_join("plate_zoom_%dx%d.png" % [get_tree().root.size.x, get_tree().root.size.y]))
 	_player.hunt.stop()
 	wild.process_mode = Node.PROCESS_MODE_INHERIT
+
+## At the camp's bonfire and workbench, the pet still out: the building labels keep off the quest
+## card and the HUD (at 844x390 "Tent" and "Bonfire" sat on the quest text), then with the station
+## menu open its hexes keep off them too (COOK covered "Cargo Warp").
+func _camp_and_station(logical: Vector2) -> void:
+	_hud.set("_last_target", null)  # the quest card comes back: the labels must keep off it
+	for sid: StringName in [&"bonfire", &"workbench"]:
+		var st := Crafting.nearest_station(_player, sid)
+		_expect(st != null, "camp: a %s stands on the home island" % sid)
+		if st == null:
+			continue
+		_player.global_position = st.global_position + Vector3(2.0, 0.0, 2.0)
+		await get_tree().create_timer(0.8).timeout
+		var blocks := with_world_hexes(hud_blocks(_hud, _player, logical), _hud)
+		var pills := count_prefix(blocks, "pill")
+		print("[uireal] camp %s: %d labels, quest card %s" % [sid, pills, blocks.get("quest", "hidden")])
+		_expect(pills >= 2 and blocks.has("quest"), "camp_%s: the camp labels and the quest card are drawn (labels %d)" % [sid, pills])
+		_check_blocks("camp_%s" % sid, blocks, logical)
+		await _capture("camp_%s" % sid, [], logical)
+		_player.open_station_craft(st)
+		await get_tree().create_timer(0.6).timeout
+		blocks = with_world_hexes(hud_blocks(_hud, _player, logical), _hud)
+		print("[uireal] station %s: %d hexes, %d labels" % [sid, count_prefix(blocks, "xhex"), count_prefix(blocks, "pill")])
+		_expect(count_prefix(blocks, "xhex") >= 1, "station_%s: the station menu shows hexes" % sid)
+		_check_blocks("station_%s" % sid, blocks, logical)
+		await _capture("station_%s" % sid, [], logical)
+		_player.station_craft.menu.hide_menu()
+		await get_tree().create_timer(0.3).timeout
+
+## Three pickups, two notices, then a level-up on top, the pet still out: every toast and notice gets
+## a spot of its own off the HUD (at 844x390 they crossed the quest card).
+func _busy(logical: Vector2) -> void:
+	for id: StringName in [&"wood", &"stone", &"fiber"]:
+		_hud.toast(id, 3)
+	_hud.notice("Need a stone knife to butcher this")
+	_hud.notice("Too heavy to carry more")
+	for tag in ["busy", "busy_levelup"]:
+		if tag == "busy_levelup":
+			_hud.call("_on_level_up", 4)
+		await _frames(3)
+		var blocks := with_world_hexes(hud_blocks(_hud, _player, logical), _hud)
+		var toasts := count_prefix(blocks, "toast")
+		var notices := count_prefix(blocks, "notice")
+		print("[uireal] %s: toasts=%d notices=%d levelup=%s" % [tag, toasts, notices, blocks.has("levelup")])
+		_expect(toasts >= 3 and notices >= 2, "%s: all 3 toasts and 2 notices are drawn (got %d, %d)" % [tag, toasts, notices])
+		_check_blocks(tag, blocks, logical)
+		await _capture(tag, [], logical)
+	_hud.set("_levelup_t", -1.0)
+
+## `blocks` plus every hex outside the HUD (station menu, gather radial) with its caption, as xhex<n>.
+static func with_world_hexes(blocks: Dictionary, hud: HuntHud) -> Dictionary:
+	for n in hud.get_tree().get_nodes_in_group(&"hex_button"):
+		var h := n as HexButton
+		if h and h.is_visible_in_tree() and not hud.is_ancestor_of(h):
+			var key := "xhex%d" % blocks.size()
+			blocks[key] = h.hex_rect()
+			if h.caption != "":
+				blocks[key + ".caption"] = h.caption_rect()
+	return blocks
+
+## Keys starting with `prefix`, captions not counted.
+static func count_prefix(blocks: Dictionary, prefix: String) -> int:
+	var n := 0
+	for k in blocks:
+		n += 1 if str(k).begins_with(prefix) and not str(k).contains(".") else 0
+	return n
 
 static func _plate_glyphs(entry: Dictionary) -> int:
 	var line3 := entry["line3"] as Control

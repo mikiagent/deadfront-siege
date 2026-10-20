@@ -568,6 +568,8 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 		shown = "+%s" % shown
 	elif kind == &"xp":
 		shown = "+%s XP" % shown
+	elif kind == &"dodge":  # a dodged hit emits 0.0; it read "-0" over the plate
+		shown = "DODGE"
 	else:
 		shown = "-%s" % shown
 	# White = normal, grey = not very effective, orange = super effective, red = critical.
@@ -582,7 +584,7 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 		&"dot":
 			col = Color(0.95, 0.4, 0.4)
 			fs = 14
-		&"weak":
+		&"weak", &"dodge":
 			col = Color(0.62, 0.62, 0.62)
 			fs = 14
 		&"strong":
@@ -614,14 +616,18 @@ func _on_status_float(id: StringName, c: Creature) -> void:
 	var def := Data.status(id)
 	var label := Label.new()
 	label.text = (def.display_name if def else str(id)).replace("_", " ").to_upper() + ("!" if def == null else "")
-	label.position = Vector2(40 + randf_range(-10.0, 10.0), -6)
+	var nodes: Array = entry.get("float_nodes", [])
+	# Statuses applied together (knockdown + groggy + bleed) stack instead of printing over each other.
+	var y0 := -6.0
+	for row in nodes:
+		y0 -= 18.0 if (row as Dictionary).has("y0") else 0.0
+	label.position = Vector2(40 + randf_range(-10.0, 10.0), y0)
 	label.add_theme_font_size_override("font_size", 15)
 	label.add_theme_color_override("font_color", Creature.status_color(id))
 	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	label.add_theme_constant_override("outline_size", 3)
 	layer.add_child(label)
-	var nodes: Array = entry.get("float_nodes", [])
-	nodes.append({"node": label, "age": -0.3, "y0": -6.0})
+	nodes.append({"node": label, "age": -0.3, "y0": y0})
 	entry["float_nodes"] = nodes
 	_entries[key] = entry
 
