@@ -48,7 +48,7 @@ for f in "$ROOT/game/tests/run_all.gd" "$ROOT"/game/tests/t_*.gd; do
   code=$?
   out="$(cat "$LOG")"
   why=""
-  echo "$out" | grep -qE "^\[$tag\] PASS" || why="no [$tag] PASS line"
+  echo "$out" | grep -qE "^\[$tag\] PASS" || why="no PASS verdict line"
   [[ -z "$why" ]] && echo "$out" | grep -qE "^\[$tag\] FAIL" && why="$(echo "$out" | grep -m1 -E "^\[$tag\] FAIL")"
   err="$(crash_line "$LOG")" && why="$err"
   [[ $code -ne 0 ]] && why="exit $code${why:+; $why}"
