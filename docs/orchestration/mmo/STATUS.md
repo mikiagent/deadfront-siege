@@ -294,6 +294,20 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   roofs may fade further when the survivor is under them but keep a faint outline. W2-OCCLUDE restarted with
   pixel gates for this in finish-3 (wf_ffc48fe3-dc5); W2-BUILDSYS walls/roofs follow the same rule.
 
+- 2026-10-20 (owner) "if you're having issues with dead dinosaurs not staying on the ground, try having them
+  ragdoll on death". New package W2-RAGDOLL (wf_2cc5d74a-087, branch claude/mmo-w2-ragdoll): the death clip's
+  first beat as the hit reaction, then PhysicalBone3D ragdoll onto the terrain collider, freeze once settled
+  (no per-frame cost), at most 4 simulating, fallback to the clip plus terrain-conformed pose; per-species
+  profiles in game/data/creatures/ragdoll.json written by a dsc worker; gates on posed-skin ground contact,
+  lying height, joint limits, physics cost and a blind judge. The orchestrator integrates it after review.
+
+- 2026-10-20 (owner) "enlist codex for some debugging tasks but use a smaller model than astra". Codex runs on
+  gpt-reserve (the smaller model the ChatGPT plan accepts; gpt-6.1-sol/6-sol/6-luna are refused), medium
+  reasoning, one bug per worktree: codex-harbour (travel to a moved dock, basket follow, walkable pier, site
+  check rows), codex-animals (Animals screen 0x0 rect / no backdrop / CLOSE over HARBOUR), codex-errors
+  (the world.gd:124 / hunt_hud.gd:965 SCRIPT ERRORs and a lab sweep). Found so far: worktree clones copied a
+  stale import cache from mmo-overhaul; the base was re-imported and mkwt.sh now imports after cloning.
+
 ## Owner questions (open)
 
 - none
@@ -303,3 +317,4 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - 2026-10-20 merged W1-STRUCTART (37b6de7): import exit 0; [tests] PASS; t_ai/t_build/t_canim/t_combat/t_harbour (islands=15)/t_items/t_light/t_lighting/t_save/t_structart/t_tame/t_web PASS; SMOKE PASS; island_lab exit 0, 0 SCRIPT ERROR, nodes=378 creatures=24 (unchanged); build_lab [build] PASS; harbour_lab rot=2 on the coast; creature lab 0 "couldn't resolve track"; home/harbour shots Forward+, compat, 844x390 checked (pier on the water, home unchanged); pending hooks: tools/blender/structures/integrator_hooks.patch (W1-BUILD prop_visuals.gd, placed_building.gd, field_catapult.gd; W1-HARBOUR harbour.gd tap box)
 - 2026-10-20 merged W1-ICONART (519f5c0): import exit 0; [tests] PASS; t_ai/t_build/t_canim/t_combat/t_harbour (islands=15)/t_iconart/t_items/t_light/t_lighting/t_save/t_structart/t_tame/t_web PASS; SMOKE PASS; island_lab exit 0, 0 SCRIPT ERROR, nodes=378 creatures=24 (unchanged); build_lab [build] PASS; harbour_lab rot=2; item_art_lab [itemart] ok=true; creature lab 0 "couldn't resolve track"; base moved (structart hooks 0d0f8c2) and was merged in, run_all/smoke/t_iconart/t_structart/t_harbour rerun PASS; home shots Forward+, compat, 844x390 unchanged; asset register icon row updated; pending hooks: t_iconart in tools/smoke.sh or CI (gates already run every t_*.gd), W2-SCREENS swaps inventory_ui/item_icons to ArtSlot/ItemArt
 - 2026-10-20 merged DSC-MINORS (1174800): clean merge, no conflicts; import exit 0; [tests] PASS; t_ai/t_build/t_canim/t_combat/t_harbour (islands=15)/t_iconart/t_items/t_light/t_lighting/t_save (5 deliberate SCRIPT ERRORs, as on base)/t_structart/t_tame/t_web PASS; SMOKE PASS; island_lab exit 0, 0 SCRIPT ERROR, nodes=378 creatures=24 (unchanged); build_lab [build] PASS; harbour_lab rot=2; item_art_lab ok=true; package labs combat_rules/aival/hunt_lab/capture/petslab/aisweep PASS, foundation_lab fibre merged line; creature_anim_lab 0 "couldn't resolve track"; no new Godot .ips; home shots Forward+, compat (grass a little more saturated, camp pad lighter, as intended), 844x390 checked; lighting_lab windowed Forward+ PASS (worst pad 1.42), compat FAIL on mobile survivor shadow 0.803 > 0.80, identical on base b221e24 (pre-existing, not this package; compat worst pad 0.80 PASS); pending hooks: player.gd `_begin_gather` refusal hunk (finding 18) must be carried into PlayerActions by W2-PLAYER (running)
+- 2026-10-20 merged DSC-CLIPS (4def2d1): clean merge, no integrator hooks in the report; import exit 0, 0 "couldn't resolve track"; [tests] PASS; t_ai/t_build/t_canim/t_combat/t_harbour (islands=15)/t_iconart/t_items/t_light/t_lighting/t_save (5 deliberate SCRIPT ERRORs, as on base)/t_structart/t_tame/t_web PASS; SMOKE PASS; island_lab exit 0, 0 SCRIPT ERROR, nodes=378 creatures=24 (unchanged); build_lab [build] PASS; sleep_lab ok; creature_anim_lab 0 "couldn't resolve track", 0 SCRIPT ERROR (quads still run x6.67/x16 at speed, known, quads-loco2); base moved (dd3b110 docs) and was merged in, run_all/smoke rerun PASS; home shots Forward+, compat, 844x390 identical to DSC-MINORS; creature_anim_lab windowed shot grounded; one Godot-2026-10-20-131531.ips appeared mid-run (AppKit abort 47 ms after launch, before project code; every run of mine produced its output, so not attributable to this package); pending hooks: none from DSC-CLIPS (quads-loco2 must drop protoceratops/megaloceros from t_canim KNOWN_GLIDERS when it lands)
