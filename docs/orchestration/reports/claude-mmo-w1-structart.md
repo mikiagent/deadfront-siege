@@ -17,8 +17,8 @@ world-harbour-07 (pier model only; placing it on the coast is W2-TERRAIN).
   (`tools/blender/structures/godot_import_settings.py`), so the set loads one texture.
 - **Drying-rack stages** read by value, colour and shape: empty frame on a hide mat; raw = wide, long, bright red
   strips with fat streaks (tile luma 68); drying = deep maroon, narrower, slightly curled (27); dried = near-black
-  brown, thin, curled (16) with an amber fat rim down each strip so it still reads on the dark dirt disc, plus a
-  tied jerky bundle on the mat. The rack frame (bark, luma 59) is identical in every stage, so swapping models
+  brown, shorter, more curled (16), each strip outlined by thin amber fat rims down both edges so it still reads
+  on the dark dirt disc, plus a tied jerky bundle on the mat. The rack frame (bark, luma 59) is identical in every stage, so swapping models
   reads as the meat changing.
 - **Reproducible headless build**: `Blender -b --factory-startup -P tools/blender/structures/build.py -- [names]`
   rebuilds the atlas and any or all GLBs (`lib.py` = atlas painter, self-UVing bmesh primitives, exporter;
@@ -39,32 +39,47 @@ world-harbour-07 (pier model only; placing it on the coast is W2-TERRAIN).
   shot `tools/blender/structures/built_base_shot.gd`.
 
 Commits: ddc1aef (WIP helper), 04027fe, 5cb3f5c, 59f1f3f, 209539f, 8fb71cf, 825ef4c, 82f06dc, 45efa5f (first
-report); review round: 1c2417a, 8be17c1, 78a251d and the commit carrying this update.
+report); review round: 1c2417a, 8be17c1, 78a251d, 3018e79; resumed round (after the usage-limit cut): c00a1e9
+(STATUS.md synced from claude/mmo-overhaul so the branch merges without a conflict), 8813169 (dried strips
+outlined on both edges) and the commit carrying this update.
 
 ## Acceptance checklist
 
 | Item | Result (exact line) |
 |---|---|
 | check_manifest prints PASS, every kind resolves to an existing GLB | `[check_manifest] PASS 41 kinds resolve to existing GLBs (23 Blender, 18 Kenney marked REPLACE, 4 Blender stand-ins marked REPLACE)` |
-| Each GLB <= 4k tris, one atlas material, origin at ground centre, footprint within manifest AABB +-5 % | enforced by check_manifest (same PASS line; largest is pier at 1416 tris) and in Godot by `[t_structart] PASS` (material path == structures_atlas.tres, measured AABB vs aabb_m within 5 %) |
+| Each GLB <= 4k tris, one atlas material, origin at ground centre, footprint within manifest AABB +-5 % | enforced by check_manifest (same PASS line; largest are pier and drying_rack_dried at 1416 tris) and in Godot by `[t_structart] PASS` (material path == structures_atlas.tres, measured AABB vs aabb_m within 5 %) |
 | Four drying-rack stages differ | `[t_structart] drying_rack stages ["empty", "raw", "drying", "dried"] distinct`; check_manifest now also fails when two stage GLBs hash the same; seen in the shots below |
 | Stages separate by value, dried clear of the frame | `[t_structart] stage luma raw 68 drying 27 dried 16, frame bark 59` (test fails on a step under 10 or dried within 20 of the bark) |
 | Atlas imported with mipmaps | `[t_structart] PASS` (fails when `structures_atlas.png` has no mipmaps); `godot_import_settings.py` prints `[import_settings] structures_atlas.png mipmaps on` and forces `mipmaps/generate=true` |
 | Low-poly marking | `[t_structart] PASS` (fails when a stand-in is not REPLACE or a Blender row has no `upgrade`); check_manifest enforces the same |
-| Windowed 1600x900 scripted base, Forward+ | `[audit] swapped 23 visuals, racks 4` / `[audit] shot .../r5_base_forward.png` (+ `_racks.png`) |
-| Same in gl_compatibility | `OpenGL API 4.1 Metal - 90.5 - Compatibility` / `[audit] shot .../r5_base_compat.png` (+ `_racks.png`) |
-| --lab=build_lab headless still passes | exit 0, `[build] restored 6` (this base has no `[build] PASS` line; that line is W1-BUILD's addition). Colliders are unchanged until the hook; the new aabb_m values are what the hook makes them use |
-| t_structart | `[t_structart] PASS` |
-| run_all suite | `[tests] PASS` |
-| smoke | `SMOKE PASS` (tools/smoke.sh --no-import through gslot) |
-| structart lab (windowed, cam 28) | `[structart] lab placed 24 models, missing []` (run before the last colour-only rebuild; same 24 files) |
-| field_catapult hook parses | scratch copy with the hook compiled in a headless `GDScript.reload()`: no error on the hook lines (only the copy's own self-type errors from dropping `class_name`); a control copy with `modl` typo fails with `Identifier "modl" not declared` |
+| Windowed 1600x900 scripted base, Forward+ | `[audit] swapped 23 visuals, racks 4` / `[audit] shot .../r7_base_forward.png` (+ `_racks.png`) |
+| Same in gl_compatibility | `OpenGL API 4.1 Metal - 90.5 - Compatibility - Using Device: Apple - Apple M5 Pro` / `[audit] swapped 23 visuals, racks 4` / `[audit] shot .../r7_base_compat.png` (+ `_racks.png`) |
+| --lab=build_lab headless still passes | exit 0, `[build] restored 6` (rerun this round; this base has no `[build] PASS` line, that line is W1-BUILD's addition now merged in claude/mmo-overhaul). Colliders are unchanged until the hook: against the merge base the manifest diff changes no field prop_visuals or build_grid read (only `note` text, new `glb`/`aabb_m`/`stages`/`nodes`/`art_status`/`upgrade` fields and the new `pier` row) |
+| Merges cleanly into claude/mmo-overhaul (8ca2496) | `git merge-tree --write-tree --name-only HEAD claude/mmo-overhaul` prints only the tree id (no CONFLICT) |
+| t_structart | `[t_structart] PASS` (rerun this round after the dried rebuild and an --import) |
+| run_all suite | `[tests] PASS` (rerun this round) |
+| smoke | `SMOKE PASS` (tools/smoke.sh --no-import through gslot, rerun this round) |
+| structart lab (windowed, cam 28) | `[structart] lab placed 24 models, missing []` (earlier round, not rerun after the dried-strip rebuild; same 24 files) |
+| field_catapult hook parses | scratch copy with the hook compiled in a headless `GDScript.reload()`: no error on the hook lines (only the copy's own self-type errors from dropping `class_name`); a control copy with `modl` typo fails with `Identifier "modl" not declared`; earlier round. claude/mmo-overhaul's field_catapult.gd (W1-BUILD merge) adds `max_hp`, `_refresh_label`, `pack_up` but leaves the `_ready()` lines the hook edits unchanged |
 
 ## Screenshots inspected
 
 All under `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/w1/structart/`:
 
-Review round (current art):
+Resumed round (current art):
+
+- `r7_base_forward.png`, crop `r7_forward_racks_crop.png` (gameplay zoom) and `r7_close_racks_crop.png` (cam 10):
+  the dried rack now reads as a full rack of dark strips outlined in amber, the same density as the raw and
+  drying racks; close up the strips are clearly near-black. Empty, raw (bright red) and drying (maroon) unchanged.
+- `r7_base_compat.png`, crop `r7_compat_racks_crop.png`: gl_compatibility, all four stages distinct.
+- `r6_forward_racks_crop.png` / `r6_compat_racks_crop.png`: the intermediate try (wider strips, one 18 % rim):
+  the dark body still vanished on the dirt and the rack still read as orange sticks, so I outlined both edges.
+  Sampled pixels from `r6_base_forward.png`: the dirt pad renders at luma ~69 and the dried strip pixels at
+  ~53-70, i.e. the lit near-black albedo lands at the dirt's value; only an outline separates it.
+- `r6_racks_sheet.png`: Blender Eevee contact sheet of the four racks (headless `preview.py`).
+
+Review round:
 
 - `r5_base_forward.png` (cam size 22, gameplay zoom) and its crop `r5_forward_racks_crop.png`: empty rack is bare
   poles; raw is bright red; drying is visibly darker maroon; dried shows thin dark curled strips with amber rims
@@ -166,8 +181,9 @@ and `StructartLab.swap_visual(node, stage)` show the lookup.
   check_manifest); exact field_catapult hook; taming pen now on the Blender fence; per-length pier boards;
   check_manifest stage-hash check. Not fixed: byte-identical rebuilds. Rebuilds still differ by a few bytes inside
   normal/tangent buffers (the reviewer rated it acceptable; geometry, JSON and checks are stable).
-- **Owner, please confirm about Blender.** It is still not running (checked with pgrep this round), so the Blender
-  MCP lock is unusable. Before an integrator merges this branch, the owner should reopen Blender and confirm
+- **Owner, please confirm about Blender.** The task said Blender MCP was connected again, but on resuming,
+  `get_addon_status` returned `Addon handshake failed: Not connected to Blender`, so this round also built headless
+  (`Blender -b --factory-startup -P`). The live Blender was not touched. Before an integrator merges this branch, the owner should reopen Blender and confirm
   nothing was lost from the crash below.
 - **I crashed the owner's Blender.** My first live build switched the window to a temporary scene and ran the glTF
   exporter under `temp_override`; Blender 5.2 segfaulted in the depsgraph (crash log
