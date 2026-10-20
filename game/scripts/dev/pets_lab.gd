@@ -1,6 +1,7 @@
 extends Node3D
 ## Pet respawn cooldown acceptance: a dead pet shows the circular countdown ring in the PETS
-## sheet and cannot be summoned until the timer runs out. Headless: five checks, exit 1 if any fails.
+## sheet and cannot be summoned until the timer runs out; the bonded cap (durango 09) reads "n / cap"
+## and refuses a 4th bond at 3 / 3 without losing the animal. Headless: seven checks, exit 1 if any fails.
 
 var _player: Player
 var _hud: HuntHud
@@ -40,6 +41,13 @@ func _demo() -> void:
 	var copy := PetRecord.from_dict(down.to_dict())
 	var kept := copy.respawning() and is_equal_approx(copy.respawn_left, down.respawn_left)
 	print("[petslab] save round trip: %s" % ("yes" if _check(kept, "save round trip keeps the cooldown") else "NO"))
+	# Bonded cap: 2 / 3, a third bond fits, a fourth is refused and stays with the caller.
+	var third := PetRecord.from_def(def, &"")
+	var label_before := Bonding.label(_player)
+	print("[petslab] cap label %s, third bond: %s" % [label_before, "yes" if _check(label_before == "2 / 3" and Bonding.try_bond(_player, third), "label 2 / 3 and a third bond fits") else "NO"])
+	var fourth := PetRecord.from_def(def, &"")
+	var refused := not Bonding.try_bond(_player, fourth) and _player.bonded.size() == 3 and not _player.bonded.has(fourth) and fourth.uid != ""
+	print("[petslab] 4th bond refused at %s: %s ('%s')" % [Bonding.label(_player), "yes" if _check(refused, "4th bond refused at 3 / 3, nothing lost") else "NO", Bonding.full_message(3, Bonding.cap(_player))])
 	# Timer ticks down and releases.
 	down.tick_respawn(PetRecord.RESPAWN_TIME)
 	var released := _check(not down.respawning(), "cooldown ends after RESPAWN_TIME")
@@ -68,7 +76,7 @@ func _demo() -> void:
 	_hud._refresh_sheet()
 	await get_tree().process_frame
 	await get_tree().process_frame
-	print("[petslab] %s" % ("PASS 5/5" if _fails.is_empty() else "FAIL " + "; ".join(PackedStringArray(_fails))))
+	print("[petslab] %s" % ("PASS 7/7" if _fails.is_empty() else "FAIL " + "; ".join(PackedStringArray(_fails))))
 	if DisplayServer.get_name() == "headless":
 		get_tree().quit(0 if _fails.is_empty() else 1)
 	# headed --shot run: Game autoload takes the screenshot after its delay.

@@ -1,7 +1,9 @@
 extends Node3D
 ## Field tame (M9b) + pen tame, end to end. Headless: wears the animals below 30 % HP, completes
-## one field tame and one net -> pen tame, checks the technique lock, prints
-## '[capture] PASS bonded+=2' and exits 0, else prints the failures and exits 1. F8 time_scale x60.
+## one field tame and one net -> pen tame, checks the technique lock and the durango 09 capture rule
+## (stunned at 80 % eligible, awake at 50 % not with the tutorial hint, awake at 29 % eligible, dead
+## never), prints '[capture] PASS bonded+=2' and exits 0, else prints the failures and exits 1.
+## F8 time_scale x60.
 
 var _player: Player
 var _cam: Camera3D
@@ -112,6 +114,7 @@ func _demo() -> void:
 		corpse._emptied = true
 		corpse._expires_left = 0.05
 		await get_tree().create_timer(0.25).timeout
+	await _rule_demo()
 	await _pen_demo()
 	var gained := _player.bonded.size() - bonded_before
 	_check(gained == 2, "bonded +%d" % gained)
@@ -140,6 +143,24 @@ func _describe(rec: PetRecord) -> String:
 	if rec == null:
 		return "(none)"
 	return "%s grade=%s lv=%d wild=%d origin=%s uid=%s" % [rec.species, rec.grade, rec.level, rec.wild_level, rec.origin, rec.uid]
+
+## Durango 09 on a live animal: eligibility is stunned at any HP, or under the health gate.
+func _rule_demo() -> void:
+	var c := _spawn(&"compsognathus", &"comp_rule", Vector3(-4.0, 0, 3.0))
+	await get_tree().process_frame
+	c.health.hp = c.health.max_hp * 0.8
+	c.statuses.apply(&"knockdown", _player)
+	_check(FieldTame.capture_eligible(c), "stunned at 80 %% HP eligible (net p=%.2f)" % CaptureSystem.chance(1, c.def.capture_tier, c.health.fraction(), c.level))
+	c.statuses.clear_id(&"knockdown")
+	c.health.hp = c.health.max_hp * 0.5
+	var hint := FieldTame.capture_hint(c)
+	_check(not FieldTame.capture_eligible(c) and hint == str(FieldTame.capture_cfg().get("hint_text", "")), "awake at 50 %% HP not eligible, hint '%s'" % hint)
+	c.health.hp = c.health.max_hp * 0.29
+	_check(FieldTame.capture_eligible(c), "awake at 29 %% HP eligible (net p=%.2f)" % CaptureSystem.chance(1, c.def.capture_tier, c.health.fraction(), c.level))
+	c.statuses.apply(&"knockdown", _player)
+	c.health.take_damage(c.health.max_hp * 2.0, _player)
+	await get_tree().create_timer(0.1).timeout
+	_check(not is_instance_valid(c) or not FieldTame.capture_eligible(c), "dead never eligible, even knocked down")
 
 ## Net a downed raptor, pen it, run the pen to completion: it must land in the roster.
 func _pen_demo() -> void:

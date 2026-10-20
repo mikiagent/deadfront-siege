@@ -1,6 +1,7 @@
 extends SceneTree
 ## W1-TAME checks: pet bags keep their size, growth is additive and bounded, one grade drives
-## the rates, every tame gets an identity, and the capture rules (30 % HP, technique) hold.
+## the rates, every tame gets an identity, and the capture rules (durango 09: stunned or under 30 % HP;
+## technique) hold.
 ## Usage: godot --headless --path game --script res://tests/t_tame.gd
 
 var failures: Array[String] = []
@@ -221,19 +222,27 @@ func _test_rules() -> void:
 	_data().set_survival_unlocked(&"capture_technique_II", true)
 	var player = (load("res://scripts/player/player.gd") as GDScript).new()
 	player.inventory.add(ItemStackS.make(&"capture_net_ii", 2))
+	# Durango 09: stunned at any HP, or under 30 % HP; an unstunned animal at 50 % stays out of reach.
+	var awake = _creature(&"velociraptor", 0.5, false)
+	awake.genetics = GeneticsS.neutral()
+	var at_awake: bool = CaptureS.attempt(player, awake, 1)
+	var cages_awake: int = player.inventory.count_of(&"captured_animal")
+	_expect(at_awake == false and player.inventory.count_of(&"capture_net_ii") == 2 and cages_awake == 0, "net refuses an unstunned animal at 50 %% HP (returned %s, cages %d)" % [at_awake, cages_awake])
+	awake.free()
 	var half = _creature(&"velociraptor", 0.5, true)
 	half.genetics = GeneticsS.neutral()
 	var at_half: bool = CaptureS.attempt(player, half, 1)
 	var nets_after_half: int = player.inventory.count_of(&"capture_net_ii")
-	var bagged_half: bool = player.inventory.find_first(&"captured_animal") >= 0
-	_expect(at_half == false and nets_after_half == 2 and not bagged_half, "net refuses at 50 %% HP (returned %s, nets %d, bagged %s)" % [at_half, nets_after_half, bagged_half])
-	half.free()
-	var low = _creature(&"velociraptor", 0.25, true)
+	var cages_half: int = player.inventory.count_of(&"captured_animal")
+	_expect(at_half == true and nets_after_half == 1 and cages_half == 1, "net takes a stunned animal at 50 %% HP (returned %s, nets %d, cages %d)" % [at_half, nets_after_half, cages_half])
+	if is_instance_valid(half) and not half.is_queued_for_deletion():
+		half.free()
+	var low = _creature(&"velociraptor", 0.25, false)
 	low.genetics = GeneticsS.neutral()
 	var at_low: bool = CaptureS.attempt(player, low, 1)
 	var nets_after_low: int = player.inventory.count_of(&"capture_net_ii")
-	var bagged_low: bool = player.inventory.find_first(&"captured_animal") >= 0
-	_expect(at_low == true and nets_after_low == 1 and bagged_low, "net takes a creature at 25 %% HP (returned %s, nets %d, bagged %s)" % [at_low, nets_after_low, bagged_low])
+	var cages_low: int = player.inventory.count_of(&"captured_animal")
+	_expect(at_low == true and nets_after_low == 0 and cages_low == 2, "net takes an unstunned creature at 25 %% HP (returned %s, nets %d, cages %d)" % [at_low, nets_after_low, cages_low])
 	if is_instance_valid(low) and not low.is_queued_for_deletion():
 		low.free()
 	player.free()
@@ -254,7 +263,7 @@ func _test_rules() -> void:
 	var comp = _creature(&"compsognathus", 0.2, true)
 	_expect(FieldTameS.lock_reason(comp) == "", "tier-1 starter species needs no technique")
 	comp.free()
-	print("[t_tame] rules respawn=%.0f net@50%%=%s net@25%%=%s nets=%d smilodon='%s' food_id='%s'" % [PetRecordS.RESPAWN_TIME, at_half, at_low, nets_after_low, str(hint.get("text", "")), str(hint.get("food_id", ""))])
+	print("[t_tame] rules respawn=%.0f net@50%%awake=%s net@50%%stunned=%s net@25%%awake=%s nets=%d smilodon='%s' food_id='%s'" % [PetRecordS.RESPAWN_TIME, at_awake, at_half, at_low, nets_after_low, str(hint.get("text", "")), str(hint.get("food_id", ""))])
 
 ## A hand-edited save cannot buy stats or bag space: gains cap at 3 per level-up, EVs at 300,
 ## bag rows at the species size (or the legacy 10).

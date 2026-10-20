@@ -44,14 +44,14 @@ static func stat_factor(rec: PetRecord) -> float:
 static func body_scale(rec: PetRecord) -> float:
 	return lerpf(float(cfg().get("baby_scale", 0.35)), 1.0, clampf(rec.maturity, 0.0, 1.0))
 
-## Starts the growth clock of a newborn: fed for one interval, first cuddle due after one interval.
+## Starts the growth clock of a newborn: fed for one interval, first cuddle due at birth.
 static func start(rec: PetRecord, born_at: int) -> void:
 	rec.born_at = born_at
 	rec.maturity = 0.0
 	rec.imprint = 0.0
 	rec.growth_at = born_at
 	rec.fed_until = born_at + int(cfg().get("feed_interval_s", 1200)) ## ASSUMPTION: a newborn starts fed.
-	rec.cuddle_at = born_at + int(cfg().get("cuddle_interval_s", 1800))
+	rec.cuddle_at = born_at
 	rec.recompute()
 
 ## Brings maturity up to `now`. Returns true when it changed (stats were recomputed).
@@ -93,10 +93,10 @@ static func feed(rec: PetRecord, inv: Inventory, now: int) -> bool:
 static func cuddle_ready(rec: PetRecord, now: int) -> bool:
 	return is_baby(rec) and now >= rec.cuddle_at
 
-## Imprint per cuddle: one cuddle per interval over the full growth makes 100 %.
+## Imprint per cuddle: a cuddle at birth and one per interval while growing (fed) makes 100 %.
 static func imprint_per_cuddle() -> float:
 	var interval := maxf(1.0, float(cfg().get("cuddle_interval_s", 1800)))
-	return 1.0 / maxf(1.0, floorf(total_s() / interval))
+	return 1.0 / maxf(1.0, ceilf(total_s() / interval))
 
 static func cuddle(rec: PetRecord, now: int) -> bool:
 	if not cuddle_ready(rec, now):
