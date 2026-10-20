@@ -286,13 +286,18 @@ func _test_optional_clips() -> void:
 		rex.anim.play_clip(&"idle")
 		_advance(rex, 0.25)
 	rex.free()
-	# The velociraptor gained authored sleep/feed clips (dsc re-animation).
-	var raptor = _spawn(&"velociraptor")
-	pb = raptor.anim.tree.get("parameters/playback")
-	raptor.anim.play_clip(&"sleep", true)
-	_advance(raptor, 0.25)
-	_expect(pb.get_current_node() == &"sleep" and raptor.anim.current_clip == &"sleep", "velociraptor play_clip(sleep): state machine on %s" % pb.get_current_node())
-	raptor.free()
+	# The velociraptor and the zebraceratops gained authored sleep/feed clips (dsc re-animation).
+	var raptor
+	for id in [&"velociraptor", &"zebraceratops"]:
+		raptor = _spawn(id)
+		pb = raptor.anim.tree.get("parameters/playback")
+		for clip in [&"sleep", &"feed"]:
+			raptor.anim.play_clip(clip, true)
+			_advance(raptor, 0.25)
+			_expect(pb.get_current_node() == clip and raptor.anim.current_clip == clip, "%s play_clip(%s): state machine on %s" % [id, clip, pb.get_current_node()])
+			raptor.anim.play_clip(&"idle")
+			_advance(raptor, 0.25)
+		raptor.free()
 	# Fallback: any rigged species still without a sleep clip must stay on idle (species gain clips over time).
 	var fallback_id: StringName = &""
 	for id in [&"deinonychus", &"zebraceratops", &"stegosaurus", &"compsognathus"]:
