@@ -1,0 +1,60 @@
+{
+  "package": "W2-RAGDOLL",
+  "round": 1,
+  "status": "partial (owner asked for a clean stop)",
+  "pass": false,
+  "gates_seen": {
+    "smoke": "SMOKE PASS",
+    "run_all": "[tests] PASS",
+    "t_ragdoll": "[t_ragdoll] PASS",
+    "every_t": "all 21 t_*.gd exit 0 and print PASS",
+    "ragdoll_lab_headless": "[ragdoll_lab] PASS cases=33 ok=33",
+    "perf": "[ragdoll_lab] perf median added=0.140ms (max 2.0) / [ragdoll_lab] PASS perf",
+    "merge_tree": "git merge-tree --write-tree claude/mmo-overhaul HEAD -> 00af33c7, no conflicts"
+  },
+  "not_done": [
+    "ragdoll_lab windowed Forward+ / gl_compatibility / phone 844x390 (not rerun by the reviewer)",
+    "save/reload with a fresh corpse in the real game (corpses are not in the save at all, base or branch, so no regression expected; not run)",
+    "water-edge kills and kills on the real island terrain",
+    "blind A/B rated by a second viewer; only the reviewer looked at the frames"
+  ],
+  "findings": [
+    {
+      "severity": "major",
+      "where": "game/scripts/creatures/ragdoll.gd _abort/_resume_clip (fallback after an aborted simulation)",
+      "problem": "When the simulation aborts in the first frames (stretch guard), the corpse does not lie down: velociraptor killed on a 20-degree slope facing downhill (heading 90) aborted 'joint BackFoot.L stretched 47 % at 0.02 s' and was still standing crouched upright at 1.0, 2.0 and 4.5 s (pick_branch/seq_velociraptor_slope_90.png); 15 skin vertices >6 cm under the slope. megaloceros_slope_270 the same (BackFoot.L stretched 122 % at 0.02 s, 11 vertices under). RagdollRig.build reset/rewrote every bone pose, then the AnimationTree is just re-activated; the death clip does not visibly finish.",
+      "fix": "On abort, restart the death clip from since_death (seek the death state/animation, not only tree.active = true) and verify the fallback pose lies down; add a t_ragdoll case that aborts at frame 1 and asserts hips <= 50 % standing after the clip."
+    },
+    {
+      "severity": "major",
+      "where": "ragdoll_lab coverage vs real deaths: blow direction and heading on slopes; profiles' foot/leg chains",
+      "problem": "The lab always faces the creature one way and hits it from its left flank, so all 33 cases pass. Reviewer sweep (10 species x flat/slope x 4 headings, blow from -X, headless): 10 of 80 deaths fall back, 9 of them on the slope, 7 at 0.02-0.07 s because the uphill feet start inside the terrain (heading 90: coelophysis, compsognathus, megaloceros, tyrannosaurus, velociraptor, zebraceratops). On flat, zebraceratops hit from behind aborted 'FrontLowLeg.L stretched 40 % at 0.18 s', deinonychus_180 'Shoulders 64 % at 1.05 s', tyrannosaurus_90 'Metatarsal.R 37 %'. In game players mostly hit from the front and creatures stand on slopes at any heading.",
+      "fix": "Lift/settle the bodies out of the ground at hand-off (start feet at their ground contact, or enable the stretch guard only after ~0.1 s and depenetrate first), and make the lab run every species at 4 headings and 2+ blow directions on flat and slope."
+    },
+    {
+      "severity": "major",
+      "where": "game/data/creatures/ragdoll.json tyrannosaurus profile / Ragdoll._finish conform",
+      "problem": "Ragdolls that did not fall back still sink: tyrannosaurus on FLAT ground, heading 180, blow from -X: mode=ragdoll, lowest skin vertex 0.655 m under the ground, 16 sampled vertices >6 cm under; frames show it flipping legs-up at 1.0 s and ending with head and neck buried, tail raised (pick_branch/seq_tyrannosaurus_flat_180.png). Reproduced identically in 3 runs. tyrannosaurus_slope_270 ragdoll -0.433 m (7 under), deinonychus_slope_90 -0.084 m, gallimimus_slope_180 -0.063 m. The conform is clamped to max_shift and samples every 97th vertex, so it cannot rescue this.",
+      "fix": "Raise the T. rex head/neck capsule radii to the skin (or add a head body), keep the belly-up guard from letting it roll legs-up, and gate this case in the lab (heading sweep above)."
+    },
+    {
+      "severity": "minor",
+      "where": "game/scripts/creatures/ragdoll.gd _nearby_bodies / RagdollSkin.ground_y",
+      "problem": "Collision exceptions and ground-ray excludes are captured once at death. Bodies that arrive later (a corpse created a frame later in a multi-kill, a creature or player walking in) are on layer 1, so the ragdoll can land on them and the freeze ray can measure the ground off them. Cluster test (6 raptors 1.5 m apart, same frame): all 6 corpses and loot exist, but cluster4 (budget fallback) came to rest 0.294 m above the terrain with conform clamped at +0.300 (lifted onto something that is not ground).",
+      "fix": "Ray against terrain/static props only (a dedicated layer or exclude every 'creatures'/'player'/'corpse' node at freeze time), and refresh the exception list when new corpses spawn."
+    },
+    {
+      "severity": "minor",
+      "where": "game/scripts/creatures/corpse.gd place_settled (server seam)",
+      "problem": "The ragdoll calls place_settled at freeze unconditionally, so a server position applied earlier (during the 0.3-3.3 s hit react/sim) is overwritten by the client's result; the seam is not authoritative in practice. The loot marker also sits at the tile centre until the freeze.",
+      "fix": "Record a server-set flag in place_settled(world_pos, from_server) and skip the client write when set; note it under Integrator hooks."
+    }
+  ],
+  "verified_ok": [
+    "Loot conservation: 26 ragdolled/fallback corpses, 226 units before, 226 taken via take_slot; no duplicate corpses in the 6-at-once cluster (6/6).",
+    "Budget: 6 simultaneous deaths -> 4 ragdolls + 2 'budget 4' fallbacks.",
+    "On flat ground hit from the lab-like directions most species lie on a flank with skin within 6 cm (70/80 ragdolls in the sweep; megaloceros, zebraceratops, raptors, protoceratops clean).",
+    "Blind A/B (same deaths, base claude/mmo-overhaul vs branch, reviewer's scene, no tile snap on base): branch better on slopes for protoceratops (-0.274 m/524 under -> -0.030/0), utahraptor (-0.673/344 -> -0.020/0), velociraptor slope 90 (-0.703/1503 -> -0.075/15), T. rex slope 270 (-1.200 -> -0.433), deinonychus slope (floats +0.185 -> -0.084), coelophysis (-0.056 -> -0.003); equal on flat for gallimimus, zebraceratops, megaloceros, velociraptor; WORSE for T. rex flat 180 (base +0.002 on the ground -> branch -0.655 buried)."
+  ],
+  "screenshots": "/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/b2302670-e08e-4f7f-8e24-c720e0f2b372/scratchpad/rv/pick_branch and pick_base (seq_*.png 2x2 at 0.35/1.0/2.0/4.5 s, low_*.png), branch/cluster.png; scene script rv/rv_ab.gd"
+}
