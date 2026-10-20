@@ -3109,6 +3109,7 @@
     "note": "All twelve trees cost 2246 SP; a character has ~897. Four big trees (Survival, Gathering, Construction, Processing) alone cost 1048."
   },
   "bonded_base": 3,
+  "bonded_max": 7,
   "category_cap": "character_level",
   "reference": {
     "_about": "Spec 12: the 918 original technique records (Durango:0 docs). Counts only: the source table (kghj76138.github.io/durango-homecoming-guide/en/skills.html) returned 404 on 2026-10-20, so only the nodes the pack names are imported above.",

@@ -25,7 +25,13 @@ static func recipe_block(sk: SkillState, recipe_id: String) -> String:
 	var n: Dictionary = gate[1]
 	if sk.is_unlocked(tree, str(n.get("id", ""))):
 		return ""
-	return "learn %s (%s %s, %d SP)" % [str(n.get("name", n.get("id", ""))), SkillState.NAMES.get(tree, tree), LevelDisplay.label(int(n.get("level", 1))), int(n.get("sp", 0))]
+	var cost := int(n.get("sp", 0))
+	var msg := "learn %s (%s %s, %d SP)" % [str(n.get("name", n.get("id", ""))), SkillState.NAMES.get(tree, tree), LevelDisplay.label(int(n.get("level", 1))), cost]
+	# A Lv. 1 survivor has 0 SP (spec 03: SP come from character levels), so say where the SP come from.
+	var lv: int = sk.character_level()
+	if sk.sp_available < cost and lv < SkillState.MAX_LEVEL:
+		msg += "; you have %d SP, character %s pays %d" % [sk.sp_available, LevelDisplay.label(lv + 1), sk.sp_for_level(lv + 1)]
+	return msg
 
 ## Sum of {"type": "ability", "ability": name, "amount": n} over learned nodes.
 static func ability(sk: SkillState, name: String) -> int:
@@ -39,7 +45,8 @@ static func ability(sk: SkillState, name: String) -> int:
 					total += int(e.get("amount", 0))
 	return total
 
-## Spec 09: 3 bonded companions + 1 per learned Animal Handling node (I-IV) -> 7.
+## Spec 09: 3 bonded companions + 1 per learned Animal Handling node (I-IV), at most 7.
+## Data.bonded_cap() (hook H2) is the one cap every bond path asks; it reads this for the local player.
 static func bonded_capacity(sk: SkillState) -> int:
 	var cap := int(sk.config.get("bonded_base", 3))
 	for n in sk.nodes("survival"):
@@ -47,7 +54,7 @@ static func bonded_capacity(sk: SkillState) -> int:
 			for e in n.get("effects", []):
 				if e is Dictionary and str(e.get("type", "")) == "bonded_slots":
 					cap += int(e.get("amount", 0))
-	return cap
+	return mini(cap, int(sk.config.get("bonded_max", 7)))
 
 ## Spec 09 reset rule: existing bonds are kept, a new bond needs count < capacity.
 static func can_bond(sk: SkillState, bonded_count: int) -> bool:

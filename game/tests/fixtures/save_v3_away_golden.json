@@ -531,72 +531,51 @@
 	},
 	"skills_v2": {
 		"occupation": "student",
-		"rev": 2.0,
-		"sp_available": 40.0,
-		"sp_earned": 40.0,
+		"sp_available": 270.0,
 		"sp_spent": 0.0,
 		"trees": {
 			"butchering": {
 				"level": 3.0,
-				"unlocked": [
-					"butcher_1"
-				],
+				"unlocked": [],
 				"xp": 36.0
 			},
 			"construction": {
-				"level": 1.0,
+				"level": 0.0,
 				"unlocked": [],
 				"xp": 0.0
 			},
 			"cooking": {
-				"level": 1.0,
+				"level": 0.0,
 				"unlocked": [],
 				"xp": 0.0
 			},
 			"defense": {
-				"level": 1.0,
-				"unlocked": [
-					"roll"
-				],
+				"level": 0.0,
+				"unlocked": [],
 				"xp": 0.0
 			},
 			"farming": {
-				"level": 1.0,
-				"unlocked": [
-					"corn",
-					"apple_tree"
-				],
+				"level": 0.0,
+				"unlocked": [],
 				"xp": 0.0
 			},
 			"gathering": {
 				"level": 20.0,
-				"unlocked": [
-					"forage_1",
-					"branch",
-					"bush",
-					"fruit_1",
-					"log_1",
-					"bug_1",
-					"pebble",
-					"mud_1",
-					"stalk"
-				],
+				"unlocked": [],
 				"xp": 0.0
 			},
 			"melee": {
-				"level": 1.0,
+				"level": 0.0,
 				"unlocked": [],
 				"xp": 0.0
 			},
 			"processing": {
-				"level": 1.0,
-				"unlocked": [
-					"cordage"
-				],
+				"level": 0.0,
+				"unlocked": [],
 				"xp": 0.0
 			},
 			"ranged": {
-				"level": 1.0,
+				"level": 0.0,
 				"unlocked": [],
 				"xp": 0.0
 			},
@@ -606,19 +585,13 @@
 				"xp": 7.0
 			},
 			"tailoring": {
-				"level": 1.0,
-				"unlocked": [
-					"leaf_outfit",
-					"footwraps",
-					"leaf_hat"
-				],
+				"level": 0.0,
+				"unlocked": [],
 				"xp": 0.0
 			},
 			"weapon_tools": {
-				"level": 1.0,
-				"unlocked": [
-					"improvised_tools"
-				],
+				"level": 0.0,
+				"unlocked": [],
 				"xp": 0.0
 			}
 		}

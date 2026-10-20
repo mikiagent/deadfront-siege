@@ -24,7 +24,8 @@ var defs: Dictionary = {}    # id -> tree definition from trees.json
 var budget: Dictionary = {}
 var sp_available: int = 0
 var sp_spent: int = 0
-var sp_earned: int = 0      # SP the character level has paid (derived); available = earned - cost of learned nodes
+var sp_earned: int = 0      # SP the character level has paid plus sp_extra (derived); available = earned - cost of learned nodes
+var sp_extra: int = 0       # one-time SP outside character levels (spec 03 "extras"); a rev-1 save's unspent SP land here
 var occupation: String = ""
 var config: Dictionary = {}  # trees.json minus the trees (bonded_base, category_cap, reference)
 
@@ -263,30 +264,37 @@ func character_progress() -> float:
 	return World.pioneer_progress() if World else 0.0
 
 func to_dict() -> Dictionary:
-	var out := {"rev": REV, "occupation": occupation, "sp_available": sp_available, "sp_spent": sp_spent, "sp_earned": sp_earned, "trees": {}}
+	var out := {"rev": REV, "occupation": occupation, "sp_available": sp_available, "sp_spent": sp_spent, "sp_earned": sp_earned, "sp_extra": sp_extra, "trees": {}}
 	for id in ORDER:
 		var t: Dictionary = trees[id]
 		out["trees"][id] = {"level": int(t["level"]), "xp": float(t["xp"]), "unlocked": (t["unlocked"] as Array).duplicate()}
 	return out
 
 func from_dict(d: Dictionary) -> void:
+	sp_extra = 0
 	if d.is_empty():
 		_recount_sp() # no skills block (pre-skills saves): SP still follow the loaded character level
 		return
 	occupation = str(d.get("occupation", ""))
 	var rev := int(d.get("rev", 1))
+	if rev >= REV:
+		sp_extra = maxi(0, int(d.get("sp_extra", 0))) # bounded by save_sanitizer (H6)
 	var td: Dictionary = d.get("trees", {})
 	for id in ORDER:
 		var row: Dictionary = td.get(id, {}) if td.get(id) is Dictionary else {}
 		# rev 1 stored a new tree as 0; it now reads Lv. 1.
 		var stored := int(row.get("level", MIN_LEVEL if rev >= REV else 0))
 		trees[id] = {"level": clampi(stored, MIN_LEVEL, MAX_LEVEL), "xp": float(row.get("xp", 0.0)), "unlocked": (row.get("unlocked", []) as Array).duplicate()}
-	# SP are derived, never read from the save: what the character level paid minus what the learned
-	# nodes cost today (World.pioneer_level is restored before the skills). Learned nodes are always
-	# kept; a rev-1 save over the new budget keeps them all with 0 SP available (ASSUMPTION).
+	# SP are derived, never read from the save: what the character level paid (World.pioneer_level is
+	# restored before the skills) plus sp_extra, minus what the learned nodes cost today.
 	for id in ORDER:
 		_learn_autos(id)
 	_recount_sp()
+	if rev < REV:
+		# A rev-1 save earned its SP per tree level. It keeps every node and every unspent SP: what the
+		# character level does not cover becomes a one-time extra (spec 03 allows one-time SP).
+		sp_extra = maxi(0, int(d.get("sp_available", 0)) + sp_spent - sp_earned)
+		_recount_sp()
 	for id in ORDER:
 		if id == "survival":
 			for nid in trees[id]["unlocked"]:
@@ -294,7 +302,7 @@ func from_dict(d: Dictionary) -> void:
 	print("[skill] restored %d trees (rev %d, SP %d/%d)" % [ORDER.size(), rev, sp_available, sp_earned])
 
 func _recount_sp() -> void:
-	sp_earned = SkillRules.paid_for_level(self, character_level())
+	sp_earned = SkillRules.paid_for_level(self, character_level()) + sp_extra
 	sp_spent = 0
 	for id in ORDER:
 		for n in nodes(id):

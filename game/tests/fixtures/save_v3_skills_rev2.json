@@ -1,0 +1,193 @@
+{
+	"_about": "W2-SKILLS: the rev-2 skills_v2 that t_save expects after loading each frozen rev-1 v3 golden (save_v3_golden.json, save_v3_away_golden.json are untouched rev-1 inputs). Trees at 0 read Lv. 1, Lv1 AUTO nodes are learned, SP: character Lv. 5 pays 40, the 230 unspent SP the rev-1 save had beyond that are kept as sp_extra (270 available, as before).",
+	"save_v3_away_golden.json": {
+		"occupation": "student",
+		"rev": 2.0,
+		"sp_available": 270.0,
+		"sp_earned": 270.0,
+		"sp_extra": 230.0,
+		"sp_spent": 0.0,
+		"trees": {
+			"butchering": {
+				"level": 3.0,
+				"unlocked": [
+					"butcher_1"
+				],
+				"xp": 36.0
+			},
+			"construction": {
+				"level": 1.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"cooking": {
+				"level": 1.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"defense": {
+				"level": 1.0,
+				"unlocked": [
+					"roll"
+				],
+				"xp": 0.0
+			},
+			"farming": {
+				"level": 1.0,
+				"unlocked": [
+					"corn",
+					"apple_tree"
+				],
+				"xp": 0.0
+			},
+			"gathering": {
+				"level": 20.0,
+				"unlocked": [
+					"forage_1",
+					"branch",
+					"bush",
+					"fruit_1",
+					"log_1",
+					"bug_1",
+					"pebble",
+					"mud_1",
+					"stalk"
+				],
+				"xp": 0.0
+			},
+			"melee": {
+				"level": 1.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"processing": {
+				"level": 1.0,
+				"unlocked": [
+					"cordage"
+				],
+				"xp": 0.0
+			},
+			"ranged": {
+				"level": 1.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"survival": {
+				"level": 4.0,
+				"unlocked": [],
+				"xp": 7.0
+			},
+			"tailoring": {
+				"level": 1.0,
+				"unlocked": [
+					"leaf_outfit",
+					"footwraps",
+					"leaf_hat"
+				],
+				"xp": 0.0
+			},
+			"weapon_tools": {
+				"level": 1.0,
+				"unlocked": [
+					"improvised_tools"
+				],
+				"xp": 0.0
+			}
+		}
+	},
+	"save_v3_golden.json": {
+		"occupation": "student",
+		"rev": 2.0,
+		"sp_available": 270.0,
+		"sp_earned": 270.0,
+		"sp_extra": 230.0,
+		"sp_spent": 0.0,
+		"trees": {
+			"butchering": {
+				"level": 3.0,
+				"unlocked": [
+					"butcher_1"
+				],
+				"xp": 36.0
+			},
+			"construction": {
+				"level": 1.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"cooking": {
+				"level": 1.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"defense": {
+				"level": 1.0,
+				"unlocked": [
+					"roll"
+				],
+				"xp": 0.0
+			},
+			"farming": {
+				"level": 1.0,
+				"unlocked": [
+					"corn",
+					"apple_tree"
+				],
+				"xp": 0.0
+			},
+			"gathering": {
+				"level": 20.0,
+				"unlocked": [
+					"forage_1",
+					"branch",
+					"bush",
+					"fruit_1",
+					"log_1",
+					"bug_1",
+					"pebble",
+					"mud_1",
+					"stalk"
+				],
+				"xp": 0.0
+			},
+			"melee": {
+				"level": 1.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"processing": {
+				"level": 1.0,
+				"unlocked": [
+					"cordage"
+				],
+				"xp": 0.0
+			},
+			"ranged": {
+				"level": 1.0,
+				"unlocked": [],
+				"xp": 0.0
+			},
+			"survival": {
+				"level": 4.0,
+				"unlocked": [],
+				"xp": 2.0
+			},
+			"tailoring": {
+				"level": 1.0,
+				"unlocked": [
+					"leaf_outfit",
+					"footwraps",
+					"leaf_hat"
+				],
+				"xp": 0.0
+			},
+			"weapon_tools": {
+				"level": 1.0,
+				"unlocked": [
+					"improvised_tools"
+				],
+				"xp": 0.0
+			}
+		}
+	}
+}

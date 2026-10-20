@@ -2,7 +2,8 @@ extends SceneTree
 ## W2-SKILLS checks: trees.json is a valid node graph on Durango's 1-60 scale, a new survivor's
 ## trees start at Lv. 1 with the Lv1 AUTO nodes learned, a tree cannot pass the character level,
 ## Animal Handling I-IV raise bonded capacity 3 -> 7, skill nodes gate recipes and abilities,
-## refunds respect dependents, and rev-1 saves migrate without losing SP.
+## refunds respect dependents, rev-1 saves migrate without losing a node or an unspent SP, and the
+## taming pen refuses a bond at the cap without losing the animal.
 ## Usage: godot --headless --path game --script res://tests/t_w2_skills.gd
 
 const WIRED := ["recipe", "ability", "bonded_slots", "capture_tier", "climate"]
@@ -31,7 +32,8 @@ func _process(_delta: float) -> bool:
 	_test_occupation()
 	_test_sp_from_character_level()
 	_test_sanitizer_budget()
-	var want := 9
+	_test_pen_cap()
+	var want := 10
 	if _sections != want:
 		failures.append("only %d of %d test sections completed (a runtime error aborted the rest)" % [_sections, want])
 	if failures.is_empty():
@@ -130,6 +132,8 @@ func _test_new_survivor() -> void:
 	_expect(not sk.is_unlocked("farming", "small_field"), "Till Small Field (Lv1, 1 SP) is a purchase, not auto")
 	_expect(sk.sp_available == 0 and sk.sp_spent == 0 and sk.sp_earned == 0, "a new survivor has 0 SP and auto nodes cost nothing (avail %d spent %d)" % [sk.sp_available, sk.sp_spent])
 	_expect(sk.character_level() == 1, "character level of a new survivor is 1 (got %d)" % sk.character_level())
+	var field: String = Rules.recipe_block(sk, "field_small")
+	_expect(field.contains("Till Small Field") and field.contains("character Lv. 2 pays 10"), "a Lv. 1 survivor's field kit lock says where the SP come from: '%s'" % field)
 	_expect(not sk.refund("processing", "cordage") and sk.is_unlocked("processing", "cordage"), "an auto node cannot be refunded")
 	_done_with(sk)
 	_sections += 1
@@ -246,10 +250,17 @@ func _test_sp_from_character_level() -> void:
 	_world().pioneer_changed.emit(19)
 	_expect(sk.sp_earned == Rules.paid_for_level(sk, 20) and sk.sp_available == sk.sp_earned, "character Lv. 20 pays its SP with no tree XP (%d)" % sk.sp_earned)
 	_done_with(sk)
-	# A rev-1 save that bought more than its character level now pays for keeps every node, 0 SP left.
+	# A rev-1 save that bought more than its character level now pays for keeps every node and its
+	# 50 unspent SP: the difference is a one-time extra, saved and read back as sp_extra.
 	var over := _fresh(0)
 	over.from_dict({"sp_available": 50, "sp_spent": 0, "trees": {"survival": {"level": 40, "xp": 0.0, "unlocked": ["island_access_15", "belly_fat_1", "capture_technique_1", "animal_management_1"]}}})
-	_expect((over.trees["survival"]["unlocked"] as Array).size() == 4 and over.sp_spent == 23 and over.sp_available == 0, "an over-budget migrated save keeps its 4 nodes with 0 SP (spent %d, available %d)" % [over.sp_spent, over.sp_available])
+	_expect((over.trees["survival"]["unlocked"] as Array).size() == 4 and over.sp_spent == 23 and over.sp_available == 50 and over.sp_extra == 73, "an over-budget migrated save keeps its 4 nodes and 50 SP (spent %d, available %d, extra %d)" % [over.sp_spent, over.sp_available, over.sp_extra])
+	var saved: Dictionary = over.to_dict()
+	over.from_dict(saved)
+	_expect(over.sp_available == 50 and over.sp_extra == 73, "the extra survives a rev-2 save and load (available %d)" % over.sp_available)
+	_world().pioneer_level = 1 # character Lv. 2 pays 10 more on top of the extra
+	_world().pioneer_changed.emit(1)
+	_expect(over.sp_available == 60, "a level-up adds to the kept SP (got %d)" % over.sp_available)
 	_expect(get_root().get_node("Data").has_capture_technique(1), "the kept Capture Technique I still works")
 	_done_with(over)
 	_sections += 1
@@ -276,7 +287,51 @@ func _test_sanitizer_budget() -> void:
 	for l in range(2, 41):
 		paid += 10 if l <= 20 else 12
 	_expect((rich["trees"]["survival"]["unlocked"] as Array).size() == 4 and int(rich["sp_available"]) == paid - 23, "H6: character Lv. 40 keeps the 4 nodes and clamps SP to %d (got %s)" % [paid - 23, rich["sp_available"]])
-	var legacy := {"trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
+	var legacy := {"sp_available": 50, "trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
 	San._skills(legacy, 0)
-	_expect((legacy["trees"]["survival"]["unlocked"] as Array).size() == 4 and int(legacy["sp_available"]) == 0, "H6: a rev-1 save keeps every node it bought under the old award, with 0 SP")
+	_expect((legacy["trees"]["survival"]["unlocked"] as Array).size() == 4 and int(legacy["sp_available"]) == 50, "H6: a rev-1 save keeps every node it bought under the old award and its 50 unspent SP (got %s)" % legacy["sp_available"])
+	var old_award := paid + 10 # survival 1..40 under the per-tree award
+	var forged := {"rev": 2, "sp_extra": 99999, "trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
+	San._skills(forged, 0)
+	_expect(int(forged["sp_extra"]) == old_award and (forged["trees"]["survival"]["unlocked"] as Array).size() == 4, "H6: a rev-2 sp_extra is capped at what the old award paid its tree levels (%d, got %s)" % [old_award, forged["sp_extra"]])
+	_sections += 1
+
+## Spec 09 grant: the pen bonds through Data.bonded_cap() (hook H2). At the cap the finished animal
+## waits in the pen (no roll, no loss, meat refused); a new Animal Handling slot bonds it.
+func _test_pen_cap() -> void:
+	var data: Node = get_root().get_node("Data")
+	if data.bonded_cap() > 1000:
+		print("[t_w2_skills] H2 not applied: taming pen cap check skipped")
+		_sections += 1
+		return
+	var p: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	p.process_mode = Node.PROCESS_MODE_DISABLED
+	get_root().add_child(p)
+	var def: Resource = data.creature(&"velociraptor")
+	var PetRecordS: GDScript = load("res://scripts/pets/pet_record.gd")
+	var IS: GDScript = load("res://scripts/items/item_stack.gd")
+	for i in 3:
+		p.bonded.append(PetRecordS.from_def(def))
+	var pen: Node = (load("res://scripts/world/taming_pen.gd") as GDScript).new()
+	pen.process_mode = Node.PROCESS_MODE_DISABLED
+	get_root().add_child(pen)
+	pen.occupant = IS.make(&"captured_animal", 1, {"species": "velociraptor", "level": 7})
+	pen.running = true
+	pen.remaining = 0.0
+	pen.force_result = 1
+	pen._process(0.0)
+	_expect(data.bonded_cap() == 3 and p.bonded.size() == 3 and pen.occupant != null and pen.running and pen._told_full, "3 / 3 bonded: the pen keeps the animal and says why (bonded %d, occupant %s)" % [p.bonded.size(), pen.occupant])
+	p.inventory.add(IS.make(&"raptor_meat", 1))
+	_expect(not pen.feed(p) and p.inventory.count_of(&"raptor_meat") == 1, "meat is refused while the finished animal waits")
+	(p.skills.trees["survival"]["unlocked"] as Array).append("animal_management_1")
+	pen._process(0.0)
+	var rec: Variant = p.bonded[-1]
+	_expect(data.bonded_cap() == 4 and p.bonded.size() == 4 and pen.occupant == null and rec.origin == &"capture" and rec.level == 7, "Animal Handling I (cap 4) bonds the waiting Lv. 7 raptor (bonded %d)" % p.bonded.size())
+	p.inventory.add(IS.make(&"tamed_animal", 1, {"species": "velociraptor"}))
+	pen.running = false
+	_expect(pen.try_insert(p) and p.inventory.count_of(&"tamed_animal") == 1 and p.bonded.size() == 4, "4 / 4: a tamed animal in the bag stays there")
+	get_root().remove_child(pen)
+	pen.free()
+	get_root().remove_child(p)
+	p.free()
 	_sections += 1
