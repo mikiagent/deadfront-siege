@@ -249,16 +249,21 @@ func _harbour_collider(h: Node3D) -> AABB:
 			return AABB((c as CollisionShape3D).position - size * 0.5, size)
 	return AABB()
 
-## harbour.gd hook: with the manifest pier the tap box ends where the pier does, not 2 m out over water.
+## harbour.gd hook: the deck is thin and walkable, while the shed has its own tall box.
 func _check_harbour_collider_hook() -> void:
 	var h: Node3D = (load("res://scripts/world/harbour.gd") as GDScript).new()
 	get_root().add_child(h)
-	var vis := h.get_node_or_null("Visual") as Node3D
-	if vis:
-		var pier := _aabb(vis, Transform3D.IDENTITY)
-		var col := _harbour_collider(h)
-		if absf(col.position.z - pier.position.z) > 0.25 or absf(col.end.z - pier.end.z) > 0.25 or col.size.x < pier.size.x - 0.1:
-			failures.append("hook: harbour tap box z %.2f..%.2f x %.2f does not match the pier z %.2f..%.2f x %.2f" % [col.position.z, col.end.z, col.size.x, pier.position.z, pier.end.z, pier.size.x])
+	var boxes: Array[Vector3] = []
+	for c in h.get_children():
+		if c is CollisionShape3D and (c as CollisionShape3D).shape is BoxShape3D:
+			boxes.append(((c as CollisionShape3D).shape as BoxShape3D).size)
+	var has_deck := false
+	var has_shed := false
+	for size in boxes:
+		has_deck = has_deck or (size.y <= 0.4 and size.z >= 5.5)
+		has_shed = has_shed or (size.y >= 2.0 and size.z < 3.0)
+	if not has_deck or not has_shed:
+		failures.append("hook: harbour colliders need a thin deck and separate shed box, got %s" % boxes)
 	h.free()
 
 func _check_atlas() -> void:

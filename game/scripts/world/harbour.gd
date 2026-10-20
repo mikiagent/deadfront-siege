@@ -15,7 +15,8 @@ var build_cell: Vector2i = Vector2i.ZERO
 var build_rot: int = 0
 var persist_building: bool = false
 var _visual: Node3D
-var _shape: CollisionShape3D
+var _deck_shape: CollisionShape3D
+var _shed_shape: CollisionShape3D
 var _pier_glb := false  # Visual is the props_manifest pier (W1-STRUCTART), not the Kenney composite
 
 func _ready() -> void:
@@ -26,13 +27,11 @@ func _ready() -> void:
 		_visual = _composite()
 	_visual.name = "Visual"
 	add_child(_visual)
-	_shape = CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(2.2, 2.3, 8.0)  # deck, shed and cargo, out to the pier's seaward end
-	if _pier_glb:
-		box.size = Vector3(2.8, 2.3, 6.0)  # pier.glb spans z +3..-3 with its boat; the composite reaches -5
-	_shape.shape = box
-	add_child(_shape)
+	var deck_length := 6.0 if _pier_glb else 8.0
+	var deck_z := 0.0 if _pier_glb else -1.0
+	var deck_width := 2.8 if _pier_glb else 2.2
+	_deck_shape = _box_collider(Vector3(deck_width, 0.25, deck_length), Vector3(0.0, DECK_H - 0.125, deck_z))
+	_shed_shape = _box_collider(Vector3(2.4, 2.3, 1.8), Vector3(0.0, DECK_H + 1.15, 2.1))
 	_level()
 
 func set_grid_pose(cell: Vector2i, rot: int) -> void:
@@ -44,6 +43,8 @@ func set_grid_pose(cell: Vector2i, rot: int) -> void:
 	var rt := get_parent()
 	if rt and rt.get("_harbour_pos") != null:
 		rt.set("_harbour_pos", global_position)
+	if moved and rt and rt.has_method("on_harbour_moved"):
+		rt.call("on_harbour_moved")
 	# A layout move carries the walkable approach strip along; pathing samples it at setup.
 	if moved and rt and rt.get("pathing") != null and rt.has_method("_setup_pathing"):
 		rt.call("_setup_pathing")
@@ -53,10 +54,20 @@ func open() -> void:
 
 ## The grid puts the origin at the footprint's mean ground height; the pier stands on the water.
 func _level() -> void:
-	if _visual == null or not is_inside_tree():
+	if _visual == null or _deck_shape == null or not is_inside_tree():
 		return
 	_visual.position.y = FEET_Y - global_position.y
-	_shape.position = Vector3(0.0, _visual.position.y + DECK_H + 0.85, 0.0 if _pier_glb else -1.0)
+	_deck_shape.position.y = _visual.position.y + DECK_H - 0.125
+	_shed_shape.position.y = _visual.position.y + DECK_H + 1.15
+
+func _box_collider(size: Vector3, at: Vector3) -> CollisionShape3D:
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	shape.position = at
+	add_child(shape)
+	return shape
 
 func _manifest_model() -> Node3D:
 	var row: Variant = (Data.props_manifest.get("buildings", {}) as Dictionary).get("harbour", null)
