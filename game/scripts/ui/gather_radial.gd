@@ -369,7 +369,7 @@ func nameplate() -> Rect2:
 	var who := get_tree().get_first_node_in_group("player") as Player
 	if cam == null or who == null:
 		return Rect2()
-	return HuntHud.nameplate_rect(cam, who, ThemeDB.fallback_font).grow(4.0)
+	return HudLayout.nameplate_rect(cam, who, ThemeDB.fallback_font).grow(4.0)
 
 func _display_name(id: StringName) -> String:
 	var def := Data.item(id)

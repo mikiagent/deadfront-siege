@@ -160,105 +160,17 @@ func _layout() -> void:
 		_inspect_hex.position = Vector2(_minimap.position.x - 56.0 - 12.0, _minimap.position.y + (MAP_PX - 56.0) * 0.5)
 	# Chase joins the quick-food row (slot 2): at the rail's left edge it sat on the first food hex.
 	_chase_hex.position = Vector2(16.0 + inset.w + 2.0 * (HEX + 10.0), y - HEX - CAPTION_H - 12.0)
-	if _landscape_phone(r):
-		_layout_landscape_phone(r, inset)
+	if HudLayout.landscape_phone(r):
+		HudLayout.place_landscape_phone(self, r, inset)
 	elif UiTokens.is_narrow(r):
-		_layout_portrait(r, inset, y)
+		HudLayout.place_portrait(self, r, inset, y)
 	else:
-		_end_btn.custom_minimum_size = Vector2(184, 64)
-		_end_btn.size = _end_btn.custom_minimum_size
-		_end_btn.position = Vector2(r.x - 200.0 - inset.x, r.y * 0.42)
-		# Honeycomb cluster bottom-right: net / tackle / kick / roll, Auto below-right, stance text.
-		var cx := r.x - 250.0 - inset.x
-		var cy := r.y - 150.0 - inset.y
-		var slots := [Vector2(-90, -60), Vector2(-10, -20), Vector2(-90, 40), Vector2(70, -50)]
-		for i in _skill_hexes.size():
-			_skill_hexes[i].position = Vector2(cx, cy) + slots[i]
-		_auto_hex.position = Vector2(cx + 84.0, cy + 40.0)  # under ROLL's caption (at +60/+30 it sat on it)
-		_feed_hex.position = Vector2(cx - 170.0, cy - 20.0)
-		# The whistle column stands on HANDS (bottom-right, held_item_slot.gd) with its caption clear of it.
-		for i in _whistle_hexes.size():
-			_whistle_hexes[i].position = Vector2(r.x - 16.0 - inset.x - 62.0, r.y - 262.0 - inset.y - float(i) * (66.0 + CAPTION_H))
-		# On the bottom edge, inside the view (at cy + 118 its 34 px box ran 2 px past the bottom).
-		_stance_label.position = Vector2(cx + 20.0, r.y - 8.0 - inset.y - _stance_label.get_combined_minimum_size().y)
+		HudLayout.place_desktop(self, r, inset)
 	if _sheet:
-		_fit_sheet(r, inset, y)
+		HudLayout.fit_sheet(self, r, inset, y)
 	# Context hexes are placed when built: rebuild them on the new canvas (CLAIM stayed off a resized view).
 	_ctx_ids = []
 	_ctx_timer = 0.0
-
-## A landscape phone's 390-452 px canvas: the desktop places ran the whistles off the top over the
-## map and stacked End Combat on ROLL. Whistles go in a row under the vitals, End Combat under the
-## map text (the claim and context hexes hide in a fight), the four skills in one row along the
-## bottom right with Auto and Feed above it, the stance text to their left.
-# ASSUMPTION: these phone placements are ours; the combat reference only fixes End Combat right, skills bottom right.
-func _layout_landscape_phone(r: Vector2, inset: Vector4) -> void:
-	var under_vitals := _vitals_rect(r).end.y + 8.0
-	for i in _whistle_hexes.size():
-		_whistle_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (HEX + 10.0), under_vitals)
-	_end_btn.custom_minimum_size = Vector2(MAP_PX, UiTokens.TARGET_PRIMARY)
-	_end_btn.size = _end_btn.custom_minimum_size
-	_end_btn.position = _minimap.position + Vector2(0.0, MAP_PX + 42.0)
-	var row_y := r.y - 8.0 - CAPTION_H - SKILL_HEX - inset.y
-	var x := r.x - 16.0 - inset.x - SKILL_HEX
-	for i in range(_skill_hexes.size() - 1, -1, -1):  # ROLL at the right edge, NET leftmost
-		_skill_hexes[i].position = Vector2(x, row_y)
-		x -= SKILL_HEX + 8.0
-	var net := _skill_hexes[0].position
-	var up := row_y - 8.0 - CAPTION_H - HEX
-	_auto_hex.position = Vector2(net.x + SKILL_HEX + 4.0 - HEX * 0.5, up)  # over the NET/TACKLE seam
-	_feed_hex.position = _auto_hex.position - Vector2(HEX + 8.0, 0.0)
-	var sw := _stance_label.get_combined_minimum_size()
-	_stance_label.position = Vector2(net.x - 8.0 - sw.x, row_y + SKILL_HEX * 0.5 - sw.y * 0.5)
-
-## A portrait phone's 390 px wide canvas: the desktop cluster ran off the left edge, onto the rail and
-## onto CHASE, and the whistle column onto HANDS. From the quick-food row up: the whistle row with End
-## Combat at its right (mid-screen, a creature's plate covered it), the four skills in one row, then
-## Feed, Auto and the stance text.
-func _layout_portrait(r: Vector2, inset: Vector4, rail_y: float) -> void:
-	var whistle_y := rail_y - 2.0 * (HEX + CAPTION_H) - 20.0  # over the quick-food row
-	for i in _whistle_hexes.size():
-		_whistle_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (HEX + 10.0), whistle_y)
-	var row_y := whistle_y - 8.0 - CAPTION_H - SKILL_HEX
-	var x := r.x - 16.0 - inset.x - SKILL_HEX
-	for i in range(_skill_hexes.size() - 1, -1, -1):  # ROLL at the right edge, NET leftmost
-		_skill_hexes[i].position = Vector2(x, row_y)
-		x -= SKILL_HEX + 8.0
-	var up := row_y - 8.0 - CAPTION_H - HEX
-	_feed_hex.position = Vector2(16.0 + inset.w, up)
-	_auto_hex.position = Vector2(16.0 + inset.w + HEX + 10.0, up)
-	var end_x := 16.0 + inset.w + 3.0 * (HEX + 10.0) + 4.0
-	_end_btn.custom_minimum_size = Vector2(r.x - 16.0 - inset.x - end_x, UiTokens.TARGET_PRIMARY)
-	_end_btn.size = _end_btn.custom_minimum_size
-	_end_btn.position = Vector2(end_x, whistle_y + 4.0)
-	var sw := _stance_label.get_combined_minimum_size()
-	_stance_label.position = Vector2(_auto_hex.position.x + HEX + 10.0, up + HEX * 0.5 - sw.y * 0.5)
-
-static func _landscape_phone(r: Vector2) -> bool:
-	return UiTokens.is_compact(r) and not UiTokens.is_narrow(r)
-
-## The vitals panel _draw paints top-left (also the anchor for what sits under it).
-func _vitals_rect(r: Vector2) -> Rect2:
-	var inset := _safe_insets()
-	var phone := UiTokens.is_phone(r)
-	var x := 16.0 + inset.w
-	var big := 16.0 if not phone else 12.0
-	var small := 10.0 if not phone else 8.0
-	var panel_w := 300.0 if not phone else maxf(148.0, _minimap.position.x - x - 8.0)
-	return Rect2(x - 8.0, 6.0 + inset.z, panel_w, big * 2.0 + small + 6.0 * 2.0 + 36.0)
-
-## Landscape phone: the strip between the vitals and the minimap; portrait: the strip under the map
-## text. The quest card lives in it; the target plate and the level-up banner take it over while
-## they show. Empty on the desktop (the plate is top centre, the level-up stack top left).
-# ASSUMPTION: the quest card may yield to the plate and the banner on a phone; nothing else free fits them.
-func _centre_band(r: Vector2) -> Rect2:
-	if UiTokens.is_narrow(r):
-		return Rect2(12.0 + _safe_insets().w, _minimap.position.y + MAP_PX + 44.0, r.x - 24.0 - _safe_insets().w - _safe_insets().x, 84.0)
-	if not _landscape_phone(r):
-		return Rect2()
-	var v := _vitals_rect(r)
-	var left := v.end.x + 12.0
-	return Rect2(left, v.position.y, _minimap.position.x - 12.0 - left, maxf(v.size.y, _minimap.position.y + 72.0 - v.position.y))
 
 func _safe_insets() -> Vector4:  # x=right, y=bottom, z=top, w=left
 	return UiTokens.safe_insets(get_viewport())
@@ -736,13 +648,6 @@ func _load_level_data() -> void:
 			else:
 				_level_gains = parsed
 
-## The survivor's name under its feet, in screen space. Radial labels keep off it (the gather
-## radial's option label covered it on a landscape phone).
-static func nameplate_rect(cam: Camera3D, who: Player, font: Font) -> Rect2:
-	var p := cam.unproject_position(who.get_global_transform_interpolated().origin - Vector3(0, 0.05, 0))
-	var nw := font.get_string_size(who.display_name(), HORIZONTAL_ALIGNMENT_CENTER, -1, NAME_PX).x
-	return Rect2(p.x - nw * 0.5, p.y + 20.0 - NAME_PX, nw + 1.0, NAME_PX + 6.0)
-
 ## Reference: a gold text stack at the top-left for ~6 s on level-up. The signal carries the stored
 ## level; the banner, the title key, the bonus stat and the log use the shown one (titles.json was
 ## keyed by the level the player reads), from the argument, so a deferred emit stays right.
@@ -788,7 +693,7 @@ func _toggle_sheet(kind: StringName) -> void:
 	_sheet_kind = kind
 	_sheet = PanelContainer.new()
 	_sheet.name = "HudSheet"
-	var land := _landscape_phone(get_viewport_rect().size)
+	var land := HudLayout.landscape_phone(get_viewport_rect().size)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.06, 0.07, 0.09, 1.0 if land else 0.94)  # opaque where it may cover the vitals
 	sb.corner_radius_top_left = 10
@@ -901,30 +806,11 @@ func _toggle_sheet(kind: StringName) -> void:
 func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
 	var b := Button.new()
 	b.text = text
-	var land := _landscape_phone(get_viewport_rect().size)
+	var land := HudLayout.landscape_phone(get_viewport_rect().size)
 	b.custom_minimum_size = Vector2(150, UiTokens.TARGET_PRIMARY) if land else Vector2(300, 60)
 	b.add_theme_font_size_override("font_size", 16 if land else 18)
 	b.pressed.connect(cb)
 	box.add_child(b)
-
-## The sheet stands on the rail and grows up to the top of the view; past that its rows scroll
-## (on a 390 px canvas the menu ran 192 px off the top, title, Bag and Craft out of reach). A
-## landscape phone has no room above the rail, so there it hangs from the vitals' corner and covers
-## them whole (standing on the rail it hid half of them).
-func _fit_sheet(r: Vector2, inset: Vector4, rail_y: float) -> void:
-	if _sheet_rows == null or _sheet_rows.get_child_count() == 0:
-		return
-	var land := _landscape_phone(r)
-	var v := _vitals_rect(r)
-	var bottom := rail_y - 10.0
-	var top := v.position.y if land else 8.0 + inset.z
-	_sheet.custom_minimum_size.x = v.size.x if land else 0.0
-	_sheet_rows.custom_minimum_size.y = 0.0
-	var room := bottom - top - _sheet.get_combined_minimum_size().y
-	var rows_h := (_sheet_rows.get_child(0) as Control).get_combined_minimum_size().y
-	_sheet_rows.custom_minimum_size.y = minf(rows_h, maxf(room, UiTokens.TARGET_PRIMARY))
-	_sheet.size = Vector2.ZERO  # shrink to the new minimum
-	_sheet.position = v.position if land else Vector2(16.0 + inset.w, bottom - _sheet.size.y)
 
 ## True while one of the HUD's sheets is open. HANDS (held_item_slot.gd) and the creature plates sit
 ## on canvas layers above the HUD's and hide meanwhile: on a landscape phone HANDS sat on the sheet's
@@ -932,50 +818,13 @@ func _fit_sheet(r: Vector2, inset: Vector4, rail_y: float) -> void:
 func sheet_open() -> bool:
 	return _sheet != null or (_skills_sheet != null and _skills_sheet.visible)
 
-## Screen rects the HUD holds this frame: the blocks _draw has painted so far (drawn_blocks, minus
-## keys starting with one of `skip`), every visible hex on screen (HUD, station and gather radials)
-## with its caption, the HUD's other controls and HANDS. Moving text (world pills, toasts, notices)
-## and the creature plates keep off them: at 844x390 they drew over the quest card and the COOK hex.
+## Screen rects the HUD holds this frame (see HudLayout.taken_rects).
 func taken_rects(skip: PackedStringArray = []) -> Array[Rect2]:
-	var out: Array[Rect2] = []
-	for k in drawn_blocks:
-		var keep := true
-		for p in skip:
-			keep = keep and not str(k).begins_with(p)
-		if keep:
-			out.append(drawn_blocks[k])
-	for n in get_tree().get_nodes_in_group(&"hex_button"):
-		var h := n as HexButton
-		if h and h.is_visible_in_tree():
-			out.append(h.hex_rect())
-			if h.caption != "":
-				out.append(h.caption_rect())
-	for c in get_children():
-		var ctl := c as Control
-		if ctl == null or ctl is HexButton or not ctl.is_visible_in_tree() or ctl.size.x < 8.0 or ctl.size.y < 8.0:
-			continue
-		if ctl is Label and (ctl as Label).text.strip_edges() == "":
-			continue
-		out.append(ctl.get_global_rect())
-	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
-	if held and held.is_visible_in_tree():
-		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
-	var fig := figure_rect()
-	if fig.has_area():
-		out.append(fig)
-	return out
+	return HudLayout.taken_rects(self, skip)
 
-## The survivor on screen, head to name. Moving text keeps off it (a notice and a creature plate sat
-## on the survivor at the centre of a landscape phone); the HUD's fixed controls do not need to.
-# ASSUMPTION: the survivor stands about 1.8 m tall.
+## The survivor on screen, head to name (see HudLayout.figure_rect).
 func figure_rect() -> Rect2:
-	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
-	if cam == null or player == null:
-		return Rect2()
-	var plate := nameplate_rect(cam, player, _font)
-	var head := cam.unproject_position(player.get_global_transform_interpolated().origin + Vector3(0.0, 1.8, 0.0))
-	var w := maxf(plate.size.x, 44.0)
-	return Rect2(plate.get_center().x - w * 0.5, head.y, w, maxf(0.0, plate.end.y - head.y))
+	return HudLayout.figure_rect(self)
 
 ## Rebuild the open sheet in place (e.g. a pet finished respawning and Summon is back).
 func _refresh_sheet() -> void:
@@ -1133,7 +982,7 @@ func _draw() -> void:
 	var phone := UiTokens.is_phone(r)
 	# Desktop: 300 px panel, 16 px HP/energy bars with body-size numbers (the audit called the
 	# old 176 px / 12 px block "tiny desktop typography"). Phone keeps the compact block.
-	var vitals := _vitals_rect(r)
+	var vitals := HudLayout.vitals_rect(self, r)
 	var panel_w := vitals.size.x
 	var bar_w := 232.0 if not phone else maxf(88.0, panel_w - 54.0)
 	var big := 16.0 if not phone else 12.0
@@ -1168,7 +1017,7 @@ func _draw() -> void:
 	var mp0 := _minimap.position
 	var sx := mp0.x
 	var sy := mp0.y + MAP_PX + 50.0
-	if _landscape_phone(r):
+	if HudLayout.landscape_phone(r):
 		sx = 16.0 + inset.w + (3.0 * (HEX + 10.0) if _whistle_hexes[0].visible else 0.0)
 		sy = vitals.end.y + 8.0
 	if player.statuses:
@@ -1196,7 +1045,7 @@ func _draw() -> void:
 	var plate_t: Creature = player.hunt.target if (player.hunt and player.hunt.target and is_instance_valid(player.hunt.target)) else null
 	if plate_t == null and _last_target and is_instance_valid(_last_target) and not _last_target.health.dead and player.global_position.distance_to(_last_target.global_position) < 40.0:
 		plate_t = _last_target
-	var band := _centre_band(r)
+	var band := HudLayout.centre_band(self, r)
 	if not band.has_area() or (plate_t == null and _levelup_t < 0.0):
 		_draw_quest(r, mp)
 	# --- XP bar along the bottom
@@ -1212,7 +1061,7 @@ func _draw() -> void:
 	# --- name under the survivor
 	var cam := get_viewport().get_camera_3d()
 	if cam:
-		drawn_blocks["nameplate"] = nameplate_rect(cam, player, _font)
+		drawn_blocks["nameplate"] = HudLayout.nameplate_rect(cam, player, _font)
 		var at := (drawn_blocks["nameplate"] as Rect2).position + Vector2(0.0, NAME_PX)
 		draw_string(_font, at + Vector2.ONE, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0, 0, 0, 0.7))
 		draw_string(_font, at, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0.95, 0.95, 0.95))
@@ -1225,7 +1074,7 @@ func _draw() -> void:
 		var la := 1.0 - smoothstep(5.5, 6.5, _levelup_t)
 		if band.has_area():
 			var below := maxf(band.end.y, (drawn_blocks.get("plate", band) as Rect2).end.y) + 8.0
-			_draw_levelup_banner(band if plate_t == null else Rect2(band.position.x, below, band.size.x, 84.0), la)
+			HudLayout.draw_levelup_banner(self, band if plate_t == null else Rect2(band.position.x, below, band.size.x, 84.0), la)
 		else:
 			var ly := 160.0
 			var stack := Rect2()
@@ -1285,28 +1134,12 @@ func _draw() -> void:
 		draw_string(_font, box.position + Vector2(12, 21), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 0.9, 0.8, alpha))
 	# --- label pills on buildings and nodes within 8 m (reference: base building), last: they give way
 	# to everything above and to the open radials
-	_draw_pills(cam, taken)
+	HudPills.draw(self, cam, taken)
 	# --- combat layer
 	if _combat_alpha > 0.01:
 		var a := _combat_alpha
 		draw_rect(Rect2(0, 0, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
 		draw_rect(Rect2(0, r.y - 6, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
-
-## Landscape phone level-up: the level, the title it brings and one stat line, in an ink box.
-func _draw_levelup_banner(box: Rect2, a: float) -> void:
-	draw_rect(box, Color(UiTokens.INK, UiTokens.INK.a * a))
-	draw_rect(Rect2(box.position, Vector2(3.0, box.size.y)), Color(1.0, 0.85, 0.35, a))
-	var w := box.size.x - 24.0
-	var lv := str(_levelup_lines[0][0]) if not _levelup_lines.is_empty() else LevelDisplay.player_label()
-	var lw := _font.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
-	draw_string(_font, box.position + Vector2(12, 34), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1.0, 0.85, 0.35, a))
-	draw_string(_font, box.position + Vector2(24 + lw, 32), "LEVEL UP", HORIZONTAL_ALIGNMENT_LEFT, maxf(1.0, w - lw - 12.0), UiTokens.meta(get_viewport_rect().size), Color(UiTokens.META, a))
-	var ly := 58.0
-	if _levelup_title != "":
-		draw_string(_font, box.position + Vector2(12, ly), UiTokens.ellipsis(_font, _levelup_title, w, 14), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.85, 0.35, a))
-		ly += 22.0
-	draw_string(_font, box.position + Vector2(12, ly), UiTokens.ellipsis(_font, _levelup_summary, w, 13), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1, a))
-	drawn_blocks["levelup"] = box
 
 func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 	var r := get_viewport_rect().size
@@ -1510,168 +1343,3 @@ func _draw_minimap_bezel(c: Control) -> void:
 			pts.append(centre + Vector2(cos(angle), sin(angle)) * radius)
 		c.draw_colored_polygon(pts, cover)
 	c.draw_circle(centre, radius, Color(1, 1, 1, 0.48), false, 2.0)
-
-func _gather_radial_node() -> Node3D:
-	var gr: Variant = player.get("_gather_radial")
-	if gr and gr.has_method("is_open") and gr.is_open():
-		return gr.node
-	return null
-
-const TOOL_ICON_ITEM := {"axe": "work_axe", "pick": "work_pick", "knife": "stone_knife", "none": "hands", "": "hands"}
-
-## [[icon, have]] per distinct tool the node's yields need; corpses need a knife.
-func _tools_for_node(n3: Node3D, grp: String) -> Array:
-	var out: Array = []
-	var seen: Dictionary = {}
-	var classes: Array = []
-	if grp == "harvest" and n3 is HarvestNode:
-		for o in (n3 as HarvestNode).options():
-			classes.append(str(o.get("tool", "none")))
-	elif grp == "corpse":
-		classes.append("knife")
-	else:
-		return out
-	for c in classes:
-		if seen.has(c):
-			continue
-		seen[c] = true
-		var have := true
-		if c != "none" and c != "" and player and player.inventory:
-			have = player.inventory.has_tool_class(StringName(c))
-		out.append([ItemIcons.texture(StringName(str(TOOL_ICON_ITEM.get(c, "hands")))), have])
-	return out
-
-## World labels keep off `avoid` (the HUD's blocks and every hex, taken_rects) and off the open
-## gather radial's labels and title; one with no free spot near its anchor is not drawn.
-func _draw_pills(cam: Camera3D, avoid: Array[Rect2]) -> void:
-	if cam == null or player == null:
-		return
-	var radial_node: Node3D = null
-	avoid = avoid.duplicate()
-	if player.has_node("GatherRadialLayer/GatherRadial"):
-		var gr := player.get_node("GatherRadialLayer/GatherRadial") as GatherRadial
-		if gr.is_open():
-			radial_node = gr.node
-			avoid.append_array(gr.label_rects)
-			avoid.append(gr.title_box)
-	var rows: Array = []
-	var pp := player.global_position
-	# A bonfire is in "placed_building", "craft_station" AND "bonfire", so without this the camp
-	# drew three identical labels stacked on one object.
-	var labelled := {}
-	for grp in ["placed_building", "craft_station", "bonfire", "taming_pen", "cargo_warp", "harbour", "harvest"]:
-		for n in get_tree().get_nodes_in_group(grp):
-			var n3 := n as Node3D
-			if n3 == null or not n3.visible or n3 == radial_node:
-				continue
-			if labelled.has(n3.get_instance_id()):
-				continue
-			labelled[n3.get_instance_id()] = true
-			var d := pp.distance_to(n3.global_position)
-			# World labels are interaction hints, not permanent billboards. Keep the scene
-			# clean until the survivor is close or the object is actively inspected.
-			var active := n3 == radial_node or n3 == player.gather_target
-			if d > 8.0 and not active:
-				continue
-			rows.append([d, n3, grp])
-	rows.sort_custom(func (a: Array, b: Array) -> bool: return a[0] < b[0])
-	var pending: Array = []
-	var shown := 0
-	# Durango labels the thing you are about to use, not every trunk in the grove. Two of any
-	# one kind is enough to read the area; the rest would be a wall of identical chips.
-	var per_kind := {}
-	for row in rows:
-		if shown >= 12:
-			break
-		var n3: Node3D = row[1]
-		var grp: String = row[2]
-		var d: float = row[0]
-		var name := ""
-		var dot := Color(0.35, 0.85, 0.35)
-		var timer := ""
-		var top := 1.2
-		if grp == "harvest":
-			var hn := n3 as HarvestNode
-			if hn == null:
-				continue
-			name = (hn.family if hn.family != "" else str(hn.node_id)).replace("_", " ").capitalize()
-			top = hn.top_of_node()
-			if hn.depleted:
-				dot = Color(0.5, 0.5, 0.5)
-				var left := hn.regen_left()
-				if left > 0.0:
-					timer = "%dm %02ds" % [int(left / 60.0), int(left) % 60]
-			elif hn.required_tool_class != &"" and hn.required_tool_class != &"none" and not player.inventory.has_tool_class(hn.required_tool_class):
-				dot = UiTokens.DANGER
-		else:
-			var kind: Variant = n3.get("kind")
-			if kind == null:
-				kind = n3.get("station_id")
-			name = str(kind if kind != null else n3.name).replace("_", " ").capitalize()
-			if grp == "cargo_warp":
-				name = "Cargo Warp"
-			elif grp == "harbour":
-				name = "Harbour"
-		var active_row := n3 == radial_node or n3 == player.gather_target
-		var kind_n := int(per_kind.get(name, 0))
-		if kind_n >= 2 and not active_row:
-			continue
-		per_kind[name] = kind_n + 1
-		var priority := 100 if active_row else int(40.0 - d)
-		if name == "Workbench" or name == "Cargo Warp":
-			priority += 5
-		var text := UiTokens.ellipsis(_font, name, UiTokens.LABEL_MAX_W - 28.0, 14)
-		var tw := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
-		var working := (grp == "harvest" and (n3 == player.gather_target or (_gather_radial_node() == n3))) or (grp == "corpse" and n3 is Corpse and (n3 as Corpse).tapped_recently(4.0))
-		var tools: Array = _tools_for_node(n3, grp) if working else []
-		var w := minf(tw + 28.0, UiTokens.LABEL_MAX_W)
-		if timer != "":
-			w = maxf(w, _font.get_string_size(timer, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(get_viewport_rect().size)).x + 16.0)
-		var sp := cam.unproject_position(n3.global_position + Vector3(0, top + 0.35, 0))
-		# The box covers what is drawn: tool icons poke 8 px over the pill, a regrow timer hangs under it.
-		pending.append({
-			"anchor": sp, "w": w, "h": 22.0 + (8.0 if not tools.is_empty() else 0.0) + (20.0 if timer != "" else 0.0), "priority": priority,
-			"text": text, "dot": dot, "timer": timer, "tools": tools,
-			"a": 1.0 if n3 == radial_node else 1.0 - smoothstep(5.5, 8.0, d),
-		})
-		shown += 1
-	var view := get_viewport_rect().size
-	var pill_i := 0
-	# The survivor is only stepped away from: a building behind it keeps its label.
-	var fig := figure_rect()
-	var hard: Array[Rect2] = []
-	for x in avoid:
-		if x != fig:
-			hard.append(x)
-	var soft: Array[Rect2] = [fig]
-	for item in UiTokens.layout_labels(pending, view, hard, soft):
-		var box: Rect2 = item["rect"]
-		drawn_blocks["pill%d" % pill_i] = box
-		pill_i += 1
-		var tools: Array = item["tools"]
-		var rect := Rect2(box.position + Vector2(0.0, 8.0 if not tools.is_empty() else 0.0), Vector2(box.size.x, 22.0))
-		var a: float = item["a"]
-		var text: String = item["text"]
-		var dot: Color = item["dot"]
-		var bg := UiTokens.INK
-		bg.a *= a
-		draw_rect(rect, bg)
-		draw_circle(Vector2(rect.position.x + 10.0, rect.position.y + 11.0), 4.0, Color(dot.r, dot.g, dot.b, a))
-		draw_string(_font, Vector2(rect.position.x + 20.0, rect.position.y + 16.0), text, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 24.0, 14, Color(1, 1, 1, a))
-		var ix := rect.position.x + rect.size.x - 6.0 - float(tools.size()) * 14.0
-		for t in tools:
-			var tex: Texture2D = t[0]
-			var ok: bool = t[1]
-			if tex:
-				draw_texture_rect(tex, Rect2(ix, rect.position.y - 8.0, 12.0, 12.0), false, Color(1, 1, 1, a) if ok else Color(1.0, 0.45, 0.4, a))
-			ix += 14.0
-		var timer: String = item["timer"]
-		if timer != "":
-			var tt := UiTokens.ellipsis(_font, timer, 96.0, UiTokens.meta(view))
-			var ttw := _font.get_string_size(tt, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view)).x
-			var trect := Rect2(rect.position.x, rect.position.y + rect.size.y + 2.0, ttw + 16.0, 18.0)
-			var tbg := UiTokens.INK
-			tbg.a *= a
-			draw_rect(trect, tbg)
-			draw_string(_font, Vector2(trect.position.x + 8.0, trect.position.y + 14.0), tt, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), Color(1, 0.9, 0.6, a))
-		shown += 1
