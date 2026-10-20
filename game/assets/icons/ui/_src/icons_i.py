@@ -90,13 +90,14 @@ G["market"] = [([band([(32, 18), (32, 50)], 5.6), chaikin([(19, 57), (21, 50.5),
                 + [band(c, 3.2) for c in ([(12, 19), (5.5, 36)], [(12, 19), (20.5, 36)], [(52, 19), (43.5, 36)], [(52, 19), (58.5, 36)])]
                 + [chaikin(BOWL_L, 1), chaikin(BOWL_R, 1)], False)]
 
-# skills: the star, carved: a ridge cut from every point to the centre so it reads as faceted stone.
-STAR = [(32 + (25 if i % 2 == 0 else 10.5) * math.cos(math.radians(-90 + 36 * i)),
-         33.5 + (25 if i % 2 == 0 else 10.5) * math.sin(math.radians(-90 + 36 * i))) for i in range(10)]
+# skills: the star, carved: a ridge cut from every point to the centre so it reads as faceted stone
+# (drawn fuller than the plain star: the cuts take ink away).
+STAR = [(32 + (27 if i % 2 == 0 else 12.5) * math.cos(math.radians(-90 + 36 * i)),
+         34 + (27 if i % 2 == 0 else 12.5) * math.sin(math.radians(-90 + 36 * i))) for i in range(10)]
 FACETS = [STAR]
 for i in range(5):
     tip = STAR[2 * i]
-    FACETS = [q for p in FACETS for q in cut(p, (32, 33.5), tip, 1.3)]
+    FACETS = [q for p in FACETS for q in cut(p, (32, 34), tip, 1.3)]
 G["skills"] = [(FACETS, False)]
 
 # use: the tapping hand, wrist bound in a hide wrap.

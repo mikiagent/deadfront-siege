@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
 <!-- DEADFRONT UI icon "skills". 64 grid, live area 6-58, solid shapes, white only. -->
 <g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
-<path d="M43.6 51.18 L33.3 44.36 L33.3 37 Z"/>
-<path d="M52.87 27.59 L43.21 35.27 L36.21 33 Z"/>
-<path d="M42.4 37.75 L45.7 49.65 L35.4 35.47 Z"/>
-<path d="M33.3 11.48 L37.63 23.05 L33.3 29 Z"/>
-<path d="M39.73 24.57 L52.07 25.11 L35.4 30.53 Z"/>
-<path d="M18.3 49.65 L21.6 37.75 L28.6 35.47 Z"/>
-<path d="M30.7 44.36 L20.4 51.18 L30.7 37 Z"/>
-<path d="M11.93 25.11 L24.27 24.57 L28.6 30.53 Z"/>
-<path d="M20.79 35.27 L11.13 27.59 L27.79 33 Z"/>
-<path d="M26.37 23.05 L30.7 11.48 L30.7 29 Z"/>
+<path d="M45.06 53.19 L33.3 46.27 L33.3 37 Z"/>
+<path d="M55.24 26.82 L45.02 35.86 L36.21 33 Z"/>
+<path d="M44.21 38.34 L47.17 51.66 L35.4 35.47 Z"/>
+<path d="M33.3 8.99 L38.75 21.5 L33.3 29 Z"/>
+<path d="M40.85 23.03 L54.44 24.34 L35.4 30.53 Z"/>
+<path d="M16.83 51.66 L19.79 38.34 L28.6 35.47 Z"/>
+<path d="M30.7 46.27 L18.94 53.19 L30.7 37 Z"/>
+<path d="M9.56 24.34 L23.15 23.03 L28.6 30.53 Z"/>
+<path d="M18.98 35.86 L8.76 26.82 L27.79 33 Z"/>
+<path d="M25.25 21.5 L30.7 8.99 L30.7 29 Z"/>
 </g>
 </svg>
