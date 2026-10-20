@@ -1,17 +1,17 @@
 extends Node3D
-## Real-scene UI gate (W1-UI). Boots the home island with the real HUD, fits the logical canvas and
-## installs the theme the way boot does (DisplayMode.install, DisplayMode.install_theme), then opens
+## Real-scene UI gate (W1-UI). Boots the home island with the real HUD on the canvas fit and token
+## theme main.gd installs at boot (DisplayMode.install, DisplayMode.install_theme), then opens
 ## the HUD, craft, skills, atlas, a gather radial, the bag, the animal screen and character creation in the ROOT
 ## viewport (not a sized SubViewport, which hid the phone problem) and saves a PNG of each. Every
 ## screen must have size, sit inside the view, draw no text under 12 logical px and be neither blank
 ## nor blown out; the HUD, atlas, bag and character creation also check that their blocks and
-## controls stay inside the view and do not overlap each other. The animal screen (protected) is a
+## controls stay inside the view and do not overlap each other, and the gather radial's hexes and
+## labels stay off the HUD and the survivor's nameplate. The animal screen (protected) is a
 ## shot only, for an eye check of the token theme on it; nothing on it is gated.
-## Windowed: --resolution 844x390 -- --lab=ui_real_capture_lab [--shot-dir=DIR] [--no-fit]
+## Windowed: --resolution 844x390 -- --lab=ui_real_capture_lab [--shot-dir=DIR]
 ## (844x390 is the phone check: the owner plays phones landscape; 667x375, 390x844 and 1600x900 also
-## run.) --no-fit skips DisplayMode.install: the gate's self-test, which must then FAIL on a phone
-## window. --no-theme skips the token theme, for before/after shots of the protected screens. Prints "[uireal] phone=<bool> min_font_px=<n> ..." then "[uireal] PASS" (exit 0) or FAIL
-## lines (exit 1).
+## run.) The verdict without the fit is unit-tested in t_ui (gate_failures), since boot now always fits.
+## Prints "[uireal] phone=<bool> min_font_px=<n> ..." then "[uireal] PASS" (exit 0) or FAIL lines (exit 1).
 
 const SETTLE_S := 3.0
 const BLOWN_MAX := 0.2   ## share of near-white pixels allowed in a frame
@@ -26,20 +26,10 @@ var _min_font_where := ""
 var _shots: PackedStringArray = []
 
 func _ready() -> void:
-	var fit := true
-	var theme := true
 	_out = OS.get_user_data_dir().path_join("ui-real")
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot-dir="):
 			_out = a.substr(11)
-		elif a == "--no-fit":
-			fit = false
-		elif a == "--no-theme":
-			theme = false
-	if fit:
-		DisplayMode.install(get_tree().root)
-	if theme:
-		DisplayMode.install_theme()
 	DirAccess.make_dir_recursive_absolute(_out)
 	Game.debug_overlay = false  # before the HUD builds: players never see the DEBUG hex (labs default it on)
 	var kit := LabKit.build(self, 4.0)
