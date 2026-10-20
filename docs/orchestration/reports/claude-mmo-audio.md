@@ -25,7 +25,7 @@ fails on the old code.
 | Minor: shore/weather/music slots faded to 0 kept playing at -80 dB forever (decoded PCM kept on web) | `AudioBeds._fade` frees any slot whose gain and target are both 0 | `_test_beds_release` |
 | Minor: `_cstate` leaked despawned creatures; group scan and per-creature work every frame; `_effective_weather` every frame | State erased on `tree_exiting`; the group scan runs only on the 0.25 s poll and caches large/huge creatures for per-frame footfalls (size kept in the state); thunder reads the weather cached by the 0.5 s ambience tick | `_test_live`: state is gone after the raptor leaves the tree |
 | Minor: bus defaults captured from the live bus, so a recreated director compounded the volume setting | `AudioDirector.designed_bus_db(bus)` reads `default_bus_layout.tres` | `_test_bus_defaults`: three directors made and freed at 0.5 SFX leave SFX at designed -6.0 dB |
-| Minor: report accuracy | LUFS and peaks below are now measured on the shipped .ogg (the first pass measured the pre-encode WAV; Vorbis at q 0.15 drops noisy beds by about 1.3 dB, which is why volcanic_night read -28.8 then and -30.1 to the reviewer). Commons credits: `url` is the `File:` page that carries the licence, `download` the media file. Mono thunder and fire are deliberate point sources; beds and music are stereo | `_test_credits` checks Commons `url`/`download` |
+| Minor: report accuracy | LUFS and peaks below are now measured on the shipped .ogg (the first pass measured the pre-encode WAV; Vorbis at q 0.15 drops noisy beds by about 1.3 dB, which is why volcanic_night read -28.8 then; re-measured today it is -30.2 integrated, 0.1 dB from the reviewer's -30.1). A full rescan of all 456 shipped files finds no true peak above -1.1 dBTP. The `max_db = 3` cap that erased `volume_db` in the near field and the old walk-step cadence (3.1 steps/s against a 1.9/s walk clip) are covered in the two rows above. Commons credits: `url` is the `File:` page that carries the licence, `download` the media file. Mono thunder and fire are deliberate point sources; beds and music are stereo | `_test_credits` checks Commons `url`/`download` |
 
 Timbre check without ears (`aspectralstats` centroid, spread, roll-off, flatness, entropy, log
 distance to the smilodon set, per kind; old raptor -> new raptor): idle 1.07 -> 0.73, alert
@@ -176,6 +176,10 @@ GDC bundles were not needed.
 | Music | 4 | -21.1 | -22.1 to -20.1 | -22 to -20 | -5.5 |
 
 Clips under 3 s are measured looped to 3 s (the 400 ms gate cannot read a 0.3 s thud otherwise).
+Re-measured 2026-10-20 with ffmpeg `ebur128=peak=true` on the shipped `.ogg`: every row above
+matches `credits.json` to 0.1 dB and the hottest file in the set is -1.1 dBTP (ambience/fire,
+combat/crit_03, three creature files); 0 of 456 are above -1 dBTP. `ambience/fire` and the thunder
+takes are mono on purpose (point sources); beds and music are stereo.
 70 of 456 files land more than 1 dB under their target and 16 more than 3 dB under (the first
 pass had 54 and 6 by its own WAV measure; the first report named only seven). They are
 transient-heavy (punches, twig snaps, crackle, mud-pot bubbling) where the -1 dBTP ceiling wins

@@ -85,16 +85,21 @@ func _on_node_added(n: Node) -> void:
 	elif n is Bonfire:
 		_once(n, func () -> void: director.attach_loop(&"amb_fire", n as Node3D))
 
+## Hook marks carry the hooks instance id: a recreated director (Game.ensure_audio after the node was
+## freed) must hook the world again instead of skipping every node the old one had marked.
+func _mark(n: Node) -> StringName:
+	return StringName("_audio_hooked_%d" % get_instance_id())
+
 func _once(n: Node, hook: Callable) -> void:
-	if n.has_meta(&"_audio_hooked"):
+	if n.has_meta(_mark(n)):
 		return
-	n.set_meta(&"_audio_hooked", true)
+	n.set_meta(_mark(n), true)
 	hook.call()
 
 func _when_ready(n: Node, hook: Callable) -> void:
-	if n.has_meta(&"_audio_hooked"):
+	if n.has_meta(_mark(n)):
 		return
-	n.set_meta(&"_audio_hooked", true)
+	n.set_meta(_mark(n), true)
 	if n.is_node_ready():
 		hook.call(n)
 	else:

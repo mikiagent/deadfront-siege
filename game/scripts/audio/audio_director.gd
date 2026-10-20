@@ -155,14 +155,33 @@ func _restore_mute() -> void:
 func _sync_mute() -> void:
 	var idx := AudioServer.get_bus_index(&"Master")
 	if idx >= 0:
-		AudioServer.set_bus_mute(idx, muted)
+		AudioServer.set_bus_mute(idx, muted or bus_volume(&"Master") <= 0.001)
 
-## The mute hotkey (`mute_audio`, F10) and the settings sheet share this.
+## The mute hotkey (`mute_audio`, F10) and the sound sheet (`audio_settings`, F9). The sheet is
+## also one line from any menu: `AudioSettings.open_in(<modal layer or current scene>)`.
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"mute_audio"):
 		set_muted(not muted)
 		print("[audio] master %s (hotkey)" % ("muted" if muted else "unmuted"))
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed(&"audio_settings"):
+		open_settings()
+		get_viewport().set_input_as_handled()
+
+var settings_panel: AudioSettings
+
+## Show the sound sheet over the current scene (F9, a menu button, or the audio lab).
+func open_settings() -> AudioSettings:
+	if settings_panel != null and is_instance_valid(settings_panel):
+		settings_panel.open()
+		settings_panel.move_to_front()
+		return settings_panel
+	var scene := get_tree().current_scene
+	if scene == null:
+		return null
+	settings_panel = AudioSettings.open_in(scene)
+	settings_panel.director = self
+	return settings_panel
 
 ## Weather layer for the beds: kind rain | storm | wind | snow | sandstorm | ash_storm | clear,
 ## intensity 0..1. &"auto" hands control back to the island's own rain.

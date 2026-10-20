@@ -23,8 +23,8 @@ func run(tree: SceneTree) -> Array[String]:
 	_test_step_phase()
 	_test_bus_defaults(tree)
 	_test_beds_release(tree)
-	_test_settings_panel(tree)
 	_test_live(tree)
+	_test_settings_panel(tree)
 	return failures
 
 func _expect(ok: bool, msg: String) -> void:
@@ -307,6 +307,7 @@ func _test_settings_panel(tree: SceneTree) -> void:
 	_expect(AudioSettings.MIX_BUSES.has(&"Master") and AudioSettings.MIX_BUSES.has(&"Creatures") and AudioSettings.MIX_BUSES.size() == 6,
 		"audio: settings panel does not offer Master/Music/Ambience/SFX/Creatures/UI")
 	var panel := panel_script.new() as Control
+	panel.director = d
 	tree.root.add_child(panel)
 	panel.open()
 	for bus in AudioSettings.MIX_BUSES:

@@ -31,6 +31,7 @@ const ACTIONS: Dictionary = {
 	"place_cancel": [KEY_ESCAPE],
 	"fullscreen": [KEY_F11],
 	"mute_audio": [KEY_F10],
+	"audio_settings": [KEY_F9],
 }
 
 ## Gamepad layout (Xbox naming; Godot maps PlayStation and Switch pads to the same indices).

@@ -25,7 +25,18 @@ func _ready() -> void:
 	cam.make_current()
 	_audio = Game.audio
 	_audio.beds.manual = true
+	if "--audio-lab-settings" in OS.get_cmdline_user_args():
+		# Visual check of the sound sheet: godot --path game -- --lab=audio_lab --audio-lab-settings --shot=x.png
+		call_deferred("_show_settings")
+		return
 	call_deferred("_run")
+
+func _show_settings() -> void:
+	_audio.beds.preview(&"bed", &"amb_grassland_day", 0.4, 1.0)
+	_audio.open_settings()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	print("[audio_lab] sound sheet open")
 
 func _category(event: String) -> String:
 	for row in CATEGORIES:

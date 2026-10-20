@@ -22,15 +22,25 @@ var _values: Dictionary = {}
 var _mute: CheckButton
 
 ## Make the panel as a child of `host` and show it. Returns the panel so callers can keep it.
+## A Node3D or Node host gets its own CanvasLayer: a Control parented straight to the 3D scene
+## root renders but does not resolve its anchors, so the sheet would hang off the top-left.
 static func open_in(host: Node) -> AudioSettings:
 	var p := AudioSettings.new()
 	p.name = "AudioSettings"
-	host.add_child(p)
+	if host is CanvasLayer or host is Control:
+		host.add_child(p)
+	else:
+		var layer := CanvasLayer.new()
+		layer.name = "AudioSettingsLayer"
+		layer.layer = 99
+		host.add_child(layer)
+		layer.add_child(p)
 	p.open()
 	return p
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# A Control directly under a CanvasLayer anchors to the viewport; set both so the sheet fills it.
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
 	if director == null:
@@ -48,11 +58,11 @@ func _ready() -> void:
 	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(centre)
 	_panel = PanelContainer.new()
-	_panel.custom_minimum_size = Vector2(560, 0)
+	_panel.custom_minimum_size = Vector2(600, 0)
 	_panel.add_theme_stylebox_override("panel", UiTokens.panel_style(0.98))
 	centre.add_child(_panel)
 	_box = VBoxContainer.new()
-	_box.add_theme_constant_override("separation", UiTokens.SPACE)
+	_box.add_theme_constant_override("separation", UiTokens.SPACE / 2)
 	_panel.add_child(_box)
 	_build()
 	_refresh()
@@ -85,31 +95,34 @@ func _build() -> void:
 	_mute.toggled.connect(_on_mute_toggled)
 	_box.add_child(_mute)
 
+## One 64 px row per bus: name, drag strip, value. Laid out in one line so six buses plus Mute all
+## still fit a 640 px-tall phone without scrolling.
 func _add_row(bus: StringName) -> void:
-	var row := VBoxContainer.new()
-	row.add_theme_constant_override("separation", 2)
-	var top := HBoxContainer.new()
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.custom_minimum_size = Vector2(0, TAP_PX)
 	var name_label := Label.new()
 	name_label.text = str(NAMES.get(bus, bus))
 	name_label.add_theme_font_size_override("font_size", 18)
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(name_label)
+	name_label.custom_minimum_size = Vector2(110, 0)
+	row.add_child(name_label)
 	var value_label := Label.new()
 	value_label.text = "100%"
-	value_label.add_theme_font_size_override("font_size", 16)
+	value_label.add_theme_font_size_override("font_size", 15)
 	value_label.add_theme_color_override("font_color", UiTokens.META)
-	top.add_child(value_label)
-	row.add_child(top)
+	value_label.custom_minimum_size = Vector2(96, 0)
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var slider := HSlider.new()
 	slider.name = "Slider_%s" % bus
 	slider.min_value = 0.0
 	slider.max_value = 1.0
 	slider.step = 0.01
 	slider.value = 1.0
-	slider.custom_minimum_size = Vector2(0, TAP_PX - 18.0)  # plus the label row keeps the row >= 64 px
+	slider.custom_minimum_size = Vector2(TAP_PX * 2.0, TAP_PX)  # the drag strip itself is a full tap target
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.value_changed.connect(_on_slider_changed.bind(bus, value_label))
 	row.add_child(slider)
+	row.add_child(value_label)
 	_box.add_child(row)
 	_sliders[bus] = slider
 	_values[bus] = value_label
@@ -148,7 +161,10 @@ func _show_value(bus: StringName, value: float) -> void:
 		l.text = _value_text(value)
 
 func _value_text(value: float) -> String:
-	return "off" if value <= 0.001 else "%d%%, %.0f dB" % [roundi(value * 100.0), linear_to_db(maxf(value, 0.0001))]
+	if value <= 0.001:
+		return "off"
+	var db := linear_to_db(value)
+	return "%d%%" % roundi(value * 100.0) if db > -0.05 else "%d%%   %.0f dB" % [roundi(value * 100.0), db]
 
 func _on_mute_toggled(pressed: bool) -> void:
 	if director:
