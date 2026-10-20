@@ -32,23 +32,16 @@ func _process(_delta: float) -> bool:
 	IS = load("res://scripts/items/item_stack.gd")
 	INV = load("res://scripts/items/inventory.gd")
 	OS.add_logger(log)
-	_test_equip_exact_instance()
-	_test_bad_amounts()
-	_test_worn_out_of_bag()
-	_test_best_tool()
-	_test_no_stacking()
-	_test_split_migration()
-	_test_legacy_equipment_migration()
-	_test_hostile_worn()
-	_test_identity_through_transfer()
-	_test_real_saves_split()
-	_test_overflow_to_home_storage()
-	_test_stack_bigger_than_bag()
-	_test_round_trip_keeps_uids()
-	_test_worn_gear_kept()
-	_test_currency_stacks()
-	_test_visual_groups()
-	_test_server_store_migration()
+	var tests: Array[Callable] = [_test_equip_exact_instance, _test_bad_amounts, _test_worn_out_of_bag,
+		_test_best_tool, _test_no_stacking, _test_split_migration, _test_legacy_equipment_migration,
+		_test_hostile_worn, _test_identity_through_transfer, _test_real_saves_split,
+		_test_overflow_to_home_storage, _test_stack_bigger_than_bag, _test_round_trip_keeps_uids,
+		_test_worn_gear_kept, _test_currency_stacks, _test_visual_groups, _test_server_store_migration]
+	for t in tests:
+		var errs := log.script_errors
+		t.call()
+		# A SCRIPT ERROR returns early from the test (old code without a method): that is a failure.
+		_expect(log.script_errors == errs, "%s stopped on a SCRIPT ERROR" % t.get_method())
 	_expect(log.script_errors == 0, "no SCRIPT ERROR (got %d)" % log.script_errors)
 	if failures.is_empty():
 		print("[t_inventory] PASS")
