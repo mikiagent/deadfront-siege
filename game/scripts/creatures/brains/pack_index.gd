@@ -25,7 +25,13 @@ static func members(creature: Creature) -> Array[Creature]:
 			(_index[c.pack_id] as Array[Creature]).append(c)
 		for id in _index:
 			(_index[id] as Array[Creature]).sort_custom(stronger)
-	return _index.get(creature.pack_id, none)
+	var live: Array[Creature] = _index.get(creature.pack_id, none)
+	# A member can be freed inside the frame this list was built in (island unload, despawn); callers
+	# read c.brain without is_instance_valid, so drop the stale entries before handing it out.
+	var kept := live.filter(func(c: Creature) -> bool: return is_instance_valid(c))
+	if kept.size() != live.size():
+		_index[creature.pack_id] = kept
+	return kept
 
 ## Forget this frame's lists (tests that build and free packs inside one frame).
 static func invalidate() -> void:
