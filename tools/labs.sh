@@ -85,13 +85,17 @@ while IFS= read -r line; do
   allowed=0; [[ "$flags" =~ \ errors:([0-9]+)\  ]] && allowed="${BASH_REMATCH[1]}"
   [[ $errs -gt $allowed ]] && why="${why:+$why; }$errs engine ERROR lines (allowed $allowed): $(grep -m1 -E '^ *(USER )?ERROR:' "$log" | cut -c1-60)"
   xfail=""; [[ "$flags" =~ \ xfail:([^ ]+)\  ]] && xfail="${BASH_REMATCH[1]}"
+  flaky=""; [[ "$flags" =~ \ flaky:([^ ]+)\  ]] && flaky="${BASH_REMATCH[1]}"
   verdict="$(grep -E '\] (PASS|FAIL|PARTIAL)' "$log" | tail -1 | cut -c1-110)"
   own="$(grep -m1 -E '\] (FAIL|PARTIAL)' "$log")"
-  if [[ -n "$xfail" ]]; then
+  if [[ -n "$xfail$flaky" ]]; then
     # Strict: an expected failure must be the lab's own FAIL/PARTIAL verdict line; a timeout, crash
-    # or native abort without one fails the gate (same rule as tools/test.sh).
-    if [[ -n "$why" && -z "$crash" && -n "$own" ]]; then r=XFAIL; d="$xfail owns it: ${why:0:100}"
+    # or native abort without one fails the gate (same rule as tools/test.sh). A flaky row may also
+    # pass; an xfail row that passes (XPASS) fails the gate until the flag is dropped.
+    owner="$xfail$flaky"
+    if [[ -n "$why" && -z "$crash" && -n "$own" ]]; then r=XFAIL; [[ -n "$flaky" ]] && r=FLAKY; d="$owner owns it: ${why:0:100}"
     elif [[ -n "$why" ]]; then r=FAIL; d="no own FAIL/PARTIAL verdict: ${why:0:90}"; bad=$((bad + 1))
+    elif [[ -n "$flaky" ]]; then r=PASS; d="${verdict:0:90} (flaky:$flaky)"
     else r=XPASS; d="passes now: drop xfail:$xfail from labs.txt"; bad=$((bad + 1)); fi
   elif [[ -n "$why" ]]; then r=FAIL; d="${why:0:110}"; bad=$((bad + 1))
   else r=PASS; d="$verdict"; fi

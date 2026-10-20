@@ -7,14 +7,14 @@ extends Node3D
 
 const SAMPLE_FRAMES := 300
 const SETTLE_S := 2.0
-# ASSUMPTION: provisional budgets from measurements on the M5 Pro dev machine (headless
-# 2026-10-18; windowed 1600x900 Forward+ 2026-10-19: prims_visible=5,195,295, frame p95 11.2 ms),
-# with headroom. The prims budget is a regression fence, not a phone target: 5.2 M is far too
-# many for mobile. W1-WEB (vegetation culling) owns cutting it; re-record and tighten after
-# W1-AI (AI LOD) and W1-WEB merge. Gated by the "perf_budget_render" window row in labs.txt.
+# ASSUMPTION: budgets recorded on the M5 Pro dev machine after W1-AI (AI LOD) and W1-WEB
+# (vegetation culling) merged, on claude/mmo-overhaul 781b3b3 + this package, 2026-10-19:
+# headless physics p95 6.77 ms / frame 8.54 ms; windowed 1600x900 Forward+ physics 1.34 ms,
+# frame 12.04 ms, prims_visible 1,482,097 (5,195,295 before W1-WEB). The prims budget is a
+# regression fence with ~35 % headroom, not a phone target. Gated windowed by "perf_budget_render".
 const BUDGET_PHYSICS_MS := 8.0     # half a 60 Hz tick
 const BUDGET_FRAME_MS := 33.4      # never below 30 fps
-const BUDGET_PRIMS := 6_000_000    # windowed only
+const BUDGET_PRIMS := 2_000_000    # windowed only
 
 var _player: Player
 var _cam: IsoCamera

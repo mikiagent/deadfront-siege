@@ -1,7 +1,8 @@
 extends Node3D
 ## Six harvest nodes: two climate-stamped fibre stalks, branch, stone, herb, knife-gated thicket.
-## (Was foundation_lab.) Headless it is a gate: climates stay unmerged, the thicket refuses
-## without a knife and yields with one.
+## (Was foundation_lab.) Headless it is a gate: each climate stalk yields two units, the thicket
+## refuses without a knife and yields with one. Whether climates split stacks is W1-ITEMS' rule
+## (inv-01, t_items), so this lab counts units and leaves the stack layout alone.
 
 var _player: Player
 var _debug: Label
@@ -59,22 +60,14 @@ func _demo() -> void:
 			thicket_units += before - left
 			print("[item] +%d %s %s" % [before - left, stack.def_id, attrs])
 	r.expect(thicket_units > 0, "thicket yields once a knife is carried")
-	var temperate := 0
-	var tropical := 0
+	var fibre := 0
 	for s in _player.inventory.slots:
 		if s and s.def_id == &"fibre_stalk":
-			if str(s.attributes.get("climate", "")) == "temperate":
-				temperate += s.count
-			elif str(s.attributes.get("climate", "")) == "tropical":
-				tropical += s.count
-	print("[item] fibre stacks temperate=%d tropical=%d (unmerged climates)" % [temperate, tropical])
-	var fibre_slots := 0
-	for s in _player.inventory.slots:
-		if s and s.def_id == &"fibre_stalk" and str(s.attributes.get("climate", "")) in ["temperate", "tropical"]:
-			fibre_slots += 1
-	r.expect(temperate == 2 and tropical == 2, "two units per climate (temperate=%d tropical=%d)" % [temperate, tropical])
-	r.expect(fibre_slots == 2, "same-climate units merge and climates stay apart (%d fibre slots)" % fibre_slots)
-	r.finish(get_tree(), "temperate=%d tropical=%d thicket=%d" % [temperate, tropical, thicket_units])
+			fibre += s.count
+	var stalks := fibre - thicket_units
+	print("[item] fibre units from the two climate stalks=%d (thicket %d)" % [stalks, thicket_units])
+	r.expect(stalks == 4, "two units per climate stalk (got %d from two stalks)" % stalks)
+	r.finish(get_tree(), "stalks=%d thicket=%d" % [stalks, thicket_units])
 
 func _process(_delta: float) -> void:
 	if _player:

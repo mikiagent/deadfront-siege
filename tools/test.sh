@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Unit gate: import, then run game/tests/run_all.gd and every game/tests/t_*.gd headless.
-# A file passes only with exit 0, its own PASS line ("[tests] PASS" for run_all, "[t_x] PASS"
-# for t_x.gd) and no 'SCRIPT ERROR' / 'Parse Error' line: GDScript keeps running after a runtime
-# error, so a crashed test used to print PASS. Every run gets a throwaway HOME, so tests never
-# share a save with each other or touch the owner's real user:// data.
+# A file passes only with exit 0, a PASS verdict ("[tests] PASS" for run_all, "[t_<name>] PASS"
+# and no "[t_<name>] FAIL" for t_*.gd) and no 'SCRIPT ERROR' / 'Parse Error' line: GDScript keeps
+# running after a runtime error, so a crashed test used to print PASS. Every run gets a throwaway
+# HOME, so tests never share a save with each other or touch the owner's real user:// data.
 # Usage: tools/test.sh [--no-import]
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 G="$($ROOT/tools/find_godot.sh)" || exit 127
-# Strict expected failures: listed files must FAIL; one that passes (XPASS) fails the gate so the
-# entry gets removed. t_rules: pet death cooldown is 60 s, GAUNTLET says 180 s (W1-TAME fixes it).
-XFAIL=" t_rules "
+# Strict expected failures (" t_x t_y "): listed files must FAIL; one that passes (XPASS) fails
+# the gate so the entry gets removed. Empty: t_rules passes since W1-TAME merged.
+XFAIL=" "
 TMP_HOME="$(mktemp -d)"
 trap 'rm -rf "$TMP_HOME"' EXIT
 export HOME="$TMP_HOME" XDG_DATA_HOME="$TMP_HOME/.local/share" XDG_CONFIG_HOME="$TMP_HOME/.config"
@@ -34,21 +34,23 @@ bad=0; total=0
 for f in "$ROOT/game/tests/run_all.gd" "$ROOT"/game/tests/t_*.gd; do
   [[ -f "$f" ]] || continue
   name="$(basename "$f" .gd)"
-  tag="$name"; [[ "$name" == run_all ]] && tag=tests
+  # Verdict tag: "[tests]" for run_all; any "[t_*]" for t_*.gd (t_lighting.gd prints "[t_light]").
+  tag='t_[a-z0-9_]+'; [[ "$name" == run_all ]] && tag=tests
   total=$((total + 1))
   run_one "$LOG" "res://tests/$name.gd"
   code=$?
   out="$(cat "$LOG")"
   why=""
-  echo "$out" | grep -q "^\[$tag\] PASS" || why="no [$tag] PASS line"
+  echo "$out" | grep -qE "^\[$tag\] PASS" || why="no [$tag] PASS line"
+  [[ -z "$why" ]] && echo "$out" | grep -qE "^\[$tag\] FAIL" && why="$(echo "$out" | grep -m1 -E "^\[$tag\] FAIL")"
   err="$(echo "$out" | grep -m1 -E 'SCRIPT ERROR|Parse Error')" && why="$err"
   [[ $code -ne 0 ]] && why="exit $code${why:+; $why}"
   if [[ "$XFAIL" == *" $name "* ]]; then
     # An expected failure must be the test's own FAIL verdict, never a crash or compile error.
-    if [[ -n "$why" && -z "$err" ]] && echo "$out" | grep -q "^\[$tag\] FAIL"; then echo "[test] XFAIL $name ($(echo "$out" | grep -m1 "^\[$tag\] FAIL"))"
+    if [[ -n "$why" && -z "$err" ]] && echo "$out" | grep -qE "^\[$tag\] FAIL"; then echo "[test] XFAIL $name ($(echo "$out" | grep -m1 -E "^\[$tag\] FAIL"))"
     elif [[ -n "$why" ]]; then echo "[test] FAIL $name (expected-fail file crashed: $why)"; bad=$((bad + 1)); else echo "[test] XPASS $name (passes now: remove it from XFAIL in tools/test.sh)"; bad=$((bad + 1)); fi
   elif [[ -n "$why" ]]; then
-    echo "$out" | grep -E "^\[$tag\]|SCRIPT ERROR|Parse Error|^ +at: " | head -20
+    echo "$out" | grep -E "^\[($tag)\]|SCRIPT ERROR|Parse Error|^ +at: " | head -20
     echo "[test] FAIL $name ($why)"; bad=$((bad + 1))
   else
     echo "[test] PASS $name"
