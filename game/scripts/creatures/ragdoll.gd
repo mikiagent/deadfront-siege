@@ -311,14 +311,13 @@ func _finish() -> void:
 		creature.anim.tree.active = false
 	creature.velocity = Vector3.ZERO
 	creature.set_physics_process(false)
-	var skel := _skeleton()
-	if skel:
+	var sk := _skeleton()
+	if sk:
 		# Every Skeleton3D carries an internal compat PhysicalBoneSimulator3D that keeps the skeleton
 		# updating each frame; a frozen corpse needs no modifier at all.
-		for m in skel.find_children("*", "SkeletonModifier3D", false, false):
+		for m in sk.find_children("*", "SkeletonModifier3D", false, false):
 			(m as SkeletonModifier3D).active = false
 	var space := creature.get_world_3d().direct_space_state
-	var sk := _skeleton()
 	var hips_w := creature.global_position
 	var prof := profile(creature.def.id if creature.def else &"")
 	if sk:
