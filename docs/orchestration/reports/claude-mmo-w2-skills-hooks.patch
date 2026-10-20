@@ -22,14 +22,16 @@ index 7f54da55..d2cf0228 100644
  		shot.global_position = origin
  	)
 diff --git a/game/scripts/core/data.gd b/game/scripts/core/data.gd
-index aa02b967..15879636 100644
+index aa02b967..fe83ffd7 100644
 --- a/game/scripts/core/data.gd
 +++ b/game/scripts/core/data.gd
-@@ -47,9 +47,10 @@ func is_survival_unlocked(node_id: StringName) -> bool:
+@@ -47,9 +47,12 @@ func is_survival_unlocked(node_id: StringName) -> bool:
  func set_survival_unlocked(node_id: StringName, on: bool) -> void:
  	survival_unlocked[node_id] = on
  
-+## Spec 09: 3 bonded companions + Animal Handling I-IV (W2-SKILLS) -> 7. Caged animals are items.
++## The one bonded-pet cap every bond path asks (pen, field tame, bag, market unpack): spec 09's
++## 3 + Animal Handling I-IV, at most 7 (SkillRules.bonded_capacity). Caged animals are items and
++## never count. 3 with no local player (a dedicated server has no skill nodes until W3-SRVACT).
  func bonded_cap() -> int:
 -	# Roster storage is unlimited; Player.MAX_PETS_OUT governs the three active companions.
 -	return 2147483647
@@ -39,7 +41,7 @@ index aa02b967..15879636 100644
  func has_capture_technique(tier: int) -> bool:
  	for id in survival_nodes:
 diff --git a/game/scripts/core/save_sanitizer.gd b/game/scripts/core/save_sanitizer.gd
-index b1f73860..f7e51b20 100644
+index b1f73860..987c1a07 100644
 --- a/game/scripts/core/save_sanitizer.gd
 +++ b/game/scripts/core/save_sanitizer.gd
 @@ -103,7 +103,7 @@ static func clean(data: Dictionary) -> Dictionary:
@@ -51,7 +53,7 @@ index b1f73860..f7e51b20 100644
  	if data.has("skills"):
  		data["skills"] = _legacy_survival(data["skills"], data.get("skills_v2", {}))
  	if data.has("t_stones"):
-@@ -219,15 +219,17 @@ static func _genetics(g: Variant) -> void:
+@@ -219,15 +219,20 @@ static func _genetics(g: Variant) -> void:
  			if not (part[stat] is int or part[stat] is float):
  				(part as Dictionary).erase(stat)
  
@@ -63,9 +65,12 @@ index b1f73860..f7e51b20 100644
 +## Tree levels cap at 60. Bought nodes must exist in trees.json and be reachable (tree level,
 +## prerequisite); walking the trees in order, a node is kept only while the total cost stays within
 +## the budget, and sp_spent is that total, so a forged unlocked list cannot buy nodes for free.
-+## Budget (W2-SKILLS, spec 03): the SP the character level paid. A rev-1 save bought its nodes under
-+## the old per-tree award, so its budget is what its tree levels paid then: a migration never takes
-+## a learned node away (SkillState then shows 0 SP until the character level catches up).
++## Budget (W2-SKILLS, spec 03): the SP the character level paid plus the one-time sp_extra. A rev-1
++## save bought its nodes under the old per-tree award, so its budget is what its tree levels paid
++## then: a migration never takes a learned node or an unspent SP away (SkillState turns what the
++## character level does not cover into sp_extra). sp_extra is capped at that old award, the most a
++## migration can grant. shortcut: a forged save can still claim up to the old award of its tree
++## levels; server-side purchases (W3-SRVACT) close it.
 +static func _skills(sv: Dictionary, pioneer_level: int = 0) -> void:
  	var trees: Dictionary = sv.get("trees") if sv.get("trees") is Dictionary else {}
  	var payout := SkillState.new()
@@ -75,23 +80,26 @@ index b1f73860..f7e51b20 100644
  	for id in trees.keys():
  		if not SkillState.ORDER.has(str(id)):
  			trees.erase(id)
-@@ -239,7 +241,9 @@ static func _skills(sv: Dictionary) -> void:
+@@ -239,7 +244,12 @@ static func _skills(sv: Dictionary) -> void:
  		row["unlocked"] = row.get("unlocked") if row.get("unlocked") is Array else []
  		trees[id] = row
  		for l in range(1, level + 1):
 -			earned += payout.sp_for_level(l)
 +			legacy_paid += payout.sp_for_level(l)
 +	var char_paid := SkillRules.paid_for_level(payout, pioneer_level + 1)
-+	var earned := legacy_paid if _int(sv.get("rev", 1), 1, SkillState.REV) < SkillState.REV else char_paid
++	var earned := legacy_paid
++	if _int(sv.get("rev", 1), 1, SkillState.REV) >= SkillState.REV:
++		sv["sp_extra"] = _int(sv.get("sp_extra", 0), 0, legacy_paid)
++		earned = char_paid + int(sv["sp_extra"])
  	var spent := 0
  	for id in SkillState.ORDER:
  		if not trees.has(id):
-@@ -258,7 +262,7 @@ static func _skills(sv: Dictionary) -> void:
+@@ -258,7 +268,7 @@ static func _skills(sv: Dictionary) -> void:
  	payout.free()
  	sv["trees"] = trees
  	sv["sp_spent"] = spent
 -	sv["sp_available"] = _int(sv.get("sp_available", 0), 0, earned - spent)
-+	sv["sp_available"] = _int(sv.get("sp_available", 0), 0, maxi(0, char_paid - spent))
++	sv["sp_available"] = _int(sv.get("sp_available", 0), 0, maxi(0, earned - spent))
  
  ## Legacy {survival node id: bool}. Only survival.json ids with bool values survive. When a skill
  ## tree save exists it is the record of what was bought, so a node stays true only if its tree node
@@ -159,3 +167,24 @@ index 0bbbcb56..d19f8337 100644
  	dealt *= 1.0 + float(tune.get("damage_per_melee_level", 0.01)) * float(melee)
  	dealt *= CombatCounters.multiplier(def.archetype, dtype)
  	var kind := "hit"
+diff --git a/game/scripts/ui/craft_ui.gd b/game/scripts/ui/craft_ui.gd
+index d7187dbb..38394e10 100644
+--- a/game/scripts/ui/craft_ui.gd
++++ b/game/scripts/ui/craft_ui.gd
+@@ -460,6 +460,16 @@ func _show_detail(info: Dictionary) -> void:
+ 	need.add_theme_color_override("font_color", UiTokens.META)
+ 	_detail.add_child(need)
+ 	_detail.add_child(_ingredients_row(rec))
++	# W2-SKILLS: a recipe a skill node gates is listed but locked (spec 03); say what unlocks it.
++	var locked := Crafting.progression_block(player, rec)
++	if locked != "":
++		var why := Label.new()
++		why.name = "DetailLock"
++		why.text = locked.left(1).to_upper() + locked.substr(1)
++		why.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
++		why.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
++		why.add_theme_color_override("font_color", UiTokens.DANGER)
++		_detail.add_child(why)
+ 	var missing := Crafting.missing_ingredient_name(player.inventory, rec)
+ 	if missing != "":
+ 		var lock := Label.new()
