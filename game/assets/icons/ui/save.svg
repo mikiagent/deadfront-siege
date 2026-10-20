@@ -1,12 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-<!-- DEADFRONT UI icon "save". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
-<g transform="translate(0 -3)">
-<g fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-<path d="M10 38 V53 H54 V38"/>
-<path d="M32 7 V30"/>
-</g>
+<!-- DEADFRONT UI icon "save". 64 grid, live area 6-58, solid shapes, white only. -->
 <g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
-<path d="M32 45 L22 28 L32 32.25 L42 28 Z"/>
-</g>
+<path fill-rule="evenodd" d="M11.25 11.38 L14.75 10.12 L23.75 9.38 L38.25 9.12 L47.62 9.62 L51.88 10.88 L54.38 13.62 L55.12 17.88 L55.25 26.25 L54.75 38.75 L54 47 L53 51 L50.5 53.5 L46.5 54.5 L38 55.12 L25 55.38 L16.38 54.88 L12.12 53.62 L9.5 50.75 L8.5 46.25 L8.12 38 L8.38 26 L8.75 18 L9.25 14 Z M28.5 15 L34.5 15 L34.5 28 L41 28 L31.5 39.5 L22 28 L28.5 28 Z M25 43.5 L38 43.5 L44.5 44.75 L44.5 47.25 L38 48.5 L25 48.5 L18.5 47.25 L18.5 44.75 Z"/>
 </g>
 </svg>

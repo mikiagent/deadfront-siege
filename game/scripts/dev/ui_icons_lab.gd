@@ -2,12 +2,13 @@ extends Node3D
 ## W1-UIICONS acceptance: every white action icon (data/ui_icons.json) on the real HexButton
 ## and on dark and light panels at 24/32/48/64 px with its id. Pick a view with --icons=:
 ##   sheet (default)  every icon in a real 64 px HexButton over the lab world, id as caption
-##   sizes:<page>     rows: id | dark 24 32 48 64 | light panel (ink tint) 24 32 48 | 72 px hex
+##   sizes:<page>     rows: id | dark 12 16 24 32 48 64 | light panel (ink tint) 24 32 48 |
+##                    status chip today (18 px, 12 px icon) and per hook 6 (24 px, 16 px icon) | 72 px hex
 ##   hud              the real HUD with its legacy glyphs swapped for icons (preview of the hooks)
 ##   filter           linear vs linear-with-mipmaps at 24 and 32 px (the mipmap hook)
 ## Headless (no --shot) it loads every icon through UiIcons, prints [uiicons_lab] and exits.
 
-const SIZES: Array[int] = [24, 32, 48, 64]
+const SIZES: Array[int] = [12, 16, 24, 32, 48, 64]
 const LIGHT := Color(0.86, 0.85, 0.81, 0.97)
 const ROW_H := 84.0
 ## Letter and word glyphs the HUD sets directly (no emoji to look up): lab-side map for the preview.
@@ -93,7 +94,7 @@ func _build_sheet() -> void:
 func _build_sizes() -> void:
 	var r := _canvas.size
 	var rows := int((r.y - 24.0) / ROW_H)
-	var col_w := 700.0
+	var col_w := 780.0
 	var cols := maxi(1, int(r.x / col_w))
 	var per := rows * cols
 	var first := _page * per
@@ -101,7 +102,7 @@ func _build_sizes() -> void:
 		var slot := k - first
 		var o := Vector2(16.0 + float(slot / rows) * col_w, 16.0 + float(slot % rows) * ROW_H)
 		var h := _hex(_ids[k], 72.0)
-		h.position = o + Vector2(560.0, 2.0)
+		h.position = o + Vector2(688.0, 2.0)
 		_canvas.add_child(h)
 	_canvas.draw.connect(_draw_sizes.bind(first, rows, col_w, per))
 	print("[uiicons_lab] sizes page %d of %d (%d per page)" % [_page, int(ceil(_ids.size() / float(per))) - 1, per])
@@ -114,16 +115,25 @@ func _draw_sizes(first: int, rows: int, col_w: float, per: int) -> void:
 		var tex := UiIcons.icon(_ids[k])
 		_canvas.draw_rect(Rect2(o, Vector2(col_w - 20.0, ROW_H - 6.0)), Color(0, 0, 0, 0.35))
 		_canvas.draw_string(font, o + Vector2(8, 44), str(_ids[k]), HORIZONTAL_ALIGNMENT_LEFT, 150, 16, UiTokens.TEXT)
-		_canvas.draw_rect(Rect2(o + Vector2(160, 4), Vector2(232, 70)), UiTokens.INK)
+		_canvas.draw_rect(Rect2(o + Vector2(160, 4), Vector2(276, 70)), UiTokens.INK)
 		var x := o.x + 170.0
 		for px in SIZES:
 			_canvas.draw_texture_rect(tex, Rect2(Vector2(x, o.y + 39.0 - px * 0.5), Vector2(px, px)), false)
 			x += px + 10.0
-		_canvas.draw_rect(Rect2(o + Vector2(398, 4), Vector2(150, 70)), LIGHT)
-		x = o.x + 408.0
+		_canvas.draw_rect(Rect2(o + Vector2(442, 4), Vector2(150, 70)), LIGHT)
+		x = o.x + 452.0
 		for px: int in [24, 32, 48]:
 			_canvas.draw_texture_rect(tex, Rect2(Vector2(x, o.y + 39.0 - px * 0.5), Vector2(px, px)), false, UiTokens.INK_SOLID)
 			x += px + 10.0
+		_draw_chip(tex, o + Vector2(618, 39), 18.0, 12.0)
+		_draw_chip(tex, o + Vector2(652, 39), 24.0, 24.0 * 0.42 * 1.6)
+
+## A creature-plate status chip as status_glyph.gd draws it: dark disc, countdown ring, icon.
+func _draw_chip(tex: Texture2D, c: Vector2, chip: float, icon_px: float) -> void:
+	var r := chip * 0.42
+	_canvas.draw_circle(c, r, Color(0.05, 0.05, 0.05, 0.82))
+	_canvas.draw_arc(c, r, -PI * 0.5, PI * 0.9, 32, Color(0.95, 0.3, 0.3), 2.6, true)
+	_canvas.draw_texture_rect(tex, Rect2(c - Vector2.ONE * icon_px * 0.5, Vector2.ONE * icon_px), false)
 
 func _build_filter() -> void:
 	for row in 2:
