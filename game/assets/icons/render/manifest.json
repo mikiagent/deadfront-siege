@@ -50,8 +50,8 @@
    "script": "tools/blender/items/resources.py",
    "builder": "armor_scute",
    "png": "res://assets/icons/render/armor_scute.png",
-   "sha256": "4926d034efa7a1ba2eb79d4f97450073c49655c2082feeb728667455867bcda4",
-   "bytes": 53564,
+   "sha256": "a5451fa408aed51b97f4dcf3532fbc4c15bd67c0d8a3fbc8ab20a6c776bc7392",
+   "bytes": 53187,
    "rect": [
     19,
     34,

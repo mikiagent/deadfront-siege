@@ -329,15 +329,14 @@ def armor_scute():
         g = group(loc=loc, rot=(0, 0, rz))
         oval = [(math.cos(2 * math.pi * k / 12) * (1.0 + 0.06 * ((k * 5) % 3)) * sc,
                  math.sin(2 * math.pi * k / 12) * 0.68 * sc) for k in range(12)]
-
-        def dome(co):
-            d = (co.x / sc) ** 2 + (co.z / (0.68 * sc)) ** 2
-            co.y -= 0.22 * sc * max(0.0, 1.0 - d)
-        prism([(x * 1.07, z * 1.1) for x, z in oval], 0.12 * sc, loc=(0, 0.04 * sc, 0), m=rim, bev=0.03, parent=g)
-        prism(oval, 0.2 * sc, m=bone, bev=0.05, parent=g, deform=dome)
+        # No bevel modifier here: on these 12-gon prisms it put out faces in a different order each run
+        # (and moved two verts by 1e-9), which flipped a pixel or three. The rim sits 0.01 in from the
+        # bone's back face so no two faces are coplanar (a coplanar pair is a ray-hit tie).
+        prism([(x * 1.07, z * 1.1) for x, z in oval], 0.12 * sc, loc=(0, 0.03 * sc, 0), m=rim, bev=0, parent=g)
+        prism(oval, 0.2 * sc, m=bone, bev=0, parent=g)
         # Keel fin: a thick wedge along the long axis, highest just behind the middle.
         prism([(-0.85 * sc, 0.0), (-0.1 * sc, 0.5 * sc), (0.25 * sc, 0.55 * sc), (0.85 * sc, 0.0)], 0.16 * sc,
-              loc=(0, -0.12 * sc, 0), rot=(90, 0, 0), m=keel, bev=0.04, parent=g)
+              loc=(0, -0.12 * sc, 0), rot=(90, 0, 0), m=keel, bev=0, parent=g)
     scute((0.5, 0.35, 0.55), 0.7, 14)
     scute((-0.1, 0, -0.15), 1.0, -6)
     turn(-30, "X")
