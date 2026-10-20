@@ -3,6 +3,10 @@ extends Node
 ## 1 m tile A* pathing over island terrain + occupancy.
 ## Terrain walkability and weights are sampled once in setup(); after that only changed cells
 ## are re-flagged (a full rebuild measured 440-572 ms per building change on temperate_25).
+## CONTRACT (contracts v2, pathing): path() returns the points and records reachability in
+## `last_reachable`, which is a member of the shared TilePath and therefore only valid until the
+## next path() call. Single-threaded callers must read it immediately; the server-side reuse (W3)
+## must call path_result() instead, which returns both values in one Dictionary.
 
 const DEFAULT_MAX_LEN := 96
 const REBUILD_MARGIN := 2
@@ -75,6 +79,11 @@ func path(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN
 		out.append(BuildGrid.tile_centre(tile, runtime))
 	_log_len(out.size())
 	return out
+
+## path() with its reachable flag, for callers that cannot read a shared member right away.
+func path_result(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN) -> Dictionary:
+	var points := path(from_world, to_world, max_len)
+	return {"points": points, "reachable": last_reachable}
 
 func _log_len(length: int) -> void:
 	if Game == null:
