@@ -2,7 +2,7 @@
 
 Builders call these helpers to make parts parented to one ITEM root; render_icons.py
 then normalises the root, lights it with one studio rig and writes the PNG.
-Geometry is seeded from the item id and the render is Cycles on the CPU with a fixed seed
+Geometry is seeded from the item id and the render is Cycles on one CPU thread with a fixed seed
 (EEVEE on the GPU drifted by 1 LSB between runs), so a re-render is byte-identical.
 """
 import math
@@ -113,6 +113,10 @@ def mat(color, rough=0.6, metal=0.0, color2=None, tex=None, scale=6.0, bump=0.0,
         nt.links.new(fac, bn.inputs["Height"])
         nt.links.new(bn.outputs["Normal"], p.inputs["Normal"])
     if emit:
+        # Review 2026-10-20: emissive meshes sampled as lights (AUTO) re-rendered differently
+        # depending on what rendered before them (herb_buff_meal in a full run); emission still
+        # shows and still lights the scene through bounces.
+        m.cycles.emission_sampling = "NONE"
         p.inputs["Emission Color"].default_value = srgb(emit)
         p.inputs["Emission Strength"].default_value = emit_strength
         if emit_mask:
@@ -439,7 +443,8 @@ RIG = {
     "device": "CPU",
     "samples": 128,
     "seed": 0,
-    "threads": 4,
+    "threads": 1,
+    "emission_sampling": "NONE",
     "render_px": 512,
     "out_px": 256,
     "camera": "orthographic, view dir (0.42,-1,0.62), fit to projected bounds, margin 0.085",
@@ -503,7 +508,9 @@ def stage():
     cy.use_animated_seed = False
     cy.use_adaptive_sampling = False
     cy.use_denoising = False
-    sc.render.threads_mode = "FIXED"  # frugal on a shared machine; Cycles pixels do not depend on it
+    # One thread: the threaded BVH build changed a pixel now and then (split_wood, 1 LSB), and
+    # it keeps a full run frugal on a shared machine.
+    sc.render.threads_mode = "FIXED"
     sc.render.threads = RIG["threads"]
     sc.render.resolution_x = sc.render.resolution_y = RIG["render_px"]
     sc.render.resolution_percentage = 100

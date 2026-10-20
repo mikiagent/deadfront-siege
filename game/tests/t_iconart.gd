@@ -18,6 +18,8 @@ func _process(_delta: float) -> bool:
 	_test_rarity_covers_items()
 	_test_fallback()
 	_test_slot_overflow()
+	_test_slot_states()
+	_test_mipmaps()
 	if failures.is_empty():
 		print("[t_iconart] PASS")
 		quit(0)
@@ -106,6 +108,44 @@ func _test_fallback() -> void:
 		IA.texture_for(StringName("junk_%d" % i))
 		IA.content_rect(StringName("junk_%d" % i))
 	_check((IA._cache as Dictionary).size() == before, "unknown ids are not cached")
+	# Review 2026-10-20: a "" sentinel key made the empty slot id "rendered" and texture_for
+	# tried to load render/.png. Empty slots pass &"", so it must take the quiet fallback.
+	_check(not IA.is_rendered(&""), "empty id is not rendered")
+	_check(IA.texture_for(&"") != null, "empty id falls back to a texture")
+	IA.content_rect(&"")
+	_check(not (IA._cache as Dictionary).has("") and not (IA._used as Dictionary).has(""), "empty id is not cached")
+	_check(not (IA._rects as Dictionary).has(""), "manifest rects hold no empty key")
+
+## Review 2026-10-20: focus and press were only a 1 px wider border on a flat button, and
+## rarity was colour alone. Lit frames must be clearly brighter, and every tier has its own pip count.
+func _test_slot_states() -> void:
+	var s: Button = (load("res://scripts/ui/art_slot.gd") as GDScript).new()
+	s.size = Vector2(64, 64)
+	s.set_item(&"stone_knife", 1)
+	var idle: StyleBoxFlat = (s._frame(false) as StyleBoxFlat).duplicate()
+	var lit: StyleBoxFlat = s._frame(true)
+	_check(lit.border_color.get_luminance() >= idle.border_color.get_luminance() + 0.12, "lit rim is clearly brighter")
+	_check(lit.shadow_size >= idle.shadow_size + 6 and lit.shadow_color.a > idle.shadow_color.a, "lit glow is wider and stronger")
+	_check(lit.border_width_top > idle.border_width_top, "lit rim is thicker")
+	_check(s.PRESS_SCALE <= 0.95, "press sinks the art")
+	var seen := {}
+	for id: String in ["stone_knife", "copper_ingot", "steel_ingot", "raid_helm", "raid_maul"]:
+		s.set_item(StringName(id), 1)
+		_check(s.pips == IA.rarity_order().find(str(IA.rarity(StringName(id)))), "%s pips match its tier" % id)
+		seen[s.pips] = true
+	_check(seen.size() == 5, "five tiers give five pip counts (%s)" % [seen.keys()])
+	_check(s.texture_filter == CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS, "slot samples mipmaps")
+	s.free()
+
+## Review 2026-10-20: 256 px art at ~60 px with no mipmaps risks shimmer on noisy textures.
+func _test_mipmaps() -> void:
+	var off: Array[String] = []
+	for f in DirAccess.get_files_at(IA.RENDER_DIR):
+		if f.ends_with(".png") and not FileAccess.get_file_as_string(IA.RENDER_DIR + f + ".import").contains("mipmaps/generate=true"):
+			off.append(f)
+	_check(off.is_empty(), "every render imports with mipmaps: %s" % ", ".join(off))
+	var img: Image = (load(IA.RENDER_DIR + "fish.png") as Texture2D).get_image()
+	_check(img != null and img.has_mipmaps(), "imported fish texture carries mipmaps")
 
 func _test_slot_overflow() -> void:
 	var s: Button = (load("res://scripts/ui/art_slot.gd") as GDScript).new()

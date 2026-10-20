@@ -7,9 +7,12 @@ Headless only (the Blender MCP lock belongs to another package):
   Blender -b --factory-startup -P tools/render_icons.py -- --only a,b      # some items
   Blender -b --factory-startup -P tools/render_icons.py -- --verify a,b    # re-render, byte-compare
   Blender -b --factory-startup -P tools/render_icons.py -- --verify all     # every item (gate: REPRO PASS n=122)
+  Blender -b --factory-startup -P tools/render_icons.py -- --selftest       # manifest planning checks, no renders
   ... -- --out DIR   writes elsewhere (no manifest update)
   ... -- id=path.glb renders an existing GLB through the same rig
   ... -- --quality model_v2 id=path.glb   the quality tier recorded for those GLB renders
+Model art already in the manifest (script "glb:...") is re-rendered from its GLB on a full run or
+--verify all, never overwritten by the procedural builder; if its GLB is gone it is left as it is.
 Prints ICON <id> <bytes> <sha> per item; --verify prints REPRO PASS|FAIL.
 """
 import hashlib
@@ -121,6 +124,62 @@ def missing_ids(rendered):
     return sorted(e["id"] for e in items if e["id"] not in rendered)
 
 
+def held_models(man):
+    """id -> repo-relative GLB path for model art already recorded in the manifest."""
+    return {k: e["script"][4:] for k, e in man.get("items", {}).items() if e.get("script", "").startswith("glb:")}
+
+
+def plan(reg, man, only, glbs):
+    """(registry with held model art swapped in, ids to render, manifest items to start from).
+    Review 2026-10-20: a full run used to start from an empty manifest and re-render every
+    procedural builder, silently replacing model_v2 art with procedural art."""
+    reg = dict(reg)
+    keep = set()
+    for k, rel in held_models(man).items():
+        if k in glbs:
+            continue  # this run brings a new model for it
+        if (ROOT / rel).exists():
+            reg[k] = ("glb:%s" % rel, str(ROOT / rel))
+        else:
+            reg.pop(k, None)  # its PNG and entry stay as shipped
+            keep.add(k)
+    ids = [i for i in (only or (list(glbs) if glbs else sorted(reg))) if i not in keep]
+    for k in sorted(keep & set(only or [])):
+        print("SKIP %s model art whose GLB is missing" % k)
+    items = man.get("items", {})
+    # A partial run (--only or GLB ids) merges; a full run keeps only the model art entries.
+    base = dict(items) if (only or glbs) else {k: e for k, e in items.items() if k in held_models(man)}
+    return reg, ids, base
+
+
+def selftest(reg):
+    """Checks plan() against a synthetic manifest; renders nothing."""
+    a, b = sorted(reg)[:2]
+    here = pathlib.Path(__file__).resolve().relative_to(ROOT).as_posix()  # any file that exists
+    man = {"items": {
+        a: {"script": "glb:" + here, "quality": "model_v2"},
+        b: {"script": "glb:game/assets/no_such_model.glb", "quality": "model_v2"},
+        "x_proc": {"script": "tools/blender/items/food.py", "quality": PROCEDURAL},
+    }}
+    fails = []
+    r2, ids, base = plan(reg, man, None, {})
+    if not r2[a][0].startswith("glb:"):
+        fails.append("full run renders %s from its GLB, not the builder" % a)
+    if b in ids or b in r2:
+        fails.append("full run leaves %s alone when its GLB is missing" % b)
+    if base.get(b, {}).get("quality") != "model_v2" or base.get(a, {}).get("quality") != "model_v2":
+        fails.append("full run keeps model_v2 entries")
+    if "x_proc" in base:
+        fails.append("full run drops stale procedural entries")
+    r3, ids3, base3 = plan(reg, man, [b], {})
+    if ids3 or "x_proc" not in base3:
+        fails.append("--only of a missing-GLB model is skipped and the merge keeps other entries")
+    for f in fails:
+        print("SELFTEST FAIL %s" % f)
+    print("SELFTEST %s" % ("FAIL" if fails else "PASS"))
+    sys.exit(1 if fails else 0)
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     only, verify, out_dir, glbs, quality = None, None, None, {}, "model_v2"
@@ -137,6 +196,8 @@ def main():
             quality = argv[i + 1]
             assert quality in QUALITY_TIERS[1:], "--quality must be one of %s" % QUALITY_TIERS[1:]
             i += 1
+        elif a == "--selftest":
+            selftest(registry())
         elif a == "--out":
             out_dir = pathlib.Path(argv[i + 1])
             i += 1
@@ -150,6 +211,9 @@ def main():
         rel = pathlib.Path(os.path.relpath(pathlib.Path(v).resolve(), ROOT))
         assert not str(rel).startswith(".."), "GLB must live inside the repo: %s" % v
         reg[k] = ("glb:%s" % rel.as_posix(), v)
+    man_path = OUT / "manifest.json"
+    old = json.loads(man_path.read_text()) if man_path.exists() else {}
+    reg, ids, items = plan(reg, old, only, glbs)
     tmp = tempfile.mkdtemp(prefix="icons_")
     if verify:
         if verify == ["all"]:
@@ -167,15 +231,10 @@ def main():
             ok = ok and same
         print("REPRO %s n=%d" % ("PASS" if ok else "FAIL", len(verify)))
         sys.exit(0 if ok else 1)
-    ids = only or (list(glbs) if glbs else sorted(reg))
     target = out_dir or OUT
     target.mkdir(parents=True, exist_ok=True)
     results = {iid: render_one(iid, reg[iid][1], target, tmp) for iid in ids}
     if out_dir is None:
-        man_path = OUT / "manifest.json"
-        # A partial run (--only or GLB ids) merges; only a full run starts from scratch.
-        man = json.loads(man_path.read_text()) if man_path.exists() and (only or glbs) else {}
-        items = man.get("items", {})
         for iid, (sha, n, rect) in results.items():
             if n > MAX_BYTES:
                 continue
@@ -184,8 +243,9 @@ def main():
             items[iid] = {"script": script, "builder": iid, "png": "res://assets/icons/render/%s.png" % iid,
                           "sha256": sha, "bytes": n, "rect": rect}
             if script.startswith("glb:"):
-                # New model art: this run's --quality, and the replacement mark is cleared.
-                items[iid]["quality"] = quality
+                # New model art takes this run's --quality (replacement mark cleared); a held model
+                # re-rendered from its GLB keeps the tier it had.
+                items[iid]["quality"] = quality if iid in glbs else prev.get("quality", quality)
             elif "replace" in prev and iid not in REPLACE:
                 items[iid]["replace"] = prev["replace"]  # keep a hand-set mark
         for iid, entry in items.items():

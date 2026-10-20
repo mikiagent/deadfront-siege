@@ -11,11 +11,13 @@ static var _rarity: Dictionary = {}
 static var _cache: Dictionary = {}
 static var _used: Dictionary = {}
 static var _rects: Dictionary = {}  # id -> [x, y, w, h] from manifest.json, written at render time
+# A flag, not a sentinel key: a "" key made the empty slot id look rendered (review 2026-10-20).
+static var _rects_loaded := false
 
 static func _load_rects() -> void:
-	if not _rects.is_empty():
+	if _rects_loaded:
 		return
-	_rects = {"": []}  # sentinel: parse once even when the manifest is missing
+	_rects_loaded = true  # parse once even when the manifest is missing
 	var path := RENDER_DIR + "manifest.json"
 	if not FileAccess.file_exists(path):
 		return

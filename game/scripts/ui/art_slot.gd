@@ -1,7 +1,9 @@
 class_name ArtSlot
 extends Button
 ## Inventory-style slot whose rendered item art rises above the slot top edge,
-## framed by a rarity-coloured rim and soft glow. Count sits bottom-right.
+## framed by a rarity-coloured rim and soft glow. Count sits bottom-right; rarity pips
+## (0 common .. 4 legendary) sit bottom-left so rarity never rests on colour alone.
+## Focus adds a white ring and a brighter rim and glow; a press also sinks the art.
 ## A Button so focus, touch and InputMap gamepad confirm all work unchanged.
 
 const MIN_SIZE := 64.0  # mobile tap floor
@@ -10,35 +12,52 @@ const RISE_MIN := 0.12 # spec floor for the rise: wide items lift until they rea
 const FLOOR := 0.80     # art bottom sits here, so every object stands on the same slot floor
 const HOVER := 0.20     # a wide item may lift its bottom this far off FLOOR to reach RISE_MIN
 const COUNT_PX := 14.0  # stack count floor in physical pixels (GAUNTLET: no illegible metadata)
+const PRESS_SCALE := 0.92  # art shrinks toward its centre while pressed: touch feedback on a flat button
 
 var item_id: StringName = &""
 var count: int = 0
 var rim: Color = Color(0.66, 0.68, 0.70)
+var pips: int = 0  # rarity tier index: the non-colour rarity cue
 var _glow := StyleBoxFlat.new()  # cached: _draw runs for every slot on every redraw
 var _wash := StyleBoxFlat.new()
+var _ring := StyleBoxFlat.new()
 
 func _init() -> void:
 	custom_minimum_size = Vector2(MIN_SIZE, MIN_SIZE)
 	flat = true  # we draw the frame ourselves
 	focus_mode = Control.FOCUS_ALL
 	clip_contents = false
+	# 256 px art drawn at ~56-64 px: mipmaps (enabled in the .import files) stop noisy textures shimmering.
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	_glow.bg_color = Color(0.05, 0.055, 0.062, 0.94)
 	_glow.set_corner_radius_all(UiTokens.RADIUS)
 	_wash.set_corner_radius_all(UiTokens.RADIUS)
-	_apply_rim()
+	_ring.draw_center = false
+	_ring.border_color = UiTokens.TEXT  # white reads against every rarity colour
+	_ring.set_border_width_all(2)
+	_ring.set_corner_radius_all(UiTokens.RADIUS + 4)
+	_frame(false)
 
-func _apply_rim() -> void:
-	_glow.border_color = rim
-	_glow.shadow_color = Color(rim, 0.55 if item_id != &"" else 0.0)
-	_wash.bg_color = Color(rim, 0.22)
+## Configures the cached frame for the idle or lit (focused / pressed) state and returns it.
+func _frame(lit: bool) -> StyleBoxFlat:
+	_glow.border_color = rim.lightened(0.45) if lit else rim
+	_glow.set_border_width_all(3 if lit else 2)
+	_glow.shadow_color = Color(rim, (0.95 if lit else 0.55) if item_id != &"" else (0.5 if lit else 0.0))
+	_glow.shadow_size = int(maxf(6.0, size.y * (0.22 if lit else 0.12)))
+	_wash.bg_color = Color(rim, 0.34 if lit else 0.22)
+	return _glow
+
+func _is_down() -> bool:
+	var m := get_draw_mode()
+	return m == DRAW_PRESSED or m == DRAW_HOVER_PRESSED
 
 func set_item(id: StringName, p_count: int = 1) -> void:
 	item_id = id
 	count = p_count
 	rim = ItemArt.rim_color(id) if id != &"" else Color(0.4, 0.4, 0.4)
+	pips = maxi(0, ItemArt.rarity_order().find(str(ItemArt.rarity(id)))) if id != &"" else 0
 	var def: ItemDef = Data.item(id) if id != &"" else null
 	tooltip_text = def.display_name if def else str(id)
-	_apply_rim()
 	queue_redraw()
 
 ## Where the object's opaque pixels land. Tall items stand on FLOOR and their top rises RISE
@@ -68,16 +87,21 @@ func count_font_size() -> int:
 
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
-	_glow.set_border_width_all(3 if has_focus() or button_pressed else 2)
-	_glow.shadow_size = int(maxf(6.0, size.y * 0.12))
-	draw_style_box(_glow, r)
+	var down := _is_down()
+	draw_style_box(_frame(down or has_focus()), r)
+	if has_focus():
+		draw_style_box(_ring, r.grow(4.0))
 	# Rarity wash in the lower half so the floor of the slot reads as the rim colour.
 	draw_style_box(_wash, Rect2(Vector2(0, size.y * 0.45), Vector2(size.x, size.y * 0.55)).grow(-2))
 	if item_id == &"":
 		return
 	var tex := ItemArt.texture_for(item_id)
 	if tex:
-		draw_texture_rect_region(tex, art_rect(), ItemArt.content_rect(item_id))
+		var ar := art_rect()
+		if down:
+			ar = Rect2(ar.get_center() - ar.size * PRESS_SCALE * 0.5, ar.size * PRESS_SCALE)
+		draw_texture_rect_region(tex, ar, ItemArt.content_rect(item_id))
+	_draw_pips()
 	if count > 1:
 		var font := get_theme_default_font()
 		var fs := count_font_size()
@@ -86,6 +110,16 @@ func _draw() -> void:
 		var pos := Vector2(size.x - w - 6, size.y - 6)
 		draw_string_outline(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 4, Color(0, 0, 0, 0.9))
 		draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UiTokens.TEXT)
+
+## Small diamonds bottom-left, one per tier above common, in the rim colour with an ink edge.
+func _draw_pips() -> void:
+	var h := maxf(3.0, size.y * 0.05)
+	for i in pips:
+		var c := Vector2(6.0 + h + i * h * 2.3, size.y - 6.0 - h)
+		var d := PackedVector2Array([c + Vector2(0, -h), c + Vector2(h, 0), c + Vector2(0, h), c + Vector2(-h, 0)])
+		var o := PackedVector2Array([c + Vector2(0, -h - 1.5), c + Vector2(h + 1.5, 0), c + Vector2(0, h + 1.5), c + Vector2(-h - 1.5, 0)])
+		draw_colored_polygon(o, Color(0, 0, 0, 0.9))
+		draw_colored_polygon(d, rim.lightened(0.25))
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_FOCUS_ENTER or what == NOTIFICATION_FOCUS_EXIT:

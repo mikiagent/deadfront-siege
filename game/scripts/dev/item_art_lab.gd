@@ -5,6 +5,7 @@ extends Node
 ## Headless (no --shot) it self-checks and quits 0/1. Add --light (after --) for a light
 ## background: HANDOFF P7 asks icons to be checked against dark and light contexts.
 ## --ids=a,b,... (with --shot) shows those items instead, to review any render at slot size.
+## Slot 14 (stone_knife) holds focus so the focus ring can be judged beside idle slots.
 
 const IDS: Array[StringName] = [
 	&"copper_ingot", &"bronze_ingot", &"iron_ingot", &"steel_ingot", &"straw_roll_kit",
@@ -57,6 +58,8 @@ func _ready() -> void:
 		h.glyph = spec[0]
 		h.caption = spec[1]
 		actions.add_child(h)
+	# One focused slot so screenshots show the focus ring and lit rim next to idle slots.
+	slots[mini(13, slots.size() - 1)].grab_focus()
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
 		await get_tree().process_frame
 		await get_tree().process_frame
