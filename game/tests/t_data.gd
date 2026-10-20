@@ -412,7 +412,7 @@ func _check_pick_chain() -> void:
 ## Gear takes its material tier from the primary input, so a recipe with no skill node, min_level or
 ## survival gate must not accept obsidian or metal there (else a work pick of steel skips every rung gate).
 func _check_ungated_gear() -> void:
-	var cap := PS.TOOL_TIERS.find(&"flint") ## metal_shard and raptor_talon read as flint by hardness
+	var cap: int = PS.TOOL_TIERS.find(&"flint") ## metal_shard and raptor_talon read as flint by hardness
 	for r: Dictionary in recipes:
 		if r.has("requires_node") or int(r.get("min_level", 0)) > 0 or int(r.get("required_survival", 0)) > 0:
 			continue
