@@ -252,6 +252,18 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   workstation levels and queues) after W2-INV, W2-CRAFT and W2-SKILLS. The camp reference is the art
   target for W1-STRUCTART/W2-PROCESS stations (dye vats, loom, spinning wheel, kiln, hide racks).
 
+- 2026-10-20 (owner) spec 11 `docs/design/durango-prompts/11_processing_skill_material_transformations.md`
+  + UI references `docs/reference/durango-craft-build-menu.webp` (category column, sectioned recipe list,
+  detail card with Max Level / Related Ability / Skill Category, a material slot that takes a FAMILY
+  such as "Leaf, Stalk 0/2" filled with exact picked instances, yellow Craft) and
+  `docs/reference/durango-skill-screen.webp` (12-category icon grid with levels, Career Guide banner,
+  detail panel with skill level and Used SP, SP counter). Processing = component manufacture,
+  in-place modification (finite processing attempts per instance, trade-off traits), and alloys;
+  Handicraft and Metal Processing Ability separate from category level; station type/level and tool
+  gates; delegated queue jobs; one shared transformation + preview service. Mapping: 11 -> W2-PROCESS
+  (engine, recipes, stations, queues) + W2-SKILLS (Processing tree nodes, abilities, research gates);
+  the two screens are layout targets for W1-UI (skills sheet grid, craft card) now and W2-SCREENS later.
+
 ## Owner questions (open)
 
 - none
