@@ -35,6 +35,7 @@ python3 -I tools/blender/structures/check_manifest.py > /tmp/camp_cm.$$ 2>&1 || 
 # 4. Scope: only the builder, the new GLBs, the manifest, the report and the preview sheets.
 for f in $(git diff --name-only claude/mmo-overhaul; git ls-files --others --exclude-standard); do
   case $f in tools/blender/structures/*.py|game/assets/props/blender/*|game/data/props_manifest.json|docs/orchestration/reports/dsc-camp-pieces.md|work/*|tools/dsc/*|TASK.md|.dsc.json) ;;
+    game/scripts/world/prop_visuals.gd) ;;  # brief: ensure_foundation skips the disc for the fields
     *.import|*.uid) ;;
     *) echo "FAIL out of scope: $f"; rc=1;; esac
 done
