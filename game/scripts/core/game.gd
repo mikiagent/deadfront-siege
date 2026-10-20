@@ -109,7 +109,7 @@ func _make_perf() -> void:
 
 func _ready_controller_notice() -> void:
 	Input.joy_connection_changed.connect(func (device: int, connected: bool) -> void:
-		var player := get_tree().get_first_node_in_group("player") as Player
+		var player := PlayerRegistry.local()
 		var pad := Input.get_joy_name(device)
 		print("[input] controller %s: %s" % ["connected" if connected else "disconnected", pad])
 		if player and player.has_method("notice"):
@@ -193,7 +193,7 @@ func _take_shot() -> void:
 	get_tree().quit(0)
 
 func _finish_smoke() -> void:
-	var player := get_tree().get_first_node_in_group("player") as Node3D
+	var player := PlayerRegistry.local()
 	var ok := player != null and player.global_position.y > -1.0
 	print("[smoke] %s player_pos=%s phase=%s" % ["ok" if ok else "FAIL", player.global_position if player else "none", phase_name()])
 	get_tree().quit(0 if ok else 1)

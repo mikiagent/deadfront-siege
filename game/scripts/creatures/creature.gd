@@ -253,7 +253,7 @@ var _pet_passthrough_done: bool = false
 func _apply_pet_passthrough() -> void:
 	if _pet_passthrough_done or not is_pet:
 		return
-	var p := get_tree().get_first_node_in_group("player") as PhysicsBody3D
+	var p := PlayerRegistry.owner_of(self)
 	if p == null:
 		return
 	add_collision_exception_with(p)
@@ -610,7 +610,9 @@ func _on_died(_source: Node) -> void:
 	# 15 m pays 3 + tier/6. Levels raise the pet's HP, attack and defense.
 	if not is_pet:
 		var killer_pet: Creature = _source as Creature if (_source is Creature and (_source as Creature).is_pet) else null
-		var owner := get_tree().get_first_node_in_group("player") as Player
+		var owner := PlayerRegistry.credit_for(_source)
+		if owner == null:
+			owner = PlayerRegistry.nearest(global_position)
 		var pets: Array[Creature] = owner.live_pets() if owner else []
 		for pet in pets:
 			if pet == null or pet.pet_record == null or pet.health.dead:
@@ -632,7 +634,7 @@ func _on_died(_source: Node) -> void:
 						owner.notice("%s reached Lv. %d!" % [str(pet.def.species), pet.pet_record.level])
 				print("[pet] +%.0f xp -> lv %d" % [amount, pet.pet_record.level])
 	if not is_pet and (_source is Player or (_source is Creature and (_source as Creature).is_pet)):
-		var p := _source as Player if _source is Player else get_tree().get_first_node_in_group("player") as Player
+		var p := PlayerRegistry.credit_for(_source)
 		if p and p.skills:
 			p.skills.add_xp("melee", 4 + def.tier / 5)
 		else:

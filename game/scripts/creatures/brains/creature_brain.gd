@@ -375,7 +375,7 @@ func _spot(who: Node3D) -> void:
 	_propagate_alert(who)
 
 func _nearest_live_prey(radius: float) -> Node3D:
-	var player := creature.get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.nearest(creature.global_position)
 	var best: Node3D = null
 	var best_d := radius
 	if player and not player.dead:

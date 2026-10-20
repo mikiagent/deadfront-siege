@@ -9,7 +9,7 @@ func run(host:Node)->void:
 	World.home_terrain=&"meadow"
 	World.load_island(host,&"volcanic_60",Vector3(0,1,18),false)
 	await get_tree().create_timer(0.5).timeout
-	var p:=get_tree().get_first_node_in_group("player") as Player
+	var p := PlayerRegistry.local()
 	p.inventory=Inventory.new(3)
 	var ore:=ItemStack.make(&"black_iron",8,{},55)
 	ore.set_flag(&"unstable",true)
