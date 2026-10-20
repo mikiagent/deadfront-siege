@@ -59,7 +59,7 @@ static func place_desktop(hud: HuntHud, r: Vector2, inset: Vector4) -> void:
 	hud._end_btn.position = Vector2(r.x - 200.0 - inset.x, r.y * 0.42)
 	# Honeycomb cluster bottom-right: net / tackle / kick / roll, Auto below-right, stance text.
 	var cx := r.x - 250.0 - inset.x
-	var cy := r.y - 150.0 - inset.y
+	var cy := r.y - 170.0 - inset.y  # 20 px higher than before so the stance line fits under Auto's caption
 	var slots := [Vector2(-90, -60), Vector2(-10, -20), Vector2(-90, 40), Vector2(70, -50)]
 	for i in hud._skill_hexes.size():
 		hud._skill_hexes[i].position = Vector2(cx, cy) + slots[i]
@@ -68,8 +68,9 @@ static func place_desktop(hud: HuntHud, r: Vector2, inset: Vector4) -> void:
 	# The whistle column stands on HANDS (bottom-right, held_item_slot.gd) with its caption clear of it.
 	for i in hud._whistle_hexes.size():
 		hud._whistle_hexes[i].position = Vector2(r.x - 16.0 - inset.x - 62.0, r.y - 262.0 - inset.y - float(i) * (66.0 + HuntHud.CAPTION_H))
-	# On the bottom edge, inside the view (at cy + 118 its 34 px box ran 2 px past the bottom).
-	hud._stance_label.position = Vector2(cx + 20.0, r.y - 8.0 - inset.y - hud._stance_label.get_combined_minimum_size().y)
+	# Centred under Auto's caption on the bottom edge, as Durango anchors it to the stance dial.
+	var sw := hud._stance_label.get_combined_minimum_size()
+	hud._stance_label.position = Vector2(hud._auto_hex.position.x + HuntHud.HEX * 0.5 - sw.x * 0.5, r.y - 8.0 - inset.y - sw.y)
 
 static func landscape_phone(r: Vector2) -> bool:
 	return UiTokens.is_compact(r) and not UiTokens.is_narrow(r)

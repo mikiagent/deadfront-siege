@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "station_dryer". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+<path d="M13 56 V14 M51 56 V14 M7 15 H57"/>
+</g>
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+<path d="M21 18 H27 C28 26 25 31 27 38 L24 45 L21 38 C20 31 22.5 26 21 18 Z"/>
+<path d="M29 18 H35 C36 28 33 34 35 42 L32 50 L29 42 C28 34 30.5 28 29 18 Z"/>
+<path d="M37 18 H43 C44 25 41 29 43 35 L40 41 L37 35 C36 29 38.5 25 37 18 Z"/>
+</g>
+</svg>

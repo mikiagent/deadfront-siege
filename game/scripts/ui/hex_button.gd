@@ -8,7 +8,12 @@ signal pressed
 signal long_pressed
 
 var icon: Texture2D
-var glyph: String = ""
+## A legacy glyph with a white UiIcons drawing (data/ui_icons.json "glyphs") draws that icon instead.
+var glyph: String = "":
+	set(v):
+		glyph = v
+		_glyph_icon = UiIcons.for_glyph(v) if v != "" else null
+var _glyph_icon: Texture2D
 var top_text: String = ""
 var bottom_text: String = ""
 var disabled: bool = false
@@ -68,6 +73,8 @@ func _init(size_px: float = 72.0) -> void:
 	custom_minimum_size = Vector2(size_px, size_px)
 	size = Vector2(size_px, size_px)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	# The 128 px icon SVGs are imported with mipmaps; without this they alias at ~30 px.
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	pivot_offset = size * 0.5
 	# Out of focus by default: the HUD rails are hexes, and a focused one takes Space (roll) and the
 	# arrows (move). Menus that a controller drives (station menu) set FOCUS_ALL; _draw shows a teal
@@ -87,7 +94,8 @@ func _hex(r: float, c: Vector2) -> PackedVector2Array:
 	return pts
 
 func _draw() -> void:
-	var want: Material = white_material() if icon and not color_icon else null
+	var tex: Texture2D = icon if icon else _glyph_icon
+	var want: Material = white_material() if tex and not color_icon else null
 	if material != want:
 		material = want
 	var c := size * 0.5
@@ -111,12 +119,12 @@ func _draw() -> void:
 		draw_polyline(ring, UiTokens.TEAL, 3.0, true)
 	var font := ThemeDB.fallback_font
 	var has_texts := top_text != "" or bottom_text != ""
-	if icon:
+	if tex:
 		# Smaller icon when seconds/count sit above and below it, so the 12 px text clears the rim.
 		var isz := r * (0.8 if has_texts else 1.05)
 		var ic := c + Vector2(0.0, 2.0 if top_text != "" else 0.0)
 		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0)
-		draw_texture_rect(icon, Rect2(ic - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
+		draw_texture_rect(tex, Rect2(ic - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
 	elif glyph != "":
 		var short := glyph.length() <= 2
 		var gs := maxi(UiTokens.TYPE_MIN, int(r * (0.72 if bottom_text != "" else 0.9)) if short else (int(r * 0.40) if glyph.length() <= 4 else int(r * 0.30)))

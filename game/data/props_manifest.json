@@ -23,8 +23,15 @@
         1,
         1
       ],
-      "note": "cooking upgrade",
-      "art_status": "REPLACE"
+      "note": "cooking upgrade of the campfire: stone fire, spit and hanging pot",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/campfire_stand.glb",
+      "aabb_m": [
+        0.932,
+        0.942,
+        0.908
+      ],
+      "upgrade": "low-poly hand-built Blender (796 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "workbench": {
       "model": "workbench",
@@ -47,7 +54,15 @@
         2,
         1
       ],
-      "art_status": "REPLACE"
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/technical_workbench.glb",
+      "aabb_m": [
+        1.78,
+        1.247,
+        0.84
+      ],
+      "upgrade": "low-poly hand-built Blender (644 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "heavy workbench with anvil, vise, hammer and tongs"
     },
     "grindstone": {
       "model": "workbench-grind",
@@ -55,8 +70,15 @@
         1,
         1
       ],
-      "note": "tool repair later",
-      "art_status": "REPLACE"
+      "note": "tool repair station: cranked round stone with a water trough",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/grindstone.glb",
+      "aabb_m": [
+        0.873,
+        0.714,
+        0.49
+      ],
+      "upgrade": "low-poly hand-built Blender (448 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "drying_rack": {
       "model": "structure-canvas",
@@ -114,8 +136,15 @@
         3,
         2
       ],
-      "note": "cheap shade tent",
-      "art_status": "REPLACE"
+      "note": "cheap shade tent: canvas fly on poles with open sides",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/tent_canvas.glb",
+      "aabb_m": [
+        2.897,
+        2.266,
+        1.851
+      ],
+      "upgrade": "low-poly hand-built Blender (804 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "bedroll": {
       "model": "bedroll",
@@ -123,8 +152,15 @@
         1,
         2
       ],
-      "note": "minimal rest",
-      "art_status": "REPLACE"
+      "note": "minimal rest: hide bedroll with a pillow and a blanket",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/bedroll.glb",
+      "aabb_m": [
+        0.84,
+        0.379,
+        1.94
+      ],
+      "upgrade": "low-poly hand-built Blender (304 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "basket": {
       "model": "box-open",
@@ -148,8 +184,15 @@
         2,
         1
       ],
-      "note": "storage ~120 slots",
-      "art_status": "REPLACE"
+      "note": "bulk storage, ~120 slots: plank crate on skids, rope handles, lid propped open",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/large_box.glb",
+      "aabb_m": [
+        1.95,
+        1.46,
+        1.048
+      ],
+      "upgrade": "low-poly hand-built Blender (568 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "chest": {
       "model": "chest",
@@ -157,8 +200,15 @@
         1,
         1
       ],
-      "note": "locked storage",
-      "art_status": "REPLACE"
+      "note": "locked storage: plank chest with iron straps and a lock plate",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/chest.glb",
+      "aabb_m": [
+        0.83,
+        0.48,
+        0.624
+      ],
+      "upgrade": "low-poly hand-built Blender (432 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "barrel": {
       "model": "barrel-open",
@@ -166,8 +216,15 @@
         1,
         1
       ],
-      "note": "water / brine",
-      "art_status": "REPLACE"
+      "note": "water/brine barrel, part filled; not a drink source, fill it from a well or the sea",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/barrel.glb",
+      "aabb_m": [
+        0.766,
+        0.899,
+        0.766
+      ],
+      "upgrade": "low-poly hand-built Blender (308 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "bucket": {
       "model": "bucket",
@@ -175,7 +232,15 @@
         1,
         1
       ],
-      "art_status": "REPLACE"
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/bucket.glb",
+      "aabb_m": [
+        0.355,
+        0.454,
+        0.34
+      ],
+      "upgrade": "low-poly hand-built Blender (396 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "small wooden bucket with a rope bail"
     },
     "fence": {
       "model": "fence",
@@ -219,7 +284,15 @@
         2,
         1
       ],
-      "art_status": "REPLACE"
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/fence_fortified.glb",
+      "aabb_m": [
+        2.059,
+        2.22,
+        0.561
+      ],
+      "upgrade": "low-poly hand-built Blender (1052 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "fortified palisade run, 2 m; neighbours meet end to end like the plain fence"
     },
     "taming_pen": {
       "model": "fence-fortified",
@@ -258,7 +331,15 @@
         1,
         1
       ],
-      "art_status": "REPLACE"
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/signpost.glb",
+      "aabb_m": [
+        1.007,
+        1.872,
+        0.343
+      ],
+      "upgrade": "low-poly hand-built Blender (336 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "wooden signpost with two carved boards (placeable, decorative)"
     },
     "floor": {
       "model": "floor",
@@ -327,7 +408,15 @@
         1,
         1
       ],
-      "art_status": "REPLACE"
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/fishing_stand.glb",
+      "aabb_m": [
+        0.94,
+        1.066,
+        0.732
+      ],
+      "upgrade": "low-poly hand-built Blender (1512 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "note": "fish-drying rack over a smoulder pit (placeable, decorative)"
     },
     "field_small": {
       "model": "bedroll",
@@ -335,8 +424,15 @@
         2,
         2
       ],
-      "note": "small farm field (hoe+mud)",
-      "art_status": "REPLACE"
+      "note": "small tilled farm plot (hoe + seed) inside a log border",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/field_small.glb",
+      "aabb_m": [
+        1.793,
+        0.34,
+        1.798
+      ],
+      "upgrade": "low-poly hand-built Blender (756 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "field_large": {
       "model": "tent-canvas",
@@ -344,8 +440,15 @@
         3,
         3
       ],
-      "note": "large farm field",
-      "art_status": "REPLACE"
+      "note": "large tilled farm plot inside a log border",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/field_large.glb",
+      "aabb_m": [
+        2.793,
+        0.34,
+        2.798
+      ],
+      "upgrade": "low-poly hand-built Blender (1008 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "mortar": {
       "model": "workbench-grind",
@@ -369,8 +472,15 @@
         2,
         2
       ],
-      "note": "flat stone grill with temporary Kenney cooking-stand visual",
-      "art_status": "REPLACE"
+      "note": "flat stone grill over a hearth ring",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/stone_grill.glb",
+      "aabb_m": [
+        1.345,
+        0.54,
+        1.349
+      ],
+      "upgrade": "low-poly hand-built Blender (840 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "steamer": {
       "model": "barrel-open",
@@ -410,8 +520,15 @@
         1,
         2
       ],
-      "note": "temporary single-use rest, replaced by generated straw-roll asset later",
-      "art_status": "REPLACE"
+      "note": "single-use straw rest roll",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/straw_roll.glb",
+      "aabb_m": [
+        0.82,
+        0.468,
+        1.86
+      ],
+      "upgrade": "low-poly hand-built Blender (324 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "crock_pot": {
       "model": "campfire-stand",
@@ -483,8 +600,15 @@
         4,
         4
       ],
-      "note": "staged placeholder; repair mechanic absent, sleep disabled",
-      "art_status": "REPLACE"
+      "note": "small log hut with a thatch roof and an open front",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/log_shelter.glb",
+      "aabb_m": [
+        3.389,
+        3.137,
+        3.329
+      ],
+      "upgrade": "low-poly hand-built Blender (1636 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "cabin_bed": {
       "model": "bedroll-frame",
@@ -492,8 +616,15 @@
         2,
         2
       ],
-      "note": "staged placeholder; enclosure validation absent, sleep disabled",
-      "art_status": "REPLACE"
+      "note": "wooden bed with a hide mattress and fur blanket",
+      "art_status": "REVIEW",
+      "glb": "res://assets/props/blender/cabin_bed.glb",
+      "aabb_m": [
+        2.042,
+        1.15,
+        1.29
+      ],
+      "upgrade": "low-poly hand-built Blender (620 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     },
     "smoker": {
       "model": "campfire-stand",
