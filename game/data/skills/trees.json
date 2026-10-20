@@ -26,7 +26,7 @@
     "survival": {
       "levels_by": "any play, passively",
       "research_gates": "none",
-      "total_sp": 452,
+      "total_sp": 324,
       "nodes": [
         {
           "id": "island_access_15",
@@ -111,10 +111,12 @@
         {
           "id": "animal_management_1",
           "level": 35,
-          "sp": 34,
+          "sp": 4,
           "type": "unlock",
           "unlocks": "+1 bonded animal",
-          "requires": "capture_technique_3"
+          "requires": "capture_technique_3",
+          "name": "Animal Handling I",
+          "bonded_cap_bonus": 1
         },
         {
           "id": "island_access_45",
@@ -135,10 +137,12 @@
         {
           "id": "animal_management_2",
           "level": 45,
-          "sp": 38,
+          "sp": 5,
           "type": "unlock",
           "unlocks": "+1 bonded animal",
-          "requires": "capture_technique_4"
+          "requires": "capture_technique_4",
+          "name": "Animal Handling II",
+          "bonded_cap_bonus": 1
         },
         {
           "id": "island_access_55",
@@ -159,18 +163,22 @@
         {
           "id": "animal_management_3",
           "level": 55,
-          "sp": 38,
+          "sp": 5,
           "type": "unlock",
           "unlocks": "+1 bonded animal",
-          "requires": "capture_technique_5"
+          "requires": "capture_technique_5",
+          "name": "Animal Handling III",
+          "bonded_cap_bonus": 1
         },
         {
           "id": "animal_management_4",
           "level": 60,
-          "sp": 38,
+          "sp": 6,
           "type": "unlock",
           "unlocks": "+1 bonded animal (cap 7)",
-          "requires": "animal_management_3"
+          "requires": "animal_management_3",
+          "name": "Animal Handling IV",
+          "bonded_cap_bonus": 1
         }
       ]
     },

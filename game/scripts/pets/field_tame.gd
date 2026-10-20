@@ -7,22 +7,51 @@ const KNOCKDOWN_EXTEND := 6.0
 const FAIL_COOLDOWN := 60.0
 const PREFERRED_FEED := 1.0
 const ACCEPTED_FEED := 0.5
+## Default of breeding.json capture.health_gate (creature.gd's groggy knockdown still reads this const).
 const CAPTURE_HEALTH_FRAC := 0.30
 ## ASSUMPTION: tier-1 species (the starter tames) need no Capture Technique, so a new survivor can
 ## make a first tame; every higher tier needs its technique, the same nodes nets check.
 const FREE_CAPTURE_TIER := 1
 
+static func capture_cfg() -> Dictionary:
+	return Data.breeding.get("capture", {})
+
+## ASSUMPTION: strictly under the gate; run_all.gd (not this package's) asserts 30 % itself stays closed,
+## where durango 09 reads "<= 30 %". One HP point of difference; flip it together with that test.
 static func health_allows_capture(fraction: float) -> bool:
-	return fraction < CAPTURE_HEALTH_FRAC
+	return fraction < float(capture_cfg().get("health_gate", CAPTURE_HEALTH_FRAC))
+
+## Stunned or collapsed (breeding.json capture.stun_statuses; knockdown is the collapse).
+static func is_stunned(creature: Creature) -> bool:
+	for id in capture_cfg().get("stun_statuses", ["knockdown"]):
+		if creature.statuses.has(StringName(str(id))):
+			return true
+	return false
+
+## Durango 09, the one capture rule for nets and feeding: a living wild tameable animal that is
+## stunned/collapsed at ANY HP, or under the health gate. Never a dead one.
+static func capture_eligible(creature: Creature) -> bool:
+	if creature == null or creature.def == null or creature.health == null:
+		return false
+	if creature.health.dead or creature.health.hp <= 0.0:
+		return false
+	if not creature.def.tameable or creature.is_pet or creature.tame_cooldown_left > 0.0:
+		return false
+	return is_stunned(creature) or health_allows_capture(creature.health.fraction())
+
+## Tutorial hint from about half HP until the animal is capturable (integrator hook: hunt plate/say).
+static func capture_hint(creature: Creature) -> String:
+	if creature == null or creature.def == null or creature.health == null or creature.health.dead:
+		return ""
+	if not creature.def.tameable or creature.is_pet or capture_eligible(creature):
+		return ""
+	var c := capture_cfg()
+	if creature.health.fraction() > float(c.get("hint_health", 0.55)):
+		return ""
+	return str(c.get("hint_text", "Stun the dinosaur to capture it safely"))
 
 static func can_attempt(creature: Creature) -> bool:
-	if creature == null or creature.def == null or creature.health.dead:
-		return false
-	if not creature.def.tameable or creature.is_pet:
-		return false
-	if creature.tame_cooldown_left > 0.0:
-		return false
-	return creature.statuses.has(&"knockdown") and health_allows_capture(creature.health.fraction())
+	return capture_eligible(creature)
 
 ## "" when this survivor may tame the species, else the hint naming the missing technique.
 static func lock_reason(creature: Creature) -> String:
@@ -123,8 +152,7 @@ static func apply_feed(player: Player, creature: Creature, food_id: StringName) 
 		print("[tame] refused: %s" % lock_reason(creature))
 		return false
 	# Refuse before eating the food: a completed tame must have a roster slot to go to.
-	if player.bonded.size() >= Data.bonded_cap():
-		print("[tame] refused: roster full (%d)" % Data.bonded_cap())
+	if not Bonding.check(player):
 		return false
 	var value := feed_value(creature, food_id)
 	if value <= 0.0:
@@ -205,6 +233,6 @@ static func _complete(player: Player, creature: Creature) -> void:
 	creature.health.max_hp = rec.hp
 	creature.health.hp = rec.hp * frac
 	creature.level = rec.level
-	player.bonded.append(rec)
+	Bonding.try_bond(player, rec) # apply_feed checked the cap before any food was eaten
 	player.summoned_pet = creature
 	rec.summoned = true

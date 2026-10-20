@@ -2207,6 +2207,47 @@
         "armor_value": 0.02
       },
       "visual": "hide_and_bone/legs"
+    },
+    {
+      "id": "fertilized_egg",
+      "display_name": "Fertilised Egg",
+      "categories": [
+        "tool"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "slot_span": 1
+    },
+    {
+      "id": "egg_nest",
+      "display_name": "Egg Nest",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "egg_nest",
+      "footprint": [
+        2,
+        2
+      ]
+    },
+    {
+      "id": "egg_incubator",
+      "display_name": "Egg Incubator",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "egg_incubator",
+      "footprint": [
+        2,
+        2
+      ]
     }
   ]
 }

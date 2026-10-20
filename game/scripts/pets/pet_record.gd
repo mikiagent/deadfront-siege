@@ -16,6 +16,20 @@ var wild_level: int = 1
 var name: String = ""
 ## Lineage for breeding (wave 2): the two parents' uids, empty for wild-caught animals.
 var parent_uids: Array[String] = []
+## Breeding state (W2-BREED, see Breeding). Wild-caught animals are generation 0 and adult.
+var sex: StringName = &"" ## &"female" | &"male", rolled at capture or hatch
+var generation: int = 0
+var mut_maternal: int = 0 ## mutations in the mother's line (soft cap in breeding.json)
+var mut_paternal: int = 0
+var born_at: int = 0 ## unix; 0 = not bred
+var breed_ready_at: int = 0 ## unix; per-pet pairing cooldown
+var gestation: Dictionary = {} ## mammals while pregnant: {ends_at, father_uid, embryo}
+## Growth and care (PetGrowth), timestamp-based. maturity 1.0 = adult.
+var maturity: float = 1.0
+var imprint: float = 0.0
+var growth_at: int = 0
+var fed_until: int = 0
+var cuddle_at: int = 0
 var species: StringName = &""
 var variant: StringName = &""
 var grade: StringName = &"B"
@@ -94,7 +108,7 @@ func recompute(def: CreatureDef = null) -> void:
 	hunger_efficiency = xp_rate
 	if d == null:
 		return  # unknown species (removed from data): keep the stored numbers
-	var st := PetStats.compute(d, genetics, level)
+	var st := PetStats.compute(d, genetics, level, PetGrowth.stat_factor(self))
 	hp = st[&"health"]
 	attack = st[&"melee_attack"]
 	ranged_attack = st[&"ranged_attack"]
@@ -106,6 +120,16 @@ func recompute(def: CreatureDef = null) -> void:
 ## Local uid; the server issues its own "p<seq>" when it owns the pet.
 static func new_uid() -> String:
 	return "p_" + Crypto.new().generate_random_bytes(8).hex_encode()
+
+static func roll_sex(rng: RandomNumberGenerator = null) -> StringName:
+	var roller := rng if rng != null else RandomNumberGenerator.new()
+	if rng == null:
+		roller.randomize()
+	return &"female" if roller.randi() % 2 == 0 else &"male"
+
+## Saves from before sexes existed get a stable one from the uid, so it never flips between loads.
+static func sex_from_uid(p_uid: String) -> StringName:
+	return &"female" if posmod(p_uid.hash(), 2) == 0 else &"male"
 
 ## Bag size is the species' (10 when the species declares none), never smaller than what a save
 ## already holds, so a load can only grow a bag.
@@ -120,6 +144,7 @@ static func from_def(def: CreatureDef, _legacy_grade: StringName = &"", variant:
 	r.tamed_at = int(Time.get_unix_time_from_system())
 	r.species = def.id
 	r.variant = variant
+	r.sex = roll_sex()
 	r.genetics = p_genetics if p_genetics != null else CreatureGenetics.roll()
 	r.level = clampi(p_level, 1, PetStats.MAX_LEVEL)
 	r.wild_level = r.level
@@ -166,6 +191,18 @@ func to_dict() -> Dictionary:
 		"wild_level": wild_level,
 		"name": name,
 		"parent_uids": parents,
+		"sex": str(sex),
+		"generation": generation,
+		"mut_maternal": mut_maternal,
+		"mut_paternal": mut_paternal,
+		"born_at": born_at,
+		"breed_ready_at": breed_ready_at,
+		"gestation": gestation.duplicate(true),
+		"maturity": maturity,
+		"imprint": imprint,
+		"growth_at": growth_at,
+		"fed_until": fed_until,
+		"cuddle_at": cuddle_at,
 		"species": str(species),
 		"variant": str(variant),
 		"grade": str(grade),
@@ -206,6 +243,20 @@ static func from_dict(d: Dictionary) -> PetRecord:
 			r.parent_uids.append(str(p))
 	r.species = StringName(str(d.get("species", "")))
 	r.variant = StringName(str(d.get("variant", "")))
+	r.sex = StringName(str(d.get("sex", "")))
+	if r.sex != &"female" and r.sex != &"male":
+		r.sex = sex_from_uid(r.uid)
+	r.generation = maxi(0, int(_num(d.get("generation"), 0)))
+	r.mut_maternal = maxi(0, int(_num(d.get("mut_maternal"), 0)))
+	r.mut_paternal = maxi(0, int(_num(d.get("mut_paternal"), 0)))
+	r.born_at = int(_num(d.get("born_at"), 0))
+	r.breed_ready_at = int(_num(d.get("breed_ready_at"), 0))
+	r.gestation = (d.get("gestation") as Dictionary).duplicate(true) if d.get("gestation") is Dictionary else {}
+	r.maturity = clampf(_num(d.get("maturity"), 1.0), 0.0, 1.0)
+	r.imprint = clampf(_num(d.get("imprint"), 0.0), 0.0, 1.0)
+	r.growth_at = int(_num(d.get("growth_at"), 0))
+	r.fed_until = int(_num(d.get("fed_until"), 0))
+	r.cuddle_at = int(_num(d.get("cuddle_at"), 0))
 	r.grade = StringName(str(d.get("grade", "B")))
 	r.hunger = float(d.get("hunger", 0.0))
 	r.hunger_max = float(d.get("hunger_max", 0.0))
@@ -234,3 +285,7 @@ static func from_dict(d: Dictionary) -> PetRecord:
 	r.bag = Inventory.new(bag_slots_for(def, mini(bag_rows.size(), 10)))
 	r.bag.load_array(bag_rows)
 	return r
+
+## Breeding fields are not in SaveSanitizer's PET_ROW yet, so a wrong type falls back here instead of crashing a cast.
+static func _num(v: Variant, fallback: float) -> float:
+	return float(v) if (v is int or v is float) and is_finite(float(v)) else fallback

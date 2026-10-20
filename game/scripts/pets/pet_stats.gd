@@ -29,16 +29,17 @@ static func base(def: CreatureDef, stat: StringName) -> float:
 		&"speed": return def.speed
 	return 0.0
 
-static func value(def: CreatureDef, genetics: CreatureGenetics, level: int, stat: StringName) -> float:
+## `growth_factor` is PetGrowth.stat_factor(): maturity and imprint of a bred baby (1.0 for every adult tame).
+static func value(def: CreatureDef, genetics: CreatureGenetics, level: int, stat: StringName, growth_factor: float = 1.0) -> float:
 	var lv := clampi(level, 1, MAX_LEVEL)
 	var grow := float(LEVEL_GROWTH.get(stat, 0.0)) * float(lv - 1) + genetics.growth(stat)
-	return base(def, stat) * genetics.iv_multiplier(stat) * (1.0 + grow)
+	return base(def, stat) * genetics.iv_multiplier(stat) * (1.0 + grow) * growth_factor
 
 ## {stat: value} for every CreatureGenetics stat.
-static func compute(def: CreatureDef, genetics: CreatureGenetics, level: int) -> Dictionary:
+static func compute(def: CreatureDef, genetics: CreatureGenetics, level: int, growth_factor: float = 1.0) -> Dictionary:
 	var out := {}
 	for stat in CreatureGenetics.STATS:
-		out[stat] = value(def, genetics, level, stat)
+		out[stat] = value(def, genetics, level, stat, growth_factor)
 	return out
 
 ## XP rate and hunger efficiency both follow the displayed grade (one grade, from genetics).

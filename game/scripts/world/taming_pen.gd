@@ -1,7 +1,9 @@
 class_name TamingPen
 extends StaticBody3D
 ## Holds one captured animal. 30 real minutes, scaled by Game.time_scale. Success bonds the animal
-## straight into the survivor's roster (origin capture); failure lets it escape.
+## straight into the survivor's roster (origin capture); failure lets it escape. With the roster full
+## (Bonding) the finished tame waits in the pen, unresolved, until a slot frees. A bred baby's cage
+## (captured_animal carrying "pet") bonds on insert with no timed tame.
 
 const BASE_SECONDS := 30.0 * 60.0
 const SUCCESS_CHANCE := 0.70 ## ASSUMPTION:
@@ -14,6 +16,7 @@ var occupant: ItemStack
 var remaining: float = 0.0
 var running: bool = false
 var force_result: int = 0
+var _waiting_said := false
 
 func _ready() -> void:
 	add_to_group("placed_building")
@@ -73,8 +76,18 @@ func try_insert(player: Player) -> bool:
 	if player.inventory.find_first(&"tamed_animal") >= 0:
 		player.bond_from_inventory()
 		return true
-	var idx := player.inventory.find_first(&"captured_animal")
+	var baby := _find_cage(player.inventory, true)
+	if baby >= 0 and Bonding.can_bond(player):
+		var rec := PetRecord.from_dict(player.inventory.slots[baby].attributes["pet"])
+		if Bonding.try_bond(player, rec):
+			player.inventory.remove_at(baby, 1)
+			player.notice("%s baby bonded." % str(rec.species).capitalize())
+			print("[breed] caged baby bonded %s uid=%s" % [rec.species, rec.uid])
+			return true
+	var idx := _find_cage(player.inventory, false)
 	if idx < 0:
+		if baby >= 0:
+			Bonding.check(player) # says why the baby could not bond
 		return false
 	occupant = player.inventory.remove_at(idx, 1)
 	remaining = BASE_SECONDS
@@ -103,6 +116,12 @@ func _process(delta: float) -> void:
 	var player := get_tree().get_first_node_in_group("player") as Player
 	if player == null:
 		return  # stays finished-but-running until a survivor is around to receive it
+	if not Bonding.can_bond(player):
+		if not _waiting_said:
+			Bonding.check(player) # one notice; the animal stays in the pen
+			_waiting_said = true
+		return
+	_waiting_said = false
 	running = false
 	var species := StringName(str(occupant.attributes.get("species", "velociraptor")))
 	var def := Data.creature(species)
@@ -119,13 +138,24 @@ func _process(delta: float) -> void:
 		var rec := PetRecord.from_def(def, &"", StringName(str(occupant.attributes.get("variant", ""))), genes, int(occupant.attributes.get("level", 1)))
 		rec.origin = &"capture"
 		rec.tamer = player.display_name()
-		player.bonded.append(rec)
+		var sex := StringName(str(occupant.attributes.get("sex", "")))
+		if sex == &"female" or sex == &"male":
+			rec.sex = sex
+		Bonding.try_bond(player, rec)
 		player.notice("%s bonded (grade %s, Lv. %d)." % [str(def.species), rec.grade, rec.level])
 		print("[capture] pen %s bonded grade=%s lv=%d uid=%s" % [species, rec.grade, rec.level, rec.uid])
 	else:
 		print("[capture] pen %s escaped" % species)
 		_spawn_wild(def)
 	occupant = null
+
+## First captured_animal slot that is (baby) or is not (wild) a bred baby's cage.
+static func _find_cage(inv: Inventory, baby: bool) -> int:
+	for i in inv.slot_count:
+		var s := inv.slots[i]
+		if s != null and s.def_id == &"captured_animal" and (s.attributes.get("pet") is Dictionary) == baby:
+			return i
+	return -1
 
 func _spawn_wild(def: CreatureDef) -> void:
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()

@@ -17,6 +17,7 @@ var world_islands: Dictionary = {}
 var world_objectives: Array = [] ## ordered standing orders; see data/world/objectives.json
 var props_manifest: Dictionary = {}
 var creature_ai: Dictionary = {}
+var breeding: Dictionary = {} ## data/breeding.json: capture rule, bonded cap, breeding, growth (W2-BREED)
 
 func _ready() -> void:
 	_load_items("res://data/items.json")
@@ -47,9 +48,21 @@ func is_survival_unlocked(node_id: StringName) -> bool:
 func set_survival_unlocked(node_id: StringName, on: bool) -> void:
 	survival_unlocked[node_id] = on
 
-func bonded_cap() -> int:
-	# Roster storage is unlimited; Player.MAX_PETS_OUT governs the three active companions.
-	return 2147483647
+## Bonded pets allowed (durango 09): breeding.json bonded.base_cap + bonded_cap_bonus of every Animal
+## Handling node the survivor bought (SkillState; the player's when none is passed). A skill reset lowers
+## it; pets already bonded stay, only new bonds are gated (Bonding.try_bond).
+func bonded_cap(skills: SkillState = null) -> int:
+	if skills == null and is_inside_tree():
+		var p := get_tree().get_first_node_in_group("player")
+		if p:
+			skills = p.get("skills") as SkillState
+	var cap := int((breeding.get("bonded", {}) as Dictionary).get("base_cap", 3))
+	if skills == null:
+		return cap
+	for n in skills.nodes("survival"):
+		if skills.is_unlocked("survival", str(n.get("id", ""))):
+			cap += int(n.get("bonded_cap_bonus", 0))
+	return cap
 
 func has_capture_technique(tier: int) -> bool:
 	for id in survival_nodes:
@@ -173,6 +186,7 @@ func _load_nature(path: String) -> void:
 
 func _load_world() -> void:
 	world_rules = _parse_json("res://data/world/rules.json")
+	breeding = _parse_json("res://data/breeding.json")
 	world_climates = _parse_json("res://data/world/climates.json")
 	world_islands = _parse_json("res://data/world/islands.json")
 	props_manifest = _parse_json("res://data/props_manifest.json")

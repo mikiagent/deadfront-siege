@@ -1,0 +1,73 @@
+{
+  "_about": "W2-BREED config (owner request 2026-10-18; durango-prompts 02 and 09). Times are real seconds and timestamp-based (unix), so they survive save/load and offline time. Values not fixed by the owner are ASSUMPTIONs listed in docs/orchestration/reports/claude-mmo-w2-breed.md; tune them here.",
+  "bonded": {
+    "_about": "Durango 09: 3 bonded slots + bonded_cap_bonus of each Animal Handling node (trees.json survival) the survivor bought. Caged/unbonded animals never count.",
+    "base_cap": 3
+  },
+  "capture": {
+    "_about": "Durango 09: eligible when stunned/collapsed at ANY HP, or HP under health_gate. Chance uses actual HP, level and capture ability (net tier above the species tier).",
+    "health_gate": 0.30,
+    "stun_statuses": ["knockdown"],
+    "hint_health": 0.55,
+    "hint_text": "Stun the dinosaur to capture it safely",
+    "retry_cooldown_s": 5.0,
+    "tier_base": {"1": 0.35, "2": 0.45, "3": 0.55, "4": 0.65, "5": 0.75},
+    "level_penalty_per_level": 0.006,
+    "ability_bonus_per_tier": 0.10,
+    "chance_min": 0.05,
+    "chance_max": 0.90
+  },
+  "pairing": {
+    "min_level": 5,
+    "radius_m": 12.0,
+    "require_home": true,
+    "cooldown_s": {"female": 21600, "male": 3600}
+  },
+  "inheritance": {
+    "_about": "Each stat IV comes from one parent: the higher one with this chance. Level gains and EVs are never inherited.",
+    "higher_parent_chance": 0.55
+  },
+  "mutation": {
+    "_about": "Per stat roll; a mutation adds iv_steps beyond the inherited parent's IV, capped at iv_cap. Lineage counters (maternal/paternal) at or past soft_cap multiply that side's chance by soft_cap_mult.",
+    "chance_per_stat": 0.01,
+    "colour_chance": 0.025,
+    "iv_steps": 2,
+    "iv_cap": 41,
+    "soft_cap": 20,
+    "soft_cap_mult": 0.1
+  },
+  "colours": ["", "#e8dcc0", "#5a4632", "#b84a2e", "#3f6b4a", "#2f4f7a", "#7a3f7a", "#d9b23a", "#202020"],
+  "incubation": {
+    "default_s": 3600,
+    "temp_margin_c": 8.0,
+    "out_of_range_rate": 0.0
+  },
+  "climate_temp_c": {
+    "_about": "ASSUMPTION: climates.json has no temperatures yet (W2-SURVIVAL adds them); nests read the island climate through this table.",
+    "grassland": 20, "savannah": 30, "temperate": 16, "tropical": 28, "tundra": -5, "desert": 36,
+    "swamp": 26, "snowfield": -12, "blue_tropical": 27, "volcanic": 40, "any": 20
+  },
+  "nest_kinds": {
+    "egg_nest": {"temp_offset_c": 0.0, "regulated": false},
+    "egg_incubator": {"temp_offset_c": 0.0, "regulated": true}
+  },
+  "growth": {
+    "_about": "baby -> juvenile -> adolescent -> adult. Stats scale from baby_stat_frac to 1 with maturity, times (1 + imprint_bonus * imprint). Unfed babies grow at neglect_rate; nothing ever kills them.",
+    "stages": [
+      {"id": "baby", "s": 1800},
+      {"id": "juvenile", "s": 3600},
+      {"id": "adolescent", "s": 5400}
+    ],
+    "baby_stat_frac": 0.3,
+    "baby_scale": 0.35,
+    "neglect_rate": 0.5,
+    "feed_interval_s": 1200,
+    "cuddle_interval_s": 1800,
+    "imprint_bonus": 0.2
+  },
+  "species": {
+    "_about": "Per-species overrides: birth egg|gestation, incubation_s, gestation_s, egg_temp_c [min, max].",
+    "smilodon": {"birth": "gestation", "gestation_s": 3600},
+    "megaloceros": {"birth": "gestation", "gestation_s": 3600}
+  }
+}

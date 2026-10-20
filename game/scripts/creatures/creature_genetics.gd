@@ -14,6 +14,12 @@ const EV_TOTAL_MAX := 300
 var ivs: Dictionary = {}
 var evs: Dictionary = {}
 var level_gains: Dictionary = {}
+## Colour mutation (W2-BREED): index into breeding.json "colours"; 0 = the species' natural colours.
+var colour: int = 0
+
+## Wild rolls stay 0..IV_MAX; bred mutations may push an IV up to breeding.json mutation.iv_cap.
+static func iv_cap() -> int:
+	return maxi(IV_MAX, int((Data.breeding.get("mutation", {}) as Dictionary).get("iv_cap", IV_MAX)))
 
 static func roll(rng: RandomNumberGenerator = null) -> CreatureGenetics:
 	var out := CreatureGenetics.new()
@@ -94,13 +100,17 @@ static func tier_for_iv(iv: int) -> StringName:
 	return LABELS[idx]
 
 func to_dict() -> Dictionary:
-	return {"ivs": _string_keys(ivs), "evs": _string_keys(evs), "level_gains": _string_keys(level_gains)}
+	return {"ivs": _string_keys(ivs), "evs": _string_keys(evs), "level_gains": _string_keys(level_gains), "colour": colour}
 
 static func from_dict(data: Dictionary) -> CreatureGenetics:
 	var out := neutral()
+	var cap := iv_cap()
+	var palette: Array = Data.breeding.get("colours", [""])
+	var c: Variant = data.get("colour", 0)
+	out.colour = clampi(int(c), 0, maxi(0, palette.size() - 1)) if (c is int or c is float) else 0
 	for stat in STATS:
 		var key := str(stat)
-		out.ivs[stat] = clampi(int(data.get("ivs", {}).get(key, out.ivs[stat])), 0, IV_MAX)
+		out.ivs[stat] = clampi(int(data.get("ivs", {}).get(key, out.ivs[stat])), 0, cap)
 		out.evs[stat] = clampi(int(data.get("evs", {}).get(key, 0)), 0, EV_MAX_PER_STAT)
 		out.level_gains[stat] = maxi(0, int(data.get("level_gains", {}).get(key, 0)))
 	_cap_total(out.evs, EV_TOTAL_MAX)
