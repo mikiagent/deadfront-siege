@@ -24,7 +24,7 @@ func run(host: Node) -> void:
 	World.objective = 0
 	World.load_island(host, &"home_grassland", Vector3(0, 1, 18), false)
 	await get_tree().create_timer(0.5).timeout
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	var ui: CanvasLayer = (load("res://scripts/ui/world_ui.gd") as GDScript).ensure()
 	World.t_stones = 100
 	player.skills.trees["survival"]["level"] = 0

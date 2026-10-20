@@ -20,7 +20,7 @@ func _ready() -> void:
 			print("[boot] lab=%s" % Game.lab_name)
 	else:
 		print("[boot] main scene ready")
-		var player := get_tree().get_first_node_in_group("player") as Player
+		var player := PlayerRegistry.local()
 		if player:
 			# Modal screens (bag, craft) sit above every other canvas layer (plates 58, world UI 40).
 			var modals := CanvasLayer.new()

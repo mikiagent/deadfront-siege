@@ -15,7 +15,7 @@ func run(_host: Node) -> void:
 	await get_tree().create_timer(1.0).timeout
 	for node in get_tree().root.find_children("CharacterCreation", "CharacterCreation", true, false):
 		node.queue_free()
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	player.set_physics_process(false)
 	player.skills.trees["survival"]["level"] = 50
 	for tree in ["weapon_tools", "tailoring", "processing", "melee"]:
