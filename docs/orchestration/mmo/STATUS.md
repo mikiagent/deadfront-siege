@@ -222,6 +222,8 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   --max-hours N --effort high` in the package worktree), and the Claude agent reviews dsc's diff before
   committing it as its own. dsc runs Godot only through gslot.sh. First dsc coding batch: 38 reviewer
   minors on the merged wave-1 packages (worktree mmo-dsc-minors, gate tools/dsc/verify_minors.sh).
+- 2026-10-20 (owner): parallelize dsc workers, up to 6 at a time. Split big mechanical jobs into several
+  independent workers (one folder or worktree each, own fast milestone gate, full gate at the end).
 
 ## Owner questions (open)
 
