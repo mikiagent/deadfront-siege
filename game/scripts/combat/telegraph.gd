@@ -18,6 +18,7 @@ static func show_for(creature: Creature, clip: StringName) -> void:
 	var radius := 1.8 if clip == &"attack_heavy" else 1.1
 	t._build(radius, creature)
 	t.visible = not (player and player.statuses.has_flag(&"hide_telegraphs"))
+	t.clip = clip
 	t._life = _clip_seconds(creature, clip) + LINGER  # fallback if the hit never fires
 	if creature.anim and not creature.anim.attack_hit.is_connected(t._on_attacker_hit):
 		creature.anim.attack_hit.connect(t._on_attacker_hit)
@@ -47,6 +48,7 @@ static func player_dodged(attacker: Creature) -> bool:
 var attacker: Creature
 var _radius: float = 1.5
 var _life: float = 0.9
+var clip: StringName  # only this clip's hit ends the ring; a stray hit from another clip does not
 
 func _build(radius: float, who: Creature) -> void:
 	attacker = who
@@ -64,8 +66,9 @@ func _build(radius: float, who: Creature) -> void:
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(ring)
 
-func _on_attacker_hit(_clip: StringName) -> void:
-	_life = minf(_life, LINGER)
+func _on_attacker_hit(hit_clip: StringName) -> void:
+	if hit_clip == clip:
+		_life = minf(_life, LINGER)
 
 func covers(pos: Vector3) -> bool:
 	var d := Vector2(pos.x - global_position.x, pos.z - global_position.z).length()

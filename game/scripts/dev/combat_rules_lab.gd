@@ -44,7 +44,9 @@ func _run() -> void:
 	await _swing_timing_phase()
 	await _camera_phase()
 	await _kick_phase()
+	await _tackle_phase()
 	await _fence_phase()
+	await _ranged_phase()
 	CombatTuning.reset_overrides()
 	if _failures.is_empty():
 		print("[combatrules] PASS")
@@ -77,12 +79,12 @@ func _reset_player(at: Vector3) -> void:
 	for inst in _player.statuses.instances().duplicate():
 		_player.statuses.clear_id(inst.id)
 	_player.global_position = at
+	_player.vitals.max_health = 1000.0  # health is clamped to max every frame; 1000 needs a 1000 max
 	_player.vitals.health = 1000.0
 	_player.vitals.energy = _player.vitals.max_energy
 	_player.hunt.stop()
-	_player.hunt._kick_cd = 0.0
-	_player.hunt._tackle_cd = 0.0
-	_player.hunt._tactic_lock = 0.0
+	_player.hunt.commit_tactic(&"tackle", 0.0, 0.0)
+	_player.hunt.commit_tactic(&"kick", 0.0, 0.0)
 
 ## pc-combat-02: the heavy's ring must still exist when the bite lands (was gone 0.18-0.42 s early).
 func _telegraph_phase() -> void:
@@ -177,6 +179,116 @@ func _kick_phase() -> void:
 		c.queue_free()
 		await _secs(1.2)  # attack clip clears _busy before the next kick
 
+## phys-kick-01 (tackle half): a T. rex at contact is in reach (body edges), a raptor 2.5 m
+## past contact is refused with "Too far".
+func _tackle_phase() -> void:
+	for row in [[&"tyrannosaurus", 0.05, true], [&"velociraptor", 2.5, false]]:
+		var species: StringName = row[0]
+		_reset_player(Vector3(0, 1, 0))
+		await _frames(5)
+		var r := maxf(0.18, Data.creature(species).real_length_m * 0.12)
+		var c := _spawn(species, Vector3(0, 0, -(r + 0.35 + float(row[1]))))
+		await _frames(10)
+		_player.hunt.start(c)
+		_player.hunt.auto = false
+		_player.hunt.last_notice = ""
+		var gap := MeleeQuery.surface_gap(_player, c)
+		_player.hunt.use_tackle()
+		var accepted := _player.hunt.cooldown_left(&"tackle") > 0.0
+		var note := _player.hunt.last_notice
+		if bool(row[2]):
+			_check(accepted and not note.contains("Too far"), "tackle %s at gap %.2f m accepted (notice '%s')" % [species, gap, note])
+		else:
+			_check(not accepted and note.begins_with("Too far"), "tackle %s at gap %.2f m refused, notice '%s'" % [species, gap, note])
+		_player.hunt.auto = true
+		_player.hunt.stop()
+		c.queue_free()
+		await _secs(1.2)
+
+## pc-ranged-01: slingshot stones on the gravity arc land at 4 m and 11 m on flat ground, each
+## landed stone costs exactly 1 durability, and a fence in the line gives "No clear shot".
+func _ranged_phase() -> void:
+	var rt := World.runtime
+	if rt == null:
+		return  # fence phase already failed "island runtime loaded"
+	var base: Variant = null
+	for i in 4000:
+		var x := float(i % 60) * 2.0 - 60.0
+		var z := float(i / 60) * 2.0 - 60.0
+		var ok := true
+		for d in range(-1, 13):
+			var p := Vector3(x + d, rt.surface_y(x + d, z), z)
+			if not rt.spawn_ok(p, false) or rt._slope_deg(p.x, p.z) > 6.0:
+				ok = false
+				break
+		if ok:
+			base = Vector3(x, rt.surface_y(x, z), z)
+			break
+	if base == null:
+		_check(false, "flat 12 m strip for the ranged rows")
+		return
+	var at: Vector3 = base
+	_reset_player(at + Vector3(0, 1, 0))
+	LabKit.give(_player, &"slingshot", 1)
+	LabKit.give(_player, &"stone_shot", 10)
+	_player.inventory.equip(&"weapon", &"slingshot")
+	var sling := _player.inventory.equipped_weapon()
+	var raptor := _spawn(&"velociraptor", at + Vector3(4, 0, 0), rt)
+	CombatTuning.force_dodge = 0.0
+	CombatTuning.force_accuracy = 1.0
+	for dist in [4.0, 11.0]:
+		var hits := 0
+		var shots := 0
+		var last_clip: StringName
+		var wear_ok := true
+		for k in 2:
+			_player.global_position = at + Vector3(0, 1, 0)
+			raptor.global_position = Vector3(at.x + dist, rt.surface_y(at.x + dist, at.z), at.z)
+			raptor.health.hp = raptor.health.max_hp
+			var waited := 0.0
+			while _player.anim._busy and waited < 3.0:  # a hit react or clip left over from the bout
+				await get_tree().process_frame
+				waited += get_process_delta_time()
+			await _frames(2)
+			_player.hunt.start(raptor)
+			_player.hunt.auto = false
+			_player.hunt.hold = true
+			_player.hunt._swing_cd = 0.0
+			var hp0 := raptor.health.hp
+			var dur0 := sling.durability
+			var fired := _player.hunt.fire_ranged()
+			shots += int(fired)
+			await _secs(0.12)
+			last_clip = _player.anim.current_clip  # the shot only leaves during attack_primary
+			await _secs(1.5)
+			if fired and raptor.health.hp < hp0:
+				hits += 1
+				wear_ok = wear_ok and sling.durability == dur0 - 1
+			_player.hunt.hold = false
+			_player.hunt.stop()
+		_check(hits == 2 and wear_ok, "slingshot at %.0f m: %d fired, %d/2 stones landed, durability -1 per landed stone=%s (now %d, clip %s)" % [dist, shots, hits, wear_ok, sling.durability, last_clip])
+	# A fence across the line of fire.
+	raptor.global_position = Vector3(at.x + 6.0, rt.surface_y(at.x + 6.0, at.z), at.z)
+	var fence = (load("res://scripts/world/placed_building.gd") as GDScript).make(&"fence")
+	rt.add_child(fence)
+	fence.global_position = Vector3(at.x + 3.0, rt.surface_y(at.x + 3.0, at.z), at.z)
+	fence.rotation.y = PI * 0.5
+	await _frames(2)
+	_player.global_position = at + Vector3(0, 1, 0)
+	await _frames(2)
+	_player.hunt.start(raptor)
+	_player.hunt.auto = false
+	_player.hunt._swing_cd = 0.0
+	_player.hunt._los_notice_s = -99.0
+	_player.hunt.last_notice = ""
+	var shot := _player.hunt.fire_ranged()
+	_check(not shot and _player.hunt.last_notice.contains("No clear shot"), "fence in the line of fire: fired=%s notice '%s'" % [shot, _player.hunt.last_notice])
+	_player.hunt.auto = true
+	_player.hunt.stop()
+	CombatTuning.reset_overrides()
+	fence.queue_free()
+	raptor.queue_free()
+
 ## phys-hit-01: a BuildGrid fence ring between survivor and velociraptor for 10 s: no bite and
 ## no swing lands through it. Control: same set-up without the fence, >= 3 bites.
 func _fence_phase() -> void:
@@ -207,22 +319,29 @@ func _fence_phase() -> void:
 	_check(fenced["bites"] == 0 and fenced["hits"] == 0 and fenced["reach_tries"] >= 1,
 		"fence ring 10 s: %d bites, %d survivor hits through the wall (%d bite tries at reach, %d swings started)" % [fenced["bites"], fenced["hits"], fenced["reach_tries"], fenced["swings"]])
 	_check(open["bites"] >= 3, "control without fence 10 s: %d bites (want >= 3)" % open["bites"])
+	# pc-hitreact-02 stays open until integrator hook 1 gates receive_creature_hit on a landed bite
+	# (creature.gd is W1-AI's). Then turn this info line into a _check(fenced["reactions"] == 0, ...).
+	print("[combatrules] info fence bout: %d survivor hit reactions on blocked bites (want 0 after integrator hook 1)" % fenced["reactions"])
 	raptor.queue_free()
 
 ## 10 s bout. Every 0.5 s the survivor stands at the inside point nearest the raptor, so the
 ## raptor is always as close as the wall allows.
 func _melee_bout(raptor: Creature, bounds: Rect2, tag: String) -> Dictionary:
 	var rt := World.runtime
-	var out := {"bites": 0, "hits": 0, "reach_tries": 0, "swings": 0}
+	var out := {"bites": 0, "hits": 0, "reach_tries": 0, "swings": 0, "reactions": 0}
 	# Wrap the raptor's own hit handler: arm the survivor's health just before it, read it
 	# just after. A drop between the two is a landed bite (vitals clamp health every frame,
 	# so a frame-to-frame comparison would miscount).
 	var pre := func (_clip: StringName) -> void:
+		_player.vitals.max_health = 1000.0
 		_player.vitals.health = 1000.0
+		_player._last_hit_taken_s = -999.0  # receive_creature_hit stamps it: counts hit reactions
 		var d := Vector2(raptor.global_position.x - _player.global_position.x, raptor.global_position.z - _player.global_position.z).length()
 		if d <= raptor.brain.contact_reach() + 0.3:
 			out["reach_tries"] += 1
 	var post := func (_clip: StringName) -> void:
+		if _player._last_hit_taken_s > -999.0:
+			out["reactions"] += 1
 		if _player.vitals.health < 1000.0 - 0.01:
 			out["bites"] += 1
 			print("[combatrules] %s bite lands d=%.2f" % [tag, Vector2(raptor.global_position.x - _player.global_position.x, raptor.global_position.z - _player.global_position.z).length()])
@@ -257,6 +376,9 @@ func _melee_bout(raptor: Creature, bounds: Rect2, tag: String) -> Dictionary:
 				_player.hunt.start(raptor)
 		_player.dead = false
 		_player.vitals.dead = false
+		# Statuses resync max health to 100, and a 135 crit at max 100 killed him mid-bout (the
+		# death clip then swallowed the ranged rows' shots).
+		_player.vitals.max_health = 1000.0
 		_player.vitals.health = 1000.0
 		raptor.health.hp = raptor.health.max_hp
 	_player.hunt.hit_landed.disconnect(on_hit)

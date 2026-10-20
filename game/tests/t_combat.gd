@@ -60,6 +60,9 @@ func _run() -> void:
 	await _test_walls_block()
 	await _test_corner_slot()
 	await _test_swing_pauses()
+	await _test_swing_after_stop()
+	await _test_telegraph_clip()
+	_test_stone_evasion()
 	_test_wear()
 	_test_seeded_accuracy()
 	_test_evasion()
@@ -88,6 +91,9 @@ func _reset_player() -> void:
 		player.statuses.clear_id(inst.id)
 	player.vitals.dead = false
 	player.dead = false
+	# refresh_equipment_vitals clamps health to max every frame, so 1000 needs a 1000 max; with
+	# the default 100 a raptor heavy crit (135) killed him and the control row flaked.
+	player.vitals.max_health = 1000.0
 	player.vitals.health = 1000.0
 
 func _test_tuning() -> void:
@@ -195,10 +201,68 @@ func _test_swing_pauses() -> void:
 	var hp_paused: float = raptor.health.hp
 	paused = false
 	await create_timer(1.0).timeout
-	_expect(is_equal_approx(hp_paused, hp0) and raptor.health.hp < hp0, "swing waits out a pause: hp %.0f paused, %.0f after" % [hp_paused, raptor.health.hp])
+	_expect(is_equal_approx(hp_paused, hp0) and raptor.health.hp < hp0, "swing waits out a pause: hp %.2f paused, %.2f after (bare hands)" % [hp_paused, raptor.health.hp])
 	player.hunt.auto = true
 	player.hunt.stop()
 	CombatTuning.reset_overrides()
+	raptor.free()
+
+## A swing pending when the hunt stops (or retargets) is lost: it never lands on the old target.
+func _test_swing_after_stop() -> void:
+	_reset_player()
+	CombatTuning.force_dodge = 0.0
+	CombatTuning.force_accuracy = 1.0
+	player.global_position = Vector3(0, 0.9, 0)
+	var raptor = _creature(&"velociraptor", Vector3(0, 0, -1.6))
+	await physics_frame
+	player.hunt.start(raptor)
+	player.hunt.auto = false
+	var hp0: float = raptor.health.hp
+	player.hunt.begin_swing()
+	player.hunt.stop()
+	await create_timer(1.0).timeout
+	_expect(is_equal_approx(raptor.health.hp, hp0), "swing pending at Hunt.stop() is lost: hp %.2f -> %.2f" % [hp0, raptor.health.hp])
+	player.hunt.auto = true
+	CombatTuning.reset_overrides()
+	raptor.free()
+
+## pc-combat-02: only the telegraphed clip's hit shortens its ring; a stray hit from another clip does not.
+func _test_telegraph_clip() -> void:
+	var TG: GDScript = load("res://scripts/combat/telegraph.gd")
+	var raptor = _creature(&"velociraptor", Vector3(4, 0, -4))
+	await physics_frame
+	TG.show_for(raptor, &"attack_heavy")
+	var ring = TG._active[TG._active.size() - 1]
+	var life0: float = ring._life
+	raptor.anim.attack_hit.emit(&"attack_primary")
+	var after_stray: float = ring._life
+	raptor.anim.attack_hit.emit(&"attack_heavy")
+	_expect(after_stray > TG.LINGER and ring._life <= TG.LINGER, "telegraph ring %.2f s, %.2f s after a stray attack_primary hit, %.2f s after its own attack_heavy hit" % [life0, after_stray, ring._life])
+	ring.free()
+	raptor.free()
+
+## pc-ranged-01: a stone impact rolls evasion like a swing; a dodged stone deals nothing and costs
+## no durability, a landed one costs exactly 1.
+func _test_stone_evasion() -> void:
+	var raptor = _creature(&"velociraptor", Vector3(0, 0, -6))
+	player.inventory.add(ITEM.make(&"slingshot", 1))
+	player.inventory.equip(&"weapon", &"slingshot")
+	var sling = player.inventory.equipped_weapon()
+	var shot = (load("res://scripts/combat/stone_projectile.gd") as GDScript).new()
+	shot.source = player
+	shot.weapon = sling
+	shot.damage = 20.0
+	var hp0: float = raptor.health.hp
+	var dur0: int = sling.durability
+	CombatTuning.force_accuracy = 1.0
+	CombatTuning.force_dodge = 1.0
+	shot.impact(raptor)
+	_expect(is_equal_approx(raptor.health.hp, hp0) and sling.durability == dur0, "dodged stone: hp %.2f -> %.2f, durability %d -> %d" % [hp0, raptor.health.hp, dur0, sling.durability])
+	CombatTuning.force_dodge = 0.0
+	shot.impact(raptor)
+	_expect(raptor.health.hp < hp0 and sling.durability == dur0 - 1, "landed stone: hp %.2f -> %.2f, durability %d -> %d" % [hp0, raptor.health.hp, dur0, sling.durability])
+	CombatTuning.reset_overrides()
+	shot.free()
 	raptor.free()
 
 ## pc-data-02 / durability-01: 10 landed club hits cost 10 durability; a broken club is bare hands.

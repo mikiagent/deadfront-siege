@@ -7,19 +7,19 @@ extends RefCounted
 ## contact range is in reach (its centre is 3+ m away), and a wall between refuses the move.
 static func reach_ok(h: Hunt, verb: String, tune: Dictionary) -> bool:
 	if MeleeQuery.surface_gap(h.player, h.target) > float(tune.get("surface_reach_m", 2.4)):
-		h._say("Too far to %s: get closer." % verb)
+		h.say("Too far to %s: get closer." % verb)
 		return false
 	if not MeleeQuery.clear(h.player, h.target):
-		h._say("Something is in the way.")
+		h.say("Something is in the way.")
 		return false
 	return true
 
 ## Body tackle: lunge into the target, groggy (then knockdown on the next hit), 6 damage.
 static func tackle(h: Hunt) -> void:
-	if h.target == null or not h._can_start_tactic():
+	if h.target == null or not h.can_start_tactic():
 		return
-	if h._tackle_cd > 0.0:
-		h._say("Tackle ready in %.0fs" % ceil(h._tackle_cd))
+	if h.cooldown_left(&"tackle") > 0.0:
+		h.say("Tackle ready in %.0fs" % ceil(h.cooldown_left(&"tackle")))
 		return
 	var tune := CombatTuning.section("tackle")
 	if not reach_ok(h, "tackle", tune):
@@ -27,7 +27,7 @@ static func tackle(h: Hunt) -> void:
 	var player := h.player
 	var target := h.target
 	if not player.vitals.spend_energy(float(tune.get("stamina", 15.0))):
-		h._say("Out of stamina.")
+		h.say("Out of stamina.")
 		return
 	player.clear_nav()
 	player.face_world(target.global_position)
@@ -42,9 +42,7 @@ static func tackle(h: Hunt) -> void:
 	target.next_hit_kind = &"strong"
 	target.health.take_damage(float(tune.get("damage", 6.0)), player)
 	target.status_float.emit(&"tackle")
-	h._tackle_cd = float(tune.get("cooldown", 8.0))
-	h._tactic_lock = float(tune.get("lock", 0.55))
-	h._swing_cd = maxf(h._swing_cd, h._tactic_lock)
+	h.commit_tactic(&"tackle", float(tune.get("cooldown", 8.0)), float(tune.get("lock", 0.55)))
 	player.play_attack(true)
 	print("[combat] body tackle %s" % target.def.id)
 
@@ -67,10 +65,10 @@ static func kick_push(c: Creature) -> float:
 
 ## Kick: shove the target back (scaled by its mass; giants do not budge) with 4 damage.
 static func kick(h: Hunt) -> void:
-	if h.target == null or not h._can_start_tactic():
+	if h.target == null or not h.can_start_tactic():
 		return
-	if h._kick_cd > 0.0:
-		h._say("Kick ready in %.0fs" % ceil(h._kick_cd))
+	if h.cooldown_left(&"kick") > 0.0:
+		h.say("Kick ready in %.0fs" % ceil(h.cooldown_left(&"kick")))
 		return
 	var tune := CombatTuning.section("kick")
 	if not reach_ok(h, "kick", tune):
@@ -78,14 +76,14 @@ static func kick(h: Hunt) -> void:
 	var player := h.player
 	var target := h.target
 	if not player.vitals.spend_energy(float(tune.get("stamina", 10.0))):
-		h._say("Out of stamina.")
+		h.say("Out of stamina.")
 		return
 	player.clear_nav()
 	player.face_world(target.global_position)
 	player.play_attack(false)
 	var push := kick_push(target)
 	if push <= 0.0:
-		h._say("Too heavy to shove: it barely feels the kick.")
+		h.say("Too heavy to shove: it barely feels the kick.")
 	else:
 		var away := target.global_position - player.global_position
 		away.y = 0.0
@@ -94,7 +92,5 @@ static func kick(h: Hunt) -> void:
 	target.next_hit_kind = &"hit"
 	target.health.take_damage(float(tune.get("damage", 4.0)), player)
 	target.status_float.emit(&"kick")
-	h._kick_cd = float(tune.get("cooldown", 6.0))
-	h._tactic_lock = float(tune.get("lock", 0.45))
-	h._swing_cd = maxf(h._swing_cd, h._tactic_lock)
+	h.commit_tactic(&"kick", float(tune.get("cooldown", 6.0)), float(tune.get("lock", 0.45)))
 	print("[combat] kick %s push=%.2f" % [target.def.id, push])

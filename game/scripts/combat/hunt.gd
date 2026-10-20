@@ -162,8 +162,8 @@ static func hit_delay(w: ItemStack) -> float:
 func _on_swing_hit(ref: WeakRef, w: ItemStack, forward: Vector3) -> void:
 	_swing_pending = false
 	var t := ref.get_ref() as Creature
-	if t == null or t.health.dead or player == null or player.dead:
-		return
+	if t == null or t != target or t.health.dead or player == null or player.dead:
+		return  # hunt stopped or retargeted mid-swing: the swing is lost, not landed on the old target
 	if player.rolling or player.statuses.has_flag(&"cannot_act"):
 		return  # knocked down or rolled out mid-swing: the swing is lost
 	var offset := t.global_position - player.global_position
@@ -238,7 +238,7 @@ func wear_weapon(w: ItemStack) -> void:
 		return
 	if not w.wear(int(CombatTuning.top("weapon_wear_per_hit", 1))):
 		print("[item] %s broke" % w.def_id)
-		_say("%s broke." % (w.def().display_name if w.def() else str(w.def_id)))
+		say("%s broke." % (w.def().display_name if w.def() else str(w.def_id)))
 	player.inventory.changed.emit()
 
 ## The equipped weapon, or null when it is broken (a broken weapon fights as bare hands).
@@ -246,7 +246,7 @@ func _weapon() -> ItemStack:
 	var w := player.inventory.equipped_weapon()
 	return null if w == null or w.is_broken() else w
 
-func _say(text: String) -> void:
+func say(text: String) -> void:
 	last_notice = text
 	player.notice(text)
 
@@ -255,7 +255,7 @@ func say_throttled(text: String) -> void:
 	var now := Time.get_ticks_msec() * 0.001
 	if now - _los_notice_s > 3.0:
 		_los_notice_s = now
-		_say(text)
+		say(text)
 
 ## Chart feedback: strong above1, weak below1, otherwise neutral hit.
 static func effectiveness(c: Creature, dtype: StringName) -> StringName:
@@ -266,12 +266,24 @@ static func effectiveness(c: Creature, dtype: StringName) -> StringName:
 	if value < 1.0: return &"weak"
 	return &"hit"
 
-func _can_start_tactic() -> bool:
+func can_start_tactic() -> bool:
 	if player == null or player.rolling or player.statuses.has_flag(&"cannot_act"):
 		return false
 	if player.anim and player.anim._busy:
 		return false
 	return _tactic_lock <= 0.0
+
+## CombatTactics goes through these two; the fields stay because hunt_hud reads them.
+func cooldown_left(kind: StringName) -> float:
+	return _tackle_cd if kind == &"tackle" else _kick_cd
+
+func commit_tactic(kind: StringName, cooldown: float, lock: float) -> void:
+	if kind == &"tackle":
+		_tackle_cd = cooldown
+	else:
+		_kick_cd = cooldown
+	_tactic_lock = lock
+	_swing_cd = maxf(_swing_cd, lock)
 
 func use_tackle() -> void:
 	CombatTactics.tackle(self)
@@ -284,7 +296,7 @@ func use_net() -> void:
 	if target == null or not target.capturable():
 		return
 	if not _net_health_ok():
-		_say("Weaken it below 30% health before netting it.")
+		say("Weaken it below 30% health before netting it.")
 		return
 	CaptureSystem.attempt(player, target)
 
@@ -340,7 +352,7 @@ func fire_ranged() -> bool:
 		say_throttled("No clear shot: something is in the way.")
 		return false
 	if player.inventory.count_of(def.ammo_id) < 1:
-		_say("Need stone shot")
+		say("Need stone shot")
 		_swing_cd = 1.0
 		return false
 	player.clear_nav()
