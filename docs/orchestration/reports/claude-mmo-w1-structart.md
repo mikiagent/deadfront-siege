@@ -46,7 +46,7 @@ world-harbour-07 (pier model only; placing it on the coast is W2-TERRAIN).
 Commits: ddc1aef (WIP helper), 04027fe, 5cb3f5c, 59f1f3f, 209539f, 8fb71cf, 825ef4c, 82f06dc, 45efa5f (first
 report); review round: 1c2417a, 8be17c1, 78a251d, 3018e79; resumed round: c00a1e9, 8813169, 796ec3a; review round 3:
 c06733a (marbled raw meat, warmer deck, pen collider, applyable hooks, test hook checks), 25435fd (ochre canvas,
-GLBs rebuilt on the final atlas) and the commit carrying this report, if it lands (see "What failed or is left").
+GLBs rebuilt on the final atlas), d44ef93 and the commit carrying this correction (report).
 
 ## Review round 3: findings and responses
 
@@ -259,14 +259,12 @@ branch): proposed rows, Structures and props table:
   `git checkout ea2d167 -- docs/orchestration/mmo/STATUS.md docs/orchestration/mmo/contracts.md && git rm -r
   docs/design/durango-prompts docs/reference/durango-bag-caged-animal.webp docs/reference/durango-fatigue-meter.png
   docs/reference/durango-gather-hud-levelup.webp`. The permission classifier refused that command ("Modify
-  Shared Resources"), and after that it refused every git command in this work tree, read-only ones included.
-  So it is not done, and I did not try another route. Either the owner allows it, or the integrator takes theirs
-  at merge (`git checkout --theirs docs/orchestration/mmo/STATUS.md`). No other path conflicts.
-- **This report may be uncommitted.** If git stays blocked, this file is the only uncommitted change in the work
-  tree. The code and art are committed in c06733a and 25435fd.
+  Shared Resources"), so it is not done and I did not try another route. Either the owner allows it, or the
+  integrator takes theirs at merge (`git checkout --theirs docs/orchestration/mmo/STATUS.md`). No other path
+  conflicts.
 - **Hooked tree basis.** The hooked-tree runs merged c06733a with claude/mmo-overhaul at 8ca2496. The two newer
-  target commits (55c6541, 8d872e3) were not in that tree. By their titles they are docs: Durango addenda and
-  a standing rule. I could not confirm that with git.
+  target commits (55c6541, 8d872e3) were not in that tree. `git diff --stat 8ca2496 claude/mmo-overhaul` shows
+  they touch only docs: two Durango addenda (08 cooking, 09 capture) and STATUS.md.
 - **Owner, please confirm about Blender.** In round 1 my first live MCP build segfaulted the owner's Blender 5.2
   (it switched the window to a temporary scene and ran the glTF exporter under `temp_override`; crash log
   `~/Library/Logs/DiagnosticReports/Blender-2026-10-19-085350.ips`). The open file was unsaved and I believe it
