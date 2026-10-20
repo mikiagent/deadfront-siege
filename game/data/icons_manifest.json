@@ -228,7 +228,9 @@
     "steel_helm": "dried_hide",
     "steel_cuirass": "raw_hide",
     "steel_bracers": "hide_strap",
-    "steel_greaves": "hide_strap"
+    "steel_greaves": "hide_strap",
+    "antivenom": "bandage",
+    "antibiotic": "bandage"
   },
   "category_fallback": {
     "fibre": "fibre_stalk",

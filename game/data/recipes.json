@@ -4397,6 +4397,62 @@
       "process_step": "extract",
       "process_add": 1,
       "tree": "farming"
+    },
+    {
+      "id": "antivenom",
+      "display_name": "Antivenom",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "venom",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "herb",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "antivenom",
+        "count": 1
+      },
+      "station": "mortar",
+      "seconds": 4.0,
+      "process_step": "grind",
+      "process_add": 1,
+      "tree": "cooking",
+      "requires_node": "antivenom"
+    },
+    {
+      "id": "antibiotic",
+      "display_name": "Antibiotic",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "herb",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "mushroom",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "antibiotic",
+        "count": 1
+      },
+      "station": "mortar",
+      "seconds": 4.0,
+      "process_step": "grind",
+      "process_add": 1,
+      "tree": "cooking",
+      "requires_node": "antibiotic"
     }
   ],
   "repairs": [

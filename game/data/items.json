@@ -635,7 +635,8 @@
       "poison_chance": 0.25,
       "tastes_bad_chance": 0.2,
       "market_category": "meat",
-      "rarity": "common"
+      "rarity": "common",
+      "source_pending": "fishing: no catch system yet (missions.json catch_fish waits on M7)"
     },
     {
       "id": "raptor_meat",
@@ -3702,6 +3703,30 @@
       "base_level": 1,
       "rarity": "epic",
       "market_category": "clothing"
+    },
+    {
+      "id": "antivenom",
+      "display_name": "Antivenom",
+      "categories": [
+        "medicine"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "medicine"
+    },
+    {
+      "id": "antibiotic",
+      "display_name": "Antibiotic",
+      "categories": [
+        "medicine"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "medicine"
     }
   ]
 }

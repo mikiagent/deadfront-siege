@@ -95,9 +95,9 @@
     ],
     "loot": [
       "cloth_scrap",
-      "wire",
-      "medicine",
-      "rare_seed"
+      "metal_shard",
+      "pressure_dressing",
+      "corn_seed"
     ]
   },
   "lifetime_hours": {
