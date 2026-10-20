@@ -145,6 +145,13 @@ func _audit_size(player: Player, size: Vector2i) -> void:
 		edge.open_options(edge_anchor, "Birch Tree", 1, 1.0, edge_options, player.inventory)
 		await get_tree().process_frame
 		await _shot(host, "radial_edge_%dx%d" % [size.x, size.y])
+		# The title box keeps off every label and hex (with the title under the ring, "Branch" covered it).
+		var parts: Array[Rect2] = edge.label_rects.duplicate()
+		for b in edge._buttons:
+			parts.append(b.get_global_rect())
+		for part in parts:
+			_expect(not edge.title_box.intersects(part), "edge radial title %s stays off %s" % [edge.title_box, part])
+		print("[uishot] edge radial: title %s, %d labels, source %s" % [edge.title_box, edge.label_rects.size(), edge.source_rect()])
 		edge.queue_free()
 	hud.queue_free()
 

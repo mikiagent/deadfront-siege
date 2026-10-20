@@ -295,6 +295,7 @@ func _draw() -> void:
 	draw_string(font, name_pos, name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
 	draw_string(font, Vector2(name_pos.x + nw * 0.5 - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
 	var plate := nameplate()
+	var src := source_rect()
 	label_rects.clear()
 	for i in _buttons.size():
 		var b := _buttons[i]
@@ -302,12 +303,12 @@ func _draw() -> void:
 		var reason: String = str(_labels[i]["reason"])
 		var ts := UiTokens.body(view)
 		var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x
-		var blockers: Array[Rect2] = [title_box, plate, source_rect()]
+		var blockers: Array[Rect2] = [title_box, plate]
 		blockers.append_array(UiTokens.hud_reserved(view))
 		for j in _buttons.size():
 			if j != i:
 				blockers.append(Rect2(_buttons[j].position, _buttons[j].size))
-		var rect := pick_label_rect(ContextRadial.label_on_left(b.position, b.size.x, view, base), Rect2(b.position, b.size), tw, view, blockers)
+		var rect := pick_label_rect(ContextRadial.label_on_left(b.position, b.size.x, view, base), Rect2(b.position, b.size), tw, view, blockers, [src])
 		var pos := rect.position + Vector2(4.0, 14.0)
 		label_rects.append(Rect2(pos + Vector2(-4, -14), Vector2(tw + 12, 26)))
 		draw_rect(label_rects[-1], UiTokens.INK)
@@ -418,7 +419,8 @@ static func label_rect(hex: Rect2, label_w: float, left: bool, view_w: float) ->
 ## along it to clear each blocker), and keep the first spot that is inside the screen and clear of this hex and every blocker (other hexes, the title box, HUD).
 ## If nothing is clear, take the on-screen spot that covers the least blocker area (the preferred side
 ## on a tie): keeping the preferred side put a label on HANDS when the other side was nearly clear.
-static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view: Vector2, blockers: Array = []) -> Rect2:
+## `soft` blockers (the plant) count a tenth: a label may lie over leaves before it covers text.
+static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view: Vector2, blockers: Array = [], soft: Array = []) -> Rect2:
 	var w := label_w + 12.0
 	var cx := clampf(hex.get_center().x - w * 0.5, 8.0, maxf(8.0, view.x - w - 8.0))
 	var candidates: Array[Rect2] = [
@@ -431,7 +433,7 @@ static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view:
 	# "Berries" above its hex touched the gather title by 2 px).
 	var lo := minf(hex.position.x, hex.end.x - w)
 	var hi := maxf(hex.position.x, hex.end.x - w)
-	for blocker in blockers:
+	for blocker in blockers + soft:
 		for x in [(blocker as Rect2).end.x + 2.0, (blocker as Rect2).position.x - w - 2.0]:
 			for y in [hex.position.y - 30.0, hex.end.y + 4.0]:
 				candidates.append(Rect2(Vector2(clampf(x, lo, hi), y), Vector2(w, 26.0)))
@@ -445,6 +447,8 @@ static func pick_label_rect(prefer_left: bool, hex: Rect2, label_w: float, view:
 		var cover := 0.0
 		for blocker in blockers:
 			cover += rect.intersection(blocker as Rect2).get_area()
+		for blocker in soft:
+			cover += rect.intersection(blocker as Rect2).get_area() * 0.1
 		if cover <= 0.0:
 			return rect
 		if cover < best_cover:
