@@ -77,19 +77,35 @@ def workbench_kit():
 
 
 def tent_kit():
-    canvas = mat("#d8c8a0", 0.85, color2="#b8a47a", tex="wave", scale=30.0, bump=0.1)
-    prism([(-1.0, 0.0), (1.0, 0.0), (0.0, 1.35)], 2.0, loc=(0, 0, 0), m=canvas, bev=0.03)
-    prism([(-0.4, 0.0), (0.4, 0.0), (0.0, 0.62)], 0.04, loc=(0, -1.01, 0), m=mat("#3a2a1e", 0.8), bev=0.0)
-    p = wood("#8a5a33", "#5e3a1e")
-    for y in (-1.05, 1.05):
-        cyl(0.05, 1.6, loc=(0, y, 0.8), m=p, segs=8)
-    cyl(0.04, 2.3, loc=(0, 0, 1.38), rot=(90, 0, 0), m=p, segs=8)
-    r = rope_m()
+    """Tent kit: the canvas rolled round its assembly of poles, slung diagonally, so both pole ends
+    stick out at the corners; two rope bands, a mallet and pegs at the foot."""
+    canvas = mat("#d8c8a0", 0.9, color2="#ad9d72", tex="wave", scale=40.0, bump=0.2)
+    c2 = mat("#c8b88e", 0.9, color2="#a0906a", tex="wave", scale=36.0, bump=0.2)
+    p = mat("#c9965a", 0.75, color2="#9a6a35", tex="wave", scale=6.0, bump=0.2)
+    g = group(rot=(0, 0, 0))
+    # The poles: a bundle inside the canvas, their ends out at both ends of the roll.
+    for (dy, dz) in ((-0.12, 0.05), (0.1, -0.05), (0.0, 0.12)):
+        cyl(0.045, 3.0, loc=(0, dy, dz), rot=(0, 90, 0), m=p, segs=8, parent=g)
+    # The roll: canvas wound round the middle of the poles.
+    cyl(0.46, 1.9, rot=(0, 90, 0), m=canvas, segs=28, parent=g)
     for s in (-1, 1):
-        tube([(0, s * 1.05, 1.5), (0.0, s * 1.6, 0.0)], 0.02, r, segs=4)
-        cyl(0.05, 0.35, loc=(0.0, s * 1.62, 0.05), rot=(s * 15, 0, 0), m=p, segs=6)
-    turn(-55)
-    turn(8, "X")
+        lathe([(0, 0.0), (0.42, 0.0), (0.46, 0.02), (0.4, 0.03), (0.33, 0.02), (0.25, 0.03), (0.16, 0.02),
+               (0.07, 0.03), (0, 0.03)], loc=(s * 0.96, 0, 0), rot=(0, 90 * s, 0), m=c2, segs=28, parent=g)
+    for x in (-0.5, 0.55):
+        tube(arc((0, 0, 0), 0.49, 0, 360, 28, plane="xz", y=0)[:-1], 0.04, rope_m(), segs=5, closed=True,
+             parent=group(loc=(x, 0, 0), rot=(0, 0, 90), parent=g))
+    # The loose canvas flap hanging off one side.
+    prism([(-0.6, 0.35), (0.6, 0.4), (0.55, -0.1), (0.2, -0.5), (-0.2, -0.45), (-0.55, -0.05)], 0.03,
+          loc=(0.2, -0.42, -0.3), rot=(20, 0, 0), m=canvas, bev=0.008, parent=g,
+          deform=lambda co: co.__setitem__(1, co.y + 0.1 * math.sin(co.x * 3.0)))
+    # Mallet and pegs at the foot.
+    cyl(0.06, 0.45, loc=(-1.15, -0.45, -0.55), rot=(20, 60, 0), m=p, segs=8, parent=g)
+    box((0.18, 0.32, 0.18), loc=(-1.35, -0.5, -0.4), rot=(10, 30, 0), m=wood("#8a5a33", "#5e3a1e"), bev=0.04,
+        parent=g)
+    for k in range(3):
+        cyl(0.032, 0.34, loc=(-0.9 + 0.14 * k, -0.6, -0.75), rot=(70, 0, 20 * k), m=p, segs=6, r2=0.01, parent=g)
+    turn(-38)
+    turn(12, "X")
     upright()  # flat item: diagonal so the slot can lift it above its top edge
 
 
@@ -232,11 +248,25 @@ def claim_stake():
 
 
 def sign_kit():
-    w = wood("#9a6a3a", "#6a4220")
-    box((0.18, 0.18, 2.0), loc=(0, 0, 0), m=w, bev=0.02)
-    prism([(-0.9, 0.35), (0.7, 0.35), (1.05, 0.65), (0.7, 0.95), (-0.9, 0.95)], 0.12, loc=(0, -0.15, 0.2), m=wood("#b88452", "#8a5a30"),
-          bev=0.02)
-    _lash(0, 0, 0.75, rope_m(), r=0.15)
+    """Sign: a painted plank board on a squared post, two iron nails, the board's corner carved with a
+    cut arrows marking for a settlement, and a rope loop to hang it."""
+    w = mat("#9a6a3a", 0.8, color2="#6a4220", tex="wave", scale=5.0, bump=0.3)
+    board = mat("#b88452", 0.75, color2="#8a5a30", tex="wave", scale=7.0, bump=0.25)
+    box((0.2, 0.2, 2.0), loc=(0, 0, -0.3), m=w, bev=0.02)
+    # The board: two planks with a gap, fastened to the post.
+    prism([(-0.95, 0.2), (0.75, 0.2), (1.1, 0.5), (0.75, 0.8), (-0.95, 0.8)], 0.12, loc=(0, -0.2, 0.05),
+          m=board, bev=0.015)
+    tube([(-0.9, -0.27, 0.5), (0.75, -0.27, 0.5)], 0.018, mat("#6a4a28", 0.9), segs=4)  # plank seam
+    nail = mat("#8a8e94", 0.35, metal=0.9)
+    for x in (-0.12, 0.12):
+        cyl(0.05, 0.03, loc=(x, -0.28, 0.55), rot=(90, 0, 0), m=nail, segs=8)
+    # Arrows carved (and painted) on the board: a clue this is a sign, not a plank.
+    paint = mat("#d8c48a", 0.7)
+    tube([(-0.75, -0.29, 0.55), (0.25, -0.29, 0.55)], 0.03, paint, segs=4)
+    tube([(0.05, -0.29, 0.66), (0.28, -0.29, 0.55), (0.05, -0.29, 0.44)], 0.03, paint, segs=4)
+    # Rope and a couple of lashes on the post.
+    _lash(0, 0, 0.05, rope_m(), r=0.16)
+    tube(arc((0, 0, 1.0), 0.14, 0, 180, 12, plane="xz"), 0.035, rope_m(), segs=5)
     turn(-20)
 
 

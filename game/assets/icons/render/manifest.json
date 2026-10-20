@@ -121,13 +121,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "bark_strip",
    "png": "res://assets/icons/render/bark_strip.png",
-   "sha256": "6515434e4729643cb07f7398414b24eed79c07f4cabcfa5dc47e7dc90c521004",
-   "bytes": 36722,
+   "sha256": "84bf60ca5bbaa915edcd6f77f911b9d90aacf4bedc46151b8c250c162354cd18",
+   "bytes": 44398,
    "rect": [
-    54,
     19,
-    148,
-    218
+    41,
+    218,
+    174
    ],
    "quality": "procedural_v1"
   },
@@ -1857,13 +1857,13 @@
    "script": "tools/blender/items/resources.py",
    "builder": "snow_pine",
    "png": "res://assets/icons/render/snow_pine.png",
-   "sha256": "60a805506f5ecd28acd12ff056ca0ad6486b02429ecf7298821db74e8039b7a0",
-   "bytes": 28071,
+   "sha256": "893d673ac63c18a53a586d27fb0090b0387e24f2db49a9c2d098b18902e44973",
+   "bytes": 26236,
    "rect": [
     19,
-    43,
+    39,
     218,
-    171
+    178
    ],
    "quality": "procedural_v1"
   },

@@ -63,15 +63,26 @@ def split_wood():
 
 
 def pillar():
-    w = wood("#a8743f", "#6f4520")
-    box((0.5, 0.5, 2.6), m=w, bev=0.05)
-    iron = metal("#55585c", 0.45)
-    for z in (-0.95, 0.95):
-        box((0.56, 0.56, 0.1), loc=(0, 0, z), m=iron, bev=0.015)
-    turn(30)
+    """Pillar: a squared timber post with a carved ring at the top, a lap-joint notch cut in each
+    face, iron bands with bolts near both ends and rope wrapped round the middle."""
+    w = mat("#a8743f", 0.75, color2="#6f4520", tex="wave", scale=5.0, bump=0.35)
+    box((0.5, 0.5, 2.6), m=w, bev=0.035)
+    # Lap-joint notches: a shallow cut on the front and the side, where a beam would sit.
+    for (x, y, sx, sy) in ((0, -0.25, 0.5, 0.01), (-0.25, 0, 0.01, 0.5)):
+        box((sx, sy, 0.3), loc=(x, y, 0.42), m=mat("#7a5226", 0.85, color2="#4e3214", tex="noise", scale=9.0), bev=0.0)
+    iron = metal("#6a6e74", 0.4)
+    for z in (-0.98, 0.98):
+        box((0.58, 0.58, 0.13), loc=(0, 0, z), m=iron, bev=0.02)
+        for (x, y) in ((0.3, 0), (-0.3, 0), (0, 0.3), (0, -0.3)):
+            ball(0.05, loc=(x, y, z + 0.01), m=mat("#94989e", 0.3, metal=0.9), sub=2)
+    # Carved ring under the top band.
+    cyl(0.36, 0.08, loc=(0, 0, 0.8), m=w, segs=4, smooth=False, rot=(0, 0, 45))
+    # Rope wrapped round the middle.
+    for k in range(4):
+        tube(arc((0, 0, 0), 0.36, 0, 360, 24, plane="xy", y=-0.15 + 0.1 * k)[:-1], 0.035, rope_m(), segs=5,
+             closed=True)
+    turn(28)
     lean(-15)
-
-
 def bamboo():
     g_m = mat("#86b83f", 0.35, color2="#5e8f2a", tex="wave", scale=6.0, coat=0.4)
     node = mat("#c9c86a", 0.45)
@@ -102,12 +113,18 @@ def flint():
 
 
 def obsidian():
-    m = mat("#121116", 0.05, color2="#2a2630", tex="noise", scale=3.0, coat=1.0, spec=1.0)
-    rock(0.55, loc=(0, 0, 0.35), scl=(0.8, 0.7, 2.0), m=m, jitter=0.25, sub=0, rot=(0, 8, 0))
-    rock(0.45, loc=(-0.5, 0.1, -0.1), scl=(0.8, 0.7, 1.5), m=m, jitter=0.25, sub=0, rot=(0, -28, 0))
-    rock(0.4, loc=(0.5, -0.05, -0.25), scl=(0.9, 0.7, 1.2), m=m, jitter=0.25, sub=0, rot=(0, 35, 0))
-
-
+    """Obsidian: black volcanic glass, sharp faceted shards with bright chipped edges and a violet
+    sheen, stood on a pale grey stone so the black glass does not vanish into the dark slot."""
+    glass = mat("#1e1c26", 0.05, color2="#3e3852", tex="voronoi", scale=6.0, bump=0.15, coat=1.0, spec=0.9,
+                emit="#6a5aa0", emit_strength=0.35)
+    edge = mat("#8a82b0", 0.1, color2="#5a5480", tex="noise", scale=3.0, coat=1.0)
+    for (p_, r, scl, rot_) in (((0, 0, 0.35), 0.55, (0.75, 0.6, 2.0), (0, 8, 0)),
+                                ((-0.5, 0.1, -0.05), 0.45, (0.8, 0.6, 1.5), (0, -28, 0)),
+                                ((0.5, -0.05, -0.2), 0.4, (0.85, 0.6, 1.2), (0, 35, 0))):
+        rock(r, loc=p_, scl=scl, m=glass, jitter=0.18, sub=1, rot=rot_)
+        tube([(p_[0], p_[1] - r * 0.5, p_[2] - r * scl[2] * 0.85),
+              (p_[0] + 0.05, p_[1] - r * 0.58, p_[2] + r * scl[2] * 0.85)], 0.024, edge, segs=4)
+    rock(0.72, loc=(0, 0.28, -0.9), scl=(1.35, 0.9, 0.35), m=stone("#a8a8a2", "#74746e"), jitter=0.1, sub=2)
 def sandstone():
     cols = ("#dcb47c", "#c99a5e", "#e3c08a")
     for i, z in enumerate((-0.5, -0.1, 0.3)):
@@ -149,32 +166,59 @@ def silver_ore():
 
 
 def black_iron():
-    m = mat("#33363d", 0.3, metal=1.0, color2="#4a3f5c", tex="noise", scale=5.0, bump=0.3)
-    for p, r in (((0, 0, 0), 0.7), ((0.7, -0.2, -0.2), 0.45), ((-0.6, 0.1, -0.25), 0.5), ((0.1, -0.3, 0.6), 0.4)):
-        rock(r, loc=p, m=m, jitter=0.28, sub=1)
-
-
+    """Black iron: a dark rust-red host rock studded with purple-black metallic crystals: one large
+    cluster and a few small ones, their faces catching a violet sheen. Unlike obsidian's unhosted
+    glass shards."""
+    host = mat("#6a3a2c", 0.9, color2="#402018", tex="noise", scale=6.0, bump=0.6)
+    rock(0.95, scl=(1.3, 1.0, 0.8), m=host, jitter=0.16, sub=2)
+    xtal = mat("#2e2846", 0.14, metal=1.0, color2="#7a68b0", tex="noise", scale=5.0, bump=0.15, spec=1.0)
+    for (x, y, z, h, w) in ((-0.25, -0.3, 0.15, 1.5, 0.27), (0.1, -0.45, 0.0, 1.1, 0.2),
+                             (0.45, -0.2, 0.05, 0.95, 0.18), (-0.5, 0.0, 0.0, 0.8, 0.15),
+                             (0.2, 0.15, 0.3, 0.7, 0.13)):
+        tilt = (10 * (x > 0), 14 * (y < 0), 0)
+        cyl(w, h, loc=(x, y, z + h * 0.35), rot=tilt, m=xtal, segs=6, r2=w * 0.4, smooth=False)
+    fleck = mat("#c87a3a", 0.5, color2="#8a4a1a", tex="voronoi", scale=9.0, bump=0.3)
+    for p_ in ((0.75, -0.35, -0.05), (-0.8, -0.2, -0.15)):
+        rock(0.1, loc=p_, m=fleck, jitter=0.3, sub=0)
+    upright()  # flat item: diagonal so the slot can lift it above its top edge
 def metal_shard():
-    m = metal("#c8d0d8", 0.42)
-    prism([(0, 1.4), (0.35, 0.6), (0.25, -0.2), (0.45, -0.9), (-0.1, -1.2), (-0.3, -0.3), (-0.2, 0.5)], 0.12, m=m,
-          bev=0.02)
-    prism([(0, 0.6), (0.2, 0.0), (0.05, -0.5), (-0.2, 0.0)], 0.1, loc=(0.7, 0.2, -0.4), rot=(0, 30, 0), m=m, bev=0.02)
-    lean(-20)
+    """Metal shard: a jagged piece torn off a riveted plate, its ripped edge bright bare metal, a
+    line of rivets down the clean edge, lying over a smaller torn-off corner."""
+    plate = mat("#d2d8de", 0.3, metal=0.9, color2="#9aa2aa", tex="noise", scale=4.0, bump=0.08)
+    bare = mat("#ffffff", 0.12, metal=0.95, color2="#d8e0e8", tex="noise", scale=4.0, bump=0.03)
+    rivet = mat("#5e666e", 0.35, metal=0.9, tex="noise", scale=8.0)
+    edge_pts = [(-0.35, 1.1), (-0.32, 0.55), (-0.38, 0.0), (-0.32, -0.55), (-0.36, -0.95)]
+    rip_pts = [(0.1, -1.0), (0.5, -0.72), (0.22, -0.48), (0.68, -0.15), (0.32, 0.1), (0.75, 0.45),
+               (0.38, 0.6), (0.62, 0.9), (0.15, 1.05), (-0.1, 1.22)]
+    prism(edge_pts + rip_pts, 0.12, m=plate, bev=0.02,
+          deform=lambda co: co.__setitem__(1, co.y + 0.05 * math.sin(co.z * 5.0)))
+    for z in (0.8, 0.3, -0.2, -0.7):
+        cyl(0.075, 0.06, loc=(-0.24, -0.07, z), rot=(90, 0, 0), m=rivet, segs=10)
+    rip = [(0.1, -1.0), (0.5, -0.72), (0.22, -0.48), (0.68, -0.15), (0.32, 0.1), (0.75, 0.45), (0.38, 0.6),
+           (0.62, 0.9), (0.15, 1.05), (-0.1, 1.22)]
+    tube([(x, -0.02, z) for x, z in rip], 0.04, bare, segs=5)
+    prism([(-0.55, 0.3), (-0.05, 0.45), (0.25, 0.1), (0.1, -0.25), (-0.4, -0.3)], 0.1, loc=(0.15, -0.3, -0.5),
+          rot=(0, 0, 18), m=plate, bev=0.02)
+    lean(-18)
     turn(20)
-
-
-def _ingot(c, rough=0.28):
-    # A small stack (two under one): a lone bar is ~2:1 and could not rise above the slot.
+def _ingot(c, rough=0.28, shape="bar"):
+    """An ingot stack. shape: 'bar' (tapered cast bar), 'loaf' (a flat rounded cast loaf, the
+    generic ingot)."""
     m = metal(c, rough)
-    for loc in ((0, -0.31, 0), (0, 0.31, 0), (0, 0, 0.35)):
-        box((1.2, 0.56, 0.34), loc=loc, m=m, bev=0.045, taper=(0.8, 0.72))
+    if shape == "loaf":
+        # Two loaves side by side, one on top: low, rounded, cast in a shallow hollow.
+        for loc in ((0, -0.33, 0), (0, 0.33, 0), (0, 0, 0.24)):
+            box((1.15, 0.58, 0.22), loc=loc, m=m, bev=0.1, taper=(0.94, 0.92))
+        for loc in ((0, -0.33, 0), (0, 0.33, 0), (0, 0, 0.24)):
+            box((0.9, 0.4, 0.02), loc=(loc[0], loc[1], loc[2] + 0.11), m=mat("#7a808a", 0.6), bev=0.02)
+    else:
+        for loc, rot_ in (((0, -0.32, 0), 0), ((0, 0.32, 0), 0), ((0, 0, 0.36), 12)):
+            box((1.2, 0.56, 0.3), loc=loc, rot=(0, 0, rot_), m=m, bev=0.05, taper=(0.8, 0.72))
     turn(24)
-
-
 def ingot():
-    _ingot("#a9a49a", 0.45)
-
-
+    """A generic ingot: a rounded loaf of pale grey metal, cast in a hollow, without sharp edges, so
+    it reads apart from the iron and steel bars."""
+    _ingot("#9ea4ae", 0.42, shape="loaf")
 def copper_ingot():
     _ingot("#c8743c")
 
@@ -184,13 +228,22 @@ def bronze_ingot():
 
 
 def iron_ingot():
-    _ingot("#4e5157", 0.55)
-
-
+    """Rough-cast iron: three dark blue-grey bars, mottled cast faces and blunt, uneven ends."""
+    m = mat("#5a5e66", 0.6, metal=0.8, color2="#40444c", tex="noise", scale=14.0, bump=0.45, ramp=(0.3, 0.7))
+    for loc in ((0, -0.3, 0.0), (0, 0.3, 0.0), (0, 0, 0.3)):
+        box((1.2, 0.56, 0.3), loc=loc, m=m, bev=0.06, taper=(0.84, 0.76))
+        for s in (-1, 1):
+            box((0.18, 0.5, 0.24), loc=(loc[0] + s * 0.56, loc[1], loc[2] - 0.01), m=m, bev=0.07)
+    turn(24)
 def steel_ingot():
-    _ingot("#dce8f4", 0.12)
-
-
+    """Steel: bright polished bars, sharp true edges, a cold blue sheen and a stamped mark on top."""
+    m = mat("#dfe8f2", 0.1, metal=0.95, color2="#8fa0b4", tex="noise", scale=5.0, bump=0.03)
+    for loc in ((0, -0.33, 0), (0, 0.33, 0), (0, 0, 0.36)):
+        box((1.24, 0.56, 0.3), loc=loc, m=m, bev=0.012, taper=(0.9, 0.88))
+        tube([(-0.56, loc[1] - 0.26, loc[2] + 0.16), (0.56, loc[1] - 0.26, loc[2] + 0.16)], 0.012,
+             mat("#f4f8ff", 0.05, metal=1.0), segs=4)
+    box((0.4, 0.2, 0.02), loc=(0, 0, 0.53), m=mat("#4e5a68", 0.3), bev=0.004)
+    turn(24)
 def charcoal():
     m = mat("#1e1e20", 0.55, color2="#3a3a3e", tex="voronoi", scale=5.0, bump=0.4, spec=0.6)
     for p, r, s in (((0, 0, 0), 0.6, (1.3, 0.9, 0.8)), ((0.85, -0.1, -0.15), 0.4, (1.2, 1.0, 0.8)),
@@ -224,11 +277,17 @@ def raptor_bone():
 
 
 def dense_bone():
-    m = mat("#cdbb92", 0.6, color2="#8f7a55", tex="voronoi", scale=3.0, bump=0.4)
-    _bone(1.5, 0.27, 0.36, m)
-    lean(-35)
-
-
+    """Dense bone: a heavy, short limb bone with thick knobbly ends, pitted and grey-brown, visibly
+    heavier and stubbier than the slim white bone."""
+    m = mat("#c0aa80", 0.8, color2="#8a7248", tex="noise", scale=5.0, bump=0.8, ramp=(0.3, 0.75))
+    cyl(0.24, 1.2, m=m, rot=(0, 90, 0))
+    for s in (-1, 1):
+        for (dy, dz) in ((-0.2, 0.14), (0.2, 0.14), (0.0, -0.22)):
+            blob(0.24, loc=(s * 0.62, dy, dz), m=m, scl=(1.0, 1.0, 1.0), amp=0.28, sub=2)
+        blob(0.2, loc=(s * 0.76, 0, 0), m=m, scl=(0.8, 1.2, 1.1), amp=0.3, sub=2)
+    for k in range(6):  # pits and scars
+        rock(0.05, loc=(-0.4 + 0.16 * k, -0.2, 0.1 * (k % 2) - 0.05), m=mat("#7a6440", 0.9), jitter=0.4, sub=0)
+    lean(-40)
 def raptor_talon():
     pts = arc((-0.6, 0, -0.3), 1.0, -15, 80, 16)
     tube(pts, 0.28, mat("#3a3128", 0.3, color2="#d8c39a", tex="noise", scale=1.5, coat=0.6), segs=14, taper=(1.0, 0.04))
@@ -317,11 +376,20 @@ def sulphur():
 
 
 def clay():
-    m = mat("#b4643c", 0.75, color2="#8e4a2a", tex="noise", scale=3.0, bump=0.3)
-    blob(1.0, scl=(1.2, 1.0, 0.75), m=m, amp=0.18, freq=1.3)
-    blob(0.4, loc=(1.05, -0.3, -0.35), m=m, amp=0.15)
-
-
+    """Clay: a hand-pressed brick of wet clay, its top scored with finger grooves and one corner
+    pressed down, a thumbprint dent in the middle. Orange-brown, matte, no lumps."""
+    m = mat("#b8643a", 0.8, color2="#8e4622", tex="noise", scale=7.0, bump=0.5)
+    box((1.6, 1.05, 0.75), loc=(0, 0, -0.15), m=m, bev=0.14)
+    # Finger grooves pressed across the top.
+    for k in range(3):
+        y = -0.28 + 0.28 * k
+        tube([(-0.62, y, 0.24), (0.0, y + 0.02, 0.28), (0.62, y, 0.24)], 0.06, m, segs=6, taper=(0.7, 0.7))
+    blob(0.24, loc=(0.3, 0.15, 0.3), scl=(1.2, 1.0, 0.35), m=m, amp=0.1, sub=2)  # a pressed wall rising
+    # A second, smaller brick behind.
+    box((0.8, 0.6, 0.45), loc=(-0.75, 0.35, 0.2), rot=(0, 0, -14), m=m, bev=0.1)
+    blob(0.32, loc=(0.75, -0.4, -0.45), scl=(1.3, 1.0, 0.4), m=m, amp=0.3, sub=2)  # a pinch of trimmings
+    turn(14)
+    turn(10, "X")
 def resin():
     m = mat("#e8941e", 0.08, color2="#c8641a", tex="noise", scale=2.0, coat=1.0, emit="#ff9a2a", emit_strength=0.8)
     lathe([(0, 1.2), (0.12, 1.0), (0.4, 0.6), (0.62, 0.25), (0.66, 0.0), (0.55, -0.25), (0.3, -0.4), (0, -0.42)], m=m)

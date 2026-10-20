@@ -56,55 +56,74 @@ def roast():
 
 
 def seasoned_roast():
-    _drumstick(_cooked("#a0521e", "#5a2a0a"), herbs=True)
+    """Seasoned roast: a drumstick crusted with a herb-and-pepper rub, green flecks and black pepper
+    spots over the lit face, oiled to a sheen: distinct from the plain roast."""
+    m = _cooked("#a85e20", "#5a3008")
+    _drumstick(m)
+    g_m = mat("#4a9a34", 0.55)
+    pep = mat("#141008", 0.6)
+    salt = mat("#f4f0e4", 0.35, spec=0.7)
+    for i in range(30):
+        a = math.radians(i * 41)
+        r = 0.6 * (0.55 + 0.45 * ((i * 7) % 5) / 5.0)
+        z = -0.85 + 0.95 * ((i * 3) % 7) / 7.0
+        y = -abs(r * math.sin(a)) - 0.05      # the camera-facing half of the meat
+        p_ = (r * math.cos(a), y, z)
+        if i % 3 == 0:
+            leaf(0.2, 0.07, loc=p_, rot=(80, math.degrees(a), 0), m=g_m, curl=0.01)
+        elif i % 3 == 1:
+            ball(0.045, loc=p_, m=pep, sub=1)
+        else:
+            box((0.06, 0.03, 0.03), loc=p_, rot=(20, 30, 40), m=salt, bev=0.0)
+    # A herb sprig tucked under the bone.
+    leaf(0.5, 0.18, loc=(0.35, -0.55, 0.4), rot=(70, 20, 0), m=g_m, curl=0.06)
+    turn(10)
+    lean(-42)
 
 
 def grilled_meat():
-    g = _flat()
-    outline = [(-1.0, -0.2), (-0.8, -0.65), (-0.2, -0.8), (0.5, -0.7), (1.0, -0.35), (1.05, 0.2), (0.7, 0.62),
-               (0.0, 0.75), (-0.65, 0.55), (-1.0, 0.25)]
-    prism(outline, 0.35, m=mat("#6a3214", 0.6, color2="#1e0c04", tex="wave", scale=0.7, bump=0.4, coat=0.1,
-                                ramp=(0.9, 0.97)), bev=0.1, parent=g)
-    prism([(-1.08, -0.22), (-0.86, -0.72), (-0.82, -0.66), (-1.0, -0.2)], 0.3, m=mat("#f0dcc0", 0.5), bev=0.03, parent=g)
-    turn(30)
-    turn(42, "X")
-
-
-def _strips(m, tie=None):
-    """Jerky: four narrow torn strips, gaps between them so each reads on its own."""
-    for i in range(4):
-        pts = [(-1.0, -0.12), (-0.45, -0.16), (0.1, -0.1), (0.6, -0.17), (1.0, -0.06), (0.9, 0.04), (1.02, 0.14),
-               (0.45, 0.16), (-0.1, 0.11), (-0.6, 0.17), (-0.95, 0.08), (-1.05, 0.0)]
-
-        def wob(co, k=i):
-            co.y += 0.18 * math.sin(co.x * 2.6 + k * 1.3)
-        prism(pts, 0.07, loc=(0.12 * (i % 2), -0.05 * i, 0.4 * i - 0.6), rot=(0, 6 - 4 * i, 0), m=m, bev=0.02, deform=wob)
-    if tie:
-        tube([(-0.55, -0.35, 0.9), (-0.5, -0.32, -0.8)], 0.035, tie, segs=5)
-        tube([(0.55, -0.35, 0.9), (0.5, -0.32, -0.8)], 0.035, tie, segs=5)
-    lean(-24)
-
-
+    """Grilled meat: a thick steak with charred grid marks from the grill, a bone-in edge and a sprig,
+    on a board: not a flat striped disc."""
+    meat = mat("#7a3418", 0.5, color2="#b85a28", tex="noise", scale=3.0, bump=0.5, coat=0.5, ramp=(0.55, 0.85))
+    char = mat("#241208", 0.7, color2="#3a2010", tex="noise", scale=8.0, bump=0.4)
+    board = wood("#a87444", "#7a4a24")
+    box((2.1, 1.5, 0.14), loc=(0, 0.1, -0.7), rot=(0, 0, 3), m=board, bev=0.06)
+    # The steak: a fat lozenge, raised, with a dark seared crust and grill bars pressed across it.
+    blob(0.85, loc=(0.0, -0.05, -0.15), scl=(1.25, 0.95, 0.38), m=meat, amp=0.1, sub=3)
+    for k in range(2, 8):
+        x = -0.7 + 0.2 * k
+        tube([(x, -0.75, 0.1), (x + 0.05, 0.6, 0.12)], 0.055, char, segs=6, taper=(0.9, 1.0))
+    b = bonem("#e2d2a8")
+    tube([(0.9, -0.3, -0.2), (1.25, -0.45, -0.35)], 0.11, b, segs=8, taper=(1.0, 1.3))
+    ball(0.14, loc=(1.3, -0.47, -0.38), m=b, sub=2)
+    leaf(0.45, 0.16, loc=(-0.75, -0.4, 0.0), rot=(60, 30, 0), m=mat("#4f9a3a", 0.5), curl=0.05)
+    turn(24)
+    turn(40, "X")
 def dried_meat():
     _strips(mat("#8e3420", 0.6, color2="#d8906a", tex="noise", scale=4.0, bump=0.4, ramp=(0.6, 0.75)))
 
 
 def smoked_meat():
-    _strips(mat("#5a2a16", 0.55, color2="#2a1208", tex="noise", scale=5.0, bump=0.4, coat=0.3), tie=rope_m())
-
-
-def _skewer(colors, specks=False):
-    tube([(-1.5, 0, 0), (1.55, 0, 0)], 0.045, wood("#c9965a", "#9a6a35"), segs=8)
-    cyl(0.045, 0.2, loc=(1.62, 0, 0), rot=(0, 90, 0), r2=0.0, m=wood("#c9965a", "#9a6a35"), segs=8)
-    for i, c in enumerate(colors):
-        x = -0.95 + 0.62 * i
-        m = _cooked(*c) if isinstance(c, tuple) else mat(c, 0.4, coat=0.3)
-        box((0.46, 0.44, 0.44), loc=(x, 0, 0), rot=(rnd(-10, 10), rnd(-15, 15), rnd(-10, 10)), m=m, bev=0.13)
-        if specks:
-            for k in range(5):
-                a = k * 1.3
-                ball(0.035, loc=(x + 0.15 * math.cos(a), -0.24, 0.15 * math.sin(a)), m=mat("#1a1008", 0.6), sub=1)
-    lean(58)  # near-square silhouette so the slot can lift it above its top like the rest
+    """Smoked meat: a haunch of smoked meat, dark mahogany glaze over a wrinkled rind, tied round
+    with twine, its bone out at the knee, and a bundle of jerky strips beside it: unlike the roasts,
+    which are plated drumsticks in a cooked brown."""
+    glaze = mat("#54200c", 0.35, color2="#8a3c14", tex="noise", scale=4.0, bump=0.6, spec=0.5, ramp=(0.45, 0.8))
+    meat = mat("#5e2610", 0.5, color2="#8a4420", tex="voronoi", scale=12.0, bump=0.9, spec=0.35)
+    _haunch(meat)
+    # Glaze: a shiny dark pass over the near half of the haunch.
+    blob(0.85, loc=(-0.1, -0.25, 0.0), scl=(1.0, 0.6, 0.85), m=glaze, amp=0.12, sub=3)
+    # Twine: two loops round the meat and a knot.
+    for x in (-0.45, 0.15):
+        tube(arc((0, 0, 0), 0.8, 0, 360, 26, plane="xz", y=0)[:-1], 0.035, rope_m("#c8a86a"), segs=4, closed=True,
+             parent=group(loc=(x, -0.05, 0.0), rot=(0, 0, 90)))
+    tube([(0.18, -0.5, 0.1), (0.35, -0.55, -0.2), (0.3, -0.5, -0.5)], 0.025, rope_m("#c8a86a"), segs=4)
+    # Jerky strips leaning on it.
+    jerky = mat("#6a2814", 0.55, color2="#9a4a22", tex="noise", scale=7.0, bump=0.5)
+    for i in range(3):
+        prism([(-0.08, 0.6), (0.08, 0.6), (0.06, -0.55), (0.0, -0.65), (-0.07, -0.5)], 0.04,
+              loc=(-0.75 + 0.09 * i, 0.35 + 0.06 * i, -0.1), rot=(0, 12 + 14 * i, 0), m=jerky, bev=0.01)
+    turn(12)
+    lean(-40)
 
 
 def skewer():
@@ -116,15 +135,22 @@ def spiced_skewer():
 
 
 def fish():
-    body = mat("#8fb0c8", 0.25, color2="#3e5a78", tex="noise", scale=2.0, coat=0.6, ramp=(0.35, 0.6))
-    fin = mat("#c87a4a", 0.4, color2="#8a4a2a", tex="wave", scale=12.0)
-    blob(1.0, scl=(1.45, 0.42, 0.62), m=body, amp=0.03)
-    prism([(-1.35, 0.0), (-2.0, 0.55), (-1.85, 0.0), (-2.0, -0.55)], 0.06, m=fin, bev=0.01)
-    prism([(-0.5, 0.5), (0.3, 0.55), (-0.2, 0.9)], 0.05, m=fin, bev=0.01)
-    prism([(-0.2, -0.5), (0.3, -0.55), (0.0, -0.8)], 0.05, m=fin, bev=0.01)
-    ball(0.12, loc=(1.0, -0.33, 0.15), m=mat("#f0f0e8", 0.3), sub=2)
-    ball(0.07, loc=(1.03, -0.42, 0.16), m=mat("#0a0a0a", 0.1, coat=1.0), sub=2)
-    lean(52)  # diagonal: a flat fish otherwise sits low and never rises above the slot
+    """Fish: a silver fish with a dark blue back, a pale belly, a fine lateral line, orange fins and a
+    round eye, its tail curling: no camouflage blotches."""
+    back = mat("#4e6e80", 0.55, color2="#6e8e9e", tex="noise", scale=6.0, bump=0.25, spec=0.3)
+    belly = mat("#e8ecf0", 0.45, color2="#c0ccd4", tex="noise", scale=7.0, spec=0.35)
+    fin = mat("#d8803a", 0.5, color2="#a85a20", tex="noise", scale=10.0, bump=0.2)
+    blob(1.0, scl=(1.4, 0.4, 0.55), m=back, amp=0.02)
+    blob(0.92, loc=(0.0, -0.05, -0.13), scl=(1.3, 0.38, 0.32), m=belly, amp=0.02)
+    tube([(0.95, -0.1, -0.02), (-1.1, -0.12, 0.0)], 0.014, mat("#c8d8e4", 0.4), segs=4)  # lateral line
+    prism([(-1.25, 0.0), (-2.0, 0.6), (-1.85, 0.0), (-2.0, -0.6)], 0.06, m=fin, bev=0.01)
+    prism([(-0.5, 0.5), (0.3, 0.55), (-0.2, 0.95)], 0.05, m=fin, bev=0.01)
+    prism([(-0.3, -0.48), (0.35, -0.5), (0.05, -0.82)], 0.05, m=fin, bev=0.01)
+    prism([(0.35, -0.35), (0.7, -0.42), (0.45, -0.7)], 0.04, m=fin, bev=0.01)
+    tube(arc((0.8, 0, 0), 0.34, 100, 260, 10, plane="xz", y=-0.36), 0.016, mat("#8aa4b4", 0.45), segs=4)
+    ball(0.13, loc=(1.02, -0.3, 0.14), m=mat("#f0f4f0", 0.25), sub=3)
+    ball(0.075, loc=(1.05, -0.4, 0.15), m=mat("#0a0a0a", 0.1, coat=1.0), sub=2)
+    lean(52)
 
 
 def sashimi():
@@ -190,8 +216,27 @@ def boiled_meat():
 
 
 def burnt_food():
-    _drumstick(mat("#1c1612", 0.85, color2="#3a2a1e", tex="noise", scale=4.0, bump=0.6, emit="#ff4a10",
-                   emit_strength=2.5, emit_mask=4.0))
+    """Burnt food: a drumstick burnt to black charcoal, ash-grey dust lying on its upper face, the
+    skin cracked in a few places to show a thin dull orange glow under the crust."""
+    char = mat("#20201e", 0.95, color2="#3e3832", tex="noise", scale=6.0, bump=0.8, ramp=(0.3, 0.7))
+    dust = mat("#a29e96", 1.0, color2="#6e6a62", tex="noise", scale=14.0, bump=0.4)
+    ember = mat("#2e2018", 0.85, color2="#5a3620", tex="noise", scale=6.0, emit="#ff5a18", emit_strength=2.0,
+                emit_mask=22.0)
+    # The meat: black, with the glow showing through thin cracks only.
+    lathe([(0, -1.0), (0.3, -0.96), (0.55, -0.72), (0.63, -0.3), (0.56, 0.1), (0.38, 0.42), (0.2, 0.62), (0.13, 0.78)],
+          m=ember)
+    lathe([(0, -1.02), (0.31, -0.98), (0.57, -0.74), (0.65, -0.3), (0.58, 0.1), (0.4, 0.42), (0.22, 0.62), (0.15, 0.8)],
+          m=char, scl=(0.94, 0.94, 0.97))
+    # Ash dust lying on the upper face and the shoulder.
+    for k in range(5):
+        blob(0.13, loc=(-0.25 + 0.13 * k, 0.05, 0.55 - 0.22 * abs(k - 2)), scl=(1.2, 0.5, 0.7), m=dust, amp=0.3,
+             sub=2)
+    blob(0.22, loc=(0.05, 0.1, 0.62), scl=(1.3, 0.8, 0.4), m=dust, amp=0.35, sub=2)
+    b = mat("#5e564c", 0.9, color2="#3e3830", tex="noise", scale=8.0, bump=0.4)
+    cyl(0.1, 0.7, loc=(0, 0, 1.05), m=b)
+    for dx in (-0.09, 0.09):
+        ball(0.15, loc=(dx, 0, 1.42), m=b, sub=2)
+    lean(-42)
 
 
 def steamed_food():
@@ -235,24 +280,43 @@ def berries():
 
 
 def berry():
-    m = mat("#4a3ab8", 0.2, color2="#2a1a78", tex="noise", scale=3.0, coat=0.8)
-    ball(0.8, scl=(1.0, 1.0, 0.92), m=m, sub=4)
-    crown = mat("#2a1a50", 0.5)
-    pts = []
-    for k in range(10):
-        r = 0.25 if k % 2 == 0 else 0.1
-        a = math.radians(k * 36)
-        pts.append((r * math.cos(a), r * math.sin(a)))
-    prism(pts, 0.06, loc=(0, 0, 0.72), rot=(90, 0, 0), m=crown, bev=0.01)
-    leaf(0.7, 0.25, loc=(0.1, 0, 0.75), rot=(0, 50, 0), curl=0.12)
-    turn(20, "X")
+    """Berry: three dark blue-purple berries in a cluster, each with a clear green five-pointed calyx
+    on its top, and a stem with one leaf: not a plain sphere."""
+    m = mat("#4a3ab8", 0.45, color2="#2a1a78", tex="noise", scale=3.0, spec=0.3)
+    calyx = mat("#5a9a42", 0.55, color2="#3a6a28", tex="noise", scale=6.0)
+    spots = ((0, -0.05, 0.05, 0.52), (0.56, 0.1, -0.22, 0.44), (-0.54, 0.12, -0.18, 0.46))
+    for (x, y, z, r) in spots:
+        ball(r, loc=(x, y, z), scl=(1.0, 1.0, 0.92), m=m, sub=4)
+        # Calyx: a big green star laid on the berry's top, its points over the shoulder.
+        top = (x, y, z + r * 0.9)
+        pts = []
+        for k in range(10):
+            rr = r * 0.75 * (1.0 if k % 2 == 0 else 0.4)
+            a = math.radians(k * 36 + 18)
+            pts.append((rr * math.cos(a), rr * math.sin(a)))
+        cal = group(loc=top, rot=(0, 0, 0))
+        prism(pts, 0.05, rot=(0, 0, 0), m=calyx, bev=0.008, parent=cal, deform=None)
+        for k in range(5):  # the star's points bend down over the berry
+            a = math.radians(k * 72 + 18)
+            ball(0.07, loc=(r * 0.8 * math.cos(a), r * 0.8 * math.sin(a), -r * 0.25), m=calyx, sub=2, parent=cal)
+    tube([(0.0, -0.05, 0.6), (0.02, -0.02, 0.85), (0.18, 0.0, 1.05)], 0.04, calyx, segs=6)
+    leaf(0.65, 0.26, loc=(0.18, 0.0, 1.0), rot=(5, 55, 0), m=calyx, curl=0.12)
+    turn(18)
+    turn(10, "X")
 
 
 def mango():
-    m = mat("#7ab83a", 0.35, color2="#ff6a2a", tex="noise", scale=0.9, coat=0.5, ramp=(0.4, 0.62))
-    blob(1.0, scl=(0.8, 0.72, 1.12), m=m, amp=0.06, rot=(0, 18, 0))
-    tube([(-0.2, 0, 1.0), (-0.25, 0, 1.25)], 0.05, mat("#5a4a2a", 0.6), segs=6)
-    leaf(0.75, 0.24, loc=(-0.25, 0, 1.2), rot=(0, -55, 0), curl=0.12)
+    """Mango: one ripe fruit, a red-orange blush over a yellow-green flank, a dark stem and a leaf,
+    beside a smaller green unripe fruit."""
+    skin = mat("#e8a83a", 0.4, color2="#d8402a", tex="noise", scale=1.6, spec=0.35, ramp=(0.55, 0.8))
+    green = mat("#a8c040", 0.5, color2="#7aa030", tex="noise", scale=2.0, spec=0.3)
+    blob(0.85, loc=(-0.2, 0, 0.12), scl=(0.78, 0.7, 1.05), m=skin, amp=0.05, rot=(0, 22, 0))
+    blob(0.52, loc=(0.62, -0.2, -0.5), scl=(0.9, 0.8, 1.0), m=green, amp=0.06)
+    tube([(-0.62, 0, 0.95), (-0.7, 0, 1.15)], 0.045, mat("#5a4a2a", 0.6), segs=6)
+    leaf(0.85, 0.27, loc=(-0.7, 0, 1.1), rot=(10, -50, 0),
+         m=mat("#3e7a34", 0.5, color2="#2a5a24", tex="wave", scale=8.0), curl=0.12)
+    turn(20)
+    turn(12, "X")
 
 
 def coconut():
