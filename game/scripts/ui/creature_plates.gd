@@ -167,6 +167,7 @@ func _separate_visible_creature_plates() -> void:
 
 ## The creature on screen: a box as long as the def along its facing, body_radius to each side and
 ## def height tall, projected and bounded. Empty when a corner is behind the camera.
+# ASSUMPTION: real_length_m spans nose to tail and body_radius() is half the body's width (no mesh bounds per frame).
 static func creature_box(cam: Camera3D, c: Creature) -> Rect2:
 	var xf := c.get_global_transform_interpolated()
 	var fwd := Vector3(xf.basis.z.x, 0.0, xf.basis.z.z)  # yaw only: a fading creature's basis collapses
