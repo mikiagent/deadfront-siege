@@ -1,7 +1,7 @@
 class_name SkillState
 extends Node
 ## The twelve Durango skill trees (game/data/skills/trees.json) on Durango's 1-60 scale: level and
-## XP per tree (every tree starts at Lv. 1), skill points earned per level (trees.json sp_budget),
+## XP per tree (every tree starts at Lv. 1), skill points earned per CHARACTER level (spec 03, trees.json sp_budget),
 ## nodes bought with SP or learned free ("auto") once their level is reached, and the occupation
 ## that seeded Lv. 20 in one tree. A tree cannot pass the character level (spec 03). Effects of
 ## learned nodes are read through SkillRules. Owned by the player as "Skills".
@@ -24,7 +24,7 @@ var defs: Dictionary = {}    # id -> tree definition from trees.json
 var budget: Dictionary = {}
 var sp_available: int = 0
 var sp_spent: int = 0
-var sp_earned: int = 0      # every SP the levels paid; available = earned - cost of learned nodes
+var sp_earned: int = 0      # SP the character level has paid (derived); available = earned - cost of learned nodes
 var occupation: String = ""
 var config: Dictionary = {}  # trees.json minus the trees (bonded_base, category_cap, reference)
 
@@ -33,7 +33,7 @@ func _ready() -> void:
 	if World and World.has_signal("island_changed"):
 		World.island_changed.connect(func (_id: StringName) -> void: add_xp("survival", 5))
 	if World and World.has_signal("pioneer_changed"):
-		World.pioneer_changed.connect(func (_lv: int) -> void: _resolve_all())
+		World.pioneer_changed.connect(func (_lv: int) -> void: _on_character_level())
 
 func _load() -> void:
 	var root: Dictionary = {}
@@ -50,6 +50,7 @@ func _load() -> void:
 		if not trees.has(id):
 			trees[id] = {"level": MIN_LEVEL, "xp": 0.0, "unlocked": []}
 		_learn_autos(id)
+	_recount_sp()
 
 ## XP needed to go from `level` to the next. ASSUMPTION: 20 + 8 per level (level 60 ≈ 15k XP total).
 static func xp_to_next(level: int) -> float:
@@ -82,16 +83,16 @@ func _resolve(tree: String) -> void:
 	while int(t["level"]) < cap and float(t["xp"]) >= xp_to_next(int(t["level"])):
 		t["xp"] = float(t["xp"]) - xp_to_next(int(t["level"]))
 		t["level"] = int(t["level"]) + 1
-		var sp := sp_for_level(int(t["level"]))
-		sp_available += sp
-		sp_earned += sp
-		print("[skill] %s %d (+%d SP)" % [tree, int(t["level"]), sp])
+		print("[skill] %s %d" % [tree, int(t["level"])])
 		_learn_autos(tree)
 		skill_changed.emit(StringName(tree), int(t["level"]))
 	if int(t["level"]) >= cap:
 		t["xp"] = minf(float(t["xp"]), xp_to_next(int(t["level"])))
 
-func _resolve_all() -> void:
+## A character level-up pays its SP (spec 03: SP come from character levels, not tree levels)
+## and releases tree levels that were waiting at the old cap.
+func _on_character_level() -> void:
+	_recount_sp()
 	for id in ORDER:
 		_resolve(id)
 
@@ -243,15 +244,10 @@ func apply_occupation(id: String) -> void:
 			var now := maxi(was, 20)
 			trees[tree]["level"] = now
 			trees[tree]["xp"] = 0.0
-			# Those levels have to pay out, or a new survivor opens a skill screen showing a
-			# level-20 tree, a wall of affordable-looking nodes and 0 SP to spend on any of them.
-			var granted := 0
-			for lvl in range(was + 1, now + 1):
-				granted += sp_for_level(lvl)
-			sp_available += granted
-			sp_earned += granted
+			# ASSUMPTION: the head start grants levels (and their auto nodes), not SP; spec 03 pays
+			# SP only for character levels, so a new survivor starts with 0 SP like everyone else.
 			_learn_autos(tree)
-			print("[skill] %s 20 (occupation %s, +%d SP)" % [tree, id, granted])
+			print("[skill] %s 20 (occupation %s)" % [tree, id])
 			skill_changed.emit(StringName(tree), now)
 		return
 	print("[skill] unknown occupation %s" % id)
@@ -279,18 +275,14 @@ func from_dict(d: Dictionary) -> void:
 	occupation = str(d.get("occupation", ""))
 	var rev := int(d.get("rev", 1))
 	var td: Dictionary = d.get("trees", {})
-	var bound := 0  # most SP these levels can have paid
 	for id in ORDER:
 		var row: Dictionary = td.get(id, {}) if td.get(id) is Dictionary else {}
+		# rev 1 stored a new tree as 0; it now reads Lv. 1.
 		var stored := int(row.get("level", MIN_LEVEL if rev >= REV else 0))
-		# rev 1 paid SP for levels 1..L and stored a new tree as 0 (it now reads Lv. 1), so the bound
-		# counts level 1 too, like save_sanitizer: at most sp_for_level(1) of slack per tree.
-		for l in range(1, stored + 1):
-			bound += sp_for_level(l)
 		trees[id] = {"level": clampi(stored, MIN_LEVEL, MAX_LEVEL), "xp": float(row.get("xp", 0.0)), "unlocked": (row.get("unlocked", []) as Array).duplicate()}
-	# SP are derived, never trusted: earned (rev 1: what its levels paid) minus what the learned
-	# nodes cost today, so a cost changed in trees.json refunds or charges the difference.
-	sp_earned = bound if rev < REV else clampi(int(d.get("sp_earned", 0)), 0, bound)
+	# SP are derived, never read from the save: what the character level paid minus what the learned
+	# nodes cost today (World.pioneer_level is restored before the skills). Learned nodes are always
+	# kept; a rev-1 save over the new budget keeps them all with 0 SP available (ASSUMPTION).
 	for id in ORDER:
 		_learn_autos(id)
 	_recount_sp()
@@ -301,6 +293,7 @@ func from_dict(d: Dictionary) -> void:
 	print("[skill] restored %d trees (rev %d, SP %d/%d)" % [ORDER.size(), rev, sp_available, sp_earned])
 
 func _recount_sp() -> void:
+	sp_earned = SkillRules.paid_for_level(self, character_level())
 	sp_spent = 0
 	for id in ORDER:
 		for n in nodes(id):

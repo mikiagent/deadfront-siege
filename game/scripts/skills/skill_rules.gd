@@ -53,7 +53,7 @@ static func bonded_capacity(sk: SkillState) -> int:
 static func can_bond(sk: SkillState, bonded_count: int) -> bool:
 	return bonded_count < bonded_capacity(sk)
 
-## Most SP a tree at `level` can have paid: levels 2..level (a tree starts at Lv. 1 unpaid).
+## SP a character at `level` has earned (spec 03): sp_budget for levels 2..level; Lv. 1 pays nothing.
 static func paid_for_level(sk: SkillState, level: int) -> int:
 	var total := 0
 	for l in range(SkillState.MIN_LEVEL + 1, level + 1):

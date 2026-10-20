@@ -29,7 +29,8 @@ func _process(_delta: float) -> bool:
 	_test_recipe_gates_and_abilities()
 	_test_migration()
 	_test_occupation()
-	var want := 7
+	_test_sp_from_character_level()
+	var want := 8
 	if _sections != want:
 		failures.append("only %d of %d test sections completed (a runtime error aborted the rest)" % [_sections, want])
 	if failures.is_empty():
@@ -68,10 +69,9 @@ func _node(sk: Node, tree: String, id: String) -> Dictionary:
 			return n
 	return {}
 
-## Give `sk` levels and the SP they pay, the way level-ups would.
+## Give `sk` a tree level (SP come from the character level `_fresh` set, not from this).
 func _grant(sk: Node, tree: String, level: int) -> void:
 	sk.trees[tree]["level"] = level
-	sk.sp_earned += Rules.paid_for_level(sk, level)
 	sk._learn_autos(tree)
 	sk._recount_sp()
 
@@ -138,12 +138,12 @@ func _test_level_cap() -> void:
 	sk.add_xp("melee", 200.0, true) # mirrored: no World XP, so the character stays Lv. 1
 	_expect(sk.level_of("melee") == 1, "melee cannot pass character Lv. 1 (got %d)" % sk.level_of("melee"))
 	_expect(is_equal_approx(sk.xp_of("melee"), SkillStateS.xp_to_next(1)), "XP at the cap fills the bar and waits (xp %.0f)" % sk.xp_of("melee"))
-	_expect(sk.sp_earned == 0, "no SP while capped")
+	_expect(sk.sp_earned == 0, "no SP while the character is Lv. 1")
 	_world().pioneer_level = 4 # character Lv. 5
 	_world().pioneer_changed.emit(4)
 	# Survival trained alongside (every gain also trains Survival), so it waited too.
 	_expect(sk.level_of("melee") == 2 and sk.level_of("survival") == 2, "a character level-up releases the waiting levels (melee %d, survival %d)" % [sk.level_of("melee"), sk.level_of("survival")])
-	_expect(sk.sp_earned == 2 * sk.sp_for_level(2) and sk.sp_available == sk.sp_earned, "the released levels pay their SP (%d)" % sk.sp_earned)
+	_expect(sk.sp_earned == Rules.paid_for_level(sk, 5) and sk.sp_available == sk.sp_earned, "character Lv. 5 pays levels 2-5 (%d SP), the released tree levels pay nothing" % sk.sp_earned)
 	sk.add_xp("melee", 2000.0, true)
 	_expect(sk.level_of("melee") == 5, "melee climbs to the character level 5 and stops (got %d)" % sk.level_of("melee"))
 	_done_with(sk)
@@ -196,18 +196,16 @@ func _test_recipe_gates_and_abilities() -> void:
 	_sections += 1
 
 func _test_migration() -> void:
-	var sk := _fresh()
+	var sk := _fresh(39) # character Lv. 40
 	var old_spent := 5 + 6 + 8 + 34 # island_access_15, belly_fat_1, capture_technique_1, animal_management_1 at rev-1 prices
 	var rev1 := {"occupation": "", "sp_available": 7, "sp_spent": old_spent, "trees": {
 		"butchering": {"level": 0, "xp": 15.0, "unlocked": []},
 		"survival": {"level": 40, "xp": 0.0, "unlocked": ["island_access_15", "belly_fat_1", "capture_technique_1", "animal_management_1"]}}}
 	sk.from_dict(rev1)
-	var paid := 0
-	for l in range(1, 41):
-		paid += sk.sp_for_level(l)
+	var paid: int = Rules.paid_for_level(sk, 40)
 	_expect(sk.level_of("butchering") == 1 and is_equal_approx(sk.xp_of("butchering"), 15.0), "a rev-1 tree at 0 loads as Lv. 1 with its XP")
 	_expect(sk.level_of("gathering") == 1, "a tree missing from a rev-1 save loads as Lv. 1")
-	_expect(sk.sp_earned == paid and sk.sp_spent == 5 + 6 + 8 + 4 and sk.sp_available == paid - 23, "rev-1 SP: earned %d (want %d), spent %d at today's prices, available %d" % [sk.sp_earned, paid, sk.sp_spent, sk.sp_available])
+	_expect(sk.sp_earned == paid and sk.sp_spent == 5 + 6 + 8 + 4 and sk.sp_available == paid - 23, "rev-1 SP from character Lv. 40: earned %d (want %d), spent %d at today's prices, available %d" % [sk.sp_earned, paid, sk.sp_spent, sk.sp_available])
 	_expect(sk.is_unlocked("processing", "cordage"), "auto nodes are learned on load")
 	var d: Dictionary = sk.to_dict()
 	_expect(int(d.get("rev", 0)) == 2 and int(d["trees"]["butchering"]["level"]) == 1, "saves are rev 2 with Lv. 1 floors")
@@ -219,11 +217,7 @@ func _test_migration() -> void:
 	_expect(again == first, "rev 2 round-trips unchanged:\n%s\n%s" % [again, first])
 	d["sp_earned"] = 99999
 	copy.from_dict(d)
-	var bound := 0
-	for tree in SkillStateS.ORDER:
-		for l in range(1, copy.level_of(tree) + 1):
-			bound += copy.sp_for_level(l)
-	_expect(copy.sp_earned == bound and bound < paid + 12 * copy.sp_for_level(1), "a forged sp_earned clamps to what the levels paid, plus at most Lv. 1 per tree (%d, bound %d)" % [copy.sp_earned, bound])
+	_expect(copy.sp_earned == paid and copy.sp_available == paid - 23, "a forged sp_earned is ignored: SP follow the character level (%d)" % copy.sp_earned)
 	get_root().remove_child(copy)
 	copy.free()
 	_done_with(sk)
@@ -233,7 +227,28 @@ func _test_occupation() -> void:
 	var sk := _fresh()
 	sk.apply_occupation("student")
 	_expect(sk.level_of("gathering") == 20 and sk.level_cap("gathering") == 20 and sk.level_cap("melee") == 1, "the occupation's Lv. 20 holds at character Lv. 1; other trees cap at 1")
-	_expect(sk.sp_earned == Rules.paid_for_level(sk, 20) and sk.sp_available == sk.sp_earned, "the head start pays levels 2-20 (%d SP)" % sk.sp_earned)
+	_expect(sk.sp_earned == 0 and sk.sp_available == 0, "the head start grants levels, not SP (%d SP at character Lv. 1)" % sk.sp_earned)
 	_expect(sk.is_unlocked("gathering", "branch"), "the head start learns Gathering's auto nodes")
 	_done_with(sk)
+	_sections += 1
+
+## Spec 03: SP come from character levels. The old per-tree award paid every tree level-up (12 trees
+## x ~13 SP), so tree XP alone must pay nothing and a character level-up alone must pay its SP.
+func _test_sp_from_character_level() -> void:
+	var sk := _fresh(9) # character Lv. 10
+	var at10: int = sk.sp_earned
+	_expect(at10 == Rules.paid_for_level(sk, 10) and at10 == 9 * sk.sp_for_level(2), "character Lv. 10 has earned levels 2-10 (%d SP)" % at10)
+	for tree in ["melee", "gathering", "cooking"]:
+		sk.add_xp(tree, 5000.0, true)
+	_expect(sk.level_of("melee") == 10 and sk.level_of("cooking") == 10 and sk.sp_earned == at10 and sk.sp_available == at10, "three trees at Lv. 10 pay no SP of their own (earned %d, want %d)" % [sk.sp_earned, at10])
+	_world().pioneer_level = 19
+	_world().pioneer_changed.emit(19)
+	_expect(sk.sp_earned == Rules.paid_for_level(sk, 20) and sk.sp_available == sk.sp_earned, "character Lv. 20 pays its SP with no tree XP (%d)" % sk.sp_earned)
+	_done_with(sk)
+	# A rev-1 save that bought more than its character level now pays for keeps every node, 0 SP left.
+	var over := _fresh(0)
+	over.from_dict({"sp_available": 50, "sp_spent": 0, "trees": {"survival": {"level": 40, "xp": 0.0, "unlocked": ["island_access_15", "belly_fat_1", "capture_technique_1", "animal_management_1"]}}})
+	_expect((over.trees["survival"]["unlocked"] as Array).size() == 4 and over.sp_spent == 23 and over.sp_available == 0, "an over-budget migrated save keeps its 4 nodes with 0 SP (spent %d, available %d)" % [over.sp_spent, over.sp_available])
+	_expect(get_root().get_node("Data").has_capture_technique(1), "the kept Capture Technique I still works")
+	_done_with(over)
 	_sections += 1
