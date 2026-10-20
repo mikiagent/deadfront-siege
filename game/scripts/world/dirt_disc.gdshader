@@ -26,7 +26,14 @@ void fragment() {
 	// the tint left near-black stains, and 0.4 + 0.9 * detail bleached the pads cream. This
 	// keeps trodden earth within ~20 % of the grass beside it (lighting_lab disc_ratio).
 	float detail = dot(texture(dirt_tex, world_pos.xz / 3.0).rgb, vec3(0.299, 0.587, 0.114));
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	// The web renderer lights the pads about 0.7x as bright as Forward+ by day and half as
+	// bright at night next to the same grass (lighting_lab: chest pad 0.49x the grass at
+	// midnight). A higher floor keeps every pad >= 0.6x at night and day pads within 20 %.
+	vec3 col = tint * (0.16 + 0.22 * detail) * (0.85 + n * 0.3);
+#else
 	vec3 col = tint * (0.11 + 0.22 * detail) * (0.85 + n * 0.3);
+#endif
 	ALBEDO = col * modulate.rgb;
 	// The disc's triangles face down, so cull_disabled lit the flipped back face from below
 	// (black under sky ambient). Ground decals always face the sky.

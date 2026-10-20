@@ -182,6 +182,8 @@ func remove_at(index: int, amount: int = 1) -> ItemStack:
 	var taken := s.duplicate_stack()
 	taken.count = mini(amount, s.count)
 	s.count -= taken.count
+	if s.count > 0:
+		taken.remint_uid()  # a split makes a second instance; uid is unique per stack
 	if s.count <= 0:
 		slots[index] = null
 		for k in range(1, span):

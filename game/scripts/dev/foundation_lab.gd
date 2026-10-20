@@ -50,15 +50,16 @@ func _demo() -> void:
 			var before := stack.count
 			var left := _player.inventory.add(stack)
 			print("[item] +%d %s %s" % [before - left, stack.def_id, attrs])
-	var temperate := 0
-	var tropical := 0
+	# inv-01 strips the climate stamp before merging, so every fibre unit lands in one stack:
+	# the old "unmerged climates" count always read 0/0. Print the single stack instead.
+	var fibre := 0
+	var climate_stamped := 0
 	for s in _player.inventory.slots:
 		if s and s.def_id == &"fibre_stalk":
-			if str(s.attributes.get("climate", "")) == "temperate":
-				temperate += s.count
-			elif str(s.attributes.get("climate", "")) == "tropical":
-				tropical += s.count
-	print("[item] fibre stacks temperate=%d tropical=%d (unmerged climates)" % [temperate, tropical])
+			fibre += s.count
+			if s.attributes.has("climate"):
+				climate_stamped += s.count
+	print("[item] fibre x%d carries a climate stamp on %d units (merged, climates no longer split stacks)" % [fibre, climate_stamped])
 
 func _process(_delta: float) -> void:
 	if _player:
