@@ -28,11 +28,10 @@ before the live op sees them, so live and replay see the same numbers.
 
 ## Acceptance checklist (each line seen in the runs below)
 
-Runs (after the review fixes): `perl -e 'alarm 300; exec @ARGV' gslot.sh Godot --headless --path game -s res://tests/t_srvdom.gd`.
-`t_server_domain.gd` runs the same checks under the spec name; only `t_srvdom.gd` was re-run after the fixes.
+Runs (on the final commit, logs `scratchpad/w1/srvdom/*3.log`): `perl -e 'alarm 300; exec @ARGV' gslot.sh Godot --headless --path game -s res://tests/t_srvdom.gd`,
+the same for `t_server_domain.gd`, `run_all.gd`, and `gslot.sh tools/smoke.sh --no-import`. All four exit 0.
 
-- [x] `t_srvdom.gd` prints `[t_srvdom] PASS` (re-run after the fixes; `t_server_domain.gd`
-  printed `[t_server_domain] PASS` before them and runs the identical checks).
+- [x] `t_server_domain.gd` prints `[t_server_domain] PASS`; `t_srvdom.gd` prints `[t_srvdom] PASS`.
 - [x] A gather on a node 1.5 m away with pool > 0 mints a stack with uid, origin=gather and the
   journal seq. Out of range, an empty pool and a missing tool each return their own code, and the
   canonical state hash and journal length stay the same:
@@ -49,10 +48,10 @@ Runs (after the review fixes): `perl -e 'alarm 300; exec @ARGV' gslot.sh Godot -
   args. After every op it checks: minted - consumed - exported == units held for each def, no
   negative counts, every uid in exactly one container (bags and pets), every stack and pet stamped,
   and equipment pointing only at bag uids. Every failed op left the canonical state byte-identical:
-  `[srvdom] fuzz ops=10000 seq=3099 ms=4269 held_units=659 pets_minted=3 invariants=held_after_every_op stats={"act.attack":[773,337],"act.capture":[6,306],"act.craft":[388,796],"act.deposit":[199,369],"act.eat":[88,636],"act.equip":[119,553],"act.fly":[0,93],"act.gather":[532,2464],"act.loot":[147,356],"act.place":[34,271],"act.tame":[57,468],"char.import":[0,88],"char.move":[750,63],"char.wallet":[102,5]}`
+  `[srvdom] fuzz ops=10000 seq=3225 ms=6044 held_units=693 pets_minted=5 invariants=held_after_every_op stats={"act.attack":[833,275],"act.capture":[2,308],"act.craft":[394,786],"act.deposit":[203,365],"act.eat":[94,632],"act.equip":[115,559],"act.fly":[0,93],"act.gather":[567,2429],"act.loot":[149,354],"act.place":[33,272],"act.tame":[81,448],"char.import":[0,89],"char.move":[751,61],"char.wallet":[102,5]}`
   (`[ok, refused]` per op; the test fails if any intent never succeeds.)
 - [x] Replaying the journal from empty, against an empty island, reproduces byte-identical canonical JSON:
-  `[srvdom] replay lines=3099 byte_identical=true bytes=10712 sha256=07d90f8303eb5249`
+  `[srvdom] replay lines=3225 byte_identical=true bytes=59915 sha256=c45aebfb7cea6dd4`
 - [x] An offline save dict offered as an import or deposit returns `invalid_asset`. The cases
   are the real `tests/fixtures/save_v2.json` as `char.import`, a forged `raid_helm x5000 L9999`
   `slot_dict`, a forged T. rex `pet_dict`, and a slot deposit carrying an `item` dict. A slot
@@ -231,3 +230,36 @@ mid-handler script error, since no handler can be made to error on demand. Old s
 
 After the fixes (logs in `scratchpad/w1/srvdom/`): `t_srvdom2.log` `[t_srvdom] PASS` (exit 0),
 `run_all2.log` `[tests] PASS` (exit 0), `smoke2.log` `SMOKE PASS` (exit 0).
+
+## Merge check against `claude/mmo-overhaul` (round 3, 2026-10-19)
+
+`claude/mmo-overhaul` moved on (W1-TAME, W1-ITEMS, W1-AI merged; tip `773a975`). `git merge-tree`
+merges this branch into it with no conflicts. I exported that merged tree to
+`scratchpad/w1/srvdom/merge-trial/` (`git archive`, no ref or worktree created), imported it and ran
+`t_srvdom.gd` there. Two breaks showed up that only exist after the merge:
+
+| Break after merge | Cause | Fix |
+|---|---|---|
+| `[t_srvdom] FAIL journal replay from empty reproduces byte-identical canonical JSON (57727 vs 57727 bytes)` | W1-TAME's `PetRecord.from_def` sets `tamed_at` from the wall clock | committed here: `act.tame` sets `tamed_at` to the op's ts and `owner` to the account (`intent_handlers.gd` `_tame`); on this branch the two keys are just extra pet fields |
+| server crafts never burn (no test fails) | W1-ITEMS moved the burn roll out of `build_output` into `Crafting.rolls_burn(rec, skill, rng)` | post-merge integrator edit (below); the API does not exist on this branch's base |
+
+With both applied, the merged tree prints `[srvdom] replay lines=3231 byte_identical=true bytes=57706 sha256=fb23de558588714e`
+and `[t_srvdom] PASS` (exit 0, `trial_t_srvdom2.log`, no SCRIPT ERROR lines).
+
+**Integrator hook (post-merge, `game/scripts/server/intent_handlers.gd` `_craft`)**: replace
+
+    ServerRng.seed_global(int(s.world_seed), seq)
+    var out := Crafting.build_output(rec, consumed[0], level, consumed)
+
+with
+
+    var out := Crafting.build_output(rec, consumed[0], level, consumed, Crafting.rolls_burn(rec, ch.level_of(tree), rng))
+
+then delete `ServerRng.seed_global` (no other caller). That also clears the W3-SRVWORLD
+precondition above. Seen after the merge but not a failure: `act.capture` succeeded 1 time in 10,000
+fuzz ops (6 on this branch); the fuzz requires at least one success per intent, so a later tuning
+of capture odds could make that check flaky. Raise the fuzz's captures or seed more knocked-out
+creatures if it does.
+
+After the fix, on this branch (`*3.log`): `[t_srvdom] PASS`, `[t_server_domain] PASS`, run_all `[tests] PASS`,
+`tools/smoke.sh --no-import` `SMOKE PASS`, all exit 0, no SCRIPT ERROR or Parse Error lines.

@@ -333,6 +333,9 @@ func _tame(ch: CharacterState, a: Dictionary) -> Dictionary:
 		var g: Variant = c.get("genetics")
 		var genetics := CreatureGenetics.from_dict(g) if g is Dictionary and not (g as Dictionary).is_empty() else CreatureGenetics.roll(rng)
 		var pet := PetRecord.from_def(def, genetics.overall_tier(), StringName(str(c.get("variant", ""))), genetics).to_dict()
+		# W1-TAME's PetRecord stamps the wall clock and a blank owner; the op's ts and account keep replay exact.
+		pet["tamed_at"] = now
+		pet["owner"] = str(account)
 		var uid := Provenance.pet_uid(seq, 0)
 		ch.d.pets[uid] = Provenance.stamp(pet, uid, "tame", seq)
 		s.pets_minted = int(s.pets_minted) + 1
