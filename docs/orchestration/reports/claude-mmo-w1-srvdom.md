@@ -1,7 +1,8 @@
 # W1-SRVDOM: server character store and intent handlers
 
-Branch `claude/mmo-w1-srvdom` (cut from `claude/mmo-overhaul` at `ea2d167`). Pure domain code, no
-networking, no nodes, no autoloads. Credits spent: 0.
+Branch `claude/mmo-w1-srvdom` (cut from `claude/mmo-overhaul` at `ea2d167`; `claude/mmo-overhaul`
+`4cbc117` merged in at `4803641` and `cdb2c16` at `08f8583`, both with no conflicts). Pure domain code, no networking, no nodes, no
+autoloads. Credits spent: 0 (Meshy, Tripo). dsc spend: see "dsc usage".
 
 ## What shipped
 
@@ -11,11 +12,11 @@ All new, in `game/scripts/server/`:
 |---|---|
 | `character_store.gd` (`CharacterStore`) | Server-owned characters (contract v2 §0.1) with the economy engine's durability: `apply(op, account, args, ts)`; a change bumps `seq`, appends one canonical JSON line to `journal.jsonl` and flushes before returning. Snapshot = canonical state JSON written to `.tmp`, read back, renamed. Boot = snapshot, then journal lines with `seq > snapshot.seq`; a torn last line is cut, a seq gap or bad middle line stops boot. Memory mode (`dir == ""`) keeps the journal in `lines`. Also: optional `rid` idempotency (64 per character), an error-counting `Logger` that rolls the character back if an op hits a script error part-way, `invariants()`, `state_json()` / `state_hash()`. |
 | `character_state.gd` (`CharacterState`) | One character as plain data: bag (20 slots), equipment and gather tool by uid, wallet mirror, pets by uid, skills `{tree: {level, xp}}`, position. `inventory()` builds a real `Inventory` over a deep copy; `commit()` writes it back. Stacks that were already in the bag keep their stamp; every new stack gets `uid`, `origin`, `seq`. |
-| `intent_handlers.gd` (`IntentHandlers`) | One handler per intent, each validating everything before it mutates: `act.gather`, `act.loot`, `act.craft`, `act.place`, `act.equip`, `act.eat`, `act.tame`, `act.capture`, `act.attack`, `act.deposit`, plus `char.import` (always `invalid_asset`), `char.get`, and the server-only `char.create`, `char.move`, `char.wallet`, `char.receive`. They run the game's own `Inventory`, `Crafting` (plan, `consume_for_craft`, `build_output`), `Food`, `PetRecord.from_def`, `CreatureGenetics.roll(rng)`, `ProgressionScaling`, `FieldTame` thresholds and `CaptureSystem.TIER_BASE`. |
+| `intent_handlers.gd` (`IntentHandlers`) | One handler per intent, each validating everything before it mutates: `act.gather`, `act.loot`, `act.craft`, `act.place`, `act.equip`, `act.eat`, `act.tame`, `act.capture`, `act.attack`, `act.deposit`, plus `char.import` (always `invalid_asset`), `char.get`, and the server-only `char.create`, `char.move`, `char.wallet`, `char.receive`, `char.settled`. `ARG_KEYS` lists the keys each op reads; `CharacterStore.apply()` drops every other key before the op runs and is journaled. They run the game's own `Inventory`, `Crafting` (plan, `consume_for_craft`, `build_output`), `Food`, `PetRecord.from_def`, `CreatureGenetics.roll(rng)`, `ProgressionScaling`, `FieldTame` thresholds and `CaptureSystem.TIER_BASE`. |
 | `world_facade.gd` (`WorldFacade`) | What the handlers may read from and write to the island. The base class is a plain in-memory island (tests, the fuzz); W3-SRVWORLD subclasses it over `IslandRuntime`. |
-| `server_rng.gd` (`ServerRng`) | The server's only randomness: one `RandomNumberGenerator` per op, seeded with sha256 of `world_seed:seq:op`. |
+| `server_rng.gd` (`ServerRng`) | The server's only randomness: one `RandomNumberGenerator` per op, seeded with sha256 of `world_seed:seq:op`. (The finishing pass deleted `seed_global`: crafts now burn through `Crafting.rolls_burn(rec, skill, rng)` on the op's RNG, so the process-wide RNG is never touched.) |
 | `provenance.gd` (`Provenance`) | `uid` / `origin` / `seq` stamping, origins `gather loot craft tame breed settlers objective market`, `is_server()`. |
-| `domain_checks.gd` (no `class_name`) | The acceptance checks. The test loads this script by path on its first frame, once the `Data` autoload exists. |
+| `game/tests/srvdom_checks.gd` (no `class_name`; was `scripts/server/domain_checks.gd` until the finishing pass) | The acceptance checks. The test loads this script by path on its first frame, once the `Data` autoload exists. It lives under `tests/`, which every export preset excludes, so it no longer ships. |
 
 Tests: `game/tests/t_server_domain.gd` (the spec name, prints `[t_server_domain] PASS`) and
 `game/tests/t_srvdom.gd` (the wave-1 runner's name; it extends the first and prints `[t_srvdom] PASS`).
@@ -28,8 +29,12 @@ before the live op sees them, so live and replay see the same numbers.
 
 ## Acceptance checklist (each line seen in the runs below)
 
-Runs (on the final commit, logs `scratchpad/w1/srvdom/*3.log`): `perl -e 'alarm 300; exec @ARGV' gslot.sh Godot --headless --path game -s res://tests/t_srvdom.gd`,
-the same for `t_server_domain.gd`, `run_all.gd`, and `gslot.sh tools/smoke.sh --no-import`. All four exit 0.
+Runs on the final code (`08f8583`, after the second base merge; logs `scratchpad/w1/srvdom/*7.log`):
+`perl -e 'alarm 300; exec @ARGV' gslot.sh Godot --headless --path game -s res://tests/t_srvdom.gd`,
+the same for `t_server_domain.gd`, `--script res://tests/run_all.gd` (alarm 900) and
+`gslot.sh tools/smoke.sh --no-import`. All four exit 0, with no `SCRIPT ERROR` or `Parse Error` lines.
+Every `[srvdom]` line below is from `t_srvdom7.log`; apart from the fuzz's `ms=` they are identical
+to the run on `70bd87c` before that merge.
 
 - [x] `t_server_domain.gd` prints `[t_server_domain] PASS`; `t_srvdom.gd` prints `[t_srvdom] PASS`.
 - [x] A gather on a node 1.5 m away with pool > 0 mints a stack with uid, origin=gather and the
@@ -39,7 +44,7 @@ the same for `t_server_domain.gd`, `run_all.gd`, and `gslot.sh tools/smoke.sh --
   The check also confirms the last journal line is that gather at that seq, and that the node lost one unit.
 - [x] Craft consumes exactly the planned inputs (`Crafting.slot_level_contributions` before
   vs. bag delta after) and mints a uid'd output with origin=craft. Refusals change nothing:
-  `[srvdom] craft twine planned={ "fibre_stalk": 2 } used={ "fibre_stalk": 2 } output=i10.0 origin=craft seq=10; club dur=61; refusals insufficient_items,insufficient_items,out_of_range unchanged=true`
+  `[srvdom] craft twine planned={ "fibre_stalk": 2 } used={ "fibre_stalk": 2 } output=i10.0 origin=craft seq=10; club dur=60; refusals insufficient_items,insufficient_items,out_of_range unchanged=true`
 - [x] Tame draws on the server RNG, so the same journal gives the same genetics. Two independent
   runs and a replay of the journal all produce the same pet:
   `[srvdom] tame pet=p9.0 origin=tame seq=9 grade=C+ genetics_equal_runs=true genetics_equal_replay=true ivs={"accuracy":2,"health":0,"melee_attack":18,"melee_defense":27,"ranged_attack":0,"ranged_defense":1,"speed":30}`
@@ -48,10 +53,12 @@ the same for `t_server_domain.gd`, `run_all.gd`, and `gslot.sh tools/smoke.sh --
   args. After every op it checks: minted - consumed - exported == units held for each def, no
   negative counts, every uid in exactly one container (bags and pets), every stack and pet stamped,
   and equipment pointing only at bag uids. Every failed op left the canonical state byte-identical:
-  `[srvdom] fuzz ops=10000 seq=3225 ms=6044 held_units=693 pets_minted=5 invariants=held_after_every_op stats={"act.attack":[833,275],"act.capture":[2,308],"act.craft":[394,786],"act.deposit":[203,365],"act.eat":[94,632],"act.equip":[115,559],"act.fly":[0,93],"act.gather":[567,2429],"act.loot":[149,354],"act.place":[33,272],"act.tame":[81,448],"char.import":[0,89],"char.move":[751,61],"char.wallet":[102,5]}`
-  (`[ok, refused]` per op; the test fails if any intent never succeeds.)
+  `[srvdom] fuzz ops=10000 seq=3230 ms=11731 held_units=686 pets_minted=6 invariants=held_after_every_op stats={"act.attack":[835,273],"act.capture":[2,311],"act.craft":[408,777],"act.deposit":[204,365],"act.eat":[93,635],"act.equip":[115,556],"act.fly":[0,94],"act.gather":[570,2422],"act.loot":[149,354],"act.place":[32,272],"act.tame":[69,458],"char.import":[0,88],"char.move":[750,61],"char.wallet":[102,5]}`
+  (`[ok, refused]` per op; the test fails if any intent except `act.capture` never succeeds. Since
+  the finishing pass, capture's success path has its own scripted check, so a change to capture odds cannot
+  turn the fuzz into a failure that says nothing.) The `ms` value is wall time on a shared machine.
 - [x] Replaying the journal from empty, against an empty island, reproduces byte-identical canonical JSON:
-  `[srvdom] replay lines=3225 byte_identical=true bytes=59915 sha256=c45aebfb7cea6dd4`
+  `[srvdom] replay lines=3230 byte_identical=true bytes=62138 sha256=ceaa5b7f4d51cb2a`
 - [x] An offline save dict offered as an import or deposit returns `invalid_asset`. The cases
   are the real `tests/fixtures/save_v2.json` as `char.import`, a forged `raid_helm x5000 L9999`
   `slot_dict`, a forged T. rex `pet_dict`, and a slot deposit carrying an `item` dict. A slot
@@ -78,8 +85,28 @@ the same for `t_server_domain.gd`, `run_all.gd`, and `gslot.sh tools/smoke.sh --
   `[srvdom] receive item=true restored=true twice=invalid_asset forged=invalid_asset unstamped=invalid_asset pet=ok pet_twice=conflict same_def_first=ok same_def_second=invalid_asset edited_level=invalid_asset forged_pet=invalid_asset real_pet_back=ok`
 - [x] Extra: world writes are queued and land only when the op commits:
   `[srvdom] world writes queued_untouched=true uncommitted_dropped=true committed_landed=true`
-- [x] Existing suite: `--script res://tests/run_all.gd` printed `[tests] PASS` (exit 0, `run_all.log`).
-- [x] `gslot.sh tools/smoke.sh --no-import` printed `SMOKE PASS` (exit 0, `smoke.log`).
+- [x] Extra (finishing pass): a scripted capture. Craft a tier-1 net, refuse an awake compy, knock it under
+  30 % and throw until it lands; the bag gets a stamped `captured_animal`, the net is spent and the
+  creature leaves the island:
+  `[srvdom] capture throws=2 captured=true stack=i11.0 origin=tame net_spent=true awake_refused=not_ready`
+- [x] Extra (finishing pass): the review probes. Non-bool `clear` / `reset` are `bad_request`; a gather with a
+  200 KB junk key commits a 242-byte journal line without it; `char.settled` drops the export record,
+  so a later `char.receive` is refused; melee follows `combat_tuning.json` (a forced dodge misses, and
+  `unarmed_damage` set to 20 in the loaded tuning gives exactly the formula's damage):
+  `[srvdom] hardening flags=bad_request,bad_request,bad_request junk_dropped=true journal_line_bytes=242 settled=true receive_after_settle=invalid_asset settle_twice=not_found forced_dodge=dodge unarmed20_dealt=19.69 want=19.69`
+- [x] Extra (finishing pass, table written by dsc): 153 hostile requests across all 16 non-read ops (wrong
+  types, missing keys, 1.5, negatives, out-of-range ints, 65-char strings, NaN/INF positions,
+  asset dicts), each refused with its literal code, with the state hash, journal length and
+  script-error count unchanged; then `known_args` keeps exactly `ARG_KEYS` plus `rid` for all 17 ops:
+  `[srvdom] hostile rows=153 ops_covered=16 matched=153 script_errors=0 unchanged=true allowlist_ops=17`
+  (The NaN/INF rows print two engine WARNINGs from `JSON.stringify`, which replaces them with null;
+  they are warnings, not errors, and the request is still `bad_request`.)
+- [x] Existing suite: `--script res://tests/run_all.gd` printed `[tests] PASS` (exit 0, `run_all7.log`).
+  It also prints Godot's exit-time `resources still in use` ERROR lines, which come from the base
+  suite at shutdown, not from a test.
+- [x] `gslot.sh tools/smoke.sh --no-import` printed `SMOKE PASS` (exit 0, `smoke7.log`).
+- [x] No Godot crash: `~/Library/Logs/DiagnosticReports/` held 25 `Godot-*` reports before this
+  pass's first run and 25 after the last.
 
 ## Screenshots inspected
 
@@ -92,7 +119,10 @@ None. The package draws nothing: it is headless domain code with no scene, UI or
    `bag_full`, `not_ready` (`intent_handlers.gd:9`). Placement refusals use `conflict`; offline
    dicts use `invalid_asset`.
 2. Online characters start with an empty bag and level-0 skills; nothing is imported (`character_state.gd:17`).
-3. `REACH_SLACK` 0.5 m on top of a creature's body reach (`Hunt.melee_reach`'s formula) for attack, tame and capture.
+3. `REACH_SLACK` 0.5 m on top of a creature's body reach (`Hunt.melee_reach`'s formula) for attack,
+   tame and capture. It is a server latency allowance and deliberately wider than the client's own
+   swing check (`combat_tuning.json` `hit_reach_slack_m` 0.3), since the server judges a position
+   one presence update old.
 4. `RUN_SPEED` 7.0 mirrors `Player.run_speed`, an export var. `char.move` allows
    1.6 x 7 m per elapsed second + 1 m, shared by every update inside the same whole second
    (`move_cm` on the character), unless `reset` (travel).
@@ -111,22 +141,27 @@ None. The package draws nothing: it is headless domain code with no scene, UI or
 
 Shortcuts with known limits (`# shortcut:` in code): one snapshot generation (EconStore keeps two
 plus `journal.prev.jsonl`); a repeated rid returns `{duplicate, op, seq}`, not the first body;
-`ServerRng.seed_global` reseeds the process RNG around `Crafting.build_output`'s burn roll until
-W1-ITEMS lands its injectable RNG; melee only, never "from behind"; kits only for placement (no
+melee only, never "from behind", and no attacker or target statuses (`accuracy_mult`,
+`defense_mult`); kits only for placement (no
 branch+twine fallback); skill points and unlocked nodes stay client-side; the in-memory island
 treats one structure as one cell.
 
 ## Integrator hooks
 
-- **Tests:** register `game/tests/t_server_domain.gd` in `run_all.gd`, or let W1-QA's
-  `tools/test.sh` run every `t_*.gd`. `t_srvdom.gd` runs the same checks under the wave-1 name.
-  If both are picked up, the suite runs twice (about 5 s each), so drop one from the runner if
-  that matters.
+- **Tests:** register `game/tests/t_server_domain.gd` in `run_all.gd`, or let W1-QA's runner pick
+  up every `t_*.gd`. `t_srvdom.gd` runs the same checks under the wave-1 name, so a `t_*.gd` glob
+  runs the suite twice (about 15 s each on a loaded machine). Keep one in the glob: skip
+  `t_srvdom.gd` there, or delete it once the wave-1 runner no longer names it.
+  `game/tests/srvdom_checks.gd` is the shared check script (no `class_name`, not a runner).
 - **No edits needed** in `game.gd`, `main.gd`, `world.gd`, `project.godot` or `touch_controls.gd`.
 - **Contract §2 / §0.3** (orchestrator): add the five error codes above. Record the intent ops
   `act.capture {net_id}`, `act.deposit {bag_slot, count?} | {pet_uid}`, `char.import` (refused),
   `char.get`, and the server-only `char.create {name}`, `char.move {p, reset?}`,
-  `char.wallet {wallet}`. Journal lines carry an extra `w` (world answers).
+  `char.wallet {wallet}`, `char.receive {asset}`, `char.settled {uid}`. Journal lines carry an
+  extra `w` (world answers). `clear` and `reset` must be JSON booleans.
+- **Adding an op or an arg:** list every key the op reads in `IntentHandlers.ARG_KEYS`.
+  `CharacterStore.apply()` drops unlisted keys before the handler sees them, so a key missing
+  there is silently ignored (the hostile table's allow-list check covers the existing 17 ops).
 - **uid namespace:** character uids are `i<seq>.<k>` / `p<seq>.<k>`. The dot keeps them distinct
   from the economy ledger's `i<n>` / `p<n>`, which come from its own counter.
 - **W3-SRVACT / net:** relay only `IntentHandlers.CLIENT_OPS` from clients. `SYSTEM_OPS`
@@ -164,10 +199,18 @@ treats one structure as one cell.
   a journal with no snapshot, returns an error and must stop boot.
 - **Shutdown:** call `close()` on clean shutdown (it snapshots). After `open()`, `data_changed`
   tells the host that the journal replayed under different data files (items, recipes,
-  combat_counters, world/rules); boot then snapshots at once.
-- **W3-SRVWORLD precondition:** `ServerRng.seed_global` reseeds the process-wide RNG on every craft.
-  Before the island's AI shares a process with this store, W1-ITEMS' injectable burn RNG must be in
-  and `seed_global` removed, or creature `randf()` becomes a function of the craft seq.
+  combat_counters, combat_tuning, world/rules); boot then snapshots at once.
+- **Process RNG:** nothing in this package touches the global RNG any more (`seed_global` is gone;
+  crafts burn via `Crafting.rolls_burn(rec, skill, rng)` on the op RNG), so the island's AI can share
+  the process. The old W3-SRVWORLD precondition is closed.
+- **W3-SRVWORLD `creature()` read:** report `dodge` as the creature's effective dodge
+  (`dodge_chance()` + status `evasion_add()` x `evasion_add_scale`), the number `Hunt.hit_chance`
+  uses, and `defense` as `defense_for(false)` x status `defense_mult()`. `act.attack` feeds them to
+  `CombatTuning.hit_chance(base_accuracy, dodge)` and the `player_melee` formula as they arrive.
+- **Vault bridge (W3):** call `char.settled {uid}` once the economy keeps an exported asset for
+  good (sold, consumed, destroyed). That drops its `exported_assets` record, so the registry (which
+  every snapshot carries and every op backs up) holds only assets in flight. Until then a vault
+  that never settles grows it by one entry per deposit.
 - **W3-SRVACT item:** gathers and attacks have no domain time gate (a probe accepted 200 attacks at
   one ts); only the §5.4 write bucket limits them. `ts` is whole seconds, too coarse for a swing
   period, so W3-SRVACT adds `last_gather_ts` / `last_swing_ts` with sub-second server time.
@@ -179,8 +222,8 @@ None.
 ## What failed or is left
 
 Nothing in the acceptance list failed. Left for later packages:
-- Ranged attacks (ammo, projectiles), the from-behind bonus, groggy/counter statuses and tool wear in
-  combat: W3-SRVACT.
+- Ranged attacks (ammo, projectiles), the from-behind bonus, groggy/counter statuses, attacker and
+  target status multipliers (`accuracy_mult`, `defense_mult`) and weapon wear in combat: W3-SRVACT.
 - Pen tames (feeds accumulate; completion is the taming pen's job) and server-side capture-technique unlocks.
 - Skill points, unlocked skill nodes, character XP/level (`World.add_xp`), objectives (`World.note_craft`)
   and vitals are not on the server yet.
@@ -246,7 +289,8 @@ merges this branch into it with no conflicts. I exported that merged tree to
 With both applied, the merged tree prints `[srvdom] replay lines=3231 byte_identical=true bytes=57706 sha256=fb23de558588714e`
 and `[t_srvdom] PASS` (exit 0, `trial_t_srvdom2.log`, no SCRIPT ERROR lines).
 
-**Integrator hook (post-merge, `game/scripts/server/intent_handlers.gd` `_craft`)**: replace
+**Integrator hook (post-merge, `game/scripts/server/intent_handlers.gd` `_craft`)** (applied in
+the finishing pass after the base merge brought W1-ITEMS in; kept here for the record): replace
 
     ServerRng.seed_global(int(s.world_seed), seq)
     var out := Crafting.build_output(rec, consumed[0], level, consumed)
@@ -263,3 +307,73 @@ creatures if it does.
 
 After the fix, on this branch (`*3.log`): `[t_srvdom] PASS`, `[t_server_domain] PASS`, run_all `[tests] PASS`,
 `tools/smoke.sh --no-import` `SMOKE PASS`, all exit 0, no SCRIPT ERROR or Parse Error lines.
+
+## Finishing pass (2026-10-20)
+
+Base sync: merged `claude/mmo-overhaul` at `4cbc117` (`4803641`) and again at `cdb2c16` (`08f8583`),
+both with no conflicts. Before the first merge, 65 untracked editor-made `.import` files in the work
+tree blocked it (the base now tracks them). I moved them to `scratchpad/srvdom-untracked-backup/`
+rather than deleting them, and the merge brought the tracked versions. One `--import` (alarm 900)
+ran after the merge. After the second merge, `git merge-tree` against `claude/mmo-overhaul` shows
+no conflicts.
+
+Review findings from `finish/srvdom-last-review.json` (round 1 passed at `dee1bbe`; all seven were minors):
+
+| Finding | Fix | Caught by |
+|---|---|---|
+| melee keeps hard-coded copies of `combat_tuning.json`; the file is not hashed | `_attack` reads `CombatTuning.section("player_melee")` (unarmed damage, work-tool mult, defense factor, min-damage fraction, per-level damage, crit base, per-level crit, crit mult, XP per hit) and rolls `CombatTuning.hit_chance(base_accuracy, dodge)` on the op RNG. `combat_tuning.json` joins `DATA_FILES`. `REACH_SLACK` 0.5 stays as a stated server latency allowance (assumption 3). | `hardening ... forced_dodge=dodge unarmed20_dealt=19.69 want=19.69` |
+| `bool()` on client JSON (`clear`, `reset`) is a script error | both must be real bools, else `bad_request` | `hardening flags=bad_request,bad_request,bad_request`; hostile rows |
+| `exported_assets` grows forever | server-only `char.settled {uid}` drops a record once the economy keeps the asset (hook above) | `hardening ... settled=true receive_after_settle=invalid_asset settle_twice=not_found` |
+| the whole args dict is journaled, junk included | `IntentHandlers.ARG_KEYS` per op; `apply()` keeps only those plus `rid` before running and journaling. Args that do not survive JSON (NaN, INF) still become `{}`. | `hardening ... junk_dropped=true journal_line_bytes=242`; `hostile ... allowlist_ops=17` |
+| fuzz needs a capture success it gets about once in 10,000 ops | capture removed from the fuzz's must-succeed list; new scripted `_capture_checks()` | `capture throws=2 captured=true ...` |
+| test code in `scripts/server/` ships in exports; two runners | `git mv` to `game/tests/srvdom_checks.gd` (`tests/*` is in every preset's `exclude_filter`). The duplicate runner is an integrator hook: W1-QA's glob is not on the base yet, and both names are acceptance items. | `t_server_domain.gd` loads the new path |
+| `seed_global` reseeds the process RNG; server crafts never burn after W1-ITEMS | `build_output(..., Crafting.rolls_burn(rec, ch.level_of(tree), rng))`; `ServerRng.seed_global` deleted (no other caller) | replay stays byte-identical |
+
+Also changed in this pass:
+- `act.deposit {pet_uid: <non-string>}` is `bad_request` (it was `not_found`). The dsc table found it.
+- `t_server_domain.gd` prints `FAIL ... did not compile` and exits 1 when `srvdom_checks.gd` has a
+  parse error. Before this, a parse error printed a SCRIPT ERROR and the run still exited 0 with no
+  PASS line. I hit that while writing this pass's checks.
+
+Not done: the per-op rollback backup still copies `exported_assets` (the reviewer's other option).
+With `char.settled` in use, that dict holds only assets in flight, so the copy stays small.
+
+### dsc usage
+
+One dsc worker (DeepSeek V4.1 Flash via `dsc cook start TASK.md --once --verify ./verify_hostile.sh
+--budget 2 --max-hours 4 --effort high`), in sub-worktree `mmo-w1-srvdom-dsc1` on branch
+`claude/mmo-w1-srvdom-dsc1`, cut from `96b41ed`. It ran for about 5 minutes and spent about $0.03 of
+the $2 budget. Its task was the mechanical part of this pass: the table-driven hostile-args check
+(`HOSTILE`, 153 one-line `[op, args, literal code]` rows, and `_hostile_arg_checks()`).
+
+The read-only verify script was the spec. Scope: only the test file may change. The table must be
+literal, with at least 60 one-line rows, at least 3 per op and never `server_error`. The suite must
+PASS with the evidence line's counts (16 ops, all rows matched, 0 script errors, state unchanged,
+17 allow-list ops) and every earlier `[srvdom]` line intact. A mutation run then flips the first
+row's expected code to `zz_mutant`, and the suite must FAIL; this proves the rows are really
+compared.
+
+I ran the verify myself on its commit `61f55fc`. Every check held except the scope check, which
+flagged `verify_hostile.sh` itself: dsc's commit had swept the untracked TASK.md and verify script
+in, and my scope check did not exempt its own file. The content was unchanged (`cmp` against the
+committed copy, mode 555, same size), so I stopped the worker and took only
+`game/tests/srvdom_checks.gd` (`git checkout claude/mmo-w1-srvdom-dsc1 -- <file>`, commit `97f8dc6`).
+The TASK.md and verify script stay out of the branch. Its commit message also lacked the dsc
+trailer; my commit carries both trailers.
+
+My changes to its diff, in `70bd87c`:
+- the `{pet_uid: 5}` row now expects `bad_request`, and I fixed the handler to match;
+- I dropped a meaningless `not got.has("missing")` clause from the allow-list check.
+
+dsc reported no handler bugs. I re-read every row against the handlers and agree with each
+expected code.
+
+### Labs, screenshots
+
+None. This pass is headless domain code: no scene, UI or lab, so I took no screenshots and make
+no visual claims.
+
+### Note for the orchestrator
+
+The user request relayed with this run was about making trees partly see-through (camera
+occlusion). That is not part of W1-SRVDOM, so this package changed nothing for it.
