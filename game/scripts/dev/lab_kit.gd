@@ -3,9 +3,10 @@ extends RefCounted
 ## Shared floor + nav + player + camera + HUD for scenes/dev/*_lab.tscn.
 
 static func build(host: Node3D, size: float = 80.0) -> Dictionary:
-	# The game's own lighting (temperate profile), so lab shots match the islands; the old kit
+	# The game's own lighting (temperate profile), so lab shots match the islands (an island load
+	# replaces it, so no handle is returned); the old kit
 	# added a second 1.2 sun and 0.7 flat ambient on top of the main scene's and blew out.
-	var lighting := WorldLighting.install(host, "temperate")
+	WorldLighting.install(host, "temperate")
 	var nav := NavigationRegion3D.new()
 	nav.name = "Nav"
 	var nmesh := NavigationMesh.new()
@@ -68,7 +69,7 @@ static func build(host: Node3D, size: float = 80.0) -> Dictionary:
 	if player.eat_session:
 		player.eat_session.reparent_ui(ui)
 	nav.bake_navigation_mesh(false)
-	return {"player": player, "nav": nav, "ui": ui, "debug": debug, "cam": cam, "lighting": lighting}
+	return {"player": player, "nav": nav, "ui": ui, "debug": debug, "cam": cam}
 
 static func give(player: Player, id: StringName, n: int, attrs: Dictionary = {}) -> void:
 	player.inventory.add(ItemStack.make(id, n, attrs))

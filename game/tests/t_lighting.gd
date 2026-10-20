@@ -23,10 +23,13 @@ func _process(_delta: float) -> bool:
 	_test_environment(wl)
 	_test_night(wl)
 	_test_warm_dawn_dusk(wl)
+	_test_moon_shadow_only_at_night(wl)
+	_test_shadow_fit(wl)
 	_test_key_light_never_from_below(wl)
 	_test_phase_thresholds()
 	_test_profiles()
 	_test_rain_streaks()
+	_test_env_reused(host, wl)
 	if failures.is_empty():
 		print("[t_light] PASS")
 		quit(0)
@@ -49,6 +52,7 @@ func _test_environment(wl) -> void:
 	_check(e.glow_enabled, "glow off")
 	_check(e.ambient_light_source == Environment.AMBIENT_SOURCE_SKY, "ambient is not sky-sourced")
 	_check((wl.sun as DirectionalLight3D).directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS, "sun shadows are not PSSM4")
+	_check((wl.sun as DirectionalLight3D).shadow_normal_bias <= 1.0, "sun normal bias above 1.0 erases thin casters' shadows")
 
 func _test_night(wl) -> void:
 	wl.drive(0.0)
@@ -62,9 +66,34 @@ func _test_warm_dawn_dusk(wl) -> void:
 		wl.drive(tod)
 		var c: Color = wl.sun.light_color
 		_check(wl.sun.visible and c.r / maxf(c.b, 0.001) >= 1.3, "sun R/B %.2f < 1.3 at tod %.2f" % [c.r / maxf(c.b, 0.001), tod])
-	wl.drive(0.5)
-	var noon: Color = wl.sun.light_color
-	_check(noon.r / maxf(noon.b, 0.001) < 1.3, "noon sun is as warm as dusk")
+	# The whole day phase is neutral: warmth must not leak past DAY or before DUSK.
+	var neutral: Color = wl._c("sun_color")
+	for tod in [WL.DAY, WL.DAY + 0.02, 0.5, WL.DUSK - 0.02, WL.DUSK]:
+		wl.drive(tod)
+		_check((wl.sun.light_color as Color).is_equal_approx(neutral), "sun is warm at day-phase tod %.2f" % tod)
+
+## Only one directional light renders shadows at a time (the atlas and passes are shared).
+func _test_moon_shadow_only_at_night(wl) -> void:
+	for tod in [0.0, 0.2, 0.23, 0.42, 0.79, 0.85]:
+		wl.drive(tod)
+		_check(not (wl.sun.visible and wl.moon.visible and wl.moon.shadow_enabled), "sun and moon both cast shadows at tod %.2f" % tod)
+	wl.drive(0.0)
+	_check(wl.moon.shadow_enabled, "moon casts no shadow at night")
+
+## An iso camera with Godot's default far (4000 m) must still get splits around the 20-60 m it
+## sees: before the fit the first split ran 0-400 m and thin casters lost their shadows.
+func _test_shadow_fit(wl) -> void:
+	var cam: Camera3D = load("res://scripts/camera/iso_camera.gd").new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = 15.0
+	cam.set("distance", 40.0)
+	cam.far = 4000.0
+	wl.fit_shadows(cam)
+	var s: DirectionalLight3D = wl.sun
+	var m := [s.directional_shadow_split_1 * cam.far, s.directional_shadow_split_2 * cam.far, s.directional_shadow_split_3 * cam.far]
+	_check(m[0] > 20.0 and m[0] < 40.0 and m[1] > 40.0 and m[1] < 50.0 and m[2] > 50.0 and m[2] < 70.0,
+		"shadow splits at %.0f / %.0f / %.0f m, not fitted to the iso band 20-70 m" % m)
+	cam.free()
 
 ## Every lit directional light points down (its -Z has a negative y) at every time of day.
 func _test_key_light_never_from_below(wl) -> void:
@@ -118,3 +147,11 @@ func _test_rain_streaks() -> void:
 	_check(mat != null and mat.vertex_color_use_as_albedo, "rain draw pass material ignores particle colour")
 	_check(rain.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "rain casts shadows")
 	_check(rain.draw_pass_1.get_faces().size() / 3 <= 2, "rain drop mesh has %d triangles" % (rain.draw_pass_1.get_faces().size() / 3))
+
+## A second install (lab kit, then island) reuses the Environment and Sky instead of leaking
+## new GL sky textures on the web renderer.
+func _test_env_reused(host: Node3D, wl) -> void:
+	var env: Environment = wl.world_env.environment
+	var sky: Sky = env.sky
+	var wl2 = WL.install(host, "temperate")
+	_check(wl2.world_env.environment == env and wl2.world_env.environment.sky == sky, "second install built a new Environment or Sky")
