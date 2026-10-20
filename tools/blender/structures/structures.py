@@ -646,6 +646,214 @@ def roof():
     return [(p, (0, 0, 0))]
 
 
+# ------------------------------------------------------------------ camp pieces (dsc camp set)
+# The 18 placeable kinds that used to fall back to Kenney models. Same kit, tiles and palette as the
+# camp above; footprints (X x Y) follow game/data/props_manifest.json, the front faces -Y.
+
+def large_box():
+    """Big plank storage crate on skids, rope handles, lid propped ajar showing the load (2x1)."""
+    p = Part("large_box")
+    L, W, H = 1.86, 0.84, 0.88
+    for sy in (-1, 1):  # skids
+        p.plank((-L / 2 + 0.1, sy * (W / 2 - 0.12), 0.035), (L / 2 - 0.1, sy * (W / 2 - 0.12), 0.035), 0.12, 0.07, "wood_dark")
+    # plank body: four walls so the open top reads as a real box
+    bot = 0.07
+    t = 0.06
+    p.box((L, W, t), (0, 0, bot + t / 2), "plank", tile_m=1.4)
+    p.box((L, t, H - bot - t), (0, W / 2 - t / 2, bot + t + (H - bot - t) / 2), "plank", tile_m=1.4)
+    p.box((L, t, H - bot - t), (0, -W / 2 + t / 2, bot + t + (H - bot - t) / 2), "plank", tile_m=1.4)
+    for sx in (-1, 1):
+        p.box((t, W - 2 * t, H - bot - t), (sx * (L / 2 - t / 2), 0, bot + t + (H - bot - t) / 2), "plank", tile_m=1.4)
+    # dark interior and the load inside
+    p.box((L - 0.2, W - 0.2, 0.02), (0, 0, bot + 0.18), "soot")
+    p.box((0.62, 0.5, 0.16), (-0.3, 0.05, bot + 0.27), "hide", rot=(0, 0, 6))
+    p.box((0.4, 0.34, 0.3), (0.45, -0.06, bot + 0.34), "weave", rot=(0, 0, -8))
+    # corner battens and iron nails
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.box((0.1, 0.05, H - bot - 0.02), (sx * (L / 2 - 0.05), sy * (W / 2 + 0.005), (H + bot) / 2), "wood_dark")
+    for z in (0.3, 0.66):
+        p.box((L + 0.02, 0.05, 0.06), (0, -W / 2 - 0.005, z), "wood_dark")
+        for x in (-0.6, 0.0, 0.6):
+            p.cyl(0.018, 0.03, (x, -W / 2 - 0.035, z), "iron", rot=(90, 0, 0), seg=4)
+    # rope handles on each end
+    for sx in (-1, 1):
+        p.box((0.04, 0.26, 0.05), (sx * (L / 2 + 0.015), 0, 0.5), "rope")
+        p.box((0.03, 0.04, 0.12), (sx * (L / 2 + 0.03), 0, 0.56), "rope")
+    # lid propped open, hinged on the back rim: its lower edge sits on the rim, its face tilts back
+    D = W - 0.04
+    ang = 62.0
+    across = Vector((0, math.cos(R(ang)), math.sin(R(ang))))
+    normal = Vector((0, -math.sin(R(ang)), math.cos(R(ang))))
+    hinge = Vector((0, W / 2 - 0.01, H - 0.01))
+    c = hinge + across * (D / 2)
+    p.plank((-L / 2 + 0.03, c.y, c.z), (L / 2 - 0.03, c.y, c.z), D, 0.07, "plank", up=normal)
+    c2 = c + normal * 0.05
+    p.plank((-L / 2 + 0.12, c2.y, c2.z), (L / 2 - 0.12, c2.y, c2.z), 0.1, 0.03, "wood_dark", up=normal)
+    # iron hinges on the back rim
+    for sx in (-1, 1):
+        p.cyl(0.045, 0.08, (sx * (L / 2 - 0.16), W / 2 + 0.005, H + 0.01), "iron", rot=(90, 0, 0), seg=8)
+    for sx in (-1, 1):
+        p.cyl(0.06, 0.03, (sx * (L / 2 - 0.1), -W / 2 + 0.14, H + 0.02), "iron", seg=8)
+        p.cyl(0.055, 0.04, (sx * (L / 2 - 0.1), -W / 2 + 0.14, H + 0.015), "rope", seg=8)
+    p.log((-L / 2 + 0.16, W / 2 - 0.2, 0.12), (L / 2 - 0.3, -0.05, H + 0.22), 0.022, tile="wood_dark", seg=5)
+    return [(p, (0, 0, 0))]
+
+
+def chest():
+    """Locked storage chest: plank body, iron straps and a lock plate, lid closed (1x1)."""
+    p = Part("chest")
+    L, W, H, T = 0.78, 0.5, 0.4, 0.055
+    for sx in (-1, 1):  # feet
+        p.box((0.1, W - 0.04, 0.05), (sx * (L / 2 - 0.08), 0, 0.025), "wood_dark")
+    bot = 0.05
+    p.box((L, W, T), (0, 0, bot + T / 2), "plank", tile_m=0.7)
+    p.box((L, T, H - bot), (0, W / 2 - T / 2, bot + (H - bot) / 2), "plank", tile_m=0.7)
+    p.box((L, T, H - bot), (0, -W / 2 + T / 2, bot + (H - bot) / 2), "plank", tile_m=0.7)
+    for sx in (-1, 1):
+        p.box((T, W - 2 * T, H - bot), (sx * (L / 2 - T / 2), 0, bot + (H - bot) / 2), "plank", tile_m=0.7)
+    # flat plank lid with a chamfered top edge; iron straps hug the top and run down both faces
+    p.box((L + 0.03, W + 0.02, 0.055), (0, 0, H + 0.028), "plank", tile_m=0.7)
+    for sy in (-1, 1):
+        # dark seam under the lid lip and a small cornice, so the lid reads as its own piece
+        p.box((L + 0.05, 0.035, 0.025), (0, sy * (W / 2 + 0.012), H + 0.005), "wood_dark")
+        p.box((L + 0.05, 0.05, 0.03), (0, sy * (W / 2 + 0.005), H + 0.045), "plank")
+    for x in (-0.22, 0.22):
+        p.box((0.07, 0.02, H - 0.03), (x, -W / 2 - 0.012, (H + 0.03) / 2 - 0.015), "iron")
+        p.box((0.07, 0.02, H - 0.03), (x, W / 2 + 0.012, (H + 0.03) / 2 - 0.015), "iron")
+        p.box((0.07, W + 0.06, 0.025), (x, 0, H + 0.068), "iron")
+        p.box((0.02, 0.075, 0.06), (x, -W / 2 - 0.016, H - 0.03), "iron")
+        p.box((0.02, 0.075, 0.06), (x, W / 2 + 0.016, H - 0.03), "iron")
+        for sy in (-1, 1):
+            p.cyl(0.014, 0.02, (x, sy * (W / 2 + 0.025), 0.2), "wood", rot=(90, 0, 0), seg=4)
+    # hasp and lock plate
+    p.box((0.15, 0.03, 0.16), (0, -W / 2 - 0.02, H - 0.04), "iron")
+    p.box((0.1, 0.03, 0.07), (0, -W / 2 - 0.03, H + 0.02), "iron", rot=(-18, 0, 0))
+    p.cyl(0.03, 0.03, (0, -W / 2 - 0.045, H - 0.07), "iron", rot=(90, 0, 0), seg=8)
+    p.cyl(0.012, 0.04, (0, -W / 2 - 0.05, H - 0.07), "soot", rot=(90, 0, 0), seg=6)
+    # corner irons
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.box((0.06, 0.06, H - bot), (sx * (L / 2 - 0.03), sy * (W / 2 - 0.03), bot + (H - bot) / 2), "iron")
+    return [(p, (0, 0, 0))]
+
+
+def barrel():
+    """Open brine/water barrel: tapered two-part body with a bulge, three iron hoops, dark inside
+    with the water surface at the rim and a dipper resting across it (1x1)."""
+    p = Part("barrel")
+    n = 12
+    # body: lower half swells 0.29 -> 0.36, upper half narrows back to 0.29 (the pier barrel's read,
+    # which already sits in the set, with the bulge pushed out a little so it is not a plain drum)
+    p.cyl(0.29, 0.38, (0, 0, 0.2), "wood", seg=n, r2=0.36, cap_tile="wood_dark")
+    # the mouth is filled with brine, so the top cap of the body is water, ringed by a dark inner lip
+    p.cyl(0.36, 0.4, (0, 0, 0.585), "wood", seg=n, r2=0.3, cap_tile="soot")
+    # inner lip of dark staves, then the brine filling the mouth just below the rim
+    p.cyl(0.29, 0.012, (0, 0, 0.789), "soot", seg=n, cap_tile="water")
+    # iron hoops: each a short cone ring just proud of the staves
+    for z, r0, r1 in ((0.1, 0.318, 0.34), (0.4, 0.36, 0.365), (0.72, 0.325, 0.302)):
+        p.cyl(r0 + 0.018, 0.07, (0, 0, z), "iron", seg=n, r2=r1 + 0.018)
+    # a dipper resting across the rim
+    p.log((-0.15, -0.07, 0.8), (0.18, 0.1, 0.89), 0.022, tile="wood_dark", seg=5)
+    p.cyl(0.07, 0.1, (0.2, 0.105, 0.84), "wood", seg=8, r2=0.062, cap_tile="wood_dark")
+    return [(p, (0, 0, 0))]
+
+
+def bucket():
+    """Small wooden bucket, iron band, rope handle standing upright (1x1; firmly under the cell)."""
+    p = Part("bucket")
+    p.cyl(0.13, 0.02, (0, 0, 0.01), "wood_dark", seg=10, cap_tile="wood_dark")
+    p.cyl(0.15, 0.26, (0, 0, 0.15), "wood", seg=10, r2=0.17, cap_tile="soot")
+    p.cyl(0.155, 0.03, (0, 0, 0.05), "iron", seg=10)
+    p.cyl(0.163, 0.025, (0, 0, 0.24), "iron", seg=10)
+    p.cyl(0.16, 0.012, (0, 0, 0.265), "soot", seg=10, cap_tile="soot")
+    p.cyl(0.115, 0.012, (0, 0, 0.272), "water", seg=10, cap_tile="water")
+    # vertical stave ribs
+    for i in range(10):
+        a = (i + 0.5) * 2 * math.pi / 10
+        p.box((0.03, 0.012, 0.24), (math.cos(a) * 0.158, math.sin(a) * 0.158, 0.15), "wood_dark",
+              rot=(0, 0, math.degrees(a) + 90))
+    # rope bail: two short uprights and an arc of three segments
+    for sx in (-1, 1):
+        p.box((0.025, 0.03, 0.09), (sx * 0.165, 0, 0.3), "rope")
+        p.log((sx * 0.165, 0, 0.33), (sx * 0.1, 0, 0.44), 0.014, tile="rope", seg=4, end_tile="rope")
+    p.log((-0.1, 0, 0.44), (0.1, 0, 0.44), 0.014, tile="rope", seg=4, end_tile="rope")
+    return [(p, (0, 0, 0))]
+
+
+def signpost():
+    """Leaning wooden post, two carved boards pointing opposite ways, rope lashings (1x1)."""
+    p = Part("signpost")
+    top = (0.04, 0.03, 1.72)
+    p.cyl(0.08, 0.12, (0, 0, 0.04), "stone", seg=8)
+    p.log((0, 0, -0.02), top, 0.058)
+    p.cyl(0.07, 0.06, (0.0, 0.0, 1.7), "wood", seg=6, r2=0.02, cap_tile="log_end")
+    # upper board points -X (slightly towards camera), lower board points +X
+    p.box((0.62, 0.05, 0.24), (-0.3, -0.02, 1.42), "sign_board", rot=(0, 0, -8), tile_m=0.7)
+    p.box((0.55, 0.05, 0.22), (0.27, 0.02, 1.08), "sign_board", rot=(0, 0, 7), tile_m=0.7)
+    for (bx, bz, rz) in ((-0.3, 1.42, -8), (0.27, 1.08, 7)):
+        for dx in (-0.14, 0.14):
+            p.box((0.03, 0.08, 0.26), (bx + dx, -0.02 if bz > 1.2 else 0.02, bz), "rope", rot=(0, 0, rz))
+    # board ends chamfered with a dark edge strip
+    p.box((0.05, 0.055, 0.24), (-0.6, -0.02, 1.42), "wood_dark", rot=(0, 0, -8))
+    p.box((0.05, 0.055, 0.22), (0.54, 0.02, 1.08), "wood_dark", rot=(0, 0, 7))
+    # a small bundle of firewood and a tied rag at the foot
+    p.log((-0.2, 0.12, 0.04), (0.18, 0.2, 0.04), 0.045, tile="bark", seg=6)
+    p.log((-0.18, 0.2, 0.09), (0.2, 0.13, 0.09), 0.04, tile="bark", seg=6)
+    p.cyl(0.05, 0.1, (-0.02, 0.16, 0.08), "rope", rot=(90, 0, 30), seg=6)
+    return [(p, (0, 0, 0))]
+
+
+def bedroll():
+    """Hide bedroll on the ground: hide sheet, woven pad, straw-stuffed blanket folded back at the
+    foot, a small pillow roll at the head and corner pegs (1x2)."""
+    p = Part("bedroll")
+    # hide sheet, a touch wider than the pad, with a stitched seam along one side
+    p.box((0.8, 1.82, 0.035), (0, 0, 0.02), "hide", tile_m=0.45)
+    p.box((0.84, 0.06, 0.045), (0, 0.9, 0.022), "leather_dark")
+    # woven sleeping pad down the middle
+    p.box((0.56, 1.5, 0.07), (0, 0.02, 0.06), "weave", tile_m=0.7)
+    # straw-stuffed blanket over the lower half, folded back: two stacked slabs with a soft edge
+    p.box((0.62, 0.62, 0.12), (0, 0.48, 0.15), "thatch", tile_m=0.6)
+    p.box((0.6, 0.16, 0.1), (0, 0.82, 0.17), "thatch", rot=(-22, 0, 0), tile_m=0.6)
+    p.box((0.64, 0.05, 0.02), (0, 0.18, 0.13), "rope")
+    p.box((0.03, 0.6, 0.02), (-0.2, 0.46, 0.215), "rope")
+    # pillow: a short fibre roll tied at the ends
+    p.cyl(0.085, 0.5, (0, -0.7, 0.105), "fiber", rot=(0, 90, 0), seg=8, cap_tile="fiber")
+    for x in (-0.16, 0.16):
+        p.cyl(0.09, 0.04, (x, -0.7, 0.105), "rope", rot=(0, 90, 0), seg=8)
+    # pegs holding the corners down
+    for sx, sy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+        p.log((sx * 0.34, sy * 0.86, -0.02), (sx * 0.34, sy * 0.86, 0.07), 0.018, tile="wood", seg=5)
+    return [(p, (0, 0, 0))]
+
+
+def straw_roll():
+    """Rolled straw bed: a thatch roll lashed with two rope ties, one end unrolled flat onto the
+    ground, loose straw at the cut end, on a hide ground sheet (1x2)."""
+    p = Part("straw_roll")
+    p.box((0.82, 1.86, 0.03), (0, 0, 0.015), "hide", tile_m=0.45)
+    # the roll itself: body along Y, thick and slightly oval
+    p.cyl(0.25, 1.28, (0, 0.24, 0.25), "thatch", rot=(0, 90, 0), seg=10, cap_tile="fiber")
+    p.box((0.42, 1.28, 0.06), (0, 0.24, 0.49), "thatch", tile_m=0.6)  # flatten the top a little
+    # rope ties sitting proud of the roll
+    for y in (-0.16, 0.64):
+        p.cyl(0.262, 0.07, (0, y, 0.25), "rope", rot=(0, 90, 0), seg=10)
+        p.box((0.08, 0.03, 0.14), (0.1, y + 0.05, 0.42), "rope", rot=(0, 20, 0))
+    # the unrolled end: a thinner flat pad running to the near end of the cell
+    p.box((0.72, 0.62, 0.07), (0, -0.54, 0.055), "thatch", tile_m=0.6)
+    p.box((0.74, 0.06, 0.09), (0, -0.24, 0.06), "fiber")
+    p.box((0.72, 0.05, 0.02), (0, -0.8, 0.09), "rope")
+    # loose straw at the cut end and a few wisps on the floor
+    for k in range(5):
+        a = k * 1.25 + 0.3
+        p.log((0.08 * math.cos(a), 0.86, 0.25 + 0.12 * math.sin(a)),
+              (0.11 * math.cos(a), 0.95, 0.24 + 0.17 * math.sin(a)), 0.012, tile="fiber", seg=4, end_tile="fiber")
+    for k in range(3):
+        p.log((-0.3 + 0.25 * k, -0.8, 0.03), (-0.22 + 0.25 * k, -0.92, 0.03), 0.012, tile="fiber", seg=4)
+    return [(p, (0, 0, 0))]
+
+
 BUILDERS = {
     "tent": tent,
     "basket": basket,
@@ -671,4 +879,11 @@ BUILDERS = {
     "wall": wall,
     "wall_doorway": wall_doorway,
     "roof": roof,
+    "large_box": large_box,
+    "chest": chest,
+    "barrel": barrel,
+    "bucket": bucket,
+    "signpost": signpost,
+    "bedroll": bedroll,
+    "straw_roll": straw_roll,
 }

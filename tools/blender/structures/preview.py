@@ -19,6 +19,28 @@ names = args[1:] or sorted(f[:-4] for f in os.listdir(GLB_DIR) if f.endswith(".g
 for ob in list(bpy.data.objects):
     bpy.data.objects.remove(ob)
 
+# The GLBs carry no embedded image (Godot remaps the material to the shared atlas .tres), so a
+# straight import renders white. Hook the atlas PNG back onto every structures_atlas material.
+ATLAS = os.path.join(GLB_DIR, "structures_atlas.png")
+atlas = bpy.data.images.load(ATLAS) if os.path.exists(ATLAS) else None
+
+
+def _remap_atlas():
+    if atlas is None:
+        return
+    for mat in bpy.data.materials:
+        if not mat.name.startswith("structures_atlas") or mat.get("preview_atlas"):
+            continue
+        mat.use_nodes = True
+        nt = mat.node_tree
+        bsdf = next((n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"), None)
+        if bsdf is None:
+            continue
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = atlas
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+        mat["preview_atlas"] = True
+
 cols = max(1, math.ceil(math.sqrt(len(names) * 1.6)))
 cell = 4.2
 lo = Vector((1e9, 1e9, 0))
@@ -26,6 +48,7 @@ hi = Vector((-1e9, -1e9, 0))
 for i, n in enumerate(names):
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=os.path.join(GLB_DIR, n + ".glb"))
+    _remap_atlas()
     new = [o for o in bpy.data.objects if o not in before]
     off = Vector(((i % cols) * cell, -(i // cols) * cell, 0))
     for o in new:
