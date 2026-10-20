@@ -33,6 +33,10 @@ func run(host: Node) -> void:
 	if not built: get_tree().quit(1); return
 	var platform := get_tree().get_first_node_in_group("catapult") as FieldCatapult
 	player.placer.cancel()
+	await get_tree().physics_frame
+	var label := platform.get_node_or_null("Label") as Label3D
+	var want := "Catapult %.0f/%.0f" % [platform.hp, platform.max_hp]
+	print("[siege] label=%s max_hp=%.0f label-uses-max-hp=%s" % [label.text if label else "<none>", platform.max_hp, label != null and label.text.begins_with(want)])
 	player.global_position = platform.global_position+Vector3(2.5,0.5,0)
 	var sp := Spawner.new()
 	sp.species = &"protoceratops"
@@ -91,9 +95,11 @@ func run(host: Node) -> void:
 	victim.set_physics_process(true)
 	victim.brain.set_physics_process(true)
 	# Real AI from ten metres: no forced contact, health or attack events.
+	var destroyed := false
 	for k in range(25):
 		await get_tree().create_timer(1.0).timeout
 		if not is_instance_valid(platform):
+			destroyed = true
 			print("[siege] destroyed-after=%ds occupancy-cleared=%s" % [k+1,not grid._node_cells.has(platform_id)])
 			RenderingServer.force_draw()
 			if "--siege-visual" in OS.get_cmdline_user_args(): get_viewport().get_texture().get_image().save_png("user://siege-destroyed.png")
@@ -102,4 +108,6 @@ func run(host: Node) -> void:
 			RenderingServer.force_draw()
 			if "--siege-visual" in OS.get_cmdline_user_args(): get_viewport().get_texture().get_image().save_png("user://siege-hit.png")
 		print("[siege] t=%ds platformHP=%.1f distance=%.1f state=%s clip=%s" % [k+1,platform.hp,victim.global_position.distance_to(platform.global_position),victim.brain.state,victim.anim.current_clip])
-	get_tree().quit(0)
+	if not destroyed:
+		print("[siege] FAIL platform never destroyed")
+	get_tree().quit(0 if destroyed else 1)

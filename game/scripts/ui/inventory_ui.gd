@@ -43,7 +43,7 @@ var _equip_pad: Control
 var _stat_box: VBoxContainer
 var _stat_rows: Array[Label] = []
 var _slot_px: float = 64.0
-const EQUIP_LABELS := {"head": "Head", "body": "Body", "legs": "Legs", "accessory1": "Ring", "accessory2": "Ring", "weapon": "Weapon", "tool": "Tool", "food1": "Food 1", "food2": "Food 2"}
+const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "Legs", "accessory1": "Ring", "accessory2": "Ring", "weapon": "Weapon", "tool": "Tool", "food1": "Food 1", "food2": "Food 2"}
 const INK := Color(0.95, 0.95, 0.93)
 
 var _split: GridContainer
@@ -163,7 +163,7 @@ func _ready() -> void:
 	_equip_grid.add_theme_constant_override("h_separation", UiTokens.SPACE)
 	_equip_grid.add_theme_constant_override("v_separation", UiTokens.SPACE)
 	col_e.add_child(_equip_grid)
-	var equip_order := ["head", "body", "legs", "weapon", "tool", "accessory1", "accessory2", "food1", "food2"]
+	var equip_order := ["head", "body", "arms", "legs", "weapon", "tool", "accessory1", "accessory2", "food1", "food2"]
 	for slot_name in equip_order:
 		var cell := VBoxContainer.new()
 		cell.add_theme_constant_override("separation", 4)
@@ -480,15 +480,16 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 	else:
 		var profile_floor := 280.0
 		var h_gaps := sep * 4.0
-		var inner_seps := sep * 6.0
+		# Bag 5 wide + equipment 4 wide (head/body/arms/legs in one row keeps it to three rows).
+		var inner_seps := sep * 7.0
 		var chrome := 44.0 + sep + 36.0 + sep
 		var label_h := float(UiTokens.meta(view)) + 4.0
 		var grid_h := panel_h - chrome - label_h - sep * 2.0
 		var by_h := floorf((grid_h - sep * 3.0) / 4.0)
-		var by_w := floorf((panel_w - h_gaps - profile_floor - inner_seps) / 8.0)
+		var by_w := floorf((panel_w - h_gaps - profile_floor - inner_seps) / 9.0)
 		slot = maxf(64.0, minf(by_w, by_h))
 		var bag_w := 5.0 * slot + sep * 4.0
-		var equip_w := 3.0 * slot + sep * 2.0
+		var equip_w := 4.0 * slot + sep * 3.0
 		if _bag_col:
 			_bag_col.custom_minimum_size = Vector2(bag_w, 0)
 			_bag_col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -496,6 +497,8 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 			_equip_col.custom_minimum_size = Vector2(equip_w, 0)
 			_equip_col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_slot_px = slot
+	if _equip_grid:
+		_equip_grid.columns = 3 if phone else 4
 	var sz := _slot_vec()
 	for child in _grid.get_children():
 		if child is Control:

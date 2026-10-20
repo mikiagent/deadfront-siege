@@ -4,6 +4,10 @@ extends Node
 ## walk → crouch craft card with consume/refund/queue.
 
 const CANCEL_RANGE := 2.8
+## Inputs stay in the bag until a craft finishes; consume and produce happen together then, so
+## a cancel, a save, a burnt-out fire or a demolished station can never strand items (sec-loss-08).
+## A finished craft whose output does not fit waits at 100 % and retries this often.
+const FULL_RETRY_S := 1.0
 
 var player: Player
 var menu: StationMenu
@@ -19,10 +23,14 @@ var progress: float = 0.0
 var duration: float = 3.0
 var queue_left: int = 0
 var _picks: Array[int] = []
-var _refund: Array[ItemStack] = []
+var _full_wait: float = 0.0  # countdown to the next fit retry of a finished craft
+var _told_full: bool = false
 var _hand_tool: Node3D
 var _hand_craft: bool = false  # recipe with no station: crafts in place over the survivor
 var _batch_total: int = 1
+var _burnt: bool = false
+## Injectable for reproducible burn rolls (tests, server).
+var rng: RandomNumberGenerator = null
 
 func setup(p: Player, layer: CanvasLayer) -> void:
 	player = p
@@ -170,6 +178,9 @@ func _begin_recipe(rid: StringName) -> void:
 	var rec := Crafting.recipe(rid)
 	if rec.is_empty():
 		return
+	# Switching recipe mid-craft gives the first recipe's inputs back (sec-craft-22).
+	if crafting and rid != recipe_id:
+		cancel_and_refund()
 	var blocked := Crafting.progression_block(player, rec)
 	if blocked != "":
 		player.notice(blocked)
@@ -211,10 +222,16 @@ func _start_craft_cycle() -> void:
 		print("[craft] blocked %s: needs %s" % [recipe_id, Crafting.missing_ingredient_name(player.inventory, rec)])
 		_clear_session()
 		return
+	_burnt = Crafting.rolls_burn(rec, Crafting.skill_level_for(rec, player), rng)
+	if not Crafting.output_fits(player.inventory, rec, _picks, _burnt, player):
+		Crafting.refuse_full(player, rec)
+		_clear_session()
+		return
 	duration = Crafting.recipe_seconds(rec)
 	progress = 0.0
+	_full_wait = 0.0
+	_told_full = false
 	crafting = true
-	_refund = Crafting.consume_for_craft(player.inventory, rec, _picks)
 	print("[craft] start %s %.1fs" % [recipe_id, duration])
 	if player.anim:
 		player.anim.on_gather(&"craft")
@@ -257,13 +274,6 @@ func _show_card(rec: Dictionary) -> void:
 			"icon": card.icon_for(def_id),
 			"glyph": str(def_id).substr(0, 1).to_upper() if str(def_id) != "" else "?",
 		})
-	# Fill icons from refund stacks when available.
-	if not _refund.is_empty():
-		for i in mini(rows.size(), _refund.size()):
-			if _refund[i]:
-				rows[i]["def_id"] = _refund[i].def_id
-				rows[i]["icon"] = card.icon_for(_refund[i].def_id)
-				rows[i]["glyph"] = str(_refund[i].def_id).substr(0, 1).to_upper()
 	card.show_recipe(station, str(rec.get("display_name", recipe_id)), rows, progress, queue_left + 1)
 
 func _process(delta: float) -> void:
@@ -288,12 +298,32 @@ func _process(delta: float) -> void:
 		progress = minf(1.0, progress + delta / maxf(0.05, duration))
 		_show_ring(Crafting.recipe(recipe_id))
 		if progress >= 1.0:
-			_finish_one()
+			_full_wait -= delta
+			if _full_wait <= 0.0:
+				_finish_one()
 
+## Consume the inputs and add the output in one step. A full bag pauses the finished craft
+## (inputs untouched) until there is room; inputs that left the bag stop it.
 func _finish_one() -> void:
 	var rec := Crafting.recipe(recipe_id)
-	var out := Crafting.finish_craft(player, rec, _refund)
-	_refund.clear()
+	_picks = Crafting.default_picks(player.inventory, rec)
+	if not Crafting.picks_valid(player.inventory, rec, _picks):
+		player.notice("Craft stopped: its materials left the bag.")
+		_clear_session()
+		return
+	if not Crafting.output_fits(player.inventory, rec, _picks, _burnt, player):
+		if not _told_full:
+			_told_full = true
+			player.notice("Bag is full: make room to finish the %s." % str(rec.get("display_name", recipe_id)))
+		_full_wait = FULL_RETRY_S
+		return
+	_full_wait = 0.0
+	_told_full = false
+	var consumed := Crafting.consume_for_craft(player.inventory, rec, _picks)
+	var overflow: Array[ItemStack] = []
+	var out := Crafting.finish_craft(player, rec, consumed, _burnt, overflow)
+	if not overflow.is_empty():
+		push_error("[craft] output_fits passed but %d units overflowed" % overflow[0].count)
 	if out:
 		if toast:
 			toast.show_gain(out.def_id, out.count)
@@ -310,18 +340,17 @@ func _finish_one() -> void:
 		recipe_id = &""
 		_hand_craft = false
 
+## Stops the craft. Nothing to give back: the inputs never left the bag (name kept for player.gd).
 func cancel_and_refund() -> void:
-	if not _refund.is_empty():
-		for stack in _refund:
-			if stack:
-				player.inventory.add(stack)
-		print("[craft] cancelled refunded %s" % recipe_id)
-	_refund.clear()
+	if crafting:
+		print("[craft] cancelled %s; inputs stay in the bag" % recipe_id)
 	_clear_session()
 
 func _clear_session() -> void:
 	crafting = false
 	progress = 0.0
+	_full_wait = 0.0
+	_told_full = false
 	queue_left = 0
 	recipe_id = &""
 	_hand_craft = false
@@ -354,16 +383,25 @@ func _sync_hand_tool() -> void:
 	var anchor := player.right_hand_anchor()
 	if anchor == null:
 		return
-	var tool := player.inventory.equipped_gather_tool()
-	var want_id := tool.def_id if tool else &""
+	var hunting := _hunting()
+	var held := player.inventory.equipped_weapon() if hunting else player.inventory.equipped_gather_tool()
+	if held == null and hunting:
+		held = player.inventory.equipped_gather_tool()
+	var want_id := held.def_id if held else &""
 	if _hand_tool and is_instance_valid(_hand_tool):
 		if want_id == &"" or str(_hand_tool.get_meta("tool_id", "")) != str(want_id):
 			_hand_tool.queue_free()
 			_hand_tool = null
-	if want_id == &"":
+	if want_id == &"" or (_hand_tool and is_instance_valid(_hand_tool)):
 		return
-	if _hand_tool and is_instance_valid(_hand_tool):
-		return
-	_hand_tool = PropVisuals.attach_tool_model(anchor, want_id)
+	_hand_tool = HeldModel.attach(anchor, want_id, hunting)
 	if _hand_tool:
 		_hand_tool.set_meta("tool_id", str(want_id))
+
+func held_model_id() -> StringName:
+	return StringName(str(_hand_tool.get_meta("tool_id", ""))) if _hand_tool and is_instance_valid(_hand_tool) else &""
+
+## A hunt target means the fight is on: the hand shows the weapon, not the gather tool (pc-weapon-01).
+func _hunting() -> bool:
+	var h: Variant = player.get("hunt")
+	return h != null and h.target != null and is_instance_valid(h.target)

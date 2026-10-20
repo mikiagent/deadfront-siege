@@ -15,7 +15,8 @@ func _ready() -> void:
 	player = kit["player"]
 	var cam := kit["cam"] as IsoCamera
 	cam.size = 15.0
-	player.global_position = Vector3(-20, 1, 0)
+	# Out of the utahraptor's sight even after a full roam leg toward the survivor (perception 15.5 m).
+	player.global_position = Vector3(-23, 1, 23)
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	# Flat labs have no World.runtime, so finish the NavigationServer sync before locomotion checks.
 	await get_tree().physics_frame
@@ -48,11 +49,18 @@ func _after_idle() -> void:
 	pet.become_pet(PetRecord.from_def(pet.def, &"normal"))
 	pet.brain.order(&"attack", target)
 	var hp0 := target.health.hp
+	var bites := [0]
+	target.health.damaged.connect(func (_a: float, _s: Node) -> void: bites[0] += 1)
 	for second in 5:
 		await get_tree().create_timer(1.0).timeout
 		print("[aival] pet_tick=%d damage=%.1f cd=%.2f busy=%s clip=%s state=%s dist=%.2f active=%s" % [second + 1, hp0 - target.health.hp, pet.brain._attack_cd, pet.anim._busy, pet.anim.current_clip, pet.brain.state, pet.global_position.distance_to(target.global_position), pet._path_active])
-	print("[aival] pet_repeat damage=%.1f cd=%.2f target_live=%s" % [hp0 - target.health.hp, pet.brain._attack_cd, not target.health.dead])
-	# Make the pack finish a pet. Every member must immediately retain player engagement.
+	print("[aival] pet_repeat damage=%.1f bites=%d cd=%.2f target_live=%s" % [hp0 - target.health.hp, bites[0], pet.brain._attack_cd, not target.health.dead])
+	# A SIC order must keep biting: one bite and a frozen cooldown was the old failure.
+	if bites[0] < 2 or hp0 - target.health.hp <= 0.0:
+		failures.append("pet repeat attack stalled: bites=%d damage=%.1f" % [bites[0], hp0 - target.health.hp])
+	# Make the pack finish a pet. Every member must immediately retain player engagement, so the
+	# survivor steps inside the pack's leash first.
+	player.global_position = alpha.global_position + Vector3(-8, 1, 0)
 	for c in [alpha, follower_a, follower_b]:
 		c.brain.attack_target = pet
 		c.brain._combat_memory_left = 4.0
@@ -60,6 +68,10 @@ func _after_idle() -> void:
 	pet.health.take_damage(pet.health.max_hp + 1.0, alpha)
 	await get_tree().create_timer(0.25).timeout
 	print("[aival] post_kill targets=%s/%s/%s states=%s/%s/%s" % [_target_name(alpha), _target_name(follower_a), _target_name(follower_b), alpha.brain.state, follower_a.brain.state, follower_b.brain.state])
+	# Pack coherence after a kill: every member moves on to the survivor together.
+	for c in [alpha, follower_a, follower_b]:
+		if _target_name(c) != "player":
+			failures.append("post-kill pack split: %s targets %s" % [c.def.id, _target_name(c)])
 	# Force an aggro ring, then prove death removes the node reference.
 	alpha.brain.attack_target = player
 	alpha.brain.state = &"attack"
@@ -73,7 +85,7 @@ func _after_idle() -> void:
 	follower_a.brain._combat_memory_left = 4.0
 	follower_a.brain.state = &"approach"
 	player.global_position = follower_a.global_position + Vector3(follower_a.brain.aggro_radius() + 0.5, 0, 0)
-	follower_a.brain._disengage_track(0.016)
+	follower_a.brain.flight.track(0.016)
 	var deaggro_ok := follower_a.brain.attack_target == null and follower_a.brain.state == &"disengage"
 	print("[aival] radius_deaggro=%s state=%s target=%s" % [deaggro_ok, follower_a.brain.state, follower_a.brain.attack_target])
 	if not deaggro_ok:
@@ -81,8 +93,9 @@ func _after_idle() -> void:
 	alpha.brain.attack_target = player
 	alpha.brain.state = &"attack"
 	player.global_position = alpha.global_position + Vector3(alpha.brain.aggro_radius() + 0.5, 0, 0)
-	alpha.brain._think(0.016)
-	var raptor_deaggro_ok := alpha.brain.attack_target == null and alpha.brain.state == &"disengage"
+	alpha.brain.tick(0.016)  # the shared pre-think owns the leash for every species brain
+	# Already standing at home, the leash break ends in roam within the same tick.
+	var raptor_deaggro_ok := alpha.brain.attack_target == null and alpha.brain.state in [&"disengage", &"roam"]
 	print("[aival] raptor_radius_deaggro=%s state=%s target=%s" % [raptor_deaggro_ok, alpha.brain.state, alpha.brain.attack_target])
 	if not raptor_deaggro_ok:
 		failures.append("raptor retained target outside aggro radius")

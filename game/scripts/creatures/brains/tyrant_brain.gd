@@ -11,6 +11,17 @@ var stagger_immunity := 0.0
 var attack_number := 0
 var telegraph: Telegraph
 
+## Windup, impact and recovery are timed moves: resolve them every physics frame, not at 10 Hz.
+func _full_rate() -> bool:
+	return phase != &"idle"
+
+## The shared leash can drop the target mid-swing; end the timed move with it.
+func _pre_think(dt: float) -> bool:
+	var handled := super._pre_think(dt)
+	if phase != &"idle" and not _valid_target():
+		_end_phase()
+	return handled
+
 func _think(delta: float) -> void:
 	stagger_immunity = maxf(0,stagger_immunity-delta)
 	if phase != &"idle":
@@ -36,7 +47,7 @@ func _think(delta: float) -> void:
 func _do_attack() -> void:
 	if not _valid_target() or creature.anim._busy: return
 	var offset := attack_target.global_position-creature.global_position
-	if Vector2(offset.x,offset.z).length() > contact_reach()+0.1:
+	if Vector2(offset.x,offset.z).length() > reach_to(attack_target)+0.1:
 		_set_state(&"approach")
 		return
 	creature.stop_move()
@@ -56,7 +67,7 @@ func _impact() -> void:
 	if locked_target is FieldCatapult and (locked_target as FieldCatapult).hp <= 0: return
 	var offset := locked_target.global_position-creature.global_position
 	offset.y = 0
-	if offset.length() > contact_reach()+0.3: return
+	if offset.length() > reach_to(locked_target)+0.3: return
 	var dot := offset.normalized().dot(locked_forward)
 	if dot < (-0.4 if windup_clip == &"attack_heavy" else 0.15): return
 	CreatureAttack.apply_for(creature,windup_clip,locked_target)

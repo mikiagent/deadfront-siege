@@ -15,6 +15,9 @@ var _tap_s: float = -999.0
 var _fading: bool = false
 var _emptied: bool = false
 var poison_spoiled: bool = false
+## Loot units left when Butchering XP was last paid; a take only pays when units really moved
+## (a full bag used to pay +3 XP per tap with nothing taken).
+var _units_paid: int = 0
 
 func setup(c: Creature) -> void:
 	level = maxi(1, int(c.get("level")) if c.get("level") != null else 1)
@@ -40,10 +43,14 @@ func _ready() -> void:
 	cs.position.y = 0.4
 	add_child(cs)
 	_place_on_tile()
+	_units_paid = _units()
 	if _owner:
 		_owner.visible = true
 		_owner.collision_layer = 0
 		_owner.collision_mask = 1
+		# The body keeps its terrain collision but must not stand on its own loot cylinder
+		# (it floated 0.9 m on it).
+		_owner.add_collision_exception_with(self)
 
 func can_butcher(inv: Inventory) -> String:
 	if _is_empty():
@@ -65,6 +72,7 @@ func open_loot(player: Player) -> void:
 		if player.has_method("notice"):
 			player.notice("Nothing left on the %s." % species_display_name().to_lower())
 		return
+	_units_paid = _units()
 	var why := can_butcher(player.inventory)
 	var readonly := "needs knife" if why == "need tool knife" else ""
 	player.ui.show_storage(loot, player, {
@@ -148,9 +156,13 @@ func _roll_loot() -> void:
 		loot.add(ItemStack.make(item_id, n, attrs, level))
 
 func _on_take_from_loot() -> void:
-	# Taking from the chest screen trains Butchering (and so the player level).
+	# Taking from the chest screen trains Butchering (and so the player level), once per take
+	# that actually moved units out of the loot.
+	var left := _units()
+	var moved := left < _units_paid
+	_units_paid = left
 	var p := get_tree().get_first_node_in_group("player") as Player
-	if p and p.skills:
+	if moved and p and p.skills:
 		p.skills.add_xp("butchering", 3)
 	if _is_empty():
 		_on_loot_empty()
@@ -162,6 +174,13 @@ func _on_loot_empty() -> void:
 
 func _is_empty() -> bool:
 	return loot.used_slots() <= 0
+
+func _units() -> int:
+	var n := 0
+	for st in loot.slots:
+		if st:
+			n += st.count
+	return n
 
 ## Dropped loot on the floor: a billboard loot-bag symbol with the top item's icon over it,
 ## bobbing gently (tap it to open the chest screen). Falls back to the Kenney box.
