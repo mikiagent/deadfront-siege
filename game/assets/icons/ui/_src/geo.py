@@ -93,14 +93,6 @@ def flame(hole=True):
         return '<path fill-rule="evenodd" d="%s M0 -11 C1.8 -9 3 -7.5 3 -5.7 A3 3 0 0 1 -3 -5.7 C-3 -7.5 -1.8 -9 0 -11 Z"/>' % d
     return '<path d="%s"/>' % d
 
-def heart(cx, top, s):
-    """Heart with its top dip at (cx, top + 3.5k) and bottom point at (cx, top + 19k), k = s/11."""
-    k = s / 11.0
-    def P(x, y):
-        return "%s %s" % (f(cx + x * k), f(top + y * k))
-    return ("M" + P(0, 19) + " C" + P(-8, 13) + " " + P(-11, 9) + " " + P(-11, 5.5) + " C" + P(-11, 2) + " " + P(-8.5, 0) + " " + P(-5.5, 0)
-            + " C" + P(-3, 0) + " " + P(-1, 1.5) + " " + P(0, 3.5) + " C" + P(1, 1.5) + " " + P(3, 0) + " " + P(5.5, 0)
-            + " C" + P(8.5, 0) + " " + P(11, 2) + " " + P(11, 5.5) + " C" + P(11, 9) + " " + P(8, 13) + " " + P(0, 19) + " Z")
 
 def g(transform, *els):
     return '<g transform="%s">%s</g>' % (transform, "".join(els))

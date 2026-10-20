@@ -6,6 +6,8 @@ extends Node3D
 ##                    status chip today (18 px, 12 px icon) and per hook 6 (24 px, 16 px icon) | 72 px hex
 ##   hud              the real HUD with its legacy glyphs swapped for icons (preview of the hooks)
 ##   filter           linear vs linear-with-mipmaps at 24 and 32 px (the mipmap hook)
+##   blind            every icon at 24 px on a 50 px hex, shuffled, numbered, no ids: a label-free
+##                    read; the number -> id key is printed as [uiicons_lab] blind key
 ## Headless (no --shot) it loads every icon through UiIcons, prints [uiicons_lab] and exits.
 
 const SIZES: Array[int] = [12, 16, 24, 32, 48, 64]
@@ -46,6 +48,10 @@ func _ready() -> void:
 		return
 	if _hud:
 		_hud.visible = false
+	# Only the hud view shows the game; elsewhere the live hands slot and the survivor muddy the sheet.
+	player.visible = false
+	for n in get_tree().root.find_children("*", "HeldItemSlot", true, false):
+		(n as CanvasItem).visible = false
 	var layer := CanvasLayer.new()
 	layer.layer = 90
 	add_child(layer)
@@ -58,6 +64,7 @@ func _ready() -> void:
 	match _mode:
 		"sizes": _build_sizes()
 		"filter": _build_filter()
+		"blind": _build_blind()
 		_: _build_sheet()
 	_canvas.queue_redraw()
 
@@ -90,6 +97,29 @@ func _build_sheet() -> void:
 		h.position = origin + Vector2(i % cols, i / cols) * cell
 		_canvas.add_child(h)
 	print("[uiicons_lab] sheet %d icons, %d columns, view %s" % [_ids.size(), cols, r])
+
+## Label-free read: shuffled with a fixed seed so the key printed here matches the screenshot.
+func _build_blind() -> void:
+	var order := _ids.duplicate()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20261020
+	for i in range(order.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var t: StringName = order[i]
+		order[i] = order[j]
+		order[j] = t
+	var r := _canvas.size
+	var cell := Vector2(78, 70)
+	var cols := int((r.x - 24.0) / cell.x)
+	var origin := Vector2((r.x - cell.x * cols) * 0.5 + 14.0, 14.0)
+	var key: Array[String] = []
+	for i in order.size():
+		var h := _hex(order[i], 50.0)  # hex radius 23 -> HexButton draws the icon at 24 px
+		h.top_text = str(i + 1)
+		h.position = origin + Vector2(i % cols, i / cols) * cell
+		_canvas.add_child(h)
+		key.append("%d=%s" % [i + 1, order[i]])
+	print("[uiicons_lab] blind key %s" % " ".join(key))
 
 func _build_sizes() -> void:
 	var r := _canvas.size
@@ -165,6 +195,8 @@ func _process(_delta: float) -> void:
 			continue
 		var tex: Texture2D = UiIcons.icon(WORD_GLYPHS[h.glyph]) if WORD_GLYPHS.has(h.glyph) else UiIcons.for_glyph(h.glyph)
 		if tex:
+			if h.glyph == "Auto":
+				h.caption = "AUTO"  # hook 3: the word was its only label
 			h.icon = tex
 			h.glyph = ""
 			h.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS

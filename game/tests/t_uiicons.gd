@@ -36,8 +36,23 @@ const MAX_IOU := 0.85
 ## arrow in or out, plus or minus). They sit side by side or swap in one slot, so the mark is the
 ## message; they still must not be identical.
 const PAIRS := {"lock/unlock": 0.95, "store/take_all": 0.95, "zoom_in/zoom_out": 0.95}
-## The report whose "Integrator hooks" name icon ids; each must resolve without the fallback.
-const REPORT := "../docs/orchestration/reports/claude-mmo-w1-uiicons.md"
+## Every id the integrator hooks pass to UiIcons.icon() (docs/orchestration/reports/
+## claude-mmo-w1-uiicons-hooks.patch), literal or from the HUD spec arrays; each must resolve
+## without the fallback. Context actions, stations, statuses and skill trees are read from code below.
+const HOOK_IDS := [
+	"menu", "animals", "build", "skills", "inspect", "eat", "end_combat", "auto", "feed", "chase", "hold", "confirm",
+	"net", "tackle", "kick", "roll", "sic", "heel", "guard", "rotate", "cancel", "toxin", "fire_ranged", "siege",
+	"xp", "t_stone", "fists", "hands", "swap", "butcher", "lock", "craft_hand", "back", "close", "zoom_in", "zoom_out",
+	"meadow", "forest", "rocky", "riverside", "coastal", "sleep", "craft", "cook", "cauterise",
+]
+## Hex badges draw the icon their legacy glyph maps to (hook 2).
+const BADGES := {"⊘": "blocked", "✓": "confirm"}
+## Optical weight: ink (mean alpha) at 24 px within this band around the set median, so thin line
+## arrows and diagonal tools do not read half as heavy as the block icons beside them on the rail.
+const WEIGHT_PX := 24
+const WEIGHT_BAND := Vector2(0.6, 1.5)
+## Drawing sources: build.py --check regenerates every SVG byte for byte (run it after editing).
+const SRC := "res://assets/icons/ui/_src/"
 
 var failures: Array[String] = []
 var _icons: Dictionary = {}
@@ -54,12 +69,14 @@ func _init() -> void:
 		_test_inventory()
 		_test_code_inventory()
 		_test_hook_ids()
+		_test_weight()
+		_test_sources()
 		_test_distinct()
 		_test_composition()
 		_test_glyph_scan()
 		_test_loader()
 	if failures.is_empty():
-		print("[t_uiicons] PASS ids=%d files=%d glyphs=%d code_ids=%d worst_iou=%s" % [_icons.size(), _svg_files().size(), (_m.get("glyphs", {}) as Dictionary).size(), _code_ids, _worst_iou])
+		print("[t_uiicons] PASS ids=%d files=%d glyphs=%d code_ids=%d hook_ids=%d weight=%s worst_iou=%s" % [_icons.size(), _svg_files().size(), (_m.get("glyphs", {}) as Dictionary).size(), _code_ids, HOOK_IDS.size(), _weight, _worst_iou])
 		quit(0)
 	else:
 		for f in failures:
@@ -193,23 +210,40 @@ func _func_body(src: String, fname: String) -> String:
 	var end := src.find("\nfunc ", at + 1)
 	return src.substr(at, (end if end > 0 else src.length()) - at)
 
-## Every `&"id"` passed to UiIcons.icon() in the report's "Integrator hooks" section resolves directly.
 func _test_hook_ids() -> void:
-	var path := ProjectSettings.globalize_path("res://").path_join(REPORT)
-	_expect(FileAccess.file_exists(path), "report %s exists" % REPORT)
-	var n := 0
-	var tok := RegEx.create_from_string("&\"([a-z_]+)\"")
-	var text := FileAccess.get_file_as_string(path)
-	var at := text.find("\n## Integrator hooks")
-	_expect(at >= 0, "report has an Integrator hooks section")
-	var end := text.find("\n## ", at + 1)
-	for line in text.substr(at, (end if end > 0 else text.length()) - at).split("\n"):
-		if not line.contains("UiIcons.icon("):
-			continue
-		for m in tok.search_all(line.substr(line.find("UiIcons.icon("))):
-			n += 1
-			_expect(_icons.has(m.get_string(1)), "hook id %s resolves without the fallback" % m.get_string(1))
-	_expect(n >= 20, "the report's hooks name icon ids (%d)" % n)
+	for id in HOOK_IDS:
+		_expect(_icons.has(id), "hook id %s resolves without the fallback" % id)
+	for g in BADGES:
+		_expect(str((_m.get("glyphs", {}) as Dictionary).get(g, "")) == BADGES[g], "badge glyph %s maps to %s" % [g, BADGES[g]])
+
+func _test_weight() -> void:
+	var ink := {}
+	for f in _svg_files():
+		var img := Image.new()
+		img.load_svg_from_string(FileAccess.get_file_as_string(DIR + f), WEIGHT_PX / 64.0)
+		img.convert(Image.FORMAT_RGBA8)
+		var sum := 0.0
+		for y in img.get_height():
+			for x in img.get_width():
+				sum += img.get_pixel(x, y).a
+		ink[f] = sum / float(WEIGHT_PX * WEIGHT_PX)
+	var vals: Array = ink.values()
+	vals.sort()
+	var med: float = vals[vals.size() / 2]
+	for f in ink:
+		var r: float = ink[f] / med
+		_expect(r >= WEIGHT_BAND.x and r <= WEIGHT_BAND.y, "%s optical weight %.2f x median is outside %.2f..%.2f" % [f, r, WEIGHT_BAND.x, WEIGHT_BAND.y])
+	_weight = "%.2f..%.2f" % [vals[0] / med, vals[-1] / med]
+
+var _weight := ""
+
+## Every SVG is the output of _src/build.py (its header names the file's own id), so editing
+## the source and rebuilding is the one way to change an icon.
+func _test_sources() -> void:
+	_expect(FileAccess.file_exists(SRC + "build.py") and FileAccess.file_exists(SRC + ".gdignore"), "drawing sources are in %s" % SRC)
+	for f in _svg_files():
+		var txt := FileAccess.get_file_as_string(DIR + f)
+		_expect(txt.contains("<!-- DEADFRONT UI icon \"%s\"." % f.get_basename()), "%s carries the build.py header for its own id" % f)
 
 ## No two drawings may read as the same shape at HUD size: rasterise each at 24 px and compare
 ## alpha masks (sum of min / sum of max). wet and bleed_deep once shared one silhouette.

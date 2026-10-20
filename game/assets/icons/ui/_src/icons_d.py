@@ -3,7 +3,6 @@ EO = ' fill-rule="evenodd"'
 I = {}
 # hafted tools: handle is a 5 line; heads are solid; lashing is a short solid collar under the head.
 # axe head drawn in haft-local space (haft along local -y), placed on the haft with one transform
-AXE = '<g transform="translate(40 26) rotate(15)"><path d="M4 -6 L-9 -6.5 C-14 -8 -17.5 -11 -20 -15 C-25.5 -5 -25.5 5 -20 15 C-17.5 11 -14 8 -9 6.5 L4 6 Z"/></g>'
 
 
 I["pick"] = {"l": ['<path d="M46 56 C46 44 42 36 34 30"/>'],

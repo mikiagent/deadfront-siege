@@ -17,6 +17,7 @@ sys.dont_write_bytecode = True  # keep __pycache__ out of the asset folder
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
+from geo import f  # noqa: E402
 MODULES = ["icons_a", "icons_b", "icons_c", "icons_d", "icons_e", "icons_f", "icons_g", "icons_h"]
 SOLID = {"icons_g", "icons_h"}
 HEAD = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">\n'
@@ -35,7 +36,10 @@ def render() -> dict:
             owner[k] = m
             body = HEAD + (NOTE_SOLID if m in SOLID else NOTE_LINE) % k
             t = None if m in SOLID else offsets.get(k)
-            if t:
+            if t and len(t) == 3:  # (dx, dy, scale about the centre): only for solid-only icons, so line weight stays 5
+                assert not v.get("l"), "icon %s has lines; change its geometry instead of scaling it" % k
+                body += '<g transform="translate(%s %s) scale(%s)">\n' % (f(32 * (1 - t[2]) + t[0]), f(32 * (1 - t[2]) + t[1]), f(t[2]))
+            elif t:
                 body += '<g transform="translate(%s %s)">\n' % t
             if v.get("l"):
                 body += '<g fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">\n' + "\n".join(v["l"]) + "\n</g>\n"
