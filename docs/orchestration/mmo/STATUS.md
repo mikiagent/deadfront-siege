@@ -282,6 +282,11 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   dsc workers (minors, audio, quads-loco, zebra, trex-sleep) and the player dsc worker finished; their
   results are vetted and integrated by finish-1 (audio waits for W1-INT).
 
+- 2026-10-20 (orchestrator) W1-UI open questions: the level-1 title "Venture into the World" is held
+  from character creation (no level-up toast); skills keep their internal levels in W1-UI, and W2-SKILLS
+  re-keys them to Durango's 1-60 scale with Lv1 AUTO nodes (spec 12), so "skills show Lv. 0" is a known
+  item for W2-SKILLS, not a W1-UI blocker.
+
 ## Owner questions (open)
 
 - none
