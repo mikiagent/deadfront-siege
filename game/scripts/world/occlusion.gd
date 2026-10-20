@@ -335,10 +335,10 @@ func _add_objects(owner_node: Node, geoms: Array) -> void:
 func _flush_pending() -> void:
 	for i in range(_pending.size() - 1, -1, -1):
 		var e: Array = _pending[i]
-		var mmi := e[1] as MultiMeshInstance3D
-		if not is_instance_valid(mmi) or not _owned.has(e[0]):
+		if not is_instance_valid(e[1]) or not _owned.has(e[0]):
 			_pending.remove_at(i)
 			continue
+		var mmi := e[1] as MultiMeshInstance3D
 		var mm := mmi.multimesh
 		var ready := mm == null or mm.instance_count == 0 or mm.get_instance_transform(0).basis.determinant() != 0.0
 		if ready or e[2] > 30:
