@@ -9,7 +9,7 @@ const LINGER := 0.1
 static var _active: Array[Telegraph] = []
 
 static func show_for(creature: Creature, clip: StringName) -> void:
-	var player := creature.get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	var t := Telegraph.new()
 	t.name = "Telegraph"
 	creature.get_parent().add_child(t)
@@ -37,7 +37,7 @@ static func _clip_seconds(creature: Creature, clip: StringName) -> float:
 	return ap.get_animation(clip).length if ap and ap.has_animation(clip) else 0.6
 
 static func player_dodged(attacker: Creature) -> bool:
-	var player := attacker.get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.nearest(attacker.global_position)
 	if player == null or not player.rolling:
 		return false
 	for t in _active:

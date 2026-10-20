@@ -330,7 +330,7 @@ func _clear_runtime() -> void:
 	runtime = null
 
 func _player() -> Player:
-	return get_tree().get_first_node_in_group("player") as Player
+	return PlayerRegistry.local()
 
 func _ensure_fade() -> void:
 	var layer := CanvasLayer.new()

@@ -210,7 +210,7 @@ func _too_far(kind: StringName, cell: Vector2i, rot: int) -> bool:
 		return false
 	var actor := _actor
 	if actor == null:
-		var player := get_tree().get_first_node_in_group("player")
+		var player := PlayerRegistry.local()
 		if player is Node3D:
 			actor = player as Node3D
 	if actor == null:

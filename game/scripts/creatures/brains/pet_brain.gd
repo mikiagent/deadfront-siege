@@ -34,7 +34,7 @@ func _think(delta: float) -> void:
 	# PetBrain owns its think loop, so it must also advance the inherited attack cooldown.
 	# Without this, a SIC order lands exactly one bite and _attack_cd stays at 1.2 forever.
 	_attack_cd = maxf(0.0, _attack_cd - delta)
-	var player := creature.get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.owner_of(creature)
 	if player == null:
 		return
 	hold = player.hunt != null and player.hunt.hold

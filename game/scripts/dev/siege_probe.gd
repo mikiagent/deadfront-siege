@@ -12,7 +12,7 @@ func run(host: Node) -> void:
 	print("[siege] home-loaded")
 	await get_tree().create_timer(0.5).timeout
 	print("[siege] timer-done")
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	for cr in get_tree().get_nodes_in_group("creatures"): cr.queue_free()
 	player.inventory.add(ItemStack.make(&"catapult_kit",1))
 	player.inventory.add(ItemStack.make(&"stone_shot",5))
