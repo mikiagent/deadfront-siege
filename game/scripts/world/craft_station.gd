@@ -31,12 +31,14 @@ func _exit_tree() -> void:
 		(grid as BuildGrid).release(self)
 
 func pack_up(player: Player) -> bool:
-	# What hangs on the station goes back first; a bag that cannot take it all keeps it standing.
-	var ps := ProcessStation.of(self)
-	if ps and not ps.contents().is_empty() and not ps.return_all(player.inventory):
-		player.notice("Bag is full: make room for what is on the %s first." % str(station_id).replace("_", " "))
-		return false
 	return BuildPlacer.pack_up_node(self, player)
+
+## Asked by BuildPlacer.pack_up_blocker on every pack-up path: a process station packs up only empty.
+func pack_up_block_reason() -> String:
+	var ps := ProcessStation.of(self)
+	if ps:
+		return ps.pack_up_block_reason()
+	return "" if _pending_process.is_empty() else "collect the %s first" % str(station_id).replace("_", " ")
 
 func set_grid_pose(cell: Vector2i, rot: int) -> void:
 	build_cell = cell

@@ -1,6 +1,9 @@
 extends SceneTree
-## W2-PROCESS: in-place processing opportunities and identity (spec 08), process-station jobs on the wall clock (running with nobody near), save
-## round trip mid-process, queue catch-up, stage models, steam cap, pack-up returns what hangs.
+## W2-PROCESS: in-place processing opportunities and identity (spec 08), process-station jobs on the
+## wall clock (running with nobody near), save round trip mid-process (running and waiting jobs), queue
+## catch-up, two recipes at once, stage models, collect into a full bag, what each slow station's
+## output is worth against the grill, and pack-up through every path refusing while anything is on the
+## station (review r1 blocker: shift-tap pack-up destroyed what hung on the rack).
 ## Item scripts reference the Data autoload, so they load once it exists.
 
 var failures: Array[String] = []
@@ -16,6 +19,8 @@ var _rack: Node3D
 var _far: Node3D
 var _t0: float = 0.0
 var _wait_until: int = 0
+var _player: Node3D
+var BP: GDScript
 
 func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
@@ -29,10 +34,16 @@ func _process(_delta: float) -> bool:
 			FOOD = load("res://scripts/items/food.gd")
 			CS = load("res://scripts/world/craft_station.gd")
 			PS = load("res://scripts/world/process_station.gd")
+			BP = load("res://scripts/world/build_placer.gd")
 			PS.clock_skew_s = 0.0
+			var host := Node3D.new()
+			get_root().add_child(host)
+			_player = load("res://scripts/dev/lab_kit.gd").build(host, 20.0)["player"]
 			_test_in_place()
+			_test_payoff()
 			_test_station_identity()
 			_test_queue_catch_up()
+			_test_two_recipes_at_once()
 			_start_rack()
 			_phase = 1
 			_frames = 0
@@ -44,6 +55,7 @@ func _process(_delta: float) -> bool:
 				_wait_until = Time.get_ticks_msec() + 800  # the station redraws 4x a second
 			if _frames > 2 and Time.get_ticks_msec() > _wait_until:
 				_check_rack_finished()
+				_test_collect_full_bag()
 				_test_pack_up()
 				_finish()
 				return true
@@ -148,6 +160,8 @@ func _test_station_identity() -> void:
 	uids.sort()
 	levels.sort()
 	_expect(got == uids and levels == [9, 31], "the same two instances came back, levels kept (%s %s)" % [got, levels])
+	# Exactly one copy of each instance: in the bag, none left on the station or in its save row.
+	_expect(bag.used_slots() == 2 and ps.contents().is_empty() and not rack.to_dict().has("process"), "after collect each uid exists once (bag %d, station %d, save row %s)" % [bag.used_slots(), ps.contents().size(), rack.to_dict().has("process")])
 	rack.free()
 
 ## Steamer: 2 slots + 2 queue. Four dishes: the waiting two start the moment the first two finish,
@@ -179,6 +193,13 @@ func _test_queue_catch_up() -> void:
 		inv3.add(IS.make(&"dried_meat", 1))
 	ps2.load_from(inv3, &"steam", 3)
 	var s0: float = ps2.jobs[0]["started"]
+	# Saved mid-job with one waiting: it comes back still waiting, then starts at the freeing finish.
+	var row: Dictionary = JSON.parse_string(JSON.stringify(st2.to_dict()))
+	st2.free()
+	st2 = load("res://scripts/core/save_restore.gd").spawn(row)
+	get_root().add_child(st2)
+	ps2 = PS.of(st2)
+	_expect(ps2.jobs.size() == 3 and ps2.running_count() == 2 and float(ps2.jobs[2]["started"]) < 0.0, "reload mid-job: 2 running, the third still waiting (%d/%d)" % [ps2.running_count(), ps2.jobs.size()])
 	ps2.advance(s0 + secs + 40.0)
 	_expect(ps2.jobs.size() == 1 and absf(float(ps2.jobs[0]["started"]) - (s0 + secs)) < 0.01, "a waiting job starts at the freeing finish time")
 	st2.free()
@@ -227,11 +248,98 @@ func _check_rack_finished() -> void:
 	_expect(prop != null and str(prop.scene_file_path).ends_with("drying_rack_dried.glb"), "the rack shows drying_rack_dried.glb (%s)" % (prop.scene_file_path if prop else "none"))
 	_expect(ps.label_text() == "Ready: 4 Dried Meat", "label: '%s'" % ps.label_text())
 
-func _test_pack_up() -> void:
+## What a slow station's output is worth against the grill (stone grill, seconds): spec 08 §2 "in-place
+## recipes add cooking properties", §4 "Food benefits must be calculated from the actual prepared
+## item's stored state". Fatigue is the survival meter (energy refills by itself out of combat), so the
+## meal is measured on a real Vitals the way EatSession feeds it.
+func _test_payoff() -> void:
+	var raw = IS.make(&"raw_meat", 1)
+	var grilled = CR.build_output(CR.recipe(&"stone_grill"), raw, 1)
+	var dried = CR.build_output(CR.recipe(&"dry_meat"), raw, 1)
+	var smoked = CR.build_output(CR.recipe(&"smoke_meat"), raw, 1)
+	var stew = CR.build_output(CR.recipe(&"camp_stew"), raw, 1)
+	var steamed = CR.build_output(CR.recipe(&"steam"), grilled, 1)
+	var g := _relief(grilled)
+	print("[t_process] meal: grilled e=%.1f rel=%.1f | dried e=%.1f rel=%.1f | smoked e=%.1f rel=%.1f buffs=%s | stew e=%.1f rel=%.1f | grilled+steam e=%.1f rel=%.1f" % [
+		FOOD.energy_restore(grilled), g, FOOD.energy_restore(dried), _relief(dried), FOOD.energy_restore(smoked), _relief(smoked), FOOD.buff_ids(smoked),
+		FOOD.energy_restore(stew), _relief(stew), FOOD.energy_restore(steamed), _relief(steamed)])
+	_expect(_relief(dried) > g * 1.5, "drying: dried meat eases more fatigue than grilled (%.1f vs %.1f)" % [_relief(dried), g])
+	_expect(_relief(smoked) > g and &"cold_resist" in FOOD.buff_ids(smoked) and FOOD.buff_ids(grilled).is_empty(), "smoking: more relief than grilled (%.1f vs %.1f) and a Warming Meal the grill does not give" % [_relief(smoked), g])
+	_expect(FOOD.energy_restore(steamed) > FOOD.energy_restore(grilled) and _relief(steamed) > g, "steaming a grilled meat raises its energy (%.1f -> %.1f)" % [FOOD.energy_restore(grilled), FOOD.energy_restore(steamed)])
+	_expect(_relief(stew) > g and stew.attributes.get("processed") == null, "the stew beats grilled meat (%.1f vs %.1f) and is a new food with fresh opportunities" % [_relief(stew), g])
+	var plain_dried = IS.make(&"dried_meat", 1)
+	_expect(FOOD.fatigue_relief(plain_dried) == 0.0 and FOOD.fatigue_relief(dried) > 0.0, "the effect comes from the stored history, not the item name")
+	_expect(FOOD.cooking_properties(IS.make(&"dried_hide", 1, {"processed": ["dry"]})).is_empty(), "a dried hide is not a meal")
+	_expect(FOOD.inspector_text(dried).contains("Dried: eases fatigue"), "the food inspector shows the property: %s" % FOOD.inspector_text(dried).replace("\n", " | "))
+
+## Fatigue a meal takes off on a real Vitals: the energy break EatSession feeds plus the properties.
+func _relief(meal) -> float:
+	var v = load("res://scripts/combat/vitals.gd").new()
+	v.fatigue = 90.0
+	v.eat(FOOD.energy_restore(meal) * 1.5)
+	v.rest(FOOD.fatigue_relief(meal))
+	var r: float = 90.0 - v.fatigue
+	v.free()
+	return r
+
+## The rack runs meat and hide side by side; both finish on time and collect shows each.
+func _test_two_recipes_at_once() -> void:
+	var rack: Node3D = CS.make(&"drying_rack")
+	get_root().add_child(rack)
+	var ps = PS.of(rack)
+	var inv = INV.new(6)
+	inv.add(IS.make(&"raw_meat", 1))
+	inv.add(IS.make(&"raw_hide", 1))
+	_expect(ps.load_from(inv, &"dry_meat", 1) == 1 and ps.load_from(inv, &"dried_hide", 1) == 1 and ps.running_count() == 2, "meat and hide hang on the rack at once")
+	ps.advance(PS.now_s() + maxf(PS.job_seconds(&"drying_rack", &"dry_meat"), PS.job_seconds(&"drying_rack", &"dried_hide")) + 1.0)
+	var bag = INV.new(6)
+	_expect(ps.collect_into(bag) == 2 and ps.last_collected.size() == 2 and int(ps.last_collected.get(&"dried_meat", 0)) == 1 and int(ps.last_collected.get(&"dried_hide", 0)) == 1, "collect moves both and names each (%s)" % [ps.last_collected])
+	rack.free()
+
+## Collect into a full bag: everything stays on the station, nothing is lost or doubled.
+func _test_collect_full_bag() -> void:
 	var ps = PS.of(_rack)
-	var full = INV.new(1)
-	full.add(IS.make(&"stone", 1))
-	_expect(not ps.return_all(full) and ps.ready_count() == 4, "pack-up with a full bag refuses and keeps the meat")
-	var bag = INV.new(4)
-	_expect(ps.return_all(bag) and _count(bag, &"dried_meat") == 4 and ps.contents().is_empty(), "pack-up hands all 4 back")
-	_expect(ps.stage_id() == "empty", "empty rack after pack-up")
+	var bag = INV.new(1)
+	bag.add(IS.make(&"stone", 1))
+	_expect(ps.collect_into(bag) == 0 and ps.ready_count() == 4 and _count(bag, &"dried_meat") == 0, "full bag: nothing moves, 4 stay on the rack (ready %d)" % ps.ready_count())
+	var bag2 = INV.new(8)
+	_expect(ps.collect_into(bag2) == 4 and _count(bag2, &"dried_meat") == 4 and ps.contents().is_empty(), "with room: all 4 dried meat collect, the rack is empty")
+
+## Review r1 blocker: shift-tap pack-up (BuildPlacer.pack_up_node) destroyed what hung on the rack, and
+## a refused CraftStation.pack_up had already cancelled the jobs. Every path now asks the station
+## first and changes nothing when it refuses.
+func _test_pack_up() -> void:
+	var world: Node = get_root().get_node("World")
+	var was: Dictionary = world.island_def
+	world.island_def = {"kind": "private"}  # home: owned land, so only the station's own rule refuses
+	var inv = _player.inventory
+	for i in inv.slot_count:
+		inv.slots[i] = null
+	var rack: Node3D = CS.make(&"drying_rack")
+	get_root().add_child(rack)
+	var ps = PS.of(rack)
+	for lv in [5, 7]:
+		var m = IS.make(&"raw_meat", 1, {}, lv)
+		m.stamp_identity("loot", "tester")
+		inv.add(m)
+	ps.load_from(inv, &"dry_meat", 2)
+	var saved := JSON.stringify(ps.to_dict())
+	# Working: shift-tap path.
+	var ok: bool = BP.pack_up_node(rack, _player)
+	_expect(not ok and not rack.is_queued_for_deletion() and JSON.stringify(ps.to_dict()) == saved and inv.used_slots() == 0, "shift-tap pack-up refuses a working rack and touches nothing: '%s'" % BP.pack_up_blocker(rack))
+	# Working, bag with room for the meat but not the kit (the old pack_up cancelled the jobs here).
+	for i in inv.slot_count - 2:
+		inv.slots[i] = IS.make(&"stone", 1)
+	ok = rack.pack_up(_player)
+	_expect(not ok and ps.jobs.size() == 2 and JSON.stringify(ps.to_dict()) == saved and _count(inv, &"raw_meat") == 0, "a refused pack-up cancels no job and moves nothing (jobs %d)" % ps.jobs.size())
+	for i in inv.slot_count:
+		inv.slots[i] = null
+	# Finished but not collected.
+	ps.advance(PS.now_s() + PS.job_seconds(&"drying_rack", &"dry_meat") + 1.0)
+	ok = BP.pack_up_node(rack, _player)
+	_expect(not ok and ps.ready_count() == 2 and BP.pack_up_blocker(rack).contains("collect"), "a rack with dried meat waiting refuses: '%s'" % BP.pack_up_blocker(rack))
+	# Collected and empty: it packs up into its kit.
+	ps.collect_into(inv)
+	ok = BP.pack_up_node(rack, _player)
+	_expect(ok and rack.is_queued_for_deletion() and inv.count_of(&"drying_rack_kit") == 1 and _count(inv, &"dried_meat") == 2, "an empty rack packs up: kit and both dried meats in the bag")
+	world.island_def = was

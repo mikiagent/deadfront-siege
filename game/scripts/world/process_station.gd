@@ -20,6 +20,8 @@ var cfg: Dictionary = {}
 var jobs: Array[Dictionary] = []
 ## Finished, waiting to be collected: {recipe, stack: ItemStack}.
 var outputs: Array[Dictionary] = []
+## What the last collect_into moved, per item id (the COLLECT toast).
+var last_collected: Dictionary = {}
 
 var _redraw_left: float = 0.0
 var _shown_stage: String = "?"
@@ -202,16 +204,20 @@ func ready_count() -> int:
 	return n
 
 ## Move finished outputs into `inv`; what does not fit stays on the station. XP is paid once, when
-## a job's last unit leaves the station. Returns units moved.
+## a job's last unit leaves the station. Returns units moved; last_collected has them per item id.
 func collect_into(inv: Inventory, player: Player = null) -> int:
 	advance(now_s())
 	var moved := 0
+	last_collected = {}
 	while not outputs.is_empty():
 		var o: Dictionary = outputs[0]
 		var s: ItemStack = o["stack"]
+		var id := s.def_id
 		var before := s.count
 		var left := inv.add(s)
 		moved += before - left
+		if before > left:
+			last_collected[id] = int(last_collected.get(id, 0)) + before - left
 		if left > 0:
 			s.count = left
 			if player:
@@ -227,7 +233,7 @@ func collect_into(inv: Inventory, player: Player = null) -> int:
 		_redraw()
 	return moved
 
-## Everything on the station (inputs of unfinished jobs and finished outputs), for pack-up.
+## Everything on the station: inputs of unfinished jobs and finished outputs.
 func contents() -> Array[ItemStack]:
 	var out: Array[ItemStack] = []
 	for j in jobs:
@@ -237,22 +243,17 @@ func contents() -> Array[ItemStack]:
 		out.append(o["stack"] as ItemStack)
 	return out
 
-## Pack-up: hand every input and output back. Refuses (returns false, moves nothing) when the bag
-## cannot take all of it, so taking the station down never destroys what was on it.
-func return_all(inv: Inventory) -> bool:
-	var scratch := Inventory.new(inv.slot_count)
-	for i in inv.slot_count:
-		if inv.slots[i]:
-			scratch.slots[i] = inv.slots[i].duplicate_stack()
-	for s in contents():
-		if scratch.add(s.duplicate_stack()) > 0:
-			return false
-	for s in contents():
-		inv.add(s)
-	jobs.clear()
-	outputs.clear()
-	_redraw()
-	return true
+## Why the station cannot be packed up now ("" = it can). BuildPlacer.pack_up_blocker asks this (via
+## CraftStation) before it touches anything, on every pack-up path, so a refusal moves nothing and
+## cancels no job, and packing up never destroys what hangs on the station.
+func pack_up_block_reason() -> String:
+	advance(now_s())
+	var what := str(station_id).replace("_", " ")
+	if not jobs.is_empty():
+		return "the %s is still working: collect it when it is ready" % what
+	if not outputs.is_empty():
+		return "collect the %s first" % what
+	return ""
 
 func to_dict() -> Dictionary:
 	var js: Array = []
@@ -359,7 +360,9 @@ func label_text() -> String:
 		var soonest := INF
 		for j in jobs:
 			if float(j["started"]) >= 0.0:
-				soonest = minf(soonest, float(j["started"]) + job_seconds(station_id, StringName(str(j["recipe"]))) - now)
+				var secs := job_seconds(station_id, StringName(str(j["recipe"])))
+				# A clock moved back must not show more time than the job takes.
+				soonest = minf(soonest, minf(secs, float(j["started"]) + secs - now))
 		var left := maxi(0, ceili(soonest))
 		var t := "%d:%02d" % [left / 60, left % 60]
 		var ready := "  ·  %d ready" % ready_count() if not outputs.is_empty() else ""

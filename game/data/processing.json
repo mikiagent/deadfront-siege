@@ -93,6 +93,18 @@
       "smoke",
       "steam"
     ],
-    "opportunities": 2
+    "opportunities": 2,
+    "properties": {
+      "_about": "What an in-place step leaves on the instance. Spec 08 \u00a72: 'in-place recipes add cooking properties ... Verify method-specific behavior rather than making every method identical.' Read from the instance's processing history (attributes.processed) when it is eaten, \u00a74: 'Food benefits must be calculated from the actual prepared item's stored state.' Effect kinds are \u00a74's list: fatigue_relief = 'reduced Fatigue when supported' (Vitals.rest, on top of the meal's own energy break); buff = a food_buffs.json row, 'environmental effects' (cold_resist is the existing Warming Meal, which no food granted before). Steam has no row: its payoff is the process count, +35% energy per steam (PRD \u00a79.3). # ASSUMPTION: which method gives which effect and the amounts; the specs list the kinds, not the mapping. Tune here.",
+      "dry": {
+        "name": "Dried",
+        "fatigue_relief": 12.0
+      },
+      "smoke": {
+        "name": "Smoked",
+        "fatigue_relief": 6.0,
+        "buff": "cold_resist"
+      }
+    }
   }
 }

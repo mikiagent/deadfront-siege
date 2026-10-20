@@ -99,11 +99,9 @@ func _on_menu_action(st: Node3D, action_id: StringName) -> void:
 			player._start_sleep(st)
 		&"collect":
 			var ps := ProcessStation.of(st)
-			if ps:
-				var first_id: StringName = (ps.outputs[0]["stack"] as ItemStack).def_id if not ps.outputs.is_empty() else &""
-				var got := ps.collect_into(player.inventory, player)
-				if got > 0 and toast:
-					toast.show_gain(first_id, got)
+			if ps and ps.collect_into(player.inventory, player) > 0 and toast:
+				for id in ps.last_collected:  # a rack can hold dried meat and dried hide at once
+					toast.show_gain(id, int(ps.last_collected[id]))
 		&"cauterise":
 			if st is Bonfire:
 				(st as Bonfire).cauterise(player)

@@ -216,6 +216,9 @@ static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int
 		var hist: Array = (done as Array).duplicate() if done is Array else []
 		hist.append(str(rec.get("process_step", "")))
 		out.attributes["processed"] = hist
+		# Spec 11 §8: "For in-place processing, use the existing item as the base; only change level
+		# when the actual process rules require it." No rule here does, so a lv 31 meat stays lv 31.
+		out.level = primary.level
 		out.uid = primary.uid
 		out.origin = primary.origin
 		out.creator = primary.creator
