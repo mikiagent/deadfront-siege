@@ -2,6 +2,9 @@
 
 Three agents work here. Read this file first, then the plan.
 
+**MMO program (2026-10-20): start with `docs/orchestration/mmo/HANDOFF.md`** - where everything is, what is merged,
+what is half done on which branch, and what has not started.
+
 | Agent | Owns | Never touches |
 |---|---|---|
 | Claude Code | `docs/orchestration/`, contracts, reviews, merges, Meshy credit approvals | — |

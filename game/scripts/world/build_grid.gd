@@ -54,6 +54,11 @@ func clear_occupancy() -> void:
 func reserve_kind(kind: StringName, cell: Vector2i, rot: int = 0) -> void:
 	reserve_cells(cells_for(kind, cell, rot), kind)
 
+func release_reserved_kind(kind: StringName, cell: Vector2i, rot: int = 0) -> void:
+	for c in cells_for(kind, cell, rot):
+		_reserved.erase(c)
+	_cells_changed(cells_for(kind, cell, rot))
+
 func reserve_cells(cells: Array[Vector2i], tag: StringName = &"reserved") -> void:
 	for c in cells:
 		_reserved[c] = tag
@@ -252,7 +257,7 @@ func _too_far(kind: StringName, cell: Vector2i, rot: int) -> bool:
 		return false
 	var actor := _actor
 	if actor == null:
-		var player := get_tree().get_first_node_in_group("player")
+		var player := PlayerRegistry.local()
 		if player is Node3D:
 			actor = player as Node3D
 	if actor == null:

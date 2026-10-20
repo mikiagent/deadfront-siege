@@ -203,7 +203,7 @@ static func build_output(rec: Dictionary, primary: ItemStack, crafted_level: int
 static func _player() -> Player:
 	var tree := Engine.get_main_loop()
 	if tree is SceneTree:
-		return (tree as SceneTree).get_first_node_in_group("player") as Player
+		return PlayerRegistry.local()
 	return null
 
 static func station_id(rec: Dictionary) -> String:

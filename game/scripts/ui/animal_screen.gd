@@ -70,30 +70,38 @@ func _ready() -> void:
 	_close.pressed.connect(close_screen)
 	add_child(_close)
 	resized.connect(_layout)
+	get_viewport().size_changed.connect(_layout)
+	# CanvasLayer children do not inherit a Control parent size.
+	size = get_viewport_rect().size
 	_layout()
 
 func _layout() -> void:
 	var view := get_viewport_rect().size
+	# Keep the modal root real-sized so its dimmer blocks the HUD and world.
+	position = Vector2.ZERO
+	size = view
 	var phone := UiTokens.is_phone(view)
+	var compact_landscape := phone and view.x > view.y
 	var pad := 24.0
 	_title.add_theme_font_size_override("font_size", UiTokens.heading(view))
+	_title.position = Vector2(pad, 12.0 if compact_landscape else 28.0)
 	_title.size = Vector2(view.x - pad * 2.0, 36)
 	var detail_scroll := get_node_or_null("DetailScroll") as Control
 	_detail.add_theme_font_size_override("font_size", UiTokens.body(view))
 	_summon.add_theme_font_size_override("font_size", UiTokens.body(view))
 	_close.add_theme_font_size_override("font_size", UiTokens.body(view))
-	_active.position = Vector2(pad, 72)
+	_active.position = Vector2(pad, 48.0 if compact_landscape else 72.0)
 	_active.size = Vector2(view.x - pad * 2.0, 64)
 	var bar_h := maxf(_summon.custom_minimum_size.y, _close.custom_minimum_size.y)
 	var bottom_margin := bar_h + float(UiTokens.SPACE)
 	_apply_detail_margin(detail_scroll, int(bottom_margin))
 	if phone:
-		_list.position = Vector2(pad, 148)
-		_list.size = Vector2(view.x - pad * 2.0, 180)
+		_list.position = Vector2(pad, 116.0 if compact_landscape else 148.0)
+		_list.size = Vector2(view.x - pad * 2.0, 96.0 if compact_landscape else 180.0)
 		_summon.position = Vector2(pad, view.y - 76.0)
 		_close.position = Vector2(view.x - pad - 160.0, view.y - 76.0)
 		if detail_scroll:
-			var scroll_top := 340.0
+			var scroll_top := 228.0 if compact_landscape else 340.0
 			var scroll_bottom := _summon.position.y - float(UiTokens.SPACE)
 			detail_scroll.position = Vector2(pad, scroll_top)
 			detail_scroll.size = Vector2(view.x - pad * 2.0, maxf(120.0, scroll_bottom - scroll_top))

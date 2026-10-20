@@ -30,7 +30,7 @@ func setup(p_rig: RiggedModel, p_inventory: Inventory) -> void:
 			(m as MeshInstance3D).visible = false
 	for region in body:
 		for m in body[region]:
-			Player.web_safe_mesh(m)
+			PlayerView.web_safe_mesh(m)
 	inventory.changed.connect(refresh)
 	refresh()
 
@@ -55,7 +55,7 @@ func equip(slot: StringName, visual: String) -> void:
 	var piece := visual.get_slice("/", 1)
 	var meshes := RiggedModel.attach_skinned(rig.skeleton, "%s/armor/%s/%s.glb" % [ROOT, kit, piece])
 	for m in meshes:
-		Player.web_safe_mesh(m)
+		PlayerView.web_safe_mesh(m)
 	# A kit without this piece (travel_clothes has no helmet) attaches nothing and hides nothing.
 	equipped[slot] = {"visual": visual, "meshes": meshes, "hides": _hides(kit, piece) if not meshes.is_empty() else []}
 	_sync_body()

@@ -421,7 +421,7 @@ static func set_tile_type(rt: IslandRuntime, tile: Vector2i, tile_type: int) -> 
 static func drive_focus(rt: IslandRuntime) -> void:
 	if rt._terrain_mat == null:
 		return
-	var p := rt.get_tree().get_first_node_in_group("player") as Node3D
+	var p := PlayerRegistry.local()
 	if p:
 		rt._terrain_mat.set_shader_parameter("focus_pos", p.global_position)
 	rt._terrain_mat.set_shader_parameter("grid_enabled", 1.0 if Game.show_grid else 0.0)
