@@ -4,6 +4,7 @@ extends Node
 ## HUD action hexes beside it to show ArtSlot leaves action glyphs untouched.
 ## Headless (no --shot) it self-checks and quits 0/1. Add --light (after --) for a light
 ## background: HANDOFF P7 asks icons to be checked against dark and light contexts.
+## --ids=a,b,... (with --shot) shows those items instead, to review any render at slot size.
 
 const IDS: Array[StringName] = [
 	&"copper_ingot", &"bronze_ingot", &"iron_ingot", &"steel_ingot", &"straw_roll_kit",
@@ -26,7 +27,8 @@ func _ready() -> void:
 	var view := get_viewport().get_visible_rect().size
 	# canvas_items stretch: a portrait phone gets a tall logical view, so size by width share.
 	var portrait := view.y > view.x
-	var side := maxf(ArtSlot.MIN_SIZE, floorf(view.x * (0.92 if portrait else 0.45) / 5.6))
+	# Landscape phones (844x390) are short: the grid plus the hex row is ~6.9 slots tall.
+	var side := maxf(ArtSlot.MIN_SIZE, floorf(minf(view.x * (0.92 if portrait else 0.45) / 5.6, view.y / 6.9)))
 	var gap := floorf(side * 0.15)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", int(gap * 2.0))
@@ -37,10 +39,14 @@ func _ready() -> void:
 	grid.add_theme_constant_override("h_separation", int(gap))
 	grid.add_theme_constant_override("v_separation", int(gap + side * ArtSlot.RISE))
 	box.add_child(grid)
-	for i in IDS.size():
+	var ids: Array = IDS
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--ids="):
+			ids = Array(a.substr(6).split(","))
+	for i in ids.size():
 		var s := ArtSlot.new()
 		s.custom_minimum_size = Vector2(side, side)
-		s.set_item(IDS[i], [1, 3, 12, 1, 5][i % 5])
+		s.set_item(StringName(ids[i]), [1, 3, 12, 1, 5][i % 5])
 		grid.add_child(s)
 		slots.append(s)
 	var actions := HBoxContainer.new()
