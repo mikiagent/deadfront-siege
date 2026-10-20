@@ -1,5 +1,5 @@
 {
-	"clock": 0.350380104166667,
+	"clock": 0.350380353703704,
 	"ground_snares": [
 		{
 			"arm_left": 0.0,
@@ -236,8 +236,8 @@
 	"pending_refunds": [],
 	"pets": [
 		{
-			"accuracy": 103.387096774194,
-			"attack": 106.491935483871,
+			"accuracy": 110.161290322581,
+			"attack": 105.572580645161,
 			"bag": [
 				{
 					"attributes": {
@@ -262,7 +262,7 @@
 				null,
 				null
 			],
-			"defense": 34.7741935483871,
+			"defense": 45.2258064516129,
 			"genetics": {
 				"evs": {
 					"accuracy": 0.0,
@@ -274,13 +274,13 @@
 					"speed": 0.0
 				},
 				"ivs": {
-					"accuracy": 19.0,
-					"health": 22.0,
-					"melee_attack": 28.0,
-					"melee_defense": 2.0,
-					"ranged_attack": 15.0,
+					"accuracy": 26.0,
+					"health": 18.0,
+					"melee_attack": 27.0,
+					"melee_defense": 29.0,
+					"ranged_attack": 11.0,
 					"ranged_defense": 5.0,
-					"speed": 8.0
+					"speed": 11.0
 				},
 				"level_gains": {
 					"accuracy": 0.0,
@@ -292,22 +292,30 @@
 					"speed": 0.0
 				}
 			},
-			"grade": "B-",
-			"hp": 680.258064516129,
+			"grade": "B+",
+			"hp": 655.483870967742,
 			"hunger": 256.0,
 			"hunger_efficiency": 1.0,
 			"hunger_max": 256.0,
 			"level": 1.0,
-			"ranged_attack": 94.5403225806452,
+			"name": "",
+			"origin": "tame",
+			"owner": "",
+			"parent_uids": [],
+			"ranged_attack": 90.8629032258064,
 			"ranged_defense": 35.9354838709677,
 			"respawn_left": 0.0,
 			"species": "velociraptor",
-			"speed": 649.193548387097,
+			"speed": 669.516129032258,
+			"tamed_at": 1792457403.0,
 			"tamed_role": [
 				"mount",
 				"scout"
 			],
+			"tamer": "",
+			"uid": "p_33fb628ddde0326a",
 			"variant": "",
+			"wild_level": 1.0,
 			"xp": 0.0,
 			"xp_rate": 1.0
 		}
@@ -321,21 +329,21 @@
 			{
 				"attributes": {},
 				"count": 1.0,
-				"durability": 34.0,
+				"durability": 33.0,
 				"flags": [],
 				"id": "stone_knife_work",
 				"level": 1.0,
-				"max_durability": 41.0,
+				"max_durability": 40.0,
 				"process_count": 0.0
 			},
 			{
 				"attributes": {},
 				"count": 1.0,
-				"durability": 51.0,
+				"durability": 50.0,
 				"flags": [],
 				"id": "work_axe",
 				"level": 1.0,
-				"max_durability": 51.0,
+				"max_durability": 50.0,
 				"process_count": 0.0
 			},
 			{
@@ -416,8 +424,8 @@
 		"statuses": [],
 		"vitals": {
 			"energy": 87.55,
-			"fatigue": 30.001240617284,
-			"health": 100.107189333333,
+			"fatigue": 30.001152462963,
+			"health": 100.0995728,
 			"max_energy": 103.0,
 			"max_fatigue": 100.0,
 			"max_health": 105.0

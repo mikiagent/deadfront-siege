@@ -1,5 +1,5 @@
 {
-	"clock": 0.350380104166667,
+	"clock": 0.350380353703704,
 	"ground_snares": [
 		{
 			"arm_left": 0.0,
@@ -236,8 +236,8 @@
 	"pending_refunds": [],
 	"pets": [
 		{
-			"accuracy": 103.387096774194,
-			"attack": 106.491935483871,
+			"accuracy": 110.161290322581,
+			"attack": 105.572580645161,
 			"bag": [
 				{
 					"attributes": {
@@ -262,7 +262,7 @@
 				null,
 				null
 			],
-			"defense": 34.7741935483871,
+			"defense": 45.2258064516129,
 			"genetics": {
 				"evs": {
 					"accuracy": 0.0,
@@ -274,13 +274,13 @@
 					"speed": 0.0
 				},
 				"ivs": {
-					"accuracy": 19.0,
-					"health": 22.0,
-					"melee_attack": 28.0,
-					"melee_defense": 2.0,
-					"ranged_attack": 15.0,
+					"accuracy": 26.0,
+					"health": 18.0,
+					"melee_attack": 27.0,
+					"melee_defense": 29.0,
+					"ranged_attack": 11.0,
 					"ranged_defense": 5.0,
-					"speed": 8.0
+					"speed": 11.0
 				},
 				"level_gains": {
 					"accuracy": 0.0,
@@ -288,4 +288,9 @@
 					"melee_attack": 0.0,
 					"melee_defense": 0.0,
 					"ranged_attack": 0.0,
-					"ranged_defens
+					"ranged_defense": 0.0,
+					"speed": 0.0
+				}
+			},
+			"grade": "B+",
+			"hp": 655.483870967742,

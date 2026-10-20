@@ -181,7 +181,7 @@ func _test_forged() -> void:
 	var inv = player.inventory
 	var helm = inv.slots[inv.find_first(&"raid_helm")] if inv.find_first(&"raid_helm") >= 0 else null
 	_check(helm != null and helm.count == 1 and helm.level == 60, "forged raid_helm x5000 L9999 loads as x1 L60")
-	_check(helm != null and helm.durability <= helm.max_durability and helm.max_durability <= 1000, "forged durability clamps to the item's ceiling")
+	_check(helm != null and helm.durability <= helm.max_durability and helm.max_durability == IS.make(&"raid_helm", 1, {}, 60).max_durability, "forged durability clamps to the item's ceiling")
 	var unknown := 0
 	var negative := 0
 	for s in inv.slots:
@@ -387,15 +387,15 @@ func _check_pen(label: String, keeps: bool) -> void:
 		return
 	var p = live[0]
 	var errs := errors.script_errors
-	var tamed: int = player.inventory.count_of(&"tamed_animal")
+	var tamed: int = player.bonded.size()
 	if p.occupant != null:
 		p.force_result = 1
 		p.running = true
 		p.remaining = 0.0
 		p._process(1.0)
-	var done: bool = player.inventory.count_of(&"tamed_animal") == tamed + 1 if keeps else p.occupant == null
-	_check(done and not p.running and errors.script_errors == errs, "hostile '%s': keeps animal=%s, the pen finishes without a script error (tamed +%d, running=%s, script_errors=%d)" % [label, keeps, player.inventory.count_of(&"tamed_animal") - tamed, p.running, errors.script_errors - errs])
-	print("[t_save] hostile '%s' pen kept_animal=%s tamed=+%d script_errors=%d" % [label, keeps, player.inventory.count_of(&"tamed_animal") - tamed, errors.script_errors - errs])
+	var done: bool = player.bonded.size() == tamed + 1 if keeps else p.occupant == null
+	_check(done and not p.running and errors.script_errors == errs, "hostile '%s': keeps animal=%s, the pen finishes without a script error (tamed +%d, running=%s, script_errors=%d)" % [label, keeps, player.bonded.size() - tamed, p.running, errors.script_errors - errs])
+	print("[t_save] hostile '%s' pen kept_animal=%s tamed=+%d script_errors=%d" % [label, keeps, player.bonded.size() - tamed, errors.script_errors - errs])
 
 ## A load that dies halfway (here: an unsanitized row handed straight to _apply) must leave saving
 ## refused, so the next autosave cannot write the half-built world over the good file. A later good
