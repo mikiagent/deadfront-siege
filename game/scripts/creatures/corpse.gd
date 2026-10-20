@@ -161,7 +161,7 @@ func _on_take_from_loot() -> void:
 	var left := _units()
 	var moved := left < _units_paid
 	_units_paid = left
-	var p := get_tree().get_first_node_in_group("player") as Player
+	var p := PlayerRegistry.local()
 	if moved and p and p.skills:
 		p.skills.add_xp("butchering", 3)
 	if _is_empty():

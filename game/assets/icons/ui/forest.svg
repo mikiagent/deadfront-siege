@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<!-- DEADFRONT UI icon "forest". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+<path d="M24 5 L36 21 H31 L40 33 H34 L44 47 H4 L14 33 H8 L17 21 H12 Z"/>
+<path d="M21 46 H27 V57 H21 Z"/>
+<path d="M46 20 L54 31 H51 L58 41 H54 L60 50 H33 L40 41 H38 L42 31 H39 Z" transform="translate(-2 0)"/>
+<path d="M42 49 H46 V57 H42 Z"/>
+</g>
+</svg>

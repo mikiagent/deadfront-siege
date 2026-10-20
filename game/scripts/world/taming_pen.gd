@@ -105,7 +105,7 @@ func _process(delta: float) -> void:
 	remaining -= delta * Game.time_scale
 	if remaining > 0.0:
 		return
-	var player := get_tree().get_first_node_in_group("player") as Player
+	var player := PlayerRegistry.local()
 	if player == null:
 		return  # stays finished-but-running until a survivor is around to receive it
 	var species := StringName(str(occupant.attributes.get("species", "velociraptor")))

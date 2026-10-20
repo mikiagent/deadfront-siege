@@ -313,4 +313,4 @@ static func _live_buildings() -> Array:
 	return out
 
 static func _player() -> Player:
-	return Engine.get_main_loop().root.get_tree().get_first_node_in_group("player") as Player
+	return PlayerRegistry.local()
