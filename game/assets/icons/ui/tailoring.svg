@@ -1,6 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
 <!-- DEADFRONT UI icon "tailoring". 64 grid, live area 6-58, line 5, round caps and joins, white only. -->
+<g transform="translate(0 3.5)">
 <g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
 <path fill-rule="evenodd" d="M22 6 L27 6 C28 10 30 12 32 12 C34 12 36 10 37 6 L42 6 L56 14 L51 25 L45 22 V50 L42 53 L38 50 L34 54 L30 50 L26 54 L22 50 L19 53 V22 L13 25 L8 14 Z M29.8 22 a2.2 2.2 0 1 0 4.4 0 a2.2 2.2 0 1 0 -4.4 0 Z M29.8 31 a2.2 2.2 0 1 0 4.4 0 a2.2 2.2 0 1 0 -4.4 0 Z M29.8 40 a2.2 2.2 0 1 0 4.4 0 a2.2 2.2 0 1 0 -4.4 0 Z"/>
+</g>
 </g>
 </svg>
