@@ -55,17 +55,15 @@ static func popup(p: Player, at: Vector3, lines: Array) -> Control:
 	var sz := box.get_combined_minimum_size()
 	box.size = sz
 	var a0 := cam.unproject_position(at)
-	var h := sz.y + RISE_PX
-	var cols: Array[Rect2] = [
-		Rect2(a0.x - sz.x * 0.5, a0.y - RING_CLEAR - h, sz.x, h),
-		Rect2(a0.x + RING_CLEAR, a0.y + sz.y * 0.5 - h, sz.x, h),
-		Rect2(a0.x - RING_CLEAR - sz.x, a0.y + sz.y * 0.5 - h, sz.x, h),
-	]
-	var off := _best_offset(cols, taken_rects(p, a0), a0, view)
-	if off == Vector2.INF:
-		# A phone's HUD band can leave no room above the node: nature-node pills give way for 1.4 s
-		# before the numbers go unseen (the ring, HUD, plates and radial never do).
-		off = _best_offset(cols, taken_rects(p, a0, false), a0, view)
+	# Roomiest first. A phone's HUD band can leave no room by the node: nature-node pills give way,
+	# then the stack holds still (no rise); the ring, HUD, plates and radial never give way.
+	var off := Vector2.INF
+	var rise := RISE_PX
+	for step in 3:
+		rise = RISE_PX if step < 2 else 0.0
+		off = _best_offset(_columns(a0, sz, sz.y + rise), taken_rects(p, a0, step == 0), a0, view)
+		if off != Vector2.INF:
+			break
 	if off == Vector2.INF:
 		# Like a world label with no free spot near its anchor: not drawn (the HUD toast and notice say it).
 		box.queue_free()
@@ -74,13 +72,21 @@ static func popup(p: Player, at: Vector3, lines: Array) -> Control:
 		if not is_instance_valid(cam) or not is_instance_valid(box):
 			return
 		box.visible = not cam.is_position_behind(at)
-		box.position = cam.unproject_position(at) + off + Vector2(0.0, RISE_PX * (1.0 - t))
+		box.position = cam.unproject_position(at) + off + Vector2(0.0, rise * (1.0 - t))
 	follow.call(0.0)
 	var tw := box.create_tween()
 	tw.tween_method(follow, 0.0, 1.0, LIFE).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(box, "modulate:a", 0.0, LIFE * 0.45).set_delay(LIFE * 0.55)
 	tw.tween_callback(box.queue_free)
 	return box
+
+## Where a stack of size `sz` rising `h` px may sit: above the ring, else right or left of it.
+static func _columns(a0: Vector2, sz: Vector2, h: float) -> Array[Rect2]:
+	return [
+		Rect2(a0.x - sz.x * 0.5, a0.y - RING_CLEAR - h, sz.x, h),
+		Rect2(a0.x + RING_CLEAR, a0.y + sz.y * 0.5 - h, sz.x, h),
+		Rect2(a0.x - RING_CLEAR - sz.x, a0.y + sz.y * 0.5 - h, sz.x, h),
+	]
 
 ## The offset from the anchor to the free column spot nudged least (at most MAX_SHIFT), or INF.
 static func _best_offset(cols: Array[Rect2], taken: Array[Rect2], a0: Vector2, view: Vector2) -> Vector2:
