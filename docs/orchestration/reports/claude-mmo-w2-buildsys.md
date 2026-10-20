@@ -1,9 +1,26 @@
 # W2-BUILDSYS: ARK-style modular building with structure HP, tiers and repair
 
-Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last at e2320ec8, base tip 6e26ef2a:
+Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last to base tip dd7ff218:
 docs only since 1c89134a, which brought W2-OCCLUDE, W1-UIICONS and DSC-CAMP). Review r1 stopped before any run.
 Closes build-struct-01, build-def-01, build-tier-01, build-place-02, phys-wall-01, build-storage-01 (chest and
 large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
+
+## Review r1 fixes (2026-10-20, finish-6)
+
+- **Blocker, t_save.gd edited on the branch**: reverted on the branch (080cb796); the same 3-line hunk is now
+  hook 5 in the patch. `git apply --cached --check` of the whole patch on claude/mmo-overhaul dd7ff218 (through a
+  throwaway index): `APPLY CHECK OK on dd7ff218`. Rerun, scratch tree at 080cb796 with hooks 1-3 and 5 applied:
+  `[t_save] round trip save_v3_golden.json fields=23 diffs=0`, `[t_save] PASS`, 5 SCRIPT ERROR (the deliberate
+  ones), exit 0; no new `.ips` (newest still 2026-10-20-131531). The check that catches this: compare
+  `git diff --name-only claude/mmo-overhaul...HEAD` with the plan-register Owns list. It now lists only owned
+  files, new files extracted from them (structure_*, loot_bag, snap_touch), and this report, its patch and the
+  r1 findings.
+- **Minor, large box 160 flat**: left as is, as the finding allows, until W2-CONSTRUCT adds
+  `base_capacity_at_level`. It stays marked `# ASSUMPTION` (see Assumptions).
+- **Minor, chest grid below the fold at 844x390; no card for floors/stairs/ramps**: no change, as the finding
+  says. Listed under Limits for W2-SCREENS / W1-UI.
+- Base merged (dd7ff218: spec 13 and STATUS, docs only). No game code changed, so no other gate or pixel run was
+  repeated.
 
 ## Contents-never-lost pass (2026-10-20 evening, finish-6)
 
@@ -46,7 +63,8 @@ large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
   `FAIL a foundation ghost aimed at a tree is never valid on its module (try 1: )`, `FAIL no piece stands on the
   tree's module (foundation (-14, -9, 0, 0))` and `FAIL the upgrade took exactly its 8 stone (left 8)`.
 - **Hook 4**: the base has no lab registry (no tools/labs.txt; main.gd loads `res://scenes/dev/<lab>.tscn` by
-  name), so there is nothing to register: run it as `--lab=snap_build_lab`. The patch holds hooks 1-3, unchanged.
+  name), so there is nothing to register: run it as `--lab=snap_build_lab`. The patch holds hooks 1-3 (and hook 5
+  since review r1).
 
 ### Gates (this pass; scratch tree at 2c993dda, then 8d4e2ed1, hooks 1-3 applied, lines seen)
 
@@ -258,8 +276,8 @@ too. The hooked tree passed the whole suite and --snap-touch (below).
    (headless `[snap] PASS`; `--shot=<png>` frames the house, `--snap-inside` puts the survivor inside,
    `--snap-ghost` stages a ghost; `--snap-touch` runs the touch loop and needs hooks 1-2, `--snap-shots=<stem>`
    saves a PNG per touch step).
-5. **Already done here, outside the owned list** (first pass): `game/tests/t_save.gd` skips `/schema` in the v3
-   golden comparison and checks the re-save is at the current schema. Revert only with the schema bump.
+5. **W1 save, `game/tests/t_save.gd`** (+3 -1, in the patch since review r1): skips `/schema` in the v3 golden
+   comparison and checks the re-save is at the current schema. Needed by the schema-4 bump in save_game.gd.
 6. **W2-OCCLUDE**: nothing to change; the adapter (`StructurePiece._occlusion`) works against the merged
    `Occlusion.make_occludable(node, "between"|"inside")` / `release`.
 
