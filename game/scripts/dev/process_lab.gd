@@ -6,7 +6,8 @@ extends Node3D
 ## the Warming Meal. Shift-tap pack-up refuses while the rack is loaded.
 ## Prints "[process_lab] PASS" or exits 1.
 ## Windowed: --lab=process_lab --shot=<png> [--proc=0|50|100] [--proc-view=rack|smoker|crock_pot|steamer|all]
-## sets every station's jobs to that progress and frames one station or the whole row.
+## [--open-menu=1] sets every station's jobs to that progress and frames one station or the whole row
+## (with its hex menu open).
 
 var _player: Player
 var _cam: IsoCamera
@@ -86,6 +87,10 @@ func _shot_setup() -> void:
 	_cam.size = _cam.default_size if view == "all" else _cam.min_size  # the game's own zoom range, closest for one station
 	_cam._snap()
 	var tps := ProcessStation.of(target)
+	if _arg("open-menu", "") == "1":  # the station's hex menu (COLLECT / CRAFT) open, as a tap does
+		_player.global_position = target.global_position + Vector3(1.2, 0, 0.8)
+		await get_tree().process_frame
+		_player.station_craft.open_station_menu(target)
 	get_tree().create_timer(4.0).timeout.connect(_check_labels.bind("shot %s %d%%" % [view, int(pct * 100.0)]))
 	print("[process_lab] shot ready proc=%d%% view=%s stage=%s label='%s' fx=%s" % [
 		int(pct * 100.0), view, tps.stage_id(), tps.label_text(),
