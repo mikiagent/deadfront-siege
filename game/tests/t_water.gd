@@ -261,6 +261,7 @@ func _test_drink(bank: Vector3) -> void:
 	player.statuses.apply(&"thirsty")
 	_expect(player.statuses.has(&"thirsty"), "Thirsty is a status in statuses.json")
 	player.vitals.energy = 50.0
+	player.vitals._stamina_lock = 60.0  # SAVEFIX: Energy's slow auto-recovery (rules.json) must not race the 50.0 check
 	player.context_action("drink")
 	_expect(not player.statuses.has(&"thirsty") and player.statuses.has(&"quenched"), "Drink clears Thirsty and grants Quenched %s" % [_status_ids()])
 	_expect(is_equal_approx(player.vitals.energy, 50.0), "Drink gives no Energy (food fills Energy, PRD 6.2; was +5): %.1f" % player.vitals.energy)

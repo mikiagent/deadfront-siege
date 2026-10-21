@@ -64,6 +64,7 @@
     "climate_per_min": 4.0,
     "breakdown_window_s": 180.0
   },
+  "energy_regen_per_s": 1.0,
   "gathering_downrank": "node level above Gathering skill level is reduced to the skill level",
   "crafted_level": "floor(mean of consumed material levels), clamped by governing skill level and recipe max_level",
   "rare_attribute_chance": 0.05,

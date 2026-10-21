@@ -72,22 +72,25 @@ func _test_autosave_gate() -> void:
 	W.player_name = ""
 	W.occupation = ""
 	W.home_terrain = &""
+	W.home_terrain = &""
 	W.set("creation_pending", true)
 	_wipe_saves()
 	W._save_acc = 0.0
 	W._process(61.0)
 	_expect(W.last_save_unix == 0 and not SG.exists(), "the autosave timer writes nothing while creation is open")
-	# Finishing creation alone is not enough: the island pick is still open.
-	W.set("creation_pending", false)
+	_expect(not SG.save_now() and not SG.exists(), "a save asked for during creation is refused too")
+	# The terrain pick is still open: same gate.
 	W._save_acc = 0.0
 	W._process(61.0)
 	_expect(not SG.exists(), "the autosave timer writes nothing while the first island pick is open")
-	# Both done on the home island: the timer saves again (it is not off for good).
+	# Both done on the home island: the timer ticks again and a save is allowed (it is not off for good).
 	W.home_terrain = &"meadow"
-	_expect(not W.get("creation_pending") == true, "creation + first island pick finished => saving allowed")
+	var p: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	host.add_child(p)
+	W.finish_creation()
 	W._save_acc = 0.0
-	W._process(0.1)
-	_expect(W._save_acc > 0.0, "the autosave timer runs again after creation")
+	W._process(61.0)
+	_expect(W.last_save_unix > 0 and SG.exists(), "after creation + island pick the autosave writes the world")
 
 # ---------------------------------------------------------------- 1b. a pre-creation save loads into creation
 
@@ -246,7 +249,7 @@ func _test_max_health() -> void:
 	player.statuses.apply(&"infected_wound")
 	var hurt: float = v.effective_max_health()
 	_expect(hurt < before_save, "Infected Wound lowers max HP (%.1f -> %.1f)" % [before_save, hurt])
-	_expect(player.statuses.max_health_note().contains("Max HP"), "the HUD has a line that explains the max-HP change: '%s'" % player.statuses.max_health_note())
+	_expect(player.statuses.max_health_note().contains("max HP"), "the HUD has a line that explains the max-HP change: '%s'" % player.statuses.max_health_note())
 	player.statuses.from_array([])
 	_expect(is_equal_approx(v.effective_max_health(), before_save), "curing it gives the max back (%.1f)" % v.effective_max_health())
 	_expect(player.statuses.max_health_note() == "", "no note when nothing changes max HP")
@@ -290,9 +293,9 @@ func _test_walking() -> void:
 	var e0: float = v.energy
 	var walked := 0
 	Input.action_press(&"move_right")
-	print("[t_savefix] debug tick=%d walk start pos=%s dead=%s in_water=%s vel=%s floor=%s anim_busy=%s" % [player.global_position, player.dead, player.in_water, player.velocity, player.is_on_floor(), player.anim._busy if player.anim else "no anim"])
-	Input.action_press(&"move_right")
 	var t := 0.0
+	# The survivor walks on flat harbour ground: no climate charge (home is grass with no resist), no
+	# level gap, no wetness. Only the walk rate and the energy rules are measured.
 	while t < SAMPLE_S:
 		# Keep the level gap out of the run: the island sets it each frame from the ring.
 		v.level_gap_mult = 1.0
@@ -311,16 +314,56 @@ func _test_walking() -> void:
 		t, fat_rate * 60.0, energy_rate * 60.0, Vector2(player.velocity.x, player.velocity.z).length(), walked])
 	print("[t_savefix] 10 min walk: fatigue=%.1f (%.0f%%, %s) energy=%.1f/%.0f (from %.0f/%.0f)" % [
 		proj_fatigue, strain * 100.0, _stage(proj_fatigue), proj_energy, v.max_energy, f0, e0])
-	v.fatigue = proj_fatigue
-	v.energy = proj_energy
-	# Docs (spec 01): 0-24 rested, 25-49 slightly tired, 50-74 tired, 75+ exhausted. Walking must
-	# not reach TIRED inside ten minutes; the HUD shows the same word.
-	_expect(v.fatigue < 25.0, "ten minutes of walking stays below TIRED (<25): %.1f" % v.fatigue)
-	_expect(_stage(v.fatigue) == "RESTED", "the HUD's word after ten minutes is RESTED (%s)" % _stage(v.fatigue))
-	_expect(v.energy < v.max_energy, "walking does not refill Energy to full (%.1f/%.0f)" % [v.energy, v.max_energy])
+	# Docs (spec 01): 0-24 rested, 25-49 slightly tired, 50-74 tired, 75-99 exhausted. Ten minutes
+	# of walking must not reach the docs' "tired" (50) and the HUD must show the docs' word.
+	_expect(proj_fatigue < 50.0, "ten minutes of walking stays below tired (<50): %.1f" % proj_fatigue)
+	_expect(_stage(proj_fatigue) != "TIRED" and _stage(proj_fatigue) != "EXHAUSTED", "the HUD's word after ten minutes is at most SLIGHTLY TIRED (%s)" % _stage(proj_fatigue))
+	# PRD 6.2: Energy is spent on gathering, crafting, combat skills and sprinting — walking is not
+	# one of them, so a walk neither drains the bar (the old tap-jog drained 3/s) nor tops it up.
+	_expect(is_equal_approx(proj_energy, e0), "walking leaves Energy alone (%.1f -> %.1f)" % [e0, proj_energy])
+	# A held sprint does spend Energy, and it comes back slowly afterwards (rules.json), not at 16/s.
+	v.energy = v.max_energy
+	v._stamina_lock = 0.0
+	Input.action_press(&"move_right")
+	Input.action_press(&"sprint")
+	var s0: float = v.energy
+	var sprint_t := 0.0
+	while sprint_t < 3.0:
+		await physics_frame
+		sprint_t += 1.0 / float(Engine.physics_ticks_per_second)
+	Input.action_release(&"sprint")
+	Input.action_release(&"move_right")
+	var sprint_rate: float = (s0 - v.energy) / sprint_t
+	print("[t_savefix] sprint 3 s: energy %.0f -> %.0f (%.1f/s)" % [s0, v.energy, sprint_rate])
+	_expect(sprint_rate > 5.0, "a held sprint spends Energy fast (%.1f/s, the old tap-jog was 3/s and the regen 16/s)" % sprint_rate)
+	# Standing still: the auto-recovery the owner asked for (it works in combat too), at the data rate.
+	# The call is the game's own (Vitals._process); the live frame is held off for the sample.
+	v.set_process(false)  # the live frame must not move the bar under the one-second sample
+	v.moving = false      # PlayerSim sets this every frame; standing still is what is sampled here
+	v.energy = 40.0
+	v._stamina_lock = 0.0
+	var e1: float = v.energy
+	v._process(1.0)
+	var regen: float = v.energy - e1
+	v.set_process(true)
+	var want_regen: float = float((get_root().get_node("Data").world_rules as Dictionary).get("energy_regen_per_s", 1.0))
+	print("[t_savefix] standing 1 s: energy %.1f -> %.1f (%.2f/s, rules.json %.2f/s)" % [e1, v.energy, regen, want_regen])
+	_expect(regen > 0.0 and absf(regen - want_regen) < 0.4, "standing still recovers Energy slowly (%.2f/s vs %.2f/s; the old calm regen was 16/s)" % [regen, want_regen])
+	# In combat too (owner note on spec 25): the same slow trickle, not zero.
+	v.in_combat = true
+	v.energy = 40.0
+	v._stamina_lock = 0.0
+	var c1: float = v.energy
+	v._process(1.0)
+	var combat_regen: float = v.energy - c1
+	v.in_combat = false
+	print("[t_savefix] in combat 1 s: energy %.1f -> %.1f (%.2f/s)" % [c1, v.energy, combat_regen])
+	v.set_process(false)
+	_expect(combat_regen > 0.0, "Energy also recovers slowly in combat (%.2f/s; owner note, Durango always recovers)" % combat_regen)
+	v.set_process(true)
 	game.set_process(true)
 
 ## The HUD's own word for a strain (HuntHud._draw vitals), kept in step by hand.
 func _stage(fatigue: float) -> String:
 	var strain := clampf(fatigue / 100.0, 0.0, 1.0)
-	return "RESTED" if strain < 0.25 else ("TIRED" if strain < 0.5 else ("WEARY" if strain < 0.75 else "EXHAUSTED"))
+	return "RESTED" if strain < 0.25 else ("SLIGHTLY TIRED" if strain < 0.5 else ("TIRED" if strain < 0.75 else "EXHAUSTED"))

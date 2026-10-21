@@ -51,6 +51,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			show_pause()
 		get_viewport().set_input_as_handled()
 
+## Defect-1 saves wrote the world before the pick: the terrain is their default "meadow", picked by
+## nobody. Hands the layer back with a fresh pick when the survivor was created this session.
+func reopen_terrain_if_unpicked() -> void:
+	if World.creation_pending and _mode == &"":
+		show_terrain()
+
 func hide_all() -> void:
 	_mode = &""
 	_panel.visible = false
@@ -119,6 +125,7 @@ func _choose_terrain(id: StringName) -> void:
 	var host: Node = World.runtime.get_parent() if World.runtime else get_tree().current_scene
 	var harbour: Array = World.island_def.get("harbour", [0, 0, 18])
 	World.load_island(host, &"home_grassland", Vector3(float(harbour[0]), 1.0, float(harbour[2])), false)
+	World.finish_creation()  # creation and the pick are done: saving starts here
 	(load("res://scripts/core/save_game.gd") as GDScript).save_now()
 	hide_all()
 	_show_arrival(host)

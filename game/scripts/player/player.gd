@@ -323,6 +323,9 @@ func refresh_equipment_vitals() -> void:
 	if vitals and inventory:
 		vitals.equipment_health_bonus = inventory.equipped_health_bonus()
 		vitals.health = minf(vitals.health, vitals.effective_max_health())
+		# Energy's auto-recovery rate is data (rules.json; PRD 6.2: it recovers slowly, also in combat).
+		vitals.energy_regen = float(Data.world_rules.get("energy_regen_per_s", vitals.energy_regen))
+		vitals.energy_regen_combat = vitals.energy_regen
 
 func receive_creature_hit(who: Creature, _clip: StringName) -> void:
 	_last_hit_taken_s = Time.get_ticks_msec() * 0.001
@@ -387,8 +390,7 @@ func respawn() -> void:
 	dead = false
 	downed_by = ""
 	if statuses:
-		for inst in statuses.instances().duplicate():
-			statuses.clear_id(inst.id)
+		statuses.clear_all()  # also gives back what a status took off max HP (SAVEFIX)
 	vitals.revive(0.5)
 	var at := global_position
 	if World.runtime and World.runtime.get("_camp_pos") != null:

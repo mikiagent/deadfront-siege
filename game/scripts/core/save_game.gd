@@ -45,10 +45,27 @@ static func _raw_run_name(user_args: PackedStringArray, args: PackedStringArray)
 		return args[i + 1].get_file().get_basename()
 	return ""
 
+## True when the save on disk was written before a survivor existed: no name or no occupation, which
+## only the pre-creation autosave (and saves older than character creation) leave empty.
+static func is_precreation(data: Dictionary) -> bool:
+	return str(data.get("player_name", "")).strip_edges() == "" or str(data.get("occupation", "")) == ""
+
+static func has_precreation_save() -> bool:
+	for path_try in [path, path + ".bak"]:
+		var r := SaveMigrations.read(path_try)
+		if r.has("data") and is_precreation(r["data"] as Dictionary):
+			return true
+	return false
+
 static func exists() -> bool:
 	return FileAccess.file_exists(path) or FileAccess.file_exists(path + ".bak")
 
 static func save_now() -> bool:
+	# Never before character creation and the first island pick: such a save would skip both on the
+	# next launch and load a default survivor (playtest 2026-10-21).
+	if World.creation_pending:
+		print("[save] deferred: character creation has not finished")
+		return false
 	var buildings := _live_buildings()
 	# Before any refusal: World.travel rebuilds the home camp from this cache after saving, so a
 	# refused save must still record what was built this session.

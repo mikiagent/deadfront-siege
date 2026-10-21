@@ -676,8 +676,9 @@ func _on_level_up(stored: int) -> void:
 		print("[world] pioneer level %d" % level)
 	var per: Dictionary = _level_gains.get("per_level", {})
 	if player and player.vitals:
-		player.vitals.max_health += float(per.get("max_health", 0))
-		player.vitals.max_energy += float(per.get("max_energy", 0))
+		# Through Vitals, which remembers the level part in the save: added straight to max_health
+		# (the old way) the next status sync erased it and a reload never brought it back.
+		player.vitals.grant_level_bonus(float(per.get("max_health", 0)), float(per.get("max_energy", 0)))
 	var stats: Array = _level_gains.get("display_stats", [])
 	var gain := int(_level_gains.get("display_gain", 5))
 	var bonus := int(_level_gains.get("bonus_stat_gain", 6))
@@ -1012,7 +1013,9 @@ func _draw() -> void:
 	var strain: float = clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0)
 	var face_pos := Vector2(x + 11.0, yy + 10.0)
 	_draw_exhaustion_face(face_pos, strain)
-	var face_label := "RESTED" if strain < 0.25 else ("TIRED" if strain < 0.5 else ("WEARY" if strain < 0.75 else "EXHAUSTED"))
+	# The words follow spec 01's fatigue scale (0-24 rested, 25-49 slightly tired, 50-74 tired,
+	# 75-99 exhausted); the playtest read "TIRED" a few minutes into a walk and it was 25 %.
+	var face_label := "RESTED" if strain < 0.25 else ("SLIGHTLY TIRED" if strain < 0.5 else ("TIRED" if strain < 0.75 else "EXHAUSTED"))
 	var face_col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
 	draw_string(_font, Vector2(x + 27.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, bar_w - 30.0, bar_px, face_col)
 	yy += 22.0
@@ -1037,6 +1040,13 @@ func _draw() -> void:
 			sx += 30
 		if sx > sx0:
 			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - 4.0, 44.0)
+		# SAVEFIX: a status that lowers max HP says so under its chip (the number alone was a mystery).
+		var hp_note: String = player.statuses.max_health_note()
+		if hp_note != "":
+			var ny := sy + 46.0
+			var nw := _font.get_string_size(hp_note, HORIZONTAL_ALIGNMENT_LEFT, -1, bar_px).x
+			draw_string(_font, Vector2(sx0, ny), hp_note, HORIZONTAL_ALIGNMENT_LEFT, -1, bar_px, Color(0.96, 0.62, 0.42))
+			drawn_blocks["status_maxhp"] = Rect2(sx0, ny - bar_px, nw, bar_px + 4.0)
 	var mp := _minimap.position
 	var top := "Home" if World.is_home() else ("Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0)))
 	if World.island_id == &"":

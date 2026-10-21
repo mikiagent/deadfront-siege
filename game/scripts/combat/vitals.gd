@@ -1,12 +1,20 @@
 class_name Vitals
 extends Node
 ## Player Health / Energy / Exhaustion. Food eases exhaustion; sleep clears it.
+## Two owners for max health: level bonuses (level_health, saved) and statuses (max_health_mult, e.g.
+## Infected Wound). max_health holds 100 + level_health x the status product, and StatusEffects
+## recomputes it here — before this, a status sync overwrote the level bonus with a flat 100.
 
 signal exhausted_changed(on: bool)
 signal damaged
 signal died
 
 var max_health: float = 100.0
+## Max HP from Pioneer levels (pioneer_levels.json per_level.max_health each). Saved: it is the
+## survivor's own progression, not a derived number like gear.
+var level_health: float = 0.0
+## Max Energy from Pioneer levels; saved with level_health.
+var level_energy: float = 0.0
 var equipment_health_bonus: float = 0.0 ## derived, never saved; equipping does not heal
 var health: float = 100.0
 var max_energy: float = 100.0
@@ -18,6 +26,9 @@ var exhausted: bool = false
 var dead: bool = false
 var blocks_regen: bool = false
 var fatigue_gain_mult: float = 1.0
+## Set by PlayerSim while walking: the survivor is moving, so the Energy auto-recovery trickle
+## pauses (PRD 6.2: Energy comes back by eating and slowly; a walk should not refill it).
+var moving: bool = false
 var fatigue_log: Dictionary = {}
 ## Island level versus survivor level, set by the island each frame (ProgressionScaling.fatigue_level_factor).
 ## Applies to every gain except the baseline clock, so over-levelled ground tires you faster.
@@ -48,7 +59,12 @@ var in_combat: bool = false
 var _stamina_lock: float = 0.0
 const REGEN_LOCK_S := 6.0
 var _regen_lock: float = 0.0
-@export var energy_regen: float = 2.0
+## Energy auto-recovery per second while out of combat. PRD 6.2: Energy is restored by eating and
+## "slowly auto-recovers" (it also recovers in combat, owner note on spec 25). The value lives in
+## data/world/rules.json (energy_regen_per_s); this is its fallback.
+@export var energy_regen: float = 1.0
+## Energy recovery in combat: the same slow trickle (owner note: Durango's Energy always recovers).
+@export var energy_regen_combat: float = 1.0
 
 func _process(delta: float) -> void:
 	if dead:
@@ -59,8 +75,8 @@ func _process(delta: float) -> void:
 		health = minf(effective_max_health(), health + health_regen * delta)
 	_stamina_lock = maxf(0.0, _stamina_lock - delta)
 	var stam_cap := max_energy * stamina_cap_mult()
-	if _stamina_lock <= 0.0:
-		energy = minf(stam_cap, energy + (STAMINA_REGEN_COMBAT if in_combat else STAMINA_REGEN_CALM) * stamina_regen_mult() * delta)
+	if _stamina_lock <= 0.0 and not moving:
+		energy = minf(stam_cap, energy + (energy_regen_combat if in_combat else energy_regen) * stamina_regen_mult() * delta)
 	energy = minf(energy, stam_cap)
 	_sync_exhausted()
 
@@ -80,6 +96,14 @@ func _sync_exhausted() -> void:
 
 func effective_max_health() -> float:
 	return max_health + equipment_health_bonus
+
+## A Pioneer level's stat gain (HuntHud._on_level_up used to add to max_health directly, where the
+## next status sync erased it and nothing saved it).
+func grant_level_bonus(hp_gain: float, energy_gain: float) -> void:
+	level_health += hp_gain
+	level_energy += energy_gain
+	max_health += hp_gain
+	max_energy += energy_gain
 
 func take_damage(amount: float) -> void:
 	if dead:
@@ -160,6 +184,8 @@ func to_dict() -> Dictionary:
 		"max_health": max_health,
 		"max_energy": max_energy,
 		"max_fatigue": max_fatigue,
+		"level_health": level_health,
+		"level_energy": level_energy,
 	}
 
 func from_dict(d: Dictionary) -> void:
@@ -169,6 +195,10 @@ func from_dict(d: Dictionary) -> void:
 	max_health = float(d.get("max_health", max_health))
 	max_energy = float(d.get("max_energy", max_energy))
 	max_fatigue = float(d.get("max_fatigue", max_fatigue))
+	# Old saves predate level_health: every max above the base 100 is what the levels paid.
+	# (Trait drops and gear were never in max_health, so the rest is the level bonus.)
+	level_health = float(d.get("level_health", maxf(0.0, max_health - 100.0)))
+	level_energy = float(d.get("level_energy", maxf(0.0, max_energy - 100.0)))
 	fatigue = clampf(fatigue, 0.0, max_fatigue)
 	_sync_exhausted()
 
