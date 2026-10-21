@@ -2,9 +2,10 @@ extends SceneTree
 ## COMBATFX (spec 24, owner correction 2026-10-21): every hit shows a small number at the struck
 ## creature or the survivor. It pops in, then expands while it fades out and floats up. Sizes climb
 ## normal < big hit < crit; white is damage dealt, gold your crit, red damage taken (survivor or pet),
-## green a heal, grey a dodge. Melee, ranged and creature-on-survivor hits all reach it; quick hits
-## never overlap; numbers stay whole on screen, move smoothly and clean up. The old code has no
-## CombatFx and no crit or big-hit sizing, so this fails there.
+## green a heal, grey a dodge. Melee, ranged, creature-on-survivor and DoT hits all reach it; quick
+## hits never overlap, on one target, at a screen edge or across close targets; numbers stay whole on
+## screen, move smoothly and clean up. The old code has no CombatFx and no crit or big-hit sizing, so
+## this fails there.
 ## Usage: godot --headless --path game --script res://tests/t_combatfx.gd
 
 const DT := 1.0 / 60.0
@@ -85,9 +86,14 @@ func _run() -> void:
 	_test_taken(raptor)
 	_test_heal_and_pet(stego, raptor)
 	await _test_status_tick(raptor)
+	await _test_survivor_dot()
+	await _test_mounted()
 	_test_motion()
 	_test_integrated_motion()
 	_test_no_overlap()
+	_test_words()
+	_test_edge_lanes()
+	_test_close_targets()
 	_test_edges()
 	_test_hud_floor()
 	_test_cleanup()
@@ -253,6 +259,58 @@ func _test_status_tick(raptor) -> void:
 	_expect(not ticks.is_empty() and ticks.all(func (k: String) -> bool: return k == "dot:small"), "each bleed tick is one small number (%s)" % [ticks])
 	raptor.statuses.clear_id(&"bleeding_target")
 
+## Damage the survivor takes from a DoT (deep bleed, 0.5 HP a tick) and the bonfire's cauterise shows
+## red over the survivor, like a bite (the old code showed none).
+func _test_survivor_dot() -> void:
+	player.vitals.max_health = 100.0
+	player.vitals.health = 100.0
+	fx.floats.clear()
+	player.statuses.apply(&"deep_bleed")
+	var until := Time.get_ticks_msec() + 1200  # wall clock: two 0.5 s ticks
+	while Time.get_ticks_msec() < until:
+		await process_frame
+	var tick := _last_on(player)
+	_expect(str(tick.get("kind", "")) == "dot" and str(tick.get("tier", "")) == "small" and _is(tick.get("color", Color.BLACK), "#ff4a3a"), "a deep-bleed tick on the survivor shows a small red number (%s %s)" % [tick.get("kind", "none"), tick.get("text", "")])
+	var fire = load("res://scripts/world/bonfire.gd").make(&"bonfire")
+	host.add_child(fire)
+	fx.floats.clear()
+	fire.cauterise(player)
+	var burn := _last_on(player)
+	_expect(str(burn.get("text", "")) == "5" and _is(burn.get("color", Color.BLACK), "#ff4a3a"), "the bonfire's cauterise shows a red 5 (%s)" % burn.get("text", "none"))
+	fire.free()
+	player.statuses.clear_id(&"deep_bleed")
+	fx.floats.clear()
+
+## Mounted, the survivor's body sits on the mount's root and the rig rides the saddle: the survivor's
+## number goes over the rider, not 2 m over the mount's origin.
+func _test_mounted() -> void:
+	var def = get_root().get_node("Data").creature(&"tyrannosaurus")
+	var rec = load("res://scripts/pets/pet_record.gd").from_def(def, &"A")
+	var rex = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
+	host.add_child(rex)
+	rex.is_pet = true
+	rex.pet_record = rec
+	rex.spawn(def, rec.variant)
+	rex.brain.process_mode = Node.PROCESS_MODE_DISABLED
+	rex.global_position = player.global_position + Vector3(6, 0, 0)
+	for i in 3:
+		await process_frame
+	player.mount(rex)
+	for i in 3:
+		await process_frame
+	fx.add_number(player, 12.0, &"hit")
+	var f := _last_on(player)
+	var rider: float = player.rig.global_position.y
+	var at: Vector3 = f.get("at", Vector3.ZERO)
+	_expect(player.mounted_on == rex and rider > rex.global_position.y + 1.0 and absf(at.y - rider - fx.num("player_anchor_m", 2.0)) < 0.05,
+		"a mounted survivor's number sits over the rider (%.1f m; rider %.1f m, mount root %.1f m)" % [at.y, rider, rex.global_position.y])
+	fx.add_number(rex, 9.0, &"hit")
+	var both: Array[Rect2] = [fx.screen_rect(f, cam), fx.screen_rect(_last_on(rex), cam)]
+	_expect(not both[0].intersects(both[1]), "the rider's number and the mount's own number sit apart")
+	player.dismount()
+	rex.free()
+	fx.floats.clear()
+
 ## The motion the owner described: a quick pop, then expand outward while dissipating, floating up
 ## about one number-height, eased out, with no jumps.
 func _test_motion() -> void:
@@ -326,42 +384,60 @@ func _test_integrated_motion() -> void:
 	_expect(x_drift < 0.01 and y_back == 0 and h_back == 0, "over the frame sequence it stays centred (x drift %.3f px), only rises (%d dips) and only grows (%d shrinks)" % [x_drift, y_back, h_back])
 	dummy.free()
 
-## Ten hits a second (one crit in five) on one target for 1.5 s: at no frame do two readable numbers overlap.
-func _test_no_overlap() -> void:
-	var dummy := Node3D.new()
-	host.add_child(dummy)
-	dummy.global_position = Vector3(0, 0, 0)
-	var t := 0.0
-	var next := 0.0
-	var n := 0
-	var worst := 0
-	var live_max := 0
+## Hits on `anchors` (`rate` a second in all, round-robin, one crit in five) for `secs`, stepped at 60 fps.
+## Returns the worst frame's overlapping pairs of readable numbers (any targets), frames with a
+## number not whole on screen, the most readable at once, the furthest lane (px and own widths) and
+## the slowest spawn.
+func _flurry(anchors: Array, secs: float, rate: float = 10.0) -> Dictionary:
 	var vis: float = fx.num("visible_alpha", 0.3)
-	var spawn_us := 0
-	var furthest := 0.0
-	var furthest_px := 0.0
-	while t < 1.5:
-		if t >= next:
+	var screen := Rect2(Vector2.ZERO, fx.get_viewport_rect().size)
+	var out := {"worst": 0, "clipped": 0, "live_max": 0, "furthest_px": 0.0, "furthest_w": 0.0, "spawn_us": 0}
+	var t := 0.0
+	var n := 0
+	var next := 0.0
+	while t < secs:
+		while t >= next:
+			var who: Node3D = anchors[n % anchors.size()]
 			var t0 := Time.get_ticks_usec()
-			fx.add_number(dummy, 10.0 + n * 7, &"crit" if n % 5 == 0 else &"hit")
-			spawn_us = maxi(spawn_us, Time.get_ticks_usec() - t0)
-			furthest = maxf(furthest, absf(float(fx.floats[-1]["lane"])) / float(fx.floats[-1]["w"]))
-			furthest_px = maxf(furthest_px, absf(float(fx.floats[-1]["lane"])))
+			fx.add_number(who, 10.0 + n * 7, &"crit" if n % (anchors.size() * 5) < anchors.size() else &"hit")
+			out["spawn_us"] = maxi(out["spawn_us"], Time.get_ticks_usec() - t0)
+			var f: Dictionary = fx.floats[-1]
+			out["furthest_px"] = maxf(out["furthest_px"], absf(float(f["lane"])))
+			out["furthest_w"] = maxf(out["furthest_w"], absf(float(f["lane"])) / float(f["w"]))
 			n += 1
-			next += 0.1
+			next += 1.0 / rate
 		var rects: Array[Rect2] = []
 		for f in fx.floats:
-			if int(f["target"]) == dummy.get_instance_id() and fx.alpha_at(f, float(f["age"])) >= vis:
+			if fx.alpha_at(f, float(f["age"])) >= vis:
 				rects.append(fx.screen_rect(f, cam))
-		live_max = maxi(live_max, rects.size())
+		out["live_max"] = maxi(out["live_max"], rects.size())
 		var overlaps := 0
 		for i in rects.size():
+			out["clipped"] += 0 if screen.encloses(rects[i]) else 1
 			for j in range(i + 1, rects.size()):
 				overlaps += 1 if rects[i].grow(-1.0).intersects(rects[j].grow(-1.0)) else 0
-
-		worst = maxi(worst, overlaps)
+		out["worst"] = maxi(out["worst"], overlaps)
 		fx._process(DT)
 		t += DT
+	_drain()
+	return out
+
+## A Node3D whose damage number spawns at canvas point `p` (the number sits 1 m over the node).
+func _dummy_at(p: Vector2) -> Node3D:
+	var d := Node3D.new()
+	host.add_child(d)
+	d.global_position = cam.project_position(p, 20.0) - Vector3.UP
+	return d
+
+## Ten hits a second (one crit in five) on one target for 1.5 s: at no frame do two readable numbers overlap.
+func _test_no_overlap() -> void:
+	var dummy := _dummy_at(fx.get_viewport_rect().size * 0.5)
+	var r := _flurry([dummy], 1.5)
+	_expect(r["worst"] == 0, "10 hits/s for 1.5 s: no two readable numbers overlap (worst frame %d, up to %d readable at once)" % [r["worst"], r["live_max"]])
+	_expect(r["spawn_us"] < 2000, "placing a number costs at most %d us" % r["spawn_us"])
+	# 5.5 widths: pad_px went 3 -> 6 for the phone (review round 1), which moved the furthest from 4.6 to 5.1.
+	_expect(r["furthest_w"] <= 5.5, "the offsets stay small: the furthest number sits %.1f of its widths (%.0f px) beside the anchor" % [r["furthest_w"], r["furthest_px"]])
+	dummy.free()
 	var both := Node3D.new()
 	host.add_child(both)
 	fx.add_number(both, 34.0, &"crit")
@@ -371,13 +447,53 @@ func _test_no_overlap() -> void:
 	for i in 40:
 		fx._process(DT)
 		met += 1 if pair.size() == 2 and fx.screen_rect(pair[0], cam).intersects(fx.screen_rect(pair[1], cam)) else 0
-	_expect(pair.size() == 2 and met == 0, "a crit and its status word in the same frame sit apart (%d frames overlapping)" % met)
+	_expect(pair.size() == 2 and met == 0, "a crit and its status word in the same frame sit apart (%d frames overlapping, word %.0f px beside)" % [met, float(pair[-1]["lane"]) if pair.size() == 2 else -1.0])
 	both.free()
-	_expect(worst == 0, "10 hits/s for 1.5 s: no two readable numbers overlap (worst frame %d, up to %d readable at once)" % [worst, live_max])
-	_expect(spawn_us < 2000, "placing a number costs at most %d us" % spawn_us)
-	_expect(furthest <= 5.0, "the offsets stay small: the furthest number sits %.1f of its widths (%.0f px) beside the anchor" % [furthest, furthest_px])
-	dummy.free()
 	_drain()
+
+## Each crit re-applies the bleed: BLEEDING prints once while it is still up. A word whose nearest
+## clear spot is far out beside a crowd of numbers is dropped, not printed away from its target.
+func _test_words() -> void:
+	var d := _dummy_at(fx.get_viewport_rect().size * 0.5)
+	for i in 3:
+		fx.add_number(d, 30.0 + i, &"crit")
+		fx.add_word(d, "BLEEDING", Color.RED)
+	var words: Array = fx.floats.filter(func (f: Dictionary) -> bool: return str(f["kind"]) == "status")
+	_expect(words.size() == 1, "three crits that each re-apply the bleed print BLEEDING once (%d)" % words.size())
+	for i in 6:
+		fx.add_number(d, 40.0 + i, &"hit")
+	fx.add_word(d, "GROGGY", Color.YELLOW)
+	var cap: float = fx.num("word_max_lane_px", 100.0)
+	var far := 0
+	for f in fx.floats:
+		far += 1 if str(f["kind"]) == "status" and absf(float(f["lane"])) > cap else 0
+	_expect(far == 0, "no status word sits more than %.0f px beside its target (%d do)" % [cap, far])
+	d.free()
+	_drain()
+
+## The reviewer's edge probe: 10 hits/s on an anchor at each side edge, 80 px in from it and past it.
+## The lanes fan out to the open side, so no two readable numbers overlap and all stay on screen.
+func _test_edge_lanes() -> void:
+	var view: Vector2 = fx.get_viewport_rect().size
+	for x in [0.0, 80.0, view.x - 80.0, view.x, -200.0, view.x + 200.0]:
+		var d := _dummy_at(Vector2(x, view.y * 0.5))
+		var r := _flurry([d], 1.5)
+		_expect(r["worst"] == 0 and r["clipped"] == 0, "10 hits/s on an anchor at x=%.0f: worst frame %d overlapping, %d clipped (%d readable at once)" % [x, r["worst"], r["clipped"], r["live_max"]])
+		d.free()
+
+## Three targets 40 px apart on screen (a raptor pack fought with pets): numbers from neighbouring
+## bodies stay clear of each other too. At 10 hits/s in all they stay close; at the reviewer's 10 hits/s
+## on each (30 in all) they still never overlap, spreading wide instead (the report gives the spread).
+func _test_close_targets() -> void:
+	var c: Vector2 = fx.get_viewport_rect().size * 0.5
+	var ds: Array = [_dummy_at(c + Vector2(-40, 0)), _dummy_at(c), _dummy_at(c + Vector2(40, 0))]
+	var r := _flurry(ds, 1.5)
+	_expect(r["worst"] == 0 and r["clipped"] == 0 and r["furthest_w"] <= 5.0, "three targets 40 px apart, 10 hits/s in all: worst frame %d overlapping, %d clipped, furthest %.1f widths (%.0f px)" % [r["worst"], r["clipped"], r["furthest_w"], r["furthest_px"]])
+	r = _flurry(ds, 1.5, 30.0)
+	_expect(r["worst"] == 0 and r["clipped"] == 0, "the same at 10 hits/s on each: worst frame %d overlapping, %d clipped (%d readable at once, furthest %.0f px)" % [r["worst"], r["clipped"], r["live_max"], r["furthest_px"]])
+	_expect(r["spawn_us"] < 2000, "placing a number among %d live ones costs at most %d us" % [r["live_max"], r["spawn_us"]])
+	for d in ds:
+		d.free()
 
 ## Anchors far past each screen edge: every number stays whole on screen for its whole life.
 func _test_edges() -> void:

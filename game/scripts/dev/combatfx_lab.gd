@@ -4,7 +4,8 @@ extends Node3D
 ## slingshot's StoneProjectile, the shot a bow will use; there is no bow item yet) and
 ## CreatureAttack._deal_damage for the stego's bite on the survivor.
 ##   beats: hit (stone knife), big (raid maul, over a tenth of its HP), crit (knife crit), bow, bow_crit,
-##          taken, taken_crit, flurry (10 hits/s), then the crit at ages 0.03-0.65 s (seq_*)
+##          taken, taken_crit, flurry (10 hits/s), the crit at ages 0.03-0.65 s (seq_*), then mounted
+##          (the survivor rides a T. rex: the bite's number over the rider, the mount's own beside it)
 ## Headless: Godot --headless --path game res://scenes/dev/combatfx_lab.tscn -- --lab=combatfx_lab
 ##   prints "[combatfx] beat=... tier=... text=..." per beat and "[combatfx] PASS" (exit 0) or FAIL (exit 1)
 ## Shots: Godot --path game --resolution 1600x900 [--rendering-method gl_compatibility]
@@ -110,6 +111,7 @@ func _run() -> void:
 	await _flurry()
 	for age in [0.03, 0.08, 0.2, 0.35, 0.5, 0.65]:
 		await _beat("seq_%03d" % int(round(age * 1000.0)), func () -> void: await _swing(&"stone_knife", true), _stego, "crit", age)
+	await _mounted()
 	CombatTuning.reset_overrides()
 	if _fails.is_empty():
 		print("[combatfx] PASS")
@@ -211,6 +213,41 @@ func _newest(anchor: Node3D) -> Dictionary:
 		if int(f["target"]) == anchor.get_instance_id() and str(f["kind"]) in ["hit", "weak", "strong", "crit"]:
 			return f  # a bleed tick or a status word is not the beat's hit
 	return {}
+
+## The survivor rides a mount-role T. rex pet (the saddle path: the body on the mount's root, the rig on
+## the saddle). The stego's bite and a hit on the mount land together: the survivor's red number sits
+## over the rider, the mount's red number beside it, not on top of it.
+func _mounted() -> void:
+	var def := Data.creature(&"tyrannosaurus")
+	var rec := PetRecord.from_def(def, &"A")
+	var rex: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
+	World.runtime.add_child(rex)
+	rex.is_pet = true
+	rex.pet_record = rec
+	rex.spawn(def, rec.variant)
+	rex.brain.process_mode = Node.PROCESS_MODE_DISABLED
+	var at := _player.global_position - UP * 5.0
+	at.y = World.runtime.surface_y(at.x, at.z)
+	rex.global_position = at
+	rex.look_at(rex.global_position - RIGHT, Vector3.UP)
+	await _secs(0.5)
+	_player.mount(rex)
+	_cam.size = 26.0
+	_cam._snap()
+	await _secs(0.6)
+	var rider := _player.rig.global_position.y
+	var seen := {}
+	await _beat("mounted", func () -> void:
+		_bite(false)
+		rex.health.take_damage(40.0, _stego)
+		seen.merge(_newest(_player)), _player, "")
+	var y := (seen.get("at", Vector3.ZERO) as Vector3).y
+	var ok := absf(y - rider - 2.0) < 0.5
+	print("[combatfx] mounted rider_y=%.1f mount_root_y=%.1f number_y=%.1f %s" % [rider, rex.global_position.y, y, "ok" if ok else "FAIL"])
+	if not ok:
+		_fails.append("mounted_anchor")
+	_player.dismount()
+	rex.queue_free()
 
 ## Ten knife hits a second for 1.2 s, one crit in five, then the shot.
 func _flurry() -> void:

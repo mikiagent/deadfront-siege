@@ -4,9 +4,10 @@ extends Control
 ## you hit a crit or did a lot of damage"). A number pops in at the struck creature or the survivor,
 ## then expands outward while it fades out, floating up about one number-height. White is damage you
 ## deal, red damage you or your pet take, green a heal, gold your crit. A crit starts ~1.5x and a big
-## hit (big_hit_frac of the target's max HP) ~1.25x. Quick hits on one target take the nearest spot
-## beside it whose path stays clear, so they never print over each other. CreaturePlates owns one
-## on its layer (58), above the world and the plates. Tuning: data/combat_fx.json.
+## hit (big_hit_frac of the target's max HP) ~1.25x. A new number takes the nearest on-screen spot
+## beside its target whose path stays clear of every readable number (any target's), so quick hits never
+## print over each other, also at a screen edge. CreaturePlates owns one on its layer (58), above the
+## world and the plates. Tuning: data/combat_fx.json.
 
 const PATH := "res://data/combat_fx.json"
 const DAMAGE: Array[StringName] = [&"hit", &"weak", &"strong", &"crit", &"dot"]
@@ -14,9 +15,9 @@ const DAMAGE: Array[StringName] = [&"hit", &"weak", &"strong", &"crit", &"dot"]
 const TOP_HUD: Array[String] = ["vitals", "statuses", "plate", "quest", "map_title", "map_text"]
 
 ## Live numbers, oldest first. Each: kind, tier, text, color, outline, outline_px, font, w and h
-## (canvas px at 1.0x), age, life, lane (px beside the anchor), target (instance id), anchor
-## (WeakRef), height (m above the anchor's origin), at (last anchor point), floor (px: the top HUD's
-## bottom over the anchor at spawn). Tests read it.
+## (canvas px at 1.0x), age, life, lane (px beside the anchor's on-screen point), target (instance id),
+## anchor (WeakRef: the target, or a mounted survivor's rig), height (m above the anchor's origin), at
+## (last anchor point), floor (px: the top HUD's bottom over the anchor at spawn). Tests read it.
 var floats: Array[Dictionary] = []
 var _cfg: Dictionary = {}
 var _bold: FontVariation
@@ -86,11 +87,16 @@ func add_number(anchor: Node3D, amount: float, kind: StringName) -> void:
 				tier = "big"
 	_push(anchor, kind, tier, text, Color.html(color))
 
-## A status name (BLEEDING, GROGGY...) in its colour, laned with the numbers.
+## A status name (BLEEDING, GROGGY...) in its colour, laned with the numbers. Once per target while
+## it is still up (each crit re-applies the bleed), and dropped when the nearest clear spot is more
+## than word_max_lane_px from its target: that far out it no longer reads as the target's.
 func add_word(anchor: Node3D, text: String, color: Color) -> void:
-	_push(anchor, &"status", "small", text, color)
+	var id := anchor.get_instance_id() if anchor else 0
+	if floats.any(func (g: Dictionary) -> bool: return g["target"] == id and g["text"] == text):
+		return
+	_push(anchor, &"status", "small", text, color, num("word_max_lane_px", 100.0) * _ui_scale())
 
-func _push(anchor: Node3D, kind: StringName, tier: String, text: String, color: Color) -> void:
+func _push(anchor: Node3D, kind: StringName, tier: String, text: String, color: Color, max_lane: float = INF) -> void:
 	if anchor == null or not anchor.is_inside_tree():
 		return
 	var crit := tier == "crit"
@@ -98,14 +104,19 @@ func _push(anchor: Node3D, kind: StringName, tier: String, text: String, color: 
 	var font: Font = _bold if crit else ThemeDB.fallback_font
 	var height := num("player_anchor_m", 2.0) if anchor is Player else \
 		((anchor as Creature).def.height_meters * num("anchor_height_frac", 0.7) if anchor is Creature else 1.0)
+	# Mounted, the survivor's body sits on the mount's root; the rig rides the saddle.
+	var over: Node3D = (anchor as Player).rig if anchor is Player and (anchor as Player).mounted_on and (anchor as Player).rig else anchor
 	var f := {"kind": kind, "tier": tier, "text": text, "color": color, "font": font,
 		"outline": Color.html(str(_cfg.get("crit_outline_color" if crit else "outline_color", "#120c08"))),
 		"outline_px": num("crit_outline_px" if crit else "outline_px", 4.0) * _ui_scale(),
 		"w": font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(round(px))).x, "h": px,
 		"age": 0.0, "life": num("life_s", 0.75), "lane": 0.0, "target": anchor.get_instance_id(),
-		"anchor": weakref(anchor), "height": height, "at": anchor.global_position + Vector3.UP * height}
-	f["lane"] = _free_lane(f)
+		"anchor": weakref(over), "height": height, "at": over.global_position + Vector3.UP * height}
 	f["floor"] = _hud_floor(f)
+	var cam := get_viewport().get_camera_3d()
+	f["lane"] = _free_lane(f, cam) if cam else 0.0
+	if absf(float(f["lane"])) > max_lane:
+		return
 	floats.append(f)
 	var mine := floats.filter(func (g: Dictionary) -> bool: return g["target"] == f["target"])
 	if mine.size() > int(num("max_per_target", 8)):
@@ -146,24 +157,33 @@ func _draw() -> void:
 		draw_string(font, o, text, HORIZONTAL_ALIGNMENT_LEFT, -1, raster, Color(col, col.a * a))
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 
-## Canvas centre of a number this frame, or Vector2.INF when its anchor is behind the camera. The
-## anchor point is clamped for the number's whole path (its widest swell, its full rise), so it never
-## clips at a screen edge and the clamp never shifts it mid-flight.
+## Canvas centre of a number this frame, or Vector2.INF when its anchor is behind the camera: its
+## anchor's point (_base) plus its lane, minus its rise. The lane already keeps a still anchor's number
+## whole on screen; the clamp only catches an anchor that moved toward an edge after the spawn.
 func placement(f: Dictionary, cam: Camera3D) -> Vector2:
 	var anchor := (f["anchor"] as WeakRef).get_ref() as Node3D
 	if anchor and anchor.is_inside_tree():
 		f["at"] = anchor.get_global_transform_interpolated().origin + Vector3.UP * float(f["height"])
-	var at: Vector3 = f["at"]
-	if cam.is_position_behind(at):
+	if cam.is_position_behind(f["at"]):
 		return Vector2.INF
+	var b := _base(f, cam)
+	var hx := _half(f).x
+	var x := clampf(b.x + float(f["lane"]), hx, maxf(hx, get_viewport_rect().size.x - hx))
+	return Vector2(x, b.y - lift_at(f, float(f["age"])))
+
+## The anchor's point on the canvas before lane and rise: x inside the screen, y low enough for the
+## number's whole path (widest swell, full rise) to stay under the top HUD and above the bottom edge.
+func _base(f: Dictionary, cam: Camera3D) -> Vector2:
 	var view := get_viewport_rect().size
-	var m := num("edge_margin_px", 8.0)
-	var half := Vector2(float(f["w"]), float(f["h"])) * _expand * 0.5 + Vector2(m, m)
+	var half := _half(f)
 	var top := float(f.get("floor", 0.0)) + half.y + lift_at(f, float(f["life"]))
-	var p := cam.unproject_position(at) + Vector2(float(f["lane"]), 0.0)
-	p.x = clampf(p.x, half.x, maxf(half.x, view.x - half.x))
-	p.y = clampf(p.y, top, maxf(top, view.y - half.y))
-	return p - Vector2(0.0, lift_at(f, float(f["age"])))
+	var p := cam.unproject_position(f["at"])
+	return Vector2(clampf(p.x, 0.0, view.x), clampf(p.y, top, maxf(top, view.y - half.y)))
+
+## Half the number's box at its widest swell, plus the edge margin.
+func _half(f: Dictionary) -> Vector2:
+	var m := num("edge_margin_px", 8.0)
+	return Vector2(float(f["w"]), float(f["h"])) * _expand * 0.5 + Vector2(m, m)
 
 ## The number's box on the canvas this frame (tests and the lab measure overlap and edges with it).
 func screen_rect(f: Dictionary, cam: Camera3D) -> Rect2:
@@ -196,29 +216,40 @@ func _pop(age: float) -> float:
 func _fade_k(f: Dictionary, age: float) -> float:
 	return clampf((age - _pop_s) / maxf(0.001, float(f["life"]) - _pop_s), 0.0, 1.0)
 
-## The spot beside the anchor (px, nearest first) where the new number `f` stays clear of this
-## target's readable numbers for as long as both are readable: each older number it would meet
-## blocks an interval around its own lane, and `f` takes the nearest free spot.
-func _free_lane(f: Dictionary) -> float:
+## The spot beside the anchor's point (px, nearest first) where the new number `f` stays whole on
+## screen and clear of every readable number, on any target, for as long as both are readable. The
+## search runs in screen space: each older number it would meet blocks an interval around its x, the
+## screen edges bound the rest, and `f` takes the nearest free spot (beside a target at an edge, that
+## is on the open side).
+func _free_lane(f: Dictionary, cam: Camera3D) -> float:
+	var fb := _base(f, cam)
+	var hx := _half(f).x
+	var lo := hx - fb.x
+	var hi := maxf(lo, get_viewport_rect().size.x - hx - fb.x)
 	var blocked: Array[Vector2] = []
 	for g in floats:
-		if g["target"] == f["target"]:
-			var r := _reach(g, f)
-			if r > 0.0:
-				blocked.append(Vector2(float(g["lane"]) - r, float(g["lane"]) + r))
-	var spots: Array[float] = [0.0]
+		var gp := placement(g, cam)
+		if gp == Vector2.INF:
+			continue
+		var r := _reach(g, f, gp.y + lift_at(g, float(g["age"])) - fb.y)
+		if r > 0.0:
+			blocked.append(Vector2(gp.x - fb.x - r, gp.x - fb.x + r))
+	var spots: Array[float] = [0.0, lo, hi]
 	for b in blocked:
 		spots.append(b.x)
 		spots.append(b.y)
 	spots.sort_custom(func (a: float, b: float) -> bool: return absf(a) < absf(b))
 	for x in spots:
-		if blocked.all(func (b: Vector2) -> bool: return x <= b.x + 0.01 or x >= b.y - 0.01):
+		if x >= lo - 0.01 and x <= hi + 0.01 and blocked.all(func (b: Vector2) -> bool: return x <= b.x + 0.01 or x >= b.y - 0.01):
 			return x
-	return spots[-1]  # not reached: the outermost edge is always free
+	# shortcut: a screen-wide wall of readable numbers overprints the nearest on-screen spot; merge
+	# numbers if a fight ever gets there.
+	return clampf(0.0, lo, hi)
 
-## How far apart (px, centre to centre) `f` must sit beside an older `g` (same anchor) so the two
-## stay pad_px apart on every frame (1/60 s) while both are readable; 0 when their heights never meet.
-func _reach(g: Dictionary, f: Dictionary) -> float:
+## How far apart (px, centre to centre) `f` must sit beside an older `g` so the two stay pad_px apart
+## on every frame (1/60 s) while both are readable; 0 when their heights never meet. `dy` is g's anchor
+## point below f's (px; 0 on the same target).
+func _reach(g: Dictionary, f: Dictionary, dy: float) -> float:
 	var pad := num("pad_px", 3.0) * _ui_scale()
 	var vis := num("visible_alpha", 0.3)
 	var r := 0.0
@@ -232,7 +263,7 @@ func _reach(g: Dictionary, f: Dictionary) -> float:
 		if ag >= vis and alpha_at(f, s) >= vis:
 			var sg := scale_at(g, ga)
 			var sf := scale_at(f, s)
-			if absf(lift_at(g, ga) - lift_at(f, s)) < (float(g["h"]) * sg + float(f["h"]) * sf) * 0.5 + pad:
+			if absf(dy - lift_at(g, ga) + lift_at(f, s)) < (float(g["h"]) * sg + float(f["h"]) * sf) * 0.5 + pad:
 				r = maxf(r, (float(g["w"]) * sg + float(f["w"]) * sf) * 0.5 + pad)
 		s += 1.0 / 60.0
 	return r

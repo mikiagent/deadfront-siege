@@ -37,10 +37,10 @@ index d6281b19..31e42046 100644
  		print("[combat] %s hit player dmg=%.1f clip=%s" % [attacker.def.id, dealt, attacker.anim.current_clip])
  		return true
 diff --git a/game/scripts/combat/status_effects.gd b/game/scripts/combat/status_effects.gd
-index 8dbe4761..ccd22c0d 100644
+index 8dbe4761..4641f6df 100644
 --- a/game/scripts/combat/status_effects.gd
 +++ b/game/scripts/combat/status_effects.gd
-@@ -210,9 +210,8 @@ func _dot(inst: StatusInstance) -> void:
+@@ -210,15 +210,15 @@ func _dot(inst: StatusInstance) -> void:
  			var origin: Node = inst.source if is_instance_valid(inst.source) else null
  			if inst.siege_origin and is_instance_valid(inst.siege_origin.get_ref()):
  				origin = inst.siege_origin.get_ref()
@@ -51,6 +51,13 @@ index 8dbe4761..ccd22c0d 100644
  	elif host is Player:
  		var pl := host as Player
  		if def.dps_max_hp_frac > 0.0:
+ 			dps += def.dps_max_hp_frac * pl.vitals.max_health
+ 		if dps > 0.0:
+ 			pl.vitals.take_damage(dps * 0.5)
++			CombatFx.pop_number(pl, dps * 0.5, &"dot")
+ 		if def.fatigue_per_min > 0.0:
+ 			pl.vitals.add_fatigue(def.fatigue_per_min * (0.5 / 60.0) * 100.0 * float(inst.stacks), inst.id)
+ 
 diff --git a/game/scripts/combat/stone_projectile.gd b/game/scripts/combat/stone_projectile.gd
 index f86c5073..c0fdf770 100644
 --- a/game/scripts/combat/stone_projectile.gd
@@ -326,6 +333,18 @@ index b7ac4ea6..90a2ee8f 100644
  	for b in _events.bites:
  		var k: float = b["t"]
  		var heavy: bool = b["heavy"]
+diff --git a/game/scripts/world/bonfire.gd b/game/scripts/world/bonfire.gd
+index 5c05dee7..f9469c35 100644
+--- a/game/scripts/world/bonfire.gd
++++ b/game/scripts/world/bonfire.gd
+@@ -82,6 +82,7 @@ func cauterise(player: Player) -> void:
+ 		return
+ 	player.downed_by = "the bonfire"
+ 	player.vitals.take_damage(5.0)
++	CombatFx.pop_number(player, 5.0, &"hit")
+ 	player.statuses.clear_id(&"deep_bleed")
+ 	print("[status] %s -deep_bleed cauterise" % player.name)
+ 
 diff --git a/game/tests/run_all.gd b/game/tests/run_all.gd
 index 0de559b8..d50894d1 100644
 --- a/game/tests/run_all.gd
