@@ -860,6 +860,12 @@ func _test_hud_draw() -> void:
 	var same: Array = h._events.notices.filter(func(n): return str(n.get("base", "")) == text)
 	_expect(same.size() == 1 and str(same[0]["text"]) == text + "  x2", "the same rare result twice is one notice reading x2 (%s)" % [same.map(func(n): return n["text"])])
 	player._gather_radial.close()
+	# A rare notice whose spot falls on the survivor moves off them and the ring at their feet.
+	var ring: Rect2 = GF.survivor_rect(player)
+	var fresh := {"text": "r", "t": 1.0, "tint": GF.GREEN, "born": Time.get_ticks_msec()}
+	var moved: Rect2 = GF.notice_box(fresh, player, Rect2(ring.get_center() - Vector2(150, 15), Vector2(300, 30)), [] as Array[Rect2], Vector2(844, 390))
+	print("[t_gather] survivor and ring %s; a notice put on them moves to %s" % [ring, moved])
+	_expect(ring.has_area() and moved.has_area() and not moved.intersects(ring), "a rare notice put on the survivor moves off them and their ring (%s vs %s)" % [moved, ring])
 	h.queue_free()
 	na.free()
 	nb.free()
