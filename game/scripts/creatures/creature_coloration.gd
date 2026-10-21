@@ -17,6 +17,9 @@ const DEFAULT_RANGE := {"hue_deg": 12.0, "sat": 0.15, "val": 0.10}
 const DEFAULT_RARE_CHANCE := 0.02
 ## A rare roll may leave the normal range by up to this much (still natural, never neon).
 const RARE_SCALE := 2.4
+## Rare hue may leave the normal +-HUE_LIMIT by this factor (a hue shift is far more visible than
+## the saturation/value scales, so it gets a smaller allowance).
+const RARE_HUE_SCALE := 1.5
 ## The pattern kinds the shader knows. Anything else saves as a plain hide.
 const PATTERNS: Array[String] = ["stripes", "spots", "saddle", "countershade"]
 ## Hard bounds, also what a hand-edited save is clamped to: nothing here can leave "natural".
@@ -53,12 +56,11 @@ static func roll(block: Dictionary = {}, rng: RandomNumberGenerator = null) -> C
 	var rare := roller.randf() < rare_chance
 	if rare:
 		var rare_range := _rare_range(block)
-		var kind := _pick_rare(block, roller)
 		out.rare = true
-		out.morph = kind
-		out.hue_deg = clampf(roller.randf_range(rare_range["hue"].x, rare_range["hue"].y), -HUE_LIMIT * 1.5, HUE_LIMIT * 1.5)
+		out.hue_deg = clampf(roller.randf_range(rare_range["hue"].x, rare_range["hue"].y), -HUE_LIMIT * RARE_HUE_SCALE, HUE_LIMIT * RARE_HUE_SCALE)
 		out.sat = clampf(roller.randf_range(rare_range["sat"].x, rare_range["sat"].y), 1.0 - SAT_LIMIT * RARE_SCALE, 1.0 + SAT_LIMIT * RARE_SCALE)
 		out.val = clampf(roller.randf_range(rare_range["val"].x, rare_range["val"].y), 1.0 - VAL_LIMIT * RARE_SCALE, 1.0 + VAL_LIMIT * RARE_SCALE)
+		out.morph = _rare_morph_for(out)
 	else:
 		out.hue_deg = clampf(roller.randf_range(ranges["hue"].x, ranges["hue"].y), -HUE_LIMIT, HUE_LIMIT)
 		out.sat = clampf(roller.randf_range(ranges["sat"].x, ranges["sat"].y), 1.0 - SAT_LIMIT, 1.0 + SAT_LIMIT)
@@ -114,9 +116,9 @@ static func _pattern_kinds(block: Dictionary) -> Array:
 				continue
 			out.append({"id": id, "weight": maxf(0.0, _finite((row as Dictionary).get("weight", 1.0), 1.0)),
 				"scale": _finite((row as Dictionary).get("scale", 1.0), 1.0),
-				"strength": _finite((row as Dictionary).get("strength", 0.30), 0.30)})
+				"strength": _finite((row as Dictionary).get("strength", 0.45), 0.45)})
 	if out.is_empty():
-		out = [{"id": "countershade", "weight": 2.0, "scale": 1.0, "strength": 0.28},
+		out = [{"id": "countershade", "weight": 2.0, "scale": 1.0, "strength": 0.5},
 			{"id": "", "weight": 3.0, "scale": 1.0, "strength": 0.0}]
 	return out
 
@@ -137,17 +139,20 @@ static func _rare_range(block: Dictionary) -> Dictionary:
 		"val": Vector2(1.0 - (1.0 - base["val"].x) * RARE_SCALE, 1.0 + (base["val"].y - 1.0) * RARE_SCALE),
 	}
 
-## Name for a rare morph: the species' own label when its "rare_morphs" list names one (dark, pale,
-## rufous...), else "rare".
-static func _pick_rare(block: Dictionary, roller: RandomNumberGenerator) -> StringName:
-	var raw: Variant = block.get("rare_morphs", null)
-	if raw is Array and not (raw as Array).is_empty():
-		var opts: Array = []
-		for row in raw:
-			if row is String and str(row).strip_edges() != "":
-				opts.append(str(row))
-		if not opts.is_empty():
-			return StringName(opts[roller.randi_range(0, opts.size() - 1)])
+## Name for a rare morph, taken from the colour that was actually rolled so the label never lies
+## (a rare that renders olive must not be called rufous). The species' "rare_morphs" list is only a
+## vocabulary hint; the roll decides.
+static func _rare_morph_for(p: CreatureColoration) -> StringName:
+	if p.sat >= 1.22:
+		return &"vivid"
+	if p.val <= 0.86:
+		return &"dark"
+	if p.val >= 1.14:
+		return &"pale"
+	if p.hue_deg >= 16.0:
+		return &"golden"
+	if p.hue_deg <= -16.0:
+		return &"rufous"
 	return &"rare"
 
 ## Deterministic profile for an animal that has none (a save written before colour profiles): the
@@ -213,12 +218,16 @@ static func from_dict(data: Variant) -> CreatureColoration:
 	if not data is Dictionary:
 		return out
 	var d: Dictionary = data
-	out.hue_deg = clampf(_finite(d.get("hue_deg", 0.0), 0.0), -HUE_LIMIT, HUE_LIMIT)
-	out.sat = clampf(_finite(d.get("sat", 1.0), 1.0), 1.0 - SAT_LIMIT, 1.0 + SAT_LIMIT)
-	out.val = clampf(_finite(d.get("val", 1.0), 1.0), 1.0 - VAL_LIMIT, 1.0 + VAL_LIMIT)
+	out.rare = d.get("rare", false) == true
+	# A rare morph legitimately sits outside the normal range (roll() lets it go to RARE_LIMIT), so
+	# the clamp has to follow the same bounds or a saved rare would come back a different colour.
+	var span := RARE_SCALE if out.rare else 1.0
+	var hue_span := RARE_HUE_SCALE if out.rare else 1.0
+	out.hue_deg = clampf(_finite(d.get("hue_deg", 0.0), 0.0), -HUE_LIMIT * hue_span, HUE_LIMIT * hue_span)
+	out.sat = clampf(_finite(d.get("sat", 1.0), 1.0), 1.0 - SAT_LIMIT * span, 1.0 + SAT_LIMIT * span)
+	out.val = clampf(_finite(d.get("val", 1.0), 1.0), 1.0 - VAL_LIMIT * span, 1.0 + VAL_LIMIT * span)
 	var m: Variant = d.get("morph", "")
 	out.morph = StringName(str(m).substr(0, 24)) if m is String else &""
-	out.rare = d.get("rare", false) == true
 	var pat: Variant = d.get("pattern", "")
 	var pid := str(pat).substr(0, 16) if pat is String else ""
 	out.pattern = StringName(pid if pid in PATTERNS else "")

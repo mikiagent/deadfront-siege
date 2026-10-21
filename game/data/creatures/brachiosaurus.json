@@ -55,7 +55,7 @@
         "id": "saddle",
         "weight": 3.0,
         "scale": 1.0,
-        "strength": 0.28
+        "strength": 0.50
       },
       {
         "id": "stripes",
@@ -67,7 +67,7 @@
         "id": "countershade",
         "weight": 2.0,
         "scale": 1.0,
-        "strength": 0.3
+        "strength": 0.50
       },
       {
         "id": "",

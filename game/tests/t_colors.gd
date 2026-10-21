@@ -206,12 +206,13 @@ func _test_spawn_variety() -> void:
 		# Natural, never neon: a hue shift of +-40 deg at most and a saturation scale near 1.
 		_expect(extreme <= Coloration.HUE_LIMIT, "%s hue shift stays under %.0f deg (max %.1f)" % [species, Coloration.HUE_LIMIT, extreme])
 		print("[t_colors] %s: distinct=%d/%d in_range=%d max_hue=%.1f" % [species, distinct.size(), SPAWNS, in_range, extreme])
-	# Two spawns at the same point in the same run are the same individual (a reload keeps colours),
-	# two spawns at different points differ.
+	# Every fresh spawn is a new individual, even at a fixed spawner: the colour seed carries a
+	# per-spawn serial, so a respawn is not a clone of the animal it replaces. The look still stays
+	# fixed for one animal's lifetime, because taming reuses the genetics record (section 5).
 	var p1 = _spawn(&"velociraptor", Vector3(3, 0, 3))
 	var p2 = _spawn(&"velociraptor", Vector3(3, 0, 3))
 	var p3 = _spawn(&"velociraptor", Vector3(9, 0, 3))
-	_expect(p1.genetics.coloration.equals(p2.genetics.coloration), "the same spawn point reproduces the same profile")
+	_expect(not p1.genetics.coloration.equals(p2.genetics.coloration), "a respawn at the same spawn point is a new individual")
 	_expect(not p1.genetics.coloration.equals(p3.genetics.coloration) or not p1.genetics.equals(p3.genetics), "another spawn point rolls another individual")
 	p1.queue_free()
 	p2.queue_free()
@@ -386,6 +387,18 @@ func _test_save_load_round_trip() -> void:
 	var col = rec.coloration()
 	var col2 = Coloration.from_dict(JSON.parse_string(JSON.stringify(col.to_dict())))
 	_expect(col2.equals(col) and String(col2.morph) == String(col.morph), "the profile survives JSON (morph '%s')" % str(col2.morph))
+	# A rare morph sits outside the normal clamp: sat 1.47 (a compsognathus rare) and hue 38 deg must
+	# come back unchanged, not clamped to 1.45 / 40.
+	var rare = Coloration.new()
+	rare.rare = true
+	rare.sat = 1.47
+	rare.hue_deg = 38.0
+	rare.val = 0.62
+	rare.pattern = &"spots"
+	rare.pattern_strength = 0.55
+	var rare_back = Coloration.from_dict(JSON.parse_string(JSON.stringify(rare.to_dict())))
+	_expect(rare_back.equals(rare) and is_equal_approx(rare_back.sat, 1.47) and is_equal_approx(rare_back.hue_deg, 38.0),
+		"a rare morph's wide colour survives JSON (sat %.2f hue %.1f)" % [rare_back.sat, rare_back.hue_deg])
 	_sections += 1
 
 ## ---- 5. an old save (no profile) derives one from the uid, the same every load

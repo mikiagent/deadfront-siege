@@ -149,6 +149,13 @@ func end_ride() -> void:
 ## so the pattern has to come from the authored position of each vertex: copy it once into CUSTOM0
 ## (ARRAY_CUSTOM_RGB_FLOAT) and cache the rebuilt mesh by the original resource, so it happens once
 ## per species rather than once per animal.
+##
+## What survives the rebuild: materials (re-set per surface) and the shadow mesh (re-attached
+## below). What does not: surface LODs. Godot 4.7 has no public ArrayMesh LOD accessor (only the
+## internal `_surface_get_lods`), so `surface_get_arrays` cannot carry them over. These creature
+## GLBs import as one LOD0 skin surface each (checked on the velociraptor), so nothing is lost
+## today; if a future asset ships LODs/CSG, bake the rest channel at import (ImporterMesh +
+## generate_lods) instead of rebuilding here.
 static func rest_mesh(mesh: Mesh) -> ArrayMesh:
 	if mesh == null:
 		return null
@@ -179,6 +186,9 @@ static func rest_mesh(mesh: Mesh) -> ArrayMesh:
 			out.surface_set_material(out.get_surface_count() - 1, material)
 		if mesh is ArrayMesh and (mesh as ArrayMesh).surface_get_name(surf) != "":
 			out.surface_set_name(out.get_surface_count() - 1, (mesh as ArrayMesh).surface_get_name(surf))
+	var shadow := (mesh as ArrayMesh).get_shadow_mesh()
+	if shadow != null:
+		out.set_shadow_mesh(shadow)
 	_rest_meshes[mesh] = out
 	return out
 

@@ -62,13 +62,13 @@
         "id": "spots",
         "weight": 1.0,
         "scale": 0.9,
-        "strength": 0.22
+        "strength": 0.48
       },
       {
         "id": "countershade",
         "weight": 3.0,
         "scale": 1.0,
-        "strength": 0.3
+        "strength": 0.50
       },
       {
         "id": "",

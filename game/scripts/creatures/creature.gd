@@ -139,11 +139,15 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 	if Game and Game.debug_overlay:
 		print("[creature] %s spawned pack=%s level=%d" % [def.id, pack_id, level])
 
-## Stable identity key for a fresh wild spawn: species + rounded spawn point. Seeding the genetics
-## roll from it makes an animal spawned at the same spot (a reload, a respawn) look the same, even
-## though the stat IVs of a random roll differ; a herd at different points gets different colours.
+## Identity key for a fresh wild spawn: species, rounded spawn point and a per-spawn serial.
+## Seeding the colour roll from it keeps one animal's look stable for as long as it lives (taming
+## reuses the genetics record), while a herd at different points and a respawned individual at the
+## same point both come out as new animals instead of clones.
+static var _spawn_serial: int = 0
+
 static func spawn_colour_key(species: StringName, at: Vector3) -> String:
-	return "%s@%d,%d,%d" % [species, roundi(at.x), roundi(at.y), roundi(at.z)]
+	_spawn_serial += 1
+	return "%s@%d,%d,%d#%d" % [species, roundi(at.x), roundi(at.y), roundi(at.z), _spawn_serial]
 
 func on_anim_event(kind: String, clip: String) -> void:
 	anim.on_event(kind, clip)

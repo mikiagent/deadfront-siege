@@ -29,8 +29,9 @@ uniform int roughness_channel = 0;
 uniform sampler2D metallic_tex : filter_linear_mipmap, repeat_enable;
 uniform bool use_metallic_tex = false;
 uniform int metallic_channel = 0;
-// No emission: assigning EMISSION (even 0) on the gl_compatibility renderer added a white
-// emissive term to every creature skin, which is what turned the raptors near-white.
+// No emission at all. The white skins came from CreatureView carrying the authored material's
+// emission over as emission_color = std.emission: on gl_compatibility that made every skin glow
+// white, regardless of the albedo. Do not re-add an emission path here without a rendered check.
 
 // Pattern layer. Drawn from the REST-POSE vertex positions (CUSTOM0, filled once per mesh by
 // CreatureView): skinning moves VERTEX, and Tripo UVs are arbitrary, so neither could hold a pattern
@@ -102,18 +103,25 @@ float pattern_mask(vec3 n) {
 		return smoothstep(0.35, 0.85, d);
 	}
 	if (pattern_kind == 2) {
-		float s = 3.5 * pattern_scale;
-		float a = vnoise(n * s + vec3(pattern_seed));
-		float b = vnoise(n * s * 2.1 + vec3(pattern_seed + 17.0));
-		return smoothstep(0.42, 0.62, a * 0.7 + b * 0.3);
+		// Round spots: one random point per cell of a 3D lattice, a blob around each. A noise
+		// threshold averages back into the body colour at game distance; discrete blobs read.
+		float s = 4.5 * pattern_scale;
+		vec3 q = n * s;
+		vec3 cell = floor(q);
+		vec3 f = fract(q);
+		vec3 jitter = vec3(hash3(cell + pattern_seed), hash3(cell + pattern_seed + 31.7),
+			hash3(cell + pattern_seed + 71.3));
+		float d = length(f - (0.3 + 0.4 * jitter));
+		return 1.0 - smoothstep(0.26, 0.38, d);
 	}
 	if (pattern_kind == 3) {
 		// Dorsal saddle: the back only, fading out down the flanks (n.y is up in mesh bounds).
-		return smoothstep(0.50, 0.78, n.y);
+		return smoothstep(0.42, 0.70, n.y);
 	}
 	if (pattern_kind == 4) {
-		// Countershading: the belly, plus a thin jaw/throat band under the head.
-		return smoothstep(0.45, 0.12, n.y);
+		// Countershading: the belly, plus a thin jaw/throat band under the head. Written as
+		// 1 - smoothstep so edge0 < edge1: reversed edges are undefined in GLSL (mobile/WebGL).
+		return 1.0 - smoothstep(0.12, 0.45, n.y);
 	}
 	return 0.0;
 }
@@ -142,10 +150,10 @@ void fragment() {
 		float m = pattern_mask(n) * pattern_strength;
 		vec3 phsv = rgb_to_hsv(rgb);
 		if (pattern_tone > 0.0) {
-			phsv.z *= 1.0 - 0.55 * m;
+			phsv.z *= 1.0 - 0.62 * m;
 			phsv.y = clamp(phsv.y * (1.0 + 0.15 * m), 0.0, 1.0);
 		} else {
-			phsv.z = clamp(phsv.z + (1.0 - phsv.z) * 0.65 * m, 0.0, 1.0);
+			phsv.z = clamp(phsv.z + (1.0 - phsv.z) * 0.70 * m, 0.0, 1.0);
 			phsv.y = clamp(phsv.y * (1.0 - 0.30 * m), 0.0, 1.0);
 		}
 		rgb = hsv_to_rgb(phsv);
@@ -154,7 +162,6 @@ void fragment() {
 	rgb = mix(rgb, tint_color.rgb, tint_amount);
 	rgb = mix(rgb, flash_color.rgb, flash_amount);
 	ALBEDO = rgb;
-	ALPHA = col.a;
 	// glTF materials often share one ORM texture: the channels are kept as the importer set them
 	// (Godot's StandardMaterial3D texture channels), never guessed from red.
 	ROUGHNESS = use_roughness_tex ? channel_value(texture(roughness_tex, uv), roughness_channel) * roughness : roughness;

@@ -93,7 +93,7 @@ func _forced_profile(def: CreatureDef, pattern: String, morph: String, rare: boo
 	var p := CreatureColoration.new()
 	p.pattern = StringName(pattern)
 	p.pattern_scale = 1.0 if pattern != "stripes" else 1.25
-	p.pattern_strength = 0.34 if pattern != "" else 0.0
+	p.pattern_strength = 0.52 if pattern != "" else 0.0
 	p.pattern_tone = 1.0 if morph in ["dark", "rufous"] else -1.0
 	p.pattern_seed = 7.0
 	p.morph = StringName(morph) if morph != "" else &""
@@ -103,7 +103,7 @@ func _forced_profile(def: CreatureDef, pattern: String, morph: String, rare: boo
 		p.hue_deg = 26.0
 		p.sat = 1.28
 		p.val = 0.86
-		p.pattern_strength = 0.46
+		p.pattern_strength = 0.58
 	else:
 		# Spread the normal individuals through the species range (still inside it), so the line-up
 		# shows how much natural variation a wild herd carries.
