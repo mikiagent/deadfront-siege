@@ -1,54 +1,60 @@
-# Task: CLAIMS2: claims expand on a predictable grid, have limits, and claimed land has no grass
+# Task: CLAIMS2: the Tamed Island Domain per the owner's spec 29 (cells, 13-plot cap, Domain menu, preview, no grass)
 
 Owner, verbatim: "claimed land shouldn't have the grass, also claims should expand in a predictable way and there are claim
-limits". DEADFRONT is a Godot 4.7.1 typed-GDScript survival game (project `game/`), web build, mobile-first (844x390).
-## The docs (docs/prd/durango-wild-lands-systems-prd.md)
-- §13.1 (line 797): "First claim: 4x4. One additional same-size expansion free. Further expansions ... orthogonal only (no
-  diagonal)." Line 183: raising Pioneer Level expands the domain. The PRD gives no maximum plot count.
+limits", then the owner gave a full spec: docs/design/durango-prompts/29_domain_land_claiming_and_territories.md (READ IT
+FIRST, sections 2-4, 9, 12-14) and three Durango screenshots: docs/reference/durango-domain-menu.webp (Domain menu with tabs
+Tamed Island / Civilized Island / Clan / Outpost; "While you're on your Tamed Island, you can only use buildings in your
+Domain"), durango-domain-tamed-island-select.webp, durango-tamed-island-overview.webp (a tamed island with claimed areas).
+DEADFRONT is a Godot 4.7.1 typed-GDScript survival game (project `game/`), web build, mobile-first (844x390 landscape).
+This job is spec 29 Phase A (domain foundation) + Phase B (Tamed Island) + the footprint rule of Phase C + the owner's grass
+rule. Phases D-G (Communications Center upgrades, Civilized Islands, clans, outposts) are LATER jobs: show their tabs as
+locked with the reason ("Civilized Islands are not in the game yet"), wire nothing fake.
 ## Today (claude/mmo-overhaul)
-- game/scripts/world/island_claims.gd: setup() (home: a 14x14 base plot around the camp plus saved plots; unstable: the camp
-  plot plus staked ones), claim_at(rt, tile, 14) stakes a 14x14 plot CENTRED ON THE SURVIVOR'S TILE, expand_reason()
-  only asks that the new plot share an edge with held land. So where a plot lands depends on where the survivor stands, and
-  plots end up offset from each other: this is the "not predictable" the owner means.
-- game/scripts/player/player_actions.gd:575 claim() / :594 claim_confirmed(); game/scripts/ui/claim_panel.gd and
-  hunt_hud.gd:648 open the confirm panel. World.pioneer_level is the player level (level_display.gd:5), saved in
-  save_game.gd. Claims are set up BEFORE resources are scattered (island_runtime.gd:133-134).
-- Tests: game/tests/t_claimfix.gd, t_domain.gd (keep their asserts; edit, do not rewrite).
+- game/scripts/world/island_claims.gd: rt.claims is an Array of Rect2i; setup() claims a 14x14-tile base around the camp on
+  the home (private) island plus saved rects (World.home_claims rows [x,y,w,h]); claim_at() stakes a 14x14 plot centred on
+  the survivor's tile; expand_reason() only asks for a shared edge. BuildGrid tiles are 1 m (build_grid.gd:5 CELL_SIZE).
+- game/scripts/player/player_actions.gd:575 claim() / :594 claim_confirmed(); game/scripts/ui/claim_panel.gd; hunt_hud.gd:648
+  opens the panel; hunt_hud.gd:850 is the MENU sheet (Bag, Craft, ...): add "Domain" there. Claims are set up BEFORE resources
+  are scattered (island_runtime.gd:133-134). World.pioneer_level is the player level (not Durango's Pioneer rank).
+- Tests to keep passing (edit, do not rewrite; keep their asserts): game/tests/t_claimfix.gd, t_domain.gd, t_save.gd.
 ## What to build
-1. Plot grid: plots are 14x14 cells on a grid anchored at the base plot (home: the camp plot; unstable: the camp plot).
-   The candidates are the free cells orthogonally next to held land that pass block_reason (dry land, nobody else's).
-   CLAIM stakes the candidate cell the survivor stands in; standing elsewhere gives a notice naming where to stand. The
-   claim panel draws every candidate cell as a dashed ghost outline on the ground (reuse claim_outline / the boundary
-   mesh style) with the survivor's cell highlighted, so the next plot is always visible before confirming. Saved plots
-   that are off the grid (older saves) load unchanged; new plots always snap to the grid.
-2. Limits from data (ASSUMPTION numbers, the owner may change them): game/data/world/rules.json
-   `"claims": {"home_base_plots": 2, "plots_per_levels": 10, "home_max_plots": 9, "unstable_max_plots": 2}` -> on home the
-   limit is min(home_max_plots, home_base_plots + floor(World.pioneer_level / plots_per_levels)) (the base plot plus the
-   PRD's one free expansion, more as the Pioneer Level rises); on unstable islands unstable_max_plots. At the limit CLAIM
-   is refused with a notice "Land limit reached (n/n). Raise your Pioneer Level to claim more." and the HUD/panel shows
-   "plots used / limit". Do not add T-stone costs (money changes need the owner).
-3. No grass on claimed land: grass families (Grass, Grass_Short, WildGrass, DryGrassTuft; ASSUMPTION: FibreTuft, reeds,
-   trees, rocks and bushes stay) are not scattered on claimed tiles, and when a plot is claimed their nodes inside it are
-   removed at once, together with any grass decor instances inside it (island_scatter.gd `_multimesh_family`). Add
-   `signal claims_changed(rect: Rect2i)` on IslandRuntime, emitted after each new plot: another job (GROUND2D, new painted
-   ground cover) listens to it to clear its cover. Keep edits to island_scatter.gd to a few lines that call one helper in
-   island_claims.gd (another job edits island_scatter.gd's card code).
+1. Cells: a domain is a set of cells; one cell = `cell_tiles` x `cell_tiles` world tiles (4 by default, spec 29 §3), on a grid
+   anchored at the island origin. A domain record per spec 29 §3 (domain_id, kind "tamed_island", island_id, owner, cells,
+   max_cells, status). Config in game/data/world/domains.json: {"cell_tiles": 4, "tamed_island": {"start_cap": 13,
+   "rank_caps": {"1": 13, "2": 17, "6": 23, "7": 30}}} (spec 29 §4: only these ranks are documented; a rank between them
+   keeps the previous cap; mark them `historical, provisional`). Pioneer rank starts at 1 (its upgrade track is a later job).
+2. Declare and Expand (spec 29 §2, §4): Domain screen (Main Menu -> Domain) with the four tabs; the Tamed Island tab shows
+   island, cells used / cap, and Declare (no domain yet) or Expand (domain held). Both open a ground-grid PREVIEW: claimed
+   cells, eligible cells (contiguous: edge-adjacent to the domain; for Declare any valid cell), invalid cells (water, cliff,
+   another owner, outside the island) drawn clearly in different colours; tap cells to select up to the cap, see the
+   candidate count, Confirm / Cancel; the camera can still move. Refusals say why: cap, terrain, ownership, not adjacent.
+3. Persistence and old saves: save the domain record; an OLD save's 14x14 rects become the cells that cover them (keep every
+   placed building inside the domain; the cap may be exceeded by a migrated save: then allow no new cells until under the
+   cap, never remove cells). Old saves must load. This changes the save format: keep it backward compatible and list the
+   change in the report as "owner decision" (the owner asked for this spec).
+4. Building rule (spec 29 §9): a building's whole footprint must be on owned cells (no anchor-only placement across the
+   border); on the Tamed Island buildings are usable only inside the domain (the Durango notice in the screenshot).
+5. No grass on claimed land (owner): grass families (Grass, Grass_Short, WildGrass, DryGrassTuft; ASSUMPTION: FibreTuft,
+   reeds, trees, rocks, bushes stay) are not scattered on claimed tiles, and claiming a cell removes those nodes and any
+   grass decor instances inside it at once (island_scatter.gd `_multimesh_family`). Add `signal claims_changed(rect: Rect2i)`
+   on IslandRuntime, emitted once per newly claimed cell batch (another job's painted ground cover listens to it). Keep
+   island_scatter.gd edits to a few lines calling one helper (another job edits its card code).
 ## Milestones
-- M1 game/tests/t_claims2.gd: candidates = the free orthogonal grid neighbours; a claim from inside a candidate cell takes
-  exactly that cell; standing outside any candidate is refused with the notice; the limit formula at Pioneer Level 0, 10,
-  70 (home) and on an unstable island; the limit refusal; an off-grid saved plot still loads and new plots snap to the
-  base grid; grass nodes inside a new plot are removed and non-grass nodes stay; claims_changed fires once per new plot;
-  save/load keeps the plots. Stage 1.
-- M2 Grid + limits + grass removal + the signal. Stage 1.
-- M3 Claim panel ghosts and the "used / limit" readout; game/scripts/dev/claims2_lab.gd + scene: on home, claim up to the
-  limit, then try one more; print `[claims2] RESULT candidates= claimed= limit= refused_at_limit= off_grid= grass_in_claim=
-  other_nodes_kept= ghosts_drawn= ui_min_px=` (candidates = before the last claim; off_grid = held plots not on the base
-  grid made this run; grass_in_claim = grass nodes or decor instances inside claimed plots; other_nodes_kept = 1 when the
-  non-grass nodes inside the plots survived; ghosts_drawn = candidate outlines on screen; ui_min_px = the smallest tap
-  target in the claim panel) and save shots with the ghosts showing, at the limit, and of a claimed plot with no grass.
+- M1 game/tests/t_claims2.gd (model): cell size from data; declare one cell; expand only edge-adjacent cells; refuse at cap 13
+  with the reason; refuse a non-adjacent cell; rank caps 1->13, 2->17, 4->17, 6->23, 7->30; a cell another owner holds is
+  refused; the same cell twice is refused (no double claim); a legacy 14x14 rect save migrates to covering cells with every
+  building inside; save/load round trip keeps cells and cap; claims_changed fires once per claim. Stage 1.
+- M2 Model + data + persistence + migration. Stage 1.
+- M3 Footprint rule, grass removal, the signal. Stage 1.
+- M4 Domain screen, tabs, preview; game/scripts/dev/claims2_lab.gd + scene: open Main Menu -> Domain, Declare, expand to the
+  cap, try one more and one non-adjacent cell, place a building half across the border; print `[claims2] RESULT cell_tiles=
+  cap= claimed= refused_at_cap= non_contiguous_refused= eligible_shown= invalid_shown= tabs= grass_in_claim=
+  other_nodes_kept= footprint_cross_refused= legacy_buildings_inside= save_roundtrip= ui_min_px=` and save shots of the
+  Domain screen, the preview (claimed / eligible / invalid colours), the full 13-cell domain, and a claimed area with no
+  grass. Stage 2.
+- M5 Look at every shot (path + verdict in NOTES.md); compare with docs/reference/durango-domain-menu.webp; fix and re-shoot.
   Stage 2.
-- M4 Look at every shot (path + verdict in NOTES.md); fix and re-shoot. Stage 2.
-- M5 Report (with the limit numbers as ASSUMPTIONS for the owner) and the full verify.
+- M6 Report (config values marked historical/provisional, the save change, what later phases need) and the full verify.
 
 ## How to run Godot (exactly)
 - Headless test: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad/gslot.sh perl -e 'alarm 400; exec @ARGV' /Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path game --script res://tests/<t>.gd > /tmp/claims2_t.log 2>&1` (bash timeout_ms 460000).
