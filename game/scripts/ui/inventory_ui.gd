@@ -43,7 +43,7 @@ var _equip_pad: Control
 var _stat_box: VBoxContainer
 var _stat_rows: Array[Label] = []
 var _slot_px: float = 64.0
-const EQUIP_LABELS := {"head": "Head", "body": "Body", "legs": "Legs", "accessory1": "Ring", "accessory2": "Ring", "weapon": "Weapon", "tool": "Tool", "food1": "Food 1", "food2": "Food 2"}
+const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "Legs", "accessory1": "Ring", "accessory2": "Ring", "weapon": "Weapon", "tool": "Tool", "food1": "Food 1", "food2": "Food 2"}
 const INK := Color(0.95, 0.95, 0.93)
 
 var _split: GridContainer
@@ -163,7 +163,7 @@ func _ready() -> void:
 	_equip_grid.add_theme_constant_override("h_separation", UiTokens.SPACE)
 	_equip_grid.add_theme_constant_override("v_separation", UiTokens.SPACE)
 	col_e.add_child(_equip_grid)
-	var equip_order := ["head", "body", "legs", "weapon", "tool", "accessory1", "accessory2", "food1", "food2"]
+	var equip_order := ["head", "body", "arms", "legs", "weapon", "tool", "accessory1", "accessory2", "food1", "food2"]
 	for slot_name in equip_order:
 		var cell := VBoxContainer.new()
 		cell.add_theme_constant_override("separation", 4)
@@ -435,8 +435,10 @@ func _refresh_profile() -> void:
 	name = UiTokens.ellipsis(font, name, name_w, body_px)
 	_profile.add_theme_font_size_override("font_size", body_px)
 	_profile.add_theme_constant_override("line_spacing", UiTokens.SPACE)
-	_profile.custom_minimum_size = Vector2(minf(180.0, name_w), body_px * 2 + UiTokens.SPACE)
-	_profile.text = "%s\n%s  ·  Lv. %d" % [name, occupation, World.pioneer_level + 1]
+	_profile.custom_minimum_size = Vector2(minf(180.0, name_w), body_px * 3 + UiTokens.SPACE * 2)
+	# The held title sits under the name from character creation on (level 1 holds "Venture into the World").
+	var title := UiTokens.ellipsis(font, LevelDisplay.current_title(LevelDisplay.player_level()), name_w, body_px)
+	_profile.text = "%s\n%s\n%s  ·  %s" % [name, title, occupation, LevelDisplay.player_label()]
 	var lines: PackedStringArray = [
 		"HP        %.0f" % hp,
 		"Energy    %.0f" % energy,
@@ -466,6 +468,8 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 	var panel_w := maxf(280.0, view.x - (24.0 + safe.w + safe.x))
 	var panel_h := maxf(280.0, view.y - (24.0 + safe.z + safe.y))
 	var slot := 64.0
+	# Four equipment columns need 9 slots of 64 px beside the 180 px profile; compact landscape canvases get three.
+	var equip_cols := 4 if panel_w >= 180.0 + 9.0 * 64.0 + sep * 11.0 else 3
 	if phone:
 		slot = floorf((panel_w - sep * 4.0) / 5.0)
 		slot = clampf(slot, 56.0, 80.0)
@@ -480,15 +484,16 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 	else:
 		var profile_floor := 280.0
 		var h_gaps := sep * 4.0
-		var inner_seps := sep * 6.0
+		# Bag 5 wide + equipment 4 wide (head/body/arms/legs in one row keeps it to three rows).
+		var inner_seps := sep * float(3 + equip_cols)
 		var chrome := 44.0 + sep + 36.0 + sep
 		var label_h := float(UiTokens.meta(view)) + 4.0
 		var grid_h := panel_h - chrome - label_h - sep * 2.0
 		var by_h := floorf((grid_h - sep * 3.0) / 4.0)
-		var by_w := floorf((panel_w - h_gaps - profile_floor - inner_seps) / 8.0)
+		var by_w := floorf((panel_w - h_gaps - profile_floor - inner_seps) / float(5 + equip_cols))
 		slot = maxf(64.0, minf(by_w, by_h))
 		var bag_w := 5.0 * slot + sep * 4.0
-		var equip_w := 3.0 * slot + sep * 2.0
+		var equip_w := float(equip_cols) * slot + sep * float(equip_cols - 1)
 		if _bag_col:
 			_bag_col.custom_minimum_size = Vector2(bag_w, 0)
 			_bag_col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -496,6 +501,8 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 			_equip_col.custom_minimum_size = Vector2(equip_w, 0)
 			_equip_col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_slot_px = slot
+	if _equip_grid:
+		_equip_grid.columns = 3 if phone else equip_cols
 	var sz := _slot_vec()
 	for child in _grid.get_children():
 		if child is Control:

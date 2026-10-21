@@ -251,7 +251,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "lashing",
+          "category": "twine",
           "count": 3,
           "primary": true
         }
@@ -409,7 +409,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "uncut_hide",
+          "category": "dried_hide",
           "count": 1,
           "primary": true
         }
@@ -488,23 +488,28 @@
     },
     {
       "id": "ingot",
-      "display_name": "Ingot",
+      "display_name": "Crude Ingot",
       "skill": "processing",
       "max_level": 60,
       "slots": [
         {
-          "category": "ore",
+          "category": "rough_ore",
           "count": 2,
           "primary": true
+        },
+        {
+          "category": "fuel",
+          "count": 1,
+          "primary": false
         }
       ],
       "output": {
         "id": "ingot",
         "count": 1
       },
-      "station": "workbench",
+      "station": "forge",
       "seconds": 4.0,
-      "process_step": "hammer",
+      "process_step": "smelt",
       "process_add": 1
     },
     {
@@ -841,7 +846,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": true
         },
@@ -946,7 +951,7 @@
           "primary": false
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": false
         }
@@ -1206,7 +1211,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "meat",
+          "category": "raw_meat",
           "count": 1,
           "primary": true
         }
@@ -1368,7 +1373,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "meat",
+          "category": "raw_meat",
           "count": 1,
           "primary": true
         },
@@ -1520,8 +1525,8 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "metal",
-          "count": 8,
+          "category": "tier_steel",
+          "count": 4,
           "primary": true
         },
         {
@@ -1542,7 +1547,8 @@
       "station": "workbench",
       "seconds": 12,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "iron_weapons"
     },
     {
       "id": "raid_helm",
@@ -1554,12 +1560,12 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "metal",
-          "count": 4,
+          "category": "tier_steel",
+          "count": 2,
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 4,
           "primary": false
         },
@@ -1576,7 +1582,8 @@
       "station": "workbench",
       "seconds": 12,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "scute_armor"
     },
     {
       "id": "raid_cuirass",
@@ -1588,12 +1595,12 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "metal",
-          "count": 8,
+          "category": "tier_steel",
+          "count": 4,
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 8,
           "primary": false
         },
@@ -1610,7 +1617,8 @@
       "station": "workbench",
       "seconds": 12,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "scute_armor"
     },
     {
       "id": "raid_greaves",
@@ -1622,12 +1630,12 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "metal",
-          "count": 4,
+          "category": "tier_steel",
+          "count": 2,
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 4,
           "primary": false
         },
@@ -1644,7 +1652,8 @@
       "station": "workbench",
       "seconds": 12,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "scute_armor"
     },
     {
       "id": "bone_hammer",
@@ -1925,6 +1934,2754 @@
       "seconds": 4,
       "process_step": "bind",
       "process_add": 1
+    },
+    {
+      "id": "travel_shirt",
+      "display_name": "Travel Shirt",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 4,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "travel_shirt",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "travel_sleeves",
+      "display_name": "Travel Sleeves",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "travel_sleeves",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "travel_trousers",
+      "display_name": "Travel Trousers",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 4,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "travel_trousers",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "forager_hood",
+      "display_name": "Forager Hood",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 10,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "cured_hide",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "forager_hood",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "forager_vest",
+      "display_name": "Forager Vest",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 10,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 6,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 6,
+          "primary": false
+        },
+        {
+          "category": "cured_hide",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "forager_vest",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "forager_wraps",
+      "display_name": "Forager Arm Wraps",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 10,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "cured_hide",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "forager_wraps",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "forager_leggings",
+      "display_name": "Forager Leggings",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 10,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cloth",
+          "count": 6,
+          "primary": true
+        },
+        {
+          "category": "fibre",
+          "count": 6,
+          "primary": false
+        },
+        {
+          "category": "cured_hide",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "forager_leggings",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "hide_bone_helm",
+      "display_name": "Hide and Bone Helm",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 30,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "bone",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "hide_bone_helm",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "hide_bone_cuirass",
+      "display_name": "Hide and Bone Cuirass",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 30,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "bone",
+          "count": 6,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 4,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "hide_bone_cuirass",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "hide_bone_bracers",
+      "display_name": "Hide and Bone Bracers",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 30,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "bone",
+          "count": 3,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "hide_bone_bracers",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "hide_bone_greaves",
+      "display_name": "Hide and Bone Greaves",
+      "skill": "tailoring",
+      "tree": "tailoring",
+      "min_level": 30,
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "bone",
+          "count": 6,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 4,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "hide_bone_greaves",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "bone_knife",
+      "display_name": "Bone Knife",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bone",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bone_knife",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone."
+    },
+    {
+      "id": "bone_axe",
+      "display_name": "Bone Axe",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bone",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bone_axe",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone."
+    },
+    {
+      "id": "bone_pick",
+      "display_name": "Bone Pick",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bone",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bone_pick",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone."
+    },
+    {
+      "id": "bone_spear",
+      "display_name": "Bone Spear",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bone",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bone_spear",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone."
+    },
+    {
+      "id": "flint_knife",
+      "display_name": "Flint Knife",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_flint",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "flint_knife",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "work_pick"
+    },
+    {
+      "id": "flint_axe",
+      "display_name": "Flint Axe",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_flint",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "flint_axe",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "work_pick"
+    },
+    {
+      "id": "flint_pick",
+      "display_name": "Flint Pick",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_flint",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "flint_pick",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "work_pick"
+    },
+    {
+      "id": "flint_spear",
+      "display_name": "Flint Spear",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_flint",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "flint_spear",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "work_pick"
+    },
+    {
+      "id": "obsidian_knife",
+      "display_name": "Obsidian Knife",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_obsidian",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "obsidian_knife",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "combat_knife"
+    },
+    {
+      "id": "obsidian_axe",
+      "display_name": "Obsidian Axe",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_obsidian",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "obsidian_axe",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "combat_knife"
+    },
+    {
+      "id": "obsidian_pick",
+      "display_name": "Obsidian Pick",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_obsidian",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "obsidian_pick",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "combat_knife"
+    },
+    {
+      "id": "obsidian_spear",
+      "display_name": "Obsidian Spear",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_obsidian",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "obsidian_spear",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "combat_knife"
+    },
+    {
+      "id": "copper_knife",
+      "display_name": "Copper Knife",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_copper",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "copper_knife",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "copper_tools"
+    },
+    {
+      "id": "copper_axe",
+      "display_name": "Copper Axe",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_copper",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "copper_axe",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "copper_tools"
+    },
+    {
+      "id": "copper_pick",
+      "display_name": "Copper Pick",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_copper",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "copper_pick",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "copper_tools"
+    },
+    {
+      "id": "copper_sword",
+      "display_name": "Copper Sword",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_copper",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "copper_sword",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "copper_tools"
+    },
+    {
+      "id": "bronze_knife",
+      "display_name": "Bronze Knife",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bronze",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bronze_knife",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "blade_shapes"
+    },
+    {
+      "id": "bronze_axe",
+      "display_name": "Bronze Axe",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bronze",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bronze_axe",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "blade_shapes"
+    },
+    {
+      "id": "bronze_pick",
+      "display_name": "Bronze Pick",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bronze",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bronze_pick",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "blade_shapes"
+    },
+    {
+      "id": "bronze_sword",
+      "display_name": "Bronze Sword",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bronze",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bronze_sword",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "blade_shapes"
+    },
+    {
+      "id": "iron_knife",
+      "display_name": "Iron Knife",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_iron",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "iron_knife",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "iron_weapons"
+    },
+    {
+      "id": "iron_axe",
+      "display_name": "Iron Axe",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_iron",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "iron_axe",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "iron_weapons"
+    },
+    {
+      "id": "iron_pick",
+      "display_name": "Iron Pick",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_iron",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "iron_pick",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "iron_weapons"
+    },
+    {
+      "id": "iron_sword",
+      "display_name": "Iron Sword",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_iron",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "iron_sword",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "iron_weapons"
+    },
+    {
+      "id": "steel_knife",
+      "display_name": "Steel Knife",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_steel",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "steel_knife",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "iron_weapons"
+    },
+    {
+      "id": "steel_axe",
+      "display_name": "Steel Axe",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_steel",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "steel_axe",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "iron_weapons"
+    },
+    {
+      "id": "steel_pick",
+      "display_name": "Steel Pick",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_steel",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "steel_pick",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "iron_weapons"
+    },
+    {
+      "id": "steel_sword",
+      "display_name": "Steel Sword",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_steel",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "steel_sword",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "iron_weapons"
+    },
+    {
+      "id": "leather_helm",
+      "display_name": "Leather Helm",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "thread",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "leather_helm",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 20
+    },
+    {
+      "id": "leather_cuirass",
+      "display_name": "Leather Cuirass",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 6,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 4,
+          "primary": false
+        },
+        {
+          "category": "thread",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "leather_cuirass",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 20
+    },
+    {
+      "id": "leather_bracers",
+      "display_name": "Leather Bracers",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "thread",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "leather_bracers",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 20
+    },
+    {
+      "id": "leather_greaves",
+      "display_name": "Leather Greaves",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "cured_hide",
+          "count": 6,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 4,
+          "primary": false
+        },
+        {
+          "category": "thread",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "leather_greaves",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 20
+    },
+    {
+      "id": "copper_helm",
+      "display_name": "Copper Helm",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_copper",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "copper_helm",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 35,
+      "requires_node": "armor_1"
+    },
+    {
+      "id": "copper_cuirass",
+      "display_name": "Copper Cuirass",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_copper",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "copper_cuirass",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 35,
+      "requires_node": "armor_1"
+    },
+    {
+      "id": "copper_bracers",
+      "display_name": "Copper Bracers",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_copper",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "copper_bracers",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 35,
+      "requires_node": "armor_1"
+    },
+    {
+      "id": "copper_greaves",
+      "display_name": "Copper Greaves",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_copper",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "copper_greaves",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 35,
+      "requires_node": "armor_1"
+    },
+    {
+      "id": "bronze_helm",
+      "display_name": "Bronze Helm",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bronze",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bronze_helm",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 40,
+      "requires_node": "armor_1"
+    },
+    {
+      "id": "bronze_cuirass",
+      "display_name": "Bronze Cuirass",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bronze",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bronze_cuirass",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 40,
+      "requires_node": "armor_1"
+    },
+    {
+      "id": "bronze_bracers",
+      "display_name": "Bronze Bracers",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bronze",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bronze_bracers",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 40,
+      "requires_node": "armor_1"
+    },
+    {
+      "id": "bronze_greaves",
+      "display_name": "Bronze Greaves",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_bronze",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bronze_greaves",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 40,
+      "requires_node": "armor_1"
+    },
+    {
+      "id": "iron_helm",
+      "display_name": "Iron Helm",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_iron",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "iron_helm",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 50,
+      "requires_node": "scute_armor"
+    },
+    {
+      "id": "iron_cuirass",
+      "display_name": "Iron Cuirass",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_iron",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "iron_cuirass",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 50,
+      "requires_node": "scute_armor"
+    },
+    {
+      "id": "iron_bracers",
+      "display_name": "Iron Bracers",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_iron",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "iron_bracers",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 50,
+      "requires_node": "scute_armor"
+    },
+    {
+      "id": "iron_greaves",
+      "display_name": "Iron Greaves",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_iron",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "iron_greaves",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 50,
+      "requires_node": "scute_armor"
+    },
+    {
+      "id": "steel_helm",
+      "display_name": "Steel Helm",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_steel",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "steel_helm",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 55,
+      "requires_node": "scute_armor"
+    },
+    {
+      "id": "steel_cuirass",
+      "display_name": "Steel Cuirass",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_steel",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "steel_cuirass",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 55,
+      "requires_node": "scute_armor"
+    },
+    {
+      "id": "steel_bracers",
+      "display_name": "Steel Bracers",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_steel",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "steel_bracers",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 55,
+      "requires_node": "scute_armor"
+    },
+    {
+      "id": "steel_greaves",
+      "display_name": "Steel Greaves",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_steel",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "cured_hide",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "steel_greaves",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "tailoring",
+      "min_level": 55,
+      "requires_node": "scute_armor"
+    },
+    {
+      "id": "forge_kit",
+      "display_name": "Forge",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "stone",
+          "count": 10,
+          "primary": true
+        },
+        {
+          "category": "pot_clay",
+          "count": 4,
+          "primary": false
+        },
+        {
+          "category": "fuel",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "forge_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 8.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "requires_node": "furnace_kiln",
+      "tree": "construction"
+    },
+    {
+      "id": "anvil_kit",
+      "display_name": "Anvil",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "stone",
+          "count": 6,
+          "primary": true
+        },
+        {
+          "category": "ingot",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "anvil_kit",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "requires_node": "hammer",
+      "tree": "construction"
+    },
+    {
+      "id": "smelt_tin",
+      "display_name": "Tin Ingot",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tin_ore",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "fuel",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "tin_ingot",
+        "count": 1
+      },
+      "station": "forge",
+      "seconds": 8.0,
+      "process_step": "smelt",
+      "process_add": 1,
+      "requires_node": "smelting_1"
+    },
+    {
+      "id": "smelt_copper",
+      "display_name": "Copper Ingot",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "copper_ore_mat",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "fuel",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "copper_ingot",
+        "count": 1
+      },
+      "station": "forge",
+      "seconds": 8.0,
+      "process_step": "smelt",
+      "process_add": 1,
+      "requires_node": "smelting_1"
+    },
+    {
+      "id": "alloy_bronze",
+      "display_name": "Bronze Ingot",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_copper",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "tin",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "fuel",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "bronze_ingot",
+        "count": 2
+      },
+      "station": "forge",
+      "seconds": 10.0,
+      "process_step": "alloy",
+      "process_add": 1,
+      "requires_node": "smelting_1"
+    },
+    {
+      "id": "smelt_iron",
+      "display_name": "Iron Ingot",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "iron_ore",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "fuel",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "iron_ingot",
+        "count": 1
+      },
+      "station": "forge",
+      "seconds": 24.0,
+      "process_step": "smelt",
+      "process_add": 1,
+      "requires_node": "smelting_2",
+      "note": "ASSUMPTION: iron needs a hotter, 3x longer smelt than copper (24 s), so an iron tool costs more than a bronze one (t_data checks the rung order)."
+    },
+    {
+      "id": "refine_steel",
+      "display_name": "Steel Ingot",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_iron",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "fuel",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "steel_ingot",
+        "count": 1
+      },
+      "station": "forge",
+      "seconds": 14.0,
+      "process_step": "alloy",
+      "process_add": 1,
+      "requires_node": "smelting_2"
+    },
+    {
+      "id": "metal_shards",
+      "display_name": "Metal Shards",
+      "skill": "processing",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "ingot",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "metal_shard",
+        "count": 2
+      },
+      "station": "anvil",
+      "seconds": 4.0,
+      "process_step": "hammer",
+      "process_add": 1
+    },
+    {
+      "id": "capture_net_ii",
+      "display_name": "Capture Net II",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "rope",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "capture_net_ii",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "capture_net_iii",
+      "display_name": "Capture Net III",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "rope",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "tendon",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "capture_net_iii",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 5.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "capture_net_iv",
+      "display_name": "Capture Net IV",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "rope",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "tendon",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "metal",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "capture_net_iv",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "capture_net_v",
+      "display_name": "Capture Net V",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "rope",
+          "count": 4,
+          "primary": true
+        },
+        {
+          "category": "tendon",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "scute",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "tier_bronze",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "capture_net_v",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 8.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "steamer_kit",
+      "display_name": "Steamer",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "wood",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "pot_clay",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "steamer_kit",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 5.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "construction",
+      "requires_node": "steam"
+    },
+    {
+      "id": "hoe",
+      "display_name": "Hoe",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "blade_mat",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "hoe",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "farming"
+    },
+    {
+      "id": "stone_knife",
+      "display_name": "Stone Knife",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_stone",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "stone_knife",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "pillar",
+      "display_name": "Pillar",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "log",
+          "count": 2,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "pillar",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 4.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "requires_node": "nails_pillars",
+      "tree": "construction"
+    },
+    {
+      "id": "cloth_scrap",
+      "display_name": "Cloth Scrap",
+      "skill": "tailoring",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "fibre",
+          "count": 2,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "cloth_scrap",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 2.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "claim_stake",
+      "display_name": "Claim Stake",
+      "skill": "construction",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "wood",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "lashing",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "claim_stake",
+        "count": 1
+      },
+      "station": null,
+      "seconds": 3.0,
+      "process_step": "bind",
+      "process_add": 1
+    },
+    {
+      "id": "blue_dye",
+      "display_name": "Blue Dye",
+      "skill": "processing",
+      "max_level": 60,
+      "implementation_status": "staged",
+      "slots": [
+        {
+          "category": "coral",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "blue_dye",
+        "count": 2
+      },
+      "station": "mortar",
+      "seconds": 3.0,
+      "process_step": "grind",
+      "process_add": 1
+    },
+    {
+      "id": "fruit_fertilizer",
+      "display_name": "Fruit Fertilizer",
+      "skill": "farming",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "fruit",
+          "count": 2,
+          "primary": true
+        },
+        {
+          "category": "earth",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "fruit_fertilizer",
+        "count": 1
+      },
+      "station": "mortar",
+      "seconds": 3.0,
+      "process_step": "grind",
+      "process_add": 1,
+      "tree": "farming",
+      "requires_node": "fertilizer"
+    },
+    {
+      "id": "seeds_flax",
+      "display_name": "Flax Seed",
+      "skill": "farming",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "flax_crop",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "flax_seed",
+        "count": 2
+      },
+      "station": null,
+      "seconds": 2.0,
+      "process_step": "extract",
+      "process_add": 1,
+      "tree": "farming"
+    },
+    {
+      "id": "seeds_corn",
+      "display_name": "Corn Seed",
+      "skill": "farming",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "corn_crop",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "corn_seed",
+        "count": 2
+      },
+      "station": null,
+      "seconds": 2.0,
+      "process_step": "extract",
+      "process_add": 1,
+      "tree": "farming"
+    },
+    {
+      "id": "seeds_wheat",
+      "display_name": "Wheat Seed",
+      "skill": "farming",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "wheat_crop",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "wheat_seed",
+        "count": 2
+      },
+      "station": null,
+      "seconds": 2.0,
+      "process_step": "extract",
+      "process_add": 1,
+      "tree": "farming"
+    },
+    {
+      "id": "seeds_berry",
+      "display_name": "Berry Seed",
+      "skill": "farming",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "berry_crop",
+          "count": 1,
+          "primary": true
+        }
+      ],
+      "output": {
+        "id": "berry_seed",
+        "count": 2
+      },
+      "station": null,
+      "seconds": 2.0,
+      "process_step": "extract",
+      "process_add": 1,
+      "tree": "farming"
+    },
+    {
+      "id": "antivenom",
+      "display_name": "Antivenom",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "venom",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "herb",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "antivenom",
+        "count": 1
+      },
+      "station": "mortar",
+      "seconds": 4.0,
+      "process_step": "grind",
+      "process_add": 1,
+      "tree": "cooking",
+      "requires_node": "antivenom"
+    },
+    {
+      "id": "antibiotic",
+      "display_name": "Antibiotic",
+      "skill": "cooking",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "herb",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "mushroom",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "antibiotic",
+        "count": 1
+      },
+      "station": "mortar",
+      "seconds": 4.0,
+      "process_step": "grind",
+      "process_add": 1,
+      "tree": "cooking",
+      "requires_node": "antibiotic"
     }
-  ]
+  ],
+  "repairs": [
+    {
+      "tier": "stone",
+      "station": "workbench",
+      "slots": [
+        {
+          "category": "tier_stone",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "bone",
+      "station": "workbench",
+      "slots": [
+        {
+          "category": "bone",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "flint",
+      "station": "workbench",
+      "slots": [
+        {
+          "category": "tier_flint",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "obsidian",
+      "station": "workbench",
+      "slots": [
+        {
+          "category": "tier_obsidian",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "copper",
+      "station": "anvil",
+      "slots": [
+        {
+          "category": "tier_copper",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "bronze",
+      "station": "anvil",
+      "slots": [
+        {
+          "category": "tier_bronze",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "iron",
+      "station": "anvil",
+      "slots": [
+        {
+          "category": "tier_iron",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    },
+    {
+      "tier": "steel",
+      "station": "anvil",
+      "slots": [
+        {
+          "category": "tier_steel",
+          "count": 1
+        }
+      ],
+      "restore_fraction": 0.5
+    }
+  ],
+  "_repairs_about": "Per-tier repair cost: one unit of the tier's material at the station restores restore_fraction of max durability. ASSUMPTION values; read by the repair hook (W2-PROCESS/W2-CRAFT)."
 }

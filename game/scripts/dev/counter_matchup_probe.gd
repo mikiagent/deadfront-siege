@@ -12,6 +12,7 @@ var correct := false
 var species: StringName = &"velociraptor"
 func run(host: Node) -> void:
 	seed(41)
+	CombatTuning.rng.seed = 41  # CombatTuning.rng is the combat RNG; seed() does not reach it
 	for arg in OS.get_cmdline_user_args():
 		if arg == "--correct-kit": correct = true
 		if arg.begins_with("--match-species="): species = StringName(arg.substr(16))
@@ -20,7 +21,7 @@ func run(host: Node) -> void:
 	World.home_terrain = &"meadow"
 	World.load_island(host, &"home_grassland", Vector3(0,1,12), false)
 	await get_tree().create_timer(0.5).timeout
-	player = get_tree().get_first_node_in_group("player") as Player
+	player = PlayerRegistry.local()
 	for cr in get_tree().get_nodes_in_group("creatures"): cr.queue_free()
 	player.inventory = Inventory.new(20)
 	var fast := species == &"velociraptor"

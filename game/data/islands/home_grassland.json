@@ -10,10 +10,11 @@
   "lifetime_seconds": 0,
   "sail_cost": 0,
   "harbour": [
+    0.5,
     0,
-    0,
-    18
+    63.5
   ],
+  "_harbour_note": "Where travel lands you: the dock's arrival point on the coast (HarbourSite). Island build snaps the dock to the legal coast pose nearest this; t_harbour fails if they drift apart and prints the value to use.",
   "camp": [
     0,
     0,

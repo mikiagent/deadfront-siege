@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Split Godot's index.pck into <100 MB parts so Vercel Hobby can host it.
 
-Godot's loader expects one file named index.pck. We download the parts in the
-browser, concatenate them, and preload the buffer as index.pck.
+Godot's loader expects one file named index.pck. We download the parts in the browser,
+concatenate them, and preload the buffer as index.pck.
+
+Usage: web_pack_for_vercel.py OUT_DIR [--soak]
 """
 from __future__ import annotations
 
@@ -20,6 +22,8 @@ LOADER = r'''
 		return;
 	}
 	engine.__durangoPckLoader = true;
+	// Parts download PARALLEL at a time; each writes into its own slot of one buffer.
+	const PARALLEL = 4;
 	engine.startGame = function (override) {
 		this.config.update(override);
 		const exe = this.config.executable;
@@ -27,76 +31,111 @@ LOADER = r'''
 		this.config.args = ['--main-pack', pack].concat(this.config.args);
 		const me = this;
 		const onProgress = this.config.onProgress;
+		const t0 = performance.now();
+		// Log time-to-world once the game prints its island line (World.load_island).
+		const print = this.config.onPrint;
+		// time_to_main_ms is load time; time_to_world_ms also holds the player's time on the
+		// menu and character creation, so it is not a load number on its own.
+		let mainLogged = false;
+		let worldLogged = false;
+		this.config.onPrint = function () {
+			const line = String(arguments[0]);
+			if (!mainLogged && line.indexOf('[boot] main scene ready') === 0) {
+				mainLogged = true;
+				console.log('[loader] time_to_main_ms=' + Math.round(performance.now() - t0));
+			}
+			if (!worldLogged && line.indexOf('[world] island') === 0) {
+				worldLogged = true;
+				console.log('[loader] time_to_world_ms=' + Math.round(performance.now() - t0) + ' (includes menu and creation time)');
+			}
+			return print.apply(this, arguments);
+		};
 		const loadParts = fetch('pack.manifest.json', { cache: 'no-store' }).then(function (r) {
 			if (!r.ok) {
 				throw new Error('Missing pack.manifest.json');
 			}
 			return r.json();
 		}).then(function (man) {
-			let loaded = 0;
+			const chunk = man.chunk || (16 * 1024 * 1024);
 			const out = new Uint8Array(man.size);
+			const got = new Array(man.parts.length).fill(0);
 			function reportProgress() {
 				if (onProgress) {
-					onProgress(loaded, man.size);
+					onProgress(got.reduce(function (a, b) { return a + b; }, 0), man.size);
 				}
 			}
 			// One dropped fetch used to kill the whole multi-part load. Retry each part up to
-			// three times, rewinding to the part's start offset so partial bytes are overwritten.
-			function fetchPart(part, attempt) {
-				const start = loaded;
-				return downloadPart(part).catch(function (err) {
+			// three times; a retry rewrites the part's own slot from its start.
+			function fetchPart(i, attempt) {
+				return downloadPart(i).catch(function (err) {
 					if (attempt >= 3) {
 						throw err;
 					}
-					loaded = start;
+					got[i] = 0;
 					reportProgress();
-					console.warn('Retrying ' + part + ' (attempt ' + (attempt + 1) + ' of 3): ' + err);
+					console.warn('Retrying ' + man.parts[i] + ' (attempt ' + (attempt + 1) + ' of 3): ' + err);
 					return new Promise(function (resolve) {
 						setTimeout(resolve, 1000 * attempt);
 					}).then(function () {
-						return fetchPart(part, attempt + 1);
+						return fetchPart(i, attempt + 1);
 					});
 				});
 			}
-			function downloadPart(part) {
-					return fetch(part).then(function (res) {
-						if (!res.ok) {
-							throw new Error('Failed to download ' + part + ' (' + res.status + ')');
+			function downloadPart(i) {
+				const start = i * chunk;
+				const end = Math.min(start + chunk, man.size);
+				return fetch(man.parts[i]).then(function (res) {
+					if (!res.ok) {
+						throw new Error('Failed to download ' + man.parts[i] + ' (' + res.status + ')');
+					}
+					let at = start;
+					function put(bytes) {
+						if (at + bytes.byteLength > end) {
+							throw new Error('Part ' + man.parts[i] + ' is larger than its slot');
 						}
-						if (!res.body || !res.body.getReader) {
-							return res.arrayBuffer().then(function (buf) {
-								const bytes = new Uint8Array(buf);
-								out.set(bytes, loaded);
-								loaded += bytes.byteLength;
-								reportProgress();
-							});
+						out.set(bytes, at);
+						at += bytes.byteLength;
+						got[i] = at - start;
+						reportProgress();
+					}
+					function finish() {
+						if (at !== end) {
+							throw new Error('Part ' + man.parts[i] + ' size mismatch (' + (at - start) + ' of ' + (end - start) + ' bytes)');
 						}
-						const reader = res.body.getReader();
-						function pump() {
-							return reader.read().then(function (result) {
-								if (result.done) {
-									return;
-								}
-								if (loaded + result.value.byteLength > out.byteLength) {
-									throw new Error('Downloaded pack is larger than its manifest');
-								}
-								out.set(result.value, loaded);
-								loaded += result.value.byteLength;
-								reportProgress();
-								return pump();
-							});
-						}
-						return pump();
-					});
-			}
-			return man.parts.reduce(function (p, part) {
-				return p.then(function () {
-					return fetchPart(part, 1);
+					}
+					if (!res.body || !res.body.getReader) {
+						return res.arrayBuffer().then(function (buf) {
+							put(new Uint8Array(buf));
+							finish();
+						});
+					}
+					const reader = res.body.getReader();
+					function pump() {
+						return reader.read().then(function (result) {
+							if (result.done) {
+								return finish();
+							}
+							put(result.value);
+							return pump();
+						});
+					}
+					return pump();
 				});
-			}, Promise.resolve()).then(function () {
-				if (loaded !== man.size) {
-					throw new Error('Downloaded pack size mismatch (' + loaded + ' of ' + man.size + ' bytes)');
+			}
+			let next = 0;
+			function worker() {
+				if (next >= man.parts.length) {
+					return Promise.resolve();
 				}
+				const i = next++;
+				return fetchPart(i, 1).then(worker);
+			}
+			const workers = [];
+			for (let w = 0; w < Math.min(PARALLEL, man.parts.length); w++) {
+				workers.push(worker());
+			}
+			return Promise.all(workers).then(function () {
+				console.log('[loader] pack ' + man.size + ' bytes in ' + Math.round(performance.now() - t0) + ' ms (' + man.parts.length + ' parts, ' + PARALLEL + ' at a time)');
 				return me.preloadFile(out.buffer, pack);
 			});
 		});
@@ -134,10 +173,11 @@ def split_pck(out: pathlib.Path) -> list[str]:
     (out / 'pack.manifest.json').write_text(json.dumps({
         'parts': parts,
         'size': len(raw),
+        'chunk': CHUNK,  # every part but the last is exactly this long: part i starts at i * chunk
         'virtual': 'index.pck',
     }, indent=2) + '\n')
     pck.unlink()
-    print(f'split index.pck ({len(raw) / (1024*1024):.1f} MB) into {len(parts)} parts')
+    print(f'split index.pck ({len(raw) / (1024*1024):.1f} MiB) into {len(parts)} parts')
     return parts
 
 
@@ -168,8 +208,8 @@ self.addEventListener('activate', function (event) {
 
 
 
-def install_diagnostics(out: pathlib.Path) -> None:
-    """Install diagnostics before Engine construction and expose the opt-in soak arg."""
+def install_diagnostics(out: pathlib.Path, soak: bool) -> None:
+    """Install diagnostics before Engine construction; with soak, also the ?soak=1 arg hook."""
     source = pathlib.Path(__file__).with_name('web_diagnostics.js')
     if not source.is_file():
         raise SystemExit(f'missing {source}')
@@ -184,12 +224,12 @@ def install_diagnostics(out: pathlib.Path) -> None:
         html = html.replace(needle, marker + '\n' + needle, 1)
     config_needle = 'const engine = new Engine(GODOT_CONFIG);'
     soak_hook = "if (new URLSearchParams(location.search).get('soak') === '1' && !GODOT_CONFIG.args.includes('--web-soak')) GODOT_CONFIG.args.push('--', '--web-soak');"
-    if soak_hook not in html:
+    if soak and soak_hook not in html:
         if config_needle not in html:
             raise SystemExit('index.html has no Engine(GODOT_CONFIG) hook')
         html = html.replace(config_needle, soak_hook + '\n' + config_needle, 1)
     html_path.write_text(html)
-    print('installed web crash diagnostics and soak hook')
+    print('installed web crash diagnostics' + (' and soak hook' if soak else ''))
 
 
 def patch_service_worker(out: pathlib.Path, parts: list[str]) -> None:
@@ -231,10 +271,11 @@ def report(out: pathlib.Path) -> None:
 
 
 def main() -> None:
-    out = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else '.')
+    args = [a for a in sys.argv[1:] if a != '--soak']
+    out = pathlib.Path(args[0] if args else '.')
     parts = split_pck(out)
     patch_html(out)
-    install_diagnostics(out)
+    install_diagnostics(out, '--soak' in sys.argv[1:])
     patch_service_worker(out, parts)
     report(out)
 

@@ -1,25 +1,26 @@
 class_name PresenceSender
 extends Node
-## Online mode only: sends the local survivor's position, yaw and clip to its island room at
-## 10 Hz (contracts.md §7). Quiet while offline and while the survivor stands still.
+## Online mode only: sends the local survivor's (PlayerRegistry.local()) position, yaw and clip to
+## its island room at 10 Hz (contracts.md §7). Quiet while offline and while the survivor stands still.
+## Keeps its island instance (area) across reconnects; a full one offers the next (limit_reached).
 
 const INTERVAL := 0.1
 const MOVE_EPS := 0.02
 const YAW_EPS := 0.02
 
-var player: Player
 var net: NetClient
 var rejected := 0  ## updates the server refused (teleport check); probes read it
+var instance := 0  ## the instance of the current island the server put us in; 0 = let it pick
 var _acc := 0.0
 var _room := ""
+var _instance_island := ""
 var _last_p := Vector3.INF
 var _last_yaw := 0.0
 var _last_anim := ""
 var _anim_re := RegEx.create_from_string(PresenceRooms.ANIM_PATTERN)
 
-func _init(p_player: Player, p_net: NetClient = null) -> void:
+func _init(p_net: NetClient = null) -> void:
 	name = "PresenceSender"
-	player = p_player
 	net = p_net
 
 func _ready() -> void:
@@ -32,13 +33,20 @@ func _process(delta: float) -> void:
 	if _acc < INTERVAL:
 		return
 	_acc = 0.0
-	if not net.is_online() or player == null or not is_instance_valid(player):
+	var player := PlayerRegistry.local()
+	if not net.is_online() or player == null:
 		return
 	var island := room_name()
 	if island != _room:
 		_room = island
 		_last_p = Vector3.INF  # announce ourselves in the new room even if standing still
-		net.request("presence.join", {"island": island})
+		if island != _instance_island:
+			instance = 0
+			_instance_island = island
+		var a := {"island": island}
+		if instance > 0:
+			a["instance"] = instance  # a reconnect goes back to the same area, so a group stays together
+		net.request("presence.join", a).done.connect(_on_join)
 	var p := player.global_position
 	# World yaw: when mounted the survivor is parented to the mount's saddle socket.
 	var yaw := player.visual.global_rotation.y if player.visual else 0.0
@@ -57,6 +65,14 @@ func _process(delta: float) -> void:
 ## Room id for the current island; the default playfield (no island loaded) is the lobby.
 static func room_name() -> String:
 	return str(World.island_id) if World.island_id != &"" else PresenceRooms.LOBBY
+
+func _on_join(req: NetRequest) -> void:
+	var n: Variant = NetProtocol.as_int(req.r.get("instance" if req.ok else "next_instance"), 1, PresenceRooms.MAX_INSTANCES)
+	if req.ok:
+		instance = n if n != null else 0
+	elif req.err == "limit_reached" and n != null:
+		instance = n  # our area filled up while we were away: take the one the server offers
+		_room = ""  # and join it on the next tick
 
 func _on_update(req: NetRequest) -> void:
 	if req.ok or req.err == "offline":

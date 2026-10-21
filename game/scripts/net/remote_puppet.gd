@@ -1,7 +1,7 @@
 class_name RemotePuppet
 extends Node3D
 ## Another player's survivor: the same rigged model and clips as the local Player
-## (Player._setup_survivor), moved by relayed presence with 100 ms interpolation, plus a
+## (PlayerView._setup_survivor), moved by relayed presence with 100 ms interpolation, plus a
 ## nameplate and a short-lived chat bubble.
 
 const LERP_TIME := 0.1
@@ -35,10 +35,12 @@ func setup(id: int, nm: String, p: Vector3, yaw: float) -> void:
 	var meta := _survivor_meta()
 	var pipeline: Dictionary = meta.get("pipeline", {}) if meta.get("pipeline") is Dictionary else {}
 	var height := float(meta.get("height_meters", 1.72))
-	if rig.setup(Player.SURVIVOR_BASE_GLB, Player.SURVIVOR_ANIM_DIR, str(pipeline.get("forward_axis", "+Z")),
+	if rig.setup(PlayerView.SURVIVOR_BASE_GLB, PlayerView.SURVIVOR_ANIM_DIR, str(pipeline.get("forward_axis", "+Z")),
 			height, "remote", false, float(pipeline.get("source_height_m", height))):
-		rig.scale *= 1.18  # the same silhouette lift as the local survivor
-		_web_safe_materials()
+		rig.scale *= 1.18  # the same silhouette lift as the local survivor (PlayerView._setup_survivor)
+		if rig.mesh_root:
+			for node in rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
+				PlayerView.web_safe_mesh(node as MeshInstance3D)
 	_label(nm, 2.35, 44, Color(0.96, 0.94, 0.82))
 	bubble = _label("", 2.8, 36, Color.WHITE)
 	bubble.visible = false
@@ -96,25 +98,5 @@ func _label(text: String, y: float, size: int, color: Color) -> Label3D:
 	return l
 
 func _survivor_meta() -> Dictionary:
-	var json := JSON.new()
-	if FileAccess.file_exists(Player.SURVIVOR_JSON) and json.parse(FileAccess.get_file_as_string(Player.SURVIVOR_JSON)) == OK and json.data is Dictionary:
-		return json.data
-	return {"height_meters": 1.72, "pipeline": {"forward_axis": "+Z"}}
-
-## Same override as Player._make_survivor_web_safe: the Meshy material can vanish on WebGL.
-func _web_safe_materials() -> void:
-	if rig.mesh_root == null:
-		return
-	for node in rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
-		var mi := node as MeshInstance3D
-		if mi == null or mi.mesh == null:
-			continue
-		mi.extra_cull_margin = 1.0
-		for surface in mi.mesh.get_surface_count():
-			var original := mi.get_active_material(surface) as BaseMaterial3D
-			var safe := StandardMaterial3D.new()
-			safe.cull_mode = BaseMaterial3D.CULL_DISABLED
-			safe.albedo_color = original.albedo_color if original else Color(0.70, 0.45, 0.28)
-			safe.albedo_texture = original.albedo_texture if original else null
-			safe.roughness = 0.82
-			mi.set_surface_override_material(surface, safe)
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(PlayerView.SURVIVOR_JSON)) if FileAccess.file_exists(PlayerView.SURVIVOR_JSON) else null
+	return parsed if parsed is Dictionary else {"height_meters": 1.72, "pipeline": {"forward_axis": "+Z"}}

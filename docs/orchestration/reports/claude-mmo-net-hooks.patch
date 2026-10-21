@@ -1,0 +1,51 @@
+diff --git a/game/scripts/core/world.gd b/game/scripts/core/world.gd
+index 2eb0a496..d0d0368f 100644
+--- a/game/scripts/core/world.gd
++++ b/game/scripts/core/world.gd
+@@ -76,8 +76,8 @@ func def_of(id: StringName) -> Dictionary:
+ 	return islands.get(str(id), {}) as Dictionary
+ 
+ func _boot() -> void:
+-	if Game.smoke_test:
+-		return
++	if Game.smoke_test or Game.server_mode or Game.net_probe:
++		return  # the server has no island; probes run on the default playfield like smoke
+ 	if Game.lab_name != "" and Game.lab_name != "home_lab":
+ 		return
+ 	if Game.lab_name == "home_lab":
+@@ -355,6 +355,8 @@ func _fade_to(cb: Callable) -> void:
+ 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ 
+ func _save_now() -> void:
++	if Game.net_probe:
++		return  # probes play the default playfield, not the save; the 60 s autosave must not overwrite it
+ 	(load("res://scripts/core/save_game.gd") as GDScript).save_now()
+ 
+ func _save_exists() -> bool:
+@@ -402,7 +404,8 @@ func _load_islands(_dir: String) -> void:
+ 		if not d.has("lifetime_seconds"):
+ 			d["lifetime_seconds"] = float(d.get("lifetime_hours", 6)) * 3600.0
+ 		islands[id] = d
+-	Game.max_creatures_per_island = int(Data.world_rules.get("creature_cap_mobile", 24))
++	# Contracts §7 area cap (owner rule 2026-10-19): an island is one area; spawns never pass max_creatures_area.
++	Game.max_creatures_per_island = mini(int(Data.world_rules.get("creature_cap_mobile", 24)), int(Data.world_rules.get("max_creatures_area", 24)))
+ 
+ func claims_for_current() -> Array:
+ 	return home_claims if is_home() else unstable_claims
+diff --git a/game/shell/boot.gd b/game/shell/boot.gd
+index 6763453f..4706b367 100644
+--- a/game/shell/boot.gd
++++ b/game/shell/boot.gd
+@@ -368,8 +368,10 @@ func _set_touch_layer(shown: bool) -> void:
+ 		(tc as CanvasLayer).visible = shown
+ 
+ func _enter_game() -> void:
+-	_set_touch_layer(true)
+-	var packed := ResourceLoader.load("res://scenes/main.tscn", "", ResourceLoader.CACHE_MODE_REPLACE) as PackedScene
++	_set_touch_layer(not Game.server_mode)
++	# --server: the net root is the whole scene, so no island, player or HUD is ever built (online contract §1).
++	var scene := "res://scenes/net/server.tscn" if Game.server_mode else "res://scenes/main.tscn"
++	var packed := ResourceLoader.load(scene, "", ResourceLoader.CACHE_MODE_REPLACE) as PackedScene
+ 	if packed == null:
+ 		_fail("Game scene missing.")
+ 		return

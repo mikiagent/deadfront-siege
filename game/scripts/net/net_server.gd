@@ -2,8 +2,8 @@ class_name NetServer
 extends Node
 ## Headless server root (contracts.md §1, §2, §3, §5.3, §5.4). Owns the TCP listener and the
 ## WebSocket peers, parses and validates envelopes, rate limits, and dispatches to registered
-## ops. auth.hello lives here because it binds a socket to an account; presence and chat
-## register like any other op, and the economy plugs in the same way:
+## ops. auth.hello lives here because it binds a socket to an account; presence, chat and the
+## character intents (NetCharacters) register like any other op, and the economy plugs in the same way:
 ##
 ##   server.register_op("market.buy", handler, true, "write")
 ##   handler: func(account_id: int, a: Dictionary) -> Dictionary   # NetProtocol.ok(r) / .fail(code, msg)
@@ -54,6 +54,7 @@ var accounts := AccountStore.new()
 var rids := RidStore.new()
 var presence: PresenceRooms
 var chat: NetChat
+var characters: NetCharacters
 var port := 0
 var new_accounts_per_hour := 10.0  # ASSUMPTION: per IP; tests raise it
 
@@ -89,6 +90,7 @@ func _init() -> void:
 	register_op("presence.join", presence.op_join, false, "write")
 	register_op("presence.update", presence.op_update, false, "presence")
 	register_op("chat.send", chat.op_send, false, "chat")
+	characters = NetCharacters.new(self)
 
 func _ready() -> void:
 	if autostart:
@@ -118,10 +120,11 @@ func start(p_port: int, data_dir: String, bind: String = "*") -> Error:
 	err = accounts.open(data_dir)
 	if err == OK:
 		err = rids.open(data_dir)
-	if err != OK:
-		_log("store_error", {"dir": data_dir, "err": error_string(err)})
+	var why := characters.open(data_dir) if err == OK else error_string(err)
+	if why != "":
+		_log("store_error", {"dir": data_dir, "err": why})
 		stop()
-		return err
+		return err if err != OK else ERR_FILE_CORRUPT
 	err = _tcp.listen(p_port, bind)
 	if err != OK:
 		_log("listen_error", {"port": p_port, "bind": bind, "err": error_string(err)})
@@ -140,6 +143,7 @@ func stop() -> void:
 		_tcp.stop()
 		_log("stop", {"port": port})
 	rids.close()
+	characters.close()
 	if _lock_path != "":
 		DirAccess.remove_absolute(_lock_path)
 		_lock_path = ""

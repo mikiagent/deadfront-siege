@@ -1,6 +1,7 @@
 class_name TamingPen
 extends StaticBody3D
-## Holds one captured animal. 30 real minutes, scaled by Game.time_scale.
+## Holds one captured animal. 30 real minutes, scaled by Game.time_scale. Success bonds the animal
+## straight into the survivor's roster (origin capture); failure lets it escape.
 
 const BASE_SECONDS := 30.0 * 60.0
 const SUCCESS_CHANCE := 0.70 ## ASSUMPTION:
@@ -66,8 +67,17 @@ static func from_dict(d: Dictionary) -> TamingPen:
 	return pen
 
 func try_insert(player: Player) -> bool:
-	if running:
-		return false
+	if running or occupant != null:
+		return false  # an animal is already inside; inserting would overwrite (and lose) it
+	# Older saves can hold a tamed_animal item from the pen's old ending; a pen bonds it, then still
+	# takes a captured_animal in the same tap (a survivor can hold both).
+	if player.inventory.find_first(&"tamed_animal") >= 0:
+		var before := player.bonded.size()
+		player.bond_from_inventory()
+		if player.bonded.size() > before:
+			player.notice("Bonded the animal from your bag.")
+		else:
+			return true  # at the bonded cap: the legacy item stays, nothing else can start
 	var idx := player.inventory.find_first(&"captured_animal")
 	if idx < 0:
 		return false
@@ -89,49 +99,43 @@ func feed(player: Player) -> bool:
 	return true
 
 func _process(delta: float) -> void:
-	if not running:
+	if not running or occupant == null:
+		running = false
 		return
 	remaining -= delta * Game.time_scale
 	if remaining > 0.0:
 		return
-	running = false
+	var player := PlayerRegistry.local()
+	if player == null:
+		return  # stays finished-but-running until a survivor is around to receive it
 	var species := StringName(str(occupant.attributes.get("species", "velociraptor")))
 	var def := Data.creature(species)
 	if def == null:
+		# The species left data while the animal was in the pen: keep it and keep the pen running
+		# (retry each game minute), so a save made now finishes it once the data is back. Pack-up
+		# still hands the animal back.
+		remaining = 60.0
+		print("[capture] pen occupant %s is not in data; pen left waiting" % species)
 		return
+	running = false
 	var ok := randf() < SUCCESS_CHANCE
 	if force_result > 0:
 		ok = true
 	elif force_result < 0:
 		ok = false
 	if ok:
-		var grade := _roll_grade(int(occupant.attributes.get("grade_seed", 0)))
-		var tamed := ItemStack.make(&"tamed_animal", 1, {
-			"species": str(species),
-			"variant": str(occupant.attributes.get("variant", "")),
-			"grade": str(grade),
-			"genetics": occupant.attributes.get("genetics", {}),
-		})
-		var player := get_tree().get_first_node_in_group("player") as Player
-		if player:
-			player.inventory.add(tamed)
-		print("[capture] pen %s %s" % [species, grade])
+		var genes_raw: Variant = occupant.attributes.get("genetics", {})
+		var genes := CreatureGenetics.from_dict(genes_raw) if genes_raw is Dictionary else CreatureGenetics.roll()
+		var rec := PetRecord.from_def(def, &"", StringName(str(occupant.attributes.get("variant", ""))), genes, int(occupant.attributes.get("level", 1)))
+		rec.origin = &"capture"
+		rec.tamer = player.display_name()
+		player.bonded.append(rec)
+		player.notice("%s bonded (grade %s, Lv. %d)." % [str(def.species), rec.grade, rec.level])
+		print("[capture] pen %s bonded grade=%s lv=%d uid=%s" % [species, rec.grade, rec.level, rec.uid])
 	else:
 		print("[capture] pen %s escaped" % species)
 		_spawn_wild(def)
 	occupant = null
-
-func _roll_grade(seed: int) -> StringName:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed if seed != 0 else randi()
-	var r := rng.randf()
-	if r < 0.08:
-		return &"S"
-	if r < 0.28:
-		return &"A"
-	if r < 0.75:
-		return &"B"
-	return &"C"
 
 func _spawn_wild(def: CreatureDef) -> void:
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()

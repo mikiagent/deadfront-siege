@@ -19,6 +19,9 @@ extends Resource
 @export var health_bonus: float = 0.0
 @export var food_energy: float = 0.0
 @export var capture_tier: int = 0
+@export var market_category: StringName = &""
+@export var rarity: StringName = &"common"
+@export var insulation: Dictionary = {} ## {"cold": points, "heat": points} against climate needs
 @export var slot_span: int = 1
 @export var clears: Array[StringName] = []
 @export var diet: StringName = &""
@@ -31,6 +34,8 @@ extends Resource
 @export var poison_chance: float = 0.0
 @export var tastes_bad_chance: float = 0.0
 @export var food_buff: StringName = &""
+## Survivor armor piece shown when equipped, "<kit>/<piece>" under assets/characters/survivor/armor.
+@export var visual: String = ""
 
 static func from_dict(d: Dictionary) -> ItemDef:
 	var def := ItemDef.new()
@@ -55,6 +60,9 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	def.health_bonus = float(d.get("health_bonus", 0.0))
 	def.food_energy = float(d.get("food_energy", 0.0))
 	def.capture_tier = int(d.get("capture_tier", 0))
+	def.market_category = StringName(str(d.get("market_category", "")))
+	def.rarity = StringName(str(d.get("rarity", "common")))
+	def.insulation = (d.get("insulation", {}) as Dictionary).duplicate()
 	def.slot_span = int(d.get("slot_span", 1))
 	def.clears = _names(d.get("clears", []))
 	def.diet = StringName(str(d.get("diet", "")))
@@ -73,6 +81,7 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	def.poison_chance = float(d.get("poison_chance", 0.0))
 	def.tastes_bad_chance = float(d.get("tastes_bad_chance", 0.0))
 	def.food_buff = StringName(str(d.get("food_buff", "")))
+	def.visual = str(d.get("visual", ""))
 	return def
 
 static func _names(raw: Variant) -> Array[StringName]:

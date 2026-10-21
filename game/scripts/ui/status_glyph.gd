@@ -9,7 +9,9 @@ var icon: Texture2D
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	custom_minimum_size = Vector2(18, 18)
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS  # 128 px UiIcons drawn at ~14 px
+	# 14 px letter: plates shrink to 0.86 with distance, which keeps it at the 12 px floor.
+	custom_minimum_size = Vector2(26, 26)
 	size = custom_minimum_size
 
 func configure(text: String, color: Color, frac: float, tex: Texture2D = null) -> void:
@@ -23,10 +25,10 @@ func _draw() -> void:
 	var c := size * 0.5
 	var radius := minf(size.x, size.y) * 0.42
 	draw_circle(c, radius, Color(0.05, 0.05, 0.05, 0.82))
-	draw_arc(c, radius, -PI * 0.5, -PI * 0.5 + TAU * progress, 32, glyph_color, 2.6, true)
+	draw_arc(c, radius, -PI * 0.5, -PI * 0.5 + TAU * progress, 32, glyph_color, 2.0, true)
 	if icon:
-		draw_texture_rect(icon, Rect2(c - Vector2(6, 6), Vector2(12, 12)), false)
+		# ~18 px of the 26 px chip: at 1.3x radius the knockdown and groggy drawings blurred at 1600x900.
+		var isz := radius * 1.65
+		draw_texture_rect(icon, Rect2(c - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false)
 	else:
-		var font := ThemeDB.fallback_font
-		if font:
-			draw_string(font, c + Vector2(0, 4), glyph_text, HORIZONTAL_ALIGNMENT_CENTER, 20.0, 11, glyph_color)
+		UiTokens.draw_centered(self, ThemeDB.fallback_font, c, glyph_text, 14, glyph_color)

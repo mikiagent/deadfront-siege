@@ -68,4 +68,4 @@ func hide_panel() -> void:
 	closed.emit()
 
 func _player_from_tree() -> Player:
-	return get_tree().get_first_node_in_group("player") as Player
+	return PlayerRegistry.local()

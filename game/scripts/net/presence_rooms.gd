@@ -2,6 +2,9 @@ class_name PresenceRooms
 extends RefCounted
 ## Island rooms (contracts.md §7): who is on which island, the teleport check, and the 10 Hz
 ## relay of accepted states as `evt presence {players:[{id,name,p,yaw,anim}]}`.
+## Area caps (contracts §7, owner rule 2026-10-19): a room is one instance of an island and holds
+## at most max_players_area players (rules.json). presence.join {island, instance} into a full one
+## returns limit_reached with r.next_instance; without an instance the server picks the first with room.
 
 const RELAY_INTERVAL := 0.1
 const SPEED_FACTOR := 1.6
@@ -13,7 +16,8 @@ const CARRY_S := 3.0
 ## nothing flies, and player.gd _fall_guard re-seats anyone below -15 m. Outside this band is a hack.
 const Y_MIN := -20.0
 const Y_MAX := 30.0
-const MAX_ROOM := 100  # ASSUMPTION
+const MAX_INSTANCES := 99  # ASSUMPTION: far past what MAX_CONNECTIONS can fill at any sane cap
+const PLAYERS_AREA_FALLBACK := 30  # ASSUMPTION: rules.json max_players_area, until a perf test at the cap tunes it
 ## ASSUMPTION: real travel takes longer than this, so islands cannot be hopped every frame.
 ## Travel resets the check (contract §7) only for an island with no recent spot: a return trip is
 ## checked against where the player last stood there, so A -> B -> A is no free teleport.
@@ -32,9 +36,10 @@ const PLAYER_SCRIPT := "res://scripts/player/player.gd"
 const RUN_SPEED_FALLBACK := 7.0
 
 var run_speed := RUN_SPEED_FALLBACK
+var max_players := PLAYERS_AREA_FALLBACK
 var _server: NetServer
 var _rooms: Dictionary = {}  # room key -> {account_id: true}
-var _who: Dictionary = {}  # account_id -> {room, island, name, p: Vector3, yaw, anim, has_pos, dirty}
+var _who: Dictionary = {}  # account_id -> {room, island, instance, name, p: Vector3, yaw, anim, has_pos, dirty}
 ## account_id -> {island, at, hopped_at, spots: {island -> {p: Vector3, at, budget}}}; swept after
 ## LAST_TTL. spots is bounded by the island list, since _island() only admits known ids.
 var _last: Dictionary = {}
@@ -49,13 +54,17 @@ func _init(server: NetServer) -> void:
 	var v: Variant = script.get_property_default_value(&"run_speed") if script else null
 	if NetProtocol.is_num(v) and float(v) > 0.0:
 		run_speed = float(v)
+	max_players = maxi(1, int(Data.world_rules.get("max_players_area", PLAYERS_AREA_FALLBACK)))
 
-## presence.join {island}
+## presence.join {island, instance?} -> {island, instance, players, max_players}
 func op_join(aid: int, a: Dictionary) -> Dictionary:
 	var island := _island(a.get("island"))
 	if island == "":
 		return NetProtocol.fail("bad_request", "island must be a known island id")
-	return _join(aid, island)
+	var inst: Variant = NetProtocol.as_int(a.get("instance", 0), 0, MAX_INSTANCES)
+	if inst == null:
+		return NetProtocol.fail("bad_request", "instance must be 1-%d (or left out)" % MAX_INSTANCES)
+	return _join(aid, island, inst)
 
 ## presence.update {p:[x,y,z], yaw, anim, island}. A different island is travel: join it first.
 func op_update(aid: int, a: Dictionary) -> Dictionary:
@@ -92,7 +101,7 @@ func op_update(aid: int, a: Dictionary) -> Dictionary:
 		budget = minf(budget, allow - cost)
 	var st: Dictionary = _who.get(aid, {})
 	if st.is_empty() or st["island"] != island:
-		var joined := _join(aid, island)
+		var joined := _join(aid, island, 0)
 		if not joined["ok"]:
 			return joined
 		st = _who[aid]
@@ -122,6 +131,11 @@ func room_members(aid: int) -> Array:
 	var st: Dictionary = _who.get(aid, {})
 	return [] if st.is_empty() else (_rooms.get(st["room"], {}) as Dictionary).keys()
 
+## The last position the speed check accepted for aid, or null before the first one.
+func position_of(aid: int) -> Variant:
+	var st: Dictionary = _who.get(aid, {})
+	return st["p"] if not st.is_empty() and st["has_pos"] else null
+
 func tick(delta: float) -> void:
 	_sweep_acc += delta
 	if _sweep_acc >= 30.0:
@@ -145,17 +159,31 @@ func tick(delta: float) -> void:
 		if not batch.is_empty():
 			_server.broadcast_event(members.keys(), "presence", {"players": batch})
 
-func _join(aid: int, island: String) -> Dictionary:
-	var key := _room_key(aid, island)
+## want 0: stay in the current instance of this island, else the first one with room.
+func _join(aid: int, island: String, want: int) -> Dictionary:
 	var st: Dictionary = _who.get(aid, {})
+	var inst := want
+	if inst == 0:
+		inst = st["instance"] if not st.is_empty() and st["island"] == island else _open_instance(aid, island)
+	if inst == 0:
+		return NetProtocol.fail("limit_reached", "every instance of %s is full" % island)
+	var key := _room_key(aid, island, inst)
 	if st.is_empty() or st["room"] != key:
-		if (_rooms.get(key, {}) as Dictionary).size() >= MAX_ROOM:
-			return NetProtocol.fail("limit_reached", "this island is full")
+		var count := (_rooms.get(key, {}) as Dictionary).size()
+		if count >= max_players:
+			var next := _open_instance(aid, island)
+			return NetProtocol.fail("limit_reached", "%s instance %d is full (%d/%d players)%s" % [island, inst, count, max_players,
+				"; join instance %d" % next if next > 0 else ""], {"next_instance": next} if next > 0 else {})
+		if not st.is_empty():
+			# The client keeps its puppets until told: the people it leaves behind are gone for it.
+			for other in _rooms[st["room"]].keys():
+				if other != aid and _who[other]["has_pos"]:
+					_server.send_event(aid, "presence_leave", {"id": other})
 		leave(aid)
 		if not _rooms.has(key):
 			_rooms[key] = {}
 		_rooms[key][aid] = true
-		_who[aid] = {"room": key, "island": island, "name": _server.account_name(aid), "p": Vector3.ZERO,
+		_who[aid] = {"room": key, "island": island, "instance": inst, "name": _server.account_name(aid), "p": Vector3.ZERO,
 			"yaw": 0.0, "anim": "idle", "has_pos": false, "dirty": false}
 	# The relay only carries changes, so a newcomer gets everyone who is standing still now.
 	var players: Array = []
@@ -164,13 +192,20 @@ func _join(aid: int, island: String) -> Dictionary:
 			players.append(_entry(other, _who[other]))
 	if not players.is_empty():
 		_server.send_event(aid, "presence", {"players": players})
-	return NetProtocol.ok({"island": island, "players": _rooms[key].size()})
+	return NetProtocol.ok({"island": island, "instance": inst, "players": _rooms[key].size(), "max_players": max_players})
 
-## ASSUMPTION: a private island is each player's own home, so its room is per account.
-func _room_key(aid: int, island: String) -> String:
+## The lowest instance of island with a free place for aid, or 0 when all are full.
+func _open_instance(aid: int, island: String) -> int:
+	for i in range(1, MAX_INSTANCES + 1):
+		if (_rooms.get(_room_key(aid, island, i), {}) as Dictionary).size() < max_players:
+			return i
+	return 0
+
+## ASSUMPTION: a private island is each player's own home, so its room is per account (one instance).
+func _room_key(aid: int, island: String, inst: int) -> String:
 	if island != LOBBY and str(World.def_of(StringName(island)).get("kind", "")) == "private":
 		return "%s#%d" % [island, aid]
-	return island
+	return "%s/%d" % [island, inst]
 
 func _island(v: Variant) -> String:
 	if not v is String or (v as String).length() > 64:

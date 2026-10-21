@@ -1,8 +1,11 @@
 # Online runbook: local server and two clients
 
-Spec: `contracts.md` sections 1-3, 5.3, 5.4 and 7. Code: `game/scripts/net/`, `game/scenes/net/server.tscn`.
+Spec: `contracts.md` sections 0 (v2), 1-3, 5.3, 5.4 and 7. Code: `game/scripts/net/`, `game/scenes/net/server.tscn`.
 `G` below is your Godot binary, for example `/Applications/Godot_mono.app/Contents/MacOS/Godot`.
-Run every command from the repo root.
+Run every command from the repo root. The server boot path needs the package's integrator hooks
+(`docs/orchestration/reports/claude-mmo-net-hooks.patch`: `world.gd` skips its boot and autosave for
+the server and probes, `shell/boot.gd` loads `server.tscn`). Until they are applied, `--server`
+still starts through `main.gd`'s fallback, but World boots the save first.
 
 ## 1. Start a server
 
@@ -14,7 +17,10 @@ Run every command from the repo root.
 - `--data=` must be an absolute path or a `user://` path. It defaults to `user://server/`.
   It holds `accounts.json` (ids, names, `sha256(token)`, never the token itself) plus
   `accounts.json.bak` (the version before the last write), `rids.jsonl` (the last 64 mutating
-  responses per account) and `server.lock`.
+  responses per account), `server.lock`, `world_seed` (the secret that seeds every server roll;
+  made once, keep it with the data) and `chars/` (W1-SRVDOM's CharacterStore: `snapshot.json`
+  plus `journal.jsonl`, the server-owned characters). A `chars/` whose `world_seed` is missing or
+  different refuses to start: restore the seed file rather than delete the characters.
 - One server per data dir. `server.lock` is a heartbeat rewritten every 3 s. A second server
   waits while the heartbeat is under 10 s old, logging `lock_error` once a second. If the
   heartbeat is still fresh after 13 s, another server really holds the dir, and it exits 1.
@@ -55,6 +61,23 @@ kept). So once you restore the right data, the client finds its old account by i
 next connect. The default playfield (no island loaded) is the `lobby` room.
 Every island id is its own room, and each player's private home island is a room of its own.
 
+**Areas (instances).** A public island room is split into instances of at most `max_players_area`
+players (`game/data/world/rules.json`, 30 for now). `presence.join {island}` puts you in the first
+instance with room and answers `{island, instance, players, max_players}`. `presence.join {island,
+instance}` asks for one; a full one answers `limit_reached` with a reason ("desert_35 instance 1 is
+full (30/30 players); join instance 2") and `r.next_instance`. The client remembers its instance
+and asks for it again after a reconnect, so a group stays together; when that instance filled up
+meanwhile, it takes `next_instance`. Presence and chat stay inside one instance. Creatures per
+area are capped by `max_creatures_area` (the hooks patch makes the island spawner honour it).
+
+**Characters.** Online characters are server-owned (contracts v2 §0.1): the first hello makes the
+account's character on the server, and `char.get` reads it. Offline saves never import
+(`char.import` is always `invalid_asset`). The act intents (`act.gather`, `act.loot`, `act.craft`,
+`act.place`, `act.equip`, `act.eat`, `act.tame`, `act.capture`, `act.attack`, `act.deposit`) run
+on the server's copy, with reach measured from the last position presence accepted. The server has
+no island yet (W3-SRVWORLD), so intents that need a node, corpse or creature answer `not_found`,
+and the game client still plays its island locally (PlayerActions sends nothing until W3-SRVACT).
+
 Without `--online=`, the game runs offline exactly as before. `Game.net` is only created the first
 time something uses it.
 
@@ -81,8 +104,8 @@ For a second player, use one of these:
 ## 4. What you should see
 
 - Each client logs `[net] online as <name> (#<id>) at ws://...`.
-- In the same room, each window shows the other survivor (same rig and clips), its name above it,
-  and a 6-second chat bubble. There is no chat input UI yet; send chat from code with
+- In the same room (island instance), each window shows the other survivor (same rig and clips),
+  its name above it, and a 6-second chat bubble. The chat screen is `claude/mmo-chat`'s; from code,
   `Game.net.request("chat.send", {"text": "hi"})`.
 - Creatures, combat and gathering are still simulated on each client (contract section 7, honest
   limit), so each player sees their own dinosaurs.
@@ -118,7 +141,7 @@ which reuses the rid, and never with a fresh `request()`.
 ## 6. Checks
 
 ```sh
-"$G" --headless --path game --script res://tests/run_all.gd   # net_tests.gd runs inside it
+"$G" --headless --path game --script res://tests/net_tests.gd  # [net_tests] PASS
 tools/smoke.sh --no-import                                     # SMOKE PASS
-tools/net_smoke.sh                                             # NET SMOKE PASS
+tools/net_smoke.sh                                             # NET SMOKE PASS (needs the hooks patch)
 ```

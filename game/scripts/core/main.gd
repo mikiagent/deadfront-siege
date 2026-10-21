@@ -7,6 +7,8 @@ extends Node3D
 @onready var iso_camera: Camera3D = $IsoCamera
 
 func _ready() -> void:
+	DisplayMode.install(get_tree().root)
+	DisplayMode.install_theme()
 	sun.rotation_degrees = Vector3(-50.0, 30.0, 0.0)
 	if Game.server_mode:
 		# The shell loads server.tscn directly; this only catches a run that opened main.tscn itself.
@@ -24,7 +26,7 @@ func _ready() -> void:
 			print("[boot] lab=%s" % Game.lab_name)
 	else:
 		print("[boot] main scene ready")
-		var player := get_tree().get_first_node_in_group("player") as Player
+		var player := PlayerRegistry.local()
 		if player:
 			# Modal screens (bag, craft) sit above every other canvas layer (plates 58, world UI 40).
 			var modals := CanvasLayer.new()
@@ -108,7 +110,7 @@ func _ready() -> void:
 func _start_online(player: Player) -> void:
 	var remote := RemotePlayers.new()
 	add_child(remote)
-	var sender := PresenceSender.new(player)
+	var sender := PresenceSender.new()
 	add_child(sender)
 	if Game.net_probe:
 		Game.net.token_path = ""  # every probe process is a fresh throwaway account
@@ -124,6 +126,7 @@ func _start_online(player: Player) -> void:
 ## kill it, press Loot; expect groggy, a push, and the chest screen with items.
 func _combat_test(player: Player) -> void:
 	await get_tree().create_timer(2.5).timeout
+	await _test_island()
 	var sp := Spawner.new()
 	sp.species = &"compsognathus"
 	sp.count = 1
@@ -172,6 +175,7 @@ func _combat_test(player: Player) -> void:
 ## units to land in the bag. Prints [gathertest] lines and quits 0 on success.
 func _gather_test(player: Player) -> void:
 	await get_tree().create_timer(2.5).timeout
+	await _test_island()
 	var best: HarvestNode = null
 	var best_d := INF
 	var best_i := -1
@@ -207,6 +211,16 @@ func _gather_test(player: Player) -> void:
 			return
 	print("[gathertest] FAIL no branches gathered")
 	get_tree().quit(1)
+
+## A fresh user:// opens character creation and never loads an island; the headless tests need one.
+func _test_island() -> void:
+	if World.runtime == null:
+		var cc := get_node_or_null("CharacterCreation")
+		if cc:
+			cc.queue_free()
+		World.load_island(self, &"home_grassland", Vector3(0, 1, 18), false)
+		await get_tree().create_timer(1.0).timeout
+
 
 func _process(_delta: float) -> void:
 	debug_label.visible = false

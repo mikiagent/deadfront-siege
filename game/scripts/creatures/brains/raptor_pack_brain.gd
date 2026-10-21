@@ -1,7 +1,8 @@
 class_name RaptorPackBrain
 extends CreatureBrain
 ## Pack predators. The strongest living member is alpha; followers path with it and fan out
-## only once the alpha commits to prey.
+## only once the alpha commits to prey. Timers, the pack leash, sleep and the walk home run
+## first in CreatureBrain._pre_think, so this think never has to repeat them.
 
 var _heavy_cd: float = 0.0
 
@@ -16,32 +17,19 @@ func on_aggro(who: Node) -> void:
 		_propagate_alert(who as Node3D)
 
 func _think(delta: float) -> void:
-	_attack_cd = maxf(0.0, _attack_cd - delta)
 	_heavy_cd = maxf(0.0, _heavy_cd - delta)
-	_combat_memory_left = maxf(0.0, _combat_memory_left - delta)
-	# Raptor override bypasses CreatureBrain._think, so enforce the same hard radius boundary
-	# before refreshing combat memory or inheriting the alpha's target.
-	if _valid_target() and creature.global_position.distance_to(attack_target.global_position) > aggro_radius():
-		attack_target = null
-		_combat_memory_left = 0.0
-		_set_state(&"disengage")
-		creature.move_to(creature.spawn_home)
-		print("[ai] %s disengage (left aggro radius)" % creature.def.id)
-		return
-
-	if creature.health.fraction() < 0.30 and creature.def.archetype != &"apex_raptor":
+	if creature.health.fraction() < 0.30 and creature.def.archetype != &"apex_raptor" and _valid_target():
 		_set_state(&"flee")
-		_flee(delta)
+		flight.flee()
 		return
 
 	if not _valid_target():
-		if _combat_memory_left > 0.0:
+		if _combat_memory_left > 0.0 and flight.can_reacquire():
 			attack_target = _nearest_live_prey(aggro_radius())
-		if not _valid_target():
-			_scan()
 		if not _valid_target():
 			_set_state(&"roam")
 			_roam(delta)
+			_scan()
 			return
 
 	_combat_memory_left = 4.0
@@ -52,12 +40,14 @@ func _think(delta: float) -> void:
 		attack_target = leader.brain.attack_target
 
 	var dist := creature.global_position.distance_to(attack_target.global_position)
-	var reach := maxf(1.2, float(profile.get("attack_range", 2.0)) + 0.2)
-	if dist > reach:
+	var excess := _size_excess(attack_target)
+	var reach := maxf(1.2, float(profile.get("attack_range", 2.0)) + 0.2) + excess
+	# Leave a bite only a little past reach, so a target stepping back does not flip the state.
+	if dist > reach + (0.4 if state == &"attack" else 0.0):
 		_set_state(&"approach")
 		creature.move_to(_flank_slot())
 		creature.face_towards(attack_target.global_position, delta)
-		if dist >= 4.0 and dist <= 7.0 and _heavy_cd <= 0.0 and _is_off_axis():
+		if dist >= 4.0 + excess and dist <= 7.0 + excess and _heavy_cd <= 0.0 and _is_off_axis():
 			creature.stop_move()
 			creature.anim.play_clip(&"attack_heavy")
 			_heavy_cd = 4.5
@@ -75,7 +65,8 @@ func _think(delta: float) -> void:
 		creature.stop_move()
 		creature.anim.play_clip(&"attack_primary")
 		_attack_cd = 1.1
-		_pack_cooldown_until[creature.pack_id] = _now_s() + 0.25
+		if _is_pack_member():
+			_pack_cooldown_until[creature.pack_id] = _now_s() + 0.25
 
 func _is_off_axis() -> bool:
 	if attack_target == null:

@@ -27,9 +27,8 @@ func finish(res: Dictionary) -> void:
 		return
 	finished = true
 	ok = res.get("ok") == true
-	if ok:
-		r = res["r"] if res.get("r") is Dictionary else {}
-	else:
+	r = res["r"] if res.get("r") is Dictionary else {}  # a failure may carry details too (limit_reached: next_instance)
+	if not ok:
 		err = str(res.get("err", "server_error"))
 		msg = str(res.get("msg", ""))
 	done.emit(self)

@@ -7,7 +7,7 @@ func run(host: Node) -> void:
 	await get_tree().create_timer(0.5).timeout
 	var bot := BotSurvivor.new()
 	add_child(bot)
-	bot.player = get_tree().get_first_node_in_group("player") as Player
+	bot.player = PlayerRegistry.local()
 	bot._last_pos = bot.player.global_position
 	var spot: Node3D = get_tree().get_first_node_in_group("sleep_spot")
 	# Default isolates sleep. The opt-in stock location reproduces a Floor contact stall.

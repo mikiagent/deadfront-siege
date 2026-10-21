@@ -15,6 +15,9 @@ var mature: bool = false
 var failed: bool = false
 
 const DATA_PATH := "res://data/farming.json"
+## ASSUMPTION: one stack of fruit_fertilizer (stack_max 20). Real overflow is the fraction left
+## after a harvest (< 1 at fertilizer_yield_bonus 1.0).
+const OVERFLOW_MAX := 20.0
 
 static var _data: Dictionary = {}
 
@@ -34,7 +37,9 @@ static func from_dict(d: Dictionary) -> FieldPlot:
 	f.growth = float(d.get("growth", 0.0))
 	f.watered = float(d.get("watered", 0.0))
 	f.fertilizer = float(d.get("fertilizer", 0.0))
-	f.fertilizer_overflow = float(d.get("fertilizer_overflow", 0.0))
+	# Pack-up turns overflow into fruit_fertilizer items: a forged save value must not mint a pile.
+	var over := float(d.get("fertilizer_overflow", 0.0))
+	f.fertilizer_overflow = clampf(over, 0.0, OVERFLOW_MAX) if is_finite(over) else 0.0
 	f.mature = bool(d.get("mature", false))
 	f.failed = bool(d.get("failed", false))
 	return f
@@ -54,6 +59,17 @@ func to_dict() -> Dictionary:
 		"x": global_position.x,
 		"z": global_position.z,
 	}
+
+func pack_up(player: Player) -> bool:
+	return BuildPlacer.pack_up_node(self, player)
+
+# ASSUMPTION: a planted field refuses so seeds, water and fertiliser are never silently lost.
+# A harvested field can hold overflow fertiliser (bonus units past the yield): that is stored goods
+# like a basket's contents, so it packs up with the kit instead of being dropped.
+func pack_up_block_reason() -> String:
+	if crop_id != &"":
+		return "Harvest or clear the field first"
+	return ""
 
 func set_grid_pose(cell: Vector2i, rot: int) -> void:
 	build_cell = cell
@@ -195,8 +211,12 @@ func _water(player: Player) -> void:
 	if not player.inventory.consume(&"water_bucket", 1):
 		print("[farm] water blocked")
 		return
-	# Return empty bucket.
-	player.inventory.add(ItemStack.make(&"empty_bucket", 1))
+	# Return the empty bucket; with no room for it, undo the pour instead of destroying the bucket.
+	if player.inventory.add(ItemStack.make(&"empty_bucket", 1)) > 0:
+		player.inventory.add(ItemStack.make(&"water_bucket", 1))
+		player.notice("Your bag has no room for the empty bucket")
+		print("[farm] water blocked: bag full")
+		return
 	watered += 1.0
 	print("[farm] watered amount=%.0f" % watered)
 
@@ -218,13 +238,18 @@ func _harvest(player: Player) -> void:
 	var bonus := int(floor(fertilizer * float(_farm_cfg().get("fertilizer_yield_bonus", 1.0))))
 	var used_fert := float(bonus) # ASSUMPTION: each yield bonus unit consumes 1 fertilizer.
 	var leftover := maxf(0.0, fertilizer - used_fert)
-	fertilizer_overflow = leftover
 	var count := maxi(1, base_y + bonus)
 	var farm_lvl := 1
 	if player.skills:
 		farm_lvl = maxi(1, player.skills.level_of("farming"))
 	var stack := ItemStack.make(out_id, count)
 	stack.level = clampi(farm_lvl, 1, farm_lvl) # capped by farming skill
+	# A full bag leaves the crop standing; it used to vanish into a refused add().
+	if not BuildPlacer.fits_in_bag(player.inventory, [stack]):
+		player.notice("Your bag has no room for the harvest")
+		print("[farm] harvest blocked: bag full")
+		return
+	fertilizer_overflow = leftover
 	player.inventory.add(stack)
 	print("[farm] harvest %s x%d lv%d overflow=%.1f" % [out_id, count, stack.level, fertilizer_overflow])
 	if player.skills:

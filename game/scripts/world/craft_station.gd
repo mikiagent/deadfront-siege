@@ -24,6 +24,9 @@ func _exit_tree() -> void:
 	if grid is BuildGrid:
 		(grid as BuildGrid).release(self)
 
+func pack_up(player: Player) -> bool:
+	return BuildPlacer.pack_up_node(self, player)
+
 func set_grid_pose(cell: Vector2i, rot: int) -> void:
 	build_cell = cell
 	build_rot = posmod(rot, 4)

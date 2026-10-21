@@ -76,8 +76,8 @@ func def_of(id: StringName) -> Dictionary:
 	return islands.get(str(id), {}) as Dictionary
 
 func _boot() -> void:
-	if Game.smoke_test or Game.server_mode or Game.net_probe:
-		return  # the server has no island; probes run on the default playfield like smoke
+	if Game.smoke_test:
+		return
 	if Game.lab_name != "" and Game.lab_name != "home_lab":
 		return
 	if Game.lab_name == "home_lab":
@@ -174,6 +174,8 @@ func travel(to_id: StringName, mode: StringName) -> void:
 		if is_home(): _save_now()
 		remaining_lifetime = 0.0 # each destination starts its own island lifetime
 		load_island(host, to_id, pos, false)
+		if runtime and runtime.has_method("arrival_point"):
+			player.global_position = runtime.arrival_point() + Vector3.UP
 		if is_home():
 			(load("res://scripts/core/save_game.gd") as GDScript)._restore_buildings(_home_buildings_cache, SaveMigrations.CURRENT_SCHEMA)
 		_save_now()
@@ -328,7 +330,7 @@ func _clear_runtime() -> void:
 	runtime = null
 
 func _player() -> Player:
-	return get_tree().get_first_node_in_group("player") as Player
+	return PlayerRegistry.local()
 
 func _ensure_fade() -> void:
 	var layer := CanvasLayer.new()
@@ -353,8 +355,6 @@ func _fade_to(cb: Callable) -> void:
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func _save_now() -> void:
-	if Game.net_probe:
-		return  # probes play the default playfield, not the save; the 60 s autosave must not overwrite it
 	(load("res://scripts/core/save_game.gd") as GDScript).save_now()
 
 func _save_exists() -> bool:
