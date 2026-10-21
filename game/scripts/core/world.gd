@@ -103,10 +103,7 @@ func ensure_survivor(host: Node) -> bool:
 	var sg := load("res://scripts/core/save_game.gd") as GDScript
 	var saved := _save_exists() and not ("--new-game" in OS.get_cmdline_user_args())
 	if saved and not sg.has_precreation_save():
-		_load_now(host)
-		# A real save: creation is done, whatever state this world was in (a reload after the bug).
-		if sg.disk_schema() >= 3:
-			creation_pending = false
+		_load_now(host)  # a real save: SaveGame._apply also lifts "creation pending"
 		return true
 	start_new(host)
 	return false

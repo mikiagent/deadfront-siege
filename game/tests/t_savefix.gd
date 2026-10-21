@@ -52,7 +52,7 @@ func _run() -> void:
 	host = Node3D.new()
 	host.name = "SaveFixHost"
 	get_root().add_child(host)
-	_test_autosave_gate()
+	await _test_autosave_gate()
 	_test_precreation_load()
 	await _setup_island()
 	await _test_max_health()
@@ -79,7 +79,6 @@ func _test_autosave_gate() -> void:
 	W.occupation = ""
 	W.home_terrain = &""
 	W.set("creation_pending", true)
-	print("[t_savefix] debug A scene=%s" % [get_root().get_tree().current_scene])
 	_wipe_saves()
 	W._save_acc = 0.0
 	W._process(61.0)
@@ -92,11 +91,7 @@ func _test_autosave_gate() -> void:
 	# The pick's own panel keeps coming back until one is chosen (WorldUI._process): a survivor made
 	# this session cannot reach the world without picking, so nothing exists to save either way.
 	var ui = (load("res://scripts/ui/world_ui.gd") as GDScript).instance_on(host)
-	print("[t_savefix] debug B shell=%s" % [get_root().get_tree().current_scene])
 	await _frames(3)
-	print("[t_savefix] debug after frames %s mode=%s proc=%s" % [W.get("creation_pending"), ui.get("_mode"), ui.is_processing()])
-	ui._process(0.016)
-	print("[t_savefix] debug after manual %s mode=%s" % [W.get("creation_pending"), ui.get("_mode")])
 	_expect(ui != null and str(ui.get("_mode")) == "terrain" and ui.get("_panel").visible, "the island pick is on screen while creation has not finished (mode '%s')" % [ui.get("_mode") if ui else "-"])
 	_expect(not SG.exists(), "nothing was saved while the pick was on screen")
 	# Both done on the home island: the timer ticks again and a save is allowed (it is not off for good).
@@ -172,6 +167,7 @@ func _test_precreation_load() -> void:
 	_write_save(_fixture("save_v1.json"))
 	var reloaded: bool = W.ensure_survivor(host)
 	_expect(reloaded and bool(W.get("creation_pending")) == false, "a real old save also lifts the 'creation pending' flag (would block every later save)")
+	W.set("creation_pending", false)
 
 # ---------------------------------------------------------------- fixture helpers
 

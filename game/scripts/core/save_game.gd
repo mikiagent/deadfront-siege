@@ -57,11 +57,6 @@ static func has_precreation_save() -> bool:
 	var r := SaveMigrations.read(path)
 	return r.has("data") and is_precreation(r["data"] as Dictionary, int(r["schema"]))
 
-## The schema on disk (0 for a pre-schema save), -1 when there is no readable main file.
-static func disk_schema() -> int:
-	var r := SaveMigrations.read(path)
-	return int(r["schema"]) if r.has("data") else -1
-
 static func exists() -> bool:
 	return FileAccess.file_exists(path) or FileAccess.file_exists(path + ".bak")
 
@@ -155,6 +150,8 @@ static func confirm_new_game() -> void:
 		return
 	blocked_reason = ""
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	# The player has just confirmed a new world may take the slot: saving resumes from here.
+	World.finish_creation()
 	print("[save] new game confirmed; saving to %s again" % path)
 
 static func load_now(host: Node) -> void:
@@ -316,6 +313,9 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 			if n is FieldPlot:
 				(n as FieldPlot).advance_offline(float(elapsed))
 		print("[farm] offline catch-up %ds" % elapsed)
+	# A survivor was loaded: creation is behind us, so the autosave runs again (a failed load that
+	# opened creation leaves the flag up until that creation finishes).
+	World.creation_pending = false
 	print("[world] loaded island=%s terrain=%s pioneer=%d" % [iid, World.home_terrain, World.pioneer_level])
 	if from_backup:
 		player.notice("Your last save was damaged; the backup before it was loaded")
