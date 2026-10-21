@@ -24,11 +24,11 @@ func run(_host: Node) -> void:
 	# Raid recipes need the steel rung's skill nodes (W2-DATA requires_node).
 	player.skills.trees["weapon_tools"]["unlocked"].append("iron_weapons")
 	player.skills.trees["tailoring"]["unlocked"].append("scute_armor")
-	player.inventory = Inventory.new(40)
-	player.inventory.add(stack(&"steel_ingot", 20))
-	player.inventory.add(stack(&"branch", 10))
-	player.inventory.add(stack(&"hide_strap", 30))
-	player.inventory.add(stack(&"dried_hide", 30))
+	# W2-INV: materials do not stack; 20 + 10 + 30 + 30 = 90 instances need the 100-slot bag.
+	player.inventory = Inventory.new()
+	var left := player.inventory.add(stack(&"steel_ingot", 20)) + player.inventory.add(stack(&"branch", 10))
+	left += player.inventory.add(stack(&"hide_strap", 30)) + player.inventory.add(stack(&"dried_hide", 30))
+	check(left == 0, "every kit material fits the bag (left over %d)" % left)
 	for id in [&"raid_maul", &"raid_helm", &"raid_cuirass", &"raid_greaves"]:
 		var rec := Crafting.recipe(id)
 		var picks := Crafting.default_picks(player.inventory, rec)
@@ -122,10 +122,9 @@ func run(_host: Node) -> void:
 	check(player.dead and hits >= 4 and hits <= 6, "real boss contact kills in4-6 landed hits")
 	player.inventory.unequip(&"head")
 	check(not player.inventory.has_raid_protection(), "incomplete kit loses status protection")
-	var inv := Inventory.new(10)
-	inv.add(stack(&"steel_ingot", 4, 10))
-	inv.add(stack(&"branch", 2, 10))
-	inv.add(stack(&"hide_strap", 4, 10))
+	var inv := Inventory.new(10)  # 4 + 2 + 4 = 10 instances: fills it exactly
+	left = inv.add(stack(&"steel_ingot", 4, 10)) + inv.add(stack(&"branch", 2, 10)) + inv.add(stack(&"hide_strap", 4, 10))
+	check(left == 0, "low level materials fit the 10-slot bag (left over %d)" % left)
 	player.inventory = inv
 	check(Crafting.progression_block(player, Crafting.recipe(&"raid_maul")) != "", "low level ingredients cannot make raid gear")
 	print("[gear] PARTIAL real formulas/craft allocation; acquisition, station movement and raid evasions untested; failures=%d" % failures.size())
