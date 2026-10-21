@@ -7,6 +7,9 @@ static func build(host: Node3D, size: float = 80.0) -> Dictionary:
 	# replaces it, so no handle is returned); the old kit
 	# added a second 1.2 sun and 0.7 flat ambient on top of the main scene's and blew out.
 	WorldLighting.install(host, "temperate")
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--tod="):  # start at this time of day (0.9 = night) for day/night shots
+			Game.time_of_day = fposmod(float(a.substr(6)), 1.0)
 	var nav := NavigationRegion3D.new()
 	nav.name = "Nav"
 	var nmesh := NavigationMesh.new()

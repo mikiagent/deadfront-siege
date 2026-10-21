@@ -465,12 +465,11 @@ func context_actions() -> Array:
 	for snare in [&"rope_snare", &"heavy_snare"]:
 		if inv.count_of(snare) > 0:
 			out.append({"id": str(snare), "glyph": "S", "label": "Heavy snare" if snare == &"heavy_snare" else "Rope snare"})
-	var near_water := p.in_water
-	if not near_water and World.runtime and World.runtime.has_method("surface_y"):
-		near_water = World.runtime.surface_y(p.global_position.x, p.global_position.z) < 0.15
-	if near_water:
+	if WaterAccess.near_fresh(p.global_position):
 		out.append({"id": "drink", "glyph": "💧", "label": "Drink"})
 		out.append({"id": "wash", "glyph": "🫧", "label": "Wash"})
+		if inv.count_of(&"empty_bucket") > 0:
+			out.append({"id": "fill", "label": "Fill"})
 	var sleep_spot := p.sim.nearest_sleep_spot()
 	if sleep_spot:
 		var left := int(sleep_spot.get("sleeps_left"))
@@ -506,14 +505,13 @@ func context_action(id: String) -> void:
 		"dismount":
 			p.dismount()
 		"drink":
-			# Water remains a small stamina pickup; there is no thirst meter.
-			p.vitals.energy = minf(p.vitals.max_energy, p.vitals.energy + 5.0)
-			print("[item] drink energy=%.0f" % p.vitals.energy)
+			p.actions.drink()
+		"fill":
+			p.actions.fill_water()
 		"sleep":
 			p.sim.start_sleep()
 		"wash":
-			p.vitals.rest(2.0)
-			print("[item] wash fatigue=%.0f" % p.vitals.fatigue)
+			p.actions.wash()
 		"cook":
 			var fire := p._nearest_group("bonfire")
 			if fire:
