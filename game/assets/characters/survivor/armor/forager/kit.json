@@ -9,7 +9,8 @@
    "triangles": 5025,
    "covers": 1.0,
    "hides": [
-    "helmet"
+    "helmet",
+    "hair"
    ]
   },
   "chest": {

@@ -1,0 +1,301 @@
+{
+ "frames_per_clip": 12,
+ "ear_top_y": 1.66,
+ "bind_drift_m": 3.0415573837316856e-07,
+ "clips": {
+  "alert": {
+   "current": {
+    "max_mm": 1.47,
+    "below_ears_mm": 1.47
+   },
+   "crop": {
+    "max_mm": 0.4,
+    "below_ears_mm": 0.4
+   }
+  },
+  "attack_heavy": {
+   "current": {
+    "max_mm": 8.44,
+    "below_ears_mm": 8.44
+   },
+   "crop": {
+    "max_mm": 1.01,
+    "below_ears_mm": 1.01
+   }
+  },
+  "attack_primary": {
+   "current": {
+    "max_mm": 2.95,
+    "below_ears_mm": 2.95
+   },
+   "crop": {
+    "max_mm": 1.03,
+    "below_ears_mm": 1.03
+   }
+  },
+  "butcher": {
+   "current": {
+    "max_mm": 2.49,
+    "below_ears_mm": 2.49
+   },
+   "crop": {
+    "max_mm": 0.59,
+    "below_ears_mm": 0.59
+   }
+  },
+  "craft": {
+   "current": {
+    "max_mm": 0.64,
+    "below_ears_mm": 0.64
+   },
+   "crop": {
+    "max_mm": 0.2,
+    "below_ears_mm": 0.2
+   }
+  },
+  "death": {
+   "current": {
+    "max_mm": 5.61,
+    "below_ears_mm": 5.61
+   },
+   "crop": {
+    "max_mm": 0.48,
+    "below_ears_mm": 0.48
+   }
+  },
+  "drink": {
+   "current": {
+    "max_mm": 0.63,
+    "below_ears_mm": 0.63
+   },
+   "crop": {
+    "max_mm": 0.76,
+    "below_ears_mm": 0.76
+   }
+  },
+  "eat": {
+   "current": {
+    "max_mm": 0.63,
+    "below_ears_mm": 0.63
+   },
+   "crop": {
+    "max_mm": 0.76,
+    "below_ears_mm": 0.76
+   }
+  },
+  "farm": {
+   "current": {
+    "max_mm": 1.2,
+    "below_ears_mm": 1.2
+   },
+   "crop": {
+    "max_mm": 0.1,
+    "below_ears_mm": 0.1
+   }
+  },
+  "fish_cast": {
+   "current": {
+    "max_mm": 4.16,
+    "below_ears_mm": 4.16
+   },
+   "crop": {
+    "max_mm": 0.83,
+    "below_ears_mm": 0.83
+   }
+  },
+  "fish_wait": {
+   "current": {
+    "max_mm": 3.86,
+    "below_ears_mm": 3.86
+   },
+   "crop": {
+    "max_mm": 0.69,
+    "below_ears_mm": 0.69
+   }
+  },
+  "gather": {
+   "current": {
+    "max_mm": 1.54,
+    "below_ears_mm": 1.54
+   },
+   "crop": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47
+   }
+  },
+  "gather_berry": {
+   "current": {
+    "max_mm": 0.92,
+    "below_ears_mm": 0.92
+   },
+   "crop": {
+    "max_mm": 0.52,
+    "below_ears_mm": 0.52
+   }
+  },
+  "gather_chop": {
+   "current": {
+    "max_mm": 1.18,
+    "below_ears_mm": 1.18
+   },
+   "crop": {
+    "max_mm": 0.4,
+    "below_ears_mm": 0.4
+   }
+  },
+  "gather_dig": {
+   "current": {
+    "max_mm": 3.94,
+    "below_ears_mm": 3.94
+   },
+   "crop": {
+    "max_mm": 0.63,
+    "below_ears_mm": 0.63
+   }
+  },
+  "gather_mine": {
+   "current": {
+    "max_mm": 8.02,
+    "below_ears_mm": 8.02
+   },
+   "crop": {
+    "max_mm": 1.25,
+    "below_ears_mm": 1.25
+   }
+  },
+  "hit_react": {
+   "current": {
+    "max_mm": 0.62,
+    "below_ears_mm": 0.62
+   },
+   "crop": {
+    "max_mm": 0.44,
+    "below_ears_mm": 0.44
+   }
+  },
+  "idle": {
+   "current": {
+    "max_mm": 0.64,
+    "below_ears_mm": 0.64
+   },
+   "crop": {
+    "max_mm": 0.2,
+    "below_ears_mm": 0.2
+   }
+  },
+  "knockdown": {
+   "current": {
+    "max_mm": 3.5,
+    "below_ears_mm": 3.5
+   },
+   "crop": {
+    "max_mm": 0.54,
+    "below_ears_mm": 0.54
+   }
+  },
+  "mount_idle": {
+   "current": {
+    "max_mm": 0.26,
+    "below_ears_mm": 0.26
+   },
+   "crop": {
+    "max_mm": 0.34,
+    "below_ears_mm": 0.34
+   }
+  },
+  "punch": {
+   "current": {
+    "max_mm": 1.16,
+    "below_ears_mm": 1.16
+   },
+   "crop": {
+    "max_mm": 0.56,
+    "below_ears_mm": 0.56
+   }
+  },
+  "roll": {
+   "current": {
+    "max_mm": 2.69,
+    "below_ears_mm": 2.69
+   },
+   "crop": {
+    "max_mm": 0.52,
+    "below_ears_mm": 0.52
+   }
+  },
+  "run": {
+   "current": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46
+   },
+   "crop": {
+    "max_mm": 0.92,
+    "below_ears_mm": 0.92
+   }
+  },
+  "sleep": {
+   "current": {
+    "max_mm": 0.81,
+    "below_ears_mm": 0.81
+   },
+   "crop": {
+    "max_mm": 0.07,
+    "below_ears_mm": 0.07
+   }
+  },
+  "sleep_down": {
+   "current": {
+    "max_mm": 1.87,
+    "below_ears_mm": 1.87
+   },
+   "crop": {
+    "max_mm": 0.4,
+    "below_ears_mm": 0.4
+   }
+  },
+  "sleep_up": {
+   "current": {
+    "max_mm": 1.86,
+    "below_ears_mm": 1.86
+   },
+   "crop": {
+    "max_mm": 0.38,
+    "below_ears_mm": 0.38
+   }
+  },
+  "sprint": {
+   "current": {
+    "max_mm": 3.23,
+    "below_ears_mm": 3.23
+   },
+   "crop": {
+    "max_mm": 0.82,
+    "below_ears_mm": 0.82
+   }
+  },
+  "throw_spear": {
+   "current": {
+    "max_mm": 4.28,
+    "below_ears_mm": 4.28
+   },
+   "crop": {
+    "max_mm": 0.83,
+    "below_ears_mm": 0.83
+   }
+  },
+  "walk": {
+   "current": {
+    "max_mm": 0.51,
+    "below_ears_mm": 0.51
+   },
+   "crop": {
+    "max_mm": 0.11,
+    "below_ears_mm": 0.11
+   }
+  }
+ },
+ "worst": {
+  "current": 8.44,
+  "crop": 1.25
+ }
+}

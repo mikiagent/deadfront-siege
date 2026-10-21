@@ -1,0 +1,117 @@
+{
+ "split": {
+  "source": "body_helmet.glb",
+  "triangles": 6304,
+  "components": [
+   4115,
+   2185,
+   4
+  ],
+  "head": {
+   "triangles": 2185,
+   "vertices_used": 2702,
+   "y_range": [
+    1.4630136489868164,
+    1.7625834941864014
+   ],
+   "weight_share": {
+    "Head": 0.8064,
+    "Neck": 0.1191,
+    "HeadTop_End": 0.0462,
+    "RightShoulder": 0.0097,
+    "LeftShoulder": 0.0096,
+    "Spine2": 0.0089
+   }
+  },
+  "hair_current": {
+   "triangles": 4119,
+   "vertices_used": 5127,
+   "y_range": [
+    1.5466145277023315,
+    1.7800003290176392
+   ],
+   "weight_share": {
+    "HeadTop_End": 0.6669,
+    "Head": 0.333,
+    "Neck": 0.0001
+   }
+  }
+ },
+ "scalp_paint": {
+  "scalp_vertices": 91,
+  "fixed_skin_vertices": 798,
+  "scalp_texels": 127404,
+  "head_bald": {
+   "texels_changed": 202058,
+   "mean_weight": 0.804
+  },
+  "head_buzz": {
+   "texels_changed": 202058,
+   "mean_weight": 0.873
+  }
+ },
+ "crop": {
+  "triangles": 4105,
+  "skirt_triangles": 506,
+  "vertices": 2635,
+  "offset_mm": [
+   0.8,
+   8.5
+  ],
+  "texture": 1024,
+  "paint_luminance": {
+   "skin": 0.5047,
+   "hair": 0.2528
+  }
+ },
+ "options": [
+  {
+   "id": "current",
+   "name": "Short",
+   "head": "res://assets/characters/survivor/hair/head.glb",
+   "path": "res://assets/characters/survivor/hair/hair_current.glb",
+   "slot": "hair",
+   "region": "hair",
+   "attach": "skinned (RiggedModel.attach_skinned)",
+   "genders": [
+    "male"
+   ]
+  },
+  {
+   "id": "buzz",
+   "name": "Buzz",
+   "head": "res://assets/characters/survivor/hair/head_buzz.glb",
+   "path": "",
+   "slot": "hair",
+   "region": "hair",
+   "attach": "skinned (RiggedModel.attach_skinned)",
+   "genders": [
+    "male"
+   ]
+  },
+  {
+   "id": "bald",
+   "name": "Bald",
+   "head": "res://assets/characters/survivor/hair/head_bald.glb",
+   "path": "",
+   "slot": "hair",
+   "region": "hair",
+   "attach": "skinned (RiggedModel.attach_skinned)",
+   "genders": [
+    "male"
+   ]
+  },
+  {
+   "id": "crop",
+   "name": "Crop",
+   "head": "res://assets/characters/survivor/hair/head.glb",
+   "path": "res://assets/characters/survivor/hair/hair_crop.glb",
+   "slot": "hair",
+   "region": "hair",
+   "attach": "skinned (RiggedModel.attach_skinned)",
+   "genders": [
+    "male"
+   ]
+  }
+ ]
+}
