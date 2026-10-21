@@ -97,10 +97,10 @@ index cc94d94e..aa06e970 100644
  	# A plain ground move to a tile nothing reaches stops at the closest reachable tile and says
  	# so, instead of pressing into the wall for 10 s (phys-path-01). Targets keep their own goal.
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
-index ed0b7728..107dc715 100644
+index b7ac4ea6..0cee03cf 100644
 --- a/game/scripts/ui/hunt_hud.gd
 +++ b/game/scripts/ui/hunt_hud.gd
-@@ -794,17 +794,27 @@ func _toggle_sheet(kind: StringName) -> void:
+@@ -798,17 +798,27 @@ func _toggle_sheet(kind: StringName) -> void:
  				if fp is Array and (fp as Array).size() >= 2:
  					fp_txt = "  %d×%d" % [int(fp[0]), int(fp[1])]
  				_sheet_btn(box, "%s%s  ×%d" % [def.display_name, fp_txt, s.count], func () -> void: _close_sheet(); player.placer.begin(kind_id))
