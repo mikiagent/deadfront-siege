@@ -117,6 +117,7 @@ def key_sheet(rgb):
     return out, a
 
 
+RIM_PX = 2          # px of rim that may be recoloured (audit round 3: never deeper)
 D_SPILL = 95.0      # pixels this close to the key are spill, not paint (foliage sits 95+ away)
 
 
@@ -128,98 +129,83 @@ def _dilate(mask, n=1):
 
 
 def despill(rgb, a):
-    """Give every screen-blended pixel the colour of the paint near it, or fade it out.
+    """Give the outermost 2-3 px of a silhouette the colour of the paint just inside it.
 
-    The painter's antialias row (and screen showing through thin strands and gaps) is a blend
-    that the distance key reads as opaque: 50 % screen still sits 140 RGB units from the key, and
-    the blend itself lands ~100-200 units away. Un-mixing cannot recover those, and the old
-    "push green below max(R,B)" clamp turned frond tips black while lime rims survived (the
-    audit: beach-shells_16, palms_14, jungle-plants_37, "never push pixels just past 90 units").
-    What works:
-      1. paint = opaque, at least 4 px inside the silhouette, far from the key, green excess not
-         above the item's own - the pixels whose colour is genuinely the artist's;
-      2. every visible pixel that is close to the key (a screen blend: dist < 120) OR sits in the
-         4 px band next to the background takes the colour of the nearest paint, grown outwards;
-      3. any such pixel that is still closer than 110 units to the key has its alpha faded, so it
-         vanishes instead of reading as lime; nothing is ever recoloured into a dark tick.
+    The painter's antialias row (and screen showing through thin strands) is a blend the distance
+    key reads as opaque: 50 % screen still sits ~140 RGB units from the key. Un-mixing cannot
+    recover it, and the old "push green below max(R,B)" clamp turned frond tips black while lime
+    rims survived.
+
+    Round-3 rule (orchestrator): never recolour a pixel more than 2 px inside the item's alpha
+    edge, and fade alpha instead of filling a rim with a mean colour. Earlier versions painted
+    every pixel that was merely "greener than the item's average" or "not fully solid" and so
+    flooded whole leaves with a flat tan (resources_09_red_helconia) and left a khaki matte on
+    tall-grasses / jungle-cliffs. So now:
+      1. rim = visible pixels within RIM_PX of clear background (plus the part-transparent row);
+      2. each rim pixel takes the colour of the nearest real paint, grown inwards-to-outwards
+         over at most 4 rings (BFS), so texture is copied, not averaged to a mean;
+      3. a rim pixel the paint never reached is a screen blend without paint behind it: its alpha
+         is faded by its distance to the key, and its colour is left alone (invisible anyway);
+      4. rim green is capped to the paint's own green excess (which may be negative for sand,
+         shell, rock), so no lime edge and no black tick.
     """
+    f = rgb.astype(np.float32)
+    d = np.sqrt(((f - KEY) ** 2).sum(-1))
     clear = a <= 0.01
-    solid = a > 0.98
-    d = np.sqrt(((rgb - KEY) ** 2).sum(-1))
-    band = _dilate(clear, 4)
-    paint = solid & ~band & (d > D_SPILL)
-    # Only paint that is not green itself may colour a rim: a shell's edge must not inherit the
-    # seaweed growing next to it (that is how a "lime rim" survives the fix). The limit is the
-    # item's own interior green excess, so on a green sheet foliage still supplies the colour.
-    exc_all = rgb[..., 1] - np.maximum(rgb[..., 0], rgb[..., 2])
-    inner_mean = float(exc_all[paint].mean()) if paint.sum() else 0.0
-    calm = paint & (exc_all <= inner_mean + 15.0)
-    if calm.sum() >= 50:
-        paint = calm
-    # every partially transparent pixel is a blend of paint and screen (or a thin strand) and
-    # takes its colour from the paint inside, as the audit asks; fully opaque pixels far from the
-    # key keep their own colour.
-    fill_target = (a > 0.01) & (band | ~solid | (d < 130.0)
-                                | (exc_all > inner_mean + 25.0))
-    if paint.sum() < 50:
-        paint = solid & ~band
-    known = paint.copy()
-    fill = rgb.copy()
-    exc = (rgb[..., 1] - np.maximum(rgb[..., 0], rgb[..., 2])).astype(np.float32)
+    visible = a > 0.0
+    solid = a > 0.95
+    near_clear = _dilate(clear, RIM_PX)
+    rim = visible & near_clear
+    # paint = solid pixels at least RIM_PX+2 inside the silhouette and far from the key
+    deep = solid & ~_dilate(clear, RIM_PX + 2) & (d > D_SPILL)
+    if deep.sum() < 50:
+        deep = solid & ~near_clear
+    if deep.sum() < 20:
+        return rgb, a, np.zeros(a.shape, bool)   # nothing to copy from (a sliver): leave it be
+    exc = f[..., 1] - np.maximum(f[..., 0], f[..., 2])
+    # The cap is the item's own green excess at its 90th percentile, not its mean: an item whose
+    # edge is foliage and whose inside is rock (a cliff with plants on it) is green all over, and
+    # a mean would call its own leaves a fringe.
+    ref = float(np.percentile(exc[deep], 90))
+    known = deep.copy()
+    fill = f.copy()
     gex = exc.copy()
-    # The fill must stay local: replacing a whole interior with one copied colour flattens the
-    # art (shells came out as flat silhouettes). Six rings cover the antialias band and the
-    # 1-3 px strands inside it; anything further from real paint is a thin element and fades.
-    for _ in range(6):
-        todo = fill_target & ~known
+    for _ in range(4):
+        todo = rim & ~known
         if not todo.any():
             break
         acc = np.zeros_like(fill)
-        cnt = np.zeros(a.shape, np.float32)
         gacc = np.zeros(a.shape, np.float32)
+        cnt = np.zeros(a.shape, np.float32)
         for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)):
             k = np.roll(np.roll(known, dy, 0), dx, 1)
             acc += np.roll(np.roll(fill, dy, 0), dx, 1) * k[..., None]
             gacc += np.roll(np.roll(gex, dy, 0), dx, 1) * k
             cnt += k
-        grow = fill_target & ~known & (cnt > 0)
+        grow = todo & (cnt > 0)
         if not grow.any():
             break
         n = np.maximum(cnt, 1)
         fill = np.where(grow[..., None], acc / n[..., None], fill)
         gex = np.where(grow, gacc / n, gex)
         known = known | grow
-    reached = fill_target & known
-    rgb = np.where(reached[..., None], fill, rgb)
-    # Rim green cap: a filled pixel never keeps more green excess than the paint it was copied
-    # from. Without this a shell rim inherits the seaweed growing beside it and reads as lime.
-    rb = np.maximum(rgb[..., 0], rgb[..., 2])
-    cap = np.minimum(gex, exc[paint].mean() + 8.0) if paint.sum() else gex
-    cap = np.minimum(cap, 60.0)
-    rgb[..., 1] = np.where(reached & (rgb[..., 1] > rb + cap), rb + cap, rgb[..., 1])
-    # Whatever the paint never reached is a strand thin enough to be mostly screen: fade it out
-    # with its distance to the key, and give it the item's own paint colour so no lime survives
-    # (its alpha is heading to zero, so the colour is invisible).
-    d = np.sqrt(((rgb - KEY) ** 2).sum(-1))
-    base = rgb[paint].mean(axis=0) if paint.sum() else np.array([128.0, 128.0, 128.0])
-    # A visible pixel that is much greener than the sheet's paint is a screen blend even when it is
-    # far from the key (the dry frond's pinnae tips live here: opaque, 200+ units away, still a
-    # green/paint mix). It takes the sheet's paint colour - on foliage that colour is green anyway,
-    # on a brown frond or a shell it removes the streak without darkening anything to black.
-    greenish = (a > 0.0) & (exc_all > inner_mean + 30.0)
-    untouch = fill_target & ~reached
-    rgb = np.where((untouch | greenish)[..., None], base, rgb)
-    fade = np.clip((d - 100.0) / 30.0, 0.0, 1.0)
-    a = np.where(untouch, a * fade, a)
-    # Whatever colour a filled pixel ended with, it may not be greener than the item's own paint:
-    # the sheet's mean paint is a jungle green, and copying it onto a brown coconut's rim made the
-    # rim look greener than the coconut (edge G-max(R,B) -4 vs interior -40). Clamp the green of
-    # every pixel we recoloured to the interior's own excess.
-    rb2 = np.maximum(rgb[..., 0], rgb[..., 2])
-    limit = rb2 + (inner_mean + 10.0)
-    touched = reached | untouch | greenish
-    rgb[..., 1] = np.where(touched & (rgb[..., 1] > limit), limit, rgb[..., 1])
-    return rgb, a
+    reached = rim & known
+    # rim pixels keep the copied colour, with green capped to what the paint has
+    rb = np.maximum(fill[..., 0], fill[..., 2])
+    cap = np.minimum(gex, min(ref + 12.0, 55.0))
+    fill[..., 1] = np.where(reached & (fill[..., 1] > rb + cap), rb + cap, fill[..., 1])
+    out = np.where(reached[..., None], fill, f)
+    # rim pixels no paint reached: fade by distance to the key, keep their own colour
+    lost = rim & ~known
+    fade = np.clip((d - 70.0) / 60.0, 0.0, 1.0)
+    a = np.where(lost, a * fade, a)
+    holes = np.zeros(a.shape, bool)
+    # A visible pixel still within 95 units of the key is the screen itself showing through a thin
+    # strand or a pinhole, not paint: nothing copies there and no amount of fading hides the lime,
+    # so it goes fully transparent. (Measured: such pixels sit 1-6 px from the silhouette, i.e. in
+    # the antialias band the paint fill already covers where there is paint behind them.)
+    holes = (a > 0.0) & (d < 95.0)
+    return np.clip(out, 0.0, 255.0), a, holes
 
 
 def rim_fix(rgba):
@@ -240,7 +226,8 @@ def rim_fix(rgba):
     ref = float(exc[deep].mean()) if deep.sum() >= 20 else float(exc[inner].mean())
     rb = np.maximum(f[..., 0], f[..., 2])
     lim = rb + min(ref + 20.0, 55.0)
-    rim = (al > 0) & ~deep
+    # only the outermost 2 px may be touched (round-3 audit: no 4-8 px khaki matte)
+    rim = (al > 0) & _dilate(al == 0, RIM_PX)
     f[..., 1] = np.where(rim & (f[..., 1] > lim), lim, f[..., 1])
     return np.clip(f, 0, 255).astype(np.uint8)
 
@@ -509,7 +496,7 @@ def process_sheet(sheet_path, overrides, labels):
     rgb = decode_webp(sheet_path)
     KEY = detect_key(rgb)
     keyed, a = key_sheet(rgb)
-    keyed, a = despill(keyed, a)
+    keyed, a, holes = despill(keyed, a)   # holes are cleared per item later, not before the cut
     boxes = split_sheet(rgb, a, name, overrides)
     rows = []
     outdir = os.path.join(OUT_DIR, name)
@@ -523,9 +510,24 @@ def process_sheet(sheet_path, overrides, labels):
         crop = keyed[py0:py1, px0:px1]
         # only this item's own pixels survive: anything else inside the box is a neighbour
         alpha = np.clip(a[py0:py1, px0:px1], 0.0, 1.0) * m[py0:py1, px0:px1]
+        alpha[holes[py0:py1, px0:px1]] = 0.0
         rgba = np.zeros((py1 - py0, px1 - px0, 4), np.uint8)
         rgba[..., :3] = np.clip(crop, 0, 255).astype(np.uint8)
         rgba[..., 3] = np.round(alpha * 255.0).astype(np.uint8)
+        # Clearing the screen pinholes can shave the outermost row: trim again so the PNG stays
+        # trimmed to its real pixels (the checker requires alpha within 3 px of every border).
+        vis = rgba[..., 3] > 0
+        if vis.any():
+            vy, vx = np.nonzero(vis)
+            ty0, ty1 = int(vy.min()), int(vy.max()) + 1
+            tx0, tx1 = int(vx.min()), int(vx.max()) + 1
+            if (ty0, ty1, tx0, tx1) != (0, rgba.shape[0], 0, rgba.shape[1]):
+                rgba = rgba[ty0:ty1, tx0:tx1]
+                alpha = alpha[ty0:ty1, tx0:tx1]
+                px0 += tx0
+                py0 += ty0
+                px1 = px0 + (tx1 - tx0)
+                py1 = py0 + (ty1 - ty0)
         rgba = rim_fix(rgba)
         # kill any leftover alpha outside the item's own component
         band = np.zeros_like(alpha, bool)
@@ -553,7 +555,7 @@ def process_sheet(sheet_path, overrides, labels):
         # items keep more resolution (they are the ones the camera sees up close in a 2D card).
         # Everything is shipped at <= 512 px on the longest side, or <= 768 px at height_m >= 8.
         hh, ww = rgba.shape[:2]
-        maxside = 768 if float(height_m) >= 8.0 else 512
+        maxside = 704 if float(height_m) >= 8.0 else 448
         sc = min(1.0, maxside / float(max(ww, hh)))
         if sc < 1.0:
             nw, nh = max(1, int(round(ww * sc))), max(1, int(round(hh * sc)))
@@ -610,6 +612,10 @@ def main():
         for f in os.listdir(p):
             if f.endswith(".png") and "res://assets/nature/sprites2d/%s/%s" % (d, f) not in keep:
                 os.remove(os.path.join(p, f))
+                # Godot's import sidecar goes with the PNG, or the editor re-imports a ghost
+                side = os.path.join(p, f + ".import")
+                if os.path.exists(side):
+                    os.remove(side)
     os.makedirs(os.path.dirname(MANIFEST), exist_ok=True)
     with open(MANIFEST, "w") as f:
         json.dump({"sprites": all_rows}, f, indent=1)

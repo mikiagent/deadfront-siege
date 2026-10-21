@@ -4,11 +4,10 @@
     python3.13 tools/sprites2d/label.py [--report]
 
 Run after cut.py. The reading of the art lives in tools/sprites2d/label_table.json as rows of
-[cx, cy, name, kind, height_m]: the sprite's CENTRE on the full-resolution sheet, not its position
-in the list. An index-keyed table slipped a whole row when a split box changed the item count and
-put every label after it onto the wrong sprite (audit 15:20) - a centre only moves if the art
-itself moves, and a split can move a centre, so the match tolerance is generous (110 px) and the
-script prints both directions of the match: sprites with no row and rows that found no sprite.
+[sheet, x, y, w, h, name, kind, height_m]: the sprite's src_rect on the full-resolution sheet.
+Matching is by exact sheet+src_rect, falling back to IoU >= 0.7 (round-3 audit). Never by centre
+distance and never by index: both slid labels onto neighbours when a split box changed the item
+count. The script prints both directions of the match (sprites with no row, rows with no sprite).
 """
 import json
 import os
@@ -34,8 +33,9 @@ def pivot_for(path, kind):
     ys, xs = np.nonzero(a > 60)
     if len(xs) == 0:
         return [w // 2, h - 1]
-    hanging = (kind.startswith("prop:vine") or kind.startswith("prop:root")
-               or "waterfall" in kind)
+    # hanging props hang from their top. root_ball must NOT match prop:root*: it is a ball lying
+    # on the ground (palms_19). Waterfalls stand on the ground -> bottom pivot.
+    hanging = kind.startswith("prop:vine") or kind == "prop:root_curtain"
     if hanging:
         band = ys < ys.min() + 4
         return [int(round(float(xs[band].mean()))), int(ys.min())]
@@ -56,6 +56,9 @@ def blocks_for(kind, height, families):
         return role.startswith("tree") or top > 1.25
     if kind.startswith("prop:grass") or kind.startswith("prop:reed"):
         return False
+    # hanging vines and root curtains never block (orchestrator round 3)
+    if kind == "prop:root_curtain" or kind.startswith("prop:vine"):
+        return False
     return height > 1.25
 
 
@@ -66,50 +69,64 @@ def slugify(s):
     return s.strip("_") or "item"
 
 
+def iou(a, b):
+    ax0, ay0, aw, ah = a
+    bx0, by0, bw, bh = b
+    ix = max(0, min(ax0 + aw, bx0 + bw) - max(ax0, bx0))
+    iy = max(0, min(ay0 + ah, by0 + bh) - max(ay0, by0))
+    inter = ix * iy
+    union = aw * ah + bw * bh - inter
+    return inter / float(union) if union else 0.0
+
+
 def main():
     man = json.load(open(MANIFEST))["sprites"]
     families = json.load(open(os.path.join(ROOT, "game/data/nature_manifest.json"))).get("families", {})
-    table = [r for r in json.load(open(TABLE))["rows"] if len(r) == 6]
-    matched = unmatched = 0
-    # One-to-one greedy matching by distance: a row may name only ONE sprite. A plain
-    # nearest-neighbour loop let one row be claimed by two sprites (and two rows by one), which is
-    # how labels drifted a row onto the wrong art.
-    idx = []
-    for i, sp in enumerate(man):
-        x, y, w, h = sp["src_rect"]
-        cx, cy = x + w / 2.0, y + h / 2.0
-        for k, r in enumerate(table):
-            if r[0] != sp["sheet"]:
-                continue
-            idx.append((abs(r[1] - cx) + abs(r[2] - cy), i, k))
-    idx.sort()
+    table = [r for r in json.load(open(TABLE))["rows"] if len(r) == 8]
+    matched = 0
+    # pass 1: exact src_rect on the same sheet. pass 2: best IoU >= 0.7, one-to-one.
     pick = {}
     taken = set()
-    for d, i, k in idx:
-        if d > TOL:
-            break
+    for i, sp in enumerate(man):
+        for k, r in enumerate(table):
+            if k in taken or r[0] != sp["sheet"]:
+                continue
+            if [int(v) for v in r[1:5]] == [int(v) for v in sp["src_rect"]]:
+                pick[i] = k
+                taken.add(k)
+                break
+    cand = []
+    for i, sp in enumerate(man):
+        if i in pick:
+            continue
+        for k, r in enumerate(table):
+            if k in taken or r[0] != sp["sheet"]:
+                continue
+            v = iou(sp["src_rect"], r[1:5])
+            if v >= 0.7:
+                cand.append((-v, i, k))
+    cand.sort()
+    for _, i, k in cand:
         if i in pick or k in taken:
             continue
         pick[i] = k
         taken.add(k)
     no_row = []
-    out = {"_about": "Sprite mapping keyed by the sprite's centre on the sheet (cx, cy) in "
-                     "label_table.json, matched one-to-one, so a split cannot slide a label onto "
-                     "a neighbour.",
+    out = {"_about": "Sprite mapping keyed by (sheet, src_rect) from label_table.json, exact rect "
+                     "first then IoU >= 0.7, one-to-one: a split or a re-cut can never slide a "
+                     "label onto a neighbour.",
            "sheets": {}}
     seen = {}
     for i, sp in enumerate(man):
         seen[sp["sheet"]] = seen.get(sp["sheet"], 0) + 1
         n = seen[sp["sheet"]]
         x, y, w, h = sp["src_rect"]
-        cx, cy = x + w / 2.0, y + h / 2.0
         if i in pick:
             matched += 1
             best = table[pick[i]]
-            name, kind, height = best[3], best[4], best[5]
+            name, kind, height = best[5], best[6], best[7]
         else:
-            unmatched += 1
-            no_row.append((sp["sheet"], sp["id"], int(cx), int(cy)))
+            no_row.append((sp["sheet"], sp["id"], sp["src_rect"]))
             name, kind, height = "item", "unused", 0.5
         sid = "%s_%02d_%s" % (sp["sheet"][6:], n, slugify(name))
         path = os.path.join(ROOT, "game", sp["file"][len("res://"):])
@@ -117,8 +134,6 @@ def main():
         row = {
             "id": sid,
             "src_rect": sp["src_rect"],
-            "cx": int(cx),
-            "cy": int(cy),
             "name": name,
             "kind": kind,
             "height_m": height,
@@ -133,7 +148,7 @@ def main():
         json.dump(out, f, indent=1)
         f.write("\n")
     print("wrote", LABELS, {k: len(v) for k, v in out["sheets"].items()})
-    print("anchored %d, without a row %d, rows unused %d" % (matched, unmatched, len(table) - len(taken)))
+    print("anchored %d, without a row %d, rows unused %d" % (matched, len(man) - matched, len(table) - len(taken)))
     if "--report" in sys.argv:
         for u in no_row:
             print("  sprite with no row:", u)

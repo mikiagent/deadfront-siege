@@ -1,131 +1,138 @@
 # SPRITES2D: cut the owner's green-screen sheets into 2D game sprites
 
-Shipped the cut-out pipeline and its data. Everything runs over every `docs/reference/2d-assets/sheet-*.webp`,
-so a new sheet needs only a re-run of `cut.py` (plus a naming pass in `label.py`). No GDScript or scenes touched.
+Round 3 (merge-review fixes) of the cut-out pipeline. Everything runs over every
+`docs/reference/2d-assets/sheet-*.webp`, so a new sheet needs only a re-run of `cut.py` plus a naming
+pass in `label.py`. No GDScript, scenes or scripts touched.
 
 ## What shipped
 
 | file | role |
 |---|---|
-| `tools/sprites2d/cut.py` | key -> despill -> split -> trim -> PNG + `game/data/world/sprites2d.json` |
+| `tools/sprites2d/cut.py` | per-sheet key -> despill -> split -> trim -> downscale -> PNG + `game/data/world/sprites2d.json` |
 | `tools/sprites2d/overrides.json` | hand boxes: `split`, `merge`, `drop` per sheet |
-| `tools/sprites2d/label.py` | the reading table of every sheet -> writes `tools/sprites2d/labels.json` |
-| `tools/sprites2d/labels.json` | name/kind/height/blocks/destroyable/pivot per sprite, survives re-cuts |
+| `tools/sprites2d/label.py` | matches `label_table.json` rows to sprites by exact `src_rect` then IoU >= 0.7, writes `labels.json` |
+| `tools/sprites2d/label_table.json` | one row per sprite: `[sheet, x, y, w, h, name, kind, height_m]` |
+| `tools/sprites2d/labels.json` | name/kind/height/blocks/destroyable/pivot per sprite |
 | `tools/sprites2d/contact.py` | builds `docs/orchestration/reports/dsc-sprites2d-sheet.png` |
-| `game/assets/nature/sprites2d/<sheet>/` | 117 trimmed RGBA PNGs |
+| `game/assets/nature/sprites2d/<sheet>/` | 251 trimmed RGBA PNGs (+ Godot `.import` sidecars) |
 | `game/data/world/sprites2d.json` | manifest, one row per sprite |
 
-## Sprites per sheet
+## Sheets
 
-| sheet | sprites | PNG MB | mapped |
-|---|---|---|---|
-| sheet-beach-shells | 30 | 4.1 | 30 (shells, shell piles, driftwood, coral rock, icons) |
-| sheet-jungle-plants | 42 | 4.9 | 29 (ferns, cycads, vines, shrubs, grass, log tangles) |
-| sheet-palms | 21 | 4.3 | 13 (palms, crown, trunk, stump, root ball, coconuts) |
-| sheet-resources | 24 | 3.8 | 24 (crystals, boulder, clay, logs, plants, fruit, bones, shells) |
-| **total** | **117** | **16.4 MB** | **96 (82 %)**, 21 `unused` leaf/frond fragments |
+| sheet | sheet px | sprites | PNG MB | key (border median) |
+|---|---|---|---|---|
+| sheet-beach-shells | 1254x1254 | 30 | 3.4 | (4, 249, 3) |
+| sheet-jungle-plants | 1254x1254 | 45 | 4.4 | (4, 250, 3) |
+| sheet-palms | 1254x1254 | 21 | 3.3 | (4, 250, 3) |
+| sheet-resources | 1254x1254 | 24 | 3.5 | (4, 249, 3) |
+| sheet-jungle-trees | 1536x1024 | 23 | 3.7 | (3, 234, 5) |
+| sheet-jungle-cliffs | 1536x1024 | 69 | 4.0 | (2, 239, 2) |
+| sheet-tall-grasses | 1448x1086 | 39 | 2.5 | (3, 250, 3) |
+| **total** | | **251** | **23.5 MB** | budget 24 MB |
 
-Budget is 24 MB; the set sits at 16.4 MB, so a future cliff/tree sheet has ~7 MB of headroom before
-anything needs rescaling (the script writes at native painted resolution).
+The four round-1 sheets are 1254x1254; the three later sheets the owner sent are not. The screen
+green is also not the same on every sheet: jungle-trees is noticeably darker (G 234) and
+jungle-cliffs slightly darker still. `cut.detect_key()` takes the median of a 6 px border ring per
+sheet. A hardcoded key welded whole rows of jungle-trees into one 918x994 blob.
 
-## Thresholds and why
+## Keying and despill (rewritten, round 3)
 
-- **Key colour** (5, 250, 4). Alpha = distance in RGB units: fully clear at <= 28 (covers the key's
-  own ~2/channel spread), fully opaque at >= 78, linear between.
-- **Foliage test.** On these sheets leaf greens sit 95+ units from the key, so `D_SPILL = 95`: an
-  opaque pixel closer than that is screen mix, not paint. This is the single most important number:
-  it is why no "green is largest" heuristic is used and why moss/leaf interiors survive.
-- **Despill.** Boundary = part-transparent pixels + a 3 px ring next to the clear background + any
-  near-key pixel. Each boundary pixel takes the colour of the nearest real paint (BFS over 6 rings,
-  8-neighbour), and its green excess is capped at `min(paint excess - 6, item mean - 10)`, so a rim
-  is never greener than the item it sits on. Boundary pixels with no paint in reach get
-  `G = max(R,B) + 2`, and a final belt-and-braces pass pushes any visible pixel out of the 92-unit
-  neighbourhood of the key. Measured result: 0.0 % opaque key-green, ~0 % edge key-green, no edge
-  greener than its interior on any sprite.
-- **Segmentation.** Full resolution (half-res sampling lost 1-2 px frond stalks and welded
-  neighbours), 1 px close, 4-connected run-length flood fill, drop components under 1000 px,
-  discard items under 30 px on a side, trim with 2 px transparent padding. The alpha inside a
-  bbox is multiplied by the item's own component mask, so art near a neighbour never leaks in.
-- **Overrides.** `split` boxes are removed from the mask *before* labelling (removing after
-  labelling only slices one component, it does not separate two items). `merge` unions every
-  component a box touches; `drop` removes components mostly inside a box.
+1. Soft alpha from RGB distance to that sheet's key: clear <= 28, opaque >= 78, colour un-mixed
+   against the key.
+2. `despill()`: rim = visible pixels within **2 px** of clear background. Each rim pixel copies the
+   colour of the nearest real paint, grown inwards-to-outwards over at most 4 rings; rim green is
+   capped at the paint's own green excess (its 90th percentile, which may be negative for sand,
+   shell, rock) plus 12.
+3. A visible pixel still within 95 units of the key is screen showing through a pinhole or a thin
+   strand: it becomes fully transparent instead of being recoloured or faded. Fading alone left
+   lime rows (1-5 % of opaque pixels were still screen green); recolouring alone painted khaki
+   matte over real foliage.
+4. `rim_fix()` is the per-item pass and only touches the outermost 2 px (it used to touch every
+   pixel that was not 2 px eroded, which matted whole items).
+5. After the holes are cleared the crop is trimmed again, so alpha reaches every border (the
+   checker requires trimming within 3 px).
 
-One override is in use: `sheet-jungle-plants [318, 0, 20, 290]`, which separates the two ferns that
-touch at the top left. Everything else separated cleanly without hand boxes; the contact sheet was
-reviewed per sheet at 300 px cells (and at 2x zoom on suspicious crops) for halos, clipped fronds,
-glued pairs and split shells.
+Round-3 regressions this fixes: `resources_09_red_heliconia`, `resources_10_white_flower_herb`,
+`resources_08_berry_palm` had lost every leaf to flat tan (the old fallback painted anything
+"greener than the item's average"); tall-grasses 12-30 and jungle-cliffs 24/26/42/47/48/55-60/64 and
+jungle-trees 15-21 carried a 4-8 px opaque khaki matte.
 
-## Mapping rules used
+## Downscale and size
 
-- `kind` is a `nature_manifest.json` family id where the art is that resource (`PalmTree`,
-  `Plant`, `VinePlant`, `ReedPlant`, `WildGrass`, `Rock`-family boulder, `GraniteBoulder`,
-  `WoodLog`, `WoodLog_Moss`, `MangoBush`, `HerbPlant`, `clay`, `TreeStump`, ...), `prop:<name>` for
-  scenery (`prop:shells`, `prop:driftwood`, `prop:coral_rock`, `prop:palm_crown`,
-  `prop:fallen_trunk`, `prop:root_ball`, `prop:log_tangle`, `prop:mushroom_clump_*`,
-  `prop:crystal_cluster`, `prop:bamboo_bundle`, `prop:rock_chip`, `prop:moss_rock`), `icon:<item>`
-  for loose bag items (coconuts, bananas, chestnuts, bones, tusk, clam/scallop/open shells,
-  seashells, oyster shells), and `unused` for single leaves/fronds.
-- `blocks`: families follow the game's `HarvestNode.blocks_movement()` (tree role, or family height
-  span top above 1.25 m) — so palms, reeds, `GraniteBoulder` and `MangoBush` block; `ReedPlant`
-  is a family, not a grass prop, and the checker blocks it. Props block when `height_m > 1.25`;
-  grass/reed props never. Hanging vines/roots, icons and `unused` never block.
-- `destroyable`: true for everything on these four sheets — there is no cliff, arch, pillar or
-  waterfall of 4 m or more here (owner rule: only those are indestructible). The big boulder pile is
-  2.0 m, so it stays destroyable.
-- `pivot`: ground contact = centre of the bottom 3-pixel band of visible pixels (so a leaning palm
-  pivots under its trunk base, not its bounding box). Hanging vines and root curtains use the top
-  attach point instead.
+`resize_area()` is an exact area-average (box) filter on premultiplied colour. Longest side is
+exported at most **448 px**, or **704 px** when `height_m >= 8` (the tall trees and cliffs the
+camera sees close in a 2D card). Softer limits (512/768) put the set at 24.4 MB. Every manifest row
+carries the resulting `scale` and the resized `px`/`pivot`; the smallest scale is 0.32.
 
-## What CARD2D needs
+## Splits (overrides.json)
 
-- Read `game/data/world/sprites2d.json`, field `sprites`.
-- `file` is a `res://` path to the PNG; `px` is its pixel size (matches the PNG, alpha included);
-  `src_rect` is where it came from on the sheet (useful for tweaking cut settings, not needed to
-  draw).
-- Draw the sprite with its local origin at `pivot` (px from the image's top-left): `pivot.y` is the
-  ground line, `pivot.x` the trunk/base centre. Scale factor = `height_m / px.y` if you want the
-  painted item to stand at its stated height; the art includes the padding, so prefer scaling by
-  `height_m / (px.y - 4)` if you need the last 1 %.
-- `kind` is safe to match: a family id is a harvest node, `prop:*` is scenery, `icon:*` suits a bag
-  icon and should not be placed in the world, `unused` should not be drawn.
-- `blocks` and `destroyable` are already resolved from the game rules — use them directly rather
-  than re-deriving from `height_m`.
-- Families with painted art now: `PalmTree`, `TreeStump`, `Plant`, `VinePlant`, `ReedPlant`,
-  `WildGrass`, `GraniteBoulder`, `WoodLog`, `WoodLog_Moss`, `MangoBush`, `HerbPlant`, `clay`.
-  Everything else still uses the 3D/baked cards.
-- PNGs are straight (non-premultiplied) 8-bit RGBA; Godot's default importer settings did not need
-  changing (headless `--import` reports no errors on any of the 117 files).
+`split` removes a box from the mask before labelling, so two touching items become two sprites.
+Round-3 changes:
 
-## Could not split cleanly / caveats
+- **jungle-trees**: the boxes at x 1372, 525, 720, 1130, 1280 and 634/723 were deleted - they cut
+  through canopy and fronds (05 had a flat right edge, 06 was its sliver, 11/12 had flat frond
+  edges). The sheet is now cut on the real green bands only: two horizontal boxes separate the
+  buttress tree / palms row / vine-tree row in column 1. Where art genuinely overlaps it stays one
+  sprite named as a pair (`canopy_tree_pair`, `palm_pair_leaning`).
+- **tall-grasses**: 8 boxes at the green gaps between touching clumps (11, 13, 15, 16, 22, 23, 25,
+  31 and the two tufts in the 18/24 groups).
+- **jungle-plants**: [318,0,20,290] (two ferns) and [529,612,300,12] (bromeliad over broadleaf).
+- **resources_08** stays ONE sprite: the berry bunch hangs under big green leaves that belong to
+  the same plant; every split line tried cut the fruit away from its own leaves (recorded in
+  `overrides.json` as `_note_resources_08`).
 
-- The jungle-plants sheet has 13 single leaves/fronds in its bottom rows that are fragments of
-  larger plants. They are cut and kept but labelled `unused`; they are the reason 21 of 117 rows
-  are `unused`.
-- Palm crowns painted from above (palms_04/05) read ambiguously as either a crown or a young palm;
-  they are labelled `prop:palm_crown`. Palette and shape match the crowns, not the young palms.
-- Two palms at the top left of sheet-palms overlap slightly in their fronds; the `split` would have
-  to cut real fronds, so they are kept as one sprite (palms_01 is the largest tree, palms_02 the
-  next). The contact sheet shows no visible double image.
-- Coconuts painted on the trunk region of palms read as `icon:coconuts`; anything that is really a
-  palm-top detail is `prop:palm_crown`.
+## Labels
 
-## Assumptions (all heights are `# ASSUMPTION`)
+`label.py` matches by **(sheet, exact src_rect)**, falling back to **IoU >= 0.7**, one-to-one.
+Centre distance and index order both slid labels onto neighbours when a split changed the item
+count. The script prints both directions (sprite with no row / row with no sprite); the current run
+matches 251/251 with 0 rows unused.
 
-- Every `height_m` was judged from the art against the task's ranges, not measured from a 3D
-  reference: palms 2.5-12 m (young palm 2.5, leaning 10, tall 11, large 12), jungle plants
-  0.5-1.4 m, grass 1.2-1.4 m, reeds 1.5-1.6 m, boulder pile 2.0 m, clay mound 0.9 m, logs
-  0.8-0.9 m, mushrooms 0.6-0.7 m, shells 0.2-0.4 m, icons 0.2-0.6 m, stump 1.2 m, root ball 1.0 m.
-- The pivot for hanging vines/root curtains is the top-centre attach point (task allows this);
-  everything else is bottom-centre.
-- `blocks` for `ReedPlant` follows the game family rule (blocks), which differs from the "tall
-  grasses never block" prop rule; reeds are a resource family, not a `prop:reed*`.
-- Cluster sheets that arrive later (jungle cliffs, jungle trees, tall grasses) will need their own
-  `overrides.json` rows and a `label.py` table entry; the cutter itself is generic already.
+Round-3 label corrections (all re-read from the crops): jungle-cliffs_19 palm+banana group (not a
+cliff block), _20 boulder, _24/26/39/40/42/47 ferns, _33/34 vine curtains, and in 49-69 the shells,
+driftwood and ferns sorted out; jungle-trees_01 giant buttress tree, _08 broadleaf tree, _12 vine
+tree; jungle-plants_26 red flower shrub, _28 log tangle with ivy, 41-45 leaves/fern/moss;
+tall-grasses ground tiles vs grass clumps vs loose tufts; palms_16-21 coconut cluster, fallen trunk,
+stump, root ball, coconut bunch, one coconut; resources_21/22 bone shaft and fragment.
+
+## Rules applied
+
+- `blocks` follows `HarvestNode.blocks_movement()`: tree roles block, and any family whose height
+  span reaches above 1.25 m. `prop:grass*` / `prop:reed*` never block. **Hanging vines and root
+  curtains never block** (`prop:vine*`, `prop:root_curtain`) - 74 of 251 sprites block.
+- Pivots are measured from each PNG's own alpha: bottom-centre band for ground props, top band for
+  hanging vines and root curtains (`prop:root_ball` deliberately does NOT match, it is a ball on the
+  ground), bottom-centre for waterfalls (they stand).
+- `destroyable: false` for cliff walls, arches, pillars and waterfalls >= 4 m (18 sprites).
+
+## Unused
+
+40 sprites are `unused`: single leaves, canopy slivers, stem fragments, the isometric ground tiles
+and big ground patches of tall-grasses (a colour reference on the sheet, not game art), and the
+waterfall/rock fragments of jungle-cliffs. They are still cut and shipped as PNGs so the sheet stays
+fully covered; the game simply never spawns them.
 
 ## Verification
 
-- `bash .../verify_sprites2d.sh 1` — PASS (keying, trimming, >= 10 sprites per sheet, <= 24 MB).
-- `bash .../verify_sprites2d.sh 2` — PASS (mapping rules, 82 % mapped).
-- `bash .../verify_sprites2d.sh` — PASS (contact sheet + report present, scope clean, Godot
-  headless import with 0 errors on sprites2d files).
-- `tools/sprites2d/cut.py` runs the whole set in ~8 s; `contact.py` in ~10 s.
+- `check_sprites2d.py` stage 1 and 2: 0 failures (screen-green share of opaque pixels, edge fringe,
+  trimming, px vs PNG, ids, kinds, heights, pivots, blocks, size budget).
+- Full `verify_sprites2d.sh` (no argument): **VERIFY PASS**, including the Godot headless import.
+- Visual self-check at 2x on sand (225,205,160) and dark grass (70,90,60) per sheet: resources,
+  beach-shells, palms, jungle-plants, jungle-trees, tall-grasses, jungle-cliffs. See NOTES.md for
+  what each sheet looked like; no khaki matte, no lime rim, no black ticks, no flat fills.
+- Contact sheet: `docs/orchestration/reports/dsc-sprites2d-sheet.png` (251 cells, re-generated).
+
+## Junk
+
+`cut.py` now deletes `<png>.import` together with a stale PNG; the 71 orphan sidecars staged by the
+earlier runs are gone (155 orphans were on disk, all removed). `tools/sprites2d/__pycache__` is out
+of git and `.gitignore`d. No `game/assets/props/meshy/*`, `game/scripts/dev/*.uid` or
+`game/tests/*.uid` added.
+
+## Assumptions
+
+- `height_m` per sprite is a reading of the art against the game's nature families, not measured
+  geometry; the same value drives the downscale limit.
+- Ground tiles and big ground patches in tall-grasses are marked `unused` (the world builds its own
+  ground); they are cut anyway.
+- `icon:*` kinds for shells mirror the round-1 beach-shells naming so the inventory can use them.
