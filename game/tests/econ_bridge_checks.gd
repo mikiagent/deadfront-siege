@@ -18,7 +18,7 @@ var _world: WorldFacade
 var _rules: EconRules
 
 func run() -> Array[String]:
-	for test: Callable in [_test_deposit, _test_refusals, _test_client_gate, _test_grant_rid_seeded, _test_sales, _test_grant_fields, _test_processed, _test_pets_and_cages, _test_bonded_cap, _test_crash_recovery, _test_strays, _test_recover_any_time, _test_same_uid_twice, _test_fuzz]:
+	for test: Callable in [_test_deposit, _test_refusals, _test_client_gate, _test_grant_rid_seeded, _test_sales, _test_grant_fields, _test_processed, _test_rare_trait, _test_stack_max_shrink, _test_pets_and_cages, _test_bonded_cap, _test_crash_recovery, _test_strays, _test_recover_any_time, _test_same_uid_twice, _test_fuzz]:
 		if test.call() != true:
 			failures.append("%s stopped early (script error)" % test.get_method())
 	return failures
@@ -444,20 +444,33 @@ func _test_grant_fields() -> bool:
 	var row: Dictionary = b.chars.character(1).d.bag[slot]
 	row["creator"] = "Smith" # what W2-INV writes on a crafted stack
 	row["created_at"] = 123
+	# Review r3 minor: any field limits.json instance_fields whitelists later survives a part too.
+	_rules.limits.instance_fields["batch"] = {"type": "text", "max": 16}
+	row["batch"] = "kiln-7"
 	var uid := str(_ok(b, "vault.deposit", 1, {"bag_slot": slot}).uid)
 	var lid := str(_ok(b, "market.list_fixed", 1, {"asset": {"uid": uid}, "unit_price": 2, "duration_h": 24}).listing.id)
 	var part: Dictionary = _ok(b, "market.buy", 2, {"listing_id": lid, "count": 3}).get("asset", {})
 	_ok(b, "vault.withdraw", 2, {"uid": str(part.get("uid", ""))})
 	var got: Dictionary = b.chars.character(2).d.bag[_slot(b, 2, SPLIT)] if _slot(b, 2, SPLIT) >= 0 else {}
-	_expect(int(got.get("count", 0)) == 3 and got.get("creator") == "Smith" and int(got.get("created_at", -1)) == 123, "a bought part keeps its creator and created_at in the buyer's bag: %s" % CharacterStore.canon(got))
-	print("[econ-bridge] grant fields part=%s creator=%s created_at=%s" % [part.get("uid", ""), got.get("creator"), got.get("created_at")])
+	_expect(int(got.get("count", 0)) == 3 and got.get("creator") == "Smith" and int(got.get("created_at", -1)) == 123 and got.get("batch") == "kiln-7", "a bought part keeps its creator, created_at and every other whitelisted instance field in the buyer's bag: %s" % CharacterStore.canon(got))
+	print("[econ-bridge] grant fields part=%s creator=%s created_at=%s batch=%s" % [part.get("uid", ""), got.get("creator"), got.get("created_at"), got.get("batch")])
 	return true
 
 ## PRD:131 and spec 06 (vision fix): a processed instance, dried meat with its processing
 ## history, deposits, lists, sells and withdraws with every per-instance field intact (uid,
 ## origin, seq, level, process_count, attributes.processed, flags, creator, created_at).
 func _test_processed() -> bool:
-	var b := _rig("processed")
+	return _trade_dried("processed", {})
+
+## Review r3 blocker: W2-GATHER's green rare trait (GatherService.stamp_traits writes
+## attributes[trait] = true; spec 06:6 "Preserve source instance ID and rare traits", 06:12
+## names Black Sheen) rides the same instance through deposit, listing, sale and withdrawal.
+func _test_rare_trait() -> bool:
+	return _trade_dried("rare-trait", {"black_sheen": true})
+
+## Dried meat from a drying rack, plus `extra` attributes, through vault, market and back.
+func _trade_dried(name: String, extra: Dictionary) -> bool:
+	var b := _rig(name)
 	_world.stations["drying_rack"] = [[0, 0, 1.8]]
 	var looted := b.chars.apply("act.loot", 1, {"corpse_id": "carcass", "slot": 0, "count": 1}, T0)
 	var dried := b.chars.apply("act.craft", 1, {"recipe_id": "dry_meat"}, T0)
@@ -473,6 +486,7 @@ func _test_processed() -> bool:
 	if not row.has("creator"):
 		row["creator"] = ""
 		row["created_at"] = 0
+	row.attributes.merge(extra, true)
 	var body := CharacterStore.canon(CharacterStore.wire(row))
 	var dep := _op(b, "vault.deposit", 1, {"bag_slot": slot})
 	if not _expect(dep.ok, "a dried instance deposits: %s" % str(dep)):
@@ -485,7 +499,32 @@ func _test_processed() -> bool:
 	_ok(b, "vault.withdraw", 2, {"uid": uid})
 	var got: Dictionary = b.chars.character(2).d.bag[_slot(b, 2, "dried_meat")] if _slot(b, 2, "dried_meat") >= 0 else {}
 	_expect(CharacterStore.canon(CharacterStore.wire(got)) == body, "the buyer's character holds the same instance, every field intact: %s vs %s" % [CharacterStore.canon(got), body])
-	print("[econ-bridge] processed dried_meat %s uid=%s history=%s process_count=%d level=%d origin=%s fields=%s intact=%s" % [crafted, uid, str(got.get("attributes", {}).get("processed")), int(got.get("process_count", -1)), int(got.get("level", -1)), got.get("origin"), ",".join(PackedStringArray(got.keys())), CharacterStore.canon(CharacterStore.wire(got)) == body])
+	_expect(extra.keys().all(func (k: String) -> bool: return got.get("attributes", {}).get(k) == extra[k]), "the buyer's instance keeps %s" % str(extra))
+	print("[econ-bridge] %s dried_meat %s uid=%s extra=%s history=%s process_count=%d level=%d origin=%s fields=%s intact=%s" % [name, crafted, uid, str(extra), str(got.get("attributes", {}).get("processed")), int(got.get("process_count", -1)), int(got.get("level", -1)), got.get("origin"), ",".join(PackedStringArray(got.keys())), CharacterStore.canon(CharacterStore.wire(got)) == body])
+	return true
+
+## Review r3 (and r6's probe): a vault stack can outgrow the item's stack_max after an items.json
+## balance edit (spec 06:24). A withdrawal larger than one stack is refused before the vault lets
+## go, so the bridge keeps serving every account; the units come home in parts.
+func _test_stack_max_shrink() -> bool:
+	var b := _rig("stack-max")
+	_gather(b, 1, "crate", 0, SPLIT, 10)
+	var uid := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT)}).uid)
+	var held := int(_vault(b, 1)[uid].count)
+	var before := _units(b, 1).get(SPLIT, 0) as int
+	var def := Data.item(StringName(SPLIT))
+	var was := def.stack_max
+	def.stack_max = 4
+	var big := _op(b, "vault.withdraw", 1, {"uid": uid, "count": 6})
+	var other := _op(b, "market.search", 2, {})
+	var parts := 0
+	while _vault(b, 1).has(uid) and parts < 10:
+		parts += 1
+		_ok(b, "vault.withdraw", 1, {"uid": uid, "count": mini(4, int(_vault(b, 1)[uid].count))})
+	def.stack_max = was
+	_expect(big.get("err") == "bad_request" and other.ok and _stuck(b) == "", "6 over a stack_max of 4 is refused before the vault lets go, the bridge serving (withdraw=%s search=%s stuck='%s')" % [big.get("err", "ok"), other.get("err", "ok"), _stuck(b)])
+	_expect(not _vault(b, 1).has(uid) and _units(b, 1).get(SPLIT, 0) == before + held, "all %d units came home in %d parts" % [held, parts])
+	print("[econ-bridge] stack_max 999->4 withdraw6=%s account2_search=%s stuck='%s' parts=%d units_home=%d of %d" % [big.get("err", "ok"), other.get("err", "ok"), _stuck(b), parts, _units(b, 1).get(SPLIT, 0) - before, held])
 	return true
 
 func _test_pets_and_cages() -> bool:

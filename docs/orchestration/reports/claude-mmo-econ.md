@@ -16,8 +16,72 @@ r4's blocker (a recovery rid reused once uids come home) and its minors. Ninth p
 (2026-10-20): review r5's blocker (a client could plant char.grant's rid), the bound-coin
 listing fee, and its minors. Tenth pass (2026-10-21, resumed run): review r4 relayed again;
 every item was already fixed at ba9937fd, so this pass merged the moved base (W2-SKILLS,
-W2-DATA, WATER), did the bonded-cap sync step and re-ran every gate. Read "Tenth pass" first,
-then "Ninth pass" and "Eighth pass".
+W2-DATA, WATER), did the bonded-cap sync step and re-ran every gate. Eleventh pass
+(2026-10-21): the resumed run's review (findings file `econ-review-r3.json`): W2-GATHER's rare
+traits, spec 06:12 search, and an oversized grant that stopped the bridge. Read "Review r3
+(eleventh pass)" first, then "Tenth pass".
+
+## Review r3 (eleventh pass, 2026-10-21): rare traits, search, oversized grants
+
+The branch had ddaab662 merged. The base then moved to 946da955 with HUD-DAYNIGHT, which is UI
+only and touches no hooked file. I merged it at 909dbbb4 with no conflicts. Every item below, with the test
+that fails without the fix. The "before" lines come from scratch `econ-r3old`: the previous head
+540529a8 with its own hooks patch, plus the new test files copied in.
+
+| # | Finding | Fix | Check that fails without it (old code) |
+|---|---|---|---|
+| B | W2-GATHER's six rare traits refused at deposit (`attribute black_sheen not allowed`); the report said no package writes a trait | `limits.json` `attributes`: `black_sheen`, `low_vibration`, `wide_serration`, `narrow_hook`, `split_easily`, `vivid_inspiration`, each `{"type": "bool"}` (a `_why` on the first names the sync step). The vision-fix field table below is corrected. | run_all `_test_attribute_sources` now syncs from `loot_tables.json` `rare_trait.traits` when the file exists (W2-GATHER), and from W2-GATHER 1610c3ed's six names until then: `ERROR: [tests] econ: attribute black_sheen = true from loot_tables.json rare_trait is allowed (attribute black_sheen not allowed)` (and the other five). End to end in t_econ (`_test_rare_trait`: dried meat with `processed: ["dry"]` + `black_sheen: true` through deposit, listing, buy, withdraw): `[t_econ] FAIL a dried instance deposits: { "ok": false, "err": "invalid_asset", "msg": "attribute black_sheen not allowed" }` |
+| M1 | `market.search` had no durability, rare-attribute or trait filter, no ascending level sort, no durability sort (spec 06:12, spec 14's Level and Durability headers) | `market_query.gd`: `min_durability` / `max_durability` (current durability; pets and plain materials count as 0), `attribute` (`key`: set and not `false`, so a rare trait; `key=value`: equal, or one of a processing history's steps), sorts `level_asc`, `durability_asc`, `durability_desc` in the same packed sort key, so they page on the server. `attribute` with no key is `bad_request`. | run_all `_test_search` (new fixture: worn and fresh knives, a Black Sheen stone, dried meat). Old `market_query.gd` with the new `limits.json` (so only search is old): `ERROR: [tests] econ: min_durability keeps only the fresh knife`, `... a rare trait filter finds the Black Sheen stone`, `... key=value matches a processing step and no other`, `ERROR: [tests] econ: market.search should succeed: { "ok": false, "err": "bad_request", "msg": "sort must be one of price_asc, price_desc, ending_soon, newest, level_desc" }`, `... level_asc`, `... durability_asc`, `... durability sort pages on the server`; `[tests] FAIL count=14` |
+| M2 | A partial withdrawal larger than the item's current `stack_max` stopped the whole bridge (`char.grant` refused after the vault let go; every op answered `server_error`) | `VaultBridge._grant`: `n > stack_max` is `bad_request` ("withdraw at most N at a time") before `bridge.begin`; the client withdraws in parts. A whole-export withdrawal goes through `char.receive`, which splits across slots and runs before the vault lets go, so it never needed this. | t_econ `_test_stack_max_shrink` (stack_max 999 -> 4, withdraw 6, then account 2 searches, then the rest in parts): `[econ-bridge] stack_max 999->4 withdraw6=ok account2_search=server_error stuck='6 stone_shot left the vault under b57 but char.grant refused them (invalid_asset)' parts=10 units_home=0 of 13` and `[t_econ] FAIL 6 over a stack_max of 4 is refused before the vault lets go, the bridge serving (withdraw=ok search=server_error stuck='6 stone_shot left ...')` |
+| m (grant fields) | `char.grant` copied only `creator` and `created_at` onto a granted part | Hooks patch `intent_handlers.gd` `_grant`: every key of the asset the committed row lacks (core fields and the new provenance stamp are already on the row), so any future `instance_fields` row survives a split too | t_econ `_test_grant_fields` whitelists a test field `batch` and puts it on the row: `[econ-bridge] grant fields part=i4 creator=Smith created_at=123 batch=<null>` and `[t_econ] FAIL a bought part keeps its creator, created_at and every other whitelisted instance field in the buyer's bag: {...}` (no `batch`) |
+| m (trade lock) | Lock runs on wall clock from account creation, not server-observed play | Unchanged, `# ASSUMPTION` in `market_engine.gd`. **Integrator note:** switch to presence play time when NET/W3 reports it. | (none) |
+| m (contract 6.1) | Contract says a traded pet is a `caged_animal` stack; ECON trades kind `pet` with the full PetRecord (same uid, lineage, owner rewrite, cap on bond) | **Orchestrator:** amend 6.1 ("pets trade as kind `pet` in the books, shown as cages by the Exchange"), or schedule the switch with W2-CAGE. | (none) |
+| A1 | Acceptance: escrow and listings keep every per-instance field W2-GATHER writes | B above. W2-GATHER's finds write `climate` and `level` (already whitelisted); `stamp_traits` writes the six traits (now whitelisted); Crafting copies them onto tools (the knife case in `_test_attribute_sources`). | evidence (909dbbb4 + hooks): `[econ-bridge] rare-trait dried_meat history=test uid=i8.0 extra={ "black_sheen": true } history=["dry"] process_count=1 level=1 origin=craft fields=attributes,count,created_at,creator,durability,flags,id,level,max_durability,origin,process_count,seq,uid intact=true`; run_all `[tests] PASS` with all six traits checked through the deposit whitelist and a traited stone and knife deposited (a numeric trait value is refused) |
+| A2 | Acceptance: spec 06:12 search by durability and rare attribute/trait, ascending level sort | M1 above | evidence (909dbbb4 + hooks): run_all `[tests] PASS` with `_test_search`'s new cases (min/max durability, `attribute` trait and `key=value`, `level_asc`, `durability_asc`, `durability_desc`, paging on a durability sort, `bad_request` for `=dry` and a negative durability); the fuzz now draws every sort; `[econ] search over 10000 active listings: page 1 in 20.8 ms first call, 17.7 ms best of 3; q+newest in 24.5 ms` |
+
+**For the orchestrator's contract 6.5 edit.** `market.search` now also takes
+`min_durability?` and `max_durability?`, integers on current durability, where pets and items
+without durability count as 0. It takes `attribute?`, a `<key>` or `<key>=<value>` of at most 64
+characters. `sort` adds `level_asc|durability_asc|durability_desc`.
+
+### Hooks patch (eleventh pass)
+
+Regenerated: the `_grant` hunk above is the only content change (blob `1cf10127` -> `3a5fdf66`).
+It touches `intent_handlers.gd` and `run_all.gd` only, and `git apply --check` is clean on
+`claude/mmo-overhaul` 946da955 (neither file changed there since ddaab662).
+
+### Acceptance (eleventh pass)
+
+The gate tree is mkscratch `econ-r3b`, made at 465feb09 with the hooks patch. I moved it to the
+merged head 909dbbb4, where the hooked files are the same blobs, and imported again. The import
+log has 0 SCRIPT ERROR or "Failed" lines. Every run went through gslot.
+
+- All 24 `game/tests/t_*.gd` exit 0 with their PASS line: t_ai, t_build, t_canim, t_combat, t_data
+  (`PASS items=223 recipes=155`), t_daynight_dial (new from the base), t_econ, t_harbour
+  (`PASS islands=15`), t_iconart, t_items, t_light, t_lighting, t_occlude, t_player, t_save,
+  t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons, t_w2_skills, t_water, t_web.
+  t_save prints its 5 deliberate SCRIPT ERROR lines; every other test 0. None prints
+  "couldn't resolve track".
+- `t_econ`: `[t_econ] PASS`. New lines: `[econ-bridge] stack_max 999->4 withdraw6=bad_request account2_search=ok stuck='' parts=4 units_home=13 of 13`,
+  `[econ-bridge] grant fields part=i4 creator=Smith created_at=123 batch=kiln-7`, the rare-trait
+  line above. Fuzz: `[econ-bridge] fuzz 3600 ops, 11 restarts mid-move, invariants of both stores after every op (coins issued 3580, sink 598)`.
+  Its 8 ERROR lines all read `deliberate fault in vault.*`; its WARNING lines are the fuzz's
+  forged server-only ops being refused.
+- `run_all.gd`: `[tests] PASS`. Its two SCRIPT ERROR lines follow
+  `[econ] fault test: the next SCRIPT ERROR and ERROR lines are deliberate`, as before.
+- `tools/smoke.sh --no-import`: `[smoke] ok player_pos=(0.0, 1.0, 0.0) phase=day`, `SMOKE PASS`.
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips`: 25 before, the same 25 after.
+- Labs and screenshots: none; ECON is server-side and has no UI.
+
+### Assumptions added (eleventh pass)
+
+- A rare trait is a boolean attribute set to `true`, as W2-GATHER writes it.
+- A search on durability uses current durability; pets and items without durability count as 0,
+  so `min_durability >= 1` shows only items that wear.
+- An `attribute` filter on a key matches when the key is set and not `false`; on `key=value` it
+  matches the value, or any step of an array (a processing history).
+- A withdrawal over one stack is refused, not split into several grants. The bridge journals one
+  grant per move, so the client asks again for the rest.
 
 ## Tenth pass (2026-10-21, resumed run): base merge, bonded-cap sync, r4 re-verified
 
@@ -257,7 +321,7 @@ kept:
 | `attributes.processed` | W2-PROCESS in-place steps | sixth pass (`steps` rule, `dry`/`smoke`/`steam`, max 2) |
 | `process_count`, `flags` (`raw` removed by a step) | W2-PROCESS | already whitelisted |
 | `attributes.climate` | harvest nodes (W2-GATHER rolls rares from it) | already whitelisted |
-| traits | nothing yet. No built package writes a trait field; W2-CRAFT (not started) rolls material attributes. Its keys get `limits.json` rows when it lands. | n/a |
+| traits | **Corrected in the eleventh pass:** this row said no package writes a trait, which was wrong. W2-GATHER's `GatherService.stamp_traits` writes `attributes[<trait>] = true` (six traits from `loot_tables.json` `rare_trait`), on the server too, and Crafting copies them onto tools | `limits.json` `attributes` bool rows (eleventh pass), synced from `loot_tables.json` by `_test_attribute_sources` |
 
 **Fix.**
 - `asset_validator.gd`: a field outside the core item keys must be a `limits.json`
