@@ -109,20 +109,28 @@ static func _items_of(row: Dictionary, kit: StringName) -> Array[ItemStack]:
 	return back
 
 ## All or nothing: tried on a scratch copy of the cargo first, so a partial fit never drops items.
+## A refund bigger than the whole cargo (W2-INV: a legacy stacked row, e.g. stone x200, splits into
+## one instance per slot) would wait forever, so the cargo grows for it, as the migration overflow does.
 static func _refund(row: Dictionary, kit: StringName, why: String) -> void:
 	var back := _items_of(row, kit)
-	var scratch := Inventory.new(World.cargo_home.slot_count)
-	scratch.load_array(World.cargo_home.to_array())
-	var left := 0
-	for stack in back:
-		left += scratch.add(stack.duplicate_stack())
-	if left > 0:
+	var left := _left_over(back, World.cargo_home.to_array())
+	if left > 0 and _left_over(back, []) == 0:
 		pending_refunds.append(row)
 		print("[save] kept %s at %s (%s) for a later refund: camp cargo is short of room for %d items" % [row.get("kind", "?"), cell_of(row), why, left])
 		return
+	var slots_before := World.cargo_home.slot_count
 	for stack in back:
-		World.cargo_home.add(stack)
-	print("[save] refunded %s at %s (%s): %d stacks to camp cargo" % [row.get("kind", "?"), cell_of(row), why, back.size()])
+		World.cargo_home.add_growing(stack)
+	print("[save] refunded %s at %s (%s): %d stacks to camp cargo (%d -> %d slots)" % [row.get("kind", "?"), cell_of(row), why, back.size(), slots_before, World.cargo_home.slot_count])
+
+## Units of `back` that do not fit a cargo-sized container holding `rows`.
+static func _left_over(back: Array[ItemStack], rows: Array) -> int:
+	var scratch := Inventory.new(World.cargo_home.slot_count)
+	scratch.load_array(rows)
+	var left := 0
+	for stack in back:
+		left += scratch.add(stack.duplicate_stack())
+	return left
 
 static func _normalize(row: Dictionary, schema: int) -> Dictionary:
 	var out := row.duplicate(true)
