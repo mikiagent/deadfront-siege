@@ -50,8 +50,8 @@ static func capture(inv: Inventory, k: int) -> void:
 	sets[k] = set_k
 	inv.set("presets", {"active": k, "sets": sets})
 
-## Put preset `k` on. Returns "" when done, else why not (locked, bag full). Gear it names that is no
-## longer in the bag is skipped. # ASSUMPTION: worn gear the preset does not name comes off.
+## Put preset `k` on. Returns "" when done, else why not (locked preset, bag full, or the locked
+## pieces left in the bag: the rest still goes on). Gear it names that is no longer in the bag is skipped. # ASSUMPTION: worn gear the preset does not name comes off.
 static func apply(player: Player, k: int) -> String:
 	var inv := player.inventory
 	if k < 0 or k >= count():
@@ -70,6 +70,7 @@ static func apply(player: Player, k: int) -> String:
 	if off > inv.slot_count - inv.used_slots():
 		return "Bag is full."
 	var pa = player.actions # untyped: equip_at / unequip / hold_tool come from the INVUI hooks patch
+	var kept: PackedStringArray = [] # pieces a lock keeps in the bag (equip_at refuses them)
 	for slot in Inventory.EQUIP_SLOTS:
 		var uid := str(want.get(str(slot), ""))
 		var cur := inv.equipped_in(slot)
@@ -77,16 +78,24 @@ static func apply(player: Player, k: int) -> String:
 			continue
 		var at := _index(inv, uid)
 		if at >= 0:
-			pa.equip_at(at, slot) # swaps with what is worn
+			var piece := inv.slots[at]
+			if not pa.equip_at(at, slot) and piece.is_locked(): # swaps with what is worn
+				kept.append(_name(piece))
 		elif cur:
 			pa.unequip(slot)
 	var tool_at := _index(inv, str(want.get(TOOL, "")))
 	if tool_at >= 0 and tool_at != inv.equipped_tool_index:
-		pa.hold_tool(tool_at)
+		var tool := inv.slots[tool_at]
+		if not pa.hold_tool(tool_at) and tool.is_locked():
+			kept.append(_name(tool))
 	var p := _p(inv).duplicate(true)
 	p["active"] = k
 	inv.set("presets", p)
-	return ""
+	return "" if kept.is_empty() else "Locked: %s %s in the bag." % [", ".join(kept), "stays" if kept.size() == 1 else "stay"]
+
+static func _name(s: ItemStack) -> String:
+	var d := s.def()
+	return ("%s %s" % [d.display_name if d and d.display_name != "" else str(s.def_id), LevelDisplay.label(s.level)]).strip_edges()
 
 ## The Gear tab's tap on preset `k`: the active preset first keeps what is worn now, then `k` goes on
 ## (an unsaved `k` starts as a copy of the current gear).

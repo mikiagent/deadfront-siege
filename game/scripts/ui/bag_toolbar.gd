@@ -18,7 +18,11 @@ signal trash_pressed
 var sort_key: StringName = &"type"
 ## The right-hand squares this toolbar shows, in this order (the in-game Bag: Select, Filter, Lock,
 ## Trash; storage: Select All, Select, Search, Lock; the picker none).
-var squares: Array[StringName] = [&"select", &"filter", &"lock"]
+var squares: Array[StringName] = [&"select", &"filter", &"lock"]:
+	set(v):
+		squares = v
+		if is_node_ready() and not _m.is_empty():
+			_layout()
 var filter_id: StringName = &"all"
 var select_on := false
 var _sort: Button

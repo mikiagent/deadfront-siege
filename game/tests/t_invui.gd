@@ -377,6 +377,54 @@ func _t11_locking() -> void:
 	_expect(CR.consume_for_craft(inv, rec, forced).is_empty() and inv.slots[i60] != null, "11: a locked bone cannot be consumed even when picked")
 	C["inv_actions"].call("run", &"lock", player, i60, _ctx())
 	_expect(not inv.slots[i60].is_locked(), "11: Lock again unlocks")
+	await _t11_locked_never_spent()
+
+## One rule for spendable units (review r1 blocker): what a lock keeps is neither counted as payable
+## nor spent by builds, captures or ammo, while "have N" goals still see it.
+func _t11_locked_never_spent() -> void:
+	var inv = player.inventory
+	var placer = player.placer
+	_reset_bag()
+	var k := _give(&"workbench_kit", 1)
+	inv.slots[k].set_flag(&"locked", true)
+	var acts: Array = C["inv_actions"].call("valid", inv.slots[k], _ctx())
+	_expect(not acts.has(&"place"), "11: a locked kit offers no Place (%s)" % [acts])
+	placer.placing = &"workbench"
+	var paid: bool = placer.call("_pay", player)
+	_expect(not paid and inv.slots[k] != null and inv.slots[k].def_id == &"workbench_kit", "11: a locked kit never pays for a build (paid=%s)" % paid)
+	_reset_bag()
+	for _n in 2:
+		inv.slots[_give(&"branch", 1)].set_flag(&"locked", true)
+	placer.placing = &"bonfire"
+	var can: bool = placer.call("_can_pay", player)
+	var paid2: bool = placer.call("_pay", player)
+	_expect(not can and not paid2 and inv.held_of(&"branch") == 2, "11: locked branches never pay a raw cost (can=%s paid=%s held=%d)" % [can, paid2, inv.held_of(&"branch")])
+	placer.placing = &""
+	_reset_bag()
+	var n2 := _give(&"capture_net_ii", 1)
+	inv.slots[n2].set_flag(&"locked", true)
+	_expect(inv.best_capture_net() == null, "11: a locked net is never the capture net")
+	_give(&"capture_net_i", 1)
+	var net = inv.best_capture_net()
+	_expect(net != null and net.def_id == &"capture_net_i", "11: the unlocked lower net is chosen over a locked better one")
+	_reset_bag()
+	var a := _give(&"stone_shot", 1)
+	inv.slots[a].count = 5
+	inv.slots[a].set_flag(&"locked", true)
+	_expect(inv.count_of(&"stone_shot") == 0 and not inv.consume(&"stone_shot", 1) and inv.held_of(&"stone_shot") == 5, "11: locked ammo neither counts as ready nor fires (count %d)" % inv.count_of(&"stone_shot"))
+	var obj: Dictionary = load("res://scripts/core/objectives.gd").call("_progress", player, {"have": {"stone_shot": 5}})
+	_expect(int(obj.get("got", -1)) == 5, "11: a 'have N' goal still sees locked units (%s)" % [obj])
+	# Online there is no act.lock op yet: Lock is not offered (as Discard), so it never does nothing.
+	player.actions.online = true
+	var on: Array = C["inv_actions"].call("valid", inv.slots[a], _ctx())
+	_expect(not on.has(&"lock") and not on.has(&"unlock"), "11: Lock is not offered online (%s)" % [on])
+	if _need(["bag_screen"], "11 lock online"):
+		player.ui.open_bag()
+		await process_frame
+		var tb = player.ui.get("_bag").toolbar
+		_expect(not (tb.squares as Array).has(&"lock"), "11: the Bag's lock square is hidden online")
+		player.ui.hide_ui()
+	player.actions.online = false
 
 # ---------------------------------------------------------------- 12-15: transfer, equipment, stats, presets
 
@@ -583,6 +631,12 @@ func _t15_presets() -> void:
 	_expect(str(GP.call("switch", player, 1)) == "" and inv.equipped_in(&"head") == null and _find(uid) >= 0, "15: preset 2 kept its bare head")
 	var why := str(GP.call("switch", player, 2))
 	_expect(why.contains("Lv. 30") and int(GP.call("active", inv)) == 1, "15: preset 3 is refused until Lv. 30 (%s)" % why)
+	# A piece locked since it was saved stays in the bag, and the switch says so (review r1).
+	inv.slots[_find(uid)].set_flag(&"locked", true)
+	var said := str(GP.call("switch", player, 0))
+	_expect(said.contains("Locked") and said.contains("Forager Hood") and inv.equipped_in(&"head") == null, "15: a locked preset piece is named, not dropped silently (%s)" % said)
+	inv.slots[_find(uid)].set_flag(&"locked", false)
+	GP.call("switch", player, 1)
 	if _need(["character_screen"], "15 selector"):
 		player.ui.open_character(&"head")
 		await process_frame

@@ -96,12 +96,20 @@ func bind(inv: Inventory, p: Player) -> void:
 	grid.bind(inv)
 	if inventory:
 		inventory.changed.connect(_on_inventory_changed)
-	var sq: Array[StringName] = [&"select", &"filter", &"lock"]
-	if InvActions.can_discard(player):
-		sq.append(&"trash")
-	toolbar.squares = sq
+	_set_squares()
 	_layout()
 	_on_selection(grid.selected_uid())
+
+## Lock and Trash only where they work (offline: the server has neither op yet). Set on every open,
+## since a session can go online after the bag was bound.
+func _set_squares() -> void:
+	var sq: Array[StringName] = [&"select", &"filter"]
+	if InvActions.can_lock(player):
+		sq.append(&"lock")
+	if InvActions.can_discard(player):
+		sq.append(&"trash")
+	if sq != toolbar.squares:
+		toolbar.squares = sq
 
 ## Selects the instance at bag slot `i` (-1 clears).
 func select_index(i: int) -> void:
@@ -150,6 +158,7 @@ func _acknowledge(st: ItemStack) -> void:
 
 ## Rebuild the grid and the inspected item from the bag now (the host calls it on open).
 func refresh() -> void:
+	_set_squares()
 	grid.refresh()
 	_paint_tab()
 	_reinspect()

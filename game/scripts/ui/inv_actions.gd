@@ -51,13 +51,14 @@ static func valid(stack: ItemStack, ctx: Dictionary) -> Array[StringName]:
 		out.append(&"hold")
 	if Food.is_food(stack):
 		out.append(&"eat")
-	if d and d.place_as != &"":
+	if not locked and d and d.place_as != &"": # placing spends the kit, and a lock keeps it (spec 13 s9)
 		out.append(&"place")
 	if Food.is_food(stack) and player and player.summoned_pet != null:
 		out.append(&"feed")
 	if Food.is_food(stack):
 		out.append_array([&"quick1", &"quick2"])
-	out.append(&"unlock" if locked else &"lock")
+	if can_lock(player):
+		out.append(&"unlock" if locked else &"lock")
 	if not locked and sell_handler.is_valid() and stack.uid != "":
 		out.append(&"sell")
 	if not locked and drop_handler.is_valid():
@@ -124,6 +125,10 @@ static func run(action: StringName, player: Player, index: int, ctx: Dictionary 
 ## an item from it (spec 13 s9).
 static func can_discard(player: Player) -> bool:
 	return player != null and not bool(player.actions.get("online"))
+
+## Lock works offline only for now: the server has no act.lock op yet (W3 adds it, then this goes).
+static func can_lock(player: Player) -> bool:
+	return player == null or not bool(player.actions.get("online"))
 
 ## True when every bag slot in `indices` holds a locked item (and there is at least one).
 static func all_locked(inv: Inventory, indices: Array[int]) -> bool:

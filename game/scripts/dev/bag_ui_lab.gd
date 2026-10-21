@@ -279,7 +279,7 @@ func _open(screen: StringName) -> bool:
 			var craft: Node = player.craft_ui
 			craft.call("show_for_station", &"crock_pot")
 			craft.call("_choose_recipe", "camp_stew")
-			craft.call("_set_chosen", "camp_stew", 2, [_index_of(uids["berry25"])]) # what the picker's Use hands back
+			(craft.get("_choice") as IngredientChoice).set_chosen(player.inventory, "camp_stew", 2, [_index_of(uids["berry25"])]) # what the picker's Use hands back
 			craft.call("rebuild")
 			return craft.visible
 		_:
