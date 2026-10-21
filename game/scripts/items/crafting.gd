@@ -21,6 +21,8 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
 ## (Inventory.spend_key), then dedicated materials before dual-category ones, then the lead's def;
 ## a unit that a later slot still needs (a cheap reed is also the recipe's lashing) is left for it.
 ## When a slot still runs short, plan again with dedicated materials first (the order before W2-INV).
+## A locked instance is spent only as the player's own pick (spec 13:229 "protect valuable items from
+## ... crafting consumption"), never as a default lead or fill.
 static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
 	var plan := _plan_ordered(inv, rec, picks, true)
 	return plan if not plan.is_empty() else _plan_ordered(inv, rec, picks, false)
@@ -35,7 +37,7 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
 		if not slot is Dictionary:
 			return []
 		cats.append(StringName(str(slot.get("category", ""))))
-		cands.append(inv.find_by_category(cats[-1]))
+		cands.append(inv.find_by_category(cats[-1]).filter(func(idx: int) -> bool: return not inv.slots[idx].is_locked()))
 	var remaining: Dictionary = {}
 	var plan: Array[Dictionary] = []
 	var prefer := StringName(str(rec.get("input_id", "")))
@@ -127,16 +129,6 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
 	missing.resize(rec.get("slots", []).size())
 	missing.fill(-1)
 	return missing
-
-## Spec 13:486 "Do not automatically consume the most valuable item": true when the plan for these
-## picks spends an instance with traits (e.g. every candidate has one), so the craft UI can ask for
-## an explicit pick. # ASSUMPTION: traits only; a higher level alone does not ask.
-static func plan_spends_traits(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
-	for row in _plan(inv, rec, picks):
-		for part in row.parts:
-			if not Inventory.traits(inv.slots[int(part.idx)]).is_empty():
-				return true
-	return false
 
 static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
 	return not _plan(inv, rec, picks).is_empty()

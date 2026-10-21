@@ -93,6 +93,7 @@ func _run() -> void:
 	await _test_backup_fallback()
 	await _test_restore_refunds()
 	await _test_full_cargo_refund()
+	await _test_oversized_legacy_refund()
 	await _test_pen_refunds()
 	await _test_refused_save_keeps_camp()
 	await _test_away_island()
@@ -691,6 +692,34 @@ func _test_full_cargo_refund() -> void:
 	_check(cargo_ok and (after.get("pending_refunds", []) as Array).is_empty() and _held_on_disk(after) == [3, 7, 1],
 		"with room again the kept row is refunded once (flint=%d stone=%d kit=%d pending=%d)" % [c.count_of(&"flint"), c.count_of(&"stone"), c.count_of(&"basket_kit"), (after.get("pending_refunds", []) as Array).size()])
 	print("[t_save] full cargo refund held_on_disk=%s after_room=%s" % [held, _held_on_disk(after)])
+	await process_frame
+
+## W2-INV: a pending refund kept by a pre-W2-INV save holds stacks (stone 10 x 20). Split, its 200
+## instances are more than the whole camp cargo holds, so all-or-nothing would keep it unreachable on
+## every load; the cargo grows for it instead, as the migration overflow does.
+func _test_oversized_legacy_refund() -> void:
+	_clean()
+	SG.save_now()
+	var d := _saved()
+	d["home"]["cargo"] = []
+	var contents: Array = []
+	for i in 10:
+		contents.append({"id": "stone", "count": 20})
+	d["pending_refunds"] = [{"kind": "basket", "cell": [4000, 4000], "rot": 0, "contents": contents}]
+	_put(JSON.stringify(d))
+	# Earlier tests grew the cargo in memory (a load never shrinks it); start from its base 60 slots.
+	W.cargo_home.load_array([])
+	load("res://scripts/items/inventory_equipment.gd").resize(W.cargo_home, W.cargo_home.base_slots)
+	var base: int = W.cargo_home.slot_count
+	SG.load_now(host)
+	SG.save_now()
+	var c = W.cargo_home
+	var pending := (_saved().get("pending_refunds", []) as Array).size()
+	_check(base < 200 and c.count_of(&"stone") == 200 and c.count_of(&"basket_kit") == 1 and pending == 0,
+		"a legacy refund of 200 stone lands in a grown camp cargo (stone=%d kit=%d slots %d -> %d pending=%d)" % [c.count_of(&"stone"), c.count_of(&"basket_kit"), base, c.slot_count, pending])
+	SG.load_now(host)
+	_check(W.cargo_home.count_of(&"stone") == 200, "the grown cargo reloads with all 200 stone (got %d)" % W.cargo_home.count_of(&"stone"))
+	print("[t_save] oversized legacy refund stone=%d slots %d -> %d pending=%d" % [c.count_of(&"stone"), base, c.slot_count, pending])
 	await process_frame
 
 ## [flint, stone, basket kits] anywhere in a save: cargo, building contents, pending refund rows.
