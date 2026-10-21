@@ -16,7 +16,7 @@
 - `game/tests/t_gather.gd` (15 groups, 9 of them live on a real `player.tscn` survivor) and `--lab=gather_lab`.
 
 ## Hooks patch (integrator applies at merge)
-`docs/orchestration/reports/claude-mmo-w2-gather-hooks.patch`, regenerated on this round and `git apply --check` clean on claude/mmo-overhaul cecc936b:
+`docs/orchestration/reports/claude-mmo-w2-gather-hooks.patch`, regenerated on this round and `git apply --check` clean on claude/mmo-overhaul 73527576:
 - `player_actions.gd`:
   - `_scaled_gather_seconds` and `_gather_yield_multiplier` call `GatherService.unit_seconds` and `GatherService.yield_multiplier`.
   - `GatherService.after_unit(p, gt, stack, gained)` runs after `gt.consume_unit()`. It now passes the landed stack, not its id.
@@ -103,7 +103,7 @@ Each mutation ran the full t_gather against the mutated file (scratchpad `w2g5/m
     - Traits removed from after_unit: `[t_gather] FAIL every gathered item took a trait with the odds forced to 1 (0 of 5)`.
 
 ## Gate lines (scratch trees `w2g5` and `w2g5g` = 0cbec77a + the hooks patch)
-Final commit be67836a, with the hooks patch `git apply --check` clean on claude/mmo-overhaul cecc936b. Each line below was seen in the run log:
+Final code commit be67836a. The branch tip merges claude/mmo-overhaul 73527576, which changed docs only (`git diff be67836a HEAD -- game` is empty). The hooks patch is `git apply --check` clean there. Each line below was seen in the run log:
 - `--import` (mkscratch, both trees): 0 `SCRIPT ERROR` / `Failed to compile` lines in `.import.log`.
 - Every `game/tests/t_*.gd` exited rc=0 with 0 SCRIPT ERROR, except t_save, which prints its 5 deliberate ones, as on base. `[t_ai] PASS`, `[t_build] PASS`, `[t_canim] PASS`, `[t_combat] PASS`, `[t_gather] PASS`, `[t_harbour] PASS islands=15`, `[t_iconart] PASS`, `[t_items] PASS`, `[t_light] PASS` (both t_light and t_lighting print this), `[t_occlude] PASS`, `[t_player] PASS`, `[t_save] PASS`, `[t_server_domain] PASS`, `[t_srvdom] PASS`, `[t_structart] PASS`, `[t_tame] PASS`, `[t_ui] PASS`, `[t_uiicons] PASS ids=169 ...`, `[t_web] PASS`.
 - `--script res://tests/run_all.gd`: `[tests] PASS`.
