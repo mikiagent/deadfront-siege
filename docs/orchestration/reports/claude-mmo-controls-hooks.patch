@@ -1,0 +1,175 @@
+diff --git a/game/scripts/camera/iso_camera.gd b/game/scripts/camera/iso_camera.gd
+index b97d0080..9bcd1008 100644
+--- a/game/scripts/camera/iso_camera.gd
++++ b/game/scripts/camera/iso_camera.gd
+@@ -28,6 +28,9 @@ func add_trauma(amount: float) -> void:
+ 
+ func _ready() -> void:
+ 	projection = PROJECTION_ORTHOGONAL
++	# Moved every frame after the target's interpolated transform, so it is not interpolated itself:
++	# interpolated, unproject_position() in _process read last frame's camera and screen UI trailed the world.
++	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+ 	if size <= 1.0:
+ 		size = default_size  # Camera3D.size defaults to 1 m, which is a face-full of capsule
+ 	for a in OS.get_cmdline_user_args():
+diff --git a/game/scripts/ui/gather_radial.gd b/game/scripts/ui/gather_radial.gd
+index 36c2c99d..73d8ef46 100644
+--- a/game/scripts/ui/gather_radial.gd
++++ b/game/scripts/ui/gather_radial.gd
+@@ -27,6 +27,7 @@ var _ring3d: MeshInstance3D  # selection hexagon on the ground, depth-tested so
+ var label_rects: Array[Rect2] = []
+ ## The name + level backing as last drawn (the capture lab checks it against the HUD and the source).
+ var title_box: Rect2
++var _hold := RadialHold.new()  # the layout solved on open, held against the node while the camera moves
+ 
+ const HEX := 64.0
+ const RING_R := 1.15  # selection hexagon radius on the ground, m
+@@ -36,6 +37,7 @@ func _ready() -> void:
+ 	# Inside the tree set_anchors_preset keeps the current (empty) rect; reset the offsets too.
+ 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ 	mouse_filter = Control.MOUSE_FILTER_IGNORE
++	process_priority = 1  # after the camera's follow (priority 0): the hexes trailed the plant by a frame
+ 	visible = false
+ 	_load_icons()
+ 
+@@ -147,6 +149,7 @@ func _show_ring3d() -> void:
+ 	_ring3d.visible = true
+ 
+ func close() -> void:
++	_hold.reset()
+ 	if _ring3d:
+ 		_ring3d.visible = false
+ 	for b in _buttons:
+@@ -229,7 +232,8 @@ func _process(_delta: float) -> void:
+ 	if node == null or not is_instance_valid(node):
+ 		close()
+ 		return
+-	_layout()
++	if not _hold.follow(self, _anchor()):
++		_layout()
+ 	queue_redraw()
+ 
+ func _anchor() -> Vector2:
+@@ -239,7 +243,7 @@ func _anchor() -> Vector2:
+ 	return cam.unproject_position(node.global_position + Vector3(0, anchor_height * 0.45, 0))
+ 
+ func _layout() -> void:
+-	var base := _anchor()
++	var base := _hold.solved(_anchor())
+ 	var view := get_viewport_rect().size
+ 	var tf := ThemeDB.fallback_font
+ 	var ns := UiTokens.body(view)
+@@ -279,6 +283,8 @@ func _draw() -> void:
+ 	var xs: Array[float] = [title_box.position.x]
+ 	for b in _buttons:
+ 		xs.append_array([b.position.x - title_box.size.x - 12.0, b.position.x + b.size.x + 12.0])
++	if _hold.held:
++		xs.clear()
+ 	for x in xs:
+ 		var spot := Rect2(Vector2(clampf(x, 8.0, maxf(8.0, view.x - title_box.size.x - 8.0)), title_box.position.y), title_box.size)
+ 		var clear := true
+@@ -296,6 +302,9 @@ func _draw() -> void:
+ 	draw_string(font, Vector2(name_pos.x + nw * 0.5 - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
+ 	var plate := nameplate()
+ 	var src := source_rect()
++	var held_rects: Array[Rect2] = []
++	if _hold.held:
++		held_rects.assign(label_rects)
+ 	label_rects.clear()
+ 	for i in _buttons.size():
+ 		var b := _buttons[i]
+@@ -308,7 +317,7 @@ func _draw() -> void:
+ 		for j in _buttons.size():
+ 			if j != i:
+ 				blockers.append(Rect2(_buttons[j].position, _buttons[j].size))
+-		var rect := pick_label_rect(ContextRadial.label_on_left(b.position, b.size.x, view, base), Rect2(b.position, b.size), tw, view, blockers, [src])
++		var rect: Rect2 = held_rects[i] if i < held_rects.size() else pick_label_rect(ContextRadial.label_on_left(b.position, b.size.x, view, base), Rect2(b.position, b.size), tw, view, blockers, [src])
+ 		var pos := rect.position + Vector2(4.0, 14.0)
+ 		label_rects.append(Rect2(pos + Vector2(-4, -14), Vector2(tw + 12, 26)))
+ 		draw_rect(label_rects[-1], UiTokens.INK)
+@@ -316,6 +325,7 @@ func _draw() -> void:
+ 		if reason != "":
+ 			var short := UiTokens.ellipsis(font, reason, 148.0, UiTokens.meta(view))
+ 			draw_string(font, pos + Vector2(2, 24), short, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.DANGER)
++	_hold.picked()
+ 	# Gather progress: a thick outline sweeping around the picked hex, once per unit.
+ 	if active_index >= 0 and active_index < _buttons.size():
+ 		var ab := _buttons[active_index]
+diff --git a/game/scripts/ui/hud_pills.gd b/game/scripts/ui/hud_pills.gd
+index 3671ff22..d9a60931 100644
+--- a/game/scripts/ui/hud_pills.gd
++++ b/game/scripts/ui/hud_pills.gd
+@@ -5,6 +5,10 @@ extends RefCounted
+ ## functions over the HUD, split out of hunt_hud.gd (review: no god-file growth).
+ 
+ const TOOL_ICON_ITEM := {"axe": "work_axe", "pick": "work_pick", "knife": "stone_knife", "none": "hands", "": "hands"}
++const GLIDE_PX := 5.0  ## px per frame a pill slides toward a new row (it hopped a whole row in one frame)
++
++## Each pill's offset from its anchor as last drawn, by object instance id.
++static var _last_offset := {}
+ 
+ static func gather_radial_node(hud: HuntHud) -> Node3D:
+ 	var gr: Variant = hud.player.get("_gather_radial")
+@@ -110,9 +114,6 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+ 		if kind_n >= 2 and not active_row:
+ 			continue
+ 		per_kind[name] = kind_n + 1
+-		var priority := 100 if active_row else int(40.0 - d)
+-		if name == "Workbench" or name == "Cargo Warp":
+-			priority += 5
+ 		var text := UiTokens.ellipsis(hud._font, name, UiTokens.LABEL_MAX_W - 28.0, 14)
+ 		var tw := hud._font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+ 		var working := (grp == "harvest" and (n3 == hud.player.gather_target or (gather_radial_node(hud) == n3))) or (grp == "corpse" and n3 is Corpse and (n3 as Corpse).tapped_recently(4.0))
+@@ -121,29 +122,42 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+ 		if timer != "":
+ 			w = maxf(w, hud._font.get_string_size(timer, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(hud.get_viewport_rect().size)).x + 16.0)
+ 		var sp := cam.unproject_position(n3.global_position + Vector3(0, top + 0.35, 0))
++		# Placed lowest on screen first, not nearest first: the camera shifts every pill alike, so this order
++		# (and which pill steps up a row) holds while the survivor walks; by whole metres (or whole pixels)
++		# two near bushes tied, the sort is not stable, and they traded rows frame to frame.
++		var priority := (2000000000 if active_row else 0) + (1000000000 if name == "Workbench" or name == "Cargo Warp" else 0) + int(sp.y * 1000.0)
+ 		# The box covers what is drawn: tool icons poke 8 px over the pill, a regrow timer hangs under it.
+ 		pending.append({
+ 			"anchor": sp, "w": w, "h": 22.0 + (8.0 if not tools.is_empty() else 0.0) + (20.0 if timer != "" else 0.0), "priority": priority,
+-			"text": text, "dot": dot, "timer": timer, "tools": tools,
++			"text": text, "dot": dot, "timer": timer, "tools": tools, "id": n3.get_instance_id(),
+ 			"a": 1.0 if n3 == radial_node else 1.0 - smoothstep(5.5, 8.0, d),
+ 		})
+ 		shown += 1
+ 	var view := hud.get_viewport_rect().size
+ 	var pill_i := 0
+-	# The survivor is only stepped away from: a building behind it keeps its label.
++	# The survivor is only stepped away from: a building behind it keeps its label. While it walks the
++	# labels hold their spots and fade where they cross it: stepping away, every label it passed hopped a row.
+ 	var fig := HudLayout.figure_rect(hud)
++	var walking := hud.player.velocity.length() > 0.5
+ 	var hard: Array[Rect2] = []
+ 	for x in avoid:
+-		if x != fig:
++		if x != fig and not (walking and x == hud.drawn_blocks.get("nameplate")):
+ 			hard.append(x)
+-	var soft: Array[Rect2] = [fig]
++	var soft: Array[Rect2] = []
++	if not walking:
++		soft.append(fig)
++	var offsets := {}
+ 	for item in UiTokens.layout_labels(pending, view, hard, soft):
+ 		var box: Rect2 = item["rect"]
++		var anchor: Vector2 = item["anchor"]
++		if _last_offset.has(item["id"]):
++			box.position = anchor + (_last_offset[item["id"]] as Vector2).move_toward(box.position - anchor, GLIDE_PX)
++		offsets[item["id"]] = box.position - anchor
+ 		hud.drawn_blocks["pill%d" % pill_i] = box
+ 		pill_i += 1
+ 		var tools: Array = item["tools"]
+ 		var rect := Rect2(box.position + Vector2(0.0, 8.0 if not tools.is_empty() else 0.0), Vector2(box.size.x, 22.0))
+-		var a: float = item["a"]
++		var a: float = item["a"] * (0.35 if walking and box.intersects(fig) else 1.0)
+ 		var text: String = item["text"]
+ 		var dot: Color = item["dot"]
+ 		var bg := UiTokens.INK
+@@ -168,3 +182,4 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
+ 			hud.draw_rect(trect, tbg)
+ 			hud.draw_string(hud._font, Vector2(trect.position.x + 8.0, trect.position.y + 14.0), tt, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), Color(1, 0.9, 0.6, a))
+ 		shown += 1
++	_last_offset = offsets
