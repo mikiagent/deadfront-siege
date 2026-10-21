@@ -18,9 +18,12 @@ var _host: Node3D
 var _world: Node
 var _rt: Node3D
 var IC: GDScript
+var ISC: GDScript
 var DR: GDScript
 var BG: GDScript
+var _player: Node3D
 var _changed := 0
+var _change_batches := 0
 var _last_changed := Rect2i()
 
 func _process(_delta: float) -> bool:
@@ -42,11 +45,13 @@ func _run() -> void:
 	BG = load("res://scripts/world/build_grid.gd")
 	IC = load("res://scripts/world/island_claims.gd")
 	DR = load("res://scripts/world/domain_rules.gd")
+	ISC = load("res://scripts/world/island_scatter.gd")  # by path: naming it compiles it before autoloads exist
 	_world = root.get_node("World")
 	_host = Node3D.new()
 	_host.name = "TClaims2Host"
 	root.add_child(_host)
 	var kit: Dictionary = load("res://scripts/dev/lab_kit.gd").build(_host, 4.0)
+	_player = kit["player"]
 	_world.player_name = ME
 	_world.home_claims = []
 	_world.home_domain = {}
@@ -65,6 +70,8 @@ func _run() -> void:
 	await _test_declare_and_expand()
 	await _test_refusals()
 	await _test_other_owner_and_double()
+	await _test_footprint_rule()
+	await _test_grass()
 	await _test_legacy_migration()
 	await _test_save_round_trip()
 	if _fails.is_empty():
@@ -239,6 +246,121 @@ func _test_other_owner_and_double() -> void:
 	out = _rt.claim_domain(mixed)
 	_expect(not bool(out["ok"]) and _rt.claim_used() == used, "a batch with one bad cell claims nothing (reason %s)" % [out["reason"]])
 	print("[t_claims2] refusals: repeat=%s ownership=%s atomic=%s" % ["already_owned", "ownership", not out["ok"]])
+
+# ---------------------------------------------------------------- building footprints (spec 29 section 9)
+
+## A building's WHOLE footprint must stand on owned land: an anchor inside the domain with the rest
+## of the footprint across the border is refused ("unclaimed"), never placed half on the neighbour's
+## land. The footprint also rotates, so a 2x1 building cannot slip across the edge by turning.
+func _test_footprint_rule() -> void:
+	_reset_domain()
+	var first := _find_cell(func (_c: Vector2i) -> bool: return true)
+	_rt.claim_domain([first])
+	var cands: Array = _rt.claim_eligible_cells()
+	var grid: Variant = _rt.build_grid  # untyped: naming BuildGrid here compiles it before autoloads exist
+	_player.global_position = BG.tile_centre(IC.cell_rect(_rt, first).get_center(), _rt) + Vector3(0, 1, 0)  # within build reach
+	await process_frame
+	var crossed := 0
+	var placed_inside := 0
+	for c: Vector2i in cands:
+		# Try every cell on the domain's border as an anchor of a 2x1 building in both rotations.
+		var rect: Rect2i = IC.cell_rect(_rt, c)
+		var tiles: Array[Vector2i] = [rect.position, rect.position + Vector2i(1, 0), rect.position + Vector2i(0, 1)]
+		for tile in tiles:
+			for rot in [0, 1]:
+				var cells: Array[Vector2i] = grid.cells_for(&"workbench", tile, rot)
+				var inside := 0
+				for k in cells:
+					inside += 1 if _rt.is_claimed(k) else 0
+				if inside == cells.size():
+					continue
+				var why: String = grid.can_place(&"workbench", tile, rot)
+				if why == "unclaimed":
+					crossed += 1
+				elif why == "":
+					print("[t_claims2] FAIL a %dx%d footprint at %s (rot %d) is half off the claim but can_place said yes (%d of %d tiles claimed)" % [grid.footprint(&"workbench").x, grid.footprint(&"workbench").y, tile, rot, inside, cells.size()])
+					_fails.append("an anchor-only placement across the claim border was allowed")
+	# A footprint fully inside the claimed cell can be placed (the rule refuses only the straddle).
+	var cell_rect: Rect2i = IC.cell_rect(_rt, first)
+	for tile in [cell_rect.position, cell_rect.position + Vector2i(1, 0), cell_rect.get_center()]:
+		var why_in: String = grid.can_place(&"workbench", tile, 0)
+		if why_in == "":
+			placed_inside += 1
+		print("[t_claims2] inside anchor %s -> '%s'" % [tile, why_in])
+	_expect(crossed > 0, "a footprint straddling the claim border is refused for being unclaimed (%d anchors sampled)" % crossed)
+	_expect(placed_inside > 0, "a footprint wholly inside a claimed cell may be placed (%d anchors sampled)" % placed_inside)
+	print("[t_claims2] footprint: %d straddling anchors refused, %d inside anchors allowed" % [crossed, placed_inside])
+
+# ---------------------------------------------------------------- no grass on claimed land (owner)
+
+## Claimed land is bare: claiming the cells removes the grass nodes and decor instances inside them,
+## and nothing else (trees, bushes, rocks, flowers, reeds survive). New scatter skips claimed tiles.
+## Claimed land is bare: claiming the cells removes the grass harvest nodes inside them (and the
+## decor instances, which only a real renderer can be measured on - the lab measures those windowed),
+## and nothing else (trees, bushes, rocks, flowers, reeds survive).
+func _test_grass() -> void:
+	_reset_domain()
+	# The scatter is random, so the grass the test measures is placed where it needs it: a WildGrass
+	# node in a cell the domain may grow into. It is the same clearing a real claim does.
+	var held: Dictionary = IC.occupied_cells(_rt)
+	var batch: Array = []
+	for c in _rt.claim_eligible_cells():
+		if batch.size() < 1 and IC.adjacent_to(c, held):
+			batch.append(c)
+			held[c] = true
+	_expect(batch.size() == 1, "a cell the domain may grow into exists for the grass check")
+	if batch.is_empty():
+		return
+	var rect: Rect2i = IC.cell_rect(_rt, batch[0])
+	var spot: Vector3 = BG.tile_centre(rect.get_center(), _rt)
+	var authored: int = ISC.plant_at(_rt, "WildGrass", "wild_grass", spot, &"fibre", &"hand", "temperate", 1, Color(0.4, 0.55, 0.25))
+	_expect(authored == 1, "a WildGrass node stands inside the cell to claim")
+	var plots: Array = [rect]
+	var nodes_before: int = _grass_nodes_in(plots)
+	_expect(nodes_before >= 1, "the cell holds grass before the claim (%d nodes)" % nodes_before)
+	var others_before: int = IC.other_nodes_in(_rt, plots)
+	_change_batches = 0
+	var on_change := func (_r: Rect2i) -> void: _change_batches += 1
+	_rt.claims_changed.connect(on_change)
+	var out: Dictionary = _rt.claim_domain(batch)
+	_rt.claims_changed.disconnect(on_change)
+	var changed := _change_batches
+	_expect(bool(out["ok"]), "the grass check's batch claims (reason %s)" % [out["reason"]])
+	var nodes_after: int = _grass_nodes_in(plots)
+	var others_after: int = IC.other_nodes_in(_rt, plots)
+	_expect(nodes_after == 0, "no grass node is left on the claimed cell (%d before, %d after)" % [nodes_before, nodes_after])
+	_expect(others_after == others_before, "claimed land keeps its trees, rocks and other resources (%d -> %d)" % [others_before, others_after])
+	_expect(changed == 1, "the claim fired claims_changed exactly once for the batch (%d)" % changed)
+	# Scatter skips claimed tiles: the island's decor was built with the claim in place.
+	if _decor_readable():
+		var on_claim: int = ISC.grass_in(_rt, _rt.claims)
+		_expect(on_claim == 0, "no grass decor instance stands on the claimed cell (%d found)" % on_claim)
+	else:
+		print("[t_claims2] headless renderer reports every multimesh instance at the origin: decor clearing is measured windowed in claims2_lab")
+	print("[t_claims2] grass: %d node(s) cleared on the claimed cell, %d other nodes kept" % [nodes_before, others_after])
+
+func _grass_nodes_in(plots: Array) -> int:
+	var n := 0
+	for node in _rt._harvest_nodes.values():
+		if is_instance_valid(node) and IC.is_grass(str(node.get("family"))):
+			var tile: Vector2i = BG.tile_of((node as Node3D).global_position)
+			for r in plots:
+				if (r as Rect2i).has_point(tile):
+					n += 1
+					break
+	return n
+
+## A headless run has a dummy renderer: multimesh instance transforms read back as the origin, so
+## nothing about decor instances can be measured there (the windowed lab measures it for real).
+func _decor_readable() -> bool:
+	for mmi in _rt.grass_mm:
+		if not is_instance_valid(mmi) or (mmi as MultiMeshInstance3D).multimesh == null:
+			continue
+		var mm := (mmi as MultiMeshInstance3D).multimesh
+		for i in mini(mm.instance_count, 4):
+			if mm.get_instance_transform(i).origin != Vector3.ZERO:
+				return true
+	return false
 
 # ---------------------------------------------------------------- old saves (spec 29 section 4)
 
