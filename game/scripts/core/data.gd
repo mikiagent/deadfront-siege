@@ -47,9 +47,13 @@ func is_survival_unlocked(node_id: StringName) -> bool:
 func set_survival_unlocked(node_id: StringName, on: bool) -> void:
 	survival_unlocked[node_id] = on
 
+## The one bonded-pet cap every client bond path asks (pen, field tame, bag, market unpack): spec 09's
+## 3 + Animal Handling I-IV, at most 7 (SkillRules.bonded_capacity). Caged animals are items and
+## never count. 3 with no local player. The server's tame intent does not ask yet: skill nodes stay
+## client-side until W3-SRVACT, which adds the cap there with them.
 func bonded_cap() -> int:
-	# Roster storage is unlimited; Player.MAX_PETS_OUT governs the three active companions.
-	return 2147483647
+	var p := PlayerRegistry.local()
+	return SkillRules.bonded_capacity(p.skills) if p != null and p.skills != null else 3
 
 func has_capture_technique(tier: int) -> bool:
 	for id in survival_nodes:

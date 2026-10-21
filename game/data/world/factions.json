@@ -24,12 +24,12 @@
       "4-6": [
         "cloth_scrap",
         "stone_knife",
-        "fatigue_tonic"
+        "camp_stew"
       ],
       "7-10": [
         "capture_net_i",
-        "medicine",
-        "rare_seed"
+        "pressure_dressing",
+        "corn_seed"
       ]
     }
   },
@@ -48,16 +48,16 @@
     "ranks": 10,
     "crate_bands": {
       "1-3": [
-        "seeds",
+        "flax_seed",
         "herb_leaf"
       ],
       "4-6": [
-        "fertilizer",
-        "rare_seed"
+        "fruit_fertilizer",
+        "corn_seed"
       ],
       "7-10": [
-        "farming_tools",
-        "elixir_ingredient"
+        "hoe",
+        "marsh_herb"
       ]
     }
   },
@@ -78,7 +78,7 @@
     "crate_bands": {
       "1-3": [
         "copper_ore",
-        "nails"
+        "metal_shard"
       ],
       "4-6": [
         "ingot",
@@ -86,7 +86,7 @@
       ],
       "7-10": [
         "black_iron",
-        "technical_workbench_kit"
+        "anvil_kit"
       ]
     }
   },
@@ -106,17 +106,19 @@
     "ranks": 10,
     "crate_bands": {
       "1-3": [
-        "weapon_parts",
-        "tstones_200"
+        "hide_strap"
       ],
       "4-6": [
         "capture_net_iii",
-        "armor_parts"
+        "armor_scute"
       ],
       "7-10": [
-        "capture_net_v",
-        "tstones_2000"
+        "capture_net_v"
       ]
+    },
+    "crate_tstones": {
+      "1-3": 200,
+      "7-10": 2000
     }
   },
   "radio_university": {

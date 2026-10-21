@@ -1,7 +1,8 @@
 class_name TamingPen
 extends StaticBody3D
 ## Holds one captured animal. 30 real minutes, scaled by Game.time_scale. Success bonds the animal
-## straight into the survivor's roster (origin capture); failure lets it escape.
+## straight into the survivor's roster (origin capture); failure lets it escape. A full bonded
+## roster (Data.bonded_cap(), spec 09) holds the finished animal here, unbonded and uncounted.
 
 const BASE_SECONDS := 30.0 * 60.0
 const SUCCESS_CHANCE := 0.70 ## ASSUMPTION:
@@ -14,6 +15,7 @@ var occupant: ItemStack
 var remaining: float = 0.0
 var running: bool = false
 var force_result: int = 0
+var _told_full := false # the roster-full notice shows once per wait, not every frame
 
 func _ready() -> void:
 	add_to_group("placed_building")
@@ -77,6 +79,7 @@ func try_insert(player: Player) -> bool:
 		if player.bonded.size() > before:
 			player.notice("Bonded the animal from your bag.")
 		else:
+			player.notice("Bonded roster full (%d / %d): the tamed animal stays in your bag." % [player.bonded.size(), Data.bonded_cap()])
 			return true  # at the bonded cap: the legacy item stays, nothing else can start
 	var idx := player.inventory.find_first(&"captured_animal")
 	if idx < 0:
@@ -89,6 +92,9 @@ func try_insert(player: Player) -> bool:
 
 func feed(player: Player) -> bool:
 	if not running or occupant == null:
+		return false
+	if remaining <= 0.0:
+		_notice_full(player) # finished and waiting for a bonded slot: meat would only restart the timer
 		return false
 	var meat := player.inventory.find_first(&"raptor_meat")
 	if meat < 0:
@@ -108,6 +114,14 @@ func _process(delta: float) -> void:
 	var player := PlayerRegistry.local()
 	if player == null:
 		return  # stays finished-but-running until a survivor is around to receive it
+	# Spec 09: a bond takes a bonded slot. At the cap the animal waits here (caged and penned animals
+	# never count) and the pen resolves on the first frame a slot is free: nothing is lost or rolled twice.
+	if player.bonded.size() >= Data.bonded_cap():
+		if not _told_full:
+			_told_full = true
+			_notice_full(player)
+		return
+	_told_full = false
 	var species := StringName(str(occupant.attributes.get("species", "velociraptor")))
 	var def := Data.creature(species)
 	if def == null:
@@ -136,6 +150,10 @@ func _process(delta: float) -> void:
 		print("[capture] pen %s escaped" % species)
 		_spawn_wild(def)
 	occupant = null
+
+func _notice_full(player: Player) -> void:
+	var species := str(occupant.attributes.get("species", "animal")).capitalize() if occupant else "Animal"
+	player.notice("Bonded roster full (%d / %d): the %s waits in the pen. Animal Handling (Survival) adds slots." % [player.bonded.size(), Data.bonded_cap(), species])
 
 func _spawn_wild(def: CreatureDef) -> void:
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
