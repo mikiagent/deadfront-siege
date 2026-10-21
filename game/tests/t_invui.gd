@@ -948,8 +948,10 @@ func _t21_polish() -> void:
 	p.queue_free()
 	# 1920x1080 and a notched phone: the same tap-target, text and safe-area rules.
 	var T = C["inv_theme"]
+	# A notch on the 844x390 canvas (insets 47 / 47 / 21, as the lab's --insets); 804x452 is the narrowest
+	# canvas DisplayMode gives (an SE has no notch, a notched phone gets a wider canvas).
 	for view in [Vector2(1920, 1080), Vector2(844, 390), Vector2(804, 452)]:
-		var notch: bool = view.y < 500.0
+		var notch: bool = view.x == 844.0
 		T.set("forced_insets", Vector4(47, 21, 0, 47) if notch else Vector4(-1, -1, -1, -1))
 		for n in ["bag_screen", "storage_screen", "character_screen"]:
 			var holder := Control.new()
