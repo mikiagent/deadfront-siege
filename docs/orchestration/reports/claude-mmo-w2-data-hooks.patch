@@ -1,3 +1,9 @@
+W2-DATA hooks, kept as the record of what the integrator applied in be970c8c (2026-10-20).
+Every hunk below is already in claude/mmo-overhaul: git apply --3way is a no-op (rc 0, nothing changes);
+plain git apply --check fails only because the changes are present. Do not hand-apply anything.
+Hook 6 (crafting.gd progression_block requires_node check and _node_block) was dropped from this file:
+W2-SKILLS H1 replaced it with SkillRules.recipe_block at its merge (dfcf833e).
+
 diff --git a/game/data/nature_manifest.json b/game/data/nature_manifest.json
 index 417f39de..336e731e 100644
 --- a/game/data/nature_manifest.json
@@ -335,38 +341,7 @@ diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
 index e09baeef..0d5d57d1 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
-@@ -250,6 +250,11 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
- 
- ## Optional endgame gates. Existing recipes are unchanged.
- static func progression_block(player: Player, rec: Dictionary) -> String:
-+	var node := str(rec.get("requires_node", ""))
-+	if node != "":
-+		var learn := _node_block(player, node)
-+		if learn != "":
-+			return learn
- 	var survival := int(rec.get("required_survival", 0))
- 	if survival > 0 and (player == null or player.skills == null or player.skills.level_of("survival") < survival):
- 		return "needs Survival %d" % survival
-@@ -262,6 +267,18 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
- 			return "needs materials and crafting skill for level %d" % minimum
- 	return ""
- 
-+## "" once the trees.json node is learned, else "needs Smelting 1 (Processing 25)": the node, its tree and
-+## level, so the player knows which tree to raise. Node ids are unique across trees (t_data checks it).
-+static func _node_block(player: Player, node_id: String) -> String:
-+	if player != null and player.skills != null:
-+		for tree in player.skills.defs:
-+			for n in player.skills.nodes(str(tree)):
-+				if n is Dictionary and str((n as Dictionary).get("id", "")) == node_id:
-+					if player.skills.is_unlocked(str(tree), node_id):
-+						return ""
-+					return "needs %s (%s %d)" % [str((n as Dictionary).get("name", node_id.capitalize())), SkillState.NAMES.get(str(tree), str(tree)), int((n as Dictionary).get("level", 1))]
-+	return "needs %s" % node_id.capitalize()
-+
- static func can_make(player: Player, rec: Dictionary, picks: Array[int]) -> bool:
- 	if rec.is_empty():
- 		return false
-@@ -398,6 +415,8 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
+@@ -398,6 +398,8 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
  			return &"fibre_stalk"
  		"bucket":
  			return &"empty_bucket"
@@ -375,7 +350,7 @@ index e09baeef..0d5d57d1 100644
  		_:
  			return cat
  
-@@ -462,6 +481,8 @@ static func _category_hint(cat: StringName) -> String:
+@@ -462,6 +464,8 @@ static func _category_hint(cat: StringName) -> String:
  			return "stone"
  		"lashing":
  			return "twine"
