@@ -6,6 +6,9 @@ extends SceneTree
 ## Review r1: the hex shows only while the animal is on screen and never sits on (or takes taps from) a
 ## HUD hex; E and SIC act on the selection only while its hex shows; no swords while it can be tamed;
 ## no E key cap while riding (E dismounts).
+## Review r2: a press on the swords beside a bench fights (the click fallback opened the bench and
+## dropped the selection); a tap on an animal beside a bench selects it; on a landscape phone the
+## swords show whenever a clear spot touches the animal.
 ## Usage: godot --headless --path game --script res://tests/t_targetui.gd
 
 var failures: Array[String] = []
@@ -73,6 +76,8 @@ func _run() -> void:
 	await _test_offscreen()
 	await _test_hud_wins()
 	await _test_tame_and_mounted()
+	await _test_beside_station()
+	await _test_phone_coverage()
 	host.queue_free()
 	await process_frame
 	if failures.is_empty():
@@ -356,6 +361,112 @@ func _test_tame_and_mounted() -> void:
 	_press(&"interact")
 	_expect(player.hunt.target == null, "knocked down and tameable: E does not attack it")
 	await _clear()
+
+## Review r2 (K probes): the deferred desktop-click fallback picked the bench within 96 px of the
+## swords hex after the hex took the press, so the bench opened, the selection dropped and no fight
+## started. Touch sends the same mouse press (emulate_mouse_from_touch).
+func _test_beside_station() -> void:
+	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	await _frames(5)
+	await _tap(wild.global_position + Vector3(0, 0.5, 0))
+	await _frames(3)
+	_expect(_selected() == wild and _swords_shown(), "station: selected, swords shown")
+	if not _swords_shown():
+		await _clear()
+		return
+	# A workbench whose tap point (0.7 m up) projects right under the swords hex.
+	var hc := _swords().get_global_rect().get_center()
+	var o := cam.project_ray_origin(hc)
+	var d := cam.project_ray_normal(hc)
+	var hit: Vector3 = o + d * ((0.7 - o.y) / d.y)
+	var st: Node3D = (load("res://scripts/world/craft_station.gd") as GDScript).make(&"workbench")
+	host.add_child(st)
+	st.global_position = Vector3(hit.x, 0.0, hit.z)
+	await _frames(4)
+	var menu: Control = player.station_craft.menu if player.station_craft else null
+	var px := cam.unproject_position(st.global_position + Vector3(0, 0.7, 0)).distance_to(_swords().get_global_rect().get_center())
+	_push_click(_swords())
+	await _frames(4)
+	_expect(player.hunt.target == wild and _selected() == wild and not (menu and menu.visible),
+		"station: the swords %.0f px from a bench fight the selection (hunt %s, selection %s, bench menu %s)" % [px, player.hunt.target, _selected(), menu and menu.visible])
+	if menu:
+		menu.visible = false
+	player.hunt.stop()
+	player.clear_nav()
+	player.controls.get("selection").clear()
+	await _frames(3)
+	var at: Vector3 = wild.global_position + Vector3(0, 0.5, 0)
+	px = cam.unproject_position(st.global_position + Vector3(0, 0.7, 0)).distance_to(cam.unproject_position(at))
+	await _tap(at)
+	_expect(px < 96.0 and _selected() == wild and not (menu and menu.visible),
+		"station: a tap on an animal %.0f px from a bench selects it (selection %s, bench menu %s)" % [px, _selected(), menu and menu.visible])
+	if menu:
+		menu.visible = false
+	st.queue_free()
+	await _clear()
+
+## Review r2 (844x390 sweeps): the swords hid for an animal in plain view whenever its sides sat under
+## the selection's own plate, the minimap or a hex cluster, and touch had no other way to fight. Now
+## they show whenever a hex-sized spot clear of the HUD touches the animal's screen box.
+func _test_phone_coverage() -> void:
+	var start_size: Vector2i = get_root().size
+	var start_canvas: Vector2i = get_root().content_scale_size
+	get_root().size = Vector2i(844, 390)
+	get_root().content_scale_size = Vector2i(844, 390)  # the 1:1 canvas DisplayMode gives a landscape phone
+	await _frames(10)
+	var view: Rect2 = cam.get_viewport().get_visible_rect()
+	var safe := Rect2(Vector2(8, 8), view.size - Vector2(16, 16))
+	var missed: Array[String] = []
+	var boxed: Array[String] = []  # hidden, no clear spot touches the animal: the HUD covers it
+	var shown := 0
+	var cases := 0
+	for species: StringName in [&"protoceratops", &"tyrannosaurus"]:
+		for dist: float in [6.0, 12.0]:
+			for i in 12:
+				var ang := TAU * float(i) / 12.0
+				var c = _creature(species, Vector3(cos(ang) * dist, 0.0, sin(ang) * dist))
+				await _frames(2)
+				player.controls.get("selection").select(c)
+				await _frames(4)
+				var mid: Vector2 = cam.unproject_position(c.global_position + Vector3(0, c.def.height_meters * 0.5, 0))
+				if view.has_point(mid):
+					cases += 1
+					if _swords_shown():
+						shown += 1
+					elif _free_near(c, mid, safe):
+						missed.append("%s %.0fm %d deg" % [species, dist, int(rad_to_deg(ang))])
+					else:
+						boxed.append("%s %.0fm %d deg at %s" % [species, dist, int(rad_to_deg(ang)), mid.round()])
+				player.controls.get("selection").clear()
+				c.queue_free()
+				await _frames(2)
+	print("[t_targetui] phone sweep: swords %d of %d on-screen cases, hidden with a clear spot: %s; hidden, no clear spot: %s" % [shown, cases, missed, boxed])
+	_expect(cases >= 24 and missed.is_empty(), "phone: the swords show whenever a clear spot touches the animal (%d of %d shown, missed %s)" % [shown, cases, missed])
+	get_root().size = start_size
+	get_root().content_scale_size = start_canvas
+	await _clear()
+
+## A hex-sized spot (32 px grid) touching the animal's screen box, inside the safe view, clear of
+## every HUD block and hex and not over the animal's middle.
+func _free_near(c, mid: Vector2, safe: Rect2) -> bool:
+	var box: Rect2 = load("res://scripts/ui/creature_plates.gd").creature_box(cam, c)
+	if not box.has_area():
+		box = Rect2(mid, Vector2.ZERO)
+	var reach := box.grow(64.0).intersection(safe)
+	var taken: Array = hud.taken_rects(PackedStringArray(["pill"]))
+	var y := reach.position.y
+	while y + 64.0 <= reach.end.y:
+		var x := reach.position.x
+		while x + 64.0 <= reach.end.x:
+			var r := Rect2(x, y, 64.0, 64.0)
+			var clear := not r.has_point(mid)
+			for t: Rect2 in taken:
+				clear = clear and not r.intersects(t.grow(2.0))
+			if clear:
+				return true
+			x += 32.0
+		y += 32.0
+	return false
 
 func _push_click(c: Control) -> void:
 	var click := InputEventMouseButton.new()

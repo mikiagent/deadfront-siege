@@ -8,6 +8,7 @@ extends HexButton
 const SWORD_RED := Color(0.9, 0.12, 0.1)
 const KEY := "E"  # input_setup.gd: interact
 const KEY_PX := 20.0
+const SEARCH_STEP := 16.0  # px grid of the crowded-screen search around the animal
 
 var player: Player
 var _key_drawn := false
@@ -48,8 +49,11 @@ func _shown_for() -> Creature:
 	return c
 
 ## Where the hex goes this frame: beside the selection's middle (right, else left), slid at most one hex
-## up or down off the HUD. Empty (hidden) when the selection is off screen or no clear spot is near:
-## pinned to the screen edge it sat on SIC beside nothing and took SIC's taps.
+## up or down off the HUD, as in the reference. Crowded (on a phone the selection's own plate, the
+## minimap or a hex cluster often sits there), the clear spot touching the animal's screen box that is
+## nearest the right-hand one, never over its middle: touch has no other way to start the fight.
+## Empty (hidden) when the selection is off screen or no clear spot touches it: pinned to the screen
+## edge it sat on SIC beside nothing and took SIC's taps.
 func _spot() -> Rect2:
 	var c := _shown_for()
 	var cam := get_viewport().get_camera_3d()
@@ -66,13 +70,34 @@ func _spot() -> Rect2:
 	var inset := UiTokens.safe_insets(get_viewport())  # x right, y bottom, z top, w left
 	var safe := Rect2(Vector2(8.0 + inset.w, 8.0 + inset.z), view.size - Vector2(16.0 + inset.w + inset.x, 16.0 + inset.z + inset.y))
 	var w := Vector2(maxf(size.x, _key_rect().end.x) if _key_drawn else size.x, size.y)
+	var box := CreaturePlates.creature_box(cam, c)
 	# Nearer for a small animal, never off past a big one.
-	var dx := clampf(CreaturePlates.creature_box(cam, c).size.x * 0.3, 36.0, 140.0)
-	for at: Vector2 in [mid + Vector2(dx, -size.y * 0.5), mid - Vector2(dx + w.x, size.y * 0.5)]:
+	var dx := clampf(box.size.x * 0.3, 36.0, 140.0)
+	var want := mid + Vector2(dx, -size.y * 0.5)
+	for at: Vector2 in [want, mid - Vector2(dx + w.x, size.y * 0.5)]:
 		var spot := UiTokens.free_spot(Rect2(at, w), taken, view.size)
 		if spot.has_area() and absf(spot.position.y - at.y) <= size.y and safe.encloses(spot):
 			return spot
-	return Rect2()
+	if not box.has_area():
+		box = Rect2(mid, Vector2.ZERO)
+	var reach := box.grow_individual(w.x, w.y, w.x, w.y).intersection(safe)
+	var best := Rect2()
+	var y := reach.position.y
+	while y + w.y <= reach.end.y:
+		var x := reach.position.x
+		while x + w.x <= reach.end.x:
+			var r := Rect2(Vector2(x, y), w)
+			if not r.has_point(mid) and (not best.has_area() or r.position.distance_squared_to(want) < best.position.distance_squared_to(want)) and _clear_of(r, taken):
+				best = r
+			x += SEARCH_STEP
+		y += SEARCH_STEP
+	return best
+
+static func _clear_of(r: Rect2, taken: Array[Rect2]) -> bool:
+	for t in taken:
+		if r.intersects(t.grow(2.0)):
+			return false
+	return true
 
 ## Desktop only, and not while riding: there E dismounts (PlayerInput.interact checks that first).
 func _keyed() -> bool:

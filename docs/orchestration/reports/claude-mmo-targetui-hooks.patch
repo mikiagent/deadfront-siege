@@ -11,7 +11,7 @@ index be0afc3a..5f0615c4 100644
  	# Let alert (0.6 s) resolve into approach / flee, then force a retreat chunk.
  	get_tree().create_timer(0.85).timeout.connect(func () -> void:
 diff --git a/game/scripts/player/player_input.gd b/game/scripts/player/player_input.gd
-index e550c697..42262563 100644
+index e550c697..a5481872 100644
 --- a/game/scripts/player/player_input.gd
 +++ b/game/scripts/player/player_input.gd
 @@ -20,9 +20,12 @@ var _hold_walk_retarget_left: float = 0.0
@@ -27,7 +27,26 @@ index e550c697..42262563 100644
  
  ## Godot web can consume a desktop mouse press before it reaches _unhandled_input even when the
  ## canvas control ignores mouse input. Defer a fallback until GUI routing has finished;
-@@ -78,7 +81,7 @@ func handle_unhandled(event: InputEvent) -> void:
+@@ -39,14 +42,16 @@ func _desktop_click_fallback(pos: Vector2) -> void:
+ 		return
+ 	_desktop_click_fallback_pending = false
+ 	Game.pointer = pos
++	if tap_blocked():
++		return  # a HUD control took the press (the swords hex beside a bench): not a world tap
+ 	# Pick stations in screen space first. Their low, open meshes often let a 3D ray pass through
+ 	# to terrain in desktop Compatibility/WebGL even when the visible mouse is over the model.
+-	var best := _station_under_pointer(pos)
++	var hit := ray()
++	var best := _station_for_tap(pos, hit)
+ 	if best:
+ 		interact_tap_target(best)
+ 		return
+ 	# Fall back to normal physics for clicks close enough to hit the station collision directly.
+-	var hit := ray()
+ 	if hit.is_empty():
+ 		return
+ 	var picked := pick_interactable(hit)
+@@ -78,7 +83,7 @@ func handle_unhandled(event: InputEvent) -> void:
  		p.sim.try_roll(p.sim.cam_dir(p.sim.input_vector()))
  		return
  	if event.is_action_pressed("attack"):
@@ -36,7 +55,32 @@ index e550c697..42262563 100644
  		return
  	if event.is_action_pressed("interact"):
  		interact()
-@@ -228,6 +231,7 @@ func tap_world() -> StringName:
+@@ -208,14 +213,22 @@ func _station_under_pointer(pos: Vector2) -> Node3D:
+ 			best = st
+ 	return best
+ 
++## The station under the pointer, unless the ray lands straight on a wild animal: animals graze in
++## camp, and a tap on one selects it (spec 23).
++func _station_for_tap(pos: Vector2, hit: Dictionary) -> Node3D:
++	var col: Object = hit.get("collider", null)
++	if col is Creature and not (col as Creature).is_pet:
++		return null
++	return _station_under_pointer(pos)
++
+ func tap_world() -> StringName:
+ 	# Stations are low/open meshes. On desktop WebGL the ray often reaches terrain through the
+ 	# visible bench, so accept the nearest station projected under the pointer before physics.
+-	var station := _station_under_pointer(Game.pointer)
++	var hit := ray()
++	var station := _station_for_tap(Game.pointer, hit)
+ 	if station:
+ 		interact_tap_target(station)
+ 		return &"interact"
+-	var hit := ray()
+ 	if hit.is_empty():
+ 		return &""
+ 	var picked := pick_interactable(hit)
+@@ -228,6 +241,7 @@ func tap_world() -> StringName:
  func _walk_to_tile(at: Vector3) -> void:
  	var nav_pos := p.sim.closest_nav_point(BuildGrid.tile_centre(BuildGrid.tile_of(at), World.runtime))
  	p.actions.cancel_work()
@@ -44,7 +88,7 @@ index e550c697..42262563 100644
  	if p.hunt:
  		p.hunt.stop()
  	p.nav_to(nav_pos)
-@@ -236,8 +240,9 @@ func _walk_to_tile(at: Vector3) -> void:
+@@ -236,8 +250,9 @@ func _walk_to_tile(at: Vector3) -> void:
  func interact_tap_target(col: Object) -> void:
  	p.view.clear_ground_marker()
  	p.actions.cancel_work()
@@ -56,7 +100,7 @@ index e550c697..42262563 100644
  	if col is HarvestNode:
  		var hn := col as HarvestNode
  		var opts := hn.options()
-@@ -259,8 +264,7 @@ func interact_tap_target(col: Object) -> void:
+@@ -259,8 +274,7 @@ func interact_tap_target(col: Object) -> void:
  			p.pets.interact(c)
  		elif FieldTame.can_attempt(c):
  			p.actions.begin_field_tame(c)
@@ -66,7 +110,7 @@ index e550c697..42262563 100644
  	elif col is Bonfire or col is CraftStation:
  		# Reference: tapping a station opens its recipe radial (M8e); cauterise lives in the context hexes.
  		p.open_station_craft(col as Node3D)
-@@ -381,6 +385,9 @@ func interact() -> void:
+@@ -381,6 +395,9 @@ func interact() -> void:
  	if p.mounted_on:
  		p.dismount()
  		return
