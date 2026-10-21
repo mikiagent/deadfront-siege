@@ -104,6 +104,13 @@ static func build(sk: Skeleton3D, prof: Dictionary, defaults: Dictionary) -> Rag
 		sk.set_bone_pose_scale(i, r.start_local[i].basis.get_scale())
 	return r
 
+## Moves IK bones under their limbs on a skeleton no rig simulates (a fallback's frozen pose), so
+## its limb chains carry them like the ragdoll's do.
+static func reparent_bones(sk: Skeleton3D, map: Dictionary) -> void:
+	var r := RagdollRig.new()
+	r.skeleton = sk
+	r._reparent(map)
+
 ## Bones whose rig parent is not their anatomical parent (the donor rigs hang IK feet off `root`)
 ## move under the named bone, keeping their current global pose and rest.
 func _reparent(map: Dictionary) -> void:

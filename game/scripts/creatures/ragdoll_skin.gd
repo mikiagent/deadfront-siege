@@ -255,6 +255,31 @@ static func lift_limbs(ground: Ground, mi: MeshInstance3D, sk: Skeleton3D, body_
 			turns += 1
 	return turns
 
+## Lowest gap (vertical, + = above) between the ground and the skin whose dominant bone is one of
+## `trunk` (bone index -> true): a carcass propped up on a leg reads as raised. INF when none.
+static func trunk_gap(ground: Ground, mi: MeshInstance3D, sk: Skeleton3D, trunk: Dictionary, stride: int) -> float:
+	var s := sample(mi, stride, true)
+	if s.is_empty() or sk == null:
+		return INF
+	var bones: PackedInt32Array = s["bones"]
+	var weights: PackedFloat32Array = s["weights"]
+	var pts := posed_points(mi, sk, stride, true)
+	var gap := INF
+	for i in pts.size():
+		var top := 0
+		for k in 4:
+			if weights[i * 4 + k] > weights[i * 4 + top]:
+				top = k
+		var b := mi.skin.get_bind_bone(bones[i * 4 + top])
+		if b < 0:
+			b = sk.find_bone(mi.skin.get_bind_name(bones[i * 4 + top]))
+		if not trunk.has(b):
+			continue
+		var g0 := ground.at(pts[i])
+		if not g0.is_empty():
+			gap = minf(gap, pts[i].y - float(g0[0]))
+	return gap
+
 ## The bone a sunk vertex's limb turns about (see lift_limbs), or -1 when it is the trunk.
 static func _limb_chain(sk: Skeleton3D, bone: int, body_bones: Dictionary) -> int:
 	var chain := bone

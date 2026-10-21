@@ -11,9 +11,8 @@
     "         pin {} ball joint without limits. The root body (no ancestor body) has no joint.",
     "species.<id>.reparent {bone: new_parent}: donor rigs hang IK feet off 'root'; move them under their limb first.",
     "species.<id>.rest_bones: unsimulated bones set to their rest pose at the hand-off (a jaw the death clip opened).",
-    "species.<id>.fallback_roll_deg: the fallback (death clip) also rolls the body this far onto the flank away from the blow.",
     "species.<id>.guards: overrides of the global guards for this species (e.g. a stronger flank spring).",
-    "conform: stride (+ per-bone hull vertices) of the skin sample, cell_frac (ground ray cell, of the length), max_tilt_deg / tilt_rounds of the rest solve, limb_max_deg.",
+    "conform: stride (+ per-bone hull vertices) of the skin sample, cell_frac (ground ray cell, of the length), max_tilt_deg / tilt_rounds of the rest solve, limb_max_deg; lie_frac / foot_frac: a fallback whose death clip ends with the hips above lie_frac, or a foot above foot_frac, of the standing hips height (rest pose) is rolled and lowered until it lies, never past legs_up_dot (hips up axis . ground normal) onto its back.",
     "physics.max_sim_mass_kg: heavier species simulate at this total mass (GodotPhysics' 6DOF limits only hold on light bodies).",
     "species.<id>.hit_react_s: seconds of the death clip before the ragdoll takes over (default timing.hit_react_s).",
     "species.<id>.hips: bone used for the corpse position and the lie-down gate. feet: bones the lab checks are not left in the air.",
@@ -23,7 +22,7 @@
   "timing": {"hit_react_s": 0.3, "settle_cap_s": 3.0, "quiet_s": 0.35, "quiet_mps": 0.2, "quiet_rps": 0.8},
   "impulse": {"mps_per_damage": 0.04, "min_mps": 0.5, "max_mps": 3.0, "up_frac": 0.1, "topple_k": 0.6, "default_damage": 25.0},
   "guards": {"max_body_mps": 30.0, "max_stretch_frac": 0.35, "pose_k": 4.4, "pose_c": 4.2, "pose_w0_max": 3.0, "align_slope_deg": 15.0, "rest_after_s": 0.3, "rest_angle": 0.45, "rest_angular_damp": 20.0, "rest_linear_damp": 3.0, "lift_margin_m": 0.01},
-  "conform": {"stride": 61, "cell_frac": 0.025, "max_tilt_deg": 12.0, "tilt_rounds": 2, "limb_max_deg": 50.0},
+  "conform": {"stride": 61, "cell_frac": 0.025, "max_tilt_deg": 12.0, "tilt_rounds": 2, "limb_max_deg": 50.0, "lie_frac": 0.5, "foot_frac": 0.75, "legs_up_dot": -0.35},
   "physics": {"mass_kg": 100.0, "max_sim_mass_kg": 60.0, "max_mass_ratio": 6.0, "friction": 0.9, "bounce": 0.0, "linear_damp": 0.4, "angular_damp": 2.0, "gravity_scale": 1.0, "collision_mask": 1, "joint": {"bias": 0.3, "hinge_softness": 0.9, "relaxation": 1.0, "softness": 0.5, "erp": 0.7, "damping": 1.0}},
   "species": {
     "velociraptor": {

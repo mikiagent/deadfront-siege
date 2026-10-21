@@ -46,10 +46,10 @@ const LIMIT_TOL_DEG := 8.0  # hinges: knees, elbows, ankles, tail and neck hinge
 const CONE_TOL_DEG := 20.0
 const STRETCH_TOL := 0.01
 ## Skin tear: a mesh edge over TEAR_RATIO x its idle length AND over TEAR_LEN_FRAC of the
-## creature's height is pulled skin. The ragdoll may tear at most TEAR_MAX_FRAC of the mesh's
-## edges, or as many as the species' own death clip already tears (CLIP_TORN, measured on flat
-## ground with --rl-fallback; the donor rigs' skinning stretches at folded joints and megaloceros'
-## clip tears its antler and flank).
+## creature's height is pulled skin. A ragdoll may tear at most TEAR_MAX_FRAC of the mesh's edges;
+## a fallback as many as the species' own death clip already tears (CLIP_TORN, measured on flat
+## ground with --rl-fallback before the fallback turned limbs; the donor rigs' skinning stretches at
+## folded joints and megaloceros' clip tears its antler and flank) plus TEAR_MAX_FRAC for its conform.
 const TEAR_RATIO := 3.0
 const TEAR_LEN_FRAC := 0.08
 const TEAR_MAX_FRAC := 0.005
@@ -501,7 +501,7 @@ func _measure(c: Dictionary) -> bool:
 			bad.append("legs up (body up axis y %.2f)" % up)
 		var tear := _skin_tear(c)
 		line += " torn=%d/%d(max x%.2f %s)" % [tear[0], tear[1], tear[2], tear[3] if tear.size() > 3 else ""]
-		var tear_cap := maxi(int(TEAR_MAX_FRAC * float(tear[1])), int(CLIP_TORN.get(cr.def.id, 0)))
+		var tear_cap := int(TEAR_MAX_FRAC * float(tear[1])) + (int(CLIP_TORN.get(cr.def.id, 0)) if rd.mode == &"fallback" else 0)
 		if int(tear[0]) > tear_cap:
 			bad.append("skin torn: %d long edges over x%.1f their idle length (cap %d, max x%.2f)" % [tear[0], TEAR_RATIO, tear_cap, tear[2]])
 		var stretch := _worst_stretch(sk, rd)
