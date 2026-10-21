@@ -96,9 +96,28 @@ The base moved to acc684a6 (STATUS and workflow docs); the branch merged it (8da
 | Minor: hooks patch STATUS hunk fails on acc684a6 | Merged acc684a6, then regenerated the patch from scratch tree `trees/w2s-r11` (`git diff HEAD` of the hooked files). The base's STATUS entries are untouched; ours is the new owner question. | `git apply --cached --check` on acc684a6's tree and on the branch: rc 0. |
 | Minor: Refund on an owing save gives 0 SP with no warning | `SkillState.refund_note(tree, id)`: while `sp_extra > 0` the Refund row (H8) shows a `RefundNote` line under the node: "Refund pays off 4 of the 23 owed SP, no SP back", or "Refund pays off the N owed SP, then gives M SP" when the node costs more than the debt. | t_w2_skills `while 23 SP are owed the sheet says so (header ...) and what a refund pays (note ...)` and `owing 23 SP: the header says so (...) and the Refund row says what it pays (...)`. With `refund_note` returning "" and `sp_text` returning "SP %d": `FAIL while 23 SP are owed the sheet says so (header 'SP 0') and what a refund pays (note '')`, `FAIL owing 23 SP: the header says so ('Survival  Lv. 40, SP 0') and the Refund row says what it pays ('')`. |
 | Minor: the H6 cap of a rev-2 `sp_extra` at the old award is untested (mutant M8 passes) | The finding is right that nothing kills M8, but no forged save can: the cap never binds on the shipped trees.json. For every tree and level L, the nodes up to L cost at most 53 % of the old award for L (worst: Survival Lv. 55, 342 of 650 SP). A forged rev-2 save is stopped by its tree levels before it reaches the cap, so M8 is an equivalent mutant today. The cap stays, because it matters once an import puts more SP into a tree than its old award. | t_w2_skills now pins the reason: `H6: no tree's nodes cost more than the old award of their level, so the sp_extra cap needs a forged case now: [...]`. It fails on the day the data makes the cap matter, which is when a forged case becomes possible. |
-| Minor: the pets screen title ignores its player's cap | H17: `Data.bonded_cap(player)` in `animal_screen.gd`. | t_w2_skills `the pets screen opened for the second survivor shows its own cap` (mutation result below). |
+| Minor: the pets screen title ignores its player's cap | H17: `Data.bonded_cap(player)` in `animal_screen.gd`. | t_w2_skills `the pets screen opened for the second survivor shows its own cap`. With the old call: `FAIL the pets screen opened for the second survivor shows its own cap (title 'ANIMALS    ·    BONDED 3 / 3    ·    GROWTH')`. |
 | Minor: locks show raw ids ("needs taming_pen") | `SkillState.node_name(tree, id)`; `node_state` says "needs <name>", and `refund_reason` uses the same helper. | t_w2_skills `a lock names its prerequisite`: 51 locks checked. With the old line: `FAIL a lock names its prerequisite (51 checked, by id: ["needs island_access_15", "needs belly_fat_1", "needs stealth_1", ...`. |
 | Minor: H6 counts spent SP at today's prices | `# shortcut:` in H6: a price rise drops a rev-2 save's last learned nodes there (SkillState would keep them). Store each node's paid price, or bump the rev and migrate, before raising a price. | (comment) |
+
+Gates (scratch tree `trees/w2s-r11`: mkscratch at 8da3f6c0, this patch applied, the branch files of bc21b7e5;
+game/ equals bc21b7e5 + the patch):
+- `--import` rc 0, 0 SCRIPT ERROR, 0 "Failed to compile".
+- All 23 `t_*.gd` rc 0 with PASS. t_server_domain and t_srvdom ran one after the other. Only t_save prints
+  SCRIPT ERROR lines, its 5 deliberate ones. Lines: `[t_save] rev-1 skills migrate: 19 nodes kept, SP 0/263`,
+  `[t_save] PASS`; `[t_data] PASS items=223 recipes=155`; `[t_w2_skills] catalog 213 of 918 nodes: functional 34 (16 of them
+  through requires_node), partial 19, defined 160`, `[t_w2_skills] PASS`; `[t_ui] PASS`. t_w2_skills was run again
+  after the pets-title check was added (abcbb6a3): `[t_w2_skills] PASS`.
+- run_all `[tests] PASS`; `tools/smoke.sh --no-import` `SMOKE PASS`.
+- Labs, 0 SCRIPT ERROR and 0 "couldn't resolve track" each: skills_lab `[skill] PASS level-up pays 10 SP,
+  small_field bought`; capture_lab `[capture] PASS bonded+=2`; ui_family_lab `[uifamily] inventory=true
+  animals=true unlimited=true active_cap=3`; ui_real_capture_lab on gl_compatibility, windowed: 1600x900 and
+  844x390 `[uireal] PASS screens=hud,hud_daynight,craft,skills,...`. At 667x375 the lab draws both migration
+  notices whole (`notice 0 [P: (325.0, 257.2302), S: (292.0, 30.0)]`) but fails one check outside this package:
+  `[uireal] FAIL radial: hex0 [P: (361.3007, 371.4283), S: (64.0, 64.0)] stays off level [P: (369.5, 433.0), S: (65.0,
+  15.0)]` (the HUD's level line is drawn at y 433 on a 375 px canvas). This is for W1-UI or the integrator; 844x390
+  is the phone gate.
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (25 before and after; newest 2026-10-20 23:26).
 
 First load of a real rev-1 save, looked at (scratchpad `w2s_r11/load/`). The save is t_save's 19-node variant of
 `save_v3_golden.json`: Lv. 5, 539 unspent SP, 263 SP of nodes at today's prices. It was shot through the normal
