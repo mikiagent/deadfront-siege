@@ -1372,10 +1372,11 @@ def _roof_rafter_tails(p):
         p.box((0.1, 0.26, 0.09), (x, -0.44, 0.03), "wood_dark")
 
 
-def _roof_panel(p, tile, depth=0.15):
+def _roof_panel(p, tile, depth=0.15, tile_m=2.0):
     """One roof slope: 2.0 m along the ridge, 1.0 m of run, rising 0.6 m from the eave (z = 0
-    at y = -0.5) to the ridge (z = 0.6 at y = +0.5)."""
-    p.box((2.0, ROOF_LEN, depth), (0, 0, ROOF_RISE / 2), tile, rot=(ROOF_ANG, 0, 0), tile_m=1.2)
+    at y = -0.5) to the ridge (z = 0.6 at y = +0.5). The tile repeats twice across the slope so
+    the shingle or slate courses read at shingle size, not at slab size."""
+    p.box((2.0, ROOF_LEN, depth), (0, 0, ROOF_RISE / 2), tile, rot=(ROOF_ANG, 0, 0), tile_m=tile_m)
 
 
 def house_foundation():
@@ -1467,7 +1468,7 @@ def house_roof():
     """One thatch roof slope of a 2 m module: straw on the slope, bound with rope, fringed at
     the eave."""
     p = Part("house_roof")
-    _roof_panel(p, "thatch")
+    _roof_panel(p, "thatch", tile_m=1.2)
     _roof_rafter_tails(p)
     for i in range(9):
         p.box((0.16, 0.07, 0.12), (-0.9 + i * 0.225, -0.53, 0.045), "thatch", rot=(0, -14, 0))
