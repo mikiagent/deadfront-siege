@@ -6,7 +6,8 @@ extends Node3D
 ## The market is opened the owner's way: the HUD's MENU sheet, then its "Island Market" button
 ## (hook H0). Prints "[market_lab] measure ..." for exchange-spec §8 gates 1-3.
 
-const SCREENS := ["menu", "buy", "buy_search", "buy_taming", "sell", "sell_pet", "sell_none", "my_market", "confirm", "offline"]
+const SCREENS := ["menu", "buy", "buy_search", "buy_taming", "sell", "sell_pet", "sell_none", "my_market", "my_market_sold",
+	"my_market_history", "my_market_cancel", "my_market_received", "confirm", "offline"]
 
 var screen := "buy"
 var harness: MarketHarness
@@ -74,8 +75,17 @@ func _show() -> void:
 			for e: Dictionary in ms.sell.entries: # sell: the bag's bone stack; sell_pet: the bonded pet
 				if (screen == "sell" and e.src == "bag" and str(e.asset.get("id", "")) == "bone") or (screen == "sell_pet" and e.src == "pet"):
 					ms.sell.select(str(e.uid))
-		"my_market":
+		"my_market", "my_market_sold", "my_market_history", "my_market_cancel", "my_market_received":
 			ms.rail.select(&"my_market")
+			match screen:
+				"my_market_sold":
+					ms.mine.show_sub(&"sold")
+				"my_market_history":
+					ms.mine.show_sub(&"history")
+				"my_market_cancel":
+					ms.mine.cancel_pressed.emit(ms.mine.rows[0].view)
+				"my_market_received":
+					await ms.mine.receive_all()
 	for i in 3:
 		await get_tree().process_frame
 	_measure(ms)
@@ -149,5 +159,13 @@ func _measure(ms: MarketScreen) -> void:
 			100.0 * pk.size.x / view.x, pk._grid.columns, int(cell), pk.cells.size(), f.size.x, f.size.y,
 			f.get_combined_minimum_size().x, f.get_combined_minimum_size().y, f.get_combined_minimum_size().x <= f.size.x + 0.5 and f.size.y <= view.y,
 			f.list_btn.size.x, f.list_btn.size.y, f.list_btn.text, f.status.text])
+	if ms.mine.visible:
+		var mm := ms.mine
+		var cancels := mm.find_children("Cancel_*", "Button", true, false)
+		print("[market_lab] measure my_market tab=%s rows=%d visible=%d row=%dpx cancel=%s receive=%dx%d '%s' waiting='%s' status='%s'" % [
+			mm.tab, mm.rows.size(), floori(mm.get_node("MineRows").size.y / float(m.row_h)), int(m.row_h),
+			"%dx%d" % [(cancels[0] as Control).size.x, (cancels[0] as Control).size.y] if not cancels.is_empty() else "-",
+			mm.receive_btn.size.x, mm.receive_btn.size.y, mm.receive_btn.text, mm._waiting_label.text, mm.status.text])
+		print("[market_lab] my_market rows: %s" % ", ".join(mm.rows.map(func (r: MarketRow) -> String: return "%s | %s | %d" % [r.model.name, r.model.dur, r.model.price])))
 	if harness:
 		print("[market_lab] %s; rows: %s" % [ms.client.label(), ", ".join(t.rows.map(func (r: MarketRow) -> String: return "%s %s %d" % [r.model.name, r.model.uid, r.model.price]))])

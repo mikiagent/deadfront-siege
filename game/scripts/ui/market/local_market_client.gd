@@ -22,5 +22,8 @@ func kind() -> StringName:
 func label() -> String:
 	return "Local test server: not the live market"
 
+func now() -> int:
+	return int(clock.call())
+
 func _send(op: String, a: Dictionary) -> Dictionary:
 	return bridge.client(op, account, a, int(clock.call()))

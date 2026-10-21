@@ -11,9 +11,10 @@ var own := false
 var cols: Dictionary ## MarketTable.columns(): x/w per column
 var _m: Dictionary
 
-func setup(v: Dictionary, p_own: bool, p_cols: Dictionary, m: Dictionary) -> void:
+## `p_model` replaces MarketFormat.row(v) (My Market: the status in the durability column).
+func setup(v: Dictionary, p_own: bool, p_cols: Dictionary, m: Dictionary, p_model: Dictionary = {}) -> void:
 	view = v
-	model = MarketFormat.row(v)
+	model = p_model if not p_model.is_empty() else MarketFormat.row(v)
 	own = p_own
 	cols = p_cols
 	_m = m
@@ -56,7 +57,7 @@ func _draw() -> void:
 	MarketTheme.text(self, title, nx, name_y, nw, ns, MarketTheme.GOLD)
 	var sub: String = model.type + ("  ·  Your listing" if own else "")
 	MarketTheme.text(self, sub, cols.name_x, mid + gap * 0.5 + 1.0, cols.name_w, ts, MarketTheme.TEXT_2)
-	MarketTheme.text(self, LevelDisplay.label(model.level), cols.level_x, mid, cols.level_w, ns, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	MarketTheme.text(self, LevelDisplay.label(model.level) if model.level > 0 else LevelDisplay.NONE, cols.level_x, mid, cols.level_w, ns, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	MarketTheme.text(self, model.dur, cols.dur_x, mid, cols.dur_w, ns, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	price(self, model.price, Rect2(cols.price_x, 0, cols.price_w, h), ns)
 

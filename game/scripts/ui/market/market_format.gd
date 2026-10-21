@@ -57,7 +57,7 @@ static func error_text(res: Dictionary) -> String:
 	if err == "limit_reached":
 		return msg.left(1).to_upper() + msg.substr(1) + "." if msg != "" else "A market limit was reached."
 	var head := str(ERRORS.get(err, "Something went wrong."))
-	if err in ["offline", "expired", "not_found", "closed", "self_trade"] or msg == "":
+	if err in ["offline", "expired", "not_found", "closed", "self_trade", "bag_full"] or msg == "": # bag_full's msg names def ids
 		return head
 	return "%s (%s)" % [head, msg]
 
@@ -81,10 +81,10 @@ static func row(v: Dictionary) -> Dictionary:
 	var stack := ItemStack.from_dict(Provenance.strip(a))
 	m.icon = StringName(def_id)
 	m.tint = stack.tint_color()
-	if def_id == AssetValidator.CAGE:
-		var sp := str((a.get("attributes", {}) as Dictionary).get("species", ""))
-		m.name = "Captured %s" % species_name(sp)
-		m.type = species_name(sp)
+	var cage_sp := str((a.get("attributes", {}) as Dictionary).get("species", ""))
+	if def_id == AssetValidator.CAGE and cage_sp != "": # a trade record carries no attributes: the def's own name then
+		m.name = "Captured %s" % species_name(cage_sp)
+		m.type = species_name(cage_sp)
 		return m
 	var def := Data.item(StringName(def_id))
 	m.name = def.display_name if def else def_id.capitalize()
@@ -183,6 +183,75 @@ static func price_step(p: int) -> int:
 	while s * 100 <= p:
 		s *= 10
 	return s
+
+## My Market rows from one market.mine answer, newest first, each a row() model plus `view` (what
+## the row was built from), `dur` (the status column) and `cancel` (an active listing).
+## tab: active | sold | expired (expired and cancelled) | history (the account's trades).
+## `me` is this account (-1 unknown), `now` the server's unix time.
+static func mine_rows(r: Dictionary, tab: StringName, me: int, now: int) -> Array:
+	var trades: Array = r.get("trades", [])
+	var out: Array = []
+	if tab == &"history":
+		for t: Dictionary in trades:
+			var parts := str(t.key).split(":", true, 1)
+			var a := {"species": parts[1]} if t.type == "pet" else {"id": parts[1] if parts.size() > 1 else "", "count": int(t.count)}
+			var m := row({"id": t.id, "type": t.type, "asset": a, "left": int(t.count), "unit_price": int(t.total)})
+			var sold := int(t.seller) == me or bool(t.npc) # Settlers only ever buy
+			m.level = 0 # a trade record keeps no level
+			m.dur = "%s · %s ago" % ["Sold to Settlers" if bool(t.npc) else ("Sold" if sold else "Bought"), span(now - int(t.ts))]
+			m.merge({"view": t, "cancel": false}, true)
+			out.append(m)
+		return out
+	var rows: Array = r.get("listings", []) if tab == &"active" else (r.get("closed_listings", []) as Array).filter(func (l: Dictionary) -> bool:
+		return (str(l.state) == "sold") == (tab == &"sold"))
+	for l: Dictionary in rows:
+		var units := 0 ## units of this listing sold so far, from the account's trades
+		var net := 0
+		for t: Dictionary in trades:
+			if str(t.get("ref", "")) == str(l.id):
+				units += int(t.count)
+				net += int(t.total) - int(t.tax)
+		var v := l.duplicate()
+		if tab != &"active":
+			v.left = int(l.qty) - units if tab == &"expired" else int(l.qty) # closed rows keep left = 0
+		var m := row(v)
+		match tab:
+			&"active": m.dur = "Ends in %s" % span(int(l.ends) - now) if now < int(l.ends) else "Ending…"
+			&"sold": m.dur = "Sold · +%s credited" % group(net) if units > 0 else "Sold · credited"
+			_: m.dur = "%s · back in storage" % str(l.state).capitalize()
+		m.merge({"view": l, "cancel": tab == &"active"}, true)
+		out.append(m)
+	return out
+
+## One inbox event (MarketBook / OrderBook L.inbox) as the line the player reads.
+static func event_text(e: Dictionary) -> String:
+	var d: Dictionary = e.get("d", {})
+	var what := key_name(str(d.get("key", "")))
+	match str(e.get("ev", "")):
+		"sold": return "Sold %s ×%d to %s: +%s credited" % [what, int(d.count), str(d.buyer), group(int(d.net))]
+		"expired": return ("Buy order for %s expired: %s refunded" % [what, group(int(d.refunded))]) if d.has("order_id") else "%s ×%d expired: back in storage" % [what, int(d.returned)]
+		"won": return "Won %s for %s: in storage" % [what, group(int(d.paid))]
+		"outbid": return "Outbid on %s: %s refunded" % [what, group(int(d.refunded))]
+		"filled": return "Order filled: %d %s from %s, in storage" % [int(d.count), what, str(d.seller)]
+	return str(e.get("ev", "")).capitalize()
+
+## "item:bone" -> "Bone", "pet:compsognathus" -> "Compsognathus".
+static func key_name(key: String) -> String:
+	var parts := key.split(":", true, 1)
+	if parts.size() < 2:
+		return key
+	if parts[0] == "pet":
+		return species_name(parts[1])
+	var def := Data.item(StringName(parts[1]))
+	return def.display_name if def else parts[1].capitalize()
+
+## A duration as the player reads it: "2 d 4 h", "1 d", "3 h 12 min", "13 h", "40 min", "<1 min".
+static func span(secs: int) -> String:
+	if secs >= 86400:
+		return ("%d d %d h" % [secs / 86400, secs % 86400 / 3600]).trim_suffix(" 0 h")
+	if secs >= 3600:
+		return ("%d h %d min" % [secs / 3600, secs % 3600 / 60]).trim_suffix(" 0 min")
+	return "%d min" % (secs / 60) if secs >= 60 else "<1 min"
 
 static func species_name(sp: String) -> String:
 	var c := Data.creature(StringName(sp))

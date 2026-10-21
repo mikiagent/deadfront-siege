@@ -32,6 +32,11 @@ func request(op: String, a: Dictionary = {}) -> Dictionary:
 		a.rid = new_rid()
 	return await _send(op, a)
 
+## The server's unix time, for "ends in" and "ago" (listing ends, trade times are server seconds).
+# shortcut: the device clock; use NET's server-time offset once it reports one.
+func now() -> int:
+	return int(Time.get_unix_time_from_system())
+
 func new_rid() -> String:
 	_seq += 1
 	return "x%s.%d" % [_session, _seq]

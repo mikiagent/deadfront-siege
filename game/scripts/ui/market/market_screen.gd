@@ -17,10 +17,10 @@ var header: MarketHeader
 var rail: MarketRail
 var buy: MarketBuy
 var sell: MarketSell
+var mine: MarketMine
 var search: MarketSearch
 var confirm: MarketConfirm
 var offline_panel: Control
-var _later: Label ## My Market until its build step lands
 var _sell_uid := "" ## the instance to preselect when Sell opens
 var _backdrop: ColorRect
 var _m := {}
@@ -61,11 +61,11 @@ func _ready() -> void:
 	sell.visible = false
 	sell.listed.connect(func (_res: Dictionary) -> void: refresh_wallet())
 	add_child(sell)
-	_later = MarketTheme.label("", 18, MarketTheme.TEXT_2)
-	_later.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_later.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_later.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	add_child(_later)
+	mine = MarketMine.new()
+	mine.name = "MyMarket"
+	mine.visible = false
+	mine.cancel_pressed.connect(func (v: Dictionary) -> void: confirm.open_cancel(client, v, _m))
+	add_child(mine)
 	offline_panel = _offline_panel()
 	add_child(offline_panel)
 	search = MarketSearch.new()
@@ -86,7 +86,12 @@ func _ready() -> void:
 	confirm.bought.connect(func (res: Dictionary) -> void:
 		refresh_wallet()
 		buy.reload())
-	confirm.gone.connect(buy.reload)
+	confirm.cancelled.connect(func (_res: Dictionary) -> void: mine.reload())
+	confirm.gone.connect(func () -> void:
+		if tab == &"my_market":
+			mine.reload()
+		else:
+			buy.reload())
 	add_child(confirm)
 	buy.table.search_pressed.connect(func () -> void: search.open(buy.q, _m))
 	buy.table.row_pressed.connect(func (v: Dictionary) -> void:
@@ -116,7 +121,7 @@ func open(p_player: Node, p_tab: StringName = &"buy", uid: String = "") -> void:
 	else:
 		buy.visible = false
 		sell.visible = false
-		_later.visible = false
+		mine.visible = false
 	_layout()
 
 func close_screen() -> void:
@@ -131,9 +136,11 @@ func show_tab(id: StringName) -> void:
 	tab = id
 	buy.visible = id == &"buy"
 	sell.visible = id == &"sell"
-	_later.visible = id == &"my_market"
-	_later.text = "Your listings, sales and Receive All arrive with the next build step."
+	mine.visible = id == &"my_market"
 	_layout()
+	if id == &"my_market":
+		refresh_wallet() # sales are credited while the screen is closed
+		mine.start(client)
 	if id == &"sell":
 		sell.set_tradable(header.tradable())
 		sell.start(client, _sell_uid) # the server's bag now: it changes while the screen is closed
@@ -194,9 +201,7 @@ func _layout() -> void:
 	var content := Rect2(body.position.x + _m.rail_w + _m.margin, body.position.y, body.size.x - _m.rail_w - _m.margin, body.size.y)
 	buy.layout(_m, content)
 	sell.layout(_m, content)
-	_later.position = content.position
-	_later.size = content.size
-	MarketTheme.size_label(_later, _m.name)
+	mine.layout(_m, content)
 	offline_panel.custom_minimum_size = Vector2(minf(body.size.x, 760.0), 0)
 	MarketTheme.size_label(offline_panel.get_child(0).get_child(0) as Label, _m.title)
 	MarketTheme.size_label(offline_panel.get_child(0).get_child(1) as Label, _m.name)

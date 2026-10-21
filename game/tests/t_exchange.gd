@@ -12,8 +12,6 @@ const DIR := "user://runs/t_exchange"
 const MS_PATH := "res://scripts/ui/market/market_screen.gd"
 ## Gates a later build step turns into checks (spec §8). Each builder deletes its own lines here.
 const PENDING := [
-	"B3 my market: active/sold/expired/history from market.mine, cancel returns to vault, fee kept",
-	"B3 receive all: inbox.take + vault.withdraw per uid, bag_full keeps the rest, twice moves nothing",
 	"B4 pixels: targets >= 44 px at 844x390, no clipped labels, 500 listings page without hitches",
 ]
 
@@ -92,6 +90,10 @@ func _run() -> void:
 		await _test_categories(hs, ms_script)
 		await _test_sell(hs, ms_script)
 		await _test_sell_errors(hs, ms_script)
+		await _test_my_market(hs, ms_script)
+		await _test_cancel(hs, ms_script)
+		await _test_receive_all(hs, ms_script)
+		await _test_receive_bag_full(hs, ms_script)
 		await _test_menu(hs, ms_script)
 		ms_script.set("test_client", null)
 	for f in failures:
@@ -581,6 +583,173 @@ func _bag_row(h: RefCounted, uid: String) -> Dictionary:
 	return h.call("op", 1, "char.get", {}).r.bag[i] if i >= 0 else {}
 
 ## Gate 11: the HUD's MENU sheet has an Island Market row that opens the screen (hook H0).
+## B3 My Market: every sub-tab is market.mine's own rows (Active = open listings, Sold / Expired =
+## closed ones by state, History = the account's trades), and Sold says what the sale credited.
+func _test_my_market(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/mine")
+	h.call("seed_scene")
+	var sale: String = h.call("list_one", 1, "bone", 1, 20)
+	var w1 := _wallet(h, 1)
+	h.call("op", 2, "market.buy", {"listing_id": sale, "count": 1})
+	var credited := _wallet(h, 1) - w1
+	var ms: Control = await _open_mine(h, 1, ms_script)
+	var mine: Control = ms.get("mine")
+	_expect(mine.visible and not (ms.get("buy") as Control).visible and not (ms.get("sell") as Control).visible, "the rail's My Market tab shows My Market")
+	var r: Dictionary = h.call("op", 1, "market.mine", {"page_size": 20}).r
+	var ids := func (rows: Array) -> Array: return rows.map(func (v: Dictionary) -> String: return str(v.id))
+	var closed: Array = r.closed_listings
+	var want := {
+		&"active": ids.call(r.listings),
+		&"sold": ids.call(closed.filter(func (l: Dictionary) -> bool: return l.state == "sold")),
+		&"expired": ids.call(closed.filter(func (l: Dictionary) -> bool: return l.state != "sold")),
+		&"history": ids.call(r.trades),
+	}
+	for sub: StringName in want:
+		_click((mine.get("tab_btns") as Dictionary)[sub])
+		await process_frame
+		var got := _mine_ids(mine)
+		_expect(mine.get("tab") == sub and got == want[sub] and not got.is_empty(), "My Market %s rows == market.mine (%s vs %s)" % [sub, got, want[sub]])
+	_expect((want[&"sold"] as Array).has(sale) and (want[&"expired"] as Array).size() >= 1, "the seeded viewer has sold and expired listings")
+	_click((mine.get("tab_btns") as Dictionary)[&"sold"])
+	await process_frame
+	var row := _mine_row(mine, sale)
+	_expect(row != null and str(row.get("model").dur) == "Sold · +%s credited" % MF.call("group", credited) and credited == 20 - EconRules.ceil_bp(20, EconRules.load_default().bp("sales_tax")), "a sold row says the net its sale credited (+%d): %s" % [credited, row.get("model").dur if row else "no row"])
+	_click((mine.get("tab_btns") as Dictionary)[&"history"])
+	await process_frame
+	var kinds := {}
+	for m: Dictionary in (mine.get("rows") as Array).map(func (x: Node) -> Dictionary: return x.get("model")):
+		kinds[str(m.dur).get_slice(" · ", 0)] = true
+	_expect(kinds.has("Bought") and kinds.has("Sold") and kinds.has("Sold to Settlers"), "history tells bought, sold and sold to Settlers apart: %s" % [kinds.keys()])
+	_click((mine.get("tab_btns") as Dictionary)[&"active"])
+	await process_frame
+	var active: Dictionary = (r.listings as Array)[0]
+	_expect(str(_mine_row(mine, str(active.id)).get("model").dur).begins_with("Ends in ") and _mine_row(mine, str(active.id)).find_child("Cancel_*", false, false) != null, "an active row says when it ends and has Cancel")
+	ms.queue_free()
+	print("[t_exchange] my market: active %d, sold %d, expired %d, history %d rows == market.mine; sold +%d" % [(want[&"active"] as Array).size(), (want[&"sold"] as Array).size(), (want[&"expired"] as Array).size(), (want[&"history"] as Array).size(), credited])
+
+## B3 Cancel: the confirm says the fee stays paid; one market.cancel (double tap) puts the exact
+## units back in market storage under their uid, the wallet unchanged; a listing that sold while
+## the panel was open is refused with "No longer available." and nothing moves.
+func _test_cancel(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/cancel")
+	h.call("seed_scene")
+	var late: String = h.call("list_one", 1, "bone", 1, 30)
+	var ms: Control = await _open_mine(h, 1, ms_script)
+	var mine: Control = ms.get("mine")
+	var confirm: Control = ms.get("confirm")
+	var status := confirm.get("status") as Label
+	var lst: Dictionary = {}
+	for l: Dictionary in h.call("op", 1, "market.mine", {}).r.listings:
+		if str(l.key) == "item:stone":
+			lst = l
+	var books := func () -> String: return JSON.stringify([h.call("op", 1, "char.get", {}).r, h.call("op", 1, "vault.get", {}).r, h.call("op", 1, "wallet.get", {}).r])
+	var w := _wallet(h, 1)
+	var waiting := (mine.get("waiting") as Array).size()
+	_click(_mine_row(mine, str(lst.id)).find_child("Cancel_*", false, false))
+	await process_frame
+	_expect(confirm.visible and confirm.get("mode") == &"cancel" and str((confirm.get("_balance") as Label).text).contains("fee of %s T-stone%s is not refunded" % [MF.call("group", int(lst.fee)), "" if int(lst.fee) == 1 else "s"]), "Cancel opens the listing with the kept fee (%d) said" % int(lst.fee))
+	_click(confirm.get("buy_btn"))
+	_click(confirm.get("buy_btn")) # double tap
+	await process_frame
+	var back: Dictionary = {}
+	for it: Dictionary in h.call("op", 1, "vault.get", {}).r.items:
+		if str(it.uid) == str(lst.asset.uid):
+			back = it
+	_expect(status.text.begins_with("Cancelled.") and _wallet(h, 1) == w, "cancelled once, fee kept: %s (wallet %d -> %d)" % [status.text, w, _wallet(h, 1)])
+	_expect(int(back.get("count", 0)) == int(lst.left) and int(back.get("level", -1)) == int(lst.asset.level) and back.get("attributes") == lst.asset.get("attributes"), "the exact units (uid %s) are back in market storage: %s" % [lst.asset.uid, back])
+	_expect(str(lst.id) not in _mine_ids(mine) and (mine.get("waiting") as Array).size() == waiting + 1, "the row leaves Active and storage holds one more (%d)" % (mine.get("waiting") as Array).size())
+	_click(confirm.get("cancel_btn")) # "Done"
+	await process_frame
+	_click((mine.get("tab_btns") as Dictionary)[&"expired"])
+	await process_frame
+	var gone := _mine_row(mine, str(lst.id))
+	_expect(not confirm.visible and gone != null and str(gone.get("model").dur) == "Cancelled · back in storage", "Expired lists it as cancelled")
+	# A listing that sells while its cancel panel is open: refused, nothing moves.
+	_click((mine.get("tab_btns") as Dictionary)[&"active"])
+	await process_frame
+	_click(_mine_row(mine, late).find_child("Cancel_*", false, false))
+	await process_frame
+	h.call("op", 2, "market.buy", {"listing_id": late, "count": 1})
+	var before: String = books.call()
+	_click(confirm.get("buy_btn"))
+	await process_frame
+	_expect(status.text == "No longer available." and books.call() == before, "cancel of a sold listing: %s, stores unchanged" % status.text)
+	_expect(late not in _mine_ids(mine), "the sold listing leaves Active after the refusal")
+	ms.queue_free()
+	print("[t_exchange] cancel: %s back in storage, fee %d kept; sold-meanwhile refused" % [lst.asset.uid, int(lst.fee)])
+
+## B3 Receive All (gate 7's last step): the inbox is taken and shown, every item and pet waiting in
+## market storage reaches the bag (a bought knife under its own uid, durability and level), and a
+## second press moves nothing.
+func _test_receive_all(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/receive")
+	h.call("seed_scene")
+	var knife: Dictionary = {}
+	for v: Dictionary in h.call("op", 1, "market.search", {"page_size": 50}).r.results:
+		if str(v.key) == "item:stone_knife_work":
+			knife = v
+	h.call("op", 1, "market.buy", {"listing_id": knife.id, "count": 1})
+	var vault: Dictionary = h.call("op", 1, "vault.get", {}).r
+	var bag0 := _bag_counts(h)
+	var ms: Control = await _open_mine(h, 1, ms_script)
+	var mine: Control = ms.get("mine")
+	var n: int = (vault.items as Array).size() + (vault.pets as Array).size()
+	_expect((mine.get("waiting") as Array).size() == n and n >= 3 and str((mine.get("_waiting_label") as Label).text) == "%d waiting in market storage" % n, "My Market says what waits in storage (%d)" % n)
+	_click(mine.get("receive_btn"))
+	if mine.get("receiving"):
+		await mine.received
+	var after: Dictionary = h.call("op", 1, "vault.get", {}).r
+	var bag1 := _bag_counts(h)
+	var moved_ok := true
+	for it: Dictionary in vault.items:
+		moved_ok = moved_ok and int(bag1.get(str(it.id), 0)) - int(bag0.get(str(it.id), 0)) >= int(it.count)
+	var home := _bag_row(h, str(knife.asset.uid))
+	_expect((after.items as Array).is_empty() and (after.pets as Array).is_empty() and moved_ok, "Receive All empties market storage into the bag: %s -> %s" % [bag0, bag1])
+	_expect(int(home.get("durability", -1)) == int(knife.asset.durability) and int(home.get("level", -1)) == int(knife.asset.level), "the bought knife is in the bag under its own uid %s with its durability and level: %s" % [knife.asset.uid, home])
+	var text := (mine.get("status") as Label).text
+	_expect(text.begins_with("Received %d into your bag." % n) and text.contains("Sold Fibre Stalk ×1 to Trader2"), "the status says what came home and the inbox news: %s" % text)
+	_expect((h.call("op", 1, "inbox.take", {}).r.events as Array).is_empty(), "the inbox was taken")
+	var before := JSON.stringify([h.call("op", 1, "char.get", {}).r, h.call("op", 1, "vault.get", {}).r, h.call("op", 1, "wallet.get", {}).r])
+	_expect((mine.get("receive_btn") as Button).disabled, "Receive All is disabled with nothing waiting")
+	await mine.call("receive_all")
+	_expect(before == JSON.stringify([h.call("op", 1, "char.get", {}).r, h.call("op", 1, "vault.get", {}).r, h.call("op", 1, "wallet.get", {}).r]) and (mine.get("status") as Label).text == "Nothing was waiting.", "a second Receive All moves nothing: %s" % (mine.get("status") as Label).text)
+	ms.queue_free()
+	print("[t_exchange] receive all: %d from storage to the bag, knife %s home; second press moved nothing" % [n, knife.asset.uid])
+
+## B3 Receive All into a full bag: what fits comes home, the rest waits with the reason, nothing is
+## lost (every unit is in the bag or still in storage), and pressing again while full moves nothing.
+func _test_receive_bag_full(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/full")
+	h.call("seed_scene")
+	for v: Dictionary in h.call("op", 1, "market.search", {"page_size": 50}).r.results:
+		if str(v.key) == "item:stone_knife_work":
+			h.call("op", 1, "market.buy", {"listing_id": v.id, "count": 1})
+	h.call("fill_bag", 1)
+	_expect((h.get("failures") as PackedStringArray).is_empty(), "the harness fills the bag: %s" % ", ".join(h.get("failures")))
+	var vault: Dictionary = h.call("op", 1, "vault.get", {}).r
+	var units := func () -> Dictionary:
+		var c := _bag_counts(h)
+		for it: Dictionary in h.call("op", 1, "vault.get", {}).r.items:
+			c[str(it.id)] = int(c.get(str(it.id), 0)) + int(it.count)
+		return c
+	var total0: Dictionary = units.call()
+	var ms: Control = await _open_mine(h, 1, ms_script)
+	var mine: Control = ms.get("mine")
+	_click(mine.get("receive_btn"))
+	if mine.get("receiving"):
+		await mine.received
+	var left: Array = h.call("op", 1, "vault.get", {}).r.items
+	var text := (mine.get("status") as Label).text
+	_expect(not left.is_empty() and text.contains("%d still waiting: Your bag is full." % left.size()) and (mine.get("waiting") as Array).size() == left.size(), "a full bag: %d of %d still waiting, said: %s" % [left.size(), (vault.items as Array).size(), text])
+	_expect(units.call() == total0, "nothing is lost: every unit is in the bag or in storage (%s)" % units.call())
+	var before := JSON.stringify([h.call("op", 1, "char.get", {}).r, h.call("op", 1, "vault.get", {}).r])
+	_click(mine.get("receive_btn"))
+	if mine.get("receiving"):
+		await mine.received
+	_expect(before == JSON.stringify([h.call("op", 1, "char.get", {}).r, h.call("op", 1, "vault.get", {}).r]), "pressing again with the bag still full moves nothing")
+	ms.queue_free()
+	print("[t_exchange] receive all, full bag: %d waiting, nothing lost, second press moved nothing" % left.size())
+
 func _test_menu(hs: GDScript, ms_script: GDScript) -> void:
 	var hud_script := load("res://scripts/ui/hunt_hud.gd") as GDScript
 	if hud_script == null or not hud_script.get_script_method_list().any(func (f: Dictionary) -> bool: return f.name == "open_market"):
@@ -605,6 +774,32 @@ func _test_menu(hs: GDScript, ms_script: GDScript) -> void:
 	await process_frame
 	hud.queue_free()
 	print("[t_exchange] menu: HUD MENU -> Island Market -> MarketScreen visible=%s" % (ms != null and ms.visible))
+
+func _open_mine(h: RefCounted, acct: int, ms_script: GDScript) -> Control:
+	ms_script.set("test_client", h.call("client", acct))
+	var ms: Control = await _open(ms_script)
+	_click((ms.get("rail") as Control).get("buttons")[&"my_market"])
+	await process_frame
+	await process_frame
+	return ms
+
+## Listing / trade ids of the My Market rows, in order.
+func _mine_ids(mine: Control) -> Array:
+	return (mine.get("rows") as Array).filter(func (r: Node) -> bool: return not r.is_queued_for_deletion()).map(func (r: Node) -> String: return str(r.get("model").id))
+
+func _mine_row(mine: Control, id: String) -> Control:
+	for r: Control in mine.get("rows"):
+		if not r.is_queued_for_deletion() and str(r.get("model").id) == id:
+			return r
+	return null
+
+## def -> units in the viewer's server bag.
+func _bag_counts(h: RefCounted) -> Dictionary:
+	var c := {}
+	for row: Variant in h.call("op", 1, "char.get", {}).r.bag:
+		if row is Dictionary and row.has("count"):
+			c[str(row.id)] = int(c.get(str(row.id), 0)) + int(row.count)
+	return c
 
 ## Opens the screen and waits for its containers to lay out (clicks need real rects).
 func _open(ms_script: GDScript) -> Control:

@@ -4,9 +4,11 @@ extends Control
 ## seller, the price and "your tradable T-stones N -> N - price". Buy sends one market.buy; the
 ## button is disabled while it is pending, so a second tap sends nothing. The bought instance goes
 ## to the buyer's market storage (the vault, contracts:157-159), collected with My Market -> Receive All.
+## My Market opens the same panel on an own active listing to cancel it (open_cancel).
 # swap: INVUI ItemInspectPanel for the asset block when it lands.
 
 signal bought(res: Dictionary)
+signal cancelled(res: Dictionary) ## an own listing was cancelled: its units are back in market storage
 signal gone ## the listing was sold, expired or cancelled under us: the table reloads
 signal dismissed
 
@@ -14,6 +16,7 @@ var client: MarketClient
 var view: Dictionary
 var tradable := 0
 var pending := false
+var mode := &"buy" ## buy | cancel
 var buy_btn: Button
 var cancel_btn: Button
 var status: Label
@@ -73,7 +76,11 @@ func _ready() -> void:
 	buttons.add_child(cancel_btn)
 	buy_btn = Button.new()
 	buy_btn.name = "BuyConfirm"
-	buy_btn.pressed.connect(buy)
+	buy_btn.pressed.connect(func () -> void:
+		if mode == &"cancel":
+			cancel_listing()
+		else:
+			buy())
 	buttons.add_child(buy_btn)
 
 ## Shows one listing. `p_tradable` is the header's tradable balance (wallet.get).
@@ -82,6 +89,7 @@ func open(p_client: MarketClient, v: Dictionary, p_tradable: int, own: bool, m: 
 	view = v
 	tradable = p_tradable
 	pending = false
+	mode = &"buy"
 	visible = true
 	var row := MarketFormat.row(v)
 	var total: int = row.price * row.count
@@ -105,6 +113,46 @@ func open(p_client: MarketClient, v: Dictionary, p_tradable: int, own: bool, m: 
 		status.text = "%s You have %s; this costs %s." % [MarketFormat.ERRORS.insufficient_funds, MarketFormat.group(tradable), MarketFormat.group(total)]
 		status.add_theme_color_override("font_color", MarketTheme.DANGER)
 	fit(m)
+
+## An own active listing, to cancel: what it is, its price, and that the fee stays paid.
+func open_cancel(p_client: MarketClient, v: Dictionary, m: Dictionary) -> void:
+	open(p_client, v, 0, false, m)
+	mode = &"cancel"
+	var row := MarketFormat.row(v)
+	_lines.text = "\n".join(MarketFormat.asset_lines(str(v.get("type", "item")), v.get("asset", {})))
+	_balance.text = "Cancelling takes it off the market and puts it in your market storage (My Market → Receive All).\nThe listing fee of %s %s is not refunded." % [MarketFormat.group(int(v.get("fee", 0))), "T-stone" if int(v.get("fee", 0)) == 1 else "T-stones"]
+	status.text = ""
+	status.add_theme_color_override("font_color", MarketTheme.TEXT)
+	buy_btn.text = "Cancel listing"
+	buy_btn.disabled = false
+	cancel_btn.text = "Keep listing"
+	_price_row.text = ("Listed at  %s T-stones" % MarketFormat.group(row.price * row.count)) + ("  (%s each)" % MarketFormat.group(row.price) if row.count > 1 else "")
+	fit(m)
+
+## market.cancel, once: a second tap while pending sends nothing.
+func cancel_listing() -> void:
+	if pending or client == null or not buy_btn.visible or buy_btn.disabled:
+		return
+	pending = true
+	buy_btn.disabled = true
+	status.text = "Cancelling…"
+	status.add_theme_color_override("font_color", MarketTheme.TEXT_2)
+	var res: Dictionary = await client.request("market.cancel", {"listing_id": str(view.get("id", ""))})
+	pending = false
+	buy_btn.visible = false
+	cancel_btn.text = "Done" if res.get("ok", false) else "Close"
+	if res.get("ok", false):
+		status.text = "Cancelled. It is in your market storage: Receive All brings it to your bag."
+		status.add_theme_color_override("font_color", MarketTheme.GOLD)
+		cancelled.emit(res)
+		return
+	status.text = MarketFormat.error_text(res)
+	status.add_theme_color_override("font_color", MarketTheme.DANGER)
+	if MarketFormat.is_gone(res):
+		gone.emit() # sold or expired meanwhile: My Market reloads and shows where it went
+	else:
+		buy_btn.visible = true
+		buy_btn.disabled = false
 
 ## Every fact the asset carries, read from its dict, and who sells it.
 static func asset_lines(v: Dictionary) -> PackedStringArray:

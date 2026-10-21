@@ -108,6 +108,17 @@ func lock_first(acct: int, def: String) -> void:
 	var row: Dictionary = _bag(acct)[slot]
 	row.flags = (row.get("flags", []) as Array) + ["locked"]
 
+## Loots single knives from a pile until the server says the bag is full (Receive All's full-bag
+## case; server stacks of gathered goods never fill a slot, so they cannot fill a bag).
+func fill_bag(acct: int) -> void:
+	world.corpses["pile"] = {"pos": [1, 0, -1], "slots": []}
+	for i in CharacterState.BAG_SLOTS:
+		world.corpses["pile"].slots.append(ItemStack.make(&"stone_knife_work", 1).to_dict())
+	for i in CharacterState.BAG_SLOTS:
+		if str(bridge.client("act.loot", acct, {"corpse_id": "pile", "slot": i}, now).get("err", "")) == "bag_full":
+			return
+	failures.append("account %d's bag never filled" % acct)
+
 ## Tradable coins the honest way: sell gathered goods into Settlers' buy orders, window by window.
 func earn(acct: int, target: int) -> void:
 	for w in 48:
