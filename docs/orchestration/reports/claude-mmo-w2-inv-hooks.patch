@@ -152,6 +152,53 @@ index 13185501..24a7dbb6 100644
  	return n
  
  ## Dropped loot on the floor: a billboard loot-bag symbol with the top item's icon over it,
+diff --git a/game/scripts/dev/cargo_capacity_probe.gd b/game/scripts/dev/cargo_capacity_probe.gd
+index 5a10d8bb..a3daa81e 100644
+--- a/game/scripts/dev/cargo_capacity_probe.gd
++++ b/game/scripts/dev/cargo_capacity_probe.gd
+@@ -3,6 +3,11 @@ var failures:=0
+ func check(ok:bool,label:String)->void:
+ 	print("[cargocapacity] %s %s" % ["PASS" if ok else "FAIL",label])
+ 	if not ok:failures+=1
++## True when every black_iron in inv has the given unstable flag.
++func ore_unstable(inv:Inventory,want:bool)->bool:
++	for s in inv.slots:
++		if s and s.def_id==&"black_iron" and s.is_unstable()!=want:return false
++	return true
+ func run(host:Node)->void:
+ 	await get_tree().create_timer(0.8).timeout
+ 	for n in get_tree().root.find_children("CharacterCreation","CharacterCreation",true,false):n.queue_free()
+@@ -10,22 +15,22 @@ func run(host:Node)->void:
+ 	World.load_island(host,&"volcanic_60",Vector3(0,1,18),false)
+ 	await get_tree().create_timer(0.5).timeout
+ 	var p := PlayerRegistry.local()
+-	p.inventory=Inventory.new(3)
++	# W2-INV: ore does not stack, so 8 ore are 8 bag slots and cargo room is counted in free slots.
++	p.inventory=Inventory.new(10)
+ 	var ore:=ItemStack.make(&"black_iron",8,{},55)
+ 	ore.set_flag(&"unstable",true)
+-	p.inventory.add(ore)
++	check(p.inventory.add(ore)==0 and p.inventory.used_slots()==8,"8 unstable ore fill 8 bag slots")
+ 	World.cargo_home=Inventory.new(1)
+ 	World.cargo_home.add(ItemStack.make(&"stone",1))
+ 	World.t_stones=20
+ 	World.cargo_warp(p)
+ 	check(p.inventory.count_of(&"black_iron")==8 and World.t_stones==20,"full cargo preserves all ore and no fee")
+-	World.cargo_home=Inventory.new(1)
+-	var cap:=Data.item(&"black_iron").stack_max
+-	World.cargo_home.add(ItemStack.make(&"black_iron",cap-2,{},55))
++	World.cargo_home=Inventory.new(3)
++	World.cargo_home.add(ItemStack.make(&"stone",1))
+ 	World.cargo_warp(p)
+-	check(p.inventory.count_of(&"black_iron")==6 and World.cargo_home.count_of(&"black_iron")==cap and World.t_stones==18,"partial shipment preserves6unstable remainder,2Tfee")
+-	check(p.inventory.slots[0].is_unstable() and not World.cargo_home.slots[0].is_unstable(),"only accepted cargo stabilizes")
+-	World.cargo_home=Inventory.new(1)
++	check(p.inventory.count_of(&"black_iron")==6 and World.cargo_home.count_of(&"black_iron")==2 and World.t_stones==18,"partial shipment preserves6unstable remainder,2Tfee")
++	check(ore_unstable(p.inventory,true) and ore_unstable(World.cargo_home,false),"only accepted cargo stabilizes")
++	World.cargo_home=Inventory.new(6)
+ 	World.cargo_warp(p)
+ 	check(p.inventory.count_of(&"black_iron")==0 and World.cargo_home.count_of(&"black_iron")==6 and World.t_stones==16,"whole shipment retained and2Tfee")
+ 	print("[cargocapacity] failures%d seeded capacity fixture, not earned cargo" % failures)
 diff --git a/game/scripts/dev/craft_lab.gd b/game/scripts/dev/craft_lab.gd
 index 0b840a23..1a1c4dac 100644
 --- a/game/scripts/dev/craft_lab.gd
@@ -224,6 +271,41 @@ index 0b840a23..1a1c4dac 100644
  
  const FULL_RETRY := StationCraft.FULL_RETRY_S + 0.05
  
+diff --git a/game/scripts/dev/raid_gear_probe.gd b/game/scripts/dev/raid_gear_probe.gd
+index 90daf5a4..11bbaeea 100644
+--- a/game/scripts/dev/raid_gear_probe.gd
++++ b/game/scripts/dev/raid_gear_probe.gd
+@@ -24,11 +24,11 @@ func run(_host: Node) -> void:
+ 	# Raid recipes need the steel rung's skill nodes (W2-DATA requires_node).
+ 	player.skills.trees["weapon_tools"]["unlocked"].append("iron_weapons")
+ 	player.skills.trees["tailoring"]["unlocked"].append("scute_armor")
+-	player.inventory = Inventory.new(40)
+-	player.inventory.add(stack(&"steel_ingot", 20))
+-	player.inventory.add(stack(&"branch", 10))
+-	player.inventory.add(stack(&"hide_strap", 30))
+-	player.inventory.add(stack(&"dried_hide", 30))
++	# W2-INV: materials do not stack; 20 + 10 + 30 + 30 = 90 instances need the 100-slot bag.
++	player.inventory = Inventory.new()
++	var left := player.inventory.add(stack(&"steel_ingot", 20)) + player.inventory.add(stack(&"branch", 10))
++	left += player.inventory.add(stack(&"hide_strap", 30)) + player.inventory.add(stack(&"dried_hide", 30))
++	check(left == 0, "every kit material fits the bag (left over %d)" % left)
+ 	for id in [&"raid_maul", &"raid_helm", &"raid_cuirass", &"raid_greaves"]:
+ 		var rec := Crafting.recipe(id)
+ 		var picks := Crafting.default_picks(player.inventory, rec)
+@@ -122,10 +122,9 @@ func run(_host: Node) -> void:
+ 	check(player.dead and hits >= 4 and hits <= 6, "real boss contact kills in4-6 landed hits")
+ 	player.inventory.unequip(&"head")
+ 	check(not player.inventory.has_raid_protection(), "incomplete kit loses status protection")
+-	var inv := Inventory.new(10)
+-	inv.add(stack(&"steel_ingot", 4, 10))
+-	inv.add(stack(&"branch", 2, 10))
+-	inv.add(stack(&"hide_strap", 4, 10))
++	var inv := Inventory.new(10)  # 4 + 2 + 4 = 10 instances: fills it exactly
++	left = inv.add(stack(&"steel_ingot", 4, 10)) + inv.add(stack(&"branch", 2, 10)) + inv.add(stack(&"hide_strap", 4, 10))
++	check(left == 0, "low level materials fit the 10-slot bag (left over %d)" % left)
+ 	player.inventory = inv
+ 	check(Crafting.progression_block(player, Crafting.recipe(&"raid_maul")) != "", "low level ingredients cannot make raid gear")
+ 	print("[gear] PARTIAL real formulas/craft allocation; acquisition, station movement and raid evasions untested; failures=%d" % failures.size())
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
 index b0cb5782..15e23db8 100644
 --- a/game/scripts/items/crafting.gd
@@ -421,7 +503,7 @@ index 6a5110b8..ebfc27d8 100644
  		var flag_s: PackedStringArray = []
  		for f in flags:
 diff --git a/game/scripts/player/player.gd b/game/scripts/player/player.gd
-index 70ddf6cb..78c3af7a 100644
+index 27e000c5..d8fffd0e 100644
 --- a/game/scripts/player/player.gd
 +++ b/game/scripts/player/player.gd
 @@ -30,7 +30,7 @@ var controls: PlayerInput
@@ -434,10 +516,10 @@ index 70ddf6cb..78c3af7a 100644
  var statuses: StatusEffects
  var hunt: Hunt
 diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
-index 3bfbb398..1f84a3d6 100644
+index b2f961bc..e830f944 100644
 --- a/game/scripts/player/player_actions.gd
 +++ b/game/scripts/player/player_actions.gd
-@@ -383,7 +383,7 @@ func _corpse_take_timer(corpse: Corpse, slot: int) -> void:
+@@ -384,7 +384,7 @@ func _corpse_take_timer(corpse: Corpse, slot: int) -> void:
  	p.get_tree().create_timer(CORPSE_TAKE_SECONDS).timeout.connect(func () -> void: loot(corpse, slot))
  
  ## Move one corpse loot stack into the bag. Only what fits moves; the rest stays in the corpse
@@ -446,7 +528,7 @@ index 3bfbb398..1f84a3d6 100644
  func loot(corpse: Corpse, slot: int) -> int:
  	if corpse == null or not is_instance_valid(corpse) or slot < 0 or slot >= corpse.loot.slot_count:
  		return 0
-@@ -400,10 +400,11 @@ func loot(corpse: Corpse, slot: int) -> int:
+@@ -401,11 +401,12 @@ func loot(corpse: Corpse, slot: int) -> int:
  		return 0
  	p.inventory.wear_gather_tool(&"knife")
  	print("[item] +%d %s (loot %s)" % [moved, def_id, corpse.species])
@@ -454,11 +536,13 @@ index 3bfbb398..1f84a3d6 100644
 -		p.skills.add_xp("butchering", 3)
 -	else:
 -		World.add_xp(3)
+-	WaterAccess.soil(p, &"butcher")
 +	if corpse.first_take_of(def_id): # W2-INV: once per drop kind, not per instance taken
 +		if p.skills:
 +			p.skills.add_xp("butchering", 3)
 +		else:
 +			World.add_xp(3)
++		WaterAccess.soil(p, &"butcher") # one loot stack's grime (water.json), per kind as XP is
  	p.toast(def_id, moved)
  	return moved
  
@@ -3535,7 +3619,7 @@ index 72475daf..05421797 100644
  	var methods: Array = SC.get_script_method_list().map(func(m: Dictionary) -> String: return str(m["name"]))
  	_expect(not "collect_held" in methods and not "HELD_META" in SC.get_script_constant_map(), "no volatile held-item store remains")
 diff --git a/game/tests/t_player.gd b/game/tests/t_player.gd
-index 037f42f1..ba369416 100644
+index 037f42f1..03e80fa9 100644
 --- a/game/tests/t_player.gd
 +++ b/game/tests/t_player.gd
 @@ -73,6 +73,7 @@ func _run() -> void:
@@ -3546,7 +3630,7 @@ index 037f42f1..ba369416 100644
  	await _test_no_creature_climb()
  	await _test_footsteps_and_ear()
  	_test_structure_interact()
-@@ -341,13 +342,55 @@ func _test_corpse_full_bag() -> void:
+@@ -341,13 +342,62 @@ func _test_corpse_full_bag() -> void:
  	var take_s: float = (load("res://scripts/player/player_actions.gd") as GDScript).get_script_constant_map()["CORPSE_TAKE_SECONDS"]
  	await create_timer(take_s + 0.3, true, true).timeout
  	var left = corpse.loot.slots[slot]
@@ -3562,7 +3646,7 @@ index 037f42f1..ba369416 100644
  
 +## W2-INV review 2: corpse loot is one instance per unit, so a flat +3 per take paid per unit.
 +## Butchering XP is 3 per drop kind, the first time any of it leaves the corpse: radial takes,
-+## chest takes of each item and Take all pay the same.
++## chest takes of each item and Take all pay the same. Radial butcher grime (WATER) follows the XP.
 +func _test_corpse_take_xp() -> void:
 +	await _reset_at(Vector3(0, 1.0, 0))
 +	if not player.inventory.has_tool_class(&"knife"):
@@ -3576,9 +3660,16 @@ index 037f42f1..ba369416 100644
 +		corpse.loot.add_growing(ItemStackS.make(&"raptor_hide", 2))
 +		var xp0 := _butchering_total()
 +		if way == "radial":
++			# WATER's butcher grime is per loot stack: per drop kind, as the XP (5 instances, 2 kinds).
++			player.set_meta(&"water_grime", 0.0)
++			for id in [&"dirty", &"very_dirty"]:
++				player.statuses.clear_id(id)
 +			for i in corpse.loot.slot_count:
 +				if corpse.loot.slots[i]:
 +					player.actions.loot(corpse, i)
++			var per: float = float(load("res://scripts/player/water_access.gd").data()["dirt"]["butcher"])
++			var grime: float = float(player.get_meta(&"water_grime", 0.0))
++			_expect(is_equal_approx(grime, 2.0 * per), "radial takes of 2 drop kinds add butcher grime twice, not per instance (grime %s)" % grime)
 +		else:
 +			corpse.open_loot(player)
 +			if way == "chest":
@@ -3605,7 +3696,7 @@ index 037f42f1..ba369416 100644
  ## velociraptor, held for 5 s, raises her at most 0.15 m (was +0.97, +1.16 and +1.82 m: the stall
  ## fallback hopped her onto their backs); unstick never steps into a creature.
 diff --git a/game/tests/t_save.gd b/game/tests/t_save.gd
-index 7f6476a4..38aa3cf8 100644
+index 7f6476a4..2619d78b 100644
 --- a/game/tests/t_save.gd
 +++ b/game/tests/t_save.gd
 @@ -1,11 +1,18 @@
@@ -3643,7 +3734,7 @@ index 7f6476a4..38aa3cf8 100644
  	await _test_truncated()
  	await _test_future()
  	await _test_backup_fallback()
-@@ -158,21 +167,35 @@ func _test_round_trip(name: String) -> void:
+@@ -158,21 +167,47 @@ func _test_round_trip(name: String) -> void:
  	_check(diffs.is_empty(), "%s re-saves field-for-field equal: %s" % [name, diffs.slice(0, 6)])
  	if LEGACY.has(name):
  		_check_legacy(name, s1)
@@ -3678,18 +3769,29 @@ index 7f6476a4..38aa3cf8 100644
 -func _check_v3_golden(name: String, s1: Dictionary) -> void:
 +## The stacked v3 goldens are frozen rev-1 saves: never regenerate them, they are the migration's
 +## input. skills_v2 must equal the rev-2 result kept in save_v3_skills_rev2.json, field for field both
-+## ways; their stacks split on load (W2-INV), so _check_split checks the items, not byte equality.
++## ways; their stacks split on load (W2-INV), so _check_split checks the item containers and
++## everything else must survive load + save unchanged.
 +func _check_v3_skills(name: String, s1: Dictionary) -> void:
  	var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
  	_check(not (golden["skills_v2"] as Dictionary).has("rev"), "%s is still a rev-1 save (the migration input)" % name)
 -	golden.erase("skills_v2")
--	var gd: Array[String] = []
++	var skip: Array = ["/skills_v2", "/player/position/1", "/player/inventory", "/player/inventory_extras", "/home/cargo"]
++	for side in ["home", "away"]:
++		var part: Variant = golden.get(side)
++		if part is Dictionary:
++			for i in (part.get("buildings", []) as Array).size():
++				skip.append("/%s/buildings/%d/contents" % [side, i])
++	for i in (golden.get("pets", []) as Array).size():
++		skip.append("/pets/%d/bag" % i)
+ 	var gd: Array[String] = []
 -	_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
 -	_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
++	_same(golden, s1, "", gd, skip) # y is re-seated on the terrain at load
++	_check(gd.is_empty(), "%s: everything but item containers and skills_v2 survives load + save unchanged: %s" % [name, gd.slice(0, 6)])
  	var want: Variant = (JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_skills_rev2.json")) as Dictionary).get(name)
  	var sd: Array[String] = []
  	_same(want, s1.get("skills_v2"), "/skills_v2", sd)
-@@ -238,12 +261,119 @@ func _check_legacy(name: String, s1: Dictionary) -> void:
+@@ -238,12 +273,119 @@ func _check_legacy(name: String, s1: Dictionary) -> void:
  	_check(ok, "%s content survives migration: buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
  	print("[t_save] legacy %s buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
  
@@ -3810,7 +3912,7 @@ index 7f6476a4..38aa3cf8 100644
  	_check(helm != null and helm.count == 1 and helm.level == 60, "forged raid_helm x5000 L9999 loads as x1 L60")
  	_check(helm != null and helm.durability <= helm.max_durability and helm.max_durability == IS.make(&"raid_helm", 1, {}, 60).max_durability, "forged durability clamps to the item's ceiling")
  	var unknown := 0
-@@ -387,7 +517,7 @@ func _test_away_island() -> void:
+@@ -387,7 +529,7 @@ func _test_away_island() -> void:
  ## (the golden's 42 t_stones and 6 stacks arrive) and keep saving, never abort halfway.
  func _test_hostile_types() -> void:
  	_clean()
@@ -3819,7 +3921,7 @@ index 7f6476a4..38aa3cf8 100644
  	SG.load_now(host) # the golden camp layout, so the pen cell below is free under it
  	await process_frame
  	var pen := _free_cell(&"makeshift_taming_pen")
-@@ -435,7 +565,7 @@ func _test_hostile_types() -> void:
+@@ -435,7 +577,7 @@ func _test_hostile_types() -> void:
  		cases[label] = func (d: Dictionary) -> void: d["home"]["buildings"] = [row]
  	for label in cases:
  		_clean()
@@ -3828,7 +3930,7 @@ index 7f6476a4..38aa3cf8 100644
  		(cases[label] as Callable).call(d)
  		_put(JSON.stringify(d))
  		W.t_stones = 0
-@@ -445,7 +575,7 @@ func _test_hostile_types() -> void:
+@@ -445,7 +587,7 @@ func _test_hostile_types() -> void:
  		var stacks := 0
  		for st in player.inventory.slots:
  			if st != null: stacks += 1
@@ -3837,7 +3939,7 @@ index 7f6476a4..38aa3cf8 100644
  		var saved: bool = SG.save_now()
  		_check(ok and saved and errors.script_errors == errs, "hostile '%s' loads completely and saves (blocked='%s' t_stones=%d stacks=%d pets=%d script_errors=%d)" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), errors.script_errors - errs])
  		print("[t_save] hostile '%s' blocked='%s' t_stones=%d stacks=%d pets=%d saved=%s" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), saved])
-@@ -504,9 +634,9 @@ func _check_pen(label: String, keeps: bool) -> void:
+@@ -504,9 +646,9 @@ func _check_pen(label: String, keeps: bool) -> void:
  ## load lifts the block.
  func _test_aborted_load() -> void:
  	_clean()
@@ -3849,7 +3951,7 @@ index 7f6476a4..38aa3cf8 100644
  	raw["t_stones"] = {}
  	print("[t_save] the next SCRIPT ERROR (Nonexistent 'int' constructor) is the deliberate abort")
  	expected_script_errors += 1
-@@ -570,7 +700,7 @@ func _held_on_disk(d: Dictionary) -> Array:
+@@ -570,7 +712,7 @@ func _held_on_disk(d: Dictionary) -> Array:
  ## must treat it as unreadable rather than apply it.
  func _test_sanitizer_abort() -> void:
  	_clean()
@@ -3858,7 +3960,7 @@ index 7f6476a4..38aa3cf8 100644
  	var San: GDScript = load("res://scripts/core/save_sanitizer.gd")
  	San.set("abort_for_test", true)
  	print("[t_save] the next SCRIPT ERROR (call on a null instance) is the deliberate sanitizer abort")
-@@ -585,7 +715,7 @@ func _test_sanitizer_abort() -> void:
+@@ -585,7 +727,7 @@ func _test_sanitizer_abort() -> void:
  	for i in 70:
  		W._process(1.0)
  	_check(FileAccess.get_sha256(SG.path) == sha0, "aborted sanitizer: bytes unchanged after 70 s of autosave")
@@ -3867,7 +3969,7 @@ index 7f6476a4..38aa3cf8 100644
  	forged[San.get("CHECKED")] = true
  	_put(JSON.stringify(forged))
  	var ok: Dictionary = (load("res://scripts/core/save_migrations.gd") as GDScript).read(SG.path)
-@@ -598,7 +728,7 @@ func _test_sanitizer_abort() -> void:
+@@ -598,7 +740,7 @@ func _test_sanitizer_abort() -> void:
  ## pen the grid still accepts keeps its animal.
  func _test_pen_refunds() -> void:
  	_clean()
@@ -3876,7 +3978,7 @@ index 7f6476a4..38aa3cf8 100644
  	_put(golden)
  	SG.load_now(host)
  	await process_frame
-@@ -653,7 +783,7 @@ func _test_pen_refunds() -> void:
+@@ -653,7 +795,7 @@ func _test_pen_refunds() -> void:
  ## save must still record this session's buildings, or sailing away and back loses them.
  func _test_refused_save_keeps_camp() -> void:
  	_clean()
@@ -3885,7 +3987,7 @@ index 7f6476a4..38aa3cf8 100644
  	SG.load_now(host) # the golden basket holds 5 stone
  	await process_frame
  	var cell := _free_cell(&"basket")
-@@ -705,6 +835,7 @@ func _write_golden() -> void:
+@@ -705,6 +847,7 @@ func _write_golden() -> void:
  	inv.add(IS.make(&"stone", 12))
  	inv.add(IS.make(&"branch", 7))
  	inv.add(IS.make(&"raw_meat", 3))
@@ -3893,7 +3995,7 @@ index 7f6476a4..38aa3cf8 100644
  	inv.equip(&"head", &"raid_helm")
  	inv.add(IS.make(&"raid_helm", 1))
  	W.cargo_home.load_array([])
-@@ -738,15 +869,13 @@ func _write_golden() -> void:
+@@ -738,15 +881,13 @@ func _write_golden() -> void:
  	var d := _saved()
  	d["unstable"]["harvested"] = {}
  	d["saved_unix"] = 4000000000 # clamps to now at load: no offline time, so the snare round-trips
@@ -3912,7 +4014,7 @@ index 7f6476a4..38aa3cf8 100644
  	# Away golden: the survivor standing on an unstable island with a stocked basket there.
  	W.remaining_lifetime = 0.0
  	W.load_island(host, &"temperate_25", Vector3(0, 1, 12), false)
-@@ -762,7 +891,7 @@ func _write_golden() -> void:
+@@ -762,7 +903,7 @@ func _write_golden() -> void:
  	var a := _saved()
  	a["unstable"]["harvested"] = {}
  	a["saved_unix"] = 4000000000
