@@ -18,8 +18,9 @@ extends Node3D
 ## hops (a frame that moves further than the speed allows: unstick or shoreline pushes).
 ## Headless: --headless --fixed-fps 60 --path game -- --lab=route_bot_lab --island=home_grassland
 ##   [--routes=100] [--seed=7] [--heading-bound=DEG_PER_M] [--shot-dir=DIR]
-## Windowed with --shot-dir saves a shot mid-route on a few routes. Always saves route_map_<island>.png
-## (top view: blocked tiles, the reference path, the walked trail, red where it touched a solid).
+## Windowed with --shot-dir saves a shot on routes 1, 4 and 9 (4 and 9 just after a fence dropped). Always
+## saves route_map_<island>.png and route_compound_<island>.png (top views: blocked tiles, the reference
+## path, the walked trail, red where it touched a solid).
 ## Prints "[route] ..." lines, then "[route] PASS" (exit 0) or FAIL lines (exit 1).
 
 const ARRIVE_M := 0.75
@@ -97,6 +98,13 @@ func _run() -> void:
 	for f in 3:
 		await get_tree().physics_frame
 	var walkable := _build_ref()
+	if OS.get_cmdline_user_args().has("--dump-compound") and _compound_at != NO_TILE:
+		for dz in range(-1, 9):
+			var row := ""
+			for dx in range(-1, 9):
+				var c := _compound_at + Vector2i(dx, dz)
+				row += ("#" if _ref.is_point_solid(c) else ".") + ("x" if not _rt.pathing.is_walkable(c) else "o") + " "
+			print("[dump] %s" % row)
 	print("[route] island=%s routes=%d reference tiles=%d" % [_island, _routes, walkable])
 	for i in _routes:
 		_clear_creatures()
@@ -183,8 +191,7 @@ func _build_compound() -> int:
 				LabKit.give(_player, BuildPlacer.kit_for(pc[0]), 1)
 				_player.placer.begin(pc[0])
 				_player.placer.cell = a + (pc[1] as Vector2i)
-				for r in int(pc[2]):
-					_player.placer.rotate_clockwise()
+				_turn(int(pc[2]))
 				if _player.placer.confirm(_player):
 					n += 1
 				else:
@@ -196,6 +203,11 @@ func _build_compound() -> int:
 			print("[route] compound at (%d,%d): %d pieces" % [a.x, a.y, n])
 			return n
 	return 0
+
+## Set the placer's rotation by hand (four turns for 0), so fence auto-alignment does not turn it.
+func _turn(rot: int) -> void:
+	for r in (rot if rot > 0 else 4):
+		_player.placer.rotate_clockwise()
 
 func _compound_fits(grid: BuildGrid, a: Vector2i, pieces: Array) -> bool:
 	for dz in range(-1, 9):
@@ -244,8 +256,7 @@ func _place_fence(grid: BuildGrid, at: Vector2i, rot: int) -> Node3D:
 	var before := get_tree().get_nodes_in_group("fence").size()
 	_player.placer.begin(&"fence")
 	_player.placer.cell = at
-	for r in rot:
-		_player.placer.rotate_clockwise()
+	_turn(rot)
 	var ok := _player.placer.confirm(_player)
 	if not ok:
 		_player.placer.cancel()
@@ -340,7 +351,12 @@ func _route(i: int, goal: Vector2i) -> void:
 	var prev_head := INF
 	var trail := PackedVector2Array([prev])
 	var touches := PackedVector2Array()
-	var shot_at := (ref_len / 5.0) * 0.45 if _shots and i in [1, 4, 7] else -1.0
+	# Shots: a route to a node part way, and two dropped fences just after she turned off for them.
+	var shot_at := -1.0
+	if _shots and i == 1:
+		shot_at = (ref_len / 5.0) * 0.45
+	elif _shots and i in [4, 9]:
+		shot_at = 1.1
 	var drop_at := 0.5 if i % DROP_EVERY == DROP_EVERY - 1 else -1.0
 	var dropped: Node3D = null
 	while t < limit:
