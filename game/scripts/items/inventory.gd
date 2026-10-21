@@ -404,15 +404,18 @@ func groups() -> Array[Dictionary]:
 	return out
 
 ## Attribute keys that are bookkeeping, not traits. ASSUMPTION: no per-instance trait list exists
-## in data yet, so any other key (hardness, food_buff, genetics, ...) marks an instance as special.
+## in data yet, so any other key (hardness, food_buff, genetics, ...) that differs from the def's
+## default_attributes marks an instance as special.
 const PLAIN_ATTRS := ["level", "climate", "processed", "material_tier"]
 
 ## Spec 05:23: default picks spend the least valuable instance first, so a rare or higher-level one
 ## goes only when the player picks it. Ascending key: has traits, then level, then age (oldest first).
 static func spend_key(s: ItemStack) -> Array:
+	var d := s.def()
+	var base: Dictionary = d.default_attributes if d else {}
 	var traits := 0
 	for k: Variant in s.attributes:
-		if str(k) not in PLAIN_ATTRS:
+		if str(k) not in PLAIN_ATTRS and s.attributes[k] != base.get(k):
 			traits = 1
 			break
 	return [traits, s.level, s.created_at]

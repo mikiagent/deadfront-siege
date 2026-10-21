@@ -471,6 +471,8 @@ func _test_default_pick_spares_valuable() -> void:
 	for part in CR._plan(inv, rec, picks)[0].parts:
 		spent.append(int(part.idx))
 	_expect(picks == [3] and spent == [3, 2], "default twine spends the plain oldest stalks 3 then 2, not the trait (0) or lv 5 (1) one (picks %s spent %s)" % [picks, spent])
+	var stone = IS.make(&"stone", 1, {}, 1)
+	_expect(not stone.attributes.is_empty() and INV.spend_key(stone)[0] == 0, "a def's own default attributes (stone tint) are not traits (%s)" % [stone.attributes])
 
 # ---------------------------------------------------------------- server character store
 
