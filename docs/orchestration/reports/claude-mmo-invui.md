@@ -626,3 +626,164 @@ the Bag tab only; Search needs a keyboard (on a phone the field opens the system
 drag with no bar on a phone; panel motion, transfer feedback and the grain pass stay B4. Machine note: the disk filled to
 0 bytes during this run (the two orchestrator scratchpads hold ~121 GB each); one gate run lost its ui_family_lab line to
 it and was redone.
+
+## B4: polish (2026-10-20, spec 13 sections 2, 16, 20, 21; phase 5)
+
+Base sync (twice; W2-INV is still not merged into claude/mmo-overhaul, whose tip e5f3ec8a has no W2-INV merge):
+- Start of the step: `claude/mmo-w2-inv` at 2583c2d3 (W2-INV with overhaul 29ffa292: W2-DATA and W2-SKILLS, and its hooks
+  patch regenerated) merged as 4c9fd820. Conflicts were W2-INV hook lines committed here against W2-SKILLS' base changes:
+  t_items (resolved to W2-INV's new hunk: the bronze pick checked with `equipped_gather_tool()`) and t_save (the stacked
+  goldens' split check kept beside W2-SKILLS' rev-2 skills check). The INVUI hooks patch applied cleanly on the merge;
+  t_save, t_items and t_invui PASS there.
+- Mid-step W2-INV moved to bc05b421 (docs-only overhaul e5f3ec8a merged; a7b49780 regenerated its instance goldens with
+  W2-SKILLS' rev-2 skills_v2). Merged as 9343857b; the delta of its hooks patch is only the two instance-golden fixtures,
+  re-applied together with W2-INV's own t_save hunk (1e64e008), so t_save and both instance goldens here are now exactly
+  W2-INV's base + hooks (my first t_save resolution, which kept the instance goldens rev-1, is gone).
+
+Shipped (c1b5c231, abba023e, be5f123f, a8613495 and this report; all under `game/` unless named):
+- `scripts/ui/inv_motion.gd` (InvMotion, new): restrained motion (spec 13 s20). Screens fade in over 110 ms when they
+  open (`InventoryUI._show`; a screen already showing does not re-fade), the Detailed Stats panel and the toolbar's
+  dropdowns too; a storage tab switch fades its grid in over 70 ms; the yellow brackets settle onto a newly selected cell
+  from 4 px outside it in 80 ms (only when the selection changes, so refreshes and sorts never re-play it); items arriving
+  light up the storage tab that received them (Transfer either way) and an Equip lights up the gear cell it filled, 0.3 s
+  each. Motion only touches modulate and draw-time values, never a rect, so tap-target and layout checks read the final
+  layout at once. No bounce, no particles.
+- Desktop (spec 13 s21): arrows move the selection on the Bag, storage, cargo and picker grids (left / right in reading
+  order, up / down to the nearest item in the next row; `InventoryGrid.move_selection`) and between the gear cells on
+  Character / Equipment (`GearScreen.move_slot`, the blank corner skipped); Enter runs the panel's yellow action
+  (`ItemInspectPanel.press_primary`, `GearScreen.press_primary`; never on key repeat, so a held Enter cannot repeat a
+  transfer); Tab switches a container's tabs; Esc and I as before. Key events only: the pad's d-pad and A keep their game
+  bindings (bandage, hunt-chase, interact). The mouse wheel scrolls every grid smoothly (half a compartment a notch over
+  90 ms; touch drag and trackpad pans stay the container's own). Hovering a cell shows its name, level, every trait with
+  its class in words, NEW and Locked (`InventorySlot.describe`); every toolbar square, rail filter and gear cell already
+  had a tooltip. Everything a tooltip says is one tap away in the inspect panel.
+- Accessibility (rarity and trait class never by colour alone): the pips under each cell have a shape per class (filled
+  gold square positive, hollow grey square negative, green diamond rare; `InvPaint.PIP_SHAPES` / `pip`) and the inspect
+  panel's trait chips carry the same shape before their text with "Positive trait: Firm Lv. 8" / "Rare trait: Black Sheen"
+  as their tooltip (`ItemInspectPanel.TraitChip`). NEW is a word, locked a lock glyph, worn a triangle, the selection
+  brackets, compare gains a sign, as before.
+- Textures and the unified look (spec 13 s2, s16), measured against the four references on the 1600x900
+  gl_compatibility shots (luma; B3 in brackets; references after the slash): the khaki backdrop between the panels
+  #5A5741 renders 78 (41) / 80-93; the grid panel #3B3830 47-58 (37) / 52-56; the Character card 54.5 (50) / 53.5; gear
+  cells #141810 29 (23) / 32; the inspect panel #33342A olive-grey (spec 13's #26322C read teal beside the Bag's dark
+  brown #31271B and storage's olive #4D4C3A bodies). The grain's vignette dropped from 28 % to 14 % (the references darken
+  only at the very edge) and its blotches rose to +-26 %. The same header, backdrop, grain, dark irregular frames, bracket
+  language, yellow primary and condensed font run through Bag, storage, cargo, picker, Character, Detailed Stats and
+  Equipment.
+- Responsive (spec 13 s21): the Bag keeps 7 columns while a compartment still holds NEW beside "Lv. 60" at the type floor
+  (`InvTheme.label_room(12)` = 84 px), else 6: a notched 844x390 phone (47 / 47 / 21 insets) had 74 px cells where NEW ran
+  into "Lv. 12" (seen in a shot; now 6 columns of 87 px), and the 804x452 canvas (an iPhone SE at 667x375) gets 6 columns
+  of 93 px. My Info grows to its compare lines on a short screen (a notched phone cut "Max health 100 → 156" in half;
+  tighter line pitch, never a half-cut line). The gear column's properties read one fact a line (joined, they wrapped with
+  a "·" hanging at the line's end at every size).
+- Performance (spec 13 s20; design gate P1): `bag_ui_lab --perf` pads the bag to 142 / 142 instances (traits and NEW on
+  some), closes the family and times `open_bag()` twice, cold (the run's first open) and warm, with the wait to the first
+  drawn frame beside a frame of the world with the family closed; headless it times the build. t_invui 21 times the same
+  142-slot open headless and fails over 50 ms.
+- Tests and lab: t_invui 21 (motion lengths, the Bag's fade, arrows / Enter / Tab on Bag, storage and Character, Transfer
+  by Enter and the receiving tab lighting up, three pip shapes, the chips' class words, the cell tip, tap targets / text /
+  safe area at 1920x1080, 844x390 with a notch and 804x452, a Bag compartment holding NEW beside "Lv. 60", the 142-slot
+  open); bag_ui_lab `--perf` and the 142-slot check in its headless run.
+
+Acceptance lines (HEAD 1e64e008 + the hooks patch applied in the work tree; logs in the scratchpad `invui/b4r/`):
+- Every t_*.gd (gate run g1, started on abba023e + be5f123f's code + the hooks; the later commits change only t_invui's
+  notch view, docs, t_save and its two fixtures, and those two tests were rerun on 1e64e008 in g2): t_ai, t_build,
+  t_canim, t_combat, t_data ("[t_data] PASS items=223 recipes=155"), t_harbour ("[t_harbour] PASS islands=15"),
+  t_iconart, t_inventory, t_items, t_light, t_lighting ("[t_light] PASS"), t_occlude, t_player, t_server_domain, t_srvdom,
+  t_structart, t_tame, t_ui ("engine errors/warnings during the checks: 0", "[t_ui] PASS"), t_uiicons ("[t_uiicons] PASS
+  ids=171 files=114 ..."), t_w2_skills, t_web all exit 0 with PASS and 0 SCRIPT ERROR. On 1e64e008 (g2): t_invui exit 0
+  "[t_invui] 21 open 142/142: 142 cells in 4421 us", "[t_invui] PASS", 0 SCRIPT ERROR; t_save exit 0 "[t_save] PASS" with
+  its 5 deliberate SCRIPT ERRORs. In g1, t_invui failed once on the test's first cut ("FAIL 21: a Bag compartment holds
+  NEW beside 'Lv. 60' at (804.0, 452.0) with a notch (cell 82 < 84)", fixed in a8613495) and t_save ran across the second
+  base sync with my old resolution against W2-INV's new fixtures ("FAIL save_v3_inst_golden.json is still a rev-1 save");
+  both pass on the final HEAD as above.
+- run_all exit 0 "[tests] PASS"; tools/smoke.sh --no-import "SMOKE PASS".
+- Labs, 0 SCRIPT ERROR each: bag_ui_lab "[bagui] perf142 cold bag=142/142 cells=139 build=4467us first_frame=headless",
+  "[bagui] perf142 warm ... build=4596us", "[bagui] PASS bag=142/142 new=61 locked=2"; inventory_lab "[invlab] PASS
+  empty_cells=100/97 slots=100 cells=100 stones=16 stack45=true lock_pip=true equip_l30=true full_unequip_notice=true";
+  ui_family_lab "[uifamily] inventory=true animals=true unlimited=true active_cap=3 stego=stegosaurus"; ui_screenshot_lab
+  "[uishot] PASS screens=hud,inventory,animals,craft,atlas,death,radial"; ui_real_capture_lab 844x390 and 1600x900
+  gl_compatibility "[uireal] PASS screens=hud,craft,skills,...,bag,character,charcreate,..." (its real-scene bag at
+  844x390 looked at: empty 0 / 100 bag, summary panel, all inside the view). Every shot run in this step logged 0 SCRIPT
+  ERROR.
+- Crash reports: one new Godot-*.ips during the gates (Godot-2026-10-20-232613.ips: launched 23:25:41, SIGABRT 23:25:51 in
+  `recursive_mutex::lock` from a CoreFoundation notification on the main thread, B1's signature). Not one of my runs: the
+  two of mine running then (t_lighting, t_items) printed PASS at 23:26:13 and 23:26:19 and exited 0, and none of mine ended
+  at 23:25:51; the other workflow shares the machine and the responsible process.
+
+Mutation (t_invui 21 against the code before B4, scratch tree at 4c9fd820 + the B3 hooks, the new t_invui copied in):
+"[t_invui] FAIL 21: not built yet (inv_motion.gd)", "[t_invui] 1 failures"; with only inv_motion.gd copied in as well:
+"FAIL 21: the Bag fades in as it opens (alpha 1.00 at once)", "FAIL 21: Right with nothing selected picks the first item",
+"FAIL 21: Right steps to the next item, Down to the one below it", "FAIL 21: Left steps back in reading order", "FAIL 21:
+Enter runs the yellow action on the selected item (Equip opens the compare)", "FAIL 21: Tab switches the storage view to
+the Bag tab", "FAIL _t21_polish stopped on a SCRIPT ERROR", "[t_invui] 7 failures". The label-room check failed on this
+step's own first cut ("cell 82 < 84" on a canvas no phone gets; the test now uses the notch on 844x390 only).
+
+Performance, measured: headless build + layout of the full 142 / 142 bag 2.4 ms in bag_ui_lab ("[bagui] perf142 cold
+bag=142/142 cells=139 build=2358us first_frame=headless"; the cage spans 4 slots, so 139 cells) and 3.1-3.5 ms in t_invui
+("[t_invui] 21 open 142/142: 142 cells in 3113 us"). Windowed at 1600x900, under a machine running about 24 Godot
+processes for the other workflow: Forward+ "perf142 cold ... build=2913us first_frame=55862us world_frame=11431us" and
+"perf142 warm ... build=3036us first_frame=20171us world_frame=5860us"; gl_compatibility "perf142 cold ... build=4661us
+first_frame=111816us world_frame=33770us" and "perf142 warm ... build=4444us first_frame=21294us world_frame=12790us". So
+every open builds in under 5 ms and draws within about 21 ms once the family has been drawn once; the session's first open
+pays about 45 ms (Forward+) to 80 ms (gl_compatibility) more for its first frame. Not split further; most likely the grain
+shader's first compile and the glyph caches, which a pre-warm outside the family (the HUD's boot) could take.
+
+Shots looked at (scratchpad `invui/b4r/`, not in the repo; s4 is the final set, s5 the My Info fix; each opened next to
+its reference):
+- Bag, `s4/bag_1600x900_glc.png`, `inspect_1600x900_glc.png` / `_fwd.png`, `bag_1920x1080_glc.png` next to
+  durango-bag-instances.webp: black torn header "< Bag [bag] 91 / 100", T-stone chip, X; the lighter khaki now shows in the
+  gaps and under the panels like the reference's blurred world; the grid panel blotchy brown-olive with faint dashed
+  compartments; blue NEW top-left, grey "Lv. N" top-right; the pips read by shape (berry Lv. 42 gold square + green
+  diamond, bone Lv. 45 gold + hollow, bone Lv. 60 all three); yellow brackets on the Lv. 60 bone; Auto Sort with its
+  caret and the three squares; the inspect panel's tan band and card, family chips, trait chips with their shape marks
+  ("Firm Lv. 8" gold, "Low Density Lv. 3" grey, "Black Sheen" green), black Info bar. 1920x1080 is the same layout scaled
+  1.2 (DisplayMode keeps a 1600x900 canvas).
+- `s4/bag_844x390_glc.png` (bone selected, notch insets 47 / 47 / 21) and `bag_667x375_glc.png`: 6 columns, NEW clear of
+  "Lv. NN", the cage 2x2, the panel scrolls its chips; the header's black runs under the notch, its controls inside.
+- Storage, `s4/storage_select_1600x900_glc.png` / `_fwd.png` next to durango-storage-transfer.webp: "< 1 Select" with the
+  gold 1; "Bag 91 / 100" grey and "Storage Box 47 / 80" gold with its underline; the rail with All gold; ten dense
+  columns, "Lv. 60" top-right, gold squares and hollow grey squares under the ore, plank and logs; the ingot's lighter
+  cell with the gold check; the gold title band "Iron Ingot", card with "Lv. 60" and the hammer "×3"; chips Metal / Crude
+  Ingot / Tier Iron; "Firm Lv. 4" gold and "Heavy Lv. 2" grey with their marks; Auto Sort + caret, Select All, Select (on),
+  Search; yellow "Transfer to Bag". `s4/storage_notice_844x390_glc.png` (notch): "Small Box 47 / 80", the dark notice
+  "This box belongs to someone else: cannot take." over the grid, no Transfer. `s4/storage_667x375_glc.png`: fits.
+- Character, `s4/character_1600x900_glc.png` / `_fwd.png`, `character_667x375_glc.png` next to
+  durango-character-gear.webp: the card, XP bar, power rows and Detailed Stats on the lighter olive-brown panel; yellow
+  Gear tab, "1 2 [lock] [lock]", the 3x3 on olive near-black cells with faded silhouettes; the worn vest's facts now one a
+  line over Unequip.
+- Equipment, `s5/equipment_1600x900_glc.png`, `s5/equipment_844x390_glc.png` (notch), `s5/equipment_667x375_glc.png`,
+  `s4/equipment_1600x900_fwd.png` next to durango-equipment-myinfo.webp: tan My Info band, dark icons on khaki over black
+  label bands, "1102" gold with "321 → 1102 +781", "Replaces: Forager Vest Lv. 12" and "Max health 100 → 156" both whole
+  on the notched phone (cut in half in `s4/equipment_844x390_glc.png` before be5f123f), the hex row, yellow Equip.
+- Forward+ against gl_compatibility (same regions, 1600x900): grid / inspect / backdrop luma within 0.4 on Bag, storage,
+  Character and Equipment (e.g. Bag 63.5 / 46.8 / 77.9 glc against 63.7 / 47.1 / 78.0 Forward+).
+Fixed after looking: NEW ran into "Lv. 12" on the notched phone (six columns); "Max health 100 → 156" cut off on the
+notched phone; the gear facts' hanging "·"; the inspect panel's teal. Differences left: the references' panels are
+see-through over a blurred world, ours are opaque procedural surfaces (a world blur behind a modal is not built); the
+Decorative Gear tab, the portrait's painted face, the red locked tactic hex, the storage panel's Info hex and a durability
+glyph have no counterpart (as in B2 / B3).
+
+Assumptions added in B4 (design section 9, 67-72): 67 screens fade (110 ms) without the 8 px slide, tabs 70 ms, an 80 ms
+bracket settle, a 0.3 s light-up where items land; 68 desktop keys (arrows, Enter, Tab; key events only); 69 the
+survivor does not walk while the bag family is open (the hook below); 70 trait class by shape as well as colour, and in
+words on hover; 71 backdrop / panel / gear-cell tints measured against the references over spec 13 s2's approximate
+values; 72 the gear column's facts one a line.
+
+Hooks (`docs/orchestration/reports/claude-mmo-invui-hooks.patch`, regenerated on 1e64e008, 15 files; `git apply --cached
+--check` passes on that HEAD and it is applied uncommitted in the work tree). New in B4:
+- `scripts/player/player_sim.gd` (W2-PLAYER): `_walk` reads no walking input while `p.ui.visible` (the family is an opaque
+  full-screen modal whose arrow keys are also the movement keys; the survivor no longer walks blind under it with WASD or
+  the arrows either).
+- `tests/t_ui.gd` (W1-UI): `inv_motion.gd` joins OWNED.
+Unchanged from B3: crafting / station_craft / player / player_actions craft picks, craft_ui's picker buttons, save_game
+rebaseline, save_sanitizer presets, inventory.gd (presets, lock skips, span uid), player_actions equip / unequip / hold /
+lock / eat, hunt_hud's Character entry, the W1-UI labs, inventory_lab.
+
+Owner gates: none. No save field, money or authority change in B4. One behaviour to know: with the bag family open the
+survivor stands still (hook above).
+
+Limits: the first open of a session pays 45-80 ms more for its first frame (above); gamepad navigation inside the family
+is not added (the d-pad keeps its game bindings; Back still toggles the bag); Detailed Stats has no key navigation (Esc closes it); screen opening is a fade, not a slide; hover tips are
+desktop only (the same facts are in the inspect panel); the panels are opaque, the references' see-through blur over the
+world is not reproduced.

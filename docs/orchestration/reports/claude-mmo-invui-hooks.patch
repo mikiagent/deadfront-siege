@@ -11,7 +11,7 @@ index 479f1713..f4b41396 100644
  	var extras: Variant = data.get("player", {}).get("inventory_extras", null)
  	if extras is Dictionary:
 diff --git a/game/scripts/core/save_sanitizer.gd b/game/scripts/core/save_sanitizer.gd
-index 93d39900..251c437c 100644
+index e95cce81..af9b89c3 100644
 --- a/game/scripts/core/save_sanitizer.gd
 +++ b/game/scripts/core/save_sanitizer.gd
 @@ -20,7 +20,7 @@ static var abort_for_test := false
@@ -233,7 +233,7 @@ index 914c5308..5198cfb4 100644
 +		print("[invlab] PASS empty_cells=100/97 slots=100 cells=100 stones=16 stack45=true lock_pip=true equip_l30=true full_unequip_notice=true")
  	get_tree().quit(0 if _fails.is_empty() else 1)
 diff --git a/game/scripts/dev/ui_family_lab.gd b/game/scripts/dev/ui_family_lab.gd
-index 08a7438c..87d384d2 100644
+index eb33c240..02b4b971 100644
 --- a/game/scripts/dev/ui_family_lab.gd
 +++ b/game/scripts/dev/ui_family_lab.gd
 @@ -36,7 +36,7 @@ func _ready() -> void:
@@ -338,7 +338,7 @@ index c07ec418..419ea453 100644
  	ui.queue_free()
  	var animals := AnimalScreen.new()
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index bd6dd4de..a23a1d9e 100644
+index 15e23db8..45e5748e 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
 @@ -21,11 +21,14 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
@@ -473,7 +473,7 @@ index bd6dd4de..a23a1d9e 100644
  	var out: Array[Dictionary] = []
  	var plan := _plan(inv, rec, picks)
  	for i in plan.size():
-@@ -302,7 +327,7 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
+@@ -309,7 +334,7 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
  			return "needs materials and crafting skill for level %d" % minimum
  	return ""
  
@@ -482,7 +482,7 @@ index bd6dd4de..a23a1d9e 100644
  	if rec.is_empty():
  		return false
  	if progression_block(player, rec) != "":
-@@ -339,7 +364,7 @@ static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
+@@ -346,7 +371,7 @@ static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
  	else:
  		World.add_xp(6 + int(recipe_seconds(rec)))
  
@@ -491,7 +491,7 @@ index bd6dd4de..a23a1d9e 100644
  	if not can_make(player, rec, picks):
  		return null
  	var burnt := rolls_burn(rec, skill_level_for(rec, player), rng)
-@@ -351,14 +376,14 @@ static func craft(player: Player, rec: Dictionary, picks: Array[int], rng: Rando
+@@ -358,14 +383,14 @@ static func craft(player: Player, rec: Dictionary, picks: Array[int], rng: Rando
  
  ## Would the output still fit after the inputs leave the bag? Checked on a scratch copy so a
  ## full bag refuses before anything is consumed (sec-loss-08).
@@ -508,7 +508,7 @@ index bd6dd4de..a23a1d9e 100644
  	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
  	consume_for_craft(scratch, rec, picks)
  	return scratch.can_accept(out)
-@@ -441,7 +466,7 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
+@@ -450,7 +475,7 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
  		_:
  			return cat
  
@@ -841,11 +841,26 @@ index 1f84a3d6..e63aa758 100644
  ## Confirm the building ghost (place_confirm key or tap on the ghost).
  func place_confirm() -> bool:
  	if online:
+diff --git a/game/scripts/player/player_sim.gd b/game/scripts/player/player_sim.gd
+index 1595640d..684b3053 100644
+--- a/game/scripts/player/player_sim.gd
++++ b/game/scripts/player/player_sim.gd
+@@ -111,7 +111,9 @@ func tick(delta: float) -> void:
+ 	p.controls.sync_touch_context()
+ 
+ func _walk(delta: float) -> void:
+-	var input := input_vector()
++	# INVUI: the bag family is a full-screen modal whose arrow keys move its selection; the survivor
++	# does not walk blind under it.
++	var input := Vector2.ZERO if p.ui and p.ui.visible else input_vector()
+ 	if input.length_squared() > 0.0:
+ 		p.clear_nav()
+ 		p.view.clear_ground_marker()
 diff --git a/game/scripts/ui/craft_ui.gd b/game/scripts/ui/craft_ui.gd
-index d7187dbb..304b14f5 100644
+index b0afd11f..6aa41001 100644
 --- a/game/scripts/ui/craft_ui.gd
 +++ b/game/scripts/ui/craft_ui.gd
-@@ -34,6 +34,10 @@ var _refresh_left: float = 0.0
+@@ -35,6 +35,10 @@ var _refresh_left: float = 0.0
  var _selected_id: String = ""
  var _footer: HBoxContainer
  var _phone_detail := false  ## phone only: the detail sheet is up instead of the list
@@ -856,7 +871,7 @@ index d7187dbb..304b14f5 100644
  
  func _ready() -> void:
  	visible = false
-@@ -328,8 +332,9 @@ func _output_name(rec: Dictionary) -> String:
+@@ -329,8 +333,9 @@ func _output_name(rec: Dictionary) -> String:
  		return out_def.display_name
  	return str(rec.get("display_name", rec.get("id", "?"))).replace("_", " ").capitalize()
  
@@ -868,7 +883,7 @@ index d7187dbb..304b14f5 100644
  	var row := HFlowContainer.new()
  	row.add_theme_constant_override("h_separation", 12)
  	row.add_theme_constant_override("v_separation", 8)
-@@ -351,6 +356,11 @@ func _ingredients_row(rec: Dictionary) -> Control:
+@@ -352,6 +357,11 @@ func _ingredients_row(rec: Dictionary) -> Control:
  			sample_id = player.inventory.slots[picks[i]].def_id
  		else:
  			sample_id = Crafting.sample_def_for_category(player.inventory, cat)
@@ -880,7 +895,7 @@ index d7187dbb..304b14f5 100644
  		var cell := HBoxContainer.new()
  		cell.add_theme_constant_override("separation", 4)
  		var ic := TextureRect.new()
-@@ -362,8 +372,6 @@ func _ingredients_row(rec: Dictionary) -> Control:
+@@ -363,8 +373,6 @@ func _ingredients_row(rec: Dictionary) -> Control:
  		ic.visible = ic.texture != null  # no empty 24 px gap before an icon-less ingredient
  		cell.add_child(ic)
  		var l := Label.new()
@@ -889,7 +904,7 @@ index d7187dbb..304b14f5 100644
  		l.text = "%s %d/%d" % [nm, mini(have, need), need]
  		l.add_theme_font_size_override("font_size", 14)
  		l.add_theme_color_override("font_color", Color(0.8, 0.85, 0.75) if have >= need else Color(1.0, 0.55, 0.45))
-@@ -371,6 +379,101 @@ func _ingredients_row(rec: Dictionary) -> Control:
+@@ -372,6 +380,101 @@ func _ingredients_row(rec: Dictionary) -> Control:
  		row.add_child(cell)
  	return row
  
@@ -991,7 +1006,7 @@ index d7187dbb..304b14f5 100644
  func _choose_recipe(rid: String) -> void:
  	_selected_id = rid
  	_phone_detail = _single_pane()
-@@ -392,9 +495,14 @@ func _apply_phone_pane() -> void:
+@@ -393,9 +496,14 @@ func _apply_phone_pane() -> void:
  	_footer.visible = sheet or (_pinned_actions() and not single)
  
  func _start(rec: Dictionary, count: int) -> void:
@@ -1007,7 +1022,7 @@ index d7187dbb..304b14f5 100644
  
  ## {exists, near, dist} for a station kind, from the survivor's position.
  func _station_info(sid: String) -> Dictionary:
-@@ -459,7 +567,7 @@ func _show_detail(info: Dictionary) -> void:
+@@ -471,7 +579,7 @@ func _show_detail(info: Dictionary) -> void:
  	need.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
  	need.add_theme_color_override("font_color", UiTokens.META)
  	_detail.add_child(need)
@@ -1017,10 +1032,10 @@ index d7187dbb..304b14f5 100644
  	if missing != "":
  		var lock := Label.new()
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
-index 80b01e5b..efee0cd3 100644
+index 6f25ecbc..f2147f10 100644
 --- a/game/scripts/ui/hunt_hud.gd
 +++ b/game/scripts/ui/hunt_hud.gd
-@@ -741,6 +741,7 @@ func _toggle_sheet(kind: StringName) -> void:
+@@ -743,6 +743,7 @@ func _toggle_sheet(kind: StringName) -> void:
  		&"menu":
  			title.text = "Menu"
  			_sheet_btn(box, "Bag", func () -> void: _close_sheet(); if player.ui: player.ui.visible = not player.ui.visible)
@@ -1029,10 +1044,10 @@ index 80b01e5b..efee0cd3 100644
  			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
  			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
 diff --git a/game/tests/t_ui.gd b/game/tests/t_ui.gd
-index 4b18ac78..6ec9ed03 100644
+index 4b18ac78..3bbef5c3 100644
 --- a/game/tests/t_ui.gd
 +++ b/game/tests/t_ui.gd
-@@ -13,6 +13,16 @@ const OWNED := [
+@@ -13,6 +13,17 @@ const OWNED := [
  	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
  	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
  	"res://scripts/ui/hud_layout.gd", "res://scripts/ui/hud_pills.gd",
@@ -1046,6 +1061,7 @@ index 4b18ac78..6ec9ed03 100644
 +	"res://scripts/ui/inv_stats.gd", "res://scripts/ui/equipment_slot.gd", "res://scripts/ui/gear_preset_selector.gd",
 +	"res://scripts/ui/gear_screen.gd", "res://scripts/ui/character_screen.gd", "res://scripts/ui/detailed_stats_panel.gd",
 +	"res://scripts/ui/equipment_screen.gd", "res://scripts/ui/item_picker.gd", "res://scripts/ui/filter_rail.gd",
++	"res://scripts/ui/inv_motion.gd",
  ]
  const TYPE_MIN := 12
  ## The HUD and bag joined W1-UI late (orchestrator option a). The bag is emoji-free; the HUD's rail
