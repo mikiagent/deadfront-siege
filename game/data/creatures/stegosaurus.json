@@ -41,7 +41,8 @@
     "stride_matched": true,
     "mesh": "Tripo H3.1 mesh (orchestrator session), rotated to face -Z, scaled to 6.4 m, seams welded; textures 2048",
     "rig_and_animation": "Opus builder in Blender: 34 bones incl. jaw and 7 tail bones, IK feet, heat weights with rigid plates/spikes",
-    "recolour": "gentle global hue grade of Tripo's original colour map (work/tripo_grade.py), no masks",
+    "recolour": "gentle global hue grade of Tripo's original colour map (work/tripo_grade.py), no masks; then STEGO-ART: per-region HSV grade toward the concept sheet (olive green-brown hide, cream belly, rust plates, ivory spikes; tools/blender/stegosaurus_art/recolour.py)",
+    "thagomizer": "STEGO-ART: 8 Tripo spikes cut to 4 (two pairs, up and back), holes capped, kept vertices and the skeleton byte-identical (tools/blender/stegosaurus_art/build.sh)",
     "clips": [
       "idle",
       "walk",

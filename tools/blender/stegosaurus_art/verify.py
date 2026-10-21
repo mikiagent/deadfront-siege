@@ -3,7 +3,7 @@
 # Exit 1 on any failure.
 import os, sys, json, collections
 import numpy as np
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); sys.dont_write_bytecode = True
 import glb_io
 
 SRC, DST = sys.argv[sys.argv.index("--") + 1:][:2]

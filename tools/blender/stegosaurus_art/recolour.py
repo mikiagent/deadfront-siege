@@ -9,7 +9,7 @@
 import os, sys, colorsys
 import numpy as np
 import bpy
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); sys.dont_write_bytecode = True
 import glb_io
 
 args = sys.argv[sys.argv.index("--") + 1:]

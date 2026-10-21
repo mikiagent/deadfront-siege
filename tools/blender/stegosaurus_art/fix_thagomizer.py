@@ -7,7 +7,7 @@
 # plain tail skin at that skin's own texel density.
 import os, sys, collections
 import numpy as np
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); sys.dont_write_bytecode = True
 import glb_io
 
 args = sys.argv[sys.argv.index("--") + 1:]
