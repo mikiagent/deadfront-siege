@@ -49,7 +49,7 @@ index 81067c7a..0f553690 100644
  func _should_think(frame: int) -> bool:
  	return _full_rate() or (frame + _think_phase) % _think_every() == 0
 diff --git a/game/scripts/player/player_input.gd b/game/scripts/player/player_input.gd
-index 53380b23..41680dd9 100644
+index e550c697..342b8367 100644
 --- a/game/scripts/player/player_input.gd
 +++ b/game/scripts/player/player_input.gd
 @@ -270,6 +270,10 @@ func interact_tap_target(col: Object) -> void:
@@ -84,10 +84,10 @@ index 53380b23..41680dd9 100644
  		var owner := (col as Area3D).get_parent()
  		if owner is HarvestNode or owner is CraftStation or owner is Bonfire:
 diff --git a/game/scripts/player/player_sim.gd b/game/scripts/player/player_sim.gd
-index 1595640d..357b1c0e 100644
+index cc94d94e..aa06e970 100644
 --- a/game/scripts/player/player_sim.gd
 +++ b/game/scripts/player/player_sim.gd
-@@ -361,7 +361,7 @@ func _request_tile_path() -> void:
+@@ -364,7 +364,7 @@ func _request_tile_path() -> void:
  	var pathing: Variant = World.runtime.get("pathing")
  	if pathing == null:
  		return
@@ -97,10 +97,10 @@ index 1595640d..357b1c0e 100644
  	# A plain ground move to a tile nothing reaches stops at the closest reachable tile and says
  	# so, instead of pressing into the wall for 10 s (phys-path-01). Targets keep their own goal.
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
-index 04f53003..5500ef26 100644
+index ed0b7728..107dc715 100644
 --- a/game/scripts/ui/hunt_hud.gd
 +++ b/game/scripts/ui/hunt_hud.gd
-@@ -792,17 +792,27 @@ func _toggle_sheet(kind: StringName) -> void:
+@@ -794,17 +794,27 @@ func _toggle_sheet(kind: StringName) -> void:
  				if fp is Array and (fp as Array).size() >= 2:
  					fp_txt = "  %d×%d" % [int(fp[0]), int(fp[1])]
  				_sheet_btn(box, "%s%s  ×%d" % [def.display_name, fp_txt, s.count], func () -> void: _close_sheet(); player.placer.begin(kind_id))
@@ -129,18 +129,18 @@ index 04f53003..5500ef26 100644
  	var b := Button.new()
  	b.text = text
 diff --git a/game/tests/t_save.gd b/game/tests/t_save.gd
-index 973340ac..1e2bd0a9 100644
+index 7f6476a4..6bd262fa 100644
 --- a/game/tests/t_save.gd
 +++ b/game/tests/t_save.gd
-@@ -159,8 +159,10 @@ func _test_round_trip(name: String) -> void:
- 	if name.begins_with("save_v3_"):
- 		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
- 		var gd: Array[String] = []
--		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
-+		# y is re-seated on the terrain at load; the schema marker moves on to the current one.
-+		_same(golden, s1, "", gd, ["/player/position/1", "/schema"])
- 		_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
-+		_check(int(s1.get("schema", -1)) == int(SG.SCHEMA), "v3 golden re-saves at the current schema")
- 	print("[t_save] round trip %s fields=%d diffs=%d" % [name, s1.size(), diffs.size()])
- 	await process_frame
- 
+@@ -171,8 +171,10 @@ func _check_v3_golden(name: String, s1: Dictionary) -> void:
+ 	_check(not (golden["skills_v2"] as Dictionary).has("rev"), "%s is still a rev-1 save (the migration input)" % name)
+ 	golden.erase("skills_v2")
+ 	var gd: Array[String] = []
+-	_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
++	# y is re-seated on the terrain at load; the schema marker moves on to the current one.
++	_same(golden, s1, "", gd, ["/player/position/1", "/schema"])
+ 	_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
++	_check(int(s1.get("schema", -1)) == int(SG.SCHEMA), "v3 golden re-saves at the current schema")
+ 	var want: Variant = (JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_skills_rev2.json")) as Dictionary).get(name)
+ 	var sd: Array[String] = []
+ 	_same(want, s1.get("skills_v2"), "/skills_v2", sd)
