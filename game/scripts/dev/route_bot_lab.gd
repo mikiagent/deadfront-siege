@@ -3,12 +3,13 @@ extends Node3D
 ## spots on one island and measures every walk, one physics frame at a time.
 ## Reference: a 1 m grid of tiles where the survivor's capsule physically fits (dry terrain, no body
 ## but the ground overlapping it), searched 8-way without cutting corners. A target is a random tile on
-## it 8-40 m from the survivor with a reference path under 60 m. Routes chain: each starts where the last
+## it 8-40 m from the survivor with a reference path under 60 m; every other one is 1-3 m from a
+## resource node (where players tap, and where the trunks are). Routes chain: each starts where the last
 ## ended. Wild animals are removed and vitals topped up before each route (lab set-up: this measures the
 ## router and the walk, not fights or stamina).
 ## Buildings: before the reference is built the bot places a player compound near the start through the
-## real placer (fences on three sides with a 4 m opening, a closed gate, a tent, a workbench and baskets
-## inside). Halfway it opens the gate. Every DROP_EVERY-th route it drops a fence across the planned
+## real placer (fences on three sides with a 4 m opening, a closed gate, a tent and a workbench
+## inside). At route GATE_AT it opens the gate. Every DROP_EVERY-th route it drops a fence across the planned
 ## path 3-6 m ahead of the walking survivor and takes it away after the route (a dynamic obstacle); those
 ## routes are left out of the length gate, since the reference did not know the fence.
 ## Per route: arrived (within ARRIVE_M of the tapped tile's centre, in time), the longest stuck stretch
@@ -29,6 +30,10 @@ const LENGTH_GATE := 1.15
 const MIN_MOVING := 1.0       ## m/s: the heading is read only while moving at least this fast
 const NO_TILE := Vector2i(-2147483648, -2147483648)
 const DROP_EVERY := 5
+const GATE_AT := 50           ## route index at which the compound's gate opens
+## Mean heading change per metre walked (deg/m). The base measured 11-13.5 on the three islands (zig-zag
+## around waypoints, re-plans every 1.5 s, scraping along trunks and fences); the gate asks for half.
+const HEADING_BOUND := 6.0
 
 var _player: Player
 var _rt: IslandRuntime
@@ -37,7 +42,7 @@ var _region := Rect2i()
 var _rng := RandomNumberGenerator.new()
 var _island: StringName = &"home_grassland"
 var _routes := 100
-var _bound := -1.0
+var _bound := HEADING_BOUND
 var _out := ""
 var _shots := false
 var _rows: Array[Dictionary] = []
@@ -45,6 +50,7 @@ var _fails: Array[String] = []
 var _floor_rid := RID()
 var _trails: Array = []       ## per route: [ref tiles (Array[Vector2i]), trail (PackedVector2Array), touches (PackedVector2Array)]
 var _gate: Node3D
+var _compound_at := NO_TILE
 var _drops := 0
 var _trace := -1
 
@@ -95,11 +101,11 @@ func _run() -> void:
 	for i in _routes:
 		_clear_creatures()
 		_top_up()
-		if i == _routes / 2 and _gate and is_instance_valid(_gate):
+		if i == GATE_AT and _gate and is_instance_valid(_gate):
 			_gate.call("set_gate_open", true)
 			await get_tree().physics_frame
 			_retest_ref(_gate)
-		var goal := _pick_target()
+		var goal := _pick_target(i % 2 == 1)
 		if goal == NO_TILE:
 			_expect(false, "route %d: a reachable target 8-40 m off" % i)
 			break
@@ -186,6 +192,7 @@ func _build_compound() -> int:
 			grid.ignore_distance = false
 			for g in get_tree().get_nodes_in_group("gate"):
 				_gate = g as Node3D
+			_compound_at = a
 			print("[route] compound at (%d,%d): %d pieces" % [a.x, a.y, n])
 			return n
 	return 0
@@ -266,14 +273,24 @@ static func _tiles_len(tiles: Array[Vector2i]) -> float:
 		d += Vector2(tiles[k] - tiles[k - 1]).length()
 	return d
 
-func _pick_target() -> Vector2i:
+func _pick_target(near_node: bool) -> Vector2i:
 	var from := _start_tile()
 	if from == NO_TILE:
 		return NO_TILE
+	var nodes: Array[Node3D] = []
+	if near_node:
+		for n in get_tree().get_nodes_in_group("harvest"):
+			var hn := n as HarvestNode
+			if hn and hn.visible and hn.collision_layer != 0:
+				var d := _flat(hn.global_position).distance_to(_flat(_player.global_position))
+				if d >= 8.0 and d <= 40.0:
+					nodes.append(hn)
 	for attempt in 400:
 		var ang := _rng.randf() * TAU
 		var dist := _rng.randf_range(8.0, 40.0)
 		var at := _player.global_position + Vector3(cos(ang), 0.0, sin(ang)) * dist
+		if not nodes.is_empty():
+			at = nodes[_rng.randi() % nodes.size()].global_position + Vector3(cos(ang), 0.0, sin(ang)) * _rng.randf_range(1.0, 3.0)
 		var tile := BuildGrid.tile_of(at)
 		if not _region.has_point(tile) or _ref.is_point_solid(tile):
 			continue
@@ -463,37 +480,41 @@ static func _pct(sorted: Array[float], q: float) -> float:
 # ---------------------------------------------------------------- top-view map
 
 func _map() -> void:
-	const PX := 3
-	var img := Image.create(_region.size.x * PX, _region.size.y * PX, false, Image.FORMAT_RGB8)
+	_map_image(_region, clampi(900 / maxi(_region.size.x, 1), 3, 8), "route_map_%s.png" % _island)
+	if _compound_at != NO_TILE:
+		_map_image(Rect2i(_compound_at - Vector2i(14, 14), Vector2i(36, 36)), 14, "route_compound_%s.png" % _island)
+
+## Top view of `rect` at `px` pixels a tile: ground, the reference's blocked tiles (dark), tiles only the
+## router blocks (brown), reference paths (blue), walked trails (yellow), contact with a solid (red).
+func _map_image(rect: Rect2i, px: int, file: String) -> void:
+	var img := Image.create(rect.size.x * px, rect.size.y * px, false, Image.FORMAT_RGB8)
 	img.fill(Color(0.12, 0.2, 0.32))
-	for z in range(_region.position.y, _region.end.y):
-		for x in range(_region.position.x, _region.end.x):
+	var o := Vector2(rect.position)
+	for z in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
 			var tile := Vector2i(x, z)
-			var c := BuildGrid.tile_centre(tile, _rt)
-			var col := Color(0.32, 0.42, 0.26)
-			if not _rt.spawn_ok(c, false):
+			if not _region.has_point(tile) or not _rt.spawn_ok(BuildGrid.tile_centre(tile, _rt), false):
 				continue
+			var col := Color(0.32, 0.42, 0.26)
 			if _ref.is_point_solid(tile):
 				col = Color(0.15, 0.15, 0.13)
 			elif not _rt.pathing.is_walkable(tile):
-				col = Color(0.45, 0.4, 0.25)  # the router's own blocked tiles where the capsule would fit
-			img.fill_rect(Rect2i((tile - _region.position) * PX, Vector2i(PX, PX)), col)
+				col = Color(0.45, 0.4, 0.25)
+			img.fill_rect(Rect2i((tile - rect.position) * px, Vector2i(px, px)), col)
+	var to_px := func (w: Vector2) -> Vector2i: return Vector2i(((w - o) * float(px)).floor())
 	for tr in _trails:
 		var ref: Array[Vector2i] = tr[0]
 		for k in range(1, ref.size()):
-			_line(img, _px(Vector2(ref[k - 1]) + Vector2(0.5, 0.5)), _px(Vector2(ref[k]) + Vector2(0.5, 0.5)), Color(0.4, 0.6, 1.0))
+			_line(img, to_px.call(Vector2(ref[k - 1]) + Vector2(0.5, 0.5)), to_px.call(Vector2(ref[k]) + Vector2(0.5, 0.5)), Color(0.4, 0.6, 1.0))
 		var trail: PackedVector2Array = tr[1]
 		for k in range(1, trail.size()):
-			_line(img, _px(trail[k - 1]), _px(trail[k]), Color(1.0, 0.95, 0.6))
+			_line(img, to_px.call(trail[k - 1]), to_px.call(trail[k]), Color(1.0, 0.95, 0.6))
 		for at in (tr[2] as PackedVector2Array):
-			var p := _px(at)
-			img.fill_rect(Rect2i(p - Vector2i(1, 1), Vector2i(3, 3)).intersection(Rect2i(Vector2i.ZERO, img.get_size())), Color(1, 0.15, 0.1))
-	var path := _out.path_join("route_map_%s.png" % _island)
+			var q: Vector2i = to_px.call(at)
+			img.fill_rect(Rect2i(q - Vector2i(2, 2), Vector2i(5, 5)).intersection(Rect2i(Vector2i.ZERO, img.get_size())), Color(1, 0.15, 0.1))
+	var path := _out.path_join(file)
 	img.save_png(path)
 	print("[route] map %s" % path)
-
-func _px(world: Vector2) -> Vector2i:
-	return Vector2i(((world - Vector2(_region.position)) * 3.0).floor())
 
 static func _line(img: Image, a: Vector2i, b: Vector2i, col: Color) -> void:
 	var n := maxi(absi(b.x - a.x), absi(b.y - a.y))

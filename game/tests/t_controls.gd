@@ -9,6 +9,12 @@ extends SceneTree
 ## station); on touch a left-half drag floats up a stick centred on the press (the press itself never reaches
 ## the tap path), a short tap there still taps, the right half, HUD controls, a pinch and building placement
 ## keep their touches, and a desktop click on the left half still walks.
+## B3: on a real island (TilePath), a tap-to-move route is planned once and walked straight, easing off so
+## the survivor stops on the tapped tile (it slid ~0.8 m past it); a fence dropped across the route ahead
+## is walked around without touching it (the route was re-planned only on a timer or after bumping it); a
+## survivor pressed against a fence starts her route on her own side of it (the start tile was the first
+## free one in scan order, often behind the fence); an opened gate is used at once; a blocker the grid
+## does not know stops the route within 2 s with "Can't get there." and no hop (it pushed for ever).
 ## Usage: godot --headless --path game --script res://tests/t_controls.gd   -> "[t_controls] PASS", exit 0/1.
 
 const MAX_STEP := 2.0  ## px a hex, the title or a label may move against the node's anchor in one frame
@@ -68,6 +74,7 @@ func _run() -> void:
 		await _walk_case(dir)
 	await _edge_case()
 	await _b2()
+	await _b3()
 	host.queue_free()
 	await process_frame
 	if failures.is_empty():
@@ -197,6 +204,7 @@ const SPEED_TOL := 0.05  ## m/s
 func _b2() -> void:
 	radial.close()
 	var floor := StaticBody3D.new()
+	floor.name = "B2Floor"
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(160, 1, 160)
@@ -463,3 +471,243 @@ func _stick_refusals(stick) -> void:
 	_touch(0, corner + Vector2(30, -30), false)
 	print("[t_controls] corner press: base %s on screen=%s, stick input %s" % [base, whole, moving])
 	_expect(stick.active == false and whole and moving.x > 0.0 and moving.y < 0.0, "a corner press floats the base whole on screen, deflection from the press")
+
+# ---------------------------------------------------------------- B3: routes on a real island
+
+var _rt: Node3D
+var _pathing
+var _said: Array = []
+var _BG: GDScript  ## BuildGrid by path: `--script` compiles this file before the autoloads it names exist
+
+func _b3() -> void:
+	var b2_floor := host.get_node_or_null("B2Floor")
+	if b2_floor:
+		b2_floor.free()
+	_BG = load("res://scripts/world/build_grid.gd")
+	var world := get_root().get_node("World")
+	world.home_terrain = &"meadow"
+	world.load_island(host, &"home_grassland", Vector3(0, 1, 18), false)
+	await _frames(20)
+	_rt = world.runtime
+	_pathing = _rt.get("pathing")
+	_expect(_rt != null and _pathing != null and player.get_parent() == _rt and player.sim.use_tile_path(), "B3: the survivor routes on the island's TilePath")
+	if _pathing == null:
+		return
+	# Notices land on a stand-in HUD so the test can read them.
+	var hud_script := GDScript.new()
+	hud_script.source_code = "extends Node\nvar said: Array = []\nfunc notice(t: String) -> void:\n\tsaid.append(t)\n"
+	hud_script.reload()
+	var hud := Node.new()
+	hud.set_script(hud_script)
+	hud.add_to_group("hud")
+	host.add_child(hud)
+	_said = hud.said
+	var block := _open_block(Vector2i(24, 13))
+	_expect(block.x != -9999, "B3: an open 24 x 13 block of walkable tiles")
+	if block.x == -9999:
+		return
+	await _b3_straight(block)
+	await _b3_drop(block)
+	await _b3_fence_side(block)
+	await _b3_gate(block)
+	await _b3_give_up(block)
+	hud.queue_free()
+
+func _tile(c: Vector2i) -> Vector3:
+	return _BG.tile_centre(c, _rt)
+
+## Top-left of a block of tiles that are all walkable, nearest the survivor's spawn first.
+func _open_block(size: Vector2i) -> Vector2i:
+	for r in range(0, 50, 2):
+		for z in range(-r, r + 1, 2):
+			for x in range(-r, r + 1, 2):
+				if maxi(absi(x), absi(z)) != r:
+					continue
+				var o := Vector2i(x, z + 12)
+				var ok := true
+				for dz in size.y:
+					for dx in size.x:
+						if not _pathing.is_walkable(o + Vector2i(dx, dz)):
+							ok = false
+							break
+					if not ok:
+						break
+				if ok:
+					return o
+	return Vector2i(-9999, -9999)
+
+func _clear_creatures() -> void:
+	for c in get_root().get_tree().get_nodes_in_group("creatures"):
+		c.queue_free()
+
+func _stand(c: Vector2i, offset := Vector2.ZERO) -> void:
+	_clear_creatures()
+	player.clear_nav()
+	player.actions.cancel_work()
+	var at: Vector3 = _tile(c) + Vector3(offset.x, 0.0, offset.y)
+	at.y = _rt.surface_y(at.x, at.z) + 1.0
+	player.velocity = Vector3.ZERO
+	player.global_position = at
+	player.reset_physics_interpolation()
+	player.vitals.energy = player.vitals.max_energy
+	cam._snap()
+	await _frames(6)
+	_said.clear()
+
+func _fence(cell: Vector2i, rot: int, kind := &"fence") -> Node3D:
+	var grid = _rt.build_grid
+	var f = load("res://scripts/world/placed_building.gd").make(kind)
+	_rt.add_child(f)
+	f.global_transform = grid.placement_transform(kind, cell, rot)
+	f.set_grid_pose(cell, rot)
+	grid.occupy(f, grid.cells_for(kind, cell, rot))
+	return f
+
+## Walks a tap route for up to `limit` s; returns the walk's numbers. `on_frame` runs each frame with t.
+func _walk(goal: Vector3, limit: float, watch: Node = null, on_frame := Callable()) -> Dictionary:
+	player.controls._walk_to_tile(goal)
+	var t := 0.0
+	var walked := 0.0
+	var turn := 0.0
+	var head := INF
+	var contact := 0
+	var hop := 0.0
+	var decel := 0.0
+	var crossed_z := -INF
+	var prev: Vector3 = player.global_position
+	var prev_v := Vector2(player.velocity.x, player.velocity.z)
+	while t < limit and player.nav_active:
+		await physics_frame
+		var dt := 1.0 / float(Engine.physics_ticks_per_second)
+		t += dt
+		var now: Vector3 = player.global_position
+		var step := Vector2(now.x - prev.x, now.z - prev.z).length()
+		walked += step
+		hop = maxf(hop, step)
+		var v := Vector2(player.velocity.x, player.velocity.z)
+		decel = maxf(decel, (prev_v.length() - v.length()) / dt)
+		if v.length() >= 1.0:
+			if head != INF:
+				turn += absf(angle_difference(head, v.angle()))
+			head = v.angle()
+		for k in player.get_slide_collision_count():
+			var who: Object = player.get_slide_collision(k).get_collider()
+			if watch != null and who == watch:
+				contact += 1
+			elif watch == null and who is Node and (who as Node).name != "Floor":
+				contact += 1
+		crossed_z = maxf(crossed_z, -now.z)
+		prev = now
+		prev_v = v
+		if on_frame.is_valid():
+			on_frame.call(t)
+	return {"t": t, "walked": walked, "deg_m": rad_to_deg(turn) / maxf(walked, 0.01), "contact": contact, "hop": hop,
+		"decel": decel, "routed": player.nav_active, "min_z": -crossed_z}
+
+## Open ground: one plan, a straight walk, and she eases off onto the tapped tile instead of sliding past.
+func _b3_straight(block: Vector2i) -> void:
+	await _stand(block + Vector2i(1, 6))
+	var goal := _tile(block + Vector2i(19, 6))
+	var plans := [0]
+	var last_pts := [PackedVector3Array()]
+	var count := func (_t: float) -> void:
+		var pts: PackedVector3Array = player.sim.path_points()
+		if not pts.is_empty() and pts != last_pts[0]:
+			plans[0] += 1
+			last_pts[0] = pts
+	var w := await _walk(goal, 6.0, null, count)
+	await _frames(30)
+	var off: float = Vector2(player.global_position.x - goal.x, player.global_position.z - goal.z).length()
+	var top: float = player.accel + 1.0
+	print("[t_controls] B3 straight: %.2f s walked %.2f m (straight 18.00) deg/m %.2f plans %d, at rest %.2f m from the tile, max decel %.1f m/s2" % [w["t"], w["walked"], w["deg_m"], plans[0], off, w["decel"]])
+	_expect(not w["routed"] and w["walked"] <= 18.0 * 1.03 and w["deg_m"] <= 2.0, "B3: an open 18 m tap route is walked straight (%.2f m, %.2f deg/m)" % [w["walked"], w["deg_m"]])
+	_expect(off <= 0.3, "B3: she stops on the tapped tile, not past it (%.2f m off at rest)" % off)
+	_expect(w["decel"] <= top, "B3: she slows no harder than her acceleration (%.1f m/s2)" % w["decel"])
+
+## A fence dropped across the route 4 m ahead: she re-plans at once and never touches it.
+func _b3_drop(block: Vector2i) -> void:
+	await _stand(block + Vector2i(1, 6))
+	var goal := _tile(block + Vector2i(19, 6))
+	var fence: Array = [null]
+	var drop := func (t: float) -> void:
+		if fence[0] == null and t >= 0.3:
+			var c: Vector2i = _BG.tile_of(player.global_position) + Vector2i(5, -1)
+			fence[0] = _fence(Vector2i(c.x, block.y + 5), 1)  # 1 x 2, across the walk
+			var f2 := _fence(Vector2i(c.x, block.y + 7), 1)
+			f2.name = "DropFence2"
+	var w := await _walk(goal, 8.0, null, drop)
+	var arrived: bool = not w["routed"] and Vector2(player.global_position.x - goal.x, player.global_position.z - goal.z).length() <= 0.5
+	print("[t_controls] B3 drop: fence=%s arrived=%s in %.2f s, walked %.2f m, contact frames %d, said %s" % [fence[0] != null, arrived, w["t"], w["walked"], w["contact"], _said])
+	_expect(fence[0] != null and arrived and w["contact"] == 0, "B3: a fence dropped across the route ahead is walked around without touching it (%d contact frames)" % w["contact"])
+	for f in [fence[0], _rt.get_node_or_null("DropFence2")]:
+		if f:
+			f.queue_free()
+	await _frames(2)
+
+## Pressed against a fence's face (inside its tile row), a tap further along her side walks along her
+## side: the route starts on the nearest free tile, not the first one in scan order behind the fence.
+func _b3_fence_side(block: Vector2i) -> void:
+	var row := block.y + 6
+	var f := _fence(Vector2i(block.x + 8, row), 0)
+	var f2 := _fence(Vector2i(block.x + 10, row), 0)
+	# The fence runs along x through the middle of its row; she stands against its +z face.
+	await _stand(Vector2i(block.x + 9, row), Vector2(0.0, 0.1 + 0.36))
+	var goal := _tile(Vector2i(block.x + 15, row + 2))
+	var w := await _walk(goal, 5.0)
+	var arrived: bool = not w["routed"] and Vector2(player.global_position.x - goal.x, player.global_position.z - goal.z).length() <= 0.5
+	var side_ok: bool = w["min_z"] > float(row) + 0.5
+	print("[t_controls] B3 fence side: arrived=%s in %.2f s, contact frames %d, nearest z %.2f (fence at %.2f)" % [arrived, w["t"], w["contact"], w["min_z"], float(row) + 0.5])
+	_expect(arrived and side_ok and w["contact"] <= 3, "B3: pressed against a fence, a route along her side stays on her side (contact %d frames, z >= %.2f)" % [w["contact"], w["min_z"]])
+	f.queue_free()
+	f2.queue_free()
+	await _frames(2)
+
+## A fence line with a closed gate between her and the goal: she heads round the end, and when the gate
+## opens she takes it (an open gate is passable, a closed one is not).
+func _b3_gate(block: Vector2i) -> void:
+	var col := block.x + 10
+	var parts: Array[Node3D] = []
+	for z in [block.y, block.y + 2, block.y + 4, block.y + 8, block.y + 10]:
+		parts.append(_fence(Vector2i(col, z), 1))
+	var gate := _fence(Vector2i(col, block.y + 6), 1, &"gate")
+	parts.append(gate)
+	await _stand(block + Vector2i(4, 7))
+	var goal := _tile(block + Vector2i(16, 7))
+	var open := func (t: float) -> void:
+		if t >= 0.2 and not gate.get("gate_open"):
+			gate.call("set_gate_open", true)
+	var w := await _walk(goal, 8.0, gate, open)
+	var arrived: bool = not w["routed"] and Vector2(player.global_position.x - goal.x, player.global_position.z - goal.z).length() <= 0.5
+	print("[t_controls] B3 gate: arrived=%s in %.2f s, walked %.2f m (12.00 straight through the gate), gate contact %d" % [arrived, w["t"], w["walked"], w["contact"]])
+	_expect(arrived and w["walked"] <= 13.5 and w["contact"] == 0, "B3: an opened gate is used at once (walked %.2f m)" % w["walked"])
+	for p_ in parts:
+		p_.queue_free()
+	await _frames(2)
+
+## A blocker the grid does not know (a wall body with no cells): she re-plans, then gives up within 2 s of
+## pushing with a notice, and never hops.
+func _b3_give_up(block: Vector2i) -> void:
+	await _stand(block + Vector2i(2, 6))
+	var wall := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.4, 3.0, 13.0)
+	cs.shape = box
+	wall.add_child(cs)
+	_rt.add_child(wall)
+	var mid := _tile(block + Vector2i(8, 6))
+	wall.global_position = Vector3(mid.x, _rt.surface_y(mid.x, mid.z) + 1.0, mid.z)
+	var goal := _tile(block + Vector2i(14, 6))
+	var first := [-1.0]
+	var note := func (t: float) -> void:
+		if first[0] < 0.0:
+			for k in player.get_slide_collision_count():
+				if player.get_slide_collision(k).get_collider() == wall:
+					first[0] = t
+	var w := await _walk(goal, 8.0, wall, note)
+	var pushing: float = w["t"] - first[0] if first[0] >= 0.0 else -1.0
+	print("[t_controls] B3 give up: routed after %.2f s=%s, pushed %.2f s, said %s, biggest frame step %.3f m" % [w["t"], w["routed"], pushing, _said, w["hop"]])
+	_expect(not w["routed"] and pushing >= 0.0 and pushing <= 2.0 and _said.has("Can't get there."), "B3: a blocker the grid does not know ends the route within 2 s with \"Can't get there.\" (pushed %.2f s)" % pushing)
+	_expect(w["hop"] <= player.sprint_speed / 60.0 * 1.25 + 0.05, "B3: no hop while stuck (biggest step %.3f m)" % w["hop"])
+	wall.queue_free()
+	await _frames(2)

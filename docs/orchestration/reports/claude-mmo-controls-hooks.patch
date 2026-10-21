@@ -45,6 +45,189 @@ index 53380b23..d21f04b6 100644
  			_desktop_click_fallback_pending = true
  			_desktop_click_fallback.call_deferred(mb.position)
  
+diff --git a/game/scripts/player/player_sim.gd b/game/scripts/player/player_sim.gd
+index 1595640d..b2c485c7 100644
+--- a/game/scripts/player/player_sim.gd
++++ b/game/scripts/player/player_sim.gd
+@@ -14,14 +14,9 @@ const ROLL_CLIP_SECONDS := 0.45
+ var p: Player
+ ## Tap-run or sprint this frame; the anim tick and footsteps read it.
+ var running: bool = false
+-var _path_points := PackedVector3Array()
+-var _path_index: int = 0
+-var _path_replan_left: float = 0.0
+-var _path_anchor := Vector3.ZERO
+-var _path_blocked_left: float = 0.0
++var route: RouteWalker
+ var _stall_pos := Vector3.ZERO
+ var _path_stuck: float = 0.0  ## cumulative seconds the survivor has not moved while routed
+-var _unreachable_said: bool = false
+ var _roll_left: float = 0.0
+ var _roll_direction := Vector3.ZERO
+ var _roll_through: Array[Creature] = []
+@@ -38,6 +33,7 @@ var _autofeed_cd: float = 0.0
+ 
+ func _init(player: Player) -> void:
+ 	p = player
++	route = RouteWalker.new(player)
+ 
+ ## Dead: no input, only gravity.
+ func hold_still(delta: float) -> void:
+@@ -131,7 +127,7 @@ func _walk(delta: float) -> void:
+ 	var target_speed := p.sprint_speed if can_sprint else (p.run_speed if running else p.walk_speed)
+ 	target_speed *= p.statuses.move_mult()
+ 	if p.nav_active:
+-		dir = _nav_dir(delta, dir)
++		dir = _route_dir(delta, target_speed) if use_tile_path() else _nav_dir(delta, dir)
+ 	var horizontal := Vector3(p.velocity.x, 0.0, p.velocity.z)
+ 	horizontal = horizontal.move_toward(dir * target_speed, p.accel * delta)
+ 	p.velocity.x = horizontal.x
+@@ -159,17 +155,26 @@ func _walk(delta: float) -> void:
+ 	if p.anim:
+ 		p.anim._physics_tick(Vector2(p.velocity.x, p.velocity.z).length(), running)
+ 
+-## Steering while routed. Neither router promises a walkable answer: the tile graph returns a
+-## degenerate route when the goal tile is occupied (a bush and its collider sit on it), and
+-## NavigationAgent3D does the same when its map is not ready. Walk straight at the goal in both
+-## cases, and give up rather than freeze.
++## Steering on an island's tile route (RouteWalker): it ends arrived or gives up with a notice.
++func _route_dir(delta: float, top_speed: float) -> Vector3:
++	var d := route.steer(delta, top_speed)
++	if route.arrived or route.gave_up:
++		p.nav_active = false
++		route.clear()
++		if route.arrived:
++			p.actions.on_arrived()
++		else:
++			p.view.clear_ground_marker()
++			p.actions.cancel_work()
++	return d
++
++## Steering on the NavigationAgent3D route (labs and tests without an island). It returns a
++## degenerate route when its map is not ready: walk straight at the goal then, and give up rather
++## than freeze.
+ func _nav_dir(delta: float, dir: Vector3) -> Vector3:
+ 	var next_dir := Vector3.ZERO
+ 	var finished := false
+-	if use_tile_path():
+-		next_dir = _tile_nav_dir(delta)
+-		finished = next_dir.length_squared() <= 0.0
+-	elif not p.agent.is_navigation_finished():
++	if not p.agent.is_navigation_finished():
+ 		var to := p.agent.get_next_path_position() - p.global_position
+ 		to.y = 0.0
+ 		if to.length_squared() > 0.0001:
+@@ -321,28 +326,23 @@ func nav_to(pos: Vector3) -> void:
+ 		return
+ 	p.nav_active = true
+ 	p._path_goal = pos
+-	_path_replan_left = 0.0
+-	_path_anchor = p.global_position
+ 	_stall_pos = p.global_position
+-	_path_blocked_left = 0.0
+ 	_path_stuck = 0.0
+-	_unreachable_said = false
+ 	if use_tile_path():
+-		_request_tile_path()
++		route.start(World.runtime.get("pathing") as TilePath)
+ 	else:
+ 		p.agent.target_position = pos
+ 
+ func clear_nav() -> void:
+ 	p.nav_active = false
+-	_path_points = PackedVector3Array()
+-	_path_index = 0
++	route.clear()
+ 	p.agent.target_position = p.global_position
+ 
+ func path_points() -> PackedVector3Array:
+-	return _path_points
++	return route.points
+ 
+ func path_index() -> int:
+-	return _path_index
++	return route.index
+ 
+ func use_tile_path() -> bool:
+ 	return World.runtime != null and World.runtime.get("pathing") != null and p.get_parent() == World.runtime
+@@ -355,57 +355,6 @@ func closest_nav_point(pos: Vector3) -> Vector3:
+ 		return pos
+ 	return NavigationServer3D.map_get_closest_point(map, pos)
+ 
+-func _request_tile_path() -> void:
+-	if not use_tile_path():
+-		return
+-	var pathing: Variant = World.runtime.get("pathing")
+-	if pathing == null:
+-		return
+-	_path_points = pathing.path(p.global_position, p._path_goal, 96)
+-	_path_index = 0
+-	# A plain ground move to a tile nothing reaches stops at the closest reachable tile and says
+-	# so, instead of pressing into the wall for 10 s (phys-path-01). Targets keep their own goal.
+-	var end := _path_points[_path_points.size() - 1] if not _path_points.is_empty() else p._path_goal
+-	if not bool(pathing.get("last_reachable")) and not p.actions.has_target() and end.distance_to(p._path_goal) > 2.5:
+-		p._path_goal = end
+-		if not _unreachable_said:
+-			_unreachable_said = true
+-			p.notice("Can't get all the way there.")
+-	# Skip waypoints already behind us (a re-plan starts at the current tile's centre, which
+-	# would otherwise make the survivor step back to it and jitter).
+-	while _path_points.size() > _path_index + 1:
+-		var p0 := _path_points[_path_index]
+-		var seg := _path_points[_path_index + 1] - p0
+-		seg.y = 0.0
+-		var rel := p.global_position - p0
+-		rel.y = 0.0
+-		if seg.dot(rel) > 0.0 and rel.length() < 1.5:
+-			_path_index += 1
+-		else:
+-			break
+-
+-func _tile_nav_dir(delta: float) -> Vector3:
+-	_path_replan_left -= delta
+-	if _path_points.is_empty() or _path_replan_left <= 0.0:
+-		_request_tile_path()
+-		_path_replan_left = 1.5
+-	if _path_points.is_empty():
+-		return Vector3.ZERO
+-	while _path_index < _path_points.size():
+-		var to := _path_points[_path_index] - p.global_position
+-		to.y = 0.0
+-		var last := _path_index == _path_points.size() - 1
+-		# The last waypoint is the target's own tile centre; bushes, corpses and animals have
+-		# colliders there, so the survivor stops short. Count that as arrived within reach.
+-		if to.length() <= (_arrive_tolerance() if last else 0.25):
+-			_path_index += 1
+-			continue
+-		if _track_tile_blocked(delta) and last and to.length() <= 2.2:
+-			_path_index += 1  # pushed up against something at the goal: close enough
+-			continue
+-		return to.normalized()
+-	return Vector3.ZERO
+-
+ func _arrive_tolerance() -> float:
+ 	return 1.5 if p.actions.has_target() else 0.25
+ 
+@@ -440,19 +389,6 @@ func _stalled(delta: float) -> bool:
+ 	_path_stuck += delta
+ 	return _path_stuck > 1.2
+ 
+-func _track_tile_blocked(delta: float) -> bool:
+-	if p.global_position.distance_to(_path_anchor) > 0.06:
+-		_path_anchor = p.global_position
+-		_path_blocked_left = 0.0
+-		return false
+-	_path_blocked_left += delta
+-	if _path_blocked_left >= 0.35:
+-		_request_tile_path()
+-		_path_blocked_left = 0.0
+-		_path_anchor = p.global_position
+-		return true
+-	return false
+-
+ # ---------------------------------------------------------------- sleep
+ 
+ ## ASSUMPTION: straw rolls take 12 seconds and restore 65 exhaustion once;
 diff --git a/game/scripts/ui/gather_radial.gd b/game/scripts/ui/gather_radial.gd
 index 36c2c99d..73d8ef46 100644
 --- a/game/scripts/ui/gather_radial.gd
@@ -261,3 +444,140 @@ index fa633e9b..28b0933d 100644
  	for b: Node in _buttons.get_children():
  		var btn := b as TouchScreenButton
  		if btn == null or not btn.visible:
+diff --git a/game/scripts/world/tile_path.gd b/game/scripts/world/tile_path.gd
+index e48e943c..565ab05c 100644
+--- a/game/scripts/world/tile_path.gd
++++ b/game/scripts/world/tile_path.gd
+@@ -16,6 +16,9 @@ var runtime: Node3D
+ ## False after path() when the goal tile cannot be reached (enclosed, or off the walkable
+ ## grid); the returned points then stop at the closest reachable tile.
+ var last_reachable: bool = true
++## Bumped whenever a tile may have changed (a cell re-flagged or a pending refresh): a walker
++## holding a route re-checks it when this moves.
++var revision: int = 0
+ var _astar := AStarGrid2D.new()
+ var _region: Rect2i = Rect2i()
+ var _dirty: bool = false
+@@ -31,6 +34,7 @@ func setup(owner_runtime: Node3D) -> void:
+ ## The next path() diffs harvest and build blockers and re-flags only the cells that differ.
+ func mark_dirty() -> void:
+ 	_dirty = true
++	revision += 1
+ 
+ ## Re-flag exactly these cells now (BuildGrid occupy/release/reserve, gate open/close).
+ func update_cells(cells: Array) -> void:
+@@ -47,14 +51,16 @@ func update_cells(cells: Array) -> void:
+ func is_walkable(tile: Vector2i) -> bool:
+ 	return _region.has_point(tile) and not _astar.is_point_solid(tile)
+ 
+-func path(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN) -> PackedVector3Array:
++## `clearance` > 0 (the survivor's routes) pulls the string only along lines that keep that many
++## metres from every blocked tile, so a capsule of that radius never grazes a trunk or a wall.
++func path(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN, clearance: float = 0.0) -> PackedVector3Array:
+ 	last_reachable = false
+ 	if runtime == null:
+ 		return PackedVector3Array()
+ 	if _dirty:
+ 		_refresh()
+-	var from_tile := _closest_walkable(BuildGrid.tile_of(from_world))
+-	var to_tile := _closest_walkable(BuildGrid.tile_of(to_world))
++	var from_tile := _closest_walkable(BuildGrid.tile_of(from_world), from_world)
++	var to_tile := _closest_walkable(BuildGrid.tile_of(to_world), to_world)
+ 	if from_tile == NO_TILE or to_tile == NO_TILE:
+ 		return PackedVector3Array()
+ 	if from_tile == to_tile:
+@@ -73,7 +79,7 @@ func path(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN
+ 		# Keep a real prefix; callers replan before they reach its end. Jumping the last point to
+ 		# the goal used to draw a straight line through whatever lay between.
+ 		tiles.resize(max_len)
+-	tiles = _string_pull(tiles)
++	tiles = _string_pull(tiles, clearance)
+ 	var out := PackedVector3Array()
+ 	for tile in tiles:
+ 		out.append(BuildGrid.tile_centre(tile, runtime))
+@@ -141,7 +147,10 @@ func _refresh() -> void:
+ func _apply(tile: Vector2i) -> void:
+ 	if not _region.has_point(tile) or _terrain_blocked.has(tile):
+ 		return
+-	_astar.set_point_solid(tile, _harvest.has(tile) or _build.has(tile))
++	var solid := _harvest.has(tile) or _build.has(tile)
++	if solid != _astar.is_point_solid(tile):
++		revision += 1
++	_astar.set_point_solid(tile, solid)
+ 
+ func _build_region() -> Rect2i:
+ 	var rad: int = 80
+@@ -197,20 +206,30 @@ func _weight(pos: Vector3) -> float:
+ 		w = maxf(w, 2.0)
+ 	return w
+ 
+-func _closest_walkable(tile: Vector2i) -> Vector2i:
++## The nearest walkable tile to `at` (inside `tile`). Scan order used to pick the ring's first
++## free tile, which for a survivor pressed against a thin fence was often the one behind it.
++func _closest_walkable(tile: Vector2i, at: Vector3) -> Vector2i:
+ 	if is_walkable(tile):
+ 		return tile
+ 	for ring in range(1, 7):
++		var best := NO_TILE
++		var best_d := INF
+ 		for y in range(-ring, ring + 1):
+ 			for x in range(-ring, ring + 1):
+ 				if abs(x) != ring and abs(y) != ring:
+ 					continue
+ 				var probe := tile + Vector2i(x, y)
+-				if is_walkable(probe):
+-					return probe
++				if not is_walkable(probe):
++					continue
++				var d := Vector2(float(probe.x) + 0.5 - at.x, float(probe.y) + 0.5 - at.z).length_squared()
++				if d < best_d:
++					best_d = d
++					best = probe
++		if best != NO_TILE:
++			return best
+ 	return NO_TILE
+ 
+-func _string_pull(src: Array[Vector2i]) -> Array[Vector2i]:
++func _string_pull(src: Array[Vector2i], clearance: float = 0.0) -> Array[Vector2i]:
+ 	if src.size() <= 2:
+ 		return src
+ 	var out: Array[Vector2i] = [src[0]]
+@@ -218,13 +237,37 @@ func _string_pull(src: Array[Vector2i]) -> Array[Vector2i]:
+ 	var i := 1
+ 	while i < src.size():
+ 		var far := i
+-		while far + 1 < src.size() and _line_walkable(anchor, src[far + 1]):
++		while far + 1 < src.size() and (_line_clear(Vector2(anchor) + Vector2(0.5, 0.5), Vector2(src[far + 1]) + Vector2(0.5, 0.5), clearance) if clearance > 0.0 else _line_walkable(anchor, src[far + 1])):
+ 			far += 1
+ 		out.append(src[far])
+ 		anchor = src[far]
+ 		i = far + 1
+ 	return out
+ 
++## True when a disc of `radius` m swept from a to b (world x/z) touches no blocked tile. Adjacent
++## tile centres always pass for radius <= 0.5 (diagonal steps never cut a blocked corner).
++func clear_line(a: Vector3, b: Vector3, radius: float) -> bool:
++	if _dirty:
++		_refresh()
++	return _line_clear(Vector2(a.x, a.z), Vector2(b.x, b.z), radius)
++
++func _line_clear(a: Vector2, b: Vector2, radius: float) -> bool:
++	var steps := maxi(1, ceili(a.distance_to(b) / 0.2))
++	for k in steps + 1:
++		var q := a.lerp(b, float(k) / float(steps))
++		var t := Vector2i(floori(q.x), floori(q.y))
++		for dy in range(-1, 2):
++			for dx in range(-1, 2):
++				var c := t + Vector2i(dx, dy)
++				if is_walkable(c):
++					continue
++				# Distance from q to the tile's square [c, c + 1].
++				var dxm := maxf(maxf(float(c.x) - q.x, q.x - float(c.x + 1)), 0.0)
++				var dym := maxf(maxf(float(c.y) - q.y, q.y - float(c.y + 1)), 0.0)
++				if dxm * dxm + dym * dym < radius * radius:
++					return false
++	return true
++
+ func _line_walkable(a: Vector2i, b: Vector2i) -> bool:
+ 	for tile in _line_tiles(a, b):
+ 		if _astar.is_point_solid(tile):
