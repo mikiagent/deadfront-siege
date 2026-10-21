@@ -1,7 +1,7 @@
 # W2-BUILDSYS: ARK-style modular building with structure HP, tiers and repair
 
-Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last to base tip 809be2e8, which brought
-HUD-DAYNIGHT and the W2-DATA sync; see resume pass 4). Review r1 stopped before any run.
+Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last to base tip c9ec27c6, which brought
+W2-INV and DOMAIN; see resume pass 5). Review r1 stopped before any run.
 Closes build-struct-01, build-def-01, build-tier-01, build-place-02, phys-wall-01, build-storage-01 (chest and
 large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
 
@@ -558,7 +558,7 @@ logs and PNGs are in the 72cebc8b scratchpad under `bs3/`.
 ## Integrator hooks
 
 `docs/orchestration/reports/claude-mmo-w2-buildsys-hooks.patch` holds hooks 1-3 and 5 as one patch; `git apply --check`
-passes on claude/mmo-overhaul 809be2e8 (resume pass 4). The hooked tree passed the whole suite and --snap-touch (resume pass 4 above).
+passes on claude/mmo-overhaul c9ec27c6 with no offsets (resume pass 5). The hooked tree passed the whole suite and --snap-touch (resume pass 5 above).
 
 1. **W2-PLAYER, `game/scripts/player/player_input.gd`**: `interact_tap_target`: `elif col is StructurePiece:`
    find the `hud` group node and call `hud.open_structure(col)`; `is_interactable`: a `StructurePiece` is
@@ -572,14 +572,17 @@ passes on claude/mmo-overhaul 809be2e8 (resume pass 4). The hooked tree passed t
 3. **W2-ECO, `game/scripts/creatures/brains/creature_brain.gd`**: unchanged from the first pass: `_break_in()`
    before `_think` retargets the blocking wall from `StructureHealth.siege_target` once a second;
    `hunting_player` and the leash treat any structure like the catapult.
-4. **No registration needed on the base**: it has no lab registry (still none on 809be2e8), labs load by scene
+4. **No registration needed on the base**: it has no lab registry (still none on c9ec27c6), labs load by scene
    name. When W1-QA's `tools/labs.txt` lands, append `snap_build_lab | 120 | -- --lab=snap_build_lab | shot` and
    `snap_build_touch | 120 | -- --lab=snap_build_lab --snap-touch`. `--lab=snap_build_lab`
    (headless `[snap] PASS`; `--shot=<png>` frames the house, `--snap-inside` puts the survivor inside,
    `--snap-ghost` stages a ghost; `--snap-touch` runs the touch loop and needs hooks 1-2, `--snap-shots=<stem>`
    saves a PNG per touch step).
-5. **W1 save, `game/tests/t_save.gd`** (+3 -1, in the patch since review r1; in W2-SKILLS' `_check_v3_golden`
-   since resume pass 3): skips `/schema` in the v3 golden comparison and checks the re-save is at the current schema. Needed by the schema-4 bump in save_game.gd.
+5. **W1 save / W2-INV, `game/tests/t_save.gd`** (+22 -2): both v3 golden checks skip `/schema` and check the
+   re-save is at the current schema (W2-INV's `_check_v3_skills` for the frozen stacked goldens, and the
+   instance-golden branch of `_test_round_trip`). Needed by the schema-4 bump in save_game.gd. `_pad_contents`
+   gives a golden's basket rows the empty tail the 100-slot basket now writes (they were saved from 60-slot
+   baskets), so every saved row is still compared slot for slot.
 6. **W2-OCCLUDE**: nothing to change; the adapter (`StructurePiece._occlusion`) works against the merged
    `Occlusion.make_occludable(node, "between"|"inside")` / `release`.
 
@@ -596,7 +599,7 @@ passes on claude/mmo-overhaul 809be2e8 (resume pass 4). The hooked tree passed t
 - Pieces use the kits' 8 m reach, measured flat.
 - A schema-3 save needs no rewrite; schema 4 only adds piece rows and kit `durability`.
 - Chest 100 slots, large box 160 flat (the level-60 reference, until building level exists); signboard 48
-  characters (the docs give no limit); one piece of furniture per floor module; furniture costs and durability
+  characters (the docs give no limit). The basket is no longer an assumption: 100 slots, spec 05:14; one piece of furniture per floor module; furniture costs and durability
   (structures.json) are first-pass.
 - A structure destroyed by damage or collapse has no demolisher, so its contents skip the bag: home cargo, then a
   loot bag. A loot bag does not occupy build cells (a kit can be placed over one; the bag stays tappable).
