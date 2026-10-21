@@ -267,7 +267,9 @@ func _popup_clear(node: HarvestNode, rare: bool = false) -> void:
 	taken.append_array(UiTokens.hud_reserved(get_viewport().get_visible_rect().size))
 	for t in taken:
 		_check(not r.intersects(t), "popup %s at %s clear of %s" % [texts, r, t])
-	_check(not phone or rare or r.end.y <= a.y - GatherFeedback.RING_CLEAR + 1.0, "a phone's plain popup %s sits above the ring (%s, ring at %s)" % [texts, r, a])
+	# The stack's own flag: a trait can roll on any stage's unit (5%), not only the rare stages'.
+	var is_rare: bool = (box.get_meta(&"st", {}) as Dictionary).get("rare", false)
+	_check(not phone or is_rare or r.end.y <= a.y - GatherFeedback.RING_CLEAR + 1.0, "a phone's plain popup %s sits above the ring (%s, ring at %s)" % [texts, r, a])
 	print("[gather_lab] popup %s at %s" % [texts, r])
 
 ## The tinted notices the HUD drew last frame keep off the open radial (labels, title, hexes), the
