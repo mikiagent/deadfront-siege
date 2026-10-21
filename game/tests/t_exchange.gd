@@ -821,6 +821,7 @@ func _test_look_r2(hs: GDScript, ms_script: GDScript) -> void:
 	(ms.get("search") as Control).emit_signal("searched", "branch")
 	await process_frame
 	var chip := table.find_child("Chip_q", true, false) as Button
+	var chip_tip := chip.tooltip_text if chip else "-"
 	var cs := maxi(14, int((table.get("_m") as Dictionary).get("name", 16)) - 2)
 	var cw: float = mt.call("width", "Branch", cs) + roundf(cs * 0.8) + 38.0
 	var sb := chip.get_theme_stylebox("normal") as StyleBoxFlat if chip else null
@@ -847,12 +848,13 @@ func _test_look_r2(hs: GDScript, ms_script: GDScript) -> void:
 	_expect(cards.all(func (c: Control) -> bool: return c.material is ShaderMaterial and str((c.material as ShaderMaterial).shader.code).contains("earth_at")), "the confirm, the search sheet, the offline card and Sell's panel are textured like the list panels")
 	_click(b2)
 	var mi := load("res://scripts/ui/market/market_icon.gd") as GDScript
-	var rendered: bool = ItemArt.is_rendered(&"tamed_animal")
-	_expect(mi.call("drawn_cage", &"tamed_animal") == (not rendered) and mi.call("drawn_cage", &"captured_animal") == (not ItemArt.is_rendered(&"captured_animal")) and not mi.call("drawn_cage", &"bone"), "pet carrier and crate are the market's own drawings until their renders land (rendered: %s)" % rendered)
+	var art := load("res://scripts/ui/item_art.gd") as GDScript # loaded here: Data is an autoload the test's own compile cannot see
+	var rendered: bool = art.call("is_rendered", &"tamed_animal")
+	_expect(mi.call("drawn_cage", &"tamed_animal") == (not rendered) and mi.call("drawn_cage", &"captured_animal") == (not art.call("is_rendered", &"captured_animal")) and not mi.call("drawn_cage", &"bone"), "pet carrier and crate are the market's own drawings until their renders land (rendered: %s)" % rendered)
 	var lv: Color = mt.get_script_constant_map().LV
 	_expect(lv.get_luminance() < (mt.get_script_constant_map().TEXT_2 as Color).get_luminance(), "the Bag cells' Lv. n is dimmer than the grey type lines")
 	ms.queue_free()
-	print("[t_exchange] look r2: chip '%s', types %s, rail note, condensed labels, textured cards" % [chip.tooltip_text if chip else "-", types])
+	print("[t_exchange] look r2: chip '%s', types %s, rail note, condensed labels, textured cards" % [chip_tip, types])
 
 ## Waits (up to ~4 s of frames) for `cond`; the network transport answers on later frames.
 func _until(cond: Callable, frames: int = 240) -> void:

@@ -77,13 +77,13 @@ static func cage(ci: CanvasItem, id: StringName, r: Rect2, mod: Color = Color.WH
 	var s := minf(r.size.x, r.size.y)
 	var o := r.get_center() - Vector2(s, s) * 0.5
 	var crate := id == &"captured_animal"
-	# A box seen from the front-left: top, front (left) and side (right) faces.
-	var top := _pts(o, s, [[0.08, 0.34], [0.5, 0.22], [0.94, 0.33], [0.52, 0.47]])
-	var front := _pts(o, s, [[0.08, 0.34], [0.52, 0.47], [0.52, 0.9], [0.08, 0.76]])
-	var side := _pts(o, s, [[0.52, 0.47], [0.94, 0.33], [0.94, 0.76], [0.52, 0.9]])
-	var base := Color(0.62, 0.58, 0.52) if crate else Color(0.7, 0.69, 0.65) # weathered wood / grey plastic
+	# A box seen from the front-left: top, front (left, the carrier's door end) and side (right) faces.
+	var top := _pts(o, s, [[0.06, 0.36], [0.6, 0.22], [0.95, 0.32], [0.4, 0.46]] if not crate else [[0.08, 0.34], [0.5, 0.22], [0.94, 0.33], [0.52, 0.47]])
+	var front := PackedVector2Array([top[0], top[3], top[3] + Vector2(0, s * 0.42), top[0] + Vector2(0, s * 0.38)])
+	var side := PackedVector2Array([top[3], top[2], top[2] + Vector2(0, s * 0.4), top[3] + Vector2(0, s * 0.42)])
+	var base := Color(0.6, 0.58, 0.53) if crate else Color(0.72, 0.71, 0.67) # weathered wood / grey plastic
 	var line := Color(0.17, 0.16, 0.14, mod.a)
-	ci.draw_colored_polygon(_pts(o, s, [[0.1, 0.8], [0.52, 0.94], [0.96, 0.8], [0.52, 0.72]]), Color(0, 0, 0, 0.3 * mod.a)) # ground shadow
+	ci.draw_colored_polygon(PackedVector2Array([front[3], side[3], side[2], side[2] + Vector2(s * 0.04, s * 0.03), side[3] + Vector2(0, s * 0.07), front[3] + Vector2(-s * 0.03, s * 0.03)]), Color(0, 0, 0, 0.3 * mod.a)) # ground shadow
 	ci.draw_colored_polygon(top, _shade(base, 1.18, mod))
 	ci.draw_colored_polygon(front, _shade(base, 0.82, mod))
 	ci.draw_colored_polygon(side, _shade(base, 1.0, mod))
@@ -96,21 +96,28 @@ static func cage(ci: CanvasItem, id: StringName, r: Rect2, mod: Color = Color.WH
 		for e: Array in [[front[0], front[3]], [front[1], front[2]], [side[1], side[2]]]: # corner posts
 			ci.draw_line(e[0] + Vector2(s * 0.035, 0), e[1] + Vector2(s * 0.035, 0), Color(0.3, 0.27, 0.22, mod.a), s * 0.06)
 	else:
-		var door := _pts(o, s, [[0.14, 0.41], [0.46, 0.51], [0.46, 0.83], [0.14, 0.72]]) # the grille door
-		ci.draw_colored_polygon(door, Color(0.16, 0.15, 0.13, mod.a))
-		for k in [0.14, 0.28, 0.42, 0.56, 0.7, 0.84]:
+		# The carrier's tray: the lower half of each face a shade darker under the shell's seam.
+		ci.draw_colored_polygon(PackedVector2Array([_lerp(front[0], front[3], 0.6), _lerp(front[1], front[2], 0.6), front[2], front[3]]), _shade(base, 0.7, mod))
+		ci.draw_colored_polygon(PackedVector2Array([_lerp(side[0], side[3], 0.6), _lerp(side[1], side[2], 0.6), side[2], side[3]]), _shade(base, 0.88, mod))
+		var door := PackedVector2Array([_lerp(_lerp(front[0], front[1], 0.14), _lerp(front[3], front[2], 0.14), 0.12), _lerp(_lerp(front[0], front[1], 0.86), _lerp(front[3], front[2], 0.86), 0.12),
+			_lerp(_lerp(front[0], front[1], 0.86), _lerp(front[3], front[2], 0.86), 0.88), _lerp(_lerp(front[0], front[1], 0.14), _lerp(front[3], front[2], 0.14), 0.88)])
+		ci.draw_colored_polygon(door, Color(0.16, 0.15, 0.13, mod.a)) # the grille door
+		for k in [0.16, 0.32, 0.48, 0.64, 0.8]:
 			ci.draw_line(_lerp(door[0], door[1], k), _lerp(door[3], door[2], k), _shade(base, 0.95, mod), w * 1.4, true)
-		ci.draw_polyline(door + PackedVector2Array([door[0]]), _shade(base, 1.05, mod), w * 1.6, true)
-		var wc := o + Vector2(0.73, 0.6) * s # the round side window
-		ci.draw_set_transform(wc, -0.3, Vector2(0.75, 1.0))
-		ci.draw_circle(Vector2.ZERO, s * 0.12, Color(0.18, 0.17, 0.15, mod.a))
-		ci.draw_arc(Vector2.ZERO, s * 0.12, 0, TAU, 20, _shade(base, 1.12, mod), w * 1.8, true)
+		ci.draw_polyline(door + PackedVector2Array([door[0]]), _shade(base, 1.05, mod), w * 1.8, true)
+		var wc := (side[0] + side[1] + side[2] + side[3]) * 0.25 + Vector2(0, -s * 0.02) # the round side window
+		ci.draw_set_transform(wc, -0.25, Vector2(0.8, 1.0))
+		ci.draw_circle(Vector2.ZERO, s * 0.11, Color(0.2, 0.19, 0.17, mod.a))
+		ci.draw_circle(Vector2(s * 0.015, s * 0.02), s * 0.045, _shade(base, 0.6, mod)) # someone inside
+		ci.draw_arc(Vector2.ZERO, s * 0.11, 0, TAU, 24, _shade(base, 1.15, mod), w * 2.2, true)
 		ci.draw_set_transform(Vector2.ZERO)
-		ci.draw_line(_lerp(front[0], front[3], 0.5), _lerp(front[1], front[2], 0.5), line, w, true) # the shell's seam
-		ci.draw_line(_lerp(side[0], side[3], 0.5), _lerp(side[1], side[2], 0.5), line, w, true)
-		for k in [0.35, 0.5, 0.65]: # vent slots on the lid
-			ci.draw_line(_lerp(_lerp(top[0], top[1], k), _lerp(top[3], top[2], k), 0.3), _lerp(_lerp(top[0], top[1], k), _lerp(top[3], top[2], k), 0.7), line, w, true)
-		ci.draw_polyline(_pts(o, s, [[0.36, 0.3], [0.42, 0.2], [0.62, 0.19], [0.66, 0.29]]), Color(0.3, 0.29, 0.26, mod.a), s * 0.04, true) # handle
+		ci.draw_line(_lerp(front[0], front[3], 0.6), _lerp(front[1], front[2], 0.6), line, w, true) # the shell's seam
+		ci.draw_line(_lerp(side[0], side[3], 0.6), _lerp(side[1], side[2], 0.6), line, w, true)
+		for k in [0.3, 0.45, 0.6, 0.75]: # vent slots along the lid
+			var a := _lerp(top[0], top[3], 0.5).lerp(_lerp(top[1], top[2], 0.5), k)
+			ci.draw_line(a + (top[1] - top[0]) * 0.12, a - (top[1] - top[0]) * 0.12, line, w, true)
+		var hc := (top[0] + top[1] + top[2] + top[3]) * 0.25 # the carry handle, arching over the lid
+		ci.draw_polyline(PackedVector2Array([hc + (top[0] - top[3]) * 0.22, hc + (top[0] - top[3]) * 0.22 + Vector2(0, -s * 0.1), hc + (top[2] - top[3]) * 0.22 + Vector2(0, -s * 0.12), hc + (top[2] - top[3]) * 0.22]), _shade(base, 0.45, mod), s * 0.035, true)
 	for face in [top, front, side]:
 		ci.draw_polyline(face + PackedVector2Array([face[0]]), line, w, true)
 

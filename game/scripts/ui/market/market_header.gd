@@ -75,20 +75,21 @@ func _draw() -> void:
 	MarketTheme.text(self, title, x, h * 0.5, minf(MarketTheme.width(title, tsize), free), tsize, MarketTheme.ACTION)
 
 ## A dark rounded counter ending at `right`: the grey T-stone coin (about half the pill's height, as
-## in the references) and the number; bound T-stones add a white padlock on a dark disc over the
-## coin's corner, big enough to read on a 390 px phone. Returns its left edge.
+## in the references) and the number; bound T-stones add a white padlock on a dark disc beside the
+## coin, at least 18 px across so it reads on a 390 px phone. Returns its left edge.
 func _pill(right: float, bound: bool, value: String, h: float, wide: bool) -> float:
 	var fs: int = _m.name
 	var ph := maxf(28.0, h * 0.66)
 	var cr := ph * 0.27
-	var tw := MarketTheme.width(value, fs)
-	var w := maxf(tw + cr * 2.0 + ph * 0.9, size.x * (0.12 if wide else 0.07))
+	var lr := maxf(9.0, ph * 0.22) if bound else 0.0
+	var lead := ph * 0.42 + cr * 1.4 + lr * 1.7 + ph * 0.3 ## pill edge to the number: coin, lock, gap
+	var w := maxf(lead + MarketTheme.width(value, fs) + ph * 0.35 + 4.0, size.x * (0.12 if wide else 0.07)) # 4 px: rounding never cuts the number
 	var r := Rect2(right - w, (h - ph) * 0.5, w, ph)
 	draw_style_box(MarketTheme.flat(Color(0.1, 0.1, 0.09, 0.95), Color(0, 0, 0, 0), 0, int(ph * 0.3)), r)
 	var c := Vector2(r.position.x + ph * 0.42 + cr * 0.4, h * 0.5)
 	MarketGlyphs.coin(self, c, cr)
 	if bound:
-		MarketGlyphs.lock(self, c + Vector2(cr * 0.85, cr * 0.55), ph * 0.24)
-	var tx := c.x + cr + ph * 0.3
+		MarketGlyphs.lock(self, c + Vector2(cr + lr * 0.55, cr * 0.3), lr)
+	var tx := r.position.x + lead
 	MarketTheme.text(self, value, tx, h * 0.5, r.end.x - ph * 0.35 - tx, fs, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
 	return r.position.x

@@ -393,7 +393,7 @@ func _draw_preview_lines() -> void:
 	if _preview.columns != 2:
 		return
 	var gap := _preview.get_theme_constant("v_separation") * 0.5
-	for k in _keys.slice(0, _keys.size() - 1):
+	for k: Label in _keys.slice(0, _keys.size() - 1):
 		var y := k.position.y + k.size.y + gap
 		MarketTheme.dotted(_preview, Vector2(0, y), Vector2(_preview.size.x, y))
 

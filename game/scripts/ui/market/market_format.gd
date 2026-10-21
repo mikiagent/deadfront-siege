@@ -139,7 +139,8 @@ static func asset_lines(kind: String, a: Dictionary) -> PackedStringArray:
 	var m := row({"type": kind, "asset": a, "left": int(a.get("count", 1))})
 	out.append("%s   ·   %s" % [LevelDisplay.label(m.level), m.type])
 	if kind == "pet":
-		out.append("Grade %s   ·   HP %.0f   ·   Attack %.0f   ·   Defense %.0f" % [a.get("grade", "?"), float(a.get("hp", 0)), float(a.get("attack", 0)), float(a.get("defense", 0))])
+		# No-break spaces keep each stat with its number when the line wraps ("Defense / 9" read as two facts).
+		out.append("Grade\u00a0%s   ·   HP\u00a0%.0f   ·   Attack\u00a0%.0f   ·   Defense\u00a0%.0f" % [a.get("grade", "?"), float(a.get("hp", 0)), float(a.get("attack", 0)), float(a.get("defense", 0))])
 		out.append("Bonded pet")
 		return out
 	var attrs: Dictionary = a.get("attributes", {})
