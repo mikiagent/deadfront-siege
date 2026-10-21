@@ -20,7 +20,10 @@ Per-id builders, what changed per flagged id and the earlier decisions are in
 - Merged `claude/mmo-overhaul` six times (45, 10, 3, 40, 1 and 52 commits, all clean). The 40 brought
   W2-DATA (items.json, recipes, t_data, t_items), the 52 W2-SKILLS; neither touches this package's
   files.
-  The branch is 0 commits behind at the head named below.
+  After the first close-out three more base merges (1, 30 and 2 commits, all clean: HUD-DAYNIGHT, the
+  water access work with t_water, W2-DATA's sync record, STATUS). None touches this package's files;
+  `manifest.json` "missing" still equals the 59 unrendered items.json ids (checked). The branch is 0
+  commits behind `claude/mmo-overhaul` (acc684a6) at fcd8002a; every gate below was re-run there.
 - **armor_scute re-renders byte-identically now.** Cause: Blender's Bevel modifier on its 12-gon
   prisms put out the same faces in a different order on each run and moved two vertices by ~1e-9
   (base meshes were identical; only the evaluated meshes differed). Cycles then flipped 1-3 pixels by
@@ -62,31 +65,46 @@ as granted; the branch passes with or without it today, and the integrator may l
 squash if the gate's out-of-scope line matters more than that future failure.
 
 ## Gates (lines seen)
-All on fef3cfee (then the latest base; what came after it is docs: one base merge of STATUS/spec
-files and this report).
-- Full `./tools/dsc/verify_icons2.sh`: 65 x `PASS <id>`, no `FAIL ... byte-identical` line for the
-  100 kept renders, then `PASS re-render byte-identical` (the `--verify` of all 65 in one Blender
-  process ended `REPRO PASS`), no `FAIL import`, `PASS t_iconart`, `PASS run_all`. It does not print
-  `VERIFY PASS` because of exactly two lines, both expected:
-  `FAIL out of scope: game/tests/t_iconart.gd` (the granted change) and
-  `FAIL out of scope: docs/orchestration/reports/claude-mmo-icons2.md` (this report, which the prompt
-  asks for; the gate's allowlist only knows dsc-icons2.md).
-- An earlier full run on 161e65c5 died at steamer_kit with `no space left on device` (the disk hit
-  1.2 GB free); `--verify steamer_kit,stone_fire_pit_kit` alone then gave `REPRO PASS n=2`, and the
-  run above passed with the disk back at 100+ GB.
-- `--import`: rc 0, 0 `SCRIPT ERROR`, 0 `Failed to compile`.
-- Every `game/tests/t_*.gd` (21): `[t_ai] PASS`, `[t_build] PASS`, `[t_canim] PASS`, `[t_combat] PASS`,
-  `[t_data] PASS items=223 recipes=155`, `[t_harbour] PASS`, `[t_iconart] PASS`, `[t_items] PASS`,
-  `[t_light] PASS` (t_light and t_lighting), `[t_occlude] PASS`, `[t_player] PASS`, `[t_save] PASS`
-  (5 SCRIPT ERROR lines, the deliberate ones as on base), `[t_server_domain] PASS`, `[t_srvdom] PASS`,
-  `[t_structart] PASS`, `[t_tame] PASS`, `[t_ui] PASS`, `[t_uiicons] PASS`, `[t_w2_skills] PASS`,
-  `[t_web] PASS`; 0 SCRIPT ERROR in all others.
+All re-run on fcd8002a (0 behind `claude/mmo-overhaul` acc684a6) on 2026-10-21. The earlier set on
+fef3cfee gave the same results.
+- Full `./tools/dsc/verify_icons2.sh` (33 min): 65 x `PASS <id>`, no `FAIL ... byte-identical` line for
+  the 100 kept renders, no `FAIL manifest 'missing'`, then `PASS re-render byte-identical` (the
+  `--verify` of all 65 in one Blender process ended `REPRO PASS`), no `FAIL import`, `PASS t_iconart`,
+  `PASS run_all`. rc 1, no `VERIFY PASS`, only because of `FAIL out of scope` lines:
+  - `game/tests/t_iconart.gd`: the granted change.
+  - `docs/orchestration/reports/claude-mmo-icons2.md`: this report. The prompt asks for it, but the
+    gate's allowlist only has dsc-icons2.md.
+  - 42 untracked import files (`game/assets/props/meshy/{treestump,woodlog}-*.import` and `_Image_0.jpg`,
+    `game/scripts/dev/*.gd.uid`, `game/tests/*.gd.uid`). The base commits these assets and scripts
+    without their import files, so every tree's `--import` creates them; the integrator tree
+    `mmo-overhaul` has the same 42 untracked. They are not on this branch and are not committed.
+    The gate counts `git ls-files --others`, so a tree that has been imported never prints
+    `VERIFY PASS`; deleting them to get a clean run was refused (no destructive cleanup).
+  Those three are the only failures, and none of them is a render, repro, import or test failure.
+- An earlier full run on 161e65c5 died at steamer_kit with `no space left on device` (1.2 GB free).
+  `--verify steamer_kit,stone_fire_pit_kit` alone then gave `REPRO PASS n=2`. Disk is at 58 GB free now.
+- `--import` (inside the gate): rc 0.
+- Every `game/tests/t_*.gd` (23), rc 0 each: `[t_ai] PASS`, `[t_build] PASS`, `[t_canim] PASS`,
+  `[t_combat] PASS`, `[t_daynight] PASS` (t_daynight_dial), `[t_data] PASS items=223 recipes=155`,
+  `[t_harbour] PASS islands=15`, `[t_iconart] PASS`, `[t_items] PASS`, `[t_light] PASS` (t_light and
+  t_lighting), `[t_occlude] PASS`, `[t_player] PASS`, `[t_save] PASS` (5 SCRIPT ERROR lines, the
+  deliberate ones, as on base), `[t_server_domain] PASS`, `[t_srvdom] PASS`, `[t_structart] PASS`,
+  `[t_tame] PASS`, `[t_ui] PASS`, `[t_uiicons] PASS ids=177 files=116`, `[t_w2_skills] PASS`,
+  `[t_water] PASS`, `[t_web] PASS`. Every other test printed 0 SCRIPT ERROR.
 - `run_all.gd`: `[tests] PASS`. `tools/smoke.sh --no-import`: `SMOKE PASS`.
-- `item_art_lab` headless: rc 0, 0 SCRIPT ERROR. Windowed on gl_compatibility at 1600x900 and 844x390
-  with field_small_kit, field_large_kit, captured_animal, tamed_animal, armor_scute, tent_kit,
-  sign_kit and the three arm pieces in slots (looked at): the two field kits read apart, the cages
-  read as cages, nothing clipped. (Scratch shots, not committed.)
-- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` during the run.
+- `item_art_lab` headless: rc 0 (its self-check quits 1 on failure), 0 SCRIPT ERROR. Windowed on
+  gl_compatibility at 1600x900 and 844x390 with `--ids` of 20 of the new renders (both cages, all 9
+  kits, the feeds, fertilizer, dressing, acacia and willow wood, armor_scute, forager_wraps,
+  travel_sleeves), rc 0 and 0 SCRIPT ERROR. I looked at both shots: the open and the closed cage
+  read apart, so do the two field kits, and no icon is clipped. At 844x390 the lab's own hex row is
+  cut at the bottom edge; that is the base lab layout, not an icon. (Scratch shots, not committed.)
+- Contact sheet `work/sheets/all.png` (current: rebuilt with the field kit fix in c47feeff), looked at
+  again in six full-size crops (256 px per tile) and whole at 64 px and 40 px per tile. Same reading
+  as above: the light and palette match the 7 neighbours, no blank or black tiles, nothing clipped, and
+  every id reads at 64 px. The weakest are the three arm pieces, and captured_animal's animal (see
+  CAGEICON above).
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (newest is still Godot-2026-10-20-232613.ips,
+  from before this run).
 
 ## Squash merge: in-scope paths
 - `game/assets/icons/render/` : the 65 PNGs, their 32 new `.png.import` files (base commits one per
