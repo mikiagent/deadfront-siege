@@ -24,14 +24,14 @@ index 93d39900..251c437c 100644
  	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}},
  	"away": {"buildings": [], "claims": []}, "pending_refunds": [],
 diff --git a/game/scripts/dev/inventory_lab.gd b/game/scripts/dev/inventory_lab.gd
-index a3a79d00..5198cfb4 100644
+index 914c5308..5198cfb4 100644
 --- a/game/scripts/dev/inventory_lab.gd
 +++ b/game/scripts/dev/inventory_lab.gd
 @@ -1,10 +1,10 @@
  extends Node3D
  ## W2-INV bag lab: a full 100-slot bag of mixed single instances (plus one ammo and one bandage
 -## stack) in the real inventory screen. The grid groups identical items visually (one cell per
--## item id with a ×N badge); opening a group shows each instance; nothing ever merges.
+-## item id with a corner count badge); opening a group shows each instance; nothing ever merges.
 +## stack) in the real inventory screen. Since INVUI (spec 13) the Bag shows one cell per instance,
 +## never a group: three berries are three cells; nothing ever merges.
  ## Shots: --resolution 1600x900 (or 844x390) -- --lab=inventory_lab --shot=<png with "bag" in it>
@@ -42,7 +42,7 @@ index a3a79d00..5198cfb4 100644
  ## Headless (no --shot): drives the grid and prints "[invlab] PASS ..." (exit 0) or FAIL lines (exit 1).
  
  ## 100 slots: [id, instances, level step]. Levels cycle so an opened group shows different ones.
-@@ -42,52 +42,41 @@ func _ready() -> void:
+@@ -42,57 +42,41 @@ func _ready() -> void:
  		player.inventory.add(ItemStack.make(&"bandage", 6))
  	await get_tree().process_frame
  	var ui := player.ui
@@ -109,6 +109,11 @@ index a3a79d00..5198cfb4 100644
 -			player.ui._on_cell(k)
 -			return true
 -	return false
+-
+-## The visible group badge text of a cell, "" when it has none.
+-func _badge_of(b: Button) -> String:
+-	var badge := b.get_node_or_null("Badge") as Label if b else null
+-	return badge.text if badge and badge.visible else ""
 +		_grid().refresh()
 +		var shown := _grid().cells()
 +		var blank := shown.filter(func (c: InventorySlot) -> bool: return c.stack == null)
@@ -120,7 +125,7 @@ index a3a79d00..5198cfb4 100644
  
  func _expect(ok: bool, what: String) -> void:
  	if not ok:
-@@ -102,64 +91,58 @@ func _check() -> void:
+@@ -107,65 +91,58 @@ func _check() -> void:
  		if s:
  			units[s.def_id] = int(units.get(s.def_id, 0)) + s.count
  	_expect(inv.used_slots() == 100 and inv.slot_count == 100, "the bag holds 100 instances in 100 slots (%d/%d)" % [inv.used_slots(), inv.slot_count])
@@ -132,13 +137,14 @@ index a3a79d00..5198cfb4 100644
 -		small += 1 if b.get_combined_minimum_size().x < UiTokens.TARGET_MIN or b.get_combined_minimum_size().y < UiTokens.TARGET_MIN else 0
 -	_expect(small == 0, "every bag cell is a %d px+ target (%d smaller)" % [UiTokens.TARGET_MIN, small])
 -	var stone_cell: Button = cells[0] if not cells.is_empty() else null
--	# A group reads "16 …" (opens); a real stack reads "×45": the two never look alike.
--	_expect(stone_cell != null and stone_cell.text.begins_with("16") and not stone_cell.text.contains("×"), "the stone group shows 16 and no stack ×N (got '%s')" % (stone_cell.text if stone_cell else ""))
--	var shot_text := ""
+-	# A group has a corner count badge (it opens) and its level range; a real stack reads "×45" with
+-	# no badge: the two never look alike.
+-	_expect(_badge_of(stone_cell) == "16" and stone_cell.text == "Lv 1-16" and not stone_cell.text.contains("×"), "the stone group has a 16 badge, its level range and no stack ×N (badge '%s', caption '%s')" % [_badge_of(stone_cell), stone_cell.text if stone_cell else ""])
+-	var shot_cell: Button = null
 -	for k in ui._cells.size():
 -		if ui._cells[k].has("slot") and inv.slots[int(ui._cells[k].slot)].def_id == &"stone_shot":
--			shot_text = cells[k].text
--	_expect(shot_text.ends_with("×45"), "the stone_shot stack shows ×45 (got '%s')" % shot_text)
+-			shot_cell = cells[k]
+-	_expect(shot_cell != null and shot_cell.text.ends_with("×45") and _badge_of(shot_cell) == "", "the stone_shot stack shows ×45 and no group badge (caption '%s', badge '%s')" % [shot_cell.text if shot_cell else "", _badge_of(shot_cell)])
 +	var cells := _grid().item_cells()
 +	_expect(cells.size() == 100 and _grid().cells().size() == 100, "one cell per instance: %d item cells, %d cells" % [cells.size(), _grid().cells().size()])
 +	var stones := cells.filter(func(c: InventorySlot) -> bool: return c.stack.def_id == &"stone")
@@ -332,24 +338,29 @@ index c07ec418..419ea453 100644
  	ui.queue_free()
  	var animals := AnimalScreen.new()
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index 265001e3..bdcca728 100644
+index bd6dd4de..a23a1d9e 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
-@@ -20,7 +20,10 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
- ## Prefer dedicated materials over dual-category ones, so fibre stalk is spent before
- ## bark that might still be needed as lashing. Then the least valuable instance (Inventory.spend_key),
- ## then the largest matching stack.
+@@ -21,11 +21,14 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
+ ## (Inventory.spend_key), then dedicated materials before dual-category ones, then the lead's def;
+ ## a unit that a later slot still needs (a cheap reed is also the recipe's lashing) is left for it.
+ ## When a slot still runs short, plan again with dedicated materials first (the order before W2-INV).
 -static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
 +## A pick per recipe slot is its lead bag slot (int; the rest by that order) or, from the INVUI
 +## ingredient picker (spec 13 s12/s19), an Array of the exact bag slots to spend, every one of them.
 +## A locked instance is never spent, even when picked (spec 13 s9).
 +static func _plan(inv: Inventory, rec: Dictionary, picks: Array = []) -> Array[Dictionary]:
+ 	var plan := _plan_ordered(inv, rec, picks, true)
+ 	return plan if not plan.is_empty() else _plan_ordered(inv, rec, picks, false)
+ 
+-static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], value_first: bool) -> Array[Dictionary]:
++static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array, value_first: bool) -> Array[Dictionary]:
  	var slots: Array = rec.get("slots", [])
  	if inv == null or slots.is_empty() or (not picks.is_empty() and picks.size() != slots.size()):
  		return []
-@@ -38,12 +41,19 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+@@ -47,12 +50,19 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
+ 			return []
  		var preferred := StringName(str(slot.get("prefer_id", prefer if i == 0 else "")))
- 		var candidates := inv.find_by_category(cat)
  		var lead := -1
 +		var exact: Array = []
  		if not picks.is_empty():
@@ -368,27 +379,32 @@ index 265001e3..bdcca728 100644
 +			lead = int(chosen[0])
 +			if picks[i] is Array:
 +				exact = chosen
- 		# The lead's def breaks ties inside equal spend keys only (W2-INV review 2: ordering the lead's
- 		# whole def first spent a lv40 trait stalk while a plain lv1 palm frond was left).
- 		var lead_def := {"id": inv.slots[lead].def_id if lead >= 0 else &""}
-@@ -84,11 +94,12 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
- 		if lead < 0:
- 			return []
- 		var parts: Array[Dictionary] = []
--		# The lead first, then the other units by the same order (one instance per slot, W2-INV).
+ 		var keys := {}
+ 		var candidates: Array[int] = []
+ 		candidates.assign(cands[i])
+@@ -69,23 +79,27 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
+ 		for idx in candidates:
+ 			(keys[idx] as Array).insert((keys[idx] as Array).size() - 2, 0 if inv.slots[idx].def_id == lead_def else 1)
+ 		candidates.sort_custom(func(a: int, b: int) -> bool: return keys[a] < keys[b])
 +		# The lead first, then the other units by the same order (one instance per slot, W2-INV);
 +		# exact picks spend the chosen slots and only those, each one of them.
- 		var order: Array[int] = [lead]
+ 		var order: Array[int] = []
+ 		if lead >= 0:
+ 			order.append(lead)
 -		for idx in candidates:
 -			if idx != lead:
 -				order.append(idx)
 +		for e: Variant in (exact.slice(1) if not exact.is_empty() else candidates):
 +			if int(e) != lead:
 +				order.append(int(e))
+ 		var parts: Array[Dictionary] = []
  		for idx in order:
  			var available := int(remaining.get(idx, inv.slots[idx].count))
  			var take := mini(need, available)
-@@ -96,7 +107,9 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+-			if value_first and idx != lead:
++			if value_first and idx != lead and exact.is_empty():
+ 				take = mini(take, _spare_for_later(inv, slots, cands, remaining, i, idx))
+ 			if take > 0:
  				parts.append({"idx": idx, "count": take})
  				remaining[idx] = available - take
  				need -= take
@@ -399,7 +415,7 @@ index 265001e3..bdcca728 100644
  				break
  		if need > 0:
  			return []
-@@ -118,16 +131,27 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
+@@ -131,16 +145,27 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
  ## Spec 13:486 "Do not automatically consume the most valuable item": true when the plan for these
  ## picks spends an instance with traits (e.g. every candidate has one), so the craft UI can ask for
  ## an explicit pick. # ASSUMPTION: traits only; a higher level alone does not ask.
@@ -429,7 +445,7 @@ index 265001e3..bdcca728 100644
  static func primary_index(rec: Dictionary) -> int:
  	var slots: Array = rec.get("slots", [])
  	for i in slots.size():
-@@ -135,15 +159,15 @@ static func primary_index(rec: Dictionary) -> int:
+@@ -148,15 +173,15 @@ static func primary_index(rec: Dictionary) -> int:
  			return i
  	return 0
  
@@ -448,7 +464,7 @@ index 265001e3..bdcca728 100644
  	var out: Array[int] = []
  	for row in _plan(inv, rec, picks):
  		for part in row["parts"]:
-@@ -152,7 +176,7 @@ static func consumed_levels(inv: Inventory, rec: Dictionary, picks: Array[int])
+@@ -165,7 +190,7 @@ static func consumed_levels(inv: Inventory, rec: Dictionary, picks: Array[int])
  				out.append(stack.level)
  	return out
  
@@ -457,7 +473,7 @@ index 265001e3..bdcca728 100644
  	var out: Array[Dictionary] = []
  	var plan := _plan(inv, rec, picks)
  	for i in plan.size():
-@@ -289,7 +313,7 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
+@@ -302,7 +327,7 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
  			return "needs materials and crafting skill for level %d" % minimum
  	return ""
  
@@ -466,7 +482,7 @@ index 265001e3..bdcca728 100644
  	if rec.is_empty():
  		return false
  	if progression_block(player, rec) != "":
-@@ -326,7 +350,7 @@ static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
+@@ -339,7 +364,7 @@ static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
  	else:
  		World.add_xp(6 + int(recipe_seconds(rec)))
  
@@ -475,7 +491,7 @@ index 265001e3..bdcca728 100644
  	if not can_make(player, rec, picks):
  		return null
  	var burnt := rolls_burn(rec, skill_level_for(rec, player), rng)
-@@ -338,14 +362,14 @@ static func craft(player: Player, rec: Dictionary, picks: Array[int], rng: Rando
+@@ -351,14 +376,14 @@ static func craft(player: Player, rec: Dictionary, picks: Array[int], rng: Rando
  
  ## Would the output still fit after the inputs leave the bag? Checked on a scratch copy so a
  ## full bag refuses before anything is consumed (sec-loss-08).
@@ -492,7 +508,7 @@ index 265001e3..bdcca728 100644
  	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
  	consume_for_craft(scratch, rec, picks)
  	return scratch.can_accept(out)
-@@ -428,7 +452,7 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
+@@ -441,7 +466,7 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
  		_:
  			return cat
  
@@ -1013,7 +1029,7 @@ index 80b01e5b..efee0cd3 100644
  			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
  			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
 diff --git a/game/tests/t_ui.gd b/game/tests/t_ui.gd
-index 4b18ac78..d361c3da 100644
+index 4b18ac78..6ec9ed03 100644
 --- a/game/tests/t_ui.gd
 +++ b/game/tests/t_ui.gd
 @@ -13,6 +13,16 @@ const OWNED := [
@@ -1029,7 +1045,7 @@ index 4b18ac78..d361c3da 100644
 +	"res://scripts/ui/inventory_ui.gd",
 +	"res://scripts/ui/inv_stats.gd", "res://scripts/ui/equipment_slot.gd", "res://scripts/ui/gear_preset_selector.gd",
 +	"res://scripts/ui/gear_screen.gd", "res://scripts/ui/character_screen.gd", "res://scripts/ui/detailed_stats_panel.gd",
-+	"res://scripts/ui/equipment_screen.gd", "res://scripts/ui/item_picker.gd",
++	"res://scripts/ui/equipment_screen.gd", "res://scripts/ui/item_picker.gd", "res://scripts/ui/filter_rail.gd",
  ]
  const TYPE_MIN := 12
  ## The HUD and bag joined W1-UI late (orchestrator option a). The bag is emoji-free; the HUD's rail

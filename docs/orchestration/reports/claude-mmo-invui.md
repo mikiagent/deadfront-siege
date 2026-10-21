@@ -474,3 +474,155 @@ plan. Online, multi-unit slots are exact only for the lead (the server picks the
 change). NEW tags are cleared only on the Bag, not on the storage screen. Drop stays hidden (no drop owner on this base).
 Keyboard shortcuts beyond I / Esc, panel motion, transfer feedback and the grain pass are B4. Owner questions: design
 section 12 (unchanged).
+
+## B3 redo: the owner's storage-transfer reference (2026-10-20, spec 13 s17-19 + addendum, phase 4)
+
+The owner added a second inventory example after B3 ("Another example of the inventory menu",
+`docs/reference/durango-storage-transfer.webp`, read in the addendum at the end of spec 13). It shows the storage view
+as tabs, not the split B3 built, so this run rebuilt the storage / cargo view to it and moved the shared inspect panel
+and cells to what both references show.
+
+Base sync: W2-INV is still not merged into claude/mmo-overhaul, so `claude/mmo-w2-inv` (9fafad06, which had merged
+overhaul ac33159f) was merged (adca6cc8). Its hooks patch changed since the last re-apply in one crafting.gd hunk (79a24337:
+inside equal keys the lead's own def goes first); that delta (old patch vs new patch on the same crafting.gd, built in the
+scratchpad) was applied and committed (0139d7c1); INVUI's crafting.gd hook merged over it with only a comment conflict.
+A cut run had left uncommitted owned-file work in the tree (dark irregular panel frames `InvPaint.frame`, a khaki backdrop
+between panels, olive / brown grain, a torn header fringe, the header inside the safe area via `insets`,
+`InvTheme.forced_insets`); it was kept and committed with this step after the shots below, and its unused motion
+constants (B4 work, nothing read them) were dropped.
+
+Shipped (f74885c8, e618ad30 and this report commit; all under `game/` unless named):
+- `scripts/ui/storage_screen.gd` (StorageScreen, rewritten to the reference): header "< Storage Box" (pet: "Velociraptor
+  Cargo"; corpse: "Loot · Raptor") with the T-stone chip and X, "N Select" with N in gold in multi-select; tabs "Bag
+  91 / 100" and "<container> 47 / 80" from the left edge (grey, the active one near-black with gold text and a gold
+  underline); it opens on the container's tab. One grid per side, the active one shown, 10 columns of ~104 px at
+  1600x900 and 6 of ~90 px at 844x390 (data `storage.cell`). One toolbar under rail and grid: Auto Sort with its caret,
+  Select All, Select, Search (a field opens beside Auto Sort) and Lock on the Bag tab; Drop only with `drop_handler`. The
+  rail, sort and search apply to both tabs. The inspect panel runs from the tab row down: "Transfer to Bag" (and Take
+  All when the opener allows) on the container's tab, "Transfer to Storage Box" / "Transfer to Cargo" on the Bag's, or the
+  grey reason. A take-only container's `readonly_reason` sits in a dark notice over the top of the grid (the reference's
+  "this box belongs to someone else - cannot take").
+- `scripts/ui/filter_rail.gd` (FilterRail, new): the left column, one square per data filter with its white icon
+  (`filters[].icon` in data/inv_ui.json; All is a procedural four-square glyph), the active one dark with a gold icon and
+  edge; 56 px squares (44 on a phone), scrolls when short.
+- `scripts/ui/inventory_ui.gd`: `_store_indices` / `_take_indices` move every picked instance with the old per-item rules
+  and stop at the first full side ("Storage is full." / "Your bag is full."); `select_uid` and the legacy `_select` go
+  through `StorageScreen.select_key` (switches to the side that holds it); `layout_blocks()` for storage = header, tabs,
+  rail, the shown grid, toolbar, inspect; Esc closes the one toolbar's menu. An emptied container closes only when it is
+  take-only (loot); a box the player can fill stays open.
+- Shared parts: `inventory_grid.gd` `set_query`, `select_all`, `selected_indices`, `has_key`, multi-select keeps the
+  single selection and a selected cell shows the gold check; `inventory_slot.gd` trait pips under the art and the check;
+  `inv_paint.gd` `pips` (gold positive, grey negative, green rare, up to six; replaces the green corner triangle) and
+  `check`; `inv_glyphs.gd` `select_all`, `grid`; `bag_toolbar.gd` squares `select_all` / `search`, `set_select`,
+  `set_search(on, text)`; `inv_header.gd` `set_title(text, lead)`; `inv_actions.gd` `all_locked` / `toggle_locks` (the
+  Bag's lock logic, shared); `bag_screen.gd` uses them.
+- `scripts/ui/item_inspect_panel.gd` (both references): the tan card now carries art, name and "Lv. N" over a line with
+  "Durability 80 / 80" and the hammer "×3" (process count); then the item's families as chips (its categories, with the
+  crafting menu's representative art, labels from data `category_labels`), its traits as chips (gold / grey / green), and
+  the black Info bar with a caret that folds the rows under it. Notes (picker warning, store reasons) read first. Screens
+  pass `ctx.labels` for button text; `button_for(action)`.
+- Lab `bag_ui_lab`: a storage box seeded like the reference (47 / 80: a hide, sticks, ore with Firm / Heavy pips, a
+  processed iron ingot Firm Lv. 4 / Heavy Lv. 2 / ×3, leaves, logs), shot-only `--screen=storage_select` (1 Select) and
+  `storage_notice` (someone else's box), `--query=` (Search open) and `--insets=l,r,b[,t]` (a phone notch through
+  `InvTheme.forced_insets`); `_check_b3` adds: two picked on the box tab read "2 Select" and one Transfer to Bag moves
+  exactly them, one Transfer to Storage Box puts both back, someone else's box shows the notice and no Transfer.
+- Tests: t_invui 12 rewritten for the reference (opens on the container's tab; Transfer to Storage Box moves the exact
+  bone; the rail's Food shows two berries in the Bag and hides the bone in the box; Transfer to Bag and Take All on the
+  box tab; Select All checks all three and the header reads "3 Select"; one Transfer moves all three with their uids; two
+  picked berries come back and the bone stays; Search "bone"; read-only loot's notice and no Transfer; the locked berry's
+  reason; the legacy `_select` + `_store_selected` entry; cargo on its tab), 20 also checks the reference state (container
+  tab, the notice, Search open, all picked) at 1600x900, 844x390 and 804x452. On the old split view test 12 fails at
+  "the storage view has Bag / container tabs, a filter rail and Transfer" and 20 stops on `select_key`.
+
+Acceptance lines (HEAD e618ad30 + the hooks patch applied in the work tree; logs in the scratchpad `invui/b3r/gates2/`):
+- t_invui: exit 0, "[t_invui] PASS", 0 SCRIPT ERROR (all 20; 12 and 20 rewritten / extended here). The new test 12
+  fails on the old split view by construction (it asks for `StorageScreen.select_key` and `rail` first and FAILs "the
+  storage view has Bag / container tabs, a filter rail and Transfer"); not re-run on the old code.
+- Every t_*.gd exit 0 with its PASS line and 0 SCRIPT ERROR except t_save's 5 deliberate ones ("[t_save] PASS"): t_ai,
+  t_build, t_canim, t_combat, t_harbour ("[t_harbour] PASS islands=15"), t_iconart, t_inventory, t_invui, t_items,
+  t_light, t_lighting, t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui ("[t_ui] PASS"),
+  t_uiicons ("[t_uiicons] PASS ids=169 files=114 ..."), t_web.
+- run_all "[tests] PASS" (exit 0, 0 SCRIPT ERROR); tools/smoke.sh --no-import "SMOKE PASS".
+- Labs, 0 SCRIPT ERROR each: bag_ui_lab "[bagui] b3 storage=store,take,multi2,notice cargo=take picker=berry42
+  bag=92/100 box=47/80", "[bagui] open times bag=1711us, inspect=3076us, character=12233us, equipment=7524us,
+  storage=17993us, cargo=6555us, picker=4540us", "[bagui] PASS bag=92/100 new=11 locked=2"; inventory_lab "[invlab]
+  PASS empty_cells=100/97 slots=100 cells=100 stones=16 stack45=true lock_pip=true equip_l30=true
+  full_unequip_notice=true"; ui_family_lab (headless) "[uifamily] inventory=true animals=true unlimited=true
+  active_cap=3"; ui_screenshot_lab "[uishot] PASS screens=hud,inventory,animals,craft,atlas,death,radial";
+  ui_real_capture_lab 844x390 and 1600x900 gl_compatibility "[uireal] PASS screens=hud,craft,...,bag,...". Every shot
+  run below also logged 0 SCRIPT ERROR.
+- Crash reports: 34 Godot-*.ips before this run and 34 after.
+
+Shots looked at (scratchpad `invui/b3r/shots/`, not in the repo; each opened next to durango-storage-transfer.webp, the
+Bag ones next to durango-bag-instances.webp):
+- `storage_select_1600_glc.png` / `_fwd.png` against the reference: "< 1 Select" with the gold 1, T-stone chip and X;
+  "Bag 91 / 100" grey and "Storage Box 47 / 80" gold with its underline; the rail with All gold; ten dense columns with
+  grey "Lv. 60" top-right and gold / grey pips under ore, plank and logs; the iron ingot's lighter cell with the gold
+  check; the panel's tan band "Iron Ingot", tan card with the art, "Lv. 60" and the hammer "×3", chips "Metal" and
+  "Blade Material", trait chips "Firm Lv. 4" gold and "Heavy Lv. 2" grey; toolbar Auto Sort + caret, Select All, Select
+  (gold edge, on), Search; yellow "Transfer to Bag". Forward+ matches gl_compatibility.
+- `storage_notice_1600_glc.png` and `storage_notice_844_glc.png` (notch insets 47 / 47 / 21): "Small Box 47 / 80", the
+  dark notice "This box belongs to someone else: cannot take." over the top row, no Transfer; on the phone the header's
+  black runs under the notch while its controls, the tabs, rail, grid and toolbar sit inside the safe area.
+- `storage_1600_glc.png` / `_fwd.png`, `storage_844_glc.png`: the single selection keeps the yellow brackets; on the phone
+  6 columns, 5 rail squares (it scrolls) and the grid scrolled to the selected ingot.
+- `search_1600_glc.png`: the field beside Auto Sort reads "log", the grid shows the nine logs, the panel the two counts.
+- `cargo_1600_glc.png`, `cargo_844_glc.png`: "Velociraptor Cargo 3 / 10" gold, the berry bracketed, chips Food / Herb /
+  Fruit, Info "Energy +6", "Transfer to Bag".
+- `bag_1600_glc.png`, `inspect_1600_glc.png`, `bag_844_glc.png`, `inspect_844_glc.png` (shared cells and panel):
+  pips under the Lv. 42 berry and both bones like the Bag reference's small yellow squares; the Lv. 60 bone's panel
+  shows Bone / Blade Material / Handle, Firm Lv. 8 gold, Low Density Lv. 3 grey, Black Sheen green, Info "Locked". On the
+  phone the wide "Blade Material" chip pushes "Handle" to a second row and the trait chips stack; the panel scrolls.
+- `picker_1600_glc.png`, `picker_844_glc.png`: the red rare-trait line over the chips, yellow Use.
+- `character_1600_glc.png`, `equipment_1600_glc.png`: unchanged layouts with the kept frames and backdrop.
+Fixed after looking: 9 columns (cells 115 px) became 10 (`storage.cell` 100); the rail cut its last square at 1600x900
+(squares 60 -> 56); the ×3 was row-sized (now a size up, as the reference); the phone's family chips wrapped two a row
+(width now leaves the chip row's margin and the scrollbar); the phone grid did not scroll to the selection (deferred
+`ensure_control_visible`); the berry art touched NEW on 84 px phone cells (art centre back to 0.55).
+Differences left: our families come from item categories, so chips read "Metal / Blade Material" where Durango shows
+"Chunk / Iron / Ore / Rock"; durability has no glyph (the icon set has none); the reference's Info section shows its own
+content (a hex) that has no counterpart here; the grain and frames are B4's to finish.
+
+Assumptions added (design section 9 has 1-22, B1 23-30, B2 31-42, B3 43-54):
+55. Tabs replace B3's split (spec 13 s17 allows "split or switchable"; the owner's reference is switchable); the view
+    opens on the container's tab, and tapping an item on either side by uid switches to that tab.
+56. One rail, one sort and one search for both tabs (the reference has one of each); filter icons are white ui_icons
+    ids kept in data, All a procedural four-square glyph.
+57. Multi-select shows the gold check wherever it is on (Bag Select, storage, a picker slot that takes several); one
+    selection keeps the brackets. Turning Select on keeps the current selection as the first pick.
+58. Select All turns Select on and picks every item shown; Search matches the item name, case-insensitive, view only.
+59. Lock shows on the Bag tab only (nothing locked can be stored, so a container never holds a locked item).
+60. Transfer moves every picked instance by the per-item rules, skips the ones that may not go (locked, held tool, quick
+    food), and stops at the first full side; the panel gives the reason for the item it shows.
+61. The notice over the grid is the container's `readonly_reason`; a box that belongs to someone else is its opener
+    passing "This box belongs to someone else: cannot take." (box ownership does not exist on this base; W2-BUILDSYS'
+    chests can pass it).
+62. Inspect panel: family chips are the item's categories (crafting's representative art, else the item's own), trait
+    chips replace the Positive / Negative / Rare sections, durability and the processing count sit on the tan card, the
+    "Type" row is dropped (the first chip says it), and Info folds.
+63. Every cell shows trait pips under the art, at most six, and the green corner triangle is gone (the pips carry rare).
+64. Storage and cargo show the T-stone chip (the reference's header has its currencies); supersedes 46.
+65. An emptied container the player can put things into stays open; emptied take-only loot still closes (before, any
+    emptied container closed).
+66. Storage cells aim at ~100 px (data `storage.cell`; 84 on a phone): denser than the Bag's 7 columns, like the
+    reference's 13, and still wide enough for NEW beside "Lv. NN".
+
+Hooks (`docs/orchestration/reports/claude-mmo-invui-hooks.patch`, regenerated on e618ad30, 14 files; `git apply --cached
+--check` passes on that HEAD and it is applied uncommitted in the work tree). New in this run: `tests/t_ui.gd` adds
+`filter_rail.gd` to OWNED. Unchanged otherwise from B3 (crafting exact picks and lock refusal over W2-INV's newest
+`_plan_ordered`, station_craft / player / player_actions craft picks, craft_ui's picker buttons, save_game rebaseline,
+save_sanitizer presets, inventory.gd presets / lock skips / span uid, player_actions equip / unequip / hold / lock / eat,
+hunt_hud's Character entry, the W1-UI labs, inventory_lab). Entry points: the Bag and Character from the HUD menu (hook),
+storage from boxes and baskets (`player_actions.gd`), loot from corpses (`corpse.gd`), cargo from pets
+(`player_pets.gd`), the picker from the craft menu (hook); all already call `show_storage` / `show_pet_bag` /
+`open_picker`, so none needed a new hook. Market: unchanged from B3 (Sell hidden while no market screen exists on this
+base; the one integrator line for W3-EXCHANGE is in the B3 section above).
+
+Owner gates: none. No save field changes; no money; transfers keep the offline rules (`transfer_to`, remove + add with
+put-back) and online play still has no storage intent (as before INVUI).
+
+Limits: Transfer runs offline rules only (storage has no server intent on this base, as before); Lock and Drop act on
+the Bag tab only; Search needs a keyboard (on a phone the field opens the system keyboard on tap); the rail scrolls by
+drag with no bar on a phone; panel motion, transfer feedback and the grain pass stay B4. Machine note: the disk filled to
+0 bytes during this run (the two orchestrator scratchpads hold ~121 GB each); one gate run lost its ui_family_lab line to
+it and was redone.
