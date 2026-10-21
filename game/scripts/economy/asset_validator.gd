@@ -24,8 +24,14 @@ func item(slot: Variant) -> String:
 		return "slot_dict must be an object"
 	var d: Dictionary = slot
 	for k in d:
-		if str(k) not in ITEM_KEYS:
+		if str(k) in ITEM_KEYS:
+			continue
+		# Per-instance identity besides the provenance stamp (limits.json instance_fields).
+		if str(k).begins_with("_") or not (rules.g("instance_fields") as Dictionary).has(str(k)):
 			return "unknown item field %s" % str(k)
+		var bad := _rule("instance_fields", str(k), d[k])
+		if bad != "":
+			return bad
 	var id_v: Variant = d.get("id")
 	if not (id_v is String or id_v is StringName):
 		return "item id missing"
@@ -63,7 +69,7 @@ func item(slot: Variant) -> String:
 		why = _cage(attrs)
 	else:
 		for k in attrs:
-			why = _attribute(str(k), attrs[k])
+			why = _rule("attributes", str(k), attrs[k])
 			if why != "":
 				break
 	if why != "":
@@ -103,11 +109,15 @@ func _cage(attrs: Dictionary) -> String:
 	var genes := _genetics(attrs.get("genetics"), 1)
 	return str(genes.get("msg", ""))
 
-func _attribute(key: String, v: Variant) -> String:
-	var spec: Variant = (rules.g("attributes") as Dictionary).get(key)
+## "" or why `v` breaks the limits.json rule `table`.`key` (attributes, instance_fields).
+func _rule(table: String, key: String, v: Variant) -> String:
+	var spec: Variant = (rules.g(table) as Dictionary).get(key)
 	if key.begins_with("_") or not spec is Dictionary:
 		return "attribute %s not allowed" % key
 	match str(spec.get("type", "")):
+		"text":
+			if not v is String or (v as String).length() > int(spec.get("max", 0)):
+				return "%s must be text of at most %d characters" % [key, int(spec.get("max", 0))]
 		"color":
 			var t := str(v)
 			if not (v is String) or not (t.length() == 7 or t.length() == 9) or not t.begins_with("#") or not _hex_digits(t.substr(1)):

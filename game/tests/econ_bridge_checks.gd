@@ -8,6 +8,9 @@ extends RefCounted
 const DIR := "user://econ_bridge_tests"
 const T0 := 1760000000
 const DEFS := ["stone", "berry", "fibre_stalk", "branch"]
+## The books split only stacks, and under W2-INV gathered materials and food are single
+## instances; ammunition still stacks, so the split tests use it (the "crate" fixture node).
+const SPLIT := "stone_shot"
 
 var failures: Array[String] = []
 var _rid := 0
@@ -15,7 +18,7 @@ var _world: WorldFacade
 var _rules: EconRules
 
 func run() -> Array[String]:
-	for test: Callable in [_test_deposit, _test_refusals, _test_client_gate, _test_sales, _test_processed, _test_pets_and_cages, _test_crash_recovery, _test_strays, _test_recover_any_time, _test_fuzz]:
+	for test: Callable in [_test_deposit, _test_refusals, _test_client_gate, _test_sales, _test_processed, _test_pets_and_cages, _test_bonded_cap, _test_crash_recovery, _test_strays, _test_recover_any_time, _test_fuzz]:
 		if test.call() != true:
 			failures.append("%s stopped early (script error)" % test.get_method())
 	return failures
@@ -68,6 +71,7 @@ func _rig(name: String, budget: int = 0, flaky: bool = false) -> VaultBridge:
 	_rules.market.settlers.daily_budget = budget
 	var econ := _econ(dir, FlakyEngine.new(_rules, EconCatalog.from_data()) if flaky else null)
 	_world = (load("res://tests/srvdom_checks.gd") as GDScript).call("make_world")
+	_world.add_node("crate", Vector3(0, 0, -1), [{"item": SPLIT, "tool": "none", "min": 2, "max": 4, "left": 400}], 1, "Rock")
 	for n: Dictionary in _world.nodes.values():
 		for o: Dictionary in n.options:
 			o.left = 1000000
@@ -189,8 +193,8 @@ func _capture(b: VaultBridge, acct: int, net_id: String) -> int:
 
 ## The first half of a deposit, as VaultBridge runs it, cut before the vault: the mark (with the
 ## uid act.deposit is about to export) and act.deposit. Returns the exported uid.
-func _cut_deposit(b: VaultBridge, who: int, rid: String, count: int, ts: int) -> String:
-	var slot := _slot(b, who, "stone")
+func _cut_deposit(b: VaultBridge, who: int, rid: String, count: int, ts: int, item: String = "stone") -> String:
+	var slot := _slot(b, who, item)
 	var row: Dictionary = b.chars.character(who).d.bag[slot]
 	var uid := str(row.uid) if count >= int(row.count) else Provenance.item_uid(int(b.chars.s.seq) + 1, 0)
 	b.econ.apply("bridge.begin", who, {"rid": rid, "uid": uid, "op": "deposit"}, ts)
@@ -243,20 +247,20 @@ func _broken(b: VaultBridge) -> Array[String]:
 
 func _test_deposit() -> bool:
 	var b := _rig("deposit")
-	_gather(b, 1, "rock", 0, "stone", 12)
-	var slot := _slot(b, 1, "stone")
+	_gather(b, 1, "crate", 0, SPLIT, 12)
+	var slot := _slot(b, 1, SPLIT)
 	var row: Dictionary = b.chars.character(1).d.bag[slot].duplicate(true)
 	var r := _ok(b, "vault.deposit", 1, {"bag_slot": slot, "rid": "dep-a"})
-	_expect(r.uid == row.uid and _units(b, 1).get("stone", 0) == 0 and _vault(b, 1).has(row.uid), "a whole stack moves from the bag to the vault under its own uid")
+	_expect(r.uid == row.uid and _units(b, 1).get(SPLIT, 0) == 0 and _vault(b, 1).has(row.uid), "a whole stack moves from the bag to the vault under its own uid")
 	var h := _hash(b)
 	var again := _op(b, "vault.deposit", 1, {"bag_slot": slot, "rid": "dep-a"})
 	var same: bool = again.ok and _hash(b) == h and again.r.uid == r.uid
 	_expect(same, "a repeated rid applies nothing in either store and answers the same")
-	_gather(b, 1, "rock", 0, "stone", 8)
-	slot = _slot(b, 1, "stone")
-	var have: int = _units(b, 1).stone
+	_gather(b, 1, "crate", 0, SPLIT, 8)
+	slot = _slot(b, 1, SPLIT)
+	var have: int = _units(b, 1)[SPLIT]
 	r = _ok(b, "vault.deposit", 1, {"bag_slot": slot, "count": 3})
-	_expect(int(r.item.count) == 3 and _units(b, 1).stone == have - 3 and str(r.uid).ends_with(".0") and r.item.origin == "gather", "part of a stack leaves with a new uid and keeps its origin")
+	_expect(int(r.item.count) == 3 and _units(b, 1)[SPLIT] == have - 3 and str(r.uid).ends_with(".0") and r.item.origin == "gather", "part of a stack leaves with a new uid and keeps its origin")
 	# Malformed arguments are bad_request (contract 2), and change nothing.
 	h = _hash(b)
 	var codes: PackedStringArray = []
@@ -270,8 +274,8 @@ func _test_deposit() -> bool:
 
 func _test_refusals() -> bool:
 	var b := _rig("refusals")
-	_gather(b, 1, "rock", 0, "stone", 8)
-	var slot := _slot(b, 1, "stone")
+	_gather(b, 1, "crate", 0, SPLIT, 8)
+	var slot := _slot(b, 1, SPLIT)
 	var h := _hash(b)
 	var forged := {"id": "raid_helm", "count": 1, "level": 60, "uid": "i1.0", "origin": "craft", "seq": 1}
 	var codes: Array = []
@@ -280,10 +284,10 @@ func _test_refusals() -> bool:
 	for op in MarketEngine.BRIDGE + ["bridge.begin", "bridge.end", "bridge.settled"]:
 		codes.append(str(b.apply(op, 1, {"slot_dict": forged, "rid": "x"}, T0).get("err", "ok")))
 	_expect(_hash(b) == h and not "ok" in codes, "client dicts, empty slots and server-only ops change nothing: %s" % ", ".join(codes))
-	_rules.limits.deposit_caps.stone = 2
+	_rules.limits.deposit_caps[SPLIT] = 2
 	var capped := _op(b, "vault.deposit", 1, {"bag_slot": slot})
 	_expect(capped.get("err") == "limit_reached" and _hash(b) == h, "a deposit the vault would refuse never leaves the bag (%s)" % capped.get("err", "ok"))
-	_rules.limits.deposit_caps.stone = 2000
+	_rules.limits.deposit_caps[SPLIT] = 300
 	var uid := str(_ok(b, "vault.deposit", 1, {"bag_slot": slot}).uid)
 	# A body the character store would not take back (edited in flight) stays in the vault.
 	var saved: String = b.chars.s.exported_assets[uid]
@@ -293,7 +297,7 @@ func _test_refusals() -> bool:
 	_expect(not refused.ok and _hash(b) == h and _vault(b, 1).has(uid), "a withdrawal char.receive refuses leaves the asset in the vault (%s)" % refused.get("err", "ok"))
 	b.chars.s.exported_assets[uid] = saved
 	var back := _ok(b, "vault.withdraw", 1, {"uid": uid})
-	_expect(int(back.item.count) == int(_units(b, 1).stone) and not b.chars.s.exported_assets.has(uid), "the same withdrawal goes through once the body matches")
+	_expect(int(back.item.count) == int(_units(b, 1)[SPLIT]) and not b.chars.s.exported_assets.has(uid), "the same withdrawal goes through once the body matches")
 	var twice := _op(b, "vault.withdraw", 1, {"uid": uid})
 	_expect(twice.get("err") == "not_found", "a second withdrawal finds nothing (%s)" % twice.get("err", "ok"))
 	print("[econ-bridge] refusals codes=%s cap=%s edited_body=%s twice=%s" % [",".join(codes), capped.get("err", "ok"), refused.get("err", "ok"), twice.get("err", "ok")])
@@ -303,13 +307,13 @@ func _test_refusals() -> bool:
 ## client() is the transport's one relay; it refuses and logs everything server-only.
 func _test_client_gate() -> bool:
 	var b := _rig("gate")
-	_gather(b, 1, "rock", 0, "stone", 12)
+	_gather(b, 1, "crate", 0, SPLIT, 12)
 	_expect("act.deposit" not in IntentHandlers.CLIENT_OPS and "act.deposit" in IntentHandlers.SYSTEM_OPS, "act.deposit is a server-only op of the character store")
 	var warn := Warnings.new()
 	OS.add_logger(warn)
 	var h := _hash(b)
 	var codes: PackedStringArray = []
-	var slot := _slot(b, 1, "stone")
+	var slot := _slot(b, 1, SPLIT)
 	var body: Dictionary = b.chars.character(1).d.bag[slot].duplicate(true)
 	for row: Array in [["act.deposit", {"bag_slot": slot}], ["char.receive", {"asset": body}], ["char.grant", {"asset": body}], ["char.wallet", {"wallet": 999999}], ["char.settled", {"uid": "i1.0"}], ["bridge.begin", {"rid": "x", "uid": "i1.0", "op": "deposit"}], ["bridge.end", {}], ["vault.deposit_item", {"slot_dict": body, "rid": "x"}], ["objective.claim", {"index": 0, "rid": "x"}], ["account.ensure", {"name": "Again"}], ["sys.tick", {}]]:
 		codes.append(str(_client(b, row[0], 1, row[1]).get("err", "ok")))
@@ -328,87 +332,98 @@ func _test_client_gate() -> bool:
 ## honours `count`. Each unit reaches exactly one character.
 func _test_sales() -> bool:
 	var b := _rig("sales")
-	_gather(b, 1, "rock", 0, "stone", 10)
-	var stack: Dictionary = b.chars.character(1).d.bag[_slot(b, 1, "stone")]
+	_gather(b, 1, "crate", 0, SPLIT, 10)
+	var stack: Dictionary = b.chars.character(1).d.bag[_slot(b, 1, SPLIT)]
 	var n := int(stack.count)
-	var uid := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, "stone")}).uid)
+	var uid := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT)}).uid)
 	var lid := str(_ok(b, "market.list_fixed", 1, {"asset": {"uid": uid}, "unit_price": 7, "duration_h": 24}).listing.id)
 	var bought := _ok(b, "market.buy", 2, {"listing_id": lid, "count": n})
 	var got := _ok(b, "vault.withdraw", 2, {"uid": uid})
-	_expect(_units(b, 2).get("stone", 0) == n and int(got.get("item", {}).get("count", 0)) == n, "the buyer's character holds the %d stone it bought" % n)
+	_expect(_units(b, 2).get(SPLIT, 0) == n and int(got.get("item", {}).get("count", 0)) == n, "the buyer's character holds the %d units it bought" % n)
 	_expect(int(b.chars.character(1).d.wallet) == int(b.econ.engine.L.acct(1).wallet) and int(b.chars.character(2).d.wallet) == 500 - 7 * n, "both wallets are mirrored to the characters")
 	var broke := _op(b, "market.buy", 3, {"listing_id": lid, "count": 1})
 	_expect(not broke.ok, "a sold listing cannot be bought again")
 	# A partial buy splits the export: the buyer withdraws its part, the seller its remainder.
-	_gather(b, 1, "rock", 0, "stone", 9)
-	var whole: int = _units(b, 1).stone
-	var src := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, "stone")}).uid)
+	_gather(b, 1, "crate", 0, SPLIT, 9)
+	var whole: int = _units(b, 1)[SPLIT]
+	var src := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT)}).uid)
 	lid = str(_ok(b, "market.list_fixed", 1, {"asset": {"uid": src}, "unit_price": 5, "duration_h": 24}).listing.id)
 	var part := _ok(b, "market.buy", 3, {"listing_id": lid, "count": 2})
 	_expect(not b.chars.s.exported_assets.has(src) and b.econ.engine.state().retired.is_empty(), "a split export is settled in the character store")
-	var three_before: int = _units(b, 3).get("stone", 0)
+	var three_before: int = _units(b, 3).get(SPLIT, 0)
 	var mine := _op(b, "vault.withdraw", 3, {"uid": str(part.get("asset", {}).get("uid", ""))})
-	_expect(mine.ok and _units(b, 3).get("stone", 0) == three_before + 2 and not _vault(b, 3).has(str(part.get("asset", {}).get("uid", ""))), "a partial buy reaches the buyer's character (%s)" % mine.get("err", "ok"))
+	_expect(mine.ok and _units(b, 3).get(SPLIT, 0) == three_before + 2 and not _vault(b, 3).has(str(part.get("asset", {}).get("uid", ""))), "a partial buy reaches the buyer's character (%s)" % mine.get("err", "ok"))
 	_ok(b, "market.cancel", 1, {"listing_id": lid})
 	var rest := _op(b, "vault.withdraw", 1, {"uid": src})
-	_expect(rest.ok and _units(b, 1).get("stone", 0) == whole - 2 and not _vault(b, 1).has(src), "the seller's remainder comes back to the bag (%s): %d of %d" % [rest.get("err", "ok"), _units(b, 1).get("stone", 0), whole - 2])
+	_expect(rest.ok and _units(b, 1).get(SPLIT, 0) == whole - 2 and not _vault(b, 1).has(src), "the seller's remainder comes back to the bag (%s): %d of %d" % [rest.get("err", "ok"), _units(b, 1).get(SPLIT, 0), whole - 2])
 	var poor := _op(b, "market.buy", 3, {"listing_id": lid, "count": 1})
 	_expect(not poor.ok, "a cancelled listing cannot be bought")
 	# A part listing: the unlisted remainder stays withdrawable while the part is on sale.
-	_gather(b, 1, "rock", 0, "stone", 12)
-	var have: int = _units(b, 1).stone
-	var lot := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, "stone")}).uid)
+	_gather(b, 1, "crate", 0, SPLIT, 12)
+	var have: int = _units(b, 1)[SPLIT]
+	var lot := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT)}).uid)
 	_ok(b, "market.list_fixed", 1, {"asset": {"uid": lot, "count": 3}, "unit_price": 4, "duration_h": 24})
 	var left := _op(b, "vault.withdraw", 1, {"uid": lot})
-	_expect(left.ok and _units(b, 1).stone == have - 3, "a part listing's remainder comes back to the bag (%s)" % left.get("err", "ok"))
+	_expect(left.ok and _units(b, 1)[SPLIT] == have - 3, "a part listing's remainder comes back to the bag (%s)" % left.get("err", "ok"))
 	# A partial order fill: the buyer withdraws exactly the units it paid for.
-	_gather(b, 1, "rock", 0, "stone", 10)
-	var oid := str(_ok(b, "market.order_create", 2, {"def_id": "stone", "qty": 3, "unit_price": 6, "duration_h": 24}).order.id)
-	var sell := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, "stone")}).uid)
+	_gather(b, 1, "crate", 0, SPLIT, 10)
+	var oid := str(_ok(b, "market.order_create", 2, {"def_id": SPLIT, "qty": 3, "unit_price": 6, "duration_h": 24}).order.id)
+	var sell := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT)}).uid)
 	_ok(b, "market.sell_to_order", 1, {"order_id": oid, "uid": sell, "count": 3})
-	var two_before: int = _units(b, 2).get("stone", 0)
-	var filled: Array = _vault(b, 2).keys().filter(func (u: String) -> bool: return str(_vault(b, 2)[u].id) == "stone")
+	var two_before: int = _units(b, 2).get(SPLIT, 0)
+	var filled: Array = _vault(b, 2).keys().filter(func (u: String) -> bool: return str(_vault(b, 2)[u].id) == SPLIT)
 	var fill := _op(b, "vault.withdraw", 2, {"uid": str(filled[0]) if not filled.is_empty() else "i1"})
-	_expect(fill.ok and _units(b, 2).get("stone", 0) == two_before + 3, "units bought through a buy order reach the buyer's character (%s)" % fill.get("err", "ok"))
+	_expect(fill.ok and _units(b, 2).get(SPLIT, 0) == two_before + 3, "units bought through a buy order reach the buyer's character (%s)" % fill.get("err", "ok"))
 	# count is honoured: one unit of an exported stack leaves, the rest stays in the vault.
 	var rest_n := int(_vault(b, 1)[sell].count) if _vault(b, 1).has(sell) else 0
 	var one := _op(b, "vault.withdraw", 1, {"uid": sell, "count": 1})
 	_expect(one.ok and int(one.get("r", {}).get("item", {}).get("count", 0)) == 1 and _vault(b, 1).has(sell) and int(_vault(b, 1)[sell].count) == rest_n - 1, "vault.withdraw {uid, count: 1} takes one unit, not the stack (left %d of %d)" % [int(_vault(b, 1).get(sell, {}).get("count", 0)), rest_n])
 	var over := _op(b, "vault.withdraw", 1, {"uid": sell, "count": 999})
 	_expect(over.get("err") == "insufficient_items", "more than the stack is insufficient_items (%s)" % over.get("err", "ok"))
-	var stone := 0
+	var units := 0
 	for acct in [1, 2, 3]:
-		stone += int(_units(b, acct).get("stone", 0))
+		units += int(_units(b, acct).get(SPLIT, 0))
 		for u: String in _vault(b, acct):
-			stone += int(_vault(b, acct)[u].count) if str(_vault(b, acct)[u].id) == "stone" else 0
+			units += int(_vault(b, acct)[u].count) if str(_vault(b, acct)[u].id) == SPLIT else 0
 	for l: Dictionary in b.econ.engine.state().listings.values():
-		stone += int(l.left) if str(l.asset.id) == "stone" else 0
-	_expect(stone == int(b.chars.s.minted.get("stone", 0)) - int(b.chars.s.consumed.get("stone", 0)), "every stone gathered is in exactly one bag, vault or listing (%d of %d)" % [stone, int(b.chars.s.minted.get("stone", 0))])
-	print("[econ-bridge] sale whole=%d stone paid=%d partial_buy=%s remainder=%s part_listing=%s order_fill=%s count1=%s" % [n, int(bought.paid), mine.get("err", "ok"), rest.get("err", "ok"), left.get("err", "ok"), fill.get("err", "ok"), one.get("err", "ok")])
+		units += int(l.left) if str(l.asset.id) == SPLIT else 0
+	_expect(units == int(b.chars.s.minted.get(SPLIT, 0)) - int(b.chars.s.consumed.get(SPLIT, 0)), "every unit gathered is in exactly one bag, vault or listing (%d of %d)" % [units, int(b.chars.s.minted.get(SPLIT, 0))])
+	print("[econ-bridge] sale whole=%d units paid=%d partial_buy=%s remainder=%s part_listing=%s order_fill=%s count1=%s" % [n, int(bought.paid), mine.get("err", "ok"), rest.get("err", "ok"), left.get("err", "ok"), fill.get("err", "ok"), one.get("err", "ok")])
 	return true
 
-## Review r3 minor: a processed food (W2-PROCESS records its in-place steps in attributes.processed)
-## deposits, sells and withdraws with that history intact; PRD:131 processed goods sell on the market.
+## PRD:131 and spec 06 (vision fix): a processed instance, dried meat with its processing
+## history, deposits, lists, sells and withdraws with every per-instance field intact (uid,
+## origin, seq, level, process_count, attributes.processed, flags, creator, created_at).
 func _test_processed() -> bool:
 	var b := _rig("processed")
-	_gather(b, 1, "bush", 0, "berry", 3)
-	var slot := _slot(b, 1, "berry")
+	_world.stations["drying_rack"] = [[0, 0, 1.8]]
+	var looted := b.chars.apply("act.loot", 1, {"corpse_id": "carcass", "slot": 0, "count": 1}, T0)
+	var dried := b.chars.apply("act.craft", 1, {"recipe_id": "dry_meat"}, T0)
+	var slot := _slot(b, 1, "dried_meat")
+	if not _expect(looted.ok and dried.ok and slot >= 0, "raw meat looted and dried at a drying rack: %s, %s" % [str(looted), str(dried)]):
+		return true
 	var row: Dictionary = b.chars.character(1).d.bag[slot]
-	var attrs: Dictionary = row.get("attributes", {})
-	attrs["processed"] = ["dry"] # what W2-PROCESS's dry step leaves on the instance
-	row["attributes"] = attrs
-	var n := int(row.count)
+	var crafted := "history=craft" if (row.attributes as Dictionary).has("processed") else "history=test"
+	# Until W2-PROCESS and W2-INV merge, the server's craft writes no history and no instance
+	# fields; add what those packages write, so the same full body is checked before and after.
+	if not (row.attributes as Dictionary).has("processed"):
+		row.attributes["processed"] = ["dry"]
+	if not row.has("creator"):
+		row["creator"] = ""
+		row["created_at"] = 0
+	var body := CharacterStore.canon(CharacterStore.wire(row))
 	var dep := _op(b, "vault.deposit", 1, {"bag_slot": slot})
-	if not _expect(dep.ok, "a dried stack deposits: %s" % str(dep)):
+	if not _expect(dep.ok, "a dried instance deposits: %s" % str(dep)):
 		return true
 	var uid := str(dep.r.uid)
-	var lid := str(_ok(b, "market.list_fixed", 1, {"asset": {"uid": uid}, "unit_price": 3, "duration_h": 24}).listing.id)
-	_ok(b, "market.buy", 2, {"listing_id": lid, "count": n})
-	_expect(_slot(b, 2, "berry") < 0, "the buyer starts without berries")
+	var listing: Dictionary = _ok(b, "market.list_fixed", 1, {"asset": {"uid": uid}, "unit_price": 3, "duration_h": 24}).get("listing", {})
+	_expect(CharacterStore.canon(CharacterStore.wire(listing.get("asset", {}))) == body, "the listing shows the real instance, history and all: %s" % str(listing.get("asset", {})))
+	_ok(b, "market.buy", 2, {"listing_id": str(listing.get("id", "")), "count": int(row.count)})
+	_expect(_slot(b, 2, "dried_meat") < 0, "the buyer starts without dried meat")
 	_ok(b, "vault.withdraw", 2, {"uid": uid})
-	var got: Dictionary = b.chars.character(2).d.bag[_slot(b, 2, "berry")] if _slot(b, 2, "berry") >= 0 else {}
-	_expect(got.get("attributes", {}).get("processed") == ["dry"] and int(got.get("count", 0)) == n and got.get("origin") == row.origin, "the buyer's character holds the %d dried berries with their history and origin: %s" % [n, str(got)])
-	print("[econ-bridge] processed deposit=%s count=%d history=%s origin=%s" % [uid, n, str(got.get("attributes", {}).get("processed")), got.get("origin")])
+	var got: Dictionary = b.chars.character(2).d.bag[_slot(b, 2, "dried_meat")] if _slot(b, 2, "dried_meat") >= 0 else {}
+	_expect(CharacterStore.canon(CharacterStore.wire(got)) == body, "the buyer's character holds the same instance, every field intact: %s vs %s" % [CharacterStore.canon(got), body])
+	print("[econ-bridge] processed dried_meat %s uid=%s history=%s process_count=%d level=%d origin=%s fields=%s intact=%s" % [crafted, uid, str(got.get("attributes", {}).get("processed")), int(got.get("process_count", -1)), int(got.get("level", -1)), got.get("origin"), ",".join(PackedStringArray(got.keys())), CharacterStore.canon(CharacterStore.wire(got)) == body])
 	return true
 
 func _test_pets_and_cages() -> bool:
@@ -448,15 +463,36 @@ func _test_pets_and_cages() -> bool:
 	print("[econ-bridge] pet uid=%s origin=%s to_buyer=%s owner=%s cage=%s species=%s outbid_refunded=%s" % [pid, pet.origin, b.chars.character(2).d.pets.has(pid) or b.econ.engine.L.acct(2).vault_pets.has(pid), owner, cid, row.attributes.species, int(b.chars.character(3).d.wallet) == 500])
 	return true
 
+## Pack 09 (review r3 m2): a bought pet is a bond forming, so its withdrawal is refused while
+## the buyer's roster is at Data.bonded_cap() and the pet stays in the vault. Sync step: the cap
+## is unlimited until W2-SKILLS merges its single cap function (3 on a server without skill nodes).
+func _test_bonded_cap() -> bool:
+	var cap := Data.bonded_cap()
+	if cap > 100:
+		print("[econ-bridge] bonded cap: Data.bonded_cap() is %d on this base; the full-roster case runs once W2-SKILLS merges" % cap)
+		return true
+	var b := _rig("bonded")
+	var pid := _tame(b, 1, "compy_sold")
+	_ok(b, "vault.deposit", 1, {"pet_uid": pid})
+	var lid := str(_ok(b, "market.list_fixed", 1, {"asset": {"uid": pid}, "unit_price": 40, "duration_h": 24}).listing.id)
+	_ok(b, "market.buy", 2, {"listing_id": lid, "count": 1})
+	for i in cap:
+		_tame(b, 2, "compy_own_%d" % i)
+	var roster := (b.chars.character(2).d.pets as Dictionary).size()
+	var refused := _op(b, "vault.withdraw", 2, {"uid": pid})
+	_expect(refused.get("err") == "limit_reached" and b.econ.engine.L.acct(2).vault_pets.has(pid) and (b.chars.character(2).d.pets as Dictionary).size() == roster, "a full roster (%d of %d) refuses a bought pet, which stays in the vault (%s)" % [roster, cap, refused.get("err", "ok")])
+	print("[econ-bridge] bonded cap=%d roster=%d withdraw=%s kept_in_vault=%s" % [cap, roster, refused.get("err", "ok"), b.econ.engine.L.acct(2).vault_pets.has(pid)])
+	return true
+
 func _test_crash_recovery() -> bool:
 	var b := _rig("crash")
-	_gather(b, 1, "rock", 0, "stone", 12)
+	_gather(b, 1, "crate", 0, SPLIT, 12)
 	# 1. Died after act.deposit, before the vault: boot puts the asset in the vault.
-	var uid := _cut_deposit(b, 1, "crash-1", 4, T0)
+	var uid := _cut_deposit(b, 1, "crash-1", 4, T0, SPLIT)
 	b = _restart(b, T0 + 1)
 	_expect(_vault(b, 1).has(uid) and _broken(b).is_empty(), "a deposit cut after act.deposit lands in the vault at boot: %s" % ", ".join(_broken(b)))
 	var h := _hash(b)
-	var repeat := _op(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, "stone"), "rid": "crash-1"})
+	var repeat := _op(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT), "rid": "crash-1"})
 	_expect(repeat.ok and _hash(b) == h, "the client's retry of that rid applies nothing")
 	# 2. Died after bridge.begin only: nothing moved, the mark is dropped.
 	b.econ.apply("bridge.begin", 1, {"rid": "crash-2", "uid": Provenance.item_uid(int(b.chars.s.seq) + 1, 0), "op": "deposit"}, T0)
@@ -469,28 +505,28 @@ func _test_crash_recovery() -> bool:
 	b = _restart(b, T0 + 3)
 	_expect(not _vault(b, 1).has(uid) and _broken(b).is_empty(), "a withdrawal cut after char.receive leaves the vault at boot (no duplicate): %s" % ", ".join(_broken(b)))
 	# 4. Died after a partial buy and a wallet move, before settle and mirror.
-	var src := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, "stone")}).uid)
+	var src := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT)}).uid)
 	var lid := str(_ok(b, "market.list_fixed", 1, {"asset": {"uid": src}, "unit_price": 3, "duration_h": 24}).listing.id)
 	b.econ.apply("market.buy", 2, {"listing_id": lid, "count": 1, "rid": "crash-4"}, T0)
 	b = _restart(b, T0 + 4)
 	_expect(_broken(b).is_empty() and not b.chars.s.exported_assets.has(src), "boot settles the split export and mirrors the wallets: %s" % ", ".join(_broken(b)))
 	# 5. A grant cut after the vault let go, before char.grant: boot grants the units once.
 	var bought: Array = _vault(b, 2).keys()
-	var before: int = _units(b, 2).get("stone", 0)
+	var before: int = _units(b, 2).get(SPLIT, 0)
 	b.econ.apply("bridge.begin", 2, {"rid": "crash-5", "uid": bought[0], "op": "grant"}, T0)
 	b.econ.apply("vault.withdraw_item", 2, {"rid": "crash-5", "uid": bought[0], "count": 1}, T0)
 	b = _restart(b, T0 + 5)
-	_expect(_units(b, 2).get("stone", 0) == before + 1 and _broken(b).is_empty(), "a grant cut after the vault let go reaches the character at boot: %d -> %d, %s" % [before, _units(b, 2).get("stone", 0), ", ".join(_broken(b))])
+	_expect(_units(b, 2).get(SPLIT, 0) == before + 1 and _broken(b).is_empty(), "a grant cut after the vault let go reaches the character at boot: %d -> %d, %s" % [before, _units(b, 2).get(SPLIT, 0), ", ".join(_broken(b))])
 	# 6. A grant cut after char.grant, before bridge.end: boot does not grant twice.
 	var part6 := _ok(b, "market.buy", 3, {"listing_id": lid, "count": 2})
 	var puid := str(part6.get("asset", {}).get("uid", ""))
-	before = _units(b, 3).get("stone", 0)
+	before = _units(b, 3).get(SPLIT, 0)
 	b.econ.apply("bridge.begin", 3, {"rid": "crash-6", "uid": puid, "op": "grant"}, T0)
 	var w6 := b.econ.apply("vault.withdraw_item", 3, {"rid": "crash-6", "uid": puid}, T0)
 	var seq6 := int(b.econ.engine.L.acct(3).rid_cache.get("crash-6", [0, 0])[1])
 	b.chars.apply("char.grant", 3, {"asset": w6.get("r", {}).get("item", {}), "rid": "g%d" % seq6}, T0)
 	b = _restart(b, T0 + 6)
-	_expect(_units(b, 3).get("stone", 0) == before + 2 and _broken(b).is_empty(), "a grant cut before bridge.end is not granted twice at boot: %d -> %d" % [before, _units(b, 3).get("stone", 0)])
+	_expect(_units(b, 3).get(SPLIT, 0) == before + 2 and _broken(b).is_empty(), "a grant cut before bridge.end is not granted twice at boot: %d -> %d" % [before, _units(b, 3).get(SPLIT, 0)])
 	print("[econ-bridge] crash deposit_after_export=landed deposit_before_export=dropped begin_while_marked=%s withdraw_after_receive=finished split_before_settle=settled grant_after_vault=granted grant_before_end=once consistent=%s" % [conflict.get("err", "ok"), _broken(b).is_empty()])
 	return true
 
@@ -499,9 +535,9 @@ func _test_crash_recovery() -> bool:
 ## happens to be marked; the marked deposit still finishes for its own account.
 func _test_strays() -> bool:
 	var b := _rig("strays")
-	_gather(b, 1, "rock", 0, "stone", 12)
-	_gather(b, 2, "rock", 0, "stone", 12)
-	var stray: Dictionary = b.chars.apply("act.deposit", 1, {"bag_slot": _slot(b, 1, "stone"), "count": 3}, T0).get("r", {}).get("asset", {})
+	_gather(b, 1, "crate", 0, SPLIT, 12)
+	_gather(b, 2, "crate", 0, SPLIT, 12)
+	var stray: Dictionary = b.chars.apply("act.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT), "count": 3}, T0).get("r", {}).get("asset", {})
 	var got := _reboot(b, T0 + 1)
 	b = got[0]
 	_expect(str(got[1]).contains(str(stray.get("uid", "?"))), "recover() reports an export in no vault even with no move marked: '%s'" % got[1])
@@ -511,7 +547,7 @@ func _test_strays() -> bool:
 	b = got[0]
 	_expect(not _vault(b, 2).has(str(stray.get("uid", "?"))) and str(got[1]).contains(str(stray.get("uid", "?"))), "a stray export never lands in the vault of a marked deposit (account 2 holds %s)" % str(_vault(b, 2).keys()))
 	# (b) Account 2's deposit cut after act.deposit: it lands in account 2's vault, the stray stays reported.
-	var mine := _cut_deposit(b, 2, "cut-b", 2, T0)
+	var mine := _cut_deposit(b, 2, "cut-b", 2, T0, SPLIT)
 	got = _reboot(b, T0 + 3)
 	b = got[0]
 	_expect(_vault(b, 2).has(mine) and not _vault(b, 2).has(str(stray.get("uid", "?"))) and str(got[1]).contains(str(stray.get("uid", "?"))), "the marked deposit lands in its own account's vault, the stray stays out (%s)" % got[1])
@@ -526,16 +562,16 @@ func _test_strays() -> bool:
 func _test_recover_any_time() -> bool:
 	var b := _rig("anytime", 0, true)
 	var flaky := b.econ.engine as FlakyEngine
-	_gather(b, 1, "rock", 0, "stone", 12)
+	_gather(b, 1, "crate", 0, SPLIT, 12)
 	print("[econ-bridge] recover-any-time: the next ERROR lines (deliberate fault in ...) are deliberate")
 	# (1) The vault faults on letting go after char.receive: it is retried in the same request.
-	var uid := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, "stone"), "count": 5}).uid)
+	var uid := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT), "count": 5}).uid)
 	flaky.target = uid
 	flaky.fail["vault.withdraw_item"] = 1
 	var once := b.apply("vault.withdraw", 1, {"uid": uid, "rid": "w-1"}, T0)
 	_expect(not _vault(b, 1).has(uid) and _broken(b).is_empty(), "a vault fault after char.receive is finished in the same request (%s): %s" % [once.get("err", "ok"), ", ".join(_broken(b))])
 	# (2) It keeps faulting: the bridge refuses every op, so the vault copy cannot be listed.
-	uid = str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, "stone"), "count": 3}).uid)
+	uid = str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT), "count": 3}).uid)
 	flaky.target = uid
 	flaky.fail["vault.withdraw_item"] = 99
 	b.apply("vault.withdraw", 1, {"uid": uid, "rid": "w-2"}, T0)
@@ -545,14 +581,14 @@ func _test_recover_any_time() -> bool:
 	var heal := b.apply("wallet.get", 1, {}, T0)
 	_expect(heal.ok and not _vault(b, 1).has(uid) and _broken(b).is_empty(), "the next op finishes the withdrawal and serves: %s" % ", ".join(_broken(b)))
 	# (3) The vault and char.receive both refuse a deposit: the mark stays and the next op lands it.
-	var slot := _slot(b, 1, "stone")
+	var slot := _slot(b, 1, SPLIT)
 	flaky.target = Provenance.item_uid(int(b.chars.s.seq) + 1, 0) # the part act.deposit will export
 	flaky.fail["vault.deposit_item"] = 1
 	flaky.on_fail = func () -> void: b.chars.broken = "deliberate"
 	var both := b.apply("vault.deposit", 1, {"bag_slot": slot, "count": 1, "rid": "d-3"}, T0)
 	b.chars.broken = ""
 	flaky.on_fail = Callable()
-	var next := _ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, "stone"), "count": 1})
+	var next := _ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT), "count": 1})
 	var stranded: Array = b.chars.s.exported_assets.keys().filter(func (u: String) -> bool: return not b.econ.engine.state().src.has(u))
 	_expect(not both.ok and stranded.is_empty() and _vault(b, 1).has(str(next.get("uid", ""))) and _broken(b).is_empty(), "an asset both stores refused is in the vault before the next deposit runs: stranded %s, %s" % [str(stranded), ", ".join(_broken(b))])
 	print("[econ-bridge] anytime fault_after_receive=%s stuck_listing=%s healed=%s double_refusal_then=%s" % [once.get("err", "ok"), listed.get("err", "ok"), heal.ok, "landed" if stranded.is_empty() else "stranded"])

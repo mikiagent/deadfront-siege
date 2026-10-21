@@ -1,5 +1,5 @@
 {
-  "_about": "Abuse caps for the online economy (docs/orchestration/mmo/contracts.md sections 4 and 5). deposit_caps: units of one def an account may deposit into its vault per rolling 24 h. Each def's cap is the smallest category_caps value among its items.json categories (default deposit_default_cap); raw gathered bulk 2000, ores and metal 600, processed parts 200-1000, food 500, medicine 100, kits 20, tools and weapons 10, armour 5. A def missing from the table (added to items.json later) gets the same category rule at runtime (EconRules.deposit_cap), and deposit_default_cap only when no category matches; economy_tests checks the pinned table still follows the rule. Gathering still runs on the client in v1, so these caps bound what a cheating client can inject per day.",
+  "_about": "Abuse caps for the online economy (docs/orchestration/mmo/contracts.md sections 4 and 5). deposit_caps: units of one def an account may deposit into its vault per rolling 24 h. Each def's cap is the smallest category_caps value among its items.json categories (default deposit_default_cap); raw gathered bulk 2000, ores and metal 600, processed parts 200-1000, food 500, medicine 100, kits 20, tools and weapons 10, armour 5. A def missing from the table (added to items.json later, or one whose categories W2-DATA changes: flint, obsidian, peat) gets the same category rule at runtime (EconRules.deposit_cap), and deposit_default_cap only when no category matches; economy_tests checks the pinned table still follows the rule. Gathering still runs on the client in v1, so these caps bound what a cheating client can inject per day.",
   "max_open_listings": 50,
   "max_open_orders": 20,
   "max_vault_items": 500,
@@ -23,6 +23,18 @@
   "level_max": 60,
   "process_count_max": 99,
   "pet_stat_tolerance": 0.005,
+  "instance_fields": {
+    "_about": "Per-instance fields a server bag row carries besides its provenance stamp (uid, origin, seq): ItemStack.to_dict writes creator and created_at for every instance with a uid, which W2-INV gives every material and food unit, and W2-PROCESS carries both through an in-place step. Escrow keeps them byte for byte; this only bounds their type. Anything else is refused at deposit.",
+    "creator": {
+      "type": "text",
+      "max": 64
+    },
+    "created_at": {
+      "type": "int",
+      "min": 0,
+      "max": 9007199254740991
+    }
+  },
   "attributes": {
     "_about": "Whitelisted item attributes and the value each may hold. Anything else is refused at deposit.",
     "tint": {
@@ -247,7 +259,6 @@
     "berry": 500,
     "clay": 2000,
     "mud": 2000,
-    "flint": 600,
     "dry_grass": 2000,
     "acacia_wood": 2000,
     "sandstone": 2000,
@@ -257,7 +268,6 @@
     "bamboo": 2000,
     "mango": 500,
     "vine": 1000,
-    "obsidian": 600,
     "pine_log": 2000,
     "resin": 2000,
     "ice": 2000,
@@ -267,7 +277,6 @@
     "copper_ore": 600,
     "salt": 1000,
     "willow_wood": 2000,
-    "peat": 2000,
     "marsh_herb": 2000,
     "leech": 400,
     "snow_pine": 2000,
