@@ -83,6 +83,65 @@ new `game/scripts/skills/skill_rules.gd`, new `game/tests/t_w2_skills.gd`, and `
 `game/scripts/dev/skills_lab.gd` (H13).
 The rev-1 goldens `save_v3_golden.json` and `save_v3_away_golden.json` are byte-identical to the base.
 
+## Base sync after review r2 (claude/mmo-overhaul @ af03937f, W2-INV merged)
+
+The review r2 findings were fixed in bc21b7e5 and abcbb6a3 (table in the next section). Since then the base moved
+from acc684a6 to af03937f (W2-INV: instance items, save load and migration, server character migration). The
+branch merged it in 9c4d049b with no conflicts. W2-INV touches none of the branch's files. The hooks patch was
+regenerated from scratch tree `trees/w2s-r12` (`git diff HEAD` after `git apply --3way`) in 986d9267. It has the
+same added and removed lines as the acc684a6 patch; only offsets and context moved (W2-INV shifted
+`save_sanitizer.gd` by 9 lines and `t_save.gd` by 36). `git apply --cached --check` returns rc 0 on af03937f and on
+the branch.
+
+Status of the r2 findings on the merged tree:
+
+| Finding | State |
+|---|---|
+| MAJOR: migration notice not drawn at 844x390 (+ acceptance "notice readable on first load") | Fixed (two short notices; the sheet's SP readout keeps the owed SP on screen). Rechecked on the merged tree, see below. |
+| MAJOR acceptance + minor: unspent SP dropped on migration | **Not changed. This is the package's owner_gate.** The brief (`finish-6.js:84`) says "old saves lose unspent SP (keep it unless spec 03 says otherwise)". Spec 03:14 says otherwise ("players can level many professions but cannot afford all nodes simultaneously"), and so does PRD 7.3:503. Keeping the SP would leave the reviewer's real Lv. 60 save 2036 SP to spend on top of 867 SP of kept nodes. That is 2903 SP, more than the 2305 SP that every node in the twelve trees costs. The owner's own save is hit, so the owner confirms it. H16 records it under "Owner questions (open)" with the release note. |
+| Minor: STATUS hunk failed on acc684a6 | Fixed in bc21b7e5. The hooks patch applies on af03937f too (above). |
+| Minor: Refund on an owing save gives 0 SP with no warning | Fixed (`refund_note`). Seen on the merged tree: "Refund pays off 12 of the 223 owed SP, no SP back" under Insects (`load/desk_tree.png`). |
+| Minor: H6 sp_extra cap untested (M8) | No forged save can reach the cap, so M8 is an equivalent mutant today. A Lv. L tree's nodes cost at most 53 % of that tree's old award, and the sum over the trees bounds the spent SP at 0.53 x `legacy_paid`, which is below `char_paid + legacy_paid`. t_w2_skills pins that bound, so the test fails on the day data makes the cap reachable. |
+| Minor: pets title ignores its player | Fixed (H17). |
+| Minor: locks show raw ids | Fixed (`node_name`). The merged sheet shows "needs Insects", "needs Mining 2" (`load/desk_tree.png`). |
+| Minor: H6 prices at today's trees.json | `# shortcut:` comment in H6. |
+
+Gates on `trees/w2s-r12` (mkscratch at 9c4d049b with this patch applied; game/ equals 986d9267 + the patch):
+- `--import` (mkscratch): 0 SCRIPT ERROR, 0 "Failed to compile".
+- All 24 `t_*.gd` exit with rc 0 and print PASS, t_inventory included (new with W2-INV). Only t_save prints
+  SCRIPT ERROR lines: its 5 deliberate ones. Lines: `[t_w2_skills] catalog 213 of 918 nodes: functional 34 (16 of them
+  through requires_node), partial 19, defined 160`, `[t_w2_skills] migrated Lv. 23: earned 226, available 205; at
+  Lv. 60 earned 720 of 922 SP of buyable nodes`, `[t_w2_skills] PASS`; `[t_save] rev-1 skills migrate: 19 nodes
+  kept, SP 0/263`, `[t_save] stacked migration units={ ... "stone": 299 ... } bag=99 cargo_stone=205`, `[t_save] PASS`;
+  `[t_inventory] PASS`; `[t_data] PASS items=223 recipes=155`; `[t_ui] PASS`; `[t_srvdom] PASS`;
+  `[t_server_domain] PASS`.
+- run_all `[tests] PASS` (0 SCRIPT ERROR); `tools/smoke.sh --no-import` `SMOKE PASS`.
+- Labs, each with 0 SCRIPT ERROR and 0 "couldn't resolve track": skills_lab `[skill] PASS level-up pays 10 SP,
+  small_field bought`; capture_lab `[capture] PASS bonded+=2`; ui_family_lab `[uifamily] inventory=true
+  animals=true unlimited=true active_cap=3`. ui_real_capture_lab ran windowed on gl_compatibility and printed
+  `[uireal] PASS screens=hud,...` at both 1600x900 and 844x390. Notice lines at 844x390: `[uireal] migration notice 0
+  [P: (345.0, 226.0614), S: (292.0, 30.0)] (needs 292 px)` and `notice 1 [P: (369.5, 260.0614), S: (243.0, 30.0)]`.
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips`: 25 before and 25 after.
+- Mutation on the merged tree. With `migration_notice` put back to the old single long line, the lab printed
+  `[uireal] FAIL migration notice 0 is drawn whole at 844x390 (box [P: (0.0, 0.0), S: (0.0, 0.0)], needs 1249 px)` (rc 1)
+  and t_w2_skills printed `FAIL the migration notice is two short lines a phone fits (...)` (rc 1). The file was
+  restored afterwards.
+
+First load of a real rev-1 save on the merged tree (scratch tree `trees/w2s-r12shots`; screenshots in the
+scratchpad under `w2s_r12/load/`). The save is t_save's 19-node variant of `save_v3_golden.json`: Lv. 5, 539
+unspent SP, stacked items. One uncommitted scratch-only edit was needed so that `--shot` keeps the default save
+slot. The load now also runs W2-INV's stack split. Log lines: `[inv] migration: 19 more instances from split
+stacks, 19 kept here; bag 25/100`, `[ui] notice Skill points now follow your level`, `[ui] notice All skills
+kept; 223 SP owed`, `[skill] restored 12 trees (rev 1, SP 0/263)`; 0 SCRIPT ERROR. I opened each shot:
+- `phone_d1.5.png` and `phone_d2.5.png` (844x390, gl_compatibility): both notices are drawn whole under "Golden",
+  clear of the camp labels, the action hexes and the rail.
+- `desk_d1.5.png` (1600x900, gl_compatibility): both notices are at the top centre.
+- `phone_tree.png` (844x390) and `desk_tree.png` (1600x900): the Gathering header reads "SP 0 · 223 owed by kept
+  skills". Insects' Refund row reads "Refund pays off 12 of the 223 owed SP, no SP back". The greyed rows read
+  "Cannot refund: Mining 1 needs it". The muted rows read "needs Insects" and "needs Mining 2".
+- Lab shots `w2s_r12/phone/migration_notice_844x390.png` and `w2s_r12/desk/migration_notice_1600x900.png` show the
+  same two notices over the idle HUD ("All skills kept; 147 SP owed").
+
 ## Finish-run review r2 (findings in this run's prompt; base claude/mmo-overhaul @ acc684a6)
 
 The base moved to acc684a6 (STATUS and workflow docs); the branch merged it (8da3f6c0). Branch files changed:
