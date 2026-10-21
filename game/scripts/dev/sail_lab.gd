@@ -101,6 +101,8 @@ static func audit(sail: Control) -> Dictionary:
 	var shown: PackedStringArray = []
 	var card: Control = sail.find_child("Card", true, false)
 	var card_rect := card.get_global_rect() if card and card.visible else Rect2()
+	if card_rect.has_area() and not view.grow(0.5).encloses(card_rect):
+		problems.append("the card %s runs out of the sea view %s" % [card_rect, view])
 	for i in list.size():
 		var n: Control = list[i]
 		order.append(str(n.get("island_id")))

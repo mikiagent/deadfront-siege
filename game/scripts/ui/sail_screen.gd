@@ -45,6 +45,7 @@ var _chart: SailChart
 var _card: PanelContainer
 var _buttons: Array[Button] = [] ## header and card buttons, for tap_targets()
 var _drag_px := 0.0
+var _touches: Dictionary = {} ## finger index -> true while that finger is down on the sea
 var _rebuild_queued := false
 
 static var _theme: Theme
@@ -118,6 +119,7 @@ func _rebuild() -> void:
 		c.free()
 	nodes.clear()
 	_buttons.clear()
+	_touches.clear()  # the old sea view never gets those fingers' releases
 	_card = null
 	card_id = &""
 	card_action = null
@@ -356,7 +358,7 @@ func open_card(id: StringName) -> void:
 	_card.add_theme_stylebox_override("panel", sb)
 	var card_w: float = _m.card_w
 	_card.position = Vector2(_view.position.x + _view.size.x - card_w - pad, _view.position.y + pad)
-	_card.size = Vector2(card_w, _view.size.y - pad * 2.0)
+	_card.size = Vector2(card_w, 0.0)  # as tall as its lines and button
 	add_child(_card)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", int(pad * 0.75))
@@ -403,10 +405,6 @@ func open_card(id: StringName) -> void:
 		if life > 0.0:
 			col.add_child(_line("Survivable %s after landing" % (("%d h" % int(life / 3600.0)) if life >= 3600.0 else ("%d min" % int(life / 60.0))), body_px, TEXT_2))
 		col.add_child(_line("Fare %d T-stones (you have %d)" % [int(e.cost), stones], body_px, DANGER if stones < int(e.cost) else TEXT))
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	col.add_child(spacer)
 	var go := _text_button("Sail", true)
 	go.name = "CardAction"
 	go.set_meta("route_id", str(id))
@@ -440,8 +438,8 @@ func close_card() -> void:
 	if _card:
 		for b in _card.find_children("*", "Button", true, false):
 			_buttons.erase(b)
+		remove_child(_card)  # now, so the next card can take the name "Card"
 		_card.queue_free()
-		_card.visible = false
 		_card = null
 	if nodes.has(str(card_id)):
 		(nodes[str(card_id)] as SailNode).selected = false
@@ -469,9 +467,20 @@ func _drag(dx: float) -> void:
 func _on_view_input(event: InputEvent) -> void:
 	if event.device == InputEvent.DEVICE_ID_EMULATION:
 		return  # a copy of a touch (or mouse) event that also arrives itself: counting both scrolls 2x
+	var touch := event as InputEventScreenTouch
+	if touch:
+		if touch.pressed:
+			_touches[touch.index] = true
+			_drag_px = 0.0
+		else:
+			_touches.erase(touch.index)
+		return
+	if event is InputEventMouse and not _touches.is_empty():
+		return  # the web build also sends a finger's pointermove as a device-0 mouse motion; ScreenDrag counted it
 	var mb := event as InputEventMouseButton
 	if mb:
-		var step := _chart.band_w * 0.5 * (mb.factor if mb.factor > 0.0 else 1.0)
+		# Web wheels report a factor near 3 per notch; capped so one notch is at most 3/4 of a band.
+		var step := _chart.band_w * 0.5 * (minf(mb.factor, 1.5) if mb.factor > 0.0 else 1.0)
 		if not mb.pressed:
 			return
 		match mb.button_index:
@@ -482,15 +491,13 @@ func _on_view_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_LEFT:
 				_drag_px = 0.0
 		return
-	if event is InputEventScreenTouch:
-		if (event as InputEventScreenTouch).pressed:
-			_drag_px = 0.0
-	elif event is InputEventScreenDrag:
+	if event is InputEventScreenDrag:
 		_drag((event as InputEventScreenDrag).relative.x)
 	elif event is InputEventMouseMotion and ((event as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
 		_drag((event as InputEventMouseMotion).relative.x)
-	elif event is InputEventPanGesture:
-		scroll_to(scroll_x + (event as InputEventPanGesture).delta.x * _chart.band_w * 0.1)
+	elif event is InputEventPanGesture:  # a vertical two-finger trackpad swipe scrolls the chart too
+		var pan := (event as InputEventPanGesture).delta
+		scroll_to(scroll_x + (pan.x + pan.y) * _chart.band_w * 0.1)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):

@@ -4,9 +4,11 @@ extends SceneTree
 ## - 15 nodes, Home first, in level order with x strictly growing by level; a sea at least twice the
 ##   view wide with no vertical scrolling; 64 px tap targets that never overlap, inside the safe area
 ##   (sail_lab.audit); Home + 5 in view at 1600x900 and 844x390, the Lv. 60 island after scrolling right.
-## - A 400 px touch drag (with the phone's emulated mouse copy) and a 400 px mouse drag each scroll
-##   400 +/- 10 px and do not open a card; the wheel scrolls; a tap opens the card; Escape closes the
-##   card, then the chart.
+## - A 400 px touch drag (with the phone's emulated mouse copy, and again with the web build's
+##   device-0 mouse motion per pointermove) and a 400 px mouse drag each scroll 400 +/- 10 px and do
+##   not open a card; the wheel scrolls (a web notch at most 3/4 band), a vertical trackpad pan
+##   scrolls; a tap opens the card; Escape closes the card, then the chart.
+## - A second card replaces the first as "Card", fits its lines and stays in the sea view.
 ## - Survival 0 locks all 14 islands (card says "Needs Survival N"); after a real voyage to
 ##   savannah_15 its node shows a check and the never-visited ones "?".
 ## - Sail on the card travels through World.travel(id, &"sail"): 5 T-stones charged, the island loads;
@@ -117,6 +119,19 @@ func _check_layout(view: Vector2i) -> void:
 	var shown: PackedStringArray = r.visible
 	_expect(shown.size() >= want and shown.has("home_grassland"), "%s %d nodes in view without scrolling (want >= %d with Home): %s" % [tag, shown.size(), want, shown])
 	_expect(float(r.ratio) >= 2.0, "%s sea is %.2fx the view" % [tag, r.ratio])
+	# A second card replaces the first under the same name (the audit finds it) and fits its lines.
+	sail.call("open_card", &"savannah_15")
+	sail.call("open_card", &"temperate_20")
+	await _frames(2)
+	var card: Control = sail.get("_card")
+	_expect(card != null and sail.find_child("Card", true, false) == card, "%s the second card is the node named Card (%s)" % [tag, sail.find_child("Card", true, false)])
+	var rc: Dictionary = _lab.audit(sail)
+	_expect((rc.problems as PackedStringArray).is_empty(), "%s layout with a second card: %s" % [tag, "; ".join(rc.problems)])
+	if card:
+		_expect(card.size.y <= card.get_combined_minimum_size().y + 1.0, "%s the card is as tall as its lines (%.0f, content %.0f)" % [tag, card.size.y, card.get_combined_minimum_size().y])
+		_expect((sail.call("view_rect") as Rect2).grow(0.5).encloses(card.get_global_rect()), "%s the card sits inside the sea view" % tag)
+	sail.call("close_card")
+	_expect(str((load("res://scripts/ui/map_screen.gd") as GDScript).call("island_name", "temperate_25")) == _world.island_name(&"temperate_25"), "MapScreen.island_name still answers (the Island Market calls it)")
 	sail.call("scroll_to", INF)
 	await _frames(1)
 	var right: Dictionary = _lab.audit(sail)
@@ -169,6 +184,11 @@ func _check_scroll(view: Vector2i) -> void:
 	moved = before - float(sail.get("scroll_x"))
 	_expect(absf(moved - 400.0) <= 10.0, "%s 400 px mouse drag scrolls %.1f px" % [tag, moved])
 	_expect(sail.get("card_id") == &"", "%s a mouse drag opens no card" % tag)
+	# Web build: a finger's pointermove also arrives as a device-0 mouse motion (from scroll 0, so 2x shows as 800).
+	before = sail.get("scroll_x")
+	await _touch_drag((sail.call("view_rect") as Rect2).get_center(), -400.0, true)
+	moved = float(sail.get("scroll_x")) - before
+	_expect(absf(moved - 400.0) <= 10.0, "%s 400 px web touch drag scrolls %.1f px" % [tag, moved])
 	before = sail.get("scroll_x")
 	var wheel := InputEventMouseButton.new()
 	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
@@ -179,6 +199,19 @@ func _check_scroll(view: Vector2i) -> void:
 	root.push_input(wheel)
 	await _frames(1)
 	_expect(float(sail.get("scroll_x")) > before, "%s mouse wheel scrolls right" % tag)
+	var band: float = (sail.get("_chart") as Control).get("band_w")
+	sail.call("scroll_to", 0.0)
+	wheel.factor = 3.0  # what Godot's web build reports for one notch (deltaY 100)
+	root.push_input(wheel)
+	await _frames(1)
+	_expect(float(sail.get("scroll_x")) <= band * 0.75 + 0.5, "%s one web wheel notch scrolls %.0f px, at most 3/4 of a %.0f px band" % [tag, sail.get("scroll_x"), band])
+	sail.call("scroll_to", 0.0)
+	var pan := InputEventPanGesture.new()
+	pan.delta = Vector2(0.0, 2.0)
+	pan.position = wheel.position
+	root.push_input(pan)
+	await _frames(1)
+	_expect(float(sail.get("scroll_x")) > 0.0, "%s a vertical two-finger trackpad swipe scrolls the chart" % tag)
 	sail.call("scroll_to", 0.0)
 	await _frames(1)
 	await _touch_drag(_node(sail, "savannah_15").get_global_rect().get_center(), 0.0)
@@ -199,7 +232,9 @@ func _cancel() -> InputEventAction:
 	a.pressed = true
 	return a
 
-func _touch_drag(from: Vector2, dx: float) -> void:
+## `web`: also send what Godot's web build makes of the finger's pointermove, a device-0 mouse motion
+## with the left button held (the emulated press set the mask), next to each ScreenDrag.
+func _touch_drag(from: Vector2, dx: float, web := false) -> void:
 	var steps := 20 if dx != 0.0 else 0
 	var p := from
 	_push_mouse(p, true, -1)
@@ -208,13 +243,14 @@ func _touch_drag(from: Vector2, dx: float) -> void:
 	for i in steps:
 		var rel := Vector2(dx / float(steps), 0.0)
 		p += rel
-		var mm := InputEventMouseMotion.new()
-		mm.device = InputEvent.DEVICE_ID_EMULATION
-		mm.position = p
-		mm.global_position = p
-		mm.relative = rel
-		mm.button_mask = MOUSE_BUTTON_MASK_LEFT
-		root.push_input(mm)
+		for device in ([InputEvent.DEVICE_ID_EMULATION, 0] if web else [InputEvent.DEVICE_ID_EMULATION]):
+			var mm := InputEventMouseMotion.new()
+			mm.device = device
+			mm.position = p
+			mm.global_position = p
+			mm.relative = rel
+			mm.button_mask = MOUSE_BUTTON_MASK_LEFT
+			root.push_input(mm)
 		var drag := InputEventScreenDrag.new()
 		drag.index = 0
 		drag.position = p
