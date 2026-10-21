@@ -1,0 +1,65 @@
+{
+  "_about": "Character creation (spec 19 steps 2-3): what a survivor's look can be. CharacterLook reads it for the creation screens, the world model and the rendered portrait. A colour slot shows only when assets/characters/survivor/look/survivor_look_masks.json has a mask region for it; a part slot shows a picker only with two or more options for the chosen gender. Options attach through RiggedModel.attach_skinned (the armour slots' path), or on attach_bone when the scene has no skin.",
+  "_assumption": "PRD 5.1 names body, modern clothes and dye but gives no values. The height range, every palette colour (muted per assets/concept-art/STYLE.md), the portrait patterns and backgrounds and the preview outfits are ASSUMPTIONs.",
+  "height": {"min": 0.92, "max": 1.08, "step": 0.01, "default": 1.0},
+  "color_slots": [
+    {"id": "skin", "name": "Skin Color", "palette": "skin", "region": "Skin, also where worn gear shows it"},
+    {"id": "outfit1", "name": "Outfit Color 1", "palette": "outfit", "region": "T-shirt; chest pieces"},
+    {"id": "outfit2", "name": "Outfit Color 2", "palette": "outfit", "region": "Shorts; leg pieces"},
+    {"id": "outfit3", "name": "Outfit Color 3", "palette": "outfit", "region": "Sleeves and trim of worn gear"},
+    {"id": "eyes", "name": "Eye Color", "palette": "eyes", "region": "Iris: a few pixels in play, clear in the portrait"},
+    {"id": "lips", "name": "Lip Color", "palette": "lips", "region": "Lips"}
+  ],
+  "palettes": {
+    "skin": [
+      ["#f3dccb", "#ecc9ad", "#e2b896", "#d6a682", "#c99470", "#b8805c"],
+      ["#a26c4a", "#8c5a3c", "#774a31", "#603b27", "#4b2d1f", "#3a2219"]
+    ],
+    "outfit": [
+      ["#e6e4df", "#bdbab3", "#94918a", "#6d6b66", "#4a4946", "#2a2a29"],
+      ["#cdb89a", "#a88c68", "#85694a", "#654e37", "#4a3828", "#31251b"],
+      ["#d9b48a", "#c79560", "#b0773f", "#925e30", "#744a27", "#55361d"],
+      ["#c99a92", "#b0736a", "#96544b", "#7c3f38", "#622f2b", "#46211f"],
+      ["#e0c4c2", "#c9a3a2", "#b08585", "#946a6c", "#775456", "#5a3f42"],
+      ["#c9bfcc", "#ab9fb0", "#8d8094", "#706477", "#554b5c", "#3b3442"]
+    ],
+    "eyes": [
+      ["#3b2416", "#5a3a22", "#7b5530", "#8f7440", "#6b6a3a", "#2b2b2b"],
+      ["#4f6b3a", "#6f8a5a", "#3d5f8a", "#7899b8", "#6f7a84", "#97a3a9"]
+    ],
+    "lips": [
+      ["#e2aaa0", "#d08f86", "#bb766e", "#a35f59", "#8a4b48", "#6f3a3a"],
+      ["#d09ca4", "#bb7f8a", "#9f6470", "#b07e68", "#8f5f4d", "#5e3a32"]
+    ]
+  },
+  "parts": [
+    {"id": "hair", "name": "Hairstyle", "options": [
+      {"id": "base_short", "name": "Short (base model)", "scene": "", "attach_bone": "Head", "genders": ["m", "f"]}
+    ]},
+    {"id": "facial_hair", "name": "Facial Hair", "options": [
+      {"id": "base_stubble", "name": "Stubble (base model)", "scene": "", "attach_bone": "Head", "genders": ["m", "f"]}
+    ]},
+    {"id": "face", "name": "Facial Features", "options": [
+      {"id": "base_face", "name": "Base face", "scene": "", "attach_bone": "Head", "genders": ["m", "f"]}
+    ]}
+  ],
+  "preview_outfits": [
+    {"id": "", "name": "Base clothes"},
+    {"id": "travel_clothes", "name": "Travel clothes"},
+    {"id": "forager", "name": "Forager"},
+    {"id": "hide_and_bone", "name": "Hide and bone"}
+  ],
+  "portrait": {
+    "patterns": [
+      {"id": "plain", "name": "Plain"},
+      {"id": "checker", "name": "Checker"},
+      {"id": "stripes", "name": "Stripes"},
+      {"id": "dots", "name": "Dots"}
+    ],
+    "backgrounds": [
+      ["#5d6a8a", "#4a5a78", "#6e7f99", "#8a7f6a", "#6a5a48", "#4d5b4a"],
+      ["#7a4a4a", "#5a4a6e", "#3a3a3a", "#2a3440", "#8a8a8a", "#b8a58a"]
+    ],
+    "default": {"pattern": "plain", "bg": "#5d6a8a"}
+  }
+}
