@@ -223,7 +223,10 @@ What contradicted the specs and was fixed this round:
   `[tests] FAIL count=2` (rc=1).
 - Mutation (steel_ingot back in `blade_mat`, smelt_iron back to 10 s): `[t_data] FAIL ungated recipe work_pick
   takes steel_ingot (steel tier) as its primary` (also improvised_stone_knife, work_axe, hoe) and
-  `[t_data] FAIL rung iron tools (~50.0 s) cost at least the rung below (~79.4 s)`.
+  `[t_data] FAIL rung iron tools (~50.0 s) cost at least the rung below (~79.4 s)`. Round 4 reran the blade_mat
+  half against the rewritten check: `[t_data] FAIL recipe work_pick takes steel-tier material as its primary with
+  skill gate Lv 0, below the ladder's steel gear gate Lv 45` (also improvised_stone_knife, work_axe, hoe), plus
+  `[t_data] FAIL recipe metal_shards turns 1 blade_mat unit(s) into 2 metal_shard`.
 
 ## requires_node ids against both trees.json files
 
