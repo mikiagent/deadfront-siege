@@ -192,10 +192,22 @@ func _test_round_trip(name: String) -> void:
 
 ## The stacked v3 goldens are frozen rev-1 saves: never regenerate them, they are the migration's
 ## input. skills_v2 must equal the rev-2 result kept in save_v3_skills_rev2.json, field for field both
-## ways; their stacks split on load (W2-INV), so _check_split checks the items, not byte equality.
+## ways; their stacks split on load (W2-INV), so _check_split checks the item containers and
+## everything else must survive load + save unchanged.
 func _check_v3_skills(name: String, s1: Dictionary) -> void:
 	var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
 	_check(not (golden["skills_v2"] as Dictionary).has("rev"), "%s is still a rev-1 save (the migration input)" % name)
+	var skip: Array = ["/skills_v2", "/player/position/1", "/player/inventory", "/player/inventory_extras", "/home/cargo"]
+	for side in ["home", "away"]:
+		var part: Variant = golden.get(side)
+		if part is Dictionary:
+			for i in (part.get("buildings", []) as Array).size():
+				skip.append("/%s/buildings/%d/contents" % [side, i])
+	for i in (golden.get("pets", []) as Array).size():
+		skip.append("/pets/%d/bag" % i)
+	var gd: Array[String] = []
+	_same(golden, s1, "", gd, skip) # y is re-seated on the terrain at load
+	_check(gd.is_empty(), "%s: everything but item containers and skills_v2 survives load + save unchanged: %s" % [name, gd.slice(0, 6)])
 	var want: Variant = (JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_skills_rev2.json")) as Dictionary).get(name)
 	var sd: Array[String] = []
 	_same(want, s1.get("skills_v2"), "/skills_v2", sd)

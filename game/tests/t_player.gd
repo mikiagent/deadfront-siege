@@ -352,7 +352,7 @@ func _test_corpse_full_bag() -> void:
 
 ## W2-INV review 2: corpse loot is one instance per unit, so a flat +3 per take paid per unit.
 ## Butchering XP is 3 per drop kind, the first time any of it leaves the corpse: radial takes,
-## chest takes of each item and Take all pay the same.
+## chest takes of each item and Take all pay the same. Radial butcher grime (WATER) follows the XP.
 func _test_corpse_take_xp() -> void:
 	await _reset_at(Vector3(0, 1.0, 0))
 	if not player.inventory.has_tool_class(&"knife"):
@@ -366,9 +366,16 @@ func _test_corpse_take_xp() -> void:
 		corpse.loot.add_growing(ItemStackS.make(&"raptor_hide", 2))
 		var xp0 := _butchering_total()
 		if way == "radial":
+			# WATER's butcher grime is per loot stack: per drop kind, as the XP (5 instances, 2 kinds).
+			player.set_meta(&"water_grime", 0.0)
+			for id in [&"dirty", &"very_dirty"]:
+				player.statuses.clear_id(id)
 			for i in corpse.loot.slot_count:
 				if corpse.loot.slots[i]:
 					player.actions.loot(corpse, i)
+			var per: float = float(load("res://scripts/player/water_access.gd").data()["dirt"]["butcher"])
+			var grime: float = float(player.get_meta(&"water_grime", 0.0))
+			_expect(is_equal_approx(grime, 2.0 * per), "radial takes of 2 drop kinds add butcher grime twice, not per instance (grime %s)" % grime)
 		else:
 			corpse.open_loot(player)
 			if way == "chest":
