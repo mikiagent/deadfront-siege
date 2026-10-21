@@ -38,6 +38,7 @@
     "version": 2,
     "forward_axis": "-Z",
     "source_height_m": 6.4,
+    "stride_matched": true,
     "mesh": "Tripo H3.1 mesh (orchestrator session), rotated to face -Z, scaled to 6.4 m, seams welded; textures 2048",
     "rig_and_animation": "Opus builder in Blender: 34 bones incl. jaw and 7 tail bones, IK feet, heat weights with rigid plates/spikes",
     "recolour": "gentle global hue grade of Tripo's original colour map (work/tripo_grade.py), no masks",
@@ -52,6 +53,17 @@
       "death",
       "alert"
     ],
+    "authored_clips": {
+      "idle": "keyed on the v2 rig in Blender (Opus builder)",
+      "walk": "keyed on the v2 rig in Blender (Opus builder)",
+      "run": "keyed on the v2 rig in Blender (Opus builder)",
+      "attack_primary": "keyed on the v2 rig in Blender (Opus builder)",
+      "attack_heavy": "keyed on the v2 rig in Blender (Opus builder)",
+      "hit_react": "keyed on the v2 rig in Blender (Opus builder)",
+      "knockdown": "keyed on the v2 rig in Blender (Opus builder)",
+      "death": "keyed on the v2 rig in Blender (Opus builder)",
+      "alert": "keyed on the v2 rig in Blender (Opus builder)"
+    },
     "verifier": "creature-verify.mjs --height 6.4: ALL HARD CHECKS PASSED (feed, sleep, tail_swipe optional, missing)",
     "provenance": "/Users/milankinzy/Documents/DeepseekCLI/bakeoff/stegosaurus-v2/out/REPORT.md (outside repo)",
     "review_video": "/Users/milankinzy/Documents/DeepseekCLI/bakeoff/review/steg2_tripo_v3/all.mp4 (outside repo)",
