@@ -155,6 +155,7 @@ func _ids_at(at: Vector3, face: Node3D) -> Array:
 	_player.global_position = Vector3(at.x, _rt.surface_y(at.x, at.z) + 1.0, at.z)
 	_player.reset_physics_interpolation()
 	_player.face_world(face.global_position)
+	_player.statuses.from_array([])  # the last trial's Stomachache would flinch her once she is up
 	_player._last_hit_taken_s = -999.0
 	await get_tree().create_timer(SETTLE_S).timeout
 	var ids: Array = []

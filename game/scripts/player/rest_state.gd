@@ -186,10 +186,13 @@ func hud_lines() -> PackedStringArray:
 	var where := &"shelter" if sleeping else place
 	var v := p.vitals
 	var hp := net_hp_per_s(where)
-	var hp_line := "HP full" if v.health >= v.effective_max_health() else ("No healing" if absf(hp) < 0.05 else "%+.1f HP/s" % hp)
-	hp_line += _why(func (d: StatusDef) -> bool: return d.dps > 0.0 or d.dps_max_hp_frac > 0.0 or d.flags.has(&"blocks_regen"))
-	var fat_line := "Rested" if v.fatigue < 0.5 else "-%d fatigue/min" % roundi(fatigue_per_min(where))
-	fat_line += _why(func (d: StatusDef) -> bool: return d.fatigue_mult != 1.0)
+	var hp_line := "HP full"
+	if v.health < v.effective_max_health():
+		hp_line = ("No healing" if absf(hp) < 0.05 else "%+.1f HP/s" % hp) \
+			+ _why(func (d: StatusDef) -> bool: return d.dps > 0.0 or d.dps_max_hp_frac > 0.0 or d.flags.has(&"blocks_regen"))
+	var fat_line := "Rested"
+	if v.fatigue >= 0.5:
+		fat_line = "-%d fatigue/min" % roundi(fatigue_per_min(where)) + _why(func (d: StatusDef) -> bool: return d.fatigue_mult != 1.0)
 	return PackedStringArray(["Sleeping" if sleeping else str(rates(where).get("label", "Resting")), hp_line, fat_line])
 
 ## " (stomachache, dirty)": her statuses that `pick` says change a rate, for the chip (spec 01:22).
