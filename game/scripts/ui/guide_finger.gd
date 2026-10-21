@@ -15,8 +15,14 @@ const HAND_H := 78.0
 const BOB := 10.0       ## the tap pulls the tip back at most this far along the finger (px at scale 1)
 const TAP_HZ := 1.1
 const EDGE := 20.0      ## an off-screen target clamps the tip this far inside the safe area
+const NUDGE := 6.0      ## a clamped hand does not tap: it nudges this far (px at scale 1) toward the target ...
+const NUDGE_HZ := 0.7   ## ... this often, with no press squash
 const REPICK_S := 0.5   ## the nearest world target is re-chosen this often; it is projected every frame
-const SLIDE_STEP := 4.0 ## an edge hand slides in off a HUD block in steps this small (px), so it never hops
+const SLIDE_STEP := 8.0 ## a clamped hand walks along the edge off a HUD block on a grid this fine (px)
+## HUD blocks that come and go (notices, toasts, level-ups, pills, name tags): a clamped hand does not
+## walk away from those.
+const PASSING: PackedStringArray = ["toast", "notice", "levelup", "pill", "nameplate", "plate"]
+const WorldUiScript := preload("res://scripts/ui/world_ui.gd")
 ## Motion (the owner's 2026-10-21 gate: no jumps, snaps or side swaps between frames).
 const TURN := 10.0      ## rad/s: the hand turns to a new placement instead of snapping round
 const GLIDE := 12.0     ## 1/s: on a new target the hand eases over from where it was ...
@@ -49,6 +55,7 @@ var _shapes: Array = []  ## [[outline polygon, fill polygon, fill color], ...] i
 var _hud: HuntHud
 var _want := 0.0        ## this frame's placement angle; `angle` turns toward it
 var _key := ""          ## what the hand is on (hex, rect, node or edge plus the target): a change eases over
+var _key_was := ""      ## last frame's _key: on a new one the placement is picked afresh
 var _at := Vector2.ZERO ## the anchor as drawn (anchor plus the easing offset)
 var _offset := Vector2.ZERO
 var _anchor_was := Vector2.ZERO
@@ -79,10 +86,10 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	var was := visible
-	var key_was := _key
+	_key_was = _key
 	visible = _update(delta)
 	if visible:
-		_settle(delta, was, key_was)
+		_settle(delta, was, _key_was)
 	if visible or was:
 		queue_redraw()
 
@@ -99,7 +106,7 @@ func _update(delta: float) -> bool:
 		_repick = 0.0
 	if _hud == null or not is_instance_valid(_hud):
 		_hud = get_tree().get_first_node_in_group("hud") as HuntHud
-	if _hud == null or _hud.play_covered():
+	if _hud == null or _hud.play_covered() or _world_covered():
 		return false
 	var cur := Objectives.current(player)
 	step_id = str(cur.get("id", ""))
@@ -128,15 +135,22 @@ func _update(delta: float) -> bool:
 	# past it sat on the radial's labels.
 	var r := player._gather_radial
 	if r and r.is_open():
-		var hex := r.hex_rect_for(StringName(str(_plan.get("item", "")))) if str(_plan.get("kind", "")) == "gather" else Rect2()
+		var item := StringName(str(_plan.get("item", "")))
+		var hex := clear_part(r.hex_rect_for(item), keep_off) if str(_plan.get("kind", "")) == "gather" else Rect2()
 		if not hex.has_area():
 			return false
 		clamped = false
 		var near: Array[Rect2] = soft.duplicate()
 		near.append_array(r.label_rects)
 		near.append(r.title_box)
+		var own: Array[Rect2] = []  # the hex's own label: the hand keeps off it before any other where it can
+		for i in mini(r.options.size(), r.label_rects.size()):
+			if StringName(str((r.options[i] as Dictionary).get("item", ""))) == item:
+				own.append(r.label_rects[i])
 		_key = "hex"
-		return _aim(hex.get_center(), safe, keep_off, s, near)
+		# On the part of the hex clear of the vitals and the card: a radial beside the Orders card at
+		# 844x390 put the Branch hex half on it, and no placement fitted its centre.
+		return _aim(hex.get_center(), safe, keep_off, s, near, 0.0, own)
 	if not is_instance_valid(target):
 		target = null  # freed with its island (travel, a reload); a freed object passes a != null check
 	_repick -= delta
@@ -148,7 +162,11 @@ func _update(delta: float) -> bool:
 	if _rect.has_area():
 		clamped = false
 		_key = "rect"
-		return _aim(_rect.get_center(), safe, keep_off, s, soft)
+		# Off the HUD's other controls where it can be (it lay across the ANIMALS hex beside MENU), with the
+		# tip on the control's rim rather than its middle, so the icon it asks for stays in sight.
+		var others: Array[Rect2] = []
+		others.assign(HudLayout.taken_rects(_hud, PASSING).filter(func (k: Rect2) -> bool: return not k.intersects(_rect)))
+		return _aim(_rect.get_center(), safe, keep_off, s, soft, _rect.size.y * 0.3, others)
 	if target == null:
 		return false
 	var at := Guide.aim_point(target)
@@ -162,23 +180,33 @@ func _update(delta: float) -> bool:
 	_key = "%s%d" % ["edge" if clamped else "node", target.get_instance_id()]
 	if not clamped:
 		return _aim(p, safe, keep_off, s, soft)
-	# On the edge where the line from the centre leaves the screen, pointing out along it; where the hand
-	# would land on a HUD block there (the minimap too: it only hints a direction), it slides in along the
-	# same line until it clears.
+	# On the safe-area edge where the line from the centre leaves the screen, pointing at the target. Where
+	# the hand would land on a HUD block there (the minimap too: it only hints a direction), it walks along
+	# the edge to the nearest clear spot. It never slides inward: there it tapped the camp tent.
 	var edge := clamp_tip(p, behind, inner)
-	var a := aim_angle(edge - inner.get_center())
-	var n := maxi(1, ceili(edge.distance_to(inner.get_center()) / SLIDE_STEP))
-	for k in n + 1:
-		if _place(edge.lerp(inner.get_center(), float(k) / float(n)), a, avoid, s):
-			return true
-	return false
+	var goal := p if not behind else inner.get_center() + (edge - inner.get_center()) * 100.0
+	var spot := edge_spot(edge, goal, inner, Rect2(Vector2.ZERO, view), avoid, HudLayout.taken_rects(_hud, PASSING), s)
+	if is_nan(spot.x):
+		return false
+	anchor = spot
+	_want = aim_angle(goal - spot)
+	return true
 
-## Tip on `at`, hand on screen, off `keep_off` and covering as little of `soft` as it can.
-func _aim(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: float, soft: Array[Rect2] = []) -> bool:
-	var a := pick_angle(at, safe, keep_off, s, soft, _want if visible else NAN)  # visible: last frame's
-	return not is_nan(a) and _place(at, a, keep_off, s)
+## Tip on `at` (pulled `pull` px back toward the hand), hand on screen, off `keep_off` and covering as
+## little of `soft` as it can; off `firm` too where any placement allows. On a new target the placement
+## is picked afresh: the one kept from the tree covered the Branch hex's own label.
+func _aim(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: float, soft: Array[Rect2] = [], pull: float = 0.0, firm: Array[Rect2] = []) -> bool:
+	var prefer := _want if visible and _key == _key_was else NAN  # visible: last frame's
+	var a := NAN
+	if not firm.is_empty():
+		var both: Array[Rect2] = keep_off.duplicate()
+		both.append_array(firm)
+		a = pick_angle(at, safe, both, s, soft, prefer, pull)
+	if is_nan(a):
+		a = pick_angle(at, safe, keep_off, s, soft, prefer, pull)
+	return not is_nan(a) and _place(at - finger_dir(a) * pull, a, keep_off, s)
 
-## An edge-clamped hand may run off the screen behind the tip, never onto a `keep_off` block.
+## The hand with its tip on `at`, unless that puts it on a `keep_off` block.
 func _place(at: Vector2, a: float, keep_off: Array[Rect2], s: float) -> bool:
 	for k in keep_off:
 		if hand_rect(at, a, s).intersects(k):
@@ -207,7 +235,7 @@ func _settle(delta: float, was: bool, key_was: String) -> void:
 			_offset = Vector2.ZERO
 			_at = anchor
 			break
-	tip = _at - Vector2(sin(angle), -cos(angle)) * bob(_t) * _s
+	tip = _at - finger_dir(angle) * (nudge(_t) if clamped else bob(_t)) * _s
 
 func _on_picked(_anchor: Node3D, i: int) -> void:
 	var r := player._gather_radial if player else null
@@ -217,6 +245,18 @@ func _on_picked(_anchor: Node3D, i: int) -> void:
 		_finish(str(Objectives.step(World.objective).get("id", "")))
 		visible = false
 		queue_redraw()
+
+## A screen the HUD does not own is up: WorldUI's sheet (terrain pick, harbour, map, pause), its arrival
+## welcome, or character creation (HANDS hides for that one the same way). All but the welcome (92) draw
+## under this layer.
+func _world_covered() -> bool:
+	if get_tree().get_first_node_in_group(&"character_creation") != null:
+		return true
+	var w: Variant = WorldUiScript._i
+	if not is_instance_valid(w):
+		return false
+	var ui: WorldUiScript = w
+	return ui._panel.visible or (ui.is_inside_tree() and ui.get_parent().has_node(^"ArrivalWelcome"))
 
 ## Record a finished step once and save it, so a reload does not bring the finger back.
 func _finish(id: String) -> void:
@@ -236,13 +276,23 @@ static func hand_scale(view: Vector2) -> float:
 static func bob(t: float) -> float:
 	return BOB * (0.5 + 0.5 * cos(TAU * TAP_HZ * t))
 
+## A clamped hand's nudge toward what it points at: smaller and slower than the tap, and unsquashed.
+static func nudge(t: float) -> float:
+	return NUDGE * (0.5 + 0.5 * cos(TAU * NUDGE_HZ * t))
+
+## Unit vector the finger points along at angle `a`.
+static func finger_dir(a: float) -> Vector2:
+	return Vector2(sin(a), -cos(a))
+
 ## Finger angle that points along `dir` (0 = up, positive = clockwise).
 static func aim_angle(dir: Vector2) -> float:
 	return atan2(dir.x, -dir.y)
 
-## Screen rect the hand covers with its tip on `at` (both ends of the tap).
+## Screen rect the hand covers with its tip on `at`: both ends of the tap (which only pulls it back along
+## the finger) and the drop shadow.
 static func hand_rect(at: Vector2, a: float, s: float) -> Rect2:
-	return (Transform2D(a, Vector2(s, s), 0.0, at) * BOX).grow(BOB * s)
+	var r := Transform2D(a, Vector2(s, s), 0.0, at) * BOX
+	return r.merge(Rect2(r.position - finger_dir(a) * BOB * s, r.size)).grow(3.0 * s)
 
 static func hand_clear(at: Vector2, a: float, s: float, safe: Rect2, keep_off: Array[Rect2], gap: float = 0.0) -> bool:
 	var r := hand_rect(at, a, s).grow(gap)
@@ -258,17 +308,19 @@ static func hand_clear(at: Vector2, a: float, s: float, safe: Rect2, keep_off: A
 ## No swapping sides frame to frame: `prefer` (the current placement) stays while it is GAP_KEEP clear and
 ## covers at most STICK of the hand more than the best; another must be GAP_NEW clear to take over. Only
 ## when nothing is that clear does any fit do.
-static func pick_angle(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: float, soft: Array[Rect2] = [], prefer: float = NAN) -> float:
+## `pull` moves the tip that far back toward the hand from `at` (onto a control's rim).
+static func pick_angle(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: float, soft: Array[Rect2] = [], prefer: float = NAN, pull: float = 0.0) -> float:
 	for loose in [false, true]:
 		var best := NAN
 		var best_cover := INF
 		var kept := INF
 		for a in ANGLES:
-			if not hand_clear(at, a, s, safe, keep_off, 0.0 if loose else (GAP_KEEP if a == prefer else GAP_NEW)):
+			var t := at - finger_dir(a) * pull
+			if not hand_clear(t, a, s, safe, keep_off, 0.0 if loose else (GAP_KEEP if a == prefer else GAP_NEW)):
 				continue
 			var cover := 0.0
 			for k in soft:
-				cover += hand_rect(at, a, s).intersection(k).get_area()
+				cover += hand_rect(t, a, s).intersection(k).get_area()
 			if a == prefer:
 				kept = cover
 			if cover < best_cover:
@@ -277,6 +329,72 @@ static func pick_angle(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: floa
 		if not is_nan(best):
 			return prefer if kept < INF and kept <= best_cover + STICK * hand_rect(at, 0.0, s).get_area() else best
 	return NAN
+
+## The biggest part of `r` clear of every rect in `blocks` (the strip beside, above or below each one it
+## meets); empty when they cover it.
+static func clear_part(r: Rect2, blocks: Array[Rect2]) -> Rect2:
+	for k in blocks:
+		if not r.intersects(k):
+			continue
+		var best := Rect2()
+		for part in [Rect2(r.position, Vector2(k.position.x - r.position.x, r.size.y)),
+				Rect2(Vector2(k.end.x, r.position.y), Vector2(r.end.x - k.end.x, r.size.y)),
+				Rect2(r.position, Vector2(r.size.x, k.position.y - r.position.y)),
+				Rect2(Vector2(r.position.x, k.end.y), Vector2(r.size.x, r.end.y - k.end.y))]:
+			if (part as Rect2).size.x > 0.0 and (part as Rect2).size.y > 0.0 and (part as Rect2).get_area() > best.get_area():
+				best = part
+		r = best
+	return r
+
+## Where a clamped hand goes: `edge` itself, or the nearest spot along the border of `inner` (on a grid,
+## so it holds still) where the hand pointing at `goal` is off `hard` (the vitals, the card, the minimap),
+## off the HUD's other controls (`soft`) and at most EDGE px off the `view`. Failing that, the nearest spot
+## off `hard` alone; Vector2(NAN, NAN) if there is none.
+static func edge_spot(edge: Vector2, goal: Vector2, inner: Rect2, view: Rect2, hard: Array[Rect2], soft: Array[Rect2], s: float) -> Vector2:
+	var around := 2.0 * (inner.size.x + inner.size.y)
+	var u0 := _arc(inner, edge)
+	var fallback := Vector2(NAN, NAN)
+	var on_screen := view.grow(EDGE)
+	var grid := snappedf(u0, SLIDE_STEP)
+	for k in int(around / SLIDE_STEP / 2.0) + 2:
+		for q: Vector2 in ([edge] if k == 0 else [_on_border(inner, grid + k * SLIDE_STEP), _on_border(inner, grid - k * SLIDE_STEP)]):
+			var a := aim_angle(goal - q)
+			var body := Transform2D(a, Vector2(s, s), 0.0, q) * BOX
+			var r := hand_rect(q, a, s)
+			if hard.any(func (b: Rect2) -> bool: return r.intersects(b)):
+				continue
+			if is_nan(fallback.x):
+				fallback = q
+			if on_screen.encloses(body) and not soft.any(func (b: Rect2) -> bool: return r.intersects(b)):
+				return q
+	return fallback
+
+## The point `u` px clockwise along the border of `r` from its top-left corner.
+static func _on_border(r: Rect2, u: float) -> Vector2:
+	var w := r.size.x
+	var h := r.size.y
+	u = fposmod(u, 2.0 * (w + h))
+	if u < w:
+		return r.position + Vector2(u, 0.0)
+	if u < w + h:
+		return Vector2(r.end.x, r.position.y + u - w)
+	if u < 2.0 * w + h:
+		return Vector2(r.end.x - (u - w - h), r.end.y)
+	return Vector2(r.position.x, r.end.y - (u - 2.0 * w - h))
+
+## How far clockwise from the top-left corner of `r` its border point nearest `q` is.
+static func _arc(r: Rect2, q: Vector2) -> float:
+	var w := r.size.x
+	var h := r.size.y
+	var side := [absf(q.y - r.position.y), absf(q.x - r.end.x), absf(q.y - r.end.y), absf(q.x - r.position.x)]
+	match side.find(side.min()):
+		0:
+			return clampf(q.x - r.position.x, 0.0, w)
+		1:
+			return w + clampf(q.y - r.position.y, 0.0, h)
+		2:
+			return w + h + clampf(r.end.x - q.x, 0.0, w)
+	return 2.0 * w + h + clampf(r.end.y - q.y, 0.0, h)
 
 ## Where a target off `inner` (or behind the camera, whose projection mirrors) meets its edge on the
 ## line from the centre: the finger sits there and points out at it.
@@ -302,7 +420,7 @@ func _draw() -> void:
 	if not visible:
 		return
 	var s := hand_scale(get_viewport_rect().size)
-	var press := 1.0 - bob(_t) / BOB  # 1 while the tip is in: the hand squashes a touch
+	var press := 0.0 if clamped else 1.0 - bob(_t) / BOB  # 1 while the tip is in: the hand squashes a touch
 	draw_set_transform(tip + Vector2(2.0, 3.0) * s, angle, Vector2(s, s) * (1.0 - 0.04 * press))
 	for sh: Array in _shapes:
 		draw_colored_polygon(sh[0], Color(0, 0, 0, 0.28))  # soft drop shadow

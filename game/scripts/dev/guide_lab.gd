@@ -8,10 +8,13 @@ extends Node3D
 ##      Branch hex every frame.
 ##   3. A tap at the tip picks Branch; the finger hides within a frame and never comes back for the order,
 ##      also after a save and a reload; the next order's finger shows and stays.
-##   4. It hides under the bag, craft, the menu and skills sheets, a radial open on another node and the
-##      creature plate.
+##   4. It hides under the bag, craft, the menu and skills sheets, a radial open on another node, the
+##      terrain pick, the pause sheet, the arrival welcome, character creation and the creature plate.
 ##   5. Motion (the owner's 2026-10-21 gate), frame by frame over the walk to the tree, the radial walk and
 ##      the next order: the hand never jumps or snaps round, and does not swap sides for the same target.
+##   6. Review r1: a clamped hand stays on the safe-area edge (never slid in to tap the world) and off every
+##      HUD block; on the radial it keeps off the Branch hex's own label where it can; a craft order puts it
+##      on the MENU hex's rim, off the other hexes; beside the tree it still shows on the Branch hex.
 ## Windowed: --resolution 1600x900 -- --lab=guide_lab [--shot-dir=DIR] (844x390 too; either renderer).
 ## Prints "[guide] PASS" (exit 0) or "[guide] FAIL ..." lines (exit 1).
 
@@ -28,6 +31,7 @@ var _pick_frame := -1
 var _pick_item := ""
 var _motion: Dictionary = {}  ## phase -> {frames, jumps, snaps, swaps, hops}
 var _last: Array = []
+var _clamped := {"frames": 0, "inward": 0, "on_hud": 0, "worst": 0.0}  ## clamped frames, tips off the edge, hands on a HUD block
 
 func _ready() -> void:
 	_out = OS.get_user_data_dir().path_join("guide")
@@ -132,6 +136,7 @@ func _run() -> void:
 	var t2 := 0.0
 	var shot_taken := false
 	var hex := Rect2()
+	var on_label := 0
 	_last = []
 	while t2 < 3.0:
 		await get_tree().process_frame
@@ -139,6 +144,8 @@ func _run() -> void:
 		frames += 1
 		_track("radial walk")
 		hex = radial.hex_rect_for(&"branch")
+		if _covers_own_label(radial):
+			on_label += 1
 		if not (_finger.visible and hex.has_point(_finger.tip)):
 			off += 1
 			if off <= 3:
@@ -148,8 +155,9 @@ func _run() -> void:
 			await _shot("hex")
 	var moved := start.distance_to(_player.global_position)
 	_player.clear_nav()
-	print("[guide] radial walk: %d frames, %d with the tip off the Branch hex, survivor moved %.1f m" % [frames, off, moved])
+	print("[guide] radial walk: %d frames, %d with the tip off the Branch hex, survivor moved %.1f m; %d frames on the Branch label where a placement off it fitted" % [frames, off, moved, on_label])
 	_expect(frames > 30 and off == 0 and moved > 1.0, "tip inside the Branch hex every frame for 3 s while the survivor walks (%d of %d off, moved %.1f m)" % [off, frames, moved])
+	_expect(on_label == 0, "the hand keeps off the Branch hex's own label where a placement allows (%d frames on it)" % on_label)
 	_smooth("radial walk", true)
 	await get_tree().create_timer(0.3).timeout
 	# 3. A tap at the tip picks Branch, and the finger hides within a frame and stays gone.
@@ -211,6 +219,14 @@ func _run() -> void:
 				and (other == null or _player.global_position.distance_to(n.global_position) < _player.global_position.distance_to(other.global_position)):
 			other = n
 	await _covered("radial open on a node without stone", func () -> void: _player.debug_open_radial(other), func () -> void: _player._gather_radial.close())
+	# Screens the HUD does not own (review r1: the finger tapped on the terrain pick, the pause sheet and the
+	# character creation cards). LabKit puts WorldUI under this lab, as main.gd puts it under main.
+	var wui = (load("res://scripts/ui/world_ui.gd") as GDScript).instance_on(self)
+	await _covered("terrain pick", func () -> void: wui.show_terrain(), func () -> void: wui.hide_all())
+	await _covered("pause sheet", func () -> void: wui.show_pause(), func () -> void: wui.hide_all())
+	await _covered("arrival welcome", func () -> void: wui.call("_show_arrival", self), func () -> void: get_node("ArrivalWelcome").free())
+	await _covered("character creation", func () -> void: get_tree().root.add_child(CharacterCreation.new()),
+		func () -> void: get_tree().get_first_node_in_group(&"character_creation").free())
 	var wild: Creature = null
 	for n in get_tree().get_nodes_in_group("creatures"):
 		var c := n as Creature
@@ -222,7 +238,82 @@ func _run() -> void:
 		wild.process_mode = Node.PROCESS_MODE_DISABLED  # hold it still beside the survivor
 		wild.global_position = _player.global_position + Vector3(3.0, 0.0, 2.0)
 		await _covered("creature plate", func () -> void: _player.hunt.start(wild), func () -> void: pass, false)
+		_player.hunt.stop()
+		wild.global_position += Vector3(400.0, 0.0, 400.0)
+	await get_tree().create_timer(0.5).timeout
+	await _craft_order()
+	await _beside_tree()
+	print("[guide] clamped frames: %s" % _clamped)
+	_expect(int(_clamped["frames"]) > 0 and int(_clamped["inward"]) == 0 and int(_clamped["on_hud"]) == 0,
+		"a clamped hand stays on the safe-area edge and off the HUD (%s)" % _clamped)
 	_finish()
+
+## Craft orders point at the MENU hex: the tip on the hex, the hand off the other HUD hexes.
+func _craft_order() -> void:
+	World.objective = 3  # twine, crafted by hand
+	await get_tree().create_timer(0.8).timeout
+	await RenderingServer.frame_post_draw
+	var menu := (_hud.control_for(&"craft") as HexButton).hex_rect()
+	var hr := GuideFinger.hand_rect(_finger.anchor, float(_finger.get("_want")), float(_finger.get("_s")))
+	var hit: Array[String] = []
+	for n in get_tree().get_nodes_in_group(&"hex_button"):
+		var h := n as HexButton
+		if h and h.is_visible_in_tree() and h != _hud.control_for(&"craft") and hr.intersects(h.hex_rect()):
+			hit.append(str(h.caption))
+	print("[guide] craft order %s: tip %s on MENU hex %s, hand %s over hexes %s" % [_finger.step_id, _finger.anchor, menu, hr, hit])
+	_expect(_finger.visible and str(_finger.get("_key")) == "rect" and menu.has_point(_finger.anchor) and hit.is_empty(),
+		"the craft finger is on the MENU hex and off the other hexes (on %s)" % [hit])
+	await _shot("craft")
+
+## Review r1: with the survivor beside the tree (the usual spot after walking to it) the radial put the
+## Branch hex half on the Orders card at 844x390 and the finger vanished. It aims at the part off the card.
+func _beside_tree() -> void:
+	_player.inventory.consume(&"branch", _player.inventory.count_of(&"branch"))
+	World.objective = 0
+	World.guide_done = PackedStringArray()
+	await get_tree().create_timer(0.8).timeout
+	var tree := _finger.target as HarvestNode
+	_expect(tree != null, "order 1 has its tree again")
+	if tree == null:
+		return
+	_player.global_position = tree.global_position + Vector3(2.0, 0.5, 2.0)
+	await get_tree().create_timer(0.8).timeout
+	var radial := _player._gather_radial
+	_player.debug_open_radial(tree)
+	var shown := 0
+	var frames := 0
+	var thin := 0
+	for k in 30:
+		await get_tree().process_frame
+		frames += 1
+		var hex := radial.hex_rect_for(&"branch")
+		var part := GuideFinger.clear_part(hex, _finger._keep_off)
+		if _finger.visible and hex.has_point(_finger.tip):
+			shown += 1
+		elif part.size.x < 26.0 or part.size.y < 26.0:
+			thin += 1  # under 26 px no hand fits off the card: the radial's layout, not the finger
+	print("[guide] beside the tree: finger on the Branch hex %d of %d frames (%d with under 26 px of it off the card)" % [shown, frames, thin])
+	_expect(shown + thin == frames, "beside the tree the finger shows on the Branch hex wherever 26 px of it are off the card (%d + %d of %d)" % [shown, thin, frames])
+	await _shot("beside")
+	radial.close()
+
+## The hand's placement (not the eased drawing) covers the Branch hex's own label, and some placement
+## would not.
+func _covers_own_label(radial: GatherRadial) -> bool:
+	var own := Rect2()
+	for i in mini(radial.options.size(), radial.label_rects.size()):
+		if str((radial.options[i] as Dictionary).get("item", "")) == "branch":
+			own = radial.label_rects[i]
+	var s := float(_finger.get("_s"))
+	if not _finger.visible or not own.has_area() or not GuideFinger.hand_rect(_finger.anchor, float(_finger.get("_want")), s).intersects(own):
+		return false
+	var firm: Array[Rect2] = _finger._keep_off.duplicate()
+	firm.append(own)
+	var vs := get_viewport().get_visible_rect()
+	for a in GuideFinger.ANGLES:
+		if GuideFinger.hand_clear(_finger.anchor, a, s, vs, firm):
+			return true
+	return false
 
 ## The finger is on `tree`: its tip within TIP_PX of it, or (off screen) on the edge pointing at it.
 func _check_on_tree(tree: HarvestNode) -> void:
@@ -237,6 +328,29 @@ func _check_on_tree(tree: HarvestNode) -> void:
 		print("[guide] tree at %s: tip %s, %.1f px away" % [p, _finger.tip, d])
 		_expect(d <= TIP_PX, "tip within %.0f px of the tree (%.1f)" % [TIP_PX, d])
 
+## A clamped hand this frame: its tip within EDGE plus the nudge of the safe-area edge (drawn, not the
+## eased anchor: the gate is what the player sees once the glide is over), the hand off every HUD block.
+func _check_clamped() -> void:
+	var vs := get_viewport().get_visible_rect()
+	var ins := UiTokens.safe_insets(get_viewport())
+	var safe := Rect2(Vector2(ins.w, ins.z), vs.size - Vector2(ins.w + ins.x, ins.z + ins.y))
+	var s := float(_finger.get("_s"))
+	var d := minf(minf(absf(_finger.tip.x - safe.position.x), absf(_finger.tip.x - safe.end.x)), minf(absf(_finger.tip.y - safe.position.y), absf(_finger.tip.y - safe.end.y)))
+	_clamped["frames"] += 1
+	_clamped["worst"] = maxf(float(_clamped["worst"]), d)
+	var gliding := (_finger.get("_offset") as Vector2).length() > 0.5
+	if d > GuideFinger.EDGE + GuideFinger.NUDGE * s + 2.0 and not gliding:
+		_clamped["inward"] += 1
+		if int(_clamped["inward"]) <= 3:
+			print("[guide] clamped tip %s is %.1f px in from the edge" % [_finger.tip, d])
+	var hr := GuideFinger.hand_rect(_finger.anchor, float(_finger.get("_want")), s)
+	for r in HudLayout.taken_rects(_hud, GuideFinger.PASSING):
+		if hr.intersects(r):
+			_clamped["on_hud"] += 1
+			if int(_clamped["on_hud"]) <= 3:
+				print("[guide] clamped hand %s on HUD block %s" % [hr, r])
+			break
+
 ## One frame of the finger's motion in `phase`, against the last frame:
 ## - jump: the tip moved over 24 px in a frame, faster than 3000 px/s (to a new spot the hand eases over at
 ##   no more than GuideFinger.GLIDE_MAX, 2000 px/s; what it points at moves far slower on a walk);
@@ -247,6 +361,8 @@ func _check_on_tree(tree: HarvestNode) -> void:
 ## 12 px is the radial's ("radial_jumps", the known "hexes jump while walking" item), not charged to the hand.
 func _track(phase: String) -> void:
 	var m: Dictionary = _motion.get_or_add(phase, {"frames": 0, "jumps": 0, "snaps": 0, "swaps": 0, "hops": 0, "radial_jumps": 0})
+	if _finger.visible and _finger.clamped:
+		_check_clamped()
 	var dt := maxf(get_process_delta_time(), 1.0 / 240.0)
 	var key := str(_finger.get("_key"))
 	var now := [_finger.visible, _finger.tip, _finger.anchor, _finger.angle, float(_finger.get("_want")), key, _finger.target]

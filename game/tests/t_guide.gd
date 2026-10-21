@@ -162,4 +162,41 @@ func _test_placement() -> void:
 	_expect(behind.is_equal_approx(Vector2(20, 450)), "a target behind the camera clamps to the mirrored edge (%s)" % behind)
 	var corner: Vector2 = FingerS.clamp_tip(Vector2(-800, -1000), false, inner)
 	_expect(inner.grow(0.5).has_point(corner) and (absf(corner.x - 20.0) < 0.5 or absf(corner.y - 20.0) < 0.5), "an up-left target clamps onto the edge (%s)" % corner)
+	# Review r1: a clamped hand whose edge point is under the minimap or the card walks along the edge to a
+	# clear spot. It used to slide in toward the middle and tap the camp tent.
+	var map := Rect2(1430, 14, 156, 212)
+	var hard: Array[Rect2] = [vitals, quest, map]
+	var goal := Vector2(1900, -300)
+	var e: Vector2 = FingerS.clamp_tip(goal, false, inner)
+	var spot: Vector2 = FingerS.edge_spot(e, goal, inner, view, hard, none, 1.1)
+	var hr: Rect2 = FingerS.hand_rect(spot, FingerS.aim_angle(goal - spot), 1.1)
+	_expect(_off_border(inner, spot) < 0.5 and not hr.intersects(map) and not hr.intersects(quest), "an edge point under the map and the card walks along the edge (%s -> %s, hand %s)" % [e, spot, hr])
+	var claim: Array[Rect2] = [Rect2(1500, 232, 80, 90)]
+	var right_edge: Vector2 = FingerS.edge_spot(Vector2(1580, 150), Vector2(1900, 150), inner, view, hard, claim, 1.1)
+	var cr: Rect2 = FingerS.hand_rect(right_edge, FingerS.aim_angle(Vector2(1900, 150) - right_edge), 1.1)
+	_expect(_off_border(inner, right_edge) < 0.5 and not cr.intersects(map) and not cr.intersects(claim[0]), "past the map it walks past a HUD control too (%s, hand %s)" % [right_edge, cr])
+	var clear_e: Vector2 = FingerS.clamp_tip(Vector2(5000, 600), false, inner)
+	_expect(FingerS.edge_spot(clear_e, Vector2(5000, 600), inner, view, hard, none, 1.1) == clear_e, "a clear edge point is kept as it is")
+	_expect(FingerS.NUDGE < FingerS.BOB and FingerS.nudge(0.0) <= FingerS.NUDGE and FingerS.nudge(0.3) >= 0.0, "a clamped hand nudges less than a tap")
+	# The Branch hex half under the Orders card (844x390, survivor beside the tree): aim at the part off it.
+	var card: Array[Rect2] = [Rect2(425, 35, 235, 70)]
+	var part: Rect2 = FingerS.clear_part(Rect2(460, 58, 55, 60), card)
+	_expect(part.is_equal_approx(Rect2(460, 105, 55, 13)), "a hex half under the card aims at the strip below it (%s)" % part)
+	_expect(not FingerS.clear_part(Rect2(500, 50, 20, 20), card).has_area(), "a hex wholly under the card has no clear part")
+	_expect(FingerS.clear_part(Rect2(800, 400, 50, 50), card) == Rect2(800, 400, 50, 50), "a hex clear of the card is kept whole")
+	# Craft orders point at the MENU hex in the bottom-left corner: off the ANIMALS hex beside it (the other
+	# HUD controls are kept off like a block where a placement allows), the tip on the hex's rim so its icon
+	# stays in sight.
+	var menu := Rect2(20, 806, 56, 60)
+	var animals := Rect2(94, 806, 56, 60)
+	var row: Array[Rect2] = [vitals, quest, animals, Rect2(168, 806, 56, 60), Rect2(242, 806, 56, 60), Rect2(94, 868, 210, 20)]
+	_expect(FingerS.pick_angle(menu.get_center(), view, keep, 1.1, none, NAN, menu.size.y * 0.3) == FingerS.ANGLES[4], "with no HUD controls kept off, the MENU finger lies along the row (the review's shot)")
+	var ma: float = FingerS.pick_angle(menu.get_center(), view, row, 1.1, none, NAN, menu.size.y * 0.3)
+	var mt: Vector2 = menu.get_center() - FingerS.finger_dir(ma) * menu.size.y * 0.3
+	_expect(not is_nan(ma) and menu.has_point(mt) and mt.distance_to(menu.get_center()) > 10.0 and not FingerS.hand_rect(mt, ma, 1.1).intersects(animals),
+		"the craft finger keeps off ANIMALS with its tip on the MENU hex's rim (angle %s, tip %s)" % [ma, mt])
 	_sections += 1
+
+## Distance from `q` to the nearest side of `r`.
+func _off_border(r: Rect2, q: Vector2) -> float:
+	return minf(minf(absf(q.x - r.position.x), absf(q.x - r.end.x)), minf(absf(q.y - r.position.y), absf(q.y - r.end.y)))
