@@ -5,8 +5,11 @@ extends Node3D
 ##   open   dry grass 18 m or more from the camp, no fire or bedding within 8 m
 ##   fire   1.9 m from the camp bonfire, on its side away from the camp
 ##   tent   1.9 m from the camp's public tent (a sleep spot)
+##   tent_sleep  the same spot, the Sleep hex on purpose (beds and tents keep the Sleep flow)
 ##   tent_tap  the same, but a tap on the ground 5 s in (a tap-to-walk, as a phone player taps)
 ## The attempt, in order: a "rest" context hex, else the "sleep" hex, else the interact key (E).
+## Then a motion trace: the hips every physics frame through sit down and stand up (the owner's
+## motion gate: no jump, snap or stutter between frames).
 ## Runs on any build: it only uses context_actions / context_action / interact and reads state with get().
 ## Headless: Godot --headless --path game res://scenes/dev/rest_lab.tscn -- --lab=rest_lab [--secs=30]
 ## Windowed: Godot --path game --resolution 1600x900 [--rendering-method gl_compatibility]
@@ -17,6 +20,7 @@ const SETTLE_S := 1.2
 
 var _out := ""
 var _secs := 30.0
+var _verbose := false
 var _player: Player
 var _hud: HuntHud
 var _cam: IsoCamera
@@ -28,6 +32,8 @@ func _ready() -> void:
 			_out = a.substr(11)
 		elif a.begins_with("--secs="):
 			_secs = float(a.substr(7))
+		elif a == "--trace":
+			_verbose = true  # every frame of the motion trace
 	if _out != "":
 		DirAccess.make_dir_recursive_absolute(_out)
 	Game.debug_overlay = false
@@ -55,11 +61,13 @@ func _run() -> void:
 	await _trial("open", _open_spot(), null)
 	await _trial("fire", _beside(fire, 1.9, false), fire)  # the fire's far side, clear of the tent
 	await _trial("tent", _beside(tent, 1.9, true), tent)
+	await _trial("tent_sleep", _beside(tent, 1.9, true), tent, true)
 	await _trial("tent_tap", _beside(tent, 1.9, true), tent)
+	await _motion(_beside(fire, 1.9, false), fire)
 	print("[restlab] done")
 	get_tree().quit(0)
 
-func _trial(spot: String, at: Vector3, face: Node3D) -> void:
+func _trial(spot: String, at: Vector3, face: Node3D, sleep: bool = false) -> void:
 	_player.clear_nav()
 	_player.velocity = Vector3.ZERO
 	_player.global_position = Vector3(at.x, _rt.surface_y(at.x, at.z) + 1.0, at.z)
@@ -77,7 +85,7 @@ func _trial(spot: String, at: Vector3, face: Node3D) -> void:
 	for a in _player.context_actions():
 		ids.append(str(a["id"]))
 	var tried := "interact_key"
-	if "rest" in ids:
+	if "rest" in ids and not sleep:
 		tried = "rest_hex"
 		_player.context_action("rest")
 	elif "sleep" in ids:
@@ -117,6 +125,56 @@ func _trial(spot: String, at: Vector3, face: Node3D) -> void:
 	await get_tree().physics_frame
 	Input.action_release("move_left")
 	await get_tree().create_timer(2.5).timeout
+
+## The hips (the rig's hips socket) every physics frame from Rest to seated, then from a move key to
+## standing: the largest step between two frames, and the visual's height, for pops and sinking.
+func _motion(at: Vector3, face: Node3D) -> void:
+	var ids: Array = await _ids_at(at, face)
+	if not "rest" in ids:
+		print("[restlab] motion: no Rest on this build")
+		return
+	_player.context_action("rest")
+	await _trace("sit", 1.6)
+	Input.action_press("move_left")
+	await get_tree().physics_frame
+	Input.action_release("move_left")
+	await _trace("stand", 1.6)
+
+func _ids_at(at: Vector3, face: Node3D) -> Array:
+	_player.clear_nav()
+	_player.velocity = Vector3.ZERO
+	_player.global_position = Vector3(at.x, _rt.surface_y(at.x, at.z) + 1.0, at.z)
+	_player.reset_physics_interpolation()
+	_player.face_world(face.global_position)
+	_player._last_hit_taken_s = -999.0
+	await get_tree().create_timer(SETTLE_S).timeout
+	var ids: Array = []
+	for a in _player.context_actions():
+		ids.append(str(a["id"]))
+	return ids
+
+func _trace(what: String, secs: float) -> void:
+	var hips: Node3D = _player.hips_anchor()
+	var prev := hips.global_position
+	var worst := 0.0
+	var worst_t := 0.0
+	var t := 0.0
+	var ground := _rt.surface_y(_player.global_position.x, _player.global_position.z)
+	var low := INF
+	while t < secs:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		var now := hips.global_position
+		if now.distance_to(prev) > worst:
+			worst = now.distance_to(prev)
+			worst_t = t
+		low = minf(low, now.y - ground)
+		prev = now
+		if _verbose:
+			var ap: AnimationPlayer = _player.rig.anim_player
+			print("[restlab] trace %s t=%.3f hips=%.3f visual_y=%.3f clip=%s at=%.2f" % [what, t, now.y - ground, _player.visual.position.y, ap.current_animation, ap.current_animation_position])
+	print("[restlab] motion %s: largest hips step %.3f m/frame at t=%.2f, lowest hips %.2f m above ground, clip=%s visual_y=%.2f" % [
+		what, worst, worst_t, low, _player.anim.current_clip, _player.visual.position.y])
 
 ## Rain lands Wet at random (WorldWeather); the lab holds it off so every spot sees the same sky.
 func _no_rain() -> void:
