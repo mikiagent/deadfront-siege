@@ -92,10 +92,33 @@ index 0b840a23..b880d45b 100644
  	sc._process(FULL_RETRY)
  	_check(not sc.crafting and _player.inventory.count_of(&"skewer") == 1 and _inputs_home(1, 1), "it finishes once a slot frees up")
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index e09baeef..3f9a1ca3 100644
+index e09baeef..faf78b8f 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
-@@ -68,9 +68,14 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+@@ -18,7 +18,8 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
+ ## Each recipe slot has a lead stack (for the primary item's attributes) and may draw
+ ## its remaining units from other stacks. A plan row records exact bag indices/counts.
+ ## Prefer dedicated materials over dual-category ones, so fibre stalk is spent before
+-## bark that might still be needed as lashing. Leads take the largest matching stack.
++## bark that might still be needed as lashing. Then the least valuable instance (Inventory.spend_key),
++## then the largest matching stack.
+ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
+ 	var slots: Array = rec.get("slots", [])
+ 	if inv == null or slots.is_empty() or (not picks.is_empty() and picks.size() != slots.size()):
+@@ -53,6 +54,12 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+ 					overlaps_b += 1
+ 			if overlaps_a != overlaps_b:
+ 				return overlaps_a < overlaps_b
++			# Spec 05:23 (W2-INV): the least valuable instance first, so a default pick never spends a
++			# rare or higher-level one; the player can still pick it.
++			var ka := Inventory.spend_key(sa)
++			var kb := Inventory.spend_key(sb)
++			if ka != kb:
++				return ka < kb
+ 			var ca := int(remaining.get(a, sa.count))
+ 			var cb := int(remaining.get(b, sb.count))
+ 			return ca > cb if ca != cb else a < b)
+@@ -68,9 +75,14 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
  		if lead < 0:
  			return []
  		var parts: Array[Dictionary] = []
@@ -257,7 +280,7 @@ index dfb25ece..92cebff5 100644
  				continue
  			if int(row.count) < 1 or int(row.durability) < 0:
 diff --git a/game/scripts/ui/inventory_ui.gd b/game/scripts/ui/inventory_ui.gd
-index c2ae65f0..b62401b4 100644
+index c2ae65f0..47364b21 100644
 --- a/game/scripts/ui/inventory_ui.gd
 +++ b/game/scripts/ui/inventory_ui.gd
 @@ -47,6 +47,11 @@ const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "
@@ -272,6 +295,18 @@ index c2ae65f0..b62401b4 100644
  
  func _ready() -> void:
  	visible = false
+@@ -183,9 +188,9 @@ func _ready() -> void:
+ 	_tip = Label.new()
+ 	_tip.text = "Tap an item."
+ 	_tip.add_theme_color_override("font_color", INK)
++	# Not clipped: with one instance per slot its lines (level, process, attributes) are what tell
++	# two stones apart; one clipped line showed only "Stone x1..." (W2-INV bag shots).
+ 	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+-	_tip.clip_text = true
+-	_tip.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+ 	_tip.custom_minimum_size = Vector2(180, 24)
+ 	_tip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ 	col_e.add_child(_tip)
 @@ -261,7 +266,13 @@ func _slot_style(b: Button, selected: bool = false) -> void:
  	b.add_theme_stylebox_override("hover", hov)
  	b.add_theme_stylebox_override("pressed", UiTokens.slot_style(true))
@@ -346,7 +381,7 @@ index c2ae65f0..b62401b4 100644
  				b.tooltip_text = s.tooltip()
  				b.disabled = false
  				b.modulate = Color(0.7, 0.7, 0.7, 0.8) if _readonly_reason() != "" else Color.WHITE
-@@ -420,6 +422,57 @@ func rebuild() -> void:
+@@ -420,6 +422,60 @@ func rebuild() -> void:
  	_title.text = "CHARACTER" if not has_storage else "CHARACTER  ·  %s" % str(_storage_opts.get("title", "Storage"))
  	_select(_selected if _selected >= 0 else -1)
  
@@ -368,8 +403,11 @@ index c2ae65f0..b62401b4 100644
 +func _style_cell(btn: Button, cell: Dictionary) -> void:
 +	btn.modulate = Color.WHITE
 +	if cell.has("back"):
-+		btn.icon = null
-+		btn.text = "‹ All"
++		btn.icon = UiIcons.icon(&"back") # white = action
++		btn.expand_icon = true
++		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
++		btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
++		btn.text = "All"
 +		btn.tooltip_text = "Back to the whole bag"
 +		return
 +	if cell.has("group"):
@@ -404,7 +442,7 @@ index c2ae65f0..b62401b4 100644
  func _refresh_profile() -> void:
  	if _profile == null or inventory == null:
  		return
-@@ -549,6 +602,7 @@ func _refresh_equipped() -> void:
+@@ -549,6 +605,7 @@ func _refresh_equipped() -> void:
  			caption = "%.0f" % st.scaled_armor()
  		if st:
  			ItemIcons.style_slot(b, st.def_id, caption)
@@ -412,7 +450,7 @@ index c2ae65f0..b62401b4 100644
  			b.tooltip_text = st.tooltip()
  			b.modulate = Color.WHITE
  		else:
-@@ -564,10 +618,11 @@ func _select(index: int) -> void:
+@@ -564,10 +621,11 @@ func _select(index: int) -> void:
  	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null
  	for b in [_store_btn, _lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn]:
  		b.visible = false
@@ -427,7 +465,7 @@ index c2ae65f0..b62401b4 100644
  	if none:
  		_tip.text = "Tap an item."
  		return
-@@ -626,7 +681,7 @@ func _on_equip_pressed() -> void:
+@@ -626,7 +684,7 @@ func _on_equip_pressed() -> void:
  	var d := st.def()
  	var slot := Inventory.slot_for(d)
  	if slot != &"":
