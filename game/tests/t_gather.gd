@@ -866,6 +866,26 @@ func _test_hud_draw() -> void:
 	var moved: Rect2 = GF.notice_box(fresh, player, Rect2(ring.get_center() - Vector2(150, 15), Vector2(300, 30)), [] as Array[Rect2], Vector2(844, 390))
 	print("[t_gather] survivor and ring %s; a notice put on them moves to %s" % [ring, moved])
 	_expect(ring.has_area() and moved.has_area() and not moved.intersects(ring), "a rare notice put on the survivor moves off them and their ring (%s vs %s)" % [moved, ring])
+	# ...and off a creature plate (a "Pill" panel under Game.creature_ui; a notice ran into a pet's bar).
+	var game := get_root().get_node("Game")
+	var keep_plates = game.creature_ui
+	var plates := CanvasLayer.new()
+	var pill := Panel.new()
+	pill.name = "Pill"
+	pill.position = Vector2(560, 160)
+	pill.size = Vector2(180, 40)
+	plates.add_child(pill)
+	host.add_child(plates)
+	game.creature_ui = plates
+	var plate := Rect2(pill.position, pill.size)
+	var off_plate: Rect2 = GF.notice_box(fresh, player, Rect2(plate.position + Vector2(-60.0, 5.0), Vector2(300, 30)), [] as Array[Rect2], Vector2(844, 390))
+	game.creature_ui = keep_plates
+	plates.free()
+	_expect(off_plate.has_area() and not off_plate.intersects(plate), "a rare notice put on a creature plate moves off it (%s vs %s)" % [off_plate, plate])
+	# With no room in the centre column it goes to the screen's edge rather than waiting unseen.
+	var column: Array[Rect2] = [Rect2(320, 0, 200, 390)]
+	var edge: Rect2 = GF.notice_box(fresh, player, Rect2(272, 170, 300, 30), column, Vector2(844, 390))
+	_expect(edge.has_area() and not edge.intersects(column[0]), "with the centre column full a rare notice goes to the edge (%s)" % edge)
 	h.queue_free()
 	na.free()
 	nb.free()
