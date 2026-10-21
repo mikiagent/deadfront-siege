@@ -409,7 +409,7 @@ def paint_atlas():
         "soil_dark": _furrows(42, (0.23, 0.16, 0.1), (0.14, 0.09, 0.055), stripes=False),
         # the heaped furrow ridges: mottled earth, no directional stripes, so a row of ridges
         # never reads as planking from the iso camera
-        "soil_ridge": _furrows(48, (0.27, 0.19, 0.12), (0.17, 0.11, 0.07), stripes=False),
+        "soil_ridge": _furrows(48, (0.26, 0.19, 0.12), (0.18, 0.12, 0.075), stripes=False),
         "grass": _grass(43, (0.4, 0.5, 0.22), (0.26, 0.35, 0.14)),
         "crop_leaf": _leaf(44, (0.42, 0.55, 0.2), (0.2, 0.32, 0.09)),
         "crop_leaf_dark": _leaf(45, (0.3, 0.42, 0.15), (0.13, 0.22, 0.06)),

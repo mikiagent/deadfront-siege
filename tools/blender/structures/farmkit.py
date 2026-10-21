@@ -22,25 +22,28 @@ def _ridges(p, hx, hy, top):
     """Furrow ridges: five heaped rows running along X, with the dark furrow floor between them."""
     rows = 5
     pitch = 2 * hy / rows
-    seg = 3
+    seg = 5
     span = 2 * hx - 0.1
     for i in range(rows):
         y = -hy + pitch * (i + 0.5)
         w = pitch * 0.56
         for k in range(seg):
             x0 = -hx + 0.05 + k * span / seg
-            seg_w = span / seg + 0.05
-            h = 0.055 + 0.014 * (((i * 5 + k * 3) % 3) - 1)
-            yj = y + 0.012 * (((i * 11 + k * 7) % 3) - 1)  # break the straight furrow line
+            seg_w = span / seg + 0.06
+            # the height and the line of every heap vary, so a row of ridges reads as heaped
+            # earth and not as one straight bar
+            h = 0.05 + 0.016 * (((i * 5 + k * 3) % 5) - 2)
+            yj = y + 0.016 * (((i * 11 + k * 7) % 5) - 2)
+            ww = w * (0.86 + 0.16 * (((i * 3 + k * 5) % 3) / 2.0))
             # a triangular heap of soil, not a plank: the apex is above the middle of the row
-            p.prism([(x0, yj - w / 2, top), (x0, yj + w / 2, top), (x0, yj, top + h)],
+            p.prism([(x0, yj - ww / 2, top), (x0, yj + ww / 2, top), (x0, yj, top + h)],
                     (seg_w, 0, 0), "soil_ridge", tile_m=0.35)
 
 
 def _bed(p, half=0.93):
     """The 2 x 2 m tilled plot: dark furrowed soil, furrow ridges, a raised earth edge."""
     top = 0.1
-    p.box((2 * half, 2 * half, top), (0, 0, top / 2), "soil_dark", tile_m=0.5)
+    p.box((2 * half, 2 * half, top), (0, 0, top / 2), "soil", tile_m=0.5)
     _ridges(p, half, half, top)
     # raised edge: a low earth berm all round the plot, heaped like a ridge and broken at the corners
     berm_h = 0.1
@@ -157,8 +160,6 @@ def path_dirt():
     _grass_base(p)
     # the packed surface does not reach the tile edge: grass creeps in from all sides
     _dirt_pad(p, 0, 0, 1.78, 1.78)
-    for i, (x, y, r) in enumerate(((-0.55, 0.42, 0.06), (0.48, -0.3, 0.05), (0.15, 0.62, 0.045), (-0.7, -0.55, 0.05))):
-        p.rock(r, (x, y, 0.04), tile="stone_dark", squash=(1.3, 1.0, 0.5), seed=210 + i)
     return [(p, (0, 0, 0))]
 
 
@@ -169,8 +170,6 @@ def path_dirt_corner():
     # an L of packed dirt: the strip along +X and the strip along +Y meet in the far corner
     _dirt_pad(p, 0.0, 0.45, 1.78, 0.88)
     _dirt_pad(p, 0.45, 0.0, 0.88, 1.78)
-    for i, (x, y, r) in enumerate(((0.5, 0.45, 0.055), (-0.2, 0.66, 0.05), (0.62, -0.1, 0.05))):
-        p.rock(r, (x, y, 0.04), tile="stone_dark", squash=(1.3, 1.0, 0.5), seed=220 + i)
     return [(p, (0, 0, 0))]
 
 
