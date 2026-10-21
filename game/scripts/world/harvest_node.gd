@@ -81,7 +81,7 @@ func _ready() -> void:
 	else:
 		_tile = BuildGrid.tile_of(global_position)
 	add_to_group("harvest")
-	collision_layer = 1
+	collision_layer = 1 if blocks_movement() else 0
 	collision_mask = 0
 	pool_max = _resolve_pool_max(pool_max)
 	if pool <= 0.0:
@@ -498,7 +498,7 @@ func _sync_visual_state() -> void:
 		rotation = Vector3.ZERO
 		_falling = false
 	visible = true
-	collision_layer = 1
+	collision_layer = 1 if blocks_movement() else 0
 	_apply_batch()
 
 func regen_left() -> float:
@@ -538,6 +538,21 @@ func gather_kind() -> StringName:
 	if role == "rock":
 		return &"mine"
 	return &"gather"
+
+## Owner 2026-10-21: animals got stuck on grass. Small resources (grass, fibre, herbs, bushes, low rocks,
+## stumps) are stepped over; trees and anything taller than BLOCK_HEIGHT keep a solid trunk and block paths
+## (tile_path skips nodes on layer 0). The tap zone (layer 2) is unchanged, so every node stays tappable.
+const BLOCK_HEIGHT := 1.25  # ASSUMPTION: m; ore nodes and boulders (1.3-1.4 m) block, flax (1.2 m) does not
+func blocks_movement() -> bool:
+	var fam: Dictionary = Data.nature_families.get(family, {})
+	var role := str(fam.get("role", ""))
+	if role.begins_with("tree"):
+		return true
+	var span: Variant = fam.get("height", null)
+	var top := 1.3 if role == "rock" else 0.0  # a rock without a height span is a full boulder (1.3 m)
+	if span is Array and (span as Array).size() >= 2:
+		top = float(span[1])
+	return top > BLOCK_HEIGHT
 
 func _is_rock() -> bool:
 	return str(Data.nature_families.get(family, {}).get("role", "")) == "rock"
