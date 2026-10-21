@@ -16,6 +16,7 @@ const MAX_STEP := 2.0       ## px a radial part may move against its anchor in o
 const PILL_JUMP := 6.0      ## px a pill may move against the world in one frame
 const SWAP_DEG := 45.0      ## a hex whose direction from the anchor turns more than this in a frame swapped sides
 const WALK_S := 3.0
+const SET_DOWN_M := 16.0  ## the phone's band: 19.5 and 22 m found no node clear of the minimap, CLAIM and vitals
 
 var _fails: Array[String] = []
 var _out := ""
@@ -55,14 +56,15 @@ func _run() -> void:
 		_finish()
 		return
 	# 1. One long walk toward a node with the radial open. Zoomed out (as a player pinches or scrolls) so
-	# a node about 3 s of walking away is on screen to tap.
+	# a node about 3 s of walking away is on screen to tap: 21 m and more, since routes run straight at
+	# 7 m/s since CONTROLS B3 (an 18 m walk took 3.3 s before it and 2.3 s after).
 	var iso := get_viewport().get_camera_3d() as IsoCamera
-	iso.size = 22.0 if view.y >= 600.0 else iso.max_size  # a landscape phone shows ~ a third of the ground
+	iso.size = iso.max_size  # a landscape phone shows ~ a third of the ground
 	await get_tree().process_frame
-	var far := _node_between(15.0, 30.0, [])
+	var far := _node_between(21.0, 32.0, [])
 	if far == null:
 		far = await _stand_beside_a_node(iso)
-	_expect(far != null, "a gatherable node on screen 15-30 m from the survivor")
+	_expect(far != null, "a gatherable node on screen 21-32 m from the survivor")
 	var used: Array[HarvestNode] = []
 	if far:
 		used.append(far)
@@ -106,10 +108,9 @@ func _run() -> void:
 	_gate("click")
 	_finish()
 
-## On a landscape phone the HUD leaves a band beside the survivor: set it down 16 m left of a node
+## On a landscape phone the HUD leaves a band beside the survivor: set it down SET_DOWN_M beside a node
 ## (lab setup, not gameplay) so the node is on screen to its right, and return that node.
 func _stand_beside_a_node(iso: IsoCamera) -> HarvestNode:
-	var right := iso.global_basis.x * Vector3(1, 0, 1)
 	var rt := World.runtime
 	var tried := 0
 	for n in get_tree().get_nodes_in_group("harvest"):
@@ -117,30 +118,37 @@ func _stand_beside_a_node(iso: IsoCamera) -> HarvestNode:
 		if hn == null or hn.depleted or not hn.visible or hn.options().is_empty() or hn.can_gather(_player.inventory) != "" or tried >= 40:
 			continue
 		tried += 1
-		var at := hn.global_position - right.normalized() * 16.0
-		if rt and rt.has_method("surface_y"):
-			at.y = rt.surface_y(at.x, at.z) + 0.2
-		# A clear straight walk (this is the jitter gate, not the pathfinding one): a survivor-wide ball
-		# swept from the spot to 1.5 m short of the node at knee height touches nothing.
-		var q := PhysicsShapeQueryParameters3D.new()
-		var ball := SphereShape3D.new()
-		ball.radius = 0.6
-		q.shape = ball
-		q.transform = Transform3D(Basis.IDENTITY, at + Vector3.UP * 0.8)
-		q.motion = right.normalized() * 14.0
-		q.exclude = [_player.get_rid()]
-		if get_world_3d().direct_space_state.cast_motion(q)[0] < 1.0:
-			continue
-		_player.velocity = Vector3.ZERO
-		_player.global_position = at
-		_player.reset_physics_interpolation()
-		iso._snap()
-		for f in 3:
-			await get_tree().physics_frame
-		var found := _node_between(14.0, 17.0, [], [hn])
-		if found:
-			print("[jitter] survivor set down at %s, beside %s" % [at, found.node_id])
-			return found
+		# The node to her right, else to her left (on a phone the right edge is minimap and CLAIM).
+		for side: float in [1.0, -1.0]:
+			var toward := (iso.global_basis.x * Vector3(1, 0, 1)).normalized() * side
+			var at := hn.global_position - toward * SET_DOWN_M
+			var ground := at.y - 1.0
+			if rt and rt.has_method("surface_y"):
+				ground = rt.surface_y(at.x, at.z)
+			# Standing: the origin is the capsule's centre (it was set 0.2 m above the ground, 0.8 m into
+			# it, and only the old router's unstick hop got the survivor out).
+			at.y = ground + _player.half_height() + 0.05
+			# A clear straight walk (this is the jitter gate, not the pathfinding one): a survivor-wide ball
+			# swept from the spot to 1.5 m short of the node at knee height touches nothing.
+			var q := PhysicsShapeQueryParameters3D.new()
+			var ball := SphereShape3D.new()
+			ball.radius = 0.6
+			q.shape = ball
+			q.transform = Transform3D(Basis.IDENTITY, Vector3(at.x, ground + 1.0, at.z))
+			q.motion = toward * (SET_DOWN_M - 1.5)
+			q.exclude = [_player.get_rid()]
+			if get_world_3d().direct_space_state.cast_motion(q)[0] < 1.0:
+				continue
+			_player.velocity = Vector3.ZERO
+			_player.global_position = at
+			_player.reset_physics_interpolation()
+			iso._snap()
+			for f in 3:
+				await get_tree().physics_frame
+			var found := _node_between(SET_DOWN_M - 1.0, SET_DOWN_M + 1.0, [], [hn])
+			if found:
+				print("[jitter] survivor set down at %s, beside %s" % [at, found.node_id])
+				return found
 	return null
 
 ## The player's own tap path on a node (opens the radial), then the first open hex, as a finger would.
@@ -299,6 +307,12 @@ func _shot(name: String) -> void:
 	var path := _out.path_join("%s_%dx%d.png" % [name, get_tree().root.size.x, get_tree().root.size.y])
 	img.save_png(path)
 	print("[jitter] shot %s" % path)
+	# Grabbing the image stalls a frame (~0.1 s); in the next frame the follow camera catches up the whole
+	# stall at once (its lerp clamps at 1) and the world moves under the radial. Not a frame of play: let
+	# that frame pass and start the comparison afresh.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_prev.clear()
 
 func _expect(ok: bool, message: String) -> void:
 	if not ok:
