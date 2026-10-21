@@ -18,9 +18,9 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
 ## Each recipe slot has a lead stack (for the primary item's attributes) and may draw
 ## its remaining units from other stacks. A plan row records exact bag indices/counts.
 ## Spec 05:23 (W2-INV): the recipe's own input (prefer_id) first, then the least valuable instance
-## (Inventory.spend_key), then dedicated materials before dual-category ones; a unit that a later
-## slot still needs (a cheap reed is also the recipe's lashing) is left for it. When a slot still
-## runs short, plan again with dedicated materials first (the order before W2-INV).
+## (Inventory.spend_key), then dedicated materials before dual-category ones, then the lead's def;
+## a unit that a later slot still needs (a cheap reed is also the recipe's lashing) is left for it.
+## When a slot still runs short, plan again with dedicated materials first (the order before W2-INV).
 static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
 	var plan := _plan_ordered(inv, rec, picks, true)
 	return plan if not plan.is_empty() else _plan_ordered(inv, rec, picks, false)
@@ -56,8 +56,18 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
 		var keys := {}
 		var candidates: Array[int] = []
 		candidates.assign(cands[i])
+		var first := -1 # the least valuable unit left: the lead when none is picked
 		for idx in candidates:
 			keys[idx] = _pick_key(inv.slots[idx], preferred, cats, value_first) + [-int(remaining.get(idx, inv.slots[idx].count)), idx]
+			if int(remaining.get(idx, inv.slots[idx].count)) > 0 and (first < 0 or keys[idx] < keys[first]):
+				first = idx
+		if first < 0:
+			return []
+		# Inside equal keys the lead's own def goes first, so a twine made a moment ago is not spent as
+		# the fibre of the next twine while a raw stalk ties with it (W1-SRVDOM capture checks).
+		var lead_def := inv.slots[lead if lead >= 0 else first].def_id
+		for idx in candidates:
+			(keys[idx] as Array).insert((keys[idx] as Array).size() - 2, 0 if inv.slots[idx].def_id == lead_def else 1)
 		candidates.sort_custom(func(a: int, b: int) -> bool: return keys[a] < keys[b])
 		var order: Array[int] = []
 		if lead >= 0:
