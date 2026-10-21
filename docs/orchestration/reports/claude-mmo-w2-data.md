@@ -15,7 +15,19 @@ The old hooks patch no longer applied: its changes are already in the base. `git
 hook 6's two crafting.gd hunks, keeps every other hunk as the record of what was applied, and has a header that
 says so. On ddaab662, `git apply --3way` gives rc=0 with no change to the tree, and `git apply -R --check` gives
 rc=0, so every hunk is in the base. Plain `git apply --check` fails, and it should, because the changes are already
-present. **Integrator: nothing to apply.** Gates for this sync are listed below.
+present. **Integrator: nothing to apply.**
+
+Gates were run in the scratch tree `sync-w2-data` on af4c2761 with this patch applied through mkscratch, which made
+no change to the tree. The import log has 0 error lines.
+
+- All 22 t_*.gd exit with rc=0 and print their PASS line, including `[t_data] PASS items=223 recipes=155`,
+  `[t_harbour] PASS islands=15`, `[t_w2_skills] PASS`, `[t_water] PASS` and `[t_uiicons] PASS ids=177 files=116`.
+  t_save prints its 5 deliberate SCRIPT ERRORs. Every other log has 0 SCRIPT ERROR lines, and no log has a
+  "couldn't resolve track" line.
+- run_all prints `[tests] PASS`, and `tools/smoke.sh --no-import` prints `SMOKE PASS`.
+- `[craft_lab] PASS`, `[equiplab] PASS`, and the raid gear probe gives `[gear] ... failures=0`.
+- `[t_data] level 1 -> 5 from the planner: flint_pick gather power x1.40, flint_spear damage x1.32`.
+- No new Godot-*.ips: there are 25 before and after, and the newest is still Godot-2026-10-20-232613.ips.
 
 ## Round 5: the round 4 findings again, on a resumed workflow step (2026-10-21)
 
