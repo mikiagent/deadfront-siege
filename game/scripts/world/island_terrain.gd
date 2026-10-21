@@ -25,85 +25,27 @@ enum TileType {
 	DEEP = 8,
 	ASH = 9,
 	WET = 10,
+	## Cliff faces (escarpment risers, the mesa rim): impassable, never scattered on, so the props
+	## job can dress them with cliff rocks. Shader id 5 paints them as rock (see terrain_tiles.gdshader).
+	CLIFF = 11,
 }
 
-static func build(rt: IslandRuntime, size: float, climate: String) -> void:
+## Builds the ground from IslandShape: heightmap, effective radius, river distance and slope
+## grids, then the height texture, the tile map, the mesh and the sea. `shape` is the shared
+## generator instance so is_dry, the tile loop and the scatter all read one coastline.
+static func build(rt: IslandRuntime, size: float, climate: String, shape: IslandShape) -> void:
 	rt._size = size
-	rt._res = 129 if size >= 200.0 else 65
-	# Fill locals and assign once: writing a packed array through rt.<field> copies it per write.
-	var heights := PackedFloat32Array()
-	heights.resize(rt._res * rt._res)
-	var seed := 25 if climate == "temperate" else 17
-	var n0 := FastNoiseLite.new()
-	n0.seed = seed
-	n0.frequency = 0.012
-	var n1 := FastNoiseLite.new()
-	n1.seed = seed + 101
-	n1.frequency = 0.03
-	var n2 := FastNoiseLite.new()
-	n2.seed = seed + 211
-	n2.frequency = 0.08
-	var nshore := FastNoiseLite.new()
-	nshore.seed = seed + 307
-	nshore.frequency = 0.02
-	var rr := RandomNumberGenerator.new()
-	rr.seed = int(seed) * 131
-	var ridge_ang := rr.randf() * TAU
-	rt._ridge_dir = Vector2(cos(ridge_ang), sin(ridge_ang)).normalized()
-	var cell := size / float(rt._res - 1)
-	# Durango ground is flat: gentle undulation only, a low ridge far inland, and a wide
-	# gradual shore (dry sand -> wet sand -> shallow -> deep over 20-30 m) whose waterline
-	# wanders with noise so it never reads as a ring.
-	var shore0 := size * 0.36
-	var shore1 := size * 0.47
-	for z in rt._res:
-		for x in rt._res:
-			var wx := -size * 0.5 + float(x) * cell
-			var wz := -size * 0.5 + float(z) * cell
-			var h := 1.1
-			h += n0.get_noise_2d(wx, wz) * 0.45
-			h += n1.get_noise_2d(wx, wz) * 0.18
-			h += n2.get_noise_2d(wx, wz) * 0.06
-			var rad := Vector2(wx, wz).length()
-			if rad > size * 0.14 and rad < shore0:
-				var dir := Vector2(wx, wz).normalized()
-				var along := maxf(0.0, dir.dot(rt._ridge_dir))
-				var cross := absf(dir.dot(Vector2(-rt._ridge_dir.y, rt._ridge_dir.x)))
-				var width := clampf(1.0 - cross / 0.5, 0.0, 1.0)
-				var inland := clampf((rad - size * 0.14) / (shore0 - size * 0.14), 0.0, 1.0)
-				h += 2.0 * along * width * sin(inland * PI)
-			var river_center := sin(wx * 0.018 + float(seed) * 0.13) * (size * 0.085)
-			var river := absf(wz - river_center)
-			if river < 6.0 and rad > size * 0.16 and rad < size * 0.42:
-				var carve := clampf(1.0 - river / 6.0, 0.0, 1.0)
-				carve = carve * carve * (3.0 - 2.0 * carve)
-				h = lerpf(h, -0.35, carve)
-			if rt._crater_hint != Vector3.ZERO:
-				var dc := Vector2(wx - rt._crater_hint.x, wz - rt._crater_hint.z).length()
-				if dc < 12.0:
-					var bowl := pow(clampf(1.0 - dc / 12.0, 0.0, 1.0), 2.0)
-					h -= bowl * 1.2
-				var rim := clampf(1.0 - absf(dc - 12.0) / 4.0, 0.0, 1.0)
-				h += rim * 0.4
-			var wander := nshore.get_noise_2d(wx, wz) * (size * 0.03)
-			var rs := rad + wander
-			if rs > shore0:
-				var t := clampf((rs - shore0) / maxf(0.001, shore1 - shore0), 0.0, 1.0)
-				var eased := t * t * (3.0 - 2.0 * t)
-				h = lerpf(h, -1.4, eased)
-			if rs > shore1:
-				var t2 := clampf((rs - shore1) / (size * 0.05), 0.0, 1.0)
-				h = lerpf(h, -2.6, t2)
-			if rt._camp_hint != Vector3.ZERO:
-				var camp_d := Vector2(wx - rt._camp_hint.x, wz - rt._camp_hint.z).length()
-				if camp_d < 16.0:
-					var s := clampf(1.0 - camp_d / 16.0, 0.0, 1.0)
-					h = lerpf(h, 1.1, s * 0.6)
-			heights[x + z * rt._res] = h
-	rt._heights = heights
+	# 160 divides into the 8 mesh chunks; cells 2.3-2.9 m so hills and cliffs do not facet badly.
+	rt._res = 161
+	rt._shape = shape
+	rt._rad = shape.rads
+	rt._river_d = shape.river_d
+	rt._vslope = shape.vslope
+	rt._heights = shape.heights
+	rt._ridge_dir = shape.ridge_dir
 	_build_height_texture(rt)
 	_build_tile_types(rt, climate)
-	_build_mesh(rt, size, cell, climate)
+	_build_mesh(rt, size, size / float(rt._res - 1), climate)
 	_sea(rt, size)
 
 static func _build_mesh(rt: IslandRuntime, size: float, cell: float, climate: String) -> void:
@@ -225,6 +167,9 @@ static func _tile_color(rt: IslandRuntime, tile_type: int) -> Color:
 			return Color(0.44, 0.33, 0.23)
 		TileType.ASH:
 			return Color(0.34, 0.33, 0.33)
+		TileType.CLIFF:
+			# The map/HUD colour: cliff faces read as rock on the atlas and the minimap.
+			return rt._palette.get("rock", Color(0.46, 0.45, 0.44)) * 0.9
 		_:
 			return rt._palette.get("grass", Color(0.42, 0.62, 0.32))
 
@@ -239,7 +184,9 @@ static func _nav_tri(nav_st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3)
 static func _sea(rt: IslandRuntime, size: float) -> void:
 	var deep := MeshInstance3D.new()
 	var dplane := PlaneMesh.new()
-	dplane.size = Vector2(size * 1.8, size * 1.8)
+	# The sea reaches far past the grid: a 4x plane keeps its edge out of any camp, shore or
+	# overview shot (the 1.6x plane's edge showed as a dark band at the horizon on 400 m islands).
+	dplane.size = Vector2(size * 4.0, size * 4.0)
 	deep.mesh = dplane
 	deep.position.y = -2.6
 	deep.extra_cull_margin = 320.0
@@ -250,7 +197,7 @@ static func _sea(rt: IslandRuntime, size: float) -> void:
 	rt.add_child(deep)
 	var water := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(size * 1.6, size * 1.6)
+	plane.size = Vector2(size * 3.2, size * 3.2)
 	plane.subdivide_width = 24
 	plane.subdivide_depth = 24
 	water.mesh = plane
@@ -268,10 +215,9 @@ static func _sea(rt: IslandRuntime, size: float) -> void:
 	rt.add_child(water)
 
 static func _build_height_texture(rt: IslandRuntime) -> void:
-	var img := Image.create(rt._res, rt._res, false, Image.FORMAT_RF)
-	for z in rt._res:
-		for x in rt._res:
-			img.set_pixel(x, z, Color(rt._heights[x + z * rt._res], 0.0, 0.0))
+	# Heights straight from the float array (little-endian Float32 = FORMAT_RF): one memcpy
+	# instead of 26k set_pixel calls (it was ~40 % of the home build).
+	var img := Image.create_from_data(rt._res, rt._res, false, Image.FORMAT_RF, rt._heights.to_byte_array())
 	rt._height_tex = ImageTexture.create_from_image(img)
 
 static func bake_nav(rt: IslandRuntime) -> void:
@@ -309,22 +255,60 @@ static func slope_deg(rt: IslandRuntime, x: float, z: float) -> float:
 static func _palette_for(climate: String) -> Dictionary:
 	return ClimatePalette.resolve(Data.world_climates.get(climate, {}))
 
+## One loop over the 1 m tile grid: water/beach bands, cliff faces (from the precomputed slope),
+## rock, ash, the river channel and banks (MUD, the fresh-water mask t_water reads), the crater.
+## Reads only the packed arrays IslandShape precomputed; no noise and no surface_y per tile.
 static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 	rt._tile_span = maxi(1, int(round(rt._size)))
+	var span := rt._tile_span
 	var types := PackedByteArray()
-	types.resize(rt._tile_span * rt._tile_span)
+	types.resize(span * span)
 	var fresh := PackedByteArray()
 	fresh.resize(types.size())
-	rt._tile_map_image = Image.create(rt._tile_span, rt._tile_span, false, Image.FORMAT_R8)
+	var walk := PackedByteArray()
+	walk.resize(types.size())
+	rt._tile_map_image = Image.create(span, span, false, Image.FORMAT_R8)
 	rt._tile_map_image.fill(Color.BLACK)
+	var pix := PackedByteArray()
+	pix.resize(span * span)
 	var has_ash := _climate_has_material(climate, "ash")
-	for z in rt._tile_span:
-		for x in rt._tile_span:
-			var wx := -rt._size * 0.5 + float(x) + 0.5
-			var wz := -rt._size * 0.5 + float(z) + 0.5
-			var h := rt.surface_y(wx, wz)
-			var slope := slope_deg(rt, wx, wz)
-			var rad := Vector2(wx, wz).length()
+	var byte := PackedByteArray()
+	byte.resize(span * span)
+	var half := rt._size * 0.5
+	var cell := rt._size / float(rt._res - 1)
+	var res := rt._res
+	var harr := rt._heights
+	var rarr := rt._rad
+	var darr := rt._river_d
+	var warr := rt._shape.river_w if rt._shape != null else PackedFloat32Array()
+	var sarr := rt._vslope
+	var land_r := rt.land_radius()
+	var shape := rt._shape
+	for z in span:
+		for x in span:
+			var wx := -half + float(x) + 0.5
+			var wz := -half + float(z) + 0.5
+			# Bilinear height/rad/slope/river distance from the grid (same as surface_y, inline).
+			var u := clampf((wx + half) / cell, 0.0, float(res - 1))
+			var v := clampf((wz + half) / cell, 0.0, float(res - 1))
+			var x0 := int(floor(u))
+			var z0 := int(floor(v))
+			var x1 := mini(x0 + 1, res - 1)
+			var z1 := mini(z0 + 1, res - 1)
+			var tx := u - float(x0)
+			var tz := v - float(z0)
+			var i00 := x0 + z0 * res
+			var i10 := x1 + z0 * res
+			var i01 := x0 + z1 * res
+			var i11 := x1 + z1 * res
+			var h := lerpf(lerpf(harr[i00], harr[i10], tx), lerpf(harr[i01], harr[i11], tx), tz)
+			var rad := lerpf(lerpf(rarr[i00], rarr[i10], tx), lerpf(rarr[i01], rarr[i11], tx), tz)
+			# The steepest corner: a riser is one cell wide, so a bilinear average would hide it.
+			var slope := maxf(maxf(sarr[i00], sarr[i10]), maxf(sarr[i01], sarr[i11]))
+			var rd := lerpf(lerpf(darr[i00], darr[i10], tx), lerpf(darr[i01], darr[i11], tx), tz)
+			var hw := 4.0
+			if not warr.is_empty():
+				hw = lerpf(lerpf(warr[i00], warr[i10], tx), lerpf(warr[i01], warr[i11], tx), tz)
 			var t := TileType.GRASS
 			if h < -0.6:
 				t = TileType.DEEP
@@ -332,28 +316,49 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 				t = TileType.SHALLOW
 			elif h < 0.15:
 				t = TileType.WET
-			elif h < 0.45 or rad > rt.land_radius() + 2.0:
+			elif h < 0.45 or rad > land_r + 2.0:
 				t = TileType.SAND
-			elif slope > 40.0 or h > 5.5:
+			elif slope > 1.15 and rd > hw + 3.0:
+				# A riser: 1.15 rise/run is about 49 deg, the terrace face (3.2 m over one cell).
+				# The river's own banks are steep too; they stay water/bank, never a cliff (a cliff
+				# strip along both banks read as black walls in the top-down shot).
+				t = TileType.CLIFF
+			elif slope > 0.72 or h > 9.6:
 				t = TileType.ROCK
-			elif slope > 28.0:
+			elif slope > 0.5:
 				t = TileType.DRY
 			if has_ash and h > 4.8 and t == TileType.ROCK:
 				t = TileType.ASH
-			var river_center := sin(wx * 0.018 + float(25 if climate == "temperate" else 17) * 0.13) * (rt._size * 0.085)
-			var river := absf(wz - river_center)
-			if river < 2.4 and h > -0.5 and h < 0.4:
+			if shape != null and shape.ford != Vector2.ZERO and Vector2(wx - shape.ford.x, wz - shape.ford.y).length() < IslandShape.FORD_R:
+				hw = 0.0  # the ford: dry ground over the channel
+			if rd < hw and h > -0.5 and h < 0.4:
+				t = TileType.MUD
+			elif rd < hw + 1.0 and h > 0.05 and h < 0.22:
+				# A narrow wet bank strip (MUD, so the fresh-water mask covers the edge). Wider or
+				# higher than this and it reads as a brown mud wall along the river (NOTES.md).
 				t = TileType.MUD
 			var cdist := Vector2(wx - rt._crater_hint.x, wz - rt._crater_hint.z).length()
 			if rt._crater_hint != Vector3.ZERO and cdist < 8.5 and h > -0.2:
 				t = TileType.DIRT
-			var idx := x + z * rt._tile_span
+			var idx := x + z * span
 			types[idx] = t
 			fresh[idx] = 1 if t == TileType.MUD else 0
-			rt._tile_map_image.set_pixel(x, z, Color(float(t) / 255.0, 0.0, 0.0))
+			pix[idx] = _shader_id(t)
+			# The dry/walkable mask, precomputed once: is_dry (TilePath, build checks, spawn probes)
+			# is then one array lookup instead of four grid samples per call.
+			walk[idx] = 1 if (t == TileType.GRASS or t == TileType.DRY or t == TileType.DIRT or t == TileType.SAND \
+				or t == TileType.ROCK or t == TileType.ASH) and h >= 0.25 and rad <= land_r - 0.5 else 0
 	rt.tile_types = types
 	rt.fresh_water = fresh
+	rt.dry_walk = walk
+	rt._tile_map_image.set_data(span, span, false, Image.FORMAT_R8, pix)
 	rt._tile_map_tex = ImageTexture.create_from_image(rt._tile_map_image)
+
+## The tile id the shader paints. CLIFF writes NO override: the shader already paints steep
+## ground as rock from the vertex normal, and painting rock per 1 m tile turned each face into a
+## blocky black patchwork (NOTES.md, top-down shots).
+static func _shader_id(t: int) -> int:
+	return TileType.GRASS if t == TileType.CLIFF else t
 
 static func _terrain_material(rt: IslandRuntime) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
@@ -426,7 +431,7 @@ static func set_tile_type(rt: IslandRuntime, tile: Vector2i, tile_type: int) -> 
 	var tz := clampi(tile.y + int(rt._size * 0.5), 0, rt._tile_span - 1)
 	rt.tile_types[tile_idx(rt, tx, tz)] = tile_type
 	if rt._tile_map_image:
-		rt._tile_map_image.set_pixel(tx, tz, Color(float(tile_type) / 255.0, 0.0, 0.0))
+		rt._tile_map_image.set_pixel(tx, tz, Color(float(_shader_id(tile_type)) / 255.0, 0.0, 0.0))
 		if rt._tile_map_tex:
 			rt._tile_map_tex.update(rt._tile_map_image)
 

@@ -260,6 +260,14 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 		seat.y = World.runtime.surface_y(pos.x, pos.z) + 1.0
 	player.global_position = seat
 	print("[world] loaded player at %s (saved y=%.2f)" % [seat.snapped(Vector3.ONE * 0.1), pos.y])
+	# Load rescue: a save written on the old layout (or in open water) can put the survivor where the
+	# new island has sea, a cliff or the river bed. Walk them to the camp instead of the seabed.
+	# is_dry, not spawn_ok: spawn_ok's strict mode refuses the 25 m landing ring around the camp,
+	# and the camp is exactly where a legitimate save may stand.
+	if World.runtime and World.runtime.has_method("is_dry") and not World.runtime.is_dry(seat):
+		var camp: Vector3 = World.runtime._camp_pos
+		player.global_position = Vector3(camp.x, World.runtime.surface_y(camp.x, camp.z) + 1.0, camp.z)
+		print("[save] load rescue: saved position was not dry land; moved to the camp %s" % player.global_position)
 	# Legacy stacks split into instances; what no longer fits the bag goes to home cargo (W2-INV).
 	player.inventory.load_array(data.get("player", {}).get("inventory", []), World.cargo_home)
 	var extras: Variant = data.get("player", {}).get("inventory_extras", null)

@@ -76,7 +76,10 @@ static func scatter(rt: IslandRuntime, def: Dictionary, terrain: StringName, cli
 ## dry tiles, avoiding the camp. Tree clumps near the shore become palms where the climate allows.
 static func _plant_family(rt: IslandRuntime, family: String, role: String, n: int, fallback_id: StringName, tool: StringName, climate: String, tier: int, size: float, rng: RandomNumberGenerator, color: Color) -> int:
 	var placed := 0
-	var half := size * 0.40
+	# Scatter windows: the grid square minus a 15 m sea margin (the shaped island's dry bounding box
+	# is ~0.90 x 0.73 of the square; spawn_ok rejects the water anyway, but a tighter window keeps
+	# the rejection loop from burning its tries in the sea).
+	var half := size * 0.5 - 15.0
 	var tries := 0
 	var palms := family != "PalmTree" and role.begins_with("tree") and not (climate in ["tundra", "volcanic"]) and _models("PalmTree").size() > 0
 	while placed < n and tries < n * 30:
@@ -89,7 +92,8 @@ static func _plant_family(rt: IslandRuntime, family: String, role: String, n: in
 		if Vector2(cx - rt._camp_hint.x, cz - rt._camp_hint.z).length() < 9.0:
 			continue
 		var fam := family
-		if palms and Vector2(cx, cz).length() > rt.land_radius() * 0.70:
+		# Palms grow near the shore: the outer 20 % of the effective radius (not a circle).
+		if palms and rt.rad_at(cx, cz) > rt.land_radius() * 0.78:
 			fam = "PalmTree"
 		var clump := rng.randi_range(3, 6) if (role.begins_with("tree") or role == "bush") else rng.randi_range(1, 3)
 		var spread := 3.2 if role.begins_with("tree") else 2.4
@@ -281,7 +285,7 @@ static func _multimesh_family(rt: IslandRuntime, family: String, n: int, size: f
 	if src_mesh == null:
 		return
 	var xforms: Array[Transform3D] = []
-	var half := size * 0.42
+	var half := size * 0.5 - 15.0
 	for i in n:
 		var ox := rng.randf_range(-half, half)
 		var oz := rng.randf_range(-half, half)

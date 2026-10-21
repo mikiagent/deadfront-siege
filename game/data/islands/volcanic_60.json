@@ -1,5 +1,7 @@
 {
   "id": "volcanic_60",
-  "harbour": [-178.5, 0, -38.5],
-  "_harbour_note": "Dock arrival point on the coast; the rest of this island is world/islands.json. See home_grassland.json."
+  "harbour": [-145.5, 0, -36.5],
+  "_harbour_note": "Dock arrival point on the coast; the rest of this island is world/islands.json. See home_grassland.json.",
+  "seed": 6029,
+  "size_m": 464
 }
