@@ -662,7 +662,8 @@ func _test_counter_supplies() -> void:
 	_expect(not pl.coat_weapon(), "cannot overwrite active coating")
 	var restored = (load("res://scripts/items/inventory.gd") as GDScript).new(20)
 	restored.load_array(inv.to_array())
-	_expect(int(restored.slots[restored.find_first(&"barbed_knife")].attributes.get("toxin_hits", 0)) == 3, "toxin charges survive item reload")
+	restored.extras_from_dict(JSON.parse_string(JSON.stringify(inv.extras_to_dict()))) # W2-INV: the worn knife saves with the extras
+	_expect(int(restored.equipped_weapon().attributes.get("toxin_hits", 0)) == 3, "toxin charges survive item reload")
 	var cr = (load("res://scripts/creatures/creature.gd") as GDScript).new()
 	cr.def = (load("res://scripts/creatures/creature_def.gd") as GDScript).new()
 	cr.def.archetype = &"pack_raptor"
@@ -854,9 +855,9 @@ func _test_storage_transfer() -> void:
 	var stack = load("res://scripts/items/item_stack.gd") as GDScript
 	var src = inv.new(3)
 	var dst = inv.new(1)
-	src.add(stack.make(&"branch",8,{},55))
+	src.add(stack.make(&"stone_shot",8,{},55)) # W2-INV: ammunition still stacks; materials are one per slot
 	var original = src.slots[0].to_dict()
-	dst.add(stack.make(&"stone",1))
+	dst.add(stack.make(&"stone_shot",1))
 	_expect(src.transfer_to(dst,0) == 0 and src.slots[0].to_dict() == original,"full storage leaves original unchanged")
 	dst.remove_at(0,1)
 	src.slots[0].set_flag(&"locked",true)
@@ -864,7 +865,7 @@ func _test_storage_transfer() -> void:
 	src.slots[0].set_flag(&"locked",false)
 	_expect(src.transfer_to(src,0) == 0,"self storage refuses")
 	_expect(src.transfer_to(dst,0) == 8 and src.slots[0] == null and dst.slots[0].level == 55,"whole stack preserves quality")
-	src.add(stack.make(&"branch",5,{},55))
+	src.add(stack.make(&"stone_shot",5,{},55))
 	var cap = dst.slots[0].def().stack_max
 	dst.slots[0].count = cap-2
 	_expect(src.transfer_to(dst,0) == 2 and src.slots[0].count == 3 and dst.slots[0].count == cap,"partial storage leaves remainder in original slot")
@@ -875,8 +876,9 @@ func _test_storage_transfer() -> void:
 	_expect(not ui._can_store_selected(),"corpse/default storage stays take-only")
 	ui._storage_opts = {"allow_deposit":true}
 	_expect(ui._can_store_selected(),"basket permits deposit")
-	src.equip(&"weapon",&"branch")
-	_expect(not ui._can_store_selected(),"equipped item cannot be accidentally stored")
+	src.add(stack.make(&"stone_knife",1))
+	var knife: int = src.find_first(&"stone_knife")
+	_expect(src.equip_at(knife) and src.slots[knife] == null and src.equipped_in(&"weapon") != null,"equipped item leaves the bag, so it cannot be stored")
 	src.unequip(&"weapon")
 	ui._storage_opts["readonly_reason"] = "need knife"
 	_expect(not ui._can_store_selected(),"read-only storage cannot accept deposits")

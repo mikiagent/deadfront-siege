@@ -68,6 +68,13 @@ func _run() -> void:
 	# The HUD root has no size (hunt_hud.gd:68), so its blocks are checked one by one instead.
 	_check_blocks("hud", hud_blocks(_hud, _player, logical), logical)
 	await _capture("hud", [], logical)
+	# The day/night dial's label (a tap) opens left of the dial; it too keeps off every HUD block.
+	var dial: DayNightDial = _hud.get("_daynight")
+	dial.toggle()
+	await _frames(2)
+	_check_blocks("hud_daynight", hud_blocks(_hud, _player, logical), logical)
+	await _capture("hud_daynight", [], logical)
+	dial.toggle()
 	# craft: a bag without inputs must read "Lv —", not the recipe's top level
 	var craft := _player.craft_ui as CraftUI
 	craft.show_ui()
@@ -334,7 +341,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
 	print("[uireal] phone=%s min_font_px=%d min_font_pt=%.2f logical_width=%d window_pt=%dx%d floor_pt=%.2f (smallest: %s)" % [phone, min_px, min_pt, int(logical.x), int(pts.x), int(pts.y), type_floor_pt(pts), _min_font_where])
 	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
 	if _fails.is_empty():
-		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
+		print("[uireal] PASS screens=hud,hud_daynight,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
 		get_tree().quit(0)
 	else:
 		for f in _fails:

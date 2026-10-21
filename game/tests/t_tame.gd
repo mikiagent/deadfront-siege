@@ -79,10 +79,10 @@ func _test_bag_survives_reload() -> void:
 	var tri = _def(&"triceratops")
 	var rec = PetRecordS.from_def(tri, &"", &"", null, 30)
 	_expect(rec.bag.slot_count == 140, "fresh triceratops bag is 140 (got %d)" % rec.bag.slot_count)
-	rec.bag.slots[50] = ItemStackS.make(&"stone", 7)
+	rec.bag.slots[50] = ItemStackS.make(&"stone_shot", 7) # ammunition still stacks (W2-INV); stone is one per slot
 	var back = PetRecordS.from_dict(_json_round(rec.to_dict()))
 	var s50 = back.bag.slots[50] if back.bag.slot_count > 50 else null
-	_expect(back.bag.slot_count == 140 and s50 != null and s50.def_id == &"stone" and s50.count == 7, "slot 50 survives a JSON round trip in a 140-slot bag")
+	_expect(back.bag.slot_count == 140 and s50 != null and s50.def_id == &"stone_shot" and s50.count == 7, "slot 50 survives a JSON round trip in a 140-slot bag")
 	# Legacy save: a bag already truncated to 10 rows and no identity fields.
 	var legacy: Dictionary = rec.to_dict()
 	legacy["bag"] = (legacy["bag"] as Array).slice(0, 10)
@@ -91,7 +91,7 @@ func _test_bag_survives_reload() -> void:
 	var old = PetRecordS.from_dict(_json_round(legacy))
 	_expect(old.bag.slot_count == 140, "legacy 10-slot bag re-expands to 140 (got %d)" % old.bag.slot_count)
 	_expect(old.uid != "", "legacy pet gets a uid on load")
-	print("[t_tame] bag slots fresh=%d roundtrip=%d legacy=%d slot50=%s" % [rec.bag.slot_count, back.bag.slot_count, old.bag.slot_count, "stone x%d" % s50.count if s50 else "MISSING"])
+	print("[t_tame] bag slots fresh=%d roundtrip=%d legacy=%d slot50=%s" % [rec.bag.slot_count, back.bag.slot_count, old.bag.slot_count, "stone_shot x%d" % s50.count if s50 else "MISSING"])
 	_sections += 1
 
 

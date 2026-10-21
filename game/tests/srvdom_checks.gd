@@ -81,14 +81,14 @@ const HOSTILE := [
 	["act.equip", {"clear": true, "slot": "bogus"}, "bad_request"],
 	["act.equip", {"clear": true, "slot": 7}, "bad_request"],
 	["act.equip", {"clear": true, "slot": "xxxxxxxxxxxxxxxxx"}, "bad_request"],
-	["act.equip", {"bag_slot": 1}, "not_found"],
+	["act.equip", {"bag_slot": 50}, "not_found"], # W2-INV: stone no longer stacks, so slot 1 holds the second stone
 	["act.equip", {"bag_slot": 0}, "bad_request"],
 	["act.eat", {}, "bad_request"],
 	["act.eat", {"bag_slot": -1}, "bad_request"],
 	["act.eat", {"bag_slot": 999}, "bad_request"],
 	["act.eat", {"bag_slot": 1.5}, "bad_request"],
 	["act.eat", {"bag_slot": "0"}, "bad_request"],
-	["act.eat", {"bag_slot": 1}, "not_found"],
+	["act.eat", {"bag_slot": 50}, "not_found"],
 	["act.eat", {"bag_slot": 0}, "bad_request"],
 	["act.tame", {}, "bad_request"],
 	["act.tame", {"net_id": "compy1"}, "bad_request"],
@@ -114,7 +114,7 @@ const HOSTILE := [
 	["act.deposit", {"bag_slot": -1}, "bad_request"],
 	["act.deposit", {"bag_slot": 1.5}, "bad_request"],
 	["act.deposit", {"bag_slot": 999}, "bad_request"],
-	["act.deposit", {"bag_slot": 1}, "not_found"],
+	["act.deposit", {"bag_slot": 50}, "not_found"],
 	["act.deposit", {"bag_slot": 0, "count": 0}, "bad_request"],
 	["act.deposit", {"bag_slot": 0, "count": -3}, "bad_request"],
 	["act.deposit", {"pet_uid": "p0.0"}, "not_found"],
@@ -428,7 +428,7 @@ func _receive_checks() -> void:
 	# edited body are refused; with a real pet exported, a forged pet with a fresh uid is too.
 	_gather_until(st, 1, "rock", 0, "stone", 3, 6)
 	var da := _ok(st.apply("act.deposit", 1, {"bag_slot": 0, "count": 1}, 7), "deposit A")
-	var db := _ok(st.apply("act.deposit", 1, {"bag_slot": 0, "count": 1}, 7), "deposit B")
+	var db := _ok(st.apply("act.deposit", 1, {"bag_slot": st.character(1).inventory().find_first(&"stone"), "count": 1}, 7), "deposit B") # W2-INV: one stone per slot
 	var ua: Dictionary = da.r.get("asset", {}) if da.ok else {}
 	var ub: Dictionary = db.r.get("asset", {}) if db.ok else {}
 	var a1 := st.apply("char.receive", 1, {"asset": ua}, 8)

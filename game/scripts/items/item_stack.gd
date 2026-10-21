@@ -151,7 +151,7 @@ func take_into(other: ItemStack) -> int:
 func tooltip() -> String:
 	var d := def()
 	var title := d.display_name if d else str(def_id)
-	var lines: PackedStringArray = ["%s x%d" % [title, count], "lv %d  process %d" % [level, process_count]]
+	var lines: PackedStringArray = ["%s x%d" % [title, count] if count > 1 else title, "lv %d  process %d" % [level, process_count]]
 	if d and d.place_as != &"":
 		lines.append("footprint %dx%d" % [d.footprint.x, d.footprint.y])
 	if d and d.has_category(&"tool"):
@@ -180,8 +180,13 @@ func tooltip() -> String:
 			lines.append("buffs %s" % ", ".join(bn))
 	elif scaled_food_energy() != 0.0:
 		lines.append("energy %.1f" % scaled_food_energy())
-	if not attributes.is_empty():
-		lines.append("attr %s" % str(attributes))
+	# Traits by name (W2-INV): the raw attribute dict showed bookkeeping such as the tint to players.
+	var named := PackedStringArray()
+	var tr := Inventory.traits(self)
+	for k: Variant in tr:
+		named.append("%s %s" % [str(k).capitalize(), str(tr[k])])
+	if not named.is_empty():
+		lines.append(", ".join(named))
 	if not flags.is_empty():
 		var flag_s: PackedStringArray = []
 		for f in flags:
