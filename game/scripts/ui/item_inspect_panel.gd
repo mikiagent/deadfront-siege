@@ -465,7 +465,7 @@ class _FamilyChip extends Control:
 		draw_style_box(InvTheme.button_box(Color(0.03, 0.035, 0.03, 0.85), Color(0, 0, 0, 0), 4), box)
 		var tex := UiIcons.icon(icon) if icon != &"" else null
 		if tex:
-			var s := box.size.y * 0.56
+			var s := box.size.y * 0.78 # the icon set's glyphs carry their own margin
 			draw_texture_rect(tex, Rect2(box.get_center() - Vector2(s, s) * 0.5, Vector2(s, s)), false, InvGlyphs.WHITE)
 		else:
 			InvPaint.item_icon(self, art, box, 0.78, 0.5)
