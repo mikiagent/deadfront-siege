@@ -382,6 +382,19 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   (Region / System channels, New Group, gold names, emotes, relative times, Enter message / + / Send). Run NET+CHAT: finish the network core
   (`claude/mmo-net`: sync the base, fix, review; it is the market's online path too) and build the chat screen on it (`claude/mmo-chat`).
 
+- 2026-10-20 island/map check done (`islandmap-check.md`).
+  Findings:
+  - Our home island is 134 x 131 m. Unstable islands are 406 x 404 m. All islands are near-round discs, from only 4 heightmaps.
+  - The atlas is a flat pixel map with no fog, info panel or scale bar.
+  - The travel menu is a vertical text list, not the Sail chart.
+  Packages queued, in this order:
+  - SAILUI: the rightward Sail chart. It is the cheapest visible win.
+  - MAPUI: the painted map with fog of war and the island info panel.
+  - ISLANDSHAPE: seeded, elongated, ragged islands. This waits for the owner's answer on island size.
+  Assumptions until the owner says otherwise: keep our 14 fixed islands on the chart, and "To Harbor" / "To Waypoint" auto-walk (no new mechanic).
+- 2026-10-20 (owner) "example of tall trees and transparency" (`docs/design/durango-prompts/21_tall_trees_transparency.md`): it matches the merged
+  W2-OCCLUDE rule. A visual check of our build against it is running.
+
 ## Owner questions (open)
 
 - Male survivor model (PRD: 8 occupations x 2 genders): start a concept sheet for approval, then a Tripo mesh from existing credits? (asked 2026-10-20; unanswered)
