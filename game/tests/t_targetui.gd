@@ -3,6 +3,9 @@ extends SceneTree
 ## red swords hex beside it) and starts no fight; the swords hex, E and F fight the selection through
 ## PlayerActions (online: the act.attack intent); a tap on the ground deselects; an animal that bites
 ## is still fought at once; a pet is never selected, never gets the swords and a tap on it keeps the fight.
+## Review r1: the hex shows only while the animal is on screen and never sits on (or takes taps from) a
+## HUD hex; E and SIC act on the selection only while its hex shows; no swords while it can be tamed;
+## no E key cap while riding (E dismounts).
 ## Usage: godot --headless --path game --script res://tests/t_targetui.gd
 
 var failures: Array[String] = []
@@ -67,6 +70,9 @@ func _run() -> void:
 	await _test_deselect()
 	await _test_hostile_engaged()
 	await _test_pets_excluded()
+	await _test_offscreen()
+	await _test_hud_wins()
+	await _test_tame_and_mounted()
 	host.queue_free()
 	await process_frame
 	if failures.is_empty():
@@ -182,6 +188,7 @@ func _test_keys() -> void:
 	_press(&"interact")
 	_expect(player.hunt.target == picked, "E fights the selection (hunt %s)" % [player.hunt.target])
 	player.hunt.stop()
+	await _frames(3)
 	_press(&"attack")
 	_expect(player.hunt.target == picked, "F fights the selection, not the nearer animal (hunt %s, nearer %s)" % [player.hunt.target, near])
 	await _clear()
@@ -233,6 +240,121 @@ func _test_pets_excluded() -> void:
 	_expect(player.hunt.target == wild, "pets: the hunt is on the wild animal")
 	await _tap(pet.global_position + Vector3(0, 0.6, 0))
 	_expect(player.hunt.target == wild, "a tap on your pet during a fight keeps the fight (hunt %s)" % [player.hunt.target])
+	await _clear()
+
+## A summoned pet (the whistle hexes show while one is out), its brain still so it stays put.
+func _summon_pet():
+	player.bonded.append(PetRecordS.from_def(data.creature(&"zebraceratops"), &"A"))
+	var pet = player.pets.summon(player.bonded.size() - 1)
+	pet.brain.process_mode = Node.PROCESS_MODE_DISABLED
+	await _frames(5)
+	return pet
+
+## Puts `c` where its middle (the hex's anchor) projects to `screen`.
+func _place_mid(c, screen: Vector2) -> void:
+	var h: float = c.def.height_meters * 0.5
+	var o := cam.project_ray_origin(screen)
+	var d := cam.project_ray_normal(screen)
+	var hit: Vector3 = o + d * ((c.global_position.y + h - o.y) / d.y)
+	c.global_position = Vector3(hit.x, c.global_position.y, hit.z)
+
+func _sic_hex() -> Control:
+	return (hud.get("_whistle_hexes") as Array)[0] as Control
+
+## Clicks SIC; true when SIC ran (the pet's attack order) and the survivor started no hunt.
+func _sic_ran(pet) -> bool:
+	pet.brain.order(&"guard")
+	_push_click(_sic_hex())
+	await _frames(3)
+	var ok: bool = pet.brain.mode == &"attack" and player.hunt.target == null
+	player.hunt.stop()
+	player.clear_nav()
+	return ok
+
+## Review r1 (probes F_far, X): an animal selected and then left off screen (26 m) still held E, and its
+## hex pinned to the screen edge sat on SIC and took its tap, sending the survivor after it.
+func _test_offscreen() -> void:
+	var pet = await _summon_pet()
+	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	await _frames(5)
+	await _tap(wild.global_position + Vector3(0, 0.5, 0))
+	await _frames(3)
+	_expect(_selected() == wild and _swords_shown(), "off screen: selected on screen first, swords shown")
+	wild.global_position = Vector3(27.0, 0, 0)  # in front of the camera, past the right edge, inside 28 m
+	await _frames(4)
+	var mid: Vector2 = cam.unproject_position(wild.global_position + Vector3(0, 0.5, 0))
+	_expect(_selected() == wild and not cam.get_viewport().get_visible_rect().has_point(mid),
+		"off screen: the selection holds while the animal is off screen (at %s)" % mid)
+	_expect(not _swords_shown(), "off screen: no swords hex (shown at %s)" % (_swords().get_global_rect() if _swords_shown() else Rect2()))
+	pet.global_position = player.global_position + Vector3(1.2, 0, 0)
+	await _frames(2)
+	_press(&"interact")
+	await _frames(2)
+	_expect(player.hunt.target == null, "off screen: E beside the pet does its own job, no hunt (hunt %s)" % [player.hunt.target])
+	player.clear_nav()
+	if player.pets.menu:
+		player.pets.menu.visible = false
+	_expect(await _sic_ran(pet), "off screen: a tap on SIC runs SIC and starts no hunt")
+	await _clear()
+
+## Review r1 (H_spot, [rv] OVERLAP): an animal beside the HUD put its hex on SIC / CLAIM / HANDS, and
+## added after them it took their taps. Now it keeps off every HUD hex, and the HUD wins a shared spot.
+func _test_hud_wins() -> void:
+	var pet = await _summon_pet()
+	var near = _creature(&"protoceratops", Vector3(-2.5, 0, 1.0))
+	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	await _frames(5)
+	await _tap(wild.global_position + Vector3(0, 0.5, 0))
+	await _frames(3)
+	_expect(_swords_shown(), "HUD: swords shown for the selection")
+	_expect(_swords().get_index() < _sic_hex().get_index(), "HUD: the swords hex sits under the HUD hexes in tree order")
+	# SIC with no fight and the swords on screen goes for the selection, not the nearer animal.
+	pet.brain.order(&"guard")
+	_push_click(_sic_hex())
+	await _frames(3)
+	_expect(pet.brain.order_target == wild and player.hunt.target == null,
+		"SIC with the swords shown sics the selection (order %s, nearer %s)" % [pet.brain.order_target, near])
+	near.queue_free()
+	var sic := _sic_hex().get_global_rect()
+	var overlaps := 0
+	var bad_taps := 0
+	for k in [36.0, 64.0, 92.0, 120.0, 148.0]:  # the old hex stood dx (36-140 px) right of the middle
+		_place_mid(wild, sic.get_center() - Vector2(32.0 + k, 0.0))
+		await _frames(4)
+		if _swords_shown():
+			for h in get_nodes_in_group(&"hex_button"):
+				if h != _swords() and h.is_visible_in_tree() and h.hex_rect().intersects(_swords().hex_rect()):
+					overlaps += 1
+					print("[t_targetui] overlap k=%.0f swords %s with %s %s" % [k, _swords().hex_rect(), h.name, h.hex_rect()])
+		if not await _sic_ran(pet):
+			bad_taps += 1
+	_expect(overlaps == 0, "HUD: beside SIC the swords never cover a HUD hex (%d overlaps)" % overlaps)
+	_expect(bad_taps == 0, "HUD: every tap on SIC ran SIC, none started a hunt (%d did not)" % bad_taps)
+	await _clear()
+
+## Review r1: no swords beside an animal that can be field-tamed (FEED/NET own that state; a stray tap
+## or E attacked it), and no E key cap while riding, where E dismounts.
+func _test_tame_and_mounted() -> void:
+	var pet = await _summon_pet()
+	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	await _frames(5)
+	await _tap(wild.global_position + Vector3(0, 0.5, 0))
+	await _frames(3)
+	_expect(_swords_shown() and _swords().get("_key_drawn") == true, "desktop: the swords show their E key cap")
+	player.pets.mount(pet)
+	await _frames(3)
+	_expect(player.mounted_on == pet, "mounted: riding the zebraceratops")
+	_expect(_swords_shown() and _swords().get("_key_drawn") == false, "mounted: the swords show, without the E key cap")
+	player.dismount()
+	await _frames(3)
+	_expect(_swords().get("_key_drawn") == true, "dismounted: the E key cap is back")
+	wild.health.hp = wild.health.max_hp * 0.2
+	wild.statuses.apply(&"knockdown")
+	await _frames(3)
+	_expect(load("res://scripts/pets/field_tame.gd").can_attempt(wild) and _selected() == wild and not _swords_shown(),
+		"knocked down and tameable: still selected, no swords")
+	_press(&"interact")
+	_expect(player.hunt.target == null, "knocked down and tameable: E does not attack it")
 	await _clear()
 
 func _push_click(c: Control) -> void:

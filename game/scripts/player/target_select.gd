@@ -58,6 +58,12 @@ func current() -> Creature:
 		clear()
 	return target
 
+## The selection while its swords hex is on screen, else null. E, F and SIC act on it only then: a
+## selection left off screen kept E from benches, beds and pets and sent the survivor on a long chase.
+func shown() -> Creature:
+	var hex := p.get_tree().get_first_node_in_group(&"target_swords") as TargetSwordsHex if p.is_inside_tree() else null
+	return current() if hex and hex.player == p and hex.is_visible_in_tree() else null
+
 ## The swords hex or its key: fight the selection (online this becomes the act.attack intent).
 func engage() -> void:
 	var c := current()
