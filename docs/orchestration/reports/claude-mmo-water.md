@@ -157,7 +157,7 @@ All with the hooks applied, in this work tree:
 
 | Gate | Result |
 |---|---|
-| every `game/tests/t_*.gd` (21 files) | all exit 0 and PASS: t_ai, t_build, t_canim, t_combat, t_harbour (islands=15), t_iconart, t_items, t_light, t_lighting, t_occlude, t_player, t_save (its 5 deliberate SCRIPT ERRORs), t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons (`ids=175 files=116`, `build.py --check` PASS), t_water, t_web; 0 SCRIPT ERROR elsewhere |
+| every `game/tests/t_*.gd` (20 files) | all exit 0 and PASS: t_ai, t_build, t_canim, t_combat, t_harbour (islands=15), t_iconart, t_items, t_light, t_lighting, t_occlude, t_player, t_save (its 5 deliberate SCRIPT ERRORs), t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons (`ids=175 files=116`, `build.py --check` PASS), t_water, t_web; 0 SCRIPT ERROR elsewhere |
 | `run_all.gd` | `[tests] PASS` |
 | `tools/smoke.sh --no-import` | `SMOKE PASS` |
 
