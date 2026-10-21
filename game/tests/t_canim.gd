@@ -14,6 +14,9 @@ const WALK_FRAC := 0.4
 ## The protoceratops and megaloceros walk/run are being redone by the dsc job quads-loco2; drop them when it lands.
 const MAX_CADENCE := 3.0
 const KNOWN_GLIDERS: Array[StringName] = [&"protoceratops", &"megaloceros"]
+## real_length_m sizes the capsule, reach, kick mass and the plate box, not the drawn model, so it must match the mesh
+## (DEINO r1: 10.2 m data on an 8.1 m mesh put the plate box past the snout). Stegosaurus and Triceratops join after their balance pass.
+const LENGTH_FITTED: Array[StringName] = [&"deinonychus"]
 
 var failures: Array[String] = []
 var _started := false
@@ -36,6 +39,7 @@ func _process(_d: float) -> bool:
 	_test_cadence_sane()
 	_test_hit_react_window()
 	_test_optional_clips()
+	_test_length_matches_mesh()
 	if failures.is_empty():
 		print("[t_canim] PASS")
 		quit(0)
@@ -385,6 +389,18 @@ func _test_optional_clips() -> void:
 		c.free()
 	else:
 		print("[t_canim] note: every probed species has a sleep clip; fallback check skipped")
+
+func _test_length_matches_mesh() -> void:
+	for id in LENGTH_FITTED:
+		var c = _spawn(id)
+		var box := AABB()
+		var meshes: Array = c.view.rig.mesh_root.find_children("*", "MeshInstance3D", true, false) if c.view.rig else []
+		for i in meshes.size():
+			var b: AABB = c.global_transform.affine_inverse() * meshes[i].global_transform * meshes[i].get_aabb()
+			box = b if i == 0 else box.merge(b)
+		var want: float = c.def.real_length_m
+		_expect(not meshes.is_empty() and absf(box.size.z - want) <= 0.05 * want, "%s real_length_m %.2f m vs its mesh %.2f m nose to tail, z %.2f..%.2f (want within 5 %%)" % [id, want, box.size.z, box.position.z, box.end.z])
+		c.free()
 
 ## A species without feed.glb still gets a feed state (CreatureClips copies idle), so the state check alone
 ## cannot fail: the authored feed must pose the bones differently from idle at mid-clip.
