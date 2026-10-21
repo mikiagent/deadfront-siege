@@ -22,3 +22,25 @@ What the screenshot shows:
   - "<name>'s Domain" is shown with the owner's portrait. The harbour is an anchor icon, and small blue markers appear along the coast.
 - **Legend (bottom right):** Your Location, Other Player, Shelter, Harbor, Bonfire.
 - **Buttons and controls:** "To Harbor" and "To Waypoint" at the bottom right, and a close X at the top right.
+
+## The Sail menu (owner, second screenshot, same day)
+
+Owner's words, verbatim: "Menu scrolls rightward and has many islands"
+
+The screenshot arrived with the message but was not saved to disk, so it is not in docs/reference. The text below is the orchestrator's reading of it.
+
+- **Header:** "Sail" with a back arrow, a map/chart item counter ("0 +"), the coin counter (12,330) and a close X. A round button at the top right has a ship/clock icon.
+- **The map itself:**
+  - It is a horizontal sea chart that scrolls to the right, with a compass rose and drifting clouds.
+  - The sea is cut into vertical bands that get darker and higher-level as you go right.
+- **Named islands on the left.**
+  - Ancora Lv. 1 and The Company's Safe House Lv. 5 have small palm-tree icons.
+  - Moon City Island Lv. 10 is shown with its actual island shape, a red location pin and a house icon (home).
+- **Sea zones further right.** Each is a round icon with ripple rings, its climate art, and a name and level:
+  - Savanna Sea Lv. 15 (umbrella tree)
+  - Tropical Sea Lv. 18
+  - Temperate Sea Lv. 20 (a "?" icon: not yet discovered)
+  - Tropical Sea Lv. 25
+  - Tundra Sea Lv. 30 (snowy pine)
+- **Zone badges.** Discovered zones carry a green check; some also carry a gold swirl badge.
+- **What this means for us:** a sea of many islands ordered by level from left to right. You pick a destination here, and the harbour sails you there.
