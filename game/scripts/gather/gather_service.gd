@@ -61,17 +61,17 @@ static func yield_multiplier_with(inv: Inventory, need: StringName, family: Stri
 	return ProgressionScaling.gather_yield_multiplier(zone, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, skill))
 
 ## After a gathered unit reached the bag (`landed` is the stack PlayerActions added, `gained` of it
-## landed): the helper tool wears, each item rolls the green rare trait, the pass rolls its finds, and
-## "+n Item" (with any trait or find) rises over the node.
+## landed, `had` the bag's Inventory.uids() before that add): the helper tool wears, each item rolls
+## the green rare trait, the pass rolls its finds, and "+n Item" (with any trait or find) rises over the node.
 ## Returns the find item ids that landed in the bag.
-static func after_unit(p: Player, node: HarvestNode, landed: ItemStack, gained: int) -> Array[StringName]:
+static func after_unit(p: Player, node: HarvestNode, landed: ItemStack, gained: int, had: Dictionary) -> Array[StringName]:
 	var at := node.global_position + Vector3(0.0, node.top_of_node() + 0.3, 0.0)  # the gather ring's anchor
 	# Same downrank as the main yield (rules.json gathering_downrank, floor 5).
 	var level := mini(int(node.yield_attributes.get("level", 1)), maxi(_skill(p), 5))
 	# The node's island climate picks the rows and is stamped on the find (world-design.md:55: always climate and level).
 	var climate := str(node.yield_attributes.get("climate", ""))
 	wear_role_tool(p.inventory, node.required_tool_class, node.family)
-	var traits := stamp_traits(p.inventory, landed, gained, rng)
+	var traits := stamp_traits(p.inventory, had, landed, gained, rng)
 	var finds := add_finds(p.inventory, node.family, node.required_tool_class, climate, level, _skill(p), rng)
 	for id in finds:
 		p.toast(id, 1)
@@ -88,24 +88,21 @@ static func wear_role_tool(inv: Inventory, need: StringName, family: String) -> 
 		inv.wear_tool(tool)
 
 ## Each of the `gained` items that just landed rolls the green rare trait (world-design.md:55, PRD:541).
-## A hit swaps one plain unit in the bag for a traited one in a free slot; with no free slot the unit
-## stays plain (never lost). Client and server (act.gather) share it. Returns the traits stamped.
-static func stamp_traits(inv: Inventory, landed: ItemStack, gained: int, r: RandomNumberGenerator) -> Array[StringName]:
+## Every gathered item is its own instance (W2-INV), so a hit marks the unit that landed, in place: the
+## landed units are the `landed.def_id` instances whose uid is not in `had` (the bag's Inventory.uids()
+## before the add), never one the bag already held. Client and server (act.gather) share it.
+## Returns the traits stamped.
+static func stamp_traits(inv: Inventory, had: Dictionary, landed: ItemStack, gained: int, r: RandomNumberGenerator) -> Array[StringName]:
 	var out: Array[StringName] = []
-	for i in gained:
+	# shortcut: a stacking-category item (inventory.json) has no uid to find, so it rolls no trait; no nature node yields one today.
+	var fresh := inv.slots.filter(func(s: ItemStack) -> bool: return s != null and s.def_id == landed.def_id and s.uid != "" and not had.has(s.uid))
+	for s: ItemStack in fresh.slice(0, gained):
 		var t := LootRoller.roll_trait(r)
-		if t == &"":
-			continue
-		var idx := inv.slots.find_custom(func(s: ItemStack) -> bool: return s != null and landed.can_merge_with(s))
-		if idx < 0:
-			break
-		var one := inv.remove_at(idx, 1)
-		one.attributes[str(t)] = true
-		if inv.add(one) > 0:
-			one.attributes.erase(str(t))
-			inv.add(one)  # back where it came from: that slot just gave up this unit
-			break
-		out.append(t)
+		if t != &"":
+			s.attributes[str(t)] = true
+			out.append(t)
+	if not out.is_empty():
+		inv.changed.emit()
 	return out
 
 ## Rolls one unit's rare finds on a node (family, required tool class, island climate) and adds each

@@ -3,7 +3,8 @@ extends SceneTree
 ## documented 5% per item, finds roll their data odds (never the node's own yield, none at home), carcass
 ## parts scale with knife and skill. Then live, on a real survivor: after_unit reads the node's climate,
 ## downranks a find like the main yield and keeps to free slots; a finish_gather pays only the base 2
-## Gathering XP however rare the result (no invented bonus) and wears the helper knife; a real raptor's
+## Gathering XP however rare the result (no invented bonus) and wears the helper knife; a trait marks the
+## instance that landed, never one the bag held (W2-INV), and a carcass keeps every part; a real raptor's
 ## talon pays only the base 3 Butchering XP through both take paths, and a kill out of view rolls
 ## silently; a yield stack keeps off other nodes, never jumps when a HUD block lands on it (it fades),
 ## and on a phone shows a narrow rare stack beside the ring but a plain one only above it; two finds in
@@ -275,20 +276,22 @@ func _traited(inv, id: StringName) -> int:
 			n += st.count
 	return n
 
-## world-design.md:55: 5% of gathered items carry one green trait; the swap never loses or mints a unit.
+## world-design.md:55: 5% of gathered items carry one green trait, marked on the instance that landed
+## (W2-INV: one instance per unit), never on one the bag already held; nothing is lost or minted.
 func _test_traits() -> void:
-	var inv = INV.new(400)
+	var inv = INV.new(4000)
 	var rng := _seeded(17)
 	var stamped := 0
 	for i in 4000:
 		var st = IS.make(&"fibre_stalk", 1, {"level": 1}, 1)
+		var had: Dictionary = inv.uids()
 		inv.add(st)
-		stamped += GS.stamp_traits(inv, st, 1, rng).size()
+		stamped += GS.stamp_traits(inv, had, st, 1, rng).size()
 	var traited := _traited(inv, &"fibre_stalk")
 	var rate := float(traited) / 4000.0
 	print("[t_gather] rare trait rate %.4f over 4000 fibre (data 0.05), %d stamped" % [rate, stamped])
 	_expect(absf(rate - 0.05) < 0.012 and stamped == traited, "about 5%% of gathered items carry a green trait (got %.4f, stamped %d, in bag %d)" % [rate, stamped, traited])
-	_expect(inv.count_of(&"fibre_stalk") == 4000, "trait swaps keep every unit (%d of 4000)" % inv.count_of(&"fibre_stalk"))
+	_expect(inv.count_of(&"fibre_stalk") == 4000 and inv.uids().size() == 4000, "traits keep every unit, each its own instance (%d of 4000, %d uids)" % [inv.count_of(&"fibre_stalk"), inv.uids().size()])
 	var one_each := true
 	for st in inv.slots:
 		if st and st.def_id == &"fibre_stalk":
@@ -297,15 +300,22 @@ func _test_traits() -> void:
 				n += 1 if st.attributes.has(str(t)) else 0
 			one_each = one_each and n <= 1
 	_expect(one_each, "an item carries at most one rare trait")
-	# A full bag: the hit unit stays plain where it was, nothing lost or minted.
-	var full = INV.new(3)
-	var plain = IS.make(&"stone", 5, {"level": 1}, 1)
-	full.add(plain)
+	# The pass's two stones land in slot 0 (freed) and slot 3, around a stone the bag already held (slot 2):
+	# both new ones take the trait in place, the old one stays plain, and the trait needs no free slot.
+	var full = INV.new(4)
+	full.add(IS.make(&"stone", 1, {"level": 1}, 1))
 	full.add(IS.make(&"branch", 1, {"level": 1}, 1))
-	full.add(IS.make(&"clay", 1, {"level": 1}, 1))
+	full.add(IS.make(&"stone", 1, {"level": 1}, 1))
+	full.remove_at(0, 1)
+	var old_uid: String = full.slots[2].uid
+	var had: Dictionary = full.uids()
+	var pass_st = IS.make(&"stone", 2, {"level": 1}, 1)
+	full.add(pass_st)
 	_with(LT.trait_cfg(), "chance", 1.0, func() -> void:
-		var got: Array = GS.stamp_traits(full, plain, 2, _seeded(3))
-		_expect(got.is_empty() and full.count_of(&"stone") == 5 and _traited(full, &"stone") == 0, "with no free slot the item stays plain and whole (stamped %s, stone %d)" % [got, full.count_of(&"stone")]))
+		var got: Array = GS.stamp_traits(full, had, pass_st, 2, _seeded(3))
+		var old_plain: bool = full.slots[2].uid == old_uid and INV.traits(full.slots[2]).is_empty()
+		_expect(got.size() == 2 and _traited(full, &"stone") == 2 and old_plain and full.count_of(&"stone") == 3 and full.used_slots() == 4,
+				"a full bag's landed stones take the trait in place, the stone it already held stays plain (stamped %s, traited %d, old plain %s, stone %d)" % [got, _traited(full, &"stone"), old_plain, full.count_of(&"stone")]))
 	_finished += 1
 
 func _count(stacks: Array, id: StringName) -> int:
@@ -409,28 +419,30 @@ func _gather_units(node, units: int) -> int:
 	var landed := 0
 	for i in units:
 		var st = IS.make(&"stone", 1, {"level": 1}, 1)
+		var had: Dictionary = player.inventory.uids()
 		var gained: int = 1 - player.inventory.add(st)
-		landed += GS.after_unit(player, node, st, gained).size()
+		landed += GS.after_unit(player, node, st, gained, had).size()
 	return landed
 
 func _tinted(n: Array) -> bool:
 	return (n[1] as Color).a > 0.0
 
 func _test_after_unit_climate() -> void:
+	const UNITS := 90  # every stone is its own instance (W2-INV): the passes fit the 100-slot bag
 	_clear_bag()
 	player.inventory.add(IS.make(&"work_pick", 1, {"material_tier": "obsidian"}, 1))
 	GS.rng.seed = 21
 	var home = _rock("grassland")
-	_gather_units(home, 300)
+	_gather_units(home, UNITS)
 	var f_home: int = player.inventory.count_of(&"flint")
 	var c_home: int = player.inventory.count_of(&"copper_ore")
-	_expect(f_home == 0 and c_home == 0, "after_unit on a home-grassland rock (obsidian pick, 300 units) finds no flint (%d) or copper (%d)" % [f_home, c_home])
+	_expect(f_home == 0 and c_home == 0, "after_unit on a home-grassland rock (obsidian pick, %d units) finds no flint (%d) or copper (%d)" % [UNITS, f_home, c_home])
 	_clear_bag()
 	player.inventory.add(IS.make(&"work_pick", 1, {"material_tier": "obsidian"}, 1))
 	var temperate = _rock("temperate")
-	var got := _gather_units(temperate, 300)
+	var got := _gather_units(temperate, UNITS)
 	var f_temp: int = player.inventory.count_of(&"flint")
-	print("[t_gather] after_unit 300 units: grassland rock flint %d copper %d; temperate rock flint %d" % [f_home, c_home, f_temp])
+	print("[t_gather] after_unit %d units: grassland rock flint %d copper %d; temperate rock flint %d" % [UNITS, f_home, c_home, f_temp])
 	_expect(f_temp > 0 and got == f_temp, "after_unit on a temperate rock finds flint (%d landed, %d in the bag)" % [got, f_temp])
 	var i: int = player.inventory.find_first(&"flint")
 	var st = player.inventory.slots[i] if i >= 0 else null
@@ -502,6 +514,25 @@ func _test_butcher_hook() -> void:
 	_expect(flint[&"raw_meat"] > none[&"raw_meat"], "the survivor's flint knife cuts more meat than no knife (%d vs %d)" % [flint[&"raw_meat"], none[&"raw_meat"]])
 	_expect(none[&"armor_scute"] == 0 and none[&"dense_bone"] == 0, "without a knife no scutes or dense bone come off")
 	_expect(flint[&"armor_scute"] > 0 and flint[&"dense_bone"] > 0, "the survivor's flint knife cuts scutes and dense bone")
+	# One instance per part (W2-INV): a triceratops rolls more parts than Corpse's 12 starting slots, and
+	# the carcass grows to hold them all; the same seed through LootRoller says how many it rolled.
+	var c = CORPSE.new()
+	c.species = &"triceratops"
+	c.level = 1
+	BL.rng.seed = 41
+	BL.roll_into(c)
+	var table: Dictionary = data.butcher_tables.get("triceratops", {})
+	var skill: int = maxi(0, player.skills.level_of("butchering")) if player.skills else 0
+	var want: Dictionary = LR.roll_carcass(table.get("base", []), table.get("rare", []), 1, &"flint", data.butchering_level(), skill, false, _seeded(41))
+	var rolled := 0
+	for st in want["stacks"]:
+		rolled += st.count
+	var kept := 0
+	for st in c.loot.slots:
+		kept += st.count if st else 0
+	print("[t_gather] triceratops carcass: rolled %d parts, kept %d in %d slots" % [rolled, kept, c.loot.slot_count])
+	_expect(rolled > 12 and kept == rolled, "a carcass keeps every part it rolled past Corpse's 12 slots (%d of %d)" % [kept, rolled])
+	c.free()
 	_finished += 1
 
 ## Unlocks every Butchering node (the talon row needs one); returns what to lock again.
@@ -879,7 +910,13 @@ func _test_server_gather() -> void:
 	var inv = ch.inventory()
 	inv.add(IS.make(&"work_pick", 1, {"material_tier": "obsidian"}, 1))
 	inv.add(IS.make(&"stone_knife_work", 1, {}, 1))
+	inv.add(IS.make(&"stone", 1, {"level": 1, "climate": "temperate"}, 1))  # held before the gathers: never traited
 	ch.commit(inv, "test", 0)
+	var held = ch.inventory()
+	var old_stone := ""
+	for i in held.slots.size():
+		if held.slots[i] and held.slots[i].def_id == &"stone":
+			old_stone = ch.slot_uid(i)
 	var start := _tool_durability(st)
 	var flint_row: Dictionary = (LT.gather_cfg()["by_role"]["rock"] as Array).filter(func(r): return r is Dictionary and r.get("item") == "flint")[0]
 	var res := {}
@@ -897,16 +934,20 @@ func _test_server_gather() -> void:
 	inv = ch.inventory()
 	var flint_uid := ""
 	var traited_uids := 0
+	var old_plain := false
 	for i in inv.slots.size():
 		var it = inv.slots[i]
 		if it and it.def_id == &"flint":
 			flint_uid = ch.slot_uid(i)
 		if it and it.def_id == &"stone" and LT.trait_cfg()["traits"].any(func(t): return it.attributes.get(str(t), false) == true) and ch.slot_uid(i) != "":
 			traited_uids += it.count
+		if it and ch.slot_uid(i) == old_stone:
+			old_plain = INV.traits(it).is_empty()
 	var minted: Dictionary = st.s["minted"]
 	print("[t_gather] server act.gather: rock %s; tools start %s, after rock %s, after bush %s; flint uid '%s', minted flint %s; home rares %s" % [rock, start, after_rock, after_bush, flint_uid, minted.get("flint"), res["home"].get("r", {}).get("rares")])
 	var stones := int(rock.get("gained", -1)) + int(res["home"].get("r", {}).get("gained", -1))
 	_expect(bool(res["rock"].get("ok")) and (rock.get("traits", []) as Array).size() == int(rock.get("gained", -1)) and traited_uids == stones, "server: every gathered item takes the green trait (odds 1) and keeps a uid (%s; %d of %d stone traited with uids)" % [rock.get("traits"), traited_uids, stones])
+	_expect(old_stone != "" and old_plain, "server: a stone the bag held before the gathers keeps its uid and stays plain (uid '%s', plain %s)" % [old_stone, old_plain])
 	_expect(rock.get("rares") == ["flint"] and flint_uid != "" and int(minted.get("flint", 0)) == 1, "server: the flint find is minted with a uid, counted as minted and listed in r.rares (rares %s, uid '%s', minted %s)" % [rock.get("rares"), flint_uid, minted.get("flint")])
 	_expect(int(after_rock["work_pick"]) == int(start["work_pick"]) - 1 and int(after_rock["stone_knife_work"]) == int(start["stone_knife_work"]), "server: the helper pick wears 1 on the rock, the knife not at all (%s -> %s)" % [start, after_rock])
 	_expect(bool(res["home"].get("ok")) and (res["home"]["r"].get("rares", ["?"]) as Array).is_empty() and int(minted.get("flint", 0)) == 1, "server: a grassland rock yields no find (%s)" % [res["home"].get("r", res["home"])])

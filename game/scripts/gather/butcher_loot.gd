@@ -23,7 +23,7 @@ static func roll_into(corpse: Corpse, body: Node3D = null) -> Array[StringName]:
 	var res := LootRoller.roll_carcass(table.get("base", []), table.get("rare", []), corpse.level,
 			knife.material_tier() if knife else &"", Data.butchering_level(), skill, corpse.poison_spoiled, rng)
 	for st in res["stacks"]:
-		corpse.loot.add(st)
+		corpse.loot.add_growing(st)  # one instance per unit (W2-INV): the carcass grows rather than drop parts
 	var rares: Array[StringName] = []
 	for id in res["rares"]:
 		rares.append(id)
