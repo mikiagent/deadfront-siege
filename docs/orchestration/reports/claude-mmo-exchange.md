@@ -373,7 +373,7 @@ as `exch-b4h` and every hooks-tree number above comes from it.
 Base sync: ECON is still not merged into `claude/mmo-overhaul` (its log has no ECON merge; tip 809be2e8). `claude/mmo-econ`
 moved twice during the round and was merged both times (3db02235; d7b795fb at 633cf142, ECON review r3); ECON's hooks patch
 changed its `intent_handlers.gd` hunk (a granted part keeps every instance field), re-applied in d49df1a3. At the end of the
-round `claude/mmo-econ` is still 633cf142, contained in HEAD.
+round it moved again to 1d84f92b, merged in 76b2f0a9 (see Gates).
 
 Every finding, what changed, and the check that would have caught it (each new t_exchange check fails on the pre-round
 market files; quotes below):
@@ -457,6 +457,12 @@ ran, so it was rebuilt and every hooks number below comes from the rebuilt tree)
 - `run_all.gd` both: `[tests] PASS`; its two SCRIPT ERROR lines follow `[econ] fault test: the next SCRIPT ERROR and ERROR
   lines are deliberate` (the count of 3 includes that marker line). `tools/smoke.sh --no-import` both: `SMOKE PASS`.
 - No new Godot .ips: 25 before and after, newest `Godot-2026-10-20-232613.ips` unchanged.
+- `claude/mmo-econ` moved to 1d84f92b (ECON twelfth pass, overhaul acc684a6 merged) while these ran; merged in 76b2f0a9
+  (its hooks patch unchanged; code changes: a `repacked` trade flag in limits.json, comments, ECON tests). The hooks patch
+  still applies cleanly ("Applied patch to ... cleanly" x4, `exr1h3` rebuilt at 76b2f0a9). Rerun in both trees on 76b2f0a9:
+  `t_exchange` (hooks tree `--require-hooks`), `t_econ`, `t_items`, `t_data` all PASS rc 0 with 0 SCRIPT ERROR,
+  `run_all.gd` `[tests] PASS` (the deliberate fault-test lines only), `tools/smoke.sh --no-import` `SMOKE PASS`; the other
+  21 t_*.gd were not rerun after this merge (nothing they load changed).
 
 Lab (`market_ui_lab`, hooks tree `exr1h2` at 701bfb8f's code, every run opened by pressing the HUD menu's Island Market
 button): 29 runs, rc 0, 0 SCRIPT ERROR each - menu, buy, buy_search, buy_taming, confirm, sell, sell_pet, sell_tool,
