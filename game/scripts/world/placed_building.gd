@@ -12,7 +12,7 @@ var build_rot: int = 0
 var sleeps_left: int = -1  # -1 for non-sleep structures
 var gate_open: bool = false  # gates only: open = passable for everyone, closed = solid
 
-const BASKET_SLOTS := 60 ## ASSUMPTION: PRD ~100; 60 for mobile UI.
+const BASKET_SLOTS := 100 ## spec 05:14 "basket about 100 slots"; PRD:582 "baskets (~100 slots early)".
 
 static func full_sleeps(p_kind: StringName) -> int:
 	return 1 if p_kind == &"straw_roll" else (6 if p_kind == &"tent" else (12 if p_kind == &"canvas_tent" else -1))
