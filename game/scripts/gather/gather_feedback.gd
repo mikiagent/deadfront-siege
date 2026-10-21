@@ -286,13 +286,15 @@ static func stamp_notice(n: Dictionary, tint: Color, p: Player) -> void:
 	n["born"] = Time.get_ticks_msec()
 	n["src"] = _work_target_id(p)
 
-## A rare notice goes once the survivor works on something else (a gather's notice beside the next
-## carcass read as that carcass's). Spends it (the HUD drops it on its next tick) and returns true.
+## A rare notice goes once the survivor works on something else or opens the bag or a loot screen (a
+## gather's notice beside the next carcass read as that carcass's). Spends it (the HUD drops it on its
+## next tick) and returns true.
 static func notice_stale(n: Dictionary, p: Player) -> bool:
 	if not n.has("tint"):
 		return false
 	var now := _work_target_id(p)
-	if now == 0 or now == int(n.get("src", 0)):
+	var screen_open := p != null and p.ui != null and p.ui.visible
+	if not screen_open and (now == 0 or now == int(n.get("src", 0))):
 		return false
 	n["t"] = INF
 	return true

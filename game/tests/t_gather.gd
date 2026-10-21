@@ -695,6 +695,19 @@ func _test_hud_notice_life() -> void:
 	var plain_moved: bool = GF.notice_stale({"text": "e", "t": 1.0}, player)
 	player.gather_target = null
 	_expect(not same and moved and own["t"] == INF and not plain_moved, "a rare notice goes when the survivor works another node, not before (same %s, moved %s, plain %s)" % [same, moved, plain_moved])
+	# ...or opens the bag or a loot screen over it (an InventoryUI out of the tree stands in for the HUD's).
+	var keep_ui = player.ui
+	var ui = load("res://scripts/ui/inventory_ui.gd").new()
+	ui.visible = false
+	player.ui = ui
+	var lone := {"text": "f", "t": 0.0}
+	GF.stamp_notice(lone, GF.GOLD, player)
+	var closed: bool = GF.notice_stale(lone, player)
+	ui.visible = true
+	var opened: bool = GF.notice_stale(lone, player)
+	player.ui = keep_ui
+	ui.free()
+	_expect(not closed and opened, "a rare notice goes when a bag or loot screen opens (closed %s, open %s)" % [closed, opened])
 	na.free()
 	nb.free()
 	h._events.tick(GF.LIFE + 0.9)
