@@ -2,14 +2,5 @@
  "_note": "Mount-role species whose saddle would have to carry a rider on an animal too small for them. Rule (task SADDLES): rider 1.78 m taller than back height x 1.6 -> no saddle, the game keeps the hips-socket fallback. Numbers measured on the game GLB at the in-game scale (height_meters); prefer mount/mount.json for everything not listed here.",
  "rider_height_m": 1.78,
  "limit": 1.6,
- "skip": {
-  "zebraceratops": {
-   "back_height_m": 0.86,
-   "limit_height_m": 1.376,
-   "height_meters": 1.0,
-   "model_height_m": 0.893,
-   "scale": 1.12,
-   "note": "back bone Torso sits 0.51 m high in the model; scaled to height_meters 1.0 the back top is 0.86 m, so a 1.78 m rider is 1.3x the allowed 1.376 m"
-  }
- }
+ "skip": {}
 }

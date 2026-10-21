@@ -62,7 +62,7 @@ func _demo() -> void:
 		ids = [only]
 	var fails: Array[String] = []
 	for id in ids:
-		var ok := await _ride_species(id, only == &"")
+		var ok := await _ride_species(id, true)
 		if not ok:
 			fails.append(str(id))
 	if fails.is_empty():
