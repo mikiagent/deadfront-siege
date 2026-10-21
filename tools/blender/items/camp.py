@@ -899,6 +899,8 @@ def captured_animal():
     # the wood in value and is not cut into stripes; the shut cage also reads apart from the tame one.
     _cage(wood=("#7a5232", "#5a3a20", "#8c6038", "#64421f"), H=0.75, n=(0, 5, 3, 3, 4), r=(0.055, 0.055))
     X, Z = (1, 0, 0), (0, 0, 1)
+    # ASSUMPTION: the item names no species; the deinonychus is drawn because its green skin stands off
+    # the wood and its raptor head and claws read as a dinosaur at slot size.
     arm = _creature("deinonychus", "attack_heavy", 5, [
         ("Torso", X, -22.0), ("Shoulders", X, -15.0), ("Head", X, 22.0), ("Head", "scale", 1.75),
         ("Tail1", Z, -35.0), ("Tail2", Z, -40.0), ("Tail3", Z, -45.0), ("Tail4", Z, -40.0), ("Tail4", "scale", 0.7),
