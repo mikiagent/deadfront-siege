@@ -1,8 +1,8 @@
 extends Node3D
 ## LEVELFX lab (owner 2026-10-21: "make it flashy. Level ups should have light effect animations. Also
 ## watch out for glitchy movement of UI and player"). The home island with the real HUD: a character
-## level-up and a skill level-up at the survivor, by day and by night, shot at the effect's peak and
-## mid-way. Then frame sequences: one XP grant worth several level-ups (they queue: one celebration
+## level-up and a skill level-up at the survivor, and a character level-up riding the T. rex, by day
+## and by night, shot at the effect's peak and mid-way. Then frame sequences: one XP grant worth several level-ups (they queue: one celebration
 ## and one light effect at a time, never two texts on top of each other), a level-up while the
 ## survivor walks (the effect stays on her feet, the camera neither shakes nor jumps, the HUD text
 ## does not move between frames), and the frame cost of a character level-up against idle frames.
@@ -68,6 +68,7 @@ func _run() -> void:
 		await _wait(0.8)
 		await _character(str(phase[0]))
 		await _skill(str(phase[0]))
+		await _mounted(str(phase[0]))
 	Game.time_of_day = 0.45
 	await _wait(0.5)
 	await _burst()
@@ -95,12 +96,42 @@ func _skill(tag: String) -> void:
 		_player.skills.add_xp("survival", 5000.0, true)
 		await _quiet()
 		lv = s.level_of("processing")
+	_hud.toast(&"fiber", 2)  # a gather pays the skill XP: its pickup toast shows beside the banner
 	s.add_xp("processing", SkillState.xp_to_next(lv) - s.xp_of("processing"), true)
 	_expect(s.level_of("processing") == lv + 1, "%s: processing rose to Lv. %d" % [tag, s.level_of("processing")])
 	var fx := await _shots_of("skill_%s" % tag)
 	_expect(fx.has("skill") and not fx.has("character"), "%s: a skill level-up spawns the small light effect only (saw %s)" % [tag, fx])
 	_expect(_hud.drawn_blocks.has("levelup"), "%s: the HUD celebrates the skill level-up" % tag)
 	await _drain()
+
+## A character level-up riding the T. rex: the light stands on the mount, grown to reach her on the
+## saddle (review, fix round 1: at the survivor's size it hid inside the mount's body).
+func _mounted(tag: String) -> void:
+	await _quiet()
+	var home := _player.global_position
+	var def := Data.creature(&"tyrannosaurus")
+	var rec := PetRecord.from_def(def, &"A")
+	var c: Creature = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
+	add_child(c)
+	c.is_pet = true
+	c.pet_record = rec
+	c.spawn(def, rec.variant)
+	var at := home + Vector3(3.0, 0.0, 0.0)
+	c.global_position = Vector3(at.x, (World.runtime as IslandRuntime).surface_y(at.x, at.z), at.z)
+	await _wait(0.6)
+	_player.mount(c)
+	await _wait(0.8)
+	World.add_xp(World.xp_for_level(LevelDisplay.player_level() - 1) - World.pioneer_xp)
+	var fx := await _shots_of("mounted_char_%s" % tag)
+	var lights := get_tree().get_nodes_in_group(FX_GROUP)
+	print("[levelfx] mounted_char_%s: light scale %s" % [tag, (lights[0] as Node3D).scale.x if not lights.is_empty() else -1.0])
+	_expect(fx.has("character"), "%s: a character level-up while riding lights the mount (saw %s)" % [tag, fx])
+	_player.dismount()
+	await _drain()
+	c.queue_free()
+	_player.global_position = home
+	_player.reset_physics_interpolation()
+	_cam._snap()
 
 ## Waits PEAK_S and MID_S on the effect's clock (process frames since the level-up) and shoots both.
 ## Returns the kinds of light effect seen.

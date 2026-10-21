@@ -7,18 +7,24 @@ extends RefCounted
 ## - character: "LEVEL UP" and the new level pop in (overshoot, then settle) over a glow and a short
 ##   ray fan, the reward lines slide in one by one, the level badge pulses gold;
 ## - skill category: its hex icon pops under a flare, with the category and its new level.
-## On a phone both use the centre band (HudLayout.centre_band). A level-up that arrives while one
-## shows waits (a character level ahead of waiting categories); the showing one then shortens to its
-## *_min_s. A waiting level-up of the same kind (and category) is replaced by the newer one, so one XP
-## grant worth three levels shows the last.
+## On the desktop both sit under the vitals, top left: the pickup toasts, the notices and the target
+## plate live in the top-centre column and re-place around any block every frame, so a banner there
+## made them jump (review, fix round 1). On a phone the character banner takes the centre band
+## (HudLayout.centre_band) from the quest card; a skill level-up keeps the card (the gather reference
+## shows both) and takes the band's free part beside it, or the whole band when that is too narrow.
+## A level-up that arrives while one shows waits (a character level ahead of waiting categories); the
+## showing one then shortens to its *_min_s. A waiting level-up of the same kind (and category) is
+## replaced by the newer one, so one XP grant worth three levels shows the last.
 ## Each level-up starts its LevelUpFx light at the survivor when it begins to show. Rects come from
-## fixed anchors, never from the animation; only the pop and the reveal move, and a target plate
-## appearing under a phone banner glides it down instead of snapping. HuntHud ticks and draws this.
-## Timings and colours: data/level_fx.json "hud".
+## fixed anchors, never from the animation; only the pop and the reveal move. A target plate
+## appearing under a phone banner moves it below the plate at once and fades it back in there (it
+## never slides across the plate); when the plate leaves, it glides back up. HuntHud ticks and draws
+## this. Timings and colours: data/level_fx.json "hud".
 # ASSUMPTION: one level-up at a time, the newest of a kind replacing a waiting one, a character level
 # first, a shorter hold while others wait (the references show one banner; the PRDs say nothing).
-# ASSUMPTION: the skill banner sits top centre on the desktop (the gather reference) and in the
-# centre band on a phone, like the character banner.
+# ASSUMPTION: the skill banner sits under the vitals on the desktop, where the character stack sits
+# (the gather reference has it top centre, but our toasts live there), and beside the quest card on
+# a phone.
 
 ## AUDIO HOOK: emitted when a level-up starts to show (kind &"character" or &"skill", tree &"" for
 ## a character level). A sound package connects here; nothing plays a sound yet.
@@ -26,7 +32,10 @@ signal shown(kind: StringName, level: int, tree: StringName)
 
 var queue: Array[Dictionary] = []
 var current: Dictionary = {}
-var _y := -1.0  ## the shown block's eased top, where a plate can push it down
+var _y := -1.0  ## the phone block's top and height, eased upwards (a plate left)
+var _h := 0.0
+var _form := ""  ## "band" or "tile": a change re-places the block
+var _in := 1.0  ## 0..1, the block fading back in after a plate pushed it down
 var _warmed := false
 var _fx: LevelUpFx  ## the light of the level-up shown last, while it plays
 
@@ -61,6 +70,18 @@ func clear() -> void:
 func showing() -> bool:
 	return not current.is_empty()
 
+## On a phone the quest card yields the band to a character banner, and to a skill banner only when
+## the band's part beside the card is too narrow for the tile. HuntHud asks before it draws the card.
+func hides_quest(band: Rect2, quest: Rect2) -> bool:
+	return showing() and (current["kind"] == &"character" or not _tile(band, quest).has_area())
+
+## The band's part left of the quest card, or Rect2() when it is narrower than tile_min_px.
+static func _tile(band: Rect2, quest: Rect2) -> Rect2:
+	var w := quest.position.x - 8.0 - band.position.x
+	if not quest.has_area() or w < float(LevelUpFx.section("hud").get("tile_min_px", 64)):
+		return Rect2()
+	return Rect2(band.position, Vector2(w, band.size.y))
+
 ## "character:<level>", "skill:<tree>:<level>", or "" when nothing shows.
 func showing_key() -> String:
 	if current.is_empty():
@@ -82,6 +103,7 @@ func tick(delta: float, hud: HuntHud) -> void:
 		current["t"] = 0.0
 		current["out"] = -1.0
 		_y = -1.0
+		_in = 1.0
 		if p and p.is_inside_tree() and not p.dead:
 			_fx = LevelUpFx.spawn(p, current["kind"])
 		shown.emit(current["kind"], int(current["level"]), current["tree"])
@@ -96,8 +118,9 @@ func tick(delta: float, hud: HuntHud) -> void:
 		current = {}
 
 ## Draws what shows and returns its block (Rect2() when nothing shows). `band` is the phone's centre
-## band (empty on the desktop), `plate` the target plate's drawn rect (empty when none).
-func draw(hud: HuntHud, band: Rect2, plate: Rect2) -> Rect2:
+## band (empty on the desktop), `plate` the target plate's drawn rect and `quest` the quest card's
+## (each empty when not drawn this frame).
+func draw(hud: HuntHud, band: Rect2, plate: Rect2, quest: Rect2 = Rect2()) -> Rect2:
 	if current.is_empty():
 		return Rect2()
 	var cfg := LevelUpFx.section("hud")
@@ -105,27 +128,40 @@ func draw(hud: HuntHud, band: Rect2, plate: Rect2) -> Rect2:
 	var a := 1.0
 	if float(current["out"]) >= 0.0:
 		a = 1.0 - clampf((t - float(current["out"])) / maxf(0.01, float(cfg.get("fade_s", 0.45))), 0.0, 1.0)
-	var r := hud.get_viewport_rect().size
-	var box := Rect2()
-	if band.has_area():
-		var top := band.position.y
-		if plate.has_area():
-			top = maxf(band.end.y, plate.end.y) + 8.0
-		box = Rect2(band.position.x, _glide(top, hud), band.size.x, band.size.y if not plate.has_area() else 84.0)
-	if current["kind"] == &"skill":
-		if not box.has_area():
-			var top := 70.0 if not plate.has_area() else plate.end.y + 10.0
-			box = Rect2(r.x * 0.5 - 190.0, _glide(top, hud), 380.0, 140.0)
-		return _draw_skill(hud, box, t, a, cfg, band.has_area())
-	if box.has_area():
-		return _draw_banner(hud, box, t, a, cfg)
-	var v := HudLayout.vitals_rect(hud, r)
-	return _draw_stack(hud, Vector2(v.position.x + 22.0, v.end.y + 24.0), t, a, cfg)
+	var skill: bool = current["kind"] == &"skill"
+	if not band.has_area():
+		var v := HudLayout.vitals_rect(hud, hud.get_viewport_rect().size)
+		var at := Vector2(v.position.x + 22.0, v.end.y + 24.0)
+		return _draw_skill(hud, Rect2(at, Vector2.ZERO), t, a, cfg, false) if skill else _draw_stack(hud, at, t, a, cfg)
+	var box := band
+	var form := "band"
+	if plate.has_area():
+		box = Rect2(band.position.x, maxf(band.end.y, plate.end.y) + 8.0, band.size.x, 84.0)
+	elif skill and _tile(band, quest).has_area():
+		box = _tile(band, quest)
+		form = "tile"
+	box = _place(box, form, hud, cfg)
+	a *= _in
+	return _draw_skill(hud, box, t, a, cfg, true) if skill else _draw_banner(hud, box, t, a, cfg)
 
-## Eases the block's top towards `top` (a plate appearing pushes it down) instead of snapping.
-func _glide(top: float, hud: HuntHud) -> float:
-	_y = top if _y < 0.0 else lerpf(_y, top, 1.0 - exp(-14.0 * hud.get_process_delta_time()))
-	return roundf(_y) if absf(_y - top) > 0.5 else top
+## Where the phone block stands this frame. Moving up (a plate left) it glides there, its height
+## easing too. Pushed down (a plate appeared) or changing form, it moves at once and fades back in
+## over replace_in_s, so it never slides across the plate.
+func _place(box: Rect2, form: String, hud: HuntHud, cfg: Dictionary) -> Rect2:
+	var dt := hud.get_process_delta_time()
+	if _y < 0.0 or form != _form or box.position.y > _y + 0.5:
+		_in = 0.0 if _y >= 0.0 else 1.0
+		_y = box.position.y
+		_h = box.size.y
+		_form = form
+	else:
+		var k := 1.0 - exp(-14.0 * dt)
+		_y = lerpf(_y, box.position.y, k)
+		_h = lerpf(_h, box.size.y, k)
+	_in = minf(1.0, _in + dt / maxf(0.01, float(cfg.get("replace_in_s", 0.2))))
+	var y := roundf(_y) if absf(_y - box.position.y) > 0.5 else box.position.y
+	var h := roundf(_h) if absf(_h - box.size.y) > 0.5 else box.size.y
+	return Rect2(box.position.x, y, box.size.x, h)
 
 ## Desktop character level-up: the Durango gold stack top left with LEVEL UP above the level.
 func _draw_stack(hud: HuntHud, at: Vector2, t: float, a: float, cfg: Dictionary) -> Rect2:
@@ -181,38 +217,51 @@ func _draw_banner(hud: HuntHud, box: Rect2, t: float, a: float, cfg: Dictionary)
 	return box
 
 ## Skill category level-up: the category's hex icon under a flare, then "Skill Category Level Up"
-## and "<Category> Lv. N". Desktop: centred at the top; phone: the icon left in the band.
+## and "<Category> Lv. N". Desktop: a column from `box.position` (the icon over an ink plate, as in
+## the gather reference); phone: an ink box, the icon left of the two lines, or in a tile narrower
+## than 280 px (too narrow for "Skill Category Level Up" beside the icon) the icon over the category
+## over its level.
 func _draw_skill(hud: HuntHud, box: Rect2, t: float, a: float, cfg: Dictionary, phone: bool) -> Rect2:
 	var font := hud._font
 	var gold := LevelUpFx.color_of(cfg, "gold", Color(1.0, 0.85, 0.35))
 	var tree := str(current["tree"])
-	var what := "%s %s" % [SkillState.NAMES.get(tree, tree.capitalize()), LevelDisplay.label(int(current["level"]))]
+	var category := str(SkillState.NAMES.get(tree, tree.capitalize()))
+	var level := LevelDisplay.label(int(current["level"]))
+	var what := "%s %s" % [category, level]
 	var head := "Skill Category Level Up"
-	var r := 32.0
-	var centre := Vector2(box.get_center().x, box.position.y + r + 6.0)
-	var block := box
-	if phone:
-		_box(hud, box, t, a, cfg)
-		r = minf(30.0, box.size.y * 0.34)
-		centre = Vector2(box.position.x + 14.0 + r, box.get_center().y)
-	_flare(hud, centre, Vector2(r * 8.0, r * 3.4), t, a, cfg, r * (1.4 if phone else 2.1), box if phone else Rect2())
 	var s := _pop(_u(t, 0.0, cfg), 0.2, float(cfg.get("overshoot", 1.24)))
-	_hex_icon(hud, centre, r, tree, a * clampf(s * 3.0, 0.0, 1.0), s, gold)
 	var reveal := clampf((t - 0.1) / 0.25, 0.0, 1.0) * a
 	if phone:
+		_box(hud, box, t, a, cfg)
+		var tile := box.size.x < 280.0
+		var r := minf(24.0, (box.size.y - 50.0) * 0.5) if tile else minf(30.0, box.size.y * 0.34)
+		var centre := Vector2(box.get_center().x, box.position.y + 6.0 + r) if tile else Vector2(box.position.x + 14.0 + r, box.get_center().y)
+		_flare(hud, centre, Vector2(r * 8.0, r * 3.4), t, a, cfg, r * 1.4, box)
+		_hex_icon(hud, centre, r, tree, a * clampf(s * 3.0, 0.0, 1.0), s, gold)
+		if tile:
+			var tw := box.size.x - 10.0
+			for row in [[UiTokens.ellipsis(font, category, tw, 12), 12, UiTokens.META, centre.y + r + 18.0], [UiTokens.ellipsis(font, level, tw, 20), 20, gold, box.end.y - 8.0]]:
+				var rw := font.get_string_size(str(row[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, int(row[1])).x
+				_text(hud, Vector2(box.get_center().x - rw * 0.5, float(row[3])), str(row[0]), int(row[1]), row[2], reveal)
+			return box
 		var x := centre.x + r + 14.0
 		var w := box.end.x - 12.0 - x
 		_text(hud, Vector2(x, centre.y - 8.0), UiTokens.ellipsis(font, head, w, 13), 13, UiTokens.META, reveal)
 		_text(hud, Vector2(x, centre.y + 20.0), UiTokens.ellipsis(font, what, w, 22), 22, gold, reveal)
-		return block
+		return box
+	var r := 32.0
 	var hw := font.get_string_size(head, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 	var ww := font.get_string_size(what, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
-	var plate := Rect2(centre.x - maxf(hw, ww) * 0.5 - 22.0, centre.y + r + 10.0, maxf(hw, ww) + 44.0, 60.0)
+	var pw := maxf(hw, ww) + 44.0
+	var centre := Vector2(box.position.x + pw * 0.5, box.position.y + r + 6.0)
+	_flare(hud, centre, Vector2(r * 8.0, r * 3.4), t, a, cfg, r * 1.9)  # rays stay under the vitals
+	_hex_icon(hud, centre, r, tree, a * clampf(s * 3.0, 0.0, 1.0), s, gold)
+	var plate := Rect2(box.position.x, centre.y + r + 10.0, pw, 60.0)
 	hud.draw_rect(plate, Color(UiTokens.INK, UiTokens.INK.a * reveal))
 	hud.draw_rect(Rect2(plate.position, Vector2(plate.size.x, 2.0)), Color(gold, 0.8 * reveal))
 	_text(hud, Vector2(centre.x - hw * 0.5, plate.position.y + 22.0), head, 15, UiTokens.TEXT, reveal)
 	_text(hud, Vector2(centre.x - ww * 0.5, plate.position.y + 50.0), what, 24, gold, reveal)
-	return Rect2(plate.position.x, box.position.y, plate.size.x, plate.end.y - box.position.y).merge(Rect2(centre - Vector2(r, r) - Vector2(0.0, 6.0), Vector2(r, r) * 2.0 + Vector2(0.0, 6.0)))
+	return Rect2(box.position, Vector2(pw, plate.end.y - box.position.y))
 
 ## The level badge on the vitals pulses gold through a character level-up: a gold wash with the
 ## number redrawn on it, and rings spreading out of it. HuntHud calls this after drawing the badge.

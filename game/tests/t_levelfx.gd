@@ -12,6 +12,13 @@ extends SceneTree
 ##   light at a time, each starting only after the last has faded, the two character levels merged;
 ## - the camera keeps no shake offset and stays put while the survivor stands; the celebration's
 ##   block does not move between frames;
+## - toasts and notices on screen while a skill level-up starts and ends move only by their own rise
+##   (a skill banner at the top centre made them jump 52-60 px in one frame: review, fix round 1);
+## - at 844x390 a skill level-up keeps the quest card and stands beside it, a character level-up takes
+##   the band; a target plate appearing under either never has the banner across it (the banner moves
+##   only while it fades back in), and the banner glides back up when the plate leaves;
+## - riding, the light stands on the saddle with her, held in the mount's frame; dismounting mid-way
+##   it moves to her feet;
 ## - particle counts stay in a phone budget, the sparkle quad and its material are shared between
 ##   level-ups (a fresh BaseMaterial3D per level-up recompiled its shader every time: a 120 ms frame
 ##   on gl_compatibility); the light's life comes from data/level_fx.json.
@@ -68,7 +75,9 @@ func _run() -> void:
 	await _test_character()
 	await _test_skill()
 	await _test_burst()
+	await _test_toasts()
 	await _test_mounted()
+	await _test_phone()
 	await _test_occupation()
 	Engine.time_scale = 1.0
 	_finish()
@@ -179,18 +188,180 @@ func _test_mounted() -> void:
 	await _frames(3)
 	var fxs := _fxs()
 	var fx: Node3D = fxs[0] if fxs.size() == 1 else null
-	_expect(fx != null and player.get("mounted_on") == c and fx.get_parent() == c, "mounted: a level-up while riding plays one light, on the mount (%d, parent %s)" % [fxs.size(), fx.get_parent().name if fx else "none"])
+	_expect(fx != null and player.get("mounted_on") == c and fx.get_parent() == c, "mounted: a level-up while riding plays one light, a child of the mount (%d, parent %s)" % [fxs.size(), fx.get_parent().name if fx else "none"])
+	var rig: Node3D = player.rig
+	var seat := rig.global_position.y - c.global_position.y
+	var local: Vector3 = fx.position if fx else Vector3.ZERO
 	var off := 0.0
+	var moved := 0.0
+	var ring_y: Array = []
 	var t := 0.0
 	while fx and is_instance_valid(fx) and t < 2.5:
-		off = maxf(off, fx.get_global_transform_interpolated().origin.distance_to(c.get_global_transform_interpolated().origin))
+		if t > 0.3 and ring_y.is_empty():
+			for mi in fx.get_children():
+				if mi is MeshInstance3D and (mi as MeshInstance3D).mesh is PlaneMesh and not (mi as MeshInstance3D).mesh is QuadMesh:
+					ring_y.append(snappedf((mi as Node3D).global_position.y - c.global_position.y, 0.01))
+		off = maxf(off, fx.global_position.distance_to(rig.global_position))
+		moved = maxf(moved, fx.position.distance_to(local))
 		await process_frame
 		t += cam.get_process_delta_time()
-	_expect(off < 0.01, "mounted: the light stands on the mount's feet the whole time (max %.3f m off)" % off)
+	print("[t_levelfx] mounted: seat %.2f m over the mount's feet, light at y %.2f in the mount's frame, rings at %s m" % [seat, local.y, ring_y])
+	_expect(not ring_y.is_empty() and ring_y.all(func (y: float) -> bool: return absf(y) < 0.5), "mounted: its rings stay on the ground under the mount (%s m over its feet)" % [ring_y])
+	_expect(seat > 2.0 and absf(local.y - seat) < 0.3, "mounted: the light stands on the saddle with her (y %.2f, seat %.2f m), not at the mount's feet inside its body" % [local.y, seat])
+	_expect(off < 1.0 and moved == 0.0, "mounted: it stays with her (within the saddle's bob) and does not follow the bone (max %.3f m from her, moved %.3f m on the mount)" % [off, moved])
+	await _quiet()
+	world.add_xp(world.xp_for_level(world.pioneer_level) - world.pioneer_xp)
+	await _frames(3)
+	fxs = _fxs()
+	await create_timer(0.4).timeout
 	player.dismount()
+	await _frames(3)
+	fx = fxs[0] if fxs.size() == 1 and is_instance_valid(fxs[0]) else null
+	_expect(fx != null and fx.get_parent() == player and absf(fx.position.y + float(player.half_height())) < 0.01 and is_equal_approx(fx.scale.x, 1.0), "mounted: dismounting mid-way moves the light to her feet (parent %s, y %.2f, scale %.2f)" % [fx.get_parent().name if fx else "none", fx.position.y if fx else 0.0, fx.scale.x if fx else 0.0])
 	await _quiet()
 	c.queue_free()
 	await _frames(2)
+
+## Desktop: a toast and a notice when a skill level-up starts, another toast when it ends. Every
+## frame each one may move only by its own rise (35 px/s); none may sit under the banner.
+func _test_toasts() -> void:
+	await _quiet()
+	var s = player.skills
+	var lv: int = s.level_of("processing")
+	_expect(lv < s.level_cap("processing"), "toasts: processing can still level (Lv. %d, cap %d)" % [lv, s.level_cap("processing")])
+	hud.toast(&"wood", 3)
+	hud.notice("Too heavy to carry more")
+	await _frames(6)
+	s.add_xp("processing", s.xp_to_next(lv) - s.xp_of("processing"), true)
+	var last: Dictionary = {}  # "toast:<item>" or "notice:<text>" -> [box, k]
+	var worst := 0.0
+	var worst_at := ""
+	var under := 0
+	var seen_start := false
+	var seen_end := false
+	var was_showing := false
+	var t := 0.0
+	var pushed := false
+	var compared := 0
+	while t < 4.2:
+		await process_frame
+		t += cam.get_process_delta_time()
+		if not pushed and t > 2.5:
+			pushed = true
+			hud.toast(&"stone", 2)
+		var blocks: Dictionary = hud.get("drawn_blocks")
+		var lu: Rect2 = blocks.get("levelup", Rect2())
+		var showing: bool = lu.has_area()
+		var now: Dictionary = {}
+		var events = hud.get("_events")
+		for kind in ["toast", "notice"]:
+			var list: Array = events.get("toasts" if kind == "toast" else "notices")
+			for i in list.size():
+				var box: Rect2 = blocks.get("%s%d" % [kind, i], Rect2())
+				if not box.has_area():
+					continue
+				var e: Dictionary = list[i]
+				var k := float(e["t"])
+				var key := "%s:%s" % [kind, e.get("id", e.get("text", ""))]
+				now[key] = [box, k]
+				if showing and box.intersects(lu):
+					under += 1
+				if showing != was_showing:
+					seen_start = seen_start or showing
+					seen_end = seen_end or not showing
+				if last.has(key):
+					compared += 1
+					var pb: Rect2 = last[key][0]
+					var rise := 35.0 * (minf(k, 1.0) - minf(float(last[key][1]), 1.0)) if kind == "toast" else 0.0
+					var err := absf(box.position.y - pb.position.y + rise) + absf(box.position.x - pb.position.x)
+					if err > worst:
+						worst = err
+						worst_at = "%s at %.2f s" % [kind, t]
+		last = now
+		was_showing = showing
+	print("[t_levelfx] toasts: worst move beyond the rise %.2f px (%s), %d frame pairs, seen start %s end %s" % [worst, worst_at, compared, seen_start, seen_end])
+	_expect(seen_start and seen_end and compared > 100, "toasts: toasts were on screen when the skill banner started and ended (start %s, end %s, %d frame pairs)" % [seen_start, seen_end, compared])
+	_expect(worst <= 1.0, "toasts: no toast or notice jumps when a skill banner starts or ends (worst %.2f px beyond its rise, %s)" % [worst, worst_at])
+	_expect(under == 0, "toasts: no toast or notice under the skill banner (%d frames)" % under)
+	await _quiet()
+
+## 844x390: the quest card stays beside a skill level-up and yields the band to a character one; a
+## target plate appearing under either never has the banner across it (it moves only while fading
+## back in) and the banner glides back up after the plate leaves.
+func _test_phone() -> void:
+	var start_size := get_root().size
+	var start_canvas := get_root().content_scale_size
+	get_root().size = Vector2i(844, 390)
+	get_root().content_scale_size = Vector2i(844, 390)
+	await _frames(6)
+	var data: Node = get_root().get_node("Data")
+	var c: Node3D = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
+	host.add_child(c)
+	c.call("spawn", data.creature(&"compsognathus"), &"A")
+	c.global_position = player.global_position + Vector3(5.0, 0.0, 3.0)
+	c.process_mode = Node.PROCESS_MODE_DISABLED  # a target plate only, never a fight that sets one itself
+	await _frames(4)
+	for kind in ["skill", "character"]:
+		await _quiet()
+		hud.set("_last_target", null)
+		if kind == "skill":
+			cel.call("push_skill", &"processing", 9)
+		else:
+			hud.call("_on_level_up", world.pioneer_level)
+		var rec := await _phone_watch(0.6, false, null)
+		if kind == "skill":
+			_expect(rec["quest_frames"] == rec["frames"] and rec["lu_frames"] > 0 and rec["quest_hits"] == 0, "phone: a skill level-up keeps the quest card and stands beside it (%d/%d frames with the card, %d drawn, %d overlaps)" % [rec["quest_frames"], rec["frames"], rec["lu_frames"], rec["quest_hits"]])
+		else:
+			_expect(rec["quest_frames"] == 0 and rec["lu_frames"] > 0, "phone: a character level-up takes the band from the quest card (%d frames with the card)" % rec["quest_frames"])
+		var at := (hud.get("drawn_blocks") as Dictionary).get("levelup", Rect2()) as Rect2
+		rec = await _phone_watch(0.8, true, c)
+		_expect(rec["plate_frames"] > 0 and rec["plate_hits"] == 0, "phone %s: a plate appearing never has the banner across it (%d frames with the plate, %d overlaps)" % [kind, rec["plate_frames"], rec["plate_hits"]])
+		_expect(float(rec["seen_jump"]) > 0.0 and float(rec["bad_jump"]) == 0.0, "phone %s: pushed below the plate, the banner moves only while it fades back in (moved %.0f px, %.0f px while shown)" % [kind, rec["seen_jump"], rec["bad_jump"]])
+		rec = await _phone_watch(0.8, true, null)
+		var back := (hud.get("drawn_blocks") as Dictionary).get("levelup", Rect2()) as Rect2
+		_expect(back.is_equal_approx(at), "phone %s: when the plate leaves, the banner is back where it stood (%s, was %s)" % [kind, back, at])
+		if kind == "character":
+			_expect(float(rec["step"]) > 0.0 and float(rec["step"]) < 60.0, "phone character: it glides back up over several frames, height too (largest step %.1f px of 124)" % rec["step"])
+		else:
+			_expect(float(rec["bad_jump"]) == 0.0, "phone skill: back to the tile beside the card, it moves only while it fades back in (%.0f px while shown)" % rec["bad_jump"])
+	await _quiet()
+	c.queue_free()
+	get_root().size = start_size
+	get_root().content_scale_size = start_canvas
+	await _frames(4)
+
+## Frames for `seconds` at the phone size (after 3 frames the HUD's target becomes `target` when
+## `retarget`): frames with the quest card, the banner, the plate, overlaps of the banner with either,
+## its largest per-frame move or resize, the largest move over 40 px, and such a move while the
+## celebration had not just re-placed it (its fade-back-in over 0.15).
+func _phone_watch(seconds: float, retarget: bool, target: Node3D) -> Dictionary:
+	var out := {"frames": 0, "quest_frames": 0, "lu_frames": 0, "quest_hits": 0, "plate_frames": 0, "plate_hits": 0, "step": 0.0, "bad_jump": 0.0, "seen_jump": 0.0}
+	var last := Rect2()
+	var t := 0.0
+	while t < seconds:
+		await process_frame
+		t += cam.get_process_delta_time()
+		if retarget and out["frames"] == 3:
+			hud.set("_last_target", target)
+		var blocks: Dictionary = hud.get("drawn_blocks")
+		var lu: Rect2 = blocks.get("levelup", Rect2())
+		var quest: Rect2 = blocks.get("quest", Rect2())
+		var plate: Rect2 = blocks.get("plate", Rect2())
+		out["frames"] += 1
+		out["quest_frames"] += 1 if quest.has_area() else 0
+		out["lu_frames"] += 1 if lu.has_area() else 0
+		out["plate_frames"] += 1 if plate.has_area() else 0
+		out["quest_hits"] += 1 if lu.has_area() and quest.has_area() and lu.intersects(quest) else 0
+		out["plate_hits"] += 1 if lu.has_area() and plate.has_area() and lu.intersects(plate) else 0
+		if lu.has_area() and last.has_area():
+			var step := absf(lu.position.y - last.position.y) + absf(lu.size.y - last.size.y) + absf(lu.position.x - last.position.x)
+			out["step"] = maxf(out["step"], step)
+			if step > 40.0:
+				out["seen_jump"] = maxf(out["seen_jump"], step)
+				if float(cel.get("_in")) > 0.15:
+					out["bad_jump"] = maxf(out["bad_jump"], step)
+		last = lu
+	return out
 
 ## SkillState.apply_occupation emits skill_changed (Lv. 20) without a level gained by play: no light.
 func _test_occupation() -> void:

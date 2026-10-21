@@ -5,8 +5,10 @@ extends Node3D
 ## spreading out, a slow ray burst behind her, rising sparkles, a short flash on her and a
 ## short-lived OmniLight. A skill level-up: one ring, fewer sparkles, a smaller light. Additive
 ## unshaded meshes and a real light, not only post glow: gl_compatibility (the web build) glows far
-## less than Forward+. One-shot: it frees itself after `life`. A child of the survivor (of her mount
-## while she rides), so it follows the interpolated transform; nothing here touches the camera.
+## less than Forward+. One-shot: it frees itself after `life`. A child of the survivor, at her feet;
+## while she rides, a child of her mount at the saddle (where she sits), its rings left on the ground
+## under the mount and spread wider the higher she sits. It follows the interpolated transform and
+## moves with her when she mounts or dismounts mid-way. Nothing here touches the camera.
 ## Parts, colours and timings come from data/level_fx.json (a part missing from a kind's section is
 ## not built).
 # ASSUMPTION: the look (gold pillar, rings, rays, sparkles, a flash) is ours; the owner asked for
@@ -28,6 +30,8 @@ var _cfg: Dictionary = {}
 var _parts: Array = []  # [MeshInstance3D, ShaderMaterial, part name, shape]
 var _light: OmniLight3D
 var _warm := false
+var _who: Node3D  ## the survivor it plays for
+var _ground := 0.0  ## how far above the ground it stands (her seat on a mount), where the rings stay
 
 static var _data: Dictionary = {}
 static var _dot: GradientTexture2D
@@ -68,14 +72,29 @@ static func spread(row: Dictionary, t: float) -> float:
 static func spawn(who: Node3D, fx_kind: StringName) -> LevelUpFx:
 	var fx := LevelUpFx.new()
 	fx.kind = fx_kind
-	var at := anchor(who)
-	if at == who and who.has_method("half_height"):
-		fx.position = Vector3(0.0, -float(who.call("half_height")), 0.0)
-	at.add_child(fx)
+	fx._who = who
+	fx._stand()
 	return fx
 
-## What the light stands on: her (at her feet); riding, the mount's root, its feet: Player.mount
-## hangs her from a saddle or a bone socket, which turns and bobs with the mount's animation.
+## Stands on anchor(_who): at her feet; riding, at her model root on the saddle (6.9 m up a T. rex),
+## held there in the mount's frame (the saddle bone bobs).
+func _stand() -> void:
+	var at := anchor(_who)
+	var rig: Variant = _who.get("rig")
+	var pos := Vector3.ZERO
+	if at != _who:
+		pos = at.to_local((rig as Node3D).global_position) if rig is Node3D else Vector3.ZERO
+	elif _who.has_method("half_height"):
+		pos = Vector3(0.0, -float(_who.call("half_height")), 0.0)
+	_ground = maxf(0.0, pos.y) if at != _who else 0.0
+	if get_parent():
+		get_parent().remove_child(self)
+	at.add_child(self)
+	position = pos
+	reset_physics_interpolation()
+
+## What the light is a child of: her; riding, the mount's root, not the saddle or bone socket
+## Player.mount hangs her from, which turns and bobs with the mount's animation.
 static func anchor(who: Node3D) -> Node3D:
 	var mount: Variant = who.get("mounted_on")
 	return mount if mount is Node3D and is_instance_valid(mount) else who
@@ -242,6 +261,8 @@ func _process(delta: float) -> void:
 	if _t >= life:
 		queue_free()
 		return
+	if _who and is_instance_valid(_who) and anchor(_who) != get_parent():
+		_stand()  # she mounted or dismounted mid-way
 	_animate()
 
 func _animate() -> void:
@@ -257,8 +278,10 @@ func _animate() -> void:
 				var u := clampf((_t - float(row.get("at", 0.0))) / rise_s, 0.0, 1.0)
 				mat.set_shader_parameter("rise", 1.0 - pow(1.0 - u, 2.0))
 			RING:
-				var radius := lerpf(float(row.get("from", 0.4)), float(row.get("to", 3.0)), spread(row, _t))
+				var wide := 1.0 + _ground * float(section("mount").get("ring_per_m", 0.1))
+				var radius := lerpf(float(row.get("from", 0.4)), float(row.get("to", 3.0)), spread(row, _t)) * wide
 				mi.scale = Vector3(radius, 1.0, radius)
+				mi.position.y = float(row.get("lift", 0.2)) - _ground  # on the ground, under her mount too
 			RAYS:
 				mat.set_shader_parameter("spin", _t * float(row.get("spin", 0.5)))
 		mi.visible = _warm or e > 0.0
