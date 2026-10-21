@@ -10,8 +10,10 @@ extends Node3D
 ##   Godot --path game --resolution 1600x900 --rendering-method gl_compatibility \
 ##     -- --lab=bag_ui_lab --screen=bag --shot=/tmp/bag.png --shot-delay=6
 ##   --screen= bag | inspect | character | equipment | storage | cargo | picker
-##   --select=<role> then selects that seeded instance (berry12/25/42, bone45/60, cage, knife, club, ...);
+##   --select=<role> then selects that seeded instance (berry12/25/42, bone45/60, cage, knife, club, ...;
+##   box_bone on the storage side, cargo_berry on the cargo side; with --screen=picker a berry);
 ##   with --screen=equipment it opens that item's gear cell with it picked (the compare state)
+##   --recipe=<id> --recipe-slot=<n> with --screen=picker (default camp_stew slot 2, the berries)
 ##   --stats=<group> with --screen=character opens Detailed Stats at that group
 ##   --slot=<cell> with --screen=character|equipment selects that gear cell (accessory1 = the empty state)
 ## Headless (no --shot): checks the seed and the screen contract, prints "[bagui] PASS ..." or
@@ -23,9 +25,9 @@ extends Node3D
 ##   signatures and open the shared split view.
 
 const SCREENS := [&"bag", &"inspect", &"character", &"equipment", &"storage", &"cargo", &"picker"]
-const CONTRACT := ["open_bag", "select_uid", "current_screen", "open_character", "open_equipment"]
-## Contract members a later build step adds; until then their screens are skipped, not failed.
-const LATER := {"open_picker": "B3"}
+## Shot-only screens: the craft menu's camp stew with the Lv. 25 berry chosen through the picker.
+const SHOT_ONLY := [&"craft"]
+const CONTRACT := ["open_bag", "select_uid", "current_screen", "open_character", "open_equipment", "open_picker"]
 const USED := 91
 ## Filler after the named items, in pickup order: [id, instances, first level, level step].
 const FILL := [
@@ -40,6 +42,8 @@ var uids := {}  ## role -> uid, for selection and the checks
 var _fails: PackedStringArray = []
 var _screen: StringName = &"bag"
 var _slot: StringName = &"body"
+var _recipe: StringName = &"camp_stew"
+var _recipe_slot := 2
 
 func _ready() -> void:
 	var pick := ""
@@ -53,6 +57,10 @@ func _ready() -> void:
 			stats = a.substr(8)
 		elif a.begins_with("--slot="):
 			_slot = StringName(a.substr(7))
+		elif a.begins_with("--recipe="):
+			_recipe = StringName(a.substr(9))
+		elif a.begins_with("--recipe-slot="):
+			_recipe_slot = int(a.substr(14))
 	var kit := LabKit.build(self, 30.0)
 	player = kit["player"]
 	# Same layering as main.gd: the bag family is a modal above the HUD's canvas layers.
@@ -61,6 +69,7 @@ func _ready() -> void:
 	modals.layer = 96
 	add_child(modals)
 	player.ui.reparent(modals)
+	(player.craft_ui as Node).reparent(modals) # main.gd puts the craft menu there too
 	_seed()
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -132,10 +141,12 @@ func _seed() -> void:
 	rec.bag.add(ItemStack.make(&"raw_meat", 1, {}, 18))
 	rec.bag.add(ItemStack.make(&"raptor_hide", 1, {}, 21))
 	rec.bag.add(ItemStack.make(&"berry", 1, {}, 33))
+	uids["cargo_berry"] = rec.bag.slots[rec.bag.find_first(&"berry")].uid
 	player.bonded.append(rec)
 	storage_box = Inventory.new(60)
 	for id in [&"wood_log", &"stone", &"raptor_bone", &"herb_leaf", &"fibre_stalk"]:
 		storage_box.add(ItemStack.make(id, 1, {}, 14))
+	uids["box_bone"] = storage_box.slots[storage_box.find_first(&"raptor_bone")].uid
 
 func _add(id: StringName, lvl: int, attrs: Dictionary, role: String, is_new: bool, locked: bool = false) -> void:
 	var s := ItemStack.make(id, 1, attrs, lvl)
@@ -186,10 +197,6 @@ func _open(screen: StringName) -> bool:
 			ui.visible = true
 			ui.rebuild()
 			return false
-	for m in LATER:
-		if str(screen) in str(m) and not ui.has_method(m):
-			print("[bagui] SKIP %s: InventoryUI.%s comes in %s" % [screen, m, LATER[m]])
-			return false
 	match screen:
 		&"bag":
 			ui.call("open_bag")
@@ -207,9 +214,16 @@ func _open(screen: StringName) -> bool:
 		&"cargo":
 			ui.show_pet_bag(player.bonded[0])
 		&"picker":
-			ui.call("open_picker", &"camp_stew", 2, func(_pick: Variant) -> void: pass)
+			ui.call("open_picker", _recipe, _recipe_slot, func(_pick: Variant) -> void: pass)
+		&"craft":
+			var craft: Node = player.craft_ui
+			craft.call("show_for_station", &"crock_pot")
+			craft.call("_choose_recipe", "camp_stew")
+			craft.call("_set_chosen", "camp_stew", 2, [_index_of(uids["berry25"])]) # what the picker's Use hands back
+			craft.call("rebuild")
+			return craft.visible
 		_:
-			print("[bagui] FAIL unknown --screen=%s (one of %s)" % [screen, SCREENS])
+			print("[bagui] FAIL unknown --screen=%s (one of %s)" % [screen, SCREENS + SHOT_ONLY])
 			return false
 	return str(ui.call("current_screen")) == str(screen if screen != &"inspect" else &"bag")
 
@@ -277,6 +291,37 @@ func _check_gear() -> void:
 	_expect(Array(ch.stats_panel.rows()).has("Attack  %s" % InvStats.fmt("attack", s0.attack)), "Detailed Stats shows the Attack the screens show")
 	ui.call("hide_ui")
 
+## B3: the storage split view, dinosaur cargo and the ingredient picker move and pick exact instances.
+func _check_b3() -> void:
+	var ui := player.ui
+	var inv := player.inventory
+	ui.show_storage(storage_box, player, {"title": "Storage Box", "allow_deposit": true, "take_all": true})
+	var st: StorageScreen = ui.get("_storage")
+	ui.call("select_uid", uids["berry42"])
+	_expect(st.inspect.title_text() == "Berry" and st.inspect.actions() == [&"store"], "storage: the Lv. 42 berry is inspected with Store (%s)" % [st.inspect.actions()])
+	st.action_button(&"store").pressed.emit()
+	var at := storage_box.find_first(&"berry")
+	var stored := storage_box.slots[at] if at >= 0 else null
+	_expect(stored != null and stored.uid == uids["berry42"] and stored.level == 42 and stored.attributes.has("vivid_inspiration") and _index_of(uids["berry42"]) == -1, "storage: Store moved that exact berry with its trait")
+	ui.call("select_uid", uids["berry42"])
+	_expect(st.inspect.actions() == [&"take", &"take_all"], "storage: on the box side it offers Take and Take All (%s)" % [st.inspect.actions()])
+	st.action_button(&"take").pressed.emit()
+	_expect(_index_of(uids["berry42"]) >= 0 and storage_box.find_first(&"berry") < 0, "storage: Take brought it back")
+	ui.show_pet_bag(player.bonded[0])
+	ui.call("select_uid", uids["cargo_berry"])
+	_expect(ui.call("current_screen") == &"cargo" and st.inspect.actions() == [&"take"], "cargo: the raptor's berry offers Take")
+	st.action_button(&"take").pressed.emit()
+	_expect(_index_of(uids["cargo_berry"]) >= 0 and player.bonded[0].bag.find_first(&"berry") < 0, "cargo: Take moved that berry into the bag")
+	var picked: Array = []
+	ui.call("open_picker", &"camp_stew", 2, func(p: Array) -> void: picked.append_array(p))
+	var pk: ItemPicker = ui.get("_picker")
+	_expect(ui.call("current_screen") == &"picker" and pk.chosen() == [_index_of(uids["berry12"])] and pk.warning_text() == "", "picker: the plain Lv. 12 berry is preselected, no warning")
+	pk.choose(_index_of(uids["berry42"]))
+	_expect(pk.warning_text().contains("Vivid Inspiration"), "picker: choosing the Lv. 42 berry warns (%s)" % pk.warning_text())
+	pk.confirm()
+	_expect(picked == [_index_of(uids["berry42"])] and ui.call("current_screen") == &"", "picker: Use returns exactly that berry and closes")
+	print("[bagui] b3 storage=store,take cargo=take picker=berry42 bag=%d/%d" % [inv.used_slots(), inv.slot_count])
+
 func _expect(ok: bool, what: String) -> void:
 	if not ok:
 		_fails.append(what)
@@ -305,6 +350,7 @@ func _check() -> void:
 		print("[bagui] open times %s" % ", ".join(PackedStringArray(times)))
 		_check_bag()
 		_check_gear()
+		_check_b3()
 	if _fails.is_empty():
 		print("[bagui] PASS bag=%d/%d new=%d locked=%d" % [inv.used_slots(), inv.slot_count, _flag_count(&"new"), _flag_count(&"locked")])
 	get_tree().quit(0 if _fails.is_empty() else 1)

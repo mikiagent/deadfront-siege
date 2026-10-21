@@ -11,6 +11,8 @@ signal lock_pressed
 signal drop_pressed
 
 var sort_key: StringName = &"type"
+## The right-hand squares this toolbar shows (storage sides show only Filter; the picker none).
+var squares: Array[StringName] = [&"select", &"filter", &"lock"]
 var filter_id: StringName = &"all"
 var select_on := false
 var _sort: Button
@@ -77,20 +79,24 @@ func _layout() -> void:
 		return
 	var sq: float = _m.square
 	var pad := (size.y - sq) * 0.5
-	var sort_w := roundf(size.x * 0.24)
+	var sort_w := maxf(roundf(size.x * 0.24), InvTheme.font().get_string_size(_sort.text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(_m.button_font)).x + 24.0)
 	_sort.position = Vector2(pad, pad)
 	_sort.size = Vector2(sort_w, sq)
 	_caret.position = Vector2(pad + sort_w - 1.0, pad)
 	_caret.size = Vector2(maxf(44.0, sq * 0.9), sq)
-	var squares: Array[Button] = [_select, _filter, _lock]
-	_drop.visible = InvActions.drop_handler.is_valid()
+	var shown: Array[Button] = []
+	for pair in [[&"select", _select], [&"filter", _filter], [&"lock", _lock]]:
+		(pair[1] as Button).visible = squares.has(pair[0])
+		if (pair[1] as Button).visible:
+			shown.append(pair[1])
+	_drop.visible = InvActions.drop_handler.is_valid() and squares.has(&"lock") # with the bag's own squares
 	if _drop.visible:
-		squares.append(_drop)
+		shown.append(_drop)
 	var x := size.x - pad
-	for i in range(squares.size() - 1, -1, -1):
+	for i in range(shown.size() - 1, -1, -1):
 		x -= sq
-		squares[i].position = Vector2(x, pad)
-		squares[i].size = Vector2(sq, sq)
+		shown[i].position = Vector2(x, pad)
+		shown[i].size = Vector2(sq, sq)
 		x -= float(UiTokens.SPACE) * (1.0 if _m.compact else 2.0)
 
 func _draw() -> void:

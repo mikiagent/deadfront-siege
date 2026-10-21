@@ -385,15 +385,51 @@ func _t12_transfers() -> void:
 	var box = INV.new(10)
 	var i := _give(&"raptor_bone", 60, {"firm": 8})
 	var uid := _uid(i)
-	ui.show_storage(box, player, {"title": "Storage Box", "allow_deposit": true})
+	var berry := _uid(_give(&"berry", 12))
+	ui.show_storage(box, player, {"title": "Storage Box", "allow_deposit": true, "take_all": true})
 	_expect(ui.has_method("current_screen") and ui.call("current_screen") == &"storage", "12: a container opens the shared Bag | Storage split view")
-	ui._select(i)
-	ui._store_selected()
+	var st = ui.get("_storage")
+	if st == null or not st.has_method("action_button"):
+		_expect(false, "12: the storage screen has an inspect panel with its moves (StorageScreen.action_button)")
+		ui._select(i)
+		ui._store_selected()
+		ui.hide_ui()
+		return
+	await process_frame
+	ui.select_uid(uid)
+	_expect(st.inspect.title_text() == "Raptor Bone" and st.inspect.actions() == [&"store"], "12: the bone tapped on the bag side is inspected with Store (%s %s)" % [st.inspect.title_text(), st.inspect.actions()])
+	st.action_button(&"store").pressed.emit()
 	var moved = box.slots[0]
 	_expect(moved != null and moved.uid == uid and moved.level == 60 and int(moved.attributes.get("firm", 0)) == 8 and _find(uid) == -1, "12: Store moves the exact bone (uid, level, attributes)")
-	if ui.has_method("_take_storage"):
-		ui._take_storage(0)
+	# Each side sorts and filters on its own; neither touches the items.
+	st.box_bar.filter_chosen.emit(&"food")
+	await process_frame
+	_expect(st.box_grid.item_cells().is_empty() and st.bag_grid.item_cells().size() == player.inventory.used_slots(), "12: Food on the storage side hides the bone there; the bag side still shows all")
+	st.box_bar.filter_chosen.emit(&"all")
+	ui.select_uid(uid)
+	_expect(st.box_grid.selected_uid() == uid and st.bag_grid.selected_uid() == "" and st.inspect.actions() == [&"take", &"take_all"], "12: the bone tapped on the storage side offers Take and Take All (%s)" % [st.inspect.actions()])
+	st.action_button(&"take").pressed.emit()
 	_expect(_find(uid) >= 0 and box.slots[0] == null, "12: Take brings the same bone back")
+	# A take-only container says why and offers no Take; a locked bag item says why it stays.
+	var loot = INV.new(4)
+	loot.add(IS.make(&"raw_meat", 1, {}, 9))
+	ui.show_storage(loot, player, {"title": "Raptor", "take_all": true, "readonly_reason": "needs knife"})
+	ui.select_uid(loot.slots[0].uid)
+	_expect(st.inspect.actions().is_empty() and Array(st.inspect.rows()).has("Needs knife"), "12: read-only loot shows its reason and no Take (%s)" % [st.inspect.rows()])
+	player.inventory.slots[_find(berry)].set_flag(&"locked", true)
+	ui.show_storage(box, player, {"title": "Storage Box", "allow_deposit": true})
+	ui.select_uid(berry)
+	_expect(st.inspect.actions().is_empty() and Array(st.inspect.rows()).has("Locked: unlock it in the Bag to store it."), "12: a locked berry stays in the bag and says why (%s)" % [st.inspect.rows()])
+	# Dinosaur cargo: the same split view over the pet's own bag.
+	var rec = load("res://scripts/pets/pet_record.gd").from_def(data.creature(&"velociraptor"), &"A")
+	rec.bag.add(IS.make(&"berry", 1, {}, 33))
+	var cargo_uid: String = rec.bag.slots[0].uid
+	ui.show_pet_bag(rec)
+	_expect(ui.call("current_screen") == &"cargo" and st.box_grid.inventory == rec.bag, "12: a bonded dinosaur's cargo opens in the same split view")
+	ui.select_uid(cargo_uid)
+	_expect(st.inspect.actions() == [&"take"], "12: cargo offers Take (no Take All) (%s)" % [st.inspect.actions()])
+	st.action_button(&"take").pressed.emit()
+	_expect(_find(cargo_uid) >= 0 and player.inventory.slots[_find(cargo_uid)].level == 33 and rec.bag.used_slots() == 0, "12: Take moves that exact berry from the cargo into the bag")
 	ui.hide_ui()
 
 func _t13_equipment() -> void:
@@ -534,25 +570,45 @@ func _t16_rare_bone_craft() -> void:
 	var i45 := _give(&"raptor_bone", 45, {"firm": 6})
 	var i60 := _give(&"raptor_bone", 60, {"firm": 8, "black_sheen": true})
 	var u60 := _uid(i60)
+	_give(&"branch", 3)
+	_give(&"root", 3)
+	_give(&"root", 4)
 	var got := []
 	var pk := _picker(&"slingshot", 0, got)
-	_expect(int(pk.call("preselected_index")) == i45, "16: the plain Lv. 45 bone is preselected, never the rare one")
+	_expect(int(pk.call("preselected_index")) == i45 and pk.call("chosen") == [i45], "16: the plain Lv. 45 bone is preselected, never the rare one")
+	_expect(str(pk.call("warning_text")) == "", "16: the preselected plain bone needs no warning")
 	pk.call("choose", i60)
-	_expect(str(pk.call("warning_text")) != "", "16: choosing the rare bone warns")
+	_expect(str(pk.call("warning_text")).contains("Black Sheen"), "16: choosing the rare bone warns (%s)" % pk.call("warning_text"))
 	pk.call("confirm")
 	_expect(got == [i60], "16: the picker returns exactly the rare bone's slot (%s)" % [got])
 	var rec: Dictionary = data.recipes.get(&"slingshot", {})
 	var picks: Array = []
 	for p in CR.default_picks(inv, rec):
 		picks.append(p)
+	_expect(picks.size() == 3 and picks[0] == i45, "16: the default plan would spend the plain bone (%s)" % [picks])
 	picks[0] = [i60]  # exact-instance picks: one Array of bag slots per recipe slot (hook)
-	_give(&"branch", 3)
-	_give(&"fibre_stalk", 3)
-	_give(&"fibre_stalk", 4)
 	var used: Array = CR.consume_for_craft(inv, rec, picks)
 	var uids := used.map(func(s) -> String: return s.uid)
 	_expect(uids.has(u60) and _find(u60) == -1 and _find(_uid(i45)) >= 0, "16: crafting consumes exactly the chosen bone")
 	pk.queue_free()
+	# The real path: the picks travel through Player -> PlayerActions -> StationCraft (a hand craft).
+	_reset_bag()
+	var j45 := _give(&"raptor_bone", 45)
+	var j60 := _give(&"raptor_bone", 60, {"black_sheen": true})
+	var k60 := _uid(j60)
+	var k45 := _uid(j45)
+	_give(&"branch", 3)
+	_give(&"root", 3)
+	_give(&"root", 4)
+	var real: Array = []
+	for p in CR.default_picks(inv, rec):
+		real.append(p)
+	real[0] = [j60]
+	player.craft_recipe(&"slingshot", 1, real)
+	var sc = player.station_craft
+	_expect(sc.recipe_id == &"slingshot", "16: the craft started with the chosen picks")
+	sc._finish_one()
+	_expect(_find(k60) == -1 and _find(k45) >= 0 and inv.find_first(&"slingshot") >= 0, "16: the finished slingshot used the chosen Lv. 60 bone and kept the Lv. 45")
 
 func _t17_berry_cook() -> void:
 	if not _need(["item_picker"], "17 berry cook"):
@@ -568,6 +624,7 @@ func _t17_berry_cook() -> void:
 	var pk := _picker(&"camp_stew", 2, got)
 	var cands: Array = pk.call("candidates")
 	_expect(cands.has(_find(b12)) and cands.has(i25) and cands.has(_find(b42)), "17: all three berries are pickable")
+	_expect(int(pk.call("preselected_index")) == _find(b12), "17: the Lv. 12 berry is preselected")
 	pk.call("choose", i25)
 	pk.call("confirm")
 	_expect(got == [i25], "17: the picker returns the Lv. 25 berry")
@@ -576,6 +633,57 @@ func _t17_berry_cook() -> void:
 	CR.consume_for_craft(inv, rec, picks)
 	_expect(_find(b25) == -1 and _find(b12) >= 0 and _find(b42) >= 0, "17: cooking used the Lv. 25 berry and left the others")
 	pk.queue_free()
+	await _t17_craft_menu()
+
+## The craft menu's ingredient opens the Bag's picker, and Craft spends exactly the choice. Twine (2
+## fibre, by hand) so the real craft runs in the test; when every fibre left has a trait, Craft asks.
+func _t17_craft_menu() -> void:
+	var craft = (load("res://scenes/ui/craft.tscn") as PackedScene).instantiate()
+	host.get_child(1).add_child(craft)
+	craft.bind(player)
+	player.craft_ui = craft
+	_reset_bag()
+	var f5 := _uid(_give(&"fibre_stalk", 5))
+	var f9 := _uid(_give(&"fibre_stalk", 9))
+	var f40 := _uid(_give(&"fibre_stalk", 40, {"tough_fiber": 3}))
+	var rec: Dictionary = data.recipes.get(&"twine", {})
+	craft.show_ui()
+	craft._choose_recipe("twine")
+	await process_frame
+	var ing: Button = null
+	for b in craft.find_children("*", "Button", true, false):
+		if (b as Button).text.begins_with("Fibre") and (b as Button).is_visible_in_tree():
+			ing = b
+	_expect(ing != null, "17: the twine detail shows its fibre as a button")
+	if ing == null:
+		craft.queue_free()
+		return
+	ing.pressed.emit()
+	var pk = player.ui.get("_picker")
+	_expect(player.ui.call("current_screen") == &"picker" and not craft.visible, "17: tapping the ingredient opens the picker over the craft menu")
+	_expect(pk != null and pk.call("chosen") == [_find(f5), _find(f9)], "17: the two plain fibres are preselected (least valuable first)")
+	pk.call("choose", _find(f40)) # a third pick replaces the earliest
+	_expect(pk.call("chosen") == [_find(f9), _find(f40)] and str(pk.call("warning_text")) != "", "17: picking the Lv. 40 fibre replaces the Lv. 5 one and warns (%s)" % pk.call("warning_text"))
+	pk.call("confirm")
+	await process_frame
+	_expect(craft.visible and player.ui.call("current_screen") == &"", "17: Use closes the picker and the craft menu comes back")
+	craft._start(rec, 1)
+	player.station_craft._finish_one()
+	_expect(_find(f9) == -1 and _find(f40) == -1 and _find(f5) >= 0 and inv_count(&"twine") == 1, "17: Craft spent exactly the chosen Lv. 9 and Lv. 40 fibres")
+	# Only fibre with traits left: Craft opens the picker instead of spending one silently.
+	_reset_bag()
+	_give(&"fibre_stalk", 30, {"tough_fiber": 2})
+	_give(&"fibre_stalk", 41, {"tough_fiber": 3})
+	craft.show_ui()
+	craft._choose_recipe("twine")
+	craft._start(rec, 1)
+	_expect(player.ui.call("current_screen") == &"picker" and player.inventory.count_of(&"fibre_stalk") == 2, "17: with only trait fibre left, Craft asks which instead of spending them")
+	player.ui.hide_ui()
+	craft.hide_ui()
+	craft.queue_free()
+
+func inv_count(id: StringName) -> int:
+	return player.inventory.count_of(id)
 
 func _t18_sell_exact() -> void:
 	if not _need(["inv_actions"], "18 sell"):
@@ -655,6 +763,33 @@ func _t20_screen_sizes() -> void:
 		await process_frame
 		_check_targets(bs, view)
 		box.queue_free()
+	if _need(["storage_screen", "item_picker"], "20 storage and picker sizes"):
+		var box_inv = INV.new(60)
+		box_inv.add(IS.make(&"wood_log", 1, {}, 14))
+		var berry := _give(&"berry", 42, {"vivid_inspiration": true})
+		for view in [Vector2(1600, 900), Vector2(844, 390), Vector2(804, 452)]:
+			var box := Control.new()
+			box.size = view
+			host.get_child(1).add_child(box)
+			var ss: Control = C["storage_screen"].new()
+			box.add_child(ss)
+			ss.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			ss.call("setup", player.inventory, box_inv, "Velociraptor A Cargo", player, &"cargo")
+			ss.call("set_actions", true, false, true, "")
+			ss.get("bag_grid").call("select_uid", _uid(berry)) # Store as the primary
+			await process_frame
+			await process_frame
+			_check_targets(ss, view)
+			ss.visible = false
+			var pk: Control = C["item_picker"].new()
+			box.add_child(pk)
+			pk.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			pk.call("open", player.inventory, data.recipes.get(&"camp_stew", {}), 2, func(_p: Array) -> void: pass)
+			pk.call("choose", berry) # the rare berry: the warning line is the longest panel
+			await process_frame
+			await process_frame
+			_check_targets(pk, view)
+			box.queue_free()
 	if not _need(["character_screen", "equipment_screen", "detailed_stats_panel"], "20 gear sizes"):
 		return
 	var ih := _give(&"raid_helm", 30)

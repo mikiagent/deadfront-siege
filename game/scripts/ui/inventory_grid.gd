@@ -29,6 +29,8 @@ var pinned: ItemStack
 var worn_uid := ""
 ## Compartments drawn down to at least this many rows (a short candidate list keeps its grid lines).
 var min_rows := 0
+## When set, only these bag slots show (the ingredient picker's candidates: {slot: true}).
+var only: Dictionary = {}
 
 var _sel := ""
 var _multi := {}
@@ -151,6 +153,8 @@ func refresh() -> void:
 		return
 	_cell_px = floorf(maxf(size.x - 2.0, 40.0) / float(columns))
 	var order := InvView.order(inventory, view_key, filter_id)
+	if not only.is_empty():
+		order = order.filter(func(i: int) -> bool: return only.has(i))
 	var taken := {}
 	var rows := 0
 	if pinned:
@@ -166,7 +170,7 @@ func refresh() -> void:
 		rows = maxi(rows, at.y + shape.y)
 		_place(i, at, shape)
 	# Empty compartments: exactly up to capacity in the whole bag; a filtered view completes its rows.
-	var all := filter_id == &"all"
+	var all := filter_id == &"all" and only.is_empty()
 	var empties := inventory.slot_count - inventory.used_slots() if all else 0
 	var at := Vector2i.ZERO
 	while empties > 0 or at.y < maxi(rows, min_rows):

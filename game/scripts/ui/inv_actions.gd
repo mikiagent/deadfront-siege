@@ -19,6 +19,7 @@ const LABELS := {
 	&"eat": "Eat", &"equip": "Equip", &"unequip": "Unequip", &"hold": "Hold", &"place": "Place",
 	&"quick1": "Quick Food 1", &"quick2": "Quick Food 2", &"feed": "Feed Pet", &"lock": "Lock",
 	&"unlock": "Unlock", &"sell": "Sell on Market", &"drop": "Drop",
+	&"store": "Store", &"take": "Take", &"take_all": "Take All", &"use": "Use",
 }
 
 static func label(action: StringName) -> String:
@@ -116,6 +117,7 @@ static func run(action: StringName, player: Player, index: int, ctx: Dictionary 
 			return true
 	return false
 
-## Actions that leave the bag screen for the world (eat, place): the family closes first.
+## Actions that leave the bag screen (eat and place for the world, sell for the market screen):
+## the family closes first.
 static func closes_ui(action: StringName) -> bool:
-	return action in [&"eat", &"place"]
+	return action in [&"eat", &"place", &"sell"]

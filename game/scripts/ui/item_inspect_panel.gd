@@ -45,21 +45,25 @@ func apply_metrics(m: Dictionary) -> void:
 	_rebuild()
 
 ## Shows `s` in context `c` ({where, player, ...}); null shows `summary` rows ([key, value]) instead.
+## Screens that own their moves (storage, the picker) pass c.actions (the yellow primary first),
+## c.notes ([text, colour] lines over the item's rows) and c.title (the title with nothing shown).
 func show_stack(s: ItemStack, c: Dictionary, summary: Array = []) -> void:
 	stack = s
 	ctx = c
 	_rows.clear()
 	_actions.clear()
+	for n: Array in c.get("notes", []):
+		_rows.append({"text": str(n[0]), "value": "", "color": n[1], "wrap": true}) # a reason reads in full
 	if s == null:
-		_title = "Bag"
+		_title = str(c.get("title", "Bag"))
 		_sub = ""
 		for pair: Array in summary:
 			_row(str(pair[0]), str(pair[1]) if pair.size() > 1 else "", InvTheme.TEXT_2)
 	else:
 		_fill(s)
-		for a in InvActions.valid(s, c):
-			if a not in toolbar_actions:
-				_actions.append(a)
+	for a: StringName in (c.actions if c.has("actions") else InvActions.valid(s, c)):
+		if a not in toolbar_actions:
+			_actions.append(a)
 	_rebuild()
 
 func title_text() -> String:
@@ -128,6 +132,8 @@ func _fill(s: ItemStack) -> void:
 		_row("Held tool", "", InvTheme.SELECT)
 	if s.is_locked():
 		_row("Locked", "", InvTheme.TEXT_2)
+	if s.is_unstable(): # W2-INV's "U" pip: lost if carried off the unstable island on foot
+		_row("Unstable", "cargo warp it home", InvTheme.TEXT_2)
 	var sec := InvAttributes.sections(s)
 	for cls in [&"positive", &"negative", &"rare"]:
 		var list: Array = sec[str(cls)]
@@ -170,8 +176,12 @@ func _rebuild() -> void:
 		var k := Label.new()
 		k.text = str(r.text)
 		k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		k.clip_text = true
-		k.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		if r.get("wrap", false):
+			k.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			k.custom_minimum_size.x = 40.0 # wraps to the row's width instead of widening it
+		else:
+			k.clip_text = true
+			k.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		k.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		k.add_theme_font_size_override("font_size", int(_m.section_font) if r.get("section", false) else px)
 		k.add_theme_color_override("font_color", r.color)

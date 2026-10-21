@@ -1,7 +1,7 @@
 class_name InventoryUI
 extends Control
 ## Host of the Durango bag family (spec 13): the Bag, a container beside the bag (storage, loot,
-## dinosaur cargo), Character -> Gear and Equipment / My Info; B3 adds the ingredient picker. It keeps the
+## dinosaur cargo), Character -> Gear, Equipment / My Info and the craft / cook ingredient picker. It keeps the
 ## API every caller uses (bind, show_storage, show_pet_bag, hide_ui, rebuild, visible) and the
 ## transfer rules for containers; the screens are presentation over the inventories it binds.
 ## Toggling `visible` (I, the HUD's Bag entry) opens the Bag; "<" goes back one screen, X and Esc close.
@@ -17,6 +17,9 @@ var _bag: BagScreen
 var _storage: StorageScreen
 var _character: CharacterScreen
 var _equipment: EquipmentScreen
+var _picker: ItemPicker
+## Runs once when the picker closes (the craft menu comes back), picked or not.
+var _on_close: Callable
 ## Screens "<" returns to (Character -> Equipment goes back to Character).
 var _back: Array[StringName] = []
 
@@ -89,6 +92,23 @@ func _go_back() -> void:
 		_:
 			hide_ui()
 
+## The craft / cook ingredient picker (spec 13 s19) on recipe `rid`'s slot `slot_index`. `on_pick`
+## gets the exact bag slots chosen; `taken` are slots the recipe's other slots already use;
+## `on_close` runs once when the picker closes, picked or not.
+func open_picker(rid: StringName, slot_index: int, on_pick: Callable, taken: Array = [], on_close: Callable = Callable()) -> void:
+	if _picker == null:
+		_picker = ItemPicker.new()
+		add_child(_picker)
+		_picker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_picker.closed.connect(hide_ui)
+	_screen = &"picker"
+	_show(_picker)
+	visible = true
+	_on_close = on_close
+	_picker.open(inventory, Crafting.recipe(rid), slot_index, func(picked: Array) -> void:
+		on_pick.call(picked)
+		hide_ui(), taken)
+
 func show_pet_bag(rec: PetRecord) -> void:
 	var who := rec.name if rec.name != "" else LevelDisplay.nice_name(str(rec.species))
 	_open_container(rec.bag, &"cargo", {"title": "%s Cargo" % who, "take_all": false, "allow_deposit": true})
@@ -102,7 +122,7 @@ func hide_ui() -> void:
 	visible = false
 	_reset()
 
-## &"bag", &"storage", &"cargo", &"character", &"equipment" (B3 adds &"picker"); &"" when closed.
+## &"bag", &"storage", &"cargo", &"character", &"equipment", &"picker"; &"" when closed.
 func current_screen() -> StringName:
 	return _screen
 
@@ -114,6 +134,8 @@ func select_uid(uid: String) -> void:
 		_storage.bag_grid.select_uid(uid)
 		if _storage.bag_grid.selected_uid() == "":
 			_storage.box_grid.select_uid(uid)
+	elif _picker and _screen == &"picker":
+		_picker.grid.select_uid(uid)
 
 func rebuild() -> void:
 	if inventory == null or not is_inside_tree():
@@ -130,6 +152,8 @@ func rebuild() -> void:
 		_character.refresh()
 	elif _screen == &"equipment":
 		_equipment.refresh()
+	elif _screen == &"picker":
+		_picker.grid.refresh()
 
 ## Screen-space blocks of the open screen, for the layout labs (ui_real_capture_lab).
 func layout_blocks() -> Dictionary:
@@ -138,7 +162,10 @@ func layout_blocks() -> Dictionary:
 		for pair in [["header", _bag.header], ["grid", _bag.grid], ["toolbar", _bag.toolbar], ["inspect", _bag.inspect]]:
 			out[pair[0]] = (pair[1] as Control).get_global_rect()
 	elif _storage and _screen in [&"storage", &"cargo"]:
-		for pair in [["header", _storage.header], ["bag", _storage.bag_grid], ["container", _storage.box_grid]]:
+		for pair in [["header", _storage.header], ["bag", _storage.bag_grid], ["container", _storage.box_grid], ["bag_bar", _storage.bag_bar], ["container_bar", _storage.box_bar], ["inspect", _storage.inspect]]:
+			out[pair[0]] = (pair[1] as Control).get_global_rect()
+	elif _picker and _screen == &"picker":
+		for pair in [["header", _picker.header], ["grid", _picker.grid], ["toolbar", _picker.toolbar], ["inspect", _picker.inspect]]:
 			out[pair[0]] = (pair[1] as Control).get_global_rect()
 	elif _screen in [&"character", &"equipment"]:
 		var g: GearScreen = _character if _screen == &"character" else _equipment
@@ -149,8 +176,16 @@ func layout_blocks() -> Dictionary:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
-		if _bag and _bag.toolbar.menu_open():
-			_bag.toolbar.close_menu()
+		var bars: Array[BagToolbar] = []
+		for sc in [_bag, _picker]:
+			if sc:
+				bars.append(sc.toolbar)
+		if _storage:
+			bars.append_array([_storage.bag_bar, _storage.box_bar])
+		var open_bars := bars.filter(func(b: BagToolbar) -> bool: return b.menu_open())
+		if not open_bars.is_empty():
+			for b: BagToolbar in open_bars:
+				b.close_menu()
 		elif _character and _character.stats_panel and _character.stats_panel.is_visible_in_tree():
 			_character.stats_panel.visible = false
 		else:
@@ -172,10 +207,14 @@ func _reset() -> void:
 	if _bag:
 		_bag.toolbar.close_menu()
 		_bag.acknowledge_selection()
+	var cb := _on_close # once: hide_ui resets twice (visibility change, then directly)
+	_on_close = Callable()
+	if cb.is_valid():
+		cb.call()
 
 func _show(screen: Control) -> void:
 	for c in get_children():
-		if c is BagScreen or c is StorageScreen or c is GearScreen:
+		if c is BagScreen or c is StorageScreen or c is GearScreen or c is ItemPicker:
 			(c as Control).visible = c == screen
 
 func _bag_screen() -> BagScreen:
@@ -207,7 +246,7 @@ func _open_container(inv: Inventory, kind: StringName, opts: Dictionary) -> void
 	if is_inside_tree():
 		var s := _storage_screen()
 		_show(s)
-		s.setup(inventory, pet_bag, str(_storage_opts.get("title", "Storage")))
+		s.setup(inventory, pet_bag, str(_storage_opts.get("title", "Storage")), _owner_player, kind)
 		_refresh_storage_actions()
 	visible = true
 
@@ -231,7 +270,7 @@ func _refresh_storage_actions() -> void:
 	if _storage == null or pet_bag == null:
 		return
 	var box_pick := _storage.box_grid.selected_index()
-	_storage.set_actions(_can_store_selected(), box_pick >= 0, bool(_storage_opts.get("take_all", false)) and pet_bag.used_slots() > 0, _readonly_reason())
+	_storage.set_actions(_can_store_selected(), box_pick >= 0, bool(_storage_opts.get("take_all", false)) and pet_bag.used_slots() > 0, _readonly_reason(), _store_refusal())
 
 ## Legacy entry (earned_training_probe, tests): select bag slot `index` for Store.
 func _select(index: int) -> void:
@@ -295,6 +334,19 @@ func _notify_storage_take() -> void:
 		if on_empty is Callable:
 			(on_empty as Callable).call()
 		hide_ui()
+
+## Why the selected bag item cannot be stored, for the panel ("" when it can, or nothing is picked).
+func _store_refusal() -> String:
+	if _can_store_selected() or _selected < 0 or inventory == null or _selected >= inventory.slot_count or inventory.slots[_selected] == null:
+		return ""
+	var st := inventory.slots[_selected]
+	if _readonly_reason() != "" or not bool(_storage_opts.get("allow_deposit", false)):
+		return "Take only: nothing goes in."
+	if st.is_locked():
+		return "Locked: unlock it in the Bag to store it."
+	if inventory.equipped_tool_index == _selected:
+		return "Held tool: let go of it first."
+	return "Quick food stays in the bag."
 
 ## Loot is take-only unless its owner explicitly exposes writable storage.
 func _can_store_selected() -> bool:
