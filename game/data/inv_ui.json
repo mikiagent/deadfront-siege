@@ -59,6 +59,20 @@
     "crafting": {"label": "Crafting Power", "trees": ["processing", "weapon_tools", "tailoring", "construction", "cooking"], "icon": "craft"},
     "gathering": {"label": "Gathering Power", "trees": ["gathering", "butchering", "farming"], "icon": "gathering"}
   },
+  "detailed_stats": {
+    "_about": "Detailed Stats groups (spec 13 s13: only statistics the game has). stats = InvStats.snapshot keys; power = a powers group whose trees list as skill levels; trees = extra skill trees.",
+    "groups": [
+      {"id": "combat", "label": "Combat", "stats": ["attack", "defense", "accuracy", "crit", "max_health"], "power": "combat"},
+      {"id": "crafting", "label": "Crafting", "stats": [], "power": "crafting"},
+      {"id": "gathering", "label": "Gathering", "stats": ["gather_power", "capacity"], "power": "gathering"},
+      {"id": "survival", "label": "Survival", "stats": ["energy", "heat", "cold"], "trees": ["survival"]}
+    ]
+  },
+  "hex_tactics": {
+    "_about": "My Info's hexagon row: the survivor's combat tactics (combat_tuning.json sections; roll is player_sim's dodge). Tap shows the line.",
+    "ids": ["tackle", "kick", "roll"],
+    "lines": {"tackle": "Tackle: lunge into the target; it goes groggy.", "kick": "Kick: shove the target back.", "roll": "Roll: dodge out of a bite."}
+  },
   "picker": {
     "warn_level": 40
   },

@@ -10,7 +10,10 @@ extends Node3D
 ##   Godot --path game --resolution 1600x900 --rendering-method gl_compatibility \
 ##     -- --lab=bag_ui_lab --screen=bag --shot=/tmp/bag.png --shot-delay=6
 ##   --screen= bag | inspect | character | equipment | storage | cargo | picker
-##   --select=<role> then selects that seeded instance (berry12/25/42, bone45/60, cage, knife, club, ...)
+##   --select=<role> then selects that seeded instance (berry12/25/42, bone45/60, cage, knife, club, ...);
+##   with --screen=equipment it opens that item's gear cell with it picked (the compare state)
+##   --stats=<group> with --screen=character opens Detailed Stats at that group
+##   --slot=<cell> with --screen=character|equipment selects that gear cell (accessory1 = the empty state)
 ## Headless (no --shot): checks the seed and the screen contract, prints "[bagui] PASS ..." or
 ## FAIL lines and exits 0/1. It FAILS until the builders give InventoryUI the contract below.
 ##
@@ -20,9 +23,9 @@ extends Node3D
 ##   signatures and open the shared split view.
 
 const SCREENS := [&"bag", &"inspect", &"character", &"equipment", &"storage", &"cargo", &"picker"]
-const CONTRACT := ["open_bag", "select_uid", "current_screen"]
+const CONTRACT := ["open_bag", "select_uid", "current_screen", "open_character", "open_equipment"]
 ## Contract members a later build step adds; until then their screens are skipped, not failed.
-const LATER := {"open_character": "B2", "open_equipment": "B2", "open_picker": "B3"}
+const LATER := {"open_picker": "B3"}
 const USED := 91
 ## Filler after the named items, in pickup order: [id, instances, first level, level step].
 const FILL := [
@@ -36,14 +39,20 @@ var storage_box: Inventory
 var uids := {}  ## role -> uid, for selection and the checks
 var _fails: PackedStringArray = []
 var _screen: StringName = &"bag"
+var _slot: StringName = &"body"
 
 func _ready() -> void:
 	var pick := ""
+	var stats := ""
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--screen="):
 			_screen = StringName(a.substr(9))
 		elif a.begins_with("--select="):
 			pick = a.substr(9)
+		elif a.begins_with("--stats="):
+			stats = a.substr(8)
+		elif a.begins_with("--slot="):
+			_slot = StringName(a.substr(7))
 	var kit := LabKit.build(self, 30.0)
 	player = kit["player"]
 	# Same layering as main.gd: the bag family is a modal above the HUD's canvas layers.
@@ -56,8 +65,13 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var opened := _open(_screen)
-	if pick != "" and uids.has(pick):
+	if pick != "" and uids.has(pick) and _screen == &"equipment":
+		var st: ItemStack = player.inventory.slots[_index_of(uids[pick])]
+		player.ui.call("open_equipment", Inventory.slot_for(st.def()) if Inventory.slot_for(st.def()) != &"" else &"tool", uids[pick])
+	elif pick != "" and uids.has(pick):
 		player.ui.call("select_uid", uids[pick]) # e.g. --select=berry25 shows its actions
+	if stats != "" and _screen == &"character":
+		(player.ui.get("_character") as CharacterScreen).open_stats(stats)
 	print("[bagui] seed bag %d/%d worn=%d new=%d locked=%d screen=%s opened=%s" % [player.inventory.used_slots(),
 		player.inventory.slot_count, _worn_count(), _flag_count(&"new"), _flag_count(&"locked"), _screen, opened])
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
@@ -70,7 +84,7 @@ func _seed() -> void:
 	InvNewTracker.rebaseline(player.inventory)
 	World.player_name = "Milan"
 	World.occupation = "Gatherer"
-	World.pioneer_level = 13
+	World.pioneer_level = 12 # reads "Lv. 13" like the Character reference (LevelDisplay: stored + 1)
 	World.pioneer_xp = 222
 	World.t_stones = 345
 	for tree in {"gathering": 4, "melee": 2, "processing": 5, "tailoring": 3, "survival": 6}.keys():
@@ -184,9 +198,9 @@ func _open(screen: StringName) -> bool:
 			ui.call("open_bag")
 			ui.call("select_uid", uids["bone60"])
 		&"character":
-			ui.call("open_character")
+			ui.call("open_character", _slot)
 		&"equipment":
-			ui.call("open_equipment", &"body")
+			ui.call("open_equipment", _slot)
 		&"storage":
 			ui.show_storage(storage_box, player, {"title": "Storage Box", "allow_deposit": true})
 			ui.call("select_uid", uids["berry42"])
@@ -229,6 +243,40 @@ func _check_bag() -> void:
 	print("[bagui] grid refresh 100=%dus 142=%dus" % [us, us142])
 	_expect(us < 50000 and us142 < 50000, "a bag refresh stays under 50 ms")
 
+## B2: Character and Equipment over the seeded gear, and the stat-once check through the screens:
+## equip, equip again (a swap), unequip, then compare every number with the start.
+func _check_gear() -> void:
+	var ui := player.ui
+	var inv := player.inventory
+	ui.call("open_character", &"body")
+	var ch: CharacterScreen = ui.get("_character")
+	var vest := inv.equipped_in(&"body")
+	_expect(ui.call("current_screen") == &"character" and ch.list.selected_uid() == "" and ch.primary.text == "Unequip", "Character opens on the worn vest with Unequip")
+	_expect(ch.list.item_cells().size() == 3 and (ch.list.item_cells()[0] as InventorySlot).worn, "the torso list is the worn vest (marked) and the two bag pieces that fit")
+	var s0 := InvStats.snapshot(player)
+	# Pick the cuirass on Character: Equipment opens with it picked and previews it.
+	ch.list.select_uid(uids["cuirass"])
+	var eq: EquipmentScreen = ui.get("_equipment")
+	var preview := InvStats.with_candidate(player, _index_of(uids["cuirass"]), &"body")
+	_expect(ui.call("current_screen") == &"equipment" and eq.info_text("defense").contains("→"), "Equipment previews the cuirass (%s)" % eq.info_text("defense"))
+	eq.primary.pressed.emit()
+	var s1 := InvStats.snapshot(player)
+	_expect(s1 == preview and inv.equipped_in(&"body").uid == uids["cuirass"], "Equip wears the cuirass and the numbers are the preview's")
+	ui.call("open_equipment", &"body", uids["shirt"])
+	eq.primary.pressed.emit()
+	var s2 := InvStats.snapshot(player)
+	var shirt_armor := inv.equipped_in(&"body").scaled_armor()
+	_expect(is_equal_approx(float(s2.defense) - float(s0.defense), shirt_armor - vest.scaled_armor()), "a second Equip swaps: Defense counts only the shirt (%s -> %s)" % [s0.defense, s2.defense])
+	# Put the vest back: every number is the start's again.
+	ui.call("open_equipment", &"body", vest.uid)
+	eq.primary.pressed.emit()
+	_expect(InvStats.snapshot(player) == s0, "the vest back on restores every number")
+	print("[bagui] gear stats defense start=%d cuirass=%d shirt=%d back=%d" % [roundi(float(s0.defense)), roundi(float(s1.defense)), roundi(float(s2.defense)), roundi(float(InvStats.snapshot(player).defense))])
+	ui.call("open_character", &"body")
+	ch.open_stats("combat")
+	_expect(Array(ch.stats_panel.rows()).has("Attack  %s" % InvStats.fmt("attack", s0.attack)), "Detailed Stats shows the Attack the screens show")
+	ui.call("hide_ui")
+
 func _expect(ok: bool, what: String) -> void:
 	if not ok:
 		_fails.append(what)
@@ -256,6 +304,7 @@ func _check() -> void:
 			times.append("%s=%s" % [screen, ("%dus" % (Time.get_ticks_usec() - t0)) if ok else "later"])
 		print("[bagui] open times %s" % ", ".join(PackedStringArray(times)))
 		_check_bag()
+		_check_gear()
 	if _fails.is_empty():
 		print("[bagui] PASS bag=%d/%d new=%d locked=%d" % [inv.used_slots(), inv.slot_count, _flag_count(&"new"), _flag_count(&"locked")])
 	get_tree().quit(0 if _fails.is_empty() else 1)

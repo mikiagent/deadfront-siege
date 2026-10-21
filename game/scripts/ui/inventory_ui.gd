@@ -1,10 +1,10 @@
 class_name InventoryUI
 extends Control
-## Host of the Durango bag family (spec 13): the Bag, and a container beside the bag (storage, loot,
-## dinosaur cargo); B2 adds Character -> Gear and Equipment, B3 the ingredient picker. It keeps the
+## Host of the Durango bag family (spec 13): the Bag, a container beside the bag (storage, loot,
+## dinosaur cargo), Character -> Gear and Equipment / My Info; B3 adds the ingredient picker. It keeps the
 ## API every caller uses (bind, show_storage, show_pet_bag, hide_ui, rebuild, visible) and the
 ## transfer rules for containers; the screens are presentation over the inventories it binds.
-## Toggling `visible` (I, the HUD's Bag entry) opens the Bag; "<" goes back, X and Esc close.
+## Toggling `visible` (I, the HUD's Bag entry) opens the Bag; "<" goes back one screen, X and Esc close.
 
 var inventory: Inventory
 var pet_bag: Inventory
@@ -15,6 +15,10 @@ var _screen: StringName = &""
 var _tracker := InvNewTracker.new()
 var _bag: BagScreen
 var _storage: StorageScreen
+var _character: CharacterScreen
+var _equipment: EquipmentScreen
+## Screens "<" returns to (Character -> Equipment goes back to Character).
+var _back: Array[StringName] = []
 
 func _ready() -> void:
 	visible = false
@@ -33,12 +37,57 @@ func bind(inv: Inventory, owner_player: Player = null) -> void:
 	_tracker.bind(inv)
 	if _bag:
 		_bag.bind(inv, _owner_player)
+	for s: GearScreen in [_character, _equipment]:
+		if s:
+			s.bind(inv, _owner_player)
 
 func open_bag() -> void:
 	_screen = &"bag"
 	_show(_bag_screen())
 	visible = true
 	_bag.refresh()
+
+## Character -> Gear on gear cell `slot` (the torso, as the reference opens).
+func open_character(slot: StringName = &"body") -> void:
+	if _character == null:
+		_character = _gear_screen(CharacterScreen.new()) as CharacterScreen
+		_character.compare_requested.connect(func(s: StringName, uid: String) -> void:
+			_back.append(&"character")
+			open_equipment(s, uid))
+	_screen = &"character"
+	_show(_character)
+	visible = true
+	_character.refresh()
+	_character.select_slot(slot)
+
+## Equipment / My Info on gear cell `slot`, with bag instance `uid` picked to compare.
+func open_equipment(slot: StringName = &"body", uid: String = "") -> void:
+	if _equipment == null:
+		_equipment = _gear_screen(EquipmentScreen.new()) as EquipmentScreen
+	_screen = &"equipment"
+	_show(_equipment)
+	visible = true
+	_equipment.refresh()
+	_equipment.preselect(slot, uid)
+
+func _gear_screen(s: GearScreen) -> GearScreen:
+	add_child(s)
+	s.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	s.bind(inventory, _owner_player)
+	s.back_pressed.connect(_go_back)
+	s.close_pressed.connect(hide_ui)
+	return s
+
+## "<": the screen this one was opened from, else close.
+func _go_back() -> void:
+	var to: StringName = _back.pop_back() if not _back.is_empty() else &""
+	match to:
+		&"bag":
+			open_bag()
+		&"character":
+			open_character(_equipment.slot if _equipment else &"body")
+		_:
+			hide_ui()
 
 func show_pet_bag(rec: PetRecord) -> void:
 	var who := rec.name if rec.name != "" else LevelDisplay.nice_name(str(rec.species))
@@ -53,7 +102,7 @@ func hide_ui() -> void:
 	visible = false
 	_reset()
 
-## &"bag", &"storage", &"cargo" (B2 adds &"character", &"equipment"; B3 &"picker"); &"" when closed.
+## &"bag", &"storage", &"cargo", &"character", &"equipment" (B3 adds &"picker"); &"" when closed.
 func current_screen() -> StringName:
 	return _screen
 
@@ -77,6 +126,10 @@ func rebuild() -> void:
 		_storage.bag_grid.refresh()
 		_storage.box_grid.refresh()
 		_refresh_storage_actions()
+	elif _screen == &"character":
+		_character.refresh()
+	elif _screen == &"equipment":
+		_equipment.refresh()
 
 ## Screen-space blocks of the open screen, for the layout labs (ui_real_capture_lab).
 func layout_blocks() -> Dictionary:
@@ -87,12 +140,19 @@ func layout_blocks() -> Dictionary:
 	elif _storage and _screen in [&"storage", &"cargo"]:
 		for pair in [["header", _storage.header], ["bag", _storage.bag_grid], ["container", _storage.box_grid]]:
 			out[pair[0]] = (pair[1] as Control).get_global_rect()
+	elif _screen in [&"character", &"equipment"]:
+		var g: GearScreen = _character if _screen == &"character" else _equipment
+		out["header"] = g.header.get_global_rect()
+		out["gear"] = Rect2(g.cells[0].global_position, g.cells[0].size * 3.0)
+		out["list"] = g.list.get_global_rect()
 	return out
 
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
 		if _bag and _bag.toolbar.menu_open():
 			_bag.toolbar.close_menu()
+		elif _character and _character.stats_panel and _character.stats_panel.is_visible_in_tree():
+			_character.stats_panel.visible = false
 		else:
 			hide_ui()
 		get_viewport().set_input_as_handled()
@@ -105,6 +165,7 @@ func _on_visibility() -> void:
 
 func _reset() -> void:
 	_screen = &""
+	_back.clear()
 	pet_bag = null
 	_storage_opts = {}
 	_selected = -1
@@ -114,7 +175,7 @@ func _reset() -> void:
 
 func _show(screen: Control) -> void:
 	for c in get_children():
-		if c is BagScreen or c is StorageScreen:
+		if c is BagScreen or c is StorageScreen or c is GearScreen:
 			(c as Control).visible = c == screen
 
 func _bag_screen() -> BagScreen:
@@ -127,6 +188,11 @@ func _bag_screen() -> BagScreen:
 		_bag.back_pressed.connect(hide_ui)  # the Bag is the family's first screen
 		_bag.close_pressed.connect(hide_ui)
 		_bag.leave_requested.connect(hide_ui)
+		_bag.equip_requested.connect(func(i: int) -> void:
+			var s := inventory.slots[i] if i >= 0 and i < inventory.slot_count else null
+			if s:
+				_back.append(&"bag")
+				open_equipment(Inventory.slot_for(s.def()), s.uid))
 	return _bag
 
 # ---------------------------------------------------------------- containers
@@ -241,7 +307,7 @@ func _can_store_selected() -> bool:
 		return false
 	if inventory.equipped_tool_index == _selected:
 		return false
-	if str(st.def_id) in inventory.equipment.values() or str(st.def_id) in inventory.quick_food:
+	if str(st.def_id) in inventory.quick_food: # worn gear is out of the bag (W2-INV)
 		return false
 	return true
 

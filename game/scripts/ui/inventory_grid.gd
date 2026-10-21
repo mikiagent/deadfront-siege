@@ -22,6 +22,13 @@ var view_key: StringName = &"acquired"
 var filter_id: StringName = &"all"
 var lv_px := 20
 var new_px := 15
+## Character / Equipment candidates: the worn instance, shown first with the worn mark. It is out
+## of the bag (worn gear leaves it), so its cell has index -1; selection still goes by its uid.
+var pinned: ItemStack
+## The instance marked worn when it is in the bag itself (the held tool).
+var worn_uid := ""
+## Compartments drawn down to at least this many rows (a short candidate list keeps its grid lines).
+var min_rows := 0
 
 var _sel := ""
 var _multi := {}
@@ -146,6 +153,10 @@ func refresh() -> void:
 	var order := InvView.order(inventory, view_key, filter_id)
 	var taken := {}
 	var rows := 0
+	if pinned:
+		taken[Vector2i.ZERO] = true
+		rows = 1
+		_put(pinned, -1, pinned.uid, Vector2i.ZERO, Vector2i.ONE)
 	for i in order:
 		var shape := _shape(inventory.slots[i].slot_span())
 		var at := _free_spot(taken, shape)
@@ -158,7 +169,7 @@ func refresh() -> void:
 	var all := filter_id == &"all"
 	var empties := inventory.slot_count - inventory.used_slots() if all else 0
 	var at := Vector2i.ZERO
-	while empties > 0 or at.y < rows:
+	while empties > 0 or at.y < maxi(rows, min_rows):
 		if not taken.has(at):
 			if all and empties <= 0:
 				break
@@ -169,7 +180,7 @@ func refresh() -> void:
 		at.x += 1
 		if at.x >= columns:
 			at = Vector2i(0, at.y + 1)
-	_content.custom_minimum_size = Vector2(_cell_px * columns, _cell_px * rows)
+	_content.custom_minimum_size = Vector2(_cell_px * columns, _cell_px * maxi(rows, min_rows))
 	if _sel != "" and _cell_for(_sel) == null:
 		_sel = ""
 		selection_changed.emit("")
@@ -204,6 +215,9 @@ func _free_spot(taken: Dictionary, shape: Vector2i) -> Vector2i:
 	return Vector2i.ZERO
 
 func _place(i: int, at: Vector2i, shape: Vector2i) -> void:
+	_put(inventory.slots[i] if i >= 0 else null, i, key_of(inventory, i) if i >= 0 else "", at, shape)
+
+func _put(s: ItemStack, i: int, key: String, at: Vector2i, shape: Vector2i) -> void:
 	var c: InventorySlot = _pool.pop_back() if not _pool.is_empty() else null
 	if c == null:
 		c = InventorySlot.new()
@@ -215,7 +229,8 @@ func _place(i: int, at: Vector2i, shape: Vector2i) -> void:
 	c.unit = _cell_px
 	c.position = Vector2(at) * _cell_px
 	c.size = Vector2(shape) * _cell_px
-	c.set_stack(inventory.slots[i] if i >= 0 else null, i, key_of(inventory, i) if i >= 0 else "")
+	c.set_stack(s, i, key)
+	c.worn = s != null and (s == pinned or (worn_uid != "" and key == worn_uid))
 	_shown.append(c)
 
 func _cell_for(key: String) -> InventorySlot:

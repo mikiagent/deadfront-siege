@@ -3,13 +3,17 @@ extends RefCounted
 ## The actions an inspected item offers (spec 13 s10: only valid ones) and what each one runs.
 ## The UI never edits an Inventory: every action goes through the player's PlayerActions verbs
 ## (or a hook another package sets), so online play sends the same intents.
-## ctx = {where: &"bag" | &"storage" | &"cargo" | &"equipment" | &"picker", player, slot?, container?}
+## ctx = {where: &"bag" | &"storage" | &"cargo" | &"equipment" | &"picker", player, slot?, worn?, container?}
+## In &"equipment" (Character / Equipment candidates) `worn` marks the instance in `slot` now.
 
 ## Set by the market package (W3-EXCHANGE): called with the exact uid to open Sell prefilled.
 ## Unset, Sell on Market is not offered (owner 2026-10-20: the market is an online feature).
 static var sell_handler: Callable
 ## Set by the package that owns dropping (a loot bag at the feet); unset, Drop is not offered.
 static var drop_handler: Callable
+## Why the last run() was refused ("" when it applied), for the screen's status line: the HUD
+## notice sits under the opaque bag family.
+static var last_refusal := ""
 
 const LABELS := {
 	&"eat": "Eat", &"equip": "Equip", &"unequip": "Unequip", &"hold": "Hold", &"place": "Place",
@@ -28,12 +32,15 @@ static func valid(stack: ItemStack, ctx: Dictionary) -> Array[StringName]:
 	var where: StringName = ctx.get("where", &"bag")
 	var player: Player = ctx.get("player") as Player
 	var d := stack.def()
+	var locked := stack.is_locked()
 	if where == &"equipment":
-		out.append(&"unequip")
+		if ctx.get("worn", true):
+			out.append(&"unequip")
+		elif not locked: # a locked candidate says why instead (Equipment's requirement line)
+			out.append(&"hold" if ctx.get("slot") == &"tool" else &"equip")
 		return out
 	if where != &"bag":
 		return out
-	var locked := stack.is_locked()
 	var inv := player.inventory if player else null
 	if not locked and Inventory.slot_for(d) != &"":
 		out.append(&"equip")
@@ -58,6 +65,7 @@ static func valid(stack: ItemStack, ctx: Dictionary) -> Array[StringName]:
 ## Runs `action` on bag slot `index` (or ctx.slot for unequip). True when it applied (offline) or
 ## was sent; the screen refreshes from the inventory's own `changed`.
 static func run(action: StringName, player: Player, index: int, ctx: Dictionary = {}) -> bool:
+	last_refusal = ""
 	if player == null:
 		return false
 	var inv := player.inventory
@@ -65,7 +73,11 @@ static func run(action: StringName, player: Player, index: int, ctx: Dictionary 
 	var pa = player.actions # untyped: the PlayerActions verbs below come from the INVUI hooks patch
 	match action:
 		&"unequip":
-			return pa.unequip(StringName(str(ctx.get("slot", ""))))
+			var off: bool = pa.unequip(StringName(str(ctx.get("slot", ""))))
+			if not off and not pa.online:
+				last_refusal = "Bag is full."
+				player.notice(last_refusal) # the gear stays worn (never dropped)
+			return off
 		&"lock": # toggles, like the toolbar square
 			return stack != null and pa.set_locked(index, not stack.is_locked())
 		&"unlock":
@@ -74,7 +86,11 @@ static func run(action: StringName, player: Player, index: int, ctx: Dictionary 
 		return false
 	match action:
 		&"equip":
-			return pa.equip_at(index, Inventory.slot_for(stack.def()))
+			var on: bool = pa.equip_at(index, StringName(str(ctx.get("slot", Inventory.slot_for(stack.def())))))
+			if not on and not pa.online:
+				last_refusal = "Bag is full."
+				player.notice(last_refusal) # wearing it would shrink the bag past what it holds
+			return on
 		&"hold":
 			return pa.hold_tool(index)
 		&"eat":

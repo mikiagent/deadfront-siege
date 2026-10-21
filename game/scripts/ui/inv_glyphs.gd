@@ -28,3 +28,28 @@ static func caret(ci: CanvasItem, r: Rect2) -> void:
 	var s := minf(r.size.x, r.size.y) * 0.32
 	var c := r.get_center()
 	ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-s, s * 0.45), c + Vector2(s, s * 0.45), c + Vector2(0, -s * 0.55)]), WHITE)
+
+## A ring with a small stone: the empty accessory cell's silhouette (no accessory art exists yet).
+static func ring(ci: CanvasItem, r: Rect2, color: Color) -> void:
+	var c := r.get_center() + Vector2(0, r.size.y * 0.08)
+	var rad := minf(r.size.x, r.size.y) * 0.36
+	ci.draw_arc(c, rad, 0.0, TAU, 40, color, maxf(3.0, rad * 0.22), true)
+	var g := rad * 0.32
+	var top := c - Vector2(0, rad + g * 0.6)
+	ci.draw_colored_polygon(PackedVector2Array([top + Vector2(0, -g), top + Vector2(g, 0), top + Vector2(0, g), top + Vector2(-g, 0)]), color)
+
+## A target with an arrow: Accuracy on My Info (the icon set has attack and defense, no accuracy).
+static func target(ci: CanvasItem, r: Rect2, color: Color = WHITE) -> void:
+	var rad := minf(r.size.x, r.size.y) * 0.42
+	var c := r.get_center() + Vector2(rad * 0.15, 0)
+	var w := maxf(2.0, rad * 0.14)
+	ci.draw_arc(c, rad, 0.0, TAU, 40, color, w, true)
+	ci.draw_arc(c, rad * 0.55, 0.0, TAU, 32, color, w, true)
+	ci.draw_circle(c, rad * 0.18, color)
+	ci.draw_line(c - Vector2(rad * 1.25, rad * 0.12), c, color, w * 0.8, true)
+
+## The thin ">" after a power row (opens Detailed Stats there).
+static func chevron(ci: CanvasItem, r: Rect2, color: Color) -> void:
+	var c := r.get_center()
+	var h := minf(r.size.x, r.size.y) * 0.22
+	ci.draw_polyline(PackedVector2Array([c + Vector2(-h * 0.4, -h), c + Vector2(h * 0.45, 0), c + Vector2(-h * 0.4, h)]), color, maxf(2.0, h * 0.18), true)

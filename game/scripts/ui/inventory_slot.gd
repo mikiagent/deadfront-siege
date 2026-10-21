@@ -18,6 +18,8 @@ var lv_px := 20
 var new_px := 15
 ## One compartment's side: labels and brackets keep this weight on a 2x2 cage.
 var unit := 96.0
+## Worn now (Character / Equipment candidate lists): a small green mark top-left, like Durango's.
+var worn := false
 var _rare := false
 
 func _init() -> void:
@@ -64,7 +66,9 @@ func _draw() -> void:
 	# Span items (a cage) fill their block; single cells keep the art clear of the label row.
 	var span := stack.slot_span() > 1
 	InvPaint.item_icon(self, stack.def_id, r, 0.78 if span else 0.6, 0.55 if span else 0.58)
-	if shows_new():
+	if worn:
+		InvPaint.worn_marker(self, r, unit)
+	elif shows_new():
 		InvPaint.new_tag(self, r, new_px, unit)
 	InvPaint.level(self, level_text(), r, lv_px, unit)
 	if _rare:

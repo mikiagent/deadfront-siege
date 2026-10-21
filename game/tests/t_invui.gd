@@ -51,7 +51,7 @@ func _run() -> void:
 	world = get_root().get_node("World")
 	for n in ["inv_theme", "inv_view", "inv_attributes", "inv_actions", "inv_stats", "inv_new_tracker",
 			"inventory_grid", "inventory_slot", "capacity_indicator", "item_inspect_panel", "gear_presets",
-			"item_picker", "bag_screen", "character_screen", "equipment_screen", "storage_screen"]:
+			"item_picker", "bag_screen", "character_screen", "equipment_screen", "storage_screen", "detailed_stats_panel"]:
 		# GearPresets is a model (inventory.gd saves it), so it lives with the items.
 		var path: String = ("res://scripts/items/" if n == "gear_presets" else UI) + str(n) + ".gd"
 		if ResourceLoader.exists(path):
@@ -407,6 +407,48 @@ func _t13_equipment() -> void:
 	_expect(worn != null and worn.uid == uid and _find(uid) == -1, "13: the exact cuirass is worn and left the bag")
 	_expect(bool(C["inv_actions"].call("run", &"unequip", player, -1, {"where": &"equipment", "player": player, "slot": &"body"})), "13: Unequip runs")
 	_expect(inv.equipped_in(&"body") == null and _find(uid) >= 0, "13: unequipped, it is back in the bag")
+	# Through the screens (references 2-3): Character lists the exact instances that fit the cell;
+	# picking one opens Equipment to compare; Equip there wears that instance; Unequip on Character.
+	if not _need(["character_screen", "equipment_screen"], "13 screens"):
+		return
+	var ui = player.ui
+	var ua := _uid(_give(&"forager_vest", 12))
+	var ub := _uid(_give(&"forager_vest", 30))
+	ui.open_character(&"body")
+	await process_frame
+	var ch = ui.get("_character")
+	_expect(ui.current_screen() == &"character", "13: open_character shows Character -> Gear")
+	var listed: Array = ch.list.item_cells().map(func(c) -> String: return c.uid)
+	_expect(listed.has(ua) and listed.has(ub) and listed.has(uid) and listed.size() == 3, "13: the body cell lists the three bag instances that fit (%s)" % [listed])
+	ch.list.select_uid(ub)
+	var eq = ui.get("_equipment")
+	_expect(ui.current_screen() == &"equipment" and eq != null and eq.list.selected_uid() == ub, "13: picking the Lv. 30 vest opens Equipment with it picked")
+	_expect(eq != null and eq.primary.visible and eq.primary.text == "Equip", "13: Equipment offers Equip for the picked vest")
+	eq.primary.pressed.emit()
+	var on: Object = inv.equipped_in(&"body")
+	_expect(on != null and on.uid == ub and _find(ua) >= 0, "13: Equip wears the exact vest picked, not the first")
+	eq.header.back_pressed.emit()
+	await process_frame
+	_expect(ui.current_screen() == &"character", "13: back from Equipment returns to Character")
+	var cell: Object = ch.cells.filter(func(c) -> bool: return c.slot == &"body")[0]
+	_expect(cell.stack != null and cell.stack.uid == ub, "13: the torso cell shows the vest now worn")
+	ch.select_slot(&"body")
+	_expect(ch.primary.visible and ch.primary.text == "Unequip", "13: the worn vest offers Unequip")
+	ch.primary.pressed.emit()
+	_expect(inv.equipped_in(&"body") == null and _find(ub) >= 0, "13: Unequip on Character puts the vest back in the bag")
+	# The held-tool cell: Hold picks the exact pick; Unequip lets go (gathering chooses again).
+	var p1 := _uid(_give(&"work_pick", 10))
+	var p2 := _uid(_give(&"work_pick", 20))
+	ui.open_equipment(&"tool", p2)
+	_expect(eq.primary.visible and eq.primary.text == "Hold", "13: a work tool offers Hold on the tool cell")
+	eq.primary.pressed.emit()
+	_expect(inv.equipped_tool_index == _find(p2) and _find(p1) >= 0, "13: Hold takes the Lv. 20 pick picked")
+	await process_frame
+	eq.select_slot(&"tool")
+	_expect(eq.primary.text == "Unequip", "13: the held pick offers Unequip")
+	eq.primary.pressed.emit()
+	_expect(inv.equipped_tool_index == -1, "13: Unequip lets go of the held tool")
+	ui.hide_ui()
 
 func _t14_stats() -> void:
 	if not _need(["inv_stats", "inv_actions"], "14 stats"):
@@ -427,6 +469,23 @@ func _t14_stats() -> void:
 	_expect(C["inv_stats"].call("snapshot", player) == s0, "14: unequipping restores every stat")
 	var preview: Dictionary = C["inv_stats"].call("with_candidate", player, _find(cu), &"body")
 	_expect(is_equal_approx(float(preview.get("defense", 0.0)), float(s1.defense)) and C["inv_stats"].call("snapshot", player) == s0, "14: the compare preview predicts Defense without equipping")
+	# Equip, equip another (a swap), unequip: Defense follows what is worn, never the sum.
+	var ih := _give(&"hide_bone_cuirass", 20)
+	var ah: float = player.inventory.slots[ih].scaled_armor()
+	C["inv_actions"].call("run", &"equip", player, ih, _ctx())
+	C["inv_actions"].call("run", &"equip", player, _find(cu), _ctx())
+	var s3: Dictionary = C["inv_stats"].call("snapshot", player)
+	_expect(is_equal_approx(float(s3.defense) - float(s0.defense), armor) and not is_equal_approx(float(s3.defense) - float(s0.defense), armor + ah), "14: a swap leaves only the new cuirass's armour in Defense")
+	_expect(is_equal_approx(player.vitals.effective_max_health(), float(s3.max_health)), "14: max health matches what the vitals use (%s vs %s)" % [player.vitals.effective_max_health(), s3.max_health])
+	C["inv_actions"].call("run", &"unequip", player, -1, {"where": &"equipment", "player": player, "slot": &"body"})
+	_expect(C["inv_stats"].call("snapshot", player) == s0, "14: unequipping after the swap restores every stat")
+	# Attack is Hunt's own swing number with the worn weapon (hunt.gd land_hit before defence).
+	var ik := _give(&"stone_knife", 18)
+	C["inv_actions"].call("run", &"equip", player, ik, _ctx())
+	var tune: Dictionary = load("res://scripts/combat/combat_tuning.gd").section("player_melee")
+	var want: float = player.hunt._swing_damage(player.hunt._weapon()) * (1.0 + float(tune.get("damage_per_melee_level", 0.01)) * player.skills.level_of("melee"))
+	var s4: Dictionary = C["inv_stats"].call("snapshot", player)
+	_expect(player.hunt._weapon() != null and is_equal_approx(float(s4.attack), want) and float(s4.attack) != float(s0.attack), "14: Attack is Hunt's swing damage with the worn knife (%s vs %s)" % [s4.attack, want])
 
 func _t15_presets() -> void:
 	if not _need(["gear_presets", "inv_actions"], "15 presets"):
@@ -442,6 +501,22 @@ func _t15_presets() -> void:
 	_expect(inv.equipped_in(&"head") == null, "15: hood off before switching")
 	_expect(str(GP.call("apply", player, 0)) == "" and inv.equipped_in(&"head") != null and inv.equipped_in(&"head").uid == uid, "15: preset 1 puts the same hood back on")
 	_expect(str(GP.call("apply", player, 3)) != "", "15: a locked preset is refused")
+	# The Gear tab's numbers: an unsaved preset 2 starts as a copy; what changes there stays with 2;
+	# switching back to 1 puts 1's exact gear on again.
+	_expect(str(GP.call("switch", player, 1)) == "" and int(GP.call("active", inv)) == 1 and inv.equipped_in(&"head") != null, "15: switching to preset 2 copies the gear worn")
+	C["inv_actions"].call("run", &"unequip", player, -1, {"where": &"equipment", "player": player, "slot": &"head"})
+	_expect(str(GP.call("switch", player, 0)) == "" and inv.equipped_in(&"head") != null and inv.equipped_in(&"head").uid == uid, "15: back to preset 1, the hood is on again")
+	_expect(str(GP.call("switch", player, 1)) == "" and inv.equipped_in(&"head") == null and _find(uid) >= 0, "15: preset 2 kept its bare head")
+	var why := str(GP.call("switch", player, 2))
+	_expect(why.contains("Lv. 30") and int(GP.call("active", inv)) == 1, "15: preset 3 is refused until Lv. 30 (%s)" % why)
+	if _need(["character_screen"], "15 selector"):
+		player.ui.open_character(&"head")
+		await process_frame
+		var ch = player.ui.get("_character")
+		_expect(int(ch.presets.unlocked) == 2 and int(ch.presets.active) == 1, "15: the selector shows 2 earned presets, the 2nd active")
+		ch.presets.chosen.emit(3)
+		_expect(str(ch.note.text).contains("Lv. 50"), "15: tapping a locked preset says when it unlocks (%s)" % ch.note.text)
+		player.ui.hide_ui()
 
 # ---------------------------------------------------------------- 16-18: picker, market
 
@@ -548,6 +623,11 @@ func _t19_save_load() -> void:
 	inv3.load_array(rows)
 	inv3.extras_from_dict(old)
 	_expect(inv3.get("presets") is Dictionary and (inv3.get("presets") as Dictionary).is_empty(), "19: an old save without presets loads with none")
+	_expect(not inv3.extras_to_dict().has("presets"), "19: a bag that never used presets saves none (old save format kept)")
+	var forged = INV.new(INV.BASE_SLOTS)
+	forged.extras_from_dict({"presets": {"active": 9, "sets": [{"head": "lab", "evil": "x", "body": 5}, "junk"]}})
+	var fp: Dictionary = forged.get("presets")
+	_expect(fp.get("active") == 1 and JSON.stringify(fp.get("sets")) == JSON.stringify([{"head": "lab"}, null]), "19: a forged presets row is cleaned (%s)" % JSON.stringify(fp))
 
 ## Measured layout at the judge's desktop canvas and the landscape phone (design section 7).
 func _t20_screen_sizes() -> void:
@@ -575,6 +655,31 @@ func _t20_screen_sizes() -> void:
 		await process_frame
 		_check_targets(bs, view)
 		box.queue_free()
+	if not _need(["character_screen", "equipment_screen", "detailed_stats_panel"], "20 gear sizes"):
+		return
+	var ih := _give(&"raid_helm", 30)
+	for view in [Vector2(1600, 900), Vector2(844, 390), Vector2(804, 452)]:
+		for n in ["character_screen", "equipment_screen"]:
+			var box := Control.new()
+			box.size = view
+			host.get_child(1).add_child(box)
+			var gs: Control = C[n].new()
+			box.add_child(gs)
+			gs.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			gs.call("bind", player.inventory, player)
+			if n == "equipment_screen":
+				gs.call("preselect", &"head", _uid(ih)) # the compare state: "20 → 37 +17" must fit
+			else:
+				gs.call("select_slot", &"head")
+			await process_frame
+			await process_frame
+			_check_targets(gs, view)
+			if n == "character_screen":
+				gs.call("open_stats", "gathering")
+				await process_frame
+				_check_targets(gs.get("stats_panel"), view)
+				_expect(Array(gs.get("stats_panel").call("rows")).has("Gathering Power  %d" % C["inv_stats"].call("power", player, "gathering")), "20: Detailed Stats lists Gathering Power")
+			box.queue_free()
 
 ## Tap targets inside a scroll area (the grid's cells are not buttons; a list's rows may be).
 func _scrolled(sc: Control, view: Vector2, small: Array) -> void:

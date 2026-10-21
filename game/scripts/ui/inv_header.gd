@@ -8,6 +8,8 @@ signal back_pressed
 signal close_pressed
 
 var title := ""
+## The T-stone chip (the Bag reference has it; Character and Equipment do not).
+var show_stones := true
 var _back: Button
 var _close: Button
 var _title: Label
@@ -101,6 +103,8 @@ func _draw() -> void:
 	var dot := maxf(2.0, h * 0.04)
 	for fx in [0.24, 0.76]:
 		draw_circle(Vector2(size.x * fx, h + dot * 0.2), dot, Color(0.02, 0.02, 0.02))
+	if not show_stones:
+		return
 	# T-stones (display only; the shop that sells them is elsewhere).
 	var f := InvTheme.font()
 	var px := int(_m.get("cap_font", 34) * 0.7)

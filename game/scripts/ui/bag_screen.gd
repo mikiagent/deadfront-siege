@@ -10,6 +10,8 @@ signal back_pressed
 signal close_pressed
 ## An action that leaves the bag for the world (eat, place) ran: the host closes the family.
 signal leave_requested
+## Equip on gear: the host opens Equipment to compare first (spec 13 s15; design assumption 19).
+signal equip_requested(index: int)
 
 var inventory: Inventory
 var player: Player
@@ -155,6 +157,9 @@ func _drop_selected() -> void:
 func _run(action: StringName) -> void:
 	var i := grid.selected_index()
 	if i < 0 or player == null:
+		return
+	if action == &"equip":
+		equip_requested.emit(i)
 		return
 	if InvActions.closes_ui(action):
 		leave_requested.emit()

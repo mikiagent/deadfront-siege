@@ -52,6 +52,8 @@ static func order(inv: Inventory, key: StringName, filter: StringName) -> Array[
 	return out
 
 static func _filter(id: StringName) -> Dictionary:
+	if str(id).begins_with("slot:"): # Character / Equipment candidates for one equipment cell
+		return {"id": str(id), "rule": "slot", "slot": str(id).substr(5)}
 	for f: Dictionary in filters():
 		if str(f.get("id", "")) == str(id):
 			return f
@@ -65,6 +67,8 @@ static func _passes(s: ItemStack, rule: Dictionary) -> bool:
 			return InvAttributes.has_rare(s)
 		"locked":
 			return s.is_locked()
+		"slot":
+			return fits_slot(s, StringName(str(rule.slot)))
 	if (rule.get("ids", []) as Array).has(str(s.def_id)):
 		return true
 	var d := s.def()
@@ -74,6 +78,14 @@ static func _passes(s: ItemStack, rule: Dictionary) -> bool:
 		if d.has_category(StringName(str(c))):
 			return true
 	return false
+
+## Whether `s` can go in equipment cell `slot` (data equipment_grid; &"tool" = a held work tool).
+static func fits_slot(s: ItemStack, slot: StringName) -> bool:
+	var d := s.def()
+	var want := Inventory.slot_for(d)
+	if slot == &"tool":
+		return d != null and want == &"" and d.tool_class not in [&"", &"none"]
+	return want != &"" and (want == slot or (want == &"accessory1" and slot == &"accessory2"))
 
 ## Ascending sort key per instance; "highest first" keys are negated.
 static func _key(s: ItemStack, key: StringName) -> Array:

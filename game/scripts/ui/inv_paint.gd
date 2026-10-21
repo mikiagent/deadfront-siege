@@ -66,6 +66,12 @@ static func rare_marker(ci: CanvasItem, cell: Rect2, unit: float) -> void:
 	var e := cell.end - Vector2.ONE * inset(unit)
 	ci.draw_colored_polygon(PackedVector2Array([e, e - Vector2(s, 0), e - Vector2(0, s)]), Color(InvTheme.RARE, 0.85))
 
+## Small green triangle in the top-left corner: the instance worn now (Character -> Gear reference).
+static func worn_marker(ci: CanvasItem, cell: Rect2, unit: float) -> void:
+	var s := maxf(10.0, unit * 0.16)
+	var o := cell.position + Vector2.ONE * inset(unit)
+	ci.draw_colored_polygon(PackedVector2Array([o, o + Vector2(s, 0), o + Vector2(0, s)]), InvTheme.RARE)
+
 ## White lock glyph, bottom-left (white: lock is an action the player took).
 static func lock_pip(ci: CanvasItem, cell: Rect2, unit: float) -> void:
 	var tex := UiIcons.icon(&"lock")
