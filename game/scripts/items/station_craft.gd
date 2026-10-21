@@ -78,6 +78,9 @@ func open_station_menu(st: Node3D) -> void:
 		return
 	var actions := StationMenu.actions_for(station_id_of(st), player)
 	var ps := ProcessStation.of(st)
+	if ps and ps.waiting_count() > 0:
+		var waiting: ItemStack = ps.jobs[ps.jobs.size() - 1]["inputs"][0]
+		actions.push_front({"id": &"take_back", "label": "TAKE BACK %d" % ps.waiting_count(), "icon": str(waiting.def_id), "glyph": "-"})
 	if ps and ps.ready_count() > 0:
 		var first: ItemStack = ps.outputs[0]["stack"]
 		actions.push_front({"id": &"collect", "label": "COLLECT %d" % ps.ready_count(), "icon": str(first.def_id), "glyph": "+"})
@@ -99,11 +102,11 @@ func _on_menu_action(st: Node3D, action_id: StringName) -> void:
 				open_station(st)
 		&"sleep":
 			player._start_sleep(st)
-		&"collect":
-			var ps := ProcessStation.of(st)
-			if ps and ps.collect_into(player.inventory, player) > 0 and toast:
-				for id in ps.last_collected:  # a rack can hold dried meat and dried hide at once
-					toast.show_gain(id, int(ps.last_collected[id]))
+		&"collect", &"take_back":
+			# Verbs that change the bag go through the command layer (contracts.md §0.3: online they
+			# are act.collect / act.take_back intents). call(): the two methods are W2-PLAYER's file,
+			# added by this package's hooks patch.
+			player.actions.call(action_id, st)
 		&"cauterise":
 			if st is Bonfire:
 				(st as Bonfire).cauterise(player)
@@ -272,7 +275,8 @@ func _load_process_station(ps: ProcessStation, rec: Dictionary) -> void:
 	var why := ps.refuse_reason(player.inventory, recipe_id, player, picks)
 	var n := ps.load_from(player.inventory, recipe_id, queue_left + 1, player, rng, picks)
 	if n > 0:
-		player.notice("%s: %d on the %s, ready in %s." % [str(rec.get("display_name", recipe_id)), n, str(ps.station_id).replace("_", " "), ps.label_text().get_slice("·", 1).strip_edges()])
+		var when := ps.time_left_text()
+		player.notice("%s: %d on the %s, %s." % [str(rec.get("display_name", recipe_id)), n, str(ps.station_id).replace("_", " "), ("ready in " + when) if when != "" else "waiting for a slot"])
 	elif why != "":
 		player.notice(why)
 	_clear_session()

@@ -378,6 +378,15 @@ static func recipe_seconds(rec: Dictionary) -> float:
 		return maxf(0.1, float(rec.get("seconds", 3.0)))
 	return 3.0
 
+## The time a recipe card shows: a process station's job time (processing.json) when the recipe runs on
+## one, otherwise recipes.json's stand-and-craft time; a minute or more as m:ss ("10:00", "8.0s").
+## recipe_seconds stays the stand-and-craft time: it also sets the XP (6 + seconds).
+static func preview_time(rec: Dictionary) -> String:
+	var secs := ProcessStation.job_seconds(StringName(station_id(rec)), StringName(str(rec.get("id", ""))))
+	if secs <= 0.0:
+		secs = recipe_seconds(rec)
+	return ProcessStation.mmss(roundi(secs)) if secs >= 60.0 else "%.1fs" % secs
+
 static func recipes_for_station(sid: StringName) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var want := str(sid)

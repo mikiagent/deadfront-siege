@@ -4,8 +4,8 @@ extends Node3D
 ## Inputs leave the bag and sit on the station; a job finishes on the wall clock (now_s), so it
 ## keeps running with the player 50 m away, on another island or with the game closed. Outputs wait
 ## on the station until collected. State is only timestamps: no ticking is needed for correctness,
-## _process just advances and redraws (stage model, smoke/steam, glow). The status text (label_text)
-## is the second line of the station's HUD name chip (HudPills), laid out with the HUD's other labels.
+## _process just advances and redraws (stage model, contents, smoke/steam, glow; ProcessFx). The status
+## text (label_text) replaces the station's name on its HUD chip (HudPills) while anything is on it.
 
 const NODE_NAME := "Process"
 const REDRAW_S := 0.25
@@ -29,6 +29,7 @@ var _shown_stage: String = "?"
 var _models: Dictionary = {}  # stage id -> PackedScene
 var _fx: CPUParticles3D
 var _glow: OmniLight3D
+var _contents: Node3D
 
 ## The clock jobs run on: wall time, so they keep going while the game is closed.
 static func now_s() -> float:
@@ -54,13 +55,14 @@ static func job_seconds(sid: StringName, rid: StringName) -> float:
 static func of(n: Node) -> ProcessStation:
 	return n.get_node_or_null(NODE_NAME) as ProcessStation if n else null
 
-## Called by CraftStation._ready: kinds with a processing.json row get a ProcessStation child.
-static func attach_to(host: Node3D, sid: StringName) -> ProcessStation:
+## Called by CraftStation._ready: kinds with a processing.json row get a ProcessStation child, and
+## `saved` ones too (a save with jobs on a kind the rules dropped: load_dict makes them outputs).
+static func attach_to(host: Node3D, sid: StringName, saved: bool = false) -> ProcessStation:
 	var existing := of(host)
 	if existing:
 		return existing
 	var c := config_for(sid)
-	if c.is_empty():
+	if c.is_empty() and not saved:
 		return null
 	var ps := ProcessStation.new()
 	ps.name = NODE_NAME
@@ -72,7 +74,13 @@ static func attach_to(host: Node3D, sid: StringName) -> ProcessStation:
 func _ready() -> void:
 	if cfg.is_empty():
 		cfg = config_for(station_id)
-	_build_fx()
+	_fx = ProcessFx.build_smoke(cfg)
+	_glow = ProcessFx.build_glow(cfg)
+	_contents = Node3D.new()
+	_contents.name = "Contents"
+	for n: Node3D in [_fx, _glow, _contents]:
+		if n:
+			add_child(n)
 	advance(now_s())
 	_redraw()
 
@@ -94,6 +102,9 @@ func runs(rid: StringName) -> bool:
 
 func is_active() -> bool:
 	return running_count() > 0
+
+func waiting_count() -> int:
+	return jobs.size() - running_count()
 
 ## 0..1 for a job, by the station clock.
 func job_progress(j: Dictionary, now: float = -1.0) -> float:
@@ -222,6 +233,8 @@ func collect_into(inv: Inventory, player: Player = null) -> int:
 				player.notice("Bag is full: %d left on the %s." % [ready_count(), str(station_id).replace("_", " ")])
 			break
 		outputs.remove_at(0)
+		if str(o["recipe"]) == "":
+			continue  # an input handed back (its recipe left the station's rules): no craft, no XP
 		var rec := Crafting.recipe(StringName(str(o["recipe"])))
 		World.note_craft(StringName(str(o["recipe"])))
 		if player:
@@ -230,6 +243,33 @@ func collect_into(inv: Inventory, player: Player = null) -> int:
 		print("[process] %s collected %d" % [station_id, moved])
 		_redraw()
 	return moved
+
+## Jobs still waiting for a slot hand their own inputs back, the same instances (spec 11:155
+## cancellations; 08:39 a default pick may take the wrong food). All or nothing on the bag: returns the
+## jobs taken back, 0 when none wait or the bag cannot take every unit.
+func take_back_into(inv: Inventory, player: Player = null) -> int:
+	advance(now_s())
+	var back: Array[ItemStack] = []
+	var keep: Array[Dictionary] = []
+	for j in jobs:
+		if float(j["started"]) >= 0.0:
+			keep.append(j)
+			continue
+		for s in j["inputs"]:
+			back.append(s as ItemStack)
+	if back.is_empty():
+		return 0
+	if not BuildPlacer.fits_in_bag(inv, back):
+		if player:
+			player.notice("Bag is full: make room to take them back.")
+		return 0
+	for s in back:
+		inv.add(s)
+	var n := jobs.size() - keep.size()
+	jobs = keep
+	print("[process] %s took back %d waiting" % [station_id, n])
+	_redraw()
+	return n
 
 ## Everything on the station: inputs of unfinished jobs and finished outputs.
 func contents() -> Array[ItemStack]:
@@ -323,13 +363,13 @@ func load_dict(d: Dictionary) -> void:
 			for s in ins:
 				outputs.append({"recipe": "", "stack": s})
 			continue
-		var started := SaveSanitizer._num(row.get("started"), -1.0, now, -1.0)
+		var started := _num(row.get("started"), -1.0, now, -1.0)
 		jobs.append({
 			"recipe": str(rid),
 			"inputs": ins,
-			"queued_at": SaveSanitizer._num(row.get("queued_at"), 0.0, now, now),
+			"queued_at": _num(row.get("queued_at"), 0.0, now, now),
 			"started": started if started >= 0.0 else -1.0,
-			"level": SaveSanitizer._int(row.get("level"), 1, SaveSanitizer.MAX_LEVEL),
+			"level": int(_num(row.get("level"), 1.0, float(SaveSanitizer.MAX_LEVEL), 1.0)),
 			"burnt": row.get("burnt") is bool and bool(row["burnt"]),
 			"by": str(row.get("by", "")),
 		})
@@ -343,6 +383,12 @@ func load_dict(d: Dictionary) -> void:
 	if is_inside_tree():
 		advance(now)
 		_redraw()
+
+## A saved number within lo..hi; anything else (a string, an array, NaN) is the fallback.
+static func _num(v: Variant, lo: float, hi: float, fallback: float) -> float:
+	if not (v is int or v is float) or not is_finite(float(v)):
+		return fallback
+	return clampf(float(v), lo, hi)
 
 # --- presentation ---
 
@@ -374,32 +420,53 @@ func _redraw() -> void:
 	if not is_inside_tree():
 		return
 	_swap_stage(stage_id())
+	ProcessFx.show_strips(get_parent().get_node_or_null("Prop"), jobs.size() + outputs.size(), capacity())
+	if _contents:
+		ProcessFx.sync_contents(_contents, cfg, content_progress())
 	var active := is_active()
 	if _fx:
 		_fx.emitting = active
 	if _glow:
 		_glow.visible = active
 
-## The status line under the station's HUD name chip: "Drying 4/4  ·  4:54", "Ready: 4 Dried Meat".
-## A world Label3D here collided with the survivor's chip, the HUD panels and neighbour stations.
-func label_text() -> String:
+## 0..1 per thing on the station: finished outputs first (1), then jobs in order (waiting = 0).
+func content_progress() -> Array[float]:
+	var out: Array[float] = []
+	for _o in outputs:
+		out.append(1.0)
 	var now := now_s()
+	for j in jobs:
+		out.append(job_progress(j, now))
+	return out
+
+## The station's HUD chip while anything is on it, one line so the chip keeps a name chip's height in a
+## dense camp (two lines pushed chips onto the neighbour stations): "Drying 4/4 · 4:54",
+## "2 ready · Drying 4:54", "Ready: 4 Dried Meat"; "" when empty (the chip shows the name).
+func label_text() -> String:
 	if is_active():
-		var soonest := INF
-		for j in jobs:
-			if float(j["started"]) >= 0.0:
-				var secs := job_seconds(station_id, StringName(str(j["recipe"])))
-				# A clock moved back must not show more time than the job takes.
-				soonest = minf(soonest, minf(secs, float(j["started"]) + secs - now))
-		var left := maxi(0, ceili(soonest))
-		var t := "%d:%02d" % [left / 60, left % 60]
-		var ready := "  ·  %d ready" % ready_count() if not outputs.is_empty() else ""
-		return "%s %d/%d  ·  %s%s" % [str(cfg.get("label", "Working")), jobs.size(), capacity(), t, ready]
+		var verb := str(cfg.get("label", "Working"))
+		if not outputs.is_empty():
+			return "%d ready · %s %s" % [ready_count(), verb, time_left_text()]
+		return "%s %d/%d · %s" % [verb, jobs.size(), capacity(), time_left_text()]
 	if not outputs.is_empty():
 		var first: ItemStack = outputs[0]["stack"]
 		var d := first.def()
 		return "Ready: %d %s" % [ready_count(), d.display_name if d else str(first.def_id)]
 	return ""
+
+## m:ss until the soonest running job finishes ("" when none runs).
+func time_left_text() -> String:
+	var now := now_s()
+	var soonest := INF
+	for j in jobs:
+		if float(j["started"]) >= 0.0:
+			var secs := job_seconds(station_id, StringName(str(j["recipe"])))
+			# A clock moved back must not show more time than the job takes.
+			soonest = minf(soonest, minf(secs, float(j["started"]) + secs - now))
+	return "" if soonest == INF else mmss(maxi(0, ceili(soonest)))
+
+static func mmss(secs: int) -> String:
+	return "%d:%02d" % [secs / 60, secs % 60]
 
 ## The station's own model per stage (props_manifest stages); kinds without stages keep theirs.
 func _swap_stage(id: String) -> void:
@@ -430,86 +497,3 @@ func _stage_scene(id: String) -> PackedScene:
 	var packed: PackedScene = load(path) as PackedScene if path != "" and ResourceLoader.exists(path) else null
 	_models[id] = packed
 	return packed
-
-## Smoke or steam while a job runs and an ember glow for fired stations.
-## CPUParticles3D: the same look in Forward+ and gl_compatibility (web, phones).
-func _build_fx() -> void:
-	var off_v: Variant = cfg.get("fx_offset", [0.0, 1.0, 0.0])
-	var off := Vector3(float(off_v[0]), float(off_v[1]), float(off_v[2])) if off_v is Array and (off_v as Array).size() >= 3 else Vector3.UP
-	var kind := str(cfg.get("fx", ""))
-	if kind != "":
-		_fx = CPUParticles3D.new()
-		_fx.name = "ProcessFx"
-		_fx.position = off
-		var steam := kind == "steam"
-		_fx.amount = 18 if steam else 26
-		_fx.lifetime = 2.2 if steam else 4.0
-		_fx.preprocess = _fx.lifetime
-		_fx.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-		_fx.emission_sphere_radius = 0.18 if steam else 0.35
-		_fx.direction = Vector3.UP
-		_fx.spread = 12.0
-		_fx.gravity = Vector3(0.12, 0.35 if steam else 0.2, 0.0)  # a light drift downwind
-		_fx.initial_velocity_min = 0.35
-		_fx.initial_velocity_max = 0.7
-		_fx.scale_amount_min = 0.5
-		_fx.scale_amount_max = 0.9
-		var grow := Curve.new()
-		grow.add_point(Vector2(0.0, 0.35))
-		grow.add_point(Vector2(1.0, 1.6))
-		_fx.scale_amount_curve = grow
-		var ramp := Gradient.new()
-		var c := Color(0.96, 0.97, 1.0) if steam else Color(0.55, 0.53, 0.5)
-		var a := float(cfg.get("fx_alpha", 0.55 if steam else 0.5))
-		if RenderingServer.get_current_rendering_method() == "gl_compatibility":
-			# The web renderer (the judge) draws the same grey far darker and thinner than Forward+:
-			# the rack's smoke vanished on the dirt and the smoker's was a dark thread.
-			c = c.linear_to_srgb()
-			a = minf(1.0, a * 1.5)
-		ramp.set_color(0, Color(c, 0.0))
-		ramp.set_color(1, Color(c, 0.0))
-		ramp.add_point(0.15, Color(c, a))
-		ramp.add_point(0.6, Color(c, a * 0.55))
-		_fx.color_ramp = ramp
-		var quad := QuadMesh.new()
-		quad.size = Vector2(0.6, 0.6)
-		var mat := StandardMaterial3D.new()
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-		mat.vertex_color_use_as_albedo = true
-		mat.albedo_texture = _puff_texture()
-		mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-		quad.material = mat
-		_fx.mesh = quad
-		_fx.emitting = false
-		add_child(_fx)
-	var light := str(cfg.get("light", ""))
-	if light != "":
-		_glow = OmniLight3D.new()
-		_glow.name = "ProcessGlow"
-		_glow.light_color = Color(light)
-		_glow.light_energy = 1.4
-		_glow.omni_range = 2.6
-		_glow.position = Vector3(0.0, 0.5, 0.0)
-		_glow.visible = false
-		add_child(_glow)
-
-static var _puff: Texture2D
-
-## A soft round puff, made once: no texture file to ship.
-static func _puff_texture() -> Texture2D:
-	if _puff:
-		return _puff
-	var g := Gradient.new()
-	g.set_color(0, Color(1, 1, 1, 1))
-	g.set_color(1, Color(1, 1, 1, 0))
-	var t := GradientTexture2D.new()
-	t.gradient = g
-	t.fill = GradientTexture2D.FILL_RADIAL
-	t.fill_from = Vector2(0.5, 0.5)
-	t.fill_to = Vector2(0.5, 0.0)
-	t.width = 64
-	t.height = 64
-	_puff = t
-	return _puff

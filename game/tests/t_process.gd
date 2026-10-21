@@ -5,6 +5,9 @@ extends SceneTree
 ## output is worth against the grill, pack-up through every path refusing while anything is on the
 ## station (review r1 blocker: shift-tap pack-up destroyed what hung on the rack), the exact picked
 ## instances (spec 08:98), and a destroyed or refunded station keeping its contents (spec 10:102, 11:155).
+## Review r2: COLLECT and TAKE BACK through PlayerActions (online = intents only), the craft card showing
+## the station's real job time, take-back of waiting jobs, strip nodes per filled slot, a saved station
+## whose kind lost its rules, and a status chip stepping sideways before it leaves its station.
 ## Item scripts reference the Data autoload, so they load once it exists.
 
 var failures: Array[String] = []
@@ -47,6 +50,11 @@ func _process(_delta: float) -> bool:
 			_test_two_recipes_at_once()
 			_test_exact_picks()
 			_test_craft_route_picks()
+			_test_actions_layer()
+			_test_preview_time()
+			_test_strips()
+			_test_dropped_kind()
+			_test_chip_slide()
 			var checks: Dictionary = (load("res://tests/process_checks.gd") as GDScript).new().run(get_root())
 			for label in checks:
 				_expect(bool(checks[label]), str(label))
@@ -478,3 +486,130 @@ func _test_refund_row() -> void:
 	SR._refund(row, &"drying_rack_kit", "test")
 	_expect(_count(world.cargo_home, &"drying_rack_kit") == 1 and _count(world.cargo_home, &"raw_meat") == 2, "a refunded rack row returns its kit and the 2 meats on it (cargo meat %d)" % _count(world.cargo_home, &"raw_meat"))
 	world.cargo_home = was_cargo
+
+## Review r2 (contracts.md §0.3): COLLECT and TAKE BACK are PlayerActions verbs. Online they queue
+## act.collect / act.take_back and change nothing locally; offline TAKE BACK returns the waiting job's
+## own instances and COLLECT (through the station menu) moves the output.
+func _test_actions_layer() -> void:
+	var inv = _player.inventory
+	for i in inv.slot_count:
+		inv.slots[i] = null
+	var pot: Node3D = CS.make(&"crock_pot")
+	get_root().add_child(pot)
+	pot.global_position = _player.global_position + Vector3(1.0, 0.0, 0.0)
+	var ps = PS.of(pot)
+	var meats: Array = []
+	for n in 3:
+		var m = IS.make(&"raw_meat", 1, {}, 5 + n)
+		m.stamp_identity("loot", "tester")
+		meats.append(m)
+		inv.add(m)
+	inv.add(IS.make(&"herb_leaf", 3))
+	inv.add(IS.make(&"berry", 3))
+	var loaded: int = ps.load_from(inv, &"camp_stew", 3)
+	ps.advance(PS.now_s() + PS.job_seconds(&"crock_pot", &"camp_stew") + 1.0)  # one done, one running, one waiting
+	var acts = _player.actions
+	acts.online = true
+	acts.sent.clear()
+	var r1: bool = acts.collect(pot)
+	var r2: bool = acts.take_back(pot)
+	var ops: Array = acts.sent.map(func (e: Dictionary) -> String: return str(e["op"]))
+	acts.online = false
+	_expect(loaded == 3 and not r1 and not r2 and ops == ["act.collect", "act.take_back"] and ps.ready_count() == 1 and ps.jobs.size() == 2 and _count(inv, &"raw_meat") == 0 and _count(inv, &"camp_stew") == 0, "online: collect and take back queue %s and leave the bag and the pot as they are (ready %d, jobs %d)" % [ops, ps.ready_count(), ps.jobs.size()])
+	var waiting_uid: String = ps.jobs[1]["inputs"][0].uid
+	var full = INV.new(1)
+	full.add(IS.make(&"stone", 1))
+	_expect(ps.take_back_into(full) == 0 and ps.waiting_count() == 1, "take back into a full bag moves nothing, the job keeps waiting")
+	var back: bool = acts.take_back(pot)
+	var idx: int = _bag_index_of(waiting_uid)
+	_expect(back and ps.waiting_count() == 0 and ps.running_count() == 1 and idx >= 0 and _count(inv, &"herb_leaf") == 1 and _count(inv, &"berry") == 1, "offline take back: the waiting job's own meat (uid %s) and its herb and berry are back, the running job stays" % waiting_uid)
+	_player.station_craft._on_menu_action(pot, &"collect")
+	_expect(_count(inv, &"camp_stew") == 1 and ps.ready_count() == 0, "COLLECT from the station menu goes through PlayerActions: 1 camp stew in the bag")
+	pot.free()
+
+func _bag_index_of(uid: String) -> int:
+	var inv = _player.inventory
+	for i in inv.slot_count:
+		if inv.slots[i] and inv.slots[i].uid == uid:
+			return i
+	return -1
+
+## Review r2: the craft card showed recipes.json's 8.0s for Dry Meat at the rack, which takes 10 min.
+## The card, its detail and the station radial show the station's job time; XP keeps recipe_seconds.
+func _test_preview_time() -> void:
+	var cui = _player.craft_ui
+	cui.show_for_station(&"drying_rack")
+	var texts: Array = cui.find_children("RecipeMeta", "Label", true, false).map(func (l: Label) -> String: return l.text)
+	var detail: Array = cui.find_children("DetailTitle", "Label", true, false).map(func (l: Label) -> String: return l.text)
+	cui.hide_ui()
+	var real: bool = texts.size() >= 1 and texts.all(func (t: String) -> bool: return "10:00" in t and not "8.0s" in t)
+	_expect(real and detail.size() == 1 and "10:00" in str(detail[0]), "the drying rack's craft card shows 10:00, not 8.0s (%s | %s)" % [texts, detail])
+	var hand: Dictionary = CR.recipe(&"steam")
+	_expect(CR.preview_time(hand) == "1:00" and CR.preview_time(CR.recipe(&"camp_stew")) == "3:00" and CR.recipe_seconds(CR.recipe(&"dry_meat")) == 8.0, "steam 1:00, stew 3:00; recipe_seconds (XP) unchanged")
+
+## Review r2 minor: one strip loaded showed a full rack. A stage model with strip_N nodes shows the share
+## its filled slots stand for (2 of 8 for one of 4 slots).
+func _test_strips() -> void:
+	var rack: Node3D = CS.make(&"drying_rack")
+	get_root().add_child(rack)
+	var ps = PS.of(rack)
+	var inv = INV.new(4)
+	inv.add(IS.make(&"raw_meat", 1))
+	ps.load_from(inv, &"dry_meat", 1)
+	var fake := Node3D.new()
+	for i in 8:
+		var n := Node3D.new()
+		n.name = "strip_%d" % (i + 1)
+		fake.add_child(n)
+	var old: Node = rack.get_node_or_null("Prop")
+	if old:
+		rack.remove_child(old)
+		old.free()
+	fake.name = "Prop"
+	rack.add_child(fake)
+	ps._redraw()
+	var shown := fake.get_children().filter(func (n: Node) -> bool: return (n as Node3D).visible).size()
+	_expect(shown == 2, "one strip loaded shows 2 of the model's 8 strips (%d)" % shown)
+	rack.free()
+
+## Review r2 minor: a save with jobs on a kind processing.json no longer lists left them stuck (no
+## COLLECT, pack-up refused forever). The station still gets a ProcessStation; the jobs are outputs.
+func _test_dropped_kind() -> void:
+	var now: float = PS.now_s()
+	var row := {"kind": "workbench", "cell": [0, 0], "rot": 0, "process": {"jobs": [{"recipe": "dry_meat", "inputs": [{"id": "raw_meat", "count": 1}], "queued_at": now, "started": now, "level": 1}], "outputs": []}}
+	var bench: Node3D = CS.from_dict(row)
+	get_root().add_child(bench)
+	var ps = PS.of(bench)
+	var before := str(bench.call("pack_up_block_reason"))
+	var inv = _player.inventory
+	for i in inv.slot_count:
+		inv.slots[i] = null
+	var xp_before := _xp_total()
+	var got: bool = ps != null and _player.actions.collect(bench)
+	var xp_after := _xp_total()
+	_expect(ps != null and before != "" and got and _count(inv, &"raw_meat") == 1 and str(bench.call("pack_up_block_reason")) == "", "a workbench row with a saved job: COLLECT gives the raw meat back, then it packs up ('%s')" % before)
+	_expect(xp_after == xp_before, "an input handed back pays no craft XP (%.0f -> %.0f)" % [xp_before, xp_after])
+	bench.free()
+
+## Every skill tree's XP plus the pioneer XP, as one number that any craft XP grant raises.
+func _xp_total() -> float:
+	var n := float(get_root().get_node("World").get("pioneer_xp")) + 1000.0 * float(get_root().get_node("World").get("pioneer_level"))
+	for t: Dictionary in _player.skills.trees.values():
+		n += float(t.get("xp", 0.0)) + 100000.0 * float(t.get("level", 0))
+	return n
+
+## Review r2: two-line chips in a dense camp row moved a row up and pushed the next station's chip, until
+## each status hung over the wrong station. A status chip steps sideways first (its anchor stays under
+## it), then hangs just under its anchor.
+func _test_chip_slide() -> void:
+	var HP: GDScript = load("res://scripts/ui/hud_pills.gd")
+	var item := {"anchor": Vector2(400, 200), "w": 140.0, "h": 22.0}
+	var graze: Array[Rect2] = [Rect2(300, 190, 40, 60)]  # the survivor's figure under the chip's left end
+	HP._slide_clear(item, graze)
+	var a: Vector2 = item["anchor"]
+	_expect(a.y == 200.0 and a.x > 400.0 and a.x - 400.0 <= 70.0 - 12.0 and not Rect2(a - Vector2(70, 22), Vector2(140, 22)).grow(2.0).intersects(graze[0]), "a chip grazing the survivor steps sideways, its station still under it (anchor %s)" % a)
+	var lid := {"anchor": Vector2(400, 200), "w": 140.0, "h": 22.0}
+	var panel: Array[Rect2] = [Rect2(0, 0, 900, 199)]  # a HUD panel right over the station
+	HP._slide_clear(lid, panel)
+	_expect(lid["anchor"] == Vector2(400, 226), "a chip with a panel above its station hangs under its anchor (%s)" % lid["anchor"])
+

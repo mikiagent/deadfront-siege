@@ -9,6 +9,9 @@ extends Node3D
 ## [--open-menu=1] sets every station's jobs to that progress and frames one station or the whole row
 ## (with its hex menu open).
 
+## A chip may sit one name-chip row (28 px) off its station's anchor, not further.
+const NEAR_PX := 30.0
+
 var _player: Player
 var _cam: IsoCamera
 var _rack: CraftStation
@@ -165,8 +168,10 @@ func _demo() -> void:
 		get_tree().quit(1)
 
 ## Review r1: the job status as a world label ran into the survivor's chip, the HUD panels and the
-## next station's label. It is the second line of each station's HUD chip now (HudPills lays the chips
-## out): no chip may cover another chip or the survivor, and no station draws world text.
+## next station's label. It is each station's HUD chip now (HudPills lays the chips out): no chip may
+## cover another chip or the survivor, no station draws world text, and (review r2: two-line chips in a
+## dense row hung over the neighbour station) every chip sits within NEAR_PX of its own station's
+## anchor and nearer to it than to any other station's.
 func _check_labels(tag: String) -> void:
 	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
 	var pills: Array[Rect2] = []
@@ -182,8 +187,23 @@ func _check_labels(tag: String) -> void:
 	var world_text := 0
 	for s: Node in [_rack, _smoker, _pot, _steamer]:
 		world_text += s.find_children("*", "Label3D", true, false).size()
+	var anchors: Array[Vector2] = []
+	for d: Dictionary in HudPills.last_drawn:
+		anchors.append(d["anchor"])
+	var strays: Array[String] = []
+	for d: Dictionary in HudPills.last_drawn:
+		var r: Rect2 = d["rect"]
+		var own := _gap(r, d["anchor"])
+		var nearer := anchors.any(func (a: Vector2) -> bool: return a != d["anchor"] and _gap(r, a) < own)
+		print("[process_lab] chip %s anchor %s rect %s" % [(d["node"] as Node).get("station_id"), d["anchor"], r])
+		if own > NEAR_PX or nearer:
+			strays.append("%s %.0fpx%s" % [(d["node"] as Node).get("station_id"), own, " (nearer another)" if nearer else ""])
 	var drawn := DisplayServer.get_name() == "headless" or not pills.is_empty()  # headless draws no HUD
-	_check(drawn and hits == 0 and world_text == 0, "%s: %d chips, %d overlaps (chip on chip or on the survivor), %d station world labels" % [tag, pills.size(), hits, world_text])
+	_check(drawn and hits == 0 and world_text == 0 and strays.is_empty(), "%s: %d chips, %d overlaps (chip on chip or on the survivor), %d station world labels, %d chips off their station %s" % [tag, pills.size(), hits, world_text, strays.size(), strays])
+
+## Pixels from a chip to its anchor point (0 when the point is on the chip).
+func _gap(r: Rect2, p: Vector2) -> float:
+	return p.distance_to(p.clamp(r.position, r.end))
 
 func _xp() -> float:
 	var t: Dictionary = _player.skills.trees.get("processing", {})

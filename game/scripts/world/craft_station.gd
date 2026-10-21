@@ -18,7 +18,9 @@ func _ready() -> void:
 	if get_node_or_null("Shape") == null and get_node_or_null("Prop") == null and get_node_or_null("FallbackMesh") == null:
 		PropVisuals.apply_building_visual(self, station_id, _fallback_size(), _fallback_color())
 	_ensure_tap_zone()
-	var ps := ProcessStation.attach_to(self, station_id)
+	# A saved row with jobs gets a ProcessStation even when processing.json no longer lists the kind:
+	# its jobs come back as collectable outputs, so COLLECT and pack-up still work (never stranded).
+	var ps := ProcessStation.attach_to(self, station_id, not _pending_process.is_empty())
 	if ps and not _pending_process.is_empty():
 		ps.load_dict(_pending_process)
 		_pending_process = {}
