@@ -135,8 +135,17 @@ func _test_catalog() -> void:
 	for c in ref["categories"]:
 		total += int(ref["categories"][c][0])
 	_expect(total == 918 and int(ref["total_nodes"]) == 918, "reference counts sum to 918 (got %d)" % total)
-	for must in ["animal_management_1", "animal_management_4", "handicraft_5", "metalworking_4", "roll_duration_1", "barrage"]:
+	# Spec 12:35 "Boulder appears early" was missed once: every spec node name is in the catalog.
+	for must in ["animal_management_1", "animal_management_4", "handicraft_5", "metalworking_4", "roll_duration_1", "barrage", "boulder"]:
 		_expect(ids.has(must), "catalog has %s" % must)
+	# One list mixes Durango and PRD names, so all read in Title Case ("Split Wood", not "Split wood").
+	var lower: Array = []
+	for tree in SkillStateS.ORDER:
+		for n in (root["trees"][tree] as Dictionary)["nodes"]:
+			for w in str(n.get("name", "")).split(" ", false):
+				if w.left(1) != w.left(1).to_upper():
+					lower.append(str(n.get("name", "")))
+	_expect(lower.is_empty(), "every node name is in Title Case (not: %s)" % [lower.slice(0, 6)])
 	print("[t_w2_skills] catalog %d of 918 nodes: functional %d (%d of them through requires_node), partial %d, defined %d" % [count, by_status.functional, via_recipes, by_status.partial, by_status.defined])
 	_sections += 1
 
@@ -161,15 +170,19 @@ func _test_level_cap() -> void:
 	var sk := _fresh()
 	sk.add_xp("melee", 200.0, true) # mirrored: no World XP, so the character stays Lv. 1
 	_expect(sk.level_of("melee") == 1, "melee cannot pass character Lv. 1 (got %d)" % sk.level_of("melee"))
-	_expect(is_equal_approx(sk.xp_of("melee"), SkillStateS.xp_to_next(1)), "XP at the cap fills the bar and waits (xp %.0f)" % sk.xp_of("melee"))
+	# Spec 03:7 "even when the player has lots of category XP": XP at the cap is kept, not dropped
+	# (W2-DATA's t_build checks that a build still pays construction XP after earlier builds filled the bar).
+	_expect(is_equal_approx(sk.xp_of("melee"), 200.0), "XP at the cap is banked, not dropped (xp %.0f of 200)" % sk.xp_of("melee"))
 	_expect(sk.sp_earned == 0, "no SP while the character is Lv. 1")
 	_world().pioneer_level = 4 # character Lv. 5
 	_world().pioneer_changed.emit(4)
-	# Survival trained alongside (every gain also trains Survival), so it waited too.
-	_expect(sk.level_of("melee") == 2 and sk.level_of("survival") == 2, "a character level-up releases the waiting levels (melee %d, survival %d)" % [sk.level_of("melee"), sk.level_of("survival")])
+	# Survival trained alongside (every gain also trains Survival), so it banked too. 200 XP pays
+	# levels 2-5 (28 + 36 + 44 + 52 = 160) and 40 stay banked at the new cap.
+	_expect(sk.level_of("melee") == 5 and sk.level_of("survival") == 5 and is_equal_approx(sk.xp_of("melee"), 40.0), "a character level-up spends the banked XP (melee %d, survival %d, %.0f XP left)" % [sk.level_of("melee"), sk.level_of("survival"), sk.xp_of("melee")])
 	_expect(sk.sp_earned == Rules.paid_for_level(sk, 5) and sk.sp_available == sk.sp_earned, "character Lv. 5 pays levels 2-5 (%d SP), the released tree levels pay nothing" % sk.sp_earned)
-	sk.add_xp("melee", 2000.0, true)
-	_expect(sk.level_of("melee") == 5, "melee climbs to the character level 5 and stops (got %d)" % sk.level_of("melee"))
+	sk.add_xp("melee", 99999.0, true)
+	_expect(sk.level_of("melee") == 5, "melee stays at the character level 5 (got %d)" % sk.level_of("melee"))
+	_expect(is_equal_approx(sk.xp_of("melee"), SkillStateS.xp_to_max(5)), "the bank holds what melee can still use up to Lv. 60, no more (%.0f, want %.0f)" % [sk.xp_of("melee"), SkillStateS.xp_to_max(5)])
 	_done_with(sk)
 	# Pacing probe (an open owner decision, so nothing is asserted): gathers at 2 XP each (player_actions)
 	# to reach Survival 10 (first sail route, World.route_level) and 15 (next route, Capture Technique I).
@@ -243,7 +256,7 @@ func _test_recipe_gates_and_abilities() -> void:
 	data.recipes[&"t_w2_probe"] = {"id": "t_w2_probe", "requires_node": "work_pick"}
 	_expect(Rules.buyable(sk, "weapon_tools", "work_pick") and Rules.buyable(sk, "weapon_tools", "improvised_tools"), "a defined node a recipe names in requires_node is buyable with its prerequisite (work_pick)")
 	var pick_lock: String = Rules.recipe_block(sk, "t_w2_probe")
-	_expect(pick_lock.begins_with("learn Work pick (Weapon / Tools Lv. 5, 6 SP)"), "a requires_node recipe reads like every skill gate (spec 12:197): '%s'" % pick_lock)
+	_expect(pick_lock.begins_with("learn Work Pick (Weapon / Tools Lv. 5, 6 SP)"), "a requires_node recipe reads like every skill gate (spec 12:197): '%s'" % pick_lock)
 	data.recipes.erase(&"t_w2_probe")
 	var tree_of := {}
 	for t in SkillStateS.ORDER:
@@ -336,7 +349,7 @@ func _test_refund_limit() -> void:
 	for i in free:
 		_expect(sk.unlock("processing", "charcoal") and sk.refund("processing", "charcoal"), "free refund %d of %d" % [i + 1, free])
 	_expect(sk.unlock("processing", "charcoal"), "Charcoal can be bought again after the refunds")
-	_expect(not sk.refund("processing", "charcoal") and sk.is_unlocked("processing", "charcoal") and sk.refused.contains("%d free refunds" % free), "refund %d of the day is refused with a reason and keeps the node: '%s'" % [free + 1, sk.refused])
+	_expect(not sk.refund("processing", "charcoal") and sk.is_unlocked("processing", "charcoal") and sk.refund_reason("processing", "charcoal").contains("%d free refunds" % free), "refund %d of the day is refused with a reason and keeps the node: '%s'" % [free + 1, sk.refund_reason("processing", "charcoal")])
 	var copy: Node = SkillStateS.new()
 	get_root().add_child(copy)
 	copy.from_dict(JSON.parse_string(JSON.stringify(sk.to_dict())))
@@ -395,6 +408,11 @@ func _test_sanitizer_budget() -> void:
 	var forged := {"rev": 2, "sp_extra": 99999, "trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
 	San._skills(forged, 0)
 	_expect(int(forged["sp_extra"]) == old_award and (forged["trees"]["survival"]["unlocked"] as Array).size() == 4, "H6: a rev-2 sp_extra is capped at what the old award paid its tree levels (%d, got %s)" % [old_award, forged["sp_extra"]])
+	# XP banked at the character-level cap (SkillState._resolve) survives a load; only what the tree
+	# cannot use up to Lv. 60 is cut.
+	var banked := {"rev": 2, "trees": {"melee": {"level": 5, "xp": 500.0, "unlocked": []}, "ranged": {"level": 5, "xp": 1e12, "unlocked": []}}}
+	San._skills(banked, 4)
+	_expect(is_equal_approx(float(banked["trees"]["melee"]["xp"]), 500.0) and is_equal_approx(float(banked["trees"]["ranged"]["xp"]), SkillStateS.xp_to_max(5)), "H6: banked XP loads (500, got %s) and is bounded by what Lv. 5 can still use (%.0f, got %s)" % [banked["trees"]["melee"]["xp"], SkillStateS.xp_to_max(5), banked["trees"]["ranged"]["xp"]])
 	var hostile := {"rev": 2, "refund_day": [1], "refunds_today": "x", "trees": {}}
 	San._skills(hostile, 0)
 	_expect(hostile["refund_day"] is int and hostile["refunds_today"] is int, "H6: the optional refund counter loads as numbers (got %s)" % [hostile])
@@ -541,6 +559,14 @@ func _test_sheet_rows() -> void:
 				autos = row.text
 		_expect(later > 0 and rows == later and inert == 0 and bad.is_empty(), "%s at Lv. 1: each of the %d nodes not in the game yet is a row with its level, SP and reason and no button (rows %d, buttons %d, bad %s)" % [tree, later, rows, inert, bad])
 		_expect(autos.begins_with("Learned automatically: "), "%s at Lv. 1: the learned AUTO nodes share one line ('%s')" % [tree, autos])
+	# XP banked at the cap shows as a full bar, like Durango's skill screen, not "200 / 28 XP".
+	sk.add_xp("melee", 200.0, true)
+	sheet.open(sk)
+	var melee: Node = sheet._box.find_child("Skill_melee", true, false)
+	var xp_text := ""
+	for l in (melee.find_children("*", "Label", true, false) if melee else []):
+		xp_text = (l as Label).text if (l as Label).text.ends_with(" XP") else xp_text
+	_expect(xp_text == "28 / 28 XP", "melee at the cap with 200 XP banked reads a full bar ('%s')" % xp_text)
 	_done_with(sk)
 	sk = _fresh(59)
 	_grant(sk, "processing", 25)

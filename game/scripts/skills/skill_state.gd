@@ -32,7 +32,6 @@ var occupation: String = ""
 var config: Dictionary = {}  # trees.json minus the trees (bonded_base, category_cap, refund, reference)
 var refund_day: int = -1     # UTC day refunds_today counts (optional save fields, no rev bump)
 var refunds_today: int = 0
-var refused: String = ""     # why the last refund was refused, for the sheet
 var _rules_cache: Dictionary = {} # SkillRules' lookups over trees.json and Data.recipes (built once, see SkillRules._index)
 
 func _ready() -> void:
@@ -83,8 +82,9 @@ func add_xp(tree: String, amount: float, mirrored: bool = false) -> void:
 	t["xp"] = float(t["xp"]) + amount
 	_resolve(tree)
 
-## Level-ups the banked XP allows. At the character-level cap the bar fills and waits (the rest is
-## dropped; ASSUMPTION, spec 03 only asks for consistency) until World.pioneer_changed lifts it.
+## Level-ups the banked XP allows. At the character-level cap the XP is kept, not dropped (spec 03:7
+## "even when the player has lots of category XP", 03:34): the sheet shows a full bar and
+## World.pioneer_changed spends the bank. Only XP past what the tree can still use up to Lv. 60 goes.
 func _resolve(tree: String) -> void:
 	var t: Dictionary = trees[tree]
 	var cap := level_cap(tree)
@@ -94,8 +94,15 @@ func _resolve(tree: String) -> void:
 		print("[skill] %s %d" % [tree, int(t["level"])])
 		_learn_autos(tree)
 		skill_changed.emit(StringName(tree), int(t["level"]))
-	if int(t["level"]) >= cap:
-		t["xp"] = minf(float(t["xp"]), xp_to_next(int(t["level"])))
+	t["xp"] = minf(float(t["xp"]), xp_to_max(int(t["level"])))
+
+## XP a tree at `level` can still spend on its way to MAX_LEVEL: the most it banks while capped
+## (save_sanitizer uses the same bound, H6).
+static func xp_to_max(level: int) -> float:
+	var total := 0.0
+	for l in range(level, MAX_LEVEL):
+		total += xp_to_next(l)
+	return total
 
 ## A character level-up pays its SP (spec 03: SP come from character levels, not tree levels)
 ## and releases tree levels that were waiting at the old cap.
@@ -197,9 +204,8 @@ static func _roman_id(node_id: String) -> String:
 
 ## Refund a node. Auto nodes cannot be refunded, and a node stays while a learned node needs it
 ## (spec 03). The daily limit is refund_block(). The effect leaves with it: a refunded survival node
-## clears its Data capture mirror too. A refusal leaves its reason in `refused`.
+## clears its Data capture mirror too. refund_reason() says why a refund is refused.
 func refund(tree: String, node_id: String) -> bool:
-	refused = ""
 	var arr: Array = trees[tree]["unlocked"]
 	if not arr.has(node_id):
 		return false
@@ -207,7 +213,8 @@ func refund(tree: String, node_id: String) -> bool:
 		if str(n.get("id", "")) == node_id:
 			var why := refund_reason(tree, node_id)
 			if why != "":
-				return _refuse(node_id, why)
+				print("[skill] cannot refund %s: %s" % [node_id, why])
+				return false
 			_roll_day()
 			refunds_today += 1
 			arr.erase(node_id)
@@ -235,11 +242,6 @@ func refund_reason(tree: String, node_id: String) -> String:
 				return "%s needs it" % ", ".join(deps.map(func (d: String) -> String: return str(names.get(d, d))))
 			return refund_block()
 	return ""
-
-func _refuse(node_id: String, why: String) -> bool:
-	refused = "Cannot refund: " + why
-	print("[skill] cannot refund %s: %s" % [node_id, why])
-	return false
 
 ## "" while a refund is free today, else why not. docs/design/skills.md:9 "5 free unlearns a day,
 ## then 30 Warp Gems, max 10 a day"; spec 03:37 keeps it configurable (trees.json refund).
