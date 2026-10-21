@@ -104,6 +104,65 @@ Gates (fix round 1, final code):
 Assumptions added: `# ASSUMPTION:` in `tamed_animal`: the same species as captured, so the pair reads as one
 animal before and after taming. The eye placement in `_eyes` is the deinonychus eye; another species needs its own point.
 
+## Fix round 2 (orchestrator direction after round 2)
+Direction: round 2's captured dino had its head and neck over the top rail and its tail out, so it read as
+climbing out. Round 2's tamed dino stood outside its cage on a lead, which broke the owner's 2026-10-19 rule
+that a traded or captured animal is shown in a cage. Both animals now sit inside. The two items differ by
+cage, not by where the animal is.
+
+What changed (`tools/blender/items/camp.py`):
+- `captured_animal`: the deinonychus crouches side on, wholly inside the shut dark-wood cage. Its head
+  (enlarged, amber eye) is below the rim and points at the left front bars. The tail curls inside the
+  cage; only its thin tip shows past the right end. Three thin front bars (r 0.035) cross the body: one
+  at the neck, one over the torso and thigh, one at the tail base. A dark plank back wall gives value
+  contrast. The roof is open, with frame beams only. Wild: rope lashed corner to corner in an X across the
+  right end, plus rope ties at the door's free end. `_cage` takes `W`/`D` and a flat back colour; the old
+  hinged-door and roof-hatch code is gone.
+- `tamed_animal`: the same deinonychus is inside a new `_carrier`, a pet carrier like Durango's. It has
+  light planed boards with no bump, a solid roof with a leather carry handle, a closed door with two
+  stout bars (r 0.05), iron hinges, a latch and a dark back board. It wears a thick red hide collar
+  (`_collar(t=0.03)`), and a cream tag hangs on a red cord under the roof. The camera is tilted (`turn(-20, "X")`)
+  and the item rolled back (`lean(5)`) so the posts stand upright. The lead and the open door are gone, because the
+  binding direction replaces "door open, collar and lead".
+- PNG budget: the 2-bar carrier came out at 65,887 bytes, over the 64 KB cap. `render_one` refuses to write
+  a PNG over the cap. Dropping the board bump saved 40 bytes. Thicker bars (0.035 to 0.05) brought it to
+  65,347 bytes. The cap is 65,536, so 189 bytes are left. A flat back board, softer `_vivid` or a smaller
+  dino did not get under the cap, or cost more.
+
+Renders (looked at full size, 3x, and 64 / 48 px area-averaged on the slot ink colour, next to the
+neighbours). The sheet runs left to right: ICONS2 original captured, round 2 captured, new captured, new tamed,
+round 2 tamed, ICONS2 original tamed, makeshift_taming_pen, capture_net_i, herbivore_feed, rope_snare.
+- Contact sheet: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/cageicon/final4/contact_sheet.png`
+- The 48 px tiles at 6x nearest (new captured, new tamed, old, round 2, round 2 tamed, pen, net):
+  `.../cageicon/final4/up48.png`; single 48 px files: `.../final4/new_captured_animal_new_48.png`,
+  `.../final4/tamednew_tamed_animal_new_48.png`, `.../final4/old_captured_animal_old_48.png`.
+- What I saw at 48 px:
+  - Captured: a dark-brown open crate with a lime raptor inside it in profile. The long snout points
+    left, a yellow eye dot shows, and the body and legs sit behind the vertical bars. The light X of rope
+    is on the right end. Nothing breaks the top rim.
+  - Tamed: a cream box with a brown handle on top. The green animal is behind two bars, with a red
+    collar dot at its neck and a white tag top right. The dark hinges and latch show on the sides.
+  - The pair is told apart at 48 px by value and silhouette: a dark open crate against a light handled carrier.
+    Both read as a cage with the animal inside.
+  - At 48 px the tamed animal's head is half behind the left door frame. The red collar marks it,
+    but it reads less clearly as a dinosaur than the captured one. At 64 px and up it is clearly a raptor.
+- I did not run a blind judge on this round; the reading above is mine.
+
+Gates (final code, this round):
+- `Blender -b --factory-startup -P tools/render_icons.py -- --only tamed_animal`: `ICON tamed_animal 65347 d0e67a5cb498f069`,
+  `ICONS DONE n=1 over_64kb=0` (captured_animal was rendered earlier with `--only captured_animal,tamed_animal`:
+  `ICON captured_animal 64469 00f86640dfef7aa6`, unchanged since).
+- `... -- --verify captured_animal,tamed_animal`: `REPRO captured_animal identical`, `REPRO tamed_animal identical`,
+  `REPRO PASS n=2` (the --only render plus this re-render make the two byte-identical renders; a third tamed render
+  from a scratch copy of tools/ also gave sha d0e67a5c). `... -- --selftest`: `SELFTEST PASS`.
+- Godot through gslot.sh, each with its own alarm: `--import` rc 0 (reimported both PNGs; their `.png.import` files
+  did not change); `--script res://tests/t_iconart.gd`: `[t_iconart] PASS`; `--script res://tests/run_all.gd`:
+  `[tests] PASS`; `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- `manifest.json`: only the captured_animal and tamed_animal entries changed (sha256, bytes, rect).
+
+Risks: both PNGs are close to the 64 KB cap (64,469 and 65,347 of 65,536). Any change to the carrier, the
+dino texture or the rig light can push tamed over the cap. `render_one` then refuses to write the file and says so.
+
 ## Merge
 Stacked on ICONS2: merge `claude/mmo-icons2` first, then this branch. In scope: `tools/blender/items/camp.py`,
 `game/assets/icons/render/captured_animal.png`, `game/assets/icons/render/tamed_animal.png`, `game/assets/icons/render/manifest.json`, this report.

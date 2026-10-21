@@ -731,18 +731,16 @@ def pressure_dressing():
 
 # ---------------------------------------------------------------- cages (owner rule)
 
-def _cage(door_deg=0.0, wood=("#9a6a3a", "#7a4e26", "#bb8a56", "#8a5a30"), H=0.92, n=(2, 9, 5, 4, 5),
-          r=(0.032, 0.03), back=None):
-    """A lashed wooden cage: a slatted floor, four corner posts, vertical bars on every side and a
-    lashed roof hatch. door_deg swings the front panel out on its hinge (negative: in). n: bar counts (near side,
-    back, left, right, door), r: bar radius (sides, door), back: colours for a solid plank back wall
-    in place of the back bars."""
+def _cage(wood=("#9a6a3a", "#7a4e26", "#bb8a56", "#8a5a30"), H=0.92, n=(2, 9, 5, 4, 5), r=(0.032, 0.03),
+          back=None, W=0.9, D=0.66):
+    """A lashed wooden cage, shut: a slatted floor, four corner posts, vertical bars on every side and an
+    open roof. n: bar counts (near side, back, left, right, door), r: bar radius (sides, door),
+    back: the colour of a solid plank back wall in place of the back bars, W/D/H: half width, depth, height."""
     # Flat fills where possible: the cage is many thin bars, and noisy materials push the PNG
     # over the 64 KB budget.
     w = mat(wood[0], 0.75, color2=wood[1], tex="noise", scale=3.0, bump=0.1)
     w2 = mat(wood[2], 0.7, color2=wood[3], tex="noise", scale=3.0, bump=0.1)
     rp = rope_m()
-    W, D = 0.9, 0.66
     # Floor slats and a rim.
     for i in range(5):
         box((2 * W + 0.1, 0.26, 0.07), loc=(0, -D + 0.28 * i, -H + 0.06), m=w if i % 2 else w2, bev=0.012)
@@ -769,7 +767,7 @@ def _cage(door_deg=0.0, wood=("#9a6a3a", "#7a4e26", "#bb8a56", "#8a5a30"), H=0.9
     # slot size while the cage still reads as slatted on every side.
     bars(-D, "x", n[0], -W + 0.36, W - 0.36)
     if back:  # a dark plank back: the animal inside stands off it in value
-        bk = mat(back[0], 0.8, color2=back[1], tex="noise", scale=3.0, bump=0.1)
+        bk = mat(back, 0.8)
         for i in range(6):
             box((0.28, 0.05, 2 * H - 0.1), loc=(-W + 0.15 + (2 * W - 0.3) * i / 5, D - 0.02, 0), m=bk, bev=0.01)
     else:
@@ -777,28 +775,48 @@ def _cage(door_deg=0.0, wood=("#9a6a3a", "#7a4e26", "#bb8a56", "#8a5a30"), H=0.9
     bars(-W, "y", n[2], -D + 0.16, D - 0.16)
     bars(W, "y", n[3], -D + 0.2, D - 0.2)
     # The front panel: a frame with bars, hanging from a hinge on the left post.
-    door = group(loc=(-W, -D, 0), rot=(0, 0, -door_deg))
+    door = group(loc=(-W, -D, 0))
     box((2 * W, 0.07, 0.09), loc=(W, 0, H - 0.08), m=w, bev=0.012, parent=door)
     box((2 * W, 0.07, 0.09), loc=(W, 0, -H + 0.12), m=w, bev=0.012, parent=door)
     for i in range(n[4]):
         x = 0.2 + (2 * W - 0.4) * i / (n[4] - 1)
         cyl(r[1], 2 * H - 0.24, loc=(x, 0, 0), m=w2, segs=6, parent=door)
-    if door_deg == 0.0:
-        for z in (-H + 0.4, H - 0.3):
-            box((0.3, 0.08, 0.06), loc=(W - 0.18, 0, z), m=rp, bev=0.01, parent=door)
-    # Roof: open, so the animal inside shows through: only the frame beams and a hinged hatch at
-    # the back, lashed on.
+    for z in (-H + 0.4, H - 0.3):  # rope ties at the free end hold it shut
+        box((0.3, 0.08, 0.06), loc=(2 * W - 0.1, 0, z), m=rp, bev=0.01, parent=door)
+    # Roof: open, only the frame beams, so the animal inside shows from above.
     for x in (-W, W):
         box((0.1, 2 * D + 0.16, 0.09), loc=(x, 0, H), m=w, bev=0.012)
     for y in (-D, D):
         box((2 * W + 0.16, 0.1, 0.09), loc=(0, y, H), m=w, bev=0.012)
-    # A loose roof slat pushed back over the far beams (the cage is open from above, so the animal
-    # inside shows).
-    box((1.4, 0.4, 0.05), loc=(-0.75, D - 0.12, H + 0.1), rot=(-18, 0, 4), m=w2, bev=0.01)
-    for x in (-0.45, 0.45):
-        tube([(x, p[1], p[2]) for p in arc((0, 0, 0), 0.09, 0, 360, 12, plane="xy", y=H + 0.07)[:-1]], 0.03, rp,
-             segs=5, closed=True)
-    return door
+
+
+def _carrier(W, D, H):
+    """A bonded animal's pet carrier (Durango shows one for a bonded animal): light planed boards, a solid
+    roof with a leather carry handle, a solid back, a closed barred door with iron hinges and a latch. The
+    back board is dark inside, so the animal stands off it."""
+    # Planed boards, no bump: a smooth face reads tidy and keeps the PNG under 64 KB.
+    w = mat("#e0bb84", 0.6, color2="#c49a62", tex="noise", scale=3.0)
+    w2 = mat("#f0d4a4", 0.55, color2="#d4ae78", tex="noise", scale=3.0)
+    box((2 * W + 0.12, 2 * D + 0.12, 0.1), loc=(0, 0, -H), m=w, bev=0.03)
+    box((2 * W + 0.16, 2 * D + 0.16, 0.1), loc=(0, 0, H), m=w2, bev=0.035)
+    box((2 * W, 0.08, 2 * H), loc=(0, D, 0), m=mat("#6a4a2c", 0.8, color2="#553820", tex="noise", scale=3.0), bev=0.02)
+    for x in (-W, W):
+        box((0.08, 2 * D, 2 * H), loc=(x, 0, 0), m=w2, bev=0.02)
+    for z in (-H + 0.1, H - 0.08):
+        box((2 * W + 0.1, 0.1, 0.14), loc=(0, -D, z), m=w2, bev=0.03)
+    for x in (-W + 0.02, W - 0.02):
+        box((0.14, 0.1, 2 * H), loc=(x, -D, 0), m=w2, bev=0.03)
+    # Two stout bars: the animal shows between them at slot size, and the wood they cover keeps the PNG under 64 KB.
+    for i in range(2):
+        cyl(0.05, 2 * H - 0.2, loc=(-W + 0.08 + (2 * W - 0.16) * (i + 1) / 3, -D, 0), m=w2, segs=8)
+    iron = metal("#4a4e52")
+    for z in (-H + 0.35, H - 0.35):
+        box((0.2, 0.05, 0.12), loc=(-W + 0.02, -D - 0.06, z), m=iron, bev=0.01)
+    box((0.12, 0.06, 0.22), loc=(W - 0.02, -D - 0.07, 0.0), m=iron, bev=0.01)
+    lt = hidem("#5a3420", "#3e2214")
+    tube(arc((0, 0, H + 0.05), 0.42, 0, 180, 16, plane="xz"), 0.05, lt, segs=8)
+    for x in (-0.42, 0.42):
+        box((0.16, 0.2, 0.06), loc=(x, 0, H + 0.05), m=lt, bev=0.01)
 
 
 CREATURES = pathlib.Path(__file__).resolve().parents[3] / "game" / "assets" / "creatures"
@@ -863,18 +881,15 @@ def _eyes(arm, p=(0.033, -0.527, 0.558), r=0.016):
     bpy.context.view_layer.update()
 
 
-def _collar(arm, m, r=0.056):
-    """A hide collar round the base of the neck (on the Neck bone). Returns its point nearest the
-    viewer's side (-Y) in item space, where the tag and the lead hang."""
-    bone, pb = arm.data.bones["Neck"], arm.pose.bones["Neck"]
+def _collar(arm, m, r=0.056, t=0.03):
+    """A hide collar round the base of the neck (on the Neck bone), t thick so it shows at slot size."""
+    bone = arm.data.bones["Neck"]
     ring = arc((0, 0, 0), r, 0, 360, 16, plane="xz", y=-bone.length)[:-1]  # at the bone's head
-    c = tube(ring, 0.014, m, segs=6, closed=True)
+    c = tube(ring, t, m, segs=6, closed=True)
     c.parent = arm
     c.parent_type = "BONE"
     c.parent_bone = "Neck"
     bpy.context.view_layer.update()
-    tail = Matrix.Translation((0, bone.length, 0))
-    return min((arm.matrix_world @ pb.matrix @ tail @ Vector(p) for p in ring), key=lambda v: v.y)
 
 
 def _vivid(arm, sat, val):
@@ -892,52 +907,58 @@ def _vivid(arm, sat, val):
 
 
 def captured_animal():
-    """A captured animal is shown in its cage (owner rule): the lashed wooden cage shut, and in it the
-    project's own deinonychus mesh (owner 2026-10-20: "should look like there's a dino inside"), side
-    on and reared up behind the front bars, its head (enlarged, with a big amber eye, so it reads at
-    48 px) over the top rail and its tail out through the right side bars: the snout and the tail break
-    the cage's outline, the body shows behind the bars."""
-    # Darker wood than the tame cage, few thin front bars and a dark plank back: the lime animal stands
+    """A captured animal is shown in its cage (owner rule): the project's own deinonychus (owner
+    2026-10-20: "should look like there's a dino inside") crouched side on, wholly inside the shut, rope-lashed
+    wooden cage, the front bars over its body. Its head (enlarged, with a big amber eye, so it reads at 48 px)
+    stays below the rim and is turned to the viewer, the snout pressed between the front bars; only the tail
+    tip comes out, through the right side bars."""
+    # Darker wood than the tame carrier, three thin front bars and a dark plank back: the lime animal stands
     # off the cage in value and is not cut into stripes at 48 px.
-    _cage(wood=("#7a5232", "#5a3a20", "#8c6038", "#64421f"), H=0.7, n=(0, 5, 3, 3, 4), r=(0.035, 0.035),
-          back=("#3a2616", "#2a1a0e"))
-    X = (1, 0, 0)
+    W, D, H = 1.0, 0.66, 0.85
+    _cage(wood=("#7a5232", "#5a3a20", "#8c6038", "#64421f"), H=H, n=(0, 5, 3, 3, 3), r=(0.035, 0.035),
+          back="#3a2616", W=W, D=D)
+    rp = rope_m()
+    x = W + 0.06  # wild: rope lashed corner to corner across the end in view
+    tube([(x, -D, -H + 0.15), (x, D, H - 0.1)], 0.04, rp, segs=6)
+    tube([(x, -D, H - 0.1), (x, D, -H + 0.15)], 0.04, rp, segs=6)
+    X, Z = (1, 0, 0), (0, 0, 1)
     # ASSUMPTION: the item names no species; the deinonychus is drawn because its green skin stands off
     # the wood and its raptor head and claws read as a dinosaur at slot size.
     arm = _creature("deinonychus", "attack_heavy", 5, [
-        ("Torso", X, -22.0), ("Neck", X, -20.0), ("Head", X, 40.0), ("Head", "scale", (1.8, 2.4, 1.8)),
-        ("Tail2", X, 6.0), ("Tail3", X, 10.0), ("Tail4", X, 15.0), ("Tail4", "scale", 0.6), ("Tail5", "scale", 0.3),
-    ], loc=(0.45, 0.0, -0.65), rot=(0, 0, -90), scale=3.0)
-    _vivid(arm, 1.35, 1.2)
+        ("Torso", X, -10.0), ("Neck", X, -10.0), ("Head", X, 25.0), ("Neck", Z, 45.0), ("Head", Z, 35.0),
+        ("Tail1", X, 15.0), ("Tail2", X, 20.0), ("Tail3", X, 25.0), ("Tail4", X, 20.0), ("Tail4", "scale", 0.7),
+        ("Tail5", "scale", 0.4), ("Head", "scale", (1.6, 2.0, 1.6)),
+    ], loc=(0.2, 0.1, -0.77), rot=(0, 0, -90), scale=2.5)
+    _vivid(arm, 1.2, 1.2)
     _eyes(arm)
-    turn(-20)  # the front bars face the viewer, the animal side on
+    turn(5)  # the front bars face the viewer, the animal side on
     turn(-12, "X")
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def tamed_animal():
-    """A tamed animal walks with you (owner rule): the same deinonychus out of its cage, a red hide
-    collar with a bone tag round its neck and its lead trailing on the ground, the cage behind it empty,
-    its door swung in. Outside the bars and in light wood, it reads apart from the captured cage at 48 px."""
-    _cage(door_deg=-88.0, H=0.8, n=(0, 5, 3, 3, 4), r=(0.05, 0.05))
+    """A bonded animal is shown in its carrier (owner rule: a traded or captured animal is shown in a cage; Durango
+    shows a pet carrier for a bonded one): the same deinonychus sits calmly inside a light, tidy carrier with a carry
+    handle and a closed door, a red hide collar round its neck, its head turned to the viewer, and a tag hangs
+    from the roof. Light wood, a solid roof with a handle, the tag and the collar tell it from the dark,
+    rope-lashed captured cage at 48 px."""
+    W, D, H = 0.9, 0.62, 0.85
+    _carrier(W, D, H)
+    tube([(0.62, -D - 0.08, H), (0.65, -D - 0.1, H - 0.18)], 0.015, mat("#7a2a18", 0.8), segs=5)
+    box((0.3, 0.03, 0.4), loc=(0.67, -D - 0.11, H - 0.38), rot=(0, 8, 0), m=bonem("#f2ead4"), bev=0.05)
     X, Z = (1, 0, 0), (0, 0, 1)
     # ASSUMPTION: the same species as captured_animal, so the pair reads as one animal before and after taming.
     arm = _creature("deinonychus", "idle", 1, [
-        ("Torso", X, -12.0), ("Neck", X, -15.0), ("Head", X, 25.0), ("Head", "scale", (1.8, 2.4, 1.8)),
-        ("Tail2", Z, 10.0), ("Tail3", Z, 15.0), ("Tail4", Z, 15.0), ("Tail4", "scale", 0.6), ("Tail5", "scale", 0.3),
-    ], loc=(0.2, -1.0, -0.8), rot=(0, 0, -90), scale=3.4)
-    _vivid(arm, 1.2, 1.1)
+        ("Neck", X, 10.0), ("Neck", Z, 55.0), ("Head", Z, 35.0),
+        ("Tail1", Z, -15.0), ("Tail2", Z, -25.0), ("Tail3", Z, -30.0), ("Tail4", Z, -30.0), ("Tail4", "scale", 0.7),
+        ("Tail5", "scale", 0.4), ("Tail1", X, -15.0), ("Head", "scale", (1.6, 2.0, 1.6)),
+    ], loc=(0.25, 0.1, -0.77), rot=(0, 0, -90), scale=2.2)
+    _vivid(arm, 1.5, 1.9)  # brighter: the solid roof shades the animal
     _eyes(arm)
-    c = _collar(arm, hidem("#c0441c", "#8a2a10"))
-    tube(arc((c.x, c.y - 0.03, c.z - 0.1), 0.07, 0, 360, 12, plane="xz")[:-1], 0.022, bonem(), segs=4, closed=True)
-    # The lead drops from the collar in a slack curve and lies on the ground, its hand loop at the end.
-    lead = hidem("#8a4a20", "#5a2c10")
-    tube([tuple(c)] + [(c.x + dx, c.y + dy, z) for dx, dy, z in (
-        (-0.2, -0.12, 0.45), (-0.32, -0.25, 0.0), (-0.3, -0.35, -0.45), (-0.15, -0.45, -0.76), (0.2, -0.55, -0.77),
-        (0.55, -0.5, -0.77))], 0.03, lead, segs=6)
-    tube(arc((c.x + 0.7, c.y - 0.45, 0), 0.15, 0, 360, 14, plane="xy", y=-0.77)[:-1], 0.03, lead, segs=6, closed=True)
-    turn(-30)
-    turn(-12, "X")
+    _collar(arm, hidem("#d8401a", "#a82c10"))
+    turn(10)
+    turn(-20, "X")
+    lean(5)  # the X tilt rolls the box as the camera sees it; this stands its posts upright again
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
