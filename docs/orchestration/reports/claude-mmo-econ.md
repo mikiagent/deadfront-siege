@@ -12,8 +12,96 @@ Sixth pass (2026-10-20, night): the one minor from the review of 5498f04b; see "
 Seventh pass (2026-10-20, late night, finish-6 resumed): the fifth and sixth passes were
 committed during the derailed resume, so every r3 claim was re-run here, and the vision fix
 was checked against the packages that merge before ECON. Eighth pass (2026-10-20): review
-r4's blocker (a recovery rid reused once uids come home) and its minors; read "Eighth pass"
-first, then "Seventh pass".
+r4's blocker (a recovery rid reused once uids come home) and its minors. Ninth pass
+(2026-10-20): review r5's blocker (a client could plant char.grant's rid), the bound-coin
+listing fee, and its minors; read "Ninth pass" first, then "Eighth pass".
+
+## Ninth pass (2026-10-20, review r5): char.grant's rid is the server's
+
+Findings: review r5, relayed in the run prompt (1 blocker, 1 major, 5 minors, 3 acceptance
+items). The reviewer's probes are `review/econ/r5/probes/zz_r5_body.gd` in its scratchpad.
+The base did not move: `claude/mmo-overhaul` is still cecc936b, merged at efd886a9, so no merge
+was needed. The fix is 283d2aad. The hooks patch changed (see "Integrator" below) and was
+regenerated from the package tree's working diff; `git apply --cached --check` on cecc936b is
+clean.
+
+| # | Item | Fix | Test (passes now, 283d2aad + hooks) | FAIL on f5dd8ee8 + its hooks (new tests copied in) |
+|---|---|---|---|---|
+| B | `char.grant` used the rid `g<econ seq>` in the withdrawing character's own rid cache. `client()` lets intents write there, so a client could plant `g<N>` with `act.gather`. The next partial withdrawal then conflicted, the units were in no store, and every account got `server_error`. | `vault_bridge.gd`: the rid is now `recover-g<seq>`, in the server's rid space. `client()` already refuses any `recover-` rid for every op, intents included (`RECOVER_RID` now documents both uses). Nothing else in the bridge picks a rid in the character store. | `t_econ` `_test_grant_rid_seeded`: plants `g<k>` and `recover-g<k>` for k = next-3..next+3 through `client()` `act.gather`, then withdraws 2 of 13. `[econ-bridge] grant rid seeded old=ok,ok,ok,ok,ok,ok,ok server=bad_request,bad_request,bad_request,bad_request,bad_request,bad_request,bad_request withdraw=ok landed=true stuck='' others gather=ok search=ok` | `[t_econ] FAIL a partial withdrawal after planted rids lands (ok, bag 22->22, vault 13->11): stone_shot: characters exported 13, the vaults took in 11 net, bridge left inflight { "account": 1, "rid": "seeded-w", "uid": "i7.0", "op": "grant" } ..., bridge stopped: 2 stone_shot left the vault under seeded-w but char.grant refused them (conflict)` and `[t_econ] FAIL other accounts are not stalled (gather=server_error search=server_error)` |
+| M1 | A bound-only account (every new player) could not pay a listing fee, so it could not list after the trade lock. | `Ledger.pay_sink` (debit, sink, bound first, `0 <= bound <= wallet` kept). `wallet.spend` and the listing fee use it; `_can_open` checks the whole wallet. Buys, bids, buyouts and order escrow still check `tradable()`. `market_rules.json` `_bound_about` says so. | `run_all` (economy_tests) `_test_bound_wallet_and_trade_lock`: after the lock a bound-only account lists a fixed listing and an auction (fees from bound coins), and another bound-only account is refused buy, bid, buyout and order. `[econ] bound start=20 after_spend=15 with_reward=17 lock=1800s list_with_bound=ok (wallet 18 bound 18) buy_bid_buyout_order_with_bound=refused` | `ERROR: [tests] econ: market.list_fixed should succeed: { "ok": false, "err": "insufficient_funds", "msg": "listing fee is 1 tradable T-stones" }`, `... a bound-only account lists, the fee paid from bound coins: wallet 20 bound 20`, `[tests] FAIL count=9` (with m7's three) |
+| m3 | The bonded cap also hit a pet coming back from a deposit the vault refused (an old bond, pack 09). | The cap check left the hooks' `char.receive` and moved to `VaultBridge._withdraw`, the one place a bought pet bonds. It reads `_bonded_cap()`, which returns `Data.bonded_cap()`. | `t_econ` `_test_bonded_cap` now runs on this base: a test subclass (`CappedBridge`) sets the cap to 3. Full roster: refused, kept in the vault. Then the cap drops to 1 under a roster of 3 (a skill reset) and the vault faults on a pet deposit: the pet comes home, the bridge serves. `[econ-bridge] bonded cap=3 roster=3 withdraw=limit_reached kept_in_vault=true refused_deposit_over_cap=server_error home=true stuck=''` | Old code: `[t_econ] FAIL a full roster (3 of 3) refuses a bought pet, which stays in the vault (ok)` (the cap there is Data's unlimited one). The return path cannot fail on old code with an unlimited cap, so a mutation that caps every `char.receive` again (as the old hooks did): `[t_econ] FAIL a refused deposit brings the pet home over the cap (3 of 1), the bridge serving: deposit=server_error home=false stuck=''` |
+| m4 | `char.grant` rebuilt the part through `ItemStack`, so `creator` and `created_at` were dropped. | Hooks `_grant`: a part that lands as its own row gets the asset's `creator` and `created_at` (the `limits.json` `instance_fields`). Units that merge into a stack take that stack's, as everywhere. | `t_econ` `_test_grant_fields`: a 13-unit stack with creator Smith / created_at 123, 3 units bought and withdrawn. `[econ-bridge] grant fields part=i4 creator=Smith created_at=123` | `[econ-bridge] grant fields part=i4 creator=<null> created_at=<null>` and `[t_econ] FAIL a bought part keeps its creator and created_at in the buyer's bag: {"attributes":{"level":1},"count":3,...,"uid":"i16.0"}` |
+| m5 | The trade lock runs on wall clock from account creation, not on play time. | Unchanged, still `# ASSUMPTION` in `market_engine.gd`. **Integrator:** switch it to the play time presence reports when W3 or NET provides them. | (none) | (none) |
+| m6 | Contract 6.1 still describes the cage shape; bought pets come home as bonded pets. | For the orchestrator, as in r3 m2 and r4 m3: amend 6.1 ("pets trade as kind `pet` in the books, shown as cages by the Exchange") or schedule the `caged_animal` switch with W2-CAGE. | (none) | (none) |
+| m7 | `vault.withdraw` took uids of 2..64 characters, the engine's withdraw, list and order ops 2..24. | `EconArgs.UID_MAX := 64`, used by all six uid arguments. | `run_all` `_test_withdraw`: a 30-character uid answers `not_found` from `vault.withdraw_item`, `vault.withdraw_pet` and `market.list_fixed`. | `ERROR: [tests] econ: vault.withdraw_item (a 30-character uid is checked like any other) should fail with not_found, got { "ok": false, "err": "bad_request", "msg": "uid must be 2..24 characters" }` (and the same for `withdraw_pet` and `list_fixed`) |
+
+One existing test changed with B: `_test_crash_recovery` step 6 simulates the bridge's own
+`char.grant` before a cut, so it now uses the bridge's rid (`recover-g<seq>`). No server has run
+ECON, so no grant under the old `g<seq>` rid can be in flight at an upgrade.
+
+The reviewer's probe file, run unchanged in the package tree (fix plus hooks):
+
+```
+[probe p1] seeded=7 withdraw=ok bag 22->24 vault 13->11 broken=''
+[probe p1] other accounts now: search=ok gather=ok broken=''
+[probe p1] recover()='' cross-store=[]
+[probe p2] deposit=ok list_in_lock=limit_reached list_after_lock_bound_only=ok wallet={ "wallet": 19, "bound": 19, "held": 0 } spend_bound=bad_request
+[probe p3] ... buyer_row={"attributes":{"climate":"desert","level":1},"count":3,"created_at":123,"creator":"Smith",...}
+[probe] harness failures: []
+```
+
+(`spend_bound=bad_request` is the probe's own argument: `travel` does not cost 1.)
+
+### Acceptance (ninth pass)
+
+- **Authority** (no client-reachable op can mint, duplicate, steal or strand assets): the gate
+  test still refuses every server-only op
+  (`gate refused=unauthorized x11 ... grant_over_out=invalid_asset grant_pet=bad_request`,
+  `seeded_rids=bad_request,bad_request`), and the r5 path is closed:
+  `grant rid seeded old=ok,... server=bad_request,... withdraw=ok landed=true stuck='' others gather=ok search=ok`.
+- **Crash mid-escrow and recovery cannot duplicate or lose assets**:
+  `crash deposit_after_export=landed deposit_before_export=dropped begin_while_marked=conflict withdraw_after_receive=finished split_before_settle=settled grant_after_vault=granted grant_before_end=once consistent=true`,
+  `same uid twice crash=in_vault=false fault=in_vault=false seeded_rids=bad_request,bad_request`,
+  and probe p1 `recover()='' cross-store=[]`.
+- **Bonded cap respected on receiving a bought pet**: runs on this base now, through
+  `CappedBridge`: `bonded cap=3 roster=3 withdraw=limit_reached kept_in_vault=true refused_deposit_over_cap=server_error home=true stuck=''`.
+  At W2-SKILLS' merge the production cap is `VaultBridge._bonded_cap()` -> `Data.bonded_cap()`;
+  if W2-SKILLS names its single function differently, that one line changes.
+Gates: mkscratch `econ-r5-gates` at 283d2aad with the hooks patch applied and `--import` run
+(0 SCRIPT ERROR / "Failed" lines in its import log). Every run went through gslot.
+
+- All 20 `game/tests/t_*.gd` exit 0 with their PASS line (t_ai, t_build, t_canim, t_combat,
+  t_econ, t_harbour `PASS islands=15`, t_iconart, t_items, t_light, t_lighting, t_occlude,
+  t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons, t_web).
+  t_save prints its 5 deliberate SCRIPT ERRORs, every other test 0. None prints "couldn't
+  resolve track".
+- `t_econ.gd`: `[t_econ] PASS`; fuzz
+  `[econ-bridge] fuzz 3600 ops, 10 restarts mid-move, invariants of both stores after every op (coins issued 3560, sink 636)`.
+  Its one ERROR line follows `[econ-bridge] bonded cap: the next ERROR line (deliberate fault in vault.deposit_pet) is deliberate`.
+- `run_all.gd`: `[tests] PASS`. Its two SCRIPT ERROR lines come after
+  `[econ] fault test: the next SCRIPT ERROR and ERROR lines are deliberate`, as before.
+- `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (34 before, 34 after).
+- Labs and screenshots: none. ECON is server-side with no UI.
+
+### Integrator (hooks patch, ninth pass)
+
+The patch still touches only `intent_handlers.gd` and `run_all.gd`. Changes since the eighth
+pass: `_receive` no longer checks the bonded cap (VaultBridge does, on withdraw only), and
+`_grant` copies `creator` / `created_at` onto a part that lands as its own row.
+
+### Assumptions added (ninth pass)
+
+- A listing fee is a sink, not a transfer, so bound T-stones pay it (bound first, like
+  `wallet.spend`). Contract v2 0.6 says only that the start is "bound (non-tradable)"; buys,
+  bids, buyouts and order escrow, the ops that move coins to another account, still take
+  tradable coins only. `# ASSUMPTION` in `market_book.gd`.
+- `recover-` rids belong to the server in both rid spaces: the books (recovery withdrawals)
+  and each character's cache (`char.grant`). The eighth pass's sentence for contract 5.3
+  covers it ("rids starting `recover-` are the server's").
+- The roster cap is checked when a bought pet leaves the vault, not when a refused deposit
+  returns. Pack 09, acceptance 11: a reset "never deletes existing pets; new bonding is
+  blocked until valid".
 
 ## Eighth pass (2026-10-20, review r4): one rid per recovery
 
@@ -326,7 +414,8 @@ that code too.
   clock). Contract 0.6 says "30 min of server-observed play"; W3 can switch it once
   presence reports play time. The refusal uses the existing `limit_reached` code, so no
   contract change is needed.
-- Bound T-stones pay `wallet.spend` only. Listing fees count as trading (one rule: market
+- (Superseded in the ninth pass: a listing fee is a sink, so bound T-stones pay it first.)
+  Bound T-stones pay `wallet.spend` only. Listing fees count as trading (one rule: market
   ops spend tradable coins). Objective rewards are bound, as plan items W1-INT and W2-INT
   ask.
 - `starting_wallet_bound` (20) lives in `market_rules.json` next to `starting_wallet`. Tests
