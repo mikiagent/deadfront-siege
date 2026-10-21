@@ -2,6 +2,7 @@ extends SceneTree
 ## W1-SAVE: crash-safe, sanitized, isolated saves. Prints "[t_save] PASS" (or FAIL lines), exits 0/1.
 ##   Godot --headless --path game --script res://tests/t_save.gd
 ## `-- --write-golden` re-stages a camp and rewrites save_v3_golden.json and save_truncated.json.
+## Do not: since W2-SKILLS the v3 goldens are frozen rev-1 inputs and a rewritten one fails the run.
 ## Scripts that touch autoloads load on the first frame (see run_all.gd), so everything is load()ed.
 
 const FIX := "res://tests/fixtures/"
@@ -76,6 +77,7 @@ func _run() -> void:
 	_test_two_saves()
 	for name in ["save_v0.json", "save_v1.json", "save_v2.json", "save_v3_golden.json", "save_v3_away_golden.json"]:
 		await _test_round_trip(name)
+	await _test_rev1_skills()
 	await _test_forged()
 	await _test_truncated()
 	await _test_future()
@@ -157,11 +159,70 @@ func _test_round_trip(name: String) -> void:
 	if LEGACY.has(name):
 		_check_legacy(name, s1)
 	if name.begins_with("save_v3_"):
-		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
-		var gd: Array[String] = []
-		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
-		_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
+		_check_v3_golden(name, s1)
 	print("[t_save] round trip %s fields=%d diffs=%d" % [name, s1.size(), diffs.size()])
+	await process_frame
+
+## The v3 goldens are frozen rev-1 saves: never regenerate them, they are the migration's input.
+## Everything but skills_v2 survives load + save unchanged; skills_v2 must equal the rev-2 result
+## kept in save_v3_skills_rev2.json, field for field both ways.
+func _check_v3_golden(name: String, s1: Dictionary) -> void:
+	var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
+	_check(not (golden["skills_v2"] as Dictionary).has("rev"), "%s is still a rev-1 save (the migration input)" % name)
+	golden.erase("skills_v2")
+	var gd: Array[String] = []
+	_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
+	_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
+	var want: Variant = (JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_skills_rev2.json")) as Dictionary).get(name)
+	var sd: Array[String] = []
+	_same(want, s1.get("skills_v2"), "/skills_v2", sd)
+	_same(s1.get("skills_v2"), want, "/skills_v2", sd)
+	_check(want is Dictionary and sd.is_empty(), "%s skills_v2 migrates to its rev-2 expectation: %s" % [name, sd.slice(0, 6)])
+
+## W2-SKILLS migration end to end (SaveSanitizer, then SkillState): the rev-1 golden with nodes
+## bought under the old per-tree award (old graph and prices, Survival 55) loads as rev 2 keeping
+## every level, every node and every unspent SP, learns its Lv1 AUTO nodes, and stays so on a re-load.
+func _test_rev1_skills() -> void:
+	_clean()
+	var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	var sv: Dictionary = d["skills_v2"]
+	var bought := {
+		"survival": ["island_access_15", "belly_fat_1", "capture_technique_1", "capture_tool_1", "stealth_1", "island_access_25", "capture_technique_2", "climate_body_1", "island_access_35", "capture_technique_3", "animal_management_1", "island_access_45", "capture_technique_4", "animal_management_2"],
+		"gathering": ["forage_1", "thickets", "mining_1", "herbs_1", "insects"], # forage_1 cost 5 then, AUTO now
+	}
+	sv["trees"]["survival"]["level"] = 55
+	for tree in bought:
+		sv["trees"][tree]["unlocked"] = bought[tree].duplicate()
+	# Old award for gathering 20 + butchering 3 + survival 55 = 880 SP; these nodes cost 341 at rev-1 prices.
+	sv["sp_spent"] = 341
+	sv["sp_available"] = 880 - 341
+	var old_levels := {}
+	for tree in sv["trees"]:
+		old_levels[tree] = int(sv["trees"][tree]["level"])
+	_put(JSON.stringify(d))
+	SG.load_now(host)
+	var Rules: GDScript = load("res://scripts/skills/skill_rules.gd")
+	for pass_name in ["first load", "re-load"]:
+		var sk: Node = player.skills
+		var levels_ok := true
+		for tree in old_levels:
+			levels_ok = levels_ok and sk.level_of(tree) == maxi(1, old_levels[tree])
+		_check(levels_ok and sk.to_dict().get("rev") == 2, "%s: rev-1 levels kept, 0 reads Lv. 1, saved as rev 2" % pass_name)
+		var autos := ["processing/cordage", "defense/roll", "farming/corn", "tailoring/leaf_outfit", "gathering/branch", "butchering/butcher_1"]
+		_check(autos.all(func (a: String) -> bool: return sk.is_unlocked(a.get_slice("/", 0), a.get_slice("/", 1))), "%s: Lv1 AUTO nodes learned" % pass_name)
+		var missing: Array = []
+		for tree in bought:
+			for nid in bought[tree]:
+				if not sk.is_unlocked(tree, nid):
+					missing.append(nid)
+		_check(missing.is_empty(), "%s: every node bought under rev 1 is kept (missing %s)" % [pass_name, missing])
+		var paid: int = Rules.paid_for_level(sk, 5) # pioneer_level 4 = character Lv. 5
+		_check(sk.sp_available == 880 - 341, "%s: the 539 unspent SP are kept (got %d)" % [pass_name, sk.sp_available])
+		_check(sk.sp_spent == 263 and sk.sp_extra == 539 + 263 - paid and sk.sp_earned == paid + sk.sp_extra, "%s: budget = character Lv. 5 (%d) + one-time extra %d, spent 263 at today's prices (earned %d, spent %d)" % [pass_name, paid, sk.sp_extra, sk.sp_earned, sk.sp_spent])
+		_check(Rules.bonded_capacity(sk) == 5, "%s: Animal Handling I + II give 5 bonded slots (got %d)" % [pass_name, Rules.bonded_capacity(sk)])
+		SG.save_now()
+		SG.load_now(host)
+	print("[t_save] rev-1 skills migrate: %d nodes kept, SP %d/%d" % [bought["survival"].size() + bought["gathering"].size(), player.skills.sp_available, player.skills.sp_earned])
 	await process_frame
 
 func _check_legacy(name: String, s1: Dictionary) -> void:
@@ -208,7 +269,8 @@ func _test_forged() -> void:
 	var cuirass: int = W.cargo_home.find_first(&"raid_cuirass")
 	_check(cuirass >= 0 and W.cargo_home.slots[cuirass].count == 1, "cargo raid_cuirass x3000 loads as x1")
 	var bought: Array = player.skills.trees["survival"]["unlocked"]
-	_check(bought == ["island_access_15"] and player.skills.sp_spent == 5, "survival L10 listing every node keeps only island_access_15, sp_spent 5 (got %s, %d)" % [bought, player.skills.sp_spent])
+	# Stealth I is a Survival Lv. 10 node with no prerequisite since W2-SKILLS (spec 12), so it is reachable too.
+	_check(bought == ["island_access_15", "stealth_1"] and player.skills.sp_spent == 5 + 2, "survival L10 listing every node keeps only island_access_15 and stealth_1, sp_spent 7 (got %s, %d)" % [bought, player.skills.sp_spent])
 	var d = root.get_node("Data")
 	_check(not d.is_survival_unlocked(&"capture_technique_I") and not d.survival_unlocked.has(&"made_up_node"), "legacy skills true without a bought tree node, or an unknown id, unlock nothing")
 	await process_frame
