@@ -6,6 +6,10 @@ extends RefCounted
 
 const GOOD := Color(0.55, 0.9, 0.6)
 
+## The Resting chip, first in the status row: the rest icon on a status chip.
+static func chip(ci: CanvasItem, font: Font, at: Vector2) -> void:
+	HudStatusChip.draw(ci, font, at, &"resting", Color(1, 0.75, 0.45))
+
 ## Draws the box `width` wide with its top-left at `at`; returns the drawn rect (HUD drawn_blocks).
 static func draw(ci: CanvasItem, font: Font, at: Vector2, width: float, px: int, lines: PackedStringArray) -> Rect2:
 	var box := Rect2(at, Vector2(width, 8.0 + (px + 4.0) * lines.size())).grow(4.0)
