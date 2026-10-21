@@ -150,3 +150,8 @@ workbench ingredient lists, not dimensions.
   `site_large_0..2`.
 - Nothing outside `tools/blender/structures/`, `game/assets/props/blender/`,
   `game/data/props_manifest.json` and `docs/orchestration/reports/` was touched.
+- **Known artifact of the gate's Godot import step**: importing the project writes untracked
+  texture sidecars and `.import` files for the nature GLBs under `game/assets/props/meshy/`
+  (their `.import` files were never committed upstream). The gate's scope check sees those as
+  files outside this job's scope. They are regenerable import artifacts and were deleted after
+  the final run; delete them again if a later run reports them.
