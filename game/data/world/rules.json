@@ -1,5 +1,7 @@
 {
-  "_about": "Material level and island archetype rules (docs/design/world-design.md \u00a72\u20133). The island generator applies ring offsets to the island tier; crafting uses the mean-of-materials rule from the systems PRD \u00a78.4.",
+  "_about": "Material level and island archetype rules (docs/design/world-design.md §2–3). The island generator applies ring offsets to the island tier; crafting uses the mean-of-materials rule from the systems PRD §8.4.",
+  "resource_render": "model",
+  "_resource_render_note": "CARD2D trial (spec 25 §1): \"model\" draws resource props as 3D GLBs (the default, unchanged), \"card\" draws every family that has a baked card (game/data/card2d.json) as a swaying 2D card and the rest as models. Buildings stay 3D either way. --cards turns it on for a lab run.",
   "island_size_m": {
     "unstable": 240,
     "home": 160

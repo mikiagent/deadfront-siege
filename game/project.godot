@@ -83,6 +83,14 @@ tall_fade_height={
 "value": 0.0
 }
 
+[card2d]
+
+; CARD2D trial (spec 25 §1). The camera package (branch claude/mmo-camera) will expose these as
+; global shader parameters; until then CardProp reads these settings every card and feeds them to
+; the sway shader, so a camera change is a setting change.
+camera_focus="0,0,0"
+parallax_strength=0.006
+
 [physics]
 
 common/physics_interpolation=true

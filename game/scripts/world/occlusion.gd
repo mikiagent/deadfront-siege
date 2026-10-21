@@ -110,6 +110,29 @@ static func make_occludable(node: Node, mode: String = BETWEEN) -> int:
 		_driver._add_objects(node, geoms)
 	return n
 
+## Same see-through fade for a prop whose material already carries the fade body (a CARD2D card:
+## shaders/card_sway.gdshader includes occlusion.gdshaderinc, so it fades per instance without the
+## StandardMaterial3D conversion). Files the node's meshes as one between object and drives
+## occl_fade on them. Returns the number of meshes filed.
+static func make_card_occludable(node: Node, mode: String = BETWEEN) -> int:
+	if not enabled or node == null or mode != BETWEEN:
+		return 0
+	if mode_of(node) != "":
+		return int(node.get_meta(&"occl_surfaces", 0))
+	_ensure_driver()
+	var geoms := _geometry(node)
+	for gi in geoms:
+		(gi as GeometryInstance3D).set_instance_shader_parameter(&"occl_fade", 0.0)
+	node.set_meta(&"occl_mode", mode)
+	node.set_meta(&"occl_surfaces", geoms.size())
+	if geoms.is_empty():
+		return 0
+	var watch := _driver._on_child.bind(node)
+	node.set_meta(&"occl_watch", watch)
+	node.child_entered_tree.connect(watch)
+	_driver._add_objects(node, geoms)
+	return geoms.size()
+
 ## Puts the original materials back and forgets `node`.
 static func release(node: Node) -> void:
 	if node == null or not node.has_meta(&"occl_mode"):
