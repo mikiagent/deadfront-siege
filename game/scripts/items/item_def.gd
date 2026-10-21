@@ -1,11 +1,19 @@
 class_name ItemDef
 extends Resource
-## Catalog row for a stackable or unique item. Loaded from data/items.json.
+## Catalog row for an item. Loaded from data/items.json.
+
+## Stacking categories and Pocket slots (spec 05), read once.
+const RULES_PATH := "res://data/inventory.json"
+static var _rules: Dictionary = {}
 
 @export var id: StringName = &""
 @export var display_name: String = ""
 @export var categories: Array[StringName] = []
 @export var stack_max: int = 1
+## Units a saved row from before the no-stacking rule may hold (the save sanitizer's ceiling).
+@export var legacy_stack_max: int = 1
+## Bag slots this item adds while worn (spec 05:11 "equipment adds storage slots").
+@export var bag_slots: int = 0
 @export var tool_class: StringName = &"none"
 @export var base_level: int = 1
 @export var attack_rate: float = 0.0
@@ -42,11 +50,17 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	def.id = StringName(str(d.get("id", "")))
 	def.display_name = str(d.get("display_name", def.id))
 	def.categories = _names(d.get("categories", []))
-	# Owner rule (2026-09-20): everything stacks to 999 until per-item stack sizes are decided.
-	# Tools/weapons with durability and multi-slot animals keep the data value.
-	var span := int(d.get("slot_span", 1))
-	var dur := int(d.get("max_durability", 0))
-	def.stack_max = int(d.get("stack_max", 1)) if (span > 1 or dur > 0) else 999
+	# Owner rule (2026-10-20, prompts 05/08): materials and food do not stack; each unit is its own
+	# instance and slot. Only data/inventory.json's stacking_categories keep the data's stack_max.
+	var stacks := false
+	for cat: Variant in rules().get("stacking_categories", []):
+		stacks = stacks or def.has_category(StringName(str(cat)))
+	def.stack_max = maxi(1, int(d.get("stack_max", 1))) if stacks else 1
+	# What one pre-W2-INV saved row could hold: the old rule (owner 2026-09-20) stacked everything to
+	# 999 except durability tools and multi-slot animals, which kept the data value. load_array splits it.
+	var old_data_cap := int(d.get("slot_span", 1)) > 1 or int(d.get("max_durability", 0)) > 0
+	def.legacy_stack_max = maxi(1, int(d.get("stack_max", 1))) if old_data_cap else 999
+	def.bag_slots = maxi(0, int(d.get("bag_slots", 0)))
 	def.tool_class = StringName(str(d.get("tool_class", "none")))
 	def.base_level = int(d.get("base_level", 1))
 	def.attack_rate = float(d.get("attack_rate", 0.0))
@@ -84,6 +98,15 @@ static func from_dict(d: Dictionary) -> ItemDef:
 	def.visual = str(d.get("visual", ""))
 	return def
 
+static func rules() -> Dictionary:
+	if _rules.is_empty():
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(RULES_PATH))
+		if not parsed is Dictionary:
+			push_error("[items] %s is unreadable: nothing stacks" % RULES_PATH)
+			parsed = {"stacking_categories": []}
+		_rules = parsed
+	return _rules
+
 static func _names(raw: Variant) -> Array[StringName]:
 	var out: Array[StringName] = []
 	if raw is Array:
@@ -94,15 +117,8 @@ static func _names(raw: Variant) -> Array[StringName]:
 func has_category(cat: StringName) -> bool:
 	return cat in categories
 
-func damage_at(level: int) -> float:
-	return _scaled(&"damage", damage, level)
-
-func max_durability_at(level: int) -> int:
-	return maxi(0, int(round(_scaled(&"max_durability", float(max_durability), level))))
-
-func armor_value_at(level: int) -> float:
-	return _scaled(&"armor_value", armor_value, level)
-
+## Level scaling belongs to ItemStack (stat_multiplier). These two remain only because
+## item_stack.gd still calls them; damage/armor/durability _at variants were dead and are gone.
 func health_bonus_at(level: int) -> float:
 	return _scaled(&"health_bonus", health_bonus, level)
 

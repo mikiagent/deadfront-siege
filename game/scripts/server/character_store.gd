@@ -14,7 +14,7 @@ const VERSION := 1
 const RIDS_KEPT := 64
 ## The data the handlers read. Replay re-runs them, so a snapshot records this hash and boot
 ## warns when it changed. shortcut: creature defs (tame, capture) are not hashed yet.
-const DATA_FILES := ["res://data/items.json", "res://data/recipes.json", "res://data/combat_counters.json", "res://data/combat_tuning.json", "res://data/world/rules.json"]
+const DATA_FILES := ["res://data/items.json", "res://data/recipes.json", "res://data/combat_counters.json", "res://data/combat_tuning.json", "res://data/world/rules.json", "res://data/inventory.json"]
 
 var s: Dictionary
 var world: WorldFacade
@@ -223,7 +223,8 @@ func open() -> String:
 				break
 			var why := replay_line(text)
 			if why != "":
-				return why
+				# W2-INV: a journal written under other rules (items stacked) may not replay under these.
+				return why + ("; the data files changed since the snapshot: boot the previous build once so it snapshots, then upgrade" if data_changed else "")
 			if nl < 0: # a complete last line that lost only its newline: give it back
 				var f := FileAccess.open(path, FileAccess.READ_WRITE)
 				f.seek_end()
@@ -236,11 +237,33 @@ func open() -> String:
 		return "cannot open journal (%d)" % FileAccess.get_open_error()
 	_journal.seek_end()
 	_ops_since = 0
+	# W2-INV: split stacked characters only after the journal replayed against the rows it was
+	# written for (a deposit of 5 from a 20-stack), then snapshot so the split is never replayed over.
+	var migrated := migrate_stacks()
 	if data_changed:
 		# The journal just replayed under new rules; snapshot so later boots do not repeat that.
 		push_warning("[srv] data files changed since the last snapshot; the journal replayed under the new rules")
 		return snapshot()
-	return ""
+	return snapshot() if migrated > 0 else ""
+
+## W2-INV: characters stored while materials stacked get one row per unit (CharacterState.
+## split_stacks); what the 100-slot bag cannot hold goes to their home storage. Logged per
+## character. Returns how many characters changed.
+func migrate_stacks() -> int:
+	var changed := 0
+	for key: String in s.chars:
+		var got := CharacterState.split_stacks(s.chars[key])
+		if got.is_empty():
+			continue
+		changed += 1
+		s.chars[key] = norm(s.chars[key])
+		var parts := PackedStringArray()
+		var stored := 0
+		for id: String in got.stored:
+			parts.append("%s x%d" % [id, got.stored[id]])
+			stored += int(got.stored[id])
+		print("[srv] migration: char %s: bag %d slots, %d rows split from stacks, %d units to home storage%s" % [key, (s.chars[key].bag as Array).size(), got.split, stored, " (%s)" % ", ".join(parts) if not parts.is_empty() else ""])
+	return changed
 
 ## Verified write of the snapshot, then a fresh journal (everything in it is now covered).
 func snapshot() -> String:
@@ -301,7 +324,7 @@ func invariants() -> Array[String]:
 	var pets := 0
 	for key: String in s.chars:
 		var ch: Dictionary = s.chars[key]
-		for row: Variant in ch.bag:
+		for row: Variant in (ch.bag as Array) + (ch.get("storage", []) as Array): # storage: W2-INV home storage
 			if not row is Dictionary or str(row.id) == str(CharacterState.LOCK):
 				continue
 			if int(row.count) < 1 or int(row.durability) < 0:

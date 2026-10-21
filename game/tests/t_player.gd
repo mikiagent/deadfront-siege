@@ -73,6 +73,7 @@ func _run() -> void:
 	await _test_pet_hp_and_summon()
 	await _test_pet_menu_bag_feed_dump()
 	await _test_corpse_full_bag()
+	await _test_corpse_take_xp()
 	await _test_no_creature_climb()
 	await _test_footsteps_and_ear()
 	_test_structure_interact()
@@ -341,12 +342,61 @@ func _test_corpse_full_bag() -> void:
 	var take_s: float = (load("res://scripts/player/player_actions.gd") as GDScript).get_script_constant_map()["CORPSE_TAKE_SECONDS"]
 	await create_timer(take_s + 0.3, true, true).timeout
 	var left = corpse.loot.slots[slot]
-	_expect(left != null and left.count == 3 and is_equal_approx(player.skills.xp_of("butchering"), xp0), "full bag: the stack stays in the corpse, no XP (count %d)" % (left.count if left else 0))
+	_expect(left != null and corpse.loot.count_of(&"raw_meat") == 3 and is_equal_approx(player.skills.xp_of("butchering"), xp0), "full bag: the meat stays in the corpse, no XP (count %d)" % corpse.loot.count_of(&"raw_meat"))
 	player.inventory = bag
 	var moved: int = player.actions.loot(corpse, slot)
-	_expect(moved == 3 and corpse.loot.slots[slot] == null and is_equal_approx(player.skills.xp_of("butchering") - xp0, 3.0), "with room: moved %d, XP +%.0f once" % [moved, player.skills.xp_of("butchering") - xp0])
+	# W2-INV: three meat are three instances; a take moves the one in its slot.
+	_expect(moved == 1 and corpse.loot.slots[slot] == null and is_equal_approx(player.skills.xp_of("butchering") - xp0, 3.0), "with room: moved %d, XP +%.0f once" % [moved, player.skills.xp_of("butchering") - xp0])
 	corpse.queue_free()
 	await process_frame
+
+## W2-INV review 2: corpse loot is one instance per unit, so a flat +3 per take paid per unit.
+## Butchering XP is 3 per drop kind, the first time any of it leaves the corpse: radial takes,
+## chest takes of each item and Take all pay the same. Radial butcher grime (WATER) follows the XP.
+func _test_corpse_take_xp() -> void:
+	await _reset_at(Vector3(0, 1.0, 0))
+	if not player.inventory.has_tool_class(&"knife"):
+		player.inventory.add(ItemStackS.make(&"stone_knife_work", 1))
+	var paid: Array = []
+	for way in ["radial", "chest", "take_all"]:
+		var corpse = CorpseS.new()
+		host.add_child(corpse)
+		corpse.global_position = Vector3(1.2, 0, 0)
+		corpse.loot.add_growing(ItemStackS.make(&"raw_meat", 3))
+		corpse.loot.add_growing(ItemStackS.make(&"raptor_hide", 2))
+		var xp0 := _butchering_total()
+		if way == "radial":
+			# WATER's butcher grime is per loot stack: per drop kind, as the XP (5 instances, 2 kinds).
+			player.set_meta(&"water_grime", 0.0)
+			for id in [&"dirty", &"very_dirty"]:
+				player.statuses.clear_id(id)
+			for i in corpse.loot.slot_count:
+				if corpse.loot.slots[i]:
+					player.actions.loot(corpse, i)
+			var per: float = float(load("res://scripts/player/water_access.gd").data()["dirt"]["butcher"])
+			var grime: float = float(player.get_meta(&"water_grime", 0.0))
+			_expect(is_equal_approx(grime, 2.0 * per), "radial takes of 2 drop kinds add butcher grime twice, not per instance (grime %s)" % grime)
+		else:
+			corpse.open_loot(player)
+			if way == "chest":
+				for i in corpse.loot.slot_count:
+					if corpse.loot.slots[i]:
+						player.ui._take_storage(i)
+			else:
+				player.ui._take_all_storage()
+			player.ui.hide_ui()
+		paid.append(snappedf(_butchering_total() - xp0, 0.01))
+		_expect(corpse.loot.used_slots() == 0, "%s takes every loot instance (left %d)" % [way, corpse.loot.used_slots()])
+		corpse.queue_free()
+	_expect(paid == [6.0, 6.0, 6.0], "radial takes, chest takes and Take all each pay 3 per drop kind (paid %s)" % [paid])
+	await process_frame
+
+## Butchering XP earned in all, across level-ups (xp_of is the XP into the current level).
+func _butchering_total() -> float:
+	var n: float = player.skills.xp_of("butchering")
+	for l in player.skills.level_of("butchering"):
+		n += player.skills.xp_to_next(l)
+	return n
 
 ## phys-climb-01: a tap-to-walk route straight through a compsognathus, zebraceratops and
 ## velociraptor, held for 5 s, raises her at most 0.15 m (was +0.97, +1.16 and +1.82 m: the stall
