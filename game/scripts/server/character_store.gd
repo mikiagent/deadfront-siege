@@ -14,7 +14,7 @@ const VERSION := 1
 const RIDS_KEPT := 64
 ## The data the handlers read. Replay re-runs them, so a snapshot records this hash and boot
 ## warns when it changed. shortcut: creature defs (tame, capture) are not hashed yet.
-const DATA_FILES := ["res://data/items.json", "res://data/recipes.json", "res://data/combat_counters.json", "res://data/combat_tuning.json", "res://data/world/rules.json"]
+const DATA_FILES := ["res://data/items.json", "res://data/recipes.json", "res://data/combat_counters.json", "res://data/combat_tuning.json", "res://data/world/rules.json", "res://data/inventory.json"]
 
 var s: Dictionary
 var world: WorldFacade
@@ -193,7 +193,6 @@ func open() -> String:
 		return ""
 	DirAccess.make_dir_recursive_absolute(dir)
 	var snap := dir.path_join("snapshot.json")
-	var migrated := 0
 	if FileAccess.file_exists(snap):
 		var parsed: Variant = _parse(FileAccess.get_file_as_string(snap))
 		if not parsed is Dictionary or int(parsed.get("v", 0)) != VERSION:
@@ -203,7 +202,6 @@ func open() -> String:
 		s.erase("data") # lives only in the file, so the state hash does not depend on it
 		if int(s.world_seed) != _seed:
 			return "world_seed differs from the one this store was written under"
-		migrated = migrate_stacks() # before the journal: a clean shutdown left it empty
 	var path := dir.path_join("journal.jsonl")
 	if not FileAccess.file_exists(snap):
 		# Genesis goes to disk first, so world_seed is never only in memory (a journal replayed
@@ -238,6 +236,9 @@ func open() -> String:
 		return "cannot open journal (%d)" % FileAccess.get_open_error()
 	_journal.seek_end()
 	_ops_since = 0
+	# W2-INV: split stacked characters only after the journal replayed against the rows it was
+	# written for (a deposit of 5 from a 20-stack), then snapshot so the split is never replayed over.
+	var migrated := migrate_stacks()
 	if data_changed:
 		# The journal just replayed under new rules; snapshot so later boots do not repeat that.
 		push_warning("[srv] data files changed since the last snapshot; the journal replayed under the new rules")
