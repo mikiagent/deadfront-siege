@@ -6,6 +6,35 @@ var toasts: Array = []
 var notices: Array = []
 var bites: Array = []
 var player_floats: Array = []
+## Skill XP toasts (spec 25 §7 "it gives you an xp amount"): {tree, amount, level, text, big, life, t}.
+## Gains of one tree inside SKILL_MERGE seconds add up into one toast; a tree level-up is a bigger one.
+var skill_toasts: Array = []
+
+## Seconds within which two gains of one tree share a toast.
+const SKILL_MERGE := 1.0
+## How long an XP toast and a level-up toast stay (the big one reads longer).
+const SKILL_LIFE := 1.6
+const SKILL_LEVEL_LIFE := 3.0
+
+## "+4 Gathering XP", the same words the HUD draws and the test reads.
+static func skill_text(tree: String, amount: float) -> String:
+	return "+%d %s XP" % [int(round(amount)), str(SkillState.NAMES.get(tree, tree))]
+
+func add_skill_xp(tree: String, amount: float, level: int = 0) -> void:
+	if amount <= 0.0:
+		return
+	# A level-up line of the same tree is not merged into: the level is the bigger news and sits above.
+	for entry in skill_toasts:
+		if str(entry["tree"]) == tree and not bool(entry["big"]) and float(entry["t"]) < SKILL_MERGE:
+			entry["amount"] = float(entry["amount"]) + amount
+			entry["text"] = skill_text(tree, float(entry["amount"]))
+			entry["level"] = level if level > 0 else int(entry["level"])
+			entry["t"] = 0.0
+			return
+	skill_toasts.append({"tree": tree, "amount": amount, "level": level, "text": skill_text(tree, amount), "big": false, "life": SKILL_LIFE, "t": 0.0})
+
+func add_skill_level(tree: String, level: int) -> void:
+	skill_toasts.append({"tree": tree, "amount": 0.0, "level": level, "text": "%s %s" % [str(SkillState.NAMES.get(tree, tree)), LevelDisplay.label(level)], "big": true, "life": SKILL_LEVEL_LIFE, "t": 0.0})
 
 func add_bite(amount: float, heavy: bool) -> void:
 	bites.append({"t": 0.0, "heavy": heavy, "x": randf_range(-6.0, 6.0)})
@@ -30,6 +59,9 @@ func tick(delta: float) -> void:
 	for entry in toasts:
 		entry["t"] += delta
 	toasts = toasts.filter(func(entry: Dictionary) -> bool: return entry["t"] < 1.3)
+	for entry in skill_toasts:
+		entry["t"] = float(entry["t"]) + delta
+	skill_toasts = skill_toasts.filter(func(entry: Dictionary) -> bool: return float(entry["t"]) < float(entry["life"]))
 	for entry in notices:
 		entry["t"] += delta
 	notices = notices.filter(func(entry: Dictionary) -> bool: return entry["t"] < 3.2)

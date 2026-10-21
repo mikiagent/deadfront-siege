@@ -7,6 +7,11 @@ extends Node
 ## learned nodes are read through SkillRules. Owned by the player as "Skills".
 
 signal skill_changed(tree: StringName, level: int)
+## A tree's XP went up by `amount` (its level after the grant). The HUD turns this into "+4 Gathering XP"
+## (spec 25 §7 "it gives you an xp amount"). Not emitted for the mirrored Survival XP or at Lv. 60.
+signal skill_xp_gained(tree: StringName, amount: float, level: int)
+## A tree reached `level`. The HUD shows the bigger toast (spec 25 §7's level-up bar, spec 03:10).
+signal skill_leveled(tree: StringName, level: int)
 
 const TREES_PATH := "res://data/skills/trees.json"
 const OCCUPATIONS_PATH := "res://data/skills/occupations.json"
@@ -80,6 +85,8 @@ func add_xp(tree: String, amount: float, mirrored: bool = false) -> void:
 	if int(t["level"]) >= MAX_LEVEL:
 		return
 	t["xp"] = float(t["xp"]) + amount
+	if not mirrored:
+		skill_xp_gained.emit(StringName(tree), amount, int(t["level"]))
 	_resolve(tree)
 
 ## Level-ups the banked XP allows. At the character-level cap the XP is kept, not dropped (spec 03:7
@@ -94,6 +101,7 @@ func _resolve(tree: String) -> void:
 		print("[skill] %s %d" % [tree, int(t["level"])])
 		_learn_autos(tree)
 		skill_changed.emit(StringName(tree), int(t["level"]))
+		skill_leveled.emit(StringName(tree), int(t["level"]))
 	t["xp"] = minf(float(t["xp"]), xp_to_max(int(t["level"])))
 
 ## XP a tree at `level` can still spend on its way to MAX_LEVEL: the most it banks while capped

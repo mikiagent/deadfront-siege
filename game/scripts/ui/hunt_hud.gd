@@ -88,6 +88,7 @@ func _ready() -> void:
 	add_child(_daynight)
 	_build_fatigue_panel()
 	_build_menu_row()
+	_watch_skills()
 	_build_combat()
 	_build_place_hexes()
 	_build_death()
@@ -145,6 +146,53 @@ func _ready() -> void:
 
 func bind(p: Player) -> void:
 	player = p
+	_watch_skills()
+
+## Skill feedback (spec 25 §7, islands-and-loop-plan §3.3): the XP toast and the bigger level-up toast
+## on skill_xp_gained/skill_leveled, and the SKILLS hex's pulse from SkillRules.affordable_now.
+## Connected here (a Player may be bound before or after this HUD enters the tree) and never twice.
+var _skills_watched: SkillState = null
+## Seconds between affordability recounts: node_state walks twelve trees, no need to do it per frame.
+const SKILL_PULSE_TICK := 0.25
+## The glow is a soft ring around the hex, never a jump; this is where in its cycle it is (0..1).
+const SKILL_PULSE_SECONDS := 1.6
+var skills_pulse_on: bool = false
+var _pulse_clock: float = 0.0
+var _pulse_check: float = 0.0
+
+func _watch_skills() -> void:
+	if player == null or player.skills == null:
+		return
+	if _skills_watched == player.skills:
+		return
+	_skills_watched = player.skills
+	var sk := _skills_watched
+	if sk.has_signal("skill_xp_gained"):
+		sk.skill_xp_gained.connect(func (tree: StringName, amount: float, level: int) -> void:
+			_events.add_skill_xp(str(tree), amount, level)
+		)
+	if sk.has_signal("skill_leveled"):
+		sk.skill_leveled.connect(func (tree: StringName, level: int) -> void:
+			_events.add_skill_level(str(tree), level)
+		)
+	if sk.has_signal("skill_changed"):
+		# A purchase or a refund moves the SP, and the pulse must answer on the same frame.
+		sk.skill_changed.connect(func (_tree: StringName, _level: int) -> void:
+			_pulse_check = 0.0
+			_refresh_skill_pulse()
+		)
+	_refresh_skill_pulse()
+
+## The hex pulses when at least one buyable node is affordable with the SP held, and stops when none
+## is. Public so a lab can read the state the HUD draws.
+func skills_pulsing() -> bool:
+	return skills_pulse_on and player != null and not player.dead
+
+func _refresh_skill_pulse() -> void:
+	if player == null or player.skills == null:
+		skills_pulse_on = false
+		return
+	skills_pulse_on = SkillRules.affordable_now(player.skills)
 
 # ---------------------------------------------------------------- layout
 
@@ -1075,6 +1123,11 @@ func _process(delta: float) -> void:
 		if _levelup_t > 6.5:
 			_levelup_t = -1.0
 	_events.tick(delta)
+	_pulse_clock += delta
+	_pulse_check -= delta
+	if _pulse_check <= 0.0:
+		_pulse_check = SKILL_PULSE_TICK
+		_refresh_skill_pulse()
 	_domain.tick(delta, World.runtime, player.global_position)
 	_minimap.queue_redraw()
 	queue_redraw()
@@ -1217,6 +1270,38 @@ func _draw() -> void:
 	var taken := taken_rects()
 	var toast_left := UiTokens.is_compact(r)
 	var cx := band.get_center().x if band.has_area() else r.x * 0.5  # a phone's free middle, off HANDS and the map
+	# --- skill XP and tree level-up toasts (spec 25 §7 "it gives you an xp amount", islands-and-loop-plan
+	# §3.3). They take their spot first, so a pickup toast gives way rather than covering one. A level-up
+	# line is bigger and gold; the small XP lines sit under it. Every one is drawn only on a free spot,
+	# so none covers the vitals, the map, the plate or the survivor.
+	var skill_rows: Array = _events.skill_toasts
+	for i in skill_rows.size():
+		var e: Dictionary = skill_rows[i]
+		var age := float(e["t"])
+		var life := float(e["life"])
+		var alpha := 1.0 - smoothstep(life * 0.6, life, age)
+		var is_big := bool(e["big"])
+		var px := 22 if is_big else 16
+		var label := str(e["text"])
+		if is_big:
+			label = "▲ " + label
+		var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, px).x
+		var rise := 26.0 * (1.0 - minf(age, 1.0))
+		var h := float(px) + 12.0
+		var cand := Rect2(cx - tw * 0.5 - 12.0, 64.0 + rise, tw + 24.0, h)
+		if toast_left:
+			cand.position = Vector2(vitals.position.x, vitals.end.y + 8.0 + rise)
+		var box := UiTokens.free_spot(cand, taken, r)
+		if not box.has_area():
+			continue
+		taken.append(box)
+		drawn_blocks["skilltoast%d" % i] = box
+		draw_rect(box, Color(0.05, 0.06, 0.08, (0.86 if is_big else 0.74) * alpha))
+		if is_big:
+			draw_rect(Rect2(box.position, Vector2(4.0, box.size.y)), Color(1.0, 0.85, 0.35, alpha))
+		var col := Color(1.0, 0.87, 0.45, alpha) if is_big else Color(1, 1, 1, alpha)
+		draw_string(_font, box.position + Vector2(12.0, box.size.y * 0.5 + float(px) * 0.36), label, HORIZONTAL_ALIGNMENT_LEFT, -1, px, col)
+
 	for i in _events.toasts.size():
 		var t: Dictionary = _events.toasts[i]
 		var k: float = t["t"]
@@ -1235,6 +1320,10 @@ func _draw() -> void:
 		drawn_blocks["toast%d" % i] = box
 		draw_rect(box, Color(0.05, 0.06, 0.08, 0.8 * alpha))
 		draw_string(_font, box.position + Vector2(10, 20), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, alpha))
+	# --- the SKILLS hex pulse: a soft gold halo while a buyable node is affordable (islands-and-loop-plan
+	# §3.3). Drawn by the HUD, under the hex itself, so it needs nothing from HexButton; it breathes on a
+	# sine and never jumps, and it is a halo rather than a size change so the touch target stays put.
+	_draw_skill_pulse()
 	if player.placer and player.placer.layout_mode:
 		var hint := "Layout mode: drag a building to move it · tap one to rotate · blue = ok, red = blocked · DONE saves" if player.placer.moving == null else "Release to drop (red snaps it back)"
 		var hw := _font.get_string_size(hint, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
@@ -1262,6 +1351,24 @@ func _draw() -> void:
 		var a := _combat_alpha
 		draw_rect(Rect2(0, 0, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
 		draw_rect(Rect2(0, r.y - 6, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
+
+## The SKILLS hex's "something is affordable" halo (islands-and-loop-plan §3.3). A gold ring just outside
+## the hex outline that breathes between 25 % and 80 % of its strength over SKILL_PULSE_SECONDS; it is
+## drawn around the same pointy-top hex hex_button.gd outlines, so it reads as the hex glowing, and the
+## touch target and the caption never move. Off while the sheet is open (the sheet is the answer).
+func _draw_skill_pulse() -> void:
+	if _skills_hex == null or not skills_pulsing() or (_skills_sheet != null and _skills_sheet.visible):
+		return
+	var c := _skills_hex.get_global_rect().get_center() - get_global_rect().position
+	var rad := minf(_skills_hex.size.x, _skills_hex.size.y) * 0.5 - 2.0
+	var breathe := 0.25 + 0.55 * (0.5 + 0.5 * sin(TAU * fmod(_pulse_clock, SKILL_PULSE_SECONDS) / SKILL_PULSE_SECONDS))
+	var pts := PackedVector2Array()
+	for i in 7:
+		var a := deg_to_rad(60.0 * float(i % 6) - 30.0)
+		pts.append(c + Vector2(cos(a), sin(a)) * (rad + 4.0))
+	draw_polyline(pts, Color(1.0, 0.85, 0.35, 0.18 * breathe), 7.0, true)
+	draw_polyline(pts, Color(1.0, 0.85, 0.35, breathe), 2.5, true)
+	drawn_blocks["skillpulse"] = Rect2(c - Vector2(rad + 5.0, rad + 5.0), Vector2(rad + 5.0, rad + 5.0) * 2.0)
 
 func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 	var r := get_viewport_rect().size
