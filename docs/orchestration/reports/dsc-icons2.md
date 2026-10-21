@@ -17,8 +17,7 @@ Rows marked "(Claude)" below are Claude's. Fixes in the shared code:
   when there is no such item. The junk-id fallback checks still cover the path.
 - Removed dsc's `tools/dsc/verify_icons2_local.sh` (its reason, a stale base, is gone after the merge).
 Sheets: `work/sheets/all.png` (all 65 + 7 untouched neighbours), `missing.png`, `flagged.png`.
-Known soft spots: field_small_kit and field_large_kit are the same bundle at slot size (normalise
-removes the size difference); obsidian is violet glass (its builder says black glass with a violet
+Known soft spot: obsidian is violet glass (its builder says black glass with a violet
 sheen) so it reads close to amethyst.
 
 
@@ -62,7 +61,7 @@ Kits, feeds, medicine and cages, `camp.py` (15):
 |---|---|
 | cabin_bed_kit | frame planks + log legs lashed, straw mattress roll, hide blanket strapped on |
 | canvas_tent_kit | canvas roll wound round its pole bundle (ends out), two rope bands, mallet and pegs |
-| field_large_kit / field_small_kit | furrow stakes and frame planks in a bundle, seed pouch, hoe blade strapped on (larger/smaller share `_field_kit`) |
+| field_large_kit / field_small_kit | furrow stakes and frame planks in a bundle, seed pouches resting on the planks, hoe blade strapped on (share `_field_kit`; large: 5 planks, a fan of 7 stakes, 2 pouches; small: 3 planks, 3 stakes, 1 pouch, so they differ at slot size) |
 | log_shelter_kit | notched logs stacked (notch cuts at the ends), roof planks, rope sling with a carry loop |
 | makeshift_taming_pen | sharpened stakes lashed to two rails, a coil of rope, a bone-and-wood latch |
 | smoker_kit | (Claude) lighter bark poles, thicker, faced so the red meat strips hang in view under the rail, wood-chip pouch |
@@ -146,13 +145,6 @@ Kits, feeds, medicine and cages, `camp.py` (15):
   1600x900 and 844x390; every item reads in its slot, nothing clipped. (Scratch files, not committed.)
 
 ## What is left
-1. **armor_scute is not reproducible**: its render in a multi-id run differs from the committed PNG
-   (sha 4926d034...; a solo render earlier gave d8014df8...). Likely order-dependent state between
-   renders in one Blender process (it is the first id in the flagged list; check the material cache
-   key / `blob`-style unseeded noise in its builder, or render it with the same neighbours the gate
-   uses). Fix the builder so it is order-independent, re-render it with `--only armor_scute`, then
-   rerun `--verify` on all 65 (7 ids were not reached before the stop) and the full gate.
-2. Gate will still print `FAIL out of scope: game/tests/t_iconart.gd`: the one-check test change is
-   required (t_iconart cannot pass once every item is rendered). The orchestrator decides whether to
-   take it in the squash merge (recommended) - it is the only out-of-allowlist path.
-3. Optional art: field_small_kit vs field_large_kit look alike at slot size.
+Closed in `claude-mmo-icons2.md`: armor_scute's nondeterminism (the bevel modifier, not seeds) is
+fixed, all 65 re-render byte-identical, and the orchestrator granted the t_iconart.gd change.
+field_small_kit vs field_large_kit (alike at slot size) was fixed in the same run.
