@@ -6,7 +6,8 @@ extends SceneTree
 ##   flash, sparkles, a shadowless OmniLight) and the HUD celebration;
 ## - a skill category level-up spawns the small one (no pillar, fewer sparkles, a weaker light) and
 ##   the skill banner; the occupation's head start (an emit of skill_changed) celebrates nothing;
-## - every light frees itself on time and leaves the survivor's children as they were;
+## - every light frees itself on time and leaves the survivor's children as they were; riding a
+##   mount, the light stands on the mount's root (her body hangs from its saddle), not 1 m underground;
 ## - one XP grant worth two character levels and two categories queues: one celebration and one
 ##   light at a time, each starting only after the last has faded, the two character levels merged;
 ## - the camera keeps no shake offset and stays put while the survivor stands; the celebration's
@@ -67,6 +68,7 @@ func _run() -> void:
 	await _test_character()
 	await _test_skill()
 	await _test_burst()
+	await _test_mounted()
 	await _test_occupation()
 	Engine.time_scale = 1.0
 	_finish()
@@ -154,6 +156,41 @@ func _test_burst() -> void:
 	_expect(float(rec["block_jump"]) == 0.0, "burst: no celebration moves between frames (max %.2f px)" % rec["block_jump"])
 	_expect(float(rec["cam_offset"]) == 0.0 and float(rec["cam_step"]) < 0.001, "burst: the camera neither shakes nor moves (offset %.4f, step %.5f m)" % [rec["cam_offset"], rec["cam_step"]])
 	_expect(_fxs().is_empty() and str(cel.call("showing_key")) == "", "burst: everything ends on its own")
+
+## A character level-up while riding the T. rex (Player.mount's saddle path, as equip_mount_lab).
+func _test_mounted() -> void:
+	var data: Node = get_root().get_node("Data")
+	var def = data.creature(&"tyrannosaurus")
+	var pet_record = load("res://scripts/pets/pet_record.gd")
+	var rec = pet_record.from_def(def, &"A") if def else null
+	if def == null or rec == null:
+		_expect(false, "mounted: a T. rex mount can be made (def %s, record %s)" % [def, rec])
+		return
+	var c: Node3D = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
+	host.add_child(c)
+	c.set("is_pet", true)
+	c.set("pet_record", rec)
+	c.call("spawn", def, rec.variant)
+	c.global_position = Vector3(player.global_position.x + 6.0, 0.0, player.global_position.z)
+	await _frames(20)
+	player.mount(c)
+	await _frames(5)
+	world.add_xp(world.xp_for_level(world.pioneer_level) - world.pioneer_xp)
+	await _frames(3)
+	var fxs := _fxs()
+	var fx: Node3D = fxs[0] if fxs.size() == 1 else null
+	_expect(fx != null and player.get("mounted_on") == c and fx.get_parent() == c, "mounted: a level-up while riding plays one light, on the mount (%d, parent %s)" % [fxs.size(), fx.get_parent().name if fx else "none"])
+	var off := 0.0
+	var t := 0.0
+	while fx and is_instance_valid(fx) and t < 2.5:
+		off = maxf(off, fx.get_global_transform_interpolated().origin.distance_to(c.get_global_transform_interpolated().origin))
+		await process_frame
+		t += cam.get_process_delta_time()
+	_expect(off < 0.01, "mounted: the light stands on the mount's feet the whole time (max %.3f m off)" % off)
+	player.dismount()
+	await _quiet()
+	c.queue_free()
+	await _frames(2)
 
 ## SkillState.apply_occupation emits skill_changed (Lv. 20) without a level gained by play: no light.
 func _test_occupation() -> void:

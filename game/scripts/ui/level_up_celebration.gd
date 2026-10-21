@@ -15,6 +15,10 @@ extends RefCounted
 ## fixed anchors, never from the animation; only the pop and the reveal move, and a target plate
 ## appearing under a phone banner glides it down instead of snapping. HuntHud ticks and draws this.
 ## Timings and colours: data/level_fx.json "hud".
+# ASSUMPTION: one level-up at a time, the newest of a kind replacing a waiting one, a character level
+# first, a shorter hold while others wait (the references show one banner; the PRDs say nothing).
+# ASSUMPTION: the skill banner sits top centre on the desktop (the gather reference) and in the
+# centre band on a phone, like the character banner.
 
 ## AUDIO HOOK: emitted when a level-up starts to show (kind &"character" or &"skill", tree &"" for
 ## a character level). A sound package connects here; nothing plays a sound yet.
@@ -24,6 +28,7 @@ var queue: Array[Dictionary] = []
 var current: Dictionary = {}
 var _y := -1.0  ## the shown block's eased top, where a plate can push it down
 var _warmed := false
+var _fx: LevelUpFx  ## the light of the level-up shown last, while it plays
 
 func push_character(level: int, lines: Array, title: String, summary: String) -> void:
 	_enqueue({"kind": &"character", "tree": &"", "level": level, "lines": lines.duplicate(true), "title": title, "summary": summary})
@@ -45,9 +50,13 @@ func _enqueue(e: Dictionary) -> void:
 	else:
 		queue.append(e)
 
+## Drops every waiting and showing level-up and ends the light now (labs and tests).
 func clear() -> void:
 	queue.clear()
 	current = {}
+	if is_instance_valid(_fx):
+		_fx.queue_free()
+	_fx = null
 
 func showing() -> bool:
 	return not current.is_empty()
@@ -66,14 +75,15 @@ func tick(delta: float, hud: HuntHud) -> void:
 		_warmed = true
 		LevelUpFx.warm_up(p)
 	if current.is_empty():
-		if queue.is_empty():
+		# The next one waits for the last light too: two lights never play at once.
+		if queue.is_empty() or is_instance_valid(_fx):
 			return
 		current = queue.pop_front()
 		current["t"] = 0.0
 		current["out"] = -1.0
 		_y = -1.0
 		if p and p.is_inside_tree() and not p.dead:
-			LevelUpFx.spawn(p, current["kind"])
+			_fx = LevelUpFx.spawn(p, current["kind"])
 		shown.emit(current["kind"], int(current["level"]), current["tree"])
 		return
 	current["t"] = float(current["t"]) + delta

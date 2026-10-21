@@ -5,9 +5,12 @@ extends Node3D
 ## spreading out, a slow ray burst behind her, rising sparkles, a short flash on her and a
 ## short-lived OmniLight. A skill level-up: one ring, fewer sparkles, a smaller light. Additive
 ## unshaded meshes and a real light, not only post glow: gl_compatibility (the web build) glows far
-## less than Forward+. One-shot: it frees itself after `life`. A child of the survivor, so it rides
-## her interpolated transform; nothing here touches the camera. Parts, colours and timings come from
-## data/level_fx.json (a part missing from a kind's section is not built).
+## less than Forward+. One-shot: it frees itself after `life`. A child of the survivor (of her mount
+## while she rides), so it follows the interpolated transform; nothing here touches the camera.
+## Parts, colours and timings come from data/level_fx.json (a part missing from a kind's section is
+## not built).
+# ASSUMPTION: the look (gold pillar, rings, rays, sparkles, a flash) is ours; the owner asked for
+# "light effect animations" and the Durango references show only the HUD side.
 
 const PATH := "res://data/level_fx.json"
 const SHADER := preload("res://scripts/fx/level_up_fx.gdshader")
@@ -65,10 +68,17 @@ static func spread(row: Dictionary, t: float) -> float:
 static func spawn(who: Node3D, fx_kind: StringName) -> LevelUpFx:
 	var fx := LevelUpFx.new()
 	fx.kind = fx_kind
-	var feet := -float(who.call("half_height")) if who.has_method("half_height") else 0.0
-	fx.position = Vector3(0.0, feet, 0.0)
-	who.add_child(fx)
+	var at := anchor(who)
+	if at == who and who.has_method("half_height"):
+		fx.position = Vector3(0.0, -float(who.call("half_height")), 0.0)
+	at.add_child(fx)
 	return fx
+
+## What the light stands on: her (at her feet); riding, the mount's root, its feet: Player.mount
+## hangs her from a saddle or a bone socket, which turns and bobs with the mount's animation.
+static func anchor(who: Node3D) -> Node3D:
+	var mount: Variant = who.get("mounted_on")
+	return mount if mount is Node3D and is_instance_valid(mount) else who
 
 ## An invisible two-frame copy of the character light: the web renderer compiles its shaders on
 ## first draw, and that stall would land on the first real level-up.
