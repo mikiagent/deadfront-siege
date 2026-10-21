@@ -970,6 +970,9 @@ func _test_salvage() -> void:
 	if chest == null: return
 	_expect(int(chest.storage.slot_count) >= 100, "a chest holds at least 100 (PRD:582 baskets ~100 early; got %d)" % int(chest.storage.slot_count))
 	_expect(int(_SP.piece_def(&"large_box").get("storage_slots", 0)) == 160, "a large box holds 160 (spec 05:14, 10:90)")
+	var basket0: Node = load("res://scripts/world/placed_building.gd").call("make", &"basket")
+	_expect(int(basket0.storage.slot_count) >= 100, "a basket holds about 100 (spec 05:14; got %d)" % int(basket0.storage.slot_count))
+	basket0.free()
 	for st in _stamped(&"stone", 3):
 		chest.storage.add(st)
 	var held: Array = _uids_in(chest.storage)
