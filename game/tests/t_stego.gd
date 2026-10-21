@@ -166,10 +166,20 @@ func _test_states() -> void:
 	var top := _skinned_extent(c, true)
 	_expect(pb.get_current_node() == &"death" and absf(low) < 0.35 and top < c.def.height_meters * 0.8, "death ends lying down: skin %.2f .. %.2f m" % [low, top])
 	c.free()
+	# Capture: groggy under 30 % HP, a hit knocks it down (status and held clip) and opens the tame window.
+	var k = _spawn()
+	k.statuses.apply(&"groggy", null)
+	k.health.hp = k.health.max_hp * 0.2
+	k._on_damaged(1.0, null)
+	_advance(k, 2.0)
+	var kpb: AnimationNodeStateMachinePlayback = k.anim.tree.get("parameters/playback")
+	_expect(k.statuses.has(&"knockdown") and kpb.get_current_node() == &"knockdown" and k.capturable() and k.field_tame_open(),
+		"capture: groggy at 20 %% HP, hit -> knockdown %s, clip %s, capturable %s, tame window %s" % [k.statuses.has(&"knockdown"), kpb.get_current_node(), k.capturable(), k.field_tame_open()])
+	k.free()
 	_sections += 1
 
 ## Planted toes keep pace with the body. One real physics step (creature.gd picks gait and cadence) at
-## roam and chase speed, then set_move_speed at a walk (40 % of top, t_canim's assumption).
+## roam and chase speed, then set_move_speed at a slow walk.
 func _test_stride() -> void:
 	var c = _spawn()
 	if not _rigged(c, "stride"):
@@ -186,10 +196,12 @@ func _test_stride() -> void:
 		_advance(c, 0.5)
 		_stride_line(c, v, "game physics step (%s)" % state)
 	c._path_active = false
-	var walk: float = c.move_speed_mps() * 0.4
-	c.anim.set_move_speed(walk)
+	c.anim.play_idle()
+	_advance(c, 0.3)
+	c.anim.set_move_speed(1.2)  # a slow walk, under the gait switch (1.8 m/s): the walk clip itself
 	_advance(c, 0.5)
-	_stride_line(c, walk, "set_move_speed")
+	_expect(c.anim.current_clip == &"walk", "1.2 m/s picks the walk clip (%s)" % c.anim.current_clip)
+	_stride_line(c, 1.2, "set_move_speed")
 	c.free()
 	_sections += 1
 
