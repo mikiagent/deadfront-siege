@@ -66,51 +66,47 @@
  },
  "options": [
   {
-   "id": "current",
+   "id": "base_short",
    "name": "Short",
    "head": "res://assets/characters/survivor/hair/head.glb",
-   "path": "res://assets/characters/survivor/hair/hair_current.glb",
-   "slot": "hair",
+   "scene": "res://assets/characters/survivor/hair/hair_current.glb",
+   "attach_bone": "Head",
    "region": "hair",
-   "attach": "skinned (RiggedModel.attach_skinned)",
    "genders": [
-    "male"
+    "m"
    ]
   },
   {
    "id": "buzz",
    "name": "Buzz",
    "head": "res://assets/characters/survivor/hair/head_buzz.glb",
-   "path": "",
-   "slot": "hair",
+   "scene": "",
+   "attach_bone": "Head",
    "region": "hair",
-   "attach": "skinned (RiggedModel.attach_skinned)",
    "genders": [
-    "male"
+    "m"
    ]
   },
   {
    "id": "bald",
    "name": "Bald",
    "head": "res://assets/characters/survivor/hair/head_bald.glb",
-   "path": "",
-   "slot": "hair",
+   "scene": "",
+   "attach_bone": "Head",
    "region": "hair",
-   "attach": "skinned (RiggedModel.attach_skinned)",
    "genders": [
-    "male"
+    "m"
    ]
   },
   {
    "id": "crop",
    "name": "Crop",
    "head": "res://assets/characters/survivor/hair/head.glb",
-   "path": "res://assets/characters/survivor/hair/hair_crop.glb",
-   "slot": "hair",
+   "scene": "res://assets/characters/survivor/hair/hair_crop.glb",
+   "attach_bone": "Head",
    "region": "hair",
-   "attach": "skinned (RiggedModel.attach_skinned)",
    "genders": [
-    "male"
+    "m"
    ]
   }
  ]

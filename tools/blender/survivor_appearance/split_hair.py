@@ -54,18 +54,20 @@ stats = {"source": os.path.basename(src), "triangles": int(len(tris)),
          "components": sorted([int(c) for c in counts], reverse=True),
          "head": piece(is_head, "head"), "hair_current": piece(~is_head, "hair_current")}
 assert stats["head"]["triangles"] + stats["hair_current"]["triangles"] == len(tris)
-# Rows for game/data/characters/appearance.json (slot "hair"): "head" replaces the survivor's head region (it
-# carries the scalp paint), "path" is the piece in the "hair" region that helmets hide ("" = none).
-# ASSUMPTION: genders ["male"] - these fit the v2 base only, which is a man; a female base needs its own set.
+# Rows for game/data/characters/appearance.json, part "hair" (CHARCREATE's shape: id, name, scene, attach_bone,
+# genders). "head" replaces the survivor's head region (it carries that option's scalp paint) and "scene" is the
+# piece in the "hair" region that helmets hide ("" = none); apply a row with PlayerEquipment.set_hair(head, scene).
+# base_short is today's look: PlayerEquipment wears it as body/body_helmet.glb, the same triangles in one mesh.
+# ASSUMPTION: genders ["m"] - these fit the v2 base only, which is a man; a female base needs its own set.
 H = "res://assets/characters/survivor/hair/"
 OPTIONS = [
-    {"id": "current", "name": "Short", "head": H + "head.glb", "path": H + "hair_current.glb"},
-    {"id": "buzz", "name": "Buzz", "head": H + "head_buzz.glb", "path": ""},
-    {"id": "bald", "name": "Bald", "head": H + "head_bald.glb", "path": ""},
-    {"id": "crop", "name": "Crop", "head": H + "head.glb", "path": H + "hair_crop.glb"},
+    {"id": "base_short", "name": "Short", "head": H + "head.glb", "scene": H + "hair_current.glb"},
+    {"id": "buzz", "name": "Buzz", "head": H + "head_buzz.glb", "scene": ""},
+    {"id": "bald", "name": "Bald", "head": H + "head_bald.glb", "scene": ""},
+    {"id": "crop", "name": "Crop", "head": H + "head.glb", "scene": H + "hair_crop.glb"},
 ]
 for o in OPTIONS:
-    o.update({"slot": "hair", "region": "hair", "attach": "skinned (RiggedModel.attach_skinned)", "genders": ["male"]})
+    o.update({"attach_bone": "Head", "region": "hair", "genders": ["m"]})
 man = f"{out}/hair.json"
 data = json.load(open(man)) if os.path.exists(man) else {}
 data["options"] = OPTIONS
