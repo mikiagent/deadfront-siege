@@ -1308,6 +1308,160 @@ def cabin_bed():
     return [(p, (0, 0, 0))]
 
 
+# ------------------------------------------------------------------ station art (dsc-stationart)
+# Crafting stations and construction sites (owner's guide 15, docs/design/durango-prompts/30_*).
+# Same kit and atlas as the rest of the set: one material, origin at the ground centre, front -Y
+# (which becomes +Z in Godot, towards the iso camera). Sizes in metres next to a 1.8 m survivor.
+
+def _nailed_plank(p, size, loc, tile="plank", nails=True, rot=(0, 0, 0)):
+    """A plank with iron nail heads at both ends."""
+    p.box(size, loc, tile, rot=rot, tile_m=1.6)
+    if nails:
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                p.box((0.025, 0.025, 0.012), (loc[0] + sx * (size[0] / 2 - 0.05),
+                                              loc[1] + sy * (size[1] / 2 - 0.05),
+                                              loc[2] + size[2] / 2 + 0.005), "iron", rot=rot)
+
+
+def _rope_lashing(p, x, y, z, r=0.075):
+    """A strap wound round a post: a short cylinder of rope plus a loose tail."""
+    p.cyl(r, 0.06, (x, y, z), "rope", seg=8)
+    p.log((x + r * 0.7, y, z - 0.02), (x + r * 1.5, y - r * 0.6, z - 0.09), 0.012, tile="rope", seg=4,
+          end_tile="rope")
+
+
+def makeshift_workbench():
+    """Tier 0: a flat stone slab on four lashed sticks (1.2 x 0.6 m, top 0.78 m)."""
+    p = Part("makeshift_workbench")
+    L, W, H = 1.2, 0.6, 0.78
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * (L / 2 - 0.14), sy * (W / 2 - 0.1)
+            p.log((x + sx * 0.06, y + sy * 0.05, 0.0), (x, y, H - 0.06), 0.033, tile="bark", seg=6)
+            _rope_lashing(p, x, y, H - 0.12, r=0.05)
+    # cross sticks tying the legs, lashed
+    for sy in (-1, 1):
+        p.log((-L / 2 + 0.1, sy * (W / 2 - 0.1), 0.3), (L / 2 - 0.1, sy * (W / 2 - 0.1), 0.3), 0.022,
+              tile="bark", seg=5)
+    # the flat stone slab: two stones, the bigger one on top
+    p.rock(0.3, (-0.12, 0.0, H - 0.05), tile="stone", squash=(1.5, 1.15, 0.24), seed=101)
+    p.rock(0.24, (0.42, 0.05, H - 0.04), tile="stone_dark", squash=(1.1, 1.0, 0.22), seed=102)
+    # a stone hammer and a stick of cord left on the slab
+    p.log((-0.02, -0.08, H + 0.02), (0.16, -0.14, H + 0.02), 0.018, tile="wood_dark", seg=5)
+    p.rock(0.05, (0.18, -0.15, H + 0.04), tile="stone_dark", squash=(1.1, 0.9, 0.8), seed=103)
+    p.torus(0.07, 0.016, (0.4, -0.14, H + 0.01), "rope", seg=10, tube=4)
+    return [(p, (0, 0, 0))]
+
+
+def basic_workbench():
+    """Tier 1: rough planks on four pillars, held with strap lashings (1.6 x 0.7 m, top 0.85 m)."""
+    p = Part("basic_workbench")
+    L, W, H = 1.6, 0.7, 0.85
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * (L / 2 - 0.12), sy * (W / 2 - 0.09)
+            p.log((x, y, 0.0), (x, y, H - 0.07), 0.048, tile="bark", seg=7)
+            _rope_lashing(p, x, y, H - 0.14)
+    # two rough planks across the top, a third short one under them
+    p.box((L, 0.3, 0.06), (0, 0.16, H - 0.03), "wood", tile_m=1.6)
+    p.box((L, 0.28, 0.06), (0, -0.16, H - 0.03), "plank", tile_m=1.6)
+    p.box((L - 0.4, W - 0.1, 0.05), (0, 0, 0.34), "plank", tile_m=1.2)
+    for sx in (-1, 1):
+        p.plank((sx * (L / 2 - 0.12), -W / 2 + 0.08, 0.34), (sx * (L / 2 - 0.12), W / 2 - 0.08, 0.34), 0.07, 0.05,
+                "wood_dark")
+    # a stone adze head and a stick of cord on the bench
+    p.log((-0.3, -0.02, H + 0.03), (-0.05, -0.1, H + 0.03), 0.02, tile="wood", seg=5)
+    p.box((0.09, 0.05, 0.07), (-0.02, -0.11, H + 0.05), "stone_dark", rot=(0, 0, -18), tile_m=0.3)
+    p.torus(0.08, 0.018, (0.42, 0.1, H + 0.01), "rope", seg=10, tube=4)
+    # two spare planks leaning on the bench end
+    p.plank((L / 2 - 0.1, 0.1, 0.02), (L / 2 + 0.16, 0.34, 0.95), 0.2, 0.045, "wood", up=(0, 1, 0))
+    p.plank((L / 2 - 0.14, 0.22, 0.02), (L / 2 + 0.1, 0.46, 0.9), 0.18, 0.04, "wood_dark", up=(0, 1, 0))
+    return [(p, (0, 0, 0))]
+
+
+def journeyman_workbench():
+    """Tier 2: trimmed planks nailed to squared legs, a bench vice and a tool rack (1.8 x 0.8 m)."""
+    p = Part("journeyman_workbench")
+    L, W, H = 1.8, 0.8, 0.9
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * (L / 2 - 0.13), sy * (W / 2 - 0.1)
+            p.box((0.1, 0.1, H - 0.08), (x, y, (H - 0.08) / 2), "wood_dark", tile_m=0.7)
+            p.box((0.13, 0.13, 0.05), (x, y, 0.025), "stone_dark", tile_m=0.4)
+    # four trimmed planks nailed down
+    for i in range(4):
+        y = -W / 2 + (i + 0.5) * W / 4
+        _nailed_plank(p, (L, W / 4 - 0.02, 0.055), (0, y, H - 0.028), "plank")
+    # apron rails and a lower shelf
+    for sy in (-1, 1):
+        p.box((L - 0.1, 0.06, 0.14), (0, sy * (W / 2 - 0.05), H - 0.16), "wood", tile_m=1.0)
+    p.box((L - 0.5, W - 0.2, 0.05), (0, 0, 0.32), "plank", tile_m=1.4)
+    for sx in (-1, 1):
+        p.box((0.08, W - 0.2, 0.06), (sx * (L / 2 - 0.3), 0, 0.29), "wood_dark", tile_m=0.6)
+    # bench vice at the front left: iron jaws on a wooden screw
+    vx, vy = -L / 2 + 0.3, -W / 2 + 0.02
+    p.box((0.24, 0.16, 0.1), (vx, vy, H + 0.05), "iron", tile_m=0.3)
+    p.box((0.22, 0.05, 0.14), (vx, vy + 0.04, H + 0.15), "iron", tile_m=0.3)
+    p.cyl(0.022, 0.2, (vx, vy - 0.14, H + 0.15), "iron", rot=(90, 0, 0), seg=6)
+    p.cyl(0.04, 0.025, (vx, vy - 0.23, H + 0.15), "iron", rot=(90, 0, 0), seg=6)
+    p.box((0.34, 0.05, 0.05), (vx + 0.04, vy + 0.06, H + 0.24), "wood", rot=(0, 3, 0))
+    # tool rack on the back edge: two posts, a rail and pegs with hanging tools
+    for sx in (-1, 1):
+        p.box((0.07, 0.07, 0.62), (sx * 0.62, W / 2 - 0.06, H + 0.31), "wood", tile_m=0.6)
+    p.box((1.34, 0.06, 0.09), (0, W / 2 - 0.06, H + 0.58), "plank", tile_m=1.0)
+    for tx, t_tile, t_len in ((-0.4, "iron", 0.26), (-0.16, "stone_dark", 0.2), (0.16, "iron", 0.24),
+                              (0.4, "wood_dark", 0.22)):
+        p.cyl(0.016, 0.07, (tx, W / 2 - 0.1, H + 0.55), "wood", rot=(90, 0, 0), seg=5)
+        p.box((0.05, 0.05, t_len), (tx, W / 2 - 0.13, H + 0.55 - t_len / 2), t_tile, tile_m=0.3)
+    # a mallet on the bench and a coil of rope
+    p.log((0.05, -0.2, H + 0.03), (0.32, -0.12, H + 0.03), 0.02, tile="wood", seg=5)
+    p.box((0.1, 0.06, 0.06), (0.35, -0.11, H + 0.04), "wood_dark", rot=(0, 0, -20), tile_m=0.3)
+    p.torus(0.08, 0.018, (0.68, 0.16, H + 0.01), "rope", seg=10, tube=4)
+    return [(p, (0, 0, 0))]
+
+
+def expert_workbench():
+    """Tier 3: processed planks on heavy legs, iron fittings, drawers and glue pots (2.0 x 0.9 m)."""
+    p = Part("expert_workbench")
+    L, W, H = 2.0, 0.9, 0.95
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * (L / 2 - 0.14), sy * (W / 2 - 0.12)
+            p.box((0.13, 0.13, H - 0.1), (x, y, (H - 0.1) / 2), "wood_dark", tile_m=0.8)
+            p.box((0.16, 0.16, 0.04), (x, y, 0.02), "stone_dark", tile_m=0.4)
+            # iron corner bracket at the top of each leg
+            p.box((0.05, 0.16, 0.1), (x, y, H - 0.14), "iron", tile_m=0.3)
+    # the top: four processed planks with an iron edge strip along the front
+    for i in range(4):
+        y = -W / 2 + (i + 0.5) * W / 4
+        _nailed_plank(p, (L, W / 4 - 0.02, 0.06), (0, y, H - 0.03), "plank")
+    p.box((L, 0.05, 0.09), (0, -W / 2 + 0.02, H - 0.04), "iron", tile_m=1.4)
+    # drawer unit under the top on the right half: two drawers with iron pulls
+    for i, (dx, dz) in enumerate(((0.55, H - 0.19), (0.55, H - 0.38))):
+        p.box((0.78, W - 0.22, 0.16), (dx, 0, dz), "plank", tile_m=1.0)
+        p.box((0.72, 0.05, 0.13), (dx, -W / 2 + 0.13, dz), "wood", tile_m=0.8)
+        p.box((0.16, 0.04, 0.035), (dx, -W / 2 + 0.09, dz), "iron", tile_m=0.3)
+        p.box((0.05, 0.05, 0.02), (dx + 0.34, -W / 2 + 0.11, dz), "iron", tile_m=0.2)
+    p.box((0.86, W - 0.16, 0.04), (0.55, 0, H - 0.09), "plank", tile_m=1.0)
+    # an open shelf on the left with jars and a stack of nails
+    p.box((0.6, W - 0.24, 0.05), (-0.62, 0, 0.36), "plank", tile_m=0.8)
+    p.cyl(0.075, 0.16, (-0.72, -0.16, 0.46), "clay", seg=9, r2=0.085, cap_tile="clay_dark")
+    p.cyl(0.065, 0.13, (-0.5, -0.12, 0.45), "clay", seg=9, r2=0.075, cap_tile="clay_dark")
+    p.box((0.14, 0.1, 0.05), (-0.58, 0.18, 0.41), "iron", tile_m=0.3)
+    # two glue pots with lids on the bench, and a strung bow drill
+    for px, py in ((-0.2, -0.16), (0.02, -0.22)):
+        p.cyl(0.085, 0.15, (px, py, H + 0.075), "clay", seg=10, r2=0.075, cap_tile="clay_dark")
+        p.cyl(0.082, 0.02, (px, py, H + 0.15), "wood", seg=10)
+    p.log((0.6, -0.2, H + 0.04), (0.86, -0.26, H + 0.04), 0.018, tile="wood", seg=5)
+    p.log((0.72, -0.3, H + 0.02), (0.76, -0.12, H + 0.04), 0.012, tile="rope", seg=4, end_tile="rope")
+    # a coil of rope and a hand saw hanging on the front edge
+    p.torus(0.085, 0.02, (-0.86, 0.22, H + 0.01), "rope", seg=10, tube=4)
+    p.box((0.42, 0.035, 0.09), (-0.35, -W / 2 - 0.01, H - 0.12), "iron", rot=(0, 8, 0), tile_m=0.4)
+    p.box((0.12, 0.05, 0.07), (-0.58, -W / 2 - 0.01, H - 0.15), "wood_dark", rot=(0, 8, 0), tile_m=0.3)
+    return [(p, (0, 0, 0))]
+
+
 BUILDERS = {
     "tent": tent,
     "basket": basket,
@@ -1351,4 +1505,9 @@ BUILDERS = {
     "field_large": field_large,
     "log_shelter": log_shelter,
     "cabin_bed": cabin_bed,
+    # station art (dsc-stationart)
+    "makeshift_workbench": makeshift_workbench,
+    "basic_workbench": basic_workbench,
+    "journeyman_workbench": journeyman_workbench,
+    "expert_workbench": expert_workbench,
 }
