@@ -13,9 +13,9 @@ def load_atlas(path):
     return a
 
 
-def save_atlas(a, path, quality=92):
+def save_atlas(a, path, quality=92, alpha=False):
     h, w = a.shape[:2]
-    im = bpy.data.images.new("out", w, h, alpha=False)
+    im = bpy.data.images.new("out", w, h, alpha=alpha)
     im.pixels.foreach_set(np.clip(a[::-1], 0, 1).astype(np.float32).ravel())
     im.filepath_raw = path
     im.file_format = "JPEG" if path.endswith(".jpg") else "PNG"

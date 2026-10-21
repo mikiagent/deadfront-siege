@@ -260,11 +260,14 @@ stats = {"source_triangles": int(len(tris)), "shell_triangles": int(keep.sum()),
 data = json.load(open(report)) if os.path.exists(report) else {}
 data[os.path.basename(os.path.dirname(out))] = stats
 json.dump(data, open(report, "w"), indent=1)
-# The kit's helmet slot: the head now shows under the helmet, only the hair piece hides (it would poke through).
+# The kit's helmet slot: the head now shows under the helmet, only the hair piece hides (it would poke through), and
+# under the skull a shell beard too: its cheek guards run down beside the jaw, and a 6-12 mm beard comes out through
+# them (P4, face/face_clip_penetration.json). The beard's stubble decal stays.
 kit_path = os.path.join(os.path.dirname(out), "kit.json")
 if os.path.exists(kit_path):
     kit = json.load(open(kit_path))
-    kit["slots"]["helmet"].update({"triangles": stats["triangles"], "hides": ["hair"]})
+    hides = ["hair", "beard"] if os.path.basename(os.path.dirname(out)) == "hide_and_bone" else ["hair"]
+    kit["slots"]["helmet"].update({"triangles": stats["triangles"], "hides": hides})
     kit["provenance"]["helmet_shell"] = "tools/blender/survivor_appearance/shell_helmet.py (see ../helmet_shells.json)"
     json.dump(kit, open(kit_path, "w"), indent=1)
 print("SHELL", out, json.dumps({k: v for k, v in stats.items() if k not in ("surfaces", "caps", "holes_left")}),

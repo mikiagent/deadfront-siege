@@ -1,6 +1,8 @@
 # Inspection renders of appearance options in headless Blender, neutral studio light, bind pose.
 #   Blender -b --factory-startup -P render_options.py -- <out_dir> <sheet.png> <row>=<a.glb>,<b.glb> [<row>=...]
 #   [views=front,side,34,back,portrait,iso] picks the views (default: the first five).
+#   [engine=eevee] renders with EEVEE under an even grey sky and a soft key (Workbench, the default, shows neither
+#   alpha-blended decals nor material colour factors).
 # Each row is one look (the pieces are loaded together with the unchanged body chest/arms/legs for context)
 # and gets front, side, 3/4, back (the nape hairline) and portrait views; the sheet stacks the rows (first row = the unchanged base).
 # Also writes <out_dir>/<row>_<view>.png and prints, per row, how many pixels differ from the first row.
@@ -10,7 +12,8 @@ from mathutils import Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 out, sheet = argv[0], argv[1]
-rows = [(a.split("=", 1)[0], a.split("=", 1)[1].split(",")) for a in argv[2:] if not a.startswith("views=")]
+rows = [(a.split("=", 1)[0], a.split("=", 1)[1].split(",")) for a in argv[2:] if not a.startswith(("views=", "engine="))]
+EEVEE = "engine=eevee" in argv
 pick = next((a[6:].split(",") for a in argv[2:] if a.startswith("views=")), None)  # views=front,iso,... (default: five)
 BODY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../game/assets/characters/survivor/body")
 CONTEXT = [os.path.normpath(f"{BODY}/body_{r}.glb") for r in ("chest", "arms", "legs")]
@@ -36,6 +39,16 @@ def clear():
     sc.display_settings.display_device = "sRGB"
     sc.view_settings.view_transform = "Standard"
     sc.render.resolution_x = sc.render.resolution_y = RES
+    if EEVEE:
+        sc.render.engine = "BLENDER_EEVEE"
+        sc.world = bpy.data.worlds.new("w")
+        sc.world.use_nodes = True
+        bg = next(n for n in sc.world.node_tree.nodes if n.type == "BACKGROUND")
+        bg.inputs[0].default_value, bg.inputs[1].default_value = (0.42, 0.42, 0.42, 1), 1.0
+        sun = bpy.data.objects.new("key", bpy.data.lights.new("key", "SUN"))
+        sun.data.energy, sun.data.angle = 1.6, 0.5
+        sun.rotation_euler = (0.9, 0.0, -0.5)
+        sc.collection.objects.link(sun)
     sc.render.image_settings.file_format = "PNG"
     cd = bpy.data.cameras.new("cam")
     cam = bpy.data.objects.new("cam", cd)
@@ -50,6 +63,16 @@ def load(paths):
     for o in list(bpy.data.objects):
         if o.type == "MESH" and not o.modifiers and o.name.startswith("Icosphere"):
             bpy.data.objects.remove(o)  # importer's bone-shape helper
+    if EEVEE:  # draw like the game: PlayerView.web_safe_mesh keeps albedo (and alpha), roughness 0.82, no normal or ORM map
+        for m in bpy.data.materials:
+            bsdf = next((n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None) if m.node_tree else None
+            if bsdf is None:
+                continue
+            for name, value in (("Normal", None), ("Roughness", 0.82), ("Metallic", 0.0)):
+                for l in list(bsdf.inputs[name].links):
+                    m.node_tree.links.remove(l)
+                if value is not None:
+                    bsdf.inputs[name].default_value = value
 
 
 def shoot(sc, cam, cd, path, d, ortho):

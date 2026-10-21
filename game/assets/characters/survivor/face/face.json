@@ -1,0 +1,262 @@
+{
+ "shave": {
+  "vertices": 267,
+  "texels": 61912,
+  "upper_lip_texels": 627,
+  "triangles": 1168
+ },
+ "browless": {
+  "vertices": 70,
+  "texels": 5981,
+  "triangles": 398
+ },
+ "hair_tint": "#4c4037",
+ "heavy_stubble": {
+  "triangles": 1350,
+  "texels": 335876,
+  "covered": 136906
+ },
+ "moustache": {
+  "triangles": 425,
+  "texels": 128505,
+  "covered": 35356
+ },
+ "goatee": {
+  "triangles": 163,
+  "texels": 130952,
+  "covered": 43882
+ },
+ "brows_straight": {
+  "triangles": 287,
+  "texels": 124463,
+  "covered": 14994
+ },
+ "brows_arched": {
+  "triangles": 213,
+  "texels": 135070,
+  "covered": 11955
+ },
+ "brows_bushy": {
+  "triangles": 331,
+  "texels": 123076,
+  "covered": 19073
+ },
+ "brow_scar": {
+  "triangles": 33,
+  "texels": 186712,
+  "covered": 13490
+ },
+ "cheek_scar": {
+  "triangles": 48,
+  "texels": 138081,
+  "covered": 12180
+ },
+ "freckles": {
+  "triangles": 591,
+  "texels": 103339,
+  "covered": 6001
+ },
+ "face_paint": {
+  "triangles": 320,
+  "texels": 124405,
+  "covered": 15149
+ },
+ "age_lines": {
+  "triangles": 403,
+  "texels": 133560,
+  "covered": 3651
+ },
+ "beard_short": {
+  "triangles": 6869,
+  "skirt_triangles": 922,
+  "length_mm": 6.0,
+  "chin_drop_mm": 0.0
+ },
+ "beard_long": {
+  "triangles": 6869,
+  "skirt_triangles": 922,
+  "length_mm": 12.0,
+  "chin_drop_mm": 22.0
+ },
+ "options": {
+  "facial_hair": [
+   {
+    "id": "base_stubble",
+    "name": "Stubble",
+    "scene": "",
+    "attach_bone": "Head",
+    "region": "facial_hair",
+    "genders": [
+     "m",
+     "f"
+    ]
+   },
+   {
+    "id": "clean",
+    "name": "Clean-shaven",
+    "scene": "res://assets/characters/survivor/face/fh_clean.glb",
+    "attach_bone": "Head",
+    "region": "facial_hair",
+    "genders": [
+     "m"
+    ]
+   },
+   {
+    "id": "heavy_stubble",
+    "name": "Heavy stubble",
+    "scene": "res://assets/characters/survivor/face/fh_heavy_stubble.glb",
+    "attach_bone": "Head",
+    "region": "facial_hair",
+    "genders": [
+     "m"
+    ]
+   },
+   {
+    "id": "moustache",
+    "name": "Moustache",
+    "scene": "res://assets/characters/survivor/face/fh_moustache.glb",
+    "attach_bone": "Head",
+    "region": "facial_hair",
+    "genders": [
+     "m"
+    ]
+   },
+   {
+    "id": "goatee",
+    "name": "Goatee",
+    "scene": "res://assets/characters/survivor/face/fh_goatee.glb",
+    "attach_bone": "Head",
+    "region": "facial_hair",
+    "genders": [
+     "m"
+    ]
+   },
+   {
+    "id": "beard_short",
+    "name": "Short beard",
+    "scene": "res://assets/characters/survivor/face/fh_beard_short.glb",
+    "attach_bone": "Head",
+    "region": "facial_hair",
+    "genders": [
+     "m"
+    ]
+   },
+   {
+    "id": "beard_long",
+    "name": "Long beard",
+    "scene": "res://assets/characters/survivor/face/fh_beard_long.glb",
+    "attach_bone": "Head",
+    "region": "facial_hair",
+    "genders": [
+     "m"
+    ]
+   }
+  ],
+  "brows": [
+   {
+    "id": "base_brows",
+    "name": "Natural",
+    "scene": "",
+    "attach_bone": "Head",
+    "region": "brows",
+    "genders": [
+     "m",
+     "f"
+    ]
+   },
+   {
+    "id": "straight",
+    "name": "Straight",
+    "scene": "res://assets/characters/survivor/face/br_straight.glb",
+    "attach_bone": "Head",
+    "region": "brows",
+    "genders": [
+     "m"
+    ]
+   },
+   {
+    "id": "arched",
+    "name": "Arched",
+    "scene": "res://assets/characters/survivor/face/br_arched.glb",
+    "attach_bone": "Head",
+    "region": "brows",
+    "genders": [
+     "m"
+    ]
+   },
+   {
+    "id": "bushy",
+    "name": "Bushy",
+    "scene": "res://assets/characters/survivor/face/br_bushy.glb",
+    "attach_bone": "Head",
+    "region": "brows",
+    "genders": [
+     "m"
+    ]
+   }
+  ],
+  "face": [
+   {
+    "id": "base_face",
+    "name": "None",
+    "scene": "",
+    "attach_bone": "Head",
+    "region": "features",
+    "genders": [
+     "m",
+     "f"
+    ]
+   },
+   {
+    "id": "brow_scar",
+    "name": "Brow scar",
+    "scene": "res://assets/characters/survivor/face/ft_brow_scar.glb",
+    "attach_bone": "Head",
+    "region": "features",
+    "genders": [
+     "m"
+    ]
+   },
+   {
+    "id": "cheek_scar",
+    "name": "Cheek scar",
+    "scene": "res://assets/characters/survivor/face/ft_cheek_scar.glb",
+    "attach_bone": "Head",
+    "region": "features",
+    "genders": [
+     "m"
+    ]
+   },
+   {
+    "id": "freckles",
+    "name": "Freckles",
+    "scene": "res://assets/characters/survivor/face/ft_freckles.glb",
+    "attach_bone": "Head",
+    "region": "features",
+    "genders": [
+     "m"
+    ]
+   },
+   {
+    "id": "face_paint",
+    "name": "Face paint",
+    "scene": "res://assets/characters/survivor/face/ft_face_paint.glb",
+    "attach_bone": "Head",
+    "region": "features",
+    "genders": [
+     "m"
+    ]
+   },
+   {
+    "id": "age_lines",
+    "name": "Age lines",
+    "scene": "res://assets/characters/survivor/face/ft_age_lines.glb",
+    "attach_bone": "Head",
+    "region": "features",
+    "genders": [
+     "m"
+    ]
+   }
+  ]
+ }
+}

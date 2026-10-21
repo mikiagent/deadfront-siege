@@ -9,7 +9,8 @@
    "triangles": 2058,
    "covers": 1.0,
    "hides": [
-    "hair"
+    "hair",
+    "beard"
    ]
   },
   "chest": {

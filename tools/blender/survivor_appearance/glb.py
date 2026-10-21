@@ -151,3 +151,72 @@ def embedded_images(js, bn):
         o = v.get("byteOffset", 0)
         out.append({"bytes": bn[o:o + v["byteLength"]], "mimeType": im["mimeType"], "name": im["name"]})
     return out
+
+
+def write_parts(template_js, template_bn, path, parts):
+    """Write several skinned meshes into one file, each its own node on the template's skin (P4 face pieces: an
+    opaque overlay, an alpha-blended decal, a beard shell). parts: list of {"name", "arrays" (as write_piece),
+    "material" (glTF dict, its textures as {"index": i} into "images"), "images": [{"uri", "name"}]}."""
+    js = copy.deepcopy(template_js)
+    blob = bytearray()
+    views, accs = [], []
+
+    def add(arr, target, ctype, typ, minmax=False):
+        while len(blob) % 4:
+            blob.append(0)
+        data = np.ascontiguousarray(arr)
+        views.append({"buffer": 0, "byteOffset": len(blob), "byteLength": data.nbytes, **({"target": target} if target else {})})
+        blob.extend(data.tobytes())
+        acc = {"bufferView": len(views) - 1, "componentType": ctype, "count": int(data.shape[0]), "type": typ}
+        if minmax:
+            acc["min"], acc["max"] = data.min(0).tolist(), data.max(0).tolist()
+        accs.append(acc)
+        return len(accs) - 1
+
+    ibm = accessor(template_js, template_bn, js["skins"][0]["inverseBindMatrices"]).astype(np.float32)
+    js["skins"][0]["inverseBindMatrices"] = add(ibm, None, 5126, "MAT4")
+    mesh_node = next(i for i, n in enumerate(js["nodes"]) if "mesh" in n)
+    parent = next(n for n in js["nodes"] if mesh_node in n.get("children", []))
+    js["meshes"], js["materials"], js["images"], js["textures"] = [], [], [], []
+    for k, p in enumerate(parts):
+        a = p["arrays"]
+        j = a["JOINTS_0"]
+        attrs = {"POSITION": add(a["POSITION"].astype(np.float32), 34962, 5126, "VEC3", True),
+                 "NORMAL": add(a["NORMAL"].astype(np.float32), 34962, 5126, "VEC3"),
+                 "TEXCOORD_0": add(a["TEXCOORD_0"].astype(np.float32), 34962, 5126, "VEC2"),
+                 "JOINTS_0": add(j, 34962, 5121 if j.dtype == np.uint8 else 5123, "VEC4"),
+                 "WEIGHTS_0": add(a["WEIGHTS_0"].astype(np.float32), 34962, 5126, "VEC4")}
+        idx = add(a["indices"].astype(np.uint32), 34963, 5125, "SCALAR")
+        mat = copy.deepcopy(p["material"])
+        base = len(js["images"])
+        for im in p.get("images", []):
+            js["textures"].append({"source": len(js["images"]), **({"sampler": 0} if js.get("samplers") else {})})
+            js["images"].append({"uri": im["uri"], "name": im["name"]})
+
+        def shift(d):  # texture indices are per part: move them past the earlier parts' textures
+            for key, v in d.items():
+                if isinstance(v, dict):
+                    if key.endswith("Texture") and "index" in v:
+                        v["index"] += base
+                    else:
+                        shift(v)
+        shift(mat)
+        js["materials"].append(mat)
+        js["meshes"].append({"name": p["name"], "primitives": [{"attributes": attrs, "indices": idx, "material": k}]})
+        if k == 0:
+            js["nodes"][mesh_node].update({"name": p["name"], "mesh": 0})
+        else:
+            js["nodes"].append({"name": p["name"], "mesh": k, "skin": 0})
+            parent["children"].append(len(js["nodes"]) - 1)
+    if not js["images"]:
+        for key in ("images", "textures", "samplers"):
+            js.pop(key, None)
+    js["accessors"], js["bufferViews"] = accs, views
+    while len(blob) % 4:
+        blob.append(0)
+    js["buffers"] = [{"byteLength": len(blob)}]
+    jb = json.dumps(js, separators=(",", ":")).encode()
+    jb += b" " * ((4 - len(jb) % 4) % 4)
+    out = struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(jb) + 8 + len(blob))
+    out += struct.pack("<II", len(jb), 0x4E4F534A) + jb + struct.pack("<II", len(blob), 0x004E4942) + bytes(blob)
+    open(path, "wb").write(out)

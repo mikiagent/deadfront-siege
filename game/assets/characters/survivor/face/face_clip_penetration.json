@@ -1,0 +1,2652 @@
+{
+ "frames_per_clip": 12,
+ "ear_top_y": 1.66,
+ "bind_drift_m": 3.0415573837316856e-07,
+ "clips": {
+  "alert": {
+   "fh_clean": {
+    "max_mm": 0.24,
+    "below_ears_mm": 0.24,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.14,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.6,
+    "below_ears_mm": 0.6,
+    "poke_forager_mm": 0.61,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.21,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_moustache": {
+    "max_mm": 0.6,
+    "below_ears_mm": 0.6,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.14,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.6,
+    "below_ears_mm": 0.6,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.14,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.85,
+    "below_ears_mm": 0.85,
+    "poke_forager_mm": 0.61,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 1.16,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "fh_beard_long": {
+    "max_mm": 0.85,
+    "below_ears_mm": 0.85,
+    "poke_forager_mm": 0.61,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 6.52,
+    "poke_hide_and_bone_vertices": 80
+   },
+   "br_bushy": {
+    "max_mm": 0.03,
+    "below_ears_mm": 0.03,
+    "poke_forager_mm": 0.71,
+    "poke_forager_vertices": 9,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.78,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.86,
+    "below_ears_mm": 0.86,
+    "poke_forager_mm": 0.84,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.22,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.85,
+    "below_ears_mm": 0.85,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.16,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "beard_long_shell": {
+    "max_mm": 0.85,
+    "below_ears_mm": 0.85,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.52,
+    "poke_hide_and_bone_vertices": 80
+   }
+  },
+  "attack_heavy": {
+   "fh_clean": {
+    "max_mm": 0.31,
+    "below_ears_mm": 0.31,
+    "poke_forager_mm": 0.26,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.31,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.33,
+    "below_ears_mm": 0.33,
+    "poke_forager_mm": 0.63,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.71,
+    "poke_hide_and_bone_vertices": 4
+   },
+   "fh_moustache": {
+    "max_mm": 0.33,
+    "below_ears_mm": 0.33,
+    "poke_forager_mm": 0.26,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.31,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.33,
+    "below_ears_mm": 0.33,
+    "poke_forager_mm": 0.26,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.31,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.92,
+    "below_ears_mm": 0.92,
+    "poke_forager_mm": 0.63,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 1.41,
+    "poke_hide_and_bone_vertices": 9
+   },
+   "fh_beard_long": {
+    "max_mm": 0.92,
+    "below_ears_mm": 0.92,
+    "poke_forager_mm": 0.63,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 6.68,
+    "poke_hide_and_bone_vertices": 83
+   },
+   "br_bushy": {
+    "max_mm": 0.04,
+    "below_ears_mm": 0.04,
+    "poke_forager_mm": 0.75,
+    "poke_forager_vertices": 8,
+    "poke_hide_and_bone_mm": 0.13,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.85,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.47,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.91,
+    "below_ears_mm": 0.91,
+    "poke_forager_mm": 0.89,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.47,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.92,
+    "below_ears_mm": 0.92,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.41,
+    "poke_hide_and_bone_vertices": 7
+   },
+   "beard_long_shell": {
+    "max_mm": 0.92,
+    "below_ears_mm": 0.92,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.68,
+    "poke_hide_and_bone_vertices": 81
+   }
+  },
+  "attack_primary": {
+   "fh_clean": {
+    "max_mm": 0.35,
+    "below_ears_mm": 0.35,
+    "poke_forager_mm": 0.38,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.13,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.69,
+    "below_ears_mm": 0.69,
+    "poke_forager_mm": 0.74,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.51,
+    "poke_hide_and_bone_vertices": 2
+   },
+   "fh_moustache": {
+    "max_mm": 0.69,
+    "below_ears_mm": 0.69,
+    "poke_forager_mm": 0.38,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.13,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.69,
+    "below_ears_mm": 0.69,
+    "poke_forager_mm": 0.38,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.13,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 1.45,
+    "below_ears_mm": 1.45,
+    "poke_forager_mm": 0.74,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 1.69,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "fh_beard_long": {
+    "max_mm": 1.45,
+    "below_ears_mm": 1.45,
+    "poke_forager_mm": 0.74,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 7.0,
+    "poke_hide_and_bone_vertices": 151
+   },
+   "br_bushy": {
+    "max_mm": 0.04,
+    "below_ears_mm": 0.04,
+    "poke_forager_mm": 0.78,
+    "poke_forager_vertices": 9,
+    "poke_hide_and_bone_mm": 0.18,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.95,
+    "poke_forager_vertices": 2,
+    "poke_hide_and_bone_mm": 0.38,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.84,
+    "below_ears_mm": 0.84,
+    "poke_forager_mm": 0.92,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.38,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 1.45,
+    "below_ears_mm": 1.45,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.69,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 1.45,
+    "below_ears_mm": 1.45,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 7.0,
+    "poke_hide_and_bone_vertices": 151
+   }
+  },
+  "butcher": {
+   "fh_clean": {
+    "max_mm": 0.32,
+    "below_ears_mm": 0.32,
+    "poke_forager_mm": 0.33,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.18,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.61,
+    "below_ears_mm": 0.61,
+    "poke_forager_mm": 0.73,
+    "poke_forager_vertices": 2,
+    "poke_hide_and_bone_mm": 0.6,
+    "poke_hide_and_bone_vertices": 3
+   },
+   "fh_moustache": {
+    "max_mm": 0.61,
+    "below_ears_mm": 0.61,
+    "poke_forager_mm": 0.33,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.18,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.61,
+    "below_ears_mm": 0.61,
+    "poke_forager_mm": 0.33,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.18,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 1.09,
+    "below_ears_mm": 1.09,
+    "poke_forager_mm": 0.73,
+    "poke_forager_vertices": 2,
+    "poke_hide_and_bone_mm": 1.33,
+    "poke_hide_and_bone_vertices": 10
+   },
+   "fh_beard_long": {
+    "max_mm": 1.09,
+    "below_ears_mm": 1.09,
+    "poke_forager_mm": 0.73,
+    "poke_forager_vertices": 2,
+    "poke_hide_and_bone_mm": 6.83,
+    "poke_hide_and_bone_vertices": 79
+   },
+   "br_bushy": {
+    "max_mm": 0.04,
+    "below_ears_mm": 0.04,
+    "poke_forager_mm": 0.79,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.91,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.32,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.88,
+    "below_ears_mm": 0.88,
+    "poke_forager_mm": 0.91,
+    "poke_forager_vertices": 2,
+    "poke_hide_and_bone_mm": 0.32,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 1.09,
+    "below_ears_mm": 1.09,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.33,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 1.09,
+    "below_ears_mm": 1.09,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.83,
+    "poke_hide_and_bone_vertices": 79
+   }
+  },
+  "craft": {
+   "fh_clean": {
+    "max_mm": 0.3,
+    "below_ears_mm": 0.3,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.32,
+    "below_ears_mm": 0.32,
+    "poke_forager_mm": 0.72,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_moustache": {
+    "max_mm": 0.32,
+    "below_ears_mm": 0.32,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.32,
+    "below_ears_mm": 0.32,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.72,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 1.18,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "fh_beard_long": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.72,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 6.59,
+    "poke_hide_and_bone_vertices": 79
+   },
+   "br_bushy": {
+    "max_mm": 0.02,
+    "below_ears_mm": 0.02,
+    "poke_forager_mm": 0.79,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.93,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.96,
+    "below_ears_mm": 0.96,
+    "poke_forager_mm": 0.93,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.19,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.18,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "beard_long_shell": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.59,
+    "poke_hide_and_bone_vertices": 79
+   }
+  },
+  "death": {
+   "fh_clean": {
+    "max_mm": 0.26,
+    "below_ears_mm": 0.26,
+    "poke_forager_mm": 0.37,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.48,
+    "below_ears_mm": 0.48,
+    "poke_forager_mm": 0.76,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.53,
+    "poke_hide_and_bone_vertices": 2
+   },
+   "fh_moustache": {
+    "max_mm": 0.27,
+    "below_ears_mm": 0.27,
+    "poke_forager_mm": 0.37,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.27,
+    "below_ears_mm": 0.27,
+    "poke_forager_mm": 0.37,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.72,
+    "below_ears_mm": 0.72,
+    "poke_forager_mm": 0.76,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 1.45,
+    "poke_hide_and_bone_vertices": 7
+   },
+   "fh_beard_long": {
+    "max_mm": 0.72,
+    "below_ears_mm": 0.72,
+    "poke_forager_mm": 0.76,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 6.68,
+    "poke_hide_and_bone_vertices": 81
+   },
+   "br_bushy": {
+    "max_mm": 0.04,
+    "below_ears_mm": 0.04,
+    "poke_forager_mm": 0.78,
+    "poke_forager_vertices": 6,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.9,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.88,
+    "below_ears_mm": 0.88,
+    "poke_forager_mm": 0.9,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.27,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.72,
+    "below_ears_mm": 0.72,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.45,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "beard_long_shell": {
+    "max_mm": 0.72,
+    "below_ears_mm": 0.72,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.68,
+    "poke_hide_and_bone_vertices": 79
+   }
+  },
+  "drink": {
+   "fh_clean": {
+    "max_mm": 0.29,
+    "below_ears_mm": 0.29,
+    "poke_forager_mm": 0.31,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.31,
+    "below_ears_mm": 0.31,
+    "poke_forager_mm": 0.45,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.71,
+    "poke_hide_and_bone_vertices": 2
+   },
+   "fh_moustache": {
+    "max_mm": 0.31,
+    "below_ears_mm": 0.31,
+    "poke_forager_mm": 0.31,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.31,
+    "below_ears_mm": 0.31,
+    "poke_forager_mm": 0.31,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 1.02,
+    "below_ears_mm": 1.02,
+    "poke_forager_mm": 0.45,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.2,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "fh_beard_long": {
+    "max_mm": 1.02,
+    "below_ears_mm": 1.02,
+    "poke_forager_mm": 0.45,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.59,
+    "poke_hide_and_bone_vertices": 82
+   },
+   "br_bushy": {
+    "max_mm": 0.02,
+    "below_ears_mm": 0.02,
+    "poke_forager_mm": 0.77,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.9,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.89,
+    "below_ears_mm": 0.89,
+    "poke_forager_mm": 0.9,
+    "poke_forager_vertices": 2,
+    "poke_hide_and_bone_mm": 0.24,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 1.02,
+    "below_ears_mm": 1.02,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.2,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "beard_long_shell": {
+    "max_mm": 1.02,
+    "below_ears_mm": 1.02,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.59,
+    "poke_hide_and_bone_vertices": 80
+   }
+  },
+  "eat": {
+   "fh_clean": {
+    "max_mm": 0.29,
+    "below_ears_mm": 0.29,
+    "poke_forager_mm": 0.32,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.31,
+    "below_ears_mm": 0.31,
+    "poke_forager_mm": 0.45,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.66,
+    "poke_hide_and_bone_vertices": 2
+   },
+   "fh_moustache": {
+    "max_mm": 0.31,
+    "below_ears_mm": 0.31,
+    "poke_forager_mm": 0.32,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.31,
+    "below_ears_mm": 0.31,
+    "poke_forager_mm": 0.32,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 1.01,
+    "below_ears_mm": 1.01,
+    "poke_forager_mm": 0.45,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.2,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "fh_beard_long": {
+    "max_mm": 1.01,
+    "below_ears_mm": 1.01,
+    "poke_forager_mm": 0.45,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.59,
+    "poke_hide_and_bone_vertices": 82
+   },
+   "br_bushy": {
+    "max_mm": 0.02,
+    "below_ears_mm": 0.02,
+    "poke_forager_mm": 0.76,
+    "poke_forager_vertices": 2,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 1.0,
+    "below_ears_mm": 1.0,
+    "poke_forager_mm": 0.62,
+    "poke_forager_vertices": 2,
+    "poke_hide_and_bone_mm": 0.23,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 1.01,
+    "below_ears_mm": 1.01,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.2,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "beard_long_shell": {
+    "max_mm": 1.01,
+    "below_ears_mm": 1.01,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.59,
+    "poke_hide_and_bone_vertices": 80
+   }
+  },
+  "farm": {
+   "fh_clean": {
+    "max_mm": 0.3,
+    "below_ears_mm": 0.3,
+    "poke_forager_mm": 0.12,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.33,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.66,
+    "below_ears_mm": 0.66,
+    "poke_forager_mm": 0.69,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.69,
+    "poke_hide_and_bone_vertices": 5
+   },
+   "fh_moustache": {
+    "max_mm": 0.66,
+    "below_ears_mm": 0.66,
+    "poke_forager_mm": 0.12,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.33,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.66,
+    "below_ears_mm": 0.66,
+    "poke_forager_mm": 0.12,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.33,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.66,
+    "below_ears_mm": 0.66,
+    "poke_forager_mm": 0.69,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 1.3,
+    "poke_hide_and_bone_vertices": 11
+   },
+   "fh_beard_long": {
+    "max_mm": 0.66,
+    "below_ears_mm": 0.66,
+    "poke_forager_mm": 0.69,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 6.73,
+    "poke_hide_and_bone_vertices": 80
+   },
+   "br_bushy": {
+    "max_mm": 0.03,
+    "below_ears_mm": 0.03,
+    "poke_forager_mm": 0.66,
+    "poke_forager_vertices": 9,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.81,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.73,
+    "below_ears_mm": 0.73,
+    "poke_forager_mm": 0.83,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.29,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.55,
+    "below_ears_mm": 0.55,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.3,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 0.55,
+    "below_ears_mm": 0.55,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.73,
+    "poke_hide_and_bone_vertices": 78
+   }
+  },
+  "fish_cast": {
+   "fh_clean": {
+    "max_mm": 0.29,
+    "below_ears_mm": 0.29,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.31,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.6,
+    "below_ears_mm": 0.6,
+    "poke_forager_mm": 0.67,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.76,
+    "poke_hide_and_bone_vertices": 5
+   },
+   "fh_moustache": {
+    "max_mm": 0.6,
+    "below_ears_mm": 0.6,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.31,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.6,
+    "below_ears_mm": 0.6,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.31,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 1.07,
+    "below_ears_mm": 1.07,
+    "poke_forager_mm": 0.67,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 1.5,
+    "poke_hide_and_bone_vertices": 11
+   },
+   "fh_beard_long": {
+    "max_mm": 1.07,
+    "below_ears_mm": 1.07,
+    "poke_forager_mm": 0.67,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 6.92,
+    "poke_hide_and_bone_vertices": 86
+   },
+   "br_bushy": {
+    "max_mm": 0.04,
+    "below_ears_mm": 0.04,
+    "poke_forager_mm": 0.75,
+    "poke_forager_vertices": 11,
+    "poke_hide_and_bone_mm": 0.12,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.85,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.4,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.96,
+    "below_ears_mm": 0.96,
+    "poke_forager_mm": 0.85,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.4,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 1.07,
+    "below_ears_mm": 1.07,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.5,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 1.07,
+    "below_ears_mm": 1.07,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.92,
+    "poke_hide_and_bone_vertices": 84
+   }
+  },
+  "fish_wait": {
+   "fh_clean": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.35,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.75,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.4,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_moustache": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.35,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.35,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.75,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 1.2,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "fh_beard_long": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.75,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 6.58,
+    "poke_hide_and_bone_vertices": 80
+   },
+   "br_bushy": {
+    "max_mm": 0.03,
+    "below_ears_mm": 0.03,
+    "poke_forager_mm": 0.75,
+    "poke_forager_vertices": 6,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.6,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.6,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.27,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.2,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "beard_long_shell": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.58,
+    "poke_hide_and_bone_vertices": 80
+   }
+  },
+  "gather": {
+   "fh_clean": {
+    "max_mm": 0.3,
+    "below_ears_mm": 0.3,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.67,
+    "below_ears_mm": 0.67,
+    "poke_forager_mm": 0.71,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.72,
+    "poke_hide_and_bone_vertices": 2
+   },
+   "fh_moustache": {
+    "max_mm": 0.67,
+    "below_ears_mm": 0.67,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.67,
+    "below_ears_mm": 0.67,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 1.1,
+    "below_ears_mm": 1.1,
+    "poke_forager_mm": 0.71,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 1.2,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "fh_beard_long": {
+    "max_mm": 1.1,
+    "below_ears_mm": 1.1,
+    "poke_forager_mm": 0.71,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 6.59,
+    "poke_hide_and_bone_vertices": 79
+   },
+   "br_bushy": {
+    "max_mm": 0.03,
+    "below_ears_mm": 0.03,
+    "poke_forager_mm": 0.78,
+    "poke_forager_vertices": 9,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.88,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.88,
+    "below_ears_mm": 0.88,
+    "poke_forager_mm": 0.88,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.23,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 1.1,
+    "below_ears_mm": 1.1,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.2,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "beard_long_shell": {
+    "max_mm": 1.1,
+    "below_ears_mm": 1.1,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.59,
+    "poke_hide_and_bone_vertices": 79
+   }
+  },
+  "gather_berry": {
+   "fh_clean": {
+    "max_mm": 0.18,
+    "below_ears_mm": 0.18,
+    "poke_forager_mm": 0.2,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.19,
+    "below_ears_mm": 0.19,
+    "poke_forager_mm": 0.72,
+    "poke_forager_vertices": 6,
+    "poke_hide_and_bone_mm": 0.64,
+    "poke_hide_and_bone_vertices": 3
+   },
+   "fh_moustache": {
+    "max_mm": 0.19,
+    "below_ears_mm": 0.19,
+    "poke_forager_mm": 0.2,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.19,
+    "below_ears_mm": 0.19,
+    "poke_forager_mm": 0.2,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.48,
+    "below_ears_mm": 0.48,
+    "poke_forager_mm": 0.72,
+    "poke_forager_vertices": 6,
+    "poke_hide_and_bone_mm": 1.34,
+    "poke_hide_and_bone_vertices": 11
+   },
+   "fh_beard_long": {
+    "max_mm": 0.48,
+    "below_ears_mm": 0.48,
+    "poke_forager_mm": 0.72,
+    "poke_forager_vertices": 6,
+    "poke_hide_and_bone_mm": 6.84,
+    "poke_hide_and_bone_vertices": 82
+   },
+   "br_bushy": {
+    "max_mm": 0.04,
+    "below_ears_mm": 0.04,
+    "poke_forager_mm": 0.67,
+    "poke_forager_vertices": 9,
+    "poke_hide_and_bone_mm": 0.13,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.73,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.33,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.89,
+    "below_ears_mm": 0.89,
+    "poke_forager_mm": 0.73,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.33,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.48,
+    "below_ears_mm": 0.48,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.34,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 0.48,
+    "below_ears_mm": 0.48,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.84,
+    "poke_hide_and_bone_vertices": 80
+   }
+  },
+  "gather_chop": {
+   "fh_clean": {
+    "max_mm": 0.26,
+    "below_ears_mm": 0.26,
+    "poke_forager_mm": 0.25,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.35,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.6,
+    "below_ears_mm": 0.6,
+    "poke_forager_mm": 0.78,
+    "poke_forager_vertices": 2,
+    "poke_hide_and_bone_mm": 0.61,
+    "poke_hide_and_bone_vertices": 3
+   },
+   "fh_moustache": {
+    "max_mm": 0.6,
+    "below_ears_mm": 0.6,
+    "poke_forager_mm": 0.25,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.35,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.6,
+    "below_ears_mm": 0.6,
+    "poke_forager_mm": 0.25,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.35,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 1.09,
+    "below_ears_mm": 1.09,
+    "poke_forager_mm": 0.78,
+    "poke_forager_vertices": 2,
+    "poke_hide_and_bone_mm": 1.34,
+    "poke_hide_and_bone_vertices": 10
+   },
+   "fh_beard_long": {
+    "max_mm": 1.09,
+    "below_ears_mm": 1.09,
+    "poke_forager_mm": 0.78,
+    "poke_forager_vertices": 2,
+    "poke_hide_and_bone_mm": 6.67,
+    "poke_hide_and_bone_vertices": 79
+   },
+   "br_bushy": {
+    "max_mm": 0.03,
+    "below_ears_mm": 0.03,
+    "poke_forager_mm": 0.78,
+    "poke_forager_vertices": 7,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.8,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.31,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 1.0,
+    "below_ears_mm": 1.0,
+    "poke_forager_mm": 0.83,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.31,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 1.09,
+    "below_ears_mm": 1.09,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.34,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 1.09,
+    "below_ears_mm": 1.09,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.67,
+    "poke_hide_and_bone_vertices": 79
+   }
+  },
+  "gather_dig": {
+   "fh_clean": {
+    "max_mm": 0.29,
+    "below_ears_mm": 0.29,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.31,
+    "below_ears_mm": 0.31,
+    "poke_forager_mm": 0.69,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.62,
+    "poke_hide_and_bone_vertices": 5
+   },
+   "fh_moustache": {
+    "max_mm": 0.31,
+    "below_ears_mm": 0.31,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.31,
+    "below_ears_mm": 0.31,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.69,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 1.22,
+    "poke_hide_and_bone_vertices": 11
+   },
+   "fh_beard_long": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.69,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 6.83,
+    "poke_hide_and_bone_vertices": 80
+   },
+   "br_bushy": {
+    "max_mm": 0.05,
+    "below_ears_mm": 0.05,
+    "poke_forager_mm": 0.75,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.11,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.86,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.31,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.84,
+    "below_ears_mm": 0.84,
+    "poke_forager_mm": 0.86,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.31,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.22,
+    "poke_hide_and_bone_vertices": 7
+   },
+   "beard_long_shell": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.83,
+    "poke_hide_and_bone_vertices": 80
+   }
+  },
+  "gather_mine": {
+   "fh_clean": {
+    "max_mm": 0.26,
+    "below_ears_mm": 0.26,
+    "poke_forager_mm": 0.15,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.28,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.7,
+    "below_ears_mm": 0.7,
+    "poke_forager_mm": 0.51,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.6,
+    "poke_hide_and_bone_vertices": 3
+   },
+   "fh_moustache": {
+    "max_mm": 0.7,
+    "below_ears_mm": 0.7,
+    "poke_forager_mm": 0.15,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.28,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.7,
+    "below_ears_mm": 0.7,
+    "poke_forager_mm": 0.15,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.28,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 1.42,
+    "below_ears_mm": 1.42,
+    "poke_forager_mm": 0.51,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 1.7,
+    "poke_hide_and_bone_vertices": 11
+   },
+   "fh_beard_long": {
+    "max_mm": 1.42,
+    "below_ears_mm": 1.42,
+    "poke_forager_mm": 0.51,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 6.84,
+    "poke_hide_and_bone_vertices": 127
+   },
+   "br_bushy": {
+    "max_mm": 0.04,
+    "below_ears_mm": 0.04,
+    "poke_forager_mm": 0.73,
+    "poke_forager_vertices": 6,
+    "poke_hide_and_bone_mm": 0.28,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.7,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.48,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.66,
+    "below_ears_mm": 0.66,
+    "poke_forager_mm": 0.88,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.48,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 1.42,
+    "below_ears_mm": 1.42,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.7,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 1.42,
+    "below_ears_mm": 1.42,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.84,
+    "poke_hide_and_bone_vertices": 127
+   }
+  },
+  "hit_react": {
+   "fh_clean": {
+    "max_mm": 0.28,
+    "below_ears_mm": 0.28,
+    "poke_forager_mm": 0.32,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.3,
+    "below_ears_mm": 0.3,
+    "poke_forager_mm": 0.74,
+    "poke_forager_vertices": 5,
+    "poke_hide_and_bone_mm": 0.63,
+    "poke_hide_and_bone_vertices": 2
+   },
+   "fh_moustache": {
+    "max_mm": 0.3,
+    "below_ears_mm": 0.3,
+    "poke_forager_mm": 0.32,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.3,
+    "below_ears_mm": 0.3,
+    "poke_forager_mm": 0.32,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.74,
+    "poke_forager_vertices": 5,
+    "poke_hide_and_bone_mm": 1.25,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "fh_beard_long": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.74,
+    "poke_forager_vertices": 5,
+    "poke_hide_and_bone_mm": 6.69,
+    "poke_hide_and_bone_vertices": 82
+   },
+   "br_bushy": {
+    "max_mm": 0.04,
+    "below_ears_mm": 0.04,
+    "poke_forager_mm": 0.78,
+    "poke_forager_vertices": 10,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.92,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.91,
+    "below_ears_mm": 0.91,
+    "poke_forager_mm": 0.92,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.29,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.25,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "beard_long_shell": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.69,
+    "poke_hide_and_bone_vertices": 81
+   }
+  },
+  "idle": {
+   "fh_clean": {
+    "max_mm": 0.3,
+    "below_ears_mm": 0.3,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.31,
+    "below_ears_mm": 0.31,
+    "poke_forager_mm": 0.73,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_moustache": {
+    "max_mm": 0.31,
+    "below_ears_mm": 0.31,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.31,
+    "below_ears_mm": 0.31,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.73,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 1.17,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "fh_beard_long": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.73,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 6.59,
+    "poke_hide_and_bone_vertices": 78
+   },
+   "br_bushy": {
+    "max_mm": 0.02,
+    "below_ears_mm": 0.02,
+    "poke_forager_mm": 0.79,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.92,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.97,
+    "below_ears_mm": 0.97,
+    "poke_forager_mm": 0.92,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.19,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.17,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "beard_long_shell": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.59,
+    "poke_hide_and_bone_vertices": 78
+   }
+  },
+  "knockdown": {
+   "fh_clean": {
+    "max_mm": 0.25,
+    "below_ears_mm": 0.25,
+    "poke_forager_mm": 0.08,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.54,
+    "below_ears_mm": 0.54,
+    "poke_forager_mm": 0.76,
+    "poke_forager_vertices": 7,
+    "poke_hide_and_bone_mm": 0.7,
+    "poke_hide_and_bone_vertices": 3
+   },
+   "fh_moustache": {
+    "max_mm": 0.54,
+    "below_ears_mm": 0.54,
+    "poke_forager_mm": 0.08,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.54,
+    "below_ears_mm": 0.54,
+    "poke_forager_mm": 0.08,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.54,
+    "below_ears_mm": 0.54,
+    "poke_forager_mm": 0.76,
+    "poke_forager_vertices": 7,
+    "poke_hide_and_bone_mm": 1.32,
+    "poke_hide_and_bone_vertices": 10
+   },
+   "fh_beard_long": {
+    "max_mm": 0.54,
+    "below_ears_mm": 0.54,
+    "poke_forager_mm": 0.76,
+    "poke_forager_vertices": 7,
+    "poke_hide_and_bone_mm": 6.71,
+    "poke_hide_and_bone_vertices": 82
+   },
+   "br_bushy": {
+    "max_mm": 0.05,
+    "below_ears_mm": 0.05,
+    "poke_forager_mm": 0.69,
+    "poke_forager_vertices": 12,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.86,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.56,
+    "below_ears_mm": 0.56,
+    "poke_forager_mm": 0.86,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.25,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.51,
+    "below_ears_mm": 0.51,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.32,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 0.51,
+    "below_ears_mm": 0.51,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.71,
+    "poke_hide_and_bone_vertices": 79
+   }
+  },
+  "mount_idle": {
+   "fh_clean": {
+    "max_mm": 0.03,
+    "below_ears_mm": 0.03,
+    "poke_forager_mm": 0.02,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.03,
+    "below_ears_mm": 0.03,
+    "poke_forager_mm": 0.16,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.29,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_moustache": {
+    "max_mm": 0.03,
+    "below_ears_mm": 0.03,
+    "poke_forager_mm": 0.02,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.03,
+    "below_ears_mm": 0.03,
+    "poke_forager_mm": 0.02,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.16,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.19,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "fh_beard_long": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.16,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.6,
+    "poke_hide_and_bone_vertices": 80
+   },
+   "br_bushy": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.74,
+    "poke_forager_vertices": 2,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.2,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.19,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "beard_long_shell": {
+    "max_mm": 0.46,
+    "below_ears_mm": 0.46,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.6,
+    "poke_hide_and_bone_vertices": 80
+   }
+  },
+  "punch": {
+   "fh_clean": {
+    "max_mm": 0.34,
+    "below_ears_mm": 0.34,
+    "poke_forager_mm": 0.31,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.42,
+    "below_ears_mm": 0.42,
+    "poke_forager_mm": 0.74,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.61,
+    "poke_hide_and_bone_vertices": 3
+   },
+   "fh_moustache": {
+    "max_mm": 0.42,
+    "below_ears_mm": 0.42,
+    "poke_forager_mm": 0.31,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.42,
+    "below_ears_mm": 0.42,
+    "poke_forager_mm": 0.31,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.84,
+    "below_ears_mm": 0.84,
+    "poke_forager_mm": 0.74,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 1.46,
+    "poke_hide_and_bone_vertices": 11
+   },
+   "fh_beard_long": {
+    "max_mm": 0.84,
+    "below_ears_mm": 0.84,
+    "poke_forager_mm": 0.74,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 6.87,
+    "poke_hide_and_bone_vertices": 81
+   },
+   "br_bushy": {
+    "max_mm": 0.02,
+    "below_ears_mm": 0.02,
+    "poke_forager_mm": 0.78,
+    "poke_forager_vertices": 9,
+    "poke_hide_and_bone_mm": 0.16,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.92,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.4,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.71,
+    "below_ears_mm": 0.71,
+    "poke_forager_mm": 0.92,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.4,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.84,
+    "below_ears_mm": 0.84,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.46,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 0.84,
+    "below_ears_mm": 0.84,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.87,
+    "poke_hide_and_bone_vertices": 79
+   }
+  },
+  "roll": {
+   "fh_clean": {
+    "max_mm": 0.26,
+    "below_ears_mm": 0.26,
+    "poke_forager_mm": 0.38,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.14,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.61,
+    "below_ears_mm": 0.61,
+    "poke_forager_mm": 0.72,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.57,
+    "poke_hide_and_bone_vertices": 2
+   },
+   "fh_moustache": {
+    "max_mm": 0.58,
+    "below_ears_mm": 0.58,
+    "poke_forager_mm": 0.38,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.14,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.58,
+    "below_ears_mm": 0.58,
+    "poke_forager_mm": 0.38,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.14,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 1.36,
+    "below_ears_mm": 1.36,
+    "poke_forager_mm": 0.72,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 1.23,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "fh_beard_long": {
+    "max_mm": 1.76,
+    "below_ears_mm": 1.76,
+    "poke_forager_mm": 0.72,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 6.63,
+    "poke_hide_and_bone_vertices": 79
+   },
+   "br_bushy": {
+    "max_mm": 0.04,
+    "below_ears_mm": 0.04,
+    "poke_forager_mm": 0.78,
+    "poke_forager_vertices": 10,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.9,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.87,
+    "below_ears_mm": 0.87,
+    "poke_forager_mm": 0.9,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.24,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 1.36,
+    "below_ears_mm": 1.36,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.23,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "beard_long_shell": {
+    "max_mm": 1.76,
+    "below_ears_mm": 1.76,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.63,
+    "poke_hide_and_bone_vertices": 79
+   }
+  },
+  "run": {
+   "fh_clean": {
+    "max_mm": 0.01,
+    "below_ears_mm": 0.01,
+    "poke_forager_mm": 0.31,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.02,
+    "below_ears_mm": 0.02,
+    "poke_forager_mm": 0.77,
+    "poke_forager_vertices": 5,
+    "poke_hide_and_bone_mm": 0.22,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_moustache": {
+    "max_mm": 0.02,
+    "below_ears_mm": 0.02,
+    "poke_forager_mm": 0.31,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.01,
+    "below_ears_mm": 0.01,
+    "poke_forager_mm": 0.31,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.83,
+    "below_ears_mm": 0.83,
+    "poke_forager_mm": 0.77,
+    "poke_forager_vertices": 5,
+    "poke_hide_and_bone_mm": 1.48,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "fh_beard_long": {
+    "max_mm": 0.83,
+    "below_ears_mm": 0.83,
+    "poke_forager_mm": 0.77,
+    "poke_forager_vertices": 5,
+    "poke_hide_and_bone_mm": 6.78,
+    "poke_hide_and_bone_vertices": 77
+   },
+   "br_bushy": {
+    "max_mm": 0.01,
+    "below_ears_mm": 0.01,
+    "poke_forager_mm": 0.75,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.14,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.89,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.34,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.96,
+    "below_ears_mm": 0.96,
+    "poke_forager_mm": 0.89,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.34,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.83,
+    "below_ears_mm": 0.83,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.48,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 0.83,
+    "below_ears_mm": 0.83,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.78,
+    "poke_hide_and_bone_vertices": 77
+   }
+  },
+  "sleep": {
+   "fh_clean": {
+    "max_mm": 0.24,
+    "below_ears_mm": 0.24,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.28,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.53,
+    "below_ears_mm": 0.53,
+    "poke_forager_mm": 0.64,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.61,
+    "poke_hide_and_bone_vertices": 3
+   },
+   "fh_moustache": {
+    "max_mm": 0.53,
+    "below_ears_mm": 0.53,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.28,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.53,
+    "below_ears_mm": 0.53,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.28,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.53,
+    "below_ears_mm": 0.53,
+    "poke_forager_mm": 0.64,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 1.26,
+    "poke_hide_and_bone_vertices": 9
+   },
+   "fh_beard_long": {
+    "max_mm": 0.53,
+    "below_ears_mm": 0.53,
+    "poke_forager_mm": 0.64,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 6.68,
+    "poke_hide_and_bone_vertices": 75
+   },
+   "br_bushy": {
+    "max_mm": 0.03,
+    "below_ears_mm": 0.03,
+    "poke_forager_mm": 0.56,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.08,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.72,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.28,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.52,
+    "below_ears_mm": 0.52,
+    "poke_forager_mm": 0.72,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.22,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.26,
+    "poke_hide_and_bone_vertices": 6
+   },
+   "beard_long_shell": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.68,
+    "poke_hide_and_bone_vertices": 75
+   }
+  },
+  "sleep_down": {
+   "fh_clean": {
+    "max_mm": 0.33,
+    "below_ears_mm": 0.33,
+    "poke_forager_mm": 0.27,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.53,
+    "below_ears_mm": 0.53,
+    "poke_forager_mm": 0.65,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.6,
+    "poke_hide_and_bone_vertices": 3
+   },
+   "fh_moustache": {
+    "max_mm": 0.53,
+    "below_ears_mm": 0.53,
+    "poke_forager_mm": 0.27,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.53,
+    "below_ears_mm": 0.53,
+    "poke_forager_mm": 0.27,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.64,
+    "below_ears_mm": 0.64,
+    "poke_forager_mm": 0.65,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 1.4,
+    "poke_hide_and_bone_vertices": 10
+   },
+   "fh_beard_long": {
+    "max_mm": 0.64,
+    "below_ears_mm": 0.64,
+    "poke_forager_mm": 0.65,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 6.74,
+    "poke_hide_and_bone_vertices": 80
+   },
+   "br_bushy": {
+    "max_mm": 0.03,
+    "below_ears_mm": 0.03,
+    "poke_forager_mm": 0.75,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.13,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.81,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.33,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.85,
+    "below_ears_mm": 0.85,
+    "poke_forager_mm": 0.81,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.33,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.64,
+    "below_ears_mm": 0.64,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.4,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 0.64,
+    "below_ears_mm": 0.64,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.74,
+    "poke_hide_and_bone_vertices": 80
+   }
+  },
+  "sleep_up": {
+   "fh_clean": {
+    "max_mm": 0.33,
+    "below_ears_mm": 0.33,
+    "poke_forager_mm": 0.35,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.55,
+    "below_ears_mm": 0.55,
+    "poke_forager_mm": 0.65,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.6,
+    "poke_hide_and_bone_vertices": 3
+   },
+   "fh_moustache": {
+    "max_mm": 0.55,
+    "below_ears_mm": 0.55,
+    "poke_forager_mm": 0.35,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.55,
+    "below_ears_mm": 0.55,
+    "poke_forager_mm": 0.35,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.65,
+    "below_ears_mm": 0.65,
+    "poke_forager_mm": 0.65,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 1.4,
+    "poke_hide_and_bone_vertices": 10
+   },
+   "fh_beard_long": {
+    "max_mm": 0.65,
+    "below_ears_mm": 0.65,
+    "poke_forager_mm": 0.65,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 6.75,
+    "poke_hide_and_bone_vertices": 81
+   },
+   "br_bushy": {
+    "max_mm": 0.03,
+    "below_ears_mm": 0.03,
+    "poke_forager_mm": 0.76,
+    "poke_forager_vertices": 9,
+    "poke_hide_and_bone_mm": 0.13,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.78,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.33,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.99,
+    "below_ears_mm": 0.99,
+    "poke_forager_mm": 0.86,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.33,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.65,
+    "below_ears_mm": 0.65,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.4,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 0.65,
+    "below_ears_mm": 0.65,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.75,
+    "poke_hide_and_bone_vertices": 80
+   }
+  },
+  "sprint": {
+   "fh_clean": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.39,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.77,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.62,
+    "poke_hide_and_bone_vertices": 2
+   },
+   "fh_moustache": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.39,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.39,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.77,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 1.36,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "fh_beard_long": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.77,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 6.75,
+    "poke_hide_and_bone_vertices": 83
+   },
+   "br_bushy": {
+    "max_mm": 0.07,
+    "below_ears_mm": 0.07,
+    "poke_forager_mm": 0.69,
+    "poke_forager_vertices": 7,
+    "poke_hide_and_bone_mm": 0.12,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.9,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.32,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.9,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.32,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.36,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.75,
+    "poke_hide_and_bone_vertices": 82
+   }
+  },
+  "throw_spear": {
+   "fh_clean": {
+    "max_mm": 0.29,
+    "below_ears_mm": 0.29,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.34,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.62,
+    "below_ears_mm": 0.62,
+    "poke_forager_mm": 0.65,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.6,
+    "poke_hide_and_bone_vertices": 3
+   },
+   "fh_moustache": {
+    "max_mm": 0.62,
+    "below_ears_mm": 0.62,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.34,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.62,
+    "below_ears_mm": 0.62,
+    "poke_forager_mm": 0.34,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.34,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.99,
+    "below_ears_mm": 0.99,
+    "poke_forager_mm": 0.65,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 1.5,
+    "poke_hide_and_bone_vertices": 11
+   },
+   "fh_beard_long": {
+    "max_mm": 0.99,
+    "below_ears_mm": 0.99,
+    "poke_forager_mm": 0.65,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 6.87,
+    "poke_hide_and_bone_vertices": 87
+   },
+   "br_bushy": {
+    "max_mm": 0.04,
+    "below_ears_mm": 0.04,
+    "poke_forager_mm": 0.76,
+    "poke_forager_vertices": 11,
+    "poke_hide_and_bone_mm": 0.11,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.84,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.37,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.95,
+    "below_ears_mm": 0.95,
+    "poke_forager_mm": 0.84,
+    "poke_forager_vertices": 3,
+    "poke_hide_and_bone_mm": 0.37,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.99,
+    "below_ears_mm": 0.99,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.5,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 0.99,
+    "below_ears_mm": 0.99,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.87,
+    "poke_hide_and_bone_vertices": 84
+   }
+  },
+  "walk": {
+   "fh_clean": {
+    "max_mm": 0.2,
+    "below_ears_mm": 0.2,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_heavy_stubble": {
+    "max_mm": 0.21,
+    "below_ears_mm": 0.21,
+    "poke_forager_mm": 0.69,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.61,
+    "poke_hide_and_bone_vertices": 3
+   },
+   "fh_moustache": {
+    "max_mm": 0.21,
+    "below_ears_mm": 0.21,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_goatee": {
+    "max_mm": 0.21,
+    "below_ears_mm": 0.21,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 0.0,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "fh_beard_short": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.69,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 1.28,
+    "poke_hide_and_bone_vertices": 10
+   },
+   "fh_beard_long": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.69,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 6.69,
+    "poke_hide_and_bone_vertices": 78
+   },
+   "br_bushy": {
+    "max_mm": 0.01,
+    "below_ears_mm": 0.01,
+    "poke_forager_mm": 0.69,
+    "poke_forager_vertices": 4,
+    "poke_hide_and_bone_mm": 0.1,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_age_lines": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0,
+    "poke_forager_mm": 0.87,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.3,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "ft_face_paint": {
+    "max_mm": 0.99,
+    "below_ears_mm": 0.99,
+    "poke_forager_mm": 0.87,
+    "poke_forager_vertices": 1,
+    "poke_hide_and_bone_mm": 0.23,
+    "poke_hide_and_bone_vertices": 0
+   },
+   "beard_short_shell": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 1.28,
+    "poke_hide_and_bone_vertices": 8
+   },
+   "beard_long_shell": {
+    "max_mm": 0.47,
+    "below_ears_mm": 0.47,
+    "poke_forager_mm": 0.0,
+    "poke_forager_vertices": 0,
+    "poke_hide_and_bone_mm": 6.69,
+    "poke_hide_and_bone_vertices": 78
+   }
+  }
+ },
+ "worst": {
+  "fh_clean": 0.35,
+  "fh_heavy_stubble": 0.7,
+  "fh_moustache": 0.7,
+  "fh_goatee": 0.7,
+  "fh_beard_short": 1.45,
+  "fh_beard_long": 1.76,
+  "br_bushy": 0.07,
+  "ft_age_lines": 0.0,
+  "ft_face_paint": 1.0,
+  "beard_short_shell": 1.45,
+  "beard_long_shell": 1.76,
+  "fh_clean_poke_forager_mm": 0.39,
+  "fh_heavy_stubble_poke_forager_mm": 0.78,
+  "fh_moustache_poke_forager_mm": 0.39,
+  "fh_goatee_poke_forager_mm": 0.39,
+  "fh_beard_short_poke_forager_mm": 0.78,
+  "fh_beard_long_poke_forager_mm": 0.78,
+  "br_bushy_poke_forager_mm": 0.79,
+  "ft_age_lines_poke_forager_mm": 0.95,
+  "ft_face_paint_poke_forager_mm": 0.93,
+  "beard_short_shell_poke_forager_mm": 0.0,
+  "beard_long_shell_poke_forager_mm": 0.0,
+  "fh_clean_poke_hide_and_bone_mm": 0.35,
+  "fh_heavy_stubble_poke_hide_and_bone_mm": 0.76,
+  "fh_moustache_poke_hide_and_bone_mm": 0.35,
+  "fh_goatee_poke_hide_and_bone_mm": 0.35,
+  "fh_beard_short_poke_hide_and_bone_mm": 1.7,
+  "fh_beard_long_poke_hide_and_bone_mm": 7.0,
+  "br_bushy_poke_hide_and_bone_mm": 0.28,
+  "ft_age_lines_poke_hide_and_bone_mm": 0.48,
+  "ft_face_paint_poke_hide_and_bone_mm": 0.48,
+  "beard_short_shell_poke_hide_and_bone_mm": 1.7,
+  "beard_long_shell_poke_hide_and_bone_mm": 7.0
+ }
+}
