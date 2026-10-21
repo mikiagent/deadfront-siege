@@ -1,0 +1,67 @@
+{
+ "mount": "utahraptor",
+ "saddle": "saddle.glb",
+ "socket": "Torso",
+ "rider_offset": [
+  -0.998284101486206,
+  -0.04792380705475807,
+  -0.033649057149887085,
+  0.0,
+  0.0198398195207119,
+  -0.8174586296081543,
+  0.575646162033081,
+  0.0,
+  -0.05509384721517563,
+  0.5739903450012207,
+  0.8170067071914673,
+  0.0,
+  -0.010251207277178764,
+  0.12192428112030029,
+  0.12310720235109329,
+  1.0
+ ],
+ "seat": {
+  "y": -0.4237,
+  "top": 0.653,
+  "half_len": 0.1004,
+  "half_w": 0.041,
+  "back_z": 0.6424
+ },
+ "stirrups": {
+  "L": [
+   0.1017,
+   -0.4541,
+   0.5783
+  ],
+  "R": [
+   -0.1013,
+   -0.4541,
+   0.5783
+  ]
+ },
+ "scale": {
+  "height_meters": 4.0,
+  "source_height_m": 0.78,
+  "game_m_per_source": 5.12803
+ },
+ "notes": "seat and straps are skinned to Torso (the back just behind the shoulders), the neck strap and its leads blend to Neck; rider_offset is the rider armature root relative to Torso in Blender's imported bone frame, column-major; rider_in_mount (added by mount_to_model_space.py) is the same pose in the mount's glTF model space and is what the game uses",
+ "rider_in_mount": [
+  1.0,
+  0.0,
+  0.0,
+  0.0,
+  -3.725290298461914e-09,
+  1.0,
+  2.246815711259842e-08,
+  0.0,
+  -1.862645149230957e-09,
+  2.1886080503463745e-08,
+  1.0,
+  0.0,
+  -1.6880221664905548e-09,
+  0.5591553449630737,
+  0.42369115352630615,
+  1.0
+ ],
+ "rider_in_mount_note": "rider armature root in the mount's glTF model space (Y-up), mount rest pose; preferred over rider_offset"
+}
