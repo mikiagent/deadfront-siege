@@ -589,9 +589,9 @@ func _grant(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var origin := str(asset.get("origin", ""))
 	var uids := ch.commit(inv, origin if origin in Provenance.ORIGINS else "market", seq)
 	var row := ch.find_uid(uids[0]) if uids.size() == 1 else -1
-	if row >= 0 and int(ch.d.bag[row].count) == n: # its own row: the part keeps who made it and when
-		for k: String in ["creator", "created_at"]:
-			if (asset as Dictionary).has(k):
+	if row >= 0 and int(ch.d.bag[row].count) == n: # its own row: the part keeps every per-instance field escrow kept (creator, created_at, ...)
+		for k: String in asset:
+			if not (ch.d.bag[row] as Dictionary).has(k):
 				ch.d.bag[row][k] = asset[k]
 	count("exported", stack.def_id, -n)
 	return ok({"item": str(stack.def_id), "count": n, "uids": uids})
