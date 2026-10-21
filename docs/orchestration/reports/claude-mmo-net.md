@@ -5,13 +5,16 @@ How to run it: `docs/orchestration/mmo/net-runbook.md`.
 Integrator hooks: `docs/orchestration/reports/claude-mmo-net-hooks.patch` (`world.gd`, `shell/boot.gd`).
 Commits: `9e80261`, `26dd455`, `baf5f72` (first pass), `4b8ec30` (review 1 fixes), `b40a1e6`
 (review 2 fixes), `ff81acb` (merge of `claude/mmo-overhaul` at `de73f92` plus the adaptation),
-`9ded4e4`, plus this report.
+`9ded4e4`, `71a77aa`, `4621f4b` (merge of the base at `29ffa29`: W2-SKILLS), `317d225` (merge of
+`e5f3ec8`, docs only), plus this report. The branch contains `claude/mmo-overhaul` up to `e5f3ec8`.
 
 ## Sync with claude/mmo-overhaul (2026-10-20, NET+CHAT run)
 
 The branch was 465 commits behind. `git merge de73f92` (the base head when I started; it moved
 three docs-only commits past `c5c920e` during the run) had **no textual conflicts**, so nothing
-of the base was dropped or reverted. The work was semantic: the base split the player (W2-PLAYER)
+of the base was dropped or reverted. While the gates ran the base merged W2-SKILLS (52 commits,
+including `character_state.gd` and `intent_handlers.gd`) and then one docs commit; both merged in
+cleanly too, and every gate was run again on that tree (below). The work was semantic: the base split the player (W2-PLAYER)
 and added the server character domain (W1-SRVDOM), and the network code had to follow.
 
 | Change | Why | Test that fails on the old behaviour |
@@ -143,9 +146,10 @@ them byte for byte against it.
 
 ## Gates (sync pass, seen this session after the last code change)
 
-All through `gslot.sh` on `9ded4e4`. Import once after the merge (alarm 900, exit 0, no SCRIPT
-ERROR) and once more for the new `net_checks.gd.uid`. With the hooks patch applied (the
-integrated state; reverted afterwards):
+All through `gslot.sh`. The final run is on `4621f4b` (the code tree of the branch head; `317d225`
+only adds base docs): import after the merge (alarm 900, exit 0, 0 SCRIPT ERROR), then with the
+hooks patch applied (the integrated state; reverted afterwards). The same set had passed on
+`9ded4e4` before W2-SKILLS arrived.
 
 ```
 net_tests exit=0 errors=0 :: [net_tests] PASS
@@ -154,15 +158,16 @@ t_occlude, t_player, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_web
 t_data exit=0 errors=0 :: [t_data] PASS items=223 recipes=155
 t_save exit=0 errors=5 :: [t_save] PASS          (the 5 deliberate SCRIPT ERRORs, as on base)
 t_uiicons exit=0 errors=0 :: [t_uiicons] PASS ids=171 files=114 ...
+t_w2_skills exit=0 errors=0 :: [t_w2_skills] PASS
 run_all exit=0 errors=0 :: [tests] PASS
 smoke exit=0 :: SMOKE PASS
 net_smoke exit=0 :: NET SMOKE PASS
-[a] [netprobe] PASS me=Survivor7877 char=Survivor7877 saw=["Survivor9232"] heard="hello from Survivor9232" puppets=1 instance=1 rejected=0
-[b] [netprobe] PASS me=Survivor9232 char=Survivor9232 saw=["Survivor7877"] heard="hello from Survivor7877" puppets=1 instance=1 rejected=0
+[a] [netprobe] PASS me=Survivor8630 char=Survivor8630 saw=["Survivor2241"] heard="hello from Survivor2241" puppets=1 instance=1 rejected=0
+[b] [netprobe] PASS me=Survivor2241 char=Survivor2241 saw=["Survivor8630"] heard="hello from Survivor8630" puppets=1 instance=1 rejected=0
 ```
 
-On the branch alone (no hooks): `SMOKE PASS` (exit 0) and `[net_tests] PASS` (exit 0, 0 SCRIPT
-ERROR, `[nettests] presence latency 48 ms`). `net_checks.gd` makes 179 `_check` calls. The only
+On the branch alone (no hooks, at `9ded4e4`): `SMOKE PASS` (exit 0) and `[net_tests] PASS` (exit 0,
+0 SCRIPT ERROR, `[nettests] presence latency 48 ms`). `net_checks.gd` makes 179 `_check` calls. The only
 `ERROR:` lines in the suite are the four deliberate `register_op refused` cases.
 
 Disk: the volume hit 0 bytes free during the run (other workflows' scratch trees hold about
