@@ -9,6 +9,9 @@ extends Node3D
 var _p: Player
 var _fails: Array[String] = []
 var _shot_base := ""
+## Owner motion gate on real frames (_watch_motion): the worst per-frame move of a drawn stack beyond
+## its own eased rise, frames watched, and the slowest frame seen.
+var _motion := {"excess": 0.0, "frames": 0, "worst_dt": 0.0}
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -94,6 +97,10 @@ func _ready() -> void:
 		if st and st.def_id in [&"berries", &"fibre_stalk", &"branch", &"stone", &"wood_log"]:
 			_check(st.level == 1, "starter-island %s is level 1 (got %d)" % [st.def_id, st.level])
 
+	print("[gather_lab] motion: %d stack frames watched, worst move beyond the rise %.1f px, slowest frame %.0f ms" % [_motion["frames"], _motion["excess"], _motion["worst_dt"] * 1000.0])
+	if DisplayServer.get_name() != "headless":
+		_check(_motion["frames"] >= 10 and _motion["excess"] <= 0.0, "a drawn stack never jumps between frames (%d frames, %.1f px past its rise)" % [_motion["frames"], _motion["excess"]])
+
 	# 4. Butcher a raptor with the stone knife: meat, hide, bone scale with the knife.
 	await _butcher()
 
@@ -164,6 +171,8 @@ func _gather(node: HarvestNode, item: StringName, units: int, shot: String, shot
 		if now > last:
 			passes += 1
 			last = now
+			if shot.begins_with("rare"):
+				_watch_motion(node)  # not awaited: it follows the stack through its life
 			if started < 0.0:
 				started = _now()
 				var reach := Vector2(_p.global_position.x - node.global_position.x, _p.global_position.z - node.global_position.z).length()
@@ -184,6 +193,32 @@ func _gather(node: HarvestNode, item: StringName, units: int, shot: String, shot
 	if shot != "":
 		await _capture(shot)
 	return per
+
+## Follows the stack a unit just raised over `node`, every frame until it is gone: relative to its
+## anchor (the camera may move), it may move no more than its rise eases (RISE_PX * 2 / LIFE px per s).
+func _watch_motion(node: HarvestNode) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var layer := get_tree().current_scene.get_node_or_null(GatherFeedback.LAYER_NAME)
+	var box: Control = layer.get_child(layer.get_child_count() - 1) if layer and layer.get_child_count() > 0 else null
+	var cam := get_viewport().get_camera_3d()
+	if box == null or not box.visible or cam == null:
+		return
+	var at := node.global_position + Vector3(0, node.top_of_node() + 0.3, 0)
+	var prev := box.position - cam.unproject_position(at)
+	var last := Time.get_ticks_usec()
+	while is_instance_valid(box) and not box.is_queued_for_deletion():
+		await get_tree().process_frame
+		if not is_instance_valid(box) or box.is_queued_for_deletion():
+			break
+		var now := Time.get_ticks_usec()
+		var dt := float(now - last) / 1000000.0
+		var rel := box.position - cam.unproject_position(at)
+		_motion["excess"] = maxf(_motion["excess"], (rel - prev).length() - (1.0 + GatherFeedback.RISE_PX * 2.0 / GatherFeedback.LIFE * dt))
+		_motion["frames"] += 1
+		_motion["worst_dt"] = maxf(_motion["worst_dt"], dt)
+		prev = rel
+		last = now
 
 ## The floating progress ring is up and drawn above the node's base on screen.
 func _ring_above(node: HarvestNode) -> bool:
