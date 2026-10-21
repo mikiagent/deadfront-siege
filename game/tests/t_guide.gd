@@ -137,6 +137,19 @@ func _test_placement() -> void:
 	_expect(FingerS.pick_angle(mid, view, keep, 1.1, none, up_right) == up_right, "the current placement stays while it fits")
 	var foot: float = FingerS.pick_angle(Vector2(800, 885), view, keep, 1.1, none, FingerS.ANGLES[0])
 	_expect(not is_nan(foot) and foot != FingerS.ANGLES[0], "a current placement that runs off the screen gives way (%s)" % foot)
+	# A block 10 px right of the below-right hand: inside GAP_NEW, outside GAP_KEEP. Whichever side the hand
+	# is on stays (the old rule flipped back to below-right, the first choice, as soon as it fit again).
+	var br: float = FingerS.ANGLES[0]
+	var bl: float = FingerS.ANGLES[1]
+	var r0: Rect2 = FingerS.hand_rect(mid, br, 1.1)
+	var near_block: Array[Rect2] = [vitals, quest, Rect2(r0.end.x + 10.0, r0.position.y, 40.0, r0.size.y)]
+	_expect(FingerS.pick_angle(mid, view, near_block, 1.1, none, br) == br and FingerS.pick_angle(mid, view, near_block, 1.1, none, bl) == bl,
+		"a placement 10 px from a block keeps its side")
+	# The flip-flop the motion gate caught at 844x390: the hand left that side; its new spot covers a label,
+	# but the side 10 px from the block is not clear enough to take it back.
+	var tag: Array[Rect2] = [Rect2(mid + Vector2(-90, -34), Vector2(45, 137))]
+	var back: float = FingerS.pick_angle(mid, view, near_block, 1.1, tag, bl)
+	_expect(not is_nan(back) and back != br, "a hand moved off a side does not flip back while that side is 10 px from a block (%s)" % back)
 	var over: Array[Rect2] = [FingerS.hand_rect(mid, up_right, 1.1)]
 	_expect(FingerS.pick_angle(mid, view, keep, 1.1, over, up_right) != up_right, "a current placement that now covers a label gives way to a clear one")
 	var boxed: Array[Rect2] = [Rect2(0, 0, 1600, 900)]

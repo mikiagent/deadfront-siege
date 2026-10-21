@@ -22,6 +22,9 @@ const TURN := 10.0      ## rad/s: the hand turns to a new placement instead of s
 const GLIDE := 12.0     ## 1/s: on a new target the hand eases over from where it was ...
 const GLIDE_MAX := 2000.0  ## ... at most this fast (px/s)
 const STICK := 0.2      ## a placement stays while it covers at most this share of the hand more of the soft rects
+const GAP_KEEP := 6.0   ## the current placement gives way this close to a HUD block or the screen edge (px) ...
+const GAP_NEW := 18.0   ## ... and another takes over only this clear of them, so the hand never flips back and forth
+const HOP_PX := 24.0    ## an anchor that moves farther than this in a frame (a new spot, not the target's motion) eases over
 ## Hand placements tried in order (finger angle, 0 = up): below-right, below-left, above-right, above-left,
 ## then square on (right, left, below, above) for targets in a corner, such as the MENU hex.
 const ANGLES: Array[float] = [-0.5236, 0.5236, -2.618, 2.618, -1.5708, 1.5708, 0.0, 3.1416]
@@ -48,6 +51,7 @@ var _want := 0.0        ## this frame's placement angle; `angle` turns toward it
 var _key := ""          ## what the hand is on (hex, rect, node or edge plus the target): a change eases over
 var _at := Vector2.ZERO ## the anchor as drawn (anchor plus the easing offset)
 var _offset := Vector2.ZERO
+var _anchor_was := Vector2.ZERO
 var _keep_off: Array[Rect2] = []
 var _s := 1.0
 
@@ -151,7 +155,10 @@ func _update(delta: float) -> bool:
 	var behind := cam.is_position_behind(at)
 	var p := cam.unproject_position(at)
 	var inner := safe.grow(-EDGE)
-	clamped = behind or not inner.has_point(p)
+	var avoid: Array[Rect2] = keep_off.duplicate()
+	avoid.append_array(soft)
+	# A target under a HUD block is as hidden as one off screen: point at it from outside the block.
+	clamped = behind or not inner.has_point(p) or avoid.any(func (k: Rect2) -> bool: return k.has_point(p))
 	_key = "%s%d" % ["edge" if clamped else "node", target.get_instance_id()]
 	if not clamped:
 		return _aim(p, safe, keep_off, s, soft)
@@ -160,8 +167,6 @@ func _update(delta: float) -> bool:
 	# same line until it clears.
 	var edge := clamp_tip(p, behind, inner)
 	var a := aim_angle(edge - inner.get_center())
-	var avoid: Array[Rect2] = keep_off.duplicate()
-	avoid.append_array(soft)
 	var n := maxi(1, ceili(edge.distance_to(inner.get_center()) / SLIDE_STEP))
 	for k in n + 1:
 		if _place(edge.lerp(inner.get_center(), float(k) / float(n)), a, avoid, s):
@@ -189,10 +194,11 @@ func _place(at: Vector2, a: float, keep_off: Array[Rect2], s: float) -> bool:
 func _settle(delta: float, was: bool, key_was: String) -> void:
 	if not was or _key == "hex":
 		_offset = Vector2.ZERO
-	elif _key != key_was:
+	elif _key != key_was or anchor.distance_to(_anchor_was) > HOP_PX:
 		_offset = _at - anchor
 	else:
 		_offset = _offset.move_toward(Vector2.ZERO, minf(_offset.length() * (1.0 - exp(-GLIDE * delta)), GLIDE_MAX * delta))
+	_anchor_was = anchor
 	angle = rotate_toward(angle, _want, TURN * delta) if was else _want
 	_at = anchor + _offset
 	for k in _keep_off:
@@ -238,8 +244,8 @@ static func aim_angle(dir: Vector2) -> float:
 static func hand_rect(at: Vector2, a: float, s: float) -> Rect2:
 	return (Transform2D(a, Vector2(s, s), 0.0, at) * BOX).grow(BOB * s)
 
-static func hand_clear(at: Vector2, a: float, s: float, safe: Rect2, keep_off: Array[Rect2]) -> bool:
-	var r := hand_rect(at, a, s)
+static func hand_clear(at: Vector2, a: float, s: float, safe: Rect2, keep_off: Array[Rect2], gap: float = 0.0) -> bool:
+	var r := hand_rect(at, a, s).grow(gap)
 	if not safe.encloses(r):
 		return false
 	for k in keep_off:
@@ -249,24 +255,28 @@ static func hand_clear(at: Vector2, a: float, s: float, safe: Rect2, keep_off: A
 
 ## The placement whose hand stays inside `safe`, off `keep_off`, and covers the least of `soft` (the
 ## first such on a tie); NAN when none fits (the finger hides rather than cover the vitals or the card).
-## `prefer` (the current placement) stays while it fits and covers at most STICK of the hand more than the
-## best, so the hand does not swap sides as the radial's labels shift.
+## No swapping sides frame to frame: `prefer` (the current placement) stays while it is GAP_KEEP clear and
+## covers at most STICK of the hand more than the best; another must be GAP_NEW clear to take over. Only
+## when nothing is that clear does any fit do.
 static func pick_angle(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: float, soft: Array[Rect2] = [], prefer: float = NAN) -> float:
-	var best := NAN
-	var best_cover := INF
-	var kept := INF
-	for a in ANGLES:
-		if not hand_clear(at, a, s, safe, keep_off):
-			continue
-		var cover := 0.0
-		for k in soft:
-			cover += hand_rect(at, a, s).intersection(k).get_area()
-		if a == prefer:
-			kept = cover
-		if cover < best_cover:
-			best = a
-			best_cover = cover
-	return prefer if kept < INF and kept <= best_cover + STICK * hand_rect(at, 0.0, s).get_area() else best
+	for loose in [false, true]:
+		var best := NAN
+		var best_cover := INF
+		var kept := INF
+		for a in ANGLES:
+			if not hand_clear(at, a, s, safe, keep_off, 0.0 if loose else (GAP_KEEP if a == prefer else GAP_NEW)):
+				continue
+			var cover := 0.0
+			for k in soft:
+				cover += hand_rect(at, a, s).intersection(k).get_area()
+			if a == prefer:
+				kept = cover
+			if cover < best_cover:
+				best = a
+				best_cover = cover
+		if not is_nan(best):
+			return prefer if kept < INF and kept <= best_cover + STICK * hand_rect(at, 0.0, s).get_area() else best
+	return NAN
 
 ## Where a target off `inner` (or behind the camera, whose projection mirrors) meets its edge on the
 ## line from the centre: the finger sits there and points out at it.
