@@ -481,7 +481,7 @@ func _deposit(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var taken := inv.remove_at(int(i), mini(int(n), int(row.count)))
 	var asset := taken.to_dict()
 	if taken.count >= int(row.count):
-		Provenance.stamp(asset, str(row.uid), str(row.origin), int(row.seq))
+		asset = (row as Dictionary).duplicate(true) # the instance itself: every field it carries leaves with it
 	else:
 		Provenance.stamp(asset, Provenance.item_uid(seq, 0), str(row.origin), seq) # a part gets a new uid
 	ch.commit(inv, str(row.origin), seq)
@@ -534,7 +534,8 @@ func _wallet(ch: CharacterState, a: Dictionary) -> Dictionary:
 ## char.receive {asset}: the economy hands back an asset act.deposit exported (a vault that
 ## refused it, or a withdrawal). Only the exact body act.deposit recorded under that uid comes
 ## back, once. Economy-minted assets (market, settlers, objective) have no entry: see the report.
-# shortcut: an item that lands in a new stack gets a fresh uid (merged units take the stack's, as everywhere).
+## An item that lands as its own row is the exported body again, uid and seq included (W2-INV:
+## every material is an instance); units that merge into a stack take that stack's, as everywhere.
 func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
 	var asset: Variant = a.get("asset")
 	if not Provenance.is_server(asset):
@@ -563,6 +564,10 @@ func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
 		return no("bag_full", "no room for %s" % stack.def_id)
 	s.exported_assets.erase(uid)
 	var uids := ch.commit(inv, str(asset.origin), seq)
+	var row := ch.find_uid(uids[0]) if uids.size() == 1 else -1
+	if row >= 0 and int(ch.d.bag[row].count) == n: # landed as its own row: the same instance comes home
+		ch.d.bag[row] = (asset as Dictionary).duplicate(true) # the exact body act.deposit recorded
+		uids = [uid]
 	count("exported", stack.def_id, -n)
 	return ok({"kind": "item", "item": str(stack.def_id), "count": n, "uids": uids})
 
