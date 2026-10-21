@@ -30,6 +30,47 @@ index 2ac1e244..479f1713 100644
  	# Field growth catch-up (same offline window as tent rest).
  	if elapsed > 0 and World.runtime:
  		for n in World.runtime.get_tree().get_nodes_in_group("field"):
+diff --git a/game/scripts/core/save_restore.gd b/game/scripts/core/save_restore.gd
+index ac920efc..d4663088 100644
+--- a/game/scripts/core/save_restore.gd
++++ b/game/scripts/core/save_restore.gd
+@@ -109,20 +109,28 @@ static func _items_of(row: Dictionary, kit: StringName) -> Array[ItemStack]:
+ 	return back
+ 
+ ## All or nothing: tried on a scratch copy of the cargo first, so a partial fit never drops items.
++## A refund bigger than the whole cargo (W2-INV: a legacy stacked row, e.g. stone x200, splits into
++## one instance per slot) would wait forever, so the cargo grows for it, as the migration overflow does.
+ static func _refund(row: Dictionary, kit: StringName, why: String) -> void:
+ 	var back := _items_of(row, kit)
+-	var scratch := Inventory.new(World.cargo_home.slot_count)
+-	scratch.load_array(World.cargo_home.to_array())
+-	var left := 0
+-	for stack in back:
+-		left += scratch.add(stack.duplicate_stack())
+-	if left > 0:
++	var left := _left_over(back, World.cargo_home.to_array())
++	if left > 0 and _left_over(back, []) == 0:
+ 		pending_refunds.append(row)
+ 		print("[save] kept %s at %s (%s) for a later refund: camp cargo is short of room for %d items" % [row.get("kind", "?"), cell_of(row), why, left])
+ 		return
++	var slots_before := World.cargo_home.slot_count
+ 	for stack in back:
+-		World.cargo_home.add(stack)
+-	print("[save] refunded %s at %s (%s): %d stacks to camp cargo" % [row.get("kind", "?"), cell_of(row), why, back.size()])
++		World.cargo_home.add_growing(stack)
++	print("[save] refunded %s at %s (%s): %d stacks to camp cargo (%d -> %d slots)" % [row.get("kind", "?"), cell_of(row), why, back.size(), slots_before, World.cargo_home.slot_count])
++
++## Units of `back` that do not fit a cargo-sized container holding `rows`.
++static func _left_over(back: Array[ItemStack], rows: Array) -> int:
++	var scratch := Inventory.new(World.cargo_home.slot_count)
++	scratch.load_array(rows)
++	var left := 0
++	for stack in back:
++		left += scratch.add(stack.duplicate_stack())
++	return left
+ 
+ static func _normalize(row: Dictionary, schema: int) -> Dictionary:
+ 	var out := row.duplicate(true)
 diff --git a/game/scripts/core/save_sanitizer.gd b/game/scripts/core/save_sanitizer.gd
 index 456a21c8..e95cce81 100644
 --- a/game/scripts/core/save_sanitizer.gd
@@ -307,10 +348,10 @@ index 90daf5a4..11bbaeea 100644
  	check(Crafting.progression_block(player, Crafting.recipe(&"raid_maul")) != "", "low level ingredients cannot make raid gear")
  	print("[gear] PARTIAL real formulas/craft allocation; acquisition, station movement and raid evasions untested; failures=%d" % failures.size())
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index b0cb5782..15e23db8 100644
+index b0cb5782..71460f52 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
-@@ -17,45 +17,35 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
+@@ -17,45 +17,37 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
  
  ## Each recipe slot has a lead stack (for the primary item's attributes) and may draw
  ## its remaining units from other stacks. A plan row records exact bag indices/counts.
@@ -320,6 +361,8 @@ index b0cb5782..15e23db8 100644
 +## (Inventory.spend_key), then dedicated materials before dual-category ones, then the lead's def;
 +## a unit that a later slot still needs (a cheap reed is also the recipe's lashing) is left for it.
 +## When a slot still runs short, plan again with dedicated materials first (the order before W2-INV).
++## A locked instance is spent only as the player's own pick (spec 13:229 "protect valuable items from
++## ... crafting consumption"), never as a default lead or fill.
  static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
 +	var plan := _plan_ordered(inv, rec, picks, true)
 +	return plan if not plan.is_empty() else _plan_ordered(inv, rec, picks, false)
@@ -334,7 +377,7 @@ index b0cb5782..15e23db8 100644
 +		if not slot is Dictionary:
 +			return []
 +		cats.append(StringName(str(slot.get("category", ""))))
-+		cands.append(inv.find_by_category(cats[-1]))
++		cands.append(inv.find_by_category(cats[-1]).filter(func(idx: int) -> bool: return not inv.slots[idx].is_locked()))
  	var remaining: Dictionary = {}
  	var plan: Array[Dictionary] = []
  	var prefer := StringName(str(rec.get("input_id", "")))
@@ -372,7 +415,7 @@ index b0cb5782..15e23db8 100644
  		var lead := -1
  		if not picks.is_empty():
  			lead = picks[i]
-@@ -63,18 +53,34 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+@@ -63,18 +55,34 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
  				return []
  			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
  				return []
@@ -412,7 +455,7 @@ index b0cb5782..15e23db8 100644
  			if take > 0:
  				parts.append({"idx": idx, "count": take})
  				remaining[idx] = available - take
-@@ -83,9 +89,33 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+@@ -83,9 +91,33 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
  				break
  		if need > 0:
  			return []
@@ -447,24 +490,7 @@ index b0cb5782..15e23db8 100644
  static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
  	var plan := _plan(inv, rec)
  	if not plan.is_empty():
-@@ -98,6 +128,16 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
- 	missing.fill(-1)
- 	return missing
- 
-+## Spec 13:486 "Do not automatically consume the most valuable item": true when the plan for these
-+## picks spends an instance with traits (e.g. every candidate has one), so the craft UI can ask for
-+## an explicit pick. # ASSUMPTION: traits only; a higher level alone does not ask.
-+static func plan_spends_traits(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
-+	for row in _plan(inv, rec, picks):
-+		for part in row.parts:
-+			if not Inventory.traits(inv.slots[int(part.idx)]).is_empty():
-+				return true
-+	return false
-+
- static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
- 	return not _plan(inv, rec, picks).is_empty()
- 
-@@ -328,7 +368,7 @@ static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burn
+@@ -328,7 +360,7 @@ static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burn
  	var primary := scratch.slots[picks[primary_index(rec)]].duplicate_stack()
  	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
  	consume_for_craft(scratch, rec, picks)
@@ -691,7 +717,7 @@ index dfb25ece..e97f1130 100644
  				continue
  			if int(row.count) < 1 or int(row.durability) < 0:
 diff --git a/game/scripts/ui/inventory_ui.gd b/game/scripts/ui/inventory_ui.gd
-index c2ae65f0..7060a6b9 100644
+index c2ae65f0..988972a6 100644
 --- a/game/scripts/ui/inventory_ui.gd
 +++ b/game/scripts/ui/inventory_ui.gd
 @@ -47,6 +47,11 @@ const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "
@@ -878,16 +904,16 @@ index c2ae65f0..7060a6b9 100644
 +		pill.border_color = UiTokens.TEXT
 +		pill.set_border_width_all(1)
 +		pill.set_corner_radius_all(10)
-+		pill.content_margin_left = 6.0
-+		pill.content_margin_right = 6.0
++		pill.content_margin_left = 3.0 # a slim pill tucked in the corner covers little of a 64 px cell's icon
++		pill.content_margin_right = 3.0
 +		b.add_theme_stylebox_override("normal", pill)
 +		b.add_theme_color_override("font_color", UiTokens.TEXT)
 +		b.anchor_left = 1.0
 +		b.anchor_right = 1.0
 +		b.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-+		b.offset_left = -4.0
-+		b.offset_right = -4.0
-+		b.offset_top = 4.0
++		b.offset_left = -2.0
++		b.offset_right = -2.0
++		b.offset_top = 2.0
 +		btn.add_child(b)
 +	b.visible = n > 0
 +	b.text = str(n)
@@ -3696,7 +3722,7 @@ index 037f42f1..03e80fa9 100644
  ## velociraptor, held for 5 s, raises her at most 0.15 m (was +0.97, +1.16 and +1.82 m: the stall
  ## fallback hopped her onto their backs); unstick never steps into a creature.
 diff --git a/game/tests/t_save.gd b/game/tests/t_save.gd
-index 7f6476a4..2619d78b 100644
+index 7f6476a4..0eaa951a 100644
 --- a/game/tests/t_save.gd
 +++ b/game/tests/t_save.gd
 @@ -1,11 +1,18 @@
@@ -3720,7 +3746,7 @@ index 7f6476a4..2619d78b 100644
  const RUN_DIR := "user://runs/t_save"
  ## Island state regenerated on load, not save format: excluded from field-for-field compares.
  ## A snare's life_left loses the 0-1 s of offline time each load counts.
-@@ -75,10 +82,12 @@ func _run() -> void:
+@@ -75,15 +82,18 @@ func _run() -> void:
  		quit(0)
  		return
  	_test_two_saves()
@@ -3734,7 +3760,13 @@ index 7f6476a4..2619d78b 100644
  	await _test_truncated()
  	await _test_future()
  	await _test_backup_fallback()
-@@ -158,21 +167,47 @@ func _test_round_trip(name: String) -> void:
+ 	await _test_restore_refunds()
+ 	await _test_full_cargo_refund()
++	await _test_oversized_legacy_refund()
+ 	await _test_pen_refunds()
+ 	await _test_refused_save_keeps_camp()
+ 	await _test_away_island()
+@@ -158,21 +168,47 @@ func _test_round_trip(name: String) -> void:
  	_check(diffs.is_empty(), "%s re-saves field-for-field equal: %s" % [name, diffs.slice(0, 6)])
  	if LEGACY.has(name):
  		_check_legacy(name, s1)
@@ -3791,7 +3823,7 @@ index 7f6476a4..2619d78b 100644
  	var want: Variant = (JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_skills_rev2.json")) as Dictionary).get(name)
  	var sd: Array[String] = []
  	_same(want, s1.get("skills_v2"), "/skills_v2", sd)
-@@ -238,12 +273,119 @@ func _check_legacy(name: String, s1: Dictionary) -> void:
+@@ -238,12 +274,119 @@ func _check_legacy(name: String, s1: Dictionary) -> void:
  	_check(ok, "%s content survives migration: buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
  	print("[t_save] legacy %s buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
  
@@ -3912,7 +3944,7 @@ index 7f6476a4..2619d78b 100644
  	_check(helm != null and helm.count == 1 and helm.level == 60, "forged raid_helm x5000 L9999 loads as x1 L60")
  	_check(helm != null and helm.durability <= helm.max_durability and helm.max_durability == IS.make(&"raid_helm", 1, {}, 60).max_durability, "forged durability clamps to the item's ceiling")
  	var unknown := 0
-@@ -387,7 +529,7 @@ func _test_away_island() -> void:
+@@ -387,7 +530,7 @@ func _test_away_island() -> void:
  ## (the golden's 42 t_stones and 6 stacks arrive) and keep saving, never abort halfway.
  func _test_hostile_types() -> void:
  	_clean()
@@ -3921,7 +3953,7 @@ index 7f6476a4..2619d78b 100644
  	SG.load_now(host) # the golden camp layout, so the pen cell below is free under it
  	await process_frame
  	var pen := _free_cell(&"makeshift_taming_pen")
-@@ -435,7 +577,7 @@ func _test_hostile_types() -> void:
+@@ -435,7 +578,7 @@ func _test_hostile_types() -> void:
  		cases[label] = func (d: Dictionary) -> void: d["home"]["buildings"] = [row]
  	for label in cases:
  		_clean()
@@ -3930,7 +3962,7 @@ index 7f6476a4..2619d78b 100644
  		(cases[label] as Callable).call(d)
  		_put(JSON.stringify(d))
  		W.t_stones = 0
-@@ -445,7 +587,7 @@ func _test_hostile_types() -> void:
+@@ -445,7 +588,7 @@ func _test_hostile_types() -> void:
  		var stacks := 0
  		for st in player.inventory.slots:
  			if st != null: stacks += 1
@@ -3939,7 +3971,7 @@ index 7f6476a4..2619d78b 100644
  		var saved: bool = SG.save_now()
  		_check(ok and saved and errors.script_errors == errs, "hostile '%s' loads completely and saves (blocked='%s' t_stones=%d stacks=%d pets=%d script_errors=%d)" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), errors.script_errors - errs])
  		print("[t_save] hostile '%s' blocked='%s' t_stones=%d stacks=%d pets=%d saved=%s" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), saved])
-@@ -504,9 +646,9 @@ func _check_pen(label: String, keeps: bool) -> void:
+@@ -504,9 +647,9 @@ func _check_pen(label: String, keeps: bool) -> void:
  ## load lifts the block.
  func _test_aborted_load() -> void:
  	_clean()
@@ -3951,7 +3983,42 @@ index 7f6476a4..2619d78b 100644
  	raw["t_stones"] = {}
  	print("[t_save] the next SCRIPT ERROR (Nonexistent 'int' constructor) is the deliberate abort")
  	expected_script_errors += 1
-@@ -570,7 +712,7 @@ func _held_on_disk(d: Dictionary) -> Array:
+@@ -551,6 +694,34 @@ func _test_full_cargo_refund() -> void:
+ 	print("[t_save] full cargo refund held_on_disk=%s after_room=%s" % [held, _held_on_disk(after)])
+ 	await process_frame
+ 
++## W2-INV: a pending refund kept by a pre-W2-INV save holds stacks (stone 10 x 20). Split, its 200
++## instances are more than the whole camp cargo holds, so all-or-nothing would keep it unreachable on
++## every load; the cargo grows for it instead, as the migration overflow does.
++func _test_oversized_legacy_refund() -> void:
++	_clean()
++	SG.save_now()
++	var d := _saved()
++	d["home"]["cargo"] = []
++	var contents: Array = []
++	for i in 10:
++		contents.append({"id": "stone", "count": 20})
++	d["pending_refunds"] = [{"kind": "basket", "cell": [4000, 4000], "rot": 0, "contents": contents}]
++	_put(JSON.stringify(d))
++	# Earlier tests grew the cargo in memory (a load never shrinks it); start from its base 60 slots.
++	W.cargo_home.load_array([])
++	load("res://scripts/items/inventory_equipment.gd").resize(W.cargo_home, W.cargo_home.base_slots)
++	var base: int = W.cargo_home.slot_count
++	SG.load_now(host)
++	SG.save_now()
++	var c = W.cargo_home
++	var pending := (_saved().get("pending_refunds", []) as Array).size()
++	_check(base < 200 and c.count_of(&"stone") == 200 and c.count_of(&"basket_kit") == 1 and pending == 0,
++		"a legacy refund of 200 stone lands in a grown camp cargo (stone=%d kit=%d slots %d -> %d pending=%d)" % [c.count_of(&"stone"), c.count_of(&"basket_kit"), base, c.slot_count, pending])
++	SG.load_now(host)
++	_check(W.cargo_home.count_of(&"stone") == 200, "the grown cargo reloads with all 200 stone (got %d)" % W.cargo_home.count_of(&"stone"))
++	print("[t_save] oversized legacy refund stone=%d slots %d -> %d pending=%d" % [c.count_of(&"stone"), base, c.slot_count, pending])
++	await process_frame
++
+ ## [flint, stone, basket kits] anywhere in a save: cargo, building contents, pending refund rows.
+ func _held_on_disk(d: Dictionary) -> Array:
+ 	var bag: Array = (d.get("home", {}).get("cargo", []) as Array).duplicate()
+@@ -570,7 +741,7 @@ func _held_on_disk(d: Dictionary) -> Array:
  ## must treat it as unreadable rather than apply it.
  func _test_sanitizer_abort() -> void:
  	_clean()
@@ -3960,7 +4027,7 @@ index 7f6476a4..2619d78b 100644
  	var San: GDScript = load("res://scripts/core/save_sanitizer.gd")
  	San.set("abort_for_test", true)
  	print("[t_save] the next SCRIPT ERROR (call on a null instance) is the deliberate sanitizer abort")
-@@ -585,7 +727,7 @@ func _test_sanitizer_abort() -> void:
+@@ -585,7 +756,7 @@ func _test_sanitizer_abort() -> void:
  	for i in 70:
  		W._process(1.0)
  	_check(FileAccess.get_sha256(SG.path) == sha0, "aborted sanitizer: bytes unchanged after 70 s of autosave")
@@ -3969,7 +4036,7 @@ index 7f6476a4..2619d78b 100644
  	forged[San.get("CHECKED")] = true
  	_put(JSON.stringify(forged))
  	var ok: Dictionary = (load("res://scripts/core/save_migrations.gd") as GDScript).read(SG.path)
-@@ -598,7 +740,7 @@ func _test_sanitizer_abort() -> void:
+@@ -598,7 +769,7 @@ func _test_sanitizer_abort() -> void:
  ## pen the grid still accepts keeps its animal.
  func _test_pen_refunds() -> void:
  	_clean()
@@ -3978,7 +4045,7 @@ index 7f6476a4..2619d78b 100644
  	_put(golden)
  	SG.load_now(host)
  	await process_frame
-@@ -653,7 +795,7 @@ func _test_pen_refunds() -> void:
+@@ -653,7 +824,7 @@ func _test_pen_refunds() -> void:
  ## save must still record this session's buildings, or sailing away and back loses them.
  func _test_refused_save_keeps_camp() -> void:
  	_clean()
@@ -3987,7 +4054,7 @@ index 7f6476a4..2619d78b 100644
  	SG.load_now(host) # the golden basket holds 5 stone
  	await process_frame
  	var cell := _free_cell(&"basket")
-@@ -705,6 +847,7 @@ func _write_golden() -> void:
+@@ -705,6 +876,7 @@ func _write_golden() -> void:
  	inv.add(IS.make(&"stone", 12))
  	inv.add(IS.make(&"branch", 7))
  	inv.add(IS.make(&"raw_meat", 3))
@@ -3995,7 +4062,7 @@ index 7f6476a4..2619d78b 100644
  	inv.equip(&"head", &"raid_helm")
  	inv.add(IS.make(&"raid_helm", 1))
  	W.cargo_home.load_array([])
-@@ -738,15 +881,13 @@ func _write_golden() -> void:
+@@ -738,15 +910,13 @@ func _write_golden() -> void:
  	var d := _saved()
  	d["unstable"]["harvested"] = {}
  	d["saved_unix"] = 4000000000 # clamps to now at load: no offline time, so the snare round-trips
@@ -4014,7 +4081,7 @@ index 7f6476a4..2619d78b 100644
  	# Away golden: the survivor standing on an unstable island with a stocked basket there.
  	W.remaining_lifetime = 0.0
  	W.load_island(host, &"temperate_25", Vector3(0, 1, 12), false)
-@@ -762,7 +903,7 @@ func _write_golden() -> void:
+@@ -762,7 +932,7 @@ func _write_golden() -> void:
  	var a := _saved()
  	a["unstable"]["harvested"] = {}
  	a["saved_unix"] = 4000000000
