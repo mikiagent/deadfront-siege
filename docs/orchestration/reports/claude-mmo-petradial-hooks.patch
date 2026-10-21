@@ -232,6 +232,20 @@ index 5e2e8b06..37f3ceb8 100644
  
  ## Feed one unit of the first food in the bag this pet eats.
  func feed_best(c: Creature) -> bool:
+diff --git a/game/scripts/player/player_sim.gd b/game/scripts/player/player_sim.gd
+index cc94d94e..f1e97365 100644
+--- a/game/scripts/player/player_sim.gd
++++ b/game/scripts/player/player_sim.gd
+@@ -221,6 +221,9 @@ func _no_creature_climb(y0: float) -> void:
+ 		p.velocity.y = minf(p.velocity.y, 0.0)
+ 
+ func input_vector() -> Vector2:
++	# Typing in a text field (the pet Rename) must not walk her: the field takes the keys, polling still sees them.
++	if p.get_viewport().gui_get_focus_owner() is LineEdit:
++		return Vector2.ZERO
+ 	return Input.get_vector("move_left", "move_right", "move_up", "move_down")
+ 
+ func cam_dir(input: Vector2) -> Vector3:
 diff --git a/game/scripts/server/character_store.gd b/game/scripts/server/character_store.gd
 index dfb25ece..7d85de68 100644
 --- a/game/scripts/server/character_store.gd
@@ -265,7 +279,7 @@ index dfb25ece..7d85de68 100644
  		return {"ok": true, "r": character(account).view()}
  	s.chars[str(account)] = CharacterState.fresh(account, name, now)
 diff --git a/game/scripts/ui/animal_screen.gd b/game/scripts/ui/animal_screen.gd
-index 21cad4ee..e4166d36 100644
+index 21cad4ee..6bc01f3c 100644
 --- a/game/scripts/ui/animal_screen.gd
 +++ b/game/scripts/ui/animal_screen.gd
 @@ -126,8 +126,10 @@ func _apply_detail_margin(detail_scroll: Control, bottom_margin: int) -> void:
@@ -280,16 +294,22 @@ index 21cad4ee..e4166d36 100644
  	selected = clampi(selected, 0, maxi(0, player.bonded.size() - 1))
  	visible = true
  	_layout()
-@@ -164,7 +166,7 @@ func _rebuild() -> void:
+@@ -164,8 +166,12 @@ func _rebuild() -> void:
  		if rec.respawning():
  			row.add_child(RespawnRing.new(rec, _rebuild))
  		var b := Button.new()
 -		var full := "%s   Lv.%d   %s%s" % [str(rec.species).capitalize(), rec.level, rec.grade, "   EQUIPPED" if _is_out(rec) else ""]
-+		var full := "%s   Lv.%d   %s%s" % [_display_name(rec), rec.level, rec.grade, "   EQUIPPED" if _is_out(rec) else ""]
- 		b.text = UiTokens.ellipsis(font, full, 300.0, UiTokens.body(view))
+-		b.text = UiTokens.ellipsis(font, full, 300.0, UiTokens.body(view))
++		# The row shows the given name alone (the detail has the species), and it gives way first, so
++		# EQUIPPED stays readable at 844x390 ("Rex II (Zebraceratops)   Lv.1   B-   EQUI...").
++		var tail := "   Lv.%d   %s%s" % [rec.level, rec.grade, "   EQUIPPED" if _is_out(rec) else ""]
++		var fs := UiTokens.body(view)
++		var room := minf(300.0, _list.size.x - 32.0) - font.get_string_size(tail, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
++		b.text = UiTokens.ellipsis(font, rec.name if rec.name != "" else str(rec.species).capitalize(), room, fs) + tail
  		b.clip_text = true
  		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-@@ -228,12 +230,17 @@ func _show_detail(rec: PetRecord) -> void:
+ 		b.custom_minimum_size = Vector2(240, 56)
+@@ -228,12 +234,17 @@ func _show_detail(rec: PetRecord) -> void:
  		for stat in CreatureGenetics.STATS:
  			var stat_name := _title_words(str(stat))
  			growth += "%s\n    %s    +%d growth    EV %d\n" % [stat_name, genes.tier_for(stat), int(genes.level_gains.get(stat, 0)), int(genes.evs.get(stat, 0))]
@@ -308,21 +328,31 @@ index 21cad4ee..e4166d36 100644
  func _is_out(rec: PetRecord) -> bool:
  	for pet in player.live_pets():
  		if pet.pet_record == rec:
-diff --git a/game/scripts/ui/hud_pills.gd b/game/scripts/ui/hud_pills.gd
-index 3671ff22..57fa835f 100644
---- a/game/scripts/ui/hud_pills.gd
-+++ b/game/scripts/ui/hud_pills.gd
-@@ -47,6 +47,10 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
- 			radial_node = gr.node
- 			avoid.append_array(gr.label_rects)
- 			avoid.append(gr.title_box)
-+	var pet_radial := hud.player.pets.menu
+diff --git a/game/scripts/ui/hud_layout.gd b/game/scripts/ui/hud_layout.gd
+index 1c624ed1..86981b1f 100644
+--- a/game/scripts/ui/hud_layout.gd
++++ b/game/scripts/ui/hud_layout.gd
+@@ -119,7 +119,7 @@ static func fit_sheet(hud: HuntHud, r: Vector2, inset: Vector4, rail_y: float) -
+ 
+ ## Screen rects the HUD holds this frame: the blocks _draw has painted so far (drawn_blocks, minus
+ ## keys starting with one of `skip`), every visible hex on screen (HUD, station and gather radials)
+-## with its caption, the HUD's other controls and HANDS. Moving text (world pills, toasts, notices)
++## with its caption, the HUD's other controls, HANDS and the open pet radial. Moving text (world pills, toasts, notices)
+ ## and the creature plates keep off them: at 844x390 they drew over the quest card and the COOK hex.
+ static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rect2]:
+ 	var out: Array[Rect2] = []
+@@ -148,6 +148,11 @@ static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rec
+ 	var fig := figure_rect(hud)
+ 	if fig.has_area():
+ 		out.append(fig)
++	# The open pet radial: a creature plate drew over its Animals label, a "Bush Berries" pill in its centre.
++	var pet_radial: PetRadial = hud.player.pets.menu if hud.player and hud.player.pets else null
 +	if pet_radial and pet_radial.visible:
-+		avoid.append(pet_radial.ring_rect())
-+		avoid.append_array(pet_radial.label_rects)
- 	var rows: Array = []
- 	var pp := hud.player.global_position
- 	# A bonfire is in "placed_building", "craft_station" AND "bonfire", so without this the camp
++		out.append(pet_radial.ring_rect())
++		out.append_array(pet_radial.label_rects)
+ 	return out
+ 
+ ## The survivor on screen, head to name. Moving text keeps off it (a notice and a creature plate sat
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
 index ed0b7728..43d4fd6c 100644
 --- a/game/scripts/ui/hunt_hud.gd
