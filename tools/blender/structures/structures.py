@@ -1470,7 +1470,7 @@ def house_roof():
     _roof_panel(p, "thatch")
     _roof_rafter_tails(p)
     for i in range(9):
-        p.box((0.14, 0.08, 0.2), (-0.9 + i * 0.225, -0.5, 0.06), "thatch", rot=(0, -18, 0))
+        p.box((0.16, 0.07, 0.12), (-0.9 + i * 0.225, -0.53, 0.045), "thatch", rot=(0, -14, 0))
     for x in (-0.66, 0.0, 0.66):
         p.log((x, -0.42, 0.06), (x, 0.42, 0.6), 0.016, tile="rope", seg=4, end_tile="rope")
     p.plank((-1.0, 0.46, 0.62), (1.0, 0.46, 0.62), 0.12, 0.1, "wood_dark", up=(0, 0, 1))
@@ -1517,9 +1517,10 @@ def house_stairs():
     for i in range(4):
         p.box((1.24, 0.3, 0.07), (0, -0.45 + i * 0.3, 0.2 * (i + 1) - 0.035), "plank", tile_m=0.8)
     p.box((1.24, 0.32, 0.07), (0, 0.6, 0.8), "plank", tile_m=0.8)
-    for z in (0.5, 1.0):
-        p.cyl(0.05, 0.9, (0.66, -0.5, z + 0.45), "bark", seg=6, cap_tile="log_end")
-    p.plank((0.66, -0.5, 1.0), (0.66, 0.5, 1.5), 0.08, 0.08, "wood", up=(0, 0, 1))
+    # a handrail on the open side: two posts on the stringer line and a sloped rail
+    for y, z0, z1 in ((-0.5, 0.0, 1.05), (0.5, 0.8, 1.55)):
+        p.cyl(0.05, z1 - z0, (0.66, y, (z0 + z1) / 2), "bark", seg=6, cap_tile="log_end")
+    p.plank((0.66, -0.55, 1.05), (0.66, 0.55, 1.55), 0.08, 0.08, "wood", up=(0, 0, 1))
     return [(p, (0, 0, 0))]
 
 
