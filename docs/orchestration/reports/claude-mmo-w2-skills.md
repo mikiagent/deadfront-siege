@@ -20,7 +20,8 @@ recipe-gated progression, and survivors that start at Lv. 1.
 - **Animal Handling I-IV (spec 09).** These reuse the save ids `animal_management_1..4`. The values follow the
   spec: Survival 35/45/55/60, SP 4/5/5/6, chain I->II->III->IV, and I requires Capture Technique I ("Animal
   Taming"; ASSUMPTION). `SkillRules.bonded_capacity()` = 3 + one per learned node, up to 7. Every client
-  bond path asks `Data.bonded_cap()` (hook H2), which reads it; `FieldTame.roster_full()` (H9) and the pen
+  bond path asks `Data.bonded_cap(player)` (hook H2; the bonding survivor's own skills, the local one when no
+  player is given), which reads it; `FieldTame.roster_full()` (H9) and the pen
   refuse at the cap without losing the animal or the food. (r6 removed `SkillRules.can_bond`: nothing called it.)
   A reset keeps existing pets.
 - **Processing tree (spec 11).** It holds every node the spec documents: Normal Nail, Leather Strap, Charcoal,
@@ -44,20 +45,25 @@ recipe-gated progression, and survivors that start at Lv. 1.
 - **SP come from character levels (spec 03; coordinator decision 2026-10-20).** Tree level-ups pay nothing.
   Each character level 2..60 pays `sp_budget` (10/12/14/16 by band, 720 SP at Lv. 60). The occupation's Lv. 20
   grants levels and auto nodes but no SP (ASSUMPTION). SP are always derived:
-  `sp_earned = paid_for_level(character level)` and `sp_available = max(0, sp_earned - cost of learned nodes at
-  today's prices)`. They are recomputed on load, on every `World.pioneer_changed`, and for saves with no skills
-  block. A saved `sp_earned` is never trusted.
+  `sp_available = max(0, paid_for_level(character level) - cost of learned nodes at today's prices)`, and
+  `sp_extra = max(0, that cost - paid_for_level(character level))` is the SP of learned nodes the level has not paid
+  for (a migrated rev-1 save's nodes; never spendable, new levels pay it off first; finish-run review r1).
+  They are recomputed on load, on every `World.pioneer_changed`, and for saves with no skills block. A saved
+  `sp_earned` or `sp_extra` is never trusted.
 - **Catalog.** `trees.json.reference` holds the spec-12 counts: 13 categories that sum to 918 nodes, plus the
-  Toxic Oil Islands unlock list as an optional, defined-only entry. **213 of 918 nodes are imported: 18
-  functional, 19 partial, 176 defined** (r8 added Boulder; Surviving Durango I-VII are named in
-  `reference.named_only`, see Review r8). (Dry Leather moved from defined to functional in r2: it gates the
-  existing `dried_hide` recipe.) Every node has `status`, `source` (spec09/11/12 or prd7), `effects` and
+  Toxic Oil Islands unlock list as an optional, defined-only entry. **213 of 918 nodes are imported: 34
+  functional (16 of them gate W2-DATA recipes through `requires_node`), 19 partial, 160 defined**
+  (`[t_w2_skills] catalog 213 of 918 nodes: functional 34 (16 of them through requires_node), partial 19,
+  defined 160`; the 16 were still marked defined until the finish-run review r1). r8 added Boulder; Surviving
+  Durango I-VII are named in `reference.named_only`, see Review r8. All twelve trees cost 2305 SP; character
+  levels 2-60 pay 720 (`_totals`). Every node has `status`, `source` (spec09/11/12 or prd7), `effects` and
   `sp_assumed` where the pack gives no SP.
 - **Skills sheet (hook H8; skills_sheet.gd is W1-UI's file, so the change lives in the hooks patch since r5):**
   node rows show the Durango name and "AUTO" in place of "0 SP". The rows the player can act on come first,
   then one "Learned automatically: Leaf, Branch, ..." line and the "All skills" button. Below them every node
   the game reads nothing from yet is listed as a muted row with no button: "Thickets  ·  Lv. 5  ·  6 SP  ·  not in
-  the game yet" (spec 12 10.6: lock reason, level, SP). A description that only repeats the node name is not
+  the game yet", then "cut thickets with a knife  ·  needs Leaf" (spec 12 10.6: lock reason, level, SP, what it
+  unlocks, prerequisite; the second line since the finish-run review r1). A description that only repeats the node name is not
   shown. A Refund the player cannot use now (the day's 5 free refunds are used, or a learned node needs it) is
   greyed with "Cannot refund: ..." under the node before the tap (`SkillState.refund_reason`).
 - **Bonded cap on screen (hooks H9, H10):** at the cap the field-tame plate reads "Bonded roster full (3 / 3)"
@@ -73,6 +79,63 @@ new `game/scripts/skills/skill_rules.gd`, new `game/tests/t_w2_skills.gd`, and `
 `game/tests/t_save.gd` and the new `game/tests/fixtures/save_v3_skills_rev2.json` (H12) and W1-QA's
 `game/scripts/dev/skills_lab.gd` (H13).
 The rev-1 goldens `save_v3_golden.json` and `save_v3_away_golden.json` are byte-identical to the base.
+
+## Finish-run review r1 (`docs/orchestration/mmo/handoff/findings/w2-skills-review-r1.json` findings in this run's prompt; base claude/mmo-overhaul @ 946da955)
+
+W2-SKILLS is merged (dfcf833e, hooks 6f65f615). The base moved to 946da955 (HUD-DAYNIGHT); the branch merged it
+(d8b72429). Branch files changed: `trees.json`, `skill_state.gd`, `t_w2_skills.gd`, `taming_pen.gd` (grant).
+Everything else is in the regenerated hooks patch, which now holds only this round's changes: `git apply --cached
+--check` against 946da955's tree rc 0.
+
+| Finding | Fix | Check that would have caught it |
+|---|---|---|
+| MAJOR: migrated rev-1 saves keep their old unspent SP (Lv. 23 save: 848 available, could buy all 66 nodes) | Option (b), held as an invariant. `SkillState._recount_sp` derives `sp_extra = max(0, cost of learned nodes - paid_for_level(character level))`, so `sp_available = max(0, paid - cost)`. Every node is kept, the old unspent SP go, and new levels pay the kept nodes off before they add SP. The rev-1 branch of `from_dict` is gone (nothing to compute) and the first load of a rev-1 save with SP or nodes shows one notice through the survivor's `notice`. H6 writes the same `sp_extra` back (`max(0, kept cost - character SP)`). The fixture and t_save expect 40 SP for the goldens (Lv. 5, nothing bought) and 0 SP + extra 223 for the 19-node variant. STATUS records the rule (H16). | t_w2_skills `_test_migration`: a rev-1 Lv. 23 save with 848 unspent SP loads with `earned 226, available 205` and at Lv. 60 has `earned 720 of 922 SP of buyable nodes`; the notice shows once and not on a rev-2 load. `_test_sp_from_character_level`: the over-budget save keeps 4 nodes with 0 SP; Lv. 2 leaves 13 owed, Lv. 4 leaves 7. t_save `_test_rev1_skills` and the fixture comparison. |
+| MAJOR: t_w2_skills switched sections off when it thought hooks were missing | `_hooks_applied()`, the `bonded_cap() > 1000` guard and the H6 argument-count skip are deleted; all 15 sections always run. | Mutation M5 (below) now fails 9 lines. |
+| Minor: 16 requires_node nodes marked defined; `_about`/`_totals` stale | The 16 nodes are `functional`; `_about` says so; `_totals` reads 2305 SP for all trees, 720 from character levels 2-60 (skills.md:5's ~897 adds milestones and Career Guides, neither in the game), 1035 for the four big trees. The catalog line in "What shipped" is corrected. | t_w2_skills `_test_catalog`: a node a loaded recipe names in `requires_node` must be `functional`, and `_totals` must state the summed cost. The report's counts now come from the data: `functional 34 (16 of them through requires_node), partial 19, defined 160`. |
+| Minor: muted rows lost the effect line | H8: a muted row's second line, indented and in the META colour, is the node's `unlocks` text and "needs <prerequisite name>": "Thickets · Lv. 5 · 6 SP · not in the game yet / cut thickets with a knife · needs Leaf". The W2-GATHER follow-up (Thickets and Mining 1-4 functional) stays listed under "Wanted from other packages". | t_w2_skills `_test_sheet_rows`: every muted row carries its `unlocks` (when it differs from the name) and its prerequisite's name. |
+| Minor: server `act.tame` has no bonded cap | Kept for W3-SRVACT, spelled out under "Left": check `SkillRules.bonded_capacity` against the CharacterState skills before `ch.d.pets[uid] = ...`, refuse with `roster_full`, food kept. | (W3-SRVACT) |
+| Minor: `Data.bonded_cap()` reads the local survivor for any player | H2: `Data.bonded_cap(player: Player = null)`; `FieldTame.roster_full` (H9), `PlayerPets.bond_from_inventory` (H15) and the taming pen pass their player. UI that only knows the local survivor still calls it with no argument. | t_w2_skills `_test_field_tame_cap`: a second survivor with Animal Handling I has room at 3 bonded while the local one is full. |
+| Minor: stale NOT_IN_GAME comment | "shown as muted rows with no button (skills_sheet H8)". | (comment) |
+| Minor: capture lab levelup shot shows 0 SP at Lv. 5 | H14: `_level_up_banner(stored)` sets `World.pioneer_level` for the `_on_level_up` call, puts it back (read through `LevelDisplay`, as t_ui requires) and recounts SP; it also asserts "Available Skill Points: N" equals what that level holds. | The lab's own check, and the shots: `levelup_1600x900.png` "Available Skill Points: 40", `levelup_844x390.png` "Skill points 40". |
+
+**Why `sp_extra` is derived, not a fixed number with the H6 cap.** The prompt asked for both: set `sp_extra` once on
+migration, and cap it in H6 at "cost of kept nodes beyond the SP the character level paid". Together they lose SP:
+a save migrated at Lv. 23 with 277 SP of nodes gets extra 51 (277 - 226); at Lv. 24 (+14) it has 14 to spend; on the
+next load H6 cuts the extra to 277 - 240 = 37 and the 14 SP vanish, on every level until the nodes are paid off.
+Deriving `sp_extra` from the current level and nodes on every recount keeps the runtime and H6 on the same rule,
+so a reload never changes SP: t_w2_skills `H6: a migrated save at Lv. 4 keeps its 4 nodes and 7 SP through sanitize
+and load` holds. The effect is the docs' rule taken strictly: a migrated save never has more SP than a new character
+at its level beyond the nodes it already holds (spec 03:14), at Lv. 60 too, where a fixed extra would let the
+reviewer's Lv. 5 variant reach 720 + 223 = 943 SP, more than the 922 every buyable node costs. Trade-offs, both in
+the report's Assumptions: while the kept nodes cost more than the level paid, a level-up and a refund of a kept node
+give no spendable SP (they pay the debt first); and Career Guides' one-time SP (spec 03:14, not built) will need
+their own saved field, since `sp_extra` is now derived (`# shortcut:` in `skill_state.gd`). Older rev-2 saves made
+with the inflated extra are corrected the same way on load: their stored `sp_extra` only widens H6's node budget.
+
+Mutation proofs (scratch `trees/w2s-r10mut`, branch adb7c93f + this patch):
+- Old code (skill_state, save_sanitizer, skills_sheet, field_tame, data, player_pets, taming_pen and trees.json at
+  claude/mmo-overhaul; new tests): t_w2_skills rc=1 with, among 29 FAIL lines,
+  `FAIL processing/nails_pillars gates recipes through requires_node, so it must be functional (it is 'defined')`,
+  `FAIL _totals says what the trees cost (2305, it says { "all_trees_sp": 2246.0, ...`,
+  `FAIL a migrated Lv. 23 drops its 848 unspent SP: earned 869, available 848 (a new Lv. 23 earns 226, these nodes cost 21)`,
+  `FAIL at Lv. 60 it has earned 1363 SP like any Lv. 60 and cannot buy all 922 SP of nodes`,
+  `FAIL the first load says once that SP were recomputed: []`,
+  `FAIL an over-budget migrated save keeps its 4 nodes, drops its 50 unspent SP (spent 23, available 50, extra 73)`,
+  `FAIL a second survivor with Animal Handling I has room at 3 bonded while the local one is full ('Bonded roster full (3 / 3)' / 'Bonded roster full (3 / 3)')`,
+  `FAIL gathering at Lv. 1: each of the 12 nodes not in the game yet is a row with its level, SP, reason, unlocks and prerequisite and no button (... bad ["Thickets  ·  Lv. 5  ·  6 SP  ·  not in the game yet", ...`
+  (the old sanitizer writes no `sp_extra` for rev 1, so the H6 section stops with a SCRIPT ERROR and
+  `FAIL only 14 of 15 test sections completed`). t_save rc=1:
+  `FAIL save_v3_golden.json skills_v2 migrates to its rev-2 expectation: ["/skills_v2/sp_available: 40.0 vs 270.0", ...`,
+  `FAIL first load: the 539 unspent SP are not kept: the nodes cost more than Lv. 5 pays (got 539)`.
+- M5 (`Data.bonded_cap()` returns 2147483647) plus the old H6 cap (`sp_extra` clamped to the old award): t_w2_skills
+  rc=1, no "skipped" line, 12 FAIL lines including
+  `FAIL H6: at character Lv. 1 a rev-2 sp_extra of 99999 is cut to the 23 SP of nodes beyond the level's SP (23, got 440)`,
+  `FAIL 3 / 3 bonded: the pen keeps the animal and says why (bonded 4, occupant <null>)`,
+  `FAIL 3 / 3 bonded: the plate says the roster is full, not Tame (got tame 'Tame')`,
+  `FAIL 3 / 3 bonded: the feed is refused and the berry is kept (fed true, 1 left)`,
+  `FAIL the pets screen shows bonded / cap (title 'ANIMALS    ·    BONDED 3 / 2147483647    ·    GROWTH')`.
+
+GATES_PLACEHOLDER
 
 ## r9: review r6's findings re-sent after the merge (claude/mmo-overhaul @ ddaab662)
 
@@ -424,9 +487,13 @@ skills_v2 gains `"rev": 2`, `"sp_earned"` (informational) and `"sp_extra"`. A re
 - A level stored as 0 reads as Lv. 1.
 - SP are recomputed from the character level.
 - Every learned node is kept and re-priced at today's costs.
-- **Unspent SP are kept** (r1 minor 1): what the character level does not cover becomes `sp_extra`, a one-time
-  extra (spec 03:14 "award extra SP via appropriate one-time career tasks"). H6 caps `sp_extra` at what the
-  save's own tree levels paid under the old award, so a forged save cannot mint SP.
+- **Unspent SP are not kept** (finish-run review r1; it reverses r1 minor 1 of the first run, which kept them).
+  Spec 03:14 "players can level many professions but cannot afford all nodes simultaneously" and PRD 7.3 settle
+  it. `sp_extra` is the SP of the kept nodes beyond what the character level paid; new levels pay it off before
+  they add SP, so a migrated save never holds more SP than a new character at its level beyond the nodes it
+  keeps. The first load shows one notice: "Skill points now come from your character level. Every learned
+  skill is kept; they cost 223 SP more than Lv. 5 pays, so new levels pay that off first." (or "... and you have
+  N SP to spend."). H6 writes the same `sp_extra` back, so a forged or older rev-2 `sp_extra` cannot mint SP.
 - AUTO nodes are learned.
 - Nothing is deleted.
 
@@ -443,7 +510,8 @@ The rev-1 goldens are untouched inputs again (r1 major). t_save loads each one t
 SaveSanitizer and compares the result with `save_v3_skills_rev2.json`, field for field in both directions.
 `_test_rev1_skills` loads a rev-1 golden that bought 19 nodes under the old award (old prices, Survival 55),
 then saves and loads it again. Both passes assert: levels kept, 0 reads Lv. 1, rev 2, the Lv1 AUTO nodes
-learned, every bought node kept, the 539 unspent SP kept, the SP budget = character Lv. 5 + `sp_extra`, and
+learned, every bought node kept, the 539 unspent SP dropped (0 available), `sp_extra` 223 = the 263 SP of nodes at
+today's prices beyond character Lv. 5's 40, and
 5 bonded slots. In the forged-save check, Stealth I (Survival Lv. 10, no prerequisite, spec 12) is reachable, so
 the expectation is `[island_access_15, stealth_1]` with sp_spent 7.
 
@@ -657,12 +725,19 @@ skills_lab:
 
 ## Integrator hooks (`docs/orchestration/reports/claude-mmo-w2-skills-hooks.patch`, `git apply` checked)
 
+H1-H13 below were applied in 6f65f615. Since the finish-run review r1 the patch file holds only that round's
+changes, against claude/mmo-overhaul (see "Finish-run review r1" for the list): H2 (player argument), H6
+(`sp_extra` written back), H8 (muted rows' second line), H9 (`roster_full` per player), H12 (t_save and the
+fixture), H14 `game/scripts/dev/ui_real_capture_lab.gd` (W1-UI's lab: the level-up banner shot sets the
+character level), H15 `game/scripts/player/player_pets.gd` (`Data.bonded_cap(p)`), H16
+`docs/orchestration/mmo/STATUS.md` (the migration rule, settled by the docs).
+
 - **H1** `game/scripts/items/crafting.gd` `progression_block()`: check `SkillRules.recipe_block` first. This makes
   the recipe gates real. station_craft and craft_ui already route through `progression_block`. After the W2-DATA
   merge it is the only `requires_node` check (W2-DATA's lines and `_node_block()` are dropped; the patch is
   regenerated on 18ef7091, which has them, so it applies as is).
-- **H2** `game/scripts/core/data.gd` `bonded_cap()`: `SkillRules.bonded_capacity(PlayerRegistry.local().skills)`,
-  or 3 with no player. This replaces "unlimited", per spec 09. It is the one bonded-cap function. It reaches
+- **H2** `game/scripts/core/data.gd` `bonded_cap(player = null)`: `SkillRules.bonded_capacity(player.skills)`,
+  the local survivor's when no player is given, or 3 with no player. This replaces "unlimited", per spec 09. It is the one bonded-cap function. It reaches
   field_tame.apply_feed, player_pets.bond_from_inventory and (on the branch) taming_pen. The market's caged-pet
   unpack should call it too.
 - **H3** `game/scripts/server/character_state.gd`: a missing tree defaults to `SkillState.MIN_LEVEL`, not 0.
@@ -692,8 +767,10 @@ skills_lab:
   - A tree's `xp` is bounded by `SkillState.xp_to_max(level)`, not `xp_to_next(level)`, so XP banked at the
     character-level cap survives a load (r8).
   - `rev` is written back as the number the sanitizer used (r5), so a hand-edited rev cannot split the two readers.
-  - Known gap: a forged save (any rev) can keep tree levels and nodes up to the old per-tree budget and an
-    `sp_extra` up to that award. A rev-2 level clamp would not close it and would strip migrated saves (Review
+  - `sp_extra` is written back as `max(0, kept nodes' cost - SP the character level paid)` for every rev, the
+    value `SkillState._recount_sp` derives (finish-run review r1); a rev-2 save's stored `sp_extra` only widens
+    the node budget, up to the old award.
+  - Known gap: a forged save (any rev) can keep tree levels and nodes up to the old per-tree budget. A rev-2 level clamp would not close it and would strip migrated saves (Review
     r7); W3-SRVACT's server record does.
 
 Wanted from other packages:
@@ -714,7 +791,9 @@ Wanted from other packages:
 - SP values marked `sp_assumed`: Stealth II-V, Slaughter I-V, Barrage Damage I-III, Handicraft II-V,
   Metalworking I-IV, level 45/50/60 Processing nodes, the makeshift shovel/hoe and Standard Bow.
 - The occupation's Lv. 20 grants no SP.
-- A migrated save that is over budget keeps its nodes with 0 SP available.
+- A migrated save that is over budget keeps its nodes with 0 SP available. While its kept nodes cost more than its
+  character level paid, a level-up or a refund of a kept node pays that debt first and gives no spendable SP
+  (spec 03:14 read strictly; finish-run review r1). Career Guides' one-time SP will need their own saved field.
 - The refund day is a UTC calendar day; with no Warp Gems in the game, refunds past the free count are refused.
 
 ## Open owner decisions
@@ -748,7 +827,11 @@ Wanted from other packages:
    too). Together with item 4 (cured hide at character Lv. 15), early play slows. Options: keep (spec 03); lower
    the early character XP curve; or let Survival pass the cap (it "simply tracks play", skills.md:7).
 
-7. **Rev-1 saves keep their old SP as a permanent extra (review r8, numbers from the reviewer's save).** A
+7. ~~Rev-1 saves keep their old SP as a permanent extra~~. Settled by the docs (finish-run review r1): spec 03:14 and
+   PRD 7.3 (durango-wild-lands-systems-prd.md:503). Built as option (b), held as an invariant: nodes kept, unspent
+   SP dropped, `sp_extra` = the kept nodes' cost beyond the character level's SP; recorded in STATUS (H16).
+   The original entry:
+   **Rev-1 saves keep their old SP as a permanent extra (review r8, numbers from the reviewer's save).** A
    migrated rev-1 save keeps its unspent SP as `sp_extra`, and new character levels pay on top of it (Save format
    change; kept per review r1). The reviewer's real base-made save (character Lv. 22) loads with 1075 SP
    available (earned 1237, of which extra 1023); a new Lv. 22 character has 214 (`paid_for_level(22)`). At
@@ -764,7 +847,8 @@ Wanted from other packages:
 - Career Guides.
 - Attribute service.
 - For W3-SRVACT, server side: recipe gates and node purchases (CharacterState keeps levels only), the bonded cap
-  on the tame intent, and the character-level cap in `CharacterState.add_xp` (the server copy levels trees past
+  on the tame intent (`intent_handlers.gd` `_tame`: check `SkillRules.bonded_capacity` against the
+  CharacterState skills before `ch.d.pets[uid] = ...` and refuse with `roster_full`, food kept), and the character-level cap in `CharacterState.add_xp` (the server copy levels trees past
   the character level, so server gather yield and melee bonuses would use higher levels than the client shows).
 - Gathering, butchering and tailoring effects of the defined nodes, owned by W2-GATHER, W2-BUTCHER, W2-TAILOR,
   W2-ACTION and W2-CRAFT.
