@@ -13,9 +13,6 @@ static func _new_rng() -> RandomNumberGenerator:
 	r.randomize()
 	return r
 
-static func role_of(node: HarvestNode) -> String:
-	return role_of_family(node.family)
-
 static func role_of_family(family: String) -> String:
 	return str(Data.nature_families.get(family, {}).get("role", ""))
 

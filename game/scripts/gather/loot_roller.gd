@@ -54,6 +54,8 @@ static func roll_carcass(base_rows: Array, rare_rows: Array, level: int, knife_t
 	var gates: Dictionary = cfg.get("part_min_tier", {})
 	var count_mult := 1.0 + float(cfg.get("count_bonus_per_tier", 0.0)) * float(maxi(0, tier_idx)) \
 			+ float(cfg.get("count_bonus_per_skill_level", 0.0)) * float(maxi(0, skill))
+	if tier_idx < 0:
+		count_mult *= float(cfg.get("no_knife_count_mult", 1.0))  # bare hands cut less than any knife
 	var stacks: Array[ItemStack] = []
 	var rares: Array[StringName] = []
 	var rows: Array = []

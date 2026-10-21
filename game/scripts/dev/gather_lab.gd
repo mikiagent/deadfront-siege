@@ -205,6 +205,8 @@ func _popup_clear(node: HarvestNode, rare: bool = false) -> void:
 		_check(toasted, "no yield popup over %s and no HUD toast either" % node.family)
 		_check(not rare or _rare_notice_fresh(), "a rare result the stack could not show is announced by a tinted HUD notice")
 		print("[gather_lab] popup skipped over %s (no room by the node); HUD toast %s, rare notice %s" % [node.family, toasted, _rare_notice_fresh()])
+		if rare:
+			_rare_notice_clear()
 		return
 	_check(box != null and box.visible, "a yield popup showed over %s" % node.family)
 	if box == null:
@@ -221,6 +223,29 @@ func _popup_clear(node: HarvestNode, rare: bool = false) -> void:
 	for t in taken:
 		_check(not r.intersects(t), "popup %s at %s clear of %s" % [texts, r, t])
 	print("[gather_lab] popup %s at %s" % [texts, r])
+
+## The tinted notices the HUD drew last frame keep off the open radial (labels, title, hexes), the
+## creature plates and the survivor with their ring, and one result has one notice ("x2", not a copy).
+func _rare_notice_clear() -> void:
+	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
+	if hud == null:
+		return
+	var drawn := 0
+	for k in hud.drawn_blocks:
+		var i := int(str(k).trim_prefix("notice"))
+		if not str(k).begins_with("notice") or i >= hud._events.notices.size() or not hud._events.notices[i].has("tint"):
+			continue
+		var r := Rect2((hud.drawn_blocks[k] as Rect2).position + hud.global_position, (hud.drawn_blocks[k] as Rect2).size)
+		drawn += 1
+		for t in GatherFeedback.notice_avoid(_p):
+			_check(not r.intersects(t), "rare notice '%s' at %s clear of %s" % [hud._events.notices[i]["text"], r, t])
+		print("[gather_lab] rare notice '%s' at %s, radial open %s" % [hud._events.notices[i]["text"], r, _p._gather_radial.is_open()])
+	var per := {}
+	for n in hud._events.notices:
+		if n.has("base"):
+			per[n["base"]] = int(per.get(n["base"], 0)) + 1
+	_check(drawn > 0, "the rare notice is drawn")
+	_check(per.values().all(func(c: int) -> bool: return c == 1), "one notice per rare result, a repeat reads x2 (%s)" % per)
 
 ## A tinted "Rare ..." HUD notice raised for this unit (it starts at NOTICE_T0; this one is under 0.6 s old).
 func _rare_notice_fresh() -> bool:

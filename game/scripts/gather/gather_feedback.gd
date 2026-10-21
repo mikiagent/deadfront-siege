@@ -24,6 +24,8 @@ const GREEN := Color("#67B84E")
 ## A rare HUD notice starts this far into the HUD's 3.2 s notice life: it stays as long as the yield
 ## stack it stands in for (LIFE, then the fade), so it does not linger into the next thing on screen.
 const NOTICE_T0 := 1.0
+## The HUD drops a notice at this age (HudEventState.tick).
+const NOTICE_END := 3.2
 ## How long a rare notice with no room on the HUD may wait for some before it ages like any other.
 const NOTICE_WAIT_MS := 2000
 const CREAM := Color(1.0, 0.97, 0.88)
@@ -73,6 +75,14 @@ static func popup(p: Player, at: Vector3, lines: Array, fallback: Callable = Cal
 		l.add_theme_color_override("font_color", ln[1])
 		l.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.03, 0.95))
 		l.add_theme_constant_override("outline_size", 8 if big else 6)
+		if big:
+			# Ink behind a rare line: the green on olive grass read only through its outline.
+			var ink := StyleBoxFlat.new()
+			ink.bg_color = Color(UiTokens.INK_SOLID, 0.75)
+			ink.set_corner_radius_all(6)
+			ink.content_margin_left = 10.0
+			ink.content_margin_right = 10.0
+			l.add_theme_stylebox_override("normal", ink)
 		box.add_child(l)
 	layer.add_child(box)
 	box.size = box.get_combined_minimum_size()
@@ -289,6 +299,75 @@ static func _popup_or_notice(p: Player, at: Vector3, lines: Array, owed: Array) 
 				notice(p, o[0], o[1])
 	if popup(p, at, lines, fb) == null and fb.is_valid():
 		fb.call()
+
+## The HUD's rare (tinted) notice. The same result again while its notice is still up counts it up
+## ("x2") instead of stacking a copy (two identical green lines stood one over the other at 844x390).
+static func add_notice(notices: Array, text: String, tint: Color, p: Player) -> void:
+	for n in notices:
+		if n.get("base", "") == text and float(n["t"]) < NOTICE_END:
+			n["n"] = int(n["n"]) + 1
+			n["text"] = "%s  x%d" % [text, n["n"]]
+			stamp_notice(n, tint, p)
+			return
+	var fresh := {"text": text, "t": 0.0, "base": text, "n": 1}
+	stamp_notice(fresh, tint, p)
+	notices.append(fresh)
+
+## Where the HUD draws rare notice `n` (`cand` is its usual spot under the toasts), or an empty
+## Rect2 to skip it this frame. A stale one is spent. Besides the HUD's own blocks it keeps off what
+## the HUD does not know: the open radial (its label covered the notice on a landscape phone), the
+## creature plates and the survivor with their ring. Where the centre column has no room (a phone
+## with the radial open), the left edge under the toasts, then the right; with none it waits.
+static func notice_box(n: Dictionary, p: Player, cand: Rect2, taken: Array[Rect2], view: Vector2) -> Rect2:
+	if notice_stale(n, p):
+		return Rect2()
+	var avoid: Array[Rect2] = taken.duplicate()
+	avoid.append_array(notice_avoid(p))
+	for x in [cand.position.x, 8.0, view.x - cand.size.x - 8.0]:
+		var box := UiTokens.free_spot(Rect2(Vector2(x, cand.position.y), cand.size), avoid, view)
+		if box.has_area():
+			return box
+	hold_notice(n)
+	return Rect2()
+
+## What a rare HUD notice keeps off beyond the HUD's blocks: the open radial's labels, title and
+## hexes, visible creature plates and the survivor with the ground ring at their feet.
+static func notice_avoid(p: Player) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	if p == null or not p.is_inside_tree():
+		return out
+	var gr := p._gather_radial
+	if gr and gr.is_open():
+		out.append_array(gr.label_rects)
+		out.append(gr.title_box)
+		for c in gr.get_children():
+			if c is Control and (c as Control).visible:
+				out.append((c as Control).get_global_rect())
+	if Game.creature_ui and is_instance_valid(Game.creature_ui):
+		for pill in Game.creature_ui.find_children("Pill", "Control", true, false):
+			if (pill as Control).is_visible_in_tree():
+				out.append((pill as Control).get_global_rect().grow(4.0))  # its bar sits on the edge
+	var ring := survivor_rect(p)
+	if ring.has_area():
+		out.append(ring)
+	return out
+
+## The survivor on screen from head height down to the PlayerBeacon ring (0.66 m) at their feet.
+# ASSUMPTION: the survivor stands about 1.8 m tall (HudLayout.figure_rect's number).
+static func survivor_rect(p: Player) -> Rect2:
+	var cam := p.get_viewport().get_camera_3d()
+	if cam == null:
+		return Rect2()
+	var o := p.get_global_transform_interpolated().origin
+	var feet := o - Vector3(0.0, p.half_height(), 0.0)
+	var pts: Array[Vector3] = [o + Vector3(0.0, 1.8, 0.0), feet + Vector3(0.7, 0, 0), feet - Vector3(0.7, 0, 0), feet + Vector3(0, 0, 0.7), feet - Vector3(0, 0, 0.7)]
+	var out := Rect2()
+	for i in pts.size():
+		if cam.is_position_behind(pts[i]):
+			return Rect2()
+		var s := cam.unproject_position(pts[i])
+		out = Rect2(s, Vector2.ZERO) if i == 0 else out.expand(s)
+	return out.grow(4.0)
 
 ## The HUD stamps a rare (tinted) notice: its colour, its clock at NOTICE_T0, when it was raised and
 ## what the survivor was working on then.

@@ -11,7 +11,7 @@ var failures: Array[String] = []
 var _done := false
 ## Each test bumps this on its last line: a SCRIPT ERROR mid-test aborts it and fails the run.
 var _finished := 0
-const GROUPS := 15
+const GROUPS := 17
 var IS: GDScript
 var INV: GDScript
 var GS: GDScript
@@ -64,6 +64,8 @@ func _run_live() -> void:
 	await _test_two_finds_one_frame()
 	_test_xp_without_skills()
 	_test_hud_notice_life()
+	_test_server_gather()
+	await _test_hud_draw()
 	_expect(_finished == GROUPS, "all %d test groups ran to the end (%d did)" % [GROUPS, _finished])
 	if failures.is_empty():
 		print("[t_gather] PASS")
@@ -127,6 +129,14 @@ func _test_data_ids() -> void:
 					if gate.has(str(row["item"])):
 						need_idx = maxi(need_idx, PS.TOOL_TIERS.find(StringName(str(gate[str(row["item"])]))))
 				var row_idx: int = PS.TOOL_TIERS.find(StringName(str(row.get("min_tool_tier", "")))) if row.has("min_tool_tier") else -1
+				# A row no node can roll is dead data (silver sat on BlackIronNode, which no snowfield grows).
+				var grows := false
+				for c in cl:
+					for fam in (data.world_climates.get(c, {}) as Dictionary).get("vegetation", []):
+						var fd: Dictionary = data.nature_families.get(fam, {})
+						var fits: bool = (fam == k) if group == "by_family" else (str(fd.get("role", "")) == k)
+						grows = grows or (fits and not (fd.get("harvest", {}) as Dictionary).has(str(row["item"])))
+				_expect(grows, "%s/%s can roll: a %s node grows in %s and does not yield it itself" % [k, row["item"], k, cl])
 				_expect(row_idx >= need_idx, "%s/%s find gate '%s' is not below its nodes' min_pick_tier (%s)" % [k, row["item"], row.get("min_tool_tier", "none"), PS.TOOL_TIERS[need_idx] if need_idx >= 0 else "none"])
 	var gates: Dictionary = LT.butcher_cfg().get("part_min_tier", {})
 	for k in gates:
@@ -307,18 +317,22 @@ func _test_carcass() -> void:
 	var base: Array = raptor.get("base", [])
 	var rare: Array = raptor.get("rare", [])
 	var rng := _seeded(11)
+	var meat_none := 0
 	var meat_stone := 0
 	var meat_flint := 0
 	var talons := 0
 	var runs := 2000
 	for i in runs:
+		meat_none += _count(LR.roll_carcass(base, rare, 5, &"", 1, 1, false, rng)["stacks"], &"raptor_meat")
 		meat_stone += _count(LR.roll_carcass(base, rare, 5, &"stone", 1, 1, false, rng)["stacks"], &"raptor_meat")
 		var r: Dictionary = LR.roll_carcass(base, rare, 5, &"flint", 1, 1, false, rng)
 		meat_flint += _count(r["stacks"], &"raptor_meat")
 		talons += 1 if (r["rares"] as Array).has(&"raptor_talon") else 0
 	var talon_rate := float(talons) / float(runs)
-	print("[t_gather] raptor meat per carcass: stone knife %.2f flint knife %.2f; talon rate %.3f" % [float(meat_stone) / runs, float(meat_flint) / runs, talon_rate])
+	print("[t_gather] raptor meat per carcass: no knife %.2f stone knife %.2f flint knife %.2f; talon rate %.3f" % [float(meat_none) / runs, float(meat_stone) / runs, float(meat_flint) / runs, talon_rate])
 	_expect(meat_flint > meat_stone, "a flint knife cuts more meat than a stone knife")
+	# loot_tables.json no_knife_count_mult: bare hands butcher less, as they gather slower.
+	_expect(meat_none < meat_stone * 0.85, "no knife cuts less meat than a stone knife (%.2f vs %.2f)" % [float(meat_none) / runs, float(meat_stone) / runs])
 	_expect(talon_rate > 0.05 and talon_rate < 0.5, "the rare talon rolls odds instead of always dropping (got %.3f)" % talon_rate)
 	var locked: Dictionary = LR.roll_carcass(base, rare, 5, &"flint", 0, 1, false, rng)
 	_expect(_count(locked["stacks"], &"raptor_talon") == 0, "the talon stays locked without its Butchering node")
@@ -738,3 +752,132 @@ func _test_hud_notice_life() -> void:
 	_expect(not texts.has("Rare find: Flint") and texts.has("Too far."), "after the stack's life the rare notice is gone, a plain one stays (%s)" % [texts])
 	h.free()
 	_finished += 1
+
+## The server's act.gather (the W2-GATHER hunk in intent_handlers.gd), odds forced to 1: on a temperate
+## rock the helper pick wears 1 (the knife does not), every item takes a green trait and keeps a uid,
+## the flint find is minted with a uid, counted as minted and listed in r.rares; a grassland rock
+## yields no find; on a bush the helper knife wears 1.
+func _test_server_gather() -> void:
+	var w = load("res://scripts/server/world_facade.gd").new()
+	var one := [{"item": "stone", "tool": "none", "min": 1, "max": 1, "left": 50}]
+	w.add_node("temperate", Vector3(1.5, 0, 0), one, 1, "Rock")
+	w.add_node("home", Vector3(-1.5, 0, 0), one, 1, "Rock")
+	w.add_node("bush", Vector3(0, 0, 1.5), [{"item": "fibre_stalk", "tool": "none", "min": 1, "max": 1, "left": 50}], 1, "Bush")
+	w.nodes["temperate"]["attributes"]["climate"] = "temperate"  # W3-SRVACT stamps the island climate
+	w.nodes["home"]["attributes"]["climate"] = "grassland"
+	var st = load("res://scripts/server/character_store.gd").new(w, "", 5)
+	st.apply("char.create", 1, {"name": "Gatherer"}, 1)
+	var ch = st.character(1)
+	var inv = ch.inventory()
+	inv.add(IS.make(&"work_pick", 1, {"material_tier": "obsidian"}, 1))
+	inv.add(IS.make(&"stone_knife_work", 1, {}, 1))
+	ch.commit(inv, "test", 0)
+	var start := _tool_durability(st)
+	var flint_row: Dictionary = (LT.gather_cfg()["by_role"]["rock"] as Array).filter(func(r): return r is Dictionary and r.get("item") == "flint")[0]
+	var res := {}
+	_with(LT.trait_cfg(), "chance", 1.0, func() -> void:
+		_with(LT.gather_cfg(), "max_chance", 1.0, func() -> void:
+			_with(flint_row, "chance", 1.0, func() -> void:
+				res["rock"] = st.apply("act.gather", 1, {"node_id": "temperate", "option": 0}, 2)
+				res["dur"] = _tool_durability(st)
+				res["home"] = st.apply("act.gather", 1, {"node_id": "home", "option": 0}, 3)
+				res["bush"] = st.apply("act.gather", 1, {"node_id": "bush", "option": 0}, 4))))
+	var rock: Dictionary = res["rock"].get("r", {})
+	var after_rock: Dictionary = res["dur"]
+	var after_bush := _tool_durability(st)
+	ch = st.character(1)  # each committed op stores a fresh copy of the character
+	inv = ch.inventory()
+	var flint_uid := ""
+	var traited_uids := 0
+	for i in inv.slots.size():
+		var it = inv.slots[i]
+		if it and it.def_id == &"flint":
+			flint_uid = ch.slot_uid(i)
+		if it and it.def_id == &"stone" and LT.trait_cfg()["traits"].any(func(t): return it.attributes.get(str(t), false) == true) and ch.slot_uid(i) != "":
+			traited_uids += it.count
+	var minted: Dictionary = st.s["minted"]
+	print("[t_gather] server act.gather: rock %s; tools start %s, after rock %s, after bush %s; flint uid '%s', minted flint %s; home rares %s" % [rock, start, after_rock, after_bush, flint_uid, minted.get("flint"), res["home"].get("r", {}).get("rares")])
+	var stones := int(rock.get("gained", -1)) + int(res["home"].get("r", {}).get("gained", -1))
+	_expect(bool(res["rock"].get("ok")) and (rock.get("traits", []) as Array).size() == int(rock.get("gained", -1)) and traited_uids == stones, "server: every gathered item takes the green trait (odds 1) and keeps a uid (%s; %d of %d stone traited with uids)" % [rock.get("traits"), traited_uids, stones])
+	_expect(rock.get("rares") == ["flint"] and flint_uid != "" and int(minted.get("flint", 0)) == 1, "server: the flint find is minted with a uid, counted as minted and listed in r.rares (rares %s, uid '%s', minted %s)" % [rock.get("rares"), flint_uid, minted.get("flint")])
+	_expect(int(after_rock["work_pick"]) == int(start["work_pick"]) - 1 and int(after_rock["stone_knife_work"]) == int(start["stone_knife_work"]), "server: the helper pick wears 1 on the rock, the knife not at all (%s -> %s)" % [start, after_rock])
+	_expect(bool(res["home"].get("ok")) and (res["home"]["r"].get("rares", ["?"]) as Array).is_empty() and int(minted.get("flint", 0)) == 1, "server: a grassland rock yields no find (%s)" % [res["home"].get("r", res["home"])])
+	_expect(int(after_bush["stone_knife_work"]) == int(after_rock["stone_knife_work"]) - 1, "server: the helper knife wears 1 on the bush (%s -> %s)" % [after_rock, after_bush])
+	_finished += 1
+
+## Durability of each tool in the server character's bag, by id.
+func _tool_durability(st) -> Dictionary:
+	var out := {}
+	for it in st.character(1).inventory().slots:
+		if it and it.def_id in [&"work_pick", &"stone_knife_work"]:
+			out[str(it.def_id)] = it.durability
+	return out
+
+## The real HUD's _draw (hunt_hud.gd with the hooks hunk) at 844x390 with a survivor bound to it: a rare
+## notice from a node the survivor has left is not drawn while a plain refusal is; with the gather radial
+## open a rare notice keeps off its labels, title and hexes, the plates and the survivor with their ring
+## (the radial's "Herb Leaf" label covered it); the same rare result twice is one "x2" notice.
+func _test_hud_draw() -> void:
+	current_scene = host
+	var root := get_root()
+	var keep := [root.size, root.content_scale_size]
+	root.size = Vector2i(844, 390)
+	root.content_scale_size = Vector2i(844, 390)
+	var h = load("res://scripts/ui/hunt_hud.gd").new()
+	host.add_child(h)
+	h.remove_from_group("hud")  # GatherFeedback.notice keeps reaching the recording stand-in
+	h.bind(player)
+	var na = _planted("Bush", &"fibre_stalk", "grassland", &"none", Vector3(1.2, 0, 0))
+	var nb = _planted("Bush", &"fibre_stalk", "grassland", &"none", Vector3(-3, 0, 0))
+	player.gather_target = na
+	h.notice("Rare find: Flint", GF.GOLD)
+	player.gather_target = nb
+	h.notice("Too far.")
+	await _frames(3)
+	var drawn := _drawn_notices(h)
+	_expect(not drawn.has("Rare find: Flint") and drawn.has("Too far."), "the HUD skips a rare notice from a node the survivor left and draws a plain one (drawn %s)" % [drawn.keys()])
+	player.gather_target = null
+	await _frames(70)  # "Too far." fades out
+	player._gather_radial.open(na, na.options(), player.inventory)
+	await _frames(3)
+	var text := "Rare trait: Low Vibration Fibre Stalk"
+	h.notice(text, GF.GREEN)
+	await _frames(3)
+	drawn = _drawn_notices(h)
+	var box: Rect2 = drawn.get(text, Rect2())
+	var avoid: Array[Rect2] = GF.notice_avoid(player)
+	var on: Array = avoid.filter(func(a: Rect2) -> bool: return a.intersects(box))
+	# What the HUD alone would pick (its own blocks only): the set-up puts that on the radial or the survivor.
+	var tw: float = h._font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, 17).x
+	var band: Rect2 = load("res://scripts/ui/hud_layout.gd").centre_band(h, Vector2(844, 390))
+	var cx: float = band.get_center().x if band.has_area() else 422.0
+	var old: Rect2 = load("res://scripts/ui/ui_tokens.gd").free_spot(Rect2(cx - tw * 0.5 - 12, 170.0, tw + 24, 30), h.taken_rects(PackedStringArray(["notice", "pill"])), Vector2(844, 390))
+	var old_on: Array = avoid.filter(func(a: Rect2) -> bool: return a.intersects(old))
+	print("[t_gather] HUD 844x390, radial open: rare notice %s, on %s; HUD-only spot %s on %s; radial labels %s title %s" % [box, on, old, old_on, player._gather_radial.label_rects, player._gather_radial.title_box])
+	_expect(not player._gather_radial.label_rects.is_empty() and not old_on.is_empty(), "set-up: the radial is laid out and the HUD's own spot for the notice sits on it or the survivor (%s on %s)" % [old, old_on])
+	_expect(box.has_area() and on.is_empty(), "with the radial open the rare notice is drawn clear of its labels, title, hexes, the plates and the survivor (%s on %s)" % [box, on])
+	h.notice(text, GF.GREEN)
+	var same: Array = h._events.notices.filter(func(n): return str(n.get("base", "")) == text)
+	_expect(same.size() == 1 and str(same[0]["text"]) == text + "  x2", "the same rare result twice is one notice reading x2 (%s)" % [same.map(func(n): return n["text"])])
+	player._gather_radial.close()
+	h.queue_free()
+	na.free()
+	nb.free()
+	root.size = keep[0]
+	root.content_scale_size = keep[1]
+	await _frames(1)
+	_finished += 1
+
+func _frames(n: int) -> void:
+	for i in n:
+		await process_frame
+
+## Text -> drawn box of each notice the HUD drew last frame.
+func _drawn_notices(h) -> Dictionary:
+	var out := {}
+	for k in h.drawn_blocks:
+		if str(k).begins_with("notice"):
+			var i := int(str(k).trim_prefix("notice"))
+			if i < h._events.notices.size():
+				out[str(h._events.notices[i]["text"])] = h.drawn_blocks[k]
+	return out
