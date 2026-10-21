@@ -73,7 +73,7 @@ index b2f961bc..9697e97e 100644
  	var best: Creature = null
  	var best_d := max_d
 diff --git a/game/scripts/player/player_input.gd b/game/scripts/player/player_input.gd
-index e550c697..20306e90 100644
+index e550c697..10d5d688 100644
 --- a/game/scripts/player/player_input.gd
 +++ b/game/scripts/player/player_input.gd
 @@ -39,6 +39,9 @@ func _desktop_click_fallback(pos: Vector2) -> void:
@@ -86,16 +86,17 @@ index e550c697..20306e90 100644
  	# Pick stations in screen space first. Their low, open meshes often let a 3D ray pass through
  	# to terrain in desktop Compatibility/WebGL even when the visible mouse is over the model.
  	var best := _station_under_pointer(pos)
-@@ -236,7 +239,8 @@ func _walk_to_tile(at: Vector3) -> void:
+@@ -236,8 +239,8 @@ func _walk_to_tile(at: Vector3) -> void:
  func interact_tap_target(col: Object) -> void:
  	p.view.clear_ground_marker()
  	p.actions.cancel_work()
 -	if not (col is Creature and not (col as Creature).is_pet) and p.hunt:
-+	# Any creature keeps the fight: a wild one is the target, your own pet opens its radial mid-fight.
-+	if not col is Creature and p.hunt:
- 		p.hunt.stop()
+-		p.hunt.stop()
++	if not (col is Creature) and p.hunt:
++		p.hunt.stop()  # a tap on any animal, your pet too, keeps the fight going
  	if col is HarvestNode:
  		var hn := col as HarvestNode
+ 		var opts := hn.options()
 diff --git a/game/scripts/player/player_pets.gd b/game/scripts/player/player_pets.gd
 index 5e2e8b06..37f3ceb8 100644
 --- a/game/scripts/player/player_pets.gd
