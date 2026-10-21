@@ -20,6 +20,78 @@ Branch `claude/mmo-w2-process`, cut from `claude/mmo-overhaul` 36299a96. Base me
 - round 7 (review r2, the findings in this run's prompt): base merge b1756bb0 (cecc936b, docs only), 47f63f0c
   (PlayerActions verbs, honest times, one-line chips, contents), add208b3 (boxed-in chips, lab options), plus the
   commit carrying this report
+- round 8 (resumed run, the same r2 findings in this run's prompt): base merge 28b4c50f (ddaab662: W2-DATA,
+  W2-SKILLS, WATER), dc645889 (hooks patch regenerated), plus the commit carrying this report
+
+## Round 8: resumed run, base merged, gates and shots redone
+
+The prompt repeats the r2 findings that round 7 fixed (47f63f0c, add208b3). git log and the code show each fix
+is on the branch, and every check from the round 7 table still runs. This round merged the moved base, regenerated
+the hooks patch, and redid every gate and the affected shots on the merged tree. No finding needed new code.
+
+- **Base merge** 28b4c50f: claude/mmo-overhaul ddaab662 (W2-DATA items and recipes, W2-SKILLS, WATER). Clean, no
+  conflicts. The base touched `crafting.gd` (W2-SKILLS `progression_block`, a `cured_hide` category), and those
+  changes sit apart from this package's lines. `processing.json` still matches `recipes.json`: dry_meat and
+  dried_hide on the drying rack, smoke_meat on the smoker, camp_stew on the crock pot, steam on the steamer. No new
+  recipe uses those four stations.
+- **Hooks patch** dc645889: regenerated from the gate tree as `git diff --cached` after applying it. The body is
+  the same, and only the line numbers moved, because WATER added drink/wash/fill above `craft()` in
+  `player_actions.gd`. The six files it touches are byte-identical on claude/mmo-overhaul ddaab662 and on this
+  branch (`git diff --quiet` clean). `git apply --check` is clean.
+- **The findings, checked on the merged tree** (t_process, gate tree with the patch applied):
+  - PlayerActions: `ok online: collect and take back queue ["act.collect", "act.take_back"] and leave the bag
+    and the pot as they are (ready 1, jobs 2)`
+  - Honest preview: `ok the drying rack's craft card shows 10:00, not 8.0s (["Lv. — · 10:00 · Locked", "Lv. 7 ·
+    10:00 · No station"] | ["Dried Hide\nLv. — · 10:00 ×1"])` and `ok steam 1:00, stew 3:00; recipe_seconds
+    (XP) unchanged`
+  - Chips on their stations: `ok a chip grazing the survivor steps sideways, its station still under it`,
+    `ok a chip with a panel above its station hangs under its anchor`, `ok a chip with no free spot by its
+    station says so`
+  - Take back: `ok offline take back: the waiting job's own meat (uid l3cc54b81dc8dc631) and its herb and berry
+    are back, the running job stays`
+  - Dropped station kind: `ok a workbench row with a saved job: COLLECT gives the raw meat back, then it packs
+    up`, and `ok an input handed back pays no craft XP`
+  - Strips: `ok one strip loaded shows 2 of the model's 8 strips (2)`
+- **New on the base, not this package's:** W2-SKILLS gates Dried Hide behind the "Dry Leather" node
+  (Processing Lv. 15, 2 SP, `source: spec11`). The rack's craft card therefore reads `Locked` and gives the reason
+  ("Learn Dry Leather (Processing Lv. 15, 2 SP) ..."). The station path keeps that gate:
+  `ProcessStation.refuse_reason` calls `Crafting.progression_block`. With the base's other change, hide straps
+  now need dried hide. That means straps need Processing Lv. 15. The integrator should confirm this with W2-SKILLS
+  and W2-DATA.
+
+Shots, all opened and looked at. They use gl_compatibility with the hooks patch applied, on the merged tree.
+Files are in `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/r8/shots/`.
+Each run ended in a `[process_lab] PASS shot` line with 0 SCRIPT ERROR:
+- `all50_844`: the four one-line statuses each sit over their own station (`Steaming 2/4 · 0:24`, `Stewing 3/4 ·
+  1:24`, `Drying 4/4 · 4:54`, `Smoking 3/4 · 7:24`). Check line: `PASS shot all 50%: 4 chips, 0 overlaps (chip
+  on chip or on the survivor), 0 station world labels, 0 chips off their station []`. The new SKILLS button and
+  minimap from the base are clear of the chips.
+- `rack100menu_844`: COLLECT 4 and CRAFT around the rack. `Ready: 3 Camp Stew` is on the pot and `Ready: 3
+  Smoked...` is on the smoker (`2 chips, ... 0 chips off their station []`).
+- `rack50sheet_844`: "Craft · Meat dryer". Both rows and the detail read `10:00`. Dried Hide is locked by
+  W2-SKILLS, as described above.
+- `pot50menu_844`: TAKE BACK 2 beside CRAFT, with the pink raw bowls by the pot. The steamer falls back to its name chip.
+- `smoker50_844` and the crop `crop_smoker50_844`: the smoker's grey plume rises over its roof up to the Orders
+  panel. The rack's lighter smoke is beside it.
+- `all50_1600`, `rack100_1600`, `racks3_1600`: the 1600x900 views. Contents are coloured per job, chips sit on
+  their stations, and the line reads `3 of 3 working racks with a chip`.
+- Seen, not fixed, as in round 7:
+  - At 100 % the rack's strips match the frame wood.
+  - The extra racks show all 8 strips. Their stage GLB has no `strip_N` nodes (the registered REPLACE).
+  - The COLLECT caption touches the smoker's roof (StationMenu, W1-UI).
+
+Round 8 gates. They ran on the scratch tree `trees/w2proc-gates8` at 28b4c50f with the hooks patch applied, every
+Godot run under gslot, logs in `scratchpad/r8/gates/`:
+- `--import`: exit 0, 0 ERROR lines.
+- All 23 `t_*.gd` exit 0, with 0 SCRIPT ERROR apart from t_save's 5 deliberate ones. The list includes the base's
+  new `[t_data] PASS items=223 recipes=155`, `[t_water] PASS` and `[t_w2_skills] PASS`, and also `[t_process]
+  PASS`, `[t_build] PASS`, `[t_save] PASS`, `[t_ui] PASS`, `[t_web] PASS`, `[t_harbour] PASS islands=15`,
+  `[t_uiicons] PASS ids=177 files=116 ...`, `[t_items] PASS` and `[t_player] PASS`.
+- `[tests] PASS` (run_all, with the process checks) and `SMOKE PASS` (`tools/smoke.sh --no-import`, 0 SCRIPT ERROR).
+- `[process_lab] PASS`, `[kitchen_lab] PASS`, `[craft_lab] PASS` (headless), 0 SCRIPT ERROR each. All 8 windowed
+  process_lab shots PASS.
+- 0 "couldn't resolve track" lines in any gate or shot log.
+- No new `Godot-*.ips`. The newest is still `Godot-2026-10-20-232613.ips`, from before this round.
 
 ## Round 7: review r2 findings
 
