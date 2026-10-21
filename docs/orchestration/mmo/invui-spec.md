@@ -139,8 +139,9 @@ arm 14 % of the side, stroke `max(3, 3.5 %)`, with a 12 % SELECT tint behind; ne
 - Irregular dark panel borders: a 2 px polyline at 60 % black with +-1 px hashed jitter; corner radius 0-4 px.
 - Gate: Forward+ and gl_compatibility shots look the same (B4 compares both).
 - B4 as built: the vignette dropped to 14 % (the references darken only at the very edge) and the blotches rose
-  to +-26 %, so the rendered grid panel measures luma ~58-64 against the references' 52-56 and the backdrop ~78
-  against their 80-93; trait pips have a shape per class (filled square positive, hollow square negative,
+  to +-26 %; measured on the 1600x900 gl_compatibility shots (luma, B3 in brackets): empty grid 47-58 (37), the
+  Character card 54.5 (50), gear cells 29 (23), the backdrop 78 (41), against the references' 52-56, 53.5, 32
+  and 80-93; trait pips have a shape per class (filled square positive, hollow square negative,
   diamond rare) and the inspect panel's trait chips carry the same shape and say their class in a tooltip.
 
 ## 4. API contract (pinned by t_invui and bag_ui_lab)

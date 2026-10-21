@@ -112,7 +112,17 @@ func _layout_body(area: Rect2) -> void:
 	EquipmentSlot.layout(cells, Rect2(area.position, _grid_panel.size).grow(-4.0), maxi(UiTokens.TYPE_MIN, int(m.lv_font) - 2))
 	var cx: float = area.position.x + left_w + gap
 	var cw: float = area.end.x - cx
-	var info_h := floorf(area.size.y * (0.62 if m.compact else 0.56))
+	# The compare lines under the numbers set My Info's height when they need more than its share
+	# (a notched phone cut "Max health 100 → 156" off); the tactics keep room for 44 px hexes.
+	var cpx := int(m.row_font) - (2 if m.compact else 4)
+	_changes.add_theme_font_size_override("font_size", cpx)
+	var ls := -roundi(cpx * 0.45) # the font's tall line box read as gaps between the lines
+	_changes.add_theme_constant_override("line_spacing", ls)
+	_changes.size = Vector2(cw - float(m.margin) * 2.0, 0.0)
+	var top := _cols_rect().end.y + 4.0
+	var pitch := float(_changes.get_line_height()) + ls
+	var need := top + float(_changes.get_line_count()) * pitch - ls + float(m.margin) * 0.5 if _changes.text != "" else 0.0
+	var info_h := minf(maxf(floorf(area.size.y * (0.62 if m.compact else 0.56)), ceilf(need)), area.size.y - gap - 44.0 - float(m.margin) * 1.5)
 	_info.position = Vector2(cx, area.position.y)
 	_info.size = Vector2(cw, info_h)
 	_tactics.position = Vector2(cx, area.position.y + info_h + gap)
@@ -126,10 +136,9 @@ func _layout_body(area: Rect2) -> void:
 	_tactic_line.add_theme_font_size_override("font_size", int(m.row_font) - (0 if m.compact else 2))
 	_tactic_line.position = Vector2(m.margin, hs + float(m.margin) * 0.75)
 	_tactic_line.size = Vector2(cw - float(m.margin) * 2.0, _tactics.size.y - _tactic_line.position.y)
-	_changes.add_theme_font_size_override("font_size", int(m.row_font) - (2 if m.compact else 4))
-	var top := _cols_rect().end.y + 4.0
 	_changes.position = Vector2(m.margin, top)
 	_changes.size = Vector2(cw - float(m.margin) * 2.0, maxf(0.0, info_h - top))
+	_changes.max_lines_visible = maxi(1, floori((info_h - top - ls) / maxf(1.0, pitch))) # never a half-cut line
 	_info.queue_redraw()
 
 ## Tan band, then the three columns (icon, black label band, number).
