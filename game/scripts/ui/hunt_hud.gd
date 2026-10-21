@@ -1449,6 +1449,8 @@ func _draw_minimap() -> void:
 			var cr := n as Creature
 			if cr == null or cr.health.dead:
 				continue
+			if fog and not fog.revealed_at(cr.global_position):
+				continue  # fog: unseen animals stay off the minimap
 			var q: Vector2 = to_px.call(cr.global_position)
 			if q.length() > marker_r:
 				continue

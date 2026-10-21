@@ -39,6 +39,9 @@ var _save_acc: float = 0.0
 ## Saved under the save's "map" field; an old save has none and starts with the camp area known.
 var map_fogs: Dictionary = {}
 var map_fog: MapFog = null
+## Set when a save without fog was loaded: the first island built then starts with the camp area
+## revealed, instead of fully grey. A fresh world gets no such gift.
+var _reveal_camp_on_new_fog: bool = false
 var _walk_acc: float = 0.0
 ## True from a fresh start until character creation AND the first island pick have finished. No save
 ## may be written before that: the 60 s autosave did once, on the creation screen, and a reload then
@@ -372,8 +375,9 @@ func _ensure_map_fog(ir: Node3D, camp: Vector3) -> void:
 		f = MapFog.new()
 		(f as MapFog).setup(key, size_m)
 		map_fogs[key] = f
-		if camp != Vector3.ZERO:
+		if _reveal_camp_on_new_fog and camp != Vector3.ZERO:
 			(f as MapFog).reveal(camp, MapFog.OLD_SAVE_REVEAL_M)
+			_reveal_camp_on_new_fog = false
 	map_fog = f as MapFog
 	map_fog.land_from(ir)
 

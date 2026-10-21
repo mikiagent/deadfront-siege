@@ -413,12 +413,15 @@ func _draw() -> void:
 		var trail_pts: Array = []
 		for p in f.trail:
 			trail_pts.append(Vector2(p.x * s, p.y * s))
-		MapIcons.trail(self, trail_pts, 1.8)
+		# Dots grow with the map scale: 2 px at phone zoom, ~3.5 px on a desktop atlas.
+		MapIcons.trail(self, trail_pts, clampf(s * 1.6, 1.8, 3.6))
 	# resource dots: trees dark green, rocks grey, bushes/plants light green
 	for n in get_tree().get_nodes_in_group("harvest"):
 		var hn := n as HarvestNode
 		if hn == null or not hn.visible or hn.depleted:
 			continue
+		if f and not f.revealed_at(hn.global_position):
+			continue  # fog: you cannot see trees you have not walked near
 		var role := str(Data.nature_families.get(hn.family, {}).get("role", ""))
 		var col := legend_color("plant")
 		if role.begins_with("tree"):
@@ -435,7 +438,9 @@ func _draw() -> void:
 			_mark(to_map.call(m["at"]), ICON_PX * 0.5, kind, Color(0.02, 0.05, 0.12, 0.95))
 		var camp: Vector3 = rt.get("_camp_pos")
 		var harb: Vector3 = rt.get("_harbour_pos")
-		draw_circle(to_map.call(camp), 6.0, legend_color("camp"))
+		# The camp dot sits under the fire symbol (they are 2 m apart): keep it small so the two
+		# do not merge into one blob.
+		draw_circle(to_map.call(camp), 4.5, legend_color("camp"))
 		_mark(to_map.call(harb), 7.0, "harbour", Color(0.02, 0.05, 0.12, 0.95))
 		if World.crater_discovered:
 			draw_circle(to_map.call(rt.get("_crater_pos")), 6.0, legend_color("crater"))
@@ -446,6 +451,8 @@ func _draw() -> void:
 		var cr := n as Creature
 		if cr == null or cr.health.dead:
 			continue
+		if f and not f.revealed_at(cr.global_position):
+			continue  # fog: a dinosaur you have never seen is not on your map
 		draw_circle(to_map.call(cr.global_position), 3.2, legend_color("pet") if cr.is_pet else legend_color("wild"))
 	var pp := player.global_position
 	var pyaw := player.visual.rotation.y if player.visual else 0.0

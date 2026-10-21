@@ -245,6 +245,9 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World.camp_layout = (cl as Dictionary).duplicate() if cl is Dictionary else {}
 	var map_row: Variant = data.get("map", {})
 	World.load_map_map(map_row as Dictionary if map_row is Dictionary else {})
+	# An older save has no fog at all; its islands then open with the camp area known (task: old
+	# saves load with everything near the camp revealed). A fresh world starts fully grey.
+	World._reveal_camp_on_new_fog = not (map_row is Dictionary and (map_row as Dictionary).has("islands"))
 	World.player_name = str(data.get("player_name", ""))
 	World.occupation = str(data.get("occupation", ""))
 	Game.time_of_day = float(data.get("clock", 0.35))
