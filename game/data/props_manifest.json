@@ -688,7 +688,7 @@
         1.38
       ],
       "art_status": "REVIEW",
-      "upgrade": "low-poly hand-built Blender (1608 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
+      "upgrade": "low-poly hand-built Blender (1528 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "smith's forge: fieldstone hearth with an ember bed, hood and chimney, bellows on a trestle"
     },
     "anvil": {

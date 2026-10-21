@@ -1017,13 +1017,12 @@ def forge():
     for i, (x, y, _) in enumerate(_ring(13, hr - 0.06, 0, 0.4)):
         s = 0.075 + 0.02 * ((i * 3) % 4) / 3
         p.rock(s, (hx + x, hy + y, H + s * 0.35), tile="stone", squash=(1.3, 1.0, 0.65), seed=220 + i)
-    # the ember bed: a broad glowing bed in front of the hood with charcoal lumps and hot coals on it
+    # the ember bed: a broad glowing bed in front of the hood with charcoal lumps and hot coals
     ex, ey = hx, hy - 0.1
     p.cyl(0.33, 0.05, (ex, ey, H + 0.02), "char", seg=12, cap_tile="ember")
-    for i, (x, y, _) in enumerate(_ring(7, 0.2, 0, 0.3)):
-        p.rock(0.06, (ex + x, ey + y, H + 0.05), tile="ember" if i % 2 else "char", squash=(1.2, 1.0, 0.7), seed=240 + i)
-    for i in range(3):
-        p.rock(0.05, (ex - 0.08 + 0.08 * i, ey + 0.02 * i, H + 0.07), tile="ember", squash=(1.3, 1.0, 0.6), seed=250 + i)
+    # lumps ring the bed and leave its glowing middle open to the camera
+    for i, (x, y, _) in enumerate(_ring(6, 0.25, 0, 0.3)):
+        p.rock(0.055, (ex + x, ey + y, H + 0.05), tile="char" if i % 3 == 0 else "ember", squash=(1.2, 1.0, 0.7), seed=240 + i)
     # a bar heating in the coals, its far end glowing, handle out towards the smith
     p.log((ex + 0.05, ey + 0.05, H + 0.08), (ex + 0.3, ey - 0.4, H + 0.15), 0.016, tile="iron", seg=5, end_tile="ember")
     # cheek pillars, back wall and the tapered hood over the back half of the hearth, high enough
@@ -1045,18 +1044,19 @@ def forge():
     p.box((0.24, 0.18, 0.02), (hx, by + 0.1, ch + 0.002), "soot")
     # bellows on a trestle at the +X side (the camera side): a long pear of pleated hide between
     # two dark boards, wide end lifted, an iron nozzle into the hearth and a rocker lever on a post
-    bx0, bx1, bz, hw, tilt = 0.24, 0.9, 0.52, 0.17, 18.0
+    bx0, bx1, bz, hw, tilt = 0.24, 0.9, 0.5, 0.15, 22.0
     lift = math.tan(R(tilt))
     for x in (0.36, 0.78):
         for sy in (-1, 1):
             p.log((x, sy * 0.16, 0.0), (x, sy * 0.05, bz - 0.02), 0.028, tile="wood_dark", seg=6)
         p.plank((x, -0.17, bz - 0.03), (x, 0.17, bz - 0.03), 0.06, 0.05, "wood")
     p.prism(_paddle(bx0, bx1, hw, bz), (0, 0, 0.03), "wood_dark", tile_m=0.6)
+    # the boards hinge at the nozzle end, so the hide opens into a wedge whose folds fan out
     rings = []
-    for k, sc in enumerate((0.9, 1.1, 0.84, 1.08, 0.84, 1.04, 0.9)):  # folds bulge out and pinch in
-        rings.append(_paddle(bx0, bx1, hw, bz + 0.03 + 0.026 * k, tilt * k / 6, sc))
+    for k, sc in enumerate((0.9, 1.1, 0.84, 1.08, 0.84, 1.04, 0.9)):
+        rings.append(_paddle(bx0, bx1, hw, bz + 0.03 + 0.01 * k, tilt * k / 6, sc))
     _loft(p, rings, "hide", tile_m=0.35)  # tan hide between the dark boards so the folds read
-    top = bz + 0.03 + 0.026 * 6
+    top = bz + 0.03 + 0.06
     p.prism(_paddle(bx0, bx1, hw, top, tilt), (0, 0, 0.03), "wood_dark", tile_m=0.6)
     p.log((bx1 - 0.03, 0, top + 0.02 + (bx1 - bx0) * lift), (bx1 + 0.08, 0, top + 0.05 + (bx1 - bx0) * lift),
           0.024, tile="wood", seg=6)  # handle
