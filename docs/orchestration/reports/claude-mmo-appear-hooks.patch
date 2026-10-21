@@ -1,0 +1,353 @@
+diff --git a/game/data/characters/appearance.json b/game/data/characters/appearance.json
+new file mode 100644
+index 00000000..0f15b546
+--- /dev/null
++++ b/game/data/characters/appearance.json
+@@ -0,0 +1,55 @@
++{
++  "_about": "APPEAR-A hair rows for CHARCREATE's appearance.json (part \"hair\"). If CHARCREATE's file is already there, replace its hair part's options with these four rows. Apply a row with PlayerEquipment.set_hair(row.head, row.scene): head replaces the head region, scene fills the \"hair\" region that helmets hide (\"\" = none). base_short is today's look, worn as body/body_helmet.glb. Built by tools/blender/survivor_appearance/build.sh.",
++  "parts": [
++    {
++      "id": "hair",
++      "name": "Hairstyle",
++      "options": [
++        {
++          "id": "base_short",
++          "name": "Short",
++          "head": "res://assets/characters/survivor/hair/head.glb",
++          "scene": "res://assets/characters/survivor/hair/hair_current.glb",
++          "attach_bone": "Head",
++          "region": "hair",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "buzz",
++          "name": "Buzz",
++          "head": "res://assets/characters/survivor/hair/head_buzz.glb",
++          "scene": "",
++          "attach_bone": "Head",
++          "region": "hair",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "bald",
++          "name": "Bald",
++          "head": "res://assets/characters/survivor/hair/head_bald.glb",
++          "scene": "",
++          "attach_bone": "Head",
++          "region": "hair",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "crop",
++          "name": "Crop",
++          "head": "res://assets/characters/survivor/hair/head.glb",
++          "scene": "res://assets/characters/survivor/hair/hair_crop.glb",
++          "attach_bone": "Head",
++          "region": "hair",
++          "genders": [
++            "m"
++          ]
++        }
++      ]
++    }
++  ]
++}
+diff --git a/game/scenes/dev/appearance_lab.tscn b/game/scenes/dev/appearance_lab.tscn
+new file mode 100644
+index 00000000..fdcbb934
+--- /dev/null
++++ b/game/scenes/dev/appearance_lab.tscn
+@@ -0,0 +1,6 @@
++[gd_scene load_steps=2 format=3]
++
++[ext_resource type="Script" path="res://scripts/dev/appearance_lab.gd" id="1"]
++
++[node name="AppearanceLab" type="Node3D"]
++script = ExtResource("1")
+diff --git a/game/scripts/dev/appearance_lab.gd b/game/scripts/dev/appearance_lab.gd
+new file mode 100644
+index 00000000..33278554
+--- /dev/null
++++ b/game/scripts/dev/appearance_lab.gd
+@@ -0,0 +1,214 @@
++extends Node3D
++## APPEAR-A hair options in the engine. Rows come from assets/characters/survivor/hair/hair.json "options" (the
++## rows CHARCREATE's appearance.json "hair" slot takes). Checks: (1) the default look through PlayerEquipment is
++## pixel-identical to today's body regions in the same pose and camera, at the start and again after every option
++## was worn; (2) every clip plays with every option attached; (3) a helmet whose kit hides "hair" hides the hair
++## piece and unequip brings it back. Windowed it also saves, per option and view, the unchanged base (left) next
++## to the option (right). Time of day is pinned so every run lights the same.
++## godot --path game [--rendering-method gl_compatibility] --resolution 1600x900 -- --lab=appearance_lab --shot-dir=DIR
++## Prints "[appear] PASS" (exit 0) or "[appear] FAIL ..." (exit 1).
++
++const ROOT := "res://assets/characters/survivor"
++const VIEWS := {  # direction from the head (the rigs are turned to face +Z, into the sun), ortho size (0 = perspective)
++	"front": [Vector3(0, 0, 1), 0.62], "side": [Vector3(1, 0, 0), 0.62], "34": [Vector3(0.75, 0.12, 1), 0.62],
++	"back": [Vector3(-0.3, 0.15, -1), 0.62], "portrait": [Vector3(0.45, 0.1, 1), 0.0],
++	"world": [Vector3(0.0, 1.0, 0.85), 4.2],
++}
++const TOD := 0.42
++## After set_hair() swaps back, today's head is a new mesh instance drawn after the chest region: a depth tie at the
++## neck seam can go the other way (1-2 px of a 1600x900 close-up) and gl_compatibility's light passes shift a few
++## face pixels by up to 5/255. So the swap-back check counts pixels off by more than 8/255; the start is exact.
++const SWAP_TIE_PX := 4
++const SWAP_TIE_DELTA := 8.0 / 255.0
++var _out := ""
++var _cam: Camera3D
++var _fails: Array[String] = []
++
++func _ready() -> void:
++	for a in OS.get_cmdline_user_args():
++		if a.begins_with("--shot-dir="):
++			_out = a.substr(11)
++	if _out != "":
++		DirAccess.make_dir_recursive_absolute(_out)
++	Game.debug_overlay = false
++	Game.time_of_day = TOD
++	Engine.time_scale = 0.0  # hold the sun: clips are posed by seek, nothing here needs the clock
++	WorldLighting.install(self, "temperate")
++	_cam = Camera3D.new()
++	add_child(_cam)
++	_cam.current = true
++	call_deferred("_run")
++
++func _run() -> void:
++	var rows: Array = (JSON.parse_string(FileAccess.get_file_as_string(ROOT + "/hair/hair.json")) as Dictionary)["options"]
++	var base := _today_rig()
++	var opt := _option_rig()
++	var eq: PlayerEquipment = opt.get_meta("eq")
++	await _settle()
++	opt.position = base.position
++	await _same_as_today(base, opt, "start")
++	opt.visible = true
++	base.visible = true
++	# (2) + (3) per option.
++	var anim: AnimationPlayer = (opt as RiggedModel).anim_player
++	for row in rows:
++		var r := row as Dictionary
++		var id := str(r["id"])
++		var head := str(r.get("head", ""))
++		var path := str(r.get("scene", ""))
++		eq.set_hair(head, path)
++		var hair: Array = eq.body.get("hair", [])
++		var today := head == PlayerEquipment.HEAD and path == PlayerEquipment.HAIR  # worn as body_helmet.glb
++		if (eq.body.get("helmet", []) as Array).is_empty():
++			_fails.append("%s: no head attached" % id)
++		if path != "" and not today and hair.is_empty():
++			_fails.append("%s: hair piece did not attach" % id)
++		anim.clear_caches()
++		var clips := anim.get_animation_list()
++		for clip in clips:
++			anim.play(clip)
++			anim.seek(anim.current_animation_length * 0.5, true)
++		print("[appear] clips option=%s played=%d" % [id, clips.size()])
++		if not hair.is_empty():
++			eq.equip(&"head", "hide_and_bone/helmet")
++			if (hair[0] as MeshInstance3D).visible:
++				_fails.append("%s: hide_and_bone helmet does not hide the hair" % id)
++			eq.unequip(&"head")
++			if not (hair[0] as MeshInstance3D).visible:
++				_fails.append("%s: unequip does not bring the hair back" % id)
++		_pose(opt)
++		if _out != "":
++			for view in VIEWS:
++				# The option stands to the screen-right of the base in every view.
++				_frame(_head(base), view)
++				var right := _cam.global_basis.x
++				right.y = 0.0
++				opt.global_position = base.global_position + right.normalized() * 0.7
++				_frame((_head(base) + _head(opt)) * 0.5, view, 1.0 if view == "world" else 1.9)
++				var img := await _grab()
++				if img:
++					img.save_png("%s/%s_%s.png" % [_out, id, view])
++	# Back to today's look after wearing every option.
++	eq.set_hair("", "")
++	if eq.body.has("hair") and not (eq.body["hair"] as Array).is_empty():
++		_fails.append("default look keeps a hair piece")
++	_pose(opt)
++	await _settle()
++	opt.position = base.position
++	await _same_as_today(base, opt, "after_options")
++	Engine.time_scale = 1.0
++	print("[appear] options=%d views=%d" % [rows.size(), VIEWS.size()])
++	if _fails.is_empty():
++		print("[appear] PASS")
++		get_tree().quit(0)
++	else:
++		for f in _fails:
++			print("[appear] FAIL %s" % f)
++		get_tree().quit(1)
++
++## (1) Default look == today: same spot, same pose, each alone in the frame, 0 differing pixels.
++func _same_as_today(base: RiggedModel, opt: RiggedModel, tag: String) -> void:
++	if DisplayServer.get_name() == "headless":
++		return
++	for view in ["front", "34", "portrait", "world"]:
++		_frame(_head(base), view)
++		var n := -1
++		for attempt in 5:  # today, default, today again: compare only when the scene itself held still
++			base.visible = true; opt.visible = false
++			var a := await _grab()
++			base.visible = false; opt.visible = true
++			var b := await _grab()
++			base.visible = true; opt.visible = false
++			var a2 := await _grab()
++			if _diff(a, a2) == 0:
++				n = _diff(a, b, 0.0 if tag == "start" else SWAP_TIE_DELTA)
++				if _out != "":
++					a.save_png("%s/_today_%s_%s.png" % [_out, tag, view])
++					b.save_png("%s/_default_%s_%s.png" % [_out, tag, view])
++				break
++		print("[appear] default-vs-today %s %s differing_px=%d%s" % [tag, view, n, "" if tag == "start" else " (off by >8/255)"])
++		if n < 0 or n > (0 if tag == "start" else SWAP_TIE_PX):
++			_fails.append("default look differs from today in %s %s (%s)" % [tag, view, "%d px" % n if n > 0 else "scene never held still"])
++
++## Today's survivor as shipped before the hair split: the four body regions from body/, no hair region.
++func _today_rig() -> RiggedModel:
++	var rig := _rig()
++	for m in rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
++		(m as MeshInstance3D).visible = false
++	for region in ["helmet", "chest", "arms", "legs"]:
++		for m in RiggedModel.attach_skinned(rig.skeleton, "%s/body/body_%s.glb" % [ROOT, region]):
++			PlayerView.web_safe_mesh(m)
++	return rig
++
++## The survivor through PlayerEquipment (head + hair regions), as the player gets it.
++func _option_rig() -> RiggedModel:
++	var rig := _rig()
++	var eq := PlayerEquipment.new()
++	add_child(eq)
++	eq.setup(rig, Inventory.new())
++	rig.set_meta("eq", eq)
++	return rig
++
++func _rig() -> RiggedModel:
++	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/characters/survivor.json"))
++	var pipe: Dictionary = meta.get("pipeline", {})
++	var rig := RiggedModel.new()
++	add_child(rig)
++	var h := float(meta.get("height_meters", 1.72))
++	rig.setup(PlayerView.SURVIVOR_BASE_GLB, PlayerView.SURVIVOR_ANIM_DIR, str(pipe.get("forward_axis", "+Z")), h, "player", true, float(pipe.get("source_height_m", h)))
++	for m in rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
++		PlayerView.web_safe_mesh(m as MeshInstance3D)
++	rig.scale *= 1.18
++	rig.rotation.y = PI  # face the lab sun so faces are lit in the shots
++	_pose(rig)
++	return rig
++
++## Idle, first frame, held: both rigs in exactly the same pose (bones idle does not key go back to rest, not to
++## wherever the last clip left them).
++func _pose(rig: RiggedModel) -> void:
++	rig.skeleton.reset_bone_poses()
++	rig.anim_player.play(&"idle")
++	rig.anim_player.seek(0.0, true)
++	rig.anim_player.pause()
++
++func _head(rig: RiggedModel) -> Vector3:
++	var sk := rig.skeleton
++	return (sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Head"))).origin + Vector3(0, 0.1, 0)
++
++func _frame(target: Vector3, view: String, widen: float = 1.0) -> void:
++	var d: Vector3 = (VIEWS[view][0] as Vector3).normalized()
++	var size: float = VIEWS[view][1]
++	if size > 0.0:
++		_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
++		_cam.size = size * widen
++		_cam.look_at_from_position(target + d * 6.0, target - (Vector3(0, 0.9, 0) if view == "world" else Vector3.ZERO))
++	else:
++		_cam.projection = Camera3D.PROJECTION_PERSPECTIVE
++		_cam.fov = 30.0
++		_cam.look_at_from_position(target + Vector3(0, -0.1, 0) + d * 1.6 * widen, target + Vector3(0, -0.1, 0))
++
++func _settle() -> void:
++	for i in 3:
++		await get_tree().process_frame
++
++func _grab() -> Image:
++	if DisplayServer.get_name() == "headless":
++		return null
++	await get_tree().process_frame
++	await RenderingServer.frame_post_draw
++	await get_tree().process_frame
++	await RenderingServer.frame_post_draw
++	return get_viewport().get_texture().get_image()
++
++## Pixels where any channel differs by more than `tol`.
++func _diff(a: Image, b: Image, tol: float = 0.0) -> int:
++	if a.get_data() == b.get_data():
++		return 0
++	var n := 0
++	for y in a.get_height():
++		for x in a.get_width():
++			var p := a.get_pixel(x, y)
++			var q := b.get_pixel(x, y)
++			if absf(p.r - q.r) > tol or absf(p.g - q.g) > tol or absf(p.b - q.b) > tol:
++				n += 1
++	return n
+diff --git a/game/scripts/dev/appearance_lab.gd.uid b/game/scripts/dev/appearance_lab.gd.uid
+new file mode 100644
+index 00000000..2bf63492
+--- /dev/null
++++ b/game/scripts/dev/appearance_lab.gd.uid
+@@ -0,0 +1 @@
++uid://bn6s0hogmuyyb
+diff --git a/game/scripts/player/player_equipment.gd b/game/scripts/player/player_equipment.gd
+index 1bd8b68a..48b2cda2 100644
+--- a/game/scripts/player/player_equipment.gd
++++ b/game/scripts/player/player_equipment.gd
+@@ -3,9 +3,16 @@ extends Node
+ ## Shows worn armor on the survivor. The single survivor mesh is swapped for four body regions; each
+ ## head/body/arms/legs item with a "visual" ("<kit>/<piece>") attaches that kit piece to the live skeleton
+ ## and hides the body regions its kit.json lists. Every clip keeps working: pieces share the base bones.
++## set_hair() swaps the head region and adds a "hair" region for the chosen hairstyle.
+ 
+ const ROOT := "res://assets/characters/survivor"
+ const PIECE_FOR_SLOT := {&"head": "helmet", &"body": "chest", &"arms": "arms", &"legs": "legs"}
++## Today's hair as its own piece on the bald head (game/data/characters/appearance.json "hair" row "current").
++## body_helmet.glb is the same triangles in one mesh and stays the default head: split in two, each mesh gets
++## its own LODs and the head shifts a few pixels in the world view.
++const HEAD := ROOT + "/hair/head.glb"
++const HAIR := ROOT + "/hair/hair_current.glb"
++const HEAD_WITH_HAIR := ROOT + "/body/body_helmet.glb"
+ 
+ var rig: RiggedModel
+ var inventory: Inventory
+@@ -34,6 +41,31 @@ func setup(p_rig: RiggedModel, p_inventory: Inventory) -> void:
+ 	inventory.changed.connect(refresh)
+ 	refresh()
+ 
++## Hair option (appearance.json "hair" row): `head` replaces the "helmet" region (the head with that option's
++## scalp paint) and `hair` fills the "hair" region that kits hide ("" = no piece). "" for both = today's look.
++func set_hair(head: String, hair: String) -> void:
++	if body.is_empty():
++		return
++	if head == "" or (head == HEAD and hair == HAIR):
++		head = HEAD_WITH_HAIR
++		hair = ""
++	_swap_region("helmet", head)
++	_swap_region("hair", hair)
++	_sync_body()
++
++func _swap_region(region: String, path: String) -> void:
++	if path != "" and not ResourceLoader.exists(path):
++		push_warning("[equipment] no %s piece at %s" % [region, path])
++		return
++	for m in body.get(region, []):
++		(m as Node).queue_free()
++	var meshes: Array[MeshInstance3D] = []
++	if path != "":
++		meshes = RiggedModel.attach_skinned(rig.skeleton, path)
++	for m in meshes:
++		PlayerView.web_safe_mesh(m)
++	body[region] = meshes
++
+ ## Equip or unequip whatever differs between the inventory and what is shown.
+ func refresh() -> void:
+ 	if rig == null or rig.skeleton == null:
