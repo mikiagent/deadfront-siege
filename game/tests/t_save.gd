@@ -185,11 +185,30 @@ func _test_round_trip(name: String) -> void:
 			_check_split(name + " back home", home_old, _saved())
 	elif name.begins_with("save_v3_"):
 		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
+		_pad_contents(golden, s1)
 		var gd: Array[String] = []
-		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
+		# y is re-seated on the terrain at load; the schema marker moves on to the current one.
+		_same(golden, s1, "", gd, ["/player/position/1", "/schema"])
 		_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
+		_check(int(s1.get("schema", -1)) == int(SG.SCHEMA), "%s re-saves at the current schema" % name)
 	print("[t_save] round trip %s fields=%d diffs=%d" % [name, s1.size(), diffs.size()])
 	await process_frame
+
+## Baskets grew from 60 to 100 slots (spec 05:14): a golden row list gets the empty tail a re-save
+## writes, so every saved row is still compared slot for slot.
+func _pad_contents(golden: Dictionary, s1: Dictionary) -> void:
+	for side in ["home", "away"]:
+		var g: Variant = golden.get(side)
+		var s: Variant = s1.get(side)
+		if not (g is Dictionary and s is Dictionary):
+			continue
+		var gb: Array = g.get("buildings", [])
+		var sb: Array = s.get("buildings", [])
+		for i in mini(gb.size(), sb.size()):
+			var gc: Variant = gb[i].get("contents") if gb[i] is Dictionary else null
+			var sc: Variant = sb[i].get("contents") if sb[i] is Dictionary else null
+			if gc is Array and sc is Array and (gc as Array).size() < (sc as Array).size():
+				(gc as Array).resize((sc as Array).size())  # the new slots are empty (null)
 
 ## The stacked v3 goldens are frozen rev-1 saves: never regenerate them, they are the migration's
 ## input. skills_v2 must equal the rev-2 result kept in save_v3_skills_rev2.json, field for field both
@@ -198,7 +217,8 @@ func _test_round_trip(name: String) -> void:
 func _check_v3_skills(name: String, s1: Dictionary) -> void:
 	var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
 	_check(not (golden["skills_v2"] as Dictionary).has("rev"), "%s is still a rev-1 save (the migration input)" % name)
-	var skip: Array = ["/skills_v2", "/player/position/1", "/player/inventory", "/player/inventory_extras", "/home/cargo"]
+	var skip: Array = ["/skills_v2", "/player/position/1", "/player/inventory", "/player/inventory_extras", "/home/cargo", "/schema"]
+	_check(int(s1.get("schema", -1)) == int(SG.SCHEMA), "%s re-saves at the current schema" % name)
 	for side in ["home", "away"]:
 		var part: Variant = golden.get(side)
 		if part is Dictionary:

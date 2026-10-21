@@ -364,7 +364,7 @@ func _request_tile_path() -> void:
 	var pathing: Variant = World.runtime.get("pathing")
 	if pathing == null:
 		return
-	_path_points = pathing.path(p.global_position, p._path_goal, 96)
+	_path_points = pathing.path(p.global_position, p._path_goal, 96, true)  # the owner walks through its own walls (HANDOFF 8)
 	_path_index = 0
 	# A plain ground move to a tile nothing reaches stops at the closest reachable tile and says
 	# so, instead of pressing into the wall for 10 s (phys-path-01). Targets keep their own goal.

@@ -270,6 +270,10 @@ func interact_tap_target(col: Object) -> void:
 		col.open()
 	elif col is Node and (col as Node).is_in_group("cargo_warp"):
 		col.use(p)
+	elif col is StructurePiece:
+		var hud := p.get_tree().get_first_node_in_group("hud")
+		if hud and hud.has_method("open_structure"):
+			hud.open_structure(col)  # W2-BUILDSYS card: door, chest, sign, upgrade, repair, demolish
 	elif col is Node and (col as Node).is_in_group("placed_building"):
 		p.actions.building_interact(col)
 
@@ -289,8 +293,8 @@ func pick_interactable(hit: Dictionary) -> Object:
 	var best_d := 9999.0
 	for row in p.get_world_3d().direct_space_state.intersect_shape(query, 16):
 		var col: Object = row.get("collider", null)
-		if not is_interactable(col):
-			continue
+		if col is StructurePiece or not is_interactable(col):
+			continue  # a piece is tapped only by a direct hit: indoors every spot is near a wall
 		var n := col as Node3D
 		if n == null:
 			continue
@@ -308,6 +312,8 @@ func unwrap_tap(col: Object) -> Object:
 	return col
 
 func is_interactable(col: Object) -> bool:
+	if col is StructurePiece:
+		return (col as StructurePiece).is_tap_target()
 	if col is Area3D:
 		var owner := (col as Area3D).get_parent()
 		if owner is HarvestNode or owner is CraftStation or owner is Bonfire:
