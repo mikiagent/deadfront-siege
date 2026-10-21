@@ -10,12 +10,12 @@ extends MeshInstance3D
 ## drawn after, cannot wash over them where an edge crosses a river.
 
 const DASH := 0.45  ## metres of dash per metre of edge, yours
-const DOT := 0.2  ## the same for other players' edges
+const DOT := 0.25  ## the same for other players' edges
 const WIDTH := 0.13
 const LIFT := 0.07  ## above the ground, or the water plane where an edge crosses a river or the shallows
 const COLOR := Color(0.96, 0.82, 0.36)
 ## ASSUMPTION: the references show one colour (yours); other players' edges get a second one.
-const OTHER_COLOR := Color(0.93, 0.45, 0.35)
+const OTHER_COLOR := Color(1.0, 0.58, 0.47)
 const NEAREST := 4
 
 var _rt: IslandRuntime
