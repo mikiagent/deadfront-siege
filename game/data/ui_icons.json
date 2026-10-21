@@ -85,6 +85,8 @@
 		"station_smoker": "res://assets/icons/ui/station_smoker.svg",
 		"station_grindstone": "res://assets/icons/ui/station_grindstone.svg",
 		"station_stone_fire_pit": "res://assets/icons/ui/station_fire.svg",
+		"station_forge": "res://assets/icons/ui/station_fire.svg",
+		"station_anvil": "res://assets/icons/ui/station_grindstone.svg",
 		"rotate": "res://assets/icons/ui/rotate.svg",
 		"place_rotate": "res://assets/icons/ui/rotate.svg",
 		"confirm": "res://assets/icons/ui/confirm.svg",
