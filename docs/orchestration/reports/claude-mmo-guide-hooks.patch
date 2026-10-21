@@ -1,0 +1,160 @@
+diff --git a/game/data/world/objectives.json b/game/data/world/objectives.json
+index 4c75f9e0..d3683af3 100644
+--- a/game/data/world/objectives.json
++++ b/game/data/world/objectives.json
+@@ -1,10 +1,10 @@
+ {
+-  "_about": "The survivor's standing orders: one objective at a time, in order, shown on the HUD card. Every condition is read from state the player can already see (bag contents, bonded animals, which island you are on), so no system has to report completion. Rewards are pioneer XP and T-stones. Added 2026-09-22 after a bot playthrough found the early game had no stated goal at all.",
++  "_about": "The survivor's standing orders: one objective at a time, in order, shown on the HUD card. Every condition is read from state the player can already see (bag contents, bonded animals, which island you are on), so no system has to report completion. The walkthrough finger (scripts/core/guide.gd) derives what to point at from the step; an optional \"guide\": {\"creature\": id} names the creature where the order is not about a grown or crafted item. Rewards are pioneer XP and T-stones. Added 2026-09-22 after a bot playthrough found the early game had no stated goal at all.",
+   "steps": [
+     {
+       "id": "branches",
+       "title": "Gather 3 branches",
+-      "hint": "Tap a tree and pick Branch from the wheel",
++      "hint": "Tap a tree and pick the Branch hex",
+       "have": {
+         "branch": 3
+       },
+@@ -70,6 +70,9 @@
+       "id": "meat",
+       "title": "Hunt something for meat",
+       "hint": "Compsognathus scavenge near the shore",
++      "guide": {
++        "creature": "compsognathus"
++      },
+       "have_any": {
+         "raw_meat": 1,
+         "raptor_meat": 1
+@@ -99,6 +102,9 @@
+       "id": "tame",
+       "title": "Tame a Zebraceratops",
+       "hint": "Wear it down, knock it over, then feed it berries",
++      "guide": {
++        "creature": "zebraceratops"
++      },
+       "pets": 1,
+       "xp": 120,
+       "t_stones": 5
+diff --git a/game/scripts/core/objectives.gd b/game/scripts/core/objectives.gd
+index d92d8e58..bddbb7a7 100644
+--- a/game/scripts/core/objectives.gd
++++ b/game/scripts/core/objectives.gd
+@@ -71,6 +71,11 @@ static func _with_best(state: Dictionary) -> Dictionary:
+ 		"got": got, "want": want,
+ 	}
+ 
++## Step i as objectives.json defines it ({} past the list): the walkthrough finger reads its target from it.
++static func step(i: int) -> Dictionary:
++	var steps := _steps()
++	return steps[i] if i >= 0 and i < steps.size() and steps[i] is Dictionary else {}
++
+ static func _steps() -> Array:
+ 	var raw: Variant = Data.world_objectives
+ 	return raw if raw is Array else []
+diff --git a/game/scripts/core/save_game.gd b/game/scripts/core/save_game.gd
+index 2ac1e244..7611d73c 100644
+--- a/game/scripts/core/save_game.gd
++++ b/game/scripts/core/save_game.gd
+@@ -106,6 +106,7 @@ static func save_now() -> bool:
+ 		"raid_victory": World.raid_victory,
+ 		"objective": World.objective,
+ 		"objective_best": World.objective_best,
++		"guide_done": World.guide_done,
+ 		"island_id": str(World.island_id),
+ 		"unstable": {
+ 			"remaining": World.remaining_lifetime,
+@@ -213,6 +214,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
+ 	World.raid_victory = bool(data.get("raid_victory", false))
+ 	World.objective = int(data.get("objective", 0))  # older saves start the standing orders over
+ 	World.objective_best = int(data.get("objective_best", 0))
++	World.guide_done = Guide.done_from_save(data)  # optional field: older saves count every passed order as shown
+ 	World.remaining_lifetime = float(data.get("unstable", {}).get("remaining", 0.0))
+ 	World.harvested = data.get("unstable", {}).get("harvested", {})
+ 	World.crater_discovered = bool(data.get("unstable", {}).get("crater_discovered", false))
+diff --git a/game/scripts/core/save_sanitizer.gd b/game/scripts/core/save_sanitizer.gd
+index 456a21c8..62580e50 100644
+--- a/game/scripts/core/save_sanitizer.gd
++++ b/game/scripts/core/save_sanitizer.gd
+@@ -26,7 +26,7 @@ const SHAPE := {
+ 	"away": {"buildings": [], "claims": []}, "pending_refunds": [],
+ 	"pioneer_xp": 0, "pioneer_level": 0, "pioneer_crafts": {}, "pioneer_buildings": {},
+ 	"player_name": "", "occupation": "", "t_stones": 0, "visited_islands": {}, "raid_victory": false,
+-	"objective": 0, "objective_best": 0, "island_id": "",
++	"objective": 0, "objective_best": 0, "guide_done": [], "island_id": "",
+ 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
+ 	"clock": 0.0, "saved_unix": 0,
+ }
+diff --git a/game/scripts/core/world.gd b/game/scripts/core/world.gd
+index 2eb0a496..4246a9f2 100644
+--- a/game/scripts/core/world.gd
++++ b/game/scripts/core/world.gd
+@@ -18,6 +18,7 @@ var objective: int = 0 ## index into Data.world_objectives; the survivor's stand
+ var visited_islands: Dictionary = {} ## persistent voyage log
+ var raid_victory: bool = false ## persists only a player/pet T-rex kill on volcanic_60
+ var objective_best: int = 0 ## high-water progress on the current order (materials get spent)
++var guide_done: PackedStringArray = [] ## order ids the walkthrough finger is finished with (saved)
+ var _objective_acc: float = 0.0
+ var player_name: String = ""
+ var occupation: String = ""  # gathers +1, crafts +10, buildings +15; bar wraps every 100 (ASSUMPTION)
+@@ -99,6 +100,7 @@ func start_new(host: Node) -> void:
+ 	raid_victory = false
+ 	objective = 0
+ 	objective_best = 0
++	guide_done.clear()
+ 	# Character creation first (M10), then the home island with the terrain pick.
+ 	var cc := CharacterCreation.new()
+ 	cc.name = "CharacterCreation"
+diff --git a/game/scripts/player/player_view.gd b/game/scripts/player/player_view.gd
+index 753794b2..6a6ac75c 100644
+--- a/game/scripts/player/player_view.gd
++++ b/game/scripts/player/player_view.gd
+@@ -42,6 +42,7 @@ func setup() -> void:
+ 
+ func setup_ui() -> void:
+ 	_setup_gather_radial()
++	GuideFinger.mount(p)  # after the radial: the finger follows its hexes and hears its picks
+ 	_setup_station_craft()
+ 	_setup_eat_session()
+ 
+diff --git a/game/scripts/ui/gather_radial.gd b/game/scripts/ui/gather_radial.gd
+index 36c2c99d..1631113b 100644
+--- a/game/scripts/ui/gather_radial.gd
++++ b/game/scripts/ui/gather_radial.gd
+@@ -204,6 +204,15 @@ func set_progress(frac: float) -> void:
+ func active_node() -> Node3D:
+ 	return node if _open and active_index >= 0 else null
+ 
++## Screen rect of the hex that gathers `item`; empty while closed or not offered. The layout re-solves
++## every frame, so a caller (the walkthrough finger) re-reads it every frame.
++func hex_rect_for(item: StringName) -> Rect2:
++	if _open:
++		for i in mini(options.size(), _buttons.size()):
++			if StringName(str((options[i] as Dictionary).get("item", ""))) == item:
++				return _buttons[i].get_global_rect()
++	return Rect2()
++
+ ## Partial hexagon outline just outside a hex button, clockwise from its top vertex.
+ static func _hex_sweep(c: Vector2, r: float, frac: float) -> PackedVector2Array:
+ 	var hex := PackedVector2Array()
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index ed0b7728..5640eb8d 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -820,6 +820,17 @@ func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
+ func sheet_open() -> bool:
+ 	return _sheet != null or (_skills_sheet != null and _skills_sheet.visible)
+ 
++## A HUD control the walkthrough finger points at: craft opens from the MENU hex (Menu, then Craft).
++func control_for(id: StringName) -> Control:
++	return _menu_hex if id == &"craft" else null
++
++## True while a sheet, a modal screen (bag, craft, atlas, animals), the creature plate or the death screen
++## is up: the walkthrough finger hides meanwhile.
++func play_covered() -> bool:
++	var modal: bool = player != null and ((player.ui != null and player.ui.visible) or (player.craft_ui != null and player.craft_ui.visible))
++	return modal or sheet_open() or drawn_blocks.has("plate") or _death_alpha > 0.01 \
++		or (_animal_screen != null and _animal_screen.visible) or (_map_screen != null and _map_screen.visible)
++
+ ## Screen rects the HUD holds this frame (see HudLayout.taken_rects).
+ func taken_rects(skip: PackedStringArray = []) -> Array[Rect2]:
+ 	return HudLayout.taken_rects(self, skip)
