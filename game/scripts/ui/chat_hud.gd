@@ -136,7 +136,7 @@ func _draw() -> void:
 		var x := 8.0 + name_w
 		var text := str(l["text"])
 		if ChatEmotes.is_emote(text):
-			ChatEmotes.draw(self, text, Rect2(x, y + 3.0, lh - 6.0, lh - 6.0))
+			ChatEmotes.draw(self, text, Rect2(x, y + 3.0, lh - 6.0, lh - 6.0), a)
 		else:
 			draw_string(f, Vector2(x, base.y), UiTokens.ellipsis(f, text, size.x - x - 8.0, px), HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(ChatScreen.TEXT, a))
 		y += lh

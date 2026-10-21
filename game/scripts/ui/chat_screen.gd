@@ -48,7 +48,11 @@ var _field: LineEdit
 var _plus: Button
 var _send: Button
 var _picker: PanelContainer
-var _items: Array = []  # [node, line]: the time each row shows, refreshed by _tick_times
+var _shown: Array = []  # one {line, node, box, row, ago} per line on screen, oldest first
+var _row_n := 0  # rows made since the last rebuild: the tints alternate by it
+var _footer: RichTextLabel  # under the rows: why Region is offline, why a line was not sent, or "Nothing yet"
+var _footer_text := ""
+var _glide: Tween
 var _note := ""  # why the last line was not sent
 var _sending := false
 var _time_left := 0.0
@@ -65,6 +69,10 @@ func _init(p_log: ChatLog) -> void:
 	resized.connect(_apply_metrics)
 	select(channel)
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and _footer and _footer.get_parent() == null:
+		_footer.free()  # out of the tree while it has nothing to say, so nothing else frees it
+
 ## Durango's condensed sans, as the bag family narrows the default font (InvTheme.font()).
 static func font() -> Font:
 	if _font == null or _font.base_font != ThemeDB.fallback_font:
@@ -73,10 +81,11 @@ static func font() -> Font:
 		_font.variation_transform = Transform2D(Vector2(0.9, 0.0), Vector2(0.0, 1.0), Vector2.ZERO)
 	return _font
 
+## A closed screen ignores new lines; opening it catches the rows up once (select -> _sync).
 func open(ch: StringName = channel) -> void:
 	visible = true
+	_time_left = 0.0  # the times did not tick while closed
 	select(ch)
-	_jump_to_end()
 
 func close() -> void:
 	_picker.visible = false
@@ -85,12 +94,16 @@ func close() -> void:
 	closed.emit()
 
 func select(ch: StringName) -> void:
+	var other := ch != channel
 	channel = ch
 	_note = ""
 	for k: StringName in _chan_buttons:
 		(_chan_buttons[k] as ChannelButton).set_selected(k == ch)
 	_title.text = TITLES[ch]
-	_rebuild()
+	if other:
+		_rebuild()
+	else:
+		_sync()
 	_jump_to_end()
 
 # ---------------------------------------------------------------- build
@@ -308,32 +321,93 @@ func _place_root() -> void:
 # ---------------------------------------------------------------- rows
 
 func _on_log_changed(ch: StringName) -> void:
-	if ch != channel:
-		return
+	if ch != channel or not visible:
+		return  # a closed screen catches up once, in open()
 	var at_end := _at_end()
-	_rebuild()
-	if at_end and visible:
+	_sync()
+	if at_end:
 		_scroll_to_end()
 
+## Every row made again: on a channel switch or a new size. New lines go through _sync.
 func _rebuild() -> void:
 	if _list == null or _m.is_empty():
 		return
 	for c in _list.get_children():
 		_list.remove_child(c)
 		c.queue_free()
-	_items.clear()
+	if _footer and not _footer.is_queued_for_deletion():
+		_footer.free()  # not in the list: it only joins it while it has something to say
+	_footer = _banner()
+	_footer_text = ""
+	_shown.clear()
+	_row_n = 0
+	_sync()
+
+## Brings the rows up to the log: lines the log let go leave from the top, new lines join at the
+## bottom, and every row in between is left alone (making all 100 rows again for each new line
+## cost 25-35 ms a line, open or closed).
+func _sync() -> void:
+	if _list == null or _m.is_empty():
+		return
 	var rows: Array = feed.lines[channel]
-	var groups := ChatLog.groups(rows)
-	for i in groups.size():
-		_list.add_child(_row(groups[i], i))
-	var offline := channel == ChatLog.REGION and not feed.online()
-	if offline:
-		_list.add_child(_banner(_offline_text()))
-	elif rows.is_empty():
-		_list.add_child(_banner("Nothing yet. Say hi to the island." if channel == ChatLog.REGION else "Level-ups, arrivals and warnings show here."))
-	if _note != "" and not offline:
-		_list.add_child(_banner(_note))
+	while not _shown.is_empty() and (rows.is_empty() or not is_same(_shown[0]["line"], rows[0])):
+		_drop_oldest()
+	var n := _shown.size()
+	if n > rows.size() or (n > 0 and not is_same(_shown[-1]["line"], rows[n - 1])):
+		_rebuild()  # the log changed some other way
+		return
+	if n > 0:
+		_render(_shown[-1])  # a repeated System notice moves the last line's time
+	for i in range(n, rows.size()):
+		_append(rows[i])
+	_refresh_footer()
 	_refresh_input()
+
+func _drop_oldest() -> void:
+	var it: Dictionary = _shown.pop_front()
+	var row: Control = it["row"]
+	var gone: Control = row if _shown.is_empty() or _shown[0]["row"] != row else it["box"]
+	gone.get_parent().remove_child(gone)
+	gone.queue_free()
+
+## A new line: under the last name when the same sender wrote the line above, else a new row.
+func _append(line: Dictionary) -> void:
+	var row: PanelContainer
+	if not _shown.is_empty() and ChatLog.stacks(_shown[-1]["line"], line):
+		row = _shown[-1]["row"]
+	else:
+		row = _row(line, _row_n)
+		_row_n += 1
+		_list.add_child(row)
+	var it := _item(line)
+	it["row"] = row
+	row.get_child(0).get_child(-1).add_child(it["box"])  # the row's line column
+	_shown.append(it)
+	_render(it)
+
+## The banner under the rows. Shaped again only when its words change (a held Enter repeats them).
+func _refresh_footer() -> void:
+	var t := ""
+	if channel == ChatLog.REGION and not feed.online():
+		t = _offline_text()
+	elif _note != "":
+		t = _note
+	elif (feed.lines[channel] as Array).is_empty():
+		t = "Nothing yet. Say hi to the island." if channel == ChatLog.REGION else "Level-ups, arrivals and warnings show here."
+	if t == "":
+		if _footer.get_parent():
+			_list.remove_child(_footer)
+		return
+	if _footer.get_parent() == null:
+		_list.add_child(_footer)
+	_list.move_child(_footer, -1)
+	if t != _footer_text:
+		_footer_text = t
+		_footer.clear()
+		_footer.push_paragraph(HORIZONTAL_ALIGNMENT_CENTER)
+		_footer.push_color(TIME)
+		_footer.add_text(t)
+		_footer.pop_all()
 
 func _offline_text() -> String:
 	match feed.net.state if feed.net else NetClient.State.OFFLINE:
@@ -352,7 +426,8 @@ func _refresh_input() -> void:
 	if not can:
 		_picker.visible = false
 
-func _row(g: Dictionary, i: int) -> Control:
+## A row: the sender's gold name and an empty column the row's lines join (_append).
+func _row(line: Dictionary, i: int) -> PanelContainer:
 	var row := PanelContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
 	var sb := StyleBoxFlat.new()
@@ -366,25 +441,24 @@ func _row(g: Dictionary, i: int) -> Control:
 	hb.add_theme_constant_override("separation", int(_m.name_gap))
 	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(hb)
-	if str(g["from"]) != "":
+	if str(line["from"]) != "":
 		# A RichTextLabel like the text beside it, so both sit on one baseline (a Label's line takes
 		# the emoji fallback's taller ascent and sat 10 px low).
 		var nm := _rich(int(_m.name_px), false)
 		nm.name = "Name"
 		nm.add_theme_color_override("default_color", GOLD)
 		nm.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		nm.add_text(str(g["from"]))
+		nm.add_text(str(line["from"]))
 		hb.add_child(nm)
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_theme_constant_override("separation", 2)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hb.add_child(col)
-	for line: Dictionary in g["items"]:
-		col.add_child(_item(line))
 	return row
 
-func _item(line: Dictionary) -> Control:
+## One line's nodes: {line, node (what _render fills), box (what joins the row)}.
+func _item(line: Dictionary) -> Dictionary:
 	if ChatEmotes.is_emote(str(line["text"])):
 		var hb := HBoxContainer.new()
 		hb.add_theme_constant_override("separation", 8)
@@ -395,26 +469,29 @@ func _item(line: Dictionary) -> Control:
 		var t := _label("", int(_m.time_px), TIME)
 		t.size_flags_vertical = Control.SIZE_SHRINK_END
 		hb.add_child(t)
-		_items.append([t, line])
-		_render([t, line])
-		return hb
+		return {"line": line, "node": t, "box": hb}
 	var rtl := _rich(int(_m.text_px), true)
 	rtl.name = "Text"
 	rtl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_items.append([rtl, line])
-	_render([rtl, line])
-	return rtl
+	return {"line": line, "node": rtl, "box": rtl}
 
-## One line's text (literal) and its relative time.
-func _render(item: Array) -> void:
-	var ago := ChatLog.ago(float(item[1]["ts"]), feed.now())
-	if item[0] is Label:
-		(item[0] as Label).text = ago
+## One line's text (literal) and its relative time, shaped again only when the time reads differently.
+func _render(it: Dictionary) -> void:
+	var ago := ChatLog.ago(float(it["line"]["ts"]), feed.now())
+	if it.get("ago") == ago:
 		return
-	var rtl := item[0] as RichTextLabel
+	it["ago"] = ago
+	if it["node"] is Label:
+		(it["node"] as Label).text = ago
+		return
+	if not it.has("text"):
+		# At most 200 ems: NetChat's 200 full-width characters fit, but 200 of the widest glyphs
+		# (U+FDFD) stood one row 1419 px tall at 844x390; past that the line ends in an ellipsis.
+		it["text"] = UiTokens.ellipsis(font(), str(it["line"]["text"]), float(NetChat.MAX_LEN * int(_m.text_px)), int(_m.text_px))
+	var rtl := it["node"] as RichTextLabel
 	rtl.clear()
 	rtl.push_color(TEXT)
-	rtl.add_text(str(item[1]["text"]))
+	rtl.add_text(it["text"])
 	rtl.pop()
 	rtl.push_font_size(int(_m.time_px))
 	rtl.push_color(TIME)
@@ -444,7 +521,7 @@ func _label(t: String, px: int, c: Color) -> Label:
 	return l
 
 ## A RichTextLabel, as the rows: a wrapped Label spaced its lines by the emoji fallback's height.
-func _banner(t: String) -> Control:
+func _banner() -> RichTextLabel:
 	var rtl := _rich(int(_m.text_px), true)
 	rtl.name = "Banner"
 	var pad := StyleBoxEmpty.new()
@@ -453,10 +530,6 @@ func _banner(t: String) -> Control:
 	pad.content_margin_left = _m.pad * 2.0
 	pad.content_margin_right = _m.pad * 2.0
 	rtl.add_theme_stylebox_override("normal", pad)
-	rtl.push_paragraph(HORIZONTAL_ALIGNMENT_CENTER)
-	rtl.push_color(TIME)
-	rtl.add_text(t)
-	rtl.pop_all()
 	return rtl
 
 # ---------------------------------------------------------------- input
@@ -468,16 +541,17 @@ func _send_text(t: String) -> void:
 	_sending = true
 	_note = ""
 	_refresh_input()
-	var req := feed.send(text)
+	var req := feed.send(text)  # over the server's chat rate it is refused here, unsent
 	await req.done
 	_sending = false
 	if req.ok:
 		if text == _field.text.strip_edges():
 			_field.clear()
-		_scroll_to_end()
 	else:
 		_note = "Not sent: %s" % req.msg
-	_rebuild()
+	_refresh_footer()
+	_refresh_input()
+	_scroll_to_end()
 
 func _toggle_picker() -> void:
 	_picker.visible = not _picker.visible
@@ -519,8 +593,8 @@ func _process(delta: float) -> void:
 	_time_left -= delta
 	if _time_left <= 0.0:
 		_time_left = 15.0
-		for item in _items:
-			_render(item)
+		for it: Dictionary in _shown:
+			_render(it)
 
 ## The on-screen keyboard over the canvas, in canvas px: the input bar rides above it.
 func keyboard_height() -> float:
@@ -550,7 +624,10 @@ func _scroll_to_end() -> void:
 	await get_tree().process_frame
 	var vb := _scroll.get_v_scroll_bar()
 	var target := maxf(0.0, vb.max_value - vb.page)
-	create_tween().tween_property(_scroll, "scroll_vertical", int(target), 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	if _glide:
+		_glide.kill()
+	_glide = create_tween()
+	_glide.tween_property(_scroll, "scroll_vertical", int(target), 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 # ---------------------------------------------------------------- parts
 

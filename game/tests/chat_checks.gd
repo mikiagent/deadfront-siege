@@ -33,7 +33,10 @@ func run(p_tree: SceneTree, p_expect: Callable) -> void:
 		url = "ws://127.0.0.1:%d" % server.port
 		await _test_two_clients()
 		await _test_layout()
+		await _test_wide_line()
 		await _test_overlay_and_hud()
+		await _test_many_lines()
+		await _test_held_enter()
 		await _test_disconnect()
 	for n in _nodes:
 		if is_instance_valid(n):
@@ -52,10 +55,9 @@ func _test_format() -> void:
 	var a := {"from": "Ann", "id": 1, "text": "a", "ts": 0.0}
 	var b := {"from": "Ben", "id": 2, "text": "b", "ts": 0.0}
 	var s := {"from": "", "id": -1, "text": "s", "ts": 0.0}
-	var g := ChatLog.groups([a, a, b, a, s, s])
-	_check(g.size() == 5 and (g[0]["items"] as Array).size() == 2 and g[1]["from"] == "Ben" and (g[2]["items"] as Array).size() == 1,
-		"consecutive lines from one sender stack under one name, a break starts a new block (%s)" % [g.map(func (x: Dictionary) -> int: return (x["items"] as Array).size())])
-	_check(g[3]["id"] == -1 and g[4]["id"] == -1, "System lines never stack")
+	_check(ChatLog.stacks(a, a) and not ChatLog.stacks(a, b) and not ChatLog.stacks(b, a),
+		"consecutive lines from one sender stack under one name, another sender starts a new block")
+	_check(not ChatLog.stacks(s, s), "System lines never stack")
 
 # ---------------------------------------------------------------- offline (no server)
 
@@ -251,6 +253,93 @@ func _test_overlay_and_hud() -> void:
 	await _frames(1)
 	_check(not chat.visible, "no fresh lines, no overlay")
 	box.queue_free()
+
+## U+FDFD is one of the widest glyphs there is: 200 of them stood one row 1419 px tall at 844x390.
+func _test_wide_line() -> void:
+	var screen := tree.root.find_child("BobScreen", true, false) as ChatScreen
+	var latin := "Meet at the north harbour at dusk, bring rope, two spears and the big raft. ".repeat(3).left(NetChat.MAX_LEN).strip_edges()
+	bob.event.emit("chat", {"id": 81, "from": "Wren", "text": latin, "ts": bob_log.now()})
+	bob.event.emit("chat", {"id": 82, "from": "Vex", "text": "\uFDFD".repeat(NetChat.MAX_LEN), "ts": bob_log.now()})
+	await _frames(3)
+	var rows := screen.find_child("Lines", true, false).get_child(0).get_children()
+	var wide := rows[-1] as Control
+	print("[t_chat] info: widest-glyph row %.0f px tall, %.0f wide" % [wide.size.y, wide.size.x])
+	_check(wide.size.y <= 300.0, "a line of 200 of the widest glyphs stays a few rows tall at 844x390 (%.0f px)" % wide.size.y)
+	_check(_texts(wide)[0].ends_with("…   just now") and _texts(rows[-2])[0] == latin + "   just now", "it ends in an ellipsis; 200 ordinary characters show in full")
+
+## A new line makes one row (or joins the last) and leaves every other row alone; a closed screen
+## does nothing until it opens. Before, each line made all 100 rows again (24-34 ms a line).
+func _test_many_lines() -> void:
+	var screen := tree.root.find_child("BobScreen", true, false) as ChatScreen
+	screen.open(ChatLog.REGION)
+	await _frames(2)
+	var list := screen.find_child("Lines", true, false).get_child(0)
+	var added := [0]
+	var count := func (_n: Node) -> void: added[0] += 1
+	tree.node_added.connect(count)
+	var t0 := Time.get_ticks_usec()
+	var emit_us := 0
+	for i in 300:
+		var e0 := Time.get_ticks_usec()
+		bob.event.emit("chat", {"id": 900 + i % 2, "from": "Ann" if i % 2 == 0 else "Ben", "text": "line %d" % i, "ts": bob_log.now()})
+		emit_us += Time.get_ticks_usec() - e0
+		await tree.process_frame
+	var open_ms := (Time.get_ticks_usec() - t0) / 1000.0
+	t0 = Time.get_ticks_usec()
+	await _frames(300)
+	var idle_ms := (Time.get_ticks_usec() - t0) / 1000.0
+	var per_line := float(added[0]) / 300.0
+	_check(per_line <= 12.0, "a new line adds one row's nodes, not every row's (%.1f nodes a line)" % per_line)
+	_check(list.get_child_count() == ChatLog.MAX_LINES and _texts(list.get_child(list.get_child_count() - 1))[0].begins_with("line 299"),
+		"the list keeps the newest %d lines, newest at the bottom (%d rows)" % [ChatLog.MAX_LINES, list.get_child_count()])
+	var ids := list.get_children().map(func (c: Node) -> int: return c.get_instance_id())
+	added[0] = 0
+	bob.event.emit("chat", {"id": 901, "from": "Ben", "text": "one more", "ts": bob_log.now()})
+	await tree.process_frame
+	var kept := list.get_children().map(func (c: Node) -> int: return c.get_instance_id())
+	_check(added[0] <= 3 and kept == ids.slice(1), "a line from the last sender joins his row; the other rows are the same nodes (%d nodes added)" % added[0])
+	screen.close()
+	added[0] = 0
+	t0 = Time.get_ticks_usec()
+	for i in 100:
+		bob.event.emit("chat", {"id": 902, "from": "Cy", "text": "closed %d" % i, "ts": bob_log.now()})
+	var closed_ms := (Time.get_ticks_usec() - t0) / 1000.0
+	_check(added[0] == 0 and list.get_children().map(func (c: Node) -> int: return c.get_instance_id()) == kept, "a closed screen does no work for new lines (%d nodes added)" % added[0])
+	tree.node_added.disconnect(count)
+	screen.open()
+	await _frames(2)
+	var last := list.get_child(list.get_child_count() - 1)
+	_check(_names(last) == ["Cy"] and _texts(last).size() == ChatLog.MAX_LINES and _texts(last)[-1].begins_with("closed 99"), "opening it catches the rows up once")
+	print("[t_chat] info: 300 lines while open: %.3f ms a line handling them, %.2f ms a frame with a line vs %.2f without; 100 while closed %.2f ms" % [emit_us / 300000.0, open_ms / 300.0, idle_ms / 300.0, closed_ms])
+
+## Holding Enter after "slow down": every refusal from the server counts toward its flood cut-off,
+## which dropped the connection twice in 6 s. The client keeps under the server's chat rate.
+func _test_held_enter() -> void:
+	var screen := tree.root.find_child("BobScreen", true, false) as ChatScreen
+	screen.open(ChatLog.REGION)
+	var field := screen.find_child("Field", true, false) as LineEdit
+	var states: Array = []
+	var rec := func (st: int) -> void: states.append(st)
+	bob.state_changed.connect(rec)
+	var spam := func () -> int: return (alice_log.lines[ChatLog.REGION] as Array).filter(func (l: Dictionary) -> bool: return l["text"] == "spam").size()
+	var before: int = spam.call()
+	var presses := 0
+	var told := false
+	var end := Time.get_ticks_msec() + 3000
+	while Time.get_ticks_msec() < end:
+		field.text = "spam"
+		field.text_submitted.emit(field.text)
+		presses += 1
+		await tree.process_frame
+		told = told or _banner(screen) == "Not sent: slow down"
+	field.clear()
+	await _until(func () -> bool: return false, 0.5)  # answers still on the way
+	bob.state_changed.disconnect(rec)
+	var got: int = spam.call() - before
+	_check(states.is_empty() and bob.is_online(), "holding Enter for 3 s (%d presses) never drops the connection (states %s)" % [presses, states])
+	var burst: float = NetServer.RATE_CLASSES["chat"][1]
+	_check(got >= 1 and got <= int(burst) + 4, "the lines that go out keep to the server's chat rate (%d sent)" % got)
+	_check(told, "the screen says \"Not sent: slow down\"")
 
 func _test_disconnect() -> void:
 	var screen := tree.root.find_child("BobScreen", true, false) as ChatScreen

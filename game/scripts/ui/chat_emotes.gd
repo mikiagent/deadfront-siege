@@ -11,8 +11,10 @@ const INK := Color(0.07, 0.07, 0.08)
 static func is_emote(text: String) -> bool:
 	return text in CODES
 
-## Draws the sticker for `code` centred in `r` (square-ish), white with dark features.
-static func draw(ci: CanvasItem, code: String, r: Rect2) -> void:
+## Draws the sticker for `code` centred in `r` (square-ish), white with dark features, at `alpha`.
+static func draw(ci: CanvasItem, code: String, r: Rect2, alpha: float = 1.0) -> void:
+	var white := Color(1, 1, 1, alpha)  # the overlay fades its stickers with its text
+	var ink := Color(INK, alpha)
 	var c := r.get_center()
 	var s := minf(r.size.x, r.size.y) * 0.5  # radius
 	var w := maxf(1.5, s * 0.14)  # feature stroke
@@ -25,47 +27,47 @@ static func draw(ci: CanvasItem, code: String, r: Rect2) -> void:
 				var x := 16.0 * pow(sin(t), 3.0)
 				var y := 13.0 * cos(t) - 5.0 * cos(2.0 * t) - 2.0 * cos(3.0 * t) - cos(4.0 * t)
 				pts.append(c + Vector2(x, -y - 1.5) * (s / 17.0))
-			ci.draw_colored_polygon(pts, Color.WHITE)
+			ci.draw_colored_polygon(pts, white)
 			return
 		":skull:":
-			ci.draw_circle(c + Vector2(0, -s * 0.12), s * 0.82, Color.WHITE)
-			ci.draw_rect(Rect2(c + Vector2(-s * 0.46, s * 0.3), Vector2(s * 0.92, s * 0.6)), Color.WHITE)
+			ci.draw_circle(c + Vector2(0, -s * 0.12), s * 0.82, white)
+			ci.draw_rect(Rect2(c + Vector2(-s * 0.46, s * 0.3), Vector2(s * 0.92, s * 0.6)), white)
 			for e in [-1.0, 1.0]:
-				ci.draw_circle(c + Vector2(e * s * 0.33, -s * 0.05), s * 0.24, INK)
-			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, s * 0.2), c + Vector2(-s * 0.1, s * 0.4), c + Vector2(s * 0.1, s * 0.4)]), INK)
+				ci.draw_circle(c + Vector2(e * s * 0.33, -s * 0.05), s * 0.24, ink)
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, s * 0.2), c + Vector2(-s * 0.1, s * 0.4), c + Vector2(s * 0.1, s * 0.4)]), ink)
 			for x in [-0.22, 0.0, 0.22]:
-				ci.draw_line(c + Vector2(x * s, s * 0.62), c + Vector2(x * s, s * 0.9), INK, w * 0.8)
+				ci.draw_line(c + Vector2(x * s, s * 0.62), c + Vector2(x * s, s * 0.9), ink, w * 0.8)
 			return
-	ci.draw_circle(c, s * 0.92, Color.WHITE)
+	ci.draw_circle(c, s * 0.92, white)
 	var eye_y := -s * 0.2
 	var eye := s * 0.13
 	match code:
 		":laugh:":
 			for e in [-1.0, 1.0]:
-				ci.draw_polyline(_arc(c + Vector2(e * s * 0.32, eye_y + s * 0.06), s * 0.14, PI, TAU), INK, w)
+				ci.draw_polyline(_arc(c + Vector2(e * s * 0.32, eye_y + s * 0.06), s * 0.14, PI, TAU), ink, w)
 			var mouth := _arc(c + Vector2(0, s * 0.12), s * 0.46, 0.0, PI)
-			ci.draw_colored_polygon(mouth, INK)
+			ci.draw_colored_polygon(mouth, ink)
 		":wink:":
-			ci.draw_circle(c + Vector2(-s * 0.32, eye_y), eye, INK)
-			ci.draw_line(c + Vector2(s * 0.18, eye_y), c + Vector2(s * 0.46, eye_y), INK, w)
-			ci.draw_polyline(_arc(c + Vector2(0, s * 0.05), s * 0.45, 0.35, PI - 0.35), INK, w)
+			ci.draw_circle(c + Vector2(-s * 0.32, eye_y), eye, ink)
+			ci.draw_line(c + Vector2(s * 0.18, eye_y), c + Vector2(s * 0.46, eye_y), ink, w)
+			ci.draw_polyline(_arc(c + Vector2(0, s * 0.05), s * 0.45, 0.35, PI - 0.35), ink, w)
 		":wow:":
 			for e in [-1.0, 1.0]:
-				ci.draw_circle(c + Vector2(e * s * 0.32, eye_y), eye, INK)
-			ci.draw_circle(c + Vector2(0, s * 0.38), s * 0.2, INK)
+				ci.draw_circle(c + Vector2(e * s * 0.32, eye_y), eye, ink)
+			ci.draw_circle(c + Vector2(0, s * 0.38), s * 0.2, ink)
 		":sad:":
 			for e in [-1.0, 1.0]:
-				ci.draw_circle(c + Vector2(e * s * 0.32, eye_y), eye, INK)
-			ci.draw_polyline(_arc(c + Vector2(0, s * 0.78), s * 0.42, PI + 0.5, TAU - 0.5), INK, w)
+				ci.draw_circle(c + Vector2(e * s * 0.32, eye_y), eye, ink)
+			ci.draw_polyline(_arc(c + Vector2(0, s * 0.78), s * 0.42, PI + 0.5, TAU - 0.5), ink, w)
 		":angry:":
 			for e in [-1.0, 1.0]:
-				ci.draw_circle(c + Vector2(e * s * 0.32, eye_y + s * 0.05), eye, INK)
-				ci.draw_line(c + Vector2(e * s * 0.52, eye_y - s * 0.22), c + Vector2(e * s * 0.12, eye_y - s * 0.06), INK, w)
-			ci.draw_line(c + Vector2(-s * 0.3, s * 0.45), c + Vector2(s * 0.3, s * 0.45), INK, w)
+				ci.draw_circle(c + Vector2(e * s * 0.32, eye_y + s * 0.05), eye, ink)
+				ci.draw_line(c + Vector2(e * s * 0.52, eye_y - s * 0.22), c + Vector2(e * s * 0.12, eye_y - s * 0.06), ink, w)
+			ci.draw_line(c + Vector2(-s * 0.3, s * 0.45), c + Vector2(s * 0.3, s * 0.45), ink, w)
 		_:  # :smile: and any unknown code
 			for e in [-1.0, 1.0]:
-				ci.draw_circle(c + Vector2(e * s * 0.32, eye_y), eye, INK)
-			ci.draw_polyline(_arc(c + Vector2(0, s * 0.02), s * 0.48, 0.3, PI - 0.3), INK, w)
+				ci.draw_circle(c + Vector2(e * s * 0.32, eye_y), eye, ink)
+			ci.draw_polyline(_arc(c + Vector2(0, s * 0.02), s * 0.48, 0.3, PI - 0.3), ink, w)
 
 static func _arc(c: Vector2, r: float, from: float, to: float) -> PackedVector2Array:
 	var pts := PackedVector2Array()
