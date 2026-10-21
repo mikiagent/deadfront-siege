@@ -15,6 +15,8 @@ extends Node3D
 ##   6. Review r1: a clamped hand stays on the safe-area edge (never slid in to tap the world) and off every
 ##      HUD block; on the radial it keeps off the Branch hex's own label where it can; a craft order puts it
 ##      on the MENU hex's rim, off the other hexes; beside the tree it still shows on the Branch hex.
+##   7. Review r2: the clamped hand at spawn does not point along the vitals or the card; a
+##      level-up never pushes it onto a HUD control.
 ## Windowed: --resolution 1600x900 -- --lab=guide_lab [--shot-dir=DIR] (844x390 too; either renderer).
 ## Prints "[guide] PASS" (exit 0) or "[guide] FAIL ..." lines (exit 1).
 
@@ -91,6 +93,7 @@ func _run() -> void:
 		return
 	_check_on_tree(tree)
 	await _shot("node")
+	await _level_up()
 	# The middle of the view, clear of the HUD's corners on every canvas (a tap there must reach the tree).
 	var vs := get_viewport().get_visible_rect().size
 	var middle := Rect2(vs * Vector2(0.25, 0.3), vs * Vector2(0.5, 0.5))
@@ -299,6 +302,36 @@ func _beside_tree() -> void:
 	await _shot("beside")
 	radial.close()
 
+## The vitals, the card and the minimap (title to text), as the finger keeps a clamped hand off them; its
+## line keeps clear of the first two.
+func _hard(map: bool = true) -> Array[Rect2]:
+	var b := _hud.drawn_blocks
+	var out: Array[Rect2] = []
+	for k in ["vitals", "quest"]:
+		if b.has(k):
+			out.append(b[k])
+	if map and b.has("map_title") and b.has("map_text"):
+		out.append((b["map_title"] as Rect2).merge(b["map_text"]))
+	return out
+
+## Review r2: a level-up banner never pushes the hand onto a HUD control or block (at most it stays on the
+## banner where no edge spot is clear of it), and off the banner wherever a clear spot exists.
+func _level_up() -> void:
+	_hud.call("_on_level_up", 4)
+	await get_tree().create_timer(0.8).timeout
+	await RenderingServer.frame_post_draw
+	var banner: Rect2 = _hud.drawn_blocks.get("levelup", Rect2())
+	var a := float(_finger.get("_want"))
+	var s := float(_finger.get("_s"))
+	var notes: Array[Rect2] = [banner]
+	var fit := GuideFinger._spot_fit(_finger.anchor, a, get_viewport().get_visible_rect(), _hard(), HudLayout.taken_rects(_hud, GuideFinger.PASSING), notes, s) if _finger.clamped else -1
+	print("[guide] level-up banner %s: hand %s clamped=%s on it=%s fit=%d" % [banner, GuideFinger.hand_rect(_finger.anchor, a, s), _finger.clamped, GuideFinger.hand_rect(_finger.anchor, a, s).intersects(banner), fit])
+	_expect(banner.has_area() and _finger.visible, "the level-up banner is up and the finger stays")
+	_expect(not _finger.clamped or fit >= 2, "a level-up never pushes the clamped hand onto a HUD control (fit %d)" % fit)
+	await _shot("levelup")
+	_hud.set("_levelup_t", -1.0)
+	await get_tree().create_timer(0.6).timeout  # the card comes back under the banner: the hand cross-fades off it
+
 ## The hand's placement (not the eased drawing) covers the Branch hex's own label, and some placement
 ## would not.
 func _covers_own_label(radial: GatherRadial) -> bool:
@@ -323,8 +356,19 @@ func _check_on_tree(tree: HarvestNode) -> void:
 	var dir := Vector2(sin(_finger.angle), -cos(_finger.angle))
 	if _finger.clamped:
 		var off := rad_to_deg(absf(dir.angle_to(p - _finger.tip)))
-		print("[guide] tree off screen at %s: tip on the edge %s, finger %.0f deg off the tree" % [p, _finger.tip, off])
+		var run := GuideFinger.run_along(_finger.anchor, float(_finger.get("_want")), p, get_viewport().get_visible_rect(), _hard(false))
+		print("[guide] tree off screen at %s: tip on the edge %s, finger %.0f deg off the tree, its line %.0f px along the vitals and the card" % [p, _finger.tip, off, run])
 		_expect(off < 25.0 and get_viewport().get_visible_rect().has_point(_finger.tip), "edge-clamped finger points at the tree (%.0f deg off)" % off)
+		# Where an edge spot's line clears them: the 844x390 HUD has none for this tree (see the report).
+		var vr := get_viewport().get_visible_rect()
+		var inner := vr.grow(-GuideFinger.EDGE)
+		var soft := HudLayout.taken_rects(_hud, GuideFinger.PASSING)
+		var none: Array[Rect2] = []
+		var s := float(_finger.get("_s"))
+		var best := GuideFinger.edge_spot(GuideFinger.clamp_tip(p, false, inner), p, inner, vr, _hard(), soft, s, Vector2(NAN, NAN), none, _hard(false))
+		var clear := GuideFinger._spot_level(best, p, vr, _hard(), soft, none, _hard(false), s) == 4
+		print("[guide] the best edge spot for a clear line is %s (clear=%s)" % [best, clear])
+		_expect(run <= GuideFinger.RUN_MAX or not clear, "the clamped finger's line clears the vitals and the card where an edge spot allows (%.0f px along them)" % run)
 	else:
 		var d := _finger.tip.distance_to(p)
 		print("[guide] tree at %s: tip %s, %.1f px away" % [p, _finger.tip, d])
@@ -354,8 +398,9 @@ func _check_clamped() -> void:
 			break
 
 ## One frame of the finger's motion in `phase`, against the last frame:
-## - jump: the tip moved over 24 px in a frame, faster than 3000 px/s (to a new spot the hand eases over at
-##   no more than GuideFinger.GLIDE_MAX, 2000 px/s; what it points at moves far slower on a walk);
+## - jump: the tip moved farther than GuideFinger.GLIDE_MAX allows over the finger's own frame time, plus
+##   the tap's and the turn's share and, on a hex, the hex's own motion (review r2: px per frame, not px/s
+##   over a 24 px floor, which passed at 60 fps and failed at 100);
 ## - snap: the hand turned over 30 degrees, faster than 12 rad/s (it eases at GuideFinger.TURN, 10 rad/s);
 ## - swap: a new placement for the same target, off the edge (an edge hand points along its own line);
 ## - hop: a new target;
@@ -366,9 +411,9 @@ func _track(phase: String) -> void:
 	var m: Dictionary = _motion.get_or_add(phase, {"frames": 0, "jumps": 0, "snaps": 0, "swaps": 0, "hops": 0, "radial_jumps": 0, "fades": 0})
 	if _finger.visible and _finger.clamped:
 		_check_clamped()
-	var dt := maxf(get_process_delta_time(), 1.0 / 240.0)
 	var key := str(_finger.get("_key"))
-	var now := [_finger.visible, _finger.tip, _finger.anchor, _finger.angle, float(_finger.get("_want")), key, _finger.target, float(_finger.get("_fade"))]
+	var now := [_finger.visible, _finger.tip, _finger.anchor, _finger.angle, float(_finger.get("_want")), key, _finger.target, float(_finger.get("_fade")), float(_finger.get("_t"))]
+	var dt := float(now[8]) - float(_last[8]) if _last.size() == now.size() else 0.0  # the finger's own frame time
 	if _last.size() == now.size() and _last[0] and now[0] and key == "hex" and _last[5] == "hex" and (now[2] - _last[2]).length() > 12.0:
 		m["radial_jumps"] += 1
 		print("[guide] %s: the radial's hex jumped %s -> %s" % [phase, _last[2], now[2]])
@@ -378,11 +423,14 @@ func _track(phase: String) -> void:
 	elif _last.size() == now.size() and _last[0] and now[0]:
 		m["frames"] += 1
 		var moved: Vector2 = now[1] - _last[1]
-		if moved.length() > 24.0 and moved.length() / dt > 3000.0:
+		var s := float(_finger.get("_s"))
+		var allowed: float = (GuideFinger.GLIDE_MAX + GuideFinger.BOB * s * (PI * GuideFinger.TAP_HZ + GuideFinger.TURN)) * dt + 0.5 \
+			+ (((now[2] - _last[2]) as Vector2).length() if key == "hex" else 0.0)
+		if moved.length() > allowed:
 			m["jumps"] += 1
-			print("[guide] %s jump: tip %s -> %s (%.0f px in %.0f ms) on %s" % [phase, _last[1], now[1], moved.length(), dt * 1000.0, key])
+			print("[guide] %s jump: tip %s -> %s (%.1f px in %.1f ms, %.1f allowed) on %s" % [phase, _last[1], now[1], moved.length(), dt * 1000.0, allowed, key])
 		var turn := absf(angle_difference(float(_last[3]), float(now[3])))
-		if turn > deg_to_rad(30.0) and turn / dt > 12.0:
+		if turn > deg_to_rad(30.0) and turn > 12.0 * dt:
 			m["snaps"] += 1
 			print("[guide] %s snap: %.0f deg in %.0f ms on %s, anchor %s -> %s, card %s" % [phase, rad_to_deg(turn), dt * 1000.0, key, _last[2], now[2], _hud.drawn_blocks.get("quest", Rect2())])
 		if key == _last[5] and not key.begins_with("edge") and not is_equal_approx(float(now[4]), float(_last[4])):

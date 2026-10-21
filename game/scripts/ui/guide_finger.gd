@@ -22,7 +22,15 @@ const SLIDE_STEP := 8.0 ## a clamped hand walks along the edge off a HUD block o
 ## HUD blocks that come and go (notices, toasts, level-ups, pills, name tags): a clamped hand does not
 ## walk away from those.
 const PASSING: PackedStringArray = ["toast", "notice", "levelup", "pill", "nameplate", "plate"]
+## Of those, the ones the hand would still rather not cover (it sat on the LEVEL UP banner's icon), short of a HUD control.
+const NOTES: PackedStringArray = ["toast", "notice", "levelup"]
 const WorldUiScript := preload("res://scripts/ui/world_ui.gd")
+## A clamped hand prefers a spot whose line runs at most RUN_MAX px within RUN_GAP px of the vitals or the
+## card, turning up to TILT_MAX off its target for it (beside the Orders card at 844x390 it pointed along
+## the card and read as "look at your orders").
+const TILT_MAX := 0.35
+const RUN_MAX := 16.0
+const RUN_GAP := 20.0
 ## Motion (the owner's 2026-10-21 gate: no jumps, snaps or side swaps between frames).
 const TURN := 10.0      ## rad/s: the hand turns to a new placement instead of snapping round
 const GLIDE := 12.0     ## 1/s: on a new target the hand eases over from where it was ...
@@ -65,6 +73,7 @@ var _s := 1.0
 var _fade := 1.0        ## 0 -> 1 while the hand cross-fades in from where it was drawn (_ghost_tip, _ghost_angle)
 var _ghost_tip := Vector2.ZERO
 var _ghost_angle := 0.0
+var _hex_off := Vector2.ZERO  ## where in the hex the tip is, as a share of its size from the centre
 
 ## The finger's layer under `p` (PlayerView.setup_ui calls this once the gather radial exists).
 static func mount(p: Player) -> GuideFinger:
@@ -131,6 +140,13 @@ func _update(delta: float) -> bool:
 	var soft: Array[Rect2] = []
 	if b.has("map_title") and b.has("map_text"):
 		soft.append((b["map_title"] as Rect2).merge(b["map_text"]))
+	var notes: Array[Rect2] = []
+	for k: String in b:
+		for n in NOTES:
+			if k.begins_with(n):
+				notes.append(b[k])
+	var off: Array[Rect2] = soft.duplicate()  # what an on-screen hand covers as little of as it can
+	off.append_array(notes)
 	var s := hand_scale(view)
 	_s = s
 	_keep_off = keep_off
@@ -144,17 +160,31 @@ func _update(delta: float) -> bool:
 		if not hex.has_area():
 			return false
 		clamped = false
-		var near: Array[Rect2] = soft.duplicate()
+		var near: Array[Rect2] = off.duplicate()
 		near.append_array(r.label_rects)
 		near.append(r.title_box)
 		var own: Array[Rect2] = []  # the hex's own label: the hand keeps off it before any other where it can
 		for i in mini(r.options.size(), r.label_rects.size()):
 			if StringName(str((r.options[i] as Dictionary).get("item", ""))) == item:
 				own.append(r.label_rects[i])
+		if _key != "hex":
+			_hex_off = Vector2.ZERO
 		_key = "hex"
 		# On the part of the hex clear of the vitals and the card: a radial beside the Orders card at
-		# 844x390 put the Branch hex half on it, and no placement fitted its centre.
-		return _aim(hex.get_center(), safe, keep_off, s, near, 0.0, own)
+		# 844x390 put the Branch hex half on it, and no placement fitted its centre. Off its own label where
+		# a placement allows with the tip in the middle half of that part (with the card 2 px above the hex,
+		# a hand on its side fitted between them only with the tip 4 px above the centre).
+		var firm: Array[Rect2] = keep_off.duplicate()
+		firm.append_array(own)
+		var tries: Array[Vector2] = [_hex_off, Vector2.ZERO]
+		for k in range(1, 5):
+			tries.append_array([Vector2(0.0, -k / 16.0), Vector2(0.0, k / 16.0)])
+		tries.append_array([Vector2(-0.25, 0.0), Vector2(0.25, 0.0)])
+		for o in tries:
+			if not is_nan(pick_angle(hex.get_center() + o * hex.size, safe, firm, s, near)):
+				_hex_off = o
+				break
+		return _aim(hex.get_center() + _hex_off * hex.size, safe, keep_off, s, near, 0.0, own)
 	if not is_instance_valid(target):
 		target = null  # freed with its island (travel, a reload); a freed object passes a != null check
 	_repick -= delta
@@ -170,7 +200,7 @@ func _update(delta: float) -> bool:
 		# tip on the control's rim rather than its middle, so the icon it asks for stays in sight.
 		var others: Array[Rect2] = []
 		others.assign(HudLayout.taken_rects(_hud, PASSING).filter(func (k: Rect2) -> bool: return not k.intersects(_rect)))
-		return _aim(_rect.get_center(), safe, keep_off, s, soft, _rect.size.y * 0.3, others)
+		return _aim(_rect.get_center(), safe, keep_off, s, off, _rect.size.y * 0.3, others)
 	if target == null:
 		return false
 	var at := Guide.aim_point(target)
@@ -183,18 +213,19 @@ func _update(delta: float) -> bool:
 	clamped = behind or not inner.has_point(p) or avoid.any(func (k: Rect2) -> bool: return k.has_point(p))
 	_key = "%s%d" % ["edge" if clamped else "node", target.get_instance_id()]
 	if not clamped:
-		return _aim(p, safe, keep_off, s, soft)
+		return _aim(p, safe, keep_off, s, off)
 	# On the safe-area edge where the line from the centre leaves the screen, pointing at the target. Where
 	# the hand would land on a HUD block there (the minimap too: it only hints a direction), it walks along
 	# the edge to the nearest clear spot. It never slides inward: there it tapped the camp tent.
 	var edge := clamp_tip(p, behind, inner)
 	var goal := p if not behind else inner.get_center() + (edge - inner.get_center()) * 100.0
 	var keep := anchor if visible and _key == _key_was else Vector2(NAN, NAN)  # last frame's spot on this edge
-	var spot := edge_spot(edge, goal, inner, Rect2(Vector2.ZERO, view), avoid, HudLayout.taken_rects(_hud, PASSING), s, keep)
+	var controls := HudLayout.taken_rects(_hud, PASSING)
+	var spot := edge_spot(edge, goal, inner, Rect2(Vector2.ZERO, view), avoid, controls, s, keep, notes, keep_off)
 	if is_nan(spot.x):
 		return false
 	anchor = spot
-	_want = aim_angle(goal - spot)
+	_want = edge_aim(spot, goal, Rect2(Vector2.ZERO, view), avoid, controls, notes, keep_off, s)
 	return true
 
 ## Tip on `at` (pulled `pull` px back toward the hand), hand on screen, off `keep_off` and covering as
@@ -227,17 +258,24 @@ func _place(at: Vector2, a: float, keep_off: Array[Rect2], s: float) -> bool:
 func _settle(delta: float, was: bool, key_was: String) -> void:
 	var drawn_tip := tip
 	var drawn_angle := angle
+	var at_was := _at
 	if not was:
 		_fade = 1.0
+	# An edge spot moves in SLIDE_STEP steps as it walks off a HUD block: the hand eases over those too.
+	var hop := SLIDE_STEP - 0.5 if _key.begins_with("edge") else HOP_PX
 	if not was or _key == "hex":
 		_offset = Vector2.ZERO
-	elif _key != key_was or anchor.distance_to(_anchor_was) > HOP_PX:
-		_offset = _at - anchor
 	else:
+		if _key != key_was or anchor.distance_to(_anchor_was) > hop:
+			_offset = _at - anchor  # from where the hand was drawn; it eases on from there this same frame
 		_offset = _offset.move_toward(Vector2.ZERO, minf(_offset.length() * (1.0 - exp(-GLIDE * delta)), GLIDE_MAX * delta))
 	_anchor_was = anchor
 	angle = rotate_toward(angle, _want, TURN * delta) if was else _want
 	_at = anchor + _offset
+	# Never faster than GLIDE_MAX, whatever the anchor did (a move under HOP_PX on top of a glide went past it).
+	if was and _key != "hex" and _at.distance_to(at_was) > GLIDE_MAX * delta:
+		_at = at_was + (_at - at_was).limit_length(GLIDE_MAX * delta)
+		_offset = _at - anchor
 	for k in _keep_off:
 		if hand_rect(_at, angle, _s).intersects(k):
 			_ghost_tip = drawn_tip
@@ -263,13 +301,7 @@ func _on_picked(_anchor: Node3D, i: int) -> void:
 ## welcome, or character creation (HANDS hides for that one the same way). All but the welcome (92) draw
 ## under this layer.
 func _world_covered() -> bool:
-	if get_tree().get_first_node_in_group(&"character_creation") != null:
-		return true
-	var w: Variant = WorldUiScript._i
-	if not is_instance_valid(w):
-		return false
-	var ui: WorldUiScript = w
-	return ui._panel.visible or (ui.is_inside_tree() and ui.get_parent().has_node(^"ArrivalWelcome"))
+	return get_tree().get_first_node_in_group(&"character_creation") != null or WorldUiScript.covering()
 
 ## Record a finished step once and save it, so a reload does not bring the finger back.
 func _finish(id: String) -> void:
@@ -361,39 +393,110 @@ static func clear_part(r: Rect2, blocks: Array[Rect2]) -> Rect2:
 
 ## Where a clamped hand goes: `edge` itself, or the nearest spot along the border of `inner` (on a grid,
 ## so it holds still) where the hand pointing at `goal` is off `hard` (the vitals, the card, the minimap),
-## off the HUD's other controls (`soft`) and at most EDGE px off the `view`. Failing that, the nearest spot
-## off `hard` alone; Vector2(NAN, NAN) if there is none.
-## `keep` (last frame's spot) beats any spot but a clear `edge` while it is clear and at most a quarter of
-## the way round farther: at 844x390 the spots left of the card and below the minimap took turns as the
-## target moved, and the hand swapped across the screen.
-static func edge_spot(edge: Vector2, goal: Vector2, inner: Rect2, view: Rect2, hard: Array[Rect2], soft: Array[Rect2], s: float, keep := Vector2(NAN, NAN)) -> Vector2:
+## off the HUD's other controls (`soft`), off passing `notes`, at most EDGE px off the `view`, and whose
+## line (turned by edge_aim) clears `line_off` (the vitals and the card). Failing that, the nearest spot
+## clear of all but the line, then off all but the notes, then off `hard` alone; Vector2(NAN, NAN) if none.
+## `keep` (last frame's spot) beats any spot but a clear `edge` while it fits as well (its line aside) and
+## is at most a quarter of the way round farther: at 844x390 the spots left of the card and below the
+## minimap took turns as the target moved, and the hand swapped across the screen.
+static func edge_spot(edge: Vector2, goal: Vector2, inner: Rect2, view: Rect2, hard: Array[Rect2], soft: Array[Rect2], s: float,
+		keep := Vector2(NAN, NAN), notes: Array[Rect2] = [], line_off: Array[Rect2] = []) -> Vector2:
 	var around := 2.0 * (inner.size.x + inner.size.y)
 	var u0 := _arc(inner, edge)
 	var kept := INF  # how far round `keep` is, less the quarter it may lose by
-	if not is_nan(keep.x) and _spot_fit(keep, goal, view, hard, soft, s) == 2:
+	var keep_fit := 0
+	if not is_nan(keep.x):
+		# Its line alone does not make a kept spot give way: the spots left of the card and below the minimap
+		# took turns again as the tree moved. The line picks the spot when the hand first clamps.
+		keep_fit = _spot_fit(keep, aim_angle(goal - keep), view, hard, soft, notes, s)
+		if keep_fit == 3:
+			keep_fit = 4
 		var d := absf(_arc(inner, keep) - u0)
-		kept = minf(d, around - d) - around * 0.25
-	var fallback := Vector2(NAN, NAN)
+		# One that fits less well gives way to a clear spot up to a quarter of the way round farther than itself.
+		kept = minf(d, around - d) + around * (-0.25 if keep_fit == 4 else 0.25)
+	var best := Vector2(NAN, NAN)
+	var best_fit := 0
 	var grid := snappedf(u0, SLIDE_STEP)
 	for k in int(around / SLIDE_STEP / 2.0) + 2:
-		if k > 0 and k * SLIDE_STEP >= kept:
+		if k > 0 and k * SLIDE_STEP >= kept and keep_fit >= maxi(best_fit, 2):
 			return keep
 		for q: Vector2 in ([edge] if k == 0 else [_on_border(inner, grid + k * SLIDE_STEP), _on_border(inner, grid - k * SLIDE_STEP)]):
-			var fit := _spot_fit(q, goal, view, hard, soft, s)
-			if fit == 2:
+			var fit := _spot_level(q, goal, view, hard, soft, notes, line_off, s)
+			if fit == 4:
 				return q
-			if fit == 1 and is_nan(fallback.x):
-				fallback = q
-	return keep if kept < INF else fallback
+			if fit > best_fit:
+				best = q
+				best_fit = fit
+	return keep if keep_fit >= 2 and keep_fit >= best_fit else best
 
-## A hand at `q` pointing at `goal`: 0 on a `hard` block, 2 also off `soft` and at most EDGE px off `view`, else 1.
-static func _spot_fit(q: Vector2, goal: Vector2, view: Rect2, hard: Array[Rect2], soft: Array[Rect2], s: float) -> int:
-	var a := aim_angle(goal - q)
+## How well a clamped hand fits at `q`: _spot_fit pointing at `goal`, and 4 where it is clear and its line
+## (edge_aim) also clears `line_off`.
+static func _spot_level(q: Vector2, goal: Vector2, view: Rect2, hard: Array[Rect2], soft: Array[Rect2], notes: Array[Rect2], line_off: Array[Rect2], s: float) -> int:
+	var fit := _spot_fit(q, aim_angle(goal - q), view, hard, soft, notes, s)
+	if fit < 3:
+		return fit
+	return 4 if run_along(q, edge_aim(q, goal, view, hard, soft, notes, line_off, s), goal, view, line_off) <= RUN_MAX else 3
+
+## A hand at `q` at angle `a`: 0 on a `hard` block, 1 on `soft` or over EDGE px off `view`, 2 only on
+## `notes`, 3 clear.
+static func _spot_fit(q: Vector2, a: float, view: Rect2, hard: Array[Rect2], soft: Array[Rect2], notes: Array[Rect2], s: float) -> int:
 	var r := hand_rect(q, a, s)
 	if hard.any(func (b: Rect2) -> bool: return r.intersects(b)):
 		return 0
-	var on_screen := view.grow(EDGE).encloses(Transform2D(a, Vector2(s, s), 0.0, q) * BOX)
-	return 2 if on_screen and not soft.any(func (b: Rect2) -> bool: return r.intersects(b)) else 1
+	if not view.grow(EDGE).encloses(Transform2D(a, Vector2(s, s), 0.0, q) * BOX) or soft.any(func (b: Rect2) -> bool: return r.intersects(b)):
+		return 1
+	return 2 if notes.any(func (b: Rect2) -> bool: return r.intersects(b)) else 3
+
+## A clamped hand's angle at `q`: at `goal`, or turned up to TILT_MAX off it, as little as clears its line
+## from `line_off` (see RUN_MAX), the hand staying as clear as it was.
+static func edge_aim(q: Vector2, goal: Vector2, view: Rect2, hard: Array[Rect2], soft: Array[Rect2], notes: Array[Rect2], line_off: Array[Rect2], s: float) -> float:
+	var a0 := aim_angle(goal - q)
+	var best := a0
+	var best_run := run_along(q, a0, goal, view, line_off)
+	if best_run <= RUN_MAX:
+		return a0
+	var fit0 := _spot_fit(q, a0, view, hard, soft, notes, s)
+	var open := [true, true]  # the hand turns through every step to its tilt: one that does not fit closes that side
+	for k in range(1, 5):
+		for i in 2:
+			var a := a0 + (2.0 * i - 1.0) * TILT_MAX * k / 4.0
+			if not open[i] or _spot_fit(q, a, view, hard, soft, notes, s) < fit0:
+				open[i] = false
+				continue
+			var run := run_along(q, a, goal, view, line_off)
+			if run < best_run:
+				best = a
+				best_run = run
+		if best_run <= RUN_MAX:
+			break
+	return best
+
+## How far the line from `q` at angle `a` runs within RUN_GAP px of a `blocks` rect (but the one `goal` is
+## under) before it leaves `view`.
+static func run_along(q: Vector2, a: float, goal: Vector2, view: Rect2, blocks: Array[Rect2]) -> float:
+	var d := finger_dir(a)
+	var out := _slab(q, d, view).y
+	var run := 0.0
+	for b in blocks:
+		if not b.has_point(goal):
+			var t := _slab(q, d, b.grow(RUN_GAP))
+			run += maxf(0.0, minf(t.y, out) - maxf(t.x, 0.0))
+	return run
+
+## Where the line through `q` along `d` enters and leaves `r`, in px along `d` (x > y when it misses).
+static func _slab(q: Vector2, d: Vector2, r: Rect2) -> Vector2:
+	var lo := -INF
+	var hi := INF
+	for i in 2:
+		if absf(d[i]) < 0.0001:
+			if q[i] < r.position[i] or q[i] > r.end[i]:
+				return Vector2(INF, -INF)
+		else:
+			var t0 := (r.position[i] - q[i]) / d[i]
+			var t1 := (r.end[i] - q[i]) / d[i]
+			lo = maxf(lo, minf(t0, t1))
+			hi = minf(hi, maxf(t0, t1))
+	return Vector2(lo, hi)
 
 ## The point `u` px clockwise along the border of `r` from its top-left corner.
 static func _on_border(r: Rect2, u: float) -> Vector2:

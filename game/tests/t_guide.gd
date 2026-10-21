@@ -216,7 +216,64 @@ func _test_placement() -> void:
 	var mt: Vector2 = menu.get_center() - FingerS.finger_dir(ma) * menu.size.y * 0.3
 	_expect(not is_nan(ma) and menu.has_point(mt) and mt.distance_to(menu.get_center()) > 10.0 and not FingerS.hand_rect(mt, ma, 1.1).intersects(animals),
 		"the craft finger keeps off ANIMALS with its tip on the MENU hex's rim (angle %s, tip %s)" % [ma, mt])
+	# Review r2: a level-up banner or a notice is soft for a clamped hand: it moves off one to a clear spot, and
+	# where none is clear (the 844x390 banner spans the gap left of the card) it stays on the banner rather
+	# than move onto the CLAIM hex.
+	var banner: Array[Rect2] = [Rect2(320, 8, 342, 97)]
+	var p_claim: Array[Rect2] = p_soft.duplicate()
+	p_claim.append(Rect2(763, 232, 60, 90))
+	var on_note: Vector2 = FingerS.edge_spot(pe, up_r, pin, pv, p_hard, p_soft, 0.9, Vector2(412, 20), banner)
+	var stays: Vector2 = FingerS.edge_spot(pe, up_r, pin, pv, p_hard, p_claim, 0.9, Vector2(412, 20), banner)
+	var first: Vector2 = FingerS.edge_spot(pe, up_r, pin, pv, p_hard, p_claim, 0.9, Vector2(NAN, NAN), banner)
+	_expect(on_note.is_equal_approx(Vector2(824, 224)) and stays == Vector2(412, 20) and FingerS._spot_fit(first, FingerS.aim_angle(up_r - first), pv, p_hard, p_claim, banner, 0.9) == 2,
+		"a hand on the banner moves to a clear spot, else stays on the banner, not on CLAIM (%s, %s, %s)" % [on_note, stays, first])
+	# Review r2: at spawn on a landscape phone the clamped hand left of the card pointed along it and read as
+	# "look at your orders". A spot whose line clears the vitals and the card wins: without the CLAIM hex
+	# below the minimap the hand points past the minimap from there. With CLAIM there (the real 844x390 HUD)
+	# no spot's line clears them (the hand's box fills the 114 px between the vitals and the card, and a turn
+	# up puts it on the card part way), so it keeps the r1 spot rather than cover CLAIM.
+	var line_off: Array[Rect2] = [p_hard[0], p_hard[1]]
+	var tree_p := Vector2(973, -22)
+	var se: Vector2 = FingerS.clamp_tip(tree_p, false, pin)
+	var r1_spot: Vector2 = FingerS.edge_spot(se, tree_p, pin, pv, p_hard, p_claim, 0.9)
+	var run0: float = FingerS.run_along(r1_spot, FingerS.aim_angle(tree_p - r1_spot), tree_p, pv, line_off)
+	var below: Vector2 = FingerS.edge_spot(se, tree_p, pin, pv, p_hard, p_soft, 0.9, Vector2(NAN, NAN), none, line_off)
+	var with_claim: Vector2 = FingerS.edge_spot(se, tree_p, pin, pv, p_hard, p_claim, 0.9, Vector2(NAN, NAN), none, line_off)
+	print("[t_guide] spawn hand at 844x390: r1 %s ran %.0f px along the card; without CLAIM %s, with it %s" % [r1_spot, run0, below, with_claim])
+	_expect(run0 > FingerS.RUN_MAX and is_equal_approx(below.x, 824.0) and below.y > 208.0 and FingerS.run_along(below, FingerS.aim_angle(tree_p - below), tree_p, pv, line_off) <= FingerS.RUN_MAX,
+		"with no CLAIM hex there the spawn hand points past the minimap from below it, not along the card (%s)" % below)
+	_expect(with_claim == r1_spot, "with CLAIM there it keeps the spot left of the card rather than cover CLAIM (%s)" % with_claim)
+	# Where there is room beside the card the hand turns up off it, through steps that all fit.
+	var roomy: Array[Rect2] = [p_hard[1]]
+	var q := Vector2(380, 20)
+	var a0: float = FingerS.aim_angle(tree_p - q)
+	var ta: float = FingerS.edge_aim(q, tree_p, pv, roomy, none, none, roomy, 0.9)
+	_expect(FingerS.run_along(q, a0, tree_p, pv, roomy) > FingerS.RUN_MAX and FingerS.run_along(q, ta, tree_p, pv, roomy) <= FingerS.RUN_MAX and ta < a0 and a0 - ta <= FingerS.TILT_MAX + 0.001,
+		"a clamped hand with room beside the card turns up off it (%.0f -> %.0f deg)" % [rad_to_deg(a0), rad_to_deg(ta)])
+	_expect(FingerS.edge_aim(Vector2(1580, 450), Vector2(5000, 450), view, hard, none, none, keep, 1.1) == FingerS.aim_angle(Vector2.RIGHT), "a clamped hand with a clear line points straight at its target")
+	_test_glide_cap()
 	_sections += 1
+
+## Review r2: the drawn hand never moves faster than GLIDE_MAX, also when the anchor moves under HOP_PX on top
+## of a running glide (on the right edge at 1600x900 the tip moved 35 px in 10 ms).
+func _test_glide_cap() -> void:
+	var f: Control = FingerS.new()
+	var worst := 0.0
+	for key in ["node1", "edge1"]:
+		f.set("_key", key)
+		f.set("anchor", Vector2(100, 100))
+		f.call("_settle", 0.01, false, "")
+		f.set("_key", key + "x")  # a new target far off: a glide starts
+		f.set("anchor", Vector2(900, 100))
+		var was: Vector2 = f.get("_at")
+		for i in 30:
+			f.call("_settle", 0.01, true, key + "x" if i > 0 else key)
+			f.set("anchor", (f.get("anchor") as Vector2) + Vector2(0, 20))  # and that spot moves 20 px a frame
+			var at: Vector2 = f.get("_at")
+			worst = maxf(worst, at.distance_to(was) / 0.01)
+			was = at
+	f.free()
+	_expect(worst <= FingerS.GLIDE_MAX + 0.5, "the drawn hand never moves faster than GLIDE_MAX (%.0f px/s)" % worst)
 
 ## Distance from `q` to the nearest side of `r`.
 func _off_border(r: Rect2, q: Vector2) -> float:
