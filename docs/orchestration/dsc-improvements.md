@@ -79,3 +79,116 @@ Five `dsc cook` workers were checked about 20-25 min into their runs (each start
 12. **Guard hook.** Ship a .dsc.json PreToolUse hook that blocks Godot without gslot, --headless on render labs, and Godot piped into tail/head/grep.
 13. **Times and base.** No start times in TASK.md. Cut each worktree from the current package head and state the diff base.
 14. **Check early.** Check at 15 min. If a worker is blocked in bash, kill the orphaned pipeline before `dsc cook say`.
+
+## 2026-10-21 second audit (after the 13:55 dsc build)
+
+Seven cook workers were checked between 14:02 and 14:05 CDT. All six live ones started 13:13-13:45, so **none runs the 13:55 build**. Running workers are not at risk of mixing old and new modules: the only lazy imports in dist/index.js (371-528, 650) run at startup or for the board. Total spend is about $1.73.
+
+| worker | state | time / cap | cost / cap | milestones | verify | main problem |
+|---|---|---|---|---|---|---|
+| card2d | finished by runner 13:52 | 1.8 h / 4 h | $0.31 / $6 | 0/6 ticked | passes | Report never written. Parallax squashes small cards. Empty-card bug. Gates print PASS unconditionally. Runner auto-finished during new owner scope. |
+| colors | working, off track | 0.85 h / 4 h | $0.68 / $5 | 6/7 claimed | fails (no report) | Creatures render as white ghosts, yet 'visually natural' was ticked. About 100 calls of shader bisect with probes that sampled grass. Server tame re-rolls colour. |
+| webpack | working, off track | 0.5 h / 4 h | $0.21 / $5 | 1/5 | cannot pass | VRAM mode 2 cannot shrink the pack (s3tc+etc2 = 2x113 MB). No export since the change. Project-wide import defaults changed. Gate diffs against a moving branch. |
+| islandgen | working, off track | 0.3 h / 5 h | $0.09 / $6 | 0/5 | cannot pass | verify line 12 forbids t_save's deliberate SCRIPT ERRORs. Needle peninsulas against plan 1.2. Home layout ignored. Harbour JSON rewrite unplanned. |
+| biomezones | working, on track | 0.3 h / 5 h | $0.11 / $6 | 1/9 | far | Parse error hung 300 s. 7 Godot runs without gslot. Probed the owner's userdata. Global zone tints. In-place smooth(). No ASSUMPTION marks. |
+| props | working, slow | 0.3 h / 5 h | $0.17 / $6 | 0/7 | far | 40 steps of reading, 0 edits. Skipped READ FIRST and reference images. Overthinking (94% reasoning). |
+| biomeassets | working, on track | 0.3 h / 5 h | $0.16 / $6 | 3/6 | 3 files missing | Never looked at the concept art. Three identical 410-tri mesas. No buried base. Crystals matte. Everything doubleSided. |
+
+### Worker mistakes (model side, new today)
+- **False completion on visual milestones.** colors ticked 'visually natural' after viewing a white-ghost shot. card2d left shear and black plants in its evidence image.
+- **Invalid measurement.** colors' centre-pixel probes all read the same grass value (0.674,0.777,0.638) about 10 times.
+- **Optimising before measuring.** webpack made 22 SSIM views and no export after its texture change. The lever it chose cannot meet the target.
+- **Tuning to the gate instead of the plan.** islandgen made 20 m needle peninsulas to satisfy a 45% rule. Its bbox aspect is gamed by rotation.
+- **Scope creep into siblings' files.** islandgen planned edits to island_scatter.gd (PROPS) and _build_tile_types (BIOMEZONES). biomezones edited island_runtime.gd.
+- **Rules ignored until enforced.** biomezones ran Godot without gslot and launched a lab with no parse check. card2d piped Godot until the owner intervened.
+- **Unchecked edits.** There were regex edits to .import files (webpack, 4 corrupted) and python `s.replace` edits without an assert (biomezones, about 8).
+- **READ FIRST skipped.** props and biomeassets opened none of the reference images they were pointed to.
+
+### What the 13:55 build fixes (verified in src)
+Most of the first audit's P0 and P1 items:
+- **Hangs:** proc.ts:runGroup (process-group kill, CPU watchdog, grace period); ledger tool_start and worker.json `current`.
+- **Plan and milestones:** the plan rule 15/30/45; enforceTicks; `{n}`/`{name}` in the milestone gate.
+- **Model output:** cut-off tool calls are dropped (agent.ts loop); a reasoning-only turn is retried at effort low; 32k output in task mode.
+- **Verify:** async, killable verify; preflight.
+- **Checkpoints:** checkpointExclude.
+- **Memory and effort:** editCheck; the failed-long-call memory; SHORT.md refresh every 10 steps; the pre-compaction NOTES prompt; MAP quotas plus mapIgnore; `medium` effort plus the 3x8k downshift.
+- **Hooks and guards:** PreToolUse hooks that can block, protectedPaths.
+
+The audit trail is only partly there: a 400-character reasoning tail per call and saved-path labels on images.
+
+### Still due in dsc (ranked)
+1. **P0, auto-finish ignores `cook say` scope** (task.ts:570 never resets greenNotices) and skips the report. Add a wrap-up turn, and do not finish while a named deliverable is missing.
+2. **P0, sandbox excludes the linked worktree's gitdir** (sandbox.ts:30). Four workers failed step one, and webpack corrupted .import files as a workaround.
+3. **P0, guard.ts:pipedLongRun is unanchored.** About 15 refusals were triggered by project.godot and tools/blender paths.
+4. **P1:**
+   - The drift nudge with zero edits or visual acceptance.
+   - A warning when the milestone gate has no `{n}`.
+   - A timeout reported by editCheck as a code error.
+   - The CPU-only watchdog: gslot waits look hung, and parse errors take 300 s.
+   - zsh NOMATCH.
+   - Version pinning: the dsc repo is uncommitted and nothing records which build a worker runs.
+5. **P2:**
+   - Preflight `$VAR` false positives.
+   - task/cook ignore `effort` in .dsc.json (index.ts:439).
+   - Truncated commit subjects.
+   - Image verdicts not captured.
+   - The 350k compaction threshold.
+   - No append_file tool.
+
+### Orchestrator fixes today (our side)
+- verify_islandgen.sh:12: drop `! grep SCRIPT ERROR` for t_save.
+- verify_webpack.sh:13: diff against base 2f9b3251, not claude/mmo-overhaul.
+
+Both take effect without a restart.
+- Tighten verify_card2d.sh (report, cards==models, new asserts) before resuming card2d (`--resume 20261021-170404-nv78`).
+
+Restart no live worker for the build.
+
+### New task-writing rules (15-29)
+- No git writes in tasks. Pre-merge, use --commit, restore files with `git show`.
+- Verify checks every deliverable, the report included, and is re-tightened before a resume.
+- Visual acceptance needs a pixel proxy, and the lab prints PASS only when its counts agree.
+- Gates diff against the base sha, accept deliberate SCRIPT ERRORs and check exit codes.
+- Use staged `{n}` gates through gslot with a scratch HOME.
+- gslot lives at a stable path, and each worker gets its own scratch directory.
+- List the lab .tscn and protect the sibling-owned and project-wide files.
+- Say which spec wins in a conflict, and give the anchors as numbers.
+- Add a milestone to regenerate test-pinned data.
+- Launch with --effort medium and --commit, and never --skill without --model.
+- Quote globs for zsh.
+- Measure before polishing.
+- Art jobs include a reference-vs-render side-by-side in the report.
+
+### Recommended .dsc.json for Godot worktrees
+This file is always protected and is swept into commits unless untracked at start, so add it to .git/info/exclude. The `effort` key has no effect in task or cook: pass `--effort medium` on the launch line. Hook and editCheck were tested; the hook blocks Godot without gslot, `--headless` bakes and git writes, and lets `grep project.godot | head` through.
+```json
+{
+ "sandbox": "workspace-write",
+ "watchdogIdleSec": 180,
+ "editCheck": "case \"$DSC_FILE\" in game/*.gd) export HOME=/private/tmp/dsc-godot-home; mkdir -p \"$HOME/Library/Application Support\"; G=$(tools/find_godot.sh); bash /Users/milankinzy/Documents/deadfront-siege/.claude/worktrees/mmo-overhaul/docs/orchestration/mmo/handoff/scripts/gslot.sh perl -e 'alarm 60; exec @ARGV' \"$G\" --headless --path game --check-only --script \"res://${DSC_FILE#game/}\" > .dsc/editcheck.log 2>&1; if grep -qE 'Parse Error|SCRIPT ERROR|Compile Error' .dsc/editcheck.log; then grep -E 'Parse Error|SCRIPT ERROR|Compile Error|at: ' .dsc/editcheck.log | head -12; exit 1; fi; exit 0;; *) exit 0;; esac",
+ "checkpointExclude": ["*.import", "*.uid", "*_Image_*.jpg", "_diag_*", "*_probe.gd", "*_probe.tscn", "*.orig", "*.rej"],
+ "mapIgnore": ["game/.godot/**", "game/assets/**", "*.import", "*.uid", "*.html", "docs/orchestration/mmo/handoff/findings/**", "docs/reference/**"],
+ "protectedPaths": ["game/project.godot", "game/export_presets.cfg", "game/override.cfg", "tools/smoke.sh", "tools/find_godot.sh", "AGENTS.md", "GAUNTLET.md", "HANDOFF.md", "docs/orchestration/dsc/*-TASK.md", "game/tests/t_save.gd", "game/scripts/camera/iso_camera.gd"],
+ "toolChoice": "required",
+ "autoEscalate": true,
+ "effort": "medium",
+ "routingLog": true,
+ "hooks": {"PreToolUse": [{"timeoutMs": 10000, "command": "[ \"$DSC_TOOL\" = bash ] || exit 0; a=\"$DSC_ARGS\"; if printf '%s' \"$a\" | grep -Eq '(find_godot[.]sh|/Godot(_mono)?([^/a-zA-Z]|$)|smoke[.]sh)' && ! printf '%s' \"$a\" | grep -q 'gslot[.]sh'; then echo 'Run Godot and tools/smoke.sh only through gslot.sh, exactly as TASK.md shows.'; exit 2; fi; if printf '%s' \"$a\" | grep -q -- '--headless' && printf '%s' \"$a\" | grep -Eq -- '(--shot|bake|shots/)'; then echo 'Bakes and shots need a window: drop --headless.'; exit 2; fi; if printf '%s' \"$a\" | grep -Eq 'git +(merge|checkout|stash|commit|add|reset|rebase|restore)'; then echo 'git writes fail in the dsc sandbox. Restore a file with: git show HEAD:path > path. Leave commits to the runner. Note blockers in .dsc/NOTES.md.'; exit 2; fi; exit 0"}]}
+}
+```
+Why each key:
+- **watchdogIdleSec 180:** biomezones' parse-error hang sat 300 s. Do not go lower, because a gslot slot wait looks CPU-idle.
+- **editCheck:** parse-checks each edited .gd through gslot with a scratch HOME. It is grep-based, so a timeout does not read as a code error.
+- **checkpointExclude:** adds the probe and diag junk that colors left in the index.
+- **mapIgnore:** keeps MAP.md on code.
+- **protectedPaths:** the files workers touched today that they should not have. A task that owns one overrides the list in .dsc.local.json.
+- **toolChoice required:** the run ends only through task_done.
+- **routingLog:** shows when a run was routed to jev-router.
+- **hooks.PreToolUse:** rule 12 from the first audit.
+### Actions taken (orchestrator, 14:20)
+- Nudges sent to colors, webpack, islandgen, props, biomezones and biomeassets (no restarts, as the audit advised).
+- Fixed our own gates: verify_islandgen.sh accepts t_save's deliberate SCRIPT ERRORs; verify_webpack.sh diffs against its
+  base 2f9b3251.
+- CARD2D resumed for round 2 on the new build with a stricter verify (report, cards == models > 0, ms_cards < ms_models,
+  parallax/empty/fade asserts, untouched iso_camera.gd, no junk) and a t_card2d milestone gate.
+- The DeepseekCLI working tree (TUI, routing, guard rails) was committed as c00856e on the owner's word.
