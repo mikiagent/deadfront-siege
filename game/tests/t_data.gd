@@ -712,15 +712,17 @@ func _check_tier_planner() -> void:
 		print("[t_data] L55 %s via planner: %s" % [row[0], ", ".join(parts)])
 	for mat: String in ["metal_shard", "copper_ingot"]:
 		_expect(_craft("raid_cuirass", 55, mat) == null and _craft("raid_maul", 55, mat) == null, "raid gear refuses %s as its primary" % mat)
-	var l1: Variant = _craft("flint_pick", 1)
-	var l5: Variant = _craft("flint_pick", 5)
-	if l1 != null and l5 != null:
-		var g: float = l5.gather_power() / l1.gather_power()
-		var dmg: float = l5.scaled_damage() / l1.scaled_damage()
-		print("[t_data] flint_pick L%d -> L%d: gather power x%.2f, damage x%.2f; raid from metal_shard or copper_ingot refused" % [l1.level, l5.level, g, dmg])
-		_expect(g >= 1.3 and dmg >= 1.3, "a level 5 pick is clearly better than level 1 (gather x%.2f, damage x%.2f)" % [g, dmg])
+	var p1: Variant = _craft("flint_pick", 1)
+	var p5: Variant = _craft("flint_pick", 5)
+	var s1: Variant = _craft("flint_spear", 1)
+	var s5: Variant = _craft("flint_spear", 5)
+	if p1 != null and p5 != null and s1 != null and s5 != null:
+		var g: float = p5.gather_power() / p1.gather_power()
+		var dmg: float = s5.scaled_damage() / s1.scaled_damage()
+		print("[t_data] level %d -> %d from the planner: flint_pick gather power x%.2f, flint_spear damage x%.2f" % [p1.level, p5.level, g, dmg])
+		_expect(p1.level == 1 and p5.level == 5 and g >= 1.3 and dmg >= 1.3, "a level 5 tool is clearly better than level 1 (gather x%.2f, damage x%.2f)" % [g, dmg])
 	else:
-		_expect(false, "planner crafts flint_pick at levels 1 and 5")
+		_expect(false, "planner crafts flint_pick and flint_spear at levels 1 and 5")
 
 ## Hook 6: Crafting.progression_block names the missing node and opens once it is learned.
 func _check_node_gate() -> void:

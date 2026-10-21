@@ -248,19 +248,18 @@ index 018431f9..bb9c0358 100644
  		"place_rotate": "res://assets/icons/ui/rotate.svg",
  		"confirm": "res://assets/icons/ui/confirm.svg",
 diff --git a/game/data/world/rules.json b/game/data/world/rules.json
-index c2e07db2..c25b3b40 100644
+index c2e07db2..d59a38dd 100644
 --- a/game/data/world/rules.json
 +++ b/game/data/world/rules.json
-@@ -95,9 +95,9 @@
+@@ -95,9 +95,8 @@
      ],
      "loot": [
        "cloth_scrap",
 -      "wire",
 -      "medicine",
 -      "rare_seed"
-+      "metal_shard",
 +      "pressure_dressing",
-+      "corn_seed"
++      "wheat_seed"
      ]
    },
    "lifetime_hours": {
@@ -293,38 +292,81 @@ index dd7a642e..3c5b752c 100644
  	"herb": ["herb_leaf", "berries", "berry", "petals"],
  	"cloth": ["cloth_scrap", "cloth"],
  	"wood": ["wood_log", "branch"],
+diff --git a/game/scripts/dev/raid_gear_probe.gd b/game/scripts/dev/raid_gear_probe.gd
+index 70d19150..90daf5a4 100644
+--- a/game/scripts/dev/raid_gear_probe.gd
++++ b/game/scripts/dev/raid_gear_probe.gd
+@@ -1,8 +1,9 @@
+ extends Node
+ ## Seeded raid kit fixture: real craft allocation and formulas, neutral boss genetics, fixed RNG.
+-## Expected numbers follow W1-ITEMS scaling: base x (1 + 0.08 x 59) x tier(metal_shard = flint 1.25).
+-const MAUL_L60 := 220.0 * 5.72 * 1.25
+-const KIT_ARMOR_L60 := (300.0 + 700.0 + 300.0) * 5.72 * 1.25
++## Expected numbers follow W1-ITEMS scaling: base x (1 + 0.08 x 59) x tier(steel_ingot = steel 2.45).
++## W2-DATA: the kit is made from steel; base values were rebased so these match the old shard-tier kit.
++const MAUL_L60 := 112.0 * 5.72 * 2.45
++const KIT_ARMOR_L60 := (153.0 + 357.0 + 153.0) * 5.72 * 2.45
+ var failures: Array[String] = []
+ var started := false
+ func check(ok: bool, label: String) -> void:
+@@ -20,8 +21,11 @@ func run(_host: Node) -> void:
+ 	player.skills.trees["survival"]["level"] = 50
+ 	for tree in ["weapon_tools", "tailoring", "processing", "melee"]:
+ 		player.skills.trees[tree]["level"] = 60
++	# Raid recipes need the steel rung's skill nodes (W2-DATA requires_node).
++	player.skills.trees["weapon_tools"]["unlocked"].append("iron_weapons")
++	player.skills.trees["tailoring"]["unlocked"].append("scute_armor")
+ 	player.inventory = Inventory.new(40)
+-	player.inventory.add(stack(&"metal_shard", 40))
++	player.inventory.add(stack(&"steel_ingot", 20))
+ 	player.inventory.add(stack(&"branch", 10))
+ 	player.inventory.add(stack(&"hide_strap", 30))
+ 	player.inventory.add(stack(&"dried_hide", 30))
+@@ -119,7 +123,7 @@ func run(_host: Node) -> void:
+ 	player.inventory.unequip(&"head")
+ 	check(not player.inventory.has_raid_protection(), "incomplete kit loses status protection")
+ 	var inv := Inventory.new(10)
+-	inv.add(stack(&"metal_shard", 8, 10))
++	inv.add(stack(&"steel_ingot", 4, 10))
+ 	inv.add(stack(&"branch", 2, 10))
+ 	inv.add(stack(&"hide_strap", 4, 10))
+ 	player.inventory = inv
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index e09baeef..f563e851 100644
+index e09baeef..0d5d57d1 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
-@@ -250,6 +250,9 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
+@@ -250,6 +250,11 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
  
  ## Optional endgame gates. Existing recipes are unchanged.
  static func progression_block(player: Player, rec: Dictionary) -> String:
 +	var node := str(rec.get("requires_node", ""))
-+	if node != "" and not _node_unlocked(player, node):
-+		return "needs skill %s" % node.replace("_", " ")
++	if node != "":
++		var learn := _node_block(player, node)
++		if learn != "":
++			return learn
  	var survival := int(rec.get("required_survival", 0))
  	if survival > 0 and (player == null or player.skills == null or player.skills.level_of("survival") < survival):
  		return "needs Survival %d" % survival
-@@ -262,6 +265,16 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
+@@ -262,6 +267,18 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
  			return "needs materials and crafting skill for level %d" % minimum
  	return ""
  
-+## requires_node names a trees.json node; node ids are unique across trees (t_data checks it).
-+static func _node_unlocked(player: Player, node_id: String) -> bool:
-+	if player == null or player.skills == null:
-+		return false
-+	for tree in player.skills.defs:
-+		for n in player.skills.nodes(str(tree)):
-+			if n is Dictionary and str((n as Dictionary).get("id", "")) == node_id:
-+				return player.skills.is_unlocked(str(tree), node_id)
-+	return false
++## "" once the trees.json node is learned, else "needs Smelting 1 (Processing 25)": the node, its tree and
++## level, so the player knows which tree to raise. Node ids are unique across trees (t_data checks it).
++static func _node_block(player: Player, node_id: String) -> String:
++	if player != null and player.skills != null:
++		for tree in player.skills.defs:
++			for n in player.skills.nodes(str(tree)):
++				if n is Dictionary and str((n as Dictionary).get("id", "")) == node_id:
++					if player.skills.is_unlocked(str(tree), node_id):
++						return ""
++					return "needs %s (%s %d)" % [str((n as Dictionary).get("name", node_id.capitalize())), SkillState.NAMES.get(str(tree), str(tree)), int((n as Dictionary).get("level", 1))]
++	return "needs %s" % node_id.capitalize()
 +
  static func can_make(player: Player, rec: Dictionary, picks: Array[int]) -> bool:
  	if rec.is_empty():
  		return false
-@@ -398,6 +411,8 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
+@@ -398,6 +415,8 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
  			return &"fibre_stalk"
  		"bucket":
  			return &"empty_bucket"
@@ -333,7 +375,7 @@ index e09baeef..f563e851 100644
  		_:
  			return cat
  
-@@ -462,6 +477,8 @@ static func _category_hint(cat: StringName) -> String:
+@@ -462,6 +481,8 @@ static func _category_hint(cat: StringName) -> String:
  			return "stone"
  		"lashing":
  			return "twine"
