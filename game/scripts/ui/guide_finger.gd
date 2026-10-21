@@ -112,9 +112,8 @@ func _update(delta: float) -> bool:
 			near.append_array(r.label_rects)
 			near.append(r.title_box)
 			return _aim(hex.get_center(), safe, keep_off, s, near)
-	if target != null and not is_instance_valid(target):
-		target = null  # freed with its island (travel, a reload)
-		_repick = 0.0
+	if not is_instance_valid(target):
+		target = null  # freed with its island (travel, a reload); a freed object passes a != null check
 	_repick -= delta
 	if _repick <= 0.0:
 		_repick = REPICK_S
