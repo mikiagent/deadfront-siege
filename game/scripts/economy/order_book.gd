@@ -75,7 +75,7 @@ func cancel(me: int, a: EconArgs) -> Dictionary:
 func sell(me: int, a: EconArgs) -> Dictionary:
 	var R := L.rules
 	var id := a.text("order_id", 2, 24)
-	var uid := a.text("uid", 2, 24)
+	var uid := a.text("uid", 2, EconArgs.UID_MAX)
 	var count := a.integer("count", 1, 999999)
 	if a.err != "":
 		return a.fail()

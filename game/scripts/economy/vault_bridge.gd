@@ -15,7 +15,9 @@ extends RefCounted
 ## Economy ops the transport may relay from a client; client() adds the character intents a
 ## client may send (IntentHandlers.CLIENT_OPS). Everything else is server-only.
 const CLIENT_OPS := MarketEngine.READ + MarketEngine.WRITE + ["vault.deposit", "vault.withdraw"]
-## recover()'s own rids; a client rid there could pre-answer a recovery from the rid cache.
+## The server's own rids in both rid spaces (recover()'s withdrawals in the books, char.grant's
+## in the character's cache): client() refuses them for every op, so no client frame can
+## pre-answer or conflict a move the server makes.
 const RECOVER_RID := "recover-"
 
 var econ: EconStore
@@ -112,7 +114,7 @@ func _deposit(me: int, args: Dictionary, ts: int) -> Dictionary:
 	var uid := "" ## the uid act.deposit will export, so recover() claims that asset and no other
 	var kind := "pet" if args.has("pet_uid") else "item"
 	if kind == "pet":
-		uid = a.text("pet_uid", 1, 64)
+		uid = a.text("pet_uid", 2, EconArgs.UID_MAX)
 		if a.err != "":
 			return a.fail()
 		take = {"pet_uid": uid}
@@ -166,7 +168,7 @@ func _withdraw(me: int, args: Dictionary, ts: int) -> Dictionary:
 	if chars.character(me) == null:
 		return EconArgs.no("unauthorized", "account %d has no server character" % me)
 	var a := EconArgs.new(args)
-	var uid := a.text("uid", 2, 64)
+	var uid := a.text("uid", 2, EconArgs.UID_MAX)
 	var want := a.integer("count", 1, 1000000, 0) ## 0: the whole stack
 	if a.err != "":
 		return a.fail()
@@ -174,6 +176,10 @@ func _withdraw(me: int, args: Dictionary, ts: int) -> Dictionary:
 	var pet: bool = acct.vault_pets.has(uid)
 	if not (pet or acct.vault_items.has(uid)):
 		return EconArgs.no("not_found", "%s is not in your vault" % uid)
+	# Pack 09: the cap holds when a bond forms, and a bought pet bonds here. A pet coming back
+	# from a deposit the vault refused (_into_vault) is an old bond, so only this path checks it.
+	if pet and (chars.character(me).d.pets as Dictionary).size() >= _bonded_cap():
+		return EconArgs.no("limit_reached", "the bonded roster is full (%d)" % _bonded_cap())
 	var held := 1 if pet else int(acct.vault_items[uid].count)
 	var n := want if want > 0 else held
 	if n > held:
@@ -216,16 +222,21 @@ func _grant(me: int, rid: String, uid: String, n: int, ts: int) -> Dictionary:
 	return res
 
 ## Second half of a grant (also recovery): the units vault.withdraw_item let go of under `rid`
-## reach the character exactly once (char.grant's own rid is that withdrawal's seq).
+## reach the character exactly once. char.grant's rid is that withdrawal's seq, in the server's
+## rid space: a client intent cannot plant it in the character's rid cache first.
 func _grant_out(me: int, rid: String, ts: int) -> void:
 	var hit: Array = _books().acct(me).rid_cache.get(rid, [])
 	if hit.size() > 2 and str(hit[0]) == "vault.withdraw_item":
 		var units: Dictionary = hit[2].r.item
-		var got := chars.apply("char.grant", me, {"asset": units, "rid": "g%d" % int(hit[1])}, ts)
+		var got := chars.apply("char.grant", me, {"asset": units, "rid": "%sg%d" % [RECOVER_RID, int(hit[1])]}, ts)
 		if not got.ok:
 			broken = "%d %s left the vault under %s but char.grant refused them (%s)" % [int(units.count), units.id, rid, got.get("err", "")]
 			return
 	_end(ts) # granted, or the vault never let go
+
+## The roster cap (W2-SKILLS' single function once it merges); a method so tests can lower it.
+func _bonded_cap() -> int:
+	return Data.bonded_cap()
 
 func _end(ts: int) -> void:
 	var res := econ.apply("bridge.end", Ledger.SETTLERS, {}, ts)

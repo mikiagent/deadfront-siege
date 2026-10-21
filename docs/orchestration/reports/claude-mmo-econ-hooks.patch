@@ -1,5 +1,5 @@
 diff --git a/game/scripts/server/intent_handlers.gd b/game/scripts/server/intent_handlers.gd
-index 0bbbcb56..d9e5a8bc 100644
+index 0bbbcb56..ca9224c5 100644
 --- a/game/scripts/server/intent_handlers.gd
 +++ b/game/scripts/server/intent_handlers.gd
 @@ -9,8 +9,10 @@ extends RefCounted
@@ -51,19 +51,19 @@ index 0bbbcb56..d9e5a8bc 100644
  func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
  	var asset: Variant = a.get("asset")
  	if not Provenance.is_server(asset):
-@@ -544,8 +548,11 @@ func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
+@@ -543,9 +547,10 @@ func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
+ 				return no("conflict", "pet %s is already held" % uid)
  	if str(s.exported_assets.get(uid, "")) != CharacterStore.canon(asset):
  		return no("invalid_asset", "%s is not an asset this server exported (or it was edited)" % uid)
- 	if uid.begins_with("p"):
-+		if (ch.d.pets as Dictionary).size() >= Data.bonded_cap(): # pack 09: the cap holds when a bond forms
-+			return no("limit_reached", "the bonded roster is full (%d)" % Data.bonded_cap())
+-	if uid.begins_with("p"):
++	if uid.begins_with("p"): # the roster cap is VaultBridge's: a refused deposit coming back is no new bond
  		s.exported_assets.erase(uid)
  		ch.d.pets[uid] = (asset as Dictionary).duplicate(true)
 +		ch.d.pets[uid].owner = str(account) # a bought pet answers to its new owner; tamer keeps the lineage
  		s.pets_exported = int(s.pets_exported) - 1
  		return ok({"kind": "pet", "pet_uid": uid})
  	var stack := ItemStack.from_dict(Provenance.strip(asset))
-@@ -557,9 +564,35 @@ func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
+@@ -557,9 +562,40 @@ func _receive(ch: CharacterState, a: Dictionary) -> Dictionary:
  		return no("bag_full", "no room for %s" % stack.def_id)
  	s.exported_assets.erase(uid)
  	var uids := ch.commit(inv, str(asset.origin), seq)
@@ -93,6 +93,11 @@ index 0bbbcb56..d9e5a8bc 100644
 +		return no("bag_full", "no room for %s" % stack.def_id)
 +	var origin := str(asset.get("origin", ""))
 +	var uids := ch.commit(inv, origin if origin in Provenance.ORIGINS else "market", seq)
++	var row := ch.find_uid(uids[0]) if uids.size() == 1 else -1
++	if row >= 0 and int(ch.d.bag[row].count) == n: # its own row: the part keeps who made it and when
++		for k: String in ["creator", "created_at"]:
++			if (asset as Dictionary).has(k):
++				ch.d.bag[row][k] = asset[k]
 +	count("exported", stack.def_id, -n)
 +	return ok({"item": str(stack.def_id), "count": n, "uids": uids})
 +

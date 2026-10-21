@@ -5,6 +5,7 @@ extends RefCounted
 ## Integers may arrive as integral floats (JSON parses every number as float).
 
 const SAFE_INT := 9007199254740991 ## 2^53 - 1: beyond this a JSON double is not exact
+const UID_MAX := 64 ## the one bound on a uid argument; server uids (i<seq>.<k>, p<seq>.<k>, i<n>) are far shorter
 
 var a: Dictionary
 var err := ""

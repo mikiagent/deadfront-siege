@@ -228,7 +228,7 @@ func _pick(me: int, a: EconArgs) -> Dictionary:
 	if a.err != "":
 		return a.fail()
 	var sub := EconArgs.new(spec)
-	var uid := sub.text("uid", 2, 24)
+	var uid := sub.text("uid", 2, EconArgs.UID_MAX)
 	if sub.err != "":
 		return EconArgs.no("bad_request", "asset.%s" % sub.err)
 	var acct := L.acct(me)
@@ -251,15 +251,16 @@ func _can_open(me: int, fee: int) -> Dictionary:
 	var acct := L.acct(me)
 	if int(acct.open_listings) >= L.rules.num("max_open_listings"):
 		return EconArgs.no("limit_reached", "at most %d open listings" % L.rules.num("max_open_listings"))
-	if L.tradable(me) < fee:
-		return EconArgs.no("insufficient_funds", "listing fee is %d tradable T-stones" % fee)
+	# ASSUMPTION: a listing fee goes to the sink, not to another account, so bound T-stones pay it
+	# (contract v2 0.6 binds the start against transfers); a new player can sell from day one.
+	if int(acct.wallet) < fee:
+		return EconArgs.no("insufficient_funds", "listing fee is %d T-stones" % fee)
 	return {}
 
 func _open(me: int, kind: String, pick: Dictionary, fee: int, hours: int, extra: Dictionary) -> Dictionary:
 	var acct := L.acct(me)
 	var asset := L.take_pet(me, pick.uid) if pick.kind == "pet" else L.take_item(me, pick.uid, pick.count)
-	L.debit(me, fee)
-	L.to_sink(fee)
+	L.pay_sink(me, fee)
 	var id := L.new_id("L")
 	var lst := {
 		"id": id, "kind": kind, "state": "active", "seller": me, "type": pick.kind, "key": pick.key,
