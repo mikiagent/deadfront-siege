@@ -15,12 +15,6 @@
   "girth_thick_m": 0.025
  },
  "species": {
-  "zebraceratops": {
-   "seat_half_w_m": 0.22,
-   "seat_half_len_m": 0.22,
-   "cushion_m": 0.05,
-   "skirt_m": 0.12
-  },
   "protoceratops": {
    "seat_half_w_m": 0.23,
    "seat_half_len_m": 0.22,
@@ -56,6 +50,12 @@
    "seat_half_len_m": 0.2,
    "cushion_m": 0.04,
    "skirt_m": 0.08
+  },
+  "deinonychus": {
+   "seat_half_w_m": 0.2,
+   "seat_half_len_m": 0.22,
+   "cushion_m": 0.045,
+   "skirt_m": 0.09
   }
  }
 }

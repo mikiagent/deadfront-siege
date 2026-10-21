@@ -27,6 +27,8 @@
   "half_w": 0.041,
   "back_z": 0.6424
  },
+ "hips_above_socket_m": 1.4585,
+ "seat_above_socket_m": 1.3585,
  "stirrups": {
   "L": [
    0.1017,

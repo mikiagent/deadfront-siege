@@ -571,6 +571,10 @@ mj = {
     "rider_offset": [OFF[r][c] for c in range(4) for r in range(4)],
     "seat": {"y": round(SEAT_Y, 4), "top": round(SEAT_TOP, 4), "half_len": round(SEAT_HALF_LEN, 4),
              "half_w": round(SEAT_HALF_W, 4), "back_z": round(BACK_Z, 4)},
+    # hips above the socket bone at rest, in game metres: what the mount lab checks the rider against (it is
+    # clip-invariant, unlike an absolute height, because the rider follows the socket bone).
+    "hips_above_socket_m": round((RIDER_ROOT.z + RIDER_HIPS_M / K - bone(SOCKET).z) * K, 4),
+    "seat_above_socket_m": round((SEAT_TOP - bone(SOCKET).z) * K, 4),
     "stirrups": {k: [round(x, 4) for x in v] for k, v in STIRRUPS.items()},
     "scale": {"height_meters": HEIGHT, "source_height_m": round(SRC_H, 4), "game_m_per_source": round(K, 5)},
     "notes": ("seat and straps are skinned to %s (the back just behind the shoulders), the neck strap and "
