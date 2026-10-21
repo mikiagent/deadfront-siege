@@ -396,6 +396,19 @@ B4, the in-game Bag (the owner's third reference):
     a card a quarter of the width that pins only the yellow primary. Doc check: GAUNTLET type floor and 44 / 56 px.
 80. ASSUMPTION desktop grids scroll by mouse drag with a fling (FLING_KEEP 0.004 a second, about half a second of glide)
     besides the wheel; a touchscreen keeps the ScrollContainer's own drag. Doc check: task "touch drag, wheel, kinetic".
+81. ASSUMPTION (review r1) one rule for spendable units: `Inventory.count_of`, `consume`, `find_first`,
+    `find_by_category` and `best_capture_net` skip locked instances, so builds (kit and raw), captures, ammo and the HUD
+    counts agree; `Inventory.held_of` counts every unit for "have N" goals (objectives), which spend nothing. A crafting
+    pick passed explicitly may spend a locked instance (W2-INV review 5's rule, t_inventory); in game every pick comes
+    from the ingredient picker, which never lists one ("N locked, not listed: unlock in the Bag to use"). Doc check:
+    spec 13 s9 / 13:229 ("protect valuable items from accidental ... crafting consumption").
+82. ASSUMPTION (review r1) Lock / Unlock are offline only until the server has an `act.lock` op (as Discard, 76).
+83. ASSUMPTION (review r1) on a phone the HUD fades out while the docked Bag is open (it takes no taps then, 77); on
+    desktop it stays, and its pickup toasts and notices centre on the world left of the dock and card.
+84. ASSUMPTION (review r1) shown only when real: no Decorative Gear tab (13), no #tag, History, flag panel or ▶ on the
+    title strip (no clans, history, flags or title choice exist: the title follows the level), no second currency pill,
+    no durability row on items that do not wear (raw meat), no level on the "Raw" chip. Doc check: GAUNTLET's inert-UI
+    rule; the data has none of them.
 
 ## 10. Acceptance checklist (measurable; test or shot that proves it)
 

@@ -1,3 +1,25 @@
+diff --git a/game/scripts/core/objectives.gd b/game/scripts/core/objectives.gd
+index d92d8e58..bdb10da3 100644
+--- a/game/scripts/core/objectives.gd
++++ b/game/scripts/core/objectives.gd
+@@ -90,7 +90,7 @@ static func _progress(player: Player, step: Dictionary) -> Dictionary:
+ 		for id in need:
+ 			var n := int(need[id])
+ 			want += n
+-			got += mini(n, player.inventory.count_of(StringName(str(id))))
++			got += mini(n, player.inventory.held_of(StringName(str(id))))
+ 		return _row(got, want)
+ 	if step.has("have_any"):
+ 		var any: Dictionary = step["have_any"]
+@@ -98,7 +98,7 @@ static func _progress(player: Player, step: Dictionary) -> Dictionary:
+ 		var target := 1
+ 		for id in any:
+ 			target = int(any[id])
+-			best = maxi(best, player.inventory.count_of(StringName(str(id))))
++			best = maxi(best, player.inventory.held_of(StringName(str(id))))
+ 		return _row(mini(best, target), target)
+ 	if step.has("pets"):
+ 		return _row(player.bonded.size(), int(step["pets"]))
 diff --git a/game/scripts/core/save_game.gd b/game/scripts/core/save_game.gd
 index 479f1713..f4b41396 100644
 --- a/game/scripts/core/save_game.gd
@@ -24,7 +46,7 @@ index e95cce81..af9b89c3 100644
  	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}},
  	"away": {"buildings": [], "claims": []}, "pending_refunds": [],
 diff --git a/game/scripts/dev/inventory_lab.gd b/game/scripts/dev/inventory_lab.gd
-index 914c5308..5198cfb4 100644
+index df3fda1a..5198cfb4 100644
 --- a/game/scripts/dev/inventory_lab.gd
 +++ b/game/scripts/dev/inventory_lab.gd
 @@ -1,10 +1,10 @@
@@ -125,7 +147,7 @@ index 914c5308..5198cfb4 100644
  
  func _expect(ok: bool, what: String) -> void:
  	if not ok:
-@@ -107,65 +91,58 @@ func _check() -> void:
+@@ -107,71 +91,58 @@ func _check() -> void:
  		if s:
  			units[s.def_id] = int(units.get(s.def_id, 0)) + s.count
  	_expect(inv.used_slots() == 100 and inv.slot_count == 100, "the bag holds 100 instances in 100 slots (%d/%d)" % [inv.used_slots(), inv.slot_count])
@@ -140,6 +162,12 @@ index 914c5308..5198cfb4 100644
 -	# A group has a corner count badge (it opens) and its level range; a real stack reads "×45" with
 -	# no badge: the two never look alike.
 -	_expect(_badge_of(stone_cell) == "16" and stone_cell.text == "Lv 1-16" and not stone_cell.text.contains("×"), "the stone group has a 16 badge, its level range and no stack ×N (badge '%s', caption '%s')" % [_badge_of(stone_cell), stone_cell.text if stone_cell else ""])
+-	# Review 5: the pill sits in the corner and covers at most a third (12 px) of the 36 px icon box
+-	# centred in the cell (a wide pill hid the berry bowl and the meat on a 64 px phone cell).
+-	await get_tree().process_frame
+-	var pill := stone_cell.get_node_or_null("Badge") as Label if stone_cell else null
+-	var cover := (stone_cell.size.x + 36.0) * 0.5 - pill.position.x if pill else 99.0
+-	_expect(cover <= 12.0, "the stone badge covers at most 12 px of the icon box (%.0f px; cell %.0f px)" % [cover, stone_cell.size.x if stone_cell else 0.0])
 -	var shot_cell: Button = null
 -	for k in ui._cells.size():
 -		if ui._cells[k].has("slot") and inv.slots[int(ui._cells[k].slot)].def_id == &"stone_shot":
@@ -246,10 +274,10 @@ index eb33c240..02b4b971 100644
  		print("[uifamily] inventory=%s animals=%s unlimited=%s active_cap=%d stego=%s" % [inventory_ok, animal_ok, unlimited_ok, Player.MAX_PETS_OUT, stego.species])
  		get_tree().quit(0 if inventory_ok and animal_ok and unlimited_ok and Player.MAX_PETS_OUT == 3 else 1)
 diff --git a/game/scripts/dev/ui_real_capture_lab.gd b/game/scripts/dev/ui_real_capture_lab.gd
-index 5ba2dc9c..09c63500 100644
+index 476416e7..c7af396a 100644
 --- a/game/scripts/dev/ui_real_capture_lab.gd
 +++ b/game/scripts/dev/ui_real_capture_lab.gd
-@@ -209,26 +209,34 @@ func _run() -> void:
+@@ -216,26 +216,35 @@ func _run() -> void:
  	await _capture_plate(logical)
  	await _camp_and_station(logical)
  	await _busy(logical)
@@ -283,6 +311,7 @@ index 5ba2dc9c..09c63500 100644
 +	if bag.has("inspect") and bag.has("rail"):
 +		_expect((bag["inspect"] as Rect2).end.x <= (bag["rail"] as Rect2).position.x, "bag: the item card floats left of the panel")
  	await _capture("bag", [], logical)
++	await _bag_card(logical)
  	_player.ui.visible = false
 +	# Character (INVUI B2): the profile moved here from the old bag; it shows the one player level
 +	# (the bag once printed pioneer level + 1) and the title held since character creation.
@@ -298,16 +327,59 @@ index 5ba2dc9c..09c63500 100644
  	# animal screen (protected): shot only, for the eye check of the token theme on it
  	_hud.call("_open_animals")
  	await _frames(3)
-@@ -334,7 +342,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
+@@ -341,7 +350,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
  	print("[uireal] phone=%s min_font_px=%d min_font_pt=%.2f logical_width=%d window_pt=%dx%d floor_pt=%.2f (smallest: %s)" % [phone, min_px, min_pt, int(logical.x), int(pts.x), int(pts.y), type_floor_pt(pts), _min_font_where])
  	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
  	if _fails.is_empty():
--		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
-+		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,character,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
+-		print("[uireal] PASS screens=hud,hud_daynight,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
++		print("[uireal] PASS screens=hud,hud_daynight,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,bag_card,character,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
  		get_tree().quit(0)
  	else:
  		for f in _fails:
-@@ -534,14 +542,9 @@ static func atlas_blocks(map: MapScreen) -> Dictionary:
+@@ -400,6 +409,42 @@ func _check_blocks(screen: String, rects: Dictionary, logical: Vector2, x_only:
+ 			_expect(not a.grow(-0.5).intersects(b.grow(-0.5)), "%s: %s %s overlaps %s %s" % [screen, names[i], a, names[j], b])
+ 	print("[uireal] %s blocks: %s" % [screen, " ".join(parts)])
+ 
++## The in-game Bag with an item picked (INVUI review r1): its card floats in over the live world, and
++## no HUD block runs under the card or across the panel's edge (at 844x390 the card cut the vitals and
++## the BUILD hex to "BUIL"): each lies clear of them or wholly under the opaque panel, or the HUD
++## stands aside while the Bag is open.
++func _bag_card(logical: Vector2) -> void:
++	var meat := ItemStack.make(&"raw_meat", 1)
++	_player.inventory.add(meat)
++	var uid := ""
++	for st in _player.inventory.slots:
++		if st and st.def_id == &"raw_meat":
++			uid = st.uid
++	_player.ui.call("select_uid", uid)
++	await _frames(3)
++	var bag := bag_blocks(_player.ui)
++	_expect(bag.has("inspect"), "bag: a picked item floats its card in (%s)" % [bag.keys()])
++	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
++	var hud_shown := hud != null and hud.is_visible_in_tree() and hud.modulate.a > 0.01
++	var clipped := 0
++	if bag.has("inspect") and bag.has("header") and hud_shown:
++		var dock_x := (bag["header"] as Rect2).position.x
++		var covers: Array[Rect2] = [bag["inspect"], Rect2(dock_x, 0.0, logical.x - dock_x, logical.y)]
++		var hb := hud_blocks(hud, _player, logical)
++		for k: String in hb:
++			var r := (hb[k] as Rect2).grow(-0.5)
++			for c in covers:
++				if r.intersects(c) and not c.encloses(r):
++					clipped += 1
++					_expect(false, "bag: HUD %s %s runs under the bag's %s (cut, not cleared or covered)" % [k, hb[k], c])
++	print("[uireal] bag card %s hud_shown=%s clipped=%d" % [bag.get("inspect", Rect2()), hud_shown, clipped])
++	await _capture("bag_card", [], logical)
++	_player.ui.call("select_uid", "")
++	for i in _player.inventory.slot_count:
++		if _player.inventory.slots[i] and _player.inventory.slots[i].uid == uid:
++			_player.inventory.remove_at(i, 1)
++	await _frames(1)
++
+ ## HUD blocks: its visible controls (hexes with their caption, the minimap, End Combat, the stance
+ ## text), the held-tool slot, and the blocks it draws as HuntHud.drawn_blocks records them (vitals,
+ ## quest card, map text, status badges, level line, target plate, level-up banner). An open sheet is
+@@ -541,14 +586,9 @@ static func atlas_blocks(map: MapScreen) -> Dictionary:
  		out["legend"] = row if i == 0 else (out["legend"] as Rect2).merge(row)
  	return out
  
@@ -343,17 +415,19 @@ index c07ec418..ff2d76d6 100644
  	ui.queue_free()
  	var animals := AnimalScreen.new()
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index 15e23db8..45e5748e 100644
+index 71460f52..6164608d 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
-@@ -21,11 +21,14 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
+@@ -21,13 +21,15 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
  ## (Inventory.spend_key), then dedicated materials before dual-category ones, then the lead's def;
  ## a unit that a later slot still needs (a cheap reed is also the recipe's lashing) is left for it.
  ## When a slot still runs short, plan again with dedicated materials first (the order before W2-INV).
--static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
 +## A pick per recipe slot is its lead bag slot (int; the rest by that order) or, from the INVUI
 +## ingredient picker (spec 13 s12/s19), an Array of the exact bag slots to spend, every one of them.
-+## A locked instance is never spent, even when picked (spec 13 s9).
+ ## A locked instance is spent only as the player's own pick (spec 13:229 "protect valuable items from
+-## ... crafting consumption"), never as a default lead or fill.
+-static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
++## ... crafting consumption"), never as a default lead or fill; the INVUI picker never lists one.
 +static func _plan(inv: Inventory, rec: Dictionary, picks: Array = []) -> Array[Dictionary]:
  	var plan := _plan_ordered(inv, rec, picks, true)
  	return plan if not plan.is_empty() else _plan_ordered(inv, rec, picks, false)
@@ -363,7 +437,7 @@ index 15e23db8..45e5748e 100644
  	var slots: Array = rec.get("slots", [])
  	if inv == null or slots.is_empty() or (not picks.is_empty() and picks.size() != slots.size()):
  		return []
-@@ -47,12 +50,19 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
+@@ -49,12 +51,19 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
  			return []
  		var preferred := StringName(str(slot.get("prefer_id", prefer if i == 0 else "")))
  		var lead := -1
@@ -376,7 +450,7 @@ index 15e23db8..45e5748e 100644
 +			var chosen: Array = picks[i] if picks[i] is Array else [picks[i]]
 +			for e: Variant in chosen:
 +				var k := int(e) if e is int or e is float else -1
-+				if k < 0 or k >= inv.slot_count or inv.slots[k] == null or inv.slots[k].is_locked() \
++				if k < 0 or k >= inv.slot_count or inv.slots[k] == null \
 +						or not inv.slots[k].def().has_category(cat) or int(remaining.get(k, inv.slots[k].count)) <= 0:
 +					return []
 +			if chosen.is_empty():
@@ -387,7 +461,7 @@ index 15e23db8..45e5748e 100644
  		var keys := {}
  		var candidates: Array[int] = []
  		candidates.assign(cands[i])
-@@ -69,23 +79,27 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
+@@ -71,23 +80,27 @@ static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], va
  		for idx in candidates:
  			(keys[idx] as Array).insert((keys[idx] as Array).size() - 2, 0 if inv.slots[idx].def_id == lead_def else 1)
  		candidates.sort_custom(func(a: int, b: int) -> bool: return keys[a] < keys[b])
@@ -420,17 +494,9 @@ index 15e23db8..45e5748e 100644
  				break
  		if need > 0:
  			return []
-@@ -131,16 +145,27 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
- ## Spec 13:486 "Do not automatically consume the most valuable item": true when the plan for these
- ## picks spends an instance with traits (e.g. every candidate has one), so the craft UI can ask for
- ## an explicit pick. # ASSUMPTION: traits only; a higher level alone does not ask.
--static func plan_spends_traits(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
-+static func plan_spends_traits(inv: Inventory, rec: Dictionary, picks: Array) -> bool:
- 	for row in _plan(inv, rec, picks):
- 		for part in row.parts:
- 			if not Inventory.traits(inv.slots[int(part.idx)]).is_empty():
- 				return true
- 	return false
+@@ -130,9 +143,20 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
+ 	missing.fill(-1)
+ 	return missing
  
 -static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
 +static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array) -> bool:
@@ -450,7 +516,7 @@ index 15e23db8..45e5748e 100644
  static func primary_index(rec: Dictionary) -> int:
  	var slots: Array = rec.get("slots", [])
  	for i in slots.size():
-@@ -148,15 +173,15 @@ static func primary_index(rec: Dictionary) -> int:
+@@ -140,15 +164,15 @@ static func primary_index(rec: Dictionary) -> int:
  			return i
  	return 0
  
@@ -469,7 +535,7 @@ index 15e23db8..45e5748e 100644
  	var out: Array[int] = []
  	for row in _plan(inv, rec, picks):
  		for part in row["parts"]:
-@@ -165,7 +190,7 @@ static func consumed_levels(inv: Inventory, rec: Dictionary, picks: Array[int])
+@@ -157,7 +181,7 @@ static func consumed_levels(inv: Inventory, rec: Dictionary, picks: Array[int])
  				out.append(stack.level)
  	return out
  
@@ -478,7 +544,7 @@ index 15e23db8..45e5748e 100644
  	var out: Array[Dictionary] = []
  	var plan := _plan(inv, rec, picks)
  	for i in plan.size():
-@@ -309,7 +334,7 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
+@@ -301,7 +325,7 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
  			return "needs materials and crafting skill for level %d" % minimum
  	return ""
  
@@ -487,7 +553,7 @@ index 15e23db8..45e5748e 100644
  	if rec.is_empty():
  		return false
  	if progression_block(player, rec) != "":
-@@ -346,7 +371,7 @@ static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
+@@ -338,7 +362,7 @@ static func grant_craft_xp(player: Player, rec: Dictionary) -> void:
  	else:
  		World.add_xp(6 + int(recipe_seconds(rec)))
  
@@ -496,7 +562,7 @@ index 15e23db8..45e5748e 100644
  	if not can_make(player, rec, picks):
  		return null
  	var burnt := rolls_burn(rec, skill_level_for(rec, player), rng)
-@@ -358,14 +383,14 @@ static func craft(player: Player, rec: Dictionary, picks: Array[int], rng: Rando
+@@ -350,14 +374,14 @@ static func craft(player: Player, rec: Dictionary, picks: Array[int], rng: Rando
  
  ## Would the output still fit after the inputs leave the bag? Checked on a scratch copy so a
  ## full bag refuses before anything is consumed (sec-loss-08).
@@ -513,7 +579,7 @@ index 15e23db8..45e5748e 100644
  	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
  	consume_for_craft(scratch, rec, picks)
  	return scratch.can_accept(out)
-@@ -450,7 +475,7 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
+@@ -442,7 +466,7 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
  		_:
  			return cat
  
@@ -523,7 +589,7 @@ index 15e23db8..45e5748e 100644
  	var plan := _plan(inv, rec, picks)
  	if plan.is_empty():
 diff --git a/game/scripts/items/inventory.gd b/game/scripts/items/inventory.gd
-index bb98ff14..9e27ce90 100644
+index fcffe3a5..a2f2e1a3 100644
 --- a/game/scripts/items/inventory.gd
 +++ b/game/scripts/items/inventory.gd
 @@ -25,6 +25,8 @@ const EQUIP_SLOTS: Array[StringName] = [&"weapon", &"head", &"body", &"arms", &"
@@ -564,9 +630,9 @@ index bb98ff14..9e27ce90 100644
  	stack.count = 0
  	changed.emit()
  	return 0
-@@ -379,11 +387,13 @@ static func spend_key(s: ItemStack) -> Array:
+@@ -381,11 +389,13 @@ static func spend_key(s: ItemStack) -> Array:
  	var rarity := maxi(0, (ItemDef.rules().get("rarity_order", []) as Array).find(str(d.rarity) if d else ""))
- 	return [0 if traits(s).is_empty() else 1, rarity, s.level, s.created_at]
+ 	return [0 if traits(s).is_empty() else 1, s.level, s.created_at, rarity]
  
 +## Locked instances are never found or consumed by these helpers (spec 13 s9: lock protects an item
 +## from crafting, processing and auto-consumption); the player unlocks it to spend it.
@@ -579,7 +645,7 @@ index bb98ff14..9e27ce90 100644
  			continue
  		var d := s.def()
  		if d and d.has_category(cat):
-@@ -392,7 +402,7 @@ func find_by_category(cat: StringName) -> Array[int]:
+@@ -394,11 +404,21 @@ func find_by_category(cat: StringName) -> Array[int]:
  
  func find_first(def_id: StringName) -> int:
  	for i in slot_count:
@@ -588,21 +654,21 @@ index bb98ff14..9e27ce90 100644
  			return i
  	return -1
  
-@@ -404,14 +414,20 @@ func count_of(def_id: StringName) -> int:
- 	return n
- 
- func consume(def_id: StringName, amount: int) -> bool:
--	if amount <= 0 or count_of(def_id) < amount:
-+	if amount <= 0:
-+		return false
-+	var have := 0
++## Units that can be spent: locked instances are left out, so every "can I pay" check (builds,
++## captures, ammo, quick food) agrees with consume() below (spec 13 s9).
+ func count_of(def_id: StringName) -> int:
++	var n := 0
 +	for s in slots:
 +		if s and s.def_id == def_id and not s.is_locked():
-+			have += s.count
-+	if have < amount:
- 		return false
- 	var left := amount
- 	for i in slot_count:
++			n += s.count
++	return n
++
++## Every unit held, locked ones too: for "have N" goals, which spend nothing.
++func held_of(def_id: StringName) -> int:
+ 	var n := 0
+ 	for s in slots:
+ 		if s and s.def_id == def_id:
+@@ -413,7 +433,7 @@ func consume(def_id: StringName, amount: int) -> bool:
  		if left <= 0:
  			break
  		var s := slots[i]
@@ -611,6 +677,15 @@ index bb98ff14..9e27ce90 100644
  			continue
  		var take := mini(left, s.count)
  		remove_at(i, take)
+@@ -453,7 +473,7 @@ func best_capture_net() -> ItemStack:
+ 	var best: ItemStack = null
+ 	var best_tier := 0
+ 	for s in slots:
+-		if s == null:
++		if s == null or s.is_locked(): # a locked net is never spent on a capture
+ 			continue
+ 		var d := s.def()
+ 		if d and d.capture_tier > best_tier:
 diff --git a/game/scripts/items/station_craft.gd b/game/scripts/items/station_craft.gd
 index ebbe5438..1cfbc5e0 100644
 --- a/game/scripts/items/station_craft.gd
@@ -870,21 +945,19 @@ index cc94d94e..0f2011d6 100644
  		p.clear_nav()
  		p.view.clear_ground_marker()
 diff --git a/game/scripts/ui/craft_ui.gd b/game/scripts/ui/craft_ui.gd
-index b0afd11f..6aa41001 100644
+index b0afd11f..70745a4c 100644
 --- a/game/scripts/ui/craft_ui.gd
 +++ b/game/scripts/ui/craft_ui.gd
-@@ -35,6 +35,10 @@ var _refresh_left: float = 0.0
+@@ -35,6 +35,8 @@ var _refresh_left: float = 0.0
  var _selected_id: String = ""
  var _footer: HBoxContainer
  var _phone_detail := false  ## phone only: the detail sheet is up instead of the list
-+## INVUI (spec 13 s19): the instances chosen per ingredient of recipe `_chosen_rid`, as
-+## {recipe slot: [uid, or "#<bag slot>" for a stack]}; another recipe starts empty.
-+var _chosen := {}
-+var _chosen_rid := ""
++## INVUI (spec 13 s19): the instances the player chose per ingredient of one recipe.
++var _choice := IngredientChoice.new()
  
  func _ready() -> void:
  	visible = false
-@@ -329,8 +333,9 @@ func _output_name(rec: Dictionary) -> String:
+@@ -329,8 +331,9 @@ func _output_name(rec: Dictionary) -> String:
  		return out_def.display_name
  	return str(rec.get("display_name", rec.get("id", "?"))).replace("_", " ").capitalize()
  
@@ -896,19 +969,19 @@ index b0afd11f..6aa41001 100644
  	var row := HFlowContainer.new()
  	row.add_theme_constant_override("h_separation", 12)
  	row.add_theme_constant_override("v_separation", 8)
-@@ -352,6 +357,11 @@ func _ingredients_row(rec: Dictionary) -> Control:
+@@ -352,6 +355,11 @@ func _ingredients_row(rec: Dictionary) -> Control:
  			sample_id = player.inventory.slots[picks[i]].def_id
  		else:
  			sample_id = Crafting.sample_def_for_category(player.inventory, cat)
 +		var d := Data.item(sample_id)
 +		var nm := d.display_name if d and d.display_name != "" else LevelDisplay.nice_name(str(cat))
 +		if pickable:
-+			row.add_child(_ingredient_button(rec, i, sample_id, nm, have, need))
++			row.add_child(_choice.button(player.inventory, rec, i, sample_id, nm, have, need, _pick_ingredient.bind(rec, i)))
 +			continue
  		var cell := HBoxContainer.new()
  		cell.add_theme_constant_override("separation", 4)
  		var ic := TextureRect.new()
-@@ -363,8 +373,6 @@ func _ingredients_row(rec: Dictionary) -> Control:
+@@ -363,8 +371,6 @@ func _ingredients_row(rec: Dictionary) -> Control:
  		ic.visible = ic.texture != null  # no empty 24 px gap before an icon-less ingredient
  		cell.add_child(ic)
  		var l := Label.new()
@@ -917,114 +990,30 @@ index b0afd11f..6aa41001 100644
  		l.text = "%s %d/%d" % [nm, mini(have, need), need]
  		l.add_theme_font_size_override("font_size", 14)
  		l.add_theme_color_override("font_color", Color(0.8, 0.85, 0.75) if have >= need else Color(1.0, 0.55, 0.45))
-@@ -372,6 +380,101 @@ func _ingredients_row(rec: Dictionary) -> Control:
+@@ -372,6 +378,17 @@ func _ingredients_row(rec: Dictionary) -> Control:
  		row.add_child(cell)
  	return row
  
-+## One ingredient as a 44 px button: "Berry 1/1", or the chosen instance ("Berry Lv. 25") in the
-+## selection gold. Tapping opens the picker on that slot (nothing to choose when short).
-+func _ingredient_button(rec: Dictionary, i: int, sample_id: StringName, nm: String, have: int, need: int) -> Button:
-+	var b := Button.new()
-+	b.flat = true
-+	b.focus_mode = Control.FOCUS_ALL
-+	b.icon = ItemIcons.texture(sample_id)
-+	b.add_theme_constant_override("icon_max_width", 24)
-+	b.custom_minimum_size = Vector2(0, UiTokens.TARGET_MIN)
-+	b.add_theme_font_size_override("font_size", 14)
-+	var picked := _chosen_slots(rec, i)
-+	b.text = "%s %d/%d" % [nm, mini(have, need), need]
-+	if not picked.is_empty(): # the chosen instance's own art and name (a slot takes several kinds)
-+		var st := player.inventory.slots[picked[0]]
-+		b.icon = ItemIcons.texture(st.def_id)
-+		var cd := st.def()
-+		var cn := cd.display_name if cd and cd.display_name != "" else LevelDisplay.nice_name(str(st.def_id))
-+		b.text = ("%s %s" % [cn, LevelDisplay.label(st.level)]) if picked.size() == 1 else ("%s ×%d chosen" % [cn, picked.size()])
-+	var tone := InvTheme.SELECT if not picked.is_empty() else (Color(0.8, 0.85, 0.75) if have >= need else Color(1.0, 0.55, 0.45))
-+	for c in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
-+		b.add_theme_color_override(c, tone)
-+	b.disabled = have < need
-+	b.tooltip_text = "Choose which ones to use"
-+	b.pressed.connect(_pick_ingredient.bind(rec, i))
-+	return b
-+
 +## Opens the Bag's ingredient picker on recipe slot `i` (spec 13 s19). The menu steps aside while it
 +## is up and comes back on this recipe when it closes.
 +func _pick_ingredient(rec: Dictionary, i: int) -> void:
 +	if player == null or player.ui == null or not player.ui.has_method("open_picker"):
 +		return
 +	var rid := str(rec.get("id", ""))
-+	var taken: Array = []
-+	for k in _chosen.keys() if _chosen_rid == rid else []:
-+		if int(k) != i:
-+			taken.append_array(_chosen_slots(rec, int(k)))
++	var taken := _choice.taken(player.inventory, rec, i)
 +	hide_ui()
-+	player.ui.open_picker(StringName(rid), i, func(picked: Array) -> void: _set_chosen(rid, i, picked), taken,
++	player.ui.open_picker(StringName(rid), i, func(picked: Array) -> void: _choice.set_chosen(player.inventory, rid, i, picked), taken,
 +		func() -> void: show_ui(); _choose_recipe(rid))
-+
-+func _set_chosen(rid: String, i: int, picked: Array) -> void:
-+	if _chosen_rid != rid:
-+		_chosen = {}
-+		_chosen_rid = rid
-+	var keys: Array[String] = []
-+	for k: Variant in picked:
-+		var st := player.inventory.slots[int(k)]
-+		keys.append(st.uid if st.uid != "" else "#%d" % int(k))
-+	_chosen[i] = keys
-+
-+## Bag slots chosen for recipe slot `i` that are still in the bag; [] when none or one left.
-+func _chosen_slots(rec: Dictionary, i: int) -> Array[int]:
-+	var out: Array[int] = []
-+	if _chosen_rid != str(rec.get("id", "")) or not _chosen.has(i):
-+		return out
-+	var inv := player.inventory
-+	for key: String in _chosen[i]:
-+		var at := -1
-+		if key.begins_with("#"):
-+			var j := int(key.substr(1))
-+			at = j if j >= 0 and j < inv.slot_count and inv.slots[j] else -1
-+		else:
-+			for j in inv.slot_count:
-+				if inv.slots[j] and inv.slots[j].uid == key:
-+					at = j
-+		if at < 0: # one of them left the bag: the choice is void, the default applies
-+			out.clear()
-+			return out
-+		out.append(at)
-+	return out
-+
-+## Picks for Craft: the chosen instances where the player chose, the default lead elsewhere;
-+## [] (the default plan) when nothing is chosen or the choice no longer makes the recipe.
-+func _picks_for(rec: Dictionary) -> Array:
-+	var picks: Array = []
-+	var any := false
-+	var defaults := Crafting.default_picks(player.inventory, rec)
-+	for i in defaults.size():
-+		var mine := _chosen_slots(rec, i)
-+		any = any or not mine.is_empty()
-+		picks.append(mine if not mine.is_empty() else defaults[i])
-+	return picks if any and Crafting.picks_valid(player.inventory, rec, picks) else []
-+
-+## Spec 13 s19 "do not automatically consume the most valuable item": the first recipe slot whose
-+## default would spend an instance with traits (W2-INV Inventory.traits) the player did not choose.
-+func _trait_slot(rec: Dictionary, picks: Array) -> int:
-+	var rows := Crafting.plan(player.inventory, rec, picks)
-+	for i in rows.size():
-+		if i < picks.size() and picks[i] is Array:
-+			continue
-+		for part: Dictionary in rows[i].parts:
-+			if not Inventory.traits(player.inventory.slots[int(part.idx)]).is_empty():
-+				return i
-+	return -1
 +
  func _choose_recipe(rid: String) -> void:
  	_selected_id = rid
  	_phone_detail = _single_pane()
-@@ -393,9 +496,14 @@ func _apply_phone_pane() -> void:
+@@ -393,9 +410,14 @@ func _apply_phone_pane() -> void:
  	_footer.visible = sheet or (_pinned_actions() and not single)
  
  func _start(rec: Dictionary, count: int) -> void:
-+	var picks := _picks_for(rec) if player else []
-+	var ask := _trait_slot(rec, picks) if player else -1
++	var picks := _choice.picks_for(player.inventory, rec) if player else []
++	var ask := IngredientChoice.trait_slot(player.inventory, rec, picks) if player else -1
 +	if ask >= 0: # every one left has a trait: the player chooses which, never the craft silently
 +		_pick_ingredient(rec, ask)
 +		return
@@ -1035,7 +1024,7 @@ index b0afd11f..6aa41001 100644
  
  ## {exists, near, dist} for a station kind, from the survivor's position.
  func _station_info(sid: String) -> Dictionary:
-@@ -471,7 +579,7 @@ func _show_detail(info: Dictionary) -> void:
+@@ -471,7 +493,7 @@ func _show_detail(info: Dictionary) -> void:
  	need.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
  	need.add_theme_color_override("font_color", UiTokens.META)
  	_detail.add_child(need)
@@ -1045,10 +1034,10 @@ index b0afd11f..6aa41001 100644
  	if missing != "":
  		var lock := Label.new()
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
-index ed0b7728..f593ddbd 100644
+index b7ac4ea6..a6107216 100644
 --- a/game/scripts/ui/hunt_hud.gd
 +++ b/game/scripts/ui/hunt_hud.gd
-@@ -743,6 +743,7 @@ func _toggle_sheet(kind: StringName) -> void:
+@@ -747,6 +747,7 @@ func _toggle_sheet(kind: StringName) -> void:
  		&"menu":
  			title.text = "Menu"
  			_sheet_btn(box, "Bag", func () -> void: _close_sheet(); if player.ui: player.ui.visible = not player.ui.visible)
@@ -1056,11 +1045,35 @@ index ed0b7728..f593ddbd 100644
  			_sheet_btn(box, "Craft", func () -> void: _close_sheet(); if player.craft_ui: player.craft_ui.toggle())
  			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
  			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
+@@ -1101,6 +1102,14 @@ func _draw() -> void:
+ 	var taken := taken_rects()
+ 	var toast_left := UiTokens.is_compact(r)
+ 	var cx := band.get_center().x if band.has_area() else r.x * 0.5  # a phone's free middle, off HANDS and the map
++	# INVUI: the docked Bag and its card cover the right of the screen; toasts and notices centre on the
++	# world left of them instead of running under the card (review r1).
++	var bag_cover: Rect2 = player.ui.call("covered_rect") if player.ui and player.ui.has_method("covered_rect") else Rect2()
++	var room := r.x - 48.0
++	if bag_cover.has_area():
++		cx = bag_cover.position.x * 0.5
++		room = bag_cover.position.x - 48.0
++		taken.append(bag_cover)
+ 	for i in _events.toasts.size():
+ 		var t: Dictionary = _events.toasts[i]
+ 		var k: float = t["t"]
+@@ -1129,7 +1138,7 @@ func _draw() -> void:
+ 		var n: Dictionary = _events.notices[i]
+ 		var k: float = n["t"]
+ 		var alpha := 1.0 - smoothstep(2.4, 3.2, k)
+-		var txt: String = UiTokens.ellipsis(_font, n["text"], r.x - 48.0, 17)
++		var txt: String = UiTokens.ellipsis(_font, n["text"], room, 17)
+ 		var tw := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, 17).x
+ 		var box := UiTokens.free_spot(Rect2(cx - tw * 0.5 - 12, 170.0, tw + 24, 30), taken, r)
+ 		if not box.has_area():
 diff --git a/game/tests/t_ui.gd b/game/tests/t_ui.gd
-index 4b18ac78..2be46356 100644
+index 4b18ac78..cd5624be 100644
 --- a/game/tests/t_ui.gd
 +++ b/game/tests/t_ui.gd
-@@ -13,6 +13,17 @@ const OWNED := [
+@@ -13,6 +13,18 @@ const OWNED := [
  	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
  	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
  	"res://scripts/ui/hud_layout.gd", "res://scripts/ui/hud_pills.gd",
@@ -1075,6 +1088,7 @@ index 4b18ac78..2be46356 100644
 +	"res://scripts/ui/gear_screen.gd", "res://scripts/ui/character_screen.gd", "res://scripts/ui/detailed_stats_panel.gd",
 +	"res://scripts/ui/equipment_screen.gd", "res://scripts/ui/item_picker.gd", "res://scripts/ui/filter_rail.gd",
 +	"res://scripts/ui/inv_motion.gd", "res://scripts/ui/inv_tab.gd", "res://scripts/ui/inv_card_facts.gd",
++	"res://scripts/ui/ingredient_choice.gd",
  ]
  const TYPE_MIN := 12
  ## The HUD and bag joined W1-UI late (orchestrator option a). The bag is emoji-free; the HUD's rail

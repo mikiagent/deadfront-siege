@@ -922,3 +922,154 @@ Limits: the card does not shrink to a sparse item's content (a cage's card is mo
 reference's); the HUD under the modal layer takes no taps while the Bag is open (a tap there closes the Bag); on a phone
 the card covers part of the HUD's vitals and buttons; hover tips remain desktop only; the reference's see-through panel
 blur is not reproduced.
+
+## Fix round 1 (2026-10-21): reviewer, fidelity judge and blind A/B findings
+
+Base sync: W2-INV is still not merged into claude/mmo-overhaul (its tip 809be2e8 has no W2-INV merge), so
+`claude/mmo-w2-inv` (review 5: 30c1b1b1 hooks, f27a6bce round group pill, report 5b255c97) was merged. The W2-INV hooks
+delta since the INVUI base was re-applied with `git apply --3way` of its new patch: save_restore.gd (oversized legacy
+refunds grow home cargo) and t_save.gd (its case) went in cleanly; crafting.gd took W2-INV's side (locked instances are
+never default picks; `plan_spends_traits` dropped, INVUI has its own); inventory_ui.gd kept INVUI's rewrite (the group pill
+belongs to the pre-INVUI grid INVUI replaced). The INVUI hooks then re-applied 3-way with two conflicts, resolved keeping
+both intents: crafting.gd (INVUI's exact-pick Arrays + W2-INV's comment and locked filter) and inventory_lab.gd (INVUI's
+one-cell-per-instance checks; W2-INV's pill-coverage check measures a group badge the INVUI grid does not have). One
+`--import` afterwards (exit 0, 0 SCRIPT ERROR).
+
+Rule conflict found by the sync, and how it was settled: W2-INV review 5 added t_inventory "a picked locked stalk is
+spent and the second unit is the unlocked one"; INVUI's crafting hook refused any locked pick ("never spent, even when
+picked"), so INVUI hooks + W2-INV tests could not both pass. Kept both intents: `Crafting._plan` accepts an explicit pick
+of a locked instance (W2-INV's API rule), and in game every pick comes from INVUI's ingredient picker, which never lists a
+locked instance (it says "N locked, not listed: unlock in the Bag to use"). t_invui 11 now checks the picker instead of
+the API (assumption 81).
+
+Commits: 066bf2ae (logic findings), 349f226c (fidelity), 496370d1 (chip glyph size), e60ae197 (merge of
+claude/mmo-w2-inv), 03945117 (W2-INV hooks delta), f7960346 (card re-fit, gear facts rows, HUD toasts beside the dock,
+checks); the hooks patch is regenerated on f7960346.
+
+### Findings and what was done
+
+1. Blocker, locked items spent for free. Fixed with one rule for spendable units (hook, inventory.gd): `count_of`,
+   `consume`, `find_first`, `find_by_category` and `best_capture_net` all skip locked instances, so build_placer
+   `_can_pay`/`_pay` (kit and raw), capture_system's net, hunt ammo and the HUD ammo counts agree with what `consume`
+   spends; `held_of` (new) counts every unit for objectives' "have N" goals. The Bag no longer offers Place on a locked kit
+   (inv_actions). Checks, t_invui 11: a locked kit offers no Place; a locked kit never pays for a build; two locked
+   branches never pay a raw cost (can=false paid=false held=2); a locked net is never the capture net and the unlocked
+   lower net is chosen over a locked better one; locked ammo neither counts as ready nor fires; a "have N" goal still sees
+   locked units. Old code (02f4e375 + the old hooks patch, scratch tree): "[t_invui] FAIL 11: a locked kit offers no
+   Place ([&"place", &"unlock"])", "FAIL 11: a locked kit never pays for a build (paid=true)", then "SCRIPT ERROR: ...
+   Nonexistent function 'held_of'".
+2. Major, the card over the HUD at 844x390. On a compact viewport the HUD fades out while the docked Bag is open and comes
+   back when it closes (bag_screen `_sync_hud`; it takes no taps then anyway, assumption 83); at 1600x900 the card stops
+   above the HUD's level line. New this pass: on desktop the HUD's pickup toasts and notices centre on the world left of
+   the dock and card (`InventoryUI.covered_rect` + a hunt_hud hook): the new ui_real_capture_lab check caught them under
+   the card ("[uireal] FAIL bag: HUD toast2 ... runs under the bag's ...", "FAIL bag: HUD notice0 ..."), fixed: "[uireal]
+   bag card [P: (686.0, 67.0), S: (304.0, 807.0)] hud_shown=true clipped=0". Checks: t_invui 22 (the HUD stand-in steps
+   aside at 844x390 and 804x452, stays at 1600x900, comes back; the card stops above the level line), ui_real_capture_lab
+   `_bag_card` at both sizes (every HUD block clear of the card and the panel, or the HUD stood aside). Old code: "FAIL 22:
+   the card stops above the HUD's level line at 1600x900 (card bottom 884)".
+3. Minor, presets and locked pieces. `GearPresets.apply` collects the pieces `equip_at` / `hold_tool` refused for a lock
+   and returns "Locked: Forager Hood Lv. N stays in the bag." (the rest still goes on). t_invui 15; old code: "FAIL 15: a
+   locked preset piece is named, not dropped silently ()".
+4. Minor, Lock online. `InvActions.can_lock` hides Lock / Unlock online (as Discard) and the Bag's lock square goes with
+   it until the server has an `act.lock` op (assumption 82). t_invui 11 checks both (the old run stopped on the SCRIPT
+   ERROR above before reaching them).
+5. Minor, craft_ui growth. The picker-choice state moved to `scripts/ui/ingredient_choice.gd` (IngredientChoice, owned,
+   99 lines); the craft_ui hook is now +28/-6 (571 -> 593 lines, was 679).
+6. Minor, the cage as a white glyph. Captured animals draw a painted carrier (`assets/ui/inv/captured_animal.png`,
+   generated by `scripts/dev/inv_carrier_art.gd`, committed with its generator; no download): crate, bars, the animal's
+   silhouette, matte like the reference's crate. Asking ICONS2 for a 3D render stays open for them.
+7. Major, fidelity (each judged line):
+   - Background: cooler, darker weathered panels with thin worn edges instead of the thick wobbly outlines (inv_grain
+     shader, InvPaint.frame).
+   - Type: a condensed face tracked per size (InvTheme) instead of the wide letter-spaced one.
+   - Density: storage at 13 columns (was 10) at 1600x900; the docked bag keeps the in-game reference's 5.
+   - Utility squares: outline glyphs (thin, as the reference); storage keeps Lock and Trash, dimmed, with Select-all,
+     Select and Search; the read-only box keeps Transfer to Bag, dimmed under its notice, as the reference does.
+   - Category rail: black tiles with a white glyph, the active one lit (was a yellow glyph in a yellow frame).
+   - Capacity: the yellow bag icon beside "91 / 100" on the Bag tab and in the phone header.
+   - Character: the "Not in a clan" line with its flag under the name; one right-hand panel down to the action; the
+     selected piece's numbers as key / value rows with dashed lines ("Forager Vest  Lv. 12", "Armor  207", "Durability
+     470 / 470"), new this pass after the shot showed centred grey lines and then values clipped to nothing.
+   - Equipment slots: an amulet silhouette top left and a bag silhouette bottom right (soft painted shapes, not ring
+     outlines).
+   - Card: family chips one width each with distinct white pictograms per family (was the item's own art three times);
+     the chip glyphs fill their box; the card ends under its content, and (new this pass) re-fits when its chip rows wrap:
+     the lab's bone card measured one chip row, stopped at 556 px with 689 px of content and scrolled its Info away.
+   - Lab world: dressed with trees, rocks, grass and bushes instead of flat planes.
+   - Box name: one box, one name ("Small Box") in both storage shots.
+   Not done, by the inert-UI rule (assumption 84): no Decorative Gear tab (no cosmetic gear exists), no #tag, History,
+   flag panel or ▶ on the title strip (no clans, history, flags or title choice exist; the title follows the level), no
+   second currency pill (one currency), no durability row on raw meat (it does not wear; tools, gear and clubs show
+   theirs), no level on the "Raw" chip. The hex beside some cards is the item's colour swatch, shown only for items with a
+   tint (bone, ingot; meat has none). Icon render style (glossy fruit, flat sprigs) belongs to the icon packages
+   (ICONS2); INVUI only draws them. The reference's blurred see-through panel is not reproduced (opaque procedural
+   surface).
+
+New checks this pass (each failed on the code before the fix):
+- t_invui 22: the lab's bone (four families, three traits, a lock, a colour) "holds all its rows without scrolling";
+  against the card before the re-fit: "[t_invui] FAIL 22: the bone's card holds all its rows without scrolling (556 tall,
+  content 689, scroll 506 of 389)".
+- t_invui 13: the worn vest's numbers are rows with every value in full; against the first rows version: "[t_invui] FAIL
+  13: the worn vest's numbers are rows with their values in full (rows 3, cut ["Lv. 30", "365", "830 / 830"])".
+- ui_real_capture_lab `_bag_card`: HUD toasts and notices off the card (FAIL lines quoted in 2).
+
+Acceptance lines (HEAD f7960346 + the regenerated hooks patch in the work tree; logs in the scratchpad `invui_r1/g3/`):
+- Every t_*.gd (25) exits 0 with its PASS line and 0 SCRIPT ERROR: t_ai, t_build, t_canim, t_combat, t_data ("[t_data]
+  PASS items=223 recipes=155"), t_daynight_dial, t_harbour, t_iconart, t_inventory ("[t_inventory] PASS", W2-INV's
+  review 5 locked-stalk cases included), t_invui ("[t_invui] PASS"; "[t_invui] 21 open 142/142: 142 cells in 2484 us"),
+  t_items, t_light, t_lighting, t_occlude, t_player, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons,
+  t_w2_skills, t_water, t_web; t_save exit 0 "[t_save] PASS" with its 5 deliberate SCRIPT ERRORs.
+- run_all exit 0 "[tests] PASS"; tools/smoke.sh --no-import "SMOKE PASS".
+- Labs, exit 0 and 0 SCRIPT ERROR each: bag_ui_lab "[bagui] PASS bag=142/142 new=61 locked=2" ("[bagui] perf142 cold
+  bag=142/142 cells=139 build=1961us"); inventory_lab "[invlab] PASS empty_cells=100/97 slots=100 cells=100 stones=16
+  stack45=true lock_pip=true ..."; ui_family_lab "[uifamily] inventory=true animals=true ..."; ui_screenshot_lab
+  "[uishot] PASS screens=hud,inventory,..."; ui_real_capture_lab gl_compatibility at 1600x900 ("[uireal] bag card [P:
+  (686.0, 67.0), S: (304.0, 807.0)] hud_shown=true clipped=0", "[uireal] PASS screens=...,bag,bag_card,character,...")
+  and 844x390 ("[uireal] bag card [P: (205.0, 48.0), S: (211.0, 334.0)] hud_shown=false clipped=0", "[uireal] PASS
+  ..."). Every shot run of this round logged 0 SCRIPT ERROR.
+- Crash reports: none new (the Godot-*.ips list is unchanged since before the sync; newest still
+  Godot-2026-10-20-232613.ips).
+- Old code fails the new tests: t_invui of this round against 02f4e375 + the pre-round hooks patch (scratch tree): exit
+  1, "[t_invui] 14 failures", among them the 11, 15 and 22 lines quoted above, "FAIL 12: read-only loot shows its
+  reason over the grid and Transfer to Bag dimmed, as the reference keeps it ([] 'Needs knife')", "FAIL 20: storage shows
+  about the reference's 13 columns at 1600x900 (10)", "FAIL 20: the container tab keeps Lock and Trash, dimmed, at
+  (1600.0, 900.0) ([&"select_all", &"select", &"search"])", "FAIL 21: Down from the held tool reaches the bag / accessory
+  cell bottom right". The 13 and 22 checks added after that run failed on the intermediate code as quoted above.
+
+Shots looked at (scratchpad `invui_r1/shots2`, `shots3`, `g3/real1600`, `g3/real844`; not in the repo), each opened beside
+the three references:
+- `shots2/bag_bone_1600.png` beside durango-bag-instances / the in-game panel: the bone's card now ends under Create
+  with its chips, Firm Lv. 8 / Low Density Lv. 3 / Black Sheen, Locked, the swatch and the description, no scrollbar
+  (r1 `shots1` had it cut at "Locked"). `shots2/bag_meat_1600.png`: the meat's card as the reference (title band, Lv. 23,
+  hammer x2, Meat / Food / Raw Meat pictograms, Raw, Info rows, description, Create, Quick Food 1 / 2, yellow Eat), the
+  dressed world on the left, the HUD's level line clear under the card. `shots2/bag_cage_1600.png`: the painted carrier
+  over its 2x2 compartment, its card "Bond it at a taming pen".
+- `shots2/bag_meat_844.png`, `bag_bone_844.png`: the HUD stands aside; header "Bag [bag icon] 91 / 100", four columns,
+  the card's rows scroll under the pinned Eat.
+- `shots3/character_1600b.png` beside durango-character-gear: portrait, name, clan line, XP bar "Lv. 13 (222 / 400)"
+  with yellow XP, three power rows, yellow Gear tab, presets 1 2 and two locks, the title strip, the 3x3 with silhouettes,
+  the right panel with three vests and the key / value rows over Unequip. `shots3/equipment_1600.png` beside
+  durango-equipment-myinfo: My Info band, Attack / Defense / Accuracy, the compare line, the three skill hexes, the
+  cuirass picked with its rows over Equip. `shots3/character_844.png`, `equipment_844.png`: the same at the phone size,
+  no clipped text.
+- `shots2/storage_select_1600.png`, `storage_notice_1600.png` beside the storage-transfer reference: 13 columns, "1
+  Select", Bag 91 / 100 and Small Box 47 / 80 tabs, the gold check, Lock and Trash dimmed, Transfer to Bag yellow, and
+  dimmed under "This box belongs to someone else: cannot take.".
+- `g3/real1600/bag_card_1600x900.png` (the real island): toasts and the two notices on the world left of the card.
+Differences left are the "Not done" list in 7.
+
+Hooks (`docs/orchestration/reports/claude-mmo-invui-hooks.patch`, regenerated on f7960346, 16 files; `git apply --cached
+--check` passes on that HEAD and `git apply -R --check` on the work tree). New since B4: inventory.gd (locked skip in
+`count_of` / `consume` / `find_first` / `find_by_category` / `best_capture_net`, `held_of`), objectives.gd (`held_of` for
+have / have_any goals), crafting.gd (an explicit locked pick is allowed, merged with W2-INV's locked filter),
+hunt_hud.gd (toasts and notices centre on the world left of the docked Bag), ui_real_capture_lab.gd (`_bag_card`),
+craft_ui.gd (IngredientChoice, smaller), inventory_lab.gd (merged with W2-INV's review 5 lab).
+
+Assumptions added (design section 9): 81 one rule for spendable units; 82 Lock offline only; 83 the HUD on a phone and
+beside the desktop dock; 84 shown only when real.
+
+Owner gates: none. Locked items now stay out of every automatic spend (builds, captures, ammo, quick food) as spec 13 s9
+asks; no save field, money or multiplayer authority change (Lock stays offline until the server has the op).
+
+Limits: an explicit API pick still spends a locked instance (W2-INV's rule; no game path makes one); on a phone the HUD is
+hidden while the Bag is open; the card on a phone scrolls its rows; icon render style is ICONS2's.
