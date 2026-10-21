@@ -12,6 +12,39 @@ index b97d0080..9bcd1008 100644
  	if size <= 1.0:
  		size = default_size  # Camera3D.size defaults to 1 m, which is a face-full of capsule
  	for a in OS.get_cmdline_user_args():
+diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
+index 3bfbb398..ce628130 100644
+--- a/game/scripts/player/player_actions.gd
++++ b/game/scripts/player/player_actions.gd
+@@ -46,7 +46,8 @@ func cancel_work() -> void:
+ 	p.tame_target = null
+ 	p.tame_food_id = &""
+ 	stop_gather_cycle()
+-	if p.station_craft and p.station_craft.crafting:
++	# A recipe still walking to its station is pending work too: moving or tapping elsewhere drops it.
++	if p.station_craft and (p.station_craft.crafting or p.station_craft.recipe_id != &""):
+ 		p.station_craft.cancel_and_refund()
+ 
+ # ---------------------------------------------------------------- gather
+diff --git a/game/scripts/player/player_input.gd b/game/scripts/player/player_input.gd
+index 53380b23..d21f04b6 100644
+--- a/game/scripts/player/player_input.gd
++++ b/game/scripts/player/player_input.gd
+@@ -26,11 +26,12 @@ func _init(player: Player) -> void:
+ 
+ ## Godot web can consume a desktop mouse press before it reaches _unhandled_input even when the
+ ## canvas control ignores mouse input. Defer a fallback until GUI routing has finished;
+-## handle_unhandled cancels it when the normal path did receive the click.
++## handle_unhandled cancels it when the normal path did receive the click. A finger's emulated mouse
++## press is not a desktop click: its touch takes the tap path (or the move stick keeps it).
+ func handle_input(event: InputEvent) -> void:
+ 	if event is InputEventMouseButton:
+ 		var mb := event as InputEventMouseButton
+-		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
++		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed and mb.device != InputEvent.DEVICE_ID_EMULATION:
+ 			_desktop_click_fallback_pending = true
+ 			_desktop_click_fallback.call_deferred(mb.position)
+ 
 diff --git a/game/scripts/ui/gather_radial.gd b/game/scripts/ui/gather_radial.gd
 index 36c2c99d..73d8ef46 100644
 --- a/game/scripts/ui/gather_radial.gd
@@ -178,3 +211,53 @@ index 3671ff22..522e65ce 100644
  			hud.draw_string(hud._font, Vector2(trect.position.x + 8.0, trect.position.y + 14.0), tt, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), Color(1, 0.9, 0.6, a))
  		shown += 1
 +	_last_offset = offsets
+diff --git a/game/scripts/ui/touch_controls.gd b/game/scripts/ui/touch_controls.gd
+index fa633e9b..28b0933d 100644
+--- a/game/scripts/ui/touch_controls.gd
++++ b/game/scripts/ui/touch_controls.gd
+@@ -125,7 +125,7 @@ const BUTTONS: Array[Dictionary] = [
+ ]
+ 
+ var enabled: bool = false
+-var joystick: TouchJoystick
++var joystick: FloatStick
+ var _buttons: Node2D
+ var _gestures: TouchGestures
+ var _button_nodes: Dictionary = {}
+@@ -140,8 +140,12 @@ var hud_mode: bool = false:  # the Durango HUD draws its own hexes; only the pla
+ func _ready() -> void:
+ 	layer = 50
+ 	_touch_mode = MODE_TAP_ONLY if (DisplayServer.is_touchscreen_available() or OS.has_feature("web") or "--touch" in OS.get_cmdline_user_args()) else MODE_HIDDEN
+-	joystick = TouchJoystick.new()
+-	add_child(joystick)
++	# Under the HUD (layer 1): HUD controls take their touches before the stick's left half sees them.
++	var under_hud := CanvasLayer.new()
++	under_hud.layer = 0
++	add_child(under_hud)
++	joystick = FloatStick.new()
++	under_hud.add_child(joystick)
+ 	_buttons = Node2D.new()
+ 	add_child(_buttons)
+ 	for spec: Dictionary in BUTTONS:
+@@ -187,7 +191,7 @@ func _cycle_mode() -> void:
+ 
+ func _apply_mode() -> void:
+ 	enabled = _touch_mode != MODE_HIDDEN
+-	joystick.visible = enabled and _touch_mode == MODE_TAP_AND_JOYSTICK
++	joystick.visible = enabled  # the stick floats up only on a left-half drag, so it is on in every touch mode
+ 	_buttons.visible = enabled
+ 	_gestures.set_process_input(enabled)
+ 	for b: Node in _buttons.get_children():
+@@ -290,10 +294,8 @@ func _is_button_visible(spec: Dictionary) -> bool:
+ func blocks_screen_point(p: Vector2) -> bool:
+ 	if not enabled:
+ 		return false
+-	if joystick and joystick.visible:
+-		var jr := Rect2(joystick.position - Vector2(80, 80), Vector2(160, 160))
+-		if jr.has_point(p):
+-			return true
++	if joystick and joystick.blocks(p):
++		return true
+ 	for b: Node in _buttons.get_children():
+ 		var btn := b as TouchScreenButton
+ 		if btn == null or not btn.visible:
