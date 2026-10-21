@@ -332,6 +332,12 @@ func from_dict(d: Dictionary) -> void:
 				_mirror_survival(str(nid), true)
 	print("[skill] restored %d trees (rev %d, SP %d/%d)" % [ORDER.size(), rev, sp_available, sp_earned])
 
+## SP to spend now. Recounts first: the HUD's level-up banner listens to the same
+## World.pioneer_changed as this node and may run first, so sp_available can still hold the old level's SP.
+func sp_now() -> int:
+	_recount_sp()
+	return sp_available
+
 func _recount_sp() -> void:
 	sp_earned = SkillRules.paid_for_level(self, character_level()) + sp_extra
 	sp_spent = 0

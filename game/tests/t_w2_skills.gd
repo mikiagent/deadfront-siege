@@ -3,8 +3,9 @@ extends SceneTree
 ## trees start at Lv. 1 with the Lv1 AUTO nodes learned, a tree cannot pass the character level,
 ## Animal Handling I-IV raise bonded capacity 3 -> 7, skill nodes gate recipes and abilities,
 ## refunds respect dependents and the daily limit, rev-1 saves migrate without losing a node or an unspent SP, the
-## taming pen and the field tame refuse a bond at the cap without losing the animal or the food, and the
-## skills sheet opens a tree on rows the player can act on.
+## taming pen and the field tame refuse a bond at the cap without losing the animal or the food, the
+## skills sheet opens a tree on rows the player can act on, the level-up banner shows the SP SkillState
+## holds, and the craft card says what unlocks a gated recipe.
 ## Usage: godot --headless --path game --script res://tests/t_w2_skills.gd
 
 const WIRED := ["recipe", "ability", "bonded_slots", "capture_tier", "climate"]
@@ -37,7 +38,9 @@ func _process(_delta: float) -> bool:
 	_test_refund_limit()
 	_test_field_tame_cap()
 	_test_sheet_rows()
-	var want := 13
+	_test_levelup_banner()
+	_test_craft_card_lock()
+	var want := 15
 	if _sections != want:
 		failures.append("only %d of %d test sections completed (a runtime error aborted the rest)" % [_sections, want])
 	if failures.is_empty():
@@ -93,6 +96,10 @@ func _test_catalog() -> void:
 		recipes[str(r.get("id", ""))] = true
 	var count := 0
 	var by_status := {"functional": 0, "partial": 0, "defined": 0}
+	# A node a loaded recipe names in requires_node (W2-DATA) gates real recipes, so the report counts
+	# it functional whatever trees.json says (spec 12:215 wants an accurate report).
+	var gating: Dictionary = Rules.recipe_nodes()
+	var via_recipes := 0
 	var ids := {}
 	for tree in SkillStateS.ORDER:
 		var seen := {}
@@ -110,7 +117,9 @@ func _test_catalog() -> void:
 			_expect(int(n.get("sp", -1)) >= 0 and (not bool(n.get("auto", false)) or int(n.get("sp", 0)) == 0), "%s/%s: SP must be >= 0, and 0 for auto nodes" % [tree, id])
 			var st := str(n.get("status", ""))
 			_expect(STATUSES.has(st), "%s/%s: status '%s'" % [tree, id, st])
-			by_status[st] = int(by_status.get(st, 0)) + 1
+			var counted := "functional" if gating.has(id) else st
+			via_recipes += 1 if counted != st else 0
+			by_status[counted] = int(by_status.get(counted, 0)) + 1
 			var wired := false
 			for e in n.get("effects", []):
 				var kind := str(e.get("type", ""))
@@ -128,7 +137,7 @@ func _test_catalog() -> void:
 	_expect(total == 918 and int(ref["total_nodes"]) == 918, "reference counts sum to 918 (got %d)" % total)
 	for must in ["animal_management_1", "animal_management_4", "handicraft_5", "metalworking_4", "roll_duration_1", "barrage"]:
 		_expect(ids.has(must), "catalog has %s" % must)
-	print("[t_w2_skills] catalog %d of 918 nodes: functional %d, partial %d, defined %d" % [count, by_status.functional, by_status.partial, by_status.defined])
+	print("[t_w2_skills] catalog %d of 918 nodes: functional %d (%d of them through requires_node), partial %d, defined %d" % [count, by_status.functional, via_recipes, by_status.partial, by_status.defined])
 	_sections += 1
 
 func _test_new_survivor() -> void:
@@ -182,11 +191,10 @@ func _test_animal_handling() -> void:
 		_expect(sk.unlock("survival", "animal_management_%d" % (i + 1)), "buy Animal Handling %d" % (i + 1))
 		caps.append(Rules.bonded_capacity(sk))
 	_expect(caps == [4, 5, 6, 7], "capacity 4, 5, 6, 7 (got %s)" % [caps])
-	_expect(not Rules.can_bond(sk, 7) and Rules.can_bond(sk, 6), "7 / 7 refuses a new bond, 6 / 7 allows one")
 	_expect(not sk.refund("survival", "animal_management_1"), "Animal Handling I stays while II needs it")
 	for i in [4, 3, 2, 1]:
 		sk.refund("survival", "animal_management_%d" % i)
-	_expect(Rules.bonded_capacity(sk) == 3 and not Rules.can_bond(sk, 5), "after the reset: capacity 3, 5 kept pets block new bonds")
+	_expect(Rules.bonded_capacity(sk) == 3, "after the reset: capacity 3 (kept pets stay; a new bond needs count < 3)")
 	_expect(not get_root().get_node("Data").is_survival_unlocked(&"animal_management_I"), "refund clears the Data mirror")
 	sk.refund("survival", "capture_technique_1")
 	_expect(not get_root().get_node("Data").has_capture_technique(1), "refunding Capture Technique I removes net capture tier 1")
@@ -216,6 +224,8 @@ func _test_recipe_gates_and_abilities() -> void:
 		_expect(not Rules.buyable(sk, "weapon_tools", "work_pick"), "Work Pick (defined) is not for sale while no recipe needs it")
 	data.recipes[&"t_w2_probe"] = {"id": "t_w2_probe", "requires_node": "work_pick"}
 	_expect(Rules.buyable(sk, "weapon_tools", "work_pick") and Rules.buyable(sk, "weapon_tools", "improvised_tools"), "a defined node a recipe names in requires_node is buyable with its prerequisite (work_pick)")
+	var pick_lock: String = Rules.recipe_block(sk, "t_w2_probe")
+	_expect(pick_lock.begins_with("learn Work pick (Weapon / Tools Lv. 5, 6 SP)"), "a requires_node recipe reads like every skill gate (spec 12:197): '%s'" % pick_lock)
 	data.recipes.erase(&"t_w2_probe")
 	var tree_of := {}
 	for t in SkillStateS.ORDER:
@@ -510,4 +520,60 @@ func _test_sheet_rows() -> void:
 	get_root().remove_child(sheet)
 	sheet.free()
 	_done_with(sk)
+	_sections += 1
+
+## Spec 03:40 "test SP accounting and UI vs authoritative state": the level-up banner, where character
+## levels pay their SP, shows SkillState's SP (hook H11, hunt_hud.gd), not the old survival-node count.
+## The HUD joins the tree before the player, so its pioneer_changed handler runs before SkillState's.
+func _test_levelup_banner() -> void:
+	if not _hooks_applied():
+		print("[t_w2_skills] hooks not applied: level-up banner check skipped")
+		_sections += 1
+		return
+	var hud: Node = (load("res://scripts/ui/hunt_hud.gd") as GDScript).new()
+	get_root().add_child(hud)
+	var p: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	p.process_mode = Node.PROCESS_MODE_DISABLED
+	get_root().add_child(p)
+	hud.bind(p)
+	for stored in [1, 2, 5]:
+		_world().pioneer_level = stored
+		_world().pioneer_changed.emit(stored)
+		var want: int = Rules.paid_for_level(p.skills, stored + 1)
+		var banner := str(hud.get("_levelup_summary"))
+		var lines := ", ".join((hud.get("_levelup_lines") as Array).map(func (l: Array) -> String: return str(l[0])))
+		_expect(p.skills.sp_available == want and banner.ends_with("Skill points %d" % want) and lines.contains("Available Skill Points: %d" % want), "character Lv. %d: the level-up banner shows the %d SP SkillState holds (%d): '%s' | %s" % [stored + 1, want, p.skills.sp_available, banner, lines])
+	for n in [hud, p]:
+		get_root().remove_child(n)
+		n.free()
+	_world().pioneer_level = 0
+	_sections += 1
+
+## Hooks H1 + H7: a recipe a skill node gates stays listed, and its craft card says what unlocks it
+## above the ingredients (a landscape phone shows the top of the detail column without scrolling).
+func _test_craft_card_lock() -> void:
+	if not _hooks_applied():
+		print("[t_w2_skills] hooks not applied: craft card lock check skipped")
+		_sections += 1
+		return
+	_world().pioneer_level = 0
+	var p: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	p.process_mode = Node.PROCESS_MODE_DISABLED
+	get_root().add_child(p)
+	var ui: Control = (load("res://scripts/ui/craft_ui.gd") as GDScript).new()
+	get_root().add_child(ui)
+	ui.bind(p)
+	ui.show_ui()
+	ui._choose_recipe("charcoal")
+	var lock: Label = ui._detail.find_child("DetailLock", true, false)
+	var text := lock.text if lock else ""
+	var ingredients := -1
+	for c in ui._detail.get_children():
+		if c is Label and (c as Label).text == "INGREDIENTS":
+			ingredients = c.get_index()
+	var above := lock != null and lock.get_index() < ingredients
+	_expect(text.begins_with("Learn Charcoal (Processing Lv. 10, 1 SP); you have 0 SP") and above, "the charcoal craft card says what unlocks it, above the ingredients: '%s'" % text)
+	for n in [ui, p]:
+		get_root().remove_child(n)
+		n.free()
 	_sections += 1

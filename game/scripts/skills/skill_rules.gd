@@ -4,15 +4,22 @@ extends RefCounted
 ## ability totals (Handicraft, Metal Processing, Slaughter, Stealth), bonded companion capacity.
 ## SkillState owns the state; this file only reads it, so every consumer asks one place.
 
-## recipe id -> [tree, node] for every node whose effects gate a recipe.
+## recipe id -> [tree, node] for every node whose effects gate a recipe, and for every loaded recipe
+## that names a node in requires_node (W2-DATA's gate), so every skill-gated recipe reads alike (spec 12:197).
 static func recipe_gates(sk: SkillState) -> Dictionary:
 	var out := {}
+	var by_id := {}
 	for tree in SkillState.ORDER:
 		for n in sk.nodes(tree):
+			by_id[str(n.get("id", ""))] = [tree, n]
 			for e in n.get("effects", []):
 				if e is Dictionary and str(e.get("type", "")) == "recipe":
 					for rid in e.get("recipes", []):
 						out[str(rid)] = [tree, n]
+	for rid in Data.recipes:
+		var need := str((Data.recipes[rid] as Dictionary).get("requires_node", ""))
+		if need != "" and by_id.has(need) and not out.has(str(rid)):
+			out[str(rid)] = by_id[need]
 	return out
 
 ## "" when the recipe is not gated or its node is learned, else what to learn
@@ -45,8 +52,9 @@ static func ability(sk: SkillState, name: String) -> int:
 					total += int(e.get("amount", 0))
 	return total
 
-## Spec 09: 3 bonded companions + 1 per learned Animal Handling node (I-IV), at most 7.
-## Data.bonded_cap() (hook H2) is the one cap every bond path asks; it reads this for the local player.
+## Spec 09: 3 bonded companions + 1 per learned Animal Handling node (I-IV), at most 7. A new bond
+## needs bonded count < this; existing bonds are kept. Every client bond path asks Data.bonded_cap()
+## (hook H2), which reads this for the local player.
 static func bonded_capacity(sk: SkillState) -> int:
 	var cap := int(sk.config.get("bonded_base", 3))
 	for n in sk.nodes("survival"):
@@ -55,10 +63,6 @@ static func bonded_capacity(sk: SkillState) -> int:
 				if e is Dictionary and str(e.get("type", "")) == "bonded_slots":
 					cap += int(e.get("amount", 0))
 	return mini(cap, int(sk.config.get("bonded_max", 7)))
-
-## Spec 09 reset rule: existing bonds are kept, a new bond needs count < capacity.
-static func can_bond(sk: SkillState, bonded_count: int) -> bool:
-	return bonded_count < bonded_capacity(sk)
 
 ## SP a character at `level` has earned (spec 03): sp_budget for levels 2..level; Lv. 1 pays nothing.
 static func paid_for_level(sk: SkillState, level: int) -> int:
