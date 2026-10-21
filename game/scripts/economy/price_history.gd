@@ -88,7 +88,8 @@ func _recompute(key: String) -> void:
 		L.s.ref.erase(key)
 		return
 	var prev := float(L.s.ref.get(key, 0))
-	var lo := prev * float(R.g("reference_outlier_low"))
+	# ASSUMPTION: the 0.25x-4x band values are STATUS 2026-10-18's planner default (market_rules.json).
+	var lo :=prev * float(R.g("reference_outlier_low"))
 	var hi := prev * float(R.g("reference_outlier_high"))
 	var inside := rows if prev <= 0.0 else rows.filter(func (r: Array) -> bool: return float(r[1]) >= lo and float(r[1]) <= hi)
 	if inside.size() * 2 < rows.size() and _units(inside) * 2 < _units(rows):

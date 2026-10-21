@@ -18,7 +18,7 @@ var _world: WorldFacade
 var _rules: EconRules
 
 func run() -> Array[String]:
-	for test: Callable in [_test_deposit, _test_refusals, _test_client_gate, _test_grant_rid_seeded, _test_sales, _test_grant_fields, _test_processed, _test_rare_trait, _test_stack_max_shrink, _test_pets_and_cages, _test_bonded_cap, _test_crash_recovery, _test_strays, _test_recover_any_time, _test_same_uid_twice, _test_fuzz]:
+	for test: Callable in [_test_deposit, _test_refusals, _test_client_gate, _test_grant_rid_seeded, _test_sales, _test_full_bag, _test_grant_fields, _test_processed, _test_rare_trait, _test_stack_max_shrink, _test_pets_and_cages, _test_bonded_cap, _test_crash_recovery, _test_strays, _test_recover_any_time, _test_same_uid_twice, _test_fuzz]:
 		if test.call() != true:
 			failures.append("%s stopped early (script error)" % test.get_method())
 	return failures
@@ -160,12 +160,17 @@ static func _units(b: VaultBridge, acct: int) -> Dictionary:
 			out[str(row.id)] = int(out.get(str(row.id), 0)) + int(row.count)
 	return out
 
+## The slot of the largest row of `item`: W2-GATHER's rare traits put traited units in rows of their own.
 static func _slot(b: VaultBridge, acct: int, item: String) -> int:
 	var bag: Array = b.chars.character(acct).d.bag
+	var best := -1
 	for i in bag.size():
-		if bag[i] is Dictionary and str(bag[i].id) == item:
-			return i
-	return -1
+		if bag[i] is Dictionary and str(bag[i].id) == item and (best < 0 or int(bag[i].count) > int(bag[best].count)):
+			best = i
+	return best
+
+static func _empty_slots(b: VaultBridge, acct: int) -> int:
+	return b.chars.character(acct).d.bag.filter(func (r: Variant) -> bool: return not r is Dictionary).size()
 
 func _hash(b: VaultBridge) -> String:
 	return b.econ.engine.state_json().sha256_text() + b.chars.state_hash()
@@ -260,8 +265,9 @@ func _test_deposit() -> bool:
 	_gather(b, 1, "crate", 0, SPLIT, 12)
 	var slot := _slot(b, 1, SPLIT)
 	var row: Dictionary = b.chars.character(1).d.bag[slot].duplicate(true)
+	var bag0: int = _units(b, 1)[SPLIT]
 	var r := _ok(b, "vault.deposit", 1, {"bag_slot": slot, "rid": "dep-a"})
-	_expect(r.uid == row.uid and _units(b, 1).get(SPLIT, 0) == 0 and _vault(b, 1).has(row.uid), "a whole stack moves from the bag to the vault under its own uid")
+	_expect(r.uid == row.uid and _units(b, 1).get(SPLIT, 0) == bag0 - int(row.count) and int(_vault(b, 1).get(row.uid, {}).get("count", 0)) == int(row.count), "a whole stack moves from the bag to the vault under its own uid")
 	var h := _hash(b)
 	var again := _op(b, "vault.deposit", 1, {"bag_slot": slot, "rid": "dep-a"})
 	var same: bool = again.ok and _hash(b) == h and again.r.uid == r.uid
@@ -299,6 +305,7 @@ func _test_refusals() -> bool:
 	_expect(capped.get("err") == "limit_reached" and _hash(b) == h, "a deposit the vault would refuse never leaves the bag (%s)" % capped.get("err", "ok"))
 	_rules.limits.deposit_caps[SPLIT] = 300
 	var uid := str(_ok(b, "vault.deposit", 1, {"bag_slot": slot}).uid)
+	var deposited := int(_vault(b, 1)[uid].count)
 	# A body the character store would not take back (edited in flight) stays in the vault.
 	var saved: String = b.chars.s.exported_assets[uid]
 	b.chars.s.exported_assets[uid] = saved.replace('"count":', '"count":1')
@@ -306,8 +313,9 @@ func _test_refusals() -> bool:
 	var refused := b.apply("vault.withdraw", 1, {"uid": uid, "rid": "w-bad"}, T0)
 	_expect(not refused.ok and _hash(b) == h and _vault(b, 1).has(uid), "a withdrawal char.receive refuses leaves the asset in the vault (%s)" % refused.get("err", "ok"))
 	b.chars.s.exported_assets[uid] = saved
+	var bag0: int = _units(b, 1).get(SPLIT, 0)
 	var back := _ok(b, "vault.withdraw", 1, {"uid": uid})
-	_expect(int(back.item.count) == int(_units(b, 1)[SPLIT]) and not b.chars.s.exported_assets.has(uid), "the same withdrawal goes through once the body matches")
+	_expect(int(back.item.count) == deposited and _units(b, 1).get(SPLIT, 0) == bag0 + deposited and not b.chars.s.exported_assets.has(uid), "the same withdrawal goes through once the body matches")
 	var twice := _op(b, "vault.withdraw", 1, {"uid": uid})
 	_expect(twice.get("err") == "not_found", "a second withdrawal finds nothing (%s)" % twice.get("err", "ok"))
 	print("[econ-bridge] refusals codes=%s cap=%s edited_body=%s twice=%s" % [",".join(codes), capped.get("err", "ok"), refused.get("err", "ok"), twice.get("err", "ok")])
@@ -433,6 +441,48 @@ func _test_sales() -> bool:
 		units += int(l.left) if str(l.asset.id) == SPLIT else 0
 	_expect(units == int(b.chars.s.minted.get(SPLIT, 0)) - int(b.chars.s.consumed.get(SPLIT, 0)), "every unit gathered is in exactly one bag, vault or listing (%d of %d)" % [units, int(b.chars.s.minted.get(SPLIT, 0))])
 	print("[econ-bridge] sale whole=%d units paid=%d partial_buy=%s remainder=%s part_listing=%s order_fill=%s count1=%s" % [n, int(bought.paid), mine.get("err", "ok"), rest.get("err", "ok"), left.get("err", "ok"), fill.get("err", "ok"), one.get("err", "ok")])
+	return true
+
+## Spec 06:12 / 06:21 (review r3 of the resumed run): a purchase is never lost to a full bag.
+## A whole export (char.receive) and a split part (char.grant) are both refused with bag_full
+## before the vault lets go: neither store changes and the bridge keeps serving. Once slots
+## free, each lands exactly once.
+func _test_full_bag() -> bool:
+	var b := _rig("full-bag")
+	_gather(b, 1, "crate", 0, SPLIT, 12)
+	var whole := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT)}).uid)
+	var n := int(_vault(b, 1)[whole].count)
+	var lid := str(_ok(b, "market.list_fixed", 1, {"asset": {"uid": whole}, "unit_price": 2, "duration_h": 24}).listing.id)
+	_ok(b, "market.buy", 2, {"listing_id": lid, "count": n})
+	_gather(b, 1, "crate", 0, SPLIT, 12)
+	var src := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT)}).uid)
+	lid = str(_ok(b, "market.list_fixed", 1, {"asset": {"uid": src}, "unit_price": 2, "duration_h": 24}).listing.id)
+	var part := str(_ok(b, "market.buy", 2, {"listing_id": lid, "count": 2}).get("asset", {}).get("uid", ""))
+	_expect(b.econ.engine.state().src.has(whole) and not b.econ.engine.state().src.has(part), "one purchase is a whole export (char.receive), the other a split part (char.grant)")
+	# Berries until a gather finds no room: no empty slot and no berry stack with space.
+	var last := {}
+	for _i in 2000:
+		last = b.chars.apply("act.gather", 2, {"node_id": "bush", "option": 0}, T0)
+		if not last.get("ok", false):
+			break
+	_expect(last.get("err") == "bag_full" and _empty_slots(b, 2) == 0, "account 2's bag is full (%s, %d empty)" % [last.get("err", "ok"), _empty_slots(b, 2)])
+	var h := _hash(b)
+	var w1 := _op(b, "vault.withdraw", 2, {"uid": whole})
+	var w2 := _op(b, "vault.withdraw", 2, {"uid": part})
+	var same := _hash(b) == h
+	var kept := _vault(b, 2).has(whole) and _vault(b, 2).has(part)
+	var other := _client(b, "market.search", 3, {})
+	_expect(w1.get("err") == "bag_full" and w2.get("err") == "bag_full" and kept and same and _stuck(b) == "" and other.get("ok", false), "a full bag refuses both purchases before the vault lets go, the bridge serving (whole=%s part=%s in_vault=%s unchanged=%s stuck='%s' search=%s)" % [w1.get("err", "ok"), w2.get("err", "ok"), kept, same, _stuck(b), other.get("err", "ok")])
+	for _i in 200: # eat berries until two slots are free
+		if _empty_slots(b, 2) >= 2 or _slot(b, 2, "berry") < 0:
+			break
+		b.chars.apply("act.eat", 2, {"bag_slot": _slot(b, 2, "berry")}, T0)
+	var r1 := _op(b, "vault.withdraw", 2, {"uid": whole})
+	var r2 := _op(b, "vault.withdraw", 2, {"uid": part})
+	var again := _op(b, "vault.withdraw", 2, {"uid": whole})
+	var home := int(_units(b, 2).get(SPLIT, 0))
+	_expect(r1.get("ok", false) and r2.get("ok", false) and home == n + 2 and not _vault(b, 2).has(whole) and not _vault(b, 2).has(part) and again.get("err") == "not_found", "with room, both purchases land exactly once (%s, %s, %d of %d, again=%s)" % [r1.get("err", "ok"), r2.get("err", "ok"), home, n + 2, again.get("err", "ok")])
+	print("[econ-bridge] full bag empty=0 whole=%s part=%s in_vault=%s unchanged=%s stuck='%s' search=%s | freed retry whole=%s part=%s home=%d of %d again=%s" % [w1.get("err", "ok"), w2.get("err", "ok"), kept, same, _stuck(b), other.get("err", "ok"), r1.get("err", "ok"), r2.get("err", "ok"), home, n + 2, again.get("err", "ok")])
 	return true
 
 ## Review r5 m4: units the books split off a stack come home through char.grant with the
