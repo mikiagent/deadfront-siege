@@ -5,6 +5,76 @@ commits; merged in 5849a2d3). Review round 4 gates ran on 753a3c64 with the rege
 tree `w2data-r4-gate`); the commits after it change only this report. No dsc worker was used (the owner took
 DeepSeek off on 2026-10-20), so nothing goes in dsc-improvements.md. No credits spent.
 
+## Sync 1 before integration (2026-10-21)
+
+The branch already contains claude/mmo-overhaul (ddaab662), so there was nothing to merge. The package itself was
+merged on 2026-10-20 (eb835a83, hooks be970c8c), and the branch is ahead only by report commits.
+
+The old hooks patch no longer applied: its changes are already in the base. `git apply --3way` on it was clean for
+14 files, but it conflicted in crafting.gd, where W2-SKILLS H1 replaced hook 6. **Regenerated:** the patch drops
+hook 6's two crafting.gd hunks, keeps every other hunk as the record of what was applied, and has a header that
+says so. On ddaab662, `git apply --3way` gives rc=0 with no change to the tree, and `git apply -R --check` gives
+rc=0, so every hunk is in the base. Plain `git apply --check` fails, and it should, because the changes are already
+present. **Integrator: nothing to apply.**
+
+Gates were run in the scratch tree `sync-w2-data` on af4c2761 with this patch applied through mkscratch, which made
+no change to the tree. The import log has 0 error lines.
+
+- All 22 t_*.gd exit with rc=0 and print their PASS line, including `[t_data] PASS items=223 recipes=155`,
+  `[t_harbour] PASS islands=15`, `[t_w2_skills] PASS`, `[t_water] PASS` and `[t_uiicons] PASS ids=177 files=116`.
+  t_save prints its 5 deliberate SCRIPT ERRORs. Every other log has 0 SCRIPT ERROR lines, and no log has a
+  "couldn't resolve track" line.
+- run_all prints `[tests] PASS`, and `tools/smoke.sh --no-import` prints `SMOKE PASS`.
+- `[craft_lab] PASS`, `[equiplab] PASS`, and the raid gear probe gives `[gear] ... failures=0`.
+- `[t_data] level 1 -> 5 from the planner: flint_pick gather power x1.40, flint_spear damage x1.32`.
+- No new Godot-*.ips: there are 25 before and after, and the newest is still Godot-2026-10-20-232613.ips.
+
+## Round 5: the round 4 findings again, on a resumed workflow step (2026-10-21)
+
+A resumed workflow sent this package the round 4 review findings again (raid gear beats steel, raid primary takes
+every ingot, act.craft ignores requires_node, warp-ruin loot, wild corn, strap leak, raw node id, dead stack_max,
+shared tier icons, and the GAUNTLET "level 5 better than level 1" acceptance item). All of them were handled in round 4 (6dafc6f1, 753a3c64,
+table below). Review r4 passed, and the integrator merged the package on 2026-10-20 (eb835a83, base-docs merge
+9c4226c8, hooks applied in be970c8c; STATUS merge log 18ef7091). Nothing was left to fix. This round:
+
+- **Base moved by 84 commits** (W2-SKILLS, WATER and docs). `claude/mmo-w2-data` was an ancestor of
+  `claude/mmo-overhaul`, so it was fast-forwarded to ddaab662. No merge commit and no conflicts.
+- **The fixes survived the later merges** (checked on ddaab662). The raid maul, helm, cuirass and greaves still take
+  `tier_steel` as their primary, behind `iron_weapons`/`scute_armor` + Survival 50 + Lv 55. `hide_strap` takes
+  `dried_hide` and is not `cured_hide`.
+- **requires_node ids:** all 16 exist in the merged trees.json (W2-SKILLS' re-key), with names: work_pick
+  (Weapon/Tools 5), combat_knife 15, hammer 20, copper_tools 30, blade_shapes 40, iron_weapons 50; smelting_1
+  (Processing 25), nails_pillars 20, smelting_2 40; armor_1 (Tailoring 35), scute_armor 45; furnace_kiln
+  (Construction 35); steam (Cooking 25), antivenom 20, antibiotic 30; fertilizer (Farming 15).
+- **Refusal text (minor 6):** W2-SKILLS H1 replaced hook 6's check at merge. `Crafting.progression_block` now calls
+  `SkillRules.recipe_block`, which says "learn Smelting 1 (Processing Lv. 25, N SP)": the node name, tree and level,
+  as the finding asks.
+- **Hooks patch:** nothing is left to apply. On ddaab662, `git apply -R --check --exclude=game/scripts/items/crafting.gd`
+  on the patch is clean (rc=0), so hooks 1-15 are in the base. The crafting.gd hunk does not reverse because H1
+  replaced it on purpose. The patch file stays as the record of what was applied. It no longer applies forward
+  and must not be applied again.
+- **Server craft path (minor 2):** still open, as before. `intent_handlers.gd _craft` checks `required_survival` and
+  not the node gate. It stays a W3-SRVACT acceptance item (see "W3-SRVACT acceptance item" below). W3-SRVACT's
+  plan-register section belongs to another package, so it was not edited here.
+
+Acceptance (round 5): scratch tree `w2data-r5-gate` on ddaab662 with no patch, since the hooks are in the base. The
+import log has 0 error lines.
+
+| Item | Result |
+|---|---|
+| every t_*.gd (22) | Every one prints its PASS line with rc=0: t_ai, t_build, t_canim, t_combat, `[t_data] PASS items=223 recipes=155`, `[t_harbour] PASS islands=15`, t_iconart, t_items, t_light, t_lighting (`[t_light] PASS`), t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, `[t_uiicons] PASS ids=177 files=116 ...`, t_w2_skills, t_water, t_web. t_save prints its 5 deliberate SCRIPT ERRORs. Every other log has 0 SCRIPT ERROR and 0 "couldn't resolve track" |
+| run_all, smoke | `[tests] PASS` (rc=0); `SMOKE PASS` (`tools/smoke.sh --no-import`, rc=0) |
+| GAUNTLET: higher tier clearly better; level 5 clearly better than level 1 | `[t_data] L55 armor_body via planner: copper_cuirass 2413 (copper), bronze_cuirass 2756 (bronze), iron_cuirass 3158 (iron), steel_cuirass 3650 (steel), raid_cuirass 4653 (steel)`; `[t_data] L55 weapon via planner: copper_sword 352 (copper), bronze_sword 402 (bronze), iron_sword 460 (iron), steel_sword 532 (steel), raid_maul 1460 (steel)`; `[t_data] level 1 -> 5 from the planner: flint_pick gather power x1.40, flint_spear damage x1.32` |
+| Nothing beats steel without the steel gate | `[t_data] above steel_cuirass (686, gate Lv 45): raid_cuirass 875 at steel tier, gate scute_armor Lv 45`; helm and greaves the same; `above steel_sword (100, gate Lv 50): raid_maul 274 at steel tier, gate iron_weapons Lv 50` |
+| Node gate refusal (now W2-SKILLS H1) | `[t_data] smelt_copper gate: before 'learn Smelting 1 (Processing Lv. 25, 15 SP); you have 0 SP, reach Lv. 2 for +10 SP', after learning smelting_1 ''` |
+| Vision fixes | `[t_data] start island: reachable=110 twine ~2.3 s dried_hide ~5.1 s hide_strap ~3.5 s rope ~8.9 s, metal []`; `[t_data] reachable=216/223 pending=[...] best_pick=steel`; `[t_data] tameable species with a reachable net: 17` |
+| Raid kit through real crafting (hook 15) | `[gear] maul L60 steel dmg=1569.6 kit armor=9291.3`; `[gear] PARTIAL real formulas/craft allocation; acquisition, station movement and raid evasions untested; failures=0` (0 FAIL lines) |
+| Labs | `[craft_lab] PASS`, `[equiplab] PASS` (headless, rc=0, 0 SCRIPT ERROR) |
+| Crashes | No new Godot-*.ips: 25 before and after, the newest still Godot-2026-10-20-232613.ips (another agent's, per the STATUS WATER entry) |
+
+Not rerun this round: the mutation FAIL lines, the windowed pixels and island_lab. This round changed no code or data,
+so the round 3 and round 4 evidence for them still holds. The integrator's merge-time island_lab run gave `nodes=397`.
+
 ## What shipped
 
 - **Material ladder Stone → Bone → Flint → Obsidian → Copper → Bronze → Iron → Steel (GAUNTLET), every rung
