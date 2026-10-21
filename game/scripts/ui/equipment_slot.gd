@@ -17,6 +17,8 @@ var selected := false:
 			queue_redraw()
 var lv_px := 20
 var _ghost: Control
+## 1 -> 0 after an equip lands here (InvMotion.FLASH_S): a short gold light-up.
+var _flash := 0.0
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -41,6 +43,12 @@ func show_from(inv: Inventory) -> void:
 	queue_redraw()
 	_ghost.queue_redraw()
 
+## Small transfer feedback (spec 13 s20): the cell lights up briefly as gear goes on.
+func flash() -> void:
+	InvMotion.run(self, func(t: float) -> void:
+		_flash = 1.0 - t
+		queue_redraw(), InvMotion.FLASH_S)
+
 func _gui_input(event: InputEvent) -> void:
 	if slot == &"":
 		return
@@ -60,6 +68,8 @@ func _draw() -> void:
 		InvPaint.durability(self, r, stack)
 		if stack.is_locked():
 			InvPaint.lock_pip(self, r, minf(size.x, size.y))
+	if _flash > 0.0:
+		draw_rect(r, Color(InvTheme.SELECT, 0.3 * _flash))
 	if selected:
 		InvPaint.brackets(self, r.grow(-2.0), minf(size.x, size.y))
 

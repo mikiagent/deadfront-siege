@@ -60,7 +60,7 @@ func _run() -> void:
 	var tests: Array[Callable] = [_t01_open_close, _t02_capacity, _t03_individual, _t04_levels, _t05_new,
 		_t06_brackets, _t07_inspect, _t08_attributes, _t09_sorting, _t10_filtering, _t11_locking,
 		_t12_transfers, _t13_equipment, _t14_stats, _t15_presets, _t16_rare_bone_craft,
-		_t17_berry_cook, _t18_sell_exact, _t19_save_load, _t20_screen_sizes]
+		_t17_berry_cook, _t18_sell_exact, _t19_save_load, _t20_screen_sizes, _t21_polish]
 	for t in tests:
 		_reset_bag()
 		var errs := log.script_errors
@@ -861,6 +861,156 @@ func _t20_screen_sizes() -> void:
 				_check_targets(gs.get("stats_panel"), view)
 				_expect(Array(gs.get("stats_panel").call("rows")).has("Gathering Power  %d" % C["inv_stats"].call("power", player, "gathering")), "20: Detailed Stats lists Gathering Power")
 			box.queue_free()
+
+# ---------------------------------------------------------------- 21: B4 polish (spec 13 s2, s16, s20, s21)
+
+## Phase 5: restrained motion, desktop keys, trait classes by shape (never colour alone), the same
+## layout rules at 1920x1080 and inside a phone's notch, and a full 142-slot bag opening in < 50 ms.
+func _t21_polish() -> void:
+	if not _need(["inv_theme", "bag_screen", "storage_screen", "character_screen", "item_inspect_panel", "inventory_slot"], "21 polish"):
+		return
+	var M: GDScript = load(UI + "inv_motion.gd") if ResourceLoader.exists(UI + "inv_motion.gd") else null
+	_expect(M != null, "21: not built yet (inv_motion.gd)")
+	if M == null:
+		return
+	_expect(float(M.OPEN_S) <= 0.12 and float(M.TAB_S) <= 0.08 and float(M.SETTLE_S) <= 0.12 and float(M.FLASH_S) <= 0.4, "21: motion is short: open <= 120 ms, tab <= 80 ms, settle and flash brief")
+	var ui = player.ui
+	ui.call("hide_ui")
+	var first := -1
+	for k in 12:
+		var i := _give(&"berry", 10 + k)
+		first = i if first < 0 else first
+	# Motion: the Bag fades in as it opens and is fully shown well within the open time.
+	ui.call("open_bag")
+	var bag: Control = ui.get("_bag")
+	_expect(bag.modulate.a < 1.0, "21: the Bag fades in as it opens (alpha %.2f at once)" % bag.modulate.a)
+	await create_timer(0.3).timeout
+	_expect(is_equal_approx(bag.modulate.a, 1.0), "21: the fade ends within the open time (alpha %.2f)" % bag.modulate.a)
+	# Keys: arrows walk the selection in reading order and by rows; Enter runs the yellow action.
+	var g = bag.get("grid")
+	g.call("select_uid", "")
+	_press(ui, KEY_RIGHT)
+	_expect(g.call("selected_uid") == _uid(first), "21: Right with nothing selected picks the first item")
+	_press(ui, KEY_RIGHT)
+	var second: String = g.call("selected_uid")
+	_press(ui, KEY_DOWN)
+	var below: String = g.call("selected_uid")
+	var cols: int = g.get("columns")
+	_expect(second != _uid(first) and below == str(g.call("item_cells")[1 + cols].get("uid")), "21: Right steps to the next item, Down to the one below it")
+	_press(ui, KEY_LEFT)
+	_expect(g.call("selected_uid") == str(g.call("item_cells")[cols].get("uid")), "21: Left steps back in reading order")
+	var club := _give(&"club", 22)
+	g.call("select_uid", _uid(club))
+	_press(ui, KEY_ENTER) # a weapon's yellow action is Equip: Equipment opens to compare it
+	_expect(ui.call("current_screen") == &"equipment" and (ui.get("_equipment").get("list") as Object).call("selected_uid") == _uid(club), "21: Enter runs the yellow action on the selected item (Equip opens the compare)")
+	ui.call("hide_ui")
+	# Storage: Tab switches the tab (a quick fade), Enter transfers, the receiving tab lights up.
+	var box = INV.new(20)
+	box.add(IS.make(&"wood_log", 1, {}, 14))
+	ui.call("show_storage", box, player, {"title": "Storage Box", "allow_deposit": true})
+	var st: Control = ui.get("_storage")
+	_press(ui, KEY_TAB)
+	_expect(st.get("tab") == &"bag", "21: Tab switches the storage view to the Bag tab")
+	_expect((st.call("active_grid") as Control).modulate.a < 1.0, "21: the tab switch fades the grid in")
+	_press(ui, KEY_TAB)
+	_press(ui, KEY_RIGHT)
+	_press(ui, KEY_ENTER)
+	_expect(box.used_slots() == 0 and player.inventory.count_of(&"wood_log") == 1, "21: Enter on the box tab runs Transfer to Bag")
+	await process_frame
+	_expect(float((st.get("_flash") as Dictionary)[&"bag"]) > 0.0, "21: the Bag tab lights up as the log arrives")
+	ui.call("hide_ui")
+	# Gear: arrows walk the 3x3, skipping the blank cell.
+	ui.call("open_character", &"head")
+	var ch = ui.get("_character")
+	_press(ui, KEY_DOWN)
+	_expect(ch.get("slot") == &"body", "21: Down on Character moves from the head cell to the torso")
+	_press(ui, KEY_RIGHT)
+	_press(ui, KEY_DOWN)
+	_expect(ch.get("slot") == &"tool", "21: the blank corner cell is skipped (stays on the held-tool cell)")
+	ui.call("hide_ui")
+	# Accessibility: a trait's class reads by shape and words, not colour alone.
+	var shapes: Dictionary = (load(UI + "inv_paint.gd") as GDScript).get_script_constant_map().get("PIP_SHAPES", {})
+	_expect(shapes.size() == 3 and shapes.values()[0] != shapes.values()[1] and shapes.values()[1] != shapes.values()[2] and shapes.values()[0] != shapes.values()[2], "21: positive, negative and rare pips have three different shapes (%s)" % shapes)
+	var ib := _give(&"raptor_bone", 60, {"firm": 8, "heavy": 2, "black_sheen": true})
+	var p := _panel(player.inventory.slots[ib])
+	p.call("apply_metrics", C["inv_theme"].call("metrics", Vector2(1600, 900)))
+	var tips := []
+	var stack: Array[Node] = [p]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		stack.append_array(n.get_children())
+		if n is Control and "cls" in n:
+			tips.append([n.get("cls"), (n as Control).tooltip_text])
+	var words := ",".join(PackedStringArray(tips.map(func(t: Array) -> String: return str(t[1]))))
+	_expect(tips.size() == 3 and words.contains("Positive trait: Firm Lv. 8") and words.contains("Negative trait: Heavy Lv. 2") and words.contains("Rare trait: Black Sheen"), "21: each trait chip carries its class shape and says its class (%s)" % words)
+	var tip: String = C["inventory_slot"].call("describe", player.inventory.slots[ib])
+	_expect(tip.contains("Raptor Bone Lv. 60") and tip.contains("Rare trait: Black Sheen"), "21: a cell's hover tip says the item, its level and its traits in words (%s)" % tip.replace("\n", " | "))
+	p.queue_free()
+	# 1920x1080 and a notched phone: the same tap-target, text and safe-area rules.
+	var T = C["inv_theme"]
+	for view in [Vector2(1920, 1080), Vector2(844, 390), Vector2(804, 452)]:
+		var notch: bool = view.y < 500.0
+		T.set("forced_insets", Vector4(47, 21, 0, 47) if notch else Vector4(-1, -1, -1, -1))
+		for n in ["bag_screen", "storage_screen", "character_screen"]:
+			var holder := Control.new()
+			holder.size = view
+			host.get_child(1).add_child(holder)
+			var sc: Control = C[n].new()
+			holder.add_child(sc)
+			sc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			if n == "storage_screen":
+				sc.call("setup", player.inventory, box, "Storage Box", player, &"storage")
+			else:
+				sc.call("bind", player.inventory, player)
+			await process_frame
+			await process_frame
+			_check_targets(sc, view)
+			if notch:
+				_check_safe(sc, view, Rect2(47, 0, view.x - 94, view.y - 21))
+			holder.queue_free()
+	T.set("forced_insets", Vector4(-1, -1, -1, -1))
+	# Performance: a full 142-slot bag opens in under 50 ms (build and layout, measured).
+	_reset_bag()
+	var inv = player.inventory
+	inv.slot_count = 142
+	inv.slots.resize(142)
+	var k2 := 0
+	while inv.used_slots() < 142:
+		inv.add(IS.make(&"raptor_bone" if k2 % 3 == 0 else &"ore", 1, {"firm": 1 + k2 % 5} if k2 % 2 == 0 else {}, 10 + k2 % 50))
+		k2 += 1
+	ui.call("hide_ui")
+	await process_frame
+	var t0 := Time.get_ticks_usec()
+	ui.call("open_bag")
+	var cells: Array = (ui.get("_bag").get("grid") as Object).call("cells")
+	var us := Time.get_ticks_usec() - t0
+	print("[t_invui] 21 open 142/142: %d cells in %d us" % [cells.size(), us])
+	_expect(cells.size() == 142 and us < 50000, "21: a full 142-slot bag opens in under 50 ms (%d cells, %d us)" % [cells.size(), us])
+	ui.call("hide_ui")
+
+## A key press as the desktop sends it, to the bag family.
+func _press(ui: Object, key: Key) -> void:
+	var e := InputEventKey.new()
+	e.keycode = key
+	e.physical_keycode = key
+	e.pressed = true
+	ui.call("_unhandled_input", e)
+
+## Every button and panel of `root` sits inside the phone's safe area (the header's black may run
+## under the notch; its controls may not).
+func _check_safe(root: Control, view: Vector2, safe: Rect2) -> void:
+	var out := []
+	var stack: Array[Node] = [root]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		if not (n is Control) or not (n as Control).is_visible_in_tree() or n is ScrollContainer:
+			continue
+		stack.append_array(n.get_children())
+		var c := n as Control
+		var panel: bool = c.get_script() in [C["inventory_grid"], C["item_inspect_panel"], load(UI + "bag_toolbar.gd")]
+		if (c is BaseButton or panel) and not safe.grow(1.0).encloses(c.get_global_rect()):
+			out.append("%s %s" % [c.name, c.get_global_rect()])
+	_expect(out.is_empty(), "21: controls stay inside the safe area at %s (%s)" % [view, out.slice(0, 4)])
 
 ## Tap targets inside a scroll area (the grid's cells are not buttons; a list's rows may be).
 func _scrolled(sc: Control, view: Vector2, small: Array) -> void:

@@ -86,6 +86,31 @@ func select_slot(s: StringName) -> void:
 	_fill_list()
 	_update()
 
+## Keyboard (spec 13 s21): the gear cell beside the selected one (blank cells are skipped).
+func move_slot(dir: Vector2i) -> bool:
+	var at := 0
+	for i in cells.size():
+		if cells[i].slot == slot:
+			at = i
+	var x := at % 3
+	var y := at / 3
+	for _step in 2: # a 3x3: at most two cells away
+		x += dir.x
+		y += dir.y
+		if x < 0 or x > 2 or y < 0 or y > 2:
+			return false
+		if cells[y * 3 + x].slot != &"":
+			select_slot(cells[y * 3 + x].slot)
+			return true
+	return false
+
+## Enter: the column's yellow action, when there is one.
+func press_primary() -> bool:
+	if not primary.visible or _action == &"":
+		return false
+	primary.pressed.emit()
+	return true
+
 ## The instance in the selected cell now (worn gear, or the held tool).
 func worn() -> ItemStack:
 	for c in cells:
@@ -167,6 +192,10 @@ func _run() -> void:
 	var c := ctx()
 	var i := list.selected_index() if not c.worn else -1
 	var ok := InvActions.run(_action, player, i, c)
+	if ok:
+		for cell in cells:
+			if cell.slot == slot:
+				cell.flash()
 	list.select_uid("")
 	_refusal = "" if ok else InvActions.last_refusal
 	_update()

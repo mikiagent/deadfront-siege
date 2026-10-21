@@ -195,6 +195,7 @@ func _open_menu(anchor: Control, rows: Array, pick: Callable) -> void:
 		if (e is InputEventMouseButton and (e as InputEventMouseButton).pressed) or (e is InputEventScreenTouch and (e as InputEventScreenTouch).pressed):
 			close_menu())
 	host.add_child(_menu)
+	InvMotion.fade_in(_menu)
 	var row_h: float = maxf(44.0, float(_m.square) * 0.8)
 	var font_px: int = int(_m.button_font) - (2 if _m.compact else 4)
 	var w := 0.0

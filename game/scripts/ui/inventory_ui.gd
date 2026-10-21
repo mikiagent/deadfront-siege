@@ -5,6 +5,8 @@ extends Control
 ## API every caller uses (bind, show_storage, show_pet_bag, hide_ui, rebuild, visible) and the
 ## transfer rules for containers; the screens are presentation over the inventories it binds.
 ## Toggling `visible` (I, the HUD's Bag entry) opens the Bag; "<" goes back one screen, X and Esc close.
+## Desktop keys (spec 13 s21): arrows move the selection (the gear cells on Character / Equipment),
+## Enter runs the yellow action, Tab switches a container's tabs.
 
 var inventory: Inventory
 var pet_bag: Inventory
@@ -191,6 +193,41 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			hide_ui()
 		get_viewport().set_input_as_handled()
+	elif visible and event is InputEventKey and event.is_pressed() and _key(event as InputEventKey):
+		get_viewport().set_input_as_handled()
+
+## One desktop key on the open screen; true when it did something. Keys only: the pad's d-pad and A
+## keep their game bindings (bandage, interact).
+func _key(e: InputEventKey) -> bool:
+	if _menu_open() or get_viewport().gui_get_focus_owner() is LineEdit:
+		return false # a dropdown or the search field has the keys
+	var dir := Vector2i.ZERO
+	for pair: Array in [["ui_left", Vector2i.LEFT], ["ui_right", Vector2i.RIGHT], ["ui_up", Vector2i.UP], ["ui_down", Vector2i.DOWN]]:
+		if e.is_action_pressed(str(pair[0]), true):
+			dir = pair[1]
+	var enter := not e.echo and (e.keycode == KEY_ENTER or e.keycode == KEY_KP_ENTER) # held Enter must not repeat a transfer
+	match _screen:
+		&"bag":
+			return _bag.grid.move_selection(dir) if dir != Vector2i.ZERO else (enter and _bag.inspect.press_primary())
+		&"storage", &"cargo":
+			if e.is_action_pressed("ui_focus_next") or e.is_action_pressed("ui_focus_prev"):
+				_storage.show_tab(&"bag" if _storage.tab == &"box" else &"box")
+				return true
+			return _storage.active_grid().move_selection(dir) if dir != Vector2i.ZERO else (enter and _storage.inspect.press_primary())
+		&"picker":
+			return _picker.grid.move_selection(dir) if dir != Vector2i.ZERO else (enter and _picker.inspect.press_primary())
+		&"character", &"equipment":
+			var g: GearScreen = _character if _screen == &"character" else _equipment
+			if g is CharacterScreen and (g as CharacterScreen).stats_panel and (g as CharacterScreen).stats_panel.is_visible_in_tree():
+				return false
+			return g.move_slot(dir) if dir != Vector2i.ZERO else (enter and g.press_primary())
+	return false
+
+func _menu_open() -> bool:
+	for sc in [_bag, _picker, _storage]:
+		if sc and (sc.get("toolbar") as BagToolbar).menu_open():
+			return true
+	return false
 
 func _on_visibility() -> void:
 	if not visible:
@@ -213,6 +250,9 @@ func _reset() -> void:
 		cb.call()
 
 func _show(screen: Control) -> void:
+	# A quick fade as a screen opens (spec 13 s20); one already showing (a re-open, a refresh) stays put.
+	if not (visible and screen.visible):
+		InvMotion.fade_in(screen)
 	for c in get_children():
 		if c is BagScreen or c is StorageScreen or c is GearScreen or c is ItemPicker:
 			(c as Control).visible = c == screen
@@ -371,6 +411,7 @@ func _store_selected() -> void:
 
 ## Transfer to the container: each picked bag slot that may go in, until the container is full.
 func _store_indices(indices: Array[int]) -> void:
+	var before := pet_bag.used_slots() if pet_bag else 0
 	var keep := _selected
 	for i in indices:
 		_selected = i
@@ -382,9 +423,17 @@ func _store_indices(indices: Array[int]) -> void:
 			break
 	_selected = keep if keep not in indices else -1
 	rebuild()
+	if _storage and pet_bag and pet_bag.used_slots() > before:
+		_storage.flash_tab(&"box")
 
 ## Transfer to Bag: each picked container slot, until the bag is full.
 func _take_indices(indices: Array[int]) -> void:
+	var before := inventory.used_slots() if inventory else 0
+	_take_each(indices)
+	if _storage and visible and inventory and inventory.used_slots() > before:
+		_storage.flash_tab(&"bag")
+
+func _take_each(indices: Array[int]) -> void:
 	for i in indices:
 		if pet_bag == null:
 			return # the last item left and the screen closed (on_empty)

@@ -6,15 +6,18 @@ extends RefCounted
 
 const BG := Color("#101714")
 ## The weathered surface around and between the panels: the references show a lighter, blotchy
-## khaki there, which is what makes each dark-bordered panel read as its own compartment.
+## khaki there (measured between their panels: #5B6242, #624D3E, #828565; luma 80-130), which is
+## what makes each dark-bordered panel read as its own compartment.
 # ASSUMPTION: spec 13's #101714 "main background" stays the dark of the panel borders and header;
-# the backdrop between panels follows the references (newest truth) as a dark khaki.
-const BACKDROP := Color("#3B382C")
+# the backdrop between panels follows the references (newest truth) as a mid khaki.
+const BACKDROP := Color("#5A5741")
 const HEADER := Color("#080809")
-## Spec 13's #39392F warmed toward the reference's brown grid panel (#3A2F2C).
-const PANEL := Color("#3A3530")
+## Spec 13's #39392F nudged toward the Bag reference's brown (its grid measures #3C3128, the
+## storage and Character references' #39382D / #383722); the grain drifts it both ways.
+const PANEL := Color("#3B3830")
 const PANEL_2 := Color("#26322C")
-const CELL_DARK := Color("#0E120F")
+## Gear cells: the Character reference's olive near-black (#1D2215 over its panel).
+const CELL_DARK := Color("#141810")
 const SEPARATOR := Color(0.337, 0.325, 0.29, 0.5) # #56534A at 50 %
 const SELECT := Color("#E6BE54")
 const PRIMARY := Color("#F2C84C")

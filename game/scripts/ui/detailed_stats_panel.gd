@@ -43,6 +43,8 @@ func _init() -> void:
 
 ## Fill from `player` now and show; `group` ("combat", ...) scrolls there.
 func open(player: Player, group: String = "") -> void:
+	if not visible:
+		InvMotion.fade_in(self)
 	visible = true
 	header.set_title("Detailed Stats")
 	_layout()

@@ -20,6 +20,8 @@ extends Node3D
 ##   --recipe=<id> --recipe-slot=<n> with --screen=picker (default camp_stew slot 2, the berries)
 ##   --stats=<group> with --screen=character opens Detailed Stats at that group
 ##   --slot=<cell> with --screen=character|equipment selects that gear cell (accessory1 = the empty state)
+##   --perf (windowed): fills a 142-slot bag, opens it and prints the build time and the time to its
+##   first drawn frame ("[bagui] perf142 ..."), then shows that bag for the shot
 ## Headless (no --shot): checks the seed and the screen contract, prints "[bagui] PASS ..." or
 ## FAIL lines and exits 0/1. It FAILS until the builders give InventoryUI the contract below.
 ##
@@ -50,6 +52,7 @@ var _slot: StringName = &"body"
 var _recipe: StringName = &"camp_stew"
 var _recipe_slot := 2
 var _query := ""
+var _perf := false
 
 func _ready() -> void:
 	var pick := ""
@@ -69,6 +72,8 @@ func _ready() -> void:
 			_recipe_slot = int(a.substr(14))
 		elif a.begins_with("--query="):
 			_query = a.substr(8)
+		elif a == "--perf":
+			_perf = true
 		elif a.begins_with("--insets="):
 			var v := a.substr(9).split_floats(",")
 			v.resize(4)
@@ -95,6 +100,8 @@ func _ready() -> void:
 		(player.ui.get("_character") as CharacterScreen).open_stats(stats)
 	print("[bagui] seed bag %d/%d worn=%d new=%d locked=%d screen=%s opened=%s" % [player.inventory.used_slots(),
 		player.inventory.slot_count, _worn_count(), _flag_count(&"new"), _flag_count(&"locked"), _screen, opened])
+	if _perf:
+		await _measure_open142()
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
 		_check()
 
@@ -387,6 +394,32 @@ func _check_b3() -> void:
 	_expect(picked == [_index_of(uids["berry42"])] and ui.call("current_screen") == &"", "picker: Use returns exactly that berry and closes")
 	print("[bagui] b3 storage=store,take,multi2,notice cargo=take picker=berry42 bag=%d/%d box=%d/%d" % [inv.used_slots(), inv.slot_count, storage_box.used_slots(), storage_box.slot_count])
 
+## B4 performance (spec 13 s20; design gate P1): a full 142-slot bag opens in under 50 ms. Pads the
+## bag to 142 / 142 with instances (traits on some, NEW on some), closes the family, then times
+## open_bag(); windowed, also the wait until that first frame is drawn (vsync included, so an upper
+## bound). Returns [build us, frame us] (frame -1 headless).
+func _measure_open142() -> Array:
+	var inv := player.inventory
+	inv.slot_count = 142
+	inv.slots.resize(142)
+	var k := 0
+	while inv.used_slots() < 142:
+		_add(&"ore" if k % 3 else &"raptor_bone", 10 + k % 50, {"firm": 1 + k % 5, "heavy": 2} if k % 4 == 0 else {}, "", k % 5 == 0)
+		k += 1
+	player.ui.call("hide_ui")
+	await get_tree().process_frame
+	var t0 := Time.get_ticks_usec()
+	player.ui.call("open_bag")
+	var bag: BagScreen = player.ui.get("_bag")
+	bag.grid.item_cells() # the grid is built (refresh is not deferred on open)
+	var build := Time.get_ticks_usec() - t0
+	var frame := -1
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
+		frame = Time.get_ticks_usec() - t0
+	print("[bagui] perf142 bag=%d/%d cells=%d build=%dus first_frame=%s" % [inv.used_slots(), inv.slot_count, bag.grid.cells().size(), build, ("%dus" % frame) if frame >= 0 else "headless"])
+	return [build, frame]
+
 func _expect(ok: bool, what: String) -> void:
 	if not ok:
 		_fails.append(what)
@@ -416,6 +449,8 @@ func _check() -> void:
 		_check_bag()
 		_check_gear()
 		_check_b3()
+		var perf: Array = await _measure_open142()
+		_expect(int(perf[0]) < 50000, "a full 142-slot bag opens in under 50 ms (%d us)" % perf[0])
 	if _fails.is_empty():
 		print("[bagui] PASS bag=%d/%d new=%d locked=%d" % [inv.used_slots(), inv.slot_count, _flag_count(&"new"), _flag_count(&"locked")])
 	get_tree().quit(0 if _fails.is_empty() else 1)

@@ -4,6 +4,9 @@ extends RefCounted
 ## and picker cells match (spec 13 s5-8, s11): item art, "Lv. N", the blue NEW tag, the yellow
 ## corner brackets (the gold check in multi-select), trait pips, the lock pip, durability and a count.
 
+## Shape each trait class is drawn with (pips and the inspect panel's trait chips).
+const PIP_SHAPES := {&"positive": &"square", &"negative": &"hollow", &"rare": &"diamond"}
+
 ## Item art centred a little low in `cell` (room for the labels above), fitted to its opaque part.
 static func item_icon(ci: CanvasItem, id: StringName, cell: Rect2, share: float = 0.62, centre_y: float = 0.56, tint: Color = Color.WHITE) -> void:
 	var tex := ItemArt.texture_for(id)
@@ -59,24 +62,47 @@ static func brackets(ci: CanvasItem, r: Rect2, unit: float, color: Color = InvTh
 		ci.draw_rect(Rect2(p - Vector2(w * 0.5, w * 0.5) * d.sign(), Vector2(arm * d.x, w * d.y)).abs(), color)
 		ci.draw_rect(Rect2(p - Vector2(w * 0.5, w * 0.5) * d.sign(), Vector2(w * d.x, arm * d.y)).abs(), color)
 
-## Small square pips under the art, one per trait: gold positive, grey negative, green rare (both
-## Durango references mark traits this way; spec 13 s11: quiet next to the brackets). At most six.
+## Small pips under the art, one per trait (both Durango references mark traits this way; spec 13
+## s11: quiet next to the brackets). At most six. The class reads by shape as well as colour:
+## positive a filled gold square, negative a hollow grey square, rare a green diamond.
 static func pips(ci: CanvasItem, cell: Rect2, stack: ItemStack, unit: float) -> void:
 	var sec := InvAttributes.sections(stack)
-	var colors: Array[Color] = []
-	for pair in [["positive", InvTheme.POSITIVE], ["negative", InvTheme.TEXT_2], ["rare", InvTheme.RARE]]:
-		for _r in (sec[pair[0]] as Array):
-			colors.append(pair[1])
-	if colors.is_empty():
+	var classes: Array[StringName] = []
+	for cls: StringName in [&"positive", &"negative", &"rare"]:
+		for _r in (sec[str(cls)] as Array):
+			classes.append(cls)
+	if classes.is_empty():
 		return
-	colors.resize(mini(colors.size(), 6))
-	var s := maxf(4.0, roundf(unit * 0.055))
+	classes.resize(mini(classes.size(), 6))
+	var s := maxf(5.0, roundf(unit * 0.06))
 	var gap := maxf(2.0, roundf(s * 0.5))
-	var x := cell.position.x + (cell.size.x - colors.size() * s - (colors.size() - 1) * gap) * 0.5
+	var x := cell.position.x + (cell.size.x - classes.size() * s - (classes.size() - 1) * gap) * 0.5
 	var y := cell.position.y + cell.size.y - unit * 0.18
-	for c in colors:
-		ci.draw_rect(Rect2(x, y, s, s), c)
+	for cls in classes:
+		pip(ci, Rect2(x, y, s, s), cls)
 		x += s + gap
+
+static func pip_color(cls: StringName) -> Color:
+	match cls:
+		&"positive":
+			return InvTheme.POSITIVE
+		&"rare":
+			return InvTheme.RARE
+	return InvTheme.TEXT_2
+
+## One trait pip in `r`, by its class's shape (never colour alone).
+static func pip(ci: CanvasItem, r: Rect2, cls: StringName) -> void:
+	var c := pip_color(cls)
+	match PIP_SHAPES.get(cls, &"square"):
+		&"hollow":
+			var w := maxf(1.5, roundf(r.size.x * 0.25))
+			ci.draw_rect(r.grow(-w * 0.5), c, false, w)
+		&"diamond":
+			var m := r.get_center()
+			var h := r.size.x * 0.68 # a diamond reads as big as the squares at this half-diagonal
+			ci.draw_colored_polygon(PackedVector2Array([m + Vector2(0, -h), m + Vector2(h, 0), m + Vector2(0, h), m + Vector2(-h, 0)]), c)
+		_:
+			ci.draw_rect(r, c)
 
 ## Multi-select mark (storage reference): a lighter compartment and a gold disc with a dark tick, top-left.
 static func check(ci: CanvasItem, cell: Rect2, unit: float) -> void:

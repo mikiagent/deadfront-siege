@@ -28,6 +28,8 @@ var checks := false:
 			checks = v
 			queue_redraw()
 var _rare := false
+## 0 -> 1 as the brackets settle onto a new selection (InvMotion.SETTLE_S); 1 at rest.
+var _settle := 1.0
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS # the grid's scroll still drags through a cell
@@ -43,6 +45,33 @@ func set_stack(s: ItemStack, i: int, key: String) -> void:
 	tooltip_text = (d.display_name if d and d.display_name != "" else str(s.def_id)) if s else ""
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if s else Control.CURSOR_ARROW
 	queue_redraw()
+
+## Desktop hover (spec 13 s21): the same facts the inspect panel gives on a tap, in words, so a
+## trait's class never rests on its colour alone.
+func _get_tooltip(_at: Vector2) -> String:
+	return describe(stack) if stack else ""
+
+## "Raptor Bone Lv. 60" then one line per trait ("Rare trait: Black Sheen"), NEW and Locked.
+static func describe(s: ItemStack) -> String:
+	var d := s.def()
+	var title := d.display_name if d and d.display_name != "" else LevelDisplay.nice_name(str(s.def_id))
+	var lines := PackedStringArray(["%s %s" % [title, LevelDisplay.label(s.level)] if s.level > 0 else title])
+	var sec := InvAttributes.sections(s)
+	for cls: StringName in [&"positive", &"negative", &"rare"]:
+		for r: Dictionary in sec[str(cls)]:
+			lines.append("%s: %s" % [ItemInspectPanel.TraitChip.CLASS_WORDS[cls], InvAttributes.line(r)])
+	if &"new" in s.flags:
+		lines.append("New")
+	if s.is_locked():
+		lines.append("Locked")
+	return "\n".join(lines)
+
+## Subtle selection feedback (spec 13 s20): the brackets close in from just outside the cell.
+func settle_in() -> void:
+	_settle = 0.0
+	InvMotion.run(self, func(t: float) -> void:
+		_settle = t
+		queue_redraw(), InvMotion.SETTLE_S)
 
 func level_text() -> String:
 	return LevelDisplay.label(stack.level) if stack and stack.level > 0 else ""
@@ -87,4 +116,4 @@ func _draw() -> void:
 	if selected and checks:
 		InvPaint.check(self, r, unit)
 	elif selected: # last, so the corners sit on top of the marks inside them
-		InvPaint.brackets(self, r.grow(-1.0), unit)
+		InvPaint.brackets(self, r.grow(-1.0 + InvMotion.SETTLE_PX * (1.0 - _settle)), unit)

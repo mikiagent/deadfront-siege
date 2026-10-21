@@ -44,6 +44,8 @@ var _scroll: ScrollContainer
 var _content: Control
 var _pool: Array[InventorySlot] = []
 var _shown: Array[InventorySlot] = []
+var _wheel: Tween
+var _wheel_to := 0.0
 
 func _init() -> void:
 	clip_contents = true
@@ -55,6 +57,7 @@ func _init() -> void:
 	add_child(_scroll)
 	_content = Control.new()
 	_content.mouse_filter = Control.MOUSE_FILTER_PASS
+	_content.gui_input.connect(_on_wheel)
 	_scroll.add_child(_content)
 	var frame := Control.new() # over the cells: the panel's dark, irregular edge
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -106,10 +109,39 @@ func select_uid(key: String) -> void:
 				_multi[key] = true
 		_sel = key if _multi.has(key) else (str(_multi.keys().back()) if not _multi.is_empty() else "")
 	else:
+		var before := _sel
 		_sel = key if _cell_for(key) != null else ""
+		if _sel != "" and _sel != before:
+			_cell_for(_sel).settle_in()
 	_paint_selection()
 	selection_changed.emit(_sel)
 	_scroll_to(_cell_for(_sel))
+
+## Keyboard (spec 13 s21): select the item beside the selection. Left / right step through the view
+## order (reading order, so rows wrap); up / down go to the nearest item in the row above / below.
+## Nothing selected picks the first item. Multi-select keeps its picks (arrows would toggle them).
+func move_selection(dir: Vector2i) -> bool:
+	var items := item_cells()
+	if multi or items.is_empty() or dir == Vector2i.ZERO:
+		return false
+	var cur := _cell_for(_sel)
+	var to: InventorySlot = items[0] if cur == null else null
+	if cur and dir.x != 0:
+		to = items[clampi(items.find(cur) + signi(dir.x), 0, items.size() - 1)]
+	elif cur:
+		var best := INF
+		for c: InventorySlot in items:
+			var dy := (c.position.y - cur.position.y) * signf(dir.y)
+			if dy <= 0.5:
+				continue
+			var score := dy * 1000.0 + absf(c.position.x - cur.position.x) # the nearest row first, then the column
+			if score < best:
+				best = score
+				to = c
+	if to == null or to == cur:
+		return false
+	select_uid(to.uid)
+	return true
 
 ## Multi-select every item shown (the storage toolbar's select-all); the last one is the focus.
 func select_all() -> void:
@@ -292,6 +324,22 @@ func redraw() -> void:
 
 func _on_cell_pressed(c: InventorySlot) -> void:
 	select_uid(c.uid)
+
+## Smooth wheel scrolling (spec 13 s20): a notch glides half a compartment over a few frames where
+## the ScrollContainer would jump. Touch drag and trackpad pans stay the container's own.
+func _on_wheel(e: InputEvent) -> void:
+	var mb := e as InputEventMouseButton
+	if mb == null or not mb.pressed or (mb.button_index != MOUSE_BUTTON_WHEEL_UP and mb.button_index != MOUSE_BUTTON_WHEEL_DOWN):
+		return
+	var limit := maxf(0.0, _content.size.y - _scroll.size.y)
+	var from := _wheel_to if _wheel and _wheel.is_running() else float(_scroll.scroll_vertical)
+	var step := _cell_px * 0.5 * clampf(mb.factor if mb.factor > 0.0 else 1.0, 0.2, 4.0)
+	_wheel_to = clampf(from + (step if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN else -step), 0.0, limit)
+	if _wheel:
+		_wheel.kill()
+	_wheel = create_tween()
+	_wheel.tween_property(_scroll, "scroll_vertical", roundi(_wheel_to), 0.09).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_content.accept_event()
 
 func _scroll_to(c: InventorySlot) -> void:
 	if c and _scroll and is_inside_tree():

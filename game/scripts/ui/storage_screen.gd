@@ -38,6 +38,8 @@ var _can := {"store": false, "take": false, "take_all": false}
 var _note := ""
 var _store_why := ""
 var _m := {}
+## Per tab, 1 -> 0 after items arrive there (InvMotion.FLASH_S).
+var _flash := {&"bag": 0.0, &"box": 0.0}
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -124,6 +126,7 @@ func set_actions(can_store: bool, can_take: bool, can_take_all: bool, note: Stri
 
 ## Shows the Bag (&"bag") or the container (&"box") in the grid.
 func show_tab(t: StringName) -> void:
+	var changed := t != tab
 	tab = t
 	bag_grid.visible = t == &"bag"
 	box_grid.visible = t == &"box"
@@ -136,6 +139,18 @@ func show_tab(t: StringName) -> void:
 		bag_selected.emit(bag_grid.selected_index())
 	_layout()
 	_refresh()
+	if changed:
+		InvMotion.fade_in(active_grid(), InvMotion.TAB_S)
+
+## Small transfer feedback (spec 13 s20): the tab that received items lights up briefly.
+func flash_tab(id: StringName) -> void:
+	InvMotion.run(self, func(t: float) -> void:
+		_flash[id] = 1.0 - t
+		_paint_tabs(), InvMotion.FLASH_S)
+
+## The grid the open tab shows.
+func active_grid() -> InventoryGrid:
+	return _grid()
 
 ## Selects the instance with this identity on whichever side holds it, switching to that tab.
 func select_key(key: String) -> void:
@@ -199,6 +214,8 @@ func _draw_tab(b: Button, id: StringName) -> void:
 	var on := tab == id
 	var r := Rect2(Vector2.ZERO, b.size)
 	b.draw_style_box(InvTheme.button_box(Color(0.03, 0.032, 0.03, 0.95) if on else Color(0.26, 0.26, 0.245, 0.92), Color(0, 0, 0, 0.5), 4), r)
+	if float(_flash[id]) > 0.0:
+		b.draw_rect(r.grow(-2.0), Color(InvTheme.SELECT, 0.32 * float(_flash[id])))
 	if on:
 		b.draw_rect(Rect2(Vector2(6, r.size.y - 5), Vector2(r.size.x - 12, 4)), InvTheme.SELECT)
 	var f := InvTheme.font()

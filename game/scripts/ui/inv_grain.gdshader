@@ -42,8 +42,9 @@ void fragment() {
 	vec3 brown = tint.rgb * vec3(1.10, 0.94, 0.88);
 	vec3 base = mix(tint.rgb, olive, smoothstep(0.30, 0.85, vnoise(px / 310.0 + 17.0)) * 0.85 * hue);
 	base = mix(base, brown, smoothstep(0.40, 0.90, vnoise(px / 190.0 + 41.0)) * 0.75 * hue);
-	float luma = 1.0 + ((blotch - 0.5) * 0.44 + (fine - 0.5) * 0.10 + streak * 0.06 + scratch * 0.10) * strength;
+	float luma = 1.0 + ((blotch - 0.5) * 0.52 + (fine - 0.5) * 0.10 + streak * 0.06 + scratch * 0.10) * strength;
 	vec2 c = UV - 0.5;
-	float vig = 1.0 - smoothstep(0.25, 0.75, length(c * vec2(1.0, 1.2))) * 0.28 * strength;
+	// A light vignette: the references' panels darken only at their very edges.
+	float vig = 1.0 - smoothstep(0.3, 0.75, length(c * vec2(1.0, 1.2))) * 0.14 * strength;
 	COLOR = vec4(base * luma * vig, tint.a * COLOR.a);
 }

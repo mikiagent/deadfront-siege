@@ -103,6 +103,13 @@ func rows() -> PackedStringArray:
 func actions() -> Array[StringName]:
 	return _actions.duplicate()
 
+## Enter (spec 13 s21): runs the yellow primary, as a tap on it would. False when none is offered.
+func press_primary() -> bool:
+	if _actions.is_empty():
+		return false
+	action_pressed.emit(_actions[0])
+	return true
+
 ## The button that runs `action` now (null when it is not offered).
 func button_for(action: StringName) -> Button:
 	for b in _buttons:
@@ -110,16 +117,9 @@ func button_for(action: StringName) -> Button:
 			return b
 	return null
 
-## Gold for positive traits, grey for negative, green for rare (spec 13 s11).
+## Gold for positive traits, grey for negative, green for rare (spec 13 s11); the chips add the shape.
 func section_color(cls: StringName) -> Color:
-	match cls:
-		&"positive":
-			return InvTheme.POSITIVE
-		&"negative":
-			return InvTheme.TEXT_2
-		&"rare":
-			return InvTheme.RARE
-	return InvTheme.TEXT
+	return InvPaint.pip_color(cls) if InvPaint.PIP_SHAPES.has(cls) else InvTheme.TEXT
 
 ## "Raw Meat", or the data label for ids that do not read well capitalised ("Blade Material").
 static func family_label(cat: String) -> String:
@@ -150,9 +150,9 @@ func _fill(s: ItemStack) -> void:
 		for c in d.categories:
 			_families.append(str(c))
 	var sec := InvAttributes.sections(s)
-	for cls in [&"positive", &"negative", &"rare"]:
+	for cls: StringName in [&"positive", &"negative", &"rare"]:
 		for r: Dictionary in sec[str(cls)]:
-			_traits.append({"text": InvAttributes.line(r), "color": section_color(cls)})
+			_traits.append({"text": InvAttributes.line(r), "color": section_color(cls), "cls": cls})
 	if s.def_id == &"captured_animal":
 		_row("Bond it at a taming pen", "", InvTheme.TEXT_2)
 	if s.is_fungible() and s.count > 1:
@@ -227,15 +227,7 @@ func _rebuild() -> void:
 		if not _traits.is_empty():
 			var flow := _flow()
 			for t in _traits:
-				var chip := Label.new()
-				chip.text = str(t.text)
-				chip.add_theme_font_size_override("font_size", px)
-				chip.add_theme_color_override("font_color", t.color)
-				var sb := InvTheme.button_box(Color(1, 1, 1, 0.08), Color(0, 0, 0, 0), 4)
-				sb.content_margin_top = 4
-				sb.content_margin_bottom = 4
-				chip.add_theme_stylebox_override("normal", sb)
-				flow.add_child(chip)
+				flow.add_child(TraitChip.new(str(t.text), t.cls, px))
 		if not _rows.is_empty():
 			_box.add_child(_info_bar())
 	if not stack or _info_open:
@@ -426,3 +418,29 @@ class _FamilyChip extends Control:
 		var f := InvTheme.font()
 		var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 		draw_string(f, Vector2((bw - w) * 0.5, box.end.y + 4.0 + f.get_ascent(px)), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, InvTheme.TEXT)
+
+## One trait chip (storage reference: "Firm Lv. 4" gold, "Heavy Lv. 2" grey): the class's pip shape
+## before the text, so positive / negative / rare read without colour too (spec 13 s11; B4).
+class TraitChip extends Control:
+	const CLASS_WORDS := {&"positive": "Positive trait", &"negative": "Negative trait", &"rare": "Rare trait"}
+	var text := ""
+	var cls: StringName = &"positive"
+	var px := 14
+
+	func _init(t: String, c: StringName, font_px: int) -> void:
+		text = t
+		cls = c
+		px = font_px
+		tooltip_text = "%s: %s" % [CLASS_WORDS.get(c, "Trait"), t]
+		var f := InvTheme.font()
+		custom_minimum_size = Vector2(f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + _pip_px() + 22.0, roundf(px * 1.9))
+
+	func _pip_px() -> float:
+		return maxf(6.0, roundf(px * 0.45))
+
+	func _draw() -> void:
+		draw_style_box(InvTheme.button_box(Color(1, 1, 1, 0.08), Color(0, 0, 0, 0), 4), Rect2(Vector2.ZERO, size))
+		var p := _pip_px()
+		InvPaint.pip(self, Rect2(Vector2(8.0, (size.y - p) * 0.5), Vector2(p, p)), cls)
+		var f := InvTheme.font()
+		draw_string(f, Vector2(8.0 + p + 6.0, (size.y + f.get_ascent(px) - f.get_descent(px)) * 0.5), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, InvPaint.pip_color(cls))
