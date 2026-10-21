@@ -4,8 +4,8 @@ Owner's words, verbatim: "jungle cliff concept" (two images) and "tall jungle tr
 other green-screen sheets: same art style, same green background for chroma keying.
 
 References (docs/reference/):
-- `concept-jungle-cliffs.webp` is a target, not a cut source. Its left half is a finished scene. Its right and bottom halves
-  are a kit on an olive background, which a chroma key cannot cut cleanly.
+- `concept-jungle-cliffs.webp` (not saved: the owner's first send arrived mid-task and never reached the disk; the owner resent
+  only the green sheets) is a target, not a cut source: a finished jungle scene plus a kit on an olive background.
 - `2d-assets/sheet-jungle-cliffs.webp` is a green-screen sheet.
 - `2d-assets/sheet-jungle-trees.webp` is a green-screen sheet.
 

@@ -41,7 +41,10 @@ var _compat := false
 ## gl_compatibility only (the web build); _compat also covers the mobile renderer.
 var _gl := false
 var _last_tod := -1.0
-var _fit_key := Vector3.ZERO
+var _fit_key := Vector4.ZERO
+## Fog density from the profile and time of day, and the camera's scale on it (fit_shadows).
+var _fog_density := 0.0
+var _fog_scale := 1.0
 
 ## Takes over the scene's lighting under host for climate; the node then drives day/night.
 static func install(host: Node, climate: String = "temperate") -> WorldLighting:
@@ -76,12 +79,23 @@ func _process(_delta: float) -> void:
 ## sat in a 400 m first split: 80 cm texels on the 1024 mobile atlas, shadows of a survivor
 ## or a pole gone. Splits are fractions of far, so we place them in metres around the
 ## depth band the camera actually sees (audit: box ratio 0.98 -> 0.48 at atlas 1024).
+## A perspective IsoCamera (CAMERA package) stands 90-430 m back with a 4.3 deg lens: Godot honours
+## directional_shadow_max_distance there and starts the shadow at the camera's near plane, which
+## IsoCamera._apply_zoom keeps close to the focus (_fit_perspective).
+## Fog is depth-based, so it thins by the same factor the camera stands further back than the old
+## 40 m: the ground at the focus keeps the fog it had.
 func fit_shadows(cam: Camera3D) -> void:
-	if cam == null or sun == null or cam.projection != Camera3D.PROJECTION_ORTHOGONAL:
+	if cam == null or sun == null:
+		return
+	if cam.projection == Camera3D.PROJECTION_PERSPECTIVE and cam is IsoCamera:
+		_fit_perspective(cam as IsoCamera)
+		return
+	_set_fog_scale(1.0)
+	if cam.projection != Camera3D.PROJECTION_ORTHOGONAL:
 		return
 	# ASSUMPTION: a non-iso orthographic camera looks at ground about 40 m away, as IsoCamera does.
 	var depth: float = (cam as IsoCamera).distance if cam is IsoCamera else 40.0
-	var key := Vector3(cam.far, cam.size, depth)
+	var key := Vector4(cam.far, cam.size, depth, 0.0)
 	if key == _fit_key:
 		return
 	_fit_key = key
@@ -91,9 +105,43 @@ func fit_shadows(cam: Camera3D) -> void:
 	var far := maxf(cam.far, depth + half + 10.0)
 	for l in [sun, moon]:
 		var light := l as DirectionalLight3D
+		light.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 		light.directional_shadow_split_1 = maxf(depth - half * 0.4, 1.0) / far
 		light.directional_shadow_split_2 = (depth + half * 0.3) / far
 		light.directional_shadow_split_3 = (depth + half + 5.0) / far
+		light.directional_shadow_fade_start = 0.8
+
+## One shadow map over near..end (DirectionalLight3D SHADOW_ORTHOGONAL), end just past the ground at the
+## screen's top edge and near (IsoCamera._apply_zoom) just before the crowns at its bottom edge. Measured in
+## camera_lab: with near ~105-145 m, gl_compatibility drew no shadows at all from PSSM2/PSSM4 splits at the
+## default zoom (Forward+ did, with the splits as fractions of the max distance), and the single map drew
+## in both. The 4.3 deg lens keeps the slice's cross-section about the view's size, so one map of a ~60 m
+## slice gives 1.6 cm texels on the 4096 desktop atlas and 6.4 cm on the 1024 mobile one, in one pass
+## instead of four.
+func _fit_perspective(cam: IsoCamera) -> void:
+	_set_fog_scale(IsoCamera.ORTHO_DISTANCE / maxf(cam.distance, 1.0))
+	var d := cam.distance
+	var g := cam.ground_half_depth()
+	var key := Vector4(cam.near, cam.far, d, g)
+	if key == _fit_key:
+		return
+	_fit_key = key
+	var end := minf(d + g + 6.0, cam.far)
+	for l in [sun, moon]:
+		var light := l as DirectionalLight3D
+		light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+		light.directional_shadow_max_distance = end
+		# The fade runs from fade_start * end (metres from the camera) to end: keep it past the
+		# screen's top edge (the default 0.8 would fade every shadow on screen at this distance).
+		light.directional_shadow_fade_start = clampf((end - 3.0) / end, 0.8, 0.999)
+
+func _set_fog_scale(s: float) -> void:
+	if is_equal_approx(s, _fog_scale):
+		return
+	_fog_scale = s
+	var e := world_env.environment if world_env else null
+	if e:
+		e.fog_density = _fog_density * _fog_scale
 
 func _take_over() -> void:
 	# One driver at a time: a lab kit's lighting yields to the island's when one loads.
@@ -216,7 +264,8 @@ func drive(tod: float, sky: bool = true) -> void:
 	var dusk_w := warm * sun_up
 	e.ambient_light_energy = lerpf(_f("ambient_energy"), _f("ambient_night_energy"), night)
 	e.fog_light_color = _c("fog_color").lerp(_c("fog_dusk_color"), dusk_w).lerp(_c("fog_night_color"), night)
-	e.fog_density = lerpf(_f("fog_density"), _f("fog_night_density"), night)
+	_fog_density = lerpf(_f("fog_density"), _f("fog_night_density"), night)
+	e.fog_density = _fog_density * _fog_scale
 	_sky_mat.sky_top_color = _c("sky_top").lerp(_c("sky_dusk_top"), dusk_w).lerp(_c("sky_night_top"), night)
 	_sky_mat.sky_horizon_color = _c("sky_horizon").lerp(_c("sky_dusk_horizon"), dusk_w).lerp(_c("sky_night_horizon"), night)
 

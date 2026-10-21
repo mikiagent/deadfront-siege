@@ -346,7 +346,8 @@ func ray() -> Dictionary:
 		return {}
 	var mouse := Game.pointer
 	var from := cam.project_ray_origin(mouse)
-	var q := PhysicsRayQueryParameters3D.create(from, from + cam.project_ray_normal(mouse) * 200.0)
+	# To the far plane: the perspective camera stands 90-430 m back (the old 200 m ray fell short).
+	var q := PhysicsRayQueryParameters3D.create(from, from + cam.project_ray_normal(mouse) * cam.far)
 	q.exclude = [p]
 	return p.get_world_3d().direct_space_state.intersect_ray(q)
 
