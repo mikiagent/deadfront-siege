@@ -51,24 +51,16 @@ static func unequip(inv: Inventory, slot: StringName) -> bool:
 	inv.changed.emit()
 	return true
 
-## Spec 05:11: the slots a worn item adds, its def's bag_slots plus its pocket attribute level x
-## pocket_slots_per_level. # ASSUMPTION: an instance's Pocket is attributes.pocket = its level.
+## Spec 05:11 / spec 31 §6: the slots a worn item adds. One formula for the whole game: the bag
+## type's capacity curve at the instance's level plus the storage attributes it inherited plus the
+## item's Pocket x 6 (BagCapacity). Ordinary gear keeps its def's bag_slots.
 static func bag_bonus(s: ItemStack) -> int:
-	if s == null or s.def() == null:
-		return 0
-	var r := ItemDef.rules()
-	var p: Variant = s.attributes.get("pocket", 0)
-	var lv := clampi(int(p), 0, int(r.get("max_pocket_level", 60))) if (p is int or p is float) else 0
-	return s.def().bag_slots + lv * int(r.get("pocket_slots_per_level", 6))
+	return int(BagCapacity.of_stack(s).get("total", 0))
 
 ## Base slots plus every worn item's bonus, counted from what is worn now (so nothing adds twice).
 ## The server keeps worn gear in its bag by index (int form), which adds nothing.
 static func capacity(inv: Inventory) -> int:
-	var n := inv.base_slots
-	for slot: String in inv.equipment:
-		if inv.equipment[slot] is ItemStack:
-			n += bag_bonus(inv.equipment[slot])
-	return n
+	return BagCapacity.count(inv)
 
 ## Resize to `cap`. A smaller bag first moves single items out of the cut tail into free slots below
 ## it, and refuses (changing nothing) when they do not fit or a multi-slot item is in the tail.
