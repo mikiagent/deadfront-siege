@@ -234,7 +234,9 @@ func _grant_out(me: int, rid: String, ts: int) -> void:
 			return
 	_end(ts) # granted, or the vault never let go
 
-## The roster cap (W2-SKILLS' single function once it merges); a method so tests can lower it.
+## The roster cap: W2-SKILLS' single function (spec 09: 3 + Animal Handling I-IV, at most 7);
+## a method so tests can lower it. A server process has no local player, so it gets 3.
+# shortcut: Data.bonded_cap() reads the local player's nodes; per character once W3-SRVACT moves nodes to the server.
 func _bonded_cap() -> int:
 	return Data.bonded_cap()
 

@@ -52,16 +52,15 @@ class FlakyEngine extends MarketEngine:
 			return {}
 		return super._dispatch(op, me, a)
 
-## Pack 09's cap set by the test (3 is what W2-SKILLS gives a server without skill nodes), so
-## the full-roster cases run on a base whose Data.bonded_cap() is unlimited.
+## Pack 09's cap: W2-SKILLS' own (VaultBridge._bonded_cap) until the test lowers it.
 class CappedBridge extends VaultBridge:
-	var cap := 3
+	var cap := -1 ## -1: the production cap
 
 	func _init(e: EconStore, c: CharacterStore) -> void:
 		super(e, c)
 
 	func _bonded_cap() -> int:
-		return cap
+		return super() if cap < 0 else cap
 
 ## Collects push_warning text, to see that a refused client op was logged.
 class Warnings extends Logger:
@@ -529,20 +528,23 @@ func _test_pets_and_cages() -> bool:
 ## Pack 09 (review r3 m2): a bought pet is a bond forming, so its withdrawal is refused while
 ## the buyer's roster is at the cap and the pet stays in the vault. Review r5 m3: a pet coming
 ## back from a deposit the vault refused is an old bond, so it comes home even over the cap (a
-## skill reset keeps existing pets, pack 09). CappedBridge sets the cap; at W2-SKILLS' merge
-## VaultBridge._bonded_cap() reads its function and Data.bonded_cap() is 3 here too.
+## skill reset keeps existing pets, pack 09). The full roster runs on W2-SKILLS' cap
+## (Data.bonded_cap(): 3 with no skill nodes); CappedBridge only lowers it for the reset.
 func _test_bonded_cap() -> bool:
 	var rig := _rig("bonded", 0, true)
 	var b := CappedBridge.new(rig.econ, rig.chars)
+	var cap := b._bonded_cap()
+	if not _expect(cap == 3, "the bridge's bonded cap is W2-SKILLS' spec 09 base with no Animal Handling nodes (3, got %d)" % cap):
+		return false
 	var pid := _tame(b, 1, "compy_sold")
 	_ok(b, "vault.deposit", 1, {"pet_uid": pid})
 	var lid := str(_ok(b, "market.list_fixed", 1, {"asset": {"uid": pid}, "unit_price": 40, "duration_h": 24}).listing.id)
 	_ok(b, "market.buy", 2, {"listing_id": lid, "count": 1})
-	for i in b.cap:
+	for i in cap:
 		_tame(b, 2, "compy_own_%d" % i)
 	var roster := (b.chars.character(2).d.pets as Dictionary).size()
 	var refused := _op(b, "vault.withdraw", 2, {"uid": pid})
-	_expect(refused.get("err") == "limit_reached" and b.econ.engine.L.acct(2).vault_pets.has(pid) and (b.chars.character(2).d.pets as Dictionary).size() == roster, "a full roster (%d of %d) refuses a bought pet, which stays in the vault (%s)" % [roster, b.cap, refused.get("err", "ok")])
+	_expect(refused.get("err") == "limit_reached" and b.econ.engine.L.acct(2).vault_pets.has(pid) and (b.chars.character(2).d.pets as Dictionary).size() == roster, "a full roster (%d of %d) refuses a bought pet, which stays in the vault (%s)" % [roster, cap, refused.get("err", "ok")])
 	# A skill reset lowers the cap under the roster; the vault then faults on a pet deposit.
 	b.cap = 1
 	var own := str((b.chars.character(2).d.pets as Dictionary).keys()[0])
@@ -553,7 +555,7 @@ func _test_bonded_cap() -> bool:
 	var dep := _op(b, "vault.deposit", 2, {"pet_uid": own})
 	var home := (b.chars.character(2).d.pets as Dictionary).has(own)
 	_expect(not dep.ok and home and _stuck(b) == "" and (b.chars.character(2).d.pets as Dictionary).size() == roster, "a refused deposit brings the pet home over the cap (%d of %d), the bridge serving: deposit=%s home=%s stuck='%s'" % [roster, b.cap, dep.get("err", "ok"), home, _stuck(b)])
-	print("[econ-bridge] bonded cap=3 roster=%d withdraw=%s kept_in_vault=%s refused_deposit_over_cap=%s home=%s stuck='%s'" % [roster, refused.get("err", "ok"), b.econ.engine.L.acct(2).vault_pets.has(pid), dep.get("err", "ok"), home, _stuck(b)])
+	print("[econ-bridge] bonded cap=%d (Data.bonded_cap) roster=%d withdraw=%s kept_in_vault=%s refused_deposit_over_cap=%s home=%s stuck='%s'" % [cap, roster, refused.get("err", "ok"), b.econ.engine.L.acct(2).vault_pets.has(pid), dep.get("err", "ok"), home, _stuck(b)])
 	return true
 
 func _test_crash_recovery() -> bool:

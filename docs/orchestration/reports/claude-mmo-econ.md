@@ -14,7 +14,62 @@ committed during the derailed resume, so every r3 claim was re-run here, and the
 was checked against the packages that merge before ECON. Eighth pass (2026-10-20): review
 r4's blocker (a recovery rid reused once uids come home) and its minors. Ninth pass
 (2026-10-20): review r5's blocker (a client could plant char.grant's rid), the bound-coin
-listing fee, and its minors; read "Ninth pass" first, then "Eighth pass".
+listing fee, and its minors. Tenth pass (2026-10-21, resumed run): review r4 relayed again;
+every item was already fixed at ba9937fd, so this pass merged the moved base (W2-SKILLS,
+W2-DATA, WATER), did the bonded-cap sync step and re-ran every gate. Read "Tenth pass" first,
+then "Ninth pass" and "Eighth pass".
+
+## Tenth pass (2026-10-21, resumed run): base merge, bonded-cap sync, r4 re-verified
+
+The run prompt relayed review r4 (1 blocker, 1 major acceptance item, 5 minors). All of them
+were fixed at ba9937fd (eighth pass, table below that section), and r5's fixes followed at
+283d2aad. Nothing in r4 was wrong, so no item needed counter-evidence. The base had moved 113 commits
+(cecc936b -> ddaab662: W2-SKILLS, W2-DATA, WATER). It is merged at 3ac9216f with no conflicts.
+
+| r4 item | Where it is fixed | Evidence on the merged base (scratch tree `econ-r6-gates` at c5cc7318 + hooks, through gslot) |
+|---|---|---|
+| B / M: recovery rid `recover-<uid>` reused once uids come home (duplication) | ba9937fd: rid `recover-<uid>-<econ seq>`, client `recover-` rids refused, `_out_of_vault` sets `broken` if the uid is still in the vault | Reviewer's r4 probe file, run unchanged: `[probe p1] crash 2: recover='' in_bag=true in_vault=false broken=[]`, no DUP line, `[probe] harness failures: []`. t_econ: `[econ-bridge] same uid twice crash=in_vault=false fault=in_vault=false seeded_rids=bad_request,bad_request` |
+| m1: char.grant mint guard untested | ba9937fd, `_test_client_gate` | `[econ-bridge] gate ... grant_over_out=invalid_asset grant_pet=bad_request`; probe `[probe p2] server char.grant with nothing out: invalid_asset (exported 0)` |
+| m2: bonded-cap test cannot fail on the base | **Sync step done here** (c5cc7318). W2-SKILLS merged, so `VaultBridge._bonded_cap()` -> `Data.bonded_cap()` is a real cap. The full-roster case now runs on it. `CappedBridge` returns the production cap unless the test lowers it, which it does only for the skill-reset case. | `[econ-bridge] bonded cap=3 (Data.bonded_cap) roster=3 withdraw=limit_reached kept_in_vault=true refused_deposit_over_cap=server_error home=true stuck=''`. Mutation 1, the pre-W2-SKILLS unlimited cap (`_bonded_cap` returns 2147483647): `[t_econ] FAIL the bridge's bonded cap is W2-SKILLS' spec 09 base with no Animal Handling nodes (3, got 2147483647)`. Mutation 2, cap check removed from `_withdraw`: `[t_econ] FAIL a full roster (3 of 3) refuses a bought pet, which stays in the vault (ok)` |
+| m3: contract 6.1 vs kind `pet` | Orchestrator item, unchanged (see the eighth and ninth passes) | (none) |
+| m4: trade lock on wall clock | `# ASSUMPTION`, unchanged; switches to play time once W3 or NET reports it | probe `[probe p5] ... order_in_lock=limit_reached order_after=insufficient_funds spend_bound=ok` |
+| m5: `EconArgs.is_id` dead | Deleted at ba9937fd; `grep -rn "is_id(" game/` finds nothing | (none) |
+
+**Integrator: one limit of the merged cap.** `Data.bonded_cap()` reads `PlayerRegistry.local()`.
+A server process has no local player, so it gets 3 for every account. That is the right
+answer while skill nodes are client-side. A process that hosts the books and also has a local
+player would apply that player's Animal Handling nodes to every buyer. W2-SKILLS already says
+the server-side cap comes with W3-SRVACT. At that point `VaultBridge._bonded_cap()` should read
+the withdrawing character's own nodes. It is marked `# shortcut:` in `vault_bridge.gd`.
+
+### Hooks patch (tenth pass)
+
+Regenerated on ddaab662 (f7b4d9ea). Only the two `index` lines changed. The hooked files on the
+branch equal the base's, and `git apply --check` is clean on `claude/mmo-overhaul`. It still
+touches only `intent_handlers.gd` and `run_all.gd`.
+
+### Acceptance (tenth pass)
+
+The gate tree is mkscratch `econ-r6-gates` at c5cc7318 with the hooks patch applied. Its
+`--import` log has 0 SCRIPT ERROR / "Failed" lines. f7b4d9ea differs from it only in the patch's
+index lines. Every run went through gslot.
+
+- All 23 `game/tests/t_*.gd` exit 0 with their PASS line: t_ai, t_build, t_canim, t_combat, t_data
+  (`PASS items=223 recipes=155`), t_econ, t_harbour (`PASS islands=15`), t_iconart, t_items, t_light,
+  t_lighting, t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui,
+  t_uiicons, t_w2_skills, t_water and t_web. t_save prints its 5 deliberate SCRIPT ERRORs; every
+  other test prints 0. None prints "couldn't resolve track".
+- `t_econ.gd`: `[t_econ] PASS`; fuzz
+  `[econ-bridge] fuzz 3600 ops, 11 restarts mid-move, invariants of both stores after every op (coins issued 3580, sink 598)`.
+  Its 8 ERROR lines all read `deliberate fault in vault.*` (bonded cap, recover-any-time, same uid twice).
+- `run_all.gd`: `[tests] PASS`. Its two SCRIPT ERROR lines follow
+  `[econ] fault test: the next SCRIPT ERROR and ERROR lines are deliberate`, as before.
+- `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips`: the same 25 files before and after (the
+  folder was pruned since the ninth pass's count of 34).
+- Labs and screenshots: none, because ECON is server-side and has no UI.
+- **Crash mid-escrow and recovery cannot duplicate or lose assets**: probe p1 above, plus
+  `crash ... consistent=true` and `same uid twice crash=in_vault=false fault=in_vault=false`.
 
 ## Ninth pass (2026-10-20, review r5): char.grant's rid is the server's
 

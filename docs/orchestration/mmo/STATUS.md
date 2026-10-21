@@ -46,6 +46,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 | finish-6 | 2026-10-20 night, new session (owner program prompt, priority 1): wf_c321f8a4-028, script `handoff/workflows/finish-6.js`. Fix -> independent review (branch + hooks) -> blind A/B for visual -> base sync + delta review -> one serialized integrator that pushes. Merge order W2-DATA -> W2-SKILLS -> W2-INV -> W2-PROCESS -> W2-GATHER -> W2-BUILDSYS -> ECON; alongside W2-RAGDOLL, ICONS2 and new FORGEART (forge/anvil Blender models, after W2-DATA). Orchestrator grants: W2-SKILLS owns the single bonded-cap function and the taming_pen bond refusal (W2-BREED not running); ICONS2 may change t_iconart.gd. Review trees: scratchpad mkscratch.sh. Resumed once (same run id) after a docs check: ten fixes the docs settle were added to W2-DATA, W2-SKILLS, W2-INV, W2-PROCESS, W2-GATHER, W2-BUILDSYS and ECON (`vision-check.md`, which also ranks the next core-loop packages). Resumed a second time at 18:58: the first resume ran in the turn of an owner question, which the Workflow tool relays to every agent as overriding, so agents answered it, skipped gates or stopped (W2-INV with a false owner gate). Every result since then is redone; W2-INV's vision scope is ruled (crafting default picks only, spec 05:23); unmet acceptance items now reach the implementer | stopped 19:05 (owner: graceful stop), resumed on the owner's "continue" running |
 | invui | 2026-10-20 night: owner spec 13 (Durango Bag, Character -> Gear, Equipment / My Info), wf_cdb79ed1-deb, script `handoff/workflows/invui.js`, branch claude/mmo-invui stacked on claude/mmo-w2-inv: scouts -> design (invui-spec.md, bag_ui_lab, t_invui) -> builds B1 bag+inspect, B2 character/gear, B3 storage/cargo/picker, B4 polish -> reviewer + fidelity judge vs the Durango references + blind A/B. Ends ready-to-merge; integrated after W2-INV lands | stopped 19:05 after the scouts, resumed on "continue"; running |
 | exchange | 2026-10-20 night: owner spec 14 (Island Market: HUD > Main Menu > Island Market > Buy / My Market / Sell), wf_4cbd48e0-5b9, script `handoff/workflows/exchange.js`, branch claude/mmo-exchange stacked on claude/mmo-econ: scouts -> design (transport decision; one owner question if single-player selling needs server-owned characters) -> B1 shell+Buy, B2 Sell, B3 My Market, B4 polish -> reviewer + fidelity judge vs the market references. Ends ready-to-merge; integrated after ECON (and INVUI) | stopped 19:05 during the scouts, resumed on "continue"; running |
+| owner refs | 2026-10-20 night, one run per owner reference: island/map check wf_a8231c29-144 (read-only, specs 15; plan only); HUD-DAYNIGHT wf_985adb37-366 (spec 16, `claude/mmo-hud-daynight`); WATER wf_3b444b00-9ee (spec 17, `claude/mmo-water`); DOMAIN wf_bd458c96-ec8 (spec 18, `claude/mmo-domain`); INVUI resumed with the spec 13 storage addendum. Scripts in `handoff/workflows/`. Each ends ready-to-merge; merged one at a time after finish-6's chain | running |
 | 1 | W1-LIGHT, SAVE, TAME, AI, CANIM, COMBAT, BUILD, ITEMS, SRVDOM, QA, UI, ICONART, WEB, BIOME, STRUCTART (each `claude/mmo-w1-<key>`) | launching, reviewer-gated, blind A/B judge on visual packages |
 | 2a | W2-PLAYER (player split + PlayerActions), W2-BREED (breeding, growth, mutations, capture rule 09, bonded cap 3->7), W2-ECO (ecosystem, structure targeting) in claude/mmo-w2-<key>; builders hand mechanical parts to dsc sub-worktrees | running (wf_e4b5bc5d-f50) |
 | 2a+ | W2-OCCLUDE: shared see-through occlusion (tall trees, later roofs/walls; roof fades when the survivor is under it) | running (wf_6986c1a3-c0c) |
@@ -345,9 +346,116 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   (socket transport; a local server for dev and tests until a host is picked) and shows an honest "market offline" state in
   offline single-player. It does NOT move single-player characters into a server store to make offline selling work.
 
+- 2026-10-20 (owner) island scale, shape and map UI reference: "To give you an idea of the scale and shape of an island, as well
+  as the UI" (`docs/design/durango-prompts/15_island_map_scale.md`, `docs/reference/durango-island-map.webp`): a Durango Lv. 10
+  island about 165 x 215 m with an irregular coastline, and the map screen (fog of war, island info panel with climate, life span,
+  fatigue and its rate, difficulty laurel, scale bar, domain label, legend, To Harbor / To Waypoint). Being compared with our
+  islands (home 160 m; unstable 240 m by the design doc, about 480 m as generated) and map_screen.gd before a package is planned.
+
+- 2026-10-20 (owner) "We don't have the day/night cycle component in the UI next to the map" (`docs/design/durango-prompts/16_hud_day_night_dial.md`,
+  `docs/reference/durango-hud-daynight.webp`): a day/night dial beside the minimap reading Game.time_of_day / phase_name.
+  Package HUD-DAYNIGHT (`claude/mmo-hud-daynight`).
+
+- 2026-10-20 (owner) "when next to water, menu items pop up like washing and drinking" (`docs/design/durango-prompts/17_water_context_actions.md`,
+  `docs/reference/durango-water-actions.webp`): Drink / Wash (and Fill container if a container item exists) appear whenever the survivor
+  is next to or in fresh water, with the PRD's effects (drink cuts heat fatigue / Quenched; wash clears Dirty; statuses, not meters).
+  Package WATER (`claude/mmo-water`).
+
+- 2026-10-20 (owner) three references (`docs/reference/durango-{domain-claims,storage-transfer,house-4x4}.webp`):
+  (1) "When entering player's claimed regions, it says 'Player's Domain' with their profile picture" (spec 18): package DOMAIN, a domain banner
+  with the owner's portrait plus the dotted claim edge; (2) "Another example of the inventory menu" (spec 13 addendum): the storage view with
+  Bag | Small Box tabs, "N Select", category column, attribute chips and Transfer to Bag, fed into INVUI B3/B4 and its fidelity judge;
+  (3) "Our house building system may be more robust than the original game, i will look into this. See this house is only 4x4": the owner
+  is evaluating; W2-BUILDSYS is unchanged until the owner decides.
+
+- 2026-10-20 (owner) "This is what the player creation page looks like" (`docs/design/durango-prompts/19_character_creation.md`,
+  `docs/reference/durango-character-creation.png`): Durango's Gender/Profession screen. Package CHARCREATE (`claude/mmo-charcreate`) restyles
+  the existing character_creation.gd (occupations, gender, name already work). A male survivor model needs owner-approved concept art first. Owner added step 2 ("You can choose the size and profile pic, 3D model"):
+  CHARCREATE (wf_423a264e-02f, script `handoff/workflows/charcreate.js`) also builds Create Character - size slider, a portrait RENDERED from the
+  player's model with Pattern/Background Color (the canonical PortraitService; DOMAIN/INVUI adapt at their sync), appearance/colour options the
+  model really supports.
+  Owner then listed "height, hairstyles, skin color, facial hair/features", "outfit color" and "enter name" (spec 19 last section): CHARCREATE also
+  builds the Color tab (skin, outfit 1-3, eye, lip through texture masks), the Name step (1-20 chars, letters/digits/space/-/.) and data-driven
+  hairstyle/facial-hair/feature slots; CHAR-APPEARANCE plan (wf_05041ba1-aa5, read-only, no spend) plans that art and a male base.
+
+- 2026-10-20 (owner) "region chat" (`docs/design/durango-prompts/20_region_chat.md`, `docs/reference/durango-region-chat.webp`): Durango chat screen
+  (Region / System channels, New Group, gold names, emotes, relative times, Enter message / + / Send). Run NET+CHAT: finish the network core
+  (`claude/mmo-net`: sync the base, fix, review; it is the market's online path too) and build the chat screen on it (`claude/mmo-chat`).
+
+- 2026-10-20 island/map check done (`islandmap-check.md`).
+  Findings:
+  - Our home island is 134 x 131 m. Unstable islands are 406 x 404 m. All islands are near-round discs, from only 4 heightmaps.
+  - The atlas is a flat pixel map with no fog, info panel or scale bar.
+  - The travel menu is a vertical text list, not the Sail chart.
+  Packages queued, in this order:
+  - SAILUI: the rightward Sail chart. It is the cheapest visible win.
+  - MAPUI: the painted map with fog of war and the island info panel.
+  - ISLANDSHAPE: seeded, elongated, ragged islands. This waits for the owner's answer on island size.
+  Assumptions until the owner says otherwise: keep our 14 fixed islands on the chart, and "To Harbor" / "To Waypoint" auto-walk (no new mechanic).
+- 2026-10-20 (owner) "example of tall trees and transparency" (`docs/design/durango-prompts/21_tall_trees_transparency.md`): it matches the merged
+  W2-OCCLUDE rule. A visual check of our build against it is running.
+
+- 2026-10-20 (owner) "notice the game ui and how the resource gathering looks. The finger icon is a walkthrough guide" (spec 22):
+  - Gather hexes show the gather time and the yield per part.
+  - A tutorial pointing hand guides the current order step.
+  A comparison with our gather radial and Orders tracker is running. GATHERUI follows W2-GATHER's merge; GUIDE (the finger) can start sooner.
+
+- 2026-10-20 (owner) "the cage icon should look like there's a dino inside": CAGEICON (wf_fd47200c-882, `claude/mmo-cageicon` stacked on ICONS2)
+  re-renders captured_animal with a real dinosaur mesh inside the cage. Blind naming judges at 48 px and full size must see a dinosaur and a cage,
+  an A/B judge must prefer it over the old render, and captured vs tamed must be distinct at 48 px. It merges right after ICONS2.
+- 2026-10-20 CHAR-APPEARANCE plan (`char-appearance-plan.md`).
+  - The shipped v2 survivor is male; the missing base is a female v2.
+  - APPEAR-A (wf_c94a70f4-71e, 0 credits): hair split into its own piece (current, buzz, bald, short crop), helmet shells, facial-hair decals plus 2 shell beards, feature decals.
+  - CHARCREATE does the colour masks with the plan's geometry method.
+  - Settled from the docs, so not owner questions: muted palettes per STYLE.md; tied-back hair only until the rig has hair bones; facial features start as free decals; the creation screen keeps the tee-and-shorts base layer.
+  - Needs the owner: concept sheets CA-01..04, 4 Tripo hairstyles (cap 300), a female v2 base (cap 250), occupation outfits later.
+- 2026-10-20 checks (`tree-and-gather-checks.md`).
+  - Tree fade: right strength, not a hole.
+  - Gaps: forest density (about 4 trees per hectare on unstable islands against 24 at home, almost no understory), hard dark shadows, trunks fade with the crown.
+  - Gather hexes: the shown time is static and will be wrong after W2-GATHER; the count means passes left; hexes sit far apart and jump while walking.
+  - No tutorial pointer exists. GUIDE (wf_987c83ae-267) builds the walkthrough finger.
+  - Backlog, in order: GATHERUI (after W2-GATHER merges), FOREST (density scaled to area, understory under tree clumps), OCCLUDE2 (solid trunks, per-object dither), LIGHT2 (soft sun edges, ambient 0.3 -> ~0.45, Forward+/compat colour match), MAPUI, ISLANDSHAPE (after the owner's island-size answer).
+- 2026-10-20 22:45 the disk filled up: review agents made about 80 uniquely named 1.6 GB scratch trees. Cleaned to 122 GB free. mkscratch.sh now keeps at most 12 trees and refuses below 15 GB.
+
+- 2026-10-20 (owner) more references and requests, each filed as a spec with its own run:
+  - Target select and pet radial (spec 23): TARGET-PET wf_12d62955-8bb.
+    - Ruling, from the owner's newer description: tapping a wild animal selects it, the red swords hex starts combat,
+      an animal already fighting you stays engaged, and the action mode stays.
+  - Crit numbers that balloon out (spec 24): COMBATFX wf_1c0f1639-5fc.
+  - "UI glitching on resource nodes, WASD + a joystick on the left that only appears when you hold and drag, better
+    pathfinding, movement and interactions": CONTROLS wf_1178f1fd-3e0.
+  - "Stegosaurus model is wrong": the merged v2 was hidden behind a stale override. STEGO wf_56306bba-f17.
+  - "Should be a triceratops too" (from the DeepSeek bake-off) and "a newer deinonychus": CREATURE-ART wf_3a741584-856.
+    - Triceratops: the better bake-off build goes into the game.
+    - Deinonychus: a Tripo rebuild from the approved sheet v01, capped at 100 credits.
+  - "The cage icon should look like there's a dino inside": CAGEICON round 3 wf_9cde60cc-597, with an inside-the-cage judge.
+  - In-game bag panel reference (spec 13 addendum 2): fed into INVUI B4.
+  - "Resting should sit you down and heal you and lower exhaustion. It didn't work on Vercel": REST wf_3af39880-3bb.
+    It reproduces on production first; there is no standalone rest action today.
+- Side integrator (`handoff/workflows/side-int.js`): merges finished side packages one at a time with every gate, and waits while
+  finish-6's integrator runs. WATER merged (4cd47f42). Queued: HUD-DAYNIGHT, then DOMAIN, each with a pre-merge polish fix.
+- Backlog: a one-bug Codex job for the Godot exit-time SIGABRT (std::system_error from a mutex lock 0.7-10 s after launch; about 10
+  .ips reports; it shows the owner "Godot quit unexpectedly").
+- 2026-10-21 (owner) "as a rule of thumb: make it flashy. Level ups should have light effect animations." Standing art direction:
+  feedback moments (level-ups, crits, rare finds, rewards, unlocks) get light, motion and punch, readable in the web renderer and on
+  phones. Package LEVELFX (light-effect level-up animations).
+- 2026-10-21 (owner) "Also watch out for glitchy movement of UI and player." Standing quality gate: every UI or movement review and every
+  merge checks motion over frame sequences (HUD elements, labels, radials and the player must not jump, snap, stutter or swap sides
+  between frames); a measured glitch is a failure. The side integrator and new package reviews carry the gate.
+- 2026-10-21 (owner) corrections to the 2026-10-20 requests:
+  - Damage numbers, not crit balloons: "Just add damage numbers, make them small and informative but make them bigger if you hit a crit
+    or did a lot of damage", "you want them to kind of expand out and dissipate", "you can make it float up too". COMBATFX is
+    rescoped (wf_1c0f1639-5fc): small numbers that expand outward while fading and float up; crits and big hits are larger;
+    white for damage dealt, red for damage taken; no outline.
+  - "That white triceratops is not acceptable, neither is the blocky stegosaurus." The Triceratops bake-off build is rejected:
+    CREATURE-ART makes a concept sheet first, and the owner approves it before any Tripo spend. The blocky Stegosaurus is the
+    placeholder that STEGO removes, so the shipped Tripo v2 shows.
+
 ## Owner questions (open)
 
-- none
+- Female v2 survivor base (PRD: 8 occupations x 2 genders; the shipped v2 is a MAN; an earlier version of this question wrongly asked for a male base): a concept sheet for approval, then a Tripo mesh plus refitting the 3 armour kits, about 250 credits? Before or after extra hairstyles (4 Tripo styles, cap 300)? (2026-10-20; unanswered)
+- Painted portrait set like Durango's (15+ faces): new art; which source, if any? Until then portraits are rendered from the player's model.
+- Island size target (asked 2026-10-20; unanswered): match Durango (~300 x 375 m, recommended), the design doc (160 home / 240 unstable), or keep ours (134 home / 406 unstable) with ragged shapes only? ISLANDSHAPE waits for it.
 
 ## Merge log
 
@@ -364,3 +472,6 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - 2026-10-20 merged W1-UIICONS (review r3 major + 5 minors fixed; blind A/B 6/6) and its follow-up (grindstone station icon, code inventory reads player_input.gd). Merged tree: [tests] PASS; all 19 t_*.gd PASS incl. t_occlude, t_uiicons "PASS ids=169 files=114"; SMOKE PASS. Phone combat shot looked at: white icon set with captions, no colour emoji.
 - 2026-10-20 evening: owner asked for a clean stop and handoff. Every worker committed and stopped; all package branches pushed. Built but not merged (state, findings and next steps in HANDOFF.md section 3): W2-PROCESS (review blocker: pack-up destroys station contents), W2-SKILLS (review major: rev-1 goldens rewritten), W2-BUILDSYS (review not run), W2-DATA, W2-INV (save format change, owner gate), W2-GATHER, ECON (review r3 blocker; fix WIP untested), W2-RAGDOLL (3 review majors), ICONS2 (armor_scute repro). Owner decisions this session: deploy now (done, 31c064a08/2284b9bf56), push after each merge, gameplay before polish, answer design questions from durango-prompts/PRDs (spec 08: no spoil timer, ~2 in-place processing opportunities, effects from item properties), DeepSeek allowed for narrow gated jobs, walk/run animations moved to the locomotion thread.
 - 2026-10-20 DSC-QUADS2 not merged: review r1 failed (left/right legs in exact lockstep in all four clips, megaloceros run skates and tears). Tripo trial on the megaloceros (35 credits, branch claude/mmo-tripo-megaloceros, not pushed): quadruped walk only, scissoring hind legs, no run/idle presets; not adopted.
+- 2026-10-20 merged W2-DATA (9c4226c8): Stone-to-Steel ladder (tin, forge, anvil, 28 named tools), nets I-V, armour bands 1-60, raid kit from steel, recipe node gates (hook 6), t_data validator; hooks applied clean (be970c8c). Merged tree: all 20 t_*.gd PASS incl. "[t_data] PASS items=223 recipes=155" (t_save 5 deliberate SCRIPT ERRORs); [tests] PASS; SMOKE PASS; island_lab "nodes=397 creatures=24" (base 378; intended: corn on home grassland, wheat/tin nodes), build_lab [build] PASS, craft_lab and equip_mount_lab PASS, 0 SCRIPT ERROR, 0 "couldn't resolve track"; home_lab 1600x900 Forward+/gl_compat and 844x390 match base; no new Godot .ips; review r4 pass; pending: repairs rows have no consumer yet, W2-SKILLS rebases H1 onto hook 6
+- 2026-10-20 merged W2-SKILLS (dfcf833e, hooks 6f65f615, base docs merge 846dd6d9): Durango 1-60 trees from Lv. 1, Lv1 AUTO nodes, Animal Handling I-IV bonded cap 3-7 via Data.bonded_cap, recipe node gates via SkillRules.recipe_block (H1 replaces W2-DATA's requires_node check), save rev 2 with rev-1 migration (owner-approved); 15-file hooks applied clean. Merged tree: all 21 t_*.gd PASS incl. "[t_w2_skills] PASS", "[t_data] PASS items=223 recipes=155" (t_save 5 deliberate SCRIPT ERRORs); [tests] PASS; SMOKE PASS (both rerun after the spec 20-22 docs base merge); island_lab "nodes=397 creatures=24" (unchanged); build/craft/equip_mount labs PASS; skills_lab "[skill] PASS level-up pays 10 SP, small_field bought", capture_lab "[capture] PASS bonded+=2", ui_family_lab active_cap=3; 0 SCRIPT ERROR, 0 "couldn't resolve track"; ui_real_capture_lab [uireal] PASS 1600x900 and 844x390 gl_compat; home_lab 1600x900 Forward+/gl_compat and 844x390 match base; no new Godot .ips (34); review r8 pass + sync delta; blind A/B pass; pending: ui_real_capture_lab radial-vs-vitals check flaky at 844x390 (spawn varies; failed once, passed on rerun), --shot names containing "skills"/"tree" auto-open the skills sheet (hunt_hud.gd:92 debug hook), open owner decisions 4-7 in the W2-SKILLS report (cured-hide pacing, occupation Lv. 20 vs cap, island/capture pacing, rev-1 sp_extra), W3-SRVACT server-side gates
+- 2026-10-20 merged WATER (229719b0, merge c5f1db63, hooks 3abc6503): Drink/Wash (and Fill with an empty bucket) hexes within 2 m of fresh river water, none at the sea; Dirty/Very dirty/Thirsty/Quenched/Clean statuses; in_water from the heightmap (straight river box removed). Merge fix: t_data STATUS_ACTIONS accepts wash/drink (W2-DATA's check failed "status dirty cleared_by wash is an item or a listed action" x3). import exit 0; all 23 t_*.gd exit 0 incl. "[t_water] PASS", "[t_data] PASS items=223 recipes=155", "[t_w2_skills] PASS", t_uiicons "PASS ids=177 files=116" (t_save 5 deliberate SCRIPT ERRORs); run_all "[tests] PASS"; "SMOKE PASS"; island_lab exit 0, 0 SCRIPT ERROR, "nodes=397 creatures=24" (unchanged); build_lab "[build] PASS"; water_lab headless matches the report's after table (river_bank_1m ctx drink/wash, sea_bank_1m claim only, bank_after quenched+clean, water_bucket=1); creature_anim_lab 0 "couldn't resolve track"; home_lab 1600x900 Forward+/gl_compat and 844x390 match base (first Forward+ run showed the bag sheet open and the first phone run a passing herd; reruns match), water_lab windowed 4 configs looked at; one new Godot .ips (23:26:13) is another agent's charcreate_lab shot (cc2 b2_world_glc.log, same recursive_mutex abort), not this merge; review pass; blind A/B pass; side integrator. Pending: W3-SRVACT handlers for act.drink/act.wash/act.fill
