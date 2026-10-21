@@ -351,6 +351,10 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   fatigue and its rate, difficulty laurel, scale bar, domain label, legend, To Harbor / To Waypoint). Being compared with our
   islands (home 160 m; unstable 240 m by the design doc, about 480 m as generated) and map_screen.gd before a package is planned.
 
+- 2026-10-20 (owner) "We don't have the day/night cycle component in the UI next to the map" (`docs/design/durango-prompts/16_hud_day_night_dial.md`,
+  `docs/reference/durango-hud-daynight.webp`): a day/night dial beside the minimap reading Game.time_of_day / phase_name.
+  Package HUD-DAYNIGHT (`claude/mmo-hud-daynight`).
+
 ## Owner questions (open)
 
 - none
