@@ -3,6 +3,18 @@ extends Camera3D
 ## Fixed-angle orthographic camera that follows a target. Classic 2:1-ish
 ## isometric look: pitch -35.264, yaw 45. Zoom with the mouse wheel.
 
+## The fixed view angle everything that has to align with the camera reads (CARD2D cards are baked
+## and drawn from exactly this basis). Change these and re-bake the cards.
+## Owner 2026-10-21: 2.5D flat assets must align with the camera angle at all times.
+const PITCH_DEG := -35.264
+const YAW_DEG := 45.0
+
+## The camera's rotation, as a basis whose x = screen right, y = screen up, z = towards the viewer.
+## Built from the constants above (not from a live node) so offline tools (card_bake) and the running
+## game cannot drift apart.
+static func view_basis() -> Basis:
+	return Basis.from_euler(Vector3(deg_to_rad(PITCH_DEG), deg_to_rad(YAW_DEG), 0.0))
+
 @export var target_path: NodePath
 @export var distance: float = 40.0
 @export var follow_lerp: float = 8.0
@@ -33,7 +45,7 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--cam-size="):  # screenshot runs: start zoomed out
 			size = clampf(float(a.substr(11)), min_size, max_size)
-	rotation_degrees = Vector3(-35.264, 45.0, 0.0)
+	basis = view_basis()
 	_target = get_node_or_null(target_path) as Node3D
 	if _target:
 		global_position = _target.global_position - global_basis.z * -distance

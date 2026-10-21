@@ -9,17 +9,21 @@ extends Node3D
 ##   --mode=cards|models|split   what is drawn (cards only for the card timing, models only for theirs)
 ## Prints: [card2d] PASS kinds=<n> cards=<n> models=<n> ms_cards=<avg> ms_models=<avg>
 
-const ROWS := 10
-const COLS := 15  # 150 props a side
-const SPACING := 2.4
-const HALF_OFFSET := 18.0
+const ROWS := 12
+const COLS := 13  # ~150 props a side
+const SPACING := 1.8
+## The patches stand side by side ON SCREEN: with IsoCamera's yaw the screen's right axis is
+## (0.7071, 0, -0.7071), so a world x/-z offset separates them left/right, not diagonally.
+const SCREEN_RIGHT := Vector3(0.7071, 0.0, -0.7071)
+const SCREEN_DEPTH := Vector3(0.7071, 0.0, 0.7071)
+const HALF_OFFSET := 13.2
 ## Frames timed per phase after the switch (the first ones recompile pipelines).
 const PERF_FRAMES := 90
 const PERF_WARMUP := 20
 const FRAME_FPS := 10.0
 const FRAME_SECONDS := 3.0
 ## Trees stand at the back of each patch, so their crowns do not cover the small props.
-const TREE_ROWS := 2
+const TREE_ROWS := 1
 
 var _player: Player
 var _cam: IsoCamera
@@ -49,10 +53,12 @@ func _ready() -> void:
 	var kit := LabKit.build(self, 90.0)
 	_player = kit["player"]
 	_cam = kit["cam"]
-	_cam.size = 26.0
-	_cam.distance = 30.0
-	_player.global_position = Vector3(0, 1.05, 6.0)
-	_cam.size = 30.0
+	# Far enough out to hold both patches side by side (2 x 26 m + the gap) and the survivor between.
+	_cam.size = 34.0
+	_cam.distance = 40.0
+	# In front of both patches, on the near side of the screen (the camera sits towards +x/+z).
+	_player.global_position = SCREEN_DEPTH * (float(ROWS) * SPACING * 0.5 + 1.5) + Vector3(0, 1.05, 0)
+	_player.rotation.y = PI * 0.25
 	_cam._snap()
 	Game.debug_overlay = false
 	# Frame times, not the display's refresh rate: without this both halves read the vsync cap and
@@ -62,6 +68,10 @@ func _ready() -> void:
 	TouchControls.enabled = false
 	(kit["ui"] as CanvasLayer).visible = false
 	_build()
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--cam-size="):
+			_cam.size = float(a.substr(11))
+			_cam._snap()
 	print("[boot] lab=card2d_lab")
 	_run.call_deferred()
 
@@ -120,17 +130,24 @@ func _build() -> void:
 	var batches: Dictionary = {}
 	for row in ROWS:
 		for col in COLS:
-			var path: String = all_paths[rng.randi_range(0, all_paths.size() - 1)]
+			# Rows from the back: tall trees, then bushes, then rocks and ground cover, so the crowns
+			# of the tall props do not cover the small ones in front of them.
+			var path := ""
 			if row < TREE_ROWS:
 				path = tree_paths[rng.randi_range(0, tree_paths.size() - 1)]
 			elif row < TREE_ROWS + 3:
 				path = bush_paths[rng.randi_range(0, bush_paths.size() - 1)]
+			elif row < TREE_ROWS + 5:
+				path = rock_paths[rng.randi_range(0, rock_paths.size() - 1)]
+			else:
+				path = small_paths[rng.randi_range(0, small_paths.size() - 1)]
 			var role := _role_of(path)
 			var h := _height_for(rng, role)
-			var x := (float(col) - float(COLS - 1) * 0.5) * SPACING + rng.randf_range(-0.5, 0.5)
-			var z := (float(row) - float(ROWS - 1) * 0.5) * SPACING + rng.randf_range(-0.5, 0.5)
-			_add_model(batches, path, Vector3(x - HALF_OFFSET, 0.0, z), h)
-			_add_card(CardProp.card_for_model(path), Vector3(x + HALF_OFFSET, 0.0, z), h)
+			var across := (float(col) - float(COLS - 1) * 0.5) * SPACING + rng.randf_range(-0.4, 0.4)
+			var deep := (float(row) - float(ROWS - 1) * 0.5) * SPACING + rng.randf_range(-0.4, 0.4)
+			var at := SCREEN_RIGHT * across + SCREEN_DEPTH * deep
+			_add_model(batches, path, at - SCREEN_RIGHT * HALF_OFFSET, h)
+			_add_card(CardProp.card_for_model(path), at + SCREEN_RIGHT * HALF_OFFSET, h)
 
 func _role_of(path: String) -> String:
 	if path.contains("tree-"):
@@ -224,8 +241,11 @@ func _capture_frames() -> void:
 	for i in n:
 		await get_tree().create_timer(1.0 / FRAME_FPS).timeout
 		await RenderingServer.frame_post_draw
+		var t0 := Time.get_ticks_msec()
 		var img := get_viewport().get_texture().get_image()
+		var t1 := Time.get_ticks_msec()
 		img.save_png(_out_frames.path_join("%03d.png" % i))
+		print("[card2d] frame %d grab=%dms save=%dms" % [i, t1 - t0, Time.get_ticks_msec() - t1])
 	print("[card2d] frames %d -> %s" % [n, _out_frames])
 
 ## Alternating phases with one half hidden; the average frame time of each is what the line reports.

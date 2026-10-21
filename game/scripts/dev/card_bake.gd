@@ -13,9 +13,6 @@ extends Node3D
 
 const DATA_PATH := "res://data/card2d.json"
 const OUT_DIR := "res://assets/nature/cards"
-## IsoCamera (scripts/camera/iso_camera.gd): rotation_degrees = (-35.264, 45, 0).
-const CAMERA_PITCH_DEG := -35.264
-const CAMERA_YAW_DEG := 45.0
 ## Framing margin around the model's projected bounds, as a share of its larger side.
 const MARGIN := 0.03
 ## Albedo alpha at or above this counts as content (the shader scissor is 0.5).
@@ -83,7 +80,8 @@ func _bake_one(id: String, path: String, res: int) -> Dictionary:
 	if box.size.length() < 0.001:
 		_fails.append("%s: empty model" % id)
 		return {}
-	var basis := Basis.from_euler(Vector3(deg_to_rad(CAMERA_PITCH_DEG), deg_to_rad(CAMERA_YAW_DEG), 0.0))
+	# The game camera's own angle, so a camera change only needs a re-bake.
+	var basis := IsoCamera.view_basis()
 	var right := basis.x
 	var up := basis.y
 	var fwd := -basis.z

@@ -19,6 +19,15 @@ uniform vec4 tint : source_color = vec4(1.0);
 uniform float rustle = 0.0;
 uniform float rustle_time = 0.0;
 uniform float alpha_scissor = 0.5;
+// Parallax (owner 2026-10-21, Durango's flat trees): the trunks stay planted while the upper parts
+// slide against the ground as the camera scrolls, more the higher they are. CardProp feeds
+// camera_focus (the camera's ground focus, world xz in .xy), camera_pitch_deg and
+// parallax_strength from project settings [card2d] until the camera package exposes them as global
+// shader parameters of the same names.
+uniform vec3 camera_focus = vec3(0.0);
+uniform float camera_pitch_deg = -35.264;
+uniform float parallax_strength = 0.055;
+uniform float card_height = 1.0;
 
 void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -32,6 +41,17 @@ void vertex() {
 	amp += rustle * 0.09 * sin(rustle_time * 26.0) * h * h;
 	VERTEX.x += amp * h * h;
 	VERTEX.z += amp * 0.35 * h * h;
+	// Parallax: the card stays planted at its ground point, and its upper part slides across the
+	// screen against the camera focus in proportion to its height, like a 3D crown would. The quad
+	// is camera-facing, so its local X/Y are the screen's right/up and MODEL_MATRIX's rows are
+	// those axes in world space (the card package reads the camera it follows).
+	vec3 ground = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	vec2 d = ground.xz - camera_focus.xy;
+	float sr = dot(vec3(d.x, 0.0, d.y), normalize(MODEL_MATRIX[0].xyz));
+	float su = dot(vec3(d.x, 0.0, d.y), normalize(MODEL_MATRIX[1].xyz));
+	float t = h * h;
+	VERTEX.x += sr * parallax_strength * t;
+	VERTEX.y += su * parallax_strength * t;
 	occl_drop = occl_drop_of(MODEL_MATRIX, INV_VIEW_MATRIX);
 }
 
@@ -45,8 +65,12 @@ void fragment() {
 	ROUGHNESS = 1.0;
 	METALLIC = 0.0;
 	SPECULAR = 0.0;
+	// See-through: the fade body's dither, strongest in the canopy, so a card hiding the survivor
+	// opens up top-down and its trunk stays readable (Durango's fading canopies).
+	float canopy = mix(0.65, 1.4, clamp(UV.y < pivot_uv.y ? (pivot_uv.y - UV.y) / max(0.001, pivot_uv.y) : 0.0, 0.0, 1.0));
+	float drop = clamp(occl_drop * canopy, 0.0, 1.0);
 	// Last, so the texture reads above keep their derivatives in every lane.
-	if (occl_drop > occl_bayer4(FRAGCOORD.xy)) {
+	if (drop > occl_bayer4(FRAGCOORD.xy)) {
 		discard;
 	}
 }

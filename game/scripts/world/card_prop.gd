@@ -1,17 +1,25 @@
 class_name CardProp
 extends Node3D
 ## CARD2D (spec 25 §1, trial): one resource prop drawn as a baked, swaying card instead of a GLB.
-## The quad is anchored at the bottom centre (its ground point) and turned to face the fixed iso
-## camera (yaw 45), so a Y-axis billboard is enough. Alpha-scissor keeps it in the opaque pass, the
-## normal map lets the moving sun shade it, and the sway lives in the vertex shader.
+## The quad is anchored at its ground point and kept PARALLEL to the camera's view plane every frame
+## (owner 2026-10-21: "make the flat assets align with the camera angle at all times"), so it is a
+## full camera-facing card, not a Y-axis billboard: the card's basis becomes the active camera's
+## basis, which also holds if the camera moves to Durango's lower angle. Alpha-scissor keeps it in
+## the opaque pass, the baked normal map lets the moving sun shade it, the sway is in the vertex
+## shader. The bake reads the angle from IsoCamera, so a camera change only needs a re-bake.
 ## Data: game/data/card2d.json. Buildings stay 3D; creatures and characters are untouched.
 
 const DATA_PATH := "res://data/card2d.json"
-## IsoCamera's yaw (scripts/camera/iso_camera.gd: rotation_degrees = (-35.264, 45, 0)).
-const CAMERA_YAW_DEG := 45.0
 const SHADER_PATH := "res://shaders/card_sway.gdshader"
+## IsoCamera's angle; the card is baked from it and turned to it every frame.
+const CAMERA_YAW_DEG := IsoCamera.YAW_DEG
 
 static var _data: Dictionary = {}
+
+var _quad: MeshInstance3D
+var _quad_size := Vector2.ONE
+var _pivot := Vector2(0.5, 1.0)
+var _basis_used: Basis = Basis()
 
 ## Parsed card2d.json, cached for the run (static data).
 static func data() -> Dictionary:
@@ -117,8 +125,10 @@ func setup(card_id: String, height_m: float = 0.0) -> bool:
 	mat.set_shader_parameter("sway_amplitude", float(params.get("amplitude", 0.0)) * sc)
 	mat.set_shader_parameter("sway_speed", float(params.get("speed", 1.0)))
 	mat.set_shader_parameter("pivot_uv", pivot)
+	mat.set_shader_parameter("card_height", height_m if height_m > 0.0 else world_size(card_id).y)
 	var w := size.x * sc
 	var h := size.y * sc
+	_pivot = pivot
 	var mi := get_node_or_null("Card") as MeshInstance3D
 	if mi == null:
 		mi = MeshInstance3D.new()
@@ -130,11 +140,73 @@ func setup(card_id: String, height_m: float = 0.0) -> bool:
 	mi.mesh = quad
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(params.get("cast_shadow", kind == "tree")) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# PlaneMesh is centred; move it so the texture's pivot pixel sits on the node origin (ground point).
-	mi.position = Vector3((0.5 - pivot.x) * w, (pivot.y - 0.5) * h, 0.0)
-	rotation = Vector3(0.0, deg_to_rad(CAMERA_YAW_DEG), 0.0)
+	# PlaneMesh is centred; its offset from the ground point follows the camera's screen axes (see
+	# _face_camera), which runs now and every frame after.
+	_quad = mi
+	_quad_size = Vector2(w, h)
+	_face_camera(IsoCamera.view_basis())
+	_feed_camera()
 	set_meta(&"card_id", card_id)
 	return true
+
+## The card's basis and offset for camera basis `b` (x = screen right, y = screen up, z = towards
+## the viewer). The pivot pixel lands on the node's origin, so the base stays planted whatever the
+## camera angle is; the plane itself is parallel to the view plane.
+func _face_camera(b: Basis) -> void:
+	if _quad == null or not is_instance_valid(_quad):
+		return
+	var pivot := _pivot
+	var right := b.x.normalized()
+	var up := b.y.normalized()
+	var fwd := b.z.normalized()
+	_quad.basis = Basis(right, up, fwd)
+	_quad.position = right * ((0.5 - pivot.x) * _quad_size.x) + up * ((pivot.y - 0.5) * _quad_size.y)
+	_basis_used = b
+
+## Re-align while the active camera's basis differs from the one last applied (also covers a camera
+## that switches from orthographic iso to a perspective Durango view: the card follows its angle).
+func _process(_delta: float) -> void:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null:
+		return
+	var b := cam.global_basis.orthonormalized()
+	if _basis_used == null or not _basis_used.is_equal_approx(b):
+		_face_camera(b)
+	# Parallax follows the camera's ground focus as it scrolls.
+	_feed_camera()
+
+## Camera state shared by every card: computed once per frame (the first card that asks), not 150
+## times. Project settings [card2d] until the camera package publishes camera_focus /
+## camera_pitch_deg / parallax_strength as global shader parameters.
+static var _frame_seen: int = -1
+static var _focus := Vector3.ZERO
+static var _strength := 0.055
+static var _pitch := -35.264
+
+## The camera's ground focus: project the view ray forward from the camera until it meets y = 0.
+static func camera_state(cam: Camera3D) -> void:
+	if _frame_seen == Engine.get_process_frames():
+		return
+	_frame_seen = Engine.get_process_frames()
+	_strength = float(ProjectSettings.get_setting("card2d/parallax_strength", 0.055))
+	_pitch = float(ProjectSettings.get_setting("card2d/camera_pitch_deg", IsoCamera.PITCH_DEG))
+	_focus = Vector3.ZERO
+	if cam == null:
+		return
+	var f := -cam.global_basis.z
+	if absf(f.y) > 0.001:
+		_focus = cam.global_position + f * maxf(0.0, -cam.global_position.y / f.y)
+
+func _feed_camera() -> void:
+	var mi := _quad
+	if mi == null or not (mi.material_override is ShaderMaterial):
+		return
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	camera_state(cam)
+	var mat := mi.material_override as ShaderMaterial
+	mat.set_shader_parameter("camera_focus", _focus)
+	mat.set_shader_parameter("parallax_strength", _strength)
+	mat.set_shader_parameter("camera_pitch_deg", _pitch)
 
 ## Short shiver after a gather (HarvestNode.mark_gathered calls this).
 func rustle(seconds: float = 0.6) -> void:

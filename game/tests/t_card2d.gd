@@ -150,9 +150,20 @@ func _test_card_prop() -> void:
 		return
 	var ok: bool = card.setup(id, 8.0)
 	_expect(ok, "%s sets up at 8 m" % id)
-	_expect(is_equal_approx(rad_to_deg(card.rotation.y), CP.CAMERA_YAW_DEG), "the card faces the camera yaw (%.1f°)" % rad_to_deg(card.rotation.y))
-	_expect(is_equal_approx(rad_to_deg(card.rotation.y), 45.0), "the camera yaw is 45°")
 	var mi: MeshInstance3D = card.get_node_or_null("Card")
+	# Full camera-facing (owner: align with the camera angle at all times), not a Y-axis billboard:
+	# the quad's basis is the camera's, read from IsoCamera rather than hard-coded.
+	var view: Basis = IsoCamera.view_basis()
+	var qb: Basis = mi.global_basis.orthonormalized() if mi else Basis()
+	_expect(mi != null and qb.z.is_equal_approx(view.z), "the card's normal is the camera's forward (\u00b7=%.4f)" % qb.z.dot(view.z))
+	_expect(absf(qb.y.dot(view.y)) > 0.999, "the card's up is the camera's up")
+	_expect(absf(qb.x.dot(view.x)) > 0.999, "the card's right is the camera's right")
+	_expect(mi != null and is_equal_approx(qb.y.y, cos(deg_to_rad(IsoCamera.PITCH_DEG))), "the card is tilted with the camera's pitch (y=%.3f), not vertical" % qb.y.y)
+	# The card follows a camera whose angle differs (the Durango-angle package can change it).
+	var other := Basis.from_euler(Vector3(deg_to_rad(-18.0), deg_to_rad(30.0), 0.0))
+	card._face_camera(other)
+	_expect((mi.global_basis.orthonormalized().z).is_equal_approx(other.z), "the card re-aligns to another camera basis")
+	card._face_camera(view)
 	_expect(mi != null and mi.mesh != null, "the card has its quad")
 	if mi and mi.mesh:
 		var aabb := mi.get_aabb()
@@ -167,9 +178,12 @@ func _test_card_prop() -> void:
 		var bottom: float = mi.position.y - aabb.size.y * 0.5
 		var top: float = mi.position.y + aabb.size.y * 0.5
 		_expect(bottom < -0.01 and top > 0.01, "the ground line (y=0) crosses the quad (%.2f .. %.2f)" % [bottom, top])
-		_expect(is_equal_approx(top, pivot.y * quad_h), "the ground line is at %.2f of the texture's height" % pivot.y)
-		_expect(is_equal_approx(mi.position.x, (0.5 - pivot.x) * aabb.size.x), "the pivot column sits on the origin")
 		_expect(pivot.x > 0.0 and pivot.x < 1.0, "pivot u is inside the quad")
+		# The pivot pixel sits exactly on the node origin (the ground point stays planted).
+		var right: Vector3 = view.x.normalized()
+		var up: Vector3 = view.y.normalized()
+		var pivot_world: Vector3 = card.global_position + mi.position + right * ((pivot.x - 0.5) * aabb.size.x) + up * ((0.5 - pivot.y) * aabb.size.y)
+		_expect(pivot_world.distance_to(card.global_position) < 0.02, "the texture's pivot pixel is the ground point (%.3f m off)" % pivot_world.distance_to(card.global_position))
 		_expect(api.size.y > 8.0 or is_equal_approx(quad_h, 8.0), "the quad is at least as tall as the content")
 	var mat := mi.material_override as ShaderMaterial if mi else null
 	_expect(mat != null, "the card has its sway material")
