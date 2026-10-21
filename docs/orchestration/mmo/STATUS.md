@@ -374,6 +374,9 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   CHARCREATE (wf_423a264e-02f, script `handoff/workflows/charcreate.js`) also builds Create Character - size slider, a portrait RENDERED from the
   player's model with Pattern/Background Color (the canonical PortraitService; DOMAIN/INVUI adapt at their sync), appearance/colour options the
   model really supports.
+  Owner then listed "height, hairstyles, skin color, facial hair/features", "outfit color" and "enter name" (spec 19 last section): CHARCREATE also
+  builds the Color tab (skin, outfit 1-3, eye, lip through texture masks), the Name step (1-20 chars, letters/digits/space/-/.) and data-driven
+  hairstyle/facial-hair/feature slots; CHAR-APPEARANCE plan (wf_05041ba1-aa5, read-only, no spend) plans that art and a male base.
 
 ## Owner questions (open)
 

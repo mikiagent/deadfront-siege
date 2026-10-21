@@ -41,3 +41,13 @@ Reference: `docs/reference/durango-create-character.png`. The rest of this secti
 - **Our gaps:**
   - We have no painted portrait art. A painted set is new art, and the owner chooses its source.
   - Our only survivor model is female, and the owner has not yet answered whether to make a male one.
+
+## Appearance list, Color tab and Name step (owner, same day)
+
+Owner's words, verbatim, in order: "height, hairstyles, skin color, facial hair/features", "outfit color", "enter name". The last two came with screenshots that were not saved to disk. The rest of this section is the orchestrator's reading of them.
+
+- **Color tab.** Swatches down the left: Skin Color, Outfit Color 1, Outfit Color 2, Outfit Color 3 (selected in a gold hex outline), Eye Color and Lip Color. On the right is a grid of hex colour swatches in rows of greys, browns, oranges, reds, pinks and purples, the chosen one with a gold border and a check. The model wears a hoodie and trousers whose colours follow the outfit slots. The column of clothing toggles, the size slider, Next and the randomise die are as in step 2.
+- **Name step.** A "Name" header with a back arrow. The live 3D model is on the left half; the right half has "Enter the character's name.", a wide grey text field, a ? help line "Can use up to 20 characters, including spaces and special characters such as - and .", and a yellow OK button.
+- **Split of the work.**
+  - CHARCREATE builds height, the colour slots (through texture masks), the Name step, and data-driven slots for hairstyle, facial hair and facial features.
+  - CHAR-APPEARANCE (a plan only, no spend) works out the art for those slots and for a male base model. The plan ends in a concept brief for the owner to approve.
