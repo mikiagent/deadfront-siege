@@ -1,7 +1,7 @@
 class_name PlayerActions
 extends RefCounted
 ## The survivor's command layer: every verb that changes the bag, gear, the world or a creature
-## (gather, loot, craft, place, equip, eat, tame, attack) goes through here. Offline each verb
+## (gather, loot, craft, place, equip, eat, tame, attack, drink, wash) goes through here. Offline each verb
 ## applies locally exactly as before. Online (W3-SRVACT) the same call becomes an `act.<verb>`
 ## intent for the server (contracts.md section 0.3) and nothing changes locally until the
 ## server's delta arrives. To add a verb (W2-ACTION: swing, dodge, block, aim): add one method
@@ -186,6 +186,7 @@ func finish_gather() -> void:
 		World.add_xp(2)
 	p.toast(stack.def_id, gained)
 	p.vitals.add_fatigue(GATHER_FATIGUE_PER_UNIT, &"gather")
+	WaterAccess.soil(p, &"gather")
 	if gt.pool_units_left() <= 0:
 		stop_gather_cycle()
 		p.gather_target = null
@@ -383,7 +384,7 @@ func _corpse_take_timer(corpse: Corpse, slot: int) -> void:
 	p.get_tree().create_timer(CORPSE_TAKE_SECONDS).timeout.connect(func () -> void: loot(corpse, slot))
 
 ## Move one corpse loot stack into the bag. Only what fits moves; the rest stays in the corpse
-## (sec-loss-08), and Butchering XP is paid once, only when units moved (sec-xpfarm-07).
+## (sec-loss-08), and Butchering XP is paid only when units moved (sec-xpfarm-07), once per drop kind.
 func loot(corpse: Corpse, slot: int) -> int:
 	if corpse == null or not is_instance_valid(corpse) or slot < 0 or slot >= corpse.loot.slot_count:
 		return 0
@@ -400,12 +401,32 @@ func loot(corpse: Corpse, slot: int) -> int:
 		return 0
 	p.inventory.wear_gather_tool(&"knife")
 	print("[item] +%d %s (loot %s)" % [moved, def_id, corpse.species])
-	if p.skills:
-		p.skills.add_xp("butchering", 3)
-	else:
-		World.add_xp(3)
+	if corpse.first_take_of(def_id): # W2-INV: once per drop kind, not per instance taken
+		if p.skills:
+			p.skills.add_xp("butchering", 3)
+		else:
+			World.add_xp(3)
+		WaterAccess.soil(p, &"butcher") # one loot stack's grime (water.json), per kind as XP is
 	p.toast(def_id, moved)
 	return moved
+
+# ---------------------------------------------------------------- water (spec 17)
+
+## Drink, wash, or fill an empty bucket at fresh water (PRD :105, :314). The rules are WaterAccess's.
+func drink() -> bool:
+	if online:
+		return _send(&"drink", {})
+	return WaterAccess.drink(p)
+
+func wash() -> bool:
+	if online:
+		return _send(&"wash", {})
+	return WaterAccess.wash(p)
+
+func fill_water() -> bool:
+	if online:
+		return _send(&"fill", {})
+	return WaterAccess.fill(p)
 
 # ---------------------------------------------------------------- craft, eat, equip, place
 
@@ -550,14 +571,18 @@ func claim() -> void:
 	var rt := World.runtime
 	if rt == null or not rt.has_method("claim_at"):
 		return
-	if not World.is_home():
-		if World.free_claim_used:
-			if not p.inventory.consume(&"claim_stake", 1):
-				print("[world] claim refused: needs claim_stake")
-				return
-		World.free_claim_used = true
+	var stake := not World.is_home() and World.free_claim_used
+	if stake and p.inventory.count_of(&"claim_stake") < 1:
+		print("[world] claim refused: needs claim_stake")
+		return
 	if not rt.claim_at(BuildGrid.tile_of(p.global_position)):
-		print("[world] claim refused: not dry land")
+		print("[world] claim refused: not dry land, or another survivor's")
+		return
+	# Paid only once the plot is yours: a refused claim keeps the stake (and the free first plot).
+	if stake:
+		p.inventory.consume(&"claim_stake", 1)
+	if not World.is_home():
+		World.free_claim_used = true
 
 # ---------------------------------------------------------------- structures
 

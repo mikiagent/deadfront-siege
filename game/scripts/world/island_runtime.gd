@@ -20,7 +20,6 @@ var raining: bool:
 var _size: float = 240.0
 var _res: int = 65
 var _heights: PackedFloat32Array = PackedFloat32Array()
-var _wet_area: Area3D
 var _climate: String = "temperate"
 var _tier: int = 25
 var _level_override: int = 0
@@ -32,6 +31,8 @@ var _crater_hint: Vector3 = Vector3.ZERO
 var _ridge_dir: Vector2 = Vector2.RIGHT
 var _tile_span: int = 0
 var tile_types: PackedByteArray = PackedByteArray()
+## 1 on the river's MUD tiles as built; IslandTerrain.fresh_water_at_world reads it, harvesting never changes it.
+var fresh_water: PackedByteArray = PackedByteArray()
 var _tile_map_image: Image
 var _tile_map_tex: ImageTexture
 var _terrain_mat: ShaderMaterial
@@ -50,8 +51,9 @@ var _tree_discs: MultiMeshInstance3D
 var _tree_disc_xforms: Array[Transform3D] = []
 var _batches: Array[VegBatch] = []
 var claims: Array[Rect2i] = []
+## Other players' land here: {"rect": Rect2i, "owner": {"id", "name"}}; only IslandClaims.set_others writes it.
+var other_claims: Array[Dictionary] = []
 var _claim_mesh: MeshInstance3D
-var _claim_mat: StandardMaterial3D
 
 func land_radius() -> float:
 	return _size * 0.38
@@ -100,7 +102,6 @@ func build(def: Dictionary, terrain: StringName) -> void:
 	sun = lighting.sun
 	world_env = lighting.world_env
 	IslandTerrain.build(self, size, _climate)
-	_river_trigger()
 	IslandTerrain.bake_nav(self)
 	build_grid = BuildGrid.new()
 	build_grid.name = "BuildGrid"
@@ -189,26 +190,6 @@ func material_level(pos: Vector3, tier: int) -> int:
 	var row: Dictionary = rings.get(str(ring_name(pos)), {})
 	var off := int(row.get("level_offset", 0))
 	return clampi(tier + off, 1, int(Data.world_rules.get("level_cap", 60)))
-
-func _river_trigger() -> void:
-	_wet_area = Area3D.new()
-	_wet_area.name = "Wet"
-	_wet_area.monitoring = true
-	var cs := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(_size, 2.0, 10.0)
-	cs.shape = box
-	cs.position.y = -0.2
-	_wet_area.add_child(cs)
-	_wet_area.body_entered.connect(func (b: Node) -> void:
-		if b is Player:
-			(b as Player).in_water = true
-	)
-	_wet_area.body_exited.connect(func (b: Node) -> void:
-		if b is Player:
-			(b as Player).in_water = false
-	)
-	add_child(_wet_area)
 
 func _setup_pathing() -> void:
 	if pathing and is_instance_valid(pathing):
@@ -411,6 +392,14 @@ func is_claimed(tile: Vector2i) -> bool:
 ## Claim a 14x14 plot centred on the tile; returns false when it overlaps water or an existing claim centre.
 func claim_at(tile: Vector2i, size: int = 14) -> bool:
 	return IslandClaims.claim_at(self, tile, size)
+
+## Whose land the tile is, {} when nobody's (IslandClaims.owner_at).
+func owner_at(tile: Vector2i) -> Dictionary:
+	return IslandClaims.owner_at(self, tile)
+
+## Other players' claims on this island, replacing the last set (IslandClaims.set_others).
+func set_other_claims(rows: Array) -> void:
+	IslandClaims.set_others(self, rows)
 
 # Kept for labs, the HUD and has_method() callers that reach into the runtime.
 func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringName, tool: StringName, climate: String, level: int, color: Color) -> int:

@@ -10,6 +10,7 @@ extends Control
 var player: Player
 var _font: Font
 var _minimap: Control
+var _daynight: DayNightDial  ## docked to the minimap's bottom-left edge, under the desktop quest card
 var _map_tex: ImageTexture
 var _map_island: StringName = &""
 var _map_span: int = 0
@@ -39,6 +40,7 @@ var _combat_alpha: float = 0.0
 var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
 var _stance_label: Label
 var _events := HudEventState.new()
+var _domain := DomainBanner.new()  ## spec 18: "<owner>'s Domain" on walking into claimed land
 var _ctx_hexes: Array[HexButton] = []
 var _ctx_ids: Array = []
 var _ctx_timer: float = 0.0
@@ -80,6 +82,8 @@ func _ready() -> void:
 	if TouchControls:
 		TouchControls.hud_mode = true
 	_build_minimap()
+	_daynight = DayNightDial.new()
+	add_child(_daynight)
 	_build_fatigue_panel()
 	_build_menu_row()
 	_build_combat()
@@ -146,6 +150,7 @@ func _layout() -> void:
 	var r := get_viewport_rect().size
 	var inset := _safe_insets()
 	_minimap.position = Vector2(r.x - MAP_PX - 16.0 - inset.x, 34.0 + inset.z)
+	_daynight.dock(_minimap.get_rect())
 	var y := r.y - HEX - CAPTION_H - 14.0 - inset.y  # captions sit under the hexes, inside the safe area
 	var x := 16.0 + inset.w
 	for h in [_menu_hex, _pets_hex, _build_hex, _skills_hex]:
@@ -158,7 +163,7 @@ func _layout() -> void:
 	if UiTokens.is_phone(r):
 		_inspect_hex.position = Vector2(r.x - HEX - 16.0 - inset.x, r.y - HEX * 2.0 - 36.0 - inset.y)
 	else:
-		_inspect_hex.position = Vector2(_minimap.position.x - 56.0 - 12.0, _minimap.position.y + (MAP_PX - 56.0) * 0.5)
+		_inspect_hex.position = Vector2(_minimap.position.x - 12.0 - 56.0, _daynight.position.y + DayNightDial.DISC + 8.0)  # under the dial
 	# Chase joins the quick-food row (slot 2): at the rail's left edge it sat on the first food hex.
 	_chase_hex.position = Vector2(16.0 + inset.w + 2.0 * (HEX + 10.0), y - HEX - CAPTION_H - 12.0)
 	if HudLayout.landscape_phone(r):
@@ -967,6 +972,7 @@ func _process(delta: float) -> void:
 		if _levelup_t > 6.5:
 			_levelup_t = -1.0
 	_events.tick(delta)
+	_domain.tick(delta, World.runtime, player.global_position)
 	_minimap.queue_redraw()
 	queue_redraw()
 
@@ -1026,7 +1032,8 @@ func _draw() -> void:
 		var sx0 := sx
 		for inst in player.statuses.instances():
 			HudStatusChip.draw(self, _font, Vector2(sx, sy), inst.id, Color(1, 0.75, 0.45))
-			draw_string(_font, Vector2(sx, sy + 40), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UiTokens.META)
+			if inst.time_left < 3600.0:  # "until washed / treated" statuses (9999 s) show no countdown
+				draw_string(_font, Vector2(sx, sy + 40), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UiTokens.META)
 			sx += 30
 		if sx > sx0:
 			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - 4.0, 44.0)
@@ -1039,8 +1046,8 @@ func _draw() -> void:
 	drawn_blocks["map_title"] = Rect2(mp.x, mp.y - 16.0 - meta_px, MAP_PX, meta_px + 4.0)
 	var tile := BuildGrid.tile_of(player.global_position)
 	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 16), "X %d  Y %d" % [tile.x, tile.y], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
-	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 32), "%s  %s" % [Game.clock_label(), Game.phase_name()], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
-	drawn_blocks["map_text"] = Rect2(mp.x, mp.y + MAP_PX + 16.0 - meta_px, MAP_PX, 16.0 + meta_px + 4.0)
+	# The clock and phase line moved into the day/night dial's label: the dial shows the phase already.
+	drawn_blocks["map_text"] = Rect2(mp.x, mp.y + MAP_PX + 16.0 - meta_px, MAP_PX, meta_px + 4.0)
 	# The target plate (current hunt target, else the last creature attacked while it lives) and the
 	# level-up banner take over the landscape phone's centre band from the quest card while they show.
 	var plate_t: Creature = player.hunt.target if (player.hunt and player.hunt.target and is_instance_valid(player.hunt.target)) else null
@@ -1088,6 +1095,8 @@ func _draw() -> void:
 				stack = lr if not stack.has_area() else stack.merge(lr)
 				ly += float(line[1]) + 8.0
 			drawn_blocks["levelup"] = stack
+	# --- the domain banner, before the moving text so it keeps off the banner
+	_domain.draw(self)
 	# --- pickup toasts near the top-centre, rising and fading, then the notices: each takes the nearest
 	# free spot up or down its column, off every block and hex (on a landscape phone they crossed the
 	# quest card at y 100-128). On a phone the toasts stack under the vitals instead: in the centre

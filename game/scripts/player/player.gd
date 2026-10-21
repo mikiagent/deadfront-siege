@@ -30,7 +30,7 @@ var controls: PlayerInput
 var actions: PlayerActions
 var pets: PlayerPets
 
-var inventory: Inventory = Inventory.new(20)
+var inventory: Inventory = Inventory.new() # Inventory.BASE_SLOTS (pack 05)
 var vitals: Vitals
 var statuses: StatusEffects
 var hunt: Hunt
@@ -47,6 +47,7 @@ var mounted_on: Creature
 ## Saddled mounts (mount.json): the rig follows the saddle bone while this is set.
 var _saddle_view: CreatureView
 var rolling: bool = false
+## Feet under the water plane (river or sea); PlayerSim sets it every physics frame (WaterAccess).
 var in_water: bool = false
 ## The climate of the island the survivor is on, set by the island each frame. The fatigue panel reads it.
 var current_climate: String = ""
@@ -337,6 +338,7 @@ func receive_creature_hit(who: Creature, _clip: StringName) -> void:
 	if skills:
 		skills.add_xp("defense", 1)
 	vitals.add_fatigue(2.0, &"combat")
+	WaterAccess.soil(self, &"hit")
 	_flinch()
 	sim.on_hit()
 
@@ -453,4 +455,5 @@ func tick_climate_fatigue(delta: float, climate: String) -> void:
 	var group := "heat" if Game.phase_name() == &"day" else "cold"
 	var points := float(short[group])
 	if points > 0.0:
-		vitals.add_fatigue(delta * points * (per_min / 60.0), StringName("climate_" + group))
+		var mult := statuses.heat_fatigue_mult() if group == "heat" else 1.0  # Quenched (PRD :314)
+		vitals.add_fatigue(delta * points * (per_min / 60.0) * mult, StringName("climate_" + group))

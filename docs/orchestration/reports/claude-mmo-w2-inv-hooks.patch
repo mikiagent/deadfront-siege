@@ -1,0 +1,4121 @@
+diff --git a/game/scripts/core/save_game.gd b/game/scripts/core/save_game.gd
+index 2ac1e244..479f1713 100644
+--- a/game/scripts/core/save_game.gd
++++ b/game/scripts/core/save_game.gd
+@@ -260,7 +260,8 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
+ 		seat.y = World.runtime.surface_y(pos.x, pos.z) + 1.0
+ 	player.global_position = seat
+ 	print("[world] loaded player at %s (saved y=%.2f)" % [seat.snapped(Vector3.ONE * 0.1), pos.y])
+-	player.inventory.load_array(data.get("player", {}).get("inventory", []))
++	# Legacy stacks split into instances; what no longer fits the bag goes to home cargo (W2-INV).
++	player.inventory.load_array(data.get("player", {}).get("inventory", []), World.cargo_home)
+ 	var extras: Variant = data.get("player", {}).get("inventory_extras", null)
+ 	if extras is Dictionary:
+ 		player.inventory.extras_from_dict(extras as Dictionary)
+@@ -276,6 +277,17 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
+ 			var rec := PetRecord.from_dict(row)
+ 			if rec != null: # an aborted from_dict would otherwise break every later save_now
+ 				player.bonded.append(rec)
++	# W2-INV (spec 05:20/26): building contents and pet bags load on their own; a uid one of them
++	# repeats (an edited save) is reminted, so every instance has one location.
++	var held: Array = [World.cargo_home, player.inventory]
++	for n in host.get_tree().get_nodes_in_group("placed_building"):
++		if not n.is_queued_for_deletion() and World.runtime and World.runtime.is_ancestor_of(n): # not the old island's
++			held.append(n.get("storage"))
++	for rec in player.bonded:
++		held.append(rec.bag)
++	var reminted := InventoryMigration.unique_uids(held)
++	if reminted > 0:
++		print("[inv] load: %d duplicate uids reminted" % reminted)
+ 	# Field growth catch-up (same offline window as tent rest).
+ 	if elapsed > 0 and World.runtime:
+ 		for n in World.runtime.get_tree().get_nodes_in_group("field"):
+diff --git a/game/scripts/core/save_restore.gd b/game/scripts/core/save_restore.gd
+index ac920efc..d4663088 100644
+--- a/game/scripts/core/save_restore.gd
++++ b/game/scripts/core/save_restore.gd
+@@ -109,20 +109,28 @@ static func _items_of(row: Dictionary, kit: StringName) -> Array[ItemStack]:
+ 	return back
+ 
+ ## All or nothing: tried on a scratch copy of the cargo first, so a partial fit never drops items.
++## A refund bigger than the whole cargo (W2-INV: a legacy stacked row, e.g. stone x200, splits into
++## one instance per slot) would wait forever, so the cargo grows for it, as the migration overflow does.
+ static func _refund(row: Dictionary, kit: StringName, why: String) -> void:
+ 	var back := _items_of(row, kit)
+-	var scratch := Inventory.new(World.cargo_home.slot_count)
+-	scratch.load_array(World.cargo_home.to_array())
+-	var left := 0
+-	for stack in back:
+-		left += scratch.add(stack.duplicate_stack())
+-	if left > 0:
++	var left := _left_over(back, World.cargo_home.to_array())
++	if left > 0 and _left_over(back, []) == 0:
+ 		pending_refunds.append(row)
+ 		print("[save] kept %s at %s (%s) for a later refund: camp cargo is short of room for %d items" % [row.get("kind", "?"), cell_of(row), why, left])
+ 		return
++	var slots_before := World.cargo_home.slot_count
+ 	for stack in back:
+-		World.cargo_home.add(stack)
+-	print("[save] refunded %s at %s (%s): %d stacks to camp cargo" % [row.get("kind", "?"), cell_of(row), why, back.size()])
++		World.cargo_home.add_growing(stack)
++	print("[save] refunded %s at %s (%s): %d stacks to camp cargo (%d -> %d slots)" % [row.get("kind", "?"), cell_of(row), why, back.size(), slots_before, World.cargo_home.slot_count])
++
++## Units of `back` that do not fit a cargo-sized container holding `rows`.
++static func _left_over(back: Array[ItemStack], rows: Array) -> int:
++	var scratch := Inventory.new(World.cargo_home.slot_count)
++	scratch.load_array(rows)
++	var left := 0
++	for stack in back:
++		left += scratch.add(stack.duplicate_stack())
++	return left
+ 
+ static func _normalize(row: Dictionary, schema: int) -> Dictionary:
+ 	var out := row.duplicate(true)
+diff --git a/game/scripts/core/save_sanitizer.gd b/game/scripts/core/save_sanitizer.gd
+index 456a21c8..e95cce81 100644
+--- a/game/scripts/core/save_sanitizer.gd
++++ b/game/scripts/core/save_sanitizer.gd
+@@ -20,7 +20,7 @@ static var abort_for_test := false
+ ## Expected type of each field the loader reads; the value is only a type sample. A field of the
+ ## wrong type is erased so the loader's own default applies.
+ const SHAPE := {
+-	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "quick_food": [], "tool_index": 0}, "position": []},
++	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0}, "position": []},
+ 	"pets": [], "ground_snares": [], "skills": {}, "skills_v2": {},
+ 	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}},
+ 	"away": {"buildings": [], "claims": []}, "pending_refunds": [],
+@@ -66,6 +66,14 @@ static func clean(data: Dictionary) -> Dictionary:
+ 		for slot in (equipment as Dictionary).keys():
+ 			if Data.item(StringName(str(equipment[slot]))) == null:
+ 				(equipment as Dictionary).erase(slot)
++	var worn: Variant = extras.get("worn", {})
++	if worn is Dictionary:
++		for slot in (worn as Dictionary).keys():
++			var row: Variant = _stack(worn[slot])
++			if row == null:
++				(worn as Dictionary).erase(slot)
++			else:
++				worn[slot] = row
+ 	if player.has("position") and not _is_position(player["position"]):
+ 		player["position"] = DEFAULT_POSITION.duplicate()
+ 	var vitals: Dictionary = player.get("vitals", {})
+@@ -150,7 +158,8 @@ static func _stack(row: Variant) -> Variant:
+ 		var count := _num(s["count"], -1.0, 1e9, -1.0)
+ 		if count < 1.0:
+ 			return null
+-		s["count"] = mini(int(count), maxi(1, def.stack_max))
++		# A pre-W2-INV row may still hold a legacy stack; Inventory.load_array splits it into instances.
++		s["count"] = mini(int(count), maxi(1, def.legacy_stack_max))
+ 	if s.has("level"):
+ 		s["level"] = _int(s["level"], 1, MAX_LEVEL)
+ 	if s.has("process_count"):
+diff --git a/game/scripts/creatures/corpse.gd b/game/scripts/creatures/corpse.gd
+index 13185501..24a7dbb6 100644
+--- a/game/scripts/creatures/corpse.gd
++++ b/game/scripts/creatures/corpse.gd
+@@ -15,9 +15,12 @@ var _tap_s: float = -999.0
+ var _fading: bool = false
+ var _emptied: bool = false
+ var poison_spoiled: bool = false
+-## Loot units left when Butchering XP was last paid; a take only pays when units really moved
+-## (a full bag used to pay +3 XP per tap with nothing taken).
+-var _units_paid: int = 0
++## Loot units per drop kind at the last take, and the kinds Butchering XP was paid for: 3 XP per
++## kind, the first time any of it leaves the loot. A take only pays when units really moved (a full
++## bag used to pay +3 XP per tap with nothing taken); with one instance per unit (W2-INV) a take
++## of each item must not pay per unit, so item takes and Take all pay the same.
++var _units_seen: Dictionary = {}
++var _paid_kinds: Dictionary = {}
+ 
+ func setup(c: Creature) -> void:
+ 	level = maxi(1, int(c.get("level")) if c.get("level") != null else 1)
+@@ -43,7 +46,7 @@ func _ready() -> void:
+ 	cs.position.y = 0.4
+ 	add_child(cs)
+ 	_place_on_tile()
+-	_units_paid = _units()
++	_units_seen = _kind_units()
+ 	if _owner:
+ 		_owner.visible = true
+ 		_owner.collision_layer = 0
+@@ -72,7 +75,7 @@ func open_loot(player: Player) -> void:
+ 		if player.has_method("notice"):
+ 			player.notice("Nothing left on the %s." % species_display_name().to_lower())
+ 		return
+-	_units_paid = _units()
++	_units_seen = _kind_units()
+ 	var why := can_butcher(player.inventory)
+ 	var readonly := "needs knife" if why == "need tool knife" else ""
+ 	player.ui.show_storage(loot, player, {
+@@ -153,17 +156,17 @@ func _roll_loot() -> void:
+ 		# Preserve the defeated creature's material quality. The catalogue base
+ 		# is a default for spawned items, not the quality of an earned corpse.
+ 		attrs["level"] = level
+-		loot.add(ItemStack.make(item_id, n, attrs, level))
++		loot.add_growing(ItemStack.make(item_id, n, attrs, level)) # W2-INV: n instances, none dropped
+ 
+ func _on_take_from_loot() -> void:
+ 	# Taking from the chest screen trains Butchering (and so the player level), once per take
+ 	# that actually moved units out of the loot.
+-	var left := _units()
+-	var moved := left < _units_paid
+-	_units_paid = left
++	var now := _kind_units()
+ 	var p := PlayerRegistry.local()
+-	if moved and p and p.skills:
+-		p.skills.add_xp("butchering", 3)
++	for k: StringName in _units_seen:
++		if p and p.skills and int(now.get(k, 0)) < int(_units_seen[k]) and first_take_of(k):
++			p.skills.add_xp("butchering", 3)
++	_units_seen = now
+ 	if _is_empty():
+ 		_on_loot_empty()
+ 
+@@ -175,11 +178,18 @@ func _on_loot_empty() -> void:
+ func _is_empty() -> bool:
+ 	return loot.used_slots() <= 0
+ 
+-func _units() -> int:
+-	var n := 0
++## True once per drop kind: the take that pays its Butchering XP (radial loot and the chest screen).
++func first_take_of(def_id: StringName) -> bool:
++	if _paid_kinds.has(def_id):
++		return false
++	_paid_kinds[def_id] = true
++	return true
++
++func _kind_units() -> Dictionary:
++	var n := {}
+ 	for st in loot.slots:
+ 		if st:
+-			n += st.count
++			n[st.def_id] = int(n.get(st.def_id, 0)) + st.count
+ 	return n
+ 
+ ## Dropped loot on the floor: a billboard loot-bag symbol with the top item's icon over it,
+diff --git a/game/scripts/dev/cargo_capacity_probe.gd b/game/scripts/dev/cargo_capacity_probe.gd
+index 5a10d8bb..a3daa81e 100644
+--- a/game/scripts/dev/cargo_capacity_probe.gd
++++ b/game/scripts/dev/cargo_capacity_probe.gd
+@@ -3,6 +3,11 @@ var failures:=0
+ func check(ok:bool,label:String)->void:
+ 	print("[cargocapacity] %s %s" % ["PASS" if ok else "FAIL",label])
+ 	if not ok:failures+=1
++## True when every black_iron in inv has the given unstable flag.
++func ore_unstable(inv:Inventory,want:bool)->bool:
++	for s in inv.slots:
++		if s and s.def_id==&"black_iron" and s.is_unstable()!=want:return false
++	return true
+ func run(host:Node)->void:
+ 	await get_tree().create_timer(0.8).timeout
+ 	for n in get_tree().root.find_children("CharacterCreation","CharacterCreation",true,false):n.queue_free()
+@@ -10,22 +15,22 @@ func run(host:Node)->void:
+ 	World.load_island(host,&"volcanic_60",Vector3(0,1,18),false)
+ 	await get_tree().create_timer(0.5).timeout
+ 	var p := PlayerRegistry.local()
+-	p.inventory=Inventory.new(3)
++	# W2-INV: ore does not stack, so 8 ore are 8 bag slots and cargo room is counted in free slots.
++	p.inventory=Inventory.new(10)
+ 	var ore:=ItemStack.make(&"black_iron",8,{},55)
+ 	ore.set_flag(&"unstable",true)
+-	p.inventory.add(ore)
++	check(p.inventory.add(ore)==0 and p.inventory.used_slots()==8,"8 unstable ore fill 8 bag slots")
+ 	World.cargo_home=Inventory.new(1)
+ 	World.cargo_home.add(ItemStack.make(&"stone",1))
+ 	World.t_stones=20
+ 	World.cargo_warp(p)
+ 	check(p.inventory.count_of(&"black_iron")==8 and World.t_stones==20,"full cargo preserves all ore and no fee")
+-	World.cargo_home=Inventory.new(1)
+-	var cap:=Data.item(&"black_iron").stack_max
+-	World.cargo_home.add(ItemStack.make(&"black_iron",cap-2,{},55))
++	World.cargo_home=Inventory.new(3)
++	World.cargo_home.add(ItemStack.make(&"stone",1))
+ 	World.cargo_warp(p)
+-	check(p.inventory.count_of(&"black_iron")==6 and World.cargo_home.count_of(&"black_iron")==cap and World.t_stones==18,"partial shipment preserves6unstable remainder,2Tfee")
+-	check(p.inventory.slots[0].is_unstable() and not World.cargo_home.slots[0].is_unstable(),"only accepted cargo stabilizes")
+-	World.cargo_home=Inventory.new(1)
++	check(p.inventory.count_of(&"black_iron")==6 and World.cargo_home.count_of(&"black_iron")==2 and World.t_stones==18,"partial shipment preserves6unstable remainder,2Tfee")
++	check(ore_unstable(p.inventory,true) and ore_unstable(World.cargo_home,false),"only accepted cargo stabilizes")
++	World.cargo_home=Inventory.new(6)
+ 	World.cargo_warp(p)
+ 	check(p.inventory.count_of(&"black_iron")==0 and World.cargo_home.count_of(&"black_iron")==6 and World.t_stones==16,"whole shipment retained and2Tfee")
+ 	print("[cargocapacity] failures%d seeded capacity fixture, not earned cargo" % failures)
+diff --git a/game/scripts/dev/craft_lab.gd b/game/scripts/dev/craft_lab.gd
+index 0b840a23..1a1c4dac 100644
+--- a/game/scripts/dev/craft_lab.gd
++++ b/game/scripts/dev/craft_lab.gd
+@@ -264,18 +264,30 @@ func _full_bag_craft() -> void:
+ 	var out := Crafting.craft(_player, rec, Crafting.default_picks(_player.inventory, rec))
+ 	var hud := get_tree().get_first_node_in_group("hud")
+ 	var notices := str(hud.get("_events").notices) if hud and hud.get("_events") else ""
+-	_check(out == null and _player.inventory.to_array() == before, "full bag: craft refused, inputs unchanged")
++	# W2-INV: inputs are one instance per slot, so spending them frees the slot the knife needs.
++	_check(out != null and _player.inventory.count_of(&"stone_knife_work") == 1 and _player.inventory.count_of(&"stone") == 1, "full bag: the craft goes through on the slots its inputs free")
++	_check(not notices.contains("Bag is full"), "full bag: no refusal notice")
++	# Sashimi makes 3 instances from 1 meat: a full bag refuses before consuming (sec-loss-08).
++	_empty_bag()
++	_player.inventory.add(ItemStack.make(&"raw_meat", 1, {}, 1))
++	_fill_bag()
++	_player.global_position = _bonfire.global_position + Vector3(0.8, 0, 0)
++	before = _player.inventory.to_array()
++	var sashimi := Crafting.recipe(&"sashimi")
++	out = Crafting.craft(_player, sashimi, Crafting.default_picks(_player.inventory, sashimi))
++	notices = str(hud.get("_events").notices) if hud and hud.get("_events") else ""
++	_check(out == null and _player.inventory.to_array() == before, "full bag: a 3-instance craft is refused, inputs unchanged")
+ 	_check(notices.contains("Bag is full"), "full bag: refusal notice shown")
+ 
+ ## Start a skewer at `fire` with one meat and one branch (level 4) in an otherwise empty bag.
+-func _start_skewer(fire: Node3D, meat: int = 1, branch: int = 1) -> StationCraft:
++func _start_skewer(fire: Node3D, meat: int = 1, branch: int = 1, recipe: StringName = &"skewer") -> StationCraft:
+ 	var sc := _player.station_craft
+ 	_empty_bag()
+ 	_player.inventory.add(ItemStack.make(&"raw_meat", meat, {}, 4))
+ 	_player.inventory.add(ItemStack.make(&"branch", branch, {}, 4))
+ 	_player.global_position = fire.global_position + Vector3(0.8, 0, 0)
+ 	sc.station = fire
+-	sc._begin_recipe(&"skewer")
++	sc._begin_recipe(recipe)
+ 	_player.clear_nav()
+ 	sc._start_craft_cycle()
+ 	return sc
+@@ -299,20 +311,28 @@ func _recipe_switch_refunds() -> void:
+ 	sc.cancel_and_refund()
+ 
+ ## The bag fills up during the craft: the finished craft waits at 100 % with its inputs, then
+-## completes once a slot frees up.
++## completes once there is room. A skewer needs only the slot its inputs free (W2-INV: one instance
++## per slot); sashimi makes 3 instances from 1 meat, so it waits for two more.
+ func _finish_waits_for_room() -> void:
+-	# Two of each, so consuming one of each frees no slot for the skewer.
+ 	var sc := _start_skewer(_bonfire, 2, 2)
+ 	_fill_bag()
+ 	sc.progress = 0.99
+ 	sc._process(0.1)
++	_check(not sc.crafting and _inputs_home(1, 1) and _player.inventory.count_of(&"skewer") == 1, "a finished skewer with a full bag lands in the slot its inputs freed")
++	sc = _start_skewer(_bonfire, 1, 0, &"sashimi")
++	_fill_bag()
++	sc.progress = 0.99
++	sc._process(0.1)
+ 	var hud := get_tree().get_first_node_in_group("hud")
+ 	var notices := str(hud.get("_events").notices) if hud and hud.get("_events") else ""
+-	_check(sc.crafting and _inputs_home(2, 2) and _player.inventory.count_of(&"skewer") == 0, "a finished craft with a full bag waits, inputs untouched")
+-	_check(notices.contains("make room to finish"), "the wait tells the player to make room")
++	_check(sc.crafting and _inputs_home(1, 0) and _player.inventory.count_of(&"sashimi") == 0, "a finished sashimi with a full bag waits, the meat untouched")
++	_check(notices.contains("make room to finish the Sashimi"), "the wait tells the player to make room")
+ 	_player.inventory.remove_at(_player.inventory.slot_count - 1, 1)
+ 	sc._process(FULL_RETRY)
+-	_check(not sc.crafting and _player.inventory.count_of(&"skewer") == 1 and _inputs_home(1, 1), "it finishes once a slot frees up")
++	_check(sc.crafting and _player.inventory.count_of(&"sashimi") == 0, "one freed slot is not enough: it still waits")
++	_player.inventory.remove_at(_player.inventory.slot_count - 2, 1)
++	sc._process(FULL_RETRY)
++	_check(not sc.crafting and _player.inventory.count_of(&"sashimi") == 3 and _inputs_home(0, 0), "it finishes once there is room for all 3")
+ 
+ const FULL_RETRY := StationCraft.FULL_RETRY_S + 0.05
+ 
+diff --git a/game/scripts/dev/raid_gear_probe.gd b/game/scripts/dev/raid_gear_probe.gd
+index 90daf5a4..11bbaeea 100644
+--- a/game/scripts/dev/raid_gear_probe.gd
++++ b/game/scripts/dev/raid_gear_probe.gd
+@@ -24,11 +24,11 @@ func run(_host: Node) -> void:
+ 	# Raid recipes need the steel rung's skill nodes (W2-DATA requires_node).
+ 	player.skills.trees["weapon_tools"]["unlocked"].append("iron_weapons")
+ 	player.skills.trees["tailoring"]["unlocked"].append("scute_armor")
+-	player.inventory = Inventory.new(40)
+-	player.inventory.add(stack(&"steel_ingot", 20))
+-	player.inventory.add(stack(&"branch", 10))
+-	player.inventory.add(stack(&"hide_strap", 30))
+-	player.inventory.add(stack(&"dried_hide", 30))
++	# W2-INV: materials do not stack; 20 + 10 + 30 + 30 = 90 instances need the 100-slot bag.
++	player.inventory = Inventory.new()
++	var left := player.inventory.add(stack(&"steel_ingot", 20)) + player.inventory.add(stack(&"branch", 10))
++	left += player.inventory.add(stack(&"hide_strap", 30)) + player.inventory.add(stack(&"dried_hide", 30))
++	check(left == 0, "every kit material fits the bag (left over %d)" % left)
+ 	for id in [&"raid_maul", &"raid_helm", &"raid_cuirass", &"raid_greaves"]:
+ 		var rec := Crafting.recipe(id)
+ 		var picks := Crafting.default_picks(player.inventory, rec)
+@@ -122,10 +122,9 @@ func run(_host: Node) -> void:
+ 	check(player.dead and hits >= 4 and hits <= 6, "real boss contact kills in4-6 landed hits")
+ 	player.inventory.unequip(&"head")
+ 	check(not player.inventory.has_raid_protection(), "incomplete kit loses status protection")
+-	var inv := Inventory.new(10)
+-	inv.add(stack(&"steel_ingot", 4, 10))
+-	inv.add(stack(&"branch", 2, 10))
+-	inv.add(stack(&"hide_strap", 4, 10))
++	var inv := Inventory.new(10)  # 4 + 2 + 4 = 10 instances: fills it exactly
++	left = inv.add(stack(&"steel_ingot", 4, 10)) + inv.add(stack(&"branch", 2, 10)) + inv.add(stack(&"hide_strap", 4, 10))
++	check(left == 0, "low level materials fit the 10-slot bag (left over %d)" % left)
+ 	player.inventory = inv
+ 	check(Crafting.progression_block(player, Crafting.recipe(&"raid_maul")) != "", "low level ingredients cannot make raid gear")
+ 	print("[gear] PARTIAL real formulas/craft allocation; acquisition, station movement and raid evasions untested; failures=%d" % failures.size())
+diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
+index b0cb5782..71460f52 100644
+--- a/game/scripts/items/crafting.gd
++++ b/game/scripts/items/crafting.gd
+@@ -17,45 +17,37 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
+ 
+ ## Each recipe slot has a lead stack (for the primary item's attributes) and may draw
+ ## its remaining units from other stacks. A plan row records exact bag indices/counts.
+-## Prefer dedicated materials over dual-category ones, so fibre stalk is spent before
+-## bark that might still be needed as lashing. Leads take the largest matching stack.
++## Spec 05:23 (W2-INV): the recipe's own input (prefer_id) first, then the least valuable instance
++## (Inventory.spend_key), then dedicated materials before dual-category ones, then the lead's def;
++## a unit that a later slot still needs (a cheap reed is also the recipe's lashing) is left for it.
++## When a slot still runs short, plan again with dedicated materials first (the order before W2-INV).
++## A locked instance is spent only as the player's own pick (spec 13:229 "protect valuable items from
++## ... crafting consumption"), never as a default lead or fill.
+ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
++	var plan := _plan_ordered(inv, rec, picks, true)
++	return plan if not plan.is_empty() else _plan_ordered(inv, rec, picks, false)
++
++static func _plan_ordered(inv: Inventory, rec: Dictionary, picks: Array[int], value_first: bool) -> Array[Dictionary]:
+ 	var slots: Array = rec.get("slots", [])
+ 	if inv == null or slots.is_empty() or (not picks.is_empty() and picks.size() != slots.size()):
+ 		return []
++	var cats: Array[StringName] = []
++	var cands: Array = [] # per recipe slot: the bag slots of its category
++	for slot: Variant in slots:
++		if not slot is Dictionary:
++			return []
++		cats.append(StringName(str(slot.get("category", ""))))
++		cands.append(inv.find_by_category(cats[-1]).filter(func(idx: int) -> bool: return not inv.slots[idx].is_locked()))
+ 	var remaining: Dictionary = {}
+ 	var plan: Array[Dictionary] = []
+ 	var prefer := StringName(str(rec.get("input_id", "")))
+ 	for i in slots.size():
+-		if not slots[i] is Dictionary:
+-			return []
+ 		var slot: Dictionary = slots[i]
+-		var cat := StringName(str(slot.get("category", "")))
++		var cat := cats[i]
+ 		var need := int(slot.get("count", 1))
+ 		if need <= 0:
+ 			return []
+ 		var preferred := StringName(str(slot.get("prefer_id", prefer if i == 0 else "")))
+-		var candidates := inv.find_by_category(cat)
+-		candidates.sort_custom(func(a: int, b: int) -> bool:
+-			var sa := inv.slots[a]
+-			var sb := inv.slots[b]
+-			var pa := 1 if preferred != &"" and sa.def_id == preferred else 0
+-			var pb := 1 if preferred != &"" and sb.def_id == preferred else 0
+-			if pa != pb:
+-				return pa > pb
+-			var overlaps_a := 0
+-			var overlaps_b := 0
+-			for other in slots:
+-				var other_cat := StringName(str(other.get("category", "")))
+-				if sa.def().has_category(other_cat):
+-					overlaps_a += 1
+-				if sb.def().has_category(other_cat):
+-					overlaps_b += 1
+-			if overlaps_a != overlaps_b:
+-				return overlaps_a < overlaps_b
+-			var ca := int(remaining.get(a, sa.count))
+-			var cb := int(remaining.get(b, sb.count))
+-			return ca > cb if ca != cb else a < b)
+ 		var lead := -1
+ 		if not picks.is_empty():
+ 			lead = picks[i]
+@@ -63,18 +55,34 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+ 				return []
+ 			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
+ 				return []
+-		elif not candidates.is_empty():
+-			lead = candidates[0]
+-		if lead < 0:
++		var keys := {}
++		var candidates: Array[int] = []
++		candidates.assign(cands[i])
++		var first := -1 # the least valuable unit left: the lead when none is picked
++		for idx in candidates:
++			keys[idx] = _pick_key(inv.slots[idx], preferred, cats, value_first) + [-int(remaining.get(idx, inv.slots[idx].count)), idx]
++			if int(remaining.get(idx, inv.slots[idx].count)) > 0 and (first < 0 or keys[idx] < keys[first]):
++				first = idx
++		if first < 0:
+ 			return []
+-		var parts: Array[Dictionary] = []
+-		var order: Array[int] = [lead]
++		# Inside equal keys the lead's own def goes first, so a twine made a moment ago is not spent as
++		# the fibre of the next twine while a raw stalk ties with it (W1-SRVDOM capture checks).
++		var lead_def := inv.slots[lead if lead >= 0 else first].def_id
++		for idx in candidates:
++			(keys[idx] as Array).insert((keys[idx] as Array).size() - 2, 0 if inv.slots[idx].def_id == lead_def else 1)
++		candidates.sort_custom(func(a: int, b: int) -> bool: return keys[a] < keys[b])
++		var order: Array[int] = []
++		if lead >= 0:
++			order.append(lead)
+ 		for idx in candidates:
+ 			if idx != lead:
+ 				order.append(idx)
++		var parts: Array[Dictionary] = []
+ 		for idx in order:
+ 			var available := int(remaining.get(idx, inv.slots[idx].count))
+ 			var take := mini(need, available)
++			if value_first and idx != lead:
++				take = mini(take, _spare_for_later(inv, slots, cands, remaining, i, idx))
+ 			if take > 0:
+ 				parts.append({"idx": idx, "count": take})
+ 				remaining[idx] = available - take
+@@ -83,9 +91,33 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
+ 				break
+ 		if need > 0:
+ 			return []
+-		plan.append({"lead": lead, "parts": parts})
++		plan.append({"lead": int(parts[0].idx), "parts": parts})
+ 	return plan
+ 
++## The default-pick sort key, ascending: the recipe's own input, then value (spend_key) and the
++## number of the recipe's categories the item serves, in the order the plan pass asks for.
++static func _pick_key(s: ItemStack, preferred: StringName, cats: Array[StringName], value_first: bool) -> Array:
++	var pref := 0 if preferred != &"" and s.def_id == preferred else 1
++	var overlaps := 0
++	for c in cats:
++		if s.def().has_category(c):
++			overlaps += 1
++	var value := Inventory.spend_key(s)
++	return [pref] + value + [overlaps] if value_first else [pref, overlaps] + value
++
++## Units of bag slot `idx` that recipe slot `i` may take while every later slot keeps enough
++## candidates (spending a cheap reed as fibre must not leave the recipe's lashing short).
++static func _spare_for_later(inv: Inventory, slots: Array, cands: Array, remaining: Dictionary, i: int, idx: int) -> int:
++	var spare := 1 << 30
++	for j in range(i + 1, slots.size()):
++		if idx not in cands[j]:
++			continue
++		var supply := 0
++		for c: int in cands[j]:
++			supply += int(remaining.get(c, inv.slots[c].count))
++		spare = mini(spare, supply - int(slots[j].get("count", 1)))
++	return maxi(0, spare)
++
+ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
+ 	var plan := _plan(inv, rec)
+ 	if not plan.is_empty():
+@@ -328,7 +360,7 @@ static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burn
+ 	var primary := scratch.slots[picks[primary_index(rec)]].duplicate_stack()
+ 	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
+ 	consume_for_craft(scratch, rec, picks)
+-	return scratch.add(out) == 0
++	return scratch.can_accept(out)
+ 
+ static func refuse_full(player: Player, rec: Dictionary) -> void:
+ 	print("[craft] refused %s: bag full" % rec.get("id", ""))
+diff --git a/game/scripts/items/item_stack.gd b/game/scripts/items/item_stack.gd
+index 6a5110b8..ebfc27d8 100644
+--- a/game/scripts/items/item_stack.gd
++++ b/game/scripts/items/item_stack.gd
+@@ -151,7 +151,7 @@ func take_into(other: ItemStack) -> int:
+ func tooltip() -> String:
+ 	var d := def()
+ 	var title := d.display_name if d else str(def_id)
+-	var lines: PackedStringArray = ["%s x%d" % [title, count], "lv %d  process %d" % [level, process_count]]
++	var lines: PackedStringArray = ["%s x%d" % [title, count] if count > 1 else title, "lv %d  process %d" % [level, process_count]]
+ 	if d and d.place_as != &"":
+ 		lines.append("footprint %dx%d" % [d.footprint.x, d.footprint.y])
+ 	if d and d.has_category(&"tool"):
+@@ -180,8 +180,13 @@ func tooltip() -> String:
+ 			lines.append("buffs %s" % ", ".join(bn))
+ 	elif scaled_food_energy() != 0.0:
+ 		lines.append("energy %.1f" % scaled_food_energy())
+-	if not attributes.is_empty():
+-		lines.append("attr %s" % str(attributes))
++	# Traits by name (W2-INV): the raw attribute dict showed bookkeeping such as the tint to players.
++	var named := PackedStringArray()
++	var tr := Inventory.traits(self)
++	for k: Variant in tr:
++		named.append("%s %s" % [str(k).capitalize(), str(tr[k])])
++	if not named.is_empty():
++		lines.append(", ".join(named))
+ 	if not flags.is_empty():
+ 		var flag_s: PackedStringArray = []
+ 		for f in flags:
+diff --git a/game/scripts/player/player.gd b/game/scripts/player/player.gd
+index 27e000c5..d8fffd0e 100644
+--- a/game/scripts/player/player.gd
++++ b/game/scripts/player/player.gd
+@@ -30,7 +30,7 @@ var controls: PlayerInput
+ var actions: PlayerActions
+ var pets: PlayerPets
+ 
+-var inventory: Inventory = Inventory.new(20)
++var inventory: Inventory = Inventory.new() # Inventory.BASE_SLOTS (pack 05)
+ var vitals: Vitals
+ var statuses: StatusEffects
+ var hunt: Hunt
+diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
+index b2f961bc..e830f944 100644
+--- a/game/scripts/player/player_actions.gd
++++ b/game/scripts/player/player_actions.gd
+@@ -384,7 +384,7 @@ func _corpse_take_timer(corpse: Corpse, slot: int) -> void:
+ 	p.get_tree().create_timer(CORPSE_TAKE_SECONDS).timeout.connect(func () -> void: loot(corpse, slot))
+ 
+ ## Move one corpse loot stack into the bag. Only what fits moves; the rest stays in the corpse
+-## (sec-loss-08), and Butchering XP is paid once, only when units moved (sec-xpfarm-07).
++## (sec-loss-08), and Butchering XP is paid only when units moved (sec-xpfarm-07), once per drop kind.
+ func loot(corpse: Corpse, slot: int) -> int:
+ 	if corpse == null or not is_instance_valid(corpse) or slot < 0 or slot >= corpse.loot.slot_count:
+ 		return 0
+@@ -401,11 +401,12 @@ func loot(corpse: Corpse, slot: int) -> int:
+ 		return 0
+ 	p.inventory.wear_gather_tool(&"knife")
+ 	print("[item] +%d %s (loot %s)" % [moved, def_id, corpse.species])
+-	if p.skills:
+-		p.skills.add_xp("butchering", 3)
+-	else:
+-		World.add_xp(3)
+-	WaterAccess.soil(p, &"butcher")
++	if corpse.first_take_of(def_id): # W2-INV: once per drop kind, not per instance taken
++		if p.skills:
++			p.skills.add_xp("butchering", 3)
++		else:
++			World.add_xp(3)
++		WaterAccess.soil(p, &"butcher") # one loot stack's grime (water.json), per kind as XP is
+ 	p.toast(def_id, moved)
+ 	return moved
+ 
+diff --git a/game/scripts/server/character_state.gd b/game/scripts/server/character_state.gd
+index b69eaabb..2141d9a6 100644
+--- a/game/scripts/server/character_state.gd
++++ b/game/scripts/server/character_state.gd
+@@ -5,7 +5,7 @@ extends RefCounted
+ ## the state. Handlers never edit the bag dict directly: they get an Inventory built from it,
+ ## run the normal domain code on that, and commit() writes it back and stamps new stacks.
+ 
+-const BAG_SLOTS := 20 ## Inventory's default bag
++const BAG_SLOTS := Inventory.BASE_SLOTS
+ const LOCK := &"_slot_lock"
+ 
+ var d: Dictionary
+@@ -23,6 +23,54 @@ static func fresh(id: int, name: String, ts: int) -> Dictionary:
+ 		"wallet": 0, "pets": {}, "skills": {}, "pos": [0, 0, 0], "pos_ts": ts, "rids": {},
+ 	}
+ 
++## W2-INV migration (owner 2026-10-20, prompts 05/08): a character stored before items stopped
++## stacking. Each unit over the def's stack_max becomes its own row with the stack's origin and
++## seq; the first unit keeps the stack's uid and the k-th more gets "<uid>.<k>" (deterministic, so
++## every boot and replay agrees; minted uids never hold two dots). The bag grows to BAG_SLOTS;
++## units with no free slot go to d.storage (home storage). Nothing is deleted. Returns
++## {split: rows made, stored: {id: units}}, or {} when the character needed nothing.
++static func split_stacks(d: Dictionary) -> Dictionary:
++	var bag: Array = d.bag
++	var grew := bag.size() < BAG_SLOTS
++	if grew:
++		bag.resize(BAG_SLOTS)
++	var extra: Array = []
++	for row: Variant in bag:
++		if not row is Dictionary or str(row.get("id", "")) == str(LOCK):
++			continue
++		var def := Data.item(StringName(str(row.id)))
++		var cap: int = def.stack_max if def else int(row.count)
++		var left := int(row.count) - cap
++		# A row without a uid would give every such row the units ".1", ".2"; invariants() already
++		# flags it, so it stays as stored (nothing deleted) until an operator looks.
++		if left <= 0 or str(row.get("uid", "")) == "":
++			continue
++		row.count = cap
++		var k := 0
++		while left > 0:
++			k += 1
++			var unit: Dictionary = (row as Dictionary).duplicate(true)
++			unit.count = mini(cap, left)
++			unit.uid = "%s.%d" % [str(row.get("uid", "")), k]
++			left -= unit.count
++			extra.append(unit)
++	if extra.is_empty():
++		return {"split": 0, "stored": {}} if grew else {}
++	var stored := {}
++	var storage: Array = d.get("storage", [])
++	var free := 0
++	for unit: Dictionary in extra:
++		while free < bag.size() and bag[free] != null:
++			free += 1
++		if free < bag.size():
++			bag[free] = unit
++		else:
++			storage.append(unit)
++			stored[str(unit.id)] = int(stored.get(str(unit.id), 0)) + int(unit.count)
++	if not storage.is_empty():
++		d["storage"] = storage # ASSUMPTION: the server's home storage; W3 adds the ops that take from it
++	return {"split": extra.size(), "stored": stored}
++
+ ## A fresh Inventory over a deep copy of the bag (so a refused op cannot have touched state),
+ ## with equipment and the chosen gather tool mapped from uids to what Inventory expects.
+ func inventory() -> Inventory:
+@@ -40,7 +88,7 @@ func inventory() -> Inventory:
+ 	for slot: String in d.equipment:
+ 		var i := find_uid(str(d.equipment[slot]))
+ 		if i >= 0:
+-			inv.equipment[slot] = str(inv.slots[i].def_id)
++			inv.equipment[slot] = i # the exact worn item by bag index: two same-id items no longer share a stack
+ 	inv.equipped_tool_index = find_uid(str(d.tool))
+ 	return inv
+ 
+diff --git a/game/scripts/server/character_store.gd b/game/scripts/server/character_store.gd
+index dfb25ece..e97f1130 100644
+--- a/game/scripts/server/character_store.gd
++++ b/game/scripts/server/character_store.gd
+@@ -14,7 +14,7 @@ const VERSION := 1
+ const RIDS_KEPT := 64
+ ## The data the handlers read. Replay re-runs them, so a snapshot records this hash and boot
+ ## warns when it changed. shortcut: creature defs (tame, capture) are not hashed yet.
+-const DATA_FILES := ["res://data/items.json", "res://data/recipes.json", "res://data/combat_counters.json", "res://data/combat_tuning.json", "res://data/world/rules.json"]
++const DATA_FILES := ["res://data/items.json", "res://data/recipes.json", "res://data/combat_counters.json", "res://data/combat_tuning.json", "res://data/world/rules.json", "res://data/inventory.json"]
+ 
+ var s: Dictionary
+ var world: WorldFacade
+@@ -223,7 +223,8 @@ func open() -> String:
+ 				break
+ 			var why := replay_line(text)
+ 			if why != "":
+-				return why
++				# W2-INV: a journal written under other rules (items stacked) may not replay under these.
++				return why + ("; the data files changed since the snapshot: boot the previous build once so it snapshots, then upgrade" if data_changed else "")
+ 			if nl < 0: # a complete last line that lost only its newline: give it back
+ 				var f := FileAccess.open(path, FileAccess.READ_WRITE)
+ 				f.seek_end()
+@@ -236,11 +237,33 @@ func open() -> String:
+ 		return "cannot open journal (%d)" % FileAccess.get_open_error()
+ 	_journal.seek_end()
+ 	_ops_since = 0
++	# W2-INV: split stacked characters only after the journal replayed against the rows it was
++	# written for (a deposit of 5 from a 20-stack), then snapshot so the split is never replayed over.
++	var migrated := migrate_stacks()
+ 	if data_changed:
+ 		# The journal just replayed under new rules; snapshot so later boots do not repeat that.
+ 		push_warning("[srv] data files changed since the last snapshot; the journal replayed under the new rules")
+ 		return snapshot()
+-	return ""
++	return snapshot() if migrated > 0 else ""
++
++## W2-INV: characters stored while materials stacked get one row per unit (CharacterState.
++## split_stacks); what the 100-slot bag cannot hold goes to their home storage. Logged per
++## character. Returns how many characters changed.
++func migrate_stacks() -> int:
++	var changed := 0
++	for key: String in s.chars:
++		var got := CharacterState.split_stacks(s.chars[key])
++		if got.is_empty():
++			continue
++		changed += 1
++		s.chars[key] = norm(s.chars[key])
++		var parts := PackedStringArray()
++		var stored := 0
++		for id: String in got.stored:
++			parts.append("%s x%d" % [id, got.stored[id]])
++			stored += int(got.stored[id])
++		print("[srv] migration: char %s: bag %d slots, %d rows split from stacks, %d units to home storage%s" % [key, (s.chars[key].bag as Array).size(), got.split, stored, " (%s)" % ", ".join(parts) if not parts.is_empty() else ""])
++	return changed
+ 
+ ## Verified write of the snapshot, then a fresh journal (everything in it is now covered).
+ func snapshot() -> String:
+@@ -301,7 +324,7 @@ func invariants() -> Array[String]:
+ 	var pets := 0
+ 	for key: String in s.chars:
+ 		var ch: Dictionary = s.chars[key]
+-		for row: Variant in ch.bag:
++		for row: Variant in (ch.bag as Array) + (ch.get("storage", []) as Array): # storage: W2-INV home storage
+ 			if not row is Dictionary or str(row.id) == str(CharacterState.LOCK):
+ 				continue
+ 			if int(row.count) < 1 or int(row.durability) < 0:
+diff --git a/game/scripts/ui/inventory_ui.gd b/game/scripts/ui/inventory_ui.gd
+index c2ae65f0..8c0bc0ee 100644
+--- a/game/scripts/ui/inventory_ui.gd
++++ b/game/scripts/ui/inventory_ui.gd
+@@ -47,6 +47,11 @@ const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "
+ const INK := Color(0.95, 0.95, 0.93)
+ 
+ var _split: GridContainer
++## Visual grouping (W2-INV, prompt 05): the bag grid shows one cell per item id with a count badge;
++## a group of several opens into its instances, one cell each, behind a back cell. Instances never
++## merge. Each entry: {"slot": i} | {"group": id, "slots": [i...], "units": n} | {"back": true}.
++var _cells: Array = []
++var _open_group: StringName = &""
+ 
+ func _ready() -> void:
+ 	visible = false
+@@ -183,9 +188,9 @@ func _ready() -> void:
+ 	_tip = Label.new()
+ 	_tip.text = "Tap an item."
+ 	_tip.add_theme_color_override("font_color", INK)
++	# Not clipped: with one instance per slot its lines (level, process, attributes) are what tell
++	# two stones apart; one clipped line showed only "Stone x1..." (W2-INV bag shots).
+ 	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+-	_tip.clip_text = true
+-	_tip.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+ 	_tip.custom_minimum_size = Vector2(180, 24)
+ 	_tip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ 	col_e.add_child(_tip)
+@@ -260,8 +265,15 @@ func _slot_style(b: Button, selected: bool = false) -> void:
+ 	hov.bg_color = Color(0.16, 0.18, 0.2, 1.0)
+ 	b.add_theme_stylebox_override("hover", hov)
+ 	b.add_theme_stylebox_override("pressed", UiTokens.slot_style(true))
++	b.add_theme_stylebox_override("disabled", sb) # an empty slot stays a visible compartment
+ 	b.add_theme_color_override("font_color", UiTokens.TEXT)
+-	b.add_theme_font_size_override("font_size", 12)
++	_fit_slot(b)
++
++## Icon and caption grow with the slot: desktop slots are twice the phone's 64 px, where a 36 px
++## icon and 12 px caption read as specks (W2-INV bag shots).
++func _fit_slot(b: Button) -> void:
++	b.add_theme_font_size_override("font_size", clampi(int(_slot_px / 8.0), 12, UiTokens.body(get_viewport_rect().size)))
++	b.add_theme_constant_override("icon_max_width", maxi(36, int(_slot_px * 0.45)))
+ 
+ func _slot_vec() -> Vector2:
+ 	return Vector2(_slot_px, _slot_px)
+@@ -285,7 +297,7 @@ func _mk_slot(index: int) -> Button:
+ 	var b := _btn("", _slot_vec())
+ 	_slot_style(b)
+ 	if index >= 0:
+-		b.pressed.connect(func () -> void: _select(index))
++		b.pressed.connect(func () -> void: _on_cell(index))
+ 	return b
+ 
+ func _mk_storage_slot(index: int) -> Button:
+@@ -304,6 +316,7 @@ func bind(inv: Inventory, owner_player: Player = null) -> void:
+ 
+ func hide_ui() -> void:
+ 	visible = false
++	_open_group = &""
+ 	pet_bag = null
+ 	_storage_opts = {}
+ 
+@@ -376,25 +389,14 @@ func rebuild() -> void:
+ 		return
+ 	_refresh_profile()
+ 	_refresh_equipped()
+-	for i in mini(_grid.get_child_count(), inventory.slot_count):
+-		var btn := _grid.get_child(i) as Button
+-		var s := inventory.slots[i]
+-		if s == null:
+-			btn.text = ""
+-			btn.icon = null
+-			btn.tooltip_text = ""
+-		elif str(s.def_id) == "_slot_lock":
+-			btn.text = "—"
+-			btn.icon = null
+-			btn.tooltip_text = "occupied"
+-		else:
+-			var pip := ""
+-			if s.is_locked():
+-				pip = "L "
+-			if s.is_unstable():
+-				pip += "U "
+-			ItemIcons.style_slot(btn, s.def_id, "%s%d" % [pip, s.count])
+-			btn.tooltip_text = s.tooltip()
++	_cells = _bag_cells()
++	while _grid.get_child_count() < _cells.size():
++		_grid.add_child(_mk_slot(_grid.get_child_count()))
++	for k in _grid.get_child_count():
++		var btn := _grid.get_child(k) as Button
++		btn.visible = k < _cells.size()
++		if btn.visible:
++			_style_cell(btn, _cells[k])
+ 	for c in _pet_grid.get_children():
+ 		c.queue_free()
+ 	var has_storage := pet_bag != null
+@@ -407,6 +409,7 @@ func rebuild() -> void:
+ 				b.disabled = true
+ 			else:
+ 				ItemIcons.style_slot(b, s.def_id, str(s.count))
++				_fit_slot(b)
+ 				b.tooltip_text = s.tooltip()
+ 				b.disabled = false
+ 				b.modulate = Color(0.7, 0.7, 0.7, 0.8) if _readonly_reason() != "" else Color.WHITE
+@@ -420,6 +423,120 @@ func rebuild() -> void:
+ 	_title.text = "CHARACTER" if not has_storage else "CHARACTER  ·  %s" % str(_storage_opts.get("title", "Storage"))
+ 	_select(_selected if _selected >= 0 else -1)
+ 
++func _bag_cells() -> Array:
++	var groups := inventory.groups()
++	for g in groups:
++		if g.def_id == _open_group and (g.slots as Array).size() > 1:
++			var open: Array = [{"back": true}]
++			for i: int in g.slots:
++				open.append({"slot": i})
++			return open
++	_open_group = &"" # the open group emptied or is down to one
++	var out: Array = []
++	for g in groups:
++		var at: Array = g.slots
++		out.append({"slot": at[0]} if at.size() == 1 else {"group": g.def_id, "slots": at, "units": g.units})
++	# Spec 13:124 "Empty slots remain visible": one empty cell per free bag slot.
++	for k in inventory.slot_count - inventory.used_slots():
++		out.append({"empty": true})
++	return out
++
++## "L " / "U " when any instance in `at` is locked / unstable (a group hides them otherwise).
++func _pips(at: Array) -> String:
++	var locked := false
++	var unstable := false
++	for i in at:
++		var s := inventory.slots[int(i)]
++		locked = locked or s.is_locked()
++		unstable = unstable or s.is_unstable()
++	return ("L " if locked else "") + ("U " if unstable else "")
++
++func _style_cell(btn: Button, cell: Dictionary) -> void:
++	btn.modulate = Color.WHITE
++	btn.disabled = cell.has("empty")
++	_badge(btn, int(cell.get("units", 0)))
++	if cell.has("empty"):
++		btn.icon = null
++		btn.text = ""
++		btn.tooltip_text = ""
++		return
++	if cell.has("back"):
++		btn.icon = UiIcons.icon(&"back") # white = action
++		btn.expand_icon = true
++		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
++		btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
++		btn.text = "All"
++		btn.tooltip_text = "Back to the whole bag"
++		return
++	if cell.has("group"):
++		var first := inventory.slots[int(cell.slots[0])]
++		# A corner count badge (as in ARK and Durango) marks a group that opens into its instances; the
++		# caption is their level range. A real stack (ammo, coins) reads "×45" and has no badge.
++		ItemIcons.style_slot(btn, first.def_id, _pips(cell.slots) + _level_range(cell.slots))
++		btn.tooltip_text = "%d × %s: tap to see each one" % [(cell.slots as Array).size(), first.def().display_name if first.def() else str(first.def_id)]
++		return
++	var s := inventory.slots[int(cell.slot)]
++	# A unique instance shows its level; a stack (ammo, coins) its count.
++	ItemIcons.style_slot(btn, s.def_id, _pips([cell.slot]) + ("×%d" % s.count if s.count > 1 else "Lv %d" % s.level))
++	btn.tooltip_text = s.tooltip()
++
++## "Lv 1-14" over a group's instances ("Lv 5" when they share one level).
++func _level_range(at: Array) -> String:
++	var lo := 1 << 30
++	var hi := 0
++	for i in at:
++		lo = mini(lo, inventory.slots[int(i)].level)
++		hi = maxi(hi, inventory.slots[int(i)].level)
++	return "Lv %d" % lo if lo == hi else "Lv %d-%d" % [lo, hi]
++
++## The group count in the cell's top-right corner; hidden for n = 0 (the grid reuses its buttons).
++func _badge(btn: Button, n: int) -> void:
++	var b := btn.get_node_or_null("Badge") as Label
++	if b == null:
++		if n <= 0:
++			return
++		b = Label.new()
++		b.name = "Badge"
++		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
++		var pill := StyleBoxFlat.new()
++		pill.bg_color = UiTokens.INK_SOLID
++		pill.border_color = UiTokens.TEXT
++		pill.set_border_width_all(1)
++		pill.set_corner_radius_all(10)
++		pill.content_margin_left = 3.0 # a slim pill tucked in the corner covers little of a 64 px cell's icon
++		pill.content_margin_right = 3.0
++		b.add_theme_stylebox_override("normal", pill)
++		b.add_theme_color_override("font_color", UiTokens.TEXT)
++		b.anchor_left = 1.0
++		b.anchor_right = 1.0
++		b.grow_horizontal = Control.GROW_DIRECTION_BEGIN
++		b.offset_left = -2.0
++		b.offset_right = -2.0
++		b.offset_top = 2.0
++		btn.add_child(b)
++	b.visible = n > 0
++	b.text = str(n)
++	var fs := clampi(int(_slot_px / 7.0), 12, 20)
++	b.add_theme_font_size_override("font_size", fs)
++	b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
++	b.custom_minimum_size.x = fs * 1.4 # one digit reads as a round pill, not a standing capsule
++
++func _on_cell(k: int) -> void:
++	if k < 0 or k >= _cells.size():
++		return
++	var cell: Dictionary = _cells[k]
++	if cell.has("empty"):
++		return
++	if cell.has("back"):
++		_open_group = &""
++		rebuild()
++	elif cell.has("group"):
++		_open_group = cell.group
++		_selected = int(cell.slots[0])
++		rebuild()
++	else:
++		_select(int(cell.slot))
++
+ func _refresh_profile() -> void:
+ 	if _profile == null or inventory == null:
+ 		return
+@@ -549,6 +666,7 @@ func _refresh_equipped() -> void:
+ 			caption = "%.0f" % st.scaled_armor()
+ 		if st:
+ 			ItemIcons.style_slot(b, st.def_id, caption)
++			_fit_slot(b)
+ 			b.tooltip_text = st.tooltip()
+ 			b.modulate = Color.WHITE
+ 		else:
+@@ -564,10 +682,11 @@ func _select(index: int) -> void:
+ 	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null
+ 	for b in [_store_btn, _lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn]:
+ 		b.visible = false
+-	for i in _grid.get_child_count():
+-		var slot_btn := _grid.get_child(i) as Button
++	for k in mini(_grid.get_child_count(), _cells.size()):
++		var slot_btn := _grid.get_child(k) as Button
++		var cell: Dictionary = _cells[k]
+ 		if slot_btn:
+-			_slot_style(slot_btn, i == index)
++			_slot_style(slot_btn, index >= 0 and (int(cell.get("slot", -1)) == index or index in (cell.get("slots", []) as Array)))
+ 	if none:
+ 		_tip.text = "Tap an item."
+ 		return
+@@ -614,8 +733,8 @@ func _on_equip_slot_pressed(slot: String) -> void:
+ 			elif fid != "":
+ 				inventory.set_quick_food(0 if slot == "food1" else 1, &"")
+ 		_:
+-			if inventory.equipment.has(slot):
+-				inventory.unequip(StringName(slot))
++			if inventory.equipment.has(slot) and not inventory.unequip(StringName(slot)) and _owner_player:
++				_owner_player.notice("Bag is full.") # the gear stays worn (W2-INV: never dropped)
+ 
+ func _on_equip_pressed() -> void:
+ 	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
+@@ -626,7 +745,7 @@ func _on_equip_pressed() -> void:
+ 	var d := st.def()
+ 	var slot := Inventory.slot_for(d)
+ 	if slot != &"":
+-		inventory.equip(slot, st.def_id)
++		inventory.equip_at(_selected, slot) # the exact item selected, not the first of its id
+ 	elif d and d.tool_class != &"" and d.tool_class != &"none":
+ 		inventory.set_equipped_tool_index(_selected)
+ 	_select(_selected)
+@@ -745,7 +864,7 @@ func _can_store_selected() -> bool:
+ 	var st := inventory.slots[_selected]
+ 	if st == null or st.is_locked() or str(st.def_id) == "_slot_lock": return false
+ 	if inventory.equipped_tool_index == _selected: return false
+-	if str(st.def_id) in inventory.equipment.values() or str(st.def_id) in inventory.quick_food: return false
++	if str(st.def_id) in inventory.quick_food: return false # worn gear is out of the bag (W2-INV)
+ 	return true
+ 
+ func _store_selected() -> void:
+diff --git a/game/tests/fixtures/save_v3_inst_away_golden.json b/game/tests/fixtures/save_v3_inst_away_golden.json
+new file mode 100644
+index 00000000..12e1fe62
+--- /dev/null
++++ b/game/tests/fixtures/save_v3_inst_away_golden.json
+@@ -0,0 +1,1318 @@
++{
++	"away": {
++		"buildings": [
++			{
++				"cargo": false,
++				"cell": [
++					-2.0,
++					10.0
++				],
++				"contents": [
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "lda8e242445b585cf"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l2fe9e1443e991f9d"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l8210260758cbf08a"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l09c13bc8ae1e5fab"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "lffe6a8824283b77a"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l14cf30c6216aa076"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "lf0eff033c132a98b"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l8a9368781fcc08ae"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "lf030b081e912ed6b"
++					},
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null
++				],
++				"kind": "basket",
++				"rot": 0.0,
++				"sleeps_left": -1.0,
++				"text": "",
++				"x": -1.5,
++				"z": 10.5
++			}
++		],
++		"claims": []
++	},
++	"clock": 0.350569,
++	"ground_snares": [],
++	"home": {
++		"buildings": [
++			{
++				"cargo": false,
++				"cell": [
++					-1.0,
++					8.0
++				],
++				"contents": [],
++				"kind": "tent",
++				"rot": 0.0,
++				"sleeps_left": 6.0,
++				"text": "",
++				"x": 0.5,
++				"z": 9.5
++			},
++			{
++				"cargo": false,
++				"cell": [
++					-1.0,
++					6.0
++				],
++				"contents": [
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l542c6ee456d0ac72"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l2711251898f6dfae"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l1a70862bb67f5d31"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l36da72aab010a86b"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "lf9a0bd3e3214d06d"
++					},
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null
++				],
++				"kind": "basket",
++				"rot": 0.0,
++				"sleeps_left": -1.0,
++				"text": "",
++				"x": -0.5,
++				"z": 6.5
++			},
++			{
++				"cell": [
++					-1.0,
++					7.0
++				],
++				"kind": "campfire",
++				"rot": 0.0,
++				"seconds_left": 120.0,
++				"x": -0.5,
++				"z": 7.5
++			},
++			{
++				"cell": [
++					2.0,
++					9.0
++				],
++				"kind": "workbench",
++				"rot": 1.0,
++				"x": 2.5,
++				"z": 10.0
++			}
++		],
++		"camp_layout": {
++			"CampBench": {
++				"cell": [
++					-2.0,
++					6.0
++				],
++				"rot": 1.0
++			}
++		},
++		"cargo": [
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l1f6a4830a025e540"
++			},
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l43932d67c21c10b2"
++			},
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lbbcb0f9312147ef5"
++			},
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ldc8c8d0d88bfcdf2"
++			},
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null
++		],
++		"claims": [
++			[
++				-7.0,
++				1.0,
++				14.0,
++				14.0
++			]
++		],
++		"terrain": "meadow"
++	},
++	"island_id": "temperate_25",
++	"objective": 2.0,
++	"objective_best": 1.0,
++	"occupation": "student",
++	"pending_refunds": [],
++	"pets": [
++		{
++			"accuracy": 85.9677419354839,
++			"attack": 90.8629032258064,
++			"bag": [
++				{
++					"attributes": {
++						"material_tier": "stone",
++						"tint": "#8a8a8a"
++					},
++					"count": 1.0,
++					"created_at": 0.0,
++					"creator": "",
++					"durability": 0.0,
++					"flags": [],
++					"id": "stone",
++					"level": 1.0,
++					"max_durability": 0.0,
++					"origin": "",
++					"process_count": 0.0,
++					"uid": "l2e62d0314139099c"
++				},
++				{
++					"attributes": {
++						"material_tier": "stone",
++						"tint": "#8a8a8a"
++					},
++					"count": 1.0,
++					"created_at": 0.0,
++					"creator": "",
++					"durability": 0.0,
++					"flags": [],
++					"id": "stone",
++					"level": 1.0,
++					"max_durability": 0.0,
++					"origin": "",
++					"process_count": 0.0,
++					"uid": "l68242c1a0f32f2c7"
++				},
++				null,
++				null,
++				null,
++				null,
++				null,
++				null,
++				null,
++				null
++			],
++			"defense": 44.8387096774194,
++			"genetics": {
++				"evs": {
++					"accuracy": 0.0,
++					"health": 0.0,
++					"melee_attack": 0.0,
++					"melee_defense": 0.0,
++					"ranged_attack": 0.0,
++					"ranged_defense": 0.0,
++					"speed": 0.0
++				},
++				"ivs": {
++					"accuracy": 1.0,
++					"health": 6.0,
++					"melee_attack": 11.0,
++					"melee_defense": 28.0,
++					"ranged_attack": 16.0,
++					"ranged_defense": 11.0,
++					"speed": 30.0
++				},
++				"level_gains": {
++					"accuracy": 0.0,
++					"health": 0.0,
++					"melee_attack": 0.0,
++					"melee_defense": 0.0,
++					"ranged_attack": 0.0,
++					"ranged_defense": 0.0,
++					"speed": 0.0
++				}
++			},
++			"grade": "B",
++			"hp": 581.161290322581,
++			"hp_now": -1.0,
++			"hunger": 256.0,
++			"hunger_efficiency": 1.0,
++			"hunger_max": 256.0,
++			"level": 1.0,
++			"name": "",
++			"origin": "tame",
++			"owner": "",
++			"parent_uids": [],
++			"ranged_attack": 95.4596774193548,
++			"ranged_defense": 38.258064516129,
++			"respawn_left": 0.0,
++			"species": "velociraptor",
++			"speed": 798.225806451613,
++			"tamed_at": 1792537695.0,
++			"tamed_role": [
++				"mount",
++				"scout"
++			],
++			"tamer": "",
++			"uid": "p_5691e1f4f26ddb1f",
++			"variant": "",
++			"wild_level": 1.0,
++			"xp": 0.0,
++			"xp_rate": 1.0
++		}
++	],
++	"pioneer_buildings": {},
++	"pioneer_crafts": {},
++	"pioneer_level": 4.0,
++	"pioneer_xp": 12.0,
++	"player": {
++		"inventory": [
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 33.0,
++				"flags": [],
++				"id": "stone_knife_work",
++				"level": 1.0,
++				"max_durability": 40.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lb7f21bf4b5e17f87"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 50.0,
++				"flags": [],
++				"id": "work_axe",
++				"level": 1.0,
++				"max_durability": 50.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l047d77403d001462"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l33bf22a7183e25e8"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ldbe37c6043281335"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l77fb242ba5f66d7a"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld8827ba8f6457938"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l39ebe00f6666efcc"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l24436ffc28742340"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld34f29d61d5f32be"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l2dde56cae64d6d3f"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lb22bb7f1707cd4a5"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld749ba2edf016625"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l9c44585f83dfecb9"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l27ef3d5ef45729a4"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l04564e5285d7175e"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lf0c42bd8fdc2580e"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l6fc711c8e209672e"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l95e15a66d046728f"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l2b58e80fdcf0d378"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ldb68bb37078ca616"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l72c5ac6c86bfc74e"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "raw_meat",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld18c13b3c2a619ce"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "raw_meat",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l5bbdc10d1795d34d"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "raw_meat",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l608b3cc832bc3549"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 400.0,
++				"flags": [],
++				"id": "raid_helm",
++				"level": 1.0,
++				"max_durability": 400.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l95d815808806d5dc"
++			},
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null
++		],
++		"inventory_extras": {
++			"quick_food": [
++				"",
++				""
++			],
++			"tool_index": -1.0,
++			"worn": {
++				"head": {
++					"attributes": {},
++					"count": 1.0,
++					"created_at": 0.0,
++					"creator": "",
++					"durability": 400.0,
++					"flags": [],
++					"id": "raid_helm",
++					"level": 1.0,
++					"max_durability": 400.0,
++					"origin": "",
++					"process_count": 0.0,
++					"uid": "lf267172c981fe1db"
++				}
++			}
++		},
++		"position": [
++			-0.220829740166664,
++			2.08180284500122,
++			12.210729598999
++		],
++		"statuses": [],
++		"vitals": {
++			"energy": 87.55,
++			"fatigue": 30.0024985123457,
++			"health": 100.215871466667,
++			"max_energy": 103.0,
++			"max_fatigue": 100.0,
++			"max_health": 105.0
++		}
++	},
++	"player_name": "Golden",
++	"raid_victory": false,
++	"saved_unix": 4000000000,
++	"schema": 3.0,
++	"skills": {
++		"animal_management_I": false,
++		"animal_management_II": false,
++		"animal_management_III": false,
++		"animal_management_IV": false,
++		"butchering_I": false,
++		"butchering_II": false,
++		"capture_technique_I": false,
++		"capture_technique_II": false,
++		"capture_technique_III": false,
++		"capture_technique_IV": false,
++		"capture_technique_V": false
++	},
++	"skills_v2": {
++		"occupation": "student",
++		"refund_day": -1.0,
++		"refunds_today": 0.0,
++		"rev": 2.0,
++		"sp_available": 40.0,
++		"sp_earned": 40.0,
++		"sp_extra": 0.0,
++		"sp_spent": 0.0,
++		"trees": {
++			"butchering": {
++				"level": 4.0,
++				"unlocked": [
++					"butcher_1"
++				],
++				"xp": 12.0
++			},
++			"construction": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"cooking": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"defense": {
++				"level": 1.0,
++				"unlocked": [
++					"roll"
++				],
++				"xp": 0.0
++			},
++			"farming": {
++				"level": 1.0,
++				"unlocked": [
++					"corn",
++					"apple_tree"
++				],
++				"xp": 0.0
++			},
++			"gathering": {
++				"level": 20.0,
++				"unlocked": [
++					"forage_1",
++					"branch",
++					"bush",
++					"fruit_1",
++					"log_1",
++					"bug_1",
++					"pebble",
++					"mud_1",
++					"stalk"
++				],
++				"xp": 0.0
++			},
++			"melee": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"processing": {
++				"level": 1.0,
++				"unlocked": [
++					"cordage"
++				],
++				"xp": 0.0
++			},
++			"ranged": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"survival": {
++				"level": 4.0,
++				"unlocked": [],
++				"xp": 27.0
++			},
++			"tailoring": {
++				"level": 1.0,
++				"unlocked": [
++					"leaf_outfit",
++					"footwraps",
++					"leaf_hat"
++				],
++				"xp": 0.0
++			},
++			"weapon_tools": {
++				"level": 1.0,
++				"unlocked": [
++					"improvised_tools"
++				],
++				"xp": 0.0
++			}
++		}
++	},
++	"t_stones": 42.0,
++	"unstable": {
++		"crater_discovered": false,
++		"harvested": {},
++		"remaining": 7199.865684
++	},
++	"visited_islands": {
++		"home_grassland": true,
++		"temperate_25": true
++	}
++}
+diff --git a/game/tests/fixtures/save_v3_inst_golden.json b/game/tests/fixtures/save_v3_inst_golden.json
+new file mode 100644
+index 00000000..b3b33b80
+--- /dev/null
++++ b/game/tests/fixtures/save_v3_inst_golden.json
+@@ -0,0 +1,1104 @@
++{
++	"clock": 0.35038245,
++	"ground_snares": [
++		{
++			"arm_left": 0.0,
++			"heavy": false,
++			"life_left": 100.0,
++			"position": [
++				3.5,
++				1.10203576087952,
++				11.5
++			]
++		}
++	],
++	"home": {
++		"buildings": [
++			{
++				"cargo": false,
++				"cell": [
++					-1.0,
++					8.0
++				],
++				"contents": [],
++				"kind": "tent",
++				"rot": 0.0,
++				"sleeps_left": 6.0,
++				"text": "",
++				"x": 0.5,
++				"z": 9.5
++			},
++			{
++				"cargo": false,
++				"cell": [
++					-1.0,
++					6.0
++				],
++				"contents": [
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l542c6ee456d0ac72"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l2711251898f6dfae"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l1a70862bb67f5d31"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "l36da72aab010a86b"
++					},
++					{
++						"attributes": {
++							"material_tier": "stone",
++							"tint": "#8a8a8a"
++						},
++						"count": 1.0,
++						"created_at": 0.0,
++						"creator": "",
++						"durability": 0.0,
++						"flags": [],
++						"id": "stone",
++						"level": 1.0,
++						"max_durability": 0.0,
++						"origin": "",
++						"process_count": 0.0,
++						"uid": "lf9a0bd3e3214d06d"
++					},
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null,
++					null
++				],
++				"kind": "basket",
++				"rot": 0.0,
++				"sleeps_left": -1.0,
++				"text": "",
++				"x": -0.5,
++				"z": 6.5
++			},
++			{
++				"cell": [
++					-1.0,
++					7.0
++				],
++				"kind": "campfire",
++				"rot": 0.0,
++				"seconds_left": 120.0,
++				"x": -0.5,
++				"z": 7.5
++			},
++			{
++				"cell": [
++					2.0,
++					9.0
++				],
++				"kind": "workbench",
++				"rot": 1.0,
++				"x": 2.5,
++				"z": 10.0
++			}
++		],
++		"camp_layout": {
++			"CampBench": {
++				"cell": [
++					-2.0,
++					6.0
++				],
++				"rot": 1.0
++			}
++		},
++		"cargo": [
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l1f6a4830a025e540"
++			},
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l43932d67c21c10b2"
++			},
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lbbcb0f9312147ef5"
++			},
++			{
++				"attributes": {
++					"material_tier": "flint"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "flint",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ldc8c8d0d88bfcdf2"
++			},
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null
++		],
++		"claims": [
++			[
++				-7.0,
++				1.0,
++				14.0,
++				14.0
++			]
++		],
++		"terrain": "meadow"
++	},
++	"island_id": "home_grassland",
++	"objective": 2.0,
++	"objective_best": 1.0,
++	"occupation": "student",
++	"pending_refunds": [],
++	"pets": [
++		{
++			"accuracy": 85.9677419354839,
++			"attack": 90.8629032258064,
++			"bag": [
++				{
++					"attributes": {
++						"material_tier": "stone",
++						"tint": "#8a8a8a"
++					},
++					"count": 1.0,
++					"created_at": 0.0,
++					"creator": "",
++					"durability": 0.0,
++					"flags": [],
++					"id": "stone",
++					"level": 1.0,
++					"max_durability": 0.0,
++					"origin": "",
++					"process_count": 0.0,
++					"uid": "l2e62d0314139099c"
++				},
++				{
++					"attributes": {
++						"material_tier": "stone",
++						"tint": "#8a8a8a"
++					},
++					"count": 1.0,
++					"created_at": 0.0,
++					"creator": "",
++					"durability": 0.0,
++					"flags": [],
++					"id": "stone",
++					"level": 1.0,
++					"max_durability": 0.0,
++					"origin": "",
++					"process_count": 0.0,
++					"uid": "l68242c1a0f32f2c7"
++				},
++				null,
++				null,
++				null,
++				null,
++				null,
++				null,
++				null,
++				null
++			],
++			"defense": 44.8387096774194,
++			"genetics": {
++				"evs": {
++					"accuracy": 0.0,
++					"health": 0.0,
++					"melee_attack": 0.0,
++					"melee_defense": 0.0,
++					"ranged_attack": 0.0,
++					"ranged_defense": 0.0,
++					"speed": 0.0
++				},
++				"ivs": {
++					"accuracy": 1.0,
++					"health": 6.0,
++					"melee_attack": 11.0,
++					"melee_defense": 28.0,
++					"ranged_attack": 16.0,
++					"ranged_defense": 11.0,
++					"speed": 30.0
++				},
++				"level_gains": {
++					"accuracy": 0.0,
++					"health": 0.0,
++					"melee_attack": 0.0,
++					"melee_defense": 0.0,
++					"ranged_attack": 0.0,
++					"ranged_defense": 0.0,
++					"speed": 0.0
++				}
++			},
++			"grade": "B",
++			"hp": 581.161290322581,
++			"hp_now": -1.0,
++			"hunger": 256.0,
++			"hunger_efficiency": 1.0,
++			"hunger_max": 256.0,
++			"level": 1.0,
++			"name": "",
++			"origin": "tame",
++			"owner": "",
++			"parent_uids": [],
++			"ranged_attack": 95.4596774193548,
++			"ranged_defense": 38.258064516129,
++			"respawn_left": 0.0,
++			"species": "velociraptor",
++			"speed": 798.225806451613,
++			"tamed_at": 1792537695.0,
++			"tamed_role": [
++				"mount",
++				"scout"
++			],
++			"tamer": "",
++			"uid": "p_5691e1f4f26ddb1f",
++			"variant": "",
++			"wild_level": 1.0,
++			"xp": 0.0,
++			"xp_rate": 1.0
++		}
++	],
++	"pioneer_buildings": {},
++	"pioneer_crafts": {},
++	"pioneer_level": 4.0,
++	"pioneer_xp": 7.0,
++	"player": {
++		"inventory": [
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 33.0,
++				"flags": [],
++				"id": "stone_knife_work",
++				"level": 1.0,
++				"max_durability": 40.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lb7f21bf4b5e17f87"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 50.0,
++				"flags": [],
++				"id": "work_axe",
++				"level": 1.0,
++				"max_durability": 50.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l047d77403d001462"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l33bf22a7183e25e8"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ldbe37c6043281335"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l77fb242ba5f66d7a"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld8827ba8f6457938"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l39ebe00f6666efcc"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l24436ffc28742340"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld34f29d61d5f32be"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l2dde56cae64d6d3f"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lb22bb7f1707cd4a5"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld749ba2edf016625"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l9c44585f83dfecb9"
++			},
++			{
++				"attributes": {
++					"material_tier": "stone",
++					"tint": "#8a8a8a"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "stone",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l27ef3d5ef45729a4"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l04564e5285d7175e"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "lf0c42bd8fdc2580e"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l6fc711c8e209672e"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l95e15a66d046728f"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l2b58e80fdcf0d378"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ldb68bb37078ca616"
++			},
++			{
++				"attributes": {
++					"tint": "#7a5a32"
++				},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "branch",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l72c5ac6c86bfc74e"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "raw_meat",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "ld18c13b3c2a619ce"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "raw_meat",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l5bbdc10d1795d34d"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 0.0,
++				"flags": [],
++				"id": "raw_meat",
++				"level": 1.0,
++				"max_durability": 0.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l608b3cc832bc3549"
++			},
++			{
++				"attributes": {},
++				"count": 1.0,
++				"created_at": 0.0,
++				"creator": "",
++				"durability": 400.0,
++				"flags": [],
++				"id": "raid_helm",
++				"level": 1.0,
++				"max_durability": 400.0,
++				"origin": "",
++				"process_count": 0.0,
++				"uid": "l95d815808806d5dc"
++			},
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null,
++			null
++		],
++		"inventory_extras": {
++			"quick_food": [
++				"",
++				""
++			],
++			"tool_index": -1.0,
++			"worn": {
++				"head": {
++					"attributes": {},
++					"count": 1.0,
++					"created_at": 0.0,
++					"creator": "",
++					"durability": 400.0,
++					"flags": [],
++					"id": "raid_helm",
++					"level": 1.0,
++					"max_durability": 400.0,
++					"origin": "",
++					"process_count": 0.0,
++					"uid": "lf267172c981fe1db"
++				}
++			}
++		},
++		"position": [
++			0.0,
++			2.10019326210022,
++			12.0
++		],
++		"statuses": [],
++		"vitals": {
++			"energy": 87.55,
++			"fatigue": 30.001254845679,
++			"health": 100.108418666667,
++			"max_energy": 103.0,
++			"max_fatigue": 100.0,
++			"max_health": 105.0
++		}
++	},
++	"player_name": "Golden",
++	"raid_victory": false,
++	"saved_unix": 4000000000,
++	"schema": 3.0,
++	"skills": {
++		"animal_management_I": false,
++		"animal_management_II": false,
++		"animal_management_III": false,
++		"animal_management_IV": false,
++		"butchering_I": false,
++		"butchering_II": false,
++		"capture_technique_I": false,
++		"capture_technique_II": false,
++		"capture_technique_III": false,
++		"capture_technique_IV": false,
++		"capture_technique_V": false
++	},
++	"skills_v2": {
++		"occupation": "student",
++		"refund_day": -1.0,
++		"refunds_today": 0.0,
++		"rev": 2.0,
++		"sp_available": 40.0,
++		"sp_earned": 40.0,
++		"sp_extra": 0.0,
++		"sp_spent": 0.0,
++		"trees": {
++			"butchering": {
++				"level": 4.0,
++				"unlocked": [
++					"butcher_1"
++				],
++				"xp": 12.0
++			},
++			"construction": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"cooking": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"defense": {
++				"level": 1.0,
++				"unlocked": [
++					"roll"
++				],
++				"xp": 0.0
++			},
++			"farming": {
++				"level": 1.0,
++				"unlocked": [
++					"corn",
++					"apple_tree"
++				],
++				"xp": 0.0
++			},
++			"gathering": {
++				"level": 20.0,
++				"unlocked": [
++					"forage_1",
++					"branch",
++					"bush",
++					"fruit_1",
++					"log_1",
++					"bug_1",
++					"pebble",
++					"mud_1",
++					"stalk"
++				],
++				"xp": 0.0
++			},
++			"melee": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"processing": {
++				"level": 1.0,
++				"unlocked": [
++					"cordage"
++				],
++				"xp": 0.0
++			},
++			"ranged": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"survival": {
++				"level": 4.0,
++				"unlocked": [],
++				"xp": 22.0
++			},
++			"tailoring": {
++				"level": 1.0,
++				"unlocked": [
++					"leaf_outfit",
++					"footwraps",
++					"leaf_hat"
++				],
++				"xp": 0.0
++			},
++			"weapon_tools": {
++				"level": 1.0,
++				"unlocked": [
++					"improvised_tools"
++				],
++				"xp": 0.0
++			}
++		}
++	},
++	"t_stones": 42.0,
++	"unstable": {
++		"crater_discovered": false,
++		"harvested": {},
++		"remaining": 0.0
++	},
++	"visited_islands": {
++		"home_grassland": true
++	}
++}
+diff --git a/game/tests/multistack_lab.gd b/game/tests/multistack_lab.gd
+index 62c9ef19..c582e460 100644
+--- a/game/tests/multistack_lab.gd
++++ b/game/tests/multistack_lab.gd
+@@ -15,7 +15,8 @@ func run() -> Dictionary:
+ 	var levels := Crafting.consumed_levels(inv, rec, picks)
+ 	result["level includes both fibre stacks"] = levels.count(1) == 8 and levels.count(3) == 3
+ 	var used := Crafting.consume_for_craft(inv, rec, picks)
+-	result["split stacks preserved for refund"] = used.size() == 4 and used[0].count == 3 and used[1].level == 3
++	# W2-INV: one part per consumed instance (11 units), each keeping its own level.
++	result["split stacks preserved for refund"] = used.size() == 11 and used.all(func(s: ItemStack) -> bool: return s.count == 1) and used.any(func(s: ItemStack) -> bool: return s.level == 3)
+ 	result["full recipe consumed"] = inv.count_of(&"fibre_stalk") == 0 and inv.count_of(&"branch") == 0 and inv.count_of(&"bark_strip") == 0
+ 	for stack in used: inv.add(stack)
+ 	result["cancel refunds split materials"] = inv.count_of(&"fibre_stalk") == 6 and inv.count_of(&"branch") == 3 and inv.count_of(&"bark_strip") == 2
+diff --git a/game/tests/run_all.gd b/game/tests/run_all.gd
+index 0de559b8..27e08922 100644
+--- a/game/tests/run_all.gd
++++ b/game/tests/run_all.gd
+@@ -662,7 +662,8 @@ func _test_counter_supplies() -> void:
+ 	_expect(not pl.coat_weapon(), "cannot overwrite active coating")
+ 	var restored = (load("res://scripts/items/inventory.gd") as GDScript).new(20)
+ 	restored.load_array(inv.to_array())
+-	_expect(int(restored.slots[restored.find_first(&"barbed_knife")].attributes.get("toxin_hits", 0)) == 3, "toxin charges survive item reload")
++	restored.extras_from_dict(JSON.parse_string(JSON.stringify(inv.extras_to_dict()))) # W2-INV: the worn knife saves with the extras
++	_expect(int(restored.equipped_weapon().attributes.get("toxin_hits", 0)) == 3, "toxin charges survive item reload")
+ 	var cr = (load("res://scripts/creatures/creature.gd") as GDScript).new()
+ 	cr.def = (load("res://scripts/creatures/creature_def.gd") as GDScript).new()
+ 	cr.def.archetype = &"pack_raptor"
+@@ -854,9 +855,9 @@ func _test_storage_transfer() -> void:
+ 	var stack = load("res://scripts/items/item_stack.gd") as GDScript
+ 	var src = inv.new(3)
+ 	var dst = inv.new(1)
+-	src.add(stack.make(&"branch",8,{},55))
++	src.add(stack.make(&"stone_shot",8,{},55)) # W2-INV: ammunition still stacks; materials are one per slot
+ 	var original = src.slots[0].to_dict()
+-	dst.add(stack.make(&"stone",1))
++	dst.add(stack.make(&"stone_shot",1))
+ 	_expect(src.transfer_to(dst,0) == 0 and src.slots[0].to_dict() == original,"full storage leaves original unchanged")
+ 	dst.remove_at(0,1)
+ 	src.slots[0].set_flag(&"locked",true)
+@@ -864,7 +865,7 @@ func _test_storage_transfer() -> void:
+ 	src.slots[0].set_flag(&"locked",false)
+ 	_expect(src.transfer_to(src,0) == 0,"self storage refuses")
+ 	_expect(src.transfer_to(dst,0) == 8 and src.slots[0] == null and dst.slots[0].level == 55,"whole stack preserves quality")
+-	src.add(stack.make(&"branch",5,{},55))
++	src.add(stack.make(&"stone_shot",5,{},55))
+ 	var cap = dst.slots[0].def().stack_max
+ 	dst.slots[0].count = cap-2
+ 	_expect(src.transfer_to(dst,0) == 2 and src.slots[0].count == 3 and dst.slots[0].count == cap,"partial storage leaves remainder in original slot")
+@@ -875,8 +876,9 @@ func _test_storage_transfer() -> void:
+ 	_expect(not ui._can_store_selected(),"corpse/default storage stays take-only")
+ 	ui._storage_opts = {"allow_deposit":true}
+ 	_expect(ui._can_store_selected(),"basket permits deposit")
+-	src.equip(&"weapon",&"branch")
+-	_expect(not ui._can_store_selected(),"equipped item cannot be accidentally stored")
++	src.add(stack.make(&"stone_knife",1))
++	var knife: int = src.find_first(&"stone_knife")
++	_expect(src.equip_at(knife) and src.slots[knife] == null and src.equipped_in(&"weapon") != null,"equipped item leaves the bag, so it cannot be stored")
+ 	src.unequip(&"weapon")
+ 	ui._storage_opts["readonly_reason"] = "need knife"
+ 	_expect(not ui._can_store_selected(),"read-only storage cannot accept deposits")
+diff --git a/game/tests/srvdom_checks.gd b/game/tests/srvdom_checks.gd
+index 0ba4fb70..e84083f0 100644
+--- a/game/tests/srvdom_checks.gd
++++ b/game/tests/srvdom_checks.gd
+@@ -81,14 +81,14 @@ const HOSTILE := [
+ 	["act.equip", {"clear": true, "slot": "bogus"}, "bad_request"],
+ 	["act.equip", {"clear": true, "slot": 7}, "bad_request"],
+ 	["act.equip", {"clear": true, "slot": "xxxxxxxxxxxxxxxxx"}, "bad_request"],
+-	["act.equip", {"bag_slot": 1}, "not_found"],
++	["act.equip", {"bag_slot": 50}, "not_found"], # W2-INV: stone no longer stacks, so slot 1 holds the second stone
+ 	["act.equip", {"bag_slot": 0}, "bad_request"],
+ 	["act.eat", {}, "bad_request"],
+ 	["act.eat", {"bag_slot": -1}, "bad_request"],
+ 	["act.eat", {"bag_slot": 999}, "bad_request"],
+ 	["act.eat", {"bag_slot": 1.5}, "bad_request"],
+ 	["act.eat", {"bag_slot": "0"}, "bad_request"],
+-	["act.eat", {"bag_slot": 1}, "not_found"],
++	["act.eat", {"bag_slot": 50}, "not_found"],
+ 	["act.eat", {"bag_slot": 0}, "bad_request"],
+ 	["act.tame", {}, "bad_request"],
+ 	["act.tame", {"net_id": "compy1"}, "bad_request"],
+@@ -114,7 +114,7 @@ const HOSTILE := [
+ 	["act.deposit", {"bag_slot": -1}, "bad_request"],
+ 	["act.deposit", {"bag_slot": 1.5}, "bad_request"],
+ 	["act.deposit", {"bag_slot": 999}, "bad_request"],
+-	["act.deposit", {"bag_slot": 1}, "not_found"],
++	["act.deposit", {"bag_slot": 50}, "not_found"],
+ 	["act.deposit", {"bag_slot": 0, "count": 0}, "bad_request"],
+ 	["act.deposit", {"bag_slot": 0, "count": -3}, "bad_request"],
+ 	["act.deposit", {"pet_uid": "p0.0"}, "not_found"],
+@@ -428,7 +428,7 @@ func _receive_checks() -> void:
+ 	# edited body are refused; with a real pet exported, a forged pet with a fresh uid is too.
+ 	_gather_until(st, 1, "rock", 0, "stone", 3, 6)
+ 	var da := _ok(st.apply("act.deposit", 1, {"bag_slot": 0, "count": 1}, 7), "deposit A")
+-	var db := _ok(st.apply("act.deposit", 1, {"bag_slot": 0, "count": 1}, 7), "deposit B")
++	var db := _ok(st.apply("act.deposit", 1, {"bag_slot": st.character(1).inventory().find_first(&"stone"), "count": 1}, 7), "deposit B") # W2-INV: one stone per slot
+ 	var ua: Dictionary = da.r.get("asset", {}) if da.ok else {}
+ 	var ub: Dictionary = db.r.get("asset", {}) if db.ok else {}
+ 	var a1 := st.apply("char.receive", 1, {"asset": ua}, 8)
+diff --git a/game/tests/t_build.gd b/game/tests/t_build.gd
+index 051e77ac..9ecf165f 100644
+--- a/game/tests/t_build.gd
++++ b/game/tests/t_build.gd
+@@ -218,7 +218,7 @@ func _test_field_full_bag() -> void:
+ 		return
+ 	field.crop_id = &"wheat"
+ 	field.mature = true
+-	_give(&"water_bucket", 2)  # a stack of 2: pouring one frees no slot
++	_give(&"water_bucket", 2)  # W2-INV: two instances; pouring one frees its slot for the empty bucket
+ 	var filler := _filler_id()
+ 	var empties: Array[int] = []
+ 	for i in _player.inventory.slot_count:
+@@ -229,13 +229,13 @@ func _test_field_full_bag() -> void:
+ 	field.apply_action(_player, {"action": "harvest"})
+ 	field.apply_action(_player, {"action": "water"})
+ 	var units_after := _units(_player.inventory)
+-	var kept: bool = field.mature and field.crop_id == &"wheat" and field.watered == 0.0
++	var kept: bool = field.mature and field.crop_id == &"wheat"
+ 	for i in empties:
+ 		_player.inventory.slots[i] = null
+ 	field.apply_action(_player, {"action": "harvest"})
+ 	var got: int = _player.inventory.count_of(&"wheat")
+ 	print("[build] field full bag: units %d->%d crop_kept=%s buckets=%d | with room: wheat=%d" % [units_before, units_after, kept, _player.inventory.count_of(&"water_bucket"), got])
+-	_expect(units_before == units_after and kept and _player.inventory.count_of(&"water_bucket") == 2, "full bag: harvest and water refuse without losing units")
++	_expect(units_before == units_after and kept and _player.inventory.count_of(&"water_bucket") + _player.inventory.count_of(&"empty_bucket") == 2, "full bag: harvest refuses, water swaps a bucket for an empty one, no unit lost")
+ 	_expect(got > 0 and field.crop_id == &"", "harvest lands once the bag has room")
+ 	_player.inventory.consume(&"wheat", got)
+ 	_player.inventory.consume(&"water_bucket", 2)
+diff --git a/game/tests/t_items.gd b/game/tests/t_items.gd
+index 72475daf..05421797 100644
+--- a/game/tests/t_items.gd
++++ b/game/tests/t_items.gd
+@@ -58,9 +58,9 @@ func _test_identity() -> void:
+ 	var back = IS.from_dict(JSON.parse_string(JSON.stringify(a.to_dict())))
+ 	_expect(back.uid == a.uid and back.origin == "craft" and back.creator == "tester" and back.created_at == a.created_at, "uid/origin/creator/created_at round-trip through JSON")
+ 	var bag = INV.new(4)
+-	var s1 = IS.make(&"stone", 3, {}, 1)
++	var s1 = IS.make(&"stone_shot", 3, {}, 1) # W2-INV: only stacking categories (ammunition) can share a slot
+ 	s1.stamp_identity("loot")
+-	var s2 = IS.make(&"stone", 3, {}, 1)
++	var s2 = IS.make(&"stone_shot", 3, {}, 1)
+ 	s2.stamp_identity("loot")
+ 	bag.add(s1)
+ 	bag.add(s2)
+@@ -83,7 +83,7 @@ func _test_identity() -> void:
+ 	_expect(newline.uid == "", "a uid with a trailing newline is blanked (got %s)" % var_to_str(newline.uid))
+ 	# Splitting a uid'd stack must not leave both halves sharing one identity.
+ 	var share = INV.new(4)
+-	var whole = IS.make(&"stone", 4, {}, 1)
++	var whole = IS.make(&"stone_shot", 4, {}, 1)
+ 	whole.stamp_identity("loot")
+ 	share.add(whole)
+ 	var half = share.remove_at(0, 2)
+@@ -93,15 +93,18 @@ func _test_identity() -> void:
+ 
+ func _test_merging() -> void:
+ 	var bag = INV.new(5)
+-	bag.add(IS.make(&"stone", 3, {}, 1))
+-	bag.add(IS.make(&"stone", 4, {}, 1))
+-	_expect(bag.used_slots() == 1 and bag.count_of(&"stone") == 7, "fungible stone stacks still merge")
++	bag.add(IS.make(&"stone_shot", 3, {}, 1))
++	bag.add(IS.make(&"stone_shot", 4, {}, 1))
++	_expect(bag.used_slots() == 1 and bag.count_of(&"stone_shot") == 7, "fungible ammunition stacks still merge")
++	var stone = INV.new(10)
++	stone.add(IS.make(&"stone", 3, {}, 1))
++	_expect(stone.used_slots() == 3, "stone no longer stacks: three units, three slots (owner 2026-10-20)")
+ 	var fibre = INV.new(5)
+-	fibre.add(IS.make(&"fibre_stalk", 2, {"climate": "temperate", "level": 1}, 1))
+-	fibre.add(IS.make(&"fibre_stalk", 3, {"climate": "tropical", "level": 1}, 1))
+-	fibre.add(IS.make(&"fibre_stalk", 1, {"level": 1}, 1))
+-	_expect(fibre.used_slots() == 1 and fibre.count_of(&"fibre_stalk") == 6, "same-level temperate, tropical and fresh fibre merge")
+-	var lv2 = IS.make(&"fibre_stalk", 1, {"climate": "tropical", "level": 2}, 2)
++	fibre.add(IS.make(&"stone_shot", 2, {"climate": "temperate", "level": 1}, 1))
++	fibre.add(IS.make(&"stone_shot", 3, {"climate": "tropical", "level": 1}, 1))
++	fibre.add(IS.make(&"stone_shot", 1, {"level": 1}, 1))
++	_expect(fibre.used_slots() == 1 and fibre.count_of(&"stone_shot") == 6, "same-level temperate, tropical and fresh ammunition merge")
++	var lv2 = IS.make(&"stone_shot", 1, {"climate": "tropical", "level": 2}, 2)
+ 	_expect(not fibre.slots[0].can_merge_with(lv2), "a different level still keeps its own stack")
+ 
+ func _test_scaling() -> void:
+@@ -186,7 +189,7 @@ func _test_pick_gates() -> void:
+ 	var mixed = INV.new(20)
+ 	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "stone"}, 1))
+ 	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "bronze"}, 1))
+-	_expect(iron.can_gather(mixed) == "" and mixed.slots[mixed.equipped_tool_index].material_tier() == &"bronze", "the qualifying pick is the one equipped")
++	_expect(iron.can_gather(mixed) == "" and mixed.equipped_gather_tool().material_tier() == &"bronze", "the qualifying pick is the one in use (W2-INV: auto picks the best)")
+ 	var spare = INV.new(20)
+ 	spare.add(IS.make(&"work_pick", 1, {"material_tier": "copper"}, 1))
+ 	spare.add(IS.make(&"work_pick", 1, {"material_tier": "obsidian"}, 1))
+@@ -286,10 +289,26 @@ func _test_no_lost_items() -> void:
+ 	var before: Array = bag.to_array()
+ 	var picks: Array[int] = CR.default_picks(bag, knife)
+ 	_expect(CR.picks_valid(bag, knife, picks), "full-bag fixture can otherwise make the knife")
+-	_expect(not CR.output_fits(bag, knife, picks), "a full bag refuses the craft before consuming")
++	# W2-INV: inputs are one instance per slot, so spending them frees the slot a 1-slot output needs.
++	_expect(CR.output_fits(bag, knife, picks), "a full bag crafts: the consumed instances free a slot")
+ 	_expect(bag.to_array() == before, "the fit check leaves the bag untouched")
+-	bag.remove_at(bag.slot_count - 1, 1)
+-	_expect(CR.output_fits(bag, knife, CR.default_picks(bag, knife)), "one free slot lets the craft through")
++	# A full bag still refuses when the output needs more slots than the inputs free: sashimi makes
++	# 3 instances from 1 meat (sec-loss-08; on the hand path output_fits is the only loss guard).
++	var sashimi: Dictionary = CR.recipe(&"sashimi")
++	var meat = INV.new(20)
++	meat.add(IS.make(&"raw_meat", 1, {}, 1))
++	var lvl := 1
++	while meat.used_slots() < 20:
++		meat.add(IS.make(&"berry", 1, {}, lvl))
++		lvl += 1
++	var meat_before: Array = meat.to_array()
++	var mp: Array[int] = CR.default_picks(meat, sashimi)
++	_expect(CR.picks_valid(meat, sashimi, mp) and not CR.output_fits(meat, sashimi, mp), "a full bag refuses sashimi (3 out, 1 slot freed) before consuming")
++	_expect(meat.to_array() == meat_before, "the refused fit check leaves the bag untouched")
++	meat.remove_at(19, 1)
++	_expect(not CR.output_fits(meat, sashimi, CR.default_picks(meat, sashimi)), "one free slot is still one short for sashimi")
++	meat.remove_at(18, 1)
++	_expect(CR.output_fits(meat, sashimi, CR.default_picks(meat, sashimi)), "two free slots and the meat's own let sashimi through")
+ 	# StationCraft no longer parks refunds anywhere: no meta store may come back.
+ 	var methods: Array = SC.get_script_method_list().map(func(m: Dictionary) -> String: return str(m["name"]))
+ 	_expect(not "collect_held" in methods and not "HELD_META" in SC.get_script_constant_map(), "no volatile held-item store remains")
+diff --git a/game/tests/t_player.gd b/game/tests/t_player.gd
+index 037f42f1..03e80fa9 100644
+--- a/game/tests/t_player.gd
++++ b/game/tests/t_player.gd
+@@ -73,6 +73,7 @@ func _run() -> void:
+ 	await _test_pet_hp_and_summon()
+ 	await _test_pet_menu_bag_feed_dump()
+ 	await _test_corpse_full_bag()
++	await _test_corpse_take_xp()
+ 	await _test_no_creature_climb()
+ 	await _test_footsteps_and_ear()
+ 	_test_structure_interact()
+@@ -341,13 +342,62 @@ func _test_corpse_full_bag() -> void:
+ 	var take_s: float = (load("res://scripts/player/player_actions.gd") as GDScript).get_script_constant_map()["CORPSE_TAKE_SECONDS"]
+ 	await create_timer(take_s + 0.3, true, true).timeout
+ 	var left = corpse.loot.slots[slot]
+-	_expect(left != null and left.count == 3 and is_equal_approx(player.skills.xp_of("butchering"), xp0), "full bag: the stack stays in the corpse, no XP (count %d)" % (left.count if left else 0))
++	_expect(left != null and corpse.loot.count_of(&"raw_meat") == 3 and is_equal_approx(player.skills.xp_of("butchering"), xp0), "full bag: the meat stays in the corpse, no XP (count %d)" % corpse.loot.count_of(&"raw_meat"))
+ 	player.inventory = bag
+ 	var moved: int = player.actions.loot(corpse, slot)
+-	_expect(moved == 3 and corpse.loot.slots[slot] == null and is_equal_approx(player.skills.xp_of("butchering") - xp0, 3.0), "with room: moved %d, XP +%.0f once" % [moved, player.skills.xp_of("butchering") - xp0])
++	# W2-INV: three meat are three instances; a take moves the one in its slot.
++	_expect(moved == 1 and corpse.loot.slots[slot] == null and is_equal_approx(player.skills.xp_of("butchering") - xp0, 3.0), "with room: moved %d, XP +%.0f once" % [moved, player.skills.xp_of("butchering") - xp0])
+ 	corpse.queue_free()
+ 	await process_frame
+ 
++## W2-INV review 2: corpse loot is one instance per unit, so a flat +3 per take paid per unit.
++## Butchering XP is 3 per drop kind, the first time any of it leaves the corpse: radial takes,
++## chest takes of each item and Take all pay the same. Radial butcher grime (WATER) follows the XP.
++func _test_corpse_take_xp() -> void:
++	await _reset_at(Vector3(0, 1.0, 0))
++	if not player.inventory.has_tool_class(&"knife"):
++		player.inventory.add(ItemStackS.make(&"stone_knife_work", 1))
++	var paid: Array = []
++	for way in ["radial", "chest", "take_all"]:
++		var corpse = CorpseS.new()
++		host.add_child(corpse)
++		corpse.global_position = Vector3(1.2, 0, 0)
++		corpse.loot.add_growing(ItemStackS.make(&"raw_meat", 3))
++		corpse.loot.add_growing(ItemStackS.make(&"raptor_hide", 2))
++		var xp0 := _butchering_total()
++		if way == "radial":
++			# WATER's butcher grime is per loot stack: per drop kind, as the XP (5 instances, 2 kinds).
++			player.set_meta(&"water_grime", 0.0)
++			for id in [&"dirty", &"very_dirty"]:
++				player.statuses.clear_id(id)
++			for i in corpse.loot.slot_count:
++				if corpse.loot.slots[i]:
++					player.actions.loot(corpse, i)
++			var per: float = float(load("res://scripts/player/water_access.gd").data()["dirt"]["butcher"])
++			var grime: float = float(player.get_meta(&"water_grime", 0.0))
++			_expect(is_equal_approx(grime, 2.0 * per), "radial takes of 2 drop kinds add butcher grime twice, not per instance (grime %s)" % grime)
++		else:
++			corpse.open_loot(player)
++			if way == "chest":
++				for i in corpse.loot.slot_count:
++					if corpse.loot.slots[i]:
++						player.ui._take_storage(i)
++			else:
++				player.ui._take_all_storage()
++			player.ui.hide_ui()
++		paid.append(snappedf(_butchering_total() - xp0, 0.01))
++		_expect(corpse.loot.used_slots() == 0, "%s takes every loot instance (left %d)" % [way, corpse.loot.used_slots()])
++		corpse.queue_free()
++	_expect(paid == [6.0, 6.0, 6.0], "radial takes, chest takes and Take all each pay 3 per drop kind (paid %s)" % [paid])
++	await process_frame
++
++## Butchering XP earned in all, across level-ups (xp_of is the XP into the current level).
++func _butchering_total() -> float:
++	var n: float = player.skills.xp_of("butchering")
++	for l in player.skills.level_of("butchering"):
++		n += player.skills.xp_to_next(l)
++	return n
++
+ ## phys-climb-01: a tap-to-walk route straight through a compsognathus, zebraceratops and
+ ## velociraptor, held for 5 s, raises her at most 0.15 m (was +0.97, +1.16 and +1.82 m: the stall
+ ## fallback hopped her onto their backs); unstick never steps into a creature.
+diff --git a/game/tests/t_save.gd b/game/tests/t_save.gd
+index 7f6476a4..0eaa951a 100644
+--- a/game/tests/t_save.gd
++++ b/game/tests/t_save.gd
+@@ -1,11 +1,18 @@
+ extends SceneTree
+ ## W1-SAVE: crash-safe, sanitized, isolated saves. Prints "[t_save] PASS" (or FAIL lines), exits 0/1.
+ ##   Godot --headless --path game --script res://tests/t_save.gd
+-## `-- --write-golden` re-stages a camp and rewrites save_v3_golden.json and save_truncated.json.
+-## Do not: since W2-SKILLS the v3 goldens are frozen rev-1 inputs and a rewritten one fails the run.
++## `-- --write-golden` re-stages a camp and rewrites the instance-format goldens (GOLDEN, AWAY_GOLDEN).
++## Never rewrite save_v3_golden.json, save_v3_away_golden.json or save_truncated.json: they are the
++## base's stacked saves from before W2-INV with W2-SKILLS' rev-1 skills, kept byte for byte as the
++## real old saves both migrations must load; a rewritten one fails the run.
+ ## Scripts that touch autoloads load on the first frame (see run_all.gd), so everything is load()ed.
+ 
+ const FIX := "res://tests/fixtures/"
++## W2-INV: the current format (one instance per row, worn gear under inventory_extras.worn).
++const GOLDEN := "save_v3_inst_golden.json"
++const AWAY_GOLDEN := "save_v3_inst_away_golden.json"
++## Stacked saves from before W2-INV; their round trip checks the split instead of byte equality.
++const STACKED := ["save_v3_golden.json", "save_v3_away_golden.json"]
+ const RUN_DIR := "user://runs/t_save"
+ ## Island state regenerated on load, not save format: excluded from field-for-field compares.
+ ## A snare's life_left loses the 0-1 s of offline time each load counts.
+@@ -75,15 +82,18 @@ func _run() -> void:
+ 		quit(0)
+ 		return
+ 	_test_two_saves()
+-	for name in ["save_v0.json", "save_v1.json", "save_v2.json", "save_v3_golden.json", "save_v3_away_golden.json"]:
++	for name in ["save_v0.json", "save_v1.json", "save_v2.json", "save_v3_golden.json", "save_v3_away_golden.json", GOLDEN, AWAY_GOLDEN]:
+ 		await _test_round_trip(name)
+ 	await _test_rev1_skills()
+ 	await _test_forged()
++	await _test_stacked_migration()
++	await _test_duplicate_uids_across_containers()
+ 	await _test_truncated()
+ 	await _test_future()
+ 	await _test_backup_fallback()
+ 	await _test_restore_refunds()
+ 	await _test_full_cargo_refund()
++	await _test_oversized_legacy_refund()
+ 	await _test_pen_refunds()
+ 	await _test_refused_save_keeps_camp()
+ 	await _test_away_island()
+@@ -158,21 +168,47 @@ func _test_round_trip(name: String) -> void:
+ 	_check(diffs.is_empty(), "%s re-saves field-for-field equal: %s" % [name, diffs.slice(0, 6)])
+ 	if LEGACY.has(name):
+ 		_check_legacy(name, s1)
+-	if name.begins_with("save_v3_"):
+-		_check_v3_golden(name, s1)
++	if name in STACKED:
++		_check_v3_skills(name, s1)
++		var old: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
++		var away := str(s1.get("island_id", "")) != "home_grassland"
++		_check_split(name, old, s1, away)
++		if away:
++			# The home camp's contents wait as saved rows while the survivor is away; they split
++			# when the camp is rebuilt on the way home (World.travel's two steps).
++			W.load_island(host, &"home_grassland", Vector3(0, 1, 12), false)
++			SG._restore_buildings(W._home_buildings_cache, SaveMigrations.CURRENT_SCHEMA)
++			await process_frame
++			SG.save_now()
++			var home_old := old.duplicate(true)
++			home_old.erase("away") # what was built on the island left behind stays there
++			_check_split(name + " back home", home_old, _saved())
++	elif name.begins_with("save_v3_"):
++		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
++		var gd: Array[String] = []
++		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
++		_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
+ 	print("[t_save] round trip %s fields=%d diffs=%d" % [name, s1.size(), diffs.size()])
+ 	await process_frame
+ 
+-## The v3 goldens are frozen rev-1 saves: never regenerate them, they are the migration's input.
+-## Everything but skills_v2 survives load + save unchanged; skills_v2 must equal the rev-2 result
+-## kept in save_v3_skills_rev2.json, field for field both ways.
+-func _check_v3_golden(name: String, s1: Dictionary) -> void:
++## The stacked v3 goldens are frozen rev-1 saves: never regenerate them, they are the migration's
++## input. skills_v2 must equal the rev-2 result kept in save_v3_skills_rev2.json, field for field both
++## ways; their stacks split on load (W2-INV), so _check_split checks the item containers and
++## everything else must survive load + save unchanged.
++func _check_v3_skills(name: String, s1: Dictionary) -> void:
+ 	var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
+ 	_check(not (golden["skills_v2"] as Dictionary).has("rev"), "%s is still a rev-1 save (the migration input)" % name)
+-	golden.erase("skills_v2")
++	var skip: Array = ["/skills_v2", "/player/position/1", "/player/inventory", "/player/inventory_extras", "/home/cargo"]
++	for side in ["home", "away"]:
++		var part: Variant = golden.get(side)
++		if part is Dictionary:
++			for i in (part.get("buildings", []) as Array).size():
++				skip.append("/%s/buildings/%d/contents" % [side, i])
++	for i in (golden.get("pets", []) as Array).size():
++		skip.append("/pets/%d/bag" % i)
+ 	var gd: Array[String] = []
+-	_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
+-	_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
++	_same(golden, s1, "", gd, skip) # y is re-seated on the terrain at load
++	_check(gd.is_empty(), "%s: everything but item containers and skills_v2 survives load + save unchanged: %s" % [name, gd.slice(0, 6)])
+ 	var want: Variant = (JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_skills_rev2.json")) as Dictionary).get(name)
+ 	var sd: Array[String] = []
+ 	_same(want, s1.get("skills_v2"), "/skills_v2", sd)
+@@ -238,12 +274,119 @@ func _check_legacy(name: String, s1: Dictionary) -> void:
+ 	_check(ok, "%s content survives migration: buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
+ 	print("[t_save] legacy %s buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
+ 
++## W2-INV: an old stacked save keeps every unit (per item id), each non-stacking unit in its own
++## row with a distinct uid, and its def-id worn gear becomes a worn instance.
++func _check_split(name: String, old: Dictionary, s1: Dictionary, skip_home_camp: bool = false) -> void:
++	var want := _units(old)
++	var got := _units(s1)
++	var st := _instance_stats(s1, skip_home_camp)
++	var worn: Dictionary = s1["player"]["inventory_extras"].get("worn", {})
++	_check(got == want, "%s: no unit is lost splitting stacks: %s vs %s" % [name, got, want])
++	_check(st[0] == 0 and st[1] == st[2] and st[2] > 0 and not st[3], "%s: every non-stacking unit is its own row with a distinct uid (rows=%d uids=%d multi=%d)" % [name, st[2], st[1], st[0]])
++	_check(str(worn.get("head", {}).get("id", "")) == "raid_helm" and not s1["player"]["inventory_extras"].has("equipment"), "%s: def-id head=raid_helm became a worn instance" % name)
++	print("[t_save] stacked %s units=%s instances=%d" % [name, got, st[2]])
++
++## [non-stacking rows with count != 1, distinct uids, such rows, a row without a uid].
++func _instance_stats(d: Dictionary, skip_home_camp: bool = false) -> Array:
++	var uids := {}
++	var multi := 0
++	var rows := 0
++	for row in _rows(d, skip_home_camp):
++		var def = root.get_node("Data").item(StringName(str(row.get("id", ""))))
++		if def and def.stack_max == 1:
++			rows += 1
++			multi += 1 if int(row.get("count", 1)) != 1 else 0
++			uids[str(row.get("uid", ""))] = true
++	return [multi, uids.size(), rows, uids.has("")]
++
++## The base's stacked golden with its empty bag rows filled with legal old stacks (stone x20, the
++## old stack_max): more units than the 100-slot bag. The bag fills, the rest lands in home cargo,
++## and the migrated save re-saves unchanged.
++func _test_stacked_migration() -> void:
++	var src: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	var rows: Array = src["player"]["inventory"]
++	for i in rows.size():
++		if rows[i] == null:
++			rows[i] = {"id": "stone", "count": 20}
++	var want := _units(src)
++	_clean()
++	_put(JSON.stringify(src))
++	SG.load_now(host)
++	_check(SG.blocked_reason == "", "the full stacked save loads")
++	SG.save_now()
++	var s1 := _saved()
++	_check_split("full stacked save", src, s1)
++	var bag_used := 0
++	for row in s1["player"]["inventory"]:
++		bag_used += 1 if row is Dictionary else 0
++	var cargo_stone := 0
++	for row in s1["home"]["cargo"]:
++		if row is Dictionary and str(row.get("id")) == "stone":
++			cargo_stone += int(row.get("count", 1))
++	# 99: the bag filled to 100, then the legacy head=raid_helm moved out of it into its slot.
++	_check(bag_used == 99 and (s1["player"]["inventory"] as Array).size() == 100 and cargo_stone > 0, "the bag fills to 100 and the rest goes to home cargo (bag=%d cargo stone=%d of %d)" % [bag_used, cargo_stone, want.get("stone", 0)])
++	SG.load_now(host)
++	SG.save_now()
++	var diffs: Array[String] = []
++	_same(s1, _saved(), "", diffs)
++	_check(diffs.is_empty(), "the migrated save re-saves unchanged: %s" % [diffs.slice(0, 4)])
++	print("[t_save] stacked migration units=%s bag=%d cargo_stone=%d" % [_units(s1), bag_used, cargo_stone])
++
++## W2-INV review 2 (spec 05:20/26): an edited save whose bag, basket and pet bag rows share one uid
++## loads as three instances: the bag keeps the uid, the basket and pet copies are reminted.
++func _test_duplicate_uids_across_containers() -> void:
++	const U := "laaaa0001"
++	var src: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + GOLDEN))
++	var holders: Array = [src.player.inventory, src.pets[0].bag]
++	for b in src.home.buildings:
++		if str(b.kind) == "basket":
++			holders.append(b.contents)
++	for rows in holders:
++		for row in rows:
++			if row is Dictionary and str(row.id) == "stone":
++				row["uid"] = U
++				break
++	_clean()
++	_put(JSON.stringify(src))
++	SG.load_now(host)
++	SG.save_now()
++	var s1 := _saved()
++	var seen := {}
++	var dup := 0
++	for row in _rows(s1):
++		var u := str(row.get("uid", ""))
++		dup += 1 if u != "" and seen.has(u) else 0
++		seen[u] = true
++	var bag_keeps := (s1.player.inventory as Array).any(func (r: Variant) -> bool: return r is Dictionary and str(r.get("uid", "")) == U)
++	_check(dup == 0 and bag_keeps, "a uid shared by bag, basket and pet bag rows loads as distinct instances, the bag keeps it (dup %d, bag keeps %s)" % [dup, bag_keeps])
++
++## Every item row in a save: bag, worn gear, home cargo, building contents, pet bags.
++func _rows(d: Dictionary, skip_home_camp: bool = false) -> Array:
++	var out: Array = []
++	out.append_array(d.get("player", {}).get("inventory", []))
++	var extras: Dictionary = d.get("player", {}).get("inventory_extras", {})
++	out.append_array((extras.get("worn", {}) as Dictionary).values())
++	out.append_array(d.get("home", {}).get("cargo", []))
++	for b in ([] if skip_home_camp else d.get("home", {}).get("buildings", [])) + d.get("away", {}).get("buildings", []):
++		if b.get("contents") is Array:
++			out.append_array(b.contents)
++	for p in d.get("pets", []):
++		if p.get("bag") is Array:
++			out.append_array(p.bag)
++	return out.filter(func (r: Variant) -> bool: return r is Dictionary)
++
++func _units(d: Dictionary) -> Dictionary:
++	var n := {}
++	for row in _rows(d):
++		n[str(row["id"])] = int(n.get(str(row["id"]), 0)) + int(row.get("count", 1))
++	return n
++
+ func _test_forged() -> void:
+ 	_clean()
+ 	_put(FileAccess.get_file_as_string(FIX + "save_forged.json"))
+ 	SG.load_now(host)
+ 	var inv = player.inventory
+-	var helm = inv.slots[inv.find_first(&"raid_helm")] if inv.find_first(&"raid_helm") >= 0 else null
++	var helm = inv.equipped_in(&"head") # the forged head=raid_helm wears it (W2-INV: worn gear leaves the bag)
+ 	_check(helm != null and helm.count == 1 and helm.level == 60, "forged raid_helm x5000 L9999 loads as x1 L60")
+ 	_check(helm != null and helm.durability <= helm.max_durability and helm.max_durability == IS.make(&"raid_helm", 1, {}, 60).max_durability, "forged durability clamps to the item's ceiling")
+ 	var unknown := 0
+@@ -387,7 +530,7 @@ func _test_away_island() -> void:
+ ## (the golden's 42 t_stones and 6 stacks arrive) and keep saving, never abort halfway.
+ func _test_hostile_types() -> void:
+ 	_clean()
+-	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	_put(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 	SG.load_now(host) # the golden camp layout, so the pen cell below is free under it
+ 	await process_frame
+ 	var pen := _free_cell(&"makeshift_taming_pen")
+@@ -435,7 +578,7 @@ func _test_hostile_types() -> void:
+ 		cases[label] = func (d: Dictionary) -> void: d["home"]["buildings"] = [row]
+ 	for label in cases:
+ 		_clean()
+-		var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++		var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 		(cases[label] as Callable).call(d)
+ 		_put(JSON.stringify(d))
+ 		W.t_stones = 0
+@@ -445,7 +588,7 @@ func _test_hostile_types() -> void:
+ 		var stacks := 0
+ 		for st in player.inventory.slots:
+ 			if st != null: stacks += 1
+-		var ok: bool = SG.blocked_reason == "" and int(W.t_stones) == 42 and stacks == 6 and player.bonded.size() == 1 and not null in player.bonded
++		var ok: bool = SG.blocked_reason == "" and int(W.t_stones) == 42 and stacks == 25 and player.bonded.size() == 1 and not null in player.bonded
+ 		var saved: bool = SG.save_now()
+ 		_check(ok and saved and errors.script_errors == errs, "hostile '%s' loads completely and saves (blocked='%s' t_stones=%d stacks=%d pets=%d script_errors=%d)" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), errors.script_errors - errs])
+ 		print("[t_save] hostile '%s' blocked='%s' t_stones=%d stacks=%d pets=%d saved=%s" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), saved])
+@@ -504,9 +647,9 @@ func _check_pen(label: String, keeps: bool) -> void:
+ ## load lifts the block.
+ func _test_aborted_load() -> void:
+ 	_clean()
+-	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	_put(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 	var sha0 := FileAccess.get_sha256(SG.path)
+-	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 	raw["t_stones"] = {}
+ 	print("[t_save] the next SCRIPT ERROR (Nonexistent 'int' constructor) is the deliberate abort")
+ 	expected_script_errors += 1
+@@ -551,6 +694,34 @@ func _test_full_cargo_refund() -> void:
+ 	print("[t_save] full cargo refund held_on_disk=%s after_room=%s" % [held, _held_on_disk(after)])
+ 	await process_frame
+ 
++## W2-INV: a pending refund kept by a pre-W2-INV save holds stacks (stone 10 x 20). Split, its 200
++## instances are more than the whole camp cargo holds, so all-or-nothing would keep it unreachable on
++## every load; the cargo grows for it instead, as the migration overflow does.
++func _test_oversized_legacy_refund() -> void:
++	_clean()
++	SG.save_now()
++	var d := _saved()
++	d["home"]["cargo"] = []
++	var contents: Array = []
++	for i in 10:
++		contents.append({"id": "stone", "count": 20})
++	d["pending_refunds"] = [{"kind": "basket", "cell": [4000, 4000], "rot": 0, "contents": contents}]
++	_put(JSON.stringify(d))
++	# Earlier tests grew the cargo in memory (a load never shrinks it); start from its base 60 slots.
++	W.cargo_home.load_array([])
++	load("res://scripts/items/inventory_equipment.gd").resize(W.cargo_home, W.cargo_home.base_slots)
++	var base: int = W.cargo_home.slot_count
++	SG.load_now(host)
++	SG.save_now()
++	var c = W.cargo_home
++	var pending := (_saved().get("pending_refunds", []) as Array).size()
++	_check(base < 200 and c.count_of(&"stone") == 200 and c.count_of(&"basket_kit") == 1 and pending == 0,
++		"a legacy refund of 200 stone lands in a grown camp cargo (stone=%d kit=%d slots %d -> %d pending=%d)" % [c.count_of(&"stone"), c.count_of(&"basket_kit"), base, c.slot_count, pending])
++	SG.load_now(host)
++	_check(W.cargo_home.count_of(&"stone") == 200, "the grown cargo reloads with all 200 stone (got %d)" % W.cargo_home.count_of(&"stone"))
++	print("[t_save] oversized legacy refund stone=%d slots %d -> %d pending=%d" % [c.count_of(&"stone"), base, c.slot_count, pending])
++	await process_frame
++
+ ## [flint, stone, basket kits] anywhere in a save: cargo, building contents, pending refund rows.
+ func _held_on_disk(d: Dictionary) -> Array:
+ 	var bag: Array = (d.get("home", {}).get("cargo", []) as Array).duplicate()
+@@ -570,7 +741,7 @@ func _held_on_disk(d: Dictionary) -> Array:
+ ## must treat it as unreadable rather than apply it.
+ func _test_sanitizer_abort() -> void:
+ 	_clean()
+-	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	_put(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 	var San: GDScript = load("res://scripts/core/save_sanitizer.gd")
+ 	San.set("abort_for_test", true)
+ 	print("[t_save] the next SCRIPT ERROR (call on a null instance) is the deliberate sanitizer abort")
+@@ -585,7 +756,7 @@ func _test_sanitizer_abort() -> void:
+ 	for i in 70:
+ 		W._process(1.0)
+ 	_check(FileAccess.get_sha256(SG.path) == sha0, "aborted sanitizer: bytes unchanged after 70 s of autosave")
+-	var forged: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	var forged: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 	forged[San.get("CHECKED")] = true
+ 	_put(JSON.stringify(forged))
+ 	var ok: Dictionary = (load("res://scripts/core/save_migrations.gd") as GDScript).read(SG.path)
+@@ -598,7 +769,7 @@ func _test_sanitizer_abort() -> void:
+ ## pen the grid still accepts keeps its animal.
+ func _test_pen_refunds() -> void:
+ 	_clean()
+-	var golden := FileAccess.get_file_as_string(FIX + "save_v3_golden.json")
++	var golden := FileAccess.get_file_as_string(FIX + GOLDEN)
+ 	_put(golden)
+ 	SG.load_now(host)
+ 	await process_frame
+@@ -653,7 +824,7 @@ func _test_pen_refunds() -> void:
+ ## save must still record this session's buildings, or sailing away and back loses them.
+ func _test_refused_save_keeps_camp() -> void:
+ 	_clean()
+-	_put(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	_put(FileAccess.get_file_as_string(FIX + GOLDEN))
+ 	SG.load_now(host) # the golden basket holds 5 stone
+ 	await process_frame
+ 	var cell := _free_cell(&"basket")
+@@ -705,6 +876,7 @@ func _write_golden() -> void:
+ 	inv.add(IS.make(&"stone", 12))
+ 	inv.add(IS.make(&"branch", 7))
+ 	inv.add(IS.make(&"raw_meat", 3))
++	inv.add(IS.make(&"raid_helm", 1))
+ 	inv.equip(&"head", &"raid_helm")
+ 	inv.add(IS.make(&"raid_helm", 1))
+ 	W.cargo_home.load_array([])
+@@ -738,15 +910,13 @@ func _write_golden() -> void:
+ 	var d := _saved()
+ 	d["unstable"]["harvested"] = {}
+ 	d["saved_unix"] = 4000000000 # clamps to now at load: no offline time, so the snare round-trips
+-	var out := ProjectSettings.globalize_path(FIX + "save_v3_golden.json")
++	var out := ProjectSettings.globalize_path(FIX + GOLDEN)
+ 	var text := JSON.stringify(d, "\t")
+ 	var f := FileAccess.open(out, FileAccess.WRITE)
+ 	f.store_string(text + "\n")
+ 	f.close()
+-	var t := FileAccess.open(ProjectSettings.globalize_path(FIX + "save_truncated.json"), FileAccess.WRITE)
+-	t.store_string(text.left(text.length() / 2)) # a save cut off mid-write
+-	t.close()
+-	print("[t_save] wrote golden (%d buildings, %d pets, %d snares, %d bytes) and truncated fixtures" % [placed, d["pets"].size(), d["ground_snares"].size(), text.length()])
++	# save_truncated.json stays the base's (any cut-off save tests the same path).
++	print("[t_save] wrote golden (%d buildings, %d pets, %d snares, %d bytes)" % [placed, d["pets"].size(), d["ground_snares"].size(), text.length()])
+ 	# Away golden: the survivor standing on an unstable island with a stocked basket there.
+ 	W.remaining_lifetime = 0.0
+ 	W.load_island(host, &"temperate_25", Vector3(0, 1, 12), false)
+@@ -762,7 +932,7 @@ func _write_golden() -> void:
+ 	var a := _saved()
+ 	a["unstable"]["harvested"] = {}
+ 	a["saved_unix"] = 4000000000
+-	var af := FileAccess.open(ProjectSettings.globalize_path(FIX + "save_v3_away_golden.json"), FileAccess.WRITE)
++	var af := FileAccess.open(ProjectSettings.globalize_path(FIX + AWAY_GOLDEN), FileAccess.WRITE)
+ 	af.store_string(JSON.stringify(a, "\t") + "\n")
+ 	af.close()
+ 	print("[t_save] wrote away golden island=%s away_buildings=%d" % [a.get("island_id"), (a.get("away", {}).get("buildings", []) as Array).size()])
+diff --git a/game/tests/t_tame.gd b/game/tests/t_tame.gd
+index 975571d6..fa51da33 100644
+--- a/game/tests/t_tame.gd
++++ b/game/tests/t_tame.gd
+@@ -79,10 +79,10 @@ func _test_bag_survives_reload() -> void:
+ 	var tri = _def(&"triceratops")
+ 	var rec = PetRecordS.from_def(tri, &"", &"", null, 30)
+ 	_expect(rec.bag.slot_count == 140, "fresh triceratops bag is 140 (got %d)" % rec.bag.slot_count)
+-	rec.bag.slots[50] = ItemStackS.make(&"stone", 7)
++	rec.bag.slots[50] = ItemStackS.make(&"stone_shot", 7) # ammunition still stacks (W2-INV); stone is one per slot
+ 	var back = PetRecordS.from_dict(_json_round(rec.to_dict()))
+ 	var s50 = back.bag.slots[50] if back.bag.slot_count > 50 else null
+-	_expect(back.bag.slot_count == 140 and s50 != null and s50.def_id == &"stone" and s50.count == 7, "slot 50 survives a JSON round trip in a 140-slot bag")
++	_expect(back.bag.slot_count == 140 and s50 != null and s50.def_id == &"stone_shot" and s50.count == 7, "slot 50 survives a JSON round trip in a 140-slot bag")
+ 	# Legacy save: a bag already truncated to 10 rows and no identity fields.
+ 	var legacy: Dictionary = rec.to_dict()
+ 	legacy["bag"] = (legacy["bag"] as Array).slice(0, 10)
+@@ -91,7 +91,7 @@ func _test_bag_survives_reload() -> void:
+ 	var old = PetRecordS.from_dict(_json_round(legacy))
+ 	_expect(old.bag.slot_count == 140, "legacy 10-slot bag re-expands to 140 (got %d)" % old.bag.slot_count)
+ 	_expect(old.uid != "", "legacy pet gets a uid on load")
+-	print("[t_tame] bag slots fresh=%d roundtrip=%d legacy=%d slot50=%s" % [rec.bag.slot_count, back.bag.slot_count, old.bag.slot_count, "stone x%d" % s50.count if s50 else "MISSING"])
++	print("[t_tame] bag slots fresh=%d roundtrip=%d legacy=%d slot50=%s" % [rec.bag.slot_count, back.bag.slot_count, old.bag.slot_count, "stone_shot x%d" % s50.count if s50 else "MISSING"])
+ 	_sections += 1
+ 
+ 
