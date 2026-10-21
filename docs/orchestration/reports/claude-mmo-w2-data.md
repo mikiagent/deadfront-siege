@@ -5,6 +5,18 @@ commits; merged in 5849a2d3). Review round 4 gates ran on 753a3c64 with the rege
 tree `w2data-r4-gate`); the commits after it change only this report. No dsc worker was used (the owner took
 DeepSeek off on 2026-10-20), so nothing goes in dsc-improvements.md. No credits spent.
 
+## Sync 1 before integration (2026-10-21)
+
+The branch already contains claude/mmo-overhaul (ddaab662), so there was nothing to merge. The package itself was
+merged on 2026-10-20 (eb835a83, hooks be970c8c), and the branch is ahead only by report commits.
+
+The old hooks patch no longer applied: its changes are already in the base. `git apply --3way` on it was clean for
+14 files, but it conflicted in crafting.gd, where W2-SKILLS H1 replaced hook 6. **Regenerated:** the patch drops
+hook 6's two crafting.gd hunks, keeps every other hunk as the record of what was applied, and has a header that
+says so. On ddaab662, `git apply --3way` gives rc=0 with no change to the tree, and `git apply -R --check` gives
+rc=0, so every hunk is in the base. Plain `git apply --check` fails, and it should, because the changes are already
+present. **Integrator: nothing to apply.** Gates for this sync are listed below.
+
 ## Round 5: the round 4 findings again, on a resumed workflow step (2026-10-21)
 
 A resumed workflow sent this package the round 4 review findings again (raid gear beats steel, raid primary takes
