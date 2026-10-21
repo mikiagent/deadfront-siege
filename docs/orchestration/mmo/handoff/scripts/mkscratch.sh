@@ -9,6 +9,21 @@ R=/Users/milankinzy/Documents/deadfront-siege
 OSP=/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad
 W=/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/trees/$name
 mkdir -p "$(dirname "$W")"
+# Disk guard: agents make many uniquely named trees (1.6 GB each). Keep at most 12; drop the oldest ones that no
+# process uses and nothing touched for 30 minutes, and refuse below 15 GB free.
+T=$(dirname "$W")
+n=$(ls -1d "$T"/*/ 2>/dev/null | wc -l | tr -d " ")
+if [ "$n" -ge 12 ]; then
+  for d in $(ls -1dtr "$T"/*/ 2>/dev/null); do
+    d=${d%/}; [ "$d" = "$W" ] && continue
+    [ "$(lsof +d "$d" 2>/dev/null | wc -l | tr -d " ")" = "0" ] || continue
+    [ -z "$(find "$d" -maxdepth 3 -newermt "-30 minutes" -not -path "*/.godot/*" 2>/dev/null | head -1)" ] || continue
+    git -C "$R" worktree remove --force "$d" 2>/dev/null || rm -rf "$d"; n=$((n-1)); [ "$n" -lt 10 ] && break
+  done
+  git -C "$R" worktree prune
+fi
+free_gb=$(df -g "$T" | awk 'NR==2{print $4}')
+if [ "${free_gb:-0}" -lt 15 ]; then echo "mkscratch: only ${free_gb} GB free; reuse an existing tree name instead of making a new one" >&2; exit 4; fi
 if [ -e "$W" ]; then git -C "$R" worktree remove --force "$W" 2>/dev/null || rm -rf "$W"; git -C "$R" worktree prune; fi
 git -C "$R" worktree add -q --detach "$W" "$ref"
 cp -Rc "$R/.claude/worktrees/mmo-overhaul/game/.godot" "$W/game/.godot"

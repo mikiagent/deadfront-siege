@@ -1,0 +1,759 @@
+diff --git a/game/scripts/combat/hunt.gd b/game/scripts/combat/hunt.gd
+index 7f54da55..d2cf0228 100644
+--- a/game/scripts/combat/hunt.gd
++++ b/game/scripts/combat/hunt.gd
+@@ -226,7 +226,8 @@ func land_hit(t: Creature, w: ItemStack) -> bool:
+ 	var behind := _is_behind_of(t)
+ 	if behind:
+ 		dealt *= float(tune.get("behind_mult", 1.25))
+-	var melee_lv := player.skills.level_of("melee") if player.skills else 0
++	# Bonuses count from Lv. 1 (W2-SKILLS: trees start at 1), so a new survivor hits as before.
++	var melee_lv := maxi(0, player.skills.level_of("melee") - SkillState.MIN_LEVEL) if player.skills else 0
+ 	dealt *= 1.0 + float(tune.get("damage_per_melee_level", 0.01)) * float(melee_lv)  # ASSUMPTION +1 % per Melee level
+ 	# Data-driven combat matchup, then a crit roll (x1.75 red): 8 % base, +20 % from behind,
+ 	# +0.2 % per Melee level.
+@@ -396,7 +397,7 @@ func fire_ranged() -> bool:
+ 		# The arc flies past the weapon's straight range so a lobbed stone can land on a target at
+ 		# the edge; the multiplier is tuning, not code (combat_tuning.json ranged.arc_range_mult).
+ 		shot.range_left = def.range_m * float(CombatTuning.section("ranged").get("arc_range_mult", 1.5))
+-		shot.skill_level = player.skills.level_of("ranged") if player.skills else 0
++		shot.skill_level = maxi(0, player.skills.level_of("ranged") - SkillState.MIN_LEVEL) if player.skills else 0
+ 		runtime.add_child(shot)
+ 		shot.global_position = origin
+ 	)
+diff --git a/game/scripts/core/data.gd b/game/scripts/core/data.gd
+index aa02b967..547c2a10 100644
+--- a/game/scripts/core/data.gd
++++ b/game/scripts/core/data.gd
+@@ -47,9 +47,13 @@ func is_survival_unlocked(node_id: StringName) -> bool:
+ func set_survival_unlocked(node_id: StringName, on: bool) -> void:
+ 	survival_unlocked[node_id] = on
+ 
++## The one bonded-pet cap every client bond path asks (pen, field tame, bag, market unpack): spec 09's
++## 3 + Animal Handling I-IV, at most 7 (SkillRules.bonded_capacity). Caged animals are items and
++## never count. 3 with no local player. The server's tame intent does not ask yet: skill nodes stay
++## client-side until W3-SRVACT, which adds the cap there with them.
+ func bonded_cap() -> int:
+-	# Roster storage is unlimited; Player.MAX_PETS_OUT governs the three active companions.
+-	return 2147483647
++	var p := PlayerRegistry.local()
++	return SkillRules.bonded_capacity(p.skills) if p != null and p.skills != null else 3
+ 
+ func has_capture_technique(tier: int) -> bool:
+ 	for id in survival_nodes:
+diff --git a/game/scripts/core/save_sanitizer.gd b/game/scripts/core/save_sanitizer.gd
+index b1f73860..456a21c8 100644
+--- a/game/scripts/core/save_sanitizer.gd
++++ b/game/scripts/core/save_sanitizer.gd
+@@ -103,7 +103,7 @@ static func clean(data: Dictionary) -> Dictionary:
+ 		data["ground_snares"] = _rows(data["ground_snares"], SNARE_ROW).filter(func (r: Variant) -> bool:
+ 			return _is_position((r as Dictionary).get("position")))
+ 	if data.has("skills_v2"):
+-		_skills(data["skills_v2"])
++		_skills(data["skills_v2"], _int(data.get("pioneer_level", 0), 0, SkillState.MAX_LEVEL - 1))
+ 	if data.has("skills"):
+ 		data["skills"] = _legacy_survival(data["skills"], data.get("skills_v2", {}))
+ 	if data.has("t_stones"):
+@@ -219,15 +219,20 @@ static func _genetics(g: Variant) -> void:
+ 			if not (part[stat] is int or part[stat] is float):
+ 				(part as Dictionary).erase(stat)
+ 
+-## Tree levels cap at 60 and SP can never exceed what those levels paid out (SkillState.add_xp).
+-## Bought nodes must exist in trees.json and be reachable (tree level, prerequisite); walking the
+-## trees in order, a node is kept only while the total cost stays within that payout, and sp_spent
+-## is that total, so a forged unlocked list cannot buy nodes for free.
+-static func _skills(sv: Dictionary) -> void:
++## Tree levels cap at 60. Bought nodes must exist in trees.json and be reachable (tree level,
++## prerequisite); walking the trees in order, a node is kept only while the total cost stays within
++## the budget, and sp_spent is that total, so a forged unlocked list cannot buy nodes for free.
++## Budget (W2-SKILLS, spec 03): the SP the character level paid plus the one-time sp_extra. A rev-1
++## save bought its nodes under the old per-tree award, so its budget is what its tree levels paid
++## then: a migration never takes a learned node or an unspent SP away (SkillState turns what the
++## character level does not cover into sp_extra). sp_extra is capped at that old award, the most a
++## migration can grant. shortcut: a forged save can still claim up to the old award of its tree
++## levels; server-side purchases (W3-SRVACT) close it.
++static func _skills(sv: Dictionary, pioneer_level: int = 0) -> void:
+ 	var trees: Dictionary = sv.get("trees") if sv.get("trees") is Dictionary else {}
+ 	var payout := SkillState.new()
+ 	payout._load()
+-	var earned := 0
++	var legacy_paid := 0
+ 	for id in trees.keys():
+ 		if not SkillState.ORDER.has(str(id)):
+ 			trees.erase(id)
+@@ -235,11 +240,19 @@ static func _skills(sv: Dictionary) -> void:
+ 		var row: Dictionary = trees[id] if trees[id] is Dictionary else {}
+ 		var level := _int(row.get("level", 0), 0, MAX_LEVEL)
+ 		row["level"] = level
+-		row["xp"] = _num(row.get("xp", 0.0), 0.0, SkillState.xp_to_next(level), 0.0)
++		# A tree at the character-level cap banks its XP (SkillState._resolve): keep what it can still use.
++		row["xp"] = _num(row.get("xp", 0.0), 0.0, SkillState.xp_to_max(level), 0.0)
+ 		row["unlocked"] = row.get("unlocked") if row.get("unlocked") is Array else []
+ 		trees[id] = row
+ 		for l in range(1, level + 1):
+-			earned += payout.sp_for_level(l)
++			legacy_paid += payout.sp_for_level(l)
++	var char_paid := SkillRules.paid_for_level(payout, pioneer_level + 1)
++	var earned := legacy_paid
++	# Written back so SkillState.from_dict reads the same rev (a hand-edited [2] or "2" is rev 1).
++	sv["rev"] = _int(sv.get("rev", 1), 1, SkillState.REV)
++	if int(sv["rev"]) >= SkillState.REV:
++		sv["sp_extra"] = _int(sv.get("sp_extra", 0), 0, legacy_paid)
++		earned = char_paid + int(sv["sp_extra"])
+ 	var spent := 0
+ 	for id in SkillState.ORDER:
+ 		if not trees.has(id):
+@@ -258,7 +271,10 @@ static func _skills(sv: Dictionary) -> void:
+ 	payout.free()
+ 	sv["trees"] = trees
+ 	sv["sp_spent"] = spent
+-	sv["sp_available"] = _int(sv.get("sp_available", 0), 0, earned - spent)
++	sv["sp_available"] = _int(sv.get("sp_available", 0), 0, maxi(0, earned - spent))
++	for k in ["refund_day", "refunds_today"]: # optional daily refund counter (SkillState.refund_block)
++		if sv.has(k):
++			sv[k] = _int(sv[k], -1, 1 << 30)
+ 
+ ## Legacy {survival node id: bool}. Only survival.json ids with bool values survive. When a skill
+ ## tree save exists it is the record of what was bought, so a node stays true only if its tree node
+diff --git a/game/scripts/dev/skills_lab.gd b/game/scripts/dev/skills_lab.gd
+index 81b410c0..717ba03f 100644
+--- a/game/scripts/dev/skills_lab.gd
++++ b/game/scripts/dev/skills_lab.gd
+@@ -1,5 +1,5 @@
+ extends Node3D
+-## M10 acceptance: occupation seed, XP → level-ups with SP, unlock, save/load round trip.
++## M10 acceptance: occupation seed, XP → a character level-up with SP, unlock, save/load round trip.
+ 
+ var _player: Player
+ 
+@@ -15,14 +15,19 @@ func _demo() -> void:
+ 	var sk := _player.skills
+ 	sk.apply_occupation("office_worker")
+ 	print("[skill] construction %d" % sk.level_of("construction"))
+-	for i in 10:
+-		sk.add_xp("gathering", 2)
+-	print("[skill] gathering level=%d xp=%.0f sp=%d" % [sk.level_of("gathering"), sk.xp_of("gathering"), sk.sp_available])
+-	sk.unlock("gathering", "forage_1")
+-	var d := sk.to_dict()
++	# W2-SKILLS: SP come from character levels (spec 03). Gathering XP (every skill gain is World XP
++	# too) earns the next character level and its SP; one SP buys Till Small Field (Farming Lv. 1).
++	var lv := sk.character_level()
++	var sp := sk.sp_available
++	var paid := sk.sp_for_level(lv + 1)
++	sk.add_xp("gathering", float(World.xp_for_level(World.pioneer_level) - World.pioneer_xp))
++	print("[skill] character level %d gathering level=%d sp=%d" % [sk.character_level(), sk.level_of("gathering"), sk.sp_available])
++	var ok := sk.character_level() == lv + 1 and sk.sp_available == sp + paid
++	ok = sk.unlock("farming", "small_field") and sk.sp_available == sp + paid - 1 and ok
+ 	var copy := SkillState.new()
+ 	add_child(copy)
+-	copy.from_dict(d)
+-	print("[skill] roundtrip construction=%d gathering=%d owned=%s sp=%d" % [copy.level_of("construction"), copy.level_of("gathering"), copy.trees["gathering"]["unlocked"], copy.sp_available])
+-	print("[skill] character level %d" % sk.character_level())
+-	get_tree().quit(0)
++	copy.from_dict(sk.to_dict())
++	print("[skill] roundtrip construction=%d gathering=%d farming owned=%s sp=%d" % [copy.level_of("construction"), copy.level_of("gathering"), copy.trees["farming"]["unlocked"], copy.sp_available])
++	ok = ok and copy.level_of("construction") == 20 and copy.is_unlocked("farming", "small_field") and copy.sp_available == sp + paid - 1
++	print("[skill] %s level-up pays %d SP, small_field bought" % ["PASS" if ok else "FAIL", paid])
++	get_tree().quit(0 if ok else 1)
+diff --git a/game/scripts/dev/ui_family_lab.gd b/game/scripts/dev/ui_family_lab.gd
+index 08a7438c..eb33c240 100644
+--- a/game/scripts/dev/ui_family_lab.gd
++++ b/game/scripts/dev/ui_family_lab.gd
+@@ -28,7 +28,7 @@ func _ready() -> void:
+ 		player.ui.rebuild()
+ 
+ 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
+-		var unlimited_ok := Data.bonded_cap() > 1000000
++		var unlimited_ok := Data.bonded_cap() == 3 # spec 09: 3 bonded + Animal Handling I-IV, no longer unlimited
+ 		var animal := AnimalScreen.new()
+ 		var layer := CanvasLayer.new()
+ 		add_child(layer)
+diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
+index 0d5d57d1..b0cb5782 100644
+--- a/game/scripts/items/crafting.gd
++++ b/game/scripts/items/crafting.gd
+@@ -250,9 +250,11 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
+ 
+ ## Optional endgame gates. Existing recipes are unchanged.
+ static func progression_block(player: Player, rec: Dictionary) -> String:
+-	var node := str(rec.get("requires_node", ""))
+-	if node != "":
+-		var learn := _node_block(player, node)
++	# W2-SKILLS: a recipe a skill node gates (a node's recipe effect or the recipe's requires_node)
++	# stays shown but locked, saying what to learn: "learn X (Tree Lv. N, SP)". It covers both kinds
++	# of gate, so it is the only requires_node check here (W2-DATA's own check folds into it).
++	if player != null and player.skills != null:
++		var learn := SkillRules.recipe_block(player.skills, str(rec.get("id", "")))
+ 		if learn != "":
+ 			return learn
+ 	var survival := int(rec.get("required_survival", 0))
+@@ -267,18 +269,6 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
+ 			return "needs materials and crafting skill for level %d" % minimum
+ 	return ""
+ 
+-## "" once the trees.json node is learned, else "needs Smelting 1 (Processing 25)": the node, its tree and
+-## level, so the player knows which tree to raise. Node ids are unique across trees (t_data checks it).
+-static func _node_block(player: Player, node_id: String) -> String:
+-	if player != null and player.skills != null:
+-		for tree in player.skills.defs:
+-			for n in player.skills.nodes(str(tree)):
+-				if n is Dictionary and str((n as Dictionary).get("id", "")) == node_id:
+-					if player.skills.is_unlocked(str(tree), node_id):
+-						return ""
+-					return "needs %s (%s %d)" % [str((n as Dictionary).get("name", node_id.capitalize())), SkillState.NAMES.get(str(tree), str(tree)), int((n as Dictionary).get("level", 1))]
+-	return "needs %s" % node_id.capitalize()
+-
+ static func can_make(player: Player, rec: Dictionary, picks: Array[int]) -> bool:
+ 	if rec.is_empty():
+ 		return false
+diff --git a/game/scripts/pets/field_tame.gd b/game/scripts/pets/field_tame.gd
+index b64cb1b8..2aabbd29 100644
+--- a/game/scripts/pets/field_tame.gd
++++ b/game/scripts/pets/field_tame.gd
+@@ -62,12 +62,21 @@ static func feed_value(creature: Creature, food_id: StringName) -> float:
+ 		return ACCEPTED_FEED
+ 	return 0.0
+ 
++## "" while `player` may bond one more animal, else why not (spec 09: 3 + Animal Handling I-IV).
++static func roster_full(player: Player) -> String:
++	if player == null or player.bonded.size() < Data.bonded_cap():
++		return ""
++	return "Bonded roster full (%d / %d)" % [player.bonded.size(), Data.bonded_cap()]
++
+ static func plate_hint(creature: Creature, inv: Inventory) -> Dictionary:
+ 	## Returns {kind, text, food_id, progress} for the creature plate.
+ 	if not can_attempt(creature):
+ 		return {}
+ 	var need := preferred_need(creature)
++	# The plate is the local survivor's view; at the cap a green "Tame" led to a silent refusal.
+ 	var locked := lock_reason(creature)
++	if locked == "":
++		locked = roster_full(PlayerRegistry.local())
+ 	if locked != "":
+ 		return {
+ 			"kind": &"need",
+@@ -123,8 +132,9 @@ static func apply_feed(player: Player, creature: Creature, food_id: StringName)
+ 		print("[tame] refused: %s" % lock_reason(creature))
+ 		return false
+ 	# Refuse before eating the food: a completed tame must have a roster slot to go to.
+-	if player.bonded.size() >= Data.bonded_cap():
+-		print("[tame] refused: roster full (%d)" % Data.bonded_cap())
++	var full := roster_full(player)
++	if full != "":
++		player.notice(full + ". Animal Handling (Survival) adds slots.")
+ 		return false
+ 	var value := feed_value(creature, food_id)
+ 	if value <= 0.0:
+diff --git a/game/scripts/server/character_state.gd b/game/scripts/server/character_state.gd
+index 79c8b05c..b69eaabb 100644
+--- a/game/scripts/server/character_state.gd
++++ b/game/scripts/server/character_state.gd
+@@ -92,7 +92,7 @@ func pos() -> Vector3:
+ 	return WorldFacade.v3(d.pos)
+ 
+ func level_of(tree: String) -> int:
+-	return int((d.skills.get(tree, {}) as Dictionary).get("level", 0))
++	return int((d.skills.get(tree, {}) as Dictionary).get("level", SkillState.MIN_LEVEL))
+ 
+ ## SkillState.add_xp's rules on plain data: every gain also trains Survival.
+ # shortcut: skill points and unlocked nodes stay client-side; they move here with W3-SRVACT.
+@@ -101,7 +101,7 @@ func add_xp(tree: String, amount: float, mirrored: bool = false) -> void:
+ 		return
+ 	if not mirrored and tree != "survival":
+ 		add_xp("survival", amount, true)
+-	var t: Dictionary = d.skills.get(tree, {"level": 0, "xp": 0})
++	var t: Dictionary = d.skills.get(tree, {"level": SkillState.MIN_LEVEL, "xp": 0})
+ 	d.skills[tree] = t
+ 	if int(t.level) >= SkillState.MAX_LEVEL:
+ 		return
+diff --git a/game/scripts/server/intent_handlers.gd b/game/scripts/server/intent_handlers.gd
+index 0bbbcb56..d19f8337 100644
+--- a/game/scripts/server/intent_handlers.gd
++++ b/game/scripts/server/intent_handlers.gd
+@@ -435,7 +435,7 @@ func _attack(ch: CharacterState, a: Dictionary) -> Dictionary:
+ 	if rng.randf() >= CombatTuning.hit_chance(float(tune.get("base_accuracy", 1.0)), float(c.get("dodge", 0.0))):
+ 		return ok({"dealt": 0.0, "kind": "dodge"}) # commits: the swing spent this seq's rolls
+ 	var dealt := maxf(dmg * float(tune.get("min_damage_frac", 0.05)), dmg - float(c.get("defense", 0.0)) * float(tune.get("defense_factor", 0.5)))
+-	var melee := ch.level_of("melee")
++	var melee := maxi(0, ch.level_of("melee") - SkillState.MIN_LEVEL) # bonuses count from Lv. 1
+ 	dealt *= 1.0 + float(tune.get("damage_per_melee_level", 0.01)) * float(melee)
+ 	dealt *= CombatCounters.multiplier(def.archetype, dtype)
+ 	var kind := "hit"
+diff --git a/game/scripts/ui/animal_screen.gd b/game/scripts/ui/animal_screen.gd
+index 61df96f6..21cad4ee 100644
+--- a/game/scripts/ui/animal_screen.gd
++++ b/game/scripts/ui/animal_screen.gd
+@@ -147,6 +147,8 @@ func _rebuild() -> void:
+ 	for child in _active.get_children():
+ 		child.queue_free()
+ 	_pin_active()
++	if player != null: # spec 09:50: bonded count and max in the pets UI ("3 / 4")
++		_title.text = "ANIMALS    ·    BONDED %d / %d    ·    GROWTH" % [player.bonded.size(), Data.bonded_cap()]
+ 	if player == null or player.bonded.is_empty():
+ 		_detail.text = "No bonded animals yet. Knock one down and feed it to add it to your roster."
+ 		_summon.visible = false
+@@ -228,7 +230,8 @@ func _show_detail(rec: PetRecord) -> void:
+ 			growth += "%s\n    %s    +%d growth    EV %d\n" % [stat_name, genes.tier_for(stat), int(genes.level_gains.get(stat, 0)), int(genes.evs.get(stat, 0))]
+ 	var name := str(rec.species).capitalize()
+ 	_detail.text = "%s\nLv. %d          Grade %s\nXP %.0f / %.0f\n\nHP              %.0f\nAttack          %.0f\nDefense         %.0f\nSpeed           %.0f\nHunger          %.0f / %.0f\n\nGROWTH / POTENTIAL\n%s\nLevel-ups add three random growth points. Training can focus EVs up to the species limits." % [name, rec.level, rec.grade, rec.xp, xp_need, rec.hp, rec.attack, rec.defense, rec.speed, rec.hunger, rec.hunger_max, growth]
+-	_summon.text = "DISMISS" if _is_out(rec) else ("EQUIP   (%d / %d)" % [player.live_pets().size(), Player.MAX_PETS_OUT])
++	# "ACTIVE": the title's BONDED n / cap is the roster; this is how many are out (W2-SKILLS H10).
++	_summon.text = "DISMISS" if _is_out(rec) else ("EQUIP   (ACTIVE %d / %d)" % [player.live_pets().size(), Player.MAX_PETS_OUT])
+ 	_summon.disabled = not _is_out(rec) and player.live_pets().size() >= Player.MAX_PETS_OUT
+ 
+ func _is_out(rec: PetRecord) -> bool:
+diff --git a/game/scripts/ui/craft_ui.gd b/game/scripts/ui/craft_ui.gd
+index fddac3f3..b0afd11f 100644
+--- a/game/scripts/ui/craft_ui.gd
++++ b/game/scripts/ui/craft_ui.gd
+@@ -455,6 +455,17 @@ func _show_detail(info: Dictionary) -> void:
+ 		st.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
+ 		st.add_theme_color_override("font_color", UiTokens.META)
+ 		_detail.add_child(st)
++	# W2-SKILLS: a recipe a skill node gates is listed but locked (spec 03): say what unlocks it,
++	# above the ingredients so a phone shows it without scrolling.
++	var locked := Crafting.progression_block(player, rec)
++	if locked != "":
++		var why := Label.new()
++		why.name = "DetailLock"
++		why.text = locked.left(1).to_upper() + locked.substr(1)
++		why.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
++		why.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
++		why.add_theme_color_override("font_color", UiTokens.DANGER)
++		_detail.add_child(why)
+ 	var need := Label.new()
+ 	need.text = "INGREDIENTS"
+ 	need.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index 80b01e5b..6f25ecbc 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -658,7 +658,9 @@ func _on_level_up(stored: int) -> void:
+ 	_levelup_lines.append([LevelDisplay.label(level), 40, Color(1.0, 0.85, 0.35)])
+ 	_levelup_lines.append(["Pioneer XP %d" % World.pioneer_xp, 18, Color.WHITE])
+ 	_levelup_lines.append(["T-stones %d" % World.t_stones, 18, Color.WHITE])
+-	var sp := Data.survival_nodes.size() - Data.survival_unlocked.size() if Data.get("survival_nodes") != null else 0
++	# W2-SKILLS: character levels pay the SP (spec 03); show what SkillState holds (sp_now recounts,
++	# since its own handler on this signal may not have run yet).
++	var sp: int = player.skills.sp_now() if player and player.skills else 0
+ 	_levelup_lines.append(["Available Skill Points: %d" % maxi(0, sp), 18, Color.WHITE])
+ 	var title := str(_titles.get(str(level), ""))
+ 	if title != "":
+diff --git a/game/scripts/ui/skills_sheet.gd b/game/scripts/ui/skills_sheet.gd
+index 3157fad0..c2a20a42 100644
+--- a/game/scripts/ui/skills_sheet.gd
++++ b/game/scripts/ui/skills_sheet.gd
+@@ -239,7 +239,8 @@ func _build_overview() -> void:
+ 		xp_col.add_theme_constant_override("separation", 2)
+ 		xp_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ 		cols.add_child(xp_col)
+-		xp_col.add_child(_cell("%d / %d XP" % [int(xp), int(need)], 0.0, meta, UiTokens.META, HORIZONTAL_ALIGNMENT_RIGHT))
++		# XP banked at the character-level cap reads as a full bar, as on Durango's skill screen.
++		xp_col.add_child(_cell("%d / %d XP" % [int(minf(xp, need)), int(need)], 0.0, meta, UiTokens.META, HORIZONTAL_ALIGNMENT_RIGHT))
+ 		var bar := ProgressBar.new()
+ 		bar.custom_minimum_size = Vector2(0, 6)
+ 		bar.max_value = maxf(1.0, need)
+@@ -269,27 +270,67 @@ func _build_tree() -> void:
+ 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+ 	_box.add_child(info)
+ 	var first: Array[Control] = []
++	var auto_learned: PackedStringArray = []
++	var later: Array[Label] = []
+ 	for n in skills.nodes(_tree):
+ 		var st := skills.node_state(_tree, n)
++		var nid := str(n.get("id", ""))
++		var title := str(n.get("name", nid.replace("_", " ").capitalize()))
++		var cost := "AUTO" if bool(n.get("auto", false)) else "%d SP" % int(n.get("sp", 0))
++		var head := "%s  ·  %s  ·  %s" % [title, LevelDisplay.label(int(n.get("level", 1))), cost]
++		# Learned-free rows have nothing to tap; one summary line keeps the first screen actionable.
++		if st[0] == "owned" and bool(n.get("auto", false)):
++			auto_learned.append(title)
++			continue
++		# Nodes the game reads nothing from yet (spec 12:215) cannot be bought. They stay listed with
++		# level, SP and the lock reason (spec 12 10.6) as muted rows with nothing to tap, after the rest.
++		if st[0] == "locked" and st[1] == SkillState.NOT_IN_GAME:
++			var row := Label.new()
++			row.name = "SkillsLater_" + nid
++			row.text = "%s  ·  %s" % [head, SkillState.NOT_IN_GAME]
++			row.add_theme_color_override("font_color", UiTokens.META)
++			row.add_theme_font_size_override("font_size", UiTokens.meta(view))
++			row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
++			later.append(row)
++			continue
+ 		var h := HBoxContainer.new()
++		h.name = "SkillsNode_" + nid
+ 		h.custom_minimum_size = Vector2(0, 60)
+ 		h.add_theme_constant_override("separation", UiTokens.SPACE)
+ 		var l := Label.new()
+ 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+-		l.text = "%s  ·  %s  ·  %d SP\n%s" % [str(n.get("id", "")).replace("_", " ").capitalize(), LevelDisplay.label(int(n.get("level", 1))), int(n.get("sp", 0)), str(n.get("unlocks", ""))]
++		l.text = head
++		var unlocks := str(n.get("unlocks", ""))
++		if unlocks != "" and unlocks.to_lower() != title.to_lower():
++			l.text += "\n" + unlocks
+ 		l.add_theme_font_size_override("font_size", UiTokens.meta(view) + 2)
+ 		match st[0]:
+ 			"owned":
+ 				l.add_theme_color_override("font_color", Color(0.55, 0.9, 0.5))
+ 			"locked":
+ 				l.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+-		h.add_child(l)
++		# A refund that would be refused (daily limit, a learned node needs it) is greyed and says why before the tap.
++		var why := skills.refund_reason(_tree, nid) if st[0] == "owned" else ""
++		if why == "":
++			h.add_child(l)
++		else:
++			var col := VBoxContainer.new()
++			col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
++			col.add_child(l)
++			var reason := Label.new()
++			reason.name = "RefundBlock"
++			reason.text = "Cannot refund: " + why
++			reason.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
++			reason.add_theme_color_override("font_color", UiTokens.META)
++			reason.add_theme_font_size_override("font_size", UiTokens.meta(view))
++			col.add_child(reason)
++			h.add_child(col)
+ 		var b := Button.new()
+ 		b.custom_minimum_size = Vector2(120 if UiTokens.is_narrow(view) else 140, 56)
+-		var nid := str(n.get("id", ""))
+ 		if st[0] == "owned":
+ 			b.text = "Refund"
++			b.disabled = why != ""
+ 			b.pressed.connect(func () -> void:
+ 				skills.refund(_tree, nid)
+ 				rebuild()
+@@ -306,6 +347,15 @@ func _build_tree() -> void:
+ 			b.disabled = true
+ 		h.add_child(b)
+ 		_box.add_child(h)
++	if not auto_learned.is_empty():
++		var learned := Label.new()
++		learned.name = "SkillsLearnedAuto"
++		learned.text = "Learned automatically: " + ", ".join(auto_learned)
++		learned.add_theme_color_override("font_color", UiTokens.META)
++		learned.add_theme_font_size_override("font_size", UiTokens.meta(view))
++		learned.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
++		_box.add_child(learned)
++	# The way back sits above the inert list, so a phone does not scroll past it to leave the tree.
+ 	var back := Button.new()
+ 	back.text = "All skills"
+ 	back.custom_minimum_size = Vector2(0, 56)
+@@ -315,4 +365,6 @@ func _build_tree() -> void:
+ 	)
+ 	_box.add_child(back)
+ 	first.append(back)
++	for row in later:
++		_box.add_child(row)
+ 	UiTokens.focus_first(first)
+diff --git a/game/tests/fixtures/save_v3_skills_rev2.json b/game/tests/fixtures/save_v3_skills_rev2.json
+new file mode 100644
+index 00000000..c6967a7b
+--- /dev/null
++++ b/game/tests/fixtures/save_v3_skills_rev2.json
+@@ -0,0 +1,197 @@
++{
++	"_about": "W2-SKILLS: the rev-2 skills_v2 that t_save expects after loading each frozen rev-1 v3 golden (save_v3_golden.json, save_v3_away_golden.json are untouched rev-1 inputs). Trees at 0 read Lv. 1, Lv1 AUTO nodes are learned, SP: character Lv. 5 pays 40, the 230 unspent SP the rev-1 save had beyond that are kept as sp_extra (270 available, as before).",
++	"save_v3_away_golden.json": {
++		"occupation": "student",
++		"refund_day": -1.0,
++		"refunds_today": 0.0,
++		"rev": 2.0,
++		"sp_available": 270.0,
++		"sp_earned": 270.0,
++		"sp_extra": 230.0,
++		"sp_spent": 0.0,
++		"trees": {
++			"butchering": {
++				"level": 3.0,
++				"unlocked": [
++					"butcher_1"
++				],
++				"xp": 36.0
++			},
++			"construction": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"cooking": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"defense": {
++				"level": 1.0,
++				"unlocked": [
++					"roll"
++				],
++				"xp": 0.0
++			},
++			"farming": {
++				"level": 1.0,
++				"unlocked": [
++					"corn",
++					"apple_tree"
++				],
++				"xp": 0.0
++			},
++			"gathering": {
++				"level": 20.0,
++				"unlocked": [
++					"forage_1",
++					"branch",
++					"bush",
++					"fruit_1",
++					"log_1",
++					"bug_1",
++					"pebble",
++					"mud_1",
++					"stalk"
++				],
++				"xp": 0.0
++			},
++			"melee": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"processing": {
++				"level": 1.0,
++				"unlocked": [
++					"cordage"
++				],
++				"xp": 0.0
++			},
++			"ranged": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"survival": {
++				"level": 4.0,
++				"unlocked": [],
++				"xp": 7.0
++			},
++			"tailoring": {
++				"level": 1.0,
++				"unlocked": [
++					"leaf_outfit",
++					"footwraps",
++					"leaf_hat"
++				],
++				"xp": 0.0
++			},
++			"weapon_tools": {
++				"level": 1.0,
++				"unlocked": [
++					"improvised_tools"
++				],
++				"xp": 0.0
++			}
++		}
++	},
++	"save_v3_golden.json": {
++		"occupation": "student",
++		"refund_day": -1.0,
++		"refunds_today": 0.0,
++		"rev": 2.0,
++		"sp_available": 270.0,
++		"sp_earned": 270.0,
++		"sp_extra": 230.0,
++		"sp_spent": 0.0,
++		"trees": {
++			"butchering": {
++				"level": 3.0,
++				"unlocked": [
++					"butcher_1"
++				],
++				"xp": 36.0
++			},
++			"construction": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"cooking": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"defense": {
++				"level": 1.0,
++				"unlocked": [
++					"roll"
++				],
++				"xp": 0.0
++			},
++			"farming": {
++				"level": 1.0,
++				"unlocked": [
++					"corn",
++					"apple_tree"
++				],
++				"xp": 0.0
++			},
++			"gathering": {
++				"level": 20.0,
++				"unlocked": [
++					"forage_1",
++					"branch",
++					"bush",
++					"fruit_1",
++					"log_1",
++					"bug_1",
++					"pebble",
++					"mud_1",
++					"stalk"
++				],
++				"xp": 0.0
++			},
++			"melee": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"processing": {
++				"level": 1.0,
++				"unlocked": [
++					"cordage"
++				],
++				"xp": 0.0
++			},
++			"ranged": {
++				"level": 1.0,
++				"unlocked": [],
++				"xp": 0.0
++			},
++			"survival": {
++				"level": 4.0,
++				"unlocked": [],
++				"xp": 2.0
++			},
++			"tailoring": {
++				"level": 1.0,
++				"unlocked": [
++					"leaf_outfit",
++					"footwraps",
++					"leaf_hat"
++				],
++				"xp": 0.0
++			},
++			"weapon_tools": {
++				"level": 1.0,
++				"unlocked": [
++					"improvised_tools"
++				],
++				"xp": 0.0
++			}
++		}
++	}
++}
+diff --git a/game/tests/t_save.gd b/game/tests/t_save.gd
+index 973340ac..7f6476a4 100644
+--- a/game/tests/t_save.gd
++++ b/game/tests/t_save.gd
+@@ -2,6 +2,7 @@ extends SceneTree
+ ## W1-SAVE: crash-safe, sanitized, isolated saves. Prints "[t_save] PASS" (or FAIL lines), exits 0/1.
+ ##   Godot --headless --path game --script res://tests/t_save.gd
+ ## `-- --write-golden` re-stages a camp and rewrites save_v3_golden.json and save_truncated.json.
++## Do not: since W2-SKILLS the v3 goldens are frozen rev-1 inputs and a rewritten one fails the run.
+ ## Scripts that touch autoloads load on the first frame (see run_all.gd), so everything is load()ed.
+ 
+ const FIX := "res://tests/fixtures/"
+@@ -76,6 +77,7 @@ func _run() -> void:
+ 	_test_two_saves()
+ 	for name in ["save_v0.json", "save_v1.json", "save_v2.json", "save_v3_golden.json", "save_v3_away_golden.json"]:
+ 		await _test_round_trip(name)
++	await _test_rev1_skills()
+ 	await _test_forged()
+ 	await _test_truncated()
+ 	await _test_future()
+@@ -157,13 +159,72 @@ func _test_round_trip(name: String) -> void:
+ 	if LEGACY.has(name):
+ 		_check_legacy(name, s1)
+ 	if name.begins_with("save_v3_"):
+-		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
+-		var gd: Array[String] = []
+-		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
+-		_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
++		_check_v3_golden(name, s1)
+ 	print("[t_save] round trip %s fields=%d diffs=%d" % [name, s1.size(), diffs.size()])
+ 	await process_frame
+ 
++## The v3 goldens are frozen rev-1 saves: never regenerate them, they are the migration's input.
++## Everything but skills_v2 survives load + save unchanged; skills_v2 must equal the rev-2 result
++## kept in save_v3_skills_rev2.json, field for field both ways.
++func _check_v3_golden(name: String, s1: Dictionary) -> void:
++	var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
++	_check(not (golden["skills_v2"] as Dictionary).has("rev"), "%s is still a rev-1 save (the migration input)" % name)
++	golden.erase("skills_v2")
++	var gd: Array[String] = []
++	_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
++	_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
++	var want: Variant = (JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_skills_rev2.json")) as Dictionary).get(name)
++	var sd: Array[String] = []
++	_same(want, s1.get("skills_v2"), "/skills_v2", sd)
++	_same(s1.get("skills_v2"), want, "/skills_v2", sd)
++	_check(want is Dictionary and sd.is_empty(), "%s skills_v2 migrates to its rev-2 expectation: %s" % [name, sd.slice(0, 6)])
++
++## W2-SKILLS migration end to end (SaveSanitizer, then SkillState): the rev-1 golden with nodes
++## bought under the old per-tree award (old graph and prices, Survival 55) loads as rev 2 keeping
++## every level, every node and every unspent SP, learns its Lv1 AUTO nodes, and stays so on a re-load.
++func _test_rev1_skills() -> void:
++	_clean()
++	var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
++	var sv: Dictionary = d["skills_v2"]
++	var bought := {
++		"survival": ["island_access_15", "belly_fat_1", "capture_technique_1", "capture_tool_1", "stealth_1", "island_access_25", "capture_technique_2", "climate_body_1", "island_access_35", "capture_technique_3", "animal_management_1", "island_access_45", "capture_technique_4", "animal_management_2"],
++		"gathering": ["forage_1", "thickets", "mining_1", "herbs_1", "insects"], # forage_1 cost 5 then, AUTO now
++	}
++	sv["trees"]["survival"]["level"] = 55
++	for tree in bought:
++		sv["trees"][tree]["unlocked"] = bought[tree].duplicate()
++	# Old award for gathering 20 + butchering 3 + survival 55 = 880 SP; these nodes cost 341 at rev-1 prices.
++	sv["sp_spent"] = 341
++	sv["sp_available"] = 880 - 341
++	var old_levels := {}
++	for tree in sv["trees"]:
++		old_levels[tree] = int(sv["trees"][tree]["level"])
++	_put(JSON.stringify(d))
++	SG.load_now(host)
++	var Rules: GDScript = load("res://scripts/skills/skill_rules.gd")
++	for pass_name in ["first load", "re-load"]:
++		var sk: Node = player.skills
++		var levels_ok := true
++		for tree in old_levels:
++			levels_ok = levels_ok and sk.level_of(tree) == maxi(1, old_levels[tree])
++		_check(levels_ok and sk.to_dict().get("rev") == 2, "%s: rev-1 levels kept, 0 reads Lv. 1, saved as rev 2" % pass_name)
++		var autos := ["processing/cordage", "defense/roll", "farming/corn", "tailoring/leaf_outfit", "gathering/branch", "butchering/butcher_1"]
++		_check(autos.all(func (a: String) -> bool: return sk.is_unlocked(a.get_slice("/", 0), a.get_slice("/", 1))), "%s: Lv1 AUTO nodes learned" % pass_name)
++		var missing: Array = []
++		for tree in bought:
++			for nid in bought[tree]:
++				if not sk.is_unlocked(tree, nid):
++					missing.append(nid)
++		_check(missing.is_empty(), "%s: every node bought under rev 1 is kept (missing %s)" % [pass_name, missing])
++		var paid: int = Rules.paid_for_level(sk, 5) # pioneer_level 4 = character Lv. 5
++		_check(sk.sp_available == 880 - 341, "%s: the 539 unspent SP are kept (got %d)" % [pass_name, sk.sp_available])
++		_check(sk.sp_spent == 263 and sk.sp_extra == 539 + 263 - paid and sk.sp_earned == paid + sk.sp_extra, "%s: budget = character Lv. 5 (%d) + one-time extra %d, spent 263 at today's prices (earned %d, spent %d)" % [pass_name, paid, sk.sp_extra, sk.sp_earned, sk.sp_spent])
++		_check(Rules.bonded_capacity(sk) == 5, "%s: Animal Handling I + II give 5 bonded slots (got %d)" % [pass_name, Rules.bonded_capacity(sk)])
++		SG.save_now()
++		SG.load_now(host)
++	print("[t_save] rev-1 skills migrate: %d nodes kept, SP %d/%d" % [bought["survival"].size() + bought["gathering"].size(), player.skills.sp_available, player.skills.sp_earned])
++	await process_frame
++
+ func _check_legacy(name: String, s1: Dictionary) -> void:
+ 	var want: Array = LEGACY[name]
+ 	var kinds: Array = []
+@@ -208,7 +269,8 @@ func _test_forged() -> void:
+ 	var cuirass: int = W.cargo_home.find_first(&"raid_cuirass")
+ 	_check(cuirass >= 0 and W.cargo_home.slots[cuirass].count == 1, "cargo raid_cuirass x3000 loads as x1")
+ 	var bought: Array = player.skills.trees["survival"]["unlocked"]
+-	_check(bought == ["island_access_15"] and player.skills.sp_spent == 5, "survival L10 listing every node keeps only island_access_15, sp_spent 5 (got %s, %d)" % [bought, player.skills.sp_spent])
++	# Stealth I is a Survival Lv. 10 node with no prerequisite since W2-SKILLS (spec 12), so it is reachable too.
++	_check(bought == ["island_access_15", "stealth_1"] and player.skills.sp_spent == 5 + 2, "survival L10 listing every node keeps only island_access_15 and stealth_1, sp_spent 7 (got %s, %d)" % [bought, player.skills.sp_spent])
+ 	var d = root.get_node("Data")
+ 	_check(not d.is_survival_unlocked(&"capture_technique_I") and not d.survival_unlocked.has(&"made_up_node"), "legacy skills true without a bought tree node, or an unknown id, unlock nothing")
+ 	await process_frame

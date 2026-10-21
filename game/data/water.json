@@ -1,0 +1,13 @@
+{
+  "_about": "Spec 17 water context actions (WaterAccess, scripts/player/water_access.gd). PRD :105 drink / wash / fill container prompts on or near water; :314 fresh water: drink cuts heat fatigue, wash clears dirty, fill containers; :315 seawater is salt. Fresh water is the river (terrain under the water plane on the river's MUD tiles); the sea gives no hexes, and standing in it gives Wet (PRD :284), not Thirsty (research systems 1.3: 'river/puddle, not sea'). The statuses and their fatigue effects are in statuses.json (dirty, very_dirty, thirsty, quenched, clean); there is no thirst, hunger or hygiene meter (PRD :72, 6.3, :1030).",
+  "reach_m": 2.0,
+  "_reach_m": "ASSUMPTION: Drink / Wash / Fill show while fresh water is within about this many metres of the survivor's feet (PRD :105 says 'on/near', no number).",
+  "dirt": {
+    "_about": "ASSUMPTION: the PRD makes dirt a fatigue cause (:415, :434, :447) without saying what makes you dirty. Work adds grime points per cause: one gathered unit, one butchered loot stack, one hit taken. Dirty at dirty_at, Very dirty at very_dirty_at; washing resets the count. Points are hidden, never shown as a meter.",
+    "gather": 1,
+    "butcher": 3,
+    "hit": 2,
+    "dirty_at": 20,
+    "very_dirty_at": 60
+  }
+}

@@ -51,7 +51,7 @@ static func spawn(row: Dictionary) -> Node3D:
 	match kind:
 		&"catapult":
 			return FieldCatapult.from_dict(row) if float(row.get("hp",200)) > 0 else null
-		&"workbench", &"drying_rack", &"smoker", &"crock_pot", &"mortar", &"stone_grill", &"steamer", &"well":
+		&"workbench", &"drying_rack", &"smoker", &"crock_pot", &"mortar", &"stone_grill", &"steamer", &"well", &"forge", &"anvil":
 			return CraftStation.from_dict(row)
 		&"bonfire", &"stone_fire_pit", &"campfire":
 			return Bonfire.from_dict(row)

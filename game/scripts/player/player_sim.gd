@@ -55,6 +55,10 @@ func tick_survival_xp(delta: float) -> void:
 
 func tick(delta: float) -> void:
 	var anim := p.anim
+	if p.statuses != null and p.vitals != null:
+		# Before any branch returns, so mounted, rolling and staggered survivors see current statuses.
+		p.vitals.fatigue_gain_mult = (0.5 if _in_coziness() else 1.0) * p.statuses.fatigue_mult()
+	p.in_water = WaterAccess.in_water(p.global_position)
 	if p._sleep_left > 0.0 and p.statuses != null and p.vitals != null:
 		_tick_sleep(delta)
 		return
@@ -142,7 +146,6 @@ func _walk(delta: float) -> void:
 		# ASSUMPTION: walking 0.05/s, tap-running 0.09/s, sprint 0.2/s (was 0.25-0.8/s, which
 		# filled the bar in a few minutes and then blocked gathering).
 		p.vitals.add_fatigue(delta * (0.2 if can_sprint else (0.09 if running else 0.05)), &"walk")
-	p.vitals.fatigue_gain_mult = 0.5 if _in_coziness() else 1.0
 	if p.in_water:
 		_wet_acc += delta
 		var need := float(Data.world_rules.get("wet_after_seconds_in_water", 5))

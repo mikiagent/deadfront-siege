@@ -92,7 +92,7 @@ func pos() -> Vector3:
 	return WorldFacade.v3(d.pos)
 
 func level_of(tree: String) -> int:
-	return int((d.skills.get(tree, {}) as Dictionary).get("level", 0))
+	return int((d.skills.get(tree, {}) as Dictionary).get("level", SkillState.MIN_LEVEL))
 
 ## SkillState.add_xp's rules on plain data: every gain also trains Survival.
 # shortcut: skill points and unlocked nodes stay client-side; they move here with W3-SRVACT.
@@ -101,7 +101,7 @@ func add_xp(tree: String, amount: float, mirrored: bool = false) -> void:
 		return
 	if not mirrored and tree != "survival":
 		add_xp("survival", amount, true)
-	var t: Dictionary = d.skills.get(tree, {"level": 0, "xp": 0})
+	var t: Dictionary = d.skills.get(tree, {"level": SkillState.MIN_LEVEL, "xp": 0})
 	d.skills[tree] = t
 	if int(t.level) >= SkillState.MAX_LEVEL:
 		return
