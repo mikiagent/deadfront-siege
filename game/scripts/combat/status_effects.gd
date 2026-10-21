@@ -161,6 +161,21 @@ func evasion_add() -> float:
 			e += def.evasion_add
 	return e
 
+## Fatigue gain multipliers of the active statuses (Dirty, Clean, Thirsty; Quenched for heat).
+func fatigue_mult() -> float:
+	return _product(&"fatigue_mult")
+
+func heat_fatigue_mult() -> float:
+	return _product(&"heat_fatigue_mult")
+
+func _product(field: StringName) -> float:
+	var m := 1.0
+	for inst in _active:
+		var def := Data.status(inst.id)
+		if def:
+			m *= float(def.get(field))
+	return m
+
 func blocks_regen() -> bool:
 	return has_flag(&"blocks_regen")
 
