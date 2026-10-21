@@ -173,7 +173,7 @@ func _check_items() -> void:
 		var alias := str(icons.get("aliases", {}).get(id, ""))
 		for slot in ["armor_head", "armor_body", "armor_arms", "armor_legs"]:
 			if _has_cat(id, slot) and not rendered.has(id) and alias != "":
-				_expect((alias == slot.replace("armor_", "armour_") or _has_cat(alias, slot)) and icons.get("icons", {}).has(alias), "unrendered %s borrows the %s icon, not a %s picture" % [id, alias, slot])
+				_expect((alias == slot.replace("armor_", "armour_") or _has_cat(alias, slot)) and icons.get("icons", {}).has(alias), "unrendered %s borrows the %s icon, not an %s picture" % [id, alias, slot])
 
 func _check_references() -> void:
 	var tool_classes := {}
