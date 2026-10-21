@@ -30,12 +30,12 @@ const ORTHO_DISTANCE := 40.0
 const ORTHO_MIN_SIZE := 10.0
 const ORTHO_MAX_SIZE := 28.0
 const ORTHO_DEFAULT_SIZE := 15.0
-## Zoom, metres of view height at the focus. Durango's shots span 5.3-13.8 m (the survivor 10-26 %
-## of the screen height); its usual view is 10-12 m (survivor ~13 %). The old camera's game view was
-## 17 m (survivor ~9 %); MAX_SIZE stays near it for players who liked seeing further.
-const MIN_SIZE := 6.0
-const DEFAULT_SIZE := 11.0
-const MAX_SIZE := 16.0
+## Zoom, metres of view height at the focus. Durango's survivor stands 10-15 % of the screen height in its
+## usual views (median 13 %) and 23-26 % zoomed right in; ours (~1.8 m on the image plane at this pitch)
+## is 13 % at 14 m, 26 % at 7 m and 10 % at 18 m. The old camera's game view was 17 m at 35.3 deg (11 %).
+const MIN_SIZE := 7.0
+const DEFAULT_SIZE := 14.0
+const MAX_SIZE := 18.0
 ## Labs zoom out to ~30 m for overview shots; cull ranges cover that (cull_range).
 const LAB_MAX_SIZE := 30.0
 ## Extra sideways lean of tall props as a multiple of the lean the lens gives them (published as
@@ -43,8 +43,8 @@ const LAB_MAX_SIZE := 30.0
 ## lens alone slides our crowns half as far: doubling it gives a 10 m crown the slide of a 20 m one.
 const PARALLAX_GAIN := 1.0
 ## Tall props dither out above this many metres per metre of zoom (published as tall_fade_height).
-## Owner (spec 25): "the tall trees fade out of zoom". ASSUMPTION: 1.2: at the default zoom (11 m)
-## nothing of ours fades (the fade starts at 13 m); zoomed in to 6 m, crowns above 7 m fade.
+## Owner (spec 25): "the tall trees fade out of zoom". ASSUMPTION: 1.2: at the default zoom (14 m)
+## nothing of ours fades (the fade starts at 17 m); zoomed in to 7 m, crowns above 8.4 m fade.
 const TALL_FADE_PER_SIZE := 1.2
 
 ## The dev flag, read once: every IsoCamera and every static helper agree on the projection.

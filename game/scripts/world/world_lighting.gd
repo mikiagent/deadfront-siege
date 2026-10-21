@@ -79,9 +79,9 @@ func _process(_delta: float) -> void:
 ## sat in a 400 m first split: 80 cm texels on the 1024 mobile atlas, shadows of a survivor
 ## or a pole gone. Splits are fractions of far, so we place them in metres around the
 ## depth band the camera actually sees (audit: box ratio 0.98 -> 0.48 at atlas 1024).
-## A perspective IsoCamera (CAMERA package) stands 90-430 m back with a 4 deg lens: Godot honours
-## directional_shadow_max_distance there and starts split 0 at the camera's near plane, which
-## IsoCamera._apply_zoom keeps close to the focus, so the splits cover the ground band in metres.
+## A perspective IsoCamera (CAMERA package) stands 90-430 m back with a 4.3 deg lens: Godot honours
+## directional_shadow_max_distance there and starts the shadow at the camera's near plane, which
+## IsoCamera._apply_zoom keeps close to the focus (_fit_perspective).
 ## Fog is depth-based, so it thins by the same factor the camera stands further back than the old
 ## 40 m: the ground at the focus keeps the fog it had.
 func fit_shadows(cam: Camera3D) -> void:
@@ -105,18 +105,19 @@ func fit_shadows(cam: Camera3D) -> void:
 	var far := maxf(cam.far, depth + half + 10.0)
 	for l in [sun, moon]:
 		var light := l as DirectionalLight3D
+		light.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 		light.directional_shadow_split_1 = maxf(depth - half * 0.4, 1.0) / far
 		light.directional_shadow_split_2 = (depth + half * 0.3) / far
 		light.directional_shadow_split_3 = (depth + half + 5.0) / far
 		light.directional_shadow_fade_start = 0.8
 
-## Splits in metres from the camera. Godot's split i ends at split_i * end (end =
-## min(directional_shadow_max_distance, far)) and split 0 starts at the camera's near plane:
-## measured in camera_lab, fractions of near..end left split 0 ending before near and every split
-## shadowless outside a 4 m band. Ground on screen spans focus +- g; split 0 holds only the crowns
-## of tall props near the bottom edge, 1-3 the ground from the bottom edge up. The 4 deg lens keeps
-## every slice's cross-section about the view's size, so the ground splits get about the same
-## texel size: none is wasted on far ground.
+## One shadow map over near..end (DirectionalLight3D SHADOW_ORTHOGONAL), end just past the ground at the
+## screen's top edge and near (IsoCamera._apply_zoom) just before the crowns at its bottom edge. Measured in
+## camera_lab: with near ~105-145 m, gl_compatibility drew no shadows at all from PSSM2/PSSM4 splits at the
+## default zoom (Forward+ did, with the splits as fractions of the max distance), and the single map drew
+## in both. The 4.3 deg lens keeps the slice's cross-section about the view's size, so one map of a ~60 m
+## slice gives 1.6 cm texels on the 4096 desktop atlas and 6.4 cm on the 1024 mobile one, in one pass
+## instead of four.
 func _fit_perspective(cam: IsoCamera) -> void:
 	_set_fog_scale(IsoCamera.ORTHO_DISTANCE / maxf(cam.distance, 1.0))
 	var d := cam.distance
@@ -125,15 +126,11 @@ func _fit_perspective(cam: IsoCamera) -> void:
 	if key == _fit_key:
 		return
 	_fit_key = key
-	var near := cam.near
 	var end := minf(d + g + 6.0, cam.far)
-	var cuts := [maxf(d - g - 4.0, near + 1.0), d - 0.2 * g, d + 0.45 * g]
 	for l in [sun, moon]:
 		var light := l as DirectionalLight3D
+		light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 		light.directional_shadow_max_distance = end
-		light.directional_shadow_split_1 = clampf(cuts[0] / end, 0.0, 1.0)
-		light.directional_shadow_split_2 = clampf(cuts[1] / end, 0.0, 1.0)
-		light.directional_shadow_split_3 = clampf(cuts[2] / end, 0.0, 1.0)
 		# The fade runs from fade_start * end (metres from the camera) to end: keep it past the
 		# screen's top edge (the default 0.8 would fade every shadow on screen at this distance).
 		light.directional_shadow_fade_start = clampf((end - 3.0) / end, 0.8, 0.999)

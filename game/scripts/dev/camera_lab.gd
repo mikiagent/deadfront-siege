@@ -188,9 +188,10 @@ func _report_lean(off: int) -> void:
 			continue
 		var d := st - sb
 		# The tall-prop shader adds a sideways lean on top of the lens (camera.gdshaderinc).
-		var k: float = RenderingServer.global_shader_parameter_get(&"parallax_strength")
+		# (RenderingServer.global_shader_parameter_get is editor-only: read what IsoCamera published.)
+		var k: float = IsoCamera.parallax
 		var r := Vector3(_cam.global_basis.x.x, 0.0, _cam.global_basis.x.z).normalized()
-		var focus: Vector3 = RenderingServer.global_shader_parameter_get(&"camera_focus")
+		var focus: Vector3 = IsoCamera.focus
 		var lean_top := tp + r * (k * (tp.y - b.y) * (b - focus).dot(r))
 		var e := _cam.unproject_position(lean_top) - sb
 		rows.append("x=%4.0f y=%4.0f lens lean %+6.1f px over %5.1f px (%+.2f deg), with shader %+6.1f px (%+.2f deg)" % [

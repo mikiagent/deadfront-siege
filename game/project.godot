@@ -72,7 +72,7 @@ camera_yaw_deg={
 }
 camera_distance={
 "type": "float",
-"value": 146.5
+"value": 186.5
 }
 parallax_strength={
 "type": "float",
