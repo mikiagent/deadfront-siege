@@ -476,6 +476,8 @@ func context_actions() -> Array:
 		out.append({"id": "sleep", "glyph": "☾", "label": "Sleep", "uses": "" if left < 0 else str(left)})
 	if near.call("bonfire", 2.8):
 		out.append({"id": "cook", "glyph": "🍖", "label": "Cook"})
+		if p.statuses and p.statuses.has(&"wet"):
+			out.append({"id": "dry", "glyph": "🔥", "label": "Dry off"})
 		if p.statuses and (p.statuses.has(&"bleed") or p.statuses.has(&"deep_bleed")):
 			out.append({"id": "cauterise", "glyph": "🔥", "label": "Cauterise"})
 	if near.call("corpse", 3.0):
@@ -522,6 +524,10 @@ func context_action(id: String) -> void:
 			var fire := p._nearest_group("bonfire") as Bonfire
 			if fire:
 				fire.cauterise(p)
+		"dry":
+			var fire := p._nearest_group("bonfire") as Bonfire
+			if fire:
+				fire.dry_off(p)
 		"loot":
 			var corpse := p._nearest_group("corpse") as Corpse
 			if corpse:

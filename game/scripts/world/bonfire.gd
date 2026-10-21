@@ -85,6 +85,21 @@ func cauterise(player: Player) -> void:
 	player.statuses.clear_id(&"deep_bleed")
 	print("[status] %s -deep_bleed cauterise" % player.name)
 
+## PRD :285: a bonfire clears Wet. The HUD's Dry off hex calls this; a fire out of reach does nothing.
+const DRY_OFF_REACH := 3.2
+
+func dry_off(player: Player) -> bool:
+	if player == null or not is_instance_valid(player) or player.statuses == null:
+		return false
+	if player.global_position.distance_to(global_position) > DRY_OFF_REACH:
+		return false
+	if not player.statuses.has(&"wet"):
+		return false
+	player.statuses.clear_id(&"wet")
+	player.notice("Dry off: warmed by the fire")
+	print("[status] %s -wet bonfire" % player.name)
+	return true
+
 func _setup_fire_light() -> void:
 	_fire_light = OmniLight3D.new()
 	_fire_light.name = "FireLight"
