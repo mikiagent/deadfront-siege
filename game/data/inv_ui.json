@@ -1,0 +1,66 @@
+{
+  "_about": "INVUI (spec 13) presentation data: sort keys, filter groups, attribute classes, equipment layout, presets, power groups. Read by InvView, InvAttributes, EquipmentSlot, GearPresets and InvStats. Every value marked ASSUMPTION in docs/orchestration/mmo/invui-spec.md section 9.",
+  "sort_keys": ["acquired", "name", "type", "level", "rarity", "attributes", "durability"],
+  "sort_labels": {"acquired": "Acquired", "name": "Name", "type": "Type", "level": "Level", "rarity": "Rarity", "attributes": "Attributes", "durability": "Durability"},
+  "filters": [
+    {"id": "all", "label": "All", "categories": []},
+    {"id": "materials", "label": "Materials", "categories": ["wood", "stone", "bone", "dense_bone", "hide", "uncut_hide", "green_hide", "fibre", "lashing", "blade_mat", "metal", "ore", "earth", "log", "stalk", "cloth", "handle", "tinder", "burnable", "flax", "plank", "pillar", "split", "thread", "tendon", "talon", "scute", "venom", "dye", "needle", "pot_clay", "fuel", "treasure"]},
+    {"id": "food", "label": "Food", "categories": ["food", "meat", "raw_meat", "cooked", "fruit", "berry", "herb", "mushroom", "crop", "corn", "wheat", "seed", "buff_food", "meal", "preserved", "steamed", "spice", "seasoning", "water", "raw", "burnt", "pet_feed", "bait"]},
+    {"id": "tools", "label": "Tools & Weapons", "categories": ["tool", "weapon", "blade", "bucket", "ammunition", "siege_ammunition", "counter_supply"]},
+    {"id": "gear", "label": "Gear", "categories": ["armor_head", "armor_body", "armor_arms", "armor_legs", "clothing", "armor", "helmet", "gloves", "accessory", "bag"]},
+    {"id": "building", "label": "Building", "categories": ["building", "fertilizer"]},
+    {"id": "medicine", "label": "Medicine", "categories": ["medicine"]},
+    {"id": "animals", "label": "Animals", "ids": ["captured_animal", "tamed_animal"]},
+    {"id": "rare", "label": "Rare traits", "rule": "rare"},
+    {"id": "locked", "label": "Locked", "rule": "locked"}
+  ],
+  "attribute_classes": {
+    "_about": "Spec 04 lines 8-11. Key = ItemStack.attributes key; value in the stack is the trait level (int) or true. Keys not listed here (tint, level, material_tier, hardness, food_buff, toxin_hits, barbed_hits, species, genetics, grade, grade_seed, variant, climate, anchor, feathered, processed) are technical and never shown.",
+    "firm": {"label": "Firm", "class": "positive"},
+    "lightweight": {"label": "Lightweight", "class": "positive"},
+    "compact_structure": {"label": "Compact Structure", "class": "positive"},
+    "high_density": {"label": "High Density", "class": "positive"},
+    "pointy": {"label": "Pointy", "class": "positive"},
+    "sharp_section": {"label": "Sharp Section", "class": "positive"},
+    "full": {"label": "Full", "class": "positive"},
+    "tough_fiber": {"label": "Tough Fiber", "class": "positive"},
+    "high_elasticity": {"label": "High Elasticity", "class": "positive"},
+    "fluffy": {"label": "Fluffy", "class": "positive"},
+    "thin": {"label": "Thin", "class": "positive"},
+    "good_breathability": {"label": "Good Breathability", "class": "positive"},
+    "oily": {"label": "Oily", "class": "positive"},
+    "beautiful_pattern": {"label": "Beautiful Pattern", "class": "positive"},
+    "soft": {"label": "Soft", "class": "negative"},
+    "heavy": {"label": "Heavy", "class": "negative"},
+    "low_density": {"label": "Low Density", "class": "negative"},
+    "weak_structure": {"label": "Weak Structure", "class": "negative"},
+    "soft_fiber": {"label": "Soft Fiber", "class": "negative"},
+    "black_sheen": {"label": "Black Sheen", "class": "rare"},
+    "low_vibration": {"label": "Low Vibration", "class": "rare"},
+    "wide_serration": {"label": "Wide Serration", "class": "rare"},
+    "narrow_hook": {"label": "Narrow Hook", "class": "rare"},
+    "split_easily": {"label": "Split Easily", "class": "rare"},
+    "vivid_inspiration": {"label": "Vivid Inspiration", "class": "rare"}
+  },
+  "equipment_grid": {
+    "_about": "3x3 like the Character -> Gear reference: row 1 accessory/head/accessory, row 2 main hand/torso/held tool, row 3 gloves/legs/empty. Empty string = no cell content.",
+    "cells": ["accessory1", "head", "accessory2", "weapon", "body", "tool", "arms", "legs", ""],
+    "silhouette_ids": {"head": "forager_hood", "body": "forager_vest", "arms": "forager_wraps", "legs": "forager_leggings", "weapon": "stone_knife", "tool": "work_pick"},
+    "silhouette_glyphs": {"accessory1": "ring", "accessory2": "ring"},
+    "silhouette_alpha": 0.22
+  },
+  "presets": {
+    "count": 4,
+    "unlock_levels": [1, 10, 30, 50]
+  },
+  "powers": {
+    "_about": "Character panel power rows = the highest skill level in each group (SkillState trees, 1-60). Chevron opens Detailed Stats at that group.",
+    "combat": {"label": "Combat Power", "trees": ["melee", "ranged", "defense"], "icon": "melee"},
+    "crafting": {"label": "Crafting Power", "trees": ["processing", "weapon_tools", "tailoring", "construction", "cooking"], "icon": "craft"},
+    "gathering": {"label": "Gathering Power", "trees": ["gathering", "butchering", "farming"], "icon": "gathering"}
+  },
+  "picker": {
+    "warn_level": 40
+  },
+  "new_tag": {"text": "NEW"}
+}
