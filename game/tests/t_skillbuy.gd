@@ -133,18 +133,26 @@ func _test_occupations_buy() -> void:
 		var lines: Array[String] = []
 		for tree in _level_trees(sk):
 			var bought := ""
+			# The cheapest node the tree can offer now: SP are shared, so one purchase per tree in turn.
+			var best: Dictionary = {}
 			for n in _level_nodes(sk, tree):
-				var st: Array = sk.node_state(tree, n)
-				if st[0] == "available":
-					var sp: int = sk.sp_available
-					var cost := int(n.get("sp", 0))
-					if sk.unlock(tree, str(n.get("id", ""))):
-						bought = "%s (SP %d -> %d)" % [n.get("id", ""), sp, sk.sp_available]
-						_expect(sk.sp_available == sp - cost, "%s/%s costs its %d SP (SP went %d -> %d)" % [tree, n.get("id", ""), cost, sp, sk.sp_available])
-						_expect(sk.node_state(tree, n)[0] == "owned", "%s/%s reads learned after the purchase" % [tree, n.get("id", "")])
-					break
-			lines.append("%s: %s" % [tree, bought if bought != "" else "NONE"])
-			_expect(bought != "", "%s (character Lv. 3): buys a node in %s, a tree it has levels in (SP %d)" % [occ, tree, sk.sp_available])
+				if sk.node_state(tree, n)[0] == "available" and (best.is_empty() or int(n.get("sp", 0)) < int(best.get("sp", 0))):
+					best = n
+			if not best.is_empty():
+				var sp: int = sk.sp_available
+				var cost := int(best.get("sp", 0))
+				if sk.unlock(tree, str(best.get("id", ""))):
+					bought = "%s (SP %d -> %d)" % [best.get("id", ""), sp, sk.sp_available]
+					_expect(sk.sp_available == sp - cost, "%s/%s costs its %d SP (SP went %d -> %d)" % [tree, best.get("id", ""), cost, sp, sk.sp_available])
+					_expect(sk.node_state(tree, best)[0] == "owned", "%s/%s reads learned after the purchase" % [tree, best.get("id", "")])
+			var state := "NONE"
+			if bought == "":
+				for n in _level_nodes(sk, tree):
+					if sk.node_state(tree, n)[0] == "locked" and sk.node_state(tree, n)[1] != SkillStateS.NOT_IN_GAME:
+						state = "locked: %s %s" % [n.get("id", ""), sk.node_state(tree, n)[1]]
+						break
+			lines.append("%s: %s" % [tree, bought if bought != "" else state])
+			_expect(bought != "", "%s (character Lv. 3): buys a node in %s, a tree it has levels in (%s, SP %d)" % [occ, tree, bought if bought != "" else state, sk.sp_available])
 		print("[t_skillbuy] %s: %s" % [occ, ", ".join(lines)])
 		_done_with(sk)
 	_sections += 1

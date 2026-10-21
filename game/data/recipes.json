@@ -117,7 +117,8 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "attack_stance"
     },
     {
       "id": "bandage",
@@ -540,8 +541,7 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1,
-      "requires_node": "bonfire"
+      "process_add": 1
     },
     {
       "id": "bonfire_kit",
@@ -567,8 +567,7 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1,
-      "requires_node": "bonfire"
+      "process_add": 1
     },
     {
       "id": "stone_fire_pit_kit",
@@ -594,8 +593,7 @@
       "station": null,
       "seconds": 2.5,
       "process_step": "stack",
-      "process_add": 1,
-      "requires_node": "bonfire"
+      "process_add": 1
     },
     {
       "id": "stone_grill_kit",
@@ -674,8 +672,7 @@
       "station": null,
       "seconds": 2.0,
       "process_step": "bind",
-      "process_add": 1,
-      "requires_node": "workbench"
+      "process_add": 1
     },
     {
       "id": "mortar_kit",
@@ -1710,7 +1707,8 @@
       "station": "workbench",
       "seconds": 5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "two_hand"
     },
     {
       "id": "barbed_knife",
@@ -1741,7 +1739,8 @@
       "station": "workbench",
       "seconds": 4,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "one_hand_mastery"
     },
     {
       "id": "toxin_coating",
@@ -1881,7 +1880,8 @@
       "station": null,
       "seconds": 3,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "barrage"
     },
     {
       "id": "stone_shot",
@@ -1902,7 +1902,8 @@
       "station": null,
       "seconds": 1,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "throw"
     },
     {
       "id": "catapult_kit",
@@ -2338,7 +2339,7 @@
       "process_add": 1,
       "tree": "weapon_tools",
       "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone.",
-      "requires_node": "stone_saw"
+      "requires_node": "work_pick"
     },
     {
       "id": "bone_axe",
@@ -2372,7 +2373,7 @@
       "process_add": 1,
       "tree": "weapon_tools",
       "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone.",
-      "requires_node": "stone_saw"
+      "requires_node": "work_pick"
     },
     {
       "id": "bone_pick",
@@ -2405,7 +2406,8 @@
       "process_step": "bind",
       "process_add": 1,
       "tree": "weapon_tools",
-      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone."
+      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone.",
+      "requires_node": "work_pick"
     },
     {
       "id": "bone_spear",
@@ -2439,7 +2441,7 @@
       "process_add": 1,
       "tree": "weapon_tools",
       "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone.",
-      "requires_node": "spear"
+      "requires_node": "work_pick"
     },
     {
       "id": "flint_knife",
@@ -3967,7 +3969,6 @@
       "seconds": 8.0,
       "process_step": "bind",
       "process_add": 1,
-      "requires_node": "hammer",
       "tree": "construction"
     },
     {
@@ -4355,7 +4356,8 @@
       "station": "workbench",
       "seconds": 3.0,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "makeshift_shovel_hoe"
     },
     {
       "id": "pillar",

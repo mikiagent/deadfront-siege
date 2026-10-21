@@ -612,8 +612,13 @@
           "name": "Thickets",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "gather",
+              "items": []
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "mining_1",
@@ -625,8 +630,15 @@
           "name": "Mining 1",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "gather",
+              "items": [
+                "clay"
+              ]
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "herbs_1",
@@ -638,8 +650,16 @@
           "name": "Herbs 1",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "gather",
+              "items": [
+                "marsh_herb",
+                "spice_herb"
+              ]
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "insects",
@@ -651,8 +671,15 @@
           "name": "Insects",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "gather",
+              "items": [
+                "leech"
+              ]
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "mining_2",
@@ -664,8 +691,16 @@
           "name": "Mining 2",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "gather",
+              "items": [
+                "copper_ore",
+                "sandstone"
+              ]
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "great_success_1",
@@ -690,8 +725,17 @@
           "name": "Mining 3",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "gather",
+              "items": [
+                "flint",
+                "obsidian",
+                "silver_ore"
+              ]
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "rare_plants",
@@ -703,8 +747,16 @@
           "name": "Rare Plants",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "gather",
+              "items": [
+                "bamboo",
+                "mango"
+              ]
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "long_branch",
@@ -729,8 +781,16 @@
           "name": "Mining 4",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "gather",
+              "items": [
+                "black_iron",
+                "pearl"
+              ]
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "great_success_2",
@@ -774,8 +834,15 @@
           "name": "Organs",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "butcher",
+              "items": [
+                "venom_gland"
+              ]
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "leather_1",
@@ -800,8 +867,15 @@
           "name": "Tendon",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "butcher",
+              "items": [
+                "predator_tendon"
+              ]
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "bone_2",
@@ -813,8 +887,15 @@
           "requires": "butcher_1",
           "auto": false,
           "source": "spec12",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "butcher",
+              "items": [
+                "dense_bone"
+              ]
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "rare_parts_1",
@@ -826,8 +907,15 @@
           "name": "Rare Parts 1",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "butcher",
+              "items": [
+                "raptor_talon"
+              ]
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "feather",
@@ -885,8 +973,13 @@
           "name": "Yield 1",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "butcher",
+              "items": []
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "teeth_1",
@@ -911,8 +1004,15 @@
           "name": "Scutes",
           "auto": false,
           "source": "prd7",
-          "effects": [],
-          "status": "defined"
+          "effects": [
+            {
+              "type": "butcher",
+              "items": [
+                "armor_scute"
+              ]
+            }
+          ],
+          "status": "functional"
         },
         {
           "id": "horn",
@@ -1680,7 +1780,7 @@
         {
           "id": "attack_stance",
           "level": 1,
-          "sp": 5,
+          "sp": 1,
           "type": "unlock",
           "unlocks": "Attack stance, auto-attack",
           "requires": null,
@@ -1688,7 +1788,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "sp_assumed": true
         },
         {
           "id": "body_tackle",
@@ -1816,7 +1917,7 @@
         {
           "id": "throw",
           "level": 1,
-          "sp": 5,
+          "sp": 1,
           "type": "unlock",
           "unlocks": "throw stones",
           "requires": null,
@@ -1824,7 +1925,8 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "defined",
+          "sp_assumed": true
         },
         {
           "id": "barrage",

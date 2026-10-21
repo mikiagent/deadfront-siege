@@ -57,6 +57,9 @@ var dead: bool = false
 ## Presentation only: who landed the hit that left the survivor down. Cleared on respawn.
 var downed_by: String = ""
 var _last_hit_taken_s: float = -999.0
+## Skill node bonuses cached by the SP spent, so refresh_equipment_vitals (every frame) does not walk trees.json.
+var _skills_bonus_sp: int = -1
+var _skills_health_bonus: float = 0.0
 var _sleep_left: float = 0.0
 
 # Work in progress. PlayerActions drives these; labs, the HUD and the anim tick read them.
@@ -324,9 +327,14 @@ func display_name() -> String:
 func refresh_equipment_vitals() -> void:
 	if vitals and inventory:
 		vitals.equipment_health_bonus = inventory.equipped_health_bonus()
-		if skills:
-			vitals.equipment_health_bonus += float(SkillRules.ability(skills, "max_health"))
+		if skills and skills.sp_spent != _skills_bonus_sp:
+			# Recount only when a purchase or refund changed (this runs every physics frame): the totals
+			# walk every node in trees.json.
+			_skills_bonus_sp = skills.sp_spent
+			_skills_health_bonus = float(SkillRules.ability(skills, "max_health"))
 			vitals.energy_bonus = float(SkillRules.ability(skills, "max_energy"))
+		if skills:
+			vitals.equipment_health_bonus += _skills_health_bonus
 		vitals.health = minf(vitals.health, vitals.effective_max_health())
 
 func receive_creature_hit(who: Creature, _clip: StringName) -> void:

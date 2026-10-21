@@ -321,6 +321,14 @@ func can_gather(inv: Inventory) -> String:
 			inv.set_equipped_tool_index(idx)
 	elif not inv.has_tool_class(required_tool_class):
 		return "need tool %s" % required_tool_class
+	# A gathering technique the survivor has not learned refuses its material: "Needs Mining 1 (Gathering
+	# Lv. 10, 8 SP)". Only the tap/walk paths that reach this are local and offline; the online gather
+	# intent never asks can_gather and needs the same check server-side (W3).
+	var local := PlayerRegistry.local()
+	if local and local.skills:
+		var locked := SkillRules.gather_block(local.skills, str(yield_def_id))
+		if locked != "":
+			return locked
 	gather_seconds = _base_seconds
 	if _is_rock() and (required_tool_class == &"none" or required_tool_class == &""):
 		# Loose stone stays bare-handed, but a held pick still works it faster.
