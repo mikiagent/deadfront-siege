@@ -47,6 +47,11 @@ const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "
 const INK := Color(0.95, 0.95, 0.93)
 
 var _split: GridContainer
+## Visual grouping (W2-INV, prompt 05): the bag grid shows one cell per item id with a count badge;
+## a group of several opens into its instances, one cell each, behind a back cell. Instances never
+## merge. Each entry: {"slot": i} | {"group": id, "slots": [i...], "units": n} | {"back": true}.
+var _cells: Array = []
+var _open_group: StringName = &""
 
 func _ready() -> void:
 	visible = false
@@ -183,9 +188,9 @@ func _ready() -> void:
 	_tip = Label.new()
 	_tip.text = "Tap an item."
 	_tip.add_theme_color_override("font_color", INK)
+	# Not clipped: with one instance per slot its lines (level, process, attributes) are what tell
+	# two stones apart; one clipped line showed only "Stone x1..." (W2-INV bag shots).
 	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_tip.clip_text = true
-	_tip.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_tip.custom_minimum_size = Vector2(180, 24)
 	_tip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col_e.add_child(_tip)
@@ -260,8 +265,15 @@ func _slot_style(b: Button, selected: bool = false) -> void:
 	hov.bg_color = Color(0.16, 0.18, 0.2, 1.0)
 	b.add_theme_stylebox_override("hover", hov)
 	b.add_theme_stylebox_override("pressed", UiTokens.slot_style(true))
+	b.add_theme_stylebox_override("disabled", sb) # an empty slot stays a visible compartment
 	b.add_theme_color_override("font_color", UiTokens.TEXT)
-	b.add_theme_font_size_override("font_size", 12)
+	_fit_slot(b)
+
+## Icon and caption grow with the slot: desktop slots are twice the phone's 64 px, where a 36 px
+## icon and 12 px caption read as specks (W2-INV bag shots).
+func _fit_slot(b: Button) -> void:
+	b.add_theme_font_size_override("font_size", clampi(int(_slot_px / 8.0), 12, UiTokens.body(get_viewport_rect().size)))
+	b.add_theme_constant_override("icon_max_width", maxi(36, int(_slot_px * 0.45)))
 
 func _slot_vec() -> Vector2:
 	return Vector2(_slot_px, _slot_px)
@@ -285,7 +297,7 @@ func _mk_slot(index: int) -> Button:
 	var b := _btn("", _slot_vec())
 	_slot_style(b)
 	if index >= 0:
-		b.pressed.connect(func () -> void: _select(index))
+		b.pressed.connect(func () -> void: _on_cell(index))
 	return b
 
 func _mk_storage_slot(index: int) -> Button:
@@ -304,6 +316,7 @@ func bind(inv: Inventory, owner_player: Player = null) -> void:
 
 func hide_ui() -> void:
 	visible = false
+	_open_group = &""
 	pet_bag = null
 	_storage_opts = {}
 
@@ -376,25 +389,14 @@ func rebuild() -> void:
 		return
 	_refresh_profile()
 	_refresh_equipped()
-	for i in mini(_grid.get_child_count(), inventory.slot_count):
-		var btn := _grid.get_child(i) as Button
-		var s := inventory.slots[i]
-		if s == null:
-			btn.text = ""
-			btn.icon = null
-			btn.tooltip_text = ""
-		elif str(s.def_id) == "_slot_lock":
-			btn.text = "—"
-			btn.icon = null
-			btn.tooltip_text = "occupied"
-		else:
-			var pip := ""
-			if s.is_locked():
-				pip = "L "
-			if s.is_unstable():
-				pip += "U "
-			ItemIcons.style_slot(btn, s.def_id, "%s%d" % [pip, s.count])
-			btn.tooltip_text = s.tooltip()
+	_cells = _bag_cells()
+	while _grid.get_child_count() < _cells.size():
+		_grid.add_child(_mk_slot(_grid.get_child_count()))
+	for k in _grid.get_child_count():
+		var btn := _grid.get_child(k) as Button
+		btn.visible = k < _cells.size()
+		if btn.visible:
+			_style_cell(btn, _cells[k])
 	for c in _pet_grid.get_children():
 		c.queue_free()
 	var has_storage := pet_bag != null
@@ -407,6 +409,7 @@ func rebuild() -> void:
 				b.disabled = true
 			else:
 				ItemIcons.style_slot(b, s.def_id, str(s.count))
+				_fit_slot(b)
 				b.tooltip_text = s.tooltip()
 				b.disabled = false
 				b.modulate = Color(0.7, 0.7, 0.7, 0.8) if _readonly_reason() != "" else Color.WHITE
@@ -419,6 +422,120 @@ func rebuild() -> void:
 	_take_all_btn.disabled = _readonly_reason() != "" or pet_bag == null or pet_bag.used_slots() <= 0
 	_title.text = "CHARACTER" if not has_storage else "CHARACTER  ·  %s" % str(_storage_opts.get("title", "Storage"))
 	_select(_selected if _selected >= 0 else -1)
+
+func _bag_cells() -> Array:
+	var groups := inventory.groups()
+	for g in groups:
+		if g.def_id == _open_group and (g.slots as Array).size() > 1:
+			var open: Array = [{"back": true}]
+			for i: int in g.slots:
+				open.append({"slot": i})
+			return open
+	_open_group = &"" # the open group emptied or is down to one
+	var out: Array = []
+	for g in groups:
+		var at: Array = g.slots
+		out.append({"slot": at[0]} if at.size() == 1 else {"group": g.def_id, "slots": at, "units": g.units})
+	# Spec 13:124 "Empty slots remain visible": one empty cell per free bag slot.
+	for k in inventory.slot_count - inventory.used_slots():
+		out.append({"empty": true})
+	return out
+
+## "L " / "U " when any instance in `at` is locked / unstable (a group hides them otherwise).
+func _pips(at: Array) -> String:
+	var locked := false
+	var unstable := false
+	for i in at:
+		var s := inventory.slots[int(i)]
+		locked = locked or s.is_locked()
+		unstable = unstable or s.is_unstable()
+	return ("L " if locked else "") + ("U " if unstable else "")
+
+func _style_cell(btn: Button, cell: Dictionary) -> void:
+	btn.modulate = Color.WHITE
+	btn.disabled = cell.has("empty")
+	_badge(btn, int(cell.get("units", 0)))
+	if cell.has("empty"):
+		btn.icon = null
+		btn.text = ""
+		btn.tooltip_text = ""
+		return
+	if cell.has("back"):
+		btn.icon = UiIcons.icon(&"back") # white = action
+		btn.expand_icon = true
+		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		btn.text = "All"
+		btn.tooltip_text = "Back to the whole bag"
+		return
+	if cell.has("group"):
+		var first := inventory.slots[int(cell.slots[0])]
+		# A corner count badge (as in ARK and Durango) marks a group that opens into its instances; the
+		# caption is their level range. A real stack (ammo, coins) reads "×45" and has no badge.
+		ItemIcons.style_slot(btn, first.def_id, _pips(cell.slots) + _level_range(cell.slots))
+		btn.tooltip_text = "%d × %s: tap to see each one" % [(cell.slots as Array).size(), first.def().display_name if first.def() else str(first.def_id)]
+		return
+	var s := inventory.slots[int(cell.slot)]
+	# A unique instance shows its level; a stack (ammo, coins) its count.
+	ItemIcons.style_slot(btn, s.def_id, _pips([cell.slot]) + ("×%d" % s.count if s.count > 1 else "Lv %d" % s.level))
+	btn.tooltip_text = s.tooltip()
+
+## "Lv 1-14" over a group's instances ("Lv 5" when they share one level).
+func _level_range(at: Array) -> String:
+	var lo := 1 << 30
+	var hi := 0
+	for i in at:
+		lo = mini(lo, inventory.slots[int(i)].level)
+		hi = maxi(hi, inventory.slots[int(i)].level)
+	return "Lv %d" % lo if lo == hi else "Lv %d-%d" % [lo, hi]
+
+## The group count in the cell's top-right corner; hidden for n = 0 (the grid reuses its buttons).
+func _badge(btn: Button, n: int) -> void:
+	var b := btn.get_node_or_null("Badge") as Label
+	if b == null:
+		if n <= 0:
+			return
+		b = Label.new()
+		b.name = "Badge"
+		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var pill := StyleBoxFlat.new()
+		pill.bg_color = UiTokens.INK_SOLID
+		pill.border_color = UiTokens.TEXT
+		pill.set_border_width_all(1)
+		pill.set_corner_radius_all(10)
+		pill.content_margin_left = 3.0 # a slim pill tucked in the corner covers little of a 64 px cell's icon
+		pill.content_margin_right = 3.0
+		b.add_theme_stylebox_override("normal", pill)
+		b.add_theme_color_override("font_color", UiTokens.TEXT)
+		b.anchor_left = 1.0
+		b.anchor_right = 1.0
+		b.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		b.offset_left = -2.0
+		b.offset_right = -2.0
+		b.offset_top = 2.0
+		btn.add_child(b)
+	b.visible = n > 0
+	b.text = str(n)
+	var fs := clampi(int(_slot_px / 7.0), 12, 20)
+	b.add_theme_font_size_override("font_size", fs)
+	b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.custom_minimum_size.x = fs * 1.4 # one digit reads as a round pill, not a standing capsule
+
+func _on_cell(k: int) -> void:
+	if k < 0 or k >= _cells.size():
+		return
+	var cell: Dictionary = _cells[k]
+	if cell.has("empty"):
+		return
+	if cell.has("back"):
+		_open_group = &""
+		rebuild()
+	elif cell.has("group"):
+		_open_group = cell.group
+		_selected = int(cell.slots[0])
+		rebuild()
+	else:
+		_select(int(cell.slot))
 
 func _refresh_profile() -> void:
 	if _profile == null or inventory == null:
@@ -549,6 +666,7 @@ func _refresh_equipped() -> void:
 			caption = "%.0f" % st.scaled_armor()
 		if st:
 			ItemIcons.style_slot(b, st.def_id, caption)
+			_fit_slot(b)
 			b.tooltip_text = st.tooltip()
 			b.modulate = Color.WHITE
 		else:
@@ -564,10 +682,11 @@ func _select(index: int) -> void:
 	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null
 	for b in [_store_btn, _lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn]:
 		b.visible = false
-	for i in _grid.get_child_count():
-		var slot_btn := _grid.get_child(i) as Button
+	for k in mini(_grid.get_child_count(), _cells.size()):
+		var slot_btn := _grid.get_child(k) as Button
+		var cell: Dictionary = _cells[k]
 		if slot_btn:
-			_slot_style(slot_btn, i == index)
+			_slot_style(slot_btn, index >= 0 and (int(cell.get("slot", -1)) == index or index in (cell.get("slots", []) as Array)))
 	if none:
 		_tip.text = "Tap an item."
 		return
@@ -614,8 +733,8 @@ func _on_equip_slot_pressed(slot: String) -> void:
 			elif fid != "":
 				inventory.set_quick_food(0 if slot == "food1" else 1, &"")
 		_:
-			if inventory.equipment.has(slot):
-				inventory.unequip(StringName(slot))
+			if inventory.equipment.has(slot) and not inventory.unequip(StringName(slot)) and _owner_player:
+				_owner_player.notice("Bag is full.") # the gear stays worn (W2-INV: never dropped)
 
 func _on_equip_pressed() -> void:
 	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
@@ -626,7 +745,7 @@ func _on_equip_pressed() -> void:
 	var d := st.def()
 	var slot := Inventory.slot_for(d)
 	if slot != &"":
-		inventory.equip(slot, st.def_id)
+		inventory.equip_at(_selected, slot) # the exact item selected, not the first of its id
 	elif d and d.tool_class != &"" and d.tool_class != &"none":
 		inventory.set_equipped_tool_index(_selected)
 	_select(_selected)
@@ -745,7 +864,7 @@ func _can_store_selected() -> bool:
 	var st := inventory.slots[_selected]
 	if st == null or st.is_locked() or str(st.def_id) == "_slot_lock": return false
 	if inventory.equipped_tool_index == _selected: return false
-	if str(st.def_id) in inventory.equipment.values() or str(st.def_id) in inventory.quick_food: return false
+	if str(st.def_id) in inventory.quick_food: return false # worn gear is out of the bag (W2-INV)
 	return true
 
 func _store_selected() -> void:
