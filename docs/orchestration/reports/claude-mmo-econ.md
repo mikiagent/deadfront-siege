@@ -9,6 +9,150 @@ it; see "Second review fixes". Fourth pass (2026-10-20): contracts v2, bridged t
 server characters. Fifth pass (2026-10-20, evening): every review r3 item is fixed; read
 "Review r3 fixes" first, then the fourth pass; both supersede the deposit parts below.
 Sixth pass (2026-10-20, night): the one minor from the review of 5498f04b; see "Processed goods".
+Seventh pass (2026-10-20, late night, finish-6 resumed): the fifth and sixth passes were
+committed during the derailed resume, so every r3 claim was re-run here, and the vision fix
+was checked against the packages that merge before ECON; read "Seventh pass" first.
+
+## Seventh pass (2026-10-20, finish-6 resumed): re-verification and the vision fix
+
+### What was already on the branch, and re-checked
+
+HANDOFF.md says results from the derailed resume are not trusted. Every r3 fix (fifth pass)
+and the processed-goods minor (sixth pass) were committed then, so I re-ran them instead of
+redoing them:
+
+- On the branch with the hooks applied: `[t_econ] PASS` and `[tests] PASS` (before any change
+  in this pass).
+- Old behaviour: the current `t_econ.gd`, `econ_bridge_checks.gd` and `economy_tests.gd` copied
+  into a scratch tree at `d50324df` (the commit review r3 failed). `[t_econ] FAIL count=30` and
+  `[tests] FAIL count=15`. Every line quoted in the r3 table below came back, for example
+  `[t_econ] FAIL act.deposit is a server-only op of the character store`,
+  `[t_econ] FAIL a partial buy reaches the buyer's character (not_withdrawable)`,
+  `ERROR: [tests] econ: objective.claim is not a client op: rewards fire on server-observed state`,
+  `[t_econ] FAIL bridge.begin refuses while another move is marked (ok)`,
+  `[t_econ] FAIL a bought pet answers to its buyer (owner 1, was 1)`.
+
+### Vision fix: escrow keeps every per-instance field (PRD:131, spec 06)
+
+The cited lines say it. PRD:129-131 (the core loop): "Process materials (attributes persist)",
+then "Deposit on domain / sell on island market". Spec 06:6: "Preserve source instance ID and
+rare traits". 06:12: "A detailed listing must reveal the **actual** instance's level, ... and
+processing remaining", and the purchase "transfers specific item to safe buyer delivery".
+06:18: "Buyers get the original specific bone, not a generic replacement."
+
+**How I checked it.** The packages that write per-instance fields are not merged yet, and all
+of them merge before ECON. So I built an integration tree: this branch plus W2-DATA, W2-SKILLS,
+W2-INV, W2-PROCESS and W2-GATHER, each with its hooks patch, in the handoff merge order. Only
+conflict resolution: `crafting.gd` keeps both W2-SKILLS' and W2-DATA's gate, `corpse.gd` keeps
+W2-GATHER's ButcherLoot, and W2-INV's t_items/t_save hunks are taken as-is. The tree was
+imported, then ran t_econ and run_all.
+
+**What broke there** (the econ code before this pass, `t_econ` in the integration tree):
+`[t_econ] FAIL vault.deposit should succeed: { "ok": false, "err": "invalid_asset", "msg": "unknown item field creator" }`
+and `[t_econ] FAIL count=15`. W2-INV gives every material and food unit a uid, so
+`ItemStack.to_dict` writes `creator` and `created_at` on every bag row, and W2-PROCESS carries
+both through an in-place step. The deposit whitelist did not know either field, so after
+W2-INV merged no gathered material or food could reach the market. run_all there also failed
+(`count must be 1..1`, every engine test that stacks stone), and so did
+`limits.json pins flint to its category rule` (W2-DATA moves flint and obsidian out of
+`blade_mat`, and adds `fuel` to peat).
+
+Field by field, what W2-INV, W2-PROCESS and W2-GATHER write on an instance, and where it is now
+kept:
+
+| Field | Written by | Kept by |
+|---|---|---|
+| `uid`, `origin`, `seq` | srvdom stamp (W2-INV: one per unit) | provenance; escrow and listings already kept them byte for byte. **New:** srvdom's `char.receive` used to give a withdrawn item a fresh uid (`# shortcut` in srvdom). The buyer now gets the same instance back (hooks). |
+| `creator`, `created_at` | `ItemStack.to_dict` for any stack with a uid (W2-INV), copied through in-place steps (W2-PROCESS) | **New** `limits.json` `instance_fields` (creator: text up to 64 characters; created_at: integer 0..2^53-1). The srvdom export now sends the whole row as itself (hooks), so they leave and return intact. |
+| `level`, `attributes.level` | gather (W2-GATHER: rares at the downranked node level; carcass rows at the corpse level) | already whitelisted (level 1..60) |
+| `attributes.processed` | W2-PROCESS in-place steps | sixth pass (`steps` rule, `dry`/`smoke`/`steam`, max 2) |
+| `process_count`, `flags` (`raw` removed by a step) | W2-PROCESS | already whitelisted |
+| `attributes.climate` | harvest nodes (W2-GATHER rolls rares from it) | already whitelisted |
+| traits | nothing yet. No built package writes a trait field; W2-CRAFT (not started) rolls material attributes. Its keys get `limits.json` rows when it lands. | n/a |
+
+**Fix.**
+- `asset_validator.gd`: a field outside the core item keys must be a `limits.json`
+  `instance_fields` row, and it is checked with the same rule types as attributes. The rule
+  check (`_rule(table, key, v)`) gains a `text` type. Anything else is still refused
+  (`unknown item field`), including a `_about` key.
+- Hooks patch (`intent_handlers.gd`, W1-SRVDOM's):
+  - `act.deposit` of a whole row exports the row itself, not a rebuild through ItemStack,
+    which drops `creator`/`created_at` when the server row has no local uid.
+  - `char.receive`: when the received units land as their own row (always for W2-INV's single
+    instances), that row is the exact body `act.deposit` recorded. That means the same uid,
+    seq, origin and every field. Units that merge into an existing stack still take that
+    stack's uid, as before. The uid was out of every bag while it was exported, so no two rows
+    can share it, and `CharacterStore.invariants()` (unique uids) holds.
+- `limits.json`: the flint, obsidian and peat pins are removed, so their caps follow the
+  category rule at runtime on both the base and W2-DATA.
+- Tests that relied on stone stacking:
+  - The bridge split tests (deposit part, partial buy, remainder, part listing, order fill,
+    crash cuts) now use `stone_shot`. It is ammunition, which still stacks under W2-INV, and a
+    `crate` fixture node yields it.
+  - The engine suite keeps a catalog where plain items stack to 999, as before W2-INV. That
+    suite tests the engine's split rules; t_econ runs the real data end to end.
+
+| Test (passes on the branch and in the integration tree) | FAIL on the code before this pass |
+|---|---|
+| `t_econ` `_test_processed`: raw meat looted from the fixture carcass and dried by `act.craft dry_meat` at a drying rack, then deposited, listed (the listing body equals the bag row), bought and withdrawn. The buyer's row equals the seller's row field for field. Branch: `[econ-bridge] processed dried_meat history=test uid=i8.0 history=["dry"] process_count=1 level=1 origin=craft fields=attributes,count,created_at,creator,durability,flags,id,level,max_durability,origin,process_count,seq,uid intact=true`. Integration tree (the history comes from W2-PROCESS's own craft): `[econ-bridge] processed dried_meat history=craft uid=i8.0 ... intact=true` | Old validator and old hooks (scratch at 5cea0a58 with its hooks patch): `[t_econ] FAIL a dried instance deposits: { "ok": false, "err": "invalid_asset", "msg": "unknown item field creator" }`. New validator with the old hooks: `[t_econ] FAIL the listing shows the real instance, history and all: { ... "uid": "i8.0" }` (no creator/created_at) and `[t_econ] FAIL the buyer's character holds the same instance, every field intact: {..."seq":13,"uid":"i13.0"} vs {..."seq":8,"uid":"i8.0"}` |
+| `run_all` `_test_item_deposits`: creator/created_at survive a deposit byte for byte. A non-text creator, one over 64 characters, a negative or non-numeric created_at, and a `_about` field are refused. | `ERROR: [tests] econ: vault.deposit_item should succeed: { "ok": false, "err": "invalid_asset", "msg": "unknown item field creator" }`, `ERROR: [tests] econ: an instance's creator and created_at survive the deposit byte for byte: {  }` |
+| `run_all` deposit-cap pins (integration tree) | `ERROR: [tests] econ: limits.json pins flint to its category rule` (also obsidian, peat) |
+
+### Review r3 m2, now with a test: the bonded cap on a bought pet
+
+W2-SKILLS' single cap function is `Data.bonded_cap()` (its hooks patch), the same name the
+ECON hooks already call. On a server without a local player it returns 3. The new t_econ
+`_test_bonded_cap` buys a pet, fills the buyer's roster to the cap and withdraws. The
+withdrawal must answer `limit_reached` with the pet left in the vault. On the base the cap is
+unlimited, so the case prints that it waits for W2-SKILLS. In the integration tree:
+`[econ-bridge] bonded cap=3 roster=3 withdraw=limit_reached kept_in_vault=true`. With the
+cap check taken out of the hooks there: `[t_econ] FAIL a full roster (3 of 3) refuses a bought pet, which stays in the vault (ok)`.
+The sync step is now just this test, which runs once W2-SKILLS merges.
+
+### Seen in the integration tree, not ECON's (for the integrator)
+
+- `ERROR: [tests] T-rex fixture includes hide` (x3) in run_all. W2-INV's and W2-GATHER's hooks
+  both rewrite `corpse.gd`'s loot roll, and they conflict. I kept W2-GATHER's ButcherLoot,
+  which needs a knife tier for premium parts. Whoever merges W2-GATHER after W2-INV has to
+  resolve that hunk.
+- With W2-INV, srvdom's `act.craft` gives an in-place output (dried meat) a new server uid and
+  origin `craft`. W2-PROCESS carries the primary's identity on the client, but on the server
+  `CharacterState.inventory()` strips the stamp first. That is W2-PROCESS/srvdom's question,
+  not the market's. The market keeps whatever the character holds.
+
+### Fuzz
+
+The bridge fuzz runs 3600 ops through `client()`, and the engine fuzz in run_all runs 3000.
+Both check every invariant after every op: no currency or item created or destroyed outside
+faucets and sinks. Both pass on the branch and in the integration tree, for example
+`[econ-bridge] fuzz 3600 ops, 9 restarts mid-move, invariants of both stores after every op (coins issued 3553, sink 628)`.
+
+### Acceptance (seventh pass; scratch tree at a21cf5b4 with the hooks patch applied, through gslot)
+
+Base `claude/mmo-overhaul` 34b6d459 merged first (5cea0a58; docs and reference images only).
+The hooks patch was regenerated from the branch's working diff, and
+`git apply --check` on a 34b6d459 tree is clean. The gate tree came from mkscratch, which
+applies the patch and runs `--import` (0 SCRIPT ERROR / "Failed" lines in its log).
+
+- All 20 `game/tests/t_*.gd` exit 0 with their PASS line: t_ai, t_build, t_canim, t_combat,
+  t_econ, t_harbour, t_iconart, t_items, t_light, t_lighting (prints `[t_light] PASS`),
+  t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui,
+  t_uiicons, t_web. `t_save` prints its 5 deliberate SCRIPT ERRORs, and every other test
+  prints 0. None prints "couldn't resolve track".
+- `t_econ.gd`: `[t_econ] PASS`.
+- `run_all.gd`: `[tests] PASS`. Its two SCRIPT ERROR lines come after
+  `[econ] fault test: the next SCRIPT ERROR and ERROR lines are deliberate`.
+- `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (25 before, 25 after).
+- Labs and screenshots: none. ECON is server-side with no UI. The Island Market screens are
+  W3-EXCHANGE's.
+
+### Assumptions added (seventh pass)
+
+- `creator` up to 64 characters (`instance_fields`). ItemStack has no limit; names in this game
+  are shorter (PetRecord.NAME_MAX).
+- An item received as its own row is restored as the exact exported body. One that merges into
+  a stack takes the stack's uid. This is the srvdom rule that already existed for merges.
 
 ## Processed goods (sixth pass, 2026-10-20)
 
@@ -85,7 +229,7 @@ on `claude/mmo-overhaul` 6e26ef2a (sixth pass). I ran the gates with the patch a
 | M2 | Contract 0.6/0.7: `objective.claim` minted on request, tradable start, no trade lock | `objective.claim` moved from `MarketEngine.WRITE` to `SYSTEM`, so it is no longer in `VaultBridge.CLIENT_OPS`. The server calls it on observed state, and the reward is bound. Accounts carry `bound`: the starting wallet (`starting_wallet_bound`, 20 = all of it) plus objective rewards. `wallet.spend` pays from bound coins first. Listing fees, buys, bids, buyouts and order escrow need `wallet - bound` (`Ledger.tradable`). `trade_lock_s: 1800` from account creation refuses list, auction, buy, bid, buyout, order_create and sell_to_order with `limit_reached`. `wallet.get` reports `bound`. Invariant: `0 <= bound <= wallet`. | `run_all` `_test_bound_wallet_and_trade_lock`; `t_econ` `_test_client_gate` (objective.claim refused) | `econ: objective.claim is not a client op: rewards fire on server-observed state`; `econ: the starting wallet is bound: { "wallet": 20, "held": 0 }`; `econ: market.list_fixed (list inside the trade lock) should fail with limit_reached, got { "ok": true ...`; `econ: market.buy (a buy that needs bound coins) should fail with insufficient_funds, got { "ok": true ...` |
 | M3 | Bridge recovery only at boot | `recover()` is state-based and can run at any time. `apply()` and `client()` call it right after any move that could not finish (`broken` set). While it cannot finish, every op is refused with `server_error`, so a copy held in two places can never be listed. `bridge.begin` answers `conflict` while a move is marked. A double refusal (vault and `char.receive`) keeps the mark, so the next op lands the asset. A failed `vault.withdraw_*` after `char.receive` is retried at once. Orphans are scanned on every `recover()`. | `t_econ` `_test_recover_any_time` (a test-only `FlakyEngine` faults `vault.withdraw_item` / `vault.deposit_item` for one uid; EconStore reloads from disk, as in production), `_test_crash_recovery` 2 | `FAIL a vault fault after char.receive is finished in the same request (server_error): stone: characters exported 0, the vaults took in 5 net, i11.0 is held as exported but the character store has no export`; `FAIL while the character and the vault both hold i13.0 nothing can list it (ok)`; `FAIL an asset both stores refused is in the vault before the next deposit runs: stranded ["i16.0"]`; `FAIL bridge.begin refuses while another move is marked (ok)` |
 | m1 | A bought pet kept the seller's `owner` | Hooks: `char.receive` sets `owner = str(account)` after the canonical match. `tamer` keeps the lineage. A re-deposit exports the new owner. | `t_econ` `_test_pets_and_cages` | `FAIL a bought pet answers to its buyer (owner 1, was 1)`; `FAIL a re-deposit exports the pet under its new owner` |
-| m2 | 6.1 shape and the bonded cap | Hooks: `char.receive` of a pet refuses `limit_reached` at `Data.bonded_cap()` (pack 09: the cap is checked when a bond forms; cages never count). The orchestrator should either amend contract 6.1 to "pets trade as kind `pet` in the books and are shown as cages", or plan the switch to `caged_animal` items with W2-CAGE. Behaviour already matches the contract: the pet keeps its uid, lineage and genetics, and nobody re-tames it. | None yet: `Data.bonded_cap()` returns 2147483647 on the base, so nothing can trip it. Sync step when W2-SKILLS merges its single cap function: point the check at it and add a `t_econ` case where a full roster refuses the withdrawal and the pet stays in the vault. | n/a |
+| m2 | 6.1 shape and the bonded cap | Hooks: `char.receive` of a pet refuses `limit_reached` at `Data.bonded_cap()` (pack 09: the cap is checked when a bond forms; cages never count). The orchestrator should either amend contract 6.1 to "pets trade as kind `pet` in the books and are shown as cages", or plan the switch to `caged_animal` items with W2-CAGE. Behaviour already matches the contract: the pet keeps its uid, lineage and genetics, and nobody re-tames it. | Seventh pass: `t_econ` `_test_bonded_cap` (runs once W2-SKILLS' `Data.bonded_cap()` is finite; passes in the integration tree) | `[t_econ] FAIL a full roster (3 of 3) refuses a bought pet, which stays in the vault (ok)` (integration tree, cap check removed) |
 | m3 | Malformed `vault.deposit` args answered `not_found` | `bag_slot`, `count` and `pet_uid` are read with `EconArgs` and answer `bad_request` when they fail validation. `not_found` is kept for an empty slot or an unknown pet. | `t_econ` `_test_deposit` (2.5, -1, 0, "3", 1e300, INF, 0.5, -1, 999, ["x"], 7) | `FAIL malformed deposit args answer bad_request: not_found,not_found,...` |
 | m4 | `vault.withdraw` ignored `count` | `count` is honoured (`insufficient_items` above the stack, as contract 4's `vault.withdraw_item`). A part leaves through `char.grant`. | `t_econ` `_test_sales` | `FAIL vault.withdraw {uid, count: 1} takes one unit, not the stack (left 7 of 7)` |
 | m5 | 64 newer writes evicted a deposit's rid | Vault moves (`MarketEngine.BRIDGE`) have their own cap, `rid_cache_bridge: 256`, so market traffic never evicts them. They are still dropped by the daily idle prune. | `run_all` `_test_idempotency` | `econ: market writes keep their last 64 rids and never evict a vault move's rid (size 64, keep=false)`; `econ: a deposit replayed after 70 market writes moves nothing` |
@@ -106,7 +250,8 @@ that code too.
 
 1. **Apply `docs/orchestration/reports/claude-mmo-econ-hooks.patch`.** It changes:
    - `intent_handlers.gd`: `act.deposit` becomes a system op, and it adds `char.grant`, the
-     pet owner rewrite and the bonded cap on receive.
+     pet owner rewrite and the bonded cap on receive. Seventh pass: a whole-row export is the
+     row itself, and an item received as its own row is the exact exported body (same uid).
    - `run_all.gd`: runs `economy_tests.gd`.
 
    `t_econ.gd` follows the t_*.gd convention, so no registration is needed.
