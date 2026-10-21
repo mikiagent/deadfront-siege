@@ -902,11 +902,16 @@ func _test_hide_strap_no_self_input() -> void:
 	var bag = inv.new(5)
 	bag.add(stack.make(&"hide_strap",10,{},55))
 	_expect(not craft.picks_valid(bag,rec,craft.default_picks(bag,rec)),"straps cannot double through own recipe")
-	for id in [&"raw_hide",&"raptor_hide",&"dried_hide"]:
+	# PRD 8.3 "Hide -> dried hide -> straps": raw hide must be dried first.
+	for id in [&"raw_hide",&"raptor_hide"]:
+		var green = inv.new(5)
+		green.add(stack.make(id,1,{},55))
+		_expect(not craft.picks_valid(green,rec,craft.default_picks(green,rec)),"raw hide %s is dried before cutting straps" % id)
+	for id in [&"dried_hide"]:
 		var material = inv.new(5)
 		material.add(stack.make(id,1,{},55))
 		var picks = craft.default_picks(material,rec)
-		_expect(craft.picks_valid(material,rec,picks),"uncut hide remains eligible %s" % id)
+		_expect(craft.picks_valid(material,rec,picks),"dried hide is eligible %s" % id)
 		var parts = craft.consume_for_craft(material,rec,picks)
 		var out = craft.build_output(rec,parts[0],55,parts)
 		_expect(out.def_id == &"hide_strap" and out.count == 2 and out.level == 55,"hide processing preserves quality and output")

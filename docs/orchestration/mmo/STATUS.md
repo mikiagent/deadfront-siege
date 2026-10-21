@@ -368,9 +368,43 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   (3) "Our house building system may be more robust than the original game, i will look into this. See this house is only 4x4": the owner
   is evaluating; W2-BUILDSYS is unchanged until the owner decides.
 
+- 2026-10-20 (owner) "This is what the player creation page looks like" (`docs/design/durango-prompts/19_character_creation.md`,
+  `docs/reference/durango-character-creation.png`): Durango's Gender/Profession screen. Package CHARCREATE (`claude/mmo-charcreate`) restyles
+  the existing character_creation.gd (occupations, gender, name already work). A male survivor model needs owner-approved concept art first. Owner added step 2 ("You can choose the size and profile pic, 3D model"):
+  CHARCREATE (wf_423a264e-02f, script `handoff/workflows/charcreate.js`) also builds Create Character - size slider, a portrait RENDERED from the
+  player's model with Pattern/Background Color (the canonical PortraitService; DOMAIN/INVUI adapt at their sync), appearance/colour options the
+  model really supports.
+  Owner then listed "height, hairstyles, skin color, facial hair/features", "outfit color" and "enter name" (spec 19 last section): CHARCREATE also
+  builds the Color tab (skin, outfit 1-3, eye, lip through texture masks), the Name step (1-20 chars, letters/digits/space/-/.) and data-driven
+  hairstyle/facial-hair/feature slots; CHAR-APPEARANCE plan (wf_05041ba1-aa5, read-only, no spend) plans that art and a male base.
+
+- 2026-10-20 (owner) "region chat" (`docs/design/durango-prompts/20_region_chat.md`, `docs/reference/durango-region-chat.webp`): Durango chat screen
+  (Region / System channels, New Group, gold names, emotes, relative times, Enter message / + / Send). Run NET+CHAT: finish the network core
+  (`claude/mmo-net`: sync the base, fix, review; it is the market's online path too) and build the chat screen on it (`claude/mmo-chat`).
+
+- 2026-10-20 island/map check done (`islandmap-check.md`).
+  Findings:
+  - Our home island is 134 x 131 m. Unstable islands are 406 x 404 m. All islands are near-round discs, from only 4 heightmaps.
+  - The atlas is a flat pixel map with no fog, info panel or scale bar.
+  - The travel menu is a vertical text list, not the Sail chart.
+  Packages queued, in this order:
+  - SAILUI: the rightward Sail chart. It is the cheapest visible win.
+  - MAPUI: the painted map with fog of war and the island info panel.
+  - ISLANDSHAPE: seeded, elongated, ragged islands. This waits for the owner's answer on island size.
+  Assumptions until the owner says otherwise: keep our 14 fixed islands on the chart, and "To Harbor" / "To Waypoint" auto-walk (no new mechanic).
+- 2026-10-20 (owner) "example of tall trees and transparency" (`docs/design/durango-prompts/21_tall_trees_transparency.md`): it matches the merged
+  W2-OCCLUDE rule. A visual check of our build against it is running.
+
+- 2026-10-20 (owner) "notice the game ui and how the resource gathering looks. The finger icon is a walkthrough guide" (spec 22):
+  - Gather hexes show the gather time and the yield per part.
+  - A tutorial pointing hand guides the current order step.
+  A comparison with our gather radial and Orders tracker is running. GATHERUI follows W2-GATHER's merge; GUIDE (the finger) can start sooner.
+
 ## Owner questions (open)
 
-- none
+- Male survivor model (PRD: 8 occupations x 2 genders): start a concept sheet for approval, then a Tripo mesh from existing credits? (asked 2026-10-20; unanswered)
+- Painted portrait set like Durango's (15+ faces): new art; which source, if any? Until then portraits are rendered from the player's model.
+- Island size target (asked 2026-10-20; unanswered): match Durango (~300 x 375 m, recommended), the design doc (160 home / 240 unstable), or keep ours (134 home / 406 unstable) with ragged shapes only? ISLANDSHAPE waits for it.
 
 ## Merge log
 
@@ -387,3 +421,5 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - 2026-10-20 merged W1-UIICONS (review r3 major + 5 minors fixed; blind A/B 6/6) and its follow-up (grindstone station icon, code inventory reads player_input.gd). Merged tree: [tests] PASS; all 19 t_*.gd PASS incl. t_occlude, t_uiicons "PASS ids=169 files=114"; SMOKE PASS. Phone combat shot looked at: white icon set with captions, no colour emoji.
 - 2026-10-20 evening: owner asked for a clean stop and handoff. Every worker committed and stopped; all package branches pushed. Built but not merged (state, findings and next steps in HANDOFF.md section 3): W2-PROCESS (review blocker: pack-up destroys station contents), W2-SKILLS (review major: rev-1 goldens rewritten), W2-BUILDSYS (review not run), W2-DATA, W2-INV (save format change, owner gate), W2-GATHER, ECON (review r3 blocker; fix WIP untested), W2-RAGDOLL (3 review majors), ICONS2 (armor_scute repro). Owner decisions this session: deploy now (done, 31c064a08/2284b9bf56), push after each merge, gameplay before polish, answer design questions from durango-prompts/PRDs (spec 08: no spoil timer, ~2 in-place processing opportunities, effects from item properties), DeepSeek allowed for narrow gated jobs, walk/run animations moved to the locomotion thread.
 - 2026-10-20 DSC-QUADS2 not merged: review r1 failed (left/right legs in exact lockstep in all four clips, megaloceros run skates and tears). Tripo trial on the megaloceros (35 credits, branch claude/mmo-tripo-megaloceros, not pushed): quadruped walk only, scissoring hind legs, no run/idle presets; not adopted.
+- 2026-10-20 merged W2-DATA (9c4226c8): Stone-to-Steel ladder (tin, forge, anvil, 28 named tools), nets I-V, armour bands 1-60, raid kit from steel, recipe node gates (hook 6), t_data validator; hooks applied clean (be970c8c). Merged tree: all 20 t_*.gd PASS incl. "[t_data] PASS items=223 recipes=155" (t_save 5 deliberate SCRIPT ERRORs); [tests] PASS; SMOKE PASS; island_lab "nodes=397 creatures=24" (base 378; intended: corn on home grassland, wheat/tin nodes), build_lab [build] PASS, craft_lab and equip_mount_lab PASS, 0 SCRIPT ERROR, 0 "couldn't resolve track"; home_lab 1600x900 Forward+/gl_compat and 844x390 match base; no new Godot .ips; review r4 pass; pending: repairs rows have no consumer yet, W2-SKILLS rebases H1 onto hook 6
+- 2026-10-20 merged W2-SKILLS (dfcf833e, hooks 6f65f615, base docs merge 846dd6d9): Durango 1-60 trees from Lv. 1, Lv1 AUTO nodes, Animal Handling I-IV bonded cap 3-7 via Data.bonded_cap, recipe node gates via SkillRules.recipe_block (H1 replaces W2-DATA's requires_node check), save rev 2 with rev-1 migration (owner-approved); 15-file hooks applied clean. Merged tree: all 21 t_*.gd PASS incl. "[t_w2_skills] PASS", "[t_data] PASS items=223 recipes=155" (t_save 5 deliberate SCRIPT ERRORs); [tests] PASS; SMOKE PASS (both rerun after the spec 20-22 docs base merge); island_lab "nodes=397 creatures=24" (unchanged); build/craft/equip_mount labs PASS; skills_lab "[skill] PASS level-up pays 10 SP, small_field bought", capture_lab "[capture] PASS bonded+=2", ui_family_lab active_cap=3; 0 SCRIPT ERROR, 0 "couldn't resolve track"; ui_real_capture_lab [uireal] PASS 1600x900 and 844x390 gl_compat; home_lab 1600x900 Forward+/gl_compat and 844x390 match base; no new Godot .ips (34); review r8 pass + sync delta; blind A/B pass; pending: ui_real_capture_lab radial-vs-vitals check flaky at 844x390 (spawn varies; failed once, passed on rerun), --shot names containing "skills"/"tree" auto-open the skills sheet (hunt_hud.gd:92 debug hook), open owner decisions 4-7 in the W2-SKILLS report (cured-hide pacing, occupation Lv. 20 vs cap, island/capture pacing, rev-1 sp_extra), W3-SRVACT server-side gates

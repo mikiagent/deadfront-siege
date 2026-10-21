@@ -31,7 +31,7 @@ index 2ac1e244..479f1713 100644
  	if elapsed > 0 and World.runtime:
  		for n in World.runtime.get_tree().get_nodes_in_group("field"):
 diff --git a/game/scripts/core/save_sanitizer.gd b/game/scripts/core/save_sanitizer.gd
-index b1f73860..93d39900 100644
+index 456a21c8..e95cce81 100644
 --- a/game/scripts/core/save_sanitizer.gd
 +++ b/game/scripts/core/save_sanitizer.gd
 @@ -20,7 +20,7 @@ static var abort_for_test := false
@@ -225,7 +225,7 @@ index 0b840a23..1a1c4dac 100644
  const FULL_RETRY := StationCraft.FULL_RETRY_S + 0.05
  
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index e09baeef..bd6dd4de 100644
+index b0cb5782..15e23db8 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
 @@ -17,45 +17,35 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
@@ -382,7 +382,7 @@ index e09baeef..bd6dd4de 100644
  static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
  	return not _plan(inv, rec, picks).is_empty()
  
-@@ -321,7 +361,7 @@ static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burn
+@@ -328,7 +368,7 @@ static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burn
  	var primary := scratch.slots[picks[primary_index(rec)]].duplicate_stack()
  	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
  	consume_for_craft(scratch, rec, picks)
@@ -463,7 +463,7 @@ index 3bfbb398..1f84a3d6 100644
  	return moved
  
 diff --git a/game/scripts/server/character_state.gd b/game/scripts/server/character_state.gd
-index 79c8b05c..c37d7623 100644
+index b69eaabb..2141d9a6 100644
 --- a/game/scripts/server/character_state.gd
 +++ b/game/scripts/server/character_state.gd
 @@ -5,7 +5,7 @@ extends RefCounted
@@ -3269,7 +3269,7 @@ index 62c9ef19..c582e460 100644
  	for stack in used: inv.add(stack)
  	result["cancel refunds split materials"] = inv.count_of(&"fibre_stalk") == 6 and inv.count_of(&"branch") == 3 and inv.count_of(&"bark_strip") == 2
 diff --git a/game/tests/run_all.gd b/game/tests/run_all.gd
-index 1041e72f..50927712 100644
+index 0de559b8..27e08922 100644
 --- a/game/tests/run_all.gd
 +++ b/game/tests/run_all.gd
 @@ -662,7 +662,8 @@ func _test_counter_supplies() -> void:
@@ -3355,7 +3355,7 @@ index 0ba4fb70..e84083f0 100644
  	var ub: Dictionary = db.r.get("asset", {}) if db.ok else {}
  	var a1 := st.apply("char.receive", 1, {"asset": ua}, 8)
 diff --git a/game/tests/t_build.gd b/game/tests/t_build.gd
-index 5e18ccf6..707dc380 100644
+index 051e77ac..9ecf165f 100644
 --- a/game/tests/t_build.gd
 +++ b/game/tests/t_build.gd
 @@ -218,7 +218,7 @@ func _test_field_full_bag() -> void:
@@ -3384,7 +3384,7 @@ index 5e18ccf6..707dc380 100644
  	_player.inventory.consume(&"wheat", got)
  	_player.inventory.consume(&"water_bucket", 2)
 diff --git a/game/tests/t_items.gd b/game/tests/t_items.gd
-index 586db7c5..1ae58cd3 100644
+index 72475daf..05421797 100644
 --- a/game/tests/t_items.gd
 +++ b/game/tests/t_items.gd
 @@ -58,9 +58,9 @@ func _test_identity() -> void:
@@ -3435,16 +3435,16 @@ index 586db7c5..1ae58cd3 100644
  	_expect(not fibre.slots[0].can_merge_with(lv2), "a different level still keeps its own stack")
  
  func _test_scaling() -> void:
-@@ -184,7 +187,7 @@ func _test_pick_gates() -> void:
+@@ -186,7 +189,7 @@ func _test_pick_gates() -> void:
  	var mixed = INV.new(20)
  	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "stone"}, 1))
- 	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "copper"}, 1))
--	_expect(iron.can_gather(mixed) == "" and mixed.slots[mixed.equipped_tool_index].material_tier() == &"copper", "the qualifying pick is the one equipped")
-+	_expect(iron.can_gather(mixed) == "" and mixed.equipped_gather_tool().material_tier() == &"copper", "the qualifying pick is the one in use (W2-INV: auto picks the best)")
+ 	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "bronze"}, 1))
+-	_expect(iron.can_gather(mixed) == "" and mixed.slots[mixed.equipped_tool_index].material_tier() == &"bronze", "the qualifying pick is the one equipped")
++	_expect(iron.can_gather(mixed) == "" and mixed.equipped_gather_tool().material_tier() == &"bronze", "the qualifying pick is the one in use (W2-INV: auto picks the best)")
  	var spare = INV.new(20)
  	spare.add(IS.make(&"work_pick", 1, {"material_tier": "copper"}, 1))
  	spare.add(IS.make(&"work_pick", 1, {"material_tier": "obsidian"}, 1))
-@@ -283,10 +286,26 @@ func _test_no_lost_items() -> void:
+@@ -286,10 +289,26 @@ func _test_no_lost_items() -> void:
  	var before: Array = bag.to_array()
  	var picks: Array[int] = CR.default_picks(bag, knife)
  	_expect(CR.picks_valid(bag, knife, picks), "full-bag fixture can otherwise make the knife")
@@ -3545,17 +3545,19 @@ index 037f42f1..ba369416 100644
  ## velociraptor, held for 5 s, raises her at most 0.15 m (was +0.97, +1.16 and +1.82 m: the stall
  ## fallback hopped her onto their backs); unstick never steps into a creature.
 diff --git a/game/tests/t_save.gd b/game/tests/t_save.gd
-index 973340ac..5c4b67aa 100644
+index 7f6476a4..38aa3cf8 100644
 --- a/game/tests/t_save.gd
 +++ b/game/tests/t_save.gd
-@@ -1,10 +1,17 @@
+@@ -1,11 +1,18 @@
  extends SceneTree
  ## W1-SAVE: crash-safe, sanitized, isolated saves. Prints "[t_save] PASS" (or FAIL lines), exits 0/1.
  ##   Godot --headless --path game --script res://tests/t_save.gd
 -## `-- --write-golden` re-stages a camp and rewrites save_v3_golden.json and save_truncated.json.
+-## Do not: since W2-SKILLS the v3 goldens are frozen rev-1 inputs and a rewritten one fails the run.
 +## `-- --write-golden` re-stages a camp and rewrites the instance-format goldens (GOLDEN, AWAY_GOLDEN).
-+## save_v3_golden.json, save_v3_away_golden.json and save_truncated.json are the base's stacked
-+## saves from before W2-INV: kept byte for byte, they are the real old saves the migration must load.
++## Never rewrite save_v3_golden.json, save_v3_away_golden.json or save_truncated.json: they are the
++## base's stacked saves from before W2-INV with W2-SKILLS' rev-1 skills, kept byte for byte as the
++## real old saves both migrations must load; a rewritten one fails the run.
  ## Scripts that touch autoloads load on the first frame (see run_all.gd), so everything is load()ed.
  
  const FIX := "res://tests/fixtures/"
@@ -3567,25 +3569,28 @@ index 973340ac..5c4b67aa 100644
  const RUN_DIR := "user://runs/t_save"
  ## Island state regenerated on load, not save format: excluded from field-for-field compares.
  ## A snare's life_left loses the 0-1 s of offline time each load counts.
-@@ -74,9 +81,11 @@ func _run() -> void:
+@@ -75,10 +82,12 @@ func _run() -> void:
  		quit(0)
  		return
  	_test_two_saves()
 -	for name in ["save_v0.json", "save_v1.json", "save_v2.json", "save_v3_golden.json", "save_v3_away_golden.json"]:
 +	for name in ["save_v0.json", "save_v1.json", "save_v2.json", "save_v3_golden.json", "save_v3_away_golden.json", GOLDEN, AWAY_GOLDEN]:
  		await _test_round_trip(name)
+ 	await _test_rev1_skills()
  	await _test_forged()
 +	await _test_stacked_migration()
 +	await _test_duplicate_uids_across_containers()
  	await _test_truncated()
  	await _test_future()
  	await _test_backup_fallback()
-@@ -156,7 +165,21 @@ func _test_round_trip(name: String) -> void:
+@@ -158,21 +167,35 @@ func _test_round_trip(name: String) -> void:
  	_check(diffs.is_empty(), "%s re-saves field-for-field equal: %s" % [name, diffs.slice(0, 6)])
  	if LEGACY.has(name):
  		_check_legacy(name, s1)
 -	if name.begins_with("save_v3_"):
+-		_check_v3_golden(name, s1)
 +	if name in STACKED:
++		_check_v3_skills(name, s1)
 +		var old: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
 +		var away := str(s1.get("island_id", "")) != "home_grassland"
 +		_check_split(name, old, s1, away)
@@ -3600,10 +3605,31 @@ index 973340ac..5c4b67aa 100644
 +			home_old.erase("away") # what was built on the island left behind stays there
 +			_check_split(name + " back home", home_old, _saved())
 +	elif name.begins_with("save_v3_"):
- 		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
- 		var gd: Array[String] = []
- 		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
-@@ -177,12 +200,119 @@ func _check_legacy(name: String, s1: Dictionary) -> void:
++		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
++		var gd: Array[String] = []
++		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
++		_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
+ 	print("[t_save] round trip %s fields=%d diffs=%d" % [name, s1.size(), diffs.size()])
+ 	await process_frame
+ 
+-## The v3 goldens are frozen rev-1 saves: never regenerate them, they are the migration's input.
+-## Everything but skills_v2 survives load + save unchanged; skills_v2 must equal the rev-2 result
+-## kept in save_v3_skills_rev2.json, field for field both ways.
+-func _check_v3_golden(name: String, s1: Dictionary) -> void:
++## The stacked v3 goldens are frozen rev-1 saves: never regenerate them, they are the migration's
++## input. skills_v2 must equal the rev-2 result kept in save_v3_skills_rev2.json, field for field both
++## ways; their stacks split on load (W2-INV), so _check_split checks the items, not byte equality.
++func _check_v3_skills(name: String, s1: Dictionary) -> void:
+ 	var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
+ 	_check(not (golden["skills_v2"] as Dictionary).has("rev"), "%s is still a rev-1 save (the migration input)" % name)
+-	golden.erase("skills_v2")
+-	var gd: Array[String] = []
+-	_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
+-	_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
+ 	var want: Variant = (JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_skills_rev2.json")) as Dictionary).get(name)
+ 	var sd: Array[String] = []
+ 	_same(want, s1.get("skills_v2"), "/skills_v2", sd)
+@@ -238,12 +261,119 @@ func _check_legacy(name: String, s1: Dictionary) -> void:
  	_check(ok, "%s content survives migration: buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
  	print("[t_save] legacy %s buildings=%s bag=%s t_stones=%s island=%s" % [name, kinds, bag, s1.get("t_stones"), s1.get("island_id")])
  
@@ -3724,7 +3750,7 @@ index 973340ac..5c4b67aa 100644
  	_check(helm != null and helm.count == 1 and helm.level == 60, "forged raid_helm x5000 L9999 loads as x1 L60")
  	_check(helm != null and helm.durability <= helm.max_durability and helm.max_durability == IS.make(&"raid_helm", 1, {}, 60).max_durability, "forged durability clamps to the item's ceiling")
  	var unknown := 0
-@@ -325,7 +455,7 @@ func _test_away_island() -> void:
+@@ -387,7 +517,7 @@ func _test_away_island() -> void:
  ## (the golden's 42 t_stones and 6 stacks arrive) and keep saving, never abort halfway.
  func _test_hostile_types() -> void:
  	_clean()
@@ -3733,7 +3759,7 @@ index 973340ac..5c4b67aa 100644
  	SG.load_now(host) # the golden camp layout, so the pen cell below is free under it
  	await process_frame
  	var pen := _free_cell(&"makeshift_taming_pen")
-@@ -373,7 +503,7 @@ func _test_hostile_types() -> void:
+@@ -435,7 +565,7 @@ func _test_hostile_types() -> void:
  		cases[label] = func (d: Dictionary) -> void: d["home"]["buildings"] = [row]
  	for label in cases:
  		_clean()
@@ -3742,7 +3768,7 @@ index 973340ac..5c4b67aa 100644
  		(cases[label] as Callable).call(d)
  		_put(JSON.stringify(d))
  		W.t_stones = 0
-@@ -383,7 +513,7 @@ func _test_hostile_types() -> void:
+@@ -445,7 +575,7 @@ func _test_hostile_types() -> void:
  		var stacks := 0
  		for st in player.inventory.slots:
  			if st != null: stacks += 1
@@ -3751,7 +3777,7 @@ index 973340ac..5c4b67aa 100644
  		var saved: bool = SG.save_now()
  		_check(ok and saved and errors.script_errors == errs, "hostile '%s' loads completely and saves (blocked='%s' t_stones=%d stacks=%d pets=%d script_errors=%d)" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), errors.script_errors - errs])
  		print("[t_save] hostile '%s' blocked='%s' t_stones=%d stacks=%d pets=%d saved=%s" % [label, SG.blocked_reason, W.t_stones, stacks, player.bonded.size(), saved])
-@@ -442,9 +572,9 @@ func _check_pen(label: String, keeps: bool) -> void:
+@@ -504,9 +634,9 @@ func _check_pen(label: String, keeps: bool) -> void:
  ## load lifts the block.
  func _test_aborted_load() -> void:
  	_clean()
@@ -3763,7 +3789,7 @@ index 973340ac..5c4b67aa 100644
  	raw["t_stones"] = {}
  	print("[t_save] the next SCRIPT ERROR (Nonexistent 'int' constructor) is the deliberate abort")
  	expected_script_errors += 1
-@@ -508,7 +638,7 @@ func _held_on_disk(d: Dictionary) -> Array:
+@@ -570,7 +700,7 @@ func _held_on_disk(d: Dictionary) -> Array:
  ## must treat it as unreadable rather than apply it.
  func _test_sanitizer_abort() -> void:
  	_clean()
@@ -3772,7 +3798,7 @@ index 973340ac..5c4b67aa 100644
  	var San: GDScript = load("res://scripts/core/save_sanitizer.gd")
  	San.set("abort_for_test", true)
  	print("[t_save] the next SCRIPT ERROR (call on a null instance) is the deliberate sanitizer abort")
-@@ -523,7 +653,7 @@ func _test_sanitizer_abort() -> void:
+@@ -585,7 +715,7 @@ func _test_sanitizer_abort() -> void:
  	for i in 70:
  		W._process(1.0)
  	_check(FileAccess.get_sha256(SG.path) == sha0, "aborted sanitizer: bytes unchanged after 70 s of autosave")
@@ -3781,7 +3807,7 @@ index 973340ac..5c4b67aa 100644
  	forged[San.get("CHECKED")] = true
  	_put(JSON.stringify(forged))
  	var ok: Dictionary = (load("res://scripts/core/save_migrations.gd") as GDScript).read(SG.path)
-@@ -536,7 +666,7 @@ func _test_sanitizer_abort() -> void:
+@@ -598,7 +728,7 @@ func _test_sanitizer_abort() -> void:
  ## pen the grid still accepts keeps its animal.
  func _test_pen_refunds() -> void:
  	_clean()
@@ -3790,7 +3816,7 @@ index 973340ac..5c4b67aa 100644
  	_put(golden)
  	SG.load_now(host)
  	await process_frame
-@@ -591,7 +721,7 @@ func _test_pen_refunds() -> void:
+@@ -653,7 +783,7 @@ func _test_pen_refunds() -> void:
  ## save must still record this session's buildings, or sailing away and back loses them.
  func _test_refused_save_keeps_camp() -> void:
  	_clean()
@@ -3799,7 +3825,7 @@ index 973340ac..5c4b67aa 100644
  	SG.load_now(host) # the golden basket holds 5 stone
  	await process_frame
  	var cell := _free_cell(&"basket")
-@@ -643,6 +773,7 @@ func _write_golden() -> void:
+@@ -705,6 +835,7 @@ func _write_golden() -> void:
  	inv.add(IS.make(&"stone", 12))
  	inv.add(IS.make(&"branch", 7))
  	inv.add(IS.make(&"raw_meat", 3))
@@ -3807,7 +3833,7 @@ index 973340ac..5c4b67aa 100644
  	inv.equip(&"head", &"raid_helm")
  	inv.add(IS.make(&"raid_helm", 1))
  	W.cargo_home.load_array([])
-@@ -676,15 +807,13 @@ func _write_golden() -> void:
+@@ -738,15 +869,13 @@ func _write_golden() -> void:
  	var d := _saved()
  	d["unstable"]["harvested"] = {}
  	d["saved_unix"] = 4000000000 # clamps to now at load: no offline time, so the snare round-trips
@@ -3826,7 +3852,7 @@ index 973340ac..5c4b67aa 100644
  	# Away golden: the survivor standing on an unstable island with a stocked basket there.
  	W.remaining_lifetime = 0.0
  	W.load_island(host, &"temperate_25", Vector3(0, 1, 12), false)
-@@ -700,7 +829,7 @@ func _write_golden() -> void:
+@@ -762,7 +891,7 @@ func _write_golden() -> void:
  	var a := _saved()
  	a["unstable"]["harvested"] = {}
  	a["saved_unix"] = 4000000000
