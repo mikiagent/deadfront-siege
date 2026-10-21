@@ -804,7 +804,8 @@ Base sync: W2-INV is still not merged into claude/mmo-overhaul (its tip ddaab662
 INVUI base (cargo_capacity_probe, raid_gear_probe, t_player's grime check, t_save's non-item compare) is 8aa3392e: each of
 those files is now byte for byte claude/mmo-w2-inv + its hooks patch (checked blob by blob in a scratch index; the only
 other difference is inventory_ui.gd, INVUI's own rewrite). The INVUI hooks re-applied cleanly (`git apply -3`, every file
-"Applied patch ... cleanly"), one `--import` afterwards (exit 0).
+"Applied patch ... cleanly"), one `--import` afterwards (exit 0). At the end of the step W2-INV moved to 22d1cd32, a
+docs-only report commit (no game file, no hooks change): merged as 7539eec1; the gates below stand for it.
 
 A cut run of this step had left the dock half built and uncommitted in the work tree (backed up before the sync); it was
 kept, finished and fixed here.
