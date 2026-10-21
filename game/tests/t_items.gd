@@ -58,9 +58,9 @@ func _test_identity() -> void:
 	var back = IS.from_dict(JSON.parse_string(JSON.stringify(a.to_dict())))
 	_expect(back.uid == a.uid and back.origin == "craft" and back.creator == "tester" and back.created_at == a.created_at, "uid/origin/creator/created_at round-trip through JSON")
 	var bag = INV.new(4)
-	var s1 = IS.make(&"stone", 3, {}, 1)
+	var s1 = IS.make(&"stone_shot", 3, {}, 1) # W2-INV: only stacking categories (ammunition) can share a slot
 	s1.stamp_identity("loot")
-	var s2 = IS.make(&"stone", 3, {}, 1)
+	var s2 = IS.make(&"stone_shot", 3, {}, 1)
 	s2.stamp_identity("loot")
 	bag.add(s1)
 	bag.add(s2)
@@ -83,7 +83,7 @@ func _test_identity() -> void:
 	_expect(newline.uid == "", "a uid with a trailing newline is blanked (got %s)" % var_to_str(newline.uid))
 	# Splitting a uid'd stack must not leave both halves sharing one identity.
 	var share = INV.new(4)
-	var whole = IS.make(&"stone", 4, {}, 1)
+	var whole = IS.make(&"stone_shot", 4, {}, 1)
 	whole.stamp_identity("loot")
 	share.add(whole)
 	var half = share.remove_at(0, 2)
@@ -93,15 +93,18 @@ func _test_identity() -> void:
 
 func _test_merging() -> void:
 	var bag = INV.new(5)
-	bag.add(IS.make(&"stone", 3, {}, 1))
-	bag.add(IS.make(&"stone", 4, {}, 1))
-	_expect(bag.used_slots() == 1 and bag.count_of(&"stone") == 7, "fungible stone stacks still merge")
+	bag.add(IS.make(&"stone_shot", 3, {}, 1))
+	bag.add(IS.make(&"stone_shot", 4, {}, 1))
+	_expect(bag.used_slots() == 1 and bag.count_of(&"stone_shot") == 7, "fungible ammunition stacks still merge")
+	var stone = INV.new(10)
+	stone.add(IS.make(&"stone", 3, {}, 1))
+	_expect(stone.used_slots() == 3, "stone no longer stacks: three units, three slots (owner 2026-10-20)")
 	var fibre = INV.new(5)
-	fibre.add(IS.make(&"fibre_stalk", 2, {"climate": "temperate", "level": 1}, 1))
-	fibre.add(IS.make(&"fibre_stalk", 3, {"climate": "tropical", "level": 1}, 1))
-	fibre.add(IS.make(&"fibre_stalk", 1, {"level": 1}, 1))
-	_expect(fibre.used_slots() == 1 and fibre.count_of(&"fibre_stalk") == 6, "same-level temperate, tropical and fresh fibre merge")
-	var lv2 = IS.make(&"fibre_stalk", 1, {"climate": "tropical", "level": 2}, 2)
+	fibre.add(IS.make(&"stone_shot", 2, {"climate": "temperate", "level": 1}, 1))
+	fibre.add(IS.make(&"stone_shot", 3, {"climate": "tropical", "level": 1}, 1))
+	fibre.add(IS.make(&"stone_shot", 1, {"level": 1}, 1))
+	_expect(fibre.used_slots() == 1 and fibre.count_of(&"stone_shot") == 6, "same-level temperate, tropical and fresh ammunition merge")
+	var lv2 = IS.make(&"stone_shot", 1, {"climate": "tropical", "level": 2}, 2)
 	_expect(not fibre.slots[0].can_merge_with(lv2), "a different level still keeps its own stack")
 
 func _test_scaling() -> void:
@@ -186,7 +189,7 @@ func _test_pick_gates() -> void:
 	var mixed = INV.new(20)
 	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "stone"}, 1))
 	mixed.add(IS.make(&"work_pick", 1, {"material_tier": "bronze"}, 1))
-	_expect(iron.can_gather(mixed) == "" and mixed.slots[mixed.equipped_tool_index].material_tier() == &"bronze", "the qualifying pick is the one equipped")
+	_expect(iron.can_gather(mixed) == "" and mixed.equipped_gather_tool().material_tier() == &"bronze", "the qualifying pick is the one in use (W2-INV: auto picks the best)")
 	var spare = INV.new(20)
 	spare.add(IS.make(&"work_pick", 1, {"material_tier": "copper"}, 1))
 	spare.add(IS.make(&"work_pick", 1, {"material_tier": "obsidian"}, 1))
@@ -286,10 +289,26 @@ func _test_no_lost_items() -> void:
 	var before: Array = bag.to_array()
 	var picks: Array[int] = CR.default_picks(bag, knife)
 	_expect(CR.picks_valid(bag, knife, picks), "full-bag fixture can otherwise make the knife")
-	_expect(not CR.output_fits(bag, knife, picks), "a full bag refuses the craft before consuming")
+	# W2-INV: inputs are one instance per slot, so spending them frees the slot a 1-slot output needs.
+	_expect(CR.output_fits(bag, knife, picks), "a full bag crafts: the consumed instances free a slot")
 	_expect(bag.to_array() == before, "the fit check leaves the bag untouched")
-	bag.remove_at(bag.slot_count - 1, 1)
-	_expect(CR.output_fits(bag, knife, CR.default_picks(bag, knife)), "one free slot lets the craft through")
+	# A full bag still refuses when the output needs more slots than the inputs free: sashimi makes
+	# 3 instances from 1 meat (sec-loss-08; on the hand path output_fits is the only loss guard).
+	var sashimi: Dictionary = CR.recipe(&"sashimi")
+	var meat = INV.new(20)
+	meat.add(IS.make(&"raw_meat", 1, {}, 1))
+	var lvl := 1
+	while meat.used_slots() < 20:
+		meat.add(IS.make(&"berry", 1, {}, lvl))
+		lvl += 1
+	var meat_before: Array = meat.to_array()
+	var mp: Array[int] = CR.default_picks(meat, sashimi)
+	_expect(CR.picks_valid(meat, sashimi, mp) and not CR.output_fits(meat, sashimi, mp), "a full bag refuses sashimi (3 out, 1 slot freed) before consuming")
+	_expect(meat.to_array() == meat_before, "the refused fit check leaves the bag untouched")
+	meat.remove_at(19, 1)
+	_expect(not CR.output_fits(meat, sashimi, CR.default_picks(meat, sashimi)), "one free slot is still one short for sashimi")
+	meat.remove_at(18, 1)
+	_expect(CR.output_fits(meat, sashimi, CR.default_picks(meat, sashimi)), "two free slots and the meat's own let sashimi through")
 	# StationCraft no longer parks refunds anywhere: no meta store may come back.
 	var methods: Array = SC.get_script_method_list().map(func(m: Dictionary) -> String: return str(m["name"]))
 	_expect(not "collect_held" in methods and not "HELD_META" in SC.get_script_constant_map(), "no volatile held-item store remains")
