@@ -239,7 +239,8 @@ func _test_rate(where: String, at: Vector3, status: StringName = &"") -> void:
 		_expect(mult > 1.0, "%s makes her tire faster (fatigue_mult %.2f)" % [status, mult])
 		want_fat /= mult
 		where += " " + str(status)
-		_expect(rest.hud_lines()[2] == "-%d fatigue/min (%s)" % [roundi(want_fat), status], "the chip names it: %s" % [rest.hud_lines()])
+		var chip: PackedStringArray = rest.hud_lines()
+		_expect(chip.size() == 3 and chip[2] == "-%d fatigue/min (%s)" % [roundi(want_fat), status], "the chip names it: %s" % [chip])
 	_expect(rest.resting and absf(hp_rate - want_hp) <= want_hp * RATE_TOL, "%s: Health +%.2f/s (data %.2f)" % [where, hp_rate, want_hp])
 	_expect(absf(fat_rate - want_fat) <= want_fat * RATE_TOL, "%s: fatigue -%.2f/min (data %.2f)" % [where, fat_rate, want_fat])
 	player.vitals.health_regen = 0.8
@@ -361,10 +362,10 @@ func _test_status_ticks(at: Vector3) -> void:
 	_expect(absf(got - want) <= 0.15 and player.vitals.fatigue < f0 - 1.0,
 		"net Health +%.2f/s (rest %.1f - %.1f dps), fatigue %.2f -> %.2f" % [got, _rate(&"shelter", "hp_per_s"), dps, f0, player.vitals.fatigue])
 	var lines: PackedStringArray = rest.hud_lines()
-	_expect(lines[1] == "%+.1f HP/s (stomachache)" % want, "the chip shows the net rate and why: %s" % [lines])
+	_expect(lines.size() == 3 and lines[1] == "%+.1f HP/s (stomachache)" % want, "the chip shows the net rate and why: %s" % [lines])
 	player.statuses.apply(&"deep_bleed")
 	lines = rest.hud_lines()
-	_expect(lines[1].begins_with("-") and lines[1].contains("deep bleed"), "a Deep Bleed blocks the healing and the chip says so: %s" % [lines])
+	_expect(lines.size() == 3 and lines[1].begins_with("-") and lines[1].contains("deep bleed"), "a Deep Bleed blocks the healing and the chip says so: %s" % [lines])
 	player.statuses.clear_id(&"deep_bleed")
 	player.vitals.take_damage(1.0)  # a hit (not a tick) still gets her up
 	await _frames(2)
