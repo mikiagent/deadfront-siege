@@ -25,8 +25,13 @@ var _scroll: ScrollContainer
 var _grid: GridContainer
 var _cells: Array[Cell] = []
 var _empty := 0
+## Press tracking: a tap selects, a drag scrolls. A selection is emitted on release only when the
+## pointer stayed inside the deadzone, so dragging a storage box never takes the item under the finger.
+var _press_cell := -1
+var _press_pos := Vector2.ZERO
+const TAP_DEADZONE := 12.0
 
-## One compartment: faint frame, item art, "Lv. N" bottom-right, green rare diamond top-left,
+## One compartment: faint frame, item art, "Lv. N" bottom-right, green rare diamond top-right,
 ## gold corner brackets when selected. It passes pointer events through, so a drag scrolls.
 class Cell extends Control:
 	var index := -1
@@ -166,14 +171,26 @@ func _on_cell_input(event: InputEvent, c: Cell) -> void:
 	if readonly or inventory == null or c.index < 0:
 		return
 	var mb := event as InputEventMouseButton
-	if mb == null or mb.button_index != MOUSE_BUTTON_LEFT or not mb.pressed:
+	if mb == null or mb.button_index != MOUSE_BUTTON_LEFT:
 		return
-	if c.stack == null:
+	var at: Vector2 = c.get_global_rect().position + mb.position
+	if mb.pressed:
+		_press_cell = c.index
+		_press_pos = at
+		return
+	if _press_cell != c.index:
+		return # released over another cell (or a drag left this one)
+	_press_cell = -1
+	if at.distance_to(_press_pos) > TAP_DEADZONE or c.stack == null:
 		return
 	selected_index = c.index
 	for k in _cells:
 		k.selected = k.index == selected_index
 	selected.emit(c.index)
+
+## Whether a press/release pair counts as a tap (used by the lab to drive the same path as touch).
+func is_tap(press: Vector2, release: Vector2) -> bool:
+	return press.distance_to(release) <= TAP_DEADZONE
 
 func _relayout() -> void:
 	var w := maxf(size.x, 1.0)

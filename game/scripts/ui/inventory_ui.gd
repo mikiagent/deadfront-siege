@@ -44,6 +44,8 @@ var _equip_pad: Control
 var _stat_box: VBoxContainer
 var _stat_rows: Array[Label] = []
 var _slot_px: float = 64.0
+var _action_px: float = 44.0
+var _band_no_storage := 0.0
 const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "Legs", "accessory1": "Ring", "accessory2": "Ring", "weapon": "Weapon", "tool": "Tool", "food1": "Food 1", "food2": "Food 2"}
 const INK := Color(0.95, 0.95, 0.93)
 
@@ -266,7 +268,7 @@ func _btn(text: String, minsz: Vector2) -> Button:
 	return b
 
 func _action(text: String, cb: Callable) -> Button:
-	var b := _btn(text, Vector2(0, 44))
+	var b := _btn(text, Vector2(0, _action_px))
 	b.pressed.connect(cb)
 	b.visible = false
 	_actions.add_child(b)
@@ -402,29 +404,43 @@ func rebuild() -> void:
 	# scroll), so the transfer screen shows both grids. With no box the bag takes the height.
 	var compact_view := UiTokens.is_compact(get_viewport_rect().size)
 	if _page_scroll:
-		_page_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if (has_storage and compact_view) else ScrollContainer.SCROLL_MODE_DISABLED
+		# A box open at either size: the bag and the box each keep a band and the page scrolls to the
+		# box (the panel is shorter than two bands on desktop too).
+		_page_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if has_storage else ScrollContainer.SCROLL_MODE_DISABLED
 	if _equip_col:
 		_equip_col.visible = true
 	if _split:
 		_split.columns = 2 if compact_view else 3
-		# A box open: the split takes only its band, so the box and the action row fit under it.
-		_split.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if has_storage else Control.SIZE_EXPAND_FILL
+		# A short canvas or a box open: the split takes only its band, so the box and the action row
+		# stay inside the panel instead of being pushed off the bottom.
+		_split.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if (has_storage or compact_view) else Control.SIZE_EXPAND_FILL
 	# The columns must shrink with it; an EXPAND_FILL child keeps the row tall (the gear grid).
 	if _equip_col:
 		_equip_col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if has_storage else Control.SIZE_EXPAND_FILL
 	if _profile_col:
 		_profile_col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if has_storage else Control.SIZE_EXPAND_FILL
+	# A short canvas never expands the split: its band comes from _apply_slot_metrics and the rest of
+	# the panel belongs to the action row.
+	var shrink := has_storage or compact_view
 	if _bag_col:
-		_bag_col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if has_storage else Control.SIZE_EXPAND_FILL
+		_bag_col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if shrink else Control.SIZE_EXPAND_FILL
+	if _equip_col and compact_view:
+		_equip_col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	if _grid:
-		_grid.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if has_storage else Control.SIZE_EXPAND_FILL
+		_grid.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if shrink else Control.SIZE_EXPAND_FILL
 		# A box open: the bag keeps a fixed band (about two phone rows / two desktop rows) and the
 		# box gets the same band below it; both grids keep their own scrollbars and the page scrolls
 		# when the panel is shorter than the two.
 		var band_px := 148.0 if compact_view else 360.0
-		_grid.custom_minimum_size = Vector2(0, band_px) if has_storage else Vector2.ZERO
 		if has_storage:
+			_grid.custom_minimum_size = Vector2(0, band_px)
 			_pet_grid.custom_minimum_size = Vector2(0, band_px)
+		elif compact_view:
+			# The bag band is what the header and the action row leave of the panel, so the row is
+			# never clipped (844x390 measured it at 2-3 rows of 64 px).
+			_grid.custom_minimum_size = Vector2(0, _band_no_storage)
+		else:
+			_grid.custom_minimum_size = Vector2.ZERO
 	if has_storage:
 		_pet_grid.readonly = _readonly_reason() != ""
 		_pet_grid.bind(pet_bag)
@@ -492,12 +508,16 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 	var panel_w := maxf(280.0, view.x - (24.0 + safe.w + safe.x))
 	var panel_h := maxf(280.0, view.y - (24.0 + safe.z + safe.y))
 	var slot := 64.0
-	var equip_cols := 3
+	var equip_cols := 4
 	var equip_slot := 64.0
+	_action_px = 44.0
 	if compact:
 		# Phone landscape is short: five equipment columns of 56 px fit ten slots in two rows
 		# (the bag keeps its 64 px compartments).
 		equip_cols = 5
+		# Two rows of 56 px gear leave the split's band enough height for the tip, so the 64 px action
+		# row stays inside the panel at 390 px.
+		equip_slot = 56.0
 		if _bag_col:
 			_bag_col.custom_minimum_size = Vector2.ZERO
 			_bag_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -509,12 +529,16 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 			_load_row.visible = false
 		for stat in _stat_rows:
 			stat.visible = false
+		# One tip line at 390 px: the item text wraps, and the second line is what pushed the 64 px
+		# action row past the panel bottom (measured: split min 276 px vs 252 px available).
 		if _tip:
-			_tip.custom_minimum_size = Vector2(120, 0)
-			_tip.max_lines_visible = 4
-		# The action buttons (Lock/Equip/...) get their own 44 px row; the split gives up the space.
+			_tip.custom_minimum_size = Vector2(120, float(UiTokens.meta(view)) + 4.0)
+			_tip.max_lines_visible = 1
+		# The action buttons (Lock/Equip/...) get their own touch-height row (>= 64 px, the mobile
+		# tap target) and the split keeps only what is left, so the row is never clipped at 390 px.
+		_action_px = 64.0
 		if _actions:
-			_actions.custom_minimum_size = Vector2(0, 44)
+			_actions.custom_minimum_size = Vector2(0, _action_px)
 		if _root:
 			_root.add_theme_constant_override("separation", 4)
 		if _close_btn:
@@ -534,18 +558,29 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 
 		if _equip_pad:
 			_equip_pad.custom_minimum_size = Vector2.ZERO
+		# Keep the bag band inside the panel: header, separations and the action row take their
+		# share first, the rest is split between the bag grid and the equipment column.
+		# Measured at 844x390: panel 366 px, the header block takes 46 px, then the split, a 4 px
+		# separation and the 64 px action row; the split gets what remains (252 px) and never expands.
+		var split_h := maxf(150.0, panel_h - 56.0 - _action_px - sep * 2.0)
+		if _split:
+			_split.custom_minimum_size = Vector2(0, split_h)
+			_split.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		_band_no_storage = maxf(128.0, split_h - float(UiTokens.meta(view)) - sep * 2.0)
 	else:
-		var profile_floor := 240.0
+		# Desktop: a dense slot. The bag keeps 8-9 columns and the profile, equipment column, tip and
+		# action row all fit inside the panel, so the compartment caps at 96 px instead of 139.
+		var profile_floor := 200.0
 		var h_gaps := sep * 4.0
 		var inner_seps := sep * float(3 + equip_cols)
 		var chrome := 44.0 + sep + 36.0 + sep
 		var label_h := float(UiTokens.meta(view)) + 4.0
 		var grid_h := panel_h - chrome - label_h - sep * 2.0
 		var by_h := floorf((grid_h - sep * 3.0) / 4.0)
-		var by_w := floorf((panel_w - h_gaps - profile_floor - inner_seps) / float(6 + equip_cols))
-		slot = maxf(64.0, minf(by_w, by_h))
+		var by_w := floorf((panel_w - h_gaps - profile_floor - inner_seps) / float(9 + equip_cols))
+		slot = clampf(minf(by_w, by_h), 64.0, 96.0)
 		if _bag_col:
-			_bag_col.custom_minimum_size = Vector2(6.0 * slot + sep * 5.0, 0)
+			_bag_col.custom_minimum_size = Vector2(8.0 * slot + sep * 7.0, 0)
 			_bag_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		if _profile_col:
 			_profile_col.custom_minimum_size = Vector2(profile_floor, 0)
@@ -553,7 +588,11 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 		if _equip_col:
 			_equip_col.custom_minimum_size = Vector2(float(equip_cols) * slot + sep * float(equip_cols - 1), 0)
 			_equip_col.size_flags_horizontal = Control.SIZE_SHRINK_END
+		if _split:
+			_split.custom_minimum_size = Vector2.ZERO
 	_slot_px = slot
+	for b: Button in [_lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn, _store_btn, _take_all_btn]:
+		b.custom_minimum_size = Vector2(0, _action_px)
 	if _equip_grid:
 		_equip_grid.columns = equip_cols if not compact else 5
 	var esz := Vector2(equip_slot if compact else slot, equip_slot if compact else slot)
@@ -574,6 +613,18 @@ func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 		var equip_h := _equip_grid.get_combined_minimum_size().y
 		_equip_pad.custom_minimum_size = Vector2(0, maxf(0.0, (bag_h - equip_h) * 0.5))
 
+## Icon + caption, and for a def with no art the display name only (never the raw id, which is what
+## ItemIcons.style_slot falls back to and what the worn woven bag showed in the Ring slot). ItemIcons
+## is outside this task's scope, so the name is substituted here.
+func _style_slot_button(b: Button, id: StringName, caption: String) -> void:
+	var has_art := ItemIcons.texture(id) != null
+	ItemIcons.style_slot(b, id, caption)
+	if not has_art:
+		var dd := Data.item(id)
+		var label: String = dd.display_name if dd and dd.display_name != "" else str(id).capitalize()
+		b.text = label if caption == "" else "%s\n%s" % [label, caption]
+	_fit_slot(b)
+
 func _refresh_equipped() -> void:
 	for slot in _equip_slots.keys():
 		var b: Button = _equip_slots[slot]
@@ -590,7 +641,7 @@ func _refresh_equipped() -> void:
 				var fid := str(inventory.quick_food[0 if slot == "food1" else 1])
 				if fid != "":
 					var n := inventory.count_of(StringName(fid))
-					ItemIcons.style_slot(b, StringName(fid), "×%d" % n)
+					_style_slot_button(b, StringName(fid), "×%d" % n)
 					b.modulate = Color.WHITE if n > 0 else Color(0.6, 0.6, 0.6)
 					b.tooltip_text = fid
 					continue
@@ -599,14 +650,7 @@ func _refresh_equipped() -> void:
 		if st and st.scaled_armor() > 0:
 			caption = "%.0f" % st.scaled_armor()
 		if st:
-			# A def without art shows its name in the slot, not its id (the woven bag); ItemIcons
-			# itself is outside this task's scope, so the fallback is applied here.
-			var cap_text := caption
-			if ItemIcons.texture(st.def_id) == null:
-				var dd := st.def()
-				cap_text = (dd.display_name if dd and dd.display_name != "" else str(st.def_id).capitalize())
-			ItemIcons.style_slot(b, st.def_id, cap_text)
-			_fit_slot(b)
+			_style_slot_button(b, st.def_id, caption)
 			b.tooltip_text = st.tooltip()
 			b.modulate = Color.WHITE
 		else:
