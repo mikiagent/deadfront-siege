@@ -32,8 +32,24 @@ table below). Review r4 passed, and the integrator merged the package on 2026-10
 - **Server craft path (minor 2):** still open, as before. `intent_handlers.gd _craft` checks `required_survival` and
   not the node gate. It stays a W3-SRVACT acceptance item (see "W3-SRVACT acceptance item" below). W3-SRVACT's
   plan-register section belongs to another package, so it was not edited here.
-- Gate lines on ddaab662 (scratch tree `w2data-r5-gate`, no patch, because the hooks are in the base): see
-  "Acceptance (round 5)" below.
+
+Acceptance (round 5): scratch tree `w2data-r5-gate` on ddaab662 with no patch, since the hooks are in the base. The
+import log has 0 error lines.
+
+| Item | Result |
+|---|---|
+| every t_*.gd (22) | Every one prints its PASS line with rc=0: t_ai, t_build, t_canim, t_combat, `[t_data] PASS items=223 recipes=155`, `[t_harbour] PASS islands=15`, t_iconart, t_items, t_light, t_lighting (`[t_light] PASS`), t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, `[t_uiicons] PASS ids=177 files=116 ...`, t_w2_skills, t_water, t_web. t_save prints its 5 deliberate SCRIPT ERRORs. Every other log has 0 SCRIPT ERROR and 0 "couldn't resolve track" |
+| run_all, smoke | `[tests] PASS` (rc=0); `SMOKE PASS` (`tools/smoke.sh --no-import`, rc=0) |
+| GAUNTLET: higher tier clearly better; level 5 clearly better than level 1 | `[t_data] L55 armor_body via planner: copper_cuirass 2413 (copper), bronze_cuirass 2756 (bronze), iron_cuirass 3158 (iron), steel_cuirass 3650 (steel), raid_cuirass 4653 (steel)`; `[t_data] L55 weapon via planner: copper_sword 352 (copper), bronze_sword 402 (bronze), iron_sword 460 (iron), steel_sword 532 (steel), raid_maul 1460 (steel)`; `[t_data] level 1 -> 5 from the planner: flint_pick gather power x1.40, flint_spear damage x1.32` |
+| Nothing beats steel without the steel gate | `[t_data] above steel_cuirass (686, gate Lv 45): raid_cuirass 875 at steel tier, gate scute_armor Lv 45`; helm and greaves the same; `above steel_sword (100, gate Lv 50): raid_maul 274 at steel tier, gate iron_weapons Lv 50` |
+| Node gate refusal (now W2-SKILLS H1) | `[t_data] smelt_copper gate: before 'learn Smelting 1 (Processing Lv. 25, 15 SP); you have 0 SP, reach Lv. 2 for +10 SP', after learning smelting_1 ''` |
+| Vision fixes | `[t_data] start island: reachable=110 twine ~2.3 s dried_hide ~5.1 s hide_strap ~3.5 s rope ~8.9 s, metal []`; `[t_data] reachable=216/223 pending=[...] best_pick=steel`; `[t_data] tameable species with a reachable net: 17` |
+| Raid kit through real crafting (hook 15) | `[gear] maul L60 steel dmg=1569.6 kit armor=9291.3`; `[gear] PARTIAL real formulas/craft allocation; acquisition, station movement and raid evasions untested; failures=0` (0 FAIL lines) |
+| Labs | `[craft_lab] PASS`, `[equiplab] PASS` (headless, rc=0, 0 SCRIPT ERROR) |
+| Crashes | No new Godot-*.ips: 25 before and after, the newest still Godot-2026-10-20-232613.ips (another agent's, per the STATUS WATER entry) |
+
+Not rerun this round: the mutation FAIL lines, the windowed pixels and island_lab. This round changed no code or data,
+so the round 3 and round 4 evidence for them still holds. The integrator's merge-time island_lab run gave `nodes=397`.
 
 ## What shipped
 
