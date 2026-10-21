@@ -37,7 +37,17 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
 			return []
 		var preferred := StringName(str(slot.get("prefer_id", prefer if i == 0 else "")))
 		var candidates := inv.find_by_category(cat)
-		candidates.sort_custom(func(a: int, b: int) -> bool:
+		var lead := -1
+		if not picks.is_empty():
+			lead = picks[i]
+			if lead < 0 or lead >= inv.slot_count or inv.slots[lead] == null or not inv.slots[lead].def().has_category(cat):
+				return []
+			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
+				return []
+		# The lead's def breaks ties inside equal spend keys only (W2-INV review 2: ordering the lead's
+		# whole def first spent a lv40 trait stalk while a plain lv1 palm frond was left).
+		var lead_def := {"id": inv.slots[lead].def_id if lead >= 0 else &""}
+		var by_value := func(a: int, b: int) -> bool:
 			var sa := inv.slots[a]
 			var sb := inv.slots[b]
 			var pa := 1 if preferred != &"" and sa.def_id == preferred else 0
@@ -60,29 +70,24 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
 			var kb := Inventory.spend_key(sb)
 			if ka != kb:
 				return ka < kb
+			var la: bool = sa.def_id == lead_def.id
+			if la != (sb.def_id == lead_def.id):
+				return la
 			var ca := int(remaining.get(a, sa.count))
 			var cb := int(remaining.get(b, sb.count))
-			return ca > cb if ca != cb else a < b)
-		var lead := -1
-		if not picks.is_empty():
-			lead = picks[i]
-			if lead < 0 or lead >= inv.slot_count or inv.slots[lead] == null or not inv.slots[lead].def().has_category(cat):
-				return []
-			if int(remaining.get(lead, inv.slots[lead].count)) <= 0:
-				return []
-		elif not candidates.is_empty():
+			return ca > cb if ca != cb else a < b
+		candidates.sort_custom(by_value)
+		if lead < 0 and not candidates.is_empty():
 			lead = candidates[0]
+			lead_def.id = inv.slots[lead].def_id
+			candidates.sort_custom(by_value) # again, with the tie-break
 		if lead < 0:
 			return []
 		var parts: Array[Dictionary] = []
-		# The lead's own material first: with one instance per slot (W2-INV) the remaining units come
-		# from other slots, and a fibre twine must not be spent when more fibre stalk is there.
+		# The lead first, then the other units by the same order (one instance per slot, W2-INV).
 		var order: Array[int] = [lead]
 		for idx in candidates:
-			if idx != lead and inv.slots[idx].def_id == inv.slots[lead].def_id:
-				order.append(idx)
-		for idx in candidates:
-			if idx not in order:
+			if idx != lead:
 				order.append(idx)
 		for idx in order:
 			var available := int(remaining.get(idx, inv.slots[idx].count))
@@ -109,6 +114,16 @@ static func default_picks(inv: Inventory, rec: Dictionary) -> Array[int]:
 	missing.resize(rec.get("slots", []).size())
 	missing.fill(-1)
 	return missing
+
+## Spec 13:486 "Do not automatically consume the most valuable item": true when the plan for these
+## picks spends an instance with traits (e.g. every candidate has one), so the craft UI can ask for
+## an explicit pick. # ASSUMPTION: traits only; a higher level alone does not ask.
+static func plan_spends_traits(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
+	for row in _plan(inv, rec, picks):
+		for part in row.parts:
+			if not Inventory.traits(inv.slots[int(part.idx)]).is_empty():
+				return true
+	return false
 
 static func picks_valid(inv: Inventory, rec: Dictionary, picks: Array[int]) -> bool:
 	return not _plan(inv, rec, picks).is_empty()
@@ -333,7 +348,7 @@ static func output_fits(inv: Inventory, rec: Dictionary, picks: Array[int], burn
 	var primary := scratch.slots[picks[primary_index(rec)]].duplicate_stack()
 	var out := build_output(rec, primary, crafted_level_for(rec, consumed_levels(scratch, rec, picks), player), [], burnt)
 	consume_for_craft(scratch, rec, picks)
-	return scratch.add(out) == 0
+	return scratch.can_accept(out)
 
 static func refuse_full(player: Player, rec: Dictionary) -> void:
 	print("[craft] refused %s: bag full" % rec.get("id", ""))

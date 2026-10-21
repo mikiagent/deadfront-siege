@@ -41,7 +41,9 @@ static func split_stacks(d: Dictionary) -> Dictionary:
 		var def := Data.item(StringName(str(row.id)))
 		var cap: int = def.stack_max if def else int(row.count)
 		var left := int(row.count) - cap
-		if left <= 0:
+		# A row without a uid would give every such row the units ".1", ".2"; invariants() already
+		# flags it, so it stays as stored (nothing deleted) until an operator looks.
+		if left <= 0 or str(row.get("uid", "")) == "":
 			continue
 		row.count = cap
 		var k := 0

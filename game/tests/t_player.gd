@@ -73,6 +73,7 @@ func _run() -> void:
 	await _test_pet_hp_and_summon()
 	await _test_pet_menu_bag_feed_dump()
 	await _test_corpse_full_bag()
+	await _test_corpse_take_xp()
 	await _test_no_creature_climb()
 	await _test_footsteps_and_ear()
 	_test_structure_interact()
@@ -348,6 +349,47 @@ func _test_corpse_full_bag() -> void:
 	_expect(moved == 1 and corpse.loot.slots[slot] == null and is_equal_approx(player.skills.xp_of("butchering") - xp0, 3.0), "with room: moved %d, XP +%.0f once" % [moved, player.skills.xp_of("butchering") - xp0])
 	corpse.queue_free()
 	await process_frame
+
+## W2-INV review 2: corpse loot is one instance per unit, so a flat +3 per take paid per unit.
+## Butchering XP is 3 per drop kind, the first time any of it leaves the corpse: radial takes,
+## chest takes of each item and Take all pay the same.
+func _test_corpse_take_xp() -> void:
+	await _reset_at(Vector3(0, 1.0, 0))
+	if not player.inventory.has_tool_class(&"knife"):
+		player.inventory.add(ItemStackS.make(&"stone_knife_work", 1))
+	var paid: Array = []
+	for way in ["radial", "chest", "take_all"]:
+		var corpse = CorpseS.new()
+		host.add_child(corpse)
+		corpse.global_position = Vector3(1.2, 0, 0)
+		corpse.loot.add_growing(ItemStackS.make(&"raw_meat", 3))
+		corpse.loot.add_growing(ItemStackS.make(&"raptor_hide", 2))
+		var xp0 := _butchering_total()
+		if way == "radial":
+			for i in corpse.loot.slot_count:
+				if corpse.loot.slots[i]:
+					player.actions.loot(corpse, i)
+		else:
+			corpse.open_loot(player)
+			if way == "chest":
+				for i in corpse.loot.slot_count:
+					if corpse.loot.slots[i]:
+						player.ui._take_storage(i)
+			else:
+				player.ui._take_all_storage()
+			player.ui.hide_ui()
+		paid.append(snappedf(_butchering_total() - xp0, 0.01))
+		_expect(corpse.loot.used_slots() == 0, "%s takes every loot instance (left %d)" % [way, corpse.loot.used_slots()])
+		corpse.queue_free()
+	_expect(paid == [6.0, 6.0, 6.0], "radial takes, chest takes and Take all each pay 3 per drop kind (paid %s)" % [paid])
+	await process_frame
+
+## Butchering XP earned in all, across level-ups (xp_of is the XP into the current level).
+func _butchering_total() -> float:
+	var n: float = player.skills.xp_of("butchering")
+	for l in player.skills.level_of("butchering"):
+		n += player.skills.xp_to_next(l)
+	return n
 
 ## phys-climb-01: a tap-to-walk route straight through a compsognathus, zebraceratops and
 ## velociraptor, held for 5 s, raises her at most 0.15 m (was +0.97, +1.16 and +1.82 m: the stall

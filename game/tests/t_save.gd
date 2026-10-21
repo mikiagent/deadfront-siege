@@ -85,6 +85,7 @@ func _run() -> void:
 		await _test_round_trip(name)
 	await _test_forged()
 	await _test_stacked_migration()
+	await _test_duplicate_uids_across_containers()
 	await _test_truncated()
 	await _test_future()
 	await _test_backup_fallback()
@@ -256,6 +257,34 @@ func _test_stacked_migration() -> void:
 	_same(s1, _saved(), "", diffs)
 	_check(diffs.is_empty(), "the migrated save re-saves unchanged: %s" % [diffs.slice(0, 4)])
 	print("[t_save] stacked migration units=%s bag=%d cargo_stone=%d" % [_units(s1), bag_used, cargo_stone])
+
+## W2-INV review 2 (spec 05:20/26): an edited save whose bag, basket and pet bag rows share one uid
+## loads as three instances: the bag keeps the uid, the basket and pet copies are reminted.
+func _test_duplicate_uids_across_containers() -> void:
+	const U := "laaaa0001"
+	var src: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + GOLDEN))
+	var holders: Array = [src.player.inventory, src.pets[0].bag]
+	for b in src.home.buildings:
+		if str(b.kind) == "basket":
+			holders.append(b.contents)
+	for rows in holders:
+		for row in rows:
+			if row is Dictionary and str(row.id) == "stone":
+				row["uid"] = U
+				break
+	_clean()
+	_put(JSON.stringify(src))
+	SG.load_now(host)
+	SG.save_now()
+	var s1 := _saved()
+	var seen := {}
+	var dup := 0
+	for row in _rows(s1):
+		var u := str(row.get("uid", ""))
+		dup += 1 if u != "" and seen.has(u) else 0
+		seen[u] = true
+	var bag_keeps := (s1.player.inventory as Array).any(func (r: Variant) -> bool: return r is Dictionary and str(r.get("uid", "")) == U)
+	_check(dup == 0 and bag_keeps, "a uid shared by bag, basket and pet bag rows loads as distinct instances, the bag keeps it (dup %d, bag keeps %s)" % [dup, bag_keeps])
 
 ## Every item row in a save: bag, worn gear, home cargo, building contents, pet bags.
 func _rows(d: Dictionary, skip_home_camp: bool = false) -> Array:

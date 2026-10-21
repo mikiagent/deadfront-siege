@@ -277,6 +277,17 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 			var rec := PetRecord.from_dict(row)
 			if rec != null: # an aborted from_dict would otherwise break every later save_now
 				player.bonded.append(rec)
+	# W2-INV (spec 05:20/26): building contents and pet bags load on their own; a uid one of them
+	# repeats (an edited save) is reminted, so every instance has one location.
+	var held: Array = [World.cargo_home, player.inventory]
+	for n in host.get_tree().get_nodes_in_group("placed_building"):
+		if not n.is_queued_for_deletion() and World.runtime and World.runtime.is_ancestor_of(n): # not the old island's
+			held.append(n.get("storage"))
+	for rec in player.bonded:
+		held.append(rec.bag)
+	var reminted := InventoryMigration.unique_uids(held)
+	if reminted > 0:
+		print("[inv] load: %d duplicate uids reminted" % reminted)
 	# Field growth catch-up (same offline window as tent rest).
 	if elapsed > 0 and World.runtime:
 		for n in World.runtime.get_tree().get_nodes_in_group("field"):

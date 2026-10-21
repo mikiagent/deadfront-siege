@@ -223,7 +223,8 @@ func open() -> String:
 				break
 			var why := replay_line(text)
 			if why != "":
-				return why
+				# W2-INV: a journal written under other rules (items stacked) may not replay under these.
+				return why + ("; the data files changed since the snapshot: boot the previous build once so it snapshots, then upgrade" if data_changed else "")
 			if nl < 0: # a complete last line that lost only its newline: give it back
 				var f := FileAccess.open(path, FileAccess.READ_WRITE)
 				f.seek_end()

@@ -15,9 +15,12 @@ var _tap_s: float = -999.0
 var _fading: bool = false
 var _emptied: bool = false
 var poison_spoiled: bool = false
-## Loot units left when Butchering XP was last paid; a take only pays when units really moved
-## (a full bag used to pay +3 XP per tap with nothing taken).
-var _units_paid: int = 0
+## Loot units per drop kind at the last take, and the kinds Butchering XP was paid for: 3 XP per
+## kind, the first time any of it leaves the loot. A take only pays when units really moved (a full
+## bag used to pay +3 XP per tap with nothing taken); with one instance per unit (W2-INV) a take
+## of each item must not pay per unit, so item takes and Take all pay the same.
+var _units_seen: Dictionary = {}
+var _paid_kinds: Dictionary = {}
 
 func setup(c: Creature) -> void:
 	level = maxi(1, int(c.get("level")) if c.get("level") != null else 1)
@@ -43,7 +46,7 @@ func _ready() -> void:
 	cs.position.y = 0.4
 	add_child(cs)
 	_place_on_tile()
-	_units_paid = _units()
+	_units_seen = _kind_units()
 	if _owner:
 		_owner.visible = true
 		_owner.collision_layer = 0
@@ -72,7 +75,7 @@ func open_loot(player: Player) -> void:
 		if player.has_method("notice"):
 			player.notice("Nothing left on the %s." % species_display_name().to_lower())
 		return
-	_units_paid = _units()
+	_units_seen = _kind_units()
 	var why := can_butcher(player.inventory)
 	var readonly := "needs knife" if why == "need tool knife" else ""
 	player.ui.show_storage(loot, player, {
@@ -158,12 +161,12 @@ func _roll_loot() -> void:
 func _on_take_from_loot() -> void:
 	# Taking from the chest screen trains Butchering (and so the player level), once per take
 	# that actually moved units out of the loot.
-	var left := _units()
-	var moved := left < _units_paid
-	_units_paid = left
+	var now := _kind_units()
 	var p := PlayerRegistry.local()
-	if moved and p and p.skills:
-		p.skills.add_xp("butchering", 3)
+	for k: StringName in _units_seen:
+		if p and p.skills and int(now.get(k, 0)) < int(_units_seen[k]) and first_take_of(k):
+			p.skills.add_xp("butchering", 3)
+	_units_seen = now
 	if _is_empty():
 		_on_loot_empty()
 
@@ -175,11 +178,18 @@ func _on_loot_empty() -> void:
 func _is_empty() -> bool:
 	return loot.used_slots() <= 0
 
-func _units() -> int:
-	var n := 0
+## True once per drop kind: the take that pays its Butchering XP (radial loot and the chest screen).
+func first_take_of(def_id: StringName) -> bool:
+	if _paid_kinds.has(def_id):
+		return false
+	_paid_kinds[def_id] = true
+	return true
+
+func _kind_units() -> Dictionary:
+	var n := {}
 	for st in loot.slots:
 		if st:
-			n += st.count
+			n[st.def_id] = int(n.get(st.def_id, 0)) + st.count
 	return n
 
 ## Dropped loot on the floor: a billboard loot-bag symbol with the top item's icon over it,
