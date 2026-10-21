@@ -27,9 +27,16 @@ Each job: worktree `~/Documents/deadfront-siege/.claude/worktrees/mmo-<key>` on 
 | farmkit | MiniMax | field plots + crop stages, paths, fences, farm props | |
 | review w2gather / w2buildsys | MiniMax | first-pass reviews (scratch trees `SP/trees/rev-*`) | output `docs/orchestration/reports/dsc-review-*.json` |
 
-## Finished, waiting for merge review (a Claude judging workflow ran on them)
-invslots, needs, stationart, sprites2d (7 sheets), eyeglow, islandgen, props, biomeassets, biomezones, colors (gave up after 11
-verify failures), card2d (inside switch2d), webpack2 (owner decision: the 512 px cap also hits desktop/iOS).
+## Fix rounds (merge review 2026-10-21 18:30: none of the ten was mergeable; each resumed on its session with the judge's
+fix message in SP/dsc/fix_<key>.txt; worker output committed on each branch first)
+invslots (desktop actions/tip off-panel, storage box unreachable on desktop, phone action row clipped, drag-takes-item,
+raw id), needs (eat check vs 16/s regen; bag buttons belong to invslots), colors (t_colors respawn check, patterns too faint,
+morph names), sprites2d (despill flattens foliage, jungle-trees glued, labels slipped, hanging vines block), stationart
+(floating scaffold planks, lintel without a door gap, stage-0 too thin to read), props (stale shots, spawn inside a bush,
+top-up heavy bushes, pet->prop attack bug), eyeglow (lab clock not frozen, eye dots too big on deinonychus/compsognathus),
+biomezones (camp flattening out of scope, pack size), islandgen (land cut at the grid edge, canal rivers, shore rock
+sawtooth, circular mesas), biomeassets (step-pyramid cliff and hollow basalt never rebuilt). The judges' full verdicts:
+SP/merge-review.json. webpack2 still waits on the owner (512 px cap also hits desktop/iOS).
 
 ## Next after these
 - **Unblocked by BUILDFLOW:**
