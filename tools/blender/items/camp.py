@@ -459,22 +459,24 @@ def canvas_tent_kit():
     upright()
 
 
-def _field_kit(scale, n_planks):
-    """Furrow stakes and frame planks in a bundle, a seed pouch tied on and a hoe blade strapped to
-    the side. The large kit is longer, with more planks and a heavier blade."""
+def _field_kit(scale, n_planks, n_stakes, pouches):
+    """Furrow stakes and frame planks in a bundle, seed pouches tied on and a hoe blade strapped to
+    the side. The large kit is longer, with more planks, twice the stakes and two pouches (the two
+    looked alike at slot size)."""
     w = wood("#a87444", "#7a4a24")
     w2 = wood("#c48d55", "#93602f")
     for i in range(n_planks):
         box((1.7 * scale, 0.16, 0.09), loc=(0, (i - (n_planks - 1) / 2) * 0.19, -0.55 + i * 0.1),
             rot=(0, 0, 1.2 * (i % 2)), m=w if i % 2 else w2, bev=0.012)
-    for i in range(4):  # stakes
+    for i in range(n_stakes):
         a = -18 + 9 * i
-        cyl(0.05, 1.2 * scale, loc=(0.15 * (i - 1.5), 0.32, 0.35), rot=(6 * (i % 2), a, 0), m=wood("#8a5a33", "#5e3a1e"),
-            segs=6, r2=0.015)
-    # Seed pouch, tied on.
+        cyl(0.05, 1.2 * scale, loc=(0.15 * (i - (n_stakes - 1) / 2), 0.32, 0.35), rot=(6 * (i % 2), a, 0),
+            m=wood("#8a5a33", "#5e3a1e"), segs=6, r2=0.015)
+    # Seed pouches, tied on and resting on the planks.
     pouch = hidem("#b08a52", "#8a6434")
-    blob(0.26 * scale, loc=(-0.45, -0.2, 0.3), scl=(1.0, 0.9, 1.15), m=pouch, amp=0.12)
-    _lash(-0.45, -0.2, 0.42, rope_m("#d7c08a"), r=0.13)
+    for x, y, z in pouches:
+        blob(0.26 * scale, loc=(x, y, z), scl=(1.0, 0.9, 1.15), m=pouch, amp=0.12)
+        _lash(x, y, z + 0.12, rope_m("#d7c08a"), r=0.13)
     # A hoe blade strapped against the planks.
     prism([(-0.05, 0.3), (0.12, 0.34), (0.62 * scale, 0.15), (0.68 * scale, -0.15), (0.4 * scale, -0.05), (0.05, 0.12)],
           0.08, loc=(0.35, -0.24, 0.1), rot=(0, 0, 10), m=stone("#9a9488", "#6a645a"), bev=0.02)
@@ -489,13 +491,13 @@ def _field_kit(scale, n_planks):
 def field_large_kit():
     """Large field kit: long frame planks, a bundle of stakes, a seed pouch and a heavy hoe blade,
     all lashed with rope."""
-    _field_kit(1.15, 5)
+    _field_kit(1.15, 5, 7, [(-0.45, -0.2, -0.07), (-0.95, 0.05, 0.04)])
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 
 def field_small_kit():
     """Small field kit: a short bundle of frame planks and three stakes, a small seed pouch tied on."""
-    _field_kit(0.7, 3)
+    _field_kit(0.7, 3, 3, [(-0.45, -0.2, -0.3)])
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 

@@ -767,12 +767,12 @@
    "script": "tools/blender/items/camp.py",
    "builder": "field_large_kit",
    "png": "res://assets/icons/render/field_large_kit.png",
-   "sha256": "761077fedf81451d27502c70a1b897533433e8a39d63641ad3310a7d2a520d85",
-   "bytes": 51242,
+   "sha256": "905fecf62c6bb1636550b7580e741bec03ad6ae68832193c61fb4572d3032909",
+   "bytes": 53593,
    "rect": [
-    25,
+    28,
     19,
-    206,
+    200,
     218
    ],
    "quality": "procedural_v1"
@@ -781,12 +781,12 @@
    "script": "tools/blender/items/camp.py",
    "builder": "field_small_kit",
    "png": "res://assets/icons/render/field_small_kit.png",
-   "sha256": "a4e774794000c2e9ce8cefb1dd9caf5a4b52c6304ac85c94414182882ec5e85a",
-   "bytes": 43435,
+   "sha256": "dcabc4eb2433ec8abf42cb7483e57749089902ce647e65b19361a40d79a8ba13",
+   "bytes": 40641,
    "rect": [
-    43,
+    44,
     19,
-    170,
+    168,
     218
    ],
    "quality": "procedural_v1"
