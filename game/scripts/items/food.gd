@@ -1,6 +1,7 @@
 class_name Food
 extends RefCounted
-## Eating restores Energy only (PRD §6.1). Energy = base × (1 + 0.35 × process_count) × level factor.
+## Eating restores Energy (PRD §6.1): base × (1 + 0.35 × process_count) × level factor. Cooking
+## properties left by in-place steps (drying, smoking; processing.json) add their own effects.
 ## Moving while eating cancels remaining restore and still applies Full (PRD §6.2).
 
 const EAT_SECONDS := 3.0
@@ -44,7 +45,32 @@ static func buff_ids(stack: ItemStack) -> Array[StringName]:
 	var attr := str(stack.attributes.get("food_buff", ""))
 	if attr != "" and StringName(attr) not in out:
 		out.append(StringName(attr))
+	for row in cooking_properties(stack):
+		var b := StringName(str(row.get("buff", "")))
+		if b != &"" and b not in out:
+			out.append(b)
 	return out
+
+## The cooking properties this instance carries: one processing.json in_place.properties row per
+## in-place step in its processing history (spec 08 §2/§4: effects come from the stored item, so a
+## new food such as a stew starts plain).
+static func cooking_properties(stack: ItemStack) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var hist: Variant = stack.attributes.get("processed", []) if is_food(stack) else []  # a dried hide is not a meal
+	var rows: Variant = (ProcessStation.rules().get("in_place", {}) as Dictionary).get("properties", {})
+	if hist is Array and rows is Dictionary:
+		for step in hist:
+			var row: Variant = (rows as Dictionary).get(str(step))
+			if row is Dictionary:
+				out.append(row as Dictionary)
+	return out
+
+## Fatigue the meal's cooking properties take off when it is eaten, on top of the energy break.
+static func fatigue_relief(stack: ItemStack) -> float:
+	var total := 0.0
+	for row in cooking_properties(stack):
+		total += float(row.get("fatigue_relief", 0.0))
+	return total
 
 static func inspector_text(stack: ItemStack) -> String:
 	if stack == null:
@@ -60,6 +86,15 @@ static func inspector_text(stack: ItemStack) -> String:
 		lines.append("RAW")
 	if is_poisoned(stack):
 		lines.append("POISONED")
+	for row in cooking_properties(stack):
+		var bits: PackedStringArray = []
+		if float(row.get("fatigue_relief", 0.0)) > 0.0:
+			bits.append("eases fatigue %.0f" % float(row["fatigue_relief"]))
+		var b := str(row.get("buff", ""))
+		if b != "":
+			_ensure_buffs()
+			bits.append(str((_buffs.get(b, {}) as Dictionary).get("display_name", b)))
+		lines.append("%s: %s" % [str(row.get("name", "")), ", ".join(bits)])
 	var buffs := buff_ids(stack)
 	if not buffs.is_empty():
 		var names: PackedStringArray = []
