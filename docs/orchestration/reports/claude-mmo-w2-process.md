@@ -24,7 +24,8 @@ Branch `claude/mmo-w2-process`, cut from `claude/mmo-overhaul` 36299a96. Base me
   W2-SKILLS, WATER), dc645889 (hooks patch regenerated), plus the commit carrying this report
 - round 9 (review r3, the findings in this run's prompt): base merge c1af1b83 (946da955: HUD-DAYNIGHT), 255feaa8
   (XP-once check, load capped at capacity, save round trip and done colours in run_all, strip cache), f7ca30df
-  (hooks patch), 65bc16dd (done colours), b0c0faca (process_lab exact XP), plus the commit carrying this report
+  (hooks patch), 65bc16dd + 8f318411 (done colours), b0c0faca (process_lab exact XP), 2eaf0d22 and the commit
+  carrying this report
 
 ## Round 9: review r3 findings
 
@@ -56,10 +57,13 @@ an integrator note, and there is no code change on this branch, because W2-INV h
 
 **3. Done-state colours (minor).** In `processing.json` `contents.to`:
 - Smoked strips go from `#4a2616` (v 0.29, black in the smoker's doorway) to `#7c4324`, a mahogany brown.
-- Steamed food goes from `#efe0c0` (s 0.20, read as an empty cream dish) to `#c47f3a`, a golden tan.
+- Steamed food goes from `#efe0c0` (s 0.20, read as an empty cream dish) to `#b4602a`, a golden brown.
 
-A first try, `#925229` / `#d8a25c`, rendered too orange on the smoker and too pale in the steamer bowls
-(`scratchpad/r3/shots/old_*`). The new check in `process_checks.gd` requires every station's done colour to
+gl_compatibility renders these colours much lighter, so they took three tries. Pixels were sampled from the
+1600x900 shots:
+- smoked `#925229` rendered `#c59474`, too orange; `#7c4324` renders `#b7876e`.
+- steamed `#d8a25c` rendered `#dccaa8` and `#c47f3a` rendered `#d9b88e`, both still pale; `#b4602a` renders
+  `#d5a47f`, a golden-brown mound. The new check in `process_checks.gd` requires every station's done colour to
 have saturation >= 0.35 and value >= 0.33. Mutation M6 (the r2 colours) fails it:
 `[t_process] FAIL smoker done colour 4a2616 is not near-white or near-black (s 0.70, v 0.29)` and
 `[t_process] FAIL steamer done colour efe0c0 is not near-white or near-black (s 0.20, v 0.94)`, and run_all fails the same way. The rack's dried
@@ -93,7 +97,33 @@ key) now fails run_all: `ERROR: [tests] a loaded rack saves and loads its job th
   caption and the chip width cap (`UiTokens.LABEL_MAX_W`) belong to W1-UI, as the reviewer says. This package
   leaves them open for W1-UI.
 
-Gates: running on the scratch tree `trees/w2proc-gates9` (b0c0faca + hooks patch); results follow in the next commit.
+Shots. All were opened and looked at, all ran on gl_compatibility with the hooks patch applied, and each ended
+in `[process_lab] PASS shot ... 0 overlaps ..., 0 chips off their station []` with 0 SCRIPT ERROR. They are in
+`scratchpad/r3/shots3/` (final colours), `shots2/` and `shots/old_*` (earlier colours):
+- `all100_1600` and `crop_all100_steamer_pot`: the steamer's two bowls are golden-brown mounds, not cream dishes,
+  and the pot's three stews are dark brown. Chips: `Ready: 2 Steamed...`, `Ready: 3 Camp Stew`,
+  `Ready: 4 Dried Meat`, `Ready: 3 Smoked...`.
+- `shots2/smoker100_1600` and `crop_smoker100`: two smoked strips hang in the doorway as brown bars, readable
+  against the dark interior.
+- `shots2/all50_1600`, `shots3/all50_844`: mid-job, no change from round 8. Smoke and steam rise, the rack's
+  strips and the pot's bowls are red, and the four statuses (`Steaming 2/4 · 0:24` ...) each sit on their own
+  station.
+- `all100_844`, `shots2/rack100menu_844`: the phone views. The chips sit on their stations. COLLECT 4 sits on the
+  smoker roof and the long names are cut, as noted under 6.
+- Still open, the same as round 8: the rack's dried strips share the frame's wood colour (the REPLACE row).
+
+Gates on `trees/w2proc-gates9`, which is 8f318411 plus the hooks patch (`git diff 8f318411 -- game` shows only
+the six patched files). Every Godot run went through gslot. Logs are in `scratchpad/r3/gates/`:
+- `--import`: exit 0, 0 ERROR lines (mkscratch's import, and the branch tree's import after the base merge).
+- All 24 `t_*.gd` exit 0 and PASS, with 0 SCRIPT ERROR apart from t_save's 5 deliberate ones. That includes the
+  base's new `[t_daynight] PASS` (t_daynight_dial), `[t_process] PASS`, `[t_data] PASS items=223 recipes=155`,
+  `[t_harbour] PASS islands=15` and `[t_uiicons] PASS ids=177 files=116 ...`.
+- `[tests] PASS` (run_all, now with the XP, capacity, round-trip and colour checks) and `SMOKE PASS`
+  (`tools/smoke.sh --no-import`), 0 SCRIPT ERROR each.
+- `[process_lab] PASS`, `[kitchen_lab] PASS` and `[craft_lab] PASS` (headless), 0 SCRIPT ERROR each. All 14
+  windowed process_lab shots across the three batches PASS.
+- 0 "couldn't resolve track" lines in any gate or shot log.
+- No new `Godot-*.ips`. The newest is still `Godot-2026-10-20-232613.ips`, from before this round.
 
 ## Round 8: resumed run, base merged, gates and shots redone
 
@@ -548,7 +578,7 @@ rules loader moved to `ProcessStation.rules()`.
 
 | Check | Result |
 |---|---|
-| process_lab windowed: 4 raw strips pass through 3 stages over the configured time, smoke while active | Shots at 0, 50 and 100 % looked at: red, then maroon, then near-black. Smoke is on until 100 % |
+| process_lab windowed: 4 raw strips pass through 3 stages over the configured time, smoke while active | Shots at 0, 50 and 100 % looked at: red, then maroon, then the rack's dried stage. Smoke is on until 100 %. Round 9: the smoker's done strips are mahogany and the steamer's done food golden-brown (`shots3/all100_1600`) |
 | Save/reload mid-process resumes with the right remaining time | `[t_process] ok reload mid-process resumes with 300s left (was 300s)` (JSON through `SaveRestore.spawn`) |
 | Queue keeps running with the player 50 m away | `[t_process] ok rack finished 4 on its own clock (ready 4)` (the station's own `_process`); `[process_lab] PASS finished with the survivor 50 m away (ready 4, dried)` |
 | Raw meat spoils / dried meat keeps and carries its buff | **Superseded by spec 08**: there is no decay timer and no invented buff (see round 2). Dried meat records its step and is no longer raw: `PASS dried meat records the dry step and is no longer raw (["dry"])` |
@@ -568,7 +598,12 @@ Spec 08 §9 tests that apply to stations:
 - **No duplication or repeated XP:**
   - `ok two outputs, not more, after repeated advances (ready 2)`
   - `ok collect moves 2, a second collect moves nothing`
-  - `[process_lab] PASS processing XP paid on collect`
+  - Round 9, the exact amount (review r3): `[t_process] ok collect pays 14 Processing XP per dried meat, once: 2
+    -> 28, 4 -> 56, empty collect -> 56 (want 28, 56, 56)` (the same check runs in run_all), and `[process_lab]
+    PASS processing XP paid on collect, once per job (1000000.0 -> 1000056.0, want +56)`. Mutation M1 (XP paid
+    twice) fails all three: `[t_process] FAIL collect pays 14 Processing XP per dried meat, once: 2 -> 56, 4 ->
+    112, empty collect -> 112 (want 28, 56, 56)`, run_all `[tests] FAIL count=1`, and `[process_lab] FAIL
+    processing XP paid on collect, once per job (1000000.0 -> 1000112.0, want +56)`
   - `PASS a second collect pays nothing`
 - **Save/load:** `ok identity and spent opportunities survive save/load`; `ok finished outputs survive save/load (ready 2)`.
 - **Eating effects:** `PASS the meal is the stored item's own 23.2 energy`.
