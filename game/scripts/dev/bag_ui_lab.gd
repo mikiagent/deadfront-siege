@@ -13,6 +13,7 @@ extends Node3D
 ##   (shot-only: storage_select = the storage reference's "1 Select" with a gold check; storage_notice =
 ##   a box that belongs to someone else, its notice over the grid; craft = the stew menu)
 ##   --insets=left,right,bottom[,top] lays the family out inside a phone's safe area (notch)
+##   --query=<text> with a storage screen opens Search with that text
 ##   --select=<role> then selects that seeded instance (berry12/25/42, bone45/60, cage, knife, club, ...;
 ##   box_bone on the storage side, cargo_berry on the cargo side; with --screen=picker a berry);
 ##   with --screen=equipment it opens that item's gear cell with it picked (the compare state)
@@ -48,6 +49,7 @@ var _screen: StringName = &"bag"
 var _slot: StringName = &"body"
 var _recipe: StringName = &"camp_stew"
 var _recipe_slot := 2
+var _query := ""
 
 func _ready() -> void:
 	var pick := ""
@@ -65,6 +67,8 @@ func _ready() -> void:
 			_recipe = StringName(a.substr(9))
 		elif a.begins_with("--recipe-slot="):
 			_recipe_slot = int(a.substr(14))
+		elif a.begins_with("--query="):
+			_query = a.substr(8)
 		elif a.begins_with("--insets="):
 			var v := a.substr(9).split_floats(",")
 			v.resize(4)
@@ -243,6 +247,8 @@ func _open(screen: StringName) -> bool:
 		&"storage":
 			ui.show_storage(storage_box, player, {"title": "Storage Box", "allow_deposit": true})
 			ui.call("select_uid", uids["box_ingot"])
+			if _query != "":
+				(ui.get("_storage") as StorageScreen).toolbar.set_search(true, _query)
 		&"storage_select", &"storage_notice":
 			var opts := {"title": "Storage Box", "allow_deposit": true}
 			if screen == &"storage_notice":

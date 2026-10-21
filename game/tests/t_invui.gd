@@ -454,6 +454,10 @@ func _t12_transfers() -> void:
 	ui.show_storage(box, player, {"title": "Storage Box", "allow_deposit": true})
 	ui.select_uid(berry)
 	_expect(st.notice_text() == "" and st.inspect.actions().is_empty() and Array(st.inspect.rows()).has("Locked: unlock it in the Bag to store it."), "12: a locked berry stays in the bag and says why (%s)" % [st.inspect.rows()])
+	# The legacy entry the earned-training probe drives (select a bag slot, then Store) still stores it.
+	ui._select(_find(berry2))
+	ui._store_selected()
+	_expect(box.uids().has(berry2) and _find(berry2) == -1, "12: the legacy _select + _store_selected entry stores that berry")
 	# Dinosaur cargo: the same view over the pet's own bag.
 	var rec = load("res://scripts/pets/pet_record.gd").from_def(data.creature(&"velociraptor"), &"A")
 	rec.bag.add(IS.make(&"berry", 1, {}, 33))

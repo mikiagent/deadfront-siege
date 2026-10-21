@@ -137,9 +137,12 @@ func _layout() -> void:
 func query() -> String:
 	return _query.text if _query.visible else ""
 
-## Search on or off; off clears the query so every item shows again.
-func set_search(on: bool) -> void:
+## Search on or off (with `text` typed); off clears the query so every item shows again.
+func set_search(on: bool, text: String = "") -> void:
 	_search.button_pressed = on
+	if on and text != "":
+		_query.text = text
+		search_changed.emit(text)
 
 func _on_search_toggled(on: bool) -> void:
 	_layout()

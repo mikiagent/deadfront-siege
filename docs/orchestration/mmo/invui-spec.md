@@ -3,7 +3,8 @@
 Branch `claude/mmo-invui`, work tree `.claude/worktrees/mmo-invui`, stacked on `claude/mmo-w2-inv` (5ff239a6) with W2-INV's
 hooks applied in commit 3ecb02ca "Apply W2-INV hooks (INVUI base)". Design truth, newest first: spec 13
 (`docs/design/durango-prompts/13_inventory_equipment_ui.md`) and its three references
-(`docs/reference/durango-{bag-instances,character-gear,equipment-myinfo}.webp`), then specs 04/05/06/08, GAUNTLET.md's UI
+(`docs/reference/durango-{bag-instances,character-gear,equipment-myinfo}.webp`; the owner's second inventory example,
+`durango-storage-transfer.webp`, governs the storage view: spec 13's 2026-10-20 addendum), then specs 04/05/06/08, GAUNTLET.md's UI
 rules and STATUS owner decisions. Durango's look wins over the older DEADFRONT UI tokens (teal, 12 px radius, 5x4 bag) inside
 this screen family.
 
@@ -58,7 +59,8 @@ All new UI files are flat in `game/scripts/ui/` (t_uiicons and t_ui scan that fo
 | Character -> Gear | `scripts/ui/character_screen.gd` | CharacterScreen | Portrait, name, XP bar, powers, Detailed Stats; Gear tab, presets, 3x3, candidates + Unequip (ref 2) |
 | Detailed Stats panel | `scripts/ui/detailed_stats_panel.gd` | DetailedStatsPanel | Real stats only, grouped (combat / crafting / gathering / survival) |
 | Equipment / My Info | `scripts/ui/equipment_screen.gd` | EquipmentScreen | 3x3, My Info Attack / Defense / Accuracy, hex row, candidates + compare + Equip (ref 3) |
-| Storage / cargo split | `scripts/ui/storage_screen.gd` | StorageScreen | Bag grid beside a container grid, each with its capacity strip and its own Auto Sort / Filter toolbar; the ItemInspectPanel on the right shows the instance tapped last with its move (Store / Take / Take All) as the yellow primary (B3) |
+| Storage / cargo view | `scripts/ui/storage_screen.gd` | StorageScreen | Storage-transfer reference: "Bag N / M" and "<container> N / M" tabs over one grid (a grid per side, the active one shown), the FilterRail on the left, one toolbar (Auto Sort, Select All, Select, Search, Lock on the Bag tab), the take-only notice over the grid, the ItemInspectPanel with "Transfer to Bag" / "Transfer to <container>" (and Take All) as the yellow primary (B3) |
+| Filter rail | `scripts/ui/filter_rail.gd` | FilterRail | Vertical squares, one per data filter with its white icon (`filters[].icon`), the active one gold; scrolls on a phone |
 | Craft / cook ingredient picker | `scripts/ui/item_picker.gd` | ItemPicker | The Bag layout over one recipe slot's candidates (InventoryGrid `only`), exact instances, least valuable preselected, warning line, yellow Use (B3) |
 | Family host / router | `scripts/ui/inventory_ui.gd` + `scenes/ui/inventory.tscn` | InventoryUI | Keeps its public API (section 4) and hosts the screens as its own children; shrinks from 810 lines |
 | Data | `data/inv_ui.json` | - | Sort keys, filter groups, attribute classes, 3x3 layout + silhouettes, preset unlock levels, power groups, picker warn level |
@@ -158,10 +160,13 @@ auto-open in `_ready` goes (labs open screens explicitly).
 | InventoryGrid | `bind(inv)`, `set_view(key, filter)`, `auto_sort(key)`, `select_uid(uid)`, `selected_uid() -> String`, `selected_index() -> int`, `item_cells() -> Array`, `cells() -> Array`, `columns() -> int`, signal `selection_changed(uid)`; `multi` mode with `selected_uids()` |
 | InventorySlot | props `uid`, `stack`, `selected`; `level_text()`, `shows_new()`, `shows_rare()`, `shows_lock()` |
 | CapacityIndicator | `bind(inv)`, `label_text()`, `is_full()`, `count_color()` |
-| ItemInspectPanel | `show_stack(stack, ctx)`, `title_text()`, `rows() -> PackedStringArray`, `section_color(cls)`, `actions() -> Array[StringName]`; contextual action buttons are in group `inv_contextual` (56 px gate) |
+| ItemInspectPanel | `show_stack(stack, ctx)` (ctx may carry `actions`, `notes`, `labels` {action: text}, `title`), `title_text()`, `rows() -> PackedStringArray` (level, notes, card stats, family and trait chips, Info rows), `section_color(cls)`, `actions() -> Array[StringName]`, `button_for(action) -> Button`; contextual action buttons are in group `inv_contextual` (56 px gate) |
 | GearPresets | `static unlocked_count(level) -> int`, `static capture(inv, k)`, `static apply(player, k) -> String` ("" = done, else the refusal), `static active(inv) -> int`, `static sanitize(raw) -> Dictionary` |
 | ItemPicker | `open(inv, rec, slot_index, on_pick: Callable, taken := [])` (on_pick gets `Array[int]` exact bag slots covering the slot's count, every one needed), `candidates()`, `preselected_index()`, `choose(index)`, `chosen()`, `is_complete()`, `warning_text()`, `confirm()` |
-| StorageScreen (B3) | `setup(bag, box, title, player, kind)`, `set_actions(can_store, can_take, can_take_all, note, store_why := "")`, `bag_grid`, `box_grid`, `bag_bar`, `box_bar`, `inspect`, `action_button(action) -> Button` |
+| StorageScreen (B3) | `setup(bag, box, title, player, kind)` (opens on the container's tab), `set_actions(can_store, can_take, can_take_all, note, store_why := "")`, `show_tab(&"bag" / &"box")`, `tab`, `select_key(uid)` (switches to the side that holds it), `notice_text()`, `bag_grid`, `box_grid`, `rail`, `toolbar`, `bag_tab`, `box_tab`, `header`, `inspect`, `action_button(action) -> Button`; signals `store_pressed(indices)`, `take_pressed(indices)`, `take_all_pressed`, `bag_selected(index)` |
+| InventoryGrid (B3 additions) | `set_query(text)`, `select_all()`, `selected_indices() -> Array[int]`, `has_key(key)`; in `multi` a selected cell shows the gold check (`InventorySlot.checks`) |
+| BagToolbar (B3 additions) | `squares` may hold `&"select_all"`, `&"search"`; signals `select_all_pressed`, `search_changed(text)`; `set_select(on)`, `set_search(on)`, `query()` |
+| InvHeader (B3 addition) | `set_title(text, lead := "")`: `lead` in gold before the title ("1 Select") |
 | BagScreen | `bind(inv, player)`, `select_index(i)`; laid out from its own size (full-rect child) |
 
 ## 5. Data each element reads
@@ -193,7 +198,7 @@ The UI never edits an Inventory directly. `InvActions.run` maps each action to a
 | lock / unlock | `PlayerActions.set_locked(index, on)` -> offline `set_flag(&"locked")` + `changed`; online no server op yet (queued intent, W3) | hook |
 | place | `player.placer.begin` (as today) | yes |
 | quick food 1/2, feed pet | `inventory.set_quick_food`, `player.feed_summoned_pet_slot` (as today) | yes |
-| store / take / take all | `Inventory.transfer_to` / remove_at + add with put-back (as today, unchanged semantics, kept in InventoryUI) | yes |
+| store / take / take all | `Inventory.transfer_to` / remove_at + add with put-back (as today, kept in InventoryUI); B3: `_store_indices(indices)` / `_take_indices(indices)` move every picked instance with the same per-item rules and stop at the first full side | yes |
 | sell | `InvActions.sell_handler.call(uid)` only when W3-EXCHANGE sets it (no market screen exists; owner: the market is an online feature) | hook point |
 | drop | `InvActions.drop_handler.call(uid)` only when set (LootBag.drop is BUILDSYS-branch only) | hook point |
 | craft / cook with picks | `PlayerActions.craft(rid, count, picks)` -> `StationCraft.begin(rid, count, picks)` | hook |
@@ -224,7 +229,7 @@ sync; applied uncommitted in the work tree for local testing, the way ECON does,
 | `scripts/ui/hunt_hud.gd` (W1-UI) | one line in the Menu sheet: `_sheet_btn(box, "Character", ...)` -> `player.ui.open_character()`; the "Bag" entry calls `open_bag()` | B2 |
 | `scripts/dev/ui_real_capture_lab.gd`, `ui_screenshot_lab.gd`, `ui_family_lab.gd` (W1-UI labs) | replace reads of `_profile_col/_bag_col/_equip_col/_close_btn/_grid.columns == 5/_profile` with INVUI's (`ui.layout_blocks()` rects); B2: the Character screen's blocks, its `profile_lines()` carrying `LevelDisplay.player_label()` and the held title, and a `character` shot | B1/B2 |
 | `scripts/dev/inventory_lab.gd` (W2-INV) | drop its grouping asserts (×16 cells, `_cells`, `_on_cell`); keep the 100-instance seed and assert one cell per instance | B1 |
-| `tests/t_ui.gd` (W1-UI) | add the INVUI ui files to `OWNED` (type floor, const-before-func) and `character_screen.gd` to `LEVEL_SITES` | B1/B2 |
+| `tests/t_ui.gd` (W1-UI) | add the INVUI ui files to `OWNED` (type floor, const-before-func; B3: `item_picker.gd`, `filter_rail.gd`) and `character_screen.gd` to `LEVEL_SITES` | B1/B2/B3 |
 
 run_all.gd (it does not list t_ files; its InventoryUI private reads stay valid), main.gd, game.gd, world.gd, project.godot
 and touch_controls.gd need no change (InventoryUI hosts the screens; `I` / joy
@@ -255,15 +260,21 @@ for losses; the sign carries the meaning, not only colour); requirements line on
 real combat tactics (HexButton). Right 25 %: candidates for the slot; none -> "There are no items available to equip." and
 no button; a candidate selected -> yellow Equip.
 
-**Storage / dinosaur cargo (spec 17).** Header "< Storage Box" (or "<pet name> Cargo", corpse title, loot bag title; no
-T-stone chip). Two InventoryGrids side by side, each with a "Bag [bag] 91 / 100" strip and its own Auto Sort / Filter
-toolbar (B3: 5 columns of ~108 px at 1600x900, 3 of ~97 px on a 844x390 phone, wide enough for NEW beside "Lv. NN"); the
-ItemInspectPanel runs down the right like the Bag's and shows the instance tapped last on either side (tapping one side
-clears the other). Its yellow primary is the move: "Store" for a bag item (when `allow_deposit` and `_can_store_selected`,
-else a grey reason: take only, locked, held tool, quick food), "Take" for a container item with "Take All" beside it
-(when `take_all`); with nothing selected it summarises both capacities and offers Take All. `readonly_reason` shows as a
-grey line and hides Take. (Design change in B3: the panel is always there instead of an Inspect overlay button, so
-inspection is one tap, spec 13 s21.) Every transfer keeps uid, level and attributes; on_take / on_empty fire as today.
+**Storage / dinosaur cargo (spec 17; the owner's storage-transfer reference, B3).** Header "< Storage Box" (or "<pet
+name> Cargo", the corpse title, "Basket") with the T-stone chip and X; in multi-select it reads "N Select", N gold. Under it
+two tabs from the left edge, "Bag 91 / 100" and "<container> 47 / 80": grey with grey text, the active one near-black with
+gold text and a gold underline; the view opens on the container's tab. Left of the grid the FilterRail (56 px squares, 44
+on a phone; it scrolls). The grid is denser than the Bag's: cells of about data `storage.cell` (100 px, 84 on a phone), 10
+columns at 1600x900, 6 at 844x390, each with "Lv. N", NEW and the trait pips. Under rail and grid one toolbar: Auto Sort
+with its caret, then Select All, Select (multi-select: a lighter cell with a gold check per picked item), Search (a field
+opens beside Auto Sort; name contains), and Lock on the Bag tab (nothing locked can be in a container); Drop only with
+`drop_handler`. The rail, sort and search apply to both tabs. The ItemInspectPanel runs from the tab row to the bottom
+edge: the instance tapped last on the active tab; its yellow primary is "Transfer to Bag" on the container's tab (with
+Take All beside it when the opener allows) and "Transfer to <container>" ("Transfer to Cargo" for a pet) on the Bag's, or a
+grey reason (take only, locked, held tool, quick food). A take-only container (`readonly_reason`: a corpse without a knife;
+a box that belongs to someone else passes "This box belongs to someone else: cannot take.") shows the reason in a dark
+notice over the top of the grid and offers no Transfer. Every transfer keeps uid, level and attributes; on_take / on_empty
+fire as before; emptied loot closes, a box the player can fill stays open.
 
 **Ingredient picker (spec 19).** Opened from the craft menu's ingredient (the menu steps aside and returns): header
 "< Choose <slot category>" with "chosen / need"; the Bag layout with the grid filtered to `Crafting.stacks_for_slot` (locked

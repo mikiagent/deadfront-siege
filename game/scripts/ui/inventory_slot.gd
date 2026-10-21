@@ -72,7 +72,7 @@ func _draw() -> void:
 		return
 	# Span items (a cage) fill their block; single cells keep the art clear of the labels and pips.
 	var span := stack.slot_span() > 1
-	InvPaint.item_icon(self, stack.def_id, r, 0.78 if span else 0.56, 0.55 if span else 0.53)
+	InvPaint.item_icon(self, stack.def_id, r, 0.78 if span else 0.56, 0.55)
 	if worn:
 		InvPaint.worn_marker(self, r, unit)
 	elif shows_new():

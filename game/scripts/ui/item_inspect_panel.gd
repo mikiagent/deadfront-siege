@@ -264,7 +264,7 @@ func _rebuild() -> void:
 	_layout()
 
 func _inner_w() -> float:
-	return size.x - float(_m.margin) * 2.0 - 10.0 # the scroll's gutter
+	return size.x - float(_m.margin) * 2.0 - 22.0 # the chip row's right margin and the scrollbar
 
 ## A wrapping row of chips added to the scroll, with room under it.
 func _flow() -> HFlowContainer:
