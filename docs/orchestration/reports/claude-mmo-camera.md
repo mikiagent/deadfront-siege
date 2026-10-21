@@ -224,9 +224,12 @@ default 14 m. Runs interleaved base / new, 3 rounds, the forest spot and the hom
 ## 5. Shots (all opened)
 
 Scratchpad `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/cam/`;
-the sheets are copied next to this report. The `after3` set and the clips were taken at c83d971d; the last
-camera change (e6dfe535: a zoom applies at once) leaves a settled view identical, and the zoom-extreme shots
-(`zoom/sheet_zoom.png`: 7 m, crowns above 8.4 m dithered; 18 m) and every gate run after it used the final code.
+the sheets are copied next to this report. The `after3` set, the clips and the zoom extremes were taken at
+c83d971d; the last camera change (e6dfe535: a zoom applies at once) leaves a settled view the same, and
+`final/` retakes all six (home and forest, 1600x900 both renderers, 844x390 --touch) on the final code:
+`camera-final-shots.jpg`. Shadows in all six, same framing as `after3`.
+- `zoom/sheet_zoom.png`: the forest at 7 m (closest: crowns above 8.4 m dither, the tree in front of her
+  dithers too) and 18 m (farthest).
 
 - `camera-durango-vs-new-phone.jpg` (`sheet_durango_vs_new_phone.png`): Durango communication centre and forest
   (phone screenshots) next to our home and forest at 844x390 gl_compat, all 420 px tall.
