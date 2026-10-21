@@ -1,0 +1,148 @@
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index 80b01e5b..0f4c85bf 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -39,6 +39,7 @@ var _combat_alpha: float = 0.0
+ var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
+ var _stance_label: Label
+ var _events := HudEventState.new()
++var _domain := DomainBanner.new()  ## spec 18: "<owner>'s Domain" on walking into claimed land
+ var _ctx_hexes: Array[HexButton] = []
+ var _ctx_ids: Array = []
+ var _ctx_timer: float = 0.0
+@@ -965,6 +966,7 @@ func _process(delta: float) -> void:
+ 		if _levelup_t > 6.5:
+ 			_levelup_t = -1.0
+ 	_events.tick(delta)
++	_domain.tick(delta, World.runtime, player.global_position)
+ 	_minimap.queue_redraw()
+ 	queue_redraw()
+ 
+@@ -1086,6 +1088,8 @@ func _draw() -> void:
+ 				stack = lr if not stack.has_area() else stack.merge(lr)
+ 				ly += float(line[1]) + 8.0
+ 			drawn_blocks["levelup"] = stack
++	# --- the domain banner, before the moving text so it keeps off the banner
++	_domain.draw(self)
+ 	# --- pickup toasts near the top-centre, rising and fading, then the notices: each takes the nearest
+ 	# free spot up or down its column, off every block and hex (on a landscape phone they crossed the
+ 	# quest card at y 100-128). On a phone the toasts stack under the vitals instead: in the centre
+diff --git a/game/scripts/world/island_claims.gd b/game/scripts/world/island_claims.gd
+index f019fb91..5f0aae8e 100644
+--- a/game/scripts/world/island_claims.gd
++++ b/game/scripts/world/island_claims.gd
+@@ -1,6 +1,8 @@
+ class_name IslandClaims
+ extends RefCounted
+-## Land claims (M8d Part B) and the dashed boundary mesh that marks them.
++## Land claims (M8d Part B), who owns them (spec 18) and the dashed boundary mesh that marks them.
++
++const SELF_ID := "self"  ## owner id of this survivor's own claims
+ 
+ ## Home: the camp plot (14x14 tiles) is claimed at creation plus whatever was saved.
+ ## Unstable: whatever the player staked this visit. Buildings only go on claimed tiles.
+@@ -46,45 +48,35 @@ static func claim_at(rt: IslandRuntime, tile: Vector2i, size: int = 14) -> bool:
+ 	print("[world] claimed %dx%d at (%d,%d)" % [size, size, tile.x, tile.y])
+ 	return true
+ 
++## Whose land the tile is: this survivor's claims first ({"id": SELF_ID, "name", "own": true}), then
++## other players' ({"id", "name"} as the server sent them), {} when nobody holds it. The one place
++## claim ownership is read (the domain banner, the claim outline); online only set_others' rows change.
++static func owner_at(rt: IslandRuntime, tile: Vector2i) -> Dictionary:
++	if is_claimed(rt, tile):
++		var me := PlayerRegistry.local()
++		return {"id": SELF_ID, "name": me.display_name() if me else World.player_name, "own": true}
++	for row in rt.other_claims:
++		if (row["rect"] as Rect2i).has_point(tile):
++			return row["owner"]
++	return {}
++
++## Replaces the other players' claims on this island with `rows` ({"rect": [x, z, w, d], "owner":
++## {"id", "name"}}), skipping malformed rows, and redraws the outline. Offline nothing calls it;
++## online the server's claim rows land here.
++static func set_others(rt: IslandRuntime, rows: Array) -> void:
++	rt.other_claims.clear()
++	for row in rows:
++		var r: Variant = row.get("rect") if row is Dictionary else null
++		var who: Variant = row.get("owner") if row is Dictionary else null
++		if not (r is Array and (r as Array).size() >= 4 and who is Dictionary and str(who.get("id", "")) not in ["", SELF_ID]):
++			continue
++		var rect := Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3]))
++		if rect.size.x > 0 and rect.size.y > 0:
++			rt.other_claims.append({"rect": rect, "owner": {"id": str(who["id"]), "name": str(who.get("name", "Survivor"))}})
++	_rebuild_claim_mesh(rt)
++
+ static func _rebuild_claim_mesh(rt: IslandRuntime) -> void:
+ 	if rt._claim_mesh == null:
+-		rt._claim_mesh = MeshInstance3D.new()
+-		rt._claim_mesh.name = "ClaimBoundary"
+-		rt._claim_mat = StandardMaterial3D.new()
+-		rt._claim_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+-		rt._claim_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+-		# Claims should quietly mark ownership, not dominate the camp as a cyan debug ring.
+-		rt._claim_mat.albedo_color = Color(0.72, 0.74, 0.58, 0.30)
+-		rt._claim_mat.vertex_color_use_as_albedo = false
+-		rt._claim_mesh.material_override = rt._claim_mat
+-		rt._claim_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+-		rt._claim_mesh.extra_cull_margin = 200.0
++		rt._claim_mesh = ClaimOutline.make_instance()
+ 		rt.add_child(rt._claim_mesh)
+-	var im := ImmediateMesh.new()
+-	var any := false
+-	for r in rt.claims:
+-		var x0 := float(r.position.x)
+-		var z0 := float(r.position.y)
+-		var x1 := float(r.position.x + r.size.x)
+-		var z1 := float(r.position.y + r.size.y)
+-		var corners := [Vector2(x0, z0), Vector2(x1, z0), Vector2(x1, z1), Vector2(x0, z1)]
+-		for i in 4:
+-			var a: Vector2 = corners[i]
+-			var b: Vector2 = corners[(i + 1) % 4]
+-			var len := a.distance_to(b)
+-			var dash := 0.28
+-			var gap := 0.72
+-			var t := 0.0
+-			while t < len:
+-				var t2 := minf(len, t + dash)
+-				var pa := a.lerp(b, t / len)
+-				var pb := a.lerp(b, t2 / len)
+-				if not any:
+-					im.surface_begin(Mesh.PRIMITIVE_LINES)
+-					any = true
+-				im.surface_add_vertex(Vector3(pa.x, rt.surface_y(pa.x, pa.y) + 0.06, pa.y))
+-				im.surface_add_vertex(Vector3(pb.x, rt.surface_y(pb.x, pb.y) + 0.06, pb.y))
+-				t += dash + gap
+-	if any:
+-		im.surface_end()
+-	rt._claim_mesh.mesh = im
++	rt._claim_mesh.mesh = ClaimOutline.build(rt)
+diff --git a/game/scripts/world/island_runtime.gd b/game/scripts/world/island_runtime.gd
+index 55ec6a4c..3cb8c569 100644
+--- a/game/scripts/world/island_runtime.gd
++++ b/game/scripts/world/island_runtime.gd
+@@ -50,8 +50,9 @@ var _tree_discs: MultiMeshInstance3D
+ var _tree_disc_xforms: Array[Transform3D] = []
+ var _batches: Array[VegBatch] = []
+ var claims: Array[Rect2i] = []
++## Other players' land here: {"rect": Rect2i, "owner": {"id", "name"}}; only IslandClaims.set_others writes it.
++var other_claims: Array[Dictionary] = []
+ var _claim_mesh: MeshInstance3D
+-var _claim_mat: StandardMaterial3D
+ 
+ func land_radius() -> float:
+ 	return _size * 0.38
+@@ -412,6 +413,14 @@ func is_claimed(tile: Vector2i) -> bool:
+ func claim_at(tile: Vector2i, size: int = 14) -> bool:
+ 	return IslandClaims.claim_at(self, tile, size)
+ 
++## Whose land the tile is, {} when nobody's (IslandClaims.owner_at).
++func owner_at(tile: Vector2i) -> Dictionary:
++	return IslandClaims.owner_at(self, tile)
++
++## Other players' claims on this island, replacing the last set (IslandClaims.set_others).
++func set_other_claims(rows: Array) -> void:
++	IslandClaims.set_others(self, rows)
++
+ # Kept for labs, the HUD and has_method() callers that reach into the runtime.
+ func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringName, tool: StringName, climate: String, level: int, color: Color) -> int:
+ 	return IslandScatter.plant_at(self, family, role, pos, fallback_id, tool, climate, level, color)

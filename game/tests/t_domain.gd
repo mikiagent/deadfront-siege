@@ -82,22 +82,31 @@ func _finish() -> void:
 func _at(tile: Vector2i) -> Vector3:
 	return BG.tile_centre(tile, _rt)
 
+## Just outside the camp plot's +z edge, and the tile across it: one step apart.
 func _outside() -> Vector2i:
-	return Vector2i(_own.position.x + _own.size.x / 2, _own.end.y + 5)
+	return Vector2i(_own.position.x + _own.size.x / 2, _own.end.y)
 
 func _inside() -> Vector2i:
-	return Vector2i(_own.position.x + _own.size.x / 2, _own.end.y - 3)
+	return Vector2i(_own.position.x + _own.size.x / 2, _own.end.y - 1)
+
+## Walks the survivor tile by tile (one per frame) from `a` to `b` along z.
+func _walk(a: Vector2i, b: Vector2i) -> void:
+	var step := 1 if b.y > a.y else -1
+	for z in range(a.y, b.y + step, step):
+		_player.global_position = _at(Vector2i(a.x, z)) + Vector3(0, 1, 0)
+		await process_frame
 
 # ---------------------------------------------------------------- the HUD (fails on the old code)
 
 func _test_hud_banner_on_entry() -> void:
 	_player.clear_nav()
-	_player.global_position = _at(_outside()) + Vector3(0, 1, 0)
+	var start := _outside() + Vector2i(0, 5)
+	_player.global_position = _at(start) + Vector3(0, 1, 0)
 	for i in 6:
 		await process_frame
 	_expect(not _hud.drawn_blocks.has("domain"), "outside the claim the HUD draws no domain banner")
-	_player.global_position = _at(_inside()) + Vector3(0, 1, 0)
-	for i in 4:
+	await _walk(start, _inside() - Vector2i(0, 2))
+	for i in 3:
 		await process_frame
 	var shown: bool = _hud.drawn_blocks.has("domain")
 	print("[t_domain] hud entry banner=%s rect=%s" % [shown, _hud.drawn_blocks.get("domain", Rect2())])
@@ -154,6 +163,13 @@ func _test_arrival_and_edge_step() -> void:
 	var b: RefCounted = DB.new()
 	b.tick(0.016, _rt, _at(_inside()))
 	_expect(not b.showing(), "arriving on the island inside your claim is not entering it")
+	var t: RefCounted = DB.new()
+	t.tick(0.016, _rt, _at(_outside() + Vector2i(0, 9)))
+	t.tick(0.016, _rt, _at(_inside()))
+	_expect(not t.showing(), "a teleport (respawn) into your claim is not walking into it")
+	t.tick(0.6, _rt, _at(_outside()))
+	t.tick(0.016, _rt, _at(_inside()))
+	_expect(t.showing(), "after a teleport in, walking out and back shows it")
 	for i in 60:
 		b.tick(0.1, _rt, _at(_inside()))
 	b.tick(0.1, _rt, _at(_outside()))

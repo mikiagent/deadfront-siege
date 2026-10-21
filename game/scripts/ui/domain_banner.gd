@@ -11,6 +11,8 @@ const SHOW_S := 3.5  ## on screen, fades included
 const FADE_S := 0.35
 ## Outside this long before the domain counts as left, so walking along its edge does not flash it.
 const LEAVE_S := 0.5
+## A move this long in one frame is a respawn or a teleport, not a walk across the edge.
+const JUMP_M := 6.0
 const NAME_COLOR := Color(0.96, 0.71, 0.27)
 const PILL_COLOR := Color(0.05, 0.05, 0.05, 0.9)
 const FRAME_COLOR := Color(0.93, 0.89, 0.80)
@@ -19,6 +21,7 @@ var owner: Dictionary = {}  ## whose land the survivor stands on ({} outside)
 var shown: Dictionary = {}  ## the owner on the banner
 var age: float = -1.0  ## seconds the banner has been up; < 0 hidden
 var _island_id: int = 0  ## the runtime the last tick saw
+var _last_at := Vector3.INF
 var _out_s: float = 0.0
 var _pill := StyleBoxFlat.new()
 
@@ -36,9 +39,11 @@ func tick(delta: float, rt: Node, at: Vector3) -> void:
 			age = -1.0
 	var here: Dictionary = rt.call("owner_at", BuildGrid.tile_of(at)) if rt and rt.has_method("owner_at") else {}
 	var id := rt.get_instance_id() if rt else 0
-	if id != _island_id:
-		# ASSUMPTION: arriving on an island (boot, load, a voyage) is not entering a domain: the
-		# banner waits for the survivor to walk across a claim edge.
+	var jumped := _last_at.distance_to(at) > JUMP_M
+	_last_at = at
+	if id != _island_id or jumped:
+		# ASSUMPTION: arriving (boot, load, a voyage, a respawn, a teleport) is not entering a
+		# domain: the banner waits for the survivor to walk or ride across a claim edge.
 		_island_id = id
 		owner = here
 		_out_s = 0.0

@@ -16,8 +16,20 @@ var _hud: HuntHud
 var _fails: PackedStringArray = []
 var _max_dt := 0.0  ## the longest frame since the last step (a first portrait render can hitch)
 
+var _was_up := false
+var _was_inside := false
+
 func _process(delta: float) -> void:
 	_max_dt = maxf(_max_dt, delta)
+	var domain: Variant = _hud.get("_domain") if _hud else null
+	if domain == null or World.runtime == null or _player == null:
+		return
+	var up: bool = domain.call("showing")
+	var inside := _claimed_here()
+	if up != _was_up or inside != _was_inside:
+		print("[domain] t=%.2f tile=%s inside=%s banner=%s" % [Time.get_ticks_msec() / 1000.0, BuildGrid.tile_of(_player.global_position), inside, up])
+	_was_up = up
+	_was_inside = inside
 
 func _ready() -> void:
 	_out = OS.get_user_data_dir().path_join("domain")

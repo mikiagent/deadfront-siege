@@ -37,8 +37,12 @@ static func silhouette() -> Texture2D:
 		_silhouette = ImageTexture.create_from_image(img)
 	return _silhouette
 
-## Renders a copy of the model once in its own world, keeps the pixels, frees the viewport.
+## Renders the model once in its own world, keeps the pixels, frees the viewport. Each visible mesh
+## is baked in the pose it has now (no skeleton or sockets to copy), in the rig's space, which faces
+## -Z (RiggedModel._orient).
 static func _snapshot(model: Node3D, host: Node, key: String) -> void:
+	var rig := model.get_parent() as Node3D
+	var to_rig := rig.global_transform.affine_inverse() if rig else model.global_transform.affine_inverse()
 	var vp := SubViewport.new()
 	vp.size = Vector2i(SIZE, SIZE)
 	vp.own_world_3d = true
@@ -50,26 +54,38 @@ static func _snapshot(model: Node3D, host: Node, key: String) -> void:
 	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.environment.ambient_light_color = Color(0.55, 0.53, 0.48)
 	vp.add_child(env)
-	var body := model.duplicate() as Node3D
-	vp.add_child(body)
+	var box := AABB()
+	var first := true
+	for m in model.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		if mi.mesh == null or not mi.is_visible_in_tree():
+			continue
+		var copy := MeshInstance3D.new()
+		copy.mesh = mi.bake_mesh_from_current_skeleton_pose() if mi.skin else mi.mesh
+		for i in mi.get_surface_override_material_count():
+			copy.set_surface_override_material(i, mi.get_active_material(i))
+		copy.transform = to_rig * mi.global_transform
+		vp.add_child(copy)
+		var b := copy.transform * copy.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	if first:
+		box = AABB(Vector3(-0.3, 0, -0.3), Vector3(0.6, 1.8, 0.6))
 	host.add_child(vp)
-	# The face: between the Head and HeadTop_End bones, else the box top.
-	var box := _bounds(body)
+	# The face: on the Head -> HeadTop_End bone line, else near the top of the meshes.
 	var head := Vector3(box.get_center().x, box.end.y - box.size.y * 0.09, box.get_center().z)
 	var span := box.size.y * 0.12
-	var skels := body.find_children("*", "Skeleton3D", true, false)
+	var skels := model.find_children("*", "Skeleton3D", true, false)
 	var sk := skels[0] as Skeleton3D if not skels.is_empty() else null
-	if sk:
-		sk.reset_bone_poses()  # rest pose: a mid-stride copy looked at its feet
 	if sk and sk.find_bone("Head") >= 0 and sk.find_bone("HeadTop_End") >= 0:
-		var low := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Head")).origin
-		var high := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("HeadTop_End")).origin
-		head = (low + high) * 0.5
-		span = low.distance_to(high)
+		var low := to_rig * (sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Head")).origin)
+		var high := to_rig * (sk.global_transform * sk.get_bone_global_pose(sk.find_bone("HeadTop_End")).origin)
+		if low.distance_to(high) > 0.01:
+			head = low.lerp(high, 0.3)  # eye level sits below the bones' midpoint
+			span = low.distance_to(high)
 	var cam := Camera3D.new()
 	cam.fov = 30.0
 	vp.add_child(cam)
-	# The rig faces -Z (RiggedModel._orient), so the camera stands on that side, a little to one side.
 	cam.look_at_from_position(head + Vector3(-0.25, 0.08, -1.0).normalized() * span * 4.5, head)
 	var sun := DirectionalLight3D.new()
 	vp.add_child(sun)
@@ -82,15 +98,3 @@ static func _snapshot(model: Node3D, host: Node, key: String) -> void:
 		_cache[key] = ImageTexture.create_from_image(img)
 	if is_instance_valid(vp):
 		vp.queue_free()
-
-static func _bounds(root: Node3D) -> AABB:
-	var box := AABB()
-	var first := true
-	for m in root.find_children("*", "MeshInstance3D", true, false):
-		var mi := m as MeshInstance3D
-		if not mi.is_visible_in_tree():
-			continue
-		var b := mi.global_transform * mi.get_aabb()
-		box = b if first else box.merge(b)
-		first = false
-	return box if not first else AABB(Vector3(-0.3, 0, -0.3), Vector3(0.6, 1.8, 0.6))
