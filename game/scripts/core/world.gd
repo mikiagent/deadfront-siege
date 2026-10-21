@@ -13,6 +13,10 @@ var pioneer_level: int = 0
 var pioneer_xp: int = 0
 var home_claims: Array = []  # [[x, z, w, d], ...] tile rects on the home island (saved)
 var unstable_claims: Array = []  # same, current unstable island only (not saved)
+## CLAIMS2 / spec 29: the domain record saved for the Tamed Island and for the island the survivor is
+## standing on. The legacy rects above stay as a mirror (and are what an old save is migrated from).
+var home_domain: Dictionary = {}
+var away_domain: Dictionary = {}
 var free_claim_used: bool = false
 var objective: int = 0 ## index into Data.world_objectives; the survivor's standing orders
 var visited_islands: Dictionary = {} ## persistent voyage log
@@ -428,6 +432,9 @@ func _load_islands(_dir: String) -> void:
 
 func claims_for_current() -> Array:
 	return home_claims if is_home() else unstable_claims
+
+func domain_for_current() -> Dictionary:
+	return home_domain if is_home() else away_domain
 
 ## One player level. Every skill-tree XP grant (gathering, fighting, crafting, cooking, building,
 ## farming...) also lands here (SkillState.add_xp), so the bottom bar moves with everything.

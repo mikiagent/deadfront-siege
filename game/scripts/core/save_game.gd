@@ -109,6 +109,7 @@ static func save_now() -> bool:
 			"buildings": World._home_buildings_cache, # refreshed above when the survivor is home
 			"cargo": World.cargo_home.to_array(),
 			"claims": World.home_claims,
+			"domain": World.home_domain,
 			"camp_layout": World.camp_layout,
 		},
 		"pioneer_xp": World.pioneer_xp,
@@ -135,7 +136,7 @@ static func save_now() -> bool:
 	}
 	if not World.is_home():
 		# The island the survivor is standing on: its buildings, storage and staked claims.
-		payload["away"] = {"buildings": buildings, "claims": World.unstable_claims}
+		payload["away"] = {"buildings": buildings, "claims": World.unstable_claims, "domain": World.away_domain}
 	if not SaveMigrations.write_atomic(path, JSON.stringify(payload)):
 		print("[world] save failed")
 		return false
@@ -238,6 +239,9 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World.cargo_home.load_array(data.get("home", {}).get("cargo", []))
 	World._home_buildings_cache = data.get("home", {}).get("buildings", [])
 	World.home_claims = data.get("home", {}).get("claims", [])
+	# CLAIMS2 / spec 29: the domain record. An old save has "claims" only; IslandClaims migrates
+	# those rects into covering cells when the island builds (and covers every placed building).
+	World.home_domain = data.get("home", {}).get("domain", {})
 	var cl: Variant = data.get("home", {}).get("camp_layout", {})
 	World.camp_layout = (cl as Dictionary).duplicate() if cl is Dictionary else {}
 	World.player_name = str(data.get("player_name", ""))
@@ -249,6 +253,8 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	var away: Dictionary = data.get("away", {})
 	if away.has("claims"):
 		World.unstable_claims = away["claims"] # read by the island's claim setup in load_island
+	var away_dom: Variant = away.get("domain", {})
+	World.away_domain = (away_dom as Dictionary).duplicate(true) if away_dom is Dictionary else {}
 	var iid := StringName(str(data.get("island_id", "home_grassland")))
 	var pos_a: Array = data.get("player", {}).get("position", [0, 1, 12])
 	var pos := Vector3(float(pos_a[0]), float(pos_a[1]), float(pos_a[2]))
