@@ -91,35 +91,40 @@ func _update(delta: float) -> bool:
 	var view := get_viewport_rect().size
 	var ins := UiTokens.safe_insets(get_viewport())
 	var safe := Rect2(Vector2(ins.w, ins.z), view - Vector2(ins.w + ins.x, ins.z + ins.y))
-	# Never on the vitals or the Orders card; off the minimap too (its title and text bracket it).
+	# Never on the vitals or the Orders card; off the minimap where it can be (its title and text bracket it).
 	var b := _hud.drawn_blocks
 	var keep_off: Array[Rect2] = []
 	for k in ["vitals", "quest"]:
 		if b.has(k):
 			keep_off.append(b[k])
+	var soft: Array[Rect2] = []
 	if b.has("map_title") and b.has("map_text"):
-		keep_off.append((b["map_title"] as Rect2).merge(b["map_text"]))
+		soft.append((b["map_title"] as Rect2).merge(b["map_text"]))
 	var s := hand_scale(view)
 	# A gather order's hex, once the radial is open on a node that offers the item. The hand would
-	# rather not cover the radial's labels and title.
+	# rather not cover the radial's labels and title either.
 	if str(_plan.get("kind", "")) == "gather":
 		var r := player._gather_radial
 		var hex := r.hex_rect_for(StringName(str(_plan["item"]))) if r else Rect2()
 		if hex.has_area():
 			clamped = false
-			var soft: Array[Rect2] = r.label_rects.duplicate()
-			soft.append(r.title_box)
-			return _aim(hex.get_center(), safe, keep_off, s, soft)
+			var near: Array[Rect2] = soft.duplicate()
+			near.append_array(r.label_rects)
+			near.append(r.title_box)
+			return _aim(hex.get_center(), safe, keep_off, s, near)
+	if target != null and not is_instance_valid(target):
+		target = null  # freed with its island (travel, a reload)
+		_repick = 0.0
 	_repick -= delta
-	if _repick <= 0.0 or (target != null and not is_instance_valid(target)):
+	if _repick <= 0.0:
 		_repick = REPICK_S
 		var found := Guide.world_target(player, _plan, _hud, target)
 		target = found.get("node", null)
 		_rect = found.get("rect", Rect2())
 	if _rect.has_area():
 		clamped = false
-		return _aim(_rect.get_center(), safe, keep_off, s)
-	if target == null or not is_instance_valid(target):
+		return _aim(_rect.get_center(), safe, keep_off, s, soft)
+	if target == null:
 		return false
 	var at := Guide.aim_point(target)
 	var behind := cam.is_position_behind(at)
@@ -127,24 +132,22 @@ func _update(delta: float) -> bool:
 	var inner := safe.grow(-EDGE)
 	clamped = behind or not inner.has_point(p)
 	if not clamped:
-		return _aim(p, safe, keep_off, s)
+		return _aim(p, safe, keep_off, s, soft)
 	# On the edge where the line from the centre leaves the screen, pointing out along it; where the hand
-	# would land on a HUD block there, it slides in along the same line until it clears.
+	# would land on a HUD block there (the minimap too: it only hints a direction), it slides in along the
+	# same line until it clears.
 	var edge := clamp_tip(p, behind, inner)
 	var a := aim_angle(edge - inner.get_center())
+	var avoid: Array[Rect2] = keep_off.duplicate()
+	avoid.append_array(soft)
 	for k in 9:
-		if _place(edge.lerp(inner.get_center(), float(k) / 8.0), a, keep_off, s):
+		if _place(edge.lerp(inner.get_center(), float(k) / 8.0), a, avoid, s):
 			return true
 	return false
 
-## Tip on `at`, hand in the first placement that stays on screen and off `keep_off` (off `soft` too where
-## one can).
+## Tip on `at`, hand on screen, off `keep_off` and covering as little of `soft` as it can.
 func _aim(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: float, soft: Array[Rect2] = []) -> bool:
-	var both: Array[Rect2] = keep_off.duplicate()
-	both.append_array(soft)
-	var a := pick_angle(at, safe, both, s)
-	if is_nan(a):
-		a = pick_angle(at, safe, keep_off, s)
+	var a := pick_angle(at, safe, keep_off, s, soft)
 	return not is_nan(a) and _place(at, a, keep_off, s)
 
 ## An edge-clamped hand may run off the screen behind the tip, never onto a `keep_off` block.
@@ -200,13 +203,23 @@ static func hand_clear(at: Vector2, a: float, s: float, safe: Rect2, keep_off: A
 			return false
 	return true
 
-## First placement whose hand stays inside `safe` and off `keep_off`; NAN when none does (the finger
-## hides rather than cover the vitals or the Orders card).
-static func pick_angle(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: float) -> float:
+## The placement whose hand stays inside `safe`, off `keep_off`, and covers the least of `soft` (the
+## first such on a tie); NAN when none fits (the finger hides rather than cover the vitals or the card).
+static func pick_angle(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: float, soft: Array[Rect2] = []) -> float:
+	var best := NAN
+	var best_cover := INF
 	for a in ANGLES:
-		if hand_clear(at, a, s, safe, keep_off):
-			return a
-	return NAN
+		if not hand_clear(at, a, s, safe, keep_off):
+			continue
+		var cover := 0.0
+		for k in soft:
+			cover += hand_rect(at, a, s).intersection(k).get_area()
+		if cover < best_cover:
+			best = a
+			best_cover = cover
+		if cover <= 0.0:
+			break
+	return best
 
 ## Where a target off `inner` (or behind the camera, whose projection mirrors) meets its edge on the
 ## line from the centre: the finger sits there and points out at it.

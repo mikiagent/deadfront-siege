@@ -126,6 +126,12 @@ func _test_placement() -> void:
 		var r: Rect2 = FingerS.hand_rect(at, a, 1.1) if not is_nan(a) else Rect2()
 		_expect(not is_nan(a) and view.encloses(r) and not r.intersects(vitals) and not r.intersects(quest), "target %s: the hand fits on screen off the vitals and the card (%s)" % [at, r])
 	_expect(is_nan(FingerS.pick_angle(Vector2(100, 50), view, keep, 1.1)), "a target on the vitals hides the finger rather than cover them")
+	var label := Rect2(830, 440, 120, 26)  # a hex's label to the right of the tip: the hand goes elsewhere
+	var soft: Array[Rect2] = [label]
+	var la: float = FingerS.pick_angle(Vector2(800, 450), view, keep, 1.1, soft)
+	_expect(not FingerS.hand_rect(Vector2(800, 450), la, 1.1).intersects(label), "the hand keeps off a soft label where a placement allows")
+	var boxed: Array[Rect2] = [Rect2(0, 0, 1600, 900)]
+	_expect(not is_nan(FingerS.pick_angle(Vector2(800, 450), view, keep, 1.1, boxed)), "soft rects never hide the finger")
 	_expect(is_equal_approx(FingerS.aim_angle(Vector2.UP), 0.0) and is_equal_approx(FingerS.aim_angle(Vector2.RIGHT), PI * 0.5), "aim angle: up is 0, right is a quarter turn")
 	var inner := view.grow(-20.0)
 	var right: Vector2 = FingerS.clamp_tip(Vector2(5000, 450), false, inner)
