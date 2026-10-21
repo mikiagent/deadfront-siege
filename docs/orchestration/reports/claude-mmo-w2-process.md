@@ -13,6 +13,68 @@ Branch `claude/mmo-w2-process`, cut from `claude/mmo-overhaul` 36299a96. Base me
 - round 5 (resumed run): base merges 061cc651 and 910327f9 (548059bc, 34b6d459, docs only), 619c3b0a (the
   destroyed listener is dropped), 19fbb83b + 3f5835cb (a label move tried and reverted), ffc3833f (smoke on
   gl_compatibility), plus this report
+- round 6 (review `docs/orchestration/mmo/handoff/findings/w2-process-review-r1.json`): e6b69abf (picks by uid,
+  save boundary, status on the HUD chip), cbb9e595 (hooks patch), 81ec4348 + 76875ea4 (process_lab),
+  8fd3e3f6 (asset register), plus this report. The base has not moved since 34b6d459
+  (`git log HEAD..claude/mmo-overhaul` is empty), so no merge was needed
+
+## Round 6: review r1 findings (w2-process-review-r1.json)
+
+The reviewer was right on every finding. The round 4 claim "the first job takes exactly the picks the card
+showed" held for `ProcessStation.load_from`, but the game path re-picked on arrival, so it was false in game.
+
+| Finding | Fix | Proof (new code) | Old code / mutation |
+|---|---|---|---|
+| **Major**: `_start_craft_cycle` recomputed `_picks` on arrival, so a bag change on the way put a different instance on the station (vision fix 1, spec 08:98 "consumes *specific instance IDs*") | `StationCraft._begin_recipe` records the uid of each picked instance (`_pick_uids`). On arrival, `_load_process_station` maps each uid back to its current bag index and passes those to `refuse_reason`/`load_from`. A uid that left the bag gives index -1, which `refuse_reason` turns into "That one is no longer in your bag." (or "Needs ..." / "No processing left on that one."), shown as a notice. Nothing is substituted. Fungible stacks (no uid) keep the default pick. Queued repeats still auto-pick | `ok craft route: the rack takes the previewed instance after a bag sort (previewed l8c69b43deec199e4, took l8c69b43deec199e4)`; `ok craft route: a previewed instance gone on arrival is refused, lv 4 stays in the bag` (t_process, through `StationCraft.begin` and `_start_craft_cycle`, the reviewer's probe as a test) | `FAIL craft route: the rack takes the previewed instance after a bag sort (previewed ldb8cde7c25900ce9, took lf338ba7432f4d05c)`; `FAIL craft route: a previewed instance gone on arrival is refused, lv 31 stays in the bag` |
+| **Major**: the `process` save field bypassed SaveSanitizer: 1e9 units at lv 5e6, a `started: [1,2]` aborted `load_dict` and lost the meat, `started: "abc"` finished at once, a duplicated uid loaded twice, no level ceiling | Inside `process_station.gd`, so both the load path (`load_dict`) and the refund path (`saved_stacks`, used by the hooks patch's `SaveRestore._items_of`) get it: every stack goes through `SaveSanitizer.stacks` (known id, count <= `stack_max`, level <= 60, attribute shapes), a uid already seen on the station is dropped, `started`/`queued_at` go through `SaveSanitizer._num` (clamped to now; not a number = the job waits and restarts, never finishes early), `level` through `SaveSanitizer._int(1, 60)`, `burnt` must be a bool, and `jobs`/`outputs`/`inputs` that are not arrays load nothing instead of aborting | `ok a forged 1e9 x lv 5e6 output loads as one stack of <= 999 at lv <= 60 (... "units": 999, "left": 0)`; `ok a forged job level is clamped to 60`; `ok a string start restarts the job, it does not finish it`; `ok array numbers do not abort the load: the meat stays on the rack (... "jobs": 1, "refund": 1 ...)`; `ok jobs/outputs that are not arrays load nothing and do not abort`; `ok a uid on two outputs loads once` | `FAIL a forged 1e9 x lv 5e6 output ... ("units": 39960, "left": 999960040, "level": 5000000)`; `SCRIPT ERROR: Invalid call. Nonexistent 'float' constructor.` then `FAIL array numbers do not abort the load ... ("jobs": 0)`; `FAIL a string start restarts the job ... ("jobs": 0, "ready": 1)`; `FAIL a uid on two outputs loads once (... "units": 2)`; `FAIL a forged job level is clamped to 60 (... 9999999)` |
+| **Major**: status labels unreadable at 844x390 and on the judge renderer (over the survivor's chip, under the vitals panel, under the wrong chip, under the CRAFT hex) | The reviewer's first suggestion. The world `Label3D` is deleted from `ProcessStation`. `label_text()` is now the second line of the station's own HUD chip (hooks patch on W1-UI's `hud_pills.gd`, the line a depleted harvest node uses for its regrow timer). `UiTokens.layout_labels` places that chip off the HUD panels, every hex and caption, the other chips and the survivor, so a status can only sit under its own station's name | windowed `process_lab` check, glc: `PASS shot all 50%: 4 chips, 0 overlaps (chip on chip or on the survivor), 0 station world labels` at 844x390 and 1600x900; same for smoker 50 (2 chips), rack 50 (2 / 3 chips), rack 100 with the menu open (2 chips), rack 100 at 1600 (3 chips). Headless `process_lab`: `PASS survivor at the loaded rack: 0 chips, 0 overlaps ..., 0 station world labels` (headless draws no HUD, so only the world-text part applies there) | old Label3D code with the new lab: `FAIL survivor at the loaded rack: 0 chips, 0 overlaps (chip on chip or on the survivor), 4 station world labels` |
+| Minor: no test for the future-start clamp (M7 passed) | `process_checks.gd`: a row with `started = now + 3600` | `ok a start an hour in the future loads as now, label time <= job length (... "label": "Drying 1/4  ·  10:00" ..., 600s)` | M7 (upper bound `INF` instead of now): `FAIL a start an hour in the future loads as now, label time <= job length (... "started": 1792548512.07741 ...)` |
+| Minor: the dried stage reads as empty wood; one mesh shows a full rack for any count | Not fixable in engine: each stage GLB is one mesh with one `structures_atlas` material (checked in the GLB JSON: 1 node, 1 primitive, attributes POSITION/NORMAL/TEXCOORD_0), so a material tint would darken the frame too, and there are no per-strip nodes to hide. The fallback the reviewer named: the shared W1-STRUCTART + W2-PROCESS row in `asset-replacement.md` now asks for a darker meat-brown strip tile and `strip_1`..`strip_8` nodes, marked REPLACE | 8fd3e3f6 | - |
+| Minor: t_process not in run_all | Hooks patch: `run_all.gd` gets `_test_process_stations()`, which runs `res://tests/process_checks.gd` (the multistack_lab pattern: a RefCounted with `run()` returning label -> bool). t_process runs the same file | see gates | - |
+| Acceptance unmet: vision fix 1 through `StationCraft.begin` | Met (row 1) | `ok craft route: the rack takes the previewed instance after a bag sort (previewed l8c69b43deec199e4, took l8c69b43deec199e4)` | the reviewer's `SUBSTITUTED` probe, now a test |
+
+Not a bug, but worth knowing: the sanitizer caps count at the item's `stack_max`, which is 999 for every item
+in this build (owner rule, `item_def.gd:42` "everything stacks to 999 until per-item stack sizes are decided").
+A forged process row can therefore carry 999 units, the same as a forged bag row in the same save; it can no
+longer carry more, or a level above 60. A duplicated uid is caught within one station; across containers
+(station vs bag) it is the save layer's job (W1-SAVE), as for bag-vs-cargo duplicates today.
+
+Shots, all opened and looked at
+(`/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/shots_r6/`,
+gl_compatibility, the hooks patch applied):
+- `all50_844`: four chips, each `Name` over its own `Drying 4/4 · 4:54` / `Stewing 1/4 · 1:24` /
+  `Steaming 2/4 · 0:24` / `Smoking 3/4 · 7:24` line. Nothing on the survivor, the vitals panel or the orders card.
+- `smoker50_844`, `rack50_844`: the rack and smoker chips beside their models, the survivor's name clear.
+- `menu100_844`: the COLLECT and CRAFT hexes are clear of `Ready: 4 Dried Meat` and `Ready: 3 Smoked Meat`.
+- `all50_1600`, `rack50_1600`, `smoker50_1600`, `rack100_1600`: each chip over its own station, statuses
+  readable, the survivor clear.
+- **Seen, not fixed:**
+  - In `all50_844` (the lab's dense row: four stations within 3 m of each other and the survivor) the drying
+    rack's chip, placed first, touched the survivor's figure rect by 3 px. HudPills moved it one row up, and the
+    crock pot chip then moved right, so the Drying Rack chip sits by the steamer and the Steamer chip by the
+    rack. Every status is still under its own name. The reviewer's before shot shows the same W1-UI layout
+    rule (its Steamer chip was pushed to the orders card). A sideways nudge in `UiTokens.layout_labels` would
+    fix it for every chip; that is W1-UI's file and behaviour, so it is not in this patch.
+  - The COLLECT caption runs onto the smoker's roof. That is the StationMenu hex caption (W1-UI).
+
+Round 6 gates (scratch tree `trees/w2proc-gates` at 76875ea4 with the regenerated hooks patch applied, every
+Godot run under gslot, logs in `scratchpad/w2proc-gatelogs6/`):
+- `--import`: exit 0, 0 ERROR lines.
+- All 20 `t_*.gd` PASS, exit 0, 0 SCRIPT ERROR except t_save's 5 deliberate ones: `[t_process] PASS`,
+  `[t_build] PASS`, `[t_save] PASS`, `[t_ui] PASS`, `[t_uiicons] PASS ids=169 ...`, `[t_harbour] PASS islands=15`,
+  `[t_web] PASS`, and the rest.
+- `[tests] PASS` (run_all, now with the process checks) and `SMOKE PASS` (`tools/smoke.sh --no-import`).
+- `[process_lab] PASS`, `[kitchen_lab] PASS`, `[craft_lab] PASS`, 0 SCRIPT ERROR lines each.
+- 0 "couldn't resolve track" lines in any log.
+- Crash reports: 5 new `Godot-*.ips` appeared during the gate window (`Godot-2026-10-20-201057`, `-201134`,
+  `-201146`, `-201353`, `-201403`; a sixth, `-201415`, came after my last run ended at 20:14:04). None is
+  from my runs: every one of my Godot runs exited 0 (gslot passes the exit code through; a SIGABRT does not
+  exit 0). All are the same SIGABRT in `std::__throw_system_error` on the main thread, about 10 s after launch,
+  which is the lifetime of a windowed `--shot-delay=6` run. Other agents were running windowed shot labs
+  then (`market_ui_lab`, `r3_skills_lab`, `ui_real_capture_lab`, `bag_ui_lab`, `inventory_lab`). The same crash
+  also shows at 19:55:03 and 19:56:19, before this round's runs. My 8 windowed shots (20:08-20:09) left none,
+  and rerunning `--import` alone (20:15:29-20:15:35) left none.
+- Hooks patch: `git apply --check` clean on claude/mmo-overhaul 34b6d459 (fresh detached worktree).
 
 ## Round 5: resumed run (review r1 and the vision fixes, checked against the real branch state)
 
@@ -116,8 +178,9 @@ Mutation run (picks ignored, the `destroyed` connect removed, the base `save_res
 ```
 
 Limits (shortcuts):
-- Picks are bag indices from the same default order the card previews, resolved when the survivor arrives.
-  There is no per-slot picker yet; that is W2-CRAFT ("family slots filled by exact picked instances",
+- **Superseded in round 6:** the craft route re-picked on arrival, so this table's first row held for
+  `load_from` but not in game. The picks are now kept as uids and mapped back on arrival.
+- The picks come from the same default order the card previews. There is no per-slot picker yet; that is W2-CRAFT ("family slots filled by exact picked instances",
   vision-check.md next packages #1).
 - "Least valuable first" for repeats is W2-INV's change to the default order. This package uses
   `Crafting.default_picks` and adds no ordering of its own.
@@ -251,7 +314,8 @@ rules loader moved to `ProcessStation.rules()`.
   - The drying rack swaps W1-STRUCTART's empty/raw/drying/dried models from the progress of its least-advanced
     strip.
   - Smoke or steam comes from CPUParticles3D, so Forward+ and gl_compatibility look alike. Fired stations glow.
-  - A world label shows `Drying 4/4 · 4:58`, then `Ready: 4 Dried Meat`, and is scaled up on a 390 px phone.
+  - The station's HUD name chip carries a second line, `Drying 4/4 · 4:58`, then `Ready: 4 Dried Meat`
+    (round 6; until round 5 this was a world Label3D, which collided with the survivor and the HUD).
   - Jobs are saved in the station's existing row (`"process"`); `SaveRestore.spawn` already calls
     `CraftStation.from_dict`, so no migration is needed.
   - On load, a start time in the future is clamped to now. Rows for recipes the station no longer runs come back
@@ -322,11 +386,15 @@ All in `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/b2302
 
 ## Integrator hooks
 
-`docs/orchestration/reports/claude-mmo-w2-process-hooks.patch` (round 4, regenerated in round 5 with the same
-bytes): 3 lines in `game/scripts/core/save_restore.gd` (W1-SAVE's file). `SaveRestore._items_of` adds a
-station row's process contents, so a row the grid refuses on load is refunded with what hung on it.
-`git apply --check` is clean on claude/mmo-overhaul 34b6d459 (the file's blob cd8df9b8 is the patch's index
-line).
+`docs/orchestration/reports/claude-mmo-w2-process-hooks.patch` (regenerated in round 6; `git apply --check`
+clean on claude/mmo-overhaul 34b6d459). Three files:
+- `game/scripts/core/save_restore.gd` (W1-SAVE): `SaveRestore._items_of` adds a station row's process
+  contents, so a row the grid refuses on load is refunded with what hung on it. Since round 6 those stacks
+  pass `SaveSanitizer.stacks` inside `ProcessStation.saved_stacks`.
+- `game/scripts/ui/hud_pills.gd` (W1-UI): a process station's chip gets `label_text()` as its second line
+  (the line a depleted harvest node uses for its regrow timer), and that line may use the chip's width
+  instead of 96 px.
+- `game/tests/run_all.gd` (integrator): `_test_process_stations()` runs `res://tests/process_checks.gd`.
 
 The pack-up fix needs no change in `build_placer.gd` or `player_actions.gd`. `BuildPlacer.pack_up_node` calls
 `pack_up_blocker` first, and `pack_up_blocker` asks `pack_up_block_reason()` duck-typed before any side
@@ -335,7 +403,8 @@ Notes:
 - **W2-BUILDSYS merge:** no hook needed for process stations. BUILDSYS's `StructureHealth.take_damage`
   calls `host.salvage_contents()` duck-typed and drops the stacks into the bag, home cargo or a loot bag
   (structure_health.gd:120 on 4b8c6d23). Round 5 checked this on a merged tree (below).
-- t_process is not in run_all; run it like the other `t_*.gd`.
+- run_all runs `game/tests/process_checks.gd` (round 6, hooks patch), the hostile save rows and a wall-clock
+  job. t_process runs the same checks plus the rest.
 - For W3-SRVACT: load and collect are local calls, not PlayerActions intents.
 
 ## Left / not done
@@ -353,8 +422,11 @@ Notes:
 - **Needs other packages:** a tanning frame and kiln/smelting need a model, placement and items from
   W1-STRUCTART, W2-BUILDSYS and W2-DATA. Hide drying already runs on the rack.
 - **Visual limits:**
-  - The rack stage GLBs are single meshes, so one strip shows a full rack.
-  - Station labels overlap when stations stand closer than about 2 m on a phone.
+  - The rack stage GLBs are single meshes with one atlas material, so one strip shows a full rack and the
+    dried strips cannot be tinted without tinting the frame. Registered for W1-STRUCTART in
+    `docs/orchestration/mmo/asset-replacement.md` (round 6).
+  - The status is on the HUD chip, so it shows within HudPills' 8 m like every other chip; the stage
+    models and the smoke show at any distance.
 - **Audio:** none (audio-build-10). Sourcing sounds needs the owner's yes.
 
 ## Open owner decisions
