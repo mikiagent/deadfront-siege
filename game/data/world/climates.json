@@ -22,7 +22,8 @@
       "HerbPlant",
       "FibreTuft",
       "BranchPile",
-      "BerrySprig"
+      "BerrySprig",
+      "Corn"
     ],
     "materials": [
       {
@@ -45,6 +46,9 @@
       },
       {
         "id": "clay"
+      },
+      {
+        "id": "corn"
       }
     ],
     "weather": [
@@ -150,7 +154,6 @@
       "BranchPile",
       "BerrySprig",
       "TinOreNode",
-      "Corn",
       "Wheat"
     ],
     "materials": [
@@ -184,9 +187,6 @@
       },
       {
         "id": "tin_ore"
-      },
-      {
-        "id": "corn"
       },
       {
         "id": "wheat"

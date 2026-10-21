@@ -15,6 +15,7 @@ extends SceneTree
 ##    tools, no rung costs less or unlocks earlier than the one below, each mined ore needs the pick of
 ##    the rung below it, and no ungated recipe turns obsidian or metal into gear.
 ## 4. Crafting.progression_block refuses a requires_node recipe until the node is learned (hook 6).
+## 5. bot_survivor's CATEGORY_ITEMS covers every slot of the recipes it crafts (hook 13).
 ## Item scripts reference the Data autoload, so they load on the first frame after it exists.
 
 const D := "res://data/"
@@ -22,7 +23,7 @@ const RUNGS := ["stone", "bone", "flint", "obsidian", "copper", "bronze", "iron"
 ## Special families IslandScatter._scatter_special_tiles plants on every island.
 const SPECIAL_FAMILIES := ["mud", "clay", "berry_bush", "tree_stump"]
 ## cleared_by entries in statuses.json that are actions or places, not items.
-const STATUS_ACTIONS := ["cauterise", "residence", "struggle", "pet_aggro", "syringe"]
+const STATUS_ACTIONS := ["cauterise", "residence", "struggle", "pet_aggro"]
 ## Seconds a capture or a taming takes, for the time log only (# ASSUMPTION).
 const CAPTURE_SECONDS := 60.0
 const TAME_SECONDS := 120.0
@@ -36,6 +37,8 @@ var all_recipes: Array = []
 var nature: Dictionary = {}
 var climates: Dictionary = {}
 var trees_nodes: Dictionary = {} # node id -> tree id
+var trees: Dictionary = {}       # trees.json "trees"
+var factions: Dictionary = {}    # world/factions.json
 var creatures: Dictionary = {}  # species -> row
 var islands: Array = []          # islands.json rows
 var PS: GDScript
@@ -84,6 +87,7 @@ func _process(_delta: float) -> bool:
 	_check_structures()
 	_check_planner()
 	_check_node_gate()
+	_check_bot_map()
 	if fails.is_empty():
 		print("[t_data] PASS items=%d recipes=%d" % [items.size(), recipes.size()])
 		quit(0)
@@ -119,7 +123,8 @@ func _load_all() -> void:
 	for k in cdoc:
 		if not str(k).begins_with("_"):
 			climates[k] = cdoc[k]
-	var trees: Dictionary = _json("skills/trees.json").get("trees", {})
+	trees = _json("skills/trees.json").get("trees", {})
+	factions = _json("world/factions.json")
 	for t in trees:
 		for n in trees[t].get("nodes", []):
 			_expect(not trees_nodes.has(n["id"]), "skill node id %s is unique across trees" % n["id"])
@@ -161,6 +166,14 @@ func _check_items() -> void:
 			_expect(ins is Dictionary and (ins as Dictionary).has("cold") and (ins as Dictionary).has("heat"), "%s has insulation {cold, heat}" % id)
 	for id in mirror:
 		_expect(items.has(id), "item_rarity.json lists unknown item %s" % id)
+	# Armour with no render of its own borrows an armour picture of its slot, never a material's (raw hide).
+	var icons: Dictionary = _json("icons_manifest.json")
+	var rendered: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/icons/render/manifest.json")).get("items", {})
+	for id: String in items:
+		var alias := str(icons.get("aliases", {}).get(id, ""))
+		for slot in ["armor_head", "armor_body", "armor_arms", "armor_legs"]:
+			if _has_cat(id, slot) and not rendered.has(id) and alias != "":
+				_expect((alias == slot.replace("armor_", "armour_") or _has_cat(alias, slot)) and icons.get("icons", {}).has(alias), "unrendered %s borrows the %s icon, not a %s picture" % [id, alias, slot])
 
 func _check_references() -> void:
 	var tool_classes := {}
@@ -197,6 +210,11 @@ func _check_references() -> void:
 			_expect(nature.has(fam), "climate %s vegetation %s is a nature family" % [fname, fam])
 		for m in climates[fname].get("materials", []):
 			_expect(items.has(str(m.get("id", ""))), "climate %s material %s exists" % [fname, m.get("id", "")])
+		# A wild crop grows only where its manifest says, and as a find (a fixed count), not the 24-plant floor.
+		for fam in climates[fname].get("vegetation", []):
+			var row: Dictionary = nature.get(fam, {})
+			if str(row.get("role", "")) == "crop":
+				_expect(fname in row.get("climates", []) and int(row.get("count", 0)) > 0, "wild crop %s on %s is in its manifest climates %s with a count (%d)" % [fam, fname, row.get("climates", []), int(row.get("count", 0))])
 	for fam in nature:
 		for k in nature[fam].get("harvest", {}):
 			_expect(items.has(k), "nature %s yields unknown item %s" % [fam, k])
@@ -210,8 +228,8 @@ func _check_references() -> void:
 	var crops: Dictionary = _json("farming.json").get("crops", {})
 	for c in crops:
 		_expect(items.has(str(crops[c].get("seed", ""))) and items.has(str(crops[c].get("output", ""))), "farming crop %s seed and output exist" % c)
-	for fk in _json("world/factions.json"):
-		var f: Variant = _json("world/factions.json")[fk]
+	for fk in factions:
+		var f: Variant = factions[fk]
 		if f is Dictionary:
 			var bands: Dictionary = (f as Dictionary).get("crate_bands", {})
 			for b in bands:
@@ -366,8 +384,8 @@ func _check_reachability() -> void:
 		for s: Dictionary in r.get("slots", []):
 			var cat := str(s.get("category", ""))
 			_expect(not _ids_with_cat(cat).filter(func(id: String) -> bool: return cost.has(id)).is_empty(), "recipe %s slot %s has a reachable item" % [r["id"], cat])
-	for fk in _json("world/factions.json"):
-		var f: Variant = _json("world/factions.json")[fk]
+	for fk in factions:
+		var f: Variant = factions[fk]
 		if f is Dictionary:
 			var bands: Dictionary = (f as Dictionary).get("crate_bands", {})
 			for b in bands:
@@ -390,6 +408,16 @@ func _check_processing_chain() -> void:
 ## The start island alone: twine and dried hide (and the straps and rope made from them) are reachable,
 ## and no ore or metal is (world-design.md:66; metal starts with desert copper_ore and volcanic black_iron).
 func _check_home() -> void:
+	# Static: whatever pick it needs, nothing growing or listed on a home climate is ore or metal.
+	for cname in climates:
+		if not bool(climates[cname].get("home", false)):
+			continue
+		for fam in climates[cname].get("vegetation", []) + SPECIAL_FAMILIES:
+			for k: String in nature.get(fam, {}).get("harvest", {}):
+				_expect(not (_has_cat(k, "ore") or _has_cat(k, "metal")), "home climate %s grows no metal, but %s yields %s" % [cname, fam, k])
+		for m in climates[cname].get("materials", []):
+			var mid := str(m.get("id", ""))
+			_expect(not (_has_cat(mid, "ore") or _has_cat(mid, "metal")), "home climate %s lists no metal material, but lists %s" % [cname, mid])
 	for id in ["twine", "dried_hide", "hide_strap", "rope", "tent_kit"]:
 		_expect(home_cost.has(id), "%s is obtainable on the start island" % id)
 	var metal := home_cost.keys().filter(func(id: String) -> bool: return _has_cat(id, "ore") or _has_cat(id, "metal"))
@@ -434,7 +462,6 @@ func _check_ladder() -> void:
 ## Level of the trees.json node a recipe for `out` requires (0 when ungated).
 func _gate_level(out: String) -> int:
 	var lv := 0
-	var trees: Dictionary = _json("skills/trees.json").get("trees", {})
 	for r: Dictionary in recipes:
 		if str(r.get("output", {}).get("id", "")) != out or not r.has("requires_node"):
 			continue
@@ -586,3 +613,22 @@ func _check_node_gate() -> void:
 	_expect(locked != "" and open == "", "progression_block refuses smelt_copper until %s is learned (before '%s', after '%s')" % [node, locked, open])
 	sk.free()
 	p.free()
+
+## bot_survivor (W1-QA, hook 13) gathers by CATEGORY_ITEMS: every slot of a recipe it crafts needs an entry
+## (without one _acquire_for gives up before it tries a sub-recipe), and every item listed must fill it.
+func _check_bot_map() -> void:
+	var consts: Dictionary = (load("res://scripts/dev/bot_survivor.gd") as GDScript).get_script_constant_map()
+	var cmap: Dictionary = consts.get("CATEGORY_ITEMS", {})
+	var crafts: Array = ["twine", "rope"] ## its _grind list; charcoal and plank are skipped on base already
+	for step: Dictionary in consts.get("LADDER", []):
+		if step.has("craft"):
+			crafts.append(str(step["craft"]))
+	for rid: String in crafts:
+		for r: Dictionary in recipes:
+			if str(r["id"]) != rid:
+				continue
+			for sl: Dictionary in r.get("slots", []):
+				var cat := str(sl.get("category", ""))
+				_expect(cmap.has(cat), "bot_survivor maps %s's slot category %s" % [rid, cat])
+				for id in cmap.get(cat, []):
+					_expect(_has_cat(str(id), cat), "bot_survivor gathers %s for %s, which it does not fill" % [id, cat])
