@@ -68,6 +68,8 @@ static func reason_text(code: String) -> String:
 			return "Can't build on water"
 		"slope":
 			return "Ground too steep"
+		"cliff":
+			return "A cliff is in the way"
 		"missing_kit":
 			return "No kit in your bag"
 		"no_runtime", "spawn_failed":
@@ -477,6 +479,13 @@ func confirm(player: Player) -> bool:
 	if node.has_method("set_grid_pose"):
 		node.set_grid_pose(cell, rot_step)
 	grid.occupy(node, grid.cells_for(placing, cell, rot_step))
+	# A build that needs the space clears the scenery there (owner: props can be destroyed, cliffs
+	# cannot; the cliff refused the spot in can_place before anything was paid).
+	var props: Variant = runtime.get("props")
+	if props != null and is_instance_valid(props) and props.has_method("clear_cells"):
+		var cleared := int(props.call("clear_cells", grid.cells_for(placing, cell, rot_step)))
+		if cleared > 0:
+			print("[build] cleared %d prop(s) for %s" % [cleared, placing])
 	print("[build] placed %s at (%d,%d) rot=%d" % [placing, cell.x, cell.y, posmod(rot_step, 4) * 90])
 	if not _repacked:
 		if player.skills:

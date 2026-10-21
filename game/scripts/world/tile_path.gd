@@ -22,6 +22,7 @@ var _dirty: bool = false
 var _terrain_blocked: Dictionary = {} ## Vector2i -> true: water / off-island, static per island
 var _harvest: Dictionary = {} ## Vector2i -> true: live HarvestNode trunks and boxes
 var _build: Dictionary = {} ## Vector2i -> true: BuildGrid cells that block (closed gates do, open ones don't)
+var _props: Dictionary = {} ## Vector2i -> true: colliding scenery props (IslandProps) that block
 
 func setup(owner_runtime: Node3D) -> void:
 	runtime = owner_runtime
@@ -45,6 +46,8 @@ func update_cells(cells: Array) -> void:
 		_apply(c)
 
 func is_walkable(tile: Vector2i) -> bool:
+	if _dirty:
+		_refresh()
 	return _region.has_point(tile) and not _astar.is_point_solid(tile)
 
 func path(from_world: Vector3, to_world: Vector3, max_len: int = DEFAULT_MAX_LEN) -> PackedVector3Array:
@@ -104,6 +107,7 @@ func _rebuild() -> void:
 	_terrain_blocked.clear()
 	_harvest = _harvest_blockers()
 	_build = _build_blockers()
+	_props = _prop_blockers()
 	for z in range(_region.position.y, _region.end.y):
 		for x in range(_region.position.x, _region.end.x):
 			var tile := Vector2i(x, z)
@@ -114,13 +118,21 @@ func _rebuild() -> void:
 				continue
 			# Weight is set even under blockers so a released cell keeps its terrain cost.
 			_astar.set_point_weight_scale(tile, _weight(pos))
-			_astar.set_point_solid(tile, _harvest.has(tile) or _build.has(tile))
+			_astar.set_point_solid(tile, _blocked(tile))
 
 func _refresh() -> void:
 	_dirty = false
 	var harvest := _harvest_blockers()
 	var build := _build_blockers()
+	var props := _prop_blockers()
 	var touched := {}
+	for c in props:
+		if not _props.has(c):
+			touched[c] = true
+	for c in _props:
+		if not props.has(c):
+			touched[c] = true
+	_props = props
 	for c in harvest:
 		if not _harvest.has(c):
 			touched[c] = true
@@ -138,10 +150,28 @@ func _refresh() -> void:
 	for c in touched:
 		_apply(c)
 
+## Any static blocker: a live resource trunk, a building cell, or a colliding scenery prop.
+func _blocked(tile: Vector2i) -> bool:
+	return _harvest.has(tile) or _build.has(tile) or _props.has(tile)
+
+## Colliding props (IslandProps.blocked_cells): boulders, logs, mounds, spires, cliffs. Walk-through
+## props (reeds, ferns, flowers, pebbles) never reach this list, so they leave paths alone.
+func _prop_blockers() -> Dictionary:
+	var out := {}
+	if runtime == null or not is_instance_valid(runtime):
+		return out
+	var p: Variant = runtime.get("props")
+	if p == null or not is_instance_valid(p) or not p.has_method("blocked_cells"):
+		return out
+	for c in (p.call("blocked_cells") as Array):
+		if c is Vector2i:
+			out[c] = true
+	return out
+
 func _apply(tile: Vector2i) -> void:
 	if not _region.has_point(tile) or _terrain_blocked.has(tile):
 		return
-	_astar.set_point_solid(tile, _harvest.has(tile) or _build.has(tile))
+	_astar.set_point_solid(tile, _blocked(tile))
 
 func _build_region() -> Rect2i:
 	var rad: int = 80

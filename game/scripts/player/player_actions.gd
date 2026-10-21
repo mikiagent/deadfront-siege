@@ -475,12 +475,28 @@ func attack(target: Creature = null) -> bool:
 	if target == null:
 		target = hunt.target if hunt.target and is_instance_valid(hunt.target) and not hunt.target.health.dead else nearest_creature(ATTACK_SEEK_RANGE, false)
 	if target == null or target.is_pet:
+		# Nothing alive to hit: a swing clears the scenery in front (owner: most props can be
+		# destroyed; a cliff refuses and stays). ASSUMPTION: clearing gives no loot.
+		return clear_prop_in_front()
+	if target.is_pet:
 		return false
 	if online:
 		return _send(&"attack", {"net_id": net_id(target)})
 	if hunt.target != target:
 		hunt.start(target)
 	return hunt.swing_now()
+
+## One swing at the scenery: the nearest destroyable prop in front of the survivor goes.
+func clear_prop_in_front() -> bool:
+	if World == null or World.runtime == null:
+		return false
+	var props: Variant = World.runtime.get("props")
+	if props == null or not is_instance_valid(props) or not props.has_method("clear_in_front"):
+		return false
+	if not bool(props.call("clear_in_front", p, 2.6)):
+		return false
+	p.play_attack()
+	return true
 
 func nearest_creature(max_d: float, include_pets: bool) -> Creature:
 	var best: Creature = null

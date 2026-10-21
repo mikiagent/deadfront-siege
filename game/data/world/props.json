@@ -1,0 +1,636 @@
+{
+  "_about": "Scenery props: non-resource world decoration. A prop has NO tap zone, NO gather radial, NO label and is never in the 'harvest' group (owner: 'Not every plant/rock/etc is a resource, the resources have the UI that is clickable and the props do not'). `collide` true means a static collider plus a TilePath-blocking footprint (boulders, rock spires, cliffs, logs, mounds); false means walk-through scenery (reeds, plume grass, ferns, flowers, lily pads, pebbles). `destroyable` false is reserved for really big cliffs/mesas/basalt columns (owner: 'most props can be destroyed except for like really big cliffs'); every other prop can be cleared by an attack or a build placement that needs the space. `density_per_ha` is an expected count per hectare of land in a biome where the kind is allowed, before the biome weight. `size_m` is the prop's largest dimension in metres: each model is uniformly scaled so its longest side falls in that range (so a wide log and a tall stump of one kind both read at the size the docs give; the model's own proportions are read from its mesh). `radius_m` is the collider/footprint radius in metres at size 2 m, scaled with the prop. `radius_m` is the collider/footprint radius at scale 1. `water` limits a kind to those tile types; `cliff` limits it to steep rock/ash ground (ISLANDGEN's CLIFF tiles once they exist). `card` is the painted 2D sprite for the kind: either a res:// PNG/WebP path, or `prop:<id>` naming a row in data/sprites2d.json (CardProp, the CARD2D follow-up). When the card exists the kind draws as a camera-facing billboard instead of its GLB; a kind with an empty `models` list and a card that does not exist yet is skipped, so the painted-art swap needs no code change. Models are candidates tried in order: a missing one is skipped, a kind with no existing model is skipped with one log line (the BIOMEASSETS job adds res://assets/nature/biome/*.glb).",
+  "biomes": [
+    "meadow",
+    "forest",
+    "savanna",
+    "canyon",
+    "basalt",
+    "wetland",
+    "beach",
+    "rocky"
+  ],
+  "scatter": {
+    "_about": "Biome weighting for HarvestNode resources (island_scatter._plant_family) and the per-island node target. role_share splits the target across tree/bush/rock/plant/wild_grass; weights multiply a role's acceptance in that biome (0 = never), normalised against the highest weight for that role so the target count holds.",
+    "nodes_target": {
+      "per_ha": 350.0,
+      "min": 450,
+      "max": 600,
+      "specials": 9,
+      "_about": "HarvestNode target per island: per_ha of land, clamped to [min,max]; role_share splits it. Plan P4: home 450-600, unstable 500-750; the max keeps a 12 ha island at 600."
+    },
+    "role_share": {
+      "tree": 0.08,
+      "bush": 0.03,
+      "rock": 0.17,
+      "plant": 0.31,
+      "wild_grass": 0.41,
+      "_about": "Share of the island's HarvestNode target per role. Trees, bushes and the Meshy stone/plant nodes are 14-41k triangles each (a berry bush costs as much as a tree) and they carry the camp's primitive budget, so rock, plant and wild-grass carry most of the count until CARD2D cards make trees cheap."
+    },
+    "weights": {
+      "meadow": {
+        "tree": 0.35,
+        "bush": 1.0,
+        "rock": 0.3,
+        "plant": 0.9,
+        "wild_grass": 0.8,
+        "ground": 1.0
+      },
+      "forest": {
+        "tree": 1.0,
+        "bush": 0.8,
+        "rock": 0.35,
+        "plant": 1.0,
+        "wild_grass": 0.4,
+        "ground": 0.9
+      },
+      "savanna": {
+        "tree": 0.25,
+        "bush": 0.7,
+        "rock": 0.4,
+        "plant": 0.5,
+        "wild_grass": 1.0,
+        "ground": 0.7
+      },
+      "canyon": {
+        "tree": 0.05,
+        "bush": 0.25,
+        "rock": 1.0,
+        "plant": 0.2,
+        "wild_grass": 0.5,
+        "ground": 0.4
+      },
+      "basalt": {
+        "tree": 0.1,
+        "bush": 0.2,
+        "rock": 1.0,
+        "plant": 0.25,
+        "wild_grass": 0.3,
+        "ground": 0.3
+      },
+      "wetland": {
+        "tree": 0.45,
+        "bush": 0.6,
+        "rock": 0.2,
+        "plant": 1.0,
+        "wild_grass": 0.9,
+        "ground": 1.0
+      },
+      "beach": {
+        "tree": 0.15,
+        "bush": 0.2,
+        "rock": 0.35,
+        "plant": 0.2,
+        "wild_grass": 0.3,
+        "ground": 0.3
+      },
+      "rocky": {
+        "tree": 0.3,
+        "bush": 0.4,
+        "rock": 1.0,
+        "plant": 0.5,
+        "wild_grass": 0.5,
+        "ground": 0.5
+      }
+    },
+    "ground_cover": {
+      "grass_per_ha": 1600.0,
+      "flower_per_ha": 140.0,
+      "cell_m": 32.0,
+      "range_m": 120.0,
+      "_about": "Batched ground cover (grass, flowers) instances per hectare of land, chunked into cell_m cells with range_m visibility like VegBatch so cover does not vanish far from the origin (scout 3b: a single island-wide MultiMesh culled at 48 m)."
+    }
+  },
+  "kinds": {
+    "pebbles": {
+      "_about": "scattered stones: walk-through detail",
+      "models": [
+        "Rock_5",
+        "Rock_6",
+        "Rock_7"
+      ],
+      "collide": false,
+      "destroyable": true,
+      "density_per_ha": 130.0,
+      "biomes": {
+        "meadow": 0.8,
+        "forest": 0.7,
+        "savanna": 0.8,
+        "canyon": 1.0,
+        "basalt": 1.0,
+        "wetland": 0.5,
+        "beach": 0.9,
+        "rocky": 1.0
+      },
+      "size_m": [
+        0.15,
+        0.4
+      ],
+      "radius_m": 0.2
+    },
+    "boulder": {
+      "models": [
+        "Rock_1",
+        "Rock_2",
+        "Rock_3",
+        "Rock_4"
+      ],
+      "collide": true,
+      "destroyable": true,
+      "radius_m": 0.75,
+      "density_per_ha": 16.0,
+      "biomes": {
+        "meadow": 0.25,
+        "forest": 0.35,
+        "savanna": 0.4,
+        "canyon": 0.9,
+        "basalt": 1.0,
+        "wetland": 0.15,
+        "beach": 0.4,
+        "rocky": 1.0
+      },
+      "size_m": [
+        1.2,
+        2.6
+      ]
+    },
+    "cliff_rock": {
+      "_about": "rock breaking out of a cliff face; ISLANDGEN's CLIFF tiles when they exist, steep rock/ash today. Big enough that it stays: 'really big cliffs'",
+      "models": [
+        "res://assets/nature/biome/cliff-rock-a.glb",
+        "res://assets/nature/biome/spire-a.glb",
+        "Rock_Moss_5",
+        "Rock_7"
+      ],
+      "collide": true,
+      "destroyable": false,
+      "radius_m": 1.2,
+      "density_per_ha": 2.5,
+      "cliff": true,
+      "biomes": {
+        "canyon": 1.0,
+        "basalt": 1.0,
+        "rocky": 1.0,
+        "beach": 0.3,
+        "meadow": 0.2,
+        "forest": 0.2,
+        "savanna": 0.3,
+        "wetland": 0.0
+      },
+      "size_m": [
+        3.0,
+        5.0
+      ]
+    },
+    "rock_spire": {
+      "models": [
+        "res://assets/nature/biome/spire-a.glb",
+        "res://assets/nature/biome/spire-b.glb"
+      ],
+      "collide": true,
+      "destroyable": true,
+      "radius_m": 1.4,
+      "density_per_ha": 1.0,
+      "biomes": {
+        "canyon": 1.0,
+        "rocky": 0.8,
+        "basalt": 0.6,
+        "beach": 0.2,
+        "savanna": 0.15,
+        "meadow": 0.1,
+        "forest": 0.1,
+        "wetland": 0.0
+      },
+      "size_m": [
+        4.5,
+        8.0
+      ]
+    },
+    "mesa_cliff": {
+      "_about": "the big sandstone/basalt formation: indestructible",
+      "models": [
+        "res://assets/nature/biome/mesa-a.glb",
+        "res://assets/nature/biome/mesa-b.glb",
+        "res://assets/nature/biome/mesa-basalt-a.glb"
+      ],
+      "collide": true,
+      "destroyable": false,
+      "radius_m": 3.2,
+      "density_per_ha": 0.5,
+      "biomes": {
+        "canyon": 1.0,
+        "basalt": 0.7,
+        "rocky": 0.4,
+        "savanna": 0.1,
+        "beach": 0.0,
+        "meadow": 0.0,
+        "forest": 0.0,
+        "wetland": 0.0
+      },
+      "size_m": [
+        8.0,
+        14.0
+      ]
+    },
+    "basalt_column": {
+      "models": [
+        "res://assets/nature/biome/basalt-column-a.glb",
+        "res://assets/nature/biome/basalt-column-b.glb"
+      ],
+      "collide": true,
+      "destroyable": false,
+      "radius_m": 1.1,
+      "density_per_ha": 1.2,
+      "biomes": {
+        "basalt": 1.0,
+        "canyon": 0.2,
+        "rocky": 0.2,
+        "meadow": 0.0,
+        "forest": 0.0,
+        "savanna": 0.0,
+        "beach": 0.0,
+        "wetland": 0.0
+      },
+      "size_m": [
+        3.0,
+        6.0
+      ]
+    },
+    "termite_mound": {
+      "models": [
+        "res://assets/nature/biome/termite-mound-a.glb",
+        "res://assets/nature/biome/termite-mound-b.glb"
+      ],
+      "collide": true,
+      "destroyable": true,
+      "radius_m": 1.1,
+      "density_per_ha": 1.6,
+      "biomes": {
+        "savanna": 1.0,
+        "canyon": 0.3,
+        "meadow": 0.1,
+        "forest": 0.0,
+        "basalt": 0.0,
+        "beach": 0.0,
+        "wetland": 0.0,
+        "rocky": 0.2
+      },
+      "size_m": [
+        2.0,
+        3.5
+      ]
+    },
+    "fallen_log": {
+      "models": [
+        "WoodLog_Moss",
+        "WoodLog",
+        "res://assets/nature/biome/log-fallen-a.glb",
+        "res://assets/nature/biome/log-fallen-b.glb"
+      ],
+      "collide": true,
+      "destroyable": true,
+      "radius_m": 0.35,
+      "density_per_ha": 7.0,
+      "biomes": {
+        "forest": 1.0,
+        "meadow": 0.5,
+        "wetland": 0.7,
+        "savanna": 0.3,
+        "canyon": 0.2,
+        "basalt": 0.2,
+        "beach": 0.3,
+        "rocky": 0.3
+      },
+      "size_m": [
+        3.0,
+        5.5
+      ]
+    },
+    "tree_stump": {
+      "models": [
+        "TreeStump_Moss",
+        "TreeStump",
+        "res://assets/nature/biome/tree-stump-a.glb"
+      ],
+      "collide": true,
+      "destroyable": true,
+      "radius_m": 0.55,
+      "density_per_ha": 4.5,
+      "biomes": {
+        "forest": 1.0,
+        "meadow": 0.6,
+        "wetland": 0.6,
+        "savanna": 0.3,
+        "canyon": 0.2,
+        "basalt": 0.2,
+        "beach": 0.2,
+        "rocky": 0.3
+      },
+      "size_m": [
+        0.6,
+        1.1
+      ]
+    },
+    "driftwood": {
+      "models": [
+        "WoodLog",
+        "res://assets/nature/biome/log-fallen-a.glb"
+      ],
+      "collide": false,
+      "destroyable": true,
+      "density_per_ha": 10.0,
+      "biomes": {
+        "beach": 1.0,
+        "wetland": 0.4,
+        "meadow": 0.05,
+        "forest": 0.05,
+        "savanna": 0.05,
+        "canyon": 0.0,
+        "basalt": 0.0,
+        "rocky": 0.0
+      },
+      "size_m": [
+        1.0,
+        2.2
+      ],
+      "radius_m": 0.25
+    },
+    "fern": {
+      "models": [
+        "res://assets/nature/biome/fern-a.glb",
+        "res://assets/nature/biome/fern-b.glb",
+        "Plant_2",
+        "Plant_3"
+      ],
+      "collide": false,
+      "destroyable": true,
+      "density_per_ha": 60.0,
+      "biomes": {
+        "forest": 0.9,
+        "wetland": 1.0,
+        "meadow": 0.25,
+        "savanna": 0.1,
+        "canyon": 0.1,
+        "basalt": 0.05,
+        "beach": 0.0,
+        "rocky": 0.2
+      },
+      "size_m": [
+        0.5,
+        1.0
+      ],
+      "radius_m": 0.3
+    },
+    "reeds": {
+      "models": [
+        "res://assets/nature/biome/reed-clump-a.glb",
+        "res://assets/nature/biome/reed-clump-b.glb",
+        "Plant_4",
+        "Plant_5"
+      ],
+      "collide": false,
+      "destroyable": true,
+      "density_per_ha": 80.0,
+      "water": [
+        "MUD",
+        "WET",
+        "SHALLOW"
+      ],
+      "biomes": {
+        "wetland": 1.0,
+        "beach": 0.5,
+        "meadow": 0.2,
+        "forest": 0.2,
+        "savanna": 0.2,
+        "canyon": 0.0,
+        "basalt": 0.1,
+        "rocky": 0.0
+      },
+      "size_m": [
+        1.0,
+        1.8
+      ],
+      "radius_m": 0.35
+    },
+    "plume_grass": {
+      "models": [
+        "res://assets/nature/biome/plume-grass-a.glb",
+        "Grass_2",
+        "Grass"
+      ],
+      "collide": false,
+      "destroyable": true,
+      "density_per_ha": 55.0,
+      "biomes": {
+        "savanna": 1.0,
+        "meadow": 0.5,
+        "canyon": 0.2,
+        "beach": 0.2,
+        "wetland": 0.4,
+        "forest": 0.1,
+        "basalt": 0.05,
+        "rocky": 0.1
+      },
+      "size_m": [
+        0.8,
+        1.5
+      ],
+      "radius_m": 0.3
+    },
+    "lily_pad": {
+      "models": [
+        "Lilypad"
+      ],
+      "collide": false,
+      "destroyable": true,
+      "density_per_ha": 20.0,
+      "water": [
+        "MUD",
+        "SHALLOW"
+      ],
+      "biomes": {
+        "wetland": 1.0,
+        "beach": 0.1,
+        "meadow": 0.0,
+        "forest": 0.1,
+        "savanna": 0.0,
+        "canyon": 0.0,
+        "basalt": 0.0,
+        "rocky": 0.0
+      },
+      "size_m": [
+        0.3,
+        0.6
+      ],
+      "radius_m": 0.4
+    },
+    "aloe": {
+      "models": [
+        "res://assets/nature/biome/aloe-a.glb",
+        "res://assets/nature/biome/aloe-b.glb",
+        "Plant_1"
+      ],
+      "collide": false,
+      "destroyable": true,
+      "density_per_ha": 8.0,
+      "biomes": {
+        "savanna": 1.0,
+        "canyon": 0.6,
+        "beach": 0.2,
+        "meadow": 0.05,
+        "forest": 0.0,
+        "basalt": 0.0,
+        "rocky": 0.1,
+        "wetland": 0.0
+      },
+      "size_m": [
+        0.5,
+        1.0
+      ],
+      "radius_m": 0.3
+    },
+    "mossy_stone": {
+      "models": [
+        "Rock_Moss_1",
+        "Rock_Moss_2",
+        "Rock_Moss_3",
+        "Rock_Moss_4"
+      ],
+      "collide": false,
+      "destroyable": true,
+      "density_per_ha": 20.0,
+      "biomes": {
+        "forest": 1.0,
+        "meadow": 0.4,
+        "wetland": 0.8,
+        "savanna": 0.2,
+        "canyon": 0.2,
+        "basalt": 0.3,
+        "beach": 0.2,
+        "rocky": 0.5
+      },
+      "size_m": [
+        0.4,
+        1.0
+      ],
+      "radius_m": 0.45
+    },
+    "stone_arch": {
+      "_about": "painted card (owner 2026-10-21: props switch to 2D cards, sprites2d.json kind prop:*). No GLB yet: skipped until the card exists.",
+      "card": "prop:stone_arch",
+      "models": [],
+      "size_m": [
+        4.0,
+        7.0
+      ],
+      "radius_m": 2.0,
+      "collide": true,
+      "destroyable": false,
+      "density_per_ha": 0.3,
+      "biomes": {
+        "meadow": 0.0,
+        "forest": 0.0,
+        "savanna": 0.0,
+        "canyon": 1.0,
+        "basalt": 0.4,
+        "wetland": 0.0,
+        "beach": 0.2,
+        "rocky": 0.6
+      }
+    },
+    "pillar": {
+      "_about": "painted card (prop:pillar); weathered stone pillar on canyon and volcanic ground",
+      "card": "prop:pillar",
+      "models": [],
+      "size_m": [
+        3.0,
+        6.0
+      ],
+      "radius_m": 1.0,
+      "collide": true,
+      "destroyable": true,
+      "density_per_ha": 0.8,
+      "biomes": {
+        "meadow": 0.05,
+        "forest": 0.0,
+        "savanna": 0.15,
+        "canyon": 0.8,
+        "basalt": 0.6,
+        "wetland": 0.0,
+        "beach": 0.0,
+        "rocky": 0.5
+      }
+    },
+    "waterfall": {
+      "_about": "painted card (prop:waterfall) at a cliff face or the river's hill end; scenery only, the water itself is the terrain shader",
+      "card": "prop:waterfall",
+      "models": [],
+      "size_m": [
+        5.0,
+        10.0
+      ],
+      "radius_m": 1.5,
+      "collide": false,
+      "destroyable": false,
+      "density_per_ha": 0.15,
+      "cliff": true,
+      "biomes": {
+        "meadow": 0.1,
+        "forest": 0.3,
+        "savanna": 0.0,
+        "canyon": 0.7,
+        "basalt": 0.0,
+        "wetland": 0.4,
+        "beach": 0.0,
+        "rocky": 1.0
+      }
+    },
+    "vines": {
+      "_about": "painted card (prop:vines) hanging on cliff faces and big trunks",
+      "card": "prop:vines",
+      "models": [],
+      "size_m": [
+        2.0,
+        4.0
+      ],
+      "radius_m": 0.4,
+      "collide": false,
+      "destroyable": true,
+      "density_per_ha": 3.0,
+      "cliff": true,
+      "biomes": {
+        "meadow": 0.1,
+        "forest": 0.8,
+        "savanna": 0.0,
+        "canyon": 0.7,
+        "basalt": 0.0,
+        "wetland": 0.6,
+        "beach": 0.0,
+        "rocky": 0.5
+      }
+    },
+    "shells": {
+      "_about": "painted card (prop:shells) on the beach",
+      "card": "prop:shells",
+      "models": [],
+      "size_m": [
+        0.15,
+        0.35
+      ],
+      "radius_m": 0.15,
+      "collide": false,
+      "destroyable": true,
+      "density_per_ha": 25.0,
+      "biomes": {
+        "meadow": 0.0,
+        "forest": 0.0,
+        "savanna": 0.0,
+        "canyon": 0.0,
+        "basalt": 0.0,
+        "wetland": 0.0,
+        "beach": 1.0,
+        "rocky": 0.0
+      }
+    }
+  }
+}

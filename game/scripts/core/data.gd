@@ -16,6 +16,9 @@ var world_climates: Dictionary = {}
 var world_islands: Dictionary = {}
 var world_objectives: Array = [] ## ordered standing orders; see data/world/objectives.json
 var props_manifest: Dictionary = {}
+## Scenery props (world/props.json): non-resource decoration, biome weights and the resource
+## scatter weighting. IslandProps reads it through this field; a missing file leaves it empty.
+var world_props: Dictionary = {}
 var creature_ai: Dictionary = {}
 
 func _ready() -> void:
@@ -191,6 +194,7 @@ func _load_world() -> void:
 	world_climates = _parse_json("res://data/world/climates.json")
 	world_islands = _parse_json("res://data/world/islands.json")
 	props_manifest = _parse_json("res://data/props_manifest.json")
+	world_props = _parse_json("res://data/world/props.json")
 	var obj := _parse_json("res://data/world/objectives.json")
 	var steps: Variant = obj.get("steps", [])
 	world_objectives = steps if steps is Array else []
