@@ -22,6 +22,7 @@ Each job: worktree `~/Documents/deadfront-siege/.claude/worktrees/mmo-<key>` on 
 | occlude2 | DeepSeek | roofs/bushes fade so the survivor stays visible | |
 | skillfeel | DeepSeek | skill XP toasts, FULL at cap, Skills hex pulse, first-hour node table | |
 | mapui | DeepSeek | map fog revealed by walking, trail dots, icons | save field added (owner decision) |
+| bags | DeepSeek | spec 31: bag types with level curves, material-inherited storage, Pocket +6/level, inspect/compare, craft preview | branched from claude/mmo-invslots; invslots keeps grid/layout only; migrates woven_bag saves |
 | stationart | MiniMax | 15 Blender models: workbench tiers, kiln, loom, oven, sites | finished; being judged |
 | housekit | MiniMax | modular house parts in 3 tiers | |
 | farmkit | MiniMax | field plots + crop stages, paths, fences, farm props | |
