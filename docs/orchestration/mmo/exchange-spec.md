@@ -440,7 +440,7 @@ Look (judge vs the two references):
   status band.
 - Category column: "Taming Materials" (ASSUMPTION: the reference's name for the `animal` market category) and no X; the
   active Buy tab or the search sheet's "All" leaves the category.
-- Chip: the player's words without quotes, even padding.
+- Chip: the player's words without quotes, drawn condensed like the table, 14 px either side.
 - Price: the coin sits at one x down the column and on the digits' midline.
 - Type: drawn text is condensed to 85 % by `draw_set_transform` (a FontVariation transform narrowed the outlines but not the
   advances, so wide letters left gaps); title 5.2 %, names 3.1 %, headers 2.9 %, type lines 2.4 % of the height. The market

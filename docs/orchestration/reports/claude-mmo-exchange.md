@@ -368,10 +368,127 @@ keep writing there too (a 23:06 log in it opens `res://tests/t_domain.gd`, which
 those folders. The scripts now refuse to run without the tree and its `game/override.cfg`; the hooks tree was rebuilt
 as `exch-b4h` and every hooks-tree number above comes from it.
 
+## Fix round 1: review and fidelity findings (done, 5d413319 + 998ae5b7 + 681b8e11 + d1022e42 + 701bfb8f + de11fd72 + docs commit)
+
+Base sync: ECON is still not merged into `claude/mmo-overhaul` (its log has no ECON merge; tip 809be2e8). `claude/mmo-econ`
+moved twice during the round and was merged both times (3db02235; d7b795fb at 633cf142, ECON review r3); ECON's hooks patch
+changed its `intent_handlers.gd` hunk (a granted part keeps every instance field), re-applied in d49df1a3. At the end of the
+round `claude/mmo-econ` is still 633cf142, contained in HEAD.
+
+Every finding, what changed, and the check that would have caught it (each new t_exchange check fails on the pre-round
+market files; quotes below):
+
+| # | Finding | Fix | Check |
+|---|---|---|---|
+| 1 major | Sell listed an equipped knife and silently unequipped it | `MarketFormat.sell_entries` reads `char.get`'s `equipment` / `tool` uids: "Equipped" ribbon, refusal "Equipped. Unequip it in your Bag first.", List off, nothing sent. Hook **H5** (vault_bridge.gd) refuses an equipped deposit on the server too | `_test_sell_equipped`: knife equipped by a real `act.equip`, tagged, List does nothing, still worn; with hooks the forced `vault.deposit` is `invalid_asset` "...equipped" |
+| 2 minor | Trade lock found only after the deposit moved the item | Hook **H6**: `wallet.get` returns `trade_lock_s`; Sell's List is off and Buy's confirm says "New accounts can trade in N min." | `_test_trade_lock`: bag and storage unchanged, both screens say it (hooks tree) |
+| 3 minor | A partly bought lot was a dead end ("Something went wrong. (only 3 left)") | `insufficient_items` reads "Someone just bought part of this lot."; page 1 is re-read and the confirm reopens on what is left ("Buy for 15", "3 of 5 left") | `_test_partial_lot`: account 3 buys 2 of 5 between open and Buy, then the 3 left are bought |
+| 4 minor | Double-tap checks ran on a synchronous client | `BridgeNet` in t_exchange answers a frame later, like a socket | two taps while pending send one `market.buy`, one `market.cancel`, one `vault.deposit` + `market.list_fixed` |
+| 5 minor | Bonded and captured share one wireframe cage | No code: ItemArt picks the renders up by id. ICONS2 / CAGEICON (`claude/mmo-icons2`, `claude/mmo-cageicon`) are not in `claude/mmo-overhaul` yet, so the shots still show the placeholder; the B disc and "Captured …" tell them apart. Re-shoot `buy_taming` when they merge | - |
+| 6 major | Fidelity (judge) | see "Look" below | lab measure lines, t_exchange look checks |
+
+Look (finding 6, item by item):
+- **Currency pills**: grey embossed T-stone coin; the bound counter is the same coin with a small lock tag (was a padlock);
+  no "+" top-up and no premium counter: the binding rule is no monetization ("a control that does nothing is not shown"),
+  so the reference's "+" and orange shard are deliberately absent (`plus_buttons=0` in every lab run).
+- **Back / X**: thin "<" chevron and thin X with a dotted divider (no arrow glyphs in the market font).
+- **Torn band and parchment sheet**: a ragged band ~2 % of the height with rips, scuffs and two rivets, carried on as a tan
+  frame left, right and under the body (`MarketScreen` "Sheet", inside the safe width). t_exchange: "a parchment frame sits
+  around the rail and the table, inside the safe width".
+- **Test-server notice**: quiet grey words after the title instead of the orange pill. It stays: spec 06 forbids a falsely
+  represented live market, and the lab and tests run the honest local harness.
+- **Search chip**: the player's words, no quotes, drawn condensed like the table with 14 px either side (de11fd72; it was a
+  Button in the wide font). The reference's "Stick, Short Stick" names item types because Durango's search picks types;
+  ours shows what the player typed.
+- **Price column**: the coin sits at one x down the column, on the digits' midline.
+- **Panels and dialogs**: dark rims over a see-through darker fill on a lighter green-tan backdrop; Sell panel, confirm,
+  search sheet and offline card share one warm brown-black (`DIALOG`, was #1f2621 / #232a25); the confirm has the Sell
+  panel's tan name band, a 0.78 dim and no empty status band above its buttons.
+- **Category column**: titled "Taming Materials" for the `animal` market category (# ASSUMPTION: the reference's name), no X;
+  the active Buy tab or the search sheet's "All" leaves the category. t_exchange checks title and no close button.
+- **Type**: drawn text (title, rail, headers, rows, columns, picker tags, chip) is condensed to 85 % by the canvas transform;
+  title 5.2 %, names 3.1 %, headers 2.9 %, type lines 2.4 % of the height. The market font is the project's base font without
+  Game's symbol / emoji fallbacks, whose metrics stood every one-line label ~2.1x its size (probe: 38 px at 18 against 26)
+  and pushed Sell's preview under List once the type grew (`hidden_under_list=0` now in every Sell run).
+
+Findings I did not change, with the evidence:
+- **Durability "—" on branches, pets and cages**: 72 of 223 item defs carry `max_durability`; `branch`, `captured_animal`
+  and `tamed_animal` do not, and `AssetValidator` refuses durability on them ("<id> has no durability"). Showing 100/100 or
+  45/45 would invent a number (owner: nothing fake). The dash is dimmed so the column reads as "none", not broken. The knife
+  row shows 45/45.
+- **64 px targets at 844x390**: AGENTS.md says 64 px, but GAUNTLET.md:64 (binding for this run, newer) says "44 px minimum
+  target; 56-64 px contextual action target", and the project's `UiTokens.TARGET_MIN` is 44.0. The 56-64 px rule is the
+  HUD's one contextual action, not a menu list. Market rows are 52 px at 390 (the references' 13.6 % of the height) and every
+  target is 44 pt (`targets_under_44=0` in all 28 lab runs; 54 px on DisplayMode's 804 px canvas at 667x375).
+- **Labels in dialogs** (confirm details, Sell form, offline card, buttons) keep the uncondensed font: a FontVariation
+  transform narrows outlines but not advances (uneven gaps: tried per size in 5d413319, replaced by the canvas transform in 998ae5b7) and the canvas transform works only for drawn
+  text. There is no reference for those screens; the reference screens' text is all drawn condensed.
+
+### Checks run (fix round 1)
+
+Reproduced first (scratch probes, pre-round code): the equipped knife listed ("Listed Stone Work Knife ..."), the lock found
+after the deposit, the partial lot's "Something went wrong. (only 3 left)".
+
+Mutation runs (hooks tree, new t_exchange):
+- pre-round market files (e718d04c): `[t_exchange] FAIL count=10`, e.g. `FAIL the animal column is titled Taming Materials
+  and has no close button (references): Animals`, `FAIL the chip names the search plainly, padded on the left: '“branch”
+  ✕'`, `FAIL an equipped knife is tagged and refused: `, `FAIL a partly bought lot is refused in words, nothing paid:
+  Something went wrong. (only 3 left)`, `FAIL a parchment frame sits around the rail and the table, inside the safe width:
+  none around ...`.
+- today's files without the pending guards (Buy / Cancel / List): `[t_exchange] FAIL count=3`: `FAIL network: a double tap
+  on Buy sends one market.buy (2)`, `... Cancel listing sends one market.cancel (2)`, `... List sends one deposit and one
+  listing (2, 1)`.
+- 998ae5b7's chip (Button text) against the de11fd72 check: `[t_exchange] FAIL the chip names the search plainly, condensed
+  and evenly padded: 'Clear branch' 241 px (211)`.
+- Restored: branch `[t_exchange] PASS` (HOOK H0/H2/H5/H6 absent lines), hooks tree `-- --require-hooks` `[t_exchange] PASS`
+  with `equipped: i249.0 tagged and refused (Equipped. Unequip it in your Bag first.)`, `trade lock: New accounts can trade
+  in 30 min. before List and Buy, nothing moved`, `partial lot: 2 of 5 bought elsewhere -> reread, 3 bought for 15`,
+  `network transport: one market.buy, one market.cancel, one deposit + list_fixed for double taps`.
+
+Gates at de11fd72, one tree after the other (branch = this worktree, no hooks; hooks tree = `scratchpad/trees/exr1h3`,
+de11fd72 + the hooks patch, imported once; a cleanup outside this run removed the first `exr1h3` while the branch gates
+ran, so it was rebuilt and every hooks number below comes from the rebuilt tree):
+- every `game/tests/t_*.gd` (25), both trees: 25 x PASS, rc 0; `t_save` 5 SCRIPT ERRORs (deliberate, as on base), all others 0
+  (incl. `[t_econ] PASS`, `[t_ui] PASS`, `[t_exchange] PASS`).
+- `t_exchange`: branch `[t_exchange] PASS` with `HOOK H2/H5/H6/H0 absent` lines, 0 PENDING; hooks tree `-- --require-hooks`
+  `[t_exchange] PASS` with no HOOK line (`sorts checked across pages: price_asc, price_desc, level_desc, level_asc,
+  durability_asc, durability_desc`, `categories: Animals 4 rows, clades 11`, `500 listings: 500 rows in the server's order
+  over 25 pages, build max 1.93 ms`, `menu: HUD MENU -> Island Market -> MarketScreen visible=true`).
+- `run_all.gd` both: `[tests] PASS`; its two SCRIPT ERROR lines follow `[econ] fault test: the next SCRIPT ERROR and ERROR
+  lines are deliberate` (the count of 3 includes that marker line). `tools/smoke.sh --no-import` both: `SMOKE PASS`.
+- No new Godot .ips: 25 before and after, newest `Godot-2026-10-20-232613.ips` unchanged.
+
+Lab (`market_ui_lab`, hooks tree `exr1h2` at 701bfb8f's code, every run opened by pressing the HUD menu's Island Market
+button): 29 runs, rc 0, 0 SCRIPT ERROR each - menu, buy, buy_search, buy_taming, confirm, sell, sell_pet, sell_tool,
+sell_equipped (new), sell_none, my_market, my_market_cancel, my_market_received, offline at 1600x900 gl_compatibility; buy
+and sell at 1600x900 Forward+; buy, buy_taming, buy_search, confirm, sell, sell_equipped, my_market, offline at 844x390;
+buy_taming and sell at 844x390 with 47/47/21 px insets; buy and sell at 667x375; buy_500. Every run: `targets_under_44=0
+clipped_labels=0 outside_safe=0 plus_buttons=0`; Sell `hidden_under_list=0`; `heads_cut=0`; names cut only at 844x390 under
+the notch with the category column open (table 422 px, as in B4). buy_500: `listings=500 rows=500 unique=500 pages=25
+build_max=1.85ms frames=500 in 4.0s frame_max=20.8ms over33=0`. After de11fd72, buy_search re-shot in `exr1h3` at 1600x900
+Forward+ and gl_compatibility and 844x390 (rc 0, 0 SCRIPT ERROR).
+
+Shots looked at next to both references (scratchpad `exr1b/shots2`, `exr1b/shots3`): buy_taming, buy, buy_search, confirm,
+sell, sell_equipped, my_market, offline at 1600x900 gl_compatibility; buy_search at 1600x900 Forward+; buy_taming (notch) and
+buy_search at 844x390. Now matching: thin chevron and X with the dotted divider, grey coin pills, torn band with rivets
+running into the tan frame, dark-rimmed panels on the lighter backdrop, "Taming Materials" with the gold selected row and
+chevron, B disc, gold names over grey types, condensed type, aligned coins, the chip, the warm confirm with its tan band.
+Still different, on purpose or outside the package: no "+" and no premium shard (no monetization), the test-server words
+(honesty), "—" for items without durability, the cage / carrier art (ICONS2 / CAGEICON), uncondensed dialog labels.
+
+Hooks patch (`claude-mmo-exchange-hooks.patch`, regenerated in 701bfb8f on ECON 633cf142): H0 (hunt_hud.gd's menu row),
+H2 (market_query.gd filters: market_category, clade, def_id; rebased onto ECON's durability / attribute filters), H5
+(vault_bridge.gd: an equipped instance cannot be deposited), H6 (market_engine.gd: `wallet.get` returns `trade_lock_s`). H1
+(sorts) landed in ECON r3 and left the patch. It applies cleanly: `mkscratch.sh exr1h3 claude/mmo-exchange <patch>` at 701bfb8f
+printed "Applied patch to ... cleanly" for all four files (de11fd72 and the docs commit touch none of them).
+
 ## For the next agent
 
-- W3-EXCHANGE's build steps are done (B1-B4, 0 PENDING). What is left is merge work: ECON merges first; then H1/H2 go to
-  ECON (market_query.gd) and H0 to the integrator (hunt_hud.gd's menu), from `claude-mmo-exchange-hooks.patch`.
+- W3-EXCHANGE's build steps and fix round 1 are done (0 PENDING). What is left is merge work: ECON merges first; then H2
+  (market_query.gd), H5 (vault_bridge.gd) and H6 (market_engine.gd) go to ECON and H0 to the integrator (hunt_hud.gd's
+  menu), from `claude-mmo-exchange-hooks.patch`. H1 is already in ECON. Without H5 the screens still refuse an equipped
+  item; without H6 the lock is found after the deposit (the item waits safely in market storage).
+- When ICONS2 / CAGEICON merge, re-shoot `buy_taming` and `sell_pet`: the carrier and crate come from ItemArt by id.
 - My Market re-reads on open, after a cancel and after Receive All; when W1-INT pushes inbox events over the socket, call
   `ms.mine.reload()` on a pushed sold / expired event while the tab is shown (spec §10).
 - INVUI's components are on claude/mmo-invui over W2-INV's Inventory; swap the `# swap: INVUI ...` parts when both reach
