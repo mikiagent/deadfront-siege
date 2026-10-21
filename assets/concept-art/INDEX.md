@@ -12,6 +12,7 @@ Approval is version-specific. `Milan review anchor` records the authenticated me
 | Deinonychus | `creatures/deinonychus/concept-sheet-v01.png` | `DRAFT` | - | Not started | 0 | None | Not started | Pending |
 | Velociraptor | `creatures/velociraptor/concept-sheet-v01.png` | `DRAFT` | - | Not started | 0 | None | Not started | Pending |
 | Utahraptor | `creatures/utahraptor/concept-sheet-v01.png` | `DRAFT` | - | Not started | 0 | None | Not started | Pending |
+| Triceratops | `creatures/triceratops/concept-sheet-v01.png` (labelled review copy `concept-sheet-v01-review.png`) | `DRAFT` | - | Not started; Tripo multiview only after approval. Sheet: ChatGPT web image generation on the owner's Plus plan, 2026-10-21, conversation `6ad860ec-6718-83ea-8edd-dfb73f4409a2` (a Codex attempt first hit its usage limit and made nothing) | 0 | None | Not started | Pending |
 
 ### Stegosaurus clip matrix
 
