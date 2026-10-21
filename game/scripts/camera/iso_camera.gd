@@ -39,12 +39,14 @@ const MAX_SIZE := 18.0
 ## Labs zoom out to ~30 m for overview shots; cull ranges cover that (cull_range).
 const LAB_MAX_SIZE := 30.0
 ## Extra sideways lean of tall props as a multiple of the lean the lens gives them (published as
-## parallax_strength). ASSUMPTION: 1.0. Durango's jungle trees stand 15-20 m; ours 7-11 m, so the
-## lens alone slides our crowns half as far: doubling it gives a 10 m crown the slide of a 20 m one.
+## parallax_strength). Durango's jungle trees stand 15-20 m and ours 7-11 m, so the lens alone slides our
+## crowns half as far: doubling it gives a 10 m crown the slide of a 20 m one.
+# ASSUMPTION: gain 1.0 (Durango's own trees show no exaggeration; 0.0 is the lens alone).
 const PARALLAX_GAIN := 1.0
 ## Tall props dither out above this many metres per metre of zoom (published as tall_fade_height).
-## Owner (spec 25): "the tall trees fade out of zoom". ASSUMPTION: 1.2: at the default zoom (14 m)
-## nothing of ours fades (the fade starts at 17 m); zoomed in to 7 m, crowns above 8.4 m fade.
+## Owner (spec 25): "the tall trees fade out of zoom". At the default zoom (14 m) nothing of ours fades
+## (the fade starts at 16.8 m); zoomed in to 7 m, crowns above 8.4 m fade.
+# ASSUMPTION: 1.2 m per metre of zoom, the reading of the owner's words above.
 const TALL_FADE_PER_SIZE := 1.2
 
 ## The dev flag, read once: every IsoCamera and every static helper agree on the projection.
@@ -128,12 +130,16 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_update_shake(delta)
+	# The follow eases the focus, and the camera stands `distance` back from it: with a fixed distance this
+	# is the old position lerp, and a zoom (a new distance) takes effect at once instead of gliding in
+	# behind the fingers.
+	var focus := focus_point()
 	_apply_zoom()
 	if _target:
 		# Interpolated origin: the survivor moves on physics ticks, the camera every frame. Without
 		# this the survivor stepped 60 Hz under a 120 Hz camera and read as a doubled, smeared image.
-		var desired := _target.get_global_transform_interpolated().origin + global_basis.z * distance
-		global_position = global_position.lerp(desired, clampf(follow_lerp * delta, 0.0, 1.0))
+		focus = focus.lerp(_target.get_global_transform_interpolated().origin, clampf(follow_lerp * delta, 0.0, 1.0))
+	global_position = focus + global_basis.z * distance
 	_publish()
 
 ## Perspective: the distance follows the zoom, and near/far hug the focus. A tight depth range keeps

@@ -58,8 +58,11 @@ func _run() -> void:
 	# a node about 3 s of walking away is on screen to tap.
 	var iso := get_viewport().get_camera_3d() as IsoCamera
 	# A landscape phone shows ~ a third of the ground: there the lab uses the old camera's full zoom-out
-	# (28 m; the CAMERA package's player range stops at 16 m) so the node 16 m beside her is on screen.
-	iso.size = 22.0 if view.y >= 600.0 else IsoCamera.ORTHO_MAX_SIZE
+	# (28 m; players now stop at IsoCamera.MAX_SIZE) so the node 16 m beside her is on screen. Both zooms
+	# are the old camera's, scaled with the pitch so as much ground shows up and down the screen (CAMERA).
+	var keep := sin(deg_to_rad(absf(IsoCamera.pitch_deg()))) / sin(deg_to_rad(absf(IsoCamera.ORTHO_PITCH_DEG)))
+	iso.size = (22.0 if view.y >= 600.0 else IsoCamera.ORTHO_MAX_SIZE) * keep
+	iso._snap()  # the perspective camera moves back for a zoom in its own _process, after this frame's search
 	await get_tree().process_frame
 	var far := _node_between(15.0, 30.0, [])
 	if far == null:

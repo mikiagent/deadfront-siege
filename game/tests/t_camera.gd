@@ -70,6 +70,8 @@ func _run() -> void:
 	for s in [Iso.MIN_SIZE, Iso.MAX_SIZE]:
 		cam.size = s
 		await process_frame
+		_expect(cam.focus_point().distance_to(target.global_position) < 0.01 and cam.global_position.distance_to(target.global_position) > Iso.distance_for(s) - 0.01,
+			"zoom %.0f m takes effect in one frame (the focus stays on the target, %.1f m back)" % [s, cam.global_position.distance_to(target.global_position)])
 		var g: float = cam.ground_half_depth()
 		_expect(is_equal_approx(cam.distance, Iso.distance_for(s)) and cam.near < cam.distance - g - 20.0 and cam.far > cam.distance + g + 20.0,
 			"zoom %.0f m: %.0f m back, near %.0f far %.0f around the ground %.0f-%.0f m" % [s, cam.distance, cam.near, cam.far, cam.distance - g, cam.distance + g])
