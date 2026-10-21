@@ -8,7 +8,7 @@ extends SceneTree
 ## holds, and the craft card says what unlocks a gated recipe.
 ## Usage: godot --headless --path game --script res://tests/t_w2_skills.gd
 
-const WIRED := ["recipe", "ability", "bonded_slots", "capture_tier", "climate"]
+const WIRED := ["recipe", "ability", "bonded_slots", "capture_tier", "climate", "gather", "butcher"]
 const STATUSES := ["functional", "partial", "defined"]
 
 var failures: Array[String] = []

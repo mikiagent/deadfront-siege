@@ -117,7 +117,8 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "attack_stance"
     },
     {
       "id": "bandage",
@@ -284,7 +285,8 @@
       "station": null,
       "seconds": 1.0,
       "process_step": "twist",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "thread_cloth"
     },
     {
       "id": "cloth",
@@ -305,7 +307,8 @@
       "station": "workbench",
       "seconds": 2.0,
       "process_step": "twist",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "thread_cloth"
     },
     {
       "id": "dried_hide",
@@ -442,7 +445,8 @@
       "station": "workbench",
       "seconds": 2.0,
       "process_step": "split",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "split_wood"
     },
     {
       "id": "plank",
@@ -463,7 +467,8 @@
       "station": "workbench",
       "seconds": 2.0,
       "process_step": "hammer",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "split_wood"
     },
     {
       "id": "charcoal",
@@ -640,7 +645,8 @@
       "station": null,
       "seconds": 2.5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "taming_pen"
     },
     {
       "id": "workbench_kit",
@@ -692,7 +698,8 @@
       "station": null,
       "seconds": 3.0,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "stone_mortar"
     },
     {
       "id": "well_kit",
@@ -723,7 +730,8 @@
       "station": null,
       "seconds": 3.0,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "simple_well"
     },
     {
       "id": "drying_rack_kit",
@@ -749,7 +757,8 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "drying_rack"
     },
     {
       "id": "smoker_kit",
@@ -811,7 +820,8 @@
       "station": null,
       "seconds": 3.0,
       "process_step": "shape",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "cooking_utensils"
     },
     {
       "id": "straw_roll_kit",
@@ -989,7 +999,8 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "twist",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "workbench"
     },
     {
       "id": "fence_kit",
@@ -1010,7 +1021,8 @@
       "station": null,
       "seconds": 1.0,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "fence"
     },
     {
       "id": "gate_kit",
@@ -1036,7 +1048,8 @@
       "station": null,
       "seconds": 1.5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "fence"
     },
     {
       "id": "sign_kit",
@@ -1057,7 +1070,8 @@
       "station": null,
       "seconds": 1.0,
       "process_step": "hammer",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "fence"
     },
     {
       "id": "campfire_skewer",
@@ -1083,7 +1097,8 @@
       "station": "campfire",
       "seconds": 3.0,
       "process_step": "cook",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "skewer"
     },
     {
       "id": "skewer",
@@ -1131,7 +1146,8 @@
       "seconds": 1.5,
       "process_step": "mince",
       "process_add": 1,
-      "tree": "cooking"
+      "tree": "cooking",
+      "requires_node": "meatball"
     },
     {
       "id": "cook_meatball",
@@ -1154,7 +1170,8 @@
       "process_step": "cook",
       "process_add": 1,
       "tree": "cooking",
-      "input_id": "meatball_mix"
+      "input_id": "meatball_mix",
+      "requires_node": "meatball"
     },
     {
       "id": "stone_grill",
@@ -1179,7 +1196,8 @@
       "tree": "cooking",
       "burn_on_fail": true,
       "burn_chance": 0.2,
-      "burn_output": "burnt_food"
+      "burn_output": "burnt_food",
+      "requires_node": "stone_grill"
     },
     {
       "id": "steam",
@@ -1225,7 +1243,8 @@
       "process_step": "sashimi",
       "process_add": 0,
       "force_process_count": 2,
-      "tree": "cooking"
+      "tree": "cooking",
+      "requires_node": "sashimi"
     },
     {
       "id": "boil",
@@ -1253,7 +1272,8 @@
       "process_step": "boil",
       "process_add": 1,
       "tree": "cooking",
-      "boil_uprank": true
+      "boil_uprank": true,
+      "requires_node": "boiling"
     },
     {
       "id": "roast",
@@ -1275,7 +1295,8 @@
       "seconds": 4.0,
       "process_step": "roast",
       "process_add": 1,
-      "tree": "cooking"
+      "tree": "cooking",
+      "requires_node": "stone_grill"
     },
     {
       "id": "seasoned_roast",
@@ -1391,7 +1412,8 @@
       "seconds": 2.0,
       "process_step": "mix",
       "process_add": 0,
-      "tree": "cooking"
+      "tree": "cooking",
+      "requires_node": "pet_food"
     },
     {
       "id": "herbivore_feed",
@@ -1418,7 +1440,8 @@
       "seconds": 1.5,
       "process_step": "mix",
       "process_add": 0,
-      "tree": "cooking"
+      "tree": "cooking",
+      "requires_node": "pet_food"
     },
     {
       "id": "field_small",
@@ -1684,7 +1707,8 @@
       "station": "workbench",
       "seconds": 5,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "two_hand"
     },
     {
       "id": "barbed_knife",
@@ -1715,7 +1739,8 @@
       "station": "workbench",
       "seconds": 4,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "one_hand_mastery"
     },
     {
       "id": "toxin_coating",
@@ -1855,7 +1880,8 @@
       "station": null,
       "seconds": 3,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "barrage"
     },
     {
       "id": "stone_shot",
@@ -1876,7 +1902,8 @@
       "station": null,
       "seconds": 1,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "throw"
     },
     {
       "id": "catapult_kit",
@@ -2311,7 +2338,8 @@
       "process_step": "bind",
       "process_add": 1,
       "tree": "weapon_tools",
-      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone."
+      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone.",
+      "requires_node": "work_pick"
     },
     {
       "id": "bone_axe",
@@ -2344,7 +2372,8 @@
       "process_step": "bind",
       "process_add": 1,
       "tree": "weapon_tools",
-      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone."
+      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone.",
+      "requires_node": "work_pick"
     },
     {
       "id": "bone_pick",
@@ -2377,7 +2406,8 @@
       "process_step": "bind",
       "process_add": 1,
       "tree": "weapon_tools",
-      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone."
+      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone.",
+      "requires_node": "work_pick"
     },
     {
       "id": "bone_spear",
@@ -2410,7 +2440,8 @@
       "process_step": "bind",
       "process_add": 1,
       "tree": "weapon_tools",
-      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone."
+      "note": "ASSUMPTION: the bone rung is ungated like stone; carving bone (4 s) is slower than binding stone.",
+      "requires_node": "work_pick"
     },
     {
       "id": "flint_knife",
@@ -3938,7 +3969,6 @@
       "seconds": 8.0,
       "process_step": "bind",
       "process_add": 1,
-      "requires_node": "hammer",
       "tree": "construction"
     },
     {
@@ -4326,7 +4356,8 @@
       "station": "workbench",
       "seconds": 3.0,
       "process_step": "bind",
-      "process_add": 1
+      "process_add": 1,
+      "requires_node": "makeshift_shovel_hoe"
     },
     {
       "id": "pillar",
@@ -4468,7 +4499,8 @@
       "seconds": 2.0,
       "process_step": "extract",
       "process_add": 1,
-      "tree": "farming"
+      "tree": "farming",
+      "requires_node": "flax"
     },
     {
       "id": "seeds_corn",

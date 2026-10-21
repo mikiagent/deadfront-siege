@@ -62,13 +62,24 @@ func has_capture_technique(tier: int) -> bool:
 			return is_survival_unlocked(id)
 	return false
 
+## The Butchering tree's level (its nodes open cadaver parts), 0 with no local survivor.
 func butchering_level() -> int:
+	var p := PlayerRegistry.local()
+	if p != null and p.skills != null:
+		return p.skills.level_of("butchering")
 	var lvl := 0
 	for id in survival_nodes:
 		var n: Dictionary = survival_nodes[id]
 		if str(n.get("kind", "")) == "butchering" and is_survival_unlocked(id):
 			lvl = maxi(lvl, int(n.get("tier", 1)))
 	return lvl
+
+## "" when the local survivor's Butchering nodes open this drop, else the node to learn (corpse skips the row).
+func butcher_row_open(item: String) -> bool:
+	var p := PlayerRegistry.local()
+	if p == null or p.skills == null:
+		return true
+	return SkillRules.butcher_block(p.skills, item) == ""
 
 func butcher_drops(species: StringName) -> Array:
 	var table: Dictionary = butcher_tables.get(str(species), {})

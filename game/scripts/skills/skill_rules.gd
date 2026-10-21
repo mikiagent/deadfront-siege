@@ -38,7 +38,9 @@ static func _index(sk: SkillState) -> Dictionary:
 			in_tree[str(n.get("id", ""))] = n
 		var ids := {}
 		for n in sk.nodes(tree):
-			if str(n.get("status", "functional")) != "functional" and not gating.has(str(n.get("id", ""))):
+			# A node is for sale when the game runs its effect: a recipe it gates (its own recipe list or a
+			# recipe's requires_node), or an effect type some system reads (ON SALE below; spec 12:215).
+			if not has_effect(n) and not str(n.get("id", "")) in gating:
 				continue
 			var cur: Variant = n
 			while cur is Dictionary and not ids.has(str(cur.get("id", ""))):
@@ -97,11 +99,73 @@ static func paid_for_level(sk: SkillState, level: int) -> int:
 		total += sk.sp_for_level(l)
 	return total
 
+## Effect types a system reads today (skill_rules' own readers below and the hooks that call them):
+## "recipe" (no recipe list -> the recipe's requires_node names the node), "ability" (SkillRules.ability ->
+## Defense's Max Health into Player/PlayerActions), "bonded_slots" (Data.bonded_cap), "capture_tier"
+## (SkillState's Data mirror -> Data.has_capture_technique), "climate" (Player.climate_resistance).
+## A node with any other effect, or none, stays "not in the game yet".
+const READ_EFFECTS := ["recipe", "bonded_slots", "capture_tier", "climate", "gather", "butcher"]
+## Abilities a system adds up today: Max Health and Max Energy go into Vitals (Player.refresh_equipment_vitals).
+## Handicraft, Metal Processing, Slaughter and Stealth are read by SkillRules.ability only, so their nodes
+## stay "not in the game yet" until W2-PROCESS/W2-BUTCHER/W3-SRVACT use them.
+const READ_ABILITIES := ["max_health", "max_energy"]
+
+## True when some system reads this node's effect (an empty "recipe" entry reads a recipe's requires_node).
+static func has_effect(n: Dictionary) -> bool:
+	for e in n.get("effects", []):
+		if not e is Dictionary:
+			continue
+		var kind := str(e.get("type", ""))
+		if READ_EFFECTS.has(kind) or (kind == "ability" and READ_ABILITIES.has(str(e.get("ability", "")))):
+			return true
+	return false
+
 ## Spec 12:215 "do not implement a decorative but inert" tree: SP buy only what the game enforces
 ## (status functional, or named by a recipe's requires_node) and the prerequisite chain such a
 ## node needs; the rest show locked.
 static func buyable(sk: SkillState, tree: String, node_id: String) -> bool:
 	return ((_index(sk)["buyable"] as Dictionary).get(tree, {}) as Dictionary).has(node_id)
+
+## The gathering node that opens the gather item `item`, as [tree, node] ([] when no node gates it).
+## An effect with an empty item list marks its node, not a material (Thickets: cutting thickets with a knife).
+static func gather_gate(sk: SkillState, item: String) -> Array:
+	return _item_gate(sk, "gathering", "gather", item)
+
+## The butchering node that opens the drop `item`, as [tree, node].
+static func butcher_gate(sk: SkillState, item: String) -> Array:
+	return _item_gate(sk, "butchering", "butcher", item)
+
+static func _item_gate(sk: SkillState, tree: String, kind: String, item: String) -> Array:
+	for n in sk.nodes(tree):
+		for e in n.get("effects", []):
+			if e is Dictionary and str(e.get("type", "")) == kind and (e.get("items", []) as Array).has(item):
+				return [tree, n]
+	return []
+
+## "" when the gather item is open (no node gates it, or its node is learned), else why it is locked
+## ("Needs Mining 1 (Gathering Lv. 10, 8 SP)"). harvest_node.can_gather puts it on screen.
+static func gather_block(sk: SkillState, item: String) -> String:
+	if sk == null:
+		return ""
+	var gate := gather_gate(sk, item)
+	if gate.is_empty() or sk.is_unlocked(gate[0], str((gate[1] as Dictionary).get("id", ""))):
+		return ""
+	return "Needs %s" % _learn_text(sk, gate)
+
+## "" when the butcher drop may roll in, else why not (corpse._roll_loot skips the row).
+static func butcher_block(sk: SkillState, item: String) -> String:
+	if sk == null:
+		return ""
+	var gate := butcher_gate(sk, item)
+	if gate.is_empty() or sk.is_unlocked(gate[0], str((gate[1] as Dictionary).get("id", ""))):
+		return ""
+	return "Needs %s" % _learn_text(sk, gate)
+
+## "Mining 1 (Gathering Lv. 10, 8 SP)" for a [tree, node] gate.
+static func _learn_text(sk: SkillState, gate: Array) -> String:
+	var tree: String = gate[0]
+	var n: Dictionary = gate[1]
+	return "%s (%s %s, %d SP)" % [str(n.get("name", n.get("id", ""))), SkillState.NAMES.get(tree, tree), LevelDisplay.label(int(n.get("level", 1))), int(n.get("sp", 0))]
 
 ## Node ids that a loaded recipe names in requires_node (W2-DATA's crafting gate). Learning one
 ## opens a recipe, so it is not inert whatever its trees.json status says.

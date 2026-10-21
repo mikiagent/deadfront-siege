@@ -141,6 +141,10 @@ func _roll_loot() -> void:
 		var row := row_v as Dictionary
 		if skill < int(row.get("skill", 0)):
 			continue
+		# A skill node that opens this part (Butchering's Organs, Scutes, Bone II...): the row waits
+		# until it is learned.
+		if not Data.butcher_row_open(str(row.get("id", ""))):
+			continue
 		var item_id := StringName(str(row.get("id", "")))
 		if item_id == &"":
 			continue
