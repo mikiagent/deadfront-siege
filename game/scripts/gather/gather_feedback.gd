@@ -36,6 +36,9 @@ const PUNCH_S := 0.28
 
 ## A replaced stack shown for less than this still owes its finds to the HUD (its fallback runs).
 const SHOWN_MS := 500
+## A stack something moved onto, or a newer stack replaced, fades out over this where it is: it never
+## jumps or vanishes between frames (owner 2026-10-21 motion gate).
+const LEAVE_S := 0.15
 
 ## A stack of lines ([text, color, big], top to bottom) rising from a 3D anchor in screen space.
 ## Its whole rise is placed once, a frame later: above the ring, else right or left of it, nudged off what is taken.
@@ -57,11 +60,17 @@ static func popup(p: Player, at: Vector3, lines: Array, fallback: Callable = Cal
 	# barely seen (two finds in one frame: a unit and a pet's kill) hands its finds to the HUD.
 	for old in layer.get_children():
 		var ost: Dictionary = old.get_meta(&"st", {})
-		if not ost.is_empty() and (int(ost["shown_ms"]) < 0 or Time.get_ticks_msec() - int(ost["shown_ms"]) < SHOWN_MS):
-			_owe(ost)
-		old.queue_free()
+		if ost.is_empty():
+			old.queue_free()
+		elif not ost.has("leaving"):
+			_leave(old, ost)
 	var view := p.get_viewport().get_visible_rect().size
 	var px := UiTokens.heading(view)  # 24 desktop, 20 on a phone
+	# A phone's rare line is body-heading size with slim ink: the one free spot by the ring at 844x390
+	# (under it, between the neighbouring nodes) is ~144 px wide.
+	var compact := UiTokens.is_compact(view)
+	var big_px := px - 2 if compact else px + 4
+	var ink_pad := 6.0 if compact else 10.0
 	var box := VBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_theme_constant_override("separation", -6)
@@ -71,7 +80,7 @@ static func popup(p: Player, at: Vector3, lines: Array, fallback: Callable = Cal
 		l.text = ln[0]
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		l.add_theme_font_size_override("font_size", px + 4 if big else px - 2)
+		l.add_theme_font_size_override("font_size", big_px if big else px - 2)
 		l.add_theme_color_override("font_color", ln[1])
 		l.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.03, 0.95))
 		l.add_theme_constant_override("outline_size", 8 if big else 6)
@@ -80,18 +89,19 @@ static func popup(p: Player, at: Vector3, lines: Array, fallback: Callable = Cal
 			var ink := StyleBoxFlat.new()
 			ink.bg_color = Color(UiTokens.INK_SOLID, 0.75)
 			ink.set_corner_radius_all(6)
-			ink.content_margin_left = 10.0
-			ink.content_margin_right = 10.0
+			ink.content_margin_left = ink_pad
+			ink.content_margin_right = ink_pad
 			l.add_theme_stylebox_override("normal", ink)
 		box.add_child(l)
 	layer.add_child(box)
 	box.size = box.get_combined_minimum_size()
 	box.visible = false
-	if lines.any(func(ln: Array) -> bool: return ln[2]):
+	var rare := lines.any(func(ln: Array) -> bool: return ln[2])
+	if rare:
 		box.scale = Vector2.ONE * PUNCH_SCALE  # _place eases it back to 1 with a brightness flash
 		box.modulate = PUNCH_FLASH
 	# Shared by the placement, the follow tween and a later popup that replaces this one.
-	var st := {"fallback": fallback, "fell_back": false, "shown_ms": -1}
+	var st := {"fallback": fallback, "fell_back": false, "shown_ms": -1, "rare": rare}
 	box.set_meta(&"st", st)
 	# Placed next frame: by then the HUD has drawn this unit's toast and rare notice, which the stack keeps off.
 	# A lambda per stack: a bound static method is one callable, so a second stack in the same frame
@@ -118,21 +128,38 @@ static func _owe(st: Dictionary) -> void:
 	if fb.is_valid():
 		fb.call()
 
+## A stack that must go early (something moved onto it, or a newer stack replaced it) fades out where
+## it is; one not yet read (shown under SHOWN_MS) hands its rare lines to the HUD notice.
+static func _leave(box: Control, st: Dictionary) -> void:
+	st["leaving"] = true
+	if int(st["shown_ms"]) < 0 or Time.get_ticks_msec() - int(st["shown_ms"]) < SHOWN_MS:
+		_owe(st)
+	# The labels fade, not the box: the box's own tween keeps driving its modulate (the flash).
+	var fade := box.create_tween().set_parallel()
+	for c in box.get_children():
+		fade.tween_property(c, "modulate:a", 0.0, LEAVE_S)
+	fade.chain().tween_callback(box.queue_free)
+
 static func _place(p: Player, cam: Camera3D, at: Vector3, box: Control, st: Dictionary) -> void:
-	if cam.is_position_behind(at):
-		box.queue_free()
+	if st.has("leaving") or cam.is_position_behind(at):
+		box.queue_free()  # replaced before it was placed (its fallback already ran), or behind the camera
 		_owe(st)
 		return
 	var view := p.get_viewport().get_visible_rect().size
 	var sz := box.size
 	var a0 := cam.unproject_position(at)
+	# On a phone a plain "+n Item" shows only above the ring: beside or under it, it read as the next
+	# node's yield, and the HUD toast already says it. A rare stack may also go under the ring: on a
+	# landscape phone the top band sits right above the ring and each side has ~140 px, so under the
+	# ring (and the survivor) is the one spot a rare stack fits.
+	var cols_n := 1 if UiTokens.is_compact(view) and not bool(st["rare"]) else (4 if st["rare"] else 3)
 	# Roomiest first. A phone's HUD band can leave no room by the node: nature-node pills give way,
 	# then the stack holds still (no rise); the ring, HUD, plates and radial never give way.
 	var off := Vector2.INF
 	var rise := RISE_PX
 	for step in 3:
 		rise = RISE_PX if step < 2 else 0.0
-		off = _best_offset(_columns(a0, sz, sz.y + rise), taken_rects(p, a0, step == 0), a0, view)
+		off = _best_offset(_columns(a0, sz, sz.y + rise).slice(0, cols_n), taken_rects(p, a0, step == 0), a0, view)
 		if off != Vector2.INF:
 			break
 	if off == Vector2.INF:
@@ -141,30 +168,23 @@ static func _place(p: Player, cam: Camera3D, at: Vector3, box: Control, st: Dict
 		box.queue_free()
 		_owe(st)
 		return
-	st["off"] = off  # in the shared Dictionary: lambda captures are copies
-	st["rise"] = rise
 	var follow := func(t: float) -> void:
 		if not is_instance_valid(cam) or not is_instance_valid(box) or not is_instance_valid(p):
 			return
 		var a := cam.unproject_position(at)
-		box.position = a + (st["off"] as Vector2) + Vector2(0.0, float(st["rise"]) * (1.0 - t))
+		box.position = a + off + Vector2(0.0, rise * (1.0 - t))
 		box.visible = not cam.is_position_behind(at)
 		if box.visible and int(st["shown_ms"]) < 0:
 			st["shown_ms"] = Time.get_ticks_msec()
 		# The HUD re-places its notices and toasts every frame without knowing this stack (a level-up
-		# banner pushed a phone's "Rare find" notice onto it): when anything moves onto it, move off, held still.
+		# banner pushed a phone's "Rare find" notice onto it): when anything moves onto it, it fades out
+		# where it is. Moving it to a free column was a one-frame jump (owner 2026-10-21 motion gate).
+		if st.has("leaving"):
+			return
 		var taken := taken_rects(p, a, false)
 		taken.append_array(UiTokens.hud_reserved(view))
-		if not _hits(Rect2(box.position, box.size), taken):
-			return
-		var o := _best_offset(_columns(a, box.size, box.size.y), taken, a, view)
-		if o == Vector2.INF:
-			box.visible = false  # nowhere free this frame: the HUD toast and (once) the fallback notice say it
-			_owe(st)
-			return
-		st["off"] = o
-		st["rise"] = 0.0
-		box.position = a + o
+		if _hits(Rect2(box.position, box.size), taken):
+			_leave(box, st)
 	follow.call(0.0)
 	var tw := box.create_tween()
 	tw.tween_method(follow, 0.0, 1.0, LIFE).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
@@ -182,12 +202,13 @@ static func _hits(r: Rect2, taken: Array[Rect2]) -> bool:
 			return true
 	return false
 
-## Where a stack of size `sz` rising `h` px may sit: above the ring, else right or left of it.
+## Where a stack of size `sz` rising `h` px may sit: above the ring, right or left of it, under it.
 static func _columns(a0: Vector2, sz: Vector2, h: float) -> Array[Rect2]:
 	return [
 		Rect2(a0.x - sz.x * 0.5, a0.y - RING_CLEAR - h, sz.x, h),
 		Rect2(a0.x + RING_CLEAR, a0.y + sz.y * 0.5 - h, sz.x, h),
 		Rect2(a0.x - RING_CLEAR - sz.x, a0.y + sz.y * 0.5 - h, sz.x, h),
+		Rect2(a0.x - sz.x * 0.5, a0.y + RING_CLEAR, sz.x, h),
 	]
 
 ## The offset from the anchor to the free column spot nudged least (at most MAX_SHIFT), or INF.
@@ -211,11 +232,14 @@ static func _gap(r: Rect2, a: Vector2) -> Vector2:
 	return Vector2(maxf(0.0, maxf(r.position.x - a.x, a.x - r.end.x)), maxf(0.0, maxf(r.position.y - a.y, a.y - r.end.y)))
 
 ## Screen rects a stack keeps off: the gather ring around the anchor, other harvest nodes near the
-## survivor, the HUD's drawn blocks (world pills unless with_pills is false, toasts, notices,
-## nameplate), visible creature plates and the open radial's hexes and labels.
+## survivor, the survivor with their ring, the HUD's drawn blocks (world pills unless with_pills is
+## false, toasts, notices, nameplate), visible creature plates and the open radial's hexes and labels.
 static func taken_rects(p: Player, anchor: Vector2, with_pills: bool = true) -> Array[Rect2]:
 	var out: Array[Rect2] = [Rect2(anchor - Vector2(40.0, 40.0), Vector2(80.0, 80.0))]
 	out.append_array(node_rects(p, anchor))
+	var body := survivor_rect(p)
+	if body.has_area():
+		out.append(body)
 	var hud := p.get_tree().get_first_node_in_group("hud") as Control
 	if hud and hud.get("drawn_blocks") is Dictionary:
 		var blocks := hud.get("drawn_blocks") as Dictionary
@@ -223,10 +247,13 @@ static func taken_rects(p: Player, anchor: Vector2, with_pills: bool = true) -> 
 			var r: Variant = blocks[k]
 			if r is Rect2 and (with_pills or not str(k).begins_with("pill")):
 				out.append(Rect2((r as Rect2).position + hud.global_position, (r as Rect2).size))
-	if Game.creature_ui and is_instance_valid(Game.creature_ui):
-		for pill in Game.creature_ui.find_children("Pill", "Control", true, false):
-			if (pill as Control).is_visible_in_tree():
-				out.append((pill as Control).get_global_rect())
+	out.append_array(plate_rects())
+	out.append_array(radial_rects(p))
+	return out
+
+## The open gather radial's labels, title and hexes (none when it is closed).
+static func radial_rects(p: Player) -> Array[Rect2]:
+	var out: Array[Rect2] = []
 	var gr := p._gather_radial
 	if gr and gr.is_open():
 		out.append_array(gr.label_rects)
@@ -234,6 +261,15 @@ static func taken_rects(p: Player, anchor: Vector2, with_pills: bool = true) -> 
 		for c in gr.get_children():
 			if c is Control and (c as Control).visible:
 				out.append((c as Control).get_global_rect())
+	return out
+
+## Visible creature plates (the "Pill" panels under Game.creature_ui), grown by `grow` px.
+static func plate_rects(grow: float = 0.0) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	if Game.creature_ui and is_instance_valid(Game.creature_ui):
+		for pill in Game.creature_ui.find_children("Pill", "Control", true, false):
+			if (pill as Control).is_visible_in_tree():
+				out.append((pill as Control).get_global_rect().grow(grow))
 	return out
 
 ## Other harvest nodes' bodies on screen (base to the ring anchor height), not the one at `anchor`.
@@ -271,11 +307,16 @@ static func show_yield(p: Player, at: Vector3, id: StringName, n: int, finds: Ar
 	for r in finds:
 		lines.append(["RARE  %s" % item_name(r), GOLD, true])
 		owed.append(["Rare find: %s" % item_name(r), GOLD])
+	# A phone's rare stack is one short line per result: the trait alone, no "+n" line (the HUD toast
+	# beside it says "+n Item"). Two lines of "Low Vibration Fibre Stalk" over "+3 Fibre Stalk" fit no
+	# spot by the ring at 844x390 (~140 px a side), so every phone rare result fell back to the notice.
+	var compact := p != null and p.is_inside_tree() and UiTokens.is_compact(p.get_viewport().get_visible_rect().size)
 	for t in traits:
 		var nm := "%s %s" % [trait_name(t), item_name(id)]
-		lines.append([nm, GREEN, true])
+		lines.append([trait_name(t) if compact else nm, GREEN, true])
 		owed.append(["Rare trait: %s" % nm, GREEN])
-	lines.append(["+%d %s" % [n, item_name(id)], CREAM, false])
+	if not (compact and not owed.is_empty()):
+		lines.append(["+%d %s" % [n, item_name(id)], CREAM, false])
 	_popup_or_notice(p, at, lines, owed)
 
 ## Rare parts off a carcass: gold lines over it (the caller toasts pickups).
@@ -308,27 +349,45 @@ static func add_notice(notices: Array, text: String, tint: Color, p: Player) -> 
 			n["n"] = int(n["n"]) + 1
 			n["text"] = "%s  x%d" % [text, n["n"]]
 			stamp_notice(n, tint, p)
+			if not n.get("shown", false):
+				n.erase("x")  # not on screen now: the repeat is placed afresh, no hop is seen
 			return
 	var fresh := {"text": text, "t": 0.0, "base": text, "n": 1}
 	stamp_notice(fresh, tint, p)
 	notices.append(fresh)
 
-## Where the HUD draws rare notice `n` (`cand` is its usual spot under the toasts), or an empty
-## Rect2 to skip it this frame. A stale one is spent. Besides the HUD's own blocks it keeps off what
-## the HUD does not know: the open radial (its label covered the notice on a landscape phone), the
-## creature plates and the survivor with their ring. Where the centre column has no room (a phone
-## with the radial open), the left edge under the toasts, then the right; with none it waits.
+## Where the HUD's _draw puts rare notice `n` (`cand` is its usual spot under the toasts), or an empty
+## Rect2 to skip it this frame. Read-only: tick_notices keeps its state. Besides the HUD's own blocks
+## it keeps off what the HUD does not know: the open radial (its label covered the notice on a
+## landscape phone), the creature plates and the survivor with their ring. Where the centre column has
+## no room (a phone with the radial open), the left edge under the toasts, then the right. Once drawn
+## it keeps that side (tick_notices records it): hopping centre to edge between frames read as a glitch.
 static func notice_box(n: Dictionary, p: Player, cand: Rect2, taken: Array[Rect2], view: Vector2) -> Rect2:
-	if notice_stale(n, p):
-		return Rect2()
 	var avoid: Array[Rect2] = taken.duplicate()
 	avoid.append_array(notice_avoid(p))
-	for x in [cand.position.x, 8.0, view.x - cand.size.x - 8.0]:
+	# A locked side stays on screen when the text grows ("x2").
+	var xs: Array = [clampf(float(n["x"]), 8.0, view.x - cand.size.x - 8.0)] if n.has("x") else [cand.position.x, 8.0, view.x - cand.size.x - 8.0]
+	for x in xs:
 		var box := UiTokens.free_spot(Rect2(Vector2(x, cand.position.y), cand.size), avoid, view)
 		if box.has_area():
 			return box
-	hold_notice(n)
 	return Rect2()
+
+## The HUD's tick (hunt_hud _process, before it ages its notices), so a rare notice's life never
+## depends on being drawn: a stale one is spent, one the last _draw found no room for waits
+## (hold_notice), and a drawn one keeps the side it was first drawn on. `drawn` is the HUD's drawn_blocks.
+static func tick_notices(notices: Array, p: Player, drawn: Dictionary) -> void:
+	for i in notices.size():
+		var n: Dictionary = notices[i]
+		if not n.has("tint") or notice_stale(n, p):
+			continue
+		var box: Variant = drawn.get("notice%d" % i)
+		n["shown"] = box is Rect2
+		if box is Rect2:
+			if not n.has("x"):
+				n["x"] = (box as Rect2).position.x
+		else:
+			hold_notice(n)
 
 ## What a rare HUD notice keeps off beyond the HUD's blocks: the open radial's labels, title and
 ## hexes, visible creature plates and the survivor with the ground ring at their feet.
@@ -336,17 +395,8 @@ static func notice_avoid(p: Player) -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	if p == null or not p.is_inside_tree():
 		return out
-	var gr := p._gather_radial
-	if gr and gr.is_open():
-		out.append_array(gr.label_rects)
-		out.append(gr.title_box)
-		for c in gr.get_children():
-			if c is Control and (c as Control).visible:
-				out.append((c as Control).get_global_rect())
-	if Game.creature_ui and is_instance_valid(Game.creature_ui):
-		for pill in Game.creature_ui.find_children("Pill", "Control", true, false):
-			if (pill as Control).is_visible_in_tree():
-				out.append((pill as Control).get_global_rect().grow(4.0))  # its bar sits on the edge
+	out.append_array(radial_rects(p))
+	out.append_array(plate_rects(4.0))  # a plate's bar sits on its edge
 	var ring := survivor_rect(p)
 	if ring.has_area():
 		out.append(ring)
@@ -378,8 +428,8 @@ static func stamp_notice(n: Dictionary, tint: Color, p: Player) -> void:
 	n["src"] = _work_target_id(p)
 
 ## A rare notice goes once the survivor works on something else or opens the bag or a loot screen (a
-## gather's notice beside the next carcass read as that carcass's). Spends it (the HUD drops it on its
-## next tick) and returns true.
+## gather's notice beside the next carcass read as that carcass's). Spends it (the HUD's tick drops it
+## right after tick_notices) and returns true.
 static func notice_stale(n: Dictionary, p: Player) -> bool:
 	if not n.has("tint"):
 		return false
@@ -399,12 +449,27 @@ static func _work_target_id(p: Player) -> int:
 		return p.butcher_target.get_instance_id()
 	return 0
 
-## Called by the HUD for a notice it found no room for this frame: a rare one (tinted) holds its clock
+## For a notice the HUD found no room for (tick_notices): a rare one (tinted) holds its clock
 ## at NOTICE_T0 for up to NOTICE_WAIT_MS after it was raised, then ages and goes like any notice, so a
 ## find never lingers into a later scene (a gather's notice sat beside the next carcass).
 static func hold_notice(n: Dictionary) -> void:
 	if n.has("tint") and Time.get_ticks_msec() - int(n.get("born", 0)) < NOTICE_WAIT_MS:
 		n["t"] = minf(float(n["t"]), NOTICE_T0)
+
+## How the HUD draws a rare (tinted) notice: [fill, edge, text]. The tint on ink, never the red
+## refusal box (colour = things; a rare result is a thing, not an error). `flash` > 1 lifts the tint
+## toward white (notice_punch).
+static func notice_colors(tint: Color, alpha: float, flash: float = 1.0) -> Array[Color]:
+	var hi := Color(tint.lerp(Color.WHITE, clampf((flash - 1.0) * 0.75, 0.0, 0.75)), alpha)
+	return [Color(UiTokens.INK_SOLID, 0.9 * alpha), hi, hi]
+
+## A rare notice lands like a rare stack (owner 2026-10-21 "make it flashy"; on a phone with the
+## radial open the notice is the only place a rare result can show): Vector2(scale, flash), from
+## PUNCH_SCALE and PUNCH_FLASH when it was raised (or counted up) easing to 1 over PUNCH_S.
+static func notice_punch(n: Dictionary) -> Vector2:
+	var k := clampf(float(Time.get_ticks_msec() - int(n.get("born", 0))) / (PUNCH_S * 1000.0), 0.0, 1.0)
+	var e := 1.0 - pow(1.0 - k, 3.0)
+	return Vector2(lerpf(PUNCH_SCALE, 1.0, e), lerpf(PUNCH_FLASH.r, 1.0, e))
 
 ## A rare result's HUD notice in its colour on ink, not the red refusal box (a phone with the radial
 ## open always lands here).

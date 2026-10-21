@@ -2,7 +2,8 @@ class_name GatherService
 extends RefCounted
 ## Gather glue between PlayerActions and the world node: which tool works a node (the role's
 ## tool helps even on hand-pickable nodes, bare hands are slower), seconds and yield per unit,
-## and what happens after a unit lands (tool wear, green rare traits, finds, rare XP, yield popup).
+## and what happens after a unit lands (tool wear, green rare traits, finds, yield popup). Rare
+## results pay no bonus XP: PlayerActions' base +2 Gathering is the whole award (W2-SKILLS paces XP).
 ## PlayerActions calls unit_seconds / yield_multiplier / after_unit (integrator hook).
 
 ## Rolls for rare finds. Labs and tests seed it; the server will inject its own (W3-SRVACT).
@@ -60,8 +61,8 @@ static func yield_multiplier_with(inv: Inventory, need: StringName, family: Stri
 	return ProgressionScaling.gather_yield_multiplier(zone, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, skill))
 
 ## After a gathered unit reached the bag (`landed` is the stack PlayerActions added, `gained` of it
-## landed): the helper tool wears, each item rolls the green rare trait, the pass rolls its finds, rare
-## results pay their bonus XP, and "+n Item" (with any trait or find) rises over the node.
+## landed): the helper tool wears, each item rolls the green rare trait, the pass rolls its finds, and
+## "+n Item" (with any trait or find) rises over the node.
 ## Returns the find item ids that landed in the bag.
 static func after_unit(p: Player, node: HarvestNode, landed: ItemStack, gained: int) -> Array[StringName]:
 	var at := node.global_position + Vector3(0.0, node.top_of_node() + 0.3, 0.0)  # the gather ring's anchor
@@ -72,11 +73,8 @@ static func after_unit(p: Player, node: HarvestNode, landed: ItemStack, gained: 
 	wear_role_tool(p.inventory, node.required_tool_class, node.family)
 	var traits := stamp_traits(p.inventory, landed, gained, rng)
 	var finds := add_finds(p.inventory, node.family, node.required_tool_class, climate, level, _skill(p), rng)
-	var xp := float(LootTables.rules().get("xp", {}).get("rare_gather_bonus", 0))
 	for id in finds:
 		p.toast(id, 1)
-	for i in finds.size() + traits.size():
-		GatherXp.award(p, "gathering", xp)
 	GatherFeedback.show_yield(p, at, landed.def_id, gained, finds, traits)
 	return finds
 
@@ -86,13 +84,8 @@ static func wear_role_tool(inv: Inventory, need: StringName, family: String) -> 
 	if need != &"" and need != &"none":
 		return
 	var tool := tool_for(inv, need, family)
-	if tool == null:
-		return
-	var d := tool.def()
-	# Inventory.wear_gather_tool's cost: work tools 1, combat weapons used as tools 3.
-	if not tool.wear(1 if d == null or d.is_work_tool else 3):
-		print("[item] %s broke" % tool.def_id)
-	inv.changed.emit()
+	if tool:
+		inv.wear_tool(tool)
 
 ## Each of the `gained` items that just landed rolls the green rare trait (world-design.md:55, PRD:541).
 ## A hit swaps one plain unit in the bag for a traited one in a free slot; with no free slot the unit

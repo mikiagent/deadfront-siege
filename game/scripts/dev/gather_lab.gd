@@ -87,6 +87,7 @@ func _ready() -> void:
 	traited = _traited(&"fibre_stalk")
 	await _gather(bush, &"fibre_stalk", 1, "rare_radial", 0.35, true)
 	_check(_traited(&"fibre_stalk") > traited, "a traited fibre stalk landed through the radial")
+	await _notice_colours()
 	for id in [&"flint", &"copper_ore", &"berries", &"herb_leaf"]:
 		_check(_p.inventory.count_of(id) == 0, "no %s find on the home island" % id)
 	for st in _p.inventory.slots:
@@ -197,9 +198,13 @@ func _popup_clear(node: HarvestNode, rare: bool = false) -> void:
 		return  # no real screen layout headless: the windowed runs check placement
 	var layer := get_tree().current_scene.get_node_or_null(GatherFeedback.LAYER_NAME)
 	var box: Control = layer.get_child(layer.get_child_count() - 1) if layer and layer.get_child_count() > 0 else null
-	if (box == null or not box.visible) and UiTokens.is_compact(get_viewport().get_visible_rect().size):
-		# A phone with the gather radial open can leave no free spot by the node: the stack is skipped
-		# by design (gather_feedback.gd), so the HUD toast must carry the yield instead.
+	var phone := UiTokens.is_compact(get_viewport().get_visible_rect().size)
+	# Owner 2026-10-21 "make it flashy": a rare result gets its pop on phones too, so a phone's rare
+	# stack must be drawn (under the ring when the sides are full); only a plain one may give way.
+	# With the radial open a phone has no spot by the node at all; the notice carries the pop there.
+	_check(not (phone and rare and not _p._gather_radial.is_open()) or (box != null and box.visible), "a phone draws the rare stack over %s" % node.family)
+	if (box == null or not box.visible) and phone:
+		# A plain "+n" on a phone shows only above the ring; with no room there the HUD toast carries it.
 		var hud := get_tree().get_first_node_in_group("hud")
 		var toasted := false
 		for k in (hud.get("drawn_blocks") as Dictionary if hud else {}):
@@ -224,6 +229,7 @@ func _popup_clear(node: HarvestNode, rare: bool = false) -> void:
 	taken.append_array(UiTokens.hud_reserved(get_viewport().get_visible_rect().size))
 	for t in taken:
 		_check(not r.intersects(t), "popup %s at %s clear of %s" % [texts, r, t])
+	_check(not phone or rare or r.end.y <= a.y - GatherFeedback.RING_CLEAR + 1.0, "a phone's plain popup %s sits above the ring (%s, ring at %s)" % [texts, r, a])
 	print("[gather_lab] popup %s at %s" % [texts, r])
 
 ## The tinted notices the HUD drew last frame keep off the open radial (labels, title, hexes), the
@@ -266,6 +272,35 @@ func _must_avoid() -> Array[Rect2]:
 				out.append((pill as Control).get_global_rect())
 	out.append(GatherFeedback.survivor_rect(_p))
 	return out
+
+## The colour language on real pixels (windowed): a rare notice is its tint on ink, never the red refusal
+## box. Raises the fallback notice the HUD shows when a stack cannot be drawn, and samples its edge and fill.
+func _notice_colours() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
+	GatherFeedback.notice(_p, "Rare trait: Black Sheen Fibre Stalk", GatherFeedback.GREEN)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	var box := Rect2()
+	for k in hud.drawn_blocks:
+		var i := int(str(k).trim_prefix("notice"))
+		if str(k).begins_with("notice") and i < hud._events.notices.size() and hud._events.notices[i].has("tint"):
+			box = Rect2((hud.drawn_blocks[k] as Rect2).position + hud.global_position, (hud.drawn_blocks[k] as Rect2).size)
+	_check(box.has_area(), "the rare notice is drawn")
+	if not box.has_area():
+		return
+	await get_tree().create_timer(GatherFeedback.PUNCH_S + 0.15).timeout  # sampled after its pop eased back
+	await _capture("rare_notice")
+	var img := get_viewport().get_texture().get_image()
+	var sx := float(img.get_width()) / get_viewport().get_visible_rect().size.x
+	var edge := img.get_pixelv(Vector2i(((box.position + Vector2(box.size.x * 0.5, 0.0)) * sx).floor()))
+	var fill := img.get_pixelv(Vector2i(((box.position + Vector2(4.0, 4.0)) * sx).round()))
+	print("[gather_lab] rare notice at %s: edge %s fill %s" % [box, edge.to_html(false), fill.to_html(false)])
+	_check(edge.g > edge.r and edge.g > 0.45, "the rare notice's edge is its green tint (%s)" % edge.to_html(false))
+	_check(fill.get_luminance() < 0.15 and fill.r < 0.2, "the rare notice's fill is ink, not the refusal red (%s)" % fill.to_html(false))
+	hud._events.notices.clear()
 
 ## A tinted "Rare ..." HUD notice raised for this unit (it starts at NOTICE_T0; this one is under 0.6 s old).
 func _rare_notice_fresh() -> bool:

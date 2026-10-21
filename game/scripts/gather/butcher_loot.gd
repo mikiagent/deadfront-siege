@@ -3,12 +3,10 @@ extends RefCounted
 ## Fills a fresh carcass from butchering.json: counts scale with the hunter's best knife tier
 ## and Butchering level, premium parts need a good enough knife (loot_tables.json part_min_tier),
 ## and "rare" rows roll their odds instead of always dropping. Rare parts are announced when the
-## animal falls in the survivor's view and pay their XP to whoever takes them.
-## Corpse._roll_loot calls roll_into, Corpse._on_take_from_loot calls on_take (integrator hooks).
+## animal falls in the survivor's view; taking them pays the base Butchering XP only.
+## Corpse._roll_loot calls roll_into (integrator hook).
 
 static var rng: RandomNumberGenerator = _new_rng()
-## Corpse meta: the rare parts still on the carcass whose take XP is unpaid.
-const RARE_META := &"w2_rare_parts"
 
 static func _new_rng() -> RandomNumberGenerator:
 	var r := RandomNumberGenerator.new()
@@ -29,7 +27,6 @@ static func roll_into(corpse: Corpse, body: Node3D = null) -> Array[StringName]:
 	var rares: Array[StringName] = []
 	for id in res["rares"]:
 		rares.append(id)
-	corpse.set_meta(RARE_META, rares.duplicate())
 	if p and not rares.is_empty():
 		var at := (body.global_position if body and body.is_inside_tree() else p.global_position) + Vector3(0, 1.4, 0)
 		# A kill out of sight (a turret's, a far pack's) rolls silently: no gold notice for a carcass never seen.
@@ -43,16 +40,3 @@ static func in_view(p: Player, at: Vector3) -> bool:
 		return false
 	var cam := p.get_viewport().get_camera_3d()
 	return cam != null and not cam.is_position_behind(at) and p.get_viewport().get_visible_rect().has_point(cam.unproject_position(at))
-
-## After a take from the carcass: each rare part pays its butchering XP once, to the taker, when
-## the last of it has left the carcass (not when the animal fell).
-static func on_take(corpse: Corpse, taker: Player) -> void:
-	var unpaid: Array = corpse.get_meta(RARE_META, [])
-	var left: Array[StringName] = []
-	var xp := float(LootTables.rules().get("xp", {}).get("rare_butcher_bonus", 0))
-	for id in unpaid:
-		if corpse.loot.count_of(id) > 0:
-			left.append(id)
-			continue
-		GatherXp.award(taker, "butchering", xp)
-	corpse.set_meta(RARE_META, left)

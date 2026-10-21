@@ -1,10 +1,13 @@
 extends SceneTree
 ## W2-GATHER: role tools speed hand-pickable nodes, tier raises yields, the green rare trait rolls the
 ## documented 5% per item, finds roll their data odds (never the node's own yield, none at home), carcass
-## parts scale with knife and skill. Then live, on a real survivor: after_unit reads the node's climate
-## and keeps to free slots; a finish_gather pays 2 + the rare bonus into Gathering and wears the helper
-## knife; a real raptor's corpse pays rare part XP at the take through both take paths, and a kill out
-## of view rolls silently; a yield stack keeps off other nodes; two finds in one frame both reach the screen.
+## parts scale with knife and skill. Then live, on a real survivor: after_unit reads the node's climate,
+## downranks a find like the main yield and keeps to free slots; a finish_gather pays only the base 2
+## Gathering XP however rare the result (no invented bonus) and wears the helper knife; a real raptor's
+## talon pays only the base 3 Butchering XP through both take paths, and a kill out of view rolls
+## silently; a yield stack keeps off other nodes, never jumps when a HUD block lands on it (it fades),
+## and on a phone shows a narrow rare stack beside the ring but a plain one only above it; two finds in
+## one frame both reach the screen; the real HUD keeps a rare notice's life off _draw and its side fixed.
 ## Game classes load after the Data and World autoloads exist (first frame).
 
 var failures: Array[String] = []
@@ -57,12 +60,12 @@ func _run_live() -> void:
 	_test_after_unit_climate()
 	_test_full_bag()
 	_test_butcher_hook()
-	_test_rare_take_xp()
 	_test_gather_live()
 	await _test_corpse_live()
 	await _test_off_other_nodes()
 	await _test_two_finds_one_frame()
-	_test_xp_without_skills()
+	await _test_stack_motion()
+	await _test_phone_stack()
 	_test_hud_notice_life()
 	_test_server_gather()
 	await _test_hud_draw()
@@ -372,7 +375,7 @@ func _build_world() -> void:
 	cam.look_at(Vector3.ZERO)
 	cam.current = true
 	var gd := GDScript.new()
-	gd.source_code = "extends Control\nvar notices: Array = []\nvar toasts: Array = []\nfunc notice(text: String, tint: Color = Color(0, 0, 0, 0)) -> void:\n\tnotices.append([text, tint])\nfunc toast(id: StringName, n: int) -> void:\n\ttoasts.append([id, n])\n"
+	gd.source_code = "extends Control\nvar notices: Array = []\nvar toasts: Array = []\nvar drawn_blocks: Dictionary = {}\nfunc notice(text: String, tint: Color = Color(0, 0, 0, 0)) -> void:\n\tnotices.append([text, tint])\nfunc toast(id: StringName, n: int) -> void:\n\ttoasts.append([id, n])\n"
 	gd.reload()
 	hud = gd.new()
 	hud.add_to_group("hud")
@@ -435,6 +438,24 @@ func _test_after_unit_climate() -> void:
 	_expect(hud.notices.all(_tinted), "every rare notice is tinted, never the red refusal box")
 	home.free()
 	temperate.free()
+	# A find takes the main yield's downrank (mini(node level, max(Gathering, 5))): a Lv-30 temperate
+	# rock worked at Gathering 1 gives Lv-5 flint, never Lv-30.
+	_clear_bag()
+	player.inventory.add(IS.make(&"work_pick", 1, {"material_tier": "obsidian"}, 1))
+	var high = _rock("temperate")
+	high.yield_attributes["level"] = 30
+	var keep_lv: int = player.skills.trees["gathering"]["level"]
+	player.skills.trees["gathering"]["level"] = 1
+	var flint_row: Dictionary = (LT.gather_cfg()["by_role"]["rock"] as Array).filter(func(r): return r is Dictionary and r.get("item") == "flint")[0]
+	_with(LT.gather_cfg(), "max_chance", 1.0, func() -> void:
+		_with(flint_row, "chance", 1.0, func() -> void:
+			_gather_units(high, 1)))
+	player.skills.trees["gathering"]["level"] = keep_lv
+	var fi: int = player.inventory.find_first(&"flint")
+	var fs = player.inventory.slots[fi] if fi >= 0 else null
+	print("[t_gather] Lv-30 rock at Gathering 1: flint %s" % [("Lv %d %s" % [fs.level, fs.attributes]) if fs else "none"])
+	_expect(fs != null and fs.level == 5 and int(fs.attributes.get("level", -1)) == 5, "a find from a Lv-30 rock at Gathering 1 is downranked to Lv 5 like the main yield (%s)" % [("Lv %d" % fs.level) if fs else "none"])
+	high.free()
 	_finished += 1
 
 ## A full bag takes no find, even one that would stack onto a flint already there.
@@ -501,39 +522,9 @@ func _park(tree: String) -> void:
 	player.skills.trees[tree]["level"] = 30
 	player.skills.trees[tree]["xp"] = 0.0
 
-## Rare part XP is paid when the part is taken, once, to the taker; not when the animal falls.
-func _test_rare_take_xp() -> void:
-	var unlocked := _unlock_butchering()
-	_park("butchering")
-	var bonus := float(LT.rules()["xp"]["rare_butcher_bonus"])
-	BL.rng.seed = 41
-	var c = null
-	for i in 300:
-		c = CORPSE.new()
-		c.species = &"velociraptor"
-		c.level = 1
-		if BL.roll_into(c).has(&"raptor_talon"):
-			break
-		c.free()
-		c = null
-	_expect(c != null, "a raptor carcass rolled a talon within 300 tries")
-	if c:
-		_expect(player.skills.xp_of("butchering") == 0.0, "no rare XP when the animal falls (got %.1f)" % player.skills.xp_of("butchering"))
-		_expect(hud.notices.any(func(n): return str(n[0]).contains("Raptor Talon") and n[1] == GF.GOLD), "the talon is announced in gold")
-		var before: int = c.loot.count_of(&"raw_hide")
-		BL.on_take(c, player)
-		_expect(player.skills.xp_of("butchering") == 0.0, "taking nothing rare pays no rare XP")
-		c.loot.remove_at(c.loot.find_first(&"raptor_talon"), 1)
-		BL.on_take(c, player)
-		BL.on_take(c, player)
-		_expect(is_equal_approx(player.skills.xp_of("butchering"), bonus), "the talon pays its %.0f XP once, at the take (got %.1f)" % [bonus, player.skills.xp_of("butchering")])
-		_expect(c.loot.count_of(&"raw_hide") == before, "on_take moves no loot")
-		c.free()
-	_relock(unlocked)
-	_finished += 1
-
 ## The PlayerActions.finish_gather hook on a real survivor, no stubs: a home bush gathered with a knife
-## in the bag pays 2 Gathering XP plus the rare bonus per traited item, and the helper knife wears.
+## in the bag, every item traited, pays only the base 2 Gathering XP (rare results pay no bonus: spec 03
+## scales XP by difficulty, and a lucky roll is not difficulty), and the helper knife wears.
 func _test_gather_live() -> void:
 	_clear_bag()
 	_park("gathering")
@@ -541,7 +532,6 @@ func _test_gather_live() -> void:
 	var knife = player.inventory.find_gather_tool(&"knife")
 	var d0: int = knife.durability
 	var bush = _planted("Bush", &"fibre_stalk", "grassland", &"none", Vector3(1.2, 0, 0))
-	var bonus := float(LT.rules()["xp"]["rare_gather_bonus"])
 	_with(LT.trait_cfg(), "chance", 1.0, func() -> void:
 		player.gather_target = bush
 		player.actions.finish_gather()
@@ -552,15 +542,15 @@ func _test_gather_live() -> void:
 	var xp: float = player.skills.xp_of("gathering")
 	print("[t_gather] finish_gather on a home bush (trait odds forced to 1): fibre %d, traited %d, gathering XP %.1f, knife %d -> %d" % [fibre, traited, xp, d0, knife.durability])
 	_expect(fibre > 0 and traited == fibre, "every gathered item took a trait with the odds forced to 1 (%d of %d)" % [traited, fibre])
-	_expect(is_equal_approx(xp, 2.0 + bonus * traited), "finish_gather pays 2 + %.0f per rare item into Gathering (got %.1f, want %.1f)" % [bonus, xp, 2.0 + bonus * traited])
+	_expect(is_equal_approx(xp, 2.0), "finish_gather pays only the base 2 Gathering XP, however many items are traited (got %.1f)" % xp)
 	_expect(knife.durability == d0 - 1, "the helper knife wore once for the unit (%d -> %d)" % [d0, knife.durability])
 	_expect(hud.toasts.any(func(t): return t[0] == &"fibre_stalk"), "the unit toasts as before")
 	bush.free()
 	_finished += 1
 
 ## A raptor that really dies (Creature -> Corpse.setup -> _roll_loot -> ButcherLoot.roll_into) with
-## its talon forced; the talon taken through PlayerActions.loot (the radial take) and through
-## Corpse.take_slot (_on_take_from_loot, the chest screen's on_take) each pays 3 + the rare bonus.
+## its talon forced and announced in gold; the talon taken through PlayerActions.loot (the radial take)
+## and through Corpse.take_slot (the chest screen) each pays only the base 3 Butchering XP.
 func _raptor_corpse(at: Vector3):
 	var c = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
 	c.position = at
@@ -583,24 +573,23 @@ func _test_corpse_live() -> void:
 	bc["max_rare_chance"] = 1.0
 	_clear_bag()
 	player.inventory.add(IS.make(&"stone_knife_work", 1, {}, 1))
-	var bonus := float(LT.rules()["xp"]["rare_butcher_bonus"])
 	hud.notices.clear()
 	var a = await _raptor_corpse(Vector3(1.5, 0.5, 1.0))
 	_expect(a != null and a.loot.count_of(&"raptor_talon") > 0, "a real raptor death leaves a corpse with the forced talon")
-	_expect(hud.notices.any(func(n): return str(n[0]).contains("Raptor Talon")), "a kill in view announces its talon")
+	_expect(hud.notices.any(func(n): return str(n[0]).contains("Raptor Talon") and n[1] == GF.GOLD), "a kill in view announces its talon in gold (%s)" % [hud.notices])
 	if a:
 		_park("butchering")
 		var moved: int = player.actions.loot(a, a.loot.find_first(&"raptor_talon"))
 		var xp: float = player.skills.xp_of("butchering")
 		print("[t_gather] PlayerActions.loot talon: moved %d, butchering XP %.1f" % [moved, xp])
-		_expect(moved > 0 and is_equal_approx(xp, 3.0 + bonus), "the radial take (PlayerActions.loot) pays 3 + %.0f for the talon (got %.1f)" % [bonus, xp])
+		_expect(moved > 0 and is_equal_approx(xp, 3.0), "the radial take (PlayerActions.loot) of the talon pays only the base 3 (got %.1f)" % xp)
 	var b = await _raptor_corpse(Vector3(-1.5, 0.5, 1.0))
 	if b:
 		_park("butchering")
 		var taken = b.take_slot(b.loot.find_first(&"raptor_talon"), player)
 		var xp: float = player.skills.xp_of("butchering")
 		print("[t_gather] Corpse.take_slot talon: %s, butchering XP %.1f" % [taken.def_id if taken else &"", xp])
-		_expect(taken != null and is_equal_approx(xp, 3.0 + bonus), "the chest-screen take (_on_take_from_loot) pays 3 + %.0f for the talon (got %.1f)" % [bonus, xp])
+		_expect(taken != null and is_equal_approx(xp, 3.0), "the chest-screen take (_on_take_from_loot) of the talon pays only the base 3 (got %.1f)" % xp)
 	# A kill far out of view (a turret's, another island corner's) rolls its talon without a notice.
 	hud.notices.clear()
 	var far = await _raptor_corpse(Vector3(400.0, 0.5, 0.0))
@@ -690,17 +679,91 @@ func _test_two_finds_one_frame() -> void:
 	_expect(not plain_pop and s0 > 1.2 and f0 > 1.5 and is_equal_approx(s1, 1.0) and is_equal_approx(f1, 1.0), "a rare stack pops and flashes, then eases to normal; a plain one does not (scale %.2f -> %.2f, flash %.2f -> %.2f, plain %s)" % [s0, s1, f0, f1, plain_pop])
 	_finished += 1
 
-## Rare XP without a skill tree still counts (general player XP), as the base +2 does.
-func _test_xp_without_skills() -> void:
-	var world := get_root().get_node("World")
-	var lv0: int = world.pioneer_level
-	var x0: int = world.pioneer_xp
-	var gx: GDScript = load("res://scripts/gather/gather_xp.gd")
-	var keep = player.skills
-	player.skills = null
-	gx.award(player, "gathering", 10.0)
-	player.skills = keep
-	_expect(world.pioneer_level > lv0 or world.pioneer_xp == x0 + 10, "rare XP without skills goes to player XP (%d -> %d)" % [x0, world.pioneer_xp])
+## Owner 2026-10-21 motion gate ("a measured glitch is a failure"): a HUD block that lands on a drawn
+## stack never makes it jump to another spot or vanish between frames. The stack stays put (each frame
+## moves no more than its own eased rise) and fades out over LEAVE_S; unread, its rare line goes to the notice.
+func _test_stack_motion() -> void:
+	current_scene = host
+	hud.drawn_blocks.clear()
+	hud.notices.clear()
+	var box = GF.popup(player, Vector3(-1.5, 1.0, 0.0), [["Black Sheen Stone", GF.GREEN, true], ["+1 Stone", GF.CREAM, false]], func() -> void: hud.notice("Rare trait: Black Sheen Stone", GF.GREEN))
+	await _frames(3)
+	var placed: bool = is_instance_valid(box) and box.visible
+	_expect(placed, "set-up: the rare stack is drawn")
+	if not placed:
+		_finished += 1
+		return
+	# A banner or notice lands right on it (the stand-in HUD sits at the origin).
+	hud.drawn_blocks["notice0"] = Rect2(box.position, box.size)
+	var prev: Vector2 = box.position
+	var last := Time.get_ticks_usec()
+	var t0 := last
+	var excess := 0.0
+	var hidden := false
+	var min_alpha := 1.0
+	while Time.get_ticks_usec() - t0 < 1500000:
+		await process_frame
+		if not is_instance_valid(box) or box.is_queued_for_deletion():
+			break
+		var now := Time.get_ticks_usec()
+		# The rise eases out (quad): it never moves faster than RISE_PX * 2 / LIFE px per second.
+		var allow: float = 1.0 + GF.RISE_PX * 2.0 / GF.LIFE * float(now - last) / 1000000.0
+		excess = maxf(excess, (box.position - prev).length() - allow)
+		hidden = hidden or not box.visible
+		min_alpha = minf(min_alpha, (box.get_child(0) as Control).modulate.a)
+		prev = box.position
+		last = now
+	var gone_s := float(Time.get_ticks_usec() - t0) / 1000000.0
+	print("[t_gather] HUD block on a drawn stack: largest per-frame move beyond the rise %.1f px, hidden %s, label alpha down to %.2f, gone after %.2f s" % [excess, hidden, min_alpha, gone_s])
+	_expect(excess <= 0.0 and not hidden, "a HUD block on a drawn stack never makes it jump or vanish between frames (moved %.1f px past its rise, hidden %s)" % [excess, hidden])
+	_expect(gone_s <= GF.LEAVE_S + 0.6 and min_alpha < 0.6, "a stack something landed on fades out where it is within LEAVE_S (gone after %.2f s, alpha down to %.2f)" % [gone_s, min_alpha])
+	_expect(hud.notices.any(func(n): return str(n[0]) == "Rare trait: Black Sheen Stone"), "an unread rare stack that had to go hands its line to the green notice (%s)" % [hud.notices])
+	hud.drawn_blocks.clear()
+	_finished += 1
+
+## Landscape phone (844x390): with the HUD's top band right above the ring, a plain "+1 Stone" is not
+## drawn beside or under the ring (there it read as the next node's yield; the HUD toast says it), while
+## a rare trait is one slim line, the trait alone at 18 px (the toast says "+1 Fibre Stalk"), drawn by the ring.
+func _test_phone_stack() -> void:
+	current_scene = host
+	hud.drawn_blocks.clear()
+	var root := get_root()
+	var keep := [root.size, root.content_scale_size]
+	root.size = Vector2i(844, 390)
+	root.content_scale_size = Vector2i(844, 390)
+	await _frames(1)
+	var cam: Camera3D = player.get_viewport().get_camera_3d()
+	# A ring 150 px down: above it is the top band (112 px), the sides are free (survivor out of the way).
+	var keep_pos: Vector3 = player.global_position
+	player.global_position = Vector3(0, 0.9, -30)
+	var at: Vector3 = cam.project_position(Vector2(420, 150), cam.global_position.distance_to(Vector3.ZERO))
+	var a: Vector2 = cam.unproject_position(at)
+	var plain = GF.popup(player, at, [["+1 Stone", GF.CREAM, false]])
+	await _frames(3)
+	var plain_drawn: bool = is_instance_valid(plain) and plain.visible and not plain.is_queued_for_deletion()
+	GF.show_yield(player, at, &"fibre_stalk", 1, [] as Array[StringName], [&"low_vibration"] as Array[StringName])
+	await _frames(3)
+	var layer := current_scene.get_node_or_null("GatherPopups")
+	var rare: Control = null
+	for b in (layer.get_children() if layer else []):
+		if b.visible and not b.is_queued_for_deletion() and not b.get_meta(&"st", {}).has("leaving"):
+			rare = b
+	var texts: Array = rare.get_children().map(func(l): return l.text) if rare else []
+	var r: Rect2 = Rect2(rare.position, rare.size) if rare else Rect2()
+	var big_px: int = (rare.get_child(0) as Label).get_theme_font_size("font_size") if rare else -1
+	var ring := Rect2(a - Vector2(40, 40), Vector2(80, 80))
+	var gap: Vector2 = GF._gap(r, a)
+	print("[t_gather] 844x390, ring at %s: plain stack drawn %s; rare stack %s at %s, rare line %d px" % [a, plain_drawn, texts, r, big_px])
+	_expect(not plain_drawn, "on a phone a plain stack with no room above the ring is not drawn beside it (the toast says it)")
+	_expect(texts == ["Low Vibration"] and big_px == 18 and r.size.x <= 140.0, "a phone's rare stack is one slim line, the trait alone (%s, %d px, %.0f px wide)" % [texts, big_px, r.size.x])
+	_expect(r.has_area() and not r.intersects(ring) and r.position.y >= 112.0 and gap.x <= GF.MAX_SHIFT and gap.y <= GF.MAX_SHIFT, "a phone's rare stack is drawn beside the ring, off it and the top band (%s, gap %s)" % [r, gap])
+	if layer:
+		for b in layer.get_children():
+			b.queue_free()
+	player.global_position = keep_pos
+	root.size = keep[0]
+	root.content_scale_size = keep[1]
+	await _frames(1)
 	_finished += 1
 
 ## The real HUD (hunt_hud.gd): a rare notice is tinted and lives as long as the stack it stands in for
@@ -747,6 +810,15 @@ func _test_hud_notice_life() -> void:
 	_expect(not closed and opened, "a rare notice goes when a bag or loot screen opens (closed %s, open %s)" % [closed, opened])
 	na.free()
 	nb.free()
+	# tick_notices (the HUD's _process): a notice the last draw found room for keeps that side; one it did not waits.
+	var drawn_n := {"text": "g", "t": 1.0, "tint": GF.GREEN, "born": Time.get_ticks_msec()}
+	var waiting := {"text": "h", "t": 1.8, "tint": GF.GREEN, "born": Time.get_ticks_msec()}
+	GF.tick_notices([drawn_n, waiting], player, {"notice0": Rect2(8, 200, 300, 30)})
+	_expect(is_equal_approx(float(drawn_n.get("x", -1.0)), 8.0) and is_equal_approx(waiting["t"], GF.NOTICE_T0), "tick_notices records a drawn notice's side and holds an undrawn one (x %s, t %s)" % [drawn_n.get("x"), waiting["t"]])
+	# The colour language: a rare notice is its tint on ink, never the red refusal box.
+	var c: Array = GF.notice_colors(GF.GREEN, 1.0)
+	var refusal := Color(0.35, 0.08, 0.06)
+	_expect(c[2] == GF.GREEN and c[1] == GF.GREEN and not Color(c[0], 1.0).is_equal_approx(Color(refusal, 1.0)) and (c[0] as Color).get_luminance() < 0.15, "a rare notice is drawn in its tint on ink, not the refusal red (%s)" % [c])
 	h._events.tick(GF.LIFE + 0.9)
 	var texts: Array = h._events.notices.map(func(n): return n["text"])
 	_expect(not texts.has("Rare find: Flint") and texts.has("Too far."), "after the stack's life the rare notice is gone, a plain one stays (%s)" % [texts])
@@ -856,6 +928,8 @@ func _test_hud_draw() -> void:
 	print("[t_gather] HUD 844x390, radial open: rare notice %s, on %s; HUD-only spot %s on %s; radial labels %s title %s" % [box, on, old, old_on, player._gather_radial.label_rects, player._gather_radial.title_box])
 	_expect(not player._gather_radial.label_rects.is_empty() and not old_on.is_empty(), "set-up: the radial is laid out and the HUD's own spot for the notice sits on it or the survivor (%s on %s)" % [old, old_on])
 	_expect(box.has_area() and on.is_empty(), "with the radial open the rare notice is drawn clear of its labels, title, hexes, the plates and the survivor (%s on %s)" % [box, on])
+	var drawn_n: Array = h._events.notices.filter(func(n): return str(n.get("base", "")) == text)
+	_expect(drawn_n.size() == 1 and box.has_area() and is_equal_approx(float(drawn_n[0].get("x", -1.0)), box.position.x), "the real HUD's tick records the side the notice was drawn on (x %s, box %s)" % [drawn_n[0].get("x") if drawn_n.size() == 1 else "?", box])
 	h.notice(text, GF.GREEN)
 	var same: Array = h._events.notices.filter(func(n): return str(n.get("base", "")) == text)
 	_expect(same.size() == 1 and str(same[0]["text"]) == text + "  x2", "the same rare result twice is one notice reading x2 (%s)" % [same.map(func(n): return n["text"])])
@@ -885,7 +959,25 @@ func _test_hud_draw() -> void:
 	# With no room in the centre column it goes to the screen's edge rather than waiting unseen.
 	var column: Array[Rect2] = [Rect2(320, 0, 200, 390)]
 	var edge: Rect2 = GF.notice_box(fresh, player, Rect2(272, 170, 300, 30), column, Vector2(844, 390))
-	_expect(edge.has_area() and not edge.intersects(column[0]), "with the centre column full a rare notice goes to the edge (%s)" % edge)
+	_expect(edge.has_area() and not edge.intersects(column[0]), "with the centre column full a fresh rare notice goes to the edge (%s)" % edge)
+	# One already drawn in the centre keeps its side: it waits rather than hop to the edge between frames.
+	var placed := {"text": "s", "t": 1.0, "tint": GF.GREEN, "born": Time.get_ticks_msec(), "x": 272.0}
+	var kept: Rect2 = GF.notice_box(placed, player, Rect2(272, 170, 300, 30), column, Vector2(844, 390))
+	_expect(not kept.has_area() or is_equal_approx(kept.position.x, 272.0), "a drawn rare notice never hops sides when its column fills (%s)" % kept)
+	# A notice locked at the right edge whose text grew ("x2") stays on screen.
+	var grown: Rect2 = GF.notice_box({"text": "w", "t": 1.0, "tint": GF.GREEN, "born": 0, "x": 520.0}, player, Rect2(250, 330, 344, 30), [] as Array[Rect2], Vector2(844, 390))
+	_expect(grown.has_area() and grown.end.x <= 844.0 - 8.0, "a locked rare notice whose text grew stays on screen (%s)" % grown)
+	# Its life does not depend on drawing: with the HUD hidden (no _draw), a notice from a node the
+	# survivor left is still dropped by the HUD's tick.
+	h.visible = false
+	player.gather_target = na
+	h.notice("Rare find: Pearl", GF.GOLD)
+	player.gather_target = nb
+	await _frames(3)
+	var hidden_left: bool = h._events.notices.any(func(n): return str(n["text"]) == "Rare find: Pearl")
+	player.gather_target = null
+	h.visible = true
+	_expect(not hidden_left, "with the HUD hidden its tick still drops a rare notice from a node the survivor left")
 	h.queue_free()
 	na.free()
 	nb.free()
