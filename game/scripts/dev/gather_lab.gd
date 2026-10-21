@@ -207,6 +207,7 @@ func _watch_motion(node: HarvestNode) -> void:
 	var at := node.global_position + Vector3(0, node.top_of_node() + 0.3, 0)
 	var prev := box.position - cam.unproject_position(at)
 	var last := Time.get_ticks_usec()
+	var dt_prev := 0.0
 	while is_instance_valid(box) and not box.is_queued_for_deletion():
 		await get_tree().process_frame
 		if not is_instance_valid(box) or box.is_queued_for_deletion():
@@ -214,11 +215,13 @@ func _watch_motion(node: HarvestNode) -> void:
 		var now := Time.get_ticks_usec()
 		var dt := float(now - last) / 1000000.0
 		var rel := box.position - cam.unproject_position(at)
-		_motion["excess"] = maxf(_motion["excess"], (rel - prev).length() - (1.0 + GatherFeedback.RISE_PX * 2.0 / GatherFeedback.LIFE * dt))
+		# What we read here is the last frame's tween step, whose delta is this interval or the one before.
+		_motion["excess"] = maxf(_motion["excess"], (rel - prev).length() - (1.0 + GatherFeedback.RISE_PX * 2.0 / GatherFeedback.LIFE * maxf(dt, dt_prev)))
 		_motion["frames"] += 1
 		_motion["worst_dt"] = maxf(_motion["worst_dt"], dt)
 		prev = rel
 		last = now
+		dt_prev = dt
 
 ## The floating progress ring is up and drawn above the node's base on screen.
 func _ring_above(node: HarvestNode) -> bool:

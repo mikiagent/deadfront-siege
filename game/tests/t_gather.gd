@@ -704,18 +704,22 @@ func _test_stack_motion() -> void:
 	var excess := 0.0
 	var hidden := false
 	var min_alpha := 1.0
+	var dt_prev := 0.0
 	while Time.get_ticks_usec() - t0 < 1500000:
 		await process_frame
 		if not is_instance_valid(box) or box.is_queued_for_deletion():
 			break
 		var now := Time.get_ticks_usec()
-		# The rise eases out (quad): it never moves faster than RISE_PX * 2 / LIFE px per second.
-		var allow: float = 1.0 + GF.RISE_PX * 2.0 / GF.LIFE * float(now - last) / 1000000.0
+		var dt := float(now - last) / 1000000.0
+		# The rise eases out (quad): it never moves faster than RISE_PX * 2 / LIFE px per second. What
+		# is read here is the last frame's tween step, whose delta is this interval or the one before.
+		var allow: float = 1.0 + GF.RISE_PX * 2.0 / GF.LIFE * maxf(dt, dt_prev)
 		excess = maxf(excess, (box.position - prev).length() - allow)
 		hidden = hidden or not box.visible
 		min_alpha = minf(min_alpha, (box.get_child(0) as Control).modulate.a)
 		prev = box.position
 		last = now
+		dt_prev = dt
 	var gone_s := float(Time.get_ticks_usec() - t0) / 1000000.0
 	print("[t_gather] HUD block on a drawn stack: largest per-frame move beyond the rise %.1f px, hidden %s, label alpha down to %.2f, gone after %.2f s" % [excess, hidden, min_alpha, gone_s])
 	_expect(excess <= 0.0 and not hidden, "a HUD block on a drawn stack never makes it jump or vanish between frames (moved %.1f px past its rise, hidden %s)" % [excess, hidden])
