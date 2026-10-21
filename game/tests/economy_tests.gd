@@ -669,6 +669,28 @@ func _test_search() -> bool:
 	_expect(mine.listings.size() == 4 and mine.orders.is_empty(), "market.mine lists my listings")
 	_ok(e, "vault.get", 1)
 	_ok(e, "wallet.get", 1)
+	# Spec 06:12 and spec 14 (review r3): durability range, rare attribute or trait, level and
+	# durability sorts both ways, all on the server across pages.
+	var f := _engine()
+	var worn := ItemStack.make(&"stone_knife", 1, {}, 10)
+	worn.durability = maxi(1, worn.max_durability / 4)
+	var worn_lid := _list(f, 1, str(_ok(f, "vault.deposit_item", 1, {"slot_dict": _stamp(worn.to_dict(), "i", "craft")}).uid), 40)
+	var fresh_lid := _list(f, 1, _deposit(f, 1, "stone_knife", 1, 5), 60)
+	var sheen_lid := _list(f, 1, str(_ok(f, "vault.deposit_item", 1, {"slot_dict": _stamp(ItemStack.make(&"stone", 1, {"black_sheen": true}, 20).to_dict(), "i", "gather")}).uid), 50)
+	var dried_lid := _list(f, 1, str(_ok(f, "vault.deposit_item", 1, {"slot_dict": _stamp(ItemStack.make(&"dried_meat", 1, {"processed": ["dry"]}, 1).to_dict(), "i", "craft")}).uid), 5)
+	var ids := func (args: Dictionary) -> Array: return (_ok(f, "market.search", 3, args).get("results", []) as Array).map(func (row: Dictionary) -> String: return str(row.id))
+	var fresh_dur := int(f.state().listings[fresh_lid].asset.durability)
+	_expect(fresh_dur > worn.durability, "fixture: the fresh knife (%d) outlasts the worn one (%d)" % [fresh_dur, worn.durability])
+	_expect(ids.call({"min_durability": worn.durability + 1}) == [fresh_lid], "min_durability keeps only the fresh knife")
+	_expect(ids.call({"min_durability": 1, "max_durability": worn.durability}) == [worn_lid], "max_durability keeps only the worn knife")
+	_expect(ids.call({"attribute": "black_sheen"}) == [sheen_lid], "a rare trait filter finds the Black Sheen stone")
+	_expect(ids.call({"attribute": "processed=dry"}) == [dried_lid] and ids.call({"attribute": "processed=smoke"}).is_empty(), "key=value matches a processing step and no other")
+	_expect(ids.call({"sort": "level_asc"}) == [dried_lid, fresh_lid, worn_lid, sheen_lid], "level_asc")
+	_expect(ids.call({"sort": "durability_desc"}) == [fresh_lid, worn_lid, sheen_lid, dried_lid], "durability_desc (no durability sorts as 0, oldest first)")
+	_expect(ids.call({"sort": "durability_asc"}) == [sheen_lid, dried_lid, worn_lid, fresh_lid], "durability_asc")
+	_expect(ids.call({"sort": "durability_desc", "page_size": 1, "page": 2}) == [worn_lid], "durability sort pages on the server")
+	_err(f, "market.search", 3, {"attribute": "=dry"}, "bad_request", T0, "attribute with no key")
+	_err(f, "market.search", 3, {"min_durability": -1}, "bad_request", T0, "negative durability")
 	return true
 
 func _test_history_and_reference() -> bool:
@@ -865,6 +887,14 @@ func _test_attribute_sources() -> bool:
 			hist.resize(int(inplace.get("opportunities", 0)))
 			hist.fill(step)
 			pairs.append(["processed", hist, "processing.json in_place"])
+	# W2-GATHER's green rare traits (review r3 blocker): GatherService.stamp_traits writes
+	# attributes[trait] = true. Its loot_tables.json once it merges; until then its list at 1610c3ed.
+	var traits: Array = ["black_sheen", "low_vibration", "wide_serration", "narrow_hook", "split_easily", "vivid_inspiration"]
+	if FileAccess.file_exists("res://data/loot_tables.json"):
+		traits = EconRules.read_json("res://data/loot_tables.json").get("rare_trait", {}).get("traits", [])
+	_expect(traits.size() == 6, "W2-GATHER's six rare traits were found (%d)" % traits.size())
+	for t in traits:
+		pairs.append([str(t), true, "loot_tables.json rare_trait"])
 	_expect(pairs.size() > 40 and buffs.size() > 0 and climates.size() > 3, "attribute sources were found (%d)" % pairs.size())
 	for row in pairs:
 		var why: String = e.V._rule("attributes", row[0], Ledger.norm(row[1]))
@@ -875,6 +905,12 @@ func _test_attribute_sources() -> bool:
 	_ok(e, "vault.deposit_item", 1, {"slot_dict": bone})
 	var knife := _stamp(ItemStack.make(&"stone_knife", 1, {"hardness": 4, "frill": 1, "material_tier": "bone"}, 12).to_dict(), "i", "craft")
 	_ok(e, "vault.deposit_item", 1, {"slot_dict": knife})
+	# A traited gathered unit, and a knife crafted from it (Crafting copies the trait).
+	var sheen := _stamp(ItemStack.make(&"stone", 1, {"black_sheen": true, "climate": "grassland", "level": 3}, 3).to_dict(), "i", "gather")
+	_ok(e, "vault.deposit_item", 1, {"slot_dict": sheen})
+	var sharp := _stamp(ItemStack.make(&"stone_knife", 1, {"black_sheen": true, "material_tier": "stone"}, 3).to_dict(), "i", "craft")
+	_ok(e, "vault.deposit_item", 1, {"slot_dict": sharp})
+	_err(e, "vault.deposit_item", 1, {"slot_dict": _stamp(ItemStack.make(&"stone", 1, {"black_sheen": 1}, 1).to_dict(), "i", "gather")}, "invalid_asset", T0, "a trait is true/false, not a number")
 	return true
 
 ## Contract 6.5 damping must not be capturable: two self-dealt trades at 10x set the first
@@ -1423,7 +1459,7 @@ func _fuzz_op(e: MarketEngine, rng: RandomNumberGenerator, who: int, pets: Array
 	if roll < 88:
 		return ["sys.tick", {}]
 	var reads := [
-		["market.search", {"sort": MarketQuery.SORTS[rng.randi_range(0, 4)], "asset": ["any", "item", "pet"][rng.randi_range(0, 2)], "page_size": 10}],
+		["market.search", {"sort": MarketQuery.SORTS[rng.randi_range(0, MarketQuery.SORTS.size() - 1)], "asset": ["any", "item", "pet"][rng.randi_range(0, 2)], "page_size": 10}],
 		["market.orders", {}], ["market.item_detail", {"def_id": "stone"}], ["market.trades", {"def_id": "stone"}],
 		["market.mine", {}], ["wallet.get", {}], ["vault.get", {}],
 	]

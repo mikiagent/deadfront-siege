@@ -116,6 +116,25 @@
         "steam"
       ],
       "max": 2
+    },
+    "black_sheen": {
+      "_why": "W2-GATHER's green rare traits (loot_tables.json rare_trait.traits, spec 04:11): GatherService.stamp_traits writes attributes[trait] = true and Crafting copies it onto the tool. Spec 06:6 'Preserve source instance ID and rare traits'. Sync step: keep these six equal to loot_tables.json (economy_tests checks it).",
+      "type": "bool"
+    },
+    "low_vibration": {
+      "type": "bool"
+    },
+    "wide_serration": {
+      "type": "bool"
+    },
+    "narrow_hook": {
+      "type": "bool"
+    },
+    "split_easily": {
+      "type": "bool"
+    },
+    "vivid_inspiration": {
+      "type": "bool"
     }
   },
   "category_caps": {

@@ -208,7 +208,12 @@ func _out_of_vault(me: int, rid: String, uid: String, pet: bool, ts: int) -> Dic
 func _grant(me: int, rid: String, uid: String, n: int, ts: int) -> Dictionary:
 	var part: Dictionary = _books().acct(me).vault_items[uid].duplicate(true)
 	part.count = n
-	if chars.character(me).inventory().add(ItemStack.from_dict(Provenance.strip(part))) > 0:
+	var stack := ItemStack.from_dict(Provenance.strip(part))
+	# char.grant takes one stack; a vault stack can outgrow stack_max after a balance edit
+	# (spec 06:24), and refusing after the vault let go would stop the bridge (review r3).
+	if stack.def() != null and n > stack.def().stack_max:
+		return EconArgs.no("bad_request", "withdraw at most %d %s at a time" % [stack.def().stack_max, part.id])
+	if chars.character(me).inventory().add(stack) > 0:
 		return EconArgs.no("bag_full", "no room in the bag for %d %s" % [n, part.id])
 	var begun := econ.apply("bridge.begin", me, {"rid": rid, "uid": uid, "op": "grant"}, ts)
 	if not begun.ok:

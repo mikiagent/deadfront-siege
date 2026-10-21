@@ -3,7 +3,8 @@ extends RefCounted
 ## Read-only market views (contract 6.5): search, open orders, item detail, trades, mine.
 ## Nothing here writes state; every returned record is a copy.
 
-const SORTS := ["price_asc", "price_desc", "ending_soon", "newest", "level_desc"]
+## Spec 06:12 / spec 14: price, level and durability both ways, age (newest), ending soon.
+const SORTS := ["price_asc", "price_desc", "ending_soon", "newest", "level_desc", "level_asc", "durability_asc", "durability_desc"]
 const KEY_MAX := (1 << 30) - 1
 const NUM_MASK := (1 << 33) - 1
 ## Search stat names (CreatureGenetics.STATS) -> PetDict fields.
@@ -34,6 +35,10 @@ func search(me: int, a: EconArgs) -> Dictionary:
 	var max_level := a.integer("max_level", 1, lv_max, lv_max)
 	var min_price := a.integer("min_price", 0, EconArgs.SAFE_INT, 0)
 	var max_price := a.integer("max_price", 0, EconArgs.SAFE_INT, EconArgs.SAFE_INT)
+	var min_dur := a.integer("min_durability", 0, EconArgs.SAFE_INT, 0)
+	var max_dur := a.integer("max_durability", 0, EconArgs.SAFE_INT, EconArgs.SAFE_INT)
+	# Spec 06:12 "rare attribute and ordinary trait": a key ("black_sheen") or key=value ("processed=dry").
+	var attr := a.text("attribute", 0, 64, "").split("=", true, 1)
 	var grade := a.text("grade", 0, 2, "")
 	var stat_min := a.dict("stat_min", false)
 	var sort := a.choice("sort", SORTS, "price_asc")
@@ -41,6 +46,8 @@ func search(me: int, a: EconArgs) -> Dictionary:
 	var page_size := a.integer("page_size", 1, R.num("page_size_max"), R.num("page_size_default"))
 	if a.err != "":
 		return a.fail()
+	if attr[0] == "" and attr.size() > 1:
+		return EconArgs.no("bad_request", "attribute takes key or key=value")
 	var mins := {}
 	for stat in stat_min:
 		var v: Variant = stat_min[stat]
@@ -66,6 +73,11 @@ func search(me: int, a: EconArgs) -> Dictionary:
 			continue
 		var price := MarketBook.price_of(l)
 		if price < min_price or price > max_price:
+			continue
+		var dur := int(ast.get("durability", 0)) # pets and plain materials have none: 0
+		if dur < min_dur or dur > max_dur:
+			continue
+		if attr[0] != "" and not _has_attr(ast, attr[0], attr[1] if attr.size() > 1 else ""):
 			continue
 		if is_pet:
 			if category != "" or (species != "" and ast.species != species) or (grade != "" and not _grade_ok(str(ast.grade), grade)):
@@ -95,6 +107,9 @@ func search(me: int, a: EconArgs) -> Dictionary:
 			"price_desc": k = KEY_MAX - mini(price, KEY_MAX)
 			"ending_soon": k = mini(ends - now, KEY_MAX)
 			"level_desc": k = R.num("level_max") - lv
+			"level_asc": k = lv
+			"durability_asc": k = mini(dur, KEY_MAX)
+			"durability_desc": k = KEY_MAX - mini(dur, KEY_MAX)
 			"newest": num = NUM_MASK - num
 		keys.append((k << 33) | num)
 	keys.sort()
@@ -228,6 +243,18 @@ func _key(a: EconArgs) -> String:
 	if def_id != "":
 		return PriceHistory.item_key(def_id) if cat.item(def_id) != null else "!unknown def_id"
 	return PriceHistory.pet_key(species) if cat.creature(species) != null else "!unknown species"
+
+## The asset's attribute `key` is set (a rare trait is `true`), or equals / contains `want`.
+static func _has_attr(ast: Dictionary, key: String, want: String) -> bool:
+	var attrs: Variant = ast.get("attributes")
+	if not attrs is Dictionary or not (attrs as Dictionary).has(key):
+		return false
+	var v: Variant = attrs[key]
+	if want == "":
+		return not (v is bool and not v)
+	if v is Array: # a processing history: any step
+		return (v as Array).any(func (x: Variant) -> bool: return str(x) == want)
+	return str(v) == want
 
 ## "S" matches S-, S and S+; "S+" matches only S+.
 static func _grade_ok(have: String, want: String) -> bool:
