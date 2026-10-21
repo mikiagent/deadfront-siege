@@ -61,6 +61,9 @@ const JUDGE = { type: 'object', properties: {
   verdicts: { type: 'array', items: { type: 'object', properties: { scene: { type: 'string' }, better: { type: 'string', enum: ['first', 'second', 'tie'] }, reasons: { type: 'string' } }, required: ['scene', 'better', 'reasons'] } },
   overall: { type: 'string' } }, required: ['verdicts', 'overall'] }
 
+// An agent sometimes writes 'none ...' instead of '' in owner_gate.
+const isGate = (g) => !!g && !/^\s*(none|no |n\/a)/i.test(g)
+
 phase('Scout')
 const scoutBase = `${ctx}
 
@@ -87,7 +90,7 @@ Commit everything. Return done, owner_gate, head, gates, shots, summary.
 
 Scout notes:
 ${scoutNotes}`, { label: 'design', phase: 'Design', schema: STEP, effort: 'high' })
-if (!design || design.owner_gate) return { stopped: 'design', design }
+if (!design || isGate(design.owner_gate)) return { stopped: 'design', design }
 
 phase('Build')
 const BUILD = [
@@ -105,7 +108,7 @@ Read ${DESIGN} and ${REPORT} (if present) and git log first; previous steps and 
 Return done, owner_gate, head, gates, shots, summary.`, { label: `build:${b.key}`, phase: 'Build', schema: STEP })
   built.push({ step: b.key, r })
   if (!r) return { stopped: 'cut at ' + b.key, built }
-  if (r.owner_gate) return { stopped: 'owner gate at ' + b.key, owner_gate: r.owner_gate, built }
+  if (isGate(r.owner_gate)) return { stopped: 'owner gate at ' + b.key, owner_gate: r.owner_gate, built }
 }
 
 phase('Review')
@@ -162,6 +165,6 @@ Findings (JSON):
 ${JSON.stringify(findings, null, 1)}
 Return done, owner_gate, head, gates, shots, summary.`, { label: `fix:r${round}`, phase: 'Review', schema: STEP })
   if (!fx) return { stopped: 'cut at fix r' + round, built, final }
-  if (fx.owner_gate) return { stopped: 'owner gate', owner_gate: fx.owner_gate, built, final }
+  if (isGate(fx.owner_gate)) return { stopped: 'owner gate', owner_gate: fx.owner_gate, built, final }
 }
 return { ready: !!(final && final.pass), final, built: built.map(b => ({ step: b.step, done: b.r && b.r.done, summary: b.r && b.r.summary })) }
