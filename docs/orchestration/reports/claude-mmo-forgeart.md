@@ -108,7 +108,7 @@ In every run the log shows `forge prop=true fallback=false` and `anvil prop=true
   - the bellows sits on its trestle beside the forge;
   - the anvil on its stump, with the hammer and the blue quench water, stands at her side, its face below
     her waist.
-- `compat_1600_z6.png` and `compat_1600_z12.png` (1600x900, gl_compatibility; z12 is near play zoom). The
+- `compat_1600_z6_v2.png` and `compat_1600_z12_v2.png` (1600x900, gl_compatibility; z12 is near play zoom). The
   forge and the anvil both read at play distance. The ember bed reads as fire.
 
 Things I saw that are not this package's: the HUD's world labels float about 1 m above their objects, so
