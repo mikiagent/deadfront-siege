@@ -20,7 +20,7 @@ both fixes are small, so both are built:
 | Fix | Cited line (checked) | What changed | Proof |
 |---|---|---|---|
 | A station uses the instances the player picked | Spec 08:98: "A multi-material recipe consumes *specific instance IDs* atomically" (and 08:98 "Support a material-preview before committing a food process") | `ProcessStation.load_from(..., picks)`: the first job takes exactly the bag picks the craft card showed, or nothing. There is no substitute. `refuse_reason` names why ("No processing left on that one." / "That one is no longer in your bag."), and `StationCraft` shows it as a notice. Queued repeats auto-pick with `Crafting.default_picks`, which now does the spent-primary swap that `ProcessStation._picks` used to do, so the card previews the instance the station really takes. `_picks` is deleted | `ok the rack takes the picked lv 31 meat, not the default lv 9`; `ok a spent pick is refused, the other meat is not substituted: 'No processing left on that one.'`; `ok a pick that left the bag is refused`; `ok a batch takes the pick first, then auto-picks the repeat` |
-| A destroyed station never deletes its contents | Spec 10:102: "A change in building state must not silently delete stored items." Spec 11:155: "Handle demolished stations, cancellations, full output containers and server restarts without losing items or duplicating output." | `CraftStation.salvage_contents()` / `ProcessStation.salvage_contents()` hand over and clear the inputs, outputs and waiting jobs. W2-BUILDSYS's `StructureHealth` child emits `destroyed` before it `queue_free()`s the station, and `CraftStation` listens to it duck-typed (`child_entered_tree`). The contents go into camp cargo all-or-nothing through `SaveRestore._refund`. When the cargo is full they wait in `SaveRestore.pending_refunds`, which is saved and retried on every load. So BUILDSYS needs no change and merge order does not matter | `ok a destroyed rack's dried meat (same uid) and drying hide go to camp cargo`; `ok cargo full: the contents wait in pending_refunds (1 rows)`; `ok with room, the next load's retry hands both over` |
+| A destroyed station never deletes its contents | Spec 10:102: "A change in building state must not silently delete stored items." Spec 11:155: "Handle demolished stations, cancellations, full output containers and server restarts without losing items or duplicating output." | `CraftStation.salvage_contents()` / `ProcessStation.salvage_contents()` hand over and clear the inputs, outputs and waiting jobs. **Superseded in round 5:** the `destroyed` listener that sent them to camp cargo is gone, because W2-BUILDSYS's `StructureHealth` now calls `salvage_contents()` itself | round 5 proof below |
 | Found on the way: a saved station row the grid refuses on load lost its jobs | Same spec 11:155 ("server restarts") | Hooks patch: `SaveRestore._items_of` also returns `ProcessStation.saved_stacks(row.process)`, so a refunded rack row gives back its kit and the meat on it | `ok a refunded rack row returns its kit and the 2 meats on it (cargo meat 2)` (with the hooks patch) |
 
 Mutation run (picks ignored, the `destroyed` connect removed, the base `save_restore.gd`):
@@ -241,17 +241,19 @@ All in `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/b2302
 
 ## Integrator hooks
 
-`docs/orchestration/reports/claude-mmo-w2-process-hooks.patch` (round 4): 3 lines in `game/scripts/core/save_restore.gd`
-(W1-SAVE's file). `SaveRestore._items_of` adds a station row's process contents, so a row the grid refuses on
-load is refunded with what hung on it. It applies clean on claude/mmo-overhaul 6e26ef2a (the file's blob
-cd8df9b8 is the patch's index line).
+`docs/orchestration/reports/claude-mmo-w2-process-hooks.patch` (round 4, regenerated in round 5 with the same
+bytes): 3 lines in `game/scripts/core/save_restore.gd` (W1-SAVE's file). `SaveRestore._items_of` adds a
+station row's process contents, so a row the grid refuses on load is refunded with what hung on it.
+`git apply --check` is clean on claude/mmo-overhaul 34b6d459 (the file's blob cd8df9b8 is the patch's index
+line).
 
-The pack-up fix needs no change in `build_placer.gd` or `player_actions.gd`: `BuildPlacer.pack_up_blocker`
-already asks `pack_up_block_reason()` duck-typed before any side effect, on the base and on W2-BUILDSYS
-(58c3a87d, line 302). Notes:
-- **W2-BUILDSYS merge:** no hook needed for process stations. `CraftStation` listens to the `destroyed`
-  signal of BUILDSYS's `StructureHealth` child and salvages first. A basket's `storage` on that path is
-  BUILDSYS's to handle (`salvage_contents()` is the duck-typed name to reuse).
+The pack-up fix needs no change in `build_placer.gd` or `player_actions.gd`. `BuildPlacer.pack_up_node` calls
+`pack_up_blocker` first, and `pack_up_blocker` asks `pack_up_block_reason()` duck-typed before any side
+effect. That holds on the base (build_placer.gd:176 -> :209) and on W2-BUILDSYS 4b8c6d23 (:265 -> :302).
+Notes:
+- **W2-BUILDSYS merge:** no hook needed for process stations. BUILDSYS's `StructureHealth.take_damage`
+  calls `host.salvage_contents()` duck-typed and drops the stacks into the bag, home cargo or a loot bag
+  (structure_health.gd:120 on 4b8c6d23). Round 5 checked this on a merged tree (below).
 - t_process is not in run_all; run it like the other `t_*.gd`.
 - For W3-SRVACT: load and collect are local calls, not PlayerActions intents.
 
