@@ -16,7 +16,8 @@ var cells: Array[EquipmentSlot] = []
 ## Candidates for the selected cell, on the shared bag grid.
 var list: InventoryGrid
 var primary: Button
-## Grey line over the action: why there is none (locked, nothing to equip) or the last refusal.
+## Grey lines over the action: the targeted piece's own numbers (spec 13 s14: its properties beside
+## Unequip), or why there is no action (locked, nothing to equip) or the last refusal.
 var note: Label
 var slot: StringName = &""
 var _action: StringName = &""
@@ -112,7 +113,6 @@ func _fill_list() -> void:
 	list.pinned = w if slot != &"tool" else null
 	list.worn_uid = w.uid if w and slot == &"tool" else ""
 	list.set_view(&"level", StringName("slot:%s" % slot) if slot != &"" else &"slot:none")
-	_after_fill()
 
 ## The selected candidate, or the worn piece when nothing is picked: what the action applies to.
 func target() -> ItemStack:
@@ -128,10 +128,6 @@ func _on_pick(uid: String) -> void:
 		_refusal = "" # a new pick; clearing the pick keeps the last refusal on screen
 	_update()
 
-## Hook for subclasses after the candidate list changed.
-func _after_fill() -> void:
-	pass
-
 func _update() -> void:
 	var t := target()
 	var acts: Array[StringName] = []
@@ -145,8 +141,28 @@ func _update() -> void:
 		why = "Locked: unlock it in the Bag to wear it."
 	elif why == "" and slot != &"" and list.item_cells().is_empty():
 		why = "There are no items available to equip."
-	note.text = why
+	note.text = why if why != "" or t == null else describe(t)
 	_layout()
+
+## "Forager Vest Lv. 12" over "Armor 110 · Durability 80 / 100 · Firm Lv. 3".
+static func describe(s: ItemStack) -> String:
+	var d := s.def()
+	var bits := PackedStringArray()
+	if s.scaled_damage() > 0.0:
+		bits.append("Damage %.0f" % s.scaled_damage())
+	if s.scaled_armor() > 0.0:
+		bits.append("Armor %.0f" % s.scaled_armor())
+	if d and d.health_bonus > 0.0:
+		bits.append("Max health +%.0f" % d.health_bonus_at(s.level))
+	if d and d.tool_class not in [&"", &"none"]:
+		bits.append("%s %.2fx" % [str(d.tool_class).capitalize(), s.gather_power()])
+	if s.max_durability > 0:
+		bits.append("Durability %d / %d" % [s.durability, s.max_durability])
+	for cls: String in ["positive", "negative", "rare"]:
+		for r: Dictionary in InvAttributes.sections(s)[cls]:
+			bits.append(InvAttributes.line(r))
+	var title := d.display_name if d and d.display_name != "" else str(s.def_id)
+	return "%s %s\n%s" % [title, LevelDisplay.label(s.level), " · ".join(bits)]
 
 func _run() -> void:
 	var t := target()
@@ -182,19 +198,24 @@ func _layout() -> void:
 	var bar := act_h + float(_m.margin) * 2.0
 	list.lv_px = maxi(UiTokens.TYPE_MIN, int(_m.lv_font) - 2)
 	list.new_px = int(_m.new_font)
-	var nh: float = _m.row_h * 2.4
 	var empty := list.item_cells().is_empty()
 	note.visible = note.text != ""
+	# The note is as tall as its wrapped lines (at most 45 % of the column); the list takes the rest.
+	var inset: float = float(_m.margin) * 2.0
+	note.add_theme_font_size_override("font_size", int(_m.row_font) - (2 if _m.compact else 0))
+	note.size = Vector2(col.size.x - inset * 2.0, 0.0)
+	var line_h := float(note.get_line_height())
+	var cap := floorf(col.size.y * 0.45 / line_h)
+	note.max_lines_visible = int(cap)
+	var nh := (minf(float(note.get_line_count()), cap) * line_h + 8.0) if note.visible else 0.0
+	note.size = Vector2(col.size.x - inset * 2.0, nh)
 	list.position = col.position
-	list.size = Vector2(col.size.x, col.size.y - bar - (nh if note.visible and not empty else 0.0))
+	list.size = Vector2(col.size.x, col.size.y - bar - (nh if not empty else 0.0))
 	list.min_rows = maxi(1, ceili(list.size.y / maxf(1.0, floorf((col.size.x - 2.0) / 3.0))))
 	list.refresh()
 	primary.size = Vector2(col.size.x - float(_m.margin) * 2.0, act_h)
 	primary.position = Vector2(col.position.x + float(_m.margin), col.end.y - _m.margin - act_h)
 	InvTheme.style_primary(primary, int(_m.button_font))
-	note.add_theme_font_size_override("font_size", int(_m.row_font))
-	var inset: float = float(_m.margin) * 2.0
-	note.size = Vector2(col.size.x - inset * 2.0, nh)
 	note.position = Vector2(col.position.x + inset, (list.position.y + list.size.y * 0.5 - nh * 0.5) if empty else col.end.y - bar - nh)
 
 ## Share of the width the candidate column takes (reference 2: 26 %, reference 3: 25 %).

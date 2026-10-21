@@ -10,8 +10,21 @@ index 6e8c7605..93490737 100644
  	player.inventory.load_array(data.get("player", {}).get("inventory", []), World.cargo_home)
  	var extras: Variant = data.get("player", {}).get("inventory_extras", null)
  	if extras is Dictionary:
+diff --git a/game/scripts/core/save_sanitizer.gd b/game/scripts/core/save_sanitizer.gd
+index 93d39900..251c437c 100644
+--- a/game/scripts/core/save_sanitizer.gd
++++ b/game/scripts/core/save_sanitizer.gd
+@@ -20,7 +20,7 @@ static var abort_for_test := false
+ ## Expected type of each field the loader reads; the value is only a type sample. A field of the
+ ## wrong type is erased so the loader's own default applies.
+ const SHAPE := {
+-	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0}, "position": []},
++	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0, "presets": {}}, "position": []},
+ 	"pets": [], "ground_snares": [], "skills": {}, "skills_v2": {},
+ 	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}},
+ 	"away": {"buildings": [], "claims": []}, "pending_refunds": [],
 diff --git a/game/scripts/dev/inventory_lab.gd b/game/scripts/dev/inventory_lab.gd
-index 2e0f77e6..ce6dd495 100644
+index e92bfd02..91cf4fce 100644
 --- a/game/scripts/dev/inventory_lab.gd
 +++ b/game/scripts/dev/inventory_lab.gd
 @@ -1,9 +1,9 @@
@@ -67,13 +80,7 @@ index 2e0f77e6..ce6dd495 100644
  			return true
  	return false
  
-@@ -67,50 +61,35 @@ func _expect(ok: bool, what: String) -> void:
- 
- func _check() -> void:
- 	var inv := player.inventory
--	var ui := player.ui
- 	var units := {}
- 	for s in inv.slots:
+@@ -73,52 +67,46 @@ func _check() -> void:
  		if s:
  			units[s.def_id] = int(units.get(s.def_id, 0)) + s.count
  	_expect(inv.used_slots() == 100 and inv.slot_count == 100, "the bag holds 100 instances in 100 slots (%d/%d)" % [inv.used_slots(), inv.slot_count])
@@ -119,7 +126,10 @@ index 2e0f77e6..ce6dd495 100644
 +		if c.stack.def_id == &"raid_helm" and c.stack.level == 30:
 +			uid = c.uid
 +	_grid().select_uid(uid)
-+	(player.ui.get("_bag") as BagScreen).inspect.action_pressed.emit(&"equip")
++	(player.ui.get("_bag") as BagScreen).inspect.action_pressed.emit(&"equip") # opens Equipment to compare
++	_expect(player.ui.current_screen() == &"equipment", "the bag's Equip opens Equipment (%s)" % player.ui.current_screen())
++	var eq: EquipmentScreen = player.ui.get("_equipment")
++	eq.primary.pressed.emit() # Equip
  	var worn := inv.equipped_in(&"head")
 -	_expect(worn != null and worn.level == 30 and worn.uid == uid and uid != "", "Equip wears the L30 helm chosen in its group")
 -	_expect(inv.used_slots() == 99 and _visible_cells().size() == groups.size(), "the worn helm left the bag; one helm is left as a single cell (%d cells)" % _visible_cells().size())
@@ -133,9 +143,26 @@ index 2e0f77e6..ce6dd495 100644
  	after[&"raid_helm"] = int(after.get(&"raid_helm", 0)) + 1
 -	_expect(after == units, "grouping merged nothing: every unit is where it was")
 +	_expect(after == units, "the view merged nothing: every unit is where it was")
+ 	# Tapping the worn helm with a full bag keeps it worn and says why (it was refused silently).
+ 	inv.add(ItemStack.make(&"branch", 1))
+-	ui._on_equip_slot_pressed("head")
++	ui.open_character(&"head")
++	var ch: CharacterScreen = ui.get("_character")
++	ch.primary.pressed.emit() # Unequip on the worn helm
+ 	var hud := get_tree().get_first_node_in_group("hud")
+ 	var notices := str(hud.get("_events").notices) if hud and hud.get("_events") else ""
+-	_expect(inv.equipped_in(&"head") != null and inv.used_slots() == 100 and notices.contains("Bag is full"), "unequip into a full bag: the helm stays worn and 'Bag is full' shows")
+-	ui._select(inv.find_first(&"stone"))
+-	_expect(ui._tip.text.begins_with("Stone") and not ui._tip.text.contains("attr") and not ui._tip.text.contains("tint"), "the tip shows no raw attribute dict (%s)" % ui._tip.text.replace("\n", " | "))
++	_expect(inv.equipped_in(&"head") != null and inv.used_slots() == 100 and notices.contains("Bag is full") and ch.note.text.contains("Bag is full"), "unequip into a full bag: the helm stays worn and 'Bag is full' shows")
++	ui.open_bag()
++	_select_first(&"stone")
++	var bag := ui.get("_bag") as BagScreen
++	var rows := " | ".join(bag.inspect.rows())
++	_expect(bag.inspect.title_text() == "Stone" and not rows.contains("attr") and not rows.contains("tint"), "the inspect panel shows no raw attribute dict (%s)" % rows)
  	if _fails.is_empty():
--		print("[invlab] PASS slots=100 groups=%d stone_open=17 equip_l30=true" % groups.size())
-+		print("[invlab] PASS slots=100 cells=100 stones=16 equip_l30=true")
+-		print("[invlab] PASS slots=100 groups=%d stone_open=17 equip_l30=true full_unequip_notice=true" % groups.size())
++		print("[invlab] PASS slots=100 cells=100 stones=16 equip_l30=true full_unequip_notice=true")
  	get_tree().quit(0 if _fails.is_empty() else 1)
 diff --git a/game/scripts/dev/ui_family_lab.gd b/game/scripts/dev/ui_family_lab.gd
 index 08a7438c..87d384d2 100644
@@ -151,10 +178,10 @@ index 08a7438c..87d384d2 100644
  		print("[uifamily] inventory=%s animals=%s unlimited=%s active_cap=%d stego=%s" % [inventory_ok, animal_ok, unlimited_ok, Player.MAX_PETS_OUT, stego.species])
  		get_tree().quit(0 if inventory_ok and animal_ok and unlimited_ok and Player.MAX_PETS_OUT == 3 else 1)
 diff --git a/game/scripts/dev/ui_real_capture_lab.gd b/game/scripts/dev/ui_real_capture_lab.gd
-index 5ba2dc9c..d9c3322d 100644
+index 5ba2dc9c..0f8aae94 100644
 --- a/game/scripts/dev/ui_real_capture_lab.gd
 +++ b/game/scripts/dev/ui_real_capture_lab.gd
-@@ -209,24 +209,17 @@ func _run() -> void:
+@@ -209,26 +209,30 @@ func _run() -> void:
  	await _capture_plate(logical)
  	await _camp_and_station(logical)
  	await _busy(logical)
@@ -185,8 +212,30 @@ index 5ba2dc9c..d9c3322d 100644
 +		_expect(absf((bag["grid"] as Rect2).position.y - (bag["inspect"] as Rect2).position.y) < 8.0, "bag: the inspect panel starts beside the grid")
  	await _capture("bag", [], logical)
  	_player.ui.visible = false
++	# Character (INVUI B2): the profile moved here from the old bag; it shows the one player level
++	# (the bag once printed pioneer level + 1) and the title held since character creation.
++	_player.ui.call("open_character")
++	await _frames(3)
++	_check_blocks("character", bag_blocks(_player.ui), logical)
++	var prof := "\n".join((_player.ui.get("_character") as CharacterScreen).profile_lines())
++	_expect(prof.contains(LevelDisplay.player_label()), "character: shows the player level %s like the HUD and atlas (got \"%s\")" % [LevelDisplay.player_label(), prof.replace("\n", " / ")])
++	var held_title := LevelDisplay.current_title(LevelDisplay.player_level())
++	_expect(held_title != "" and prof.contains(held_title), "character: shows the held title \"%s\" (got \"%s\")" % [held_title, prof.replace("\n", " / ")])
++	await _capture("character", [], logical)
++	_player.ui.call("hide_ui")
  	# animal screen (protected): shot only, for the eye check of the token theme on it
-@@ -534,14 +527,9 @@ static func atlas_blocks(map: MapScreen) -> Dictionary:
+ 	_hud.call("_open_animals")
+ 	await _frames(3)
+@@ -334,7 +338,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
+ 	print("[uireal] phone=%s min_font_px=%d min_font_pt=%.2f logical_width=%d window_pt=%dx%d floor_pt=%.2f (smallest: %s)" % [phone, min_px, min_pt, int(logical.x), int(pts.x), int(pts.y), type_floor_pt(pts), _min_font_where])
+ 	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
+ 	if _fails.is_empty():
+-		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
++		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,character,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
+ 		get_tree().quit(0)
+ 	else:
+ 		for f in _fails:
+@@ -534,14 +538,9 @@ static func atlas_blocks(map: MapScreen) -> Dictionary:
  		out["legend"] = row if i == 0 else (out["legend"] as Rect2).merge(row)
  	return out
  
@@ -236,23 +285,51 @@ index faf78b8f..51053834 100644
  				return []
  		elif not candidates.is_empty():
 diff --git a/game/scripts/items/inventory.gd b/game/scripts/items/inventory.gd
-index 7c95a9f2..f1196495 100644
+index be5910ee..91e4a98b 100644
 --- a/game/scripts/items/inventory.gd
 +++ b/game/scripts/items/inventory.gd
-@@ -316,7 +316,9 @@ func add(stack: ItemStack) -> int:
+@@ -24,6 +24,8 @@ const EQUIP_SLOTS: Array[StringName] = [&"weapon", &"head", &"body", &"arms", &"
+ var equipment: Dictionary = {}
+ ## Two quick-food def ids for the HUD food hexes + auto-feed.
+ var quick_food: Array = ["", ""]
++## Gear presets (INVUI, spec 13 s14): {"active": k, "sets": [{slot: uid} or null, ...]}; GearPresets.
++var presets: Dictionary = {}
+ ## uids taken while loading (home cargo, then this bag): a worn row repeating one is reminted.
+ var load_uids: Dictionary = {}
+ 
+@@ -202,13 +204,17 @@ func extras_to_dict() -> Dictionary:
+ 	for slot in equipment:
+ 		if equipment[slot] is ItemStack:
+ 			w[slot] = (equipment[slot] as ItemStack).to_dict()
+-	return {"worn": w, "quick_food": quick_food.duplicate(), "tool_index": equipped_tool_index}
++	var out := {"worn": w, "quick_food": quick_food.duplicate(), "tool_index": equipped_tool_index}
++	if not presets.is_empty():
++		out["presets"] = presets.duplicate(true) # only once used: saves without presets stay as they were
++	return out
+ 
+ ## Call after load_array. A pre-W2-INV save names worn gear by def id with the item still in the
+ ## bag: that item (highest level) moves out of the bag into its slot. Then the bag takes the
+ ## capacity the worn gear gives (a shrink that would cut off items is skipped: never delete).
+ func extras_from_dict(d: Dictionary) -> void:
+ 	equipment.clear()
++	presets = GearPresets.sanitize(d.get("presets", {}))
+ 	var seen := load_uids.merged(uids())
+ 	load_uids = {}
+ 	equipped_tool_index = int(d.get("tool_index", -1))
+@@ -395,7 +401,9 @@ func add(stack: ItemStack) -> int:
  	var start := _find_span(span)
  	if start < 0:
  		return stack.count
--	_place_span(stack.duplicate_stack(), start)
+-	place_span(stack.duplicate_stack(), start)
 +	var placed := stack.duplicate_stack()
-+	_mint(placed) # a caged animal is an instance too: the bag selects and sells it by uid (spec 13 s12)
-+	_place_span(placed, start)
++	mint(placed) # a caged animal is an instance too: the bag selects and sells it by uid (spec 13 s12)
++	place_span(placed, start)
  	stack.count = 0
  	changed.emit()
  	return 0
-@@ -420,11 +422,13 @@ static func spend_key(s: ItemStack) -> Array:
- 			break
- 	return [traits, s.level, s.created_at]
+@@ -474,11 +482,13 @@ static func traits(s: ItemStack) -> Dictionary:
+ static func spend_key(s: ItemStack) -> Array:
+ 	return [0 if traits(s).is_empty() else 1, s.level, s.created_at]
  
 +## Locked instances are never found or consumed by these helpers (spec 13 s9: lock protects an item
 +## from crafting, processing and auto-consumption); the player unlocks it to spend it.
@@ -265,7 +342,7 @@ index 7c95a9f2..f1196495 100644
  			continue
  		var d := s.def()
  		if d and d.has_category(cat):
-@@ -433,7 +437,7 @@ func find_by_category(cat: StringName) -> Array[int]:
+@@ -487,7 +497,7 @@ func find_by_category(cat: StringName) -> Array[int]:
  
  func find_first(def_id: StringName) -> int:
  	for i in slot_count:
@@ -274,7 +351,7 @@ index 7c95a9f2..f1196495 100644
  			return i
  	return -1
  
-@@ -445,14 +449,20 @@ func count_of(def_id: StringName) -> int:
+@@ -499,14 +509,20 @@ func count_of(def_id: StringName) -> int:
  	return n
  
  func consume(def_id: StringName, amount: int) -> bool:
@@ -298,7 +375,7 @@ index 7c95a9f2..f1196495 100644
  		var take := mini(left, s.count)
  		remove_at(i, take)
 diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
-index 3bfbb398..ab566b43 100644
+index 3bfbb398..8e87fd21 100644
 --- a/game/scripts/player/player_actions.gd
 +++ b/game/scripts/player/player_actions.gd
 @@ -422,7 +422,7 @@ func craft(rid: StringName, count: int = 1) -> bool:
@@ -310,7 +387,7 @@ index 3bfbb398..ab566b43 100644
  	return p.eat_session != null and p.eat_session.begin_eat(index)
  
  func equip(slot: StringName, def_id: StringName) -> bool:
-@@ -431,6 +431,47 @@ func equip(slot: StringName, def_id: StringName) -> bool:
+@@ -431,6 +431,51 @@ func equip(slot: StringName, def_id: StringName) -> bool:
  	p.inventory.equip(slot, def_id)
  	return true
  
@@ -324,10 +401,14 @@ index 3bfbb398..ab566b43 100644
 +		p.refresh_equipment_vitals()
 +	return ok
 +
-+## Gear back into the bag; refused (stays worn) when the bag is full.
++## Gear back into the bag; refused (stays worn) when the bag is full. &"tool" lets go of the held
++## tool (gathering picks the best one again), as the server's act.equip {slot: "tool", clear}.
 +func unequip(slot: StringName) -> bool:
 +	if online:
 +		return _send(&"equip", {"slot": str(slot), "clear": true})
++	if slot == &"tool":
++		p.inventory.set_equipped_tool_index(-1)
++		return true
 +	var ok := p.inventory.unequip(slot)
 +	if ok:
 +		p.refresh_equipment_vitals()
@@ -358,11 +439,23 @@ index 3bfbb398..ab566b43 100644
  ## Confirm the building ghost (place_confirm key or tap on the ghost).
  func place_confirm() -> bool:
  	if online:
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index 80b01e5b..efee0cd3 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -741,6 +741,7 @@ func _toggle_sheet(kind: StringName) -> void:
+ 		&"menu":
+ 			title.text = "Menu"
+ 			_sheet_btn(box, "Bag", func () -> void: _close_sheet(); if player.ui: player.ui.visible = not player.ui.visible)
++			_sheet_btn(box, "Character", func () -> void: _close_sheet(); if player.ui: player.ui.open_character()) # INVUI: Character -> Gear
+ 			_sheet_btn(box, "Craft", func () -> void: _close_sheet(); if player.craft_ui: player.craft_ui.toggle())
+ 			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
+ 			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
 diff --git a/game/tests/t_ui.gd b/game/tests/t_ui.gd
-index 4b18ac78..783c57b6 100644
+index 4b18ac78..cfc74717 100644
 --- a/game/tests/t_ui.gd
 +++ b/game/tests/t_ui.gd
-@@ -13,6 +13,13 @@ const OWNED := [
+@@ -13,6 +13,16 @@ const OWNED := [
  	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
  	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
  	"res://scripts/ui/hud_layout.gd", "res://scripts/ui/hud_pills.gd",
@@ -373,6 +466,9 @@ index 4b18ac78..783c57b6 100644
 +	"res://scripts/ui/capacity_indicator.gd", "res://scripts/ui/inv_header.gd", "res://scripts/ui/bag_toolbar.gd",
 +	"res://scripts/ui/item_inspect_panel.gd", "res://scripts/ui/bag_screen.gd", "res://scripts/ui/storage_screen.gd",
 +	"res://scripts/ui/inventory_ui.gd",
++	"res://scripts/ui/inv_stats.gd", "res://scripts/ui/equipment_slot.gd", "res://scripts/ui/gear_preset_selector.gd",
++	"res://scripts/ui/gear_screen.gd", "res://scripts/ui/character_screen.gd", "res://scripts/ui/detailed_stats_panel.gd",
++	"res://scripts/ui/equipment_screen.gd",
  ]
  const TYPE_MIN := 12
  ## The HUD and bag joined W1-UI late (orchestrator option a). The bag is emoji-free; the HUD's rail
