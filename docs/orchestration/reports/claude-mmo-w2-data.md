@@ -5,6 +5,34 @@ commits; merged in 5849a2d3). Review round 4 gates ran on 753a3c64 with the rege
 tree `w2data-r4-gate`); the commits after it change only this report. No dsc worker was used (the owner took
 DeepSeek off on 2026-10-20), so nothing goes in dsc-improvements.md. No credits spent.
 
+## Sync 2 before integration (2026-10-21)
+
+The base had moved past the branch by 15 commits: the HUD-DAYNIGHT merge, the integrator's re-merge of sync 1
+(c206a97f, hooks 9762c735) and STATUS commits. The branch head 6b19dcb3 was already an ancestor of the base, so the
+merge was a fast-forward to acc684a6. There were no conflicts, and nothing in the package needed adapting.
+
+**Hooks patch: unchanged, nothing to apply.** Every hunk is already in the base. On acc684a6, `git apply -R --check`
+gives rc=0. `git apply --3way`, which mkscratch uses, gives rc=0 and leaves no tracked change in the tree. Plain
+`git apply --check` fails, and it has to, because the changes are already there. No regenerated patch can be
+"apply-clean" while every hook is merged.
+
+**Integrator/orchestrator:** W2-DATA is fully merged, and the branch now matches the base. Each STATUS commit on
+the base will leave the branch "behind" again, and plain `--check` can never pass. Take this package out of the sync
+queue instead of syncing it again.
+
+Gates ran in the scratch tree `sync-w2-data` on acc684a6, made by mkscratch with this patch (a no-op). The import log
+has 0 error lines.
+
+- All 23 t_*.gd exit with rc=0 and print their PASS line, including `[t_data] PASS items=223 recipes=155`,
+  `[t_w2_skills] PASS`, `[t_daynight] PASS`, `[t_water] PASS`, `[t_harbour] PASS islands=15` and
+  `[t_uiicons] PASS ids=177 files=116`. t_save prints its 5 deliberate SCRIPT ERRORs. Every other log has 0 SCRIPT
+  ERROR lines, and no log has a "couldn't resolve track" line.
+- run_all prints `[tests] PASS`, and `tools/smoke.sh --no-import` prints `SMOKE PASS`.
+- `[craft_lab] PASS` and `[equiplab] PASS`. The raid gear probe gives `[gear] maul L60 steel dmg=1569.6 kit
+  armor=9291.3` and `failures=0`.
+- `[t_data] level 1 -> 5 from the planner: flint_pick gather power x1.40, flint_spear damage x1.32`.
+- No new Godot-*.ips: there are 25 before and after, and the newest is still Godot-2026-10-20-232613.ips.
+
 ## Sync 1 before integration (2026-10-21)
 
 The branch already contains claude/mmo-overhaul (ddaab662), so there was nothing to merge. The package itself was
