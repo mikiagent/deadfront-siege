@@ -378,6 +378,10 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   builds the Color tab (skin, outfit 1-3, eye, lip through texture masks), the Name step (1-20 chars, letters/digits/space/-/.) and data-driven
   hairstyle/facial-hair/feature slots; CHAR-APPEARANCE plan (wf_05041ba1-aa5, read-only, no spend) plans that art and a male base.
 
+- 2026-10-20 (owner) "region chat" (`docs/design/durango-prompts/20_region_chat.md`, `docs/reference/durango-region-chat.webp`): Durango chat screen
+  (Region / System channels, New Group, gold names, emotes, relative times, Enter message / + / Send). Run NET+CHAT: finish the network core
+  (`claude/mmo-net`: sync the base, fix, review; it is the market's online path too) and build the chat screen on it (`claude/mmo-chat`).
+
 ## Owner questions (open)
 
 - Male survivor model (PRD: 8 occupations x 2 genders): start a concept sheet for approval, then a Tripo mesh from existing credits? (asked 2026-10-20; unanswered)
