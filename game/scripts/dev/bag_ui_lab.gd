@@ -83,6 +83,7 @@ func _ready() -> void:
 			InvTheme.forced_insets = Vector4(v[1], v[2], v[3], v[0]) # x right, y bottom, z top, w left
 	var kit := LabKit.build(self, 30.0)
 	player = kit["player"]
+	_dress_world()
 	# Same layering as main.gd: the bag family is a modal above the HUD's canvas layers.
 	var modals := CanvasLayer.new()
 	modals.name = "Modals"
@@ -107,6 +108,49 @@ func _ready() -> void:
 		await _measure_open142()
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
 		_check()
+
+# ---------------------------------------------------------------- world
+
+## The world beside the docked Bag (review r1: a flat mint plane read as no place at all): the island's
+## grass on the lab floor and a few of the game's own trees, bushes, rocks and grass around the
+## survivor, each scaled to a height like the islands' scatter. Lab dressing only.
+const DRESS := [
+	["res://assets/nature/generated/tree-common-a.glb", Vector2(-7.5, -5.0), 7.0],
+	["res://assets/nature/generated/tree-common-b.glb", Vector2(-11.0, 2.5), 8.0],
+	["res://assets/nature/generated/tree-pine-a.glb", Vector2(-4.0, -10.0), 8.5],
+	["res://assets/nature/generated/tree-common-a.glb", Vector2(6.0, -9.0), 7.5],
+	["res://assets/nature/generated/bush-berries-a.glb", Vector2(-3.5, -2.5), 1.3],
+	["res://assets/nature/generated/bush-berries-b-empty.glb", Vector2(-6.0, 3.5), 1.4],
+	["res://assets/nature/generated/rock-moss-a.glb", Vector2(-2.0, 4.0), 1.1],
+	["res://assets/nature/generated/rock-a.glb", Vector2(-8.5, -1.0), 0.9],
+	["res://assets/nature/generated/plant-a.glb", Vector2(-1.5, -4.5), 0.8],
+	["res://assets/nature/generated/grass-a.glb", Vector2(-4.5, 1.0), 0.6],
+	["res://assets/nature/generated/grass-a.glb", Vector2(-2.5, 1.8), 0.5],
+	["res://assets/nature/generated/grass-short-a.glb", Vector2(-5.5, -3.8), 0.4],
+	["res://assets/nature/generated/grass-a.glb", Vector2(-9.0, 5.5), 0.6],
+	["res://assets/nature/generated/grass-short-a.glb", Vector2(-1.0, 2.6), 0.4],
+]
+
+func _dress_world() -> void:
+	var floor_mesh := get_node_or_null("Nav/Floor") as Node
+	if floor_mesh and floor_mesh.get_child_count() > 0 and floor_mesh.get_child(0) is MeshInstance3D:
+		var mat := StandardMaterial3D.new()
+		mat.albedo_texture = load(IslandTerrain.TERRAIN_TEX["grass"]) as Texture2D
+		mat.uv1_triplanar = true # world-space tiling, about one texture per 8 m like the islands'
+		mat.uv1_scale = Vector3(0.125, 0.125, 0.125)
+		mat.roughness = 1.0
+		(floor_mesh.get_child(0) as MeshInstance3D).material_override = mat
+	for row: Array in DRESS:
+		var scene := load(str(row[0])) as PackedScene
+		if scene == null:
+			continue
+		var n := scene.instantiate() as Node3D
+		add_child(n)
+		var box := CharacterScreen._bounds(n)
+		n.scale = Vector3.ONE * (float(row[2]) / maxf(0.01, box.size.y))
+		var at: Vector2 = row[1]
+		n.position = Vector3(at.x, -box.position.y * n.scale.y, at.y)
+		n.rotation.y = fposmod(at.x * 1.7 + at.y * 2.3, TAU)
 
 # ---------------------------------------------------------------- seed
 
@@ -262,7 +306,7 @@ func _open(screen: StringName) -> bool:
 			if _query != "":
 				(ui.get("_storage") as StorageScreen).toolbar.set_search(true, _query)
 		&"storage_select", &"storage_notice":
-			var opts := {"title": "Storage Box", "allow_deposit": true}
+			var opts := {"title": "Small Box", "allow_deposit": true} # one box, one name in both shots (review r1)
 			if screen == &"storage_notice":
 				opts = {"title": "Small Box", "readonly_reason": "This box belongs to someone else: cannot take."}
 			ui.show_storage(storage_box, player, opts)
@@ -391,7 +435,8 @@ func _check_b3() -> void:
 	_expect(storage_box.uids().has(uids["box_ingot"]) and storage_box.uids().has(uids["box_bone"]) and inv.used_slots() == USED, "storage: Transfer to Storage Box put both back")
 	ui.show_storage(storage_box, player, {"title": "Small Box", "readonly_reason": "This box belongs to someone else: cannot take."})
 	ui.call("select_uid", uids["box_ingot"])
-	_expect(st.notice_text().begins_with("This box belongs to someone else") and st.inspect.actions().is_empty(), "storage: someone else's box says so over the grid and offers no Transfer (%s)" % st.notice_text())
+	var dim := st.action_button(&"take")
+	_expect(st.notice_text().begins_with("This box belongs to someone else") and st.inspect.actions() == [&"take"] and dim != null and dim.disabled, "storage: someone else's box says so over the grid and keeps Transfer to Bag dimmed (%s %s)" % [st.notice_text(), st.inspect.actions()])
 	ui.show_pet_bag(player.bonded[0])
 	ui.call("select_uid", uids["cargo_berry"])
 	_expect(ui.call("current_screen") == &"cargo" and st.inspect.actions() == [&"take"], "cargo: the raptor's berry offers Take")

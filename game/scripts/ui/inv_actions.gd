@@ -130,6 +130,28 @@ static func can_discard(player: Player) -> bool:
 static func can_lock(player: Player) -> bool:
 	return player == null or not bool(player.actions.get("online"))
 
+## The trash's confirm on the card (the Bag and storage): {gone: the slots of `picked` it would
+## discard (a lock keeps the rest, spec 13 s9), notes: [[text, colour]], actions: Discard / Keep or none}.
+static func discard_prompt(inv: Inventory, picked: Array[int], player: Player) -> Dictionary:
+	var gone: Array[int] = []
+	for i in picked:
+		if inv.slots[i] and not inv.slots[i].is_locked():
+			gone.append(i)
+	var notes: Array = []
+	var acts: Array[StringName] = []
+	if gone.is_empty():
+		notes.append(["Locked items cannot be discarded.", InvTheme.TEXT_2])
+	else:
+		var what := "%d items" % gone.size()
+		if gone.size() == 1:
+			var one := inv.slots[gone[0]]
+			what = ("%s %s" % [InvCardFacts.of(one, player).kind, LevelDisplay.label(one.level)]).strip_edges()
+		notes.append(["Discard %s? It is gone for good." % what, InvTheme.DANGER])
+		if gone.size() < picked.size():
+			notes.append(["Locked items stay.", InvTheme.TEXT_2])
+		acts = [&"discard", &"keep"]
+	return {"gone": gone, "notes": notes, "actions": acts}
+
 ## True when every bag slot in `indices` holds a locked item (and there is at least one).
 static func all_locked(inv: Inventory, indices: Array[int]) -> bool:
 	if inv == null or indices.is_empty():

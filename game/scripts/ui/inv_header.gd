@@ -59,8 +59,8 @@ func set_title(text: String, lead: String = "") -> void:
 
 func apply_metrics(m: Dictionary) -> void:
 	_m = m
-	_title.add_theme_font_size_override("font_size", int(m.title_font))
-	_lead.add_theme_font_size_override("font_size", int(m.title_font))
+	InvTheme.set_px(_title, int(m.title_font))
+	InvTheme.set_px(_lead, int(m.title_font))
 	_layout()
 
 func _icon_button(id: StringName, tip: String) -> Button:
@@ -89,11 +89,11 @@ func _layout() -> void:
 	_close.add_theme_constant_override("icon_max_width", int(h * 0.42))
 	var x := _back.position.x + btn
 	if _lead.visible:
-		var lw := InvTheme.font().get_string_size(_lead.text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(_m.title_font)).x + 4.0
+		var lw := InvTheme.font_at(int(_m.title_font)).get_string_size(_lead.text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(_m.title_font)).x + 4.0
 		_lead.position = Vector2(x, top)
 		_lead.size = Vector2(lw, h)
 		x += lw + float(_m.title_font) * 0.25
-	var tw := InvTheme.font().get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, int(_m.title_font)).x + 4.0
+	var tw := InvTheme.font_at(int(_m.title_font)).get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, int(_m.title_font)).x + 4.0
 	_title.position = Vector2(x, top)
 	_title.size = Vector2(tw, h)
 	x += tw + float(_m.gap)
@@ -138,8 +138,8 @@ func _draw() -> void:
 	if not show_stones:
 		return
 	# T-stones (display only; the shop that sells them is elsewhere).
-	var f := InvTheme.font()
 	var px := int(_m.get("cap_font", 34) * 0.7)
+	var f := InvTheme.font_at(px)
 	var txt := "%d" % World.t_stones
 	var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 	var chip_h := h * 0.56

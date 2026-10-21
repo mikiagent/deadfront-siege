@@ -7,12 +7,16 @@ extends RefCounted
 ## Shape each trait class is drawn with (pips and the inspect panel's trait chips).
 const PIP_SHAPES := {&"positive": &"square", &"negative": &"hollow", &"rare": &"diamond"}
 
+## data/inv_ui.json "art": id -> [texture, opaque rect] (null texture: none, use ItemArt).
+static var _own_art := {}
+
 ## Item art centred a little low in `cell` (room for the labels above), fitted to its opaque part.
 static func item_icon(ci: CanvasItem, id: StringName, cell: Rect2, share: float = 0.62, centre_y: float = 0.56, tint: Color = Color.WHITE) -> void:
-	var tex := ItemArt.texture_for(id)
+	var own := own_art(id)
+	var tex: Texture2D = own[0] if own[0] else ItemArt.texture_for(id)
 	if tex == null:
 		return
-	var src := ItemArt.content_rect(id)
+	var src: Rect2 = own[1] if own[0] else ItemArt.content_rect(id)
 	if src.size.x <= 0.0 or src.size.y <= 0.0:
 		src = Rect2(Vector2.ZERO, tex.get_size())
 	var box := cell.size * share
@@ -20,6 +24,21 @@ static func item_icon(ci: CanvasItem, id: StringName, cell: Rect2, share: float 
 	var dst := src.size * k
 	var c := Vector2(cell.position.x + cell.size.x * 0.5, cell.position.y + cell.size.y * centre_y)
 	ci.draw_texture_rect_region(tex, Rect2(c - dst * 0.5, dst), src, tint)
+
+## The family's own painted art for an item that has no render yet (data/inv_ui.json "art"):
+## [texture or null, its opaque rect]. A render wins as soon as one exists.
+static func own_art(id: StringName) -> Array:
+	var key := str(id)
+	if not _own_art.has(key):
+		var row: Variant = (InvView.data().get("art", {}) as Dictionary).get(key)
+		var tex: Texture2D = null
+		var rect := Rect2()
+		if row is Dictionary and not ItemArt.is_rendered(id) and ResourceLoader.exists(str(row.get("path", ""))):
+			tex = load(str(row.path)) as Texture2D
+			var r: Array = row.get("rect", [])
+			rect = Rect2(r[0], r[1], r[2], r[3]) if r.size() == 4 else Rect2(Vector2.ZERO, tex.get_size())
+		_own_art[key] = [tex, rect]
+	return _own_art[key]
 
 ## How far labels and marks sit inside a compartment of side `unit`: just inside the brackets.
 static func inset(unit: float) -> float:
@@ -32,14 +51,14 @@ static func bracket_stroke(unit: float) -> float:
 static func level(ci: CanvasItem, text: String, cell: Rect2, px: int, unit: float) -> void:
 	if text == "":
 		return
-	var f := InvTheme.font()
+	var f := InvTheme.font_at(px)
 	var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 	var pad := inset(unit)
 	ci.draw_string(f, Vector2(cell.end.x - pad - w, cell.position.y + pad + f.get_ascent(px)), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, InvTheme.TEXT_2)
 
 ## Small blue rectangle with white NEW, top-left.
 static func new_tag(ci: CanvasItem, cell: Rect2, px: int, unit: float) -> Rect2:
-	var f := InvTheme.font()
+	var f := InvTheme.font_at(px)
 	var text := str((InvView.data().get("new_tag", {}) as Dictionary).get("text", "NEW"))
 	var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 	var pad := inset(unit) - 2.0
@@ -140,7 +159,7 @@ static func durability(ci: CanvasItem, cell: Rect2, stack: ItemStack) -> void:
 static func count(ci: CanvasItem, cell: Rect2, n: int, px: int) -> void:
 	if n <= 1:
 		return
-	var f := InvTheme.font()
+	var f := InvTheme.font_at(px)
 	var text := "×%d" % n
 	var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 	ci.draw_string(f, Vector2(cell.end.x - w - 5.0, cell.end.y - 5.0 - f.get_descent(px)), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, InvTheme.TEXT)
@@ -153,6 +172,7 @@ static func dashed(ci: CanvasItem, a: Vector2, b: Vector2, color: Color = InvThe
 ## a rounded outline whose points wander about a pixel by a fixed hash, so it never flickers and no
 ## edge looks ruled. `key` varies the wander between panels.
 static func frame(ci: CanvasItem, r: Rect2, width: float = 3.0, key: int = 0) -> void:
+	width = minf(width, 2.0) # thin worn edges (review r1: 3 px read as a thick cartoon outline)
 	var rad := 4.0
 	var box := r.grow(-width * 0.5)
 	if box.size.x <= rad * 2.0 or box.size.y <= rad * 2.0:
@@ -172,7 +192,7 @@ static func frame(ci: CanvasItem, r: Rect2, width: float = 3.0, key: int = 0) ->
 		var steps := maxi(1, int(from.distance_to(to) / 14.0))
 		for s in steps:
 			k += 1
-			pts.append(from.lerp(to, float(s) / steps) + normal * InvHeader._jit(k) * 0.9)
+			pts.append(from.lerp(to, float(s) / steps) + normal * InvHeader._jit(k) * 0.4)
 	pts.append(pts[0])
 	ci.draw_polyline(pts, InvTheme.FRAME_INK, width, true)
 

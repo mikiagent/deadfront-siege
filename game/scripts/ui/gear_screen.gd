@@ -23,14 +23,25 @@ var slot: StringName = &""
 var _action: StringName = &""
 var _refusal := ""
 var _m := {}
+## The right column's one panel: the candidates, the targeted piece's numbers and the action sit on it
+## (review r1: the numbers floated on the bare backdrop under a shorter list panel).
+var _column: Control
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(InvTheme.backdrop()) # opaque: HUD controls must not show through a modal screen
 	_build_body()
 	cells = EquipmentSlot.grid(self, select_slot)
+	_column = Control.new()
+	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var col_surface := InvTheme.surface(InvTheme.PANEL, 1.3, 1.0)
+	col_surface.show_behind_parent = true # the frame drawn on the column goes over it
+	_column.add_child(col_surface)
+	_column.draw.connect(func() -> void: InvPaint.frame(_column, Rect2(Vector2.ZERO, _column.size), 2.0, 9))
+	add_child(_column)
 	list = InventoryGrid.new()
 	list.columns = 3
+	list.panel_visible = false
 	add_child(list)
 	list.selection_changed.connect(_on_pick)
 	note = Label.new()
@@ -223,13 +234,16 @@ func _layout() -> void:
 	# Right column: candidates over one yellow action, like the references' Unequip / Equip.
 	var act_h: float = _m.primary_h
 	var bar := act_h + float(_m.margin) * 2.0
+	_column.position = col.position
+	_column.size = col.size
+	_column.queue_redraw()
 	list.lv_px = maxi(UiTokens.TYPE_MIN, int(_m.lv_font) - 2)
 	list.new_px = int(_m.new_font)
 	var empty := list.item_cells().is_empty()
 	note.visible = note.text != ""
 	# The note is as tall as its wrapped lines (at most 45 % of the column); the list takes the rest.
 	var inset: float = float(_m.margin) * 2.0
-	note.add_theme_font_size_override("font_size", int(_m.row_font) - (2 if _m.compact else 0))
+	InvTheme.set_px(note, int(_m.row_font) - (2 if _m.compact else 0))
 	note.size = Vector2(col.size.x - inset * 2.0, 0.0)
 	var line_h := float(note.get_line_height())
 	var cap := floorf(col.size.y * 0.45 / line_h)

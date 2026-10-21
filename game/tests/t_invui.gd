@@ -497,7 +497,8 @@ func _t12_transfers() -> void:
 	loot.add(IS.make(&"raw_meat", 1, {}, 9))
 	ui.show_storage(loot, player, {"title": "Raptor", "take_all": true, "readonly_reason": "needs knife"})
 	ui.select_uid(loot.slots[0].uid)
-	_expect(st.inspect.actions().is_empty() and st.notice_text() == "Needs knife", "12: read-only loot shows its reason over the grid and no Transfer (%s '%s')" % [st.inspect.actions(), st.notice_text()])
+	var dimmed = st.action_button(&"take")
+	_expect(st.inspect.actions() == [&"take"] and dimmed != null and dimmed.disabled and st.notice_text() == "Needs knife", "12: read-only loot shows its reason over the grid and Transfer to Bag dimmed, as the reference keeps it (%s '%s')" % [st.inspect.actions(), st.notice_text()])
 	player.inventory.slots[_find(berry)].set_flag(&"locked", true)
 	ui.show_storage(box, player, {"title": "Storage Box", "allow_deposit": true})
 	ui.select_uid(berry)
@@ -880,6 +881,13 @@ func _t20_screen_sizes() -> void:
 			await process_frame
 			await process_frame
 			_check_targets(ss, view)
+			# Review r1: the reference keeps Lock and Trash on the container's tab, dimmed (they act on
+			# the Bag), and its grid is 13 compartments wide at the judge's size.
+			var tb = ss.get("toolbar")
+			_expect((tb.squares as Array).has(&"lock") and (tb.squares as Array).has(&"trash") and tb.get("_lock").disabled and tb.get("_trash").disabled, "20: the container tab keeps Lock and Trash, dimmed, at %s (%s)" % [view, tb.squares])
+			if view.x == 1600.0:
+				var sc := int((ss.get("box_grid") as Object).get("columns"))
+				_expect(sc >= 12 and sc <= 14, "20: storage shows about the reference's 13 columns at 1600x900 (%d)" % sc)
 			ss.visible = false
 			var pk: Control = C["item_picker"].new()
 			box.add_child(pk)
@@ -976,11 +984,13 @@ func _t21_polish() -> void:
 	# Gear: arrows walk the 3x3, skipping the blank cell.
 	ui.call("open_character", &"head")
 	var ch = ui.get("_character")
+	_press(ui, KEY_RIGHT) # the reference's blank cell is top right (review r1 moved the bag slot down)
+	_expect(ch.get("slot") == &"head", "21: the blank corner cell is skipped (stays on the head cell)")
 	_press(ui, KEY_DOWN)
 	_expect(ch.get("slot") == &"body", "21: Down on Character moves from the head cell to the torso")
 	_press(ui, KEY_RIGHT)
 	_press(ui, KEY_DOWN)
-	_expect(ch.get("slot") == &"tool", "21: the blank corner cell is skipped (stays on the held-tool cell)")
+	_expect(ch.get("slot") == &"accessory2", "21: Down from the held tool reaches the bag / accessory cell bottom right")
 	ui.call("hide_ui")
 	# Accessibility: a trait's class reads by shape and words, not colour alone.
 	var shapes: Dictionary = (load(UI + "inv_paint.gd") as GDScript).get_script_constant_map().get("PIP_SHAPES", {})
@@ -1065,6 +1075,11 @@ func _t22_ingame_dock() -> void:
 	var bone_uid := _uid(bone)
 	for k in 30: # enough rows to scroll at every canvas
 		_give(&"herb_leaf", 10 + k)
+	# A stand-in for the HUD (group "hud"): the dock fades it on a phone (review r1: the card cut its
+	# vitals and hexes at 844x390) and gives it back when the Bag goes.
+	var hud_stub := Control.new()
+	hud_stub.add_to_group(&"hud")
+	host.get_child(1).add_child(hud_stub)
 	# Layout at the judge's canvas, the landscape phone (with a notch) and the SE canvas.
 	for view in [Vector2(1600, 900), Vector2(844, 390), Vector2(804, 452)]:
 		var notch: bool = view.x == 844.0
@@ -1108,10 +1123,32 @@ func _t22_ingame_dock() -> void:
 		var cr := card.get_global_rect()
 		var dl := holder.global_position.x + dock.position.x
 		_expect(card.visible and cr.end.x <= dl + 0.5 and cr.position.x >= holder.global_position.x + (47.0 if notch else 0.0) - 0.5 and cr.size.x < dock.size.x, "22: the card floats between the world and the panel at %s (card %s, panel from %d)" % [view, cr, dl])
+		var compact: bool = view.y < 500.0
+		_expect((hud_stub.modulate.a < 0.01) == compact, "22: the HUD %s beside the dock at %s (alpha %.2f)" % ["steps aside" if compact else "stays", view, hud_stub.modulate.a])
+		if desk:
+			_expect(cr.end.y <= holder.global_position.y + view.y - 26.0 + 0.5, "22: the card stops above the HUD's level line at 1600x900 (card bottom %.0f)" % cr.end.y)
 		_check_targets(bs, view)
 		if notch:
 			_check_safe(bs, view, Rect2(47, 0, view.x - 94, view.y - 21))
+		if desk: # a bone has no action: its card ends under its content, with no empty tail
+			bs.call("select_uid", bone_uid)
+			for _f in 3:
+				await process_frame
+			var bc: Control = bs.get("inspect")
+			var want: float = bc.call("content_height")
+			_expect(bc.size.y <= want + 2.0 and bc.size.y < float(bc.get("fit_max_h")) - 40.0, "22: the bone's card ends under its content (%.0f tall, content %.0f, room %.0f)" % [bc.size.y, want, float(bc.get("fit_max_h"))])
+			var fc: GDScript = (C["item_inspect_panel"] as GDScript).get_script_constant_map().get("_FamilyChip")
+			var widths := {}
+			var icons := {}
+			for c in bc.find_children("*", "Control", true, false):
+				if fc and c.get_script() == fc:
+					widths[roundi((c as Control).custom_minimum_size.x)] = true
+					icons[str(c.get("icon"))] = true
+			_expect(widths.size() == 1 and icons.size() == 4 and not icons.has(""), "22: the bone's four family chips are one width with four distinct white pictograms (widths %s, icons %s)" % [widths.keys(), icons.keys()])
 		holder.queue_free()
+		await process_frame
+	_expect(is_equal_approx(hud_stub.modulate.a, 1.0), "22: the HUD comes back when the Bag goes (alpha %.2f)" % hud_stub.modulate.a)
+	hud_stub.queue_free()
 	C["inv_theme"].set("forced_insets", Vector4(-1, -1, -1, -1))
 	# The card shows what the meat's data has and only its valid actions.
 	var p := _panel(player.inventory.slots[_find(meat_uid)])

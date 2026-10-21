@@ -100,7 +100,7 @@ func _row(text: String, value: String, color: Color, heading: bool = false) -> C
 		if part[1]: # only the label gives way; a clipped value would shrink to nothing
 			l.clip_text = true
 			l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		l.add_theme_font_size_override("font_size", px)
+		InvTheme.set_px(l, px)
 		l.add_theme_color_override("font_color", color if part[1] or not heading else InvTheme.TEXT)
 		row.add_child(l)
 	var gutter := Control.new()

@@ -200,8 +200,8 @@ func _refresh_panel() -> void:
 	_count.text = "%d / %d" % [mini(units, need), need]
 	if not _m.is_empty():
 		var px := int(_m.cap_font)
-		_count.add_theme_font_size_override("font_size", px)
-		_count.custom_minimum_size = Vector2(InvTheme.font().get_string_size(_count.text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 4.0, InvTheme.font().get_height(px)) # the Label's own height, so the header centres it
+		InvTheme.set_px(_count, px)
+		_count.custom_minimum_size = Vector2(InvTheme.font_at(px).get_string_size(_count.text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 4.0, InvTheme.font_at(px).get_height(px)) # the Label's own height, so the header centres it
 
 func _layout() -> void:
 	if size.x <= 0.0 or size.y <= 0.0:

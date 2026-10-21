@@ -32,7 +32,7 @@ static func of(s: ItemStack, player: Player) -> Dictionary:
 	if s.max_durability > 0:
 		f.stats.append(["Durability", "%d / %d%s" % [s.durability, s.max_durability, "  Broken" if s.is_broken() else ""], InvTheme.DANGER if s.is_broken() else InvTheme.PRIMARY_INK])
 		f.sections.append({"id": &"care", "title": "Maintenance", "rows": [["Repair", "Not possible", InvTheme.TEXT_2]]}) # no repair exists in the game
-	if s.process_count > 0:
+	if species == "": # every card carries the hammer count, ×0 too: one template for every item (review r1)
 		f.stats.append(["Processed", "×%d" % s.process_count, InvTheme.PRIMARY_INK])
 	if d and species == "":
 		for c in d.categories:

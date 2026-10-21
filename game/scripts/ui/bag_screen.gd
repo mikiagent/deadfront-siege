@@ -39,6 +39,8 @@ var _m := {}
 var _seen: ItemStack
 ## Bag slots the trash is asking to discard; the card shows the confirm while this is set.
 var _discard: Array[int] = []
+## The HUD is faded out beside the phone dock (_sync_hud).
+var _hud_away := false
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -60,6 +62,7 @@ func _init() -> void:
 	tab.mouse_filter = Control.MOUSE_FILTER_IGNORE # one tab switches nothing: a heading with the count
 	tab.label = "Bag"
 	tab.active = true
+	tab.count_icon = UiIcons.icon(&"bag")
 	add_child(tab)
 	inspect = ItemInspectPanel.new()
 	inspect.visible = false
@@ -195,24 +198,10 @@ func _ask_discard() -> void:
 	var picked := grid.selected_indices()
 	if picked.is_empty() or inventory == null:
 		return
-	_discard.clear()
-	for i in picked:
-		if not inventory.slots[i].is_locked():
-			_discard.append(i)
+	var ask := InvActions.discard_prompt(inventory, picked, player)
+	_discard = ask.gone
 	var focus := inventory.slots[_discard[0] if not _discard.is_empty() else picked[0]]
-	var notes: Array = []
-	var acts: Array[StringName] = []
-	if _discard.is_empty():
-		notes.append(["Locked items cannot be discarded.", InvTheme.TEXT_2])
-	else:
-		var what := "%d items" % _discard.size()
-		if _discard.size() == 1:
-			what = ("%s %s" % [InvCardFacts.of(focus, player).kind, LevelDisplay.label(focus.level)]).strip_edges()
-		notes.append(["Discard %s? It is gone for good." % what, InvTheme.DANGER])
-		if _discard.size() < picked.size():
-			notes.append(["Locked items stay.", InvTheme.TEXT_2])
-		acts = [&"discard", &"keep"]
-	_show_card(focus, {"where": &"bag", "player": player, "actions": acts, "notes": notes})
+	_show_card(focus, {"where": &"bag", "player": player, "actions": ask.actions, "notes": ask.notes})
 
 func _run(action: StringName) -> void:
 	if action == &"keep":
@@ -283,8 +272,31 @@ func _layout() -> void:
 	grid.position = Vector2(gx, top)
 	grid.size = Vector2(minf(float(_m.grid_w) + 2.0, right - gx), body_bottom - top)
 	grid.refresh()
-	# The card floats between the world and the panel, from just under the header's line to the bottom.
+	# The card floats between the world and the panel, from just under the header's line down to the
+	# HUD's level line along the bottom edge (it ran over "Lv. 13 70.5%" at 1600x900).
 	var card_w: float = _m.card_w
+	var card_bottom := bottom if bool(_m.compact) else minf(bottom, size.y - InvTheme.HUD_STRIP)
 	inspect.position = Vector2(x0 - gap - card_w, head_h + 4.0)
-	inspect.size = Vector2(card_w, bottom - head_h - 4.0)
+	inspect.fit_max_h = card_bottom - head_h - 4.0 # it ends under its content (ItemInspectPanel._fit)
+	inspect.size = Vector2(card_w, minf(inspect.size.y, inspect.fit_max_h) if inspect.size.y > 0.0 else inspect.fit_max_h)
 	inspect.apply_metrics(_m)
+	_sync_hud()
+
+## On a phone the dock and the card leave the HUD no room beside them (at 844x390 the card ran over
+## the vitals and the hexes: "BUIL"), so the HUD steps aside while the Bag is open there and comes back
+## when it closes. It takes no taps meanwhile anyway (a tap on the world closes the Bag).
+func _sync_hud() -> void:
+	var hud := get_tree().get_first_node_in_group(&"hud") as CanvasItem if is_inside_tree() else null
+	var away := hud != null and is_visible_in_tree() and bool(_m.get("compact", false))
+	if hud and away != _hud_away:
+		hud.modulate.a = 0.0 if away else 1.0
+	_hud_away = away
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED:
+		_sync_hud()
+	elif what == NOTIFICATION_EXIT_TREE and _hud_away:
+		var hud := get_tree().get_first_node_in_group(&"hud") as CanvasItem
+		if hud:
+			hud.modulate.a = 1.0
+		_hud_away = false

@@ -34,7 +34,7 @@ func _gui_input(event: InputEvent) -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(InvTheme.CELL_DARK, 0.85))
-	var f := InvTheme.font()
+	var f := InvTheme.font_at(font_px)
 	var lock := UiIcons.icon(&"lock")
 	for k in count:
 		var r := cell_rect(k)

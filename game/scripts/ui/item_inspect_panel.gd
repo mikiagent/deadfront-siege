@@ -36,7 +36,9 @@ var _scroll: ScrollContainer
 var _box: VBoxContainer
 var _buttons: Array[Button] = []
 
-static var _no_bag: Inventory
+## The in-game Bag's card ends under its content (a bone's card left ~170 px empty, review r1), up to
+## this height; 0 keeps the size the screen gives (storage, the picker).
+var fit_max_h := 0.0
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -146,13 +148,17 @@ func section_color(cls: StringName) -> Color:
 static func family_label(cat: String) -> String:
 	return str((InvView.data().get("category_labels", {}) as Dictionary).get(cat, LevelDisplay.nice_name(cat)))
 
-## The art a family chip shows: an item of that family (the crafting menu's own representative), else
-## the inspected item's.
-static func family_art(cat: String, own: StringName) -> StringName:
-	if _no_bag == null:
-		_no_bag = Inventory.new(0)
-	var rep := Crafting.sample_def_for_category(_no_bag, StringName(cat))
-	return rep if Data.item(rep) != null else own
+## The white pictogram a family chip shows (data/inv_ui.json family_icons, else the icon of the bag
+## filter holding that category): Durango's chips are distinct white family glyphs, where the item's
+## own art three times over said nothing (review r1). &"" when neither has one.
+static func family_icon(cat: String) -> StringName:
+	var own: Variant = (InvView.data().get("family_icons", {}) as Dictionary).get(cat)
+	if own is String:
+		return StringName(own)
+	for f: Dictionary in InvView.filters():
+		if cat in (f.get("categories", []) as Array):
+			return StringName(str(f.get("icon", "")))
+	return &""
 
 func _fill(s: ItemStack) -> void:
 	var f := InvCardFacts.of(s, ctx.get("player") as Player)
@@ -204,6 +210,7 @@ func _rebuild() -> void:
 	if _m.is_empty():
 		return
 	for c in _box.get_children():
+		_box.remove_child(c)
 		c.queue_free()
 	var px: int = _m.row_font
 	for n in _notes:
@@ -217,8 +224,8 @@ func _rebuild() -> void:
 			var flow := _flow()
 			var per := 3 if _m.compact or _inner_w() < 320.0 else 4 # the floating card: three a row, as the in-game reference
 			var w := maxf(44.0, floorf((_inner_w() - float(per - 1) * 6.0) / float(per)))
-			for f in _families:
-				flow.add_child(_FamilyChip.new(family_label(f), family_art(f, stack.def_id), w, px))
+			for f in _families: # every chip one width, so a long name never breaks the row of three
+				flow.add_child(_FamilyChip.new(family_label(f), family_icon(f), stack.def_id, w, px))
 		if not _traits.is_empty() or not _states.is_empty():
 			var flow := _flow()
 			for st: Array in _states:
@@ -253,10 +260,11 @@ func _rebuild() -> void:
 		b.clip_text = true
 		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.add_to_group(&"inv_contextual")
+		b.disabled = a in (ctx.get("disabled", []) as Array) # shown, not offered: the notes say why
 		if i == 0:
 			InvTheme.style_primary(b, int(_m.button_font))
 		else:
-			b.add_theme_font_size_override("font_size", int(_m.button_font) - (2 if _m.compact else 6))
+			InvTheme.set_px(b, int(_m.button_font) - (2 if _m.compact else 6))
 		b.pressed.connect(func() -> void: action_pressed.emit(a))
 		if i > 0 and _tucked():
 			b.custom_minimum_size = Vector2(0, _m.secondary_h)
@@ -269,7 +277,21 @@ func _rebuild() -> void:
 			add_child(b)
 		_buttons.append(b)
 	_layout()
+	if fit_max_h > 0.0:
+		_fit.call_deferred()
 
+## Height the card's content takes: band, card, the scroll's rows, the pinned actions.
+func content_height() -> float:
+	var pad: float = _m.margin
+	return _band_h() + (_card_h() if stack else 0.0) + pad * 2.0 + _box.get_combined_minimum_size().y + _actions_h()
+
+## Shrinks (or grows back, up to fit_max_h) to the content once its rows have wrapped.
+func _fit() -> void:
+	if not is_inside_tree() or fit_max_h <= 0.0 or _m.is_empty():
+		return
+	await get_tree().process_frame
+	if fit_max_h > 0.0:
+		size.y = minf(fit_max_h, ceilf(content_height()))
 func _inner_w() -> float:
 	return size.x - float(_m.margin) * 2.0 - 22.0 # the chip row's right margin and the scrollbar
 
@@ -300,7 +322,7 @@ func _text_row(text: String, value: String, color: Color, wrap: bool) -> HBoxCon
 		k.clip_text = true
 		k.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	k.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	k.add_theme_font_size_override("font_size", px)
+	InvTheme.set_px(k, px)
 	k.add_theme_color_override("font_color", color)
 	row.add_child(k)
 	if value != "":
@@ -308,7 +330,7 @@ func _text_row(text: String, value: String, color: Color, wrap: bool) -> HBoxCon
 		v.text = value
 		v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		v.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		v.add_theme_font_size_override("font_size", px)
+		InvTheme.set_px(v, px)
 		v.add_theme_color_override("font_color", color)
 		row.add_child(v)
 	var gutter := Control.new() # keeps values clear of the scrollbar
@@ -327,8 +349,8 @@ func _section_bar(title: String, id: StringName) -> Button:
 	b.draw.connect(func() -> void:
 		var r := Rect2(Vector2.ZERO, b.size - Vector2(10, 0))
 		b.draw_rect(r, Color(0.02, 0.025, 0.02, 0.85))
-		var f := InvTheme.font()
 		var ipx: int = _m.section_font
+		var f := InvTheme.font_at(ipx)
 		b.draw_string(f, Vector2(float(_m.margin) * 0.5, (r.size.y + f.get_ascent(ipx) - f.get_descent(ipx)) * 0.5), title, HORIZONTAL_ALIGNMENT_LEFT, -1, ipx, InvTheme.TEXT_2)
 		var c := Vector2(r.end.x - r.size.y * 0.5, r.size.y * 0.5)
 		var t := r.size.y * 0.16
@@ -378,9 +400,10 @@ func _draw_deco() -> void:
 	_deco.draw_rect(band, InvTheme.TAN)
 	_deco.draw_dashed_line(Vector2(0, band.end.y), Vector2(size.x, band.end.y), Color(0, 0, 0, 0.45), 1.5, 5.0)
 	var npx: int = _m.name_font
-	var title := UiTokens.ellipsis(f, _title, size.x - float(_m.margin) * 2.0, npx)
-	var tw := f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, npx).x
-	_deco.draw_string(f, Vector2((size.x - tw) * 0.5, (band.size.y + f.get_ascent(npx) - f.get_descent(npx)) * 0.5), title, HORIZONTAL_ALIGNMENT_LEFT, -1, npx, InvTheme.PRIMARY_INK)
+	var fn := InvTheme.font_at(npx)
+	var title := UiTokens.ellipsis(fn, _title, size.x - float(_m.margin) * 2.0, npx)
+	var tw := fn.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, npx).x
+	_deco.draw_string(fn, Vector2((size.x - tw) * 0.5, (band.size.y + fn.get_ascent(npx) - fn.get_descent(npx)) * 0.5), title, HORIZONTAL_ALIGNMENT_LEFT, -1, npx, InvTheme.PRIMARY_INK)
 	if stack:
 		# The tan card (storage reference): art, kind and level, then durability and the hammer count.
 		var card := Rect2(Vector2(0, band.end.y), Vector2(size.x, _card_h()))
@@ -416,27 +439,37 @@ func _draw_deco() -> void:
 		_deco.draw_line(Vector2(0, y), Vector2(size.x, y), Color(0, 0, 0, 0.4), 1.0)
 	InvPaint.frame(_deco, Rect2(Vector2.ZERO, size), 2.0 if _m.compact else 3.0, 2)
 
-## One family chip: a dark box with an item of that family, its name under it (storage reference).
+## One family chip: a dark box with the family's white pictogram, its name under it (storage and
+## in-game references). Every chip is `w` wide: a long name steps down to the type floor, then
+## shortens with an ellipsis (its tooltip keeps it whole).
 class _FamilyChip extends Control:
 	var text := ""
-	var art: StringName
+	var icon: StringName
+	var art: StringName ## the item's own art, only when the family has no pictogram
 	var px := 14
 
-	func _init(t: String, a: StringName, w: float, font_px: int) -> void:
-		text = t
-		art = a
+	func _init(t: String, ic: StringName, own: StringName, w: float, font_px: int) -> void:
+		icon = ic
+		art = own
 		px = maxi(UiTokens.TYPE_MIN, font_px - 2)
+		while px > UiTokens.TYPE_MIN and InvTheme.font_at(px).get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x > w - 4.0:
+			px -= 1
+		text = UiTokens.ellipsis(InvTheme.font_at(px), t, w - 4.0, px)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var tw := InvTheme.font().get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 6.0
-		custom_minimum_size = Vector2(maxf(w, tw), roundf(w * 0.62) + px * 1.6)
+		custom_minimum_size = Vector2(w, roundf(w * 0.62) + px * 1.6)
 		tooltip_text = t
 
 	func _draw() -> void:
 		var bw := size.x
 		var box := Rect2(Vector2.ZERO, Vector2(bw, size.y - px * 1.6))
 		draw_style_box(InvTheme.button_box(Color(0.03, 0.035, 0.03, 0.85), Color(0, 0, 0, 0), 4), box)
-		InvPaint.item_icon(self, art, box, 0.78, 0.5)
-		var f := InvTheme.font()
+		var tex := UiIcons.icon(icon) if icon != &"" else null
+		if tex:
+			var s := box.size.y * 0.56
+			draw_texture_rect(tex, Rect2(box.get_center() - Vector2(s, s) * 0.5, Vector2(s, s)), false, InvGlyphs.WHITE)
+		else:
+			InvPaint.item_icon(self, art, box, 0.78, 0.5)
+		var f := InvTheme.font_at(px)
 		var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 		draw_string(f, Vector2((bw - w) * 0.5, box.end.y + 4.0 + f.get_ascent(px)), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, InvTheme.TEXT)
 
@@ -456,7 +489,7 @@ class TraitChip extends Control:
 		px = font_px
 		ink = color if color.a > 0.0 else InvPaint.pip_color(c)
 		tooltip_text = "%s: %s" % [CLASS_WORDS.get(c, "Trait"), t]
-		var f := InvTheme.font()
+		var f := InvTheme.font_at(px)
 		custom_minimum_size = Vector2(f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + _pip_px() + (22.0 if _pip_px() > 0.0 else 16.0), roundf(px * 1.9))
 
 	func _pip_px() -> float:
@@ -467,7 +500,7 @@ class TraitChip extends Control:
 		var p := _pip_px()
 		if p > 0.0:
 			InvPaint.pip(self, Rect2(Vector2(8.0, (size.y - p) * 0.5), Vector2(p, p)), cls)
-		var f := InvTheme.font()
+		var f := InvTheme.font_at(px)
 		draw_string(f, Vector2(8.0 + (p + 6.0 if p > 0.0 else 0.0), (size.y + f.get_ascent(px) - f.get_descent(px)) * 0.5), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, ink)
 
 ## The item's colour (its tint) as Durango's hexagon swatch; the hex code is its tooltip and a row in

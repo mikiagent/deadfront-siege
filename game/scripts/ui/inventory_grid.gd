@@ -35,6 +35,14 @@ var min_rows := 0
 var only: Dictionary = {}
 ## Search text (storage toolbar): only items whose name contains it show; "" shows all.
 var query := ""
+## Off where the host draws one panel around the grid and more (Character's candidate column).
+var panel_visible := true:
+	set(v):
+		panel_visible = v
+		_surface.visible = v
+		_frame.visible = v
+var _surface: ColorRect
+var _frame: Control
 
 var _sel := ""
 var _multi := {}
@@ -59,7 +67,8 @@ const FLING_STOP := 30.0
 func _init() -> void:
 	clip_contents = true
 	set_process(false) # runs only while a fling glides
-	add_child(InvTheme.surface(InvTheme.PANEL, 1.3, 1.0))
+	_surface = InvTheme.surface(InvTheme.PANEL, 1.3, 1.0)
+	add_child(_surface)
 	_scroll = ScrollContainer.new()
 	_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -75,6 +84,7 @@ func _init() -> void:
 	frame.draw.connect(func() -> void: InvPaint.frame(frame, Rect2(Vector2.ZERO, frame.size), clampf(_cell_px * 0.02, 2.0, 3.0), get_index()))
 	frame.resized.connect(frame.queue_redraw)
 	add_child(frame)
+	_frame = frame
 	resized.connect(_relayout)
 
 func bind(inv: Inventory) -> void:

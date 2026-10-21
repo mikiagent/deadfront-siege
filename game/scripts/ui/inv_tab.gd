@@ -14,6 +14,8 @@ var active := false
 var flash := 0.0
 var px := 20
 var pad := 20.0
+## A small yellow icon before the count (the Bag's bag, spec 13 s4); null for none.
+var count_icon: Texture2D
 
 func _init() -> void:
 	focus_mode = Control.FOCUS_NONE
@@ -21,8 +23,11 @@ func _init() -> void:
 
 ## The name, a gap and the count at `px`, never narrower than `least`.
 func wanted_width(least: float) -> float:
-	var w := InvTheme.font().get_string_size(label + count, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
-	return maxf(w + pad * 2.0 + 28.0, least)
+	var w := InvTheme.font_at(px).get_string_size(label + count, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	return maxf(w + pad * 2.0 + 28.0 + (_icon_w() if count_icon else 0.0), least)
+
+func _icon_w() -> float:
+	return roundf(px * 1.05) + 6.0
 
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
@@ -31,9 +36,13 @@ func _draw() -> void:
 		draw_rect(r.grow(-2.0), Color(InvTheme.SELECT, 0.32 * flash))
 	if active:
 		draw_rect(Rect2(Vector2(6, r.size.y - 5), Vector2(r.size.x - 12, 4)), InvTheme.SELECT)
-	var f := InvTheme.font()
+	var f := InvTheme.font_at(px)
 	var y := (r.size.y + f.get_ascent(px) - f.get_descent(px)) * 0.5 - 1.0
 	var ink := InvTheme.SELECT if active else InvTheme.TEXT_2
 	var count_w := f.get_string_size(count, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
-	draw_string(f, Vector2(pad, y), UiTokens.ellipsis(f, label, r.size.x - pad * 2.0 - count_w - 12.0, px), HORIZONTAL_ALIGNMENT_LEFT, -1, px, ink)
+	var iw := _icon_w() if count_icon else 0.0
+	draw_string(f, Vector2(pad, y), UiTokens.ellipsis(f, label, r.size.x - pad * 2.0 - count_w - iw - 12.0, px), HORIZONTAL_ALIGNMENT_LEFT, -1, px, ink)
 	draw_string(f, Vector2(r.size.x - pad - count_w, y), count, HORIZONTAL_ALIGNMENT_LEFT, -1, px, count_color if count_color.a > 0.0 else ink)
+	if count_icon: # the bag is a thing: yellow, as the reference's
+		var s := iw - 6.0
+		draw_texture_rect(count_icon, Rect2(Vector2(r.size.x - pad - count_w - iw, (r.size.y - s) * 0.5 - 1.0), Vector2(s, s)), false, InvTheme.SELECT)

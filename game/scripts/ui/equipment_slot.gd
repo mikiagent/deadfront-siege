@@ -82,8 +82,15 @@ func _draw_ghost() -> void:
 	var r := Rect2(Vector2.ZERO, size)
 	if id != "":
 		InvPaint.item_icon(_ghost, StringName(id), r, 0.56, 0.52, tone)
-	elif str((grid.get("silhouette_glyphs", {}) as Dictionary).get(str(slot), "")) == "ring":
-		InvGlyphs.ring(_ghost, r.grow(-minf(size.x, size.y) * 0.28), tone)
+	else: # no item art for these slots: soft painted shapes, as the reference's faded silhouettes
+		match str((grid.get("silhouette_glyphs", {}) as Dictionary).get(str(slot), "")):
+			"amulet":
+				InvGlyphs.amulet(_ghost, r.grow(-minf(size.x, size.y) * 0.24), tone)
+			"bag":
+				var tex := UiIcons.icon(&"bag")
+				var s := minf(size.x, size.y) * 0.46
+				if tex:
+					_ghost.draw_texture_rect(tex, Rect2(r.get_center() - Vector2(s, s) * 0.5, Vector2(s, s)), false, tone)
 
 ## The nine cells of data/inv_ui.json equipment_grid, added to `parent`; each emits pressed(slot).
 static func grid(parent: Control, on_press: Callable) -> Array[EquipmentSlot]:

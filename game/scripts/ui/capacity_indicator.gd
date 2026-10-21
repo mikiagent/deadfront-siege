@@ -28,7 +28,7 @@ func count_color() -> Color:
 
 ## Width this indicator needs at its font size: icon + gap + text.
 func wanted_width() -> float:
-	var f := InvTheme.font()
+	var f := InvTheme.font_at(font_px)
 	return font_px * 1.1 + 8.0 + f.get_string_size(label_text(), HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x
 
 ## Re-measure and repaint (the count, or the font size, changed).
@@ -39,7 +39,7 @@ func refresh() -> void:
 func _draw() -> void:
 	if inventory == null:
 		return
-	var f := InvTheme.font()
+	var f := InvTheme.font_at(font_px)
 	var icon := UiIcons.icon(&"bag")
 	var s := font_px * 1.1
 	var y := (size.y - s) * 0.5

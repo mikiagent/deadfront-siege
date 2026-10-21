@@ -98,23 +98,24 @@ func _button(text: String, tip: String) -> Button:
 
 func apply_metrics(m: Dictionary) -> void:
 	_m = m
-	_sort.add_theme_font_size_override("font_size", int(m.button_font))
-	_lock.add_theme_constant_override("icon_max_width", int(m.square * 0.46))
-	_search.add_theme_constant_override("icon_max_width", int(m.square * 0.46))
-	_query.add_theme_font_size_override("font_size", int(m.button_font) - (2 if m.compact else 6))
+	InvTheme.set_px(_sort, int(m.button_font))
+	_lock.add_theme_constant_override("icon_max_width", int(m.square * 0.4))
+	_search.add_theme_constant_override("icon_max_width", int(m.square * 0.4))
+	InvTheme.set_px(_query, int(m.button_font) - (2 if m.compact else 6))
 	_layout()
 
 ## The lock square shows what pressing it does: lock, or unlock when the selection is all locked.
-func set_lock_state(all_locked: bool, enabled: bool) -> void:
+## `why` replaces "select an item first" while it is dimmed (storage's container tab).
+func set_lock_state(all_locked: bool, enabled: bool, why: String = "select an item first") -> void:
 	_lock_open = all_locked
 	_lock.icon = UiIcons.icon(&"unlock" if all_locked else &"lock")
 	_lock.disabled = not enabled
-	_lock.tooltip_text = ("Unlock" if all_locked else "Lock") + (" the selection" if enabled else ": select an item first")
+	_lock.tooltip_text = ("Unlock" if all_locked else "Lock") + (" the selection" if enabled else ": " + why)
 
 ## The trash square works on a selection only.
-func set_trash_state(enabled: bool) -> void:
+func set_trash_state(enabled: bool, why: String = "select an item first") -> void:
 	_trash.disabled = not enabled
-	_trash.tooltip_text = "Discard the selection" if enabled else "Discard: select an item first"
+	_trash.tooltip_text = "Discard the selection" if enabled else "Discard: " + why
 	_trash.queue_redraw()
 
 func _layout() -> void:
@@ -122,7 +123,7 @@ func _layout() -> void:
 		return
 	var sq: float = _m.square
 	var pad := (size.y - sq) * 0.5
-	var sort_w := maxf(roundf(size.x * 0.24), InvTheme.font().get_string_size(_sort.text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(_m.button_font)).x + 24.0)
+	var sort_w := maxf(roundf(size.x * 0.24), InvTheme.font_at(int(_m.button_font)).get_string_size(_sort.text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(_m.button_font)).x + 24.0)
 	_sort.position = Vector2(pad, pad)
 	_sort.size = Vector2(sort_w, sq)
 	_caret.position = Vector2(pad + sort_w - 1.0, pad)
@@ -222,7 +223,7 @@ func _open_menu(anchor: Control, rows: Array, pick: Callable) -> void:
 	var font_px: int = int(_m.button_font) - (2 if _m.compact else 4)
 	var w := 0.0
 	for r in rows:
-		w = maxf(w, InvTheme.font().get_string_size(str(r[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x)
+		w = maxf(w, InvTheme.font_at(font_px).get_string_size(str(r[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x)
 	w = maxf(w + 48.0, anchor.size.x * 2.0)
 	var list_h := minf(row_h * rows.size() + 8.0, host.size.y - 16.0)
 	var panel := Panel.new()
@@ -247,7 +248,7 @@ func _open_menu(anchor: Control, rows: Array, pick: Callable) -> void:
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.custom_minimum_size = Vector2(0, row_h)
 		b.focus_mode = Control.FOCUS_NONE
-		b.add_theme_font_size_override("font_size", font_px)
+		InvTheme.set_px(b, font_px)
 		var on: bool = r[2]
 		b.add_theme_stylebox_override("normal", InvTheme.button_box(Color(InvTheme.SELECT, 0.18) if on else Color(0, 0, 0, 0), Color(0, 0, 0, 0)))
 		b.add_theme_color_override("font_color", InvTheme.SELECT if on else InvTheme.TEXT)

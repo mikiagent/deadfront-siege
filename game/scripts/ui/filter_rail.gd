@@ -1,7 +1,7 @@
 class_name FilterRail
 extends Control
 ## The storage view's left column of category filters (2026-10-20 storage-transfer reference): one
-## square per data/inv_ui.json filter with its white icon, the active one gold. It scrolls when the
+## square per data/inv_ui.json filter with its white icon, the active one a black tile. It scrolls when the
 ## screen is short (a phone). Presentation only: the screen applies the filter to its grids.
 
 signal chosen(id: StringName)
@@ -11,6 +11,8 @@ var _scroll: ScrollContainer
 var _box: VBoxContainer
 var _buttons := {} ## filter id -> Button
 var _side := 56.0
+## The resting squares' icon: a soft grey, so the active black tile's white icon stands out.
+const REST_ICON := Color(0.8, 0.8, 0.76, 0.78)
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -34,7 +36,7 @@ func _init() -> void:
 			b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.draw.connect(func() -> void:
 			if icon == "grid":
-				InvGlyphs.grid(b, Rect2(Vector2.ZERO, b.size), InvTheme.SELECT if filter_id == id else InvGlyphs.WHITE))
+				InvGlyphs.grid(b, Rect2(Vector2.ZERO, b.size), InvGlyphs.WHITE if filter_id == id else REST_ICON))
 		b.pressed.connect(func() -> void: choose(id))
 		_box.add_child(b)
 		_buttons[id] = b
@@ -55,15 +57,16 @@ func choose(id: StringName) -> void:
 func button(id: StringName) -> Button:
 	return _buttons.get(id)
 
-## The active square dark with a gold icon and edge (the reference's All); the rest dark grey, white icons.
+## The active square a black tile with a white icon (the references' All); the rest a see-through
+## grey with grey icons (review r1: the gold icon and edge were ours, not Durango's).
 func _paint() -> void:
 	for id: StringName in _buttons:
 		var b: Button = _buttons[id]
 		var on := id == filter_id
-		var sb := InvTheme.button_box(Color(0.02, 0.022, 0.02, 0.95) if on else Color(0.16, 0.165, 0.155, 0.85), InvTheme.SELECT if on else Color(0, 0, 0, 0), 4)
+		var sb := InvTheme.button_box(Color(0.015, 0.016, 0.014, 0.96) if on else Color(0.2, 0.205, 0.19, 0.55), Color(0, 0, 0, 0), 4)
 		for state in ["normal", "hover", "pressed", "hover_pressed"]:
 			b.add_theme_stylebox_override(state, sb)
-		b.add_theme_color_override("icon_normal_color", InvTheme.SELECT if on else InvGlyphs.WHITE)
-		b.add_theme_color_override("icon_hover_color", InvTheme.SELECT if on else Color.WHITE)
-		b.add_theme_color_override("icon_pressed_color", InvTheme.SELECT)
+		b.add_theme_color_override("icon_normal_color", Color.WHITE if on else REST_ICON)
+		b.add_theme_color_override("icon_hover_color", Color.WHITE)
+		b.add_theme_color_override("icon_pressed_color", Color.WHITE)
 		b.queue_redraw()

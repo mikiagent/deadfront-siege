@@ -10,7 +10,8 @@ const BG := Color("#101714")
 ## what makes each dark-bordered panel read as its own compartment.
 # ASSUMPTION: spec 13's #101714 "main background" stays the dark of the panel borders and header;
 # the backdrop between panels follows the references (newest truth) as a mid khaki.
-const BACKDROP := Color("#5A5741")
+# Review r1: a touch cooler (#5A5741 read yellow-olive beside the references' blue-grey patches).
+const BACKDROP := Color("#53574A")
 const HEADER := Color("#080809")
 ## Spec 13's #39392F nudged toward the Bag reference's brown (its grid measures #3C3128, the
 ## storage and Character references' #39382D / #383722); the grain drifts it both ways.
@@ -36,15 +37,19 @@ const DANGER := UiTokens.DANGER
 const BUTTON_DARK := Color(0.07, 0.075, 0.065, 0.9)
 const BUTTON_EDGE := Color(0.62, 0.61, 0.56, 0.75)
 const GRAIN := preload("res://scripts/ui/inv_grain.gdshader")
-## The dark, slightly irregular panel border (spec 13 s2).
-const FRAME_INK := Color(0.035, 0.03, 0.024, 0.92)
+## The dark, slightly irregular panel border (spec 13 s2): thin and worn, never a cartoon outline.
+const FRAME_INK := Color(0.035, 0.03, 0.024, 0.78)
+## The HUD's level line and XP bar along the bottom edge: the in-game Bag's card stops above it.
+const HUD_STRIP := 26.0
 ## Safe-area insets every screen of the family lays out inside (x right, y bottom, z top, w left).
 ## Desktop and headless runs report none, so the labs and tests force a notch through this.
 static var forced_insets := Vector4(-1, -1, -1, -1)
 
 static var _theme: Theme
-static var _font: FontVariation
+static var _fonts := {} ## tracking px -> FontVariation
 static var _grain := {}
+## How much narrower than the project font the family's glyphs are drawn (Durango's condensed sans).
+const SQUEEZE := 0.86
 
 ## Per-canvas sizes. Desktop (the 1600x900 judge and every taller canvas) and the compact landscape
 ## phone (shorter than UiTokens.SHORT_MAX) each fit seven square cells beside the inspect panel.
@@ -121,13 +126,27 @@ static func label_room(px: int) -> float:
 	var f := font()
 	return f.get_string_size("NEW", HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + f.get_string_size("Lv. 60", HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 22.0
 
-## The family's condensed face: the project default font, narrowed like Durango's condensed sans.
+## The family's condensed face at body size (the theme default and the small labels).
 static func font() -> Font:
-	if _font == null:
-		_font = FontVariation.new()
-		_font.base_font = ThemeDB.fallback_font
-		_font.variation_transform = Transform2D(Vector2(0.9, 0.0), Vector2(0.0, 1.0), Vector2.ZERO)
-	return _font
+	return font_at(16)
+
+## The project default font drawn SQUEEZE narrower, like Durango's condensed sans. A variation
+## transform narrows the glyphs but not their advances, which read as letter-spaced ("R a w  M e a t",
+## review r1), so each size takes back the room it saved: about 7.7 % of the size per glyph.
+static func font_at(px: int) -> Font:
+	var track := -maxi(1, roundi(float(px) * (1.0 - SQUEEZE) * 0.55))
+	if not _fonts.has(track):
+		var f := FontVariation.new()
+		f.base_font = ThemeDB.fallback_font
+		f.variation_transform = Transform2D(Vector2(SQUEEZE, 0.0), Vector2(0.0, 1.0), Vector2.ZERO)
+		f.spacing_glyph = track
+		_fonts[track] = f
+	return _fonts[track]
+
+## A control's text size and the face tracked for it, in one go.
+static func set_px(c: Control, px: int) -> void:
+	c.add_theme_font_size_override("font_size", px)
+	c.add_theme_font_override("font", font_at(px))
 
 static func safe(vp: Viewport) -> Vector4:
 	return forced_insets if forced_insets.x >= 0.0 else UiTokens.safe_insets(vp)
@@ -196,7 +215,7 @@ static func style_primary(b: Button, font_px: int) -> void:
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
 		b.add_theme_color_override(c, PRIMARY_INK)
 	b.add_theme_color_override("font_disabled_color", Color(PRIMARY_INK, 0.6))
-	b.add_theme_font_size_override("font_size", font_px)
+	set_px(b, font_px)
 
 ## Weathered surface (canvas_item shader; no NoiseTexture2D, which loads asynchronously on web).
 ## One material per tint/strength so every screen shares it.

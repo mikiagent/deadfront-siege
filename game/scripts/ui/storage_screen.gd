@@ -37,6 +37,9 @@ var _notice: Label
 var _can := {"store": false, "take": false, "take_all": false}
 var _note := ""
 var _store_why := ""
+## Bag slots the trash is asking to discard (the card shows the confirm while set).
+var _discard: Array[int] = []
+var _asking := false
 var _m := {}
 ## Per tab, 1 -> 0 after items arrive there (InvMotion.FLASH_S).
 var _flash := {&"bag": 0.0, &"box": 0.0}
@@ -70,6 +73,8 @@ func _init() -> void:
 	header.back_pressed.connect(func() -> void: back_pressed.emit())
 	header.close_pressed.connect(func() -> void: close_pressed.emit())
 	bag_grid.selection_changed.connect(func(_k: String) -> void:
+		_discard.clear()
+		_asking = false
 		if tab == &"bag":
 			bag_selected.emit(bag_grid.selected_index())
 		_refresh())
@@ -90,6 +95,7 @@ func _init() -> void:
 		for g in _grids():
 			g.set_query(t))
 	toolbar.lock_pressed.connect(func() -> void: InvActions.toggle_locks(player, bag_grid.selected_indices(), _ctx()))
+	toolbar.trash_pressed.connect(_ask_discard)
 	toolbar.drop_pressed.connect(func() -> void:
 		for i in bag_grid.selected_indices():
 			InvActions.run(&"drop", player, i, _ctx()))
@@ -130,10 +136,15 @@ func show_tab(t: StringName) -> void:
 	tab = t
 	bag_grid.visible = t == &"bag"
 	box_grid.visible = t == &"box"
-	# Lock and Drop act on the player's own bag only (nothing locked can be in a container).
+	# Lock and Trash act on the player's own bag (nothing locked can be in a container): on the
+	# container's tab they stay, dimmed, as the reference shows them. Offline only (no server op yet).
 	var sq: Array[StringName] = [&"select_all", &"select", &"search"]
-	if t == &"bag":
+	if InvActions.can_lock(player):
 		sq.append(&"lock")
+	if InvActions.can_discard(player):
+		sq.append(&"trash")
+	_discard.clear()
+	_asking = false
 	toolbar.squares = sq
 	if t == &"bag":
 		bag_selected.emit(bag_grid.selected_index())
@@ -226,6 +237,10 @@ func _refresh() -> void:
 	if tab == &"bag":
 		var picked := bag_grid.selected_indices()
 		toolbar.set_lock_state(InvActions.all_locked(bag_grid.inventory, picked), not picked.is_empty())
+		toolbar.set_trash_state(not picked.is_empty())
+	else:
+		toolbar.set_lock_state(false, false, "works on your Bag's items")
+		toolbar.set_trash_state(false, "works on your Bag's items")
 	_notice.text = (_note.left(1).to_upper() + _note.substr(1)) if _note != "" else ""
 	_notice.visible = _note != "" and tab == &"box"
 	_paint_tabs()
@@ -237,18 +252,25 @@ func _refresh_inspect() -> void:
 	var st := shown_stack()
 	var acts: Array[StringName] = []
 	var notes: Array = []
-	if tab == &"bag":
+	var dim: Array[StringName] = []
+	if tab == &"bag" and _asking:
+		var ask := InvActions.discard_prompt(bag_grid.inventory, bag_grid.selected_indices(), player)
+		acts.assign(ask.actions)
+		notes = ask.notes
+	elif tab == &"bag":
 		if st and _can.store:
 			acts.append(&"store")
 		elif st and _store_why != "":
 			notes.append([_store_why, InvTheme.TEXT_2])
 	else:
-		if st and _can.take:
+		if st and (_can.take or _note != ""): # under a take-only notice it stays, dimmed (reference)
 			acts.append(&"take")
+			if not _can.take:
+				dim.append(&"take")
 		if _can.take_all:
 			acts.append(&"take_all")
 	var labels := {&"store": "Transfer to %s" % ("Cargo" if kind == &"cargo" else _title), &"take": "Transfer to Bag"}
-	var ctx := {"where": kind, "player": player, "actions": acts, "notes": notes, "title": _title, "labels": labels}
+	var ctx := {"where": kind, "player": player, "actions": acts, "notes": notes, "title": _title, "labels": labels, "disabled": dim}
 	var summary: Array = []
 	if st == null and bag_grid.inventory and box_grid.inventory:
 		var bag_t := _tab_text(&"bag")
@@ -256,7 +278,23 @@ func _refresh_inspect() -> void:
 		summary = [[bag_t[0], bag_t[1]], [box_t[0], box_t[1]], ["Tap items to pick them." if _grid().multi else "Tap an item to move it."]]
 	inspect.show_stack(st, ctx, summary)
 
+## The toolbar's trash on the Bag tab: the card asks first, as the in-game Bag's does.
+func _ask_discard() -> void:
+	if tab != &"bag" or bag_grid.selected_indices().is_empty():
+		return
+	_asking = true
+	_discard = InvActions.discard_prompt(bag_grid.inventory, bag_grid.selected_indices(), player).gone
+	_refresh_inspect()
+
 func _on_action(action: StringName) -> void:
+	if action in [&"discard", &"keep"]:
+		var gone := _discard.duplicate() if action == &"discard" else []
+		_discard.clear()
+		_asking = false
+		for i in gone:
+			InvActions.run(&"discard", player, i, _ctx())
+		_refresh()
+		return
 	match action:
 		&"store":
 			store_pressed.emit(bag_grid.selected_indices())
@@ -283,7 +321,8 @@ func _layout() -> void:
 	var top := head_h + gap * 0.5
 	var tab_h := 44.0 if _m.compact else 56.0
 	var bar_h: float = _m.toolbar_h
-	var inspect_w: float = _m.inspect_w
+	# The reference's card is under a fifth of the width, which leaves the grid its 13 columns.
+	var inspect_w: float = _m.inspect_w if _m.compact else roundf(maxf(320.0, size.x * 0.21))
 	var main_r := right - inspect_w - gap
 	_paint_tabs() # their texts and type, before they are measured
 	# Tabs over the rail and grid, from the left edge, the reference's way.
@@ -324,7 +363,7 @@ func _layout() -> void:
 func _place_notice() -> void:
 	var g := _grid()
 	var px: int = _m.row_font
-	_notice.add_theme_font_size_override("font_size", px)
-	var w := InvTheme.font().get_string_size(_notice.text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 32.0
+	InvTheme.set_px(_notice, px)
+	var w := InvTheme.font_at(px).get_string_size(_notice.text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 32.0
 	_notice.size = Vector2(minf(w, g.size.x - 16.0), float(px) * 2.0)
 	_notice.position = Vector2(g.position.x + (g.size.x - _notice.size.x) * 0.5, g.position.y + 6.0)

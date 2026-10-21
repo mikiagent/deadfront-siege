@@ -115,7 +115,7 @@ func _layout_body(area: Rect2) -> void:
 	# The compare lines under the numbers set My Info's height when they need more than its share
 	# (a notched phone cut "Max health 100 → 156" off); the tactics keep room for 44 px hexes.
 	var cpx := int(m.row_font) - (2 if m.compact else 4)
-	_changes.add_theme_font_size_override("font_size", cpx)
+	InvTheme.set_px(_changes, cpx)
 	var ls := -roundi(cpx * 0.45) # the font's tall line box read as gaps between the lines
 	_changes.add_theme_constant_override("line_spacing", ls)
 	_changes.size = Vector2(cw - float(m.margin) * 2.0, 0.0)
@@ -133,7 +133,7 @@ func _layout_body(area: Rect2) -> void:
 		hexes[i].size = Vector2(hs, hs)
 		hexes[i].pivot_offset = hexes[i].size * 0.5
 		hexes[i].position = Vector2(float(m.margin) + i * (hs + 8.0), float(m.margin) * 0.5)
-	_tactic_line.add_theme_font_size_override("font_size", int(m.row_font) - (0 if m.compact else 2))
+	InvTheme.set_px(_tactic_line, int(m.row_font) - (0 if m.compact else 2))
 	_tactic_line.position = Vector2(m.margin, hs + float(m.margin) * 0.75)
 	_tactic_line.size = Vector2(cw - float(m.margin) * 2.0, _tactics.size.y - _tactic_line.position.y)
 	_changes.position = Vector2(m.margin, top)

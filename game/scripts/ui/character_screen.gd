@@ -16,6 +16,8 @@ var _info: Control
 var _centre: Control
 var _portrait: TextureRect
 var _shot: SubViewport
+## The reference's clan line. # ASSUMPTION: no clans exist yet (PRD s13.4 plans them), so every survivor reads so.
+const CLAN_LINE := "Not in a clan"
 
 func _build_body() -> void:
 	_info = _panel(0.0)
@@ -101,14 +103,14 @@ func _layout_body(area: Rect2) -> void:
 	_centre.size = Vector2(area.end.x - cx, area.size.y)
 	# Left card: portrait, name, status, XP bar, three power rows, Detailed Stats.
 	var pad: float = m.margin
-	var side := clampf(area.size.y * 0.16, 48.0, 140.0)
+	var side := clampf(area.size.y * (0.16 if not m.compact else 0.22), 48.0, 140.0) # name and two lines beside it
 	_portrait.position = Vector2(pad, pad)
 	_portrait.size = Vector2(side, side)
 	_portrait.texture = _portrait_texture()
 	var btn_h := 44.0 if m.compact else 64.0
 	details.size = Vector2(maxf(left_w * 0.5, 160.0 if not m.compact else 120.0), btn_h)
 	details.position = Vector2((left_w - details.size.x) * 0.5, area.size.y - pad - btn_h)
-	details.add_theme_font_size_override("font_size", int(m.row_font))
+	InvTheme.set_px(details, int(m.row_font))
 	details.add_theme_color_override("font_color", InvTheme.TEXT_2)
 	var rows_top := _xp_rect().end.y + pad * 0.5
 	var row_h := clampf((details.position.y - pad * 0.5 - rows_top) / maxf(1.0, power_rows.size()), 44.0, 100.0)
@@ -141,8 +143,21 @@ func _draw_info() -> void:
 	var w := _info.size.x - x - pad
 	var npx := int(_m.name_font)
 	var spx := int(_m.row_font)
-	_info.draw_string(f, Vector2(x, _portrait.position.y + f.get_ascent(npx)), UiTokens.ellipsis(f, player.display_name(), w, npx), HORIZONTAL_ALIGNMENT_LEFT, -1, npx, InvTheme.TEXT)
-	_info.draw_string(f, Vector2(x, _portrait.position.y + npx * 1.45 + f.get_ascent(spx)), UiTokens.ellipsis(f, _status(), w, spx), HORIZONTAL_ALIGNMENT_LEFT, -1, spx, InvTheme.TEXT_2)
+	var fn := InvTheme.font_at(npx)
+	_info.draw_string(fn, Vector2(x, _portrait.position.y + fn.get_ascent(npx)), UiTokens.ellipsis(fn, player.display_name(), w, npx), HORIZONTAL_ALIGNMENT_LEFT, -1, npx, InvTheme.TEXT)
+	# Under the name the reference's clan line (a flag and "Not in a clan": no clans exist yet, so that
+	# is every survivor's status), then the occupation where its History button sits (no history exists).
+	var fs := InvTheme.font_at(spx)
+	var y2 := _portrait.position.y + npx * 1.3
+	var flag := UiIcons.icon(&"claim")
+	var fx := x
+	if flag:
+		var s := float(spx) * 1.1
+		_info.draw_texture_rect(flag, Rect2(Vector2(x, y2 + (fs.get_height(spx) - s) * 0.5), Vector2(s, s)), false, InvTheme.TEXT_2)
+		fx += s + 6.0
+	_info.draw_string(fs, Vector2(fx, y2 + fs.get_ascent(spx)), UiTokens.ellipsis(fs, CLAN_LINE, w - (fx - x), spx), HORIZONTAL_ALIGNMENT_LEFT, -1, spx, InvTheme.TEXT_2)
+	var y3 := y2 + fs.get_height(spx) * 1.1
+	_info.draw_string(fs, Vector2(x, y3 + fs.get_ascent(spx)), UiTokens.ellipsis(fs, _status(), w, spx), HORIZONTAL_ALIGNMENT_LEFT, -1, spx, Color(InvTheme.TEXT_2, 0.8))
 	# Green XP bar: "Lv. 13 (222 / 345)", the current XP in yellow (reference).
 	var bar := _xp_rect()
 	_info.draw_rect(bar, Color("#0C0F0C"))
@@ -170,7 +185,7 @@ func profile_lines() -> PackedStringArray:
 	var xp := ""
 	for p in _xp_parts():
 		xp += str(p[0])
-	return PackedStringArray([player.display_name() if player else "", _status(), xp, _title()])
+	return PackedStringArray([player.display_name() if player else "", _status(), xp, _title(), CLAN_LINE])
 
 ## Occupation (no clans exist); on the phone the title joins it (the title strip is desktop only).
 func _status() -> String:
@@ -182,8 +197,8 @@ func _title() -> String:
 
 func _draw_power(b: Button, group: String) -> void:
 	var row: Dictionary = InvStats.powers_data().get(group, {})
-	var f := InvTheme.font()
 	var px := int(_m.row_font) + (2 if _m.compact else 6)
+	var f := InvTheme.font_at(px)
 	var h := b.size.y
 	var pad: float = _m.margin
 	var ic := UiIcons.icon(StringName(str(row.get("icon", group))))

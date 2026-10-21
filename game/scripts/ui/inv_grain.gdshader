@@ -38,11 +38,14 @@ void fragment() {
 	float along = dot(local, dir);
 	float across = abs(dot(local, vec2(-dir.y, dir.x)));
 	float scratch = step(0.86, hash(cell + 7.0)) * (1.0 - smoothstep(0.0, 0.9, across)) * (1.0 - smoothstep(18.0, 34.0, abs(along)));
-	vec3 olive = tint.rgb * vec3(1.04, 1.12, 0.78);
-	vec3 brown = tint.rgb * vec3(1.10, 0.94, 0.88);
+	vec3 olive = tint.rgb * vec3(1.06, 1.10, 0.74);
+	// The references' panels are olive with broad blurred blue-grey patches (the world behind them,
+	// measured h 188-214, s 0.13-0.22): a cool slate drifts in at the largest scale (review r1).
+	vec3 slate = tint.rgb * vec3(0.84, 1.00, 1.18);
 	vec3 base = mix(tint.rgb, olive, smoothstep(0.30, 0.85, vnoise(px / 310.0 + 17.0)) * 0.85 * hue);
-	base = mix(base, brown, smoothstep(0.40, 0.90, vnoise(px / 190.0 + 41.0)) * 0.75 * hue);
-	float luma = 1.0 + ((blotch - 0.5) * 0.52 + (fine - 0.5) * 0.10 + streak * 0.06 + scratch * 0.10) * strength;
+	base = mix(base, slate, smoothstep(0.42, 0.85, vnoise(px / 280.0 + 41.0)) * 0.9 * hue);
+	// Broad soft blotches, little fine grain or scratching: weathered and blurred, not gritty.
+	float luma = 1.0 + ((blotch - 0.5) * 0.62 + (fine - 0.5) * 0.06 + streak * 0.04 + scratch * 0.05) * strength;
 	vec2 c = UV - 0.5;
 	// A light vignette: the references' panels darken only at their very edges.
 	float vig = 1.0 - smoothstep(0.3, 0.75, length(c * vec2(1.0, 1.2))) * 0.14 * strength;
