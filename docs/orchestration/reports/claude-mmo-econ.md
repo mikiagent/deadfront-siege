@@ -11,7 +11,53 @@ server characters. Fifth pass (2026-10-20, evening): every review r3 item is fix
 Sixth pass (2026-10-20, night): the one minor from the review of 5498f04b; see "Processed goods".
 Seventh pass (2026-10-20, late night, finish-6 resumed): the fifth and sixth passes were
 committed during the derailed resume, so every r3 claim was re-run here, and the vision fix
-was checked against the packages that merge before ECON; read "Seventh pass" first.
+was checked against the packages that merge before ECON. Eighth pass (2026-10-20): review
+r4's blocker (a recovery rid reused once uids come home) and its minors; read "Eighth pass"
+first, then "Seventh pass".
+
+## Eighth pass (2026-10-20, review r4): one rid per recovery
+
+Findings: review r4, relayed in the run prompt (1 blocker, 1 major acceptance item, 5 minors).
+The reviewer's probes are `review/econ/r4/probe_body.gd` in its scratchpad. Base
+`claude/mmo-overhaul` cecc936b was merged first (efd886a9; HANDOFF and two workflow scripts,
+no code). The hooks patch did not change: the package tree's working diff of the two hooked
+files is byte-identical to `claude-mmo-econ-hooks.patch`, and `git apply --cached --check` on
+cecc936b is clean.
+
+| # | Item | Fix | Test (passes now) | FAIL before the fix |
+|---|---|---|---|---|
+| B | `recover()` withdrew under the fixed rid `recover-<uid>`. Since the seventh pass a withdrawn item comes home with its uid, so the second cut of the same uid hit the cached answer, moved nothing, and the item stayed in both the bag and the vault (probe p1 DUP). | `vault_bridge.gd`, three lines of defence. (1) The rid is `recover-<uid>-<econ seq>`. Every committed econ op has its own seq, so no two recoveries share a rid. (2) `client()` refuses any rid that starts with `recover-` (`bad_request`), so a client cannot plant one. (3) `_out_of_vault` checks that the uid really left the vault. If it did not, `broken` is set (`... still in the vault (a stale rid answer)`) and the bridge serves nothing until it is fixed. | `t_econ` `_test_same_uid_twice`, three rigs: the same uid cut twice after `char.receive` with a restart each time; cut twice by an engine fault on `vault.withdraw_item` (the r3 M3 path); and a cut after a client tried `recover-<uid>` and `recover-<uid>-<seq>`. `[econ-bridge] same uid twice crash=in_vault=false fault=in_vault=false seeded_rids=bad_request,bad_request` | The new test on the bridge before the fix (efd886a9 with the hooks): `[t_econ] FAIL crash 2: the withdrawn i7.0 is in the bag and no longer in the vault: in_vault=true stone_shot: characters exported 0, the vaults took in 13 net, i7.0 is held as exported but the character store has no export`, the same line for `fault 2` and `seeded 1`, `[t_econ] FAIL a client rid in the server's recover- space is refused: ok,ok`, `[t_econ] FAIL count=4`. With the rid put back to `recover-<uid>` and the vault check kept, the stale hit is loud instead of silent: `[t_econ] FAIL recover() after a restart: i7.0 reached the character but is still in the vault (a stale rid answer)`. |
+| M | Acceptance: a crash mid-escrow, and recovery, cannot duplicate or lose assets | as B | The reviewer's probe file, run unchanged in the package tree (fix plus hooks): `[probe p1] crash 2: recover='' in_bag=true in_vault=false broken=[]`, no DUP line, `[probe] harness failures: []`. p2-p5 answer as in r4 (`invalid_asset (exported 0)`; summoned pet `invalid_asset unchanged=true`; hostile withdraw all `bad_request`/`not_found unchanged=true`; `order_in_lock=limit_reached order_after=insufficient_funds spend_bound=ok`). | r4: `[probe p1] crash 2: recover='' in_bag=true in_vault=true` then `DUP: ... list=ok buy=ok seller_still_holds=true` |
+| m1 | `char.grant`'s mint guard had no test | Test only | `t_econ` `_test_client_gate`, server side: `char.grant` of 3 stone_shot with 2 out answers `invalid_asset`, `char.grant` of a pet uid answers `bad_request`, and the hash of both stores is unchanged: `[econ-bridge] gate ... grant_over_out=invalid_asset grant_pet=bad_request` | Guard removed from the hooks: `[t_econ] FAIL char.grant of 3 stone_shot with 2 out, or of a pet, is refused and changes neither store (ok, bad_request)` |
+| m2 | The bonded-cap test cannot fail on the base | Kept as the sync step at W2-SKILLS' merge, which the reviewer accepts. A test-only cap override needs a seam in `data.gd` (not ECON's) or a test-only branch in srvdom's `_receive`, so I did not add one. **Integrator:** after W2-SKILLS merges, t_econ must print `[econ-bridge] bonded cap=3 roster=3 withdraw=limit_reached kept_in_vault=true`, not the "waits for W2-SKILLS" line. | (sync step) | Reviewer's hand check: `[t_econ] FAIL a full roster (3 of 3) refuses a bought pet, which stays in the vault (ok)` |
+| m3 | Contract 6.1 still says a pet is repackaged as a `caged_animal` stack | For the orchestrator (contracts.md is W1-INT's file), as asked in r3 m2: amend 6.1 to "pets trade as kind `pet` in the books, shown as cages by the Exchange", or schedule the `caged_animal` switch with W2-CAGE. ECON's behaviour matches the rule (same uid, lineage and genetics, no re-taming, owner rewritten, cap on receive). | (none) | (none) |
+| m4 | The trade lock runs on wall clock from account creation, not on play time | Unchanged and still `# ASSUMPTION` in `market_engine.gd`. It switches to the play time presence reports once W3 or NET provides it. | (none) | (none) |
+| m5 | `EconArgs.is_id` was dead code | Deleted. `grep -rn "is_id(" game/` finds nothing. | t_econ and run_all compile and pass | (none) |
+
+### Acceptance (eighth pass)
+
+Gate tree: mkscratch `econ-r4-gates` at ba9937fd (the fix) with the hooks patch applied and
+`--import` run (0 SCRIPT ERROR / "Failed" lines in its import log). Every run went through gslot.
+
+- All 20 `game/tests/t_*.gd` exit 0 with their PASS line (t_ai, t_build, t_canim, t_combat,
+  t_econ, t_harbour `PASS islands=15`, t_iconart, t_items, t_light, t_lighting, t_occlude,
+  t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons, t_web).
+  t_save prints its 5 deliberate SCRIPT ERRORs, every other test 0. None prints "couldn't
+  resolve track".
+- `t_econ.gd`: `[t_econ] PASS`. The fuzz line is unchanged:
+  `[econ-bridge] fuzz 3600 ops, 9 restarts mid-move, invariants of both stores after every op (coins issued 3553, sink 628)`.
+- `run_all.gd`: `[tests] PASS`. Its two SCRIPT ERROR lines come after
+  `[econ] fault test: the next SCRIPT ERROR and ERROR lines are deliberate`, as before.
+- `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (34 before, 34 after).
+- Labs and screenshots: none. ECON is server-side with no UI.
+
+### Assumptions added (eighth pass)
+
+- Rids that start with `recover-` belong to the server. A client frame that carries one is
+  refused with `bad_request`. Contract 5.3 lets a client pick any 1..64 character rid; this
+  narrows that by one prefix. The orchestrator should add the sentence to 5.3 at the next
+  contract edit.
 
 ## Seventh pass (2026-10-20, finish-6 resumed): re-verification and the vision fix
 
