@@ -6,6 +6,40 @@ The program's running memory is `docs/orchestration/mmo/STATUS.md` (owner decisi
 the package specs are in `docs/orchestration/mmo/plan-register.md`; the owner's design input is
 `docs/design/durango-prompts/01`-`12`; the owner's program prompt is `docs/orchestration/prompts/mmo-program-prompt.md`.
 
+## Graceful stop, 2026-10-20 ~19:05 (owner: "graceful stop to resume later") - read this first
+
+Nothing is running: three workflows were stopped, no Godot or dsc process is left, and the wakeup loop is off. Every package
+branch tip is pushed to GitHub (w2-data 178e320c, w2-skills 42e9ce6d, w2-inv 5ff239a6, w2-process 061cc651, w2-gather
+e4d20cb8, w2-buildsys 4b8c6d23, econ 0853cc6f, w2-ragdoll 052c5646 (WIP commit at the stop), icons2 95be9029, invui 3ecb02ca).
+Nothing new is merged into claude/mmo-overhaul since section 2; production is unchanged (31c064a08/2284b9bf56).
+
+| Run | Script (repo copy) | State at the stop | Resume |
+|---|---|---|---|
+| finish-6, wf_c321f8a4-028 | `handoff/workflows/finish-6.js` | Priority 1: the 7 merges in the handoff order plus W2-RAGDOLL, ICONS2, FORGEART. Restarted twice (see below), so every package restarts from its branch tip. Results of the derailed resume are not trusted and are not replayed: W2-PROCESS r2 pass + A/B 2/1 and ECON r5 pass need a fresh review; W2-SKILLS r2 found a real blocker (fixed in fix r2) | Same session: `Workflow({scriptPath: ".claude/worktrees/deadfront-finish-6.js", resumeFromRunId: "wf_c321f8a4-028"})`. New session: launch the script file fresh (same effect) |
+| INVUI, wf_cdb79ed1-deb | `handoff/workflows/invui.js` | Spec 13 (Durango Bag, Character -> Gear, Equipment). Scouts done; the design step was cut. Worktree `mmo-invui` exists with "Apply W2-INV hooks (INVUI base)" | Same session: `Workflow({scriptPath: ".claude/worktrees/deadfront-invui.js", resumeFromRunId: "wf_cdb79ed1-deb"})`; new session: launch fresh |
+| W3-EXCHANGE, wf_4cbd48e0-5b9 | `handoff/workflows/exchange.js` | Spec 14 (Island Market). Two of three scouts done; no worktree yet | Same session: `Workflow({scriptPath: ".claude/worktrees/deadfront-exchange.js", resumeFromRunId: "wf_4cbd48e0-5b9"})`; new session: launch fresh |
+
+Before resuming:
+- **Launch or resume a workflow ONLY in a turn whose user message is about that work** (e.g. the owner saying "resume").
+  The Workflow tool hands that turn's message to every agent as overriding their task. Resuming finish-6 in the turn of the
+  owner's question "is the vision check necessary?" made its agents answer the question, skip gates, or stop with a false
+  owner gate.
+- **Helpers.** The scripts call gslot.sh, mkwt.sh and the slot locks in the 2026-10-19 session scratchpad
+  (`/private/tmp/claude-501/.../1899b1df-.../scratchpad`), and mkscratch.sh (detached review trees) in the 2026-10-20 one
+  (`.../72cebc8b-.../scratchpad`). /private/tmp does not survive a reboot. If they are gone, copy
+  `handoff/scripts/{gslot,mkwt,mkscratch}.sh` back to those paths (and `mkdir locks`), or change the constants at the top
+  of each script.
+- **Dirty worktrees.**
+  - `mmo-econ` has the ECON hooks applied for local testing (`intent_handlers.gd`, `run_all.gd` modified). Do not commit them; they ship in the hooks patch.
+  - `mmo-icons2` has a report edit and a preview sheet.
+  - The untracked `game/assets/{nature,resources}/generated` files are import noise.
+- **Owner input since section 3.**
+  - Specs 13 (inventory/equipment UI) and 14 (Island Market UI) with references in docs/reference.
+  - "This will be an online multiplayer game": the market is a server feature; offline single-player shows it offline.
+  - The vision check (`vision-check.md`): ten doc-settled fixes are in the finish-6 prompts. Its next-package ranking is W2-CRAFT, W2-COOK, W2-CAPTURE, W2-CONSTRUCT, W2-SURVIVAL, then W3-EXCHANGE, which is now running early.
+  - W2-INV's vision scope was ruled by the orchestrator: crafting default picks only (spec 05:23).
+- **Merge order after resuming.** W2-DATA -> W2-SKILLS -> W2-INV -> W2-PROCESS -> W2-GATHER -> W2-BUILDSYS -> ECON (finish-6's integrator). INVUI right after W2-INV, W3-EXCHANGE after ECON and INVUI. Merge them one at a time, never while another integrator runs.
+
 ## 0. How every request is run
 
 **The gauntlet loop applies to every request**: `GAUNTLET.md` at the repo root (translate -> ground -> classify
