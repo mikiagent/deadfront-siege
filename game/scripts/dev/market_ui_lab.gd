@@ -9,7 +9,7 @@ extends Node3D
 ## The market is opened the owner's way: the HUD's MENU sheet, then its "Island Market" button
 ## (hook H0). Prints "[market_lab] measure ..." for exchange-spec §8 gates 1-3.
 
-const SCREENS := ["menu", "buy", "buy_search", "buy_taming", "sell", "sell_pet", "sell_none", "my_market", "my_market_sold",
+const SCREENS := ["menu", "buy", "buy_search", "buy_taming", "sell", "sell_pet", "sell_tool", "sell_none", "my_market", "my_market_sold",
 	"my_market_history", "my_market_cancel", "my_market_received", "confirm", "offline", "buy_500"]
 
 var screen := "buy"
@@ -81,10 +81,11 @@ func _show() -> void:
 			for r in ms.buy.table.rows:
 				if str(r.view.key) == "item:stone_knife_work":
 					r.pressed.emit()
-		"sell", "sell_pet", "sell_none":
+		"sell", "sell_pet", "sell_tool", "sell_none":
 			ms.rail.select(&"sell")
-			for e: Dictionary in ms.sell.entries: # sell: the bag's bone stack; sell_pet: the bonded pet
-				if (screen == "sell" and e.src == "bag" and str(e.asset.get("id", "")) == "bone") or (screen == "sell_pet" and e.src == "pet"):
+			for e: Dictionary in ms.sell.entries: # sell: the bag's bone stack; sell_pet: the bonded pet; sell_tool: the crafted knife
+				if (screen == "sell" and e.src == "bag" and str(e.asset.get("id", "")) == "bone") or (screen == "sell_pet" and e.src == "pet") \
+						or (screen == "sell_tool" and str(e.asset.get("id", "")) == "stone_knife_work"):
 					ms.sell.select(str(e.uid))
 		"my_market", "my_market_sold", "my_market_history", "my_market_cancel", "my_market_received":
 			ms.rail.select(&"my_market")
@@ -102,6 +103,34 @@ func _show() -> void:
 	_measure(ms)
 	if screen == "buy_500":
 		await _fling(ms)
+	if screen == "sell":
+		await _preview_each(ms)
+
+## Every sellable instance in turn: its fee / tax / proceeds preview must show above List with no
+## scrolling of the panel (the phone panel is the tight one). Ends on the bone again for the shot.
+func _preview_each(ms: MarketScreen) -> void:
+	var f := ms.sell.form
+	var keep := ms.sell.selected
+	var hidden: PackedStringArray = []
+	var checked := 0
+	for e: Dictionary in ms.sell.entries:
+		if str(e.why) != "":
+			continue
+		await ms.sell.select(str(e.uid))
+		for i in 2:
+			await get_tree().process_frame
+		checked += 1
+		var net := f.preview_values.net as Label
+		var box := net.get_parent() as Control
+		while box != null and not box is ScrollContainer:
+			box = box.get_parent() as Control
+		var shown_to := box.get_global_rect().end.y if box != null else f.list_btn.get_global_rect().position.y
+		if net.get_global_rect().position.y + net.get_combined_minimum_size().y * 0.8 > shown_to: # its glyphs are cut by the panel's edge
+			hidden.append("%s (%d > %d)" % [e.name, net.get_global_rect().end.y, shown_to])
+	await ms.sell.select(keep)
+	for i in 2:
+		await get_tree().process_frame
+	print("[market_lab] measure sell previews checked=%d hidden_under_list=%d %s" % [checked, hidden.size(), ", ".join(hidden)])
 
 ## Gate 12: flings the Buy list from its top to its end at 120 px a frame. Every page the list asks
 ## for on the way is one market.search and 20 new rows (MarketTable.build_us); a frame time is the

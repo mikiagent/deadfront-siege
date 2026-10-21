@@ -339,11 +339,13 @@ func _card_text() -> void:
 	var phone: bool = _m.get("compact", false)
 	_level.visible = not phone
 	_level.text = lv
+	# A phone's panel must show the fee preview above List without scrolling: the facts run on as
+	# at most two lines there ("Bonded pet" is the B disc in the name band already).
+	_facts.max_lines_visible = 2 if phone else -1
 	if phone:
-		lines.insert(0, lv + ("   ·   " + lines[0] if not lines.is_empty() else ""))
-		if lines.size() > 1:
-			lines.remove_at(1)
-	_facts.text = "\n".join(lines)
+		_facts.text = "  ·  ".join(PackedStringArray([lv]) + PackedStringArray(Array(lines).filter(func (l: String) -> bool: return l != "Bonded pet")))
+	else:
+		_facts.text = "\n".join(lines)
 
 func _set_unit(v: int, write: bool) -> void:
 	unit = maxi(0, v)
@@ -429,6 +431,10 @@ func fit(m: Dictionary) -> void:
 		b.custom_minimum_size = Vector2(maxf(52.0, tgt) if compact else 72.0, tgt)
 		b.add_theme_font_size_override("font_size", m.type + 1)
 	_preview.columns = 4 if compact else 2
+	# One-line labels stand as tall as the font's emoji fallback (~2.1x the size); the preview rows
+	# overlap that empty band so the fee / tax / proceeds show above List on a phone and beside a tall card.
+	var vpx: int = m.type + (0 if compact else 2)
+	_preview.add_theme_constant_override("v_separation", 2 - maxi(0, roundi(MarketTheme.font().get_height(vpx) - vpx * 1.4)))
 	MarketTheme.action(list_btn, true, m.name)
 	list_btn.custom_minimum_size = Vector2(0, tgt if compact else 60.0)
 	refresh()
