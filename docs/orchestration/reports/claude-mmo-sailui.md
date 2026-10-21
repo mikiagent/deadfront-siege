@@ -38,7 +38,7 @@ New files (this package owns them):
 
 Hooks (merged packages' files): `docs/orchestration/reports/claude-mmo-sailui-hooks.patch`, applied to the work tree
 for every gate below and not committed. `git apply --3way` of it onto a fresh `claude/mmo-sailui` tree works
-(`mkscratch.sh sailui-hooks claude/mmo-sailui <patch>`, then `t_sailui` PASS there).
+(`mkscratch.sh sailui-hooks claude/mmo-sailui <patch>`, then `t_sailui` PASS there; rerun in round 1 on `0a17770b` with the round-1 patch: applies, `[t_sailui] PASS`).
 
 | Hook | Change |
 |---|---|
