@@ -294,6 +294,92 @@
       "weakness_rank": 2,
       "cleared_by": [],
       "fx": "none"
+    },
+    {
+      "id": "dirty",
+      "display_name": "Dirty",
+      "dps": 0.0,
+      "duration": 9999.0,
+      "max_stacks": 1,
+      "flags": [],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "fatigue_mult": 1.2,
+      "weakness_rank": 2,
+      "cleared_by": [
+        "wash"
+      ],
+      "fx": "none",
+      "_note": "PRD 6.4 / research bestiary 4.2: until washed, fatigue gain +20%. What makes you dirty is an ASSUMPTION (data/water.json dirt)."
+    },
+    {
+      "id": "very_dirty",
+      "display_name": "Very Dirty",
+      "dps": 0.0,
+      "duration": 9999.0,
+      "max_stacks": 1,
+      "flags": [],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "fatigue_mult": 1.5,
+      "weakness_rank": 3,
+      "cleared_by": [
+        "wash"
+      ],
+      "fx": "none",
+      "_note": "PRD 6.4 / research bestiary 4.2: until washed, fatigue gain +50%."
+    },
+    {
+      "id": "thirsty",
+      "display_name": "Thirsty",
+      "dps": 0.0,
+      "duration": 9999.0,
+      "max_stacks": 1,
+      "flags": [],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "fatigue_mult": 1.2,
+      "weakness_rank": 2,
+      "cleared_by": [
+        "drink"
+      ],
+      "fx": "none",
+      "_note": "PRD 6.3; research bestiary 4.2: until fresh water, fatigue gain +20%. Nothing applies it yet: wading in the sea gives Wet (PRD :284), and the research ties seawater thirst to drinking it, which the game has no verb for. Drink clears it."
+    },
+    {
+      "id": "quenched",
+      "display_name": "Quenched",
+      "dps": 0.0,
+      "duration": 360.0,
+      "max_stacks": 1,
+      "flags": [],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "heat_fatigue_mult": 0.8,
+      "weakness_rank": 1,
+      "cleared_by": [],
+      "fx": "none",
+      "_note": "PRD 6.3, :314: drinking fresh water cuts heat fatigue. ASSUMPTION: heat fatigue -20% (Wet's documented heat cut) for 6 min (Clean's length); the PRD gives no numbers."
+    },
+    {
+      "id": "clean",
+      "display_name": "Clean",
+      "dps": 0.0,
+      "duration": 360.0,
+      "max_stacks": 1,
+      "flags": [],
+      "move_mult": 1.0,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "fatigue_mult": 0.8,
+      "weakness_rank": 1,
+      "cleared_by": [],
+      "fx": "none",
+      "_note": "PRD 6.4 Cleanliness (washed): 6 min, fatigue gain -20%."
     }
   ]
 }
