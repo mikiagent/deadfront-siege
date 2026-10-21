@@ -161,6 +161,8 @@ func _rebuild() -> void:
 		open_card(keep_card)
 	var here: Variant = nodes.get(str(World.island_id), nodes.get(str(HOME_ID)))
 	if here:
+		if keep_scroll == 0.0:
+			_show_node(here)  # opens with the island you stand on in view
 		UiTokens.focus_first([here])
 
 ## One row per island, Home first, then World.harbour_routes() (level order).
@@ -178,6 +180,7 @@ func _entries() -> Array[Dictionary]:
 		out.append({
 			"id": id, "name": World.island_name(sid), "tier": int(def.get("tier", 10 if home else 60)),
 			"climate": str(def.get("climate", "")), "home": home, "here": sid == World.island_id,
+			# ASSUMPTION: Home always reads as visited: every survivor starts there.
 			"visited": home or World.visited_islands.has(id), "need": need, "locked": not home and survival < need,
 			"cost": 0 if home else int(def.get("sail_cost", 5)), "life": float(def.get("lifetime_seconds", 0.0)),
 		})
@@ -210,6 +213,7 @@ func _make_header(safe: Rect2) -> void:
 	row.position = Vector2(safe.position.x + pad, safe.position.y)
 	row.size = Vector2(safe.size.x - pad * 2.0, h)
 	bar.add_child(row)
+	# ASSUMPTION: Durango's back arrow; no screen sits under the chart, so it closes it like X.
 	var back := _icon_button(&"back", "Back")
 	back.pressed.connect(func () -> void: closed.emit())
 	row.add_child(back)

@@ -24,7 +24,8 @@ var _m: Dictionary = {}
 var _label_h := 0.0
 var _lanes: Array[PackedVector2Array] = []
 var _waves: PackedVector2Array = PackedVector2Array()
-var _clouds: Array[Vector3] = [] ## x, y, scale
+var _clouds: Array[Vector3] = [] ## x, y, radius: drifting along the top and bottom edges
+var _bank: Array[Vector3] = [] ## x, y, radius: still, over the open sea after the last band
 var _home_shape := PackedVector2Array()
 var _t := 0.0
 var _sky: Control ## clouds and band headings, under the nodes; the only part redrawn each frame
@@ -102,14 +103,18 @@ func _scatter(view: Vector2) -> void:
 	_waves.clear()
 	for i in int(size.x * size.y / 9000.0):
 		_waves.append(Vector2(rng.randf_range(8.0, size.x - 8.0), rng.randf_range(_label_h + 8.0, size.y - 8.0)))
+	var unit := float(_m.d) * 0.24  # puff radius: 17 px on the phone, 27 on the desktop
 	_clouds.clear()
 	for i in int(size.x / 380.0) + 2:
 		var top := rng.randf() < 0.5
-		var y := rng.randf_range(0.02, 0.14) if top else rng.randf_range(0.86, 0.98)
-		_clouds.append(Vector3(rng.randf_range(0.0, size.x), y * size.y, rng.randf_range(0.7, 1.3)))
-	# The unknown beyond the last band: a bank of cloud at the far right.
-	for i in 5:
-		_clouds.append(Vector3(size.x - view.x * TAIL_FRAC * rng.randf_range(0.0, 1.2), size.y * rng.randf_range(0.15, 0.85), rng.randf_range(1.0, 1.6)))
+		var y := rng.randf_range(0.02, 0.11) if top else rng.randf_range(0.9, 0.99)
+		_clouds.append(Vector3(rng.randf_range(0.0, size.x), y * size.y, unit * rng.randf_range(0.7, 1.3)))
+	# The unknown beyond the last band: a still bank of cloud that stays off the Lv. 60 island.
+	_bank.clear()
+	var tail := view.x * TAIL_FRAC
+	for i in 6:
+		var r := minf(unit * rng.randf_range(0.8, 1.2), tail * 0.5)
+		_bank.append(Vector3(size.x - tail * rng.randf_range(0.0, 0.4), size.y * (0.1 + 0.16 * float(i) + rng.randf_range(-0.05, 0.05)), r))
 	_home_shape.clear()
 	var r := float(_m.d) * 0.98
 	for i in 28:
@@ -158,8 +163,9 @@ func _draw_sky() -> void:
 	var font := SailNode.font()
 	var band_px := int(_m.get("band_px", 13))
 	for cl in _clouds:
-		var x := fposmod(cl.x + _t * 6.0 * cl.z, size.x + 160.0) - 80.0
-		_draw_cloud(_sky, Vector2(x, cl.y), 26.0 * cl.z)
+		_draw_cloud(_sky, Vector2(fposmod(cl.x + _t * 6.0, size.x + 160.0) - 80.0, cl.y), cl.z)
+	for cl in _bank:
+		_draw_cloud(_sky, Vector2(cl.x, cl.y), cl.z)
 	for b in bands:  # band headings over the clouds
 		var label := LevelDisplay.label(int(b.tier))
 		var lw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, band_px).x
@@ -168,7 +174,7 @@ func _draw_sky() -> void:
 		_sky.draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, band_px, TAN)
 
 static func _draw_cloud(ci: CanvasItem, c: Vector2, s: float) -> void:
-	var col := Color(1, 1, 1, 0.22)
+	var col := Color(1, 1, 1, 0.2)
 	ci.draw_circle(c, s, col)
 	ci.draw_circle(c + Vector2(s * 0.9, s * 0.15), s * 0.75, col)
 	ci.draw_circle(c + Vector2(-s * 0.9, s * 0.2), s * 0.65, col)
