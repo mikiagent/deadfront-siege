@@ -307,7 +307,7 @@ func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
 	text.add_child(name)
 	var meta := Label.new()
 	meta.name = "RecipeMeta"
-	meta.text = "%s · %.1fs%s" % [LevelDisplay.recipe_label(player.inventory, rec), Crafting.recipe_seconds(rec), ("  ·  " + reason) if reason != "" else ""]
+	meta.text = "%s · %s%s" % [LevelDisplay.recipe_label(player.inventory, rec), Crafting.preview_time(rec), ("  ·  " + reason) if reason != "" else ""]
 	meta.clip_text = true
 	meta.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	meta.add_theme_font_size_override("font_size", UiTokens.meta(view))
@@ -442,7 +442,7 @@ func _show_detail(info: Dictionary) -> void:
 	_detail.add_child(icon)
 	var title := Label.new()
 	title.name = "DetailTitle"
-	title.text = "%s\n%s · %.1fs    ×%d" % [out_name, LevelDisplay.recipe_label(player.inventory, rec), Crafting.recipe_seconds(rec), int(out_row.get("count", 1))]
+	title.text = "%s\n%s · %s    ×%d" % [out_name, LevelDisplay.recipe_label(player.inventory, rec), Crafting.preview_time(rec), int(out_row.get("count", 1))]
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 	title.add_theme_color_override("font_color", UiTokens.TEXT)

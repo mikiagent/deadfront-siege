@@ -50,6 +50,7 @@ func _process(_delta: float) -> bool:
 	_test_mortar_well_kit_routes()
 	_test_empty_bucket_recipe()
 	_test_multistack_crafting()
+	_test_process_stations()
 	_finish()
 	return true
 
@@ -573,6 +574,15 @@ func _test_multistack_crafting() -> void:
 	if script == null: return
 	var lab: RefCounted = script.new()
 	var results: Dictionary = lab.call("run")
+	for label in results:
+		_expect(bool(results[label]), str(label))
+
+## W2-PROCESS: a wall-clock rack job and hand-edited process rows on the load and refund paths.
+func _test_process_stations() -> void:
+	var script: GDScript = load("res://tests/process_checks.gd") as GDScript
+	_expect(script != null, "process checks load")
+	if script == null: return
+	var results: Dictionary = script.new().call("run", get_root())
 	for label in results:
 		_expect(bool(results[label]), str(label))
 

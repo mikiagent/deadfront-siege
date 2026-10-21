@@ -441,6 +441,25 @@ func craft(rid: StringName, count: int = 1) -> bool:
 	p.station_craft.begin(rid, count)
 	return true
 
+## COLLECT on a process station (drying rack, smoker, crock pot, steamer): its finished outputs into
+## the bag, one toast per item id (a rack can hold dried meat and dried hide at once).
+func collect(st: Node3D) -> bool:
+	if online:
+		return _send(&"collect", {"station": net_id(st)})
+	var ps := ProcessStation.of(st)
+	if ps == null or ps.collect_into(p.inventory, p) <= 0:
+		return false
+	for id in ps.last_collected:
+		p.toast(id, int(ps.last_collected[id]))
+	return true
+
+## TAKE BACK on a process station: jobs still waiting for a slot return their own inputs to the bag.
+func take_back(st: Node3D) -> bool:
+	if online:
+		return _send(&"take_back", {"station": net_id(st)})
+	var ps := ProcessStation.of(st)
+	return ps != null and ps.take_back_into(p.inventory, p) > 0
+
 func eat(index: int) -> bool:
 	if online:
 		return _send(&"eat", {"slot": index})
