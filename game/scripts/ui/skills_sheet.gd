@@ -25,6 +25,7 @@ var _panel: PanelContainer
 var _box: VBoxContainer
 var _head: HBoxContainer
 var _tree: String = ""
+var _refused_id := ""  # the row whose refund was just refused shows why (SkillState.refused)
 
 func _ready() -> void:
 	# The HUD that hosts this sheet has no size, so anchor to the viewport instead (top_level),
@@ -288,25 +289,31 @@ func _build_tree() -> void:
 		var unlocks := str(n.get("unlocks", ""))
 		if unlocks != "" and unlocks.to_lower() != title.to_lower():
 			l.text += "\n" + unlocks
+		var nid := str(n.get("id", ""))
+		var refused := nid == _refused_id and skills.refused != ""
+		if refused:
+			l.text += "\n" + skills.refused
 		l.add_theme_font_size_override("font_size", UiTokens.meta(view) + 2)
 		match st[0]:
 			"owned":
 				l.add_theme_color_override("font_color", Color(0.55, 0.9, 0.5))
 			"locked":
 				l.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		if refused:
+			l.add_theme_color_override("font_color", UiTokens.DANGER)
 		h.add_child(l)
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(120 if UiTokens.is_narrow(view) else 140, 56)
-		var nid := str(n.get("id", ""))
 		if st[0] == "owned":
 			b.text = "Refund"
 			b.pressed.connect(func () -> void:
-				skills.refund(_tree, nid)
+				_refused_id = "" if skills.refund(_tree, nid) else nid
 				rebuild()
 			)
 		elif st[0] == "available":
 			b.text = "Unlock"
 			b.pressed.connect(func () -> void:
+				_refused_id = ""
 				skills.unlock(_tree, nid)
 				rebuild()
 			)
@@ -328,6 +335,7 @@ func _build_tree() -> void:
 	back.custom_minimum_size = Vector2(0, 56)
 	back.pressed.connect(func () -> void:
 		_tree = ""
+		_refused_id = ""
 		rebuild()
 	)
 	_box.add_child(back)

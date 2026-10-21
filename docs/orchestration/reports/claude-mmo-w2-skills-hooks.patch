@@ -41,7 +41,7 @@ index aa02b967..fe83ffd7 100644
  func has_capture_technique(tier: int) -> bool:
  	for id in survival_nodes:
 diff --git a/game/scripts/core/save_sanitizer.gd b/game/scripts/core/save_sanitizer.gd
-index b1f73860..987c1a07 100644
+index b1f73860..9f7661d1 100644
 --- a/game/scripts/core/save_sanitizer.gd
 +++ b/game/scripts/core/save_sanitizer.gd
 @@ -103,7 +103,7 @@ static func clean(data: Dictionary) -> Dictionary:
@@ -94,12 +94,15 @@ index b1f73860..987c1a07 100644
  	var spent := 0
  	for id in SkillState.ORDER:
  		if not trees.has(id):
-@@ -258,7 +268,7 @@ static func _skills(sv: Dictionary) -> void:
+@@ -258,7 +268,10 @@ static func _skills(sv: Dictionary) -> void:
  	payout.free()
  	sv["trees"] = trees
  	sv["sp_spent"] = spent
 -	sv["sp_available"] = _int(sv.get("sp_available", 0), 0, earned - spent)
 +	sv["sp_available"] = _int(sv.get("sp_available", 0), 0, maxi(0, earned - spent))
++	for k in ["refund_day", "refunds_today"]: # optional daily refund counter (SkillState.refund_block)
++		if sv.has(k):
++			sv[k] = _int(sv[k], -1, 1 << 30)
  
  ## Legacy {survival node id: bool}. Only survival.json ids with bool values survive. When a skill
  ## tree save exists it is the record of what was bought, so a node stays true only if its tree node

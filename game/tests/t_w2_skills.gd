@@ -2,7 +2,7 @@ extends SceneTree
 ## W2-SKILLS checks: trees.json is a valid node graph on Durango's 1-60 scale, a new survivor's
 ## trees start at Lv. 1 with the Lv1 AUTO nodes learned, a tree cannot pass the character level,
 ## Animal Handling I-IV raise bonded capacity 3 -> 7, skill nodes gate recipes and abilities,
-## refunds respect dependents, rev-1 saves migrate without losing a node or an unspent SP, and the
+## refunds respect dependents and the daily limit, rev-1 saves migrate without losing a node or an unspent SP, and the
 ## taming pen refuses a bond at the cap without losing the animal.
 ## Usage: godot --headless --path game --script res://tests/t_w2_skills.gd
 
@@ -33,7 +33,8 @@ func _process(_delta: float) -> bool:
 	_test_sp_from_character_level()
 	_test_sanitizer_budget()
 	_test_pen_cap()
-	var want := 10
+	_test_refund_limit()
+	var want := 11
 	if _sections != want:
 		failures.append("only %d of %d test sections completed (a runtime error aborted the rest)" % [_sections, want])
 	if failures.is_empty():
@@ -290,6 +291,33 @@ func _test_sp_from_character_level() -> void:
 	_done_with(over)
 	_sections += 1
 
+## docs/design/skills.md:9 "5 free unlearns a day" (trees.json refund; no Warp Gems yet): the next
+## refund that day is refused with a reason and keeps the node; the count survives a save and load,
+## a save without the optional fields starts at 0, and a new day gives the free refunds back.
+func _test_refund_limit() -> void:
+	var sk := _fresh(59)
+	_grant(sk, "processing", 25)
+	var free := int((sk.config["refund"] as Dictionary)["free_per_day"])
+	for i in free:
+		_expect(sk.unlock("processing", "charcoal") and sk.refund("processing", "charcoal"), "free refund %d of %d" % [i + 1, free])
+	_expect(sk.unlock("processing", "charcoal"), "Charcoal can be bought again after the refunds")
+	_expect(not sk.refund("processing", "charcoal") and sk.is_unlocked("processing", "charcoal") and sk.refused.contains("%d free refunds" % free), "refund %d of the day is refused with a reason and keeps the node: '%s'" % [free + 1, sk.refused])
+	var copy: Node = SkillStateS.new()
+	get_root().add_child(copy)
+	copy.from_dict(JSON.parse_string(JSON.stringify(sk.to_dict())))
+	_expect(not copy.refund("processing", "charcoal") and copy.is_unlocked("processing", "charcoal"), "the day's refund count survives a save and load")
+	copy.refund_day -= 1
+	_expect(copy.refund("processing", "charcoal") and copy.refunds_today == 1, "a new day gives the free refunds back")
+	var older: Dictionary = sk.to_dict()
+	older.erase("refund_day")
+	older.erase("refunds_today")
+	copy.from_dict(older)
+	_expect(copy.refunds_today == 0 and copy.refund("processing", "charcoal"), "a save without the optional refund fields loads with none used")
+	get_root().remove_child(copy)
+	copy.free()
+	_done_with(sk)
+	_sections += 1
+
 ## Integrator hook H6 (save_sanitizer._skills budget by character level). Until H6 lands the
 ## sanitizer takes one argument and this section only reports that; once it lands it must hold.
 func _test_sanitizer_budget() -> void:
@@ -319,6 +347,9 @@ func _test_sanitizer_budget() -> void:
 	var forged := {"rev": 2, "sp_extra": 99999, "trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
 	San._skills(forged, 0)
 	_expect(int(forged["sp_extra"]) == old_award and (forged["trees"]["survival"]["unlocked"] as Array).size() == 4, "H6: a rev-2 sp_extra is capped at what the old award paid its tree levels (%d, got %s)" % [old_award, forged["sp_extra"]])
+	var hostile := {"rev": 2, "refund_day": [1], "refunds_today": "x", "trees": {}}
+	San._skills(hostile, 0)
+	_expect(hostile["refund_day"] is int and hostile["refunds_today"] is int, "H6: the optional refund counter loads as numbers (got %s)" % [hostile])
 	_sections += 1
 
 ## Spec 09 grant: the pen bonds through Data.bonded_cap() (hook H2). At the cap the finished animal

@@ -27,7 +27,10 @@ var sp_spent: int = 0
 var sp_earned: int = 0      # SP the character level has paid plus sp_extra (derived); available = earned - cost of learned nodes
 var sp_extra: int = 0       # one-time SP outside character levels (spec 03 "extras"); a rev-1 save's unspent SP land here
 var occupation: String = ""
-var config: Dictionary = {}  # trees.json minus the trees (bonded_base, category_cap, reference)
+var config: Dictionary = {}  # trees.json minus the trees (bonded_base, category_cap, refund, reference)
+var refund_day: int = -1     # UTC day refunds_today counts (optional save fields, no rev bump)
+var refunds_today: int = 0
+var refused: String = ""     # why the last refund was refused, for the sheet
 
 func _ready() -> void:
 	_load()
@@ -187,32 +190,56 @@ static func _roman_id(node_id: String) -> String:
 	return "%s_%s" % [node_id.substr(0, cut), NUMERALS[n]]
 
 
-## Refund a node (trees.json refund rules are day-limited; ASSUMPTION: free while there is no clock for it).
-## Auto nodes cannot be refunded, and a node stays while a learned node needs it (spec 03).
-## The effect leaves with it: a refunded survival node clears its Data capture mirror too.
+## Refund a node. Auto nodes cannot be refunded, and a node stays while a learned node needs it
+## (spec 03). The daily limit is refund_block(). The effect leaves with it: a refunded survival node
+## clears its Data capture mirror too. A refusal leaves its reason in `refused`.
 func refund(tree: String, node_id: String) -> bool:
+	refused = ""
 	var arr: Array = trees[tree]["unlocked"]
 	if not arr.has(node_id):
 		return false
 	for n in nodes(tree):
 		if str(n.get("id", "")) == node_id:
 			if bool(n.get("auto", false)):
-				print("[skill] cannot refund %s: learned automatically" % node_id)
-				return false
+				return _refuse(node_id, "learned automatically")
 			var deps: Array = SkillRules.learned_dependents(self, tree, node_id)
 			if not deps.is_empty():
-				print("[skill] cannot refund %s: %s needs it" % [node_id, ", ".join(deps)])
-				return false
+				return _refuse(node_id, "%s needs it" % ", ".join(deps))
+			var limit := refund_block()
+			if limit != "":
+				return _refuse(node_id, limit)
+			refunds_today += 1
 			arr.erase(node_id)
 			var cost := int(n.get("sp", 0))
 			sp_available += cost
 			sp_spent -= cost
 			if tree == "survival":
 				_mirror_survival(node_id, false)
-			print("[skill] refunded %s (+%d SP)" % [node_id, cost])
+			print("[skill] refunded %s (+%d SP, %d today)" % [node_id, cost, refunds_today])
 			skill_changed.emit(StringName(tree), level_of(tree))
 			return true
 	return false
+
+func _refuse(node_id: String, why: String) -> bool:
+	refused = "Cannot refund: " + why
+	print("[skill] cannot refund %s: %s" % [node_id, why])
+	return false
+
+## "" while a refund is free today, else why not. docs/design/skills.md:9 "5 free unlearns a day,
+## then 30 Warp Gems, max 10 a day"; spec 03:37 keeps it configurable (trees.json refund).
+## ASSUMPTION: a day is a UTC calendar day.
+## shortcut: Warp Gems do not exist, so past free_per_day it refuses; charge warp_gems_each here,
+## up to max_per_day, once that currency exists.
+func refund_block() -> String:
+	var today := int(Time.get_unix_time_from_system() / 86400.0)
+	if refund_day != today:
+		refund_day = today
+		refunds_today = 0
+	var rule: Dictionary = config.get("refund", {})
+	var free := mini(int(rule.get("free_per_day", 5)), int(rule.get("max_per_day", 10)))
+	if refunds_today < free:
+		return ""
+	return "the %d free refunds of the day are used, more tomorrow" % free
 
 func _mirror_survival(node_id: String, on: bool) -> void:
 	if Data.survival_nodes.has(StringName(node_id)):
@@ -259,7 +286,7 @@ func character_progress() -> float:
 	return World.pioneer_progress() if World else 0.0
 
 func to_dict() -> Dictionary:
-	var out := {"rev": REV, "occupation": occupation, "sp_available": sp_available, "sp_spent": sp_spent, "sp_earned": sp_earned, "sp_extra": sp_extra, "trees": {}}
+	var out := {"rev": REV, "occupation": occupation, "sp_available": sp_available, "sp_spent": sp_spent, "sp_earned": sp_earned, "sp_extra": sp_extra, "refund_day": refund_day, "refunds_today": refunds_today, "trees": {}}
 	for id in ORDER:
 		var t: Dictionary = trees[id]
 		out["trees"][id] = {"level": int(t["level"]), "xp": float(t["xp"]), "unlocked": (t["unlocked"] as Array).duplicate()}
@@ -267,6 +294,8 @@ func to_dict() -> Dictionary:
 
 func from_dict(d: Dictionary) -> void:
 	sp_extra = 0
+	refund_day = int(d.get("refund_day", -1)) # optional; save_sanitizer makes both numbers (H6)
+	refunds_today = maxi(0, int(d.get("refunds_today", 0)))
 	if d.is_empty():
 		_recount_sp() # no skills block (pre-skills saves): SP still follow the loaded character level
 		return
