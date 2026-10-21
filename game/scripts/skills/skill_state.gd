@@ -33,6 +33,7 @@ var config: Dictionary = {}  # trees.json minus the trees (bonded_base, category
 var refund_day: int = -1     # UTC day refunds_today counts (optional save fields, no rev bump)
 var refunds_today: int = 0
 var refused: String = ""     # why the last refund was refused, for the sheet
+var _rules_cache: Dictionary = {} # SkillRules' lookups over trees.json and Data.recipes (built once, see SkillRules._index)
 
 func _ready() -> void:
 	_load()
@@ -51,6 +52,7 @@ func _load() -> void:
 	config = root.duplicate()
 	config.erase("trees")
 	var td: Dictionary = root.get("trees", {})
+	_rules_cache = {} # built from defs
 	for id in ORDER:
 		defs[id] = td.get(id, {"nodes": []})
 		if not trees.has(id):
@@ -103,7 +105,9 @@ func _on_character_level() -> void:
 		_resolve(id)
 
 ## Highest level `tree` may reach now: the character level (spec 03), but never below a level the
-## occupation granted (ASSUMPTION: the Lv. 20 head start predates the cap and keeps working).
+## occupation granted. Docs conflict, open owner decision (W2-SKILLS report): spec 03:7 and skills.md:7
+## cap every tree at the character level, PRD 5.1 starts the occupation tree at 20; until the owner
+## rules, the Lv. 20 head start keeps working.
 func level_cap(tree: String) -> int:
 	var cap := character_level() if str(config.get("category_cap", "character_level")) == "character_level" else MAX_LEVEL
 	if tree == occupation_tree():
@@ -201,14 +205,9 @@ func refund(tree: String, node_id: String) -> bool:
 		return false
 	for n in nodes(tree):
 		if str(n.get("id", "")) == node_id:
-			if bool(n.get("auto", false)):
-				return _refuse(node_id, "learned automatically")
-			var deps: Array = SkillRules.learned_dependents(self, tree, node_id)
-			if not deps.is_empty():
-				return _refuse(node_id, "%s needs it" % ", ".join(deps))
-			var limit := refund_block()
-			if limit != "":
-				return _refuse(node_id, limit)
+			var why := refund_reason(tree, node_id)
+			if why != "":
+				return _refuse(node_id, why)
 			_roll_day()
 			refunds_today += 1
 			arr.erase(node_id)
@@ -220,6 +219,22 @@ func refund(tree: String, node_id: String) -> bool:
 			skill_changed.emit(StringName(tree), level_of(tree))
 			return true
 	return false
+
+## "" when the learned node `node_id` can be refunded now, else why not. A query, so the sheet can
+## grey the Refund button and say why before the tap; refund() refuses with the same text.
+func refund_reason(tree: String, node_id: String) -> String:
+	var names := {}
+	for n in nodes(tree):
+		names[str(n.get("id", ""))] = str(n.get("name", n.get("id", "")))
+	for n in nodes(tree):
+		if str(n.get("id", "")) == node_id:
+			if bool(n.get("auto", false)):
+				return "learned automatically"
+			var deps: Array = SkillRules.learned_dependents(self, tree, node_id)
+			if not deps.is_empty():
+				return "%s needs it" % ", ".join(deps.map(func (d: String) -> String: return str(names.get(d, d))))
+			return refund_block()
+	return ""
 
 func _refuse(node_id: String, why: String) -> bool:
 	refused = "Cannot refund: " + why

@@ -171,6 +171,20 @@ func _test_level_cap() -> void:
 	sk.add_xp("melee", 2000.0, true)
 	_expect(sk.level_of("melee") == 5, "melee climbs to the character level 5 and stops (got %d)" % sk.level_of("melee"))
 	_done_with(sk)
+	# Pacing probe (an open owner decision, so nothing is asserted): gathers at 2 XP each (player_actions)
+	# to reach Survival 10 (first sail route, World.route_level) and 15 (next route, Capture Technique I).
+	# Before: trees from Lv. 0, no cap. Now: from Lv. 1, and the tree waits for the character level.
+	for target in [10, 15]:
+		var before := 0.0
+		for l in target:
+			before += SkillStateS.xp_to_next(l)
+		var tree_xp := 0.0
+		for l in range(1, target):
+			tree_xp += SkillStateS.xp_to_next(l)
+		var char_xp := 0
+		for l in target - 1:
+			char_xp += _world().xp_for_level(l)
+		print("[t_w2_skills] pacing: Survival %d took %d gathers before the cap, now %d (character Lv. %d needs %d XP)" % [target, ceili(before / 2.0), ceili(maxf(tree_xp, float(char_xp)) / 2.0), target, char_xp])
 	_sections += 1
 
 func _test_animal_handling() -> void:
@@ -204,6 +218,9 @@ func _test_animal_handling() -> void:
 func _test_recipe_gates_and_abilities() -> void:
 	var sk := _fresh(59)
 	_expect(Rules.recipe_block(sk, "rope") == "" and Rules.recipe_block(sk, "improvised_stone_knife") == "", "auto nodes leave rope and the stone knife open")
+	# Every craft row and sheet row asks these: the map is built once per SkillState, not per call.
+	var gates: Dictionary = Rules.recipe_gates(sk)
+	_expect(is_same(gates, Rules.recipe_gates(sk)), "the recipe gate map is built once, not on every recipe_block / buyable call")
 	_expect(Rules.recipe_block(sk, "workbench_kit") == "", "a recipe no node gates stays open")
 	var block: String = Rules.recipe_block(sk, "charcoal")
 	_expect(block.contains("Charcoal") and block.contains("10"), "charcoal is locked behind Charcoal (Processing Lv. 10): '%s'" % block)
@@ -211,6 +228,7 @@ func _test_recipe_gates_and_abilities() -> void:
 	_expect(not sk.unlock("processing", "charcoal"), "Charcoal cannot be bought at Processing 1")
 	_grant(sk, "processing", 25)
 	_expect(sk.unlock("processing", "charcoal") and Rules.recipe_block(sk, "charcoal") == "", "learning Charcoal opens the charcoal recipe")
+	_expect(is_same(gates, Rules.recipe_gates(sk)), "learning a node keeps the gate map (it does not depend on what is learned)")
 	_expect(sk.refund("processing", "charcoal") and Rules.recipe_block(sk, "charcoal") != "", "refunding Charcoal locks it again")
 	_expect(Rules.ability(sk, "handicraft") == 0, "Handicraft Ability 0 before Handicraft I")
 	# Handicraft is partial (no system reads it until W2-PROCESS): not for sale, so set it as a save would.
@@ -477,6 +495,7 @@ func _test_field_tame_cap() -> void:
 	get_root().add_child(pets)
 	pets.open(p)
 	_expect(str(pets._title.text).contains("3 / 3"), "the pets screen shows bonded / cap (title '%s')" % pets._title.text)
+	_expect(str(pets._summon.text).contains("ACTIVE 0 / "), "the equip button names its counter, so it cannot be read as the bonded cap ('%s')" % pets._summon.text)
 	(p.skills.trees["survival"]["unlocked"] as Array).append("animal_management_1")
 	hint = FT.plate_hint(c, p.inventory)
 	_expect(str(hint.get("kind", "")) == "tame", "Animal Handling I (cap 4) offers the tame again (got %s '%s')" % [hint.get("kind", ""), hint.get("text", "")])
@@ -488,9 +507,10 @@ func _test_field_tame_cap() -> void:
 	c.free()
 	_sections += 1
 
-## A fresh survivor's tree opens on rows to act on (hook H8, skills_sheet.gd): nodes the game reads
-## nothing from fold into one count line (spec 12:215 allows no inert UI), learned AUTO nodes into
-## one name line.
+## A fresh survivor's tree opens on rows to act on (hook H8, skills_sheet.gd): learned AUTO nodes
+## share one name line, and every node the game reads nothing from yet stays listed (spec 12 10.6:
+## level, SP, lock reason) as a muted row with no button after the rest (spec 12:215: nothing to buy).
+## A refund the day's limit blocks is greyed with its reason before the tap.
 func _test_sheet_rows() -> void:
 	if not _hooks_applied():
 		print("[t_w2_skills] hooks not applied: skills sheet rows check skipped")
@@ -506,17 +526,36 @@ func _test_sheet_rows() -> void:
 			if sk.node_state(tree, n)[1] == SkillStateS.NOT_IN_GAME:
 				later += 1
 		var inert := 0
-		var fold := ""
+		var rows := 0
+		var bad: Array[String] = []
 		var autos := ""
 		for row in sheet._box.get_children():
 			for b in row.find_children("*", "Button", true, false):
 				inert += 1 if (b as Button).text == SkillStateS.NOT_IN_GAME else 0
-			if row.name == "SkillsLater":
-				fold = row.text
+			if str(row.name).begins_with("SkillsLater_"):
+				rows += 1
+				var t := str(row.get("text"))
+				if row is Button or not row.find_children("*", "Button", true, false).is_empty() or not (t.contains(SkillStateS.NOT_IN_GAME) and t.contains(" SP") and t.contains("Lv. ")):
+					bad.append(t)
 			elif row.name == "SkillsLearnedAuto":
 				autos = row.text
-		_expect(later > 0 and inert == 0 and fold.begins_with("%d more nodes" % later), "%s at Lv. 1: no 'not in the game yet' rows, one line counts them (%d rows, line '%s', want %d)" % [tree, inert, fold, later])
+		_expect(later > 0 and rows == later and inert == 0 and bad.is_empty(), "%s at Lv. 1: each of the %d nodes not in the game yet is a row with its level, SP and reason and no button (rows %d, buttons %d, bad %s)" % [tree, later, rows, inert, bad])
 		_expect(autos.begins_with("Learned automatically: "), "%s at Lv. 1: the learned AUTO nodes share one line ('%s')" % [tree, autos])
+	_done_with(sk)
+	sk = _fresh(59)
+	_grant(sk, "processing", 25)
+	sk.unlock("processing", "charcoal")
+	for used in [0, int((sk.config["refund"] as Dictionary)["free_per_day"])]:
+		sk.refund_day = SkillStateS._today()
+		sk.refunds_today = used
+		sheet.open(sk, "processing")
+		var row: Node = sheet._box.get_node_or_null("SkillsNode_charcoal")
+		var btn: Button = row.find_children("*", "Button", true, false)[0] if row else null
+		var why: Label = row.find_child("RefundBlock", true, false) if row else null
+		if used == 0:
+			_expect(btn != null and btn.text == "Refund" and not btn.disabled and why == null, "a free refund leaves Charcoal's Refund active (button %s)" % [btn])
+		else:
+			_expect(btn != null and btn.text == "Refund" and btn.disabled and why != null and why.text.contains("free refunds"), "the day's %d refunds used: Charcoal's Refund is greyed and says why before the tap (disabled %s, reason '%s')" % [used, btn.disabled if btn else null, why.text if why else ""])
 	get_root().remove_child(sheet)
 	sheet.free()
 	_done_with(sk)
