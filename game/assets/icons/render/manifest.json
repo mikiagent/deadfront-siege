@@ -431,13 +431,13 @@
    "script": "tools/blender/items/camp.py",
    "builder": "captured_animal",
    "png": "res://assets/icons/render/captured_animal.png",
-   "sha256": "46054d5cd94aa1cb989fbf59fb53dd37ca32718c9099c771f378f7b347529a05",
-   "bytes": 63604,
+   "sha256": "800bb7eb282c55a365a38f26215069e215f3672a2578d2f74d0d4ca020eb6453",
+   "bytes": 58362,
    "rect": [
-    22,
     19,
-    212,
-    218
+    28,
+    218,
+    200
    ],
    "quality": "procedural_v1"
   },
@@ -2065,13 +2065,13 @@
    "script": "tools/blender/items/camp.py",
    "builder": "tamed_animal",
    "png": "res://assets/icons/render/tamed_animal.png",
-   "sha256": "bcbc6bd698ea454081ff6e61c012623729817aa83fe8f84e562156ebe31256ba",
-   "bytes": 55247,
+   "sha256": "1ef777c2faabc8b7ee95962eb36f687e8446d8b327cbcd77bcd2f83b3be0805b",
+   "bytes": 53464,
    "rect": [
-    20,
     19,
-    216,
-    218
+    38,
+    218,
+    180
    ],
    "quality": "procedural_v1"
   },
