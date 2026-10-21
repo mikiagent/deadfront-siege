@@ -1,83 +1,126 @@
 # W2-GATHER report (claude/mmo-w2-gather)
 
 ## What shipped
-- `game/data/loot_tables.json`: rare gather finds per node role/family, each row gated by the climates whose materials list it (below). Rows: resin on trees (tundra), flint (temperate) and obsidian-pick-gated copper_ore (desert) on rock, berries on bushes and herb_leaf on plants and ground (grassland, temperate), pearl on coral (blue_tropical), copper-pick-gated silver_ore on black iron (snowfield). Every item is in each listed climate's `materials` (t_gather checks). Tool tier raises the odds, with a cap; Gathering level does not (spec 12 s1). Butcher part gates by knife tier, butcher count/rare scaling.
+- `game/data/loot_tables.json`:
+  - `rare_trait`: the documented rare result. Each gathered item has a 5% chance of one green rare trait: world-design.md:55 "5% chance of a rare extra (green pip)", PRD:541 "Rare extra attributes = green pip, low chance". The six traits are spec 04:11's (Black Sheen, Low Vibration, Wide Serration, Narrow Hook, Split Easily, Vivid Inspiration). The keys are the ones INVUI's `inv_ui.json` lists as class `rare`, so INVUI's inspect panel draws them green and its slots get the rare corner mark.
+  - `gather_rare`: finds, meaning a node's secondary materials (spec 12:38 "material drop tables"; 12:39 "a tree may yield leaf, branch, log, fruit, sap, or specialized material"). Each row is gated by the climates whose materials list it, and it never rolls on a node whose own harvest has that item. Rows: resin on tundra trees and logs, flint on temperate rock, obsidian-pick-gated copper_ore on desert rock, pearl on coral, copper-pick-gated silver_ore on black iron. The home grassland has no finds.
+  - Butcher part gates by knife tier and butcher count/rare scaling.
 - `game/data/gather_rules.json`: role tool affinity (axe on trees, pick on rock, knife on bushes and plants), bare hands 1.35x slower, rare XP bonuses.
-- `game/scripts/gather/`: `LootTables` (data), `LootRoller` (pure roll math, injected RNG, usable by the server), `GatherService` (effective tool, seconds and yield per unit, after_unit: rare roll into a free slot only, "+n Item" popup, announcement, XP), `ButcherLoot` (carcass from butchering.json: counts scale with knife tier and Butchering level, scutes/dense bone/venom need a better knife, "rare" rows roll their `chance`; a rare part's XP is paid to the survivor who takes it), `GatherFeedback` (2D "+n Item" stack on CanvasLayer 60: above pet plates (58), under the radial (64) and ring (65); gold rare line on top; placed above the ring, else right or left of it, off world pills, HUD zones, plates and the radial; when HUD text moves onto it later it moves off, held still, or hides; not drawn when nothing within 120 px is free, and only then does a gold HUD notice "Rare find: x" announce the find), `GatherXp` (W2-SKILLS sink: `GatherXp.set_sink(obj)`, obj has `award_gather_xp(player, category, amount, source)`, held weakly; clear it with `set_sink(null)` in the owner's `_exit_tree`).
-- `game/tests/t_gather.gd`, plus `--lab=gather_lab` (`game/scenes/dev/gather_lab.tscn`, `game/scripts/dev/gather_lab.gd`).
+- `game/scripts/gather/`:
+  - `LootTables` reads the data.
+  - `LootRoller` is the pure roll math with an injected RNG: finds, the trait roll and the carcass.
+  - `GatherService` picks the effective tool and the seconds and yield per unit. Its `after_unit` wears the helper tool, rolls a trait per item, rolls the finds and pays the rare XP. It also shows "+n Item" with green trait lines and gold find lines. `stamp_traits`, `add_finds` and `wear_role_tool` are shared with the server.
+  - `ButcherLoot` builds the carcass from butchering.json. Rare parts are announced only when the kill is in the survivor's view, and pay their XP at the take.
+  - `GatherFeedback` draws the yield stack. It stays off the ring, other harvest nodes, pills, HUD text and zones, plates and the radial. Its nearest edge stays within 120 px of the ring on both axes. A tinted HUD notice says the rare results only when the stack cannot be drawn.
+  - `GatherXp` is the one place this package pays bonus XP: `SkillState.add_xp`, or player XP when the survivor has no skill tree.
+- `game/tests/t_gather.gd` (15 groups, 9 of them live on a real `player.tscn` survivor) and `--lab=gather_lab`.
 
 ## Hooks patch (integrator applies at merge)
-`docs/orchestration/reports/claude-mmo-w2-gather-hooks.patch`:
-- `player_actions.gd`: `_scaled_gather_seconds` -> `GatherService.unit_seconds`, `_gather_yield_multiplier` -> `GatherService.yield_multiplier`, `GatherService.after_unit(...)` after `gt.consume_unit()`.
-- `corpse.gd`: `_roll_loot()` -> `ButcherLoot.roll_into(self, _owner)`; `_on_take_from_loot()` calls `ButcherLoot.on_take(self, p)` when units moved (rare part XP at the take).
-- `hunt_hud.gd`: `notice(text, gold = false)`; a gold notice draws gold text and a gold rim on ink instead of the red refusal box.
-- `intent_handlers.gd` (`act.gather`): the yield multiplier comes from `GatherService.yield_multiplier_with` (same tool rule as the client), and `GatherService.add_finds` rolls the finds with the op's `rng` and the node's `attributes.climate`; finds count as minted and the result carries a new optional `rares` list.
-All four files on the branch equal claude/mmo-overhaul 34b6d459; `git apply --check` there is clean.
+`docs/orchestration/reports/claude-mmo-w2-gather-hooks.patch`, regenerated on this round and `git apply --check` clean on claude/mmo-overhaul cecc936b:
+- `player_actions.gd`:
+  - `_scaled_gather_seconds` and `_gather_yield_multiplier` call `GatherService.unit_seconds` and `GatherService.yield_multiplier`.
+  - `GatherService.after_unit(p, gt, stack, gained)` runs after `gt.consume_unit()`. It now passes the landed stack, not its id.
+  - New: `ButcherLoot.on_take(corpse, p)` in `loot()`, the radial corpse take. Before this, only the chest screen's take paid rare part XP.
+- `corpse.gd`:
+  - `_roll_loot()` calls `ButcherLoot.roll_into(self, _owner)`.
+  - `_on_take_from_loot()` calls `ButcherLoot.on_take(self, p)` when units moved.
+- `hunt_hud.gd`:
+  - The signature is `notice(text, tint := Color(0,0,0,0))`. A tinted notice is a rare result: it draws in its colour on ink, starts at `GatherFeedback.NOTICE_T0`, so it lives as long as the yield stack it stands in for, and waits for room instead of being dropped.
+- `intent_handlers.gd` (`act.gather`):
+  - The yield multiplier comes from `GatherService.yield_multiplier_with`.
+  - Then `wear_role_tool`, `stamp_traits` and `add_finds` run with the op's `rng`.
+  - Finds count as minted. The result carries the new optional lists `rares` and `traits`.
 
-Lab registration: there is no lab list. `main.gd` loads `res://scenes/dev/<name>.tscn` for `--lab=<name>`, so `game/scenes/dev/gather_lab.tscn` is the registration (`[boot] lab=gather_lab` in the run log). `tools/labs.txt` from the old report does not exist. `run_all.gd` needs nothing: the t_*.gd sweep picks up `t_gather.gd`.
+Lab registration: `main.gd` loads `res://scenes/dev/<name>.tscn` for `--lab=<name>`, so `game/scenes/dev/gather_lab.tscn` is the registration. `run_all.gd` needs nothing.
 
-## Gather rules against the specs
-- GAUNTLET.md:83 "Gathering is from reach without teleport; movement cancels; progress appears above the node." gather_lab checks each pass: survivor within 3.2 m of the node when the first unit lands, largest frame step under 1 m (walked), the ring (or picked radial hex) drawn above the node's base, and a move input mid-pass stops the cycle with no later unit.
-- GAUNTLET.md:73 "Starter-island dinos and gatherables are level 1." The lab's nodes now take climate and level from the island (`rt.material_level`, home `level_override: 1`) instead of a hard-coded 1; every gathered stack is checked at level 1.
-- GAUNTLET.md:89 "Gathering UI stays above pet plates." Popup layer 60 > plates 58; the lab summons a pet and checks the stack's rect against plates, pills, HUD zones and the radial.
-- Spec 12:38 "Resource nodes with species, biome, node level, finite parts/charges, respawn rules, and material drop tables." Rare rows are now per biome (climate).
-- Spec 12:42 "never silently grant rare material traits purely for reaching a high level". `skill_bonus_per_level` 0; t_gather checks Lv60 and Lv1 roll the same.
-- Spec 12:45 "say exactly what is missing". Logs refuse bare hands with "need tool axe".
-- Spec 04:6 (individual instances per harvested unit): the finds are added as ItemStack with level; per-instance uids arrive with W2-INV (no stacking), and the sync step adapts then.
+## Review round 2 (2026-10-20 night): findings, fixes, checks
+Each mutation ran the full t_gather against the mutated file (scratchpad `w2g5/mutate.py`, logs `w2g5/mut/`). Each one exited rc=1 with the quoted line. The unmutated run prints `[t_gather] PASS`.
 
-## Vision fix: climate materials
-`docs/design/world-design.md:66` Grassland (home): "fibre_stalk, branch, stone, herb_leaf, berries, clay"; `:68` Temperate lists flint; `:71` Desert lists copper_ore. The doc says it, so the fix went in: every rare row lists `climates`, `LootRoller.roll_gather_rares` takes the node's climate (set from the island data by `IslandScatter.plant_at` into `yield_attributes.climate`) and skips rows that do not list it. A home-grassland rock never yields flint or copper now; the home finds are berries (bush) and herb_leaf (plant, ground), both in grassland's `materials`. gather_lab's rare demo is a bush's berries for that reason.
-Test: t_gather "a home-grassland rock never yields flint/copper_ore" (20 000 obsidian-pick rolls each), "copper_ore (desert) never rolls on a temperate rock", "the home grassland still has a find", every row's item is in each listed climate's `materials`, and the live after_unit case below. Mutation (filter removed): `[t_gather] FAIL a home-grassland rock never yields flint (rate 0.0756)`.
+1. **Major: the docs set gathering rarity, and home finds were the nodes' own yield.**
+   - Fixed. The documented rare result is now in: `rare_trait` (5% per item, one of spec 04:11's six green traits) on every gathered material, home included.
+   - The ASSUMPTION text in `loot_tables.json` now quotes world-design.md:55 and PRD:541 instead of saying the PRDs give no odds.
+   - Finds stay as secondary materials, citing spec 12:38-39. Two changes:
+     - `roll_gather_rares` skips any row whose item is in the node's own `harvest` (PineTree's resin, FlintNode's flint, CopperOreNode's copper).
+     - The bush, plant and ground rows (berries, herb_leaf) are deleted. Every home material is some home node's own yield, so home grassland rolls no finds.
+   - Checks: "the rare trait chance is world-design.md:55's 5%", "the green traits are spec 04:11's six", a 4000-item rate test (`rare trait rate 0.0465`), "no find is the node's own yield" (every family x every climate), and "the home grassland rolls no finds".
+   - Old data: `[t_gather] FAIL the home grassland rolls no finds (["Bush/berries", ...])`. Filter removed: `[t_gather] FAIL no find is the node's own yield (["PineTree/tundra/resin", ...])`.
+2. **Major: nothing tested GatherXp's live path.**
+   - Removed the sink (see 9). A new live case calls `PlayerActions.finish_gather` on a real survivor at a home bush, with the trait odds forced to 1.
+   - Result: `finish_gather on a home bush (trait odds forced to 1): fibre 1, traited 1, gathering XP 12.0, knife 40 -> 39`. That is 2 + 10 per rare item.
+   - M-a (`if player.skills:` -> `if false:`): `[t_gather] FAIL finish_gather pays 2 + 10 per rare item into Gathering (got 2.0, want 42.0)`, plus the three butcher XP checks.
+   - Hook removed from finish_gather: `[t_gather] FAIL every gathered item took a trait with the odds forced to 1 (0 of 4)` and `FAIL the helper knife wore once for the unit (40 -> 40)`.
+3. **Major: the corpse hook was untested.**
+   - New live case: a real velociraptor is spawned and killed, so `Creature._on_died` -> `Corpse.setup` -> `_roll_loot` -> `roll_into` all run. Its talon is forced through the data.
+   - The test then found a real gap: the radial take, `PlayerActions.loot`, never reached `ButcherLoot.on_take`, so a talon taken from the radial paid no rare XP. The new hooks hunk fixes that.
+   - Both take paths are now tested: `PlayerActions.loot talon: moved 1, butchering XP 11.0` and `Corpse.take_slot talon: raptor_talon, butchering XP 11.0` (3 + 8).
+   - M-c (corpse hook -> `pass`): `[t_gather] FAIL the chest-screen take (_on_take_from_loot) pays 3 + 8 for the talon (got 3.0)`. M-c2 (actions hook -> `pass`): `[t_gather] FAIL the radial take (PlayerActions.loot) pays 3 + 8 for the talon (got 3.0)`.
+4. **Major: helper tools never wore.**
+   - `GatherService.wear_role_tool` wears the exact stack `effective_tool` used (best pick on loose stone, knife on a bush), with `Inventory.wear_gather_tool`'s cost: 1 for a work tool, 3 for a weapon.
+   - It only runs when the node requires no tool. A required tool is already worn in PlayerActions and is not worn twice.
+   - It runs from `after_unit` on the client and from `act.gather` on the server. gather_lab also checks the knife wears on the bush.
+   - M-w: `[t_gather] FAIL a knife helping on a bush wears 1 per unit, a required one is not worn twice (40 -> 40)` and `FAIL the helper knife wore once for the unit (40 -> 40)`.
+5. **Minor: a stack sat on another node at 844x390.**
+   - Other harvest nodes within 16 m are now taken rects, covering their base to their anchor height, grown 28 px (`GatherFeedback.node_rects`).
+   - A spot is refused when its nearest edge is more than MAX_SHIFT from the ring on either axis.
+   - Checks: a second rock placed where the stack would rise sends it beside the ring (`gap (44.0, 0.0), on the other rock false`). A column slid 100 px ends 144 px off and is refused.
+   - M-n: `[t_gather] FAIL the stack keeps off the other rock ([P: (979.7, 741.5), S: (92.0, 46.0)])`. M-gap: `[t_gather] FAIL a spot whose nearest edge ends past MAX_SHIFT from the ring is refused`.
+6. **Minor: kills nobody saw were announced.**
+   - `roll_into` announces only when the carcass is on the survivor's screen (`ButcherLoot.in_view`). Otherwise it rolls silently.
+   - There is no stored killer to credit: Health emits its source only once, and creature.gd is another package's file. View covers both "the survivor's kill" and "in reach".
+   - M-v: `[t_gather] FAIL a kill out of view rolls its talon silently (notices [["Rare find: Raptor Talon on the velociraptor", ...]])`.
+   - The knife used is still the local survivor's: single-player ASSUMPTION, kept.
+7. **Minor: a misspelt tier was read as stone.**
+   - t_gather asserts that every `min_tool_tier` and `part_min_tier` is in `ProgressionScaling.TOOL_TIERS`.
+   - The roller now skips an unknown-tier find row, and keeps a part with an unknown gate on the carcass.
+   - M-t: `[t_gather] FAIL bad rows and a misspelt tier are skipped, the good rows still roll (104 of 200 seeds differ)`. M-gt: `[t_gather] FAIL a misspelt part_min_tier keeps the scute on the carcass`.
+8. **Minor: colour language, and the dropped fallback notice.**
+   - Traits are green (spec 13:50/291, PRD:541). They use `GatherFeedback.GREEN` = INVUI's `InvTheme.RARE` #67B84E, in the yield stack and in the fallback notice "Rare trait: Black Sheen Fibre Stalk".
+   - Finds stay gold, as the package scope said ("announced in gold"). A find is a material, not an attribute, so spec 13's "green rare attributes" does not cover it. **Question for the orchestrator:** keep finds gold, or make every rare result green. It is one constant either way.
+   - The HUD now holds a tinted notice while there is no room, instead of dropping it. That hold is draw-only code in hunt_hud, so there is no headless check; it was read and seen in the lab.
+9. **Minor: the sink only saw bonus XP.**
+   - Removed `GatherXp.set_sink`. W2-SKILLS (`5e77eb8c`) never calls it and keeps `SkillState.add_xp` as the door.
+   - `GatherXp.award(player, category, amount)` pays this package's bonus XP the same way the base +2/+3 is paid. A check covers it without a skill tree (player XP).
+10. **Minor: an old gold notice lingered into the butcher stage, and banners pushed the plate.**
+    - A rare notice now starts at `NOTICE_T0` = 1.0 s into the HUD's 3.2 s life. It stays full for the yield stack's LIFE (1.4 s), then fades, so it is gone before the next stage.
+    - Check on the real `hunt_hud.gd`: after LIFE + 0.9 s the rare notice is gone and a plain one stays. MT0: `[t_gather] FAIL a rare notice is tinted and starts at NOTICE_T0 ...` and `FAIL after the stack's life the rare notice is gone, a plain one stays (["Rare find: Flint", "Too far."])`.
+    - Home berries no longer exist, so the lab's rare stage is now a trait.
+    - **For W1-UI:** at 844x390 the level-up banner pushes the pet plate down onto the nearest node pill and its text (creature_plates). This package's bonus XP makes that level-up more likely. It does not cause the overlap.
+11. **Other checks added:**
+    - A full bag keeps a hit item plain and whole: `with no free slot the item stays plain and whole`. With the revert removed: `[t_gather] FAIL ... (stamped [], stone 4)`.
+    - A trait swap keeps every unit (4000 of 4000), and an item carries at most one trait.
+    - Traits removed from after_unit: `[t_gather] FAIL every gathered item took a trait with the odds forced to 1 (0 of 5)`.
 
-## Review round 1 (2026-10-20 evening): findings and fixes
-Every check below is in `game/tests/t_gather.gd` (now 10 groups, the last 5 on a real `player.tscn` survivor with a HUD stand-in that records toasts and notices). Each mutation ran the full t_gather against the mutated file (scratchpad `w2g3/mutate.py`, logs `w2g3/mut/`); each printed rc=1 with the line quoted.
-- Blocker, rare rows outside the climate's materials. berry_seed, spice_herb and flax_seed are in no climate's `materials` (climates.json), and Wild Seed I is a learned Survival technique (spec 12:162 "Wild Seed I Lv10/2 SP"). The rows are now berries (bush) and herb_leaf (plant, ground), both in grassland and temperate `materials`. t_gather now asserts, per row and per listed climate, that the climate's `materials` contain the item. Old rows: `[t_gather] FAIL bush/berry_seed is in grassland's materials (climates.json)` (and the five other row/climate pairs).
-- Node climate wiring untested (m2). New live case: real HarvestNodes set up as `IslandScatter.plant_at` does (`{"climate", "level"}` attributes), 800 `GatherService.after_unit` units with an obsidian pick on each: grassland 0 flint 0 copper, temperate 50 flint. m2 (`climate := "temperate"`): `[t_gather] FAIL after_unit on a home-grassland rock (obsidian pick, 800 units) finds no flint (50) or copper (0)`.
-- Butcher hook untested (m3). New live case: `ButcherLoot.roll_into` on 150 triceratops carcasses with the survivor holding no knife, then a flint knife: meat 1654 vs 2184, armor_scute 0 vs 197, dense_bone 0 vs 293. m3 (knife ignored): `[t_gather] FAIL the survivor's flint knife cuts scutes and dense bone`.
-- Two stacks in one frame lost both finds. Each popup now connects its own lambda (weak refs to the survivor, camera and stack, so a stack replaced in the same frame logs no engine ERROR), and a stack replaced before it was shown for 0.5 s runs its fallback. Test: two `announce_rares` in one frame, both found on screen (`["RARE  Raptor Talon", "Rare find: Pearl"]`), 0 ERROR lines. Old connect (m6): `ERROR: Signal 'process_frame' is already connected to given callable 'GDScript::_place'` and `[t_gather] FAIL Raptor Talon announced (stack or gold notice) when two finds share a frame`. Fallback on replace removed (m11): `[t_gather] FAIL a rare stack replaced before it was read is announced by the gold notice (drawn true, notices [])`.
-- Phone radial flow announced the find in the red refusal box. The fallback is now a gold HUD notice (hooks patch, `hunt_hud.gd`): gold text, gold rim, ink. gather_lab at 844x390 requires the notice to be gold: `popup skipped over Bush (no room by the node); HUD toast true, rare notice true`. Shot `glc-844-rare_radial.png`: "Rare find: Berries" gold on ink. Non-gold notice (m7): `[t_gather] FAIL every rare notice is gold`.
-- Lambda sink crashed Godot on quit. `GatherXp.set_sink(obj)` holds the object weakly and calls `award_gather_xp`; t_gather quits with a sink still set. Old contract probe (a node's lambda left in `GatherXp.sink`, quit): rc=70, `libc++abi: terminating due to uncaught exception of type std::__1::system_error: recursive_mutex lock failed: Invalid argument`, `Godot-2026-10-20-202004.ips` (made on purpose by that probe). Same probe on `set_sink(node)`: rc=0, no report.
-- Rare carcass odds (minor). `butcher._rare_chance` in loot_tables.json says the chance stands in for the Slaughter Ability roll until W2-BUTCHER (# ASSUMPTION, spec 12 s2). The rare butcher XP moved from death to the take (`ButcherLoot.on_take`, corpse hook): paid once, to the taker, when the last of the part leaves the carcass. XP paid at death (m8): `[t_gather] FAIL no rare XP when the animal falls (got [["butchering", 8.0, "butcher", "raptor_talon"]])`; take check removed (m8b): `[t_gather] FAIL taking nothing rare pays no rare XP`.
-- Finds carried only level (minor). They carry `{"climate", "level"}` now (world-design.md:55). Note: the main yield does not carry climate: `HarvestNode.roll_yield` erases `ItemStack.MERGE_IGNORED_ATTRS` (climate) since ffd57795; that is the items package's choice, left alone. m9: `[t_gather] FAIL a find is stamped with the node's climate and level ({ "material_tier": "flint", "level": 1 })`.
-- Server gather diverged (minor). Hooks-patch hunk in `act.gather` (above). The server's world nodes carry no climate yet (`WorldFacade.add_node` sets only level), so no find rolls there until W3 gives server nodes their island climate. t_server_domain and t_srvdom PASS with the hunk.
-- Dead `luck` parameter removed from `after_unit` and `roll_gather_rares`.
-- Bad rows (minor). `roll_gather_rares` skips rows that are not Dictionaries and rows whose `climates` is not an Array. Test: with a String row and a String-climates row added, all 200 seeds roll what they rolled without them. Guard removed (m10): `SCRIPT ERROR: Invalid cast` and `[t_gather] FAIL bad rare rows are skipped and the good rows still roll (12 of 200 seeds differ)`; list check removed (m10b): `(104 of 200 seeds differ)`.
-- Free-slot guard untested (m4). Full-bag case: 20/20 slots, one of them a flint stack a find would merge into; 400 units on a temperate rock land nothing. Guard removed: `[t_gather] FAIL a full bag takes no rare find (landed 31, flint 32)`.
-- Earlier mutations still fail: m1 (climate filter) `[t_gather] FAIL a home-grassland rock never yields flint (rate 0.0756)`; m5 (bare hands 1.0x) `[t_gather] FAIL a stone knife gathers fibre faster than bare hands`.
+## Gate lines (scratch trees `w2g5` and `w2g5g` = 0cbec77a + the hooks patch)
+GATES_PENDING
 
-## Earlier run (2026-10-20 night, resumed)
-- Base: merged claude/mmo-overhaul at cbba0333 (6e9655d6) and again at 34b6d459 (40955e19, docs only). The hooks patch is `git apply --check` clean on 34b6d459; `player_actions.gd` and `corpse.gd` on the branch equal the base.
-- Fix found by the phone shot (aa356931): at 844x390 the gold "RARE Berry Seed" stack sat on the HUD's "Rare find: Berry Seed" notice (gather_lab: `FAIL popup ["RARE  Berry Seed", "+2 Fibre Stalk"] at [P: (454.8858, 226.4473) ...] clear of [P: (392.5, 226.4474), S: (197.0, 30.0)]`). The stack was placed once; the HUD re-places its notices every frame and a level-up banner had moved the notice onto it. Now the stack checks each frame and moves off (held still) or hides. The HUD notice is the fallback only: the desktop rare shot used to say one find four times (toast, notice, gold line, yield line). gather_lab checks both ways: a drawn rare stack is not repeated by a HUD notice; a skipped one is announced (`popup skipped over Bush (no room by the node); HUD toast true, rare notice true` at 844x390 with the radial open).
-- gather_lab on a phone: when the gather radial is open, nothing within 120 px of the node is free and the stack is skipped by design; the lab then requires the HUD toast (and for a find, the notice) instead of failing. On desktop it still requires the stack.
+## Screenshots looked at (scratchpad `w2g5/shots2`, not in the repo)
+SHOTS_PENDING
 
-## Gate lines (scratch tree = aa356931 + hooks patch; 40955e19 adds only docs)
-- `--import` (mkscratch, same game/ tree): 0 `SCRIPT ERROR` / `Failed to compile` lines in `.import.log`.
-- Every `game/tests/t_*.gd` rc=0: t_ai, t_build, t_canim, t_combat, t_gather, t_harbour (`[t_harbour] PASS islands=15`), t_iconart, t_items, t_light, t_lighting, t_occlude, t_player, t_save (`[t_save] PASS`, the 5 deliberate SCRIPT ERRORs), t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons, t_web, each `[t_x] PASS` with 0 SCRIPT ERROR.
-- `--script res://tests/run_all.gd`: `[tests] PASS`.
-- `tools/smoke.sh --no-import`: `SMOKE PASS`.
-- `--lab=gather_lab` headless: `[gather_lab] PASS`, 0 SCRIPT ERROR; windowed gl_compatibility 1600x900, Forward+ 1600x900 and gl_compatibility 844x390: each `[gather_lab] PASS`, 0 SCRIPT ERROR.
-- 0 "couldn't resolve track" in any gate log; no new `~/Library/Logs/DiagnosticReports/Godot-*.ips`.
-
-## Screenshots looked at (scratchpad `w2g2/shots3` and `w2g2/shots4`, not in the repo)
-- 1600x900 gl_compatibility and Forward+, `-rare`: gold "RARE  Berry Seed" over cream "+1 Fibre Stalk" left of the ring hex (7/12), clear of the Bush pill, the raptor's plate and the ring; HUD toasts "+1 Berry Seed", "+1 Fibre Stalk" top centre; no red notice. `-rare_radial` (Forward+): the stack above the bush, under the toasts. `-hands` / `-tools`: "+4 Branch", "+1 Log" right of the ring, readable.
-- 844x390 gl_compatibility, `-rare`: gold "RARE  Berry Seed" / "+3 Fibre Stalk" right of the bush, below the level-up banner, clear of the ring, the plate and the notice band. `-rare_radial`: stack skipped (radial filled the space), the fallback "Rare find: Berry Seed" notice under the nameplate and the toasts on the left say it.
-- Not this package, seen in the shots (for W1-UI / INVUI): at 844x390 the raptor's plate bar sits on the Bush pill and the ring hex covers that pill's text; `-loot_screen` (both sizes) draws world pills, the pet plate, the level-up text and the HUD notice over the open bag/loot screen; the HUD toast "+n Item" top centre repeats the node's "+n" line (kept: on a phone the toast is the fallback).
+## Review round 1 (2026-10-20 evening), kept for the record
+The climate filter, the per-row climate materials check, the live after_unit and full-bag cases, the butcher knife hook, two finds in one frame, the gold fallback notice, rare part XP at the take, finds stamped with climate and level, the server act.gather hunk, and the bad-row guards. The quoted mutation lines are in git history (5c1f1c40). Superseded since then:
+- The berries and herb_leaf home rows (item 1 above).
+- The GatherXp sink and its quit-crash test (item 9).
+- `notice(text, gold)` (item 8).
 
 ## Assumptions
-- Rare odds and bonuses are illustrative values in loot_tables.json; the PRDs give none.
-- Rare finds are each climate's own materials: a home bush can hold a few berries, a plant or grass tuft a herb leaf (grassland, temperate). silver_ore is a snowfield material but black iron nodes only grow on volcanic islands, so that row never rolls until a snowfield black-iron node exists; resin (tundra) no longer drops from home trees.
-- An unlocked rare carcass part still rolls its chance (default 0.12), standing in for the Slaughter Ability roll of spec 12 s2 until W2-BUTCHER.
-- A rare part pays its butchering XP when the last of it is taken, to the survivor who takes it.
-- Bare hands are 1.35x slower than the role's tool.
-- The carcass rolls when the animal dies, for the local survivor's best knife and Butchering level (single player; W3 should roll for the credited killer). The rare part is announced then; its XP waits for the take.
-- Knife tier stands in for the Butchering part nodes until W2-BUTCHER adds them.
-- A rare find only rolls into a free bag slot, so no item is ever minted and lost.
-- In gather_lab the starter tools are handed over, and the seed is picked so the next fibre unit rolls a find (the odds are proven in t_gather).
+- Finds are illustrative odds in loot_tables.json, about one per 20-30 passes. The docs give no numbers for secondary materials. The 5% trait chance is the docs' number.
+- Which of the six green traits a material gets is not in the docs, so each is equally likely. Tool tier does not raise the 5%.
+- A find does not roll a trait of its own: it is already the rare result of its pass. Carcass parts roll no traits yet; that is W2-BUTCHER's, spec 12:74.
+- A traited item swaps into a free slot. With no free slot it stays plain and is never lost.
+- An unlocked rare carcass part still rolls its chance (default 0.12), standing in for spec 12 s2's Slaughter Ability roll until W2-BUTCHER. Knife tier stands in for the Butchering part nodes.
+- A rare part pays its butchering XP when the last of it is taken, to the taker. The carcass rolls at death for the local survivor's best knife and Butchering level (single player; W3 rolls for the credited killer).
+- Kills out of the survivor's view roll silently.
+- Bare hands are 1.35x slower than the role's tool. A helper tool wears at Inventory.wear_gather_tool's cost.
+- gather_lab hands over the starter tools and picks the seed so the next fibre item rolls a trait. The odds themselves are proven in t_gather.
 
-## What is left
-1. W2-BUTCHER / W2-SKILLS: per-part Butchering nodes (Leather I, Bone I/II, Teeth, Horn), per-part take refusal in the chest screen, Slaughter/Mining/Plant Gathering ability, flawless and mistake results, techniques per part (spec 12 s1-2).
-2. W3-SRVACT: act.gather now rolls finds (hooks patch) but server nodes need their island climate in `attributes` (WorldFacade.add_node sets only level) before any find can roll there.
-3. Yield popups for corpse takes (the HUD toasts already show them).
-4. W2-DATA: once rarity moves into items.json, review the rare items picked here (resin and flint are marked common in item_rarity.json).
-5. Not done: no web export check; the 844x390 shots are gl_compatibility only.
-6. W2-INV: once gathered items are instances (no stacking), `after_unit` should mint each find with a uid (it adds an ItemStack today).
+## What the next agent needs
+1. **ECON:** `game/data/economy/limits.json` `attributes` is a whitelist ("Anything else is refused at deposit"). It must list the six trait keys as `bool`, or a traited material cannot be deposited or sold. This is ECON's file, so it is not in this patch.
+2. **W2-INV, the sync step:** `stamp_traits` finds the landed unit by `can_merge_with`. With instances (uids, no stacking) that finds nothing, so no trait lands. Stamp the trait on the instance instead. `add_finds` should mint each find with a uid.
+3. **W2-BUTCHER / W2-SKILLS:**
+   - Per-part Butchering nodes and per-part take refusal.
+   - The Slaughter, Mining and Plant Gathering abilities.
+   - Flawless and mistake results.
+   - Rare traits on carcass parts (spec 12 s1-2, 12:74).
+4. **W3-SRVACT:** server nodes need their island climate in `attributes` (WorldFacade.add_node sets only level) before any find can roll there. Traits and helper wear already roll there.
+5. **W2-DATA:** review the find items' rarity once it lives in items.json. resin and flint are common/uncommon in item_rarity.json.
+6. **Not done:** no web export check.
