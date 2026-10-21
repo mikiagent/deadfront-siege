@@ -1,5 +1,5 @@
 diff --git a/game/scripts/dev/ui_real_capture_lab.gd b/game/scripts/dev/ui_real_capture_lab.gd
-index 5ba2dc9c..218a5407 100644
+index 476416e7..9f25afc3 100644
 --- a/game/scripts/dev/ui_real_capture_lab.gd
 +++ b/game/scripts/dev/ui_real_capture_lab.gd
 @@ -7,7 +7,7 @@ extends Node3D
@@ -11,16 +11,16 @@ index 5ba2dc9c..218a5407 100644
  ## station menus, and toasts and notices over a level-up (review: five overlaps passed while only the
  ## idle HUD was checked; then moving text crossed the quest card at 844x390 and 667x375). The
  ## animal screen (protected) is a shot only, for an eye check of the token theme on it; nothing on
-@@ -334,7 +334,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
+@@ -341,7 +341,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
  	print("[uireal] phone=%s min_font_px=%d min_font_pt=%.2f logical_width=%d window_pt=%dx%d floor_pt=%.2f (smallest: %s)" % [phone, min_px, min_pt, int(logical.x), int(pts.x), int(pts.y), type_floor_pt(pts), _min_font_where])
  	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
  	if _fails.is_empty():
--		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
-+		print("[uireal] PASS screens=hud,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,skill_levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
+-		print("[uireal] PASS screens=hud,hud_daynight,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
++		print("[uireal] PASS screens=hud,hud_daynight,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,skill_levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
  		get_tree().quit(0)
  	else:
  		for f in _fails:
-@@ -433,13 +433,24 @@ func _hud_sheets_and_level_up(logical: Vector2) -> void:
+@@ -440,13 +440,24 @@ func _hud_sheets_and_level_up(logical: Vector2) -> void:
  		_hud.call("_close_sheet")
  		await _frames(2)
  	# Stored level 4 -> "Lv. 5", which brings a title: the banner's longest form. World is untouched.
@@ -46,7 +46,7 @@ index 5ba2dc9c..218a5407 100644
  	await _frames(2)
  
  ## A sheet sits inside the view with its title and Close pinned above the rows; every row button is
-@@ -700,7 +711,7 @@ func _busy(logical: Vector2) -> void:
+@@ -707,7 +718,7 @@ func _busy(logical: Vector2) -> void:
  		_check_blocks(tag, blocks, logical)
  		_check_figure(tag, blocks)
  		await _capture(tag, [], logical)
@@ -102,10 +102,10 @@ index 1c624ed1..10b2aaec 100644
 -	hud.draw_string(hud._font, box.position + Vector2(12, ly), UiTokens.ellipsis(hud._font, hud._levelup_summary, w, 13), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1, a))
 -	hud.drawn_blocks["levelup"] = box
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
-index ed0b7728..b6960bb8 100644
+index b7ac4ea6..2dbae03e 100644
 --- a/game/scripts/ui/hunt_hud.gd
 +++ b/game/scripts/ui/hunt_hud.gd
-@@ -47,7 +47,7 @@ var _done_hex: HexButton
+@@ -48,7 +48,7 @@ var _done_hex: HexButton
  var _levelup_lines: Array = []
  var _levelup_title: String = ""  ## the title line and one stat summary: the landscape-phone banner
  var _levelup_summary: String = ""
@@ -114,7 +114,7 @@ index ed0b7728..b6960bb8 100644
  ## Screen rects of the blocks _draw paints (vitals, quest card, map text, status badges, level line,
  ## target plate, level-up banner), rebuilt every draw. Layout gates check them with the controls, so
  ## nothing mirrors this file's geometry.
-@@ -139,6 +139,8 @@ func _ready() -> void:
+@@ -142,6 +142,8 @@ func _ready() -> void:
  
  func bind(p: Player) -> void:
  	player = p
@@ -123,7 +123,7 @@ index ed0b7728..b6960bb8 100644
  
  # ---------------------------------------------------------------- layout
  
-@@ -661,7 +663,8 @@ func _on_level_up(stored: int) -> void:
+@@ -665,7 +667,8 @@ func _on_level_up(stored: int) -> void:
  	# W2-SKILLS: character levels pay the SP (spec 03); show what SkillState holds (sp_now recounts,
  	# since its own handler on this signal may not have run yet).
  	var sp: int = player.skills.sp_now() if player and player.skills else 0
@@ -133,7 +133,7 @@ index ed0b7728..b6960bb8 100644
  	var title := str(_titles.get(str(level), ""))
  	if title != "":
  		_levelup_title = "Title %s acquired." % title
-@@ -683,7 +686,7 @@ func _on_level_up(stored: int) -> void:
+@@ -687,7 +690,7 @@ func _on_level_up(stored: int) -> void:
  	# ASSUMPTION: the banner alone announces a level-up (Durango shows one banner).
  	var top_stat := str(stats[level % stats.size()]) if not stats.is_empty() else "Stats"
  	_levelup_summary = "%s +%d · other stats +%d · Skill points %d" % [top_stat, bonus, gain, maxi(0, sp)]
@@ -142,7 +142,7 @@ index ed0b7728..b6960bb8 100644
  
  # ---------------------------------------------------------------- sheets
  
-@@ -962,10 +965,7 @@ func _process(delta: float) -> void:
+@@ -966,10 +969,7 @@ func _process(delta: float) -> void:
  			if wh.selected != want:
  				wh.selected = want
  				wh.queue_redraw()
@@ -154,7 +154,7 @@ index ed0b7728..b6960bb8 100644
  	_events.tick(delta)
  	_minimap.queue_redraw()
  	queue_redraw()
-@@ -997,6 +997,7 @@ func _draw() -> void:
+@@ -1001,6 +1001,7 @@ func _draw() -> void:
  	var lvl_r := 18.0 if not phone else 16.0
  	draw_circle(Vector2(x + lvl_r, y + lvl_r), lvl_r, Color(0.08, 0.09, 0.11, 0.95))
  	draw_string(_font, Vector2(x, y + lvl_r + num_px * 0.36), str(LevelDisplay.player_level()), HORIZONTAL_ALIGNMENT_CENTER, lvl_r * 2.0, num_px, Color.WHITE)
@@ -162,7 +162,7 @@ index ed0b7728..b6960bb8 100644
  	x += lvl_r * 2.0 + 8.0
  	var yy := y
  	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", "%.0f / %.0f" % [v.health, v.effective_max_health()], num_px)
-@@ -1048,7 +1049,7 @@ func _draw() -> void:
+@@ -1052,7 +1053,7 @@ func _draw() -> void:
  	if plate_t == null and _last_target and is_instance_valid(_last_target) and not _last_target.health.dead and player.global_position.distance_to(_last_target.global_position) < 40.0:
  		plate_t = _last_target
  	var band := HudLayout.centre_band(self, r)
@@ -171,7 +171,7 @@ index ed0b7728..b6960bb8 100644
  		_draw_quest(r, mp)
  	# --- XP bar along the bottom
  	# One bar: the pioneer level, which every skill XP grant also feeds.
-@@ -1069,26 +1070,13 @@ func _draw() -> void:
+@@ -1073,26 +1074,13 @@ func _draw() -> void:
  		draw_string(_font, at, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0.95, 0.95, 0.95))
  	_draw_bites(cam)
  	# --- level-up: a gold stack top-left under the bars; on a landscape phone a short banner in the
