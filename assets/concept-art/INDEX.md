@@ -12,7 +12,7 @@ Approval is version-specific. `Milan review anchor` records the authenticated me
 | Deinonychus | `creatures/deinonychus/concept-sheet-v01.png` | `DRAFT` | - | Not started | 0 | None | Not started | Pending |
 | Velociraptor | `creatures/velociraptor/concept-sheet-v01.png` | `DRAFT` | - | Not started | 0 | None | Not started | Pending |
 | Utahraptor | `creatures/utahraptor/concept-sheet-v01.png` | `DRAFT` | - | Not started | 0 | None | Not started | Pending |
-| Triceratops | `creatures/triceratops/concept-sheet-v01.png` (labelled review copy `concept-sheet-v01-review.png`) | `DRAFT` | - | Not started; Tripo multiview only after approval. Sheet: ChatGPT web image generation on the owner's Plus plan, 2026-10-21, conversation `6ad860ec-6718-83ea-8edd-dfb73f4409a2` (a Codex attempt first hit its usage limit and made nothing) | 0 | None | Not started | Pending |
+| Triceratops | `creatures/triceratops/concept-sheet-v01.png` (labelled review copy `concept-sheet-v01-review.png`; fix round 1 replaced the first draft in place, 2026-10-21) | `DRAFT` | - | Not started; Tripo multiview only after approval. Sheet: ChatGPT web image generation on the owner's Plus plan, text-only prompts (no reference uploads). First draft: conversation `6ad860ec-6718-83ea-8edd-dfb73f4409a2`. Fix round 1: conversation `6ad8695b-5eb8-83ea-843f-a865ce7db0d2` (one generation + three edits), then local post-processing: ghost smears removed, background set to 200,197,192, views re-laid with clear gutters, top view scaled to the side view, top-view brow horns bent outward to match the front view | 0 | None | Not started | Pending |
 
 ### Stegosaurus clip matrix
 

@@ -15,7 +15,7 @@ reviewer), `DONE` (shipped and pixel-checked). Evidence comes from the 2026-10-1
 |---|---|---|---|---|
 | deinonychus | Oldest Meshy v1 single-image mesh (12k tris, JPEG normal), twisting pipe legs (owner-reported), slab hands, paddle tail, washed lime | Tripo multiview from approved sheet v01 + dsc rig | art-deinonychus | IN PROGRESS (sheet approved; build interrupted by usage limit) |
 | allosaurus, tarbosaurus, dilophosaurus | Procedural box-on-two-sticks placeholder | Tripo + dsc | W1-ARTA | REPLACE (concept sheets need a side-view-first redo; owner batch approval pending) |
-| triceratops | Box placeholder; the DeepSeek bake-off builds (A assembled from primitives, B untextured white) were rejected by the owner on 2026-10-21 | Tripo multiview from an approved concept sheet + a proper rig (the Stegosaurus v2 route) | TRIKE | IN PROGRESS (concept sheet v01 is DRAFT and waiting for owner approval; 0 credits spent; no Tripo call yet) |
+| triceratops | Box placeholder; the DeepSeek bake-off builds (A assembled from primitives, B untextured white) were rejected by the owner on 2026-10-21 | Tripo multiview from an approved concept sheet + a proper rig (the Stegosaurus v2 route) | TRIKE | IN PROGRESS (concept sheet v01, fix round 1 after the paleo-art review, is DRAFT and waiting for owner approval; 0 credits spent; no Tripo call yet) |
 | styracosaurus, ankylosaurus, smilodon | Box placeholder | Tripo + dsc | W1-ARTB | REPLACE (same) |
 | brachiosaurus | Box placeholder (does not spawn yet) | Tripo + dsc | W2-ARTC | REPLACE |
 | stegosaurus | Real GLB exists but a stale override forces the box (`creature_view.gd:65-66`); v2 merged with survivor branch | One-line fix + review v2 | W2-CVIEW | REPLACE |

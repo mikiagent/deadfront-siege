@@ -71,3 +71,60 @@ They apply once a mesh and rig exist. There were no Godot or Blender runs.
   4. A credit cap is needed from the owner; one generation plus one retry would be 100 credits.
 - **W2-RAGDOLL:** `game/data/creatures/ragdoll.json` on `claude/mmo-w2-ragdoll` has no triceratops profile, so nothing needs re-tuning now. A profile is needed once the rigged mesh lands.
 - **Leftover files:** the work tree already held untracked `game/scripts/dev/creature_pose_lab.gd` and `game/scenes/dev/creature_pose_lab.tscn` from an earlier run (2026-10-20, triceratops pose shots). They were left alone and not committed.
+
+## Fix round 1 (2026-10-21, after the paleo-art review)
+
+The sheet and review copy were replaced in place (same paths, still `DRAFT`). The previous draft is in commit a775a83c.
+
+### How it was made
+
+- **Attempt that was blocked:** I tried to attach the old sheet and the Deinonychus sheet to ChatGPT as references. The session's permission classifier refused the upload, so every prompt in this round was text only.
+- **Conversation `6ad8695b-5eb8-83ea-843f-a865ce7db0d2`** (ChatGPT web, owner's Plus plan; scratchpad driver `trike2/tools/chat.mjs`):
+  1. A fresh text-only generation with all the fixes written into the prompt.
+     - It came out flatter and painterly, with better horns.
+     - Its rear view was a front three-quarter view, and its tail was long.
+  2. Edit: shorter tail and a true rear three-quarter view. The rear view came out right, but the tail became a stump.
+  3. Edit: tail 1.6 times longer. It came back as long as v01.
+  4. Edit: tail a quarter shorter, plus forefeet. This is the base for the final sheet.
+- **Local post-processing (deterministic, scratchpad `trike2/tools/relayout.py` and `horns.py`):**
+  - Removed two faint ghost smears that the edits left next to horn tips (side view and rear view).
+  - Shifted the background to the Deinonychus value, RGB 200,197,192. Animal pixels were left alone.
+  - Cut out the four views and placed them again at one common scale of 0.94.
+    - The generator had drawn the top view at 0.85 of the side view's scale. I scaled it up so its beak-to-tail length matches the side view.
+  - Bent the free ends of the two top-view brow horns outward by 17 px at the tips, so the tip spread matches the front view.
+- **Review copy:** the clean pixels, plus view labels, two 1.8 m human silhouettes and a footer. The silhouettes are cut from the approved Deinonychus sheet. One is drawn at a 9 m body length (PRD and look text) and one at 18 m (`triceratops.json` `real_length_m`), so the owner can pick a size.
+
+**Credits: 0.** No Tripo, Meshy or Higgsfield calls.
+
+### Measured on the clean sheet
+
+Threshold 40 against the background, the same method as the review.
+
+| Review item | Before (v01) | Now |
+|---|---|---|
+| 1. Brow horn tip spread / frill width | front 0.76, top 0.55 | front 152/269 = 0.57, top 149/267 = 0.56 |
+| 2. Body width / frill width | front 0.93, top 1.13 | front 242/269 = 0.90, top 250/267 = 0.94 |
+| 3. Tail, hind-foot centre to tip / length | side 34%, top 27%, needle tip | side 25 to 26%, top 26%, rear view short. The tip is blunt and rounded in all three views. |
+| 4. Layout | top and rear panels interleaved, 5 px row gap | side-to-front 280 px, top-to-rear 152 px, empty row band y 479 to 529 (51 px), outer margins at least 24 px |
+| 5. Side-view forefeet | 18 px overlap | about 14 px apart at the hooves |
+| 6. Style and background | glossy render, background 190,187,185 | flatter painterly rendering, softer shadows, calmer scales, background 200,197,192 |
+| 8. Scale | no figure | two figures on the review copy only |
+
+### Still open, said plainly
+
+- The tail is about 25 to 26% against the 28 to 30% asked. It is consistent across views and blunt. Three edits swung it between a stump and the original whip; this was the closest.
+- The forefeet have separate blunt hoofed digits now, but they are not exactly three hoofed and two clawless. The reviewer called this acceptable at the ARK bar.
+- The top-view horns were bent by a pixel warp, not redrawn.
+- The views come from ChatGPT image edits, so the hide reads a bit browner than in v01. It is still olive, with a rust frill, pale belly and ivory horns.
+- Size is still the owner's call: 9 m in the PRD and look text, 18 m in the json.
+
+### Gates
+
+These were not run, because this is a concept sheet and nothing under `game/` changed:
+- creature-verify
+- the t_*.gd tests and run_all
+- smoke
+- creature_anim_lab
+- windowed shots
+
+W2-RAGDOLL still has no triceratops profile (checked `claude/mmo-w2-ragdoll` 56890436), so nothing needs re-tuning.
