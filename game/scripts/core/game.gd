@@ -33,6 +33,7 @@ var creature_ui: CanvasLayer
 var server_mode: bool = false
 var server_port: int = 8910
 var server_data_dir: String = "user://server"
+var max_per_ip: int = 0  # --max-per-ip=N; 0 = rules.json (NetServer.max_per_ip)
 var online_url: String = ""
 var net_probe: bool = false
 ## The client connection, created on first use (no new autoload).
@@ -84,6 +85,12 @@ func _ready() -> void:
 				server_data_dir = dir
 			else:
 				print("[boot] ignoring --data=%s (needs an absolute or user:// path)" % dir)
+		elif a.begins_with("--max-per-ip="):
+			var n := a.substr(13)
+			if n.is_valid_int() and int(n) >= 1:
+				max_per_ip = int(n)
+			else:
+				print("[boot] ignoring --max-per-ip=%s (1 or more)" % n)
 		elif a.begins_with("--online="):
 			online_url = a.substr(9)
 		elif a == "--net-probe":

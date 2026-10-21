@@ -24,14 +24,18 @@ const RATE_CLASSES := {"read": [20.0, 40.0], "write": [5.0, 10.0], "chat": [1.0,
 	"presence": [12.0, 50.0]}  # ASSUMPTION: §5.4 has no class for the 10 Hz stream; burst 50 = a 5 s stall
 ## ASSUMPTION: burst 4 leaves room for a stale-token retry and a name-taken retry.
 const PRE_AUTH_RATE := [2.0, 4.0]
-## Rejected frames (bad JSON, over the rate) before the socket is closed for flooding.
+## Rejected frames (bad JSON, unknown ops, frames before hello past PRE_AUTH_RATE) before the
+## socket is closed for flooding.
 const FLOOD_RATE := [3.0, 30.0]
+## rate_limited answers from an op's class bucket are not flood strikes: a player mashing Send is
+## throttled, not cut off. ASSUMPTION: past this (no human taps 20/s for 10 s) it is a script
+## looping on its bucket, and every frame still costs a parse, so the socket closes (4005).
+const THROTTLED_RATE := [20.0, 200.0]
 ## Transport buffers. Frames between 64 KiB and this still arrive and get bad_request; anything
 ## larger makes the WebSocket layer close the socket (1009).
 const PEER_BUFFER := 1 << 17
 const PEER_QUEUE := 256
 const MAX_CONNECTIONS := 256  # ASSUMPTION: v1 single-process cap
-const MAX_PER_IP := 16  # ASSUMPTION
 const HANDSHAKE_TIMEOUT := 5.0
 const HELLO_TIMEOUT := 20.0
 const IDLE_TIMEOUT := 60.0  # NetClient pings every 15 s
@@ -57,6 +61,9 @@ var chat: NetChat
 var characters: NetCharacters
 var port := 0
 var new_accounts_per_hour := 10.0  # ASSUMPTION: per IP; tests raise it
+## Sockets per IP: --max-per-ip=N, else rules.json max_connections_per_ip, else one full area
+## (max_players_area), so a household or school behind one NAT can fill an instance.
+var max_per_ip := 0
 
 var _tcp := TCPServer.new()
 var _conns: Dictionary = {}  # conn id -> Conn
@@ -82,6 +89,7 @@ class Conn:
 	var closing_until := -1.0
 	var pre_auth: TokenBucket
 	var flood: TokenBucket
+	var throttled: TokenBucket
 
 func _init() -> void:
 	presence = PresenceRooms.new(self)
@@ -91,6 +99,7 @@ func _init() -> void:
 	register_op("presence.update", presence.op_update, false, "presence")
 	register_op("chat.send", chat.op_send, false, "chat")
 	characters = NetCharacters.new(self)
+	max_per_ip = Game.max_per_ip if Game.max_per_ip > 0 else maxi(1, int(Data.world_rules.get("max_connections_per_ip", presence.max_players)))
 
 func _ready() -> void:
 	if autostart:
@@ -131,7 +140,7 @@ func start(p_port: int, data_dir: String, bind: String = "*") -> Error:
 		stop()
 		return err
 	port = _tcp.get_local_port()
-	_log("listen", {"port": port, "bind": bind, "data": data_dir, "accounts": accounts.count()})
+	_log("listen", {"port": port, "bind": bind, "data": data_dir, "accounts": accounts.count(), "max_per_ip": max_per_ip})
 	return OK
 
 func stop() -> void:
@@ -226,7 +235,7 @@ func _accept(tcp: StreamPeerTCP, now: float) -> void:
 	for c: Conn in _conns.values():
 		if c.ip == ip:
 			same_ip += 1
-	if _conns.size() >= MAX_CONNECTIONS or same_ip >= MAX_PER_IP:
+	if _conns.size() >= MAX_CONNECTIONS or same_ip >= max_per_ip:
 		_log("refused", {"ip": ip, "conns": _conns.size(), "same_ip": same_ip})
 		tcp.disconnect_from_host()
 		return
@@ -247,6 +256,7 @@ func _accept(tcp: StreamPeerTCP, now: float) -> void:
 	c.last_rx = now
 	c.pre_auth = TokenBucket.new(PRE_AUTH_RATE[0], PRE_AUTH_RATE[1], now)
 	c.flood = TokenBucket.new(FLOOD_RATE[0], FLOOD_RATE[1], now)
+	c.throttled = TokenBucket.new(THROTTLED_RATE[0], THROTTLED_RATE[1], now)
 	_conns[c.id] = c
 	_log("connect", {"conn": c.id, "ip": ip})
 
@@ -326,12 +336,14 @@ func _handle(c: Conn, id: int, env: Dictionary, now: float) -> Dictionary:
 			return NetProtocol.fail("unauthorized", "send auth.hello first")
 		return _hello(c, a, now)
 	if op == "auth.hello":
-		return NetProtocol.fail("bad_request", "already signed in on this connection")
+		return _strike(c, now, NetProtocol.fail("bad_request", "already signed in on this connection"))
 	var spec: Dictionary = _ops.get(op, {})
 	if spec.is_empty():
 		return _strike(c, now, NetProtocol.fail("bad_request", "unknown op %s" % op))
 	if not _bucket(c.account_id, spec["rate_class"], now).take(now):
-		return _strike(c, now, NetProtocol.fail("rate_limited", "slow down"))
+		if not c.throttled.take(now):
+			_drop(c, 4005, "flood", now)
+		return NetProtocol.fail("rate_limited", "slow down")
 	var aid := c.account_id  # a handler may drop this socket, which clears c.account_id
 	if spec["mutating"]:
 		if rid == "":

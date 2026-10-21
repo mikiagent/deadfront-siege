@@ -54,7 +54,8 @@ func _relay(aid: int, a: Dictionary, rid: String, op: String) -> Dictionary:
 	if store == null:
 		return NetProtocol.fail("server_error", "character store is not open")
 	var now := int(_server.wall_time())
-	_sync_position(aid, now)
+	if op.begins_with("act."):
+		_sync_position(aid, now)  # only intents measure reach; a read must not journal a move
 	var args := a.duplicate()
 	args.erase("rid")
 	if rid != "":

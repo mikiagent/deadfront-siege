@@ -109,6 +109,8 @@
   "_area_caps": "ASSUMPTION (owner rule 2026-10-19, contracts \u00a77): an area is one instance of an island. presence.join into an instance holding max_players_area players is refused with limit_reached and the next instance; spawns and released animals keep an area at or under max_creatures_area. Tune both with a perf test at the cap.",
   "max_players_area": 30,
   "max_creatures_area": 24,
+  "_max_connections_per_ip": "ASSUMPTION: sockets the server accepts from one IP address, at least max_players_area so a household or school behind one NAT can fill an instance. The server flag --max-per-ip=N overrides it.",
+  "max_connections_per_ip": 30,
   "night_predator_perception_bonus": 0.5,
   "wet_after_seconds_in_water": 5,
   "harbour": {

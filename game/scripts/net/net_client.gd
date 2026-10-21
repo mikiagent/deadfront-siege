@@ -40,7 +40,7 @@ const NO_RETRY_CODES: Array[int] = [4003]  # signed in elsewhere: reconnecting w
 ## twice, and a position from before the drop is stale anyway. They end with err "offline".
 const NO_RESEND_OPS: Array[String] = ["chat.send", "presence.update"]
 ## Under the write class (§5.4, 5/s burst 10) so arrival jitter cannot push a backlog over it:
-## rate_limited answers count toward the server's flood cut-off.
+## a rate_limited answer fails that request.
 const RESEND_RATE := 4.0
 const RESEND_BURST := 8.0
 ## Written at once even while a backlog drains: only the newest position matters, and at 10 Hz it

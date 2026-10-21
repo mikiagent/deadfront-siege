@@ -38,6 +38,7 @@ func run(p_tree: SceneTree, p_expect: Callable) -> void:
 		await _test_accounts()
 		await _test_hostile_frames()
 		await _test_rate_limits()
+		await _test_flood()
 		await _test_rid_replay()
 		await _test_restart()
 		await _test_client_retry()
@@ -46,6 +47,7 @@ func run(p_tree: SceneTree, p_expect: Callable) -> void:
 		await _test_lock_wait()
 		await _test_presence_and_chat()
 		await _test_area_caps()
+		await _test_per_ip()
 		await _test_characters()
 		_test_presence_rules()
 		_test_chat_clean()
@@ -166,6 +168,26 @@ func _test_rate_limits() -> void:
 	var pings := await _burst(c2, "sys.ping", {}, 40)
 	_check(_count(moves, "") == 30 and _count(pings, "") == 40, "presence has its own bucket and leaves the read budget alone (%d/%d)" % [_count(moves, ""), _count(pings, "")])
 	c2.ws.close()
+
+## Flood strikes: frames no op bucket throttles (a second hello, bad JSON, unknown ops) close the
+## socket with 4005; an op over its own bucket is answered rate_limited and the socket stays.
+func _test_flood() -> void:
+	var h := await _raw()
+	_check(await _hello(h, "Olga"), "Olga signs in")
+	var twice := await _req(h, "auth.hello", {"name": "Olga", "token": h.token})
+	_check(_err(twice) == "bad_request" and "already signed in" in str(twice.get("msg")), "a second hello on a signed-in socket is bad_request (%s)" % twice)
+	for i in 40:
+		_frame(h, "auth.hello", {"name": "Olga"})
+	_check(await _until(func () -> bool: return _pump(h) == WebSocketPeer.STATE_CLOSED) and h.ws.get_close_code() == 4005, "a burst of hellos after sign-in closes the socket for flooding (code %d)" % h.ws.get_close_code())
+	var m := await _raw()
+	_check(await _hello(m, "Pia") and (await _req(m, "presence.join", {"island": "tundra_30"})).get("ok") == true, "Pia joins a room")
+	var mash := await _burst(m, "chat.send", {"text": "hi"}, 60)
+	var sent := _count(mash, "")
+	_check(mash.size() == 60 and sent >= 5 and sent <= 6 and _count(mash, "rate_limited") == 60 - sent, "mashing Send 60 times is throttled: %d sent, %d of 60 answered" % [sent, mash.size()])
+	_check((await _req(m, "sys.ping", {})).get("ok") == true, "the socket stays open after the mashing")
+	for i in 200:
+		_frame(m, "chat.send", {"text": "spam"})
+	_check(await _until(func () -> bool: return _pump(m) == WebSocketPeer.STATE_CLOSED) and m.ws.get_close_code() == 4005, "a script looping far past its bucket is still cut off (code %d)" % m.ws.get_close_code())
 
 # ---------------------------------------------------------------- idempotency (§5.3)
 
@@ -476,6 +498,21 @@ func _test_area_caps() -> void:
 		r.ws.close()
 	pr.max_players = cap
 
+## Sockets per IP: the cap holds at least a full area, so players behind one NAT all get on.
+func _test_per_ip() -> void:
+	_check(server.max_per_ip == int(Data.world_rules.get("max_connections_per_ip", -1)) and server.max_per_ip >= server.presence.max_players, "the per-IP cap comes from rules.json and holds a full area (%d)" % server.max_per_ip)
+	var crowd: Array[NetClient] = []
+	for i in 24:
+		var c := NetClient.new()
+		c.token_path = ""
+		_add(c)
+		c.connect_to(url, "Lan%02d" % i)
+		crowd.append(c)
+	var online := func () -> int: return crowd.filter(func (c: NetClient) -> bool: return c.is_online()).size()
+	_check(await _until(func () -> bool: return online.call() == 24, 10.0), "24 clients from one IP all come online (%d did)" % online.call())
+	for c in crowd:
+		c.disconnect_from_server()
+
 ## Server-owned characters over the socket (contracts v2 §0.1, §0.3, §0.4): the hello makes the
 ## character, intents run on the server's copy at the position presence accepted, a rid applies
 ## once, server-only ops are unknown to clients, and the store reopens from disk.
@@ -491,6 +528,9 @@ func _test_characters() -> void:
 	var gather := {"node_id": "net_rock", "option": 0}
 	_check(_err(await _req(r, "act.gather", gather, "rid-gather-01")) == "out_of_range", "before presence puts her there, the rock is out of reach")
 	_check((await _req(r, "presence.update", _state(Vector3(19, 1, 0), "idle", "tropical_25"))).get("ok") == true, "Hana walks up to the rock")
+	var journal := dir.path_join("chars/journal.jsonl")
+	var lines := FileAccess.get_file_as_string(journal).count("\n")
+	_check(lines > 0 and (await _req(r, "char.get", {})).get("ok") == true and FileAccess.get_file_as_string(journal).count("\n") == lines, "char.get after a move writes no journal line (%d before)" % lines)
 	var g := await _req(r, "act.gather", gather, "rid-gather-02")
 	_check(g.get("ok") == true and g.get("r", {}).get("item") == "stone" and int(g.get("r", {}).get("gained", 0)) >= 2, "act.gather runs on the server's copy at the position presence accepted (%s)" % g)
 	var again := await _req(r, "act.gather", gather, "rid-gather-02")

@@ -14,6 +14,10 @@ still starts through `main.gd`'s fallback, but World boots the save first.
 ```
 
 - `--port=` takes 0 to 65535. 0 picks a free port; the log prints which one.
+- `--max-per-ip=N` caps the sockets one IP address may hold. Without it the server uses
+  `max_connections_per_ip` from `game/data/world/rules.json` (30, one full area, so a household or
+  a school behind one NAT can fill an instance). The `listen` log line prints the value in use
+  (`"max_per_ip":30`); a socket past it is closed at once and logged as `refused`.
 - `--data=` must be an absolute path or a `user://` path. It defaults to `user://server/`.
   It holds `accounts.json` (ids, names, `sha256(token)`, never the token itself) plus
   `accounts.json.bak` (the version before the last write), `rids.jsonl` (the last 64 mutating
@@ -121,7 +125,14 @@ server.register_op("market.buy", engine.op_buy, true, "write")
 Handlers run on the main thread one at a time and must not await. Before your handler runs, the
 server has already authenticated the account, rate limited it by class (`read`, `write`, `chat`;
 `presence` is for presence.update only and is not in contract 5.4 yet) and, for mutating ops, checked the `rid`: a repeated
-`rid` returns the cached response without calling the handler. After the handler returns, the
+`rid` returns the cached response without calling the handler.
+
+An answer over the class bucket is `rate_limited` and the socket stays open, so a player mashing
+Send is only throttled. Frames no bucket covers count as flood strikes instead: bad JSON, a bad
+envelope, an unknown op, a second `auth.hello` on a signed-in socket ("already signed in on this
+connection") and requests before hello past the pre-hello bucket. 30 strikes in a burst (3/s
+refill) close the socket with code 4005. So does going past the bucket more than 200 times in a
+burst (20/s refill), which only a script does. After the handler returns, the
 server writes the response to `rids.jsonl` before sending it, so the cache survives restarts.
 
 If your op journals itself (contract 5.2), take the third `rid` parameter and journal the rid
