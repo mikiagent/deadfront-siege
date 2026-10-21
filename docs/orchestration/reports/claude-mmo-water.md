@@ -8,11 +8,39 @@ Branch `claude/mmo-water` from `claude/mmo-overhaul` at 73527576. Commits:
 - `c46c3f3d` water_lab, the reproduction lab (committed before any game change)
 - `9d705512` WaterAccess, water.json, t_water, the Dirty and Thirsty icons
 - `2a4eb93e` Dirty icon redrawn (the first one read as the fallback sparkle at chip size)
-- the report commit (this file and the hooks patch)
+- `a0418f36`, `1041c450` the report and the hooks patch
+- `af97a593` review fixes (next section)
+- the report commit for the fixes
 
 The call sites live in files other packages own, so they are not committed on the branch. They ship as
-`docs/orchestration/reports/claude-mmo-water-hooks.patch` (11 files, 153+/38-). `git apply --check` passes on the
-branch head. The work tree has them applied, and every gate below ran with them applied.
+`docs/orchestration/reports/claude-mmo-water-hooks.patch` (12 files, 167+/38-). `git apply --cached --check` passes
+on the branch head and on `claude/mmo-overhaul` at e5f3ec8a. The work tree has them applied, and every gate below
+ran with them applied. Since `af97a593`, `water_access.gd` calls `IslandTerrain.fresh_water_at_world`, which only
+the hooks patch adds, so the branch and the patch must land together.
+
+## Review fixes (af97a593)
+
+The package passed review with three minor findings. The orchestrator ruled on them:
+
+1. **No Thirsty from the sea** (review minor 1, orchestrator ruling). No doc supports "wading in the sea for 5 s
+   gives Thirsty": PRD :284 says "Rain / standing in water 5s → Wet", and the research lists seawater thirst under
+   drinking it. PlayerSim no longer applies Thirsty; standing in the sea gives Wet only. Thirsty stays in
+   `statuses.json` (x1.2 fatigue, cleared by Drink) for a later trigger, and Drink still grants Quenched.
+2. **Statuses on every PlayerSim branch** (review minor 3). `fatigue_gain_mult` and `in_water` were set in
+   `_walk`, which the mounted, rolling, staggered, swinging and `cannot_act` branches return before. They are now
+   set at the top of `PlayerSim.tick()`, before any branch returns.
+3. **Fresh-water mask** (review minor 2). `is_fresh` read the live tile type, and a harvested node turns its tile
+   BARE until it regrows, so a node in the river made that tile count as salt. `IslandTerrain._build_tile_types`
+   now keeps `IslandRuntime.fresh_water` (1 on MUD tiles as built), `IslandTerrain.fresh_water_at_world` reads it,
+   and `is_fresh` uses it. The `shortcut:` comment that named this limit is gone.
+
+t_water changes, each failing on the old code (see Gates):
+
+- "5 s in the sea: Wet, not Thirsty" (was "Wet and Thirsty").
+- "a harvested (BARE) river tile is still fresh water": sets the river tile BARE the way
+  `IslandRuntime._on_tile_bare` does, checks it reads BARE, then checks `WaterAccess.is_fresh`.
+- "staggered in the river: Dirty's x1.2 and in_water still apply": Dirty, `fatigue_gain_mult` forced to 1.0,
+  `in_water` forced false, a 10 s stagger, 3 physics frames in the river.
 
 Credits spent: none (no Meshy, no Tripo).
 
@@ -28,7 +56,8 @@ same place and look as the Durango reference. Fill shows as well when the bag ho
   takes 2 fatigue off at once.
 - Fill turns one empty bucket into a water bucket at the bucket's level, as the well's `fill_bucket` recipe does.
 - Gathering, butchering and taking hits make the survivor Dirty, then Very dirty. Standing in the sea for 5 s makes
-  them Thirsty. All four are statuses with chips under the minimap. None is a meter.
+  them Wet, as in the river (PRD :284). Thirsty exists as a status that Drink clears, but nothing applies it yet
+  (orchestrator ruling, see Review fixes). All of these are statuses with chips under the minimap. None is a meter.
 
 ## Repro on the base, then after
 
@@ -73,8 +102,8 @@ Run it: `Godot --path game --resolution 1600x900 [--rendering-method gl_compatib
 The docs settle this, and I followed them. PRD :314 gives drink, wash and fill to fresh water. PRD :315 gives
 seawater salt and some recipes. Research `durango-wild-lands-systems.md` §1.3 says "Fresh water (river/puddle, not
 sea): drink, wash, or fill a container" (high confidence) and "Seawater is harmful and increases fatigue". The
-world-environment notes list "Thirst +20% from seawater". So the sea shows no hexes, and wading in it makes the
-survivor Thirsty.
+world-environment notes list "Thirst +20% from seawater", which the research ties to drinking it. So the sea shows
+no hexes, and wading in it gives Wet only.
 
 The reference shot shows a survivor in shallow water near clams and a shoal of fish, with Wash and Drink up. That
 looks like a beach. If that water is the sea, the reference and the docs disagree. **The owner should know the beach by
@@ -82,8 +111,9 @@ the harbour shows no Drink/Wash**; the nearest fresh water on the home island is
 harbour. Letting the sea count is a one-line change in `WaterAccess.is_fresh`, but the docs say no.
 
 How "fresh" is decided: terrain under the water plane (`HarbourSite.WATER_Y`, the plane the water shader draws)
-on a tile `IslandTerrain` marks MUD. MUD is the river channel and its banks, computed from the same river formula
-that carves the channel. The open sea is never MUD. On the home island that gives 258 m² of river water and
+on a tile `IslandTerrain` marks MUD when it builds the tiles. MUD is the river channel and its banks, computed from
+the same river formula that carves the channel. The open sea is never MUD. The MUD tiles are kept as a fresh-water
+mask at build time, so harvesting a node in the river (its tile turns BARE) does not make the water salt. On the home island that gives 258 m² of river water and
 11,989 m² of sea. "Next to" samples 17 points (feet, then 8 directions at 1 m and 2 m). It costs 9.5 µs per call
 in t_water, so it can run every frame; the HUD already polls every 0.3 s.
 
@@ -97,7 +127,7 @@ PlayerSim multiplies them into `Vitals.fatigue_gain_mult` every physics frame, n
 |---|---|---|---|
 | dirty | fatigue gain x1.2 | until washed | PRD 6.4 table, research bestiary 4.2 |
 | very_dirty | fatigue gain x1.5 | until washed | same |
-| thirsty | fatigue gain x1.2 | until fresh water | PRD 6.3; bestiary 4.2 (+20 %); world-environment (from seawater) |
+| thirsty | fatigue gain x1.2 | until fresh water | PRD 6.3; bestiary 4.2 (+20 %). Nothing applies it yet (orchestrator ruling) |
 | quenched | heat fatigue x0.8 | 6 min | PRD :314 "drink (cuts heat fatigue)"; numbers are ASSUMPTIONS |
 | clean | fatigue gain x0.8 | 6 min | PRD 6.4 Cleanliness |
 
@@ -116,7 +146,8 @@ never drawn.
 - Dirt: 1 point per gathered unit, 3 per butchered loot stack, 2 per hit taken. Dirty at 20, Very dirty at 60,
   reset by Wash. The PRD makes dirt a fatigue cause but never says what makes you dirty. `data/water.json`.
 - Quenched cuts heat fatigue by 20 % (Wet's documented heat cut) for 6 min (Clean's length). `statuses.json` `_note`.
-- Thirsty comes only from the sea, on Wet's 5 s clock. Nothing else in the docs causes it.
+- Thirsty has no trigger. The orchestrator ruled out the sea; drinking seawater would be one, and the game has no
+  verb for it.
 - Fill keeps the empty bucket's level, matching the well recipe's mean-of-materials result.
 - The grime count lives in Object meta, not the save (`shortcut:` comment in WaterAccess). A reload keeps the
   status and restarts the count at that status's threshold.
@@ -141,9 +172,11 @@ Hooks patch, one line each:
   `act.drink`, `act.wash`, `act.fill` intents. `soil` on a gathered unit and a butchered loot stack.
 - `player.gd`: `soil` on `receive_creature_hit`; Quenched's multiplier in `tick_climate_fatigue` (heat only);
   a doc line on `in_water`.
-- `player_sim.gd`: `fatigue_gain_mult` times the statuses' multiplier; `in_water` from the heightmap every physics
-  frame; Thirsty after 5 s in sea water.
-- `island_runtime.gd`: deletes `_river_trigger` and `_wet_area`, the straight box that set `in_water`.
+- `player_sim.gd`: at the top of `tick()`, before any branch returns, `fatigue_gain_mult` times the statuses'
+  multiplier and `in_water` from the heightmap.
+- `island_runtime.gd`: deletes `_river_trigger` and `_wet_area`, the straight box that set `in_water`; adds the
+  `fresh_water` mask var.
+- `island_terrain.gd`: builds `fresh_water` with the tiles (1 on MUD); `fresh_water_at_world` reads it.
 - `status_def.gd`, `status_effects.gd` (W1-COMBAT): `fatigue_mult`, `heat_fatigue_mult`, and their products.
 - `statuses.json` (W1-COMBAT): dirty, very_dirty, thirsty, quenched, clean.
 - `ui_icons.json` (W1-UIICONS): fill (well icon), dirty, very_dirty, thirsty, quenched (drink icon), clean (wash
@@ -152,6 +185,33 @@ Hooks patch, one line each:
 - `hunt_hud.gd` (W1-UI): no countdown under a status chip with more than an hour left.
 
 ## Gates
+
+### After the review fixes (af97a593)
+
+In a throwaway tree made by `mkscratch.sh fix-water claude/mmo-water docs/orchestration/reports/claude-mmo-water-hooks.patch`
+(branch at af97a593, all 12 hook files "Applied patch ... cleanly", `--import` done, 0 SCRIPT ERROR in its log):
+
+| Gate | Result |
+|---|---|
+| every `game/tests/t_*.gd` (20 files) | all exit 0 and PASS: t_ai, t_build, t_canim, t_combat, t_harbour (islands=15), t_iconart, t_items, t_light, t_lighting, t_occlude, t_player, t_save (its 5 deliberate SCRIPT ERRORs, each announced by the test), t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons (`ids=175 files=116`, `[icons] PASS drawn=116 svgs=116`), t_water, t_web; 0 SCRIPT ERROR elsewhere |
+| `run_all.gd` | exit 0, `[tests] PASS` |
+| `tools/smoke.sh --no-import` | `[smoke] ok player_pos=(0.0, 1.0, 0.0) phase=day`, `SMOKE PASS` |
+
+t_water's three new checks in that tree:
+
+- `[t_water] ok a harvested (BARE) river tile is still fresh water (bare=true)`
+- `[t_water] ok 5 s in the sea: Wet, not Thirsty (PRD :284; seawater thirst is for drinking it) ["wet"]`
+- `[t_water] ok staggered in the river: Dirty's x1.2 and in_water still apply (mult 1.20, in_water true)`
+
+The new t_water against the old code: a throwaway tree at 1041c450 (the reviewed head) with the old hooks patch
+and only the new `t_water.gd` copied in exits 1 with exactly those three failing:
+
+- `[t_water] FAIL a harvested (BARE) river tile is still fresh water (bare=true)`
+- `[t_water] FAIL 5 s in the sea: Wet, not Thirsty (PRD :284; seawater thirst is for drinking it) ["wet", "thirsty"]`
+- `[t_water] FAIL staggered in the river: Dirty's x1.2 and in_water still apply (mult 1.00, in_water false)`
+- `[t_water] FAIL count=3`
+
+### Before review (1041c450)
 
 All with the hooks applied, in this work tree:
 
