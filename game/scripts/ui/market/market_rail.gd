@@ -33,7 +33,7 @@ func layout(m: Dictionary, rect: Rect2) -> void:
 	_m = m
 	position = rect.position
 	size = rect.size
-	var tab_h := maxf(UiTokens.TARGET_MIN, roundf(rect.size.y * 0.23))
+	var tab_h := maxf(m.tmin, roundf(rect.size.y * 0.23))
 	for i in TABS.size():
 		var b: Button = buttons[TABS[i][0]]
 		b.position = Vector2(0, i * tab_h)

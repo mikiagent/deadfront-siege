@@ -243,8 +243,10 @@ func _layout() -> void:
 	var view := get_viewport_rect().size
 	position = Vector2.ZERO
 	size = view
-	_m = MarketTheme.metrics(view)
+	var pts := DisplayMode.window_points(get_window())
 	var ins := test_insets if test_insets.x >= 0.0 else UiTokens.safe_insets(get_viewport())
+	# Only phones are drawn smaller than 1:1 (px per pt > 1); the columns share the safe width.
+	_m = MarketTheme.metrics(view, view.x / pts.x if DisplayMode.is_phone_landscape(pts) else 1.0, view.x - ins.w - ins.x)
 	var left: float = _m.margin + ins.w
 	var right: float = _m.margin + ins.x
 	_m.safe = Rect2(ins.w, ins.z, view.x - ins.w - ins.x, view.y - ins.z - ins.y)

@@ -174,7 +174,8 @@ func _open_from_menu() -> MarketScreen:
 
 func _measure(ms: MarketScreen) -> void:
 	var view := ms.get_viewport_rect().size
-	var m := MarketTheme.metrics(view)
+	var m: Dictionary = ms._m # the screen's own metrics (tmin = 44 pt in canvas px)
+	var pts := DisplayMode.window_points(get_window())
 	var t := ms.buy.table
 	var rows_vis := floori(t.get_node("Rows").size.y / float(m.row_h)) if ms.buy.visible else 0
 	print("[market_lab] measure view=%s header=%.1f%% (%dpx) rail=%.1f%% cat=%s row=%.1f%% (%dpx) rows=%d visible=%d chip=%s client=%s" % [
@@ -184,7 +185,7 @@ func _measure(ms: MarketScreen) -> void:
 	var small: PackedStringArray = []
 	for b in ms.find_children("*", "BaseButton", true, false):
 		var c := b as Control
-		if c.is_visible_in_tree() and (c.size.x < UiTokens.TARGET_MIN or c.size.y < UiTokens.TARGET_MIN):
+		if c.is_visible_in_tree() and (c.size.x < m.tmin - 0.5 or c.size.y < m.tmin - 0.5):
 			small.append("%s %dx%d" % [c.name, c.size.x, c.size.y])
 	var clipped: PackedStringArray = []
 	for l in ms.find_children("*", "Label", true, false):
@@ -195,6 +196,7 @@ func _measure(ms: MarketScreen) -> void:
 	for b in ms.find_children("*", "Button", true, false):
 		if (b as Button).text.strip_edges() == "+":
 			plus += 1
+	print("[market_lab] measure window=%s pt canvas=%s target_min=%dpx (44 pt) type_min=%.1fpt" % [pts, view, int(m.tmin), UiTokens.TYPE_MIN * pts.x / view.x])
 	print("[market_lab] measure targets_under_44=%d %s clipped_labels=%d %s plus_buttons=%d" % [small.size(), ", ".join(small), clipped.size(), ", ".join(clipped), plus])
 	# Every visible target inside the safe area (a phone's notch and home bar; --insets on a desktop).
 	var safe: Rect2 = ms._m.get("safe", Rect2(Vector2.ZERO, view))
@@ -208,6 +210,9 @@ func _measure(ms: MarketScreen) -> void:
 		if c.is_visible_in_tree() and r.has_area() and not safe.grow(0.5).encloses(r):
 			outside.append("%s %s" % [c.name, r])
 	print("[market_lab] measure safe=%s outside_safe=%d %s" % [safe, outside.size(), ", ".join(outside)])
+	if ms.buy.visible:
+		var cut := t.rows.filter(func (r: MarketRow) -> bool: return r.name_cut).map(func (r: MarketRow) -> String: return r.model.name)
+		print("[market_lab] measure table=%dpx heads_cut=%d %s names_cut=%d %s" % [t.size.x, t.heads_cut.size(), ", ".join(t.heads_cut), cut.size(), ", ".join(cut)])
 	if ms.sell.visible:
 		var pk := ms.sell.picker
 		var f := ms.sell.form

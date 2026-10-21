@@ -199,7 +199,7 @@ func fit(m: Dictionary) -> void:
 	MarketTheme.size_label(_price_row, m.name)
 	for b: Button in [buy_btn, cancel_btn]:
 		MarketTheme.action(b, b == buy_btn, m.name)
-		b.custom_minimum_size = Vector2(150 if compact else 220, UiTokens.TARGET_MIN if compact else 56)
+		b.custom_minimum_size = Vector2(150 if compact else 220, m.tmin if compact else 56)
 	_panel.custom_minimum_size = Vector2(w, 0)
 	_panel.size = Vector2(w, 0)
 	_center()

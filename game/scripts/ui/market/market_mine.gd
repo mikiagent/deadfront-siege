@@ -237,14 +237,14 @@ func layout(m: Dictionary, rect: Rect2) -> void:
 	_pager.position = Vector2(px, 0)
 	_pager.size = Vector2(size.x - px - m.margin, th)
 	for b: Button in [_prev, _next]:
-		b.custom_minimum_size = Vector2(maxf(UiTokens.TARGET_MIN, th), UiTokens.TARGET_MIN)
+		b.custom_minimum_size = Vector2(maxf(m.tmin, th), m.tmin)
 	MarketTheme.size_label(_page_label, m.name)
 	var fh := footer_h()
 	_scroll.position = Vector2(0, th)
 	_scroll.size = Vector2(size.x, size.y - th - fh)
 	_list.custom_minimum_size.x = size.x
 	var c := columns()
-	var bh := maxf(UiTokens.TARGET_MIN, minf(56.0, m.row_h * 0.5))
+	var bh := maxf(m.tmin, minf(56.0, m.row_h * 0.5))
 	for r in rows:
 		r.relayout(c, m)
 		for b in r.get_children():

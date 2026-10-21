@@ -71,7 +71,7 @@ func select(uid: String) -> void:
 	var e := current()
 	form.show_entry(e)
 	if not _m.is_empty():
-		form.fit(_m)
+		layout(_m, Rect2(position, size)) # a stack's Quantity row changes the width the panel wants
 	if e.is_empty() or str(e.why) != "":
 		return
 	var key := {"species": str(e.asset.get("species", ""))} if e.kind == "pet" else {"def_id": str(e.asset.get("id", ""))}
@@ -134,8 +134,9 @@ func layout(m: Dictionary, rect: Rect2) -> void:
 	_m = m
 	position = rect.position
 	size = rect.size
+	form.fit(m)
 	var pw := clampf(roundf(size.x * (0.52 if m.compact else 0.4)), 300.0, 580.0)
+	pw = minf(maxf(pw, ceilf(form.one_line_width())), roundf(size.x * 0.6)) # the picker keeps 40 %
 	picker.layout(m, Rect2(0, 0, size.x - pw - m.margin, size.y))
 	form.position = Vector2(size.x - pw, 0)
 	form.size = Vector2(pw, size.y)
-	form.fit(m)

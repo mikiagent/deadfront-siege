@@ -27,6 +27,7 @@ var account := -1
 var empty_text := "No listings match."
 var loading := false ## a next page is on its way (MarketBuy sets it): ask once
 var build_us := 0 ## how long the last show_page took to build its rows (lab: 500-listing gate)
+var heads_cut: PackedStringArray = [] ## header words the last draw had to cut (lab: none may be)
 
 var search_btn: Button
 var head_btns: Dictionary = {} ## col -> Button (only sortable columns)
@@ -67,14 +68,24 @@ func _ready() -> void:
 	_empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_empty)
 
-## Column geometry shared by the header and every row.
+## Column geometry shared by the header and every row: Level, Durability and Price take their
+## share of the width (14 / 18 / 18 %) or what their full header word with its arrows (and
+## Price's "1,000,000") needs, whichever is more; the name gets the rest and is cut first.
 func columns() -> Dictionary:
 	var w := size.x
 	var pad: float = _m.margin
 	var name_x: float = pad + _m.icon + 12.0
-	return {"icon_x": pad, "name_x": name_x, "name_w": w * 0.5 - name_x - 4.0,
-		"level_x": w * 0.5, "level_w": w * 0.14, "dur_x": w * 0.64, "dur_w": w * 0.18,
-		"price_x": w * 0.82, "price_w": w * 0.18 - pad * 0.5}
+	var f := MarketTheme.font()
+	var hs: int = _m.head
+	var need := func (col: StringName) -> float: return f.get_string_size(HEADS[col], HORIZONTAL_ALIGNMENT_LEFT, -1, hs).x + hs * 0.7 + 16.0
+	var ns: int = _m.name
+	var pw := maxf(w * 0.18 - pad * 0.5, maxf(need.call(&"price"), f.get_string_size("1,000,000", HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x + ns * 0.95 + 14.0))
+	var dw := maxf(w * 0.18, need.call(&"durability"))
+	var lw := maxf(w * 0.14, need.call(&"level"))
+	var price_x := w - pad * 0.5 - pw
+	return {"icon_x": pad, "name_x": name_x, "name_w": price_x - dw - lw - name_x - 4.0,
+		"level_x": price_x - dw - lw, "level_w": lw, "dur_x": price_x - dw, "dur_w": dw,
+		"price_x": price_x, "price_w": pw}
 
 func layout(m: Dictionary, rect: Rect2) -> void:
 	_m = m
@@ -82,7 +93,7 @@ func layout(m: Dictionary, rect: Rect2) -> void:
 	size = rect.size
 	var th: float = m.thead_h
 	search_btn.position = Vector2(m.margin * 0.5, 0)
-	search_btn.size = Vector2(maxf(UiTokens.TARGET_MIN, th), th)
+	search_btn.size = Vector2(maxf(m.tmin, th), th)
 	var c := columns()
 	for col: StringName in head_btns:
 		var b: Button = head_btns[col]
@@ -95,7 +106,7 @@ func layout(m: Dictionary, rect: Rect2) -> void:
 		_chip_box.position = Vector2(m.margin, y + 4)
 		_chip_box.size = Vector2(size.x - m.margin * 2, m.chip_h - 8)
 		for ch: Control in _chip_box.get_children():
-			ch.custom_minimum_size.y = maxf(UiTokens.TARGET_MIN, m.chip_h - 8)
+			ch.custom_minimum_size.y = maxf(m.tmin, m.chip_h - 8)
 		y += m.chip_h
 	_scroll.position = Vector2(0, y)
 	_scroll.size = Vector2(size.x, size.y - y)
@@ -206,7 +217,9 @@ func _draw() -> void:
 	MarketTheme.dotted(self, Vector2(6, th), Vector2(size.x - 6, th))
 	var c := columns()
 	var hs: int = _m.head
-	MarketTheme.text(self, "Item Name/Type", search_btn.position.x + search_btn.size.x, th * 0.5, c.level_x - search_btn.size.x - 8.0, hs, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	heads_cut.clear()
+	if MarketTheme.text(self, "Item Name/Type", search_btn.position.x + search_btn.size.x, th * 0.5, c.level_x - search_btn.size.x - 8.0, hs, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER):
+		heads_cut.append("Item Name/Type")
 	for col: StringName in SORT_COLS:
 		var key := "dur" if col == &"durability" else str(col)
 		var x: float = c["%s_x" % key]
@@ -220,7 +233,8 @@ func _draw() -> void:
 		var aw := hs * 0.7 if _sortable(col) else 0.0
 		var tw := minf(f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, hs).x, w - aw - 10.0)
 		var tx := x + (w - tw - aw) * 0.5
-		MarketTheme.text(self, label, tx, th * 0.5, tw, hs, col_c)
+		if MarketTheme.text(self, label, tx, th * 0.5, tw, hs, col_c):
+			heads_cut.append(label)
 		if _sortable(col):
 			var dir := (1 if sort == s[0] else -1) if active else 0
 			MarketGlyphs.sort_arrows(self, Vector2(tx + tw + aw * 0.6, th * 0.5), hs * 1.1, dir, col_c, col_c.darkened(0.45) if active else col_c)

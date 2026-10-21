@@ -9,6 +9,7 @@ var view: Dictionary ## the market.search result, as the server sent it
 var model: Dictionary ## MarketFormat.row(view)
 var own := false
 var cols: Dictionary ## MarketTable.columns(): x/w per column
+var name_cut := false ## the last draw had to cut the name (lab measure; the confirm shows it whole)
 var _m: Dictionary
 
 ## `p_model` replaces MarketFormat.row(v) (My Market: the status in the durability column).
@@ -54,7 +55,7 @@ func _draw() -> void:
 		nx += r * 2.0 + 8.0
 		nw -= r * 2.0 + 8.0
 	var title: String = model.name + ("  ×%d" % model.count if model.count > 1 else "")
-	MarketTheme.text(self, title, nx, name_y, nw, ns, MarketTheme.GOLD)
+	name_cut = MarketTheme.text(self, title, nx, name_y, nw, ns, MarketTheme.GOLD)
 	var sub: String = model.type + ("  ·  Your listing" if own else "")
 	MarketTheme.text(self, sub, cols.name_x, mid + gap * 0.5 + 1.0, cols.name_w, ts, MarketTheme.TEXT_2)
 	MarketTheme.text(self, LevelDisplay.label(model.level) if model.level > 0 else LevelDisplay.NONE, cols.level_x, mid, cols.level_w, ns, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)

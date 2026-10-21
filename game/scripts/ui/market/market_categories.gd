@@ -64,14 +64,14 @@ func layout(m: Dictionary, rect: Rect2) -> void:
 	position = rect.position
 	size = rect.size
 	var th: float = m.thead_h
-	var side := maxf(UiTokens.TARGET_MIN, th)
+	var side := maxf(m.tmin, th)
 	close_btn.position = Vector2(size.x - side, 0)
 	close_btn.size = Vector2(side, th)
 	close_btn.add_theme_constant_override("icon_max_width", int(minf(side, th) * 0.42))
 	_scroll.position = Vector2(0, th)
 	_scroll.size = Vector2(size.x, size.y - th)
 	_list.custom_minimum_size.x = size.x
-	var rh := maxf(UiTokens.TARGET_MIN, roundf(m.row_h * 0.8))
+	var rh := maxf(m.tmin, roundf(m.row_h * 0.8))
 	for b in buttons:
 		b.custom_minimum_size = Vector2(size.x, rh)
 		b.queue_redraw()

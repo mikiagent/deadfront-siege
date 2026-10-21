@@ -26,20 +26,25 @@ static var _font: FontVariation
 static var _backdrop: ShaderMaterial
 
 ## Every size the screens use, from the viewport (reference proportions, exchange-spec §1/§8).
-static func metrics(view: Vector2) -> Dictionary:
+## `px_per_pt`: canvas px per point on the glass. DisplayMode draws the narrowest phones (667x375)
+## on an 804 px canvas, so a 44 px target there is 36 pt; `tmin` keeps every target 44 pt.
+## `usable_w`: the width inside the safe area, which the rail and the category column share out.
+static func metrics(view: Vector2, px_per_pt: float = 1.0, usable_w: float = -1.0) -> Dictionary:
+	var uw := view.x if usable_w <= 0.0 else usable_w
 	var compact := UiTokens.is_compact(view)
 	var h := view.y
 	var m := {}
 	m.compact = compact
+	m.tmin = ceilf(UiTokens.TARGET_MIN * maxf(1.0, px_per_pt))
 	m.margin = 8.0 if compact else 16.0
-	m.header_h = maxf(UiTokens.TARGET_MIN, roundf(h * 0.106))
+	m.header_h = maxf(m.tmin, roundf(h * 0.106))
 	m.edge_h = 6.0 if compact else 9.0
-	m.rail_w = roundf(view.x * 0.105)
-	m.cat_w = roundf(view.x * 0.29)
-	m.thead_h = maxf(UiTokens.TARGET_MIN, roundf(h * 0.068))
-	m.row_h = 48.0 if compact else roundf(h * 0.136)
-	m.chip_h = UiTokens.TARGET_MIN if compact else roundf(h * 0.07)
-	m.pager_h = UiTokens.TARGET_MIN if compact else 56.0
+	m.rail_w = roundf(uw * 0.105)
+	m.cat_w = roundf(uw * 0.29)
+	m.thead_h = maxf(m.tmin, roundf(h * 0.068))
+	m.row_h = maxf(m.tmin, 48.0) if compact else roundf(h * 0.136)
+	m.chip_h = m.tmin if compact else roundf(h * 0.07)
+	m.pager_h = m.tmin if compact else 56.0
 	m.title = maxi(20, roundi(h * 0.045))
 	m.name = maxi(14, roundi(h * 0.029))
 	m.type = maxi(UiTokens.TYPE_MIN, roundi(h * 0.022))
@@ -133,12 +138,13 @@ static func size_label(l: Label, size_px: int) -> void:
 	l.add_theme_font_size_override("font_size", px)
 	l.add_theme_constant_override("line_spacing", mini(0, roundi(px * 1.3 - font().get_height(px))))
 
-## Text in a box: ellipsized to the width, vertically centred on `mid_y`.
-static func text(ci: CanvasItem, s: String, x: float, mid_y: float, width: float, size_px: int, color: Color, align := HORIZONTAL_ALIGNMENT_LEFT) -> void:
+## Text in a box: ellipsized to the width, vertically centred on `mid_y`. True when it was cut.
+static func text(ci: CanvasItem, s: String, x: float, mid_y: float, width: float, size_px: int, color: Color, align := HORIZONTAL_ALIGNMENT_LEFT) -> bool:
 	var f := font()
 	var fit := UiTokens.ellipsis(f, s, width, size_px)
 	var base := mid_y + (f.get_ascent(size_px) - f.get_descent(size_px)) * 0.5
 	ci.draw_string(f, Vector2(x, base), fit, align, width, size_px, color)
+	return fit != s
 
 static func dotted(ci: CanvasItem, a: Vector2, b: Vector2, color: Color = SEPARATOR, step := 5.0) -> void:
 	var n := int(a.distance_to(b) / step)

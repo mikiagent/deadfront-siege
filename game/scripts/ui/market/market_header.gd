@@ -47,8 +47,8 @@ func layout(m: Dictionary, width: float, left: float = 0.0, right: float = 0.0) 
 	_m = m
 	var h: float = m.header_h
 	size = Vector2(width, h + m.edge_h)
-	var pad: float = (h - UiTokens.TARGET_MIN) * 0.5 if h > UiTokens.TARGET_MIN else 0.0
-	var side := maxf(UiTokens.TARGET_MIN, h * 0.8)
+	var pad: float = (h - m.tmin) * 0.5 if h > m.tmin else 0.0
+	var side := maxf(m.tmin, h * 0.8)
 	back_btn.position = Vector2(left + m.margin, (h - side) * 0.5)
 	back_btn.size = Vector2(side, side)
 	close_btn.position = Vector2(width - right - m.margin - side, (h - side) * 0.5)

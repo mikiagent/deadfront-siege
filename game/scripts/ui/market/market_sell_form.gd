@@ -38,6 +38,7 @@ var _level: Label
 var _facts: Label
 var _form: VBoxContainer
 var _count_box: VBoxContainer
+var _steps: HFlowContainer
 var _count_label: Label
 var _preview: GridContainer
 var _captions: Array[Label] = []
@@ -103,8 +104,10 @@ func _ready() -> void:
 	_form = VBoxContainer.new()
 	_form.add_theme_constant_override("separation", 6)
 	body.add_child(_form)
-	var steps := HBoxContainer.new()
-	steps.add_theme_constant_override("separation", 14)
+	var steps := HFlowContainer.new() # Quantity and Price share a line; stacked when the panel cannot fit both
+	_steps = steps
+	steps.add_theme_constant_override("h_separation", 14)
+	steps.add_theme_constant_override("v_separation", 4)
 	_form.add_child(steps)
 	_count_box = _stepper_box(steps, "Quantity", "count")
 	_count_label = MarketTheme.label("", 18)
@@ -375,10 +378,19 @@ func _band_margin() -> void:
 	(_title_band.get_theme_stylebox("panel") as StyleBoxFlat).content_margin_left = 14.0 + (_badge_r * 2.0 + 8.0 if entry.get("badge", false) else 0.0)
 	_title_band.queue_redraw()
 
+## The panel width that keeps Quantity and Price on one line (MarketSell gives it when it can, so a
+## phone still sees the fee preview without scrolling the panel).
+func one_line_width() -> float:
+	var w := get_theme_stylebox("panel").get_minimum_size().x + _pad.get_theme_constant("margin_left") + _pad.get_theme_constant("margin_right")
+	var shown := _steps.get_children().filter(func (c: Control) -> bool: return c.visible)
+	for c: Control in shown:
+		w += c.get_combined_minimum_size().x
+	return w + 14.0 * maxi(0, shown.size() - 1)
+
 func fit(m: Dictionary) -> void:
 	_m = m
 	var compact: bool = m.compact
-	var tgt := UiTokens.TARGET_MIN if compact else 52.0
+	var tgt: float = m.tmin if compact else 52.0
 	MarketTheme.size_label(_title, m.name + (2 if compact else 6))
 	_badge_r = (m.name + (2 if compact else 6)) * 0.62
 	_band_margin()
@@ -414,7 +426,7 @@ func fit(m: Dictionary) -> void:
 	for b: Button in steppers.values():
 		b.custom_minimum_size = Vector2(tgt, tgt)
 	for b: Button in duration_btns.values():
-		b.custom_minimum_size = Vector2(52 if compact else 72, tgt)
+		b.custom_minimum_size = Vector2(maxf(52.0, tgt) if compact else 72.0, tgt)
 		b.add_theme_font_size_override("font_size", m.type + 1)
 	_preview.columns = 4 if compact else 2
 	MarketTheme.action(list_btn, true, m.name)
