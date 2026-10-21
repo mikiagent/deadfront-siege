@@ -693,6 +693,7 @@ After the survivor-v2 merge: equipment references the exact item (slot index or 
 - remove_at(i, -100) and consume(id, 0) return null/false and change nothing.
 - Equipped items no longer occupy the 20 bag slots; with nothing equipped a flint pick is chosen over a stone pick.
 - equip_mount_lab PASS.
+- Spec 05:23 (ruled: crafting only): the default craft pick, which StationCraft and the server's act.craft also take, spends the least valuable instance first (no traits, lowest level, oldest, then the def's rarity) and never a locked one unless the player picks it (spec 13:229); t_inventory `_test_default_pick_*` (review 5).
 
 **Before players with large old saves update (review 2):** one instance per slot means home cargo (60), baskets (60) and pet bags (10) hold that many items; a heavy legacy save migrates into a home cargo of 22,125 slots. W2-BUILDSYS raises container capacities (spec 05:14) and INVUI virtualizes the storage/cargo grid. Server operators snapshot on the old build before upgrading.
 
