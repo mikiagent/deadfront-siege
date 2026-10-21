@@ -1,7 +1,8 @@
 # W2-DATA report: item and recipe data, material ladder, nets, armour bands
 
-Branch `claude/mmo-w2-data`, merged with `claude/mmo-overhaul` at 34b6d459. Gates ran on 264950b4 with the hooks
-patch applied (scratch tree `work-w2-data`). The commits after it change only this report. No dsc worker was used (the owner took DeepSeek off on 2026-10-20),
+Branch `claude/mmo-w2-data`, merged with `claude/mmo-overhaul` at 34b6d459 (the base has not moved since). Review
+round 3 gates ran on 351aa708 with the hooks patch applied (scratch tree `w2data-gate`); t_data was rerun on e2a3bc1c,
+which only rewords one t_data message. The commits after it change only this report. No dsc worker was used (the owner took DeepSeek off on 2026-10-20),
 so nothing goes in dsc-improvements.md. No credits spent.
 
 ## What shipped
@@ -58,6 +59,32 @@ so nothing goes in dsc-improvements.md. No credits spent.
 - **The walk follows the islands that exist.** t_data gathers on the islands islands.json lists (their climate
   and tier) and butchers only the species those islands spawn. A second walk covers the start island alone.
 
+## Review round 3 (findings and what changed)
+
+| Finding | Fix | Check that now catches it |
+|---|---|---|
+| blocker: `syringe` in statuses.json `infected_wound.cleared_by` is not an item; t_data whitelisted it as an action | `syringe` is out of `STATUS_ACTIONS`. Hook 14 drops it from statuses.json (W2-WEATHER owns the file). The PRD row (`dinosaur-roster-and-3d-pipeline.md:98`) names the cure "Antibiotic / syringe", and `antibiotic` is a real item with a recipe (Cooking 30), so the antibiotic stays the cure. No syringe item was added: nothing else in the docs gives it a source or a recipe. | `[t_data] FAIL status infected_wound cleared_by syringe is an item or a listed action` (hook 14 left out) |
+| major: the home check only failed when the walk reached ore; a pick-gated ore node on the grassland went unnoticed | `_check_home` now also asserts statically: for every `home` climate, no family in vegetation + `SPECIAL_FAMILIES` yields an `ore`/`metal` item (whatever its `min_pick_tier`), and no `materials` entry is ore or metal. The walk check stays. | Reviewer's M1/M1b (CopperOreNode and TinOreNode in grassland vegetation): the walk still prints `metal []`, and the new lines fail: `[t_data] FAIL home climate grassland grows no metal, but CopperOreNode yields copper_ore`, `... CopperOreNode yields ore`, `... TinOreNode yields tin_ore` |
+| major: Corn and Wheat planted on every temperate island at the 24-plant floor, unreported, no pixels | Corn moved to the home grassland, matching its manifest (`climates: ["grassland"]`). Wheat stays on temperate (its manifest lists grassland and temperate). Both get `count: 10` in hook 9, like FlaxPlant, so a wild crop is a find, not a carpet: the scatter halves it on the home island, which gives 5 corn plants there and 10 wheat on temperate_25. Docs: PRD `durango-wild-lands-systems-prd.md:615` says "Corn can be grown with almost no SP", and `12_remaining_skill_trees.md:80` calls Corn an "early/automatic" technique. So corn now grows on the start island, and the island walk reaches 110 items there (108 before; corn and corn_seed are the two new ones). Headless island_lab temperate_25: `nodes=397` (base 378, last round 433). Assumptions below. | `[t_data] FAIL wild crop Corn on temperate is in its manifest climates ["grassland"] with a count (10)` (Corn put back on temperate) |
+| minor: bot_survivor could no longer make rope; blade_mat listed flint | Hook 13: `"twine": ["twine"]` in `CATEGORY_ITEMS` (no node yields twine, so `_acquire_for` falls through to the twine recipe), and flint is out of `blade_mat`. | new `_check_bot_map`: `[t_data] FAIL bot_survivor maps rope's slot category twine`, `[t_data] FAIL bot_survivor gathers flint for blade_mat, which it does not fill` (base bot_survivor.gd) |
+| minor: metal armour icons borrowed raw_hide/dried_hide | No helm or armour symbol exists in `assets/icons/sym`. The 20 new armour pieces now alias to four new icon keys that point at existing armour renders: `armour_head` (raid_helm), `armour_body` (raid_cuirass), `armour_arms` (forager_wraps), `armour_legs` (raid_greaves). A copper cuirass now shows a cuirass, not a raw hide; in white-symbol contexts it draws as a cuirass silhouette. Per-item art is a follow-up (list below). | `[t_data] FAIL unrendered copper_cuirass borrows the raw_hide icon, not an armor_body picture` (old alias) |
+| minor: metal armour gated by nodes labelled hide/scute armour | Recorded as an assumption (below). The docs give no armour gates. W2-SKILLS has already renamed the nodes "Armor 1" and "Scute armor" (d2bb431b), so the label clash only shows on base. | - |
+| minor: server craft path ignores requires_node | Left for W3-SRVACT as an acceptance item (below). No server check was added: it would change multiplayer authority, which is an owner gate. | - |
+| minor: report line 80 wrong; `crate_tstones` unreported | Line corrected (GraniteBoulder is unchanged from base, which never gave it ore). `crate_tstones` is listed under assumptions and follow-ups. | - |
+| minor: t_data reparsed factions.json per key and trees.json per call | `factions` and `trees` are parsed once in `_load_all`. `_check_structures` is a no-op until structures.json exists; it starts checking when W2-BUILDSYS merges. | - |
+
+All five mutations above ran in one t_data run (scratch tree `w2data-mut`, hooks applied, then mutated): rc=1, ten
+FAIL lines, each naming its own cause, and the start-island walk line still read `metal []`.
+
+Pixels (windowed, `--rendering-method gl_compatibility`, scratch-only lab that stands the survivor beside the nearest
+wild crop; files in the scratchpad, not the repo): `crop_home_1600x900.png`, `crop_home_844x390.png`,
+`crop_temperate_1600x900.png`, `crop_temperate_844x390.png`, 0 SCRIPT ERROR in all four logs. Looked at:
+- Home grassland: corn shows as young corn plants (a stalk with broad leaves), about knee to waist high next to the
+  survivor. Each has a "Corn" label, and they are spread out, not a field. The lab printed `Corn nodes=5 total_nodes=216`.
+- temperate_25: wheat shows as pale ear stalks, about knee high, with "Wheat" labels. The lab printed `Wheat nodes=10`.
+- At 844x390 both crops are small: the corn by the survivor sits right under its label, but you can see it. No
+  fallback boxes and no overlap with the HUD.
+
 ## Vision fixes (both cited lines checked)
 
 1. `docs/prd/durango-wild-lands-systems-prd.md:531` reads "Stalks / reeds → twine → rope" and `:533` reads
@@ -73,12 +100,14 @@ so nothing goes in dsc-improvements.md. No credits spent.
      compsognathus or zebraceratops, both on home_grassland; drying_rack_kit is wood + lashing with no
      station). No processing.json row is needed in this patch. claude/mmo-w2-process already has
      `stations.drying_rack.recipes.dried_hide` (600 s). t_data's start-island walk proves it:
-     `[t_data] start island: reachable=108 twine ~2.3 s dried_hide ~5.1 s hide_strap ~3.5 s rope ~8.9 s, metal []`,
-     and it asserts twine, dried_hide, hide_strap, rope and tent_kit are all reachable there.
+     `[t_data] start island: reachable=110 twine ~2.3 s dried_hide ~5.1 s hide_strap ~3.5 s rope ~8.9 s, metal []`
+     (110 since round 3, when corn and corn_seed joined the start island), and it asserts twine, dried_hide, hide_strap, rope and tent_kit are all reachable there.
 2. `docs/design/world-design.md:66` (the Grassland row) lists "fibre_stalk, branch, stone, herb_leaf, berries,
    clay", with no ore. The desert row lists copper_ore (tiers 35, 50) and the volcanic row lists black_iron (60).
-   Changes (hook 9): GraniteBoulder (grassland and temperate) loses its `ore` yield, and CopperOreNode gains it.
-   The new t_data check fails if the start-island walk reaches any item with the `ore` or `metal` category.
+   Changes (hook 9): CopperOreNode (desert) gains the `ore` yield. GraniteBoulder is unchanged from base, which
+   never gave it ore (an earlier version of hook 9 added ore to it; that is reverted). t_data fails if the
+   start-island walk reaches any item with the `ore` or `metal` category, and (since round 3) if a home climate's
+   vegetation, special tiles or materials can yield one at all, whatever pick it needs.
    Every rung stays reachable through the islands that exist (desert_35/50, temperate_20/25/35/45,
    tundra_30/55, tropical_25/40, volcanic_60).
    Side effect of the honest walk: snowfield and blue_tropical have no island, so `silver_ore`, `pearl`,
@@ -89,16 +118,17 @@ so nothing goes in dsc-improvements.md. No credits spent.
 
 | Item | Result |
 |---|---|
-| t_data: every referenced id exists; every item has market_category and rarity | `[t_data] PASS items=223 recipes=155` (one fewer live recipe: `blue_dye` is staged) |
+| t_data: every referenced id exists; every item has market_category and rarity | `[t_data] PASS items=223 recipes=155` (one fewer live recipe: `blue_dye` is staged). `STATUS_ACTIONS` is now cauterise, residence, struggle and pet_aggro only; with hook 14 every statuses.json `cleared_by` id is an item or one of those. Without hook 14: `[t_data] FAIL status infected_wound cleared_by syringe is an item or a listed action` |
 | Progression walk logs time per rung, no unreachable rung | see the ladder table below; `[t_data] reachable=216/223 pending=["fish", "log_shelter_kit", "cabin_bed_kit", "silver_ore", "pearl", "coral", "blue_dye"] best_pick=steel` |
-| Vision fix 1: twine and dried hide on the start island first; processing mandatory | `[t_data] start island: reachable=108 twine ~2.3 s dried_hide ~5.1 s hide_strap ~3.5 s rope ~8.9 s, metal []`; `_check_processing_chain` passes (no raw hide outside the drying step, rope takes twine only) |
-| Vision fix 2: no metal source on the home climate | same line, `metal []`; the check names any ore/metal item the start-island walk reaches and where it came from |
+| Vision fix 1: twine and dried hide on the start island first; processing mandatory | `[t_data] start island: reachable=110 twine ~2.3 s dried_hide ~5.1 s hide_strap ~3.5 s rope ~8.9 s, metal []`; `_check_processing_chain` passes (no raw hide outside the drying step, rope takes twine only) |
+| Vision fix 2: no metal source on the home climate | same line, `metal []`, and the static home assert passes. With CopperOreNode and TinOreNode added to grassland vegetation: `[t_data] FAIL home climate grassland grows no metal, but CopperOreNode yields copper_ore` / `... TinOreNode yields tin_ore` (the walk line still says `metal []`, which is why the static assert exists) |
 | Nets I–V craftable; every tameable species has a reachable net | `[t_data] tameable species with a reachable net: 17`; tiers 1–5 each checked |
 | steamer_kit and hoe craftable; armour in every 5–10 band 1–60 | `[t_data] armor_body levels [1, 10, 20, 30, 35, 40, 50, 55]`; head `[10, 20, 30, 35, 40, 50, 55]`; arms/legs same as body |
 | equip_mount_lab and craft_lab PASS | `[equiplab] PASS`; `[craft_lab] PASS`; rc=0, 0 SCRIPT ERROR lines in either (headless, `-- --lab=<lab>`) |
-| every t_*.gd | All 20 print their PASS line with rc=0: t_ai, t_build, t_canim, t_combat, t_data, t_harbour (`islands=15`), t_iconart, t_items, t_light, t_lighting (prints `[t_light] PASS`), t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons (`ids=171 files=114`), t_web. t_save prints its 5 deliberate SCRIPT ERRORs, as on base; every other log has 0 SCRIPT ERROR and 0 "couldn't resolve track". |
-| run_all, smoke, progression probe | `[tests] PASS` (0 SCRIPT ERROR; two plain ERROR lines: the deliberate "Save schema 4 is newer than this build (3)" fixture and "1 resources still in use at exit"); `SMOKE PASS` (tools/smoke.sh --no-import); `[progression] PARTIAL seeded gate fixture, earned loop and raid fight untested; failures=0` (rc=0, unchanged from base) |
-| Import, crashes | mkscratch import log has 0 error lines. No new Godot-*.ips: 25 before and after, newest still Godot-2026-10-20-131531.ips |
+| every t_*.gd (round 3, 351aa708 + hooks) | All 20 print their PASS line with rc=0: t_ai, t_build, t_canim, t_combat, t_data, t_harbour (`islands=15`), t_iconart, t_items, t_light, t_lighting (prints `[t_light] PASS`), t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons (`ids=171 files=114`), t_web. t_save prints its 5 deliberate SCRIPT ERRORs, as on base; every other log has 0 SCRIPT ERROR and 0 "couldn't resolve track". t_data rerun on e2a3bc1c: `[t_data] PASS items=223 recipes=155`, 0 SCRIPT ERROR. |
+| run_all, smoke (round 3) | `[tests] PASS` (rc=0, 0 SCRIPT ERROR); `SMOKE PASS` (tools/smoke.sh --no-import, rc=0). The progression probe was not rerun this round (round 2: `[progression] PARTIAL ... failures=0`, unchanged from base). |
+| Labs (round 3) | `[equiplab] PASS`, `[craft_lab] PASS`, island_lab `[world] island temperate_25 nodes=397 creatures=24`; rc=0, 0 SCRIPT ERROR, 0 "couldn't resolve track" (headless, `-- --lab=<lab>`) |
+| Import, crashes (round 3) | mkscratch import log has 0 error lines. No new Godot-*.ips: 27 before and after this round's runs, newest still Godot-2026-10-20-195619.ips (two appeared between rounds, before this round started) |
 | Pick chain in play code (t_items with hook 11) | `[t_items] bare hands: copper_ore='needs obsidian pick' black_iron='needs bronze pick'`; `[t_items] flint node seconds: bone pick (minimum tier) 2.68, flint pick 2.40, base 3.00` |
 | Hook 6 enforces requires_node | `[t_data] smelt_copper gate: before 'needs skill smelting 1', after learning smelting_1 ''` |
 
@@ -167,8 +197,8 @@ What contradicted the specs and was fixed this round:
 
 ## requires_node ids against both trees.json files
 
-Rechecked this round with `git show <ref>:game/data/skills/trees.json`. All 16 ids exist on
-`claude/mmo-overhaul` (34b6d459) and on `claude/mmo-w2-skills` (e33c4d75), in the same tree at the same level.
+Rechecked in round 3 with `git show <ref>:game/data/skills/trees.json`. All 16 ids exist on
+`claude/mmo-overhaul` (34b6d459) and on `claude/mmo-w2-skills` (d2bb431b), in the same tree at the same level.
 This round adds no new `requires_node`. **W2-SKILLS must keep these ids:** `work_pick`, `combat_knife`, `copper_tools`, `blade_shapes`,
 `iron_weapons`, `hammer` (weapon_tools); `smelting_1`, `smelting_2`, `nails_pillars` (processing);
 `armor_1`, `scute_armor` (tailoring); `furnace_kiln` (construction); `steam`, `antivenom`, `antibiotic`
@@ -207,24 +237,33 @@ empty). Every edit to them is in hooks 9 and 10, with its reason given below.
     refused by the hide_strap recipe ("raw hide %s is dried before cutting straps"). dried_hide stays eligible,
     and the output, count and level checks are unchanged. Without this hook run_all fails on the branch with
     `uncut hide remains eligible raw_hide`.
+13. `scripts/dev/bot_survivor.gd` (W1-QA) `CATEGORY_ITEMS`: adds `"twine": ["twine"]`, because rope takes the twine
+    category only and no node yields twine, so `_acquire_for` now falls through to the twine recipe. Drops flint
+    from `blade_mat`, which flint no longer fills. Checked by t_data `_check_bot_map`. claude/mmo-w1-qa (8597d1d3,
+    unmerged) edits other parts of this file; this hunk also applies cleanly to its version.
+14. `data/statuses.json` (W2-WEATHER) `infected_wound.cleared_by`: drops `syringe`, which is not an item, and keeps
+    `antibiotic`. If W2-WEATHER's branch edits the same lines, keep their version minus `syringe`.
 
 Hook 9, `nature_manifest.json`, edit by edit:
 - `TinOreNode` family (reuses the silver-ore model, temperate and tundra, `tin_ore` needs a flint pick).
   The spec gives this package "Tin ore family", and a family can only live here.
 - `FlintNode` flint `min_pick_tier` stone → bone, and `BlackIronNode` black_iron copper → bronze (the
   ladder fix above).
+- `Corn` and `Wheat` get `"count": 10` (like FlaxPlant): a wild crop is a find, not the 24-plant floor (round 3).
 - `Cactus` yield `spine` → `cactus_spine` (`spine` is not an item); `ore_chunk` removed from `Rock` (not an
   item; removing it also keeps Rock's single stone yield that t_items' depletion test reads).
 - `CopperOreNode` (desert) also yields `ore` 0–1 with `min_pick_tier {"ore": "obsidian"}`. That is the only
-  source for Rough Ore, which the Crude Ingot recipe needs. GraniteBoulder is unchanged from base. Last round
-  gave it the ore, but it grows on the home grassland, and world-design.md:66 gives the grassland no ore.
+  source for Rough Ore, which the Crude Ingot recipe needs. GraniteBoulder is unchanged from base (stone only).
+  An earlier version of this hook gave it ore, but it grows on the home grassland, and world-design.md:66 gives
+  the grassland no ore.
 - Extra yields on natural families for items that had no source: `pine_log` (PineTree), `snow_pine`
   (PineTree_Snow), `willow_wood` (Willow, 1–2), `leech` (Lilypad), `lava` (LavaRockNode), `root` (TreeStump,
   TreeStump_Moss, tree_stump), `mushroom` (Plant) and `spice_herb` (HerbPlant), all 0–1 unless noted. Without them t_data's
   "every item reachable" fails and recipes like `antibiotic`, `seasoned_roast` and `spiced_skewer` can never
   be crafted.
 
-On the branch alone t_data, t_build, t_uiicons and run_all fail until these hooks land: `[t_build] FAIL route
+On the branch alone t_data, t_build, t_uiicons and run_all fail until these hooks land. t_data also fails on hooks 9
+(Corn/Wheat count), 13 and 14: `[t_build] FAIL route
 forge_kit` / `anvil_kit`, `[t_uiicons] FAIL station_forge (from recipes.json) has its own icon, not the
 fallback`, run_all's `uncut hide remains eligible raw_hide` (hook 12), and the t_data lines above. With the patch applied every gate passes.
 
@@ -233,13 +272,25 @@ Not in the patch (follow-ups for their owners):
 - A repair action that consumes `recipes.json repairs` (W2-PROCESS or W2-CRAFT).
 - Insulation should feed climate fatigue (W2-SURVIVAL/W2-WEATHER).
 - Forge and anvil models (FORGEART, after this merges); they use the CraftStation fallback box today.
-- The server craft path (`intent_handlers.gd _craft`) checks `required_survival` and `min_level` but not
-  `requires_node`, because CharacterState keeps tree levels only. Online gating needs W3-SRVACT.
-- `bot_survivor.gd CATEGORY_ITEMS` has no `twine` entry. Rope now takes the `twine` category, so the bot's
-  `_grind` skips rope ("category twine has no gatherable item mapped") and goes on with twine, charcoal and
-  plank. W1-QA: add `"twine": ["twine"]` so `_acquire_for` falls through to the twine recipe.
-- `bot_survivor.gd` lists flint for `blade_mat`; flint no longer fills it and now needs a bone pick. The
-  bot still makes its first tools from stone. W1-QA should drop flint from that list.
+- **W3-SRVACT acceptance item:** the server craft path (`intent_handlers.gd` act.craft, lines 165-190) checks
+  `required_survival` and `min_level` but not `requires_node`, because CharacterState keeps tree levels only.
+  Online, a player can craft a gated recipe without the node. Required: an intent test that crafts `smelt_copper`
+  without `smelting_1` and gets refused. A level stand-in (`ch.level_of(tree) >= node level`) was not added here,
+  because it changes multiplayer authority.
+- **ICONS2 / W1-UIICONS: per-item art for the 59 new items.** None has a render or a symbol of its own: tin_ore,
+  tin_ingot, moss, cactus_flower, forge_kit, anvil_kit, capture_net_iii, capture_net_iv, capture_net_v,
+  bone_knife, bone_axe, bone_pick, bone_spear, flint_knife, flint_axe, flint_pick, flint_spear, obsidian_knife,
+  obsidian_axe, obsidian_pick, obsidian_spear, copper_knife, copper_axe, copper_pick, copper_sword, bronze_knife,
+  bronze_axe, bronze_pick, bronze_sword, iron_knife, iron_axe, iron_pick, iron_sword, steel_knife, steel_axe,
+  steel_pick, steel_sword, leather_helm, leather_cuirass, leather_bracers, leather_greaves, copper_helm,
+  copper_cuirass, copper_bracers, copper_greaves, bronze_helm, bronze_cuirass, bronze_bracers, bronze_greaves,
+  iron_helm, iron_cuirass, iron_bracers, iron_greaves, steel_helm, steel_cuirass, steel_bracers, steel_greaves,
+  antivenom, antibiotic. Until then the tools borrow the stone-tier symbol of their kind (knife, axe, pick; swords
+  and spears the stone knife), so the anvil list looks the same on every tier. The armour borrows the
+  `armour_*` renders, and tin_ingot borrows the ingot symbol. When an item gets its own art, drop its alias.
+- **W2-LOOP / W3-EXCHANGE:** factions.json `radio_university.crate_tstones` (`{"1-3": 200, "7-10": 2000}`) replaces
+  the fake crate items `tstones_200` / `tstones_2000`. No code reads it yet. A consumer must pay those T-stones
+  through the real money path, because money is an owner gate. Until then the crate pays nothing in those bands.
 - W2-GATHER (unmerged) should re-check its gather tests against the raised flint and black-iron gates.
 
 ## Assumptions (all tunable data)
@@ -260,6 +311,19 @@ Not in the patch (follow-ups for their owners):
   desert's crater as "mineral (copper, salt)", and the copper node is the first metal node.
 - `cured_hide` means dried hide or a hide strap. Slot counts are unchanged, so one dried hide cut into two
   straps fills two `cured_hide` units (the task allows "dried hide/leather or straps"). Rope still takes 3.
+- Wild crops (round 3): Corn grows on the home grassland, its manifest climate. PRD:615 and prompt 12:80 put corn
+  early, and world-design.md's grassland row lists no crops, so its placement there is this assumption. Wheat
+  grows on temperate islands only (its manifest also lists grassland; the docs are silent, so the home island
+  keeps a single crop). Both have `count: 10`, the FlaxPlant value, which gives 5 corn on the home island and 10
+  wheat per temperate island. # ASSUMPTION is in the hook 9 data; JSON has no comments, so it is recorded here.
+- Armour skill gates (round 3): copper (L35) and bronze (L40) armour require `armor_1` (Tailoring 35), and iron
+  (L50) and steel (L55) armour require `scute_armor` (Tailoring 45). The docs name no armour gates. On base these
+  nodes are labelled "hide armour" / "scute armour"; W2-SKILLS calls them "Armor 1" / "Scute armor". Hide sets
+  (leather L20, hide_bone L30) stay ungated, so the first armour does not sit behind Tailoring 35. If W2-SKILLS
+  adds metal-armour nodes, move these gates to them.
+- Armour icon stand-ins (round 3): `armour_head/body/arms/legs` point at the raid helm, raid cuirass, forager wraps
+  and raid greaves renders.
+- `crate_tstones` (factions.json) holds the T-stone amounts the old fake crate items carried; nothing reads it.
 - Faction crate mapping: fatigue_tonic → camp_stew, medicine → pressure_dressing, rare_seed → corn_seed,
   seeds → flax_seed, nails → metal_shard, technical_workbench_kit → anvil_kit, weapon_parts → hide_strap,
   armor_parts → armor_scute, farming_tools → hoe, elixir_ingredient → marsh_herb.
@@ -269,15 +333,14 @@ Not in the patch (follow-ups for their owners):
 - **fish** has no source because no fishing system exists. It is marked `source_pending`, which t_data
   allows only when the item is never a recipe's only option and never a crate reward. log_shelter_kit and
   cabin_bed_kit stay staged.
-- `syringe` in statuses.json `infected_wound.cleared_by` is not an item. t_data lists it as an action.
-  W2-WEATHER should drop it or ask for an item.
 - **One recipe per structures.json piece was not added.** W2-BUILDSYS pieces spend `material_slots`
   directly (spec 10 construction sites), so a kit recipe would set a second price for the same piece.
   t_data checks that every item a piece tier or placed kind spends is reachable when structures.json exists.
+  `_check_structures` is a no-op on the current base (no structures.json) and starts checking when W2-BUILDSYS merges.
 - trees.json was not edited, because W2-SKILLS is re-keying it.
 - Not touched by this package: gather-03 (latent attribute stamping is code), climate-01 (weather) and the
   Durango trait/alloy effects from prompt 04 (W2-PROCESS/W2-CRAFT).
-- No screenshots: this package changes data only. New harvest options on existing nodes, TinOreNode on
+- Screenshots: only the wild crops (round 3, see above). New harvest options on existing nodes, TinOreNode on
   temperate/tundra islands, rough ore on desert copper nodes and the "Needs Dried Hide" craft hint were not
   checked in pixels.
 - **Snowfield and blue_tropical have no island** in islands.json, so `silver_ore`, `pearl`, `coral` and
@@ -288,7 +351,7 @@ Not in the patch (follow-ups for their owners):
 
 ## What is left (exact next steps)
 
-1. Independent review with the hooks applied (`mkscratch.sh <name> claude/mmo-w2-data
+1. Re-review with the hooks applied (`mkscratch.sh <name> claude/mmo-w2-data
    docs/orchestration/reports/claude-mmo-w2-data-hooks.patch`).
 2. Integrator: `git apply` the hooks patch at merge, rerun every gate, then W2-SKILLS rebases H1 onto hook 6.
 3. Follow-ups under "Not in the patch" and "Not done / open".
