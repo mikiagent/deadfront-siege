@@ -17,6 +17,80 @@ Branch `claude/mmo-w2-process`, cut from `claude/mmo-overhaul` 36299a96. Base me
   save boundary, status on the HUD chip), cbb9e595 (hooks patch), 81ec4348 + 76875ea4 (process_lab),
   8fd3e3f6 (asset register), plus this report. The base has not moved since 34b6d459
   (`git log HEAD..claude/mmo-overhaul` is empty), so no merge was needed
+- round 7 (review r2, the findings in this run's prompt): base merge b1756bb0 (cecc936b, docs only), 47f63f0c
+  (PlayerActions verbs, honest times, one-line chips, contents), add208b3 (boxed-in chips, lab options), plus the
+  commit carrying this report
+
+## Round 7: review r2 findings
+
+Every finding was right. Each fix has a check that fails on the old behaviour; the FAIL lines below come from a
+mutation tree (`trees/w2proc-mut7`: the branch, the hooks patch, then one change per finding put back) or, for
+the chip layout, from the r1 two-line chip run under the new lab check.
+
+| Finding | Fix | Proof (new code) | Old behaviour / mutation |
+|---|---|---|---|
+| **Major**: COLLECT changed the bag outside PlayerActions (contracts.md §0.3); online it moved the meat locally and sent no intent | Hooks patch on W2-PLAYER's `player_actions.gd`: `collect(st)` and `take_back(st)` return `_send(&"collect"/"take_back", {"station": net_id(st)})` when online, and otherwise call `ProcessStation.collect_into` / `take_back_into` with one `p.toast` per item id. `StationCraft._on_menu_action` sends both menu verbs to `player.actions.call(action_id, st)`. It uses `call()` because the methods arrive with the hooks patch: a typed call would not compile on the branch alone | `ok online: collect and take back queue ["act.collect", "act.take_back"] and leave the bag and the pot as they are (ready 1, jobs 2)`; `ok COLLECT from the station menu goes through PlayerActions: 1 camp stew in the bag` | online branch removed: `FAIL online: collect and take back queue [] and leave the bag and the pot as they are (ready 0, jobs 2)` |
+| **Major**: the craft card showed recipes.json's 8.0s for Dry Meat at the rack (600 s real), the same at the smoker, pot and steamer | `Crafting.preview_time(rec)`: processing.json's job time when the recipe runs on a process station, otherwise `recipe_seconds`. A minute or more is shown as m:ss (`10:00`), less as `8.0s`. `recipe_seconds` is unchanged (XP = 6 + seconds). Hooks patch: `craft_ui.gd` (row meta and detail title) and `station_radial.gd` use it | `ok the drying rack's craft card shows 10:00, not 8.0s (["Lv. — · 10:00  ·  Missing items", "Lv. 7 · 10:00  ·  No station"] \| ["Dried Hide\nLv. — · 10:00    ×1"])`; `ok steam 1:00, stew 3:00; recipe_seconds (XP) unchanged`. Shot `rack50sheet_844`: "Craft · Meat dryer", both rows and the detail read `10:00` | old `craft_ui.gd` meta line: `FAIL the drying rack's craft card shows 10:00, not 8.0s (["Lv. — · 4.0s  ·  Missing items", "Lv. — · 8.0s  ·  Missing items"] ...)` |
+| **Major**: two-line chips in a dense row hung over the neighbour stations at 844x390 (the reviewer's `all50_844_glc`, `rack100menu_844_glc`) | Measured first. In the lab row, station anchors are 34-38 px apart vertically. A two-line chip is 42 px tall (46 with its 2 px margin), so it cannot sit at its anchor without covering the next one; a one-line chip (22 px) can. The root cause was a cascade: the rack's chip, placed first, grazed the survivor's figure rect by 2 px, moved a full row up, and pushed every later chip up. Hooks patch on `hud_pills.gd`: (1) a working station's status **replaces** its name on one line (`Drying 4/4 · 4:54`, `2 ready · Drying 4:54`, `Ready: 4 Dried Meat`). (2) Before the shared layout runs, a status chip that is blocked steps sideways, only as far as its anchor stays under it (`w/2 - 12`), then tries hanging just under its anchor, then one row up. (3) If none of these is free, it falls back to the shorter name chip; if that does not fit either, no chip is drawn. HudPills' own header already says a label with no free spot near its anchor is not drawn. Lab check (process_lab `_check_labels`): every chip within `NEAR_PX` = 30 px of its own station's anchor, and no other station's anchor nearer | 844x390 glc: `PASS shot all 50%: 4 chips, 0 overlaps (chip on chip or on the survivor), 0 station world labels, 0 chips off their station []`; same line for `smoker 50%`, `rack 100%` with the menu open, `crock_pot 50%` with the menu open, and every 1600x900 view. t_process: `ok a chip grazing the survivor steps sideways, its station still under it (anchor (412.0, 200.0))`, `ok a chip with a panel above its station hangs under its anchor ((400.0, 226.0))`, `ok a chip with no free spot by its station says so ...` | the r1 two-line chip under the new check: `FAIL shot all 50%: 4 chips, 0 overlaps ..., 4 chips off their station ["drying_rack 46px (nearer another)", "crock_pot 40px (nearer another)", "steamer 171px (nearer another)", "smoker 50px"]` (the reviewer's picture, reproduced in `r1chip_all50_844`). One line without the step: `FAIL ... 3 chips off their station ["drying_rack 26px (nearer another)", "crock_pot 26px (nearer another)", "steamer 105px"]`. Step removed in t_process: `FAIL a chip grazing the survivor steps sideways ... (anchor (400.0, 200.0))` |
+| **Major (acceptance)**: stages visible in game for every station; honest preview | Preview: row 2. Stages: the smoker, crock pot and steamer have no stage models, so `processing.json` `contents` puts the things on them. New `ProcessFx` (split out of ProcessStation, so that file did not grow) places one mesh per job or uncollected output at `spots[i]` and colours it `from` -> `to` with that job's progress. **Smoker:** 4 meat strips in the open doorway, red to dark smoked brown. **Crock pot:** bowls on the lit side of the stone ring, pink raw mix to dark stew; waiting stews show as raw bowls. **Steamer:** bowls, pink to pale steamed. All of them stay at the done colour until COLLECT; an empty station shows none. With smoke/steam/glow while a job runs, each station has an empty, a working and a done look | windowed shots below (`pot0_1600` vs `pot100_1600`, `smoker0/100_1600`, `steamer100_1600`, `fwd_all50_1600`) | before: `before_crock_pot50_1600`, `before_smoker50_1600` (no contents; the done station looks like the empty one apart from its chip) |
+| Minor: strips | Kept the REPLACE row and updated it. `ProcessFx.show_strips` shows `strip_1..N` in proportion to the filled slots as soon as a stage GLB has those nodes | `ok one strip loaded shows 2 of the model's 8 strips (2)` (stand-in Prop with 8 `strip_N` nodes) | ignored: `FAIL one strip loaded shows 2 of the model's 8 strips (8)` |
+| Minor: no cancel | `ProcessStation.take_back_into(inv)`: jobs still waiting for a slot hand their own inputs back, the same instances. All or nothing on the bag (`BuildPlacer.fits_in_bag`). The station menu shows a **TAKE BACK N** hex (icon: the waiting input) and routes it through `PlayerActions.take_back`. A running job is not cancelled. The steamer's default pick is left to W2-INV/W2-CRAFT ordering, and TAKE BACK is the way out of a wrong pick | `ok take back into a full bag moves nothing, the job keeps waiting`; `ok offline take back: the waiting job's own meat (uid l17d5c53c0787698a) and its herb and berry are back, the running job stays`; shot `pot50menu_844` (TAKE BACK 2 beside CRAFT) | `return 0`: `FAIL offline take back: the waiting job's own meat ...` |
+| Minor: faint smoker plume on gl_compatibility | `fx_glc_boost: 1.6` on the smoker, read on gl_compatibility only: puffs 1.6x bigger and denser, a 1.6x shorter life so the plume stays by the roof instead of rising behind the phone's Orders panel, and the mid grey instead of the lightened one (light grey vanished on the pale grass). Forward+ is unchanged | crops `crop_before_smoker50_844` vs `crop_i_smoker50_844`: a wisp behind the panel before, a grey column over the roof after; `smoker50_844`, `all50_1600` | - |
+| Minor: a saved job on a kind processing.json dropped stuck forever | `ProcessStation.attach_to(host, sid, saved)`: a CraftStation whose save carries jobs gets a ProcessStation even with no rules row. `load_dict` turns its jobs into collectable outputs, so COLLECT works and pack-up follows. **Found on the way:** collecting such a handed-back input (recipe "") paid craft XP and the 25 XP discovery bonus. Those rows now pay nothing | `ok a workbench row with a saved job: COLLECT gives the raw meat back, then it packs up ('collect the workbench first')`; `ok an input handed back pays no craft XP (1001036 -> 1001036)` | no attach: `FAIL a workbench row with a saved job ...`; XP: `FAIL an input handed back pays no craft XP (1001036 -> 1101068)` |
+| Minor: per-kind cap hid a third rack's status | A chip with a process status skips the two-per-name cap (hooks patch). process_lab `--extra-racks=N` hangs meat on N more racks, and the label check counts their chips | `PASS shot rack 50%: 5 chips, ... 0 chips off their station [], 3 of 3 working racks with a chip` (`racks3_1600`) | cap restored: `FAIL shot rack 50%: 4 chips, ..., 2 of 3 working racks with a chip` |
+| Minor: `SaveSanitizer._num/_int` called from another class | A local `ProcessStation._num` (same clamp: a non-number or NaN gives the fallback). `SaveSanitizer.MAX_LEVEL` (a public const) is still the level ceiling | the round 6 hostile-row checks still pass in t_process and run_all | - |
+
+New assumptions (data, `processing.json` `_about`): the content spots and colours (placed by eye on the
+W1-STRUCTART models, above the 0.08 m dirt patch) and `fx_glc_boost` 1.6. In code: `NEAR_PX` 30 (one name-chip
+row) in the lab, the sideways step limit `w/2 - 12` in HudPills, and TAKE BACK taking all waiting jobs at once.
+
+Shots for round 7, all opened and looked at. gl_compatibility unless named `fwd_`, the hooks patch applied; files in
+`/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/r7/final/`
+(before shots and crops one level up):
+- **844x390 (phone, landscape):**
+  - `all50_844`: the four stations each carry their own one-line status over them (`Steaming 2/4 · 0:24`,
+    `Stewing 3/4 · 1:24`, `Drying 4/4 · 4:54`, `Smoking 3/4 · 7:24`). The reviewer's picture had every chip one
+    station off; it is reproduced in `r1chip_all50_844` with the r1 chip.
+  - `smoker50_844`: `Drying` hangs just under the rack's anchor, off the vitals panel, and `Smoking` sits over
+    the smoker. A grey plume shows over the roof (the round 6 `before_smoker50_844` had a wisp behind the Orders panel).
+  - `rack100menu_844`: COLLECT 4 and CRAFT around the rack. The rack's own chip is left out: the survivor stands
+    in front of it and its menu is open. `Ready: 3 Camp Stew` is on the crock pot and `Ready: 3 Smoked...` on
+    the smoker. The reviewer's version had the rack's chip on the smoker and no crock pot chip.
+  - `pot50menu_844`: TAKE BACK 2 (the waiting stews) beside CRAFT. Pink raw bowls by the pot. The steamer is
+    wedged between the vitals and Orders panels, so it falls back to its `Steamer` name chip.
+  - `rack50sheet_844`: "Craft · Meat dryer", Dried Hide and Dried Meat both `Lv. — · 10:00`, and the detail
+    `Lv. — · 10:00 ×1`. (A shot file name containing "craft" makes craft_ui open its Bonfire tab, its own shot
+    hook, so this one is named `sheet`.)
+- **1600x900:**
+  - `rack0/50/100_1600`, `pot0/100_1600`, `smoker0/100_1600`, `steamer100_1600`, `all50_1600`:
+    - Rack strips go bright red, then maroon, then frame brown (the registered REPLACE).
+    - Crock pot bowls go pink to dark brown; its waiting stews stay pink.
+    - Steamer bowls go pink to white.
+    - Smoker strips in the doorway go red to dark brown, under a grey plume.
+    - At 100 % every plume and glow is off and the outputs stay on the station until COLLECT.
+  - `racks3_1600`: three working racks, three chips (the farthest faded by the usual 5.5-8 m fade).
+  - `fwd_all50_1600` (Forward+): the same contents, white smoke, chips on their stations.
+- **Seen, not fixed:**
+  - Long ready names are cut at the chip's 140 px text width (`Ready: 2 Steamed...`, `Ready: 3 Smoked...`).
+    `UiTokens.LABEL_MAX_W` is W1-UI's.
+  - The rack's dried strips still read close to the frame wood: the registered W1-STRUCTART REPLACE.
+  - The COLLECT caption touches the smoker's roof in `rack100menu_844`: the StationMenu caption, W1-UI (seen
+    in round 6 too).
+
+Round 7 gates (scratch tree `trees/w2proc-gates7` at add208b3 with the hooks patch applied, every Godot run under
+gslot; logs in `scratchpad/r7/gates7/`):
+- `--import`: exit 0, 0 ERROR lines (`trees/w2proc-gates7/.import.log`).
+- All 20 `t_*.gd` exit 0, 0 SCRIPT ERROR except t_save's 5 deliberate ones: `[t_process] PASS`, `[t_build] PASS`,
+  `[t_save] PASS`, `[t_ui] PASS`, `[t_web] PASS`, `[t_harbour] PASS islands=15`,
+  `[t_uiicons] PASS ids=169 files=114 ...`, and the rest.
+- `[tests] PASS` (run_all, which runs the process checks) and `SMOKE PASS` (`tools/smoke.sh --no-import`).
+- `[process_lab] PASS`, `[kitchen_lab] PASS`, `[craft_lab] PASS` (headless), 0 SCRIPT ERROR lines each. All 16
+  windowed process_lab runs of this round end in `[process_lab] PASS shot ...` with 0 SCRIPT ERROR.
+- 0 "couldn't resolve track" lines in any gate log.
+- No new `Godot-*.ips` in `~/Library/Logs/DiagnosticReports` during the round (the newest is
+  `Godot-2026-10-20-202004.ips`, from before it began).
+- Hooks patch: `git apply --check` clean on claude/mmo-overhaul cecc936b (fresh detached tree). The six files it
+  touches are byte-identical on the base and on this branch, and the gate tree applied it cleanly.
 
 ## Round 6: review r1 findings (w2-process-review-r1.json)
 
@@ -314,8 +388,12 @@ rules loader moved to `ProcessStation.rules()`.
   - The drying rack swaps W1-STRUCTART's empty/raw/drying/dried models from the progress of its least-advanced
     strip.
   - Smoke or steam comes from CPUParticles3D, so Forward+ and gl_compatibility look alike. Fired stations glow.
-  - The station's HUD name chip carries a second line, `Drying 4/4 · 4:58`, then `Ready: 4 Dried Meat`
-    (round 6; until round 5 this was a world Label3D, which collided with the survivor and the HUD).
+  - While anything is on the station, its HUD chip shows the status in place of the name, on one line:
+    `Drying 4/4 · 4:58`, then `Ready: 4 Dried Meat` (round 7). Round 6 used a second line; until round 5 it was a
+    world Label3D, which collided with the survivor and the HUD.
+  - The smoker, crock pot and steamer show what is on them (`processing.json` `contents`): strips in the
+    smoker's door and bowls by the pot and steamer, coloured by each job's progress (round 7).
+  - COLLECT and TAKE BACK (waiting jobs only) are PlayerActions verbs (round 7).
   - Jobs are saved in the station's existing row (`"process"`); `SaveRestore.spawn` already calls
     `CraftStation.from_dict`, so no migration is needed.
   - On load, a start time in the future is clamped to now. Rows for recipes the station no longer runs come back
@@ -381,20 +459,33 @@ All in `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/b2302
   Meal (cold_resist +1, 600 s). Steam has no property: it adds a process count. The kinds come from spec 08 §4;
   the method-to-effect mapping and the amounts are not in the specs (`processing.json` `in_place.properties`).
 - **Pack-up while loaded (round 3):** refused, not "return everything": a running job's inputs are mid-process,
-  and spec 11 §9 asks that cancellations lose nothing. A cancel action that hands inputs back is not built.
+  and spec 11 §9 asks that cancellations lose nothing. Round 7: TAKE BACK hands a waiting job's inputs back; a
+  running job is not cancelled.
 - **Burn:** process jobs never burn unless the recipe has `burn_on_fail`. The roll happens at load.
 
 ## Integrator hooks
 
-`docs/orchestration/reports/claude-mmo-w2-process-hooks.patch` (regenerated in round 6; `git apply --check`
-clean on claude/mmo-overhaul 34b6d459). Three files:
+`docs/orchestration/reports/claude-mmo-w2-process-hooks.patch` (regenerated in round 7; `git apply --check`
+clean on claude/mmo-overhaul cecc936b). Six files:
 - `game/scripts/core/save_restore.gd` (W1-SAVE): `SaveRestore._items_of` adds a station row's process
   contents, so a row the grid refuses on load is refunded with what hung on it. Since round 6 those stacks
   pass `SaveSanitizer.stacks` inside `ProcessStation.saved_stacks`.
-- `game/scripts/ui/hud_pills.gd` (W1-UI): a process station's chip gets `label_text()` as its second line
-  (the line a depleted harvest node uses for its regrow timer), and that line may use the chip's width
-  instead of 96 px.
+- `game/scripts/ui/hud_pills.gd` (W1-UI), round 7:
+  - A working process station's chip shows `label_text()` in place of its name, on one line.
+  - A blocked status chip steps sideways (anchor kept under it), under its anchor or one row up before the
+    shared layout runs. Failing that it uses the name chip, else no chip.
+  - Working stations skip the two-per-name cap.
+  - `HudPills.last_drawn` records each drawn chip's node, anchor and rect for the lab check.
+  - The old second-line code and the 96 px timer-width change are gone.
+- `game/scripts/player/player_actions.gd` (W2-PLAYER), round 7: `collect(st)` and `take_back(st)`, intents
+  `act.collect` / `act.take_back` with `{"station": net_id(st)}` when online.
+- `game/scripts/ui/craft_ui.gd` (row meta and detail title) and `game/scripts/ui/station_radial.gd` (W1-UI),
+  round 7: `Crafting.preview_time(rec)` in place of `"%.1fs" % Crafting.recipe_seconds(rec)`.
 - `game/tests/run_all.gd` (integrator): `_test_process_stations()` runs `res://tests/process_checks.gd`.
+
+After merge: `StationCraft._on_menu_action` calls `player.actions.call(action_id, st)`. It may become
+`player.actions.collect(st)` / `take_back(st)` once player_actions.gd carries them. call() is there only so the
+branch compiles without the patch.
 
 The pack-up fix needs no change in `build_placer.gd` or `player_actions.gd`. `BuildPlacer.pack_up_node` calls
 `pack_up_blocker` first, and `pack_up_blocker` asks `pack_up_block_reason()` duck-typed before any side
@@ -405,7 +496,9 @@ Notes:
   (structure_health.gd:120 on 4b8c6d23). Round 5 checked this on a merged tree (below).
 - run_all runs `game/tests/process_checks.gd` (round 6, hooks patch), the hostile save rows and a wall-clock
   job. t_process runs the same checks plus the rest.
-- For W3-SRVACT: load and collect are local calls, not PlayerActions intents.
+- For W3-SRVACT: loading goes through `act.craft` (PlayerActions.craft), and since round 7 COLLECT and TAKE BACK
+  are `act.collect` / `act.take_back` with `{"station": <net id>}`. The server handlers should run
+  `ProcessStation.collect_into` / `take_back_into` on the authoritative station.
 
 ## Left / not done
 
@@ -414,9 +507,10 @@ Notes:
   - the rest of the spec 11 Processing profession: material in-place methods with attribute trade-offs, Handicraft/Metal ability, alloys, and tool and station-level gates;
   - the rest of the spec 08 cooking work (W2-COOK): slot roles, digestion and inheritance. Property buffs use
     FoodBuffState's refresh-by-id rule (eating a second smoked meat restarts the Warming Meal; it does not stack);
-  - a cancel action that takes a running job's inputs back;
+  - cancelling a running job (TAKE BACK covers waiting jobs only, round 7);
   - market value from processing history (ECON is not merged; nothing fake in the economy).
-- **Steamer pick:** the steamer takes the first food in the bag, raw meat included. Steaming raw meat
+- **Steamer pick:** the steamer takes the first food in the bag, raw meat included (round 7: a wrong pick
+  waiting in the queue can be taken back; the pick order itself stays with W2-INV/W2-CRAFT). Steaming raw meat
   (21.6 energy) is worse than grilling it; steaming cooked food is where it pays. A "prefer cooked" pick or a
   recipe selector belongs to the craft-sheet work (W2-SCREENS).
 - **Needs other packages:** a tanning frame and kiln/smelting need a model, placement and items from
