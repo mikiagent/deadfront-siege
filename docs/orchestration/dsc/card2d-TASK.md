@@ -54,3 +54,27 @@ The owner wants to try what Durango: Wild Lands does: resources as flat 2D cards
   (read it; it must exit 0).
 
 Out of scope: hand-painted art, terrain repainting, the map.
+
+## Round 2 (orchestrator, 2026-10-21 14:20): the trial is not accepted yet
+Verify passed, but review and an audit found these. Fix them in this order, one milestone each (R1-R5 in .dsc/PLAN.md,
+milestone_done after each):
+- R1 **Parallax squash.** /tmp/c2d/home_cards.png next to home_model.png: small cards below the survivor become thin tilted
+  slivers. card_sway.gdshader shifts VERTEX by metres per metre of ground distance and never reads `card_height`. Scale the
+  shift by card_height and clamp it to about 0.15 of the card's height; rustle 0 for rocks.
+- R2 **Dark small cards.** In split_1600.png the small plant cards render near-black next to green models: check the
+  baked normal map's space/frame (and the bake light) on one card first, then re-bake.
+- R3 **Empty cards.** harvest_node._sync_visual_state sets `visible = _empty_batch != null`, which is false in the card
+  path, so the -empty card never shows and depleted bushes vanish. Keep the node visible when `_card_empty` exists; free
+  the cards in _exit_tree (they are children of the runtime, so queue_free of the node orphans them).
+- R4 **Real tests and lab.** Lab: a mixed layout (trees, bushes, rocks and ground cover interleaved) with the survivor
+  standing BETWEEN the two patches; print PASS only when cards > 0 and cards == models. t_card2d: assert the parallax
+  bound (a 0.5 m card 15 m from the focus moves less than 0.08 m), the empty card is visible when depleted, a card 2.4 m
+  or taller fades when it covers the survivor (W2-OCCLUDE), and a tap on a card selects its node.
+- R5 **Report** docs/orchestration/reports/dsc-card2d.md: lab numbers with their run-to-run noise (3 runs), shot paths
+  copied into docs/orchestration/reports/card2d/, what is left.
+Rules for this round: never hard-code orthographic or -35.264 (read the projection and pitch from the active Camera3D);
+do not change game/scripts/camera/iso_camera.gd (claude/mmo-camera rewrote it); in project.godot keep only the shader
+global declarations you need. Drop the .uid files and game/assets/props/meshy/* from your commits. Painted 2D art for
+cards is coming from another job (SPRITES2D, spec 27/28); do not start on it.
+Verify is stricter now: it requires the report, cards == models > 0, ms_cards < ms_models, the new t_card2d asserts, an
+untouched iso_camera.gd, and no junk files.
