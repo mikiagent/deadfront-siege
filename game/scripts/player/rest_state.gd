@@ -5,7 +5,8 @@ extends RefCounted
 ## hunted. The rate depends on where she sits (data/rest.json): in the open, by a lit fire, or at a
 ## tent, bed or shelter (PRD :118, :803). PlayerActions.rest() starts and stops it (the Rest hex, the
 ## X key); PlayerSim ticks it; Sleep at a tent or bed recovers through recover() as well. The pose is
-## PlayerAnim.sit() / stand_up(); the HUD's Resting chip reads hud_lines().
+## PlayerAnim.sit() / stand_up(); the HUD's Resting chip reads hud_lines() (HudRestBox draws them).
+## Only hits, fights and creatures stand her up; a status tick does not (Player._on_vitals_damaged).
 
 const PATH := "res://data/rest.json"
 const PLACE_RECHECK_S := 0.5
@@ -47,11 +48,11 @@ func refusal() -> String:
 		return "Can't rest in water."
 	if in_combat() or hunted():
 		return "Can't rest in combat."
-	for inst in p.statuses.instances():
-		var def := Data.status(inst.id)
-		if def and (def.dps > 0.0 or def.dps_max_hp_frac > 0.0):
-			return "Treat your %s before resting." % def.display_name.to_lower()  # its ticks would stand her up
-	return ""
+	return ""  # a bleed or a stomachache does not stop her: it slows the healing (spec 01:19), the chip says so
+
+## The Rest hex shows where a tap can sit her down (combat hides every hex; mounted shows only Dismount).
+func offered() -> bool:
+	return not resting and p._sleep_left <= 0.0 and not p.in_water
 
 func start() -> bool:
 	if resting:
@@ -119,10 +120,27 @@ func tick(delta: float) -> bool:
 ## One frame of recovery at `where`: Health (unless a status blocks regen) and fatigue. Vitals clamps
 ## both, so neither goes below 0 nor above its maximum.
 func recover(where: StringName, delta: float) -> void:
-	var r := rates(where)
 	if not p.vitals.blocks_regen:
-		p.vitals.heal(float(r.get("hp_per_s", 0.0)) * delta)
-	p.vitals.rest(float(r.get("fatigue_per_min", 0.0)) / 60.0 * delta)
+		p.vitals.heal(float(rates(where).get("hp_per_s", 0.0)) * delta)
+	p.vitals.rest(fatigue_per_min(where) / 60.0 * delta)
+
+## The place's fatigue recovery, slowed by whatever makes her tire faster (spec 01:19: hygiene and
+## conditions affect recovery). ASSUMPTION: statuses.json fatigue_mult inverted, so Dirty (1.2), Very
+## Dirty (1.5) and Thirsty (1.2) slow it and Clean (0.8) speeds it.
+func fatigue_per_min(where: StringName) -> float:
+	return float(rates(where).get("fatigue_per_min", 0.0)) / maxf(0.1, p.statuses.fatigue_mult())
+
+## Health per second while she rests at `where`: the rest's rate plus passive regen, less what her
+## statuses deal. A damage tick also pauses passive regen (vitals.gd REGEN_LOCK_S); blocks_regen stops both.
+func net_hp_per_s(where: StringName) -> float:
+	var dot := 0.0
+	for inst in p.statuses.instances():
+		var def := Data.status(inst.id)
+		if def:
+			dot += def.dps * float(inst.stacks) + def.dps_max_hp_frac * p.vitals.max_health
+	if p.vitals.blocks_regen:
+		return -dot
+	return float(rates(where).get("hp_per_s", 0.0)) + (0.0 if dot > 0.0 else p.vitals.health_regen) - dot
 
 ## The best place within reach: a shelter building, else a lit fire (a placed campfire burns until it
 ## is gone, bonfires always), else the open.
@@ -166,12 +184,32 @@ func hud_lines() -> PackedStringArray:
 	if not resting and not sleeping:
 		return PackedStringArray()
 	var where := &"shelter" if sleeping else place
-	var r := rates(where)
 	var v := p.vitals
-	var hp := 0.0 if v.blocks_regen else float(r.get("hp_per_s", 0.0)) + v.health_regen
-	var hp_line := "HP full" if v.health >= v.effective_max_health() else ("+%.1f HP/s" % hp if hp > 0.0 else "No healing")
-	var fat_line := "Rested" if v.fatigue < 0.5 else "-%d fatigue/min" % roundi(float(r.get("fatigue_per_min", 0.0)))
-	return PackedStringArray(["Sleeping" if sleeping else str(r.get("label", "Resting")), hp_line, fat_line])
+	var hp := net_hp_per_s(where)
+	var hp_line := "HP full" if v.health >= v.effective_max_health() else ("No healing" if absf(hp) < 0.05 else "%+.1f HP/s" % hp)
+	hp_line += _why(func (d: StatusDef) -> bool: return d.dps > 0.0 or d.dps_max_hp_frac > 0.0 or d.flags.has(&"blocks_regen"))
+	var fat_line := "Rested" if v.fatigue < 0.5 else "-%d fatigue/min" % roundi(fatigue_per_min(where))
+	fat_line += _why(func (d: StatusDef) -> bool: return d.fatigue_mult != 1.0)
+	return PackedStringArray(["Sleeping" if sleeping else str(rates(where).get("label", "Resting")), hp_line, fat_line])
+
+## " (stomachache, dirty)": her statuses that `pick` says change a rate, for the chip (spec 01:22).
+func _why(pick: Callable) -> String:
+	var names := PackedStringArray()
+	for inst in p.statuses.instances():
+		var def := Data.status(inst.id)
+		if def and pick.call(def):
+			names.append(def.display_name.to_lower())
+	return "" if names.is_empty() else " (%s)" % ", ".join(names)
+
+## A load (spec 01:22): sits her back down when the save was made resting. A save made standing gets
+## her up at once, with no clip, so the loaded pose is the save's. Anything but a real true is standing.
+func load_saved(saved: Variant) -> void:
+	if resting:
+		stop(false)
+		if p.anim:
+			p.anim.revive()
+	if saved is bool and saved:
+		start()
 
 ## PRD :285: the bonfire clears Wet, when she sits down by it or rests her way into its reach (not
 ## every frame: rain would only put it back).

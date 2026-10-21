@@ -7,6 +7,9 @@ extends Node3D
 ##   tent   1.9 m from the camp's public tent (a sleep spot)
 ##   tent_sleep  the same spot, the Sleep hex on purpose (beds and tents keep the Sleep flow)
 ##   tent_tap  the same, but a tap on the ground 5 s in (a tap-to-walk, as a phone player taps)
+##   tent_sick  the tent with a raw-meat Stomachache (300 s, 0.2 dps, no cure) and Dirty: the round-1
+##              review's case, where Rest was refused and Sleep ended on the first tick
+##   tent_sleep_sick  the same Stomachache, the Sleep hex
 ## The attempt, in order: a "rest" context hex, else the "sleep" hex, else the interact key (E).
 ## Then a motion trace: the hips every physics frame through sit down and stand up (the owner's
 ## motion gate: no jump, snap or stutter between frames).
@@ -63,11 +66,13 @@ func _run() -> void:
 	await _trial("tent", _beside(tent, 1.9, true), tent)
 	await _trial("tent_sleep", _beside(tent, 1.9, true), tent, true)
 	await _trial("tent_tap", _beside(tent, 1.9, true), tent)
+	await _trial("tent_sick", _beside(tent, 1.9, true), tent, false, [&"stomachache", &"dirty"])
+	await _trial("tent_sleep_sick", _beside(tent, 1.9, true), tent, true, [&"stomachache"])
 	await _motion(_beside(fire, 1.9, false), fire)
 	print("[restlab] done")
 	get_tree().quit(0)
 
-func _trial(spot: String, at: Vector3, face: Node3D, sleep: bool = false) -> void:
+func _trial(spot: String, at: Vector3, face: Node3D, sleep: bool = false, sick: Array[StringName] = []) -> void:
 	_player.clear_nav()
 	_player.velocity = Vector3.ZERO
 	_player.global_position = Vector3(at.x, _rt.surface_y(at.x, at.z) + 1.0, at.z)
@@ -75,6 +80,8 @@ func _trial(spot: String, at: Vector3, face: Node3D, sleep: bool = false) -> voi
 	if face:
 		_player.face_world(face.global_position)
 	_player.statuses.from_array([])
+	for id in sick:
+		_player.statuses.apply(id)
 	_player.vitals.health = 40.0
 	_player.vitals.fatigue = 60.0
 	_player.vitals.energy = _player.vitals.max_energy
@@ -191,9 +198,10 @@ func _sample(spot: String, t: float) -> void:
 	var chips: Array = []
 	for inst in _player.statuses.instances():
 		chips.append(str(inst.id))
-	print("[restlab] spot=%s t=%2.0f clip=%s visual_y=%.2f speed=%.2f resting=%s place=%s sleep_left=%.1f hp=%.1f fat=%.2f chips=%s" % [
+	var chip: Variant = rest_obj.call("hud_lines") if rest_obj is Object and (rest_obj as Object).has_method("hud_lines") else null
+	print("[restlab] spot=%s t=%2.0f clip=%s visual_y=%.2f speed=%.2f resting=%s place=%s sleep_left=%.1f hp=%.1f fat=%.2f chips=%s rest_chip=%s" % [
 		spot, t, _player.anim.current_clip, _player.visual.position.y, Vector2(_player.velocity.x, _player.velocity.z).length(),
-		resting, where, _player._sleep_left, v.health, v.fatigue, chips])
+		resting, where, _player._sleep_left, v.health, v.fatigue, chips, chip])
 
 func _shot(spot: String) -> void:
 	await RenderingServer.frame_post_draw

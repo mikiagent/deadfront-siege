@@ -5,10 +5,14 @@ extends SceneTree
 ## the seated frame, grounded, no sliding); Health rises and fatigue falls at data/rest.json's rate for
 ## that place, open < fire < shelter; Health never passes its maximum and fatigue never drops below 0;
 ## moving, a tap-to-walk, damage, a hit (combat) and a creature closing in each end it with the
-## stand-up; it is refused in combat and while a status deals damage; the X key and online intents go
-## through PlayerActions; the bonfire clears Wet and shifts climate fatigue (PRD :285); the HUD chip
-## shows the live rates; a save made mid-rest loads back seated. Sleep at the tent heals and lowers
-## fatigue while asleep, not only on its last frame. Fails on the base: it has no Rest at all.
+## stand-up; it is refused in combat, but a status that deals damage (a raw-meat Stomachache, a bleed)
+## neither refuses it nor stands her up: it shows in the chip's net Health rate, and Dirty slows the
+## fatigue rate (spec 01:19); Sleep at the tent with a Stomachache completes; the hex hides in water;
+## the X key and online intents go through PlayerActions; the bonfire clears Wet and shifts climate
+## fatigue (PRD :285); the HUD chip shows the live rates right under the chip row (below the Claim hex
+## only when it stands there); a save made mid-rest loads back seated, one made standing loads standing.
+## Sleep at the tent heals and lowers fatigue while asleep, not only on its last frame. Fails on the
+## base: it has no Rest at all.
 ## Usage: godot --headless --path game --script res://tests/t_rest.gd
 
 const SPOT_M := 1.9 ## how far from the fire or the tent the survivor sits (the rest lab's spots)
@@ -73,6 +77,7 @@ func _run() -> void:
 	await _test_sit(spots["open"])
 	for where in ["open", "fire", "shelter"]:
 		await _test_rate(where, spots[where])
+	await _test_rate("shelter", spots["shelter"], &"dirty")
 	_expect(_rate(&"open", "hp_per_s") < _rate(&"fire", "hp_per_s") and _rate(&"fire", "hp_per_s") < _rate(&"shelter", "hp_per_s")
 		and _rate(&"open", "fatigue_per_min") < _rate(&"fire", "fatigue_per_min") and _rate(&"fire", "fatigue_per_min") < _rate(&"shelter", "fatigue_per_min"),
 		"recovery grows open < fire < shelter (spec 01:19, PRD :118)")
@@ -80,8 +85,9 @@ func _run() -> void:
 	await _test_sit_to_sleep(spots["shelter"])
 	await _test_cancels(spots["open"])
 	await _test_refusals(spots["open"])
+	await _test_status_ticks(spots["shelter"])
 	await _test_fire_effects(spots["fire"], spots["open"])
-	await _test_hud(spots["fire"])
+	await _test_hud(spots["fire"], spots["open"])
 	_test_intents(spots["open"])
 	await _test_save_load(spots["fire"])
 	_finish()
@@ -209,8 +215,11 @@ func _test_sit(at: Vector3) -> void:
 	_expect(slid < 0.02 and rest.resting, "no sliding while seated (%.3f m)" % slid)
 
 ## HP and fatigue move at the place's rate: passive regen off, fatigue gains added back from the log.
-func _test_rate(where: String, at: Vector3) -> void:
+## With `status` (Dirty), fatigue recovery is the rate over its fatigue_mult (spec 01:19: hygiene).
+func _test_rate(where: String, at: Vector3, status: StringName = &"") -> void:
 	await _reset(at)
+	if status != &"":
+		player.statuses.apply(status)
 	rest.start()
 	await _frames(2)
 	_expect(rest.place == StringName(where), "%s spot reads as %s (got %s)" % [where, where, rest.place])
@@ -225,6 +234,12 @@ func _test_rate(where: String, at: Vector3) -> void:
 	var fat_rate: float = (f0 - player.vitals.fatigue + _gained() - gained0) / secs * 60.0
 	var want_hp := _rate(StringName(where), "hp_per_s")
 	var want_fat := _rate(StringName(where), "fatigue_per_min")
+	if status != &"":
+		var mult: float = float(data.status(status).fatigue_mult)
+		_expect(mult > 1.0, "%s makes her tire faster (fatigue_mult %.2f)" % [status, mult])
+		want_fat /= mult
+		where += " " + str(status)
+		_expect(rest.hud_lines()[2] == "-%d fatigue/min (%s)" % [roundi(want_fat), status], "the chip names it: %s" % [rest.hud_lines()])
 	_expect(rest.resting and absf(hp_rate - want_hp) <= want_hp * RATE_TOL, "%s: Health +%.2f/s (data %.2f)" % [where, hp_rate, want_hp])
 	_expect(absf(fat_rate - want_fat) <= want_fat * RATE_TOL, "%s: fatigue -%.2f/min (data %.2f)" % [where, fat_rate, want_fat])
 	player.vitals.health_regen = 0.8
@@ -317,11 +332,52 @@ func _test_refusals(at: Vector3) -> void:
 	player._last_hit_taken_s = Time.get_ticks_msec() * 0.001
 	_expect(not rest.start() and not rest.resting, "refused just after a hit: %s" % rest.refusal())
 	player._last_hit_taken_s = -999.0
-	player.statuses.apply(&"bleed")
-	_expect(not rest.start() and rest.refusal().contains("bleed"), "refused while bleeding: %s" % rest.refusal())
-	player.statuses.from_array([])
 	_expect(rest.start() and rest.resting, "allowed again out of combat")
+	rest.stop(false)
+	player.statuses.apply(&"bleed")
+	_expect(rest.refusal() == "" and rest.start() and rest.resting, "allowed while bleeding (it slows the healing; refusal '%s')" % rest.refusal())
+	rest.stop(false)
+	player.in_water = true
+	_expect(not "rest" in _ids(), "in water the Rest hex is hidden, not offered and refused %s" % [_ids()])
+	player.in_water = false
 	await _frames(2)
+
+## The owner's report again: raw meat gives a Stomachache (300 s, 0.2 dps, no cure). Its ticks must not
+## refuse Rest, stand her up or end a Sleep (the base's damaged signal ended both within 3 s).
+func _test_status_ticks(at: Vector3) -> void:
+	await _reset(at)
+	player.statuses.apply(&"stomachache")
+	player.context_action("rest")
+	_expect(rest.resting, "with a Stomachache the Rest hex sits her down at the tent")
+	await _seconds(1.5)
+	var hp0: float = player.vitals.health
+	var f0: float = player.vitals.fatigue
+	await _seconds(3.0)
+	var dps: float = float(data.status(&"stomachache").dps)
+	var want: float = _rate(&"shelter", "hp_per_s") - dps  # each tick also pauses passive regen
+	var got: float = (player.vitals.health - hp0) / 3.0
+	_expect(rest.resting and player.anim.is_sitting() and player.anim.current_clip == &"sleep_down",
+		"4.5 s of Stomachache ticks: still seated (resting=%s clip=%s)" % [rest.resting, player.anim.current_clip])
+	_expect(absf(got - want) <= 0.15 and player.vitals.fatigue < f0 - 1.0,
+		"net Health +%.2f/s (rest %.1f - %.1f dps), fatigue %.2f -> %.2f" % [got, _rate(&"shelter", "hp_per_s"), dps, f0, player.vitals.fatigue])
+	var lines: PackedStringArray = rest.hud_lines()
+	_expect(lines[1] == "%+.1f HP/s (stomachache)" % want, "the chip shows the net rate and why: %s" % [lines])
+	player.statuses.apply(&"deep_bleed")
+	lines = rest.hud_lines()
+	_expect(lines[1].begins_with("-") and lines[1].contains("deep bleed"), "a Deep Bleed blocks the healing and the chip says so: %s" % [lines])
+	player.statuses.clear_id(&"deep_bleed")
+	player.vitals.take_damage(1.0)  # a hit (not a tick) still gets her up
+	await _frames(2)
+	_expect(not rest.resting and player.anim.current_clip == &"sleep_up", "a real hit still gets her up (clip=%s)" % player.anim.current_clip)
+	# Sleep at the tent with the Stomachache: it completes.
+	await _reset(at)
+	player.statuses.apply(&"stomachache")
+	player.sim.start_sleep()
+	var left0: float = player._sleep_left
+	await _seconds(left0 + 0.6)
+	_expect(player.statuses.has(&"stomachache") and player._sleep_left <= 0.0 and player.vitals.fatigue < 1.0,
+		"Sleep at the tent with a Stomachache completes: fatigue %.2f (the base woke her on the first tick)" % player.vitals.fatigue)
+	await _seconds(2.2)
 
 func _test_fire_effects(fire_at: Vector3, open_at: Vector3) -> void:
 	await _reset(fire_at)
@@ -335,7 +391,7 @@ func _test_fire_effects(fire_at: Vector3, open_at: Vector3) -> void:
 	await _frames(2)
 	_expect(is_equal_approx(rest.climate_mult("cold"), 1.0), "in the open: no climate change")
 
-func _test_hud(at: Vector3) -> void:
+func _test_hud(at: Vector3, open_at: Vector3) -> void:
 	await _reset(at)
 	var hud = (load("res://scripts/ui/hunt_hud.gd") as GDScript).new()
 	var layer := CanvasLayer.new()
@@ -354,6 +410,25 @@ func _test_hud(at: Vector3) -> void:
 	await process_frame
 	await process_frame
 	_expect(hud.drawn_blocks.has("rest"), "the HUD draws the Resting chip's rates (blocks %s)" % [hud.drawn_blocks.keys()])
+	var row: Rect2 = hud.drawn_blocks.get("statuses", Rect2())
+	var box: Rect2 = hud.drawn_blocks.get("rest", Rect2())
+	_expect(row.size.y > 0.0 and box.position.y >= row.end.y - 4.0 and box.position.y <= row.end.y + 4.0,
+		"no Claim hex: the rates box sits right under the chip row (row ends %.0f, box starts %.0f)" % [row.end.y, box.position.y])
+	# In the open the Claim hex stands beside the chips: the box goes below it.
+	rest.stop(false)
+	await _reset(open_at)
+	rest.start()
+	await _seconds(0.5)
+	hud.queue_redraw()
+	await process_frame
+	await process_frame
+	var claim: Control = null
+	for c in hud.get_children():
+		if c is Control and str(c.get("caption")).begins_with("CLAIM"):
+			claim = c
+	box = hud.drawn_blocks.get("rest", Rect2())
+	_expect(claim != null and not Rect2(claim.position, claim.size).intersects(box),
+		"with the Claim hex there the box clears it (hex %s, box %s)" % [Rect2(claim.position, claim.size) if claim else null, box])
 	layer.queue_free()
 
 func _test_intents(at: Vector3) -> void:
@@ -398,4 +473,15 @@ func _test_save_load(at: Vector3) -> void:
 		"Health %.1f and fatigue %.2f are the saved %.1f and %.2f" % [player.vitals.health, player.vitals.fatigue, hp, fat])
 	await _seconds(1.0)
 	_expect(rest.place == &"fire" and player.vitals.fatigue < fat, "the reloaded rest goes on by the fire (%s, %.2f)" % [rest.place, player.vitals.fatigue])
+	# A save made standing loads standing, even when she sat down after it.
 	rest.stop(false)
+	player.anim.revive()
+	player.visual.position.y = 0.0
+	await _frames(3)
+	_expect(SG.save_now(), "a save while standing writes")
+	rest.start()
+	await _seconds(1.3)
+	SG.load_now(host)
+	await _seconds(0.5)
+	_expect(not rest.resting and not player.anim.is_sitting() and player.anim.current_clip == &"idle" and absf(player.visual.position.y) < 0.05,
+		"a standing save loads standing (resting=%s clip=%s visual_y=%.2f)" % [rest.resting, player.anim.current_clip, player.visual.position.y])
