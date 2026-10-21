@@ -36,7 +36,7 @@ func _process(_delta: float) -> bool:
 		_test_best_tool, _test_no_stacking, _test_split_migration, _test_legacy_equipment_migration,
 		_test_hostile_worn, _test_identity_through_transfer, _test_real_saves_split,
 		_test_overflow_to_home_storage, _test_stack_bigger_than_bag, _test_round_trip_keeps_uids,
-		_test_worn_gear_kept, _test_currency_stacks, _test_visual_groups, _test_server_store_migration]
+		_test_worn_gear_kept, _test_currency_stacks, _test_visual_groups, _test_server_store_migration, _test_default_pick_spares_valuable]
 	for t in tests:
 		var errs := log.script_errors
 		t.call()
@@ -454,6 +454,23 @@ func _test_visual_groups() -> void:
 	var bones: Dictionary = groups[0] if not groups.is_empty() else {}
 	_expect(groups.size() == 3 and bones.get("def_id") == &"raptor_bone" and (bones.get("slots", []) as Array).size() == 12 and int(bones.get("units", 0)) == 12, "12 bones are one group of 12 slots (groups %d)" % groups.size())
 	_expect(inv.used_slots() == 16, "grouping merges nothing: 12 + 1 + 3 slots stay used (%d)" % inv.used_slots())
+
+## Spec 05:23 ("protect valuable items from default auto-consumption"): with no picks, a twine
+## (fibre x2) takes the plain lv 1 stalks, oldest first, not the trait or lv 5 one that sit earlier.
+func _test_default_pick_spares_valuable() -> void:
+	var CR := load("res://scripts/items/crafting.gd") as GDScript
+	var inv = INV.new(10)
+	var rows := [[{"hardness": 2}, 1, 100], [{}, 5, 100], [{"climate": "grassland", "level": 1}, 1, 300], [{}, 1, 200]]
+	for i in rows.size():
+		var s = IS.make(&"fibre_stalk", 1, rows[i][0], rows[i][1])
+		s.created_at = rows[i][2]
+		inv.slots[i] = s
+	var rec: Dictionary = get_root().get_node("Data").recipes.get(&"twine", {})
+	var picks: Array[int] = CR.default_picks(inv, rec)
+	var spent: Array[int] = []
+	for part in CR._plan(inv, rec, picks)[0].parts:
+		spent.append(int(part.idx))
+	_expect(picks == [3] and spent == [3, 2], "default twine spends the plain oldest stalks 3 then 2, not the trait (0) or lv 5 (1) one (picks %s spent %s)" % [picks, spent])
 
 # ---------------------------------------------------------------- server character store
 
