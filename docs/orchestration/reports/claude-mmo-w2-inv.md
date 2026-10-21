@@ -1,9 +1,11 @@
 # W2-INV report: inventory and equipment by instance
 
-Branch `claude/mmo-w2-inv`, base claude/mmo-overhaul cecc936b (unchanged since round 2: the merge base is still
-cecc936b, nothing to merge). Hooks patch `docs/orchestration/reports/claude-mmo-w2-inv-hooks.patch`, regenerated this
-round: `git apply --check --cached` is clean on claude/mmo-overhaul cecc936b and on the branch (temporary indexes of
-each).
+Branch `claude/mmo-w2-inv`, base claude/mmo-overhaul ac33159f, merged at 93ab120a this round (six base commits since
+cecc936b, all docs: specs 13 addendum and 15-18, STATUS, workflow scripts, references; nothing under game/ and none of
+the hook files, so the round 3 gates of 79a24337 below stand). Hooks patch
+`docs/orchestration/reports/claude-mmo-w2-inv-hooks.patch`, regenerated this round from the work tree (byte-identical
+to its hook-file diff): `git apply --check --cached` is clean on claude/mmo-overhaul ac33159f and on the branch 93ab120a
+(temporary indexes of each). The spec 13 storage addendum (Bag | Small Box tabs, Transfer to Bag) is INVUI B3's.
 
 Owner approval on record (STATUS, 2026-10-20): "the non-stacking inventory save change is approved: merge it once its
 independent review passes and old saves migrate cleanly in tests." Review rounds 1, 2 and 3 are fixed below; the
