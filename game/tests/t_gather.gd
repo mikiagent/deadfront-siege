@@ -126,7 +126,7 @@ func _test_data_ids() -> void:
 					var gate: Dictionary = data.nature_families[fam].get("min_pick_tier", {})
 					if gate.has(str(row["item"])):
 						need_idx = maxi(need_idx, PS.TOOL_TIERS.find(StringName(str(gate[str(row["item"])]))))
-				var row_idx := PS.TOOL_TIERS.find(StringName(str(row.get("min_tool_tier", "")))) if row.has("min_tool_tier") else -1
+				var row_idx: int = PS.TOOL_TIERS.find(StringName(str(row.get("min_tool_tier", "")))) if row.has("min_tool_tier") else -1
 				_expect(row_idx >= need_idx, "%s/%s find gate '%s' is not below its nodes' min_pick_tier (%s)" % [k, row["item"], row.get("min_tool_tier", "none"), PS.TOOL_TIERS[need_idx] if need_idx >= 0 else "none"])
 	var gates: Dictionary = LT.butcher_cfg().get("part_min_tier", {})
 	for k in gates:
