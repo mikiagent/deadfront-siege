@@ -31,6 +31,7 @@ var scale: float = 1.0
 var start_local: Array[Transform3D] = []
 var _body_of_bone: Dictionary = {}  ## bone index -> body index
 var _moved: Array = []  ## [bone, old parent, old rest] per reparented bone
+var _clip_local: Array[Transform3D] = []  ## every bone's local pose before the build touched it
 
 ## Returns null (and leaves the skeleton untouched) when the profile names a bone this rig lacks.
 static func build(sk: Skeleton3D, prof: Dictionary, defaults: Dictionary) -> RagdollRig:
@@ -51,6 +52,8 @@ static func build(sk: Skeleton3D, prof: Dictionary, defaults: Dictionary) -> Rag
 	var r := RagdollRig.new()
 	r.skeleton = sk
 	r.scale = s3.x
+	for i in sk.get_bone_count():
+		r._clip_local.append(sk.get_bone_pose(i))
 	r._reparent(prof.get("reparent", {}))
 	# Unsimulated end bones the death clip poses badly for a carcass (a jaw caught mid-roar) go to rest.
 	for bn in prof.get("rest_bones", []):
@@ -120,12 +123,17 @@ func _reparent(map: Dictionary) -> void:
 		skeleton.set_bone_pose_position(c, local.origin)
 		skeleton.set_bone_pose_rotation(c, local.basis.get_rotation_quaternion())
 
-## Puts reparented bones back (an aborted simulation hands the pose back to the death clip).
+## Puts reparented bones back and every bone in the pose the death clip left (an aborted simulation
+## hands the pose back to the clip; bones its tracks do not key would otherwise keep the build's).
 func undo_reparent() -> void:
 	for m in _moved:
 		skeleton.set_bone_parent(int(m[0]), int(m[1]))
 		skeleton.set_bone_rest(int(m[0]), m[2])
 	_moved.clear()
+	for i in mini(_clip_local.size(), skeleton.get_bone_count()):
+		skeleton.set_bone_pose_position(i, _clip_local[i].origin)
+		skeleton.set_bone_pose_rotation(i, _clip_local[i].basis.get_rotation_quaternion())
+		skeleton.set_bone_pose_scale(i, _clip_local[i].basis.get_scale())
 
 func _depth(bone: int) -> int:
 	var n := 0

@@ -67,6 +67,7 @@ var _stretch_bone: String = ""
 var _tilt_from: Transform3D
 var _tilt: Quaternion = Quaternion.IDENTITY
 var _fallback_total: float = 0.0
+var _guard_cache: Dictionary = {}
 
 static func data() -> Dictionary:
 	if _data.is_empty():
@@ -149,6 +150,13 @@ func _process(_delta: float) -> void:
 func _timing() -> Dictionary:
 	return data().get("timing", {})
 
+## ragdoll.json guards with the species profile's own "guards" over them.
+func _guards() -> Dictionary:
+	if _guard_cache.is_empty():
+		_guard_cache = (data().get("guards", {}) as Dictionary).duplicate()
+		_guard_cache.merge(profile(creature.def.id if creature.def else &"").get("guards", {}), true)
+	return _guard_cache
+
 func _skeleton() -> Skeleton3D:
 	if creature == null or creature.view == null or not creature.view.using_glb or creature.view.rig == null:
 		return null
@@ -205,7 +213,7 @@ func _depenetrate() -> void:
 			var w := to_world * pt
 			lift = maxf(lift, RagdollSkin.ground_y(space, w + above, _exclude, -INF) + float(row["radius_m"]) - w.y)
 	if lift > 0.0:
-		creature.view.global_position.y += lift + float(data().get("guards", {}).get("lift_margin_m", 0.01))
+		creature.view.global_position.y += lift + float(_guards().get("lift_margin_m", 0.01))
 
 ## Starts the fall: every body gets the velocity of the whole creature tipping over its feet onto
 ## the flank away from the blow (rigid rotation at topple_k * sqrt(g / hips height), so tall and
@@ -222,7 +230,7 @@ func _push() -> void:
 	var hips_h := 1.0
 	if _root_body >= 0:
 		hips_h = maxf(0.2, rig.bodies[_root_body].global_position.y - pivot.y)
-	_w0 = minf(sqrt(9.8 / hips_h), float(data().get("guards", {}).get("pose_w0_max", 3.0)))  # small ones turn no faster than a raptor
+	_w0 = minf(sqrt(9.8 / hips_h), float(_guards().get("pose_w0_max", 3.0)))  # small ones turn no faster than a raptor
 	var omega := Vector3.UP.cross(_side).normalized() * float(imp.get("topple_k", 0.6)) * _w0
 	var shove := _dir * dv + Vector3.UP * dv * float(imp.get("up_frac", 0.1))
 	for pb in rig.bodies:
@@ -234,7 +242,7 @@ func _step(delta: float) -> void:
 	if _fault == &"abort":
 		_abort("injected abort at %.2f s" % sim_time)
 		return
-	var guard: Dictionary = data().get("guards", {})
+	var guard: Dictionary = _guards()
 	var max_v := float(guard.get("max_body_mps", 30.0))
 	var t := _timing()
 	var quiet_v := float(t.get("quiet_mps", 0.12))
@@ -277,7 +285,7 @@ func _step(delta: float) -> void:
 ## The resting orientation (see _target). Flat or gentle ground: up axis toward _side, heading kept.
 ## Steeper than align_slope_deg: also turned to the nearer end of the fall line.
 func _plan_pose() -> void:
-	var g: Dictionary = data().get("guards", {})
+	var g: Dictionary = _guards()
 	var n := _ground_n
 	var fwd := -creature.global_basis.z.normalized()
 	var up := (_side - n * _side.dot(n)).normalized()
@@ -300,7 +308,7 @@ func _plan_pose() -> void:
 func _pose_guard(delta: float) -> void:
 	if _root_body < 0:
 		return
-	var g: Dictionary = data().get("guards", {})
+	var g: Dictionary = _guards()
 	var rb := rig.bodies[_root_body]
 	var now := rb.global_basis.orthonormalized() * _creature_in_root
 	var axis: Vector3
@@ -387,17 +395,16 @@ func _fall_back(why: String) -> void:
 	_fallback_left = maxf(0.0, clip_s - since_death) + 0.05
 	_fallback_total = _fallback_left
 	# The clip lies down on flat ground: on a slope lean the body onto the terrain while it falls.
-	# A clip that ends crouched or on its belly (fallback_roll_deg) also rolls onto the flank away
-	# from the blow, so no fallback ends upright.
+	# A clip that ends crouched or on its belly also rolls the body fallback_roll_deg about its
+	# forward axis (+ onto its right flank, - its left: the side the clip itself sinks to), so no
+	# fallback ends upright.
 	_tilt_from = creature.view.transform
 	var n := RagdollSkin.ground_normal(creature.get_world_3d().direct_space_state, creature.global_position, _exclude)
 	var up := creature.global_basis.y.normalized()
 	_tilt = (creature.global_basis.inverse() * Basis(Quaternion(up, n)) * creature.global_basis).get_rotation_quaternion() if up.dot(n) < 0.9999 else Quaternion.IDENTITY
 	var roll := deg_to_rad(float(profile(creature.def.id if creature.def else &"").get("fallback_roll_deg", 0.0)))
-	if roll > 0.0:
-		var away := (creature.global_basis.inverse() * _dir).x  # the blow's push along the creature's right
-		# A roll about the forward axis (-Z) by +angle turns up toward +X (its right).
-		_tilt = _tilt * Quaternion(Vector3.FORWARD, roll * (signf(away) if absf(away) > 0.2 else 1.0))
+	if roll != 0.0:
+		_tilt = _tilt * Quaternion(Vector3.FORWARD, roll)  # about -Z, + turns its up toward +X (its right)
 	print("[ragdoll] %s fallback: %s" % [creature.def.id if creature.def else &"?", why])
 
 func _freeze() -> void:
@@ -444,8 +451,11 @@ func _finish() -> void:
 		var stride := int(conform.get("stride", 61))
 		var length := creature.def.real_length_m if creature.def else 2.0
 		var ground := RagdollSkin.Ground.new(space, _exclude, length * float(conform.get("cell_frac", 0.025)), maxf(2.0, height))
-		limb_turns = RagdollSkin.lift_limbs(ground, mi, sk, _body_bones(sk, prof), stride, float(conform.get("limb_max_deg", 50.0)))
-		var res := RagdollSkin.rest(ground, mi, sk, creature.view, stride, deg_to_rad(float(conform.get("max_tilt_deg", 12.0))), int(conform.get("tilt_rounds", 2)))
+		# A ragdoll's simulated bones keep their joint limits; a death clip's limbs (a leg or tail it
+		# leaves propping the carcass up) may all turn out of the ground, so only its trunk counts.
+		var keep := _body_bones(sk, prof) if mode == &"ragdoll" else _trunk_bone(sk, prof)
+		limb_turns = RagdollSkin.lift_limbs(ground, mi, sk, keep, stride, float(conform.get("limb_max_deg", 50.0)))
+		var res := RagdollSkin.rest(ground, mi, sk, creature.view, stride, deg_to_rad(float(conform.get("max_tilt_deg", 12.0))), int(conform.get("tilt_rounds", 2)), sk.find_bone(str(prof.get("hips", "Hips"))))
 		conform_m = float(res["shift"])
 		conform_tilt = float(res["tilt"])
 	else:
@@ -491,6 +501,17 @@ func _body_bones(sk: Skeleton3D, prof: Dictionary) -> Dictionary:
 		if b >= 0:
 			out[b] = true
 	return out
+
+## The profile's root body bone (no body above it) as a bone set: the trunk a death clip's limbs hang off.
+func _trunk_bone(sk: Skeleton3D, prof: Dictionary) -> Dictionary:
+	var all := _body_bones(sk, prof)
+	for b: int in all:
+		var p := sk.get_bone_parent(b)
+		while p >= 0 and not all.has(p):
+			p = sk.get_bone_parent(p)
+		if p < 0:
+			return {b: true}
+	return all
 
 func mesh_instance() -> MeshInstance3D:
 	if creature == null or creature.view.rig == null or creature.view.rig.mesh_root == null:

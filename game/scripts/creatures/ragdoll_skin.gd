@@ -288,32 +288,36 @@ static func _limb_chain(sk: Skeleton3D, bone: int, body_bones: Dictionary) -> in
 	return chain
 
 ## Rests the posed skin on the ground with the least change to the pose the simulation found: per
-## round, the smallest tilt about the sample's centroid (at most max_tilt rad) that takes the parts
+## round, the smallest tilt about the hips (at most max_tilt rad) that takes the parts
 ## the capsules let sink out of the ground without lifting the carcass (or, when no tilt can, the
 ## one that needs the least lift), then the vertical shift that puts the lowest point on the ground;
 ## the last round only shifts. Moves `view` (the creature's posed model).
 ## Returns {shift: m (+ = lifted), tilt: rad}.
-static func rest(ground: Ground, mi: MeshInstance3D, sk: Skeleton3D, view: Node3D, stride: int, max_tilt: float, rounds: int) -> Dictionary:
+static func rest(ground: Ground, mi: MeshInstance3D, sk: Skeleton3D, view: Node3D, stride: int, max_tilt: float, rounds: int, hips_bone: int = -1) -> Dictionary:
 	var shift := 0.0
 	var tilt := 0.0
 	for r in rounds + 1:
 		var pts := posed_points(mi, sk, stride, true)
-		var gaps := PackedFloat32Array()
-		var rel := PackedVector2Array()  # (x, z) from the centroid
+		# Pivot: the hips (the heavy pelvis stays put while a sunk head or tail tips up), else the
+		# centroid of the evenly strided vertices.
 		var c := Vector3.ZERO
-		var hits := PackedVector3Array()
+		if hips_bone >= 0:
+			c = sk.global_transform * sk.get_bone_global_pose(hips_bone).origin
+		else:
+			var even := posed_points(mi, sk, stride)
+			for p in even:
+				c += p
+			c /= maxf(1.0, float(even.size()))
+		var gaps := PackedFloat32Array()
+		var rel := PackedVector2Array()  # (x, z) from the pivot
 		for p in pts:
 			var g0 := ground.at(p)
 			if g0.is_empty():
 				continue
-			hits.append(p)
 			gaps.append(p.y - float(g0[0]))
-			c += p
-		if hits.is_empty():
-			break
-		c /= float(hits.size())
-		for p in hits:
 			rel.append(Vector2(p.x - c.x, p.z - c.z))
+		if gaps.is_empty():
+			break
 		var w := Vector2.ZERO  # rotation vector (x, z) components
 		if r < rounds and max_tilt > 0.0:
 			w = _least_tilt(gaps, rel, max_tilt)

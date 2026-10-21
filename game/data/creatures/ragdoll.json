@@ -12,6 +12,9 @@
     "species.<id>.reparent {bone: new_parent}: donor rigs hang IK feet off 'root'; move them under their limb first.",
     "species.<id>.rest_bones: unsimulated bones set to their rest pose at the hand-off (a jaw the death clip opened).",
     "species.<id>.fallback_roll_deg: the fallback (death clip) also rolls the body this far onto the flank away from the blow.",
+    "species.<id>.guards: overrides of the global guards for this species (e.g. a stronger flank spring).",
+    "conform: stride (+ per-bone hull vertices) of the skin sample, cell_frac (ground ray cell, of the length), max_tilt_deg / tilt_rounds of the rest solve, limb_max_deg.",
+    "physics.max_sim_mass_kg: heavier species simulate at this total mass (GodotPhysics' 6DOF limits only hold on light bodies).",
     "species.<id>.hit_react_s: seconds of the death clip before the ragdoll takes over (default timing.hit_react_s).",
     "species.<id>.hips: bone used for the corpse position and the lie-down gate. feet: bones the lab checks are not left in the air.",
     "Distances in metres at game scale (the creature is scaled to height_meters); points/axes in the GLB's skeleton space."

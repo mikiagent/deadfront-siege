@@ -34,6 +34,11 @@ const SPACING := 300.0  # metres between the arenas of one batch (they are freed
 const BATCH := 4
 const TOUCH_M := 0.06  # skin gap allowed above and below the ground
 const LIE_FRAC := 0.5  # hips at most this share of the standing hips height
+## ASSUMPTION: a body rounder than its legs are long cannot get its hips under 50 % on its flank
+## (zebraceratops: on its side the spine sits at its half-width, 0.3 m of a 0.6 m hip height), so
+## the lying limit is the larger of LIE_FRAC of the standing hips and LIE_WIDTH_K of the body's
+## half-width at the hips (idle skin); a crouch or a belly-down pose stays above both.
+const LIE_WIDTH_K := 1.15
 const FOOT_FRAC := 0.75  # no foot higher than this share of the standing hips height
 const LIMIT_TOL_DEG := 8.0  # hinges: knees, elbows, ankles, tail and neck hinges
 ## Cones (hips, shoulders, neck, tail): the engine's 6DOF clamps per axis in its own frame, this
@@ -259,6 +264,7 @@ func _run_cases() -> void:
 		for c in batch:
 			c["stand_hips"] = _stand_hips(c)
 			c["idle_skin"] = _skin_now(c)
+			c["half_width"] = _half_width(c)
 		for c in batch:
 			var cr: Creature = c["creature"]
 			cr.health.take_damage(cr.health.hp + 1.0, c["source"])
@@ -370,6 +376,52 @@ func _hips_world(c: Dictionary) -> Vector3:
 func _stand_hips(c: Dictionary) -> float:
 	return _hips_world(c).y - (c["creature"] as Creature).global_position.y
 
+## Half the trunk's width at the hips in the idle pose: skin within 5 % of the creature's length of
+## the hips whose dominant bone belongs to the profile's root body (legs excluded), across the creature.
+func _half_width(c: Dictionary) -> float:
+	var cr: Creature = c["creature"]
+	var sk := cr.view.rig.skeleton if cr.view.rig else null
+	var mi := Ragdoll._first_skinned(cr.view.rig.mesh_root) if cr.view.rig and cr.view.rig.mesh_root else null
+	if sk == null or mi == null:
+		return 0.0
+	var body_bones: Dictionary = {}
+	for d in Ragdoll.profile(cr.def.id).get("bodies", []):
+		body_bones[sk.find_bone(str((d as Dictionary).get("bone", "")))] = true
+	var smp := RagdollSkin.sample(mi, 1)
+	var bones: PackedInt32Array = smp["bones"]
+	var w: PackedFloat32Array = smp["weights"]
+	var inv := cr.global_transform.affine_inverse()
+	var hz := (inv * _hips_world(c)).z
+	var lo := INF
+	var hi := -INF
+	var idle: PackedVector3Array = c.get("idle_skin", PackedVector3Array())
+	for i in idle.size():
+		var l := inv * idle[i]
+		if absf(l.z - hz) >= 0.05 * cr.def.real_length_m:
+			continue
+		var top := 0
+		for k in 4:
+			if w[i * 4 + k] > w[i * 4 + top]:
+				top = k
+		var b := mi.skin.get_bind_bone(bones[i * 4 + top])
+		if b < 0:
+			b = sk.find_bone(mi.skin.get_bind_name(bones[i * 4 + top]))
+		while b >= 0 and not body_bones.has(b):
+			b = sk.get_bone_parent(b)
+		if b < 0 or sk.get_bone_parent(b) >= 0 and _has_body_above(sk, b, body_bones):
+			continue  # not the trunk (a leg's body, or no body at all)
+		lo = minf(lo, l.x)
+		hi = maxf(hi, l.x)
+	return (hi - lo) * 0.5 if hi > lo else 0.0
+
+func _has_body_above(sk: Skeleton3D, b: int, body_bones: Dictionary) -> bool:
+	var p := sk.get_bone_parent(b)
+	while p >= 0:
+		if body_bones.has(p):
+			return true
+		p = sk.get_bone_parent(p)
+	return false
+
 ## Lying hips height, measured along the ground normal (on a slope the vertical gap overstates it).
 func _hips_height(c: Dictionary) -> float:
 	return _above_ground(c, _hips_world(c))
@@ -435,9 +487,10 @@ func _measure(c: Dictionary) -> bool:
 			bad.append("%d vertices > 6 cm under ground" % int(cl["below"]))
 		var hips := _hips_height(c)
 		var stand := float(c.get("stand_hips", 1.0))
-		line += " hips=%.2f/%.2fm" % [hips, stand]
-		if hips > stand * LIE_FRAC:
-			bad.append("hips %.2f > %.0f %% of standing %.2f" % [hips, LIE_FRAC * 100.0, stand])
+		var lie_max := maxf(stand * LIE_FRAC, float(c.get("half_width", 0.0)) * LIE_WIDTH_K)
+		line += " hips=%.2f/%.2fm(max %.2f, half-width %.2f)" % [hips, stand, lie_max, float(c.get("half_width", 0.0))]
+		if hips > lie_max:
+			bad.append("hips %.2f > %.2f (%.0f %% of standing %.2f, %.2f x half-width %.2f)" % [hips, lie_max, LIE_FRAC * 100.0, stand, LIE_WIDTH_K, float(c.get("half_width", 0.0))])
 		var foot := _highest_foot(c, sk, cr)
 		line += " foot_max=%.2fm" % foot
 		if foot > stand * FOOT_FRAC:
@@ -759,6 +812,8 @@ func _run_phone() -> void:
 	_setup_case(c, Vector3.ZERO)
 	await _frames(30)
 	c["stand_hips"] = _stand_hips(c)
+	c["idle_skin"] = _skin_now(c)
+	c["half_width"] = _half_width(c)
 	(c["creature"] as Creature).health.take_damage(1e6, c["source"])
 	while not _all_frozen([c]):
 		await get_tree().physics_frame
