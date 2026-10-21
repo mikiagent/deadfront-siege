@@ -1,16 +1,19 @@
 extends Node3D
 ## W2-RAGDOLL gate. Every species is killed on a heightmap collider (the island's collider type) on
-## flat ground and 10/20/30-degree slopes, facing 4 headings, hit from its left flank and from the
-## front (the way players mostly hit), plus once against a rock. After the freeze the POSED SKIN is
-## measured (skinned vertices, not bone heads). Four cases run at once (the budget). Every case,
-## ragdoll or fallback, must lie on the ground; fallbacks are also capped in total (FALLBACK_MAX_FRAC).
+## flat ground and 10/20/30-degree slopes, facing 4 headings, hit from the front (the way players
+## mostly hit), from behind and from either flank, plus once against a rock. After the freeze the
+## POSED SKIN is measured (skinned vertices, not bone heads). Four cases run at once (the budget).
+## Every case, ragdoll or fallback, must lie on the ground; fallbacks are also capped in total
+## (FALLBACK_MAX_FRAC). --rl-abort makes every ragdoll abort on its first simulated frame, so every
+## case checks the fallback after an aborted hand-off.
 ## Headless prints one [ragdoll_lab] line per case and a final PASS/FAIL line (exit code 0/1).
 ## Run: Godot --headless --fixed-fps 60 --path game -- --lab=ragdoll_lab [--rl-species=a,b]
-##   [--rl-terrain=flat,slope10,slope20,slope30,rock]   terrains (rock: heading 0, side blow only)
-##   [--rl-headings=0,90,180,270] [--rl-blows=side,front]   subsets of the sweep
+##   [--rl-terrain=flat,slope10,slope20,slope30,rock]   terrains (rock: heading 0, left blow only)
+##   [--rl-headings=0,90,180,270] [--rl-blows=left,right,front,back]   subsets of the sweep
 ##   [--rl-set=guards/pose_k=20;species/deinonychus/bodies/7/radius=0.4]  try ragdoll.json values
 ##   [--rl-suggest]                   skin-based radius suggestions per profile body, no physics
-##   [--rl-fallback]                  budget 0: every case takes the fallback path (gates expect ragdoll)
+##   [--rl-fallback]                  budget 0: every case takes the fallback path (death clip + conform)
+##   [--rl-abort]                     every ragdoll aborts on its first frame (stretch-guard fallback)
 ##   [--rl-perf]                      4 simultaneous ragdolls on temperate_25: added physics ms
 ##   [--rl-shots=<dir>]               windowed: contact sheet per terrain + one PNG per case + a
 ##                                    settle sequence per case (hit react, falling, landing, frozen)
@@ -21,8 +24,9 @@ const SPECIES: Array[StringName] = [&"coelophysis", &"compsognathus", &"deinonyc
 	&"velociraptor", &"zebraceratops"]
 const TERRAINS: Array[String] = ["flat", "slope10", "slope20", "slope30", "rock"]
 const HEADINGS: Array[int] = [0, 90, 180, 270]  # creature yaw, degrees; the slopes fall toward +X
-## side: the blow comes from the creature's left flank; front: from in front of its head.
-const BLOWS: Array[String] = ["side", "front"]
+## Where the killing blow comes from, seen from the creature: its left or right flank, in front of
+## its head, or behind it.
+const BLOWS: Array[String] = ["left", "right", "front", "back"]
 ## Share of all cases allowed to take the fallback (aborted simulation); each one must still lie on
 ## the ground. ASSUMPTION: 3 %, the reviewer saw 12.5 % (10 of 80) before the hand-off depenetration.
 const FALLBACK_MAX_FRAC := 0.03
@@ -110,6 +114,9 @@ func _ready() -> void:
 				SEQ_T.append(float(t))
 		elif a == "--rl-fallback":
 			Ragdoll.data()["budget"]["max_active"] = 0  # every death takes the fallback (clip + conform)
+			_all_fallback = true
+		elif a == "--rl-abort":
+			Ragdoll.inject_fault = &"abort"
 			_all_fallback = true
 		elif a.begins_with("--rl-shots="):
 			_shots = a.substr(11)
@@ -239,7 +246,7 @@ func _run_cases() -> void:
 	for t in _terrains:
 		for s in _species:
 			for h in ([0] if t == "rock" else _headings):
-				for b in (["side"] if t == "rock" else _blows):
+				for b in (["left"] if t == "rock" else _blows):
 					cases.append({"species": s, "terrain": t, "heading": h, "blow": b})
 	var ok_count := 0
 	var fallbacks: Array[String] = []
@@ -296,16 +303,17 @@ func _run_cases() -> void:
 	_verdict("cases=%d ok=%d fallbacks=%d" % [cases.size(), ok_count, fallbacks.size()])
 
 func _tag(c: Dictionary) -> String:
-	return "%s/%s/h%d/%s" % [c["species"], c["terrain"], int(c.get("heading", 0)), c.get("blow", "side")]
+	return "%s/%s/h%d/%s" % [c["species"], c["terrain"], int(c.get("heading", 0)), c.get("blow", "left")]
 
 func _setup_case(c: Dictionary, at: Vector3) -> void:
 	var def: CreatureDef = Data.creature(c["species"])
 	var length := maxf(2.0, def.real_length_m)
 	var size := maxf(30.0, length * 3.0)
-	# Heading 0 faces -Z, so its right is +X. side: the source stands on the creature's left and the
+	# Heading 0 faces -Z, so its right is +X. left: the source stands on the creature's left and the
 	# blow pushes it to its right; front: the source stands ahead of it (forward = -Z) and pushes it back.
 	var yaw := deg_to_rad(float(c.get("heading", 0)))
-	var push := (Vector3.RIGHT if c.get("blow", "side") == "side" else Vector3.BACK).rotated(Vector3.UP, yaw)
+	var pushes := {"left": Vector3.RIGHT, "right": Vector3.LEFT, "front": Vector3.BACK, "back": Vector3.FORWARD}
+	var push := (pushes.get(c.get("blow", "left"), Vector3.RIGHT) as Vector3).rotated(Vector3.UP, yaw)
 	# A low rock (15 % of the creature's height) where the blow lays its head and neck down, so the
 	# front of the body comes to rest across it.
 	var rock_size := Vector3(maxf(0.5, def.height_meters * 0.45), maxf(0.15, def.height_meters * 0.15), maxf(0.6, length * 0.2))
@@ -318,7 +326,7 @@ func _setup_case(c: Dictionary, at: Vector3) -> void:
 	host.add_child(src)
 	src.global_position = at - push * 3.0
 	var tag := Label3D.new()
-	tag.text = "%s · %s · %d° · %s" % [c["species"], c["terrain"], int(c.get("heading", 0)), c.get("blow", "side")]
+	tag.text = "%s · %s · %d° · %s" % [c["species"], c["terrain"], int(c.get("heading", 0)), c.get("blow", "left")]
 	tag.font_size = 48
 	tag.pixel_size = maxf(0.004, def.height_meters * 0.0035)
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED

@@ -34,6 +34,8 @@ var capped: bool = false
 var conform_us: int = 0
 ## Vertical shift the ground conform applied to the posed body (+ = lifted out of the ground).
 var conform_m: float = 0.0
+## Tilt (radians) the ground conform gave the posed body to rest its skin on its supports.
+var conform_tilt: float = 0.0
 ## Limbs turned back out of the ground at the freeze (RagdollSkin.lift_limbs).
 var limb_turns: int = 0
 ## The first body still moving on the last simulated frame (why a capped settle was capped).
@@ -52,6 +54,7 @@ var _exclude: Array[RID] = []
 var _root_body: int = -1
 var _creature_in_root: Basis = Basis.IDENTITY  ## the creature's axes in the root body's frame at hand-off
 var _side: Vector3 = Vector3.RIGHT  ## the flank it is rolled onto
+var _w0: float = 3.0  ## sqrt(g / hips height): how fast this creature topples (rad/s)
 ## Where the carcass should end: lying on _side, its up axis in the ground plane. On a steep slope
 ## (_align) also with its length along the fall line, the only way a body on its flank stays put
 ## there (across the slope it rolls onto its back or props itself up on its legs).
@@ -219,7 +222,8 @@ func _push() -> void:
 	var hips_h := 1.0
 	if _root_body >= 0:
 		hips_h = maxf(0.2, rig.bodies[_root_body].global_position.y - pivot.y)
-	var omega := Vector3.UP.cross(_side).normalized() * float(imp.get("topple_k", 0.6)) * sqrt(9.8 / hips_h)
+	_w0 = minf(sqrt(9.8 / hips_h), float(data().get("guards", {}).get("pose_w0_max", 3.0)))  # small ones turn no faster than a raptor
+	var omega := Vector3.UP.cross(_side).normalized() * float(imp.get("topple_k", 0.6)) * _w0
 	var shove := _dir * dv + Vector3.UP * dv * float(imp.get("up_frac", 0.1))
 	for pb in rig.bodies:
 		pb.linear_velocity = omega.cross(pb.global_position - pivot) + shove
@@ -287,10 +291,12 @@ func _plan_pose() -> void:
 		fwd = (fwd - up * fwd.dot(up)).normalized()
 	_target = Basis(up.cross(-fwd), up, -fwd)
 
-## Steers the carcass to _target with a damped spring on the root body (pose_k on the angle,
-## pose_c on the spin, scaled by the carcass' inertia about the turn axis), so it never ends sitting
-## on folded legs or rolled onto its back, while the limbs and tail flop freely. On flat ground only
-## the up axis is steered. Once there, every body gets heavy damping: dead weight stops rolling.
+## Steers the carcass to _target with a damped spring on the root body (pose_k * w0^2 on the angle,
+## pose_c * w0 on the spin, scaled by the carcass' inertia about the turn axis), so it never ends
+## sitting on folded legs or rolled onto its back, while the limbs and tail flop freely. w0 is how
+## fast the creature topples, so a T. rex turns as slowly as it falls and its tail tip stays under
+## the speed guard. On flat ground only the up axis is steered. Once there, every body gets heavy
+## damping: dead weight stops rolling.
 func _pose_guard(delta: float) -> void:
 	if _root_body < 0:
 		return
@@ -312,7 +318,7 @@ func _pose_guard(delta: float) -> void:
 	if axis.length_squared() < 1e-8:
 		return
 	axis = axis.normalized()
-	var accel := float(g.get("pose_k", 16.0)) * angle - float(g.get("pose_c", 8.0)) * rb.angular_velocity.dot(axis)
+	var accel := float(g.get("pose_k", 4.4)) * _w0 * _w0 * angle - float(g.get("pose_c", 4.2)) * _w0 * rb.angular_velocity.dot(axis)
 	PhysicsServer3D.body_apply_torque_impulse(rb.get_rid(), axis * accel * _inertia_about(axis, rb.global_position) * delta)
 	if not _resting and sim_time > float(g.get("rest_after_s", 0.3)) and angle < float(g.get("rest_angle", 0.45)):
 		_resting = true
@@ -381,10 +387,17 @@ func _fall_back(why: String) -> void:
 	_fallback_left = maxf(0.0, clip_s - since_death) + 0.05
 	_fallback_total = _fallback_left
 	# The clip lies down on flat ground: on a slope lean the body onto the terrain while it falls.
+	# A clip that ends crouched or on its belly (fallback_roll_deg) also rolls onto the flank away
+	# from the blow, so no fallback ends upright.
 	_tilt_from = creature.view.transform
 	var n := RagdollSkin.ground_normal(creature.get_world_3d().direct_space_state, creature.global_position, _exclude)
 	var up := creature.global_basis.y.normalized()
 	_tilt = (creature.global_basis.inverse() * Basis(Quaternion(up, n)) * creature.global_basis).get_rotation_quaternion() if up.dot(n) < 0.9999 else Quaternion.IDENTITY
+	var roll := deg_to_rad(float(profile(creature.def.id if creature.def else &"").get("fallback_roll_deg", 0.0)))
+	if roll > 0.0:
+		var away := (creature.global_basis.inverse() * _dir).x  # the blow's push along the creature's right
+		# A roll about the forward axis (-Z) by +angle turns up toward +X (its right).
+		_tilt = _tilt * Quaternion(Vector3.FORWARD, roll * (signf(away) if absf(away) > 0.2 else 1.0))
 	print("[ragdoll] %s fallback: %s" % [creature.def.id if creature.def else &"?", why])
 
 func _freeze() -> void:
@@ -417,42 +430,49 @@ func _finish() -> void:
 			(m as SkeletonModifier3D).active = false
 	_refresh_exclude()  # the ground rays must not measure off a corpse or creature that came later
 	var space := creature.get_world_3d().direct_space_state
-	var hips_w := creature.global_position
 	var prof := profile(creature.def.id if creature.def else &"")
-	if sk:
-		var hb := sk.find_bone(str(prof.get("hips", "Hips")))
-		if hb >= 0:
-			hips_w = sk.global_transform * sk.get_bone_global_pose(hb).origin
-	var ground := Vector3(hips_w.x, RagdollSkin.ground_y(space, hips_w, _exclude, creature.global_position.y), hips_w.z)
-	var view_xf := creature.view.global_transform
-	if corpse and is_instance_valid(corpse) and corpse.server_placed:
-		view_xf.origin += corpse.global_position - ground  # the server's resting place wins; the pose moves there
-		ground = corpse.global_position
-	creature.global_position = ground
-	creature.view.global_transform = view_xf
+	var server := corpse != null and is_instance_valid(corpse) and corpse.server_placed
+	if server:
+		var g0 := _hips_world(sk, prof)
+		g0.y = RagdollSkin.ground_y(space, g0, _exclude, creature.global_position.y)
+		creature.view.global_position += corpse.global_position - g0  # the server's resting place wins; the pose moves there
 	var conform: Dictionary = data().get("conform", {})
 	var t0 := Time.get_ticks_usec()
 	var mi := mesh_instance()
+	var height := creature.def.height_meters if creature.def else 2.0
 	if sk and mi and mi.skin:
-		limb_turns = RagdollSkin.lift_limbs(space, mi, sk, _body_bones(sk, prof), _exclude, int(conform.get("stride", 97)), float(conform.get("limb_max_deg", 50.0)))
-	var gap := _visual_gap(space, sk, int(conform.get("stride", 97)))
+		var stride := int(conform.get("stride", 61))
+		var length := creature.def.real_length_m if creature.def else 2.0
+		var ground := RagdollSkin.Ground.new(space, _exclude, length * float(conform.get("cell_frac", 0.025)), maxf(2.0, height))
+		limb_turns = RagdollSkin.lift_limbs(ground, mi, sk, _body_bones(sk, prof), stride, float(conform.get("limb_max_deg", 50.0)))
+		var res := RagdollSkin.rest(ground, mi, sk, creature.view, stride, deg_to_rad(float(conform.get("max_tilt_deg", 12.0))), int(conform.get("tilt_rounds", 2)))
+		conform_m = float(res["shift"])
+		conform_tilt = float(res["tilt"])
+	else:
+		conform_m = -_box_gap(space)
+		creature.view.global_position.y += conform_m
 	conform_us = Time.get_ticks_usec() - t0
-	var limit := maxf(float(conform.get("max_shift_m", 0.3)), float(conform.get("max_shift_frac", 0.1)) * (creature.def.height_meters if creature.def else 1.0))
-	conform_m = -clampf(gap, -limit, limit)
-	creature.view.global_position.y += conform_m
+	# The creature root (and the corpse) go on the ground under the hips; the posed body stays put.
+	var hips_w := _hips_world(sk, prof)
+	var ground := Vector3(hips_w.x, RagdollSkin.ground_y(space, hips_w, _exclude, creature.global_position.y), hips_w.z)
+	if server:
+		ground = corpse.global_position
+	var view_xf := creature.view.global_transform
+	creature.global_position = ground
+	creature.view.global_transform = view_xf
 	creature.reset_physics_interpolation()
 	if corpse and is_instance_valid(corpse):
 		corpse.place_settled(ground)
-	print("[ragdoll] %s %s settled in %.2f s%s (peak %.1f m/s, %d limbs lifted, conform %+.3f m in %.1f ms)" % [
-		creature.def.id if creature.def else &"?", mode, settle_time, " capped" if capped else "", peak_speed, limb_turns, -gap, conform_us / 1000.0])
+	print("[ragdoll] %s %s settled in %.2f s%s (peak %.1f m/s, %d limbs lifted, conform %+.3f m tilt %.1f deg in %.1f ms)" % [
+		creature.def.id if creature.def else &"?", mode, settle_time, " capped" if capped else "", peak_speed, limb_turns, conform_m, rad_to_deg(conform_tilt), conform_us / 1000.0])
 	settled.emit(mode)
 
-## Gap from the lowest posed skin vertex to the ground under it (placeholder meshes: AABB bottom).
-func _visual_gap(space: PhysicsDirectSpaceState3D, sk: Skeleton3D, stride: int) -> float:
-	var mi := mesh_instance()
-	if sk and mi and mi.skin:
-		var c := RagdollSkin.clearance(space, RagdollSkin.posed_points(mi, sk, stride), _exclude)
-		return float(c["min"]) if int(c["hits"]) > 0 else 0.0
+func _hips_world(sk: Skeleton3D, prof: Dictionary) -> Vector3:
+	var hb := sk.find_bone(str(prof.get("hips", "Hips"))) if sk else -1
+	return sk.global_transform * sk.get_bone_global_pose(hb).origin if hb >= 0 else creature.global_position
+
+## Placeholder meshes (no skin): gap from the lowest mesh AABB corner to the ground under the root.
+func _box_gap(space: PhysicsDirectSpaceState3D) -> float:
 	var bottom := INF
 	for n in creature.view.find_children("*", "MeshInstance3D", true, false):
 		var m := n as MeshInstance3D

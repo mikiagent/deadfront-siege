@@ -52,6 +52,11 @@ static func build(sk: Skeleton3D, prof: Dictionary, defaults: Dictionary) -> Rag
 	r.skeleton = sk
 	r.scale = s3.x
 	r._reparent(prof.get("reparent", {}))
+	# Unsimulated end bones the death clip poses badly for a carcass (a jaw caught mid-roar) go to rest.
+	for bn in prof.get("rest_bones", []):
+		var rb := sk.find_bone(str(bn))
+		if rb >= 0:
+			sk.set_bone_pose_rotation(rb, sk.get_bone_rest(rb).basis.get_rotation_quaternion())
 	# Bones keep their rest offsets from their parent (an IK foot the clip planted elsewhere snaps to
 	# its ankle), so every joint starts closed and the frozen pose keeps every bone's rest length.
 	for i in sk.get_bone_count():
@@ -66,7 +71,10 @@ static func build(sk: Skeleton3D, prof: Dictionary, defaults: Dictionary) -> Rag
 	var order := defs.duplicate()
 	order.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return r._depth(sk.find_bone(str(a["bone"]))) < r._depth(sk.find_bone(str(b["bone"]))))
-	var total_mass := float(prof.get("mass_kg", defaults.get("mass_kg", 100.0)))
+	# GodotPhysics' 6DOF limit motor caps its torque (Bullet's maxLimitForce), so cone limits only hold
+	# on light bodies; the carcass falls the same under gravity whatever it weighs, so heavy species
+	# simulate at max_sim_mass_kg (mass ratios kept).
+	var total_mass := minf(float(prof.get("mass_kg", defaults.get("mass_kg", 100.0))), float(defaults.get("max_sim_mass_kg", 60.0)))
 	var vols: Array[float] = []
 	var explicit := 0.0
 	for d in order:
@@ -208,6 +216,9 @@ func _add_body(d: Dictionary, mass: float, defaults: Dictionary) -> void:
 			var xb := (Vector3.UP - a_body * Vector3.UP.dot(a_body))
 			xb = xb.normalized() if xb.length_squared() > 1e-6 else Vector3.RIGHT
 			jb = Basis(xb, a_body.cross(xb), a_body)
+			# Same hinge line, anchored where it passes the capsule: a capsule offset along the axis
+			# (T. rex legs sit 2 m beside their bones) otherwise hangs the joint off a long lever.
+			head_body -= a_body * head_body.dot(a_body)
 		else:
 			# 6DOF frame: X = the bone line (twist), Z = the bend axis (`axis` made square to it), Y = side.
 			var zb := (a_body - Vector3.UP * a_body.dot(Vector3.UP))

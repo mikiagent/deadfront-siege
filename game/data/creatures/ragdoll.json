@@ -10,6 +10,8 @@
     "         hinge {axis [x,y,z] in rest skeleton space, min, max} deg: right-hand rotation of the child about axis, from REST.",
     "         pin {} ball joint without limits. The root body (no ancestor body) has no joint.",
     "species.<id>.reparent {bone: new_parent}: donor rigs hang IK feet off 'root'; move them under their limb first.",
+    "species.<id>.rest_bones: unsimulated bones set to their rest pose at the hand-off (a jaw the death clip opened).",
+    "species.<id>.fallback_roll_deg: the fallback (death clip) also rolls the body this far onto the flank away from the blow.",
     "species.<id>.hit_react_s: seconds of the death clip before the ragdoll takes over (default timing.hit_react_s).",
     "species.<id>.hips: bone used for the corpse position and the lie-down gate. feet: bones the lab checks are not left in the air.",
     "Distances in metres at game scale (the creature is scaled to height_meters); points/axes in the GLB's skeleton space."
@@ -17,9 +19,9 @@
   "budget": {"max_active": 4},
   "timing": {"hit_react_s": 0.3, "settle_cap_s": 3.0, "quiet_s": 0.35, "quiet_mps": 0.2, "quiet_rps": 0.8},
   "impulse": {"mps_per_damage": 0.04, "min_mps": 0.5, "max_mps": 3.0, "up_frac": 0.1, "topple_k": 0.6, "default_damage": 25.0},
-  "guards": {"max_body_mps": 30.0, "max_stretch_frac": 0.35, "pose_k": 36.0, "pose_c": 12.0, "align_slope_deg": 15.0, "rest_after_s": 0.3, "rest_angle": 0.45, "rest_angular_damp": 20.0, "rest_linear_damp": 3.0, "lift_margin_m": 0.01},
-  "conform": {"stride": 23, "max_shift_m": 0.3, "max_shift_frac": 0.1, "limb_max_deg": 50.0},
-  "physics": {"mass_kg": 100.0, "max_mass_ratio": 6.0, "friction": 0.9, "bounce": 0.0, "linear_damp": 0.4, "angular_damp": 2.0, "gravity_scale": 1.0, "collision_mask": 1, "joint": {"bias": 0.3, "hinge_softness": 0.9, "relaxation": 1.0, "softness": 0.5, "erp": 0.7, "damping": 1.0}},
+  "guards": {"max_body_mps": 30.0, "max_stretch_frac": 0.35, "pose_k": 4.4, "pose_c": 4.2, "pose_w0_max": 3.0, "align_slope_deg": 15.0, "rest_after_s": 0.3, "rest_angle": 0.45, "rest_angular_damp": 20.0, "rest_linear_damp": 3.0, "lift_margin_m": 0.01},
+  "conform": {"stride": 61, "cell_frac": 0.025, "max_tilt_deg": 12.0, "tilt_rounds": 2, "limb_max_deg": 50.0},
+  "physics": {"mass_kg": 100.0, "max_sim_mass_kg": 60.0, "max_mass_ratio": 6.0, "friction": 0.9, "bounce": 0.0, "linear_damp": 0.4, "angular_damp": 2.0, "gravity_scale": 1.0, "collision_mask": 1, "joint": {"bias": 0.3, "hinge_softness": 0.9, "relaxation": 1.0, "softness": 0.5, "erp": 0.7, "damping": 1.0}},
   "species": {
     "velociraptor": {
       "hips": "Hips",
@@ -224,18 +226,18 @@
       "feet": ["Toe.L", "Toe.R", "Metatarsal.L", "Metatarsal.R"],
       "mass_kg": 6000.0,
       "hit_react_s": 0.3,
+      "rest_bones": ["Jaw"],
       "bodies": [
-        {"bone": "Hips", "from": "Hips", "to": "Chest", "radius": 1.093, "offset": [0.0, -0.289, 0.0], "mass_frac": 0.34, "angular_damp": 3.0},
-        {"bone": "Neck1", "to": "Head", "radius": 1.012, "offset": [0.0, 0.0, 0.0], "angular_damp": 4.0, "joint": {"type": "cone", "swing": 37.7, "twist": 12.7, "axis": [1, 0, 0], "side": 25}},
-        {"bone": "Head", "dir": [0.0, 0.1, -1.0], "length": 2.0, "radius": 1.049, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 15, "twist": 8, "axis": [1, 0, 0], "side": 15}},
-        {"bone": "Tail2", "to": "Tail4", "radius": 0.953, "angular_damp": 6.0, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -25, "max": 25}},
-        {"bone": "Tail4", "to": "Tail7", "extend": 1.5, "radius": 1.002, "angular_damp": 6.0, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -25, "max": 25}},
-        {"bone": "Thigh.L", "to": "Shin.L", "radius": 0.9, "offset": [2.0, 0.0, 0.0], "joint": {"type": "pin"}},
-        {"bone": "Thigh.R", "to": "Shin.R", "radius": 0.9, "offset": [-2.0, 0.0, 0.0], "joint": {"type": "pin"}},
-        {"bone": "Shin.L", "to": "Metatarsal.L", "radius": 0.5, "offset": [2.0, 0.0, 0.0], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -60, "max": 18.8}},
-        {"bone": "Shin.R", "to": "Metatarsal.R", "radius": 0.5, "offset": [-2.0, 0.0, 0.0], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -60, "max": 18.8}},
-        {"bone": "Metatarsal.L", "to": "Toe.L", "radius": 0.6, "offset": [2.0, 0.0, 0.0], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -40, "max": 30}},
-        {"bone": "Metatarsal.R", "to": "Toe.R", "radius": 0.6, "offset": [-2.0, 0.0, 0.0], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -40, "max": 30}}
+        {"bone": "Hips", "from": "Hips", "to": "Chest", "extend": 2.0, "radius": 1.5, "offset": [0.0, -0.9, -0.5], "mass_frac": 0.34, "angular_damp": 3.0},
+        {"bone": "Neck1", "dir": [0.0, 0.088, -0.996], "length": 3.6, "radius": 1.05, "angular_damp": 8.0, "joint": {"type": "pin"}},
+        {"bone": "Tail2", "to": "Tail4", "radius": 0.85, "angular_damp": 6.0, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -25, "max": 25}},
+        {"bone": "Tail4", "to": "Tail7", "extend": 1.5, "radius": 0.8, "angular_damp": 6.0, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -25, "max": 25}},
+        {"bone": "Thigh.L", "to": "Shin.L", "radius": 1.0, "offset": [2.26, 0.2, -0.3], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -50, "max": 50}},
+        {"bone": "Thigh.R", "to": "Shin.R", "radius": 1.0, "offset": [-2.27, 0.18, -0.21], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -50, "max": 50}},
+        {"bone": "Shin.L", "to": "Metatarsal.L", "radius": 0.45, "offset": [2.33, 0.0, 0.0], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -60, "max": 18.8}},
+        {"bone": "Shin.R", "to": "Metatarsal.R", "radius": 0.45, "offset": [-2.4, 0.0, 0.0], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -60, "max": 18.8}},
+        {"bone": "Metatarsal.L", "dir": [-0.087, -0.35, -0.93], "length": 2.0, "radius": 0.6, "offset": [2.4, 0.0, 0.0], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -40, "max": 30}},
+        {"bone": "Metatarsal.R", "dir": [0.087, -0.35, -0.93], "length": 2.0, "radius": 0.6, "offset": [-2.4, 0.0, 0.0], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -40, "max": 30}}
       ]
     },
     "stegosaurus": {
