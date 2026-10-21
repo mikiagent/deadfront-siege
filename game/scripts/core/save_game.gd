@@ -94,6 +94,9 @@ static func save_now() -> bool:
 		skills[str(id)] = bool(Data.survival_unlocked[id])
 	var payload := {
 		"schema": SCHEMA,
+		# Fog of war + walked trail per island (spec 25). Backward compatible: builds before this
+		# field load it as absent and World starts with the camp area revealed.
+		"map": World.map_map(),
 		"player": {
 			"vitals": player.vitals.to_dict(),
 			"statuses": player.statuses.to_array(),
@@ -240,6 +243,8 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World.home_claims = data.get("home", {}).get("claims", [])
 	var cl: Variant = data.get("home", {}).get("camp_layout", {})
 	World.camp_layout = (cl as Dictionary).duplicate() if cl is Dictionary else {}
+	var map_row: Variant = data.get("map", {})
+	World.load_map_map(map_row as Dictionary if map_row is Dictionary else {})
 	World.player_name = str(data.get("player_name", ""))
 	World.occupation = str(data.get("occupation", ""))
 	Game.time_of_day = float(data.get("clock", 0.35))

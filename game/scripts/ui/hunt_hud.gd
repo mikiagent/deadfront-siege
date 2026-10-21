@@ -1415,15 +1415,31 @@ func _draw_minimap() -> void:
 		c.draw_texture_rect_region(_map_tex, Rect2(Vector2(-span_px * 0.5, -span_px * 0.5), Vector2(span_px, span_px)), Rect2(u0, v0, half * 2.0, half * 2.0))
 		var to_px := func (w: Vector3) -> Vector2:
 			return Vector2((w.x - pp.x) / MAP_SCALE, (w.z - pp.z) / MAP_SCALE)
+		# Fog of war: the same per-island bitmap the atlas draws, camera-up like the terrain. The
+		# survivor is at the centre, so the brush is always the middle of the disc.
+		var fog := World.map_fog
+		var fog_tex: ImageTexture = fog.texture() if fog else null
+		if fog_tex:
+			# The fog image is one pixel per fog cell, not per terrain tile.
+			var cell_m := size_m / float(maxi(1, fog.span))
+			var f0 := Vector2((pp.x - half + size_m * 0.5) / cell_m, (pp.z - half + size_m * 0.5) / cell_m)
+			c.draw_texture_rect_region(fog_tex, Rect2(Vector2(-span_px * 0.5, -span_px * 0.5), Vector2(span_px, span_px)), Rect2(f0, Vector2(half * 2.0 / cell_m, half * 2.0 / cell_m)))
+		var trail_pts: Array = []
+		if fog:
+			for tp in fog.trail:
+				var q := Vector2((tp.x - pp.x) / MAP_SCALE, (tp.y - pp.z) / MAP_SCALE)
+				if q.length() <= MAP_PX * 0.5:
+					trail_pts.append(q)
+			MapIcons.trail(c, trail_pts, 1.6)
 		var marker_r := MAP_PX * 0.5 - 5.0
 		var camp: Vector3 = rt.get("_camp_pos")
 		var harb: Vector3 = rt.get("_harbour_pos")
 		var camp_q: Vector2 = to_px.call(camp)
 		var harb_q: Vector2 = to_px.call(harb)
 		if camp_q.length() <= marker_r:
-			c.draw_circle(camp_q, 4.0, Color(1.0, 0.85, 0.3))
+			MapIcons.flame(c, camp_q, 3.4, Color(1.0, 0.90, 0.55), Color(0.02, 0.03, 0.05, 0.9))
 		if harb_q.length() <= marker_r:
-			c.draw_circle(harb_q, 4.0, Color(0.7, 0.85, 1.0))
+			MapIcons.anchor(c, harb_q, 3.6, Color(0.70, 0.85, 1.0), Color(0.02, 0.03, 0.05, 0.9))
 		if World.crater_discovered:
 			var cr: Vector3 = rt.get("_crater_pos")
 			var crater_q: Vector2 = to_px.call(cr)
