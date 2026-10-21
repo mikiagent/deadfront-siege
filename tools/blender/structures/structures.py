@@ -1462,6 +1462,171 @@ def expert_workbench():
     return [(p, (0, 0, 0))]
 
 
+def _dome(p, r, h, z0, tile="clay", seg=14, rings=4, cx=0.0, cy=0.0):
+    """A dome built from stacked frustums: the kiln and oven shells."""
+    for i in range(rings):
+        t0, t1 = i / rings, (i + 1) / rings
+        r0 = max(r * math.cos(t0 * math.pi / 2), 0.03)
+        r1 = max(r * math.cos(t1 * math.pi / 2), 0.03)
+        za, zb = z0 + h * t0, z0 + h * t1
+        p.cyl(r0, zb - za, (cx, cy, (za + zb) / 2), tile, seg=seg, r2=r1, cap_tile=tile)
+
+
+def kiln():
+    """Clay dome kiln: a firebox with an arched mouth under a domed shell, chimney on top (2x2,
+    about 1.6 m tall)."""
+    p = Part("kiln")
+    # plinth
+    p.box((1.7, 1.6, 0.1), (0, 0.05, 0.05), "cobble", tile_m=0.9)
+    # firebox: two side walls, a back wall and a soot-lined mouth at the front
+    for sx in (-1, 1):
+        p.box((0.3, 1.0, 0.5), (sx * 0.5, -0.1, 0.35), "clay", tile_m=0.7)
+    p.box((1.3, 0.22, 0.5), (0, 0.32, 0.35), "clay", tile_m=0.7)
+    p.box((0.72, 0.06, 0.42), (0, -0.52, 0.31), "soot", tile_m=0.5)  # dark inside the mouth
+    p.box((0.8, 0.9, 0.04), (0, -0.1, 0.12), "ash", tile_m=0.6)
+    p.cyl(0.22, 0.03, (0, -0.12, 0.14), "ember", seg=10, cap_tile="ember")
+    for i, (lx, ly) in enumerate(((-0.2, -0.2), (0.18, -0.28), (0.0, 0.08))):
+        p.log((lx - 0.12, ly, 0.17), (lx + 0.12, ly + 0.05, 0.19), 0.035, tile="char", seg=5, end_tile="ember")
+    # the clay dome shell over the firebox
+    _dome(p, 0.72, 0.72, 0.56, tile="clay", seg=14, rings=4, cy=0.06)
+    p.cyl(0.74, 0.06, (0, 0.06, 0.58), "clay_dark", seg=14, cap_tile="clay")
+    # a collar and the chimney
+    p.cyl(0.19, 0.1, (0, 0.06, 1.29), "clay_dark", seg=10, cap_tile="clay_dark")
+    p.cyl(0.16, 0.34, (0, 0.06, 1.48), "clay", seg=10, cap_tile="soot")
+    # the mouth's clay arch, made of two leaning slabs and a lintel
+    for sx in (-1, 1):
+        p.box((0.16, 0.14, 0.5), (sx * 0.36, -0.56, 0.36), "clay_dark", rot=(0, sx * 10, 0), tile_m=0.4)
+    p.box((0.9, 0.16, 0.14), (0, -0.56, 0.66), "clay_dark", tile_m=0.5)
+    # firewood stacked at the side and a clay pot waiting to be fired
+    for i in range(3):
+        p.log((-0.98, 0.08 + i * 0.17, 0.07 + i * 0.09), (-0.98, 0.22 + i * 0.17, 0.07 + i * 0.09), 0.05,
+              tile="bark", seg=6)
+    for i in range(2):
+        p.log((-0.86, 0.12 + i * 0.18, 0.06), (-0.86, 0.26 + i * 0.18, 0.06), 0.05, tile="bark", seg=6)
+    p.cyl(0.11, 0.18, (0.95, -0.35, 0.19), "clay", seg=10, r2=0.13, cap_tile="clay_dark")
+    p.cyl(0.125, 0.03, (0.95, -0.35, 0.29), "clay_dark", seg=10)
+    return [(p, (0, 0, 0))]
+
+
+def _loom_frame(p, half_w, height, warp_n, cloth_w, cloth_d, bench=False):
+    """Shared frame for the looms: two posts, a warp beam, a heddle bar, a top beam, warp threads
+    and a partly woven cloth."""
+    for sx in (-1, 1):
+        p.box((0.09, 0.09, height), (sx * half_w, 0, height / 2), "wood", tile_m=0.7)
+        p.box((0.14, 0.5, 0.08), (sx * half_w, 0, 0.04), "wood_dark", tile_m=0.5)
+        p.log((sx * half_w, 0, height - 0.2), (sx * (half_w - 0.32), 0, height - 0.5), 0.035, tile="wood_dark",
+              seg=5)
+    # beams along X
+    p.log((-half_w, 0, height - 0.08), (half_w, 0, height - 0.08), 0.05, tile="wood_dark")
+    p.log((-half_w, 0, height * 0.66), (half_w, 0, height * 0.66), 0.035, tile="wood", seg=6)
+    p.log((-half_w, 0, 0.28), (half_w, 0, 0.28), 0.05, tile="wood_dark")  # warp beam
+    # warp threads: vertical strands from the warp beam up to the heddle bar
+    z0, z1 = 0.3, height * 0.66
+    for i in range(warp_n):
+        x = -cloth_w / 2 + (i + 0.5) * cloth_w / warp_n
+        p.box((0.012, cloth_d, z1 - z0), (x, 0, (z0 + z1) / 2), "fiber", tile_m=0.6)
+    # the woven part hanging below the heddle bar
+    p.box((cloth_w, cloth_d * 0.92, 0.03), (0, 0, z1 - 0.02), "canvas", tile_m=0.8)
+    p.box((cloth_w * 0.98, cloth_d * 0.9, height * 0.66 - 0.42), (0, 0, (0.42 + z1 - 0.04) / 2), "canvas",
+          tile_m=1.2)
+    # the shuttle lying on the cloth and a peg row
+    p.box((0.16, 0.05, 0.035), (cloth_w * 0.2, 0, z1 - 0.06), "wood", rot=(0, 0, 12), tile_m=0.3)
+    for i in range(3):
+        p.cyl(0.014, 0.12, (-cloth_w * 0.3 + i * 0.1, cloth_d * 0.5, z1 - 0.02), "wood", rot=(90, 0, 0), seg=5)
+    if bench:
+        # a bench in front of the loom for the weaver
+        p.box((cloth_w * 0.8, 0.34, 0.05), (0, -cloth_d * 0.9 - 0.24, 0.46), "plank", tile_m=1.0)
+        for sx in (-1, 1):
+            p.log((sx * cloth_w * 0.32, -cloth_d * 0.9 - 0.24, 0), (sx * cloth_w * 0.32, -cloth_d * 0.9 - 0.24, 0.44),
+                  0.04, tile="wood_dark", seg=6)
+        p.log((-cloth_w * 0.36, -cloth_d * 0.9 - 0.24, 0.2), (cloth_w * 0.36, -cloth_d * 0.9 - 0.24, 0.2), 0.03,
+              tile="wood", seg=5)
+
+
+def loom():
+    """Upright frame loom with warp threads and a partly woven cloth (2x1, about 1.6 m tall)."""
+    p = Part("loom")
+    _loom_frame(p, 0.5, 1.55, 14, 0.86, 0.34, bench=False)
+    # a bundle of yarn waiting at the side and a pair of weights
+    p.cyl(0.11, 0.22, (-0.78, 0.12, 0.11), "weave", seg=9, r2=0.12, cap_tile="fiber")
+    p.cyl(0.06, 0.1, (0.76, 0.06, 0.05), "fiber", seg=8, cap_tile="fiber")
+    return [(p, (0, 0, 0))]
+
+
+def large_loom():
+    """The wider loom: a 2 m frame with more warp threads, a finished cloth roll and a bench (3x2,
+    about 1.6 m tall)."""
+    p = Part("large_loom")
+    _loom_frame(p, 0.92, 1.6, 22, 1.6, 0.42, bench=True)
+    # the finished cloth rolled on the warp beam
+    p.cyl(0.11, 1.5, (0, 0, 0.4), "canvas", rot=(0, 90, 0), seg=10, cap_tile="canvas")
+    p.cyl(0.03, 1.6, (0, 0, 0.4), "wood", rot=(0, 90, 0), seg=6)
+    # yarn baskets on both sides
+    p.cyl(0.13, 0.2, (-1.15, 0.1, 0.1), "weave", seg=9, r2=0.14, cap_tile="fiber")
+    p.cyl(0.11, 0.18, (1.12, -0.05, 0.09), "weave", seg=9, r2=0.12, cap_tile="fiber")
+    return [(p, (0, 0, 0))]
+
+
+def oven():
+    """Stone bread oven: a stone base with an arched mouth, a stone dome and a flue (2x2, 1.4 m)."""
+    p = Part("oven")
+    # hearth base with a mouth at the front
+    p.box((1.3, 1.2, 0.1), (0, 0.05, 0.05), "cobble", tile_m=0.8)
+    for sx in (-1, 1):
+        p.box((0.26, 1.05, 0.46), (sx * 0.5, 0.02, 0.33), "stone", tile_m=0.7)
+    p.box((1.2, 0.2, 0.46), (0, 0.45, 0.33), "stone", tile_m=0.7)
+    p.box((0.66, 0.06, 0.34), (0, -0.5, 0.27), "soot", tile_m=0.5)
+    p.box((0.74, 0.9, 0.04), (0, 0.0, 0.11), "ash", tile_m=0.6)
+    p.cyl(0.2, 0.03, (0, 0.02, 0.13), "ember", seg=10, cap_tile="ember")
+    p.log((-0.18, -0.18, 0.16), (0.2, -0.24, 0.17), 0.032, tile="char", seg=5, end_tile="ember")
+    # the stone dome
+    _dome(p, 0.62, 0.5, 0.52, tile="stone", seg=14, rings=4, cy=0.05)
+    p.cyl(0.64, 0.05, (0, 0.05, 0.54), "stone_dark", seg=14, cap_tile="stone")
+    # the flue
+    p.cyl(0.15, 0.09, (0, 0.05, 1.04), "stone_dark", seg=10, cap_tile="stone_dark")
+    p.cyl(0.12, 0.3, (0, 0.05, 1.21), "stone", seg=10, cap_tile="soot")
+    # the stone arch over the mouth
+    for sx in (-1, 1):
+        p.box((0.18, 0.16, 0.42), (sx * 0.33, -0.52, 0.32), "stone_dark", rot=(0, sx * 12, 0), tile_m=0.4)
+    p.box((0.86, 0.18, 0.14), (0, -0.52, 0.58), "stone_dark", tile_m=0.5)
+    # a baking peel leaning against the oven and a loaf on a stone slab beside it
+    p.log((0.78, -0.7, 0.02), (0.5, -0.42, 1.1), 0.02, tile="wood", seg=5)
+    p.box((0.34, 0.26, 0.02), (0.78, -0.72, 0.03), "wood", rot=(0, 0, 18), tile_m=0.4)
+    p.box((0.5, 0.42, 0.07), (0.85, 0.45, 0.04), "stone_dark", tile_m=0.5)
+    # a bowl of dough ready to go in
+    p.cyl(0.11, 0.07, (0.85, 0.45, 0.11), "clay", seg=9, r2=0.13, cap_tile="clay_dark")
+    p.rock(0.09, (0.85, 0.45, 0.13), tile="fiber", squash=(1.2, 1.0, 0.55), seed=111)
+    return [(p, (0, 0, 0))]
+
+
+def large_drying_rack():
+    """Two-bay drying rack on trimmed pillars, 3 m wide: rails, lashings and a spare stack of
+    straps on the ground (3x1)."""
+    p = Part("large_drying_rack")
+    H = 1.95
+    for x in (-1.42, 0.0, 1.42):
+        p.box((0.13, 0.13, H), (x, 0, H / 2), "wood", tile_m=0.8)
+        p.box((0.2, 0.2, 0.06), (x, 0, 0.03), "stone_dark", tile_m=0.4)
+        for z in (H - 0.16, H * 0.55):
+            p.cyl(0.09, 0.07, (x, 0, z), "rope", seg=8)
+    # rails: two high, one lower per bay
+    for y in (-0.16, 0.16):
+        p.log((-1.55, y, H - 0.16), (1.55, y, H - 0.16), 0.045, tile="wood")
+        p.log((-1.55, y, H * 0.55), (1.55, y, H * 0.55), 0.035, tile="wood", seg=6)
+    # cross braces at the ends and between the bays
+    for x in (-1.42, 0.0, 1.42):
+        p.log((x, -0.16, H * 0.55), (x, 0.16, H - 0.16), 0.028, tile="wood_dark", seg=5)
+    # a few straps hooked over the high rail, showing it is in use
+    for i, x in enumerate((-1.1, -0.55, 0.35, 0.95)):
+        p.box((0.05, 0.02, 0.42 + 0.1 * (i % 2)), (x, -0.19, H - 0.38), "fiber", rot=(0, 0, 4 * (i - 1)),
+              tile_m=0.5)
+    # spare straps coiled on the ground and a coil of rope
+    p.torus(0.1, 0.022, (-0.75, -0.3, 0.02), "rope", seg=10, tube=4)
+    for i in range(3):
+        p.box((0.34, 0.1, 0.04), (0.75, -0.32, 0.02 + i * 0.045), "fiber", rot=(0, 0, -6 + 4 * i), tile_m=0.5)
+    return [(p, (0, 0, 0))]
+
+
 BUILDERS = {
     "tent": tent,
     "basket": basket,
@@ -1510,4 +1675,9 @@ BUILDERS = {
     "basic_workbench": basic_workbench,
     "journeyman_workbench": journeyman_workbench,
     "expert_workbench": expert_workbench,
+    "kiln": kiln,
+    "loom": loom,
+    "large_loom": large_loom,
+    "oven": oven,
+    "large_drying_rack": large_drying_rack,
 }
