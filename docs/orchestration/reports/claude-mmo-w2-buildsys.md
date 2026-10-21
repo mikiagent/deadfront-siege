@@ -21,6 +21,88 @@ got its own approval (STATUS:325).
 - **Asked of the owner:** approve the 3 -> 4 bump (recommended). Or say keep schema 3, and accept that a
   rollback build drops houses without refunding them.
 
+## Resume pass 5 (2026-10-21, base c9ec27c6)
+
+- **Base**: merged af03937f (ebdd27d0: W2-INV, single instances with uids) and then c9ec27c6 (2543e3a7: DOMAIN),
+  both without conflicts. W2-INV kept save schema 3 (its goldens are `save_v3_inst_*`), so the 3 -> 4 owner gate
+  above still stands. `Inventory.add` still leaves what did not fit in `stack.count`, which `StructureHealth.salvage`
+  relies on. W2-PROCESS is still unmerged; `pack_up_blocker` keeps the duck-typed `pack_up_block_reason()` check
+  (`build_placer.gd:302`).
+- **Hooks patch, regenerated** (21fca2d7) from a tree of 2543e3a7 with the hooks applied: `git apply --cached --check
+  -v` is clean with no offsets on claude/mmo-overhaul c9ec27c6 and on the branch. Hook 5 no longer applied after
+  W2-INV split t_save's golden checks, so it now covers both: `_check_v3_skills` (the frozen stacked goldens) and
+  the instance-golden branch of `_test_round_trip` each skip `/schema` and check the re-save is at the current
+  schema. `_pad_contents` gives a golden's basket rows the empty tail the 100-slot basket now writes.
+- **Hook 4**: still no lab registry on c9ec27c6 (`fatal: path 'tools/labs.txt' does not exist in
+  'claude/mmo-overhaul'`); labs load by scene name. The lab is listed under Integrator hooks.
+- **Docs, each cited line read on the merged tree**:
+  - Spec 10:102 "A change in building state must not silently delete stored items". Spec 11:155 "Handle
+    demolished stations, cancellations, full output containers and server restarts without losing items".
+    Vision fix 1 stands as shipped: `git grep "lost (logged)" game/scripts` finds nothing; every `queue_free` of a
+    piece or kit (`structure_piece.gd:356`, `structure_grid.gd:487`, `structure_health.gd:125`) goes through
+    `spill_storage`/`salvage` (bag, then home cargo, then a loot bag at the spot), and a destroyed kit calls a
+    duck-typed `salvage_contents()` first.
+  - PRD:582 "Storage: baskets (~100 slots early) → boxes → large boxes". Spec 05:14 "basket about 100 slots;
+    level-60 Large Leaf Box up to 160". Spec 10:90 "level-60 Large Leaf Box holding 160 spaces. Do not impose
+    this value on every box". Vision fix 2 stands: structures.json chest 100, large box 160. Pieces carry
+    `build_level` (spec 10) but nothing raises it above 1 yet, so the large box stays flat 160 (`# ASSUMPTION` in
+    the structures.json doc line) rather than inventing a curve below level 60.
+  - New this pass: the camp **basket** kit was 60 slots with `# ASSUMPTION: PRD ~100; 60 for mobile UI`, which the
+    same spec 05:14 line contradicts, and W2-INV's merge left "W2-BUILDSYS raises container capacities (spec
+    05:14)" pending (STATUS:483, plan-register W2-INV section). `placed_building.gd` (this package's file):
+    `BASKET_SLOTS := 100` (a0128ccb), with a t_buildsys check (9199197a). Home cargo (60) is `world.gd`,
+    integrator-only, and no doc gives its size, so it is unchanged.
+  - Sign length: PRD:819 "Signs (text, images, animated billboards — player art culture)" and PRD:941 give no
+    limit; specs 05 and 10 say nothing. The 48 characters stay `# ASSUMPTION` (`structure_piece.gd:195`).
+- **Break tests** (t_buildsys, all on the merged code): a chest with items refuses pack-up and keeps its 3 stone;
+  demolished with a full bag it puts 2 in cargo and the rest in one loot bag; a raptor bite destroys a 1 hp chest
+  and its planks go to cargo then a loot bag at the spot, none to the bag; loot bags save and load with the same
+  instances; a saved chest loads with the same 5 instances and a broken chest row still gives them back; a basket
+  and a `salvage_contents()` station destroyed by damage keep every item once. Each uid is counted across bag,
+  cargo and loot bags: exactly once, so nothing is lost or duplicated. Repair and upgrade take exactly their
+  cost; a foundation ghost aimed at a tree is never valid on its module.
+- **Fail on old behaviour** (`bs7/mut/mutate.sh` in a second scratch tree of 2543e3a7 + hooks: the six old
+  behaviours of pass 3 plus the 60-slot basket): `[t_buildsys] FAIL count=22`, among them
+  `FAIL a basket holds about 100 (spec 05:14; got 60)`, `FAIL a chest holds at least 100 (PRD:582 baskets ~100
+  early; got 20)`, `FAIL a large box holds 160 (spec 05:14, 10:90)`, `FAIL demolish: item l55ad555fdd850a28 is
+  kept exactly once (seen 0 times)`, `FAIL destroyed by a raptor: item l4707c58ad054dcd6 is kept exactly once
+  (seen 0 times)`, `FAIL loot bags load with the same 0 instances (got 0)`, `FAIL destroyed kits: item
+  l20c1ee67d13a9d1a is kept exactly once (seen 0 times)`, `FAIL repair took exactly its cost of plank`, `FAIL the
+  upgrade took exactly its 8 stone (left 8)`, `FAIL a foundation ghost aimed at a tree is never valid on its
+  module (try 1: )`.
+- **Gates**: scratch tree `trees/bs7b` = branch b4efff42 + the hooks patch (checked: `git diff` against it shows
+  only the five hooked files). Logs in the 72cebc8b scratchpad under `bs7/`.
+  - `--import`: 0 SCRIPT ERROR, 0 "Failed to compile".
+  - All 26 `t_*.gd` exit 0 with their PASS line and 0 SCRIPT ERROR, except t_save's 5 deliberate ones (`[t_save]
+    PASS`; `round trip save_v3_inst_golden.json fields=23 diffs=0`, `round trip save_v3_golden.json fields=23
+    diffs=0`). New since pass 4: t_inventory (`[t_inventory] PASS`) and t_domain (`[t_domain] PASS`).
+  - t_buildsys: `ok salvage`, `ok repair_upgrade`, `ok snap_resources`, `[t_buildsys] PASS`.
+  - run_all: `[tests] PASS`. `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- **Labs (headless)**, each exit 0, 0 SCRIPT ERROR, 0 "couldn't resolve track":
+  - snap_build_lab `[snap] PASS`: `every piece within 1 cm of its socket (worst 0.0000 m)`, `removing the last
+    support collapses the ceiling and the wall on it (fell 2)`, `schema 4 save holds 59 piece rows (got 59)`,
+    `load restores every piece: 59/59, 0 differ`, `the chest comes back with its 7 stone`, `a schema-3 save
+    migrates to 4`, `raptor bite on the wood wall through StructureHealth: 69.7 (want 69.7)`, `repair took exactly
+    1 plank`, `the upgrade swaps in place (same node, same socket)`, `the owner walks through its own wall`.
+  - `--snap-touch`: `[snap] PASS` with all 21 ok lines (BUILD/Wood/Foundation ghost, tap snap, PLACE, ROTATE,
+    CANCEL, wall, chest, sign, wall card, Upgrade, Repair, Open chest, sign text, Demolish, Building to Stone).
+  - build_lab `[build] PASS`; siege probe `[siege] destroyed-after=12s occupancy-cleared=true`.
+- **Pixels (windowed, each PNG looked at)**:
+  - `house_fwd.png` / `house_glc.png` (1600x900): the snapped 2-storey plank house with gable roof, storey band,
+    framed door, a window on each storey and the stone ramp; the two renderers match.
+  - `inside_fwd.png` / `inside_glc.png`: roof and upper storey fade to a dithered outline and the front wall to a
+    blue dither; the label and ring read, the survivor's body barely does (W2-OCCLUDE's look, unchanged).
+  - Touch, 844x390 gl_compatibility (`--touch --snap-touch`, `[snap] PASS`): `touch_ghost.png` (ghost, snap
+    points, ROTATE/PLACE/CANCEL, "Wood Foundation plank ×6 · twine ×3", its tail touching the day/night dial),
+    `touch_card.png` (Wood Wall 1200/1200, Upgrade to Stone stone ×8 · plank ×2, Demolish half back, Building to
+    Stone (5)), `touch_house_card.png` (Wood Door 600/600, Open door, Upgrade, Demolish, Building to Stone (45)
+    stone ×344 · plank ×88), `touch_sign.png` and `touch_placed.png` (chest and signboard on the foundations),
+    `touch_chest.png` (the bag panel, now W2-INV's grouped bag with count pills; the chest grid is still below
+    the fold and the hexes and dial draw over the panel, the known INVUI limit). The lab's LEVEL UP banner and
+    the dev overlay cover the top of the phone screen (fixtures).
+- **Crash reports**: none new (`ls ~/Library/Logs/DiagnosticReports | grep ^Godot-` identical before and after,
+  25 files).
+
 ## Resume pass 4 (2026-10-21, base 809be2e8)
 
 - **Base**: merged 809be2e8 (9ad13ce0), 17 commits: HUD-DAYNIGHT (day/night dial, `hunt_hud.gd`, `lab_kit.gd`) and
