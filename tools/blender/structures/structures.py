@@ -1397,7 +1397,7 @@ def house_foundation():
                 p.box((0.26, 0.46, ch * 0.92), (sx * 0.88, -0.75 + j * 0.5, z), tile, tile_m=0.5)
     for i in range(6):
         a = i * 1.05
-        p.rock(0.15, (math.cos(a) * 1.02, math.sin(a) * 1.02, -0.3 + 0.09 * (i % 2)),
+        p.rock(0.12, (math.cos(a) * 0.86, math.sin(a) * 0.86, -0.3 + 0.09 * (i % 2)),
                tile="stone_dark", squash=(1.1, 1.0, 0.7), seed=40 + i)
     return [(p, (0, 0, 0))]
 
@@ -1448,30 +1448,30 @@ def house_wall_doorway():
 
 
 def house_door():
-    """Hinged plank door leaf for the 1.0 x 2.0 m doorway. The origin sits on the hinge (the
-    hinge is at local x = -0.5), so code can swing the leaf about local Y."""
+    """Hinged plank door leaf for the 1.0 x 2.0 m doorway. The node origin IS the hinge: the
+    leaf runs from local x = 0 (hinge) to x = 0.95 (latch), so code swings it about local Y."""
     p = Part("house_door")
     for i in range(5):
-        p.box((0.185, 0.06, 2.0), (-0.405 + i * 0.19, 0, 1.0),
+        p.box((0.185, 0.06, 2.0), (0.095 + i * 0.19, 0, 1.0),
               "plank" if i % 2 else "wood", tile_m=0.9)
     for z in (0.35, 1.0, 1.65):
-        p.box((0.95, 0.05, 0.13), (-0.02, -0.055, z), "wood_dark")
-    p.plank((-0.42, -0.06, 0.28), (0.38, -0.06, 1.72), 0.1, 0.04, "wood_dark", up=(0, -1, 0))
+        p.box((0.95, 0.05, 0.13), (0.475, -0.055, z), "wood_dark")
+    p.plank((0.08, -0.06, 0.28), (0.88, -0.06, 1.72), 0.1, 0.04, "wood_dark", up=(0, -1, 0))
     for z in (0.35, 1.65):
-        p.box((0.3, 0.045, 0.07), (-0.35, -0.075, z), "iron")
-    p.cyl(0.035, 0.09, (0.3, -0.08, 1.0), "iron", rot=(90, 0, 0), seg=6)
-    p.box((0.1, 0.03, 0.1), (0.3, -0.05, 1.0), "iron")
-    return [(p, (-0.5, 0, 0))]
+        p.box((0.3, 0.045, 0.07), (0.15, -0.075, z), "iron")
+    p.cyl(0.035, 0.09, (0.8, -0.08, 1.0), "iron", rot=(90, 0, 0), seg=6)
+    p.box((0.1, 0.03, 0.1), (0.8, -0.05, 1.0), "iron")
+    return [(p, (0, 0, 0))]
 
 
 def house_roof():
     """One thatch roof slope of a 2 m module: straw on the slope, bound with rope, fringed at
     the eave."""
     p = Part("house_roof")
-    _roof_panel(p, "thatch", tile_m=1.2)
+    _roof_panel(p, "thatch_dark", tile_m=1.2)
     _roof_rafter_tails(p)
     for i in range(9):
-        p.box((0.16, 0.07, 0.12), (-0.9 + i * 0.225, -0.53, 0.045), "thatch", rot=(0, -14, 0))
+        p.box((0.16, 0.07, 0.12), (-0.9 + i * 0.225, -0.53, 0.045), "thatch_dark", rot=(0, -14, 0))
     for x in (-0.66, 0.0, 0.66):
         p.log((x, -0.42, 0.06), (x, 0.42, 0.6), 0.016, tile="rope", seg=4, end_tile="rope")
     p.plank((-1.0, 0.46, 0.62), (1.0, 0.46, 0.62), 0.12, 0.1, "wood_dark", up=(0, 0, 1))
@@ -1487,7 +1487,7 @@ def house_roof_corner():
     for i in range(4):
         a, b = base[i], base[(i + 1) % 4]
         n = (Vector(b) - Vector(a)).cross(Vector(apex) - Vector(a)).normalized()
-        p.prism([a, b, apex], n * 0.1, "thatch", tile_m=1.0)
+        p.prism([a, b, apex], n * 0.1, "thatch_dark", tile_m=1.0)
     p.log((-0.5, -0.5, 0.03), apex, 0.06, tile="wood_dark", seg=6)
     for i in range(4):
         a, b = base[i], base[(i + 1) % 4]
@@ -1564,7 +1564,7 @@ def house_wall_window_timber():
 def house_roof_timber():
     """One roof slope of a 2 m module in the timber tier: dark cedar shingles on the slope."""
     p = Part("house_roof")
-    _roof_panel(p, "shingle", depth=0.13)
+    _roof_panel(p, "shingle", depth=0.13, tile_m=1.3)
     _roof_rafter_tails(p)
     p.plank((-1.0, 0.46, 0.62), (1.0, 0.46, 0.62), 0.12, 0.1, "wood_dark", up=(0, 0, 1))
     for x in (-0.8, -0.4, 0.0, 0.4, 0.8):
@@ -1599,7 +1599,7 @@ def house_wall_window_stone():
 def house_roof_stone():
     """One roof slope of a 2 m module in the stone tier: slate on the slope."""
     p = Part("house_roof")
-    _roof_panel(p, "slate", depth=0.14)
+    _roof_panel(p, "slate", depth=0.14, tile_m=1.0)
     _roof_rafter_tails(p)
     p.plank((-1.0, 0.46, 0.62), (1.0, 0.46, 0.62), 0.12, 0.1, "wood_dark", up=(0, 0, 1))
     for x in (-0.8, -0.4, 0.0, 0.4, 0.8):

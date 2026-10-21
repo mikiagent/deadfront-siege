@@ -675,6 +675,250 @@
       "art_status": "REVIEW",
       "upgrade": "low-poly hand-built Blender (1924 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m",
       "note": "harbour dock: plank pier on log piles with a canvas shed, 3x6 like HarbourSite.FOOTPRINT; deck 1.2 m above the pile feet, seaward end towards -Z. HarbourSite keeps it on the coast"
+    },
+    "house_foundation": {
+      "footprint": [
+        2,
+        2
+      ],
+      "note": "stone plinth under a house module; sinks up to 0.5 m into the ground",
+      "glb": "res://assets/props/blender/house_foundation.glb",
+      "aabb_m": [
+        2.02,
+        0.505,
+        2.02
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (696 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_floor": {
+      "footprint": [
+        2,
+        2
+      ],
+      "note": "plank floor deck of a 2 x 2 m house module",
+      "glb": "res://assets/props/blender/house_floor.glb",
+      "aabb_m": [
+        2,
+        0.13,
+        2
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (132 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "log wall of a 2 m house module (2.4 m storey)",
+      "glb": "res://assets/props/blender/house_wall.glb",
+      "aabb_m": [
+        2.064,
+        2.4,
+        0.228
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (300 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall_window": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "log wall with a glazed 0.9 x 0.9 m window",
+      "glb": "res://assets/props/blender/house_wall_window.glb",
+      "aabb_m": [
+        2.0,
+        2.397,
+        0.34
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (324 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall_doorway": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "log wall with a 1.0 x 2.0 m doorway",
+      "glb": "res://assets/props/blender/house_wall_doorway.glb",
+      "aabb_m": [
+        2.0,
+        2.4,
+        0.3
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (540 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_door": {
+      "footprint": [
+        1,
+        1
+      ],
+      "note": "hinged plank door leaf; its origin is the hinge",
+      "glb": "res://assets/props/blender/house_door.glb",
+      "aabb_m": [
+        0.95,
+        2.0,
+        0.155
+      ],
+      "nodes": {
+        "leaf": "house_door",
+        "note": "leaf origin is the hinge; swing about local Y"
+      },
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (164 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_roof": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "thatch roof slope of a 2 m house module",
+      "glb": "res://assets/props/blender/house_roof.glb",
+      "aabb_m": [
+        2.0,
+        0.734,
+        1.109
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (228 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_roof_corner": {
+      "footprint": [
+        1,
+        1
+      ],
+      "note": "thatch hip cap for a roof corner",
+      "glb": "res://assets/props/blender/house_roof_corner.glb",
+      "aabb_m": [
+        1.154,
+        0.679,
+        1.154
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (100 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_roof_gable": {
+      "footprint": [
+        1,
+        2
+      ],
+      "note": "boarded gable end that closes the roof",
+      "glb": "res://assets/props/blender/house_roof_gable.glb",
+      "aabb_m": [
+        0.33,
+        0.6,
+        2.029
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (80 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_stairs": {
+      "footprint": [
+        2,
+        2
+      ],
+      "note": "timber stair up to a house floor",
+      "glb": "res://assets/props/blender/house_stairs.glb",
+      "aabb_m": [
+        1.323,
+        1.603,
+        1.404
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (136 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall_timber": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "timber-frame wall of a 2 m house module",
+      "glb": "res://assets/props/blender/house_wall_timber.glb",
+      "aabb_m": [
+        2.02,
+        2.4,
+        0.28
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (152 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall_window_timber": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "timber-frame wall with a glazed window",
+      "glb": "res://assets/props/blender/house_wall_window_timber.glb",
+      "aabb_m": [
+        2.02,
+        2.4,
+        0.31
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (252 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_roof_timber": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "dark shingle roof slope of a 2 m house module",
+      "glb": "res://assets/props/blender/house_roof_timber.glb",
+      "aabb_m": [
+        2.0,
+        0.726,
+        1.103
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (144 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall_stone": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "stone wall of a 2 m house module",
+      "glb": "res://assets/props/blender/house_wall_stone.glb",
+      "aabb_m": [
+        2.0,
+        2.36,
+        0.3
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (540 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_wall_window_stone": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "stone wall with a glazed window",
+      "glb": "res://assets/props/blender/house_wall_window_stone.glb",
+      "aabb_m": [
+        1.96,
+        2.36,
+        0.35
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (864 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
+    },
+    "house_roof_stone": {
+      "footprint": [
+        2,
+        1
+      ],
+      "note": "slate roof slope of a 2 m house module",
+      "glb": "res://assets/props/blender/house_roof_stone.glb",
+      "aabb_m": [
+        2.0,
+        0.73,
+        1.106
+      ],
+      "art_status": "REVIEW",
+      "upgrade": "low-poly hand-built Blender (144 tris, 4-10 segment cylinders, albedo-only atlas, no normal map); upgrade path: higher-poly model with PBR normal/roughness, same origin, pivots and aabb_m"
     }
   },
   "tools": {

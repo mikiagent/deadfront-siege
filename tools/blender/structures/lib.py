@@ -34,7 +34,7 @@ TILES = [
     "stone", "stone_dark", "cobble", "clay", "clay_dark", "iron", "ash", "ember",
     "meat_raw", "meat_drying", "meat_dried", "water", "soot", "sign_board", "dirt", "bone",
     "meat_fat", "canvas_slope", "deck", "deck_old", "deck_dark", "fish",
-    "shingle", "slate",
+    "shingle", "slate", "thatch_dark",
 ]
 TILE_INDEX = {n: i for i, n in enumerate(TILES)}
 
@@ -282,9 +282,22 @@ def _shingle():
     return _tabbed_tile(121, (0.30, 0.21, 0.15), rows=5, tabs=4, tone_lo=0.72, tone_hi=1.25)
 
 
+def _thatch_dark():
+    """Weathered thatch for house roofs: the owner's reference shows dark roofs, not the pale
+    straw of the tent. The straw pattern is kept but darkened and broken into clumps, so the
+    slope does not read as a corrugated stripe at iso distance."""
+    img = _stripes(141, (0.36, 0.31, 0.21), (0.18, 0.15, 0.10), freq=26, angle=0.05, sharp=3, noise=0.7)
+    n = TILE_PX
+    clumps = _fbm(_rng(142), n, 7, 4)
+    img = _mix(_rgb((0.24, 0.20, 0.14)), img, np.clip(clumps * 1.7, 0, 1))
+    straw = _fbm(_rng(143), n, 20, 2)
+    img = img * (0.86 + 0.28 * straw)[..., None]
+    return img
+
+
 def _slate():
     """Slate: four courses of flat, slightly blue-grey tiles with worn edges."""
-    return _tabbed_tile(131, (0.30, 0.32, 0.36), rows=4, tabs=3, tone_lo=0.8, tone_hi=1.18, seam=0.55)
+    return _tabbed_tile(131, (0.33, 0.33, 0.33), rows=5, tabs=4, tone_lo=0.78, tone_hi=1.18, seam=0.55)
 
 
 def _sign_board():
@@ -374,6 +387,7 @@ def paint_atlas():
         # house kit: dark cedar shingles and cool slate for the higher material tiers
         "shingle": _shingle(),
         "slate": _slate(),
+        "thatch_dark": _thatch_dark(),
     }
     img = np.zeros((ATLAS, ATLAS, 4))
     img[..., 3] = 1.0
