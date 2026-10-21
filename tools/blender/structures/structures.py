@@ -1608,9 +1608,11 @@ def oven():
     for sx in (-1, 1):
         p.box((0.18, 0.16, 0.42), (sx * 0.33, -0.52, 0.32), "stone_dark", rot=(0, sx * 12, 0), tile_m=0.4)
     p.box((0.86, 0.18, 0.14), (0, -0.52, 0.58), "stone_dark", tile_m=0.5)
-    # a baking peel leaning against the oven and a loaf on a stone slab beside it
-    p.log((0.78, -0.7, 0.02), (0.5, -0.42, 1.1), 0.02, tile="wood", seg=5)
-    p.box((0.34, 0.26, 0.02), (0.78, -0.72, 0.03), "wood", rot=(0, 0, 18), tile_m=0.4)
+    # A baking peel leaning sideways in screen space against the oven's right-hand masonry: the
+    # blade end lies on the ground, the handle rests on the stone, so it never reads as a pole
+    # stuck in a board.
+    p.log((0.95, 0.62, 0.03), (0.55, 0.3, 0.6), 0.022, tile="wood", seg=5)
+    p.box((0.34, 0.26, 0.025), (0.95, 0.62, 0.03), "wood", rot=(0, 0, 35), tile_m=0.4)
     p.box((0.5, 0.42, 0.07), (0.85, 0.45, 0.04), "stone_dark", tile_m=0.5)
     # a bowl of dough ready to go in
     p.cyl(0.11, 0.07, (0.85, 0.45, 0.11), "clay", seg=9, r2=0.13, cap_tile="clay_dark")
@@ -1620,27 +1622,34 @@ def oven():
 
 
 def large_drying_rack():
-    """Two-bay drying rack on trimmed pillars, 3 m wide: rails, lashings and a spare stack of
-    straps on the ground (3x1)."""
+    """Large drying rack on four trimmed pillars (spec 30 s10: 4 Trimmed Wood Pillars, 4 Glue,
+    3 Metal Nails), the rails held by nailed iron brackets, with hides drying over the high rails.
+    Two bays, under 3 m wide (3x1)."""
     p = Part("large_drying_rack")
     H = 1.95
-    for x in (-1.42, 0.0, 1.42):
+    for x in (-1.35, -0.45, 0.45, 1.35):
         p.box((0.13, 0.13, H), (x, 0, H / 2), "wood", tile_m=0.8)
         p.box((0.2, 0.2, 0.06), (x, 0, 0.03), "stone_dark", tile_m=0.4)
+        # the post is chamfered at the top, like the trimmed pillars the spec asks for
+        p.cyl(0.07, 0.1, (x, 0, H + 0.03), "wood", seg=4, r2=0.02, cap_tile="log_end")
+        # iron brackets where the rails meet the post, with a nail head in each
         for z in (H - 0.16, H * 0.55):
-            p.cyl(0.09, 0.07, (x, 0, z), "rope", seg=8)
-    # rails: two high, one lower per bay
+            p.box((0.05, 0.3, 0.1), (x, 0, z), "iron", tile_m=0.3)
+            for sy in (-1, 1):
+                p.cyl(0.014, 0.03, (x, sy * 0.1, z + 0.03), "iron", rot=(90, 0, 0), seg=5)
+    # the high rails the hides hang over, and a lower rail per bay
     for y in (-0.16, 0.16):
-        p.log((-1.55, y, H - 0.16), (1.55, y, H - 0.16), 0.045, tile="wood")
-        p.log((-1.55, y, H * 0.55), (1.55, y, H * 0.55), 0.035, tile="wood", seg=6)
-    # cross braces at the ends and between the bays
-    for x in (-1.42, 0.0, 1.42):
-        p.log((x, -0.16, H * 0.55), (x, 0.16, H - 0.16), 0.028, tile="wood_dark", seg=5)
-    # a few straps hooked over the high rail, showing it is in use
-    for i, x in enumerate((-1.1, -0.55, 0.35, 0.95)):
-        p.box((0.05, 0.02, 0.42 + 0.1 * (i % 2)), (x, -0.19, H - 0.38), "fiber", rot=(0, 0, 4 * (i - 1)),
-              tile_m=0.5)
-    # spare straps coiled on the ground and a coil of rope
+        p.log((-1.45, y, H - 0.16), (1.45, y, H - 0.16), 0.045, tile="wood")
+    for x in (-1.45, 0.0, 1.45):
+        p.log((x, -0.16, H * 0.55), (x, 0.16, H * 0.55), 0.035, tile="wood", seg=6)
+    # hides draped over the high rails: each sheet hangs down both sides of the rail
+    for i, x in enumerate((-1.0, -0.35, 0.35, 1.0)):
+        z = H - 0.16
+        p.box((0.6, 0.02, 0.9), (x, -0.19, z - 0.44), "hide", rot=(0, 0, 3 * (i - 1)), tile_m=0.9)
+        p.box((0.6, 0.02, 0.42), (x, 0.13, z - 0.2), "hide", rot=(0, 0, -2 * (i - 1)), tile_m=0.9)
+        # the fold over the rail
+        p.cyl(0.05, 0.6, (x, -0.03, z), "hide", rot=(0, 90, 0), seg=8, cap_tile="hide")
+    # a coil of rope and a bundle of straps on the ground
     p.torus(0.1, 0.022, (-0.75, -0.3, 0.02), "rope", seg=10, tube=4)
     for i in range(3):
         p.box((0.34, 0.1, 0.04), (0.75, -0.32, 0.02 + i * 0.045), "fiber", rot=(0, 0, -6 + 4 * i), tile_m=0.5)
@@ -1649,19 +1658,24 @@ def large_drying_rack():
 
 
 def _site_stakes(p, hx, hy, stake_h=0.42):
-    """Four corner stakes with a string outline between them: the staked-out footprint."""
+    """Four corner stakes with a string outline between them: the staked-out footprint. The stakes
+    and the string are deliberately chunky: at the phone zoom (14 m view height, ~28 px/m) a thin
+    rope and a thin stake are sub-pixel and the site reads as bare ground."""
     for sx in (-1, 1):
         for sy in (-1, 1):
             x, y = sx * hx, sy * hy
-            p.log((x, y, -0.02), (x + sx * 0.03, y + sy * 0.03, stake_h), 0.028, tile="wood_dark", seg=5)
-    # the string line: a thin rope run round the four stakes, sagging in the middle
+            p.log((x, y, -0.02), (x + sx * 0.03, y + sy * 0.03, stake_h), 0.05, tile="wood_dark", seg=6)
+            # a pale tag on each stake top, so the stake line reads from the game camera
+            p.box((0.11, 0.03, 0.13), (x + sx * 0.03, y + sy * 0.03, stake_h + 0.05), "canvas",
+                  rot=(0, 0, 30 * (sx * sy)), tile_m=0.4)
+    # the string line: a rope run round the four stakes, sagging in the middle
     corners = [(-hx, -hy), (hx, -hy), (hx, hy), (-hx, hy)]
     for i in range(4):
         a = corners[i]
         b = corners[(i + 1) % 4]
         mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
-        p.log((a[0], a[1], stake_h - 0.05), (mx, my, stake_h - 0.12), 0.008, tile="rope", seg=4, end_tile="rope")
-        p.log((mx, my, stake_h - 0.12), (b[0], b[1], stake_h - 0.05), 0.008, tile="rope", seg=4, end_tile="rope")
+        p.log((a[0], a[1], stake_h - 0.05), (mx, my, stake_h - 0.12), 0.022, tile="rope", seg=5, end_tile="rope")
+        p.log((mx, my, stake_h - 0.12), (b[0], b[1], stake_h - 0.05), 0.022, tile="rope", seg=5, end_tile="rope")
     return corners
 
 
@@ -1670,12 +1684,12 @@ def _site_logs(p, hx, hy, n=4, seed=0):
     pile is seen. Kept inside the footprint so the model fits its cell."""
     per_row = max(2, n // 2)
     for i in range(n):
-        x = -hx + 0.4 + 0.12 * (i % per_row)
-        y = -hy + 0.3 - 0.18 * (i // per_row)
-        z = 0.07 + 0.13 * (i // per_row)
-        p.log((x - 0.26, y, z), (x + 0.26, y + 0.03 * (i % 3 - 1), z), 0.07, tile="bark", seg=6)
+        x = -hx + 0.44 + 0.17 * (i % per_row)
+        y = -hy + 0.34 - 0.2 * (i // per_row)
+        z = 0.09 + 0.17 * (i // per_row)
+        p.log((x - 0.3, y, z), (x + 0.3, y + 0.03 * (i % 3 - 1), z), 0.09, tile="bark", seg=7)
     for i in range(2):
-        p.torus(0.09, 0.022, (-hx + 0.3 + i * 0.3, -hy + 0.56, 0.02), "rope", seg=9, tube=4)
+        p.torus(0.11, 0.028, (-hx + 0.32 + i * 0.34, -hy + 0.62, 0.02), "rope", seg=9, tube=4)
 
 
 def _site_scaffold(p, hx, hy, height, braces=True):
@@ -1690,8 +1704,10 @@ def _site_scaffold(p, hx, hy, height, braces=True):
         for sx in (-1, 1):
             p.log((sx * hx, -hy, z), (sx * hx, hy, z), 0.035, tile="wood", seg=5)
     if braces:
-        for sx in (-1, 1):
-            p.log((sx * hx, -hy, 0.05), (sx * hx, hy, height - 0.1), 0.028, tile="wood_dark", seg=5)
+        # The diagonal braces sit on the BACK (+Y) and LEFT (-X) faces: the iso camera looks at
+        # the front (-Y) and right (+X) faces, where they would run through the plank cladding.
+        p.log((-hx, -hy, 0.05), (-hx, hy, height - 0.1), 0.028, tile="wood_dark", seg=5)
+        p.log((-hx, hy, 0.05), (hx, hy, height - 0.1), 0.028, tile="wood_dark", seg=5)
 
 
 def site_small(stage):
@@ -1710,12 +1726,17 @@ def site_small(stage):
         _site_scaffold(p, hx, hy, height=2.05, braces=True)
         # Partial plank cladding on the front (-Y) and right (+X) sides, the two the iso camera
         # sees: the wall is only part way up, so the frame still shows through it.
+        # The front wall is in two pieces with a doorway gap in the middle; the right wall is a
+        # second course. The cladding stops short of the frame, so the site never reads as done.
         for i in range(3):
-            p.box((hx * 2, 0.06, 0.32), (0, -hy, 0.36 + i * 0.34), "plank", tile_m=1.2)
+            p.box((0.61, 0.06, 0.32), (-0.645, -hy, 0.36 + i * 0.34), "plank", tile_m=1.2)
+            p.box((0.61, 0.06, 0.32), (0.645, -hy, 0.36 + i * 0.34), "plank", tile_m=1.2)
         for i in range(2):
             p.box((0.06, hy * 2 - 0.1, 0.32), (hx, 0.02, 0.5 + i * 0.34), "plank", tile_m=1.2)
-        # a lintel over the front doorway opening, so the front reads as a wall in progress
-        p.log((-0.34, -hy, 1.44), (0.34, -hy, 1.44), 0.05, tile="wood_dark", seg=6)
+        # two door posts carry the lintel over the open doorway
+        for sx in (-1, 1):
+            p.log((sx * 0.34, -hy, 0.02), (sx * 0.34, -hy, 1.44), 0.045, tile="wood_dark", seg=6)
+        p.log((-0.42, -hy, 1.44), (0.42, -hy, 1.44), 0.05, tile="wood_dark", seg=6)
         # a ladder leaning on the frame inside the footprint and a plank stack
         for sx in (-1, 1):
             p.log((sx * 0.16, -hy + 0.62, 0.02), (sx * 0.16, -hy + 0.06, 1.55), 0.028, tile="wood", seg=5)
@@ -1743,17 +1764,21 @@ def site_large(stage):
         _site_scaffold(p, hx, hy, height=2.5, braces=True)
         # Partial plank cladding on the front (-Y) and right (+X) sides, the two the iso camera
         # sees; the wall stops part way up and to the side, so the frame shows through it.
+        # The front wall is in two pieces with a doorway gap between the door posts; the right
+        # wall is a second course. The cladding stops short of the frame top.
         for i in range(4):
-            p.box((hx * 2 - 0.5, 0.07, 0.34), (-0.25, -hy, 0.46 + i * 0.36), "plank", tile_m=1.4)
+            p.box((0.9, 0.07, 0.34), (-1.0, -hy, 0.46 + i * 0.36), "plank", tile_m=1.4)
+            p.box((0.9, 0.07, 0.34), (1.0, -hy, 0.46 + i * 0.36), "plank", tile_m=1.4)
         for i in range(3):
             p.box((0.07, hy * 2 - 0.4, 0.34), (hx, 0.2, 0.62 + i * 0.36), "plank", tile_m=1.4)
         # a doorway frame marked on the front
         for sx in (-1, 1):
             p.log((sx * 0.55, -hy, 0.02), (sx * 0.55, -hy, 1.9), 0.045, tile="wood_dark", seg=6)
         p.log((-0.55, -hy, 1.9), (0.55, -hy, 1.9), 0.04, tile="wood_dark")
-        # scaffolding planks laid on the front rail and a ladder inside the footprint
-        for i in range(3):
-            p.box((2.6, 0.24, 0.05), (0, -hy + 0.16, 0.9 + i * 0.42), "plank", tile_m=1.6)
+        # A working platform: two boards laid across the frame, resting on the front and back
+        # rails and reaching the corner posts, instead of planks floating in mid air.
+        for bx, bz in ((-1.0, 1.41), (0.78, 1.41), (0.0, 2.48)):
+            p.box((0.26, 2 * hy, 0.05), (bx, 0, bz), "plank", tile_m=1.6)
         for sx in (-1, 1):
             p.log((sx * 0.2, -hy + 0.66, 0.02), (sx * 0.2, -hy + 0.1, 1.8), 0.03, tile="wood", seg=5)
         for i in range(5):
