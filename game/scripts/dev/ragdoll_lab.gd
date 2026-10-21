@@ -18,6 +18,7 @@ extends Node3D
 ##   [--rl-shots=<dir>]               windowed: contact sheet per terrain + one PNG per case + a
 ##                                    settle sequence per case (hit react, falling, landing, frozen)
 ##   [--rl-phone=<png>]               windowed 844x390: one corpse under the game's iso camera
+##   [--rl-cam=<elev>,<azimuth>]      shots from this camera angle (degrees) instead of the default
 
 const SPECIES: Array[StringName] = [&"coelophysis", &"compsognathus", &"deinonychus", &"gallimimus",
 	&"megaloceros", &"protoceratops", &"stegosaurus", &"tyrannosaurus", &"utahraptor",
@@ -68,6 +69,7 @@ var _headings: Array[int] = []
 var _blows: Array[String] = []
 var _all_fallback := false
 var _shots := ""
+var _cam_angles := Vector2(-1000.0, 0.0)  # --rl-cam: (elevation, azimuth) degrees; x < -900 = default
 var _phone := ""
 var _failures: Array[String] = []
 var _cam: Camera3D
@@ -125,6 +127,8 @@ func _ready() -> void:
 			_all_fallback = true
 		elif a.begins_with("--rl-shots="):
 			_shots = a.substr(11)
+		elif a.begins_with("--rl-cam="):
+			_cam_angles = Vector2(float(a.substr(9).get_slice(",", 0)), float(a.substr(9).get_slice(",", 1)))
 		elif a.begins_with("--rl-phone="):
 			_phone = a.substr(11)
 	# The creature view only uses the stegosaurus GLB when asked (its in-game override stays).
@@ -738,9 +742,13 @@ func _seq_grab(c: Dictionary, i: int) -> void:
 
 ## Slopes are seen from across the fall line, a little downhill, so the uphill side is visible.
 func _elev(c: Dictionary) -> float:
+	if _cam_angles.x > -900.0:
+		return _cam_angles.x
 	return 30.0 if slope_deg(c["terrain"]) > 0.0 else 18.0
 
 func _azim(c: Dictionary) -> float:
+	if _cam_angles.x > -900.0:
+		return _cam_angles.y
 	return 50.0 if slope_deg(c["terrain"]) > 0.0 else -60.0
 
 func _seq_tile(c: Dictionary, img: Image, i: int) -> void:
