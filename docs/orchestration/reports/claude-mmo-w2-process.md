@@ -10,6 +10,87 @@ Branch `claude/mmo-w2-process`, cut from `claude/mmo-overhaul` 36299a96. Base me
   tests), 4b5b88eb and 0ec9253f (process_lab), plus this report
 - round 4 (vision-check fixes): 10a2993b (label placement), base merge 4afcb170 (6e26ef2a, docs only),
   6a385058 (exact picks, destroyed-station salvage, hooks patch), plus this report
+- round 5 (resumed run): base merges 061cc651 and 910327f9 (548059bc, 34b6d459, docs only), 619c3b0a (the
+  destroyed listener is dropped), 19fbb83b + 3f5835cb (a label move tried and reverted), ffc3833f (smoke on
+  gl_compatibility), plus this report
+
+## Round 5: resumed run (review r1 and the vision fixes, checked against the real branch state)
+
+Rounds 3 and 4 had already built every item of this task. git log and the code show it, so this round
+checked each item against the current base and the W2-BUILDSYS tip, redid the gates and the shots, and fixed
+what that turned up.
+
+| Task item | State on the branch | This round |
+|---|---|---|
+| Blocker: shift-tap pack-up destroys station contents | `CraftStation.pack_up_block_reason()` -> `ProcessStation.pack_up_block_reason()`. It refuses while any input, output or job (running or waiting) is on the station, with "the drying rack is still working: collect it when it is ready" / "collect the drying rack first", shown as "Can't pack up: ...". `BuildPlacer.pack_up_node` asks `pack_up_blocker` -> `pack_up_block_reason()` duck-typed before any side effect (base build_placer.gd:176 -> :209; W2-BUILDSYS 4b8c6d23 :265 -> :302), and every pack-up path goes through `pack_up_node`. So the "duck-typed check in pack_up_node" already exists on the base, and the hooks patch needs no `build_placer.gd` or `player_actions.gd` change | rechecked, gates rerun |
+| Major: a refused pack-up must not cancel jobs or move items | The station rule is a pure check that runs first. No `return_all` remains | `ok a refused pack-up cancels no job and moves nothing (jobs 2)` |
+| Major: slow stations strictly worse than the grill | Cooking properties from spec 08 §2/§4, 11 §1 and 04 (round 3 table below; the cited lines were rechecked: 08:37, 08:43, 08:78, 08:98, 11:138, 11:155, 10:102) | `meal: grilled e=32.7 rel=12.3 \| dried e=23.2 rel=20.7 \| smoked e=31.4 rel=17.8 buffs=[&"cold_resist"] \| stew e=43.6 rel=16.4 \| grilled+steam e=41.2 rel=15.5` |
+| Vision (1) exact picks, spec 08:98 | Built in round 4 | rechecked, gates rerun |
+| Vision (2) a destroyed station keeps its contents, spec 11:155 / 10:102 | Round 4 gave stations `salvage_contents()` **and** a `destroyed` listener that sent the contents to camp cargo or `pending_refunds`. W2-BUILDSYS 4b8c6d23 now calls `host.salvage_contents()` itself after `destroyed.emit` and drops the stacks into the bag, home cargo, then a loot bag (structure_health.gd:120). With both in place, the listener ran first and took everything, so BUILDSYS's visible loot bag never got the items, which instead waited in `pending_refunds` until the next load. **619c3b0a deletes the listener**; `salvage_contents()` stays as the duck-typed hook. Before BUILDSYS merges nothing can destroy a station, so there is no gap | below |
+
+Proof for vision (2):
+- t_process now asks the station the way BUILDSYS does (`has_method("salvage_contents")`):
+  `ok a destroyed rack hands over its dried meat (same uid), the drying hide and the drying meat (["dried_meat", "raw_hide", "raw_meat"])`,
+  `ok nothing stays on the station, a second salvage hands over nothing`.
+- Mutation (method renamed): `[t_process] FAIL a destroyed rack hands over its dried meat (same uid), the drying hide and the drying meat ([])`.
+- **On a merged tree** (619c3b0a + claude/mmo-w2-buildsys 4b8c6d23 + both hooks patches, imported, throwaway
+  script; the rack is killed through `StructureHealth.of(rack, true).take_damage(1e6)`):
+  `[x_proc_bs] ok cargo room 8: the destroyed rack's dried meat (same uid) and drying hide are in cargo or a loot bag (["dried_meat", "raw_hide"])`,
+  `[struct] loot bag at (0.0, 0.0, 0.0) holds 1 stacks`,
+  `[x_proc_bs] ok cargo room 1: ... (["dried_meat", "raw_hide"])`, `[x_proc_bs] PASS`.
+  Found on the way: a `--script` test that names `LootBag` at parse time breaks `LootBag.drop` (the World autoload
+  does not exist yet) and loses the stack. That is a harness artefact; in game the autoloads exist.
+
+Break tests asked for, all in t_process:
+- pack-up while running: `ok shift-tap pack-up refuses a working rack and touches nothing: 'the drying rack is still working: collect it when it is ready'`
+- pack-up while loaded: `ok a rack with dried meat waiting refuses: 'collect the drying rack first'`
+- pack-up when empty: `ok an empty rack packs up: kit and both dried meats in the bag`
+- save/load mid-job: `ok reload mid-process resumes with 300s left (was 300s)`, `ok reload mid-job: 2 running, the third still waiting (2/3)`
+- collect into a full bag: `ok full bag: nothing moves, 4 stay on the rack (ready 4)`, then `ok with room: all 4 dried meat collect, the rack is empty`
+- two jobs at once: `ok meat and hide hang on the rack at once`, `ok collect moves both and names each ({ &"dried_meat": 1, &"dried_hide": 1 })`
+
+**Smoke on the judge renderer (ffc3833f).** The round 5 shots showed what round 4 missed. On
+gl_compatibility the rack's smoke did not show on the dirt patch, and the smoker's was a thin dark thread.
+Forward+ showed white wisps from both. On gl_compatibility only, the smoke colour now goes through
+`linear_to_srgb()` and its alpha is x1.5. Looked at: crops of the rack at 50 % before and after; the rack and
+smoker now show grey puffs, and Forward+ is unchanged.
+
+**A label move, tried and reverted (19fbb83b, 3f5835cb).** When the survivor stands in front of a station, its
+name chip sits on the station's label. I hung the label just in front of the survivor instead. In the rack
+view that put it on the smoker's label (`Drying 4/4 · 4:54Smoking 3/4 · 7:24`), which reads worse than the
+chip overlap. I reverted it, so the round 4 placement stands. The fix needs a screen-space layout pass for
+world labels, which is HUD work.
+
+Round 5 gates (scratch tree `trees/w2proc-gates` at ffc3833f with the hooks patch applied, every Godot run under
+gslot):
+- `--import`: 0 ERROR lines.
+- All 20 `t_*.gd` PASS: `[t_process] PASS`, `[t_build] PASS`, `[t_save] PASS` (its 5 deliberate SCRIPT ERRORs only),
+  `[t_uiicons] PASS ids=169 ...`, `[t_web] PASS`, `[t_harbour] PASS islands=15`, and the rest. 0 SCRIPT ERROR
+  in all the others.
+- `[tests] PASS` (run_all) and `SMOKE PASS` (`tools/smoke.sh --no-import`).
+- `[process_lab] PASS`, `[kitchen_lab] PASS`, `[craft_lab] PASS`, 0 SCRIPT ERROR lines each.
+- 0 "couldn't resolve track" lines in any log; no new `Godot-*.ips`.
+- The branch alone (no hooks patch) fails one line, by design: `FAIL a refunded rack row returns its kit and the 2 meats on it (cargo meat 0)`.
+  It needs W1-SAVE's `save_restore.gd` change in the hooks patch.
+- Hooks patch: regenerated from the gate tree; the bytes are identical to the committed patch, and
+  `git apply --check` is clean on claude/mmo-overhaul 34b6d459.
+
+Round 5 shots, 844x390 landscape, `process_lab --proc=0|50|100 --proc-view=rack|smoker|crock_pot|steamer`. All
+24 were opened and looked at
+(`/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/shots_proc5/`,
+`glc_*` at ffc3833f; `fwd_*` at 619c3b0a, whose Forward+ path is unchanged):
+- **Rack:** the strips are bright red at 0 %, maroon at 50 % and dark brown at 100 %. Smoke shows at 0 and
+  50 % and stops at 100 %. The label goes from `Drying 4/4 · 9:54` to `Drying 4/4 · 4:54` to
+  `Ready: 4 Dried Meat`.
+- **Smoker:** a plume over the roof at 0 and 50 %, none at 100 %; the label ends at `Ready: 3 Smoked Meat`.
+- **Crock pot:** an orange glow and steam while it stews; at 100 % the glow is gone and the label reads `Ready: 1 Camp Stew`.
+- **Steamer:** a white steam plume at 0 and 50 %; at 100 % the label reads `Ready: 2 Steamed Dish`.
+- **Both renderers:** the same stages. On gl_compatibility the smoke is lighter and thinner than on Forward+.
+- **Seen, not fixed:**
+  - The lab puts the survivor at the camera-side corner of the station it frames, so that station's label
+    runs under the white `Survivor` chip. The label stays readable in the steamer view and partly in the
+    others.
+  - The steamer sits under the vitals panel in the rack and smoker views.
 
 ## Round 4: vision-check fixes (docs/orchestration/mmo/vision-check.md)
 
