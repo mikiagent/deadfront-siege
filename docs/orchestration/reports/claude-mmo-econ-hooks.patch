@@ -1,5 +1,5 @@
 diff --git a/game/scripts/server/intent_handlers.gd b/game/scripts/server/intent_handlers.gd
-index 0bbbcb56..ca9224c5 100644
+index d19f8337..1cf10127 100644
 --- a/game/scripts/server/intent_handlers.gd
 +++ b/game/scripts/server/intent_handlers.gd
 @@ -9,8 +9,10 @@ extends RefCounted
@@ -105,7 +105,7 @@ index 0bbbcb56..ca9224c5 100644
  ## good (sold, consumed). It can never come back, so its exported_assets record is dropped and
  ## the registry holds only assets in flight.
 diff --git a/game/tests/run_all.gd b/game/tests/run_all.gd
-index 1041e72f..8127dce1 100644
+index 0de559b8..27bf90f4 100644
 --- a/game/tests/run_all.gd
 +++ b/game/tests/run_all.gd
 @@ -50,6 +50,8 @@ func _process(_delta: float) -> bool:
