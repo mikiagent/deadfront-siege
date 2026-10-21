@@ -33,9 +33,10 @@ const LADDER: Array[Dictionary] = [
 
 ## Concrete items the bot will try to gather for a recipe category, best first.
 const CATEGORY_ITEMS := {
-	"blade_mat": ["stone", "flint"],
+	"blade_mat": ["stone"],
 	"handle": ["branch"],
 	"lashing": ["bark_strip", "vine", "reed", "root", "twine"],
+	"twine": ["twine"],  # rope takes twine only; no node yields it, so the recipe fallback twists it
 	"herb": ["herb_leaf", "berries", "berry", "petals"],
 	"cloth": ["cloth_scrap", "cloth"],
 	"wood": ["wood_log", "branch"],

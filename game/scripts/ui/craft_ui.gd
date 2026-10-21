@@ -17,6 +17,7 @@ const STATIONS := [
 	["campfire", "Campfire", "skewer"], ["drying_rack", "Meat dryer", "drying_rack_kit"],
 	["crock_pot", "Crock pot", "boiled_meat"], ["mortar", "Mortar", "mortar_kit"],
 	["stone_grill", "Stone grill", "stone_grill_kit"], ["steamer", "Steamer", "steamer_kit"], ["well", "Well", "well_kit"],
+	["forge", "Forge", "ingot"], ["anvil", "Anvil", "hammer"],
 ]
 const NO_LEVEL := LevelDisplay.NONE
 const FOOTER_H := 64.0

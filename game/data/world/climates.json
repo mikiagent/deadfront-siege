@@ -22,7 +22,8 @@
       "HerbPlant",
       "FibreTuft",
       "BranchPile",
-      "BerrySprig"
+      "BerrySprig",
+      "Corn"
     ],
     "materials": [
       {
@@ -45,6 +46,9 @@
       },
       {
         "id": "clay"
+      },
+      {
+        "id": "corn"
       }
     ],
     "weather": [
@@ -148,7 +152,9 @@
       "HerbPlant",
       "FibreTuft",
       "BranchPile",
-      "BerrySprig"
+      "BerrySprig",
+      "TinOreNode",
+      "Wheat"
     ],
     "materials": [
       {
@@ -178,6 +184,12 @@
       },
       {
         "id": "stone"
+      },
+      {
+        "id": "tin_ore"
+      },
+      {
+        "id": "wheat"
       }
     ],
     "weather": [
@@ -265,7 +277,8 @@
       "Grass_Short",
       "WoodLog_Snow",
       "WildGrass",
-      "IceNode"
+      "IceNode",
+      "TinOreNode"
     ],
     "materials": [
       {
@@ -286,6 +299,9 @@
       },
       {
         "id": "branch"
+      },
+      {
+        "id": "tin_ore"
       }
     ],
     "weather": [
