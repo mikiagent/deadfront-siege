@@ -77,6 +77,7 @@ func _run() -> void:
 		and _rate(&"open", "fatigue_per_min") < _rate(&"fire", "fatigue_per_min") and _rate(&"fire", "fatigue_per_min") < _rate(&"shelter", "fatigue_per_min"),
 		"recovery grows open < fire < shelter (spec 01:19, PRD :118)")
 	await _test_clamps(spots["shelter"])
+	await _test_sit_to_sleep(spots["shelter"])
 	await _test_cancels(spots["open"])
 	await _test_refusals(spots["open"])
 	await _test_fire_effects(spots["fire"], spots["open"])
@@ -245,6 +246,19 @@ func _test_clamps(at: Vector3) -> void:
 	_expect(player.vitals.fatigue >= 0.0 and player.vitals.fatigue < 0.05, "fatigue stops at 0 (%.3f)" % player.vitals.fatigue)
 	var lines: PackedStringArray = rest.hud_lines()
 	_expect(lines.size() == 3 and lines[1] == "HP full" and lines[2] == "Rested", "the chip says HP full and Rested %s" % [lines])
+
+## Sleep chosen while seated at the tent lies down from the sit (no jump back to standing).
+func _test_sit_to_sleep(at: Vector3) -> void:
+	await _reset(at)
+	var ap: AnimationPlayer = player.rig.anim_player
+	rest.start()
+	await _seconds(1.3)
+	player.context_action("sleep")
+	await _frames(2)
+	_expect(not rest.resting and player._sleep_left > 0.0 and player.anim.current_clip == &"sleep_down" and ap.is_playing() and ap.current_animation_position >= 0.99,
+		"Sleep from the sit lies down from the seated frame (clip=%s t=%.2f)" % [player.anim.current_clip, ap.current_animation_position])
+	player.vitals.take_damage(1.0)  # ends the sleep for the next case
+	await _seconds(2.5)
 
 func _test_cancels(at: Vector3) -> void:
 	var ap: AnimationPlayer = player.rig.anim_player

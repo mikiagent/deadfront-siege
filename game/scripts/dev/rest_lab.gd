@@ -84,6 +84,8 @@ func _trial(spot: String, at: Vector3, face: Node3D, sleep: bool = false) -> voi
 	var ids: Array = []
 	for a in _player.context_actions():
 		ids.append(str(a["id"]))
+	if spot == "open" and _out != "":
+		await _shot("open_hexes")  # the context row before acting: the Rest hex and its icon
 	var tried := "interact_key"
 	if "rest" in ids and not sleep:
 		tried = "rest_hex"
