@@ -28,7 +28,7 @@ const SHAPE := {
 	"player_name": "", "occupation": "", "t_stones": 0, "visited_islands": {}, "raid_victory": false,
 	"objective": 0, "objective_best": 0, "island_id": "",
 	"unstable": {"remaining": 0.0, "harvested": {}, "crater_discovered": false},
-	"clock": 0.0, "saved_unix": 0, "map": {"islands": {}},
+	"clock": 0.0, "saved_unix": 0,
 }
 ## Fields the building from_dicts read with int()/float()/bool() (placed_building, bonfire,
 ## field_plot, field_catapult, taming_pen, craft_station). Strings go through str(), which takes anything.
@@ -58,7 +58,6 @@ const ATTR_ROW := {"grade_seed": 0, "barbed_hits": 0, "toxin_hits": 0, "hardness
 static func clean(data: Dictionary) -> Dictionary:
 	_shape(data, SHAPE)
 	var player: Dictionary = data.get("player", {})
-	_map(data)
 	if player.has("inventory"):
 		player["inventory"] = stacks(player["inventory"])
 	var extras: Dictionary = player.get("inventory_extras", {})
@@ -329,35 +328,6 @@ static func _shape(data: Dictionary, shape: Dictionary) -> void:
 			data.erase(key)
 		elif want is Dictionary and not (want as Dictionary).is_empty():
 			_shape(got, want)
-
-## Fog rows: an island id, its bitmap size, a base64 bitset and trail points. A forged row must not
-## make a multi-gigabyte bitmap or hand the loader a non-string where it reads one.
-static func _map(data: Dictionary) -> void:
-	if not data.has("map"):
-		return
-	var row: Dictionary = data["map"]
-	var islands_v: Variant = row.get("islands", {})
-	var kept := {}
-	if islands_v is Dictionary:
-		for key in (islands_v as Dictionary).keys():
-			var d: Variant = (islands_v as Dictionary)[key]
-			if not d is Dictionary:
-				continue
-			var f: Dictionary = d as Dictionary
-			var size := float(f.get("size", 0.0)) if (f.get("size") is int or f.get("size") is float) and is_finite(float(f.get("size", 0.0))) else 0.0
-			if size <= 0.0 or size > 1000.0:
-				continue
-			var fog := str(f.get("fog", ""))
-			if fog.length() > 200000: # ~2 m cells over 1 km: 40 kB when mostly walked; 200 kB is generous
-				continue
-			var trail: Array = []
-			var pts: Variant = f.get("trail", [])
-			if pts is Array:
-				for p in pts:
-					if p is Array and (p as Array).size() == 2 and _all_numbers(p as Array) and absf(float(p[0])) <= 1000.0 and absf(float(p[1])) <= 1000.0:
-						trail.append([float(p[0]), float(p[1])])
-			kept[str(key)] = {"id": str(f.get("id", key)), "size": size, "fog": fog, "trail": trail}
-	row["islands"] = kept
 
 static func _is_position(v: Variant) -> bool:
 	if not (v is Array and (v as Array).size() == 3 and _all_numbers(v)):

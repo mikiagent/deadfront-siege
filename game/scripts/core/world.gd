@@ -396,15 +396,35 @@ func map_map() -> Dictionary:
 			rows[str(key)] = (f as MapFog).to_dict()
 	return {"islands": rows}
 
+## Rows come from a user-editable file: keep only plausible islands (<= 1 km, <= 200 kB of fog,
+## trail points inside the world) before building a bitmap from them (SaveSanitizer is out of this
+## task's scope, so the cap lives here where the row is read).
 func load_map_map(row: Dictionary) -> void:
 	map_fogs.clear()
 	map_fog = null
 	var islands: Variant = row.get("islands", {})
-	if islands is Dictionary:
-		for key in (islands as Dictionary).keys():
-			var d: Variant = (islands as Dictionary)[key]
-			if d is Dictionary:
-				map_fogs[str(key)] = MapFog.from_dict(d as Dictionary)
+	if not islands is Dictionary:
+		return
+	for key in (islands as Dictionary).keys():
+		var d: Variant = (islands as Dictionary)[key]
+		if not d is Dictionary:
+			continue
+		var f: Dictionary = d as Dictionary
+		var size_v: Variant = f.get("size", 160.0)
+		if not (size_v is int or size_v is float) or not is_finite(float(size_v)) or float(size_v) <= 0.0 or float(size_v) > 1000.0:
+			continue
+		if str(f.get("fog", "")).length() > 200000:
+			continue
+		var clean := {"id": str(f.get("id", key)), "size": float(size_v), "fog": str(f.get("fog", "")), "trail": []}
+		var pts: Variant = f.get("trail", [])
+		if pts is Array:
+			for p in pts:
+				if p is Array and (p as Array).size() >= 2:
+					var a: Variant = (p as Array)[0]
+					var b: Variant = (p as Array)[1]
+					if (a is int or a is float) and (b is int or b is float) and is_finite(float(a)) and is_finite(float(b)) and absf(float(a)) <= 1000.0 and absf(float(b)) <= 1000.0:
+						clean["trail"].append([float(a), float(b)])
+		map_fogs[str(key)] = MapFog.from_dict(clean)
 
 func _clear_runtime() -> void:
 	if runtime and is_instance_valid(runtime):
