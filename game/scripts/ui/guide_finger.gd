@@ -101,17 +101,19 @@ func _update(delta: float) -> bool:
 	if b.has("map_title") and b.has("map_text"):
 		soft.append((b["map_title"] as Rect2).merge(b["map_text"]))
 	var s := hand_scale(view)
-	# A gather order's hex, once the radial is open on a node that offers the item. The hand would
-	# rather not cover the radial's labels and title either.
-	if str(_plan.get("kind", "")) == "gather":
-		var r := player._gather_radial
-		var hex := r.hex_rect_for(StringName(str(_plan["item"]))) if r else Rect2()
-		if hex.has_area():
-			clamped = false
-			var near: Array[Rect2] = soft.duplicate()
-			near.append_array(r.label_rects)
-			near.append(r.title_box)
-			return _aim(hex.get_center(), safe, keep_off, s, near)
+	# While the gather radial is open the finger is only ever on its hex for this order's item, and would
+	# rather not cover the radial's labels and title. Open on anything else, it waits: the hand pointing
+	# past it sat on the radial's labels.
+	var r := player._gather_radial
+	if r and r.is_open():
+		var hex := r.hex_rect_for(StringName(str(_plan.get("item", "")))) if str(_plan.get("kind", "")) == "gather" else Rect2()
+		if not hex.has_area():
+			return false
+		clamped = false
+		var near: Array[Rect2] = soft.duplicate()
+		near.append_array(r.label_rects)
+		near.append(r.title_box)
+		return _aim(hex.get_center(), safe, keep_off, s, near)
 	if not is_instance_valid(target):
 		target = null  # freed with its island (travel, a reload); a freed object passes a != null check
 	_repick -= delta

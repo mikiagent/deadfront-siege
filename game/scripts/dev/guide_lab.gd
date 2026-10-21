@@ -8,7 +8,8 @@ extends Node3D
 ##      Branch hex every frame.
 ##   3. A tap at the tip picks Branch; the finger hides within a frame and never comes back for the order,
 ##      also after a save and a reload; the next order's finger shows and stays.
-##   4. It hides under the bag, craft, the menu and skills sheets and the creature plate.
+##   4. It hides under the bag, craft, the menu and skills sheets, a radial open on another node and the
+##      creature plate.
 ## Windowed: --resolution 1600x900 -- --lab=guide_lab [--shot-dir=DIR] (844x390 too; either renderer).
 ## Prints "[guide] PASS" (exit 0) or "[guide] FAIL ..." lines (exit 1).
 
@@ -107,7 +108,10 @@ func _run() -> void:
 	var radial := _player._gather_radial
 	radial.picked.connect(func (_n: Node3D, i: int) -> void:
 		_pick_frame = Engine.get_process_frames()
-		_pick_item = str((radial.options[i] as Dictionary).get("item", "")))
+		_pick_item = str((radial.options[i] as Dictionary).get("item", ""))
+		# Stop the gather this pick starts: one pass can yield all three branches, and order 1 must stay
+		# current for the checks that the finger stays away from it.
+		_player._cancel_gather_and_butcher.call_deferred())
 	await _tap(_cam().unproject_position(Guide.aim_point(tree)))
 	await get_tree().create_timer(0.3).timeout
 	_expect(radial.is_open() and radial.hex_rect_for(&"branch").has_area(), "a tap on the tree opens the radial with a Branch hex")
@@ -151,9 +155,6 @@ func _run() -> void:
 	_expect(_pick_frame >= 0 and hidden_frame >= 0 and hidden_frame - _pick_frame <= 1, "the finger hides within 1 frame of the pick")
 	_expect(World.guide_done.has("branches"), "order 1 is marked done for the guide")
 	await _shot("gone")
-	# Stop gathering here, so order 1 stays current (a pass can yield all three branches) for the checks
-	# that the finger stays away from it.
-	_player._cancel_gather_and_butcher()
 	_player._gather_radial.close()
 	var back := await _seen_for(2.0)
 	_expect(back == 0, "the finger stays hidden for the rest of order 1 (%d frames shown)" % back)
@@ -191,6 +192,12 @@ func _run() -> void:
 	await _covered("craft", craft.show_ui, craft.hide_ui)
 	await _covered("menu sheet", func () -> void: _hud.call("_toggle_sheet", &"menu"), func () -> void: _hud.call("_close_sheet"))
 	await _covered("skills sheet", func () -> void: _hud.call("_toggle_skills"), func () -> void: (_hud.get_node("SkillsSheet") as SkillsSheet).close())
+	var other: HarvestNode = null
+	for n in get_tree().get_nodes_in_group("harvest"):
+		if n is HarvestNode and not (n as HarvestNode).depleted and not Guide.offers(n, &"stone") \
+				and (other == null or _player.global_position.distance_to(n.global_position) < _player.global_position.distance_to(other.global_position)):
+			other = n
+	await _covered("radial open on a node without stone", func () -> void: _player.debug_open_radial(other), func () -> void: _player._gather_radial.close())
 	var wild: Creature = null
 	for n in get_tree().get_nodes_in_group("creatures"):
 		var c := n as Creature
