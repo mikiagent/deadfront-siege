@@ -76,3 +76,19 @@ no more than 25 above the sprite's inside, sprites at least 24x24 px, at least 1
   game/tests. Keep game/override.cfg. Do not push, merge or deploy. No new dependencies.
 - Known traps: never run a long command without a timeout; write big files with write_file, not heredocs; after editing
   cut.py run it on ONE sheet first (`--sheet sheet-palms`) before all of them.
+
+## Round 2 (orchestrator, 2026-10-21 15:15): three new sheets
+The owner resent three green sheets, now in docs/reference/2d-assets/: `sheet-jungle-trees.webp` (giant buttress-root canopy
+trees, palms, banana plants, understorey), `sheet-tall-grasses.webp` (grass clumps, reeds/cattails, strips, iso ground tiles,
+three large ground patches) and `sheet-jungle-cliffs.webp` (a big tiered cliff with waterfalls, arches, pillars, cliff blocks,
+waterfall chunks, boulders, vine and root curtains, palms, ferns, shells, driftwood). Read spec 28
+(docs/design/durango-prompts/28_jungle_cliffs_and_trees.md) for how each kind is used: big cliffs/arches/pillars/waterfalls are
+props that block and cannot be destroyed; grass clumps and reeds are ground cover that never blocks (prop:grass_*,
+prop:reed_* or the Grass/WildGrass/DryGrassTuft/FibreTuft/ReedPlant families); the iso ground tiles and the three large
+patches are colour references: cut them and mark them `unused`.
+- R1 Re-run cut.py over all sheets; add overrides for glued items (the big cliff is ONE sprite; touching grass clumps split);
+  extend label.py/labels.json for every new sprite. Stage 1, then stage 2.
+- R2 Size: the web download is close to its ceiling. Keep the whole set <= 24 MB (the gate checks it): downscale on export so
+  a sprite's longest side is <= 512 px, or <= 768 px when height_m >= 8 (big trees and cliffs); write the scale used per
+  sprite into the manifest (`scale`), so the game can size cards by height_m. Re-check the earlier sheets still pass.
+- R3 Contact sheet regenerated and looked at (write what you saw in NOTES.md); report updated with per-sheet counts and MB.
