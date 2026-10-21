@@ -54,6 +54,7 @@ All new UI files are flat in `game/scripts/ui/` (t_uiicons and t_ui scan that fo
 | Gear preset selector | `scripts/ui/gear_preset_selector.gd` | GearPresetSelector | 4 numbered compact cells, active one bracketed, locked ones with a lock glyph |
 | Gear presets model | `scripts/items/gear_presets.gd` | GearPresets | Unlock rule, capture / apply via commands, save sanitizer (lives in items/ so inventory.gd can call it without a UI dependency) |
 | Bag screen | `scripts/ui/bag_screen.gd` | BagScreen | Header + grid + toolbar + inspect (ref 1) |
+| Gear screen base (B2) | `scripts/ui/gear_screen.gd` | GearScreen | What Character and Equipment share: header, the nine EquipmentSlots, the candidate column (InventoryGrid in `slot:<cell>` filter with the worn piece pinned) over one yellow action and a grey reason line |
 | Character -> Gear | `scripts/ui/character_screen.gd` | CharacterScreen | Portrait, name, XP bar, powers, Detailed Stats; Gear tab, presets, 3x3, candidates + Unequip (ref 2) |
 | Detailed Stats panel | `scripts/ui/detailed_stats_panel.gd` | DetailedStatsPanel | Real stats only, grouped (combat / crafting / gathering / survival) |
 | Equipment / My Info | `scripts/ui/equipment_screen.gd` | EquipmentScreen | 3x3, My Info Attack / Defense / Accuracy, hex row, candidates + compare + Equip (ref 3) |
@@ -209,7 +210,7 @@ sync; applied uncommitted in the work tree for local testing, the way ECON does,
 
 | File (owner) | Change | Step |
 |---|---|---|
-| `scripts/player/player_actions.gd` (W2-PLAYER) | `equip_at`, `unequip`, `hold_tool`, `set_locked`; `eat` online body `{bag_slot}`; `craft(rid, count, picks := [])` | B1/B2/B3 |
+| `scripts/player/player_actions.gd` (W2-PLAYER) | `equip_at`, `unequip` (B2: `&"tool"` lets go of the held tool offline; online it already sends `act.equip {slot: "tool", clear: true}`), `hold_tool`, `set_locked`; `eat` online body `{bag_slot}`; `craft(rid, count, picks := [])` | B1/B2/B3 |
 | `scripts/items/inventory.gd` (W2-INV) | `var presets: Dictionary`; `extras_to_dict` writes `"presets"` only when non-empty; `extras_from_dict` reads it through `GearPresets.sanitize`; `find_first` / `consume` / `consume_by_category` / `find_by_category` skip locked instances; a span item (cage) gets a uid like every other instance (`_mint` on the span path of `add`) | B1/B2 |
 | `scripts/items/crafting.gd` (W2-INV / W2-PROCESS) | locked instances never picked by `default_picks`/`_plan` and refused in `picks_valid`/`consume_for_craft` (B1, t_invui 11); picks entries may be `int` (lead, as today) or `Array[int]` (exact slots, count long), `Array` param types (B3) | B1/B3 |
 | `scripts/items/station_craft.gd` | `begin(rid, count, picks := [])`: the first job uses validated picks instead of `default_picks` (W2-PROCESS's ProcessStation already takes picks) | B3 |
@@ -218,7 +219,7 @@ sync; applied uncommitted in the work tree for local testing, the way ECON does,
 | `scripts/core/save_game.gd` | before `player.inventory.load_array(...)`: `InvNewTracker.rebaseline(player.inventory)` | B1 |
 | `scripts/core/save_sanitizer.gd` | `inventory_extras.presets` in SHAPE (Dictionary) | B2 |
 | `scripts/ui/hunt_hud.gd` (W1-UI) | one line in the Menu sheet: `_sheet_btn(box, "Character", ...)` -> `player.ui.open_character()`; the "Bag" entry calls `open_bag()` | B2 |
-| `scripts/dev/ui_real_capture_lab.gd`, `ui_screenshot_lab.gd`, `ui_family_lab.gd` (W1-UI labs) | replace reads of `_profile_col/_bag_col/_equip_col/_close_btn/_grid.columns == 5/_profile` with INVUI's (`ui.layout_blocks()` rects; Character screen profile text keeps `LevelDisplay.player_label()` + title) | B1 |
+| `scripts/dev/ui_real_capture_lab.gd`, `ui_screenshot_lab.gd`, `ui_family_lab.gd` (W1-UI labs) | replace reads of `_profile_col/_bag_col/_equip_col/_close_btn/_grid.columns == 5/_profile` with INVUI's (`ui.layout_blocks()` rects); B2: the Character screen's blocks, its `profile_lines()` carrying `LevelDisplay.player_label()` and the held title, and a `character` shot | B1/B2 |
 | `scripts/dev/inventory_lab.gd` (W2-INV) | drop its grouping asserts (×16 cells, `_cells`, `_on_cell`); keep the 100-instance seed and assert one cell per instance | B1 |
 | `tests/t_ui.gd` (W1-UI) | add the INVUI ui files to `OWNED` (type floor, const-before-func) and `character_screen.gd` to `LEVEL_SITES` | B1/B2 |
 

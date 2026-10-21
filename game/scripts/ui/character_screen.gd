@@ -148,8 +148,7 @@ func _draw_info() -> void:
 	_info.draw_rect(bar, Color("#0C0F0C"))
 	_info.draw_rect(Rect2(bar.position, Vector2(bar.size.x * World.pioneer_progress(), bar.size.y)), Color("#235D23"))
 	InvPaint.dashed(_info, Vector2(0, bar.position.y), Vector2(bar.size.x, bar.position.y), Color(1, 1, 1, 0.25))
-	var lv := LevelDisplay.player_label()
-	var parts := [[lv + "  (", InvTheme.TEXT], ["%d" % World.pioneer_xp, InvTheme.SELECT], [" / %d)" % World.xp_for_level(LevelDisplay.player_level() - 1), InvTheme.TEXT]]
+	var parts := _xp_parts()
 	var tw := 0.0
 	for p in parts:
 		tw += f.get_string_size(p[0], HORIZONTAL_ALIGNMENT_LEFT, -1, spx).x
@@ -161,10 +160,22 @@ func _draw_info() -> void:
 	InvPaint.dashed(_info, Vector2(0, sep_y), Vector2(_info.size.x, sep_y), Color(1, 1, 1, 0.18))
 	_info.draw_rect(Rect2(Vector2.ZERO, _info.size), InvTheme.BORDER, false, 2.0)
 
+## "Lv. 13  (222 / 345)" in parts, the current XP yellow (reference).
+func _xp_parts() -> Array:
+	return [[LevelDisplay.player_label() + "  (", InvTheme.TEXT], ["%d" % World.pioneer_xp, InvTheme.SELECT],
+		[" / %d)" % World.xp_for_level(LevelDisplay.player_level() - 1), InvTheme.TEXT]]
+
+## The card's text as drawn: name, status, XP bar, title (labs and tests read it).
+func profile_lines() -> PackedStringArray:
+	var xp := ""
+	for p in _xp_parts():
+		xp += str(p[0])
+	return PackedStringArray([player.display_name() if player else "", _status(), xp, _title()])
+
 ## Occupation (no clans exist); on the phone the title joins it (the title strip is desktop only).
 func _status() -> String:
 	var occ := World.occupation.capitalize() if World.occupation != "" else "Survivor"
-	return "%s · %s" % [occ, _title()] if _m.compact and _title() != "" else occ
+	return "%s · %s" % [occ, _title()] if _m.get("compact", false) and _title() != "" else occ
 
 func _title() -> String:
 	return LevelDisplay.current_title(LevelDisplay.player_level())
