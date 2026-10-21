@@ -40,6 +40,12 @@ const PHONE_LEGEND_COLS := 3
 const LEGEND_ROW_H := 22.0
 ## Portrait phone bands, top to bottom: header, one island card, map, legend (three rows), zoom, actions.
 const PHONE_CARD_TOP := 108.0
+## Drawn half-size of one atlas symbol: readable at 844x390 without covering the island.
+const ICON_PX := 26.0
+## Legend rows. Capped at eight: the landscape-phone legend is one column between the header and
+## the action row, and a ninth row ran into the buttons. Spec 15's own legend (You, Other Player,
+## Shelter, Harbor, Bonfire) plus spec 25's claims, facilities and the resource dots.
+const LEGEND_ORDER := ["claim", "campfire", "facility", "harbour", "camp", "other", "wild", "tree"]
 const PHONE_MAP_TOP := 236.0
 
 static func legend_color(kind: String) -> Color:
@@ -121,8 +127,6 @@ func icon_min_px(view: Vector2) -> float:
 	var base := 64.0 if UiTokens.is_compact(view) else 44.0
 	return maxf(base, ICON_PX * 2.0)
 
-## Drawn radius of one atlas symbol: readable at 844x390 without covering the island.
-const ICON_PX := 26.0
 
 ## Legend slot for item i of n: a column on desktop and landscape phones, PHONE_LEGEND_COLS per
 ## row on a portrait phone.
@@ -376,10 +380,6 @@ func _map_rect(L: Dictionary) -> Rect2:
 	var side: float = L["fit"]
 	return Rect2((L["centre"] as Vector2) - Vector2(side, side) * 0.5, Vector2(side, side))
 
-## Legend rows. Capped at eight: the landscape-phone legend is one column between the header and
-## the action row, and a ninth row ran into the buttons. Spec 15's own legend (You, Other Player,
-## Shelter, Harbor, Bonfire) plus spec 25's claims, facilities and the resource dots.
-const LEGEND_ORDER := ["claim", "campfire", "facility", "harbour", "camp", "other", "wild", "tree"]
 
 func _legend_kinds() -> Array:
 	return LEGEND_ORDER.duplicate()

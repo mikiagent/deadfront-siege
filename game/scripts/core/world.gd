@@ -385,8 +385,12 @@ func note_map_walk(pos: Vector3) -> void:
 	map_fog.walk(pos)
 
 func map_map() -> Dictionary:
-	var out := {"islands": map_fogs}
-	return out
+	var rows := {}
+	for key in map_fogs:
+		var f: Variant = map_fogs[key]
+		if f is MapFog:
+			rows[str(key)] = (f as MapFog).to_dict()
+	return {"islands": rows}
 
 func load_map_map(row: Dictionary) -> void:
 	map_fogs.clear()
