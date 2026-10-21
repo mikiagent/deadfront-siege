@@ -39,8 +39,8 @@
     "below_ears_mm": 2.49
    },
    "crop": {
-    "max_mm": 0.59,
-    "below_ears_mm": 0.59
+    "max_mm": 0.38,
+    "below_ears_mm": 0.38
    }
   },
   "craft": {
@@ -49,8 +49,8 @@
     "below_ears_mm": 0.64
    },
    "crop": {
-    "max_mm": 0.2,
-    "below_ears_mm": 0.2
+    "max_mm": 0.38,
+    "below_ears_mm": 0.38
    }
   },
   "death": {
@@ -89,8 +89,8 @@
     "below_ears_mm": 1.2
    },
    "crop": {
-    "max_mm": 0.1,
-    "below_ears_mm": 0.1
+    "max_mm": 0.38,
+    "below_ears_mm": 0.38
    }
   },
   "fish_cast": {
@@ -179,8 +179,8 @@
     "below_ears_mm": 0.64
    },
    "crop": {
-    "max_mm": 0.2,
-    "below_ears_mm": 0.2
+    "max_mm": 0.38,
+    "below_ears_mm": 0.38
    }
   },
   "knockdown": {
@@ -199,8 +199,8 @@
     "below_ears_mm": 0.26
    },
    "crop": {
-    "max_mm": 0.34,
-    "below_ears_mm": 0.34
+    "max_mm": 0.38,
+    "below_ears_mm": 0.38
    }
   },
   "punch": {
@@ -239,8 +239,8 @@
     "below_ears_mm": 0.81
    },
    "crop": {
-    "max_mm": 0.07,
-    "below_ears_mm": 0.07
+    "max_mm": 0.04,
+    "below_ears_mm": 0.04
    }
   },
   "sleep_down": {
@@ -289,8 +289,8 @@
     "below_ears_mm": 0.51
    },
    "crop": {
-    "max_mm": 0.11,
-    "below_ears_mm": 0.11
+    "max_mm": 0.38,
+    "below_ears_mm": 0.38
    }
   }
  },

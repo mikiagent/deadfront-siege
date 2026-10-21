@@ -2,7 +2,8 @@
 # glTF data, as Godot does) and measures how far any piece vertex sinks into the posed head + chest surface.
 #   Blender -b --factory-startup -P clip_penetration.py -- <survivor_dir> <out.json> <name>=<piece.glb> ...
 # The surface is the default head (hair/head.glb) and body_chest.glb. Penetration is reported as the increase
-# over the bind pose (some hair-edge vertices already touch or tuck into the skin at rest), max over 12 frames
+# over the bind pose (some hair-edge vertices already touch or tuck into the skin at rest; a helmet's lip tucks deeper
+# and stays there), counting points up to DEPTH straight under a face, max over 12 frames
 # per clip, for all piece vertices and for those below the ear tops (y < 1.66 m).
 import sys, os, json, glob
 import numpy as np
@@ -15,6 +16,7 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 SD, OUT = argv[0], argv[1]
 pieces = [(a.split("=", 1)[0], a.split("=", 1)[1]) for a in argv[2:]]
 EAR_TOP = 1.66
+DEPTH = 0.03  # a point farther than this from the surface is not in it
 FRAMES = 12
 
 
@@ -116,7 +118,10 @@ def signed(target_pos, target_tris, pts):
     d = np.zeros(len(pts))
     for k, p in enumerate(pts):
         loc, nrm, _, dist = bvh.find_nearest(Vector(p))
-        d[k] = (Vector(p) - loc).dot(nrm)
+        s_ = (Vector(p) - loc).dot(nrm)
+        # Under the surface means straight under a face, not off to the side of an edge (an ear rim), and not far out
+        # (a hat brim), where the nearest point's normal says nothing.
+        d[k] = s_ if dist < DEPTH and -s_ > 0.7 * dist else dist
     return d
 
 

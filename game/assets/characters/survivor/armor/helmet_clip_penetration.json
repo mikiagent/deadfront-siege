@@ -1,0 +1,301 @@
+{
+ "frames_per_clip": 12,
+ "ear_top_y": 1.66,
+ "bind_drift_m": 3.0415573837316856e-07,
+ "clips": {
+  "alert": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "attack_heavy": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 7.54,
+    "below_ears_mm": 7.54
+   }
+  },
+  "attack_primary": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "butcher": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "craft": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "death": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 7.94,
+    "below_ears_mm": 7.94
+   }
+  },
+  "drink": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "eat": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "farm": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "fish_cast": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 3.64,
+    "below_ears_mm": 3.64
+   }
+  },
+  "fish_wait": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "gather": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "gather_berry": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "gather_chop": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "gather_dig": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "gather_mine": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 6.63,
+    "below_ears_mm": 6.63
+   }
+  },
+  "hit_react": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "idle": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "knockdown": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "mount_idle": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "punch": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "roll": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "run": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "sleep": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "sleep_down": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "sleep_up": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  },
+  "sprint": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.91,
+    "below_ears_mm": 0.91
+   }
+  },
+  "throw_spear": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 3.72,
+    "below_ears_mm": 3.72
+   }
+  },
+  "walk": {
+   "forager": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   },
+   "hide_and_bone": {
+    "max_mm": 0.0,
+    "below_ears_mm": 0.0
+   }
+  }
+ },
+ "worst": {
+  "forager": 0.0,
+  "hide_and_bone": 7.94
+ }
+}

@@ -141,3 +141,13 @@ def tri_components(tris_w):
                 if ra != rb:
                     parent[ra] = rb
     return np.array([find(t) for t in range(n)])
+
+
+def embedded_images(js, bn):
+    """The file's embedded images as write_piece `images` entries (same bytes, names and order)."""
+    out = []
+    for im in js["images"]:
+        v = js["bufferViews"][im["bufferView"]]
+        o = v.get("byteOffset", 0)
+        out.append({"bytes": bn[o:o + v["byteLength"]], "mimeType": im["mimeType"], "name": im["name"]})
+    return out

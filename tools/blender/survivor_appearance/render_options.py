@@ -1,5 +1,6 @@
 # Inspection renders of appearance options in headless Blender, neutral studio light, bind pose.
 #   Blender -b --factory-startup -P render_options.py -- <out_dir> <sheet.png> <row>=<a.glb>,<b.glb> [<row>=...]
+#   [views=front,side,34,back,portrait,iso] picks the views (default: the first five).
 # Each row is one look (the pieces are loaded together with the unchanged body chest/arms/legs for context)
 # and gets front, side, 3/4, back (the nape hairline) and portrait views; the sheet stacks the rows (first row = the unchanged base).
 # Also writes <out_dir>/<row>_<view>.png and prints, per row, how many pixels differ from the first row.
@@ -9,7 +10,8 @@ from mathutils import Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 out, sheet = argv[0], argv[1]
-rows = [(a.split("=", 1)[0], a.split("=", 1)[1].split(",")) for a in argv[2:]]
+rows = [(a.split("=", 1)[0], a.split("=", 1)[1].split(",")) for a in argv[2:] if not a.startswith("views=")]
+pick = next((a[6:].split(",") for a in argv[2:] if a.startswith("views=")), None)  # views=front,iso,... (default: five)
 BODY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../game/assets/characters/survivor/body")
 CONTEXT = [os.path.normpath(f"{BODY}/body_{r}.glb") for r in ("chest", "arms", "legs")]
 os.makedirs(out, exist_ok=True)
@@ -18,6 +20,9 @@ VIEWS = (  # name, direction from target, ortho scale (0 = perspective portrait)
     ("front", (0, -1, 0), 0.36), ("side", (1, 0, 0), 0.36), ("34", (0.75, -1, 0.12), 0.36),
     ("back", (-0.35, 1, 0.15), 0.36), ("portrait", (0.45, -1, 0.10), 0.0),
 )
+EXTRA = {"iso": ((0.7, -0.7, 1.0), 0.36)}  # the play camera's angle, looking down on the head
+if pick:
+    VIEWS = tuple(next(((n, d, o) for n, d, o in VIEWS if n == v), None) or (v, *EXTRA[v]) for v in pick)
 
 
 def clear():
