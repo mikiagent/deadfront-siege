@@ -1,11 +1,11 @@
 diff --git a/game/data/characters/appearance.json b/game/data/characters/appearance.json
 new file mode 100644
-index 00000000..0f15b546
+index 00000000..20039acd
 --- /dev/null
 +++ b/game/data/characters/appearance.json
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,246 @@
 +{
-+  "_about": "APPEAR-A hair rows for CHARCREATE's appearance.json (part \"hair\"). If CHARCREATE's file is already there, replace its hair part's options with these four rows. Apply a row with PlayerEquipment.set_hair(row.head, row.scene): head replaces the head region, scene fills the \"hair\" region that helmets hide (\"\" = none). base_short is today's look, worn as body/body_helmet.glb. Built by tools/blender/survivor_appearance/build.sh.",
++  "_about": "APPEAR-A rows for CHARCREATE's appearance.json: parts \"hair\" (P2), \"facial_hair\", \"brows\" (a new slot) and \"face\" (P4). If CHARCREATE's file is already there, replace those parts' options with these rows (add \"brows\"). Apply a hair row with PlayerEquipment.set_hair(row.head, row.scene): head replaces the head region, scene fills the \"hair\" region that helmets hide (\"\" = none). Apply a face row with PlayerEquipment.set_part(row.region, row.scene) (\"\" = today's face). Pieces whose mesh name ends in \"_hairtint\" take the hair colour as their albedo_color. base_short is today's look, worn as body/body_helmet.glb. Built by tools/blender/survivor_appearance/build.sh.",
 +  "parts": [
 +    {
 +      "id": "hair",
@@ -56,6 +56,197 @@ index 00000000..0f15b546
 +          ]
 +        }
 +      ]
++    },
++    {
++      "id": "facial_hair",
++      "name": "Facial Hair",
++      "options": [
++        {
++          "id": "base_stubble",
++          "name": "Stubble",
++          "scene": "",
++          "attach_bone": "Head",
++          "region": "facial_hair",
++          "genders": [
++            "m",
++            "f"
++          ]
++        },
++        {
++          "id": "clean",
++          "name": "Clean-shaven",
++          "scene": "res://assets/characters/survivor/face/fh_clean.glb",
++          "attach_bone": "Head",
++          "region": "facial_hair",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "heavy_stubble",
++          "name": "Heavy stubble",
++          "scene": "res://assets/characters/survivor/face/fh_heavy_stubble.glb",
++          "attach_bone": "Head",
++          "region": "facial_hair",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "moustache",
++          "name": "Moustache",
++          "scene": "res://assets/characters/survivor/face/fh_moustache.glb",
++          "attach_bone": "Head",
++          "region": "facial_hair",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "goatee",
++          "name": "Goatee",
++          "scene": "res://assets/characters/survivor/face/fh_goatee.glb",
++          "attach_bone": "Head",
++          "region": "facial_hair",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "beard_short",
++          "name": "Short beard",
++          "scene": "res://assets/characters/survivor/face/fh_beard_short.glb",
++          "attach_bone": "Head",
++          "region": "facial_hair",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "beard_long",
++          "name": "Long beard",
++          "scene": "res://assets/characters/survivor/face/fh_beard_long.glb",
++          "attach_bone": "Head",
++          "region": "facial_hair",
++          "genders": [
++            "m"
++          ]
++        }
++      ]
++    },
++    {
++      "id": "brows",
++      "name": "Eyebrows",
++      "options": [
++        {
++          "id": "base_brows",
++          "name": "Natural",
++          "scene": "",
++          "attach_bone": "Head",
++          "region": "brows",
++          "genders": [
++            "m",
++            "f"
++          ]
++        },
++        {
++          "id": "straight",
++          "name": "Straight",
++          "scene": "res://assets/characters/survivor/face/br_straight.glb",
++          "attach_bone": "Head",
++          "region": "brows",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "arched",
++          "name": "Arched",
++          "scene": "res://assets/characters/survivor/face/br_arched.glb",
++          "attach_bone": "Head",
++          "region": "brows",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "bushy",
++          "name": "Bushy",
++          "scene": "res://assets/characters/survivor/face/br_bushy.glb",
++          "attach_bone": "Head",
++          "region": "brows",
++          "genders": [
++            "m"
++          ]
++        }
++      ]
++    },
++    {
++      "id": "face",
++      "name": "Facial Features",
++      "options": [
++        {
++          "id": "base_face",
++          "name": "None",
++          "scene": "",
++          "attach_bone": "Head",
++          "region": "features",
++          "genders": [
++            "m",
++            "f"
++          ]
++        },
++        {
++          "id": "brow_scar",
++          "name": "Brow scar",
++          "scene": "res://assets/characters/survivor/face/ft_brow_scar.glb",
++          "attach_bone": "Head",
++          "region": "features",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "cheek_scar",
++          "name": "Cheek scar",
++          "scene": "res://assets/characters/survivor/face/ft_cheek_scar.glb",
++          "attach_bone": "Head",
++          "region": "features",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "freckles",
++          "name": "Freckles",
++          "scene": "res://assets/characters/survivor/face/ft_freckles.glb",
++          "attach_bone": "Head",
++          "region": "features",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "face_paint",
++          "name": "Face paint",
++          "scene": "res://assets/characters/survivor/face/ft_face_paint.glb",
++          "attach_bone": "Head",
++          "region": "features",
++          "genders": [
++            "m"
++          ]
++        },
++        {
++          "id": "age_lines",
++          "name": "Age lines",
++          "scene": "res://assets/characters/survivor/face/ft_age_lines.glb",
++          "attach_bone": "Head",
++          "region": "features",
++          "genders": [
++            "m"
++          ]
++        }
++      ]
 +    }
 +  ]
 +}
@@ -73,10 +264,10 @@ index 00000000..fdcbb934
 +script = ExtResource("1")
 diff --git a/game/scripts/dev/appearance_lab.gd b/game/scripts/dev/appearance_lab.gd
 new file mode 100644
-index 00000000..f111d821
+index 00000000..d44041d0
 --- /dev/null
 +++ b/game/scripts/dev/appearance_lab.gd
-@@ -0,0 +1,226 @@
+@@ -0,0 +1,295 @@
 +extends Node3D
 +## APPEAR-A hair options in the engine. Rows come from assets/characters/survivor/hair/hair.json "options" (the
 +## rows CHARCREATE's appearance.json "hair" slot takes). Checks: (1) the default look through PlayerEquipment is
@@ -84,7 +275,7 @@ index 00000000..f111d821
 +## was worn; (2) every clip plays with every option attached, bare-headed and under each helmet; (3) under a helmet
 +## (its kit hides "hair") the head shows (today's look wears its bald twin, hair/head.glb), the hair piece hides, and
 +## unequip brings the look back. Windowed it also saves, per helmet, option and view, the unchanged base (left) next
-+## to the option (right). Time of day is pinned so every run lights the same.
++## to the option (right). Time of day is pinned so every run lights the same. Then the P4 face rows (_face_rows).
 +## godot --path game [--rendering-method gl_compatibility] --resolution 1600x900 -- --lab=appearance_lab --shot-dir=DIR
 +## Prints "[appear] PASS" (exit 0) or "[appear] FAIL ..." (exit 1).
 +
@@ -130,7 +321,6 @@ index 00000000..f111d821
 +	await _same_as_today(base, opt, "start")
 +	opt.visible = true
 +	base.visible = true
-+	var anim: AnimationPlayer = (opt as RiggedModel).anim_player
 +	for row in rows:
 +		var r := row as Dictionary
 +		var id := str(r["id"])
@@ -155,24 +345,8 @@ index 00000000..f111d821
 +					_fails.append("%s: under %s the head is %s (want %s, visible)" % [id, helmet, eq.head_shown, under])
 +				if not hair.is_empty() and (hair[0] as MeshInstance3D).visible:
 +					_fails.append("%s: %s does not hide the hair" % [id, helmet])
-+			anim.clear_caches()
-+			var clips := anim.get_animation_list()
-+			for clip in clips:
-+				anim.play(clip)
-+				anim.seek(anim.current_animation_length * 0.5, true)
-+			print("[appear] clips option=%s helmet=%s played=%d" % [id, helmet if helmet != "" else "none", clips.size()])
-+			_pose(opt)
-+			if _out != "":
-+				for view in VIEWS:
-+					# The option stands to the screen-right of the base in every view.
-+					_frame(_head(base), view)
-+					var right := _cam.global_basis.x
-+					right.y = 0.0
-+					opt.global_position = base.global_position + right.normalized() * 0.7
-+					_frame((_head(base) + _head(opt)) * 0.5, view, 1.0 if view == "world" else 1.9)
-+					var img := await _grab()
-+					if img:
-+						img.save_png("%s/%s_%s.png" % [_out, tag, view])
++			_play_all(opt, id, helmet)
++			await _shoot(base, opt, tag, VIEWS.keys())
 +			if helmet != "":
 +				eq.unequip(&"head")
 +				if eq.head_shown != chosen:
@@ -183,12 +357,13 @@ index 00000000..f111d821
 +	eq.set_hair("", "")
 +	if eq.body.has("hair") and not (eq.body["hair"] as Array).is_empty():
 +		_fails.append("default look keeps a hair piece")
++	var n_face := await _face_rows(base, opt, eq)
 +	_pose(opt)
 +	await _settle()
 +	opt.position = base.position
 +	await _same_as_today(base, opt, "after_options")
 +	Engine.time_scale = 1.0
-+	print("[appear] options=%d views=%d" % [rows.size(), VIEWS.size()])
++	print("[appear] options=%d face_options=%d views=%d" % [rows.size(), n_face, VIEWS.size()])
 +	if _fails.is_empty():
 +		print("[appear] PASS")
 +		get_tree().quit(0)
@@ -196,6 +371,91 @@ index 00000000..f111d821
 +		for f in _fails:
 +			print("[appear] FAIL %s" % f)
 +		get_tree().quit(1)
++
++## P4 face rows (face/face.json "options": the facial_hair, brows and face parts) on today's head: each piece
++## attaches through PlayerEquipment.set_part, its decals keep their alpha, every clip plays, it stays on under each
++## helmet except a beard shell under a helmet that hides "beard" (its stubble decal stays), and taking it off leaves
++## nothing behind. The moustache is also shot with another hair colour (the "_hairtint" meshes' albedo_color).
++func _face_rows(base: RiggedModel, opt: RiggedModel, eq: PlayerEquipment) -> int:
++	var parts: Dictionary = (JSON.parse_string(FileAccess.get_file_as_string(ROOT + "/face/face.json")) as Dictionary)["options"]
++	var n := 0
++	for part: String in parts:
++		for row in parts[part]:
++			var r := row as Dictionary
++			var path := str(r.get("scene", ""))
++			if path == "":
++				continue
++			n += 1
++			var id := "%s_%s" % [part, r["id"]]
++			var region := str(r["region"])
++			eq.set_part(region, path)
++			var meshes: Array = eq.body.get(region, [])
++			if meshes.is_empty():
++				_fails.append("%s: nothing attached" % id)
++				continue
++			var see_through := meshes.filter(func(m: MeshInstance3D) -> bool: return (m.get_active_material(0) as BaseMaterial3D).transparency != BaseMaterial3D.TRANSPARENCY_DISABLED)
++			if see_through.size() != meshes.size() - (1 if part != "face" else 0):  # all but the opaque overlay
++				_fails.append("%s: %d of %d pieces keep their alpha" % [id, see_through.size(), meshes.size()])
++			for helmet: String in HELMETS:
++				if helmet != "":
++					eq.equip(&"head", helmet)
++				var hides_beard: bool = (eq.equipped.get(&"head", {}) as Dictionary).get("hides", []).has("beard")
++				for m: MeshInstance3D in meshes:
++					var want := not (hides_beard and str(m.name).begins_with("beard_"))
++					if m.visible != want:
++						_fails.append("%s: under %s %s is %s" % [id, helmet if helmet != "" else "nothing", m.name, "shown" if m.visible else "hidden"])
++				_play_all(opt, id, helmet)
++				var tag := id if helmet == "" else "%s_%s" % [helmet.get_slice("/", 0), id]
++				await _shoot(base, opt, tag, ["front", "side", "34", "portrait", "world"] if helmet == "" else ["34", "portrait"])
++				if helmet != "":
++					eq.unequip(&"head")
++			if r["id"] == "moustache" and _out != "":
++				await _tint_shot(base, opt, meshes, id)
++			eq.set_part(region, "")
++			if not (eq.body.get(region, []) as Array).is_empty():
++				_fails.append("%s: taking it off leaves a piece" % id)
++	return n
++
++## The hair-colour path: a "_hairtint" piece's albedo_color is the hair colour. Shot in another colour, and the
++## frame must change.
++func _tint_shot(base: RiggedModel, opt: RiggedModel, meshes: Array, id: String) -> void:
++	_frame(_head(base), "portrait")
++	var plain := await _grab()
++	var tinted := 0
++	for m: MeshInstance3D in meshes:
++		if str(m.name).ends_with("_hairtint"):
++			(m.get_active_material(0) as StandardMaterial3D).albedo_color = Color("9a5a2c")
++			tinted += 1
++	await _shoot(base, opt, id + "_tint_ginger", ["portrait"])
++	_frame(_head(base), "portrait")
++	var ginger := await _grab()
++	if tinted == 0 or (plain and _diff(plain, ginger) == 0):
++		_fails.append("%s: a hair colour does not reach the piece (%d tintable)" % [id, tinted])
++
++## Every clip, posed half way, with whatever the rig wears now; back to the held idle pose after.
++func _play_all(opt: RiggedModel, id: String, helmet: String) -> void:
++	var anim := opt.anim_player
++	anim.clear_caches()
++	var clips := anim.get_animation_list()
++	for clip in clips:
++		anim.play(clip)
++		anim.seek(anim.current_animation_length * 0.5, true)
++	print("[appear] clips option=%s helmet=%s played=%d" % [id, helmet if helmet != "" else "none", clips.size()])
++	_pose(opt)
++
++## Windowed shots: the option stands to the screen-right of the unchanged base in every view.
++func _shoot(base: RiggedModel, opt: RiggedModel, tag: String, views: Array) -> void:
++	if _out == "":
++		return
++	for view: String in views:
++		_frame(_head(base), view)
++		var right := _cam.global_basis.x
++		right.y = 0.0
++		opt.global_position = base.global_position + right.normalized() * 0.7
++		_frame((_head(base) + _head(opt)) * 0.5, view, 1.0 if view == "world" else 1.9)
++		var img := await _grab()
++		if img:
++			img.save_png("%s/%s_%s.png" % [_out, tag, view])
 +
 +## (1) Default look == today: same spot, same pose, each alone in the frame, 0 differing pixels.
 +func _same_as_today(base: RiggedModel, opt: RiggedModel, tag: String) -> void:
@@ -311,7 +571,7 @@ index 00000000..2bf63492
 @@ -0,0 +1 @@
 +uid://bn6s0hogmuyyb
 diff --git a/game/scripts/player/player_equipment.gd b/game/scripts/player/player_equipment.gd
-index 1bd8b68a..08883e6c 100644
+index 1bd8b68a..ad692ac0 100644
 --- a/game/scripts/player/player_equipment.gd
 +++ b/game/scripts/player/player_equipment.gd
 @@ -3,15 +3,25 @@ extends Node
@@ -340,7 +600,7 @@ index 1bd8b68a..08883e6c 100644
  
  func setup(p_rig: RiggedModel, p_inventory: Inventory) -> void:
  	rig = p_rig
-@@ -34,6 +44,32 @@ func setup(p_rig: RiggedModel, p_inventory: Inventory) -> void:
+@@ -34,6 +44,40 @@ func setup(p_rig: RiggedModel, p_inventory: Inventory) -> void:
  	inventory.changed.connect(refresh)
  	refresh()
  
@@ -354,6 +614,14 @@ index 1bd8b68a..08883e6c 100644
 +		hair = ""
 +	_head = head
 +	_swap_region("hair", hair)
++	_sync_body()
++
++## Face option (appearance.json "facial_hair", "brows" and "face" rows): `path` fills `region` ("" = none, today's
++## face). The pieces are made from the head's own triangles, so they fit every head and ride the same weights.
++func set_part(region: String, path: String) -> void:
++	if body.is_empty():
++		return
++	_swap_region(region, path)
 +	_sync_body()
 +
 +func _swap_region(region: String, path: String) -> bool:
@@ -373,7 +641,7 @@ index 1bd8b68a..08883e6c 100644
  ## Equip or unequip whatever differs between the inventory and what is shown.
  func refresh() -> void:
  	if rig == null or rig.skeleton == null:
-@@ -73,6 +109,10 @@ func _sync_body() -> void:
+@@ -73,9 +117,14 @@ func _sync_body() -> void:
  	for slot in equipped:
  		for region in (equipped[slot] as Dictionary)["hides"]:
  			hidden[str(region)] = true
@@ -383,4 +651,25 @@ index 1bd8b68a..08883e6c 100644
 +		head_shown = head
  	for region in body:
  		for m in body[region]:
- 			(m as MeshInstance3D).visible = not hidden.has(region)
+-			(m as MeshInstance3D).visible = not hidden.has(region)
++			# A face piece's beard shell ("beard_*" mesh) hides on its own under a helmet that hides "beard".
++			(m as MeshInstance3D).visible = not hidden.has(region) and not (hidden.has("beard") and str(m.name).begins_with("beard_"))
+ 
+ func _hides(kit: String, piece: String) -> Array:
+ 	if not _kits.has(kit):
+diff --git a/game/scripts/player/player_view.gd b/game/scripts/player/player_view.gd
+index 753794b2..0d74228c 100644
+--- a/game/scripts/player/player_view.gd
++++ b/game/scripts/player/player_view.gd
+@@ -120,6 +120,11 @@ static func web_safe_mesh(mi: MeshInstance3D) -> void:
+ 		if original:
+ 			safe.albedo_color = original.albedo_color
+ 			safe.albedo_texture = original.albedo_texture
++			# Face decals (alpha-blended, no shadow of their own) and beard shells (alpha-cut rim) keep their alpha.
++			safe.transparency = original.transparency
++			safe.alpha_scissor_threshold = original.alpha_scissor_threshold
++			if original.transparency in [BaseMaterial3D.TRANSPARENCY_ALPHA, BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS]:
++				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+ 		mi.set_surface_override_material(surface, safe)
+ 
+ func _bind_rig_markers() -> void:

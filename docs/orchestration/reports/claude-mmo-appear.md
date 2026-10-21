@@ -8,7 +8,7 @@ image generation; headless Blender and Godot only).
 |---|---|
 | P2 hair split and four hairstyles | done, this report |
 | P3 helmet shells | done, this report |
-| P4 clean-shaven jaw, facial hair, feature decals | not started |
+| P4 clean-shaven jaw, facial hair, feature decals | done, this report |
 
 ## P2: what shipped
 
@@ -244,6 +244,171 @@ What did not work, and was dropped:
 - **A backing behind holes, found by sight lines.** The skull's sockets sit on a convex surface, so a "surrounded
   on all sides" test misses them. It also caught the gaps between the teeth and painted the forehead.
 
+## P4: what shipped
+
+Every face option of the plan, 0 credits, rebuilt by the same `tools/blender/survivor_appearance/build.sh` (now
+about 6 minutes) from `hair/head.glb` and the survivor's atlas. A second full run gave 89 byte-identical files
+(hair, armour, face; md5).
+
+| option | part (CHARCREATE slot) | file | what |
+|---|---|---|---|
+| Stubble | facial_hair | none | today's painted stubble (the default row) |
+| Clean-shaven | facial_hair | `fh_clean.glb` | shave overlay |
+| Heavy stubble | facial_hair | `fh_heavy_stubble.glb` | shave overlay + hair decal over the whole beard zone (1024 texture) |
+| Moustache | facial_hair | `fh_moustache.glb` | shave overlay + hair decal |
+| Goatee | facial_hair | `fh_goatee.glb` | shave overlay + hair decal (soul patch, chin, 3 cm under it) |
+| Short beard | facial_hair | `fh_beard_short.glb` | shave overlay + heavy-stubble decal + shell beard, 6 mm, 6869 tris |
+| Long beard | facial_hair | `fh_beard_long.glb` | same, 12 mm, chin carried 22 mm down |
+| Natural brows | brows (new slot) | none | today's painted brows |
+| Straight / Arched / Bushy | brows | `br_straight.glb`, `br_arched.glb`, `br_bushy.glb` | browless overlay + brow decal |
+| None | face | none | today's face |
+| Brow scar, Cheek scar, Freckles, Face paint, Age lines | face | `ft_brow_scar.glb`, `ft_cheek_scar.glb`, `ft_freckles.glb`, `ft_face_paint.glb`, `ft_age_lines.glb` | one decal each |
+
+All in `game/assets/characters/survivor/face/`, with `face.json` (stats, the rows, the hair tint) and
+`face_clip_penetration.json` (the clip gate). Every file has 65 joints with body_helmet's names and inverse bind
+matrices (max difference 0.0), weights summing to 1, and at most 9387 tris (a beard: 6869 shell + 1168 overlay +
+1350 decal; the others 33-2518), under the 12k warning.
+
+| script | does |
+|---|---|
+| `face_paint.py` | Everything above. |
+| `facelib.py` | The head's texels with bind-pose positions, the skin fill, the piece builders. |
+| `glb.py` `write_parts` | Several skinned meshes in one file (overlay, decal, shell), each its own node on the one skin. |
+| `clip_penetration.py` | Now reads every mesh of a piece (`path@name` picks some), and `vs:<helmet>` measures poke-through. |
+| `render_options.py` | `engine=eevee`: EEVEE under an even grey sky and a soft key, materials as `web_safe_mesh` draws them (albedo and alpha, roughness 0.82, no normal or ORM map). Workbench shows neither alpha nor colour factors. |
+
+### How the face pieces work
+
+The atlas UVs are Tripo's 1125 scattered islands, so nothing is painted in UV space. Every texel gets its bind-pose
+3D position, and all paint comes from 3D.
+
+- **Clean shave.** The jaw's stubble is painted out: the skin colour of the cheeks at the local tone of a harmonic
+  fill from the lit skin around the beard zone (84-115 % of the cheeks, a little darker under the jaw), with a fine
+  mottle. Where it applies: a geometric prior (below the cheekbones, front half, clear of P2's scalp field, the nose
+  and the ears), times "darker or greyer than the fill" per vertex and per texel. The lips are kept by a mask
+  measured per column from the paint (lower lip red, mouth line, an upper lip greyed by the stubble, which gets the
+  lower lip's colour back). The brows are painted out the same way.
+- **Overlay.** The head's own triangles under the repaint, 0.4 mm out, on the atlas UVs, showing
+  `face_clean_Color_82d5db79-….jpg` (only those texels; the rest is flat, 170 KB). The name keeps the atlas id, so
+  CHARCREATE's `CharacterLook._atlases_for` gives it the base masks and the chosen skin tone: 94 % of the shave
+  zone's texels are in its skin channel. The browless zone is 57 % skin, 27 % "hair and brows", so with a chosen skin
+  tone the brows' old place keeps part of the painted tone (see notes).
+- **Decals.** The head's triangles under the design, 0.8 mm out (features 1.0 mm, over brow decals), on their own
+  UVs (Smart UV Project), 512 RGBA (heavy stubble 1024), alpha-blended. Hair decals use frayed strands: where the
+  density thins only the strongest strands stay, so edges break into hairs.
+- **Tint.** Hair pieces (mesh names ending `_hairtint`) are grey strand shade in the texture times the material
+  colour, which is the hair colour: `#4c4037`, the lit half of the painted scalp hair. A hair-colour choice sets
+  `albedo_color` on those meshes. The lab shoots the moustache in another colour and checks the frame changes.
+- **Shell beards.** The beard zone's triangles cut 16 ways, pushed out by the length times how thick the man's own
+  stubble grows there (0.8 mm at the rim, nothing at the lips), with a skirt into the skin (like P2's crop). Strand
+  texture, alpha-cut rim (glTF MASK). **Weights: the skin's own, not rigid on Head.** Rigid on Head sank the
+  shells up to 29.9 mm into the jaw and chest in the clip gate (the chin skin carries 20-30 % Neck); with the skin's
+  weights the worst is 1.45 mm (short) and 1.76 mm (long).
+- **Helmets.** `hide_and_bone/kit.json` now hides `["hair", "beard"]`: its cheek guards run down beside the jaw
+  and the shells come out through them (long 7.0 mm, short 1.7 mm). Only the shell mesh (`beard_*`) hides; the
+  shave and stubble decal stay, so the face reads as stubble under the skull. The forager hides `["hair"]` as
+  before; no beard shell comes near it (0.0 mm).
+
+### Engine side (hooks patch, regenerated)
+
+- `player_view.gd` `web_safe_mesh`: keeps the source material's `transparency` and `alpha_scissor_threshold`; an
+  alpha-blended surface casts no shadow. Every shipped survivor, body, hair and kit material is OPAQUE (checked in
+  the GLBs), so their safe material is unchanged.
+- `player_equipment.gd`: `set_part(region, path)` fills a face region (`facial_hair`, `brows`, `features`) through
+  `_swap_region` (the armour path, `RiggedModel.attach_skinned`). `_sync_body()` also hides `beard_*` meshes under a
+  piece that hides `"beard"`.
+- `appearance_lab.gd`: after the hair rows, every face row from `face/face.json`. Bare-headed and under each helmet
+  it checks the pieces attach, decals keep their alpha, the beard shell hides only under hide_and_bone, all 29 clips
+  play, and taking the row off leaves nothing. It shoots front, side, 3/4, portrait and world bare-headed, 3/4 and
+  portrait under each helmet, and the moustache in a second hair colour.
+- `appearance.json`: parts `hair` (P2), `facial_hair`, `brows` (new) and `face`.
+
+The patch applies (`git apply --check` on a temporary index) on `claude/mmo-overhaul` at acc684a6, on 29ffa292,
+and on `claude/mmo-charcreate` a53929c3 with CHARCREATE's hooks applied (`appearance.json` excluded: CHARCREATE
+creates it; take the rows below into it).
+
+### Rows for CHARCREATE's `appearance.json`
+
+Same shape as the hair rows. Apply with `PlayerEquipment.set_part(row.region, row.scene)`. CHARCREATE's own
+`_attach_parts` path would also attach them (with the `web_safe_mesh` hunk), but then no helmet hides a beard.
+
+```json
+{"id": "facial_hair", "name": "Facial Hair", "options": [
+ {"id": "base_stubble", "name": "Stubble", "scene": "", "attach_bone": "Head", "region": "facial_hair", "genders": ["m", "f"]},
+ {"id": "clean", "name": "Clean-shaven", "scene": "res://assets/characters/survivor/face/fh_clean.glb", "attach_bone": "Head", "region": "facial_hair", "genders": ["m"]},
+ {"id": "heavy_stubble", "name": "Heavy stubble", "scene": "res://assets/characters/survivor/face/fh_heavy_stubble.glb", "attach_bone": "Head", "region": "facial_hair", "genders": ["m"]},
+ {"id": "moustache", "name": "Moustache", "scene": "res://assets/characters/survivor/face/fh_moustache.glb", "attach_bone": "Head", "region": "facial_hair", "genders": ["m"]},
+ {"id": "goatee", "name": "Goatee", "scene": "res://assets/characters/survivor/face/fh_goatee.glb", "attach_bone": "Head", "region": "facial_hair", "genders": ["m"]},
+ {"id": "beard_short", "name": "Short beard", "scene": "res://assets/characters/survivor/face/fh_beard_short.glb", "attach_bone": "Head", "region": "facial_hair", "genders": ["m"]},
+ {"id": "beard_long", "name": "Long beard", "scene": "res://assets/characters/survivor/face/fh_beard_long.glb", "attach_bone": "Head", "region": "facial_hair", "genders": ["m"]}]},
+{"id": "brows", "name": "Eyebrows", "options": [
+ {"id": "base_brows", "name": "Natural", "scene": "", "attach_bone": "Head", "region": "brows", "genders": ["m", "f"]},
+ {"id": "straight", "name": "Straight", "scene": "res://assets/characters/survivor/face/br_straight.glb", "attach_bone": "Head", "region": "brows", "genders": ["m"]},
+ {"id": "arched", "name": "Arched", "scene": "res://assets/characters/survivor/face/br_arched.glb", "attach_bone": "Head", "region": "brows", "genders": ["m"]},
+ {"id": "bushy", "name": "Bushy", "scene": "res://assets/characters/survivor/face/br_bushy.glb", "attach_bone": "Head", "region": "brows", "genders": ["m"]}]},
+{"id": "face", "name": "Facial Features", "options": [
+ {"id": "base_face", "name": "None", "scene": "", "attach_bone": "Head", "region": "features", "genders": ["m", "f"]},
+ {"id": "brow_scar", "name": "Brow scar", "scene": "res://assets/characters/survivor/face/ft_brow_scar.glb", "attach_bone": "Head", "region": "features", "genders": ["m"]},
+ {"id": "cheek_scar", "name": "Cheek scar", "scene": "res://assets/characters/survivor/face/ft_cheek_scar.glb", "attach_bone": "Head", "region": "features", "genders": ["m"]},
+ {"id": "freckles", "name": "Freckles", "scene": "res://assets/characters/survivor/face/ft_freckles.glb", "attach_bone": "Head", "region": "features", "genders": ["m"]},
+ {"id": "face_paint", "name": "Face paint", "scene": "res://assets/characters/survivor/face/ft_face_paint.glb", "attach_bone": "Head", "region": "features", "genders": ["m"]},
+ {"id": "age_lines", "name": "Age lines", "scene": "res://assets/characters/survivor/face/ft_age_lines.glb", "attach_bone": "Head", "region": "features", "genders": ["m"]}]}
+```
+
+## P4 gates
+
+All run on this worktree with the hooks patch applied. Logs and shots: `scratchpad/appear/p4/` (`b1/`, `b2/`,
+`lab1/`, `home/`, `tests1/`) and `scratchpad/appear/shots_p4/`.
+
+| gate | result |
+|---|---|
+| Rebuild from git | `build.sh` twice: 89 files (hair, armour, face) byte-identical (md5). P2 and P3 outputs unchanged except `hide_and_bone/kit.json` (now hides "beard"). |
+| Blender renders, neutral light | 15 rows (base and the 14 options) in front, side, 3/4 and portrait; 4 rows under the helmets. All looked at. |
+| Engine lab, `appearance_lab` | PASS in Forward+ 1600x900, gl_compatibility 1600x900, gl_compatibility 844x390 and headless; 4 hair + 14 face options; 0 SCRIPT ERROR, 0 ERROR, 0 WARNING in the windowed logs |
+| Clips | each option bare-headed and under each helmet: 54 x 29 clips in every mode; 0 "couldn't resolve track" |
+| Default look vs today, in the lab | 0 px at the start; 0 px off by more than 8/255 after every hair and face option and helmet was worn, in all three windowed modes |
+| home_lab shot vs today (P2's baseline shots, minimap masked) | 7 of 8 runs 0 px: gl_compatibility 1600x900 x2, 844x390 x2, Forward+ runs 1, 3, 4. Forward+ run 2: 1858 px, all in a bush at the top screen edge (x 520-640, y 0-80); runs 3 and 4 of the same mode are 0 px. The survivor is identical in all 8. |
+| Penetration into head + chest (mm beyond the bind pose, 12 frames x 29 clips) | below |
+| Poke-through helmets (mm a piece vertex stands outside the helmet over the same skin point) | beard shells vs forager 0.0 in every clip; vs hide_and_bone 1.7 / 7.0, hidden by kit.json. Overlays and decals at most their own offset (0.39-0.95 mm): only where the helmet's lip already runs into the skin (P3) |
+| Hair tint | the moustache shot in `#9a5a2c`: the frame changes (lab check) |
+| Tests | all 21 `t_*.gd` PASS (t_save's 5 deliberate SCRIPT ERRORs only), run_all `[tests] PASS`, `SMOKE PASS`, equip_mount_lab `[equiplab] PASS` |
+
+| clip | clean | heavy stubble | moustache | goatee | short beard shell | long beard shell | bushy brows | face paint |
+|---|---|---|---|---|---|---|---|---|
+| walk | 0.20 | 0.21 | 0.21 | 0.21 | 0.47 | 0.47 | 0.01 | 0.99 |
+| run | 0.01 | 0.02 | 0.02 | 0.01 | 0.83 | 0.83 | 0.01 | 0.96 |
+| attack_primary | 0.35 | 0.69 | 0.69 | 0.69 | 1.45 | 1.45 | 0.04 | 0.84 |
+| attack_heavy | 0.31 | 0.33 | 0.33 | 0.33 | 0.92 | 0.92 | 0.04 | 0.91 |
+| gather | 0.30 | 0.67 | 0.67 | 0.67 | 1.10 | 1.10 | 0.03 | 0.88 |
+| gather_chop | 0.26 | 0.60 | 0.60 | 0.60 | 1.09 | 1.09 | 0.03 | 1.00 |
+| gather_mine | 0.26 | 0.70 | 0.70 | 0.70 | 1.42 | 1.42 | 0.04 | 0.66 |
+| worst of 29 | 0.35 | 0.70 | 0.70 | 0.70 | 1.45 | 1.76 | 0.07 | 1.00 |
+
+The overlays and decals ride the head's own weights, so these numbers are the head surface folding against the
+chest under the jaw, not the piece leaving the skin; none goes deeper than its own offset. The shells' worst points
+are their skirt and rim. All 29 clips are in `face/face_clip_penetration.json`.
+
+Shots I looked at (`scratchpad/appear/shots_p4/`):
+- `blender_sheet_face_front_side_34_portrait.png`, `blender_sheet_face_under_helmets.png`
+- `blender_closeups_34_facial_hair_beards_brows.png`, `blender_closeups_front_brows_features.png`
+- `blender_flat_clean_shave_paint.png` (today above, the repaint below, flat light; the thin lines are texels between
+  UV islands in this debug atlas, which the shipped overlay texture fills by dilation)
+- `godot_fwd_1600x900_face_options_front.png`, `godot_glc_1600x900_face_options_front.png`,
+  `godot_glc_844x390_beard_short_34.png`, `godot_glc_844x390_moustache_front.png`
+- `godot_fwd_helmets_beard_brows_paint.png` (forager + long beard; hide_and_bone + long beard, shell hidden)
+- `godot_fwd_moustache_hair_tint.png`, `home_fwd_run2_bush_top_edge.png`
+
+What I saw and fixed on the way:
+- The first clean shave left a moustache: the vertex weights are too coarse for the upper lip (one triangle spans lip
+  to nose) and the shaded nose underside fed the fill as "skin". Fixed with per-texel weights and a lit-cheek skin
+  reference.
+- The lips: a box mask kept the greyed upper lip as a dark band. Replaced by the per-column lip shape and the
+  recolour.
+- Decals rendered as black slabs: indices were written per triangle, and the PNGs had no alpha.
+- Hair decals drew as flat stickers and the beards near-black: frayed strands, and the tint moved from the hair's
+  mean to its lit half.
+- The goatee's "under the chin" test also caught the nose and brow undersides; it is now drawn around the chin.
+
 ## Notes for the next steps
 
 - **The skull's eye sockets show the wearer's head.** Through them you see the forehead and front scalp: dark with
@@ -253,10 +418,21 @@ What did not work, and was dropped:
   sockets).
 - **The skull's back plate at the nape.** It dips up to 7.9 mm into the neck when the head tips far back (death,
   attack_heavy, gather_mine). Walk, run, attack_primary and gather are 0.
-- **P4.**
-  - Beards show under both helmets, since only `"hair"` hides. The skull's cheek guards run down beside the jaw.
-  - Check the long beard against them before deciding whether hide_and_bone should also hide `"beard"`.
-  - Facial-hair decals live on the head, so they are unaffected.
+- **P4, for the merger.**
+  - Face rows go through `PlayerEquipment.set_part`, so CHARCREATE's preview and portrait rigs (single mesh, no
+    PlayerEquipment) need the same routing as the hair rows, or they attach the scene the generic way (works, but
+    no helmet hides a beard).
+  - Pieces attached after `CharacterLook.apply` need `CharacterLook.refresh(rig)` (as the kit hook does) so the
+    shave and browless overlays take the chosen skin tone.
+  - The browless zone is only 57 % in CHARCREATE's skin channel (its "hair and brows" channel holds the brows), so
+    with a chosen skin tone the brow options show a patch of painted tone. A browless mask channel (P1) fixes it.
+  - Hair colour: tint the `*_hairtint` meshes' `albedo_color`; the default is `#4c4037`.
+- **Face pieces at distance.** Overlays and decals sit 0.4-1.0 mm over the skin and get their own import LODs.
+  Where Godot drops to a coarser LOD (the head a few dozen pixels tall) the two can cross by more than that, so the
+  painted stubble may show through the clean shave in specks. At that size the face is a few pixels; not checked
+  in the world view beyond the lab's `world` shot.
+- **Face paint and scars do not follow the skin tone.** Their colour is baked (alpha-blended over the skin, so a
+  darker skin shows through, but a scar's pale centre stays pale).
 - **Icons.** `forager_hood` and `hide_bone_helm` are rendered from these GLBs (`icons/render/manifest.json`).
   - The committed PNGs are untouched, and t_iconart passes.
   - `tools/render_icons.py --verify` will now report those two as changed until the icon owner re-renders them. The
@@ -270,15 +446,21 @@ What did not work, and was dropped:
   Head/HeadTop_End only.
 - **Texture cost.** Bald and buzz each carry a full 2048 colour atlas copy (about 0.7 MB JPG; one is loaded per
   survivor that picks it). A P1 skin/scalp mask with a tint could replace both.
-- **Hair colour.** No tint yet. It needs P1's masks or a hair-colour parameter on the crop and current pieces.
+- **Hair colour.** The face pieces take it (`*_hairtint` meshes). The crop and current hair pieces do not yet; they
+  need P1's masks or the same material-colour path.
 - **Headless message.** In the headless appearance_lab, the dummy renderer prints `ERROR: Parameter "material"
   is null. at: material_get_instance_shader_parameters` once. The same line shows in t_save logs from other
   trees. It is not a script error, and the windowed runs do not print it.
-- **Not synced.** The branch is not merged with `claude/mmo-overhaul`, which is 31 commits ahead at 809be2e8. The
-  hooks patch applies on that tip.
+- **Not synced.** The branch is not merged with `claude/mmo-overhaul` (now at acc684a6). The hooks patch applies on
+  that tip.
 - ASSUMPTIONS:
   - The skull's eye sockets stay open and show the wearer's head (P3).
   - The forager's crown plug (82 tris, part of Tripo's hair top fused into the hat) is part of the hat.
   - `genders: ["m"]`: these pieces fit the v2 base only, which is a man.
   - The crop's crown whorl sits 2.5 cm below the top of the head and 3 cm back.
   - The buzz stubble density is 0.62 ± 0.10.
+  - P4: the goatee is a chin beard with a soul patch, no moustache; the long beard is 12 mm with the chin 22 mm
+    lower; the face paint is two charcoal stripes under each eye; scars are pale with a reddish rim; the brow shapes
+    and every decal's place are drawn from landmarks read off the head (eyes 1.643 m, lips 1.5655-1.5855 m, nose
+    base 1.601 m); the hair tint is the lit half of the painted hair; brows are a new CHARCREATE slot "brows".
+  - P4: beard shells ride the skin's weights instead of rigid on Head (the plan), for the clip numbers above.
