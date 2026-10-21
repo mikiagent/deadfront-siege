@@ -1,3 +1,17 @@
+diff --git a/game/scripts/economy/market_engine.gd b/game/scripts/economy/market_engine.gd
+index 255b661f..fbc748f1 100644
+--- a/game/scripts/economy/market_engine.gd
++++ b/game/scripts/economy/market_engine.gd
+@@ -159,7 +159,8 @@ func _dispatch(op: String, me: int, a: EconArgs) -> Dictionary:
+ 		"bridge.begin": return _begin(me, a)
+ 		"bridge.end": return _end()
+ 		"bridge.settled": return _settled(a)
+-		"wallet.get": return EconArgs.ok({"wallet": L.acct(me).wallet, "bound": L.bound(me), "held": query.held(me)})
++		"wallet.get": return EconArgs.ok({"wallet": L.acct(me).wallet, "bound": L.bound(me), "held": query.held(me),
++			"trade_lock_s": maxi(0, int(L.acct(me).created) + rules.num("trade_lock_s") - L.now)}) # W3-EXCHANGE H6: the market screens show the lock before List / Buy
+ 		"wallet.spend": return _spend(me, a)
+ 		"objective.claim": return _claim(me, a)
+ 		"vault.get": return _vault(me)
 diff --git a/game/scripts/economy/market_query.gd b/game/scripts/economy/market_query.gd
 index 9f6699ca..84a04bcc 100644
 --- a/game/scripts/economy/market_query.gd
@@ -100,11 +114,26 @@ index 9f6699ca..84a04bcc 100644
  ## "S" matches S-, S and S+; "S+" matches only S+.
  static func _grade_ok(have: String, want: String) -> bool:
  	return have.begins_with(want) if want.length() == 1 else have == want
+diff --git a/game/scripts/economy/vault_bridge.gd b/game/scripts/economy/vault_bridge.gd
+index fd0d9633..a6b74442 100644
+--- a/game/scripts/economy/vault_bridge.gd
++++ b/game/scripts/economy/vault_bridge.gd
+@@ -127,6 +127,10 @@ func _deposit(me: int, args: Dictionary, ts: int) -> Dictionary:
+ 			return a.fail()
+ 		take = {"bag_slot": slot, "count": n}
+ 		var row: Variant = bag[slot]
++		# W3-EXCHANGE H5: an equipped instance stays on the character (commit would unequip it silently).
++		var worn: Array = (ch.d.equipment as Dictionary).values().map(func (u: Variant) -> String: return str(u)) + [str(ch.d.tool)]
++		if row is Dictionary and str(row.get("uid", "")) != "" and str(row.get("uid", "")) in worn:
++			return EconArgs.no("invalid_asset", "%s is equipped: unequip it first" % str(row.get("id", "")))
+ 		if row is Dictionary and str(row.id) != str(CharacterState.LOCK):
+ 			preview = (row as Dictionary).duplicate(true)
+ 			preview.count = mini(n, int(row.count))
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
-index 80b01e5b..05ab55c5 100644
+index ed0b7728..7a029763 100644
 --- a/game/scripts/ui/hunt_hud.gd
 +++ b/game/scripts/ui/hunt_hud.gd
-@@ -743,6 +743,7 @@ func _toggle_sheet(kind: StringName) -> void:
+@@ -745,6 +745,7 @@ func _toggle_sheet(kind: StringName) -> void:
  			_sheet_btn(box, "Bag", func () -> void: _close_sheet(); if player.ui: player.ui.visible = not player.ui.visible)
  			_sheet_btn(box, "Craft", func () -> void: _close_sheet(); if player.craft_ui: player.craft_ui.toggle())
  			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
@@ -112,7 +141,7 @@ index 80b01e5b..05ab55c5 100644
  			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
  			_sheet_btn(box, "Debug info: %s" % ("ON" if Game.debug_overlay else "OFF"), func () -> void: _toggle_debug(); _close_sheet(); _toggle_sheet(&"menu"))
  		&"pets":
-@@ -882,6 +883,23 @@ func _open_map() -> void:
+@@ -884,6 +885,23 @@ func _open_map() -> void:
  func open_map() -> void:
  	_open_map()
  

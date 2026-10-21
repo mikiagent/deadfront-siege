@@ -224,6 +224,7 @@ func capture(acct: int, net_id: String) -> int:
 	return _slot(acct, "captured_animal")
 
 func _craft_knife(acct: int) -> bool:
+	_gather(acct, "branch", 1) # the handle: a branch left over from earn() depends on which Settlers' orders are open
 	_gather(acct, "fibre_stalk", 2)
 	bridge.client("act.craft", acct, {"recipe_id": "twine", "picks": [_slot(acct, "fibre_stalk")]}, now)
 	var r := bridge.client("act.craft", acct, {"recipe_id": "improvised_stone_knife"}, now)

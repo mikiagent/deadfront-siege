@@ -168,8 +168,9 @@ gone. The item goes to the buyer's **vault** (contracts:157-159), not the bag.
 ### 3.7 Look
 Spec 13 palette: bg `#101714`, panels `#39392F` / `#26322C` with the noise texture, separators `#56534A` dotted, selection and
 brackets `#E6BE54`, primary button `#F2C84C` (dark text), text `#ECEBE4`, secondary `#A6A69B`, disabled `#77786F`. Gold for
-names (things), white for actions and icons (GAUNTLET:61). Fonts: the project's fallback font through a condensed
-FontVariation; sizes from UiTokens (heading/body/meta), floor 12 px. Layer 96, opaque, so HANDS and plates never show through.
+names (things), white for actions and icons (GAUNTLET:61). Fonts: the project's fallback font; drawn text (title, rail, headers,
+rows, columns, tags) is condensed to 85 % by the canvas transform (fix r1, §15); sizes from the reference proportions, floor
+12 px. Layer 96, opaque, so HANDS and plates never show through.
 
 ## 4. Data each element reads
 
@@ -203,6 +204,8 @@ trade. Try again shortly." · unauthorized / bad_request "Something went wrong" 
 | H2 | same | `market_category` arg (items by market category; `animal` includes pets and cages); `species` also matches `captured_animal` cages by `attributes.species` | B1 |
 | ~~H3~~ | `game/scripts/economy/market_book.gd` (ECON) | **Dropped in B2** (§12): refusing listings outside the band broke ECON's reference-poisoning tests (`[tests] FAIL count=26`, "price must be between 25 and 400") and contract 6.5's band filters the reference price, it is not a listing limit | — |
 | H4 | report note for W1-INT | the server relay (§2) and the 64 KiB frame: `market.mine` can exceed it; ECON should page `trades` | — |
+| H5 | `game/scripts/economy/vault_bridge.gd` (ECON) | `vault.deposit` refuses a bag slot whose uid the character has equipped or holds as its gather tool (`invalid_asset`, "<id> is equipped: unequip it first"): `CharacterState.commit` would drop the equipment silently | fix r1 |
+| H6 | `game/scripts/economy/market_engine.gd` (ECON) | `wallet.get` also returns `trade_lock_s` (seconds left of the new-account lock, 0 after), so Sell and Buy say the lock before List / Buy and no deposit moves an item for a listing the lock refuses | fix r1 |
 
 H1-H2 change ECON-owned search behaviour: the orchestrator merges them with ECON or bounces them to ECON. Until they
 land the UI degrades honestly (no arrows for missing sorts; no categories in the search sheet). The band is advice either way (§12).
@@ -411,3 +414,38 @@ New file: `market_drag_scroll.gd` MarketDragScroll (every market list: Buy rows,
   measure lines for targets in points, the safe area, cut header words and names, and every Sell preview. t_exchange's PENDING
   line is gone (gate 14).
 
+## 15. Fix round 1 (2026-10-21): review and fidelity findings
+
+Behaviour (each with a t_exchange check that fails on the old code):
+- **Equipped items** (major): `MarketFormat.sell_entries` reads `char.get`'s `equipment` and `tool` uids; such a cell carries an
+  "Equipped" ribbon and the refusal "Equipped. Unequip it in your Bag first." (List off, nothing sent). H5 refuses the deposit on
+  the server too. Lab screen `sell_equipped`.
+- **Trade lock** (H6): Sell's List is off with "New accounts can trade in N min." and Buy's confirm says the same; no deposit
+  moves an item for a listing the server would refuse. Without H6 the screens behave as before (the lock is refused after the
+  deposit and the item waits in market storage), so H6 belongs with ECON.
+- **Partly bought lot**: `insufficient_items` reads "Someone just bought part of this lot."; the screen re-reads page 1 and
+  reopens the confirm on the same listing with what is left ("Buy for 15", "3 of 5 left"); a lot no longer on page 1 keeps the
+  reason and no Buy.
+- **Network double taps**: t_exchange's `BridgeNet` answers a frame later like a socket; two taps while Buy, Cancel or List
+  is out send one `market.buy`, one `market.cancel`, one `vault.deposit` + `market.list_fixed`.
+
+Look (judge vs the two references):
+- Header: grey embossed T-stone coin (bound: the same coin with a small lock tag), thin "<" and X, a dotted divider; the
+  test-server notice is quiet grey words after the title, not an orange pill (spec 06: never a falsely represented live
+  market, so it stays). No premium counter and no "+" (binding rule: no monetization).
+- Torn band ~2 % of the height with irregular rips, scuffs and two rivets, carried on as a tan parchment frame around the
+  body (`MarketScreen` "Sheet": left, right and bottom, inside the safe width, down under the home bar).
+- Panels: dark rims over a see-through darker fill on a lighter green-tan backdrop; Sell panel, confirm, search sheet and the
+  offline card share one warm brown-black (`DIALOG`); the confirm has the Sell panel's tan name band, a 0.78 dim and no empty
+  status band.
+- Category column: "Taming Materials" (ASSUMPTION: the reference's name for the `animal` market category) and no X; the
+  active Buy tab or the search sheet's "All" leaves the category.
+- Chip: the player's words without quotes, even padding.
+- Price: the coin sits at one x down the column and on the digits' midline.
+- Type: drawn text is condensed to 85 % by `draw_set_transform` (a FontVariation transform narrowed the outlines but not the
+  advances, so wide letters left gaps); title 5.2 %, names 3.1 %, headers 2.9 %, type lines 2.4 % of the height.
+- Picker: "Stored" / "Equipped" is a ribbon along the cell's bottom (a top-left tag ran into "Lv. n").
+- Kept, with evidence: durability "—" where the item has none (72 of 223 item defs carry `max_durability`; branch,
+  `captured_animal` and `tamed_animal` do not, and `AssetValidator` refuses any durability on them: "<id> has no durability"), dimmed; 44 px targets at 844x390
+  (GAUNTLET.md:64 "44 px minimum target"; list rows 52 px = the references' 13.6 %, category rows 44 px = their 11 %); the
+  carrier and crate art is ICONS2 / CAGEICON's (ItemArt picks it up by id).
