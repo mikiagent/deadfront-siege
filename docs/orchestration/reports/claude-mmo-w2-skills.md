@@ -74,6 +74,64 @@ new `game/scripts/skills/skill_rules.gd`, new `game/tests/t_w2_skills.gd`, and `
 `game/scripts/dev/skills_lab.gd` (H13).
 The rev-1 goldens `save_v3_golden.json` and `save_v3_away_golden.json` are byte-identical to the base.
 
+## r9: review r6's findings re-sent after the merge (claude/mmo-overhaul @ ddaab662)
+
+The 14 findings in this run's prompt are review r6's (on 52c15c19). Every one was fixed in r7 (5e77eb8c, report
+8c2ec045; see Review r7 below), the package passed review r8 and blind A/B, and the integrator merged it:
+`dfcf833e Merge W2-SKILLS: ... (review r8 pass, blind A/B pass)`, hooks applied in `6f65f615 Apply W2-SKILLS
+integrator hooks`. Nothing in the findings needed new code, so r9 is a check of the merged state.
+
+- Base: claude/mmo-overhaul moved to ddaab662 (WATER, specs 18-24, STATUS). The branch is fast-forwarded to it;
+  no package code changed since sync 1.
+- Hooks patch: all 15 hooked files are in the base. `git apply --cached --check -R` of the patch against
+  ddaab662's tree: rc 0 (the forward check fails, as it should once applied). Nothing is left for the
+  integrator. The file is not regenerated: against this base it would be empty. It stays as the record of what
+  6f65f615 applied.
+
+| r6 finding | Where it was fixed | On ddaab662 |
+|---|---|---|
+| MAJOR: not-in-game nodes folded into one count line | r7, H8 | `skills_sheet.gd:289` `row.name = "SkillsLater_" + nid`; t_w2_skills "skills sheet rows" passes (below); shots below |
+| MAJOR acceptance: vision fix 1 shown locked | r7, H8 | same rows; `r9shots/desk_glc_gathering.png`, `phone_glc_gathering.png` |
+| MAJOR acceptance + minor: report stale for r6 (H11, `can_bond`) | r7 report | Review r6 section and H11 in the hook list; `grep -rn can_bond game/` finds nothing |
+| Minor: t_save.gd, fixture, trees.json edited on the branch | r7 (t_save + fixture moved to H12) | the integrator applied H12 and merged trees.json with the package |
+| Minor: Refund active after the day's free refunds | r7, `refund_reason` + H8 | `skills_sheet.gd:314-323` greys the button and shows "Cannot refund: ..." |
+| Minor: H6 should clamp rev-2 tree levels | declined with evidence (Review r7) | unchanged; the t_save FAIL lines the clamp causes are quoted there |
+| Minor: occupation Lv. 20 exemption listed as an assumption | r7, Open owner decisions 5 | still open; r9 adds spec 19:11 to it |
+| Minor: H1 vs W2-DATA's `progression_block` hunk | Sync 1 | `crafting.gd:253-257`: one check, `SkillRules.recipe_block`; `_node_block` gone |
+| Minor: skills_lab asserted nothing | r7, H13 | lab line below |
+| Minor: recipe gates rebuilt per call | r7, `SkillState._rules_cache` | `skill_rules.gd:17-18` returns the cache while the recipe count holds |
+| Minor: two "/ 3" counters on the pets screen | r7, H10 | `animal_screen.gd:234` "EQUIP   (ACTIVE n / 3)" |
+| Minor: server trees have no character-level cap | r7, recorded | Left: W3-SRVACT |
+| Minor: island and capture pacing | r7, Open owner decisions 6 + probe | pacing lines below |
+
+Gates on the merged state (scratch `trees/w2s-r9`, mkscratch at ddaab662, no patch since the hooks are in):
+- `--import`: 0 SCRIPT ERROR, 0 "Failed to compile".
+- All 22 `t_*.gd` PASS, t_water included. Only t_save prints SCRIPT ERROR lines, its 5 deliberate ones.
+  `[t_save] rev-1 skills migrate: 19 nodes kept, SP 539/802`, `[t_save] PASS`;
+  `[t_data] PASS items=223 recipes=155`;
+  `[t_w2_skills] catalog 213 of 918 nodes: functional 34 (16 of them through requires_node), partial 19, defined 160`,
+  `[t_w2_skills] recipes gated by requires_node: 56`,
+  `[t_w2_skills] pacing: Survival 15 took 570 gathers before the cap, now 1838 (character Lv. 15 needs 3675 XP)`,
+  `[t_w2_skills] PASS` (0 FAIL lines).
+  t_srvdom and t_server_domain failed in the first, parallel batch: t_srvdom is t_server_domain under another tag,
+  and both use `user://t_srvdom_store`. Each passes when run alone, one after the other: `[t_server_domain] PASS`,
+  `[t_srvdom] PASS`. run_all (one process) `[tests] PASS`; `tools/smoke.sh --no-import` `SMOKE PASS`.
+- Labs, 0 SCRIPT ERROR and 0 "couldn't resolve track" each: skills_lab `[skill] PASS level-up pays 10 SP,
+  small_field bought`; capture_lab `[capture] PASS bonded+=2`; ui_family_lab `[uifamily] inventory=true
+  animals=true unlimited=true active_cap=3`; ui_real_capture_lab on gl_compatibility at 1600x900 and 844x390
+  `[uireal] PASS screens=hud,craft,skills,...`.
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (25 before and after).
+
+r9 screenshots, looked at (scratchpad `r9shots/`). A scratch-only skills_lab line, never committed, opens the
+Gathering tree through the HUD's own `_toggle_skills`:
+- `desk_glc_gathering.png` (1600x900 gl_compatibility) and `desk_fwd_gathering.png`: "Gathering Lv. 1", "SP 0",
+  the "Learned automatically: Leaf, Branch, ..." line, "All skills", then all 12 muted rows with no button, from
+  "Boulder · Lv. 5 · 1 SP · not in the game yet" to "Great Success 2 · Lv. 55 · 34 SP · not in the game yet".
+- `phone_glc_gathering.png` (844x390): the same header and the first six rows, with a scroll bar and Close inside
+  the view.
+- `desk_glc_tree.png` and `phone_glc_tree.png` show the character-creation screen: the main game without
+  `--lab` starts a fresh user dir there. They are not evidence for the tree.
+
 ## Sync 1 before integration (claude/mmo-overhaul @ 18ef7091, W2-DATA merged; branch merge 89cce919, hooks dbe1e006; the 1ffbc59c merge after it, de3a7854, is docs only and the patch applies clean on it)
 
 - Merge of claude/mmo-overhaul: no conflicts. The hooks patch failed `git apply --check` on the new base only in
@@ -664,7 +722,9 @@ Wanted from other packages:
 1. ~~Source of SP~~. Decided: per character level, per spec 03. Implemented, with H6.
 2. **The 918-node table is still missing (decided: keep the 212 nodes).** The source table (kghj76138.github.io/durango-homecoming-guide/en/skills.html) returned 404 on
    2026-10-20, and the Wayback Machine was offline. Only the nodes the pack names are imported; the counts are
-   recorded. Supply the table (or another copy) to finish the import.
+   recorded. Supply the table (or another copy) to finish the import. (213 since r8 added Boulder. r9 grepped
+   specs 18-24, merged since r8, which describe the ten new docs/reference images: none names a skill node.
+   Spec 23:16's "Skill hexes" are the pet radial's action slots.)
 3. ~~The save rev 2 bump~~. Approved as built.
 4. **Pacing: when does cured hide open?** Spec 11:34 puts Dry Leather at Processing Lv. 15, and this package
    gates the `dried_hide` recipe on it (H1). After W2-DATA lands, that holds the tent kit and every armour band
@@ -679,7 +739,8 @@ Wanted from other packages:
    character level"; PRD 5.1 (durango-wild-lands-systems-prd.md:327): "Each occupation starts with **skill
    proficiency 20** in one tree". Built: the occupation tree may sit at 20 from character Lv. 1 (otherwise the
    head start is worth nothing until character Lv. 20). The other choice is a one-line change in
-   `SkillState.level_cap`.
+   `SkillState.level_cap`. r9: the owner's character-creation reference supports the built side. Spec 19:11 reads
+   the screen as showing "the starting skill in gold, 'Lv. 20 Melee'" for a survivor who has not played yet.
 6. **Pacing: island travel and capture now wait for the character level (r7).** Survival trains on every gain
    but now stops at the character level, and character levels cost 100 + 25L XP. The first sail route
    (`World.route_level`, Survival 10) goes from about 280 gathers to 900; the next route and Capture Technique I
