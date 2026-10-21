@@ -11,7 +11,7 @@ index be0afc3a..5f0615c4 100644
  	# Let alert (0.6 s) resolve into approach / flee, then force a retreat chunk.
  	get_tree().create_timer(0.85).timeout.connect(func () -> void:
 diff --git a/game/scripts/player/player_input.gd b/game/scripts/player/player_input.gd
-index e550c697..13917b22 100644
+index e550c697..42262563 100644
 --- a/game/scripts/player/player_input.gd
 +++ b/game/scripts/player/player_input.gd
 @@ -20,9 +20,12 @@ var _hold_walk_retarget_left: float = 0.0
@@ -32,7 +32,7 @@ index e550c697..13917b22 100644
  		return
  	if event.is_action_pressed("attack"):
 -		p.actions.attack()
-+		p.actions.attack(selection.current() if p.hunt.target == null else null)  # the fight, else the selection, else the nearest
++		p.actions.attack(selection.shown() if p.hunt.target == null else null)  # the fight, else the selection on screen, else the nearest
  		return
  	if event.is_action_pressed("interact"):
  		interact()
@@ -66,17 +66,31 @@ index e550c697..13917b22 100644
  	elif col is Bonfire or col is CraftStation:
  		# Reference: tapping a station opens its recipe radial (M8e); cauterise lives in the context hexes.
  		p.open_station_craft(col as Node3D)
-@@ -381,6 +385,10 @@ func interact() -> void:
+@@ -381,6 +385,9 @@ func interact() -> void:
  	if p.mounted_on:
  		p.dismount()
  		return
-+	var sel := selection.current()
-+	if sel and sel != p.hunt.target:
-+		selection.engage()  # the key the swords hex shows
++	if selection.shown():
++		selection.engage()  # the key the swords hex shows, only while it shows
 +		return
  	var sleep_spot := p.sim.nearest_sleep_spot()
  	if sleep_spot and p.vitals.fatigue >= 1.0:
  		p.sim.start_sleep(sleep_spot)
+diff --git a/game/scripts/player/player_pets.gd b/game/scripts/player/player_pets.gd
+index 5e2e8b06..518055ab 100644
+--- a/game/scripts/player/player_pets.gd
++++ b/game/scripts/player/player_pets.gd
+@@ -152,7 +152,9 @@ func order(cmd: StringName) -> void:
+ 		return
+ 	var t: Creature = p.hunt.target if (p.hunt and p.hunt.target and is_instance_valid(p.hunt.target)) else null
+ 	if cmd == &"attack" and t == null:
+-		t = p.actions.nearest_creature(30.0, false)  # SIC with no target: the nearest wild animal
++		t = p.controls.selection.shown()  # SIC with no fight: the selected animal (PRD 10.2 "pets join")
++	if cmd == &"attack" and t == null:
++		t = p.actions.nearest_creature(30.0, false)  # else the nearest wild animal
+ 		if t == null:
+ 			p.notice("No enemy nearby to sic them on.")
+ 			return
 diff --git a/game/scripts/ui/creature_plates.gd b/game/scripts/ui/creature_plates.gd
 index 88e493ba..d9639b1f 100644
 --- a/game/scripts/ui/creature_plates.gd
@@ -101,10 +115,10 @@ index 88e493ba..d9639b1f 100644
  	var best_score := -1.0
  	var now := _now_s()
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
-index ed0b7728..33d7a724 100644
+index b7ac4ea6..3b0d376b 100644
 --- a/game/scripts/ui/hunt_hud.gd
 +++ b/game/scripts/ui/hunt_hud.gd
-@@ -34,6 +34,7 @@ var _chase_hex: HexButton
+@@ -35,6 +35,7 @@ var _chase_hex: HexButton
  var _feed_hex: HexButton
  var _food_hexes: Array[HexButton] = []
  var _whistle_hexes: Array[HexButton] = []  # attack / heel / guard, shown while a pet is out
@@ -112,20 +126,21 @@ index ed0b7728..33d7a724 100644
  var _in_combat: bool = false
  var _combat_alpha: float = 0.0
  var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
-@@ -362,6 +363,9 @@ func _build_combat() -> void:
+@@ -366,6 +367,10 @@ func _build_combat() -> void:
  			_chase_hex.queue_redraw()
  	)
  	add_child(_chase_hex)
 +	_swords_hex = TargetSwordsHex.new()
 +	_swords_hex.player = player
 +	add_child(_swords_hex)
++	move_child(_swords_hex, 0)  # under every HUD control: where they meet, the HUD's tap wins
  
  ## Deliberate death card. Shown while player.dead; the survivor stays on the ground until respawn.
  func _build_death() -> void:
-@@ -1042,9 +1046,11 @@ func _draw() -> void:
+@@ -1046,9 +1051,11 @@ func _draw() -> void:
  	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 16), "X %d  Y %d" % [tile.x, tile.y], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
- 	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 32), "%s  %s" % [Game.clock_label(), Game.phase_name()], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
- 	drawn_blocks["map_text"] = Rect2(mp.x, mp.y + MAP_PX + 16.0 - meta_px, MAP_PX, 16.0 + meta_px + 4.0)
+ 	# The clock and phase line moved into the day/night dial's label: the dial shows the phase already.
+ 	drawn_blocks["map_text"] = Rect2(mp.x, mp.y + MAP_PX + 16.0 - meta_px, MAP_PX, meta_px + 4.0)
 -	# The target plate (current hunt target, else the last creature attacked while it lives) and the
 +	# The target plate (current hunt target, else the selection, else the last creature attacked while it lives) and the
  	# level-up banner take over the landscape phone's centre band from the quest card while they show.
@@ -135,7 +150,7 @@ index ed0b7728..33d7a724 100644
  	if plate_t == null and _last_target and is_instance_valid(_last_target) and not _last_target.health.dead and player.global_position.distance_to(_last_target.global_position) < 40.0:
  		plate_t = _last_target
  	var band := HudLayout.centre_band(self, r)
-@@ -1158,11 +1164,13 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
+@@ -1162,11 +1169,13 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
  			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
  			var name_px := UiTokens.heading(r)
  			nm = UiTokens.ellipsis(_font, nm, pw - 150.0, name_px)
