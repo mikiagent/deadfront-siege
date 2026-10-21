@@ -681,7 +681,7 @@ Modular building beside the kit prefabs: StructurePiece with sockets (edge, top,
 
 After the survivor-v2 merge: equipment references the exact item (slot index or uid); equipped gear moves into an equipment container out of the 20-slot grid; can_accept(stack) before every consume; negative and zero amounts rejected; the best tool is auto-selected by gather_power; level scaling read only from ItemStack.
 
-**Owns:** `game/scripts/items/inventory.gd`; `game/scripts/items/item_def.gd`; `game/tests/t_inventory.gd (new)`
+**Owns:** `game/scripts/items/inventory.gd`; `game/scripts/items/item_def.gd`; `game/tests/t_inventory.gd (new)`; `game/scripts/items/inventory_migration.gd (new)`; `game/data/inventory.json (new: stacking categories, Pocket slots)`; `game/scripts/dev/inventory_lab.gd (new)`
 
 **Must not touch:** `game/scripts/items/item_stack.gd (W2-PROCESS)`; `game/scripts/ui/inventory_ui.gd (W2-SCREENS)`
 

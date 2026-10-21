@@ -111,6 +111,14 @@ func _check() -> void:
 			after[s.def_id] = int(after.get(s.def_id, 0)) + s.count
 	after[&"raid_helm"] = int(after.get(&"raid_helm", 0)) + 1
 	_expect(after == units, "grouping merged nothing: every unit is where it was")
+	# Tapping the worn helm with a full bag keeps it worn and says why (it was refused silently).
+	inv.add(ItemStack.make(&"branch", 1))
+	ui._on_equip_slot_pressed("head")
+	var hud := get_tree().get_first_node_in_group("hud")
+	var notices := str(hud.get("_events").notices) if hud and hud.get("_events") else ""
+	_expect(inv.equipped_in(&"head") != null and inv.used_slots() == 100 and notices.contains("Bag is full"), "unequip into a full bag: the helm stays worn and 'Bag is full' shows")
+	ui._select(inv.find_first(&"stone"))
+	_expect(ui._tip.text.begins_with("Stone") and not ui._tip.text.contains("attr") and not ui._tip.text.contains("tint"), "the tip shows no raw attribute dict (%s)" % ui._tip.text.replace("\n", " | "))
 	if _fails.is_empty():
-		print("[invlab] PASS slots=100 groups=%d stone_open=17 equip_l30=true" % groups.size())
+		print("[invlab] PASS slots=100 groups=%d stone_open=17 equip_l30=true full_unequip_notice=true" % groups.size())
 	get_tree().quit(0 if _fails.is_empty() else 1)

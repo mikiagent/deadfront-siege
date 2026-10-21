@@ -134,6 +134,35 @@ index e09baeef..faf78b8f 100644
  				order.append(idx)
  		for idx in order:
  			var available := int(remaining.get(idx, inv.slots[idx].count))
+diff --git a/game/scripts/items/item_stack.gd b/game/scripts/items/item_stack.gd
+index 6a5110b8..ebfc27d8 100644
+--- a/game/scripts/items/item_stack.gd
++++ b/game/scripts/items/item_stack.gd
+@@ -151,7 +151,7 @@ func take_into(other: ItemStack) -> int:
+ func tooltip() -> String:
+ 	var d := def()
+ 	var title := d.display_name if d else str(def_id)
+-	var lines: PackedStringArray = ["%s x%d" % [title, count], "lv %d  process %d" % [level, process_count]]
++	var lines: PackedStringArray = ["%s x%d" % [title, count] if count > 1 else title, "lv %d  process %d" % [level, process_count]]
+ 	if d and d.place_as != &"":
+ 		lines.append("footprint %dx%d" % [d.footprint.x, d.footprint.y])
+ 	if d and d.has_category(&"tool"):
+@@ -180,8 +180,13 @@ func tooltip() -> String:
+ 			lines.append("buffs %s" % ", ".join(bn))
+ 	elif scaled_food_energy() != 0.0:
+ 		lines.append("energy %.1f" % scaled_food_energy())
+-	if not attributes.is_empty():
+-		lines.append("attr %s" % str(attributes))
++	# Traits by name (W2-INV): the raw attribute dict showed bookkeeping such as the tint to players.
++	var named := PackedStringArray()
++	var tr := Inventory.traits(self)
++	for k: Variant in tr:
++		named.append("%s %s" % [str(k).capitalize(), str(tr[k])])
++	if not named.is_empty():
++		lines.append(", ".join(named))
+ 	if not flags.is_empty():
+ 		var flag_s: PackedStringArray = []
+ 		for f in flags:
 diff --git a/game/scripts/player/player.gd b/game/scripts/player/player.gd
 index 70ddf6cb..78c3af7a 100644
 --- a/game/scripts/player/player.gd
@@ -223,26 +252,26 @@ index 79c8b05c..828b0a63 100644
  	return inv
  
 diff --git a/game/scripts/server/character_store.gd b/game/scripts/server/character_store.gd
-index dfb25ece..92cebff5 100644
+index dfb25ece..13a84ebe 100644
 --- a/game/scripts/server/character_store.gd
 +++ b/game/scripts/server/character_store.gd
-@@ -193,6 +193,7 @@ func open() -> String:
- 		return ""
- 	DirAccess.make_dir_recursive_absolute(dir)
- 	var snap := dir.path_join("snapshot.json")
-+	var migrated := 0
- 	if FileAccess.file_exists(snap):
- 		var parsed: Variant = _parse(FileAccess.get_file_as_string(snap))
- 		if not parsed is Dictionary or int(parsed.get("v", 0)) != VERSION:
-@@ -202,6 +203,7 @@ func open() -> String:
- 		s.erase("data") # lives only in the file, so the state hash does not depend on it
- 		if int(s.world_seed) != _seed:
- 			return "world_seed differs from the one this store was written under"
-+		migrated = migrate_stacks() # before the journal: a clean shutdown left it empty
- 	var path := dir.path_join("journal.jsonl")
- 	if not FileAccess.file_exists(snap):
- 		# Genesis goes to disk first, so world_seed is never only in memory (a journal replayed
-@@ -240,7 +242,26 @@ func open() -> String:
+@@ -14,7 +14,7 @@ const VERSION := 1
+ const RIDS_KEPT := 64
+ ## The data the handlers read. Replay re-runs them, so a snapshot records this hash and boot
+ ## warns when it changed. shortcut: creature defs (tame, capture) are not hashed yet.
+-const DATA_FILES := ["res://data/items.json", "res://data/recipes.json", "res://data/combat_counters.json", "res://data/combat_tuning.json", "res://data/world/rules.json"]
++const DATA_FILES := ["res://data/items.json", "res://data/recipes.json", "res://data/combat_counters.json", "res://data/combat_tuning.json", "res://data/world/rules.json", "res://data/inventory.json"]
+ 
+ var s: Dictionary
+ var world: WorldFacade
+@@ -236,11 +236,33 @@ func open() -> String:
+ 		return "cannot open journal (%d)" % FileAccess.get_open_error()
+ 	_journal.seek_end()
+ 	_ops_since = 0
++	# W2-INV: split stacked characters only after the journal replayed against the rows it was
++	# written for (a deposit of 5 from a 20-stack), then snapshot so the split is never replayed over.
++	var migrated := migrate_stacks()
+ 	if data_changed:
  		# The journal just replayed under new rules; snapshot so later boots do not repeat that.
  		push_warning("[srv] data files changed since the last snapshot; the journal replayed under the new rules")
  		return snapshot()
@@ -270,7 +299,7 @@ index dfb25ece..92cebff5 100644
  
  ## Verified write of the snapshot, then a fresh journal (everything in it is now covered).
  func snapshot() -> String:
-@@ -301,7 +322,7 @@ func invariants() -> Array[String]:
+@@ -301,7 +323,7 @@ func invariants() -> Array[String]:
  	var pets := 0
  	for key: String in s.chars:
  		var ch: Dictionary = s.chars[key]
@@ -280,7 +309,7 @@ index dfb25ece..92cebff5 100644
  				continue
  			if int(row.count) < 1 or int(row.durability) < 0:
 diff --git a/game/scripts/ui/inventory_ui.gd b/game/scripts/ui/inventory_ui.gd
-index c2ae65f0..47364b21 100644
+index c2ae65f0..1e2b6b06 100644
 --- a/game/scripts/ui/inventory_ui.gd
 +++ b/game/scripts/ui/inventory_ui.gd
 @@ -47,6 +47,11 @@ const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "
@@ -465,6 +494,17 @@ index c2ae65f0..47364b21 100644
  	if none:
  		_tip.text = "Tap an item."
  		return
+@@ -614,8 +672,8 @@ func _on_equip_slot_pressed(slot: String) -> void:
+ 			elif fid != "":
+ 				inventory.set_quick_food(0 if slot == "food1" else 1, &"")
+ 		_:
+-			if inventory.equipment.has(slot):
+-				inventory.unequip(StringName(slot))
++			if inventory.equipment.has(slot) and not inventory.unequip(StringName(slot)) and _owner_player:
++				_owner_player.notice("Bag is full.") # the gear stays worn (W2-INV: never dropped)
+ 
+ func _on_equip_pressed() -> void:
+ 	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
 @@ -626,7 +684,7 @@ func _on_equip_pressed() -> void:
  	var d := st.def()
  	var slot := Inventory.slot_for(d)
@@ -474,6 +514,15 @@ index c2ae65f0..47364b21 100644
  	elif d and d.tool_class != &"" and d.tool_class != &"none":
  		inventory.set_equipped_tool_index(_selected)
  	_select(_selected)
+@@ -745,7 +803,7 @@ func _can_store_selected() -> bool:
+ 	var st := inventory.slots[_selected]
+ 	if st == null or st.is_locked() or str(st.def_id) == "_slot_lock": return false
+ 	if inventory.equipped_tool_index == _selected: return false
+-	if str(st.def_id) in inventory.equipment.values() or str(st.def_id) in inventory.quick_food: return false
++	if str(st.def_id) in inventory.quick_food: return false # worn gear is out of the bag (W2-INV)
+ 	return true
+ 
+ func _store_selected() -> void:
 diff --git a/game/tests/fixtures/save_v3_inst_away_golden.json b/game/tests/fixtures/save_v3_inst_away_golden.json
 new file mode 100644
 index 00000000..a6c199f1
