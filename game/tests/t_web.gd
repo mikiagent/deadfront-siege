@@ -98,7 +98,7 @@ func _test_veg_cells() -> void:
 		var cell := b.cell_for(i)
 		var local: Transform3D = b._local_xform(i, cell.position)
 		_check((cell.position + local.origin).distance_to(pts[i]) < 0.001, "instance %d keeps its world position" % i)
-		_check(is_equal_approx(cell.visibility_range_end, VegBatch.CELL_RANGE_END_M), "cell %d has a visibility range" % i)
+		_check(is_equal_approx(cell.visibility_range_end, IsoCamera.cull_range(VegBatch.CELL_RANGE_M)) and cell.visibility_range_end > IsoCamera.distance_for(IsoCamera.MAX_SIZE) + 40.0, "cell %d has a visibility range past the camera (%.0f m)" % [i, cell.visibility_range_end])
 		_check(cell.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON, "an 8 m tree casts a shadow")
 		_check(absf(cell.position.x - pts[i].x) <= VegBatch.CELL_M * 0.5 and absf(cell.position.z - pts[i].z) <= VegBatch.CELL_M * 0.5, "cell %d sits on its trees" % i)
 	b.set_shown(1, false)
