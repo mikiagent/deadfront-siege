@@ -2,9 +2,9 @@ extends SceneTree
 ## W1-SAVE: crash-safe, sanitized, isolated saves. Prints "[t_save] PASS" (or FAIL lines), exits 0/1.
 ##   Godot --headless --path game --script res://tests/t_save.gd
 ## `-- --write-golden` re-stages a camp and rewrites the instance-format goldens (GOLDEN, AWAY_GOLDEN).
-## save_v3_golden.json, save_v3_away_golden.json and save_truncated.json are the base's stacked
-## saves from before W2-INV: kept byte for byte, they are the real old saves the migration must load.
-## Do not rewrite any v3 golden: since W2-SKILLS they are frozen rev-1 skills inputs and a rewritten one fails the run.
+## Never rewrite save_v3_golden.json, save_v3_away_golden.json or save_truncated.json: they are the
+## base's stacked saves from before W2-INV with W2-SKILLS' rev-1 skills, kept byte for byte as the
+## real old saves both migrations must load; a rewritten one fails the run.
 ## Scripts that touch autoloads load on the first frame (see run_all.gd), so everything is load()ed.
 
 const FIX := "res://tests/fixtures/"
@@ -168,6 +168,7 @@ func _test_round_trip(name: String) -> void:
 	if LEGACY.has(name):
 		_check_legacy(name, s1)
 	if name in STACKED:
+		_check_v3_skills(name, s1)
 		var old: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
 		var away := str(s1.get("island_id", "")) != "home_grassland"
 		_check_split(name, old, s1, away)
@@ -181,29 +182,21 @@ func _test_round_trip(name: String) -> void:
 			var home_old := old.duplicate(true)
 			home_old.erase("away") # what was built on the island left behind stays there
 			_check_split(name + " back home", home_old, _saved())
-		_check_v3_skills(name, s1)
 	elif name.begins_with("save_v3_"):
-		_check_v3_golden(name, s1)
+		var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
+		var gd: Array[String] = []
+		_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
+		_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
 	print("[t_save] round trip %s fields=%d diffs=%d" % [name, s1.size(), diffs.size()])
 	await process_frame
 
-## The v3 goldens are frozen rev-1 saves: never regenerate them, they are the migration's input.
-## Everything but skills_v2 survives load + save unchanged; skills_v2 must equal the rev-2 result
-## kept in save_v3_skills_rev2.json, field for field both ways.
-func _check_v3_golden(name: String, s1: Dictionary) -> void:
+## The stacked v3 goldens are frozen rev-1 saves: never regenerate them, they are the migration's
+## input. skills_v2 must equal the rev-2 result kept in save_v3_skills_rev2.json, field for field both
+## ways; their stacks split on load (W2-INV), so _check_split checks the items, not byte equality.
+func _check_v3_skills(name: String, s1: Dictionary) -> void:
 	var golden: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + name))
 	_check(not (golden["skills_v2"] as Dictionary).has("rev"), "%s is still a rev-1 save (the migration input)" % name)
-	golden.erase("skills_v2")
-	var gd: Array[String] = []
-	_same(golden, s1, "", gd, ["/player/position/1"]) # y is re-seated on the terrain at load
-	_check(gd.is_empty(), "v3 golden survives load + save unchanged: %s" % [gd.slice(0, 6)])
-	_check_v3_skills(name, s1)
-
-## skills_v2 of a re-saved v3 golden equals its rev-2 expectation. W2-INV's instance goldens were
-## staged from the same rev-1 skills as the base's stacked ones, so they share its expectation.
-func _check_v3_skills(name: String, s1: Dictionary) -> void:
-	var key: String = {GOLDEN: "save_v3_golden.json", AWAY_GOLDEN: "save_v3_away_golden.json"}.get(name, name)
-	var want: Variant = (JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_skills_rev2.json")) as Dictionary).get(key)
+	var want: Variant = (JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_skills_rev2.json")) as Dictionary).get(name)
 	var sd: Array[String] = []
 	_same(want, s1.get("skills_v2"), "/skills_v2", sd)
 	_same(s1.get("skills_v2"), want, "/skills_v2", sd)
