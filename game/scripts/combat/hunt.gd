@@ -226,7 +226,8 @@ func land_hit(t: Creature, w: ItemStack) -> bool:
 	var behind := _is_behind_of(t)
 	if behind:
 		dealt *= float(tune.get("behind_mult", 1.25))
-	var melee_lv := player.skills.level_of("melee") if player.skills else 0
+	# Bonuses count from Lv. 1 (W2-SKILLS: trees start at 1), so a new survivor hits as before.
+	var melee_lv := maxi(0, player.skills.level_of("melee") - SkillState.MIN_LEVEL) if player.skills else 0
 	dealt *= 1.0 + float(tune.get("damage_per_melee_level", 0.01)) * float(melee_lv)  # ASSUMPTION +1 % per Melee level
 	# Data-driven combat matchup, then a crit roll (x1.75 red): 8 % base, +20 % from behind,
 	# +0.2 % per Melee level.
@@ -396,7 +397,7 @@ func fire_ranged() -> bool:
 		# The arc flies past the weapon's straight range so a lobbed stone can land on a target at
 		# the edge; the multiplier is tuning, not code (combat_tuning.json ranged.arc_range_mult).
 		shot.range_left = def.range_m * float(CombatTuning.section("ranged").get("arc_range_mult", 1.5))
-		shot.skill_level = player.skills.level_of("ranged") if player.skills else 0
+		shot.skill_level = maxi(0, player.skills.level_of("ranged") - SkillState.MIN_LEVEL) if player.skills else 0
 		runtime.add_child(shot)
 		shot.global_position = origin
 	)

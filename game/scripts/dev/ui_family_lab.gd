@@ -28,7 +28,7 @@ func _ready() -> void:
 		player.ui.rebuild()
 
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
-		var unlimited_ok := Data.bonded_cap() > 1000000
+		var unlimited_ok := Data.bonded_cap() == 3 # spec 09: 3 bonded + Animal Handling I-IV, no longer unlimited
 		var animal := AnimalScreen.new()
 		var layer := CanvasLayer.new()
 		add_child(layer)

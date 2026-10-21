@@ -103,7 +103,7 @@ static func clean(data: Dictionary) -> Dictionary:
 		data["ground_snares"] = _rows(data["ground_snares"], SNARE_ROW).filter(func (r: Variant) -> bool:
 			return _is_position((r as Dictionary).get("position")))
 	if data.has("skills_v2"):
-		_skills(data["skills_v2"])
+		_skills(data["skills_v2"], _int(data.get("pioneer_level", 0), 0, SkillState.MAX_LEVEL - 1))
 	if data.has("skills"):
 		data["skills"] = _legacy_survival(data["skills"], data.get("skills_v2", {}))
 	if data.has("t_stones"):
@@ -219,15 +219,20 @@ static func _genetics(g: Variant) -> void:
 			if not (part[stat] is int or part[stat] is float):
 				(part as Dictionary).erase(stat)
 
-## Tree levels cap at 60 and SP can never exceed what those levels paid out (SkillState.add_xp).
-## Bought nodes must exist in trees.json and be reachable (tree level, prerequisite); walking the
-## trees in order, a node is kept only while the total cost stays within that payout, and sp_spent
-## is that total, so a forged unlocked list cannot buy nodes for free.
-static func _skills(sv: Dictionary) -> void:
+## Tree levels cap at 60. Bought nodes must exist in trees.json and be reachable (tree level,
+## prerequisite); walking the trees in order, a node is kept only while the total cost stays within
+## the budget, and sp_spent is that total, so a forged unlocked list cannot buy nodes for free.
+## Budget (W2-SKILLS, spec 03): the SP the character level paid plus the one-time sp_extra. A rev-1
+## save bought its nodes under the old per-tree award, so its budget is what its tree levels paid
+## then: a migration never takes a learned node or an unspent SP away (SkillState turns what the
+## character level does not cover into sp_extra). sp_extra is capped at that old award, the most a
+## migration can grant. shortcut: a forged save can still claim up to the old award of its tree
+## levels; server-side purchases (W3-SRVACT) close it.
+static func _skills(sv: Dictionary, pioneer_level: int = 0) -> void:
 	var trees: Dictionary = sv.get("trees") if sv.get("trees") is Dictionary else {}
 	var payout := SkillState.new()
 	payout._load()
-	var earned := 0
+	var legacy_paid := 0
 	for id in trees.keys():
 		if not SkillState.ORDER.has(str(id)):
 			trees.erase(id)
@@ -235,11 +240,19 @@ static func _skills(sv: Dictionary) -> void:
 		var row: Dictionary = trees[id] if trees[id] is Dictionary else {}
 		var level := _int(row.get("level", 0), 0, MAX_LEVEL)
 		row["level"] = level
-		row["xp"] = _num(row.get("xp", 0.0), 0.0, SkillState.xp_to_next(level), 0.0)
+		# A tree at the character-level cap banks its XP (SkillState._resolve): keep what it can still use.
+		row["xp"] = _num(row.get("xp", 0.0), 0.0, SkillState.xp_to_max(level), 0.0)
 		row["unlocked"] = row.get("unlocked") if row.get("unlocked") is Array else []
 		trees[id] = row
 		for l in range(1, level + 1):
-			earned += payout.sp_for_level(l)
+			legacy_paid += payout.sp_for_level(l)
+	var char_paid := SkillRules.paid_for_level(payout, pioneer_level + 1)
+	var earned := legacy_paid
+	# Written back so SkillState.from_dict reads the same rev (a hand-edited [2] or "2" is rev 1).
+	sv["rev"] = _int(sv.get("rev", 1), 1, SkillState.REV)
+	if int(sv["rev"]) >= SkillState.REV:
+		sv["sp_extra"] = _int(sv.get("sp_extra", 0), 0, legacy_paid)
+		earned = char_paid + int(sv["sp_extra"])
 	var spent := 0
 	for id in SkillState.ORDER:
 		if not trees.has(id):
@@ -258,7 +271,10 @@ static func _skills(sv: Dictionary) -> void:
 	payout.free()
 	sv["trees"] = trees
 	sv["sp_spent"] = spent
-	sv["sp_available"] = _int(sv.get("sp_available", 0), 0, earned - spent)
+	sv["sp_available"] = _int(sv.get("sp_available", 0), 0, maxi(0, earned - spent))
+	for k in ["refund_day", "refunds_today"]: # optional daily refund counter (SkillState.refund_block)
+		if sv.has(k):
+			sv[k] = _int(sv[k], -1, 1 << 30)
 
 ## Legacy {survival node id: bool}. Only survival.json ids with bool values survive. When a skill
 ## tree save exists it is the record of what was bought, so a node stays true only if its tree node
