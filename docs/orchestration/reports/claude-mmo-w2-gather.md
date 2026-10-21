@@ -3,24 +3,24 @@
 ## What shipped
 - `game/data/loot_tables.json`:
   - `rare_trait`: the documented rare result. Each gathered item has a 5% chance of one green rare trait: world-design.md:55 "5% chance of a rare extra (green pip)", PRD:541 "Rare extra attributes = green pip, low chance". The six traits are spec 04:11's (Black Sheen, Low Vibration, Wide Serration, Narrow Hook, Split Easily, Vivid Inspiration). The keys are the ones INVUI's `inv_ui.json` lists as class `rare`, so INVUI's inspect panel draws them green and its slots get the rare corner mark.
-  - `gather_rare`: finds, meaning a node's secondary materials (spec 12:38 "material drop tables"; 12:39 "a tree may yield leaf, branch, log, fruit, sap, or specialized material"). Each row is gated by the climates whose materials list it, and it never rolls on a node whose own harvest has that item. Rows: resin on tundra trees and logs, flint on temperate rock, obsidian-pick-gated copper_ore on desert rock, pearl on coral, copper-pick-gated silver_ore on black iron. The home grassland has no finds.
+  - `gather_rare`: finds, meaning a node's secondary materials (spec 12:38 "material drop tables"; 12:39 "a tree may yield leaf, branch, log, fruit, sap, or specialized material"). Each row is gated by the climates whose materials list it, and it never rolls on a node whose own harvest has that item. Rows: resin on tundra trees and logs, bone-pick-gated flint on temperate rock (W2-DATA's FlintNode gate), obsidian-pick-gated copper_ore on desert rock, pearl on coral, copper-pick-gated silver_ore on black iron. The home grassland has no finds.
   - Butcher part gates by knife tier and butcher count/rare scaling.
 - `game/data/gather_rules.json`: role tool affinity (axe on trees, pick on rock, knife on bushes and plants), bare hands 1.35x slower, rare XP bonuses.
 - `game/scripts/gather/`:
   - `LootTables` reads the data.
   - `LootRoller` is the pure roll math with an injected RNG: finds, the trait roll and the carcass.
-  - `GatherService` picks the effective tool and the seconds and yield per unit. Its `after_unit` wears the helper tool, rolls a trait per item, rolls the finds and pays the rare XP. It also shows "+n Item" with green trait lines and gold find lines. `stamp_traits`, `add_finds` and `wear_role_tool` are shared with the server.
+  - `GatherService` picks the effective tool and the seconds and yield per unit. Its `after_unit` wears the helper tool, rolls a trait per item, rolls the finds and pays the rare XP. It also shows "+n Item" with green trait lines and gold find lines; a stack with a rare line lands with a pop and a flash. `stamp_traits`, `add_finds` and `wear_role_tool` are shared with the server.
   - `ButcherLoot` builds the carcass from butchering.json. Rare parts are announced only when the kill is in the survivor's view, and pay their XP at the take.
   - `GatherFeedback` draws the yield stack. It stays off the ring, other harvest nodes, pills, HUD text and zones, plates and the radial. Its nearest edge stays within 120 px of the ring on both axes. A tinted HUD notice says the rare results only when the stack cannot be drawn.
   - `GatherXp` is the one place this package pays bonus XP: `SkillState.add_xp`, or player XP when the survivor has no skill tree.
 - `game/tests/t_gather.gd` (15 groups, 9 of them live on a real `player.tscn` survivor) and `--lab=gather_lab`.
 
 ## Hooks patch (integrator applies at merge)
-`docs/orchestration/reports/claude-mmo-w2-gather-hooks.patch`, regenerated on this round and `git apply --check` clean on claude/mmo-overhaul 73527576:
+`docs/orchestration/reports/claude-mmo-w2-gather-hooks.patch`, regenerated after the sync 3 base merge and `git apply --check` clean on claude/mmo-overhaul ddaab662 and on the branch head:
 - `player_actions.gd`:
   - `_scaled_gather_seconds` and `_gather_yield_multiplier` call `GatherService.unit_seconds` and `GatherService.yield_multiplier`.
   - `GatherService.after_unit(p, gt, stack, gained)` runs after `gt.consume_unit()`. It now passes the landed stack, not its id.
-  - New: `ButcherLoot.on_take(corpse, p)` in `loot()`, the radial corpse take. Before this, only the chest screen's take paid rare part XP.
+  - New: `ButcherLoot.on_take(corpse, p)` in `loot()`, the radial corpse take, right after WATER's `WaterAccess.soil(p, &"butcher")`. Before this, only the chest screen's take paid rare part XP.
 - `corpse.gd`:
   - `_roll_loot()` calls `ButcherLoot.roll_into(self, _owner)`.
   - `_on_take_from_loot()` calls `ButcherLoot.on_take(self, p)` when units moved.
@@ -36,6 +36,46 @@
   - Finds count as minted. The result carries the new optional lists `rares` and `traits`.
 
 Lab registration: `main.gd` loads `res://scenes/dev/<name>.tscn` for `--lab=<name>`, so `game/scenes/dev/gather_lab.tscn` is the registration. `run_all.gd` needs nothing.
+
+## Sync 3 (2026-10-21): this run's findings, the base merge, gate lines
+This run's findings are review round 2's, word for word. All of them were fixed in 0cbec77a..be67836a (next section, item by item). This run re-proved each one on the new head, merged the moved base and adapted to it:
+- **Base merge** a8929fd8: claude/mmo-overhaul ddaab662 (W2-DATA, W2-SKILLS and WATER merged since 73527576). No conflicts on the branch.
+- **Hooks patch regenerated.** WATER added `WaterAccess.soil(p, &"butcher")` where the `loot()` hunk lands; the hunk now sits after it. The patch's +/- lines are unchanged; only its context moved.
+- **W2-DATA's ladder vs the finds.** W2-DATA gates FlintNode's flint behind a bone pick (`min_pick_tier {"flint": "bone"}`). The temperate-rock flint find had no gate, so a stone pick or bare hands could get flint a rung early. The row now has `"min_tool_tier": "bone"`. New t_gather check: no find's gate sits below the `min_pick_tier` any nature node sets for the same item (copper_ore is obsidian on both sides; silver_ore, pearl and resin have no node gate).
+  - Without the gate: `[t_gather] FAIL rock/flint find gate 'none' is not below its nodes' min_pick_tier (bone)` and `[t_gather] FAIL flint never drops below the bone pick FlintNode needs (bare 0.0472, stone 0.0472)`.
+- **Owner 2026-10-21 "make it flashy"** (STATUS: feedback moments, rare finds among them, get "light, motion and punch"). A yield stack with a rare line (green trait or gold find) now starts at 1.35x scale and 1.8x brightness, then eases back to normal over 0.28 s (TRANS_BACK) and 0.45 s. It is a tween, so it never snaps. Plain "+n Item" stacks do not pop.
+  - Check: `[t_gather] rare punch: scale 1.35 -> 1.00, flash 1.80 -> 1.00, plain pops false`. Without the pop: `[t_gather] FAIL a rare stack pops and flashes, then eases to normal; a plain one does not (scale 1.00 -> 1.00, flash 1.00 -> 1.00, plain false)`.
+  - The motion gate (STATUS 2026-10-21, "glitchy movement of UI") still has one known jump: when a HUD block moves onto a drawn stack, the stack moves off in one frame (`follow` in gather_feedback.gd). It was built that way so the stack never sits under a banner. Reviewers measuring frame sequences will see that one move.
+- W2-SKILLS changed yields. The live finish_gather case now lands 6 fibre per unit at the home bush, not 1. Its XP check still holds: `finish_gather on a home bush (trait odds forced to 1): fibre 6, traited 6, gathering XP 62.0, knife 40 -> 39` is 2 + 10 per rare item.
+
+### Gate lines (sync 3: scratch trees `w2g6` and `w2g6g` = 1610c3ed + the hooks patch)
+Each line below was seen in its run log:
+- `--import` (mkscratch, both trees): 0 `SCRIPT ERROR` / `Failed to compile` lines in `.import.log`.
+- Every `game/tests/t_*.gd` (23 files now) exited rc=0 with 0 SCRIPT ERROR, except t_save, which prints its 5 deliberate ones, as on base:
+  - `[t_ai] PASS`, `[t_build] PASS`, `[t_canim] PASS`, `[t_combat] PASS`, `[t_data] PASS items=223 recipes=155`, `[t_gather] PASS`, `[t_harbour] PASS islands=15`, `[t_iconart] PASS`, `[t_items] PASS`.
+  - `[t_light] PASS` (t_light and t_lighting both print it), `[t_occlude] PASS`, `[t_player] PASS`, `[t_save] PASS`, `[t_server_domain] PASS`, `[t_srvdom] PASS`, `[t_structart] PASS`, `[t_tame] PASS`, `[t_ui] PASS`.
+  - `[t_uiicons] PASS ids=177 ...`, `[t_w2_skills] PASS`, `[t_water] PASS`, `[t_web] PASS`.
+- `--script res://tests/run_all.gd`: `[tests] PASS`. `tools/smoke.sh --no-import` (through gslot): `SMOKE PASS`.
+- `--lab=gather_lab` headless: `[gather_lab] PASS`, 0 SCRIPT ERROR.
+- Windowed, one at a time on a quiet slot: `[gather_lab] PASS` with 0 SCRIPT ERROR on gl_compatibility 1600x900, Forward+ 1600x900, gl_compatibility 844x390 and Forward+ 844x390. Last round's two load flakes did not recur.
+- 0 "couldn't resolve track" in every gate and lab log. No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (the newest is still Godot-2026-10-20-232613.ips, from before this run).
+- Mutation suite on 1610c3ed (scratchpad `w2g6m/mutate.py`, round 2's 18 mutations of package and hook code plus `Mflint_gate` and `Mpunch_none`; output `w2g6m/mutate.out`): all 20 exit rc=1. The reviewer's acceptance lines, on the new head:
+  - M-a (GatherXp fallback off): `[t_gather] FAIL finish_gather pays 2 + 10 per rare item into Gathering (got 2.0, want 62.0)`, plus `FAIL the talon pays its 8 XP once, at the take (got 0.0)` and both take-path XP checks.
+  - M-c (corpse hook -> `pass`): `[t_gather] FAIL the chest-screen take (_on_take_from_loot) pays 3 + 8 for the talon (got 3.0)`.
+  - M-c2 (actions loot hook -> `pass`): `[t_gather] FAIL the radial take (PlayerActions.loot) pays 3 + 8 for the talon (got 3.0)`.
+  - Own-yield filter removed: `[t_gather] FAIL no find is the node's own yield (["PineTree/tundra/resin", ...])`.
+  - Helper wear removed: `[t_gather] FAIL a knife helping on a bush wears 1 per unit, a required one is not worn twice (40 -> 40)`.
+  - The other 13 print the lines quoted in round 2 below, with the new counts (for example `(0 of 4)` traited).
+
+### Screenshots looked at (scratchpad `w2g6/shots`, not in the repo)
+- **1600x900 gl_compatibility `-rare`:** a green "Low Vibration Fibre Stalk" over a cream "+3 Fibre Stalk", left of the ring hex. It is clear of the Bush, Bush Berries, Common Tree and Rock pills and of the raptor. The shot is taken 0.35 s after the unit, so the pop has already eased back to normal size.
+- **1600x900 Forward+ `-rare_radial`:** the same stack in the same place, clear of every pill.
+- **844x390 gl_compatibility `-rare`:** the stack is skipped (`yield stack skipped: no free spot by the node`), and the green notice "Rare trait: Low Vibration Fibre Stalk" on ink sits under "Survivor".
+- **844x390 gl_compatibility `-butcher`:** loot toasts on the left. No rare notice is left over from the gathers.
+- **844x390 gl_compatibility `-tools`:** "+2 Log" is down-left of the work-axe ring and clear of the Bush, Bush Berries and Rock pills.
+- **Not this package, still seen (W1-UI):**
+  - At 844x390 the level-up banner pushes the pet plate onto the Bush pill.
+  - The "Loot · Velociraptor" label crosses the "Survivor" nameplate in the butcher shot.
 
 ## Review round 2 (2026-10-20 night): findings, fixes, checks
 Each mutation ran the full t_gather against the mutated file (scratchpad `w2g5/mutate.py`, logs `w2g5/mut/`). Each one exited rc=1 with the quoted line. The unmutated run prints `[t_gather] PASS`.
@@ -102,7 +142,7 @@ Each mutation ran the full t_gather against the mutated file (scratchpad `w2g5/m
     - A trait swap keeps every unit (4000 of 4000), and an item carries at most one trait.
     - Traits removed from after_unit: `[t_gather] FAIL every gathered item took a trait with the odds forced to 1 (0 of 5)`.
 
-## Gate lines (scratch trees `w2g5` and `w2g5g` = 0cbec77a + the hooks patch)
+## Round 2 gate lines (scratch trees `w2g5` and `w2g5g` = 0cbec77a + the hooks patch), superseded by sync 3 above
 Final code commit be67836a. The branch tip merges claude/mmo-overhaul 73527576, which changed docs only (`git diff be67836a HEAD -- game` is empty). The hooks patch is `git apply --check` clean there. Each line below was seen in the run log:
 - `--import` (mkscratch, both trees): 0 `SCRIPT ERROR` / `Failed to compile` lines in `.import.log`.
 - Every `game/tests/t_*.gd` exited rc=0 with 0 SCRIPT ERROR, except t_save, which prints its 5 deliberate ones, as on base. `[t_ai] PASS`, `[t_build] PASS`, `[t_canim] PASS`, `[t_combat] PASS`, `[t_gather] PASS`, `[t_harbour] PASS islands=15`, `[t_iconart] PASS`, `[t_items] PASS`, `[t_light] PASS` (both t_light and t_lighting print this), `[t_occlude] PASS`, `[t_player] PASS`, `[t_save] PASS`, `[t_server_domain] PASS`, `[t_srvdom] PASS`, `[t_structart] PASS`, `[t_tame] PASS`, `[t_ui] PASS`, `[t_uiicons] PASS ids=169 ...`, `[t_web] PASS`.
@@ -118,7 +158,7 @@ Final code commit be67836a. The branch tip merges claude/mmo-overhaul 73527576, 
 - 0 "couldn't resolve track" in every gate and lab log. No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (directory listing compared with the one taken before the first run).
 - Mutation suite on be67836a (scratchpad `w2g5/mutate.py`, 18 mutations of package and hook code, output `w2g5/mutate_be67.out`): every one exits rc=1 with the lines quoted above.
 
-## Screenshots looked at (scratchpad `w2g5/shots2`, not in the repo)
+## Round 2 screenshots looked at (scratchpad `w2g5/shots2`, not in the repo)
 Final runs are `w2g5/shots6` and `w2g5/shots6b`; `shots3` to `shots5` are the earlier rounds of this pass.
 - **1600x900 gl_compatibility `-rare`:**
   - A green "Low Vibration Fibre Stalk" sits over a cream "+3 Fibre Stalk", left of the ring hex.
@@ -152,6 +192,8 @@ The climate filter, the per-row climate materials check, the live after_unit and
 - A rare part pays its butchering XP when the last of it is taken, to the taker. The carcass rolls at death for the local survivor's best knife and Butchering level (single player; W3 rolls for the credited killer).
 - Kills out of the survivor's view roll silently.
 - Bare hands are 1.35x slower than the role's tool. A helper tool wears at Inventory.wear_gather_tool's cost.
+- A find needs at least the pick tier a nature node needs for the same item (W2-DATA's ladder), so the flint find needs a bone pick.
+- The rare pop's size, brightness and timing (1.35x, 1.8x, 0.28 s) are picked by eye; the owner's "make it flashy" gives no numbers.
 - gather_lab hands over the starter tools and picks the seed so the next fibre item rolls a trait. The odds themselves are proven in t_gather.
 
 ## What the next agent needs
@@ -164,4 +206,5 @@ The climate filter, the per-row climate materials check, the live after_unit and
    - Rare traits on carcass parts (spec 12 s1-2, 12:74).
 4. **W3-SRVACT:** server nodes need their island climate in `attributes` (WorldFacade.add_node sets only level) before any find can roll there. Traits and helper wear already roll there.
 5. **W2-DATA:** review the find items' rarity once it lives in items.json. resin and flint are common/uncommon in item_rarity.json.
-6. **Not done:** no web export check.
+6. **GATHERUI** (queued after this merge; STATUS says the hex time "is static and will be wrong after W2-GATHER"): read `GatherService.unit_seconds(p, node)` and `GatherService.yield_multiplier(p, node)` for the hex's time and yield. They are what finish_gather uses.
+7. **Not done:** no web export check, and no frame-sequence capture of the rare pop (the motion gate). The pop is a tween from 1.35x to 1x; t_gather checks its start and end values.
