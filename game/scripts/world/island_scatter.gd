@@ -172,7 +172,11 @@ static func plant_at(rt: IslandRuntime, family: String, role: String, pos: Vecto
 			model = models[0]
 		var path := _nature_path(model)
 		if ResourceLoader.exists(path):
-			_attach_batched(rt, node, path, role_s, family, pos)
+			var card_id := "" if not cards_enabled() else CardProp.card_for_model(path)
+			if card_id != "" and CardProp.baked(card_id):
+				_attach_card(rt, node, card_id, path, role_s, family, pos)
+			else:
+				_attach_batched(rt, node, path, role_s, family, pos)
 		else:
 			print("[world] missing nature %s" % path)
 	return 1
@@ -221,6 +225,47 @@ static func _attach_batched(rt: IslandRuntime, node: HarvestNode, path: String, 
 			rt._batches.append(empty_batch)
 		empty_idx = empty_batch.add(xf)
 	node.set_batched_visual(batch, idx, empty_batch, empty_idx)
+	if role.begins_with("tree") or family == "tree_stump":
+		rt._tree_disc_xforms.append(Transform3D(Basis.IDENTITY, pos + Vector3(0, 0.08, 0)))
+
+## CARD2D: rules.json resource_render "card", or --cards for a lab run. Default "model" is today's
+## look, so nothing changes until the owner approves the trial.
+static func cards_enabled() -> bool:
+	if "--cards" in OS.get_cmdline_user_args():
+		return true
+	return str(Data.world_rules.get("resource_render", "model")) == "card"
+
+## One harvest node drawn as a baked swaying card, scaled to the family's usual height and opt-in to
+## the see-through fade. Tapping and gathering use the node's own collision and TapZone, untouched.
+static func _attach_card(rt: IslandRuntime, node: HarvestNode, card_id: String, model_path: String, role: String, family: String, pos: Vector3) -> void:
+	var card := CardProp.new()
+	card.name = "Card_%s" % str(node.node_id)
+	rt.add_child(card)
+	card.position = pos
+	var height := _target_height(rt, role, family)
+	if not card.setup(card_id, height):
+		card.queue_free()
+		return
+	# The family's depleted model (bush-berries-a -> bush-berries-a-empty) becomes its empty card.
+	var variants: Dictionary = Data.nature_families.get(family, {}).get("depleted_models", {})
+	var empty_card: CardProp = null
+	var empty_model := str(variants.get(model_path, ""))
+	var empty_id := CardProp.card_for_model(empty_model) if empty_model != "" else ""
+	if empty_id != "" and CardProp.baked(empty_id):
+		empty_card = CardProp.new()
+		empty_card.name = "Empty_%s" % str(node.node_id)
+		rt.add_child(empty_card)
+		empty_card.position = pos
+		if empty_card.setup(empty_id, height):
+			empty_card.visible = false
+		else:
+			empty_card.queue_free()
+			empty_card = null
+	node.set_card_visual(card, empty_card)
+	# A card tall enough to hide the survivor fades like a batched tree does (W2-OCCLUDE): its
+	# material includes the same dither body, driven per instance.
+	if height >= Occlusion.TALL_M:
+		Occlusion.make_card_occludable(card, Occlusion.BETWEEN)
 	if role.begins_with("tree") or family == "tree_stump":
 		rt._tree_disc_xforms.append(Transform3D(Basis.IDENTITY, pos + Vector3(0, 0.08, 0)))
 

@@ -1,157 +1,679 @@
 {
   "_about": "CARD2D trial (spec 25 §1): resource props as flat camera-facing cards baked from the 3D GLBs. Each entry names one GLB, the sway kind it uses, the families that use it and, after a bake, the texture geometry. card_bake.gd (--lab=card_bake) renders game/assets/nature/cards/<name>_albedo.png and <name>_normal.png and rewrites pivot/world_size/content/baked below; the other keys are hand-edited and kept. pivot is the ground point in normalized texture UV (u from the left, v from the top); world_size is the whole texture rectangle in metres at scale 1; content is the visible part in texture pixels. Buildings stay 3D (out of scope).",
   "_kinds": "Sway per role: trees slow and wide, bushes in between, grass/plants fast and small, rocks none. amplitude is the tip's sideways travel in metres.",
-  "kinds": {
-    "tree": {"amplitude": 0.22, "speed": 0.55, "cast_shadow": true},
-    "bush": {"amplitude": 0.10, "speed": 1.15, "cast_shadow": false},
-    "grass": {"amplitude": 0.05, "speed": 2.10, "cast_shadow": false},
-    "plant": {"amplitude": 0.06, "speed": 1.70, "cast_shadow": false},
-    "rock": {"amplitude": 0.0, "speed": 1.0, "cast_shadow": false}
-  },
   "cards": {
-    "tree-common-a": {
-      "model": "res://assets/nature/generated/tree-common-a.glb",
-      "kind": "tree",
-      "resolution": 1024,
-      "families": ["CommonTree"]
-    },
-    "tree-birch-a": {
-      "model": "res://assets/nature/generated/tree-birch-a.glb",
-      "kind": "tree",
-      "resolution": 1024,
-      "families": ["BirchTree"]
-    },
-    "tree-birch-b": {
-      "model": "res://assets/nature/generated/tree-birch-b.glb",
-      "kind": "tree",
-      "resolution": 1024,
-      "families": []
-    },
-    "tree-acacia-a": {
-      "model": "res://assets/nature/generated/tree-acacia-a.glb",
-      "kind": "tree",
-      "resolution": 1024,
-      "families": ["AcaciaTree"]
-    },
-    "tree-palm-a": {
-      "model": "res://assets/nature/generated/tree-palm-a.glb",
-      "kind": "tree",
-      "resolution": 1024,
-      "families": ["PalmTree"]
-    },
-    "tree-pine-a": {
-      "model": "res://assets/nature/generated/tree-pine-a.glb",
-      "kind": "tree",
-      "resolution": 1024,
-      "families": ["PineTree"]
-    },
-    "tree-common-dead": {
-      "model": "res://assets/nature/generated/tree-common-dead.glb",
-      "kind": "tree",
-      "resolution": 1024,
-      "families": ["CommonTree_Dead"]
-    },
-    "tree-birch-dead": {
-      "model": "res://assets/nature/generated/tree-birch-dead.glb",
-      "kind": "tree",
-      "resolution": 1024,
-      "families": ["BirchTree_Dead"]
-    },
-    "bush-berries-a": {
-      "model": "res://assets/nature/generated/bush-berries-a.glb",
-      "kind": "bush",
-      "resolution": 512,
-      "families": ["BushBerries", "berry_bush"]
-    },
-    "bush-berries-a-empty": {
-      "model": "res://assets/nature/generated/bush-berries-a-empty.glb",
-      "kind": "bush",
-      "resolution": 512,
-      "families": []
-    },
-    "bush-berries-b": {
-      "model": "res://assets/nature/generated/bush-berries-b.glb",
-      "kind": "bush",
-      "resolution": 512,
-      "families": ["BushBerries", "berry_bush"]
-    },
-    "bush-berries-b-empty": {
-      "model": "res://assets/nature/generated/bush-berries-b-empty.glb",
-      "kind": "bush",
-      "resolution": 512,
-      "families": ["Bush"]
-    },
-    "grass-a": {
-      "model": "res://assets/nature/generated/grass-a.glb",
-      "kind": "grass",
-      "resolution": 512,
-      "families": ["Grass"]
-    },
-    "wildgrass-a": {
-      "model": "res://assets/nature/generated/wildgrass-a.glb",
-      "kind": "grass",
-      "resolution": 512,
-      "families": ["WildGrass"]
-    },
-    "plant-a": {
-      "model": "res://assets/nature/generated/plant-a.glb",
+    "berry-sprig": {
+      "content": {
+        "h": 310,
+        "mpp": 0.00119,
+        "w": 299,
+        "x": 87,
+        "y": 116
+      },
+      "families": [
+        "BerrySprig"
+      ],
       "kind": "plant",
+      "model": "res://assets/resources/generated/resource-berries-final.glb",
+      "pivot": [
+        0.3307,
+        0.4748
+      ],
       "resolution": 512,
-      "families": ["Plant"]
-    },
-    "plant-herb-leaf": {
-      "model": "res://assets/resources/generated/plant-herb_leaf-final.glb",
-      "kind": "plant",
-      "resolution": 512,
-      "families": ["HerbPlant"]
-    },
-    "plant-dry-grass": {
-      "model": "res://assets/resources/generated/plant-dry_grass-final.glb",
-      "kind": "plant",
-      "resolution": 512,
-      "families": ["DryGrassTuft"]
-    },
-    "fibre-stalk": {
-      "model": "res://assets/resources/generated/resource-fibre_stalk-final.glb",
-      "kind": "plant",
-      "resolution": 512,
-      "families": ["FibreTuft"]
+      "texture": [
+        512,
+        512
+      ],
+      "world_size": [
+        0.608,
+        0.608
+      ]
     },
     "branch-pile": {
+      "content": {
+        "h": 184,
+        "mpp": 0.0011,
+        "w": 372,
+        "x": 67,
+        "y": 181
+      },
+      "families": [
+        "BranchPile"
+      ],
+      "kind": "plant",
       "model": "res://assets/resources/generated/resource-branch-final.glb",
-      "kind": "plant",
+      "pivot": [
+        0.3698,
+        0.7272
+      ],
       "resolution": 512,
-      "families": ["BranchPile"]
+      "texture": [
+        512,
+        256
+      ],
+      "world_size": [
+        0.563,
+        0.282
+      ]
     },
-    "berry-sprig": {
-      "model": "res://assets/resources/generated/resource-berries-final.glb",
-      "kind": "plant",
+    "bush-berries-a": {
+      "content": {
+        "h": 272,
+        "mpp": 0.00692,
+        "w": 361,
+        "x": 84,
+        "y": 114
+      },
+      "families": [
+        "BushBerries",
+        "berry_bush"
+      ],
+      "kind": "bush",
+      "model": "res://assets/nature/generated/bush-berries-a.glb",
+      "pivot": [
+        0.3359,
+        0.4849
+      ],
       "resolution": 512,
-      "families": ["BerrySprig"]
+      "texture": [
+        512,
+        512
+      ],
+      "world_size": [
+        3.541,
+        3.541
+      ]
+    },
+    "bush-berries-a-empty": {
+      "content": {
+        "h": 272,
+        "mpp": 0.00692,
+        "w": 361,
+        "x": 84,
+        "y": 114
+      },
+      "families": [],
+      "kind": "bush",
+      "model": "res://assets/nature/generated/bush-berries-a-empty.glb",
+      "pivot": [
+        0.3359,
+        0.4849
+      ],
+      "resolution": 512,
+      "texture": [
+        512,
+        512
+      ],
+      "world_size": [
+        3.541,
+        3.541
+      ]
+    },
+    "bush-berries-b": {
+      "content": {
+        "h": 262,
+        "mpp": 0.00832,
+        "w": 351,
+        "x": 70,
+        "y": 135
+      },
+      "families": [
+        "BushBerries",
+        "berry_bush"
+      ],
+      "kind": "bush",
+      "model": "res://assets/nature/generated/bush-berries-b.glb",
+      "pivot": [
+        0.3633,
+        0.4088
+      ],
+      "resolution": 512,
+      "texture": [
+        512,
+        512
+      ],
+      "world_size": [
+        4.26,
+        4.26
+      ]
+    },
+    "bush-berries-b-empty": {
+      "content": {
+        "h": 262,
+        "mpp": 0.00832,
+        "w": 351,
+        "x": 70,
+        "y": 135
+      },
+      "families": [
+        "Bush"
+      ],
+      "kind": "bush",
+      "model": "res://assets/nature/generated/bush-berries-b-empty.glb",
+      "pivot": [
+        0.3633,
+        0.4088
+      ],
+      "resolution": 512,
+      "texture": [
+        512,
+        512
+      ],
+      "world_size": [
+        4.26,
+        4.26
+      ]
     },
     "cactus-a": {
-      "model": "res://assets/resources/generated/plant-cactus-final.glb",
+      "content": {
+        "h": 403,
+        "mpp": 0.02347,
+        "w": 169,
+        "x": 166,
+        "y": 61
+      },
+      "families": [
+        "Cactus"
+      ],
       "kind": "plant",
+      "model": "res://assets/resources/generated/plant-cactus-final.glb",
+      "pivot": [
+        0.3514,
+        0.721
+      ],
       "resolution": 512,
-      "families": ["Cactus"]
+      "texture": [
+        256,
+        512
+      ],
+      "world_size": [
+        6.007,
+        12.014
+      ]
     },
-    "rock-a": {
-      "model": "res://assets/nature/generated/rock-a.glb",
-      "kind": "rock",
+    "fibre-stalk": {
+      "content": {
+        "h": 388,
+        "mpp": 0.00053,
+        "w": 242,
+        "x": 139,
+        "y": 80
+      },
+      "families": [
+        "FibreTuft"
+      ],
+      "kind": "plant",
+      "model": "res://assets/resources/generated/resource-fibre_stalk-final.glb",
+      "pivot": [
+        0.4701,
+        0.6509
+      ],
       "resolution": 512,
-      "families": ["Rock"]
-    },
-    "rock-moss-a": {
-      "model": "res://assets/nature/generated/rock-moss-a.glb",
-      "kind": "rock",
-      "resolution": 512,
-      "families": ["Rock_Moss"]
+      "texture": [
+        256,
+        512
+      ],
+      "world_size": [
+        0.135,
+        0.27
+      ]
     },
     "granite-boulder": {
-      "model": "res://assets/resources/generated/min4-stone-final.glb",
+      "content": {
+        "h": 320,
+        "mpp": 0.00099,
+        "w": 326,
+        "x": 85,
+        "y": 113
+      },
+      "families": [
+        "GraniteBoulder"
+      ],
       "kind": "rock",
+      "model": "res://assets/resources/generated/min4-stone-final.glb",
+      "pivot": [
+        0.3338,
+        0.4817
+      ],
       "resolution": 512,
-      "families": ["GraniteBoulder"]
+      "texture": [
+        512,
+        512
+      ],
+      "world_size": [
+        0.505,
+        0.505
+      ]
+    },
+    "grass-a": {
+      "content": {
+        "h": 342,
+        "mpp": 0.00206,
+        "w": 261,
+        "x": 118,
+        "y": 97
+      },
+      "families": [
+        "Grass"
+      ],
+      "kind": "grass",
+      "model": "res://assets/nature/generated/grass-a.glb",
+      "pivot": [
+        0.2695,
+        0.5816
+      ],
+      "resolution": 512,
+      "texture": [
+        512,
+        512
+      ],
+      "world_size": [
+        1.054,
+        1.054
+      ]
+    },
+    "plant-a": {
+      "content": {
+        "h": 397,
+        "mpp": 0.00165,
+        "w": 164,
+        "x": 161,
+        "y": 83
+      },
+      "families": [
+        "Plant"
+      ],
+      "kind": "plant",
+      "model": "res://assets/nature/generated/plant-a.glb",
+      "pivot": [
+        0.3711,
+        0.677
+      ],
+      "resolution": 512,
+      "texture": [
+        256,
+        512
+      ],
+      "world_size": [
+        0.421,
+        0.843
+      ]
+    },
+    "plant-dry-grass": {
+      "content": {
+        "h": 366,
+        "mpp": 0.00151,
+        "w": 208,
+        "x": 167,
+        "y": 59
+      },
+      "families": [
+        "DryGrassTuft"
+      ],
+      "kind": "plant",
+      "model": "res://assets/resources/generated/plant-dry_grass-final.glb",
+      "pivot": [
+        0.3649,
+        0.7026
+      ],
+      "resolution": 512,
+      "texture": [
+        256,
+        512
+      ],
+      "world_size": [
+        0.386,
+        0.771
+      ]
+    },
+    "plant-herb-leaf": {
+      "content": {
+        "h": 359,
+        "mpp": 0.00104,
+        "w": 229,
+        "x": 143,
+        "y": 88
+      },
+      "families": [
+        "HerbPlant"
+      ],
+      "kind": "plant",
+      "model": "res://assets/resources/generated/plant-herb_leaf-final.glb",
+      "pivot": [
+        0.4425,
+        0.6341
+      ],
+      "resolution": 512,
+      "texture": [
+        256,
+        512
+      ],
+      "world_size": [
+        0.267,
+        0.534
+      ]
+    },
+    "rock-a": {
+      "content": {
+        "h": 225,
+        "mpp": 0.00641,
+        "w": 368,
+        "x": 77,
+        "y": 157
+      },
+      "families": [
+        "Rock"
+      ],
+      "kind": "rock",
+      "model": "res://assets/nature/generated/rock-a.glb",
+      "pivot": [
+        0.3496,
+        0.6356
+      ],
+      "resolution": 512,
+      "texture": [
+        512,
+        256
+      ],
+      "world_size": [
+        3.28,
+        1.64
+      ]
+    },
+    "rock-moss-a": {
+      "content": {
+        "h": 225,
+        "mpp": 0.00641,
+        "w": 368,
+        "x": 77,
+        "y": 157
+      },
+      "families": [
+        "Rock_Moss"
+      ],
+      "kind": "rock",
+      "model": "res://assets/nature/generated/rock-moss-a.glb",
+      "pivot": [
+        0.3496,
+        0.6356
+      ],
+      "resolution": 512,
+      "texture": [
+        512,
+        256
+      ],
+      "world_size": [
+        3.28,
+        1.64
+      ]
+    },
+    "tree-acacia-a": {
+      "content": {
+        "h": 566,
+        "mpp": 0.01737,
+        "w": 680,
+        "x": 169,
+        "y": 176
+      },
+      "families": [
+        "AcaciaTree"
+      ],
+      "kind": "tree",
+      "model": "res://assets/nature/generated/tree-acacia-a.glb",
+      "pivot": [
+        0.3365,
+        0.5587
+      ],
+      "resolution": 1024,
+      "texture": [
+        1024,
+        1024
+      ],
+      "world_size": [
+        17.783,
+        17.783
+      ]
+    },
+    "tree-birch-a": {
+      "content": {
+        "h": 720,
+        "mpp": 0.01857,
+        "w": 387,
+        "x": 332,
+        "y": 146
+      },
+      "families": [
+        "BirchTree"
+      ],
+      "kind": "tree",
+      "model": "res://assets/nature/generated/tree-birch-a.glb",
+      "pivot": [
+        0.3548,
+        0.6799
+      ],
+      "resolution": 1024,
+      "texture": [
+        512,
+        1024
+      ],
+      "world_size": [
+        9.508,
+        19.017
+      ]
+    },
+    "tree-birch-b": {
+      "content": {
+        "h": 723,
+        "mpp": 0.01251,
+        "w": 389,
+        "x": 332,
+        "y": 177
+      },
+      "families": [],
+      "kind": "tree",
+      "model": "res://assets/nature/generated/tree-birch-b.glb",
+      "pivot": [
+        0.3491,
+        0.6454
+      ],
+      "resolution": 1024,
+      "texture": [
+        512,
+        1024
+      ],
+      "world_size": [
+        6.404,
+        12.807
+      ]
+    },
+    "tree-birch-dead": {
+      "content": {
+        "h": 720,
+        "mpp": 0.01857,
+        "w": 387,
+        "x": 332,
+        "y": 146
+      },
+      "families": [
+        "BirchTree_Dead"
+      ],
+      "kind": "tree",
+      "model": "res://assets/nature/generated/tree-birch-dead.glb",
+      "pivot": [
+        0.3548,
+        0.6799
+      ],
+      "resolution": 1024,
+      "texture": [
+        512,
+        1024
+      ],
+      "world_size": [
+        9.508,
+        19.017
+      ]
+    },
+    "tree-common-a": {
+      "content": {
+        "h": 705,
+        "mpp": 0.01055,
+        "w": 473,
+        "x": 274,
+        "y": 181
+      },
+      "families": [
+        "CommonTree"
+      ],
+      "kind": "tree",
+      "model": "res://assets/nature/generated/tree-common-a.glb",
+      "pivot": [
+        0.4652,
+        0.625
+      ],
+      "resolution": 1024,
+      "texture": [
+        512,
+        1024
+      ],
+      "world_size": [
+        5.402,
+        10.805
+      ]
+    },
+    "tree-common-dead": {
+      "content": {
+        "h": 705,
+        "mpp": 0.01055,
+        "w": 473,
+        "x": 274,
+        "y": 181
+      },
+      "families": [
+        "CommonTree_Dead"
+      ],
+      "kind": "tree",
+      "model": "res://assets/nature/generated/tree-common-dead.glb",
+      "pivot": [
+        0.4652,
+        0.625
+      ],
+      "resolution": 1024,
+      "texture": [
+        512,
+        1024
+      ],
+      "world_size": [
+        5.402,
+        10.805
+      ]
+    },
+    "tree-palm-a": {
+      "content": {
+        "h": 692,
+        "mpp": 0.0161,
+        "w": 445,
+        "x": 286,
+        "y": 144
+      },
+      "families": [
+        "PalmTree"
+      ],
+      "kind": "tree",
+      "model": "res://assets/nature/generated/tree-palm-a.glb",
+      "pivot": [
+        0.4382,
+        0.6555
+      ],
+      "resolution": 1024,
+      "texture": [
+        512,
+        1024
+      ],
+      "world_size": [
+        8.244,
+        16.488
+      ]
+    },
+    "tree-pine-a": {
+      "content": {
+        "h": 727,
+        "mpp": 0.02494,
+        "w": 382,
+        "x": 310,
+        "y": 193
+      },
+      "families": [
+        "PineTree"
+      ],
+      "kind": "tree",
+      "model": "res://assets/nature/generated/tree-pine-a.glb",
+      "pivot": [
+        0.3987,
+        0.6312
+      ],
+      "resolution": 1024,
+      "texture": [
+        512,
+        1024
+      ],
+      "world_size": [
+        12.767,
+        25.535
+      ]
+    },
+    "wildgrass-a": {
+      "content": {
+        "h": 362,
+        "mpp": 0.00217,
+        "w": 186,
+        "x": 162,
+        "y": 72
+      },
+      "families": [
+        "WildGrass"
+      ],
+      "kind": "grass",
+      "model": "res://assets/nature/generated/wildgrass-a.glb",
+      "pivot": [
+        0.3672,
+        0.6531
+      ],
+      "resolution": 512,
+      "texture": [
+        256,
+        512
+      ],
+      "world_size": [
+        0.556,
+        1.112
+      ]
+    }
+  },
+  "kinds": {
+    "bush": {
+      "amplitude": 0.1,
+      "cast_shadow": false,
+      "speed": 1.15
+    },
+    "grass": {
+      "amplitude": 0.05,
+      "cast_shadow": false,
+      "speed": 2.1
+    },
+    "plant": {
+      "amplitude": 0.06,
+      "cast_shadow": false,
+      "speed": 1.7
+    },
+    "rock": {
+      "amplitude": 0.0,
+      "cast_shadow": false,
+      "speed": 1.0
+    },
+    "tree": {
+      "amplitude": 0.22,
+      "cast_shadow": true,
+      "speed": 0.55
     }
   }
 }
