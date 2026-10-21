@@ -399,6 +399,7 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 
 - Male survivor model (PRD: 8 occupations x 2 genders): start a concept sheet for approval, then a Tripo mesh from existing credits? (asked 2026-10-20; unanswered)
 - Painted portrait set like Durango's (15+ faces): new art; which source, if any? Until then portraits are rendered from the player's model.
+- Island size target (asked 2026-10-20; unanswered): match Durango (~300 x 375 m, recommended), the design doc (160 home / 240 unstable), or keep ours (134 home / 406 unstable) with ragged shapes only? ISLANDSHAPE waits for it.
 
 ## Merge log
 
