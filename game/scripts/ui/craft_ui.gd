@@ -257,6 +257,13 @@ func _block_reason(rec: Dictionary, info: Dictionary) -> String:
 	var blocked := Crafting.progression_block(player, rec)
 	if blocked != "":
 		return "Locked"
+	# Spec 30 §10-11: a station's tags and its level gate the recipe, and the row says which.
+	if _station != "":
+		var st: Variant = info.get("node", null)
+		if st is CraftStation:
+			var gate := CraftStation.station_gate(rec, (st as CraftStation).station_tags, (st as CraftStation).station_level, StringName(_station))
+			if gate != "":
+				return gate + "  " + str(rec.get("id", "")).replace("_", " ").capitalize()
 	if not Crafting.picks_valid(player.inventory, rec, Crafting.default_picks(player.inventory, rec)):
 		return "Missing items"
 	if _station != "" and not info["exists"]:
@@ -403,9 +410,9 @@ func _station_info(sid: String) -> Dictionary:
 		return {"exists": true, "near": true, "dist": 0.0}
 	var n := Crafting.nearest_station(player, StringName(sid))
 	if n == null:
-		return {"exists": false, "near": false, "dist": 0.0}
+		return {"exists": false, "near": false, "dist": 0.0, "node": null}
 	var d := player.global_position.distance_to(n.global_position)
-	return {"exists": true, "near": d <= Crafting.STATION_RANGE + 0.35, "dist": d}
+	return {"exists": true, "near": d <= Crafting.STATION_RANGE + 0.35, "dist": d, "node": n}
 
 func _show_detail(info: Dictionary) -> void:
 	if _detail == null:
