@@ -36,7 +36,9 @@ func _process(_delta: float) -> bool:
 		_test_best_tool, _test_no_stacking, _test_split_migration, _test_legacy_equipment_migration,
 		_test_hostile_worn, _test_identity_through_transfer, _test_real_saves_split,
 		_test_overflow_to_home_storage, _test_stack_bigger_than_bag, _test_round_trip_keeps_uids,
-		_test_worn_gear_kept, _test_currency_stacks, _test_visual_groups, _test_server_store_migration, _test_default_pick_spares_valuable]
+		_test_worn_gear_kept, _test_currency_stacks, _test_visual_groups, _test_server_store_migration, _test_default_pick_spares_valuable,
+		_test_legacy_ceiling, _test_duplicate_uids, _test_pocket_capacity, _test_grown_container_reloads, _test_journal_before_split,
+		_test_tip_names_traits]
 	for t in tests:
 		var errs := log.script_errors
 		t.call()
@@ -61,7 +63,7 @@ func _json(v: Variant) -> Variant:
 
 ## Save/load the way SaveGame does: bag rows then extras, both through JSON.
 func _reload(inv, slots := -1, overflow = null):
-	var back = INV.new(slots if slots > 0 else inv.slot_count)
+	var back = INV.new(slots if slots > 0 else inv.base_slots)
 	back.load_array(_json(inv.to_array()), overflow)
 	back.extras_from_dict(_json(inv.extras_to_dict()))
 	return back
@@ -80,10 +82,9 @@ func _test_equip_exact_instance() -> void:
 			i60 = i
 	var uid60: String = inv.slots[i60].uid
 	_expect(inv.equip_at(i60), "equip_at the L60 helm")
-	inv.sort()
 	var back = _reload(inv)
 	var worn = back.equipped_in(&"head")
-	_expect(worn != null and worn.level == 60 and worn.uid == uid60, "L60 stays equipped after a sort and a save/load (got lv %s)" % (worn.level if worn else -1))
+	_expect(worn != null and worn.level == 60 and worn.uid == uid60, "L60 stays equipped after a save/load (got lv %s)" % (worn.level if worn else -1))
 	_expect(back.count_of(&"raid_helm") == 1 and back.slots[back.find_first(&"raid_helm")].level == 1, "the L1 helm is the one left in the bag")
 	# The def-id form wears the highest level, not the first match.
 	var inv2 = INV.new(20)
@@ -152,8 +153,6 @@ func _test_best_tool() -> void:
 	_expect(inv.equipped_gather_tool() != null and inv.equipped_gather_tool().material_tier() == &"flint", "auto gather tool is the flint pick")
 	inv.set_equipped_tool_index(0)
 	_expect(inv.find_gather_tool(&"pick").material_tier() == &"stone", "a chosen stone pick is kept")
-	inv.sort()
-	_expect(inv.find_gather_tool(&"pick").material_tier() == &"stone", "the chosen tool follows its item through a sort")
 	# A worn knife still works as a knife.
 	var k = INV.new(20)
 	k.add(IS.make(&"stone_knife", 1))
@@ -550,3 +549,160 @@ func _test_server_store_migration() -> void:
 	_expect(bool(dep.get("ok", false)) and str(dep.r.asset.uid) == "i2.0", "a migrated unit leaves by its own uid (%s)" % [dep])
 	c.close()
 	print("[t_inventory] server migration units=%d bag=%d storage=%d uids=%d" % [_total(got), used, (ch.get("storage", []) as Array).size(), uids.size()])
+
+# ---------------------------------------------------------------- review fixes (2026-10-20)
+
+## The old sanitizer's ceiling was 999 for every item without durability or a multi-slot span
+## (base item_def.gd: owner rule 2026-09-20), not the items.json stack_max. Legal old rows above
+## the data value (stone x150, bandage x40 in the bag, fibre_stalk x400 in home cargo) keep every
+## unit through SaveMigrations.read (sanitizer) and the loader.
+func _test_legacy_ceiling() -> void:
+	var edit := func (raw: Dictionary) -> void:
+		var rows: Array = raw.player.inventory
+		var free: Array[int] = []
+		for i in rows.size():
+			if rows[i] == null:
+				free.append(i)
+		rows[free[0]] = {"id": "stone", "count": 150, "level": 2}
+		rows[free[1]] = {"id": "bandage", "count": 40}
+		(raw.home.cargo as Array).append({"id": "fibre_stalk", "count": 400, "level": 3})
+	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIX + "save_v3_golden.json"))
+	edit.call(raw)
+	var want := _raw_units(raw)
+	var got := _units_of(_all_stacks(_load_containers(_read_edited("save_v3_golden.json", edit))))
+	for id in ["stone", "bandage", "fibre_stalk"]:
+		_expect(int(got.get(id, 0)) == int(want.get(id, 0)), "old %s rows keep every unit (want %d got %d)" % [id, int(want.get(id, 0)), int(got.get(id, 0))])
+	_expect(got == want, "a legal old save above the data stack_max keeps every unit (want %s got %s)" % [want, got])
+	var data: Node = get_root().get_node("Data")
+	_expect(data.item(&"stone").legacy_stack_max == 999 and data.item(&"work_pick").legacy_stack_max < 999, "legacy ceiling: 999, but a durability tool keeps its data value (stone %d, work_pick %d)" % [data.item(&"stone").legacy_stack_max, data.item(&"work_pick").legacy_stack_max])
+	print("[t_inventory] legacy ceiling stone=%d bandage=%d fibre_stalk=%d" % [int(got.get("stone", 0)), int(got.get("bandage", 0)), int(got.get("fibre_stalk", 0))])
+
+## Spec 05:26 "Test duplicate IDs": rows that share a uid load as instances with distinct uids; the
+## first holder keeps it (home cargo loads first, then the bag, then worn gear).
+func _test_duplicate_uids() -> void:
+	var u := "l00aa11"
+	var bone := func (n: int, id := u) -> Dictionary:
+		return {"id": "raptor_bone", "count": n, "level": 4, "uid": id, "origin": "gather", "created_at": 100}
+	var inv = INV.new(20)
+	inv.load_array(_json([bone.call(1), bone.call(1), bone.call(3)]))
+	var ids := {}
+	for s in inv.slots:
+		if s:
+			ids[s.uid] = int(ids.get(s.uid, 0)) + 1
+	_expect(inv.count_of(&"raptor_bone") == 5 and ids.size() == 5 and inv.slots[0].uid == u, "dup-uid rows: 5 instances with 5 uids, the first row keeps %s (%s)" % [u, ids])
+	var helm: Dictionary = _helm(30).to_dict()
+	helm.uid = "lbb22"
+	var cargo = INV.new(10)
+	cargo.load_array(_json([bone.call(1, "lcc33")]))
+	var bag = INV.new(10)
+	bag.load_array(_json([helm, bone.call(1, "lcc33")]), cargo)
+	bag.extras_from_dict(_json({"worn": {"head": helm}}))
+	var worn = bag.equipped_in(&"head")
+	_expect(bag.slots[0].uid == "lbb22" and worn != null and worn.uid != "" and worn.uid != "lbb22", "a worn helm with the bag helm's uid gets its own (bag %s worn %s)" % [bag.slots[0].uid, worn.uid if worn else "-"])
+	_expect(cargo.slots[0].uid == "lcc33" and bag.slots[1].uid != "lcc33" and bag.slots[1].uid != "", "a bag row repeating a home cargo uid gets its own; cargo keeps it")
+	print("[t_inventory] dup uids: instances=%d distinct=%d worn_same=%s" % [inv.count_of(&"raptor_bone"), ids.size(), worn != null and worn.uid == "lbb22"])
+
+## Spec 05:11: worn equipment adds its bag_slots and Pocket +6 per level, once; unequip removes it;
+## an unequip (or swap) that would shrink the bag below what it holds is refused and changes nothing.
+func _test_pocket_capacity() -> void:
+	var data: Node = get_root().get_node("Data")
+	var DEF := load("res://scripts/items/item_def.gd") as GDScript
+	data.items[&"t_pouch"] = DEF.from_dict({"id": "t_pouch", "display_name": "Test pouch", "categories": ["accessory"]})
+	data.items[&"t_satchel"] = DEF.from_dict({"id": "t_satchel", "display_name": "Test satchel", "categories": ["accessory"], "bag_slots": 4})
+	var inv = INV.new()
+	inv.add(IS.make(&"t_pouch", 1, {"pocket": 2}))
+	_expect(inv.equip_at(0) and inv.slot_count == 112 and inv.capacity() == 112, "a Pocket 2 pouch adds 12 slots (%d)" % inv.slot_count)
+	inv.add(IS.make(&"t_satchel", 1))
+	_expect(inv.equip_at(inv.find_first(&"t_satchel")) and inv.slot_count == 116 and inv.capacity() == 116, "a satchel's bag_slots add once, beside the pouch (%d)" % inv.slot_count)
+	for i in 116:
+		inv.add(IS.make(&"branch", 1))
+	_expect(inv.used_slots() == 116 and not inv.unequip(&"accessory1") and inv.worn(&"accessory1") != null and inv.slot_count == 116, "a full bag refuses the pouch's unequip; it stays worn, nothing moves")
+	# Room enough, but items sit in the slots the pouch gave: they move down, none is lost.
+	for i in 20:
+		inv.remove_at(i, 1)
+	var before: Dictionary = inv.uids()
+	_expect(inv.slots[110] != null and inv.unequip(&"accessory1") and inv.slot_count == 104 and inv.capacity() == 104, "unequip with room: the bag shrinks by 12 (%d)" % inv.slot_count)
+	var after: Dictionary = inv.uids()
+	var lost := 0
+	for k in before:
+		lost += 0 if after.has(k) else 1
+	_expect(lost == 0 and inv.count_of(&"branch") == 96 and inv.find_first(&"t_pouch") >= 0, "every item survives the shrink and the pouch is back in the bag (lost %d)" % lost)
+	# A swap to a smaller pouch in a full bag would cut off items: refused, the old one stays worn.
+	inv.equip_at(inv.find_first(&"t_pouch"))
+	while inv.used_slots() < inv.slot_count - 1:
+		inv.add(IS.make(&"branch", 1))
+	inv.add(IS.make(&"t_pouch", 1, {"pocket": 0}))
+	var small: int = -1
+	for i in inv.slot_count:
+		if inv.slots[i] and inv.slots[i].def_id == &"t_pouch":
+			small = i
+	_expect(small >= 0 and not inv.equip_at(small, &"accessory1") and int(inv.worn(&"accessory1").attributes.get("pocket", 0)) == 2 and inv.slots[small].def_id == &"t_pouch", "a swap that shrinks a full bag is refused and undone")
+	# Save and load: the bag comes back at its capacity, nothing goes to home storage, no migration.
+	var lines := _migration_lines().size()
+	var cargo = INV.new(60)
+	var back = _reload(inv, -1, cargo)
+	_expect(back.slot_count == 116 and back.used_slots() == inv.used_slots() and cargo.used_slots() == 0 and _migration_lines().size() == lines, "a Pocket bag reloads at 116 with every item, none to cargo (%d/%d, cargo %d)" % [back.used_slots(), back.slot_count, cargo.used_slots()])
+	var forged = INV.new()
+	forged.extras_from_dict(_json({"worn": {"accessory1": IS.make(&"t_pouch", 1, {"pocket": 1e9}).to_dict()}}))
+	_expect(forged.slot_count == 100 + 60 * 6, "a forged Pocket level is capped (%d slots)" % forged.slot_count)
+	data.items.erase(&"t_pouch")
+	data.items.erase(&"t_satchel")
+	print("[t_inventory] pocket: 100 -> 112 -> 116, refused full, shrink kept all, reload %d" % back.slot_count)
+
+## A container that grew past its size (home cargo after a migration) reloads at its saved size and
+## does not log a migration again.
+func _test_grown_container_reloads() -> void:
+	var cargo = INV.new(60)
+	for i in 70:
+		cargo.add_growing(IS.make(&"stone", 1, {}, 1 + i % 5))
+	var rows: Variant = _json(cargo.to_array())
+	var lines := _migration_lines().size()
+	var back = INV.new(60)
+	back.load_array(rows)
+	_expect(back.slot_count == 70 and _json(back.to_array()) == rows and _migration_lines().size() == lines, "a 70-row cargo reloads as 70 rows with no migration log (slots %d, new lines %d)" % [back.slot_count, _migration_lines().size() - lines])
+
+## The tip names an instance's traits; it does not dump the attribute dict (stone's tint).
+func _test_tip_names_traits() -> void:
+	var tip: String = IS.make(&"stone", 1, {"hardness": 2}, 3).tooltip()
+	_expect(not tip.contains("attr") and not tip.contains("tint") and tip.contains("Hardness 2"), "the tip names traits, not the raw dict (%s)" % tip.replace("\n", " | "))
+
+## An unclean shutdown left a journal written against stacked rows: it replays against those rows
+## (a deposit of 5 from a 20-stack), then the character splits, so the boot matches what clients saw.
+func _test_journal_before_split() -> void:
+	var CS := load("res://scripts/server/character_store.gd") as GDScript
+	var WF := load("res://scripts/server/world_facade.gd") as GDScript
+	var PV := load("res://scripts/server/provenance.gd") as GDScript
+	var dir := TMP.path_join("srv_journal")
+	DirAccess.make_dir_recursive_absolute(dir)
+	for f in DirAccess.get_files_at(dir):
+		DirAccess.remove_absolute(dir.path_join(f))
+	var a = CS.new(WF.new(), dir, 5)
+	_expect(a.open() == "", "a fresh store opens (journal case)")
+	a.apply("char.create", 1, {"name": "Crash"}, 10)
+	var bag: Array = []
+	bag.resize(20)
+	var row: Dictionary = IS.make(&"stone", 1, {}, 2).to_dict()
+	row.count = 20
+	bag[0] = PV.stamp(row, PV.item_uid(2, 0), "gather", 2)
+	var d: Dictionary = a.s.chars["1"]
+	d.bag = bag
+	a.s.minted = {"stone": 20}
+	a.s.seq = 2
+	a.s.chars["1"] = CS.norm(d)
+	_expect(a.snapshot() == "", "the stacked state is snapshotted")
+	var dep: Dictionary = a.apply("act.deposit", 1, {"bag_slot": 0, "count": 5}, 20)
+	_expect(bool(dep.get("ok", false)) and int(dep.r.asset.count) == 5, "the live deposit took 5 from the stack (%s)" % [dep])
+	a = null # no close(): the journal holds the deposit, as after a crash
+	var b = CS.new(WF.new(), dir, 5)
+	var why: String = b.open()
+	var stone := 0
+	var multi := 0
+	var ch: Dictionary = b.s.chars.get("1", {})
+	for r in (ch.get("bag", []) as Array) + (ch.get("storage", []) as Array):
+		if r is Dictionary and str(r.id) == "stone":
+			stone += int(r.count)
+			multi += 1 if int(r.count) != 1 else 0
+	var sent := int((b.s.get("exported", {}) as Dictionary).get("stone", 0))
+	_expect(why == "" and stone == 15 and multi == 0 and sent == 5, "the replayed deposit still moved 5; 15 stone are left, one row each (boot '%s', stone %d, multi %d, exported %d)" % [why, stone, multi, sent])
+	_expect(b.invariants().is_empty(), "invariants hold after replay then split (%s)" % [b.invariants()])
+	b.close()

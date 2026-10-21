@@ -1,18 +1,18 @@
 class_name Inventory
 extends RefCounted
 ## Fixed-slot bag of item instances plus the equipment container. Materials and food are one
-## instance per slot (owner 2026-10-20, prompts 05/08); only ItemDef.STACKING_CATEGORIES merge.
-## Slot-span items (captured animals) occupy consecutive empties.
+## instance per slot (owner 2026-10-20, prompts 05/08); only data/inventory.json's
+## stacking_categories merge. Slot-span items (captured animals) occupy consecutive empties.
+## Loading saved rows, and the stacked-save migration, is InventoryMigration.
 
 signal changed
 
-## Pack 05 base player capacity (owner 2026-10-20). Equipment and Pocket bonuses are not in yet.
+## Spec 05:11 "base player inventory 100 spaces"; worn equipment adds to it (capacity()).
 const BASE_SLOTS := 100
-## A load never deletes, but a forged save must not allocate without bound.
-## ASSUMPTION: 100k units is far above any legit legacy container (60 cargo rows x 999).
-const MAX_LOAD_UNITS := 100000
 const LOCK := &"_slot_lock"
 
+## Size before equipment bonuses.
+var base_slots: int = BASE_SLOTS
 var slot_count: int = BASE_SLOTS
 var slots: Array[ItemStack] = []
 ## Equipped gather/work tool slot index, or -1 for auto (best gather_power).
@@ -24,8 +24,11 @@ const EQUIP_SLOTS: Array[StringName] = [&"weapon", &"head", &"body", &"arms", &"
 var equipment: Dictionary = {}
 ## Two quick-food def ids for the HUD food hexes + auto-feed.
 var quick_food: Array = ["", ""]
+## uids taken while loading (home cargo, then this bag): a worn row repeating one is reminted.
+var load_uids: Dictionary = {}
 
 func _init(p_slots: int = BASE_SLOTS) -> void:
+	base_slots = p_slots
 	slot_count = p_slots
 	slots.resize(slot_count)
 
@@ -57,8 +60,18 @@ func equip_at(index: int, slot: StringName = &"") -> bool:
 		return false
 	if target == &"accessory1" and worn(&"accessory1") != null and worn(&"accessory2") == null:
 		target = &"accessory2"
-	slots[index] = worn(target)
+	var old := worn(target)
+	slots[index] = old
 	equipment[str(target)] = item
+	# Spec 05:11: the bag grows or shrinks by the swap's bonus difference; a shrink that would cut
+	# off occupied slots is refused and the swap undone.
+	if not _resize(slot_count + bag_bonus(item) - bag_bonus(old)):
+		slots[index] = item
+		if old:
+			equipment[str(target)] = old
+		else:
+			equipment.erase(str(target))
+		return false
 	if equipped_tool_index == index:
 		equipped_tool_index = -1 # the held tool is the item just worn
 	changed.emit()
@@ -73,11 +86,13 @@ func equip(slot: StringName, def_id: StringName) -> bool:
 			best = i
 	return equip_at(best, slot) if best >= 0 else false
 
-## Back into the bag. Refused (the gear stays worn) when the bag has no room: never drop gear.
+## Back into the bag, which loses the slots this item added (spec 05:11). Refused (the gear stays
+## worn) when what the bag holds plus this item would not fit: never drop gear.
 func unequip(slot: StringName) -> bool:
 	var v: Variant = equipment.get(str(slot))
 	if v is ItemStack:
-		if not can_accept(v):
+		var cap := slot_count - bag_bonus(v)
+		if used_slots() + 1 > cap or not _resize(cap):
 			return false
 		equipment.erase(str(slot))
 		add(v)
@@ -90,6 +105,56 @@ func unequip(slot: StringName) -> bool:
 func worn(slot: StringName) -> ItemStack:
 	var v: Variant = equipment.get(str(slot))
 	return v if v is ItemStack else null
+
+## Spec 05:11: the slots a worn item adds, its def's bag_slots plus its pocket attribute level x
+## pocket_slots_per_level. # ASSUMPTION: an instance's Pocket is attributes.pocket = its level.
+static func bag_bonus(s: ItemStack) -> int:
+	if s == null or s.def() == null:
+		return 0
+	var r := ItemDef.rules()
+	var p: Variant = s.attributes.get("pocket", 0)
+	var lv := clampi(int(p), 0, int(r.get("max_pocket_level", 60))) if (p is int or p is float) else 0
+	return s.def().bag_slots + lv * int(r.get("pocket_slots_per_level", 6))
+
+## Base slots plus every worn item's bonus, counted from what is worn now (so nothing adds twice).
+## The server keeps worn gear in its bag by index (int form), which adds nothing.
+func capacity() -> int:
+	var n := base_slots
+	for slot: String in equipment:
+		if equipment[slot] is ItemStack:
+			n += bag_bonus(equipment[slot])
+	return n
+
+## Resize to `cap`. A smaller bag first moves single items out of the cut tail into free slots below
+## it, and refuses (changing nothing) when they do not fit or a multi-slot item is in the tail.
+func _resize(cap: int) -> bool:
+	if cap >= slot_count:
+		grow_to(cap)
+		return true
+	var tail: Array[int] = []
+	for i in range(cap, slot_count):
+		if slots[i] != null:
+			if slots[i].def_id == LOCK or slots[i].slot_span() > 1:
+				return false
+			tail.append(i)
+	var free: Array[int] = []
+	for i in cap:
+		if slots[i] == null and free.size() < tail.size():
+			free.append(i)
+	if free.size() < tail.size():
+		return false
+	for k in tail.size():
+		slots[free[k]] = slots[tail[k]]
+		if equipped_tool_index == tail[k]:
+			equipped_tool_index = free[k]
+	slot_count = cap
+	slots.resize(cap)
+	return true
+
+func grow_to(n: int) -> void:
+	if n > slot_count:
+		slot_count = n
+		slots.resize(n)
 
 func equipped_in(slot: StringName) -> ItemStack:
 	var v: Variant = equipment.get(str(slot))
@@ -140,9 +205,12 @@ func extras_to_dict() -> Dictionary:
 	return {"worn": w, "quick_food": quick_food.duplicate(), "tool_index": equipped_tool_index}
 
 ## Call after load_array. A pre-W2-INV save names worn gear by def id with the item still in the
-## bag: that item (highest level) moves out of the bag into its slot.
+## bag: that item (highest level) moves out of the bag into its slot. Then the bag takes the
+## capacity the worn gear gives (a shrink that would cut off items is skipped: never delete).
 func extras_from_dict(d: Dictionary) -> void:
 	equipment.clear()
+	var seen := load_uids.merged(uids())
+	load_uids = {}
 	equipped_tool_index = int(d.get("tool_index", -1))
 	if equipped_tool_index < -1 or equipped_tool_index >= slot_count:
 		equipped_tool_index = -1
@@ -159,7 +227,10 @@ func extras_from_dict(d: Dictionary) -> void:
 				continue
 			s.count = 1
 			s.level = clampi(s.level, 1, 60)
-			_mint(s)
+			if seen.has(s.uid):
+				s.remint_uid() # spec 05:26 duplicate IDs: the bag (or cargo) copy keeps it
+			mint(s)
+			seen[s.uid] = true
 			equipment[str(slot)] = s
 	else:
 		var legacy: Variant = d.get("equipment", {})
@@ -169,6 +240,7 @@ func extras_from_dict(d: Dictionary) -> void:
 	var q: Variant = d.get("quick_food", [])
 	if q is Array and (q as Array).size() >= 2:
 		quick_food = [str(q[0]), str(q[1])]
+	_resize(capacity())
 	changed.emit()
 
 # ---------------------------------------------------------------- tools
@@ -259,6 +331,14 @@ func used_slots() -> int:
 			n += 1
 	return n
 
+## Every instance uid in the bag, as a set.
+func uids() -> Dictionary:
+	var out := {}
+	for s in slots:
+		if s != null and s.uid != "":
+			out[s.uid] = true
+	return out
+
 ## Whether add(stack) would place every unit. Check it before consuming anything for an output.
 func can_accept(stack: ItemStack) -> bool:
 	if stack == null or stack.count <= 0:
@@ -280,8 +360,7 @@ func can_accept(stack: ItemStack) -> bool:
 ## For containers sized by their contents (corpse loot): grows rather than refuse a unit.
 func add_growing(stack: ItemStack) -> void:
 	while add(stack) > 0:
-		slot_count += maxi(1, stack.slot_span())
-		slots.resize(slot_count)
+		grow_to(slot_count + maxi(1, stack.slot_span()))
 
 ## Returns the units that did not fit. Each placed unit of a non-stacking def is its own instance.
 func add(stack: ItemStack) -> int:
@@ -305,7 +384,7 @@ func add(stack: ItemStack) -> int:
 				if not first:
 					copy.remint_uid() # the source's uid stays with its first unit only
 				first = false
-				_mint(copy)
+				mint(copy)
 				slots[i] = copy
 				stack.count -= copy.count
 				if stack.count <= 0:
@@ -316,7 +395,7 @@ func add(stack: ItemStack) -> int:
 	var start := _find_span(span)
 	if start < 0:
 		return stack.count
-	_place_span(stack.duplicate_stack(), start)
+	place_span(stack.duplicate_stack(), start)
 	stack.count = 0
 	changed.emit()
 	return 0
@@ -357,35 +436,6 @@ func transfer_to(destination: Inventory, index: int) -> int:
 	if moved > 0: remove_at(index, moved)
 	return moved
 
-## Pack 05 sorting: name, then highest level, then oldest. Worn gear is not in the bag and the
-## chosen tool follows its item, so nothing equipped changes.
-func sort() -> void:
-	var held := _held_tool()
-	var items: Array[ItemStack] = []
-	for s in slots:
-		if s != null and s.def_id != LOCK:
-			items.append(s)
-	items.sort_custom(func(a: ItemStack, b: ItemStack) -> bool:
-		var an := a.def().display_name if a.def() else str(a.def_id)
-		var bn := b.def().display_name if b.def() else str(b.def_id)
-		if an != bn:
-			return an < bn
-		if a.level != b.level:
-			return a.level > b.level
-		return a.created_at < b.created_at)
-	for i in slot_count:
-		slots[i] = null
-	var at := 0
-	for s in items:
-		if s.slot_span() > 1:
-			_place_span(s, _find_span(s.slot_span())) # singles fill from 0, so the tail stays free
-			continue
-		while slots[at] != null:
-			at += 1
-		slots[at] = s
-	equipped_tool_index = slots.find(held) if held else -1
-	changed.emit()
-
 ## Visual grouping only (prompt 05: "12 Large Leg Bones" expands to 12 instances): bag slots by
 ## item id, in bag order. Nothing is merged; each entry lists the slots of its instances.
 func groups() -> Array[Dictionary]:
@@ -408,17 +458,21 @@ func groups() -> Array[Dictionary]:
 ## default_attributes marks an instance as special.
 const PLAIN_ATTRS := ["level", "climate", "processed", "material_tier"]
 
+## An instance's traits: attributes that are neither bookkeeping nor the def's own
+## default_attributes (a stone's tint is not a trait).
+static func traits(s: ItemStack) -> Dictionary:
+	var d := s.def()
+	var base: Dictionary = d.default_attributes if d else {}
+	var out := {}
+	for k: Variant in s.attributes:
+		if str(k) not in PLAIN_ATTRS and s.attributes[k] != base.get(k):
+			out[k] = s.attributes[k]
+	return out
+
 ## Spec 05:23: default picks spend the least valuable instance first, so a rare or higher-level one
 ## goes only when the player picks it. Ascending key: has traits, then level, then age (oldest first).
 static func spend_key(s: ItemStack) -> Array:
-	var d := s.def()
-	var base: Dictionary = d.default_attributes if d else {}
-	var traits := 0
-	for k: Variant in s.attributes:
-		if str(k) not in PLAIN_ATTRS and s.attributes[k] != base.get(k):
-			traits = 1
-			break
-	return [traits, s.level, s.created_at]
+	return [0 if traits(s).is_empty() else 1, s.level, s.created_at]
 
 func find_by_category(cat: StringName) -> Array[int]:
 	var hits: Array[int] = []
@@ -511,104 +565,20 @@ func to_array() -> Array:
 			out.append(s.to_dict())
 	return out
 
-## Rows keep their slot. Migration (owner 2026-10-20): a stacked row of a non-stacking def splits
-## into one instance per unit; units with no free slot go to `overflow` (the player's home cargo),
-## else this container grows. Nothing is deleted; the move is logged.
+## Saved rows back in their slots; stacked rows of a def that no longer stacks split into
+## instances, and what no slot holds goes to `overflow` (home cargo). See InventoryMigration.
 func load_array(raw: Array, overflow: Inventory = null) -> void:
-	for i in slot_count:
-		slots[i] = null
-	var extra: Array[ItemStack] = []
-	var units := 0
-	for i in raw.size():
-		var row: Variant = raw[i]
-		if not row is Dictionary:
-			continue
-		var s := ItemStack.from_dict(row)
-		if s.def_id == LOCK:
-			if i < slot_count:
-				slots[i] = s
-			continue
-		if s.count <= 0:
-			continue
-		units += s.count
-		if units > MAX_LOAD_UNITS:
-			push_warning("[inv] load stopped at %d units; row %d onward is not loaded" % [MAX_LOAD_UNITS, i])
-			break
-		var keep := mini(s.count, s.def().stack_max) if s.def() else s.count
-		for k in s.count - keep:
-			var unit := s.duplicate_stack()
-			unit.count = 1
-			unit.uid = ""
-			extra.append(unit)
-		s.count = keep
-		_mint(s)
-		if i < slot_count:
-			slots[i] = s
-		else:
-			extra.append(s)
-	_clear_orphan_locks()
-	if not extra.is_empty():
-		_place_extra(extra, overflow)
+	InventoryMigration.load_into(self, raw, overflow)
 	changed.emit()
-
-func _place_extra(extra: Array[ItemStack], overflow: Inventory) -> void:
-	var dest := overflow if overflow != null and overflow != self else self
-	var here := 0
-	var moved := {} # id -> units sent to the overflow container, for the log
-	var self_full := false
-	var dest_full := dest == self
-	for s in extra:
-		if not self_full:
-			if add(s) == 0:
-				here += 1
-				continue
-			self_full = true # nothing more fits; the rest skips the O(n) scan
-		if dest != self:
-			moved[str(s.def_id)] = int(moved.get(str(s.def_id), 0)) + s.count # what add() left over
-		if not dest_full:
-			if dest.add(s) == 0:
-				continue
-			dest_full = true
-		dest._append(s)
-		if dest == self:
-			here += 1
-	var parts := PackedStringArray()
-	for id: String in moved:
-		parts.append("%s x%d" % [id, moved[id]])
-	var away := ", %d to home storage (%s)" % [extra.size() - here, ", ".join(parts)] if not parts.is_empty() else ""
-	print("[inv] migration: %d more instances from split stacks, %d kept here%s; bag %d/%d" % [extra.size(), here, away, used_slots(), slot_count])
-
-## Grow by the item's span and put it in the new tail slots.
-func _append(s: ItemStack) -> void:
-	var span := maxi(1, s.slot_span())
-	slot_count += span
-	slots.resize(slot_count)
-	var c := s.duplicate_stack()
-	s.count = 0
-	_mint(c)
-	if span > 1:
-		_place_span(c, slot_count - span)
-	else:
-		slots[slot_count - 1] = c
-
-## A lock whose anchor is gone would block its slot forever.
-func _clear_orphan_locks() -> void:
-	for i in slot_count:
-		var s := slots[i]
-		if s == null or s.def_id != LOCK:
-			continue
-		var a := int(s.attributes.get("anchor", -1))
-		if a < 0 or a >= i or slots[a] == null or slots[a].def_id == LOCK or a + slots[a].slot_span() <= i:
-			slots[i] = null
 
 ## A non-stacking unit without an identity gets a local one (prompt 05: every instance has an id).
 ## Only the uid: a wall-clock created_at would make the server's journal replay non-deterministic
 ## (CharacterState.commit replaces the uid with the server's own).
-func _mint(s: ItemStack) -> void:
+static func mint(s: ItemStack) -> void:
 	if s.uid == "" and not s.is_fungible():
 		s.uid = "l" + Crypto.new().generate_random_bytes(8).hex_encode()
 
-func _place_span(s: ItemStack, start: int) -> void:
+func place_span(s: ItemStack, start: int) -> void:
 	slots[start] = s
 	for k in range(1, s.slot_span()):
 		var lock := ItemStack.make(LOCK, 1)
