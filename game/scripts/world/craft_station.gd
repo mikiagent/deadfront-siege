@@ -5,6 +5,12 @@ extends StaticBody3D
 
 @export var station_id: StringName = &"workbench"
 var kind: StringName = &"workbench"
+## Spec 30 §10: capabilities are data-driven tags plus a station level, never the display name. A
+## crafted Workbench gets its tags and the level computed from its ingredients (BuildFlow.complete);
+## a kit-placed one starts at level 1 (one step below the blueprint's minimum, so it cannot fake a
+## crafted level). Recipes requiring Workbench >= N therefore refuse it.
+var station_tags: Array[StringName] = []
+var station_level: int = 1
 var persist_building: bool = true
 var build_cell: Vector2i = Vector2i.ZERO
 var build_rot: int = 0
@@ -12,6 +18,8 @@ var _pending_process: Dictionary = {}  # saved jobs, applied once the ProcessSta
 
 func _ready() -> void:
 	kind = station_id
+	if station_tags.is_empty():
+		station_tags = default_tags(station_id)
 	add_to_group("craft_station")
 	add_to_group("placed_building")
 	add_to_group(str(station_id))
@@ -24,6 +32,35 @@ func _ready() -> void:
 	if ps and not _pending_process.is_empty():
 		ps.load_dict(_pending_process)
 		_pending_process = {}
+
+## What a kind can do before a crafted instance gives it more (processing.json/recipes' station_tags
+## take the crafted tags first). # ASSUMPTION: only the workbench family is tagged so far.
+static func default_tags(sid: StringName) -> Array[StringName]:
+	var out: Array[StringName] = []
+	out.append(&"workbench" if sid == &"workbench" else sid)
+	return out
+
+func has_station_tag(tag: StringName) -> bool:
+	return tag in station_tags
+
+## Tag + minimum level per recipe (data: station_tags / station_level). "" when this station
+## qualifies, else the player-facing reason. A recipe with no station tags keeps the old rule:
+## it runs where its `station` names this kind.
+static func station_gate(rec: Dictionary, tags: Array[StringName], level: int, sid: StringName) -> String:
+	var want: Array = rec.get("station_tags", [])
+	if want.is_empty():
+		return "" if str(rec.get("station", "")) == str(sid) else "Needs a %s" % str(rec.get("station", "")).replace("_", " ")
+	for t: Variant in want:
+		var tag := StringName(str(t))
+		if not (tag in tags):
+			return "Needs a station tagged %s" % str(tag).replace("_", " ")
+	var need := int(rec.get("station_level", 0))
+	if level < need:
+		return "Needs %s %d (this one is %d)" % [str((want[0] as Variant) if one_tag(want) else "station").replace("_", " ").capitalize(), need, level]
+	return ""
+
+static func one_tag(want: Array) -> bool:
+	return want.size() == 1
 
 func _exit_tree() -> void:
 	if World.runtime == null:
@@ -66,6 +103,8 @@ func to_dict() -> Dictionary:
 		"rot": posmod(build_rot, 4),
 		"x": global_position.x,
 		"z": global_position.z,
+		"station_level": station_level,
+		"station_tags": _tag_strings(),
 	}
 	var ps := ProcessStation.of(self)
 	if ps and not ps.contents().is_empty():
@@ -81,10 +120,22 @@ static func from_dict(d: Dictionary) -> CraftStation:
 	if cell_v is Array and (cell_v as Array).size() >= 2:
 		s.build_cell = Vector2i(int(cell_v[0]), int(cell_v[1]))
 	s.build_rot = int(d.get("rot", 0))
+	s.station_level = clampi(int(d.get("station_level", 1)), 1, SaveSanitizer.MAX_LEVEL)
+	var tags: Variant = d.get("station_tags", [])
+	if tags is Array and not (tags as Array).is_empty():
+		s.station_tags.clear()
+		for t: Variant in tags:
+			s.station_tags.append(StringName(str(t)))
 	var proc: Variant = d.get("process", {})
 	if proc is Dictionary:
 		s._pending_process = proc as Dictionary
 	return s
+
+func _tag_strings() -> Array:
+	var out: Array = []
+	for t in station_tags:
+		out.append(str(t))
+	return out
 
 static func make(id: StringName) -> CraftStation:
 	var s := CraftStation.new()

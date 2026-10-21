@@ -26,7 +26,7 @@ static func buildings(rows: Array, schema: int) -> void:
 			continue
 		var normalized := _normalize(row as Dictionary, schema)
 		var kind := StringName(str(normalized.get("kind", "")))
-		var why := "" if kits.has(kind) else "unknown kind"
+		var why := "" if (kits.has(kind) or kind == &"construction_site") else "unknown kind"
 		if why == "" and grid:
 			why = grid.can_place(kind, cell_of(normalized), int(normalized.get("rot", 0)))
 		if why != "":
@@ -59,6 +59,8 @@ static func spawn(row: Dictionary) -> Node3D:
 			return TamingPen.from_dict(row)
 		&"field_small", &"field_large":
 			return FieldPlot.from_dict(row)
+		&"construction_site":
+			return ConstructionSite.from_dict(row)
 		_:
 			return (load("res://scripts/world/placed_building.gd") as GDScript).from_dict(row)
 

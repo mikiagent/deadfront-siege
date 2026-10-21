@@ -119,6 +119,12 @@ func job_progress(j: Dictionary, now: float = -1.0) -> float:
 ## the instances to use; empty = the default picks.
 func refuse_reason(inv: Inventory, rid: StringName, player: Player = null, picks: Array[int] = []) -> String:
 	var rec := Crafting.recipe(rid)
+	# Spec 30 §10: tags plus a minimum station level, from the host station, never its name.
+	var host := get_parent()
+	if host is CraftStation:
+		var gate := CraftStation.station_gate(rec, (host as CraftStation).station_tags, (host as CraftStation).station_level, station_id)
+		if gate != "":
+			return gate
 	if rec.is_empty() or not runs(rid) or Crafting.station_id(rec) != str(station_id):
 		return "%s does not run %s" % [str(cfg.get("label", station_id)), rid]
 	if jobs.size() >= capacity():

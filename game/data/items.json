@@ -39,7 +39,8 @@
       "display_name": "Bark Strip",
       "categories": [
         "fibre",
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -237,7 +238,8 @@
       "display_name": "Fibre Stalk",
       "categories": [
         "fibre",
-        "stalk"
+        "stalk",
+        "strap_material"
       ],
       "stack_max": 30,
       "tool_class": "none",
@@ -250,7 +252,8 @@
       "display_name": "Reed",
       "categories": [
         "fibre",
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 30,
       "tool_class": "none",
@@ -265,7 +268,8 @@
       "id": "root",
       "display_name": "Root",
       "categories": [
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -1236,7 +1240,8 @@
       "id": "palm_frond",
       "display_name": "Palm Frond",
       "categories": [
-        "fibre"
+        "fibre",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -1291,7 +1296,8 @@
       "display_name": "Vine",
       "categories": [
         "fibre",
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -3802,6 +3808,74 @@
       "base_level": 1,
       "rarity": "uncommon",
       "market_category": "medicine"
+    },
+    {
+      "id": "plank_shape",
+      "display_name": "Plank Shape",
+      "categories": [
+        "component",
+        "plank_shape",
+        "wood"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "construction",
+      "rarity": "common"
+    },
+    {
+      "id": "pillar_shape",
+      "display_name": "Pillar Shape",
+      "categories": [
+        "component",
+        "pillar_shape",
+        "wood"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "construction",
+      "rarity": "common"
+    },
+    {
+      "id": "strap",
+      "display_name": "Strap",
+      "categories": [
+        "component",
+        "strap",
+        "lashing"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "construction",
+      "rarity": "common"
+    },
+    {
+      "id": "trimmed_plank",
+      "display_name": "Trimmed Plank",
+      "categories": [
+        "wood",
+        "trimmed_plank"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "construction",
+      "rarity": "common"
+    },
+    {
+      "id": "fine_plank",
+      "display_name": "Fine Plank",
+      "categories": [
+        "wood",
+        "fine_plank"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "construction",
+      "rarity": "common"
     }
   ]
 }

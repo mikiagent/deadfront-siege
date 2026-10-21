@@ -166,6 +166,20 @@
           "seconds": 60
         }
       }
+    },
+    "workbench": {
+      "_about": "Finished workbenches (W2-BUILDFLOW): a queued processing bench. # ASSUMPTION: 1 job + 1 queued; seconds follow spec 30's unverified delegated timings.",
+      "label": "Crafting",
+      "slots": 1,
+      "queue": 1,
+      "recipes": {
+        "trimmed_plank": {
+          "seconds": 12
+        },
+        "fine_plank": {
+          "seconds": 12
+        }
+      }
     }
   },
   "in_place": {
