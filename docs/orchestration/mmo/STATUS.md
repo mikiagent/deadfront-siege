@@ -360,6 +360,13 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   is next to or in fresh water, with the PRD's effects (drink cuts heat fatigue / Quenched; wash clears Dirty; statuses, not meters).
   Package WATER (`claude/mmo-water`).
 
+- 2026-10-20 (owner) three references (`docs/reference/durango-{domain-claims,storage-transfer,house-4x4}.webp`):
+  (1) "When entering player's claimed regions, it says 'Player's Domain' with their profile picture" (spec 18): package DOMAIN, a domain banner
+  with the owner's portrait plus the dotted claim edge; (2) "Another example of the inventory menu" (spec 13 addendum): the storage view with
+  Bag | Small Box tabs, "N Select", category column, attribute chips and Transfer to Bag, fed into INVUI B3/B4 and its fidelity judge;
+  (3) "Our house building system may be more robust than the original game, i will look into this. See this house is only 4x4": the owner
+  is evaluating; W2-BUILDSYS is unchanged until the owner decides.
+
 ## Owner questions (open)
 
 - none
