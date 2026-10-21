@@ -1,5 +1,5 @@
 diff --git a/game/data/nature_manifest.json b/game/data/nature_manifest.json
-index 417f39de..de8f4d96 100644
+index 417f39de..619d2d30 100644
 --- a/game/data/nature_manifest.json
 +++ b/game/data/nature_manifest.json
 @@ -265,7 +265,7 @@
@@ -119,7 +119,22 @@ index 417f39de..de8f4d96 100644
        "tool_class": "pick",
        "collision": "box",
        "count": 8,
-@@ -1214,7 +1242,7 @@
+@@ -1141,9 +1169,13 @@
+         "stone": [
+           1,
+           2
++        ],
++        "ore": [
++          0,
++          1
+         ]
+       },
+-      "min_pick_tier": {"copper_ore": "obsidian"},
++      "min_pick_tier": {"copper_ore": "obsidian", "ore": "obsidian"},
+       "tool_class": "pick",
+       "collision": "box",
+       "count": 8,
+@@ -1214,7 +1246,7 @@
            2
          ]
        },
@@ -128,7 +143,7 @@ index 417f39de..de8f4d96 100644
        "tool_class": "pick",
        "collision": "box",
        "count": 8,
-@@ -1257,6 +1285,10 @@
+@@ -1257,6 +1289,10 @@
          "stone": [
            1,
            3
@@ -139,28 +154,7 @@ index 417f39de..de8f4d96 100644
          ]
        },
        "tool_class": "pick",
-@@ -1395,6 +1427,10 @@
-         "stone": [
-           2,
-           3
-+        ],
-+        "ore": [
-+          0,
-+          1
-         ]
-       },
-       "tool_class": "pick",
-@@ -1403,7 +1439,8 @@
-       "height": [
-         0.9,
-         1.4
--      ]
-+      ],
-+      "min_pick_tier": {"ore": "stone"}
-     },
-     "FlaxPlant": {
-       "models": [
-@@ -1530,6 +1567,10 @@
+@@ -1530,6 +1566,10 @@
          "herb_leaf": [
            1,
            2
@@ -171,7 +165,7 @@ index 417f39de..de8f4d96 100644
          ]
        },
        "tool_class": "none",
-@@ -1679,6 +1720,34 @@
+@@ -1679,6 +1719,34 @@
          0.5,
          0.8
        ]
@@ -250,7 +244,7 @@ index cd8df9b8..ac920efc 100644
  		&"bonfire", &"stone_fire_pit", &"campfire":
  			return Bonfire.from_dict(row)
 diff --git a/game/scripts/items/crafting.gd b/game/scripts/items/crafting.gd
-index e09baeef..f4cddf82 100644
+index e09baeef..f563e851 100644
 --- a/game/scripts/items/crafting.gd
 +++ b/game/scripts/items/crafting.gd
 @@ -250,6 +250,9 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
@@ -280,6 +274,24 @@ index e09baeef..f4cddf82 100644
  static func can_make(player: Player, rec: Dictionary, picks: Array[int]) -> bool:
  	if rec.is_empty():
  		return false
+@@ -398,6 +411,8 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
+ 			return &"fibre_stalk"
+ 		"bucket":
+ 			return &"empty_bucket"
++		"cured_hide":
++			return &"dried_hide"
+ 		_:
+ 			return cat
+ 
+@@ -462,6 +477,8 @@ static func _category_hint(cat: StringName) -> String:
+ 			return "stone"
+ 		"lashing":
+ 			return "twine"
++		"cured_hide": # dried hide or straps; raw hide is dried first (PRD 8.3)
++			return "dried_hide"
+ 		"water":
+ 			return "water_bucket"
+ 		"spice":
 diff --git a/game/scripts/items/item_def.gd b/game/scripts/items/item_def.gd
 index 632c7c9d..0278b945 100644
 --- a/game/scripts/items/item_def.gd
@@ -344,6 +356,29 @@ index eb78cd5d..45895129 100644
  ## One unit per pass; seconds per unit by item (bare-handed picks are quick, tool work is slow).
  const OPTION_SECONDS := {"berries": 1.1, "berry": 1.1, "mushroom": 1.0, "petals": 1.0, "dry_grass": 0.9, "fibre_stalk": 1.3, "herb_leaf": 1.2, "reed": 1.2, "branch": 1.6, "palm_frond": 1.5, "coconut": 2.0, "root": 1.8, "cactus_flesh": 1.6, "bark_strip": 2.2, "clay": 2.4, "stone": 2.8, "wood_log": 3.0, "ore_chunk": 3.2, "hide": 2.4}
  
+diff --git a/game/tests/run_all.gd b/game/tests/run_all.gd
+index 1041e72f..0de559b8 100644
+--- a/game/tests/run_all.gd
++++ b/game/tests/run_all.gd
+@@ -900,11 +900,16 @@ func _test_hide_strap_no_self_input() -> void:
+ 	var bag = inv.new(5)
+ 	bag.add(stack.make(&"hide_strap",10,{},55))
+ 	_expect(not craft.picks_valid(bag,rec,craft.default_picks(bag,rec)),"straps cannot double through own recipe")
+-	for id in [&"raw_hide",&"raptor_hide",&"dried_hide"]:
++	# PRD 8.3 "Hide -> dried hide -> straps": raw hide must be dried first.
++	for id in [&"raw_hide",&"raptor_hide"]:
++		var green = inv.new(5)
++		green.add(stack.make(id,1,{},55))
++		_expect(not craft.picks_valid(green,rec,craft.default_picks(green,rec)),"raw hide %s is dried before cutting straps" % id)
++	for id in [&"dried_hide"]:
+ 		var material = inv.new(5)
+ 		material.add(stack.make(id,1,{},55))
+ 		var picks = craft.default_picks(material,rec)
+-		_expect(craft.picks_valid(material,rec,picks),"uncut hide remains eligible %s" % id)
++		_expect(craft.picks_valid(material,rec,picks),"dried hide is eligible %s" % id)
+ 		var parts = craft.consume_for_craft(material,rec,picks)
+ 		var out = craft.build_output(rec,parts[0],55,parts)
+ 		_expect(out.def_id == &"hide_strap" and out.count == 2 and out.level == 55,"hide processing preserves quality and output")
 diff --git a/game/tests/t_build.gd b/game/tests/t_build.gd
 index 5e18ccf6..051e77ac 100644
 --- a/game/tests/t_build.gd

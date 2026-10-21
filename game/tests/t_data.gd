@@ -2,11 +2,14 @@ extends SceneTree
 ## W2-DATA: item and recipe data validator plus a progression walk.
 ## 1. Every id that recipes, factions, rules, statuses, climates, nature, butchering and farming
 ##    name exists; every item has market_category and rarity (and item_rarity.json mirrors it).
-## 2. A walk from a fresh survivor (bare hands) over the real sources only: gathering (climate
-##    vegetation x nature_manifest yields, with the same tool and pick-tier gates as HarvestNode),
-##    butchering, farming, the capture/taming systems and recipes (stations need their kit, min_level
-##    needs reachable material levels). Faction crates are never a source. Any item or recipe it cannot
-##    reach fails, except items that name the system they wait on in "source_pending".
+## 2. A walk from a fresh survivor (bare hands) over the real sources only: gathering on the islands
+##    islands.json lists (their climate's vegetation x nature_manifest yields, with the same tool and
+##    pick-tier gates as HarvestNode), butchering the species those islands spawn, farming, the
+##    capture/taming systems and recipes (stations need their kit, min_level needs reachable material
+##    levels). Faction crates are never a source. Any item or recipe it cannot reach fails, except items
+##    that name the system they wait on in "source_pending". A second walk over the start island alone
+##    proves the processed basics (twine, dried hide) come before anything needs them and no metal grows
+##    there (world-design.md:66: the home grassland yields no ore).
 ## 3. Ladder, nets, armour bands and the real crafting planner agree with the walk. The ladder is
 ##    GAUNTLET's Stone -> Bone -> Flint -> Obsidian -> Copper -> Bronze -> Iron -> Steel: every rung has
 ##    tools, no rung costs less or unlocks earlier than the one below, each mined ore needs the pick of
@@ -34,6 +37,7 @@ var nature: Dictionary = {}
 var climates: Dictionary = {}
 var trees_nodes: Dictionary = {} # node id -> tree id
 var creatures: Dictionary = {}  # species -> row
+var islands: Array = []          # islands.json rows
 var PS: GDScript
 var opt_tools: Dictionary = {}
 var opt_seconds: Dictionary = {}
@@ -43,6 +47,8 @@ var lvl: Dictionary = {}   # id -> highest reachable item level
 var how: Dictionary = {}   # id -> first source found
 var made: Dictionary = {}  # recipe id -> true
 var pick_tier := -1        # best reachable pick tier index
+var home_cost: Dictionary = {} # cost after a walk of the start island alone
+var home_how: Dictionary = {}
 
 func _process(_delta: float) -> bool:
 	if _done:
@@ -57,7 +63,17 @@ func _process(_delta: float) -> bool:
 	_load_all()
 	_check_items()
 	_check_references()
-	_walk()
+	_check_processing_chain()
+	_walk(true)
+	home_cost = cost.duplicate()
+	home_how = how.duplicate()
+	cost.clear()
+	lvl.clear()
+	how.clear()
+	made.clear()
+	pick_tier = -1
+	_check_home()
+	_walk(false)
 	_check_reachability()
 	_check_ladder()
 	_check_pick_chain()
@@ -112,6 +128,10 @@ func _load_all() -> void:
 		var row: Variant = _json("creatures/" + f) if f.ends_with(".json") else null
 		if row is Dictionary and (row as Dictionary).has("capture_tier"):
 			creatures[f.get_basename()] = row
+	var idoc: Dictionary = _json("world/islands.json")
+	for k in idoc:
+		if idoc[k] is Dictionary and climates.has(str(idoc[k].get("climate", ""))):
+			islands.append(idoc[k])
 
 func _has_cat(id: String, cat: String) -> bool:
 	return items.has(id) and cat in items[id].get("categories", [])
@@ -234,16 +254,21 @@ func _has_tool(cls: String) -> bool:
 func _tier_of(id: String) -> int:
 	return PS.TOOL_TIERS.find(PS.material_tier(StringName(id), {}))
 
-func _walk() -> void:
+func _walk(home_only: bool) -> void:
 	var butch: Dictionary = _json("butchering.json").get("species", {})
 	var crops: Dictionary = _json("farming.json").get("crops", {})
+	var walked := islands.filter(func(i: Dictionary) -> bool: return not home_only or bool(climates[str(i["climate"])].get("home", false)))
+	var spawned := {}
+	for isl: Dictionary in walked:
+		for ring in isl.get("spawns", {}).values():
+			for g: Dictionary in ring:
+				spawned[str(g.get("species", ""))] = true
 	for _pass in 60:
 		var changed := false
-		# Gathering: what each climate's vegetation (plus the special tiles) yields, tool-gated.
-		for cname in climates:
-			var top := 1
-			for t in climates[cname].get("tiers", [1]):
-				top = maxi(top, int(t))
+		# Gathering: what each island's climate vegetation (plus the special tiles) yields, tool-gated.
+		for isl: Dictionary in walked:
+			var cname := str(isl["climate"])
+			var top := int(isl.get("tier", 1))
 			for fam in climates[cname].get("vegetation", []) + SPECIAL_FAMILIES:
 				var harvest: Dictionary = nature.get(fam, {}).get("harvest", {})
 				for k: String in harvest:
@@ -257,9 +282,11 @@ func _walk() -> void:
 					var per := maxf(0.5, (float(pair[0]) + float(pair[1])) * 0.5)
 					var secs := float(opt_seconds.get(k, 3.0 if cls != "none" else 1.6))
 					changed = _offer(k, secs / per, top, "gather %s (%s)" % [fam, cname]) or changed
-		# Butchering a kill needs a knife; the corpse level follows the species tier.
+		# Butchering a kill needs a knife; only species the walked islands spawn; the corpse level follows the species tier.
 		if _has_tool("knife"):
 			for sp in butch:
+				if not spawned.has(sp):
+					continue
 				var tier := int(creatures.get(sp, {}).get("tier", 1))
 				for row in butch[sp].get("base", []) + butch[sp].get("rare", []):
 					var per := maxf(0.5, (float(row.get("min", 1)) + float(row.get("max", row.get("min", 1)))) * 0.5)
@@ -347,6 +374,28 @@ func _check_reachability() -> void:
 				for id in bands[b]:
 					_expect(cost.has(str(id)), "crate item %s (%s %s) also has a gameplay source" % [id, fk, b])
 	print("[t_data] reachable=%d/%d pending=%s best_pick=%s" % [cost.size(), items.size(), pending, PS.TOOL_TIERS[maxi(0, pick_tier)]])
+
+## PRD 8.3 "Stalks / reeds -> twine -> rope", "Hide -> dried hide -> straps": raw hide only feeds the
+## drying step, and rope is twisted from twine alone.
+func _check_processing_chain() -> void:
+	for r: Dictionary in all_recipes:
+		var out := str(r.get("output", {}).get("id", ""))
+		for s: Dictionary in r.get("slots", []):
+			var takes := _ids_with_cat(str(s.get("category", "")))
+			for id: String in takes:
+				_expect(not _has_cat(id, "green_hide") or out == "dried_hide", "recipe %s slot %s takes raw %s; raw hide is dried first (Hide -> dried hide -> straps)" % [r["id"], s.get("category", ""), id])
+			if out == "rope":
+				_expect(takes == ["twine"], "recipe %s slot %s takes %s; rope is twisted from twine only" % [r["id"], s.get("category", ""), takes])
+
+## The start island alone: twine and dried hide (and the straps and rope made from them) are reachable,
+## and no ore or metal is (world-design.md:66; metal starts with desert copper_ore and volcanic black_iron).
+func _check_home() -> void:
+	for id in ["twine", "dried_hide", "hide_strap", "rope", "tent_kit"]:
+		_expect(home_cost.has(id), "%s is obtainable on the start island" % id)
+	var metal := home_cost.keys().filter(func(id: String) -> bool: return _has_cat(id, "ore") or _has_cat(id, "metal"))
+	for id: String in metal:
+		_expect(false, "start island yields no metal, but %s comes from %s" % [id, home_how.get(id, "?")])
+	print("[t_data] start island: reachable=%d twine ~%.1f s dried_hide ~%.1f s hide_strap ~%.1f s rope ~%.1f s, metal %s" % [home_cost.size(), float(home_cost.get("twine", -1.0)), float(home_cost.get("dried_hide", -1.0)), float(home_cost.get("hide_strap", -1.0)), float(home_cost.get("rope", -1.0)), metal])
 
 ## Staged designs (implementation_status) stay in recipes.json but Data does not load them.
 func _staged_output(id: String) -> bool:

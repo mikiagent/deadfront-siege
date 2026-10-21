@@ -251,7 +251,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "lashing",
+          "category": "twine",
           "count": 3,
           "primary": true
         }
@@ -409,7 +409,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "uncut_hide",
+          "category": "dried_hide",
           "count": 1,
           "primary": true
         }
@@ -846,7 +846,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": true
         },
@@ -951,7 +951,7 @@
           "primary": false
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": false
         }
@@ -1564,7 +1564,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 4,
           "primary": false
         },
@@ -1598,7 +1598,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 8,
           "primary": false
         },
@@ -1632,7 +1632,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 4,
           "primary": false
         },
@@ -2031,7 +2031,7 @@
           "primary": false
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 1,
           "primary": false
         }
@@ -2064,7 +2064,7 @@
           "primary": false
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": false
         }
@@ -2097,7 +2097,7 @@
           "primary": false
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 1,
           "primary": false
         }
@@ -2130,7 +2130,7 @@
           "primary": false
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": false
         }
@@ -2153,7 +2153,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 4,
           "primary": true
         },
@@ -2186,7 +2186,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 8,
           "primary": true
         },
@@ -2219,7 +2219,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 4,
           "primary": true
         },
@@ -2252,7 +2252,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 8,
           "primary": true
         },
@@ -3207,7 +3207,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 3,
           "primary": true
         },
@@ -3240,7 +3240,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 6,
           "primary": true
         },
@@ -3273,7 +3273,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 3,
           "primary": true
         },
@@ -3306,7 +3306,7 @@
       "max_level": 60,
       "slots": [
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 6,
           "primary": true
         },
@@ -3344,7 +3344,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 1,
           "primary": false
         },
@@ -3378,7 +3378,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": false
         },
@@ -3412,7 +3412,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 1,
           "primary": false
         },
@@ -3446,7 +3446,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": false
         },
@@ -3480,7 +3480,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 1,
           "primary": false
         },
@@ -3514,7 +3514,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": false
         },
@@ -3548,7 +3548,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 1,
           "primary": false
         },
@@ -3582,7 +3582,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": false
         },
@@ -3616,7 +3616,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 1,
           "primary": false
         },
@@ -3650,7 +3650,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": false
         },
@@ -3684,7 +3684,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 1,
           "primary": false
         },
@@ -3718,7 +3718,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": false
         },
@@ -3752,7 +3752,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 1,
           "primary": false
         },
@@ -3786,7 +3786,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": false
         },
@@ -3820,7 +3820,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 1,
           "primary": false
         },
@@ -3854,7 +3854,7 @@
           "primary": true
         },
         {
-          "category": "hide",
+          "category": "cured_hide",
           "count": 2,
           "primary": false
         },
@@ -4399,6 +4399,7 @@
       "display_name": "Blue Dye",
       "skill": "processing",
       "max_level": 60,
+      "implementation_status": "staged",
       "slots": [
         {
           "category": "coral",

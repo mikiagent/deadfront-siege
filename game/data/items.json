@@ -281,7 +281,8 @@
       "display_name": "Twine",
       "categories": [
         "lashing",
-        "fibre"
+        "fibre",
+        "twine"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -730,7 +731,9 @@
       "display_name": "Dried Hide",
       "categories": [
         "hide",
-        "uncut_hide"
+        "uncut_hide",
+        "dried_hide",
+        "cured_hide"
       ],
       "stack_max": 10,
       "tool_class": "none",
@@ -743,7 +746,8 @@
       "display_name": "Hide Strap",
       "categories": [
         "lashing",
-        "hide"
+        "hide",
+        "cured_hide"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -1491,7 +1495,8 @@
       "tool_class": "none",
       "base_level": 1,
       "market_category": "metal_ore",
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "source_pending": "island: only SilverOreNode (snowfield) yields it, and islands.json has no snowfield island yet"
     },
     {
       "id": "pearl",
@@ -1503,7 +1508,8 @@
       "tool_class": "none",
       "base_level": 1,
       "market_category": "gem",
-      "rarity": "rare"
+      "rarity": "rare",
+      "source_pending": "island: only PearlNode (blue_tropical) yields it, and islands.json has no blue_tropical island yet"
     },
     {
       "id": "coral",
@@ -1516,7 +1522,8 @@
       "tool_class": "none",
       "base_level": 1,
       "market_category": "gem",
-      "rarity": "rare"
+      "rarity": "rare",
+      "source_pending": "island: only CoralNode (blue_tropical) yields it, and islands.json has no blue_tropical island yet"
     },
     {
       "id": "blue_dye",
@@ -1528,7 +1535,8 @@
       "tool_class": "none",
       "base_level": 1,
       "market_category": "herb",
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "source_pending": "island: ground from coral (blue_tropical), and islands.json has no blue_tropical island yet"
     },
     {
       "id": "black_iron",
