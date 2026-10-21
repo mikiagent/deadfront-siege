@@ -717,7 +717,7 @@ index dfb25ece..e97f1130 100644
  				continue
  			if int(row.count) < 1 or int(row.durability) < 0:
 diff --git a/game/scripts/ui/inventory_ui.gd b/game/scripts/ui/inventory_ui.gd
-index c2ae65f0..988972a6 100644
+index c2ae65f0..8c0bc0ee 100644
 --- a/game/scripts/ui/inventory_ui.gd
 +++ b/game/scripts/ui/inventory_ui.gd
 @@ -47,6 +47,11 @@ const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "
@@ -820,7 +820,7 @@ index c2ae65f0..988972a6 100644
  				b.tooltip_text = s.tooltip()
  				b.disabled = false
  				b.modulate = Color(0.7, 0.7, 0.7, 0.8) if _readonly_reason() != "" else Color.WHITE
-@@ -420,6 +423,117 @@ func rebuild() -> void:
+@@ -420,6 +423,120 @@ func rebuild() -> void:
  	_title.text = "CHARACTER" if not has_storage else "CHARACTER  ·  %s" % str(_storage_opts.get("title", "Storage"))
  	_select(_selected if _selected >= 0 else -1)
  
@@ -917,7 +917,10 @@ index c2ae65f0..988972a6 100644
 +		btn.add_child(b)
 +	b.visible = n > 0
 +	b.text = str(n)
-+	b.add_theme_font_size_override("font_size", clampi(int(_slot_px / 7.0), 12, 20))
++	var fs := clampi(int(_slot_px / 7.0), 12, 20)
++	b.add_theme_font_size_override("font_size", fs)
++	b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
++	b.custom_minimum_size.x = fs * 1.4 # one digit reads as a round pill, not a standing capsule
 +
 +func _on_cell(k: int) -> void:
 +	if k < 0 or k >= _cells.size():
@@ -938,7 +941,7 @@ index c2ae65f0..988972a6 100644
  func _refresh_profile() -> void:
  	if _profile == null or inventory == null:
  		return
-@@ -549,6 +663,7 @@ func _refresh_equipped() -> void:
+@@ -549,6 +666,7 @@ func _refresh_equipped() -> void:
  			caption = "%.0f" % st.scaled_armor()
  		if st:
  			ItemIcons.style_slot(b, st.def_id, caption)
@@ -946,7 +949,7 @@ index c2ae65f0..988972a6 100644
  			b.tooltip_text = st.tooltip()
  			b.modulate = Color.WHITE
  		else:
-@@ -564,10 +679,11 @@ func _select(index: int) -> void:
+@@ -564,10 +682,11 @@ func _select(index: int) -> void:
  	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null
  	for b in [_store_btn, _lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn]:
  		b.visible = false
@@ -961,7 +964,7 @@ index c2ae65f0..988972a6 100644
  	if none:
  		_tip.text = "Tap an item."
  		return
-@@ -614,8 +730,8 @@ func _on_equip_slot_pressed(slot: String) -> void:
+@@ -614,8 +733,8 @@ func _on_equip_slot_pressed(slot: String) -> void:
  			elif fid != "":
  				inventory.set_quick_food(0 if slot == "food1" else 1, &"")
  		_:
@@ -972,7 +975,7 @@ index c2ae65f0..988972a6 100644
  
  func _on_equip_pressed() -> void:
  	if inventory == null or _selected < 0 or _selected >= inventory.slot_count:
-@@ -626,7 +742,7 @@ func _on_equip_pressed() -> void:
+@@ -626,7 +745,7 @@ func _on_equip_pressed() -> void:
  	var d := st.def()
  	var slot := Inventory.slot_for(d)
  	if slot != &"":
@@ -981,7 +984,7 @@ index c2ae65f0..988972a6 100644
  	elif d and d.tool_class != &"" and d.tool_class != &"none":
  		inventory.set_equipped_tool_index(_selected)
  	_select(_selected)
-@@ -745,7 +861,7 @@ func _can_store_selected() -> bool:
+@@ -745,7 +864,7 @@ func _can_store_selected() -> bool:
  	var st := inventory.slots[_selected]
  	if st == null or st.is_locked() or str(st.def_id) == "_slot_lock": return false
  	if inventory.equipped_tool_index == _selected: return false
