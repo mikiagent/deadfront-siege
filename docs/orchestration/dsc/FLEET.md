@@ -1,5 +1,8 @@
 # DeepSeek/MiniMax fleet (2026-10-21 evening)
 
+> **Superplan:** `docs/orchestration/dsc/superplan.yaml` now describes this whole fleet plus the next phases for `dsc plan`
+> (`dsc plan check|run|status|approve|reject`). Gate scripts: `SP/dsc/` (backups in `docs/orchestration/dsc/gates/`).
+
 Each job: worktree `~/Documents/deadfront-siege/.claude/worktrees/mmo-<key>` on branch `claude/mmo-<key>`, task
 `docs/orchestration/dsc/<key>-TASK.md` in that tree. SP = `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad`.
 - **Check:** `dsc cook status` in a tree.
