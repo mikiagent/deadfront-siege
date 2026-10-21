@@ -22,6 +22,78 @@ Branch `claude/mmo-w2-process`, cut from `claude/mmo-overhaul` 36299a96. Base me
   commit carrying this report
 - round 8 (resumed run, the same r2 findings in this run's prompt): base merge 28b4c50f (ddaab662: W2-DATA,
   W2-SKILLS, WATER), dc645889 (hooks patch regenerated), plus the commit carrying this report
+- round 9 (review r3, the findings in this run's prompt): base merge c1af1b83 (946da955: HUD-DAYNIGHT), 255feaa8
+  (XP-once check, load capped at capacity, save round trip and done colours in run_all, strip cache), f7ca30df
+  (hooks patch), 65bc16dd (done colours), b0c0faca (process_lab exact XP), plus the commit carrying this report
+
+## Round 9: review r3 findings
+
+Base merge c1af1b83 pulled in claude/mmo-overhaul 946da955 (HUD-DAYNIGHT). It merged clean, and none of this
+package's files overlap it. Every finding is fixed below, each with a check that fails on the old behaviour.
+The mutation logs are in `scratchpad/r3/` (`mutations.log`, `mut_*.log`). Each mutation was planted in the work
+tree, run, and reverted with `git checkout`.
+
+**1. XP paid exactly once per job (major, and the acceptance item "No repeated XP", spec 08:126).** The
+behaviour was already right. What was missing was a check that pins the amount. `process_checks.gd` now runs
+in both t_process and run_all. It builds a Player with `new()` and a fresh SkillState, then runs two rounds of
+two dry_meat jobs through the rack, collecting each round, and then does a third collect with nothing ready. It
+checks the Processing XP banked against `n x (6 + recipe_seconds)`, counting any level-ups, so a level cap
+cannot hide a double grant. Passing line: `ok collect pays 14 Processing XP per dried meat, once: 2 -> 28, 4 ->
+56, empty collect -> 56 (want 28, 56, 56)`. process_lab's menu-route check is exact too now (b0c0faca):
+`processing XP paid on collect, once per job (1000000.0 -> 1000056.0, want +56)`.
+Mutation M1 calls `Crafting.grant_craft_xp` twice per collected output:
+- t_process: `[t_process] FAIL collect pays 14 Processing XP per dried meat, once: 2 -> 56, 4 -> 112, empty collect -> 112 (want 28, 56, 56)`
+- run_all: `ERROR: [tests] collect pays 14 Processing XP per dried meat, once: 2 -> 56, 4 -> 112, empty collect -> 112 (want 28, 56, 56)`, then `[tests] FAIL count=1`
+- process_lab (hooks patch applied): `[process_lab] FAIL processing XP paid on collect, once per job (1000000.0 -> 1000112.0, want +56)`
+
+The bag-full partial collect is not in the new check. `Player.notice` needs the scene tree, and run_all has no
+survivor in it. The reviewer's probe covered that path: +28 on each of two partial collects.
+
+**2. `crafting.gd` default_picks collides with W2-INV's hooks patch (minor).** The finding is right. This is
+an integrator note, and there is no code change on this branch, because W2-INV has not merged
+(`git merge-base --is-ancestor claude/mmo-w2-inv claude/mmo-overhaul` is false). The details are under
+"Integrator hooks" below.
+
+**3. Done-state colours (minor).** In `processing.json` `contents.to`:
+- Smoked strips go from `#4a2616` (v 0.29, black in the smoker's doorway) to `#7c4324`, a mahogany brown.
+- Steamed food goes from `#efe0c0` (s 0.20, read as an empty cream dish) to `#c47f3a`, a golden tan.
+
+A first try, `#925229` / `#d8a25c`, rendered too orange on the smoker and too pale in the steamer bowls
+(`scratchpad/r3/shots/old_*`). The new check in `process_checks.gd` requires every station's done colour to
+have saturation >= 0.35 and value >= 0.33. Mutation M6 (the r2 colours) fails it:
+`[t_process] FAIL smoker done colour 4a2616 is not near-white or near-black (s 0.70, v 0.29)` and
+`[t_process] FAIL steamer done colour efe0c0 is not near-white or near-black (s 0.20, v 0.94)`, and run_all fails the same way. The rack's dried
+tile stays on the W1-STRUCTART REPLACE row in `asset-replacement.md`. Its strips are part of the frame's atlas
+mesh, so they cannot be tinted from code without tinting the frame.
+
+**4. A loaded row ignores capacity (minor).** `load_dict` now turns any job past `capacity()` into a collectable
+output of its own inputs (recipe "", no XP), the same way it handles a dropped recipe. Nothing is deleted, and
+the refund path (`saved_stacks`) still returns every unit. Check: `ok 40 saved jobs on a 4-place steamer load
+as 4 jobs + 36 to collect (40 units kept)`. Mutation M5 (the old load) fails it: `[t_process] FAIL 40 saved jobs
+on a 4-place steamer load as 40 jobs + 0 to collect (40 units kept)`, and run_all fails too.
+
+**5. run_all did not round-trip `to_dict` (minor).** `process_checks.gd` now saves a loaded rack through
+`CraftStation.to_dict -> JSON -> SaveRestore.spawn` and checks the job's input keeps its uid: `ok a loaded rack
+saves and loads its job through to_dict -> JSON -> spawn (uid l3f169073892ad323)`. Mutation M4 (no "process"
+key) now fails run_all: `ERROR: [tests] a loaded rack saves and loads its job through to_dict -> JSON -> spawn
+(uid )`, then `[tests] FAIL count=1`. t_process reports 34 FAIL lines for M4.
+
+**6. Small costs and leftovers (minor):**
+- **HudPills:** the name text is now measured only for a chip that shows a status (hooks patch, f7ca30df).
+- **show_strips:** `ProcessFx.find_strips` runs once per stage model. ProcessStation caches the nodes and keys
+  the cache on the Prop's instance id, so a stage swap finds the new model's strips. The 4x/s `find_child` walk
+  is gone. t_process's stand-in check still passes: `ok one strip loaded shows 2 of the model's 8 strips (2)`.
+- **Typed collect / take_back:** the switch is ready as a post-merge snippet under "Integrator hooks". It is not
+  a hooks-patch hunk, because the shared rules require the patch to `git apply --check` clean on bare
+  claude/mmo-overhaul, and these `station_craft.gd` lines exist only on this branch. The snippet compiles and
+  passes: process_lab ran with the hooks patch plus the snippet and gave `[process_lab] PASS` with 0 SCRIPT
+  ERROR (`scratchpad/r3/typed_process_lab.log`).
+- **Captions and ellipsis at 844x390:** seen again in `rack100menu_844`: COLLECT 4 sits on the smoker roof, and
+  the chip reads `Ready: 3 Smoked...`. Steamed food is cut at 1600 too (`Ready: 2 Steamed...`). The StationMenu
+  caption and the chip width cap (`UiTokens.LABEL_MAX_W`) belong to W1-UI, as the reviewer says. This package
+  leaves them open for W1-UI.
+
+Gates: running on the scratch tree `trees/w2proc-gates9` (b0c0faca + hooks patch); results follow in the next commit.
 
 ## Round 8: resumed run, base merged, gates and shots redone
 
@@ -537,8 +609,8 @@ All in `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-gate/b2302
 
 ## Integrator hooks
 
-`docs/orchestration/reports/claude-mmo-w2-process-hooks.patch` (regenerated in round 7; `git apply --check`
-clean on claude/mmo-overhaul cecc936b). Six files:
+`docs/orchestration/reports/claude-mmo-w2-process-hooks.patch` (regenerated in round 9, f7ca30df; `git apply
+--check` clean on claude/mmo-overhaul 946da955 through a scratch index, and on this branch). Six files:
 - `game/scripts/core/save_restore.gd` (W1-SAVE): `SaveRestore._items_of` adds a station row's process
   contents, so a row the grid refuses on load is refunded with what hung on it. Since round 6 those stacks
   pass `SaveSanitizer.stacks` inside `ProcessStation.saved_stacks`.
@@ -548,6 +620,7 @@ clean on claude/mmo-overhaul cecc936b). Six files:
     shared layout runs. Failing that it uses the name chip, else no chip.
   - Working stations skip the two-per-name cap.
   - `HudPills.last_drawn` records each drawn chip's node, anchor and rect for the lab check.
+  - Round 9: the name fallback (`name_text`, `name_w`) is measured only for a chip that shows a status.
   - The old second-line code and the 96 px timer-width change are gone.
 - `game/scripts/player/player_actions.gd` (W2-PLAYER), round 7: `collect(st)` and `take_back(st)`, intents
   `act.collect` / `act.take_back` with `{"station": net_id(st)}` when online.
@@ -555,9 +628,45 @@ clean on claude/mmo-overhaul cecc936b). Six files:
   round 7: `Crafting.preview_time(rec)` in place of `"%.1fs" % Crafting.recipe_seconds(rec)`.
 - `game/tests/run_all.gd` (integrator): `_test_process_stations()` runs `res://tests/process_checks.gd`.
 
-After merge: `StationCraft._on_menu_action` calls `player.actions.call(action_id, st)`. It may become
-`player.actions.collect(st)` / `take_back(st)` once player_actions.gd carries them. call() is there only so the
-branch compiles without the patch.
+**After merge, in the integration commit (review r3):** `StationCraft._on_menu_action` calls
+`player.actions.call(action_id, st)` only so the branch compiles without the patch. Once the hooks patch has
+added `collect` / `take_back` to player_actions.gd, switch to typed calls. This is not a hunk in the hooks patch,
+because those lines exist only on this branch and the patch must apply clean on bare claude/mmo-overhaul. It
+applies with `git apply` after the merge, and process_lab passes with it (round 9):
+
+```diff
+--- a/game/scripts/items/station_craft.gd
++++ b/game/scripts/items/station_craft.gd
+@@ -102,11 +102,10 @@ func _on_menu_action(st: Node3D, action_id: StringName) -> void:
+ 				open_station(st)
+ 		&"sleep":
+ 			player._start_sleep(st)
+-		&"collect", &"take_back":
+-			# Verbs that change the bag go through the command layer (contracts.md §0.3: online they
+-			# are act.collect / act.take_back intents). call(): the two methods are W2-PLAYER's file,
+-			# added by this package's hooks patch.
+-			player.actions.call(action_id, st)
++		&"collect":
++			player.actions.collect(st)  # the command layer (contracts.md §0.3): online an act.collect intent
++		&"take_back":
++			player.actions.take_back(st)
+ 		&"cauterise":
+ 			if st is Bonfire:
+ 				(st as Bonfire).cauterise(player)
+```
+
+**W2-INV collision (review r3).** Both packages change `Crafting.default_picks`. W2-INV does it in its hooks patch
+(`_plan` -> `_plan_ordered` / `_pick_key`, least valuable instance first, and `plan_spends_traits` after
+`default_picks`). This branch adds the spent-primary swap inside `default_picks` (crafting.gd:95-102). The merge
+order is W2-INV -> W2-PROCESS, so W2-INV's patch lands on the base first, and merging this branch then conflicts
+in `default_picks` (the reviewer saw `error: patch failed: game/scripts/items/crafting.gd:98` with the order
+reversed). Resolve it by keeping W2-INV's version and moving the swap onto its ordering: in `_plan_ordered`,
+when the slot is the recipe's primary and the recipe is in place (`processing_left(rec, s) != -1`), skip
+candidates with `processing_left(rec, s) == 0`, or put them last in `_pick_key`. A spent primary is then replaced
+by the least valuable instance that still has processing left, which is the order the task asks for. Two checks
+must still pass after the merge: t_process `the rack refuses meat with no opportunities left` and `the instance
+that still has one is picked instead`. Until W2-INV lands, the swap takes the first instance in
+`stacks_for_slot` order.
 
 The pack-up fix needs no change in `build_placer.gd` or `player_actions.gd`. `BuildPlacer.pack_up_node` calls
 `pack_up_blocker` first, and `pack_up_blocker` asks `pack_up_block_reason()` duck-typed before any side
