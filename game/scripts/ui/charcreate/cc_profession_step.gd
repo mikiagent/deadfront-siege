@@ -44,6 +44,10 @@ func _init(p_cc: CharacterCreation) -> void:
 	story.name = "Story"
 	story.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(story)
+	# SaveGame's unreadable-save note joins the column under the story: set it like the story (it came centred).
+	info.child_entered_tree.connect(func (n: Node) -> void:
+		if n is Label:
+			_like_story(n as Label))
 	title = CcUi.label("", 36, CcUi.GOLD)
 	title.name = "OccupationTitle"
 	model_note = CcUi.label("", 14, CcUi.MUTED)
@@ -139,6 +143,9 @@ func layout(view: Vector2, m: Dictionary) -> Rect2:
 	story.add_theme_font_size_override("font_size", px.call(13 if phone else 18))
 	# The fallback font's lines sit far apart: two-line stories read as two loose captions.
 	story.add_theme_constant_override("line_spacing", -px.call(4 if phone else 6))
+	for n in info.get_children().slice(2):
+		if n is Label:
+			_like_story(n as Label)
 	info.add_theme_constant_override("separation", px.call(4 if phone else 8))
 	var info_w := minf(s.size.x * (0.46 if phone else 0.4), float(px.call(460)))
 	# Bottom-anchored column (ALIGNMENT_END): a save warning added under the story grows it upward.
@@ -149,7 +156,19 @@ func layout(view: Vector2, m: Dictionary) -> Rect2:
 	model_note.size = Vector2(s.size.x * 0.34, 0)
 	model_note.position = Vector2(s.end.x - inset.x - pad - model_note.size.x, title.position.y + float(px.call(4)))
 	refresh()
+	show_selected()
 	return _stage_rect
+
+## Scrolls the list to the selected row (a preselected Farmer sat below the fold on a phone), on the
+## next frame: rows resized or selected this frame are not placed yet.
+func show_selected() -> void:
+	if is_inside_tree() and not get_tree().process_frame.is_connected(_scroll_to_selected):
+		get_tree().process_frame.connect(_scroll_to_selected, CONNECT_ONE_SHOT)
+
+func _scroll_to_selected() -> void:
+	var row := rows.get(cc.occupation()) as Control
+	if row and is_visible_in_tree():
+		list_scroll.ensure_control_visible(row)
 
 func refresh() -> void:
 	var id := cc.occupation()
@@ -180,6 +199,11 @@ static func skill_text(row: Dictionary) -> String:
 	var tree := str(row.get("tree", ""))
 	# PRD 5.1's head start; t_charcreate checks the line against SkillState.apply_occupation's result.
 	return "%s %s" % [LevelDisplay.label(SkillState.OCCUPATION_LEVEL), str(SkillState.NAMES.get(tree, tree.capitalize()))]
+
+func _like_story(note: Label) -> void:
+	note.horizontal_alignment = story.horizontal_alignment
+	note.add_theme_font_size_override("font_size", story.get_theme_font_size("font_size"))
+	note.add_theme_constant_override("line_spacing", story.get_theme_constant("line_spacing"))
 
 func _draw_row(row: Button, id: String) -> void:
 	var r := Rect2(Vector2.ZERO, row.size)

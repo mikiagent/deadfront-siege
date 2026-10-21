@@ -69,6 +69,7 @@ func _run() -> void:
 		await _test_tint()
 		_test_portrait()
 		await _test_layout()
+		await _test_phone_fit()
 		await _test_flow_and_save()
 		await _test_old_save()
 	_finish()
@@ -141,7 +142,8 @@ func _test_sources() -> void:
 func _test_names() -> void:
 	var NS: GDScript = load("res://scripts/ui/charcreate/cc_name_step.gd")
 	var ok := ["Ana", "Ana-Lu", "Dr. Ana Lu", "Zoë Ångström", "李小龍", "R2-D2", "A", "Abcdefghij Klmnopqrs"]
-	var bad := ["", " ", " Ana", "Ana ", "Ana  Lu", "Ana_Lu", "Ana!", "Abcdefghij Klmnopqrst", "<b>x</b>", "Ana\tLu"]
+	# Review r1: a name needs at least one letter or digit ("-.-", "." and "- ." were accepted).
+	var bad := ["", " ", " Ana", "Ana ", "Ana  Lu", "Ana_Lu", "Ana!", "Abcdefghij Klmnopqrst", "<b>x</b>", "Ana\tLu", "-.-", ".", "-", "- .", "...."]
 	for nm in ok:
 		_check(NS.name_error(nm) == "", "name \"%s\" is valid (got %s)" % [nm, NS.name_error(nm)])
 	for nm in bad:
@@ -282,6 +284,49 @@ func _test_layout() -> void:
 				var short := minf(r.size.x, r.size.y)
 				var want := 56.0 if str(ctl.name) in ["Next", "OK", "NameField"] else 44.0
 				_check(short >= want - 0.5, "%s: %s is a %d px+ target (%s)" % [tag, ctl.name, want, r.size])
+	cc.queue_free()
+	await process_frame
+
+## Review r1 at 844x390: a selected row below the fold scrolls into view; every hex caption fits its
+## column (two lines when one is too wide) without shrinking the hex; SaveGame's unreadable-save note
+## sits under the story, set like it (left, as tight). Old code: Farmer stayed below the fold,
+## "Background Color" overran the 86 px column, the note was centred with loose lines.
+func _test_phone_fit() -> void:
+	var cc = CCS.new()
+	cc.name = "CharacterCreation"  # where SaveGame._warn_new_world looks
+	host.add_child(cc)
+	await process_frame
+	var view := Vector2(844, 390)
+	cc._go(0)
+	cc.relayout(view, view, Vector4.ZERO)
+	cc.select_occupation("farmer")
+	await process_frame
+	await process_frame
+	var row: Control = cc.profession.rows["farmer"]
+	var list: Rect2 = cc.profession.list_scroll.get_global_rect()
+	_check(list.grow(0.5).encloses(row.get_global_rect()), "844x390: the selected Farmer row scrolls into view (row %s, list %s)" % [row.get_global_rect(), list])
+	SG._warn_new_world(host, "the file is damaged", "save_1.json.corrupt-1")
+	var note := cc.profession.info.get_node_or_null("SaveWarning") as Label
+	var story: Label = cc.profession.story
+	for size in [view, Vector2(1600, 900), view]:
+		cc.relayout(size, size, Vector4.ZERO)
+		await process_frame
+		_check(note != null and note.horizontal_alignment == HORIZONTAL_ALIGNMENT_LEFT and is_equal_approx(note.get_global_rect().position.x, story.get_global_rect().position.x), "%s: the save note is left-aligned with the story" % size)
+		_check(note != null and note.get_theme_constant("line_spacing") == story.get_theme_constant("line_spacing") and story.get_theme_constant("line_spacing") < 0 and note.get_theme_font_size("font_size") == story.get_theme_font_size("font_size"), "%s: the save note has the story's size and tight line spacing" % size)
+	cc._go(1)
+	for size in [view, Vector2(1600, 900)]:
+		cc.relayout(size, size, Vector4.ZERO)
+		for t in ["portrait", "appearance", "color"]:
+			cc.create._set_tab(t)
+			await process_frame
+			var radii := {}
+			for h in cc.create.sub_list.get_children():
+				var font: Font = h.get_theme_default_font()
+				for l in str(h.caption).split("\n"):
+					var w := font.get_string_size(l, HORIZONTAL_ALIGNMENT_LEFT, -1, h.caption_px).x
+					_check(w <= h.size.x + 0.5, "%s %s tab: caption \"%s\" fits its %d px column (%.0f px)" % [size, t, l, h.size.x, w])
+				radii[snappedf(h.hex_radius(), 0.5)] = true
+			_check(radii.size() == 1, "%s %s tab: a two-line caption keeps the hex its size (radii %s)" % [size, t, radii.keys()])
 	cc.queue_free()
 	await process_frame
 

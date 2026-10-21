@@ -69,6 +69,23 @@ static func brackets(ci: CanvasItem, r: Rect2, arm: float, width: float = 3.0) -
 		var d: Vector2 = c[1]
 		ci.draw_polyline(PackedVector2Array([p + Vector2(0, d.y * arm), p, p + Vector2(d.x * arm, 0)]), YELLOW, width)
 
+## `text` on one line, or on two ("\n") split at the space that makes the wider line narrowest when one
+## line is wider than `width` ("Background" / "Color" in a phone's 86 px hex column).
+static func wrap2(font: Font, text: String, px: int, width: float) -> String:
+	var best := text
+	var best_w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	if best_w <= width:
+		return text
+	var words := text.split(" ")
+	for i in range(1, words.size()):
+		var a := " ".join(words.slice(0, i))
+		var b := " ".join(words.slice(i))
+		var w := maxf(font.get_string_size(a, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x, font.get_string_size(b, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x)
+		if w < best_w:
+			best = a + "\n" + b
+			best_w = w
+	return best
+
 static func hex_points(r: float, c: Vector2) -> PackedVector2Array:
 	var pts := PackedVector2Array()
 	for i in 6:
@@ -133,13 +150,14 @@ class Band extends Control:
 ## check when selected, an optional caption under it. At least 44 px across.
 class Hex extends Control:
 	signal pressed
+	const LINE_GAP := 2.0  ## between a two-line caption's lines
 	var fill := Color(0.16, 0.16, 0.16)
 	var glyph := ""
 	var glyph_color := CcUi.TEXT
 	## Glyph size over the hex radius (the symbol font draws the gender signs small).
 	var glyph_scale := 0.95
 	var texture: Texture2D
-	var caption := ""
+	var caption := ""  ## "\n" starts a second line (CcUi.wrap2)
 	var caption_px := 13
 	var selected := false
 	var check := false
@@ -152,7 +170,11 @@ class Hex extends Control:
 		focus_mode = Control.FOCUS_ALL
 
 	func hex_radius() -> float:
-		return minf(size.x, size.y - (caption_px + 6.0 if caption != "" else 0.0)) * 0.5 - 2.0
+		return minf(size.x, size.y - caption_height()) * 0.5 - 2.0
+
+	func caption_height() -> float:
+		var n := caption.count("\n") + 1 if caption != "" else 0
+		return n * (caption_px + LINE_GAP) - LINE_GAP + 6.0 if n > 0 else 0.0
 
 	func _draw() -> void:
 		var r := hex_radius()
@@ -179,8 +201,11 @@ class Hex extends Control:
 			draw_polyline(PackedVector2Array([b + Vector2(-r * 0.14, 0), b + Vector2(-r * 0.03, r * 0.11), b + Vector2(r * 0.15, -r * 0.1)]), CcUi.INK, 2.0, true)
 		if caption != "":
 			var font := get_theme_default_font()
-			var w := minf(font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, caption_px).x, size.x + 24.0)
-			draw_string(font, Vector2(size.x * 0.5 - w * 0.5, size.y - 3.0), caption, HORIZONTAL_ALIGNMENT_LEFT, size.x + 24.0, caption_px, CcUi.GOLD if selected else CcUi.MUTED)
+			var lines := caption.split("\n")
+			for i in lines.size():
+				var w := minf(font.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, caption_px).x, size.x + 24.0)
+				var y := size.y - 3.0 - float(lines.size() - 1 - i) * (caption_px + LINE_GAP)
+				draw_string(font, Vector2(size.x * 0.5 - w * 0.5, y), lines[i], HORIZONTAL_ALIGNMENT_LEFT, size.x + 24.0, caption_px, CcUi.GOLD if selected else CcUi.MUTED)
 
 	## A touch can arrive as both a touch and an emulated mouse event: one press, one release, one emit.
 	func _gui_input(event: InputEvent) -> void:

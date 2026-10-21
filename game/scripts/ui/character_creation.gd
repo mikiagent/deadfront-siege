@@ -119,6 +119,7 @@ func occupation_row(id: String) -> Dictionary:
 func select_occupation(id: String) -> void:
 	_selected = id
 	profession.refresh()
+	profession.show_selected()
 
 func set_gender(g: String) -> void:
 	look["gender"] = g

@@ -238,9 +238,11 @@ func _rebuild() -> void:
 	for r in subs:
 		var h := CcUi.Hex.new(hex)
 		h.name = "Sub_%s" % r[0]
-		h.caption = r[1]
+		# A name wider than the column takes two lines (the hex keeps its size), measured without the
+		# scroll bar's strip: the Color tab's column scrolls on a phone.
+		h.caption = CcUi.wrap2(h.get_theme_default_font(), r[1], cap, sub_scroll.size.x - sub_scroll.get_v_scroll_bar().get_combined_minimum_size().x)
 		h.caption_px = cap
-		h.custom_minimum_size = Vector2(sub_scroll.size.x, hex + cap + 8.0)
+		h.custom_minimum_size = Vector2(sub_scroll.size.x, hex + h.caption_height() + 2.0)
 		h.fill = r[2]
 		h.glyph = r[3]
 		h.selected = r[0] == sub

@@ -12,6 +12,7 @@ const MAX_LEN := 20
 const HELP := "Can use up to 20 characters, including spaces and special characters such as - and ."
 
 static var _allowed: RegEx
+static var _letter_or_digit: RegEx
 
 var cc: CharacterCreation
 var band: CcUi.Band
@@ -25,9 +26,9 @@ var ok: Button
 var _m: Dictionary = {}
 var _column_y := 0.0
 
-## The one name check. 1-20 characters; letters of any script, digits, spaces, "-" and "."; no
-## space at either end and none doubled. "" when the name is fine. Online, the server's uniqueness
-## check joins here.
+## The one name check. 1-20 characters; letters of any script, digits, spaces, "-" and "."; at least
+## one letter or digit ("-.-" is no name); no space at either end and none doubled. "" when the name is
+## fine. Online, the server's uniqueness check joins here.
 static func name_error(raw: String) -> String:
 	if raw.strip_edges() == "":
 		return "Enter a name."
@@ -41,6 +42,10 @@ static func name_error(raw: String) -> String:
 		_allowed = RegEx.create_from_string("^[\\p{L}\\p{M}\\p{Nd} .\\-]+$")
 	if _allowed.search(raw) == null:
 		return "Use letters, digits, spaces, - and . only."
+	if _letter_or_digit == null:
+		_letter_or_digit = RegEx.create_from_string("[\\p{L}\\p{Nd}]")
+	if _letter_or_digit.search(raw) == null:
+		return "Use at least one letter or digit."
 	return ""
 
 func _init(p_cc: CharacterCreation) -> void:
