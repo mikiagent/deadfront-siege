@@ -31,6 +31,34 @@ Shots, windowed on gl_compatibility in `w2inv-r6`, full bag (100/100), opened an
 - 1600x900 after (`after2_full_1600x900_glc.png`): 20 cells, one-digit pills are round, two-digit ones wider; nothing
   covers an icon. An earlier try (left-aligned icon on a group cell) shrank the icon to about 12 px and was dropped.
 
+### Review 5 gates (2026-10-21)
+Fresh mkscratch tree `w2inv-r6g` of 7da6eda7 with the hooks patch of 30c1b1b1 (logs in scratch `w2inv-r6/gates/`),
+then the f27a6bce round-pill change copied in (the tree's `git diff --cached HEAD` is then `cmp`-identical to the
+committed patch) and every gate that loads the bag screen run again (`w2inv-r6/rerun/`). Every run went through gslot.
+- Import exit 0, 0 "Failed to compile" / Parse Error / SCRIPT ERROR lines.
+- All 24 `t_*.gd` exit 0 with their PASS line and 0 SCRIPT ERROR, except t_save's 5 deliberate ones (`[t_save] PASS`):
+  `[t_inventory] PASS`, `[t_items] PASS`, `[t_player] PASS`, `[t_save] PASS`, `[t_tame] PASS`, `[t_build] PASS`,
+  `[t_data] PASS items=223 recipes=155`, `[t_w2_skills] PASS`, `[t_water] PASS`, `[t_daynight] PASS`, `[t_srvdom] PASS`,
+  `[t_server_domain] PASS`, `[t_ui] PASS`, `[t_uiicons] PASS ids=177 files=116 glyphs=47 ...`, `[t_web] PASS`,
+  `[t_ai] PASS`, `[t_canim] PASS`, `[t_combat] PASS`, `[t_harbour] PASS islands=15`, `[t_iconart] PASS`, `[t_light]
+  PASS` (t_light, t_lighting), `[t_occlude] PASS`, `[t_structart] PASS`. Rerun after the pill change: `[t_ui] PASS`,
+  `[t_uiicons] PASS ...`, `[t_inventory] PASS`.
+- `run_all.gd`: `[tests] PASS`; `tools/smoke.sh --no-import`: `SMOKE PASS` (both runs).
+- Labs, exit 0, 0 SCRIPT ERROR: `[invlab] PASS empty_cells=100/97 slots=100 groups=20 stone_open=17 equip_l30=true
+  full_unequip_notice=true`, `[craft_lab] PASS`, `[equiplab] PASS` (both runs), `[kitchen_lab] PASS`, water_lab
+  `[waterlab] done`; windowed `ui_real_capture_lab` 844x390 and 1600x900 on gl_compatibility: `[uireal] PASS
+  screens=hud,hud_daynight,craft,...`, 0 SCRIPT ERROR.
+- Probe sweep (every `--*-probe`): camp-travel (`[camptravel] done failures3 ...`) and combat-reach (`[reach] PARTIAL
+  ... failures=2`) exit 1, the rest exit 0 (`[gear] PARTIAL ... failures=0`, `[cargocapacity] failures0`). A
+  mkscratch tree of the base 809be2e8 gives the same two exits and the same FAIL/PARTIAL lines (`diff` empty;
+  `w2inv-r6/base_sweep/`).
+- 0 "couldn't resolve track" in every log. No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (25 before and after
+  both runs; the newest is still 2026-10-20-232613).
+- Shots of the final code (`w2inv-r6/rerun/shots/`), opened and looked at: inventory_lab full bag 844x390 (slim pills,
+  as above), `--bag-fill=30` 1600x900 (pills 16, 12, 2, then empty slots; the column scrolls), `--bag-group=stone`
+  844x390 (back cell "All", stones Lv 1..Lv 14, no pills on single instances), `ui_real_capture_lab` bag 844x390 (an
+  empty bag: a grid of empty slots, "Bag 0 / 100").
+
 ## Review round 2 findings, raised again (2026-10-21)
 This step's prompt carried review round 2's 14 findings (the same probes: `after_uireal/bag_844x390.png`, `wornsan2`,
 `leadfirst`, `holders_after_load=2`). All 14 were fixed in round 2 (table further down) and stayed fixed through
