@@ -1,7 +1,7 @@
 extends Node3D
 ## W2-GATHER play session on the home island: the survivor gathers fibre, branches and stone
-## bare-handed, then with stone tools (faster, logs unlocked), finds rare berries, butchers a raptor
-## by knife, and watches a node deplete and regrow. Every unit goes through PlayerActions.
+## bare-handed, then with stone tools (faster, logs unlocked, the knife wears on the bush), gathers a
+## fibre stalk with a green rare trait, butchers a raptor by knife, and watches a node deplete and regrow. Every unit goes through PlayerActions.
 ## GAUNTLET gather rules checked on every pass: walked into reach (no teleport), the progress
 ## ring above the node, movement cancels, starter-island finds are level 1.
 ## Shots: --shot=<path.png> --shot-delay=900 saves <path>-<stage>.png per stage.
@@ -72,19 +72,23 @@ func _ready() -> void:
 	# A pet beside the survivor, so the rare shot shows its plate next to the popups.
 	_summon_pet()
 
-	# 3. Rare find at the real data odds. Home grassland finds are its own materials (world-design s4:
-	# no flint or copper here), so the bush gives berries. The seed is picked so the very next
-	# fibre unit rolls a find (the odds themselves are measured in t_gather).
-	GatherService.rng.seed = _lucky_seed(bush, &"berries")
-	var finds_before := _p.inventory.count_of(&"berries")
+	# 3. A green rare trait at the real data odds (world-design.md:55: 5% per material). Home grassland
+	# has no finds (each of its materials is some home node's own yield). The seed is picked so the very
+	# next fibre item rolls a trait (the odds themselves are measured in t_gather).
+	var knife := _p.inventory.find_gather_tool(&"knife")
+	var dur_before := knife.durability if knife else -1
+	GatherService.rng.seed = _trait_seed()
+	var traited := _traited(&"fibre_stalk")
 	await _gather(bush, &"fibre_stalk", 1, "rare", 0.35)
-	_check(_p.inventory.count_of(&"berries") > finds_before, "rare berries landed in the bag")
+	_check(_traited(&"fibre_stalk") > traited, "a fibre stalk with a green rare trait landed in the bag")
+	_check(knife != null and knife.durability < dur_before, "the knife wears on the bush it only helps with (%d -> %d)" % [dur_before, knife.durability if knife else -1])
 	# The touch flow: tap the bush, pick Fibre on the radial; the picked hex shows the progress.
-	GatherService.rng.seed = _lucky_seed(bush, &"berries")
-	finds_before = _p.inventory.count_of(&"berries")
+	GatherService.rng.seed = _trait_seed()
+	traited = _traited(&"fibre_stalk")
 	await _gather(bush, &"fibre_stalk", 1, "rare_radial", 0.35, true)
-	_check(_p.inventory.count_of(&"berries") > finds_before, "rare berries landed through the radial")
-	_check(_p.inventory.count_of(&"flint") == 0 and _p.inventory.count_of(&"copper_ore") == 0, "no flint or copper off home-grassland rock")
+	_check(_traited(&"fibre_stalk") > traited, "a traited fibre stalk landed through the radial")
+	for id in [&"flint", &"copper_ore", &"berries", &"herb_leaf"]:
+		_check(_p.inventory.count_of(id) == 0, "no %s find on the home island" % id)
 	for st in _p.inventory.slots:
 		if st and st.def_id in [&"berries", &"fibre_stalk", &"branch", &"stone", &"wood_log"]:
 			_check(st.level == 1, "starter-island %s is level 1 (got %d)" % [st.def_id, st.level])
@@ -199,7 +203,7 @@ func _popup_clear(node: HarvestNode, rare: bool = false) -> void:
 		for k in (hud.get("drawn_blocks") as Dictionary if hud else {}):
 			toasted = toasted or str(k).begins_with("toast")
 		_check(toasted, "no yield popup over %s and no HUD toast either" % node.family)
-		_check(not rare or _rare_notice_fresh(), "a find the stack could not show is announced by a gold HUD notice")
+		_check(not rare or _rare_notice_fresh(), "a rare result the stack could not show is announced by a tinted HUD notice")
 		print("[gather_lab] popup skipped over %s (no room by the node); HUD toast %s, rare notice %s" % [node.family, toasted, _rare_notice_fresh()])
 		return
 	_check(box != null and box.visible, "a yield popup showed over %s" % node.family)
@@ -218,13 +222,13 @@ func _popup_clear(node: HarvestNode, rare: bool = false) -> void:
 		_check(not r.intersects(t), "popup %s at %s clear of %s" % [texts, r, t])
 	print("[gather_lab] popup %s at %s" % [texts, r])
 
-## A gold "Rare find" HUD notice raised for this unit (notices live 3.2 s; this one is under 0.6 s old).
+## A tinted "Rare ..." HUD notice raised for this unit (it starts at NOTICE_T0; this one is under 0.6 s old).
 func _rare_notice_fresh() -> bool:
 	var hud := get_tree().get_first_node_in_group("hud")
 	if hud == null:
 		return false
 	for n in hud._events.notices:
-		if str(n["text"]).begins_with("Rare find") and float(n["t"]) < 0.6 and n.get("gold", false):
+		if str(n["text"]).begins_with("Rare") and float(n["t"]) < GatherFeedback.NOTICE_T0 + 0.6 and n.has("tint"):
 			return true
 	return false
 
@@ -256,17 +260,23 @@ func _summon_pet() -> void:
 func _now() -> float:
 	return float(Time.get_ticks_msec()) * 0.001
 
-## First seed whose first rare roll on this node lands `item` with the held tool.
-func _lucky_seed(node: HarvestNode, item: StringName) -> int:
-	var tool := GatherService.effective_tool(_p.inventory, node)
-	var tier: StringName = tool.material_tier() if tool else &""
-	var skill := maxi(1, _p.skills.level_of("gathering")) if _p.skills else 1
+## First seed whose first item roll lands a green rare trait (after_unit rolls traits before finds).
+func _trait_seed() -> int:
 	var probe := RandomNumberGenerator.new()
 	for s in range(1, 5000):
 		probe.seed = s
-		if LootRoller.roll_gather_rares(node.family, GatherService.role_of(node), str(node.yield_attributes.get("climate", "")), tier, skill, probe).has(item):
+		if LootRoller.roll_trait(probe) != &"":
 			return s
 	return 1
+
+## Units of `id` in the bag that carry a green rare trait.
+func _traited(id: StringName) -> int:
+	var traits: Array = LootTables.trait_cfg().get("traits", [])
+	var n := 0
+	for st in _p.inventory.slots:
+		if st and st.def_id == id and traits.any(func(t): return st.attributes.has(str(t))):
+			n += st.count
+	return n
 
 func _butcher() -> void:
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()

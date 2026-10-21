@@ -14,6 +14,8 @@ static func roll_gather_rares(family: String, role: String, climate: String, too
 	var cfg := LootTables.gather_cfg()
 	var tier_idx := ProgressionScaling.tier_index(tool_tier) if tool_tier != &"" else -1
 	var out: Array[StringName] = []
+	# A find is another material, never more of what the node yields itself (a "RARE Herb Leaf" off a herb).
+	var own: Dictionary = Data.nature_families.get(family, {}).get("harvest", {})
 	for row_v in LootTables.gather_rare_rows(family, role):
 		# Typo or hostile data skips the row instead of aborting the gather (as roll_carcass does).
 		if not (row_v is Dictionary):
@@ -21,10 +23,11 @@ static func roll_gather_rares(family: String, role: String, climate: String, too
 		var row := row_v as Dictionary
 		var climates: Variant = row.get("climates", [])
 		# A climate's own materials only (world-design s4): no flint or copper off the home grassland.
-		if not (climates is Array) or not (climate in (climates as Array)):
+		if not (climates is Array) or not (climate in (climates as Array)) or own.has(str(row.get("item", ""))):
 			continue
 		var need := StringName(str(row.get("min_tool_tier", "")))
-		if need != &"" and (tier_idx < 0 or tier_idx < ProgressionScaling.tier_index(need)):
+		# An unknown tier name (a typo) skips the row: tier_index would read it as stone.
+		if need != &"" and (tier_idx < 0 or need not in ProgressionScaling.TOOL_TIERS or tier_idx < ProgressionScaling.tier_index(need)):
 			continue
 		var c := scaled_chance(float(row.get("chance", 0.0)), tier_idx, skill,
 				float(cfg.get("tool_tier_bonus", 0.0)), float(cfg.get("skill_bonus_per_level", 0.0)),
@@ -32,6 +35,14 @@ static func roll_gather_rares(family: String, role: String, climate: String, too
 		if rng.randf() < c:
 			out.append(StringName(str(row.get("item", ""))))
 	return out
+
+## The green rare trait one gathered item rolls (world-design.md:55, PRD:541), or &"" for none.
+static func roll_trait(rng: RandomNumberGenerator) -> StringName:
+	var cfg := LootTables.trait_cfg()
+	var traits: Array = cfg.get("traits", [])
+	if traits.is_empty() or rng.randf() >= float(cfg.get("chance", 0.0)):
+		return &""
+	return StringName(str(traits[rng.randi() % traits.size()]))
 
 ## Carcass loot from butchering.json base and rare rows (rare rows roll their "chance"). knife_tier &"" = no knife.
 ## node_tier is Data.butchering_level() (unlocked Butchering nodes gate skill rows);
@@ -61,8 +72,10 @@ static func roll_carcass(base_rows: Array, rare_rows: Array, level: int, knife_t
 			continue
 		if no_meat and item_def.has_category(&"meat"):
 			continue
-		if gates.has(str(item_id)) and tier_idx < ProgressionScaling.tier_index(StringName(str(gates[str(item_id)]))):
-			continue
+		if gates.has(str(item_id)):
+			var gate := StringName(str(gates[str(item_id)]))
+			if gate not in ProgressionScaling.TOOL_TIERS or tier_idx < ProgressionScaling.tier_index(gate):
+				continue  # a typo'd gate keeps the part on the carcass rather than opening it to any knife
 		var is_rare := i >= base_rows.size()
 		if is_rare:
 			var c := scaled_chance(float(row.get("chance", cfg.get("default_rare_chance", 0.12))), tier_idx, skill,

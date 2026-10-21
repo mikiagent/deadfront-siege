@@ -2,7 +2,7 @@ class_name GatherService
 extends RefCounted
 ## Gather glue between PlayerActions and the world node: which tool works a node (the role's
 ## tool helps even on hand-pickable nodes, bare hands are slower), seconds and yield per unit,
-## and what happens after a unit lands (yield popup, rare roll, rare XP).
+## and what happens after a unit lands (tool wear, green rare traits, finds, rare XP, yield popup).
 ## PlayerActions calls unit_seconds / yield_multiplier / after_unit (integrator hook).
 
 ## Rolls for rare finds. Labs and tests seed it; the server will inject its own (W3-SRVACT).
@@ -62,21 +62,61 @@ static func yield_multiplier_with(inv: Inventory, need: StringName, family: Stri
 	var tool := tool_for(inv, need, family)
 	return ProgressionScaling.gather_yield_multiplier(zone, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, skill))
 
-## After a gathered unit reached the bag: the rare roll, then "+n Item" (and any find) over the node.
-## Returns the rare item ids that landed in the bag.
-static func after_unit(p: Player, node: HarvestNode, item_id: StringName, gained: int) -> Array[StringName]:
+## After a gathered unit reached the bag (`landed` is the stack PlayerActions added, `gained` of it
+## landed): the helper tool wears, each item rolls the green rare trait, the pass rolls its finds, rare
+## results pay their bonus XP, and "+n Item" (with any trait or find) rises over the node.
+## Returns the find item ids that landed in the bag.
+static func after_unit(p: Player, node: HarvestNode, landed: ItemStack, gained: int) -> Array[StringName]:
 	var at := node.global_position + Vector3(0.0, node.top_of_node() + 0.3, 0.0)  # the gather ring's anchor
 	# Same downrank as the main yield (rules.json gathering_downrank, floor 5).
 	var level := mini(int(node.yield_attributes.get("level", 1)), maxi(_skill(p), 5))
 	# The node's island climate picks the rows and is stamped on the find (world-design.md:55: always climate and level).
 	var climate := str(node.yield_attributes.get("climate", ""))
-	var landed := add_finds(p.inventory, node.family, node.required_tool_class, climate, level, _skill(p), rng)
-	for id in landed:
+	wear_role_tool(p.inventory, node.required_tool_class, node.family)
+	var traits := stamp_traits(p.inventory, landed, gained, rng)
+	var finds := add_finds(p.inventory, node.family, node.required_tool_class, climate, level, _skill(p), rng)
+	var xp := float(LootTables.rules().get("xp", {}).get("rare_gather_bonus", 0))
+	for id in finds:
 		p.toast(id, 1)
-		var xp := float(LootTables.rules().get("xp", {}).get("rare_gather_bonus", 0))
-		GatherXp.award(p, "gathering", xp, {"verb": "gather", "item": str(id), "rare": true, "node_level": level})
-	GatherFeedback.show_yield(p, at, item_id, gained, landed)
-	return landed
+	for i in finds.size() + traits.size():
+		GatherXp.award(p, "gathering", xp)
+	GatherFeedback.show_yield(p, at, landed.def_id, gained, finds, traits)
+	return finds
+
+## A helper tool wears like a required one (spec 12:44 "Tool wear ... integrate directly"): a knife on a
+## bush, a pick on loose stone. A node that requires its tool already wore it in PlayerActions.
+static func wear_role_tool(inv: Inventory, need: StringName, family: String) -> void:
+	if need != &"" and need != &"none":
+		return
+	var tool := tool_for(inv, need, family)
+	if tool == null:
+		return
+	var d := tool.def()
+	# Inventory.wear_gather_tool's cost: work tools 1, combat weapons used as tools 3.
+	if not tool.wear(1 if d == null or d.is_work_tool else 3):
+		print("[item] %s broke" % tool.def_id)
+	inv.changed.emit()
+
+## Each of the `gained` items that just landed rolls the green rare trait (world-design.md:55, PRD:541).
+## A hit swaps one plain unit in the bag for a traited one in a free slot; with no free slot the unit
+## stays plain (never lost). Client and server (act.gather) share it. Returns the traits stamped.
+static func stamp_traits(inv: Inventory, landed: ItemStack, gained: int, r: RandomNumberGenerator) -> Array[StringName]:
+	var out: Array[StringName] = []
+	for i in gained:
+		var t := LootRoller.roll_trait(r)
+		if t == &"":
+			continue
+		var idx := inv.slots.find_custom(func(s: ItemStack) -> bool: return s != null and landed.can_merge_with(s))
+		if idx < 0:
+			break
+		var one := inv.remove_at(idx, 1)
+		one.attributes[str(t)] = true
+		if inv.add(one) > 0:
+			one.attributes.erase(str(t))
+			inv.add(one)  # back where it came from: that slot just gave up this unit
+			break
+		out.append(t)
+	return out
 
 ## Rolls one unit's rare finds on a node (family, required tool class, island climate) and adds each
 ## to `inv`. Client and server (act.gather) share it. Returns the ids that landed.

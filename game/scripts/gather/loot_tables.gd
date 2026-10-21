@@ -22,6 +22,9 @@ static func rules() -> Dictionary:
 static func gather_cfg() -> Dictionary:
 	return loot().get("gather_rare", {})
 
+static func trait_cfg() -> Dictionary:
+	return loot().get("rare_trait", {})
+
 static func butcher_cfg() -> Dictionary:
 	return loot().get("butcher", {})
 

@@ -1,20 +1,29 @@
 class_name GatherFeedback
 extends RefCounted
 ## Yield numbers by the worked node: "+2 Branch" rises from just above (or beside) the gather ring,
-## a rare find rides on top of it in bigger gold (a HUD notice says it only when the stack cannot be
-## drawn). The stack keeps off the ring, world pills, HUD text and zones, creature plates and the open radial.
+## a rare result rides on top of it, bigger: a green rare trait (spec 13:291, PRD:541) or a gold find
+## (a HUD notice says them only when the stack cannot be drawn). The stack keeps off the ring, other
+## nodes, world pills, HUD text and zones, creature plates and the open radial.
 
 const LIFE := 1.4
 ## The ring is a 72 px hex on the anchor: the stack starts this far above its centre, or this far
 ## to its side, so it never covers the ring at any zoom or screen size.
 const RING_CLEAR := 44.0
 const RISE_PX := 32.0
-## A stack nudged further than this from the ring no longer reads as that node's: not drawn.
+## A stack whose nearest edge is further than this from the ring's centre (either axis), or nudged
+## further than this, no longer reads as that node's: not drawn.
 const MAX_SHIFT := 120.0
+## Other harvest nodes this close to the survivor are kept clear: a stack on the next rock read as its yield.
+const NODE_RANGE_M := 16.0
 ## Gathering UI stays above pet plates (GAUNTLET): over plates (58), under the radial (64) and ring (65).
 const LAYER := 60
 const LAYER_NAME := "GatherPopups"
 const GOLD := Color(1.0, 0.9, 0.3)
+## Rare material traits are green (spec 13:50/291, PRD:541 "green pip"); INVUI's InvTheme.RARE.
+const GREEN := Color("#67B84E")
+## A rare HUD notice starts this far into the HUD's 3.2 s notice life: it stays as long as the yield
+## stack it stands in for (LIFE, then the fade), so it does not linger into the next thing on screen.
+const NOTICE_T0 := 1.0
 const CREAM := Color(1.0, 0.97, 0.88)
 
 ## A replaced stack shown for less than this still owes its finds to the HUD (its fallback runs).
@@ -167,16 +176,22 @@ static func _best_offset(cols: Array[Rect2], taken: Array[Rect2], a0: Vector2, v
 			continue
 		var spot := UiTokens.free_spot(col, taken, view)
 		var shift := absf(spot.position.y - col.position.y)
-		if spot.has_area() and shift < best:
+		var gap := _gap(spot, a0)
+		if spot.has_area() and shift < best and gap.x <= MAX_SHIFT and gap.y <= MAX_SHIFT:
 			best = shift
 			off = spot.position - a0
 	return off
 
-## Screen rects a stack keeps off: the gather ring around the anchor, the HUD's drawn blocks (world
-## pills unless with_pills is false, toasts, notices, nameplate), visible creature plates and the
-## open radial's hexes and labels.
+## Per axis, how far the rect's nearest edge is from point a (0 where the rect spans it).
+static func _gap(r: Rect2, a: Vector2) -> Vector2:
+	return Vector2(maxf(0.0, maxf(r.position.x - a.x, a.x - r.end.x)), maxf(0.0, maxf(r.position.y - a.y, a.y - r.end.y)))
+
+## Screen rects a stack keeps off: the gather ring around the anchor, other harvest nodes near the
+## survivor, the HUD's drawn blocks (world pills unless with_pills is false, toasts, notices,
+## nameplate), visible creature plates and the open radial's hexes and labels.
 static func taken_rects(p: Player, anchor: Vector2, with_pills: bool = true) -> Array[Rect2]:
 	var out: Array[Rect2] = [Rect2(anchor - Vector2(40.0, 40.0), Vector2(80.0, 80.0))]
+	out.append_array(node_rects(p, anchor))
 	var hud := p.get_tree().get_first_node_in_group("hud") as Control
 	if hud and hud.get("drawn_blocks") is Dictionary:
 		var blocks := hud.get("drawn_blocks") as Dictionary
@@ -197,45 +212,76 @@ static func taken_rects(p: Player, anchor: Vector2, with_pills: bool = true) -> 
 				out.append((c as Control).get_global_rect())
 	return out
 
+## Other harvest nodes' bodies on screen (base to the ring anchor height), not the one at `anchor`.
+static func node_rects(p: Player, anchor: Vector2) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var cam := p.get_viewport().get_camera_3d()
+	if cam == null:
+		return out
+	for n in p.get_tree().get_nodes_in_group("harvest"):
+		var hn := n as HarvestNode
+		if hn == null or hn.global_position.distance_squared_to(p.global_position) > NODE_RANGE_M * NODE_RANGE_M:
+			continue
+		var top := hn.global_position + Vector3(0.0, hn.top_of_node() + 0.3, 0.0)
+		if cam.is_position_behind(top) or cam.is_position_behind(hn.global_position):
+			continue
+		var a := cam.unproject_position(top)
+		if a.distance_to(anchor) < 8.0:
+			continue  # the worked node: its ring is already taken
+		out.append(Rect2(a, Vector2.ZERO).expand(cam.unproject_position(hn.global_position)).grow(28.0))
+	return out
+
 static func item_name(id: StringName) -> String:
 	var d := Data.item(id)
 	return d.display_name if d and d.display_name != "" else str(id).capitalize()
 
-## "+n Name" in cream over a gathered node, with any rare finds of that unit in gold above it.
-static func show_yield(p: Player, at: Vector3, id: StringName, n: int, rares: Array[StringName] = []) -> void:
-	var lines: Array = []
-	for r in rares:
-		lines.append(["RARE  %s" % item_name(r), GOLD, true])
-	lines.append(["+%d %s" % [n, item_name(id)], CREAM, false])
-	_popup_or_notice(p, at, lines, rares)
+## "black_sheen" -> "Black Sheen" (INVUI's inv_ui.json labels are the same words).
+static func trait_name(t: StringName) -> String:
+	return str(t).capitalize()
 
-## Rare finds off a carcass: gold lines over it (the caller toasts pickups).
+## "+n Name" in cream over a gathered node; above it each green trait ("Black Sheen Fibre Stalk") and
+## each gold find of that unit.
+static func show_yield(p: Player, at: Vector3, id: StringName, n: int, finds: Array[StringName] = [], traits: Array[StringName] = []) -> void:
+	var lines: Array = []
+	var owed: Array = []  # [HUD notice text, colour] said only when the stack is not drawn
+	for r in finds:
+		lines.append(["RARE  %s" % item_name(r), GOLD, true])
+		owed.append(["Rare find: %s" % item_name(r), GOLD])
+	for t in traits:
+		var nm := "%s %s" % [trait_name(t), item_name(id)]
+		lines.append([nm, GREEN, true])
+		owed.append(["Rare trait: %s" % nm, GREEN])
+	lines.append(["+%d %s" % [n, item_name(id)], CREAM, false])
+	_popup_or_notice(p, at, lines, owed)
+
+## Rare parts off a carcass: gold lines over it (the caller toasts pickups).
 static func announce_rares(p: Player, at: Vector3, ids: Array[StringName], where: String = "") -> void:
 	var lines: Array = []
+	var owed: Array = []
 	for id in ids:
 		lines.append(["RARE  %s" % item_name(id), GOLD, true])
-	_popup_or_notice(p, at, lines, ids, where)
+		owed.append(["Rare find: %s%s" % [item_name(id), where], GOLD])
+	_popup_or_notice(p, at, lines, owed)
 
-## The gold stack announces finds; only when it cannot be drawn by the node does the HUD notice say
+## The stack announces rare results; only when it cannot be drawn by the node does the HUD notice say
 ## them (a notice beside a drawn stack said the same find twice, and on a phone crowded it off).
-static func _popup_or_notice(p: Player, at: Vector3, lines: Array, rares: Array[StringName], where: String = "") -> void:
-	for r in rares:
-		print("[gather] rare %s%s" % [r, where])
+static func _popup_or_notice(p: Player, at: Vector3, lines: Array, owed: Array) -> void:
+	for o in owed:
+		print("[gather] %s" % o[0])
 	var fb := Callable()
-	if not rares.is_empty():
+	if not owed.is_empty():
 		fb = func() -> void:
-			for r in rares:
-				notice_rare(p, r, where)
+			for o in owed:
+				notice(p, o[0], o[1])
 	if popup(p, at, lines, fb) == null and fb.is_valid():
 		fb.call()
 
-## Finds are always gold, in the HUD too: a gold notice, not the red refusal box (a phone with the
-## radial open always lands here). Rarity rims (grey, green) read as an ordinary pickup.
-static func notice_rare(p: Player, id: StringName, where: String = "") -> void:
+## A rare result's HUD notice in its colour on ink, not the red refusal box (a phone with the radial
+## open always lands here).
+static func notice(p: Player, text: String, tint: Color) -> void:
 	if not is_instance_valid(p) or not p.is_inside_tree():
 		return
-	var text := "Rare find: %s%s" % [item_name(id), where]
-	print("[ui] notice %s (gold)" % text)
+	print("[ui] notice %s (%s)" % [text, "gold" if tint == GOLD else "green"])
 	var hud := p.get_tree().get_first_node_in_group("hud")
 	if hud and hud.has_method("notice"):
-		hud.notice(text, true)
+		hud.notice(text, tint)
