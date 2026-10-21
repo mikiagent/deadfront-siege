@@ -1,8 +1,11 @@
 extends Node3D
 ## TARGETUI lab (spec 23): on the home island a real mouse tap selects a wild protoceratops (plate,
 ## ring, red swords hex), a real click on the swords starts the fight, a raptor already on the
-## survivor is selected with its aggro ring showing, and a tap on your own pet shows its menu and no
-## swords. Shoots each beat; prints "[targetui] PASS" and exits 0, or exits 1 on any failed check.
+## survivor is selected with its aggro ring showing, in a herd the swords keep off the neighbours and a
+## tap on one selects it, the bag or the Animals screen hides the swords and E fights nothing behind
+## them, and a tap on your own pet shows its menu and no swords. On a landscape phone a selection alone
+## leaves the centre band to the quest card. Shoots each beat; prints "[targetui] PASS" and exits 0,
+## or exits 1 on any failed check.
 ## Run: Godot --path game --resolution 1600x900 -- --lab=targetui_lab --shot-dir=DIR
 
 var _out := ""
@@ -98,6 +101,8 @@ func _run() -> void:
 	_check(_player.controls.selection.current() == wild and _player.hunt.target == null, "tap selects the animal, no hunt (hunt %s)" % [_player.hunt.target])
 	_check(_swords() != null and _swords().is_visible_in_tree(), "the red swords hex shows beside it")
 	await _frames(4)
+	if HudLayout.centre_band(_hud, get_viewport().get_visible_rect().size).has_area():
+		_check(_hud.drawn_blocks.has("quest") and not _hud.drawn_blocks.has("plate"), "phone: a selection alone leaves the centre band to the quest card")
 	await _shot("select")
 	# 2. Click the swords: the fight starts.
 	if _swords() and _swords().is_visible_in_tree():
@@ -125,7 +130,58 @@ func _run() -> void:
 		await _shot("aggro_select")
 		raptor.queue_free()
 		await _frames(3)
-	# 4. Your own pet: its menu, never the swords.
+	# 4. A herd shoulder to shoulder: the swords keep off every neighbour, and a tap on one selects it.
+	var right := Vector3(_cam.global_basis.x.x, 0.0, _cam.global_basis.x.z).normalized()
+	var herd: Array[Creature] = []
+	for i in 5:
+		var h := _spawn(&"protoceratops", right * (3.2 + 1.6 * i) + Vector3(0, 0, 0.8))
+		if h:
+			h.brain.process_mode = Node.PROCESS_MODE_DISABLED
+			herd.append(h)
+	await get_tree().create_timer(0.8).timeout
+	var herd_ok := herd.size() == 5
+	for j in [1, 3, 0, 4]:
+		if not herd_ok:
+			break
+		_player.controls.selection.select(herd[2])
+		await _frames(4)
+		var hm := _cam.unproject_position(herd[j].global_position + Vector3(0, herd[j].def.height_meters * 0.5, 0))
+		herd_ok = herd_ok and not (_swords().is_visible_in_tree() and _swords().get_global_rect().has_point(hm))
+		await _click(hm)
+		herd_ok = herd_ok and _player.controls.selection.current() == herd[j] and _player.hunt.target == null
+	_check(herd_ok, "herd: the swords keep off the neighbours and a tap on one selects it")
+	_player.controls.selection.select(herd[2] if herd.size() == 5 else null)
+	await _frames(4)
+	_check(_swords().is_visible_in_tree(), "herd: the middle animal's swords show")
+	await _shot("herd")
+	# 5. The bag, then the Animals screen, over a selection: no swords, and E fights nothing behind them.
+	_player.ui.visible = true
+	await _frames(4)
+	_check(not _swords().is_visible_in_tree(), "bag open: no swords")
+	await _shot("bag_open")
+	var e := InputEventAction.new()
+	e.action = &"interact"
+	e.pressed = true
+	Input.parse_input_event(e)  # E, through _unhandled_input like the key
+	await _frames(2)
+	e = e.duplicate() as InputEventAction
+	e.pressed = false
+	Input.parse_input_event(e)
+	await _frames(2)
+	_check(_player.hunt.target == null, "bag open: E fights nothing behind it (hunt %s)" % [_player.hunt.target])
+	_player.ui.visible = false
+	await _frames(4)
+	_check(_swords().is_visible_in_tree(), "bag closed: the swords are back")
+	_hud._open_animals()
+	await _frames(4)
+	_check(not _swords().is_visible_in_tree(), "Animals open: no swords")
+	await _shot("animals_open")
+	_hud._animal_screen.close_screen()
+	_player.clear_nav()
+	for h in herd:
+		h.queue_free()
+	await _frames(3)
+	# 6. Your own pet: its menu, never the swords.
 	var rec := PetRecord.from_def(Data.creature(&"zebraceratops"), &"A")
 	rec.name = "REX"
 	_player.bonded.append(rec)

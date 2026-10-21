@@ -9,6 +9,9 @@ extends SceneTree
 ## Review r2: a press on the swords beside a bench fights (the click fallback opened the bench and
 ## dropped the selection); a tap on an animal beside a bench selects it; on a landscape phone the
 ## swords show whenever a clear spot touches the animal.
+## Review r3: in a herd the hex sat on a neighbour and took the tap meant to select it; with the bag or
+## the Animals screen open E fought an animal behind it; a selection with its swords hidden lingered;
+## on a phone a selection alone took the quest card's centre band; the hex keeps off the survivor.
 ## Usage: godot --headless --path game --script res://tests/t_targetui.gd
 
 var failures: Array[String] = []
@@ -78,6 +81,10 @@ func _run() -> void:
 	await _test_tame_and_mounted()
 	await _test_beside_station()
 	await _test_phone_coverage()
+	await _test_herd()
+	await _test_screens()
+	await _test_drop()
+	await _test_phone_quest()
 	host.queue_free()
 	await process_frame
 	if failures.is_empty():
@@ -478,3 +485,184 @@ func _push_click(c: Control) -> void:
 	var up := click.duplicate() as InputEventMouseButton
 	up.pressed = false
 	get_root().push_input(up)
+
+var _desk: Array[Vector2i] = []  # root and canvas size before a phone case
+
+func _phone(on: bool) -> void:
+	if on:
+		_desk = [get_root().size, get_root().content_scale_size]
+		get_root().size = Vector2i(844, 390)
+		get_root().content_scale_size = Vector2i(844, 390)  # the 1:1 canvas DisplayMode gives a landscape phone
+	else:
+		get_root().size = _desk[0]
+		get_root().content_scale_size = _desk[1]
+	await _frames(10)
+
+## The game's IsoCamera view (orthographic, size 17 as main.tscn, pitch -35.264, yaw 45) on the survivor.
+func _iso(on: bool) -> void:
+	if on:
+		cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+		cam.size = 17.0
+		cam.rotation_degrees = Vector3(-35.264, 45.0, 0.0)
+		cam.global_position = player.global_position + cam.global_basis.z * 40.0
+	else:
+		cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+		cam.position = Vector3(0, 12, 12)
+		cam.look_at(Vector3.ZERO)
+
+func _mid(c) -> Vector2:
+	return cam.unproject_position(c.global_position + Vector3(0, c.def.height_meters * 0.5, 0))
+
+## A real click at a viewport point: the GUI first (a HUD control or the swords hex takes it), then the world.
+func _click_at(at: Vector2) -> void:
+	var move := InputEventMouseMotion.new()
+	move.position = get_root().get_final_transform() * at
+	move.global_position = move.position
+	get_root().push_input(move)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = move.position
+	click.global_position = move.position
+	get_root().push_input(click)
+	var up := click.duplicate() as InputEventMouseButton
+	up.pressed = false
+	get_root().push_input(up)
+	await _frames(3)
+
+## Review r3 (herd probe, 844x390): five animals shoulder to shoulder; the hex beside one sat on a
+## neighbour's middle, so the tap meant to select the neighbour pressed the swords and started a fight.
+## Also the hex keeps off the survivor's figure wherever the selection stands round it.
+func _test_herd() -> void:
+	await _phone(true)
+	_iso(true)
+	var right := Vector3(cam.global_basis.x.x, 0.0, cam.global_basis.x.z).normalized()
+	var herd := []
+	for i in 5:
+		herd.append(_creature(&"protoceratops", Vector3(player.global_position.x, 0.0, player.global_position.z) + right * (3.2 + 1.6 * i)))
+	await _frames(5)
+	var sel = player.controls.get("selection")
+	var wrong: Array[String] = []
+	var covered := 0
+	for i in herd.size():
+		for j in herd.size():
+			if i == j:
+				continue
+			sel.select(herd[i])
+			await _frames(4)
+			if _swords_shown() and _swords().get_global_rect().has_point(_mid(herd[j])):
+				covered += 1
+			await _click_at(_mid(herd[j]))
+			if _selected() != herd[j] or player.hunt.target != null:
+				wrong.append("%d->%d sel %s hunt %s" % [i, j, herd.find(_selected()), herd.find(player.hunt.target)])
+			player.hunt.stop()
+			player.clear_nav()
+	print("[t_targetui] herd mids %s" % [herd.map(func (c) -> Vector2: return _mid(c).round())])
+	_expect(covered == 0, "herd: the swords never sit on a neighbour's middle (%d did)" % covered)
+	_expect(wrong.is_empty(), "herd: tapping a neighbour selects it, no fight (%d of 20 wrong: %s)" % [wrong.size(), wrong])
+	for c in herd:
+		c.queue_free()
+	await _frames(3)
+	var wild = _creature(&"protoceratops", Vector3(3.0, 0, 0))
+	await _frames(3)
+	sel.select(wild)
+	var fig: Rect2 = hud.figure_rect()
+	var on_fig := 0
+	var shown := 0
+	for ox in [-180.0, -120.0, -80.0, -40.0, 40.0, 80.0, 120.0]:
+		for oy in [-40.0, 0.0, 40.0]:
+			_place_mid(wild, fig.get_center() + Vector2(ox, oy))
+			await _frames(3)
+			if _swords_shown():
+				shown += 1
+				if _swords().hex_rect().intersects(hud.figure_rect()):
+					on_fig += 1
+	_expect(shown > 0 and on_fig == 0, "survivor: round the survivor the swords keep off its figure (%d of %d shown on it)" % [on_fig, shown])
+	_iso(false)
+	await _phone(false)
+	await _clear()
+
+## Review r3 (S_animals_open, U_bag_open): with a screen over the world the swords stayed live, so E
+## fought an animal hidden behind the Animals screen and SIC still went for it.
+func _test_screens() -> void:
+	var pet = await _summon_pet()
+	var near = _creature(&"protoceratops", Vector3(-2.0, 0, 1.0))
+	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	await _frames(5)
+	await _tap(wild.global_position + Vector3(0, 0.5, 0))
+	await _frames(3)
+	_expect(_selected() == wild and _swords_shown(), "screens: selected, swords shown")
+	var inv = (load("res://scenes/ui/inventory.tscn") as PackedScene).instantiate()
+	hud.get_parent().add_child(inv)
+	inv.bind(player.inventory, player)
+	player.ui = inv
+	inv.visible = true
+	await _frames(3)
+	_expect(not _swords_shown(), "bag open: no swords")
+	_press(&"interact")
+	_expect(player.hunt.target == null, "bag open: E does not fight the selection behind it (hunt %s)" % [player.hunt.target])
+	player.hunt.stop()
+	player.clear_nav()
+	inv.visible = false
+	await _frames(3)
+	_expect(_swords_shown(), "bag closed: the swords are back")
+	hud.call("_open_animals")
+	await _frames(3)
+	_expect(not _swords_shown(), "Animals open: no swords")
+	_press(&"interact")
+	_expect(player.hunt.target == null, "Animals open: E does not fight the selection behind it (hunt %s)" % [player.hunt.target])
+	pet.brain.order(&"guard")
+	player.pets.order(&"attack")
+	_expect(pet.brain.order_target == near, "Animals open: SIC goes for the nearest animal, not the hidden selection (order %s)" % [pet.brain.order_target])
+	hud.get("_animal_screen").close_screen()
+	hud.call("_toggle_sheet", &"menu")
+	await _frames(3)
+	_expect(hud.sheet_open() and not _swords_shown(), "menu sheet open: no swords")
+	hud.call("_close_sheet")
+	player.ui = null
+	inv.queue_free()
+	await _clear()
+
+## Review r3: a selection whose swords stay hidden (off screen here) lingered, holding the plate and E;
+## past hunt range it held to 40 m. Now ~3 s hidden or past ATTACK_SEEK_RANGE drops it; the fight's own
+## target stays selected so its swords return after End Combat.
+func _test_drop() -> void:
+	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	await _frames(5)
+	await _tap(wild.global_position + Vector3(0, 0.5, 0))
+	wild.global_position = Vector3(27.0, 0, 0)  # off screen, inside 28 m
+	await _frames(4)
+	_expect(_selected() == wild and not _swords_shown(), "drop: off screen the selection holds at first")
+	await create_timer(3.4, true, true).timeout
+	_expect(_selected() == null, "drop: hidden ~3 s, the selection drops (selection %s)" % [_selected()])
+	wild.global_position = Vector3(3.5, 0, 0)
+	player.controls.get("selection").select(wild)
+	await _frames(3)
+	player.actions.attack(wild)
+	await create_timer(3.4, true, true).timeout
+	_expect(player.hunt.target == wild and _selected() == wild, "drop: the fight's own target stays selected (selection %s)" % [_selected()])
+	player.hunt.stop()
+	player.clear_nav()
+	await _frames(3)
+	_expect(_swords_shown(), "drop: End Combat, its swords are back")
+	wild.global_position = player.global_position + Vector3(0.0, 0.0, -29.0)
+	await _frames(2)
+	_expect(_selected() == null, "drop: past ATTACK_SEEK_RANGE (29 m) the selection drops (selection %s)" % [_selected()])
+	await _clear()
+
+## Review r3: on a landscape phone the selection's plate took the centre band from the quest card
+## before any fight. A selection alone leaves the band to the quest card; the fight takes it.
+func _test_phone_quest() -> void:
+	await _phone(true)
+	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	await _frames(5)
+	player.controls.get("selection").select(wild)
+	await _frames(4)
+	var blocks: Dictionary = hud.get("drawn_blocks")
+	_expect(blocks.has("quest") and not blocks.has("plate") and _swords_shown(), "phone: a selection alone leaves the centre band to the quest card (quest %s, plate %s)" % [blocks.has("quest"), blocks.has("plate")])
+	player.actions.attack(wild)
+	await _frames(4)
+	blocks = hud.get("drawn_blocks")
+	_expect(blocks.has("plate") and not blocks.has("quest"), "phone: the fight's plate takes the band (plate %s, quest %s)" % [blocks.has("plate"), blocks.has("quest")])
+	await _phone(false)
+	await _clear()

@@ -159,7 +159,7 @@ index 88e493ba..d9639b1f 100644
  	var best_score := -1.0
  	var now := _now_s()
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
-index b7ac4ea6..3b0d376b 100644
+index e0019aa2..380b1535 100644
 --- a/game/scripts/ui/hunt_hud.gd
 +++ b/game/scripts/ui/hunt_hud.gd
 @@ -35,6 +35,7 @@ var _chase_hex: HexButton
@@ -170,7 +170,7 @@ index b7ac4ea6..3b0d376b 100644
  var _in_combat: bool = false
  var _combat_alpha: float = 0.0
  var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
-@@ -366,6 +367,10 @@ func _build_combat() -> void:
+@@ -367,6 +368,10 @@ func _build_combat() -> void:
  			_chase_hex.queue_redraw()
  	)
  	add_child(_chase_hex)
@@ -181,20 +181,25 @@ index b7ac4ea6..3b0d376b 100644
  
  ## Deliberate death card. Shown while player.dead; the survivor stays on the ground until respawn.
  func _build_death() -> void:
-@@ -1046,9 +1051,11 @@ func _draw() -> void:
+@@ -1048,12 +1053,14 @@ func _draw() -> void:
  	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 16), "X %d  Y %d" % [tile.x, tile.y], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
  	# The clock and phase line moved into the day/night dial's label: the dial shows the phase already.
  	drawn_blocks["map_text"] = Rect2(mp.x, mp.y + MAP_PX + 16.0 - meta_px, MAP_PX, meta_px + 4.0)
 -	# The target plate (current hunt target, else the last creature attacked while it lives) and the
-+	# The target plate (current hunt target, else the selection, else the last creature attacked while it lives) and the
- 	# level-up banner take over the landscape phone's centre band from the quest card while they show.
+-	# level-up banner take over the landscape phone's centre band from the quest card while they show.
++	# The target plate (current hunt target, else on desktop the selection, else the last creature attacked while it lives) and
++	# the level-up banner take over the landscape phone's centre band from the quest card while they show.
++	var band := HudLayout.centre_band(self, r)
  	var plate_t: Creature = player.hunt.target if (player.hunt and player.hunt.target and is_instance_valid(player.hunt.target)) else null
-+	if plate_t == null:
-+		plate_t = player.controls.selection.current()  # a tap selects: its plate shows before any fight
++	if plate_t == null and not band.has_area():
++		plate_t = player.controls.selection.current()  # a tap selects: its plate shows before any fight (a phone keeps the quest card)
  	if plate_t == null and _last_target and is_instance_valid(_last_target) and not _last_target.health.dead and player.global_position.distance_to(_last_target.global_position) < 40.0:
  		plate_t = _last_target
- 	var band := HudLayout.centre_band(self, r)
-@@ -1162,11 +1169,13 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
+-	var band := HudLayout.centre_band(self, r)
+ 	if not band.has_area() or (plate_t == null and _levelup_t < 0.0):
+ 		_draw_quest(r, mp)
+ 	# --- XP bar along the bottom
+@@ -1166,11 +1173,13 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
  			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
  			var name_px := UiTokens.heading(r)
  			nm = UiTokens.ellipsis(_font, nm, pw - 150.0, name_px)

@@ -5,8 +5,8 @@ extends RefCounted
 ## bites first is still fought at once (Player.receive_creature_hit). The selected animal wears a pale
 ## ring; HuntHud shows its target plate and TargetSwordsHex floats beside it.
 
-## ASSUMPTION: a selection left this far behind drops, as the HUD's last-target plate does (40 m).
-const KEEP_RANGE := 40.0
+## A selection left past hunt range drops: the swords would start nothing there (review r3).
+const KEEP_RANGE := PlayerActions.ATTACK_SEEK_RANGE
 const RING_COLOR := Color(1.0, 0.95, 0.8, 0.9)
 
 var p: Player
