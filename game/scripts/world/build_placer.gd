@@ -638,6 +638,10 @@ func _spawn(kind: StringName) -> Node3D:
 			return CraftStation.make(&"stone_grill")
 		&"steamer":
 			return CraftStation.make(&"steamer")
+		&"forge":
+			return CraftStation.make(&"forge")
+		&"anvil":
+			return CraftStation.make(&"anvil")
 		&"field_small", &"field_large":
 			return FieldPlot.make(kind)
 		&"straw_roll", &"tent", &"canvas_tent", &"log_shelter", &"cabin_bed", &"basket", &"fence", &"gate", &"sign":

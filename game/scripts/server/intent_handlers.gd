@@ -435,7 +435,7 @@ func _attack(ch: CharacterState, a: Dictionary) -> Dictionary:
 	if rng.randf() >= CombatTuning.hit_chance(float(tune.get("base_accuracy", 1.0)), float(c.get("dodge", 0.0))):
 		return ok({"dealt": 0.0, "kind": "dodge"}) # commits: the swing spent this seq's rolls
 	var dealt := maxf(dmg * float(tune.get("min_damage_frac", 0.05)), dmg - float(c.get("defense", 0.0)) * float(tune.get("defense_factor", 0.5)))
-	var melee := ch.level_of("melee")
+	var melee := maxi(0, ch.level_of("melee") - SkillState.MIN_LEVEL) # bonuses count from Lv. 1
 	dealt *= 1.0 + float(tune.get("damage_per_melee_level", 0.01)) * float(melee)
 	dealt *= CombatCounters.multiplier(def.archetype, dtype)
 	var kind := "hit"

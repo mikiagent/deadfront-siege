@@ -101,7 +101,7 @@ func _test_kit_routes() -> void:
 		else:
 			print("[build] route %s FAIL kit=%s spawn=%s restore=%s" % [def.id, kit, spawned, restored_kind])
 		_expect(ok, "route %s" % def.id)
-	_expect(n_ok == 24 and defs.size() == 24, "24 kits route (ok=%d of %d)" % [n_ok, defs.size()])
+	_expect(n_ok == 26 and defs.size() == 26, "26 kits route (ok=%d of %d)" % [n_ok, defs.size()])
 	holder.free()
 	placer.free()
 
