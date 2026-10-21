@@ -11,6 +11,48 @@ Owner approval on record (STATUS, 2026-10-20): "the non-stacking inventory save 
 independent review passes and old saves migrate cleanly in tests." Review rounds 1, 2 and 3 are fixed below; the
 package needs its re-review before the merge.
 
+## Sync 1 before integration (2026-10-20)
+Base claude/mmo-overhaul 29ffa292 (W2-DATA and W2-SKILLS merged, specs 19-22, STATUS) merged into the branch at
+4810b5da with no conflicts. The hooks patch no longer applied there (`error: patch failed: game/tests/t_items.gd:184`,
+`game/tests/t_save.gd:1`); it was 3-way applied in a scratch tree, resolved, and regenerated (2583c2d3, a7b49780).
+`git apply --check` is clean on claude/mmo-overhaul 29ffa292 and on the branch a7b49780. Branch code is unchanged;
+only hook files changed:
+- t_items `_test_pick_gates`: W2-DATA made iron need a bronze pick, so the "best pick is the one in use" check uses
+  bronze (base) with W2-INV's `equipped_gather_tool()` (the branch's auto pick).
+- t_save: W2-SKILLS froze the stacked v3 goldens as rev-1 inputs and checks that their skills_v2 migrates to
+  save_v3_skills_rev2.json. The stacked goldens keep that skills check (`_check_v3_skills`, the base's
+  `_check_v3_golden` without the "everything else unchanged" compare, because their stacks split on load) next to
+  W2-INV's `_check_split`. `_test_rev1_skills` runs as on base. The header names both migrations.
+- The instance goldens (save_v3_inst_golden.json, save_v3_inst_away_golden.json) were written before W2-SKILLS
+  and still had rev-1 skills. Their round trip failed only on skills_v2
+  (`FAIL v3 golden survives load + save unchanged: ["/skills_v2/trees/butchering/unlocked: array size", ...]`).
+  `--write-golden` on the merged tree re-rolls pet genetics and every uid, so only its rev-2 skills_v2 block was
+  taken into each old golden. Everything else is byte for byte. save_v3_golden.json, save_v3_away_golden.json and
+  save_truncated.json have the same md5 before and after.
+- W2-DATA's 59 new items needed no change. Tin, moss and cactus flower are materials (one per slot). Tools, nets
+  III-V and armour are one per slot. forge/anvil kits (building) and antivenom/antibiotic (medicine) fall in the
+  existing stacking categories.
+
+Gates: a fresh mkscratch tree of a7b49780 with the hooks patch (import: 0 "Failed to compile" / SCRIPT ERROR / Parse
+Error lines). Every run went through gslot; the logs are in scratch `w2inv-sync/logs/gates`.
+- All 22 `t_*.gd` exit 0 with their PASS line. 0 SCRIPT ERROR, except t_save's 5 deliberate ones (`[t_save] PASS`).
+  Lines: `[t_data] PASS items=223 recipes=155`, `[t_w2_skills] PASS`, `[t_inventory] PASS`, `[t_items] PASS`,
+  `[t_player] PASS`, `[t_tame] PASS`, `[t_build] PASS`, `[t_srvdom] PASS`, `[t_server_domain] PASS`, `[t_ui] PASS`,
+  `[t_uiicons] PASS ids=171 files=114 ...`, `[t_web] PASS`, `[t_ai] PASS`, `[t_canim] PASS`, `[t_combat] PASS`,
+  `[t_harbour] PASS islands=15`, `[t_iconart] PASS`, `[t_light] PASS` (t_light, t_lighting), `[t_occlude] PASS`,
+  `[t_structart] PASS`.
+- `run_all.gd`: `[tests] PASS`. `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- Labs exit 0 with 0 SCRIPT ERROR: `[invlab] PASS empty_cells=100/97 slots=100 groups=20 stone_open=17 equip_l30=true
+  full_unequip_notice=true`, `[craft_lab] PASS`, `[equiplab] PASS`, `[kitchen_lab] PASS`. Windowed
+  `ui_real_capture_lab` at 844x390 on gl_compatibility: `[uireal] PASS screens=hud,craft,...,bag,charcreate,...`,
+  0 SCRIPT ERROR.
+- 0 "couldn't resolve track" in every log. No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (34 before and
+  after; the newest is still 2026-10-20-202004).
+- Shots opened and looked at (gl_compatibility; in scratch `w2inv-sync/shots`, not in the repo):
+  - inventory_lab full bag at 1600x900 and 844x390: as in round 3. Group pills 16..2 with "Lv 1-16" style ranges,
+    "×45" and "×6" stacks with no pill, single tools "Lv 1", "Bag 100 / 100".
+  - ui_real_capture_lab bag at 844x390: the empty bag grid, "Bag 0 / 100".
+
 ## Review round 3 fixes (2026-10-20)
 Each finding, the fix, the check that would have caught it, and that check run against the reviewed code (064ae99b
 with its hooks patch, a mkscratch tree with the new test files copied in: `old_*.log` in scratch `w2inv-r3/`) or
