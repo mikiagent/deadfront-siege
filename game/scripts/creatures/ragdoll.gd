@@ -298,8 +298,12 @@ func _plan_pose() -> void:
 	if _align:
 		var down := (Vector3.DOWN - n * Vector3.DOWN.dot(n)).normalized()
 		var contour := down.cross(n).normalized()
-		up = contour * signf(contour.dot(_side) if absf(contour.dot(_side)) > 1e-3 else 1.0)
 		fwd = down * signf(fwd.dot(down) if absf(fwd.dot(down)) > 1e-3 else 1.0)
+		# The flank it topples onto stays down: rolled onto its right (_side = its right) its right
+		# axis (up x back) ends along -n. (Picking up by _side alone was a coin toss for a body that
+		# topples along the fall line, and the spring then rolled it over its back to the other flank.)
+		var flank := signf(_side.dot(creature.global_basis.x))
+		up = contour * signf(contour.cross(-fwd).dot(-n * flank))
 	# A little toward the belly: the legs' dead weight then holds it on the flank instead of rolling
 	# it onto its back, and the upper legs lean toward the ground.
 	var belly := deg_to_rad(float(g.get("belly_tilt_deg", 0.0)))
