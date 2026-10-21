@@ -80,18 +80,20 @@ index 0807595c..5d918552 100644
  
  func run(host: Node) -> void:
 diff --git a/game/scripts/dev/web_soak.gd b/game/scripts/dev/web_soak.gd
-index bce2ebab..a342e7b7 100644
+index bce2ebab..3db653af 100644
 --- a/game/scripts/dev/web_soak.gd
 +++ b/game/scripts/dev/web_soak.gd
-@@ -61,6 +61,14 @@ func run(host: Node) -> void:
+@@ -61,6 +61,16 @@ func run(host: Node) -> void:
  	var world_ui = (load("res://scripts/ui/world_ui.gd") as GDScript).ensure()
  	world_ui.show_harbour()
  	await _checkpoint("harbour-open")
-+	await get_tree().create_timer(1.5).timeout  # the harness shoots the Sail chart
 +	var sail: Array[Node] = world_ui.find_children("*", "SailScreen", true, false)
 +	if sail.is_empty():
 +		_fail("harbour did not open the Sail chart")
 +		return
++	var opened_at := (sail[0] as SailScreen).scroll_x
++	await get_tree().create_timer(3.0).timeout  # the harness shoots the Sail chart and may drag it 400 px
++	print("[soak] sail dragged %.1f px" % ((sail[0] as SailScreen).scroll_x - opened_at))
 +	(sail[0] as SailScreen).scroll_to(INF)
 +	await _checkpoint("sail-right")
 +	await get_tree().create_timer(1.5).timeout
@@ -99,7 +101,7 @@ index bce2ebab..a342e7b7 100644
  	await _checkpoint("harbour-closed")
  
 diff --git a/game/scripts/ui/map_screen.gd b/game/scripts/ui/map_screen.gd
-index a4631250..af23e2aa 100644
+index a4631250..5b4952d4 100644
 --- a/game/scripts/ui/map_screen.gd
 +++ b/game/scripts/ui/map_screen.gd
 @@ -147,7 +147,7 @@ func _region_card(id: String, entry: Dictionary) -> Button:
@@ -111,23 +113,24 @@ index a4631250..af23e2aa 100644
  	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
  	b.clip_text = true
  	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-@@ -191,15 +191,6 @@ func _material_line(climate: String) -> String:
+@@ -191,14 +191,9 @@ func _material_line(climate: String) -> String:
  		return "Resources —"
  	return UiTokens.ellipsis(ThemeDB.fallback_font, " · ".join(names), 200.0, 14)
  
 -## Island name for people: its display name, or "<Climate> Island" when the data only has an id.
--static func island_name(id: String) -> String:
++## Kept for callers outside the atlas (the Island Market's header); the rule lives in World.island_name.
+ static func island_name(id: String) -> String:
 -	var def := World.def_of(StringName(id))
 -	var dn := str(def.get("display_name", ""))
 -	if dn == "" or dn == id.replace("_", " ").capitalize():
 -		var climate := str(def.get("climate", ""))
 -		return ("%s Island" % climate.capitalize()) if climate != "" else id.replace("_", " ").capitalize()
 -	return dn
--
++	return World.island_name(StringName(id))
+ 
  static func _species_name(id: String) -> String:
  	if id == "":
- 		return ""
-@@ -375,7 +366,7 @@ func _draw() -> void:
+@@ -375,7 +370,7 @@ func _draw() -> void:
  	var close_w := minf(160.0, maxf(96.0, r.x * 0.36))
  	var text_w := r.x - MARGIN * 2.0 - close_w - 12.0
  	draw_string(font, Vector2(MARGIN, MARGIN + head), title, HORIZONTAL_ALIGNMENT_LEFT, text_w, head, Color.WHITE)
