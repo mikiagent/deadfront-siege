@@ -18,7 +18,7 @@ What binds it:
 Already in the base:
 - `game/data/skills/occupations.json` has the eight occupations (id, name, tree, story).
 - `game/scripts/ui/character_creation.gd` handles occupation, gender and name, and World/SaveGame apply and save the occupation.
-- The only survivor model is a woman (`game/data/characters/survivor.json`). A male survivor is new character art, which needs a concept sheet approved by the owner before any Tripo spend.
+- CORRECTION (2026-10-20, from renders of the model): the shipped survivor v2 (`survivor.glb`, Tripo, 65 bones, 29 clips, 3 armour kits) is a MAN. `survivor.json` still carries v1's "adult woman" text. The woman was survivor v1 (Meshy, 24 joints), which cannot use v2's clips or kits. The missing base is a FEMALE v2, which is new character art and needs an owner-approved concept sheet before any Tripo spend.
 
 ## Step 2: Create Character (owner, same day)
 
@@ -40,7 +40,7 @@ Reference: `docs/reference/durango-create-character.png`. The rest of this secti
   - A yellow "Next" button.
 - **Our gaps:**
   - We have no painted portrait art. A painted set is new art, and the owner chooses its source.
-  - Our only survivor model is female, and the owner has not yet answered whether to make a male one.
+  - Our only v2 survivor model is male (see the correction above). A female v2 base waits for the owner.
 
 ## Appearance list, Color tab and Name step (owner, same day)
 
