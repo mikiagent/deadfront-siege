@@ -294,6 +294,13 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
 
 ## Optional endgame gates. Existing recipes are unchanged.
 static func progression_block(player: Player, rec: Dictionary) -> String:
+	# W2-SKILLS: a recipe a skill node gates (a node's recipe effect or the recipe's requires_node)
+	# stays shown but locked, saying what to learn: "learn X (Tree Lv. N, SP)". It covers both kinds
+	# of gate, so it is the only requires_node check here (W2-DATA's own check folds into it).
+	if player != null and player.skills != null:
+		var learn := SkillRules.recipe_block(player.skills, str(rec.get("id", "")))
+		if learn != "":
+			return learn
 	var survival := int(rec.get("required_survival", 0))
 	if survival > 0 and (player == null or player.skills == null or player.skills.level_of("survival") < survival):
 		return "needs Survival %d" % survival
@@ -451,6 +458,8 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
 			return &"fibre_stalk"
 		"bucket":
 			return &"empty_bucket"
+		"cured_hide":
+			return &"dried_hide"
 		_:
 			return cat
 
@@ -515,6 +524,8 @@ static func _category_hint(cat: StringName) -> String:
 			return "stone"
 		"lashing":
 			return "twine"
+		"cured_hide": # dried hide or straps; raw hide is dried first (PRD 8.3)
+			return "dried_hide"
 		"water":
 			return "water_bucket"
 		"spice":

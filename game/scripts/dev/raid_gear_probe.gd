@@ -1,8 +1,9 @@
 extends Node
 ## Seeded raid kit fixture: real craft allocation and formulas, neutral boss genetics, fixed RNG.
-## Expected numbers follow W1-ITEMS scaling: base x (1 + 0.08 x 59) x tier(metal_shard = flint 1.25).
-const MAUL_L60 := 220.0 * 5.72 * 1.25
-const KIT_ARMOR_L60 := (300.0 + 700.0 + 300.0) * 5.72 * 1.25
+## Expected numbers follow W1-ITEMS scaling: base x (1 + 0.08 x 59) x tier(steel_ingot = steel 2.45).
+## W2-DATA: the kit is made from steel; base values were rebased so these match the old shard-tier kit.
+const MAUL_L60 := 112.0 * 5.72 * 2.45
+const KIT_ARMOR_L60 := (153.0 + 357.0 + 153.0) * 5.72 * 2.45
 var failures: Array[String] = []
 var started := false
 func check(ok: bool, label: String) -> void:
@@ -20,8 +21,11 @@ func run(_host: Node) -> void:
 	player.skills.trees["survival"]["level"] = 50
 	for tree in ["weapon_tools", "tailoring", "processing", "melee"]:
 		player.skills.trees[tree]["level"] = 60
+	# Raid recipes need the steel rung's skill nodes (W2-DATA requires_node).
+	player.skills.trees["weapon_tools"]["unlocked"].append("iron_weapons")
+	player.skills.trees["tailoring"]["unlocked"].append("scute_armor")
 	player.inventory = Inventory.new(40)
-	player.inventory.add(stack(&"metal_shard", 40))
+	player.inventory.add(stack(&"steel_ingot", 20))
 	player.inventory.add(stack(&"branch", 10))
 	player.inventory.add(stack(&"hide_strap", 30))
 	player.inventory.add(stack(&"dried_hide", 30))
@@ -119,7 +123,7 @@ func run(_host: Node) -> void:
 	player.inventory.unequip(&"head")
 	check(not player.inventory.has_raid_protection(), "incomplete kit loses status protection")
 	var inv := Inventory.new(10)
-	inv.add(stack(&"metal_shard", 8, 10))
+	inv.add(stack(&"steel_ingot", 4, 10))
 	inv.add(stack(&"branch", 2, 10))
 	inv.add(stack(&"hide_strap", 4, 10))
 	player.inventory = inv

@@ -313,6 +313,8 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 	rt._tile_span = maxi(1, int(round(rt._size)))
 	var types := PackedByteArray()
 	types.resize(rt._tile_span * rt._tile_span)
+	var fresh := PackedByteArray()
+	fresh.resize(types.size())
 	rt._tile_map_image = Image.create(rt._tile_span, rt._tile_span, false, Image.FORMAT_R8)
 	rt._tile_map_image.fill(Color.BLACK)
 	var has_ash := _climate_has_material(climate, "ash")
@@ -347,8 +349,10 @@ static func _build_tile_types(rt: IslandRuntime, climate: String) -> void:
 				t = TileType.DIRT
 			var idx := x + z * rt._tile_span
 			types[idx] = t
+			fresh[idx] = 1 if t == TileType.MUD else 0
 			rt._tile_map_image.set_pixel(x, z, Color(float(t) / 255.0, 0.0, 0.0))
 	rt.tile_types = types
+	rt.fresh_water = fresh
 	rt._tile_map_tex = ImageTexture.create_from_image(rt._tile_map_image)
 
 static func _terrain_material(rt: IslandRuntime) -> ShaderMaterial:
@@ -406,6 +410,14 @@ static func tile_type_at_world(rt: IslandRuntime, x: float, z: float) -> int:
 	var tx := clampi(int(floor(x + rt._size * 0.5)), 0, rt._tile_span - 1)
 	var tz := clampi(int(floor(z + rt._size * 0.5)), 0, rt._tile_span - 1)
 	return int(rt.tile_types[tile_idx(rt, tx, tz)])
+
+## River water as built (WaterAccess): a harvested node's BARE tile in the channel stays fresh.
+static func fresh_water_at_world(rt: IslandRuntime, x: float, z: float) -> bool:
+	if rt.fresh_water.is_empty():
+		return false
+	var tx := clampi(int(floor(x + rt._size * 0.5)), 0, rt._tile_span - 1)
+	var tz := clampi(int(floor(z + rt._size * 0.5)), 0, rt._tile_span - 1)
+	return rt.fresh_water[tile_idx(rt, tx, tz)] == 1
 
 static func set_tile_type(rt: IslandRuntime, tile: Vector2i, tile_type: int) -> void:
 	if rt.tile_types.is_empty():
