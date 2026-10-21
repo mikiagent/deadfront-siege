@@ -1,7 +1,9 @@
 class_name MarketRail
 extends Control
 ## The left rail: Buy (cart), My Market (ledger), Sell (price tag). The active tab is lighter, with
-## four yellow L brackets and a yellow icon and label (spec 14 references).
+## four yellow L brackets and a yellow icon and label (spec 14 references). Under the tabs, quiet
+## grey words say when this is the local test server (spec 06: never a falsely represented live
+## market); the title bar stays the island's name alone, as in the references.
 # swap: INVUI SelectionBrackets for the brackets.
 
 signal tab_selected(id: StringName)
@@ -9,6 +11,7 @@ signal tab_selected(id: StringName)
 const TABS := [[&"buy", "Buy", &"cart"], [&"my_market", "My Market", &"ledger"], [&"sell", "Sell", &"tag"]]
 
 var active := &"buy"
+var note := "" ## "" on the live server; the test server's label otherwise
 var buttons: Dictionary = {} ## id -> Button
 var _m := {}
 
@@ -62,3 +65,15 @@ func _draw() -> void:
 		else:
 			label_y = r.get_center().y
 		MarketTheme.text(self, t[1], r.position.x + 4, label_y, r.size.x - 8, fs, col, HORIZONTAL_ALIGNMENT_CENTER)
+	if note != "":
+		var last: Button = buttons[TABS.back()[0]]
+		var top := last.position.y + last.size.y + 8.0
+		var p := TextParagraph.new()
+		p.add_string(note, MarketTheme.font(), _m.type)
+		p.width = (size.x - 12.0) / MarketTheme.CONDENSE
+		p.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		p.break_flags = TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND
+		p.max_lines_visible = maxi(1, floori((size.y - top - 8.0) / p.get_line_size(0).y)) if p.get_line_count() > 0 else 1
+		draw_set_transform(Vector2(6.0, maxf(top, size.y - 10.0 - p.get_size().y)), 0.0, Vector2(MarketTheme.CONDENSE, 1.0))
+		p.draw(get_canvas_item(), Vector2.ZERO, MarketTheme.TEXT_2)
+		draw_set_transform(Vector2.ZERO)

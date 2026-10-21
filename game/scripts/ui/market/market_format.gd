@@ -97,10 +97,40 @@ static func row(v: Dictionary) -> Dictionary:
 		return m
 	var def := Data.item(StringName(def_id))
 	m.name = def.display_name if def else def_id.capitalize()
-	m.type = category_title(market_category(def)) if def else ""
+	m.type = type_line(def)
 	if stack.max_durability > 0:
 		m.dur = "%d/%d" % [stack.durability, stack.max_durability]
 	return m
+
+## The grey line under a name: what kind of thing it is, as in the references ("Branch" under
+## "Raspberry Bush Branch", "Leg Bone" under "Leg Bone", the species under a pet).
+# ASSUMPTION (fidelity r2): a tool's class ("Knife"), else the item def's own name (our defs are
+# the types; there are no named varieties); the market category is the category column's title.
+static func type_line(def: ItemDef) -> String:
+	if def == null:
+		return ""
+	return str(def.tool_class).capitalize() if def.tool_class != &"none" else def.display_name
+
+## The search chip's words: the item types and species a name search matches, as the server matches
+## them (MarketQuery: def id or display name, species id, case-insensitive), Title-Case from the data
+## like the references' "Stick, Short Stick"; the player's words when nothing in the data matches.
+static func chip_text(q: String) -> String:
+	var lq := q.strip_edges().to_lower()
+	var names: Array = []
+	var denied: Array = EconRules.load_default().g("denied_defs")
+	for id: StringName in Data.items:
+		var def: ItemDef = Data.items[id]
+		if str(id) not in denied and str(id) != AssetValidator.CAGE and (str(id).contains(lq) or def.display_name.to_lower().contains(lq)):
+			names.append(def.display_name)
+	for id: StringName in Data.creatures:
+		var c: CreatureDef = Data.creatures[id]
+		if (c.tameable or c.capture_tier > 0) and str(id).contains(lq):
+			names.append(species_name(str(id)))
+	if names.is_empty():
+		return q.strip_edges()
+	names.sort()
+	var shown := ", ".join(names.slice(0, 3))
+	return shown + (" +%d" % (names.size() - 3) if names.size() > 3 else "")
 
 ## The asset's own facts, one per line, read from its dict (never recomputed): the Buy confirm and
 ## the Sell panel. `kind` is "pet" or "item".

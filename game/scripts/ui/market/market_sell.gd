@@ -43,12 +43,15 @@ func set_wallet(n: int, lock_s: int = 0) -> void:
 	form.lock_s = lock_s
 	form.refresh()
 
-## Reads the server character and its market storage again and rebuilds the picker.
+## Reads the server character, its market storage and its open listings again and rebuilds the picker.
 func reload() -> void:
 	if client == null:
 		return
 	var ch: Dictionary = await client.request("char.get")
 	var vault: Dictionary = await client.request("vault.get")
+	# The open-listing cap is checked before List moves anything (My Market's Active n/50).
+	var mine: Dictionary = await client.request("market.mine", {"page": 1, "page_size": 1})
+	form.open_listings = (mine.r.get("listings", []) as Array).size() if mine.get("ok", false) else 0
 	if not ch.get("ok", false):
 		entries = []
 		picker.show_entries([], "", MarketFormat.error_text(ch))

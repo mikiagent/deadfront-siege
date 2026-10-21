@@ -84,11 +84,15 @@ func layout(m: Dictionary, rect: Rect2) -> void:
 	var inner := Vector2(size.x - pad * 2.0, size.y - th - pad - 2.0)
 	var cols := maxi(3, floori(inner.x / (76.0 if m.compact else 132.0)))
 	_cell = floorf(inner.x / cols)
+	# Whole rows fill the panel (a part row cut by its edge read as clipped): cells a little taller
+	# or shorter than wide, like the Bag's compartments.
+	var rows_shown := maxi(1, roundi(inner.y / _cell))
+	var cell := Vector2(_cell, floorf(inner.y / rows_shown))
 	_grid.columns = cols
 	for c in cells:
-		c.custom_minimum_size = Vector2(_cell, _cell)
+		c.custom_minimum_size = cell
 	# Empty compartments fill the visible rows, like the Bag's grid (they are not targets).
-	var want := maxi(0, cols * ceili(inner.y / _cell) - cells.size())
+	var want := maxi(0, cols * rows_shown - cells.size())
 	while _fill.size() > want:
 		var gone: Control = _fill.pop_back()
 		_grid.remove_child(gone)
@@ -100,7 +104,7 @@ func layout(m: Dictionary, rect: Rect2) -> void:
 		_grid.add_child(f)
 		_fill.append(f)
 	for f in _fill:
-		f.custom_minimum_size = Vector2(_cell, _cell)
+		f.custom_minimum_size = cell
 		f.queue_redraw()
 	_scroll.position = Vector2(pad, th + 2.0)
 	_scroll.size = inner
@@ -137,17 +141,12 @@ func _draw_cell(b: Button, e: Dictionary) -> void:
 	var fs: int = _m.type
 	var art := r.grow(-r.size.x * 0.17)
 	art.position.y += fs * 0.3
-	var tex := ItemArt.texture_for(e.icon)
-	if tex:
-		var src := ItemArt.content_rect(e.icon)
-		var k := minf(art.size.x / src.size.x, art.size.y / src.size.y)
-		var d := src.size * k
-		var tint: Color = e.tint
-		if refused:
-			tint = Color(tint.r * 0.5, tint.g * 0.5, tint.b * 0.5, 0.45)
-		b.draw_texture_rect_region(tex, Rect2(art.get_center() - d * 0.5, d), src, tint)
+	var tint: Color = e.tint
+	if refused:
+		tint = Color(tint.r * 0.5, tint.g * 0.5, tint.b * 0.5, 0.45)
+	MarketIcon.paint(b, e.icon, art, tint)
 	var inset := 8.0 # tags and labels sit inside the bracket corners
-	MarketTheme.text(b, LevelDisplay.label(e.level), 4, inset + fs * 0.5, r.size.x - inset - 6, fs, MarketTheme.TEXT_2, HORIZONTAL_ALIGNMENT_RIGHT)
+	MarketTheme.text(b, LevelDisplay.label(e.level), 4, inset + fs * 0.5, r.size.x - inset - 6, fs, MarketTheme.LV, HORIZONTAL_ALIGNMENT_RIGHT)
 	if e.badge:
 		MarketGlyphs.badge_b(b, Vector2(inset + fs * 0.7, inset + fs * 0.6), fs * 0.7)
 	var foot := 0.0 ## a "Stored" / "Equipped" ribbon along the bottom (a top-left tag ran into "Lv. n"); count and mark sit above it

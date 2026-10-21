@@ -28,7 +28,7 @@ var _sell_uid := "" ## the instance to preselect when Sell opens
 var keys := false ## the last input was a key or a gamepad: focus moves for it (a tap or click shows no focus ring)
 var _back_focus: Control ## where focus returns when the confirm panel closes
 var _backdrop: ColorRect
-var _sheet: Panel ## the tan parchment frame around the body (references: the torn band carries on as a sheet)
+var _sheet: ColorRect ## the torn paper: the band under the header, carried on as the frame round the body (references)
 var _m := {}
 
 ## The transport this game has: the socket when Game.net is online, else none (offline).
@@ -50,18 +50,16 @@ func _ready() -> void:
 	_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_backdrop)
-	_sheet = Panel.new()
-	_sheet.name = "Sheet"
-	_sheet.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sheet_sb := MarketTheme.flat(Color(0, 0, 0, 0), MarketTheme.PARCHMENT, 0, 0)
-	sheet_sb.draw_center = false
-	_sheet.add_theme_stylebox_override("panel", sheet_sb)
-	add_child(_sheet)
 	header = MarketHeader.new()
 	header.name = "Header"
 	header.back_pressed.connect(close_screen)
 	header.close_pressed.connect(close_screen)
 	add_child(header)
+	_sheet = ColorRect.new() # after the header: its rips bite into the black band
+	_sheet.name = "Sheet"
+	_sheet.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sheet.material = MarketTheme.paper()
+	add_child(_sheet)
 	rail = MarketRail.new()
 	rail.name = "Rail"
 	rail.tab_selected.connect(show_tab)
@@ -123,7 +121,7 @@ func open(p_player: Node, p_tab: StringName = &"buy", uid: String = "") -> void:
 	client = client_for_game()
 	visible = true
 	header.title = MapScreen.island_name(str(World.island_id))
-	header.badge = client.label() if client.kind() == &"local_test" else ""
+	rail.note = client.label() if client.kind() == &"local_test" else ""
 	header.set_wallet({})
 	var online := client.is_online()
 	offline_panel.visible = not online
@@ -182,6 +180,8 @@ func _reopen_lot() -> void:
 func refresh_wallet() -> void:
 	var res: Dictionary = await client.request("wallet.get")
 	if res.get("ok", false):
+		if buy.table.account != client.account:
+			buy.table.mark_own(client.account)
 		header.set_wallet(res.r)
 		sell.set_wallet(int(header.wallet.get("wallet", 0)), int(header.wallet.get("trade_lock_s", 0)))
 
@@ -246,9 +246,7 @@ func _confirm_focus() -> void:
 func _offline_panel() -> Control:
 	var p := PanelContainer.new()
 	p.name = "OfflinePanel"
-	var sb := MarketTheme.flat(MarketTheme.DIALOG, MarketTheme.BORDER, 2, 6)
-	sb.set_content_margin_all(24)
-	p.add_theme_stylebox_override("panel", sb)
+	MarketTheme.card(p, 24)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 12)
 	p.add_child(box)
@@ -280,13 +278,15 @@ func _layout() -> void:
 	header.layout(_m, view.x, ins.w, ins.x)
 	var top: float = _m.header_h + _m.edge_h + _m.margin * 0.5
 	var body := Rect2(left, top, view.x - left - right, view.y - top - _m.margin - ins.y)
-	# Parchment on the safe width's edges and under the body, up to 2 px of the panels' dark rims.
-	_sheet.position = Vector2(ins.w, _m.header_h + _m.edge_h * 0.5)
+	# Paper from the header's lower edge (its rips bite into the black) round the body, inside the
+	# safe width, up to 2 px of the panels' dark rims; the body shows through its hole.
+	_sheet.position = Vector2(ins.w, _m.header_h - _m.edge_h * 0.35)
 	_sheet.size = Vector2(view.x - ins.w - ins.x, view.y - _sheet.position.y)
-	var sheet_sb := _sheet.get_theme_stylebox("panel") as StyleBoxFlat
-	sheet_sb.border_width_left = int(_m.margin) - 2
-	sheet_sb.border_width_right = int(_m.margin) - 2
-	sheet_sb.border_width_bottom = int(_m.margin + ins.y) - 2
+	var hole := Rect2(body.position - _sheet.position, body.size).grow(2.0)
+	var paper := _sheet.material as ShaderMaterial
+	paper.set_shader_parameter("size", _sheet.size)
+	paper.set_shader_parameter("tear", _m.edge_h * 0.9)
+	paper.set_shader_parameter("hole", Vector4(hole.position.x, hole.position.y, hole.end.x, hole.end.y))
 	rail.layout(_m, Rect2(body.position, Vector2(_m.rail_w, body.size.y)))
 	var content := Rect2(body.position.x + _m.rail_w + _m.margin, body.position.y, body.size.x - _m.rail_w - _m.margin, body.size.y)
 	buy.layout(_m, content)

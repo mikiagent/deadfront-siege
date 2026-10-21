@@ -123,6 +123,9 @@ func _run() -> void:
 		await _test_trade_lock(hs, ms_script)
 		await _test_partial_lot(hs, ms_script)
 		await _test_slow_transport(hs, ms_script)
+		await _test_sell_cap(hs, ms_script)
+		await _test_account_learned(hs, ms_script)
+		await _test_look_r2(hs, ms_script)
 		await _test_my_market(hs, ms_script)
 		await _test_cancel(hs, ms_script)
 		await _test_receive_all(hs, ms_script)
@@ -386,7 +389,8 @@ func _test_categories(hs: GDScript, ms_script: GDScript) -> void:
 	col.emit_signal("picked", "clade:Dromaeosauridae")
 	_expect(_row_keys(table).is_empty() and str((table.get("_empty") as Label).text).contains("Taming Materials"), "Raptor Type: no listings, said so")
 	search.emit_signal("category_chosen", "wood")
-	_expect((table.get("rows") as Array).all(func (r: Control) -> bool: return r.get("model").type == "Wood") and _row_keys(table).count("item:branch") == 3, "Wood: only wood items: %s" % [_row_keys(table)])
+	var wood: Array = (MF.call("defs_in", "wood") as Array).map(func (d: Resource) -> String: return "item:%s" % d.get("id"))
+	_expect(_row_keys(table).all(func (k: String) -> bool: return k in wood) and _row_keys(table).count("item:branch") == 3, "Wood: only wood items: %s" % [_row_keys(table)])
 	col.emit_signal("picked", "def:branch")
 	_expect(_row_keys(table) == ["item:branch", "item:branch", "item:branch"], "Wood > Branch: the three branches")
 	var everything := (h.call("op", 1, "market.search", {"page_size": 20}).r.results as Array).size()
@@ -396,16 +400,6 @@ func _test_categories(hs: GDScript, ms_script: GDScript) -> void:
 	search.emit_signal("category_chosen", "wood")
 	search.emit_signal("category_chosen", "")
 	_expect(not col.visible and _row_keys(table).size() == everything, "the search sheet's All shows everything too")
-	search.emit_signal("searched", "branch")
-	await process_frame
-	var chips: Array = table.get("chips")
-	_expect(chips.size() == 1 and _row_keys(table).size() == 3, "a name search shows a chip and only matching rows")
-	var chip := table.find_child("Chip_q", true, false) as Button
-	# The chip's words are drawn condensed (no Button text in the wide font) with 14 px either side.
-	var cw: float = load("res://scripts/ui/market/market_theme.gd").width("branch  ×", maxi(14, int((table.get("_m") as Dictionary).get("name", 16)) - 2)) + 28.0
-	_expect(chip != null and chip.tooltip_text == "Clear branch" and chip.text == "" and absf(chip.size.x - cw) < 1.0, "the chip names the search plainly, condensed and evenly padded: '%s' %.0f px (%.0f)" % [chip.tooltip_text if chip else "-", chip.size.x if chip else 0.0, cw])
-	table.emit_signal("chip_removed", &"q")
-	_expect((table.get("chips") as Array).is_empty() and _row_keys(table).size() > 3, "removing the chip clears the search")
 	ms.queue_free()
 	print("[t_exchange] categories: Animals %d rows, clades %s" % [keys.size(), titles.size() - 1])
 
@@ -744,6 +738,121 @@ func _test_slow_transport(hs: GDScript, ms_script: GDScript) -> void:
 	_expect(net.sent.count("vault.deposit") == 1 and net.sent.count("market.list_fixed") == 1, "network: a double tap on List sends one deposit and one listing (%d, %d): %s" % [net.sent.count("vault.deposit"), net.sent.count("market.list_fixed"), (form.get("status") as Label).text])
 	ms.queue_free()
 	print("[t_exchange] network transport: one market.buy, one market.cancel, one deposit + list_fixed for double taps")
+
+## Review r2: with the open-listing cap reached, List is off before anything moves (the server
+## refused the 51st listing only after vault.deposit had taken the item out of the bag).
+func _test_sell_cap(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/cap")
+	h.call("seed_scene")
+	var cap := int(EconRules.load_default().num("max_open_listings"))
+	var open_n := func () -> int: return (h.call("op", 1, "market.mine", {}).r.listings as Array).size()
+	while open_n.call() < cap:
+		h.call("_gather", 1, "dry_grass", 1)
+		if h.call("list_one", 1, "dry_grass", 1, 5) == "":
+			break
+	_expect(open_n.call() == cap, "the viewer has %d open listings (%d)" % [cap, open_n.call()])
+	var ms: Control = await _open_sell(h, 1, ms_script)
+	var sell: Control = ms.get("sell")
+	var form: Control = sell.get("form")
+	var bone := _entry(sell, func (e: Dictionary) -> bool: return e.src == "bag" and str(e.asset.get("id", "")) == "bone")
+	await _click_cell(sell, str(bone.uid))
+	(form.get("price_edit") as LineEdit).text_changed.emit("20")
+	var list_btn := form.get("list_btn") as Button
+	var status := form.get("status") as Label
+	_expect(list_btn.disabled and list_btn.text == "At most %d open listings" % cap and status.text.contains("%d listings open" % cap), "at the cap List is off and says why: '%s' / %s" % [list_btn.text, status.text])
+	var books := func () -> String: return JSON.stringify([h.call("op", 1, "char.get", {}).r.bag, h.call("op", 1, "vault.get", {}).r, h.call("op", 1, "wallet.get", {}).r])
+	var before: String = books.call()
+	_click(list_btn)
+	await sell.call("list_selected")
+	_expect(books.call() == before and open_n.call() == cap, "nothing left the bag for a listing the cap would refuse")
+	ms.queue_free()
+	print("[t_exchange] listing cap: %d open -> List off before the deposit, nothing moved" % cap)
+
+## Review r2: a transport that does not report the account (NET without account_id). The client
+## learns it from the server's answers: market.mine's own listings (History's Sold / Bought) and,
+## with hook H6, wallet.get's account_id (own Buy rows say "Your listing").
+func _test_account_learned(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/acct")
+	h.call("seed_scene")
+	var net := BridgeNet.new()
+	net.h = h
+	net.write_ops = (load("res://scripts/ui/market/market_client.gd") as GDScript).get_script_constant_map().WRITE_OPS
+	var nmc: RefCounted = (load("res://scripts/ui/market/net_market_client.gd") as GDScript).new(net)
+	nmc.set("account", -1) # NET did not say who this is
+	ms_script.set("test_client", nmc)
+	var ms: Control = await _open(ms_script)
+	var table: Control = ms.get("buy").get("table")
+	await _until(func () -> bool: return not (table.get("rows") as Array).is_empty() and not (ms.get("header").get("wallet") as Dictionary).is_empty())
+	if (h.call("op", 1, "wallet.get", {}).r as Dictionary).has("account_id"):
+		var own := (table.get("rows") as Array).filter(func (r: Control) -> bool: return int(r.get("view").seller) == 1)
+		_expect(int(nmc.get("account")) == 1 and not own.is_empty() and own.all(func (r: Control) -> bool: return r.get("own")), "wallet.get's account_id marks the player's own Buy rows (%d of them)" % own.size())
+	else:
+		_hook_absent("H6", "wallet.get's account_id for own Buy rows")
+	nmc.set("account", -1)
+	_click((ms.get("rail") as Control).get("buttons")[&"my_market"])
+	var mine: Control = ms.get("mine")
+	await _until(func () -> bool: return not (mine.get("mine") as Dictionary).is_empty())
+	mine.call("show_sub", &"history")
+	var trades: Array = h.call("op", 1, "market.mine", {}).r.trades
+	var want := trades.map(func (t: Dictionary) -> String: return "Sold to Settlers" if bool(t.npc) else ("Sold" if int(t.seller) == 1 else "Bought"))
+	var got := (mine.get("rows") as Array).map(func (r: Control) -> String: return str(r.get("model").dur).get_slice(" · ", 0))
+	_expect(int(nmc.get("account")) == 1 and got == want and "Sold" in got and "Bought" in got, "History tells Sold from Bought with the account learned from market.mine: %s (want %s)" % [got, want])
+	ms.queue_free()
+	print("[t_exchange] account learned: %s" % [got])
+
+## Review r2 (fidelity): one condensed typeface, textured cards, a coin on the confirm's price, Close
+## and Buy sharing the width, the chip naming item types with a large X and no outline, type lines
+## naming the kind of thing, the test server said in the rail (not the title bar), the market's own
+## pet carrier and crate while those have no render, the Bag's dim "Lv. n".
+func _test_look_r2(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/look")
+	h.call("seed_scene")
+	ms_script.set("test_client", h.call("client", 1))
+	var ms: Control = await _open(ms_script)
+	var mt := load("res://scripts/ui/market/market_theme.gd") as GDScript
+	var table: Control = ms.get("buy").get("table")
+	var header: Control = ms.get("header")
+	var rail: Control = ms.get("rail")
+	_expect(header.get("badge") == null and str(rail.get("note")).contains("not the live market"), "the test server is said in the rail, the title bar is the island's name: '%s'" % rail.get("note"))
+	var types := {}
+	for r: Control in table.get("rows"):
+		types[str(r.get("view").key)] = str(r.get("model").type)
+	_expect(types.get("item:branch") == "Branch" and types.get("item:stone_knife_work") == "Knife", "type lines name the kind of thing (Branch, Knife), not the market category: %s" % types)
+	(ms.get("search") as Control).emit_signal("searched", "branch")
+	await process_frame
+	var chip := table.find_child("Chip_q", true, false) as Button
+	var cs := maxi(14, int((table.get("_m") as Dictionary).get("name", 16)) - 2)
+	var cw: float = mt.call("width", "Branch", cs) + roundf(cs * 0.8) + 38.0
+	var sb := chip.get_theme_stylebox("normal") as StyleBoxFlat if chip else null
+	_expect(chip != null and chip.tooltip_text == "Clear Branch" and chip.text == "" and absf(chip.size.x - cw) < 1.0 and sb.border_width_left == 0 and chip.size.y >= 44.0, "the chip names the item type (Title-Case, from the data), with a large X, no outline, the whole chip a target: '%s' %.0fx%.0f px (%.0f)" % [chip.tooltip_text if chip else "-", chip.size.x if chip else 0.0, chip.size.y if chip else 0.0, cw])
+	_expect(MF.call("chip_text", "zzqx") == "zzqx" and str(MF.call("chip_text", "bone")).begins_with("Bone"), "a search nothing in the data matches keeps the player's words: %s" % MF.call("chip_text", "bone"))
+	table.emit_signal("chip_removed", &"q")
+	await process_frame
+	_click(_first(table, "item:stone_knife_work"))
+	await process_frame
+	var confirm: Control = ms.get("confirm")
+	var panel: Control = confirm.get("_panel")
+	var price_row := confirm.find_child("PriceRow", true, false) as Control
+	var b1 := confirm.get("buy_btn") as Button
+	var b2 := confirm.get("cancel_btn") as Button
+	_expect(price_row != null and str(price_row.tooltip_text).contains("40 T-stones") and absf(b1.size.x - b2.size.x) < 1.0 and b1.size.x + b2.size.x > panel.size.x * 0.7, "the confirm's price has the coin row and Close / Buy share the width (%.0f + %.0f of %.0f)" % [b2.size.x, b1.size.x, panel.size.x])
+	# One typeface: every market label and every labelled button draws its words condensed.
+	var wide: PackedStringArray = []
+	for c in ms.find_children("*", "Control", true, false):
+		if (c is Label and (c as Label).text != "") or (c is Button and (c as Button).text != ""):
+			if not c.has_meta(&"condensed") or (c is Label and (c as Label).visible_characters != 0):
+				wide.append(str(c.name))
+	_expect(wide.is_empty(), "every label and button in the market draws condensed: %s" % ", ".join(wide))
+	var cards := [panel, (ms.get("search") as Control).get("_panel"), ms.get("offline_panel"), (ms.get("sell") as Control).get("form")]
+	_expect(cards.all(func (c: Control) -> bool: return c.material is ShaderMaterial and str((c.material as ShaderMaterial).shader.code).contains("earth_at")), "the confirm, the search sheet, the offline card and Sell's panel are textured like the list panels")
+	_click(b2)
+	var mi := load("res://scripts/ui/market/market_icon.gd") as GDScript
+	var rendered: bool = ItemArt.is_rendered(&"tamed_animal")
+	_expect(mi.call("drawn_cage", &"tamed_animal") == (not rendered) and mi.call("drawn_cage", &"captured_animal") == (not ItemArt.is_rendered(&"captured_animal")) and not mi.call("drawn_cage", &"bone"), "pet carrier and crate are the market's own drawings until their renders land (rendered: %s)" % rendered)
+	var lv: Color = mt.get_script_constant_map().LV
+	_expect(lv.get_luminance() < (mt.get_script_constant_map().TEXT_2 as Color).get_luminance(), "the Bag cells' Lv. n is dimmer than the grey type lines")
+	ms.queue_free()
+	print("[t_exchange] look r2: chip '%s', types %s, rail note, condensed labels, textured cards" % [chip.tooltip_text if chip else "-", types])
 
 ## Waits (up to ~4 s of frames) for `cond`; the network transport answers on later frames.
 func _until(cond: Callable, frames: int = 240) -> void:
@@ -1114,14 +1223,17 @@ func _test_safe_area(hs: GDScript, ms_script: GDScript) -> void:
 			out.append("%s %s" % [c.name, r])
 	var header: Control = ms.get("header")
 	_expect(out.is_empty() and header.size.x == view.x, "with 47/47/21 px insets every target is inside the safe area, the header band spans the screen: %s" % ", ".join(out))
-	# Review r1 (fidelity): the torn band carries on as a tan parchment sheet around the body, inside the safe width.
+	# Review r1/r2 (fidelity): the torn paper band carries on as a frame round the body, inside the safe
+	# width; r2: it is a shader (rough rip, grain, grime, nails), not a flat polygon and a flat border.
 	var mt := load("res://scripts/ui/market/market_theme.gd") as GDScript
 	var sheet := ms.get_node_or_null("Sheet") as Control
-	var sb := sheet.get_theme_stylebox("panel") as StyleBoxFlat if sheet else null
+	var paper := sheet.material as ShaderMaterial if sheet else null
 	var body := (ms.get("rail") as Control).get_global_rect().merge((ms.get("buy") as Control).get_global_rect())
-	_expect(sb != null and sheet.visible and sb.border_color.is_equal_approx(mt.get_script_constant_map().PARCHMENT) and sb.border_width_left >= 6 and sb.border_width_bottom >= 6 \
-		and sheet.get_global_rect().position.x >= safe.position.x - 0.5 and sheet.get_global_rect().end.x <= safe.end.x + 0.5 and sheet.get_global_rect().encloses(body) \
-		and body.position.x - sheet.get_global_rect().position.x >= sb.border_width_left, "a parchment frame sits around the rail and the table, inside the safe width: %s around %s" % [sheet.get_global_rect() if sheet else "none", body])
+	var hole: Vector4 = paper.get_shader_parameter("hole") if paper else Vector4.ZERO
+	var hole_r := Rect2(sheet.global_position + Vector2(hole.x, hole.y), Vector2(hole.z - hole.x, hole.w - hole.y)) if sheet else Rect2()
+	_expect(paper != null and sheet.visible and str(paper.shader.code).contains("tear") and hole_r.encloses(body) and hole_r.position.x - sheet.global_position.x >= 6.0 \
+		and sheet.get_global_rect().end.y - hole_r.end.y >= 6.0 and sheet.global_position.y < (ms.get("header") as Control).get("_m").header_h \
+		and sheet.get_global_rect().position.x >= safe.position.x - 0.5 and sheet.get_global_rect().end.x <= safe.end.x + 0.5, "a torn paper sheet frames the rail and the table, inside the safe width, ripping into the header: %s hole %s around %s" % [sheet.get_global_rect() if sheet else "none", hole_r, body])
 	# Drawn text is condensed (Durango's narrow sans): the same words take ~85 % of the plain font's width.
 	var plain := ThemeDB.fallback_font.get_string_size("Captured Compsognathus", HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
 	var drawn: float = mt.call("width", "Captured Compsognathus", 20)

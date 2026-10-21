@@ -3,7 +3,7 @@ extends Button
 ## One table row = one listing = one exact instance (three single branches are three rows).
 ## Icon, gold name over a grey type line, "Lv. n", "cur/max" or "—", coin + price. A bonded pet
 ## gets the reference's "B" badge before its name; a captured one reads "Captured <species>".
-# swap: INVUI ItemIcon / LevelLabel when they land.
+# swap: INVUI LevelLabel when it lands (the icon is MarketIcon's).
 
 var view: Dictionary ## the market.search result, as the server sent it
 var model: Dictionary ## MarketFormat.row(view)
@@ -37,12 +37,7 @@ func _draw() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(1, 1, 1, 0.05))
 	MarketTheme.dotted(self, Vector2(8, h - 1), Vector2(size.x - 8, h - 1))
 	var isz: float = _m.icon
-	var tex := ItemArt.texture_for(model.icon)
-	if tex:
-		var src := ItemArt.content_rect(model.icon)
-		var k := isz / maxf(src.size.x, src.size.y)
-		var d := src.size * k
-		draw_texture_rect_region(tex, Rect2(cols.icon_x + (isz - d.x) * 0.5, mid - d.y * 0.5, d.x, d.y), src, model.tint)
+	MarketIcon.paint(self, model.icon, Rect2(cols.icon_x, mid - isz * 0.5, isz, isz), model.tint)
 	var nx: float = cols.name_x
 	var nw: float = cols.name_w
 	var ns: int = _m.name

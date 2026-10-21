@@ -24,10 +24,14 @@ var status: Label
 var _panel: PanelContainer
 var _band: PanelContainer
 var _body: MarginContainer
-var _icon: TextureRect
+var _icon: MarketIcon
 var _name: Label
 var _lines: Label
-var _price_row: Label
+var _price_row: Control ## "Price  (coin) 40  (8 each)": drawn, with the coin every other price has
+var _price_cap := "Price"
+var _price_total := 0
+var _price_note := ""
+var _price_fs := 18
 var _balance: Label
 var _safe := Rect2() ## the safe area the panel centres in (MarketScreen metrics)
 
@@ -39,9 +43,7 @@ func _ready() -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(dim)
 	_panel = PanelContainer.new()
-	var sb := MarketTheme.flat(MarketTheme.DIALOG, MarketTheme.BORDER, 2, 6)
-	sb.set_content_margin_all(0)
-	_panel.add_theme_stylebox_override("panel", sb)
+	MarketTheme.card(_panel, 0)
 	add_child(_panel)
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 0)
@@ -66,9 +68,7 @@ func _ready() -> void:
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 14)
 	box.add_child(top)
-	_icon = TextureRect.new()
-	_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_icon = MarketIcon.new()
 	top.add_child(_icon)
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -76,7 +76,10 @@ func _ready() -> void:
 	top.add_child(info)
 	_lines = MarketTheme.label("", 16, MarketTheme.TEXT) # one fact per line, short: no wrap (wrapped labels measured the panel full-height)
 	info.add_child(_lines)
-	_price_row = MarketTheme.label("", 18, MarketTheme.TEXT)
+	_price_row = Control.new()
+	_price_row.name = "PriceRow"
+	_price_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_price_row.draw.connect(_draw_price)
 	box.add_child(_price_row)
 	_balance = MarketTheme.label("", 15, MarketTheme.TEXT_2)
 	_balance.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -85,14 +88,17 @@ func _ready() -> void:
 	status.name = "BuyStatus"
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(status)
-	var buttons := HBoxContainer.new()
-	buttons.alignment = BoxContainer.ALIGNMENT_END
+	var gap := Control.new() # the buttons stand apart from the last line of text
+	gap.custom_minimum_size.y = 6
+	box.add_child(gap)
+	var buttons := HBoxContainer.new() # Close and Buy share the body's width: even margins both sides
 	buttons.add_theme_constant_override("separation", 12)
 	box.add_child(buttons)
 	cancel_btn = Button.new()
 	cancel_btn.name = "BuyCancel"
 	cancel_btn.text = "Close"
 	cancel_btn.pressed.connect(func () -> void: dismissed.emit())
+	cancel_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	buttons.add_child(cancel_btn)
 	buy_btn = Button.new()
 	buy_btn.name = "BuyConfirm"
@@ -101,6 +107,7 @@ func _ready() -> void:
 			cancel_listing()
 		else:
 			buy())
+	buy_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	buttons.add_child(buy_btn)
 
 ## Shows one listing. `p_tradable` is the header's tradable balance (wallet.get); `lock_s` its
@@ -114,13 +121,11 @@ func open(p_client: MarketClient, v: Dictionary, p_tradable: int, own: bool, m: 
 	visible = true
 	var row := MarketFormat.row(v)
 	var total: int = row.price * row.count
-	_icon.texture = ItemArt.texture_for(row.icon)
-	_icon.modulate = row.tint
+	_icon.show_item(row.icon, row.tint)
 	_name.text = ("B  " if row.badge else "") + row.name + ("  ×%d" % row.count if row.count > 1 else "")
 	_lines.text = "\n".join(asset_lines(v))
 	var qty := int(v.get("qty", row.count))
-	_price_row.text = ("Price  %s T-stones" % MarketFormat.group(total)) + ("  (%s each)" % MarketFormat.group(row.price) if row.count > 1 else "") \
-		+ ("  ·  %d of %d left" % [row.count, qty] if qty > row.count else "")
+	_set_price("Price", total, ("(%s each)" % MarketFormat.group(row.price) if row.count > 1 else "") + ("  ·  %d of %d left" % [row.count, qty] if qty > row.count else ""))
 	var tax := EconRules.ceil_bp(total, EconRules.load_default().bp("sales_tax")) # the engine's own rounding
 	_balance.text = "Your tradable T-stones: %s now, %s after\nNo buyer fee; the seller pays %d T-stones market tax." % [MarketFormat.group(tradable), MarketFormat.group(tradable - total), tax]
 	say("")
@@ -155,7 +160,7 @@ func open_cancel(p_client: MarketClient, v: Dictionary, m: Dictionary) -> void:
 	buy_btn.text = "Cancel listing"
 	buy_btn.disabled = false
 	cancel_btn.text = "Keep listing"
-	_price_row.text = ("Listed at  %s T-stones" % MarketFormat.group(row.price * row.count)) + ("  (%s each)" % MarketFormat.group(row.price) if row.count > 1 else "")
+	_set_price("Listed at", row.price * row.count, "(%s each)" % MarketFormat.group(row.price) if row.count > 1 else "")
 	fit(m)
 
 ## market.cancel, once: a second tap while pending sends nothing.
@@ -226,14 +231,35 @@ func fit(m: Dictionary) -> void:
 		_body.add_theme_constant_override("margin_" + side, 10 if compact else 18)
 	for l: Label in [_lines, _balance, status]:
 		MarketTheme.size_label(l, m.type + (0 if compact else 2))
-	MarketTheme.size_label(_price_row, m.name)
+	_price_fs = m.name
+	_price_row.custom_minimum_size.y = ceilf(m.name * 1.5)
 	for b: Button in [buy_btn, cancel_btn]:
 		MarketTheme.action(b, b == buy_btn, m.name)
-		b.custom_minimum_size = Vector2(150 if compact else 220, m.tmin if compact else 56)
+		b.custom_minimum_size = Vector2(120 if compact else 180, m.tmin if compact else 56)
 	_panel.custom_minimum_size = Vector2(w, 0)
 	_panel.size = Vector2(w, 0)
 	_center()
 	_center.call_deferred() # again once the wrapped lines know their width
+
+## The price line: what it is, the coin and the number (like every price in the table), then any
+## per-unit or lot note in grey.
+func _set_price(cap: String, total: int, note: String) -> void:
+	_price_cap = cap
+	_price_total = total
+	_price_note = note
+	_price_row.tooltip_text = "%s %s T-stones %s" % [cap, MarketFormat.group(total), note]
+	_price_row.queue_redraw()
+
+func _draw_price() -> void:
+	var fs := _price_fs
+	var mid := _price_row.size.y * 0.5
+	var x := MarketTheme.width(_price_cap, fs) + fs * 0.6
+	MarketTheme.text(_price_row, _price_cap, 0, mid, x, fs, MarketTheme.TEXT_2)
+	var num := MarketFormat.group(_price_total)
+	var w := fs * 1.25 + MarketTheme.width(num, fs) + 4.0
+	MarketRow.price(_price_row, _price_total, Rect2(x, 0, w, _price_row.size.y), fs)
+	if _price_note != "":
+		MarketTheme.text(_price_row, _price_note, x + w + fs * 0.4, mid, _price_row.size.x - x - w, fs - 2, MarketTheme.TEXT_2)
 
 func _center() -> void:
 	_panel.reset_size()

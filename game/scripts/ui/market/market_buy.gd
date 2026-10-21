@@ -52,7 +52,7 @@ func start(p_client: MarketClient) -> void:
 func set_query(text: String) -> void:
 	q = text
 	page = 1
-	table.set_chips([] if q == "" else [{"key": &"q", "text": q}])
+	table.set_chips([] if q == "" else [{"key": &"q", "text": MarketFormat.chip_text(q)}])
 	reload()
 
 func set_category(id: String) -> void:
@@ -111,6 +111,7 @@ func reload() -> void:
 		page = table.page
 		table.loading = false
 	elif res.get("ok", false):
+		table.account = client.account # learned from wallet.get when the transport did not say
 		table.empty_text = "No listings in %s yet." % column.title if category != "" else ("Nothing listed matches “%s”." % q if q != "" else "Nothing is listed on this market yet.")
 		table.show_page(res.r)
 	else:

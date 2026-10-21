@@ -1,8 +1,11 @@
 class_name MarketGlyphs
 extends RefCounted
-## The market's own white glyphs, drawn with draw_* so they stay crisp at any size: the rail's
-## cart / ledger / price tag, sort arrows, the category and stepper chevrons and the bonded "B" badge.
+## The market's own glyphs, drawn with draw_* so they stay crisp at any size: the rail's cart /
+## ledger / price tag, sort arrows, the category and stepper chevrons, the bonded "B" badge, the
+## T-stone coin and its lock, and the pet carrier / crate while those have no rendered icon.
 # ASSUMPTION (exchange-spec A9): drawn in-package, not added to ui_icons.json (W1-UIICONS' gated set).
+
+const ACTION_WHITE := Color(1, 1, 1)
 
 static func draw(ci: CanvasItem, id: StringName, r: Rect2, color: Color) -> void:
 	var s := minf(r.size.x, r.size.y)
@@ -37,25 +40,85 @@ static func draw(ci: CanvasItem, id: StringName, r: Rect2, color: Color) -> void
 			ci.draw_line(o + Vector2(0.18, 0.18) * s, o + Vector2(0.82, 0.82) * s, color, maxf(2.0, s * 0.075), true)
 			ci.draw_line(o + Vector2(0.82, 0.18) * s, o + Vector2(0.18, 0.82) * s, color, maxf(2.0, s * 0.075), true)
 
-## The T-stone coin (header counters, prices): a grey embossed coin with a raised rim and a "T",
-## like the references' grey coin (a flat white ring read as a radio button). `bound` adds a small
-## dark lock tag: bound T-stones pay fees but never buy.
-static func coin(ci: CanvasItem, c: Vector2, r: float, bound: bool = false) -> void:
-	ci.draw_circle(c + Vector2(r * 0.08, r * 0.1), r, Color(0, 0, 0, 0.45)) # drop shadow
-	ci.draw_circle(c, r, Color(0.56, 0.56, 0.53))
-	ci.draw_arc(c, r * 0.94, PI * 0.95, PI * 1.85, 16, Color(0.9, 0.9, 0.86), maxf(1.0, r * 0.14), true) # lit rim
-	ci.draw_circle(c, r * 0.68, Color(0.66, 0.66, 0.63))
-	ci.draw_arc(c, r * 0.68, 0, TAU, 24, Color(0.36, 0.36, 0.34), maxf(1.0, r * 0.08), true)
-	var ink := Color(0.3, 0.3, 0.29)
-	var bar := maxf(1.5, r * 0.16)
-	ci.draw_rect(Rect2(c.x - r * 0.36, c.y - r * 0.4, r * 0.72, bar), ink)
-	ci.draw_rect(Rect2(c.x - bar * 0.5, c.y - r * 0.4, bar, r * 0.82), ink)
-	if bound:
-		var lc := c + Vector2(r * 0.72, r * 0.62)
-		var lw := r * 0.62
-		ci.draw_rect(Rect2(lc - Vector2(lw * 0.5, lw * 0.15), Vector2(lw, lw * 0.75)), Color(0.12, 0.11, 0.09))
-		ci.draw_arc(lc + Vector2(0, -lw * 0.15), lw * 0.3, PI, TAU, 10, Color(0.12, 0.11, 0.09), maxf(1.5, lw * 0.16), true)
-		ci.draw_rect(Rect2(lc - Vector2(lw * 0.36, lw * 0.02), Vector2(lw * 0.72, lw * 0.48)), Color(0.85, 0.82, 0.7))
+## The T-stone coin (header counters, prices): the references' grey metal coin seen a little from
+## above: a dark edge under it, a lit rim, a recessed face ringed in shadow and an engraved "T".
+static func coin(ci: CanvasItem, c: Vector2, r: float) -> void:
+	ci.draw_circle(c + Vector2(r * 0.1, r * 0.2), r, Color(0, 0, 0, 0.4)) # drop shadow
+	ci.draw_circle(c + Vector2(0, r * 0.12), r, Color(0.3, 0.3, 0.28)) # the coin's edge
+	ci.draw_circle(c, r, Color(0.6, 0.6, 0.57))
+	ci.draw_arc(c, r * 0.9, PI * 0.95, PI * 1.85, 16, Color(0.88, 0.88, 0.84), maxf(1.0, r * 0.16), true) # lit rim
+	ci.draw_circle(c, r * 0.66, Color(0.47, 0.47, 0.45))
+	ci.draw_arc(c, r * 0.66, PI * 0.1, PI * 0.9, 12, Color(0.78, 0.78, 0.74), maxf(1.0, r * 0.08), true) # the recess's lit lower lip
+	var ink := Color(0.2, 0.2, 0.19)
+	var bar := maxf(1.5, r * 0.17)
+	ci.draw_rect(Rect2(c.x - r * 0.36, c.y - r * 0.38, r * 0.72, bar), ink)
+	ci.draw_rect(Rect2(c.x - bar * 0.5, c.y - r * 0.38, bar, r * 0.78), ink)
+
+## Bound T-stones: a white padlock on a dark disc of radius `r` (laid over the coin's corner).
+static func lock(ci: CanvasItem, c: Vector2, r: float) -> void:
+	ci.draw_circle(c, r, Color(0.05, 0.05, 0.045))
+	ci.draw_arc(c, r, 0, TAU, 20, Color(0.55, 0.55, 0.5, 0.9), maxf(1.0, r * 0.1), true)
+	var body := Rect2(c.x - r * 0.48, c.y - r * 0.12, r * 0.96, r * 0.7)
+	ci.draw_arc(c + Vector2(0, -r * 0.14), r * 0.3, PI, TAU, 10, ACTION_WHITE, maxf(1.5, r * 0.16), true)
+	ci.draw_rect(body, ACTION_WHITE)
+	ci.draw_rect(Rect2(c.x - r * 0.06, body.position.y + body.size.y * 0.3, r * 0.12, body.size.y * 0.4), Color(0.05, 0.05, 0.045))
+
+## The chip's close mark: a thin X filling `r` (the whole chip is the target).
+static func cross(ci: CanvasItem, r: Rect2, color: Color) -> void:
+	var w := maxf(1.5, r.size.x * 0.12)
+	ci.draw_line(r.position, r.end, color, w, true)
+	ci.draw_line(Vector2(r.end.x, r.position.y), Vector2(r.position.x, r.end.y), color, w, true)
+
+## A pet carrier (bonded pet) or a closed slatted crate (captured animal), the references' grey
+## icons, in `r`; `mod` dims a refused cell. Drawn by the market only while the item has no
+## rendered icon (ItemArt.is_rendered): today the symbol fallback for both is one wireframe cage.
+# swap: drop this once ICONS2 / CAGEICON's renders are in the base (ItemArt picks them up by id).
+static func cage(ci: CanvasItem, id: StringName, r: Rect2, mod: Color = Color.WHITE) -> void:
+	var s := minf(r.size.x, r.size.y)
+	var o := r.get_center() - Vector2(s, s) * 0.5
+	var crate := id == &"captured_animal"
+	# A box seen from the front-left: top, front (left) and side (right) faces.
+	var top := _pts(o, s, [[0.08, 0.34], [0.5, 0.22], [0.94, 0.33], [0.52, 0.47]])
+	var front := _pts(o, s, [[0.08, 0.34], [0.52, 0.47], [0.52, 0.9], [0.08, 0.76]])
+	var side := _pts(o, s, [[0.52, 0.47], [0.94, 0.33], [0.94, 0.76], [0.52, 0.9]])
+	var base := Color(0.62, 0.58, 0.52) if crate else Color(0.7, 0.69, 0.65) # weathered wood / grey plastic
+	var line := Color(0.17, 0.16, 0.14, mod.a)
+	ci.draw_colored_polygon(_pts(o, s, [[0.1, 0.8], [0.52, 0.94], [0.96, 0.8], [0.52, 0.72]]), Color(0, 0, 0, 0.3 * mod.a)) # ground shadow
+	ci.draw_colored_polygon(top, _shade(base, 1.18, mod))
+	ci.draw_colored_polygon(front, _shade(base, 0.82, mod))
+	ci.draw_colored_polygon(side, _shade(base, 1.0, mod))
+	var w := maxf(1.0, s * 0.022)
+	if crate:
+		for k in [0.25, 0.5, 0.75]: # slat gaps across every face
+			ci.draw_line(_lerp(top[0], top[3], k), _lerp(top[1], top[2], k), line, w, true)
+			ci.draw_line(_lerp(front[0], front[3], k), _lerp(front[1], front[2], k), line, w, true)
+			ci.draw_line(_lerp(side[0], side[3], k), _lerp(side[1], side[2], k), line, w, true)
+		for e: Array in [[front[0], front[3]], [front[1], front[2]], [side[1], side[2]]]: # corner posts
+			ci.draw_line(e[0] + Vector2(s * 0.035, 0), e[1] + Vector2(s * 0.035, 0), Color(0.3, 0.27, 0.22, mod.a), s * 0.06)
+	else:
+		var door := _pts(o, s, [[0.14, 0.41], [0.46, 0.51], [0.46, 0.83], [0.14, 0.72]]) # the grille door
+		ci.draw_colored_polygon(door, Color(0.16, 0.15, 0.13, mod.a))
+		for k in [0.14, 0.28, 0.42, 0.56, 0.7, 0.84]:
+			ci.draw_line(_lerp(door[0], door[1], k), _lerp(door[3], door[2], k), _shade(base, 0.95, mod), w * 1.4, true)
+		ci.draw_polyline(door + PackedVector2Array([door[0]]), _shade(base, 1.05, mod), w * 1.6, true)
+		var wc := o + Vector2(0.73, 0.6) * s # the round side window
+		ci.draw_set_transform(wc, -0.3, Vector2(0.75, 1.0))
+		ci.draw_circle(Vector2.ZERO, s * 0.12, Color(0.18, 0.17, 0.15, mod.a))
+		ci.draw_arc(Vector2.ZERO, s * 0.12, 0, TAU, 20, _shade(base, 1.12, mod), w * 1.8, true)
+		ci.draw_set_transform(Vector2.ZERO)
+		ci.draw_line(_lerp(front[0], front[3], 0.5), _lerp(front[1], front[2], 0.5), line, w, true) # the shell's seam
+		ci.draw_line(_lerp(side[0], side[3], 0.5), _lerp(side[1], side[2], 0.5), line, w, true)
+		for k in [0.35, 0.5, 0.65]: # vent slots on the lid
+			ci.draw_line(_lerp(_lerp(top[0], top[1], k), _lerp(top[3], top[2], k), 0.3), _lerp(_lerp(top[0], top[1], k), _lerp(top[3], top[2], k), 0.7), line, w, true)
+		ci.draw_polyline(_pts(o, s, [[0.36, 0.3], [0.42, 0.2], [0.62, 0.19], [0.66, 0.29]]), Color(0.3, 0.29, 0.26, mod.a), s * 0.04, true) # handle
+	for face in [top, front, side]:
+		ci.draw_polyline(face + PackedVector2Array([face[0]]), line, w, true)
+
+static func _shade(c: Color, k: float, mod: Color) -> Color:
+	return Color(c.r * k, c.g * k, c.b * k) * mod
+
+static func _lerp(a: Vector2, b: Vector2, t: float) -> Vector2:
+	return a.lerp(b, t)
 
 ## Up and down triangles; the active direction (`dir` 1 = up / ascending, -1 = down) is bright.
 static func sort_arrows(ci: CanvasItem, c: Vector2, h: float, dir: int, on: Color, off: Color) -> void:

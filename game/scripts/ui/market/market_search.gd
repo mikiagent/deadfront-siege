@@ -26,9 +26,7 @@ func _ready() -> void:
 			cancelled.emit())
 	add_child(dim)
 	_panel = PanelContainer.new()
-	var sb := MarketTheme.flat(MarketTheme.DIALOG, MarketTheme.BORDER, 2, 6)
-	sb.set_content_margin_all(16)
-	_panel.add_theme_stylebox_override("panel", sb)
+	MarketTheme.card(_panel, 16)
 	add_child(_panel)
 	_box = VBoxContainer.new()
 	_box.add_theme_constant_override("separation", 10)
@@ -73,7 +71,7 @@ func open(q: String, m: Dictionary) -> void:
 	_panel.custom_minimum_size = Vector2(w, 0)
 	_panel.size = Vector2(w, 0)
 	field.custom_minimum_size.y = m.tmin
-	field.add_theme_font_override("font", MarketTheme.font())
+	field.add_theme_font_override("font", MarketTheme.field_font(m.name))
 	field.add_theme_font_size_override("font_size", m.name)
 	if _grid:
 		_grid.columns = 6 if compact else 4

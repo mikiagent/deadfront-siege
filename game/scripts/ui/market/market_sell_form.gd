@@ -14,6 +14,7 @@ const PREVIEW_ROWS := [["fee", "Listing fee (paid now)", "Fee now"], ["tax", "Ma
 
 var entry: Dictionary = {}
 var wallet := 0 ## every T-stone (wallet.get): bound ones pay listing fees first (ECON r5, a sink)
+var open_listings := 0 ## the account's open listings (market.mine): the server refuses one more past the cap
 var lock_s := 0 ## seconds left of the new-account trade lock (wallet.get trade_lock_s, hook H6)
 var ref := 0 ## market.item_detail ref_price; 0 = no reference, so no band
 var lo := 1 ## the band (0.25x-4x of ref), or 1..max_price without a reference
@@ -33,7 +34,7 @@ var band_label: Label
 var preview_values: Dictionary = {} ## fee / tax / receive / net -> Label
 var _title: Label
 var _title_band: PanelContainer
-var _icon: TextureRect
+var _icon: MarketIcon
 var _type: Label
 var _level: Label
 var _facts: Label
@@ -42,6 +43,7 @@ var _count_box: VBoxContainer
 var _steps: HFlowContainer
 var _count_label: Label
 var _preview: GridContainer
+var _preview_head: PanelContainer ## the Bag panel's dark "Info" bar over the fee / tax / proceeds rows
 var _captions: Array[Label] = []
 var _price_caption: Label
 var _keys: Array[Label] = []
@@ -53,9 +55,7 @@ var _note := ""
 
 func _ready() -> void:
 	name = "SellForm"
-	var sb := MarketTheme.flat(MarketTheme.DIALOG, MarketTheme.BORDER, 2, 6)
-	sb.set_content_margin_all(0)
-	add_theme_stylebox_override("panel", sb)
+	MarketTheme.card(self, 0)
 	var root := VBoxContainer.new()
 	root.add_theme_constant_override("separation", 0)
 	add_child(root)
@@ -86,9 +86,7 @@ func _ready() -> void:
 	var card := HBoxContainer.new()
 	card.add_theme_constant_override("separation", 12)
 	body.add_child(card)
-	_icon = TextureRect.new()
-	_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_icon = MarketIcon.new()
 	card.add_child(_icon)
 	var info := VBoxContainer.new()
 	info.add_theme_constant_override("separation", 0)
@@ -151,8 +149,18 @@ func _ready() -> void:
 			refresh())
 		dur.add_child(b)
 		duration_btns[h] = b
+		_chip(b, h == hours)
+	_preview_head = PanelContainer.new()
+	var hb := MarketTheme.flat(MarketTheme.BAND, Color(0, 0, 0, 0), 0, 3)
+	hb.content_margin_left = 10
+	hb.content_margin_top = 4
+	hb.content_margin_bottom = 4
+	_preview_head.add_theme_stylebox_override("panel", hb)
+	_preview_head.add_child(MarketTheme.label("Fees and proceeds", 15, MarketTheme.TEXT_2))
+	_form.add_child(_preview_head)
 	_preview = GridContainer.new()
 	_preview.name = "SellPreview"
+	_preview.draw.connect(_draw_preview_lines)
 	_preview.add_theme_constant_override("h_separation", 12)
 	_preview.add_theme_constant_override("v_separation", 2)
 	_form.add_child(_preview)
@@ -225,7 +233,7 @@ func show_entry(e: Dictionary) -> void:
 	price_edit.text = ""
 	if e.is_empty():
 		_title.text = "Sell"
-		_icon.texture = null
+		_icon.show_item(&"")
 		_icon.visible = false
 		_type.visible = false
 		_level.visible = false
@@ -236,8 +244,7 @@ func show_entry(e: Dictionary) -> void:
 		return
 	_icon.visible = true
 	_type.visible = not _m.get("compact", false)
-	_icon.texture = ItemArt.texture_for(e.icon)
-	_icon.modulate = e.tint
+	_icon.show_item(e.icon, e.tint)
 	_title.text = str(e.name)
 	_band_margin()
 	_type.text = str(e.type) + ("  ·  in market storage" if e.src == "vault" else "")
@@ -268,7 +275,11 @@ func set_reference(d: Dictionary) -> void:
 
 func can_list() -> bool:
 	return not pending and not entry.is_empty() and str(entry.get("why", "")) == "" and unit >= 1 and unit <= max_price \
-		and wallet >= int(MarketFormat.preview(unit, count).fee) and lock_s <= 0
+		and wallet >= int(MarketFormat.preview(unit, count).fee) and lock_s <= 0 and open_listings < max_listings()
+
+## The open-listing cap (limits.json max_open_listings, the number My Market's Active n/50 shows).
+static func max_listings() -> int:
+	return EconRules.load_default().num("max_open_listings")
 
 func set_pending(on: bool, text: String) -> void:
 	pending = on
@@ -307,6 +318,10 @@ func refresh() -> void:
 	elif lock_s > 0:
 		why = "Can't list yet"
 		note = MarketFormat.lock_text(lock_s)
+	elif open_listings >= max_listings():
+		# Checked before the deposit: the server refuses the 51st listing only after the item has left the bag.
+		why = "At most %d open listings" % max_listings()
+		note = "You have %d listings open, the most the market takes. Cancel one in My Market or wait for a sale." % open_listings
 	elif unit <= 0:
 		why = "Set a price"
 	elif wallet < int(p.fee):
@@ -369,10 +384,18 @@ func _chip(b: Button, on: bool) -> void:
 	b.add_theme_stylebox_override("hover", MarketTheme.flat(Color(0.2, 0.19, 0.14, 0.9), edge, 2, 4))
 	b.add_theme_stylebox_override("pressed", MarketTheme.flat(Color(0.3, 0.26, 0.14, 0.9), MarketTheme.GOLD, 2, 4))
 	b.add_theme_stylebox_override("focus", MarketTheme.flat(Color(0, 0, 0, 0), MarketTheme.ACTION, 2, 4))
-	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		b.add_theme_color_override(k, MarketTheme.GOLD if on else MarketTheme.TEXT)
+	MarketTheme.ink(b, MarketTheme.GOLD if on else MarketTheme.TEXT)
 	b.add_theme_font_override("font", MarketTheme.font())
 	b.disabled = pending
+
+## Dotted lines between the desktop preview rows (the Bag's Info list).
+func _draw_preview_lines() -> void:
+	if _preview.columns != 2:
+		return
+	var gap := _preview.get_theme_constant("v_separation") * 0.5
+	for k in _keys.slice(0, _keys.size() - 1):
+		var y := k.position.y + k.size.y + gap
+		MarketTheme.dotted(_preview, Vector2(0, y), Vector2(_preview.size.x, y))
 
 ## The bonded "B" disc before the name (the Bag reference's "B Zebraceratops").
 func _draw_badge() -> void:
@@ -399,9 +422,9 @@ func fit(m: Dictionary) -> void:
 	MarketTheme.size_label(_title, m.name + (2 if compact else 6))
 	_badge_r = (m.name + (2 if compact else 6)) * 0.62
 	_band_margin()
-	var isz := 36.0 if compact else 112.0
+	var isz := 36.0 if compact else 128.0
 	for box: Control in [_pad.get_child(0), _form]: # a phone's panel is ~330 px tall: tighter rhythm
-		box.add_theme_constant_override("separation", 4 if compact else 8)
+		box.add_theme_constant_override("separation", 4 if compact else 12)
 	var tb := _title_band.get_theme_stylebox("panel") as StyleBoxFlat
 	tb.content_margin_top = 4.0 if compact else 8.0
 	tb.content_margin_bottom = tb.content_margin_top
@@ -427,7 +450,7 @@ func fit(m: Dictionary) -> void:
 	_count_label.custom_minimum_size = Vector2(56 if compact else 72, tgt)
 	_count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	price_edit.custom_minimum_size = Vector2(80 if compact else 120, tgt)
-	price_edit.add_theme_font_override("font", MarketTheme.font())
+	price_edit.add_theme_font_override("font", MarketTheme.field_font(m.name))
 	price_edit.add_theme_font_size_override("font_size", m.name)
 	for b: Button in steppers.values():
 		b.custom_minimum_size = Vector2(tgt, tgt)
@@ -435,10 +458,11 @@ func fit(m: Dictionary) -> void:
 		b.custom_minimum_size = Vector2(maxf(52.0, tgt) if compact else 72.0, tgt)
 		b.add_theme_font_size_override("font_size", m.type + 1)
 	_preview.columns = 4 if compact else 2
-	# One-line labels stand as tall as the font's emoji fallback (~2.1x the size); the preview rows
-	# overlap that empty band so the fee / tax / proceeds show above List on a phone and beside a tall card.
-	var vpx: int = m.type + (0 if compact else 2)
-	_preview.add_theme_constant_override("v_separation", 2 - maxi(0, roundi(MarketTheme.font().get_height(vpx) - vpx * 1.4)))
+	# A desktop panel spaces its rows like the Bag's Info list (dotted lines between them) under a dark
+	# bar; a phone keeps two pairs a line with no bar, so the preview shows above List without scrolling.
+	_preview_head.visible = not compact
+	MarketTheme.size_label(_preview_head.get_child(0) as Label, m.type)
+	_preview.add_theme_constant_override("v_separation", 2 if compact else roundi(m.row_h * 0.1))
 	MarketTheme.action(list_btn, true, m.name)
 	list_btn.custom_minimum_size = Vector2(0, tgt if compact else 60.0)
 	refresh()

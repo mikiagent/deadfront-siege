@@ -1,8 +1,8 @@
 class_name MarketTheme
 extends RefCounted
 ## The Island Market's look (spec 13 palette, spec 14 references): colours, per-viewport metrics,
-## the condensed font, the weathered backdrop and the shared draw helpers (dotted separators,
-## yellow L brackets, the torn header edge).
+## the condensed font (drawn text, labels and buttons alike), the weathered backdrop and textured
+## cards, the torn paper sheet, and the shared draw helpers (dotted separators, yellow L brackets).
 # swap: INVUI InvTheme / InvPaint / inv_grain when they land (same palette, same helpers).
 
 const BG := Color("#101714")
@@ -13,19 +13,22 @@ const BAND := Color(0.03, 0.035, 0.03, 0.55) ## table header / column title band
 const SEPARATOR := Color(0.62, 0.60, 0.53, 0.45) ## dotted row lines
 const BORDER := Color(0.04, 0.04, 0.025, 0.9) ## the references' panels sit in a thin dark rim, not a light stroke
 const PANEL_FILL := Color(0.05, 0.055, 0.035, 0.42) ## rail, columns, table: the backdrop shows through, darker
-const DIALOG := Color(0.11, 0.105, 0.08, 0.98) ## Sell panel, confirm, search sheet: the list panels' warm brown-black
-const PARCHMENT := Color(0.69, 0.65, 0.55) ## the torn band under the header and dialog title bands
+const PARCHMENT := Color(0.69, 0.65, 0.55) ## dialog title bands (the Bag's tan name band)
+const PAPER := Color(0.71, 0.70, 0.62, 0.92) ## the torn sheet: pale grey-green paper the backdrop tints a little
 const GOLD := Color("#E6BE54") ## names, selection, brackets, the active tab
 const PRIMARY := Color("#F2C84C") ## primary button fill (dark text)
 const PRIMARY_TEXT := Color("#1B1A14")
 const TEXT := Color("#ECEBE4")
 const TEXT_2 := Color("#A6A69B")
 const TEXT_OFF := Color("#77786F")
+const LV := Color(0.6, 0.6, 0.56, 0.8) ## the Bag's dim "Lv. n" in a cell corner: it recedes behind the art
 const ACTION := Color(1, 1, 1, 1) ## actions and icons are white (GAUNTLET:61)
 const DANGER := Color(0.88, 0.36, 0.30)
-const TEST_BADGE := Color(0.86, 0.52, 0.16) ## the local test server, never mistaken for the live market
 
 static var _backdrop: ShaderMaterial
+static var _card: ShaderMaterial
+static var _paper: ShaderMaterial
+static var _fields := {} ## size px -> the condensed FontVariation of a text field
 
 ## Every size the screens use, from the viewport (reference proportions, exchange-spec §1/§8).
 ## `px_per_pt`: canvas px per point on the glass. DisplayMode draws the narrowest phones (667x375)
@@ -74,37 +77,89 @@ static func font() -> Font:
 static func width(s: String, size_px: int) -> float:
 	return font().get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x * CONDENSE
 
-## Weathered earth behind the panels: soft blotches plus fine grain, no texture files and no
-## NoiseTexture2D (it generates asynchronously on the web). As light as the references' green-tan
-## (~0x5a a channel between panels), so the dark-rimmed panels sit on it like on a sheet.
-static func backdrop() -> ShaderMaterial:
-	if _backdrop == null:
-		var sh := Shader.new()
-		sh.code = """shader_type canvas_item;
-uniform vec4 dark : source_color = vec4(0.26, 0.27, 0.19, 1.0);
-uniform vec4 earth : source_color = vec4(0.5, 0.46, 0.34, 1.0);
-uniform vec4 moss : source_color = vec4(0.4, 0.45, 0.3, 1.0);
+## Hash and value noise shared by the market's shaders (no texture files, no NoiseTexture2D: it
+## generates asynchronously on the web).
+const NOISE := """
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) {
 	vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
 	return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y);
 }
-void fragment() {
-	vec2 p = FRAGCOORD.xy / 260.0;
+vec3 earth_at(vec2 px) {
+	vec2 p = px / 260.0;
 	float n = vn(p) * 0.55 + vn(p * 2.3 + 7.0) * 0.3 + vn(p * 5.1 + 3.0) * 0.15;
 	float m = vn(p * 0.7 + 19.0);
-	vec3 c = mix(dark.rgb, mix(earth.rgb, moss.rgb, m), smoothstep(0.25, 0.85, n));
-	c *= 0.94 + 0.12 * h(floor(FRAGCOORD.xy));
-	COLOR = vec4(c, 1.0);
-}"""
-		_backdrop = ShaderMaterial.new()
-		_backdrop.shader = sh
+	vec3 c = mix(vec3(0.26, 0.27, 0.19), mix(vec3(0.5, 0.46, 0.34), vec3(0.4, 0.45, 0.3), m), smoothstep(0.25, 0.85, n));
+	return c * (0.94 + 0.12 * h(floor(px)));
+}
+"""
+
+## Weathered earth behind the panels: soft blotches plus fine grain. As light as the references'
+## green-tan (~0x5a a channel between panels), so the dark-rimmed panels sit on it like on a sheet.
+static func backdrop() -> ShaderMaterial:
+	if _backdrop == null:
+		_backdrop = _shader("shader_type canvas_item;\n" + NOISE + "void fragment() { COLOR = vec4(earth_at(FRAGCOORD.xy), 1.0); }")
 	return _backdrop
 
 ## The rail, the category column, the table, the picker and My Market: a dark rim around a darker
 ## see-through fill, so the lighter backdrop reads as the sheet they sit on (references).
 static func panel() -> StyleBoxFlat:
 	return flat(PANEL_FILL, BORDER, 2, 6)
+
+## Sell's panel, the confirm, the search sheet and the offline card: the list panels' textured look
+## on a panel of their own. The card's shader lays the same earth under the stylebox's colours
+## (its fill darkens it like the see-through panels, its rim stays dark), so a card over the dimmed
+## list keeps the texture instead of a flat near-black fill (fidelity r2).
+static func card(p: PanelContainer, margin: int) -> void:
+	var sb := panel()
+	sb.anti_aliasing = false # a feathered edge would come out as an opaque earth ring
+	sb.set_content_margin_all(margin)
+	p.add_theme_stylebox_override("panel", sb)
+	if _card == null:
+		_card = _shader("shader_type canvas_item;\n" + NOISE + "void fragment() { COLOR = vec4(mix(earth_at(FRAGCOORD.xy), COLOR.rgb, COLOR.a), 1.0); }")
+	p.material = _card
+
+## The references' torn paper: the band under the header with a rough, fibrous rip into the black,
+## grime and two dark nail heads, carried on as the frame round the body (`hole` is the body, see
+## through). Uniforms in the sheet's own px: size, tear (the ragged zone's height), hole (x0, y0, x1, y1).
+static func paper() -> ShaderMaterial:
+	if _paper == null:
+		_paper = _shader("shader_type canvas_item;\n" + NOISE + """
+uniform vec2 size = vec2(100.0);
+uniform float tear = 16.0;
+uniform vec4 hole = vec4(0.0);
+uniform vec4 paper : source_color = vec4(0.71, 0.70, 0.62, 0.92);
+float fbm(vec2 p) { return vn(p) * 0.5 + vn(p * 2.03 + 5.0) * 0.27 + vn(p * 4.1 + 11.0) * 0.15 + vn(p * 8.3 + 2.0) * 0.08; }
+void fragment() {
+	vec2 p = UV * size;
+	float rip = smoothstep(0.78, 0.95, vn(vec2(p.x / 60.0, 9.0)));
+	float e = tear * (0.12 + 0.38 * fbm(vec2(p.x / 34.0, 1.3)) + 0.2 * vn(vec2(p.x / 5.0, 7.1)) + 0.1 * h(vec2(floor(p.x / 1.5), 3.0)) + 0.3 * rip);
+	float a = smoothstep(e - 0.75, e + 0.75, p.y);
+	if (p.x > hole.x && p.x < hole.z && p.y > hole.y && p.y < hole.w) { a = 0.0; }
+	float fib = vn(vec2(p.x / 70.0, p.y / 2.5));
+	float blot = fbm(p / 38.0 + 3.0);
+	vec3 c = paper.rgb * (0.84 + 0.16 * fib) * (0.9 + 0.12 * h(floor(p)));
+	c = mix(c, vec3(0.3, 0.29, 0.22), smoothstep(0.5, 0.8, blot) * 0.6);
+	float d = p.y - e;
+	c *= mix(0.62, 1.0, smoothstep(0.0, 5.0, d)); // the rip's dirty lip
+	c += vec3(0.16) * (1.0 - smoothstep(0.0, 1.6, abs(d - 0.6))) * step(0.5, vn(vec2(p.x / 3.0, 2.0))); // lit fibres on the edge
+	for (int i = 0; i < 2; i++) { // nail heads on the band
+		vec2 q = (p - vec2(size.x * mix(0.27, 0.77, float(i)), tear * 0.55)) / vec2(tear * 1.1, tear * 0.42);
+		float r = dot(q, q);
+		c = mix(c, vec3(0.07, 0.06, 0.045), 1.0 - smoothstep(0.85, 1.0, r));
+		a = max(a, 1.0 - smoothstep(0.85, 1.0, r));
+	}
+	COLOR = vec4(c, a * paper.a);
+}""")
+		_paper.set_shader_parameter("paper", PAPER)
+	return _paper.duplicate() as ShaderMaterial # its own uniforms per sheet, one compiled shader
+
+static func _shader(code: String) -> ShaderMaterial:
+	var sh := Shader.new()
+	sh.code = code
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	return m
 
 static func flat(bg: Color, border: Color = Color(0, 0, 0, 0), bw: int = 0, radius: int = 4) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
@@ -133,12 +188,19 @@ static func action(b: Button, primary: bool, size_px: int) -> void:
 	b.add_theme_stylebox_override("disabled", flat(Color(0.35, 0.33, 0.25, 0.8) if primary else Color(0.08, 0.09, 0.08, 0.6), Color(0.45, 0.44, 0.4, 0.6), 2, 6))
 	b.add_theme_stylebox_override("focus", flat(Color(0, 0, 0, 0), ACTION, 2, 6))
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	var ink := PRIMARY_TEXT if primary else ACTION
-	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		b.add_theme_color_override(k, ink)
-	b.add_theme_color_override("font_disabled_color", TEXT_OFF)
+	ink(b, PRIMARY_TEXT if primary else ACTION)
 	b.add_theme_font_override("font", font())
 	b.add_theme_font_size_override("font_size", size_px)
+
+## A button's words in `color` (TEXT_OFF when disabled), drawn condensed: the button's own text is
+## made transparent and keeps sizing it, so only the glyphs change.
+static func ink(b: Button, color: Color, off: Color = TEXT_OFF) -> void:
+	b.set_meta(&"ink", color)
+	b.set_meta(&"ink_off", off)
+	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color", "font_disabled_color"]:
+		b.add_theme_color_override(k, Color(0, 0, 0, 0))
+	condense(b)
+	b.queue_redraw()
 
 static func label(text: String, size_px: int, color: Color = TEXT) -> Label:
 	var l := Label.new()
@@ -155,6 +217,64 @@ static func size_label(l: Label, size_px: int) -> void:
 	l.add_theme_font_override("font", font())
 	l.add_theme_font_size_override("font_size", px)
 	l.add_theme_constant_override("line_spacing", mini(0, roundi(px * 1.3 - font().get_height(px))))
+	condense(l)
+
+## One typeface everywhere (fidelity r2: dialog labels were the wide font next to condensed lists).
+## A label or button keeps its own layout (wrap, minimum size, alignment box); its glyphs are hidden
+## (a label shows 0 characters after shaping, a button's ink is transparent) and drawn again, narrow,
+## by the canvas transform. Wrapped text breaks at the condensed width, so it fills the box.
+static func condense(c: Control) -> void:
+	if c.has_meta(&"condensed"):
+		return
+	c.set_meta(&"condensed", true)
+	if c is Label:
+		(c as Label).visible_characters_behavior = TextServer.VC_CHARS_AFTER_SHAPING
+		(c as Label).visible_characters = 0
+		c.draw.connect(_draw_label.bind(c))
+	elif c is Button:
+		c.draw.connect(_draw_button.bind(c))
+
+static func _draw_label(l: Label) -> void:
+	if l.text == "":
+		return
+	var p := TextParagraph.new()
+	p.add_string(l.text, font(), l.get_theme_font_size(&"font_size"))
+	p.width = l.size.x / CONDENSE
+	p.alignment = l.horizontal_alignment
+	p.break_flags = TextServer.BREAK_MANDATORY | (TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE if l.autowrap_mode != TextServer.AUTOWRAP_OFF else 0)
+	p.max_lines_visible = l.max_lines_visible
+	p.line_spacing = l.get_theme_constant(&"line_spacing")
+	if l.text_overrun_behavior != TextServer.OVERRUN_NO_TRIMMING or l.clip_text:
+		p.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	var y := 0.0
+	if l.vertical_alignment == VERTICAL_ALIGNMENT_CENTER:
+		y = (l.size.y - p.get_size().y) * 0.5
+	elif l.vertical_alignment == VERTICAL_ALIGNMENT_BOTTOM:
+		y = l.size.y - p.get_size().y
+	l.draw_set_transform(Vector2(0, roundf(y)), 0.0, Vector2(CONDENSE, 1.0))
+	p.draw(l.get_canvas_item(), Vector2.ZERO, l.get_theme_color(&"font_color"))
+	l.draw_set_transform(Vector2.ZERO)
+
+static func _draw_button(b: Button) -> void:
+	if b.text == "":
+		return
+	var sb := b.get_theme_stylebox(&"normal")
+	var x := sb.get_margin(SIDE_LEFT) if sb else 0.0
+	var w := b.size.x - x - (sb.get_margin(SIDE_RIGHT) if sb else 0.0)
+	var col: Color = b.get_meta(&"ink_off", TEXT_OFF) if b.disabled else b.get_meta(&"ink", ACTION)
+	text(b, b.text, x, b.size.y * 0.5, w, b.get_theme_font_size(&"font_size"), col, HORIZONTAL_ALIGNMENT_CENTER)
+
+## A text field's font: the same narrow face as a FontVariation (a field draws its own text). Its
+## transform narrows the outlines and the spacing pulls the advances back by what they lost on an
+## average glyph (Open Sans digits share one advance, so a price field closes up evenly).
+static func field_font(size_px: int) -> Font:
+	if not _fields.has(size_px):
+		var fv := FontVariation.new()
+		fv.base_font = font()
+		fv.variation_transform = Transform2D(Vector2(CONDENSE, 0), Vector2(0, 1), Vector2.ZERO)
+		fv.spacing_glyph = -roundi(font().get_string_size("0", HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x * (1.0 - CONDENSE))
+		_fields[size_px] = fv
+	return _fields[size_px]
 
 ## Condensed text in a box: ellipsized to the width, vertically centred on `mid_y`. True when it was cut.
 static func text(ci: CanvasItem, s: String, x: float, mid_y: float, w: float, size_px: int, color: Color, align := HORIZONTAL_ALIGNMENT_LEFT) -> bool:
@@ -182,36 +302,3 @@ static func brackets(ci: CanvasItem, r: Rect2, arm: float, stroke: float, color:
 		var sy := 1.0 if corner.y == r.position.y else -1.0
 		ci.draw_rect(Rect2(corner.x + (0.0 if sx > 0 else -stroke), corner.y + (0.0 if sy > 0 else -arm), stroke, arm), color)
 		ci.draw_rect(Rect2(corner.x + (0.0 if sx > 0 else -arm), corner.y + (0.0 if sy > 0 else -stroke), arm, stroke), color)
-
-## The references' torn parchment band under the header: a light strip whose top edge is ripped
-## into the black band in irregular bites, a few dark scuffs, and two dark rivet blobs. A
-## deterministic hash, so it is the same every frame and in every shot.
-static func torn_edge(ci: CanvasItem, y: float, w: float, h: float) -> void:
-	var rnd := func (n: int, k: float) -> float: return fmod(absf(sin(n * 12.9898 + k) * 43758.5453), 1.0)
-	var top := PackedVector2Array()
-	var x := 0.0
-	var i := 0
-	while x < w:
-		var bite := 1.0 if rnd.call(i, 3.1) > 0.82 else 0.0 # now and then a deep rip
-		top.append(Vector2(x, y + h * (0.04 + 0.22 * rnd.call(i, 1.7) + 0.38 * bite)))
-		x += 4.0 + 14.0 * rnd.call(i, 7.3)
-		i += 1
-	top.append(Vector2(w, y + h * 0.1))
-	var band := top.duplicate()
-	var j := 0
-	x = w
-	while x > 0.0: # a softer lower edge into the sheet
-		band.append(Vector2(x, y + h * (0.86 + 0.14 * rnd.call(j, 5.9))))
-		x -= 10.0 + 22.0 * rnd.call(j, 2.3)
-		j += 1
-	band.append(Vector2(0, y + h * 0.9))
-	ci.draw_colored_polygon(band, PARCHMENT)
-	ci.draw_polyline(top, Color(0.88, 0.85, 0.77, 0.8), 1.5) # the paper's lit edge
-	for k in 9: # dark scuffs across the strip
-		var sx: float = w * rnd.call(k, 9.1)
-		var sw: float = w * (0.02 + 0.05 * rnd.call(k, 4.4))
-		ci.draw_rect(Rect2(sx, y + h * (0.3 + 0.35 * rnd.call(k, 6.6)), sw, maxf(1.0, h * 0.12)), Color(0.25, 0.22, 0.16, 0.35))
-	for f: float in [0.27, 0.77]: # rivet blobs
-		ci.draw_set_transform(Vector2(w * f, y + h * 0.42), 0.0, Vector2(2.6, 1.0))
-		ci.draw_circle(Vector2.ZERO, h * 0.32, Color(0.07, 0.06, 0.045, 0.95))
-		ci.draw_set_transform(Vector2.ZERO)

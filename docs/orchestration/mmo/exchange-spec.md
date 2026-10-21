@@ -454,3 +454,36 @@ Look (judge vs the two references):
   `captured_animal` and `tamed_animal` do not, and `AssetValidator` refuses any durability on them: "<id> has no durability"), dimmed; 44 px targets at 844x390
   (GAUNTLET.md:64 "44 px minimum target"; list rows 52 px = the references' 13.6 %, category rows 44 px = their 11 %); the
   carrier and crate art is ICONS2 / CAGEICON's (ItemArt picks it up by id).
+
+## 16. Fix round 2 (2026-10-21): review and fidelity findings
+
+Behaviour (each with a t_exchange check that fails on the old code):
+- **Open-listing cap**: Sell reads `market.mine` with the picker and turns List off at `max_open_listings` ("At most 50 open
+  listings", the reason in the status line); before, the deposit moved the item into market storage and only then did
+  `list_fixed` refuse it. `MarketSellForm.can_list` holds the same check.
+- **Account id**: `MarketClient.learn` takes the account from the server's answers when the transport did not report it:
+  `wallet.get`'s `account_id` (hook H6, now `trade_lock_s` and `account_id`) and `market.mine`, whose listings are all the
+  player's own. Own Buy rows are re-marked when it arrives (`MarketTable.mark_own`); History's Sold / Bought read it.
+  W1-INT: NetClient may report `account_id` itself; either way works.
+
+Look (judge vs the references):
+- One typeface: labels and buttons draw their words condensed too (`MarketTheme.condense`: a label shows 0 characters after
+  shaping and its paragraph is drawn again at 85 % width, wrapped at the condensed width; a button's ink is transparent and
+  its text drawn the same way). Text fields use a condensed FontVariation (`field_font`).
+- Torn paper: `MarketScreen` "Sheet" is a shader (`MarketTheme.paper`): a rough fibrous rip into the black band, grain, grime,
+  the lip's shadow, two nail heads, carried on as the frame round the body (a hole over the body), inside the safe width.
+- Cards: Sell's panel, the confirm, the search sheet and the offline card use the list panels' earth texture under their
+  own fill and rim (`MarketTheme.card`), not a flat brown-black.
+- Header: the title bar is the island's name alone; the test-server words sit at the foot of the rail. The coin is the
+  references' size (about half the pill) with a recessed face; bound T-stones add a white padlock on a dark disc, readable at
+  844x390. Still no premium counter and no "+" (no monetization).
+- Chip: the item types (and species) the search matches, Title-Case from the data, as the server matches them ("Branch",
+  "Bone, Bone Axe, Bone Knife +4"); the player's words when nothing matches; a large X, no outline, the whole chip the target.
+- Type line: the kind of thing, as in the references: a tool's class ("Knife"), else the def's own name ("Branch").
+  # ASSUMPTION (our defs are the types; no named varieties).
+- Confirm: the price line has the coin; Close and Buy share the body's width.
+- Sell: a dark "Fees and proceeds" bar over Info-style rows with dotted lines on a desktop; the picker fills whole rows; the
+  cells' "Lv. n" is the Bag's dim grey.
+- Cages: while `tamed_animal` / `captured_animal` have no rendered icon, the market draws a grey pet carrier (grille door,
+  round side window, lid vents, handle) and a closed grey slatted crate (`MarketIcon`, `MarketGlyphs.cage`); a render, when
+  ICONS2 / CAGEICON merge, replaces them with no code change.

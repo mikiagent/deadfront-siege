@@ -153,6 +153,14 @@ func show_page(r: Dictionary) -> void:
 		layout(_m, Rect2(position, size))
 	_maybe_more.call_deferred() # a tall screen may show the whole page at once
 
+## The account became known after rows were built (wallet.get answered after the first page):
+## the player's own rows say "Your listing" and lose Buy.
+func mark_own(p_account: int) -> void:
+	account = p_account
+	for row in rows:
+		row.own = account >= 0 and int(row.view.get("seller", -2)) == account
+		row.queue_redraw()
+
 func remove_listing(id: String) -> void:
 	for row in rows.duplicate():
 		if str(row.view.get("id", "")) == id:
@@ -181,13 +189,16 @@ func set_chips(list: Array) -> void:
 		var b := Button.new()
 		b.name = "Chip_%s" % c.key
 		b.tooltip_text = "Clear %s" % c.text
-		for st: String in ["normal", "hover", "pressed"]:
-			b.add_theme_stylebox_override(st, MarketTheme.flat(Color(0.06, 0.06, 0.05, 0.82) if st == "normal" else Color(0.12, 0.12, 0.11, 0.9), MarketTheme.GOLD if st == "pressed" else Color(0.3, 0.3, 0.28, 1), 1, 4))
-		# The words are drawn condensed like the rest of the table, with even padding on both sides.
+		for st: String in ["normal", "hover", "pressed"]: # a dark rounded chip with no outline (references)
+			b.add_theme_stylebox_override(st, MarketTheme.flat(Color(0.06, 0.06, 0.05, 0.82) if st == "normal" else Color(0.14, 0.14, 0.12, 0.9), MarketTheme.GOLD if st == "pressed" else Color(0, 0, 0, 0), 2 if st == "pressed" else 0, 4))
+		# The words drawn condensed like the table, then a large X; the whole chip is the target.
 		var cs := maxi(14, int(_m.get("name", 16)) - 2)
-		var words := "%s  ×" % c.text
-		b.custom_minimum_size.x = MarketTheme.width(words, cs) + 28.0
-		b.draw.connect(func () -> void: MarketTheme.text(b, words, 14.0, b.size.y * 0.5, b.size.x - 28.0, cs, MarketTheme.TEXT))
+		var words: String = c.text
+		var xs := roundf(cs * 0.8)
+		b.custom_minimum_size.x = MarketTheme.width(words, cs) + xs + 38.0
+		b.draw.connect(func () -> void:
+			MarketTheme.text(b, words, 14.0, b.size.y * 0.5, b.size.x - xs - 38.0, cs, MarketTheme.TEXT)
+			MarketGlyphs.cross(b, Rect2(b.size.x - 14.0 - xs, (b.size.y - xs) * 0.5, xs, xs), MarketTheme.TEXT))
 		var key: StringName = c.key
 		b.pressed.connect(func () -> void: chip_removed.emit(key))
 		_chip_box.add_child(b)

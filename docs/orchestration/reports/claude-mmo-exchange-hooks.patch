@@ -1,5 +1,5 @@
 diff --git a/game/scripts/economy/market_engine.gd b/game/scripts/economy/market_engine.gd
-index 255b661f..fbc748f1 100644
+index 255b661f..4f184e28 100644
 --- a/game/scripts/economy/market_engine.gd
 +++ b/game/scripts/economy/market_engine.gd
 @@ -159,7 +159,8 @@ func _dispatch(op: String, me: int, a: EconArgs) -> Dictionary:
@@ -8,7 +8,7 @@ index 255b661f..fbc748f1 100644
  		"bridge.settled": return _settled(a)
 -		"wallet.get": return EconArgs.ok({"wallet": L.acct(me).wallet, "bound": L.bound(me), "held": query.held(me)})
 +		"wallet.get": return EconArgs.ok({"wallet": L.acct(me).wallet, "bound": L.bound(me), "held": query.held(me),
-+			"trade_lock_s": maxi(0, int(L.acct(me).created) + rules.num("trade_lock_s") - L.now)}) # W3-EXCHANGE H6: the market screens show the lock before List / Buy
++			"trade_lock_s": maxi(0, int(L.acct(me).created) + rules.num("trade_lock_s") - L.now), "account_id": me}) # W3-EXCHANGE H6: the market screens show the lock before List / Buy and know their own rows
  		"wallet.spend": return _spend(me, a)
  		"objective.claim": return _claim(me, a)
  		"vault.get": return _vault(me)

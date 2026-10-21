@@ -1,16 +1,15 @@
 class_name MarketHeader
 extends Control
-## `[<] Island name   test-server words   [coin 1,234] [coin+lock 20] | [X]` on the black band with
-## the torn edge. Tradable T-stones are the big number (only they buy); bound ones show with a lock, and
-## only when there are some, so a 20-coin wallet that cannot buy explains itself (bound ones pay
-## listing fees, which Sell counts).
+## `[<] Island name   [coin 1,234] [coin+lock 20] | [X]` on the black band (the torn paper under it is
+## MarketScreen's sheet). Tradable T-stones are the big number (only they buy); bound ones show with a
+## lock, and only when there are some, so a 20-coin wallet that cannot buy explains itself (bound
+## ones pay listing fees, which Sell counts). The test server says so in the rail, not the title bar.
 ## No premium currency and no "+" (no monetization).
 
 signal back_pressed
 signal close_pressed
 
 var title := ""
-var badge := "" ## "" on the live server; the test server's label otherwise
 var wallet := {} ## wallet.get: {wallet, bound, held}; empty = not loaded (offline shows no counters)
 
 var back_btn: Button
@@ -59,8 +58,7 @@ func _draw() -> void:
 	if _m.is_empty():
 		return
 	var h: float = _m.header_h
-	draw_rect(Rect2(0, 0, size.x, h + _m.edge_h * 0.7), MarketTheme.HEADER) # black behind the band's rips
-	MarketTheme.torn_edge(self, h, size.x, _m.edge_h)
+	draw_rect(Rect2(0, 0, size.x, h + _m.edge_h), MarketTheme.HEADER) # black behind the paper's rips
 	var side := close_btn.size.x
 	var right: float = close_btn.position.x - _m.margin
 	# Divider before X, then the pills right to left.
@@ -74,24 +72,23 @@ func _draw() -> void:
 	var x: float = back_btn.position.x + side + _m.margin * 0.25
 	var free: float = right - x
 	var tsize: int = _m.title
-	var tw := minf(MarketTheme.width(title, tsize), free * (0.62 if badge != "" else 1.0))
-	MarketTheme.text(self, title, x, h * 0.5, tw, tsize, MarketTheme.ACTION)
-	if badge != "":
-		# Honest but quiet (spec 06: never a falsely represented live market): grey words after the
-		# title, not a coloured pill competing with it.
-		var bx: float = x + tw + _m.margin
-		MarketTheme.text(self, badge, bx, h * 0.5 + tsize * 0.12, right - bx, _m.type, MarketTheme.TEXT_2)
+	MarketTheme.text(self, title, x, h * 0.5, minf(MarketTheme.width(title, tsize), free), tsize, MarketTheme.ACTION)
 
-## A dark rounded counter ending at `right` (the grey T-stone coin, with a lock tag for bound
-## ones); returns its left edge.
+## A dark rounded counter ending at `right`: the grey T-stone coin (about half the pill's height, as
+## in the references) and the number; bound T-stones add a white padlock on a dark disc over the
+## coin's corner, big enough to read on a 390 px phone. Returns its left edge.
 func _pill(right: float, bound: bool, value: String, h: float, wide: bool) -> float:
 	var fs: int = _m.name
 	var ph := maxf(28.0, h * 0.66)
-	var isz := ph * 0.66
+	var cr := ph * 0.27
 	var tw := MarketTheme.width(value, fs)
-	var w := maxf(tw + isz + 34.0, size.x * (0.12 if wide else 0.07))
+	var w := maxf(tw + cr * 2.0 + ph * 0.9, size.x * (0.12 if wide else 0.07))
 	var r := Rect2(right - w, (h - ph) * 0.5, w, ph)
-	draw_style_box(MarketTheme.flat(Color(0.1, 0.1, 0.09, 0.95), Color(0.2, 0.2, 0.18, 1), 1, int(ph * 0.3)), r)
-	MarketGlyphs.coin(self, Vector2(r.position.x + 8 + isz * 0.5, h * 0.5), isz * 0.5, bound)
-	MarketTheme.text(self, value, r.position.x + isz + 16, h * 0.5, w - isz - 28, fs, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
+	draw_style_box(MarketTheme.flat(Color(0.1, 0.1, 0.09, 0.95), Color(0, 0, 0, 0), 0, int(ph * 0.3)), r)
+	var c := Vector2(r.position.x + ph * 0.42 + cr * 0.4, h * 0.5)
+	MarketGlyphs.coin(self, c, cr)
+	if bound:
+		MarketGlyphs.lock(self, c + Vector2(cr * 0.85, cr * 0.55), ph * 0.24)
+	var tx := c.x + cr + ph * 0.3
+	MarketTheme.text(self, value, tx, h * 0.5, r.end.x - ph * 0.35 - tx, fs, MarketTheme.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
 	return r.position.x
