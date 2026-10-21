@@ -5,7 +5,8 @@ extends SceneTree
 ##   view wide with no vertical scrolling; 64 px tap targets that never overlap, inside the safe area
 ##   (sail_lab.audit); Home + 5 in view at 1600x900 and 844x390, the Lv. 60 island after scrolling right.
 ## - A 400 px touch drag (with the phone's emulated mouse copy) and a 400 px mouse drag each scroll
-##   400 +/- 10 px and do not open a card; the wheel scrolls; a tap opens the card.
+##   400 +/- 10 px and do not open a card; the wheel scrolls; a tap opens the card; Escape closes the
+##   card, then the chart.
 ## - Survival 0 locks all 14 islands (card says "Needs Survival N"); after a real voyage to
 ##   savannah_15 its node shows a check and the never-visited ones "?".
 ## - Sail on the card travels through World.travel(id, &"sail"): 5 T-stones charged, the island loads;
@@ -183,8 +184,20 @@ func _check_scroll(view: Vector2i) -> void:
 	await _touch_drag(_node(sail, "savannah_15").get_global_rect().get_center(), 0.0)
 	_expect(sail.get("card_id") == &"savannah_15", "%s a touch tap opens the node's card (%s)" % [tag, sail.get("card_id")])
 	print("[t_sailui] %s drags ok, scroll range 0..%.0f" % [tag, float(sail.get("content_w")) - (sail.call("view_rect") as Rect2).size.x])
+	root.push_input(_cancel())
+	await _frames(1)
+	_expect(is_instance_valid(sail) and not sail.is_queued_for_deletion() and sail.get("card_id") == &"", "%s Escape closes the card first" % tag)
+	root.push_input(_cancel())
+	await _frames(1)
+	_expect(not is_instance_valid(sail) or sail.is_queued_for_deletion(), "%s a second Escape closes the chart" % tag)
 	_ui.hide_all()
 	await _frames(1)
+
+func _cancel() -> InputEventAction:
+	var a := InputEventAction.new()
+	a.action = &"ui_cancel"
+	a.pressed = true
+	return a
 
 func _touch_drag(from: Vector2, dx: float) -> void:
 	var steps := 20 if dx != 0.0 else 0
