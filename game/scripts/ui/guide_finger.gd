@@ -16,6 +16,12 @@ const BOB := 10.0       ## the tap pulls the tip back at most this far along the
 const TAP_HZ := 1.1
 const EDGE := 20.0      ## an off-screen target clamps the tip this far inside the safe area
 const REPICK_S := 0.5   ## the nearest world target is re-chosen this often; it is projected every frame
+const SLIDE_STEP := 4.0 ## an edge hand slides in off a HUD block in steps this small (px), so it never hops
+## Motion (the owner's 2026-10-21 gate: no jumps, snaps or side swaps between frames).
+const TURN := 10.0      ## rad/s: the hand turns to a new placement instead of snapping round
+const GLIDE := 12.0     ## 1/s: on a new target the hand eases over from where it was ...
+const GLIDE_MAX := 2000.0  ## ... at most this fast (px/s)
+const STICK := 0.2      ## a placement stays while it covers at most this share of the hand more of the soft rects
 ## Hand placements tried in order (finger angle, 0 = up): below-right, below-left, above-right, above-left,
 ## then square on (right, left, below, above) for targets in a corner, such as the MENU hex.
 const ANGLES: Array[float] = [-0.5236, 0.5236, -2.618, 2.618, -1.5708, 1.5708, 0.0, 3.1416]
@@ -27,6 +33,7 @@ var player: Player
 ## Read by the lab: where the drawn tip is, the angle, which step and target this frame.
 var tip := Vector2.ZERO
 var angle := 0.0
+var anchor := Vector2.ZERO  ## the point the tip taps this frame, before easing and the tap
 var clamped := false
 var step_id := ""
 var target: Node3D
@@ -37,6 +44,12 @@ var _rect := Rect2()   ## a screen target (craft control); empty for a world one
 var _t := 0.0
 var _shapes: Array = []  ## [[outline polygon, fill polygon, fill color], ...] in local px
 var _hud: HuntHud
+var _want := 0.0        ## this frame's placement angle; `angle` turns toward it
+var _key := ""          ## what the hand is on (hex, rect, node or edge plus the target): a change eases over
+var _at := Vector2.ZERO ## the anchor as drawn (anchor plus the easing offset)
+var _offset := Vector2.ZERO
+var _keep_off: Array[Rect2] = []
+var _s := 1.0
 
 ## The finger's layer under `p` (PlayerView.setup_ui calls this once the gather radial exists).
 static func mount(p: Player) -> GuideFinger:
@@ -62,7 +75,10 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	var was := visible
+	var key_was := _key
 	visible = _update(delta)
+	if visible:
+		_settle(delta, was, key_was)
 	if visible or was:
 		queue_redraw()
 
@@ -101,6 +117,8 @@ func _update(delta: float) -> bool:
 	if b.has("map_title") and b.has("map_text"):
 		soft.append((b["map_title"] as Rect2).merge(b["map_text"]))
 	var s := hand_scale(view)
+	_s = s
+	_keep_off = keep_off
 	# While the gather radial is open the finger is only ever on its hex for this order's item, and would
 	# rather not cover the radial's labels and title. Open on anything else, it waits: the hand pointing
 	# past it sat on the radial's labels.
@@ -113,6 +131,7 @@ func _update(delta: float) -> bool:
 		var near: Array[Rect2] = soft.duplicate()
 		near.append_array(r.label_rects)
 		near.append(r.title_box)
+		_key = "hex"
 		return _aim(hex.get_center(), safe, keep_off, s, near)
 	if not is_instance_valid(target):
 		target = null  # freed with its island (travel, a reload); a freed object passes a != null check
@@ -124,6 +143,7 @@ func _update(delta: float) -> bool:
 		_rect = found.get("rect", Rect2())
 	if _rect.has_area():
 		clamped = false
+		_key = "rect"
 		return _aim(_rect.get_center(), safe, keep_off, s, soft)
 	if target == null:
 		return false
@@ -132,6 +152,7 @@ func _update(delta: float) -> bool:
 	var p := cam.unproject_position(at)
 	var inner := safe.grow(-EDGE)
 	clamped = behind or not inner.has_point(p)
+	_key = "%s%d" % ["edge" if clamped else "node", target.get_instance_id()]
 	if not clamped:
 		return _aim(p, safe, keep_off, s, soft)
 	# On the edge where the line from the centre leaves the screen, pointing out along it; where the hand
@@ -141,24 +162,46 @@ func _update(delta: float) -> bool:
 	var a := aim_angle(edge - inner.get_center())
 	var avoid: Array[Rect2] = keep_off.duplicate()
 	avoid.append_array(soft)
-	for k in 9:
-		if _place(edge.lerp(inner.get_center(), float(k) / 8.0), a, avoid, s):
+	var n := maxi(1, ceili(edge.distance_to(inner.get_center()) / SLIDE_STEP))
+	for k in n + 1:
+		if _place(edge.lerp(inner.get_center(), float(k) / float(n)), a, avoid, s):
 			return true
 	return false
 
 ## Tip on `at`, hand on screen, off `keep_off` and covering as little of `soft` as it can.
 func _aim(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: float, soft: Array[Rect2] = []) -> bool:
-	var a := pick_angle(at, safe, keep_off, s, soft)
+	var a := pick_angle(at, safe, keep_off, s, soft, _want if visible else NAN)  # visible: last frame's
 	return not is_nan(a) and _place(at, a, keep_off, s)
 
 ## An edge-clamped hand may run off the screen behind the tip, never onto a `keep_off` block.
-func _place(anchor: Vector2, a: float, keep_off: Array[Rect2], s: float) -> bool:
+func _place(at: Vector2, a: float, keep_off: Array[Rect2], s: float) -> bool:
 	for k in keep_off:
-		if hand_rect(anchor, a, s).intersects(k):
+		if hand_rect(at, a, s).intersects(k):
 			return false
-	angle = a
-	tip = anchor - Vector2(sin(a), -cos(a)) * bob(_t) * s
+	anchor = at
+	_want = a
 	return true
+
+## Ease onto this frame's placement: on a new target (another tree, the edge giving way to the tree on
+## screen) the hand glides over, and it turns rather than snapping round. A gather hex is tracked exactly
+## (the tip is on it from the frame the radial opens). The eased hand never covers the vitals or the card:
+## it snaps instead.
+func _settle(delta: float, was: bool, key_was: String) -> void:
+	if not was or _key == "hex":
+		_offset = Vector2.ZERO
+	elif _key != key_was:
+		_offset = _at - anchor
+	else:
+		_offset = _offset.move_toward(Vector2.ZERO, minf(_offset.length() * (1.0 - exp(-GLIDE * delta)), GLIDE_MAX * delta))
+	angle = rotate_toward(angle, _want, TURN * delta) if was else _want
+	_at = anchor + _offset
+	for k in _keep_off:
+		if hand_rect(_at, angle, _s).intersects(k):
+			angle = _want
+			_offset = Vector2.ZERO
+			_at = anchor
+			break
+	tip = _at - Vector2(sin(angle), -cos(angle)) * bob(_t) * _s
 
 func _on_picked(_anchor: Node3D, i: int) -> void:
 	var r := player._gather_radial if player else null
@@ -206,21 +249,24 @@ static func hand_clear(at: Vector2, a: float, s: float, safe: Rect2, keep_off: A
 
 ## The placement whose hand stays inside `safe`, off `keep_off`, and covers the least of `soft` (the
 ## first such on a tie); NAN when none fits (the finger hides rather than cover the vitals or the card).
-static func pick_angle(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: float, soft: Array[Rect2] = []) -> float:
+## `prefer` (the current placement) stays while it fits and covers at most STICK of the hand more than the
+## best, so the hand does not swap sides as the radial's labels shift.
+static func pick_angle(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: float, soft: Array[Rect2] = [], prefer: float = NAN) -> float:
 	var best := NAN
 	var best_cover := INF
+	var kept := INF
 	for a in ANGLES:
 		if not hand_clear(at, a, s, safe, keep_off):
 			continue
 		var cover := 0.0
 		for k in soft:
 			cover += hand_rect(at, a, s).intersection(k).get_area()
+		if a == prefer:
+			kept = cover
 		if cover < best_cover:
 			best = a
 			best_cover = cover
-		if cover <= 0.0:
-			break
-	return best
+	return prefer if kept < INF and kept <= best_cover + STICK * hand_rect(at, 0.0, s).get_area() else best
 
 ## Where a target off `inner` (or behind the camera, whose projection mirrors) meets its edge on the
 ## line from the centre: the finger sits there and points out at it.

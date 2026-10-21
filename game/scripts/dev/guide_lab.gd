@@ -10,6 +10,8 @@ extends Node3D
 ##      also after a save and a reload; the next order's finger shows and stays.
 ##   4. It hides under the bag, craft, the menu and skills sheets, a radial open on another node and the
 ##      creature plate.
+##   5. Motion (the owner's 2026-10-21 gate), frame by frame over the walk to the tree, the radial walk and
+##      the next order: the hand never jumps or snaps round, and does not swap sides for the same target.
 ## Windowed: --resolution 1600x900 -- --lab=guide_lab [--shot-dir=DIR] (844x390 too; either renderer).
 ## Prints "[guide] PASS" (exit 0) or "[guide] FAIL ..." lines (exit 1).
 
@@ -24,6 +26,8 @@ var _t0 := 0
 var _frame0 := 0
 var _pick_frame := -1
 var _pick_item := ""
+var _motion: Dictionary = {}  ## phase -> {frames, jumps, snaps, swaps, hops}
+var _last: Array = []
 
 func _ready() -> void:
 	_out = OS.get_user_data_dir().path_join("guide")
@@ -90,9 +94,11 @@ func _run() -> void:
 		# Follow the finger: walk until the tree is well on screen (by the edges the radial runs into the HUD).
 		_player.nav_to(_player._closest_nav_point(tree.global_position))
 		var t := 0.0
+		_last = []
 		while t < 15.0 and (_finger.target == null or not middle.has_point(_cam().unproject_position(Guide.aim_point(_finger.target)))):
 			await get_tree().process_frame
 			t += get_process_delta_time()
+			_track("walk to the tree")
 		_player.clear_nav()
 		await get_tree().create_timer(0.4).timeout
 		await RenderingServer.frame_post_draw
@@ -103,6 +109,7 @@ func _run() -> void:
 			_finish()
 			return
 		_check_on_tree(tree)
+		_smooth("walk to the tree", true)
 		await _shot("node_near")
 	# 2. A real tap on the tree opens the radial; the tip follows the Branch hex while the survivor walks.
 	var radial := _player._gather_radial
@@ -125,10 +132,12 @@ func _run() -> void:
 	var t2 := 0.0
 	var shot_taken := false
 	var hex := Rect2()
+	_last = []
 	while t2 < 3.0:
 		await get_tree().process_frame
 		t2 += get_process_delta_time()
 		frames += 1
+		_track("radial walk")
 		hex = radial.hex_rect_for(&"branch")
 		if not (_finger.visible and hex.has_point(_finger.tip)):
 			off += 1
@@ -141,6 +150,7 @@ func _run() -> void:
 	_player.clear_nav()
 	print("[guide] radial walk: %d frames, %d with the tip off the Branch hex, survivor moved %.1f m" % [frames, off, moved])
 	_expect(frames > 30 and off == 0 and moved > 1.0, "tip inside the Branch hex every frame for 3 s while the survivor walks (%d of %d off, moved %.1f m)" % [off, frames, moved])
+	_smooth("radial walk", true)
 	await get_tree().create_timer(0.3).timeout
 	# 3. A tap at the tip picks Branch, and the finger hides within a frame and stays gone.
 	var tip := _finger.tip
@@ -179,12 +189,15 @@ func _run() -> void:
 	_expect(_finger.visible and _finger.step_id == "stone", "order 2's finger shows")
 	var flicker := 0
 	var was := true
+	_last = []
 	for k in 60:
 		await get_tree().process_frame
+		_track("next order")
 		if was and not _finger.visible:
 			flicker += 1
 		was = _finger.visible
 	_expect(flicker == 0 and _finger.visible, "order 2's finger stays up (%d drops in 60 frames)" % flicker)
+	_smooth("next order", false)
 	await _shot("next")
 	# 4. Hidden under the bag, craft, the sheets and the creature plate.
 	await _covered("bag", func () -> void: _player.ui.visible = true, func () -> void: _player.ui.visible = false)
@@ -223,6 +236,43 @@ func _check_on_tree(tree: HarvestNode) -> void:
 		var d := _finger.tip.distance_to(p)
 		print("[guide] tree at %s: tip %s, %.1f px away" % [p, _finger.tip, d])
 		_expect(d <= TIP_PX, "tip within %.0f px of the tree (%.1f)" % [TIP_PX, d])
+
+## One frame of the finger's motion in `phase`, against the last frame:
+## - jump: the tip moved over 24 px, faster than 3000 px/s, beyond the motion of the thing it is on (on a
+##   new target the hand eases over at no more than GuideFinger.GLIDE_MAX, 2000 px/s);
+## - snap: the hand turned over 30 degrees, faster than 12 rad/s (it eases at GuideFinger.TURN, 10 rad/s);
+## - swap: a new placement for the same target, off the edge (an edge hand points along its own line);
+## - hop: a new target.
+func _track(phase: String) -> void:
+	var m: Dictionary = _motion.get_or_add(phase, {"frames": 0, "jumps": 0, "snaps": 0, "swaps": 0, "hops": 0})
+	var dt := maxf(get_process_delta_time(), 1.0 / 240.0)
+	var key := str(_finger.get("_key"))
+	var now := [_finger.visible, _finger.tip, _finger.anchor, _finger.angle, float(_finger.get("_want")), key, _finger.target]
+	if _last.size() == now.size() and _last[0] and now[0]:
+		m["frames"] += 1
+		var moved: Vector2 = now[1] - _last[1]
+		if key == _last[5]:
+			moved -= now[2] - _last[2]  # the same target: its own motion is not the hand's
+		if moved.length() > 24.0 and moved.length() / dt > 3000.0:
+			m["jumps"] += 1
+			print("[guide] %s jump: tip %s -> %s (%.0f px in %.0f ms) on %s" % [phase, _last[1], now[1], moved.length(), dt * 1000.0, key])
+		var turn := absf(angle_difference(float(_last[3]), float(now[3])))
+		if turn > deg_to_rad(30.0) and turn / dt > 12.0:
+			m["snaps"] += 1
+			print("[guide] %s snap: %.0f deg in %.0f ms on %s" % [phase, rad_to_deg(turn), dt * 1000.0, key])
+		if key == _last[5] and not key.begins_with("edge") and not is_equal_approx(float(now[4]), float(_last[4])):
+			m["swaps"] += 1
+			print("[guide] %s swap: placement %.0f -> %.0f deg on %s" % [phase, rad_to_deg(float(_last[4])), rad_to_deg(float(now[4])), key])
+		if now[6] != _last[6]:
+			m["hops"] += 1
+	_last = now
+
+## The motion gate for `phase`: no jumps or snaps, at most one placement change, and (`still`) one target.
+func _smooth(phase: String, still: bool) -> void:
+	var m: Dictionary = _motion.get(phase, {"frames": 0, "jumps": 0, "snaps": 0, "swaps": 0, "hops": 0})
+	print("[guide] motion %s: %s" % [phase, m])
+	_expect(int(m["frames"]) >= 20 and int(m["jumps"]) == 0 and int(m["snaps"]) == 0 and int(m["swaps"]) <= 1 and (not still or int(m["hops"]) == 0),
+		"%s: the hand moves smoothly over %d frames (jumps %d, snaps %d, swaps %d, hops %d)" % [phase, m["frames"], m["jumps"], m["snaps"], m["swaps"], m["hops"]])
 
 ## Open a cover, expect the finger gone; close it, expect it back (proves the cover hid it).
 func _covered(what: String, open: Callable, close: Callable, reopens: bool = true) -> void:

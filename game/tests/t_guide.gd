@@ -130,6 +130,15 @@ func _test_placement() -> void:
 	var soft: Array[Rect2] = [label]
 	var la: float = FingerS.pick_angle(Vector2(800, 450), view, keep, 1.1, soft)
 	_expect(not FingerS.hand_rect(Vector2(800, 450), la, 1.1).intersects(label), "the hand keeps off a soft label where a placement allows")
+	# Hysteresis: the current placement stays while it fits, so the hand does not swap sides frame to frame.
+	var none: Array[Rect2] = []
+	var mid := Vector2(800, 450)
+	var up_right: float = FingerS.ANGLES[2]
+	_expect(FingerS.pick_angle(mid, view, keep, 1.1, none, up_right) == up_right, "the current placement stays while it fits")
+	var foot: float = FingerS.pick_angle(Vector2(800, 885), view, keep, 1.1, none, FingerS.ANGLES[0])
+	_expect(not is_nan(foot) and foot != FingerS.ANGLES[0], "a current placement that runs off the screen gives way (%s)" % foot)
+	var over: Array[Rect2] = [FingerS.hand_rect(mid, up_right, 1.1)]
+	_expect(FingerS.pick_angle(mid, view, keep, 1.1, over, up_right) != up_right, "a current placement that now covers a label gives way to a clear one")
 	var boxed: Array[Rect2] = [Rect2(0, 0, 1600, 900)]
 	_expect(not is_nan(FingerS.pick_angle(Vector2(800, 450), view, keep, 1.1, boxed)), "soft rects never hide the finger")
 	_expect(is_equal_approx(FingerS.aim_angle(Vector2.UP), 0.0) and is_equal_approx(FingerS.aim_angle(Vector2.RIGHT), PI * 0.5), "aim angle: up is 0, right is a quarter turn")
