@@ -20,8 +20,52 @@ W2-DATA, WATER), did the bonded-cap sync step and re-ran every gate. Eleventh pa
 (2026-10-21): the resumed run's review (findings file `econ-review-r3.json`): W2-GATHER's rare
 traits, spec 06:12 search, and an oversized grant that stopped the bridge. Twelfth pass
 (2026-10-21): the next review of the resumed run (2 majors, 6 minors): the spec 06:21 full-bag
-test, fixtures that W2-GATHER's traits broke, repacked kits. Read "Review r3, twelfth pass"
-first, then "Review r3 (eleventh pass)".
+test, fixtures that W2-GATHER's traits broke, repacked kits. Thirteenth pass (2026-10-21): the
+same review relayed again; every item was already fixed in the twelfth pass, so this pass merged
+the moved base (W2-INV), regenerated the hooks patch and re-ran every gate and both mutants. Read
+"Thirteenth pass" first, then "Review r3, twelfth pass", then "Review r3 (eleventh pass)".
+
+## Thirteenth pass (2026-10-21): W2-INV base merged, r3 items re-verified
+
+The run prompt relayed the twelfth pass's review again (2 majors, 6 minors). Each one was fixed at
+6c7a1808 and 5ad81314; the twelfth-pass table below has the fix and the check for each. No
+finding was wrong, so none needs counter-evidence. The base moved from acc684a6 to af03937f
+(W2-INV merged: item instances, server character migration). I merged it at 3d5b9566 with no
+conflicts. W2-INV changed `run_all.gd` away from ECON's hunk, so the hooks patch was regenerated
+at 0522434f. Only the `run_all.gd` index line changed (`27e08922..1c3e0128`); every hunk is
+byte-identical. `git apply --cached --check` against `claude/mmo-overhaul` af03937f is clean, and
+the patch still touches only `intent_handlers.gd` and `run_all.gd`.
+
+| Item | State on the merged base (gate tree `econ-r13` = 3d5b9566 + hooks patch) |
+|---|---|
+| M1 + acceptance (full bag, spec 06:12 / 06:21) | `[econ-bridge] full bag empty=0 whole=bag_full part=bag_full in_vault=true unchanged=true stuck='' search=ok \| freed retry whole=ok part=ok home=15 of 15 again=not_found`. **Mutant re-run on this base** (`_grant`'s pre-check changed to `if false and ...`): `[t_econ] FAIL a full bag refuses both purchases before the vault lets go, the bridge serving (whole=bag_full part=ok in_vault=false unchanged=false stuck='2 stone_shot left the vault under b54 but char.grant refused them (bag_full)' search=server_error)`, then `[t_econ] FAIL count=10`. Reverted. |
+| m1 (trait-proof fixtures) | Unchanged since the twelfth pass. W2-GATHER is still not in the base, so the integration-tree evidence there (`econ-int12`, which already had W2-INV 5b255c97) stands. With W2-INV in the base, `stone_shot` is ammunition and still stacks (W2-INV's own run_all note), so `_slot` picks the one row: `[econ-bridge] sale whole=13 units paid=91 ...`. |
+| m2 (repacked kits) | **Mutant re-run on this base** (`repacked` removed from `allowed_flags`): `ERROR: [tests] econ: a repacked kit deposits and keeps its flag: { "ok": false, "err": "invalid_asset", "msg": "flag repacked not allowed" }`, then `[tests] FAIL count=1`. Reverted. |
+| m3 (trade lock), m4 (contract 6.1), m5 (0.7 named), m6 (band ASSUMPTION) | As in the twelfth pass: m3 and m4 are carried integrator and orchestrator notes, m5 is named under Assumptions, and m6 is in `market_rules.json` `_reference_band_about` and `price_history.gd:91`. |
+
+### Acceptance (thirteenth pass)
+
+The gate tree is mkscratch `econ-r13` at 3d5b9566 with the hooks patch applied cleanly. 0522434f
+changes only the patch file, so the game files are the same. The `--import` log has 1504 lines,
+with 0 SCRIPT ERROR lines and 0 "failed" lines. Every run went through gslot.
+
+- All 25 `game/tests/t_*.gd` exit 0 with their PASS line: t_ai, t_build, t_canim, t_combat, t_data
+  (`PASS items=223 recipes=155`), t_daynight_dial, t_econ, t_harbour (`PASS islands=15`),
+  t_iconart, t_inventory (new from W2-INV), t_items, t_light, t_lighting, t_occlude, t_player,
+  t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons, t_w2_skills, t_water,
+  t_web. t_save prints its 5 deliberate SCRIPT ERROR lines; every other test prints 0. None
+  prints "couldn't resolve track".
+- `t_econ`: `[t_econ] PASS`, with the full-bag line above,
+  `[econ-bridge] stack_max 999->4 withdraw6=bad_request account2_search=ok stuck='' parts=4 units_home=13 of 13`,
+  `[econ-bridge] bonded cap=3 (Data.bonded_cap) roster=3 withdraw=limit_reached kept_in_vault=true ...`,
+  and `[econ-bridge] fuzz 3600 ops, 15 restarts mid-move, invariants of both stores after every op (coins issued 3574, sink 408)`.
+  Its 8 ERROR lines are all `deliberate fault in vault.*`.
+- `run_all.gd`: `[tests] PASS`. Its two SCRIPT ERROR lines follow
+  `[econ] fault test: the next SCRIPT ERROR and ERROR lines are deliberate`, as before.
+- `tools/smoke.sh --no-import`: `[smoke] ok player_pos=(0.0, 1.0, 0.0) phase=day`, `SMOKE PASS`.
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips`: 25 before and the same 25 after (newest
+  `Godot-2026-10-20-232613.ips`, from before this pass).
+- Labs and screenshots: none. ECON is server-side and has no UI.
 
 ## Review r3, twelfth pass (2026-10-21): full bag, trait-proof fixtures, repacked kits
 
