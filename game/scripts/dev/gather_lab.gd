@@ -171,7 +171,7 @@ func _gather(node: HarvestNode, item: StringName, units: int, shot: String, shot
 		_fails.append("gathered %d/%d %s" % [passes, units, item])
 	if shot != "":
 		await get_tree().create_timer(shot_after).timeout
-		_popup_clear(node)
+		_popup_clear(node, shot.begins_with("rare"))
 	# Stop before the capture: a slow windowed frame would otherwise keep the cycle running.
 	_p.actions.cancel_work()
 	if shot != "":
@@ -186,14 +186,26 @@ func _ring_above(node: HarvestNode) -> bool:
 			and ring._screen_pos.y < cam.unproject_position(node.global_position).y
 
 ## The live "+n" stack sits clear of the ring, HUD text and zones, plates and the radial.
-func _popup_clear(node: HarvestNode) -> void:
+func _popup_clear(node: HarvestNode, rare: bool = false) -> void:
 	if DisplayServer.get_name() == "headless":
 		return  # no real screen layout headless: the windowed runs check placement
 	var layer := get_tree().current_scene.get_node_or_null(GatherFeedback.LAYER_NAME)
 	var box: Control = layer.get_child(layer.get_child_count() - 1) if layer and layer.get_child_count() > 0 else null
+	if (box == null or not box.visible) and UiTokens.is_compact(get_viewport().get_visible_rect().size):
+		# A phone with the gather radial open can leave no free spot by the node: the stack is skipped
+		# by design (gather_feedback.gd), so the HUD toast must carry the yield instead.
+		var hud := get_tree().get_first_node_in_group("hud")
+		var toasted := false
+		for k in (hud.get("drawn_blocks") as Dictionary if hud else {}):
+			toasted = toasted or str(k).begins_with("toast")
+		_check(toasted, "no yield popup over %s and no HUD toast either" % node.family)
+		_check(not rare or _rare_notice_fresh(), "a find the stack could not show is announced by a HUD notice")
+		print("[gather_lab] popup skipped over %s (no room by the node); HUD toast %s, rare notice %s" % [node.family, toasted, _rare_notice_fresh()])
+		return
 	_check(box != null and box.visible, "a yield popup showed over %s" % node.family)
 	if box == null:
 		return
+	_check(not (rare and _rare_notice_fresh()), "a drawn rare stack is not repeated by a HUD notice")
 	var a := get_viewport().get_camera_3d().unproject_position(node.global_position + Vector3(0, node.top_of_node() + 0.3, 0))
 	var r := box.get_global_rect()
 	var texts := []
@@ -205,6 +217,16 @@ func _popup_clear(node: HarvestNode) -> void:
 	for t in taken:
 		_check(not r.intersects(t), "popup %s at %s clear of %s" % [texts, r, t])
 	print("[gather_lab] popup %s at %s" % [texts, r])
+
+## A "Rare find" HUD notice raised for this unit (notices live 3.2 s; this one is under 0.6 s old).
+func _rare_notice_fresh() -> bool:
+	var hud := get_tree().get_first_node_in_group("hud")
+	if hud == null:
+		return false
+	for n in hud._events.notices:
+		if str(n["text"]).begins_with("Rare find") and float(n["t"]) < 0.6:
+			return true
+	return false
 
 func _move_cancels(node: HarvestNode) -> void:
 	var idx := _option(node, &"fibre_stalk")
