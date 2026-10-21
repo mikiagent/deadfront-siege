@@ -420,9 +420,11 @@ func _test_portrait() -> void:
 	var held := ImageTexture.create_from_image(Image.create_empty(2, 2, false, Image.FORMAT_RGBA8))
 	cache["self"] = held
 	_expect(PP.texture_for(mine, _hud) == held, "your portrait stays cached while nothing changes")
-	_player.inventory.equip(&"head", &"t_domain_helmet")
+	_player.inventory.add(load("res://scripts/items/item_stack.gd").make(&"raid_helm", 1))  # W2-INV: equip wears an instance from the bag
+	_expect(_player.inventory.equip(&"head", &"raid_helm"), "the test helm is worn")
 	_expect(PP.texture_for(mine, _hud) != held, "equipping gear drops your cached portrait")
 	_player.inventory.unequip(&"head")
+	_player.inventory.consume(&"raid_helm", 1)
 	PP.texture_for(mine, _hud)
 	cache["self"] = held
 	var occ: String = _world.occupation
