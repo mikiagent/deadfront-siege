@@ -18,12 +18,14 @@ STATS = "--stats" in args
 MASKS = args[args.index("--masks") + 1] if "--masks" in args else None
 TMP = os.path.join(os.path.dirname(os.path.abspath(DST)), "_stego_albedo_tmp")
 
-# Targets read off the sheet (hue in degrees, saturation, value of the region's median texel):
-#   hide 40-42 deg / 0.22-0.27 / 0.45-0.55, plates 18-22 deg / 0.33-0.46 / 0.36-0.45, spikes ivory.
-HIDE = dict(hue=44.0, sat=0.26, val_gain=1.00, hue_keep=0.25)
+# Targets: the sheet's hues (hide 38-41 deg, plates 18-22 deg, ivory spikes), the hide nudged toward yellow-olive and
+# made more saturated and lighter than the sheet's medians (sat 0.22-0.27, value 0.45-0.66) because the game lights a creature's
+# visible flank mostly with blue sky ambient: at the sheet's numbers the hide still read blue-grey in stego_lab
+# (flank hue 187-205 deg in game); at these it reads olive green-brown with rust plates (checked in game, 3 tries).
+HIDE = dict(hue=46.0, sat=0.42, val_gain=1.35, hue_keep=0.25)
 BELLY_SAT = 0.13          # pale texels (value above BELLY_V) fade toward a cream with this saturation
-BELLY_V = 0.62
-PLATE = dict(hue=19.0, sat=0.46, val_gain=0.78, hue_keep=0.25)
+BELLY_V = 0.75
+PLATE = dict(hue=17.0, sat=0.60, val_gain=1.00, hue_keep=0.25)
 SPIKE = dict(hue=38.0, sat=0.13, val_gain=1.18, hue_keep=0.0)
 
 j, b = glb_io.read(SRC)
