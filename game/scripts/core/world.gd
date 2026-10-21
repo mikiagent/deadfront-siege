@@ -174,6 +174,8 @@ func travel(to_id: StringName, mode: StringName) -> void:
 		if is_home(): _save_now()
 		remaining_lifetime = 0.0 # each destination starts its own island lifetime
 		load_island(host, to_id, pos, false)
+		if runtime and runtime.has_method("arrival_point"):
+			player.global_position = runtime.arrival_point() + Vector3.UP
 		if is_home():
 			(load("res://scripts/core/save_game.gd") as GDScript)._restore_buildings(_home_buildings_cache, SaveMigrations.CURRENT_SCHEMA)
 		_save_now()
@@ -328,7 +330,7 @@ func _clear_runtime() -> void:
 	runtime = null
 
 func _player() -> Player:
-	return get_tree().get_first_node_in_group("player") as Player
+	return PlayerRegistry.local()
 
 func _ensure_fade() -> void:
 	var layer := CanvasLayer.new()

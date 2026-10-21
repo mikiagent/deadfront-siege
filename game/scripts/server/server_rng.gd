@@ -1,0 +1,13 @@
+class_name ServerRng
+extends RefCounted
+## The server's only source of chance. Each op gets a generator seeded from the store's world
+## seed and the seq the op will be journaled under, so replaying a journal draws the same numbers.
+
+## sha256, not hash(): a journal must replay the same on a later engine build.
+static func seed_for(world_seed: int, seq: int, salt: String = "") -> int:
+	return ("%d:%d:%s" % [world_seed, seq, salt]).sha256_text().substr(0, 15).hex_to_int()
+
+static func for_op(world_seed: int, seq: int, salt: String = "") -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_for(world_seed, seq, salt)
+	return rng

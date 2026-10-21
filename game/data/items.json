@@ -13,7 +13,9 @@
       "base_level": 1,
       "default_attributes": {
         "tint": "#7a5a32"
-      }
+      },
+      "market_category": "wood",
+      "rarity": "common"
     },
     {
       "id": "wood_log",
@@ -28,7 +30,9 @@
       "base_level": 1,
       "default_attributes": {
         "tint": "#6b4a28"
-      }
+      },
+      "market_category": "wood",
+      "rarity": "common"
     },
     {
       "id": "bark_strip",
@@ -39,7 +43,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "cordage",
+      "rarity": "common"
     },
     {
       "id": "split_wood",
@@ -51,7 +57,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "wood",
+      "rarity": "common"
     },
     {
       "id": "plank",
@@ -62,7 +70,9 @@
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "wood",
+      "rarity": "common"
     },
     {
       "id": "pillar",
@@ -73,14 +83,17 @@
       ],
       "stack_max": 5,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "wood",
+      "rarity": "common"
     },
     {
       "id": "stone",
       "display_name": "Stone",
       "categories": [
         "stone",
-        "blade_mat"
+        "blade_mat",
+        "tier_stone"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -88,7 +101,9 @@
       "default_attributes": {
         "tint": "#8a8a8a",
         "material_tier": "stone"
-      }
+      },
+      "market_category": "stone",
+      "rarity": "common"
     },
     {
       "id": "metal_shard",
@@ -103,28 +118,33 @@
       "default_attributes": {
         "tint": "#b0b8c0",
         "hardness": 3
-      }
+      },
+      "market_category": "ingot",
+      "rarity": "uncommon"
     },
     {
       "id": "ore",
-      "display_name": "Ore",
+      "display_name": "Rough Ore",
       "categories": [
         "ore",
-        "stone"
+        "stone",
+        "rough_ore"
       ],
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
       "default_attributes": {
         "tint": "#6a5a4a"
-      }
+      },
+      "market_category": "metal_ore",
+      "rarity": "uncommon"
     },
     {
       "id": "ingot",
-      "display_name": "Ingot",
+      "display_name": "Crude Ingot",
       "categories": [
         "metal",
-        "blade_mat"
+        "ingot"
       ],
       "stack_max": 10,
       "tool_class": "none",
@@ -132,63 +152,85 @@
       "default_attributes": {
         "tint": "#c0c4cc",
         "hardness": 4
-      }
+      },
+      "market_category": "ingot",
+      "rarity": "uncommon"
     },
     {
       "id": "copper_ingot",
       "display_name": "Copper Ingot",
       "categories": [
         "metal",
-        "blade_mat"
+        "ingot",
+        "tier_copper"
       ],
       "stack_max": 999,
       "default_attributes": {
         "material_tier": "copper",
         "tint": "#b87333",
         "hardness": 4
-      }
+      },
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "ingot",
+      "rarity": "uncommon"
     },
     {
       "id": "bronze_ingot",
       "display_name": "Bronze Ingot",
       "categories": [
         "metal",
-        "blade_mat"
+        "ingot",
+        "tier_bronze"
       ],
       "stack_max": 999,
       "default_attributes": {
         "material_tier": "bronze",
         "tint": "#cd7f32",
         "hardness": 5
-      }
+      },
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "ingot",
+      "rarity": "rare"
     },
     {
       "id": "iron_ingot",
       "display_name": "Iron Ingot",
       "categories": [
         "metal",
-        "blade_mat"
+        "ingot",
+        "tier_iron"
       ],
       "stack_max": 999,
       "default_attributes": {
         "material_tier": "iron",
         "tint": "#9a9b9d",
         "hardness": 6
-      }
+      },
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "ingot",
+      "rarity": "rare"
     },
     {
       "id": "steel_ingot",
       "display_name": "Steel Ingot",
       "categories": [
         "metal",
-        "blade_mat"
+        "ingot",
+        "tier_steel"
       ],
       "stack_max": 999,
       "default_attributes": {
         "material_tier": "steel",
         "tint": "#b8c2cc",
         "hardness": 7
-      }
+      },
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "ingot",
+      "rarity": "rare"
     },
     {
       "id": "fibre_stalk",
@@ -199,7 +241,9 @@
       ],
       "stack_max": 30,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "fibre",
+      "rarity": "common"
     },
     {
       "id": "reed",
@@ -213,7 +257,9 @@
       "base_level": 1,
       "default_attributes": {
         "tint": "#8a9a4a"
-      }
+      },
+      "market_category": "cordage",
+      "rarity": "common"
     },
     {
       "id": "root",
@@ -226,28 +272,36 @@
       "base_level": 1,
       "default_attributes": {
         "tint": "#5a4030"
-      }
+      },
+      "market_category": "cordage",
+      "rarity": "common"
     },
     {
       "id": "twine",
       "display_name": "Twine",
       "categories": [
         "lashing",
-        "fibre"
+        "fibre",
+        "twine"
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "cordage",
+      "rarity": "common"
     },
     {
       "id": "rope",
       "display_name": "Rope",
       "categories": [
-        "lashing"
+        "lashing",
+        "rope"
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "cordage",
+      "rarity": "uncommon"
     },
     {
       "id": "thread",
@@ -258,7 +312,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "cloth",
+      "rarity": "uncommon"
     },
     {
       "id": "cloth",
@@ -268,7 +324,9 @@
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "cloth",
+      "rarity": "uncommon"
     },
     {
       "id": "herb_leaf",
@@ -278,7 +336,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common"
     },
     {
       "id": "cloth_scrap",
@@ -288,7 +348,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "cloth",
+      "rarity": "common"
     },
     {
       "id": "charcoal",
@@ -302,7 +364,9 @@
       "base_level": 1,
       "default_attributes": {
         "tint": "#2a2a2a"
-      }
+      },
+      "market_category": "wood",
+      "rarity": "uncommon"
     },
     {
       "id": "bandage",
@@ -316,7 +380,9 @@
       "base_level": 1,
       "clears": [
         "bleed"
-      ]
+      ],
+      "market_category": "medicine",
+      "rarity": "uncommon"
     },
     {
       "id": "pressure_dressing",
@@ -330,7 +396,9 @@
       "base_level": 1,
       "clears": [
         "deep_bleed"
-      ]
+      ],
+      "market_category": "medicine",
+      "rarity": "uncommon"
     },
     {
       "id": "splint",
@@ -340,7 +408,9 @@
       ],
       "stack_max": 5,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "medicine",
+      "rarity": "uncommon"
     },
     {
       "id": "stone_knife_work",
@@ -361,7 +431,9 @@
       "stats_per_level": {
         "damage": 0.02,
         "max_durability": 0.02
-      }
+      },
+      "market_category": "tool",
+      "rarity": "uncommon"
     },
     {
       "id": "stone_knife",
@@ -382,7 +454,9 @@
       "stats_per_level": {
         "damage": 0.02,
         "max_durability": 0.02
-      }
+      },
+      "market_category": "tool",
+      "rarity": "common"
     },
     {
       "id": "work_axe",
@@ -402,7 +476,9 @@
       "stats_per_level": {
         "damage": 0.02,
         "max_durability": 0.02
-      }
+      },
+      "market_category": "tool",
+      "rarity": "common"
     },
     {
       "id": "work_pick",
@@ -417,7 +493,9 @@
       "max_durability": 50,
       "stats_per_level": {
         "max_durability": 0.02
-      }
+      },
+      "market_category": "tool",
+      "rarity": "common"
     },
     {
       "id": "club",
@@ -437,7 +515,9 @@
       "stats_per_level": {
         "damage": 0.02,
         "max_durability": 0.02
-      }
+      },
+      "market_category": "weapon",
+      "rarity": "common"
     },
     {
       "id": "raw_meat",
@@ -454,7 +534,9 @@
       "food_energy": 12,
       "raw": true,
       "poison_chance": 0.25,
-      "tastes_bad_chance": 0.2
+      "tastes_bad_chance": 0.2,
+      "market_category": "meat",
+      "rarity": "common"
     },
     {
       "id": "dried_meat",
@@ -471,7 +553,9 @@
       "food_energy": 17,
       "stats_per_level": {
         "food_energy": 0.01
-      }
+      },
+      "market_category": "food_cooked",
+      "rarity": "uncommon"
     },
     {
       "id": "smoked_meat",
@@ -488,7 +572,9 @@
       "food_energy": 23,
       "stats_per_level": {
         "food_energy": 0.01
-      }
+      },
+      "market_category": "food_cooked",
+      "rarity": "uncommon"
     },
     {
       "id": "camp_stew",
@@ -505,7 +591,9 @@
       "food_energy": 32,
       "stats_per_level": {
         "food_energy": 0.01
-      }
+      },
+      "market_category": "food_cooked",
+      "rarity": "uncommon"
     },
     {
       "id": "skewer",
@@ -522,7 +610,9 @@
       "food_energy": 22,
       "stats_per_level": {
         "food_energy": 0.01
-      }
+      },
+      "market_category": "food_cooked",
+      "rarity": "uncommon"
     },
     {
       "id": "fish",
@@ -539,7 +629,10 @@
       "food_energy": 10,
       "raw": true,
       "poison_chance": 0.25,
-      "tastes_bad_chance": 0.2
+      "tastes_bad_chance": 0.2,
+      "market_category": "meat",
+      "rarity": "common",
+      "source_pending": "fishing: no catch system yet (missions.json catch_fish waits on M7)"
     },
     {
       "id": "raptor_meat",
@@ -559,7 +652,9 @@
       },
       "raw": true,
       "poison_chance": 0.15,
-      "tastes_bad_chance": 0.2
+      "tastes_bad_chance": 0.2,
+      "market_category": "meat",
+      "rarity": "uncommon"
     },
     {
       "id": "raptor_bone",
@@ -567,7 +662,8 @@
       "categories": [
         "bone",
         "blade_mat",
-        "handle"
+        "handle",
+        "tier_bone"
       ],
       "stack_max": 10,
       "tool_class": "none",
@@ -576,7 +672,9 @@
         "hardness": 2,
         "tint": "#d4c4a8",
         "material_tier": "bone"
-      }
+      },
+      "market_category": "bone",
+      "rarity": "uncommon"
     },
     {
       "id": "raptor_hide",
@@ -592,7 +690,9 @@
       "default_attributes": {
         "feathered": 1,
         "tint": "#6b5a3e"
-      }
+      },
+      "market_category": "hide",
+      "rarity": "uncommon"
     },
     {
       "id": "raptor_talon",
@@ -608,7 +708,9 @@
       "default_attributes": {
         "hardness": 3,
         "tint": "#c9b48a"
-      }
+      },
+      "market_category": "bone",
+      "rarity": "uncommon"
     },
     {
       "id": "raw_hide",
@@ -620,18 +722,24 @@
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "hide",
+      "rarity": "common"
     },
     {
       "id": "dried_hide",
       "display_name": "Dried Hide",
       "categories": [
         "hide",
-        "uncut_hide"
+        "uncut_hide",
+        "dried_hide",
+        "cured_hide"
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "hide",
+      "rarity": "uncommon"
     },
     {
       "id": "hide_strap",
@@ -642,7 +750,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "hide",
+      "rarity": "uncommon"
     },
     {
       "id": "capture_net_i",
@@ -653,7 +763,9 @@
       "stack_max": 5,
       "tool_class": "none",
       "base_level": 1,
-      "capture_tier": 1
+      "capture_tier": 1,
+      "market_category": "tool",
+      "rarity": "uncommon"
     },
     {
       "id": "capture_net_ii",
@@ -664,7 +776,9 @@
       "stack_max": 5,
       "tool_class": "none",
       "base_level": 1,
-      "capture_tier": 2
+      "capture_tier": 2,
+      "market_category": "tool",
+      "rarity": "rare"
     },
     {
       "id": "captured_animal",
@@ -675,7 +789,9 @@
       "stack_max": 1,
       "tool_class": "none",
       "base_level": 1,
-      "slot_span": 4
+      "slot_span": 4,
+      "market_category": "animal",
+      "rarity": "common"
     },
     {
       "id": "tamed_animal",
@@ -686,7 +802,9 @@
       "stack_max": 1,
       "tool_class": "none",
       "base_level": 1,
-      "slot_span": 2
+      "slot_span": 2,
+      "market_category": "animal",
+      "rarity": "rare"
     },
     {
       "id": "makeshift_taming_pen",
@@ -701,7 +819,9 @@
       "footprint": [
         4,
         4
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "common"
     },
     {
       "id": "campfire_kit",
@@ -716,7 +836,9 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "common"
     },
     {
       "id": "bonfire_kit",
@@ -731,7 +853,9 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "common"
     },
     {
       "id": "stone_fire_pit_kit",
@@ -746,7 +870,9 @@
       "footprint": [
         2,
         2
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "uncommon"
     },
     {
       "id": "workbench_kit",
@@ -761,7 +887,9 @@
       "footprint": [
         2,
         1
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "common"
     },
     {
       "id": "drying_rack_kit",
@@ -776,7 +904,9 @@
       "footprint": [
         2,
         1
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "uncommon"
     },
     {
       "id": "smoker_kit",
@@ -791,7 +921,9 @@
       "footprint": [
         2,
         2
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "uncommon"
     },
     {
       "id": "crock_pot_kit",
@@ -806,7 +938,9 @@
       "footprint": [
         2,
         2
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "uncommon"
     },
     {
       "id": "straw_roll_kit",
@@ -821,7 +955,9 @@
       "footprint": [
         1,
         2
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "common"
     },
     {
       "id": "tent_kit",
@@ -836,7 +972,9 @@
       "footprint": [
         3,
         3
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "common"
     },
     {
       "id": "canvas_tent_kit",
@@ -851,7 +989,9 @@
       "footprint": [
         3,
         3
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "uncommon"
     },
     {
       "id": "log_shelter_kit",
@@ -866,7 +1006,9 @@
       "footprint": [
         4,
         4
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "rare"
     },
     {
       "id": "cabin_bed_kit",
@@ -881,7 +1023,9 @@
       "footprint": [
         2,
         2
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "rare"
     },
     {
       "id": "basket_kit",
@@ -896,7 +1040,9 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "common"
     },
     {
       "id": "fence_kit",
@@ -911,7 +1057,9 @@
       "footprint": [
         2,
         1
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "common"
     },
     {
       "id": "gate_kit",
@@ -926,7 +1074,9 @@
       "footprint": [
         2,
         1
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "uncommon"
     },
     {
       "id": "sign_kit",
@@ -941,7 +1091,9 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "common"
     },
     {
       "id": "petals",
@@ -951,7 +1103,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common"
     },
     {
       "id": "berries",
@@ -959,13 +1113,16 @@
       "categories": [
         "food",
         "herb",
-        "fruit"
+        "fruit",
+        "berry_crop"
       ],
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "food_energy": 8,
-      "diet": "herbivore"
+      "diet": "herbivore",
+      "market_category": "food_raw",
+      "rarity": "common"
     },
     {
       "id": "berry",
@@ -973,13 +1130,16 @@
       "categories": [
         "food",
         "herb",
-        "fruit"
+        "fruit",
+        "berry_crop"
       ],
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "food_energy": 6,
-      "diet": "herbivore"
+      "diet": "herbivore",
+      "market_category": "food_raw",
+      "rarity": "common"
     },
     {
       "id": "clay",
@@ -990,7 +1150,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "clay",
+      "rarity": "common"
     },
     {
       "id": "mud",
@@ -1000,21 +1162,25 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "clay",
+      "rarity": "common"
     },
     {
       "id": "flint",
       "display_name": "Flint",
       "categories": [
         "stone",
-        "blade_mat"
+        "tier_flint"
       ],
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "default_attributes": {
         "material_tier": "flint"
-      }
+      },
+      "market_category": "stone",
+      "rarity": "uncommon"
     },
     {
       "id": "dry_grass",
@@ -1025,7 +1191,9 @@
       ],
       "stack_max": 30,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "wood",
+      "rarity": "common"
     },
     {
       "id": "acacia_wood",
@@ -1036,7 +1204,9 @@
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "wood",
+      "rarity": "common"
     },
     {
       "id": "sandstone",
@@ -1046,7 +1216,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "stone",
+      "rarity": "uncommon"
     },
     {
       "id": "ochre",
@@ -1056,7 +1228,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "clay",
+      "rarity": "uncommon"
     },
     {
       "id": "palm_frond",
@@ -1066,7 +1240,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "fibre",
+      "rarity": "common"
     },
     {
       "id": "coconut",
@@ -1079,7 +1255,9 @@
       "tool_class": "none",
       "base_level": 1,
       "food_energy": 12,
-      "diet": "herbivore"
+      "diet": "herbivore",
+      "market_category": "food_raw",
+      "rarity": "common"
     },
     {
       "id": "bamboo",
@@ -1089,7 +1267,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "wood",
+      "rarity": "common"
     },
     {
       "id": "mango",
@@ -1102,7 +1282,9 @@
       "tool_class": "none",
       "base_level": 1,
       "food_energy": 10,
-      "diet": "herbivore"
+      "diet": "herbivore",
+      "market_category": "food_raw",
+      "rarity": "common"
     },
     {
       "id": "vine",
@@ -1113,21 +1295,25 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "cordage",
+      "rarity": "common"
     },
     {
       "id": "obsidian",
       "display_name": "Obsidian",
       "categories": [
         "stone",
-        "blade_mat"
+        "tier_obsidian"
       ],
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
       "default_attributes": {
         "material_tier": "obsidian"
-      }
+      },
+      "market_category": "stone",
+      "rarity": "rare"
     },
     {
       "id": "pine_log",
@@ -1138,7 +1324,9 @@
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "wood",
+      "rarity": "common"
     },
     {
       "id": "resin",
@@ -1148,7 +1336,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "wood",
+      "rarity": "uncommon"
     },
     {
       "id": "ice",
@@ -1158,21 +1348,26 @@
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "food_raw",
+      "rarity": "rare"
     },
     {
       "id": "bone",
       "display_name": "Bone",
       "categories": [
         "bone",
-        "blade_mat"
+        "blade_mat",
+        "tier_bone"
       ],
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "default_attributes": {
         "material_tier": "bone"
-      }
+      },
+      "market_category": "bone",
+      "rarity": "common"
     },
     {
       "id": "cactus_flesh",
@@ -1183,7 +1378,9 @@
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 6
+      "food_energy": 6,
+      "market_category": "food_raw",
+      "rarity": "common"
     },
     {
       "id": "cactus_spine",
@@ -1193,21 +1390,25 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "fibre",
+      "rarity": "common"
     },
     {
       "id": "copper_ore",
       "display_name": "Copper Ore",
       "categories": [
         "ore",
-        "blade_mat"
+        "copper_ore_mat"
       ],
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "default_attributes": {
         "material_tier": "copper"
-      }
+      },
+      "market_category": "metal_ore",
+      "rarity": "uncommon"
     },
     {
       "id": "salt",
@@ -1217,7 +1418,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "uncommon"
     },
     {
       "id": "willow_wood",
@@ -1227,17 +1430,22 @@
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "wood",
+      "rarity": "common"
     },
     {
       "id": "peat",
       "display_name": "Peat",
       "categories": [
-        "tinder"
+        "tinder",
+        "fuel"
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "wood",
+      "rarity": "common"
     },
     {
       "id": "marsh_herb",
@@ -1247,7 +1455,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common"
     },
     {
       "id": "leech",
@@ -1257,7 +1467,9 @@
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "food_raw",
+      "rarity": "common"
     },
     {
       "id": "snow_pine",
@@ -1268,7 +1480,9 @@
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "wood",
+      "rarity": "common"
     },
     {
       "id": "silver_ore",
@@ -1278,7 +1492,10 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "metal_ore",
+      "rarity": "uncommon",
+      "source_pending": "island: only SilverOreNode (snowfield) yields it, and islands.json has no snowfield island yet"
     },
     {
       "id": "pearl",
@@ -1288,17 +1505,24 @@
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "gem",
+      "rarity": "rare",
+      "source_pending": "island: only PearlNode (blue_tropical) yields it, and islands.json has no blue_tropical island yet"
     },
     {
       "id": "coral",
       "display_name": "Coral",
       "categories": [
-        "treasure"
+        "treasure",
+        "coral"
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "gem",
+      "rarity": "rare",
+      "source_pending": "island: only CoralNode (blue_tropical) yields it, and islands.json has no blue_tropical island yet"
     },
     {
       "id": "blue_dye",
@@ -1308,21 +1532,26 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "uncommon",
+      "source_pending": "island: ground from coral (blue_tropical), and islands.json has no blue_tropical island yet"
     },
     {
       "id": "black_iron",
       "display_name": "Black Iron",
       "categories": [
         "ore",
-        "blade_mat"
+        "iron_ore"
       ],
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
       "default_attributes": {
         "material_tier": "iron"
-      }
+      },
+      "market_category": "metal_ore",
+      "rarity": "rare"
     },
     {
       "id": "lava",
@@ -1332,7 +1561,9 @@
       ],
       "stack_max": 10,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "stone",
+      "rarity": "rare"
     },
     {
       "id": "sulphur",
@@ -1342,7 +1573,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "clay",
+      "rarity": "uncommon"
     },
     {
       "id": "ash",
@@ -1352,7 +1585,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "clay",
+      "rarity": "common"
     },
     {
       "id": "claim_stake",
@@ -1363,7 +1598,9 @@
       "stack_max": 5,
       "tool_class": "none",
       "base_level": 1,
-      "note": "Plant it to claim a 14x14 plot on an unstable island (M8d). ASSUMPTION: first plot per island is free."
+      "note": "Plant it to claim a 14x14 plot on an unstable island (M8d). ASSUMPTION: first plot per island is free.",
+      "market_category": "building_kit",
+      "rarity": "common"
     },
     {
       "id": "mushroom",
@@ -1380,7 +1617,9 @@
       "raw": true,
       "poison_chance": 0.35,
       "tastes_bad_chance": 0.25,
-      "diet": "omnivore"
+      "diet": "omnivore",
+      "market_category": "food_raw",
+      "rarity": "common"
     },
     {
       "id": "spice_herb",
@@ -1391,7 +1630,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common"
     },
     {
       "id": "empty_bucket",
@@ -1402,7 +1643,9 @@
       ],
       "stack_max": 5,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "tool",
+      "rarity": "uncommon"
     },
     {
       "id": "water_bucket",
@@ -1415,7 +1658,9 @@
       "stack_max": 5,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 0
+      "food_energy": 0,
+      "market_category": "tool",
+      "rarity": "uncommon"
     },
     {
       "id": "hoe",
@@ -1430,7 +1675,9 @@
       "max_durability": 60,
       "stats_per_level": {
         "max_durability": 0.02
-      }
+      },
+      "market_category": "tool",
+      "rarity": "uncommon"
     },
     {
       "id": "meatball_mix",
@@ -1446,7 +1693,9 @@
       "food_energy": 10,
       "raw": true,
       "diet": "carnivore",
-      "poison_chance": 0.2
+      "poison_chance": 0.2,
+      "market_category": "meat",
+      "rarity": "common"
     },
     {
       "id": "meatball",
@@ -1463,7 +1712,9 @@
       "food_energy": 18,
       "stats_per_level": {
         "food_energy": 0.01
-      }
+      },
+      "market_category": "food_cooked",
+      "rarity": "uncommon"
     },
     {
       "id": "sashimi",
@@ -1480,7 +1731,9 @@
       "food_energy": 14,
       "stats_per_level": {
         "food_energy": 0.01
-      }
+      },
+      "market_category": "food_cooked",
+      "rarity": "uncommon"
     },
     {
       "id": "steamed_food",
@@ -1497,7 +1750,9 @@
       "food_energy": 16,
       "stats_per_level": {
         "food_energy": 0.01
-      }
+      },
+      "market_category": "food_cooked",
+      "rarity": "uncommon"
     },
     {
       "id": "grilled_meat",
@@ -1514,7 +1769,9 @@
       "food_energy": 24,
       "stats_per_level": {
         "food_energy": 0.01
-      }
+      },
+      "market_category": "food_cooked",
+      "rarity": "uncommon"
     },
     {
       "id": "boiled_meat",
@@ -1531,7 +1788,9 @@
       "food_energy": 20,
       "stats_per_level": {
         "food_energy": 0.01
-      }
+      },
+      "market_category": "food_cooked",
+      "rarity": "uncommon"
     },
     {
       "id": "roast",
@@ -1548,7 +1807,9 @@
       "food_energy": 28,
       "stats_per_level": {
         "food_energy": 0.01
-      }
+      },
+      "market_category": "food_cooked",
+      "rarity": "uncommon"
     },
     {
       "id": "seasoned_roast",
@@ -1567,7 +1828,9 @@
       "stats_per_level": {
         "food_energy": 0.01
       },
-      "food_buff": "gather_speed"
+      "food_buff": "gather_speed",
+      "market_category": "food_cooked",
+      "rarity": "rare"
     },
     {
       "id": "burnt_food",
@@ -1580,7 +1843,9 @@
       "tool_class": "none",
       "base_level": 1,
       "food_energy": -25,
-      "diet": "omnivore"
+      "diet": "omnivore",
+      "market_category": "food_cooked",
+      "rarity": "common"
     },
     {
       "id": "herb_buff_meal",
@@ -1598,7 +1863,9 @@
       "stats_per_level": {
         "food_energy": 0.01
       },
-      "food_buff": "defense"
+      "food_buff": "defense",
+      "market_category": "food_cooked",
+      "rarity": "rare"
     },
     {
       "id": "spiced_skewer",
@@ -1617,7 +1884,9 @@
       "stats_per_level": {
         "food_energy": 0.01
       },
-      "food_buff": "heat_resist"
+      "food_buff": "heat_resist",
+      "market_category": "food_cooked",
+      "rarity": "rare"
     },
     {
       "id": "flax_seed",
@@ -1628,7 +1897,9 @@
       ],
       "stack_max": 50,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common"
     },
     {
       "id": "corn_seed",
@@ -1639,7 +1910,9 @@
       ],
       "stack_max": 50,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common"
     },
     {
       "id": "wheat_seed",
@@ -1650,7 +1923,9 @@
       ],
       "stack_max": 50,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common"
     },
     {
       "id": "berry_seed",
@@ -1661,7 +1936,9 @@
       ],
       "stack_max": 50,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common"
     },
     {
       "id": "flax",
@@ -1669,11 +1946,14 @@
       "categories": [
         "fibre",
         "crop",
-        "flax"
+        "flax",
+        "flax_crop"
       ],
       "stack_max": 30,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common"
     },
     {
       "id": "corn",
@@ -1682,24 +1962,30 @@
         "food",
         "crop",
         "fruit",
-        "stalk"
+        "stalk",
+        "corn_crop"
       ],
       "stack_max": 30,
       "tool_class": "none",
       "base_level": 1,
       "food_energy": 8,
-      "diet": "herbivore"
+      "diet": "herbivore",
+      "market_category": "food_raw",
+      "rarity": "common"
     },
     {
       "id": "wheat",
       "display_name": "Wheat",
       "categories": [
         "crop",
-        "stalk"
+        "stalk",
+        "wheat_crop"
       ],
       "stack_max": 30,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common"
     },
     {
       "id": "fruit_fertilizer",
@@ -1709,7 +1995,9 @@
       ],
       "stack_max": 20,
       "tool_class": "none",
-      "base_level": 1
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common"
     },
     {
       "id": "carnivore_feed",
@@ -1723,22 +2011,24 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 15
+      "food_energy": 15,
+      "market_category": "food_cooked",
+      "rarity": "common"
     },
     {
       "id": "herbivore_feed",
       "display_name": "Herbivore Feed",
       "categories": [
         "pet_feed",
-        "fruit",
-        "stalk",
         "food"
       ],
       "stack_max": 30,
       "tool_class": "none",
       "base_level": 1,
       "diet": "herbivore",
-      "food_energy": 12
+      "food_energy": 12,
+      "market_category": "food_cooked",
+      "rarity": "common"
     },
     {
       "id": "field_small_kit",
@@ -1753,7 +2043,9 @@
       "footprint": [
         2,
         2
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "common"
     },
     {
       "id": "field_large_kit",
@@ -1768,7 +2060,9 @@
       "footprint": [
         3,
         3
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "common"
     },
     {
       "id": "mortar_kit",
@@ -1783,7 +2077,9 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "uncommon"
     },
     {
       "id": "stone_grill_kit",
@@ -1798,7 +2094,9 @@
       "footprint": [
         2,
         2
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "uncommon"
     },
     {
       "id": "steamer_kit",
@@ -1813,7 +2111,9 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "common"
     },
     {
       "id": "well_kit",
@@ -1828,7 +2128,9 @@
       "footprint": [
         2,
         2
-      ]
+      ],
+      "market_category": "building_kit",
+      "rarity": "rare"
     },
     {
       "id": "raid_maul",
@@ -1839,14 +2141,16 @@
       "stack_max": 1,
       "base_level": 1,
       "tool_class": "none",
-      "damage": 220,
+      "damage": 112,
       "damage_type": "blunt",
       "attack_rate": 1.0,
       "max_durability": 400,
       "stats_per_level": {
         "damage": 0.02,
         "max_durability": 0.02
-      }
+      },
+      "market_category": "weapon",
+      "rarity": "legendary"
     },
     {
       "id": "raid_helm",
@@ -1856,11 +2160,18 @@
       ],
       "stack_max": 1,
       "base_level": 1,
-      "armor_value": 300,
+      "armor_value": 153,
       "max_durability": 400,
       "stats_per_level": {
         "armor_value": 0.02
-      }
+      },
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "market_category": "clothing",
+      "rarity": "epic"
     },
     {
       "id": "raid_cuirass",
@@ -1870,13 +2181,20 @@
       ],
       "stack_max": 1,
       "base_level": 1,
-      "armor_value": 700,
+      "armor_value": 357,
       "health_bonus": 90,
       "max_durability": 400,
       "stats_per_level": {
         "armor_value": 0.02,
         "health_bonus": 0.02
-      }
+      },
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "market_category": "clothing",
+      "rarity": "epic"
     },
     {
       "id": "raid_greaves",
@@ -1886,11 +2204,18 @@
       ],
       "stack_max": 1,
       "base_level": 1,
-      "armor_value": 300,
+      "armor_value": 153,
       "max_durability": 400,
       "stats_per_level": {
         "armor_value": 0.02
-      }
+      },
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "market_category": "clothing",
+      "rarity": "epic"
     },
     {
       "id": "predator_tendon",
@@ -1900,7 +2225,10 @@
         "lashing"
       ],
       "stack_max": 999,
-      "base_level": 1
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "cordage",
+      "rarity": "rare"
     },
     {
       "id": "armor_scute",
@@ -1910,7 +2238,10 @@
         "bone"
       ],
       "stack_max": 999,
-      "base_level": 1
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare"
     },
     {
       "id": "dense_bone",
@@ -1918,10 +2249,14 @@
       "categories": [
         "dense_bone",
         "bone",
-        "blade_mat"
+        "blade_mat",
+        "tier_bone"
       ],
       "stack_max": 999,
-      "base_level": 1
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare"
     },
     {
       "id": "venom_gland",
@@ -1930,7 +2265,10 @@
         "venom"
       ],
       "stack_max": 999,
-      "base_level": 1
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "medicine",
+      "rarity": "rare"
     },
     {
       "id": "bone_hammer",
@@ -1944,7 +2282,11 @@
       "max_durability": 160,
       "stats_per_level": {
         "damage": 0.02
-      }
+      },
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "weapon",
+      "rarity": "rare"
     },
     {
       "id": "barbed_knife",
@@ -1960,7 +2302,10 @@
       "bleed_every_hits": 3,
       "stats_per_level": {
         "damage": 0.02
-      }
+      },
+      "base_level": 1,
+      "market_category": "weapon",
+      "rarity": "rare"
     },
     {
       "id": "toxin_coating",
@@ -1969,7 +2314,10 @@
         "counter_supply"
       ],
       "stack_max": 999,
-      "base_level": 1
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "weapon",
+      "rarity": "rare"
     },
     {
       "id": "rope_snare",
@@ -1978,7 +2326,10 @@
         "counter_supply"
       ],
       "stack_max": 999,
-      "base_level": 1
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "weapon",
+      "rarity": "uncommon"
     },
     {
       "id": "heavy_snare",
@@ -1987,7 +2338,10 @@
         "counter_supply"
       ],
       "stack_max": 999,
-      "base_level": 1
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "weapon",
+      "rarity": "epic"
     },
     {
       "id": "slingshot",
@@ -2004,7 +2358,10 @@
       "max_durability": 140,
       "stats_per_level": {
         "damage": 0.02
-      }
+      },
+      "base_level": 1,
+      "market_category": "weapon",
+      "rarity": "uncommon"
     },
     {
       "id": "stone_shot",
@@ -2013,7 +2370,10 @@
         "ammunition"
       ],
       "stack_max": 999,
-      "base_level": 1
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "weapon",
+      "rarity": "uncommon"
     },
     {
       "id": "catapult_kit",
@@ -2027,7 +2387,10 @@
         3
       ],
       "stack_max": 1,
-      "base_level": 1
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "building_kit",
+      "rarity": "epic"
     },
     {
       "id": "toxin_pot",
@@ -2036,7 +2399,10 @@
         "siege_ammunition"
       ],
       "stack_max": 999,
-      "base_level": 1
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "weapon",
+      "rarity": "epic"
     },
     {
       "id": "travel_shirt",
@@ -2052,7 +2418,14 @@
       "stats_per_level": {
         "armor_value": 0.02
       },
-      "visual": "travel_clothes/chest"
+      "visual": "travel_clothes/chest",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 1
+      },
+      "market_category": "clothing",
+      "rarity": "common"
     },
     {
       "id": "travel_sleeves",
@@ -2068,7 +2441,14 @@
       "stats_per_level": {
         "armor_value": 0.02
       },
-      "visual": "travel_clothes/arms"
+      "visual": "travel_clothes/arms",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 1
+      },
+      "market_category": "clothing",
+      "rarity": "common"
     },
     {
       "id": "travel_trousers",
@@ -2084,7 +2464,14 @@
       "stats_per_level": {
         "armor_value": 0.02
       },
-      "visual": "travel_clothes/legs"
+      "visual": "travel_clothes/legs",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 1
+      },
+      "market_category": "clothing",
+      "rarity": "common"
     },
     {
       "id": "forager_hood",
@@ -2099,7 +2486,14 @@
       "stats_per_level": {
         "armor_value": 0.02
       },
-      "visual": "forager/helmet"
+      "visual": "forager/helmet",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 2
+      },
+      "market_category": "clothing",
+      "rarity": "uncommon"
     },
     {
       "id": "forager_vest",
@@ -2114,7 +2508,14 @@
       "stats_per_level": {
         "armor_value": 0.02
       },
-      "visual": "forager/chest"
+      "visual": "forager/chest",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 2
+      },
+      "market_category": "clothing",
+      "rarity": "uncommon"
     },
     {
       "id": "forager_wraps",
@@ -2129,7 +2530,14 @@
       "stats_per_level": {
         "armor_value": 0.02
       },
-      "visual": "forager/arms"
+      "visual": "forager/arms",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 2
+      },
+      "market_category": "clothing",
+      "rarity": "uncommon"
     },
     {
       "id": "forager_leggings",
@@ -2144,7 +2552,14 @@
       "stats_per_level": {
         "armor_value": 0.02
       },
-      "visual": "forager/legs"
+      "visual": "forager/legs",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 2
+      },
+      "market_category": "clothing",
+      "rarity": "uncommon"
     },
     {
       "id": "hide_bone_helm",
@@ -2159,7 +2574,14 @@
       "stats_per_level": {
         "armor_value": 0.02
       },
-      "visual": "hide_and_bone/helmet"
+      "visual": "hide_and_bone/helmet",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 2,
+        "heat": 0
+      },
+      "market_category": "clothing",
+      "rarity": "rare"
     },
     {
       "id": "hide_bone_cuirass",
@@ -2176,7 +2598,14 @@
         "armor_value": 0.02,
         "health_bonus": 0.02
       },
-      "visual": "hide_and_bone/chest"
+      "visual": "hide_and_bone/chest",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 2,
+        "heat": 0
+      },
+      "market_category": "clothing",
+      "rarity": "rare"
     },
     {
       "id": "hide_bone_bracers",
@@ -2191,7 +2620,14 @@
       "stats_per_level": {
         "armor_value": 0.02
       },
-      "visual": "hide_and_bone/arms"
+      "visual": "hide_and_bone/arms",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 2,
+        "heat": 0
+      },
+      "market_category": "clothing",
+      "rarity": "rare"
     },
     {
       "id": "hide_bone_greaves",
@@ -2206,7 +2642,1166 @@
       "stats_per_level": {
         "armor_value": 0.02
       },
-      "visual": "hide_and_bone/legs"
+      "visual": "hide_and_bone/legs",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 2,
+        "heat": 0
+      },
+      "market_category": "clothing",
+      "rarity": "rare"
+    },
+    {
+      "id": "tin_ore",
+      "display_name": "Tin Ore",
+      "categories": [
+        "ore",
+        "tin_ore"
+      ],
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "metal_ore"
+    },
+    {
+      "id": "tin_ingot",
+      "display_name": "Tin Ingot",
+      "categories": [
+        "metal",
+        "ingot",
+        "tin"
+      ],
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "ingot"
+    },
+    {
+      "id": "moss",
+      "display_name": "Moss",
+      "categories": [
+        "fibre",
+        "tinder"
+      ],
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "common",
+      "market_category": "wood"
+    },
+    {
+      "id": "cactus_flower",
+      "display_name": "Cactus Flower",
+      "categories": [
+        "herb",
+        "dye"
+      ],
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "herb"
+    },
+    {
+      "id": "forge_kit",
+      "display_name": "Forge",
+      "categories": [
+        "building"
+      ],
+      "place_as": "forge",
+      "footprint": [
+        2,
+        2
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "building_kit"
+    },
+    {
+      "id": "anvil_kit",
+      "display_name": "Anvil",
+      "categories": [
+        "building"
+      ],
+      "place_as": "anvil",
+      "footprint": [
+        1,
+        1
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "building_kit"
+    },
+    {
+      "id": "capture_net_iii",
+      "display_name": "Capture Net III",
+      "categories": [
+        "tool"
+      ],
+      "capture_tier": 3,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "tool"
+    },
+    {
+      "id": "capture_net_iv",
+      "display_name": "Capture Net IV",
+      "categories": [
+        "tool"
+      ],
+      "capture_tier": 4,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "epic",
+      "market_category": "tool"
+    },
+    {
+      "id": "capture_net_v",
+      "display_name": "Capture Net V",
+      "categories": [
+        "tool"
+      ],
+      "capture_tier": 5,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "epic",
+      "market_category": "tool"
+    },
+    {
+      "id": "bone_knife",
+      "display_name": "Bone Knife",
+      "categories": [
+        "tool",
+        "blade",
+        "weapon"
+      ],
+      "tool_class": "knife",
+      "attack_rate": 1.15,
+      "damage": 18,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 40,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "common",
+      "market_category": "tool"
+    },
+    {
+      "id": "bone_axe",
+      "display_name": "Bone Axe",
+      "categories": [
+        "tool",
+        "weapon"
+      ],
+      "tool_class": "axe",
+      "attack_rate": 0.9,
+      "damage": 22,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "common",
+      "market_category": "tool"
+    },
+    {
+      "id": "bone_pick",
+      "display_name": "Bone Pick",
+      "categories": [
+        "tool"
+      ],
+      "tool_class": "pick",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "common",
+      "market_category": "tool"
+    },
+    {
+      "id": "bone_spear",
+      "display_name": "Bone Spear",
+      "categories": [
+        "weapon"
+      ],
+      "tool_class": "none",
+      "attack_rate": 1.0,
+      "damage": 30,
+      "damage_type": "slashing",
+      "is_work_tool": false,
+      "max_durability": 80,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "common",
+      "market_category": "weapon"
+    },
+    {
+      "id": "flint_knife",
+      "display_name": "Flint Knife",
+      "categories": [
+        "tool",
+        "blade",
+        "weapon"
+      ],
+      "tool_class": "knife",
+      "attack_rate": 1.15,
+      "damage": 18,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 40,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "tool"
+    },
+    {
+      "id": "flint_axe",
+      "display_name": "Flint Axe",
+      "categories": [
+        "tool",
+        "weapon"
+      ],
+      "tool_class": "axe",
+      "attack_rate": 0.9,
+      "damage": 22,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "tool"
+    },
+    {
+      "id": "flint_pick",
+      "display_name": "Flint Pick",
+      "categories": [
+        "tool"
+      ],
+      "tool_class": "pick",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "tool"
+    },
+    {
+      "id": "flint_spear",
+      "display_name": "Flint Spear",
+      "categories": [
+        "weapon"
+      ],
+      "tool_class": "none",
+      "attack_rate": 1.0,
+      "damage": 30,
+      "damage_type": "slashing",
+      "is_work_tool": false,
+      "max_durability": 80,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "weapon"
+    },
+    {
+      "id": "obsidian_knife",
+      "display_name": "Obsidian Knife",
+      "categories": [
+        "tool",
+        "blade",
+        "weapon"
+      ],
+      "tool_class": "knife",
+      "attack_rate": 1.15,
+      "damage": 18,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 40,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "tool"
+    },
+    {
+      "id": "obsidian_axe",
+      "display_name": "Obsidian Axe",
+      "categories": [
+        "tool",
+        "weapon"
+      ],
+      "tool_class": "axe",
+      "attack_rate": 0.9,
+      "damage": 22,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "tool"
+    },
+    {
+      "id": "obsidian_pick",
+      "display_name": "Obsidian Pick",
+      "categories": [
+        "tool"
+      ],
+      "tool_class": "pick",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "tool"
+    },
+    {
+      "id": "obsidian_spear",
+      "display_name": "Obsidian Spear",
+      "categories": [
+        "weapon"
+      ],
+      "tool_class": "none",
+      "attack_rate": 1.0,
+      "damage": 30,
+      "damage_type": "slashing",
+      "is_work_tool": false,
+      "max_durability": 80,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "weapon"
+    },
+    {
+      "id": "copper_knife",
+      "display_name": "Copper Knife",
+      "categories": [
+        "tool",
+        "blade",
+        "weapon"
+      ],
+      "tool_class": "knife",
+      "attack_rate": 1.15,
+      "damage": 18,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 40,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "tool"
+    },
+    {
+      "id": "copper_axe",
+      "display_name": "Copper Axe",
+      "categories": [
+        "tool",
+        "weapon"
+      ],
+      "tool_class": "axe",
+      "attack_rate": 0.9,
+      "damage": 22,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "tool"
+    },
+    {
+      "id": "copper_pick",
+      "display_name": "Copper Pick",
+      "categories": [
+        "tool"
+      ],
+      "tool_class": "pick",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "tool"
+    },
+    {
+      "id": "copper_sword",
+      "display_name": "Copper Sword",
+      "categories": [
+        "weapon"
+      ],
+      "tool_class": "none",
+      "attack_rate": 1.2,
+      "damage": 34,
+      "damage_type": "slashing",
+      "is_work_tool": false,
+      "max_durability": 100,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "weapon"
+    },
+    {
+      "id": "bronze_knife",
+      "display_name": "Bronze Knife",
+      "categories": [
+        "tool",
+        "blade",
+        "weapon"
+      ],
+      "tool_class": "knife",
+      "attack_rate": 1.15,
+      "damage": 18,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 40,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "tool"
+    },
+    {
+      "id": "bronze_axe",
+      "display_name": "Bronze Axe",
+      "categories": [
+        "tool",
+        "weapon"
+      ],
+      "tool_class": "axe",
+      "attack_rate": 0.9,
+      "damage": 22,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "tool"
+    },
+    {
+      "id": "bronze_pick",
+      "display_name": "Bronze Pick",
+      "categories": [
+        "tool"
+      ],
+      "tool_class": "pick",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "tool"
+    },
+    {
+      "id": "bronze_sword",
+      "display_name": "Bronze Sword",
+      "categories": [
+        "weapon"
+      ],
+      "tool_class": "none",
+      "attack_rate": 1.2,
+      "damage": 34,
+      "damage_type": "slashing",
+      "is_work_tool": false,
+      "max_durability": 100,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "weapon"
+    },
+    {
+      "id": "iron_knife",
+      "display_name": "Iron Knife",
+      "categories": [
+        "tool",
+        "blade",
+        "weapon"
+      ],
+      "tool_class": "knife",
+      "attack_rate": 1.15,
+      "damage": 18,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 40,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "tool"
+    },
+    {
+      "id": "iron_axe",
+      "display_name": "Iron Axe",
+      "categories": [
+        "tool",
+        "weapon"
+      ],
+      "tool_class": "axe",
+      "attack_rate": 0.9,
+      "damage": 22,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "tool"
+    },
+    {
+      "id": "iron_pick",
+      "display_name": "Iron Pick",
+      "categories": [
+        "tool"
+      ],
+      "tool_class": "pick",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "tool"
+    },
+    {
+      "id": "iron_sword",
+      "display_name": "Iron Sword",
+      "categories": [
+        "weapon"
+      ],
+      "tool_class": "none",
+      "attack_rate": 1.2,
+      "damage": 34,
+      "damage_type": "slashing",
+      "is_work_tool": false,
+      "max_durability": 100,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "weapon"
+    },
+    {
+      "id": "steel_knife",
+      "display_name": "Steel Knife",
+      "categories": [
+        "tool",
+        "blade",
+        "weapon"
+      ],
+      "tool_class": "knife",
+      "attack_rate": 1.15,
+      "damage": 18,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 40,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "epic",
+      "market_category": "tool"
+    },
+    {
+      "id": "steel_axe",
+      "display_name": "Steel Axe",
+      "categories": [
+        "tool",
+        "weapon"
+      ],
+      "tool_class": "axe",
+      "attack_rate": 0.9,
+      "damage": 22,
+      "damage_type": "slashing",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "epic",
+      "market_category": "tool"
+    },
+    {
+      "id": "steel_pick",
+      "display_name": "Steel Pick",
+      "categories": [
+        "tool"
+      ],
+      "tool_class": "pick",
+      "is_work_tool": true,
+      "max_durability": 50,
+      "stats_per_level": {
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "epic",
+      "market_category": "tool"
+    },
+    {
+      "id": "steel_sword",
+      "display_name": "Steel Sword",
+      "categories": [
+        "weapon"
+      ],
+      "tool_class": "none",
+      "attack_rate": 1.2,
+      "damage": 34,
+      "damage_type": "slashing",
+      "is_work_tool": false,
+      "max_durability": 100,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "epic",
+      "market_category": "weapon"
+    },
+    {
+      "id": "leather_helm",
+      "display_name": "Leather Helm",
+      "categories": [
+        "armor_head"
+      ],
+      "tool_class": "none",
+      "armor_value": 90,
+      "max_durability": 300,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 2,
+        "heat": 1
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "clothing"
+    },
+    {
+      "id": "leather_cuirass",
+      "display_name": "Leather Cuirass",
+      "categories": [
+        "armor_body"
+      ],
+      "tool_class": "none",
+      "armor_value": 200,
+      "max_durability": 300,
+      "stats_per_level": {
+        "armor_value": 0.02,
+        "health_bonus": 0.02
+      },
+      "insulation": {
+        "cold": 2,
+        "heat": 1
+      },
+      "health_bonus": 20,
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "clothing"
+    },
+    {
+      "id": "leather_bracers",
+      "display_name": "Leather Bracers",
+      "categories": [
+        "armor_arms"
+      ],
+      "tool_class": "none",
+      "armor_value": 70,
+      "max_durability": 300,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 2,
+        "heat": 1
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "clothing"
+    },
+    {
+      "id": "leather_greaves",
+      "display_name": "Leather Greaves",
+      "categories": [
+        "armor_legs"
+      ],
+      "tool_class": "none",
+      "armor_value": 100,
+      "max_durability": 300,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 2,
+        "heat": 1
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "clothing"
+    },
+    {
+      "id": "copper_helm",
+      "display_name": "Copper Helm",
+      "categories": [
+        "armor_head"
+      ],
+      "tool_class": "none",
+      "armor_value": 120,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "clothing"
+    },
+    {
+      "id": "copper_cuirass",
+      "display_name": "Copper Cuirass",
+      "categories": [
+        "armor_body"
+      ],
+      "tool_class": "none",
+      "armor_value": 280,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02,
+        "health_bonus": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "health_bonus": 50,
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "clothing"
+    },
+    {
+      "id": "copper_bracers",
+      "display_name": "Copper Bracers",
+      "categories": [
+        "armor_arms"
+      ],
+      "tool_class": "none",
+      "armor_value": 95,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "clothing"
+    },
+    {
+      "id": "copper_greaves",
+      "display_name": "Copper Greaves",
+      "categories": [
+        "armor_legs"
+      ],
+      "tool_class": "none",
+      "armor_value": 130,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "clothing"
+    },
+    {
+      "id": "bronze_helm",
+      "display_name": "Bronze Helm",
+      "categories": [
+        "armor_head"
+      ],
+      "tool_class": "none",
+      "armor_value": 120,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "clothing"
+    },
+    {
+      "id": "bronze_cuirass",
+      "display_name": "Bronze Cuirass",
+      "categories": [
+        "armor_body"
+      ],
+      "tool_class": "none",
+      "armor_value": 280,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02,
+        "health_bonus": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "health_bonus": 50,
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "clothing"
+    },
+    {
+      "id": "bronze_bracers",
+      "display_name": "Bronze Bracers",
+      "categories": [
+        "armor_arms"
+      ],
+      "tool_class": "none",
+      "armor_value": 95,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "clothing"
+    },
+    {
+      "id": "bronze_greaves",
+      "display_name": "Bronze Greaves",
+      "categories": [
+        "armor_legs"
+      ],
+      "tool_class": "none",
+      "armor_value": 130,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "clothing"
+    },
+    {
+      "id": "iron_helm",
+      "display_name": "Iron Helm",
+      "categories": [
+        "armor_head"
+      ],
+      "tool_class": "none",
+      "armor_value": 120,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "clothing"
+    },
+    {
+      "id": "iron_cuirass",
+      "display_name": "Iron Cuirass",
+      "categories": [
+        "armor_body"
+      ],
+      "tool_class": "none",
+      "armor_value": 280,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02,
+        "health_bonus": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "health_bonus": 50,
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "clothing"
+    },
+    {
+      "id": "iron_bracers",
+      "display_name": "Iron Bracers",
+      "categories": [
+        "armor_arms"
+      ],
+      "tool_class": "none",
+      "armor_value": 95,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "clothing"
+    },
+    {
+      "id": "iron_greaves",
+      "display_name": "Iron Greaves",
+      "categories": [
+        "armor_legs"
+      ],
+      "tool_class": "none",
+      "armor_value": 130,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "clothing"
+    },
+    {
+      "id": "steel_helm",
+      "display_name": "Steel Helm",
+      "categories": [
+        "armor_head"
+      ],
+      "tool_class": "none",
+      "armor_value": 120,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "epic",
+      "market_category": "clothing"
+    },
+    {
+      "id": "steel_cuirass",
+      "display_name": "Steel Cuirass",
+      "categories": [
+        "armor_body"
+      ],
+      "tool_class": "none",
+      "armor_value": 280,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02,
+        "health_bonus": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "health_bonus": 50,
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "epic",
+      "market_category": "clothing"
+    },
+    {
+      "id": "steel_bracers",
+      "display_name": "Steel Bracers",
+      "categories": [
+        "armor_arms"
+      ],
+      "tool_class": "none",
+      "armor_value": 95,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "epic",
+      "market_category": "clothing"
+    },
+    {
+      "id": "steel_greaves",
+      "display_name": "Steel Greaves",
+      "categories": [
+        "armor_legs"
+      ],
+      "tool_class": "none",
+      "armor_value": 130,
+      "max_durability": 400,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "epic",
+      "market_category": "clothing"
+    },
+    {
+      "id": "antivenom",
+      "display_name": "Antivenom",
+      "categories": [
+        "medicine"
+      ],
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "medicine"
+    },
+    {
+      "id": "antibiotic",
+      "display_name": "Antibiotic",
+      "categories": [
+        "medicine"
+      ],
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "medicine"
     }
   ]
 }

@@ -6,31 +6,42 @@ extends Control
 ## Choosing a recipe closes the menu and crafts it like gathering: the survivor walks to the
 ## station if needed, the hex over it fills once per item, and the item lands in the bag on
 ## the full pass (StationCraft).
+## Desktop: stations | recipes | detail side by side. Phone: one pane at a time: a chip row of
+## stations over the recipe list, then the detail as a sheet over both, with Craft / Craft x5
+## pinned in a footer (three stacked scroll panes hid the Craft button below a nested scroll).
 
+## [station id, name, symbol icon id]. Symbols are white (HexButton.symbol); system emoji drew in colour.
+## Campfire and crock pot have their own symbols: their kit icons alias the bonfire and grill ones.
 const STATIONS := [
-	["", "By hand", "✋"], ["workbench", "Workbench", "🔨"], ["bonfire", "Bonfire", "🔥"], ["campfire", "Campfire", "🔥"],
-	["drying_rack", "Meat dryer", "🪢"], ["crock_pot", "Crock pot", "🍲"], ["mortar", "Mortar", "🥣"], ["stone_grill", "Stone grill", "🍖"],
-	["steamer", "Steamer", "♨"], ["well", "Well", "💧"],
+	["", "By hand", "hands"], ["workbench", "Workbench", "workbench_kit"], ["bonfire", "Bonfire", "bonfire_kit"],
+	["campfire", "Campfire", "skewer"], ["drying_rack", "Meat dryer", "drying_rack_kit"],
+	["crock_pot", "Crock pot", "boiled_meat"], ["mortar", "Mortar", "mortar_kit"],
+	["stone_grill", "Stone grill", "stone_grill_kit"], ["steamer", "Steamer", "steamer_kit"], ["well", "Well", "well_kit"],
+	["forge", "Forge", "ingot"], ["anvil", "Anvil", "hammer"],
 ]
+const NO_LEVEL := LevelDisplay.NONE
+const FOOTER_H := 64.0
 
 var player: Player
 var _station: String = ""
 var _root: VBoxContainer
 var _body: GridContainer
-var _tabs: VBoxContainer
+var _tabs: BoxContainer  ## vertical column on desktop, horizontal chip row on a phone
 var _list: VBoxContainer
 var _detail: VBoxContainer
 var _title: Label
 var _hint: Label
 var _refresh_left: float = 0.0
 var _selected_id: String = ""
+var _footer: HBoxContainer
+var _phone_detail := false  ## phone only: the detail sheet is up instead of the list
 
 func _ready() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	z_index = 40  # above the HUD, which is added to the same UI layer after this menu
 	var bg := ColorRect.new()
-	bg.color = Color(0.02, 0.025, 0.03, 0.94)
+	bg.color = Color(0.02, 0.025, 0.03, 1.0)  # opaque: the HUD vitals must not show through the title
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(bg)
@@ -49,9 +60,11 @@ func _ready() -> void:
 	_hint = Label.new()
 	_hint.add_theme_font_size_override("font_size", 14)
 	_hint.add_theme_color_override("font_color", Color(0.85, 0.85, 0.8))
+	_hint.name = "CraftHint"
 	_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hint.max_lines_visible = 2
+	_hint.size_flags_stretch_ratio = 2.0
+	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# One line: the autowrapped version got a zero-height rect in the header and never drew.
 	_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_hint.clip_text = true
 	header.add_child(_hint)
@@ -68,7 +81,8 @@ func _ready() -> void:
 	tab_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_body.add_child(tab_scroll)
-	_tabs = VBoxContainer.new()
+	_tabs = BoxContainer.new()
+	_tabs.vertical = true
 	_tabs.add_theme_constant_override("separation", 6)
 	_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_scroll.add_child(_tabs)
@@ -92,6 +106,12 @@ func _ready() -> void:
 	_detail.add_theme_constant_override("separation", 8)
 	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	detail_scroll.add_child(_detail)
+	_footer = HBoxContainer.new()
+	_footer.name = "CraftFooter"
+	_footer.add_theme_constant_override("separation", UiTokens.SPACE)
+	_footer.custom_minimum_size = Vector2(0, FOOTER_H)
+	_footer.visible = false
+	_root.add_child(_footer)
 	resized.connect(_layout_safe)
 	_layout_safe()
 	if Game.shot_path.contains("craft"):
@@ -119,8 +139,10 @@ func toggle() -> void:
 
 func show_ui() -> void:
 	visible = true
+	_phone_detail = false
 	_layout_safe()
 	rebuild()
+	UiTokens.focus_first(_list.get_children())
 
 ## A station tap lands on that station's group.
 func show_for_station(sid: StringName) -> void:
@@ -148,6 +170,7 @@ func rebuild() -> void:
 
 func _refresh_tabs() -> void:
 	for c in _tabs.get_children():
+		_tabs.remove_child(c)  # detach first: focus_first and finds must not see rows about to go
 		c.queue_free()
 	for row in STATIONS:
 		var sid: String = row[0]
@@ -155,20 +178,23 @@ func _refresh_tabs() -> void:
 		var status := ""
 		var col := Color(0.55, 0.95, 0.6)
 		if sid == "":
-			status = "always"
+			status = "anywhere"
 		elif info["near"]:
-			status = "● here"
+			status = "here"
 		elif info["exists"]:
-			status = "○ %d m away" % int(info["dist"])
+			status = "%d m away" % int(info["dist"])
 			col = Color(0.95, 0.85, 0.5)
 		else:
-			status = "○ none built"
+			status = "none built"
 			col = Color(0.6, 0.6, 0.6)
 		var count := Crafting.recipes_for_station(StringName(sid)).size()
-		var b := _mk_btn("%s %s\n%s · %d" % [row[2], row[1], status, count], _pick_station.bind(sid), Vector2(190, 64))
+		var b := _mk_btn("%s\n%s · %s" % [row[1], status, recipe_count(count)], _pick_station.bind(sid), Vector2(228 if _single_pane() else 190, 64))
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.clip_text = true
-		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.icon = HexButton.symbol([row[2], "hammer"])
+		b.material = HexButton.white_material()
+		b.expand_icon = true
+		b.add_theme_constant_override("icon_max_width", 28)
 		b.add_theme_color_override("font_color", col)
 		if sid == _station:
 			b.add_theme_color_override("font_color", UiTokens.TEXT)
@@ -177,10 +203,24 @@ func _refresh_tabs() -> void:
 
 func _pick_station(sid: String) -> void:
 	_station = sid
+	_phone_detail = false
 	rebuild()
+
+static func recipe_count(n: int) -> String:
+	return "%d recipe%s" % [n, "" if n == 1 else "s"]
+
+## Portrait phone: one pane at a time (station chips + recipes, or the detail sheet).
+func _single_pane() -> bool:
+	return UiTokens.is_narrow(get_viewport_rect().size)
+
+## Phones, either way up, pin Craft / Craft x5 in the footer: in a landscape phone's 230 px tall
+## detail column they sat below the fold of its scroll.
+func _pinned_actions() -> bool:
+	return UiTokens.is_compact(get_viewport_rect().size)
 
 func _refresh_list() -> void:
 	for c in _list.get_children():
+		_list.remove_child(c)
 		c.queue_free()
 	var name := "By hand"
 	for row in STATIONS:
@@ -212,105 +252,82 @@ func _refresh_list() -> void:
 		_list.add_child(_recipe_row(rec, info))
 	_show_detail(info)
 
-func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
-	var panel := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	var picks := Crafting.default_picks(player.inventory, rec)
-	var have := Crafting.picks_valid(player.inventory, rec, picks)
-	var reachable: bool = _station == "" or bool(info["exists"])
+## Why a recipe cannot start now ("" = it can).
+func _block_reason(rec: Dictionary, info: Dictionary) -> String:
 	var blocked := Crafting.progression_block(player, rec)
-	var can := have and reachable and blocked == ""
+	if blocked != "":
+		return "Locked"
+	if not Crafting.picks_valid(player.inventory, rec, Crafting.default_picks(player.inventory, rec)):
+		return "Missing items"
+	if _station != "" and not info["exists"]:
+		return "No station"
+	return ""
+
+## One line per recipe: tap the row for details; only a recipe that can start carries a button.
+func _recipe_row(rec: Dictionary, info: Dictionary) -> Control:
+	var reason := _block_reason(rec, info)
+	var can := reason == ""
 	var chosen := str(rec.get("id", "")) == _selected_id
-	sb.bg_color = UiTokens.TEAL_DIM if chosen else (Color(0.10, 0.12, 0.13, 0.95) if can else Color(0.08, 0.09, 0.1, 0.92))
-	sb.border_color = UiTokens.TEAL if chosen else UiTokens.DIVIDER
-	sb.set_border_width_all(2 if chosen else 1)
-	sb.set_corner_radius_all(UiTokens.RADIUS)
-	sb.content_margin_left = 10
-	sb.content_margin_right = 10
-	sb.content_margin_top = 6
-	sb.content_margin_bottom = 6
-	panel.add_theme_stylebox_override("panel", sb)
-	var phone := UiTokens.is_phone(get_viewport_rect().size)
+	var view := get_viewport_rect().size
+	var phone := UiTokens.is_compact(view)
+	var row := Button.new()
+	row.toggle_mode = false
+	row.custom_minimum_size = Vector2(0, 60)
+	row.add_theme_stylebox_override("normal", UiTokens.button_style(chosen))
+	row.pressed.connect(_choose_recipe.bind(str(rec.get("id", ""))))
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 8)
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation", 8)
-	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 8)
-	# Buttons sit under the title so the name row keeps the column width.
-	# Only the recipe name ellipsises; Lv / time keeps a reserved width.
-	panel.add_child(stack)
-	stack.add_child(h)
-	stack.add_child(actions)
-	var out_row0: Dictionary = rec.get("output", {})
+	h.set_anchors_preset(Control.PRESET_FULL_RECT)
+	h.offset_left = 8
+	h.offset_right = -8
+	h.add_theme_constant_override("separation", UiTokens.SPACE)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(h)
+	var out_row: Dictionary = rec.get("output", {})
 	var out_icon := TextureRect.new()
-	out_icon.texture = ItemIcons.texture(StringName(str(out_row0.get("id", ""))))
-	out_icon.custom_minimum_size = Vector2(44, 44) if phone else Vector2(52, 52)
+	out_icon.texture = ItemIcons.texture(StringName(str(out_row.get("id", ""))))
+	out_icon.custom_minimum_size = Vector2(44, 44)
 	out_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	out_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	out_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	out_icon.modulate = Color.WHITE if can else Color(0.6, 0.6, 0.6)
+	out_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(out_icon)
 	var text := VBoxContainer.new()
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.alignment = BoxContainer.ALIGNMENT_CENTER
+	text.add_theme_constant_override("separation", 0)
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(text)
-	var line := HBoxContainer.new()
-	line.add_theme_constant_override("separation", UiTokens.SPACE)
-	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.add_child(line)
-	var out_row: Dictionary = rec.get("output", {})
-	var out_def := Data.item(StringName(str(out_row.get("id", ""))))
-	var out_name := out_def.display_name if out_def and out_def.display_name != "" else str(rec.get("display_name", rec.get("id", "?")))
-	var view := get_viewport_rect().size
-	var name_px := UiTokens.body(view)
-	var font := ThemeDB.fallback_font
-	var level := Crafting.preview_level(player.inventory, rec)
-	var seconds := Crafting.recipe_seconds(rec)
-	var meta_text := "Lv %d · %.1fs" % [level, seconds]
-	var reserve_w := font.get_string_size("Lv 60 · 3.0s", HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x if font else 108.0
-	var actual_w := font.get_string_size(meta_text, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x if font else reserve_w
-	var meta_w := maxf(reserve_w, actual_w) + float(UiTokens.SPACE)
 	var name := Label.new()
-	name.text = out_name
+	name.text = _output_name(rec)
 	name.clip_text = true
 	name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	name.custom_minimum_size = Vector2(0, name_px + 4)
-	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name.add_theme_font_size_override("font_size", name_px)
+	name.add_theme_font_size_override("font_size", UiTokens.body(view))
 	name.add_theme_color_override("font_color", Color.WHITE if can else Color(0.75, 0.75, 0.75))
-	line.add_child(name)
+	text.add_child(name)
 	var meta := Label.new()
-	meta.text = meta_text
-	meta.clip_text = false
-	meta.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	meta.custom_minimum_size = Vector2(ceilf(meta_w), name_px + 4)
-	meta.size_flags_horizontal = Control.SIZE_SHRINK_END
-	meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	meta.add_theme_font_size_override("font_size", name_px)
-	meta.add_theme_color_override("font_color", Color.WHITE if can else Color(0.75, 0.75, 0.75))
-	line.add_child(meta)
-	var pick := Button.new()
-	pick.text = "Details"
-	pick.custom_minimum_size = Vector2(88, 44)
-	pick.pressed.connect(_choose_recipe.bind(str(rec.get("id", ""))))
-	actions.add_child(pick)
-	var btn_text := "Craft"
-	if blocked != "":
-		btn_text = "Locked"
-	elif not have:
-		btn_text = "Missing"
-	elif _station != "" and not info["exists"]:
-		btn_text = "No station"
-	elif _station != "" and not info["near"]:
-		btn_text = "Walk & craft"
-	var b := _mk_btn(btn_text, _start.bind(rec, 1), Vector2(120 if not phone else 96, 56))
-	b.disabled = not can
-	b.clip_text = true
-	b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	actions.add_child(b)
-	var b5 := _mk_btn("×5", _start.bind(rec, 5), Vector2(64, 56))
-	b5.disabled = not can
-	actions.add_child(b5)
-	return panel
+	meta.name = "RecipeMeta"
+	meta.text = "%s · %.1fs%s" % [LevelDisplay.recipe_label(player.inventory, rec), Crafting.recipe_seconds(rec), ("  ·  " + reason) if reason != "" else ""]
+	meta.clip_text = true
+	meta.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	meta.add_theme_font_size_override("font_size", UiTokens.meta(view))
+	meta.add_theme_color_override("font_color", UiTokens.META if can else Color(1.0, 0.62, 0.5))
+	text.add_child(meta)
+	if can:
+		var label := "Craft"
+		if _station != "" and not info["near"]:
+			label = "Walk & craft" if not phone else "Walk"
+		var b := _mk_btn(label, _start.bind(rec, 1), Vector2(96 if phone else 132, 48))
+		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(b)
+	return row
+
+func _output_name(rec: Dictionary) -> String:
+	var out_row: Dictionary = rec.get("output", {})
+	var out_def := Data.item(StringName(str(out_row.get("id", ""))))
+	if out_def and out_def.display_name != "":
+		return out_def.display_name
+	return str(rec.get("display_name", rec.get("id", "?"))).replace("_", " ").capitalize()
 
 ## Icon + "have/need" per slot; red when short.
 func _ingredients_row(rec: Dictionary) -> Control:
@@ -343,10 +360,11 @@ func _ingredients_row(rec: Dictionary) -> Control:
 		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		ic.modulate = Color.WHITE if have >= need else Color(1.0, 0.55, 0.45)
+		ic.visible = ic.texture != null  # no empty 24 px gap before an icon-less ingredient
 		cell.add_child(ic)
 		var l := Label.new()
 		var d := Data.item(sample_id)
-		var nm := d.display_name if d and d.display_name != "" else str(cat).replace("_", " ")
+		var nm := d.display_name if d and d.display_name != "" else LevelDisplay.nice_name(str(cat))
 		l.text = "%s %d/%d" % [nm, mini(have, need), need]
 		l.add_theme_font_size_override("font_size", 14)
 		l.add_theme_color_override("font_color", Color(0.8, 0.85, 0.75) if have >= need else Color(1.0, 0.55, 0.45))
@@ -354,36 +372,25 @@ func _ingredients_row(rec: Dictionary) -> Control:
 		row.add_child(cell)
 	return row
 
-func _ingredients_text(rec: Dictionary) -> String:
-	var parts: PackedStringArray = []
-	var picks := Crafting.default_picks(player.inventory, rec)
-	var slots: Array = rec.get("slots", [])
-	for i in slots.size():
-		if not slots[i] is Dictionary:
-			continue
-		var slot: Dictionary = slots[i]
-		var cat := StringName(str(slot.get("category", "")))
-		var need := int(slot.get("count", 1))
-		var have := 0
-		for idx in player.inventory.find_by_category(cat):
-			var s := player.inventory.slots[idx]
-			if s:
-				have += s.count
-		var label := str(cat).replace("_", " ")
-		if i < picks.size() and picks[i] >= 0 and player.inventory.slots[picks[i]]:
-			var d := player.inventory.slots[picks[i]].def()
-			if d and d.display_name != "":
-				label = d.display_name
-		else:
-			var sample := Data.item(Crafting.sample_def_for_category(player.inventory, cat))
-			if sample and sample.display_name != "":
-				label = sample.display_name
-		parts.append("%s %d/%d" % [label, mini(have, need), need])
-	return "  ·  ".join(parts)
-
 func _choose_recipe(rid: String) -> void:
 	_selected_id = rid
+	_phone_detail = _single_pane()
 	rebuild()
+	_apply_phone_pane()
+
+func _back_to_list() -> void:
+	_phone_detail = false
+	_apply_phone_pane()
+
+## Portrait phone: chips + list, or the detail sheet with its pinned footer. Otherwise all three
+## panes, with the footer pinned under them on a landscape phone.
+func _apply_phone_pane() -> void:
+	var single := _single_pane()
+	var sheet := single and _phone_detail
+	(_tabs.get_parent() as Control).visible = not sheet
+	(_list.get_parent() as Control).visible = not sheet
+	(_detail.get_parent() as Control).visible = sheet or not single
+	_footer.visible = sheet or (_pinned_actions() and not single)
 
 func _start(rec: Dictionary, count: int) -> void:
 	hide_ui()
@@ -403,8 +410,15 @@ func _station_info(sid: String) -> Dictionary:
 func _show_detail(info: Dictionary) -> void:
 	if _detail == null:
 		return
-	for c in _detail.get_children():
-		c.queue_free()
+	# Detach before freeing: a queued sibling still holds "CraftOne", so the new button got renamed.
+	for pane in [_detail, _footer]:
+		for c in pane.get_children():
+			pane.remove_child(c)
+			c.queue_free()
+	if _single_pane():
+		var back := _mk_btn("Back to recipes", _back_to_list, Vector2(0, UiTokens.TARGET_PRIMARY))
+		back.name = "CraftBack"
+		_detail.add_child(back)
 	var head := Label.new()
 	head.text = "RESULT"
 	head.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
@@ -419,7 +433,7 @@ func _show_detail(info: Dictionary) -> void:
 		return
 	var out_row: Dictionary = rec.get("output", {})
 	var out_def := Data.item(StringName(str(out_row.get("id", ""))))
-	var out_name := out_def.display_name if out_def and out_def.display_name != "" else str(rec.get("display_name", rec.get("id", "?")))
+	var out_name := _output_name(rec)
 	var icon := TextureRect.new()
 	icon.texture = ItemIcons.texture(StringName(str(out_row.get("id", ""))))
 	icon.custom_minimum_size = Vector2(64, 64)
@@ -427,11 +441,31 @@ func _show_detail(info: Dictionary) -> void:
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_detail.add_child(icon)
 	var title := Label.new()
-	title.text = "%s\nLv %d    ×%d" % [out_name, Crafting.preview_level(player.inventory, rec), int(out_row.get("count", 1))]
+	title.name = "DetailTitle"
+	title.text = "%s\n%s · %.1fs    ×%d" % [out_name, LevelDisplay.recipe_label(player.inventory, rec), Crafting.recipe_seconds(rec), int(out_row.get("count", 1))]
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 	title.add_theme_color_override("font_color", UiTokens.TEXT)
 	_detail.add_child(title)
+	var stats := LevelDisplay.stat_lines(out_def)
+	if not stats.is_empty():
+		var st := Label.new()
+		st.name = "DetailStats"
+		st.text = "\n".join(stats)
+		st.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
+		st.add_theme_color_override("font_color", UiTokens.META)
+		_detail.add_child(st)
+	# W2-SKILLS: a recipe a skill node gates is listed but locked (spec 03): say what unlocks it,
+	# above the ingredients so a phone shows it without scrolling.
+	var locked := Crafting.progression_block(player, rec)
+	if locked != "":
+		var why := Label.new()
+		why.name = "DetailLock"
+		why.text = locked.left(1).to_upper() + locked.substr(1)
+		why.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		why.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
+		why.add_theme_color_override("font_color", UiTokens.DANGER)
+		_detail.add_child(why)
 	var need := Label.new()
 	need.text = "INGREDIENTS"
 	need.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
@@ -441,7 +475,7 @@ func _show_detail(info: Dictionary) -> void:
 	var missing := Crafting.missing_ingredient_name(player.inventory, rec)
 	if missing != "":
 		var lock := Label.new()
-		lock.text = "Needs %s" % missing.replace("_", " ")
+		lock.text = "Needs %s" % LevelDisplay.nice_name(missing)
 		lock.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		lock.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 		lock.add_theme_color_override("font_color", UiTokens.DANGER)
@@ -453,6 +487,27 @@ func _show_detail(info: Dictionary) -> void:
 		lock.add_theme_font_size_override("font_size", UiTokens.body(get_viewport_rect().size))
 		lock.add_theme_color_override("font_color", UiTokens.DANGER)
 		_detail.add_child(lock)
+	# The repeated per-row buttons live here once: craft one or five of the selected recipe.
+	# On a phone they sit in the pinned footer, never below the fold of a scroll.
+	var can := _block_reason(rec, info) == ""
+	var pinned := _pinned_actions()
+	var actions := _footer as HBoxContainer
+	if not pinned:
+		actions = HBoxContainer.new()
+		actions.add_theme_constant_override("separation", UiTokens.SPACE)
+		_detail.add_child(actions)
+	var btn_h := FOOTER_H if pinned else 56.0
+	var one := _mk_btn("Craft", _start.bind(rec, 1), Vector2(120, btn_h))
+	one.name = "CraftOne"
+	one.disabled = not can
+	var five := _mk_btn("Craft ×5", _start.bind(rec, 5), Vector2(120, btn_h))
+	five.name = "CraftFive"
+	five.disabled = not can
+	for b in [one, five]:
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _single_pane() else Control.SIZE_FILL
+		if pinned and not _single_pane():
+			b.custom_minimum_size.x = 180.0  # right-aligned under the detail column
+		actions.add_child(b)
 
 func _selected_recipe() -> Dictionary:
 	for rec in Crafting.recipes_for_station(StringName(_station)):
@@ -469,7 +524,7 @@ func _layout_safe() -> void:
 	_root.offset_top = 12.0 + safe.z
 	_root.offset_right = -(16.0 + safe.x)
 	_root.offset_bottom = -(12.0 + safe.y)
-	var phone := UiTokens.is_phone(view)
+	var phone := UiTokens.is_narrow(view)  # one column of panes; a landscape phone keeps three
 	if _body:
 		_body.columns = 1 if phone else 3
 	if _list:
@@ -485,22 +540,27 @@ func _layout_safe() -> void:
 		var detail_scroll := _detail.get_parent() as Control
 		if detail_scroll:
 			detail_scroll.size_flags_stretch_ratio = 1.0
-	var inner_h := maxf(180.0, view.y - 36.0 - safe.y - safe.z)
-	var section_h := maxf(112.0, (inner_h - 72.0) / 3.0) if phone else 220.0
-	for scroll_name in ["tab", "list", "detail"]:
-		var scroll: ScrollContainer = null
-		if scroll_name == "tab" and _tabs:
-			scroll = _tabs.get_parent() as ScrollContainer
-		elif scroll_name == "list" and _list:
-			scroll = _list.get_parent() as ScrollContainer
-		elif scroll_name == "detail" and _detail:
-			scroll = _detail.get_parent() as ScrollContainer
-		if scroll:
-			scroll.custom_minimum_size = Vector2(0.0 if phone else scroll.custom_minimum_size.x, section_h)
+	if _tabs:
+		# Phone: one horizontal chip row (scrolls sideways), so the recipe list gets the height.
+		_tabs.vertical = not phone
+		var tab_scroll := _tabs.get_parent() as ScrollContainer
+		tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if phone else ScrollContainer.SCROLL_MODE_DISABLED
+		tab_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED if phone else ScrollContainer.SCROLL_MODE_AUTO
+		tab_scroll.size_flags_vertical = Control.SIZE_FILL if phone else Control.SIZE_EXPAND_FILL
+		tab_scroll.custom_minimum_size = Vector2(0, 80) if phone else Vector2(200, 220)
+	for pane in [_list, _detail]:
+		if pane:
+			(pane.get_parent() as Control).custom_minimum_size = Vector2(0, 0) if phone else Vector2(220, 220)
+	if _footer:
+		_footer.alignment = BoxContainer.ALIGNMENT_BEGIN if phone else BoxContainer.ALIGNMENT_END
+		_apply_phone_pane()
 	if _title:
 		_title.add_theme_font_size_override("font_size", UiTokens.heading(view))
 	if _hint:
 		_hint.add_theme_font_size_override("font_size", UiTokens.meta(view))
+		# Phones cut it ("Hand reci..." in portrait, "...once per it..." on the 804 px canvas); the
+		# station tabs already say where each station is.
+		_hint.visible = not UiTokens.is_compact(view)
 
 func _mk_btn(text: String, cb: Callable, minsz: Vector2) -> Button:
 	var b := Button.new()
