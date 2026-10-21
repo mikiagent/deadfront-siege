@@ -246,10 +246,10 @@ index eb33c240..02b4b971 100644
  		print("[uifamily] inventory=%s animals=%s unlimited=%s active_cap=%d stego=%s" % [inventory_ok, animal_ok, unlimited_ok, Player.MAX_PETS_OUT, stego.species])
  		get_tree().quit(0 if inventory_ok and animal_ok and unlimited_ok and Player.MAX_PETS_OUT == 3 else 1)
 diff --git a/game/scripts/dev/ui_real_capture_lab.gd b/game/scripts/dev/ui_real_capture_lab.gd
-index 5ba2dc9c..0f8aae94 100644
+index 5ba2dc9c..09c63500 100644
 --- a/game/scripts/dev/ui_real_capture_lab.gd
 +++ b/game/scripts/dev/ui_real_capture_lab.gd
-@@ -209,26 +209,30 @@ func _run() -> void:
+@@ -209,26 +209,34 @@ func _run() -> void:
  	await _capture_plate(logical)
  	await _camp_and_station(logical)
  	await _busy(logical)
@@ -275,9 +275,13 @@ index 5ba2dc9c..0f8aae94 100644
 -	var held_title := LevelDisplay.current_title(LevelDisplay.player_level())
 -	_expect(held_title != "" and profile != null and profile.text.contains(held_title), "bag: profile shows the held title \"%s\"" % held_title)
 +	_check_blocks("bag", bag, logical)
-+	_expect(bag.has("grid") and bag.has("toolbar") and bag.has("inspect"), "bag: grid, toolbar and inspect panel are shown (%s)" % [bag.keys()])
-+	if bag.has("grid") and bag.has("inspect"):
-+		_expect(absf((bag["grid"] as Rect2).position.y - (bag["inspect"] as Rect2).position.y) < 8.0, "bag: the inspect panel starts beside the grid")
++	# The in-game Bag (INVUI B4): a panel docked on the right over the live world; the item card floats
++	# left of it only while an item is selected.
++	_expect(bag.has("header") and bag.has("grid") and bag.has("toolbar") and bag.has("rail"), "bag: header, rail, grid and toolbar are shown (%s)" % [bag.keys()])
++	if bag.has("grid"):
++		_expect((bag["grid"] as Rect2).position.x > logical.x * 0.35, "bag: docked on the right, the world visible on the left (grid from x %.0f)" % (bag["grid"] as Rect2).position.x)
++	if bag.has("inspect") and bag.has("rail"):
++		_expect((bag["inspect"] as Rect2).end.x <= (bag["rail"] as Rect2).position.x, "bag: the item card floats left of the panel")
  	await _capture("bag", [], logical)
  	_player.ui.visible = false
 +	# Character (INVUI B2): the profile moved here from the old bag; it shows the one player level
@@ -294,7 +298,7 @@ index 5ba2dc9c..0f8aae94 100644
  	# animal screen (protected): shot only, for the eye check of the token theme on it
  	_hud.call("_open_animals")
  	await _frames(3)
-@@ -334,7 +338,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
+@@ -334,7 +342,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
  	print("[uireal] phone=%s min_font_px=%d min_font_pt=%.2f logical_width=%d window_pt=%dx%d floor_pt=%.2f (smallest: %s)" % [phone, min_px, min_pt, int(logical.x), int(pts.x), int(pts.y), type_floor_pt(pts), _min_font_where])
  	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
  	if _fails.is_empty():
@@ -303,7 +307,7 @@ index 5ba2dc9c..0f8aae94 100644
  		get_tree().quit(0)
  	else:
  		for f in _fails:
-@@ -534,14 +538,9 @@ static func atlas_blocks(map: MapScreen) -> Dictionary:
+@@ -534,14 +542,9 @@ static func atlas_blocks(map: MapScreen) -> Dictionary:
  		out["legend"] = row if i == 0 else (out["legend"] as Rect2).merge(row)
  	return out
  
@@ -321,19 +325,20 @@ index 5ba2dc9c..0f8aae94 100644
  func _controls_in(node: Node) -> Array[Control]:
  	var out: Array[Control] = []
 diff --git a/game/scripts/dev/ui_screenshot_lab.gd b/game/scripts/dev/ui_screenshot_lab.gd
-index c07ec418..419ea453 100644
+index c07ec418..ff2d76d6 100644
 --- a/game/scripts/dev/ui_screenshot_lab.gd
 +++ b/game/scripts/dev/ui_screenshot_lab.gd
-@@ -51,9 +51,9 @@ func _audit_size(player: Player, size: Vector2i) -> void:
+@@ -51,9 +51,10 @@ func _audit_size(player: Player, size: Vector2i) -> void:
  	ui.rebuild()
  	await get_tree().process_frame
  	_audit_tree(ui, view, "inventory")
 -	_expect(ui._grid.columns == 5, "inventory keeps a 5-column bag at %s" % size)
 -	_expect(ui._profile != null and ui._profile.text.contains("Lv."), "inventory profile is present at %s" % size)
 -	_expect(not ui._profile.text.contains("Stegosaurus Compsognathus") or ui._profile.size.x >= 160.0, "long survivor name has room or an ellipsis at %s" % size)
-+	# INVUI (spec 13): the Bag is Durango's grid + toolbar + inspect panel; the profile moved to Character.
++	# INVUI (spec 13): the in-game Bag docks rail, grid and toolbar on the right (its item card floats in
++	# with a selection); the profile moved to Character.
 +	var blocks: Dictionary = ui.layout_blocks()
-+	_expect(ui.current_screen() == &"bag" and blocks.has("grid") and blocks.has("toolbar") and blocks.has("inspect"), "inventory opens the Bag with its grid, toolbar and inspect panel at %s" % size)
++	_expect(ui.current_screen() == &"bag" and blocks.has("grid") and blocks.has("toolbar") and blocks.has("rail"), "inventory opens the docked Bag with its rail, grid and toolbar at %s" % size)
  	await _shot(host, "inventory_%dx%d" % [size.x, size.y])
  	ui.queue_free()
  	var animals := AnimalScreen.new()
@@ -518,7 +523,7 @@ index 15e23db8..45e5748e 100644
  	var plan := _plan(inv, rec, picks)
  	if plan.is_empty():
 diff --git a/game/scripts/items/inventory.gd b/game/scripts/items/inventory.gd
-index 85109ba5..3d841bda 100644
+index bb98ff14..9e27ce90 100644
 --- a/game/scripts/items/inventory.gd
 +++ b/game/scripts/items/inventory.gd
 @@ -25,6 +25,8 @@ const EQUIP_SLOTS: Array[StringName] = [&"weapon", &"head", &"body", &"arms", &"
@@ -559,9 +564,9 @@ index 85109ba5..3d841bda 100644
  	stack.count = 0
  	changed.emit()
  	return 0
-@@ -376,11 +384,13 @@ static func traits(s: ItemStack) -> Dictionary:
- static func spend_key(s: ItemStack) -> Array:
- 	return [0 if traits(s).is_empty() else 1, s.level, s.created_at]
+@@ -379,11 +387,13 @@ static func spend_key(s: ItemStack) -> Array:
+ 	var rarity := maxi(0, (ItemDef.rules().get("rarity_order", []) as Array).find(str(d.rarity) if d else ""))
+ 	return [0 if traits(s).is_empty() else 1, rarity, s.level, s.created_at]
  
 +## Locked instances are never found or consumed by these helpers (spec 13 s9: lock protects an item
 +## from crafting, processing and auto-consumption); the player unlocks it to spend it.
@@ -574,7 +579,7 @@ index 85109ba5..3d841bda 100644
  			continue
  		var d := s.def()
  		if d and d.has_category(cat):
-@@ -389,7 +399,7 @@ func find_by_category(cat: StringName) -> Array[int]:
+@@ -392,7 +402,7 @@ func find_by_category(cat: StringName) -> Array[int]:
  
  func find_first(def_id: StringName) -> int:
  	for i in slot_count:
@@ -583,7 +588,7 @@ index 85109ba5..3d841bda 100644
  			return i
  	return -1
  
-@@ -401,14 +411,20 @@ func count_of(def_id: StringName) -> int:
+@@ -404,14 +414,20 @@ func count_of(def_id: StringName) -> int:
  	return n
  
  func consume(def_id: StringName, amount: int) -> bool:
@@ -742,10 +747,10 @@ index ebbe5438..1cfbc5e0 100644
  		card.hide_card()
  	_hide_ring()
 diff --git a/game/scripts/player/player.gd b/game/scripts/player/player.gd
-index 78c3af7a..fd8fb2a3 100644
+index d8fffd0e..92833c0b 100644
 --- a/game/scripts/player/player.gd
 +++ b/game/scripts/player/player.gd
-@@ -193,8 +193,8 @@ func open_station_craft(st: Node3D) -> void:
+@@ -194,8 +194,8 @@ func open_station_craft(st: Node3D) -> void:
  		station_craft.open_station_menu(st)
  
  ## From the craft menu: craft `count` of a recipe (walks to the station if needed).
@@ -757,10 +762,10 @@ index 78c3af7a..fd8fb2a3 100644
  func begin_eat_slot(index: int) -> bool:
  	return actions.eat(index)
 diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
-index 1f84a3d6..e63aa758 100644
+index e830f944..95f0b628 100644
 --- a/game/scripts/player/player_actions.gd
 +++ b/game/scripts/player/player_actions.gd
-@@ -410,20 +410,24 @@ func loot(corpse: Corpse, slot: int) -> int:
+@@ -430,20 +430,24 @@ func fill_water() -> bool:
  
  # ---------------------------------------------------------------- craft, eat, equip, place
  
@@ -789,7 +794,7 @@ index 1f84a3d6..e63aa758 100644
  	return p.eat_session != null and p.eat_session.begin_eat(index)
  
  func equip(slot: StringName, def_id: StringName) -> bool:
-@@ -432,6 +436,51 @@ func equip(slot: StringName, def_id: StringName) -> bool:
+@@ -452,6 +456,59 @@ func equip(slot: StringName, def_id: StringName) -> bool:
  	p.inventory.equip(slot, def_id)
  	return true
  
@@ -838,20 +843,28 @@ index 1f84a3d6..e63aa758 100644
 +	p.inventory.changed.emit()
 +	return true
 +
++## Throw the instance at bag `index` away for good (the in-game Bag's trash, after its confirm).
++## shortcut: offline only, the server has no discard op yet; W3 adds one and the trash shows online.
++func discard(index: int) -> bool:
++	var s := p.inventory.slots[index] if index >= 0 and index < p.inventory.slot_count else null
++	if online or s == null or s.is_locked() or s.def_id == Inventory.LOCK:
++		return false
++	return p.inventory.remove_at(index, s.count) != null
++
  ## Confirm the building ghost (place_confirm key or tap on the ghost).
  func place_confirm() -> bool:
  	if online:
 diff --git a/game/scripts/player/player_sim.gd b/game/scripts/player/player_sim.gd
-index 1595640d..684b3053 100644
+index cc94d94e..0f2011d6 100644
 --- a/game/scripts/player/player_sim.gd
 +++ b/game/scripts/player/player_sim.gd
-@@ -111,7 +111,9 @@ func tick(delta: float) -> void:
+@@ -115,7 +115,9 @@ func tick(delta: float) -> void:
  	p.controls.sync_touch_context()
  
  func _walk(delta: float) -> void:
 -	var input := input_vector()
-+	# INVUI: the bag family is a full-screen modal whose arrow keys move its selection; the survivor
-+	# does not walk blind under it.
++	# INVUI: while the bag family is open its arrow keys move its selection and a tap on the world
++	# beside the docked Bag closes it; the survivor stands still meanwhile.
 +	var input := Vector2.ZERO if p.ui and p.ui.visible else input_vector()
  	if input.length_squared() > 0.0:
  		p.clear_nav()
@@ -1032,7 +1045,7 @@ index b0afd11f..6aa41001 100644
  	if missing != "":
  		var lock := Label.new()
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
-index 6f25ecbc..f2147f10 100644
+index ed0b7728..f593ddbd 100644
 --- a/game/scripts/ui/hunt_hud.gd
 +++ b/game/scripts/ui/hunt_hud.gd
 @@ -743,6 +743,7 @@ func _toggle_sheet(kind: StringName) -> void:
@@ -1044,7 +1057,7 @@ index 6f25ecbc..f2147f10 100644
  			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
  			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
 diff --git a/game/tests/t_ui.gd b/game/tests/t_ui.gd
-index 4b18ac78..3bbef5c3 100644
+index 4b18ac78..2be46356 100644
 --- a/game/tests/t_ui.gd
 +++ b/game/tests/t_ui.gd
 @@ -13,6 +13,17 @@ const OWNED := [
@@ -1061,7 +1074,7 @@ index 4b18ac78..3bbef5c3 100644
 +	"res://scripts/ui/inv_stats.gd", "res://scripts/ui/equipment_slot.gd", "res://scripts/ui/gear_preset_selector.gd",
 +	"res://scripts/ui/gear_screen.gd", "res://scripts/ui/character_screen.gd", "res://scripts/ui/detailed_stats_panel.gd",
 +	"res://scripts/ui/equipment_screen.gd", "res://scripts/ui/item_picker.gd", "res://scripts/ui/filter_rail.gd",
-+	"res://scripts/ui/inv_motion.gd",
++	"res://scripts/ui/inv_motion.gd", "res://scripts/ui/inv_tab.gd", "res://scripts/ui/inv_card_facts.gd",
  ]
  const TYPE_MIN := 12
  ## The HUD and bag joined W1-UI late (orchestrator option a). The bag is emoji-free; the HUD's rail

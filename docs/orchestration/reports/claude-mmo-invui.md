@@ -794,3 +794,130 @@ Limits: the first open of a session pays 45-80 ms more for its first frame (abov
 is not added (the d-pad keeps its game bindings; Back still toggles the bag); Detailed Stats has no key navigation (Esc closes it); screen opening is a fade, not a slide; hover tips are
 desktop only (the same facts are in the inspect panel); the panels are opaque, the references' see-through blur over the
 world is not reproduced.
+
+## B4 (second pass): the in-game Bag panel (2026-10-21; the owner's third reference, spec 13 addendum 2)
+
+Base sync: W2-INV is still not merged into claude/mmo-overhaul (its tip ddaab662 has no W2-INV merge), so
+`claude/mmo-w2-inv` (12c363e8 hooks review 4, ad36533b overhaul 2206de22 with WATER and spec 13 addendum 2) was merged as
+1897e547. One conflict, player_actions.gd `loot`: resolved to W2-INV's per-drop-kind butchering XP with WATER's
+`WaterAccess.soil` inside it, exactly as W2-INV's regenerated hooks patch has it. The W2-INV hooks delta since the
+INVUI base (cargo_capacity_probe, raid_gear_probe, t_player's grime check, t_save's non-item compare) is 8aa3392e: each of
+those files is now byte for byte claude/mmo-w2-inv + its hooks patch (checked blob by blob in a scratch index; the only
+other difference is inventory_ui.gd, INVUI's own rewrite). The INVUI hooks re-applied cleanly (`git apply -3`, every file
+"Applied patch ... cleanly"), one `--import` afterwards (exit 0).
+
+A cut run of this step had left the dock half built and uncommitted in the work tree (backed up before the sync); it was
+kept, finished and fixed here.
+
+Shipped (f72f98fd; under `game/`):
+- The in-game Bag (`scripts/ui/bag_screen.gd`): opened in play (I, the HUD Menu's Bag, the touch layer's BAG, all of
+  which toggle the family) the Bag is a panel docked on the right while the world stays visible and live on the left.
+  Panel 600 px of 1600 (37.5 %; the reference 37.4 %): black torn header "< Bag  X", the gold "Bag 91 / 100" tab, the
+  FilterRail, a 5-column grid of 100 px compartments that scrolls, and the toolbar Auto Sort + caret, Select, Filter,
+  Lock, Trash. Compartments carry NEW, "Lv. N", the trait pips, a small white "+" under the level on a processed instance
+  and the yellow brackets. The item card (the ItemInspectPanel, 304 px) floats between the world and the panel while an
+  item is selected; nothing selected, no card. A tap on the world closes the family; taps on the panel and the card do
+  not (the screen ignores the pointer outside them, the host closes on what reaches it). The full-screen Bag of the
+  first reference is retired: the dock covers its uses.
+- The card (`scripts/ui/inv_card_facts.gd`, new; ItemInspectPanel lays it out in the Bag, storage and picker): gold
+  title band, art, kind, "Lv. N", durability and the hammer count, family chips three a row on the card, state chips
+  (Raw, Poisoned: the reference's "Cru"), trait chips by shape, then folding black bars: Info (Energy, "<Diet> food +N"
+  = the pet hunger fill, Stomachache / Bad taste chances for raw food, damage, armour, tool, held, locked, unstable, the
+  tint as a colour hex, a plain description from data `inv_ui.json flavour`), Maintenance for items that wear ("Repair:
+  Not possible": the game has no repair) and Create (folded; the recipes that take it, first five and "and N more").
+  Only valid actions; the yellow primary pinned at the bottom. On a phone only the primary stays pinned and the other
+  actions scroll in under the rows (two pinned 56 px rows left the card no room to read: seen in a shot, fixed).
+- Trash: the toolbar's bin asks on the card first ("Discard Raw Meat Lv. 23? It is gone for good." with Discard / Keep),
+  never offers a locked item ("Locked items cannot be discarded."), runs through `PlayerActions.discard` (hook), and is
+  shown offline only (the server has no discard op).
+- Scrolling (spec 13 s20): the wheel glides half a compartment a notch (B4 first pass); new: on desktop a mouse drag
+  follows the pointer past a 12 px dead zone and flings on release (kinetic, about half a second of glide); a cell taps
+  on release within 12 px, so a drag selects nothing; a touchscreen keeps the ScrollContainer's own drag.
+- Phone (spec 13 s21): 4 columns that never fall under the NEW + "Lv. 60" label room (84 px at 12 px type); the panel is
+  half the safe width or wider (the cut run's metrics failed t_invui 21 at 76 px on a notched phone and 83 px at 804x452;
+  now 404 px of panel, 84-88 px cells), the capacity rides in the header (no tab row), the card a quarter of the width.
+- `scripts/ui/inv_tab.gd` (InvTab, new): the family tab drawn once, used by storage's two tabs and the Bag's one (a
+  heading there: it switches nothing, so it takes no taps).
+- Smaller: `InvPaint.plus`, `InvGlyphs.trash`, `BagToolbar` trash square and `set_filter`, `InvActions.can_discard` and
+  the `discard` / `keep` actions, `ItemInspectPanel.set_section_open`, `InvTheme.dock_metrics`.
+- Lab `bag_ui_lab`: seeds the reference's raw meat Lv. 23 processed twice (`--select=meat`) and every other raw meat
+  processed once; its headless check reads the dock's columns and the meat's card (Raw, hammer x2, Energy, Eat first)
+  and that no card shows with nothing selected.
+- Tests: t_invui 22 (below). Design doc: section 2 (BagScreen, InvTab, InvCardFacts), section 4 (B4 in-game Bag
+  contract), section 6 (discard hook), section 7 (the in-game Bag as built), D4, assumptions 73-80.
+
+Acceptance lines (HEAD f72f98fd + the hooks patch in the work tree; logs in the scratchpad `invui_b4p/g1/`):
+- Every t_*.gd exits 0 with its PASS line and 0 SCRIPT ERROR: t_ai, t_build, t_canim, t_combat, t_data ("[t_data] PASS
+  items=..."), t_harbour, t_iconart, t_inventory, t_invui ("[t_invui] PASS"; "[t_invui] 21 open 142/142: 142 cells in
+  2362 us"), t_items, t_light, t_lighting ("[t_light] PASS"), t_occlude, t_player, t_server_domain, t_srvdom, t_structart,
+  t_tame, t_ui ("[t_ui] PASS"), t_uiicons, t_w2_skills, t_water, t_web; t_save exit 0 "[t_save] PASS" with its 5
+  deliberate SCRIPT ERRORs.
+- run_all exit 0 "[tests] PASS"; tools/smoke.sh --no-import "SMOKE PASS".
+- Labs, exit 0 and 0 SCRIPT ERROR each: bag_ui_lab "[bagui] PASS bag=142/142 new=61 locked=2" ("[bagui] perf142 cold
+  bag=142/142 cells=139 build=2597us", "warm ... build=2089us"); inventory_lab "[invlab] PASS empty_cells=100/97
+  slots=100 cells=100 ..."; ui_family_lab "[uifamily] inventory=true animals=true ..."; ui_screenshot_lab "[uishot] PASS
+  screens=hud,inventory,..."; ui_real_capture_lab at 844x390 and 1600x900 gl_compatibility "[uireal] PASS screens=hud,
+  craft,...,bag,character,...". Every shot run of this step logged 0 SCRIPT ERROR.
+- Crash reports: none new (the newest Godot-*.ips is still Godot-2026-10-20-232613.ips, from before this step).
+- Old code fails the new test: t_invui from this commit against the pre-dock tree (8aa3392e + this hooks patch, scratch
+  tree): exit 1, "[t_invui] FAIL 22: the Bag is not docked (no dock_rect: it still fills the screen)", "FAIL 22: the
+  meat's card shows 'Raw' (...Raw  may upset the stomach)", "... 'Carnivore food'", "... 'Stomachache  25 %'", "...
+  'Create'", "FAIL 22: a club's card has its durability and Maintenance, and no Eat", "FAIL 22: I / the HUD's Bag opens
+  the docked Bag", "[t_invui] 7 failures".
+
+t_invui 22 pins: the panel along the full right edge (34-40 % of 1600, 45-60 % on 844x390 with a notch and on 804x452);
+nothing left of it with nothing selected; 5 / 4 columns each >= the label room; the capacity on the tab (desktop) or in
+the header (phone); the card between the world and the panel and inside a notch's safe area; tap targets and text at
+each size; the meat's card (Lv. 23, Processed x2, Meat, Food, Raw, Energy, Carnivore food, Stomachache 25 %, Create;
+Eat first, no Equip) and a club's (Durability, Maintenance, Repair Not possible, no Eat); then real pointer routing in a
+1600x900 SubViewport: the I-key path opens the dock, a cell tap selects that instance and floats its card in, taps on
+the panel's margin and on the card keep it open, a wheel notch glides (0 at once, more after 0.25 s), a drag scrolls
+>= 100 px, keeps gliding after release and selects nothing, the trash asks (Discard / Keep), Keep keeps, Discard removes
+exactly the bone, a locked item is never offered, a tap on the world closes.
+
+Shots looked at (scratchpad `invui_b4p/`, not in the repo), each opened beside durango-bag-ingame-panel.webp (and the
+storage view beside durango-storage-transfer.webp):
+- `s1/meat_1600_glc.png`, `s2/meat_1600_fwd.png` (the reference's state): panel on the right with the gold "Bag 91 /
+  100" tab, rail, five columns, the meat bracketed with its "+" and "Lv. 23"; the card left of it: "Raw Meat" band, art,
+  "Lv. 23", hammer "x2", Meat / Food / Raw Meat chips, "Raw", Info with Energy +20, Carnivore food +204, Stomachache 25 %,
+  Bad taste 15 %, the description, Create folded, Quick Food 1 / 2 and the yellow Eat; the lab world live on the left
+  with the HUD. Forward+ and gl_compatibility read the same. `s1/crop_plus.png`: the "+" touched the "3" of "Lv. 23";
+  moved a quarter line lower.
+- `s1/meat_844n_glc.png` (notch) showed the card's two pinned Quick Food rows leaving no room for its rows; after the tuck
+  `s2/meat_844n_glc.png` shows the chips, "Raw" and the scroll with only Eat pinned. `s3/meat_667_glc.png` (804x452): fits.
+- `s3/bag_1920_glc.png`: same layout scaled; the cage's card (title Zebraceratops, "Bond it at a taming pen", no action).
+- `g1/real1600/bag_1600x900.png`, `g1/real844/bag_844x390.png` (ui_real_capture_lab, the real island scene): the dock
+  over the live camp, raptor and HUD, an empty 0 / 100 bag's dashed compartments; on the phone four columns and the
+  capacity in the header.
+- `s3/storage_1600_glc.png`, `s3/storage_844_glc.png`: the storage view after the InvTab extraction reads as in B4
+  ("1 Select", gold "Storage Box 47 / 80" tab with its underline, the ingot's "+" like the storage reference's).
+Differences left: the reference's panel is see-through over a blurred world, ours is the opaque procedural surface (as
+in B4); its family chips use white glyphs, ours the family's item art (B3's choice); its card shows Maintenance on meat,
+ours only on items that wear (our meat has no durability); "Cru Nvl. 1" has no level in the game, so the chip reads
+"Raw"; the lab world is flat (the real-scene shots show the island).
+
+Assumptions added (design section 9): 73 the dock is the only Bag (the full-screen Bag retired; the other screens stay
+full-screen); 74 the card's description from data `flavour` (18 plain lines, no lore); 75 the white "+" marks a processed
+instance; 76 Trash = Discard, offline only, never locked, after a confirm; 77 a tap on the world closes the family and the
+survivor stands still; 78 the card's Info names follow the game (Energy for Satiety, "<Diet> food" for Animal Vigor, "Raw"
+for Cru, "Repair: Not possible"); 79 the phone dock's widths; 80 desktop drag + fling scrolling.
+
+Hooks (`docs/orchestration/reports/claude-mmo-invui-hooks.patch`, regenerated on f72f98fd, 15 files; `git apply --cached
+--check` passes on that HEAD; applied uncommitted in the work tree). New in this pass:
+- `scripts/player/player_actions.gd`: `discard(index) -> bool` (offline only; never a locked item or a slot lock).
+- `scripts/player/player_sim.gd`: the comment now says why the survivor stands still beside the docked Bag (same code).
+- `tests/t_ui.gd`: `inv_tab.gd` and `inv_card_facts.gd` join OWNED.
+- `scripts/dev/ui_real_capture_lab.gd`, `ui_screenshot_lab.gd` (W1-UI labs): the bag checks read the dock (header, rail,
+  grid, toolbar; the grid right of 35 % of the width; the card, when shown, left of the rail) instead of an always-shown
+  inspect panel beside the grid.
+Unchanged otherwise (crafting / station_craft / player craft picks, craft_ui picker, save_game rebaseline,
+save_sanitizer presets, inventory.gd, hunt_hud Character entry, ui_family_lab, inventory_lab).
+
+Owner gates: none. No save field, money or multiplayer authority change: Discard removes an item from the local bag
+offline only and is not offered online (no server op exists); it is a new player capability the owner may want to know
+about.
+
+Limits: the card does not shrink to a sparse item's content (a cage's card is mostly empty, full height as the
+reference's); the HUD under the modal layer takes no taps while the Bag is open (a tap there closes the Bag); on a phone
+the card covers part of the HUD's vitals and buttons; hover tips remain desktop only; the reference's see-through panel
+blur is not reproduced.
