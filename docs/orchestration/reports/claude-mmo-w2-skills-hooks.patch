@@ -41,7 +41,7 @@ index aa02b967..fe83ffd7 100644
  func has_capture_technique(tier: int) -> bool:
  	for id in survival_nodes:
 diff --git a/game/scripts/core/save_sanitizer.gd b/game/scripts/core/save_sanitizer.gd
-index b1f73860..9f7661d1 100644
+index b1f73860..0af0e9e6 100644
 --- a/game/scripts/core/save_sanitizer.gd
 +++ b/game/scripts/core/save_sanitizer.gd
 @@ -103,7 +103,7 @@ static func clean(data: Dictionary) -> Dictionary:
@@ -80,7 +80,7 @@ index b1f73860..9f7661d1 100644
  	for id in trees.keys():
  		if not SkillState.ORDER.has(str(id)):
  			trees.erase(id)
-@@ -239,7 +244,12 @@ static func _skills(sv: Dictionary) -> void:
+@@ -239,7 +244,14 @@ static func _skills(sv: Dictionary) -> void:
  		row["unlocked"] = row.get("unlocked") if row.get("unlocked") is Array else []
  		trees[id] = row
  		for l in range(1, level + 1):
@@ -88,13 +88,15 @@ index b1f73860..9f7661d1 100644
 +			legacy_paid += payout.sp_for_level(l)
 +	var char_paid := SkillRules.paid_for_level(payout, pioneer_level + 1)
 +	var earned := legacy_paid
-+	if _int(sv.get("rev", 1), 1, SkillState.REV) >= SkillState.REV:
++	# Written back so SkillState.from_dict reads the same rev (a hand-edited [2] or "2" is rev 1).
++	sv["rev"] = _int(sv.get("rev", 1), 1, SkillState.REV)
++	if int(sv["rev"]) >= SkillState.REV:
 +		sv["sp_extra"] = _int(sv.get("sp_extra", 0), 0, legacy_paid)
 +		earned = char_paid + int(sv["sp_extra"])
  	var spent := 0
  	for id in SkillState.ORDER:
  		if not trees.has(id):
-@@ -258,7 +268,10 @@ static func _skills(sv: Dictionary) -> void:
+@@ -258,7 +270,10 @@ static func _skills(sv: Dictionary) -> void:
  	payout.free()
  	sv["trees"] = trees
  	sv["sp_spent"] = spent
@@ -135,6 +137,44 @@ index e09baeef..a16c4d17 100644
  	var survival := int(rec.get("required_survival", 0))
  	if survival > 0 and (player == null or player.skills == null or player.skills.level_of("survival") < survival):
  		return "needs Survival %d" % survival
+diff --git a/game/scripts/pets/field_tame.gd b/game/scripts/pets/field_tame.gd
+index b64cb1b8..2aabbd29 100644
+--- a/game/scripts/pets/field_tame.gd
++++ b/game/scripts/pets/field_tame.gd
+@@ -62,12 +62,21 @@ static func feed_value(creature: Creature, food_id: StringName) -> float:
+ 		return ACCEPTED_FEED
+ 	return 0.0
+ 
++## "" while `player` may bond one more animal, else why not (spec 09: 3 + Animal Handling I-IV).
++static func roster_full(player: Player) -> String:
++	if player == null or player.bonded.size() < Data.bonded_cap():
++		return ""
++	return "Bonded roster full (%d / %d)" % [player.bonded.size(), Data.bonded_cap()]
++
+ static func plate_hint(creature: Creature, inv: Inventory) -> Dictionary:
+ 	## Returns {kind, text, food_id, progress} for the creature plate.
+ 	if not can_attempt(creature):
+ 		return {}
+ 	var need := preferred_need(creature)
++	# The plate is the local survivor's view; at the cap a green "Tame" led to a silent refusal.
+ 	var locked := lock_reason(creature)
++	if locked == "":
++		locked = roster_full(PlayerRegistry.local())
+ 	if locked != "":
+ 		return {
+ 			"kind": &"need",
+@@ -123,8 +132,9 @@ static func apply_feed(player: Player, creature: Creature, food_id: StringName)
+ 		print("[tame] refused: %s" % lock_reason(creature))
+ 		return false
+ 	# Refuse before eating the food: a completed tame must have a roster slot to go to.
+-	if player.bonded.size() >= Data.bonded_cap():
+-		print("[tame] refused: roster full (%d)" % Data.bonded_cap())
++	var full := roster_full(player)
++	if full != "":
++		player.notice(full + ". Animal Handling (Survival) adds slots.")
+ 		return false
+ 	var value := feed_value(creature, food_id)
+ 	if value <= 0.0:
 diff --git a/game/scripts/server/character_state.gd b/game/scripts/server/character_state.gd
 index 79c8b05c..b69eaabb 100644
 --- a/game/scripts/server/character_state.gd
@@ -170,6 +210,19 @@ index 0bbbcb56..d19f8337 100644
  	dealt *= 1.0 + float(tune.get("damage_per_melee_level", 0.01)) * float(melee)
  	dealt *= CombatCounters.multiplier(def.archetype, dtype)
  	var kind := "hit"
+diff --git a/game/scripts/ui/animal_screen.gd b/game/scripts/ui/animal_screen.gd
+index 61df96f6..bbee3588 100644
+--- a/game/scripts/ui/animal_screen.gd
++++ b/game/scripts/ui/animal_screen.gd
+@@ -147,6 +147,8 @@ func _rebuild() -> void:
+ 	for child in _active.get_children():
+ 		child.queue_free()
+ 	_pin_active()
++	if player != null: # spec 09:50: bonded count and max in the pets UI ("3 / 4")
++		_title.text = "ANIMALS    ·    BONDED %d / %d    ·    GROWTH" % [player.bonded.size(), Data.bonded_cap()]
+ 	if player == null or player.bonded.is_empty():
+ 		_detail.text = "No bonded animals yet. Knock one down and feed it to add it to your roster."
+ 		_summon.visible = false
 diff --git a/game/scripts/ui/craft_ui.gd b/game/scripts/ui/craft_ui.gd
 index d7187dbb..999bafaf 100644
 --- a/game/scripts/ui/craft_ui.gd
@@ -192,3 +245,103 @@ index d7187dbb..999bafaf 100644
  	var need := Label.new()
  	need.text = "INGREDIENTS"
  	need.add_theme_font_size_override("font_size", UiTokens.meta(get_viewport_rect().size))
+diff --git a/game/scripts/ui/skills_sheet.gd b/game/scripts/ui/skills_sheet.gd
+index 3157fad0..5334afeb 100644
+--- a/game/scripts/ui/skills_sheet.gd
++++ b/game/scripts/ui/skills_sheet.gd
+@@ -25,6 +25,7 @@ var _panel: PanelContainer
+ var _box: VBoxContainer
+ var _head: HBoxContainer
+ var _tree: String = ""
++var _refused_id := ""  # the row whose refund was just refused shows why (SkillState.refused)
+ 
+ func _ready() -> void:
+ 	# The HUD that hosts this sheet has no size, so anchor to the viewport instead (top_level),
+@@ -269,34 +270,55 @@ func _build_tree() -> void:
+ 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+ 	_box.add_child(info)
+ 	var first: Array[Control] = []
++	var auto_learned: PackedStringArray = []
++	var later := 0
+ 	for n in skills.nodes(_tree):
+ 		var st := skills.node_state(_tree, n)
++		var title := str(n.get("name", str(n.get("id", "")).replace("_", " ").capitalize()))
++		# Learned-free rows have nothing to tap; one summary line keeps the first screen actionable.
++		if st[0] == "owned" and bool(n.get("auto", false)):
++			auto_learned.append(title)
++			continue
++		# Nodes the game reads nothing from yet (spec 12:215) cannot be bought: one count line, not a screen of grey rows.
++		if st[0] == "locked" and st[1] == SkillState.NOT_IN_GAME:
++			later += 1
++			continue
+ 		var h := HBoxContainer.new()
+ 		h.custom_minimum_size = Vector2(0, 60)
+ 		h.add_theme_constant_override("separation", UiTokens.SPACE)
+ 		var l := Label.new()
+ 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+-		l.text = "%s  ·  %s  ·  %d SP\n%s" % [str(n.get("id", "")).replace("_", " ").capitalize(), LevelDisplay.label(int(n.get("level", 1))), int(n.get("sp", 0)), str(n.get("unlocks", ""))]
++		var cost := "AUTO" if bool(n.get("auto", false)) else "%d SP" % int(n.get("sp", 0))
++		l.text = "%s  ·  %s  ·  %s" % [title, LevelDisplay.label(int(n.get("level", 1))), cost]
++		var unlocks := str(n.get("unlocks", ""))
++		if unlocks != "" and unlocks.to_lower() != title.to_lower():
++			l.text += "\n" + unlocks
++		var nid := str(n.get("id", ""))
++		var refused := nid == _refused_id and skills.refused != ""
++		if refused:
++			l.text += "\n" + skills.refused
+ 		l.add_theme_font_size_override("font_size", UiTokens.meta(view) + 2)
+ 		match st[0]:
+ 			"owned":
+ 				l.add_theme_color_override("font_color", Color(0.55, 0.9, 0.5))
+ 			"locked":
+ 				l.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
++		if refused:
++			l.add_theme_color_override("font_color", UiTokens.DANGER)
+ 		h.add_child(l)
+ 		var b := Button.new()
+ 		b.custom_minimum_size = Vector2(120 if UiTokens.is_narrow(view) else 140, 56)
+-		var nid := str(n.get("id", ""))
+ 		if st[0] == "owned":
+ 			b.text = "Refund"
+ 			b.pressed.connect(func () -> void:
+-				skills.refund(_tree, nid)
++				_refused_id = "" if skills.refund(_tree, nid) else nid
+ 				rebuild()
+ 			)
+ 		elif st[0] == "available":
+ 			b.text = "Unlock"
+ 			b.pressed.connect(func () -> void:
++				_refused_id = ""
+ 				skills.unlock(_tree, nid)
+ 				rebuild()
+ 			)
+@@ -306,11 +328,28 @@ func _build_tree() -> void:
+ 			b.disabled = true
+ 		h.add_child(b)
+ 		_box.add_child(h)
++	if not auto_learned.is_empty():
++		var learned := Label.new()
++		learned.name = "SkillsLearnedAuto"
++		learned.text = "Learned automatically: " + ", ".join(auto_learned)
++		learned.add_theme_color_override("font_color", UiTokens.META)
++		learned.add_theme_font_size_override("font_size", UiTokens.meta(view))
++		learned.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
++		_box.add_child(learned)
++	if later > 0:
++		var soon := Label.new()
++		soon.name = "SkillsLater"
++		soon.text = "%d more %s come with later updates" % [later, "node" if later == 1 else "nodes"]
++		soon.add_theme_color_override("font_color", UiTokens.META)
++		soon.add_theme_font_size_override("font_size", UiTokens.meta(view))
++		soon.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
++		_box.add_child(soon)
+ 	var back := Button.new()
+ 	back.text = "All skills"
+ 	back.custom_minimum_size = Vector2(0, 56)
+ 	back.pressed.connect(func () -> void:
+ 		_tree = ""
++		_refused_id = ""
+ 		rebuild()
+ 	)
+ 	_box.add_child(back)
