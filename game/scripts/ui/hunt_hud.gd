@@ -40,6 +40,7 @@ var _combat_alpha: float = 0.0
 var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
 var _stance_label: Label
 var _events := HudEventState.new()
+var _domain := DomainBanner.new()  ## spec 18: "<owner>'s Domain" on walking into claimed land
 var _ctx_hexes: Array[HexButton] = []
 var _ctx_ids: Array = []
 var _ctx_timer: float = 0.0
@@ -971,6 +972,7 @@ func _process(delta: float) -> void:
 		if _levelup_t > 6.5:
 			_levelup_t = -1.0
 	_events.tick(delta)
+	_domain.tick(delta, World.runtime, player.global_position)
 	_minimap.queue_redraw()
 	queue_redraw()
 
@@ -1093,6 +1095,8 @@ func _draw() -> void:
 				stack = lr if not stack.has_area() else stack.merge(lr)
 				ly += float(line[1]) + 8.0
 			drawn_blocks["levelup"] = stack
+	# --- the domain banner, before the moving text so it keeps off the banner
+	_domain.draw(self)
 	# --- pickup toasts near the top-centre, rising and fading, then the notices: each takes the nearest
 	# free spot up or down its column, off every block and hex (on a landscape phone they crossed the
 	# quest card at y 100-128). On a phone the toasts stack under the vitals instead: in the centre
