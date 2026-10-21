@@ -18,6 +18,7 @@ var feed: ChatLog
 var hex: HexButton
 var screen: ChatScreen
 var overlay_on := true
+var _held: Player  # the survivor whose _input is off while the screen is open
 
 static func attach(p_hud: HuntHud, net: NetClient = null) -> ChatHud:
 	var c := ChatHud.new()
@@ -49,12 +50,27 @@ func open(ch: StringName = &"") -> void:
 		screen = ChatScreen.new(feed)
 		screen.overlay_on = overlay_on
 		screen.overlay_toggled.connect(func (on: bool) -> void: overlay_on = on)
+		screen.closed.connect(_release_player)
 		var layer := CanvasLayer.new()
 		layer.name = "ChatLayer"
 		layer.layer = 96  # with the other modal screens, above plates (58) and world UI (40)
 		add_child(layer)
 		layer.add_child(screen)
+	# The screen takes every click, but Player._input arms PlayerInput's web click fallback on any
+	# left press and only a click no control took disarms it: a tap on the rows over a craft station
+	# opened its menu behind the chat. Player._input feeds nothing else.
+	if _held == null and hud and hud.player and hud.player.is_processing_input():
+		_held = hud.player
+		_held.set_process_input(false)
 	screen.open(ch if ch != &"" else screen.channel)
+
+func _release_player() -> void:
+	if is_instance_valid(_held):
+		_held.set_process_input(true)
+	_held = null
+
+func _exit_tree() -> void:
+	_release_player()
 
 ## The overlay's lines: the newest Region lines still inside SHOW_S.
 func fresh() -> Array:

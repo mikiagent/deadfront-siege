@@ -33,11 +33,13 @@ func run(p_tree: SceneTree, p_expect: Callable) -> void:
 		url = "ws://127.0.0.1:%d" % server.port
 		await _test_two_clients()
 		await _test_layout()
+		await _test_private_island()
 		await _test_wide_line()
 		await _test_overlay_and_hud()
 		await _test_many_lines()
 		await _test_held_enter()
 		await _test_disconnect()
+		await _test_tap_stays_in_screen()
 	for n in _nodes:
 		if is_instance_valid(n):
 			n.queue_free()
@@ -188,12 +190,26 @@ func _test_layout() -> void:
 	(screen.find_child("Sticker_heart", true, false) as Button).pressed.emit()
 	_check(await _until(func () -> bool: return _last(alice_log)["text"] == ":heart:"), "a picked sticker reaches Alice")
 	_check(not (screen.find_child("Stickers", true, false) as Control).visible, "the picker closes after a pick")
-	# The on-screen keyboard: the input bar rides above it.
+	# The on-screen keyboard: the input bar rides above it, and the newest line stays in view (the
+	# rows' page shrank under it with the scroll offset kept, which showed older lines).
 	(screen.get_parent() as Control).size = Vector2(844, 390)
+	await _frames(3)
+	_check(_newest_in_view(screen), "at 844x390 the newest line is in view (%s)" % _scroll_info(screen))
 	screen.keyboard_override = 200.0
 	await _frames(3)
 	var bar := (screen.find_child("InputBar", true, false) as Control).get_global_rect()
 	_check(bar.end.y - screen.global_position.y <= 390.0 - 200.0 + 0.5, "the input bar sits above a 200 px keyboard (bottom %.0f)" % (bar.end.y - screen.global_position.y))
+	_check(_newest_in_view(screen), "with a 200 px keyboard up the newest line is still in view (%s)" % _scroll_info(screen))
+	# A 215 px keyboard left no room for two rows of stickers: the picker's top row went off the screen.
+	screen.keyboard_override = 215.0
+	await _frames(3)
+	(screen.find_child("Plus", true, false) as Button).pressed.emit()
+	await _frames(2)
+	var pick := (screen.find_child("Stickers", true, false) as Control).get_global_rect()
+	bar = (screen.find_child("InputBar", true, false) as Control).get_global_rect()
+	_check(Rect2(screen.global_position, Vector2(844, 390)).encloses(pick) and pick.end.y <= bar.position.y + 0.5,
+		"with a 215 px keyboard the sticker picker stays on screen, above the input bar (%s, bar top %.0f)" % [pick, bar.position.y])
+	(screen.find_child("Plus", true, false) as Button).pressed.emit()
 	screen.keyboard_override = 0.0
 	await _frames(2)
 	bar = (screen.find_child("InputBar", true, false) as Control).get_global_rect()
@@ -292,6 +308,11 @@ func _test_many_lines() -> void:
 	_check(per_line <= 12.0, "a new line adds one row's nodes, not every row's (%.1f nodes a line)" % per_line)
 	_check(list.get_child_count() == ChatLog.MAX_LINES and _texts(list.get_child(list.get_child_count() - 1))[0].begins_with("line 299"),
 		"the list keeps the newest %d lines, newest at the bottom (%d rows)" % [ChatLog.MAX_LINES, list.get_child_count()])
+	# A new size makes every row again: the list stays on the newest line (it opened on the oldest).
+	for view in [Vector2(1600, 900), Vector2(844, 390)]:
+		(screen.get_parent() as Control).size = view
+		await _frames(3)
+		_check(_newest_in_view(screen), "after a resize to %s the newest line is in view (%s)" % [view, _scroll_info(screen)])
 	var ids := list.get_children().map(func (c: Node) -> int: return c.get_instance_id())
 	added[0] = 0
 	bob.event.emit("chat", {"id": 901, "from": "Ben", "text": "one more", "ts": bob_log.now()})
@@ -341,13 +362,93 @@ func _test_held_enter() -> void:
 	_check(got >= 1 and got <= int(burst) + 4, "the lines that go out keep to the server's chat rate (%d sent)" % got)
 	_check(told, "the screen says \"Not sent: slow down\"")
 
+## A private island's room holds its owner alone (PresenceRooms._room_key): Region said "Nothing yet.
+## Say hi to the island." and took lines that only came back to the sender.
+func _test_private_island() -> void:
+	var screen := tree.root.find_child("BobScreen", true, false) as ChatScreen
+	var field := screen.find_child("Field", true, false) as LineEdit
+	var send := screen.find_child("Send", true, false) as Button
+	var was: Dictionary = World.island_def
+	World.island_def = World.def_of(&"home_grassland")
+	_check(World.is_home(), "home_grassland is a private island")
+	screen.open(ChatLog.REGION)
+	await _frames(2)
+	_check(bob.is_online() and _banner(screen) == ChatScreen.PRIVATE_TEXT and not field.editable and send.disabled and (screen.find_child("Plus", true, false) as Button).disabled,
+		"online on a private island Region says nobody else hears it and takes no lines (\"%s\")" % _banner(screen))
+	World.island_def = was
+	screen.select(ChatLog.REGION)
+	await _frames(2)
+	_check(_banner(screen) == "" and field.editable and not send.disabled, "on a shared island Region takes lines again")
+
 func _test_disconnect() -> void:
 	var screen := tree.root.find_child("BobScreen", true, false) as ChatScreen
 	bob.disconnect_from_server()
 	await _frames(2)
 	_check(_banner(screen).begins_with("Offline.") and not bob_log.lines[ChatLog.REGION].is_empty(), "after a disconnect Region keeps its lines and says it is offline")
 
+## A tap on the open screen stays in it. Player._input armed PlayerInput's web click fallback on every
+## left press and only a click no control took disarmed it, so a tap on the rows over a craft station
+## opened that station's menu behind the chat (and stopped the hunt).
+func _test_tap_stays_in_screen() -> void:
+	(tree.root.find_child("BobScreen", true, false) as ChatScreen).close()
+	var host := Node3D.new()
+	_add(host)
+	var cam := Camera3D.new()
+	host.add_child(cam)
+	cam.position = Vector3(0, 12, 12)
+	cam.look_at(Vector3.ZERO)
+	cam.current = true
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate() as Player
+	player.position = Vector3(0, 1, 5)
+	host.add_child(player)
+	var bench := CraftStation.make(&"workbench")
+	host.add_child(bench)
+	await _frames(2)  # the cameras settle first: the HUD's name pills unprojected through an unset one
+	var hud := HuntHud.new()
+	hud.bind(player)
+	_box(tree.root.get_visible_rect().size).add_child(hud)
+	var chat := ChatHud.attach(hud, bob)
+	await _frames(3)
+	var menu := player.station_craft.menu if player.station_craft else null
+	var at := cam.unproject_position(bench.global_position + Vector3(0, 0.7, 0))
+	_click(at)
+	await _frames(3)
+	_check(menu != null and menu.visible, "with the screen shut a click on the workbench opens its menu (the path the screen must block)")
+	if menu:
+		menu.hide_menu()
+	chat.open()
+	await _frames(2)
+	_check(chat.screen.get_global_rect().has_point(at), "the workbench at %s lies under the open screen" % at)
+	_click(at)
+	await _frames(3)
+	_check(menu != null and not menu.visible and chat.screen.visible, "a click on the open screen over the workbench leaves its menu shut")
+	chat.screen.close()
+	_check(player.is_processing_input(), "closing the screen gives the survivor its clicks back")
+	host.queue_free()
+
 # ---------------------------------------------------------------- helpers
+
+func _click(at: Vector2) -> void:
+	for down in [true, false]:
+		var ev := InputEventMouseButton.new()
+		ev.button_index = MOUSE_BUTTON_LEFT
+		ev.pressed = down
+		ev.position = at
+		ev.global_position = at
+		tree.root.push_input(ev, true)  # in viewport px (the headless window is smaller than the canvas)
+
+## Whether the newest line on the screen lies inside the rows' visible rect.
+func _newest_in_view(screen: ChatScreen) -> bool:
+	var lines := screen.find_child("Lines", true, false) as Control
+	var rows := lines.get_child(0).get_children().filter(func (c: Node) -> bool: return c.name != "Banner")
+	if rows.is_empty():
+		return false
+	var newest := (rows[-1] as Node).get_child(0).get_child(-1).get_child(-1) as Control  # the row's line column's last line
+	return lines.get_global_rect().grow(1.0).encloses(newest.get_global_rect())
+
+func _scroll_info(screen: ChatScreen) -> String:
+	var vb := (screen.find_child("Lines", true, false) as ScrollContainer).get_v_scroll_bar()
+	return "scroll %.0f/%.0f page %.0f" % [vb.value, vb.max_value, vb.page]
 
 func _check(ok: bool, msg: String) -> void:
 	expect.call(ok, "chat: %s" % msg)

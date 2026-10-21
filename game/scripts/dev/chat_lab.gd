@@ -1,11 +1,12 @@
 extends Node3D
-## Region chat lab (spec 20): the home island with the real HUD and, in this process, a local
+## Region chat lab (spec 20): a shared island with the real HUD and, in this process, a local
 ## NetServer and two more real NetClients (Mira, Rook) beside the game's own Game.net, all in one
-## island room, exchanging real lines over localhost sockets; System lines come from the game's own
+## island room, exchanging real lines over localhost sockets (mode home: the survivor is on the
+## private home island and Game.net in its room of one, as the game puts it there); System lines come from the game's own
 ## paths (the island arrival, a level-up, a HUD notice). The HUD's chat comes from the hooks patch;
 ## without it the lab attaches one itself and says so.
 ## Windowed: Godot --path game --resolution 844x390 -- --lab=chat_lab --chat=<mode> --shot=<png> --shot-delay=9
-## [--rendering-method gl_compatibility]. Modes: region (default), system, picker, overlay, offline.
+## [--rendering-method gl_compatibility]. Modes: region (default), system, picker, overlay, offline, home.
 ## Prints "[chat_lab] ready mode=... region=N system=N" once the scene is set.
 
 const ISLAND := "temperate_25"
@@ -36,7 +37,7 @@ func _ready() -> void:
 		if c is HuntHud:
 			_hud = c
 	World.home_terrain = &"meadow"
-	World.load_island(self, &"home_grassland", Vector3(0, 1, 18), false)
+	World.load_island(self, &"home_grassland" if _mode == "home" else StringName(ISLAND), Vector3(0, 1, 18), false)
 	(kit["nav"] as Node).queue_free()
 	_chat = _hud.get("chat") as ChatHud
 	if _chat == null:
@@ -89,7 +90,7 @@ func _talk() -> void:
 			return
 		await get_tree().process_frame
 	for c: NetClient in _clients.values():
-		var j := c.request("presence.join", {"island": ISLAND})
+		var j := c.request("presence.join", {"island": PresenceSender.room_name() if c == Game.net else ISLAND})
 		await j.done
 	var script := [[5640, "Rook", ":wow:"], [5280, "Mira", ":smile:"], [5280, "me", "hi"],
 		[5100, "Rook", ":laugh:"], [5100, "me", ":)"], [5100, "Mira", "anyone trading stone axes?"],

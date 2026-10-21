@@ -6,7 +6,8 @@ extends Control
 ## lines, a gold name then text or a white sticker then a small grey relative time, one sender's
 ## consecutive lines stacked under one name, rows alternating light and dark over the blurred
 ## world, newest at the bottom; under it "Enter message", "+" (sticker picker) and Send.
-## Region needs the island server and says so when there is none; System works offline.
+## Region needs the island server and says so when there is none, and says so on a private island,
+## whose room holds its owner alone; System works offline.
 ## Text from players is never markup: Labels and RichTextLabel.add_text only (no BBCode, no
 ## translation lookups). "+ New Group" is left out: NET has no group ops yet.
 
@@ -27,6 +28,7 @@ const ROW_DARK := Color(0, 0, 0, 0.16)
 const BLUR := preload("res://scripts/ui/chat_blur.gdshader")
 const TITLES := {ChatLog.REGION: "Region", ChatLog.SYSTEM: "System"}
 const MOVE_ACTIONS: Array[StringName] = [&"move_left", &"move_right", &"move_up", &"move_down", &"sprint"]
+const PRIVATE_TEXT := "Your home island is private: Region chat reaches players on shared islands."
 
 var feed: ChatLog
 var channel: StringName = ChatLog.REGION
@@ -307,8 +309,11 @@ func _apply_metrics() -> void:
 	for b in _picker.get_child(0).get_children():
 		(b as Control).custom_minimum_size = Vector2(_m.cell, _m.cell)
 		(b.get_child(0) as Control).set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, int(_m.cell * 0.18))
+	var end := _at_end()  # a new size remakes every row: keep the newest line in view
 	_place_root()
 	_rebuild()
+	if end:
+		_jump_to_end()
 
 func _place_root() -> void:
 	var inset := UiTokens.safe_insets(get_viewport()) if is_inside_tree() else Vector4.ZERO
@@ -390,6 +395,8 @@ func _refresh_footer() -> void:
 	var t := ""
 	if channel == ChatLog.REGION and not feed.online():
 		t = _offline_text()
+	elif channel == ChatLog.REGION and World.is_home():
+		t = PRIVATE_TEXT
 	elif _note != "":
 		t = _note
 	elif (feed.lines[channel] as Array).is_empty():
@@ -417,10 +424,16 @@ func _offline_text() -> String:
 			return "Connection to the island server lost. Reconnecting..."
 	return "Offline. Region chat needs the island server, so nothing can be sent or received. System messages still work."
 
+## Region is the room of the island the survivor stands on (PresenceSender.room_name), and a private
+## island's room holds its owner alone (PresenceRooms._room_key): a line there reaches nobody else.
+func _can_talk() -> bool:
+	return channel == ChatLog.REGION and feed.online() and not World.is_home()
+
 func _refresh_input() -> void:
-	var can := channel == ChatLog.REGION and feed.online() and not _sending
-	_field.editable = channel == ChatLog.REGION and feed.online()
-	_field.placeholder_text = "Enter message" if _field.editable else ("Offline" if channel == ChatLog.REGION else "System is read-only")
+	_field.editable = _can_talk()
+	var can := _field.editable and not _sending
+	_field.placeholder_text = "Enter message" if _field.editable else ("System is read-only" if channel != ChatLog.REGION
+		else ("Private island" if feed.online() else "Offline"))
 	_send.disabled = not can
 	_plus.disabled = not can
 	if not can:
@@ -536,7 +549,7 @@ func _banner() -> RichTextLabel:
 
 func _send_text(t: String) -> void:
 	var text := t.strip_edges()
-	if text == "" or _sending or channel != ChatLog.REGION or not feed.online():
+	if text == "" or _sending or not _can_talk():
 		return
 	_sending = true
 	_note = ""
@@ -553,12 +566,23 @@ func _send_text(t: String) -> void:
 	_refresh_input()
 	_scroll_to_end()
 
+## Above the + button; one row of stickers when the keyboard leaves no room for two (a 215 px
+## keyboard at 844x390 put the top row off the screen), and never above the safe area.
 func _toggle_picker() -> void:
 	_picker.visible = not _picker.visible
-	if _picker.visible:
+	if not _picker.visible:
+		return
+	var inset := UiTokens.safe_insets(get_viewport())
+	var top: float = inset.z + _m.margin
+	var bottom: float = _bar.get_global_rect().position.y - _m.gap
+	var grid := _picker.get_child(0) as GridContainer
+	grid.columns = 4
+	_picker.reset_size()
+	if bottom - _picker.size.y < top:
+		grid.columns = ChatEmotes.CODES.size()
 		_picker.reset_size()
-		var p := _plus.get_global_rect()
-		_picker.global_position = Vector2(p.end.x - _picker.size.x, _bar.get_global_rect().position.y - _picker.size.y - _m.gap)
+	var p := _plus.get_global_rect()
+	_picker.global_position = Vector2(maxf(inset.w + _m.margin, p.end.x - _picker.size.x), maxf(top, bottom - _picker.size.y))
 
 func _toggle_overlay() -> void:
 	overlay_on = not overlay_on
@@ -588,8 +612,11 @@ func _process(delta: float) -> void:
 		return
 	var kb := keyboard_height()
 	if not is_equal_approx(kb, _kb):
+		var end := _at_end()  # the rows' page shrinks under a keyboard: the newest line stays in view
 		_kb = kb
 		_place_root()
+		if end:
+			_jump_to_end()
 	_time_left -= delta
 	if _time_left <= 0.0:
 		_time_left = 15.0
@@ -607,14 +634,17 @@ func keyboard_height() -> float:
 		return 0.0
 	return float(px) / maxf(0.01, get_viewport().get_screen_transform().get_scale().y)
 
+## At the newest line, or gliding to it.
 func _at_end() -> bool:
 	var vb := _scroll.get_v_scroll_bar()
-	return vb.value >= vb.max_value - vb.page - 4.0
+	return vb.value >= vb.max_value - vb.page - 4.0 or (_glide != null and _glide.is_running())
 
 func _jump_to_end() -> void:
 	if not is_inside_tree():
 		return
 	await get_tree().process_frame
+	if _glide:
+		_glide.kill()  # its end was measured before the new layout
 	_scroll.scroll_vertical = int(_scroll.get_v_scroll_bar().max_value)
 
 ## Newest at the bottom: a short glide down to it once the rows have their sizes.
