@@ -130,7 +130,8 @@ func _walk_case(dir: Vector3) -> void:
 
 ## The held layout gives way only when it runs off the screen: pan the node from the centre to 10 px off
 ## the left edge; nothing moves against it while there is room, and at the edge every hex is still
-## mostly on screen (tappable). Then a 3 px jiggle there for a second (hysteresis) moves nothing.
+## mostly on screen (tappable). Then a 3 px jiggle there for a second (hysteresis) never re-solves: the
+## parts follow the node or hold still on screen, so nothing moves against it by more than the jiggle.
 func _edge_case() -> void:
 	radial.close()
 	player.global_position = Vector3.ZERO
@@ -174,7 +175,7 @@ func _edge_case() -> void:
 		for i in mini(cur.size(), held.size()):
 			worst = maxf(worst, (cur[i] - held[i]).length())
 	print("[t_controls] edge jiggle: max %.2f px against the node" % worst)
-	_expect(worst <= MAX_STEP, "edge: a 3 px jiggle at the edge does not flip the layout (max %.2f px)" % worst)
+	_expect(worst <= 3.5, "edge: a 3 px jiggle at the edge does not re-solve the layout (max %.2f px)" % worst)
 
 func _side_name(dir: Vector3) -> String:
 	var s := cam.unproject_position(dir) - cam.unproject_position(Vector3.ZERO)
