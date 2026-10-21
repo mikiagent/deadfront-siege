@@ -1,9 +1,9 @@
 # W2-DATA report: item and recipe data, material ladder, nets, armour bands
 
-Branch `claude/mmo-w2-data`, merged with `claude/mmo-overhaul` at 34b6d459 (the base has not moved since). Review
-round 3 gates ran on 351aa708 with the hooks patch applied (scratch tree `w2data-gate`); t_data was rerun on e2a3bc1c,
-which only rewords one t_data message. The commits after it change only this report. No dsc worker was used (the owner took DeepSeek off on 2026-10-20),
-so nothing goes in dsc-improvements.md. No credits spent.
+Branch `claude/mmo-w2-data`, merged with `claude/mmo-overhaul` at cecc936b (the base moved by two HANDOFF/docs
+commits; merged in 5849a2d3). Review round 4 gates ran on 753a3c64 with the regenerated hooks patch applied (scratch
+tree `w2data-r4-gate`); the commits after it change only this report. No dsc worker was used (the owner took
+DeepSeek off on 2026-10-20), so nothing goes in dsc-improvements.md. No credits spent.
 
 ## What shipped
 
@@ -33,10 +33,13 @@ so nothing goes in dsc-improvements.md. No credits spent.
   species have a reachable net and technique.
 - **Armour in every band 1–60:** a new leather set (L20), plus copper (35), bronze (40), iron (50) and steel
   (55). Each set has helm, cuirass, bracers and greaves. All armour and clothing has `insulation {cold, heat}`.
+- **The raid kit sits on top of the ladder (round 4).** Raid maul, helm, cuirass and greaves are made from steel
+  ingots only, behind the steel rung's nodes (`iron_weapons`, `scute_armor`) plus Survival 50 and Lv 55. Their base
+  values were rebased so the crafted L60 kit keeps the numbers the tyrant fight was tuned at.
 - **market_category and rarity on every item.** Market categories are the market.json price keys.
   `item_rarity.json` is now a generated mirror of `items.json` rarity, and t_data fails if the two disagree.
 - **Recipe gates:** progression recipes carry `requires_node` (a trees.json node id). Hook 6 makes
-  `Crafting.progression_block` enforce it. Existing early kits are left ungated so the starting loop does
+  `Crafting.progression_block` enforce it and say what to raise ("needs Smelting 1 (Processing 25)"). Existing early kits are left ungated so the starting loop does
   not change.
 - **Repairs:** `recipes.json "repairs"` has one row per ProgressionScaling tier. They are data only; a
   consumer still has to be written.
@@ -49,15 +52,40 @@ so nothing goes in dsc-improvements.md. No credits spent.
 - **Validator `game/tests/t_data.gd`:** references across every data file; a walk from bare hands over real
   sources only (climate vegetation × nature yields with HarvestNode's own tool and pick-tier gates,
   butchering, farming, capture, taming, recipes); ladder, nets, armour bands and loops; 39 recipes crafted
-  through the real `Crafting.preview` planner. New this round: rung time and skill gate never drop along the
-  ladder, the pick chain, no ungated recipe turns obsidian or metal into gear, and a hook 6 check that
-  `progression_block` refuses `smelt_copper` until `smelting_1` is learned.
+  through the real `Crafting.preview` planner. Rung time and skill gate never drop along the ladder, the pick
+  chain, a hook 6 check that `progression_block` refuses `smelt_copper` until `smelting_1` is learned and names
+  the tree and level. Round 4 adds: nothing reachable beats the steel item of its slot at equal level unless it is
+  gated at least as high; no gear recipe takes material above flint below that rung's node; no split recipe
+  multiplies a gear slot category; no ore or metal in warp-ruin loot; and the planner's tier and level evidence.
 
 - **Processing is mandatory (vision fix 1).** Rope is twisted from twine only, hide straps are cut from dried
-  hide only, and every armour, tent and bed hide slot takes `cured_hide` (dried hide or straps), never raw hide.
+  hide only, and every armour, tent and bed hide slot takes `cured_hide` (dried hide; since round 4 straps are
+  lashing only), never raw hide.
 - **No ore on the home grassland (vision fix 2).** Metal starts on the desert and volcanic islands.
 - **The walk follows the islands that exist.** t_data gathers on the islands islands.json lists (their climate
   and tier) and butchers only the species those islands spawn. A second walk covers the start island alone.
+
+## Review round 4 (findings and what changed)
+
+| Finding | Fix | Check that now catches it |
+|---|---|---|
+| major: raid gear beats the steel set and its "metal" primary takes every ingot, so steel-tier gear skipped `iron_weapons`/`scute_armor` | The raid recipes take `tier_steel` (steel ingots only) as their primary, at half the old shard count (2 shards = 1 ingot: maul and cuirass 4, helm and greaves 2), and require `iron_weapons` (maul) or `scute_armor` (helm, cuirass, greaves) on top of their Survival 50 and Lv 55. The base values are rebased by 1.25/2.45 (maul damage 220 → 112, cuirass armour 700 → 357, helm and greaves 300 → 153), so the crafted L60 kit keeps the numbers the tyrant fight was tuned at. Hook 15 updates W1-ITEMS' raid_gear_probe: it now stocks steel ingots and learns the two nodes. Its result: `[gear] maul L60 steel dmg=1569.6 kit armor=9291.3` (shard kit: 1573.0 and 9295.0), and 0 FAIL lines, including "real boss contact kills in4-6 landed hits". The raid kit now sits above steel on purpose. It needs the same steel, the same node, Survival 50 and four times the hide, it has no arms piece, and it is the only set with fracture/pinned protection. | `_check_top_rung`, `_check_ungated_gear` (rewritten: Survival and min_level no longer count as a gate; any gear recipe whose primary takes material above flint needs a node at least as high as the lowest node the ladder's own `tier_<t>` gear has) and `_check_tier_planner`. Pre-fix data (0554797a + its hooks) with the new t_data: `FAIL raid_cuirass (1715 at steel tier) beats steel_cuirass (686 at steel) at equal level with skill gate Lv 0 < Lv 45`, the same for raid_helm, raid_greaves and `raid_maul (539 at steel tier) beats steel_sword (100 at steel) ... Lv 0 < Lv 50`, `FAIL recipe raid_cuirass takes steel-tier material as its primary with skill gate Lv 0, below the ladder's steel gear gate Lv 45` (×4), `FAIL raid gear refuses metal_shard as its primary`, `... copper_ingot ...` |
+| major (acceptance): a level 5 tool clearly better than level 1; higher-tier gear clearly better | Met. Evidence from t_data, through the real planner with every input at level 55: `[t_data] L55 armor_body via planner: copper_cuirass 2413 (copper), bronze_cuirass 2756 (bronze), iron_cuirass 3158 (iron), steel_cuirass 3650 (steel), raid_cuirass 4653 (steel)`, `[t_data] L55 weapon via planner: copper_sword 352 (copper), bronze_sword 402 (bronze), iron_sword 460 (iron), steel_sword 532 (steel), raid_maul 1460 (steel)`, `[t_data] level 1 -> 5 from the planner: flint_pick gather power x1.40, flint_spear damage x1.32`. Raid from metal shards or copper ingots is refused (asserted). | `_check_tier_planner` asserts each tier beats the one below, raid ≥ steel, and the level 5 tool ≥ 1.3× level 1 |
+| minor: server act.craft ignores requires_node | Unchanged. The W3-SRVACT acceptance item stays (below). | - |
+| minor: hook 10 warp-ruin loot (metal_shard at a ruin that could sit on the home island; corn is not a rare seed) | Hook 10 now lists `cloth_scrap`, `pressure_dressing` and `wheat_seed`. world-design.md:106: courier boxes hold "cloth, wire, medicine, rare seeds". No item is wire, and a metal stand-in would put metal in a box that a future consumer could place anywhere, so wire is left out. No seed is rare in items.json, so the stand-in is wheat, which grows wild only on temperate islands, never on the start island. Recorded under assumptions. | `_check_home`: `FAIL warp ruin loot metal_shard is not ore or metal` (old hook 10) |
+| minor: wild corn on the home grassland | Kept as the documented assumption (the reviewer accepts it). | - |
+| minor: straps halve the dried-hide cost of armour and tents | `hide_strap` leaves the `cured_hide` category. Armour, tent and bed hide slots take dried hide only, and straps stay lashing (one strap fills one lashing unit, like twine). | `_check_split_leaks` (a split may not yield more units of a gear slot category than it consumes): `FAIL recipe hide_strap turns 1 cured_hide unit(s) into 2 hide_strap`, and on the pre-fix data also `FAIL recipe metal_shards turns 1 metal unit(s) into 2 metal_shard` (the old raid kit took "metal") |
+| minor: hook 6 refusal shows the raw node id | `_node_block` returns "needs Smelting 1 (Processing 25)": the node's `name` (W2-SKILLS adds names; the base has none, so it falls back to the capitalised id), the tree's name from `SkillState.NAMES`, and the node level. | `_check_node_gate`: `FAIL smelt_copper's refusal 'needs skill smelting 1' names its tree Processing and level 25` (old hook 6). Now `[t_data] smelt_copper gate: before 'needs Smelting 1 (Processing 25)', after learning smelting_1 ''`. W2-SKILLS' H1 runs before hook 6 and says "learn Smelting 1 (Processing Lv. 25, … SP)". By its format string the check should pass with H1 too. That was not run here. |
+| minor: dead `stack_max` on material rows | The new rows (tin_ore, tin_ingot, moss, cactus_flower, capture_net_iii–v, antivenom, antibiotic) no longer carry one, and copper, bronze, iron and steel ingot are back to base's 999. 140 base rows still carry a dead value. No check was added: it would mean rewriting those base rows, and the finding offers "leave it out on new ones". | - |
+| minor: every tier's tools share the stone-tier icon | Unchanged, ICONS2 follow-up (below). No tint was added: it would be ItemArt code in another package's file, for a stand-in. | - |
+
+Fixture probes: `raid_fight_probe`, `tyrant_window_probe` and `counter_matchup_probe` (W1-ITEMS/W1-COMBAT) make raid gear
+with `ItemStack.make(id, 1, {}, level)`. That stack has no material, so it is stone tier, and the rebase halves its
+numbers (maul 220 → 112 × level). raid_fight_probe was `PARTIAL` before and after: before, `[raidfight] PARTIAL t=24.4
+bossHP=187311 playerHP=0 rolls=8 contacts=6`; after, `[raidfight] PARTIAL t=23.1 bossHP=193141 playerHP=0 rolls=8 contacts=5`
+(0 SCRIPT ERROR in both). The survivor dies at about 24 s either way, so the outcome does not change. These probes
+assert no stat values, so they are not hooked. Follow-up for W1-ITEMS: pass `{"material_tier": "steel"}` there so the
+fixture matches the crafted kit.
 
 ## Review round 3 (findings and what changed)
 
@@ -197,9 +225,10 @@ What contradicted the specs and was fixed this round:
 
 ## requires_node ids against both trees.json files
 
-Rechecked in round 3 with `git show <ref>:game/data/skills/trees.json`. All 16 ids exist on
-`claude/mmo-overhaul` (34b6d459) and on `claude/mmo-w2-skills` (d2bb431b), in the same tree at the same level.
-This round adds no new `requires_node`. **W2-SKILLS must keep these ids:** `work_pick`, `combat_knife`, `copper_tools`, `blade_shapes`,
+Rechecked in round 4 with `git show <ref>:game/data/skills/trees.json`. All 16 ids exist on
+`claude/mmo-overhaul` (cecc936b) and on `claude/mmo-w2-skills` (03364e1a), in the same tree at the same level.
+Round 4 puts `iron_weapons` and `scute_armor` on the raid recipes. Both were already gates, so the list stays at 16
+ids. **W2-SKILLS must keep these ids:** `work_pick`, `combat_knife`, `copper_tools`, `blade_shapes`,
 `iron_weapons`, `hammer` (weapon_tools); `smelting_1`, `smelting_2`, `nails_pillars` (processing);
 `armor_1`, `scute_armor` (tailoring); `furnace_kiln` (construction); `steam`, `antivenom`, `antibiotic`
 (cooking); `fertilizer` (farming). t_data fails loudly if any of them goes missing. W2-SKILLS' hook H1 adds
@@ -208,7 +237,8 @@ independent, so H1 needs a rebase onto hook 6 and nothing else.
 
 ## Integrator hooks (`docs/orchestration/reports/claude-mmo-w2-data-hooks.patch`)
 
-`git apply --check` is clean on `claude/mmo-overhaul` 34b6d459 and on the branch (264950b4). The branch has no
+`git apply --check` is clean on `claude/mmo-overhaul` cecc936b (checked against a temporary index) and on the
+branch (753a3c64). The branch has no
 edits to `nature_manifest.json` or `world/rules.json` (`git diff claude/mmo-overhaul HEAD --` on both is
 empty). Every edit to them is in hooks 9 and 10, with its reason given below.
 
@@ -219,20 +249,24 @@ empty). Every edit to them is in hooks 9 and 10, with its reason given below.
 4. `craft_ui.gd STATIONS`: add `["forge", "Forge", "ingot"], ["anvil", "Anvil", "hammer"]`.
 5. `data/ui_icons.json`: `station_forge` uses station_fire.svg and `station_anvil` uses
    station_grindstone.svg until FORGEART/W1-UIICONS draw their own.
-6. `crafting.gd progression_block`: enforce `requires_node` with `_node_unlocked(player, node)`, which finds
-   the node's tree in `SkillState.defs` and calls `is_unlocked`. Tested by t_data `_check_node_gate`. Also
+6. `crafting.gd progression_block`: enforce `requires_node` with `_node_block(player, node)`, which finds
+   the node's tree in `SkillState.defs`, calls `is_unlocked`, and otherwise returns "needs <node name> (<Tree>
+   <level>)", e.g. "needs Smelting 1 (Processing 25)" (round 4; it said "needs skill smelting 1"). Tested by
+   t_data `_check_node_gate`. W2-SKILLS' H1 touches the same lines, so it must be regenerated on top of this hook. Also
    new this round: `_category_hint` and `sample_def_for_category` map `cured_hide` to `dried_hide`, so a
    blocked recipe says "Needs Dried Hide" and shows the dried-hide icon, not "Needs Cured Hide" with the
    fallback icon.
 7. `harvest_node.gd OPTION_TOOLS`: pine_log, snow_pine, willow_wood and acacia_wood need an axe.
 8. `item_def.gd` (W2-INV): `market_category`, `rarity` and `insulation` fields parsed from items.json.
 9. `data/nature_manifest.json` (W1-ITEMS / W2-SCATTER / W3-NATUREART own it), each edit below.
-10. `data/world/rules.json` `warp_ruin.loot` (W1-AI / W2-SPAWN own it): dead ids `wire`, `medicine` and
-    `rare_seed` become `metal_shard`, `pressure_dressing` and `corn_seed`. The acceptance item requires
-    every rules reference to exist.
+10. `data/world/rules.json` `warp_ruin.loot` (W1-AI / W2-SPAWN own it): the dead ids `wire`, `medicine` and
+    `rare_seed` become `pressure_dressing` (medicine) and `wheat_seed` (rare seed), and wire is dropped (round 4:
+    no item is wire, and metal stays out of loot). The acceptance item requires every rules reference to exist.
 11. `tests/t_items.gd` (W1-ITEMS): the pick-gate expectations follow hook 9. Black iron says "needs bronze
     pick" and refuses a copper pick. Flint says "needs bone pick" and refuses a stone pick. The minimum-tier
-    speed comparison uses a bone pick.
+    speed comparison uses a bone pick. Round 4: "armor follows level x tier" takes raid_helm's armour from its
+    def instead of the literal 300, because the rebase made it 153. Without that line the gate run printed
+    `[t_items] FAIL armor follows level x tier`.
 12. `tests/run_all.gd` `_test_hide_strap_no_self_input` (integrator file): raw_hide and raptor_hide must now be
     refused by the hide_strap recipe ("raw hide %s is dried before cutting straps"). dried_hide stays eligible,
     and the output, count and level checks are unchanged. Without this hook run_all fails on the branch with
@@ -243,6 +277,11 @@ empty). Every edit to them is in hooks 9 and 10, with its reason given below.
     unmerged) edits other parts of this file; this hunk also applies cleanly to its version.
 14. `data/statuses.json` (W2-WEATHER) `infected_wound.cleared_by`: drops `syringe`, which is not an item, and keeps
     `antibiotic`. If W2-WEATHER's branch edits the same lines, keep their version minus `syringe`.
+15. `scripts/dev/raid_gear_probe.gd` (W1-ITEMS), round 4: the probe stocks `steel_ingot` instead of `metal_shard`,
+    learns `iron_weapons` and `scute_armor` like the tree levels it already sets, and its expected numbers become
+    `112 × 5.72 × 2.45` (maul) and `(153 + 357 + 153) × 5.72 × 2.45` (kit). Without this hook the probe stops at
+    `[gear] FAIL raid_maul level60 ingredients allowed` and `... exact ingredient allocation`, then hangs until the
+    600 s alarm. With it: 0 FAIL lines (see round 4).
 
 Hook 9, `nature_manifest.json`, edit by edit:
 - `TinOreNode` family (reuses the silver-ore model, temperate and tundra, `tin_ore` needs a flint pick).
@@ -292,6 +331,11 @@ Not in the patch (follow-ups for their owners):
   the fake crate items `tstones_200` / `tstones_2000`. No code reads it yet. A consumer must pay those T-stones
   through the real money path, because money is an owner gate. Until then the crate pays nothing in those bands.
 - W2-GATHER (unmerged) should re-check its gather tests against the raised flint and black-iron gates.
+- **W1-ITEMS:** raid_fight_probe, tyrant_window_probe and counter_matchup_probe make raid gear with no material, so
+  it is stone tier and, after the round 4 rebase, half as strong as before. Pass `{"material_tier": "steel"}` there
+  so the fixture matches the crafted kit. raid_fight_probe stays `PARTIAL` either way (see round 4).
+- **W2-SKILLS:** regenerate H1 on top of hook 6 (`_node_block` replaced `_node_unlocked`). Learning a node in a
+  fixture (`trees[tree]["unlocked"].append(id)`, as hook 15 does) must keep working with W2-SKILLS' SkillState.
 
 ## Assumptions (all tunable data)
 
@@ -304,13 +348,23 @@ Not in the patch (follow-ups for their owners):
   dearer than bronze.
 - Material counts per recipe: knife 1, axe/pick 2, weapon 3 of the rung material; bronze 2+1 → 2.
 - Armour base values: leather 90/200/70/100; metal 120/280/95/130 ×tier multiplier; durability 300/400.
+- Raid kit (round 4): steel ingots as the primary, `iron_weapons` (maul) / `scute_armor` (armour), and base values
+  rebased by 1.25/2.45 (maul 112, cuirass 357, helm and greaves 153), so the crafted L60 kit matches the tuned
+  shard kit within 0.3 %. The kit stays above the steel set at equal level (cuirass 875 vs 686 at L1). It is a
+  raid set: the same steel and node, plus Survival 50, four times the hide and the status protection. The station
+  stays the workbench, and `max_durability` (400) and `health_bonus` are unchanged. A crafted kit's durability now
+  scales with steel (×2.45) instead of shard (×1.25).
+- Warp-ruin loot (round 4, world-design.md:106 "courier boxes with cloth, wire, medicine, rare seeds"): cloth_scrap,
+  pressure_dressing and wheat_seed. Wire is left out (no wire item; a metal stand-in would break "no metal at
+  home" if a ruin were ever placed there). Rare seeds become wheat, the one seed that does not grow on the start
+  island.
 - Insulation points: travel 1/1, forager 1/2, hide_bone 2/0, leather 2/1, metal 1/0.
 - Repairs restore 50 % for one unit of the tier material.
 - The walk's capture and taming times (60/120 s) only feed the time log.
 - Rough ore is a 0–1 byproduct of the desert copper node and needs an obsidian pick. world-design.md lists the
   desert's crater as "mineral (copper, salt)", and the copper node is the first metal node.
-- `cured_hide` means dried hide or a hide strap. Slot counts are unchanged, so one dried hide cut into two
-  straps fills two `cured_hide` units (the task allows "dried hide/leather or straps"). Rope still takes 3.
+- `cured_hide` means dried hide (round 4: straps left the category, because two straps from one hide filled two
+  units). Straps are lashing. Rope still takes 3 twine.
 - Wild crops (round 3): Corn grows on the home grassland, its manifest climate. PRD:615 and prompt 12:80 put corn
   early, and world-design.md's grassland row lists no crops, so its placement there is this assumption. Wheat
   grows on temperate islands only (its manifest also lists grassland; the docs are silent, so the home island

@@ -485,9 +485,18 @@ index 5e18ccf6..051e77ac 100644
  	placer.free()
  
 diff --git a/game/tests/t_items.gd b/game/tests/t_items.gd
-index 586db7c5..1612b993 100644
+index 586db7c5..72475daf 100644
 --- a/game/tests/t_items.gd
 +++ b/game/tests/t_items.gd
+@@ -117,7 +117,7 @@ func _test_scaling() -> void:
+ 	print("[t_items] copper/stone knife L10 = %.3f (tier ratio %.3f)" % [tier_ratio, want])
+ 	_expect(absf(tier_ratio - want) < 0.001 and copper_k.scaled_damage() > stone_k.scaled_damage(), "copper knife out-damages stone knife by the tier ratio")
+ 	var helm = IS.make(&"raid_helm", 1, {}, 10)
+-	_expect(is_equal_approx(helm.scaled_armor(), 300.0 * ProgressionScaling.level_multiplier(10)), "armor follows level x tier")
++	_expect(is_equal_approx(helm.scaled_armor(), helm.def().armor_value * ProgressionScaling.level_multiplier(10)), "armor follows level x tier")
+ 	var flint_pick = IS.make(&"work_pick", 1, {"material_tier": "flint"}, 1)
+ 	var stone_pick = IS.make(&"work_pick", 1, {"material_tier": "stone"}, 1)
+ 	_expect(flint_pick.max_durability > stone_pick.max_durability and flint_pick.durability == flint_pick.max_durability, "durability follows material tier")
 @@ -178,13 +178,15 @@ func _test_pick_gates() -> void:
  	var iron_why: String = iron.can_gather(bare)
  	print("[t_items] bare hands: copper_ore='%s' black_iron='%s'" % [copper_why, iron_why])
