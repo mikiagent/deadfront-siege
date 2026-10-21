@@ -1,5 +1,5 @@
 {
-  "_about": "Skill trees on Durango's 1-60 scale (specs 03/09/11/12 + systems PRD §7). Every tree starts at Lv. 1; auto nodes are learned free once their level is reached. status: functional = the game enforces the effect, partial = the value exists but no system reads it yet, defined = data only. source: spec09/11/12 = Durango pack, prd7 = our PRD. sp_assumed / level_assumed = the pack gives no SP / level, ours is a placeholder. A tree level cannot exceed the character level except levels granted by the occupation (ASSUMPTION).",
+  "_about": "Skill trees on Durango's 1-60 scale (specs 03/09/11/12 + systems PRD §7). Every tree starts at Lv. 1; auto nodes are learned free once their level is reached. status: functional = the game enforces the effect, partial = the value exists but no system reads it yet, defined = data only. source: spec09/11/12 = Durango pack, prd7 = our PRD. sp_assumed / level_assumed = the pack gives no SP / level, ours is a placeholder. A tree level cannot exceed the character level except levels granted by the occupation (ASSUMPTION). A node a recipe names in requires_node (recipes.json) is functional: its recipe stays locked until it is learned.",
   "sp_budget": {
     "per_level": [
       10,
@@ -1203,7 +1203,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "handicraft_1",
@@ -1235,7 +1235,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "handicraft_2",
@@ -1386,7 +1386,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "handicraft_5",
@@ -2192,7 +2192,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "spear",
@@ -2231,7 +2231,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "splint",
@@ -2257,7 +2257,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "handle",
@@ -2336,7 +2336,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "cooking_utensils",
@@ -2362,7 +2362,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "improved_handle",
@@ -2414,7 +2414,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "shaft",
@@ -2627,7 +2627,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "scute_armor",
@@ -2640,7 +2640,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "master_bag",
@@ -2776,7 +2776,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "well",
@@ -2873,7 +2873,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "steam",
@@ -2886,7 +2886,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "antibiotic",
@@ -2899,7 +2899,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "buff_food",
@@ -3042,7 +3042,7 @@
           "auto": false,
           "source": "prd7",
           "effects": [],
-          "status": "defined"
+          "status": "functional"
         },
         {
           "id": "large_field",
@@ -3120,8 +3120,8 @@
     }
   },
   "_totals": {
-    "all_trees_sp": 2246,
-    "note": "All twelve trees cost 2246 SP; a character has ~897. Four big trees (Survival, Gathering, Construction, Processing) alone cost 1048."
+    "all_trees_sp": 2305,
+    "note": "All twelve trees cost 2305 SP; character levels 2-60 pay 720 (sp_budget). skills.md:5 counts ~897 with milestones and Career Guides, neither in the game yet. Four big trees (Survival, Gathering, Construction, Processing) alone cost 1035."
   },
   "bonded_base": 3,
   "bonded_max": 7,

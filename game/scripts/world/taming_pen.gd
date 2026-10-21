@@ -2,7 +2,7 @@ class_name TamingPen
 extends StaticBody3D
 ## Holds one captured animal. 30 real minutes, scaled by Game.time_scale. Success bonds the animal
 ## straight into the survivor's roster (origin capture); failure lets it escape. A full bonded
-## roster (Data.bonded_cap(), spec 09) holds the finished animal here, unbonded and uncounted.
+## roster (Data.bonded_cap(player), spec 09) holds the finished animal here, unbonded and uncounted.
 
 const BASE_SECONDS := 30.0 * 60.0
 const SUCCESS_CHANCE := 0.70 ## ASSUMPTION:
@@ -79,7 +79,7 @@ func try_insert(player: Player) -> bool:
 		if player.bonded.size() > before:
 			player.notice("Bonded the animal from your bag.")
 		else:
-			player.notice("Bonded roster full (%d / %d): the tamed animal stays in your bag." % [player.bonded.size(), Data.bonded_cap()])
+			player.notice("Bonded roster full (%d / %d): the tamed animal stays in your bag." % [player.bonded.size(), Data.bonded_cap(player)])
 			return true  # at the bonded cap: the legacy item stays, nothing else can start
 	var idx := player.inventory.find_first(&"captured_animal")
 	if idx < 0:
@@ -116,7 +116,7 @@ func _process(delta: float) -> void:
 		return  # stays finished-but-running until a survivor is around to receive it
 	# Spec 09: a bond takes a bonded slot. At the cap the animal waits here (caged and penned animals
 	# never count) and the pen resolves on the first frame a slot is free: nothing is lost or rolled twice.
-	if player.bonded.size() >= Data.bonded_cap():
+	if player.bonded.size() >= Data.bonded_cap(player):
 		if not _told_full:
 			_told_full = true
 			_notice_full(player)
@@ -153,7 +153,7 @@ func _process(delta: float) -> void:
 
 func _notice_full(player: Player) -> void:
 	var species := str(occupant.attributes.get("species", "animal")).capitalize() if occupant else "Animal"
-	player.notice("Bonded roster full (%d / %d): the %s waits in the pen. Animal Handling (Survival) adds slots." % [player.bonded.size(), Data.bonded_cap(), species])
+	player.notice("Bonded roster full (%d / %d): the %s waits in the pen. Animal Handling (Survival) adds slots." % [player.bonded.size(), Data.bonded_cap(player), species])
 
 func _spawn_wild(def: CreatureDef) -> void:
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()

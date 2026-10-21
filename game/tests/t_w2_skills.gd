@@ -2,7 +2,8 @@ extends SceneTree
 ## W2-SKILLS checks: trees.json is a valid node graph on Durango's 1-60 scale, a new survivor's
 ## trees start at Lv. 1 with the Lv1 AUTO nodes learned, a tree cannot pass the character level,
 ## Animal Handling I-IV raise bonded capacity 3 -> 7, skill nodes gate recipes and abilities,
-## refunds respect dependents and the daily limit, rev-1 saves migrate without losing a node or an unspent SP, the
+## refunds respect dependents and the daily limit, rev-1 saves migrate keeping every node but no more SP than
+## the character level pays, the
 ## taming pen and the field tame refuse a bond at the cap without losing the animal or the food, the
 ## skills sheet opens a tree on rows the player can act on, the level-up banner shows the SP SkillState
 ## holds, and the craft card says what unlocks a gated recipe.
@@ -52,10 +53,6 @@ func _process(_delta: float) -> bool:
 		quit(1)
 	return true
 
-## The hooks patch lands as one piece; H2 (Data.bonded_cap() is no longer unlimited) marks it applied.
-func _hooks_applied() -> bool:
-	return get_root().get_node("Data").bonded_cap() < 1000
-
 func _expect(ok: bool, msg: String) -> void:
 	if not ok:
 		failures.append(msg)
@@ -77,6 +74,22 @@ func _done_with(sk: Node) -> void:
 	_world().pioneer_level = 0
 	_world().pioneer_xp = 0
 
+## Stands in for the HUD Player.notice writes to; `said` holds every notice.
+func _hud_stub() -> Node:
+	var hud_src := GDScript.new()
+	hud_src.source_code = "extends Node\nvar said: Array = []\nfunc notice(text: String) -> void:\n\tsaid.append(text)\n"
+	hud_src.reload()
+	var hud: Node = hud_src.new()
+	hud.add_to_group("hud")
+	get_root().add_child(hud)
+	return hud
+
+func _player() -> Node:
+	var p: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	p.process_mode = Node.PROCESS_MODE_DISABLED
+	get_root().add_child(p)
+	return p
+
 func _node(sk: Node, tree: String, id: String) -> Dictionary:
 	for n in sk.nodes(tree):
 		if str(n.get("id", "")) == id:
@@ -95,11 +108,11 @@ func _test_catalog() -> void:
 	for r in (JSON.parse_string(FileAccess.get_file_as_string("res://data/recipes.json")) as Dictionary).get("recipes", []):
 		recipes[str(r.get("id", ""))] = true
 	var count := 0
+	var sp_total := 0
 	var by_status := {"functional": 0, "partial": 0, "defined": 0}
-	# A node a loaded recipe names in requires_node (W2-DATA) gates real recipes, so the report counts
-	# it functional whatever trees.json says (spec 12:215 wants an accurate report).
+	# A node a loaded recipe names in requires_node (W2-DATA) gates real recipes: trees.json must say
+	# functional, so the data's report is accurate (spec 12:207, 12:215).
 	var gating: Dictionary = Rules.recipe_nodes()
-	var via_recipes := 0
 	var ids := {}
 	for tree in SkillStateS.ORDER:
 		var seen := {}
@@ -117,10 +130,10 @@ func _test_catalog() -> void:
 			_expect(int(n.get("sp", -1)) >= 0 and (not bool(n.get("auto", false)) or int(n.get("sp", 0)) == 0), "%s/%s: SP must be >= 0, and 0 for auto nodes" % [tree, id])
 			var st := str(n.get("status", ""))
 			_expect(STATUSES.has(st), "%s/%s: status '%s'" % [tree, id, st])
-			var counted := "functional" if gating.has(id) else st
-			via_recipes += 1 if counted != st else 0
-			by_status[counted] = int(by_status.get(counted, 0)) + 1
-			var wired := false
+			_expect(st == "functional" or not gating.has(id), "%s/%s gates recipes through requires_node, so it must be functional (it is '%s')" % [tree, id, st])
+			by_status[st] = int(by_status.get(st, 0)) + 1
+			sp_total += int(n.get("sp", 0))
+			var wired := gating.has(id)
 			for e in n.get("effects", []):
 				var kind := str(e.get("type", ""))
 				wired = wired or WIRED.has(kind)
@@ -135,6 +148,7 @@ func _test_catalog() -> void:
 	for c in ref["categories"]:
 		total += int(ref["categories"][c][0])
 	_expect(total == 918 and int(ref["total_nodes"]) == 918, "reference counts sum to 918 (got %d)" % total)
+	_expect(int(root["_totals"]["all_trees_sp"]) == sp_total and str(root["_totals"]["note"]).contains(str(sp_total)), "_totals says what the trees cost (%d, it says %s)" % [sp_total, root["_totals"]])
 	# Spec 12:35 "Boulder appears early" was missed once: every spec node name is in the catalog.
 	for must in ["animal_management_1", "animal_management_4", "handicraft_5", "metalworking_4", "roll_duration_1", "barrage", "boulder"]:
 		_expect(ids.has(must), "catalog has %s" % must)
@@ -146,7 +160,7 @@ func _test_catalog() -> void:
 				if w.left(1) != w.left(1).to_upper():
 					lower.append(str(n.get("name", "")))
 	_expect(lower.is_empty(), "every node name is in Title Case (not: %s)" % [lower.slice(0, 6)])
-	print("[t_w2_skills] catalog %d of 918 nodes: functional %d (%d of them through requires_node), partial %d, defined %d" % [count, by_status.functional, via_recipes, by_status.partial, by_status.defined])
+	print("[t_w2_skills] catalog %d of 918 nodes: functional %d (%d of them through requires_node), partial %d, defined %d" % [count, by_status.functional, gating.size(), by_status.partial, by_status.defined])
 	_sections += 1
 
 func _test_new_survivor() -> void:
@@ -300,6 +314,36 @@ func _test_migration() -> void:
 	get_root().remove_child(copy)
 	copy.free()
 	_done_with(sk)
+	# A rev-1 mid-game save (character Lv. 23, 848 SP unspent under the old per-tree award) could buy
+	# every node in the game. It now holds what a new Lv. 23 holds beyond the nodes it keeps, says so
+	# once on screen, and at Lv. 60 cannot afford every node (spec 03:14, PRD 7.3).
+	_world().pioneer_level = 22
+	var p := _player()
+	var hud := _hud_stub()
+	var levels := {}
+	for tree in SkillStateS.ORDER:
+		levels[tree] = {"level": 23, "xp": 0.0, "unlocked": []}
+	levels["survival"]["unlocked"] = ["island_access_15", "belly_fat_1", "capture_technique_1", "stealth_1"]
+	p.skills.from_dict({"sp_available": 848, "sp_spent": 277, "trees": levels})
+	var mid: Node = p.skills
+	var p23: int = Rules.paid_for_level(mid, 23)
+	_expect(mid.sp_spent > 0 and mid.sp_earned == maxi(p23, mid.sp_spent) and mid.sp_available == maxi(0, p23 - mid.sp_spent), "a migrated Lv. 23 drops its 848 unspent SP: earned %d, available %d (a new Lv. 23 earns %d, these nodes cost %d)" % [mid.sp_earned, mid.sp_available, p23, mid.sp_spent])
+	_expect(hud.said.size() == 1 and str(hud.said[0]).begins_with("Skill points now come from your character level") and str(hud.said[0]).contains("%d SP to spend" % mid.sp_available), "the first load says once that SP were recomputed: %s" % [hud.said])
+	mid.from_dict(mid.to_dict())
+	_expect(hud.said.size() == 1, "a rev-2 load shows no migration notice (%d notices)" % hud.said.size())
+	_world().pioneer_level = 59
+	_world().pioneer_changed.emit(59)
+	var buyable_sp := 0
+	for tree in SkillStateS.ORDER:
+		for n in mid.nodes(tree):
+			if not bool(n.get("auto", false)) and Rules.buyable(mid, tree, str(n.get("id", ""))):
+				buyable_sp += int(n.get("sp", 0))
+	_expect(mid.sp_earned == Rules.paid_for_level(mid, 60) and mid.sp_earned < buyable_sp, "at Lv. 60 it has earned %d SP like any Lv. 60 and cannot buy all %d SP of nodes" % [mid.sp_earned, buyable_sp])
+	print("[t_w2_skills] migrated Lv. 23: earned %d, available %d; at Lv. 60 earned %d of %d SP of buyable nodes" % [maxi(p23, mid.sp_spent), maxi(0, p23 - mid.sp_spent), mid.sp_earned, buyable_sp])
+	for n in [hud, p]:
+		get_root().remove_child(n)
+		n.free()
+	_world().pioneer_level = 0
 	_sections += 1
 
 func _test_occupation() -> void:
@@ -324,17 +368,21 @@ func _test_sp_from_character_level() -> void:
 	_world().pioneer_changed.emit(19)
 	_expect(sk.sp_earned == Rules.paid_for_level(sk, 20) and sk.sp_available == sk.sp_earned, "character Lv. 20 pays its SP with no tree XP (%d)" % sk.sp_earned)
 	_done_with(sk)
-	# A rev-1 save that bought more than its character level now pays for keeps every node and its
-	# 50 unspent SP: the difference is a one-time extra, saved and read back as sp_extra.
+	# A rev-1 save that bought more than its character level now pays for keeps every node but not its
+	# 50 unspent SP (spec 03:14 "cannot afford all nodes simultaneously"): sp_extra is the 23 SP of
+	# nodes Lv. 1 has not paid for, and the next levels pay that off before they add SP.
 	var over := _fresh(0)
 	over.from_dict({"sp_available": 50, "sp_spent": 0, "trees": {"survival": {"level": 40, "xp": 0.0, "unlocked": ["island_access_15", "belly_fat_1", "capture_technique_1", "animal_management_1"]}}})
-	_expect((over.trees["survival"]["unlocked"] as Array).size() == 4 and over.sp_spent == 23 and over.sp_available == 50 and over.sp_extra == 73, "an over-budget migrated save keeps its 4 nodes and 50 SP (spent %d, available %d, extra %d)" % [over.sp_spent, over.sp_available, over.sp_extra])
+	_expect((over.trees["survival"]["unlocked"] as Array).size() == 4 and over.sp_spent == 23 and over.sp_available == 0 and over.sp_extra == 23, "an over-budget migrated save keeps its 4 nodes, drops its 50 unspent SP (spent %d, available %d, extra %d)" % [over.sp_spent, over.sp_available, over.sp_extra])
 	var saved: Dictionary = over.to_dict()
 	over.from_dict(saved)
-	_expect(over.sp_available == 50 and over.sp_extra == 73, "the extra survives a rev-2 save and load (available %d)" % over.sp_available)
-	_world().pioneer_level = 1 # character Lv. 2 pays 10 more on top of the extra
+	_expect(over.sp_available == 0 and over.sp_extra == 23, "the cover survives a rev-2 save and load (available %d, extra %d)" % [over.sp_available, over.sp_extra])
+	_world().pioneer_level = 1 # character Lv. 2 pays 10: 13 still owed
 	_world().pioneer_changed.emit(1)
-	_expect(over.sp_available == 60, "a level-up adds to the kept SP (got %d)" % over.sp_available)
+	_expect(over.sp_available == 0 and over.sp_extra == 13, "Lv. 2's 10 SP pay off the kept nodes first (available %d, extra %d)" % [over.sp_available, over.sp_extra])
+	_world().pioneer_level = 3 # character Lv. 4 pays 30: 7 to spend, like a new Lv. 4 that bought the same
+	_world().pioneer_changed.emit(3)
+	_expect(over.sp_available == 7 and over.sp_extra == 0 and over.sp_earned == Rules.paid_for_level(over, 4), "Lv. 4 pays the nodes off and leaves 7 SP (available %d, extra %d, earned %d)" % [over.sp_available, over.sp_extra, over.sp_earned])
 	_expect(get_root().get_node("Data").has_capture_technique(1), "the kept Capture Technique I still works")
 	_done_with(over)
 	_sections += 1
@@ -379,18 +427,10 @@ func _test_refund_limit() -> void:
 	_done_with(over)
 	_sections += 1
 
-## Integrator hook H6 (save_sanitizer._skills budget by character level). Until H6 lands the
-## sanitizer takes one argument and this section only reports that; once it lands it must hold.
+## Hook H6 (save_sanitizer._skills): node budget by character level, sp_extra capped at what the kept
+## nodes cost beyond that level's SP.
 func _test_sanitizer_budget() -> void:
 	var San: GDScript = load("res://scripts/core/save_sanitizer.gd")
-	var args := -1
-	for m in San.get_script_method_list():
-		if str(m.get("name", "")) == "_skills":
-			args = (m.get("args", []) as Array).size()
-	if args < 2:
-		print("[t_w2_skills] H6 not applied: sanitizer budget check skipped")
-		_sections += 1
-		return
 	var bought := ["island_access_15", "belly_fat_1", "capture_technique_1", "animal_management_1"] # 23 SP
 	var poor := {"rev": 2, "trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
 	San._skills(poor, 0) # character Lv. 1 paid 0 SP
@@ -403,11 +443,23 @@ func _test_sanitizer_budget() -> void:
 	_expect((rich["trees"]["survival"]["unlocked"] as Array).size() == 4 and int(rich["sp_available"]) == paid - 23, "H6: character Lv. 40 keeps the 4 nodes and clamps SP to %d (got %s)" % [paid - 23, rich["sp_available"]])
 	var legacy := {"sp_available": 50, "trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
 	San._skills(legacy, 0)
-	_expect((legacy["trees"]["survival"]["unlocked"] as Array).size() == 4 and int(legacy["sp_available"]) == 50, "H6: a rev-1 save keeps every node it bought under the old award and its 50 unspent SP (got %s)" % legacy["sp_available"])
-	var old_award := paid + 10 # survival 1..40 under the per-tree award
-	var forged := {"rev": 2, "sp_extra": 99999, "trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
-	San._skills(forged, 0)
-	_expect(int(forged["sp_extra"]) == old_award and (forged["trees"]["survival"]["unlocked"] as Array).size() == 4, "H6: a rev-2 sp_extra is capped at what the old award paid its tree levels (%d, got %s)" % [old_award, forged["sp_extra"]])
+	_expect((legacy["trees"]["survival"]["unlocked"] as Array).size() == 4 and int(legacy["sp_available"]) == 0 and int(legacy["sp_extra"]) == 23, "H6: a rev-1 save keeps every node it bought under the old award, not its 50 unspent SP (available %s, extra %s)" % [legacy["sp_available"], legacy["sp_extra"]])
+	# sp_extra is capped at what the kept nodes cost beyond the character level's SP (the review's (b)).
+	for lv in [[0, 23], [39, 0]]:
+		var forged := {"rev": 2, "sp_extra": 99999, "trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
+		San._skills(forged, lv[0])
+		_expect(int(forged["sp_extra"]) == lv[1] and (forged["trees"]["survival"]["unlocked"] as Array).size() == 4, "H6: at character Lv. %d a rev-2 sp_extra of 99999 is cut to the 23 SP of nodes beyond the level's SP (%d, got %s)" % [lv[0] + 1, lv[1], forged["sp_extra"]])
+	# The cap never trims a real save: a migrated save that levelled past its nodes keeps its new SP
+	# through save, sanitize and load (a fixed sp_extra checked against the new level would lose them).
+	var moved := _fresh(0)
+	moved.from_dict(legacy.duplicate(true))
+	_world().pioneer_level = 3 # Lv. 4 pays 30, the nodes cost 23
+	_world().pioneer_changed.emit(3)
+	var mdict: Dictionary = JSON.parse_string(JSON.stringify(moved.to_dict()))
+	San._skills(mdict, 3)
+	moved.from_dict(mdict)
+	_expect(moved.sp_available == 7 and (moved.trees["survival"]["unlocked"] as Array).size() == 4, "H6: a migrated save at Lv. 4 keeps its 4 nodes and 7 SP through sanitize and load (got %d)" % moved.sp_available)
+	_done_with(moved)
 	# XP banked at the character-level cap (SkillState._resolve) survives a load; only what the tree
 	# cannot use up to Lv. 60 is cut.
 	var banked := {"rev": 2, "trees": {"melee": {"level": 5, "xp": 500.0, "unlocked": []}, "ranged": {"level": 5, "xp": 1e12, "unlocked": []}}}
@@ -417,14 +469,14 @@ func _test_sanitizer_budget() -> void:
 	San._skills(hostile, 0)
 	_expect(hostile["refund_day"] is int and hostile["refunds_today"] is int, "H6: the optional refund counter loads as numbers (got %s)" % [hostile])
 	# A hand-edited rev must read the same in the sanitizer and in SkillState.from_dict: it falls
-	# back to rev 1, so the save migrates with its nodes and its 50 unspent SP (an array crashed
-	# from_dict and left fresh trees; "2" lost the SP).
+	# back to rev 1, so the save migrates with its nodes (an array crashed from_dict and left fresh
+	# trees; "2" read as rev 2 dropped the nodes over the character level's SP).
 	for bad in [[2], "2", -3]:
 		var odd := {"rev": bad, "sp_available": 50, "trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
 		San._skills(odd, 0)
 		var sk := _fresh(0)
 		sk.from_dict(odd)
-		_expect(odd["rev"] is int and sk.is_unlocked("survival", "animal_management_1") and sk.sp_available == 50, "H6: rev %s loads as rev %s with its 4 nodes and 50 SP (got %d SP)" % [JSON.stringify(bad), odd["rev"], sk.sp_available])
+		_expect(odd["rev"] is int and sk.is_unlocked("survival", "animal_management_1") and sk.sp_available == 0 and sk.sp_extra == 23, "H6: rev %s loads as rev %s with its 4 nodes, 0 SP, extra 23 (got %d SP, extra %d)" % [JSON.stringify(bad), odd["rev"], sk.sp_available, sk.sp_extra])
 		_done_with(sk)
 	_sections += 1
 
@@ -432,10 +484,6 @@ func _test_sanitizer_budget() -> void:
 ## waits in the pen (no roll, no loss, meat refused); a new Animal Handling slot bonds it.
 func _test_pen_cap() -> void:
 	var data: Node = get_root().get_node("Data")
-	if data.bonded_cap() > 1000:
-		print("[t_w2_skills] H2 not applied: taming pen cap check skipped")
-		_sections += 1
-		return
 	var p: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	p.process_mode = Node.PROCESS_MODE_DISABLED
 	get_root().add_child(p)
@@ -472,23 +520,12 @@ func _test_pen_cap() -> void:
 ## of "Tame", the feed is refused with an on-screen notice that names Animal Handling, and the food
 ## is kept. The pets screen shows bonded / cap (H10, spec 09:50 "e.g. 3 / 4").
 func _test_field_tame_cap() -> void:
-	if not _hooks_applied():
-		print("[t_w2_skills] hooks not applied: field-tame cap check skipped")
-		_sections += 1
-		return
 	var data: Node = get_root().get_node("Data")
 	var FT: GDScript = load("res://scripts/pets/field_tame.gd")
 	var IS: GDScript = load("res://scripts/items/item_stack.gd")
 	var PetRecordS: GDScript = load("res://scripts/pets/pet_record.gd")
-	var p: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
-	p.process_mode = Node.PROCESS_MODE_DISABLED
-	get_root().add_child(p)
-	var hud_src := GDScript.new() # stands in for the HUD Player.notice writes to
-	hud_src.source_code = "extends Node\nvar said: Array = []\nfunc notice(text: String) -> void:\n\tsaid.append(text)\n"
-	hud_src.reload()
-	var hud: Node = hud_src.new()
-	hud.add_to_group("hud")
-	get_root().add_child(hud)
+	var p := _player()
+	var hud := _hud_stub()
 	var def: Resource = data.creature(&"compsognathus")
 	for i in 3:
 		p.bonded.append(PetRecordS.from_def(def))
@@ -514,6 +551,14 @@ func _test_field_tame_cap() -> void:
 	pets.open(p)
 	_expect(str(pets._title.text).contains("3 / 3"), "the pets screen shows bonded / cap (title '%s')" % pets._title.text)
 	_expect(str(pets._summon.text).contains("ACTIVE 0 / "), "the equip button names its counter, so it cannot be read as the bonded cap ('%s')" % pets._summon.text)
+	# Each survivor's cap comes from its own skills (Data.bonded_cap(player)), not the local survivor's.
+	var p2 := _player()
+	for i in 3:
+		p2.bonded.append(PetRecordS.from_def(def))
+	(p2.skills.trees["survival"]["unlocked"] as Array).append("animal_management_1")
+	_expect(FT.roster_full(p2) == "" and FT.roster_full(p) != "", "a second survivor with Animal Handling I has room at 3 bonded while the local one is full ('%s' / '%s')" % [FT.roster_full(p2), FT.roster_full(p)])
+	get_root().remove_child(p2)
+	p2.free()
 	(p.skills.trees["survival"]["unlocked"] as Array).append("animal_management_1")
 	hint = FT.plate_hint(c, p.inventory)
 	_expect(str(hint.get("kind", "")) == "tame", "Animal Handling I (cap 4) offers the tame again (got %s '%s')" % [hint.get("kind", ""), hint.get("text", "")])
@@ -530,10 +575,6 @@ func _test_field_tame_cap() -> void:
 ## level, SP, lock reason) as a muted row with no button after the rest (spec 12:215: nothing to buy).
 ## A refund the day's limit blocks is greyed with its reason before the tap.
 func _test_sheet_rows() -> void:
-	if not _hooks_applied():
-		print("[t_w2_skills] hooks not applied: skills sheet rows check skipped")
-		_sections += 1
-		return
 	var sk := _fresh()
 	var sheet: Control = (load("res://scripts/ui/skills_sheet.gd") as GDScript).new()
 	get_root().add_child(sheet)
@@ -553,11 +594,17 @@ func _test_sheet_rows() -> void:
 			if str(row.name).begins_with("SkillsLater_"):
 				rows += 1
 				var t := str(row.get("text"))
-				if row is Button or not row.find_children("*", "Button", true, false).is_empty() or not (t.contains(SkillStateS.NOT_IN_GAME) and t.contains(" SP") and t.contains("Lv. ")):
+				# Spec 12 10.6: what the node unlocks and its prerequisite stay on the muted row too.
+				var n := _node(sk, tree, str(row.name).trim_prefix("SkillsLater_"))
+				var unlocks := str(n.get("unlocks", ""))
+				var req := str(n.get("requires", "")) if n.get("requires") != null else ""
+				var detail_ok := (unlocks == "" or unlocks.to_lower() == str(n.get("name", "")).to_lower() or t.contains(unlocks)) \
+						and (req == "" or t.contains("needs " + str(_node(sk, tree, req).get("name", req))))
+				if row is Button or not row.find_children("*", "Button", true, false).is_empty() or not (t.contains(SkillStateS.NOT_IN_GAME) and t.contains(" SP") and t.contains("Lv. ") and detail_ok):
 					bad.append(t)
 			elif row.name == "SkillsLearnedAuto":
 				autos = row.text
-		_expect(later > 0 and rows == later and inert == 0 and bad.is_empty(), "%s at Lv. 1: each of the %d nodes not in the game yet is a row with its level, SP and reason and no button (rows %d, buttons %d, bad %s)" % [tree, later, rows, inert, bad])
+		_expect(later > 0 and rows == later and inert == 0 and bad.is_empty(), "%s at Lv. 1: each of the %d nodes not in the game yet is a row with its level, SP, reason, unlocks and prerequisite and no button (rows %d, buttons %d, bad %s)" % [tree, later, rows, inert, bad])
 		_expect(autos.begins_with("Learned automatically: "), "%s at Lv. 1: the learned AUTO nodes share one line ('%s')" % [tree, autos])
 	# XP banked at the cap shows as a full bar, like Durango's skill screen, not "200 / 28 XP".
 	sk.add_xp("melee", 200.0, true)
@@ -591,10 +638,6 @@ func _test_sheet_rows() -> void:
 ## levels pay their SP, shows SkillState's SP (hook H11, hunt_hud.gd), not the old survival-node count.
 ## The HUD joins the tree before the player, so its pioneer_changed handler runs before SkillState's.
 func _test_levelup_banner() -> void:
-	if not _hooks_applied():
-		print("[t_w2_skills] hooks not applied: level-up banner check skipped")
-		_sections += 1
-		return
 	var hud: Node = (load("res://scripts/ui/hunt_hud.gd") as GDScript).new()
 	get_root().add_child(hud)
 	var p: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
@@ -617,10 +660,6 @@ func _test_levelup_banner() -> void:
 ## Hooks H1 + H7: a recipe a skill node gates stays listed, and its craft card says what unlocks it
 ## above the ingredients (a landscape phone shows the top of the detail column without scrolling).
 func _test_craft_card_lock() -> void:
-	if not _hooks_applied():
-		print("[t_w2_skills] hooks not applied: craft card lock check skipped")
-		_sections += 1
-		return
 	_world().pioneer_level = 0
 	var p: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	p.process_mode = Node.PROCESS_MODE_DISABLED

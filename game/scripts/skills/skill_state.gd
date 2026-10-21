@@ -18,7 +18,7 @@ const MIN_LEVEL := 1
 const OCCUPATION_LEVEL := 20
 ## Save revision of to_dict. 1 (no key): trees stored from 0, SP stored as a free number.
 const REV := 2
-## node_state's lock for a node the game reads nothing from (spec 12:215); the sheet folds these rows.
+## node_state's lock for a node the game reads nothing from (spec 12:215); shown as muted rows with no button (skills_sheet H8).
 const NOT_IN_GAME := "not in the game yet"
 
 var trees: Dictionary = {}   # id -> {level: int, xp: float, unlocked: Array}
@@ -27,7 +27,10 @@ var budget: Dictionary = {}
 var sp_available: int = 0
 var sp_spent: int = 0
 var sp_earned: int = 0      # SP the character level has paid plus sp_extra (derived); available = earned - cost of learned nodes
-var sp_extra: int = 0       # one-time SP outside character levels (spec 03 "extras"); a rev-1 save's unspent SP land here
+## Derived: SP of learned nodes the character level has not paid for (a migrated rev-1 save's nodes).
+## Saved so save_sanitizer (H6) keeps those nodes; never spendable, the next levels pay them off first.
+## shortcut: spec 03:14's one-time career SP need their own saved field once Career Guides exist.
+var sp_extra: int = 0
 var occupation: String = ""
 var config: Dictionary = {}  # trees.json minus the trees (bonded_base, category_cap, refund, reference)
 var refund_day: int = -1     # UTC day refunds_today counts (optional save fields, no rev bump)
@@ -317,7 +320,6 @@ func to_dict() -> Dictionary:
 	return out
 
 func from_dict(d: Dictionary) -> void:
-	sp_extra = 0
 	refund_day = int(d.get("refund_day", -1)) # optional; save_sanitizer makes both numbers (H6)
 	refunds_today = maxi(0, int(d.get("refunds_today", 0)))
 	if d.is_empty():
@@ -325,8 +327,6 @@ func from_dict(d: Dictionary) -> void:
 		return
 	occupation = str(d.get("occupation", ""))
 	var rev := int(d.get("rev", 1))
-	if rev >= REV:
-		sp_extra = maxi(0, int(d.get("sp_extra", 0))) # bounded by save_sanitizer (H6)
 	var td: Dictionary = d.get("trees", {})
 	for id in ORDER:
 		var row: Dictionary = td.get(id, {}) if td.get(id) is Dictionary else {}
@@ -334,15 +334,14 @@ func from_dict(d: Dictionary) -> void:
 		var stored := int(row.get("level", MIN_LEVEL if rev >= REV else 0))
 		trees[id] = {"level": clampi(stored, MIN_LEVEL, MAX_LEVEL), "xp": float(row.get("xp", 0.0)), "unlocked": (row.get("unlocked", []) as Array).duplicate()}
 	# SP are derived, never read from the save: what the character level paid (World.pioneer_level is
-	# restored before the skills) plus sp_extra, minus what the learned nodes cost today.
+	# restored before the skills) minus what the learned nodes cost today. A rev-1 save earned its SP
+	# per tree level: it keeps every node, but its unspent SP go (spec 03:14 "cannot afford all nodes
+	# simultaneously", PRD 7.3), so it holds no more SP than a new character at its level.
 	for id in ORDER:
 		_learn_autos(id)
 	_recount_sp()
-	if rev < REV:
-		# A rev-1 save earned its SP per tree level. It keeps every node and every unspent SP: what the
-		# character level does not cover becomes a one-time extra (spec 03 allows one-time SP).
-		sp_extra = maxi(0, int(d.get("sp_available", 0)) + sp_spent - sp_earned)
-		_recount_sp()
+	if rev < REV and int(d.get("sp_available", 0)) + int(d.get("sp_spent", 0)) > 0:
+		_say(_migration_notice())
 	for id in ORDER:
 		if id == "survival":
 			for nid in trees[id]["unlocked"]:
@@ -356,10 +355,26 @@ func sp_now() -> int:
 	return sp_available
 
 func _recount_sp() -> void:
-	sp_earned = SkillRules.paid_for_level(self, character_level()) + sp_extra
+	var paid := SkillRules.paid_for_level(self, character_level())
 	sp_spent = 0
 	for id in ORDER:
 		for n in nodes(id):
 			if is_unlocked(id, str(n.get("id", ""))):
 				sp_spent += int(n.get("sp", 0))
-	sp_available = maxi(0, sp_earned - sp_spent)
+	sp_extra = maxi(0, sp_spent - paid)
+	sp_earned = paid + sp_extra
+	sp_available = sp_earned - sp_spent
+
+## The one line a migrated rev-1 save shows on its first load: its SP changed, so say how.
+func _migration_notice() -> String:
+	if sp_extra > 0:
+		return "Skill points now come from your character level. Every learned skill is kept; they cost %d SP more than %s pays, so new levels pay that off first." % [sp_extra, LevelDisplay.label(character_level())]
+	return "Skill points now come from your character level. Every learned skill is kept, and you have %d SP to spend." % sp_available
+
+## On screen through the owning survivor's notice (the HUD exists before World boots the save).
+func _say(text: String) -> void:
+	var p := get_parent()
+	if p != null and p.has_method("notice"):
+		p.call("notice", text)
+	else:
+		print("[skill] %s" % text)
