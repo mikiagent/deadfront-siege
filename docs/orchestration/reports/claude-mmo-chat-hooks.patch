@@ -1,0 +1,47 @@
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index 6f25ecbc..58267b2f 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -26,6 +26,7 @@ var _sheet_kind: StringName = &""
+ var _skills_panel: Control
+ var _animal_screen: AnimalScreen
+ var _inspector: Panel
++var chat: ChatHud  ## spec 20: the CHAT hex, the chat overlay and the chat log (chat_hud.gd)
+ # combat
+ var _end_btn: Button
+ var _skill_hexes: Array[HexButton] = []
+@@ -148,7 +149,7 @@ func _layout() -> void:
+ 	_minimap.position = Vector2(r.x - MAP_PX - 16.0 - inset.x, 34.0 + inset.z)
+ 	var y := r.y - HEX - CAPTION_H - 14.0 - inset.y  # captions sit under the hexes, inside the safe area
+ 	var x := 16.0 + inset.w
+-	for h in [_menu_hex, _pets_hex, _build_hex, _skills_hex]:
++	for h in [_menu_hex, _pets_hex, _build_hex, _skills_hex, chat.hex]:
+ 		h.position = Vector2(x, y)
+ 		x += HEX + 10.0
+ 	for i in _food_hexes.size():
+@@ -220,6 +221,7 @@ func _build_menu_row() -> void:
+ 	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
+ 	_skills_hex = _hex("★", HEX, "SKILLS")
+ 	_skills_hex.pressed.connect(_toggle_skills)
++	chat = ChatHud.attach(self)
+ 	for i in 2:
+ 		var fh := HexButton.new(HEX)
+ 		fh.glyph = "🍖"
+@@ -565,6 +567,8 @@ func _draw_bites(cam: Camera3D) -> void:
+ 
+ func notice(text: String) -> void:
+ 	_events.add_notice(text)
++	if chat:
++		chat.feed.system(text)
+ 
+ func toast(id: StringName, n: int) -> void:
+ 	print("[ui] toast %s +%d" % [id, n])
+@@ -684,6 +688,8 @@ func _on_level_up(stored: int) -> void:
+ 	var top_stat := str(stats[level % stats.size()]) if not stats.is_empty() else "Stats"
+ 	_levelup_summary = "%s +%d · other stats +%d · Skill points %d" % [top_stat, bonus, gain, maxi(0, sp)]
+ 	_levelup_t = 0.0
++	if chat:
++		chat.feed.system("Level up: %s%s" % [LevelDisplay.label(level), (". " + _levelup_title) if _levelup_title != "" else "."])
+ 
+ # ---------------------------------------------------------------- sheets
+ 
