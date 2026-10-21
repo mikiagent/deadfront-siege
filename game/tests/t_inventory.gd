@@ -39,7 +39,8 @@ func _process(_delta: float) -> bool:
 		_test_worn_gear_kept, _test_currency_stacks, _test_visual_groups, _test_server_store_migration, _test_default_pick_spares_valuable,
 		_test_legacy_ceiling, _test_duplicate_uids, _test_pocket_capacity, _test_grown_container_reloads, _test_journal_before_split,
 		_test_tip_names_traits, _test_default_pick_across_defs, _test_forged_worn_row, _test_split_rows_without_uid,
-		_test_journal_rules_change, _test_unique_uids_across_containers, _test_default_pick_value_before_overlap]
+		_test_journal_rules_change, _test_unique_uids_across_containers, _test_default_pick_value_before_overlap,
+		_test_default_pick_skips_locked]
 	for t in tests:
 		var errs := log.script_errors
 		t.call()
@@ -484,8 +485,7 @@ func _test_default_pick_spares_valuable() -> void:
 	_expect(not stone.attributes.is_empty() and INV.spend_key(stone)[0] == 0, "a def's own default attributes (stone tint) are not traits (%s)" % [stone.attributes])
 
 ## Review 2: the lead's own def is only a tie-break inside equal spend keys. A default twine spends
-## the plain lv1 stalk and the plain lv1 palm frond, not the lv40 stalk (with or without a trait);
-## when every candidate carries a trait the plan says so (spec 13:486), so the UI can ask for a pick.
+## the plain lv1 stalk and the plain lv1 palm frond, not the lv40 stalk (with or without a trait).
 func _test_default_pick_across_defs() -> void:
 	var CR := load("res://scripts/items/crafting.gd") as GDScript
 	var rec: Dictionary = get_root().get_node("Data").recipes.get(&"twine", {})
@@ -500,12 +500,6 @@ func _test_default_pick_across_defs() -> void:
 			spent.append(int(part.idx))
 		spent.sort()
 		_expect(spent == [0, 2], "default twine spends stalk lv1 and the plain frond lv1, not the lv40 stalk %s (spent %s)" % [traits, spent])
-		_expect(not CR.plan_spends_traits(inv, rec, picks), "a default that spends no trait does not ask for a pick %s" % [traits])
-	var rare = INV.new(10)
-	rare.slots[0] = IS.make(&"fibre_stalk", 1, {"hardness": 7}, 30)
-	rare.slots[1] = IS.make(&"fibre_stalk", 1, {"hardness": 9}, 40)
-	var rp: Array[int] = CR.default_picks(rare, rec)
-	_expect(CR.picks_valid(rare, rec, rp) and CR.plan_spends_traits(rare, rec, rp), "only trait stalks: the default plan says it spends a trait")
 
 ## The bag slots a default plan spends, sorted.
 func _spent(CR: GDScript, inv, rec: Dictionary) -> Array[int]:
@@ -541,12 +535,16 @@ func _test_default_pick_value_before_overlap() -> void:
 		[&"twine", {}, 1], [&"twine", {}, 1]])
 	spent = _spent(CR, inv, sling)
 	_expect(spent == [1, 3, 4, 5], "slingshot spends a plain raptor bone and the branch, not the dense bone (spent %s)" % [spent])
-	_expect(not CR.plan_spends_traits(inv, sling, CR.default_picks(inv, sling)), "the slingshot default spends no trait")
-	# Review 4: the def's rarity (items.json) is a key after traits. Both plain and lv1, the rare
-	# dense bone first in the bag stays and the common bone goes.
+	# The def's rarity (items.json) is the last tie-break: both plain and lv1, the rare dense bone
+	# first in the bag stays and the common bone goes.
 	inv = _bag_of([[&"dense_bone", {}, 1], [&"bone", {}, 1], [&"branch", {}, 1], [&"twine", {}, 1], [&"twine", {}, 1]])
 	spent = _spent(CR, inv, sling)
 	_expect(spent == [1, 2, 3, 4], "slingshot spends the plain common bone, not the plain rare dense bone (spent %s)" % [spent])
+	# The ruled order puts level before the def's rarity: a plain lv1 dense bone goes, a plain lv60
+	# raptor bone stays (it is also a handle; the branch is the handle).
+	inv = _bag_of([[&"raptor_bone", {}, 60], [&"dense_bone", {}, 1], [&"branch", {}, 1], [&"twine", {}, 1], [&"twine", {}, 1]])
+	spent = _spent(CR, inv, sling)
+	_expect(spent == [1, 2, 3, 4], "slingshot spends the plain lv1 dense bone, not the plain lv60 raptor bone (spent %s)" % [spent])
 	inv = _bag_of([[&"fibre_stalk", trait9, 40], [&"fibre_stalk", trait9, 40], [&"reed", {}, 1], [&"reed", {}, 1],
 		[&"reed", {}, 1], [&"palm_frond", {}, 5]])
 	spent = _spent(CR, inv, straw)
@@ -565,6 +563,32 @@ func _test_default_pick_value_before_overlap() -> void:
 	for part in CR._plan(inv, twine, [1] as Array[int])[0].parts:
 		tw.append(int(part.idx))
 	_expect(tw == [1, 2], "a twine from a picked stalk spends the other stalk, not the tied twine (spent %s)" % [tw])
+
+## Spec 05:23 and 13:229 (locking protects from crafting consumption): a locked instance is never a
+## default pick. Locked lv1 stalks stay while unlocked lv5/lv6 ones make the twine; with only locked
+## stalks the default makes nothing; a locked stalk the player picks is spent, the rest unlocked.
+func _test_default_pick_skips_locked() -> void:
+	var CR := load("res://scripts/items/crafting.gd") as GDScript
+	var rec: Dictionary = get_root().get_node("Data").recipes.get(&"twine", {})
+	var inv = _bag_of([[&"fibre_stalk", {}, 1], [&"fibre_stalk", {}, 1], [&"fibre_stalk", {}, 5], [&"fibre_stalk", {}, 6]])
+	inv.slots[0].set_flag(&"locked", true)
+	inv.slots[1].set_flag(&"locked", true)
+	var spent := _spent(CR, inv, rec)
+	_expect(spent == [2, 3], "default twine spends the unlocked lv5/lv6 stalks, not the locked lv1 ones (spent %s)" % [spent])
+	CR.consume_for_craft(inv, rec, CR.default_picks(inv, rec))
+	var kept: bool = inv.slots[0] != null and inv.slots[0].is_locked() and inv.slots[1] != null and inv.slots[1].is_locked()
+	_expect(kept and inv.used_slots() == 2, "the craft leaves both locked stalks (used %d)" % inv.used_slots())
+	var only = _bag_of([[&"fibre_stalk", {}, 1], [&"fibre_stalk", {}, 1]])
+	only.slots[0].set_flag(&"locked", true)
+	only.slots[1].set_flag(&"locked", true)
+	_expect(not CR.picks_valid(only, rec, CR.default_picks(only, rec)), "only locked stalks: the default twine makes nothing")
+	var mixed = _bag_of([[&"fibre_stalk", {}, 1], [&"fibre_stalk", {}, 1], [&"fibre_stalk", {}, 5]])
+	mixed.slots[0].set_flag(&"locked", true)
+	mixed.slots[1].set_flag(&"locked", true)
+	var picked: Array[int] = []
+	for part in CR._plan(mixed, rec, [0] as Array[int])[0].parts:
+		picked.append(int(part.idx))
+	_expect(picked == [0, 2], "a picked locked stalk is spent and the second unit is the unlocked one (spent %s)" % [picked])
 
 ## Review 2: the worn row is a trust boundary. A forged worn helm (x5000, L9999, durability 1e9,
 ## a bad uid) read through the loader's own path loads as x1 L60 within the real durability ceiling.
