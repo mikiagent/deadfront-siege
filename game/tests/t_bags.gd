@@ -353,11 +353,18 @@ func _test_cargo_separate() -> void:
 	var t: Dictionary = BC.inventory_total(inv)
 	_expect(int(t.get("total", -1)) == personal and int(t.get("total", 0)) < personal + 200, "17: the personal breakdown never includes cargo (%s)" % t)
 
-## Spec 31 §2: old saves holding the woven_bag stand-in load as a basic bag of the same level.
+## Spec 31 §2: the old woven_bag stand-in is a Basic Bag now. A saved row loads as the same bag at
+## the same level and with the same Pocket; its storage comes from the Basic Bag curve, not from the
+## flat bag_slots it used to carry.
 func _test_legacy_migration() -> void:
 	var row := {"id": "woven_bag", "count": 1, "level": 7, "attributes": {"pocket": 1}, "flags": [], "durability": 0, "max_durability": 0}
 	var s = IS.from_dict(row)
-	_expect(s.def_id == &"basic_bag", "migration: a saved woven_bag row loads as a basic bag (%s)" % s.def_id)
-	_expect(s.level == 7 and int(s.attributes.get("pocket", 0)) == 1, "migration: the bag keeps its level and Pocket (level %d, %s)" % [s.level, s.attributes])
 	var d: Variant = get_root().get_node("Data").item(s.def_id)
-	_expect(d != null and d.bag_slots >= 0, "migration: the migrated id is a real item (%s)" % s.def_id)
+	_expect(d != null and StringName(str(d.bag_def)) == &"basic_bag", "migration: a saved woven_bag row is a Basic Bag (%s)" % (d.bag_def if d else "missing"))
+	_expect(s.level == 7 and int(s.attributes.get("pocket", 0)) == 1, "migration: the bag keeps its level and Pocket (level %d, %s)" % [s.level, s.attributes])
+	var b: Dictionary = BC.of_stack(s)
+	_expect(int(b.get("base", -1)) == BD.base_capacity(&"basic_bag", 7) and int(b.get("pocket", -1)) == 6, "migration: the old bag's storage follows the Basic Bag curve plus Pocket 1 (%s)" % b)
+	var inv = INV.new()
+	inv.add(s)
+	inv.equip_at(inv.find_first(s.def_id))
+	_expect(inv.capacity() == 100 + int(b.get("total", 0)), "migration: the migrated bag can be worn at its curve value (%d)" % inv.capacity())

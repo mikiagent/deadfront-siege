@@ -216,13 +216,8 @@ func to_dict() -> Dictionary:
 		out["created_at"] = created_at
 	return out
 
-## Spec 31 §2 migration: the woven_bag stand-in is a Basic Bag now; a saved row loads as one, at the
-## level and with the attributes it had (nothing is rerolled).
-static func migrate_id(id: StringName) -> StringName:
-	return &"basic_bag" if id == &"woven_bag" else id
-
 static func from_dict(d: Dictionary) -> ItemStack:
-	var s := make(migrate_id(StringName(str(d.get("id", "")))), int(d.get("count", 1)), d.get("attributes", {}), int(d.get("level", 1)))
+	var s := make(StringName(str(d.get("id", ""))), int(d.get("count", 1)), d.get("attributes", {}), int(d.get("level", 1)))
 	s.process_count = int(d.get("process_count", 0))
 	s.durability = int(d.get("durability", s.durability))
 	s.max_durability = int(d.get("max_durability", s.max_durability))
