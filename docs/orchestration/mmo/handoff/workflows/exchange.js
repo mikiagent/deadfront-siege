@@ -56,6 +56,9 @@ const FIDELITY = { type: 'object', properties: {
   details: { type: 'array', items: { type: 'object', properties: { detail: { type: 'string' }, verdict: { type: 'string', enum: ['met', 'partial', 'missing'] }, note: { type: 'string' } }, required: ['detail', 'verdict', 'note'] } },
   defects: { type: 'array', items: { type: 'string' } }, overall: { type: 'string' } }, required: ['details', 'defects', 'overall'] }
 
+// An agent sometimes writes 'none ...' instead of '' in owner_gate.
+const isGate = (g) => !!g && !/^\s*(none|no |n\/a)/i.test(g)
+
 phase('Scout')
 const scoutBase = `${ctx}
 
@@ -83,7 +86,7 @@ Commit. Return done, owner_gate, owner_question, head, gates, shots, summary.
 
 Scout notes:
 ${scoutNotes}`, { label: 'design', phase: 'Design', schema: STEP, effort: 'high' })
-if (!design || design.owner_gate) return { stopped: 'design', design }
+if (!design || isGate(design.owner_gate)) return { stopped: 'design', design }
 const questions = []
 if (design.owner_question) questions.push(design.owner_question)
 
@@ -104,7 +107,7 @@ Return done, owner_gate, owner_question, head, gates, shots, summary.`, { label:
   built.push({ step: b.key, r })
   if (!r) return { stopped: 'cut at ' + b.key, built, questions }
   if (r.owner_question) questions.push(r.owner_question)
-  if (r.owner_gate) return { stopped: 'owner gate at ' + b.key, owner_gate: r.owner_gate, built, questions }
+  if (isGate(r.owner_gate)) return { stopped: 'owner gate at ' + b.key, owner_gate: r.owner_gate, built, questions }
 }
 
 phase('Review')
@@ -151,6 +154,6 @@ ${JSON.stringify(findings, null, 1)}
 Return done, owner_gate, owner_question, head, gates, shots, summary.`, { label: `fix:r${round}`, phase: 'Review', schema: STEP })
   if (!fx) return { stopped: 'cut at fix r' + round, built, final, questions }
   if (fx.owner_question) questions.push(fx.owner_question)
-  if (fx.owner_gate) return { stopped: 'owner gate', owner_gate: fx.owner_gate, built, final, questions }
+  if (isGate(fx.owner_gate)) return { stopped: 'owner gate', owner_gate: fx.owner_gate, built, final, questions }
 }
 return { ready: !!(final && final.pass), final, questions, built: built.map(b => ({ step: b.step, done: b.r && b.r.done, summary: b.r && b.r.summary })) }
