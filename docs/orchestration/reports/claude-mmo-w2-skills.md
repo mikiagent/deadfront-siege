@@ -11,16 +11,18 @@ recipe-gated progression, and survivors that start at Lv. 1.
 - **Character level 1-60 caps the trees (spec 03).** `character_level()` is now the one player level
   (`LevelDisplay.player_level()`, fed by every skill XP grant). Before, it was the average of the tree levels.
   A tree cannot level past the character level. At the cap the XP bar fills and waits. `World.pioneer_changed`
-  releases it. The occupation's Lv. 20 head start is exempt (ASSUMPTION). The cap can be switched off with
-  `category_cap` in trees.json.
+  releases it. The occupation's Lv. 20 head start is exempt: the docs conflict there, so it is an open owner
+  decision (Open owner decisions 5). The cap can be switched off with `category_cap` in trees.json.
 - **Lv1 AUTO nodes.** `"auto": true` nodes (0 SP) are learned once their level is reached: at creation, on
   level-up, on occupation, and on load. They cannot be refunded. Examples: Rope (Basic Processing), Stone Blade,
   Leaf, Branch, Bush, Fruit I, Log I, Bug I, Pebble, Mud I, Stalk, Bone I, Roll, Leaf Outfit, Footwraps, Leaf Hat,
   Corn and Apple Tree.
 - **Animal Handling I-IV (spec 09).** These reuse the save ids `animal_management_1..4`. The values follow the
   spec: Survival 35/45/55/60, SP 4/5/5/6, chain I->II->III->IV, and I requires Capture Technique I ("Animal
-  Taming"; ASSUMPTION). `SkillRules.bonded_capacity()` = 3 + one per learned node, up to 7.
-  `SkillRules.can_bond(count)` blocks a new bond at the cap. A reset keeps existing pets.
+  Taming"; ASSUMPTION). `SkillRules.bonded_capacity()` = 3 + one per learned node, up to 7. Every client
+  bond path asks `Data.bonded_cap()` (hook H2), which reads it; `FieldTame.roster_full()` (H9) and the pen
+  refuse at the cap without losing the animal or the food. (r6 removed `SkillRules.can_bond`: nothing called it.)
+  A reset keeps existing pets.
 - **Processing tree (spec 11).** It holds every node the spec documents: Normal Nail, Leather Strap, Charcoal,
   Dry Leather, Peeled Bark, Handicraft I-V (+4 Handicraft each), Trimmed Material, Extended Fabric, Glue, Gem
   Extraction, Cord, Waterproofed Material, Refined Ore, Metalworking I-IV (+4 Metal Processing each), Adhesive
@@ -51,21 +53,162 @@ recipe-gated progression, and survivors that start at Lv. 1.
   existing `dried_hide` recipe.) Every node has `status`, `source` (spec09/11/12 or prd7), `effects` and
   `sp_assumed` where the pack gives no SP.
 - **Skills sheet (hook H8; skills_sheet.gd is W1-UI's file, so the change lives in the hooks patch since r5):**
-  node rows show the Durango name and "AUTO" in place of "0 SP". Owned auto nodes collapse into one "Learned
-  automatically: Leaf, Branch, ..." line, and nodes the game reads nothing from yet into one "11 more nodes come
-  with later updates" line, so a tree opens on rows the player can act on. A description that only repeats the
-  node name is not shown. A refused refund shows its reason in red on the row.
+  node rows show the Durango name and "AUTO" in place of "0 SP". The rows the player can act on come first,
+  then one "Learned automatically: Leaf, Branch, ..." line and the "All skills" button. Below them every node
+  the game reads nothing from yet is listed as a muted row with no button: "Thickets  ·  Lv. 5  ·  6 SP  ·  not in
+  the game yet" (spec 12 10.6: lock reason, level, SP). A description that only repeats the node name is not
+  shown. A Refund the player cannot use now (the day's 5 free refunds are used, or a learned node needs it) is
+  greyed with "Cannot refund: ..." under the node before the tap (`SkillState.refund_reason`).
 - **Bonded cap on screen (hooks H9, H10):** at the cap the field-tame plate reads "Bonded roster full (3 / 3)"
   instead of "Tame", the feed is refused with the notice "... Animal Handling (Survival) adds slots." and the
-  food is kept; the pets screen title reads "BONDED n / cap" (spec 09:50).
+  food is kept; the pets screen title reads "BONDED n / cap" (spec 09:50) and its equip button "EQUIP
+  (ACTIVE n / 3)", so the two counters cannot be confused.
+- **Level-up banner (hook H11, r6):** "Available Skill Points" shows `SkillState.sp_now()`, the SP the character
+  level paid minus what the learned nodes cost. It used to count unbought survival.json nodes.
 
-Files on the branch: `game/data/skills/trees.json`, `game/scripts/skills/skill_state.gd`, new
-`game/scripts/skills/skill_rules.gd`, new `game/tests/t_w2_skills.gd`, `game/tests/t_save.gd`, new
-`game/tests/fixtures/save_v3_skills_rev2.json`, and `game/scripts/world/taming_pen.gd` (orchestrator grant).
-Everything else is in the hooks patch (H1-H10).
+Files on the branch (r7): `game/data/skills/trees.json` (see Review r7, ownership), `game/scripts/skills/skill_state.gd`,
+new `game/scripts/skills/skill_rules.gd`, new `game/tests/t_w2_skills.gd`, and `game/scripts/world/taming_pen.gd`
+(orchestrator grant). Everything else is in the hooks patch (H1-H13): since r7 that includes W1-SAVE's
+`game/tests/t_save.gd` and the new `game/tests/fixtures/save_v3_skills_rev2.json` (H12) and W1-QA's
+`game/scripts/dev/skills_lab.gd` (H13).
 The rev-1 goldens `save_v3_golden.json` and `save_v3_away_golden.json` are byte-identical to the base.
 
-## Review r5 findings (fixed in this round)
+## Review r7 (findings on r6 @ 52c15c19; fixed at 5e77eb8c, report and one data name after it)
+
+Base: claude/mmo-overhaul moved to cecc936b (HANDOFF and two workflow files only) and is merged (03364e1a).
+The hooks patch was regenerated from a tree with it applied: `git apply --check` is clean on the branch and on
+claude/mmo-overhaul @ cecc936b (the hooked files, t_save.gd and the fixture are identical on both).
+
+- **MAJOR, nodes not in the game yet were folded into one count line: fixed (H8).** Every such node is listed
+  again, after the rows the player can act on, as a muted row with no button: "Thickets  ·  Lv. 5  ·  6 SP  ·  not
+  in the game yet" (spec 12 10.6 "Display lock reason, category level, prerequisites, SP cost"; prerequisites are
+  not repeated on these rows because nothing in the chain can be bought yet). "All skills" now sits above that
+  list, so a phone does not scroll past 34 rows to leave Processing.
+  Check, t_w2_skills "skills sheet rows": every `NOT_IN_GAME` node has a `SkillsLater_<id>` row with its level,
+  SP and reason, and no button. With the r6 sheet:
+  `[t_w2_skills] FAIL gathering at Lv. 1: each of the 11 nodes not in the game yet is a row with its level, SP and reason and no button (rows 0, buttons 0, bad [])`,
+  `[t_w2_skills] FAIL processing at Lv. 1: each of the 34 nodes not in the game yet is a row with its level, SP and reason and no button (rows 0, buttons 0, bad [])`.
+- **MAJOR acceptance, vision fix 1 (not buyable, and shown locked "not in the game yet"): met.** Not buyable: the
+  r3 mutation proof still holds (`[t_w2_skills] FAIL a partial node cannot be bought: Handicraft I says 'not in the
+  game yet'` with the lock line disabled). Shown: `desk_glc_tree.png` (1600x900 gl_compatibility) lists all 11
+  Gathering nodes from "Thickets · Lv. 5 · 6 SP · not in the game yet" to "Great success 2 · Lv. 55 · 34 SP · not
+  in the game yet"; `desk_glc_refundscroll.png` ends Processing's 34 rows with "Processed Debris · Lv. 60 · 6 SP ·
+  not in the game yet". The prerequisite chains of functional nodes stay buyable (Island Access 15, Belly Fat I:
+  "defined prerequisites of Capture Technique I stay buyable" passes).
+- **MAJOR acceptance, the report is accurate: met.** Review r6 below lists H11 (`hunt_hud.gd`, `sp_now()`) and
+  the `can_bond` removal; "What shipped" no longer names `SkillRules.can_bond`; the hook list runs H1-H13.
+- **Minor, files of other packages on the branch: t_save.gd and the fixture moved to hooks (H12); trees.json kept,
+  for the integrator to confirm.** `git diff --name-only claude/mmo-overhaul...HEAD` no longer lists
+  `game/tests/t_save.gd` or `game/tests/fixtures/save_v3_skills_rev2.json` (W1-SAVE's, plan-register:175); the same
+  changes are hook H12. trees.json stays: plan-register:621 lists it under W2-DATA, but HANDOFF.md:94 says
+  "`requires_node` ids must match W2-SKILLS' trees.json" and HANDOFF.md:104 orders "W2-DATA -> W2-SKILLS (its
+  trees.json node ids feed DATA's `requires_node`)", and W2-DATA's branch does not touch it
+  (`git diff --stat claude/mmo-overhaul...claude/mmo-w2-data -- game/data/skills/` is empty). taming_pen.gd
+  stays as the orchestrator's grant (Review r1).
+- **Minor, Refund stayed active after the day's free refunds: fixed (H8 + `SkillState.refund_reason`).**
+  `refund_reason(tree, id)` is the one refusal check (learned automatically, a learned node needs it, the daily
+  limit); `refund()` refuses with it and the sheet greys the button and shows "Cannot refund: ..." under the node
+  before the tap. The red after-the-tap line (`_refused_id`) is gone. Mutation (button not greyed):
+  `[t_w2_skills] FAIL the day's 5 refunds used: Charcoal's Refund is greyed and says why before the tap (disabled false, reason 'Cannot refund: the 5 free refunds of the day are used, more tomorrow')`.
+  `desk_glc_refund.png` and `phone_glc_refund.png`: the Charcoal row is green with "Cannot refund: the 5 free
+  refunds of the day are used, more tomorrow" under it and a greyed Refund; Leather Strap and Dry Leather keep
+  white Unlock buttons.
+- **Minor, H6 should clamp rev-2 tree levels to the character level: not done; the clamp would take progress
+  away.** Every migrated save is rev 2 from its second load on, and real rev-1 saves hold trees above the
+  character level: rev 1 fed every skill gain to World XP once and to Survival as well, so 7,040 XP is Survival
+  40 (trees from 0, 20 + 8L per level) and character Lv. 21 (100 + 25L). With the proposed clamp in H6 (scratch
+  mutation, rev 2 only, max(character level, occupation 20)) t_save prints
+  `[t_save] FAIL re-load: every node bought under rev 1 is kept (missing ["island_access_15", "belly_fat_1", "capture_technique_1", "capture_tool_1", "stealth_1", "island_access_25", "capture_technique_2", "climate_body_1", "island_access_35", "capture_technique_3", "animal_management_1", "island_access_45", "capture_technique_4", "animal_management_2"])`,
+  `[t_save] FAIL re-load: the 539 unspent SP are kept (got 374)` and
+  `[t_save] FAIL re-load: Animal Handling I + II give 5 bonded slots (got 3)`.
+  It would also close nothing: a save without `"rev"` is read as rev 1 and keeps any level (t_w2_skills "H6: a
+  rev-1 save keeps every node it bought under the old award and its 50 unspent SP", Survival 40 at character
+  Lv. 1, passes). Telling a forged save from a migrated one needs the server's record: W3-SRVACT moves levels,
+  purchases and the bonded cap to CharacterState (Left, below). The H6 comment keeps the `shortcut:` note.
+- **Minor, the occupation's Lv. 20 exemption was listed as an assumption: moved to Open owner decisions 5** as
+  a conflict between docs; the code comment in `SkillState.level_cap` says so.
+- **Minor, H1 and W2-DATA's progression_block hunk: the integrator's merge is tried and passes.** H1's comment
+  now says it is the only `requires_node` check. Trial tree (scratchpad `trees/w2s-r7d`): this branch @ 5e77eb8c,
+  `git merge claude/mmo-w2-data` (0554797a, no conflict), W2-DATA's hooks (clean), then this patch with
+  `--3way`: only `crafting.gd` conflicts, inside `progression_block`. Resolution: keep H1's block, drop W2-DATA's
+  three `requires_node` lines and its `_node_block()` helper (no other caller; `SkillRules.recipe_block` names
+  the node, tree, level and SP). After `--import` (rc 0, 0 SCRIPT ERROR):
+  `[t_w2_skills] catalog 212 of 918 nodes: functional 34 (16 of them through requires_node), partial 19, defined 159`,
+  `[t_w2_skills] recipes gated by requires_node: 56`, `[t_w2_skills] PASS`;
+  `[t_data] smelt_copper gate: before 'learn Smelting 1 (Processing Lv. 25, 15 SP); you have 0 SP, reach Lv. 2 for +10 SP', after learning smelting_1 ''`,
+  `[t_data] PASS items=223 recipes=155`. Whoever regenerates this patch after the W2-DATA merge applies that
+  resolution.
+- **Minor, skills_lab asserted nothing: fixed (H13, W1-QA's file).** It earns character Lv. 2 with gathering XP,
+  checks the SP, buys Till Small Field and round-trips the save, and exits 1 on failure:
+  `[skill] character level 2 gathering level=2 sp=10`, `[skill] PASS level-up pays 10 SP, small_field bought`.
+  Mutation (unlock does not recount SP): `[skill] FAIL level-up pays 10 SP, small_field bought`, rc 1.
+- **Minor, recipe gates rebuilt per call: fixed.** `SkillRules._index(sk)` builds the gate map and the buyable
+  set per tree once per SkillState (`SkillState._rules_cache`, cleared when trees.json loads) and rebuilds only
+  when the recipe count changes. `recipe_block`, `buyable` and `node_state` are lookups now. Learning or refunding
+  changes none of these maps, so nothing invalidates them. With the r6 skill_rules.gd:
+  `[t_w2_skills] FAIL the recipe gate map is built once, not on every recipe_block / buyable call`.
+- **Minor, two "/ 3" counters on the pets screen: fixed (H10).** The equip button reads "EQUIP   (ACTIVE 0 / 3)"
+  under "ANIMALS · BONDED 2 / 3 · GROWTH" (`desk_glc_pets.png`, `phone_glc_pets.png`, `desk_fwd_pets.png`; the
+  button stays inside its 220 px and clear of CLOSE). With the r6 animal_screen.gd:
+  `[t_w2_skills] FAIL the equip button names its counter, so it cannot be read as the bonded cap ('EQUIP   (0 / 3)')`.
+- **Minor, the server copy of the trees has no character-level cap: recorded for W3-SRVACT** with the bonded cap
+  and node purchases (Left, below).
+- **Minor, pacing of island travel and capture: added to Open owner decisions 6, with a probe.** t_w2_skills
+  prints, asserting nothing:
+  `[t_w2_skills] pacing: Survival 10 took 280 gathers before the cap, now 900 (character Lv. 10 needs 1800 XP)`,
+  `[t_w2_skills] pacing: Survival 15 took 570 gathers before the cap, now 1838 (character Lv. 15 needs 3675 XP)`.
+- Seen in the shots and fixed: Processing's Lv. 55 node read "Great success p" (an id suffix from the PRD
+  import); its name is now "Great success".
+
+## Review r6 (fixed in 6d436beb, hooks 52c15c19)
+
+- The level-up banner showed "Available Skill Points" as the count of unbought survival.json nodes. Hook H11
+  (`hunt_hud.gd` `_on_level_up`) shows `SkillState.sp_now()`, which recounts first because the HUD's handler on
+  `World.pioneer_changed` can run before SkillState's. With the r5 hooks:
+  `[t_w2_skills] FAIL character Lv. 2: the level-up banner shows the 10 SP SkillState holds (10): 'Dexterity +6 · other stats +5 · Skill points 0' | Lv. 2, Pioneer XP 0, T-stones 20, Available Skill Points: 0, ...`;
+  with `sp_now()` not recounting: `... character Lv. 3: ... (20): 'Agility +6 · other stats +5 · Skill points 10' ...`.
+- W2-DATA's `requires_node` recipes now read like every skill gate ("learn Work pick (Weapon / Tools Lv. 5,
+  6 SP)"): `SkillRules.recipe_gates` maps them too. With the r5 gates:
+  `[t_w2_skills] FAIL a requires_node recipe reads like every skill gate (spec 12:197): ''`.
+- The catalog line counts a node a loaded recipe names in `requires_node` as functional.
+- `SkillRules.can_bond` was removed: no caller (every bond path asks `Data.bonded_cap()`).
+- H7's craft card lock got a check: without H7,
+  `[t_w2_skills] FAIL the charcoal craft card says what unlocks it, above the ingredients: ''`.
+- r6 gates: the run at 52c15c19 stopped after 10 of the 20 tests (t_ai, t_build, t_canim, t_combat, t_harbour,
+  t_iconart, t_items, t_light, t_lighting, t_occlude, all PASS, import rc 0). Every r6 change is in 5e77eb8c, where
+  the full set below ran.
+
+## Acceptance r7 (branch @ 5e77eb8c + hooks H1-H13, claude/mmo-overhaul @ cecc936b merged)
+
+Gate tree `trees/w2s-r7g`: mkscratch.sh at 5e77eb8c with this patch (it applied cleanly), imported once. Its
+game/ is identical to the authoring tree's (`diff -rq` empty). The trees.json name fix came after; t_w2_skills
+and t_save were rerun with it: both PASS.
+- `--import`: 0 SCRIPT ERROR.
+- All 20 `t_*.gd` PASS: t_ai, t_build, t_canim, t_combat, t_harbour, t_iconart, t_items, t_light, t_lighting,
+  t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons, t_w2_skills,
+  t_web. Only t_save prints SCRIPT ERROR lines: its 5 deliberate ones, as on the base.
+- `[t_save] rev-1 skills migrate: 19 nodes kept, SP 539/802`, then `[t_save] PASS`.
+- `[t_w2_skills] catalog 212 of 918 nodes: functional 18 (0 of them through requires_node), partial 19, defined 175`,
+  then `[t_w2_skills] PASS` (15 sections).
+- run_all: `[tests] PASS`. `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- Labs, 0 SCRIPT ERROR each: skills_lab `[skill] PASS level-up pays 10 SP, small_field bought`; capture_lab
+  `[capture] PASS bonded+=2`; ui_family_lab `[uifamily] inventory=true animals=true unlimited=true active_cap=3`
+  (H5's cap-3 check); ui_real_capture_lab `[uireal] PASS screens=hud,craft,skills,...` at 844x390 and
+  1600x900 on gl_compatibility.
+- No "couldn't resolve track" in any log. No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (34 before and
+  after).
+
+r7 screenshots, looked at (scratchpad `r7shots/`; the refund and pets shots use scratch-only skills_lab edits that
+are not committed: character Lv. 30 with the 5 refunds spent, and two bonded raptors with none out):
+- `desk_glc_tree.png`, `desk_fwd_tree.png` (1600x900), `phone_glc_tree.png` (844x390): "Gathering Lv. 1", "SP
+  0", the AUTO line, "All skills", then the 11 muted rows. Readable at phone size; Close inside the view.
+- `desk_glc_refund.png`, `phone_glc_refund.png`: Processing Lv. 30, SP 309, the greyed Refund described above.
+- `desk_glc_refundscroll.png`, `phone_glc_refundscroll.png`: the end of Processing's 34 muted rows.
+- `desk_glc_pets.png`, `phone_glc_pets.png`, `desk_fwd_pets.png`: "BONDED 2 / 3" and "EQUIP (ACTIVE 0 / 3)".
+- `uireal_844x390/`, `uireal_1600x900/`: every screen; skills overview at Lv. 1, animals with the pet out
+  ("DISMISS").
+
+## Review r5 findings (fixed in r5)
 
 Scope check (the check that would have caught the blocker), run at the r5 head:
 `git diff --name-only claude/mmo-overhaul...HEAD | grep -vE '<package files and grants>'` prints nothing
@@ -355,7 +498,8 @@ skills_lab:
 ## Integrator hooks (`docs/orchestration/reports/claude-mmo-w2-skills-hooks.patch`, `git apply` checked)
 
 - **H1** `game/scripts/items/crafting.gd` `progression_block()`: check `SkillRules.recipe_block` first. This makes
-  the recipe gates real. station_craft and craft_ui already route through `progression_block`.
+  the recipe gates real. station_craft and craft_ui already route through `progression_block`. After the W2-DATA
+  merge it is the only `requires_node` check (drop W2-DATA's lines and `_node_block()`; tried in Review r7).
 - **H2** `game/scripts/core/data.gd` `bonded_cap()`: `SkillRules.bonded_capacity(PlayerRegistry.local().skills)`,
   or 3 with no player. This replaces "unlimited", per spec 09. It is the one bonded-cap function. It reaches
   field_tame.apply_feed, player_pets.bond_from_inventory and (on the branch) taming_pen. The market's caged-pet
@@ -367,10 +511,16 @@ skills_lab:
 - **H7** `game/scripts/ui/craft_ui.gd` `_show_detail`: a gated recipe's detail shows what unlocks it, in red,
   above the ingredients.
 - **H8** `game/scripts/ui/skills_sheet.gd` (W1-UI) `_build_tree`: Durango names, "AUTO", the learned-auto
-  line, the not-in-game count line and the red refund refusal on its row.
+  line, "All skills" above a muted row per node not in the game yet, and a greyed Refund with its reason.
 - **H9** `game/scripts/pets/field_tame.gd` (W1-TAME): `roster_full(player)`; `plate_hint` shows it for the
   local survivor; `apply_feed` gives the notice before refusing.
-- **H10** `game/scripts/ui/animal_screen.gd`: the title reads "ANIMALS · BONDED n / cap · GROWTH".
+- **H10** `game/scripts/ui/animal_screen.gd`: the title reads "ANIMALS · BONDED n / cap · GROWTH" and the equip
+  button "EQUIP (ACTIVE n / 3)".
+- **H11** `game/scripts/ui/hunt_hud.gd` `_on_level_up`: "Available Skill Points" is `SkillState.sp_now()`.
+- **H12** `game/tests/t_save.gd` and new `game/tests/fixtures/save_v3_skills_rev2.json` (W1-SAVE): the rev-1
+  goldens load and migrate to the rev-2 expectation (owner-approved save-test fix; moved off the branch in r7).
+- **H13** `game/scripts/dev/skills_lab.gd` (W1-QA): a character level-up pays SP, Till Small Field is bought,
+  the save round-trips; exit 1 on failure.
 - **H6** `game/scripts/core/save_sanitizer.gd` `_skills(sv, pioneer_level)`:
   - The node-purchase budget is the SP the character level paid.
   - For a rev-1 save, the budget is what its tree levels paid under the old award, so the migration never drops
@@ -378,8 +528,9 @@ skills_lab:
   - `sp_available` is clamped to `max(0, character SP - spent)`.
   - The caller passes the clamped `pioneer_level`.
   - `rev` is written back as the number the sanitizer used (r5), so a hand-edited rev cannot split the two readers.
-  - Known gap: a forged rev-1 save can keep nodes up to the old per-tree budget. It still gets 0 extra SP,
-    because SkillState derives SP.
+  - Known gap: a forged save (any rev) can keep tree levels and nodes up to the old per-tree budget and an
+    `sp_extra` up to that award. A rev-2 level clamp would not close it and would strip migrated saves (Review
+    r7); W3-SRVACT's server record does.
 
 Wanted from other packages:
 - W2-PROCESS reads `SkillRules.ability(sk, "handicraft" | "metal_processing")`. That turns Handicraft and
@@ -389,7 +540,6 @@ Wanted from other packages:
 
 ## Assumptions (`# ASSUMPTION` in code or data)
 
-- The occupation's Lv. 20 is exempt from the character-level cap.
 - XP over the cap is dropped once the bar is full.
 - Animal Handling I requires Capture Technique I.
 - SP values marked `sp_assumed`: Stealth II-V, Slaughter I-V, Barrage Damage I-III, Handicraft II-V,
@@ -413,17 +563,30 @@ Wanted from other packages:
    which recipes need cured hide, and docs/reference holds two screenshots (the skill categories and a gather
    radial), no node table.
 
+5. **Does the occupation's Lv. 20 head start pass the character-level cap? (doc conflict, r7)** Spec 03:7: "A
+   category **cannot exceed character level**"; docs/design/skills.md:7: "A skill level never exceeds the
+   character level"; PRD 5.1 (durango-wild-lands-systems-prd.md:327): "Each occupation starts with **skill
+   proficiency 20** in one tree". Built: the occupation tree may sit at 20 from character Lv. 1 (otherwise the
+   head start is worth nothing until character Lv. 20). The other choice is a one-line change in
+   `SkillState.level_cap`.
+6. **Pacing: island travel and capture now wait for the character level (r7).** Survival trains on every gain
+   but now stops at the character level, and character levels cost 100 + 25L XP. The first sail route
+   (`World.route_level`, Survival 10) goes from about 280 gathers to 900; the next route and Capture Technique I
+   (Survival 15) from 570 to 1,838 (t_w2_skills pacing lines above, 2 XP per gather; crafting and kills add XP
+   too). Together with item 4 (cured hide at character Lv. 15), early play slows. Options: keep (spec 03); lower
+   the early character XP curve; or let Survival pass the cap (it "simply tracks play", skills.md:7).
+
 ## Left (not done)
 
 - Research timers (spec 03 table).
 - Career Guides.
 - Attribute service.
-- Server-side recipe gates and node purchases online: CharacterState keeps levels only (W3-SRVACT).
+- For W3-SRVACT, server side: recipe gates and node purchases (CharacterState keeps levels only), the bonded cap
+  on the tame intent, and the character-level cap in `CharacterState.add_xp` (the server copy levels trees past
+  the character level, so server gather yield and melee bonuses would use higher levels than the client shows).
 - Gathering, butchering and tailoring effects of the defined nodes, owned by W2-GATHER, W2-BUTCHER, W2-TAILOR,
   W2-ACTION and W2-CRAFT.
 - Stealth Ability in the AI detection service.
-- skills_lab still prints a level-1 gathering, because the cap holds it at character Lv. 1. The lab only
-  prints and asserts nothing.
 
 No labs to register. No dsc worker was used: the import was a single scripted transform, and per the owner's
 2026-10-20 note dsc is off unless asked.

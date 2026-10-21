@@ -1596,7 +1596,7 @@
           "type": "rate",
           "unlocks": "+10% extra process count",
           "requires": "ceramics",
-          "name": "Great success p",
+          "name": "Great success",
           "auto": false,
           "source": "prd7",
           "effects": [],
