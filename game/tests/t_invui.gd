@@ -373,8 +373,12 @@ func _t11_locking() -> void:
 	var rec: Dictionary = data.recipes.get(&"slingshot", {})
 	var picks: Array = CR.default_picks(inv, rec)
 	_expect(not rec.is_empty() and int(picks[0]) == -1, "11: crafting never picks a locked bone by default")
-	var forced: Array[int] = [i60, -1, -1]
-	_expect(CR.consume_for_craft(inv, rec, forced).is_empty() and inv.slots[i60] != null, "11: a locked bone cannot be consumed even when picked")
+	# W2-INV review 5 lets an explicit API pick spend a locked instance (t_inventory); in game the only
+	# picks come from the picker, which never lists one, so the lock still protects it.
+	if _need(["item_picker"], "11 locked picker"):
+		var pk := _picker(&"slingshot", 0, [])
+		_expect(not (pk.call("candidates") as Array).has(i60) and int(pk.get("_locked")) == 1, "11: the ingredient picker never lists a locked bone and counts it as locked (%s)" % [pk.call("candidates")])
+		pk.queue_free()
 	C["inv_actions"].call("run", &"lock", player, i60, _ctx())
 	_expect(not inv.slots[i60].is_locked(), "11: Lock again unlocks")
 	await _t11_locked_never_spent()
@@ -557,6 +561,17 @@ func _t13_equipment() -> void:
 	_expect(cell.stack != null and cell.stack.uid == ub, "13: the torso cell shows the vest now worn")
 	ch.select_slot(&"body")
 	_expect(ch.primary.visible and ch.primary.text == "Unequip", "13: the worn vest offers Unequip")
+	# Its numbers as key / value rows on the column, every value in full (review r1: centred grey lines;
+	# the first rows clipped every value to nothing).
+	for _f in 3:
+		await process_frame
+	var fb: VBoxContainer = ch.get("facts_box")
+	var cut := []
+	for row in (fb.get_children() if fb else []):
+		var v := (row as HBoxContainer).get_child(1) as Label
+		if v.text != "" and v.size.x + 0.5 < v.get_theme_font("font").get_string_size(v.text, HORIZONTAL_ALIGNMENT_LEFT, -1, v.get_theme_font_size("font_size")).x:
+			cut.append(v.text)
+	_expect(fb != null and fb.visible and fb.get_child_count() >= 3 and not ch.note.visible and cut.is_empty(), "13: the worn vest's numbers are rows with their values in full (rows %d, cut %s)" % [fb.get_child_count() if fb else 0, cut])
 	ch.primary.pressed.emit()
 	_expect(inv.equipped_in(&"body") == null and _find(ub) >= 0, "13: Unequip on Character puts the vest back in the bag")
 	# The held-tool cell: Hold picks the exact pick; Unequip lets go (gathering chooses again).
@@ -1071,7 +1086,8 @@ func _t22_ingame_dock() -> void:
 	var meat := _give(&"raw_meat", 23)
 	player.inventory.slots[meat].process_count = 2
 	var meat_uid := _uid(meat)
-	var bone := _give(&"raptor_bone", 60, {"firm": 8})
+	var bone := _give(&"raptor_bone", 60, {"firm": 8, "low_density": 3, "black_sheen": true})
+	player.inventory.slots[bone].set_flag(&"locked", true) # the lab's bone: four families, three traits, a lock, a colour
 	var bone_uid := _uid(bone)
 	for k in 30: # enough rows to scroll at every canvas
 		_give(&"herb_leaf", 10 + k)
@@ -1136,7 +1152,11 @@ func _t22_ingame_dock() -> void:
 				await process_frame
 			var bc: Control = bs.get("inspect")
 			var want: float = bc.call("content_height")
-			_expect(bc.size.y <= want + 2.0 and bc.size.y < float(bc.get("fit_max_h")) - 40.0, "22: the bone's card ends under its content (%.0f tall, content %.0f, room %.0f)" % [bc.size.y, want, float(bc.get("fit_max_h"))])
+			var room := float(bc.get("fit_max_h"))
+			_expect(bc.size.y <= want + 2.0 and bc.size.y < room - 40.0, "22: the bone's card ends under its content (%.0f tall, content %.0f, room %.0f)" % [bc.size.y, want, room])
+			# ... and holds all of it: the lab's bone card stopped short and scrolled its Info away (r1 shot).
+			var vs := (bc.get("_scroll") as ScrollContainer).get_v_scroll_bar()
+			_expect(bc.size.y >= minf(want, room) - 2.0 and vs.max_value <= vs.page + 1.0, "22: the bone's card holds all its rows without scrolling (%.0f tall, content %.0f, scroll %.0f of %.0f)" % [bc.size.y, want, vs.max_value, vs.page])
 			var fc: GDScript = (C["item_inspect_panel"] as GDScript).get_script_constant_map().get("_FamilyChip")
 			var widths := {}
 			var icons := {}
@@ -1145,6 +1165,7 @@ func _t22_ingame_dock() -> void:
 					widths[roundi((c as Control).custom_minimum_size.x)] = true
 					icons[str(c.get("icon"))] = true
 			_expect(widths.size() == 1 and icons.size() == 4 and not icons.has(""), "22: the bone's four family chips are one width with four distinct white pictograms (widths %s, icons %s)" % [widths.keys(), icons.keys()])
+			player.inventory.slots[_find(bone_uid)].set_flag(&"locked", false) # the trash below discards it
 		holder.queue_free()
 		await process_frame
 	_expect(is_equal_approx(hud_stub.modulate.a, 1.0), "22: the HUD comes back when the Bag goes (alpha %.2f)" % hud_stub.modulate.a)

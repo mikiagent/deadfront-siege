@@ -157,6 +157,18 @@ func rebuild() -> void:
 	elif _screen == &"picker":
 		_picker.grid.refresh()
 
+## What the docked Bag covers of the screen: its panel and, while an item is selected, the card left of
+## it (full height). The HUD keeps its toasts and notices on the world beside it (they ran under the card
+## at 1600x900, review r1); empty when the Bag is not the open screen.
+func covered_rect() -> Rect2:
+	if not is_visible_in_tree() or _screen != &"bag" or _bag == null:
+		return Rect2()
+	var r := _bag.get_global_rect()
+	var left := r.position.x + _bag.dock_rect().position.x
+	if _bag.inspect.visible:
+		left = minf(left, _bag.inspect.get_global_rect().position.x)
+	return Rect2(left, r.position.y, r.end.x - left, r.size.y)
+
 ## Screen-space blocks of the open screen, for the layout labs (ui_real_capture_lab).
 func layout_blocks() -> Dictionary:
 	var out := {}

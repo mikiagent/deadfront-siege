@@ -19,6 +19,10 @@ var primary: Button
 ## Grey lines over the action: the targeted piece's own numbers (spec 13 s14: its properties beside
 ## Unequip), or why there is no action (locked, nothing to equip) or the last refusal.
 var note: Label
+## The targeted piece's numbers as the item card's Info rows: its name, then one fact a row, key left
+## and value right over dashed lines (review r1: centred grey lines read unfinished). `note` keeps the
+## same facts as text (its reasons replace them).
+var facts_box: VBoxContainer
 var slot: StringName = &""
 var _action: StringName = &""
 var _refusal := ""
@@ -51,6 +55,16 @@ func _init() -> void:
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(note)
+	facts_box = VBoxContainer.new()
+	facts_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	facts_box.add_theme_constant_override("separation", 0)
+	facts_box.draw.connect(func() -> void:
+		var rows := facts_box.get_children()
+		for k in range(1, rows.size()): # a dashed line between rows, as the power rows and the card's Info
+			var y := (rows[k] as Control).position.y
+			facts_box.draw_dashed_line(Vector2(0, y), Vector2(facts_box.size.x, y), Color(1, 1, 1, 0.22), 1.0, 4.0))
+	facts_box.sort_children.connect(facts_box.queue_redraw) # the lines follow the rows once they are placed
+	add_child(facts_box)
 	primary = Button.new()
 	primary.focus_mode = Control.FOCUS_NONE
 	primary.clip_text = true
@@ -174,28 +188,63 @@ func _update() -> void:
 	elif why == "" and slot != &"" and list.item_cells().is_empty():
 		why = "There are no items available to equip."
 	note.text = why if why != "" or t == null else describe(t)
+	_fill_facts(t if why == "" else null)
 	_layout()
+
+## The piece's facts, one [key, value] a row ("Armor", "110"; a trait's line has no value).
+static func facts(s: ItemStack) -> Array:
+	var d := s.def()
+	var out: Array = []
+	if s.scaled_damage() > 0.0:
+		out.append(["Damage", "%.0f" % s.scaled_damage()])
+	if s.scaled_armor() > 0.0:
+		out.append(["Armor", "%.0f" % s.scaled_armor()])
+	if d and d.health_bonus > 0.0:
+		out.append(["Max health", "+%.0f" % d.health_bonus_at(s.level)])
+	if d and d.tool_class not in [&"", &"none"]:
+		out.append([str(d.tool_class).capitalize(), "%.2fx" % s.gather_power()])
+	if s.max_durability > 0:
+		out.append(["Durability", "%d / %d" % [s.durability, s.max_durability]])
+	for cls: String in ["positive", "negative", "rare"]:
+		for r: Dictionary in InvAttributes.sections(s)[cls]:
+			out.append([InvAttributes.line(r), ""])
+	return out
 
 ## "Forager Vest Lv. 12" over one fact a line ("Armor 110", "Durability 80 / 100", "Firm Lv. 3"):
 ## joined on one line they wrapped with a separator left hanging at the line's end.
 static func describe(s: ItemStack) -> String:
 	var d := s.def()
 	var bits := PackedStringArray()
-	if s.scaled_damage() > 0.0:
-		bits.append("Damage %.0f" % s.scaled_damage())
-	if s.scaled_armor() > 0.0:
-		bits.append("Armor %.0f" % s.scaled_armor())
-	if d and d.health_bonus > 0.0:
-		bits.append("Max health +%.0f" % d.health_bonus_at(s.level))
-	if d and d.tool_class not in [&"", &"none"]:
-		bits.append("%s %.2fx" % [str(d.tool_class).capitalize(), s.gather_power()])
-	if s.max_durability > 0:
-		bits.append("Durability %d / %d" % [s.durability, s.max_durability])
-	for cls: String in ["positive", "negative", "rare"]:
-		for r: Dictionary in InvAttributes.sections(s)[cls]:
-			bits.append(InvAttributes.line(r))
+	for f: Array in facts(s):
+		bits.append(("%s %s" % f).strip_edges())
 	var title := d.display_name if d and d.display_name != "" else str(s.def_id)
 	return "%s %s\n%s" % [title, LevelDisplay.label(s.level), "\n".join(bits)]
+
+func _fill_facts(s: ItemStack) -> void:
+	for c in facts_box.get_children():
+		facts_box.remove_child(c)
+		c.queue_free()
+	if s == null:
+		return
+	var d := s.def()
+	var rows: Array = [[d.display_name if d and d.display_name != "" else str(s.def_id), LevelDisplay.label(s.level)]]
+	rows.append_array(facts(s))
+	for n in rows.size():
+		var f: Array = rows[n]
+		var row := HBoxContainer.new()
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		for k in 2:
+			var l := Label.new()
+			l.text = str(f[k])
+			if k == 0: # the key gives way; the value keeps its width (clip or trim would give it none)
+				l.clip_text = true
+				l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if k == 0 else HORIZONTAL_ALIGNMENT_RIGHT
+			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL if k == 0 else Control.SIZE_SHRINK_END
+			l.add_theme_color_override("font_color", InvTheme.TEXT if k == 0 or n > 0 else InvTheme.TEXT_2) # the name's level in grey
+			row.add_child(l)
+		facts_box.add_child(row)
 
 func _run() -> void:
 	var t := target()
@@ -240,7 +289,8 @@ func _layout() -> void:
 	list.lv_px = maxi(UiTokens.TYPE_MIN, int(_m.lv_font) - 2)
 	list.new_px = int(_m.new_font)
 	var empty := list.item_cells().is_empty()
-	note.visible = note.text != ""
+	var rows_n := facts_box.get_child_count()
+	note.visible = note.text != "" and rows_n == 0
 	# The note is as tall as its wrapped lines (at most 45 % of the column); the list takes the rest.
 	var inset: float = float(_m.margin) * 2.0
 	InvTheme.set_px(note, int(_m.row_font) - (2 if _m.compact else 0))
@@ -250,6 +300,20 @@ func _layout() -> void:
 	note.max_lines_visible = int(cap)
 	var nh := (minf(float(note.get_line_count()), cap) * line_h + 8.0) if note.visible else 0.0
 	note.size = Vector2(col.size.x - inset * 2.0, nh)
+	if rows_n > 0: # the facts take the note's place, a row each (at most 45 % of the column)
+		var rh: float = _m.row_h
+		var shown := mini(rows_n, int(floorf(col.size.y * 0.45 / rh)))
+		for k in rows_n:
+			var row := facts_box.get_child(k) as HBoxContainer
+			row.visible = k < shown
+			row.custom_minimum_size = Vector2(0, rh)
+			for l: Label in row.get_children():
+				InvTheme.set_px(l, int(_m.row_font) - (2 if _m.compact else 0))
+		nh = shown * rh + float(_m.margin)
+	facts_box.visible = rows_n > 0
+	facts_box.size = Vector2(col.size.x - float(_m.margin) * 2.0, nh - float(_m.margin)) if rows_n > 0 else Vector2.ZERO
+	facts_box.position = Vector2(col.position.x + float(_m.margin), col.end.y - bar - nh)
+	facts_box.queue_redraw()
 	list.position = col.position
 	list.size = Vector2(col.size.x, col.size.y - bar - (nh if not empty else 0.0))
 	list.min_rows = maxi(1, ceili(list.size.y / maxf(1.0, floorf((col.size.x - 2.0) / 3.0))))

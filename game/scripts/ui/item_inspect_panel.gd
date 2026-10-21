@@ -39,6 +39,8 @@ var _buttons: Array[Button] = []
 ## The in-game Bag's card ends under its content (a bone's card left ~170 px empty, review r1), up to
 ## this height; 0 keeps the size the screen gives (storage, the picker).
 var fit_max_h := 0.0
+var _built_w := -1.0
+var _fit_queued := false
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -56,7 +58,16 @@ func _init() -> void:
 	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_box.add_theme_constant_override("separation", 0)
 	_scroll.add_child(_box)
-	resized.connect(_rebuild) # chip widths follow the panel's
+	resized.connect(_on_resized)
+	# A chip row wraps only once the scroll has laid it out at its width: the card re-fits then (the
+	# bone's card measured one row of chips, stopped short and scrolled its Info away, review r1).
+	_box.minimum_size_changed.connect(_queue_fit)
+
+func _on_resized() -> void:
+	if absf(size.x - _built_w) > 0.5:
+		_rebuild() # chip widths follow the panel's
+	else:
+		_layout() # a new height (the fit) moves only the scroll and the pinned actions
 
 func apply_metrics(m: Dictionary) -> void:
 	_m = m
@@ -209,6 +220,7 @@ func _tucked() -> bool:
 func _rebuild() -> void:
 	if _m.is_empty():
 		return
+	_built_w = size.x
 	for c in _box.get_children():
 		_box.remove_child(c)
 		c.queue_free()
@@ -277,8 +289,7 @@ func _rebuild() -> void:
 			add_child(b)
 		_buttons.append(b)
 	_layout()
-	if fit_max_h > 0.0:
-		_fit.call_deferred()
+	_queue_fit()
 
 ## Height the card's content takes: band, card, the scroll's rows, the pinned actions.
 func content_height() -> float:
@@ -288,10 +299,17 @@ func content_height() -> float:
 ## Shrinks (or grows back, up to fit_max_h) to the content once its rows have wrapped.
 func _fit() -> void:
 	if not is_inside_tree() or fit_max_h <= 0.0 or _m.is_empty():
+		_fit_queued = false
 		return
 	await get_tree().process_frame
+	_fit_queued = false
 	if fit_max_h > 0.0:
 		size.y = minf(fit_max_h, ceilf(content_height()))
+
+func _queue_fit() -> void:
+	if fit_max_h > 0.0 and not _fit_queued:
+		_fit_queued = true
+		_fit.call_deferred()
 func _inner_w() -> float:
 	return size.x - float(_m.margin) * 2.0 - 22.0 # the chip row's right margin and the scrollbar
 
