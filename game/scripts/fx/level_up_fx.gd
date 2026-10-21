@@ -111,7 +111,8 @@ func _ready() -> void:
 		if _cfg.has(ring):
 			var plane := PlaneMesh.new()
 			plane.size = Vector2(2.0, 2.0)
-			_part(ring, plane, RING, Vector3(0.0, 0.06, 0.0))
+			# Lifted off the ground: on a bumpy island the terrain cut notches out of a ring laid at 6 cm.
+			_part(ring, plane, RING, Vector3(0.0, float((_cfg[ring] as Dictionary).get("lift", 0.2)), 0.0))
 	for glow in [["rays", RAYS], ["flash", GLOW]]:
 		if _cfg.has(glow[0]):
 			var quad := QuadMesh.new()

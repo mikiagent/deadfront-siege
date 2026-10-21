@@ -154,7 +154,8 @@ func _draw_stack(hud: HuntHud, at: Vector2, t: float, a: float, cfg: Dictionary)
 		ly += float(px) + 8.0
 	return block
 
-## Phone character level-up: the level, LEVEL UP, the title and one stat line in an ink box.
+## Phone character level-up: the level (over a glow kept inside the box), LEVEL UP, the title and
+## one stat line in an ink box.
 func _draw_banner(hud: HuntHud, box: Rect2, t: float, a: float, cfg: Dictionary) -> Rect2:
 	var font := hud._font
 	var gold := LevelUpFx.color_of(cfg, "gold", Color(1.0, 0.85, 0.35))
@@ -163,6 +164,7 @@ func _draw_banner(hud: HuntHud, box: Rect2, t: float, a: float, cfg: Dictionary)
 	var level := LevelDisplay.label(int(current["level"]))
 	var lw := font.get_string_size(level, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
 	var base := box.position + Vector2(12.0, 34.0)
+	_flare(hud, base + Vector2(lw * 0.5, -10.0), Vector2(lw + 140.0, 70.0), t, a, cfg, 34.0, box)
 	var lv_s := _pop(_u(t, 0.0, cfg), 0.2, float(cfg.get("overshoot", 1.24)))
 	_scaled_text(hud, base, level, 28, gold, a * clampf(lv_s * 3.0, 0.0, 1.0), lv_s, base + Vector2(lw * 0.5, -10.0), cfg)
 	var head_s := _pop(_u(t, float(cfg.get("pop_delay_s", 0.12)), cfg), 0.6, 1.1)
