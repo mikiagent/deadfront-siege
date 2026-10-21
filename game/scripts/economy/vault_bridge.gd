@@ -15,6 +15,8 @@ extends RefCounted
 ## Economy ops the transport may relay from a client; client() adds the character intents a
 ## client may send (IntentHandlers.CLIENT_OPS). Everything else is server-only.
 const CLIENT_OPS := MarketEngine.READ + MarketEngine.WRITE + ["vault.deposit", "vault.withdraw"]
+## recover()'s own rids; a client rid there could pre-answer a recovery from the rid cache.
+const RECOVER_RID := "recover-"
 
 var econ: EconStore
 var chars: CharacterStore
@@ -42,6 +44,8 @@ func hello(account: int, name: String, ts: int) -> Dictionary:
 ## may send go to the character store, and anything else (act.deposit, char.receive, char.grant,
 ## bridge.*, objective.claim, ...) is refused and logged, never relayed.
 func client(op: String, account: int, args: Dictionary, ts: int) -> Dictionary:
+	if str(args.get("rid", "")).begins_with(RECOVER_RID):
+		return EconArgs.no("bad_request", "rids starting %s are the server's" % RECOVER_RID)
 	if op in CLIENT_OPS:
 		return apply(op, account, args, ts)
 	if op not in IntentHandlers.CLIENT_OPS:
@@ -185,9 +189,10 @@ func _withdraw(me: int, args: Dictionary, ts: int) -> Dictionary:
 
 func _out_of_vault(me: int, rid: String, uid: String, pet: bool, ts: int) -> Dictionary:
 	var res := econ.apply("vault.withdraw_pet" if pet else "vault.withdraw_item", me, {"rid": rid, "uid": uid}, ts)
-	if not res.ok:
+	var acct := _books().acct(me)
+	if not res.ok or acct.vault_items.has(uid) or acct.vault_pets.has(uid): # a cached answer moves nothing
 		# The character holds it now; nobody may list or sell the vault copy until this finishes.
-		broken = "%s reached the character but is still in the vault (%s)" % [uid, res.get("err", "")]
+		broken = "%s reached the character but is still in the vault (%s)" % [uid, res.get("err", "a stale rid answer")]
 	_after(me, ts)
 	return res
 
@@ -276,7 +281,8 @@ func recover(ts: int) -> String:
 		for key: String in books.s.accounts:
 			var acct: Dictionary = books.s.accounts[key]
 			if acct.vault_items.has(uid) or acct.vault_pets.has(uid):
-				_out_of_vault(int(key), "recover-" + uid, uid, acct.vault_pets.has(uid), ts)
+				# One rid per recovery: a withdrawn item keeps its uid, so the same uid can need this again.
+				_out_of_vault(int(key), "%s%s-%d" % [RECOVER_RID, uid, int(books.s.seq)], uid, acct.vault_pets.has(uid), ts)
 				break
 	_settle(0, ts)
 	for key: String in chars.s.chars:

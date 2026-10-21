@@ -18,7 +18,7 @@ var _world: WorldFacade
 var _rules: EconRules
 
 func run() -> Array[String]:
-	for test: Callable in [_test_deposit, _test_refusals, _test_client_gate, _test_sales, _test_processed, _test_pets_and_cages, _test_bonded_cap, _test_crash_recovery, _test_strays, _test_recover_any_time, _test_fuzz]:
+	for test: Callable in [_test_deposit, _test_refusals, _test_client_gate, _test_sales, _test_processed, _test_pets_and_cages, _test_bonded_cap, _test_crash_recovery, _test_strays, _test_recover_any_time, _test_same_uid_twice, _test_fuzz]:
 		if test.call() != true:
 			failures.append("%s stopped early (script error)" % test.get_method())
 	return failures
@@ -324,7 +324,13 @@ func _test_client_gate() -> bool:
 	var dep := _op(b, "vault.deposit", 1, {"bag_slot": slot, "count": 2})
 	var gathered := _client(b, "act.gather", 1, {"node_id": "rock", "option": 0})
 	_expect(dep.ok and gathered.ok, "vault.deposit and the act.* intents still relay (%s, %s)" % [dep.get("err", "ok"), gathered.get("err", "ok")])
-	print("[econ-bridge] gate refused=%s logged=%d deposit_via_vault=%s gather=%s" % [",".join(codes), logged, dep.ok, gathered.ok])
+	# Review r4 m1: server-side, char.grant cannot mint: never more units than are out, never a pet.
+	h = _hash(b)
+	var out_now := int(b.chars.s.exported.get(SPLIT, 0))
+	var mint := b.chars.apply("char.grant", 1, {"asset": {"id": SPLIT, "count": out_now + 1, "origin": "gather"}, "rid": "g-mint"}, T0)
+	var pet := b.chars.apply("char.grant", 1, {"asset": {"uid": "p1.0", "id": "compsognathus", "count": 1}, "rid": "g-pet"}, T0)
+	_expect(mint.get("err") == "invalid_asset" and pet.get("err") in ["bad_request", "invalid_asset"] and _hash(b) == h and _broken(b).is_empty(), "char.grant of %d %s with %d out, or of a pet, is refused and changes neither store (%s, %s)" % [out_now + 1, SPLIT, out_now, mint.get("err", "ok"), pet.get("err", "ok")])
+	print("[econ-bridge] gate refused=%s logged=%d deposit_via_vault=%s gather=%s grant_over_out=%s grant_pet=%s" % [",".join(codes), logged, dep.ok, gathered.ok, mint.get("err", "ok"), pet.get("err", "ok")])
 	return true
 
 ## Review r3 major: every asset the books split can leave the vault through char.grant: a
@@ -592,6 +598,48 @@ func _test_recover_any_time() -> bool:
 	var stranded: Array = b.chars.s.exported_assets.keys().filter(func (u: String) -> bool: return not b.econ.engine.state().src.has(u))
 	_expect(not both.ok and stranded.is_empty() and _vault(b, 1).has(str(next.get("uid", ""))) and _broken(b).is_empty(), "an asset both stores refused is in the vault before the next deposit runs: stranded %s, %s" % [str(stranded), ", ".join(_broken(b))])
 	print("[econ-bridge] anytime fault_after_receive=%s stuck_listing=%s healed=%s double_refusal_then=%s" % [once.get("err", "ok"), listed.get("err", "ok"), heal.ok, "landed" if stranded.is_empty() else "stranded"])
+	return true
+
+## Review r4 blocker: a withdrawn item comes home under its own uid, so one uid can be cut
+## between char.receive and the vault more than once. Each recovery must really take it out of
+## the vault: twice after a crash, twice after an engine fault, and after a client tried the
+## server's recovery rids itself.
+func _test_same_uid_twice() -> bool:
+	var got := {}
+	for how in ["crash", "fault", "seeded"]:
+		var b := _rig("twice-" + how, 0, how == "fault")
+		_gather(b, 1, "crate", 0, SPLIT, 12)
+		var uid := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT)}).uid) # the whole row: it comes back as its own row
+		var codes: PackedStringArray = []
+		if how == "seeded":
+			for rid: String in ["recover-" + uid, "recover-%s-%d" % [uid, int(b.econ.engine.state().seq)]]:
+				var seed := _client(b, "vault.withdraw", 1, {"uid": uid, "rid": rid})
+				codes.append(str(seed.get("err", "ok")))
+				if seed.get("ok", false): # a build without the guard: the client's withdrawal went through, so put it back
+					_ok(b, "vault.deposit", 1, {"bag_slot": b.chars.character(1).find_uid(uid)})
+		for cut in 2:
+			if cut == 1 or how == "seeded":
+				if not _vault(b, 1).has(uid):
+					var again := _ok(b, "vault.deposit", 1, {"bag_slot": b.chars.character(1).find_uid(uid)})
+					_expect(str(again.get("uid", "")) == uid, "%s: the instance goes back under its own uid (%s)" % [how, again.get("uid", "")])
+			if how == "fault":
+				var flaky := b.econ.engine as FlakyEngine
+				flaky.target = uid
+				flaky.fail["vault.withdraw_item"] = 1
+				b.apply("vault.withdraw", 1, {"uid": uid, "rid": "twice-w%d" % cut}, T0)
+			else:
+				b.chars.apply("char.receive", 1, {"asset": _vault(b, 1)[uid]}, T0)
+				b = _restart(b, T0 + 1 + cut)
+			var bad := _broken(b)
+			_expect(not _vault(b, 1).has(uid) and b.chars.character(1).find_uid(uid) >= 0 and bad.is_empty(), "%s %d: the withdrawn %s is in the bag and no longer in the vault: in_vault=%s %s" % [how, cut + 1, uid, _vault(b, 1).has(uid), ", ".join(bad)])
+			if how == "seeded":
+				break
+		if how == "seeded":
+			_expect(Array(codes).all(func (c: String) -> bool: return c == "bad_request"), "a client rid in the server's recover- space is refused: %s" % ",".join(codes))
+			got[how] = ",".join(codes)
+		else:
+			got[how] = "in_vault=%s" % _vault(b, 1).has(uid)
+	print("[econ-bridge] same uid twice crash=%s fault=%s seeded_rids=%s" % [got.get("crash"), got.get("fault"), got.get("seeded")])
 	return true
 
 ## Seeded random traffic through the client relay (and some cut-in-half moves with a restart),
