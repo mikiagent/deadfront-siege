@@ -118,7 +118,8 @@ why a 20-coin wallet cannot buy. Counters refresh after every write (the respons
   `tamed_animal`, dark circle "B" badge, gold species display name, type line = species; level = PetDict level; durability "—".
   Captured cages (`id == captured_animal`): icon `captured_animal`, gold "Captured <Species>" from `attributes.species`, type
   line = species, durability "—" (the validator refuses durability on cages). Own listings show "yours" and no Buy.
-- Tap a row → detail + confirm (§3.4). Pager: "‹  2 / 25  ›" (targets ≥ 44 px); the table reloads the page from the server.
+- Tap a row → detail + confirm (§3.4). (B4, §14: no pager; the list asks the server for the next page as it scrolls near
+  its end and appends it, like the references.)
 
 ### 3.3 Sell
 - Picker: `char.get` → the server character's bag rows (one cell per stack/instance, ItemArt icon, level, count) and bonded
@@ -214,8 +215,8 @@ land the UI degrades honestly (no arrows for missing sorts; no categories in the
 - **B2 Sell**: sell_view, MarketFormat preview, lab screen sell (H3 dropped, §12).
 - **B3 My Market + Receive All** (done, §13): market_mine.gd, MarketConfirm cancel mode, lab screens my_market,
   my_market_sold, my_market_history, my_market_cancel, my_market_received.
-- **B4 polish**: responsive at 1600x900, 1920x1080, 844x390, 667x375 (safe area), 500-listing performance (harness seeds 500
-  listings by real ops; paging), focus/keyboard/gamepad (ui_cancel, focus_first), report.
+- **B4 polish** (done, §14): responsive at 1600x900, 1920x1080, 844x390, 667x375 (safe area), 500-listing performance (harness
+  seeds 500 listings by real ops; the list appends server pages as it scrolls), drag / wheel / keyboard / gamepad, report.
 
 ## 8. Gates (measurable; t_exchange and the lab check them)
 
@@ -240,7 +241,8 @@ Behaviour (t_exchange, through MarketClient → VaultBridge.client):
    moves nothing), price outside 1..max refused by the server, outside the band warned (not refused, §12), denied def (tamed_animal) shown disabled.
 10. Offline: no client → offline panel, 0 rows, 0 Buy/Sell/Receive buttons, 0 ops sent.
 11. Menu: HUD MENU sheet → "Island Market" button → MarketScreen visible (lab presses the real button).
-12. Performance: 500 listings (harness, real ops) page 1→25 with each page built in < 8 ms and no frame > 33 ms in the lab.
+12. Performance: 500 listings (harness, real ops) scrolled from the top to the end (pages 1→25 appended as the list asks) with
+    each page built in < 8 ms and no frame > 33 ms in the lab.
 13. Shots looked at next to the references: buy, buy_taming, sell, my_market, confirm, offline at 1600x900 gl_compatibility
     (judge), 1600x900 Forward+, 844x390 gl_compatibility; 0 SCRIPT ERROR lines; no new Godot .ips.
 14. `t_exchange` prints 0 `PENDING` lines at B4.
@@ -368,4 +370,44 @@ MarketHarness `fill_bag`. No new hook: everything goes through ops already in `V
   (A5). The header's wallet is re-read when My Market opens (sales credit while the screen is closed).
 - **Harness**: `fill_bag` loots single knives from a "pile" corpse until the server says `bag_full` (plain materials
   stack to 999 per slot, ItemDef.from_dict, so gathering would need ~20,000 units to fill a bag).
+
+## 14. B4 as built (2026-10-20): polish, responsive, input, 500 listings
+
+Base sync first: `claude/mmo-econ` moved to 031e0efa (ECON r5); merged (983bf9e0) and ECON's changed `intent_handlers.gd` hunk
+re-applied (75cadf2c; the file hashes to the patch's ca9224c5). ECON r5 makes a listing fee a sink that **bound T-stones pay
+first**, so Sell now checks the whole wallet against the fee ("The listing fee is N T-stones; you have M."), and a refused list
+step after the deposit says "Not enough T-stones for the listing fee." (ccec4775). Buys stay tradable-only.
+
+New file: `market_drag_scroll.gd` MarketDragScroll (every market list: Buy rows, the category column, Sell's picker, My Market).
+- **Scroll**: rows are `MOUSE_FILTER_PASS` buttons, so a press reaches the list too; past 10 px it drags the list (finger or
+  mouse) and the row under the finger does not fire on release (`tap_ok()`, asked by the row's handler before the list sees
+  the release). The wheel scrolls as before. Godot's own drag-scroll needs a touchscreen and never saw a press a STOP button
+  took: before B4 a phone could not scroll a list made of rows. `follow_focus` keeps a focused row in view.
+- **Buy appends server pages** (no pager, like the references): near the end (two rows left) the table asks `market.search` for
+  the next page and appends it, skipping a listing already shown (a sale or a new listing between two requests shifts the
+  server's offset pages). A bought or vanished row leaves the list (`MarketBuy.drop`) and the last loaded page is asked again,
+  which appends the listing that moved up, so nothing is skipped. A failed next page keeps what is shown. Sorting, filters and
+  search still reload page 1; nothing is sorted or filtered here. My Market's Sold / Expired keep their small pager.
+- **Keys and gamepads** (`MarketScreen.keys` = the last input was a key or a pad): with nothing focused, the first arrow, Tab or
+  d-pad press lands on the shown tab's first row (Sell: first cell, My Market: its sub-tab, offline: X); Enter / A opens the
+  focused listing with its safe button focused (Close, Keep listing); Escape / B closes the panel first and focus returns to
+  the row, then closes the screen. A touch or click moves no focus (Godot 4.7 hides pointer focus on buttons).
+- **Safe areas**: the header band spans the screen, back / title / pills / X keep inside the side insets; the body, the confirm
+  and the search sheet centre in the safe rect. `MarketScreen.test_insets` (labs, tests) stands in for a phone's insets.
+- **44 pt targets on every phone**: DisplayMode draws the narrowest landscape phones (667x375) on an 804 px canvas (0.83 scale),
+  so a 44 px target was 36 pt. `MarketTheme.metrics(view, px_per_pt, usable_w)` gives `tmin` = 44 pt in canvas px (53 at
+  667x375, 44 elsewhere) and every market target uses it; text keeps the project's floor (12 px = 10 pt there, DisplayMode's
+  ASSUMPTION). The rail and the category column share out the safe width, not the window's.
+- **Columns fit their words**: Level / Durability / Price take 14 / 18 / 18 % or what the full header word with its arrows (and
+  Price's "1,000,000") needs; the name takes the rest and is the one cut (with "…"; the confirm shows it whole).
+- **Sell panel**: Quantity and Price sit in an HFlowContainer and the tab gives the panel `one_line_width()` when it can (the
+  picker keeps 40 %); on a phone the facts run on as at most two lines ("Bonded pet" is the B disc in the name band); the
+  preview rows overlap the empty band the font's emoji fallback adds to one-line labels (~2.1x the size), so the fee / tax /
+  proceeds show above List for every instance at every size (the lab checks each one).
+- **Desktop**: pointing-hand cursor on every market button.
+- **Harness / lab / test**: `MarketHarness.seed_bulk(n)` lists n more single units from fresh accounts 100.. by real ops (gather,
+  deposit, list at 1-20 T-stones: the minimum fee, paid from the starting bound T-stones; 20 a seller). Lab screens `buy_500`
+  (flings the list from top to end at 120 px a frame and prints frame and page-build times) and `sell_tool`; `--insets=L,R,B`;
+  measure lines for targets in points, the safe area, cut header words and names, and every Sell preview. t_exchange's PENDING
+  line is gone (gate 14).
 

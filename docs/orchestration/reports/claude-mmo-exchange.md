@@ -261,11 +261,117 @@ Lab (`market_ui_lab`, new screens `my_market_sold`, `my_market_history`, `my_mar
 - Left as is: History rows read `Lv. —` (a trade record keeps no level); the bought/sold icons for pets and cages are the
   same placeholder art until ICONS2's renders merge.
 
-## For the next agent (B4 polish)
+## B4: polish, responsive layouts, input, 500 listings (done, ccec4775 + 209fcebe + 6fc138df + b8f39260 + docs commit)
 
-- B4 is the last PENDING line: responsive checks at 1600x900, 1920x1080, 844x390 and 667x375 (safe area), 500 listings
-  seeded by real ops with paging (< 8 ms a page, no frame > 33 ms), focus / keyboard / gamepad (ui_cancel closes the
-  cancel panel first, focus_first), then delete the PENDING line.
+Base sync: ECON is still not merged into `claude/mmo-overhaul`. `claude/mmo-econ` moved to 031e0efa (ECON r5) and was merged
+(983bf9e0); ECON's hooks patch changed its `intent_handlers.gd` hunk (roster cap moved to VaultBridge, a grant part keeps
+creator/created_at), re-applied in 75cadf2c (the file hashes to the patch's ca9224c5). r5 makes a listing fee a sink that
+bound T-stones pay first, so Sell now checks the whole wallet against the fee (ccec4775); buys stay tradable-only.
+
+Shipped (spec §14 has the detail):
+- **Scrolling lists** (`market_drag_scroll.gd`, new): every market list (Buy rows, the category column, Sell's picker, My
+  Market) drags with a finger or the mouse; the row under the finger does not fire after a drag; the wheel works; focus is
+  followed. Before B4 a phone could not scroll any list made of rows (Godot's own drag-scroll needs a touchscreen and never
+  sees a press a STOP button took).
+- **Buy scrolls through the whole market** (no pager, like the references): near the end the list asks the server for the
+  next page and appends it, a listing already shown is skipped; a bought or vanished row leaves and the last page is asked
+  again, so nothing is skipped either.
+- **Keys and gamepads**: with nothing focused the first arrow / Tab / d-pad lands on the first row; Enter opens the listing
+  with Close (or Keep listing) focused; Escape closes the panel first and focus returns to the row, then the screen.
+- **Safe areas**: header buttons and pills, body, confirm and search sheet keep inside the insets; the band spans the screen.
+- **44 pt targets on every phone**: 667x375 is drawn on DisplayMode's 804 px canvas, so 44 px was 36 pt; the market's
+  targets are 53 px there (44 pt). Level / Durability / Price take their share or what their full word needs; the name is
+  the one cut. Sell keeps Quantity and Price on one line and its fee / tax / proceeds preview above List for every instance.
+- `MarketHarness.seed_bulk`, lab screens `buy_500` and `sell_tool`, `--insets=L,R,B`, new measure lines; t_exchange's last
+  PENDING line is gone.
+
+Changed against the design, each checked against the docs: Buy's pager is gone (the references have none; spec gate 12 now
+reads "scrolled to the end"); My Market's Sold / Expired keep their small pager. Targets are 44 **pt**, not 44 canvas px
+(GAUNTLET's rule is about the glass; type keeps DisplayMode's 10 pt floor at 667x375, its own # ASSUMPTION).
+
+Hooks patch: unchanged (H0-H2; B4 needs nothing outside the package). It applies to b8f39260: the final hooks tree was built
+from it with `mkscratch.sh exch-b4h b8f39260 <patch>` ("Applied patch to ... cleanly" for both files).
+
+### Checks run (B4)
+
+New t_exchange checks (all through `MarketClient -> VaultBridge.client`):
+- 500 listings seeded by real ops: page 1 shows 20 rows and no pager; scrolled to its end the list is
+  `market.search`'s 500 uids in the server's order (10 pages of 50 compared), each once; every page built in < 8 ms.
+  Quote: `[t_exchange] 500 listings: 500 rows in the server's order over 25 pages, build max 1.96 ms; drag 150 px opened
+  nothing; keys row 1 -> row 2 -> listing -> back`.
+- A drag of 150 px over a row scrolls the list by 150 and opens nothing; a tap afterwards opens its listing; Down with nothing
+  focused focuses row 1, Down row 2, Enter opens row 2 with Close focused, Escape closes it and row 2 has focus again.
+- Safe area: with 47/47/21 px insets every visible target is inside the safe rect and the header band spans the screen.
+- Sell under ECON r5: bound-only coins enable List (`a bound-only seller lists: fee N paid from bound`, bound 20 -> 20 - fee),
+  a fee over the wallet disables it with "The listing fee is N T-stones; you have 20.", a stale balance still ends safe in
+  storage ("Not enough T-stones for the listing fee. ...").
+- The sorts-across-pages check now reads the appended list (same order and uid set as the server's).
+- Mutation run: the new t_exchange against the pre-B4 market files (git stash of `game/scripts/ui/market/`) ->
+  `[t_exchange] FAIL count=12`, e.g. `FAIL page 1 shows 20 rows and no pager`, `FAIL scrolled to its end the list is the
+  server's 500 listings in order (20 rows, 500 wanted, pages 1)`, `FAIL a drag over the rows scrolls them (0 px) and opens
+  nothing`, `FAIL an arrow with nothing focused lands on the first row (PagePrev...)`, `FAIL with 47/47/21 px insets every
+  target is inside the safe area ... MarketBack [P: (16.0, 17.0) ...`; restored, `[t_exchange] PASS`.
+
+Gates at b8f39260, run one tree after the other (branch = no hooks; hooks tree = `scratchpad/trees/exch-b4h`, b8f39260 + the
+hooks patch, imported once):
+- every `game/tests/t_*.gd`, both trees: 21 x PASS, rc 0; `t_save` 5 SCRIPT ERRORs (deliberate, as on base), all others 0
+  (incl. `[t_econ] PASS`, `[t_ui] PASS`, `[t_exchange] PASS`).
+- `t_exchange`: branch `[t_exchange] PASS` with `HOOK H0/H1/H2 absent` lines and 0 PENDING lines; hooks tree
+  `-- --require-hooks` `[t_exchange] PASS` (`sorts checked across pages: price_asc, price_desc, level_desc, level_asc,
+  durability_asc, durability_desc`, `categories: Animals 4 rows, clades 11`, `menu: HUD MENU -> Island Market ->
+  MarketScreen visible=true`, the 500-listing line with `build max 1.75 ms`).
+- `run_all.gd` both: `[tests] PASS` (its SCRIPT ERROR lines follow `[econ] fault test: the next SCRIPT ERROR and ERROR lines
+  are deliberate`). `tools/smoke.sh --no-import` both: `SMOKE PASS`.
+- An earlier gate run (6fc138df, both trees at once while lab shots ran, load average 11-13) had `[t_save] FAIL count=2` in
+  each tree, different checks each time (hostile save cases; full cargo kept rows). `t_save` alone then passed in both trees
+  (`[t_save] PASS`, 5 SCRIPT ERRORs), and so did both final sequential runs: load-dependent, not market code.
+- No new Godot .ips: 34 before the final runs (newest `Godot-2026-10-20-202004.ips`), 33 after (macOS pruned the 2026-10-13
+  report), newest unchanged.
+
+Lab (`market_ui_lab`, hooks tree, every run opened by pressing the HUD menu's Island Market button: `[market_lab] menu:
+pressing the HUD's Island Market button` x65): 68 runs, rc 0, 0 SCRIPT ERROR each. Every screen (menu, buy, buy_search,
+buy_taming, confirm, sell, sell_pet, sell_tool, sell_none, five My Market screens, offline) at 1600x900 gl_compatibility,
+844x390 and 667x375; buy, buy_taming, confirm, sell, my_market at 1920x1080 and 1600x900 Forward+; ten screens at 844x390
+with 47/47/21 px insets; buy_500 three times. In every run: `targets_under_44=0` (in points), `clipped_labels=0`,
+`outside_safe=0`, `plus_buttons=0`, `heads_cut=0`; Sell's every instance `hidden_under_list=0`. Names cut: only "Captured
+Compsognathus" at 844x390 under a notch with the category column open (table 422 px; ellipsized, the confirm shows it whole).
+- Points: `window=(668.0, 376.0) pt canvas=(804.0, 453.0) target_min=53px (44 pt) type_min=10.0pt`, `window=(844.0, 390.0)
+  ... target_min=44px`, `window=(1920.0, 1080.0) pt canvas=(1600.0, 900.0) ... type_min=14.4pt`.
+- 500 listings (gate 12): `buy_500_glc_1600: listings=500 rows=500 unique=500 pages=25 build_max=1.58ms frames=504 in 4.6s
+  frame_max=26.7ms over33=0`; Forward+ `build_max=1.38ms ... frame_max=12.6ms over33=0`; 844x390 `build_max=1.35ms
+  frames=199 in 1.7s frame_max=18.5ms over33=0`. Seeding 490 listings by real ops took ~240 ms.
+- Menu at all three sizes: `rows=Bag, Craft, Map, Island Market, Save, Debug info: OFF scrolls=false`.
+- Shots looked at next to both references (scratchpad `ex4/final2/shots`, and the fix rounds `ex4/s2`-`s8`): buy, buy_taming,
+  buy_search, confirm, sell, sell_tool, my_market, my_market_received, buy_500 at 1600x900 gl_compatibility; buy, buy_taming,
+  sell at 1920x1080; buy at 1600x900 Forward+; buy_taming, buy_search, sell, sell_pet, sell_tool, confirm at 844x390 with
+  the notch insets; buy, buy_taming, buy_search, confirm, sell, sell_pet, my_market, my_market_history, my_market_received,
+  offline at 667x375; menu and my_market_cancel at 844x390. Matched: torn-edged black header with back, white island name,
+  the T-stone pill and X; rail with the bracketed yellow active tab; textured weathered panels; gold names over grey types;
+  "Lv. n", cur/max, coin prices; dotted separators; "Item Name/Type" and the sort arrows with the yellow active Price; the
+  category column with the gold-gradient selected row and its yellow chevron; the B disc on the bonded pet. Fixed after
+  looking: Sell's panel ran off the right edge at 667x375 and under a notch (the price's up chevron cut off), the Sell
+  preview sat under List on phones (every instance under a notch) and on the desktop for the knife, Durability was cut to
+  "Durabil…" under a notch with the category column open, the 667x375 duration chips were 52 px under the 53 px target.
+- Left as is: the cage and carrier art are ICONS2's placeholders (the B disc and "Captured …" tell them apart); a cage or
+  pet shows "—" for durability where the reference shows 100/100 (the validator refuses durability on cages; nothing is
+  invented); type at 667x375 is DisplayMode's 10 pt floor.
+
+Incident (my error, reported for the owner): mid-way through the final chain a cleanup outside this run removed the scratch
+hooks trees under `scratchpad/trees/` (exch-hooks among them). My gate and shot scripts did not check their `cd`, so a
+failed `--script res://tests/t_*.gd` run, `run_all.gd`, `tools/smoke.sh --no-import` and a few market-lab boots ran in the
+session's working directory, the owner's checkout `/Users/milankinzy/Documents/deadfront-siege` (22:44-22:46), whose `game/`
+has no override.cfg, so they used the default user dir `~/Library/Application Support/Godot/app_userdata/Durango-like
+(working title)`. I stopped them within two minutes. Read-only check afterwards: `save_1.json` (2026-10-18 02:34),
+`save_1.json.bak` and `bot_save.json` unchanged, nothing in the checkout outside `.git` changed (find -newermt), no runs/
+folder left; Godot's log rotation (5 files) in that user dir's `logs/` dropped whatever older logs were there. Other runs
+keep writing there too (a 23:06 log in it opens `res://tests/t_domain.gd`, which is not mine). Nothing else was done in
+those folders. The scripts now refuse to run without the tree and its `game/override.cfg`; the hooks tree was rebuilt
+as `exch-b4h` and every hooks-tree number above comes from it.
+
+## For the next agent
+
+- W3-EXCHANGE's build steps are done (B1-B4, 0 PENDING). What is left is merge work: ECON merges first; then H1/H2 go to
+  ECON (market_query.gd) and H0 to the integrator (hunt_hud.gd's menu), from `claude-mmo-exchange-hooks.patch`.
 - My Market re-reads on open, after a cancel and after Receive All; when W1-INT pushes inbox events over the socket, call
   `ms.mine.reload()` on a pushed sold / expired event while the tab is shown (spec §10).
 - INVUI's components are on claude/mmo-invui over W2-INV's Inventory; swap the `# swap: INVUI ...` parts when both reach
@@ -276,6 +382,8 @@ Lab (`market_ui_lab`, new screens `my_market_sold`, `my_market_history`, `my_mar
   `release()` for its static Loggers; H1/H2 change ECON's search code while ECON is still being fixed, so the patch may
   need a rebase at merge; `market.mine` returns every open listing and up to 100 trades with full asset dicts and can
   still exceed NET's 64 KiB frame (H4 note for W1-INT/ECON: page `listings` and `trades`); NetMarketClient's "ends in" uses
-  the device clock.
+  the device clock; offset paging can still skip a listing another player sells while you scroll (the server has no
+  cursor; ECON could add one); drag-scrolling was proven with mouse events headless and in the lab, not on a touchscreen
+  (the touch path is Godot's touch-to-mouse emulation, on by default).
 
 Credits spent: none. Meshy/Tripo not used.
