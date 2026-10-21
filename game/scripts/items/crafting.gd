@@ -250,6 +250,11 @@ static func station_nearby(player: Player, rec: Dictionary) -> bool:
 
 ## Optional endgame gates. Existing recipes are unchanged.
 static func progression_block(player: Player, rec: Dictionary) -> String:
+	var node := str(rec.get("requires_node", ""))
+	if node != "":
+		var learn := _node_block(player, node)
+		if learn != "":
+			return learn
 	var survival := int(rec.get("required_survival", 0))
 	if survival > 0 and (player == null or player.skills == null or player.skills.level_of("survival") < survival):
 		return "needs Survival %d" % survival
@@ -261,6 +266,18 @@ static func progression_block(player: Player, rec: Dictionary) -> String:
 		if levels.is_empty() or crafted_level_for(rec, levels, player) < minimum:
 			return "needs materials and crafting skill for level %d" % minimum
 	return ""
+
+## "" once the trees.json node is learned, else "needs Smelting 1 (Processing 25)": the node, its tree and
+## level, so the player knows which tree to raise. Node ids are unique across trees (t_data checks it).
+static func _node_block(player: Player, node_id: String) -> String:
+	if player != null and player.skills != null:
+		for tree in player.skills.defs:
+			for n in player.skills.nodes(str(tree)):
+				if n is Dictionary and str((n as Dictionary).get("id", "")) == node_id:
+					if player.skills.is_unlocked(str(tree), node_id):
+						return ""
+					return "needs %s (%s %d)" % [str((n as Dictionary).get("name", node_id.capitalize())), SkillState.NAMES.get(str(tree), str(tree)), int((n as Dictionary).get("level", 1))]
+	return "needs %s" % node_id.capitalize()
 
 static func can_make(player: Player, rec: Dictionary, picks: Array[int]) -> bool:
 	if rec.is_empty():
@@ -398,6 +415,8 @@ static func sample_def_for_category(inv: Inventory, cat: StringName) -> StringNa
 			return &"fibre_stalk"
 		"bucket":
 			return &"empty_bucket"
+		"cured_hide":
+			return &"dried_hide"
 		_:
 			return cat
 
@@ -462,6 +481,8 @@ static func _category_hint(cat: StringName) -> String:
 			return "stone"
 		"lashing":
 			return "twine"
+		"cured_hide": # dried hide or straps; raw hide is dried first (PRD 8.3)
+			return "dried_hide"
 		"water":
 			return "water_bucket"
 		"spice":
