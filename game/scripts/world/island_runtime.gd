@@ -51,6 +51,12 @@ var _tree_discs: MultiMeshInstance3D
 var _tree_disc_xforms: Array[Transform3D] = []
 var _batches: Array[VegBatch] = []
 var claims: Array[Rect2i] = []
+## CLAIMS2: fired with each newly staked plot, after its grass is cleared (GROUND2D clears its
+## painted ground cover here; the HUD redraws its used/limit line).
+signal claims_changed(rect: Rect2i)
+## CLAIMS2: the grass decor multimeshes IslandScatter made (Grass, Grass_Short), so a claim can drop
+## the instances inside it. Never models: those are shared with the resource families.
+var grass_mm: Array[MultiMeshInstance3D] = []
 ## Other players' land here: {"rect": Rect2i, "owner": {"id", "name"}}; only IslandClaims.set_others writes it.
 var other_claims: Array[Dictionary] = []
 var _claim_mesh: MeshInstance3D
@@ -389,21 +395,41 @@ func apply_harvest_tile_snapshot(snap: Dictionary) -> void:
 func is_claimed(tile: Vector2i) -> bool:
 	return IslandClaims.is_claimed(self, tile)
 
-## Claim a 14x14 plot centred on the tile; returns false when its centre is not dry land or the plot
-## would take a tile another player holds.
-func claim_at(tile: Vector2i, size: int = 14) -> bool:
+## Stake the candidate grid cell the tile stands in (IslandClaims.claim_at): false when it stands in
+## none, or the cell is water or another survivor's land.
+func claim_at(tile: Vector2i, size: int = IslandClaims.PLOT) -> bool:
 	return IslandClaims.claim_at(self, tile, size)
 
-## The plot a claim at `tile` would take (IslandClaims.plot_at).
-func claim_plot(tile: Vector2i, size: int = 14) -> Rect2i:
-	return IslandClaims.plot_at(tile, size)
+## The plot a claim at `tile` would take: the candidate grid cell it stands in, or the centred plot
+## before any land is held (IslandClaims.plot_for). Rect2i() when it stands in no candidate cell.
+func claim_plot(tile: Vector2i, size: int = IslandClaims.PLOT) -> Rect2i:
+	return IslandClaims.plot_for(self, tile)
+
+## The free orthogonal grid cells a claim could take now (IslandClaims.candidates) - the panel's ghosts.
+func claim_candidates() -> Array[Vector2i]:
+	return IslandClaims.candidates(self)
+
+## The grid cell (IslandClaims.NO_CELL when none) the survivor's tile stands in.
+func claim_candidate_at(tile: Vector2i) -> Vector2i:
+	return IslandClaims.candidate_of(self, tile)
+
+## Plots held / plots allowed here (IslandClaims.used / limit).
+func claim_used() -> int:
+	return IslandClaims.used(self)
+
+func claim_limit() -> int:
+	return IslandClaims.limit(self)
+
+## Why this island refuses more land ("" below the cap): the limit notice IslandClaims.limit_reason.
+func claim_limit_reason() -> String:
+	return IslandClaims.limit_reason(self)
 
 ## Why a claim at `tile` would be refused, "" when it would be staked (IslandClaims.block_reason).
-func claim_block_reason(tile: Vector2i, size: int = 14) -> String:
+func claim_block_reason(tile: Vector2i, size: int = IslandClaims.PLOT) -> String:
 	return IslandClaims.block_reason(self, tile, size)
 
 ## Why a claim at `tile` would not expand the land held here, "" when it would (IslandClaims.expand_reason).
-func claim_expand_reason(tile: Vector2i, size: int = 14) -> String:
+func claim_expand_reason(tile: Vector2i, size: int = IslandClaims.PLOT) -> String:
 	return IslandClaims.expand_reason(self, tile, size)
 
 ## Whose land the tile is, {} when nobody's (IslandClaims.owner_at).

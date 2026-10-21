@@ -104,6 +104,8 @@ static func _plant_family(rt: IslandRuntime, family: String, role: String, n: in
 			var tile := BuildGrid.tile_of(pos)
 			if rt._used_tiles.has(tile):
 				continue
+			if IslandClaims.is_grass(fam) and rt.is_claimed(tile):
+				continue  # CLAIMS2: claimed land is bare (no grass, no wild grass tufts)
 			if Data.nature_families.get(fam, {}).has("depleted_models"):
 				var crowded := false
 				var centre_pos := BuildGrid.tile_centre(tile, rt)
@@ -290,6 +292,8 @@ static func _multimesh_family(rt: IslandRuntime, family: String, n: int, size: f
 			continue
 		if (family == "Grass" or family == "Flowers") and IslandTerrain.slope_deg(rt, ox, oz) > 35.0:
 			continue
+		if IslandClaims.is_grass(family) and rt.is_claimed(BuildGrid.tile_of(Vector3(ox, y, oz))):
+			continue  # CLAIMS2: claimed land is bare
 		var t := Transform3D.IDENTITY
 		t.origin = Vector3(ox, y, oz)
 		t.basis = _basis_from_normal(IslandTerrain.normal_at(rt, ox, oz), rng.randf() * TAU)
@@ -312,6 +316,8 @@ static func _multimesh_family(rt: IslandRuntime, family: String, n: int, size: f
 		mmi.material_override = rt._foliage_mat
 	rt.add_child(mmi)
 	rt.mm_count += 1
+	if IslandClaims.is_grass(family):
+		rt.grass_mm.append(mmi)  # CLAIMS2: a new claim drops the instances inside it
 
 static func _basis_from_normal(up: Vector3, yaw: float) -> Basis:
 	var n := up.normalized()

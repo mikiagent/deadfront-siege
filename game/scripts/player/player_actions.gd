@@ -576,6 +576,12 @@ func claim() -> void:
 	var rt := World.runtime
 	if rt == null or not rt.has_method("claim_at"):
 		return
+	var limit_why := str(rt.call("claim_limit_reason")) if rt.has_method("claim_limit_reason") else ""
+	if limit_why != "":
+		# CLAIMS2: the cap is checked before the ask, so the panel never offers a plot it cannot stake.
+		print("[world] claim refused: %s" % limit_why)
+		p.notice(limit_why)
+		return
 	if not (rt.get("claims") as Array).is_empty():
 		if online:
 			p.notice("Expanding a claim online is not wired yet.")
@@ -595,8 +601,16 @@ func claim_confirmed() -> bool:
 	var rt := World.runtime
 	if rt == null or not rt.has_method("claim_at"):
 		return false
-	# PRD 13.1: with land already held a claim is one orthogonal expansion of it, never a plot out on
-	# its own (the confirm path runs this too, so a stale panel cannot stake a hop).
+	# CLAIMS2: the cap first (it names the numbers), then PRD 13.1: with land already held a claim is
+	# one orthogonal expansion of it, and CLAIMS2 only grows on the base plot's grid, so the survivor
+	# must stand inside one of the dashed candidate cells (the confirm path runs this too, so a stale
+	# panel cannot stake a hop).
+	if rt.has_method("claim_limit_reason"):
+		var capped := str(rt.call("claim_limit_reason"))
+		if capped != "":
+			print("[world] claim refused: %s" % capped)
+			p.notice(capped)
+			return false
 	if not (rt.get("claims") as Array).is_empty() and rt.has_method("claim_expand_reason"):
 		var why := str(rt.call("claim_expand_reason", BuildGrid.tile_of(p.global_position)))
 		if why != "":
@@ -610,7 +624,7 @@ func claim_confirmed() -> bool:
 		return false
 	if not rt.claim_at(BuildGrid.tile_of(p.global_position)):
 		print("[world] claim refused: not dry land, or another survivor's")
-		p.notice("Can't claim here: not dry land, or another survivor's")
+		p.notice("Can't claim here: stand inside a dashed 14x14 plot beside your land on dry, unclaimed ground.")
 		return false
 	# Paid only once the plot is yours: a refused claim keeps the stake (and the free first plot).
 	if stake:

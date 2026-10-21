@@ -52,6 +52,13 @@
       "quadrant": "opposite"
     }
   },
+  "claims": {
+    "_about": "ASSUMPTION: no doc gives a claim cap; the owner asked for one. Land grows on a 14x14 plot grid anchored at the base (camp) plot, orthogonally only (systems PRD 13.1). Home: min(home_max_plots, home_base_plots + floor(pioneer_level / plots_per_levels)). Unstable: the landing camp plot plus unstable_max_plots staked on top.",
+    "home_base_plots": 2,
+    "plots_per_levels": 10,
+    "home_max_plots": 9,
+    "unstable_max_plots": 2
+  },
   "level_cap": 60,
   "wild_level_stat_rate": 0.08,
   "_wild_level": "ASSUMPTION: each level a wild animal sits above its species tier adds this fraction to its health, attack and defense (5 levels = +40 %, ProgressionScaling.LEVEL_STAT_RATE). At or below the tier it keeps its listed stats, so the level-1 starter island is unchanged.",
