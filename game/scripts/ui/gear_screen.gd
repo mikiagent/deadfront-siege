@@ -165,7 +165,8 @@ func _update() -> void:
 	note.text = why if why != "" or t == null else describe(t)
 	_layout()
 
-## "Forager Vest Lv. 12" over "Armor 110 · Durability 80 / 100 · Firm Lv. 3".
+## "Forager Vest Lv. 12" over one fact a line ("Armor 110", "Durability 80 / 100", "Firm Lv. 3"):
+## joined on one line they wrapped with a separator left hanging at the line's end.
 static func describe(s: ItemStack) -> String:
 	var d := s.def()
 	var bits := PackedStringArray()
@@ -183,7 +184,7 @@ static func describe(s: ItemStack) -> String:
 		for r: Dictionary in InvAttributes.sections(s)[cls]:
 			bits.append(InvAttributes.line(r))
 	var title := d.display_name if d and d.display_name != "" else str(s.def_id)
-	return "%s %s\n%s" % [title, LevelDisplay.label(s.level), " · ".join(bits)]
+	return "%s %s\n%s" % [title, LevelDisplay.label(s.level), "\n".join(bits)]
 
 func _run() -> void:
 	var t := target()

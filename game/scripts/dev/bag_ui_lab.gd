@@ -396,8 +396,10 @@ func _check_b3() -> void:
 
 ## B4 performance (spec 13 s20; design gate P1): a full 142-slot bag opens in under 50 ms. Pads the
 ## bag to 142 / 142 with instances (traits on some, NEW on some), closes the family, then times
-## open_bag(); windowed, also the wait until that first frame is drawn (vsync included, so an upper
-## bound). Returns [build us, frame us] (frame -1 headless).
+## open_bag() twice: the first open of the run (cold: the grain shader and the glyph caches are made
+## on that first frame) and a second one (warm, every open after). Windowed, it also waits for the
+## open's first drawn frame and times a frame of the world with the family closed beside it (vsync and
+## the 3D world are in both). Returns [warm build us, warm frame us] (frame -1 headless).
 func _measure_open142() -> Array:
 	var inv := player.inventory
 	inv.slot_count = 142
@@ -406,19 +408,29 @@ func _measure_open142() -> Array:
 	while inv.used_slots() < 142:
 		_add(&"ore" if k % 3 else &"raptor_bone", 10 + k % 50, {"firm": 1 + k % 5, "heavy": 2} if k % 4 == 0 else {}, "", k % 5 == 0)
 		k += 1
-	player.ui.call("hide_ui")
-	await get_tree().process_frame
-	var t0 := Time.get_ticks_usec()
-	player.ui.call("open_bag")
-	var bag: BagScreen = player.ui.get("_bag")
-	bag.grid.item_cells() # the grid is built (refresh is not deferred on open)
-	var build := Time.get_ticks_usec() - t0
-	var frame := -1
-	if DisplayServer.get_name() != "headless":
-		await RenderingServer.frame_post_draw
-		frame = Time.get_ticks_usec() - t0
-	print("[bagui] perf142 bag=%d/%d cells=%d build=%dus first_frame=%s" % [inv.used_slots(), inv.slot_count, bag.grid.cells().size(), build, ("%dus" % frame) if frame >= 0 else "headless"])
-	return [build, frame]
+	var windowed := DisplayServer.get_name() != "headless"
+	var out := []
+	for pass_name in ["cold", "warm"]:
+		player.ui.call("hide_ui")
+		await get_tree().process_frame
+		var base := -1
+		if windowed:
+			await RenderingServer.frame_post_draw
+			var b0 := Time.get_ticks_usec()
+			await RenderingServer.frame_post_draw
+			base = Time.get_ticks_usec() - b0
+		var t0 := Time.get_ticks_usec()
+		player.ui.call("open_bag")
+		var bag: BagScreen = player.ui.get("_bag")
+		bag.grid.item_cells() # the grid is built (refresh is not deferred on open)
+		var build := Time.get_ticks_usec() - t0
+		var frame := -1
+		if windowed:
+			await RenderingServer.frame_post_draw
+			frame = Time.get_ticks_usec() - t0
+		print("[bagui] perf142 %s bag=%d/%d cells=%d build=%dus first_frame=%s world_frame=%s" % [pass_name, inv.used_slots(), inv.slot_count, bag.grid.cells().size(), build, ("%dus" % frame) if frame >= 0 else "headless", ("%dus" % base) if base >= 0 else "headless"])
+		out = [build, frame]
+	return out
 
 func _expect(ok: bool, what: String) -> void:
 	if not ok:

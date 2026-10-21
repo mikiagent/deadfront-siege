@@ -60,6 +60,7 @@ All new UI files are flat in `game/scripts/ui/` (t_uiicons and t_ui scan that fo
 | Detailed Stats panel | `scripts/ui/detailed_stats_panel.gd` | DetailedStatsPanel | Real stats only, grouped (combat / crafting / gathering / survival) |
 | Equipment / My Info | `scripts/ui/equipment_screen.gd` | EquipmentScreen | 3x3, My Info Attack / Defense / Accuracy, hex row, candidates + compare + Equip (ref 3) |
 | Storage / cargo view | `scripts/ui/storage_screen.gd` | StorageScreen | Storage-transfer reference: "Bag N / M" and "<container> N / M" tabs over one grid (a grid per side, the active one shown), the FilterRail on the left, one toolbar (Auto Sort, Select All, Select, Search, Lock on the Bag tab), the take-only notice over the grid, the ItemInspectPanel with "Transfer to Bag" / "Transfer to <container>" (and Take All) as the yellow primary (B3) |
+| Motion (B4) | `scripts/ui/inv_motion.gd` | InvMotion | Restrained motion constants and helpers: `fade_in(c, secs)` (modulate only), `run(owner, step, secs)` for draw-time values (bracket settle, light-ups) |
 | Filter rail | `scripts/ui/filter_rail.gd` | FilterRail | Vertical squares, one per data filter with its white icon (`filters[].icon`), the active one gold; scrolls on a phone |
 | Craft / cook ingredient picker | `scripts/ui/item_picker.gd` | ItemPicker | The Bag layout over one recipe slot's candidates (InventoryGrid `only`), exact instances, least valuable preselected, warning line, yellow Use (B3) |
 | Family host / router | `scripts/ui/inventory_ui.gd` + `scenes/ui/inventory.tscn` | InventoryUI | Keeps its public API (section 4) and hosts the screens as its own children; shrinks from 810 lines |
@@ -76,11 +77,12 @@ the current screen and a back stack. `ui.visible` still toggles the whole family
 
 | Token | Hex | Use |
 |---|---|---|
-| BG | #101714 | Screen backdrop behind panels (full-rect, 96 % alpha over the world) |
+| BG | #101714 | Dark of the panel borders and header (spec 13's "main background") |
+| BACKDROP (B4) | #5A5741 | The weathered khaki between and around the panels (the references measure #5B6242, #624D3E, #828565 there): opaque, grain on top |
 | HEADER | #080809 | Header bar |
-| PANEL | #39392F | Grid panel surface (grain shader on top), reference #3A2F2C warmer: tint toward it |
-| PANEL_2 | #26322C | Inspect / secondary panels |
-| CELL_DARK | #0E120F | Equipment cells, preset row |
+| PANEL | #3B3830 (B4) | Grid panel surface (grain shader on top); spec 13's #39392F nudged toward the Bag reference's brown, the grain drifts it olive / brown |
+| PANEL_2 | #33342A (B4) | Inspect / secondary panels; spec 13's #26322C read too teal beside the references' bodies (#31271B, #4D4C3A) |
+| CELL_DARK | #141810 (B4) | Equipment cells, preset row (the Character reference's olive near-black) |
 | SEPARATOR | #56534A at 50 % | 1-2 px dashed grid lines |
 | SELECT | #E6BE54 | Brackets, selected preset, bag icon |
 | PRIMARY | #F2C84C | Primary button fill (dark text #1B1A14) |
@@ -136,6 +138,10 @@ arm 14 % of the side, stroke `max(3, 3.5 %)`, with a 12 % SELECT tint behind; ne
   (+-4 px, ~12 px period) plus two darker "nail" dots like the reference.
 - Irregular dark panel borders: a 2 px polyline at 60 % black with +-1 px hashed jitter; corner radius 0-4 px.
 - Gate: Forward+ and gl_compatibility shots look the same (B4 compares both).
+- B4 as built: the vignette dropped to 14 % (the references darken only at the very edge) and the blotches rose
+  to +-26 %, so the rendered grid panel measures luma ~58-64 against the references' 52-56 and the backdrop ~78
+  against their 80-93; trait pips have a shape per class (filled square positive, hollow square negative,
+  diamond rare) and the inspect panel's trait chips carry the same shape and say their class in a tooltip.
 
 ## 4. API contract (pinned by t_invui and bag_ui_lab)
 
@@ -168,6 +174,7 @@ auto-open in `_ready` goes (labs open screens explicitly).
 | BagToolbar (B3 additions) | `squares` may hold `&"select_all"`, `&"search"`; signals `select_all_pressed`, `search_changed(text)`; `set_select(on)`, `set_search(on)`, `query()` |
 | InvHeader (B3 addition) | `set_title(text, lead := "")`: `lead` in gold before the title ("1 Select") |
 | BagScreen | `bind(inv, player)`, `select_index(i)`; laid out from its own size (full-rect child) |
+| B4 additions | `InvMotion` consts `OPEN_S` (0.11) `TAB_S` (0.07) `SETTLE_S` (0.08) `FLASH_S` (0.3), `fade_in(c, secs)`, `run(owner, step, secs)`; `InventoryGrid.move_selection(dir: Vector2i) -> bool` (left / right = reading order, up / down = nearest item in the next row; nothing in multi-select); `InventorySlot.settle_in()`, `static describe(stack) -> String` (the hover tip); `InvPaint.PIP_SHAPES`, `pip(ci, rect, cls)`, `pip_color(cls)`; `ItemInspectPanel.press_primary() -> bool`, inner class `TraitChip` (`cls`, tooltip "Rare trait: Black Sheen"); `GearScreen.move_slot(dir) -> bool`, `press_primary() -> bool`; `StorageScreen.flash_tab(id)`, `active_grid()`; `EquipmentSlot.flash()`; `InventoryUI._key(e: InputEventKey) -> bool` (arrows, Enter, Tab) |
 
 ## 5. Data each element reads
 
@@ -229,7 +236,8 @@ sync; applied uncommitted in the work tree for local testing, the way ECON does,
 | `scripts/ui/hunt_hud.gd` (W1-UI) | one line in the Menu sheet: `_sheet_btn(box, "Character", ...)` -> `player.ui.open_character()`; the "Bag" entry calls `open_bag()` | B2 |
 | `scripts/dev/ui_real_capture_lab.gd`, `ui_screenshot_lab.gd`, `ui_family_lab.gd` (W1-UI labs) | replace reads of `_profile_col/_bag_col/_equip_col/_close_btn/_grid.columns == 5/_profile` with INVUI's (`ui.layout_blocks()` rects); B2: the Character screen's blocks, its `profile_lines()` carrying `LevelDisplay.player_label()` and the held title, and a `character` shot | B1/B2 |
 | `scripts/dev/inventory_lab.gd` (W2-INV) | drop its grouping asserts (×16 cells, `_cells`, `_on_cell`); keep the 100-instance seed and assert one cell per instance | B1 |
-| `tests/t_ui.gd` (W1-UI) | add the INVUI ui files to `OWNED` (type floor, const-before-func; B3: `item_picker.gd`, `filter_rail.gd`) and `character_screen.gd` to `LEVEL_SITES` | B1/B2/B3 |
+| `tests/t_ui.gd` (W1-UI) | add the INVUI ui files to `OWNED` (type floor, const-before-func; B3: `item_picker.gd`, `filter_rail.gd`; B4: `inv_motion.gd`) and `character_screen.gd` to `LEVEL_SITES` | B1/B2/B3/B4 |
+| `scripts/player/player_sim.gd` (W2-PLAYER) | `_walk` reads no walking input while `p.ui.visible` (the bag family is a full-screen modal whose arrow keys move its selection; the survivor does not walk blind under it) | B4 |
 
 run_all.gd (it does not list t_ files; its InventoryUI private reads stay valid), main.gd, game.gd, world.gd, project.godot
 and touch_controls.gd need no change (InventoryUI hosts the screens; `I` / joy
@@ -319,6 +327,26 @@ Nothing else in the save changes. Auto Sort order and the filter are session sta
 21. ASSUMPTION header shows the T-stone chip (World.t_stones; display only). No second currency exists.
 22. ASSUMPTION Bag and Character are reached from the HUD Menu sheet (Bag, Character) and `I` (Bag); inside the family "<" goes back one screen and X closes all.
 
+B1-B3 added 23-66 (listed in the report). B4:
+
+67. ASSUMPTION screen opening is a 110 ms fade without the 8 px slide (a slide moves the rects the tap-target and
+    layout checks read mid-open); tab switch 70 ms; selection brackets settle in 80 ms; items arriving light up
+    their tab or gear cell for 0.3 s. Doc check: spec 13 s20 "quick", "short", "subtle", "small"; design B4 plan.
+68. ASSUMPTION desktop keys: arrows move the selection (gear cells on Character / Equipment), Enter runs the
+    yellow action, Tab switches a container's tabs, Esc / I as before; key events only (the pad's d-pad and A keep
+    their game bindings). Doc check: spec 13 s21 "where existing project conventions support them" (ui_* actions,
+    ui_cancel already closes).
+69. ASSUMPTION the survivor does not walk while the bag family is open (hook in player_sim.gd): the family is an
+    opaque full-screen modal and its arrow keys are the movement keys. Doc check: spec 13 s3 "fill almost the
+    entire visible screen"; no doc asks for walking with the bag open.
+70. ASSUMPTION trait class by shape as well as colour: filled square positive, hollow square negative, diamond rare,
+    on the cells' pips and the panel's chips; hover tips say the class in words. Doc check: task "accessibility
+    (rarity not by colour alone)"; spec 13 s11 colours kept.
+71. ASSUMPTION backdrop #5A5741, panels #3B3830 / #33342A, gear cells #141810: measured against the four
+    references (newest truth) over spec 13 s2's approximate values. Doc check: spec 13 s2 "approximate design
+    values"; s1 the screenshots are primary.
+72. ASSUMPTION the gear column's properties read one fact a line (a joined line wrapped with a "·" left at its end).
+
 ## 10. Acceptance checklist (measurable; test or shot that proves it)
 
 Viewports: 1600x900 gl_compatibility (judge), 1600x900 Forward+, 1920x1080, 844x390 and 804x452 (667x375) landscape.
@@ -380,6 +408,12 @@ hurting legibility; FontVariation condensed look if it reads closer; responsive 
 particles, a brief flash on transfer); keyboard / mouse wheel / hover tooltips with the same content reachable by tap;
 rarity and attribute class never by colour alone (shape marker + section labels); performance P1 for a 142-slot bag.
 Acceptance: A1-A6 at every viewport, P1, V1 on all seven shots, Forward+ = gl_compatibility look.
+As built (B4): motion is fade-only for screens (modulate, 110 ms; a slide would move rects the layout checks
+read), 70 ms for a storage tab, an 80 ms bracket settle from 4 px outside, a 0.3 s gold light-up on the
+storage tab that received items and on the gear cell an Equip filled; smooth wheel scrolling on every grid
+(half a compartment a notch over 90 ms); keys: arrows (key events only, so the pad's d-pad keeps bandage /
+hunt-chase), Enter (the yellow action, never on key repeat), Tab (storage tabs), Esc and I as before; t_invui 21
+pins motion, keys, trait shapes, the 1920x1080 canvas, a notched phone's safe area and the 142-slot open.
 
 ## 12. Open questions for the owner (non-blocking; the assumptions above proceed)
 

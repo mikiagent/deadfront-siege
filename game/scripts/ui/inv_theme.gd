@@ -15,7 +15,9 @@ const HEADER := Color("#080809")
 ## Spec 13's #39392F nudged toward the Bag reference's brown (its grid measures #3C3128, the
 ## storage and Character references' #39382D / #383722); the grain drifts it both ways.
 const PANEL := Color("#3B3830")
-const PANEL_2 := Color("#26322C")
+## Spec 13's #26322C "secondary panel" read too teal beside the references' inspect bodies
+## (Bag: dark brown #31271B; storage: olive #4D4C3A): an olive-grey between them.
+const PANEL_2 := Color("#33342A")
 ## Gear cells: the Character reference's olive near-black (#1D2215 over its panel).
 const CELL_DARK := Color("#141810")
 const SEPARATOR := Color(0.337, 0.325, 0.29, 0.5) # #56534A at 50 %
@@ -57,7 +59,9 @@ static func metrics(view: Vector2) -> Dictionary:
 	var grid_w: float = view.x - m.margin * 2.0 - m.inspect_w - m.gap
 	m.columns = 7
 	m.cell = floorf(grid_w / 7.0)
-	if m.cell < 72.0:
+	# Seven columns while a compartment still holds NEW beside "Lv. 60" at the type floor; a notched
+	# phone's narrower grid drops to six rather than run the two labels together.
+	if m.cell < maxf(72.0, label_room(UiTokens.TYPE_MIN)):
 		m.columns = 6
 		m.cell = floorf(grid_w / 6.0)
 	m.grid_w = m.cell * m.columns
@@ -75,6 +79,12 @@ static func metrics(view: Vector2) -> Dictionary:
 	m.button_font = 16 if compact else 26
 	m.compact = compact
 	return m
+
+## Width a compartment needs for the NEW tag (inset 4, 8 px of padding) and "Lv. 60" (inset 6) at
+## `px`, with a 4 px gap between them (InvPaint.new_tag / level).
+static func label_room(px: int) -> float:
+	var f := font()
+	return f.get_string_size("NEW", HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + f.get_string_size("Lv. 60", HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 22.0
 
 ## The family's condensed face: the project default font, narrowed like Durango's condensed sans.
 static func font() -> Font:

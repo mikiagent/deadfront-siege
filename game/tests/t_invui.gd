@@ -967,6 +967,9 @@ func _t21_polish() -> void:
 			_check_targets(sc, view)
 			if notch:
 				_check_safe(sc, view, Rect2(47, 0, view.x - 94, view.y - 21))
+			if n == "bag_screen":
+				var px: float = (sc.get("grid") as Object).call("cell_px")
+				_expect(px >= float(T.call("label_room", 12)), "21: a Bag compartment holds NEW beside 'Lv. 60' at %s%s (cell %d < %d)" % [view, " with a notch" if notch else "", px, T.call("label_room", 12)])
 			holder.queue_free()
 	T.set("forced_insets", Vector4(-1, -1, -1, -1))
 	# Performance: a full 142-slot bag opens in under 50 ms (build and layout, measured).
