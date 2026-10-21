@@ -45,10 +45,27 @@ static func _raw_run_name(user_args: PackedStringArray, args: PackedStringArray)
 		return args[i + 1].get_file().get_basename()
 	return ""
 
+## True for a save the 60 s autosave wrote before a survivor existed: schema 3 with no name or no
+## occupation. Older schemas (v0-v2) never stored those fields at all and are real saves; they load.
+static func is_precreation(data: Dictionary, schema: int) -> bool:
+	if schema < 3:
+		return false
+	return str(data.get("player_name", "")).strip_edges() == "" or str(data.get("occupation", "")) == ""
+
+## Only the main file: a .bak is the previous good save, never the one boot should judge.
+static func has_precreation_save() -> bool:
+	var r := SaveMigrations.read(path)
+	return r.has("data") and is_precreation(r["data"] as Dictionary, int(r["schema"]))
+
 static func exists() -> bool:
 	return FileAccess.file_exists(path) or FileAccess.file_exists(path + ".bak")
 
 static func save_now() -> bool:
+	# Never before character creation and the first island pick: such a save would skip both on the
+	# next launch and load a default survivor (playtest 2026-10-21).
+	if World.creation_pending:
+		print("[save] deferred: character creation has not finished")
+		return false
 	var buildings := _live_buildings()
 	# Before any refusal: World.travel rebuilds the home camp from this cache after saving, so a
 	# refused save must still record what was built this session.
@@ -133,6 +150,8 @@ static func confirm_new_game() -> void:
 		return
 	blocked_reason = ""
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	# Review fix: do not lift World.creation_pending here; character creation may still be open, and the
+	# island pick (World.finish_creation) lifts it once the new survivor exists.
 	print("[save] new game confirmed; saving to %s again" % path)
 
 static func load_now(host: Node) -> void:
@@ -294,6 +313,9 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 			if n is FieldPlot:
 				(n as FieldPlot).advance_offline(float(elapsed))
 		print("[farm] offline catch-up %ds" % elapsed)
+	# A survivor was loaded: creation is behind us, so the autosave runs again (a failed load that
+	# opened creation leaves the flag up until that creation finishes).
+	World.creation_pending = false
 	print("[world] loaded island=%s terrain=%s pioneer=%d" % [iid, World.home_terrain, World.pioneer_level])
 	if from_backup:
 		player.notice("Your last save was damaged; the backup before it was loaded")

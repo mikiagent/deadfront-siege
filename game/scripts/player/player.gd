@@ -400,8 +400,7 @@ func respawn() -> void:
 	dead = false
 	downed_by = ""
 	if statuses:
-		for inst in statuses.instances().duplicate():
-			statuses.clear_id(inst.id)
+		statuses.clear_all()  # also gives back what a status took off max HP (SAVEFIX)
 	vitals.revive(0.5)
 	var at := global_position
 	if World.runtime and World.runtime.get("_camp_pos") != null:

@@ -1,12 +1,20 @@
 class_name Vitals
 extends Node
 ## Player Health / Energy / Exhaustion. Food eases exhaustion; sleep clears it.
+## Two owners for max health: level bonuses (level_health, saved) and statuses (max_health_mult, e.g.
+## Infected Wound). max_health holds 100 + level_health x the status product, and StatusEffects
+## recomputes it here — before this, a status sync overwrote the level bonus with a flat 100.
 
 signal exhausted_changed(on: bool)
 signal damaged
 signal died
 
 var max_health: float = 100.0
+## Max HP from Pioneer levels (pioneer_levels.json per_level.max_health each). Saved: it is the
+## survivor's own progression, not a derived number like gear.
+var level_health: float = 0.0
+## Max Energy from Pioneer levels; saved with level_health.
+var level_energy: float = 0.0
 var equipment_health_bonus: float = 0.0 ## derived, never saved; equipping does not heal
 var health: float = 100.0
 var max_energy: float = 100.0
@@ -87,6 +95,14 @@ func effective_max_health() -> float:
 func effective_max_energy() -> float:
 	return max_energy + energy_bonus
 
+## A Pioneer level's stat gain (HuntHud._on_level_up used to add to max_health directly, where the
+## next status sync erased it and nothing saved it).
+func grant_level_bonus(hp_gain: float, energy_gain: float) -> void:
+	level_health += hp_gain
+	level_energy += energy_gain
+	max_health += hp_gain
+	max_energy += energy_gain
+
 func take_damage(amount: float) -> void:
 	if dead:
 		return
@@ -166,6 +182,8 @@ func to_dict() -> Dictionary:
 		"max_health": max_health,
 		"max_energy": max_energy,
 		"max_fatigue": max_fatigue,
+		"level_health": level_health,
+		"level_energy": level_energy,
 	}
 
 func from_dict(d: Dictionary) -> void:
@@ -175,6 +193,10 @@ func from_dict(d: Dictionary) -> void:
 	max_health = float(d.get("max_health", max_health))
 	max_energy = float(d.get("max_energy", max_energy))
 	max_fatigue = float(d.get("max_fatigue", max_fatigue))
+	# Old saves predate level_health: every max above the base 100 is what the levels paid.
+	# (Trait drops and gear were never in max_health, so the rest is the level bonus.)
+	level_health = float(d.get("level_health", maxf(0.0, max_health - 100.0)))
+	level_energy = float(d.get("level_energy", maxf(0.0, max_energy - 100.0)))
 	fatigue = clampf(fatigue, 0.0, max_fatigue)
 	_sync_exhausted()
 

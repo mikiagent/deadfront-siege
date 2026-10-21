@@ -35,13 +35,9 @@ static func is_claimed(rt: IslandRuntime, tile: Vector2i) -> bool:
 ## Claim a 14x14 plot centred on the tile; returns false when its centre is not dry land or the plot
 ## would take any tile another player holds.
 static func claim_at(rt: IslandRuntime, tile: Vector2i, size: int = 14) -> bool:
-	var rect := Rect2i(tile - Vector2i(size / 2, size / 2), Vector2i(size, size))
-	var centre := BuildGrid.tile_centre(tile, rt)
-	if not rt.spawn_ok(centre, false):
+	if block_reason(rt, tile, size) != "":
 		return false
-	for row in rt.other_claims:
-		if rect.intersects(row["rect"]):
-			return false
+	var rect := plot_at(tile, size)
 	rt.claims.append(rect)
 	var row := [rect.position.x, rect.position.y, rect.size.x, rect.size.y]
 	if World.is_home():
@@ -51,6 +47,44 @@ static func claim_at(rt: IslandRuntime, tile: Vector2i, size: int = 14) -> bool:
 	_rebuild_claim_mesh(rt)
 	print("[world] claimed %dx%d at (%d,%d)" % [size, size, tile.x, tile.y])
 	return true
+
+## The 14x14 plot a claim at `tile` would take (IslandClaims.claim_at's rect).
+static func plot_at(tile: Vector2i, size: int = 14) -> Rect2i:
+	return Rect2i(tile - Vector2i(size / 2, size / 2), Vector2i(size, size))
+
+## Why a claim at `tile` would be refused ("" when it would be staked): not dry land, or the plot
+## would take a tile another player holds. One answer for the confirm panel and claim_at.
+static func block_reason(rt: IslandRuntime, tile: Vector2i, size: int = 14) -> String:
+	if not rt.spawn_ok(BuildGrid.tile_centre(tile, rt), false):
+		return "not dry land"
+	var rect := plot_at(tile, size)
+	for row in rt.other_claims:
+		if rect.intersects(row["rect"]):
+			return "another survivor's land"
+	return ""
+
+## Why a claim at `tile` would not be an expansion of this survivor's land ("" when it would):
+## PRD 13.1 expands a domain by one same-size plot, "orthogonal only (no diagonal)", so the new plot
+## must share a full edge with land already held, must not take a tile of its own again, and must obey
+## block_reason (dry land, no other survivor's land). Used by the CLAIM press once land is held; the
+## plot itself is staked by claim_at.
+static func expand_reason(rt: IslandRuntime, tile: Vector2i, size: int = 14) -> String:
+	var why := block_reason(rt, tile, size)
+	if why != "":
+		return why
+	var rect := plot_at(tile, size)
+	var touches := false
+	for r in rt.claims:
+		var own: Rect2i = r
+		if rect.intersects(own):
+			return "that plot overlaps land you already hold"
+		if (rect.position.x == own.end.x or rect.end.x == own.position.x) and rect.position.y < own.end.y and own.position.y < rect.end.y:
+			touches = true
+		elif (rect.position.y == own.end.y or rect.end.y == own.position.y) and rect.position.x < own.end.x and own.position.x < rect.end.x:
+			touches = true
+	if not touches:
+		return "a plot must share an edge with your land (no diagonal, no hop)"
+	return ""
 
 ## Whose land the tile is: this survivor's claims first ({"id": SELF_ID, "name", "own": true}), then
 ## other players' ({"id", "name"} as the server sent them), {} when nobody holds it. The one place

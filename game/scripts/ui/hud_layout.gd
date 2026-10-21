@@ -117,6 +117,62 @@ static func fit_sheet(hud: HuntHud, r: Vector2, inset: Vector4, rail_y: float) -
 	hud._sheet.size = Vector2.ZERO  # shrink to the new minimum
 	hud._sheet.position = v.position if land else Vector2(16.0 + inset.w, bottom - hud._sheet.size.y)
 
+## Where the placer's ROTATE / PLACE / CANCEL row sits: the anchor nearest `near` (the ghost on
+## screen) whose three hex rects and their captions are all inside the view's safe area and clear of
+## every other HUD rect. The row used to be hung 40 px under the ghost whatever was there, so with the
+## ghost under the bottom-left rail (the pointer still on MENU) it lay on MENU / ANIMALS / BUILD and ran
+## off the canvas at both 1600x900 and 844x390. Falls back to the nearest clearing spot in a sweep,
+## and to `near` itself when the whole canvas is packed (it never is: the centre is empty).
+## `rel` is what each of the three hexes draws, relative to its own top-left corner: its hexagon and its
+## caption box (HexButton.hex_rect / caption_rect, taken from the hexes themselves so the check matches
+## what is drawn). One score per candidate: off-screen rects count 100 each, HUD overlaps 1; zero wins.
+static func placer_anchor(near: Vector2, offsets: Array, rel: Array, taken: Array, view: Vector2, inset: Vector4) -> Vector2:
+	var cands: Array[Vector2] = [near]
+	for dy in [-150.0, 110.0, -250.0]:
+		for dx in [-130.0, 130.0, -260.0, 260.0]:
+			cands.append(near + Vector2(dx, dy))
+	cands.append(Vector2(view.x * 0.5, view.y - 150.0 - inset.y))
+	cands.append(Vector2(view.x * 0.5, 250.0 + inset.z))
+	cands.append(Vector2(view.x - 250.0 - inset.x, view.y * 0.5))
+	cands.append(Vector2(250.0 + inset.w, view.y * 0.5))
+	var step := 56.0
+	var y := 140.0 + inset.z
+	while y < view.y - 110.0 - inset.y:
+		var x := 90.0 + inset.w
+		while x < view.x - 90.0 - inset.x:
+			cands.append(Vector2(x, y))
+			x += step
+		y += step
+	# The first spot that is off nothing wins; when a corner of a small canvas is packed (the ghost
+	# below the rail, the vitals over the top-left), the spot off the least HUD wins rather than the
+	# row staying on the rail. Off-screen counts worst: a hex there cannot be tapped at all.
+	var best := near
+	var best_score := 1 << 30
+	for c in cands:
+		var score := _placer_row_score(c, offsets, rel, taken, view, inset)
+		if score < best_score:
+			best_score = score
+			best = c
+			if score == 0:
+				break
+	return best
+
+static func _placer_row_score(at: Vector2, offsets: Array, rel: Array, taken: Array, view: Vector2, inset: Vector4) -> int:
+	var room := Rect2(Vector2(6.0 + inset.w, 6.0 + inset.z), view - Vector2(12.0 + inset.w + inset.x, 12.0 + inset.z + inset.y))
+	var score := 0
+	for i in offsets.size():
+		var o: Vector2 = at + (offsets[i] as Vector2)
+		for k in 2:
+			var r: Rect2 = (rel[i] as Array)[k]
+			var box := Rect2(o + r.position, r.size)
+			if not room.encloses(box):
+				score += 100
+				continue
+			for t in taken:
+				if (t as Rect2).grow(-1.0).intersects(box.grow(-1.0)):
+					score += 1
+	return score
+
 ## Screen rects the HUD holds this frame: the blocks _draw has painted so far (drawn_blocks, minus
 ## keys starting with one of `skip`), every visible hex on screen (HUD, station and gather radials)
 ## with its caption, the HUD's other controls and HANDS. Moving text (world pills, toasts, notices)

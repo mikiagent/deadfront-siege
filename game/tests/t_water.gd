@@ -417,7 +417,7 @@ func _test_no_meter() -> void:
 	_expect(meters.is_empty(), "no thirst / hunger / hygiene / dirt meter on the survivor, vitals or statuses %s" % [meters])
 	var keys: Array = player.vitals.to_dict().keys()
 	keys.sort()
-	_expect(keys == ["energy", "fatigue", "health", "max_energy", "max_fatigue", "max_health"], "the saved vitals are Health, Energy and fatigue only %s" % [keys])
+	_expect(keys == ["energy", "fatigue", "health", "level_energy", "level_health", "max_energy", "max_fatigue", "max_health"], "the saved vitals are Health, Energy and fatigue only, plus the pioneer-level part of their maxima %s" % [keys])
 	var hud := FileAccess.get_file_as_string("res://scripts/ui/hunt_hud.gd").to_lower()
 	for bad in ["thirst", "hunger", "hygien"]:
 		_expect(not hud.contains(bad), "the HUD draws no %s bar" % bad)

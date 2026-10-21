@@ -435,6 +435,8 @@ func _test_truncated() -> void:
 	_check(not SG.save_now(), "save_now() returns false before confirm_new_game()")
 	_check(FileAccess.get_sha256(SG.path) == sha0, "refused save leaves the file alone")
 	SG.confirm_new_game()
+	_check(not SG.save_now(), "a new game still defers saving while character creation is open")
+	W.finish_creation()  # the new survivor's island pick, which ends creation in the game
 	_check(SG.save_now(), "save_now() works after confirm_new_game()")
 	_check(_corrupt().size() == 1, "the .corrupt-* copy outlives the new game")
 	if cc:
@@ -453,6 +455,7 @@ func _test_future() -> void:
 	var on_disk: Variant = JSON.parse_string(FileAccess.get_file_as_string(SG.path))
 	print("[t_save] future fixture after 70 s on_disk_schema=%s" % (on_disk as Dictionary).get("schema"))
 	SG.confirm_new_game()
+	W.finish_creation()
 	var cc := host.get_node_or_null("CharacterCreation")
 	if cc:
 		cc.free()

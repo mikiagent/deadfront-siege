@@ -245,10 +245,12 @@
       "move_mult": 1.0,
       "defense_mult": 1.0,
       "accuracy_mult": 1.0,
-      "fatigue_per_min": 0.3,
+      "fatigue_per_min": 0.0,
+      "_note": "PRD :284: Wet changes climate fatigue (heat -20 %; the cold +30 % / humidity +30 % halves are not modelled yet) and adds no fatigue of its own. It used to carry 0.3/min, which the status tick charged as 30/min while rain kept Wet refreshed.",
       "weakness_rank": 1,
       "cleared_by": [],
-      "fx": "none"
+      "fx": "none",
+      "heat_fatigue_mult": 0.8
     },
     {
       "id": "full",
