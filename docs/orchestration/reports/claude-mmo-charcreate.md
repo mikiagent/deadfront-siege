@@ -142,7 +142,8 @@ defaults to "m" because the model is a man (`# ASSUMPTION` in character_look.gd)
 ## Hooks patch
 
 `docs/orchestration/reports/claude-mmo-charcreate-hooks.patch`, 5 files. `git apply --cached --check` passes on the
-branch head (and on ddaab662: none of the five files changed between them). The work tree has it applied and every
+branch head (and on ddaab662: none of the five files changed between them), and on `claude/mmo-overhaul` at 946da955
+(HUD-DAYNIGHT merged; checked against a temporary index of that tree; the gates here did not run on it). The work tree has it applied and every
 gate below ran with it.
 
 - `world.gd`: `var look: Dictionary`; the creation `done` handler keeps `CharacterLook.clean(cc.look)` and applies it
