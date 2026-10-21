@@ -9,6 +9,7 @@ extends TouchJoystick
 ## pass on to the game (desktop click-to-move).
 
 const DEAD_ZONE_PX := 12.0
+# ASSUMPTION: 200 ms; the PRDs give no pinch window.
 const PINCH_MS := 200  ## two fingers landing this close together are a pinch, not a stick
 const REPLAY_DEVICE := 7701  ## marks the tap this stick hands back, so it lets that one through
 const RUN_KNOB := Color(0.20, 0.78, 0.74, 0.85)  ## UiTokens.TEAL: the knob shows the sprint deflection
@@ -27,6 +28,7 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_fit)
 
 ## Phone-sized on a compact canvas.
+# ASSUMPTION: 58 / 72 px radius (116 / 144 px base), sized against the 64 px HUD hexes; no reference size.
 func _fit() -> void:
 	radius = 58.0 if UiTokens.is_compact(get_viewport_rect().size) else 72.0
 	knob_radius = radius * 0.42

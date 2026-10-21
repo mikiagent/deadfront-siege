@@ -4,7 +4,7 @@ Owner (newest): "UI glitching up and down on resource nodes when clicking around
 joystick for movement on the bottom left that only appears when hold and drag on the left side. Improve the
 pathfinding and movement, player interactions with buildings, crafting stations, and resources".
 
-Steps: B1 jitter (done, below), B2 WASD + joystick, B3 pathfinding + movement, B4 interactions (not started).
+Steps: B1 jitter (done), B2 WASD + joystick (done), B3 pathfinding + movement and B4 interactions (not started).
 
 Hooks: `docs/orchestration/reports/claude-mmo-controls-hooks.patch` (other owners' files; the integrator applies
 it at merge). The branch itself only adds new files.
@@ -139,6 +139,102 @@ Each shot is one frame, so the jitter shows in the numbers, not in a single shot
   reusing the held title and label rects while `held`.
 - t_controls.gd is shared by B2-B4: add their cases to it.
 
-## B2-B4
+## B2: WASD and the floating left-half move stick (done)
 
-Not started.
+### What was there (base)
+
+- Keys already worked: `InputSetup` binds WASD and the arrows to `move_*`, `PlayerSim._walk` turns `Input.get_vector`
+  into a camera-relative, normalised direction at `walk_speed` (5.5 m/s; Shift = `sprint`, 8.5 m/s), and any move
+  input clears the tap-to-move path, its ground marker and a gather walk. One gap: a recipe that was still walking
+  to its station stayed pending, so the craft started the next time the survivor stopped within range of the bench.
+- Touch: `TouchJoystick` was a fixed stick in a bottom-left zone, read in `_input` (ahead of the HUD), and hidden in
+  the tap-only mode that phones, the web build and `--touch` boot in (only F4's "tap+joystick" mode showed it).
+  So on a phone, a drag on the left half did hold-to-walk.
+
+### What shipped
+
+- New `game/scripts/ui/float_stick.gd` (`FloatStick`, extends `TouchJoystick`): a full-rect, pass-through control
+  that only takes points on the left half. A touch there that drags past 12 px floats a semi-transparent base
+  and knob centred on the press (the base is kept inside the safe area). The knob clamps to the base, and pushing
+  it to the rim presses `sprint` (the knob turns teal). Release hides the stick and releases the actions. A press
+  that never drags is replayed as a tap on release, so tap-to-walk, select and interact still work. A second
+  finger that lands within 200 ms makes a pinch, not a stick, and while buildings are placed or arranged the
+  stick stays off. Mouse events pass through, so desktop click-to-move is unchanged.
+- Hooks (patch, on top of B1's):
+  - `touch_controls.gd`: +10/-8 lines. The stick goes on its own canvas layer (0) under every HUD layer, so a HUD
+    control on the left half keeps its touch. It is on in every touch mode. `blocks_screen_point` asks the stick.
+  - `player_input.gd`: +3/-2 lines. A finger's emulated mouse press no longer arms the desktop-click fallback. That
+    fallback picked a station under a press the stick had taken.
+  - `player_actions.gd`: +2/-1 lines. `cancel_work` also drops a recipe that is still walking to its station.
+  Gather rules, timings and yields are unchanged, and so are target selection, the hex look and GatherRadial's
+  API.
+- `game/tests/t_controls.gd` B2 cases, headless, on the real survivor and IsoCamera:
+  - Keys: W, Up, D, Left, S, W+D and Down+Left each walk along the camera axis at walk speed. Shift+W sprints.
+  - A move key drops the tap path, its marker, a gather walk and a craft walking to its station.
+  - A desktop click on the left half still walks.
+  - Stick: nothing inside the dead zone, then it floats up centred on the press, walks, clamps and sprints at
+    the rim, and release stops the survivor without a tap. A short tap on the left half walks.
+  - Refusals: a right-half press still taps and a right-half drag floats no stick. A press on a HUD Button floats
+    no stick, nor does a pinch or a drag while arranging buildings. A corner press keeps the base whole on screen.
+- New `game/scripts/dev/move_stick_lab.gd` + `game/scenes/dev/move_stick_lab.tscn`: the same thumb moves in the real
+  game. It boots home_grassland with the real HUD and `--touch` and injects touches. It saves `stick_walk` and
+  `stick_run` shots. It also presses the MENU hex and drags off it: no stick.
+
+### Numbers (before = 7c668b78 with B1's hooks only, after = with this patch)
+
+| check | before | after |
+|---|---|---|
+| t_controls | FAIL 2: the craft stayed pending (`t_controls_recipe`); the touch layer's tap-only mode had no floating stick (`virtual_joystick.gd`, visible=false), so the stick cases could not run | PASS, 0 SCRIPT ERROR |
+| keys W / Up / D / Left / S / W+D / Down+Left | 5.50 m/s, along the camera axis (dot 1.0000) | same |
+| Shift+W | 8.50 m/s | same |
+| stick at 8 px (inside the dead zone) | no stick | no stick, 0.00 m/s, no tap |
+| stick part deflection | none | centred on the press, 5.50 m/s |
+| stick past the rim | none | knob 1.000, `sprint` held, 8.50 m/s |
+| stick release | none | hidden, 0.00 m/s, no tap |
+| move_stick_lab 844x390 gl_compat `--touch` | FAIL (no floating stick) | PASS: knob 0.56 walks 5.50 m/s, rim 1.000 sprints 8.50, release 0.00, a short tap walks, MENU hex keeps its press |
+| move_stick_lab 1600x900 gl_compat / Forward+ `--touch` | not run | PASS, same numbers (knob 0.45 at part deflection) |
+
+### Gates
+
+All gates ran in scratch tree `trees/controls-gates`: 7c668b78 plus the hooks patch. Its staged diff equals the
+committed patch, and `--import` printed 0 SCRIPT ERROR. The ASSUMPTION comments in `float_stick.gd` landed in the
+next commit; they are comments only.
+- Every `game/tests/t_*.gd` (22) PASS. t_save prints its 5 deliberate SCRIPT ERRORs; every other test prints 0.
+  run_all prints `[tests] PASS` and smoke prints `SMOKE PASS`.
+- ui_real_capture_lab prints `[uireal] PASS` at 844x390 gl_compat, 1600x900 gl_compat and 1600x900 Forward+, with
+  0 SCRIPT ERROR.
+- move_stick_lab prints `[stick] PASS` at the same three settings, and gather_jitter_lab (B1) prints `[jitter] PASS`
+  at all three. Both have 0 SCRIPT ERROR.
+
+### Shots (scratchpad `b2/after/shots/`, all opened)
+
+- `stick_walk_<size>_<glc|fwd>.png`: the base sits on the press point above the bottom rail. The knob is part way
+  up and right, and the survivor walks that way.
+- `stick_run_<size>_<glc|fwd>.png`: the knob is clamped on the rim and teal (sprint), stamina is at 95, and the
+  survivor runs.
+- At 844x390 the base sits between the vitals and the MENU/ANIMALS hexes, just left of HANDS, and the hexes draw
+  over it.
+- The uireal `hud` and `radial` shots at 844x390 (opened) show no stick at rest.
+
+### Assumptions and limits
+
+- The rim presses `sprint`, the same action as Shift (8.5 m/s, 9 stamina/s), which is how the old stick worked.
+  The 7.0 m/s run pace stays with tap-to-walk. A part deflection walks at 5.5 m/s whatever the deflection, as keys
+  do.
+- `# ASSUMPTION:` the stick radius is 58 px on a compact canvas and 72 px otherwise, and the pinch window is
+  200 ms. Neither comes from a reference.
+- On the left half, a tap acts on release instead of on press. Hold-to-walk now only works on the right half: a
+  held drag on the left is the stick.
+- A press on a pass-through container (a creature plate's status row) on the left half does not start the stick.
+  These are small, and TARGETUI owns the plates.
+- F4's tap-only and tap+joystick modes now behave the same. The mode names stay so the integrator's file changes
+  as little as possible.
+- The web build turns the touch layer on even on desktop Chrome. Mouse events pass through the stick, and
+  t_controls shows that a left-half click still walks.
+
+### For the integrator and the next steps
+
+- Apply `claude-mmo-controls-hooks.patch`. It now covers `touch_controls.gd`, `player_input.gd` and
+  `player_actions.gd` as well as B1's files. Run `--import` once (new class_name `FloatStick`).
+- B3 (pathfinding + movement) and B4 (interactions) have not started. B4 can use `cancel_work` dropping a craft
+  that is walking to its station. A tap on the left half now arrives on release.
