@@ -13,11 +13,14 @@ Commits:
 - `29be035d` this report and the hooks patch
 - `6ef4a23a` review round 1 fixes (swords hex placement, E/F/SIC only while the hex shows, tame and mount cases)
 - `1ce733b9` merge of `claude/mmo-overhaul` 946da955 (HUD-DAYNIGHT); the hooks patch was rebased onto it
-- the commit that updates this report and the hooks patch
+- `026b214a` round 1 report and hooks patch
+- `0d819983` review round 2 fixes (swords beside a bench, animal tap beside a bench, crowded phone screens) and
+  the regenerated hooks patch
+- the commit that updates this report
 
 The call sites are in files that other packages own, so they are not committed on the branch. They ship as
-`docs/orchestration/reports/claude-mmo-targetui-hooks.patch` (5 files, 31+/9-). `git apply --cached --check` passes on
-`claude/mmo-overhaul` 946da955. Every gate below ran in the work tree with the patch applied. The branch does nothing
+`docs/orchestration/reports/claude-mmo-targetui-hooks.patch` (5 files, 45+/13-). `git apply --cached --check` passes on
+`claude/mmo-overhaul` acc684a6 (no `game/` change there since 946da955, the last merge). Every gate below ran in the work tree with the patch applied. The branch does nothing
 until the patch lands (nothing creates the selection or the hex), and the patch does not compile without the branch's
 two new classes, so they must land together.
 
@@ -36,8 +39,11 @@ Credits spent: none.
     - the animal is within 28 m (`PlayerActions.ATTACK_SEEK_RANGE`; the hunt drops past that, so the swords would
       start nothing);
     - the animal cannot be field-tamed right now (FEED/NET own that state);
-    - a spot beside the animal (right, else left, slid at most one hex up or down) is clear of every HUD block and
-      hex (`HudLayout.taken_rects`). Otherwise it hides rather than covering a HUD control.
+    - a spot is clear of every HUD block and hex (`HudLayout.taken_rects`). First choice is beside the animal's
+      middle (right, else left, slid at most one hex up or down), as in the reference. When the HUD crowds that (on
+      a phone the selection's own plate, the minimap or a hex cluster often does), the hex takes the clear spot
+      touching the animal's screen box nearest the right-hand one, never over its middle. Only when no clear spot
+      touches the animal does it hide rather than cover a HUD control.
 
     It is the HUD's first child, so where it and a HUD control ever meet, the HUD control gets the tap. While riding,
     the key cap is hidden, because E dismounts.
@@ -81,6 +87,10 @@ Hooks patch:
 
 - `player_input.gd`
   - adds `selection`;
+  - the deferred desktop-click fallback ignores a press a HUD control took (`tap_blocked()`), so pressing the swords
+    beside a bench no longer opens the bench;
+  - a tap whose ray lands straight on a wild animal selects it, even within 96 px of a station
+    (`_station_for_tap`, used by `tap_world` and the fallback);
   - a creature tap selects instead of calling `actions.attack`;
   - a tap on any creature keeps the hunt;
   - `_walk_to_tile` deselects;
@@ -94,6 +104,52 @@ Hooks patch:
   - the Animals head icon replaces the grey first-letter square.
 - `creature_plates.gd`: the selection's world plate is forced visible and emphasised.
 - `dev/hunt_lab.gd`: after its tap it calls `selection.engage()`, so its acceptance shot is still the combat HUD.
+
+## Review round 2: what changed
+
+Each finding, the fix, and the check that now covers it. The new t_targetui cases fail on the round-1 code
+(round-1 `target_swords_hex.gd` and round-1 `player_input.gd` hook, new test): exit 1, `FAIL count=3`, one per case below
+(`targetui/r2fix/t_targetui_r1code.log`). On the fixed tree the test passes.
+
+- **Major: pressing the swords beside a bench opened the bench and dropped the selection.** The deferred desktop-click
+  fallback now returns when `tap_blocked()` says a HUD control took the press. So a press on the swords (or any HUD
+  button) is never also a world tap, with a mouse or with a finger (touch sends the same mouse press).
+  - Check: `station: the swords N px from a bench fight the selection`. A workbench sits under the hex; the click must
+    leave `hunt.target == selection`, the selection kept and the bench menu closed. On the round-1 code: hunt null,
+    selection null, bench menu open.
+  - Reviewer probe rv2k2_lab on the fixed tree, 3 spots in each config: 9 of 9 `after_release hunt=protoceratops`
+    with the selection kept and `station menu visible=false`, in gl_compatibility 1600x900 (mouse), Forward+
+    1600x900 and gl_compatibility 844x390 (`--touch`, ScreenTouch). The reviewer's run on the round-1 code had 6 of 6
+    `hunt=null sel=null` with the station menu open.
+- **Major: on the landscape phone the swords often hid for an animal in plain view.** `_spot()` still tries beside
+  the middle first (right, else left, slid at most one hex), as in the reference. When the HUD crowds that, it searches
+  a 16 px grid over the animal's screen box grown by one hex, inside the safe area. It takes the clear spot (off every
+  HUD block and hex) nearest the right-hand one, never over the animal's middle. It hides only when no clear spot
+  touches the animal. The search runs only on frames where both side spots are blocked.
+  - Check: `phone: the swords show whenever a clear spot touches the animal`. The test runs at 844x390 and sweeps
+    protoceratops and T. rex at 6 and 12 m over 12 angles. Every on-screen case with a hex-sized clear spot touching
+    the animal's box (32 px grid) must show the swords. Fixed tree: 44 of 46 on-screen cases shown, none missed. The
+    2 hidden ones sit at the bottom edge under the bottom-left hexes. Round-1 code: 32 of 46, 11 missed.
+  - Reviewer sweeps re-run on the fixed tree. rv2s_lab at gl_compatibility 844x390 touch and at 1600x900: every
+    on-screen stegosaurus, triceratops and T. rex at 4, 6, 9 and 12 m shows the swords (stegosaurus 6 m 12/12, T. rex
+    6 m 12/12, T. rex 9 m 10/10). The reviewer had stegosaurus 6 m 10/12 and T. rex 6 m 5/12 at 844x390.
+  - rv2_probe_lab at 844x390 touch: T. rex 6, 10 and 16 m all shown (12/12, 8/8, 8/8; the reviewer had 3/12, 5/8,
+    4/8). Protoceratops 3, 5 and 8 m all shown; 12 m 7/11 (reviewer 6/11); 18 m 1/2 (reviewer 0/2). At 1600x900
+    every on-screen case shows.
+  - The 5 protoceratops cases still hidden at 844x390 are covered by the HUD. A diagnostic sweep (`targetui/diag/`)
+    logged the box and the HUD rects and shot each case. The animal sits under the status block (12 m 180 deg), the
+    target plate at the top edge (210, 239 deg), the minimap (300 deg) or the bottom-left hexes (18 m 90 deg). The
+    12 m 180 and 300 deg shots show the animal cannot be seen at all, so there is nothing to put the hex beside.
+  - The reviewer's case: `diag/fall844/fallback_stegosaurus_6_210.png` is the same frame as the reviewer's
+    `r2/s844/hidden_stegosaurus_6_210.png`. The hex now sits at (512, 88), right of the stegosaurus under the plate.
+    T. rex 6 m at 0 and 270 deg (both hidden before) show it too, and a touch press on it starts the fight
+    (`fall844.log`, 0 SCRIPT ERROR, no `[rv] OVERLAP`).
+- **Minor: a tap on an animal near a bench opened the bench.** `tap_world` and the click fallback now skip the 96 px
+  station pick when the ray lands straight on a wild animal (`_station_for_tap`). Only a direct ray hit counts, not
+  the 1 m bubble, so a tap on the bench beside a grazing animal still opens the bench.
+  - Check: `station: a tap on an animal N px from a bench selects it`. Round-1 code: selection null, bench menu open.
+  - rv2_probe_lab K_station_tap_animal: `sel=protoceratops` and `menu=false` at 844x390 touch (28 px from the
+    campfire) and 1600x900 (64 px). The reviewer had `sel=null` there.
 
 ## Review round 1: what changed
 
@@ -132,23 +188,38 @@ exit 1, `FAIL count=12`, all of them in the new cases (the old cases still pass 
   overlaps the hex's right edge as in the reference. Crop: `after5/zoom_swords_r1fix.png` next to
   `review/targetui/r1/zr.png`.
 
-## Gates (all run on the final tree: the merge with `claude/mmo-overhaul` 946da955, with the patch applied)
+## Gates (round 2, all run on the final tree with the patch applied; `claude/mmo-overhaul` acc684a6 has no `game/` change since the 946da955 merge)
 
-- Every `game/tests/t_*.gd` (24 files, including HUD-DAYNIGHT's t_daynight_dial) exits 0 and prints PASS. The only
-  SCRIPT ERRORs are t_save's 5 deliberate ones.
+Logs: `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/targetui/gates_r2fix/` and `gates_r2fix.summary`.
+
+- Every `game/tests/t_*.gd` (24 files) exits 0 and prints PASS. The only SCRIPT ERRORs are t_save's 5 deliberate ones.
 - run_all: `[tests] PASS`. smoke: `SMOKE PASS`.
-- **t_targetui on the round-0 code** (round-0 branch files and hooks, new test): exit 1, `FAIL count=12`, as listed
-  above. On the pre-package code it failed too (`FAIL count=12` in round 0: the tap hunted and swung).
-- **targetui_lab:** `[targetui] PASS`, exit 0, 0 SCRIPT ERROR and 0 ERROR, in Forward+ 1600x900,
-  gl_compatibility 1600x900 and gl_compatibility 844x390. It uses real mouse events on the home island.
-- **hunt_lab** (touched by the patch):
-  - headless: `[hunt_lab] PASS`, 0 SCRIPT ERROR;
-  - windowed gl_compatibility 1600x900: `[combat] select velociraptor`, then `hunt start`, 0 SCRIPT ERROR.
-- **Reviewer probes** (rv_probe_lab, rv_probe2_lab): copied into the work tree for the run and removed afterwards, not
-  committed. They exited 0 with 0 SCRIPT ERROR and 0 ERROR in gl_compatibility 1600x900, Forward+ 1600x900 and
-  gl_compatibility 844x390 with touch (probe2: gl_compatibility 1600x900 and 844x390 with touch).
+- **t_targetui on the round-1 code** (round-1 `_spot` and player_input hook, new test): exit 1, `FAIL count=3`, as listed
+  under round 2.
+- **targetui_lab:** `[targetui] PASS`, exit 0, 0 SCRIPT ERROR and 0 ERROR, in Forward+ 1600x900, gl_compatibility
+  1600x900 and gl_compatibility 844x390.
+- **hunt_lab** headless: `[hunt_lab] PASS`, 0 SCRIPT ERROR.
+- **Reviewer r2 probes** (rv2k2_lab, rv2s_lab, rv2_probe_lab) and my two diagnostic probes (rvdiag_lab, rvfall_lab)
+  were copied into the work tree for the run and removed afterwards, not committed. All exited 0 with 0 SCRIPT ERROR
+  and 0 ERROR. Configs: rv2k2_lab in gl_compatibility 1600x900, Forward+ 1600x900 and gl_compatibility 844x390
+  touch; rv2s_lab in gl_compatibility 844x390 touch and 1600x900; rv2_probe_lab in gl_compatibility 844x390 touch
+  and 1600x900 (no `[rv] OVERLAP` line); rvfall_lab in gl_compatibility 844x390 touch and Forward+ 1600x900.
 
-## Shots (looked at, each next to the reference)
+## Shots (round 2, looked at, each next to the reference)
+
+`/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/targetui/`
+
+- `after6/targetui/{fwd1600x900,glc1600x900,glc844x390}/`: select, engaged, aggro_select, pet_tap. Where the hex is not
+  crowded it sits exactly where round 1 put it (select: right of the protoceratops, with the E cap on desktop).
+- `after6/rv2k2_lab/{glc1600x900,fwd1600x900,glc844x390_touch}/K_*.png`: after a press on the swords beside the bench
+  or campfire, the combat HUD runs on the animal and no bench menu is open.
+- `after6/rv2_probe_lab/{glc1600x900,glc844x390_touch}/`: K_station_tap_animal (an animal beside the campfire is
+  selected, with its swords over the bench), K_station_swords, and the rest of the probe's beats.
+- `diag/fall844/fallback_{stegosaurus_6_210,tyrannosaurus_6_0,tyrannosaurus_6_270}.png` and `diag/fall1600fwd/`: the
+  crowded-phone placement. The stegosaurus one pairs with the reviewer's `review/targetui/r2/s844/hidden_stegosaurus_6_210.png`.
+- `diag/glc844/diag_*.png`: the 5 protoceratops cases still hidden. The animal is under the HUD.
+
+Round 1 shots:
 
 `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/targetui/`
 
@@ -175,6 +246,9 @@ Compared with the reference:
   and a flush E cap beside the animal all match.
 - The reference portrait is species art. We have none, so a white dino head stands in.
 
+- **Stations within 96 px:** a tap whose ray lands straight on a wild animal selects it, even beside a station. A tap
+  that misses the animal's collider by less than 1 m still opens the station, so a bench tap is never stolen.
+
 ## Assumptions (marked `# ASSUMPTION:` in code)
 
 - A selection drops past 40 m, the distance the HUD already uses for its last-target plate.
@@ -189,8 +263,9 @@ Compared with the reference:
 - **E beside a bench with an animal selected on screen:** E fights the selection while its swords show (the key the
   hex displays), so a bench or bed needs the ground tap that deselects first. Off screen or past 28 m, E is back to
   normal.
-- **Swords hidden when crowded:** when no spot beside the animal (right, left, at most one hex up or down) is clear
-  of the HUD, the hex hides. On a phone, that animal can then only be fought by moving or after it bites.
+- **Swords hidden when crowded:** the hex hides only when no hex-sized spot clear of the HUD touches the animal's screen
+  box, that is when the animal is under the status block, the plate, the minimap or a hex cluster. That animal can then
+  be fought only by moving, or after it bites. PRD 10.2's long-press memo is not built.
 - **Retargeting during a fight:** tapping another animal mid-fight selects it and shows its swords. The top plate
   stays on the current fight target until you press them.
 - **World plate placement:** when the selected animal stands right under the survivor, the world plate is lifted
