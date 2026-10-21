@@ -5,11 +5,12 @@ from geo2 import *
 
 G = {}
 
-# dirty: a mud splat with flung droplets (nothing like infected's gash and spores or bleed's drops).
-SPLAT = [(32 + (16.5 + 4.2 * math.sin(5 * a + 0.6) + 1.6 * math.sin(3 * a)) * math.cos(a),
-          33 + (16.5 + 4.2 * math.sin(5 * a + 0.6) + 1.6 * math.sin(3 * a)) * math.sin(a))
-         for a in [math.tau * i / 72 for i in range(72)]]
-G["dirty"] = [([SPLAT, circle(11.5, 15, 3.8), circle(54, 13.5, 3.0), circle(53, 54, 4.2), circle(10, 50.5, 2.6)], False)]
+# dirty: a lumpy mud splat with flung droplets: irregular bumps, not radial points (the fallback
+# "action" icon is a sparkle), and nothing like infected's gash and spores or bleed's drops.
+def _r(a):
+    return 15.5 + 2.4 * math.sin(3 * a + 0.4) + 1.6 * math.sin(7 * a + 1.1) + 0.8 * math.sin(11 * a + 2.0)
+SPLAT = [(31 + _r(a) * math.cos(a), 34 + _r(a) * 0.86 * math.sin(a)) for a in [math.tau * i / 96 for i in range(96)]]
+G["dirty"] = [([SPLAT, circle(10.5, 17, 4.4), circle(54.5, 15.5, 3.4), circle(53.5, 55, 3.0)], False)]
 
 # thirsty: an empty drop, its inside dried and cracked (bleed is a full drop, drink a bowl under one).
 DROP = [(32, 6)] + arcp(32, 40, 17, -30, 210, 40)
