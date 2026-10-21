@@ -91,8 +91,14 @@ func _test_pick_node() -> void:
 	_expect(GuideS.pick_node(Vector3.ZERO, &"branch", nodes, hunter) == far, "a tree inside a hunter's radius loses to a farther safe one")
 	_expect(GuideS.pick_node(Vector3.ZERO, &"branch", nodes, [[Vector3(8, 0, 0), 20.0]]) == near, "with no safe tree the nearest one is still picked")
 	_expect(GuideS.pick_node(Vector3.ZERO, &"fibre_stalk", nodes, []) == bush, "fibre picks the bush")
+	var mid := _node(host, "CommonTree", Vector3(4, 0, 0))
+	nodes.append(mid)
+	_expect(GuideS.pick_node(Vector3.ZERO, &"branch", nodes, [], mid) == mid, "the last tree is kept while it is nearly as near (no hopping)")
+	_expect(GuideS.pick_node(Vector3.ZERO, &"branch", nodes, [], far) == near, "a last tree four times as far gives way to the nearest")
+	_expect(GuideS.pick_node(Vector3.ZERO, &"branch", nodes, [[Vector3(5, 0, 1), 1.5]], mid) == near, "a last tree a hunter now reaches gives way to a safe one")
 	near.depleted = true
-	_expect(GuideS.pick_node(Vector3.ZERO, &"branch", nodes, []) == far, "a depleted tree is skipped")
+	_expect(GuideS.pick_node(Vector3.ZERO, &"branch", nodes, []) == mid, "a depleted tree is skipped")
+	_expect(GuideS.pick_node(Vector3.ZERO, &"branch", nodes, [], near) == mid, "a depleted last tree is dropped")
 	_expect(GuideS.pick_node(Vector3.ZERO, &"stone", nodes, []) == null, "nothing offers stone here: no target")
 	host.queue_free()
 	_sections += 1

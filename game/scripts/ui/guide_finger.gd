@@ -15,7 +15,6 @@ const HAND_H := 78.0
 const BOB := 10.0       ## the tap pulls the tip back at most this far along the finger (px at scale 1)
 const TAP_HZ := 1.1
 const EDGE := 20.0      ## an off-screen target clamps the tip this far inside the safe area
-const CLEAR := 44.0     ## and this far (x scale) below the vitals and the Orders card, so the hand clears them
 const REPICK_S := 0.5   ## the nearest world target is re-chosen this often; it is projected every frame
 ## Hand placements tried in order (finger angle, 0 = up): below-right, below-left, above-right, above-left,
 ## then square on (right, left, below, above) for targets in a corner, such as the MENU hex.
@@ -92,21 +91,29 @@ func _update(delta: float) -> bool:
 	var view := get_viewport_rect().size
 	var ins := UiTokens.safe_insets(get_viewport())
 	var safe := Rect2(Vector2(ins.w, ins.z), view - Vector2(ins.w + ins.x, ins.z + ins.y))
+	# Never on the vitals or the Orders card; off the minimap too (its title and text bracket it).
+	var b := _hud.drawn_blocks
 	var keep_off: Array[Rect2] = []
 	for k in ["vitals", "quest"]:
-		if _hud.drawn_blocks.has(k):
-			keep_off.append(_hud.drawn_blocks[k])
+		if b.has(k):
+			keep_off.append(b[k])
+	if b.has("map_title") and b.has("map_text"):
+		keep_off.append((b["map_title"] as Rect2).merge(b["map_text"]))
 	var s := hand_scale(view)
-	# A gather order's hex, once the radial is open on a node that offers the item.
+	# A gather order's hex, once the radial is open on a node that offers the item. The hand would
+	# rather not cover the radial's labels and title.
 	if str(_plan.get("kind", "")) == "gather":
-		var hex := player._gather_radial.hex_rect_for(StringName(str(_plan["item"]))) if player._gather_radial else Rect2()
+		var r := player._gather_radial
+		var hex := r.hex_rect_for(StringName(str(_plan["item"]))) if r else Rect2()
 		if hex.has_area():
 			clamped = false
-			return _aim(hex.get_center(), safe, keep_off, s)
+			var soft: Array[Rect2] = r.label_rects.duplicate()
+			soft.append(r.title_box)
+			return _aim(hex.get_center(), safe, keep_off, s, soft)
 	_repick -= delta
 	if _repick <= 0.0 or (target != null and not is_instance_valid(target)):
 		_repick = REPICK_S
-		var found := Guide.world_target(player, _plan, _hud)
+		var found := Guide.world_target(player, _plan, _hud, target)
 		target = found.get("node", null)
 		_rect = found.get("rect", Rect2())
 	if _rect.has_area():
@@ -121,18 +128,26 @@ func _update(delta: float) -> bool:
 	clamped = behind or not inner.has_point(p)
 	if not clamped:
 		return _aim(p, safe, keep_off, s)
-	for k in keep_off:
-		if k.position.y < view.y * 0.4 and k.end.y + CLEAR * s > inner.position.y:
-			inner = Rect2(inner.position.x, k.end.y + CLEAR * s, inner.size.x, inner.end.y - k.end.y - CLEAR * s)
-	var anchor := clamp_tip(p, behind, inner)
-	return _place(anchor, aim_angle(anchor - inner.get_center()), keep_off, s)
+	# On the edge where the line from the centre leaves the screen, pointing out along it; where the hand
+	# would land on a HUD block there, it slides in along the same line until it clears.
+	var edge := clamp_tip(p, behind, inner)
+	var a := aim_angle(edge - inner.get_center())
+	for k in 9:
+		if _place(edge.lerp(inner.get_center(), float(k) / 8.0), a, keep_off, s):
+			return true
+	return false
 
-## Tip on `at`, hand in the first placement that stays on screen and off the vitals and the Orders card.
-func _aim(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: float) -> bool:
-	var a := pick_angle(at, safe, keep_off, s)
+## Tip on `at`, hand in the first placement that stays on screen and off `keep_off` (off `soft` too where
+## one can).
+func _aim(at: Vector2, safe: Rect2, keep_off: Array[Rect2], s: float, soft: Array[Rect2] = []) -> bool:
+	var both: Array[Rect2] = keep_off.duplicate()
+	both.append_array(soft)
+	var a := pick_angle(at, safe, both, s)
+	if is_nan(a):
+		a = pick_angle(at, safe, keep_off, s)
 	return not is_nan(a) and _place(at, a, keep_off, s)
 
-## An edge-clamped hand may run off the screen behind the tip, never onto the vitals or the Orders card.
+## An edge-clamped hand may run off the screen behind the tip, never onto a `keep_off` block.
 func _place(anchor: Vector2, a: float, keep_off: Array[Rect2], s: float) -> bool:
 	for k in keep_off:
 		if hand_rect(anchor, a, s).intersects(k):

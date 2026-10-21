@@ -7,6 +7,9 @@ extends RefCounted
 ## recipe makes is crafted by hand (the HUD's craft control) or at a station. The optional "guide" field
 ## in objectives.json names a creature where the order is not about a grown or crafted item (meat, tame).
 
+## A gather order keeps its last tree while that is at most this many times as far as the nearest pick.
+const KEEP_FAR := 1.5
+
 ## {"kind": "gather", "item"} | {"kind": "craft"} | {"kind": "station", "stations": [id, ...]} |
 ## {"kind": "creature", "id"} | {"kind": "none"}.
 static func plan(step: Dictionary) -> Dictionary:
@@ -36,10 +39,11 @@ static func current_plan() -> Dictionary:
 
 ## Where the finger points for `p` this frame, besides a gather hex (the radial owns those):
 ## {"node": Node3D} for a thing in the world, {"rect": Rect2} for a HUD control, {} for nothing.
-static func world_target(player: Player, p: Dictionary, hud: HuntHud) -> Dictionary:
+## `last` is the previous pick, which a gather order keeps while it is still as good (see pick_node).
+static func world_target(player: Player, p: Dictionary, hud: HuntHud, last: Node3D = null) -> Dictionary:
 	match str(p.get("kind", "none")):
 		"gather":
-			var n := pick_node(player.global_position, StringName(str(p["item"])), player.get_tree().get_nodes_in_group("harvest"), threats(player.get_tree()))
+			var n := pick_node(player.global_position, StringName(str(p["item"])), player.get_tree().get_nodes_in_group("harvest"), threats(player.get_tree()), last as HarvestNode)
 			return {"node": n} if n else {}
 		"craft":
 			var c := hud.control_for(&"craft") if hud else null
@@ -71,9 +75,11 @@ static func threats(tree: SceneTree) -> Array:
 			out.append([c.global_position, c.brain.aggro_radius()])
 	return out
 
-## The nearest node that still offers `item`, preferring one outside every threat's radius.
+## The nearest node that still offers `item`, preferring one outside every threat's radius. `keep` (the
+## last pick) stays while it still offers the item, is as safe as the pick and at most KEEP_FAR times as
+## far, so the finger does not hop between trees as the survivor and the animals move.
 # ASSUMPTION: with no safe node the nearest one still gets the finger (the order needs it).
-static func pick_node(from: Vector3, item: StringName, nodes: Array, danger: Array) -> HarvestNode:
+static func pick_node(from: Vector3, item: StringName, nodes: Array, danger: Array, keep: HarvestNode = null) -> HarvestNode:
 	var best: HarvestNode = null
 	var best_d := INF
 	var safe: HarvestNode = null
@@ -88,13 +94,21 @@ static func pick_node(from: Vector3, item: StringName, nodes: Array, danger: Arr
 		if d < best_d:
 			best = h
 			best_d = d
-		var clear := true
-		for t: Array in danger:
-			clear = clear and h.global_position.distance_to(t[0]) > float(t[1])
-		if clear:
+		if _clear(h.global_position, danger):
 			safe = h
 			safe_d = d
-	return safe if safe else best
+	var pick := safe if safe else best
+	if keep and pick and keep != pick and is_instance_valid(keep) and keep.is_inside_tree() and not keep.depleted \
+			and (safe == null or _clear(keep.global_position, danger)) and offers(keep, item) \
+			and from.distance_squared_to(keep.global_position) <= from.distance_squared_to(pick.global_position) * KEEP_FAR * KEEP_FAR:
+		return keep
+	return pick
+
+static func _clear(at: Vector3, danger: Array) -> bool:
+	for t: Array in danger:
+		if at.distance_to(t[0]) <= float(t[1]):
+			return false
+	return true
 
 static func offers(h: HarvestNode, item: StringName) -> bool:
 	for o: Dictionary in h.options():
