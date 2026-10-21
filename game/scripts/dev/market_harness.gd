@@ -50,8 +50,9 @@ func client(acct: int = VIEWER) -> LocalMarketClient:
 	return LocalMarketClient.new(bridge, acct, func () -> int: return now)
 
 ## The lab/test scene: other players' listings (single branches, bones, a crafted knife, a bonded
-## pet, captured cages), and the viewer with a bag, tradable + bound coins, one active, one sold
-## and one expired listing, and a purchase waiting in the vault for Receive All.
+## pet, captured cages), and the viewer with tradable + bound coins, one active, one sold and one
+## expired listing, a purchase waiting in the vault for Receive All, and a bag to sell from:
+## two bones, a crafted knife, a captured cage, a bonded pet and a locked stone stack.
 func seed_scene() -> void:
 	now += int(bridge.econ.engine.L.rules.num("trade_lock_s")) + 1 # new accounts wait out the lock
 	for acct: int in [SELLER_A, SELLER_B, VIEWER]:
@@ -87,8 +88,25 @@ func seed_scene() -> void:
 	var bone := _search_first(VIEWER, "bone")
 	if bone != "":
 		op(VIEWER, "market.buy", {"listing_id": bone, "count": 1})
+	# The viewer's Sell picker: every kind of cell (stack, durability, cage, bonded pet, locked).
+	_loot(VIEWER, "bone", 2)
+	_craft_knife(VIEWER)
+	capture(VIEWER, "compy_mine_cage")
+	tame(VIEWER, "compy_mine")
+	lock_first(VIEWER, "stone")
 	now += 13 * HOUR
 	tick()
+
+## Stands in for the Bag's Lock (InventoryUI sets the "locked" flag on a stack): the server has no
+## lock intent yet, so the same flag goes on the server character's stack.
+# shortcut: edits the character dict directly; use the server's lock intent once W3-SRVACT adds one.
+func lock_first(acct: int, def: String) -> void:
+	var slot := _slot(acct, def)
+	if slot < 0:
+		failures.append("account %d has no %s to lock" % [acct, def])
+		return
+	var row: Dictionary = _bag(acct)[slot]
+	row.flags = (row.get("flags", []) as Array) + ["locked"]
 
 ## Tradable coins the honest way: sell gathered goods into Settlers' buy orders, window by window.
 func earn(acct: int, target: int) -> void:

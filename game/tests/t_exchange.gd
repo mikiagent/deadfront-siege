@@ -12,8 +12,6 @@ const DIR := "user://runs/t_exchange"
 const MS_PATH := "res://scripts/ui/market/market_screen.gd"
 ## Gates a later build step turns into checks (spec §8). Each builder deletes its own lines here.
 const PENDING := [
-	"B2 sell: picker rows == server bag instances, refusals shown with reason, preview == ledger deltas",
-	"B2 sell errors: fee not payable from bound coins, price 0 / > max_unit_price refused",
 	"B3 my market: active/sold/expired/history from market.mine, cancel returns to vault, fee kept",
 	"B3 receive all: inbox.take + vault.withdraw per uid, bag_full keeps the rest, twice moves nothing",
 	"B4 pixels: targets >= 44 px at 844x390, no clipped labels, 500 listings page without hitches",
@@ -92,6 +90,8 @@ func _run() -> void:
 		await _test_buy(hs, ms_script)
 		await _test_buy_errors(hs, ms_script)
 		await _test_categories(hs, ms_script)
+		await _test_sell(hs, ms_script)
+		await _test_sell_errors(hs, ms_script)
 		await _test_menu(hs, ms_script)
 		ms_script.set("test_client", null)
 	for f in failures:
@@ -361,6 +361,220 @@ func _test_categories(hs: GDScript, ms_script: GDScript) -> void:
 	_expect((table.get("chips") as Array).is_empty() and _row_keys(table).size() > 3, "removing the chip clears the search")
 	ms.queue_free()
 	print("[t_exchange] categories: Animals %d rows, clades %s" % [keys.size(), titles.size() - 1])
+
+## Gate 8: the picker is the server character's own instances (bag, bonded pets, market storage),
+## refused ones visible with their reason; List moves that exact instance (a part of a stack under
+## the uid the deposit answers) and the preview equals the ledger: fee now, price - tax on sale.
+## A bonded pet and a captured animal are listed as what they are (pet carrier with B, crate).
+func _test_sell(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/sell")
+	h.call("seed_scene")
+	var ms: Control = await _open_sell(h, 1, ms_script)
+	var sell: Control = ms.get("sell")
+	var picker: Control = sell.get("picker")
+	var form: Control = sell.get("form")
+	_expect(sell.visible and not (ms.get("buy") as Control).visible, "the rail's Sell tab shows Sell")
+	# Picker == the server character's bag stacks in slot order, then its pets, then its market storage.
+	var ch: Dictionary = h.call("op", 1, "char.get", {}).r
+	var want: Array = []
+	var lock := str((load("res://scripts/server/character_state.gd") as GDScript).get_script_constant_map().LOCK)
+	for row: Variant in ch.bag:
+		if row is Dictionary and str(row.id) != lock:
+			want.append(str(row.uid))
+	want.append_array((ch.pets as Dictionary).keys())
+	var vault: Dictionary = h.call("op", 1, "vault.get", {}).r
+	for it: Dictionary in vault.items:
+		want.append(str(it.uid))
+	var got: Array = (picker.get("entries") as Array).map(func (e: Dictionary) -> String: return str(e.uid))
+	_expect(got == want and (picker.get("cells") as Array).size() == want.size(), "picker cells == server bag + pets + storage, one per instance: %s vs %s" % [got, want])
+	var bone := _entry(sell, func (e: Dictionary) -> bool: return e.src == "bag" and str(e.asset.id) == "bone")
+	var stone := _entry(sell, func (e: Dictionary) -> bool: return e.src == "bag" and str(e.asset.id) == "stone")
+	var pet := _entry(sell, func (e: Dictionary) -> bool: return e.src == "pet")
+	var cage := _entry(sell, func (e: Dictionary) -> bool: return e.src == "bag" and str(e.asset.id) == "captured_animal")
+	var stored := _entry(sell, func (e: Dictionary) -> bool: return e.src == "vault")
+	_expect(pet.get("badge", false) and pet.get("icon") == &"tamed_animal" and not cage.get("badge", true) and cage.get("icon") == &"captured_animal" and str(cage.get("name", "")) == "Captured Compsognathus", "a bonded pet is a B pet carrier, a captured one a crate: %s / %s" % [pet.get("name"), cage.get("name")])
+	# Locked: dimmed with its reason, nothing to list; the server refuses it too and nothing moves.
+	await _click_cell(sell, str(stone.uid))
+	var status := form.get("status") as Label
+	_expect(str(stone.why).begins_with("Locked") and status.text == stone.why and not (form.get("_form") as Control).visible and (form.get("list_btn") as Button).disabled, "a locked stack shows why and cannot be listed: %s" % status.text)
+	var before := JSON.stringify([h.call("op", 1, "char.get", {}).r.bag, h.call("op", 1, "wallet.get", {}).r])
+	var forced: Dictionary = h.call("op", 1, "vault.deposit", {"bag_slot": _slot_of(h, str(stone.uid)), "count": 1})
+	_expect(forced.get("err", "") == "invalid_asset" and str(forced.get("msg", "")).contains("locked") and before == JSON.stringify([h.call("op", 1, "char.get", {}).r.bag, h.call("op", 1, "wallet.get", {}).r]), "the server refuses a locked stack too, nothing moved: %s" % forced)
+	# Part of a stack: 1 of 2 bones at a price inside the band (ref = the viewer's own bone buy).
+	await _click_cell(sell, str(bone.uid))
+	var band: Array = MF.call("band", int(form.get("ref")))
+	_expect(int(form.get("ref")) > 0 and band.size() == 2 and int(form.get("lo")) == int(band[0]) and int(form.get("hi")) == int(band[1]) and str((form.get("band_label") as Label).text).contains(MF.call("group", band[1])), "bone: the band around the reference price is shown: %s" % (form.get("band_label") as Label).text)
+	_expect(int(form.get("count")) == int(bone.count) and int(bone.count) == 2, "a stack starts at its whole count (%d)" % int(form.get("count")))
+	(form.get("steppers").count_down as Button).pressed.emit()
+	var edit := form.get("price_edit") as LineEdit
+	edit.text = str(int(band[1]) + 50)
+	edit.text_changed.emit(edit.text)
+	edit.text_submitted.emit(edit.text)
+	_expect(int(form.get("unit")) == int(band[1]) and (form.get("steppers").price_up as Button).disabled, "a typed price above the band is pulled to its top (%d)" % int(form.get("unit")))
+	var unit := int(band[0]) + 7
+	edit.text = str(unit)
+	edit.text_changed.emit(edit.text)
+	var p: Dictionary = MF.call("preview", unit, 1)
+	_expect((form.get("preview_values").fee as Label).text == MF.call("group", p.fee) and (form.get("preview_values").receive as Label).text == MF.call("group", p.receive) and (form.get("list_btn") as Button).text == "List for %s" % MF.call("group", p.total), "the preview shows fee %d, receive %d" % [p.fee, p.receive])
+	var w0 := _wallet(h, 1)
+	var ids0: Array = (h.call("op", 1, "market.mine", {}).r.listings as Array).map(func (l: Dictionary) -> String: return str(l.id))
+	_click(form.get("list_btn"))
+	_click(form.get("list_btn")) # double tap
+	await process_frame
+	var mine: Array = h.call("op", 1, "market.mine", {}).r.listings
+	var new_rows := mine.filter(func (l: Dictionary) -> bool: return str(l.id) not in ids0)
+	var lst: Dictionary = new_rows[0] if new_rows.size() == 1 else {}
+	var left := _bag_row(h, str(bone.uid))
+	_expect(new_rows.size() == 1 and _wallet(h, 1) == w0 - int(p.fee), "List: one listing, fee %d paid once (%d -> %d)" % [p.fee, w0, _wallet(h, 1)])
+	_expect(int(lst.get("qty", 0)) == 1 and int(lst.get("unit_price", 0)) == unit and str(lst.get("asset", {}).get("id", "")) == "bone" and int(lst.asset.level) == int(bone.asset.level) and lst.asset.get("attributes", {}) == bone.asset.get("attributes", {}), "the listing is 1 bone with the stack's level and attributes at %d" % unit)
+	_expect(int(left.get("count", 0)) == 1 and str(lst.get("asset", {}).get("uid", "")) != str(bone.uid), "the rest of the stack stays in the bag under its uid; the part has its own")
+	_expect(status.text.begins_with("Listed"), "the panel says it is listed: %s" % status.text)
+	h.call("op", 2, "market.buy", {"listing_id": str(lst.get("id", "")), "count": 1})
+	_expect(_wallet(h, 1) == w0 - int(p.fee) + int(p.receive) and _wallet(h, 1) - w0 == int(p.net), "after a sale the ledger moved exactly the preview: net %d (%d -> %d)" % [p.net, w0, _wallet(h, 1)])
+	# A bonded pet is listed as the pet (one instance, its uid); a captured animal as its cage.
+	await _list_entry(sell, str(pet.uid), 0)
+	await _list_entry(sell, str(cage.uid), 0)
+	var mine_keys := {}
+	for l: Dictionary in h.call("op", 1, "market.mine", {}).r.listings:
+		mine_keys[str(l.asset.uid)] = str(l.key)
+	_expect(mine_keys.get(str(pet.uid), "") == "pet:compsognathus" and mine_keys.get(str(cage.uid), "") == "item:captured_animal", "the pet and the cage are listed under their own uids: %s" % mine_keys)
+	_expect(not str(pet.uid) in (h.call("op", 1, "char.get", {}).r.pets as Dictionary), "the listed pet left the character")
+	# What waits in market storage lists with no deposit.
+	var w1 := _wallet(h, 1)
+	var stored_uid := str(stored.uid)
+	await _list_entry(sell, stored_uid, 0)
+	var found := false
+	for l: Dictionary in h.call("op", 1, "market.mine", {}).r.listings:
+		found = found or str(l.asset.uid) == stored_uid
+	_expect(found and _wallet(h, 1) < w1, "a stored item is listed straight from market storage")
+	# INVUI's "Sell on Market": the screen opens on Sell with that instance picked.
+	var knife := _entry(sell, func (e: Dictionary) -> bool: return str(e.asset.get("id", "")) == "stone_knife_work")
+	ms.call("close_screen")
+	ms.call("open", null, &"sell", str(knife.uid))
+	await process_frame
+	_expect(sell.visible and str(sell.get("selected")) == str(knife.uid) and str((form.get("_title") as Label).text) == str(knife.name), "open(sell, uid) picks that instance: %s" % sell.get("selected"))
+	ms.queue_free()
+	print("[t_exchange] sell: %d cells, bone 1/2 at %d fee %d tax %d net %d, pet %s and cage %s listed, stored %s listed" % [got.size(), unit, p.fee, p.tax, p.net, pet.uid, cage.uid, stored_uid])
+
+## Gate 9 (Sell's error paths): bound coins cannot pay the fee, prices out of range, the band (H3),
+## refusal reasons for what the client can see, and a list step refused after the deposit keeps
+## the item safe in market storage.
+func _test_sell_errors(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/sell_errors")
+	h.call("seed_scene")
+	var bridge: Object = h.get("bridge")
+	bridge.call("hello", 4, "BoundOnly", int(h.get("now")))
+	h.set("now", int(h.get("now")) + EconRules.load_default().num("trade_lock_s") + 1)
+	bridge.call("client", "act.gather", 4, {"node_id": "rock", "option": 0}, int(h.get("now")))
+	var ms: Control = await _open_sell(h, 4, ms_script)
+	var sell: Control = ms.get("sell")
+	var form: Control = sell.get("form")
+	var status := form.get("status") as Label
+	var rock := _entry(sell, func (e: Dictionary) -> bool: return str(e.asset.get("id", "")) == "stone")
+	await _click_cell(sell, str(rock.uid))
+	var edit := form.get("price_edit") as LineEdit
+	edit.text = "0"
+	edit.text_changed.emit("0")
+	_expect((form.get("list_btn") as Button).disabled and (form.get("list_btn") as Button).text == "Set a price", "price 0: List is disabled until a price is set")
+	edit.text = "5000000"
+	edit.text_changed.emit(edit.text)
+	edit.focus_exited.emit()
+	var hi: int = int(form.get("hi"))
+	_expect(int(form.get("unit")) == hi and hi <= EconRules.load_default().num("max_unit_price"), "a price over the maximum is pulled to %d" % hi)
+	edit.text = "40"
+	edit.text_changed.emit("40")
+	_expect((form.get("list_btn") as Button).disabled and status.text.contains("Bound T-stones can't pay"), "bound coins only: List disabled, the fee reason shown (%s)" % status.text)
+	var before := JSON.stringify([h.call("op", 4, "char.get", {}).r.bag, h.call("op", 4, "wallet.get", {}).r, h.call("op", 4, "vault.get", {}).r])
+	# A stale balance (the panel thinks the fee is payable): the server refuses the listing after the
+	# deposit, the stone waits in market storage, the wallet is untouched.
+	form.set("tradable", 999)
+	sell.call("list_selected")
+	await process_frame
+	var vault: Array = h.call("op", 4, "vault.get", {}).r.items
+	_expect(status.text.begins_with("Not enough tradable T-stones.") and status.text.contains("safe in your market storage") and int(h.call("op", 4, "wallet.get", {}).r.wallet) == 20 and vault.size() == 1 and str(vault[0].id) == "stone", "insufficient_funds after the deposit: %s; stone stored, wallet 20" % status.text)
+	_expect(str(sell.get("selected")) == str(vault[0].uid) if not vault.is_empty() else false, "the stored stone stays picked to list again")
+	_expect(before != JSON.stringify([h.call("op", 4, "char.get", {}).r.bag, h.call("op", 4, "wallet.get", {}).r, h.call("op", 4, "vault.get", {}).r]), "the deposit really moved the stone (bag -> storage)")
+	# The server refuses prices out of 1..max_unit_price, whatever a client sends.
+	var mc: RefCounted = h.call("client", 1)
+	var bone_uid := ""
+	for it: Dictionary in h.call("op", 1, "vault.get", {}).r.items:
+		if str(it.id) == "bone":
+			bone_uid = str(it.uid)
+	var w1 := JSON.stringify(h.call("op", 1, "wallet.get", {}).r)
+	for bad: int in [0, EconRules.load_default().num("max_unit_price") + 1]:
+		var r: Dictionary = await mc.call("request", "market.list_fixed", {"asset": {"uid": bone_uid}, "unit_price": bad, "duration_h": 24})
+		_expect(r.get("err", "") == "bad_request" and JSON.stringify(h.call("op", 1, "wallet.get", {}).r) == w1, "unit_price %d refused by the server: %s" % [bad, r.get("msg", "")])
+	# H3: the server refuses a price outside the band the panel keeps to; the edges list.
+	var ref := int(h.call("op", 1, "market.item_detail", {"def_id": "bone"}).r.ref_price)
+	var band: Array = MF.call("band", ref)
+	if not (load("res://scripts/economy/market_book.gd") as GDScript).get_script_method_list().any(func (f: Dictionary) -> bool: return f.name == "band_of"):
+		_hook_absent("H3", "server-side price band")
+	else:
+		var out: Dictionary = await mc.call("request", "market.list_fixed", {"asset": {"uid": bone_uid}, "unit_price": int(band[1]) + 1, "duration_h": 24})
+		_expect(out.get("err", "") == "bad_request" and str(out.get("msg", "")) == "price must be between %d and %d" % band and JSON.stringify(h.call("op", 1, "wallet.get", {}).r) == w1, "H3: %d above the band is refused: %s" % [int(band[1]) + 1, out])
+		var low: Dictionary = await mc.call("request", "market.list_fixed", {"asset": {"uid": bone_uid}, "unit_price": int(band[0]) - 1, "duration_h": 24})
+		_expect(low.get("err", "") == "bad_request", "H3: %d below the band is refused" % (int(band[0]) - 1))
+		var edge: Dictionary = await mc.call("request", "market.list_fixed", {"asset": {"uid": bone_uid}, "unit_price": int(band[1]), "duration_h": 24})
+		_expect(edge.get("ok", false), "H3: the top of the band lists: %s" % edge)
+	# Refusal reasons for what the client can see (the server's own words for the rest).
+	var why := func (kind: String, a: Dictionary) -> String: return str(MF.call("sell_refusal", kind, a))
+	_expect(why.call("item", {"id": "tamed_animal", "count": 1}).contains("bond"), "denied def (tamed_animal): %s" % why.call("item", {"id": "tamed_animal", "count": 1}))
+	_expect(why.call("item", {"id": "stone", "count": 1, "flags": ["unstable"]}).contains("Cargo-warp"), "unstable goods say cargo-warp first")
+	_expect(why.call("item", {"id": "stone_knife_work", "count": 1, "durability": 0, "max_durability": 40}).begins_with("Broken"), "a broken tool says so")
+	_expect(why.call("pet", {"species": "compsognathus", "summoned": true}).begins_with("Dismiss") and why.call("pet", {"species": "compsognathus", "bag": ["x"]}).begins_with("Empty"), "a summoned or loaded pet says what to do")
+	_expect(why.call("item", {"id": "bone", "count": 2, "flags": ["raw"]}) == "", "an ordinary stack can be sold")
+	ms.queue_free()
+	print("[t_exchange] sell errors: price 0, over max, bound-only fee, stale balance (stored, wallet kept), server range, band %s, refusal reasons" % [band])
+
+## Picks `uid` in the open Sell tab and lists it at `price` (0 = the panel's starting price).
+func _list_entry(sell: Control, uid: String, price: int) -> void:
+	var form: Control = sell.get("form")
+	await _click_cell(sell, uid)
+	if price > 0:
+		(form.get("price_edit") as LineEdit).text_changed.emit(str(price))
+	if int(form.get("unit")) == 0:
+		(form.get("steppers").price_up as Button).pressed.emit() # no market price yet: start at the band's floor
+	_expect(form.call("can_list"), "%s can be listed (%s)" % [uid, (form.get("list_btn") as Button).text])
+	_click(form.get("list_btn"))
+	await process_frame
+	_expect(str((form.get("status") as Label).text).begins_with("Listed"), "%s listed: %s" % [uid, (form.get("status") as Label).text])
+
+## A real click on a picker cell, scrolled into view first (the grid scrolls like the Bag's).
+func _click_cell(sell: Control, uid: String) -> void:
+	var picker: Control = sell.get("picker")
+	var cell: Control = picker.call("cell_of", uid)
+	if not _expect(cell != null, "a picker cell for %s" % uid):
+		return
+	(picker.get("_scroll") as ScrollContainer).ensure_control_visible(cell)
+	await process_frame
+	_click(cell)
+	await process_frame
+
+func _open_sell(h: RefCounted, acct: int, ms_script: GDScript) -> Control:
+	ms_script.set("test_client", h.call("client", acct))
+	var ms: Control = await _open(ms_script)
+	_click((ms.get("rail") as Control).get("buttons")[&"sell"])
+	await process_frame
+	await process_frame
+	return ms
+
+func _entry(sell: Control, pred: Callable) -> Dictionary:
+	for e: Dictionary in sell.get("entries"):
+		if pred.call(e):
+			return e
+	failures.append("no such entry in the Sell picker")
+	return {"uid": "", "why": "", "asset": {}, "count": 0, "name": ""}
+
+func _slot_of(h: RefCounted, uid: String) -> int:
+	var bag: Array = h.call("op", 1, "char.get", {}).r.bag
+	for i in bag.size():
+		if bag[i] is Dictionary and str(bag[i].get("uid", "")) == uid:
+			return i
+	return -1
+
+func _bag_row(h: RefCounted, uid: String) -> Dictionary:
+	var i := _slot_of(h, uid)
+	return h.call("op", 1, "char.get", {}).r.bag[i] if i >= 0 else {}
 
 ## Gate 11: the HUD's MENU sheet has an Island Market row that opens the screen (hook H0).
 func _test_menu(hs: GDScript, ms_script: GDScript) -> void:

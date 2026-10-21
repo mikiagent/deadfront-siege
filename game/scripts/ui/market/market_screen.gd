@@ -16,10 +16,12 @@ var tab := &"buy"
 var header: MarketHeader
 var rail: MarketRail
 var buy: MarketBuy
+var sell: MarketSell
 var search: MarketSearch
 var confirm: MarketConfirm
 var offline_panel: Control
-var _later: Label ## My Market / Sell until their build steps land
+var _later: Label ## My Market until its build step lands
+var _sell_uid := "" ## the instance to preselect when Sell opens
 var _backdrop: ColorRect
 var _m := {}
 
@@ -54,6 +56,11 @@ func _ready() -> void:
 	buy = MarketBuy.new()
 	buy.name = "Buy"
 	add_child(buy)
+	sell = MarketSell.new()
+	sell.name = "Sell"
+	sell.visible = false
+	sell.listed.connect(func (_res: Dictionary) -> void: refresh_wallet())
+	add_child(sell)
 	_later = MarketTheme.label("", 18, MarketTheme.TEXT_2)
 	_later.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_later.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -89,9 +96,10 @@ func _ready() -> void:
 func is_open() -> bool:
 	return visible
 
-## Opens on `p_tab` (buy | my_market | sell). `_uid` is the instance INVUI's "Sell on Market" picks (B2).
-func open(p_player: Node, p_tab: StringName = &"buy", _uid: String = "") -> void:
+## Opens on `p_tab` (buy | my_market | sell). `uid` is the instance INVUI's "Sell on Market" picks.
+func open(p_player: Node, p_tab: StringName = &"buy", uid: String = "") -> void:
 	player = p_player
+	_sell_uid = uid
 	client = client_for_game()
 	visible = true
 	header.title = MapScreen.island_name(str(World.island_id))
@@ -107,6 +115,7 @@ func open(p_player: Node, p_tab: StringName = &"buy", _uid: String = "") -> void
 		rail.select(p_tab)
 	else:
 		buy.visible = false
+		sell.visible = false
 		_later.visible = false
 	_layout()
 
@@ -121,14 +130,20 @@ func close_screen() -> void:
 func show_tab(id: StringName) -> void:
 	tab = id
 	buy.visible = id == &"buy"
-	_later.visible = id != &"buy"
-	_later.text = "Selling arrives with the next build step." if id == &"sell" else "Your listings, sales and Receive All arrive with the next build step."
+	sell.visible = id == &"sell"
+	_later.visible = id == &"my_market"
+	_later.text = "Your listings, sales and Receive All arrive with the next build step."
 	_layout()
+	if id == &"sell":
+		sell.set_tradable(header.tradable())
+		sell.start(client, _sell_uid) # the server's bag now: it changes while the screen is closed
+		_sell_uid = ""
 
 func refresh_wallet() -> void:
 	var res: Dictionary = await client.request("wallet.get")
 	if res.get("ok", false):
 		header.set_wallet(res.r)
+		sell.set_tradable(header.tradable())
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible or not event.is_action_pressed(&"ui_cancel"):
@@ -178,6 +193,7 @@ func _layout() -> void:
 	rail.layout(_m, Rect2(body.position, Vector2(_m.rail_w, body.size.y)))
 	var content := Rect2(body.position.x + _m.rail_w + _m.margin, body.position.y, body.size.x - _m.rail_w - _m.margin, body.size.y)
 	buy.layout(_m, content)
+	sell.layout(_m, content)
 	_later.position = content.position
 	_later.size = content.size
 	MarketTheme.size_label(_later, _m.name)

@@ -1,7 +1,8 @@
 class_name MarketFormat
 extends RefCounted
 ## Pure helpers for the market screens: number grouping, player-facing error text, the row model of
-## a listing view, the market categories and the cage-able clades. No nodes, no state, no ops.
+## a listing view, the market categories and the cage-able clades, and Sell's picker cells, refusal
+## reasons, price band and fee / tax / proceeds preview. No nodes, no state, no ops.
 
 const QUERY := "res://scripts/economy/market_query.gd"
 ## Market category -> title where id.capitalize() reads wrong.
@@ -27,6 +28,12 @@ const ERRORS := {
 	"bag_full": "Your bag is full.",
 	"rate_limited": "Too fast, try again.",
 	"server_error": "The market is busy finishing a trade. Try again shortly.",
+}
+
+## Sell: what a refused flag (limits.json refused_flags) tells the player; other flags get a generic line.
+const REFUSED_FLAGS := {
+	"locked": "Locked. Unlock it in your Bag to sell it.",
+	"unstable": "Unstable goods can't be sold. Cargo-warp them first.",
 }
 
 static var _cats: Array = []
@@ -85,6 +92,96 @@ static func row(v: Dictionary) -> Dictionary:
 	if stack.max_durability > 0:
 		m.dur = "%d/%d" % [stack.durability, stack.max_durability]
 	return m
+
+## The asset's own facts, one per line, read from its dict (never recomputed): the Buy confirm and
+## the Sell panel. `kind` is "pet" or "item".
+static func asset_lines(kind: String, a: Dictionary) -> PackedStringArray:
+	var out: PackedStringArray = []
+	var m := row({"type": kind, "asset": a, "left": int(a.get("count", 1))})
+	out.append("%s   ·   %s" % [LevelDisplay.label(m.level), m.type])
+	if kind == "pet":
+		out.append("Grade %s   ·   HP %.0f   ·   Attack %.0f   ·   Defense %.0f" % [a.get("grade", "?"), float(a.get("hp", 0)), float(a.get("attack", 0)), float(a.get("defense", 0))])
+		out.append("Bonded pet")
+		return out
+	var attrs: Dictionary = a.get("attributes", {})
+	if m.dur != "—":
+		out.append("Durability %s" % m.dur)
+	if attrs.has("material_tier"):
+		out.append("Material: %s" % str(attrs.material_tier).capitalize())
+	if int(a.get("process_count", 0)) > 0:
+		out.append("Processed %d×" % int(a.process_count))
+	if str(a.get("id", "")) == AssetValidator.CAGE:
+		out.append("Wild, captured alive")
+	return out
+
+## Sell picker cells: the server character's bag (one per stack or instance, in slot order), its
+## bonded pets, then what waits in its market storage (listed from there with no deposit).
+## Each is a row() model plus src (bag | pet | vault), key (bag slot or uid), kind, asset, why.
+static func sell_entries(ch: Dictionary, vault: Dictionary) -> Array:
+	var out: Array = []
+	var bag: Array = ch.get("bag", [])
+	for i in bag.size():
+		if bag[i] is Dictionary and str(bag[i].get("id", "")) != str(CharacterState.LOCK):
+			out.append(_entry("bag", i, "item", bag[i]))
+	var pets: Dictionary = ch.get("pets", {})
+	for uid: String in pets:
+		out.append(_entry("pet", uid, "pet", pets[uid]))
+	for it: Dictionary in vault.get("items", []):
+		out.append(_entry("vault", str(it.uid), "item", it))
+	for p: Dictionary in vault.get("pets", []):
+		out.append(_entry("vault", str(p.uid), "pet", p))
+	return out
+
+static func _entry(src: String, key: Variant, kind: String, asset: Dictionary) -> Dictionary:
+	var e := row({"type": kind, "asset": asset, "left": int(asset.get("count", 1))})
+	e.merge({"src": src, "key": key, "kind": kind, "asset": asset, "why": sell_refusal(kind, asset)}, true)
+	return e
+
+## Why the market would refuse this asset, as the player reads it, or "". Only what the client
+## can see (denied defs, refused flags, broken, a summoned or loaded pet); any other refusal comes
+## back from vault.deposit and is shown verbatim. The server checks everything again.
+static func sell_refusal(kind: String, a: Dictionary) -> String:
+	if kind == "pet":
+		if bool(a.get("summoned", false)):
+			return "Dismiss the pet before selling it."
+		if (a.get("bag", []) as Array).any(func (s: Variant) -> bool: return s != null):
+			return "Empty the pet's bag before selling it."
+		return ""
+	var rules := EconRules.load_default()
+	if str(a.get("id", "")) in rules.g("denied_defs"):
+		return "Can't be sold: bond the animal or release it first."
+	for f: Variant in a.get("flags", []):
+		if str(f) in rules.g("refused_flags"):
+			return str(REFUSED_FLAGS.get(str(f), "%s items can't be sold." % str(f).capitalize()))
+	if int(a.get("max_durability", 0)) > 0 and int(a.get("durability", 0)) < 1:
+		return "Broken items can't be sold."
+	return ""
+
+## The listing preview in integers, with the engine's own rules and rounding (MarketBook.list_fixed
+## and _pay_seller): the fee is paid now from tradable T-stones and never refunded; the tax is
+## taken when it sells; the proceeds go straight to the wallet. 20,000 -> 1,000 / 600 / 19,400 / 18,400.
+static func preview(unit: int, count: int) -> Dictionary:
+	var r := EconRules.load_default()
+	var total := unit * count
+	var fee := maxi(r.num("listing_fee_min"), EconRules.ceil_bp(total, r.bp("listing_fee")))
+	var tax := EconRules.ceil_bp(total, r.bp("sales_tax"))
+	return {"total": total, "fee": fee, "tax": tax, "receive": total - tax, "net": total - tax - fee}
+
+## The unit prices allowed around a reference price: [ceil(ref x low), floor(ref x high)] from
+## market_rules.json (0.25x-4x), clipped to 1..max_unit_price; [] when there is no reference.
+# ASSUMPTION (exchange-spec A6): hook H3 makes market.list_fixed refuse outside the same band.
+static func band(ref: int) -> Array:
+	if ref <= 0:
+		return []
+	var r := EconRules.load_default()
+	return [maxi(1, (ref * r.bp("reference_outlier_low") + 9999) / 10000), mini(r.num("max_unit_price"), ref * r.bp("reference_outlier_high") / 10000)]
+
+## The price stepper's step: about a tenth of the price's magnitude (25 -> 1, 250 -> 10, 20,000 -> 1,000).
+static func price_step(p: int) -> int:
+	var s := 1
+	while s * 100 <= p:
+		s *= 10
+	return s
 
 static func species_name(sp: String) -> String:
 	var c := Data.creature(StringName(sp))

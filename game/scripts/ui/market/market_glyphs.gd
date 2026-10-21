@@ -1,7 +1,7 @@
 class_name MarketGlyphs
 extends RefCounted
 ## The market's own white glyphs, drawn with draw_* so they stay crisp at any size: the rail's
-## cart / ledger / price tag, sort arrows, the category chevron and the bonded "B" badge.
+## cart / ledger / price tag, sort arrows, the category and stepper chevrons and the bonded "B" badge.
 # ASSUMPTION (exchange-spec A9): drawn in-package, not added to ui_icons.json (W1-UIICONS' gated set).
 
 static func draw(ci: CanvasItem, id: StringName, r: Rect2, color: Color) -> void:
@@ -29,6 +29,8 @@ static func draw(ci: CanvasItem, id: StringName, r: Rect2, color: Color) -> void
 			ci.draw_line(o + Vector2(0.55, 0.49) * s, o + Vector2(0.55, 0.66) * s, Color(0, 0, 0, 0.75), w * 0.7)
 		&"chevron":
 			ci.draw_polyline(_pts(o, s, [[0.3, 0.12], [0.7, 0.5], [0.3, 0.88]]), color, maxf(3.0, s * 0.16), true)
+		&"chevron_left": # Sell's steppers: lower (left) and higher (chevron); never a "+" (no monetization look)
+			ci.draw_polyline(_pts(o, s, [[0.7, 0.12], [0.3, 0.5], [0.7, 0.88]]), color, maxf(3.0, s * 0.16), true)
 
 ## Up and down triangles; the active direction (`dir` 1 = up / ascending, -1 = down) is bright.
 static func sort_arrows(ci: CanvasItem, c: Vector2, h: float, dir: int, on: Color, off: Color) -> void:

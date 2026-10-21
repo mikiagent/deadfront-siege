@@ -106,25 +106,9 @@ func open(p_client: MarketClient, v: Dictionary, p_tradable: int, own: bool, m: 
 		status.add_theme_color_override("font_color", MarketTheme.DANGER)
 	fit(m)
 
-## Every fact the asset carries, read from its dict (never recomputed).
+## Every fact the asset carries, read from its dict, and who sells it.
 static func asset_lines(v: Dictionary) -> PackedStringArray:
-	var a: Dictionary = v.get("asset", {})
-	var out: PackedStringArray = []
-	var row := MarketFormat.row(v)
-	out.append("%s   ·   %s" % [LevelDisplay.label(row.level), row.type])
-	if str(v.get("type", "")) == "pet":
-		out.append("Grade %s   ·   HP %.0f   ·   Attack %.0f   ·   Defense %.0f" % [a.get("grade", "?"), float(a.get("hp", 0)), float(a.get("attack", 0)), float(a.get("defense", 0))])
-		out.append("Bonded pet")
-	else:
-		var attrs: Dictionary = a.get("attributes", {})
-		if row.dur != "—":
-			out.append("Durability %s" % row.dur)
-		if attrs.has("material_tier"):
-			out.append("Material: %s" % str(attrs.material_tier).capitalize())
-		if int(a.get("process_count", 0)) > 0:
-			out.append("Processed %d×" % int(a.process_count))
-		if str(a.get("id", "")) == AssetValidator.CAGE:
-			out.append("Wild, captured alive")
+	var out := MarketFormat.asset_lines(str(v.get("type", "item")), v.get("asset", {}))
 	out.append("Sold by %s" % str(v.get("seller_name", "?")))
 	return out
 
