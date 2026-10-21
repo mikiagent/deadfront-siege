@@ -57,3 +57,28 @@ The rest is the orchestrator's reading of the images, not the owner's text.
 - **Terrain shape still comes from the heightmap** (islands plan P3: cliffs and terraces).
   - These cliff cards dress the faces and the coast. They do not replace the terrain.
   - Cliff faces from the heightmap should paint the same grey-ochre rock as the cards, so the two meet without a seam.
+
+## Tall grasses on terrain (owner: "tall grasses on terrain concept", same day)
+Reference: `2d-assets/sheet-tall-grasses.webp`, a green-screen sheet in the same style. Orchestrator's reading:
+
+**What the sheet holds.**
+- Ground tiles, drawn as iso diamonds: bare dirt, sparse grass, lush grass, mixed weeds, trampled grass, muddy grass, dry
+  golden grass and marsh water. There are also edge and corner pieces where grass meets dirt.
+- Single grass clumps, small to tall, both green and dry.
+- Cattail and reed clumps, leafy weeds, and long low grass strips (one with a fallen log).
+- Dirt paths and clearings fringed with grass.
+- Three large ground patches:
+  - a dry savanna clearing with a banana plant;
+  - a muddy marsh with puddles;
+  - a reed-fringed pond.
+
+**What it means.**
+- The clumps, reeds and strips are the **ground cover** that islands plan P2 calls the biggest gap: wide, low clump cards
+  scattered densely, swaying, never blocking movement. Cut them with SPRITES2D.
+  - Map them to the families Grass, WildGrass, DryGrassTuft, FibreTuft and ReedPlant when the clump is gatherable.
+  - Otherwise map them to `prop:grass_clump` or `prop:reeds`. These never block, and are destroyable.
+- The **iso tiles are colour and texture references** for ground painting (plan P1), not game pieces. The terrain is a 3D
+  heightmap seen by a camera that is not locked to the tiles' angle.
+  - ASSUMPTION: cut them, mark them `unused`, and sample their colours for the grass, dirt, dry and marsh zone palettes.
+- The **large patches** show how zones blend: dirt shows through, clumps thicken at the edges, and reeds ring the water. They
+  are a target for the zone-edge look, not sprites to place. ASSUMPTION: same handling as the tiles.
