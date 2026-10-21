@@ -27,6 +27,10 @@ const NOTICE_T0 := 1.0
 ## How long a rare notice with no room on the HUD may wait for some before it ages like any other.
 const NOTICE_WAIT_MS := 2000
 const CREAM := Color(1.0, 0.97, 0.88)
+## A stack with a rare line starts this big and this bright, then eases to normal over PUNCH_S.
+const PUNCH_SCALE := 1.35
+const PUNCH_FLASH := Color(1.8, 1.8, 1.8)
+const PUNCH_S := 0.28
 
 ## A replaced stack shown for less than this still owes its finds to the HUD (its fallback runs).
 const SHOWN_MS := 500
@@ -73,6 +77,9 @@ static func popup(p: Player, at: Vector3, lines: Array, fallback: Callable = Cal
 	layer.add_child(box)
 	box.size = box.get_combined_minimum_size()
 	box.visible = false
+	if lines.any(func(ln: Array) -> bool: return ln[2]):
+		box.scale = Vector2.ONE * PUNCH_SCALE  # _place eases it back to 1 with a brightness flash
+		box.modulate = PUNCH_FLASH
 	# Shared by the placement, the follow tween and a later popup that replaces this one.
 	var st := {"fallback": fallback, "fell_back": false, "shown_ms": -1}
 	box.set_meta(&"st", st)
@@ -151,6 +158,11 @@ static func _place(p: Player, cam: Camera3D, at: Vector3, box: Control, st: Dict
 	follow.call(0.0)
 	var tw := box.create_tween()
 	tw.tween_method(follow, 0.0, 1.0, LIFE).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	if box.scale.x > 1.0:
+		# A rare result lands with a flash and a pop (owner 2026-10-21: "make it flashy"), easing, never snapping.
+		box.pivot_offset = box.size * 0.5
+		tw.parallel().tween_property(box, "scale", Vector2.ONE, PUNCH_S).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(box, "modulate", Color.WHITE, PUNCH_S * 1.6)
 	tw.parallel().tween_property(box, "modulate:a", 0.0, LIFE * 0.45).set_delay(LIFE * 0.55)
 	tw.tween_callback(box.queue_free)
 

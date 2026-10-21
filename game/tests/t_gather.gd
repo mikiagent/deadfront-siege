@@ -663,6 +663,17 @@ func _test_two_finds_one_frame() -> void:
 	hud.notices.clear()
 	GF.show_yield(player, Vector3(0, 1, 400), &"stone", 1, [] as Array[StringName], [&"black_sheen"] as Array[StringName])
 	_expect(hud.notices.any(func(n): return str(n[0]) == "Rare trait: Black Sheen Stone" and n[1] == GF.GREEN), "an unshown trait reaches the HUD as a green notice (%s)" % [hud.notices])
+	# Owner 2026-10-21 "make it flashy": a rare stack lands big and bright and eases back; a plain one does not pop.
+	var plain = GF.popup(player, Vector3(-1, 1, 0), [["+1 Stone", GF.CREAM, false]])
+	var plain_pop: bool = plain.scale != Vector2.ONE
+	var rare = GF.popup(player, Vector3(-1, 1, 0), [["Black Sheen Stone", GF.GREEN, true], ["+1 Stone", GF.CREAM, false]])
+	var s0: float = rare.scale.x
+	var f0: float = rare.modulate.r
+	await create_timer(GF.PUNCH_S * 1.6 + 0.1).timeout
+	var s1: float = rare.scale.x if is_instance_valid(rare) else -1.0
+	var f1: float = rare.modulate.r if is_instance_valid(rare) else -1.0
+	print("[t_gather] rare punch: scale %.2f -> %.2f, flash %.2f -> %.2f, plain pops %s" % [s0, s1, f0, f1, plain_pop])
+	_expect(not plain_pop and s0 > 1.2 and f0 > 1.5 and is_equal_approx(s1, 1.0) and is_equal_approx(f1, 1.0), "a rare stack pops and flashes, then eases to normal; a plain one does not (scale %.2f -> %.2f, flash %.2f -> %.2f, plain %s)" % [s0, s1, f0, f1, plain_pop])
 	_finished += 1
 
 ## Rare XP without a skill tree still counts (general player XP), as the base +2 does.
