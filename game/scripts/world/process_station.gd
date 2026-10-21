@@ -8,7 +8,6 @@ extends Node3D
 
 const NODE_NAME := "Process"
 const REDRAW_S := 0.25
-const LABEL_CLEAR_M := 1.5  # a survivor this close to the label's corner would cover it with its name chip
 const RULES_PATH := "res://data/processing.json"
 
 static var _rules: Dictionary = {}
@@ -389,16 +388,8 @@ func _place_label() -> void:
 	if cam == null or host == null:
 		return
 	var toward := cam.global_basis.z * Vector3(1.0, 0.0, 1.0)
-	if toward.length_squared() <= 0.0001:
-		return
-	var t := toward.normalized()
-	var at := host.global_position + t * _label_r
-	# The survivor's name chip sits at its feet: when it stands on that corner, hang the label just
-	# in front of it (screen-below) instead of over it.
-	var p := PlayerRegistry.local()
-	if p and Vector2(p.global_position.x - at.x, p.global_position.z - at.z).length() < LABEL_CLEAR_M:
-		at += t * (maxf(0.0, t.dot(p.global_position - at)) + 0.6)
-	_label.global_position = at
+	if toward.length_squared() > 0.0001:
+		_label.global_position = host.global_position + toward.normalized() * _label_r
 
 func label_text() -> String:
 	var now := now_s()
