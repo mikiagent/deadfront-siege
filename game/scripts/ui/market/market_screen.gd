@@ -9,6 +9,9 @@ signal closed
 
 ## Labs and tests only (MarketHarness's LocalMarketClient); the player path never sets it.
 static var test_client: MarketClient
+## Labs and tests only: stands in for a phone's safe-area insets (right, bottom, top, left, as
+## UiTokens.safe_insets) on a desktop window; the player path reads the display's own.
+static var test_insets := Vector4(-1, -1, -1, -1)
 
 var player: Node
 var client: MarketClient
@@ -22,6 +25,8 @@ var search: MarketSearch
 var confirm: MarketConfirm
 var offline_panel: Control
 var _sell_uid := "" ## the instance to preselect when Sell opens
+var keys := false ## the last input was a key or a gamepad: focus moves for it (a tap or click shows no focus ring)
+var _back_focus: Control ## where focus returns when the confirm panel closes
 var _backdrop: ColorRect
 var _m := {}
 
@@ -83,15 +88,16 @@ func _ready() -> void:
 	confirm.name = "Confirm"
 	confirm.visible = false
 	confirm.dismissed.connect(func () -> void: confirm.visible = false)
-	confirm.bought.connect(func (res: Dictionary) -> void:
+	confirm.bought.connect(func (_res: Dictionary) -> void:
 		refresh_wallet()
-		buy.reload())
+		buy.drop(str(confirm.view.get("id", ""))))
 	confirm.cancelled.connect(func (_res: Dictionary) -> void: mine.reload())
 	confirm.gone.connect(func () -> void:
 		if tab == &"my_market":
 			mine.reload()
 		else:
-			buy.reload())
+			buy.drop(str(confirm.view.get("id", ""))))
+	confirm.visibility_changed.connect(_confirm_focus)
 	add_child(confirm)
 	buy.table.search_pressed.connect(func () -> void: search.open(buy.q, _m))
 	buy.table.row_pressed.connect(func (v: Dictionary) -> void:
@@ -152,8 +158,24 @@ func refresh_wallet() -> void:
 		header.set_wallet(res.r)
 		sell.set_wallet(int(header.wallet.get("wallet", 0)))
 
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event is InputEventKey or event is InputEventJoypadButton:
+		keys = true
+	elif event is InputEventMouseButton or event is InputEventScreenTouch:
+		keys = false
+
 func _unhandled_input(event: InputEvent) -> void:
-	if not visible or not event.is_action_pressed(&"ui_cancel"):
+	if not visible:
+		return
+	# Nothing focused yet (opened by touch or mouse): the first arrow, Tab or d-pad press lands somewhere useful.
+	if get_viewport().gui_get_focus_owner() == null and (event.is_action_pressed(&"ui_down") or event.is_action_pressed(&"ui_up") \
+			or event.is_action_pressed(&"ui_left") or event.is_action_pressed(&"ui_right") or event.is_action_pressed(&"ui_focus_next")):
+		get_viewport().set_input_as_handled()
+		focus_first()
+		return
+	if not event.is_action_pressed(&"ui_cancel"):
 		return
 	get_viewport().set_input_as_handled()
 	if confirm.visible:
@@ -162,6 +184,37 @@ func _unhandled_input(event: InputEvent) -> void:
 		search.visible = false
 	else:
 		close_screen()
+
+## The first control a key or gamepad lands on: the open panel's safe button (Close / Keep listing;
+## the primary is one press away), else the shown tab's first row or cell, else its rail tab.
+func focus_first() -> void:
+	var c: Control = null
+	if confirm.visible:
+		c = confirm.cancel_btn
+	elif search.visible:
+		c = search.field
+	elif tab == &"buy" and buy.visible and not buy.table.rows.is_empty():
+		c = buy.table.rows[0]
+	elif tab == &"sell" and sell.visible and not sell.picker.cells.is_empty():
+		c = sell.picker.cells[0]
+	elif tab == &"my_market" and mine.visible:
+		c = mine.tab_btns[mine.tab]
+	elif rail.visible:
+		c = rail.buttons[tab]
+	else:
+		c = header.close_btn
+	c.grab_focus()
+
+func _confirm_focus() -> void:
+	if not keys:
+		return
+	if confirm.visible:
+		_back_focus = get_viewport().gui_get_focus_owner()
+		focus_first()
+	elif is_instance_valid(_back_focus) and _back_focus.is_visible_in_tree() and not _back_focus.is_queued_for_deletion():
+		_back_focus.grab_focus()
+	else:
+		focus_first()
 
 func _offline_panel() -> Control:
 	var p := PanelContainer.new()
@@ -191,10 +244,11 @@ func _layout() -> void:
 	position = Vector2.ZERO
 	size = view
 	_m = MarketTheme.metrics(view)
-	var ins := UiTokens.safe_insets(get_viewport())
+	var ins := test_insets if test_insets.x >= 0.0 else UiTokens.safe_insets(get_viewport())
 	var left: float = _m.margin + ins.w
 	var right: float = _m.margin + ins.x
-	header.layout(_m, view.x)
+	_m.safe = Rect2(ins.w, ins.z, view.x - ins.w - ins.x, view.y - ins.z - ins.y)
+	header.layout(_m, view.x, ins.w, ins.x)
 	var top: float = _m.header_h + _m.edge_h + _m.margin * 0.5
 	var body := Rect2(left, top, view.x - left - right, view.y - top - _m.margin * 0.5 - ins.y)
 	rail.layout(_m, Rect2(body.position, Vector2(_m.rail_w, body.size.y)))

@@ -13,7 +13,7 @@ var entries: Array = []
 var selected := "" ## the picked entry's uid
 var cells: Array[Button] = [] ## cells[i] shows entries[i]
 var stored := 0 ## entries waiting in market storage
-var _scroll: ScrollContainer
+var _scroll: MarketDragScroll
 var _grid: GridContainer
 var _empty: Label
 var _fill: Array[Control] = [] ## empty compartments after the last cell, up to the visible rows
@@ -21,10 +21,8 @@ var _m := {}
 var _cell := 96.0
 
 func _ready() -> void:
-	_scroll = ScrollContainer.new()
+	_scroll = MarketDragScroll.new()
 	_scroll.name = "Cells"
-	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	add_child(_scroll)
 	_grid = GridContainer.new()
 	_grid.add_theme_constant_override("h_separation", 0)
@@ -52,7 +50,10 @@ func show_entries(list: Array, p_selected: String, empty_text: String) -> void:
 		MarketTheme.bare(b)
 		b.draw.connect(_draw_cell.bind(b, e))
 		var uid := str(e.uid)
-		b.pressed.connect(func () -> void: picked.emit(uid))
+		b.mouse_filter = Control.MOUSE_FILTER_PASS # a drag over the cells scrolls them
+		b.pressed.connect(func () -> void:
+			if _scroll.tap_ok():
+				picked.emit(uid))
 		_grid.add_child(b)
 		cells.append(b)
 		if e.src == "vault":

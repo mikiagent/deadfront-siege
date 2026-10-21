@@ -68,9 +68,9 @@ func _ready() -> void:
 func open(q: String, m: Dictionary) -> void:
 	visible = true
 	field.text = q
-	var view := get_viewport_rect().size
+	var safe: Rect2 = m.get("safe", get_viewport_rect())
 	var compact: bool = m.compact
-	var w := minf(view.x - 32.0, 760.0 if not compact else view.x - 32.0)
+	var w := minf(safe.size.x - 32.0, 760.0 if not compact else safe.size.x - 32.0)
 	_panel.custom_minimum_size = Vector2(w, 0)
 	_panel.size = Vector2(w, 0)
 	field.custom_minimum_size.y = UiTokens.TARGET_MIN
@@ -81,5 +81,5 @@ func open(q: String, m: Dictionary) -> void:
 			b.custom_minimum_size = Vector2((w - 32.0 - 8.0 * (_grid.columns - 1)) / _grid.columns, UiTokens.TARGET_MIN)
 			b.add_theme_font_size_override("font_size", maxi(UiTokens.TYPE_MIN, int(m.type)))
 	_panel.reset_size()
-	_panel.position = Vector2((view.x - _panel.size.x) * 0.5, maxf(8.0, (view.y - _panel.size.y) * 0.5))
+	_panel.position = safe.position + Vector2((safe.size.x - _panel.size.x) * 0.5, maxf(8.0, (safe.size.y - _panel.size.y) * 0.5))
 	field.grab_focus.call_deferred()

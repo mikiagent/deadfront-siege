@@ -98,6 +98,7 @@ static func bare(b: Button) -> void:
 		b.add_theme_stylebox_override(s, none)
 	b.add_theme_stylebox_override("focus", flat(Color(0, 0, 0, 0), GOLD, 2, 4))
 	b.focus_mode = Control.FOCUS_ALL
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 ## Primary (yellow, dark text) or secondary (outlined, white text) action button.
 static func action(b: Button, primary: bool, size_px: int) -> void:
@@ -108,6 +109,7 @@ static func action(b: Button, primary: bool, size_px: int) -> void:
 	b.add_theme_stylebox_override("pressed", flat(fill.darkened(0.15), edge, 2, 6))
 	b.add_theme_stylebox_override("disabled", flat(Color(0.35, 0.33, 0.25, 0.8) if primary else Color(0.08, 0.09, 0.08, 0.6), Color(0.45, 0.44, 0.4, 0.6), 2, 6))
 	b.add_theme_stylebox_override("focus", flat(Color(0, 0, 0, 0), ACTION, 2, 6))
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	var ink := PRIMARY_TEXT if primary else ACTION
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(k, ink)

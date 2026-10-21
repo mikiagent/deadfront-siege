@@ -2,13 +2,14 @@ class_name MarketTable
 extends Control
 ## The Buy table: a header band (search, "Item Name/Type", Level, Durability, Price; a column sorts
 ## only when the server offers that sort, the active one is yellow), a chip per active search, one
-## MarketRow per listing on this page, an honest empty state, and a pager when there is a page 2.
-## Sorting and paging always ask the server again; a page is never sorted here.
+## MarketRow per listing, and an honest empty state. The list scrolls like the reference (no
+## pager): near its end it asks for the server's next page and appends it. Sorting and paging
+## always ask the server again; nothing is sorted here.
 
 signal search_pressed
 signal sort_pressed(col: StringName)
 signal chip_removed(key: StringName)
-signal page_requested(page: int)
+signal page_requested(page: int) ## the next server page, when the list is scrolled near its end
 signal row_pressed(view: Dictionary)
 
 ## column -> [ascending sort, descending sort, default direction]
@@ -24,17 +25,15 @@ var total := 0
 var rows: Array[MarketRow] = []
 var account := -1
 var empty_text := "No listings match."
+var loading := false ## a next page is on its way (MarketBuy sets it): ask once
+var build_us := 0 ## how long the last show_page took to build its rows (lab: 500-listing gate)
 
 var search_btn: Button
 var head_btns: Dictionary = {} ## col -> Button (only sortable columns)
 var _chip_box: HBoxContainer
-var _scroll: ScrollContainer
+var _scroll: MarketDragScroll
 var _list: VBoxContainer
 var _empty: Label
-var _pager: HBoxContainer
-var _page_label: Label
-var _prev: Button
-var _next: Button
 var _m := {}
 
 func _ready() -> void:
@@ -55,10 +54,9 @@ func _ready() -> void:
 	_chip_box = HBoxContainer.new()
 	_chip_box.add_theme_constant_override("separation", 8)
 	add_child(_chip_box)
-	_scroll = ScrollContainer.new()
+	_scroll = MarketDragScroll.new()
 	_scroll.name = "Rows"
-	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_scroll.get_v_scroll_bar().value_changed.connect(func (_v: float) -> void: _maybe_more())
 	add_child(_scroll)
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 0)
@@ -68,23 +66,6 @@ func _ready() -> void:
 	_empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_empty)
-	_pager = HBoxContainer.new()
-	_pager.name = "Pager"
-	_pager.alignment = BoxContainer.ALIGNMENT_END
-	add_child(_pager)
-	_prev = _pager_button("‹", "PagePrev", -1)
-	_page_label = MarketTheme.label("", 16)
-	_pager.add_child(_page_label)
-	_next = _pager_button("›", "PageNext", 1)
-
-func _pager_button(t: String, nm: String, step: int) -> Button:
-	var b := Button.new()
-	b.name = nm
-	b.text = t
-	MarketTheme.action(b, false, 22)
-	b.pressed.connect(func () -> void: page_requested.emit(page + step))
-	_pager.add_child(b)
-	return b
 
 ## Column geometry shared by the header and every row.
 func columns() -> Dictionary:
@@ -116,46 +97,66 @@ func layout(m: Dictionary, rect: Rect2) -> void:
 		for ch: Control in _chip_box.get_children():
 			ch.custom_minimum_size.y = maxf(UiTokens.TARGET_MIN, m.chip_h - 8)
 		y += m.chip_h
-	_pager.visible = pages > 1
-	var bottom: float = size.y - (m.pager_h if _pager.visible else 0.0)
 	_scroll.position = Vector2(0, y)
-	_scroll.size = Vector2(size.x, bottom - y)
+	_scroll.size = Vector2(size.x, size.y - y)
 	_list.custom_minimum_size.x = size.x
 	for r in rows:
 		r.relayout(c, m)
 	_empty.position = Vector2(m.margin, y + 24)
 	_empty.size = Vector2(size.x - m.margin * 2, 80)
 	MarketTheme.size_label(_empty, m.name)
-	if _pager.visible:
-		_pager.position = Vector2(m.margin, bottom)
-		_pager.size = Vector2(size.x - m.margin * 2, m.pager_h)
-		for b: Button in [_prev, _next]:
-			b.custom_minimum_size = Vector2(maxf(UiTokens.TARGET_MIN, m.pager_h), maxf(UiTokens.TARGET_MIN, m.pager_h - 6))
-		MarketTheme.size_label(_page_label, m.name)
 	queue_redraw()
 
-## One server page: rows in the order the server sent them, one per listing.
+## One server page, rows in the order the server sent them, one per listing. Page 1 replaces the
+## list; a later page is appended, skipping a listing already shown (a sale or a new listing
+## between two requests shifts the server's pages by one).
 func show_page(r: Dictionary) -> void:
+	var t0 := Time.get_ticks_usec()
 	total = int(r.get("total", 0))
 	page = int(r.get("page", 1))
 	var per := maxi(1, int(r.get("page_size", 20)))
 	pages = maxi(1, ceili(float(total) / per))
-	for old in rows:
-		old.queue_free()
-	rows.clear()
+	loading = false
+	var shown := {}
+	if page <= 1:
+		for old in rows:
+			old.queue_free()
+		rows.clear()
+		_scroll.scroll_vertical = 0
+	else:
+		for row in rows:
+			shown[str(row.view.get("id", ""))] = true
 	for v: Dictionary in r.get("results", []):
+		if shown.has(str(v.get("id", ""))):
+			continue
 		var row := MarketRow.new()
 		row.setup(v, account >= 0 and int(v.get("seller", -2)) == account, columns(), _m)
-		row.pressed.connect(func () -> void: row_pressed.emit(row.view))
+		row.mouse_filter = Control.MOUSE_FILTER_PASS # a drag over the rows scrolls them (MarketDragScroll)
+		row.pressed.connect(func () -> void:
+			if _scroll.tap_ok():
+				row_pressed.emit(row.view))
 		_list.add_child(row)
 		rows.append(row)
 	_empty.text = "" if not rows.is_empty() else empty_text
-	_page_label.text = "  %d / %d  " % [page, pages]
-	_prev.disabled = page <= 1
-	_next.disabled = page >= pages
-	_scroll.scroll_vertical = 0
-	if not _m.is_empty():
+	build_us = Time.get_ticks_usec() - t0
+	if not _m.is_empty() and page <= 1:
 		layout(_m, Rect2(position, size))
+	_maybe_more.call_deferred() # a tall screen may show the whole page at once
+
+func remove_listing(id: String) -> void:
+	for row in rows.duplicate():
+		if str(row.view.get("id", "")) == id:
+			rows.erase(row)
+			row.queue_free()
+
+## Asks for the next page once the last two rows come into view.
+func _maybe_more() -> void:
+	if loading or page >= pages or rows.is_empty() or not is_visible_in_tree():
+		return
+	var left := _list.size.y - (_scroll.scroll_vertical + _scroll.size.y)
+	if left <= float(_m.get("row_h", 48.0)) * 2.0:
+		loading = true
+		page_requested.emit(page + 1)
 
 ## A failed search: no rows, the reason in their place.
 func show_error(text: String) -> void:

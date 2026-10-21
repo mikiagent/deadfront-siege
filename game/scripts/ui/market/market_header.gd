@@ -42,15 +42,16 @@ func set_wallet(w: Dictionary) -> void:
 func tradable() -> int:
 	return int(wallet.get("wallet", 0)) - int(wallet.get("bound", 0)) # Ledger.tradable; held bids are outside the wallet
 
-func layout(m: Dictionary, width: float) -> void:
+## The band spans the screen; back, title, pills and X keep inside `left` / `right` (the safe area).
+func layout(m: Dictionary, width: float, left: float = 0.0, right: float = 0.0) -> void:
 	_m = m
 	var h: float = m.header_h
 	size = Vector2(width, h + m.edge_h)
 	var pad: float = (h - UiTokens.TARGET_MIN) * 0.5 if h > UiTokens.TARGET_MIN else 0.0
 	var side := maxf(UiTokens.TARGET_MIN, h * 0.8)
-	back_btn.position = Vector2(m.margin, (h - side) * 0.5)
+	back_btn.position = Vector2(left + m.margin, (h - side) * 0.5)
 	back_btn.size = Vector2(side, side)
-	close_btn.position = Vector2(width - m.margin - side, (h - side) * 0.5)
+	close_btn.position = Vector2(width - right - m.margin - side, (h - side) * 0.5)
 	close_btn.size = Vector2(side, side)
 	back_btn.add_theme_constant_override("icon_max_width", int(side * 0.62 - pad * 0.2))
 	close_btn.add_theme_constant_override("icon_max_width", int(side * 0.62 - pad * 0.2))

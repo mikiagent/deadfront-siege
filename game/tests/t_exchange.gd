@@ -11,9 +11,7 @@ extends SceneTree
 const DIR := "user://runs/t_exchange"
 const MS_PATH := "res://scripts/ui/market/market_screen.gd"
 ## Gates a later build step turns into checks (spec §8). Each builder deletes its own lines here.
-const PENDING := [
-	"B4 pixels: targets >= 44 px at 844x390, no clipped labels, 500 listings page without hitches",
-]
+const PENDING := []
 
 var failures: Array[String] = []
 var require_hooks := false
@@ -94,6 +92,8 @@ func _run() -> void:
 		await _test_cancel(hs, ms_script)
 		await _test_receive_all(hs, ms_script)
 		await _test_receive_bag_full(hs, ms_script)
+		await _test_bulk(hs, ms_script)
+		await _test_safe_area(hs, ms_script)
 		await _test_menu(hs, ms_script)
 		ms_script.set("test_client", null)
 	for f in failures:
@@ -218,14 +218,13 @@ func _test_rows_and_sorts(hs: GDScript, ms_script: GDScript) -> void:
 		buy.set("sort", s)
 		buy.set("page", 1)
 		await buy.call("reload")
-		var seen: Array = []
 		var pages_seen := 1
-		for guard in 20:
-			seen.append_array(_row_uids(table))
+		for guard in 20: # the list asks for the next page as it scrolls; each one is appended
 			if int(table.get("page")) >= int(table.get("pages")):
 				break
 			table.emit_signal("page_requested", int(table.get("page")) + 1)
 			pages_seen += 1
+		var seen := _row_uids(table)
 		var all: Array = h.call("op", 1, "market.search", {"sort": s, "page_size": 50}).r.results
 		_expect(pages_seen >= 3 and seen == all.map(func (v: Dictionary) -> String: return str(v.asset.uid)), "sort %s: %d pages give the server's order and uid set" % [s, pages_seen])
 		checked.append(s)
@@ -816,6 +815,102 @@ func _bag_counts(h: RefCounted) -> Dictionary:
 			c[str(row.id)] = int(c.get(str(row.id), 0)) + int(row.count)
 	return c
 
+## Gate 12 (its behaviour; the lab measures the frames): 500 real listings come in from the server
+## page by page as the Buy list scrolls (no pager). At its end the list is the server's order with
+## each listing once and no page took 8 ms to build. A drag scrolls the rows without opening the
+## one it started on; a tap still opens it. Keys: an arrow lands on the first row, the next arrow
+## moves down, Enter opens the listing with its safe button focused, Escape closes it and focus
+## returns to the row.
+func _test_bulk(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/bulk")
+	h.call("seed_scene")
+	h.call("seed_bulk", 490)
+	_expect((h.get("failures") as PackedStringArray).is_empty(), "the 500-listing harness: %s" % [h.get("failures")])
+	ms_script.set("test_client", h.call("client", 1))
+	var ms: Control = await _open(ms_script)
+	var buy: Control = ms.get("buy")
+	var table: Control = buy.get("table")
+	var sc := table.get_node("Rows") as ScrollContainer
+	var build_us := func () -> int: return int(table.get("build_us")) if table.get("build_us") != null else 1 << 30
+	var builds: Array[int] = [build_us.call()]
+	buy.connect("loaded", func (_r: Dictionary) -> void: builds.append(build_us.call()))
+	_expect(table.find_child("Pager", true, false) == null and _row_uids(table).size() == 20, "page 1 shows 20 rows and no pager")
+	for guard in 400:
+		sc.scroll_vertical = 1 << 30
+		await process_frame
+		if int(table.get("page")) >= int(table.get("pages")) and not table.get("loading"):
+			break
+	var want: Array = []
+	for p in range(1, 11):
+		want.append_array((h.call("op", 1, "market.search", {"page_size": 50, "page": p}).r.results as Array).map(func (v: Dictionary) -> String: return str(v.asset.uid)))
+	var got := _row_uids(table)
+	_expect(int(table.get("total")) == 500 and want.size() == 500 and got == want, "scrolled to its end the list is the server's 500 listings in order (%d rows, %d wanted, pages %d)" % [got.size(), want.size(), table.get("page")])
+	_expect(builds.max() < 8000, "every page built in < 8 ms (max %.2f ms over %d pages)" % [builds.max() / 1000.0, builds.size()])
+	# A sale between two pages shifts the server's pages by one: a bought row leaves, asking for the
+	# last page again appends the listing that moved up, and nothing shows twice.
+	sc.scroll_vertical = 0
+	await process_frame
+	await process_frame
+	var rows: Array = table.get("rows")
+	var row: Control = rows[2]
+	var p0 := get_root().get_final_transform() * row.get_global_rect().get_center()
+	_mouse(p0, true)
+	for i in 5:
+		_mouse(p0 - Vector2(0, 30 * (i + 1)) * get_root().get_final_transform().get_scale(), true, true)
+	_mouse(p0 - Vector2(0, 150) * get_root().get_final_transform().get_scale(), false)
+	await process_frame
+	var confirm: Control = ms.get("confirm")
+	var dragged_px := sc.scroll_vertical
+	_expect(dragged_px >= 140 and not confirm.visible, "a drag over the rows scrolls them (%d px) and opens nothing" % dragged_px)
+	var tap: Control = rows[4]
+	_click(tap)
+	await process_frame
+	_expect(confirm.visible and str(confirm.get("view").id) == str(tap.get("view").id), "a tap after the drag still opens its listing")
+	confirm.visible = false
+	get_root().gui_release_focus()
+	await process_frame
+	_key(KEY_DOWN)
+	await process_frame
+	_expect(get_root().gui_get_focus_owner() == rows[0], "an arrow with nothing focused lands on the first row (%s)" % get_root().gui_get_focus_owner())
+	_key(KEY_DOWN)
+	await process_frame
+	_expect(get_root().gui_get_focus_owner() == rows[1], "the next arrow moves to the second row (%s)" % get_root().gui_get_focus_owner())
+	_key(KEY_ENTER)
+	await process_frame
+	_expect(confirm.visible and str(confirm.get("view").id) == str(rows[1].get("view").id) and get_root().gui_get_focus_owner() == confirm.get("cancel_btn"), "Enter opens the focused listing with Close focused (%s)" % get_root().gui_get_focus_owner())
+	_key(KEY_ESCAPE)
+	await process_frame
+	_expect(not confirm.visible and ms.visible and get_root().gui_get_focus_owner() == rows[1], "Escape closes the listing first and focus returns to its row")
+	ms.queue_free()
+	print("[t_exchange] 500 listings: %d rows in the server's order over %d pages, build max %.2f ms; drag %d px opened nothing; keys row 1 -> row 2 -> listing -> back" % [got.size(), builds.size(), builds.max() / 1000.0, dragged_px])
+
+## Safe areas (phones in landscape: a notch on a side, the home bar below): with insets the
+## header's back and X, the rail and the table keep inside them; the band itself spans the screen.
+func _test_safe_area(hs: GDScript, ms_script: GDScript) -> void:
+	var h: RefCounted = hs.new(DIR + "/safe")
+	h.call("seed_scene")
+	ms_script.set("test_client", h.call("client", 1))
+	ms_script.set("test_insets", Vector4(47, 21, 0, 47)) # right, bottom, top, left (UiTokens.safe_insets)
+	var ms: Control = await _open(ms_script)
+	var view := ms.get_viewport_rect().size
+	var safe := Rect2(47, 0, view.x - 94, view.y - 21)
+	var out: PackedStringArray = []
+	for b in ms.find_children("*", "BaseButton", true, false):
+		var c := b as Control
+		var r := c.get_global_rect()
+		var clip := c.get_parent_control()
+		while clip != null and not clip.clip_contents:
+			clip = clip.get_parent_control()
+		if clip != null:
+			r = r.intersection(clip.get_global_rect()) # a row scrolled out of its list shows nothing
+		if c.is_visible_in_tree() and r.has_area() and not safe.grow(0.5).encloses(r):
+			out.append("%s %s" % [c.name, r])
+	var header: Control = ms.get("header")
+	_expect(out.is_empty() and header.size.x == view.x, "with 47/47/21 px insets every target is inside the safe area, the header band spans the screen: %s" % ", ".join(out))
+	ms_script.set("test_insets", Vector4(-1, -1, -1, -1))
+	ms.queue_free()
+	print("[t_exchange] safe area: back, X, rail, table and rows inside 47/47/21 px insets")
+
 ## Opens the screen and waits for its containers to lay out (clicks need real rects).
 func _open(ms_script: GDScript) -> Control:
 	var ms: Control = ms_script.new()
@@ -858,6 +953,31 @@ func _click(c: Control) -> void:
 	var up := click.duplicate() as InputEventMouseButton
 	up.pressed = false
 	get_root().push_input(up)
+
+## A left mouse press, release or (motion) drag at `pos` in window coordinates.
+func _mouse(pos: Vector2, pressed: bool, motion: bool = false) -> void:
+	var e: InputEventMouse
+	if motion:
+		e = InputEventMouseMotion.new()
+		e.button_mask = MOUSE_BUTTON_MASK_LEFT
+	else:
+		var mb := InputEventMouseButton.new()
+		mb.button_index = MOUSE_BUTTON_LEFT
+		mb.pressed = pressed
+		mb.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
+		e = mb
+	e.position = pos
+	e.global_position = pos
+	get_root().push_input(e)
+
+## A key press and release (ui_down, ui_accept, ui_cancel are keys in the default InputMap).
+func _key(code: Key) -> void:
+	for down in [true, false]:
+		var k := InputEventKey.new()
+		k.keycode = code
+		k.physical_keycode = code
+		k.pressed = down
+		get_root().push_input(k)
 
 static func _sig(rows: Array) -> String:
 	var out: PackedStringArray = []

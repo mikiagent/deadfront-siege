@@ -26,6 +26,7 @@ var _name: Label
 var _lines: Label
 var _price_row: Label
 var _balance: Label
+var _safe := Rect2() ## the safe area the panel centres in (MarketScreen metrics)
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -187,9 +188,9 @@ func buy() -> void:
 		buy_btn.disabled = false
 
 func fit(m: Dictionary) -> void:
-	var view_size := get_viewport_rect().size
+	_safe = m.get("safe", get_viewport_rect())
 	var compact: bool = m.compact
-	var w := minf(view_size.x - 24.0, 720.0)
+	var w := minf(_safe.size.x - 24.0, 720.0)
 	var isz := 72.0 if compact else 128.0
 	_icon.custom_minimum_size = Vector2(isz, isz)
 	MarketTheme.size_label(_name, m.name + 4)
@@ -205,6 +206,5 @@ func fit(m: Dictionary) -> void:
 	_center.call_deferred() # again once the wrapped lines know their width
 
 func _center() -> void:
-	var view_size := get_viewport_rect().size
 	_panel.reset_size()
-	_panel.position = Vector2((view_size.x - _panel.size.x) * 0.5, maxf(4.0, (view_size.y - _panel.size.y) * 0.5))
+	_panel.position = _safe.position + Vector2((_safe.size.x - _panel.size.x) * 0.5, maxf(4.0, (_safe.size.y - _panel.size.y) * 0.5))

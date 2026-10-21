@@ -12,7 +12,7 @@ var entries: Array = [] ## [{key, title}], View All first
 var selected := ""
 var close_btn: Button
 var buttons: Array[Button] = []
-var _scroll: ScrollContainer
+var _scroll: MarketDragScroll
 var _list: VBoxContainer
 var _m := {}
 
@@ -26,9 +26,7 @@ func _ready() -> void:
 	MarketTheme.bare(close_btn)
 	close_btn.pressed.connect(func () -> void: closed.emit())
 	add_child(close_btn)
-	_scroll = ScrollContainer.new()
-	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_scroll = MarketDragScroll.new()
 	add_child(_scroll)
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 0)
@@ -48,7 +46,10 @@ func show_entries(p_title: String, p_entries: Array, p_selected: String) -> void
 		var key: String = e.key
 		var t: String = e.title
 		b.draw.connect(func () -> void: _draw_row(b, t, key == selected))
+		b.mouse_filter = Control.MOUSE_FILTER_PASS # a drag over the rows scrolls them
 		b.pressed.connect(func () -> void:
+			if not _scroll.tap_ok():
+				return
 			selected = key
 			for o in buttons:
 				o.queue_redraw()

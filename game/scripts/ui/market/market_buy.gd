@@ -1,7 +1,8 @@
 class_name MarketBuy
 extends Control
 ## The Buy tab: what to ask the server (name search, market category, sub-type, sort, page) and
-## where its answer goes (the category column while a category is chosen, the table).
+## where its answer goes (the category column while a category is chosen, the table; page 1
+## replaces the table's rows, a later page is appended as the list scrolls).
 ## Every change asks market.search again; nothing is filtered or sorted on this side.
 
 signal loaded(res: Dictionary) ## every search response (tests and the lab read it)
@@ -73,6 +74,12 @@ func set_category(id: String) -> void:
 		layout(_m, Rect2(position, size))
 	reload()
 
+## A listing the server says is gone (bought here, or sold meanwhile) leaves the list; asking for
+## the last loaded page again appends the listing that moved up into it, so nothing is skipped.
+func drop(listing_id: String) -> void:
+	table.remove_listing(listing_id)
+	reload()
+
 ## The search the screen is showing, as market.search args (H2 filters only when the server has them).
 func args() -> Dictionary:
 	var a := {"sort": sort, "page": page, "page_size": page_size}
@@ -101,7 +108,10 @@ func reload() -> void:
 		_again = false
 		reload()
 		return
-	if res.get("ok", false):
+	if not res.get("ok", false) and page > 1: # a next page that failed keeps what is shown; scrolling asks again
+		page = table.page
+		table.loading = false
+	elif res.get("ok", false):
 		table.empty_text = "No listings in %s yet." % column.title if category != "" else ("Nothing listed matches “%s”." % q if q != "" else "Nothing is listed on this market yet.")
 		table.show_page(res.r)
 	else:

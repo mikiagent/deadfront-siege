@@ -97,6 +97,26 @@ func seed_scene() -> void:
 	now += 13 * HOUR
 	tick()
 
+## `n` more listings by other players for the 500-listing gate (exchange-spec §8 gate 12): fresh
+## accounts 100.. each gather and list single units at 1-20 T-stones, so every fee is the minimum
+## and the starting (bound) T-stones pay it; as many accounts as the fees and the open-listing cap need.
+func seed_bulk(n: int) -> void:
+	var rules := EconRules.load_default()
+	var per := mini(rules.num("starting_wallet") / rules.num("listing_fee_min"), rules.num("max_open_listings"))
+	var sellers: Array[int] = []
+	for i in ceili(float(n) / per):
+		sellers.append(100 + i)
+		_check(bridge.hello(100 + i, "Seller%d" % (100 + i), now), "hello %d" % (100 + i))
+	now += rules.num("trade_lock_s") + 1
+	var defs: Array = GATHER.keys()
+	var made := 0
+	for acct in sellers:
+		for k in mini(per, n - made):
+			var def: String = defs[(made + k) % defs.size()]
+			_gather(acct, def, 1)
+			list_one(acct, def, 1, 1 + (made + k) * 7 % 20)
+		made += mini(per, n - made)
+
 ## Stands in for the Bag's Lock (InventoryUI sets the "locked" flag on a stack): the server has no
 ## lock intent yet, so the same flag goes on the server character's stack.
 # shortcut: edits the character dict directly; use the server's lock intent once W3-SRVACT adds one.

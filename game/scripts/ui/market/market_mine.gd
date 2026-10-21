@@ -33,7 +33,7 @@ var receive_btn: Button
 var status: Label
 var receiving := false
 var _waiting_label: Label
-var _scroll: ScrollContainer
+var _scroll: MarketDragScroll
 var _list: VBoxContainer
 var _empty: Label
 var _pager: HBoxContainer
@@ -51,10 +51,8 @@ func _ready() -> void:
 		b.pressed.connect(func () -> void: show_sub(id))
 		add_child(b)
 		tab_btns[id] = b
-	_scroll = ScrollContainer.new()
+	_scroll = MarketDragScroll.new()
 	_scroll.name = "MineRows"
-	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	add_child(_scroll)
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 0)
@@ -150,7 +148,10 @@ func _build_rows() -> void:
 			b.text = "Cancel"
 			MarketTheme.action(b, false, int(_m.get("name", 16)))
 			var v: Dictionary = model.view
-			b.pressed.connect(func () -> void: cancel_pressed.emit(v))
+			b.mouse_filter = Control.MOUSE_FILTER_PASS # a drag that starts on Cancel still scrolls
+			b.pressed.connect(func () -> void:
+				if _scroll.tap_ok():
+					cancel_pressed.emit(v))
 			row.add_child(b)
 		_list.add_child(row)
 		rows.append(row)

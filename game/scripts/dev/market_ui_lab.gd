@@ -2,12 +2,15 @@ extends Node3D
 ## W3-EXCHANGE lab: the Island Market screens over the deterministic local economy
 ## (MarketHarness: real VaultBridge, real other-account listings, labelled a test server).
 ## Run windowed: Godot --path game --resolution 1600x900 [--rendering-method gl_compatibility]
-##   -- --lab=market_ui_lab --screen=<one of SCREENS> --shot=<png> --shot-delay=6
+##   -- --lab=market_ui_lab --screen=<one of SCREENS> --shot=<png> --shot-delay=6 [--insets=L,R,B]
+## --insets stands in for a phone's safe area (px left, right, bottom) on a desktop window.
+## buy_500 lists 490 more items by real ops and flings the Buy list to its end (needs a longer
+## --shot-delay, ~40): "[market_lab] measure perf ..." is gate 12.
 ## The market is opened the owner's way: the HUD's MENU sheet, then its "Island Market" button
 ## (hook H0). Prints "[market_lab] measure ..." for exchange-spec §8 gates 1-3.
 
 const SCREENS := ["menu", "buy", "buy_search", "buy_taming", "sell", "sell_pet", "sell_none", "my_market", "my_market_sold",
-	"my_market_history", "my_market_cancel", "my_market_received", "confirm", "offline"]
+	"my_market_history", "my_market_cancel", "my_market_received", "confirm", "offline", "buy_500"]
 
 var screen := "buy"
 var harness: MarketHarness
@@ -19,6 +22,9 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--screen="):
 			screen = a.substr(9)
+		elif a.begins_with("--insets="):
+			var p := a.substr(9).split(",")
+			MarketScreen.test_insets = Vector4(float(p[1]), float(p[2]), 0.0, float(p[0])) if p.size() == 3 else Vector4(-1, -1, -1, -1)
 	if screen not in SCREENS:
 		push_error("[market_lab] unknown --screen=%s (one of %s)" % [screen, ", ".join(SCREENS)])
 		screen = "buy"
@@ -37,6 +43,10 @@ func _ready() -> void:
 		_econ_dir = OS.get_user_data_dir().path_join("runs/market_ui_lab/econ_%s_%d" % [screen, OS.get_process_id()])
 		harness = MarketHarness.new(_econ_dir)
 		harness.seed_scene()
+		if screen == "buy_500":
+			var t0 := Time.get_ticks_msec()
+			harness.seed_bulk(490)
+			print("[market_lab] seeded 490 more listings by real ops in %d ms" % (Time.get_ticks_msec() - t0))
 		for f in harness.failures:
 			push_error("[market_lab] harness: %s" % f)
 		MarketScreen.test_client = harness.client()
@@ -44,6 +54,7 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	MarketScreen.test_client = null
+	MarketScreen.test_insets = Vector4(-1, -1, -1, -1)
 	MarketHarness.release_loggers()
 	if _econ_dir != "":
 		MarketHarness._wipe(_econ_dir)
@@ -89,6 +100,40 @@ func _show() -> void:
 	for i in 3:
 		await get_tree().process_frame
 	_measure(ms)
+	if screen == "buy_500":
+		await _fling(ms)
+
+## Gate 12: flings the Buy list from its top to its end at 120 px a frame. Every page the list asks
+## for on the way is one market.search and 20 new rows (MarketTable.build_us); a frame time is the
+## wall-clock gap between two frames (vsync included), the first 10 frames after opening excluded.
+func _fling(ms: MarketScreen) -> void:
+	var t := ms.buy.table
+	var sc := t.get_node("Rows") as ScrollContainer
+	var builds: Array[int] = [t.build_us]
+	ms.buy.loaded.connect(func (_r: Dictionary) -> void: builds.append(t.build_us))
+	for i in 10:
+		await get_tree().process_frame
+	var worst := 0
+	var over := 0
+	var frames := 0
+	var last := Time.get_ticks_usec()
+	var t0 := last
+	for i in 3000:
+		var before := sc.scroll_vertical
+		sc.scroll_vertical += 120
+		await get_tree().process_frame
+		var now := Time.get_ticks_usec()
+		worst = maxi(worst, now - last)
+		over += 1 if now - last > 33000 else 0
+		last = now
+		frames += 1
+		if sc.scroll_vertical == before and t.page >= t.pages and not t.loading:
+			break
+	var uids := {}
+	for r in t.rows:
+		uids[r.model.uid] = true
+	print("[market_lab] measure perf listings=%d rows=%d unique=%d pages=%d build_max=%.2fms frames=%d in %.1fs frame_max=%.1fms over33=%d" % [
+		t.total, t.rows.size(), uids.size(), t.page, builds.max() / 1000.0, frames, (last - t0) / 1e6, worst / 1000.0, over])
 
 ## The HUD's MENU sheet itself: the Island Market row is there and every row fits without scrolling.
 func _show_menu() -> void:
@@ -151,6 +196,18 @@ func _measure(ms: MarketScreen) -> void:
 		if (b as Button).text.strip_edges() == "+":
 			plus += 1
 	print("[market_lab] measure targets_under_44=%d %s clipped_labels=%d %s plus_buttons=%d" % [small.size(), ", ".join(small), clipped.size(), ", ".join(clipped), plus])
+	# Every visible target inside the safe area (a phone's notch and home bar; --insets on a desktop).
+	var safe: Rect2 = ms._m.get("safe", Rect2(Vector2.ZERO, view))
+	var outside: PackedStringArray = []
+	for b in ms.find_children("*", "BaseButton", true, false):
+		var c := b as Control
+		var clip := c.get_parent_control()
+		while clip != null and not clip.clip_contents:
+			clip = clip.get_parent_control()
+		var r := c.get_global_rect() if clip == null else c.get_global_rect().intersection(clip.get_global_rect())
+		if c.is_visible_in_tree() and r.has_area() and not safe.grow(0.5).encloses(r):
+			outside.append("%s %s" % [c.name, r])
+	print("[market_lab] measure safe=%s outside_safe=%d %s" % [safe, outside.size(), ", ".join(outside)])
 	if ms.sell.visible:
 		var pk := ms.sell.picker
 		var f := ms.sell.form
