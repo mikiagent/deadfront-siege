@@ -146,55 +146,64 @@ def _grass_base(p, size=2.0):
     p.box((size, size, 0.014), (0, 0, 0.007), "grass", tile_m=1.0)
 
 
-def _corner_grass(p):
-    """The inside of the turn: a grass wedge in one corner, so four corners read as a loop."""
-    p.box((0.98, 0.98, 0.045), (-0.5, -0.5, 0.0225), "grass", tile_m=0.9)
+def _dirt_pad(p, x, y, sx, sy, z=0.012, h=0.03):
+    """A patch of packed dirt on the tile."""
+    p.box((sx, sy, h), (x, y, z + h / 2), "dirt", tile_m=1.0)
 
 
 def path_dirt():
-    """Packed dirt path tile, 2 x 2 m, 0.04 m high, with a grass fringe at the edges."""
+    """Packed dirt path tile, 2 x 2 m, 0.04 m high, its edges blending into the grass."""
     p = Part("path_dirt")
     _grass_base(p)
-    p.box((1.82, 1.82, 0.032), (0, 0, 0.026), "dirt", tile_m=1.0)
+    # the packed surface does not reach the tile edge: grass creeps in from all sides
+    _dirt_pad(p, 0, 0, 1.78, 1.78)
     for i, (x, y, r) in enumerate(((-0.55, 0.42, 0.06), (0.48, -0.3, 0.05), (0.15, 0.62, 0.045), (-0.7, -0.55, 0.05))):
-        p.rock(r, (x, y, 0.042), tile="stone", squash=(1.3, 1.0, 0.5), seed=210 + i)
+        p.rock(r, (x, y, 0.04), tile="stone", squash=(1.3, 1.0, 0.5), seed=210 + i)
     return [(p, (0, 0, 0))]
 
 
 def path_dirt_corner():
-    """Dirt path corner tile: the same surface with a grass wedge in the inside of the turn."""
+    """Dirt path corner tile: the packed surface turns, and the inside of the turn stays grass."""
     p = Part("path_dirt_corner")
     _grass_base(p)
-    p.box((1.82, 1.82, 0.032), (0, 0, 0.026), "dirt", tile_m=1.0)
-    _corner_grass(p)
+    # an L of packed dirt: the strip along +X and the strip along +Y meet in the far corner
+    _dirt_pad(p, 0.0, 0.45, 1.78, 0.88)
+    _dirt_pad(p, 0.45, 0.0, 0.88, 1.78)
     for i, (x, y, r) in enumerate(((0.5, 0.45, 0.055), (-0.2, 0.66, 0.05), (0.62, -0.1, 0.05))):
-        p.rock(r, (x, y, 0.042), tile="stone", squash=(1.3, 1.0, 0.5), seed=220 + i)
+        p.rock(r, (x, y, 0.04), tile="stone", squash=(1.3, 1.0, 0.5), seed=220 + i)
     return [(p, (0, 0, 0))]
 
 
-def _stone_slab(p):
-    p.box((1.86, 1.86, 0.026), (0, 0, 0.027), "soil_dark", tile_m=1.0)
-    stones = ((-0.55, -0.5, 0.46, 0.42), (0.02, -0.52, 0.5, 0.4), (0.6, -0.42, 0.42, 0.5),
-              (-0.6, 0.08, 0.44, 0.46), (0.0, 0.06, 0.52, 0.44), (0.58, 0.12, 0.46, 0.44),
-              (-0.5, 0.66, 0.5, 0.38), (0.1, 0.64, 0.44, 0.42), (0.62, 0.64, 0.42, 0.4))
-    for i, (x, y, w, d) in enumerate(stones):
-        p.box((w, d, 0.026), (x, y, 0.038), "cobble", rot=(0, 0, 12 * (i % 5) - 24), tile_m=0.5)
+def _cobbles(p, cells):
+    """Flat cobble stones on a grid: cells is a list of (col, row) on a 3 x 3 grid over the tile,
+    col 0 at -X and row 0 at -Y."""
+    w = 0.54
+    for i, (c, r) in enumerate(cells):
+        x = -0.6 + c * 0.6
+        y = -0.6 + r * 0.6
+        p.box((w, w, 0.022), (x, y, 0.036), "cobble", rot=(0, 0, 12 * (i % 5) - 24), tile_m=0.5)
 
 
 def path_stone():
     """Stone path tile, 2 x 2 m: flat cobbles bedded in dirt, grass at the edges."""
     p = Part("path_stone")
     _grass_base(p)
-    _stone_slab(p)
+    p.box((1.78, 1.78, 0.024), (0, 0, 0.024), "soil_dark", tile_m=1.0)
+    _cobbles(p, [(c, r) for c in range(3) for r in range(3)])
     return [(p, (0, 0, 0))]
 
 
 def path_stone_corner():
-    """Stone path corner tile: cobbles with a grass wedge in the inside of the turn."""
+    """Stone path corner tile: the cobbles turn and the inside of the turn stays grass."""
     p = Part("path_stone_corner")
     _grass_base(p)
-    _stone_slab(p)
-    _corner_grass(p)
+    # dirt bed under the L of stones, the near corner left as grass
+    for c in range(3):
+        p.box((0.56, 0.56, 0.024), (-0.6 + c * 0.6, 0.0, 0.024), "soil_dark", tile_m=0.7)
+    for r in range(3):
+        p.box((0.56, 0.56, 0.024), (0.0, -0.6 + r * 0.6, 0.024), "soil_dark", tile_m=0.7)
+    cells = sorted({(c, 1) for c in range(3)} | {(1, r) for r in range(3)})
+    _cobbles(p, cells)
     return [(p, (0, 0, 0))]
 
 
