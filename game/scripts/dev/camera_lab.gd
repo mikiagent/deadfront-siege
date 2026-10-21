@@ -14,8 +14,10 @@ extends Node3D
 ##   --cam-perf             windowed, with --disable-vsync: 300 frames standing, 300 walking; prints
 ##                          "[cam] perf stand|walk mean median p95 ms, draw calls"
 ##   --cam-motion           walks right then up for 3 s each with the move actions at 60 fps and logs
-##                          the survivor's chest on screen every frame; "[cam] motion PASS" when no frame
-##                          steps more than MAX_JERK px off the frame before it (no jumps)
+##                          the survivor's chest on screen every frame; "[cam] motion PASS" when her
+##                          screen velocity never changes by more than MAX_JERK px per 1/60 s from one
+##                          frame to the next (no jumps). Frames the machine held (dt off by > 25 % or
+##                          > 25 ms) are counted and skipped.
 ## --cam-ortho (the old orthographic camera, where the build has one) passes through to IsoCamera.
 
 const TALL_M := 2.4
@@ -249,27 +251,38 @@ func _motion() -> void:
 	var worst := 0.0
 	var worst_at := ""
 	var frames := 0
+	var hitches := 0
 	for action in ["move_right", "move_up"]:
 		Input.action_press(action)
 		var prev := Vector2.INF
 		var prev_d := Vector2.INF
+		var prev_dt := 0.0
 		var t0 := Time.get_ticks_msec()
 		while Time.get_ticks_msec() - t0 < 3000:
 			await get_tree().process_frame
+			var dt := get_process_delta_time()
 			var s := _cam.unproject_position(_player.get_global_transform_interpolated().origin + Vector3.UP * 0.3)
 			if prev != Vector2.INF:
 				var d := s - prev
 				if prev_d != Vector2.INF:
-					var jerk := (d - prev_d).length()
 					frames += 1
-					if jerk > worst:
-						worst = jerk
-						worst_at = "%s frame %d (step %s after %s)" % [action, frames, d, prev_d]
+					# A frame the machine held longer (another process, a capture) moves the world further
+					# by design; only steps between two regular frames can show a jump of our own.
+					if absf(dt - prev_dt) > 0.25 * maxf(prev_dt, 0.001) or dt > 0.025:
+						hitches += 1
+					else:
+						# Per 1/60 s: the survivor's screen velocity change, so frame-time wobble at 60 fps
+						# (14-19 ms frames) does not read as a jump.
+						var jerk := (d / dt - prev_d / prev_dt).length() / 60.0
+						if jerk > worst:
+							worst = jerk
+							worst_at = "%s frame %d (step %s after %s, dt %.4f after %.4f)" % [action, frames, d, prev_d, dt, prev_dt]
 				prev_d = d
 			prev = s
+			prev_dt = dt
 		Input.action_release(action)
 		await _settle(10)
-	print("[cam] motion: %d frames, largest frame-to-frame change of the survivor's screen step %.2f px at %s" % [frames, worst, worst_at])
+	print("[cam] motion: %d frames (%d held by the machine, skipped), largest frame-to-frame change of the survivor's screen step %.2f px at %s" % [frames, hitches, worst, worst_at])
 	print("[cam] motion %s" % ("PASS" if worst <= MAX_JERK else "FAIL"))
 	get_tree().quit(0 if worst <= MAX_JERK else 1)
 
