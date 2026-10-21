@@ -370,11 +370,15 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 
 - 2026-10-20 (owner) "This is what the player creation page looks like" (`docs/design/durango-prompts/19_character_creation.md`,
   `docs/reference/durango-character-creation.png`): Durango's Gender/Profession screen. Package CHARCREATE (`claude/mmo-charcreate`) restyles
-  the existing character_creation.gd (occupations, gender, name already work). A male survivor model needs owner-approved concept art first.
+  the existing character_creation.gd (occupations, gender, name already work). A male survivor model needs owner-approved concept art first. Owner added step 2 ("You can choose the size and profile pic, 3D model"):
+  CHARCREATE (wf_423a264e-02f, script `handoff/workflows/charcreate.js`) also builds Create Character - size slider, a portrait RENDERED from the
+  player's model with Pattern/Background Color (the canonical PortraitService; DOMAIN/INVUI adapt at their sync), appearance/colour options the
+  model really supports.
 
 ## Owner questions (open)
 
-- none
+- Male survivor model (PRD: 8 occupations x 2 genders): start a concept sheet for approval, then a Tripo mesh from existing credits? (asked 2026-10-20; unanswered)
+- Painted portrait set like Durango's (15+ faces): new art; which source, if any? Until then portraits are rendered from the player's model.
 
 ## Merge log
 

@@ -1,0 +1,68 @@
+export const meta = {
+  name: 'deadfront-charcreate',
+  description: 'CHARCREATE: restyle character creation to Durango\'s Gender/Profession and Create Character screens (live 3D preview, size, rendered portrait) with the PRD occupations; build, independent review, blind A/B',
+  phases: [
+    { title: 'Build', detail: 'restyle, 3D preview, skill line, test, shots' },
+    { title: 'Review', detail: 'independent reviewer, blind A/B, fix loop' },
+  ],
+}
+const OSP = '/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad'
+const SP = '/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad'
+const REPO = '/Users/milankinzy/Documents/deadfront-siege'
+const OWNER = '/Users/milankinzy/Documents/deadfront'
+const WT = `${REPO}/.claude/worktrees/mmo-charcreate`
+const BR = 'claude/mmo-charcreate'
+const G = '/Applications/Godot_mono.app/Contents/MacOS/Godot'
+const REPORT = 'docs/orchestration/reports/claude-mmo-charcreate.md'
+const HOOKS = 'docs/orchestration/reports/claude-mmo-charcreate-hooks.patch'
+const ctx = `Project: DEADFRONT, a Godot 4.7.1 typed-GDScript dinosaur survival MMO (game/ is the project) with Durango: Wild Lands UI; judged in desktop Chrome at 1600x900 (web renderer gl_compatibility) and on landscape phones (844x390).
+Owner: "This is what the player creation page looks like". Read ${OWNER}/docs/design/durango-prompts/19_character_creation.md and open ${OWNER}/docs/reference/durango-character-creation.png. PRD §5.1 (${OWNER}/docs/prd/durango-wild-lands-systems-prd.md:326-340) binds: 8 occupations x 2 genders, occupation is not a class lock, each starts at proficiency 20 in one tree (the PRD table gives the names), none in Survival, Processing, Butchering or Ranged.
+Base: game/data/skills/occupations.json (8 occupations: id, name, tree, story) and game/scripts/ui/character_creation.gd (occupation, gender, name; emits done) already work and are saved/applied; the only survivor model is female (game/data/characters/survivor.json).
+Package CHARCREATE: branch ${BR}, work tree ${WT} (create: bash ${OSP}/mkwt.sh charcreate). Report ${REPORT}; hooks ${HOOKS}. ORCHESTRATOR GRANT: you own game/scripts/ui/character_creation.gd (its owner W1-UI is merged and nothing else in flight touches it) and may split it into new component files; other packages' files get exact compiling changes in the hooks patch.
+Scope: restyle the screen to the reference, keeping every working behaviour (selection, gender, name entry, done signal, save): header "Gender/Profession" on the dark torn band (match the Bag/market chrome of specs 13/14 where it exists on the base); left occupation list with dotted separators and the selected row lighter with yellow corner brackets; centre gold title, a LIVE 3D preview of the survivor (the real model and an idle clip in a SubViewport on a dark stage with soft light and a ground shadow; slow turn or drag to rotate), the starting skill line "Lv. 20 <Tree>" in gold read from the data (never hard-coded) and the story text; bottom bar with the gender hex toggle and a yellow Next; name entry kept where the flow already asks for it. Occupation display names follow the PRD table (map ids, e.g. technician / flight_attendant, to the PRD's words if they differ; # ASSUMPTION where unclear). If the model has occupation outfits or armour pieces on the base, dress the preview per occupation; otherwise do not invent outfits. GENDER: there is no male model; do NOT fake one (no scaling or recolouring the woman). Keep the toggle working for the saved value, show the existing model, and put ONE owner question in your report and summary: a male survivor needs a concept sheet for approval before a Tripo mesh. STEP 2 (owner: "You can choose the size and profile pic, 3D model"; read the "Step 2: Create Character" section of spec 19 and open ${OWNER}/docs/reference/durango-create-character.png): after Gender/Profession add the Create Character screen - left the current portrait in yellow brackets with tabs Portrait / Appearance / Color and a randomise die; centre the same live 3D preview; right the tab's options and a yellow Next. SIZE: a vertical height slider in a small data-driven range (# ASSUMPTION about +/-8 %), applied to the survivor's visual scale in the preview and in the world, saved; collision and gameplay unchanged (say so). PORTRAIT: the profile picture used by the HUD, Character screen, domain banner and map. There is no painted portrait art and none may be generated or downloaded, so the portrait is a headshot RENDERED from the player's own 3D model (a cached SubViewport capture) with Durango's Pattern and Background Color choices; make it ONE PortraitService (render, cache, settings, re-render on change) that other screens call - other packages (DOMAIN, INVUI) may have their own snapshot code: yours is the canonical service, note it for the integrator. Put ONE owner question in your report: a painted portrait set like Durango's is new art and needs the owner's choice of source. APPEARANCE / COLOR: only what the existing model really supports (check its materials, hair/skin/clothing slots and the existing clothing and armour items); no faked options; if a slot has a single choice, show no picker for it. Everything new in the save is an optional field with a default, so old saves load unchanged. The test covers step 2 too (size applied and saved, portrait re-rendered on change, randomise stays within data ranges). Landscape phone 844x390 and desktop 1600x900 must both fit (list scrolls, preview scales), targets >= 44 px, safe areas. A test game/tests/t_charcreate.gd that fails on the old code (no 3D preview / no skill line) and checks the skill line comes from occupations.json for every occupation, the done signal and saved values are unchanged.
+Rules: Godot only through ${OSP}/gslot.sh with its own timeout (e.g. ${OSP}/gslot.sh perl -e 'alarm 600; exec @ARGV' ${G} --headless --path game --script res://tests/t_charcreate.gd), silent, never --editor; --import once after adding a class_name file. Shots: windowed, the creation screen at 1600x900 (Forward+ and gl_compatibility) and 844x390 for at least two occupations; open every PNG next to the reference. Gates: every game/tests/t_*.gd PASS (t_save prints 5 deliberate SCRIPT ERRORs), run_all [tests] PASS, smoke SMOKE PASS (it walks character creation), the labs you touch with 0 SCRIPT ERROR. Keep the git-excluded game/override.cfg; never touch the owner's real save, ${REPO}'s main checkout, ${OWNER}, or other packages' worktrees (other workflows are running). Throwaway trees: bash ${SP}/mkscratch.sh <name> <ref> [patch]. Typed GDScript in the house style, no new autoloads/deps, no god-file growth, no downloads, no Tripo/Meshy spend. Commit often ("Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"); never git add -A; never push, merge into claude/mmo-overhaul or deploy; never use SendMessage; never claim a check you did not run.`
+const STEP = { type: 'object', properties: { done: { type: 'boolean' }, head: { type: 'string' }, gates: { type: 'array', items: { type: 'string' } }, shots: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' } }, required: ['done', 'head', 'summary'] }
+const PAIR = { type: 'object', properties: { scene: { type: 'string' }, before: { type: 'string' }, after: { type: 'string' } }, required: ['scene', 'before', 'after'] }
+const REVIEW = { type: 'object', properties: { pass: { type: 'boolean' }, reviewed_sha: { type: 'string' },
+  acceptance: { type: 'array', items: { type: 'object', properties: { item: { type: 'string' }, met: { type: 'boolean' }, evidence: { type: 'string' } }, required: ['item', 'met', 'evidence'] } },
+  findings: { type: 'array', items: { type: 'object', properties: { severity: { type: 'string', enum: ['blocker', 'major', 'minor'] }, where: { type: 'string' }, problem: { type: 'string' }, fix: { type: 'string' } }, required: ['severity', 'where', 'problem', 'fix'] } },
+  pairs: { type: 'array', items: PAIR }, summary: { type: 'string' } }, required: ['pass', 'reviewed_sha', 'findings', 'pairs', 'summary'] }
+const JUDGE = { type: 'object', properties: { verdicts: { type: 'array', items: { type: 'object', properties: { scene: { type: 'string' }, better: { type: 'string', enum: ['first', 'second', 'tie'] }, reasons: { type: 'string' } }, required: ['scene', 'better', 'reasons'] } }, overall: { type: 'string' } }, required: ['verdicts', 'overall'] }
+
+phase('Build')
+const b = await agent(`${ctx}
+
+ROLE: builder. Create the work tree, take BEFORE shots of today's creation screen, then build the package, the hooks patch and the test, run every gate, take AFTER shots (1600x900 Forward+ and gl_compatibility, 844x390), LOOK at them next to the reference, write ${REPORT} (before/after, assumptions, hooks, the owner question about a male survivor), commit. Return done, head, gates, shots, summary.`, { label: 'build', phase: 'Build', schema: STEP })
+if (!b) return { stopped: 'cut at build' }
+
+phase('Review')
+let final = null
+for (let round = 1; round <= 3; round++) {
+  const rv = await agent(`${ctx}
+
+ROLE: independent, demanding reviewer (round ${round}) of CHARCREATE. You did not write it. Do not edit ${WT}; probes and shots under ${SP}/review/charcreate/r${round}/. Review the branch WITH its hooks: bash ${SP}/mkscratch.sh rev-charcreate ${BR} ${HOOKS}; before-tree: bash ${SP}/mkscratch.sh revbase-charcreate claude/mmo-overhaul. Run every gate and t_charcreate; check the occupation data against PRD:326-340; try to break it (every occupation, toggling gender back and forth, an empty or very long name, resizing between phone and desktop, the preview's frame cost and memory, back/next flow into the island pick and the world, a save made after creation keeps occupation, gender and name, no faked male model); check scope (new files + hooks) and that the test fails on the old code. Take matched BEFORE/AFTER shots of the creation screen with the same occupation selected (1600x900 gl_compatibility and 844x390) as pairs; look at every one. pass=true only with zero blockers and zero majors.`, { label: `review:r${round}`, phase: 'Review', schema: REVIEW, effort: 'high' })
+  if (!rv) return { stopped: 'cut at review', build: b }
+  const findings = (rv.findings || []).slice()
+  if (!rv.pass) (rv.acceptance || []).filter(a => !a.met).forEach(a => findings.push({ severity: 'major', where: 'acceptance', problem: `Unmet: ${a.item} - ${a.evidence}`, fix: 'Meet it.' }))
+  let pass = rv.pass, ab = null
+  if (pass && rv.pairs && rv.pairs.length) {
+    ab = await agent(`You are a blind art director for a dinosaur survival game with Durango: Wild Lands-grade UI. For each scene there are two screenshots of the same moment from two builds; you are NOT told which is newer; ignore file names. Open both with the Read tool and judge which is the better shipped game screen (first impression, readability, hierarchy, polish, does it make you want to pick a survivor). Pick first, second or tie per scene with reasons.
+${rv.pairs.map((pr, i) => `Scene ${i + 1} "${pr.scene}": first = ${i % 2 ? pr.after : pr.before} ; second = ${i % 2 ? pr.before : pr.after}`).join('\n')}`, { label: `judge:r${round}`, phase: 'Review', schema: JUDGE })
+    if (ab) {
+      let aw = 0, bw = 0
+      ab.verdicts.forEach((v, i) => { if (v.better === 'tie') return; ((v.better === 'second') !== (i % 2 === 1)) ? aw++ : bw++ })
+      ab.afterWins = aw; ab.beforeWins = bw
+      if (aw <= bw) { pass = false; findings.push({ severity: 'major', where: 'blind A/B judge', problem: `Judge did not prefer the new build (new ${aw}, old ${bw}). ${ab.overall} ${JSON.stringify(ab.verdicts)} (scene i odd => first is NEW)`, fix: "Address the judge's reasons." }) }
+    }
+  } else if (pass) { pass = false; findings.push({ severity: 'major', where: 'review evidence', problem: 'no matched before/after pairs', fix: 'take them' }) }
+  final = { round, pass, summary: rv.summary, findings, ab: ab ? { afterWins: ab.afterWins, beforeWins: ab.beforeWins, overall: ab.overall } : null }
+  log(`CHARCREATE review r${round}: ${pass ? 'PASS' : 'not yet'}`)
+  if (pass || round === 3) break
+  const fx = await agent(`${ctx}
+
+ROLE: builder, fix round ${round}. Fix every blocker and major and the cheap minors below, add a check for each, rerun the gates and shots, look at them, update ${REPORT} and ${HOOKS}, commit. If a finding is wrong, show evidence in the report.
+Findings (JSON): ${JSON.stringify(findings, null, 1)}
+Return done, head, gates, shots, summary.`, { label: `fix:r${round}`, phase: 'Review', schema: STEP })
+  if (!fx) return { stopped: 'cut at fix', final }
+}
+return { ready: !!(final && final.pass), final, build: b }
