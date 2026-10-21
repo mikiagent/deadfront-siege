@@ -50,6 +50,8 @@ func _ready() -> void:
 			build_stamp = a.substr(8)
 		elif a.begins_with("--shot-delay="):
 			shot_delay_override = float(a.substr(13))
+		elif a.begins_with("--tod="):  # labs and shots start at this time of day (0.9 = night)
+			time_of_day = fposmod(float(a.substr(6)), 1.0)
 		elif a == "--fast-regen":
 			fast_regen_mult = 20.0
 		elif a.begins_with("--fast-regen="):
