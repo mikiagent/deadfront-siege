@@ -266,3 +266,28 @@ Behaviour (t_exchange, through MarketClient → VaultBridge.client):
 `bridge.client` for every op in `VaultBridge.CLIENT_OPS` + `IntentHandlers.CLIENT_OPS` (char.get), the envelope rid as `a.rid`,
 `sys.tick` each second, inbox events pushed (sold, expired, won, outbid, filled) so My Market refreshes, and responses
 under the 64 KiB frame (the screens ask `page_size` ≤ 20).
+
+## 11. B1 as built (2026-10-20)
+
+Files (`game/scripts/ui/market/`): `market_screen.gd` MarketScreen, `market_header.gd` MarketHeader, `market_rail.gd`
+MarketRail, `market_buy.gd` MarketBuy (was buy_view), `market_categories.gd` MarketCategories (the column),
+`market_search.gd` MarketSearch (the sheet), `market_table.gd` MarketTable, `market_row.gd` MarketRow (was listing_row),
+`market_confirm.gd` MarketConfirm (was listing_detail), `market_format.gd`, `market_theme.gd` (brackets, torn edge,
+dotted lines and the backdrop shader live here; no market_brackets.gd), `market_glyphs.gd`, `net_market_client.gd`.
+
+Changes against §3-§6, each checked against the docs:
+- H2 (hooks patch) also adds `clade` and `def_id` filters and `MarketQuery.FILTERS`; the client offers a filter only
+  when FILTERS has it (H1: a sort only when SORTS has it). A clade row sends `clade`, an item row `def_id` (one request).
+- Categories: every market.json price key except `unstable_loot` shows, empty or not (an empty table says so), instead
+  of 20 count requests per open. Clades: every cage-able clade shows (11 on today's roster). # ASSUMPTION, both.
+- A lot listed as ×N is bought whole (`count = left`); a per-unit stepper comes with a need. # ASSUMPTION.
+- Buy confirm shows "No buyer fee; the seller pays N T-stones market tax" (N from EconRules, the engine's rounding).
+- My Market and Sell tabs show one honest line until B2/B3.
+- `NetMarketClient` follows NET's real API (claude/mmo-net): `request(op, a) -> NetRequest`, `await req.done`,
+  `retry(req)` under the same rid; the body carries no rid (NetClient puts it on the envelope); `account_id` names own rows.
+- `MarketScreen.test_client` (static) is how labs and tests inject `LocalMarketClient`; the player path never sets it.
+- `MarketTheme.size_label` pulls the line pitch to ~1.3x: the project font's symbol/emoji fallbacks report 38 px line
+  height at 18 px, which double-spaced every wrapped label.
+- `MarketHarness.release_loggers()`: MarketEngine and CharacterStore register static Loggers and never remove them;
+  a windowed run that quits with them registered aborts in NSApplication terminate (one Godot .ips per lab shot).
+

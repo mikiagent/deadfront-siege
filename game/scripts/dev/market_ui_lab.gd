@@ -6,7 +6,7 @@ extends Node3D
 ## The market is opened the owner's way: the HUD's MENU sheet, then its "Island Market" button
 ## (hook H0). Prints "[market_lab] measure ..." for exchange-spec §8 gates 1-3.
 
-const SCREENS := ["buy", "buy_search", "buy_taming", "sell", "my_market", "confirm", "offline"]
+const SCREENS := ["menu", "buy", "buy_search", "buy_taming", "sell", "my_market", "confirm", "offline"]
 
 var screen := "buy"
 var harness: MarketHarness
@@ -50,6 +50,9 @@ func _exit_tree() -> void:
 
 func _show() -> void:
 	await get_tree().process_frame
+	if screen == "menu":
+		_show_menu()
+		return
 	var ms := await _open_from_menu()
 	if ms == null:
 		push_error("[market_lab] the market did not open")
@@ -71,6 +74,18 @@ func _show() -> void:
 	for i in 3:
 		await get_tree().process_frame
 	_measure(ms)
+
+## The HUD's MENU sheet itself: the Island Market row is there and every row fits without scrolling.
+func _show_menu() -> void:
+	_hud.call("_toggle_sheet", &"menu")
+	for i in 3:
+		await get_tree().process_frame
+	var rows := _hud.find_child("SheetRows", true, false) as ScrollContainer
+	var names: PackedStringArray = []
+	for b in rows.find_children("*", "Button", true, false):
+		names.append((b as Button).text)
+	var bar := rows.get_v_scroll_bar()
+	print("[market_lab] measure menu rows=%s scrolls=%s" % [", ".join(names), bar.max_value > rows.size.y + 0.5])
 
 ## HUD MENU -> "Island Market" (the real button); without hook H0 the lab says so and opens it directly.
 func _open_from_menu() -> MarketScreen:
