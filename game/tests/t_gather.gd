@@ -683,6 +683,20 @@ func _test_hud_notice_life() -> void:
 	for n in [fresh, stale, other]:
 		GF.hold_notice(n)
 	_expect(is_equal_approx(fresh["t"], GF.NOTICE_T0) and is_equal_approx(stale["t"], 1.8) and is_equal_approx(other["t"], 1.8), "with no room a fresh rare notice waits, a stale or plain one ages (%s %s %s)" % [fresh["t"], stale["t"], other["t"]])
+	# A rare notice goes once the survivor works another node; the node it came from keeps it.
+	var na = _planted("Bush", &"fibre_stalk", "grassland", &"none", Vector3(-3, 0, 0))
+	var nb = _planted("Bush", &"fibre_stalk", "grassland", &"none", Vector3(-5, 0, 0))
+	player.gather_target = na
+	var own := {"text": "d", "t": 0.0}
+	GF.stamp_notice(own, GF.GREEN, player)
+	var same: bool = GF.notice_stale(own, player)
+	player.gather_target = nb
+	var moved: bool = GF.notice_stale(own, player)
+	var plain_moved: bool = GF.notice_stale({"text": "e", "t": 1.0}, player)
+	player.gather_target = null
+	_expect(not same and moved and own["t"] == INF and not plain_moved, "a rare notice goes when the survivor works another node, not before (same %s, moved %s, plain %s)" % [same, moved, plain_moved])
+	na.free()
+	nb.free()
 	h._events.tick(GF.LIFE + 0.9)
 	var texts: Array = h._events.notices.map(func(n): return n["text"])
 	_expect(not texts.has("Rare find: Flint") and texts.has("Too far."), "after the stack's life the rare notice is gone, a plain one stays (%s)" % [texts])

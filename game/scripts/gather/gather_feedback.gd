@@ -278,6 +278,34 @@ static func _popup_or_notice(p: Player, at: Vector3, lines: Array, owed: Array) 
 	if popup(p, at, lines, fb) == null and fb.is_valid():
 		fb.call()
 
+## The HUD stamps a rare (tinted) notice: its colour, its clock at NOTICE_T0, when it was raised and
+## what the survivor was working on then.
+static func stamp_notice(n: Dictionary, tint: Color, p: Player) -> void:
+	n["tint"] = tint
+	n["t"] = NOTICE_T0
+	n["born"] = Time.get_ticks_msec()
+	n["src"] = _work_target_id(p)
+
+## A rare notice goes once the survivor works on something else (a gather's notice beside the next
+## carcass read as that carcass's). Spends it (the HUD drops it on its next tick) and returns true.
+static func notice_stale(n: Dictionary, p: Player) -> bool:
+	if not n.has("tint"):
+		return false
+	var now := _work_target_id(p)
+	if now == 0 or now == int(n.get("src", 0)):
+		return false
+	n["t"] = INF
+	return true
+
+static func _work_target_id(p: Player) -> int:
+	if p == null:
+		return 0
+	if is_instance_valid(p.gather_target):
+		return p.gather_target.get_instance_id()
+	if is_instance_valid(p.butcher_target):
+		return p.butcher_target.get_instance_id()
+	return 0
+
 ## Called by the HUD for a notice it found no room for this frame: a rare one (tinted) holds its clock
 ## at NOTICE_T0 for up to NOTICE_WAIT_MS after it was raised, then ages and goes like any notice, so a
 ## find never lingers into a later scene (a gather's notice sat beside the next carcass).
