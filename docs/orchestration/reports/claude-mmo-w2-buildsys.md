@@ -1,7 +1,7 @@
 # W2-BUILDSYS: ARK-style modular building with structure HP, tiers and repair
 
-Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last to base tip cecc936b:
-docs only since 1c89134a, which brought W2-OCCLUDE, W1-UIICONS and DSC-CAMP). Review r1 stopped before any run.
+Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last to base tip ddaab662, which brought
+W2-DATA, W2-SKILLS and WATER; see resume pass 3). Review r1 stopped before any run.
 Closes build-struct-01, build-def-01, build-tier-01, build-place-02, phys-wall-01, build-storage-01 (chest and
 large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
 
@@ -20,6 +20,78 @@ got its own approval (STATUS:325).
   to refund. The house and the materials it cost would be gone at the next save.
 - **Asked of the owner:** approve the 3 -> 4 bump (recommended). Or say keep schema 3, and accept that a
   rollback build drops houses without refunding them.
+
+## Resume pass 3 (2026-10-21, base ddaab662)
+
+- **Base**: merged ddaab662 (c2e9c7ac), 113 commits: W2-DATA, W2-SKILLS, WATER and docs. The merge was clean, with
+  no conflicts. W2-PROCESS is still unmerged and its branch (6081da84) does not touch `build_placer.gd`. The base's
+  `pack_up_blocker` still calls `pack_up_block_reason()`, and the branch keeps it. W2-PROCESS's
+  `ProcessStation`/`CraftStation.salvage_contents()` and `pack_up_block_reason()` still match the duck-typed calls
+  here.
+- **Hooks patch, regenerated** (ca0c5529). W2-SKILLS moved t_save's v3 golden comparison into `_check_v3_golden`,
+  so hook 5 now sits there: the same `/schema` skip and the same current-schema check. Hooks 1-3 are unchanged
+  apart from line offsets. Checked through a throwaway index: `APPLY OK on ddaab662` and `APPLY OK on HEAD
+  c2e9c7ac`.
+- **Hook 4**: the base still has no lab registry (no `tools/labs.txt`), so nothing needs registering. The rows
+  for W1-QA's file are under Integrator hooks.
+- **Docs**: I re-read the cited lines on the merged tree, and they are unchanged.
+  - Spec 10:90: "level-60 Large Leaf Box holding 160 spaces. Do not impose this value on every box".
+  - Spec 10:102: "must not silently delete stored items".
+  - Spec 05:14: "basket about 100 slots; level-60 Large Leaf Box up to 160".
+  - Spec 11:155: "Handle demolished stations ... without losing items or duplicating output".
+  - PRD:582: "baskets (~100 slots early) → boxes → large boxes".
+  - PRD:819: "Signs (text, images, animated billboards ...)", with no length.
+
+  So the values stay as they were: chest 100, large box 160 flat (`# ASSUMPTION` until building level exists), and
+  the signboard's 48 characters `# ASSUMPTION`. Vision fixes 1 and 2 were already in the code. A grep of the owned
+  files finds no "lost (logged)" path. Every queue_free of a piece goes through `spill_storage`/`salvage`. A kit
+  destroyed by damage calls `salvage_contents()` before `queue_free`.
+- **Gates**: scratch tree `trees/bs5-gates` (mkscratch at ca0c5529 with the hooks patch applied). Logs and PNGs
+  are in the 72cebc8b scratchpad under `bs5/`.
+  - `--import`: 0 SCRIPT ERROR, 0 "Failed to compile".
+  - All 23 `t_*.gd` exit 0 with their PASS line and 0 SCRIPT ERROR, except t_save's 5 deliberate ones (`[t_save]
+    PASS`, `round trip save_v3_golden.json fields=23 diffs=0`). New since the last pass: t_data (`[t_data] PASS
+    items=223 recipes=155`), t_w2_skills and t_water.
+  - t_buildsys: `ok repair_upgrade`, `ok furniture`, `ok salvage`, `ok snap_resources`, `[t_buildsys] PASS`.
+  - run_all: `[tests] PASS`. `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- **Labs (headless)**, each with 0 SCRIPT ERROR and 0 "couldn't resolve track":
+  - snap_build_lab: `[snap] PASS`. The raptor's wall bite is now `69.0 (want 69.0)` because W2-DATA's numbers
+    changed; the expectation is computed from data.
+  - `--snap-touch`: `[snap] PASS`, with all 19 touch ok lines.
+  - build_lab: `[build] PASS`.
+  - siege probe: `[siege] destroyed-after=12s occupancy-cleared=true`.
+- **Fail on old behaviour**, redone on the merged code. In the gates tree, `bs3/mutate.sh` applied its six
+  mutations: lost (logged), 20/40 slots, no `salvage_contents()`, repair and upgrade that check the cost but do
+  not pay, and no resource rule. The result was `[t_buildsys] FAIL count=21`, for example:
+  - `FAIL demolish: item l12a1e6ac5a432f13 is kept exactly once (seen 0 times)`
+  - `FAIL destroyed by a raptor: item l653d745d1959dbaf is kept exactly once (seen 0 times)`
+  - `FAIL destroyed kits: item l1581c147b2a7bb1c is kept exactly once (seen 0 times)`
+  - `FAIL a chest holds at least 100 (PRD:582 baskets ~100 early; got 20)`
+  - `FAIL repair took exactly its cost of plank`
+  - `FAIL the upgrade took exactly its 8 stone (left 8)`
+  - `FAIL a foundation ghost aimed at a tree is never valid on its module (try 1: )`
+
+  The mutations were reverted afterwards, and `git diff -- game/scripts/world game/data` is empty.
+- **Pixels (windowed, each one looked at)**:
+  - `house_fwd.png` / `house_glc.png` (1600x900): the snapped 2-storey plank house, with gable roof, storey band,
+    framed door, windows on both storeys and a stone ramp. The two renderers match.
+  - `inside_fwd.png` / `inside_glc.png`: the roof and upper storey fade to a dithered outline, and the front wall
+    fades to a blue dither. The survivor inside is hard to see (the label and ring read, the body barely does) in
+    both renderers. This is W2-OCCLUDE's look, unchanged here.
+  - The lab's fixture also draws a level-up stat list at the top left (W2-SKILLS' banner, a dev fixture).
+  - Touch at 844x390 on gl_compatibility (`--touch --snap-touch`): `[snap] PASS`.
+    - `touch_ghost.png`: the ghost, snap points, ROTATE/PLACE/CANCEL hexes, and the cost label "Wood Foundation
+      plank ×6 · twine", whose tail runs under the DEBUG hex.
+    - `touch_card.png`: Wood Wall 1200/1200, "Upgrade to Stone / stone ×8 · plank ×2", "Demolish / half back",
+      "Building to Stone (5)".
+    - `touch_house_card.png`: Wood Door 600/600, with Open door, Upgrade, Demolish and "Building to Stone (45) /
+      stone ×344 · plank ×88".
+    - `touch_sign.png`: the chest and the signboard on the new foundations.
+    - `touch_chest.png`: the bag panel opens, but the chest grid is below the fold (the known limit, W2-SCREENS/
+      INVUI).
+    - The lab's LEVEL UP banner covers the card's top right on the phone (a dev fixture).
+- **Crash reports**: no new `~/Library/Logs/DiagnosticReports/Godot-*.ips`. The before and after listings are
+  identical, and the newest is `-232613`, which predates this pass.
 
 ## Resume pass 2 (2026-10-20 ~21:45, finish-6 resumed again)
 
@@ -417,7 +489,7 @@ logs and PNGs are in the 72cebc8b scratchpad under `bs3/`.
 ## Integrator hooks
 
 `docs/orchestration/reports/claude-mmo-w2-buildsys-hooks.patch` holds hooks 1-3 and 5 as one patch; `git apply --check`
-passes on claude/mmo-overhaul cecc936b (resume pass 2). The hooked tree passed the whole suite and --snap-touch (resume pass 2 above).
+passes on claude/mmo-overhaul ddaab662 (resume pass 3). The hooked tree passed the whole suite and --snap-touch (resume pass 3 above).
 
 1. **W2-PLAYER, `game/scripts/player/player_input.gd`**: `interact_tap_target`: `elif col is StructurePiece:`
    find the `hud` group node and call `hud.open_structure(col)`; `is_interactable`: a `StructurePiece` is
@@ -431,13 +503,14 @@ passes on claude/mmo-overhaul cecc936b (resume pass 2). The hooked tree passed t
 3. **W2-ECO, `game/scripts/creatures/brains/creature_brain.gd`**: unchanged from the first pass: `_break_in()`
    before `_think` retargets the blocking wall from `StructureHealth.siege_target` once a second;
    `hunting_player` and the leash treat any structure like the catapult.
-4. **No registration needed on the base**: it has no lab registry, labs load by scene name. When W1-QA's
-   `tools/labs.txt` lands, append the two rows given in resume pass 2. `--lab=snap_build_lab`
+4. **No registration needed on the base**: it has no lab registry (still none on ddaab662), labs load by scene
+   name. When W1-QA's `tools/labs.txt` lands, append `snap_build_lab | 120 | -- --lab=snap_build_lab | shot` and
+   `snap_build_touch | 120 | -- --lab=snap_build_lab --snap-touch`. `--lab=snap_build_lab`
    (headless `[snap] PASS`; `--shot=<png>` frames the house, `--snap-inside` puts the survivor inside,
    `--snap-ghost` stages a ghost; `--snap-touch` runs the touch loop and needs hooks 1-2, `--snap-shots=<stem>`
    saves a PNG per touch step).
-5. **W1 save, `game/tests/t_save.gd`** (+3 -1, in the patch since review r1): skips `/schema` in the v3 golden
-   comparison and checks the re-save is at the current schema. Needed by the schema-4 bump in save_game.gd.
+5. **W1 save, `game/tests/t_save.gd`** (+3 -1, in the patch since review r1; in W2-SKILLS' `_check_v3_golden`
+   since resume pass 3): skips `/schema` in the v3 golden comparison and checks the re-save is at the current schema. Needed by the schema-4 bump in save_game.gd.
 6. **W2-OCCLUDE**: nothing to change; the adapter (`StructurePiece._occlusion`) works against the merged
    `Occlusion.make_occludable(node, "between"|"inside")` / `release`.
 
