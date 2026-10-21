@@ -24,6 +24,8 @@ const GREEN := Color("#67B84E")
 ## A rare HUD notice starts this far into the HUD's 3.2 s notice life: it stays as long as the yield
 ## stack it stands in for (LIFE, then the fade), so it does not linger into the next thing on screen.
 const NOTICE_T0 := 1.0
+## How long a rare notice with no room on the HUD may wait for some before it ages like any other.
+const NOTICE_WAIT_MS := 2000
 const CREAM := Color(1.0, 0.97, 0.88)
 
 ## A replaced stack shown for less than this still owes its finds to the HUD (its fallback runs).
@@ -275,6 +277,13 @@ static func _popup_or_notice(p: Player, at: Vector3, lines: Array, owed: Array) 
 				notice(p, o[0], o[1])
 	if popup(p, at, lines, fb) == null and fb.is_valid():
 		fb.call()
+
+## Called by the HUD for a notice it found no room for this frame: a rare one (tinted) holds its clock
+## at NOTICE_T0 for up to NOTICE_WAIT_MS after it was raised, then ages and goes like any notice, so a
+## find never lingers into a later scene (a gather's notice sat beside the next carcass).
+static func hold_notice(n: Dictionary) -> void:
+	if n.has("tint") and Time.get_ticks_msec() - int(n.get("born", 0)) < NOTICE_WAIT_MS:
+		n["t"] = minf(float(n["t"]), NOTICE_T0)
 
 ## A rare result's HUD notice in its colour on ink, not the red refusal box (a phone with the radial
 ## open always lands here).

@@ -675,6 +675,14 @@ func _test_hud_notice_life() -> void:
 	var rare: Dictionary = h._events.notices[0]
 	var plain: Dictionary = h._events.notices[1]
 	_expect(rare.get("tint") == GF.GOLD and is_equal_approx(float(rare["t"]), GF.NOTICE_T0) and not plain.has("tint"), "a rare notice is tinted and starts at NOTICE_T0, a plain one is not (%s, %s)" % [rare, plain])
+	_expect(int(rare.get("born", -1)) >= 0, "a rare notice records when it was raised")
+	# No room on the HUD: a fresh rare notice waits (clock held), one raised NOTICE_WAIT_MS ago ages on.
+	var fresh := {"text": "a", "t": 1.8, "tint": GF.GOLD, "born": Time.get_ticks_msec()}
+	var stale := {"text": "b", "t": 1.8, "tint": GF.GOLD, "born": Time.get_ticks_msec() - GF.NOTICE_WAIT_MS - 1}
+	var other := {"text": "c", "t": 1.8}
+	for n in [fresh, stale, other]:
+		GF.hold_notice(n)
+	_expect(is_equal_approx(fresh["t"], GF.NOTICE_T0) and is_equal_approx(stale["t"], 1.8) and is_equal_approx(other["t"], 1.8), "with no room a fresh rare notice waits, a stale or plain one ages (%s %s %s)" % [fresh["t"], stale["t"], other["t"]])
 	h._events.tick(GF.LIFE + 0.9)
 	var texts: Array = h._events.notices.map(func(n): return n["text"])
 	_expect(not texts.has("Rare find: Flint") and texts.has("Too far."), "after the stack's life the rare notice is gone, a plain one stays (%s)" % [texts])
