@@ -106,10 +106,10 @@
         {"bone": "Tail3", "radius": 0.769, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 12, "twist": 5}},
         {"bone": "Tail4", "radius": 0.699, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 12, "twist": 5}},
         {"bone": "Tail5", "to": "Tail5_end", "extend": 4.532, "radius": 1.343, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 12, "twist": 5}},
-        {"bone": "BackLeg.L", "radius": 0.539, "joint": {"type": "pin"}},
-        {"bone": "BackLeg.R", "radius": 0.539, "joint": {"type": "pin"}},
-        {"bone": "BackUpLeg.L", "radius": 0.516, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -15.155, "max": 85.865}},
-        {"bone": "BackUpLeg.R", "radius": 0.516, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -15.155, "max": 85.865}}
+        {"bone": "BackLeg.L", "radius": 0.35, "joint": {"type": "cone", "swing": 45, "side": 30, "twist": 10}},
+        {"bone": "BackLeg.R", "radius": 0.35, "joint": {"type": "cone", "swing": 45, "side": 30, "twist": 10}},
+        {"bone": "BackUpLeg.L", "radius": 0.4, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -15.155, "max": 85.865}},
+        {"bone": "BackUpLeg.R", "radius": 0.4, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -15.155, "max": 85.865}}
       ]
     },
     "gallimimus": {

@@ -8,7 +8,7 @@ extends Node3D
 ## Run: Godot --headless --fixed-fps 60 --path game -- --lab=ragdoll_lab [--rl-species=a,b]
 ##   [--rl-terrain=flat,slope10,slope20,slope30,rock]   terrains (rock: heading 0, side blow only)
 ##   [--rl-headings=0,90,180,270] [--rl-blows=side,front]   subsets of the sweep
-##   [--rl-set=guards.pose_k=20,species.velociraptor.mass_kg=80]  try ragdoll.json values (no file edit)
+##   [--rl-set=guards/pose_k=20;species/deinonychus/bodies/7/radius=0.4]  try ragdoll.json values
 ##   [--rl-suggest]                   skin-based radius suggestions per profile body, no physics
 ##   [--rl-fallback]                  budget 0: every case takes the fallback path (gates expect ragdoll)
 ##   [--rl-perf]                      4 simultaneous ragdolls on temperate_25: added physics ms
@@ -91,12 +91,15 @@ func _ready() -> void:
 			for b in a.substr(11).split(",", false):
 				_blows.append(b)
 		elif a.begins_with("--rl-set="):
-			for kv in a.substr(9).split(",", false):
-				var path := kv.get_slice("=", 0).split(".")
-				var node: Dictionary = Ragdoll.data()
+			for kv in a.substr(9).split(";", false):
+				var path := kv.get_slice("=", 0).split("/")  # e.g. species/deinonychus/bodies/7/radius
+				var node: Variant = Ragdoll.data()
 				for k in path.size() - 1:
-					node = node[path[k]]
-				node[path[-1]] = str_to_var(kv.get_slice("=", 1))
+					node = node[int(path[k])] if node is Array else node[path[k]]
+				if node is Array:
+					node[int(path[-1])] = str_to_var(kv.get_slice("=", 1))
+				else:
+					node[path[-1]] = str_to_var(kv.get_slice("=", 1))
 		elif a == "--rl-suggest":
 			suggest = true
 		elif a == "--rl-perf":
@@ -364,19 +367,19 @@ func _hips_height(c: Dictionary) -> float:
 	return _above_ground(c, _hips_world(c))
 
 func _above_ground(c: Dictionary, p: Vector3) -> float:
+	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(p + Vector3(0.0, 2.0, 0.0), p - Vector3(0.0, 8.0, 0.0), 1, _ray_ex(c)))
+	return (p - (hit["position"] as Vector3)).dot(hit["normal"] as Vector3) if not hit.is_empty() else INF
+
+func _ground_at(c: Dictionary, p: Vector3) -> float:
+	return RagdollSkin.ground_y(get_world_3d().direct_space_state, p, _ray_ex(c), -INF)
+
+## Ground rays skip the creature's own capsule and its corpse's loot cylinder (both on layer 1).
+func _ray_ex(c: Dictionary) -> Array[RID]:
 	var ex: Array[RID] = [(c["creature"] as Creature).get_rid()]
 	var rd := (c["creature"] as Creature).get_node_or_null("Ragdoll") as Ragdoll
 	if rd and rd.corpse:
 		ex.append(rd.corpse.get_rid())
-	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(p + Vector3(0.0, 2.0, 0.0), p - Vector3(0.0, 8.0, 0.0), 1, ex))
-	return (p - (hit["position"] as Vector3)).dot(hit["normal"] as Vector3) if not hit.is_empty() else INF
-
-func _ground_at(c: Dictionary, p: Vector3) -> float:
-	var ex: Array[RID] = [(c["creature"] as Creature).get_rid()]  # a live creature's own capsule is on layer 1
-	var rd := (c["creature"] as Creature).get_node_or_null("Ragdoll") as Ragdoll
-	if rd and rd.corpse:
-		ex.append(rd.corpse.get_rid())
-	return RagdollSkin.ground_y(get_world_3d().direct_space_state, p, ex, -INF)
+	return ex
 
 ## Every gate for one frozen case; prints one line, records failures, returns true when all pass.
 func _measure(c: Dictionary) -> bool:
@@ -393,7 +396,8 @@ func _measure(c: Dictionary) -> bool:
 		bad.append("not frozen (%s)" % rd.phase)
 	if rd.mode != &"ragdoll" and rd.mode != &"fallback":
 		bad.append("mode %s (%s)" % [rd.mode, rd.reason])
-	if rd.settle_time > SETTLE_MAX_S or rd.settle_time < 0.0:
+	# A fallback lies still when its death clip ends (the clip's own length); a ragdoll must settle in time.
+	if rd.settle_time < 0.0 or (rd.mode == &"ragdoll" and rd.settle_time > SETTLE_MAX_S):
 		bad.append("settle %.2f s" % rd.settle_time)
 	var line := "%s mode=%s%s settle=%.2fs%s peak=%.1fm/s drift=%.2fm limbs=%d" % [tag, rd.mode, "(%s)" % rd.reason if rd.mode == &"fallback" else "", rd.settle_time, "(cap: %s)" % rd.restless if rd.capped else "", rd.peak_speed, rd.drift_m, rd.limb_turns]
 	if rd.peak_speed >= 30.0:
@@ -441,7 +445,8 @@ func _measure(c: Dictionary) -> bool:
 			bad.append("skin torn: %d long edges over x%.1f their idle length (cap %d, max x%.2f)" % [tear[0], TEAR_RATIO, tear_cap, tear[2]])
 		var stretch := _worst_stretch(sk, rd)
 		line += " stretch=%.3f" % stretch
-		if stretch > STRETCH_TOL:
+		# The frozen ragdoll keeps rest lengths; a death clip may move IK bones (the fallback's own pose).
+		if stretch > STRETCH_TOL and rd.mode == &"ragdoll":
 			bad.append("bone stretched %.1f %%" % (stretch * 100.0))
 		var lim := _worst_limit(sk, rd, "hinge")
 		var cone := _worst_limit(sk, rd, "cone")
@@ -516,7 +521,7 @@ func _belly_up(sk: Skeleton3D, cr: Creature, c: Dictionary) -> float:
 	if hb < 0:
 		return 1.0
 	var rot := sk.get_bone_global_pose(hb).basis.orthonormalized() * sk.get_bone_global_rest(hb).basis.orthonormalized().inverse()
-	var n := RagdollSkin.ground_normal(get_world_3d().direct_space_state, _hips_world(c), [cr.get_rid()] as Array[RID])
+	var n := RagdollSkin.ground_normal(get_world_3d().direct_space_state, _hips_world(c), _ray_ex(c))
 	return (sk.global_basis.orthonormalized() * rot * Vector3.UP).normalized().dot(n)
 
 ## Bones keep their rest length (the ragdoll's root body is the only free one).
@@ -825,20 +830,27 @@ func _run_suggest() -> void:
 			var before_head := 0.0
 			var ab := b2 - a
 			var mean_off := Vector3.ZERO
+			var offs: Array[Vector3] = []
 			for p: Vector3 in per[k]:
 				var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 1e-9), -1e9, 1e9)
 				past_tip = maxf(past_tip, (t - 1.0) * ab.length() * rig.scale)
 				before_head = maxf(before_head, -t * ab.length() * rig.scale)
 				var off := (p - (a + ab * clampf(t, 0.0, 1.0))) * rig.scale
 				mean_off += off
+				offs.append(off)
 				dists.append(off.length())
 			if not per[k].is_empty():
 				mean_off /= float((per[k] as Array).size())
 			dists.sort()
 			var q := func(f: float) -> float: return dists[int(f * (dists.size() - 1))] if not dists.is_empty() else 0.0
-			print("[rl-suggest]   %-16s r_now=%.3f len=%.3f p50=%.3f p80=%.3f p95=%.3f past_tip=%.3f before_head=%.3f mean_off=(%.2f,%.2f,%.2f) verts=%d" % [
+			var re: Array[float] = []  # radial spread around the capsule moved by mean_off
+			for o in offs:
+				re.append((o - mean_off).length())
+			re.sort()
+			var qr := func(f: float) -> float: return re[int(f * (re.size() - 1))] if not re.is_empty() else 0.0
+			print("[rl-suggest]   %-16s r_now=%.3f len=%.3f p50=%.3f p80=%.3f p95=%.3f past_tip=%.3f before_head=%.3f mean_off=(%.2f,%.2f,%.2f) moved:r80=%.3f r95=%.3f verts=%d" % [
 				sk.get_bone_name(int(row["bone"])), row["radius_m"], row["length_m"], q.call(0.5), q.call(0.8), q.call(0.95), past_tip, before_head,
-				mean_off.x, mean_off.y, mean_off.z, dists.size()])
+				mean_off.x, mean_off.y, mean_off.z, qr.call(0.8), qr.call(0.95), dists.size()])
 		host.queue_free()
 		await _frames(1)
 	get_tree().quit(0)
