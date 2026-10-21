@@ -315,6 +315,10 @@ static func _clean_stacks(rows: Variant, seen: Dictionary) -> Array[ItemStack]:
 		var s := ItemStack.from_dict(sd)
 		if s.def() == null or s.count <= 0 or (s.uid != "" and seen.has(s.uid)):
 			continue
+		# W2-INV: materials are one instance per slot. A row written before that rule (or edited by
+		# hand) may hold a stack; keep one unit and clamp the level, as a bag row in the same save is.
+		s.count = mini(s.count, maxi(1, s.def().stack_max))
+		s.level = clampi(s.level, 1, SaveSanitizer.MAX_LEVEL)
 		if s.uid != "":
 			seen[s.uid] = true
 		out.append(s)

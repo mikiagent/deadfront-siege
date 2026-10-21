@@ -451,7 +451,8 @@ func _test_destroyed() -> void:
 	inv.add(m)
 	inv.add(IS.make(&"raw_hide", 1))
 	inv.add(IS.make(&"raw_meat", 1))
-	ps.load_from(inv, &"dry_meat", 1)
+	var pick_m: Array[int] = [0]  # W2-INV's default pick takes the cheaper plain meat; pick the lv 12 one
+	ps.load_from(inv, &"dry_meat", 1, null, null, pick_m)
 	ps.advance(PS.now_s() + PS.job_seconds(&"drying_rack", &"dry_meat") + 1.0)  # meat done
 	ps.load_from(inv, &"dried_hide", 1)  # hide still drying
 	ps.load_from(inv, &"dry_meat", 1)  # a second meat still drying
