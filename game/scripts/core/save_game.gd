@@ -260,7 +260,8 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 		seat.y = World.runtime.surface_y(pos.x, pos.z) + 1.0
 	player.global_position = seat
 	print("[world] loaded player at %s (saved y=%.2f)" % [seat.snapped(Vector3.ONE * 0.1), pos.y])
-	player.inventory.load_array(data.get("player", {}).get("inventory", []))
+	# Legacy stacks split into instances; what no longer fits the bag goes to home cargo (W2-INV).
+	player.inventory.load_array(data.get("player", {}).get("inventory", []), World.cargo_home)
 	var extras: Variant = data.get("player", {}).get("inventory_extras", null)
 	if extras is Dictionary:
 		player.inventory.extras_from_dict(extras as Dictionary)
@@ -276,6 +277,17 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 			var rec := PetRecord.from_dict(row)
 			if rec != null: # an aborted from_dict would otherwise break every later save_now
 				player.bonded.append(rec)
+	# W2-INV (spec 05:20/26): building contents and pet bags load on their own; a uid one of them
+	# repeats (an edited save) is reminted, so every instance has one location.
+	var held: Array = [World.cargo_home, player.inventory]
+	for n in host.get_tree().get_nodes_in_group("placed_building"):
+		if not n.is_queued_for_deletion() and World.runtime and World.runtime.is_ancestor_of(n): # not the old island's
+			held.append(n.get("storage"))
+	for rec in player.bonded:
+		held.append(rec.bag)
+	var reminted := InventoryMigration.unique_uids(held)
+	if reminted > 0:
+		print("[inv] load: %d duplicate uids reminted" % reminted)
 	# Field growth catch-up (same offline window as tent rest).
 	if elapsed > 0 and World.runtime:
 		for n in World.runtime.get_tree().get_nodes_in_group("field"):
