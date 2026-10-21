@@ -1,9 +1,98 @@
 # W2-BUILDSYS: ARK-style modular building with structure HP, tiers and repair
 
-Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last to base tip dc6417cc:
+Branch `claude/mmo-w2-buildsys`, base `claude/mmo-overhaul` merged in (last to base tip 34b6d459:
 docs only since 1c89134a, which brought W2-OCCLUDE, W1-UIICONS and DSC-CAMP). Review r1 stopped before any run.
 Closes build-struct-01, build-def-01, build-tier-01, build-place-02, phys-wall-01, build-storage-01 (chest and
 large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
+
+## Resume pass (2026-10-20 ~20:10, finish-6 resumed on the owner's "continue")
+
+Earlier results from the derailed resume were not trusted, so every gate, lab, pixel run and the fail-on-old
+proof was run again here. Scratch tree `trees/bs-gates` (mkscratch, branch 777a678c, hooks patch applied);
+logs and PNGs are in the 72cebc8b scratchpad under `bs3/`.
+
+- **Base**: merged 34b6d459 (HANDOFF, STATUS, exchange.js, mkscratch.sh; docs only). W2-PROCESS is not on the
+  base yet. Its branch (76875ea4) and its hooks patch do not touch `build_placer.gd`. The base's
+  `pack_up_blocker` already calls the structure's duck-typed `pack_up_block_reason()`, so the merge has nothing
+  to keep or redo. Its `CraftStation`/`ProcessStation.salvage_contents() -> Array[ItemStack]` matches the
+  duck-typed call in `StructureHealth.take_damage`.
+- **Hooks patch**: unchanged, apply-clean. `git apply --cached --check` through a throwaway index printed `APPLY
+  OK on 34b6d459` and `APPLY OK on HEAD`. **Hook 4**: the base has no lab registry. There is no `tools/labs.txt`,
+  and `main.gd:17` loads `res://scenes/dev/%s.tscn` by `--lab=` name, so nothing needs registering.
+- **Docs answers, checked line by line again**:
+  - Spec 10:90: "a **level-60 Large Leaf Box holding 160 spaces**. Do not impose this value on every box."
+  - Spec 05:14: "basket about 100 slots; level-60 Large Leaf Box up to 160".
+  - PRD:582: "Storage: baskets (~100 slots early) → boxes → large boxes".
+  - So the chest has 100 slots and the large box 160 (structures.json, `# ASSUMPTION` flat until building level
+    exists). The old 20/40 are gone.
+  - Sign text: the specs and PRDs give no limit. PRD:972 "sign flair" is a cosmetic only. So 48 is now marked
+    `# ASSUMPTION` in `StructurePiece.set_sign_text` (777a678c).
+  - Spec 10:102: "A change in building state must not silently delete stored items". Spec 11:155: "Handle
+    demolished stations, ... without losing items or duplicating output".
+  - Code paths: `destroy`, `collapse_unsupported` and a kit's death in `StructureHealth.take_damage` all go
+    through `StructureHealth.salvage`: the bag of the player who took the structure down, then home cargo,
+    then a loot bag. Kits also call `salvage_contents()` when they have it. No "lost (logged)" path is left
+    (grep).
+- **Fail on old behaviour** (scratch `trees/bs-mut`, `bs3/mutate.sh`). Six mutations put back the old
+  behaviours:
+  1. the old "lost (logged)" instead of a loot bag;
+  2. chest/large box 20/40;
+  3. no `salvage_contents()` call;
+  4. repair checks the cost but does not pay;
+  5. upgrade checks the cost but does not pay;
+  6. no resource rule for pieces.
+
+  Result: `[t_buildsys] FAIL count=21`. Each mutation is caught:
+  - `FAIL demolish: item laa16e8eaa15ba564 is kept exactly once (seen 0 times)`, `FAIL destroyed by a raptor:
+    item ldcfdd3f6e796ffb6 is kept exactly once (seen 0 times)`
+  - `FAIL a chest holds at least 100 (PRD:582 baskets ~100 early; got 20)`, `FAIL a large box holds 160`
+  - `FAIL destroyed kits: item lae77c5a341138751 is kept exactly once (seen 0 times)`
+  - `FAIL repair took exactly its cost of plank`
+  - `FAIL the upgrade took exactly its 8 stone (left 8)`
+  - `FAIL a foundation ghost aimed at a tree is never valid on its module (try 1: )`, `FAIL no piece stands
+    on the tree's module`
+
+  The mutations were reverted afterwards.
+- **Gates (hooks applied)**:
+  - `--import`: 0 SCRIPT ERROR, 0 "Failed to compile".
+  - Every `game/tests/t_*.gd` (20 files) exits 0 with its PASS line and 0 SCRIPT ERROR, except t_save's 5
+    deliberate ones. The 20 files: t_ai, t_build, t_buildsys, t_canim, t_combat, t_harbour (`islands=15`),
+    t_iconart, t_items, t_light, t_lighting, t_occlude, t_player, t_save (`round trip save_v3_golden.json
+    fields=23 diffs=0`), t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons, t_web.
+  - t_buildsys: `ok salvage`, `ok snap_resources`, `[t_buildsys] PASS`.
+  - run_all: `[tests] PASS`. `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- **Labs (headless)**, all with 0 SCRIPT ERROR and 0 "couldn't resolve track" in any log:
+  - snap_build_lab: `[snap] PASS`, including `house: 52 pieces, its ramp, a chest and a sign placed through
+    socket snapping (got 55)`.
+  - `--snap-touch`: `[snap] PASS`.
+  - build_lab: `[build] PASS`.
+  - `--siege-probe`: `[siege] destroyed-after=12s occupancy-cleared=true`, exit 0.
+- **Pixels (windowed, looked at each)**:
+  - `house_fwd.png` / `house_glc.png` (1600x900): the snapped 2-storey plank house. Gable roof, storey band,
+    framed door and windows on both storeys, stone ramp. Same in both renderers.
+  - `inside_fwd.png` / `inside_glc.png`: the roof and upper storey fade to a dithered outline, and the front
+    wall fades to about half with the survivor behind it. On gl_compatibility the survivor reads fainter (as
+    before; W2-OCCLUDE's look).
+  - Touch at 844x390 on gl_compatibility with `--touch --snap-touch`: `[snap] PASS`, with all 19 touch ok lines
+    (BUILD, tier, piece, tap, PLACE, ROTATE, CANCEL, wall card, Upgrade, Repair, chest Open, sign text,
+    Demolish, whole-building row).
+  - `touch_ghost.png`: ghost, green/red snap points, ROTATE/PLACE/CANCEL hexes. The cost label's right end
+    ("· twine") runs under the DEBUG hex and the lab's level-up banner (dev overlays).
+  - `touch_card.png`: Wood Wall card. "Upgrade to Stone / stone ×8 · plank ×2", "Demolish / half back",
+    "Building to Stone (5)".
+  - `touch_house_card.png`: Wood Door card. Open door, Upgrade, Demolish, "Building to Stone (45) stone ×344 ·
+    plank ×88".
+  - `touch_chest.png`: the bag panel opens, but the chest grid is below the fold and the HUD hexes draw over it.
+    This is the known limit, listed below for W2-SCREENS/INVUI.
+- **Crash reports**: new `Godot-2026-10-20-201057.ips`, `-201134.ips` and `-201146.ips` appeared while my runs
+  were in flight. Three more appeared later (`-201353`, `-201403`, `-201415`) while I had no Godot process
+  running. All six have the signature of `-195503.ips` and `-195619.ips`, which predate this session:
+  - SIGABRT from `std::system_error` in `recursive_mutex::lock` on the main thread, about 10 s after launch.
+  - The parent process (pid one or two lower) had already exited.
+
+  Every Godot run of mine returned exit 0 with its PASS line. Rerunning the two runs that started in the same
+  second as a crash (`--snap-touch` and t_harbour) added no `.ips`. They come from concurrent agents' runs, not
+  from this package's commands.
 
 ## Re-review pass (2026-10-20, findings: none)
 
@@ -267,7 +356,7 @@ large box), build-sign-01 (signboard with text), dino-ai-17 (with hook 3 below).
 ## Integrator hooks
 
 `docs/orchestration/reports/claude-mmo-w2-buildsys-hooks.patch` holds hooks 1-3 and 5 as one patch; `git apply --check`
-passes on claude/mmo-overhaul dd7ff218 (review r1 pass). The hooked tree passed the whole suite and --snap-touch (below).
+passes on claude/mmo-overhaul 34b6d459 (resume pass). The hooked tree passed the whole suite and --snap-touch (resume pass above).
 
 1. **W2-PLAYER, `game/scripts/player/player_input.gd`**: `interact_tap_target`: `elif col is StructurePiece:`
    find the `hud` group node and call `hud.open_structure(col)`; `is_interactable`: a `StructurePiece` is
