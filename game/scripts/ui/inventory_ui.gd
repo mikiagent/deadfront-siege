@@ -1,8 +1,8 @@
 class_name InventoryUI
 extends Control
-## Minecraft-style inventory: a centred grey panel with the armour column on the left, the
-## bag grid in the middle, the item tooltip on the right, a quick-food "hotbar" under the bag,
-## and a chest/loot grid that appears below when a storage is open. Escape or Close dismisses.
+## The bag screen (spec 13): profile column, a scrolling bag grid at the real capacity (one item
+## instance per slot, empty slots drawn, "used / capacity" in the header), the equipment column and
+## a storage/pet-cargo grid of the same design that opens below. Escape or Close dismisses.
 
 var inventory: Inventory
 var pet_bag: Inventory
@@ -13,8 +13,9 @@ var _food_inspector: FoodInspector
 
 var _panel: Panel
 var _title: Label
-var _grid: GridContainer
-var _pet_grid: GridContainer
+var _grid: BagGrid
+var _pet_grid: BagGrid
+var _cap_label: Label
 var _storage_title: Label
 var _storage_note: Label
 var _tip: Label
@@ -47,11 +48,9 @@ const EQUIP_LABELS := {"head": "Head", "body": "Body", "arms": "Arms", "legs": "
 const INK := Color(0.95, 0.95, 0.93)
 
 var _split: GridContainer
-## Visual grouping (W2-INV, prompt 05): the bag grid shows one cell per item id with a count badge;
-## a group of several opens into its instances, one cell each, behind a back cell. Instances never
-## merge. Each entry: {"slot": i} | {"group": id, "slots": [i...], "units": n} | {"back": true}.
-var _cells: Array = []
-var _open_group: StringName = &""
+var _load_row: HBoxContainer
+var _root: VBoxContainer
+var _page_scroll: ScrollContainer
 
 func _ready() -> void:
 	visible = false
@@ -72,8 +71,10 @@ func _ready() -> void:
 	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_panel.add_child(scroll)
+	_page_scroll = scroll
 	var root := VBoxContainer.new()
 	root.add_theme_constant_override("separation", UiTokens.SPACE)
+	_root = root
 	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.add_child(root)
@@ -91,6 +92,7 @@ func _ready() -> void:
 	var load := HBoxContainer.new()
 	load.add_theme_constant_override("separation", UiTokens.SPACE)
 	root.add_child(load)
+	_load_row = load
 	_tab_title = Label.new()
 	_tab_title.text = "GEAR  1"
 	_tab_title.add_theme_color_override("font_color", INK)
@@ -114,8 +116,10 @@ func _ready() -> void:
 	_profile_col = col_p
 	_split.add_child(col_p)
 	_profile = Label.new()
+	_profile.clip_text = true
 	_profile.add_theme_color_override("font_color", INK)
 	_profile.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_profile.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_profile.clip_text = true
 	_profile.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_profile.custom_minimum_size = Vector2(180, 0)
@@ -139,17 +143,23 @@ func _ready() -> void:
 	col_b.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_bag_col = col_b
 	_split.add_child(col_b)
+	# Spec 13 s4: "< Bag  91 / 100" in the header, from the real inventory, warning colour when full.
+	var bag_head := HBoxContainer.new()
+	bag_head.add_theme_constant_override("separation", UiTokens.SPACE)
+	col_b.add_child(bag_head)
 	_bag_label = Label.new()
 	_bag_label.text = "BAG"
 	_bag_label.add_theme_color_override("font_color", UiTokens.META)
-	col_b.add_child(_bag_label)
-	_grid = GridContainer.new()
-	_grid.columns = 5
-	_grid.add_theme_constant_override("h_separation", UiTokens.SPACE)
-	_grid.add_theme_constant_override("v_separation", UiTokens.SPACE)
+	bag_head.add_child(_bag_label)
+	_cap_label = Label.new()
+	_cap_label.add_theme_color_override("font_color", INK)
+	_cap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	bag_head.add_child(_cap_label)
+	_grid = BagGrid.new()
+	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_grid.selected.connect(_on_bag_slot_tapped)
 	col_b.add_child(_grid)
-	for i in 20:
-		_grid.add_child(_mk_slot(i))
 	var col_e := VBoxContainer.new()
 	col_e.add_theme_constant_override("separation", UiTokens.SPACE)
 	col_e.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -165,6 +175,7 @@ func _ready() -> void:
 	col_e.add_child(_equip_pad)
 	_equip_grid = GridContainer.new()
 	_equip_grid.columns = 3
+	_equip_grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_equip_grid.add_theme_constant_override("h_separation", UiTokens.SPACE)
 	_equip_grid.add_theme_constant_override("v_separation", UiTokens.SPACE)
 	col_e.add_child(_equip_grid)
@@ -172,6 +183,7 @@ func _ready() -> void:
 	for slot_name in equip_order:
 		var cell := VBoxContainer.new()
 		cell.add_theme_constant_override("separation", 4)
+		cell.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		var cap := Label.new()
 		cap.text = str(EQUIP_LABELS.get(slot_name, slot_name))
 		cap.add_theme_color_override("font_color", UiTokens.META)
@@ -181,6 +193,9 @@ func _ready() -> void:
 		cell.add_child(cap)
 		var b := _btn("", _slot_vec())
 		_slot_style(b)
+		b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		b.clip_text = true
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.pressed.connect(_on_equip_slot_pressed.bind(slot_name))
 		cell.add_child(b)
 		_equip_grid.add_child(cell)
@@ -197,10 +212,9 @@ func _ready() -> void:
 	_storage_title = Label.new()
 	_storage_title.add_theme_color_override("font_color", INK)
 	root.add_child(_storage_title)
-	_pet_grid = GridContainer.new()
-	_pet_grid.columns = 5
-	_pet_grid.add_theme_constant_override("h_separation", UiTokens.SPACE)
-	_pet_grid.add_theme_constant_override("v_separation", UiTokens.SPACE)
+	_pet_grid = BagGrid.new()
+	_pet_grid.custom_minimum_size = Vector2(0, 132)
+	_pet_grid.selected.connect(_take_storage)
 	root.add_child(_pet_grid)
 	_storage_note = Label.new()
 	_storage_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -293,19 +307,6 @@ func _equip_slot(slot: String, pos: Vector2) -> void:
 	cap.add_theme_color_override("font_color", Color(0.35, 0.35, 0.37))
 	_panel.add_child(cap)
 
-func _mk_slot(index: int) -> Button:
-	var b := _btn("", _slot_vec())
-	_slot_style(b)
-	if index >= 0:
-		b.pressed.connect(func () -> void: _on_cell(index))
-	return b
-
-func _mk_storage_slot(index: int) -> Button:
-	var b := _btn("", _slot_vec())
-	_slot_style(b)
-	b.pressed.connect(func () -> void: _take_storage(index))
-	return b
-
 # ---------------------------------------------------------------- open / close
 
 func bind(inv: Inventory, owner_player: Player = null) -> void:
@@ -316,7 +317,6 @@ func bind(inv: Inventory, owner_player: Player = null) -> void:
 
 func hide_ui() -> void:
 	visible = false
-	_open_group = &""
 	pet_bag = null
 	_storage_opts = {}
 
@@ -389,31 +389,45 @@ func rebuild() -> void:
 		return
 	_refresh_profile()
 	_refresh_equipped()
-	_cells = _bag_cells()
-	while _grid.get_child_count() < _cells.size():
-		_grid.add_child(_mk_slot(_grid.get_child_count()))
-	for k in _grid.get_child_count():
-		var btn := _grid.get_child(k) as Button
-		btn.visible = k < _cells.size()
-		if btn.visible:
-			_style_cell(btn, _cells[k])
-	for c in _pet_grid.get_children():
-		c.queue_free()
+	_grid.bind(inventory)
+	_grid.set_selected(_selected)
+	# The header keeps "used / capacity" from the data (spec 13 s4); full is a warning colour.
+	var used := inventory.used_slots()
+	var cap := inventory.capacity()
+	_cap_label.text = "%d / %d" % [used, cap]
+	_cap_label.add_theme_color_override("font_color", UiTokens.DANGER if used >= cap else INK)
 	var has_storage := pet_bag != null
+	_pet_grid.visible = has_storage
+	# With a box/pet cargo open the bag keeps a four-row band and the box sits under it (both
+	# scroll), so the transfer screen shows both grids. With no box the bag takes the height.
+	var compact_view := UiTokens.is_compact(get_viewport_rect().size)
+	if _page_scroll:
+		_page_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if (has_storage and compact_view) else ScrollContainer.SCROLL_MODE_DISABLED
+	if _equip_col:
+		_equip_col.visible = true
+	if _split:
+		_split.columns = 2 if compact_view else 3
+		# A box open: the split takes only its band, so the box and the action row fit under it.
+		_split.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if has_storage else Control.SIZE_EXPAND_FILL
+	# The columns must shrink with it; an EXPAND_FILL child keeps the row tall (the gear grid).
+	if _equip_col:
+		_equip_col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if has_storage else Control.SIZE_EXPAND_FILL
+	if _profile_col:
+		_profile_col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if has_storage else Control.SIZE_EXPAND_FILL
+	if _bag_col:
+		_bag_col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if has_storage else Control.SIZE_EXPAND_FILL
+	if _grid:
+		_grid.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if has_storage else Control.SIZE_EXPAND_FILL
+		# A box open: the bag keeps a fixed band (about two phone rows / two desktop rows) and the
+		# box gets the same band below it; both grids keep their own scrollbars and the page scrolls
+		# when the panel is shorter than the two.
+		var band_px := 148.0 if compact_view else 360.0
+		_grid.custom_minimum_size = Vector2(0, band_px) if has_storage else Vector2.ZERO
+		if has_storage:
+			_pet_grid.custom_minimum_size = Vector2(0, band_px)
 	if has_storage:
-		for i in pet_bag.slot_count:
-			var b := _mk_storage_slot(i)
-			var s := pet_bag.slots[i]
-			if s == null:
-				b.text = ""
-				b.disabled = true
-			else:
-				ItemIcons.style_slot(b, s.def_id, str(s.count))
-				_fit_slot(b)
-				b.tooltip_text = s.tooltip()
-				b.disabled = false
-				b.modulate = Color(0.7, 0.7, 0.7, 0.8) if _readonly_reason() != "" else Color.WHITE
-			_pet_grid.add_child(b)
+		_pet_grid.readonly = _readonly_reason() != ""
+		_pet_grid.bind(pet_bag)
 	_storage_title.text = str(_storage_opts.get("title", "")) if has_storage else ""
 	_storage_title.visible = has_storage and _storage_title.text != ""
 	_storage_note.visible = has_storage
@@ -421,121 +435,11 @@ func rebuild() -> void:
 	_take_all_btn.visible = has_storage and bool(_storage_opts.get("take_all", false))
 	_take_all_btn.disabled = _readonly_reason() != "" or pet_bag == null or pet_bag.used_slots() <= 0
 	_title.text = "CHARACTER" if not has_storage else "CHARACTER  ·  %s" % str(_storage_opts.get("title", "Storage"))
-	_select(_selected if _selected >= 0 else -1)
+	_select(_selected)
 
-func _bag_cells() -> Array:
-	var groups := inventory.groups()
-	for g in groups:
-		if g.def_id == _open_group and (g.slots as Array).size() > 1:
-			var open: Array = [{"back": true}]
-			for i: int in g.slots:
-				open.append({"slot": i})
-			return open
-	_open_group = &"" # the open group emptied or is down to one
-	var out: Array = []
-	for g in groups:
-		var at: Array = g.slots
-		out.append({"slot": at[0]} if at.size() == 1 else {"group": g.def_id, "slots": at, "units": g.units})
-	# Spec 13:124 "Empty slots remain visible": one empty cell per free bag slot.
-	for k in inventory.slot_count - inventory.used_slots():
-		out.append({"empty": true})
-	return out
-
-## "L " / "U " when any instance in `at` is locked / unstable (a group hides them otherwise).
-func _pips(at: Array) -> String:
-	var locked := false
-	var unstable := false
-	for i in at:
-		var s := inventory.slots[int(i)]
-		locked = locked or s.is_locked()
-		unstable = unstable or s.is_unstable()
-	return ("L " if locked else "") + ("U " if unstable else "")
-
-func _style_cell(btn: Button, cell: Dictionary) -> void:
-	btn.modulate = Color.WHITE
-	btn.disabled = cell.has("empty")
-	_badge(btn, int(cell.get("units", 0)))
-	if cell.has("empty"):
-		btn.icon = null
-		btn.text = ""
-		btn.tooltip_text = ""
-		return
-	if cell.has("back"):
-		btn.icon = UiIcons.icon(&"back") # white = action
-		btn.expand_icon = true
-		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-		btn.text = "All"
-		btn.tooltip_text = "Back to the whole bag"
-		return
-	if cell.has("group"):
-		var first := inventory.slots[int(cell.slots[0])]
-		# A corner count badge (as in ARK and Durango) marks a group that opens into its instances; the
-		# caption is their level range. A real stack (ammo, coins) reads "×45" and has no badge.
-		ItemIcons.style_slot(btn, first.def_id, _pips(cell.slots) + _level_range(cell.slots))
-		btn.tooltip_text = "%d × %s: tap to see each one" % [(cell.slots as Array).size(), first.def().display_name if first.def() else str(first.def_id)]
-		return
-	var s := inventory.slots[int(cell.slot)]
-	# A unique instance shows its level; a stack (ammo, coins) its count.
-	ItemIcons.style_slot(btn, s.def_id, _pips([cell.slot]) + ("×%d" % s.count if s.count > 1 else "Lv %d" % s.level))
-	btn.tooltip_text = s.tooltip()
-
-## "Lv 1-14" over a group's instances ("Lv 5" when they share one level).
-func _level_range(at: Array) -> String:
-	var lo := 1 << 30
-	var hi := 0
-	for i in at:
-		lo = mini(lo, inventory.slots[int(i)].level)
-		hi = maxi(hi, inventory.slots[int(i)].level)
-	return "Lv %d" % lo if lo == hi else "Lv %d-%d" % [lo, hi]
-
-## The group count in the cell's top-right corner; hidden for n = 0 (the grid reuses its buttons).
-func _badge(btn: Button, n: int) -> void:
-	var b := btn.get_node_or_null("Badge") as Label
-	if b == null:
-		if n <= 0:
-			return
-		b = Label.new()
-		b.name = "Badge"
-		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var pill := StyleBoxFlat.new()
-		pill.bg_color = UiTokens.INK_SOLID
-		pill.border_color = UiTokens.TEXT
-		pill.set_border_width_all(1)
-		pill.set_corner_radius_all(10)
-		pill.content_margin_left = 3.0 # a slim pill tucked in the corner covers little of a 64 px cell's icon
-		pill.content_margin_right = 3.0
-		b.add_theme_stylebox_override("normal", pill)
-		b.add_theme_color_override("font_color", UiTokens.TEXT)
-		b.anchor_left = 1.0
-		b.anchor_right = 1.0
-		b.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-		b.offset_left = -2.0
-		b.offset_right = -2.0
-		b.offset_top = 2.0
-		btn.add_child(b)
-	b.visible = n > 0
-	b.text = str(n)
-	var fs := clampi(int(_slot_px / 7.0), 12, 20)
-	b.add_theme_font_size_override("font_size", fs)
-	b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	b.custom_minimum_size.x = fs * 1.4 # one digit reads as a round pill, not a standing capsule
-
-func _on_cell(k: int) -> void:
-	if k < 0 or k >= _cells.size():
-		return
-	var cell: Dictionary = _cells[k]
-	if cell.has("empty"):
-		return
-	if cell.has("back"):
-		_open_group = &""
-		rebuild()
-	elif cell.has("group"):
-		_open_group = cell.group
-		_selected = int(cell.slots[0])
-		rebuild()
-	else:
-		_select(int(cell.slot))
+## A tap on a compartment: select that exact instance (one item per slot).
+func _on_bag_slot_tapped(index: int) -> void:
+	_select(index)
 
 func _refresh_profile() -> void:
 	if _profile == null or inventory == null:
@@ -552,7 +456,8 @@ func _refresh_profile() -> void:
 	name = UiTokens.ellipsis(font, name, name_w, body_px)
 	_profile.add_theme_font_size_override("font_size", body_px)
 	_profile.add_theme_constant_override("line_spacing", UiTokens.SPACE)
-	_profile.custom_minimum_size = Vector2(minf(180.0, name_w), body_px * 3 + UiTokens.SPACE * 2)
+	var floor_w := 120.0 if UiTokens.is_compact(view) else 180.0
+	_profile.custom_minimum_size = Vector2(minf(floor_w, name_w), body_px * 3 + UiTokens.SPACE * 2)
 	# The held title sits under the name from character creation on (level 1 holds "Venture into the World").
 	var title := UiTokens.ellipsis(font, LevelDisplay.current_title(LevelDisplay.player_level()), name_w, body_px)
 	_profile.text = "%s\n%s\n%s  ·  %s" % [name, title, occupation, LevelDisplay.player_label()]
@@ -579,64 +484,93 @@ func _name_column_width(view: Vector2) -> float:
 	used += float(UiTokens.SPACE) * 4.0
 	return maxf(180.0, panel_w - used - 8.0)
 
+## Compartments are at least 64 px (spec: phone tap target); the bag column takes the rest of the
+## width and scrolls. A compact landscape canvas (844x390) keeps a narrow profile column.
 func _apply_slot_metrics(view: Vector2, safe: Vector4) -> void:
 	var sep := float(UiTokens.SPACE)
-	var phone := UiTokens.is_phone(view)
+	var compact := UiTokens.is_compact(view)
 	var panel_w := maxf(280.0, view.x - (24.0 + safe.w + safe.x))
 	var panel_h := maxf(280.0, view.y - (24.0 + safe.z + safe.y))
 	var slot := 64.0
-	# Four equipment columns need 9 slots of 64 px beside the 180 px profile; compact landscape canvases get three.
-	var equip_cols := 4 if panel_w >= 180.0 + 9.0 * 64.0 + sep * 11.0 else 3
-	if phone:
-		slot = floorf((panel_w - sep * 4.0) / 5.0)
-		slot = clampf(slot, 56.0, 80.0)
+	var equip_cols := 3
+	var equip_slot := 64.0
+	if compact:
+		# Phone landscape is short: five equipment columns of 56 px fit ten slots in two rows
+		# (the bag keeps its 64 px compartments).
+		equip_cols = 5
 		if _bag_col:
 			_bag_col.custom_minimum_size = Vector2.ZERO
 			_bag_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if _split:
+			_split.columns = 2 # profile folded away: bag and equipment side by side
+			_split.add_theme_constant_override("h_separation", 4)
+			_split.add_theme_constant_override("v_separation", 4)
+		if _load_row:
+			_load_row.visible = false
+		for stat in _stat_rows:
+			stat.visible = false
+		if _tip:
+			_tip.custom_minimum_size = Vector2(120, 0)
+			_tip.max_lines_visible = 4
+		# The action buttons (Lock/Equip/...) get their own 44 px row; the split gives up the space.
+		if _actions:
+			_actions.custom_minimum_size = Vector2(0, 44)
+		if _root:
+			_root.add_theme_constant_override("separation", 4)
+		if _close_btn:
+			_close_btn.custom_minimum_size = Vector2(44, 40)
+		var profile_w := 120.0
+		# Phone landscape is 390 px high: the profile column folds away (its facts are on the
+		# Character sheet) so the bag and a 64 px equipment grid both fit without overlapping.
+		if _profile_col:
+			_profile_col.visible = false
+			_profile_col.custom_minimum_size = Vector2.ZERO
 		if _equip_col:
-			_equip_col.custom_minimum_size = Vector2.ZERO
-			_equip_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var step := 4.0
+			_equip_grid.add_theme_constant_override("h_separation", int(step))
+			_equip_grid.add_theme_constant_override("v_separation", int(step))
+			_equip_col.custom_minimum_size = Vector2(float(equip_cols) * equip_slot + step * float(equip_cols - 1), 0)
+			_equip_col.size_flags_horizontal = Control.SIZE_SHRINK_END
+
 		if _equip_pad:
 			_equip_pad.custom_minimum_size = Vector2.ZERO
 	else:
-		var profile_floor := 280.0
+		var profile_floor := 240.0
 		var h_gaps := sep * 4.0
-		# Bag 5 wide + equipment 4 wide (head/body/arms/legs in one row keeps it to three rows).
 		var inner_seps := sep * float(3 + equip_cols)
 		var chrome := 44.0 + sep + 36.0 + sep
 		var label_h := float(UiTokens.meta(view)) + 4.0
 		var grid_h := panel_h - chrome - label_h - sep * 2.0
 		var by_h := floorf((grid_h - sep * 3.0) / 4.0)
-		var by_w := floorf((panel_w - h_gaps - profile_floor - inner_seps) / float(5 + equip_cols))
+		var by_w := floorf((panel_w - h_gaps - profile_floor - inner_seps) / float(6 + equip_cols))
 		slot = maxf(64.0, minf(by_w, by_h))
-		var bag_w := 5.0 * slot + sep * 4.0
-		var equip_w := float(equip_cols) * slot + sep * float(equip_cols - 1)
 		if _bag_col:
-			_bag_col.custom_minimum_size = Vector2(bag_w, 0)
-			_bag_col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			_bag_col.custom_minimum_size = Vector2(6.0 * slot + sep * 5.0, 0)
+			_bag_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if _profile_col:
+			_profile_col.custom_minimum_size = Vector2(profile_floor, 0)
+			_profile_col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		if _equip_col:
-			_equip_col.custom_minimum_size = Vector2(equip_w, 0)
-			_equip_col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			_equip_col.custom_minimum_size = Vector2(float(equip_cols) * slot + sep * float(equip_cols - 1), 0)
+			_equip_col.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_slot_px = slot
 	if _equip_grid:
-		_equip_grid.columns = 3 if phone else equip_cols
-	var sz := _slot_vec()
-	for child in _grid.get_children():
-		if child is Control:
-			(child as Control).custom_minimum_size = sz
+		_equip_grid.columns = equip_cols if not compact else 5
+	var esz := Vector2(equip_slot if compact else slot, equip_slot if compact else slot)
 	for key in _equip_slots.keys():
 		var button: Button = _equip_slots[key]
-		button.custom_minimum_size = sz
+		button.custom_minimum_size = esz
 		var cell := button.get_parent()
 		if cell and cell.get_child_count() > 0 and cell.get_child(0) is Label:
 			var cap := cell.get_child(0) as Label
-			cap.custom_minimum_size = Vector2(slot, 0)
+			cap.custom_minimum_size = Vector2(esz.x, 0)
 			cap.add_theme_font_size_override("font_size", UiTokens.meta(view))
-	for child in _pet_grid.get_children():
-		if child is Control:
-			(child as Control).custom_minimum_size = sz
-	if not phone and _equip_pad and _grid and _equip_grid:
-		var bag_h := _grid.get_combined_minimum_size().y
+	if _grid:
+		_grid.cell_px = slot
+	if _pet_grid:
+		_pet_grid.cell_px = slot
+	if not compact and _equip_pad and _grid and _equip_grid:
+		var bag_h := 4.0 * slot + sep * 3.0
 		var equip_h := _equip_grid.get_combined_minimum_size().y
 		_equip_pad.custom_minimum_size = Vector2(0, maxf(0.0, (bag_h - equip_h) * 0.5))
 
@@ -665,7 +599,13 @@ func _refresh_equipped() -> void:
 		if st and st.scaled_armor() > 0:
 			caption = "%.0f" % st.scaled_armor()
 		if st:
-			ItemIcons.style_slot(b, st.def_id, caption)
+			# A def without art shows its name in the slot, not its id (the woven bag); ItemIcons
+			# itself is outside this task's scope, so the fallback is applied here.
+			var cap_text := caption
+			if ItemIcons.texture(st.def_id) == null:
+				var dd := st.def()
+				cap_text = (dd.display_name if dd and dd.display_name != "" else str(st.def_id).capitalize())
+			ItemIcons.style_slot(b, st.def_id, cap_text)
 			_fit_slot(b)
 			b.tooltip_text = st.tooltip()
 			b.modulate = Color.WHITE
@@ -682,11 +622,8 @@ func _select(index: int) -> void:
 	var none := inventory == null or index < 0 or index >= inventory.slot_count or inventory.slots[index] == null
 	for b in [_store_btn, _lock_btn, _equip_btn, _food1_btn, _food2_btn, _inspect_btn, _eat_btn, _feed_btn, _place_btn]:
 		b.visible = false
-	for k in mini(_grid.get_child_count(), _cells.size()):
-		var slot_btn := _grid.get_child(k) as Button
-		var cell: Dictionary = _cells[k]
-		if slot_btn:
-			_slot_style(slot_btn, index >= 0 and (int(cell.get("slot", -1)) == index or index in (cell.get("slots", []) as Array)))
+	if _grid:
+		_grid.set_selected(index if not none else -1)
 	if none:
 		_tip.text = "Tap an item."
 		return

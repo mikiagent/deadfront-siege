@@ -3802,6 +3802,21 @@
       "base_level": 1,
       "rarity": "uncommon",
       "market_category": "medicine"
+    },
+    {
+      "id": "woven_bag",
+      "display_name": "Woven Bag",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 20,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "uncommon"
     }
   ]
 }
