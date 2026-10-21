@@ -400,9 +400,26 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   - A tutorial pointing hand guides the current order step.
   A comparison with our gather radial and Orders tracker is running. GATHERUI follows W2-GATHER's merge; GUIDE (the finger) can start sooner.
 
+- 2026-10-20 (owner) "the cage icon should look like there's a dino inside": CAGEICON (wf_fd47200c-882, `claude/mmo-cageicon` stacked on ICONS2)
+  re-renders captured_animal with a real dinosaur mesh inside the cage. Blind naming judges at 48 px and full size must see a dinosaur and a cage,
+  an A/B judge must prefer it over the old render, and captured vs tamed must be distinct at 48 px. It merges right after ICONS2.
+- 2026-10-20 CHAR-APPEARANCE plan (`char-appearance-plan.md`).
+  - The shipped v2 survivor is male; the missing base is a female v2.
+  - APPEAR-A (wf_c94a70f4-71e, 0 credits): hair split into its own piece (current, buzz, bald, short crop), helmet shells, facial-hair decals plus 2 shell beards, feature decals.
+  - CHARCREATE does the colour masks with the plan's geometry method.
+  - Settled from the docs, so not owner questions: muted palettes per STYLE.md; tied-back hair only until the rig has hair bones; facial features start as free decals; the creation screen keeps the tee-and-shorts base layer.
+  - Needs the owner: concept sheets CA-01..04, 4 Tripo hairstyles (cap 300), a female v2 base (cap 250), occupation outfits later.
+- 2026-10-20 checks (`tree-and-gather-checks.md`).
+  - Tree fade: right strength, not a hole.
+  - Gaps: forest density (about 4 trees per hectare on unstable islands against 24 at home, almost no understory), hard dark shadows, trunks fade with the crown.
+  - Gather hexes: the shown time is static and will be wrong after W2-GATHER; the count means passes left; hexes sit far apart and jump while walking.
+  - No tutorial pointer exists. GUIDE (wf_987c83ae-267) builds the walkthrough finger.
+  - Backlog, in order: GATHERUI (after W2-GATHER merges), FOREST (density scaled to area, understory under tree clumps), OCCLUDE2 (solid trunks, per-object dither), LIGHT2 (soft sun edges, ambient 0.3 -> ~0.45, Forward+/compat colour match), MAPUI, ISLANDSHAPE (after the owner's island-size answer).
+- 2026-10-20 22:45 the disk filled up: review agents made about 80 uniquely named 1.6 GB scratch trees. Cleaned to 122 GB free. mkscratch.sh now keeps at most 12 trees and refuses below 15 GB.
+
 ## Owner questions (open)
 
-- Male survivor model (PRD: 8 occupations x 2 genders): start a concept sheet for approval, then a Tripo mesh from existing credits? (asked 2026-10-20; unanswered)
+- Female v2 survivor base (PRD: 8 occupations x 2 genders; the shipped v2 is a MAN, the earlier question wrongly said male): a concept sheet for approval, then a Tripo mesh plus refitting the 3 armour kits, about 250 credits? Before or after extra hairstyles (4 Tripo styles, cap 300)? (2026-10-20; unanswered)
 - Painted portrait set like Durango's (15+ faces): new art; which source, if any? Until then portraits are rendered from the player's model.
 - Island size target (asked 2026-10-20; unanswered): match Durango (~300 x 375 m, recommended), the design doc (160 home / 240 unstable), or keep ours (134 home / 406 unstable) with ragged shapes only? ISLANDSHAPE waits for it.
 

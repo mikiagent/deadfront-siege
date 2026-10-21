@@ -1,0 +1,45 @@
+export const meta = {
+  name: 'deadfront-cageicon',
+  description: 'CAGEICON: re-render the caged-animal item icons so a dinosaur clearly reads inside the cage (stacked on ICONS2); blind naming judge at HUD size, A/B vs the current render',
+  phases: [
+    { title: 'Build', detail: 'Blender item builder, renders, determinism' },
+    { title: 'Review', detail: 'blind naming judge, A/B, reviewer, fix loop' },
+  ],
+}
+const OSP = '/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad'
+const SP = '/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad'
+const REPO = '/Users/milankinzy/Documents/deadfront-siege'
+const OWNER = '/Users/milankinzy/Documents/deadfront'
+const WT = `${REPO}/.claude/worktrees/mmo-cageicon`
+const BR = 'claude/mmo-cageicon'
+const BLENDER = '/Applications/Blender.app/Contents/MacOS/Blender'
+const G = '/Applications/Godot_mono.app/Contents/MacOS/Godot'
+const OUT = `${SP}/cageicon`
+const ctx = `Project: DEADFRONT, a Godot 4.7.1 dinosaur survival MMO (game/ is the project), Durango: Wild Lands-style UI with rendered item icons.
+Owner (newest): "the cage icon should look like there's a dino inside". Today the game shows a grey grid-with-padlock symbol (game/assets/icons/sym/captured_animal.png). Package ICONS2 (branch claude/mmo-icons2, still in review in another workflow; never edit its branch or worktree) re-renders captured_animal and tamed_animal with headless Blender (tools/render_icons.py, builders under tools/blender/items/): its captured cage holds a green lump that does NOT read as a dinosaur at any size; its tamed cage reads (a dino head with eye and collar out of the open door). Earlier owner rules: a captured/traded animal is shown IN A CAGE; captured (wild) and tamed (bonded) cages read differently (rope-lashed wild vs tagged tame with a collar); Durango shows a wooden crate for a captured animal and a pet carrier with a dinosaur on it for a bonded one (${OWNER}/docs/reference/durango-market-buy-taming.webp and durango-bag-instances.webp - open them). Colour = things (items are coloured).
+Package CAGEICON: branch ${BR}, work tree ${WT} (create: bash ${OSP}/mkwt.sh cageicon claude/mmo-icons2 - stacked on ICONS2). Report docs/orchestration/reports/claude-mmo-cageicon.md.
+Scope: make captured_animal unmistakably "a dinosaur inside a cage" at the sizes the game shows it (bag cell ~64-157 px, market row ~48 px, HUD quick slot): a real dinosaur shape - ideally the project's own low-poly creature mesh (find the creature GLBs, e.g. a small raptor or zebraceratops; posed crouched, head and snout pressing between the front bars toward the camera, eye visible, tail curling out between bars) - inside the lashed wooden cage, bars clearly IN FRONT of the body, strong value contrast between the animal and the wood, a camera angle that shows the face; keep tamed_animal reading as tamed (door open, collar and lead) and make sure both are told apart at 48 px. Same pipeline, light and framing as the other renders; renders must re-render byte-identically (ICONS2's determinism rule). Only the two cage icons, their builder code and their .import files change.
+Rules: headless Blender only (${BLENDER} -b --factory-startup -P tools/render_icons.py -- --only captured_animal,tamed_animal); Godot only through ${OSP}/gslot.sh with its own timeout, silent, never --editor (for t_iconart, run_all, smoke). Look at every render at full size and downscaled to 48 and 64 px next to neighbouring icons (a contact sheet under ${OUT}/). Keep the git-excluded game/override.cfg; never touch the owner's real save, ${REPO}'s main checkout, ${OWNER}, or other worktrees. Commit often ("Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"); never git add -A; never push or merge; never use SendMessage; never claim a check you did not run.`
+const STEP = { type: 'object', properties: { done: { type: 'boolean' }, head: { type: 'string' }, renders: { type: 'object', properties: { captured_full: { type: 'string' }, captured_48: { type: 'string' }, tamed_full: { type: 'string' }, tamed_48: { type: 'string' }, old_captured_full: { type: 'string' }, old_captured_48: { type: 'string' }, sheet: { type: 'string' } }, required: ['captured_full', 'captured_48', 'tamed_full', 'tamed_48', 'old_captured_full', 'old_captured_48'] }, gates: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' } }, required: ['done', 'head', 'renders', 'summary'] }
+const NAME = { type: 'object', properties: { item: { type: 'string' }, sees_dinosaur: { type: 'boolean' }, sees_cage: { type: 'boolean' }, notes: { type: 'string' } }, required: ['item', 'sees_dinosaur', 'sees_cage', 'notes'] }
+const AB = { type: 'object', properties: { better: { type: 'string', enum: ['first', 'second', 'tie'] }, reasons: { type: 'string' } }, required: ['better', 'reasons'] }
+
+let r = await agent(`${ctx}\n\nROLE: builder. Create the work tree, find the cage builder in ICONS2's tools/blender/items/ and the creature meshes, rebuild captured_animal (and adjust tamed_animal only if needed so the pair reads apart), render, check determinism (render twice, byte-identical), run t_iconart, run_all and smoke, make the contact sheet, LOOK at everything, write the report, commit. Return done, head, renders (absolute PNG paths incl. 48 px downscales of new and old captured icons and a contact sheet), gates, summary.`, { label: 'build', phase: 'Build', schema: STEP })
+if (!r) return { stopped: 'cut at build' }
+for (let round = 1; round <= 3; round++) {
+  const rd = r.renders
+  const [n48, nFull, tamed48, ab, pair] = await parallel([
+    () => agent(`Open this game item icon with the Read tool: ${rd.captured_48}. It is shown at the size a player sees it in an inventory. Without any other context, say what item this is, and whether you can see a dinosaur and a cage.`, { label: `name48:r${round}`, phase: 'Review', schema: NAME }),
+    () => agent(`Open this game item icon with the Read tool: ${rd.captured_full}. Without any other context, say what item this is, and whether you can see a dinosaur and a cage.`, { label: `namefull:r${round}`, phase: 'Review', schema: NAME }),
+    () => agent(`Open this game item icon with the Read tool: ${rd.tamed_48}. Without any other context, say what item this is, and whether you can see a dinosaur and a cage.`, { label: `nametamed:r${round}`, phase: 'Review', schema: NAME }),
+    () => agent(`Two renders of the same inventory item ("a captured dinosaur in a cage") from two builds; you are not told which is newer. First = ${round % 2 ? rd.old_captured_full : rd.captured_full} ; second = ${round % 2 ? rd.captured_full : rd.old_captured_full}. Open both with the Read tool and say which reads better as a dinosaur inside a cage, at a glance, as a game item icon.`, { label: `ab:r${round}`, phase: 'Review', schema: AB }),
+    () => agent(`Open ${rd.captured_48} and ${rd.tamed_48} with the Read tool. They are two inventory items at the size a player sees them. Can you tell them apart at a glance, and what differs? Answer item = "distinct" or "confusable" with notes.`, { label: `pair:r${round}`, phase: 'Review', schema: NAME }),
+  ])
+  const newWins = ab && ((ab.better === 'second') === (round % 2 === 1))
+  const ok = !!(n48 && n48.sees_dinosaur && n48.sees_cage && nFull && nFull.sees_dinosaur && nFull.sees_cage && newWins && tamed48 && tamed48.sees_dinosaur && pair && /distinct/i.test(pair.item))
+  log(`CAGEICON r${round}: 48px dino=${n48 && n48.sees_dinosaur} cage=${n48 && n48.sees_cage}; full dino=${nFull && nFull.sees_dinosaur}; A/B new wins=${newWins}`)
+  if (ok) return { ready: true, round, head: r.head, renders: rd, judges: { n48, nFull, tamed48, pair, ab } }
+  if (round === 3) return { ready: false, round, renders: rd, judges: { n48, nFull, tamed48, pair, ab } }
+  r = await agent(`${ctx}\n\nROLE: builder, fix round ${round}. Blind judges who saw only the image said: at 48 px "${n48 && n48.item}" (dinosaur ${n48 && n48.sees_dinosaur}, cage ${n48 && n48.sees_cage}; ${n48 && n48.notes}); at full size "${nFull && nFull.item}" (${nFull && nFull.notes}); tamed at 48 px "${tamed48 && tamed48.item}" (${tamed48 && tamed48.notes}); the A/B judge ${newWins ? 'preferred the new render' : 'did NOT prefer the new render'}: ${ab && ab.reasons}; the pair judge: ${pair && pair.item} (${pair && pair.notes}). Make the dinosaur unmistakable at 48 px (bigger head in front, eye, snout, contrast, fewer bars across the face) and the two cages distinct, re-render, check determinism and gates, look at the sheet, commit. Return the same fields.`, { label: `fix:r${round}`, phase: 'Build', schema: STEP })
+  if (!r) return { stopped: 'cut at fix' }
+}
