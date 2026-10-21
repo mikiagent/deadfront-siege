@@ -10,10 +10,13 @@ extends Control
 
 const PATH := "res://data/combat_fx.json"
 const DAMAGE: Array[StringName] = [&"hit", &"weak", &"strong", &"crit", &"dot"]
+## The HUD's fixed top blocks (HuntHud.drawn_blocks) a number stays under.
+const TOP_HUD: Array[String] = ["vitals", "statuses", "plate", "quest", "map_title", "map_text"]
 
 ## Live numbers, oldest first. Each: kind, tier, text, color, outline, outline_px, font, w and h
 ## (canvas px at 1.0x), age, life, lane (px beside the anchor), target (instance id), anchor
-## (WeakRef), height (m above the anchor's origin), at (last anchor point). Tests read it.
+## (WeakRef), height (m above the anchor's origin), at (last anchor point), floor (px: the top HUD's
+## bottom over the anchor at spawn). Tests read it.
 var floats: Array[Dictionary] = []
 var _cfg: Dictionary = {}
 var _bold: FontVariation
@@ -102,6 +105,7 @@ func _push(anchor: Node3D, kind: StringName, tier: String, text: String, color: 
 		"age": 0.0, "life": num("life_s", 0.75), "lane": 0.0, "target": anchor.get_instance_id(),
 		"anchor": weakref(anchor), "height": height, "at": anchor.global_position + Vector3.UP * height}
 	f["lane"] = _free_lane(f)
+	f["floor"] = _hud_floor(f)
 	floats.append(f)
 	var mine := floats.filter(func (g: Dictionary) -> bool: return g["target"] == f["target"])
 	if mine.size() > int(num("max_per_target", 8)):
@@ -155,7 +159,7 @@ func placement(f: Dictionary, cam: Camera3D) -> Vector2:
 	var view := get_viewport_rect().size
 	var m := num("edge_margin_px", 8.0)
 	var half := Vector2(float(f["w"]), float(f["h"])) * _expand * 0.5 + Vector2(m, m)
-	var top := half.y + lift_at(f, float(f["life"]))
+	var top := float(f.get("floor", 0.0)) + half.y + lift_at(f, float(f["life"]))
 	var p := cam.unproject_position(at) + Vector2(float(f["lane"]), 0.0)
 	p.x = clampf(p.x, half.x, maxf(half.x, view.x - half.x))
 	p.y = clampf(p.y, top, maxf(top, view.y - half.y))
@@ -232,6 +236,24 @@ func _reach(g: Dictionary, f: Dictionary) -> float:
 				r = maxf(r, (float(g["w"]) * sg + float(f["w"]) * sf) * 0.5 + pad)
 		s += 1.0 / 60.0
 	return r
+
+## Bottom of the HUD's fixed top blocks over the anchor's column at spawn (0 without a HUD): the number's
+## whole path stays under it, so a hit high on a big creature on a phone never covers the target's HP.
+## Taken once per number so a status chip appearing later cannot make it jump.
+func _hud_floor(f: Dictionary) -> float:
+	var hud := get_tree().get_first_node_in_group(&"hud")
+	var cam := get_viewport().get_camera_3d()
+	var blocks: Variant = hud.get("drawn_blocks") if hud else null
+	if not blocks is Dictionary or cam == null or cam.is_position_behind(f["at"]):
+		return 0.0
+	var x := cam.unproject_position(f["at"]).x
+	var half := float(f["w"]) * _expand * 0.5
+	var y := 0.0
+	for k in TOP_HUD:
+		var r: Rect2 = (blocks as Dictionary).get(k, Rect2())
+		if r.has_area() and x + half > r.position.x and x - half < r.end.x:
+			y = maxf(y, r.end.y)
+	return y
 
 func _max_hp(anchor: Node3D) -> float:
 	if anchor is Player:

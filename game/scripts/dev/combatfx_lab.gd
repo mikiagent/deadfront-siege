@@ -92,7 +92,7 @@ func _run() -> void:
 	_player.hunt.auto = false
 	_player.hunt.hold = true
 	print("[combatfx] %s hp=%.0f survivor hp=%.0f renderer=%s view=%s" % [_species, _stego.health.max_hp, _player.vitals.max_health,
-		ProjectSettings.get_setting("rendering/renderer/rendering_method"), get_viewport().get_visible_rect().size])
+		RenderingServer.get_current_rendering_method(), get_viewport().get_visible_rect().size])
 	if _mode == "stress":
 		await _stress()
 		return
@@ -245,6 +245,9 @@ func _stress() -> void:
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	await _secs(1.0)
 	var fx := _fx()
+	# gl_compatibility compiles the hit's particle shaders on first use: warm them up so the hitch
+	# does not land in the first measured hit phase.
+	await _phase("warm-up", true)
 	await _phase("no hits", false)
 	await _phase("10 hits/s", true)
 	if fx:

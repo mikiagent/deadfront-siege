@@ -89,6 +89,7 @@ func _run() -> void:
 	_test_integrated_motion()
 	_test_no_overlap()
 	_test_edges()
+	_test_hud_floor()
 	_test_cleanup()
 	CT.reset_overrides()
 	_finish()
@@ -400,6 +401,34 @@ func _test_edges() -> void:
 		fx.floats.erase(f)
 		edge.free()
 	_expect(tried > 0 and bad == 0, "a crit past any screen edge stays whole on screen all its life (%d of %d frames clipped)" % [bad, tried])
+
+## A hit just under the HUD's target plate (a big creature high on a phone screen) rises and swells
+## under the plate, not over its HP; a stand-in HUD gives the plate's rect.
+func _test_hud_floor() -> void:
+	var view: Vector2 = fx.get_viewport_rect().size
+	var plate := Rect2(view.x * 0.3, 0.0, view.x * 0.4, view.y * 0.2)
+	var src := GDScript.new()
+	src.source_code = "extends Node\nvar drawn_blocks := {}\n"
+	src.reload()
+	var hud: Node = src.new()
+	hud.add_to_group(&"hud")
+	get_root().add_child(hud)
+	hud.set("drawn_blocks", {"plate": plate})
+	var high := Node3D.new()
+	host.add_child(high)
+	high.global_position = cam.project_position(Vector2(view.x * 0.5, plate.end.y + 4.0), 20.0) - Vector3.UP
+	fx.add_number(high, 186.0, &"crit")
+	var f := _last_on(high)
+	var bad := 0
+	var age := 0.0
+	while age <= float(f["life"]):
+		f["age"] = age
+		bad += 0 if fx.screen_rect(f, cam).position.y >= plate.end.y else 1
+		age += 0.05
+	fx.floats.erase(f)
+	high.free()
+	hud.free()
+	_expect(bad == 0, "a crit just under the target plate stays under it all its life (%d frames over it)" % bad)
 
 ## Numbers go when their life ends, also when the creature under them is freed mid-flight.
 func _test_cleanup() -> void:
