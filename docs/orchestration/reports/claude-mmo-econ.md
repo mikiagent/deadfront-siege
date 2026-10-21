@@ -67,6 +67,16 @@ with 0 SCRIPT ERROR lines and 0 "failed" lines. Every run went through gslot.
   `Godot-2026-10-20-232613.ips`, from before this pass).
 - Labs and screenshots: none. ECON is server-side and has no UI.
 
+**Second base move during this pass.** The base moved again to c9ec27c6 (DOMAIN: domain banner,
+portraits, claim outlines; client UI and world only, with no server, economy or hooked file). I
+merged it at bd45a2be with no conflicts. Neither hooked file changed, so the patch is unchanged and
+`git apply --cached --check` on c9ec27c6 is clean. The same gate tree moved to bd45a2be, keeping its
+applied patch (same `git patch-id`). Its import has 0 SCRIPT ERROR and 0 "failed" lines. All 26
+`t_*.gd` (now with t_domain: `[t_domain] PASS`) exit 0 with their PASS lines, with the same
+SCRIPT ERROR counts as above and 0 "couldn't resolve track". t_econ prints the same full-bag and
+fuzz lines. run_all prints `[tests] PASS`, smoke prints `SMOKE PASS`, and there are still 25 `.ips`
+files.
+
 ## Review r3, twelfth pass (2026-10-21): full bag, trait-proof fixtures, repacked kits
 
 The base moved from 946da955 to acc684a6 (the W2-DATA sync; docs only). I merged it at 62771e3f
