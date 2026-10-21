@@ -1,15 +1,92 @@
 # W2-INV report: inventory and equipment by instance
 
-Branch `claude/mmo-w2-inv`, base claude/mmo-overhaul ac33159f, merged at 93ab120a this round (six base commits since
-cecc936b, all docs: specs 13 addendum and 15-18, STATUS, workflow scripts, references; nothing under game/ and none of
-the hook files, so the round 3 gates of 79a24337 below stand). Hooks patch
-`docs/orchestration/reports/claude-mmo-w2-inv-hooks.patch`, regenerated this round from the work tree (byte-identical
-to its hook-file diff): `git apply --check --cached` is clean on claude/mmo-overhaul ac33159f and on the branch 93ab120a
-(temporary indexes of each). The spec 13 storage addendum (Bag | Small Box tabs, Transfer to Bag) is INVUI B3's.
+Branch `claude/mmo-w2-inv`, base claude/mmo-overhaul ddaab662 merged at 5dc41e63 (2026-10-21; docs only: STATUS owner
+decisions and workflow scripts, nothing under game/ or tools/). Hooks patch
+`docs/orchestration/reports/claude-mmo-w2-inv-hooks.patch`, regenerated in a mkscratch tree of 5dc41e63 (`git diff
+--cached HEAD` after the 3-way apply): byte-identical to the committed patch (`cmp` clean). `git apply --check` is clean
+on the branch 5dc41e63 and `git apply --check --cached` on claude/mmo-overhaul ddaab662 (a temporary index). The spec
+13 storage addendum (Bag | Small Box tabs, Transfer to Bag) is INVUI B3's.
 
 Owner approval on record (STATUS, 2026-10-20): "the non-stacking inventory save change is approved: merge it once its
-independent review passes and old saves migrate cleanly in tests." Review rounds 1, 2 and 3 are fixed below; the
-package needs its re-review before the merge.
+independent review passes and old saves migrate cleanly in tests." Review rounds 1, 2 and 3 and the delta review are
+fixed below; the package needs its re-review before the merge.
+
+## Review round 2 findings, raised again (2026-10-21)
+This step's prompt carried review round 2's 14 findings (the same probes: `after_uireal/bag_844x390.png`, `wornsan2`,
+`leadfirst`, `holders_after_load=2`). All 14 were fixed in round 2 (table further down) and stayed fixed through
+round 3 and the delta review. No code change was needed for them this step. Each was checked again on the branch
+5dc41e63 with the hooks patch. Every check passes in the gate run below. A mutation that brings each finding back
+makes its check FAIL. Scratch `w2inv-r5/mut/` holds one mutation per run, each in the mkscratch tree `w2inv-r5m`;
+every file was restored and `cmp`'d (`restored` on all 12 rows of `mut/summary.txt`).
+
+| # | Sev | Finding | Fixed by (round 2, kept since) | Mutation on 5dc41e63 + hooks -> FAIL line |
+|---|---|---|---|---|
+| 1 | blocker | Grouped bag grid drew no free slots | hooks `inventory_ui.gd` `_bag_cells`: one disabled empty cell per free slot (`slot_count - used_slots()`), slot look kept | Empty-cell loop removed: `[invlab] FAIL 0 items: 0 item cells and 100 empty slot cells (0 shown, 0 empty)`, `[invlab] FAIL 3 items: 3 item cells and 97 empty slot cells (3 shown, 0 empty)` (exit 1). Unmutated: `[invlab] PASS empty_cells=100/97 ...`. Shots below |
+| 2, 14 | major | `_plan` put the lead's def ahead of every other candidate (spec 05:23) | hooks `crafting.gd` `_plan`: one key per unit, `prefer_id`, `Inventory.spend_key`, overlaps; "same def as the lead" only inside equal keys | Lead-def key moved to the front (`insert(0, ...)`): `[t_inventory] FAIL default twine spends stalk lv1 and the plain frond lv1, not the lv40 stalk { "hardness": 9 } (spent [0, 1])`, the same with `{  }` (plain lv40), `FAIL a default that spends no trait does not ask for a pick { "hardness": 9 }`. These are the reviewer's probes A and B: unmutated, the default twine spends slots [0, 2] (stalk lv1 and frond lv1) |
+| 3 | major | Forged `inventory_extras.worn` row untested | t_inventory `_test_forged_worn_row` through `SaveMigrations.read` and the loader | `var row: Variant = worn[slot]`: `[t_inventory] FAIL a forged worn helm loads as x1 L60 with durability <= 2288 ({ "id": "raid_helm", "count": 1, "level": 60, ..., "durability": 1000000000, "max_durability": 1000000000, ... })` |
+| 4 | minor | A default of only valuable instances spends them silently (13:486) | `Crafting.plan_spends_traits` (hooks); INVUI's picker asks for an explicit pick when it is true | Covered by `_test_default_pick_across_defs` (`only trait stalks: the default plan says it spends a trait`); not wired into craft_ui (INVUI) |
+| 5 | minor | "Then oldest" only for crafted items; rarity ignored | Age: `# ASSUMPTION` on `spend_key` (a wall-clock or per-process stamp breaks server replay or needs a save field). Rarity: a spend key after traits since the delta review (below) | Rarity case on the pre-delta `inventory.gd`: `[t_inventory] FAIL slingshot spends the plain common bone, not the plain rare dense bone (spent [0, 2, 3, 4])` |
+| 6 | minor | Duplicate uids across containers survived a load | `InventoryMigration.unique_uids` over cargo, bag + worn, live buildings, pet bags (hooks `save_game.gd`) | Call replaced by `0`: `[t_save] FAIL a uid shared by bag, basket and pet bag rows loads as distinct instances, the bag keeps it (dup 2, bag keeps true)` |
+| 7 | minor | Corpse take paid +3 XP per instance | hooks `corpse.gd` / `player_actions.gd`: 3 XP per drop kind on its first take (`first_take_of`) | Chest per take: `[t_player] FAIL radial takes, chest takes and Take all each pay 3 per drop kind (paid [6.0, 15.0, 6.0])`. Radial per take: `(paid [15.0, 6.0, 6.0])` and `FAIL radial takes of 2 drop kinds add butcher grime twice, not per instance (grime 15.0)` |
+| 8 | minor | 60-slot containers; a heavy legacy save grows home cargo to 22,125 slots | Not this package's files (world.gd integrator-only, `BASKET_SLOTS` W2-BUILDSYS, storage grid INVUI). Recorded in the plan-register section and under "For other packages", with the STATUS line for the integrator (STATUS is not this package's file) | - |
+| 9 | minor | inventory.gd 364 -> 599 lines | Equip, unequip, capacity, resize, worn load extracted to `inventory_equipment.gd` (`InventoryEquipment`, 135 lines); inventory.gd is 504 lines | t_inventory equip, Pocket and worn tests; equip_mount_lab |
+| 10 | minor | `can_accept` had no game caller | hooks `crafting.gd` `output_fits` asks `scratch.can_accept(out)` after the scratch consume (craft, station finish, server craft) | `return true`: `[t_items] FAIL a full bag refuses sashimi (3 out, 1 slot freed) before consuming`, `FAIL one free slot is still one short for sashimi` |
+| 11 | minor | A group and a stack both read "×N"; group hid L/U pips; nothing showed a group opens | hooks `inventory_ui.gd`: group = corner count badge + level range caption, stack = "×45", pips over the group | Group as "×16", no badge: `[invlab] FAIL the stone group has a 16 badge, its level range and no stack ×N (badge '', caption '×16')`. No pips: `[invlab] FAIL a group holding a locked stone carries the L pip (got 'Lv 1-16')` |
+| 12 | minor | `split_stacks` gave uid-less rows ".1", ".2" | hooks `character_state.gd`: a row without a uid is left as stored | Skip removed: `[t_inventory] FAIL rows without a uid split into no duplicate uids and keep every unit (dup 2, units 6, uids ["", ".1", ".2"])` |
+| 13 | minor | A stacking-era journal could stop boot with only "seq N did not replay" | hooks `character_store.gd` `open()`: names the cause and the fix (snapshot on the previous build); operators told below | Message dropped: `[t_inventory] FAIL a journal that fails under changed rules says to snapshot on the previous build (seq 3 did not replay (bag slot 0 is empty))` |
+
+### Gates (2026-10-21)
+A fresh mkscratch tree `w2inv-r5` of 5dc41e63 with the committed hooks patch. Import exit 0 with 0 "Failed to compile" /
+Parse Error / SCRIPT ERROR lines. Every run went through gslot. Logs are in scratch `w2inv-r5/gates/`.
+- All 23 `t_*.gd` exit 0 with their PASS line and 0 SCRIPT ERROR, except t_save's 5 deliberate ones (`[t_save] PASS`):
+  `[t_inventory] PASS`, `[t_items] PASS`, `[t_player] PASS`, `[t_save] PASS`, `[t_tame] PASS`, `[t_build] PASS`,
+  `[t_data] PASS items=223 recipes=155`, `[t_w2_skills] PASS`, `[t_water] PASS`, `[t_srvdom] PASS`,
+  `[t_server_domain] PASS`, `[t_ui] PASS`, `[t_uiicons] PASS ids=177 files=116 ...`, `[t_web] PASS`, `[t_ai] PASS`,
+  `[t_canim] PASS`, `[t_combat] PASS`, `[t_harbour] PASS islands=15`, `[t_iconart] PASS`, `[t_light] PASS` (t_light,
+  t_lighting), `[t_occlude] PASS`, `[t_structart] PASS`.
+- `run_all.gd`: `[tests] PASS`. `tools/smoke.sh --no-import`: `SMOKE PASS`.
+- Labs, exit 0, 0 SCRIPT ERROR: `[invlab] PASS empty_cells=100/97 slots=100 groups=20 stone_open=17 equip_l30=true
+  full_unequip_notice=true`, `[craft_lab] PASS`, `[equiplab] PASS`, `[kitchen_lab] PASS`, water_lab `[waterlab] done`.
+- Probe sweep (every `--*-probe`): `[gear] PARTIAL ... failures=0` (raid-gear), `[cargocapacity] failures0`;
+  camp-travel (`failures3`) and combat-reach (`failures=2`) exit 1. A mkscratch tree of the base ddaab662 gives
+  exit 1 and the same FAIL lines (`diff` of the FAIL/PARTIAL/failures lines is empty; `w2inv-r5/base_sweep/`).
+- 0 "couldn't resolve track" in every log. No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (25 before and after;
+  the newest is still 2026-10-20-232613).
+- Shots, windowed on gl_compatibility (the judge) in the same tree. PNGs are in scratch `w2inv-r5/shots/`, not in the
+  repo. I opened and looked at each one:
+  - `ui_real_capture_lab` bag at 844x390 (the reviewer's after_uireal case: an empty bag). The BAG column is a grid of
+    empty slot compartments with "Bag 0 / 100" beside it. The same at 1600x900 (5 columns of 134 px empty slots; the
+    column scrolls). `[uireal] PASS screens=...` at both sizes, 0 SCRIPT ERROR.
+  - inventory_lab `--bag-fill=30`, 844x390 and 1600x900: three group cells with pills 16, 12 and 2 and captions "Lv 1-16",
+    "Lv 1-23" and "Lv 1-2", then empty slots fill the rest of the grid. "Bag 30 / 100".
+  - inventory_lab full bag (100/100), 844x390 and 1600x900: 20 cells. Groups have corner pills 16..2 with level
+    ranges, stone_shot and bandage stacks read "×45" and "×6" with no pill, and single tools read "Lv 1".
+  - inventory_lab `--bag-group=stone`, 844x390 and 1600x900: a white back cell "All", then one cell per stone "Lv 1"..
+    "Lv 16" (Lv 1-14 in view at 844x390). The first one is selected; at 1600x900 its tip reads "Stone" and "lv 1
+    process 0".
+  - Seen, not this package's (W1-UI layout; INVUI replaces the screen): at 1600x900 the equipment column's right cells
+    (Legs, second Ring) reach the panel's right edge, or the scrollbar when the bag scrolls. The translucent modal lets
+    the HUD quest text show through at the top. Stone and stone_shot share one icon (icons_manifest alias).
+
+## Delta review and sync 2 (2026-10-20 late)
+Base 2206de22 (WATER merged, specs 23-24, STATUS) was merged at ad36533b. The hooks were regenerated at 12c363e8.
+The delta review's fixes:
+- Item-def rarity is a spend key after traits (ecf6ccf0): `spend_key = [has traits, rarity rank, level, created_at]`.
+  The rank comes from items.json `rarity`, ordered by `data/inventory.json` `rarity_order`. Both files are in the
+  server's `DATA_FILES`, so replay agrees. On the old `inventory.gd`: `[t_inventory] FAIL slingshot spends the plain
+  common bone, not the plain rare dense bone (spent [0, 2, 3, 4])`.
+- hooks `raid_gear_probe.gd`: its kit (90 instances) needs the 100-slot bag; it now checks the leftover. With the
+  old 40-slot fixture: `[gear] FAIL every kit material fits the bag (left over 50)`, `[gear] FAIL raid_helm level60
+  ingredients allowed`. Now: `[gear] PASS every kit material fits the bag (left over 0)`, `failures=0`.
+- hooks `cargo_capacity_probe.gd`: ore is counted in instances and free slots. The stacked fixture gave
+  `[cargocapacity] FAIL full cargo preserves all ore and no fee` (`failures3`). Now: `failures0`.
+- hooks `t_save.gd`: the stacked goldens again compare everything except the item containers and skills_v2. A
+  mutation that changes `player_name` for legacy saves passed the old t_save (`[t_save] PASS`); the new one gives
+  `FAIL save_v3_golden.json: everything but item containers and skills_v2 survives load + save unchanged:
+  ["/player_name: Golden vs Goldenx"]`.
+- hooks `player_actions.gd`: WATER's radial butcher grime follows the XP, once per drop kind. Mutation (grime per
+  take): `[t_player] FAIL radial takes of 2 drop kinds add butcher grime twice, not per instance (grime 15.0)` (run
+  this step, `w2inv-r5/mut/grime.log`).
 
 ## Sync 1 before integration (2026-10-20)
 Base claude/mmo-overhaul 29ffa292 (W2-DATA and W2-SKILLS merged, specs 19-22, STATUS) merged into the branch at
@@ -193,7 +270,7 @@ save/load half (`exact equip: worn lv=60 uid_kept=true bag_helm_lv=1`).
 
 ## Vision fix (earlier round): default picks spare valuable instances (spec 05:23)
 Spec 05:23: "When crafting, let users explicitly choose exactly which bone is consumed and protect valuable items from
-default auto-consumption." Ruling: crafting only. `Inventory.spend_key(s) = [has traits, level, created_at]`
+default auto-consumption." Ruling: crafting only. `Inventory.spend_key(s) = [has traits, def rarity, level, created_at]`
 ascending; `Crafting._plan` orders every unit it spends by it, ahead of the category-overlap key since review 3 (round
 3 #1), with the lead's own def only a tie-break (round 2 #2, round 3 #3). `_test_default_pick_spares_valuable` (failed on the old order:
 `FAIL default twine spends the plain oldest stalks 3 then 2, not the trait (0) or lv 5 (1) one (picks [0] spent [0, 1])`).
@@ -323,15 +400,16 @@ opened and looked at:
 - `plan_spends_traits` counts traits only; a higher level alone does not ask for a pick.
 - Spend order age: only crafted items carry `created_at`, so gathered, looted and migrated units tie at 0 and fall
   back to bag order, and a crafted unit sorts after a gathered one of the same level (a wall-clock stamp would break
-  the server replay). Item-def rarity is not a key (item_rarity.json is a UI placeholder, not in `DATA_FILES`).
+  the server replay). Item-def rarity is a key after traits since the delta review: items.json `rarity`, ranked by
+  `data/inventory.json` `rarity_order` (both in the server's `DATA_FILES`); an id missing from the order ranks as common.
 - A server row without a uid is not split by the migration (it stays as stored; `invariants()` flags it).
 - The post-load uid pass covers the live island's buildings; the other island's building rows load on travel and are
   not checked against the bag then (only edited saves can hold such duplicates).
 
 ## Not done / next
 1. Re-review (branch + hooks), then merge in the handoff order (after W2-SKILLS).
-2. Item-def rarity (item_rarity.json, per id) is not in the spend order; only per-instance traits, level and age are
-   (assumption above).
+2. Age in the spend order is real only for crafted items (assumption above); a minted per-instance sequence needs a
+   save field and a server-replay-safe counter.
 3. Building costs (`Inventory.consume`, build_placer) still take the first instances in bag order (outside the
    crafting-only ruling).
 4. `health_bonus_at` / `food_energy_at` should move to ItemStack (W2-PROCESS).
