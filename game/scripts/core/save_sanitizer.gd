@@ -20,7 +20,7 @@ static var abort_for_test := false
 ## Expected type of each field the loader reads; the value is only a type sample. A field of the
 ## wrong type is erased so the loader's own default applies.
 const SHAPE := {
-	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "quick_food": [], "tool_index": 0}, "position": []},
+	"player": {"vitals": {}, "statuses": [], "inventory": [], "inventory_extras": {"equipment": {}, "worn": {}, "quick_food": [], "tool_index": 0}, "position": []},
 	"pets": [], "ground_snares": [], "skills": {}, "skills_v2": {},
 	"home": {"terrain": "", "buildings": [], "cargo": [], "claims": [], "camp_layout": {}},
 	"away": {"buildings": [], "claims": []}, "pending_refunds": [],
@@ -66,6 +66,14 @@ static func clean(data: Dictionary) -> Dictionary:
 		for slot in (equipment as Dictionary).keys():
 			if Data.item(StringName(str(equipment[slot]))) == null:
 				(equipment as Dictionary).erase(slot)
+	var worn: Variant = extras.get("worn", {})
+	if worn is Dictionary:
+		for slot in (worn as Dictionary).keys():
+			var row: Variant = _stack(worn[slot])
+			if row == null:
+				(worn as Dictionary).erase(slot)
+			else:
+				worn[slot] = row
 	if player.has("position") and not _is_position(player["position"]):
 		player["position"] = DEFAULT_POSITION.duplicate()
 	var vitals: Dictionary = player.get("vitals", {})
@@ -150,7 +158,8 @@ static func _stack(row: Variant) -> Variant:
 		var count := _num(s["count"], -1.0, 1e9, -1.0)
 		if count < 1.0:
 			return null
-		s["count"] = mini(int(count), maxi(1, def.stack_max))
+		# A pre-W2-INV row may still hold a legacy stack; Inventory.load_array splits it into instances.
+		s["count"] = mini(int(count), maxi(1, def.legacy_stack_max))
 	if s.has("level"):
 		s["level"] = _int(s["level"], 1, MAX_LEVEL)
 	if s.has("process_count"):

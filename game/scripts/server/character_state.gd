@@ -5,7 +5,7 @@ extends RefCounted
 ## the state. Handlers never edit the bag dict directly: they get an Inventory built from it,
 ## run the normal domain code on that, and commit() writes it back and stamps new stacks.
 
-const BAG_SLOTS := 20 ## Inventory's default bag
+const BAG_SLOTS := Inventory.BASE_SLOTS
 const LOCK := &"_slot_lock"
 
 var d: Dictionary
@@ -22,6 +22,54 @@ static func fresh(id: int, name: String, ts: int) -> Dictionary:
 		"id": id, "name": name, "created": ts, "bag": bag, "equipment": {}, "tool": "",
 		"wallet": 0, "pets": {}, "skills": {}, "pos": [0, 0, 0], "pos_ts": ts, "rids": {},
 	}
+
+## W2-INV migration (owner 2026-10-20, prompts 05/08): a character stored before items stopped
+## stacking. Each unit over the def's stack_max becomes its own row with the stack's origin and
+## seq; the first unit keeps the stack's uid and the k-th more gets "<uid>.<k>" (deterministic, so
+## every boot and replay agrees; minted uids never hold two dots). The bag grows to BAG_SLOTS;
+## units with no free slot go to d.storage (home storage). Nothing is deleted. Returns
+## {split: rows made, stored: {id: units}}, or {} when the character needed nothing.
+static func split_stacks(d: Dictionary) -> Dictionary:
+	var bag: Array = d.bag
+	var grew := bag.size() < BAG_SLOTS
+	if grew:
+		bag.resize(BAG_SLOTS)
+	var extra: Array = []
+	for row: Variant in bag:
+		if not row is Dictionary or str(row.get("id", "")) == str(LOCK):
+			continue
+		var def := Data.item(StringName(str(row.id)))
+		var cap: int = def.stack_max if def else int(row.count)
+		var left := int(row.count) - cap
+		# A row without a uid would give every such row the units ".1", ".2"; invariants() already
+		# flags it, so it stays as stored (nothing deleted) until an operator looks.
+		if left <= 0 or str(row.get("uid", "")) == "":
+			continue
+		row.count = cap
+		var k := 0
+		while left > 0:
+			k += 1
+			var unit: Dictionary = (row as Dictionary).duplicate(true)
+			unit.count = mini(cap, left)
+			unit.uid = "%s.%d" % [str(row.get("uid", "")), k]
+			left -= unit.count
+			extra.append(unit)
+	if extra.is_empty():
+		return {"split": 0, "stored": {}} if grew else {}
+	var stored := {}
+	var storage: Array = d.get("storage", [])
+	var free := 0
+	for unit: Dictionary in extra:
+		while free < bag.size() and bag[free] != null:
+			free += 1
+		if free < bag.size():
+			bag[free] = unit
+		else:
+			storage.append(unit)
+			stored[str(unit.id)] = int(stored.get(str(unit.id), 0)) + int(unit.count)
+	if not storage.is_empty():
+		d["storage"] = storage # ASSUMPTION: the server's home storage; W3 adds the ops that take from it
+	return {"split": extra.size(), "stored": stored}
 
 ## A fresh Inventory over a deep copy of the bag (so a refused op cannot have touched state),
 ## with equipment and the chosen gather tool mapped from uids to what Inventory expects.
@@ -40,7 +88,7 @@ func inventory() -> Inventory:
 	for slot: String in d.equipment:
 		var i := find_uid(str(d.equipment[slot]))
 		if i >= 0:
-			inv.equipment[slot] = str(inv.slots[i].def_id)
+			inv.equipment[slot] = i # the exact worn item by bag index: two same-id items no longer share a stack
 	inv.equipped_tool_index = find_uid(str(d.tool))
 	return inv
 
