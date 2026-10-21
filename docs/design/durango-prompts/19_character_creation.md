@@ -19,3 +19,25 @@ Already in the base:
 - `game/data/skills/occupations.json` has the eight occupations (id, name, tree, story).
 - `game/scripts/ui/character_creation.gd` handles occupation, gender and name, and World/SaveGame apply and save the occupation.
 - The only survivor model is a woman (`game/data/characters/survivor.json`). A male survivor is new character art, which needs a concept sheet approved by the owner before any Tripo spend.
+
+## Step 2: Create Character (owner, same day)
+
+Owner's words, verbatim: "You can choose the size and profile pic, 3D model"
+
+Reference: `docs/reference/durango-create-character.png`. The rest of this section is the orchestrator's reading.
+
+- **Header:** "Create Character" with a back arrow.
+- **Left column:**
+  - The current portrait, framed with yellow corner brackets.
+  - Tabs: Portrait (selected), Appearance and Color.
+  - A dice button (randomise) at the bottom.
+- **Sub-tab hexes for Portrait:** Portrait (selected, gold), Pattern and Background Color.
+- **Centre:** the live 3D model in underwear on a dark stage.
+- **Right panel:**
+  - A column of clothing toggles (three shirt icons, one selected with a dotted ring).
+  - A vertical size slider between a small and a tall figure icon.
+  - A grid of 15 painted face portraits, the selected one with a gold border and a check.
+  - A yellow "Next" button.
+- **Our gaps:**
+  - We have no painted portrait art. A painted set is new art, and the owner chooses its source.
+  - Our only survivor model is female, and the owner has not yet answered whether to make a male one.
