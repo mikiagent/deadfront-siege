@@ -1,6 +1,6 @@
 # W2-DATA report: item and recipe data, material ladder, nets, armour bands
 
-Branch `claude/mmo-w2-data`, merged with `claude/mmo-overhaul` at 3213777f. Gates ran on 2f2bc9e4 with the hooks
+Branch `claude/mmo-w2-data`, merged with `claude/mmo-overhaul` at 34b6d459. Gates ran on HEADREF with the hooks
 patch applied (scratch tree `work-w2-data`). No dsc worker was used (the owner took DeepSeek off on 2026-10-20),
 so nothing goes in dsc-improvements.md. No credits spent.
 
@@ -10,8 +10,9 @@ so nothing goes in dsc-improvements.md. No credits spent.
   reachable.** New `tin_ore` (TinOreNode family, temperate and tundra, needs a flint pick) and `tin_ingot`.
   Smelting happens at a new fuelled **forge** (`forge_kit`, place_as `forge`): tin, copper (`copper_ore`), iron
   (`black_iron`), bronze alloy (2 copper + 1 tin + fuel gives 2 bronze) and steel (2 iron + 2 fuel). The old
-  `ore` → `ingot` recipe is now "Crude Ingot" at the forge with fuel. `ore` (Rough Ore) comes from granite
-  boulders with a pick.
+  `ore` → `ingot` recipe is now "Crude Ingot" at the forge with fuel. `ore` (Rough Ore) is a 0–1 byproduct of
+  the desert copper node and needs an obsidian pick, like the copper ore beside it (it used to come from granite
+  boulders, which grow on the home grassland; see "Vision fixes").
 - **Named tools on every rung:** `<tier>_knife/_axe/_pick` plus `<tier>_spear` (bone, flint, obsidian) or
   `<tier>_sword` (copper, bronze, iron, steel), 28 items. Bone and flint/obsidian are made at the workbench,
   metals at a new **anvil** (`anvil_kit`). Base stats match the generic archetypes; the tier step comes from
@@ -51,6 +52,39 @@ so nothing goes in dsc-improvements.md. No credits spent.
   ladder, the pick chain, no ungated recipe turns obsidian or metal into gear, and a hook 6 check that
   `progression_block` refuses `smelt_copper` until `smelting_1` is learned.
 
+- **Processing is mandatory (vision fix 1).** Rope is twisted from twine only, hide straps are cut from dried
+  hide only, and every armour, tent and bed hide slot takes `cured_hide` (dried hide or straps), never raw hide.
+- **No ore on the home grassland (vision fix 2).** Metal starts on the desert and volcanic islands.
+- **The walk follows the islands that exist.** t_data gathers on the islands islands.json lists (their climate
+  and tier) and butchers only the species those islands spawn. A second walk covers the start island alone.
+
+## Vision fixes (both cited lines checked)
+
+1. `docs/prd/durango-wild-lands-systems-prd.md:531` reads "Stalks / reeds → twine → rope" and `:533` reads
+   "Hide → dried hide → straps". Both say what the task says. Changes (items.json, recipes.json):
+   - `twine` gets a `twine` category; the `rope` slot takes `twine` x3 (it took any `lashing`: reed, root,
+     vine, bark, tendon, straps, rope).
+   - `dried_hide` gets `dried_hide` and `cured_hide`; `hide_strap` gets `cured_hide`. The `hide_strap` slot
+     takes `dried_hide` (it took `uncut_hide`, which includes raw and raptor hide).
+   - All 33 recipes with a `hide` slot now take `cured_hide`: tent_kit, cabin_bed_kit (staged), the forager,
+     leather, hide-and-bone, raid, copper, bronze, iron and steel armour.
+   - Dried hide and twine come first on the start island. Twine is a hand recipe from fibre (the grassland has
+     fibre_stalk). Dried hide is the existing `dried_hide` recipe at the drying rack (raw hide from a butchered
+     compsognathus or zebraceratops, both on home_grassland; drying_rack_kit is wood + lashing with no
+     station). No processing.json row is needed in this patch. claude/mmo-w2-process already has
+     `stations.drying_rack.recipes.dried_hide` (600 s). t_data's start-island walk proves it:
+     `[t_data] start island: reachable=108 twine ~2.3 s dried_hide ~5.1 s hide_strap ~3.5 s rope ~8.9 s, metal []`,
+     and it asserts twine, dried_hide, hide_strap, rope and tent_kit are all reachable there.
+2. `docs/design/world-design.md:66` (the Grassland row) lists "fibre_stalk, branch, stone, herb_leaf, berries,
+   clay", with no ore. The desert row lists copper_ore (tiers 35, 50) and the volcanic row lists black_iron (60).
+   Changes (hook 9): GraniteBoulder (grassland and temperate) loses its `ore` yield, and CopperOreNode gains it.
+   The new t_data check fails if the start-island walk reaches any item with the `ore` or `metal` category.
+   Every rung stays reachable through the islands that exist (desert_35/50, temperate_20/25/35/45,
+   tundra_30/55, tropical_25/40, volcanic_60).
+   Side effect of the honest walk: snowfield and blue_tropical have no island, so `silver_ore`, `pearl`,
+   `coral` and `blue_dye` had no real source. Those four items are now `source_pending` (the reason is in
+   items.json), and the `blue_dye` recipe (coral at the mortar) is `staged` until a blue_tropical island exists.
+
 ## Acceptance (scratch tree on 2f2bc9e4 + hooks patch)
 
 | Item | Result |
@@ -67,7 +101,8 @@ so nothing goes in dsc-improvements.md. No credits spent.
 ### Ladder numbers against the specs
 
 Seconds are the walk's gathering + crafting time for the dearest tool of the rung, stations and travel
-excluded. "Skill gate" is the trees.json level of the rung recipes' `requires_node`.
+excluded. Rerun on HEADREF with the island-driven walk: the same numbers to the decimal, so the vision fixes
+did not move a rung. "Skill gate" is the trees.json level of the rung recipes' `requires_node`.
 
 | Rung | Seconds | Skill gate | Its ore needs | Ore found on (island level) |
 |---|---|---|---|---|
@@ -96,7 +131,14 @@ What contradicted the specs and was fixed this round:
 - Net tiers match the capture techniques (trees.json survival 15/25/35/45/55 → nets I–V, species tiers as
   listed in trees.json). Nothing contradicted. Net I stays ungated even though trees.json lists
   `capture_tool_1` "craft capture net I". CaptureSystem already needs Capture Technique I for any net
-  capture, and `bot_survivor` crafts net I, so a recipe gate would add nothing but a break.
+  capture, and `bot_survivor` crafts net I, so a recipe gate would add nothing but a break. Spec 02: "initial
+  quadruped capture near level 15 is a historical reference", which matches Capture Technique I at Survival 15.
+- Processing levels: spec 11's table lists "Basic Processing; Rope" at 1, "Leather Strap" at 10 and "Dry
+  Leather" at 15, and trees.json `processing` has `cordage` 1 (twine, rope) and `drying` 10 (dried hide,
+  straps). Rope, dried hide and straps stay ungated, the same rule as the early kits. A `drying` gate would put
+  the starter tent behind Processing 10, and the vision fix asks for dried hide on the start island before
+  anything needs it. The spec's own words for those levels are "should be verified", so nothing is contradicted.
+  If W2-SKILLS or the owner wants the gate, it is one `requires_node: "drying"` per recipe.
 
 ### The new checks fail on the old behaviour
 
@@ -104,14 +146,24 @@ What contradicted the specs and was fixed this round:
   the rung below it (has stone)`, `[t_data] FAIL BlackIronNode black_iron needs a bronze pick, the rung below
   it (has copper)`, `[t_data] FAIL progression_block refuses smelt_copper until smelting_1 is learned (before '',
   after '')`.
+- Old recipes.json (before 264950b4): `[t_data] FAIL recipe rope slot lashing takes ["bark_strip", "reed", "root",
+  "twine", "rope", "hide_strap", "vine", "predator_tendon"]; rope is twisted from twine only`, `[t_data] FAIL recipe
+  hide_strap slot uncut_hide takes raw raw_hide; raw hide is dried first (Hide -> dried hide -> straps)`, and the
+  same line for raptor_hide and for every armour, tent and bed recipe (tent_kit, cabin_bed_kit, raid_helm …
+  steel_greaves).
+- GraniteBoulder `ore` restored (the old hook 9): `[t_data] FAIL start island yields no metal, but ore comes from
+  gather GraniteBoulder (grassland)`, `… but ingot comes from recipe ingot`, `… but metal_shard comes from recipe
+  metal_shards`. The forge and the anvil were reachable on the home island.
+- run_all hook 12 on the old recipes.json: RUNALL_OLD
 - Mutation (steel_ingot back in `blade_mat`, smelt_iron back to 10 s): `[t_data] FAIL ungated recipe work_pick
   takes steel_ingot (steel tier) as its primary` (also improvised_stone_knife, work_axe, hoe) and
   `[t_data] FAIL rung iron tools (~50.0 s) cost at least the rung below (~79.4 s)`.
 
 ## requires_node ids against both trees.json files
 
-All 16 ids exist on `claude/mmo-overhaul` and on `claude/mmo-w2-skills` (65853f76), in the same tree at the
-same level. **W2-SKILLS must keep these ids:** `work_pick`, `combat_knife`, `copper_tools`, `blade_shapes`,
+Rechecked this round with `git show <ref>:game/data/skills/trees.json`. All 16 ids exist on
+`claude/mmo-overhaul` (34b6d459) and on `claude/mmo-w2-skills` (e33c4d75), in the same tree at the same level.
+This round adds no new `requires_node`. **W2-SKILLS must keep these ids:** `work_pick`, `combat_knife`, `copper_tools`, `blade_shapes`,
 `iron_weapons`, `hammer` (weapon_tools); `smelting_1`, `smelting_2`, `nails_pillars` (processing);
 `armor_1`, `scute_armor` (tailoring); `furnace_kiln` (construction); `steam`, `antivenom`, `antibiotic`
 (cooking); `fertilizer` (farming). t_data fails loudly if any of them goes missing. W2-SKILLS' hook H1 adds
@@ -120,7 +172,9 @@ independent, so H1 needs a rebase onto hook 6 and nothing else.
 
 ## Integrator hooks (`docs/orchestration/reports/claude-mmo-w2-data-hooks.patch`)
 
-`git apply --check` is clean on `claude/mmo-overhaul` 3213777f and on the branch.
+`git apply --check` is clean on `claude/mmo-overhaul` 34b6d459 and on the branch (HEADREF). The branch has no
+edits to `nature_manifest.json` or `world/rules.json` (`git diff claude/mmo-overhaul HEAD --` on both is
+empty). Every edit to them is in hooks 9 and 10, with its reason given below.
 
 1. `build_placer.gd _spawn`: `&"forge"` and `&"anvil"` → `CraftStation.make(...)`. W2-BUILDSYS also needs
    `forge`/`anvil` rows in structures.json `placed_kinds`.
@@ -130,7 +184,10 @@ independent, so H1 needs a rebase onto hook 6 and nothing else.
 5. `data/ui_icons.json`: `station_forge` uses station_fire.svg and `station_anvil` uses
    station_grindstone.svg until FORGEART/W1-UIICONS draw their own.
 6. `crafting.gd progression_block`: enforce `requires_node` with `_node_unlocked(player, node)`, which finds
-   the node's tree in `SkillState.defs` and calls `is_unlocked`. Tested by t_data `_check_node_gate`.
+   the node's tree in `SkillState.defs` and calls `is_unlocked`. Tested by t_data `_check_node_gate`. Also
+   new this round: `_category_hint` and `sample_def_for_category` map `cured_hide` to `dried_hide`, so a
+   blocked recipe says "Needs Dried Hide" and shows the dried-hide icon, not "Needs Cured Hide" with the
+   fallback icon.
 7. `harvest_node.gd OPTION_TOOLS`: pine_log, snow_pine, willow_wood and acacia_wood need an axe.
 8. `item_def.gd` (W2-INV): `market_category`, `rarity` and `insulation` fields parsed from items.json.
 9. `data/nature_manifest.json` (W1-ITEMS / W2-SCATTER / W3-NATUREART own it), each edit below.
@@ -140,6 +197,10 @@ independent, so H1 needs a rebase onto hook 6 and nothing else.
 11. `tests/t_items.gd` (W1-ITEMS): the pick-gate expectations follow hook 9. Black iron says "needs bronze
     pick" and refuses a copper pick. Flint says "needs bone pick" and refuses a stone pick. The minimum-tier
     speed comparison uses a bone pick.
+12. `tests/run_all.gd` `_test_hide_strap_no_self_input` (integrator file): raw_hide and raptor_hide must now be
+    refused by the hide_strap recipe ("raw hide %s is dried before cutting straps"). dried_hide stays eligible,
+    and the output, count and level checks are unchanged. Without this hook run_all fails on the branch with
+    `uncut hide remains eligible raw_hide`.
 
 Hook 9, `nature_manifest.json`, edit by edit:
 - `TinOreNode` family (reuses the silver-ore model, temperate and tundra, `tin_ore` needs a flint pick).
@@ -148,8 +209,9 @@ Hook 9, `nature_manifest.json`, edit by edit:
   ladder fix above).
 - `Cactus` yield `spine` → `cactus_spine` (`spine` is not an item); `ore_chunk` removed from `Rock` (not an
   item; removing it also keeps Rock's single stone yield that t_items' depletion test reads).
-- `GraniteBoulder` yields `ore` 0–1 with `min_pick_tier {"ore": "stone"}`. That is the only source for
-  Rough Ore, which the Crude Ingot recipe needs.
+- `CopperOreNode` (desert) also yields `ore` 0–1 with `min_pick_tier {"ore": "obsidian"}`. That is the only
+  source for Rough Ore, which the Crude Ingot recipe needs. GraniteBoulder is unchanged from base. Last round
+  gave it the ore, but it grows on the home grassland, and world-design.md:66 gives the grassland no ore.
 - Extra yields on natural families for items that had no source: `pine_log` (PineTree), `snow_pine`
   (PineTree_Snow), `willow_wood` (Willow, 1–2), `leech` (Lilypad), `lava` (LavaRockNode), `root` (TreeStump,
   TreeStump_Moss, tree_stump), `mushroom` (Plant) and `spice_herb` (HerbPlant), all 0–1 unless noted. Without them t_data's
@@ -167,6 +229,9 @@ Not in the patch (follow-ups for their owners):
 - Forge and anvil models (FORGEART, after this merges); they use the CraftStation fallback box today.
 - The server craft path (`intent_handlers.gd _craft`) checks `required_survival` and `min_level` but not
   `requires_node`, because CharacterState keeps tree levels only. Online gating needs W3-SRVACT.
+- `bot_survivor.gd CATEGORY_ITEMS` has no `twine` entry. Rope now takes the `twine` category, so the bot's
+  `_grind` skips rope ("category twine has no gatherable item mapped") and goes on with twine, charcoal and
+  plank. W1-QA: add `"twine": ["twine"]` so `_acquire_for` falls through to the twine recipe.
 - `bot_survivor.gd` lists flint for `blade_mat`; flint no longer fills it and now needs a bone pick. The
   bot still makes its first tools from stone. W1-QA should drop flint from that list.
 - W2-GATHER (unmerged) should re-check its gather tests against the raised flint and black-iron gates.
@@ -185,6 +250,10 @@ Not in the patch (follow-ups for their owners):
 - Insulation points: travel 1/1, forager 1/2, hide_bone 2/0, leather 2/1, metal 1/0.
 - Repairs restore 50 % for one unit of the tier material.
 - The walk's capture and taming times (60/120 s) only feed the time log.
+- Rough ore is a 0–1 byproduct of the desert copper node and needs an obsidian pick. world-design.md lists the
+  desert's crater as "mineral (copper, salt)", and the copper node is the first metal node.
+- `cured_hide` means dried hide or a hide strap. Slot counts are unchanged, so one dried hide cut into two
+  straps fills two `cured_hide` units (the task allows "dried hide/leather or straps"). Rope still takes 3.
 - Faction crate mapping: fatigue_tonic → camp_stew, medicine → pressure_dressing, rare_seed → corn_seed,
   seeds → flax_seed, nails → metal_shard, technical_workbench_kit → anvil_kit, weapon_parts → hide_strap,
   armor_parts → armor_scute, farming_tools → hoe, elixir_ingredient → marsh_herb.
@@ -203,7 +272,12 @@ Not in the patch (follow-ups for their owners):
 - Not touched by this package: gather-03 (latent attribute stamping is code), climate-01 (weather) and the
   Durango trait/alloy effects from prompt 04 (W2-PROCESS/W2-CRAFT).
 - No screenshots: this package changes data only. New harvest options on existing nodes, TinOreNode on
-  temperate/tundra islands and rough ore on granite boulders were not checked in pixels.
+  temperate/tundra islands, rough ore on desert copper nodes and the "Needs Dried Hide" craft hint were not
+  checked in pixels.
+- **Snowfield and blue_tropical have no island** in islands.json, so `silver_ore`, `pearl`, `coral` and
+  `blue_dye` are `source_pending` and the `blue_dye` recipe is staged. Whoever adds those islands (W2-SPAWN /
+  W1-BIOME) should drop the four `source_pending` fields and the recipe's `implementation_status`. t_data then
+  walks the new island automatically.
 - Labs to register: none new. t_data runs like the other t_*.gd.
 
 ## What is left (exact next steps)
