@@ -74,6 +74,24 @@ new `game/scripts/skills/skill_rules.gd`, new `game/tests/t_w2_skills.gd`, and `
 `game/scripts/dev/skills_lab.gd` (H13).
 The rev-1 goldens `save_v3_golden.json` and `save_v3_away_golden.json` are byte-identical to the base.
 
+## Sync 1 before integration (claude/mmo-overhaul @ 18ef7091, W2-DATA merged; branch merge 89cce919, hooks dbe1e006)
+
+- Merge of claude/mmo-overhaul: no conflicts. The hooks patch failed `git apply --check` on the new base only in
+  `crafting.gd` (W2-DATA's hooks landed its own `requires_node` check). It was regenerated on 18ef7091 with the
+  resolution tried in Review r7: H1's `SkillRules.recipe_block` block kept, W2-DATA's three `requires_node`
+  lines and `_node_block()` dropped (no other caller). `git apply --check` on claude/mmo-overhaul: clean. No game code changed on the branch.
+- Gates in scratch `trees/sync-w2-skills` (mkscratch at dbe1e006 with the hooks): `--import` 0 SCRIPT ERROR;
+  all 21 `t_*.gd` PASS, only t_save prints SCRIPT ERROR (its 5 deliberate ones);
+  `[t_data] smelt_copper gate: before 'learn Smelting 1 (Processing Lv. 25, 15 SP)...`, `[t_data] PASS items=223 recipes=155`;
+  `[t_w2_skills] catalog 213 of 918 nodes: functional 34 (16 of them through requires_node)...`,
+  `[t_w2_skills] recipes gated by requires_node: 56`, `[t_w2_skills] PASS`; `[t_save] rev-1 skills migrate: 19 nodes kept, SP 539/802`;
+  run_all `[tests] PASS`; `tools/smoke.sh --no-import` `SMOKE PASS`.
+- Labs, 0 SCRIPT ERROR and 0 "couldn't resolve track" each: skills_lab `[skill] PASS level-up pays 10 SP, small_field bought`;
+  capture_lab `[capture] PASS bonded+=2`; ui_family_lab `[uifamily] inventory=true animals=true unlimited=true active_cap=3`;
+  ui_real_capture_lab on gl_compatibility at 844x390 and 1600x900 `[uireal] PASS screens=hud,craft,skills,...`.
+  Looked at craft and skills at 1600x900 and craft at 844x390: render as before, Charcoal reads "Locked".
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (34 before and after).
+
 ## Review r8 (findings on r7 @ 8c2ec045; fixed at 99b135aa, hooks 77d54a50, base merged at 2091bc9a)
 
 Base: claude/mmo-overhaul moved to 73527576 (specs 15-17, STATUS and three reference images; no game/ file). It
@@ -583,7 +601,8 @@ skills_lab:
 
 - **H1** `game/scripts/items/crafting.gd` `progression_block()`: check `SkillRules.recipe_block` first. This makes
   the recipe gates real. station_craft and craft_ui already route through `progression_block`. After the W2-DATA
-  merge it is the only `requires_node` check (drop W2-DATA's lines and `_node_block()`; tried in Review r7).
+  merge it is the only `requires_node` check (W2-DATA's lines and `_node_block()` are dropped; the patch is
+  regenerated on 18ef7091, which has them, so it applies as is).
 - **H2** `game/scripts/core/data.gd` `bonded_cap()`: `SkillRules.bonded_capacity(PlayerRegistry.local().skills)`,
   or 3 with no player. This replaces "unlimited", per spec 09. It is the one bonded-cap function. It reaches
   field_tame.apply_feed, player_pets.bond_from_inventory and (on the branch) taming_pen. The market's caged-pet
