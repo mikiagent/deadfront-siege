@@ -147,6 +147,8 @@ func _rebuild() -> void:
 	for child in _active.get_children():
 		child.queue_free()
 	_pin_active()
+	if player != null: # spec 09:50: bonded count and max in the pets UI ("3 / 4")
+		_title.text = "ANIMALS    ·    BONDED %d / %d    ·    GROWTH" % [player.bonded.size(), Data.bonded_cap()]
 	if player == null or player.bonded.is_empty():
 		_detail.text = "No bonded animals yet. Knock one down and feed it to add it to your roster."
 		_summon.visible = false
@@ -228,7 +230,8 @@ func _show_detail(rec: PetRecord) -> void:
 			growth += "%s\n    %s    +%d growth    EV %d\n" % [stat_name, genes.tier_for(stat), int(genes.level_gains.get(stat, 0)), int(genes.evs.get(stat, 0))]
 	var name := str(rec.species).capitalize()
 	_detail.text = "%s\nLv. %d          Grade %s\nXP %.0f / %.0f\n\nHP              %.0f\nAttack          %.0f\nDefense         %.0f\nSpeed           %.0f\nHunger          %.0f / %.0f\n\nGROWTH / POTENTIAL\n%s\nLevel-ups add three random growth points. Training can focus EVs up to the species limits." % [name, rec.level, rec.grade, rec.xp, xp_need, rec.hp, rec.attack, rec.defense, rec.speed, rec.hunger, rec.hunger_max, growth]
-	_summon.text = "DISMISS" if _is_out(rec) else ("EQUIP   (%d / %d)" % [player.live_pets().size(), Player.MAX_PETS_OUT])
+	# "ACTIVE": the title's BONDED n / cap is the roster; this is how many are out (W2-SKILLS H10).
+	_summon.text = "DISMISS" if _is_out(rec) else ("EQUIP   (ACTIVE %d / %d)" % [player.live_pets().size(), Player.MAX_PETS_OUT])
 	_summon.disabled = not _is_out(rec) and player.live_pets().size() >= Player.MAX_PETS_OUT
 
 func _is_out(rec: PetRecord) -> bool:
