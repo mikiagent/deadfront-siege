@@ -1,0 +1,344 @@
+diff --git a/game/data/combat_tuning.json b/game/data/combat_tuning.json
+index 10e308f9..e56995ba 100644
+--- a/game/data/combat_tuning.json
++++ b/game/data/combat_tuning.json
+@@ -35,6 +35,9 @@
+     "min_damage_frac": 0.05,
+     "gravity": 9.8,
+     "damage_per_ranged_level": 0.01,
++    "crit_base": 0.08,
++    "crit_per_ranged_level": 0.002,
++    "crit_mult": 1.75,
+     "xp_per_hit": 2
+   },
+   "evasion_add_scale": 0.01,
+diff --git a/game/scripts/combat/creature_attack.gd b/game/scripts/combat/creature_attack.gd
+index d6281b19..31e42046 100644
+--- a/game/scripts/combat/creature_attack.gd
++++ b/game/scripts/combat/creature_attack.gd
+@@ -73,15 +73,16 @@ static func _deal_damage(attacker: Creature, target: Node, clip: StringName = &"
+ 			return false
+ 		if Telegraph.player_dodged(attacker) or not CombatTuning.roll(hit_chance(attacker, survivor)):
+ 			print("[combat] dodged %s %s" % [attacker.def.id, attacker.anim.current_clip])
++			CombatFx.pop_number(survivor, 0.0, &"dodge")
+ 			return false
+ 		survivor.refresh_equipment_vitals()
+ 		var defn := (CombatTuning.num("creature_melee", "player_base_defense", 20.0) + survivor.inventory.equipped_armor()) * survivor.statuses.defense_mult()
+ 		var dealt := mitigated(atk, defn)
+-		if CombatTuning.roll(attacker.crit_chance()):
++		var crit := CombatTuning.roll(attacker.crit_chance())
++		if crit:
+ 			dealt *= crit_mult
+-			attacker.combat_float.emit(dealt, &"crit")
+ 		survivor.vitals.take_damage(dealt)
+-		survivor.take_hit_fx(dealt, clip == &"attack_heavy")
++		survivor.take_hit_fx(dealt, clip == &"attack_heavy", crit)  # the crit number goes over the survivor, not the attacker
+ 		IsoCamera.shake(survivor, CombatTuning.num("camera", "heavy_hit" if clip == &"attack_heavy" else "player_hit", 0.35))
+ 		print("[combat] %s hit player dmg=%.1f clip=%s" % [attacker.def.id, dealt, attacker.anim.current_clip])
+ 		return true
+diff --git a/game/scripts/combat/status_effects.gd b/game/scripts/combat/status_effects.gd
+index 8dbe4761..ccd22c0d 100644
+--- a/game/scripts/combat/status_effects.gd
++++ b/game/scripts/combat/status_effects.gd
+@@ -210,9 +210,8 @@ func _dot(inst: StatusInstance) -> void:
+ 			var origin: Node = inst.source if is_instance_valid(inst.source) else null
+ 			if inst.siege_origin and is_instance_valid(inst.siege_origin.get_ref()):
+ 				origin = inst.siege_origin.get_ref()
++			cr.next_hit_kind = &"dot"  # one small number per tick: a second emit printed every tick twice
+ 			cr.health.take_damage(dealt, origin)
+-			if cr.has_method("on_status_tick_damage"):
+-				cr.on_status_tick_damage(inst.id, dealt)
+ 	elif host is Player:
+ 		var pl := host as Player
+ 		if def.dps_max_hp_frac > 0.0:
+diff --git a/game/scripts/combat/stone_projectile.gd b/game/scripts/combat/stone_projectile.gd
+index f86c5073..c0fdf770 100644
+--- a/game/scripts/combat/stone_projectile.gd
++++ b/game/scripts/combat/stone_projectile.gd
+@@ -57,7 +57,12 @@ func impact(victim: Creature) -> void:
+ 	var tune := CombatTuning.section("ranged")
+ 	var raw := maxf(damage * float(tune.get("min_damage_frac", 0.05)), damage - victim.defense_for(true) * victim.statuses.defense_mult() * float(tune.get("defense_factor", 0.5)))
+ 	var dealt := raw * (1.0 + float(tune.get("damage_per_ranged_level", 0.01)) * skill_level) * CombatCounters.multiplier(victim.def.archetype, &"blunt")
+-	victim.next_hit_kind = Hunt.effectiveness(victim, &"blunt")
++	var kind := Hunt.effectiveness(victim, &"blunt")
++	# ASSUMPTION: shots crit like swings (spec 24: the owner's bow crit), without the from-behind bonus.
++	if CombatTuning.roll(float(tune.get("crit_base", 0.08)) + float(tune.get("crit_per_ranged_level", 0.002)) * skill_level):
++		dealt *= float(tune.get("crit_mult", 1.75))
++		kind = &"crit"
++	victim.next_hit_kind = kind
+ 	victim.health.take_damage(dealt, source)
+ 	if source.skills: source.skills.add_xp("ranged", int(tune.get("xp_per_hit", 2)))
+ 	source.hunt.wear_weapon(weapon)
+diff --git a/game/scripts/creatures/creature.gd b/game/scripts/creatures/creature.gd
+index 6c893344..ecef4ba0 100644
+--- a/game/scripts/creatures/creature.gd
++++ b/game/scripts/creatures/creature.gd
+@@ -706,12 +706,6 @@ func hit_burst(col: Color, radius: float = 0.1, count: int = 12, life: float = 0
+ func _on_healed(amount: float) -> void:
+ 	combat_float.emit(amount, &"heal")
+ 
+-func on_status_tick_damage(id: StringName, amount: float) -> void:
+-	if id == &"bleed" or id == &"deep_bleed" or id == &"bleeding_target":
+-		combat_float.emit(amount, &"dot")
+-	else:
+-		combat_float.emit(amount, &"hit")
+-
+ func _fall_guard() -> void:
+ 	# Same rule as the player: below -15 m the creature is put back on the surface.
+ 	if global_position.y > -15.0:
+diff --git a/game/scripts/player/player.gd b/game/scripts/player/player.gd
+index 27e000c5..66b0f10f 100644
+--- a/game/scripts/player/player.gd
++++ b/game/scripts/player/player.gd
+@@ -288,11 +288,12 @@ func play_attack(heavy: bool = false) -> void:
+ 	if anim:
+ 		anim.on_attack(heavy)
+ 
+-## Bite/crunch overlay and a red damage number over the survivor (HUD).
+-func take_hit_fx(amount: float, heavy: bool) -> void:
++## Bite/crunch overlay (HUD) and a red damage number over the survivor (CombatFx; a crit starts bigger).
++func take_hit_fx(amount: float, heavy: bool, crit: bool = false) -> void:
+ 	var hud := get_tree().get_first_node_in_group("hud")
+ 	if hud and hud.has_method("bite_on_player"):
+ 		hud.bite_on_player(amount, heavy)
++	CombatFx.pop_number(self, amount, &"crit" if crit else &"hit")
+ 
+ func toast(id: StringName, n: int) -> void:
+ 	var hud := get_tree().get_first_node_in_group("hud")
+diff --git a/game/scripts/ui/creature_plates.gd b/game/scripts/ui/creature_plates.gd
+index 88e493ba..a5917dc1 100644
+--- a/game/scripts/ui/creature_plates.gd
++++ b/game/scripts/ui/creature_plates.gd
+@@ -20,6 +20,8 @@ var _corpse_entries: Dictionary = {} ## corpse instance id -> Dictionary
+ var _icons: Dictionary = {}
+ var _icon_cache: Dictionary = {}
+ var _emphasis_id: int = 0
++## Damage numbers (spec 24, CombatFx), drawn above the plates.
++var fx: CombatFx
+ 
+ func _ready() -> void:
+ 	layer = 58
+@@ -27,6 +29,9 @@ func _ready() -> void:
+ 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+ 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ 	add_child(_root)
++	fx = CombatFx.new()
++	fx.name = "CombatFx"
++	add_child(fx)
+ 	_load_icon_manifest()
+ 
+ func reveal_creature(creature: Creature, seconds: float = 3.0) -> void:
+@@ -45,6 +50,7 @@ func _process(delta: float) -> void:
+ 	# This layer (58) is above the HUD's: a plate drew over an open HUD sheet.
+ 	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
+ 	_root.visible = hud == null or not hud.sheet_open()
++	fx.visible = _root.visible
+ 	_tick_creatures(cam, player, delta)
+ 	_tick_corpses(cam, player, delta)
+ 
+@@ -133,7 +139,9 @@ func _separate_visible_creature_plates() -> void:
+ 	# before it (lifting only, a portrait plate climbed off the top), or hides when there is none.
+ 	# World pills do not count: the plate is opaque over them on purpose.
+ 	var hud := get_tree().get_first_node_in_group("hud") as HuntHud
+-	var hud_rects: Array[Rect2] = hud.taken_rects(PackedStringArray(["pill"])) if hud else []
++	var hud_rects: Array[Rect2] = []  # a typed array: `... if hud else []` was a SCRIPT ERROR with no HUD
++	if hud:
++		hud_rects = hud.taken_rects(PackedStringArray(["pill"]))
+ 	var view := get_viewport().get_visible_rect().size
+ 	for node in visible:
+ 		var pos := node.position
+@@ -289,11 +297,6 @@ func _ensure_entry(c: Creature) -> Dictionary:
+ 	xp_fill.size = Vector2(0, 4)
+ 	xp_fill.color = Color(0.90, 0.72, 0.22, 0.95)
+ 	xp_bg.add_child(xp_fill)
+-	var floats := Control.new()
+-	floats.name = "Floats"
+-	floats.mouse_filter = Control.MOUSE_FILTER_IGNORE
+-	floats.set_anchors_preset(Control.PRESET_FULL_RECT)
+-	root.add_child(floats)
+ 	var cb := _on_creature_float.bind(c)
+ 	if not c.combat_float.is_connected(cb):
+ 		c.combat_float.connect(cb)
+@@ -314,8 +317,6 @@ func _ensure_entry(c: Creature) -> Dictionary:
+ 		"pill": pill,
+ 		"xp_bg": xp_bg,
+ 		"xp_fill": xp_fill,
+-		"floats": floats,
+-		"float_nodes": [],
+ 		"alpha": 0.0,
+ 		"reveal_until": 0.0,
+ 		"hp_frac": 1.0,
+@@ -423,7 +424,6 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
+ 	_tick_status_icons(entry, c)
+ 	_tick_tame_hint(entry, c, player, rows)
+ 	_tick_xp(entry, c, full)
+-	_tick_floaters(entry, delta)
+ 	_fit_pill(entry, full)
+ 
+ ## Pill behind whatever rows are showing (compact: just the short bar).
+@@ -578,101 +578,12 @@ func _has_status(statuses: StatusEffects, id: StringName) -> bool:
+ 	return statuses.get_instance(id) != null
+ 
+ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
+-	var key := c.get_instance_id()
+-	if not _entries.has(key):
+-		return
+-	if amount < 0.5 and kind != &"heal" and kind != &"xp" and kind != &"dodge":
+-		return  # a bleed tick under 1 HP read "-0" over the plate
+-	var entry: Dictionary = _entries[key]
+-	var layer := entry["floats"] as Control
+-	var label := Label.new()
+-	var shown := "%d" % int(round(amount))
+-	if kind == &"heal":
+-		shown = "+%s" % shown
+-	elif kind == &"xp":
+-		shown = "+%s XP" % shown
+-	elif kind == &"dodge":  # a dodged hit emits 0.0; it read "-0" over the plate
+-		shown = "DODGE"
+-	else:
+-		shown = "-%s" % shown
+-	# White = normal, grey = not very effective, orange = super effective, red = critical.
+-	var col := Color(1.0, 1.0, 1.0)
+-	var fs := 16
+-	match kind:
+-		&"heal":
+-			col = Color(0.45, 1.0, 0.5)
+-		&"xp":
+-			col = Color(1.0, 0.85, 0.35)
+-			fs = 15
+-		&"dot":
+-			col = Color(0.95, 0.4, 0.4)
+-			fs = 14
+-		&"weak", &"dodge":
+-			col = Color(0.62, 0.62, 0.62)
+-			fs = 14
+-		&"strong":
+-			col = Color(1.0, 0.6, 0.15)
+-			fs = 20
+-		&"crit":
+-			col = Color(1.0, 0.18, 0.12)
+-			fs = 24
+-			shown += "!"
+-	label.text = shown
+-	label.position = Vector2(70 + randf_range(-16.0, 16.0), 12)
+-	label.add_theme_font_size_override("font_size", fs)
+-	label.add_theme_color_override("font_color", col)
+-	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+-	label.add_theme_constant_override("outline_size", 4 if fs >= 20 else 3)
+-	layer.add_child(label)
+-	var nodes: Array = entry.get("float_nodes", [])
+-	nodes.append({"node": label, "age": 0.0})
+-	entry["float_nodes"] = nodes
+-	_entries[key] = entry
++	fx.add_number(c, amount, kind)
+ 
+-## Status name in its colour (BLEED, VENOM, GROGGY...) rising a little slower than numbers.
++## Status name in its colour (BLEED, VENOM, GROGGY...), laned with the numbers above the plates.
+ func _on_status_float(id: StringName, c: Creature) -> void:
+-	var key := c.get_instance_id()
+-	if not _entries.has(key):
+-		return
+-	var entry: Dictionary = _entries[key]
+-	var layer := entry["floats"] as Control
+ 	var def := Data.status(id)
+-	var label := Label.new()
+-	label.text = (def.display_name if def else str(id)).replace("_", " ").to_upper() + ("!" if def == null else "")
+-	var nodes: Array = entry.get("float_nodes", [])
+-	# Statuses applied together (knockdown + groggy + bleed) stack down over the plate instead of
+-	# printing over each other; stacked upward they rose into the HUD above a lifted plate.
+-	var y0 := -6.0
+-	for row in nodes:
+-		y0 += 18.0 if (row as Dictionary).has("y0") else 0.0
+-	label.position = Vector2(40 + randf_range(-10.0, 10.0), y0)
+-	label.add_theme_font_size_override("font_size", 15)
+-	label.add_theme_color_override("font_color", Creature.status_color(id))
+-	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+-	label.add_theme_constant_override("outline_size", 3)
+-	layer.add_child(label)
+-	nodes.append({"node": label, "age": -0.3, "y0": y0})
+-	entry["float_nodes"] = nodes
+-	_entries[key] = entry
+-
+-func _tick_floaters(entry: Dictionary, delta: float) -> void:
+-	var nodes: Array = entry.get("float_nodes", [])
+-	for i in range(nodes.size() - 1, -1, -1):
+-		var row: Dictionary = nodes[i]
+-		var node := row.get("node", null) as Label
+-		if node == null or not is_instance_valid(node):
+-			nodes.remove_at(i)
+-			continue
+-		var age := float(row.get("age", 0.0)) + delta
+-		row["age"] = age
+-		var y0 := float(row.get("y0", 12.0))
+-		node.position.y = y0 - maxf(0.0, age) * 34.0
+-		node.modulate.a = clampf(1.0 - age / 0.9, 0.0, 1.0)
+-		nodes[i] = row
+-		if age >= 0.9:
+-			node.queue_free()
+-			nodes.remove_at(i)
+-	entry["float_nodes"] = nodes
++	fx.add_word(c, (def.display_name if def else str(id)).replace("_", " ").to_upper() + ("!" if def == null else ""), Creature.status_color(id))
+ 
+ func _relation_color(c: Creature) -> Color:
+ 	if c.is_pet:
+diff --git a/game/scripts/ui/hud_event_state.gd b/game/scripts/ui/hud_event_state.gd
+index b4b3bbc5..22c9c15d 100644
+--- a/game/scripts/ui/hud_event_state.gd
++++ b/game/scripts/ui/hud_event_state.gd
+@@ -5,11 +5,10 @@ extends RefCounted
+ var toasts: Array = []
+ var notices: Array = []
+ var bites: Array = []
+-var player_floats: Array = []
+ 
+-func add_bite(amount: float, heavy: bool) -> void:
++## The damage number is CombatFx's (Player.take_hit_fx); the HUD only snaps the jaws.
++func add_bite(_amount: float, heavy: bool) -> void:
+ 	bites.append({"t": 0.0, "heavy": heavy, "x": randf_range(-6.0, 6.0)})
+-	player_floats.append({"t": 0.0, "n": amount, "x": randf_range(-18.0, 18.0)})
+ 
+ func add_notice(text: String) -> void:
+ 	for entry in notices:
+@@ -36,6 +35,3 @@ func tick(delta: float) -> void:
+ 	for entry in bites:
+ 		entry["t"] += delta
+ 	bites = bites.filter(func(entry: Dictionary) -> bool: return entry["t"] < 0.5)
+-	for entry in player_floats:
+-		entry["t"] += delta
+-	player_floats = player_floats.filter(func(entry: Dictionary) -> bool: return entry["t"] < 0.95)
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index b7ac4ea6..90a2ee8f 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -531,15 +531,6 @@ func _draw_bites(cam: Camera3D) -> void:
+ 	if cam == null or player == null:
+ 		return
+ 	var chest := cam.unproject_position(player.get_global_transform_interpolated().origin + Vector3(0, 0.95, 0))
+-	for f in _events.player_floats:
+-		var k: float = f["t"]
+-		var a := 1.0 - smoothstep(0.55, 0.95, k)
+-		var txt := "-%d" % int(round(float(f["n"])))
+-		var fs := 22
+-		var w := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x
+-		var p := chest + Vector2(float(f["x"]) - w * 0.5, -30.0 - k * 46.0)
+-		draw_string(_font, p + Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.8 * a))
+-		draw_string(_font, p, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.25, 0.2, a))
+ 	for b in _events.bites:
+ 		var k: float = b["t"]
+ 		var heavy: bool = b["heavy"]
+diff --git a/game/tests/run_all.gd b/game/tests/run_all.gd
+index 0de559b8..d50894d1 100644
+--- a/game/tests/run_all.gd
++++ b/game/tests/run_all.gd
+@@ -414,9 +414,9 @@ func _test_hud_event_state() -> void:
+ 	events.add_notice("Too far")
+ 	_expect(events.notices.size() == 1, "duplicate notices coalesce")
+ 	events.add_bite(7.0, true)
+-	_expect(events.bites.size() == 1 and events.player_floats.size() == 1, "bite and damage float are paired")
++	_expect(events.bites.size() == 1, "a bite snaps the jaws (its number is CombatFx's)")
+ 	events.tick(4.0)
+-	_expect(events.toasts.is_empty() and events.notices.is_empty() and events.bites.is_empty() and events.player_floats.is_empty(), "expired HUD events are removed")
++	_expect(events.toasts.is_empty() and events.notices.is_empty() and events.bites.is_empty(), "expired HUD events are removed")
+ 
+ func _test_creature_genetics() -> void:
+ 	var rng := RandomNumberGenerator.new()
