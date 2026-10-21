@@ -18,7 +18,8 @@ static func stacks_for_slot(inv: Inventory, slot: Dictionary) -> Array[int]:
 ## Each recipe slot has a lead stack (for the primary item's attributes) and may draw
 ## its remaining units from other stacks. A plan row records exact bag indices/counts.
 ## Prefer dedicated materials over dual-category ones, so fibre stalk is spent before
-## bark that might still be needed as lashing. Leads take the largest matching stack.
+## bark that might still be needed as lashing. Then the least valuable instance (Inventory.spend_key),
+## then the largest matching stack.
 static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Array[Dictionary]:
 	var slots: Array = rec.get("slots", [])
 	if inv == null or slots.is_empty() or (not picks.is_empty() and picks.size() != slots.size()):
@@ -53,6 +54,12 @@ static func _plan(inv: Inventory, rec: Dictionary, picks: Array[int] = []) -> Ar
 					overlaps_b += 1
 			if overlaps_a != overlaps_b:
 				return overlaps_a < overlaps_b
+			# Spec 05:23 (W2-INV): the least valuable instance first, so a default pick never spends a
+			# rare or higher-level one; the player can still pick it.
+			var ka := Inventory.spend_key(sa)
+			var kb := Inventory.spend_key(sb)
+			if ka != kb:
+				return ka < kb
 			var ca := int(remaining.get(a, sa.count))
 			var cb := int(remaining.get(b, sb.count))
 			return ca > cb if ca != cb else a < b)
