@@ -328,9 +328,9 @@ func _test_migration() -> void:
 	var mid: Node = p.skills
 	var p23: int = Rules.paid_for_level(mid, 23)
 	_expect(mid.sp_spent > 0 and mid.sp_earned == maxi(p23, mid.sp_spent) and mid.sp_available == maxi(0, p23 - mid.sp_spent), "a migrated Lv. 23 drops its 848 unspent SP: earned %d, available %d (a new Lv. 23 earns %d, these nodes cost %d)" % [mid.sp_earned, mid.sp_available, p23, mid.sp_spent])
-	_expect(hud.said.size() == 1 and str(hud.said[0]).begins_with("Skill points now come from your character level") and str(hud.said[0]).contains("%d SP to spend" % mid.sp_available), "the first load says once that SP were recomputed: %s" % [hud.said])
+	_expect(hud.said == ["Skill points now follow your level", "All skills kept; %d SP to spend" % mid.sp_available], "the first load says once that SP were recomputed: %s" % [hud.said])
 	mid.from_dict(mid.to_dict())
-	_expect(hud.said.size() == 1, "a rev-2 load shows no migration notice (%d notices)" % hud.said.size())
+	_expect(hud.said.size() == 2, "a rev-2 load shows no migration notice (%d notices)" % hud.said.size())
 	_world().pioneer_level = 59
 	_world().pioneer_changed.emit(59)
 	var buyable_sp := 0
@@ -377,6 +377,12 @@ func _test_sp_from_character_level() -> void:
 	var saved: Dictionary = over.to_dict()
 	over.from_dict(saved)
 	_expect(over.sp_available == 0 and over.sp_extra == 23, "the cover survives a rev-2 save and load (available %d, extra %d)" % [over.sp_available, over.sp_extra])
+	# After the notice fades the sheet still says why SP read 0, and a refund says it pays the debt first
+	# (review: a refund gave 0 SP and used one of the day's refunds with no word).
+	var note: String = over.refund_note("survival", "animal_management_1")
+	_expect(over.sp_text() == "SP 0 · 23 owed by kept skills" and note == "Refund pays off 4 of the 23 owed SP, no SP back", "while 23 SP are owed the sheet says so (header '%s') and what a refund pays (note '%s')" % [over.sp_text(), note])
+	var notice: PackedStringArray = SkillStateS.migration_notice(147, 0)
+	_expect(notice == PackedStringArray(["Skill points now follow your level", "All skills kept; 147 SP owed"]), "the migration notice is two short lines a phone fits (%s)" % [notice])
 	_world().pioneer_level = 1 # character Lv. 2 pays 10: 13 still owed
 	_world().pioneer_changed.emit(1)
 	_expect(over.sp_available == 0 and over.sp_extra == 13, "Lv. 2's 10 SP pay off the kept nodes first (available %d, extra %d)" % [over.sp_available, over.sp_extra])
@@ -449,6 +455,23 @@ func _test_sanitizer_budget() -> void:
 		var forged := {"rev": 2, "sp_extra": 99999, "trees": {"survival": {"level": 40, "xp": 0, "unlocked": bought.duplicate()}}}
 		San._skills(forged, lv[0])
 		_expect(int(forged["sp_extra"]) == lv[1] and (forged["trees"]["survival"]["unlocked"] as Array).size() == 4, "H6: at character Lv. %d a rev-2 sp_extra of 99999 is cut to the 23 SP of nodes beyond the level's SP (%d, got %s)" % [lv[0] + 1, lv[1], forged["sp_extra"]])
+	# The cap at the old award cannot bind today: every tree's nodes up to Lv. L cost less than the old
+	# award for L (worst Survival Lv. 55, 342 of 650 SP), so the tree levels stop a forged save first and
+	# no case can tell the cap from none (review mutant M8). If trees.json ever breaks this, the cap
+	# starts to matter: add a forged rev-2 case that claims more than the award.
+	var award_sk := _fresh(0)
+	var over_award: Array[String] = []
+	for tree in SkillStateS.ORDER:
+		var award := 0
+		for lv in range(1, SkillStateS.MAX_LEVEL + 1):
+			award += award_sk.sp_for_level(lv)
+			var cost := 0
+			for n in award_sk.nodes(tree):
+				cost += int(n.get("sp", 0)) if int(n.get("level", 1)) <= lv else 0
+			if cost > award:
+				over_award.append("%s Lv. %d: %d > %d" % [tree, lv, cost, award])
+	_expect(over_award.is_empty(), "H6: no tree's nodes cost more than the old award of their level, so the sp_extra cap needs a forged case now: %s" % [over_award.slice(0, 3)])
+	_done_with(award_sk)
 	# The cap never trims a real save: a migrated save that levelled past its nodes keeps its new SP
 	# through save, sanitize and load (a fixed sp_extra checked against the new level would lose them).
 	var moved := _fresh(0)
@@ -629,9 +652,33 @@ func _test_sheet_rows() -> void:
 			_expect(btn != null and btn.text == "Refund" and not btn.disabled and why == null, "a free refund leaves Charcoal's Refund active (button %s)" % [btn])
 		else:
 			_expect(btn != null and btn.text == "Refund" and btn.disabled and why != null and why.text.contains("free refunds"), "the day's %d refunds used: Charcoal's Refund is greyed and says why before the tap (disabled %s, reason '%s')" % [used, btn.disabled if btn else null, why.text if why else ""])
+	_done_with(sk)
+	# A save that owes SP for kept nodes: the header says how much, the Refund row what it pays.
+	var owing := _fresh(0)
+	owing.from_dict({"sp_available": 50, "trees": {"survival": {"level": 40, "xp": 0.0, "unlocked": ["island_access_15", "belly_fat_1", "capture_technique_1", "animal_management_1"]}}})
+	sheet.open(owing, "survival")
+	var head := ", ".join(sheet._head.find_children("*", "Label", true, false).map(func (l: Label) -> String: return l.text))
+	var am: Node = sheet._box.get_node_or_null("SkillsNode_animal_management_1")
+	var am_note: Label = am.find_child("RefundNote", true, false) if am else null
+	_expect(head.contains("SP 0 · 23 owed by kept skills") and am_note != null and am_note.text.begins_with("Refund pays off 4 of the 23 owed SP"), "owing 23 SP: the header says so ('%s') and the Refund row says what it pays ('%s')" % [head, am_note.text if am_note else ""])
 	get_root().remove_child(sheet)
 	sheet.free()
-	_done_with(sk)
+	_done_with(owing)
+	# A lock names its prerequisite as the muted rows do ("needs Drying Rack"), not by id ("needs drying_rack").
+	var named := _fresh(59)
+	var raw: Array[String] = []
+	var checked := 0
+	for tree in SkillStateS.ORDER:
+		_grant(named, tree, 60)
+		for n in named.nodes(tree):
+			var req := str(n.get("requires", "")) if n.get("requires") != null else ""
+			var st: Array = named.node_state(tree, n)
+			if req != "" and st[0] == "locked" and str(st[1]).begins_with("needs ") and not named.is_unlocked(tree, req):
+				checked += 1
+				if st[1] != "needs " + str(_node(named, tree, req).get("name", req)):
+					raw.append(str(st[1]))
+	_expect(checked > 0 and raw.is_empty(), "a lock names its prerequisite (%d checked, by id: %s)" % [checked, raw])
+	_done_with(named)
 	_sections += 1
 
 ## Spec 03:40 "test SP accounting and UI vs authoritative state": the level-up banner, where character

@@ -151,6 +151,13 @@ func sp_for_level(level: int) -> int:
 func nodes(tree: String) -> Array:
 	return (defs.get(tree, {}) as Dictionary).get("nodes", [])
 
+## A node's display name ("Skewer" for "skewer"); the id when the tree has no such node.
+func node_name(tree: String, node_id: String) -> String:
+	for n in nodes(tree):
+		if str(n.get("id", "")) == node_id:
+			return str(n.get("name", node_id))
+	return node_id
+
 func is_unlocked(tree: String, node_id: String) -> bool:
 	return (trees.get(tree, {}).get("unlocked", []) as Array).has(node_id)
 
@@ -167,7 +174,7 @@ func node_state(tree: String, node: Dictionary) -> Array:
 		return ["locked", "needs %s %d" % [NAMES.get(tree, tree), int(node.get("level", 1))]]
 	var req: Variant = node.get("requires", null)
 	if req != null and str(req) != "" and not is_unlocked(tree, str(req)):
-		return ["locked", "needs %s" % str(req)]
+		return ["locked", "needs %s" % node_name(tree, str(req))]
 	if sp_available < int(node.get("sp", 0)):
 		return ["locked", "needs %d SP" % int(node.get("sp", 0))]
 	return ["available", ""]
@@ -233,18 +240,32 @@ func refund(tree: String, node_id: String) -> bool:
 ## "" when the learned node `node_id` can be refunded now, else why not. A query, so the sheet can
 ## grey the Refund button and say why before the tap; refund() refuses with the same text.
 func refund_reason(tree: String, node_id: String) -> String:
-	var names := {}
-	for n in nodes(tree):
-		names[str(n.get("id", ""))] = str(n.get("name", n.get("id", "")))
 	for n in nodes(tree):
 		if str(n.get("id", "")) == node_id:
 			if bool(n.get("auto", false)):
 				return "learned automatically"
 			var deps: Array = SkillRules.learned_dependents(self, tree, node_id)
 			if not deps.is_empty():
-				return "%s needs it" % ", ".join(deps.map(func (d: String) -> String: return str(names.get(d, d))))
+				return "%s needs it" % ", ".join(deps.map(func (d: String) -> String: return node_name(tree, d)))
 			return refund_block()
 	return ""
+
+## What refunding `node_id` gives while kept nodes are still owed for (a migrated save): the refund pays
+## that off first, so the sheet says so before the tap. "" when nothing is owed.
+func refund_note(tree: String, node_id: String) -> String:
+	if sp_extra <= 0:
+		return ""
+	for n in nodes(tree):
+		if str(n.get("id", "")) == node_id:
+			var cost := int(n.get("sp", 0))
+			if cost <= sp_extra:
+				return "Refund pays off %d of the %d owed SP, no SP back" % [cost, sp_extra]
+			return "Refund pays off the %d owed SP, then gives %d SP" % [sp_extra, cost - sp_extra]
+	return ""
+
+## The sheet's SP readout; while kept nodes cost more than the level paid it says how much is owed.
+func sp_text() -> String:
+	return "SP %d" % sp_available if sp_extra <= 0 else "SP %d · %d owed by kept skills" % [sp_available, sp_extra]
 
 ## "" while a refund is free today, else why not. docs/design/skills.md:9 "5 free unlearns a day,
 ## then 30 Warp Gems, max 10 a day"; spec 03:37 keeps it configurable (trees.json refund).
@@ -341,7 +362,8 @@ func from_dict(d: Dictionary) -> void:
 		_learn_autos(id)
 	_recount_sp()
 	if rev < REV and int(d.get("sp_available", 0)) + int(d.get("sp_spent", 0)) > 0:
-		_say(_migration_notice())
+		for line in migration_notice(sp_extra, sp_available):
+			_say(line)
 	for id in ORDER:
 		if id == "survival":
 			for nid in trees[id]["unlocked"]:
@@ -365,11 +387,12 @@ func _recount_sp() -> void:
 	sp_earned = paid + sp_extra
 	sp_available = sp_earned - sp_spent
 
-## The one line a migrated rev-1 save shows on its first load: its SP changed, so say how.
-func _migration_notice() -> String:
-	if sp_extra > 0:
-		return "Skill points now come from your character level. Every learned skill is kept; they cost %d SP more than %s pays, so new levels pay that off first." % [sp_extra, LevelDisplay.label(character_level())]
-	return "Skill points now come from your character level. Every learned skill is kept, and you have %d SP to spend." % sp_available
+## What a migrated rev-1 save shows on its first load: its SP changed, so say how. Two short notices:
+## one long line was cut to the view and found no spot at 844x390. The sheet's SP readout (sp_text)
+## keeps the owed SP on screen after they fade.
+static func migration_notice(owed: int, available: int) -> PackedStringArray:
+	var kept := "All skills kept; %d SP owed" % owed if owed > 0 else "All skills kept; %d SP to spend" % available
+	return PackedStringArray(["Skill points now follow your level", kept])
 
 ## On screen through the owning survivor's notice (the HUD exists before World boots the save).
 func _say(text: String) -> void:
