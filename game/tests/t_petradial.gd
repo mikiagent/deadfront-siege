@@ -4,7 +4,10 @@ extends SceneTree
 ## screen on that pet, Bag the pet's bag, Feed feeds it from the survivor's bag, Ride mounts (and the
 ## ring on the mount offers Dismount), Dismiss sends it home, Rename takes the character-name rule.
 ## Absent features are left out; a tap outside closes and does not walk; Esc closes; walking does
-## not close it; tapping the pet mid-fight keeps the fight.
+## not close it; tapping the pet mid-fight keeps the fight. Keys: Space over a hovered segment does not
+## fire it, Tab picks and Enter fires; typing a name does not walk her; the rename card follows a
+## resize. The open ring is a taken rect (plates, toasts and pills keep off it), and the Animals row
+## keeps EQUIPPED readable after a long rename.
 ## Usage: godot --headless --path game --script res://tests/t_petradial.gd
 
 var failures: Array[String] = []
@@ -77,6 +80,7 @@ func _run() -> void:
 	await _test_absent_outside_esc()
 	await _test_rename_rule()
 	await _test_fight_and_walk()
+	await _test_keys_and_layout()
 	host.queue_free()
 	await _frames(2)
 	if failures.is_empty():
@@ -270,4 +274,88 @@ func _test_fight_and_walk() -> void:
 	player.pets.dismiss(rex)
 	player.bonded.erase(rex.pet_record)
 	wild.queue_free()
+	await _frames(2)
+
+func _key(code: Key, unicode: int = 0, held_s: float = 0.0) -> void:
+	var k := InputEventKey.new()
+	k.keycode = code
+	k.physical_keycode = code
+	k.unicode = unicode
+	k.pressed = true
+	# Through Input, like a keyboard: polled movement sees it as well as the GUI.
+	Input.parse_input_event(k)
+	if held_s > 0.0:
+		await create_timer(held_s).timeout
+	else:
+		await _frames(1)
+	var up := k.duplicate() as InputEventKey
+	up.pressed = false
+	Input.parse_input_event(up)
+	await _frames(2)
+
+func _test_keys_and_layout() -> void:
+	var rex = _summon(&"zebraceratops", "REX")
+	await _frames(5)
+	await _open(rex)
+	var r = _radial()
+	if r == null:
+		_expect(false, "no radial for the key and layout checks")
+		return
+	_expect(hud.taken_rects().has(r.ring_rect()), "the open ring is a taken rect: creature plates, toasts and pills keep off it")
+	# Space (roll) with the mouse resting on Bag: no bag. Then Tab picks Feed and Enter fires it.
+	player.inventory.add(ItemStackS.make(&"berries", 3))
+	rex.hunger = 1.0
+	var berries: int = player.inventory.count_of(&"berries")
+	var mm := InputEventMouseMotion.new()
+	mm.position = get_root().get_final_transform() * r.segment_center(r.ids().find(&"bag"))
+	mm.global_position = mm.position
+	get_root().push_input(mm)
+	await _frames(1)
+	await _key(KEY_SPACE)
+	_expect(r.visible and not player.ui.visible, "Space over the hovered Bag does not fire it (ring open %s, bag %s)" % [r.visible, player.ui.visible])
+	player.ui.hide_ui()
+	if r.visible:
+		await _key(KEY_TAB)
+		_expect(r.hot >= 0 and r.ids()[r.hot] == &"feed", "Tab picks the next segment (%s)" % [r.ids()[r.hot] if r.hot >= 0 else "-"])
+		await _key(KEY_ENTER)
+		_expect(not r.visible and rex.hunger > 1.0 and player.inventory.count_of(&"berries") == berries - 1, "Enter fires the picked segment (Feed: hunger %.1f)" % rex.hunger)
+	r.hide_menu()
+	await create_timer(1.0).timeout  # the Space roll runs out
+	# Typing a name: the letter goes into the field and the survivor stays put.
+	await _open(rex)
+	await _tap_segment(&"rename")
+	var dialog = player.pets.get("rename_dialog")
+	var field := dialog.find_child("NameField", true, false) as LineEdit if dialog else null
+	if field == null or not dialog.visible:
+		_expect(false, "the rename dialog for the typing check")
+		return
+	var at: Vector3 = player.global_position
+	await _key(KEY_D, "d".unicode_at(0), 0.4)
+	var moved := Vector2(player.global_position.x - at.x, player.global_position.z - at.z).length()
+	_expect(field.text == "d" and moved < 0.1, "typing d fills the field (%s) and does not walk (%.2f m)" % [field.text, moved])
+	# The window goes to phone size with the dialog open: the card follows it.
+	var win: Vector2i = get_root().size
+	get_root().size = Vector2i(844, 390)
+	await _frames(3)
+	var card := dialog.find_child("Card", true, false) as Control
+	var view: Rect2 = get_root().get_visible_rect()
+	_expect(card != null and view.encloses(card.get_global_rect()) and absf(card.get_global_rect().get_center().x - view.get_center().x) < 2.0,
+		"the rename card follows a resize (card %s, view %s)" % [card.get_global_rect() if card else Rect2(), view])
+	get_root().size = win
+	await _frames(3)
+	# A long name keeps EQUIPPED on the Animals row (the name gives way).
+	field.text = "Abcdefghijklmnopqrst"
+	dialog.submit()
+	hud.open_animals(rex.pet_record)
+	await _frames(2)
+	var screen = hud.find_child("AnimalScreen", true, false)
+	var row := ""
+	for b in (screen.find_children("*", "Button", true, false) if screen else []):
+		if (b as Button).text.begins_with("Abc"):
+			row = (b as Button).text
+	_expect(row.ends_with("EQUIPPED"), "the Animals row keeps EQUIPPED after a long name (%s)" % row)
+	if screen:
+		screen.close_screen()
+	player.pets.dismiss(rex)
+	player.bonded.erase(rex.pet_record)
 	await _frames(2)

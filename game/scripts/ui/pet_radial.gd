@@ -7,6 +7,8 @@ extends Control
 ## A segment fires on release inside the segment it was pressed in (a label counts as its segment).
 ## A tap anywhere else closes the ring and does nothing else; so do Esc and the pet going away.
 ## Walking does not close it (the station menu's nav_active close hid it while the survivor still walked).
+## HUD hexes under the ring or its labels fade out while it is open: a landscape phone in a fight has no
+## free spot for it (its labels sat on CHASE and FISTS), and a tap there only closes the ring.
 
 signal action_chosen(pet: Node3D, action_id: StringName)
 
@@ -39,6 +41,7 @@ var hot := -1
 const NO_PRESS := -2
 var _press := NO_PRESS
 var _icons: Array[Texture2D] = []
+var _faded: Array[Control] = []
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -63,6 +66,7 @@ func hide_menu() -> void:
 	rows.clear()
 	_press = NO_PRESS
 	hot = -1
+	_fade_covered()
 
 func ids() -> Array[StringName]:
 	var out: Array[StringName] = []
@@ -153,18 +157,22 @@ func _gui_input(event: InputEvent) -> void:
 	elif was == -1:
 		hide_menu()  # pressed and released off the segments: a tap outside closes, and only closes
 
-## Keys and pads: Esc / B closes, arrows / d-pad pick a segment, Enter / A fires it. Taken in _input so
-## the same keys do not also roll, pause or interact while the ring is up.
+## Keys and pads: Esc / B closes, Tab / Shift+Tab / d-pad pick a segment, Enter / A fires the picked
+## (or hovered) one. Not the arrows or Space: movement is polled, so the arrows also walked her, and Space
+## (roll) fired the segment the mouse rested on. Taken in _input so these keys do nothing else meanwhile.
 func _input(event: InputEvent) -> void:
 	if not visible or rows.is_empty() or not (event is InputEventKey or event is InputEventJoypadButton):
 		return
+	var pad := event is InputEventJoypadButton
+	var key := event as InputEventKey
 	if event.is_action_pressed("ui_cancel"):
 		hide_menu()
-	elif event.is_action_pressed("ui_left") or event.is_action_pressed("ui_up"):
+	elif event.is_action_pressed("ui_focus_prev") or (pad and (event.is_action_pressed("ui_left") or event.is_action_pressed("ui_up"))):
 		hot = posmod(hot - 1, rows.size())
-	elif event.is_action_pressed("ui_right") or event.is_action_pressed("ui_down"):
+	elif event.is_action_pressed("ui_focus_next") or (pad and (event.is_action_pressed("ui_right") or event.is_action_pressed("ui_down"))):
 		hot = posmod(hot + 1, rows.size())
-	elif event.is_action_pressed("ui_accept") and hot >= 0:
+	elif hot >= 0 and ((pad and event.is_action_pressed("ui_accept")) \
+			or (key and key.pressed and not key.echo and key.keycode in [KEY_ENTER, KEY_KP_ENTER])):
 		choose(hot)
 	else:
 		return
@@ -206,6 +214,40 @@ func _layout() -> void:
 	label_rects.clear()
 	for r in rel:
 		label_rects.append(Rect2(r.position + centre, r.size))
+	_fade_covered()
+
+## Fades the HUD's hexes and the HANDS slot where the ring or a label covers them (only the HUD's:
+## other menus animate their own), and brings back the ones it no longer covers; all once it closes.
+func _fade_covered() -> void:
+	for c in _faded:
+		if is_instance_valid(c):
+			c.modulate.a = 1.0
+	_faded.clear()
+	var hud := get_tree().get_first_node_in_group(&"hud") if visible and is_inside_tree() else null
+	if hud == null:
+		return
+	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
+	# Its caption hangs 18 px below the slot (HudLayout.taken_rects).
+	if held and held.is_visible_in_tree() and covers(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18))):
+		held.modulate.a = 0.0
+		_faded.append(held)
+	for n in get_tree().get_nodes_in_group(&"hex_button"):
+		var h := n as HexButton
+		if h and h.is_visible_in_tree() and hud.is_ancestor_of(h) and (covers(h.hex_rect()) or covers(h.caption_rect())):
+			h.modulate.a = 0.0
+			_faded.append(h)
+
+## Whether a screen rect touches the ring or one of its labels.
+func covers(r: Rect2) -> bool:
+	if not r.has_area():
+		return false
+	var near := Vector2(clampf(centre.x, r.position.x, r.end.x), clampf(centre.y, r.position.y, r.end.y))
+	if near.distance_to(centre) < r_out:
+		return true
+	for l in label_rects:
+		if l.intersects(r):
+			return true
+	return false
 
 ## Segment i's label box relative to the centre: outside the ring along the segment's middle, growing
 ## away from the ring (left of it on the left half, right of it on the right half).

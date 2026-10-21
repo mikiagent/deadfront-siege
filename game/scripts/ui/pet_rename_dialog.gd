@@ -22,6 +22,7 @@ func _ready() -> void:
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dim)
 	_card = PanelContainer.new()
+	_card.name = "Card"
 	_card.add_theme_stylebox_override("panel", UiTokens.panel_style(0.97))
 	add_child(_card)
 	var pad := MarginContainer.new()
@@ -55,6 +56,8 @@ func _ready() -> void:
 	_ok = _button("OK", true)
 	_ok.pressed.connect(submit)
 	buttons.add_child(_ok)
+	# The window can change between phone and desktop sizes while the dialog is open (AnimalScreen does the same).
+	get_viewport().size_changed.connect(_layout)
 
 func _button(text: String, primary: bool) -> Button:
 	var b := Button.new()
