@@ -3,7 +3,8 @@ extends RefCounted
 ## Yield numbers by the worked node: "+2 Branch" rises from just above (or beside) the gather ring,
 ## a rare result rides on top of it, bigger: a green rare trait (spec 13:291, PRD:541) or a gold find
 ## (a HUD notice says them only when the stack cannot be drawn). The stack keeps off the ring, other
-## nodes, world pills, HUD text and zones, creature plates and the open radial.
+## nodes, the survivor, world pills, HUD text and zones, creature plates and the open radial, and
+## never jumps or vanishes between frames: what must go early fades out where it is.
 
 const LIFE := 1.4
 ## The ring is a 72 px hex on the anchor: the stack starts this far above its centre, or this far
@@ -41,7 +42,8 @@ const SHOWN_MS := 500
 const LEAVE_S := 0.15
 
 ## A stack of lines ([text, color, big], top to bottom) rising from a 3D anchor in screen space.
-## Its whole rise is placed once, a frame later: above the ring, else right or left of it, nudged off what is taken.
+## Its whole rise is placed once, a frame later: above the ring, else right or left of it (a rare stack
+## also under it), nudged off what is taken.
 ## `fallback` runs (once) when the stack ends up not drawn or is cut short, so what it said still reaches the HUD.
 static func popup(p: Player, at: Vector3, lines: Array, fallback: Callable = Callable()) -> Control:
 	if p == null or not p.is_inside_tree() or lines.is_empty():
