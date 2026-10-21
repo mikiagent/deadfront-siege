@@ -314,9 +314,12 @@ def _straw(seed, base, dark):
 def _compost(seed):
     n = TILE_PX
     t = _fbm(_rng(seed), n, 7, 4)
-    img = _mix(_rgb((0.16, 0.12, 0.07)), _rgb((0.34, 0.26, 0.14)), t)
-    bits = np.clip((_fbm(_rng(seed + 9), n, 26, 2) - 0.66) * 6, 0, 1)
-    return _mix(img, _rgb((0.42, 0.36, 0.18)), bits)
+    img = _mix(_rgb((0.22, 0.16, 0.09)), _rgb((0.44, 0.33, 0.17)), t)
+    bits = np.clip((_fbm(_rng(seed + 9), n, 26, 2) - 0.6) * 6, 0, 1)
+    img = _mix(img, _rgb((0.5, 0.42, 0.2)), bits)
+    # dry straw and small chips in the heap
+    straw = np.clip((_fbm(_rng(seed + 17), n, 40, 2) - 0.68) * 7, 0, 1)
+    return _mix(img, _rgb((0.6, 0.5, 0.26)), straw)
 
 
 def _ember():

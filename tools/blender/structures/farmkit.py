@@ -225,19 +225,22 @@ def fence_post_rail():
 
 
 def _gate_leaf():
-    """The swinging leaf: hinges on the left post, so the part origin is on the hinge."""
+    """The swinging leaf. The geometry sits in its final place (hinge on the left post at
+    x = -0.86 m) and the part's origin is that hinge, so the node rotates about the hinge."""
     p = Part("Leaf")
+    hx = -0.86
     span = 1.66
+    x0, x1 = hx + 0.06, hx + span
     for z in (0.36, 1.06):
-        p.box((span, 0.06, 0.1), (span / 2, -0.03, z), "wood")
+        p.box((span, 0.06, 0.1), ((x0 + x1) / 2, -0.03, z), "wood")
     n = 6
     for i in range(n):
-        x = 0.07 + i * (span - 0.14) / (n - 1)
+        x = x0 + 0.06 + i * (span - 0.18) / (n - 1)
         p.box((0.11, 0.04, 1.14), (x, 0.02, 0.68), "weathered")
         p.cyl(0.05, 0.12, (x, 0.02, 1.32), "weathered", seg=4, r2=0.005)
-    p.plank((0.08, -0.075, 0.42), (span - 0.08, -0.075, 1.0), 0.09, 0.04, "wood_dark", up=(0, -1, 0))
-    for z in (0.36, 1.06):
-        p.box((0.16, 0.08, 0.06), (0.06, -0.03, z), "leather_dark")
+    p.plank((x0 + 0.04, -0.075, 0.42), (x1 - 0.04, -0.075, 1.0), 0.09, 0.04, "wood_dark", up=(0, -1, 0))
+    for z in (0.36, 1.06):  # hinge straps on the post
+        p.box((0.16, 0.08, 0.06), (hx + 0.06, -0.03, z), "leather_dark")
     return p
 
 
@@ -301,17 +304,31 @@ def scarecrow():
 
 
 def compost_heap():
-    """A compost heap: a mound of compost with straw and a couple of planks leaned on it."""
+    """A compost heap: a slatted wooden bin full of compost, with a fork leaning on it."""
     p = Part("compost_heap")
-    heap = ((0.0, 0.0, 0.22, 0.3), (-0.24, 0.12, 0.17, 0.22), (0.22, -0.1, 0.16, 0.2),
-            (0.1, 0.24, 0.14, 0.18), (-0.18, -0.22, 0.14, 0.17), (0.34, 0.2, 0.12, 0.15),
-            (-0.38, 0.02, 0.12, 0.14), (0.02, -0.32, 0.12, 0.14))
-    for i, (x, y, r, h) in enumerate(heap):
-        p.rock(r, (x, y, h * 0.42), tile="compost", squash=(1.15, 1.0, h / r * 0.9), seed=300 + i)
-    for i, (x, y, a) in enumerate(((-0.1, 0.02, 12), (0.16, 0.14, -20), (0.02, -0.12, 34))):
-        p.box((0.26, 0.05, 0.02), (x, y, 0.24 + i * 0.03), "straw", rot=(0, 0, a))
-    p.plank((-0.5, 0.3, 0.05), (-0.34, 0.36, 0.46), 0.14, 0.04, "wood_dark")
-    p.plank((0.46, -0.3, 0.05), (0.3, -0.36, 0.42), 0.13, 0.04, "wood_dark")
+    # the heap itself, inside the bin
+    p.cyl(0.34, 0.24, (0, 0, 0.12), "compost", seg=9, r2=0.3, cap_tile="compost")
+    p.cyl(0.27, 0.14, (0.02, -0.02, 0.3), "compost", seg=9, r2=0.18, cap_tile="compost")
+    for i, (x, y, z, r) in enumerate(((-0.16, -0.06, 0.3, 0.06), (0.14, 0.1, 0.34, 0.055),
+                                     (0.08, -0.14, 0.26, 0.055), (-0.08, 0.16, 0.4, 0.05))):
+        p.rock(r, (x, y, z), tile="compost", squash=(1.2, 1.0, 0.6), seed=300 + i)
+    for i, (x, y, z, a) in enumerate(((-0.12, 0.02, 0.42, 12), (0.12, 0.08, 0.36, -20),
+                                      (0.02, -0.12, 0.37, 34), (-0.05, -0.07, 0.28, 8))):
+        p.box((0.28, 0.05, 0.02), (x, y, z), "straw", rot=(0, 0, a))
+    # slatted bin: four corner posts and three slat courses
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.log((sx * 0.38, sy * 0.34, 0), (sx * 0.38, sy * 0.34, 0.52), 0.045, tile="wood_dark", seg=5)
+    for z in (0.12, 0.3, 0.46):
+        for sy in (-1, 1):
+            p.box((0.8, 0.035, 0.11), (0, sy * 0.34, z), "wood")
+        for sx in (-1, 1):
+            p.box((0.035, 0.72, 0.11), (sx * 0.38, 0, z), "wood")
+    # a fork leaning on the bin
+    p.log((0.42, -0.3, 0.02), (0.56, -0.22, 0.86), 0.022, tile="wood", seg=5)
+    p.box((0.02, 0.14, 0.04), (0.42, -0.3, 0.06), "iron", rot=(0, 0, -14))
+    for i in range(3):
+        p.box((0.015, 0.13, 0.02), (0.415 + i * 0.004, -0.31, 0.02), "iron")
     return [(p, (0, 0, 0))]
 
 
