@@ -1,8 +1,8 @@
 diff --git a/game/scripts/creatures/corpse.gd b/game/scripts/creatures/corpse.gd
-index 13185501..eda30a4f 100644
+index 24a7dbb6..d03c0fdb 100644
 --- a/game/scripts/creatures/corpse.gd
 +++ b/game/scripts/creatures/corpse.gd
-@@ -131,29 +131,8 @@ func _process(delta: float) -> void:
+@@ -134,29 +134,8 @@ func _process(delta: float) -> void:
  		_expires_left = minf(_expires_left, _empty_despawn)
  
  func _roll_loot() -> void:
@@ -28,17 +28,17 @@ index 13185501..eda30a4f 100644
 -		# Preserve the defeated creature's material quality. The catalogue base
 -		# is a default for spawned items, not the quality of an earned corpse.
 -		attrs["level"] = level
--		loot.add(ItemStack.make(item_id, n, attrs, level))
+-		loot.add_growing(ItemStack.make(item_id, n, attrs, level)) # W2-INV: n instances, none dropped
 +	# W2-GATHER: knife tier + Butchering level scale the parts, rare rows roll real odds.
 +	ButcherLoot.roll_into(self, _owner)
  
  func _on_take_from_loot() -> void:
  	# Taking from the chest screen trains Butchering (and so the player level), once per take
 diff --git a/game/scripts/items/inventory.gd b/game/scripts/items/inventory.gd
-index 3177632c..fd70a554 100644
+index fcffe3a5..8d83a3d2 100644
 --- a/game/scripts/items/inventory.gd
 +++ b/game/scripts/items/inventory.gd
-@@ -321,6 +321,10 @@ func wear_gather_tool(tool: StringName) -> bool:
+@@ -176,6 +176,10 @@ func wear_gather_tool(tool: StringName) -> bool:
  	var s := find_gather_tool(tool)
  	if s == null:
  		return false
@@ -50,18 +50,26 @@ index 3177632c..fd70a554 100644
  	# ASSUMPTION: work tools lose 1 durability per gather; combat weapons used as tools lose 3.
  	var cost := 1
 diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
-index b2f961bc..b3ad207b 100644
+index e830f944..1cd96f6e 100644
 --- a/game/scripts/player/player_actions.gd
 +++ b/game/scripts/player/player_actions.gd
-@@ -179,6 +179,7 @@ func finish_gather() -> void:
+@@ -170,6 +170,7 @@ func finish_gather() -> void:
+ 			p.skills.add_xp("processing", 1)
+ 	var attrs := stack.attributes.duplicate(true)
+ 	var before := stack.count
++	var had := p.inventory.uids()  # W2-GATHER: the units this pass lands are the instances not in it
+ 	var left := p.inventory.add(stack)
+ 	var gained := before - left
+ 	if gained <= 0:
+@@ -179,6 +180,7 @@ func finish_gather() -> void:
  		p.gather_target = null
  		return
  	gt.consume_unit()
-+	GatherService.after_unit(p, gt, stack, gained)  # W2-GATHER: helper-tool wear, rare traits and finds, yield popup
++	GatherService.after_unit(p, gt, stack, gained, had)  # W2-GATHER: helper-tool wear, rare traits and finds, yield popup
  	if p._gather_radial and p._gather_radial.is_open():
  		p._gather_radial.refresh()
  	print("[item] +%d %s %s (pool %d/%d)" % [gained, stack.def_id, attrs, gt.pool_units_left(), gt.pool_max])
-@@ -194,16 +195,10 @@ func finish_gather() -> void:
+@@ -194,16 +196,10 @@ func finish_gather() -> void:
  	_start_gather_cycle(_scaled_gather_seconds(gt))
  
  func _scaled_gather_seconds(node: HarvestNode) -> float:
@@ -81,7 +89,7 @@ index b2f961bc..b3ad207b 100644
  func _start_gather_cycle(seconds: float) -> void:
  	p._gathering = true
 diff --git a/game/scripts/server/intent_handlers.gd b/game/scripts/server/intent_handlers.gd
-index d19f8337..f374d493 100644
+index d19f8337..509455b2 100644
 --- a/game/scripts/server/intent_handlers.gd
 +++ b/game/scripts/server/intent_handlers.gd
 @@ -114,7 +114,9 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
@@ -95,14 +103,18 @@ index d19f8337..f374d493 100644
  	stack.count = maxi(1, int(floor(float(stack.count) * mult)))
  	if rng.randf() < fmod(mult, 1.0):
  		stack.count += 1
-@@ -126,13 +128,20 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
+@@ -123,16 +125,24 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
+ 		stack.level = cap
+ 		stack.attributes["level"] = cap
+ 	var before := stack.count
++	var had := inv.uids()  # W2-GATHER: the units this pass lands are the instances not in it
  	var gained := before - inv.add(stack)
  	if gained <= 0:
  		return no("bag_full", "bag is full")
 +	# W2-GATHER: as on the client, a helper tool wears, each item rolls the green rare trait, and the
 +	# finds roll on the node's island climate, all with this op's rng.
 +	GatherService.wear_role_tool(inv, tool_class, family)
-+	var traits := GatherService.stamp_traits(inv, stack, gained, rng)
++	var traits := GatherService.stamp_traits(inv, had, stack, gained, rng)
 +	var rares := GatherService.add_finds(inv, family, tool_class, str(attrs.get("climate", "")), stack.level, maxi(1, ch.level_of("gathering")), rng)
  	_write("take_node_unit", [node_id, str(def.id)])
  	var uids := ch.commit(inv, "gather", seq)
