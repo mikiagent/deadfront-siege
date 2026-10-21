@@ -288,6 +288,10 @@ func _test_item_deposits() -> bool:
 	var e2 := _engine(_rules()) # its own books: the caps below count this engine's deposits
 	var kept := _ok(e2, "vault.deposit_item", 1, {"slot_dict": minted})
 	_expect(Ledger.canon(e2.L.acct(1).vault_items.get(str(kept.get("uid", "")), {})) == Ledger.canon(Ledger.norm(minted)), "an instance's creator and created_at survive the deposit byte for byte: %s" % str(kept))
+	# A kit back from pack-up carries `repacked` (build_placer.gd): it trades, flag and all.
+	var repacked := _with(_with(_stack("campfire_kit", 1), "origin", "craft"), "flags", ["repacked"])
+	var kit := _op(e2, "vault.deposit_item", 1, {"slot_dict": repacked})
+	_expect(kit.ok and kit.r.item.flags == ["repacked"], "a repacked kit deposits and keeps its flag: %s" % str(kit))
 	_err(e, "vault.deposit_item", 1, {}, "bad_request", T0, "no slot_dict")
 	_err(e, "vault.deposit_item", 1, {"slot_dict": "stone"}, "bad_request", T0, "slot_dict not an object")
 	_deposit(e, 1, "stone", 15) # 10 + 5 + 15 = the 30 cap

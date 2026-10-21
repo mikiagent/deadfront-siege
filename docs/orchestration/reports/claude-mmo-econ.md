@@ -18,8 +18,79 @@ listing fee, and its minors. Tenth pass (2026-10-21, resumed run): review r4 rel
 every item was already fixed at ba9937fd, so this pass merged the moved base (W2-SKILLS,
 W2-DATA, WATER), did the bonded-cap sync step and re-ran every gate. Eleventh pass
 (2026-10-21): the resumed run's review (findings file `econ-review-r3.json`): W2-GATHER's rare
-traits, spec 06:12 search, and an oversized grant that stopped the bridge. Read "Review r3
-(eleventh pass)" first, then "Tenth pass".
+traits, spec 06:12 search, and an oversized grant that stopped the bridge. Twelfth pass
+(2026-10-21): the next review of the resumed run (2 majors, 6 minors): the spec 06:21 full-bag
+test, fixtures that W2-GATHER's traits broke, repacked kits. Read "Review r3, twelfth pass"
+first, then "Review r3 (eleventh pass)".
+
+## Review r3, twelfth pass (2026-10-21): full bag, trait-proof fixtures, repacked kits
+
+The base moved from 946da955 to acc684a6 (the W2-DATA sync; docs only). I merged it at 62771e3f
+with no conflicts. The fixes are 6c7a1808 and 5ad81314. Each item below names the check that
+fails without its fix.
+
+| # | Finding | Fix | Evidence; the check that fails without the fix |
+|---|---|---|---|
+| M1 + acceptance | Spec 06:12 ("Handle full bags through secure claim/delivery rather than deleting purchases") and 06:21 (tests include "full bag"): no test covered a withdrawal into a full bag, so `VaultBridge._grant`'s bag pre-check could be deleted without any test failing. | New t_econ `_test_full_bag`. Account 2 buys a whole export (the `char.receive` path) and a split part of a second one (the `char.grant` path). It then fills its bag with clubs: tools wear, so each takes a slot. Berries or kits would not fill it, because a plain item stacks to 999 in one server slot (`ItemDef.stack_max`). Both withdrawals must answer `bag_full`, both assets stay in the vault, both stores' hashes stay unchanged, `broken` stays `''`, and account 3 can still search. Account 2 then deposits two clubs to free two slots: both purchases land, all units arrive, and a third withdrawal answers `not_found`. The code was already correct; only the test is new. | Gate tree: `[econ-bridge] full bag empty=0 whole=bag_full part=bag_full in_vault=true unchanged=true stuck='' search=ok \| freed retry whole=ok part=ok home=15 of 15 again=not_found`, then `[t_econ] PASS`. **Mutant** (`_grant`'s pre-check changed to `if false and ...`): `[t_econ] FAIL a full bag refuses both purchases before the vault lets go, the bridge serving (whole=bag_full part=ok in_vault=false unchanged=false stuck='2 stone_shot left the vault under b54 but char.grant refused them (bag_full)' search=server_error)`, then `[t_econ] FAIL count=10`. |
+| m1 | `_test_deposit` and `_test_refusals` assumed that gathering `stone_shot` gives one stack. W2-GATHER's rare traits put traited units in their own rows, so the ECON gate would fail at its own merge. | `_slot` returns the largest row of an item. The two checks now compare the deposited row: bag units before minus the row's count, the vault body's count equal to the row's, and on withdrawal the bag gains exactly the deposited count. | Integration tree (below), test file of 633cf142: `[t_econ] FAIL a whole stack moves from the bag to the vault under its own uid`, `[t_econ] FAIL the same withdrawal goes through once the body matches`, `[t_econ] FAIL count=2`. The same tree with this pass's test file: `[t_econ] PASS` (`full bag ... home=13 of 13`). |
+| m2 | `limits.json` refused a kit carrying the `repacked` flag (set by build_placer.gd:228 on pack-up), so a real kit could not reach the market. | `repacked` added to `allowed_flags`, with a `_repacked_about` note: the kit trades with its flag, so the buyer places it without construction XP, as the seller would have. | run_all `_test_item_deposits` deposits a repacked `campfire_kit` and checks that the flag survives. With the previous `limits.json` (633cf142): `ERROR: [tests] econ: a repacked kit deposits and keeps its flag: { "ok": false, "err": "invalid_asset", "msg": "flag repacked not allowed" }`, then `[tests] FAIL count=1`. |
+| m3 | Trade lock runs on wall clock from account creation; contract v2 0.6 says "30 min of server-observed play". | Carried, still `# ASSUMPTION` in `market_engine.gd`. Nothing reports play time yet: `claude/mmo-net` is not merged into the base, and no server file has a play-time field. **Integrator note** (unchanged): switch to presence play time when NET or W3 reports it. | (none) |
+| m4 | Contract 6.1 says a traded pet is repackaged as a `caged_animal` stack; ECON trades kind `pet` with the full PetRecord. | Carried. **Orchestrator:** amend 6.1 ("pets trade as kind `pet` in the books, shown as cages by the Exchange"), or schedule the switch with W2-CAGE. | (none) |
+| m5 | Contract v2 0.7 says "Settler issuance is per active account per day with diminishing returns"; Settlers top up a flat 2,000 T-stones a day. | Deviation now named under Assumptions below, with its owner. | (none) |
+| m6 | The 0.25x-4x reference bands carried no ASSUMPTION mark. | `market_rules.json` `_reference_band_about` names STATUS 2026-10-18 and contract 6.5, and `price_history._recompute` has a `# ASSUMPTION:` line next to the two reads. | (none) |
+
+### Integration tree (W2-GATHER's traits)
+
+This is a throwaway tree, `econ-int12`. It starts at base acc684a6 and merges W2-INV 5b255c97,
+W2-PROCESS f7ec5239 and W2-GATHER 27ab0c5a in the STATUS finish-6 order, applying each
+package's own hooks patch after it (`git apply --3way`). Then it merges ECON and applies ECON's
+hooks patch. The import log has 0 SCRIPT ERROR or "Failed" lines. Three hunks conflicted, and I
+resolved them in that tree only:
+- W2-GATHER's hooks against W2-INV's in `corpse.gd` and `player_actions.gd` (client butchering;
+  t_econ loads neither file).
+- ECON's `run_all.gd` hook against W2-PROCESS's (`_test_process_stations()` next to the
+  `economy_tests.gd` lines). **Integrator:** keep both. ECON's hooks patch gets regenerated once
+  W2-PROCESS is in the base anyway.
+
+### Hooks patch (twelfth pass)
+
+The hooked files (`intent_handlers.gd`, `run_all.gd`) are unchanged on the base since 946da955,
+with blobs d19f8337 and 0de559b8. Regenerating the patch from the gate tree (`git diff --cached`)
+gives a byte-identical file (`cmp`: IDENTICAL). `git apply --cached --check` against
+`claude/mmo-overhaul` acc684a6 is clean. It still touches only those two files.
+
+### Acceptance (twelfth pass)
+
+The gate tree is mkscratch `econ-r12`, made at 6c7a1808 with the hooks patch. Its `--import`
+log has 0 SCRIPT ERROR or "Failed" lines. I then moved it to 5ad81314, which changes only
+`econ_bridge_checks.gd` (no new class_name, so no second import). Every run went through gslot.
+
+- All 24 `game/tests/t_*.gd` exit 0 with their PASS line: t_ai, t_build, t_canim, t_combat,
+  t_data (`PASS items=223 recipes=155`), t_daynight_dial, t_econ, t_harbour (`PASS islands=15`),
+  t_iconart, t_items, t_light, t_lighting, t_occlude, t_player, t_save, t_server_domain,
+  t_srvdom, t_structart, t_tame, t_ui, t_uiicons, t_w2_skills, t_water, t_web. t_save prints its
+  5 deliberate SCRIPT ERROR lines; every other test prints 0. None prints "couldn't resolve
+  track".
+- `t_econ`: `[t_econ] PASS`, with the full-bag line in the table above and
+  `[econ-bridge] fuzz 3600 ops, 11 restarts mid-move, invariants of both stores after every op (coins issued 3580, sink 598)`.
+  It prints 8 ERROR lines, all `deliberate fault in vault.*`.
+- `run_all.gd`: `[tests] PASS`. Its two SCRIPT ERROR lines follow
+  `[econ] fault test: the next SCRIPT ERROR and ERROR lines are deliberate`, as before.
+- `tools/smoke.sh --no-import`: `[smoke] ok player_pos=(0.0, 1.0, 0.0) phase=day`, `SMOKE PASS`.
+- No new `~/Library/Logs/DiagnosticReports/Godot-*.ips`: 25 files before and the same 25 after.
+- Integration tree `econ-int12` (above): `[t_econ] PASS`.
+- Labs and screenshots: none. ECON is server-side and has no UI.
+
+### Assumptions added or named (twelfth pass)
+
+- A repacked kit trades with its `repacked` flag; the buyer places it without construction XP
+  (`limits.json` `_repacked_about`).
+- **Deviation from contract v2 0.7, owner W1-INT.** The contract says "Settler issuance is per
+  active account per day with diminishing returns". ECON's Settlers top up a flat
+  `settlers.daily_budget` of 2,000 T-stones a day, whatever the number of active accounts. The
+  plan register gives this to W1-INT: "Settlers issuance per active account per day (contract
+  0.7)". It needs the active-account count, which only the net layer sees.
+- The 0.25x-4x reference bands are STATUS 2026-10-18's planner default, kept in data.
 
 ## Review r3 (eleventh pass, 2026-10-21): rare traits, search, oversized grants
 

@@ -13,8 +13,10 @@
   ],
   "allowed_flags": [
     "raw",
-    "poisoned"
+    "poisoned",
+    "repacked"
   ],
+  "_repacked_about": "repacked: a kit back from pack-up (build_placer.gd) places without construction XP. It trades with the flag, so the buyer places it without XP as the seller would have.",
   "refused_flags": [
     "locked",
     "unstable"
