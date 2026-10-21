@@ -1,4 +1,6 @@
 """Building kits (shown as a small model of what they place), medicine, snares and the fallback silhouette."""
+import pathlib
+
 from kit import *  # noqa: F401,F403
 
 
@@ -729,15 +731,17 @@ def pressure_dressing():
 
 # ---------------------------------------------------------------- cages (owner rule)
 
-def _cage(door_deg=0.0):
+def _cage(door_deg=0.0, wood=("#9a6a3a", "#7a4e26", "#bb8a56", "#8a5a30"), H=0.92, n=(2, 9, 5, 4, 5),
+          r=(0.032, 0.03)):
     """A lashed wooden cage: a slatted floor, four corner posts, vertical bars on every side and a
-    lashed roof hatch. open_door swings the front panel out on its hinge."""
+    lashed roof hatch. door_deg swings the front panel out on its hinge. n: bar counts (near side,
+    back, left, right, door), r: bar radius (sides, door)."""
     # Flat fills where possible: the cage is many thin bars, and noisy materials push the PNG
     # over the 64 KB budget.
-    w = mat("#9a6a3a", 0.75, color2="#7a4e26", tex="noise", scale=3.0, bump=0.1)
-    w2 = mat("#bb8a56", 0.7, color2="#8a5a30", tex="noise", scale=3.0, bump=0.1)
+    w = mat(wood[0], 0.75, color2=wood[1], tex="noise", scale=3.0, bump=0.1)
+    w2 = mat(wood[2], 0.7, color2=wood[3], tex="noise", scale=3.0, bump=0.1)
     rp = rope_m()
-    W, D, H = 0.9, 0.66, 0.92
+    W, D = 0.9, 0.66
     # Floor slats and a rim.
     for i in range(5):
         box((2 * W + 0.1, 0.26, 0.07), loc=(0, -D + 0.28 * i, -H + 0.06), m=w if i % 2 else w2, bev=0.012)
@@ -757,22 +761,22 @@ def _cage(door_deg=0.0):
         for i in range(n):
             t = lo + (hi - lo) * i / (n - 1)
             if axis == "x":
-                cyl(0.032, 2 * H - 0.2, loc=(t, fixed, 0), m=w2, segs=6)
+                cyl(r[0], 2 * H - 0.2, loc=(t, fixed, 0), m=w2, segs=6)
             else:
-                cyl(0.032, 2 * H - 0.2, loc=(fixed, t, 0), m=w2, segs=6)
+                cyl(r[0], 2 * H - 0.2, loc=(fixed, t, 0), m=w2, segs=6)
     # The near sides carry fewer bars than the far ones, so the animal inside stays readable at
     # slot size while the cage still reads as slatted on every side.
-    bars(-D, "x", 2, -W + 0.36, W - 0.36)
-    bars(D, "x", 9, -W + 0.1, W - 0.1)
-    bars(-W, "y", 5, -D + 0.16, D - 0.16)
-    bars(W, "y", 4, -D + 0.2, D - 0.2)
+    bars(-D, "x", n[0], -W + 0.36, W - 0.36)
+    bars(D, "x", n[1], -W + 0.1, W - 0.1)
+    bars(-W, "y", n[2], -D + 0.16, D - 0.16)
+    bars(W, "y", n[3], -D + 0.2, D - 0.2)
     # The front panel: a frame with bars, hanging from a hinge on the left post.
     door = group(loc=(-W, -D, 0), rot=(0, 0, -door_deg))
     box((2 * W, 0.07, 0.09), loc=(W, 0, H - 0.08), m=w, bev=0.012, parent=door)
     box((2 * W, 0.07, 0.09), loc=(W, 0, -H + 0.12), m=w, bev=0.012, parent=door)
-    for i in range(5):
-        x = 0.2 + (2 * W - 0.4) * i / 4
-        cyl(0.03, 2 * H - 0.24, loc=(x, 0, 0), m=w2, segs=6, parent=door)
+    for i in range(n[4]):
+        x = 0.2 + (2 * W - 0.4) * i / (n[4] - 1)
+        cyl(r[1], 2 * H - 0.24, loc=(x, 0, 0), m=w2, segs=6, parent=door)
     if door_deg == 0.0:
         for z in (-H + 0.4, H - 0.3):
             box((0.3, 0.08, 0.06), loc=(W - 0.18, 0, z), m=rp, bev=0.01, parent=door)
@@ -824,15 +828,85 @@ def _small_dino(loc=(0, 0, 0), rot=(0, 0, 0), collar=None):
     return g
 
 
+CREATURES = pathlib.Path(__file__).resolve().parents[3] / "game" / "assets" / "creatures"
+
+
+def _bend(arm, bone, axis, deg):
+    """Turn a pose bone (and its children) about its own head, axis in the creature's rest frame
+    (snout toward -Y, up +Z, its left +X)."""
+    pb = arm.pose.bones[bone]
+    h = pb.head.copy()
+    pb.matrix = (Matrix.Translation(h) @ Matrix.Rotation(math.radians(deg), 4, axis)
+                 @ Matrix.Translation(-h) @ pb.matrix)
+    bpy.context.view_layer.update()
+
+
+def _import(path):
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=str(path))
+    new = [o for o in bpy.data.objects if o not in before]
+    for o in new:  # the rigged GLBs carry a stray unskinned 2 m Icosphere
+        if o.type == "MESH" and not any(md.type == "ARMATURE" for md in o.modifiers):
+            bpy.data.objects.remove(o)
+    return next(o for o in new if o.type == "ARMATURE")
+
+
+def _creature(species, clip, frame, bends, loc, rot, scale):
+    """The project's own rigged creature mesh in one frame of its own animation clip, then posed
+    further bone by bone: (bone, axis, degrees) turns it, (bone, "scale", factor) scales it."""
+    arm = _import(CREATURES / species / ("%s.glb" % species))
+    src = _import(CREATURES / species / "anim" / ("%s.glb" % clip))
+    bpy.context.scene.frame_set(frame)
+    # Copy the frame as plain pose values, so the bends below are not overwritten by the action.
+    for pb in arm.pose.bones:
+        if pb.name in src.pose.bones:
+            pb.matrix_basis = src.pose.bones[pb.name].matrix_basis.copy()
+    bpy.data.objects.remove(src)
+    bpy.context.view_layer.update()
+    for bone, axis, deg in bends:
+        if axis == "scale":
+            arm.pose.bones[bone].scale = (deg, deg, deg)
+            bpy.context.view_layer.update()
+        else:
+            _bend(arm, bone, axis, deg)
+    g = group(loc=loc, rot=rot)
+    g.scale = (scale, scale, scale)
+    arm.parent = g
+    return arm
+
+
+def _vivid(arm, sat, val):
+    """Lift the creature's own skin texture (saturation, value) so it stands off the cage wood."""
+    for ob in arm.children:
+        for sl in ob.material_slots:
+            nt = sl.material.node_tree
+            bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+            ln = bsdf.inputs["Base Color"].links[0]
+            hsv = nt.nodes.new("ShaderNodeHueSaturation")
+            hsv.inputs["Saturation"].default_value = sat
+            hsv.inputs["Value"].default_value = val
+            nt.links.new(ln.from_socket, hsv.inputs["Color"])
+            nt.links.new(hsv.outputs["Color"], bsdf.inputs["Base Color"])
+
+
 def captured_animal():
-    """A captured animal is shown in its cage: a lashed wooden cage shut, a small generic dinosaur
-    standing inside it (owner rule)."""
-    _cage()
-    # Neck and head rise out of the open top: at 64 px the animal inside a closed cage would be
-    # just bars.
-    _small_dino(loc=(-0.12, 0.18, 0.12), rot=(0, 0, -32)).scale = (1.85, 1.85, 1.85)
-    turn(-22)
-    turn(30, "X")
+    """A captured animal is shown in its cage (owner rule): the lashed wooden cage shut, and in it the
+    project's own deinonychus mesh (owner 2026-10-20: "should look like there's a dino inside"),
+    crouched for a spring (its attack_heavy wind-up), chest up, its head (enlarged so it reads at
+    48 px) pushed out between the front bars with the eye toward the viewer, its tail curled out
+    through the side bars."""
+    # Darker wood than the tame cage and fewer, thicker bars: at 48 px the lime animal stands off
+    # the wood in value and is not cut into stripes; the shut cage also reads apart from the tame one.
+    _cage(wood=("#7a5232", "#5a3a20", "#8c6038", "#64421f"), H=0.75, n=(0, 5, 3, 3, 4), r=(0.055, 0.055))
+    X, Z = (1, 0, 0), (0, 0, 1)
+    arm = _creature("deinonychus", "attack_heavy", 5, [
+        ("Torso", X, -22.0), ("Shoulders", X, -15.0), ("Head", X, 22.0), ("Head", "scale", 1.75),
+        ("Tail1", Z, -35.0), ("Tail2", Z, -40.0), ("Tail3", Z, -45.0), ("Tail4", Z, -40.0), ("Tail4", "scale", 0.7),
+        ("Tail5", "scale", 0.45),
+    ], loc=(0.16, 0.05, -0.65), rot=(0, 0, -10), scale=2.6)
+    _vivid(arm, 1.5, 1.25)
+    turn(-12)
+    turn(-4, "X")  # lower than the other cage: the face and the bars in front of the body, not the roof
     upright()  # no-op unless the silhouette is wider than a slot can lift (<= 1.3:1)
 
 

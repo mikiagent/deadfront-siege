@@ -431,12 +431,12 @@
    "script": "tools/blender/items/camp.py",
    "builder": "captured_animal",
    "png": "res://assets/icons/render/captured_animal.png",
-   "sha256": "3d21c6dc78872a885dc8f9a9fd039f9db0743e7e394fbb33ce1973887b7f779e",
-   "bytes": 51398,
+   "sha256": "46054d5cd94aa1cb989fbf59fb53dd37ca32718c9099c771f378f7b347529a05",
+   "bytes": 63604,
    "rect": [
-    34,
+    22,
     19,
-    188,
+    212,
     218
    ],
    "quality": "procedural_v1"
