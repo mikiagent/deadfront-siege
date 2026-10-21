@@ -90,8 +90,11 @@ func tap_targets() -> Array[Button]:
 			out.append(b)
 	return out
 
+## Scrolls the sea; with a card open it may run a card's width past the last band, so the far-right
+## islands can sit beside the card instead of under it.
 func scroll_to(x: float) -> void:
-	scroll_x = clampf(x, 0.0, maxf(0.0, content_w - (_view.size.x if _view else 0.0)))
+	var past := (float(_m.card_w) + float(_m.pad) * 2.0) if _card else 0.0
+	scroll_x = clampf(x, 0.0, maxf(0.0, content_w + past - (_view.size.x if _view else 0.0)))
 	if _chart:
 		_chart.position.x = -scroll_x
 
@@ -372,8 +375,14 @@ func open_card(id: StringName) -> void:
 	top.add_child(names)
 	var title := Label.new()
 	title.text = str(e.name)
-	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	title.add_theme_font_size_override("font_size", int(body_px * (1.15 if _m.compact else 1.4)))
+	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	# One line: a long name steps down to the 12 px floor before it is cut short.
+	var title_room := card_w - pad * 4.0 - float(_m.card_icon) - TARGET
+	var title_px := int(body_px * (1.15 if _m.compact else 1.4))
+	while title_px > UiTokens.TYPE_MIN and SailNode.font().get_string_size(title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, title_px).x > title_room:
+		title_px -= 1
+	title.add_theme_font_size_override("font_size", title_px)
 	names.add_child(title)
 	var climate := str(e.climate).capitalize()
 	names.add_child(_line("%s%s" % [LevelDisplay.label(int(e.tier)), ("  ·  " + climate) if climate != "" else ""], body_px - 2, TAN))
@@ -434,6 +443,7 @@ func close_card() -> void:
 		(nodes[str(card_id)] as SailNode).selected = false
 	card_id = &""
 	card_action = null
+	scroll_to(scroll_x)
 
 func _line(text: String, px: int, col: Color) -> Label:
 	var l := Label.new()

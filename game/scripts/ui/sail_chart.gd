@@ -27,6 +27,7 @@ var _waves: PackedVector2Array = PackedVector2Array()
 var _clouds: Array[Vector3] = [] ## x, y, scale
 var _home_shape := PackedVector2Array()
 var _t := 0.0
+var _sky: Control ## clouds and band headings, under the nodes; the only part redrawn each frame
 
 ## Lays the sea out for a `view`-sized window (SailScreen.metrics() `m`) and adds one SailNode per
 ## entry (SailScreen._entries()); returns them in entry order.
@@ -51,6 +52,12 @@ func build(entries: Array[Dictionary], view: Vector2, m: Dictionary) -> Array[Sa
 	var free := view.y - _label_h
 	var w := minf(band_w - 24.0, float(m.node_w))
 	var h := SailNode.height_for(m)
+	_sky = Control.new()
+	_sky.name = "Sky"
+	_sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sky.size = size
+	_sky.draw.connect(_draw_sky)
+	add_child(_sky)
 	var made: Array[SailNode] = []
 	var by_band: Array = []
 	for b in bands:
@@ -112,12 +119,11 @@ func _scatter(view: Vector2) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	queue_redraw()  # the clouds drift
+	if _sky:
+		_sky.queue_redraw()  # the clouds drift
 
 func _draw() -> void:
 	var n := bands.size()
-	var font := SailNode.font()
-	var band_px := int(_m.get("band_px", 13))
 	for i in n:
 		var b: Dictionary = bands[i]
 		var col := SHALLOW.lerp(DEEP, float(i) / float(maxi(1, n - 1)))
@@ -146,22 +152,27 @@ func _draw() -> void:
 		draw_colored_polygon(sand, Color("#D8C48E"))
 		draw_colored_polygon(grass, Color("#6F9A4C"))
 	_draw_compass(Vector2(home_w * 0.5, size.y - float(_m.get("compass", 28.0)) - float(_m.get("pad", 8.0))), float(_m.get("compass", 28.0)))
+
+## On the Sky child: drifting clouds, then the "Lv. N" band headings over them.
+func _draw_sky() -> void:
+	var font := SailNode.font()
+	var band_px := int(_m.get("band_px", 13))
 	for cl in _clouds:
 		var x := fposmod(cl.x + _t * 6.0 * cl.z, size.x + 160.0) - 80.0
-		_draw_cloud(Vector2(x, cl.y), 26.0 * cl.z)
+		_draw_cloud(_sky, Vector2(x, cl.y), 26.0 * cl.z)
 	for b in bands:  # band headings over the clouds
 		var label := LevelDisplay.label(int(b.tier))
 		var lw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, band_px).x
 		var at := Vector2(float(b.x) + (float(b.w) - lw) * 0.5, _label_h * 0.72)
-		draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, band_px, 4, Color(0, 0, 0, 0.6))
-		draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, band_px, TAN)
+		_sky.draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, band_px, 4, Color(0, 0, 0, 0.6))
+		_sky.draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, band_px, TAN)
 
-func _draw_cloud(c: Vector2, s: float) -> void:
+static func _draw_cloud(ci: CanvasItem, c: Vector2, s: float) -> void:
 	var col := Color(1, 1, 1, 0.22)
-	draw_circle(c, s, col)
-	draw_circle(c + Vector2(s * 0.9, s * 0.15), s * 0.75, col)
-	draw_circle(c + Vector2(-s * 0.9, s * 0.2), s * 0.65, col)
-	draw_circle(c + Vector2(s * 0.3, -s * 0.45), s * 0.7, col)
+	ci.draw_circle(c, s, col)
+	ci.draw_circle(c + Vector2(s * 0.9, s * 0.15), s * 0.75, col)
+	ci.draw_circle(c + Vector2(-s * 0.9, s * 0.2), s * 0.65, col)
+	ci.draw_circle(c + Vector2(s * 0.3, -s * 0.45), s * 0.7, col)
 
 func _draw_compass(c: Vector2, r: float) -> void:
 	var line := Color(TAN, 0.75)
