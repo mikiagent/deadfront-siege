@@ -1,8 +1,9 @@
 extends SceneTree
-## HUD-DAYNIGHT checks (spec 16): the HUD has a day/night dial beside the minimap (this fails on a
-## HUD without one), its phase at time of day 0.0/0.25/0.5/0.75 is night/dawn/day/dusk as
-## Game.phase_name() says, a tap opens a label with the phase and the time to the next one, it lays
-## out again on a resize without touching the minimap, and it never writes the game's clock.
+## HUD-DAYNIGHT checks (spec 16): the HUD has a day/night dial docked to the minimap's bottom-left
+## edge (this fails on a HUD without one), its phase at time of day 0.0/0.25/0.5/0.75 is
+## night/dawn/day/dusk as Game.phase_name() says, a tap opens a label with the phase, the clock and the
+## time to the next phase (rounded minutes, never "60 s"), a release off the dial cancels the tap, it
+## lays out again on a resize without touching the minimap, and it never writes the game's clock.
 ## Run: godot --headless --path game --script res://tests/t_daynight_dial.gd -> "[t_daynight] PASS", exit 0/1.
 
 const DIAL_PATH := "res://scripts/ui/day_night_dial.gd"
@@ -59,17 +60,34 @@ func _test_phases(game: Node, D: GDScript) -> void:
 			off += 1
 	_check(off == 0, "phase_at disagrees with Game.phase_name() at %d of 200 times" % off)
 	var lines: PackedStringArray = D.call("label_lines", 0.5, 720.0)
-	_check(lines == PackedStringArray(["Day", "Dusk in 3 min"]), "noon on a 720 s day reads %s, want Day / Dusk in 3 min" % [lines])
+	_check(lines == PackedStringArray(["Day  12:00", "Dusk in 3 min"]), "noon on a 720 s day reads %s, want Day  12:00 / Dusk in 3 min" % [lines])
 	lines = D.call("label_lines", 0.79, 720.0)
-	_check(lines == PackedStringArray(["Dusk", "Night in 8 s"]), "0.79 reads %s, want Dusk / Night in 8 s" % [lines])
+	_check(lines == PackedStringArray(["Dusk  18:57", "Night in 8 s"]), "0.79 reads %s, want Dusk  18:57 / Night in 8 s" % [lines])
 	lines = D.call("label_lines", 0.9, 720.0)
-	_check(lines == PackedStringArray(["Night", "Dawn in 4 min"]), "0.9 reads %s, want Night / Dawn in 4 min (over midnight)" % [lines])
+	_check(lines == PackedStringArray(["Night  21:36", "Dawn in 4 min"]), "0.9 reads %s, want Night  21:36 / Dawn in 4 min (over midnight)" % [lines])
+	_test_countdown(D)
 	# Things in colour, the control in white (colour = things, white = actions).
 	var sun: Color = D.get_script_constant_map()["SUN"]
 	var moon: Color = D.get_script_constant_map()["MOON"]
 	_check(sun.r > sun.b + 0.4, "the sun is warm (%s)" % sun)
 	_check(moon.b >= moon.r and moon.v > 0.85, "the moon is pale (%s)" % moon)
 	print("[t_daynight] phases 0.0/0.25/0.5/0.75 = %s; noon label %s" % [PHASES.values(), D.call("label_lines", 0.5, 720.0)])
+
+## The countdown, every quarter second from 0.25 s to 5 min before dusk on a 720 s day: seconds under
+## a minute (1-59, never "60 s", never under the real wait), then whole minutes at most 30 s off
+## (ceil read 61 s as "2 min" and 59.5 s as "60 s").
+func _test_countdown(D: GDScript) -> void:
+	var bad: Array[String] = []
+	for q in range(1, 1201):
+		var t: float = WorldLighting.DUSK - float(q) * 0.25 / 720.0
+		var secs: float = (WorldLighting.DUSK - t) * 720.0
+		var wait := str((D.call("label_lines", t, 720.0) as PackedStringArray)[1]).trim_prefix("Dusk in ")
+		var n := wait.to_int()
+		var ok := (n >= 1 and n <= 59 and n >= secs - 0.001 and n < secs + 1.0) if wait.ends_with(" s") \
+			else (wait.ends_with(" min") and secs > 59.0 and absf(n * 60.0 - secs) <= 30.001)
+		if not ok and bad.size() < 4:
+			bad.append("%.2f s -> %s" % [secs, wait])
+	_check(bad.is_empty(), "the countdown misreads the wait: %s" % [bad])
 
 func _test_hud(game: Node) -> void:
 	var hud: Control = load("res://scripts/ui/hunt_hud.gd").new()
@@ -93,10 +111,11 @@ func _test_hud(game: Node) -> void:
 		var closed := dial.get_global_rect()
 		var m := map.get_global_rect()
 		_check(view.size == Vector2(s), "the canvas is %s for a %s window" % [view.size, s])
-		_check(closed.size.x >= 44.0 and closed.size.y >= 44.0, "%s: the dial is a %s tap target (>= 44 px)" % [s, closed.size])
+		var want := 56.0 if s.x >= 1280 else 48.0  # the judge: 56-64 px on desktop, >= 48 on a phone
+		_check(closed.size.x >= want and closed.size.y >= want, "%s: the dial is %s, want >= %d px" % [s, closed.size, want])
 		_check(view.encloses(closed), "%s: the dial %s is inside the view" % [s, closed])
-		_check(is_equal_approx(closed.end.x, m.position.x - 12.0) and closed.position.y >= m.position.y and closed.end.y <= m.end.y,
-			"%s: the dial %s sits just left of the minimap %s (laid out again on resize)" % [s, closed, m])
+		_check(is_equal_approx(closed.end.x, m.position.x - 4.0) and is_equal_approx(closed.end.y, m.end.y),
+			"%s: the dial %s is docked to the minimap %s's bottom-left edge (laid out again on resize)" % [s, closed, m])
 		_check(not closed.intersects(m), "%s: the dial %s is off the minimap %s" % [s, closed, m])
 		_push_click(dial)
 		await process_frame
@@ -107,6 +126,9 @@ func _test_hud(game: Node) -> void:
 		_push_click(dial)
 		await process_frame
 		_check(not dial.call("is_open") and dial.get_global_rect() == closed, "%s: a second tap closes it back to %s (got %s)" % [s, closed, dial.get_global_rect()])
+		_push_click(dial, Vector2(-200.0, 120.0))
+		await process_frame
+		_check(not dial.call("is_open"), "%s: a press on the dial released off it opened the label (BaseButton cancels it)" % s)
 		print("[t_daynight] %s: map %s dial %s open %s" % [s, m, closed, opened])
 	# The label closes itself, and nothing the dial did moved the clock.
 	_push_click(dial)
@@ -121,8 +143,8 @@ func _test_hud(game: Node) -> void:
 	get_root().content_scale_size = start_canvas
 	hud.free()
 
-## Left press and release at a control's centre, in window pixels (as t_ui does).
-func _push_click(c: Control) -> void:
+## Left press at the dial's disc and release there, or `off` px away, in window pixels (as t_ui does).
+func _push_click(c: Control, off := Vector2.ZERO) -> void:
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.pressed = true
@@ -132,4 +154,6 @@ func _push_click(c: Control) -> void:
 	get_root().push_input(click)
 	var up := click.duplicate() as InputEventMouseButton
 	up.pressed = false
+	up.position = get_root().get_final_transform() * (at + off)
+	up.global_position = up.position
 	get_root().push_input(up)
