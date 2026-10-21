@@ -118,6 +118,12 @@ func _check() -> void:
 	# A group has a corner count badge (it opens) and its level range; a real stack reads "×45" with
 	# no badge: the two never look alike.
 	_expect(_badge_of(stone_cell) == "16" and stone_cell.text == "Lv 1-16" and not stone_cell.text.contains("×"), "the stone group has a 16 badge, its level range and no stack ×N (badge '%s', caption '%s')" % [_badge_of(stone_cell), stone_cell.text if stone_cell else ""])
+	# Review 5: the pill sits in the corner and covers at most a third (12 px) of the 36 px icon box
+	# centred in the cell (a wide pill hid the berry bowl and the meat on a 64 px phone cell).
+	await get_tree().process_frame
+	var pill := stone_cell.get_node_or_null("Badge") as Label if stone_cell else null
+	var cover := (stone_cell.size.x + 36.0) * 0.5 - pill.position.x if pill else 99.0
+	_expect(cover <= 12.0, "the stone badge covers at most 12 px of the icon box (%.0f px; cell %.0f px)" % [cover, stone_cell.size.x if stone_cell else 0.0])
 	var shot_cell: Button = null
 	for k in ui._cells.size():
 		if ui._cells[k].has("slot") and inv.slots[int(ui._cells[k].slot)].def_id == &"stone_shot":

@@ -1,15 +1,63 @@
 # W2-INV report: inventory and equipment by instance
 
-Branch `claude/mmo-w2-inv`, base claude/mmo-overhaul ddaab662 merged at 5dc41e63 (2026-10-21; docs only: STATUS owner
-decisions and workflow scripts, nothing under game/ or tools/). Hooks patch
-`docs/orchestration/reports/claude-mmo-w2-inv-hooks.patch`, regenerated in a mkscratch tree of 5dc41e63 (`git diff
---cached HEAD` after the 3-way apply): byte-identical to the committed patch (`cmp` clean). `git apply --check` is clean
-on the branch 5dc41e63 and `git apply --check --cached` on claude/mmo-overhaul ddaab662 (a temporary index). The spec
-13 storage addendum (Bag | Small Box tabs, Transfer to Bag) is INVUI B3's.
+Branch `claude/mmo-w2-inv`, base claude/mmo-overhaul 946da955 (HUD-DAYNIGHT) merged at abb71dd6 and 809be2e8 (W2-DATA
+sync, docs only) at 7da6eda7 (2026-10-21). Hooks patch `docs/orchestration/reports/claude-mmo-w2-inv-hooks.patch`,
+regenerated in mkscratch tree `w2inv-r6` (`git diff --cached HEAD` after the 3-way apply and the review 5 edits).
+`git apply --check` is clean on the branch and `git apply --check --cached` on claude/mmo-overhaul 809be2e8 (a
+temporary index). The spec 13 storage addendum (Bag | Small Box tabs, Transfer to Bag) is INVUI B3's.
 
 Owner approval on record (STATUS, 2026-10-20): "the non-stacking inventory save change is approved: merge it once its
-independent review passes and old saves migrate cleanly in tests." Review rounds 1, 2 and 3 and the delta review are
+independent review passes and old saves migrate cleanly in tests." Review rounds 1 to 5 and the delta review are
 fixed below; the package needs its re-review before the merge.
+
+## Review 5 findings (2026-10-21)
+Fixed on 20e6dbb3 (branch), 30c1b1b1 and f27a6bce (hooks). Each check below FAILs on the reviewed code (or a mutation
+that brings the finding back) and passes now. Logs in scratch `w2inv-r6/` (`old_hooks_t_inventory.log`, `mut_*.log`,
+`invlab_oldbadge.log`); every mutated file was copied back and `cmp`'d.
+
+| # | Sev | Finding | Fix | Check -> FAIL on the old code |
+|---|---|---|---|---|
+| 1, 6 | major | The default craft pick spent player-locked instances (spec 05:23, 13:229) | hooks `crafting.gd` `_plan_ordered`: the candidates of every recipe slot leave out locked instances, so a locked one is never a default lead or fill. A locked instance the player picks is still spent (an explicit pick is not "accidental crafting consumption", 13:229). StationCraft and the server's `act.craft` take `Crafting.default_picks`, the same plan. I chose this over a `locked` key in `spend_key`: a key only ranks, so with nothing else left it would still spend a locked stalk on its own | t_inventory `_test_default_pick_skips_locked` on the old hooks: `FAIL default twine spends the unlocked lv5/lv6 stalks, not the locked lv1 ones (spent [0, 1])`, `FAIL the craft leaves both locked stalks (used 2)`, `FAIL only locked stalks: the default twine makes nothing`, `FAIL a picked locked stalk is spent and the second unit is the unlocked one (spent [0, 1])`. The filter removed (mutation): the same 4 FAIL lines |
+| 2 | minor | Def rarity ranked ahead of level, against the ruled order | `Inventory.spend_key` = `[has traits, level, created_at, def rarity]`: the ruled order (finish-6 ruling: "the least valuable instance first (no trait attributes, then lowest level, then oldest)"), then rarity as the last tie-break | t_inventory: a plain lv60 raptor bone and a plain lv1 dense bone, the slingshot spends the dense bone. The old key (mutation): `FAIL slingshot spends the plain lv1 dense bone, not the plain lv60 raptor bone (spent [0, 2, 3, 4])`. The rarity tie-break case (two plain lv1 bones, the common one goes) still passes |
+| 3 | minor | A legacy stacked refund bigger than the cargo stayed in `pending_refunds` on every load | hooks `save_restore.gd` `_refund`: still all or nothing, but a refund that would not fit even an empty cargo grows `World.cargo_home` (`add_growing`), as the migration overflow does; the log names the growth. A refund that fits an emptier cargo still waits, so W1-SAVE's full-cargo tests keep their behaviour | t_save `_test_oversized_legacy_refund`: a pending row with stone 10 x 20. Now `[t_save] oversized legacy refund stone=200 slots 60 -> 201 pending=0`. Old `_refund`: `FAIL a legacy refund of 200 stone lands in a grown camp cargo (stone=0 kit=0 slots 60 -> 60 pending=1)`, `FAIL the grown cargo reloads with all 200 stone (got 0)` |
+| 4 | minor | Badge covered the icon at 844x390; 100-slot bag is a long scroll at 1600x900 | hooks `inventory_ui.gd` `_badge`: a slim pill (3 px side margins, 2 px from the corner), a one-digit count a round pill (min width 1.4 x font size). Sizing cells to the column and virtualizing the grid stay with INVUI, which replaces this view (STATUS: "It supersedes W2-INV's grouped bag view") | inventory_lab: `the stone badge covers at most 12 px of the icon box`. Old pill: `[invlab] FAIL the stone badge covers at most 12 px of the icon box (20 px; cell 56 px)`. Shots below |
+| 5 | minor | `plan_spends_traits` had no game caller | Dropped, with its t_inventory checks. INVUI's craft menu does not call it: its hooks only retype it, and it asks for a pick through its own `_trait_slot` over `Crafting.plan`. INVUI's next sync must drop that retype hunk | `grep -rn plan_spends_traits game/` in the hooked tree: no hits |
+
+Shots, windowed on gl_compatibility in `w2inv-r6`, full bag (100/100), opened and looked at (scratch
+`w2inv-r6/shots/`, not in the repo):
+- 844x390 before (`before_full_844_glc.png`): the pills are 25 px wide and cover the right third of the stone, the
+  berry bowl and the meat. After (`after2_full_844x390_glc.png`, crop `crop_after2_844.png`): slim pills in the
+  corner; the berry bowl, the meat and the mushroom show whole, the "16" pill still touches the stone's top-right corner.
+- 1600x900 after (`after2_full_1600x900_glc.png`): 20 cells, one-digit pills are round, two-digit ones wider; nothing
+  covers an icon. An earlier try (left-aligned icon on a group cell) shrank the icon to about 12 px and was dropped.
+
+### Review 5 gates (2026-10-21)
+Fresh mkscratch tree `w2inv-r6g` of 7da6eda7 with the hooks patch of 30c1b1b1 (logs in scratch `w2inv-r6/gates/`),
+then the f27a6bce round-pill change copied in (the tree's `git diff --cached HEAD` is then `cmp`-identical to the
+committed patch) and every gate that loads the bag screen run again (`w2inv-r6/rerun/`). Every run went through gslot.
+- Import exit 0, 0 "Failed to compile" / Parse Error / SCRIPT ERROR lines.
+- All 24 `t_*.gd` exit 0 with their PASS line and 0 SCRIPT ERROR, except t_save's 5 deliberate ones (`[t_save] PASS`):
+  `[t_inventory] PASS`, `[t_items] PASS`, `[t_player] PASS`, `[t_save] PASS`, `[t_tame] PASS`, `[t_build] PASS`,
+  `[t_data] PASS items=223 recipes=155`, `[t_w2_skills] PASS`, `[t_water] PASS`, `[t_daynight] PASS`, `[t_srvdom] PASS`,
+  `[t_server_domain] PASS`, `[t_ui] PASS`, `[t_uiicons] PASS ids=177 files=116 glyphs=47 ...`, `[t_web] PASS`,
+  `[t_ai] PASS`, `[t_canim] PASS`, `[t_combat] PASS`, `[t_harbour] PASS islands=15`, `[t_iconart] PASS`, `[t_light]
+  PASS` (t_light, t_lighting), `[t_occlude] PASS`, `[t_structart] PASS`. Rerun after the pill change: `[t_ui] PASS`,
+  `[t_uiicons] PASS ...`, `[t_inventory] PASS`.
+- `run_all.gd`: `[tests] PASS`; `tools/smoke.sh --no-import`: `SMOKE PASS` (both runs).
+- Labs, exit 0, 0 SCRIPT ERROR: `[invlab] PASS empty_cells=100/97 slots=100 groups=20 stone_open=17 equip_l30=true
+  full_unequip_notice=true`, `[craft_lab] PASS`, `[equiplab] PASS` (both runs), `[kitchen_lab] PASS`, water_lab
+  `[waterlab] done`; windowed `ui_real_capture_lab` 844x390 and 1600x900 on gl_compatibility: `[uireal] PASS
+  screens=hud,hud_daynight,craft,...`, 0 SCRIPT ERROR.
+- Probe sweep (every `--*-probe`): camp-travel (`[camptravel] done failures3 ...`) and combat-reach (`[reach] PARTIAL
+  ... failures=2`) exit 1, the rest exit 0 (`[gear] PARTIAL ... failures=0`, `[cargocapacity] failures0`). A
+  mkscratch tree of the base 809be2e8 gives the same two exits and the same FAIL/PARTIAL lines (`diff` empty;
+  `w2inv-r6/base_sweep/`).
+- 0 "couldn't resolve track" in every log. No new `~/Library/Logs/DiagnosticReports/Godot-*.ips` (25 before and after
+  both runs; the newest is still 2026-10-20-232613).
+- Shots of the final code (`w2inv-r6/rerun/shots/`), opened and looked at: inventory_lab full bag 844x390 (slim pills,
+  as above), `--bag-fill=30` 1600x900 (pills 16, 12, 2, then empty slots; the column scrolls), `--bag-group=stone`
+  844x390 (back cell "All", stones Lv 1..Lv 14, no pills on single instances), `ui_real_capture_lab` bag 844x390 (an
+  empty bag: a grid of empty slots, "Bag 0 / 100").
 
 ## Review round 2 findings, raised again (2026-10-21)
 This step's prompt carried review round 2's 14 findings (the same probes: `after_uireal/bag_844x390.png`, `wornsan2`,
@@ -233,7 +281,7 @@ save/load half (`exact equip: worn lv=60 uid_kept=true bag_helm_lv=1`).
   rather than drop anything; uids are unique after the load. The `[inv] migration:` line names what went to home
   storage (e.g. `285 more instances from split stacks, 80 kept here, 205 to home storage (stone x205); bag 100/100`).
   `unique_uids(invs)` (review 2): one holder per uid across containers that load on their own.
-- `game/tests/t_inventory.gd`: 30 tests (list under Gates).
+- `game/tests/t_inventory.gd`: 31 tests (list under Gates).
 - `game/scripts/dev/inventory_lab.gd` + scene: a full bag of 100 mixed instances in the real inventory screen. Headless
   it drives the grid (group, open, tap an instance, equip the L30 helm out of its group, unequip into a full bag, the
   stone tip, the group count badge and level range against the ×45 stack, the L pip on a group, empty slot cells for
@@ -249,7 +297,9 @@ save/load half (`exact equip: worn lv=60 uid_kept=true bag_helm_lv=1`).
 - `crafting.gd` `_plan` (review 3): value first, one sort per slot: recipe `prefer_id`, `Inventory.spend_key`, category
   overlaps, the lead's def, stack size, bag order; a unit a later slot needs is left for it (`_spare_for_later`); when
   a slot runs short, the dedicated-first plan (`_plan_ordered(..., false)`, the order before W2-INV) is the fallback;
-  the lead is the first unit taken (spec 05:23). `plan_spends_traits()`. `output_fits` asks `can_accept`.
+  the lead is the first unit taken (spec 05:23). Review 5: locked instances are never candidates, only an explicit
+  pick (spec 13:229); `plan_spends_traits()` is gone (no caller). `output_fits` asks `can_accept`.
+- `save_restore.gd` (W1-SAVE, review 5) `_refund`: a refund bigger than the whole cargo grows it (`add_growing`).
 - `item_stack.gd` (W2-PROCESS) `tooltip()`: named traits instead of the attribute dict; no "x1" on one instance.
 - `server/character_state.gd`: `split_stacks(d)` splits a stored character's stacked rows (first unit keeps the
   stack's uid, the k-th more gets `<uid>.<k>`), grows the bag to 100, puts what does not fit in `d.storage`. A row
@@ -260,18 +310,18 @@ save/load half (`exact equip: worn lv=60 uid_kept=true bag_helm_lv=1`).
 - `ui/inventory_ui.gd` (W1-UI; INVUI replaces it): grouped bag grid (one cell per item id: a group has a corner count
   badge and its level range "Lv 1-16" (review 3), a stack "×45", one instance "Lv N", with L/U pips for any
   locked/unstable instance; a group opens into one cell per instance
-  behind a back cell; Equip wears the exact instance selected); one empty cell per free slot (disabled, slot look); slot icon and caption scale
+  behind a back cell; Equip wears the exact instance selected; review 5: a slim corner pill, round for one digit); one empty cell per free slot (disabled, slot look); slot icon and caption scale
   with the slot; the tip is not clipped; a refused unequip says "Bag is full."; dead worn-gear check removed.
 - Tests and fixtures that encoded stacking: t_save (helm worn, `_test_stacked_migration`, instance goldens
   `save_v3_inst_golden.json`, `save_v3_inst_away_golden.json`), t_tame, t_items, t_player, t_build, run_all,
-  multistack_lab, srvdom_checks, craft_lab. Review 2: t_save `_test_duplicate_uids_across_containers`, t_player
+  multistack_lab, srvdom_checks, craft_lab. Review 5: t_save `_test_oversized_legacy_refund`. Review 2: t_save `_test_duplicate_uids_across_containers`, t_player
   `_test_corpse_take_xp`. Review 3: t_items `_test_no_lost_items` and craft_lab `_full_bag_craft` /
   `_finish_waits_for_room` test the full-bag refusal and the make-room wait again (sashimi: 3 instances from 1 meat).
 
 ## Vision fix (earlier round): default picks spare valuable instances (spec 05:23)
 Spec 05:23: "When crafting, let users explicitly choose exactly which bone is consumed and protect valuable items from
-default auto-consumption." Ruling: crafting only. `Inventory.spend_key(s) = [has traits, def rarity, level, created_at]`
-ascending; `Crafting._plan` orders every unit it spends by it, ahead of the category-overlap key since review 3 (round
+default auto-consumption." Ruling: crafting only. `Inventory.spend_key(s) = [has traits, level, created_at, def rarity]`
+ascending (review 5: the ruled order, rarity last; locked instances are not candidates at all); `Crafting._plan` orders every unit it spends by it, ahead of the category-overlap key since review 3 (round
 3 #1), with the lead's own def only a tie-break (round 2 #2, round 3 #3). `_test_default_pick_spares_valuable` (failed on the old order:
 `FAIL default twine spends the plain oldest stalks 3 then 2, not the trait (0) or lv 5 (1) one (picks [0] spent [0, 1])`).
 
@@ -316,15 +366,16 @@ lines), every run through gslot (`gates2/` in scratch):
 Round 2 mutation and old-code runs: the FAIL lines quoted in the round 2 table (`old_t_inventory.log`, `old_t_save.log`,
 `old_t_player.log`, `old_invlab.log`, `mut_worn.log`).
 
-t_inventory's 30 tests: exact equip by instance, bad amounts, worn gear out of the bag, best tool, no stacking, split
+t_inventory's 31 tests: exact equip by instance, bad amounts, worn gear out of the bag, best tool, no stacking, split
 migration, legacy equipment migration, hostile worn rows, identity through transfer, the base's real stacked saves,
 overflow to home storage with the log line, a 150-unit row bigger than the bag, round trip keeps uids, worn gear kept,
 currency and ammo still stack, visual groups merge nothing, server store migration, default pick spares valuable
 instances, round 1's legacy ceiling, duplicate uids, Pocket capacity, grown container reload, journal before split,
-named traits in the tip, and round 2's default pick across defs (with `plan_spends_traits`), forged worn row, server
+named traits in the tip, and round 2's default pick across defs, forged worn row, server
 split of uid-less rows, journal under changed rules, unique uids across containers, and round 3's value before
 overlap (straw roll, slingshot, the reserved reed, the dedicated-first fallback, the lead-def tie-break; the hostile
-worn test now checks unwearable rows land in the bag).
+worn test now checks unwearable rows land in the bag), and review 5's locked stalks (never a default pick) and level
+before def rarity.
 
 ## Bag shots (looked at)
 Round 3, gl_compatibility, inventory_lab, PNGs in scratch `w2inv-r3/shots` (not in the repo), each opened and looked at:
@@ -358,9 +409,9 @@ opened and looked at:
   virtualize or group it. `Inventory.groups()` gives the grouping data.
 - **INVUI / iconart (review 3)**: `icons_manifest.json` aliases stone_shot to the stone icon, so the ammo stack and the
   stone group share a picture (the badge and "×45" tell them apart now); a stone_shot icon of its own is an iconart job.
-- **INVUI (craft picker, spec 13:486)**: `Crafting.plan_spends_traits(inv, rec, picks)` is true when the default (or
-  given) picks spend an instance with traits; the picker should then ask for an explicit pick instead of crafting on
-  the default. Not wired here (craft_ui.gd is not this package's).
+- **INVUI (craft picker, spec 13:486)**: review 5 dropped `Crafting.plan_spends_traits` (no caller; INVUI asks through
+  its own `_trait_slot`). INVUI's hooks patch retypes that function: drop the hunk at its next sync. A locked instance
+  is no longer a default candidate (`_plan`); the picker still lists it, and picking it spends it.
 - **INVUI (bag grid)**: the round 2 grid shows one empty cell per free slot; with 100 slots and 134 px desktop cells a
   mostly empty bag is a long scroll at 1600x900. INVUI's InventoryGrid can size cells or virtualize.
 - **INVUI (capacity indicator)**: `slot_count` now changes with worn equipment (Pocket / `bag_slots`) and `changed`
@@ -397,11 +448,14 @@ opened and looked at:
 - Gathered items have origin "" locally.
 - Butchering XP: 3 per drop kind, the first time any of it leaves a corpse (round 2). Taking each item, or each
   stacked row before W2-INV, pays the same as before; Take all now pays 3 per kind where it paid 3 once.
-- `plan_spends_traits` counts traits only; a higher level alone does not ask for a pick.
+- Review 5: a locked instance the player picks explicitly is spent; only default picks skip locked ones.
+- Review 5: a building refund larger than an empty home cargo grows the cargo; a smaller one still waits in
+  `pending_refunds` until the cargo has room (W1-SAVE's rule).
 - Spend order age: only crafted items carry `created_at`, so gathered, looted and migrated units tie at 0 and fall
   back to bag order, and a crafted unit sorts after a gathered one of the same level (a wall-clock stamp would break
-  the server replay). Item-def rarity is a key after traits since the delta review: items.json `rarity`, ranked by
-  `data/inventory.json` `rarity_order` (both in the server's `DATA_FILES`); an id missing from the order ranks as common.
+  the server replay). Item-def rarity is the last tie-break since review 5 (after traits, level and age, the ruled
+  order): items.json `rarity`, ranked by `data/inventory.json` `rarity_order` (both in the server's `DATA_FILES`); an
+  id missing from the order ranks as common.
 - A server row without a uid is not split by the migration (it stays as stored; `invariants()` flags it).
 - The post-load uid pass covers the live island's buildings; the other island's building rows load on travel and are
   not checked against the bag then (only edited saves can hold such duplicates).
@@ -413,4 +467,7 @@ opened and looked at:
 3. Building costs (`Inventory.consume`, build_placer) still take the first instances in bag order (outside the
    crafting-only ruling).
 4. `health_bonus_at` / `food_energy_at` should move to ItemStack (W2-PROCESS).
-5. INVUI: wire `plan_spends_traits` into the craft picker; size or virtualize the bag and storage grids.
+5. INVUI: size or virtualize the bag and storage grids (a 100-cell scroll at 1600x900).
+6. Seen in review 5, not fixed: a load grows a container to its saved rows but never shrinks it, so in one session a
+   cargo grown by one save keeps its size when another save loads (the next launch reads the saved size). Resetting
+   to `base_slots` first needs the Pocket capacity re-applied after the worn gear loads.
