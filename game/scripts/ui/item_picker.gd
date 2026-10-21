@@ -29,11 +29,7 @@ var _m := {}
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	var bg := ColorRect.new()
-	bg.color = InvTheme.BG # opaque, like every screen of the family
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	add_child(InvTheme.backdrop()) # opaque: HUD controls must not show through a modal screen
 	grid = InventoryGrid.new()
 	add_child(grid)
 	toolbar = BagToolbar.new()
@@ -210,7 +206,7 @@ func _refresh_panel() -> void:
 func _layout() -> void:
 	if size.x <= 0.0 or size.y <= 0.0:
 		return
-	var safe := UiTokens.safe_insets(get_viewport()) if is_inside_tree() else Vector4.ZERO
+	var safe := InvTheme.safe(get_viewport()) if is_inside_tree() else Vector4.ZERO
 	_m = InvTheme.metrics(Vector2(size.x - safe.w - safe.x, size.y))
 	var pad: float = _m.margin
 	var left := pad + safe.w
@@ -219,6 +215,7 @@ func _layout() -> void:
 	var head_h: float = _m.header_h + safe.z
 	header.position = Vector2.ZERO
 	header.size = Vector2(size.x, head_h)
+	header.insets = safe
 	header.apply_metrics(_m)
 	var top: float = head_h + _m.gap
 	var grid_w: float = _m.grid_w + 2.0

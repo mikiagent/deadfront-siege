@@ -17,7 +17,9 @@ var multi := false:
 		multi = v
 		if not v:
 			_multi.clear()
-			_paint_selection()
+		elif _sel != "":
+			_multi[_sel] = true # the single selection carries into multi-select
+		_paint_selection()
 var view_key: StringName = &"acquired"
 var filter_id: StringName = &"all"
 var lv_px := 20
@@ -31,6 +33,8 @@ var worn_uid := ""
 var min_rows := 0
 ## When set, only these bag slots show (the ingredient picker's candidates: {slot: true}).
 var only: Dictionary = {}
+## Search text (storage toolbar): only items whose name contains it show; "" shows all.
+var query := ""
 
 var _sel := ""
 var _multi := {}
@@ -52,15 +56,11 @@ func _init() -> void:
 	_content = Control.new()
 	_content.mouse_filter = Control.MOUSE_FILTER_PASS
 	_scroll.add_child(_content)
-	var frame := Panel.new()
-	var sb := StyleBoxFlat.new()
-	sb.draw_center = false
-	sb.border_color = InvTheme.BORDER
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(3)
-	frame.add_theme_stylebox_override("panel", sb)
+	var frame := Control.new() # over the cells: the panel's dark, irregular edge
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.draw.connect(func() -> void: InvPaint.frame(frame, Rect2(Vector2.ZERO, frame.size), clampf(_cell_px * 0.02, 2.0, 3.0), get_index()))
+	frame.resized.connect(frame.queue_redraw)
 	add_child(frame)
 	resized.connect(_relayout)
 
@@ -78,6 +78,11 @@ func bind(inv: Inventory) -> void:
 func set_view(key: StringName, filter: StringName) -> void:
 	view_key = key
 	filter_id = filter
+	refresh()
+
+## Shows only items whose name contains `text` (case-insensitive); presentation only.
+func set_query(text: String) -> void:
+	query = text.strip_edges().to_lower()
 	refresh()
 
 ## Auto Sort: reorder the presentation by `key`; the bag's own slots are untouched.
@@ -106,6 +111,22 @@ func select_uid(key: String) -> void:
 	selection_changed.emit(_sel)
 	_scroll_to(_cell_for(_sel))
 
+## Multi-select every item shown (the storage toolbar's select-all); the last one is the focus.
+func select_all() -> void:
+	_flush()
+	multi = true
+	for c in _shown:
+		if c.stack != null:
+			_multi[c.uid] = true
+			_sel = c.uid
+	_paint_selection()
+	selection_changed.emit(_sel)
+
+## True when an item with this identity is shown now.
+func has_key(key: String) -> bool:
+	_flush()
+	return _cell_for(key) != null
+
 func selected_uid() -> String:
 	_flush()
 	return _sel
@@ -124,6 +145,14 @@ func selected_uids() -> Array[String]:
 			out.append(str(k))
 	elif _sel != "":
 		out.append(_sel)
+	return out
+
+## Bag slots of every selected instance, in view order (the pinned worn piece has none).
+func selected_indices() -> Array[int]:
+	var out: Array[int] = []
+	for c: InventorySlot in item_cells():
+		if c.selected and c.index >= 0:
+			out.append(c.index)
 	return out
 
 ## Cells holding an item, in view order.
@@ -155,6 +184,8 @@ func refresh() -> void:
 	var order := InvView.order(inventory, view_key, filter_id)
 	if not only.is_empty():
 		order = order.filter(func(i: int) -> bool: return only.has(i))
+	if query != "":
+		order = order.filter(func(i: int) -> bool: return _name_of(inventory.slots[i]).contains(query))
 	var taken := {}
 	var rows := 0
 	if pinned:
@@ -170,7 +201,7 @@ func refresh() -> void:
 		rows = maxi(rows, at.y + shape.y)
 		_place(i, at, shape)
 	# Empty compartments: exactly up to capacity in the whole bag; a filtered view completes its rows.
-	var all := filter_id == &"all" and only.is_empty()
+	var all := filter_id == &"all" and only.is_empty() and query == ""
 	var empties := inventory.slot_count - inventory.used_slots() if all else 0
 	var at := Vector2i.ZERO
 	while empties > 0 or at.y < maxi(rows, min_rows):
@@ -192,6 +223,10 @@ func refresh() -> void:
 		if _cell_for(str(k)) == null:
 			_multi.erase(k)
 	_paint_selection()
+
+static func _name_of(s: ItemStack) -> String:
+	var d := s.def()
+	return (d.display_name if d and d.display_name != "" else LevelDisplay.nice_name(str(s.def_id))).to_lower()
 
 func _shape(span: int) -> Vector2i:
 	match span:
@@ -247,6 +282,7 @@ func _cell_for(key: String) -> InventorySlot:
 
 func _paint_selection() -> void:
 	for c in _shown:
+		c.checks = multi
 		c.selected = c.stack != null and (_multi.has(c.uid) if multi else c.uid == _sel)
 
 ## Repaint every cell (a NEW tag was acknowledged, a lock toggled without a bag change).
@@ -259,7 +295,7 @@ func _on_cell_pressed(c: InventorySlot) -> void:
 
 func _scroll_to(c: InventorySlot) -> void:
 	if c and _scroll and is_inside_tree():
-		_scroll.ensure_control_visible(c)
+		_scroll.ensure_control_visible.call_deferred(c) # after a fresh refresh the scroll has not sized its content yet
 
 ## The bag changed: rebuild once at the end of the frame, or on the next read while hidden.
 func _mark() -> void:

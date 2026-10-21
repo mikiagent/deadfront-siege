@@ -5,6 +5,11 @@ extends RefCounted
 ## family root only, never on the global theme.
 
 const BG := Color("#101714")
+## The weathered surface around and between the panels: the references show a lighter, blotchy
+## khaki there, which is what makes each dark-bordered panel read as its own compartment.
+# ASSUMPTION: spec 13's #101714 "main background" stays the dark of the panel borders and header;
+# the backdrop between panels follows the references (newest truth) as a dark khaki.
+const BACKDROP := Color("#3B382C")
 const HEADER := Color("#080809")
 ## Spec 13's #39392F warmed toward the reference's brown grid panel (#3A2F2C).
 const PANEL := Color("#3A3530")
@@ -23,10 +28,14 @@ const NEW_BG := Color("#176897")
 const POSITIVE := Color("#D9B65A")
 const RARE := Color("#67B84E")
 const DANGER := UiTokens.DANGER
-const BORDER := Color(0.0, 0.0, 0.0, 0.6)
 const BUTTON_DARK := Color(0.07, 0.075, 0.065, 0.9)
 const BUTTON_EDGE := Color(0.62, 0.61, 0.56, 0.75)
 const GRAIN := preload("res://scripts/ui/inv_grain.gdshader")
+## The dark, slightly irregular panel border (spec 13 s2).
+const FRAME_INK := Color(0.035, 0.03, 0.024, 0.92)
+## Safe-area insets every screen of the family lays out inside (x right, y bottom, z top, w left).
+## Desktop and headless runs report none, so the labs and tests force a notch through this.
+static var forced_insets := Vector4(-1, -1, -1, -1)
 
 static var _theme: Theme
 static var _font: FontVariation
@@ -72,6 +81,9 @@ static func font() -> Font:
 		_font.variation_transform = Transform2D(Vector2(0.9, 0.0), Vector2(0.0, 1.0), Vector2.ZERO)
 	return _font
 
+static func safe(vp: Viewport) -> Vector4:
+	return forced_insets if forced_insets.x >= 0.0 else UiTokens.safe_insets(vp)
+
 static func theme() -> Theme:
 	if _theme != null:
 		return _theme
@@ -107,6 +119,11 @@ static func theme() -> Theme:
 	track.content_margin_left = 3
 	track.content_margin_right = 3
 	t.set_stylebox("scroll", "VScrollBar", track)
+	# Hover tooltips (desktop) in the family's dark look; the same facts are one tap away in the panel.
+	t.set_stylebox("panel", "TooltipPanel", button_box(Color(0.045, 0.045, 0.04, 0.96), BUTTON_EDGE))
+	t.set_color("font_color", "TooltipLabel", TEXT)
+	t.set_font("font", "TooltipLabel", font())
+	t.set_font_size("font_size", "TooltipLabel", 16)
 	_theme = t
 	return t
 
@@ -145,6 +162,10 @@ static func grain(tint: Color, strength: float = 1.0, seed_v: float = 0.0) -> Sh
 		m.set_shader_parameter("seed", seed_v)
 		_grain[key] = m
 	return _grain[key]
+
+## The family's opaque backdrop (HUD controls must not show through a modal screen).
+static func backdrop() -> ColorRect:
+	return surface(BACKDROP, 1.2, 9.0)
 
 ## A full-rect ColorRect painted with the grain, for panel backgrounds.
 static func surface(tint: Color, strength: float = 1.0, seed_v: float = 0.0) -> ColorRect:

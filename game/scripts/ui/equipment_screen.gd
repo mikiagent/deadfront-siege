@@ -42,7 +42,7 @@ func _panel(seed_v: float, tint: Color = InvTheme.PANEL) -> Control:
 	var surf := InvTheme.surface(tint, 1.1, seed_v)
 	surf.show_behind_parent = true # the panel's own drawing (My Info) goes over it
 	c.add_child(surf)
-	c.draw.connect(func() -> void: c.draw_rect(Rect2(Vector2.ZERO, c.size), InvTheme.BORDER, false, 2.0))
+	c.draw.connect(func() -> void: InvPaint.frame(c, Rect2(Vector2.ZERO, c.size), 2.0 if _m.get("compact", false) else 3.0, int(seed_v)))
 	add_child(c)
 	return c
 

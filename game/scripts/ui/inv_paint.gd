@@ -2,7 +2,7 @@ class_name InvPaint
 extends RefCounted
 ## Draw helpers every slot-like control in the bag family paints with, so the Bag, storage, cargo
 ## and picker cells match (spec 13 s5-8, s11): item art, "Lv. N", the blue NEW tag, the yellow
-## corner brackets, the rare corner mark, the lock pip, durability and a fungible count.
+## corner brackets (the gold check in multi-select), trait pips, the lock pip, durability and a count.
 
 ## Item art centred a little low in `cell` (room for the labels above), fitted to its opaque part.
 static func item_icon(ci: CanvasItem, id: StringName, cell: Rect2, share: float = 0.62, centre_y: float = 0.56, tint: Color = Color.WHITE) -> void:
@@ -59,12 +59,32 @@ static func brackets(ci: CanvasItem, r: Rect2, unit: float, color: Color = InvTh
 		ci.draw_rect(Rect2(p - Vector2(w * 0.5, w * 0.5) * d.sign(), Vector2(arm * d.x, w * d.y)).abs(), color)
 		ci.draw_rect(Rect2(p - Vector2(w * 0.5, w * 0.5) * d.sign(), Vector2(w * d.x, arm * d.y)).abs(), color)
 
-## Small green triangle in the bottom-right corner for a rare trait (spec 13 s11, optional and
-## much quieter than the brackets).
-static func rare_marker(ci: CanvasItem, cell: Rect2, unit: float) -> void:
-	var s := maxf(8.0, unit * 0.12)
-	var e := cell.end - Vector2.ONE * inset(unit)
-	ci.draw_colored_polygon(PackedVector2Array([e, e - Vector2(s, 0), e - Vector2(0, s)]), Color(InvTheme.RARE, 0.85))
+## Small square pips under the art, one per trait: gold positive, grey negative, green rare (both
+## Durango references mark traits this way; spec 13 s11: quiet next to the brackets). At most six.
+static func pips(ci: CanvasItem, cell: Rect2, stack: ItemStack, unit: float) -> void:
+	var sec := InvAttributes.sections(stack)
+	var colors: Array[Color] = []
+	for pair in [["positive", InvTheme.POSITIVE], ["negative", InvTheme.TEXT_2], ["rare", InvTheme.RARE]]:
+		for _r in (sec[pair[0]] as Array):
+			colors.append(pair[1])
+	if colors.is_empty():
+		return
+	colors.resize(mini(colors.size(), 6))
+	var s := maxf(4.0, roundf(unit * 0.055))
+	var gap := maxf(2.0, roundf(s * 0.5))
+	var x := cell.position.x + (cell.size.x - colors.size() * s - (colors.size() - 1) * gap) * 0.5
+	var y := cell.position.y + cell.size.y - unit * 0.18
+	for c in colors:
+		ci.draw_rect(Rect2(x, y, s, s), c)
+		x += s + gap
+
+## Multi-select mark (storage reference): a lighter compartment and a gold disc with a dark tick, top-left.
+static func check(ci: CanvasItem, cell: Rect2, unit: float) -> void:
+	ci.draw_rect(cell, Color(1, 1, 1, 0.07))
+	var rad := maxf(9.0, unit * 0.11)
+	var c := cell.position + Vector2.ONE * (inset(unit) + rad - 2.0)
+	ci.draw_circle(c, rad, InvTheme.SELECT)
+	ci.draw_polyline(PackedVector2Array([c + Vector2(-rad * 0.48, 0.0), c + Vector2(-rad * 0.1, rad * 0.4), c + Vector2(rad * 0.5, -rad * 0.38)]), InvTheme.PRIMARY_INK, maxf(2.0, rad * 0.24), true)
 
 ## Small green triangle in the top-left corner: the instance worn now (Character -> Gear reference).
 static func worn_marker(ci: CanvasItem, cell: Rect2, unit: float) -> void:
@@ -102,3 +122,30 @@ static func count(ci: CanvasItem, cell: Rect2, n: int, px: int) -> void:
 ## Faint dashed separator (the reference's fine compartment lines).
 static func dashed(ci: CanvasItem, a: Vector2, b: Vector2, color: Color = InvTheme.SEPARATOR, width: float = 1.0) -> void:
 	ci.draw_dashed_line(a, b, color, width, 4.0, false)
+
+## Dark, slightly irregular panel border (spec 13 s2: "dark, slightly irregular", no bright outlines):
+## a rounded outline whose points wander about a pixel by a fixed hash, so it never flickers and no
+## edge looks ruled. `key` varies the wander between panels.
+static func frame(ci: CanvasItem, r: Rect2, width: float = 3.0, key: int = 0) -> void:
+	var rad := 4.0
+	var box := r.grow(-width * 0.5)
+	if box.size.x <= rad * 2.0 or box.size.y <= rad * 2.0:
+		return
+	# Corner centres clockwise from top-left, each with the arc it turns and the side after it.
+	var cs := [box.position + Vector2(rad, rad), Vector2(box.end.x - rad, box.position.y + rad), box.end - Vector2(rad, rad), Vector2(box.position.x + rad, box.end.y - rad)]
+	var pts := PackedVector2Array()
+	var k := key * 37
+	for i in 4:
+		var a0 := PI + i * PI * 0.5
+		for j in 3: # the arc's last point is the side's first
+			var a := a0 + j * PI / 6.0
+			pts.append(cs[i] + Vector2(cos(a), sin(a)) * rad)
+		var from: Vector2 = cs[i] + Vector2(cos(a0 + PI * 0.5), sin(a0 + PI * 0.5)) * rad
+		var to: Vector2 = cs[(i + 1) % 4] + Vector2(cos(a0 + PI * 0.5), sin(a0 + PI * 0.5)) * rad
+		var normal := Vector2(cos(a0 + PI * 0.5), sin(a0 + PI * 0.5))
+		var steps := maxi(1, int(from.distance_to(to) / 14.0))
+		for s in steps:
+			k += 1
+			pts.append(from.lerp(to, float(s) / steps) + normal * InvHeader._jit(k) * 0.9)
+	pts.append(pts[0])
+	ci.draw_polyline(pts, InvTheme.FRAME_INK, width, true)

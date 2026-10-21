@@ -1,225 +1,333 @@
 class_name StorageScreen
 extends Control
-## A container beside the Bag on the shared grid (spec 13 s17): storage boxes, baskets, home cargo,
-## corpse loot and dinosaur cargo. Each side is its own InventoryGrid with its own capacity strip and
-## Auto Sort / Filter toolbar; the inspection panel on the right shows the exact instance last tapped
-## on either side, with the transfer that applies to it as its yellow primary (Store from the bag,
-## Take from the container, Take All beside it). The host (InventoryUI) owns the transfer rules and
-## says which moves apply through set_actions; this screen only presents them.
+## A container and the Bag on the shared grid (spec 13 s17; the owner's storage-transfer reference,
+## 2026-10-20): storage boxes, baskets, home cargo, corpse loot and dinosaur cargo. Two tabs over one
+## grid, "Bag 91 / 100" and "<container> 5 / 60" (the active one gold); a left rail of category
+## filters; the toolbar's Auto Sort, Select All, Select (multi-select: "N Select" in the header and a
+## gold check on each picked item), Search and Lock; the inspection panel on the right shows the
+## instance tapped last, its yellow primary the transfer ("Transfer to Bag" from the container,
+## "Transfer to <container>" from the Bag). A take-only container says why in a notice over the grid.
+## The host (InventoryUI) owns the transfer rules and says which moves apply through set_actions.
 
 signal back_pressed
 signal close_pressed
-signal store_pressed
-signal take_pressed(index: int)
+## Bag slots to move into the container (every picked one in multi-select).
+signal store_pressed(indices: Array[int])
+## Container slots to move into the bag.
+signal take_pressed(indices: Array[int])
 signal take_all_pressed
+## The Bag tab's focus changed (the host's store rule reads it).
 signal bag_selected(index: int)
 
 var header: InvHeader
 var bag_grid: InventoryGrid
 var box_grid: InventoryGrid
-var bag_bar: BagToolbar
-var box_bar: BagToolbar
+var toolbar: BagToolbar
+var rail: FilterRail
 var inspect: ItemInspectPanel
+var bag_tab: Button
+var box_tab: Button
 var player: Player
 ## &"storage" or &"cargo" (InvActions ctx.where).
 var kind: StringName = &"storage"
+## &"box" (the container, as it opens) or &"bag": what the grid shows.
+var tab: StringName = &"box"
 var _title := ""
-var _bag_cap: CapacityIndicator
-var _box_cap: CapacityIndicator
-var _bag_label: Label
-var _box_label: Label
+var _notice: Label
 var _can := {"store": false, "take": false, "take_all": false}
 var _note := ""
 var _store_why := ""
-## The side tapped last: its selection is what the panel shows.
-var _side: StringName = &""
 var _m := {}
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	var bg := ColorRect.new()
-	bg.color = InvTheme.BG # opaque: HUD controls must not show through a modal screen
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	add_child(InvTheme.backdrop()) # opaque: HUD controls must not show through a modal screen
 	bag_grid = InventoryGrid.new()
 	add_child(bag_grid)
 	box_grid = InventoryGrid.new()
 	add_child(box_grid)
-	_bag_label = _strip_label("Bag")
-	_box_label = _strip_label("")
-	_bag_cap = CapacityIndicator.new()
-	add_child(_bag_cap)
-	_box_cap = CapacityIndicator.new()
-	add_child(_box_cap)
-	bag_bar = _side_bar(bag_grid)
-	box_bar = _side_bar(box_grid)
+	rail = FilterRail.new()
+	add_child(rail)
+	bag_tab = _tab(&"bag")
+	box_tab = _tab(&"box")
+	toolbar = BagToolbar.new()
+	add_child(toolbar)
 	inspect = ItemInspectPanel.new()
+	inspect.toolbar_actions = []
 	add_child(inspect)
+	_notice = Label.new()
+	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_notice.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_notice.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_notice.clip_text = true
+	_notice.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_notice.add_theme_stylebox_override("normal", InvTheme.button_box(Color(0.13, 0.13, 0.125, 0.94), Color(0, 0, 0, 0), 4))
+	add_child(_notice)
 	header = InvHeader.new()
-	header.show_stones = false # the title is long (a pet's name); T-stones belong to the Bag
 	add_child(header)
 	header.back_pressed.connect(func() -> void: back_pressed.emit())
 	header.close_pressed.connect(func() -> void: close_pressed.emit())
-	bag_grid.selection_changed.connect(func(k: String) -> void: _on_pick(&"bag", k))
-	box_grid.selection_changed.connect(func(k: String) -> void: _on_pick(&"box", k))
+	bag_grid.selection_changed.connect(func(_k: String) -> void:
+		if tab == &"bag":
+			bag_selected.emit(bag_grid.selected_index())
+		_refresh())
+	box_grid.selection_changed.connect(func(_k: String) -> void: _refresh())
+	rail.chosen.connect(func(id: StringName) -> void:
+		for g in _grids():
+			g.set_view(g.view_key, id))
+	toolbar.squares = [&"select_all", &"select", &"search", &"lock"]
+	toolbar.sort_pressed.connect(func(key: StringName) -> void:
+		for g in _grids():
+			g.auto_sort(key))
+	toolbar.select_toggled.connect(_set_multi)
+	toolbar.select_all_pressed.connect(func() -> void:
+		_set_multi(true)
+		toolbar.set_select(true)
+		_grid().select_all())
+	toolbar.search_changed.connect(func(t: String) -> void:
+		for g in _grids():
+			g.set_query(t))
+	toolbar.lock_pressed.connect(func() -> void: InvActions.toggle_locks(player, bag_grid.selected_indices(), _ctx()))
+	toolbar.drop_pressed.connect(func() -> void:
+		for i in bag_grid.selected_indices():
+			InvActions.run(&"drop", player, i, _ctx()))
 	inspect.action_pressed.connect(_on_action)
 	resized.connect(_layout)
-
-func _strip_label(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	l.clip_text = true
-	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	add_child(l)
-	return l
-
-## Auto Sort and Filter for one side; presentation only, like the Bag's.
-func _side_bar(g: InventoryGrid) -> BagToolbar:
-	var bar := BagToolbar.new()
-	bar.squares = [&"filter"]
-	bar.sort_pressed.connect(func(key: StringName) -> void: g.auto_sort(key))
-	bar.filter_chosen.connect(func(id: StringName) -> void: g.set_view(g.view_key, id))
-	add_child(bar)
-	return bar
 
 func setup(bag: Inventory, box: Inventory, title: String, p: Player = null, p_kind: StringName = &"storage") -> void:
 	player = p
 	kind = p_kind
 	_title = title
-	header.set_title(title)
-	_box_label.text = title
-	_side = &""
+	toolbar.close_menu()
+	toolbar.set_search(false)
+	toolbar.set_select(false)
+	bag_grid.multi = false
+	box_grid.multi = false
 	bag_grid.bind(bag)
 	box_grid.bind(box)
-	for pair in [[bag_bar, bag_grid], [box_bar, box_grid]]:
-		var bar: BagToolbar = pair[0]
-		bar.filter_id = &"all"
-		bar.close_menu()
-		(pair[1] as InventoryGrid).set_view(&"acquired", &"all")
-	_bag_cap.bind(bag)
-	_box_cap.bind(box)
-	_layout()
-	_refresh_inspect()
+	for g in _grids():
+		g.query = ""
+		g.view_key = &"acquired"
+	rail.choose(&"all") # every grid back to All, in pickup order
+	for inv in [bag, box]:
+		if inv and not (inv as Inventory).changed.is_connected(_paint_tabs):
+			(inv as Inventory).changed.connect(_paint_tabs)
+	show_tab(&"box")
 
-## Which transfers apply now. `note` is the container's read-only reason (grey; Take is not offered),
-## `store_why` why the selected bag item cannot go in.
+## Which transfers apply now. `note` is the container's read-only reason (shown over the grid; Take
+## is not offered), `store_why` why the Bag's focus cannot go in.
 func set_actions(can_store: bool, can_take: bool, can_take_all: bool, note: String, store_why: String = "") -> void:
 	_can = {"store": can_store, "take": can_take and note == "", "take_all": can_take_all and note == ""}
 	_note = note
 	_store_why = store_why
-	_refresh_inspect()
+	_refresh()
 
-## The instance the panel shows: the last tapped side's selection.
-func shown_stack() -> ItemStack:
-	var g := bag_grid if _side == &"bag" else box_grid
-	var i := g.selected_index()
-	return g.inventory.slots[i] if _side != &"" and g.inventory and i >= 0 else null
-
-func _on_pick(side: StringName, key: String) -> void:
-	if key == "":
-		if side == _side and (bag_grid if side == &"bag" else box_grid).selected_uid() == "":
-			_side = &""
-		_refresh_inspect()
-		return
-	_side = side
-	# One selection at a time: tapping one side clears the other.
-	var other := box_grid if side == &"bag" else bag_grid
-	if other.selected_uid() != "":
-		other.select_uid("")
-	if side == &"bag":
+## Shows the Bag (&"bag") or the container (&"box") in the grid.
+func show_tab(t: StringName) -> void:
+	tab = t
+	bag_grid.visible = t == &"bag"
+	box_grid.visible = t == &"box"
+	# Lock and Drop act on the player's own bag only (nothing locked can be in a container).
+	var sq: Array[StringName] = [&"select_all", &"select", &"search"]
+	if t == &"bag":
+		sq.append(&"lock")
+	toolbar.squares = sq
+	if t == &"bag":
 		bag_selected.emit(bag_grid.selected_index())
+	_layout()
+	_refresh()
+
+## Selects the instance with this identity on whichever side holds it, switching to that tab.
+func select_key(key: String) -> void:
+	if bag_grid.has_key(key):
+		show_tab(&"bag")
+		bag_grid.select_uid(key)
+	elif box_grid.has_key(key):
+		show_tab(&"box")
+		box_grid.select_uid(key)
+
+## The instance the panel shows: the active tab's focus.
+func shown_stack() -> ItemStack:
+	var g := _grid()
+	var i := g.selected_index()
+	return g.inventory.slots[i] if g.inventory and i >= 0 else null
+
+## The take-only reason over the grid ("" when none).
+func notice_text() -> String:
+	return _notice.text if _notice.visible else ""
+
+## The transfer buttons the panel shows now, by action (tests and the lab press these).
+func action_button(action: StringName) -> Button:
+	return inspect.button_for(action)
+
+func _tab(id: StringName) -> Button:
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.flat = true
+	b.pressed.connect(func() -> void: show_tab(id))
+	b.draw.connect(func() -> void: _draw_tab(b, id))
+	add_child(b)
+	return b
+
+func _grids() -> Array[InventoryGrid]:
+	return [bag_grid, box_grid]
+
+func _grid() -> InventoryGrid:
+	return bag_grid if tab == &"bag" else box_grid
+
+func _ctx() -> Dictionary:
+	return {"where": &"bag", "player": player}
+
+func _set_multi(on: bool) -> void:
+	for g in _grids():
+		g.multi = on
+	_refresh()
+
+func _tab_text(id: StringName) -> Array:
+	var inv := bag_grid.inventory if id == &"bag" else box_grid.inventory
+	return ["Bag" if id == &"bag" else _title, "%d / %d" % [inv.used_slots(), inv.slot_count] if inv else ""]
+
+func _paint_tabs() -> void:
+	bag_tab.queue_redraw()
+	box_tab.queue_redraw()
+
+## The reference's tabs: grey with grey text, the active one near-black with gold text and a gold
+## underline.
+func _draw_tab(b: Button, id: StringName) -> void:
+	if _m.is_empty():
+		return
+	var on := tab == id
+	var r := Rect2(Vector2.ZERO, b.size)
+	b.draw_style_box(InvTheme.button_box(Color(0.03, 0.032, 0.03, 0.95) if on else Color(0.26, 0.26, 0.245, 0.92), Color(0, 0, 0, 0.5), 4), r)
+	if on:
+		b.draw_rect(Rect2(Vector2(6, r.size.y - 5), Vector2(r.size.x - 12, 4)), InvTheme.SELECT)
+	var f := InvTheme.font()
+	var px := _tab_px()
+	var parts := _tab_text(id)
+	var y := (r.size.y + f.get_ascent(px) - f.get_descent(px)) * 0.5 - 1.0
+	var pad := float(_m.margin) + 4.0
+	var count_w := f.get_string_size(str(parts[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	var name := UiTokens.ellipsis(f, str(parts[0]), r.size.x - pad * 2.0 - count_w - 12.0, px)
+	b.draw_string(f, Vector2(pad, y), name, HORIZONTAL_ALIGNMENT_LEFT, -1, px, InvTheme.SELECT if on else InvTheme.TEXT_2)
+	b.draw_string(f, Vector2(r.size.x - pad - count_w, y), str(parts[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, px, InvTheme.SELECT if on else InvTheme.TEXT_2)
+
+func _tab_px() -> int:
+	return int(_m.row_font) + (2 if _m.compact else 4)
+
+## The tab's width: its name, a gap and its count, never narrower than the reference's.
+func _tab_w(id: StringName) -> float:
+	var f := InvTheme.font()
+	var parts := _tab_text(id)
+	var w := f.get_string_size("%s%s" % parts, HORIZONTAL_ALIGNMENT_LEFT, -1, _tab_px()).x
+	return maxf(w + float(_m.margin) * 2.0 + 8.0 + 28.0, 150.0 if _m.compact else 230.0)
+
+func _refresh() -> void:
+	var g := _grid()
+	if g.multi:
+		header.set_title("Select", "%d" % g.selected_indices().size())
+	else:
+		header.set_title(_title)
+	if tab == &"bag":
+		var picked := bag_grid.selected_indices()
+		toolbar.set_lock_state(InvActions.all_locked(bag_grid.inventory, picked), not picked.is_empty())
+	_notice.text = (_note.left(1).to_upper() + _note.substr(1)) if _note != "" else ""
+	_notice.visible = _note != "" and tab == &"box"
+	_paint_tabs()
 	_refresh_inspect()
+	if not _m.is_empty():
+		_place_notice()
 
 func _refresh_inspect() -> void:
 	var st := shown_stack()
 	var acts: Array[StringName] = []
 	var notes: Array = []
-	if st and _side == &"bag":
-		if _can.store:
+	if tab == &"bag":
+		if st and _can.store:
 			acts.append(&"store")
-		elif _store_why != "":
+		elif st and _store_why != "":
 			notes.append([_store_why, InvTheme.TEXT_2])
-	elif st:
-		if _can.take:
+	else:
+		if st and _can.take:
 			acts.append(&"take")
 		if _can.take_all:
 			acts.append(&"take_all")
-	elif _can.take_all:
-		acts.append(&"take_all")
-	if _note != "":
-		notes.append([_note.left(1).to_upper() + _note.substr(1), InvTheme.TEXT_2]) # "needs knife" -> "Needs knife"
-	var ctx := {"where": kind, "player": player, "actions": acts, "notes": notes, "title": _title}
+	var labels := {&"store": "Transfer to %s" % ("Cargo" if kind == &"cargo" else _title), &"take": "Transfer to Bag"}
+	var ctx := {"where": kind, "player": player, "actions": acts, "notes": notes, "title": _title, "labels": labels}
 	var summary: Array = []
 	if st == null and bag_grid.inventory and box_grid.inventory:
-		summary = [["Bag", _bag_cap.label_text()], [_title, _box_cap.label_text()], ["Tap an item to move it."]]
+		var bag_t := _tab_text(&"bag")
+		var box_t := _tab_text(&"box")
+		summary = [[bag_t[0], bag_t[1]], [box_t[0], box_t[1]], ["Tap items to pick them." if _grid().multi else "Tap an item to move it."]]
 	inspect.show_stack(st, ctx, summary)
 
 func _on_action(action: StringName) -> void:
 	match action:
 		&"store":
-			store_pressed.emit()
+			store_pressed.emit(bag_grid.selected_indices())
 		&"take":
-			take_pressed.emit(box_grid.selected_index())
+			take_pressed.emit(box_grid.selected_indices())
 		&"take_all":
 			take_all_pressed.emit()
-
-## The transfer buttons the panel shows now, by action (tests and the lab press these).
-func action_button(action: StringName) -> Button:
-	for c in inspect.get_children():
-		if c is Button and (c as Button).text == InvActions.label(action) and (c as Button).is_in_group(&"inv_contextual"):
-			return c
-	return null
 
 func _layout() -> void:
 	if size.x <= 0.0 or size.y <= 0.0:
 		return
-	var safe := UiTokens.safe_insets(get_viewport()) if is_inside_tree() else Vector4.ZERO
+	var safe := InvTheme.safe(get_viewport()) if is_inside_tree() else Vector4.ZERO
 	_m = InvTheme.metrics(Vector2(size.x - safe.w - safe.x, size.y))
 	var pad: float = _m.margin
 	var gap: float = _m.gap
 	var head_h: float = _m.header_h + safe.z
 	header.position = Vector2.ZERO
 	header.size = Vector2(size.x, head_h)
+	header.insets = safe
 	header.apply_metrics(_m)
 	var left := pad + safe.w
 	var right := size.x - pad - safe.x
 	var bottom := size.y - pad - safe.y
-	var top := head_h + gap
-	var inspect_w: float = _m.inspect_w
-	var grids_w := right - left - inspect_w - gap
-	var half := floorf((grids_w - gap) * 0.5)
-	# ASSUMPTION: two grids share the Bag's grid width; each keeps compartments wide enough for NEW
-	# and "Lv. NN" side by side (84 px on a phone, like the Bag's), so a phone side is 3 wide.
-	var cols := maxi(3, int(floorf((half - 2.0) / (84.0 if _m.compact else 104.0))))
-	var strip_h: float = float(_m.row_h) * 1.4
+	var top := head_h + gap * 0.5
+	var tab_h := 44.0 if _m.compact else 56.0
 	var bar_h: float = _m.toolbar_h
-	for side in [[_bag_label, _bag_cap, bag_grid, bag_bar, left], [_box_label, _box_cap, box_grid, box_bar, left + half + gap]]:
-		var l: Label = side[0]
-		var cap: CapacityIndicator = side[1]
-		var g: InventoryGrid = side[2]
-		var bar: BagToolbar = side[3]
-		var x: float = side[4]
-		l.add_theme_font_size_override("font_size", int(_m.row_font) + 2)
-		cap.font_px = int(_m.row_font) + 2
-		cap.refresh()
-		# "Bag [bag] 91 / 100", the way the Bag's header reads; a long pet name gives way to the count.
-		var lw := minf(InvTheme.font().get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(_m.row_font) + 2).x + 4.0, half - cap.custom_minimum_size.x - 8.0)
-		l.position = Vector2(x, top)
-		l.size = Vector2(maxf(0.0, lw), strip_h)
-		cap.position = Vector2(x + l.size.x + 8.0, top + (strip_h - cap.custom_minimum_size.y) * 0.5)
-		cap.size = cap.custom_minimum_size
-		bar.position = Vector2(x, bottom - bar_h)
-		bar.size = Vector2(half, bar_h)
-		bar.apply_metrics(_m)
+	var inspect_w: float = _m.inspect_w
+	var main_r := right - inspect_w - gap
+	# Tabs over the rail and grid, from the left edge, the reference's way.
+	bag_tab.position = Vector2(left, top)
+	bag_tab.size = Vector2(_tab_w(&"bag"), tab_h)
+	box_tab.position = Vector2(bag_tab.position.x + bag_tab.size.x + 6.0, top)
+	box_tab.size = Vector2(minf(_tab_w(&"box"), main_r - box_tab.position.x), tab_h)
+	var body_y := top + tab_h + (6.0 if _m.compact else 10.0)
+	var rail_w := 44.0 if _m.compact else 56.0
+	toolbar.position = Vector2(left, bottom - bar_h)
+	toolbar.size = Vector2(main_r - left, bar_h)
+	toolbar.apply_metrics(_m)
+	rail.position = Vector2(left, body_y)
+	rail.size = Vector2(rail_w, toolbar.position.y - 6.0 - body_y)
+	rail.set_side(rail_w)
+	var gx := left + rail_w + 6.0
+	# ASSUMPTION: the container view is denser than the Bag (the reference shows 13 columns): cells
+	# of about data storage.cell px, still wide enough for NEW beside "Lv. NN".
+	var sdata: Dictionary = InvView.data().get("storage", {})
+	var want := float(sdata.get("cell_compact" if _m.compact else "cell", 84 if _m.compact else 100))
+	var cols := maxi(3, int(floorf((main_r - gx - 2.0) / want)))
+	for g in _grids():
 		g.columns = cols
-		g.lv_px = maxi(UiTokens.TYPE_MIN, int(_m.lv_font) - 2)
-		g.new_px = maxi(UiTokens.TYPE_MIN, int(_m.new_font) - 1)
-		g.position = Vector2(x, top + strip_h)
-		g.size = Vector2(half, bar.position.y - 4.0 - (top + strip_h))
+		var cell := floorf((main_r - gx - 2.0) / cols)
+		g.lv_px = maxi(UiTokens.TYPE_MIN, roundi(cell * 0.14))
+		g.new_px = maxi(UiTokens.TYPE_MIN, roundi(cell * 0.11))
+		g.position = Vector2(gx, body_y)
+		g.size = Vector2(main_r - gx, rail.position.y + rail.size.y - body_y)
 		g.refresh()
-	var ix := left + half * 2.0 + gap * 2.0
+	var ix := main_r + gap
 	inspect.position = Vector2(ix, top)
 	inspect.size = Vector2(right - ix, bottom - top)
 	inspect.apply_metrics(_m)
+	_place_notice()
+	_paint_tabs()
+
+## The notice sits over the top of the grid, centred, like the reference's tooltip.
+func _place_notice() -> void:
+	var g := _grid()
+	var px: int = _m.row_font
+	_notice.add_theme_font_size_override("font_size", px)
+	var w := InvTheme.font().get_string_size(_notice.text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 32.0
+	_notice.size = Vector2(minf(w, g.size.x - 16.0), float(px) * 2.0)
+	_notice.position = Vector2(g.position.x + (g.size.x - _notice.size.x) * 0.5, g.position.y + 6.0)

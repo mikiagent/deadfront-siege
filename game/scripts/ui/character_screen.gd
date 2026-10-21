@@ -158,7 +158,7 @@ func _draw_info() -> void:
 		tx += f.get_string_size(p[0], HORIZONTAL_ALIGNMENT_LEFT, -1, spx).x
 	var sep_y := details.position.y - pad * 0.5
 	InvPaint.dashed(_info, Vector2(0, sep_y), Vector2(_info.size.x, sep_y), Color(1, 1, 1, 0.18))
-	_info.draw_rect(Rect2(Vector2.ZERO, _info.size), InvTheme.BORDER, false, 2.0)
+	InvPaint.frame(_info, Rect2(Vector2.ZERO, _info.size), 2.0 if _m.compact else 3.0, 3)
 
 ## "Lv. 13  (222 / 345)" in parts, the current XP yellow (reference).
 func _xp_parts() -> Array:
@@ -216,8 +216,8 @@ func _draw_centre() -> void:
 		var t := _title() if _title() != "" else "No Title"
 		_centre.draw_string(f, Vector2(strip.position.x + 24.0, strip.position.y + (strip.size.y + f.get_ascent(int(_m.row_font) + 4) - f.get_descent(int(_m.row_font) + 4)) * 0.5), UiTokens.ellipsis(f, t, strip.size.x - 48.0, int(_m.row_font) + 4), HORIZONTAL_ALIGNMENT_LEFT, -1, int(_m.row_font) + 4, InvTheme.TEXT_2)
 	var g := cells[0].position - _centre.position
-	_centre.draw_rect(Rect2(g, cells[0].size * 3.0).grow(1.0), InvTheme.BORDER, false, 2.0)
-	_centre.draw_rect(Rect2(Vector2.ZERO, _centre.size), InvTheme.BORDER, false, 2.0)
+	_centre.draw_rect(Rect2(g, cells[0].size * 3.0).grow(1.0), InvTheme.FRAME_INK, false, 2.0)
+	InvPaint.frame(_centre, Rect2(Vector2.ZERO, _centre.size), 2.0 if _m.compact else 3.0, 4)
 
 ## A one-shot render of the survivor model's head, as Durango's portrait square (design assumption 17).
 func _portrait_texture() -> Texture2D:

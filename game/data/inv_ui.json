@@ -1,18 +1,18 @@
 {
-  "_about": "INVUI (spec 13) presentation data: sort keys, filter groups, attribute classes, equipment layout, presets, power groups. Read by InvView, InvAttributes, EquipmentSlot, GearPresets and InvStats. Every value marked ASSUMPTION in docs/orchestration/mmo/invui-spec.md section 9.",
+  "_about": "INVUI (spec 13) presentation data: sort keys, filter groups (icon = a white ui_icons id, grid = the procedural four-square glyph; the storage view's left rail), attribute classes, equipment layout, presets, power groups. Read by InvView, InvAttributes, EquipmentSlot, GearPresets and InvStats. Every value marked ASSUMPTION in docs/orchestration/mmo/invui-spec.md section 9.",
   "sort_keys": ["acquired", "name", "type", "level", "rarity", "attributes", "durability"],
   "sort_labels": {"acquired": "Acquired", "name": "Name", "type": "Type", "level": "Level", "rarity": "Rarity", "attributes": "Attributes", "durability": "Durability"},
   "filters": [
-    {"id": "all", "label": "All", "categories": []},
-    {"id": "materials", "label": "Materials", "categories": ["wood", "stone", "bone", "dense_bone", "hide", "uncut_hide", "green_hide", "fibre", "lashing", "blade_mat", "metal", "ore", "earth", "log", "stalk", "cloth", "handle", "tinder", "burnable", "flax", "plank", "pillar", "split", "thread", "tendon", "talon", "scute", "venom", "dye", "needle", "pot_clay", "fuel", "treasure"]},
-    {"id": "food", "label": "Food", "categories": ["food", "meat", "raw_meat", "cooked", "fruit", "berry", "herb", "mushroom", "crop", "corn", "wheat", "seed", "buff_food", "meal", "preserved", "steamed", "spice", "seasoning", "water", "raw", "burnt", "pet_feed", "bait"]},
-    {"id": "tools", "label": "Tools & Weapons", "categories": ["tool", "weapon", "blade", "bucket", "ammunition", "siege_ammunition", "counter_supply"]},
-    {"id": "gear", "label": "Gear", "categories": ["armor_head", "armor_body", "armor_arms", "armor_legs", "clothing", "armor", "helmet", "gloves", "accessory", "bag"]},
-    {"id": "building", "label": "Building", "categories": ["building", "fertilizer"]},
-    {"id": "medicine", "label": "Medicine", "categories": ["medicine"]},
-    {"id": "animals", "label": "Animals", "ids": ["captured_animal", "tamed_animal"]},
-    {"id": "rare", "label": "Rare traits", "rule": "rare"},
-    {"id": "locked", "label": "Locked", "rule": "locked"}
+    {"id": "all", "icon": "grid", "label": "All", "categories": []},
+    {"id": "materials", "icon": "gathering", "label": "Materials", "categories": ["wood", "stone", "bone", "dense_bone", "hide", "uncut_hide", "green_hide", "fibre", "lashing", "blade_mat", "metal", "ore", "earth", "log", "stalk", "cloth", "handle", "tinder", "burnable", "flax", "plank", "pillar", "split", "thread", "tendon", "talon", "scute", "venom", "dye", "needle", "pot_clay", "fuel", "treasure"]},
+    {"id": "food", "icon": "eat", "label": "Food", "categories": ["food", "meat", "raw_meat", "cooked", "fruit", "berry", "herb", "mushroom", "crop", "corn", "wheat", "seed", "buff_food", "meal", "preserved", "steamed", "spice", "seasoning", "water", "raw", "burnt", "pet_feed", "bait"]},
+    {"id": "tools", "icon": "tool_pick", "label": "Tools & Weapons", "categories": ["tool", "weapon", "blade", "bucket", "ammunition", "siege_ammunition", "counter_supply"]},
+    {"id": "gear", "icon": "equip", "label": "Gear", "categories": ["armor_head", "armor_body", "armor_arms", "armor_legs", "clothing", "armor", "helmet", "gloves", "accessory", "bag"]},
+    {"id": "building", "icon": "build", "label": "Building", "categories": ["building", "fertilizer"]},
+    {"id": "medicine", "icon": "aid", "label": "Medicine", "categories": ["medicine"]},
+    {"id": "animals", "icon": "animals", "label": "Animals", "ids": ["captured_animal", "tamed_animal"]},
+    {"id": "rare", "icon": "skills", "label": "Rare traits", "rule": "rare"},
+    {"id": "locked", "icon": "lock", "label": "Locked", "rule": "locked"}
   ],
   "attribute_classes": {
     "_about": "Spec 04 lines 8-11. Key = ItemStack.attributes key; value in the stack is the trait level (int) or true. Keys not listed here (tint, level, material_tier, hardness, food_buff, toxin_hits, barbed_hits, species, genetics, grade, grade_seed, variant, climate, anchor, feathered, processed) are technical and never shown.",
@@ -76,5 +76,7 @@
   "picker": {
     "warn_level": 40
   },
+  "category_labels": {"_about": "Family chips on the inspect panel read ItemDef.categories; ids that do not read well capitalised get a label here.", "blade_mat": "Blade Material"},
+  "storage": {"_about": "Storage / cargo view (spec 13 s17 + the 2026-10-20 storage-transfer reference): compartment width the column count aims for, desktop and phone (NEW beside Lv. NN fits).", "cell": 100, "cell_compact": 84},
   "new_tag": {"text": "NEW"}
 }

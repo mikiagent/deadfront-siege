@@ -117,6 +117,25 @@ static func run(action: StringName, player: Player, index: int, ctx: Dictionary 
 			return true
 	return false
 
+## True when every bag slot in `indices` holds a locked item (and there is at least one).
+static func all_locked(inv: Inventory, indices: Array[int]) -> bool:
+	if inv == null or indices.is_empty():
+		return false
+	for i in indices:
+		if inv.slots[i] == null or not inv.slots[i].is_locked():
+			return false
+	return true
+
+## The toolbar's Lock square on a selection: all locked -> unlock them all; otherwise lock the rest.
+static func toggle_locks(player: Player, indices: Array[int], ctx: Dictionary) -> void:
+	if player == null or indices.is_empty():
+		return
+	var want := not all_locked(player.inventory, indices)
+	for i in indices:
+		var s := player.inventory.slots[i]
+		if s and s.is_locked() != want:
+			run(&"lock", player, i, ctx)
+
 ## Actions that leave the bag screen (eat and place for the world, sell for the market screen):
 ## the family closes first.
 static func closes_ui(action: StringName) -> bool:

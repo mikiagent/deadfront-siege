@@ -10,6 +10,9 @@ extends Node3D
 ##   Godot --path game --resolution 1600x900 --rendering-method gl_compatibility \
 ##     -- --lab=bag_ui_lab --screen=bag --shot=/tmp/bag.png --shot-delay=6
 ##   --screen= bag | inspect | character | equipment | storage | cargo | picker
+##   (shot-only: storage_select = the storage reference's "1 Select" with a gold check; storage_notice =
+##   a box that belongs to someone else, its notice over the grid; craft = the stew menu)
+##   --insets=left,right,bottom[,top] lays the family out inside a phone's safe area (notch)
 ##   --select=<role> then selects that seeded instance (berry12/25/42, bone45/60, cage, knife, club, ...;
 ##   box_bone on the storage side, cargo_berry on the cargo side; with --screen=picker a berry);
 ##   with --screen=equipment it opens that item's gear cell with it picked (the compare state)
@@ -25,8 +28,9 @@ extends Node3D
 ##   signatures and open the shared split view.
 
 const SCREENS := [&"bag", &"inspect", &"character", &"equipment", &"storage", &"cargo", &"picker"]
-## Shot-only screens: the craft menu's camp stew with the Lv. 25 berry chosen through the picker.
-const SHOT_ONLY := [&"craft"]
+## Shot-only screens: storage in multi-select and with a foreign box's notice (the owner's storage
+## reference), and the craft menu's camp stew with the Lv. 25 berry chosen through the picker.
+const SHOT_ONLY := [&"storage_select", &"storage_notice", &"craft"]
 const CONTRACT := ["open_bag", "select_uid", "current_screen", "open_character", "open_equipment", "open_picker"]
 const USED := 91
 ## Filler after the named items, in pickup order: [id, instances, first level, level step].
@@ -61,6 +65,10 @@ func _ready() -> void:
 			_recipe = StringName(a.substr(9))
 		elif a.begins_with("--recipe-slot="):
 			_recipe_slot = int(a.substr(14))
+		elif a.begins_with("--insets="):
+			var v := a.substr(9).split_floats(",")
+			v.resize(4)
+			InvTheme.forced_insets = Vector4(v[1], v[2], v[3], v[0]) # x right, y bottom, z top, w left
 	var kit := LabKit.build(self, 30.0)
 	player = kit["player"]
 	# Same layering as main.gd: the bag family is a modal above the HUD's canvas layers.
@@ -143,10 +151,34 @@ func _seed() -> void:
 	rec.bag.add(ItemStack.make(&"berry", 1, {}, 33))
 	uids["cargo_berry"] = rec.bag.slots[rec.bag.find_first(&"berry")].uid
 	player.bonded.append(rec)
-	storage_box = Inventory.new(60)
-	for id in [&"wood_log", &"stone", &"raptor_bone", &"herb_leaf", &"fibre_stalk"]:
-		storage_box.add(ItemStack.make(id, 1, {}, 14))
-	uids["box_bone"] = storage_box.slots[storage_box.find_first(&"raptor_bone")].uid
+	# A storage box filled like the owner's storage reference: a hide, sticks, ore with Firm / Heavy
+	# pips, a processed iron ingot (Firm Lv. 4, Heavy Lv. 2, hammer ×3), leaves and logs; 47 / 80.
+	storage_box = Inventory.new(80)
+	_box(&"raptor_hide", 45, {})
+	for k in 7:
+		_box(&"branch", 60, {})
+	_box(&"plank", 60, {"firm": 2})
+	for k in 11:
+		_box(&"ore", 60, {"firm": 3 + k % 2, "heavy": 2} if k % 3 == 0 else {"firm": 4})
+	uids["box_ingot"] = _box(&"iron_ingot", 60, {"firm": 4, "heavy": 2}, 3)
+	uids["box_bone"] = _box(&"raptor_bone", 52, {"firm": 5})
+	for k in 4:
+		_box(&"branch", 60, {})
+	for k in 12:
+		_box(&"herb_leaf", 40 + k * 2, {})
+	for k in 9:
+		_box(&"wood_log", 45 + k * 2, {"heavy": 1} if k % 4 == 0 else {})
+
+## One instance into the storage box; returns its uid.
+func _box(id: StringName, lvl: int, attrs: Dictionary, processed: int = 0) -> String:
+	var s := ItemStack.make(id, 1, attrs, lvl)
+	s.process_count = processed
+	var before := storage_box.uids()
+	storage_box.add(s)
+	for u: String in storage_box.uids():
+		if not before.has(u):
+			return u
+	return ""
 
 func _add(id: StringName, lvl: int, attrs: Dictionary, role: String, is_new: bool, locked: bool = false) -> void:
 	var s := ItemStack.make(id, 1, attrs, lvl)
@@ -210,7 +242,17 @@ func _open(screen: StringName) -> bool:
 			ui.call("open_equipment", _slot)
 		&"storage":
 			ui.show_storage(storage_box, player, {"title": "Storage Box", "allow_deposit": true})
-			ui.call("select_uid", uids["berry42"])
+			ui.call("select_uid", uids["box_ingot"])
+		&"storage_select", &"storage_notice":
+			var opts := {"title": "Storage Box", "allow_deposit": true}
+			if screen == &"storage_notice":
+				opts = {"title": "Small Box", "readonly_reason": "This box belongs to someone else: cannot take."}
+			ui.show_storage(storage_box, player, opts)
+			var st: StorageScreen = ui.get("_storage")
+			st.toolbar.set_select(true)
+			st.toolbar.select_toggled.emit(true)
+			ui.call("select_uid", uids["box_ingot"])
+			return ui.call("current_screen") == &"storage" and st.box_grid.multi
 		&"cargo":
 			ui.show_pet_bag(player.bonded[0])
 		&"picker":
@@ -307,6 +349,23 @@ func _check_b3() -> void:
 	_expect(st.inspect.actions() == [&"take", &"take_all"], "storage: on the box side it offers Take and Take All (%s)" % [st.inspect.actions()])
 	st.action_button(&"take").pressed.emit()
 	_expect(_index_of(uids["berry42"]) >= 0 and storage_box.find_first(&"berry") < 0, "storage: Take brought it back")
+	# The storage reference: Select on the box tab, two picked, one Transfer to Bag moves exactly them;
+	# then both back from the Bag tab in one Transfer.
+	st.show_tab(&"box")
+	st.toolbar.set_select(true)
+	st.toolbar.select_toggled.emit(true)
+	st.box_grid.select_uid(uids["box_ingot"])
+	st.box_grid.select_uid(uids["box_bone"])
+	_expect(st.header.title == "Select" and st.header.get("_lead").text == "2" and st.action_button(&"take") != null and st.action_button(&"take").text == "Transfer to Bag", "storage: Select with two picked reads '2 Select' and offers Transfer to Bag")
+	st.action_button(&"take").pressed.emit()
+	_expect(_index_of(uids["box_ingot"]) >= 0 and _index_of(uids["box_bone"]) >= 0 and storage_box.used_slots() == 45, "storage: one Transfer moved the ingot and the bone, nothing else")
+	ui.call("select_uid", uids["box_ingot"])
+	st.bag_grid.select_uid(uids["box_bone"])
+	st.action_button(&"store").pressed.emit()
+	_expect(storage_box.uids().has(uids["box_ingot"]) and storage_box.uids().has(uids["box_bone"]) and inv.used_slots() == USED, "storage: Transfer to Storage Box put both back")
+	ui.show_storage(storage_box, player, {"title": "Small Box", "readonly_reason": "This box belongs to someone else: cannot take."})
+	ui.call("select_uid", uids["box_ingot"])
+	_expect(st.notice_text().begins_with("This box belongs to someone else") and st.inspect.actions().is_empty(), "storage: someone else's box says so over the grid and offers no Transfer (%s)" % st.notice_text())
 	ui.show_pet_bag(player.bonded[0])
 	ui.call("select_uid", uids["cargo_berry"])
 	_expect(ui.call("current_screen") == &"cargo" and st.inspect.actions() == [&"take"], "cargo: the raptor's berry offers Take")
@@ -320,7 +379,7 @@ func _check_b3() -> void:
 	_expect(pk.warning_text().contains("Vivid Inspiration"), "picker: choosing the Lv. 42 berry warns (%s)" % pk.warning_text())
 	pk.confirm()
 	_expect(picked == [_index_of(uids["berry42"])] and ui.call("current_screen") == &"", "picker: Use returns exactly that berry and closes")
-	print("[bagui] b3 storage=store,take cargo=take picker=berry42 bag=%d/%d" % [inv.used_slots(), inv.slot_count])
+	print("[bagui] b3 storage=store,take,multi2,notice cargo=take picker=berry42 bag=%d/%d box=%d/%d" % [inv.used_slots(), inv.slot_count, storage_box.used_slots(), storage_box.slot_count])
 
 func _expect(ok: bool, what: String) -> void:
 	if not ok:

@@ -26,11 +26,7 @@ var _m := {}
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	var bg := ColorRect.new()
-	bg.color = InvTheme.BG # opaque, like the Bag: no HUD through a modal screen
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	add_child(InvTheme.backdrop()) # opaque: HUD controls must not show through a modal screen
 	_build_body()
 	cells = EquipmentSlot.grid(self, select_slot)
 	list = InventoryGrid.new()
@@ -182,11 +178,12 @@ func _on_inventory_changed() -> void:
 func _layout() -> void:
 	if size.x <= 0.0 or size.y <= 0.0:
 		return
-	var safe := UiTokens.safe_insets(get_viewport()) if is_inside_tree() else Vector4.ZERO
+	var safe := InvTheme.safe(get_viewport()) if is_inside_tree() else Vector4.ZERO
 	_m = InvTheme.metrics(Vector2(size.x - safe.w - safe.x, size.y))
 	var head_h: float = _m.header_h + safe.z
 	header.position = Vector2.ZERO
 	header.size = Vector2(size.x, head_h)
+	header.insets = safe
 	header.apply_metrics(_m)
 	var top: float = head_h + _m.gap
 	var body := Rect2(Vector2(_m.margin + safe.w, top), Vector2(size.x - _m.margin * 2.0 - safe.w - safe.x, size.y - top - _m.margin - safe.y))

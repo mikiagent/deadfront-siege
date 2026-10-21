@@ -1,7 +1,8 @@
 class_name InventorySlot
 extends Control
 ## One compartment of the bag grid (spec 13 s5-8): flat, transparent over the textured panel,
-## a faint dashed edge, the item centred, "Lv. N" top-right, NEW top-left, brackets when selected.
+## a faint dashed edge, the item centred, "Lv. N" top-right, NEW top-left, trait pips under the art,
+## brackets when selected (the gold check in multi-select).
 ## Empty cells stay visible. `uid` is the instance's identity (or "#<slot>" for a fungible stack).
 
 signal pressed(slot: InventorySlot)
@@ -20,6 +21,12 @@ var new_px := 15
 var unit := 96.0
 ## Worn now (Character / Equipment candidate lists): a small green mark top-left, like Durango's.
 var worn := false
+## Multi-select: a selected cell shows the gold check (storage reference) instead of the brackets.
+var checks := false:
+	set(v):
+		if checks != v:
+			checks = v
+			queue_redraw()
 var _rare := false
 
 func _init() -> void:
@@ -63,20 +70,21 @@ func _draw() -> void:
 	InvPaint.dashed(self, Vector2(0, size.y), Vector2(size.x, size.y))
 	if stack == null:
 		return
-	# Span items (a cage) fill their block; single cells keep the art clear of the label row.
+	# Span items (a cage) fill their block; single cells keep the art clear of the labels and pips.
 	var span := stack.slot_span() > 1
-	InvPaint.item_icon(self, stack.def_id, r, 0.78 if span else 0.6, 0.55 if span else 0.58)
+	InvPaint.item_icon(self, stack.def_id, r, 0.78 if span else 0.56, 0.55 if span else 0.53)
 	if worn:
 		InvPaint.worn_marker(self, r, unit)
 	elif shows_new():
 		InvPaint.new_tag(self, r, new_px, unit)
 	InvPaint.level(self, level_text(), r, lv_px, unit)
-	if _rare:
-		InvPaint.rare_marker(self, r, unit)
+	InvPaint.pips(self, r, stack, unit)
 	if shows_lock():
 		InvPaint.lock_pip(self, r, unit)
 	InvPaint.durability(self, r, stack)
 	if stack.is_fungible():
 		InvPaint.count(self, r, stack.count, lv_px)
-	if selected: # last, so the corners sit on top of the marks inside them
+	if selected and checks:
+		InvPaint.check(self, r, unit)
+	elif selected: # last, so the corners sit on top of the marks inside them
 		InvPaint.brackets(self, r.grow(-1.0), unit)

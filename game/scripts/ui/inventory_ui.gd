@@ -1,7 +1,7 @@
 class_name InventoryUI
 extends Control
-## Host of the Durango bag family (spec 13): the Bag, a container beside the bag (storage, loot,
-## dinosaur cargo), Character -> Gear, Equipment / My Info and the craft / cook ingredient picker. It keeps the
+## Host of the Durango bag family (spec 13): the Bag, a container and the bag on two tabs (storage,
+## loot, dinosaur cargo), Character -> Gear, Equipment / My Info and the craft / cook ingredient picker. It keeps the
 ## API every caller uses (bind, show_storage, show_pet_bag, hide_ui, rebuild, visible) and the
 ## transfer rules for containers; the screens are presentation over the inventories it binds.
 ## Toggling `visible` (I, the HUD's Bag entry) opens the Bag; "<" goes back one screen, X and Esc close.
@@ -131,9 +131,7 @@ func select_uid(uid: String) -> void:
 	if _screen == &"bag" and _bag:
 		_bag.select_uid(uid)
 	elif _storage and _screen in [&"storage", &"cargo"]:
-		_storage.bag_grid.select_uid(uid)
-		if _storage.bag_grid.selected_uid() == "":
-			_storage.box_grid.select_uid(uid)
+		_storage.select_key(uid)
 	elif _picker and _screen == &"picker":
 		_picker.grid.select_uid(uid)
 
@@ -162,8 +160,10 @@ func layout_blocks() -> Dictionary:
 		for pair in [["header", _bag.header], ["grid", _bag.grid], ["toolbar", _bag.toolbar], ["inspect", _bag.inspect]]:
 			out[pair[0]] = (pair[1] as Control).get_global_rect()
 	elif _storage and _screen in [&"storage", &"cargo"]:
-		for pair in [["header", _storage.header], ["bag", _storage.bag_grid], ["container", _storage.box_grid], ["bag_bar", _storage.bag_bar], ["container_bar", _storage.box_bar], ["inspect", _storage.inspect]]:
+		var g: InventoryGrid = _storage.bag_grid if _storage.tab == &"bag" else _storage.box_grid
+		for pair in [["header", _storage.header], ["tabs", _storage.bag_tab], ["rail", _storage.rail], ["grid", g], ["toolbar", _storage.toolbar], ["inspect", _storage.inspect]]:
 			out[pair[0]] = (pair[1] as Control).get_global_rect()
+		out["tabs"] = (out["tabs"] as Rect2).merge(_storage.box_tab.get_global_rect())
 	elif _picker and _screen == &"picker":
 		for pair in [["header", _picker.header], ["grid", _picker.grid], ["toolbar", _picker.toolbar], ["inspect", _picker.inspect]]:
 			out[pair[0]] = (pair[1] as Control).get_global_rect()
@@ -181,7 +181,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if sc:
 				bars.append(sc.toolbar)
 		if _storage:
-			bars.append_array([_storage.bag_bar, _storage.box_bar])
+			bars.append(_storage.toolbar)
 		var open_bars := bars.filter(func(b: BagToolbar) -> bool: return b.menu_open())
 		if not open_bars.is_empty():
 			for b: BagToolbar in open_bars:
@@ -257,8 +257,8 @@ func _storage_screen() -> StorageScreen:
 		_storage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		_storage.back_pressed.connect(hide_ui)
 		_storage.close_pressed.connect(hide_ui)
-		_storage.store_pressed.connect(_store_selected)
-		_storage.take_pressed.connect(_take_storage)
+		_storage.store_pressed.connect(_store_indices)
+		_storage.take_pressed.connect(_take_indices)
 		_storage.take_all_pressed.connect(_take_all_storage)
 		_storage.bag_selected.connect(func(i: int) -> void:
 			_selected = i
@@ -279,7 +279,7 @@ func _select(index: int) -> void:
 		return
 	var key := InventoryGrid.key_of(inventory, index)
 	if _storage and _screen in [&"storage", &"cargo"]:
-		_storage.bag_grid.select_uid(key)
+		_storage.select_key(key)
 	elif _bag and _screen == &"bag":
 		_bag.select_uid(key)
 
@@ -333,7 +333,10 @@ func _notify_storage_take() -> void:
 		var on_empty: Variant = _storage_opts.get("on_empty", null)
 		if on_empty is Callable:
 			(on_empty as Callable).call()
-		hide_ui()
+		# ASSUMPTION: emptied loot closes (nothing left to do); a box the player can put things back
+		# into stays open on its tab, the way Transfer works both ways.
+		if not bool(_storage_opts.get("allow_deposit", false)):
+			hide_ui()
 
 ## Why the selected bag item cannot be stored, for the panel ("" when it can, or nothing is picked).
 func _store_refusal() -> String:
@@ -364,9 +367,31 @@ func _can_store_selected() -> bool:
 	return true
 
 func _store_selected() -> void:
-	if not _can_store_selected():
-		return
-	var moved := inventory.transfer_to(pet_bag, _selected)
-	if moved == 0 and _owner_player:
-		_owner_player.notice("Storage is full.")
+	_store_indices([_selected] as Array[int])
+
+## Transfer to the container: each picked bag slot that may go in, until the container is full.
+func _store_indices(indices: Array[int]) -> void:
+	var keep := _selected
+	for i in indices:
+		_selected = i
+		if not _can_store_selected():
+			continue
+		if inventory.transfer_to(pet_bag, i) == 0:
+			if _owner_player:
+				_owner_player.notice("Storage is full.")
+			break
+	_selected = keep if keep not in indices else -1
 	rebuild()
+
+## Transfer to Bag: each picked container slot, until the bag is full.
+func _take_indices(indices: Array[int]) -> void:
+	for i in indices:
+		if pet_bag == null:
+			return # the last item left and the screen closed (on_empty)
+		var s := pet_bag.slots[i] if i >= 0 and i < pet_bag.slot_count else null
+		if s == null:
+			continue
+		var uid := s.uid
+		_take_storage(i)
+		if uid != "" and pet_bag and pet_bag.uids().has(uid):
+			break # the bag is full: it went back and the player was told

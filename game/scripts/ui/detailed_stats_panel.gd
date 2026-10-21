@@ -11,6 +11,7 @@ signal close_pressed
 var header: InvHeader
 var _scroll: ScrollContainer
 var _surface: ColorRect
+var _frame: Control
 var _box: VBoxContainer
 var _rows := PackedStringArray()
 var _anchors := {}
@@ -18,14 +19,14 @@ var _m := {}
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	var bg := ColorRect.new()
-	bg.color = InvTheme.BG
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	add_child(InvTheme.backdrop()) # opaque: HUD controls must not show through a modal screen
 	_surface = InvTheme.surface(InvTheme.PANEL_2, 0.8, 5.0)
 	_surface.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	add_child(_surface)
+	_frame = Control.new()
+	_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_frame.draw.connect(func() -> void: InvPaint.frame(_frame, Rect2(Vector2.ZERO, _frame.size), 2.0 if _m.get("compact", false) else 3.0, 6))
+	add_child(_frame)
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(_scroll)
@@ -112,11 +113,12 @@ func _scroll_to(y: int) -> void:
 func _layout() -> void:
 	if size.x <= 0.0 or size.y <= 0.0:
 		return
-	var safe := UiTokens.safe_insets(get_viewport()) if is_inside_tree() else Vector4.ZERO
+	var safe := InvTheme.safe(get_viewport()) if is_inside_tree() else Vector4.ZERO
 	_m = InvTheme.metrics(Vector2(size.x - safe.w - safe.x, size.y))
 	var head_h: float = _m.header_h + safe.z
 	header.position = Vector2.ZERO
 	header.size = Vector2(size.x, head_h)
+	header.insets = safe
 	header.apply_metrics(_m)
 	# A centred column like the reference panels, not a full-width sheet.
 	var w := minf(size.x - float(_m.margin) * 2.0 - safe.w - safe.x, 760.0 if not _m.compact else 560.0)
@@ -124,3 +126,6 @@ func _layout() -> void:
 	_scroll.size = Vector2(w, size.y - _scroll.position.y - float(_m.margin) - safe.y)
 	_surface.position = _scroll.position - Vector2(12, 0)
 	_surface.size = _scroll.size + Vector2(24, 0)
+	_frame.position = _surface.position
+	_frame.size = _surface.size
+	_frame.queue_redraw()

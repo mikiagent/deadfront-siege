@@ -28,11 +28,7 @@ var _seen: ItemStack
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	var bg := ColorRect.new()
-	bg.color = InvTheme.BG # opaque: HUD controls must not show through a modal screen
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	add_child(InvTheme.backdrop()) # opaque: HUD controls must not show through a modal screen
 	grid = InventoryGrid.new()
 	add_child(grid)
 	toolbar = BagToolbar.new()
@@ -124,34 +120,15 @@ func _on_inventory_changed() -> void:
 func _reinspect() -> void:
 	_on_selection(grid.selected_uid())
 
-func _selected_indices() -> Array[int]:
-	var out: Array[int] = []
-	for c: InventorySlot in grid.item_cells():
-		if c.selected:
-			out.append(c.index)
-	return out
-
 func _update_lock() -> void:
-	var picked := _selected_indices()
-	var all_locked := not picked.is_empty()
-	for i in picked:
-		all_locked = all_locked and inventory.slots[i].is_locked()
-	toolbar.set_lock_state(all_locked, not picked.is_empty())
+	var picked := grid.selected_indices()
+	toolbar.set_lock_state(InvActions.all_locked(inventory, picked), not picked.is_empty())
 
 func _toggle_lock() -> void:
-	var picked := _selected_indices()
-	if picked.is_empty():
-		return
-	# All locked -> unlock them all; otherwise lock the ones that are not yet locked.
-	var want := false
-	for i in picked:
-		want = want or not inventory.slots[i].is_locked()
-	for i in picked:
-		if inventory.slots[i].is_locked() != want:
-			InvActions.run(&"lock", player, i, ctx())
+	InvActions.toggle_locks(player, grid.selected_indices(), ctx())
 
 func _drop_selected() -> void:
-	for i in _selected_indices():
+	for i in grid.selected_indices():
 		InvActions.run(&"drop", player, i, ctx())
 
 func _run(action: StringName) -> void:
@@ -168,7 +145,7 @@ func _run(action: StringName) -> void:
 func _layout() -> void:
 	if size.x <= 0.0 or size.y <= 0.0:
 		return
-	var safe := UiTokens.safe_insets(get_viewport()) if is_inside_tree() else Vector4.ZERO
+	var safe := InvTheme.safe(get_viewport()) if is_inside_tree() else Vector4.ZERO
 	_m = InvTheme.metrics(Vector2(size.x - safe.w - safe.x, size.y))
 	var pad: float = _m.margin
 	var left := pad + safe.w
@@ -177,6 +154,7 @@ func _layout() -> void:
 	var head_h: float = _m.header_h + safe.z
 	header.position = Vector2.ZERO
 	header.size = Vector2(size.x, head_h)
+	header.insets = safe
 	header.apply_metrics(_m)
 	capacity.font_px = int(_m.cap_font)
 	capacity.refresh()

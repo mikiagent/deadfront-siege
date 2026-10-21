@@ -380,56 +380,90 @@ func _t11_locking() -> void:
 
 # ---------------------------------------------------------------- 12-15: transfer, equipment, stats, presets
 
+## The storage view (spec 13 s17; the owner's storage-transfer reference): Bag and container tabs
+## over one grid, the filter rail and search over both, multi-select with Select All, and Transfer
+## moving exactly the picked instances either way.
 func _t12_transfers() -> void:
 	var ui = player.ui
 	var box = INV.new(10)
 	var i := _give(&"raptor_bone", 60, {"firm": 8})
 	var uid := _uid(i)
 	var berry := _uid(_give(&"berry", 12))
+	var berry2 := _uid(_give(&"berry", 25))
 	ui.show_storage(box, player, {"title": "Storage Box", "allow_deposit": true, "take_all": true})
-	_expect(ui.has_method("current_screen") and ui.call("current_screen") == &"storage", "12: a container opens the shared Bag | Storage split view")
+	_expect(ui.has_method("current_screen") and ui.call("current_screen") == &"storage", "12: a container opens the shared Bag | Storage view")
 	var st = ui.get("_storage")
-	if st == null or not st.has_method("action_button"):
-		_expect(false, "12: the storage screen has an inspect panel with its moves (StorageScreen.action_button)")
+	if st == null or not st.has_method("select_key") or st.get("rail") == null:
+		_expect(false, "12: the storage view has Bag / container tabs, a filter rail and Transfer (StorageScreen.select_key, rail)")
 		ui._select(i)
 		ui._store_selected()
 		ui.hide_ui()
 		return
 	await process_frame
+	_expect(st.tab == &"box" and st.box_grid.visible and not st.bag_grid.visible, "12: it opens on the container's tab")
 	ui.select_uid(uid)
-	_expect(st.inspect.title_text() == "Raptor Bone" and st.inspect.actions() == [&"store"], "12: the bone tapped on the bag side is inspected with Store (%s %s)" % [st.inspect.title_text(), st.inspect.actions()])
-	st.action_button(&"store").pressed.emit()
+	var store_b = st.action_button(&"store")
+	_expect(st.tab == &"bag" and st.inspect.title_text() == "Raptor Bone" and st.inspect.actions() == [&"store"] and store_b != null and store_b.text == "Transfer to Storage Box", "12: the bone picked in the Bag is inspected with Transfer to Storage Box (%s %s)" % [st.tab, st.inspect.actions()])
+	store_b.pressed.emit()
 	var moved = box.slots[0]
-	_expect(moved != null and moved.uid == uid and moved.level == 60 and int(moved.attributes.get("firm", 0)) == 8 and _find(uid) == -1, "12: Store moves the exact bone (uid, level, attributes)")
-	# Each side sorts and filters on its own; neither touches the items.
-	st.box_bar.filter_chosen.emit(&"food")
+	_expect(moved != null and moved.uid == uid and moved.level == 60 and int(moved.attributes.get("firm", 0)) == 8 and _find(uid) == -1, "12: Transfer moves the exact bone (uid, level, attributes)")
+	# One rail filters both tabs; it never touches the items.
+	st.rail.choose(&"food")
 	await process_frame
-	_expect(st.box_grid.item_cells().is_empty() and st.bag_grid.item_cells().size() == player.inventory.used_slots(), "12: Food on the storage side hides the bone there; the bag side still shows all")
-	st.box_bar.filter_chosen.emit(&"all")
+	var bag_food: int = st.bag_grid.item_cells().size()
+	st.show_tab(&"box")
+	_expect(bag_food == 2 and st.box_grid.item_cells().is_empty() and box.slots[0].uid == uid, "12: Food on the rail shows the two berries in the Bag and hides the bone in the box")
+	st.rail.choose(&"all")
 	ui.select_uid(uid)
-	_expect(st.box_grid.selected_uid() == uid and st.bag_grid.selected_uid() == "" and st.inspect.actions() == [&"take", &"take_all"], "12: the bone tapped on the storage side offers Take and Take All (%s)" % [st.inspect.actions()])
+	var take_b = st.action_button(&"take")
+	_expect(st.tab == &"box" and st.box_grid.selected_uid() == uid and st.inspect.actions() == [&"take", &"take_all"] and take_b != null and take_b.text == "Transfer to Bag", "12: the bone in the box offers Transfer to Bag and Take All (%s)" % [st.inspect.actions()])
+	take_b.pressed.emit()
+	_expect(_find(uid) >= 0 and box.slots[0] == null, "12: Transfer to Bag brings the same bone back")
+	# Multi-select: Select All on the Bag tab counts in the header, checks every cell, and one
+	# Transfer moves them all.
+	st.show_tab(&"bag")
+	st.toolbar.select_all_pressed.emit()
+	await process_frame
+	var n: int = player.inventory.used_slots()
+	var checked := 0
+	for c in st.bag_grid.item_cells():
+		checked += 1 if c.selected and c.checks else 0
+	_expect(st.bag_grid.multi and checked == n and st.header.title == "Select" and st.header.get("_lead").text == str(n), "12: Select All checks all %d and the header reads '%s Select' (%d checked, '%s %s')" % [n, n, checked, st.header.get("_lead").text, st.header.title])
+	st.action_button(&"store").pressed.emit()
+	await process_frame
+	var in_box: Dictionary = box.uids()
+	_expect(player.inventory.used_slots() == 0 and in_box.has(uid) and in_box.has(berry) and in_box.has(berry2), "12: one Transfer moved every picked instance with its uid")
+	st.show_tab(&"box")
+	st.box_grid.select_uid(berry)
+	st.box_grid.select_uid(berry2)
 	st.action_button(&"take").pressed.emit()
-	_expect(_find(uid) >= 0 and box.slots[0] == null, "12: Take brings the same bone back")
-	# A take-only container says why and offers no Take; a locked bag item says why it stays.
+	await process_frame
+	_expect(_find(berry) >= 0 and _find(berry2) >= 0 and _find(uid) == -1 and box.uids().has(uid), "12: Transfer to Bag moves exactly the two picked berries, not the bone")
+	st.toolbar.search_changed.emit("bone")
+	_expect(st.box_grid.item_cells().size() == 1 and st.bag_grid.item_cells().is_empty(), "12: Search 'bone' shows only the bone on both tabs")
+	st.toolbar.search_changed.emit("")
+	ui.select_uid(uid)
+	st.action_button(&"take").pressed.emit()
+	# A take-only container says why over the grid and offers no Transfer; a locked bag item says why it stays.
 	var loot = INV.new(4)
 	loot.add(IS.make(&"raw_meat", 1, {}, 9))
 	ui.show_storage(loot, player, {"title": "Raptor", "take_all": true, "readonly_reason": "needs knife"})
 	ui.select_uid(loot.slots[0].uid)
-	_expect(st.inspect.actions().is_empty() and Array(st.inspect.rows()).has("Needs knife"), "12: read-only loot shows its reason and no Take (%s)" % [st.inspect.rows()])
+	_expect(st.inspect.actions().is_empty() and st.notice_text() == "Needs knife", "12: read-only loot shows its reason over the grid and no Transfer (%s '%s')" % [st.inspect.actions(), st.notice_text()])
 	player.inventory.slots[_find(berry)].set_flag(&"locked", true)
 	ui.show_storage(box, player, {"title": "Storage Box", "allow_deposit": true})
 	ui.select_uid(berry)
-	_expect(st.inspect.actions().is_empty() and Array(st.inspect.rows()).has("Locked: unlock it in the Bag to store it."), "12: a locked berry stays in the bag and says why (%s)" % [st.inspect.rows()])
-	# Dinosaur cargo: the same split view over the pet's own bag.
+	_expect(st.notice_text() == "" and st.inspect.actions().is_empty() and Array(st.inspect.rows()).has("Locked: unlock it in the Bag to store it."), "12: a locked berry stays in the bag and says why (%s)" % [st.inspect.rows()])
+	# Dinosaur cargo: the same view over the pet's own bag.
 	var rec = load("res://scripts/pets/pet_record.gd").from_def(data.creature(&"velociraptor"), &"A")
 	rec.bag.add(IS.make(&"berry", 1, {}, 33))
 	var cargo_uid: String = rec.bag.slots[0].uid
 	ui.show_pet_bag(rec)
-	_expect(ui.call("current_screen") == &"cargo" and st.box_grid.inventory == rec.bag, "12: a bonded dinosaur's cargo opens in the same split view")
+	_expect(ui.call("current_screen") == &"cargo" and st.box_grid.inventory == rec.bag and st.tab == &"box", "12: a bonded dinosaur's cargo opens in the same view on its tab")
 	ui.select_uid(cargo_uid)
-	_expect(st.inspect.actions() == [&"take"], "12: cargo offers Take (no Take All) (%s)" % [st.inspect.actions()])
+	_expect(st.inspect.actions() == [&"take"], "12: cargo offers Transfer to Bag (no Take All) (%s)" % [st.inspect.actions()])
 	st.action_button(&"take").pressed.emit()
-	_expect(_find(cargo_uid) >= 0 and player.inventory.slots[_find(cargo_uid)].level == 33 and rec.bag.used_slots() == 0, "12: Take moves that exact berry from the cargo into the bag")
+	_expect(_find(cargo_uid) >= 0 and player.inventory.slots[_find(cargo_uid)].level == 33 and rec.bag.used_slots() == 0, "12: Transfer moves that exact berry from the cargo into the bag")
 	ui.hide_ui()
 
 func _t13_equipment() -> void:
@@ -776,7 +810,15 @@ func _t20_screen_sizes() -> void:
 			ss.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			ss.call("setup", player.inventory, box_inv, "Velociraptor A Cargo", player, &"cargo")
 			ss.call("set_actions", true, false, true, "")
-			ss.get("bag_grid").call("select_uid", _uid(berry)) # Store as the primary
+			ss.call("select_key", _uid(berry)) # the Bag tab with Transfer as the primary
+			await process_frame
+			await process_frame
+			_check_targets(ss, view)
+			# The reference's state: the container tab, a take-only notice, search open, all picked.
+			ss.call("show_tab", &"box")
+			ss.call("set_actions", false, false, false, "This box belongs to someone else: cannot take.")
+			ss.get("toolbar").call("set_search", true)
+			ss.get("toolbar").emit_signal("select_all_pressed")
 			await process_frame
 			await process_frame
 			_check_targets(ss, view)

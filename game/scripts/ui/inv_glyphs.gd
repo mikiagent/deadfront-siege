@@ -1,7 +1,8 @@
 class_name InvGlyphs
 extends RefCounted
 ## White procedural glyphs for the bag toolbar that the white icon set (data/ui_icons.json) has no
-## drawing for: multi-select (a ticked box), filter (a funnel) and the Auto Sort dropdown caret.
+## drawing for: multi-select (a ticked box), select all (a grid of dots with a tick), filter (a funnel),
+## the storage rail's All (four squares) and the Auto Sort dropdown caret.
 ## White polylines, so they read as actions (GAUNTLET: colour = things, white = actions).
 
 const WHITE := Color(1, 1, 1, 0.92)
@@ -14,6 +15,27 @@ static func select(ci: CanvasItem, r: Rect2, on: bool = false) -> void:
 	ci.draw_polyline(PackedVector2Array([o + Vector2(s * 0.62, s * 0.08), o + Vector2(s * 0.08, s * 0.08),
 		o + Vector2(s * 0.08, s * 0.92), o + Vector2(s * 0.92, s * 0.92), o + Vector2(s * 0.92, s * 0.5)]), WHITE, w)
 	ci.draw_polyline(PackedVector2Array([o + Vector2(s * 0.28, s * 0.48), o + Vector2(s * 0.5, s * 0.7), o + Vector2(s, s * 0.08)]), InvTheme.SELECT if on else WHITE, w * 1.2)
+
+## A 3x3 grid of dots with a tick over its corner: select every item shown (storage reference).
+static func select_all(ci: CanvasItem, r: Rect2) -> void:
+	var s := minf(r.size.x, r.size.y) * 0.56
+	var o := r.get_center() - Vector2(s, s) * 0.5
+	var d := s * 0.2
+	for y in 3:
+		for x in 3:
+			if x + y < 4: # the bottom-right corner is the tick's
+				ci.draw_rect(Rect2(o + Vector2(x, y) * s * 0.36, Vector2(d, d)), WHITE)
+	var w := maxf(2.0, s * 0.1)
+	ci.draw_polyline(PackedVector2Array([o + Vector2(s * 0.6, s * 0.86), o + Vector2(s * 0.78, s * 1.02), o + Vector2(s * 1.08, s * 0.66)]), WHITE, w)
+
+## Four squares: the storage rail's All filter.
+static func grid(ci: CanvasItem, r: Rect2, color: Color = WHITE) -> void:
+	var s := minf(r.size.x, r.size.y) * 0.44
+	var o := r.get_center() - Vector2(s, s) * 0.5
+	var g := s * 0.16
+	var q := (s - g) * 0.5
+	for k in 4:
+		ci.draw_rect(Rect2(o + Vector2(k % 2, k / 2) * (q + g), Vector2(q, q)), color)
 
 ## A funnel: wide top, narrow stem.
 static func funnel(ci: CanvasItem, r: Rect2, on: bool = false) -> void:
