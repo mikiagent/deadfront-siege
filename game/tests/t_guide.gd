@@ -177,6 +177,27 @@ func _test_placement() -> void:
 	_expect(_off_border(inner, right_edge) < 0.5 and not cr.intersects(map) and not cr.intersects(claim[0]), "past the map it walks past a HUD control too (%s, hand %s)" % [right_edge, cr])
 	var clear_e: Vector2 = FingerS.clamp_tip(Vector2(5000, 600), false, inner)
 	_expect(FingerS.edge_spot(clear_e, Vector2(5000, 600), inner, view, hard, none, 1.1) == clear_e, "a clear edge point is kept as it is")
+	# Fix round 1: at 844x390 the spot left of the card and the one below the minimap took turns as the tree
+	# moved, and the hand swapped across the screen. Last frame's spot stays while it is clear and at most a
+	# quarter of the way round farther than the nearest; a clear edge point still wins. (HUD rects from the lab.)
+	var pv := Rect2(0, 0, 844, 390)
+	var pin := pv.grow(-20.0)
+	var p_hard: Array[Rect2] = [Rect2(8, 6, 300, 90), Rect2(422, 34, 240, 72), Rect2(674, 6, 154, 202)]
+	var p_soft: Array[Rect2] = [Rect2(674, 34, 154, 154), Rect2(610, 128, 60, 60)]
+	var up_r := Vector2(870, 40)
+	var pe: Vector2 = FingerS.clamp_tip(up_r, false, pin)
+	var fresh: Vector2 = FingerS.edge_spot(pe, up_r, pin, pv, p_hard, p_soft, 0.9)
+	var held: Vector2 = FingerS.edge_spot(pe, up_r, pin, pv, p_hard, p_soft, 0.9, Vector2(412, 20))
+	_expect(fresh.is_equal_approx(Vector2(824, 224)) and held == Vector2(412, 20), "a clamped hand left of the card stays there rather than swap below the minimap (%s, kept %s)" % [fresh, held])
+	var wall: Array[Rect2] = [Rect2(780, 100, 64, 200)]
+	var far_r := Vector2(2000, 195)
+	var we: Vector2 = FingerS.clamp_tip(far_r, false, pin)
+	var nearest: Vector2 = FingerS.edge_spot(we, far_r, pin, pv, wall, none, 0.9)
+	var within: Vector2 = FingerS.edge_spot(we, far_r, pin, pv, wall, none, 0.9, Vector2(300, 20))
+	var beyond: Vector2 = FingerS.edge_spot(we, far_r, pin, pv, wall, none, 0.9, Vector2(268, 20))
+	_expect(nearest.is_equal_approx(Vector2(824, 56)) and within == Vector2(300, 20) and beyond.is_equal_approx(nearest),
+		"last frame's spot stays up to a quarter of the way round farther, no more (%s, %s, %s)" % [nearest, within, beyond])
+	_expect(FingerS.edge_spot(clear_e, Vector2(5000, 600), inner, view, hard, none, 1.1, Vector2(1580, 300)) == clear_e, "a clear edge point wins over last frame's spot")
 	_expect(FingerS.NUDGE < FingerS.BOB and FingerS.nudge(0.0) <= FingerS.NUDGE and FingerS.nudge(0.3) >= 0.0, "a clamped hand nudges less than a tap")
 	# The Branch hex half under the Orders card (844x390, survivor beside the tree): aim at the part off it.
 	var card: Array[Rect2] = [Rect2(425, 35, 235, 70)]

@@ -280,6 +280,8 @@ func _beside_tree() -> void:
 	await get_tree().create_timer(0.8).timeout
 	var radial := _player._gather_radial
 	_player.debug_open_radial(tree)
+	# The lab resumes before the finger's _process: give it the frame (a tap opens the radial before it).
+	await _frames(2)
 	var shown := 0
 	var frames := 0
 	var thin := 0
@@ -356,19 +358,23 @@ func _check_clamped() -> void:
 ##   no more than GuideFinger.GLIDE_MAX, 2000 px/s; what it points at moves far slower on a walk);
 ## - snap: the hand turned over 30 degrees, faster than 12 rad/s (it eases at GuideFinger.TURN, 10 rad/s);
 ## - swap: a new placement for the same target, off the edge (an edge hand points along its own line);
-## - hop: a new target.
+## - hop: a new target;
+## - fade: a cross-fade to a new spot (where a glide would cross the vitals or the card), not a jump.
 ## On a hex the tip is the hex (it must stay inside it), so a frame where the radial's own hex jumped over
 ## 12 px is the radial's ("radial_jumps", the known "hexes jump while walking" item), not charged to the hand.
 func _track(phase: String) -> void:
-	var m: Dictionary = _motion.get_or_add(phase, {"frames": 0, "jumps": 0, "snaps": 0, "swaps": 0, "hops": 0, "radial_jumps": 0})
+	var m: Dictionary = _motion.get_or_add(phase, {"frames": 0, "jumps": 0, "snaps": 0, "swaps": 0, "hops": 0, "radial_jumps": 0, "fades": 0})
 	if _finger.visible and _finger.clamped:
 		_check_clamped()
 	var dt := maxf(get_process_delta_time(), 1.0 / 240.0)
 	var key := str(_finger.get("_key"))
-	var now := [_finger.visible, _finger.tip, _finger.anchor, _finger.angle, float(_finger.get("_want")), key, _finger.target]
+	var now := [_finger.visible, _finger.tip, _finger.anchor, _finger.angle, float(_finger.get("_want")), key, _finger.target, float(_finger.get("_fade"))]
 	if _last.size() == now.size() and _last[0] and now[0] and key == "hex" and _last[5] == "hex" and (now[2] - _last[2]).length() > 12.0:
 		m["radial_jumps"] += 1
 		print("[guide] %s: the radial's hex jumped %s -> %s" % [phase, _last[2], now[2]])
+	elif _last.size() == now.size() and _last[0] and now[0] and float(now[7]) < float(_last[7]):
+		m["fades"] += 1  # a move across the vitals or the card: the hand cross-fades there, it does not jump
+		print("[guide] %s fade: tip %s -> %s on %s" % [phase, _last[1], now[1], key])
 	elif _last.size() == now.size() and _last[0] and now[0]:
 		m["frames"] += 1
 		var moved: Vector2 = now[1] - _last[1]
@@ -386,12 +392,13 @@ func _track(phase: String) -> void:
 			m["hops"] += 1
 	_last = now
 
-## The motion gate for `phase`: no jumps or snaps, at most one placement change, and (`still`) one target.
+## The motion gate for `phase`: no jumps or snaps, at most one placement change and one cross-fade, and
+## (`still`) one target.
 func _smooth(phase: String, still: bool) -> void:
-	var m: Dictionary = _motion.get(phase, {"frames": 0, "jumps": 0, "snaps": 0, "swaps": 0, "hops": 0, "radial_jumps": 0})
+	var m: Dictionary = _motion.get(phase, {"frames": 0, "jumps": 0, "snaps": 0, "swaps": 0, "hops": 0, "radial_jumps": 0, "fades": 0})
 	print("[guide] motion %s: %s" % [phase, m])
-	_expect(int(m["frames"]) >= 20 and int(m["jumps"]) == 0 and int(m["snaps"]) == 0 and int(m["swaps"]) <= 1 and (not still or int(m["hops"]) == 0),
-		"%s: the hand moves smoothly over %d frames (jumps %d, snaps %d, swaps %d, hops %d)" % [phase, m["frames"], m["jumps"], m["snaps"], m["swaps"], m["hops"]])
+	_expect(int(m["frames"]) >= 20 and int(m["jumps"]) == 0 and int(m["snaps"]) == 0 and int(m["swaps"]) <= 1 and int(m["fades"]) <= 1 and (not still or int(m["hops"]) == 0),
+		"%s: the hand moves smoothly over %d frames (jumps %d, snaps %d, swaps %d, fades %d, hops %d)" % [phase, m["frames"], m["jumps"], m["snaps"], m["swaps"], m["fades"], m["hops"]])
 
 ## Open a cover, expect the finger gone; close it, expect it back (proves the cover hid it).
 func _covered(what: String, open: Callable, close: Callable, reopens: bool = true) -> void:
