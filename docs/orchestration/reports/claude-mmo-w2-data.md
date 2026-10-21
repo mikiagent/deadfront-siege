@@ -142,7 +142,7 @@ wild crop; files in the scratchpad, not the repo): `crop_home_1600x900.png`, `cr
    `coral` and `blue_dye` had no real source. Those four items are now `source_pending` (the reason is in
    items.json), and the `blue_dye` recipe (coral at the mortar) is `staged` until a blue_tropical island exists.
 
-## Acceptance (scratch tree on 264950b4 + hooks patch)
+## Acceptance (round 4: scratch tree `w2data-r4-gate` on 753a3c64 + the hooks patch as committed in 1c9dfc83)
 
 | Item | Result |
 |---|---|
@@ -153,12 +153,14 @@ wild crop; files in the scratchpad, not the repo): `crop_home_1600x900.png`, `cr
 | Nets I–V craftable; every tameable species has a reachable net | `[t_data] tameable species with a reachable net: 17`; tiers 1–5 each checked |
 | steamer_kit and hoe craftable; armour in every 5–10 band 1–60 | `[t_data] armor_body levels [1, 10, 20, 30, 35, 40, 50, 55]`; head `[10, 20, 30, 35, 40, 50, 55]`; arms/legs same as body |
 | equip_mount_lab and craft_lab PASS | `[equiplab] PASS`; `[craft_lab] PASS`; rc=0, 0 SCRIPT ERROR lines in either (headless, `-- --lab=<lab>`) |
-| every t_*.gd (round 3, 351aa708 + hooks) | All 20 print their PASS line with rc=0: t_ai, t_build, t_canim, t_combat, t_data, t_harbour (`islands=15`), t_iconart, t_items, t_light, t_lighting (prints `[t_light] PASS`), t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons (`ids=171 files=114`), t_web. t_save prints its 5 deliberate SCRIPT ERRORs, as on base; every other log has 0 SCRIPT ERROR and 0 "couldn't resolve track". t_data rerun on e2a3bc1c: `[t_data] PASS items=223 recipes=155`, 0 SCRIPT ERROR. |
-| run_all, smoke (round 3) | `[tests] PASS` (rc=0, 0 SCRIPT ERROR); `SMOKE PASS` (tools/smoke.sh --no-import, rc=0). The progression probe was not rerun this round (round 2: `[progression] PARTIAL ... failures=0`, unchanged from base). |
-| Labs (round 3) | `[equiplab] PASS`, `[craft_lab] PASS`, island_lab `[world] island temperate_25 nodes=397 creatures=24`; rc=0, 0 SCRIPT ERROR, 0 "couldn't resolve track" (headless, `-- --lab=<lab>`) |
-| Import, crashes (round 3) | mkscratch import log has 0 error lines. No new Godot-*.ips: 27 before and after this round's runs, newest still Godot-2026-10-20-195619.ips (two appeared between rounds, before this round started) |
+| GAUNTLET: higher tier clearly better, level 5 tool clearly better than level 1 (round 4) | `[t_data] L55 armor_body via planner: copper_cuirass 2413 (copper), bronze_cuirass 2756 (bronze), iron_cuirass 3158 (iron), steel_cuirass 3650 (steel), raid_cuirass 4653 (steel)`; `[t_data] L55 weapon via planner: copper_sword 352 (copper), bronze_sword 402 (bronze), iron_sword 460 (iron), steel_sword 532 (steel), raid_maul 1460 (steel)`; `[t_data] level 1 -> 5 from the planner: flint_pick gather power x1.40, flint_spear damage x1.32`; the only items above steel at equal level are the raid kit, at the steel nodes: `[t_data] above steel_cuirass (686, gate Lv 45): raid_cuirass 875 at steel tier, gate scute_armor Lv 45` (helm, greaves likewise; `raid_maul 274 ... gate iron_weapons Lv 50` vs steel_sword 100) |
+| Raid kit through the real crafting code (hook 15) | `[gear] maul L60 steel dmg=1569.6 kit armor=9291.3`, `[gear] PARTIAL real formulas/craft allocation; acquisition, station movement and raid evasions untested; failures=0` (rc=0, 0 SCRIPT ERROR, 0 FAIL lines) |
+| every t_*.gd (round 4) | All 20 print their PASS line with rc=0: t_ai, t_build, t_canim, t_combat, t_data (`[t_data] PASS items=223 recipes=155`), t_harbour (`islands=15`), t_iconart, t_items, t_light, t_lighting (prints `[t_light] PASS`), t_occlude, t_player, t_save, t_server_domain, t_srvdom, t_structart, t_tame, t_ui, t_uiicons (`ids=171 files=114`), t_web. t_save prints its 5 deliberate SCRIPT ERRORs, as on base; every other log has 0 SCRIPT ERROR and 0 "couldn't resolve track". t_items first printed `[t_items] FAIL armor follows level x tier` (its literal 300 for raid_helm). Hook 11 now reads the def, and the rerun prints `[t_items] PASS`. |
+| run_all, smoke (round 4) | `[tests] PASS` (rc=0, 0 SCRIPT ERROR); `SMOKE PASS` (tools/smoke.sh --no-import, rc=0). The progression probe was not rerun (round 2: `[progression] PARTIAL ... failures=0`, unchanged from base). |
+| Labs (round 4) | `[equiplab] PASS`, `[craft_lab] PASS`, island_lab `[world] island temperate_25 nodes=397 creatures=24 terrain=meadow`; rc=0, 0 SCRIPT ERROR, 0 "couldn't resolve track" (headless, `-- --lab=<lab>`) |
+| Import, crashes (round 4) | mkscratch import log has 0 error lines. No new Godot-*.ips: 34 before and after this round's runs, newest still Godot-2026-10-20-202004.ips |
 | Pick chain in play code (t_items with hook 11) | `[t_items] bare hands: copper_ore='needs obsidian pick' black_iron='needs bronze pick'`; `[t_items] flint node seconds: bone pick (minimum tier) 2.68, flint pick 2.40, base 3.00` |
-| Hook 6 enforces requires_node | `[t_data] smelt_copper gate: before 'needs skill smelting 1', after learning smelting_1 ''` |
+| Hook 6 enforces requires_node and says what to raise | `[t_data] smelt_copper gate: before 'needs Smelting 1 (Processing 25)', after learning smelting_1 ''` |
 
 ### Ladder numbers against the specs
 
@@ -301,10 +303,11 @@ Hook 9, `nature_manifest.json`, edit by edit:
   "every item reachable" fails and recipes like `antibiotic`, `seasoned_roast` and `spiced_skewer` can never
   be crafted.
 
-On the branch alone t_data, t_build, t_uiicons and run_all fail until these hooks land. t_data also fails on hooks 9
-(Corn/Wheat count), 13 and 14: `[t_build] FAIL route
-forge_kit` / `anvil_kit`, `[t_uiicons] FAIL station_forge (from recipes.json) has its own icon, not the
-fallback`, run_all's `uncut hide remains eligible raw_hide` (hook 12), and the t_data lines above. With the patch applied every gate passes.
+On the branch alone t_data, t_build, t_uiicons, t_items and run_all fail until these hooks land. t_data also
+fails without hooks 6, 9 (Corn/Wheat count), 10, 13 and 14. The other lines are `[t_build] FAIL route forge_kit` /
+`anvil_kit`, `[t_uiicons] FAIL station_forge (from recipes.json) has its own icon, not the fallback`, run_all's
+`uncut hide remains eligible raw_hide` (hook 12), and since round 4 `[t_items] FAIL armor follows level x tier`
+(hook 11). raid_gear_probe is not a gate, but it fails without hook 15. With the patch applied every gate passes.
 
 Not in the patch (follow-ups for their owners):
 - ItemArt should read `ItemDef.rarity` instead of item_rarity.json (ICONS2/W2-SCREENS), then delete it.
