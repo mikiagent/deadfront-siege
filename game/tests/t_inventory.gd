@@ -38,7 +38,8 @@ func _process(_delta: float) -> bool:
 		_test_overflow_to_home_storage, _test_stack_bigger_than_bag, _test_round_trip_keeps_uids,
 		_test_worn_gear_kept, _test_currency_stacks, _test_visual_groups, _test_server_store_migration, _test_default_pick_spares_valuable,
 		_test_legacy_ceiling, _test_duplicate_uids, _test_pocket_capacity, _test_grown_container_reloads, _test_journal_before_split,
-		_test_tip_names_traits]
+		_test_tip_names_traits, _test_default_pick_across_defs, _test_forged_worn_row, _test_split_rows_without_uid,
+		_test_journal_rules_change, _test_unique_uids_across_containers]
 	for t in tests:
 		var errs := log.script_errors
 		t.call()
@@ -472,6 +473,107 @@ func _test_default_pick_spares_valuable() -> void:
 	_expect(picks == [3] and spent == [3, 2], "default twine spends the plain oldest stalks 3 then 2, not the trait (0) or lv 5 (1) one (picks %s spent %s)" % [picks, spent])
 	var stone = IS.make(&"stone", 1, {}, 1)
 	_expect(not stone.attributes.is_empty() and INV.spend_key(stone)[0] == 0, "a def's own default attributes (stone tint) are not traits (%s)" % [stone.attributes])
+
+## Review 2: the lead's own def is only a tie-break inside equal spend keys. A default twine spends
+## the plain lv1 stalk and the plain lv1 palm frond, not the lv40 stalk (with or without a trait);
+## when every candidate carries a trait the plan says so (spec 13:486), so the UI can ask for a pick.
+func _test_default_pick_across_defs() -> void:
+	var CR := load("res://scripts/items/crafting.gd") as GDScript
+	var rec: Dictionary = get_root().get_node("Data").recipes.get(&"twine", {})
+	for traits in [{"hardness": 9}, {}]:
+		var inv = INV.new(10)
+		inv.slots[0] = IS.make(&"fibre_stalk", 1, {}, 1)
+		inv.slots[1] = IS.make(&"fibre_stalk", 1, traits, 40)
+		inv.slots[2] = IS.make(&"palm_frond", 1, {}, 1)
+		var picks: Array[int] = CR.default_picks(inv, rec)
+		var spent: Array[int] = []
+		for part in CR._plan(inv, rec, picks)[0].parts:
+			spent.append(int(part.idx))
+		spent.sort()
+		_expect(spent == [0, 2], "default twine spends stalk lv1 and the plain frond lv1, not the lv40 stalk %s (spent %s)" % [traits, spent])
+		_expect(not CR.plan_spends_traits(inv, rec, picks), "a default that spends no trait does not ask for a pick %s" % [traits])
+	var rare = INV.new(10)
+	rare.slots[0] = IS.make(&"fibre_stalk", 1, {"hardness": 7}, 30)
+	rare.slots[1] = IS.make(&"fibre_stalk", 1, {"hardness": 9}, 40)
+	var rp: Array[int] = CR.default_picks(rare, rec)
+	_expect(CR.picks_valid(rare, rec, rp) and CR.plan_spends_traits(rare, rec, rp), "only trait stalks: the default plan says it spends a trait")
+
+## Review 2: the worn row is a trust boundary. A forged worn helm (x5000, L9999, durability 1e9,
+## a bad uid) read through the loader's own path loads as x1 L60 within the real durability ceiling.
+func _test_forged_worn_row() -> void:
+	var data := _read_edited("save_forged.json", func (raw: Dictionary) -> void:
+		raw.player["inventory_extras"] = {"worn": {"head": {"id": "raid_helm", "count": 5000, "level": 9999,
+			"durability": 1e9, "max_durability": 1e9, "uid": "not a uid"}}})
+	var h = _load_containers(data).bag.equipped_in(&"head")
+	var top: int = IS.make(&"raid_helm", 1, {}, 60).max_durability
+	_expect(h != null and h.count == 1 and h.level == 60 and h.max_durability <= top and h.durability <= top and h.uid.begins_with("l"),
+		"a forged worn helm loads as x1 L60 with durability <= %d (%s)" % [top, h.to_dict() if h else null])
+
+## Review 2: a stored row with no uid must not mint ".1", ".2" for every such row (duplicates).
+func _test_split_rows_without_uid() -> void:
+	var CST := load("res://scripts/server/character_state.gd") as GDScript
+	var row: Dictionary = IS.make(&"stone", 1, {}, 2).to_dict()
+	row.count = 3
+	row.erase("uid")
+	var d := {"bag": [row.duplicate(true), row.duplicate(true)]}
+	CST.split_stacks(d)
+	var seen := {}
+	var dup := 0
+	var units := 0
+	for r in (d.bag as Array) + (d.get("storage", []) as Array):
+		if r is Dictionary:
+			units += int(r.count)
+			var u := str(r.get("uid", ""))
+			dup += 1 if u != "" and seen.has(u) else 0
+			seen[u] = true
+	_expect(dup == 0 and units == 6, "rows without a uid split into no duplicate uids and keep every unit (dup %d, units %d, uids %s)" % [dup, units, seen.keys()])
+
+## Review 2: a journal written under other data rules (the stacking build) that no longer replays
+## stops boot with a message that says what to do, not only "seq N did not replay".
+func _test_journal_rules_change() -> void:
+	var CS := load("res://scripts/server/character_store.gd") as GDScript
+	var WF := load("res://scripts/server/world_facade.gd") as GDScript
+	var PV := load("res://scripts/server/provenance.gd") as GDScript
+	var dir := TMP.path_join("srv_rules")
+	DirAccess.make_dir_recursive_absolute(dir)
+	for f in DirAccess.get_files_at(dir):
+		DirAccess.remove_absolute(dir.path_join(f))
+	var a = CS.new(WF.new(), dir, 5)
+	a.open()
+	a.apply("char.create", 1, {"name": "Old"}, 10)
+	var row: Dictionary = IS.make(&"stone", 1, {}, 2).to_dict()
+	row.count = 20
+	var d: Dictionary = a.s.chars["1"]
+	d.bag[0] = PV.stamp(row, PV.item_uid(2, 0), "gather", 2)
+	a.s.minted = {"stone": 20}
+	a.s.seq = 2
+	a.s.chars["1"] = CS.norm(d)
+	a.snapshot()
+	a.apply("act.deposit", 1, {"bag_slot": 0, "count": 5}, 20)
+	a = null
+	# The old build's snapshot: its data hash differs, and its slot 0 is not what the journal saw.
+	var snap := dir.path_join("snapshot.json")
+	var parsed: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(snap))
+	parsed["data"] = "old build"
+	parsed.chars["1"].bag[0] = null
+	var f := FileAccess.open(snap, FileAccess.WRITE)
+	f.store_string(JSON.stringify(parsed))
+	f.close()
+	var why: String = CS.new(WF.new(), dir, 5).open()
+	_expect(why.contains("did not replay") and why.contains("previous build"), "a journal that fails under changed rules says to snapshot on the previous build (%s)" % why)
+
+## Review 2 (spec 05:20/26): a uid held in two containers that load on their own (a bag row, a
+## basket row, a pet bag row) is kept by the first holder; the others are reminted.
+func _test_unique_uids_across_containers() -> void:
+	var IM := load("res://scripts/items/inventory_migration.gd") as GDScript
+	var bag = INV.new(4)
+	var basket = INV.new(4)
+	var pet = INV.new(4)
+	for inv in [bag, basket, pet]:
+		inv.load_array(_json([{"id": "stone", "count": 1, "uid": "laaaa0001"}]))
+	var n: int = IM.unique_uids([bag, basket, bag, pet])
+	var u := [bag.slots[0].uid, basket.slots[0].uid, pet.slots[0].uid]
+	_expect(n == 2 and u[0] == "laaaa0001" and u[1] != u[0] and u[2] != u[0] and u[1] != u[2], "one holder keeps a shared uid, the rest are reminted, a container listed twice is not (n %d, %s)" % [n, u])
 
 # ---------------------------------------------------------------- server character store
 

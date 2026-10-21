@@ -3,7 +3,8 @@ extends Node3D
 ## stack) in the real inventory screen. The grid groups identical items visually (one cell per
 ## item id with a ×N badge); opening a group shows each instance; nothing ever merges.
 ## Shots: --resolution 1600x900 (or 844x390) -- --lab=inventory_lab --shot=<png with "bag" in it>
-##   [--bag-group=stone] opens that group first.
+##   [--bag-group=stone] opens that group first; [--bag-fill=N] keeps only the first N instances
+##   (a partly filled bag shows its free slots as empty cells).
 ## Headless (no --shot): drives the grid and prints "[invlab] PASS ..." (exit 0) or FAIL lines (exit 1).
 
 ## 100 slots: [id, instances, level step]. Levels cycle so an opened group shows different ones.
@@ -28,11 +29,17 @@ func _ready() -> void:
 	player.ui.reparent(modals)
 	World.player_name = "Milan"
 	World.occupation = "Gatherer"
+	var fill := 1000
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--bag-fill="):
+			fill = int(a.substr(11))
 	for row in FILL:
 		for k in int(row[1]):
-			player.inventory.add(ItemStack.make(row[0], 1, {}, 1 + (k * int(row[2])) % 60))
-	player.inventory.add(ItemStack.make(&"stone_shot", 45))
-	player.inventory.add(ItemStack.make(&"bandage", 6))
+			if player.inventory.used_slots() < fill:
+				player.inventory.add(ItemStack.make(row[0], 1, {}, 1 + (k * int(row[2])) % 60))
+	if fill >= 100:
+		player.inventory.add(ItemStack.make(&"stone_shot", 45))
+		player.inventory.add(ItemStack.make(&"bandage", 6))
 	await get_tree().process_frame
 	var ui := player.ui
 	ui.visible = true
@@ -44,12 +51,34 @@ func _ready() -> void:
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
 		await _check()
 
-func _visible_cells() -> Array[Button]:
+## Visible grid cells; item cells only unless `with_empty` (free bag slots show as empty cells).
+func _visible_cells(with_empty: bool = false) -> Array[Button]:
 	var out: Array[Button] = []
-	for c in player.ui._grid.get_children():
-		if c is Button and (c as Button).visible:
-			out.append(c)
+	var grid: Node = player.ui._grid
+	for k in grid.get_child_count():
+		var b := grid.get_child(k) as Button
+		if b.visible and (with_empty or k >= player.ui._cells.size() or not player.ui._cells[k].has("empty")):
+			out.append(b)
 	return out
+
+## Spec 13:124 "Empty slots remain visible": an empty bag shows every slot as an empty cell, and a
+## bag of 3 items shows 3 item cells and 97 empty ones. Empty cells take no taps.
+func _check_empty_cells() -> void:
+	var ui := player.ui
+	var bag := ui.inventory
+	var probe := Inventory.new()
+	ui._selected = -1
+	ui.inventory = probe
+	ui.rebuild()
+	for want in [0, 3]:
+		for id in [&"stone", &"branch", &"berry"].slice(0, want):
+			probe.add(ItemStack.make(id, 1))
+		ui.rebuild()
+		var shown := _visible_cells(true)
+		var blank := shown.filter(func (b: Button) -> bool: return b.icon == null and b.text == "" and b.disabled)
+		_expect(shown.size() == 100 and blank.size() == 100 - want, "%d items: %d item cells and %d empty slot cells (%d shown, %d empty)" % [want, want, 100 - want, shown.size(), blank.size()])
+	ui.inventory = bag
+	ui.rebuild()
 
 ## Taps the cell of group `id`, as a player would.
 func _open(id: StringName) -> bool:
@@ -81,7 +110,18 @@ func _check() -> void:
 		small += 1 if b.get_combined_minimum_size().x < UiTokens.TARGET_MIN or b.get_combined_minimum_size().y < UiTokens.TARGET_MIN else 0
 	_expect(small == 0, "every bag cell is a %d px+ target (%d smaller)" % [UiTokens.TARGET_MIN, small])
 	var stone_cell: Button = cells[0] if not cells.is_empty() else null
-	_expect(stone_cell != null and stone_cell.text.ends_with("×16"), "the stone group shows ×16 (got '%s')" % (stone_cell.text if stone_cell else ""))
+	# A group reads "16 ›" (opens); a real stack reads "×45": the two never look alike.
+	_expect(stone_cell != null and stone_cell.text.begins_with("16") and not stone_cell.text.contains("×"), "the stone group shows 16 and no stack ×N (got '%s')" % (stone_cell.text if stone_cell else ""))
+	var shot_text := ""
+	for k in ui._cells.size():
+		if ui._cells[k].has("slot") and inv.slots[int(ui._cells[k].slot)].def_id == &"stone_shot":
+			shot_text = cells[k].text
+	_expect(shot_text.ends_with("×45"), "the stone_shot stack shows ×45 (got '%s')" % shot_text)
+	inv.slots[inv.find_first(&"stone")].set_flag(&"locked", true)
+	ui.rebuild()
+	_expect(_visible_cells()[0].text.begins_with("L "), "a group holding a locked stone carries the L pip (got '%s')" % _visible_cells()[0].text)
+	inv.slots[inv.find_first(&"stone")].set_flag(&"locked", false)
+	ui.rebuild()
 	_expect(_open(&"stone"), "the stone group opens")
 	await get_tree().process_frame
 	cells = _visible_cells()
@@ -119,6 +159,7 @@ func _check() -> void:
 	_expect(inv.equipped_in(&"head") != null and inv.used_slots() == 100 and notices.contains("Bag is full"), "unequip into a full bag: the helm stays worn and 'Bag is full' shows")
 	ui._select(inv.find_first(&"stone"))
 	_expect(ui._tip.text.begins_with("Stone") and not ui._tip.text.contains("attr") and not ui._tip.text.contains("tint"), "the tip shows no raw attribute dict (%s)" % ui._tip.text.replace("\n", " | "))
+	_check_empty_cells()
 	if _fails.is_empty():
-		print("[invlab] PASS slots=100 groups=%d stone_open=17 equip_l30=true full_unequip_notice=true" % groups.size())
+		print("[invlab] PASS empty_cells=100/97 slots=100 groups=%d stone_open=17 equip_l30=true full_unequip_notice=true" % groups.size())
 	get_tree().quit(0 if _fails.is_empty() else 1)

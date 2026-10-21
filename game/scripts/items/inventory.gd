@@ -3,7 +3,8 @@ extends RefCounted
 ## Fixed-slot bag of item instances plus the equipment container. Materials and food are one
 ## instance per slot (owner 2026-10-20, prompts 05/08); only data/inventory.json's
 ## stacking_categories merge. Slot-span items (captured animals) occupy consecutive empties.
-## Loading saved rows, and the stacked-save migration, is InventoryMigration.
+## Loading saved rows, and the stacked-save migration, is InventoryMigration; wearing gear and
+## the bag capacity it gives is InventoryEquipment.
 
 signal changed
 
@@ -45,37 +46,9 @@ static func slot_for(def: ItemDef) -> StringName:
 
 # ---------------------------------------------------------------- equipment
 
-## Wear the exact item at bag `index`. Whatever was worn in that slot swaps into the vacated bag
-## slot, so equipping never needs a free slot.
+## Wear the exact item at bag `index` (InventoryEquipment: the old worn item swaps into its slot).
 func equip_at(index: int, slot: StringName = &"") -> bool:
-	if index < 0 or index >= slot_count:
-		return false
-	var item := slots[index]
-	if item == null or item.def_id == LOCK or item.is_locked() or item.count != 1:
-		return false
-	var want := slot_for(item.def())
-	var target := slot if slot != &"" else want
-	# Only into its own slot (a ring may take either accessory slot).
-	if want == &"" or not (target == want or (want == &"accessory1" and target == &"accessory2")):
-		return false
-	if target == &"accessory1" and worn(&"accessory1") != null and worn(&"accessory2") == null:
-		target = &"accessory2"
-	var old := worn(target)
-	slots[index] = old
-	equipment[str(target)] = item
-	# Spec 05:11: the bag grows or shrinks by the swap's bonus difference; a shrink that would cut
-	# off occupied slots is refused and the swap undone.
-	if not _resize(slot_count + bag_bonus(item) - bag_bonus(old)):
-		slots[index] = item
-		if old:
-			equipment[str(target)] = old
-		else:
-			equipment.erase(str(target))
-		return false
-	if equipped_tool_index == index:
-		equipped_tool_index = -1 # the held tool is the item just worn
-	changed.emit()
-	return true
+	return InventoryEquipment.equip_at(self, index, slot)
 
 ## Def-id form for callers without a bag index: wears the highest-level match.
 func equip(slot: StringName, def_id: StringName) -> bool:
@@ -86,70 +59,18 @@ func equip(slot: StringName, def_id: StringName) -> bool:
 			best = i
 	return equip_at(best, slot) if best >= 0 else false
 
-## Back into the bag, which loses the slots this item added (spec 05:11). Refused (the gear stays
-## worn) when what the bag holds plus this item would not fit: never drop gear.
+## Back into the bag; refused (the gear stays worn) when the bag could not hold it.
 func unequip(slot: StringName) -> bool:
-	var v: Variant = equipment.get(str(slot))
-	if v is ItemStack:
-		var cap := slot_count - bag_bonus(v)
-		if used_slots() + 1 > cap or not _resize(cap):
-			return false
-		equipment.erase(str(slot))
-		add(v)
-	else:
-		equipment.erase(str(slot))
-	changed.emit()
-	return true
+	return InventoryEquipment.unequip(self, slot)
 
 ## The gear worn in `slot` (container form only).
 func worn(slot: StringName) -> ItemStack:
 	var v: Variant = equipment.get(str(slot))
 	return v if v is ItemStack else null
 
-## Spec 05:11: the slots a worn item adds, its def's bag_slots plus its pocket attribute level x
-## pocket_slots_per_level. # ASSUMPTION: an instance's Pocket is attributes.pocket = its level.
-static func bag_bonus(s: ItemStack) -> int:
-	if s == null or s.def() == null:
-		return 0
-	var r := ItemDef.rules()
-	var p: Variant = s.attributes.get("pocket", 0)
-	var lv := clampi(int(p), 0, int(r.get("max_pocket_level", 60))) if (p is int or p is float) else 0
-	return s.def().bag_slots + lv * int(r.get("pocket_slots_per_level", 6))
-
-## Base slots plus every worn item's bonus, counted from what is worn now (so nothing adds twice).
-## The server keeps worn gear in its bag by index (int form), which adds nothing.
+## Spec 05:11: base slots plus every worn item's bag bonus.
 func capacity() -> int:
-	var n := base_slots
-	for slot: String in equipment:
-		if equipment[slot] is ItemStack:
-			n += bag_bonus(equipment[slot])
-	return n
-
-## Resize to `cap`. A smaller bag first moves single items out of the cut tail into free slots below
-## it, and refuses (changing nothing) when they do not fit or a multi-slot item is in the tail.
-func _resize(cap: int) -> bool:
-	if cap >= slot_count:
-		grow_to(cap)
-		return true
-	var tail: Array[int] = []
-	for i in range(cap, slot_count):
-		if slots[i] != null:
-			if slots[i].def_id == LOCK or slots[i].slot_span() > 1:
-				return false
-			tail.append(i)
-	var free: Array[int] = []
-	for i in cap:
-		if slots[i] == null and free.size() < tail.size():
-			free.append(i)
-	if free.size() < tail.size():
-		return false
-	for k in tail.size():
-		slots[free[k]] = slots[tail[k]]
-		if equipped_tool_index == tail[k]:
-			equipped_tool_index = free[k]
-	slot_count = cap
-	slots.resize(cap)
-	return true
+	return InventoryEquipment.capacity(self)
 
 func grow_to(n: int) -> void:
 	if n > slot_count:
@@ -204,9 +125,8 @@ func extras_to_dict() -> Dictionary:
 			w[slot] = (equipment[slot] as ItemStack).to_dict()
 	return {"worn": w, "quick_food": quick_food.duplicate(), "tool_index": equipped_tool_index}
 
-## Call after load_array. A pre-W2-INV save names worn gear by def id with the item still in the
-## bag: that item (highest level) moves out of the bag into its slot. Then the bag takes the
-## capacity the worn gear gives (a shrink that would cut off items is skipped: never delete).
+## Call after load_array: worn gear (InventoryEquipment.load_worn, which also migrates the
+## pre-W2-INV def-id form), quick food and the chosen tool.
 func extras_from_dict(d: Dictionary) -> void:
 	equipment.clear()
 	var seen := load_uids.merged(uids())
@@ -214,33 +134,10 @@ func extras_from_dict(d: Dictionary) -> void:
 	equipped_tool_index = int(d.get("tool_index", -1))
 	if equipped_tool_index < -1 or equipped_tool_index >= slot_count:
 		equipped_tool_index = -1
-	var w: Variant = d.get("worn", null)
-	if w is Dictionary:
-		for slot: Variant in w:
-			var row: Variant = w[slot]
-			if not row is Dictionary or StringName(str(slot)) not in EQUIP_SLOTS:
-				continue
-			var s := ItemStack.from_dict(row)
-			var want := slot_for(s.def())
-			# Trust boundary: a known wearable def in its own slot, one unit, a reachable level.
-			if want == &"" or not (want == StringName(str(slot)) or (want == &"accessory1" and str(slot) == "accessory2")):
-				continue
-			s.count = 1
-			s.level = clampi(s.level, 1, 60)
-			if seen.has(s.uid):
-				s.remint_uid() # spec 05:26 duplicate IDs: the bag (or cargo) copy keeps it
-			mint(s)
-			seen[s.uid] = true
-			equipment[str(slot)] = s
-	else:
-		var legacy: Variant = d.get("equipment", {})
-		if legacy is Dictionary:
-			for slot: Variant in legacy:
-				equip(StringName(str(slot)), StringName(str(legacy[slot])))
+	InventoryEquipment.load_worn(self, d, seen)
 	var q: Variant = d.get("quick_food", [])
 	if q is Array and (q as Array).size() >= 2:
 		quick_food = [str(q[0]), str(q[1])]
-	_resize(capacity())
 	changed.emit()
 
 # ---------------------------------------------------------------- tools
@@ -339,7 +236,8 @@ func uids() -> Dictionary:
 			out[s.uid] = true
 	return out
 
-## Whether add(stack) would place every unit. Check it before consuming anything for an output.
+## Whether add(stack) would place every unit. Crafting.output_fits asks it on a scratch bag after
+## the inputs left, before anything is consumed.
 func can_accept(stack: ItemStack) -> bool:
 	if stack == null or stack.count <= 0:
 		return false
@@ -471,6 +369,10 @@ static func traits(s: ItemStack) -> Dictionary:
 
 ## Spec 05:23: default picks spend the least valuable instance first, so a rare or higher-level one
 ## goes only when the player picks it. Ascending key: has traits, then level, then age (oldest first).
+## ASSUMPTION: only crafted items carry created_at (a wall-clock stamp on gathered or migrated units
+## would break the server's journal replay), so those tie at 0 and fall back to bag order, and a
+## crafted unit sorts after a gathered one of the same level. Item-def rarity (item_rarity.json, a
+## placeholder for UI rims) is not a key.
 static func spend_key(s: ItemStack) -> Array:
 	return [0 if traits(s).is_empty() else 1, s.level, s.created_at]
 
