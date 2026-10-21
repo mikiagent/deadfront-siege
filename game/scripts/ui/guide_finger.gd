@@ -261,12 +261,12 @@ func _settle(delta: float, was: bool, key_was: String) -> void:
 	var at_was := _at
 	if not was:
 		_fade = 1.0
-	# An edge spot moves in SLIDE_STEP steps as it walks off a HUD block: the hand eases over those too.
-	var hop := SLIDE_STEP - 0.5 if _key.begins_with("edge") else HOP_PX
+	# An edge spot's SLIDE_STEP steps are not eased: a glide over one dragged the hand, turned for its new
+	# spot, across the card's corner (a cross-fade). The cap below bounds them.
 	if not was or _key == "hex":
 		_offset = Vector2.ZERO
 	else:
-		if _key != key_was or anchor.distance_to(_anchor_was) > hop:
+		if _key != key_was or anchor.distance_to(_anchor_was) > HOP_PX:
 			_offset = _at - anchor  # from where the hand was drawn; it eases on from there this same frame
 		_offset = _offset.move_toward(Vector2.ZERO, minf(_offset.length() * (1.0 - exp(-GLIDE * delta)), GLIDE_MAX * delta))
 	_anchor_was = anchor

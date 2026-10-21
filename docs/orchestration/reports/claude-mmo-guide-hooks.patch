@@ -117,7 +117,7 @@ index 753794b2..6a6ac75c 100644
  	_setup_eat_session()
  
 diff --git a/game/scripts/ui/gather_radial.gd b/game/scripts/ui/gather_radial.gd
-index 36c2c99d..1631113b 100644
+index 36c2c99d..306dede7 100644
 --- a/game/scripts/ui/gather_radial.gd
 +++ b/game/scripts/ui/gather_radial.gd
 @@ -204,6 +204,15 @@ func set_progress(frac: float) -> void:
@@ -136,6 +136,85 @@ index 36c2c99d..1631113b 100644
  ## Partial hexagon outline just outside a hex button, clockwise from its top vertex.
  static func _hex_sweep(c: Vector2, r: float, frac: float) -> PackedVector2Array:
  	var hex := PackedVector2Array()
+@@ -260,20 +269,12 @@ func _layout() -> void:
+ 	for i in _buttons.size():
+ 		if i < spots.size():
+ 			_buttons[i].position = spots[i]
+-
+-func _draw() -> void:
+-	if not _open or node == null:
+-		return
+-	var base := _anchor()
+-	var font := ThemeDB.fallback_font
+-	var view := get_viewport_rect().size
+-	var name := UiTokens.ellipsis(font, _node_name(), 168.0, UiTokens.body(view))
+-	var ns := UiTokens.body(view)
+-	var nw := font.get_string_size(name, HORIZONTAL_ALIGNMENT_CENTER, -1, ns).x
++	# The title and the option labels are placed here, not in _draw: the walkthrough finger reads them in
++	# this frame's _process, and from _draw they came a frame late (the hand sat on a label the ring had turned onto).
+ 	# Where the ring could not turn clear of the title (a crowded edge), slide the title to the first
+ 	# spot beside the hexes that is clear of all of them (one shift per hex moved it onto the other).
+ 	var keep_off: Array[Rect2] = UiTokens.hud_reserved(view)
+-	keep_off.append_array([nameplate(), source_rect()])
++	keep_off.append_array([plate, src])
+ 	for b in _buttons:
+ 		keep_off.append(Rect2(b.position, b.size).grow(4.0))
+ 	var xs: Array[float] = [title_box.position.x]
+@@ -287,6 +288,26 @@ func _draw() -> void:
+ 		if clear:
+ 			title_box = spot
+ 			break
++	label_rects.clear()
++	for i in _buttons.size():
++		var b := _buttons[i]
++		var w := tf.get_string_size(UiTokens.ellipsis(tf, str(_labels[i]["text"]), 148.0, ns), HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
++		var blockers: Array[Rect2] = [title_box, plate]
++		blockers.append_array(UiTokens.hud_reserved(view))
++		for j in _buttons.size():
++			if j != i:
++				blockers.append(Rect2(_buttons[j].position, _buttons[j].size))
++		var rect := pick_label_rect(ContextRadial.label_on_left(b.position, b.size.x, view, base), Rect2(b.position, b.size), w, view, blockers, [src])
++		label_rects.append(Rect2(rect.position, Vector2(w + 12, 26)))
++
++func _draw() -> void:
++	if not _open or node == null:
++		return
++	var font := ThemeDB.fallback_font
++	var view := get_viewport_rect().size
++	var name := UiTokens.ellipsis(font, _node_name(), 168.0, UiTokens.body(view))
++	var ns := UiTokens.body(view)
++	var nw := font.get_string_size(name, HORIZONTAL_ALIGNMENT_CENTER, -1, ns).x
+ 	var name_pos := title_box.position + Vector2(10.0, float(ns))
+ 	var lv := LevelDisplay.label(level)
+ 	var lw := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, UiTokens.meta(view)).x
+@@ -294,24 +315,12 @@ func _draw() -> void:
+ 	draw_rect(title_box, UiTokens.INK)
+ 	draw_string(font, name_pos, name, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
+ 	draw_string(font, Vector2(name_pos.x + nw * 0.5 - lw * 0.5, name_pos.y + 18.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), UiTokens.TEAL)
+-	var plate := nameplate()
+-	var src := source_rect()
+-	label_rects.clear()
+-	for i in _buttons.size():
+-		var b := _buttons[i]
++	for i in mini(_buttons.size(), label_rects.size()):
+ 		var text: String = UiTokens.ellipsis(font, str(_labels[i]["text"]), 148.0, UiTokens.body(view))
+ 		var reason: String = str(_labels[i]["reason"])
+ 		var ts := UiTokens.body(view)
+-		var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x
+-		var blockers: Array[Rect2] = [title_box, plate]
+-		blockers.append_array(UiTokens.hud_reserved(view))
+-		for j in _buttons.size():
+-			if j != i:
+-				blockers.append(Rect2(_buttons[j].position, _buttons[j].size))
+-		var rect := pick_label_rect(ContextRadial.label_on_left(b.position, b.size.x, view, base), Rect2(b.position, b.size), tw, view, blockers, [src])
+-		var pos := rect.position + Vector2(4.0, 14.0)
+-		label_rects.append(Rect2(pos + Vector2(-4, -14), Vector2(tw + 12, 26)))
+-		draw_rect(label_rects[-1], UiTokens.INK)
++		var pos := label_rects[i].position + Vector2(4.0, 14.0)
++		draw_rect(label_rects[i], UiTokens.INK)
+ 		draw_string(font, pos + Vector2(2, 6), text, HORIZONTAL_ALIGNMENT_LEFT, -1, ts, Color(0.95, 0.95, 0.95) if reason == "" else Color(0.75, 0.75, 0.75))
+ 		if reason != "":
+ 			var short := UiTokens.ellipsis(font, reason, 148.0, UiTokens.meta(view))
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
 index b7ac4ea6..5fce1508 100644
 --- a/game/scripts/ui/hunt_hud.gd
@@ -158,3 +237,35 @@ index b7ac4ea6..5fce1508 100644
  ## Screen rects the HUD holds this frame (see HudLayout.taken_rects).
  func taken_rects(skip: PackedStringArray = []) -> Array[Rect2]:
  	return HudLayout.taken_rects(self, skip)
+diff --git a/game/scripts/ui/world_ui.gd b/game/scripts/ui/world_ui.gd
+index 72ef5481..f8884685 100644
+--- a/game/scripts/ui/world_ui.gd
++++ b/game/scripts/ui/world_ui.gd
+@@ -5,6 +5,7 @@ static var _i
+ 
+ var _panel: Control
+ var _mode: StringName = &""
++var _arrival: Node  ## the arrival welcome while it is up
+ 
+ static func ensure():
+ 	if _i and is_instance_valid(_i):
+@@ -23,6 +24,11 @@ static func instance_on(host: Node):
+ 	host.add_child(_i)
+ 	return _i
+ 
++## True while a sheet (terrain pick, harbour, map, pause) or the arrival welcome is up: the walkthrough
++## finger hides meanwhile.
++static func covering() -> bool:
++	return is_instance_valid(_i) and (_i._panel.visible or is_instance_valid(_i._arrival))
++
+ func _ready() -> void:
+ 	layer = 40
+ 	_panel = Control.new()
+@@ -127,6 +133,7 @@ func _choose_terrain(id: StringName) -> void:
+ func _show_arrival(host: Node) -> void:
+ 	var layer := CanvasLayer.new()
+ 	layer.name = "ArrivalWelcome"
++	_arrival = layer
+ 	layer.layer = 92
+ 	host.add_child(layer)
+ 	var shade := ColorRect.new()
