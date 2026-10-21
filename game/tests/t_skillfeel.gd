@@ -36,8 +36,9 @@ func _process(_delta: float) -> bool:
 	_test_level_toast()
 	_test_full()
 	_test_pulse()
+	_test_hud()
 	_test_first_hour()
-	var want := 6
+	var want := 7
 	if _sections != want:
 		_fails.append("only %d of %d test sections completed (a runtime error aborted the rest)" % [_sections, want])
 	if _fails.is_empty():
@@ -223,6 +224,54 @@ func _test_pulse() -> void:
 	_done_with(sk)
 	_done_with(lv2)
 	_done_with(rich)
+	_sections += 1
+
+## The HUD is what listens: binding a survivor's Skills turns a gain into a toast and the pulse on.
+## The HUD is built but not added to the tree (no _ready, no minimap): bind() + the signals are the wiring.
+func _test_hud() -> void:
+	var p: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	p.process_mode = Node.PROCESS_MODE_DISABLED
+	get_root().add_child(p)
+	var sk: Node = p.skills
+	_expect(sk != null, "the player carries a SkillState")
+	if sk == null:
+		get_root().remove_child(p)
+		p.free()
+		_sections += 1
+		return
+	_world().pioneer_level = 1  # character Lv. 2: 10 SP
+	var hud: Control = (load("res://scripts/ui/hunt_hud.gd") as GDScript).new()
+	hud.bind(p)
+	var ev: RefCounted = hud.get("_events")
+	sk.add_xp("gathering", 4.0)
+	var rows: Array = ev.get("skill_toasts")
+	_expect(rows.size() >= 1 and str(rows[rows.size() - 1]["text"]) == "+4 Gathering XP", "the HUD turns a skill gain into \"+4 Gathering XP\" (got %s)" % [rows])
+	sk.add_xp("gathering", 3.0)
+	rows = ev.get("skill_toasts")
+	_expect(rows.size() == 1 and str(rows[0]["text"]) == "+7 Gathering XP", "the HUD merges two gains within 1 s (got %s)" % [rows])
+	_expect(bool(hud.call("skills_pulsing")), "with SP and something buyable the SKILLS hex pulses")
+	# The halo itself is drawn from _draw (it needs a live canvas): skillfeel_lab checks the pixels.
+	# Spend the SP down to nothing buyable: the pulse goes out.
+	while int(sk.sp_now()) > 0:
+		var spent := false
+		for tree in SkillStateS.ORDER:
+			for n in sk.nodes(tree):
+				if sk.node_state(tree, n)[0] == "available":
+					if sk.unlock(tree, str(n.get("id", ""))):
+						spent = true
+					break
+			if spent:
+				break
+		if not spent:
+			break
+	hud.call("_refresh_skill_pulse")
+	print("[t_skillfeel] hud: SP %d left, pulse %s" % [int(sk.sp_now()), bool(hud.call("skills_pulsing"))])
+	if not bool(Rules.affordable_now(sk)):
+		_expect(not bool(hud.call("skills_pulsing")), "nothing affordable: the hex stops pulsing")
+	hud.free()
+	get_root().remove_child(p)
+	p.free()
+	_world().pioneer_level = 0
 	_sections += 1
 
 # ---------------------------------------------------------------- the first hour
