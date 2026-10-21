@@ -111,5 +111,54 @@
     "feeds_needed": 6,
     "window_seconds": 45,
     "requires_pen": true
+  },
+  "coloration": {
+    "hue_deg": 16,
+    "sat": 0.14,
+    "val": 0.1,
+    "morphs": [
+      {
+        "id": "pale",
+        "weight": 1.0,
+        "hue_deg": 10,
+        "sat": [
+          -0.2,
+          -0.08
+        ],
+        "val": [
+          0.08,
+          0.18
+        ]
+      }
+    ],
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "pale",
+      "dark"
+    ],
+    "patterns": [
+      {
+        "id": "stripes",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.3
+      },
+      {
+        "id": "spots",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.26
+      },
+      {
+        "id": "countershade",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.28
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
   }
 }

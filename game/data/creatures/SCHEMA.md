@@ -110,6 +110,44 @@ Defaults when `taming` is absent (`# ASSUMPTION:`):
 - `real_length_m` > 5 → `feeds_needed` 6 and `requires_pen` true; else 3 feeds,
   field-complete allowed.
 
+### Coloration block (`coloration`)
+
+Every wild individual rolls its own natural colour profile and hide pattern at spawn; taming and
+saving keep both (they live in `CreatureGenetics.coloration`, beside the IVs). The species only
+declares the ranges. Optional block; every value has a natural default.
+
+```
+"coloration": {
+  "hue_deg": 14,           // +/- degrees of hue shift (or [min, max])
+  "sat": 0.18,             // +/- saturation scale around 1.0 (or [lo, hi] as signed offsets)
+  "val": 0.12,             // +/- value scale around 1.0 (or [lo, hi] as signed offsets)
+  "morphs": [              // optional named looks, weighted; they NARROW the ranges above
+    {"id": "dark", "weight": 1, "hue_deg": 8, "sat": 0.10, "val": [-0.22, -0.10]},
+    {"id": "pale", "weight": 1, "hue_deg": 8, "sat": [-0.22, -0.08], "val": [0.08, 0.18]}
+  ],
+  "rare_chance": 0.02,     // ASSUMPTION: about 1 in 50 animals is a rare morph
+  "rare_morphs": ["dark", "pale", "rufous"],   // labels for the rare roll
+  "rare": {...},           // optional wider ranges for the rare roll (default: the ranges x2.4)
+  "patterns": [            // allowed hide patterns, weighted; "" = plain hide
+    {"id": "stripes", "weight": 3, "scale": 1.0, "strength": 0.30},
+    {"id": "spots", "weight": 2, "scale": 1.0, "strength": 0.26},
+    {"id": "countershade", "weight": 2, "scale": 1.0, "strength": 0.28},
+    {"id": "", "weight": 3}
+  ]
+}
+```
+
+- Normal rolls stay inside the ranges; only a rare morph (about 1 in 50) goes wider, and it stays
+  believable (melanistic, leucistic, a stronger hue) rather than neon.
+- Pattern kinds: `stripes` (bands across the body's long axis), `spots`, `saddle` (darker back),
+  `countershade` (lighter belly). The pattern is drawn in the shader from the REST-POSE vertex
+  positions (a custom vertex channel built once per mesh), so it never slides while animating and
+  does not depend on the UVs; the tone is taken from the body colour, never a foreign hue.
+- Defaults when the block is absent (`# ASSUMPTION:`): hue +-12 deg, saturation +-15 %,
+  value +-10 %, `rare_chance` 0.02, patterns countershading (2) and plain (3).
+- A rare morph and its pattern survive taming and saving like any other profile; a save written
+  before colour profiles gets one derived from the pet's uid, so it never changes between loads.
+
 ## 4b. Making a new species (one command)
 
 ```

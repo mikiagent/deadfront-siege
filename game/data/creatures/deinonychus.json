@@ -28,6 +28,65 @@
     "deinonychus_juvenile",
     "deinonychus_swamp"
   ],
+  "coloration": {
+    "hue_deg": 12,
+    "sat": 0.16,
+    "val": 0.12,
+    "morphs": [
+      {
+        "id": "dark",
+        "weight": 1.0,
+        "hue_deg": 6,
+        "sat": 0.1,
+        "val": [
+          -0.2,
+          -0.08
+        ]
+      },
+      {
+        "id": "pale",
+        "weight": 1.0,
+        "hue_deg": 6,
+        "sat": [
+          -0.2,
+          -0.06
+        ],
+        "val": [
+          0.06,
+          0.16
+        ]
+      }
+    ],
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "dark",
+      "pale"
+    ],
+    "patterns": [
+      {
+        "id": "stripes",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.3
+      },
+      {
+        "id": "spots",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.26
+      },
+      {
+        "id": "countershade",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.28
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
+  },
   "prompt": "Deinonychus, 3.4 meter dromaeosaur dinosaur, athletic mid-sized build, narrow deep skull with recurved serrated teeth, muscular S-curved neck, long arms with three clawed fingers and palms facing inward, large curved sickle claw on second toe of each foot, long stiff tail bound straight by bony rods, body covered in dense filamentous feathers with longer pennaceous feathers on arms and tail, bare scaly feet, olive green with dark grey dorsal mottling and a pale striped throat, poised hunting stance with spine horizontal and head forward, stylized realism, game-ready low-poly creature, clean topology, neutral stance facing forward, no base, no scenery",
   "texture_prompt": "olive green feathers with dark grey dorsal mottling, pale cream striped throat, bare olive scaly feet, black curved claws, matte surface",
   "clips": {
