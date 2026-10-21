@@ -310,7 +310,7 @@ func _test_many_lines() -> void:
 	await _frames(2)
 	var last := list.get_child(list.get_child_count() - 1)
 	_check(_names(last) == ["Cy"] and _texts(last).size() == ChatLog.MAX_LINES and _texts(last)[-1].begins_with("closed 99"), "opening it catches the rows up once")
-	print("[t_chat] info: 300 lines while open: %.3f ms a line handling them, %.2f ms a frame with a line vs %.2f without; 100 while closed %.2f ms" % [emit_us / 300000.0, open_ms / 300.0, idle_ms / 300.0, closed_ms])
+	print("[t_chat] info: 300 lines while open: %.1f nodes and %.3f ms a line handling them, %.2f ms a frame with a line vs %.2f without; 100 while closed %.2f ms" % [per_line, emit_us / 300000.0, open_ms / 300.0, idle_ms / 300.0, closed_ms])
 
 ## Holding Enter after "slow down": every refusal from the server counts toward its flood cut-off,
 ## which dropped the connection twice in 6 s. The client keeps under the server's chat rate.
