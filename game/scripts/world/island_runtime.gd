@@ -51,8 +51,9 @@ var _tree_discs: MultiMeshInstance3D
 var _tree_disc_xforms: Array[Transform3D] = []
 var _batches: Array[VegBatch] = []
 var claims: Array[Rect2i] = []
+## Other players' land here: {"rect": Rect2i, "owner": {"id", "name"}}; only IslandClaims.set_others writes it.
+var other_claims: Array[Dictionary] = []
 var _claim_mesh: MeshInstance3D
-var _claim_mat: StandardMaterial3D
 
 func land_radius() -> float:
 	return _size * 0.38
@@ -391,6 +392,14 @@ func is_claimed(tile: Vector2i) -> bool:
 ## Claim a 14x14 plot centred on the tile; returns false when it overlaps water or an existing claim centre.
 func claim_at(tile: Vector2i, size: int = 14) -> bool:
 	return IslandClaims.claim_at(self, tile, size)
+
+## Whose land the tile is, {} when nobody's (IslandClaims.owner_at).
+func owner_at(tile: Vector2i) -> Dictionary:
+	return IslandClaims.owner_at(self, tile)
+
+## Other players' claims on this island, replacing the last set (IslandClaims.set_others).
+func set_other_claims(rows: Array) -> void:
+	IslandClaims.set_others(self, rows)
 
 # Kept for labs, the HUD and has_method() callers that reach into the runtime.
 func _plant_at(family: String, role: String, pos: Vector3, fallback_id: StringName, tool: StringName, climate: String, level: int, color: Color) -> int:
