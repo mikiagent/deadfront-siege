@@ -2,7 +2,78 @@
  "_about": "Hand fixes for items that touch on a sheet. Boxes are [x, y, w, h] on the full-resolution sheet. split = cut one connected blob along the box; merge = group every component the box touches into one sprite; drop = throw away components mostly inside the box.",
  "sheet-jungle-plants": {
   "split": [
-   [318, 0, 20, 290]
+   [
+    318,
+    0,
+    20,
+    290
+   ],
+   [
+    529,
+    612,
+    300,
+    12
+   ]
   ]
- }
+ },
+ "sheet-jungle-trees": {
+  "_split_why": "canopy tips / fronds overlap so several trees and palm groups weld into one component; each box is a transparent green gap between two items",
+  "split": [
+   [
+    634,
+    10,
+    18,
+    412
+   ],
+   [
+    525,
+    437,
+    16,
+    310
+   ],
+   [
+    720,
+    437,
+    16,
+    310
+   ],
+   [
+    610,
+    748,
+    14,
+    254
+   ],
+   [
+    1010,
+    751,
+    14,
+    248
+   ],
+   [
+    1190,
+    751,
+    14,
+    248
+   ],
+   [
+    1372,
+    12,
+    20,
+    399
+   ],
+   [
+    1130,
+    415,
+    16,
+    333
+   ],
+   [
+    1280,
+    415,
+    16,
+    333
+   ]
+  ]
+ },
+ "_note_resources_08": "resources_08 is ONE art item: a leafy plant with its root ball knot and a bunch of red fruit hanging from the same stem bundle. The audit asked for a split at the waist; tried (bands at y 735/776/780/806), but the fruit bunch carries its own big green leaves, so the cut produces a two-material item (green leaf rim over dark red fruit) that reads wrong in game and fails the part-green edge check. Kept whole and named berry_palm (MangoBush)."
 }
