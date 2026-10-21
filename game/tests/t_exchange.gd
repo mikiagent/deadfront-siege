@@ -449,6 +449,14 @@ func _test_sell(hs: GDScript, ms_script: GDScript) -> void:
 	for l: Dictionary in h.call("op", 1, "market.mine", {}).r.listings:
 		found = found or str(l.asset.uid) == stored_uid
 	_expect(found and _wallet(h, 1) < w1, "a stored item is listed straight from market storage")
+	# The picked stack leaves the bag elsewhere (another device) before List: the slot is re-read by
+	# uid, so nothing else in that slot is listed, and the player is told.
+	await _click_cell(sell, str(bone.uid))
+	var gone: Dictionary = h.call("op", 1, "vault.deposit", {"bag_slot": _slot_of(h, str(bone.uid)), "count": 1})
+	var n_before: int = (h.call("op", 1, "market.mine", {}).r.listings as Array).size()
+	_click(form.get("list_btn"))
+	await process_frame
+	_expect(gone.get("ok", false) and status.text == "That item is no longer in your bag." and (h.call("op", 1, "market.mine", {}).r.listings as Array).size() == n_before, "a stack that left the bag is not replaced by whatever sits in its slot: %s" % status.text)
 	# INVUI's "Sell on Market": the screen opens on Sell with that instance picked.
 	var knife := _entry(sell, func (e: Dictionary) -> bool: return str(e.asset.get("id", "")) == "stone_knife_work")
 	ms.call("close_screen")

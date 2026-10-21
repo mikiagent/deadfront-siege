@@ -82,7 +82,7 @@ with the spec 13 look; each is marked `# swap: INVUI <Component>` for the reconc
 | `market_table.gd` | header (search, Item Name/Type, Level, Durability, Price; sortable only when the server has the sort), rows, "page n / m", empty state | search page | — |
 | `listing_row.gd` | icon (ItemArt.texture_for + content_rect, modulated by ItemStack.tint_color), gold name, grey type line, `LevelDisplay.label`, "cur/max" or "—", coin + grouped price; seller name small; B badge for pets | listing view | INVUI ItemIcon, LevelLabel |
 | `listing_detail.gd` | detail + Buy confirm: real asset (level, durability, attributes gold/grey/green, processing, pet stats, genetics, grade, lineage), price, your tradable balance, Buy, pending / done / server error | listing view, `wallet.get` | INVUI ItemInspectPanel |
-| `sell_view.gd` | exact-instance picker of the **server** bag (+ pets), price stepper/input, duration chips, preview, Confirm | `char.get`, `market.item_detail`, EconRules | INVUI picker |
+| `sell_view.gd` (B2: `market_sell.gd` MarketSell + `market_picker.gd` MarketPicker + `market_sell_form.gd` MarketSellForm) | exact-instance picker of the **server** bag (+ pets, + market storage), price stepper/input, duration chips, preview, List | `char.get`, `vault.get`, `market.item_detail`, EconRules | INVUI InventoryGrid / InventorySlot, ItemInspectPanel |
 | `my_market_view.gd` | sub-tabs Active / Sold / Expired / History, Cancel on Active, Receive All + "n waiting" | `market.mine`, `vault.get`, `inbox.take` | — |
 | `market_format.gd` MarketFormat | pure helpers: fee/tax/proceeds preview, number grouping, error text, row model from a view, category + clade grouping | EconRules, Data | — |
 
@@ -130,7 +130,7 @@ why a 20-coin wallet cannot buy. Counters refresh after every write (the respons
   dict, never recomputed (13:471). Count stepper for stacks (1..count).
 - Price: integer stepper + field, 1..`max_unit_price`. If `market.item_detail` has `ref_price`, show "Recent price N" and the
   band `ceil(ref × reference_outlier_low)`..`floor(ref × reference_outlier_high)` (0.25x-4x from market_rules.json); the
-  stepper stays inside it and hook H3 makes `market.list_fixed` refuse outside it. No reference → no band. # ASSUMPTION
+  stepper stays inside it. (B2: a typed price may leave it with a warning, and H3 was dropped; see §12.) No reference → no band. # ASSUMPTION
   (STATUS 141-142 planner default; ECON enforces nothing today).
 - Duration chips from `durations_h` (12 / 24 / 48 / 72), default 24 h. # ASSUMPTION.
 - Preview (MarketFormat, from EconRules; integers): `total = price × count`; `fee = max(listing_fee_min, ceil(total × listing_fee))`
@@ -200,18 +200,18 @@ trade. Try again shortly." · unauthorized / bad_request "Something went wrong" 
 | H0 | `game/scripts/ui/hunt_hud.gd` (W1-UI / integrator) | menu row + `_open_market()` + `open_market()` (§3.6) | B1 |
 | H1 | `game/scripts/economy/market_query.gd` (ECON) | SORTS += `level_asc`, `durability_asc`, `durability_desc` (key = level / durability, no-durability last) | B1 |
 | H2 | same | `market_category` arg (items by market category; `animal` includes pets and cages); `species` also matches `captured_animal` cages by `attributes.species` | B1 |
-| H3 | `game/scripts/economy/market_book.gd` (ECON) | `list_fixed` refuses a price outside `reference_outlier_low/high` × ref_price when a reference exists (`bad_request` "price must be between a and b") | B2 |
+| ~~H3~~ | `game/scripts/economy/market_book.gd` (ECON) | **Dropped in B2** (§12): refusing listings outside the band broke ECON's reference-poisoning tests (`[tests] FAIL count=26`, "price must be between 25 and 400") and contract 6.5's band filters the reference price, it is not a listing limit | — |
 | H4 | report note for W1-INT | the server relay (§2) and the 64 KiB frame: `market.mine` can exceed it; ECON should page `trades` | — |
 
-H1-H3 change ECON-owned money/search behaviour: the orchestrator merges them with ECON or bounces them to ECON. Until they
-land the UI degrades honestly (no arrows for missing sorts; clade rows hidden; no band refusal, band shown as advice).
+H1-H2 change ECON-owned search behaviour: the orchestrator merges them with ECON or bounces them to ECON. Until they
+land the UI degrades honestly (no arrows for missing sorts; no categories in the search sheet). The band is advice either way (§12).
 
 ## 7. Build plan
 
 - **B1 shell + navigation + Buy**: MarketTheme, glyphs, brackets, header, rail, MarketScreen (offline panel, test badge),
   NetMarketClient, buy_view/table/row/detail with real `market.buy`, search sheet + chips, categories + Animals clades,
   hooks H0-H2. Lab screens buy, buy_taming, confirm, offline; the lab opens the market through the HUD MENU sheet.
-- **B2 Sell**: sell_view, MarketFormat preview, H3, lab screen sell.
+- **B2 Sell**: sell_view, MarketFormat preview, lab screen sell (H3 dropped, §12).
 - **B3 My Market + Receive All**: my_market_view, lab screen my_market.
 - **B4 polish**: responsive at 1600x900, 1920x1080, 844x390, 667x375 (safe area), 500-listing performance (harness seeds 500
   listings by real ops; paging), focus/keyboard/gamepad (ui_cancel, focus_first), report.
@@ -236,7 +236,7 @@ Behaviour (t_exchange, through MarketClient → VaultBridge.client):
 9. A test per error path, each asserting the message shown and both stores unchanged: offline, self_trade,
    insufficient_funds with only bound coins, trade lock (fresh account), sold listing (expired/not_found), double tap (one
    debit), cancel (fee kept, units in vault), cancel of a closed listing, bag_full on Receive All (rest waiting, second press
-   moves nothing), price outside 1..max and outside the band (after H3), denied def (tamed_animal) shown disabled.
+   moves nothing), price outside 1..max refused by the server, outside the band warned (not refused, §12), denied def (tamed_animal) shown disabled.
 10. Offline: no client → offline panel, 0 rows, 0 Buy/Sell/Receive buttons, 0 ops sent.
 11. Menu: HUD MENU sheet → "Island Market" button → MarketScreen visible (lab presses the real button).
 12. Performance: 500 listings (harness, real ops) page 1→25 with each page built in < 8 ms and no frame > 33 ms in the lab.
@@ -253,7 +253,7 @@ Behaviour (t_exchange, through MarketClient → VaultBridge.client):
 | A3 | Animal sub-rows = clades of cage-able species with short taxonomy names; no Avian/Wolf | creature json clade/tameable/capture_tier; AGENTS "no invented species" |
 | A4 | Header title = current island; one global book | economy.md:19-28; ECON ops have no island id; plan W4-ECONH |
 | A5 | Proceeds are credited directly; Receive All moves items only | contracts:157-158 vs spec 06:12 |
-| A6 | Band 0.25x-4x of ref_price, shown and (with H3) enforced; none without a reference | STATUS:141-142; market_rules reference_outlier_* |
+| A6 | Band 0.25x-4x of ref_price, shown; the steppers keep to it, a typed price may leave it with a warning; the server takes 1..max_unit_price (revised in B2, §12); none without a reference | STATUS:141-142; contracts 6.5; spec 06 "Players choose own prices"; market_rules reference_outlier_* |
 | A7 | Default duration 24 h | contracts:161; durations_h |
 | A8 | Bonded pet icon = `tamed_animal` render + drawn "B" badge (ICONS2's render is an open cage, not a carrier); cages tell apart by badge and "Captured" name | 14:19; STATUS:179-180; ICONS2 renders |
 | A9 | Tab glyphs (cart, ledger, tag, sort arrows) drawn in-package, not added to ui_icons.json | GAUNTLET white actions; avoids editing W1-UIICONS' gated set |
@@ -290,4 +290,47 @@ Changes against §3-§6, each checked against the docs:
   height at 18 px, which double-spaced every wrapped label.
 - `MarketHarness.release_loggers()`: MarketEngine and CharacterStore register static Loggers and never remove them;
   a windowed run that quits with them registered aborts in NSApplication terminate (one Godot .ips per lab shot).
+
+## 12. B2 as built (2026-10-20): Sell
+
+Files (`game/scripts/ui/market/`): `market_sell.gd` MarketSell (the tab: reads, selection, the two writes),
+`market_picker.gd` MarketPicker (the grid), `market_sell_form.gd` MarketSellForm (the right panel). MarketFormat gained
+`sell_entries`, `sell_refusal`, `preview`, `band`, `price_step`, `asset_lines` (shared with the Buy confirm);
+MarketGlyphs gained `chevron_left`. `MarketScreen.open(player, &"sell", uid)` preselects an instance (INVUI's
+"Sell on Market"). INVUI's components (claude/mmo-invui 410c38df) sit on W2-INV's Inventory, which this base lacks,
+so the picker and panel are built here with the same look; `# swap:` markers name InventoryGrid / InventorySlot /
+ItemInspectPanel.
+
+- **Picker** = `char.get` bag rows (slot order, one cell per stack or instance, `_slot_lock` rows skipped), then the
+  character's bonded pets (`tamed_animal` art + B badge), then `vault.get` items and pets with a "Stored" tag (the
+  §3.3 "Waiting" strip as cells: they list with no deposit; Receive stays in My Market). Bag reference look: textured
+  panel, dashed compartments filling the visible rows, grey "Lv. n" top-right, "×n", yellow brackets on the pick.
+- **Refused cells** stay visible, dimmed, with a lock (locked flag) or blocked mark; the panel shows the reason and no
+  form: limits.json `denied_defs` ("bond the animal or release it first"), `refused_flags` (locked: "Unlock it in
+  your Bag", unstable: "Cargo-warp them first"), broken (durability 0 of a max), summoned or loaded pet. Everything
+  else comes back from `vault.deposit` verbatim. A forced deposit of the locked stack is refused by the server too
+  (`invalid_asset` "locked items cannot be traded"), nothing moves.
+- **Panel**: tan name band (B disc before a bonded pet's name), card (art, type, Lv, stack size), the asset's own facts,
+  Quantity stepper for a stack (starts at the whole stack), Price each (field + steppers), band line "Recent price N ·
+  usual range a – b" (on a phone the range moves into the price caption), duration chips 12/24/48/72 (24 default),
+  preview Listing fee (paid now) / Market tax (when it sells) / You receive / Net after the fee (two pairs a line on a
+  phone), status line, yellow "List for N" along the bottom. Disabled with the reason: "Set a price", "Not enough
+  tradable T-stones" (+ "Bound T-stones can't pay market fees"), "Can't be sold".
+- **Starting price** only from the market's own numbers (`ref_price`, else `last_price`, else `best_ask`); none → the
+  field is empty and List says "Set a price". # ASSUMPTION (nothing invented).
+- **Band** (A6 revised): the steppers move inside 0.25x-4x of `ref_price`; a typed price may leave it, then the panel
+  warns "Outside the usual range a – b for this item. Check the price; rare traits can be worth more." and the button
+  reads "List anyway for N". Over `max_unit_price` is pulled to it. Why not a wall: the reference is per def, so a
+  hard cap would stop a Black Sheen bone from asking more than 4x a plain bone (spec 06: "Players choose own prices"),
+  contract 6.5's band is the reference filter (ECON already keeps outlier trades out of the reference), and H3 broke
+  ECON's tests that list at outlier prices on purpose. # ASSUMPTION.
+- **List** = `char.get` again to find the instance's current slot **by uid** (a stack that moved is never the one that
+  leaves), `vault.deposit {bag_slot, count}` or `{pet_uid}`, then `market.list_fixed {asset:{uid, count}, unit_price,
+  duration_h}` with the uid the deposit answered (a part of a stack gets a new uid; the rest keeps its own). A stored
+  entry skips the deposit. If the second step fails the item is in market storage, stays picked as a Stored cell, and
+  the panel says so with the server's reason. Success: "Listed <name> for N T-stones (fee F paid). It is in My Market →
+  Active ...", header refreshed, picker re-read.
+- **Harness**: the viewer also has two looted bones, a crafted knife, a captured cage, a bonded compy and a stone stack
+  with the "locked" flag. # shortcut: `MarketHarness.lock_first` sets the flag on the server character directly (the
+  server has no lock intent until W3-SRVACT), standing in for the Bag's Lock.
 
