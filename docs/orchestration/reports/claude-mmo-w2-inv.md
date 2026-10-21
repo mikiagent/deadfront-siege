@@ -15,7 +15,9 @@ package needs its re-review before the merge.
 Base claude/mmo-overhaul 29ffa292 (W2-DATA and W2-SKILLS merged, specs 19-22, STATUS) merged into the branch at
 4810b5da with no conflicts. The hooks patch no longer applied there (`error: patch failed: game/tests/t_items.gd:184`,
 `game/tests/t_save.gd:1`); it was 3-way applied in a scratch tree, resolved, and regenerated (2583c2d3, a7b49780).
-`git apply --check` is clean on claude/mmo-overhaul 29ffa292 and on the branch a7b49780. Branch code is unchanged;
+`git apply --check` is clean on claude/mmo-overhaul 29ffa292 and on the branch a7b49780. The base then moved to
+e5f3ec8a (STATUS, the spec 19 text, plans and workflow scripts; nothing under game/ or tools/). That commit is merged
+at 2968e72c, and the patch still checks clean on e5f3ec8a and on the branch (temporary indexes of each). Branch code is unchanged;
 only hook files changed:
 - t_items `_test_pick_gates`: W2-DATA made iron need a bronze pick, so the "best pick is the one in use" check uses
   bronze (base) with W2-INV's `equipped_gather_tool()` (the branch's auto pick).
