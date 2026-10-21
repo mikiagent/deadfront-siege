@@ -651,6 +651,9 @@ func building_interact(b: Node) -> void:
 	if b is FieldPlot:
 		p.open_field(b as FieldPlot)
 		return
+	if b.is_in_group("construction_site"):
+		b.call("interact", p)
+		return
 	if StationCraft.is_craft_station(b) or b.is_in_group("sleep_spot"):
 		p.open_station_craft(b as Node3D)
 		return

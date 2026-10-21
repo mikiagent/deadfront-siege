@@ -23,6 +23,7 @@ const NO_LEVEL := LevelDisplay.NONE
 const FOOTER_H := 64.0
 
 var player: Player
+## The Craft/Build menu (BuildUI). Its row at the top of the station list opens it.
 var _station: String = ""
 var _root: VBoxContainer
 var _body: GridContainer
@@ -172,6 +173,19 @@ func _refresh_tabs() -> void:
 	for c in _tabs.get_children():
 		_tabs.remove_child(c)  # detach first: focus_first and finds must not see rows about to go
 		c.queue_free()
+	# Spec 30 §2: the Build (blueprint) menu is a row here, above the station groups; it is the
+	# whole construction flow, so it never reads as "no station built".
+	if player:
+		var bb := _mk_btn("Build\nblueprints · construction", _open_build, Vector2(228 if _single_pane() else 190, 64))
+		bb.name = "BuildRow"
+		bb.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		bb.clip_text = true
+		bb.icon = HexButton.symbol(["hammer", "workbench_kit"])
+		bb.material = HexButton.white_material()
+		bb.expand_icon = true
+		bb.add_theme_constant_override("icon_max_width", 28)
+		bb.add_theme_color_override("font_color", UiTokens.TEAL)
+		_tabs.add_child(bb)
 	for row in STATIONS:
 		var sid: String = row[0]
 		var info := _station_info(sid)
@@ -200,6 +214,13 @@ func _refresh_tabs() -> void:
 			b.add_theme_color_override("font_color", UiTokens.TEXT)
 			b.add_theme_stylebox_override("normal", UiTokens.button_style(true))
 		_tabs.add_child(b)
+
+## The Build menu is created on first press, so the craft sheet works before anything is built.
+func _open_build() -> void:
+	hide_ui()
+	var ui := BuildUI.ensure(player)
+	if ui:
+		ui.open()
 
 func _pick_station(sid: String) -> void:
 	_station = sid
@@ -230,6 +251,10 @@ func _refresh_list() -> void:
 	_title.text = "Craft · %s" % name
 	if _station == "":
 		_hint.text = "Hand recipes craft anywhere. The hex over the survivor fills once per item."
+	elif info["near"] and ProcessStation.of(info.get("node", null)) != null and ProcessStation.of(info.get("node", null)).capacity() > 0:
+		# Spec 30 §13: the station's own job queue, so a queued job is visible where it was started.
+		var ps := ProcessStation.of(info.get("node", null))
+		_hint.text = "%s in reach · %d/%d jobs running, %d ready · %s" % [name, ps.running_count(), ps.capacity(), ps.ready_count(), ps.time_left_text() if ps.time_left_text() != "" else "queue free"]
 	elif info["near"]:
 		_hint.text = "%s in reach. Pick a recipe: the hex over it fills once per item." % name
 	elif info["exists"]:

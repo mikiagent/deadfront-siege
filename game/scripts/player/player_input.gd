@@ -261,6 +261,9 @@ func interact_tap_target(col: Object) -> void:
 			p.actions.begin_field_tame(c)
 		else:
 			p.actions.attack(c)
+	elif col is ConstructionSite:
+		# Spec 30 §7: tapping a placed site opens its sheet (Deposit / Withdraw / Work / Cancel).
+		(col as ConstructionSite).interact(p)
 	elif col is Bonfire or col is CraftStation:
 		# Reference: tapping a station opens its recipe radial (M8e); cauterise lives in the context hexes.
 		p.open_station_craft(col as Node3D)

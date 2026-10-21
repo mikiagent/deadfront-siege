@@ -851,6 +851,7 @@ func _toggle_sheet(kind: StringName) -> void:
 			title.text = "Menu"
 			_sheet_btn(box, "Bag", func () -> void: _close_sheet(); if player.ui: player.ui.visible = not player.ui.visible)
 			_sheet_btn(box, "Craft", func () -> void: _close_sheet(); if player.craft_ui: player.craft_ui.toggle())
+			_sheet_btn(box, "Build", func () -> void: _close_sheet(); var b := BuildUI.ensure(player); if b: b.toggle())
 			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
 			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
 			_sheet_btn(box, "Debug info: %s" % ("ON" if Game.debug_overlay else "OFF"), func () -> void: _toggle_debug(); _close_sheet(); _toggle_sheet(&"menu"))
