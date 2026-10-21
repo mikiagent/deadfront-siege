@@ -1,6 +1,6 @@
 extends Node3D
 ## W2-GATHER play session on the home island: the survivor gathers fibre, branches and stone
-## bare-handed, then with stone tools (faster, logs unlocked), finds a rare berry seed, butchers a raptor
+## bare-handed, then with stone tools (faster, logs unlocked), finds rare berries, butchers a raptor
 ## by knife, and watches a node deplete and regrow. Every unit goes through PlayerActions.
 ## GAUNTLET gather rules checked on every pass: walked into reach (no teleport), the progress
 ## ring above the node, movement cancels, starter-island finds are level 1.
@@ -73,20 +73,20 @@ func _ready() -> void:
 	_summon_pet()
 
 	# 3. Rare find at the real data odds. Home grassland finds are its own materials (world-design s4:
-	# no flint or copper here), so the bush gives a berry seed. The seed is picked so the very next
+	# no flint or copper here), so the bush gives berries. The seed is picked so the very next
 	# fibre unit rolls a find (the odds themselves are measured in t_gather).
-	GatherService.rng.seed = _lucky_seed(bush, &"berry_seed")
-	var seeds_before := _p.inventory.count_of(&"berry_seed")
+	GatherService.rng.seed = _lucky_seed(bush, &"berries")
+	var finds_before := _p.inventory.count_of(&"berries")
 	await _gather(bush, &"fibre_stalk", 1, "rare", 0.35)
-	_check(_p.inventory.count_of(&"berry_seed") > seeds_before, "a rare berry seed landed in the bag")
+	_check(_p.inventory.count_of(&"berries") > finds_before, "rare berries landed in the bag")
 	# The touch flow: tap the bush, pick Fibre on the radial; the picked hex shows the progress.
-	GatherService.rng.seed = _lucky_seed(bush, &"berry_seed")
-	seeds_before = _p.inventory.count_of(&"berry_seed")
+	GatherService.rng.seed = _lucky_seed(bush, &"berries")
+	finds_before = _p.inventory.count_of(&"berries")
 	await _gather(bush, &"fibre_stalk", 1, "rare_radial", 0.35, true)
-	_check(_p.inventory.count_of(&"berry_seed") > seeds_before, "a rare berry seed landed through the radial")
+	_check(_p.inventory.count_of(&"berries") > finds_before, "rare berries landed through the radial")
 	_check(_p.inventory.count_of(&"flint") == 0 and _p.inventory.count_of(&"copper_ore") == 0, "no flint or copper off home-grassland rock")
 	for st in _p.inventory.slots:
-		if st and st.def_id in [&"berry_seed", &"fibre_stalk", &"branch", &"stone", &"wood_log"]:
+		if st and st.def_id in [&"berries", &"fibre_stalk", &"branch", &"stone", &"wood_log"]:
 			_check(st.level == 1, "starter-island %s is level 1 (got %d)" % [st.def_id, st.level])
 
 	# 4. Butcher a raptor with the stone knife: meat, hide, bone scale with the knife.
@@ -199,7 +199,7 @@ func _popup_clear(node: HarvestNode, rare: bool = false) -> void:
 		for k in (hud.get("drawn_blocks") as Dictionary if hud else {}):
 			toasted = toasted or str(k).begins_with("toast")
 		_check(toasted, "no yield popup over %s and no HUD toast either" % node.family)
-		_check(not rare or _rare_notice_fresh(), "a find the stack could not show is announced by a HUD notice")
+		_check(not rare or _rare_notice_fresh(), "a find the stack could not show is announced by a gold HUD notice")
 		print("[gather_lab] popup skipped over %s (no room by the node); HUD toast %s, rare notice %s" % [node.family, toasted, _rare_notice_fresh()])
 		return
 	_check(box != null and box.visible, "a yield popup showed over %s" % node.family)
@@ -218,13 +218,13 @@ func _popup_clear(node: HarvestNode, rare: bool = false) -> void:
 		_check(not r.intersects(t), "popup %s at %s clear of %s" % [texts, r, t])
 	print("[gather_lab] popup %s at %s" % [texts, r])
 
-## A "Rare find" HUD notice raised for this unit (notices live 3.2 s; this one is under 0.6 s old).
+## A gold "Rare find" HUD notice raised for this unit (notices live 3.2 s; this one is under 0.6 s old).
 func _rare_notice_fresh() -> bool:
 	var hud := get_tree().get_first_node_in_group("hud")
 	if hud == null:
 		return false
 	for n in hud._events.notices:
-		if str(n["text"]).begins_with("Rare find") and float(n["t"]) < 0.6:
+		if str(n["text"]).begins_with("Rare find") and float(n["t"]) < 0.6 and n.get("gold", false):
 			return true
 	return false
 

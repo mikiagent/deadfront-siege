@@ -1,5 +1,5 @@
 diff --git a/game/scripts/creatures/corpse.gd b/game/scripts/creatures/corpse.gd
-index 13185501..eda30a4f 100644
+index 13185501..366331ed 100644
 --- a/game/scripts/creatures/corpse.gd
 +++ b/game/scripts/creatures/corpse.gd
 @@ -131,29 +131,8 @@ func _process(delta: float) -> void:
@@ -34,6 +34,15 @@ index 13185501..eda30a4f 100644
  
  func _on_take_from_loot() -> void:
  	# Taking from the chest screen trains Butchering (and so the player level), once per take
+@@ -164,6 +143,8 @@ func _on_take_from_loot() -> void:
+ 	var p := PlayerRegistry.local()
+ 	if moved and p and p.skills:
+ 		p.skills.add_xp("butchering", 3)
++	if moved and p:
++		ButcherLoot.on_take(self, p)  # W2-GATHER: a rare part pays its XP to the survivor who took it
+ 	if _is_empty():
+ 		_on_loot_empty()
+ 
 diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
 index 3bfbb398..d0392464 100644
 --- a/game/scripts/player/player_actions.gd
@@ -65,3 +74,68 @@ index 3bfbb398..d0392464 100644
  
  func _start_gather_cycle(seconds: float) -> void:
  	p._gathering = true
+diff --git a/game/scripts/server/intent_handlers.gd b/game/scripts/server/intent_handlers.gd
+index 0bbbcb56..5df1b4ef 100644
+--- a/game/scripts/server/intent_handlers.gd
++++ b/game/scripts/server/intent_handlers.gd
+@@ -114,7 +114,9 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
+ 	var stack := ItemStack.make(def.id, rng.randi_range(int(o.get("min", 1)), int(o.get("max", 1))), attrs, zone)
+ 	if bool(n.get("unstable", false)):
+ 		stack.set_flag(&"unstable", true)
+-	var mult := ProgressionScaling.gather_yield_multiplier(zone, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, ch.level_of("gathering")))
++	var family := str(n.get("family", ""))
++	# W2-GATHER: the same tool rule as the client (the role's tool helps on hand-pickable nodes).
++	var mult := GatherService.yield_multiplier_with(inv, tool_class, family, zone, maxi(1, ch.level_of("gathering")))
+ 	stack.count = maxi(1, int(floor(float(stack.count) * mult)))
+ 	if rng.randf() < fmod(mult, 1.0):
+ 		stack.count += 1
+@@ -126,13 +128,17 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
+ 	var gained := before - inv.add(stack)
+ 	if gained <= 0:
+ 		return no("bag_full", "bag is full")
++	# W2-GATHER: rare finds roll here too, on the node's island climate, with this op's rng.
++	var rares := GatherService.add_finds(inv, family, tool_class, str(attrs.get("climate", "")), stack.level, maxi(1, ch.level_of("gathering")), rng)
+ 	_write("take_node_unit", [node_id, str(def.id)])
+ 	var uids := ch.commit(inv, "gather", seq)
+ 	count("minted", def.id, gained)
++	for id in rares:
++		count("minted", id, 1)
+ 	ch.add_xp("gathering", 2)
+-	if str(n.get("family", "")).begins_with("Rock") or str(n.get("family", "")) == "clay":
++	if family.begins_with("Rock") or family == "clay":
+ 		ch.add_xp("processing", 1)
+-	return ok({"item": str(def.id), "gained": gained, "uids": uids})
++	return ok({"item": str(def.id), "gained": gained, "uids": uids, "rares": rares.map(func(id: StringName) -> String: return str(id))})
+ 
+ ## act.loot {corpse_id, slot, count?}: move a corpse slot (or part of it) into the bag.
+ func _loot(ch: CharacterState, a: Dictionary) -> Dictionary:
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index 80b01e5b..c0f440fc 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -563,8 +563,12 @@ func _draw_bites(cam: Camera3D) -> void:
+ 		if k < 0.2 and heavy:
+ 			draw_rect(Rect2(0, 0, get_viewport_rect().size.x, get_viewport_rect().size.y), Color(0.9, 0.1, 0.1, 0.18 * (1.0 - k / 0.2)))
+ 
+-func notice(text: String) -> void:
++## gold: a rare find (colour = things), drawn gold on ink instead of the red refusal box.
++func notice(text: String, gold: bool = false) -> void:
+ 	_events.add_notice(text)
++	for n in _events.notices:
++		if n["text"] == text:
++			n["gold"] = gold
+ 
+ func toast(id: StringName, n: int) -> void:
+ 	print("[ui] toast %s +%d" % [id, n])
+@@ -1129,6 +1133,11 @@ func _draw() -> void:
+ 			continue
+ 		taken.append(box)
+ 		drawn_blocks["notice%d" % i] = box
++		if n.get("gold", false):
++			draw_rect(box, Color(UiTokens.INK_SOLID, 0.9 * alpha))
++			draw_rect(box, Color(GatherFeedback.GOLD, alpha), false, 2.0)
++			draw_string(_font, box.position + Vector2(12, 21), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(GatherFeedback.GOLD, alpha))
++			continue
+ 		draw_rect(box, Color(0.35, 0.08, 0.06, 0.85 * alpha))
+ 		draw_string(_font, box.position + Vector2(12, 21), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 0.9, 0.8, alpha))
+ 	# --- label pills on buildings and nodes within 8 m (reference: base building), last: they give way

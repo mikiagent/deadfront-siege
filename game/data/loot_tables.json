@@ -6,7 +6,7 @@
     "tool_tier_bonus": 0.15,
     "skill_bonus_per_level": 0.0,
     "max_chance": 0.5,
-    "_climates": "A find rolls only on a node whose island climate lists it (docs/design/world-design.md:66-75, climates.json materials): home grassland never gives flint (temperate) or copper_ore (desert). ASSUMPTION: berry_seed and spice_herb follow berries/herb_leaf (grassland, temperate), flax_seed follows the flax craters (savannah, temperate); silver_ore is snowfield only, so the black-iron row waits for a snowfield black-iron node.",
+    "_climates": "A find rolls only on a node whose island climate lists it, and every listed climate's materials (data/world/climates.json, docs/design/world-design.md:66-75) contain the item (t_gather checks): home grassland never gives flint (temperate) or copper_ore (desert). Seeds are not finds: Wild Seed I is a learned Survival technique (spec 12:162). ASSUMPTION: a home bush can hold a few berries, a plant or grass tuft a herb leaf; silver_ore is snowfield only, so the black-iron row waits for a snowfield black-iron node.",
     "by_role": {
       "tree": [{"item": "resin", "chance": 0.04, "climates": ["tundra"]}],
       "tree_dead": [{"item": "resin", "chance": 0.03, "climates": ["tundra"]}],
@@ -15,9 +15,9 @@
         {"item": "flint", "chance": 0.05, "climates": ["temperate"]},
         {"item": "copper_ore", "chance": 0.015, "min_tool_tier": "obsidian", "climates": ["desert"]}
       ],
-      "bush": [{"item": "berry_seed", "chance": 0.05, "climates": ["grassland", "temperate"]}],
-      "plant": [{"item": "spice_herb", "chance": 0.04, "climates": ["grassland", "temperate"]}],
-      "ground": [{"item": "flax_seed", "chance": 0.03, "climates": ["savannah", "temperate"]}]
+      "bush": [{"item": "berries", "chance": 0.05, "climates": ["grassland", "temperate"]}],
+      "plant": [{"item": "herb_leaf", "chance": 0.04, "climates": ["grassland", "temperate"]}],
+      "ground": [{"item": "herb_leaf", "chance": 0.03, "climates": ["grassland", "temperate"]}]
     },
     "by_family": {
       "CoralNode": [{"item": "pearl", "chance": 0.03, "climates": ["blue_tropical"]}],
@@ -25,6 +25,7 @@
     }
   },
   "butcher": {
+    "_rare_chance": "ASSUMPTION: spec 12 s2 ('Carcass Part Selection, Not Generic Random Loot') unlocks each part by Butchering nodes, tool and Slaughter Ability. Until W2-BUTCHER adds the Slaughter Ability roll, an unlocked rare part still rolls this chance (or the row's own) as its stand-in.",
     "default_rare_chance": 0.12,
     "rare_skill_bonus_per_level": 0.0,
     "rare_tool_tier_bonus": 0.15,

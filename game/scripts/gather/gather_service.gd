@@ -14,17 +14,24 @@ static func _new_rng() -> RandomNumberGenerator:
 	return r
 
 static func role_of(node: HarvestNode) -> String:
-	return str(Data.nature_families.get(node.family, {}).get("role", ""))
+	return role_of_family(node.family)
+
+static func role_of_family(family: String) -> String:
+	return str(Data.nature_families.get(family, {}).get("role", ""))
 
 ## The tool that works this node from the bag, or null for bare hands: the node's required
 ## class, the best pick on rock, else the role's affinity tool (axe on trees, knife on bushes).
 static func effective_tool(inv: Inventory, node: HarvestNode) -> ItemStack:
-	var need := node.required_tool_class
+	return tool_for(inv, node.required_tool_class, node.family)
+
+## effective_tool from a node's required tool class and family (the server only has those).
+static func tool_for(inv: Inventory, need: StringName, family: String) -> ItemStack:
 	if need != &"" and need != &"none":
 		return inv.find_gather_tool(need)
-	if role_of(node) == "rock":
+	var role := role_of_family(family)
+	if role == "rock":
 		return HarvestNode.best_pick(inv)
-	var aff := LootTables.affinity_tool(role_of(node))
+	var aff := LootTables.affinity_tool(role)
 	return inv.find_gather_tool(aff) if aff != &"" else null
 
 static func _skill(p: Player) -> int:
@@ -48,30 +55,40 @@ static func yield_multiplier(p: Player, node: HarvestNode) -> float:
 	return yield_multiplier_for(p.inventory, node, _skill(p))
 
 static func yield_multiplier_for(inv: Inventory, node: HarvestNode, skill: int) -> float:
-	var tool := effective_tool(inv, node)
-	var zone := int(node.yield_attributes.get("level", 1))
+	return yield_multiplier_with(inv, node.required_tool_class, node.family, int(node.yield_attributes.get("level", 1)), skill)
+
+## yield_multiplier_for from the node's fields (the server's act.gather calls this one).
+static func yield_multiplier_with(inv: Inventory, need: StringName, family: String, zone: int, skill: int) -> float:
+	var tool := tool_for(inv, need, family)
 	return ProgressionScaling.gather_yield_multiplier(zone, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, skill))
 
 ## After a gathered unit reached the bag: the rare roll, then "+n Item" (and any find) over the node.
 ## Returns the rare item ids that landed in the bag.
-static func after_unit(p: Player, node: HarvestNode, item_id: StringName, gained: int, luck: float = 1.0) -> Array[StringName]:
+static func after_unit(p: Player, node: HarvestNode, item_id: StringName, gained: int) -> Array[StringName]:
 	var at := node.global_position + Vector3(0.0, node.top_of_node() + 0.3, 0.0)  # the gather ring's anchor
-	var tool := effective_tool(p.inventory, node)
-	var tier: StringName = tool.material_tier() if tool else &""
-	var landed: Array[StringName] = []
 	# Same downrank as the main yield (rules.json gathering_downrank, floor 5).
 	var level := mini(int(node.yield_attributes.get("level", 1)), maxi(_skill(p), 5))
-	for id in LootRoller.roll_gather_rares(node.family, role_of(node), str(node.yield_attributes.get("climate", "")), tier, _skill(p), rng, luck):
-		# A find only rolls into a free slot: never mint an item the bag would drop (sec-loss-08).
-		if Data.item(id) == null or p.inventory.used_slots() >= p.inventory.slot_count:
-			continue
-		var attrs := {"level": level}
-		var left := p.inventory.add(ItemStack.make(id, 1, attrs, level))
-		if left > 0:
-			continue
-		landed.append(id)
+	# The node's island climate picks the rows and is stamped on the find (world-design.md:55: always climate and level).
+	var climate := str(node.yield_attributes.get("climate", ""))
+	var landed := add_finds(p.inventory, node.family, node.required_tool_class, climate, level, _skill(p), rng)
+	for id in landed:
 		p.toast(id, 1)
 		var xp := float(LootTables.rules().get("xp", {}).get("rare_gather_bonus", 0))
 		GatherXp.award(p, "gathering", xp, {"verb": "gather", "item": str(id), "rare": true, "node_level": level})
 	GatherFeedback.show_yield(p, at, item_id, gained, landed)
+	return landed
+
+## Rolls one unit's rare finds on a node (family, required tool class, island climate) and adds each
+## to `inv`. Client and server (act.gather) share it. Returns the ids that landed.
+static func add_finds(inv: Inventory, family: String, need: StringName, climate: String, level: int, skill: int, r: RandomNumberGenerator) -> Array[StringName]:
+	var tool := tool_for(inv, need, family)
+	var tier: StringName = tool.material_tier() if tool else &""
+	var landed: Array[StringName] = []
+	for id in LootRoller.roll_gather_rares(family, role_of_family(family), climate, tier, skill, r):
+		# A find only rolls into a free slot: never mint an item the bag would drop (sec-loss-08).
+		if Data.item(id) == null or inv.used_slots() >= inv.slot_count:
+			continue
+		if inv.add(ItemStack.make(id, 1, {"climate": climate, "level": level}, level)) > 0:
+			continue
+		landed.append(id)
 	return landed

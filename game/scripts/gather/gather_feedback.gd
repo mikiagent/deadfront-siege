@@ -17,9 +17,12 @@ const LAYER_NAME := "GatherPopups"
 const GOLD := Color(1.0, 0.9, 0.3)
 const CREAM := Color(1.0, 0.97, 0.88)
 
+## A replaced stack shown for less than this still owes its finds to the HUD (its fallback runs).
+const SHOWN_MS := 500
+
 ## A stack of lines ([text, color, big], top to bottom) rising from a 3D anchor in screen space.
 ## Its whole rise is placed once, a frame later: above the ring, else right or left of it, nudged off what is taken.
-## `fallback` runs (once) when the stack ends up not drawn, so what it said still reaches the HUD.
+## `fallback` runs (once) when the stack ends up not drawn or is cut short, so what it said still reaches the HUD.
 static func popup(p: Player, at: Vector3, lines: Array, fallback: Callable = Callable()) -> Control:
 	if p == null or not p.is_inside_tree() or lines.is_empty():
 		return null
@@ -33,8 +36,12 @@ static func popup(p: Player, at: Vector3, lines: Array, fallback: Callable = Cal
 		layer.name = LAYER_NAME
 		layer.layer = LAYER
 		tree.current_scene.add_child(layer)
-	# One survivor works one node at a time: a new unit's stack replaces the last one.
+	# One survivor works one node at a time: a new unit's stack replaces the last one. One that was
+	# barely seen (two finds in one frame: a unit and a pet's kill) hands its finds to the HUD.
 	for old in layer.get_children():
+		var ost: Dictionary = old.get_meta(&"st", {})
+		if not ost.is_empty() and (int(ost["shown_ms"]) < 0 or Time.get_ticks_msec() - int(ost["shown_ms"]) < SHOWN_MS):
+			_owe(ost)
 		old.queue_free()
 	var view := p.get_viewport().get_visible_rect().size
 	var px := UiTokens.heading(view)  # 24 desktop, 20 on a phone
@@ -55,16 +62,38 @@ static func popup(p: Player, at: Vector3, lines: Array, fallback: Callable = Cal
 	layer.add_child(box)
 	box.size = box.get_combined_minimum_size()
 	box.visible = false
+	# Shared by the placement, the follow tween and a later popup that replaces this one.
+	var st := {"fallback": fallback, "fell_back": false, "shown_ms": -1}
+	box.set_meta(&"st", st)
 	# Placed next frame: by then the HUD has drawn this unit's toast and rare notice, which the stack keeps off.
-	tree.process_frame.connect(_place.bind(p, cam, at, box, fallback), CONNECT_ONE_SHOT)
+	# A lambda per stack: a bound static method is one callable, so a second stack in the same frame
+	# failed to connect and both finds were lost. Weak refs: a stack replaced this frame is freed by
+	# then, and a lambda holding a freed object logs an engine ERROR.
+	var refs := [weakref(p), weakref(cam), weakref(box)]
+	tree.process_frame.connect(func() -> void:
+		var pl := refs[0].get_ref() as Player
+		var c := refs[1].get_ref() as Camera3D
+		var b := refs[2].get_ref() as Control
+		if pl and c and b:
+			_place(pl, c, at, b, st)
+		else:
+			_owe(st)
+	, CONNECT_ONE_SHOT)
 	return box
 
-static func _place(p: Player, cam: Camera3D, at: Vector3, box: Control, fallback: Callable) -> void:
-	if not is_instance_valid(box) or not is_instance_valid(cam) or not is_instance_valid(p) or cam.is_position_behind(at):
-		if is_instance_valid(box):
-			box.queue_free()
-		if fallback.is_valid():
-			fallback.call()
+## Runs a stack's fallback once (its finds go to the HUD notice).
+static func _owe(st: Dictionary) -> void:
+	if st["fell_back"]:
+		return
+	st["fell_back"] = true
+	var fb: Callable = st["fallback"]
+	if fb.is_valid():
+		fb.call()
+
+static func _place(p: Player, cam: Camera3D, at: Vector3, box: Control, st: Dictionary) -> void:
+	if cam.is_position_behind(at):
+		box.queue_free()
+		_owe(st)
 		return
 	var view := p.get_viewport().get_visible_rect().size
 	var sz := box.size
@@ -82,16 +111,18 @@ static func _place(p: Player, cam: Camera3D, at: Vector3, box: Control, fallback
 		# Like a world label with no free spot near its anchor: not drawn (the HUD toast and notice say it).
 		print("[gather] yield stack skipped: no free spot by the node")
 		box.queue_free()
-		if fallback.is_valid():
-			fallback.call()
+		_owe(st)
 		return
-	var st := {"off": off, "rise": rise, "fell_back": false}  # a Dictionary: lambda captures are copies, this one is shared
+	st["off"] = off  # in the shared Dictionary: lambda captures are copies
+	st["rise"] = rise
 	var follow := func(t: float) -> void:
 		if not is_instance_valid(cam) or not is_instance_valid(box) or not is_instance_valid(p):
 			return
 		var a := cam.unproject_position(at)
 		box.position = a + (st["off"] as Vector2) + Vector2(0.0, float(st["rise"]) * (1.0 - t))
 		box.visible = not cam.is_position_behind(at)
+		if box.visible and int(st["shown_ms"]) < 0:
+			st["shown_ms"] = Time.get_ticks_msec()
 		# The HUD re-places its notices and toasts every frame without knowing this stack (a level-up
 		# banner pushed a phone's "Rare find" notice onto it): when anything moves onto it, move off, held still.
 		var taken := taken_rects(p, a, false)
@@ -101,9 +132,7 @@ static func _place(p: Player, cam: Camera3D, at: Vector3, box: Control, fallback
 		var o := _best_offset(_columns(a, box.size, box.size.y), taken, a, view)
 		if o == Vector2.INF:
 			box.visible = false  # nowhere free this frame: the HUD toast and (once) the fallback notice say it
-			if fallback.is_valid() and not st["fell_back"]:
-				st["fell_back"] = true
-				fallback.call()
+			_owe(st)
 			return
 		st["off"] = o
 		st["rise"] = 0.0
@@ -200,7 +229,13 @@ static func _popup_or_notice(p: Player, at: Vector3, lines: Array, rares: Array[
 	if popup(p, at, lines, fb) == null and fb.is_valid():
 		fb.call()
 
-## Finds are always gold: rarity rims (grey, green) read as an ordinary pickup in the world.
+## Finds are always gold, in the HUD too: a gold notice, not the red refusal box (a phone with the
+## radial open always lands here). Rarity rims (grey, green) read as an ordinary pickup.
 static func notice_rare(p: Player, id: StringName, where: String = "") -> void:
-	if is_instance_valid(p):
-		p.notice("Rare find: %s%s" % [item_name(id), where])
+	if not is_instance_valid(p) or not p.is_inside_tree():
+		return
+	var text := "Rare find: %s%s" % [item_name(id), where]
+	print("[ui] notice %s (gold)" % text)
+	var hud := p.get_tree().get_first_node_in_group("hud")
+	if hud and hud.has_method("notice"):
+		hud.notice(text, true)
