@@ -10,6 +10,7 @@ extends Node3D
 ##   Godot --path game --resolution 1600x900 --rendering-method gl_compatibility \
 ##     -- --lab=bag_ui_lab --screen=bag --shot=/tmp/bag.png --shot-delay=6
 ##   --screen= bag | inspect | character | equipment | storage | cargo | picker
+##   --select=<role> then selects that seeded instance (berry12/25/42, bone45/60, cage, knife, club, ...)
 ## Headless (no --shot): checks the seed and the screen contract, prints "[bagui] PASS ..." or
 ## FAIL lines and exits 0/1. It FAILS until the builders give InventoryUI the contract below.
 ##
@@ -37,9 +38,12 @@ var _fails: PackedStringArray = []
 var _screen: StringName = &"bag"
 
 func _ready() -> void:
+	var pick := ""
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--screen="):
 			_screen = StringName(a.substr(9))
+		elif a.begins_with("--select="):
+			pick = a.substr(9)
 	var kit := LabKit.build(self, 30.0)
 	player = kit["player"]
 	# Same layering as main.gd: the bag family is a modal above the HUD's canvas layers.
@@ -52,6 +56,8 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var opened := _open(_screen)
+	if pick != "" and uids.has(pick):
+		player.ui.call("select_uid", uids[pick]) # e.g. --select=berry25 shows its actions
 	print("[bagui] seed bag %d/%d worn=%d new=%d locked=%d screen=%s opened=%s" % [player.inventory.used_slots(),
 		player.inventory.slot_count, _worn_count(), _flag_count(&"new"), _flag_count(&"locked"), _screen, opened])
 	if DisplayServer.get_name() == "headless" and Game.shot_path == "":
