@@ -82,14 +82,6 @@ static func as_int(v: Variant) -> Variant:
 		return int(v)
 	return null
 
-static func is_id(s: String) -> bool:
-	if s.is_empty() or s.length() > 48:
-		return false
-	for ch in s:
-		if not (ch >= "a" and ch <= "z") and not (ch >= "0" and ch <= "9") and ch != "_":
-			return false
-	return true
-
 func _bad(msg: String) -> int:
 	if err == "":
 		err = msg
