@@ -239,7 +239,8 @@ func _build_overview() -> void:
 		xp_col.add_theme_constant_override("separation", 2)
 		xp_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		cols.add_child(xp_col)
-		xp_col.add_child(_cell("%d / %d XP" % [int(xp), int(need)], 0.0, meta, UiTokens.META, HORIZONTAL_ALIGNMENT_RIGHT))
+		# XP banked at the character-level cap reads as a full bar, as on Durango's skill screen.
+		xp_col.add_child(_cell("%d / %d XP" % [int(minf(xp, need)), int(need)], 0.0, meta, UiTokens.META, HORIZONTAL_ALIGNMENT_RIGHT))
 		var bar := ProgressBar.new()
 		bar.custom_minimum_size = Vector2(0, 6)
 		bar.max_value = maxf(1.0, need)
@@ -269,27 +270,67 @@ func _build_tree() -> void:
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_box.add_child(info)
 	var first: Array[Control] = []
+	var auto_learned: PackedStringArray = []
+	var later: Array[Label] = []
 	for n in skills.nodes(_tree):
 		var st := skills.node_state(_tree, n)
+		var nid := str(n.get("id", ""))
+		var title := str(n.get("name", nid.replace("_", " ").capitalize()))
+		var cost := "AUTO" if bool(n.get("auto", false)) else "%d SP" % int(n.get("sp", 0))
+		var head := "%s  ·  %s  ·  %s" % [title, LevelDisplay.label(int(n.get("level", 1))), cost]
+		# Learned-free rows have nothing to tap; one summary line keeps the first screen actionable.
+		if st[0] == "owned" and bool(n.get("auto", false)):
+			auto_learned.append(title)
+			continue
+		# Nodes the game reads nothing from yet (spec 12:215) cannot be bought. They stay listed with
+		# level, SP and the lock reason (spec 12 10.6) as muted rows with nothing to tap, after the rest.
+		if st[0] == "locked" and st[1] == SkillState.NOT_IN_GAME:
+			var row := Label.new()
+			row.name = "SkillsLater_" + nid
+			row.text = "%s  ·  %s" % [head, SkillState.NOT_IN_GAME]
+			row.add_theme_color_override("font_color", UiTokens.META)
+			row.add_theme_font_size_override("font_size", UiTokens.meta(view))
+			row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			later.append(row)
+			continue
 		var h := HBoxContainer.new()
+		h.name = "SkillsNode_" + nid
 		h.custom_minimum_size = Vector2(0, 60)
 		h.add_theme_constant_override("separation", UiTokens.SPACE)
 		var l := Label.new()
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.text = "%s  ·  %s  ·  %d SP\n%s" % [str(n.get("id", "")).replace("_", " ").capitalize(), LevelDisplay.label(int(n.get("level", 1))), int(n.get("sp", 0)), str(n.get("unlocks", ""))]
+		l.text = head
+		var unlocks := str(n.get("unlocks", ""))
+		if unlocks != "" and unlocks.to_lower() != title.to_lower():
+			l.text += "\n" + unlocks
 		l.add_theme_font_size_override("font_size", UiTokens.meta(view) + 2)
 		match st[0]:
 			"owned":
 				l.add_theme_color_override("font_color", Color(0.55, 0.9, 0.5))
 			"locked":
 				l.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-		h.add_child(l)
+		# A refund that would be refused (daily limit, a learned node needs it) is greyed and says why before the tap.
+		var why := skills.refund_reason(_tree, nid) if st[0] == "owned" else ""
+		if why == "":
+			h.add_child(l)
+		else:
+			var col := VBoxContainer.new()
+			col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			col.add_child(l)
+			var reason := Label.new()
+			reason.name = "RefundBlock"
+			reason.text = "Cannot refund: " + why
+			reason.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			reason.add_theme_color_override("font_color", UiTokens.META)
+			reason.add_theme_font_size_override("font_size", UiTokens.meta(view))
+			col.add_child(reason)
+			h.add_child(col)
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(120 if UiTokens.is_narrow(view) else 140, 56)
-		var nid := str(n.get("id", ""))
 		if st[0] == "owned":
 			b.text = "Refund"
+			b.disabled = why != ""
 			b.pressed.connect(func () -> void:
 				skills.refund(_tree, nid)
 				rebuild()
@@ -306,6 +347,15 @@ func _build_tree() -> void:
 			b.disabled = true
 		h.add_child(b)
 		_box.add_child(h)
+	if not auto_learned.is_empty():
+		var learned := Label.new()
+		learned.name = "SkillsLearnedAuto"
+		learned.text = "Learned automatically: " + ", ".join(auto_learned)
+		learned.add_theme_color_override("font_color", UiTokens.META)
+		learned.add_theme_font_size_override("font_size", UiTokens.meta(view))
+		learned.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_box.add_child(learned)
+	# The way back sits above the inert list, so a phone does not scroll past it to leave the tree.
 	var back := Button.new()
 	back.text = "All skills"
 	back.custom_minimum_size = Vector2(0, 56)
@@ -315,4 +365,6 @@ func _build_tree() -> void:
 	)
 	_box.add_child(back)
 	first.append(back)
+	for row in later:
+		_box.add_child(row)
 	UiTokens.focus_first(first)
