@@ -164,7 +164,7 @@
         "ingot",
         "tier_copper"
       ],
-      "stack_max": 20,
+      "stack_max": 999,
       "default_attributes": {
         "material_tier": "copper",
         "tint": "#b87333",
@@ -183,7 +183,7 @@
         "ingot",
         "tier_bronze"
       ],
-      "stack_max": 20,
+      "stack_max": 999,
       "default_attributes": {
         "material_tier": "bronze",
         "tint": "#cd7f32",
@@ -202,7 +202,7 @@
         "ingot",
         "tier_iron"
       ],
-      "stack_max": 20,
+      "stack_max": 999,
       "default_attributes": {
         "material_tier": "iron",
         "tint": "#9a9b9d",
@@ -221,7 +221,7 @@
         "ingot",
         "tier_steel"
       ],
-      "stack_max": 20,
+      "stack_max": 999,
       "default_attributes": {
         "material_tier": "steel",
         "tint": "#b8c2cc",
@@ -746,8 +746,7 @@
       "display_name": "Hide Strap",
       "categories": [
         "lashing",
-        "hide",
-        "cured_hide"
+        "hide"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -2142,7 +2141,7 @@
       "stack_max": 1,
       "base_level": 1,
       "tool_class": "none",
-      "damage": 220,
+      "damage": 112,
       "damage_type": "blunt",
       "attack_rate": 1.0,
       "max_durability": 400,
@@ -2161,7 +2160,7 @@
       ],
       "stack_max": 1,
       "base_level": 1,
-      "armor_value": 300,
+      "armor_value": 153,
       "max_durability": 400,
       "stats_per_level": {
         "armor_value": 0.02
@@ -2182,7 +2181,7 @@
       ],
       "stack_max": 1,
       "base_level": 1,
-      "armor_value": 700,
+      "armor_value": 357,
       "health_bonus": 90,
       "max_durability": 400,
       "stats_per_level": {
@@ -2205,7 +2204,7 @@
       ],
       "stack_max": 1,
       "base_level": 1,
-      "armor_value": 300,
+      "armor_value": 153,
       "max_durability": 400,
       "stats_per_level": {
         "armor_value": 0.02
@@ -2659,7 +2658,6 @@
         "ore",
         "tin_ore"
       ],
-      "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "rarity": "uncommon",
@@ -2673,7 +2671,6 @@
         "ingot",
         "tin"
       ],
-      "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "rarity": "uncommon",
@@ -2686,7 +2683,6 @@
         "fibre",
         "tinder"
       ],
-      "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "rarity": "common",
@@ -2699,7 +2695,6 @@
         "herb",
         "dye"
       ],
-      "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "rarity": "uncommon",
@@ -2746,7 +2741,6 @@
         "tool"
       ],
       "capture_tier": 3,
-      "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "rarity": "rare",
@@ -2759,7 +2753,6 @@
         "tool"
       ],
       "capture_tier": 4,
-      "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "rarity": "epic",
@@ -2772,7 +2765,6 @@
         "tool"
       ],
       "capture_tier": 5,
-      "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "rarity": "epic",
@@ -3795,7 +3787,6 @@
       "categories": [
         "medicine"
       ],
-      "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "rarity": "uncommon",
@@ -3807,7 +3798,6 @@
       "categories": [
         "medicine"
       ],
-      "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
       "rarity": "uncommon",

@@ -13,8 +13,11 @@ extends SceneTree
 ## 3. Ladder, nets, armour bands and the real crafting planner agree with the walk. The ladder is
 ##    GAUNTLET's Stone -> Bone -> Flint -> Obsidian -> Copper -> Bronze -> Iron -> Steel: every rung has
 ##    tools, no rung costs less or unlocks earlier than the one below, each mined ore needs the pick of
-##    the rung below it, and no ungated recipe turns obsidian or metal into gear.
-## 4. Crafting.progression_block refuses a requires_node recipe until the node is learned (hook 6).
+##    the rung below it, and no recipe turns material above flint into gear below that rung's skill node.
+##    At equal level nothing beats the steel item of its slot unless it is gated at least as high, and the
+##    real planner shows each tier above the last and a level 5 tool clearly above level 1 (GAUNTLET).
+## 4. Crafting.progression_block refuses a requires_node recipe until the node is learned and names the
+##    node's tree and level (hook 6).
 ## 5. bot_survivor's CATEGORY_ITEMS covers every slot of the recipes it crafts (hook 13).
 ## Item scripts reference the Data autoload, so they load on the first frame after it exists.
 
@@ -28,6 +31,8 @@ const STATUS_ACTIONS := ["cauterise", "residence", "struggle", "pet_aggro"]
 const CAPTURE_SECONDS := 60.0
 const TAME_SECONDS := 120.0
 const BUTCHER_SECONDS := 1.6 ## corpse.gd: one radial hex per loot stack, 1.6 s each
+## Gear slots and the top-rung (steel) item each is measured against; "weapon" is the weapon role.
+const GEAR_SLOTS := {"armor_head": "steel_helm", "armor_body": "steel_cuirass", "armor_arms": "steel_bracers", "armor_legs": "steel_greaves", "weapon": "steel_sword"}
 
 var fails: Array[String] = []
 var _done := false
@@ -42,6 +47,9 @@ var factions: Dictionary = {}    # world/factions.json
 var creatures: Dictionary = {}  # species -> row
 var islands: Array = []          # islands.json rows
 var PS: GDScript
+var CR: GDScript
+var INV: GDScript
+var IS: GDScript
 var opt_tools: Dictionary = {}
 var opt_seconds: Dictionary = {}
 # walk state
@@ -60,6 +68,9 @@ func _process(_delta: float) -> bool:
 		return false
 	_done = true
 	PS = load("res://scripts/items/progression_scaling.gd")
+	CR = load("res://scripts/items/crafting.gd")
+	INV = load("res://scripts/items/inventory.gd")
+	IS = load("res://scripts/items/item_stack.gd")
 	var hn: Dictionary = (load("res://scripts/world/harvest_node.gd") as GDScript).get_script_constant_map()
 	opt_tools = hn.get("OPTION_TOOLS", {})
 	opt_seconds = hn.get("OPTION_SECONDS", {})
@@ -81,11 +92,14 @@ func _process(_delta: float) -> bool:
 	_check_ladder()
 	_check_pick_chain()
 	_check_ungated_gear()
+	_check_top_rung()
 	_check_nets()
 	_check_armor()
 	_check_no_multiplying_loops()
+	_check_split_leaks()
 	_check_structures()
 	_check_planner()
+	_check_tier_planner()
 	_check_node_gate()
 	_check_bot_map()
 	if fails.is_empty():
@@ -418,6 +432,9 @@ func _check_home() -> void:
 		for m in climates[cname].get("materials", []):
 			var mid := str(m.get("id", ""))
 			_expect(not (_has_cat(mid, "ore") or _has_cat(mid, "metal")), "home climate %s lists no metal material, but lists %s" % [cname, mid])
+	# Warp-ruin courier boxes (world-design.md:106) carry no ore or metal, wherever a ruin spawns.
+	for id in _json("world/rules.json").get("warp_ruin", {}).get("loot", []):
+		_expect(not (_has_cat(str(id), "ore") or _has_cat(str(id), "metal")), "warp ruin loot %s is not ore or metal" % id)
 	for id in ["twine", "dried_hide", "hide_strap", "rope", "tent_kit"]:
 		_expect(home_cost.has(id), "%s is obtainable on the start island" % id)
 	var metal := home_cost.keys().filter(func(id: String) -> bool: return _has_cat(id, "ore") or _has_cat(id, "metal"))
@@ -463,13 +480,34 @@ func _check_ladder() -> void:
 func _gate_level(out: String) -> int:
 	var lv := 0
 	for r: Dictionary in recipes:
-		if str(r.get("output", {}).get("id", "")) != out or not r.has("requires_node"):
-			continue
-		var t := str(trees_nodes.get(str(r["requires_node"]), ""))
-		for n in trees.get(t, {}).get("nodes", []):
-			if str(n.get("id", "")) == str(r["requires_node"]):
-				lv = maxi(lv, int(n.get("level", 0)))
+		if str(r.get("output", {}).get("id", "")) == out:
+			lv = maxi(lv, _node_level(r))
 	return lv
+
+## Level of the recipe's requires_node (0 when it has none).
+func _node_level(r: Dictionary) -> int:
+	var node := str(r.get("requires_node", ""))
+	for n in trees.get(str(trees_nodes.get(node, "")), {}).get("nodes", []):
+		if str(n.get("id", "")) == node:
+			return int(n.get("level", 0))
+	return 0
+
+func _is_gear(id: String) -> bool:
+	var row: Dictionary = items.get(id, {})
+	return str(row.get("tool_class", "none")) != "none" or float(row.get("damage", 0)) > 0.0 or float(row.get("armor_value", 0)) > 0.0
+
+func _out(r: Dictionary) -> String:
+	return str(r.get("output", {}).get("id", ""))
+
+## Highest ladder tier the recipe's primary slot accepts (only walked items when `reachable`).
+func _primary_tier(r: Dictionary, reachable: bool) -> int:
+	var t := -1
+	for s: Dictionary in r.get("slots", []):
+		if bool(s.get("primary", false)):
+			for id: String in _ids_with_cat(str(s.get("category", ""))):
+				if not reachable or cost.has(id):
+					t = maxi(t, _ladder_tier(id))
+	return t
 
 ## Ladder tier index of an item from its id and default attributes (stone = 0).
 func _ladder_tier(id: String) -> int:
@@ -485,20 +523,58 @@ func _check_pick_chain() -> void:
 			if t >= 1:
 				_expect(PS.TOOL_TIERS.find(StringName(str(gates[k]))) == t - 1, "%s %s needs a %s pick, the rung below it (has %s)" % [fam, k, PS.TOOL_TIERS[t - 1], gates[k]])
 
-## Gear takes its material tier from the primary input, so a recipe with no skill node, min_level or
-## survival gate must not accept obsidian or metal there (else a work pick of steel skips every rung gate).
+## Gear takes its material tier from the primary input, so a gear recipe whose primary accepts anything
+## above flint needs a requires_node at least as high as the lowest node the ladder's own tier_<t> gear
+## recipes carry. Survival or min_level gates do not count: they skip the rung's node (a work pick of steel,
+## or a raid cuirass of any ingot, made steel-tier gear with no iron_weapons or scute_armor).
 func _check_ungated_gear() -> void:
 	var cap: int = PS.TOOL_TIERS.find(&"flint") ## metal_shard and raptor_talon read as flint by hardness
+	var rung_gate := {}
 	for r: Dictionary in recipes:
-		if r.has("requires_node") or int(r.get("min_level", 0)) > 0 or int(r.get("required_survival", 0)) > 0:
-			continue
-		var out: Dictionary = items.get(str(r.get("output", {}).get("id", "")), {})
-		if str(out.get("tool_class", "none")) == "none" and float(out.get("damage", 0)) <= 0.0 and float(out.get("armor_value", 0)) <= 0.0:
-			continue
 		for s: Dictionary in r.get("slots", []):
-			if bool(s.get("primary", false)):
-				for id in _ids_with_cat(str(s.get("category", ""))):
-					_expect(_ladder_tier(id) <= cap, "ungated recipe %s takes %s (%s tier) as its primary" % [r["id"], id, PS.TOOL_TIERS[_ladder_tier(id)]])
+			var cat := str(s.get("category", ""))
+			if bool(s.get("primary", false)) and cat.begins_with("tier_") and _is_gear(_out(r)):
+				var t: int = PS.TOOL_TIERS.find(StringName(cat.trim_prefix("tier_")))
+				rung_gate[t] = mini(int(rung_gate.get(t, 999)), _node_level(r))
+	for r: Dictionary in recipes:
+		var t := _primary_tier(r, false)
+		if _is_gear(_out(r)) and t > cap:
+			_expect(_node_level(r) >= int(rung_gate.get(t, 999)), "recipe %s takes %s-tier material as its primary with skill gate Lv %d, below the ladder's %s gear gate Lv %d" % [r["id"], PS.TOOL_TIERS[t], _node_level(r), PS.TOOL_TIERS[t], int(rung_gate.get(t, 999))])
+
+## Damage or armour at equal level: armour value, or damage per second for a weapon (attack_rate 0
+## swings once a second, hunt.gd), times the material tier.
+func _power(id: String, tier: int) -> float:
+	var row: Dictionary = items[id]
+	var base := float(row.get("armor_value", 0.0))
+	if base <= 0.0:
+		var rate := float(row.get("attack_rate", 0.0))
+		base = float(row.get("damage", 0.0)) * (rate if rate > 0.0 else 1.0)
+	return base * float(PS.TIER_POWER[maxi(0, tier)])
+
+func _gear_slot(id: String) -> String:
+	for slot: String in GEAR_SLOTS:
+		if _has_cat(id, slot) and (slot != "weapon" or float(items[id].get("damage", 0)) > 0.0):
+			return slot
+	return ""
+
+## GAUNTLET "higher-tier gear clearly better": at equal level no reachable recipe output in an armour slot
+## or the weapon role beats the steel item of that slot unless its recipe's skill node is at least as high.
+func _check_top_rung() -> void:
+	var steel: int = PS.TOOL_TIERS.find(&"steel")
+	for slot: String in GEAR_SLOTS:
+		var top: String = GEAR_SLOTS[slot]
+		var top_power := _power(top, steel)
+		var top_gate := _gate_level(top)
+		for r: Dictionary in recipes:
+			var out := _out(r)
+			if out == top or _gear_slot(out) != slot or not made.has(str(r["id"])):
+				continue
+			var t := _primary_tier(r, true)
+			var p := _power(out, t)
+			if p <= top_power + 0.001:
+				continue
+			print("[t_data] above %s (%.0f, gate Lv %d): %s %.0f at %s tier, gate %s Lv %d" % [top, top_power, top_gate, r["id"], p, PS.TOOL_TIERS[maxi(0, t)], r.get("requires_node", "none"), _node_level(r)])
+			_expect(_node_level(r) >= top_gate, "%s (%.0f at %s tier) beats %s (%.0f at steel) at equal level with skill gate Lv %d < Lv %d" % [r["id"], p, PS.TOOL_TIERS[maxi(0, t)], top, top_power, _node_level(r), top_gate])
 
 func _check_nets() -> void:
 	var techniques := {}
@@ -544,6 +620,25 @@ func _check_no_multiplying_loops() -> void:
 		for s: Dictionary in r.get("slots", []):
 			_expect(not _has_cat(out, str(s.get("category", ""))), "recipe %s output %s feeds its own %s slot" % [r["id"], out, s.get("category", "")])
 
+## A split (one input unit -> several outputs) must not yield more units of a category gear recipes take
+## than it consumes: two straps cut from one dried hide filled two armour hide units.
+func _check_split_leaks() -> void:
+	var gear_cats := {}
+	for r: Dictionary in recipes:
+		if _is_gear(_out(r)):
+			for s: Dictionary in r.get("slots", []):
+				gear_cats[str(s.get("category", ""))] = true
+	for r: Dictionary in recipes:
+		var n := int(r.get("output", {}).get("count", 1))
+		for cat: String in gear_cats:
+			if n <= 1 or not _has_cat(_out(r), cat):
+				continue
+			var units := 0
+			for s: Dictionary in r.get("slots", []):
+				if _ids_with_cat(str(s.get("category", ""))).any(func(id: String) -> bool: return _has_cat(id, cat)):
+					units += int(s.get("count", 1))
+			_expect(units == 0 or n <= units, "recipe %s turns %d %s unit(s) into %d %s" % [r["id"], units, cat, n, _out(r)])
+
 ## W2-BUILDSYS pieces consume material_slots directly (spec 10 construction sites), so they need no
 ## kit recipe here; every item a piece tier or placed kind spends must be reachable.
 func _check_structures() -> void:
@@ -567,39 +662,68 @@ func _collect_items(v: Variant, out: Dictionary) -> void:
 		for e in v:
 			_collect_items(e, out)
 
+## Crafting.preview of `rid` from walked materials at `level` (the highest tier for the primary slot);
+## `primary` forces the primary item. null when the recipe refuses the materials.
+func _craft(rid: String, level: int, primary: String = "") -> Variant:
+	var r: Dictionary = CR.recipe(StringName(rid))
+	_expect(not r.is_empty(), "Data.recipes has %s" % rid)
+	if r.is_empty():
+		return null
+	var inv = INV.new(40)
+	for s: Dictionary in r.get("slots", []):
+		var cat := str(s.get("category", ""))
+		var prim := bool(s.get("primary", false))
+		var pick := primary if prim else ""
+		if pick == "":
+			for id in cost:
+				if _has_cat(id, cat) and (pick == "" or _tier_of(id) > _tier_of(pick) and prim):
+					pick = id
+		if pick != "":
+			inv.add(IS.make(StringName(pick), int(s.get("count", 1)), {}, level))
+	return CR.preview(inv, r, CR.default_picks(inv, r))
+
 ## The real crafting planner (Crafting.preview) accepts the walk's materials for every rung tool and
 ## the forge/anvil chain, and the output carries the rung's material tier.
 func _check_planner() -> void:
-	var IS: GDScript = load("res://scripts/items/item_stack.gd")
-	var INV: GDScript = load("res://scripts/items/inventory.gd")
-	var CR: GDScript = load("res://scripts/items/crafting.gd")
 	var ids: Array = ["smelt_tin", "smelt_copper", "alloy_bronze", "smelt_iron", "refine_steel", "capture_net_v", "steel_cuirass"]
 	for tier: String in RUNGS:
 		ids.append_array(_rung_tools(tier).map(func(id: String) -> String: return id if tier != "stone" or id != "stone_knife_work" else "improvised_stone_knife"))
 	for rid: String in ids:
-		var r: Dictionary = CR.recipe(StringName(rid))
-		_expect(not r.is_empty(), "Data.recipes has %s" % rid)
-		if r.is_empty():
-			continue
-		var inv = INV.new(40)
-		for s: Dictionary in r.get("slots", []):
-			var cat := str(s.get("category", ""))
-			var pick := ""
-			for id in cost:
-				if _has_cat(id, cat) and (pick == "" or _tier_of(id) > _tier_of(pick) and bool(s.get("primary", false))):
-					pick = id
-			if pick != "":
-				inv.add(IS.make(StringName(pick), int(s.get("count", 1)), {}, 60))
-		var out = CR.preview(inv, r, CR.default_picks(inv, r))
-		_expect(out != null and str(out.def_id) == str(r["output"]["id"]), "planner crafts %s from walked materials" % rid)
+		var out: Variant = _craft(rid, 60)
+		_expect(out != null and str(out.def_id) == str(CR.recipe(StringName(rid)).get("output", {}).get("id", "")), "planner crafts %s from walked materials" % rid)
 		if out != null and out.def() != null and out.def().tool_class == &"pick":
 			var want := str(rid).get_slice("_", 0) if rid != "work_pick" else ""
 			if want in RUNGS:
 				_expect(str(out.material_tier()) == want, "%s comes out %s tier (got %s)" % [rid, want, out.material_tier()])
 
+## GAUNTLET through the real planner, every input level 55: each metal tier's cuirass and sword beat the
+## tier below, the raid kit (steel plus Survival 50) sits on top and refuses shards or copper, and a level 5
+## pick is clearly better than a level 1 pick.
+func _check_tier_planner() -> void:
+	for row: Array in [["armor_body", ["copper_cuirass", "bronze_cuirass", "iron_cuirass", "steel_cuirass", "raid_cuirass"]], ["weapon", ["copper_sword", "bronze_sword", "iron_sword", "steel_sword", "raid_maul"]]]:
+		var parts: Array[String] = []
+		var prev := 0.0
+		for rid: String in row[1]:
+			var out: Variant = _craft(rid, 55)
+			var v: float = 0.0 if out == null else (out.scaled_armor() if row[0] == "armor_body" else out.scaled_damage() * maxf(1.0, out.def().attack_rate))
+			parts.append("%s %.0f (%s)" % [rid, v, "-" if out == null else str(out.material_tier())])
+			_expect(v > prev or rid.begins_with("raid") and v >= prev, "%s at L55 (%.0f) beats the tier below (%.0f)" % [rid, v, prev])
+			prev = v
+		print("[t_data] L55 %s via planner: %s" % [row[0], ", ".join(parts)])
+	for mat: String in ["metal_shard", "copper_ingot"]:
+		_expect(_craft("raid_cuirass", 55, mat) == null and _craft("raid_maul", 55, mat) == null, "raid gear refuses %s as its primary" % mat)
+	var l1: Variant = _craft("flint_pick", 1)
+	var l5: Variant = _craft("flint_pick", 5)
+	if l1 != null and l5 != null:
+		var g: float = l5.gather_power() / l1.gather_power()
+		var dmg: float = l5.scaled_damage() / l1.scaled_damage()
+		print("[t_data] flint_pick L%d -> L%d: gather power x%.2f, damage x%.2f; raid from metal_shard or copper_ingot refused" % [l1.level, l5.level, g, dmg])
+		_expect(g >= 1.3 and dmg >= 1.3, "a level 5 pick is clearly better than level 1 (gather x%.2f, damage x%.2f)" % [g, dmg])
+	else:
+		_expect(false, "planner crafts flint_pick at levels 1 and 5")
+
 ## Hook 6: Crafting.progression_block names the missing node and opens once it is learned.
 func _check_node_gate() -> void:
-	var CR: GDScript = load("res://scripts/items/crafting.gd")
 	var p: Node = (load("res://scripts/player/player.gd") as GDScript).new()
 	var sk: Node = (load("res://scripts/skills/skill_state.gd") as GDScript).new()
 	sk.call("_load")
@@ -611,6 +735,10 @@ func _check_node_gate() -> void:
 	var open := str(CR.progression_block(p, rec))
 	print("[t_data] smelt_copper gate: before '%s', after learning %s '%s'" % [locked, node, open])
 	_expect(locked != "" and open == "", "progression_block refuses smelt_copper until %s is learned (before '%s', after '%s')" % [node, locked, open])
+	# The refusal tells the player which tree to raise, not the raw node id.
+	var tree := str(trees_nodes.get(node, ""))
+	var tname := str(sk.get_script().get_script_constant_map().get("NAMES", {}).get(tree, tree))
+	_expect(locked.contains(tname) and locked.contains(str(_node_level(rec))), "smelt_copper's refusal '%s' names its tree %s and level %d" % [locked, tname, _node_level(rec)])
 	sk.free()
 	p.free()
 
