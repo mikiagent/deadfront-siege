@@ -17,7 +17,8 @@ const WRITE := [
 	"market.sell_to_order", "inbox.take",
 ]
 ## Ops that move value to or from another account: refused while the account is trade-locked
-## (contract v2 0.6) and paid only from tradable T-stones (the bound start never trades).
+## (contract v2 0.6). Buys, bids and order escrow take tradable T-stones only (the bound start
+## never reaches another account); a listing fee is a sink, so bound T-stones pay it first.
 const TRADE := ["market.list_fixed", "market.list_auction", "market.buy", "market.bid", "market.buyout", "market.order_create", "market.sell_to_order"]
 ## Vault moves carry a rid like WRITE ops, but only VaultBridge calls them (contract v2 section
 ## 0.5): a deposit is an asset the character store exported, never a client's dict.
@@ -257,9 +258,7 @@ func _spend(me: int, a: EconArgs) -> Dictionary:
 	var acct := L.acct(me)
 	if int(acct.wallet) < amount:
 		return EconArgs.no("insufficient_funds", "needs %d T-stones" % amount)
-	L.debit(me, amount)
-	L.to_sink(amount)
-	acct.bound = maxi(0, L.bound(me) - amount) # bound T-stones pay first
+	L.pay_sink(me, amount)
 	return EconArgs.ok({"reason": reason, "spent": amount, "wallet": acct.wallet})
 
 ## objective.claim {index}: server-only (SYSTEM). The server calls it when it has observed the
@@ -347,7 +346,7 @@ func _deposit(me: int, a: EconArgs, kind: String) -> Dictionary:
 ## or undo that one move, for that account and that uid only. One move at a time.
 func _begin(me: int, a: EconArgs) -> Dictionary:
 	var rid := a.text("rid", 1, 64)
-	var uid := a.text("uid", 2, 64)
+	var uid := a.text("uid", 2, EconArgs.UID_MAX)
 	var kind := a.choice("op", ["deposit", "grant"])
 	if a.err != "":
 		return a.fail()
@@ -389,7 +388,7 @@ func _log_deposit(acct: Dictionary, key: String, count: int) -> void:
 	acct.deposits[key] = rows
 
 func _withdraw_item(me: int, a: EconArgs) -> Dictionary:
-	var uid := a.text("uid", 2, 24)
+	var uid := a.text("uid", 2, EconArgs.UID_MAX)
 	if a.err != "":
 		return a.fail()
 	var vault: Dictionary = L.acct(me).vault_items
@@ -406,7 +405,7 @@ func _withdraw_item(me: int, a: EconArgs) -> Dictionary:
 	return EconArgs.ok({"item": part.duplicate(true)})
 
 func _withdraw_pet(me: int, a: EconArgs) -> Dictionary:
-	var uid := a.text("uid", 2, 24)
+	var uid := a.text("uid", 2, EconArgs.UID_MAX)
 	if a.err != "":
 		return a.fail()
 	if not L.acct(me).vault_pets.has(uid):

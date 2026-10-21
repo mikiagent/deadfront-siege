@@ -56,7 +56,7 @@ func new_id(prefix: String) -> String:
 static func id_num(id: String) -> int:
 	return int(id.substr(1))
 
-## Bound T-stones pay wallet.spend only; `get` keeps snapshots from before the field readable.
+## Bound T-stones pay sinks only (wallet.spend, listing fees); `get` keeps old snapshots readable.
 func bound(id: int) -> int:
 	return int(acct(id).get("bound", 0))
 
@@ -93,6 +93,13 @@ func credit(id: int, amount: int) -> void:
 
 func to_sink(amount: int) -> void:
 	s.fee_sink += amount
+
+## A payment to the sink (wallet.spend, a listing fee): it reaches no other account, so bound
+## T-stones pay first. Callers check int(wallet) >= amount; bound stays within 0..wallet.
+func pay_sink(id: int, amount: int) -> void:
+	debit(id, amount)
+	to_sink(amount)
+	acct(id).bound = maxi(0, bound(id) - amount)
 
 ## Removes `count` units of a vault stack. The whole stack keeps its uid; a part gets a new one.
 func take_item(id: int, uid: String, count: int) -> Dictionary:

@@ -18,7 +18,7 @@ var _world: WorldFacade
 var _rules: EconRules
 
 func run() -> Array[String]:
-	for test: Callable in [_test_deposit, _test_refusals, _test_client_gate, _test_sales, _test_processed, _test_pets_and_cages, _test_bonded_cap, _test_crash_recovery, _test_strays, _test_recover_any_time, _test_same_uid_twice, _test_fuzz]:
+	for test: Callable in [_test_deposit, _test_refusals, _test_client_gate, _test_grant_rid_seeded, _test_sales, _test_grant_fields, _test_processed, _test_pets_and_cages, _test_bonded_cap, _test_crash_recovery, _test_strays, _test_recover_any_time, _test_same_uid_twice, _test_fuzz]:
 		if test.call() != true:
 			failures.append("%s stopped early (script error)" % test.get_method())
 	return failures
@@ -42,7 +42,7 @@ class FlakyEngine extends MarketEngine:
 		super(r, c)
 
 	func _dispatch(op: String, me: int, a: EconArgs) -> Dictionary:
-		var body: Variant = a.a.get("slot_dict")
+		var body: Variant = a.a.get("slot_dict", a.a.get("pet_dict"))
 		var uid := str(body.get("uid", "")) if body is Dictionary else str(a.a.get("uid", ""))
 		if int(fail.get(op, 0)) > 0 and uid == target:
 			fail[op] = int(fail[op]) - 1
@@ -51,6 +51,17 @@ class FlakyEngine extends MarketEngine:
 			push_error("[econ-bridge] deliberate fault in %s" % op)
 			return {}
 		return super._dispatch(op, me, a)
+
+## Pack 09's cap set by the test (3 is what W2-SKILLS gives a server without skill nodes), so
+## the full-roster cases run on a base whose Data.bonded_cap() is unlimited.
+class CappedBridge extends VaultBridge:
+	var cap := 3
+
+	func _init(e: EconStore, c: CharacterStore) -> void:
+		super(e, c)
+
+	func _bonded_cap() -> int:
+		return cap
 
 ## Collects push_warning text, to see that a refused client op was logged.
 class Warnings extends Logger:
@@ -333,6 +344,34 @@ func _test_client_gate() -> bool:
 	print("[econ-bridge] gate refused=%s logged=%d deposit_via_vault=%s gather=%s grant_over_out=%s grant_pet=%s" % [",".join(codes), logged, dep.ok, gathered.ok, mint.get("err", "ok"), pet.get("err", "ok")])
 	return true
 
+## Review r5 blocker: char.grant's rid lives in the withdrawing character's own rid cache, where
+## the client's intents write too. A client that plants the rids the next grant could use (the
+## old g<seq> shape and the server's own) must not make the grant conflict: the withdrawal
+## lands, the bridge keeps serving, and no other account is stalled.
+func _test_grant_rid_seeded() -> bool:
+	var b := _rig("grant-seeded")
+	_gather(b, 1, "crate", 0, SPLIT, 12)
+	var uid := str(_ok(b, "vault.deposit", 1, {"bag_slot": _slot(b, 1, SPLIT)}).uid)
+	var held := int(_vault(b, 1)[uid].count)
+	var next := int(b.econ.engine.state().seq) + 2 # bridge.begin takes one seq, vault.withdraw_item the next
+	var old: PackedStringArray = []
+	var server: PackedStringArray = []
+	for k in range(next - 3, next + 4):
+		old.append(str(_client(b, "act.gather", 1, {"node_id": "crate", "option": 0, "rid": "g%d" % k}).get("err", "ok")))
+		server.append(str(_client(b, "act.gather", 1, {"node_id": "crate", "option": 0, "rid": "%sg%d" % [VaultBridge.RECOVER_RID, k]}).get("err", "ok")))
+	var bag := int(_units(b, 1)[SPLIT])
+	var w := _client(b, "vault.withdraw", 1, {"uid": uid, "count": 2, "rid": "seeded-w"})
+	var landed := int(_units(b, 1)[SPLIT]) == bag + 2 and int(_vault(b, 1).get(uid, {}).get("count", 0)) == held - 2
+	var gather2 := _client(b, "act.gather", 2, {"node_id": "crate", "option": 0})
+	var search3 := _client(b, "market.search", 3, {})
+	var bad := _broken(b)
+	_expect(Array(old).all(func (c: String) -> bool: return c == "ok"), "the client planted the old grant rids with act.gather: %s" % ",".join(old))
+	_expect(Array(server).all(func (c: String) -> bool: return c == "bad_request"), "a client rid in the server's space is refused for intents too: %s" % ",".join(server))
+	_expect(w.get("ok", false) and landed and bad.is_empty(), "a partial withdrawal after planted rids lands (%s, bag %d->%d, vault %d->%d): %s" % [w.get("err", "ok"), bag, int(_units(b, 1)[SPLIT]), held, int(_vault(b, 1).get(uid, {}).get("count", 0)), ", ".join(bad)])
+	_expect(gather2.get("ok", false) and search3.get("ok", false), "other accounts are not stalled (gather=%s search=%s)" % [gather2.get("err", "ok"), search3.get("err", "ok")])
+	print("[econ-bridge] grant rid seeded old=%s server=%s withdraw=%s landed=%s stuck='%s' others gather=%s search=%s" % [",".join(old), ",".join(server), w.get("err", "ok"), landed, _stuck(b), gather2.get("err", "ok"), search3.get("err", "ok")])
+	return true
+
 ## Review r3 major: every asset the books split can leave the vault through char.grant: a
 ## partial buy, a part listing, a partial order fill and the seller's remainder; a withdrawal
 ## honours `count`. Each unit reaches exactly one character.
@@ -395,6 +434,24 @@ func _test_sales() -> bool:
 		units += int(l.left) if str(l.asset.id) == SPLIT else 0
 	_expect(units == int(b.chars.s.minted.get(SPLIT, 0)) - int(b.chars.s.consumed.get(SPLIT, 0)), "every unit gathered is in exactly one bag, vault or listing (%d of %d)" % [units, int(b.chars.s.minted.get(SPLIT, 0))])
 	print("[econ-bridge] sale whole=%d units paid=%d partial_buy=%s remainder=%s part_listing=%s order_fill=%s count1=%s" % [n, int(bought.paid), mine.get("err", "ok"), rest.get("err", "ok"), left.get("err", "ok"), fill.get("err", "ok"), one.get("err", "ok")])
+	return true
+
+## Review r5 m4: units the books split off a stack come home through char.grant with the
+## per-instance fields escrow kept (creator, created_at), not just the def and count.
+func _test_grant_fields() -> bool:
+	var b := _rig("grant-fields")
+	_gather(b, 1, "crate", 0, SPLIT, 12)
+	var slot := _slot(b, 1, SPLIT)
+	var row: Dictionary = b.chars.character(1).d.bag[slot]
+	row["creator"] = "Smith" # what W2-INV writes on a crafted stack
+	row["created_at"] = 123
+	var uid := str(_ok(b, "vault.deposit", 1, {"bag_slot": slot}).uid)
+	var lid := str(_ok(b, "market.list_fixed", 1, {"asset": {"uid": uid}, "unit_price": 2, "duration_h": 24}).listing.id)
+	var part: Dictionary = _ok(b, "market.buy", 2, {"listing_id": lid, "count": 3}).get("asset", {})
+	_ok(b, "vault.withdraw", 2, {"uid": str(part.get("uid", ""))})
+	var got: Dictionary = b.chars.character(2).d.bag[_slot(b, 2, SPLIT)] if _slot(b, 2, SPLIT) >= 0 else {}
+	_expect(int(got.get("count", 0)) == 3 and got.get("creator") == "Smith" and int(got.get("created_at", -1)) == 123, "a bought part keeps its creator and created_at in the buyer's bag: %s" % CharacterStore.canon(got))
+	print("[econ-bridge] grant fields part=%s creator=%s created_at=%s" % [part.get("uid", ""), got.get("creator"), got.get("created_at")])
 	return true
 
 ## PRD:131 and spec 06 (vision fix): a processed instance, dried meat with its processing
@@ -470,24 +527,33 @@ func _test_pets_and_cages() -> bool:
 	return true
 
 ## Pack 09 (review r3 m2): a bought pet is a bond forming, so its withdrawal is refused while
-## the buyer's roster is at Data.bonded_cap() and the pet stays in the vault. Sync step: the cap
-## is unlimited until W2-SKILLS merges its single cap function (3 on a server without skill nodes).
+## the buyer's roster is at the cap and the pet stays in the vault. Review r5 m3: a pet coming
+## back from a deposit the vault refused is an old bond, so it comes home even over the cap (a
+## skill reset keeps existing pets, pack 09). CappedBridge sets the cap; at W2-SKILLS' merge
+## VaultBridge._bonded_cap() reads its function and Data.bonded_cap() is 3 here too.
 func _test_bonded_cap() -> bool:
-	var cap := Data.bonded_cap()
-	if cap > 100:
-		print("[econ-bridge] bonded cap: Data.bonded_cap() is %d on this base; the full-roster case runs once W2-SKILLS merges" % cap)
-		return true
-	var b := _rig("bonded")
+	var rig := _rig("bonded", 0, true)
+	var b := CappedBridge.new(rig.econ, rig.chars)
 	var pid := _tame(b, 1, "compy_sold")
 	_ok(b, "vault.deposit", 1, {"pet_uid": pid})
 	var lid := str(_ok(b, "market.list_fixed", 1, {"asset": {"uid": pid}, "unit_price": 40, "duration_h": 24}).listing.id)
 	_ok(b, "market.buy", 2, {"listing_id": lid, "count": 1})
-	for i in cap:
+	for i in b.cap:
 		_tame(b, 2, "compy_own_%d" % i)
 	var roster := (b.chars.character(2).d.pets as Dictionary).size()
 	var refused := _op(b, "vault.withdraw", 2, {"uid": pid})
-	_expect(refused.get("err") == "limit_reached" and b.econ.engine.L.acct(2).vault_pets.has(pid) and (b.chars.character(2).d.pets as Dictionary).size() == roster, "a full roster (%d of %d) refuses a bought pet, which stays in the vault (%s)" % [roster, cap, refused.get("err", "ok")])
-	print("[econ-bridge] bonded cap=%d roster=%d withdraw=%s kept_in_vault=%s" % [cap, roster, refused.get("err", "ok"), b.econ.engine.L.acct(2).vault_pets.has(pid)])
+	_expect(refused.get("err") == "limit_reached" and b.econ.engine.L.acct(2).vault_pets.has(pid) and (b.chars.character(2).d.pets as Dictionary).size() == roster, "a full roster (%d of %d) refuses a bought pet, which stays in the vault (%s)" % [roster, b.cap, refused.get("err", "ok")])
+	# A skill reset lowers the cap under the roster; the vault then faults on a pet deposit.
+	b.cap = 1
+	var own := str((b.chars.character(2).d.pets as Dictionary).keys()[0])
+	var flaky := b.econ.engine as FlakyEngine
+	flaky.target = own
+	flaky.fail["vault.deposit_pet"] = 1
+	print("[econ-bridge] bonded cap: the next ERROR line (deliberate fault in vault.deposit_pet) is deliberate")
+	var dep := _op(b, "vault.deposit", 2, {"pet_uid": own})
+	var home := (b.chars.character(2).d.pets as Dictionary).has(own)
+	_expect(not dep.ok and home and _stuck(b) == "" and (b.chars.character(2).d.pets as Dictionary).size() == roster, "a refused deposit brings the pet home over the cap (%d of %d), the bridge serving: deposit=%s home=%s stuck='%s'" % [roster, b.cap, dep.get("err", "ok"), home, _stuck(b)])
+	print("[econ-bridge] bonded cap=3 roster=%d withdraw=%s kept_in_vault=%s refused_deposit_over_cap=%s home=%s stuck='%s'" % [roster, refused.get("err", "ok"), b.econ.engine.L.acct(2).vault_pets.has(pid), dep.get("err", "ok"), home, _stuck(b)])
 	return true
 
 func _test_crash_recovery() -> bool:
@@ -530,7 +596,7 @@ func _test_crash_recovery() -> bool:
 	b.econ.apply("bridge.begin", 3, {"rid": "crash-6", "uid": puid, "op": "grant"}, T0)
 	var w6 := b.econ.apply("vault.withdraw_item", 3, {"rid": "crash-6", "uid": puid}, T0)
 	var seq6 := int(b.econ.engine.L.acct(3).rid_cache.get("crash-6", [0, 0])[1])
-	b.chars.apply("char.grant", 3, {"asset": w6.get("r", {}).get("item", {}), "rid": "g%d" % seq6}, T0)
+	b.chars.apply("char.grant", 3, {"asset": w6.get("r", {}).get("item", {}), "rid": "%sg%d" % [VaultBridge.RECOVER_RID, seq6]}, T0) # the bridge's own grant rid
 	b = _restart(b, T0 + 6)
 	_expect(_units(b, 3).get(SPLIT, 0) == before + 2 and _broken(b).is_empty(), "a grant cut before bridge.end is not granted twice at boot: %d -> %d" % [before, _units(b, 3).get(SPLIT, 0)])
 	print("[econ-bridge] crash deposit_after_export=landed deposit_before_export=dropped begin_while_marked=%s withdraw_after_receive=finished split_before_settle=settled grant_after_vault=granted grant_before_end=once consistent=%s" % [conflict.get("err", "ok"), _broken(b).is_empty()])

@@ -199,7 +199,16 @@ func _test_bound_wallet_and_trade_lock() -> bool:
 	_err(e, "market.list_fixed", 1, {"asset": {"uid": uid}, "unit_price": 1, "duration_h": 24}, "limit_reached", t, "list inside the trade lock")
 	_err(e, "market.order_create", 2, {"def_id": "stone", "qty": 1, "unit_price": 1, "duration_h": 24}, "limit_reached", t, "order inside the trade lock")
 	t = T0 + 1800
-	_err(e, "market.list_fixed", 1, {"asset": {"uid": uid}, "unit_price": 1, "duration_h": 24}, "insufficient_funds", t, "a listing fee paid from bound coins")
+	# Review r5: a listing fee is a sink, so a bound-only account lists (bound coins pay it) but
+	# cannot buy, bid, buy out or post an order: none of its bound coins reach another account.
+	var lid0 := _list(e, 1, uid, 1, -1, t)
+	var fee := 20 - _wallet(e, 1)
+	_expect(lid0 != "" and fee >= 1 and int(e.L.acct(1).bound) == _wallet(e, 1), "a bound-only account lists, the fee paid from bound coins: wallet %d bound %d" % [_wallet(e, 1), int(e.L.acct(1).bound)])
+	var aid0 := _auction(e, 1, _deposit(e, 1, "stone", 5, 1, t), 1, 3, 24, t)
+	_err(e, "market.buy", 3, {"listing_id": lid0, "count": 1}, "insufficient_funds", t, "a bound-only buy")
+	_err(e, "market.bid", 3, {"listing_id": aid0, "amount": 1}, "insufficient_funds", t, "a bound-only bid")
+	_err(e, "market.buyout", 3, {"listing_id": aid0}, "insufficient_funds", t, "a bound-only buyout")
+	_err(e, "market.order_create", 3, {"def_id": "stone", "qty": 1, "unit_price": 1, "duration_h": 24}, "insufficient_funds", t, "a bound-only order")
 	_ok(e, "wallet.spend", 2, {"reason": "travel", "amount": 5}, t)
 	w = _ok(e, "wallet.get", 2, {}, t)
 	_expect(int(w.wallet) == 15 and int(w.bound) == 15, "wallet.spend pays from the bound part first: %s" % str(w))
@@ -220,7 +229,7 @@ func _test_bound_wallet_and_trade_lock() -> bool:
 	_err(f, "market.order_create", 2, {"def_id": "stone", "qty": 1, "unit_price": 31, "duration_h": 24}, "insufficient_funds", T0, "an order escrow that needs bound coins")
 	var paid := _ok(f, "market.buy", 2, {"listing_id": _list(f, 1, stone, 30, 1), "count": 1})
 	_expect(int(paid.wallet) == 20 and int(f.L.acct(2).get("bound", 0)) == 20, "tradable coins buy; the bound 20 stays: %s" % str(paid))
-	print("[econ] bound start=20 after_spend=15 with_reward=%d lock=%ds buy_bid_order_with_bound=refused" % [int(e.L.acct(2).get("bound", 0)), r.num("trade_lock_s")])
+	print("[econ] bound start=20 after_spend=15 with_reward=%d lock=%ds list_with_bound=ok (wallet %d bound %d) buy_bid_buyout_order_with_bound=refused" % [int(e.L.acct(2).get("bound", 0)), r.num("trade_lock_s"), _wallet(e, 1), int(e.L.acct(1).bound)])
 	return true
 
 func _bad_item(e: MarketEngine, slot: Dictionary, why: String) -> void:
@@ -393,6 +402,11 @@ func _test_withdraw() -> bool:
 	var rec := PetRecord.from_dict(r.pet)
 	_expect(rec.level == 2 and absf(rec.hp - float(pet.hp)) < 0.01, "a withdrawn pet loads as a PetRecord")
 	_err(e, "vault.withdraw_pet", 1, {"uid": pid}, "not_found", T0, "pet withdrawn twice")
+	# Review r5: one uid bound (EconArgs.UID_MAX) for every op, as VaultBridge's vault.withdraw has.
+	var long := "i" + "7".repeat(29)
+	for op: String in ["vault.withdraw_item", "vault.withdraw_pet"]:
+		_err(e, op, 1, {"uid": long}, "not_found", T0, "a 30-character uid is checked like any other")
+	_err(e, "market.list_fixed", 1, {"asset": {"uid": long}, "unit_price": 1, "duration_h": 24}, "not_found", T0, "a 30-character uid is checked like any other")
 	return true
 
 func _test_fixed_listings() -> bool:
