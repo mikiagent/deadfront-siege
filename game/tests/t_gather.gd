@@ -630,6 +630,9 @@ func _test_off_other_nodes() -> void:
 	var cols: Array[Rect2] = [Rect2(c.x - 45.0, c.y - GF.RING_CLEAR - 40.0, 90.0, 40.0)]
 	var block: Array[Rect2] = [Rect2(c.x - 100.0, c.y - GF.RING_CLEAR - 40.0 - 56.0, 200.0, 600.0)]
 	_expect(GF._best_offset(cols, block, c, Vector2(2000, 2000)) == Vector2.INF, "a spot whose nearest edge ends past MAX_SHIFT from the ring is refused")
+	# The survivor (head to the ring at their feet) is kept clear too: a stack under the ring must not cover them.
+	var body: Rect2 = GF.survivor_rect(player)
+	_expect(body.has_area() and GF.taken_rects(player, Vector2(-500, -500)).has(body), "a yield stack keeps off the survivor and their ring (%s)" % body)
 	_finished += 1
 
 ## Two finds announced in the same frame (a unit landing as a pet kills a raptor): both reach the
@@ -747,6 +750,9 @@ func _test_phone_stack() -> void:
 	player.global_position = Vector3(0, 0.9, -30)
 	var at: Vector3 = cam.project_position(Vector2(420, 150), cam.global_position.distance_to(Vector3.ZERO))
 	var a: Vector2 = cam.unproject_position(at)
+	# Both sides taken, as the toasts, plates and pills of a real phone frame leave them: under the ring is the spot.
+	hud.drawn_blocks["toast0"] = Rect2(a.x + 30.0, a.y - 90.0, 160.0, 150.0)
+	hud.drawn_blocks["toast1"] = Rect2(a.x - 190.0, a.y - 90.0, 160.0, 150.0)
 	var plain = GF.popup(player, at, [["+1 Stone", GF.CREAM, false]])
 	await _frames(3)
 	var plain_drawn: bool = is_instance_valid(plain) and plain.visible and not plain.is_queued_for_deletion()
@@ -765,7 +771,8 @@ func _test_phone_stack() -> void:
 	print("[t_gather] 844x390, ring at %s: plain stack drawn %s; rare stack %s at %s, rare line %d px" % [a, plain_drawn, texts, r, big_px])
 	_expect(not plain_drawn, "on a phone a plain stack with no room above the ring is not drawn beside it (the toast says it)")
 	_expect(texts == ["Low Vibration"] and big_px == 18 and r.size.x <= 140.0, "a phone's rare stack is one slim line, the trait alone (%s, %d px, %.0f px wide)" % [texts, big_px, r.size.x])
-	_expect(r.has_area() and not r.intersects(ring) and r.position.y >= 112.0 and gap.x <= GF.MAX_SHIFT and gap.y <= GF.MAX_SHIFT, "a phone's rare stack is drawn beside the ring, off it and the top band (%s, gap %s)" % [r, gap])
+	_expect(r.has_area() and not r.intersects(ring) and r.position.y >= a.y + GF.RING_CLEAR - 1.0 and gap.x <= GF.MAX_SHIFT and gap.y <= GF.MAX_SHIFT, "with the sides taken a phone's rare stack is drawn under the ring, within reach of it (%s, gap %s)" % [r, gap])
+	hud.drawn_blocks.clear()
 	if layer:
 		for b in layer.get_children():
 			b.queue_free()
