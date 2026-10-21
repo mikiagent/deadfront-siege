@@ -24,8 +24,9 @@ Branch `claude/mmo-w2-process`, cut from `claude/mmo-overhaul` 36299a96. Base me
   W2-SKILLS, WATER), dc645889 (hooks patch regenerated), plus the commit carrying this report
 - round 9 (review r3, the findings in this run's prompt): base merge c1af1b83 (946da955: HUD-DAYNIGHT), 255feaa8
   (XP-once check, load capped at capacity, save round trip and done colours in run_all, strip cache), f7ca30df
-  (hooks patch), 65bc16dd + 8f318411 (done colours), b0c0faca (process_lab exact XP), 2eaf0d22 and the commit
-  carrying this report
+  (hooks patch), 65bc16dd + 8f318411 (done colours), b0c0faca (process_lab exact XP), 2eaf0d22 + 3c0a85ad
+  (report), then base merge 8ed948b8 (809be2e8: W2-DATA sync, docs only; `git diff 8f318411 HEAD -- game` is
+  empty, so the gates below hold; the hooks patch still checks clean on 809be2e8 and on the branch)
 
 ## Round 9: review r3 findings
 
