@@ -826,7 +826,8 @@ func _test_look_r2(hs: GDScript, ms_script: GDScript) -> void:
 	var cw: float = mt.call("width", "Branch", cs) + roundf(cs * 0.8) + 38.0
 	var sb := chip.get_theme_stylebox("normal") as StyleBoxFlat if chip else null
 	_expect(chip != null and chip.tooltip_text == "Clear Branch" and chip.text == "" and absf(chip.size.x - cw) < 1.0 and sb.border_width_left == 0 and chip.size.y >= 44.0, "the chip names the item type (Title-Case, from the data), with a large X, no outline, the whole chip a target: '%s' %.0fx%.0f px (%.0f)" % [chip.tooltip_text if chip else "-", chip.size.x if chip else 0.0, chip.size.y if chip else 0.0, cw])
-	_expect(MF.call("chip_text", "zzqx") == "zzqx" and str(MF.call("chip_text", "bone")).begins_with("Bone"), "a search nothing in the data matches keeps the player's words: %s" % MF.call("chip_text", "bone"))
+	var has_chip := MF.get_script_method_list().any(func (m: Dictionary) -> bool: return m.name == "chip_text")
+	_expect(has_chip and MF.call("chip_text", "zzqx") == "zzqx" and str(MF.call("chip_text", "bone")).begins_with("Bone"), "a search nothing in the data matches keeps the player's words: %s" % (MF.call("chip_text", "bone") if has_chip else "no chip_text"))
 	table.emit_signal("chip_removed", &"q")
 	await process_frame
 	_click(_first(table, "item:stone_knife_work"))
