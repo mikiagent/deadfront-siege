@@ -436,10 +436,24 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   finish-6's integrator runs. WATER merged (4cd47f42). Queued: HUD-DAYNIGHT, then DOMAIN, each with a pre-merge polish fix.
 - Backlog: a one-bug Codex job for the Godot exit-time SIGABRT (std::system_error from a mutex lock 0.7-10 s after launch; about 10
   .ips reports; it shows the owner "Godot quit unexpectedly").
+- 2026-10-21 (owner) "as a rule of thumb: make it flashy. Level ups should have light effect animations." Standing art direction:
+  feedback moments (level-ups, crits, rare finds, rewards, unlocks) get light, motion and punch, readable in the web renderer and on
+  phones. Package LEVELFX (light-effect level-up animations).
+- 2026-10-21 (owner) "Also watch out for glitchy movement of UI and player." Standing quality gate: every UI or movement review and every
+  merge checks motion over frame sequences (HUD elements, labels, radials and the player must not jump, snap, stutter or swap sides
+  between frames); a measured glitch is a failure. The side integrator and new package reviews carry the gate.
+- 2026-10-21 (owner) corrections to the 2026-10-20 requests:
+  - Damage numbers, not crit balloons: "Just add damage numbers, make them small and informative but make them bigger if you hit a crit
+    or did a lot of damage", "you want them to kind of expand out and dissipate", "you can make it float up too". COMBATFX is
+    rescoped (wf_1c0f1639-5fc): small numbers that expand outward while fading and float up; crits and big hits are larger;
+    white for damage dealt, red for damage taken; no outline.
+  - "That white triceratops is not acceptable, neither is the blocky stegosaurus." The Triceratops bake-off build is rejected:
+    CREATURE-ART makes a concept sheet first, and the owner approves it before any Tripo spend. The blocky Stegosaurus is the
+    placeholder that STEGO removes, so the shipped Tripo v2 shows.
 
 ## Owner questions (open)
 
-- Female v2 survivor base (PRD: 8 occupations x 2 genders; the shipped v2 is a MAN, the earlier question wrongly said male): a concept sheet for approval, then a Tripo mesh plus refitting the 3 armour kits, about 250 credits? Before or after extra hairstyles (4 Tripo styles, cap 300)? (2026-10-20; unanswered)
+- Female v2 survivor base (PRD: 8 occupations x 2 genders; the shipped v2 is a MAN; an earlier version of this question wrongly asked for a male base): a concept sheet for approval, then a Tripo mesh plus refitting the 3 armour kits, about 250 credits? Before or after extra hairstyles (4 Tripo styles, cap 300)? (2026-10-20; unanswered)
 - Painted portrait set like Durango's (15+ faces): new art; which source, if any? Until then portraits are rendered from the player's model.
 - Island size target (asked 2026-10-20; unanswered): match Durango (~300 x 375 m, recommended), the design doc (160 home / 240 unstable), or keep ours (134 home / 406 unstable) with ragged shapes only? ISLANDSHAPE waits for it.
 
