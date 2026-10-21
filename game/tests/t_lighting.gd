@@ -31,6 +31,7 @@ func _process(_delta: float) -> bool:
 	_test_fallback_colours()
 	_test_rain_streaks()
 	_test_env_reused(host, wl)
+	_test_sun_moves_every_frame(wl)
 	if failures.is_empty():
 		print("[t_light] PASS")
 		quit(0)
@@ -188,3 +189,16 @@ func _test_env_reused(host: Node3D, wl) -> void:
 	var sky: Sky = env.sky
 	var wl2 = WL.install(host, "temperate")
 	_check(wl2.world_env.environment == env and wl2.world_env.environment.sky == sky, "second install built a new Environment or Sky")
+
+## Owner 2026-10-21: the sun ticked in half-second steps instead of gliding. A time step far below
+## TOD_STEP must still move the sun on the next frame, while the sky colours wait for a full step.
+func _test_sun_moves_every_frame(wl) -> void:
+	var game: Node = get_root().get_node("Game")
+	wl.drive(0.4)
+	var before: Vector3 = (wl.sun as DirectionalLight3D).rotation_degrees
+	var sky_before: Color = wl._sky_mat.sky_top_color
+	game.time_of_day = 0.4 + WL.TOD_STEP * 0.1
+	wl._process(0.016)
+	var after: Vector3 = (wl.sun as DirectionalLight3D).rotation_degrees
+	_check(not after.is_equal_approx(before), "sun did not move on a sub-step frame (it ticks every TOD_STEP)")
+	_check(wl._sky_mat.sky_top_color == sky_before, "sky colours rewritten on a sub-step frame (sky radiance update every frame)")

@@ -11,8 +11,8 @@ const DUSK := 0.72
 const NIGHT := 0.80
 ## The key light never drops below this, so it never points up from under the horizon.
 const MIN_ELEVATION_DEG := 6.0
-## drive() skips steps smaller than this (half a second of a 720 s day): every write to the
-## sky colours forces a sky radiance update.
+## The sky and fog colours update only on steps at least this large (half a second of a 720 s
+## day): every write to the sky colours forces a sky radiance update. The lights update every frame.
 const TOD_STEP := 1.0 / 1440.0
 
 ## Used when lighting.json is missing or malformed, so a bad edit dims nothing to black.
@@ -66,8 +66,9 @@ static func profile_for(climate: String) -> Dictionary:
 	return out
 
 func _process(_delta: float) -> void:
-	if absf(Game.time_of_day - _last_tod) >= TOD_STEP:
-		drive(Game.time_of_day)
+	# The lights move every frame so the sun and its shadows glide; the sky and fog colours, whose
+	# writes force a sky radiance update, still change only once per TOD_STEP.
+	drive(Game.time_of_day, absf(Game.time_of_day - _last_tod) >= TOD_STEP)
 	fit_shadows(get_viewport().get_camera_3d())
 
 ## Godot ignores directional_shadow_max_distance for orthographic cameras and spreads the
@@ -183,10 +184,12 @@ func _make_light(light_name: String) -> DirectionalLight3D:
 	return l
 
 ## Sun path, colour and energy, the moon, ambient, fog and sky for tod (0 = midnight).
-func drive(tod: float) -> void:
+## sky=false moves only the lights (per frame); the environment and sky follow on the next step.
+func drive(tod: float, sky: bool = true) -> void:
 	if sun == null:
 		return
-	_last_tod = tod
+	if sky:
+		_last_tod = tod
 	var day_t := clampf((tod - DAWN) / (NIGHT - DAWN), 0.0, 1.0)
 	var sun_up := smoothstep(DAWN - 0.02, DAWN + 0.03, tod) * (1.0 - smoothstep(NIGHT - 0.03, NIGHT + 0.02, tod))
 	# Warm inside the dawn and dusk phases only: it fades out over the last 0.04 of dawn and in
@@ -208,7 +211,7 @@ func drive(tod: float) -> void:
 	# through dawn and dusk; the moon casts once the sun has set.
 	moon.shadow_enabled = not sun.visible
 	var e := world_env.environment if world_env else null
-	if e == null:
+	if e == null or not sky:
 		return
 	var dusk_w := warm * sun_up
 	e.ambient_light_energy = lerpf(_f("ambient_energy"), _f("ambient_night_energy"), night)
