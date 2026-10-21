@@ -639,6 +639,9 @@ Base sync (twice; W2-INV is still not merged into claude/mmo-overhaul, whose tip
   W2-SKILLS' rev-2 skills_v2). Merged as 9343857b; the delta of its hooks patch is only the two instance-golden fixtures,
   re-applied together with W2-INV's own t_save hunk (1e64e008), so t_save and both instance goldens here are now exactly
   W2-INV's base + hooks (my first t_save resolution, which kept the instance goldens rev-1, is gone).
+- Not merged in this step: W2-INV ecf6ccf0 (review 4: def rarity as a spend key after traits; inventory.gd,
+  data/inventory.json, t_inventory), committed after this step's gates had started. The next step's sync takes it; it
+  touches inventory.gd, where INVUI's hook adds presets, lock skips and the span uid, so the hooks patch is re-checked then.
 
 Shipped (c1b5c231, abba023e, be5f123f, a8613495 and this report; all under `game/` unless named):
 - `scripts/ui/inv_motion.gd` (InvMotion, new): restrained motion (spec 13 s20). Screens fade in over 110 ms when they
