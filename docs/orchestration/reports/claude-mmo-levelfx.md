@@ -14,7 +14,8 @@ Branch `claude/mmo-levelfx` from `claude/mmo-overhaul` (ddaab662), merged with `
 - `3b2abb7e` merge of claude/mmo-overhaul 946da955 (HUD-DAYNIGHT touched hunt_hud.gd and ui_real_capture_lab.gd)
 - `84faa60d` hooks patch regenerated on 946da955
 - `d7da2009` rings lifted off bumpy ground, glow behind the level on the phone banner
-- the last commit: hold times (6 s / 4 s), lab drain waits for queued level-ups, this report
+- `dbb1dd57` hold times (6 s / 4 s), lab drain waits for queued level-ups, report draft
+- the last commit: final gates, shots and numbers in this report
 
 Credits spent: none (no Meshy, no Tripo). No audio.
 
@@ -68,8 +69,10 @@ Shots, windowed, from levelfx_lab on the home island beside the camp. Each is ta
 mid-way (1.1 s), by day (0.45) and by night (0.93):
 
 - BEFORE (base 1eb5cafd = ddaab662 + lab): `/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/levelfx/shots/before/{1600x900_fwd,1600x900_glc,844x390_glc}/{char,skill}_{day,night}_{peak,mid}_<w>x<h>.png`
-- AFTER (d7da2009 + hooks): `.../scratchpad/levelfx/shots/after/{1600x900_fwd,1600x900_glc,844x390_glc}/...` (same names)
-- Real-UI gate shots: `.../scratchpad/levelfx/uireal3/{1600x900_glc,844x390_glc}/{levelup,skill_levelup,busy_levelup}_<w>x<h>.png`
+- AFTER (dbb1dd57 + hooks, the final code): `.../scratchpad/levelfx/final/{1600x900_fwd,1600x900_glc,844x390_glc}/...` (same names).
+  An earlier AFTER set (d7da2009 + hooks) is in `.../levelfx/shots/after/`; the last commit changed only hold times, so the
+  0.5 s and 1.1 s frames match.
+- Real-UI gate shots: `.../scratchpad/levelfx/uireal5/{1600x900_glc,844x390_glc}/{levelup,skill_levelup,busy_levelup}_<w>x<h>.png`
 
 I opened every one, next to the two references:
 
@@ -95,12 +98,16 @@ levelfx_lab records every frame:
 
 | Sequence | 1600x900 Forward+ | 1600x900 gl_compat | 844x390 gl_compat |
 |---|---|---|---|
-| burst (one grant: 2 character levels, gathering, survival), 8.6 s | 1034 frames; order `character:7, skill:survival:7, skill:gathering:7`; max 1 light alive; block jump 0.00 px; camera offset 0; camera jerk 0.00 m/s | 1039 frames, same order and values | 1181 frames, same order and values |
+| burst (one grant: 2 character levels, gathering, survival), 10 s | 1202 frames; order `character:7, skill:survival:7, skill:gathering:7`; max 1 light alive; block jump 0.00 px; camera offset 0; camera jerk 0.00 m/s; light off her feet 0.0000 m | 1327 frames, same order and values | 1342 frames, same order and values |
 | level-up while walking 14 m (1.5 s) | light off her feet max 0.0000 m; camera shake offset 0.0000; HUD block jump 0.00 px | same | same |
-| camera velocity jerk, walk without vs with a level-up | 0.22 vs 0.21 m/s | 20.40 vs 35.48 m/s | 19.80 vs 6.60 m/s |
+| camera velocity jerk, walk without vs with a level-up | 0.21 vs 49.64 m/s | 25.34 vs 23.78 m/s | 16.07 vs 30.15 m/s |
 
-The last row is reported, not gated. On the windowed gl_compatibility runs the per-frame camera step follows uneven frame
-pacing, and that happens with or without a level-up (the calm walk scores 20 m/s on its own). The level-up adds no camera
+These are the final runs (dbb1dd57 + hooks, logs `final_{fwd,glc,phone}.log`). The last row is reported, not gated: it is
+the camera's per-frame step divided by that frame's delta, so one late frame spikes it, with or without a level-up (the calm
+gl_compatibility walk scores 25 m/s on its own). The Forward+ 49.64 is one such frame: that run hit a 62 ms frame as a
+level-up started and a 58 ms frame while idle, with the machine at load average 13 (other agents' Godot runs). Six dedicated
+Forward+ samples (`--cost-only --disable-vsync`, twice) never went over 10.04 ms on a level-up frame (see Cost), and an earlier
+Forward+ run scored 0.22 vs 0.21 m/s. The level-up adds no camera
 input: `trauma` and `h_offset`/`v_offset` stay 0 in every frame (t_levelfx checks it), and nothing in the package touches
 the camera. The HUD celebration's rect comes from fixed anchors: only the pop scale and the line slide move, and the
 recorded block is identical every frame while one level-up shows.
@@ -116,8 +123,11 @@ range; the meshes are 1 cylinder (24 segments, no caps) and 4 quads/planes; ther
 | 844x390 gl_compat, `--disable-vsync --cost-only`, 3 samples | 8.03 / 7.95 / 5.87 ms | 7.07 / 8.43 / 6.24 ms (max 15.13) | 3.02-3.35 / 3.03-3.82 ms | 180 / 200 (263) |
 | 1600x900 gl_compat (after_glc.log) | 8.69 ms (10.09) | 8.46 ms (11.73) | 3.14 / 2.98 ms | 257 / 286 (290) |
 | 1600x900 Forward+ (after_fwd.log) | 8.33 ms (8.33) | 8.33 ms (8.33) | 0.31 / 0.28 ms | 278 / 306 (309) |
+| final runs, vsync: 844x390 gl_compat / 1600x900 gl_compat / 1600x900 Forward+ | 9.67 (14.80) / 8.19 (14.86) / 8.91 (58.33) ms | 9.50 (14.77) / 9.25 (14.54) / 8.86 (61.68) ms | 3.77/3.83, 3.16/3.52, 0.38/0.34 ms | 265/294, 266/295, 279/308 |
+| 1600x900 Forward+, `--disable-vsync --cost-only`, 6 samples (cost_fwd_{1,2}.log) | 8.33-8.35 ms (max 9.67) | 8.32-8.34 ms (max 10.04) | 0.29-0.32 / 0.30-0.34 ms | 254-262 / 285-291 (294) |
 
-There are about 28 more draw calls while it plays and no frame over 25 ms in any run. **Found and fixed on the way**: the first
+There are about 29 more draw calls while it plays. The only frames over 25 ms were the two in the final Forward+ run (58 ms
+idle, 62 ms level-up), taken under load; none of the six dedicated Forward+ samples or any gl_compatibility run had one. **Found and fixed on the way**: the first
 build gave every level-up a fresh `StandardMaterial3D` for its sparkles. Godot frees a BaseMaterial3D's generated shader with
 the last material that uses it, so every level-up recompiled it: one 118-131 ms frame per level-up on gl_compatibility
 (`--cost-only`, 3 of 3 samples). The sparkle quad and its material are now built once per session (`LevelUpFx._spark_mesh`),
@@ -127,18 +137,21 @@ Mac's gl_compatibility.
 
 ## Gates
 
-All with the hooks applied, in `mkscratch.sh levelfx-gates claude/mmo-levelfx docs/orchestration/reports/claude-mmo-levelfx-hooks.patch`
-(branch at d7da2009, `--import` done, 0 SCRIPT ERROR in its import log), then rerun after the last commit (see the end of
-this section):
+All on the final code with the hooks applied. Headless gates: `mkscratch.sh levelfx-gates claude/mmo-levelfx
+docs/orchestration/reports/claude-mmo-levelfx-hooks.patch` (made after dbb1dd57, "Applied patch ... cleanly" for all 4 files,
+`--import` done), logs in `.../scratchpad/levelfx/gates4/`. Windowed gates: this work tree at dbb1dd57, whose uncommitted
+diff is exactly the hooks patch (diffed, identical apart from index lines), logs `uireal5_{desk,phone}.log` and
+`final_{fwd,glc,phone}.log`.
 
 | Gate | Result |
 |---|---|
-| every `game/tests/t_*.gd` (23 files) | see below |
-| `run_all.gd` | see below |
-| `tools/smoke.sh --no-import` | see below |
-| `ui_real_capture_lab` 1600x900 gl_compat | exit 0, `[uireal] PASS screens=hud,hud_daynight,craft,skills,atlas,radial,sheet_menu,sheet_build,levelup,skill_levelup,...`, 0 SCRIPT ERROR |
-| `ui_real_capture_lab` 844x390 gl_compat | exit 0, `[uireal] PASS screens=hud,hud_daynight,...,levelup,skill_levelup,...,busy_levelup,...`, 0 SCRIPT ERROR |
+| every `game/tests/t_*.gd` (24 files) | 24 of 24 exit 0 and print PASS; 0 SCRIPT ERROR except t_save's 5 deliberate ones |
+| `run_all.gd` | exit 0, `[tests] PASS`, 0 SCRIPT ERROR |
+| `tools/smoke.sh --no-import` | exit 0, `SMOKE PASS` |
+| `ui_real_capture_lab` 1600x900 gl_compat | exit 0, `[uireal] PASS screens=hud,hud_daynight,craft,skills,atlas,radial,sheet_menu,sheet_build,levelup,skill_levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals`, 0 SCRIPT ERROR |
+| `ui_real_capture_lab` 844x390 gl_compat | exit 0, same PASS line, 0 SCRIPT ERROR |
 | `levelfx_lab` 1600x900 Forward+, 1600x900 gl_compat, 844x390 gl_compat | each `[levelfx] PASS shots=8`, exit 0, 0 SCRIPT ERROR |
+| `git apply --check` of the hooks patch on `claude/mmo-overhaul` 809be2e8 (its head at the end) | clean |
 
 t_levelfx (37 checks, `[t_levelfx] PASS`):
 
@@ -147,7 +160,7 @@ t_levelfx (37 checks, `[t_levelfx] PASS`):
   `character:4`; the light flares (peak 7.0); it frees itself (survivor children 19 before and after); the HUD block is drawn
   for 334 frames and moves 0.00 px; camera offset 0, trauma 0, camera moved 0.0000 m
 - skill level-up: survival rises a level; one light, kind skill, a ring and no pillar; 18 < 44 sparkles; the HUD shows
-  `skill:survival:2`; a weaker light (3.0 < 7.0); it frees itself; the banner is drawn 247 frames and moves 0.00 px; no shake
+  `skill:survival:2`; a weaker light (3.0 < 7.0); it frees itself; the banner is drawn 276 frames and moves 0.00 px; no shake
 - burst: one gathering grant gives two character levels and gathering levels, with survival banked at its cap; queued as
   `character::6`, `skill:survival:6`, `skill:gathering:6` (merged); shown in that order; max 1 light; 0 early starts; 0.00 px;
   camera still; the second character light reuses the first one's sparkle quad; everything ends on its own
@@ -159,8 +172,6 @@ copied in, it exits 1: `FAIL the HUD holds a level-up queue (_levelups)`, `FAIL 
 `FAIL skill level-up: one light effect (got 0)`, `FAIL mounted: a level-up while riding plays one light, on the mount (0,
 parent none)`, `FAIL count=4`. levelfx_lab on the base fails too: no light on either level-up, no skill celebration, and
 the burst shows only `character:7`.
-
-GATES_PLACEHOLDER
 
 ## Assumptions (marked `# ASSUMPTION:` in code)
 
