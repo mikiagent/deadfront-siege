@@ -650,3 +650,13 @@ Implement the UI directly in the existing game and report:
 When possible, capture screenshots of the implemented Bag and Character equipment screens and compare them side by side with the original references.
 Prioritize visual fidelity and functional completeness together.
 Do not stop at design descriptions or mockups. Build the working interface in the current project.
+
+<!-- Addendum, 2026-10-20. Owner's words, verbatim: "Another example of the inventory menu". Reference:
+     docs/reference/durango-storage-transfer.webp. Orchestrator's reading follows.
+     - Storage view: tabs "Bag 61 / 200" and "Small Box 75 / 80". The active tab is gold.
+     - Header "1 Select": a multi-select mode that counts the selected items, and a selected item shows a gold check.
+     - A left column of category filter icons (all, tools, leaves, knives, ...).
+     - Grid cells show "Lv. 60" at the top right, and small gold/grey pips under the icon.
+     - A grey tooltip over someone else's box: "this box belongs to someone else - cannot take".
+     - Right panel: a gold title band "Iron Ore", the icon and "Lv. 60", durability "100/100", a hammer "x3" for processing count, family chips (Chunk, Iron, Ore, Rock), attribute chips "Firm Lv. 4" in gold and "Heavy Lv. 2" in grey, and an Info section.
+     - Toolbar: Auto Sort with a caret, then select-many, select-all, search, lock and trash, plus a yellow "Transfer to Bag" button. -->
