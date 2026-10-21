@@ -120,6 +120,14 @@ func _test_data_ids() -> void:
 				# tier_index reads an unknown name as stone: a typo would open the row to every tool.
 				if row.has("min_tool_tier"):
 					_expect(StringName(str(row["min_tool_tier"])) in PS.TOOL_TIERS, "%s/%s min_tool_tier '%s' is a ProgressionScaling tier" % [k, row["item"], row["min_tool_tier"]])
+				# A find never opens an item below the pick tier its own node needs (W2-DATA's ladder).
+				var need_idx := -1
+				for fam in data.nature_families:
+					var gate: Dictionary = data.nature_families[fam].get("min_pick_tier", {})
+					if gate.has(str(row["item"])):
+						need_idx = maxi(need_idx, PS.TOOL_TIERS.find(StringName(str(gate[str(row["item"])]))))
+				var row_idx := PS.TOOL_TIERS.find(StringName(str(row.get("min_tool_tier", "")))) if row.has("min_tool_tier") else -1
+				_expect(row_idx >= need_idx, "%s/%s find gate '%s' is not below its nodes' min_pick_tier (%s)" % [k, row["item"], row.get("min_tool_tier", "none"), PS.TOOL_TIERS[need_idx] if need_idx >= 0 else "none"])
 	var gates: Dictionary = LT.butcher_cfg().get("part_min_tier", {})
 	for k in gates:
 		if data.item(StringName(str(k))) == null:
@@ -173,11 +181,15 @@ func _rate(family: String, role: String, tier: StringName, item: StringName, n: 
 	return float(hits) / float(n)
 
 func _test_gather_rares() -> void:
-	var bare := _rate("Rock", "rock", &"", &"flint", 20000, 7)
+	var bare := _rate("Rock", "rock", &"", &"flint", 5000, 7)
+	var stone := _rate("Rock", "rock", &"stone", &"flint", 5000, 7)
+	var bone := _rate("Rock", "rock", &"bone", &"flint", 20000, 7)
 	var obs := _rate("Rock", "rock", &"obsidian", &"flint", 20000, 7)
-	print("[t_gather] flint per stone unit: bare %.4f obsidian pick %.4f (data 0.05)" % [bare, obs])
-	_expect(absf(bare - 0.05) < 0.008, "bare-hand flint find rate matches the 0.05 data odds (got %.4f)" % bare)
-	_expect(obs > bare * 1.3, "a better pick raises the find rate")
+	print("[t_gather] flint per stone unit: bare %.4f stone %.4f bone pick %.4f obsidian pick %.4f (data 0.05 x 1.15 per tier)" % [bare, stone, bone, obs])
+	# FlintNode gates flint behind a bone pick (W2-DATA ladder): a find never skips that rung.
+	_expect(bare == 0.0 and stone == 0.0, "flint never drops below the bone pick FlintNode needs (bare %.4f, stone %.4f)" % [bare, stone])
+	_expect(absf(bone - 0.0575) < 0.008, "bone-pick flint find rate matches the 0.05 data odds plus one tier bonus (got %.4f)" % bone)
+	_expect(obs > bone * 1.15, "a better pick raises the find rate")
 	_expect(_rate("Rock", "rock", &"flint", &"copper_ore", 5000, 3, "desert") == 0.0, "copper_ore never drops below its obsidian tool gate")
 	_expect(_rate("Rock", "rock", &"obsidian", &"copper_ore", 20000, 3, "desert") > 0.0, "copper_ore drops with an obsidian pick")
 	# world-design s4: each climate gives its own materials. Home grassland rock: no flint, no copper.

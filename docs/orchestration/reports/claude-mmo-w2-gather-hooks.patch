@@ -44,7 +44,7 @@ index 13185501..366331ed 100644
  		_on_loot_empty()
  
 diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
-index 3bfbb398..8ed34f55 100644
+index b2f961bc..79f6f7c8 100644
 --- a/game/scripts/player/player_actions.gd
 +++ b/game/scripts/player/player_actions.gd
 @@ -179,6 +179,7 @@ func finish_gather() -> void:
@@ -55,7 +55,7 @@ index 3bfbb398..8ed34f55 100644
  	if p._gather_radial and p._gather_radial.is_open():
  		p._gather_radial.refresh()
  	print("[item] +%d %s %s (pool %d/%d)" % [gained, stack.def_id, attrs, gt.pool_units_left(), gt.pool_max])
-@@ -193,16 +194,10 @@ func finish_gather() -> void:
+@@ -194,16 +195,10 @@ func finish_gather() -> void:
  	_start_gather_cycle(_scaled_gather_seconds(gt))
  
  func _scaled_gather_seconds(node: HarvestNode) -> float:
@@ -74,16 +74,16 @@ index 3bfbb398..8ed34f55 100644
  
  func _start_gather_cycle(seconds: float) -> void:
  	p._gathering = true
-@@ -404,6 +399,7 @@ func loot(corpse: Corpse, slot: int) -> int:
- 		p.skills.add_xp("butchering", 3)
+@@ -406,6 +401,7 @@ func loot(corpse: Corpse, slot: int) -> int:
  	else:
  		World.add_xp(3)
+ 	WaterAccess.soil(p, &"butcher")
 +	ButcherLoot.on_take(corpse, p)  # W2-GATHER: a rare part pays its XP to the survivor who took it
  	p.toast(def_id, moved)
  	return moved
  
 diff --git a/game/scripts/server/intent_handlers.gd b/game/scripts/server/intent_handlers.gd
-index 0bbbcb56..f322d812 100644
+index d19f8337..f374d493 100644
 --- a/game/scripts/server/intent_handlers.gd
 +++ b/game/scripts/server/intent_handlers.gd
 @@ -114,7 +114,9 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
@@ -121,7 +121,7 @@ index 0bbbcb56..f322d812 100644
  ## act.loot {corpse_id, slot, count?}: move a corpse slot (or part of it) into the bag.
  func _loot(ch: CharacterState, a: Dictionary) -> Dictionary:
 diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
-index 80b01e5b..70bd792b 100644
+index ed0b7728..8030bb47 100644
 --- a/game/scripts/ui/hunt_hud.gd
 +++ b/game/scripts/ui/hunt_hud.gd
 @@ -563,8 +563,14 @@ func _draw_bites(cam: Camera3D) -> void:
@@ -140,7 +140,7 @@ index 80b01e5b..70bd792b 100644
  
  func toast(id: StringName, n: int) -> void:
  	print("[ui] toast %s +%d" % [id, n])
-@@ -1120,15 +1126,24 @@ func _draw() -> void:
+@@ -1123,15 +1129,24 @@ func _draw() -> void:
  	# --- notices (refusals, hints) under the toasts, centre-top
  	for i in _events.notices.size():
  		var n: Dictionary = _events.notices[i]

@@ -12,13 +12,13 @@
     "tool_tier_bonus": 0.15,
     "skill_bonus_per_level": 0.0,
     "max_chance": 0.5,
-    "_climates": "A find rolls only on a node whose island climate lists it, and every listed climate's materials (data/world/climates.json, docs/design/world-design.md:66-75) contain the item (t_gather checks). A row never rolls on a node whose own harvest (nature_manifest.json) has that item: a find is a different material, never more of the node's yield. Home grassland has no find: each of its materials is some home node's own yield, so its rare results are rare_trait only.",
+    "_climates": "A find rolls only on a node whose island climate lists it, and every listed climate's materials (data/world/climates.json, docs/design/world-design.md:66-75) contain the item (t_gather checks). A row never rolls on a node whose own harvest (nature_manifest.json) has that item: a find is a different material, never more of the node's yield. A find's min_tool_tier is never below the pick tier a nature node needs for the same item (nature_manifest min_pick_tier, W2-DATA's ladder; t_gather checks), so a find never skips a rung. Home grassland has no find: each of its materials is some home node's own yield, so its rare results are rare_trait only.",
     "by_role": {
       "tree": [{"item": "resin", "chance": 0.04, "climates": ["tundra"]}],
       "tree_dead": [{"item": "resin", "chance": 0.03, "climates": ["tundra"]}],
       "prop": [{"item": "resin", "chance": 0.02, "climates": ["tundra"]}],
       "rock": [
-        {"item": "flint", "chance": 0.05, "climates": ["temperate"]},
+        {"item": "flint", "chance": 0.05, "min_tool_tier": "bone", "climates": ["temperate"]},
         {"item": "copper_ore", "chance": 0.015, "min_tool_tier": "obsidian", "climates": ["desert"]}
       ]
     },
