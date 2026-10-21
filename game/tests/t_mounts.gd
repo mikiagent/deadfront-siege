@@ -122,8 +122,7 @@ func _run() -> void:
 			fails.append("T. rex saddle missing: %s" % f)
 	if counts["saddled"] < 5:
 		fails.append("only %d species carry a saddle (need at least 5)" % counts["saddled"])
-	if counts["skipped"] == 0:
-		fails.append("mounts_skip.json is empty: no species was measured too small")
+	# An empty skip list is fine: the owner had the one small mount (zebraceratops) scaled up and saddled.
 	print("[tmount] saddled=%d skipped=%d" % [counts["saddled"], counts["skipped"]])
 	if fails.is_empty():
 		print("PASS t_mounts")
