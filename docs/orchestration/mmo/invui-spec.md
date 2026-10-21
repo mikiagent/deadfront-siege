@@ -58,8 +58,8 @@ All new UI files are flat in `game/scripts/ui/` (t_uiicons and t_ui scan that fo
 | Character -> Gear | `scripts/ui/character_screen.gd` | CharacterScreen | Portrait, name, XP bar, powers, Detailed Stats; Gear tab, presets, 3x3, candidates + Unequip (ref 2) |
 | Detailed Stats panel | `scripts/ui/detailed_stats_panel.gd` | DetailedStatsPanel | Real stats only, grouped (combat / crafting / gathering / survival) |
 | Equipment / My Info | `scripts/ui/equipment_screen.gd` | EquipmentScreen | 3x3, My Info Attack / Defense / Accuracy, hex row, candidates + compare + Equip (ref 3) |
-| Storage / cargo split | `scripts/ui/storage_screen.gd` | StorageScreen | Bag grid beside a container grid, per-side capacity, filters, Store / Take / Take all |
-| Craft / cook ingredient picker | `scripts/ui/item_picker.gd` | ItemPicker | Filtered grid of a recipe slot's candidates, exact instances, least valuable preselected, warning |
+| Storage / cargo split | `scripts/ui/storage_screen.gd` | StorageScreen | Bag grid beside a container grid, each with its capacity strip and its own Auto Sort / Filter toolbar; the ItemInspectPanel on the right shows the instance tapped last with its move (Store / Take / Take All) as the yellow primary (B3) |
+| Craft / cook ingredient picker | `scripts/ui/item_picker.gd` | ItemPicker | The Bag layout over one recipe slot's candidates (InventoryGrid `only`), exact instances, least valuable preselected, warning line, yellow Use (B3) |
 | Family host / router | `scripts/ui/inventory_ui.gd` + `scenes/ui/inventory.tscn` | InventoryUI | Keeps its public API (section 4) and hosts the screens as its own children; shrinks from 810 lines |
 | Data | `data/inv_ui.json` | - | Sort keys, filter groups, attribute classes, 3x3 layout + silhouettes, preset unlock levels, power groups, picker warn level |
 | Lab | `scripts/dev/bag_ui_lab.gd`, `scenes/dev/bag_ui_lab.tscn` | - | Deterministic 91/100 survivor; `--screen=` shots; headless contract check and open times |
@@ -142,7 +142,8 @@ without `_ready`): `bind(inv, player)` (idempotent: guard `is_connected`, raid_g
 player, opts)` and `show_pet_bag(rec)` (same opts keys: title, take_all, allow_deposit, readonly_reason, on_take,
 on_empty), `hide_ui()`, `rebuild()`, `visible`, `inventory`, `pet_bag`, `_selected`, `_storage_opts`, `_can_store_selected()`,
 `_select(i)`, `_store_selected()`, `_take_storage(i)`. New: `open_bag()`, `open_character()`, `open_equipment(slot := &"")`,
-`open_picker(rid: StringName, slot_index: int, on_pick: Callable)`, `select_uid(uid: String)`, `current_screen() ->
+`open_picker(rid: StringName, slot_index: int, on_pick: Callable, taken := [], on_close := Callable())` (B3: `taken` = bag
+slots the recipe's other slots use; `on_close` runs once when the picker closes, picked or not), `select_uid(uid: String)`, `current_screen() ->
 StringName` (&"bag", &"character", &"equipment", &"storage", &"cargo", &"picker"). The `shot_path contains "bag"`
 auto-open in `_ready` goes (labs open screens explicitly).
 
@@ -159,7 +160,8 @@ auto-open in `_ready` goes (labs open screens explicitly).
 | CapacityIndicator | `bind(inv)`, `label_text()`, `is_full()`, `count_color()` |
 | ItemInspectPanel | `show_stack(stack, ctx)`, `title_text()`, `rows() -> PackedStringArray`, `section_color(cls)`, `actions() -> Array[StringName]`; contextual action buttons are in group `inv_contextual` (56 px gate) |
 | GearPresets | `static unlocked_count(level) -> int`, `static capture(inv, k)`, `static apply(player, k) -> String` ("" = done, else the refusal), `static active(inv) -> int`, `static sanitize(raw) -> Dictionary` |
-| ItemPicker | `open(inv, rec, slot_index, on_pick: Callable)` (on_pick gets `Array[int]` exact bag slots, length = slot count), `candidates()`, `preselected_index()`, `choose(index)`, `warning_text()`, `confirm()` |
+| ItemPicker | `open(inv, rec, slot_index, on_pick: Callable, taken := [])` (on_pick gets `Array[int]` exact bag slots covering the slot's count, every one needed), `candidates()`, `preselected_index()`, `choose(index)`, `chosen()`, `is_complete()`, `warning_text()`, `confirm()` |
+| StorageScreen (B3) | `setup(bag, box, title, player, kind)`, `set_actions(can_store, can_take, can_take_all, note, store_why := "")`, `bag_grid`, `box_grid`, `bag_bar`, `box_bar`, `inspect`, `action_button(action) -> Button` |
 | BagScreen | `bind(inv, player)`, `select_index(i)`; laid out from its own size (full-rect child) |
 
 ## 5. Data each element reads
@@ -212,10 +214,11 @@ sync; applied uncommitted in the work tree for local testing, the way ECON does,
 |---|---|---|
 | `scripts/player/player_actions.gd` (W2-PLAYER) | `equip_at`, `unequip` (B2: `&"tool"` lets go of the held tool offline; online it already sends `act.equip {slot: "tool", clear: true}`), `hold_tool`, `set_locked`; `eat` online body `{bag_slot}`; `craft(rid, count, picks := [])` | B1/B2/B3 |
 | `scripts/items/inventory.gd` (W2-INV) | `var presets: Dictionary`; `extras_to_dict` writes `"presets"` only when non-empty; `extras_from_dict` reads it through `GearPresets.sanitize`; `find_first` / `consume` / `consume_by_category` / `find_by_category` skip locked instances; a span item (cage) gets a uid like every other instance (`_mint` on the span path of `add`) | B1/B2 |
-| `scripts/items/crafting.gd` (W2-INV / W2-PROCESS) | locked instances never picked by `default_picks`/`_plan` and refused in `picks_valid`/`consume_for_craft` (B1, t_invui 11); picks entries may be `int` (lead, as today) or `Array[int]` (exact slots, count long), `Array` param types (B3) | B1/B3 |
-| `scripts/items/station_craft.gd` | `begin(rid, count, picks := [])`: the first job uses validated picks instead of `default_picks` (W2-PROCESS's ProcessStation already takes picks) | B3 |
+| `scripts/items/crafting.gd` (W2-INV / W2-PROCESS) | locked instances never picked by `default_picks`/`_plan` and refused in `picks_valid`/`consume_for_craft` (B1, t_invui 11); picks entries may be `int` (lead, as today) or `Array[int]` (exact slots: each one spent, nothing else, a chosen slot the recipe does not need refuses the plan), `Array` param types, `lead_of(pick)`, public `plan(inv, rec, picks)` (B3) | B1/B3 |
+| `scripts/items/station_craft.gd` | `begin(rid, count, picks := [])`: refuses picks that cannot make it; keeps the chosen instances by uid (survives other slots changing while the survivor walks); the first job spends exactly those, later jobs of a batch and radial crafts take the default; a chosen instance that left the bag stops the craft ("its materials left the bag") | B3 |
 | `scripts/player/player.gd` | `craft_recipe(rid, count, picks := [])` passes picks | B3 |
-| `scripts/ui/craft_ui.gd` (W1-UI) | tapping an ingredient row opens `player.ui.open_picker(rid, slot, cb)`; the chosen picks travel to `craft_recipe` | B3 |
+| `scripts/player/player_actions.gd` (B3 part) | `craft(rid, count, picks := [])`: offline to `StationCraft.begin`; online `act.craft` gets one lead slot per recipe slot (`Crafting.lead_of`; the server's existing contract, it spends the rest least valuable first) | B3 |
+| `scripts/ui/craft_ui.gd` (W1-UI) | the detail pane's ingredients are 44 px buttons that open `player.ui.open_picker(rid, slot, cb, taken, on_close)` (the menu steps aside and comes back on the recipe); the chosen instances are kept by uid and show in gold ("Berry Lv. 25"); Craft passes them to `craft_recipe`; when the default would spend an instance with traits in a slot the player did not choose (`Crafting.plan`, W2-INV `Inventory.traits`), Craft opens the picker on that slot instead | B3 |
 | `scripts/core/save_game.gd` | before `player.inventory.load_array(...)`: `InvNewTracker.rebaseline(player.inventory)` | B1 |
 | `scripts/core/save_sanitizer.gd` | `inventory_extras.presets` in SHAPE (Dictionary) | B2 |
 | `scripts/ui/hunt_hud.gd` (W1-UI) | one line in the Menu sheet: `_sheet_btn(box, "Character", ...)` -> `player.ui.open_character()`; the "Bag" entry calls `open_bag()` | B2 |
@@ -252,16 +255,23 @@ for losses; the sign carries the meaning, not only colour); requirements line on
 real combat tactics (HexButton). Right 25 %: candidates for the slot; none -> "There are no items available to equip." and
 no button; a candidate selected -> yellow Equip.
 
-**Storage / dinosaur cargo (spec 17).** Header "< Storage Box" (or "<pet name> Cargo", corpse title, loot bag title).
-Two InventoryGrids side by side, each with its own capacity strip and Auto Sort / Filter; the bag side's contextual action
-is "Store" (when `allow_deposit` and `_can_store_selected`), the container side's "Take" and "Take all" (when `take_all`);
-`readonly_reason` shows as a grey line and hides Take. A small Inspect button opens ItemInspectPanel as an overlay. Every
-transfer keeps uid, level and attributes; on_take / on_empty fire as today.
+**Storage / dinosaur cargo (spec 17).** Header "< Storage Box" (or "<pet name> Cargo", corpse title, loot bag title; no
+T-stone chip). Two InventoryGrids side by side, each with a "Bag [bag] 91 / 100" strip and its own Auto Sort / Filter
+toolbar (B3: 5 columns of ~108 px at 1600x900, 3 of ~97 px on a 844x390 phone, wide enough for NEW beside "Lv. NN"); the
+ItemInspectPanel runs down the right like the Bag's and shows the instance tapped last on either side (tapping one side
+clears the other). Its yellow primary is the move: "Store" for a bag item (when `allow_deposit` and `_can_store_selected`,
+else a grey reason: take only, locked, held tool, quick food), "Take" for a container item with "Take All" beside it
+(when `take_all`); with nothing selected it summarises both capacities and offers Take All. `readonly_reason` shows as a
+grey line and hides Take. (Design change in B3: the panel is always there instead of an Inspect overlay button, so
+inspection is one tap, spec 13 s21.) Every transfer keeps uid, level and attributes; on_take / on_empty fire as today.
 
-**Ingredient picker (spec 19).** Modal over CraftUI: header "< Choose <slot role>" with the slot's need ("1 of 1"); grid
-filtered to `Crafting.stacks_for_slot` minus locked; least valuable preselected (no rare attribute, lowest level); the
-inspect panel shows the chosen item's attributes and a warning line for rare or Lv. >= 40; primary "Use" enabled when
-exactly `count` instances are chosen.
+**Ingredient picker (spec 19).** Opened from the craft menu's ingredient (the menu steps aside and returns): header
+"< Choose <slot category>" with "chosen / need"; the Bag layout with the grid filtered to `Crafting.stacks_for_slot` (locked
+never listed) minus slots the recipe's other slots use; the least valuable instances preselected (`Inventory.spend_key`:
+plain before traits, low level first, oldest first); a slot that takes several is multi-select and a pick beyond the count
+replaces the earliest; the inspect panel shows the instance tapped last with a red warning line for a rare trait (always,
+even when every candidate has one) or for Lv. >= data `picker.warn_level` chosen over the least valuable; "Choose N more"
+in grey until the choice covers the slot; then the yellow "Use".
 
 ## 8. Save fields (optional, old saves load without them)
 

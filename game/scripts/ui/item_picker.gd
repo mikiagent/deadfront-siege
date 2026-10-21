@@ -23,6 +23,7 @@ var _on_pick: Callable
 var _cands: Array[int] = []
 var _focus := -1 ## the instance the panel shows: the one tapped last
 var _least: Array[int] = [] ## what opening preselected: the least valuable instances
+var _locked := 0 ## instances that fit but are locked: never listed, but said
 var _syncing := false
 var _m := {}
 
@@ -67,10 +68,14 @@ func open(inv: Inventory, p_rec: Dictionary, p_slot: int, on_pick: Callable, tak
 	var slot: Dictionary = slots[p_slot] if p_slot >= 0 and p_slot < slots.size() and slots[p_slot] is Dictionary else {}
 	need = maxi(1, int(slot.get("count", 1)))
 	_cands.clear()
+	_locked = 0
 	if inv and not slot.is_empty():
 		for i in Crafting.stacks_for_slot(inv, slot): # locked instances never show (lock protects them)
 			if i not in taken:
 				_cands.append(i)
+		var cat := StringName(str(slot.get("category", "")))
+		for s in inv.slots:
+			_locked += 1 if s and s.is_locked() and s.def() and s.def().has_category(cat) else 0
 	_cands.sort_custom(func(a: int, b: int) -> bool:
 		var ka := Inventory.spend_key(inv.slots[a])
 		var kb := Inventory.spend_key(inv.slots[b])
@@ -189,6 +194,8 @@ func _refresh_panel() -> void:
 		notes.append([warn, UiTokens.DANGER]) # the one way a rare item gets spent: said out loud
 	if not is_complete():
 		notes.append([("Choose %d more" % (need - units)) if units < need else "Choose fewer", InvTheme.TEXT_2])
+	if _locked > 0:
+		notes.append(["%d locked, not listed: unlock in the Bag to use." % _locked, InvTheme.TEXT_2])
 	var acts: Array[StringName] = []
 	if is_complete():
 		acts.append(&"use")
