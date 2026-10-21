@@ -5,6 +5,39 @@ commits; merged in 5849a2d3). Review round 4 gates ran on 753a3c64 with the rege
 tree `w2data-r4-gate`); the commits after it change only this report. No dsc worker was used (the owner took
 DeepSeek off on 2026-10-20), so nothing goes in dsc-improvements.md. No credits spent.
 
+## Sync 3 before integration (2026-10-21)
+
+The base moved to af03937f (W2-INV merged, 53 commits). The merge bd66cff0 had no conflicts. The branch still
+differs from the base only in this report, and no package code needed adapting: W2-INV had already moved W2-DATA's
+code to instances during its own syncs.
+
+**Hooks patch regenerated (f05d2bd6).** W2-INV rewrote two hooked regions on top of these hooks: the
+raid_gear_probe.gd material lines (instances in a 100-slot bag) and the t_items.gd mixed-pick check
+(`equipped_gather_tool()`). The old patch therefore made `git apply --3way` conflict in t_items.gd on af03937f, so
+mkscratch and the integrator's apply both stopped. The new patch was built from a reverse 3-way apply on af03937f.
+The two conflicted hunks take the pre-hook text as their preimage, and the patch is the diff from that to
+af03937f. Only those two regions changed; every other hunk is the same as before. On af03937f, `git apply -R
+--check` gives rc=0, and `git apply --3way` gives rc=0 with 0 tracked changes, so it is a no-op. Plain `--check`
+still fails, because every hook is already in the base. The preimage blobs come from a detached throwaway commit
+(f709af0a), so they last until git gc prunes them (2 weeks).
+
+**requires_node:** all 16 ids still exist on af03937f and on claude/mmo-w2-skills 986d9267.
+
+The gates ran in the scratch tree `sync-w2-data` on f05d2bd6, made by mkscratch with this patch. The import log
+has 0 error lines.
+
+- All 24 t_*.gd (t_inventory is new) exit with rc=0 and print their PASS line, including
+  `[t_data] PASS items=223 recipes=155`, `[t_inventory] PASS`, `[t_items] PASS`, `[t_build] PASS`,
+  `[t_w2_skills] PASS` and `[t_uiicons] PASS ids=177 files=116 ...`. t_save prints its 5 deliberate SCRIPT ERRORs.
+  Every other log has 0 SCRIPT ERROR lines, and none has a "couldn't resolve track" line.
+- run_all prints `[tests] PASS`, and `tools/smoke.sh --no-import` prints `SMOKE PASS`.
+- `[craft_lab] PASS` and `[equiplab] PASS`. The raid gear probe gives
+  `[gear] maul L60 steel dmg=1569.6 kit armor=9291.3` and `failures=0`.
+- No new Godot-*.ips: there are 25, and the newest is still Godot-2026-10-20-232613.ips.
+
+W2-DATA is fully merged. Each base merge that touches a hooked file will need this regeneration again, so take the
+package out of the sync queue.
+
 ## Sync 2 before integration (2026-10-21)
 
 The base had moved past the branch by 15 commits: the HUD-DAYNIGHT merge, the integrator's re-merge of sync 1
