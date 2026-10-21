@@ -15,7 +15,8 @@ func run() -> Dictionary:
 	var levels := Crafting.consumed_levels(inv, rec, picks)
 	result["level includes both fibre stacks"] = levels.count(1) == 8 and levels.count(3) == 3
 	var used := Crafting.consume_for_craft(inv, rec, picks)
-	result["split stacks preserved for refund"] = used.size() == 4 and used[0].count == 3 and used[1].level == 3
+	# W2-INV: one part per consumed instance (11 units), each keeping its own level.
+	result["split stacks preserved for refund"] = used.size() == 11 and used.all(func(s: ItemStack) -> bool: return s.count == 1) and used.any(func(s: ItemStack) -> bool: return s.level == 3)
 	result["full recipe consumed"] = inv.count_of(&"fibre_stalk") == 0 and inv.count_of(&"branch") == 0 and inv.count_of(&"bark_strip") == 0
 	for stack in used: inv.add(stack)
 	result["cancel refunds split materials"] = inv.count_of(&"fibre_stalk") == 6 and inv.count_of(&"branch") == 3 and inv.count_of(&"bark_strip") == 2
