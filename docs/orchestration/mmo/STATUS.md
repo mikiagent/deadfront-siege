@@ -395,6 +395,11 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - 2026-10-20 (owner) "example of tall trees and transparency" (`docs/design/durango-prompts/21_tall_trees_transparency.md`): it matches the merged
   W2-OCCLUDE rule. A visual check of our build against it is running.
 
+- 2026-10-20 (owner) "notice the game ui and how the resource gathering looks. The finger icon is a walkthrough guide" (spec 22):
+  - Gather hexes show the gather time and the yield per part.
+  - A tutorial pointing hand guides the current order step.
+  A comparison with our gather radial and Orders tracker is running. GATHERUI follows W2-GATHER's merge; GUIDE (the finger) can start sooner.
+
 ## Owner questions (open)
 
 - Male survivor model (PRD: 8 occupations x 2 genders): start a concept sheet for approval, then a Tripo mesh from existing credits? (asked 2026-10-20; unanswered)
