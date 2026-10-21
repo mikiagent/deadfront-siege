@@ -256,7 +256,7 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	# After the island: arriving fires island_changed, whose survival XP is for travel, not for loading.
 	World.pioneer_level = int(data.get("pioneer_level", 0))
 	World.pioneer_xp = int(data.get("pioneer_xp", 0))
-	SaveRestore.buildings(World._home_buildings_cache if World.is_home() else away.get("buildings", []), schema)
+	_restore_buildings(World._home_buildings_cache if World.is_home() else away.get("buildings", []), schema)
 	SaveRestore.retry_refunds(data.get("pending_refunds", []))
 	var saved_unix := int(data.get("saved_unix", Time.get_unix_time_from_system()))
 	var elapsed := offline_seconds(saved_unix)
@@ -322,8 +322,33 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	blocked_reason = ""
 
 ## Kept for callers outside this package (World.travel, run_all, kitchen_lab, siege_probe).
+## Modular pieces (schema 4) go back first: a kit standing on a foundation needs its floor.
 static func _restore_buildings(rows: Array, schema: int) -> void:
-	SaveRestore.buildings(rows, schema)
+	var kits: Array = []
+	var pieces: Array = []
+	for row in rows:
+		var k := str((row as Dictionary).get("kind", "")) if row is Dictionary else ""
+		if k == "loot_bag" and World.runtime:  # what a destroyed structure held, still on the ground
+			World.runtime.add_child(LootBag.from_dict(row))
+			continue
+		(pieces if StructurePiece.is_piece_kind(StringName(k)) else kits).append(row)
+	var grid: BuildGrid = World.runtime.get("build_grid") if World.runtime else null
+	if grid and not pieces.is_empty():
+		grid.structures.restore(pieces, World.runtime)
+	SaveRestore.buildings(kits, schema)
+	if grid:
+		_restore_durability(kits, grid)
+
+## A worn kit keeps its wear: rows carry "durability" (schema 4) and the rebuilt node gets it back.
+static func _restore_durability(rows: Array, grid: BuildGrid) -> void:
+	for row in rows:
+		var v: Variant = row.get("durability") if row is Dictionary else null
+		if not (v is int or v is float):
+			continue
+		var node := grid.occupant(SaveRestore.cell_of(row))
+		var h := StructureHealth.of(node, true)
+		if h and not node.has_method("receive_siege_hit"):  # the catapult saves its own hp
+			h.hp = clampf(float(v), 1.0, h.max_hp)
 
 static func _spawn_building(row: Dictionary) -> Node3D:
 	return SaveRestore.spawn(row)
@@ -343,7 +368,14 @@ static func _live_buildings() -> Array:
 			if pv != null:
 				persist = bool(pv)
 		if b and b.has_method("to_dict") and persist and b.get("is_cargo") != true:
-			out.append(b.to_dict())
+			var row: Dictionary = b.to_dict()
+			var h := StructureHealth.of(b)
+			if h and h.missing() > 0.0:
+				row["durability"] = h.hp
+			out.append(row)
+	var grid: Variant = World.runtime.get("build_grid")
+	if grid is BuildGrid:
+		out.append_array((grid as BuildGrid).structures.to_rows())
 	return out
 
 static func _player() -> Player:
