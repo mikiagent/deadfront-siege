@@ -122,8 +122,7 @@
       "fatigue_per_min": 0.15,
       "weakness_rank": 5,
       "cleared_by": [
-        "antibiotic",
-        "syringe"
+        "antibiotic"
       ],
       "fx": "tint_sick"
     },
