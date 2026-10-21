@@ -345,6 +345,12 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   (socket transport; a local server for dev and tests until a host is picked) and shows an honest "market offline" state in
   offline single-player. It does NOT move single-player characters into a server store to make offline selling work.
 
+- 2026-10-20 (owner) island scale, shape and map UI reference: "To give you an idea of the scale and shape of an island, as well
+  as the UI" (`docs/design/durango-prompts/15_island_map_scale.md`, `docs/reference/durango-island-map.webp`): a Durango Lv. 10
+  island about 165 x 215 m with an irregular coastline, and the map screen (fog of war, island info panel with climate, life span,
+  fatigue and its rate, difficulty laurel, scale bar, domain label, legend, To Harbor / To Waypoint). Being compared with our
+  islands (home 160 m; unstable 240 m by the design doc, about 480 m as generated) and map_screen.gd before a package is planned.
+
 ## Owner questions (open)
 
 - none
