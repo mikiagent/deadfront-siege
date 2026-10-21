@@ -13,7 +13,7 @@ reviewer), `DONE` (shipped and pixel-checked). Evidence comes from the 2026-10-1
 
 | Asset | Problem | Route | Package | Status |
 |---|---|---|---|---|
-| deinonychus | Oldest Meshy v1 single-image mesh (12k tris, JPEG normal), twisting pipe legs (owner-reported), slab hands, paddle tail, washed lime | Tripo multiview from approved sheet v01 + dsc rig | art-deinonychus | IN PROGRESS (sheet approved; build interrupted by usage limit) |
+| deinonychus | Oldest Meshy v1 single-image mesh (12k tris, JPEG normal), twisting pipe legs (owner-reported), slab hands, paddle tail, washed lime | Tripo multiview from approved sheet v01 (task f346e472-5a16-4209-a213-f14e3795420f, 50 credits) + Blender rig and 9 clips by Claude (DEINO) | art-deinonychus | REVIEW (v2 integrated on `claude/mmo-art-deinonychus`; report `docs/orchestration/reports/claude-mmo-deinonychus.md`) |
 | allosaurus, tarbosaurus, dilophosaurus | Procedural box-on-two-sticks placeholder | Tripo + dsc | W1-ARTA | REPLACE (concept sheets need a side-view-first redo; owner batch approval pending) |
 | triceratops, styracosaurus, ankylosaurus, smilodon | Box placeholder | Tripo + dsc | W1-ARTB | REPLACE (same) |
 | brachiosaurus | Box placeholder (does not spawn yet) | Tripo + dsc | W2-ARTC | REPLACE |

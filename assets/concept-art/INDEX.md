@@ -9,7 +9,7 @@ Approval is version-specific. `Milan review anchor` records the authenticated me
 | Species | Concept version | Status | Milan review anchor | Meshy route/task | Credits | Model output | Rig status | Clip matrix |
 |---|---|---|---|---|---:|---|---|---|
 | Stegosaurus | `creatures/stegosaurus/concept-sheet-v01.png` | `DRAFT` | Seen by Milan; approval not received | Not started | 0 | None | Not started | See below |
-| Deinonychus | `creatures/deinonychus/concept-sheet-v01.png` | `APPROVED` | Milan, Claude Code session 2026-10-18 ("Yes, use this sheet") for a Tripo rebuild | Tripo multiview (pending) | 0 | None | Not started | Pending |
+| Deinonychus | `creatures/deinonychus/concept-sheet-v01.png` | `INTEGRATED` (branch `claude/mmo-art-deinonychus`, awaiting review) | Milan, Claude Code session 2026-10-18 ("Yes, use this sheet") for a Tripo rebuild | Tripo multiview P1-20260311 (PBR, 20k faces) from four sheet-derived views, task `f346e472-5a16-4209-a213-f14e3795420f` (balance 3205 -> 3155); no retry | 50 Tripo | `game/assets/creatures/deinonychus/deinonychus.glb` (v2; Meshy v1 under `v1/`) | 34-bone headless-Blender rig: jaw, sickle claws, Neck1-3, Tail1-8, digitigrade legs | 9 `Blender-authored`: idle, walk, run, attack_primary, attack_heavy, hit_react, knockdown, death, alert |
 | Velociraptor | `creatures/velociraptor/concept-sheet-v01.png` | `DRAFT` | - | Not started | 0 | None | Not started | Pending |
 | Utahraptor | `creatures/utahraptor/concept-sheet-v01.png` | `DRAFT` | - | Not started | 0 | None | Not started | Pending |
 

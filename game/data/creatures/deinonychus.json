@@ -43,7 +43,7 @@
     "source_height_m": 3.6,
     "concept_sheet": "assets/concept-art/creatures/deinonychus/concept-sheet-v01.png (APPROVED by Milan 2026-10-18)",
     "mesh_views": "ref/deinonychus_{front,left,right,back}_v2.png (dsc image tool from the approved sheet, white background)",
-    "mesh": "Tripo P1-20260311 multiview, PBR, face_limit 20000, task f346e472-5a16-4209-a213-f14e3795420f, 50 Tripo credits; rotated to face -Z, scaled to 3.6 m, feet on z=0, UV seams welded (27673 -> 9532 verts, one island); textures 2048 (Color, NormalGL, ORM; metallic mean 0.02)",
+    "mesh": "Tripo P1-20260311 multiview, PBR, face_limit 20000, task f346e472-5a16-4209-a213-f14e3795420f, 50 Tripo credits; rotated to face -Z, scaled to 3.6 m, feet on z=0, UV seams welded (27673 -> 9532 verts, one island); 1557 faces re-wound to match Tripo's normals and Tripo's shading normals kept as split normals (the weld had flipped 13 % of vertex normals and the coat read blue-grey in Godot)",
     "rig_and_animation": "Opus builder in headless Blender: 34 bones (root, Hips, Spine1-2, Chest, Neck1-3, Head, Jaw, Arm/Forearm/Hand, Thigh/Shin/Metatarsal/Toe/Sickle per side, Tail1-8); heat weights cleaned by region (limbs keep only their own segment, jaw split on the measured mouth line, sickle claw on its own bone); clips from analytic digitigrade leg IK (knee forward, ankle back, ball of foot planted) baked to FK at 30 fps",
     "clips": [
       "idle",
@@ -68,7 +68,7 @@
       "alert": "2.0 s head low and forward, tail raised stiff, scans left and right"
     },
     "verifier": "creature-verify.mjs --height 3.6 --require-jaw: ALL HARD CHECKS PASSED (feed, sleep, tail_swipe optional, missing)",
-    "tools": "tools/deinonychus_v2/ (rig and clip scripts; work files in /Users/milankinzy/Documents/deadfront-dsc-work/deinonychus-v2, outside the repo)",
+    "tools": "tools/deinonychus_v2/ (prep2, build_rig, bake, grade, export scripts; work files in /Users/milankinzy/Documents/deadfront-dsc-work/deinonychus-v2, outside the repo)",
     "provenance": "docs/orchestration/reports/claude-mmo-deinonychus.md",
     "credits": {
       "tripo": 50,
@@ -166,7 +166,8 @@
       "rig_revision": 3,
       "version": 1,
       "note": "v1 glb, textures, sheet and anim moved to res://assets/creatures/deinonychus/v1/ (.gdignore: kept for history, not imported or exported)"
-    }
+    },
+    "textures": "2048 maps: colour lifted toward the approved sheet (v' = v^0.78 on every texel, hue and saturation kept: median value 0.243 -> 0.333, the sheet's is 0.333); roughness remapped 0.55 + 0.45 r (mean 0.65 -> 0.84) so the feathers stay matte; Tripo normal map unchanged; metallic mean 0.02"
   },
   "look": "3 meter dromaeosaur, feathered arms, sickle claws, long stiff tail, olive green with dark spots,",
   "taming": {
