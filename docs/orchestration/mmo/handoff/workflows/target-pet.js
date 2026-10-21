@@ -1,0 +1,64 @@
+export const meta = {
+  name: 'deadfront-target-pet',
+  description: 'TARGETUI (tap selects a wild animal: target plate + red swords hex starts combat) and PETRADIAL (tap your pet: ring menu Animals/Bag/Feed/Ride/Dismiss/Rename); scout, build both, independent reviews, blind A/B',
+  phases: [
+    { title: 'Scout', detail: 'our flow vs the references; spec 07/02 reconciliation' },
+    { title: 'Build', detail: 'TARGETUI and PETRADIAL in parallel' },
+    { title: 'Review', detail: 'independent reviewer + blind A/B per package, fix loop' },
+  ],
+}
+const OSP = '/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/1899b1df-f06b-4b94-91be-9e3f3c22081d/scratchpad'
+const SP = '/private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad'
+const REPO = '/Users/milankinzy/Documents/deadfront-siege'
+const OWNER = '/Users/milankinzy/Documents/deadfront'
+const G = '/Applications/Godot_mono.app/Contents/MacOS/Godot'
+const SPEC = `${REPO}/.claude/worktrees/mmo-overhaul/docs/design/durango-prompts/23_target_select_pet_radial.md`
+const REFS = `${OWNER}/docs/reference/durango-target-select.webp (target select + red swords) and ${OWNER}/docs/reference/durango-pet-radial.webp (pet radial)`
+const RULES = `Rules: Godot only through ${OSP}/gslot.sh with its own timeout (perl -e 'alarm N; exec @ARGV'), silent, never --editor; --import once after adding class_name files. Shots: windowed at 1600x900 (Forward+ and gl_compatibility) and 844x390; open every PNG next to the references. Gates: every game/tests/t_*.gd PASS (t_save prints 5 deliberate SCRIPT ERRORs), run_all [tests] PASS, smoke SMOKE PASS, the labs you touch with 0 SCRIPT ERROR. Keep game/override.cfg; never touch the owner's real save, ${REPO}'s main checkout, ${OWNER}, or other packages' worktrees (many workflows run). Throwaway trees: bash ${SP}/mkscratch.sh <name> <ref> [patch] (reuse names; disk is tight). Files of merged packages (hunt_hud.gd, player_input.gd / player_actions.gd, creature plates, pets code, combat) get exact compiling changes in the package hooks patch; new files are yours. Typed GDScript in the house style, no new autoloads/deps, no god-file growth, no downloads; actions go through PlayerActions (the server path). Tests must fail on the old behaviour. Commit often ("Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"); never git add -A; never push, merge into claude/mmo-overhaul or deploy; never use SendMessage; never claim a check you did not run.`
+const BASECTX = `Project: DEADFRONT, a Godot 4.7.1 typed-GDScript dinosaur survival MMO (game/ is the project) with Durango: Wild Lands UI; judged in desktop Chrome at 1600x900 (web renderer gl_compatibility) and on landscape phones (844x390). Owner (newest): "You can tap on an animal, that selects it, if you press red swords you initiate combat with it. Pet radial menu to mount and ride, etc". Read ${SPEC} and open ${REFS}.`
+const NOTES = { type: 'object', properties: { notes: { type: 'string' }, ruling_needed: { type: 'string' } }, required: ['notes', 'ruling_needed'] }
+const STEP = { type: 'object', properties: { done: { type: 'boolean' }, head: { type: 'string' }, gates: { type: 'array', items: { type: 'string' } }, shots: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' } }, required: ['done', 'head', 'summary'] }
+const PAIR = { type: 'object', properties: { scene: { type: 'string' }, before: { type: 'string' }, after: { type: 'string' } }, required: ['scene', 'before', 'after'] }
+const REVIEW = { type: 'object', properties: { pass: { type: 'boolean' }, reviewed_sha: { type: 'string' },
+  acceptance: { type: 'array', items: { type: 'object', properties: { item: { type: 'string' }, met: { type: 'boolean' }, evidence: { type: 'string' } }, required: ['item', 'met', 'evidence'] } },
+  findings: { type: 'array', items: { type: 'object', properties: { severity: { type: 'string', enum: ['blocker', 'major', 'minor'] }, where: { type: 'string' }, problem: { type: 'string' }, fix: { type: 'string' } }, required: ['severity', 'where', 'problem', 'fix'] } },
+  pairs: { type: 'array', items: PAIR }, summary: { type: 'string' } }, required: ['pass', 'reviewed_sha', 'findings', 'pairs', 'summary'] }
+const JUDGE = { type: 'object', properties: { verdicts: { type: 'array', items: { type: 'object', properties: { scene: { type: 'string' }, better: { type: 'string', enum: ['first', 'second', 'tie'] }, reasons: { type: 'string' } }, required: ['scene', 'better', 'reasons'] } }, overall: { type: 'string' } }, required: ['verdicts', 'overall'] }
+
+phase('Scout')
+const scout = await agent(`${BASECTX}\n\nROLE: read-only scout (no edits; Godot only via gslot in a throwaway tree: bash ${SP}/mkscratch.sh tpscout claude/mmo-overhaul). (1) Find and describe OUR flow today on claude/mmo-overhaul: what tapping a wild creature does (selection, auto-attack, the target plate and its look, any attack/capture hexes, stances, the 2026-10-18 owner decision "keep tap-target auto-attack AND add an action mode" in docs/orchestration/mmo/STATUS.md), and what tapping your own pet does (any pet menu or radial, the Animals screen, pet bag/cargo, feeding, mount/ride - the T. rex mount, dismiss/send home, rename) - files and functions with line refs; take windowed shots at 1600x900 gl_compatibility and 844x390 of a wild animal tapped and of your pet tapped, and look at them. (2) Read docs/design/durango-prompts/07_combat_and_animal_capture.md and 02_dinosaur_taming_and_companions.md (and PRD lines on targeting and pets) and say exactly what they bind about tap-to-select vs auto-attack, the attack button, and pet interactions. (3) ruling_needed: the one question the orchestrator must rule on, if any (e.g. does tap still auto-attack anything; what about hostile animals already attacking you).`, { label: 'scout', phase: 'Scout', schema: NOTES })
+if (!scout) return { stopped: 'cut at scout' }
+// Orchestrator ruling (2026-10-20): the owner's description is newest - tapping a WILD animal only selects it (target plate); combat starts from the red swords hex (or its key); a creature already in combat with you keeps auto-attack so the player is never defenceless; the 2026-10-18 action mode stays. Pets never get the swords hex.
+const RULING = `ORCHESTRATOR RULING (owner's description is newest): tapping a WILD animal SELECTS it (the target plate at the top centre: name, level in red, HP bar, portrait); combat starts only from the red crossed-swords hex beside it (and its desktop key, e.g. E); a creature that is already fighting you is engaged automatically as before so the player is never defenceless; the existing action mode stays; tapping your own pet never shows the swords.`
+
+const PK = [
+  { key: 'targetui', label: 'TARGETUI', text: `Package TARGETUI: tap-to-select for wild animals with the Durango target plate and the red swords hex that starts combat. ${RULING} Match the reference: the plate (dark band, name and red "Lv. n", red HP bar with numbers, portrait on the right), the swords hex (dark hex, red crossed swords, key hint on desktop) floating beside the selected animal and following it, deselect by tapping empty ground or another target, the selected animal marked (ring) without hiding the aggro ring. Keep capture eligibility visible where the existing capture hex shows it. Tests: t_targetui.gd fails on the old code (tap auto-attacked / no swords) and checks select, swords -> attack intent through PlayerActions, a hostile already attacking still engaged, pets excluded.` },
+  { key: 'petradial', label: 'PETRADIAL', text: `Package PETRADIAL: tapping your own pet opens the Durango pet radial - a dark ring of segments around a centre disc with the pet's portrait, name and a meter arc (its HP or fullness, whichever the docs and the game support; # ASSUMPTION), each segment a white icon with its label outside the ring: Animals menu (open the Animals screen on that pet), Bag (the pet's cargo through the shared bag grid if INVUI's exists on the base, else the current cargo UI), Feed (the existing feeding path), Ride (mount/dismount through the existing mount system; only for species that can be ridden - otherwise the segment is absent), Dismiss (send home / unsummon through the existing path), Rename (a name dialog with the same validation as the character name). Absent features are not shown (no inert segments). Close on tap outside. Tests: t_petradial.gd fails on the old code (no radial) and checks each segment calls the real action.` },
+]
+phase('Build')
+const out = await parallel(PK.map(p => async () => {
+  const wt = `${REPO}/.claude/worktrees/mmo-${p.key}`, br = `claude/mmo-${p.key}`
+  const report = `docs/orchestration/reports/claude-mmo-${p.key}.md`, hooks = `docs/orchestration/reports/claude-mmo-${p.key}-hooks.patch`
+  const ctx = `${BASECTX}\n${p.text}\nBranch ${br}, work tree ${wt} (create: bash ${OSP}/mkwt.sh ${p.key}). Report ${report}; hooks ${hooks}.\nScout notes on our current flow:\n${scout.notes}\n${RULES}`
+  let b = await agent(`${ctx}\n\nROLE: builder of ${p.label}. Create the work tree, take BEFORE shots, build the package, the hooks patch and the test, run every gate, take AFTER shots, LOOK at them next to the references, write the report, commit. Return done, head, gates, shots, summary.`, { label: `build:${p.key}`, phase: 'Build', schema: STEP })
+  if (!b) return { key: p.key, ready: false, stopped: 'cut at build' }
+  let final = null
+  for (let round = 1; round <= 3; round++) {
+    const rv = await agent(`${ctx}\n\nROLE: independent, demanding reviewer (round ${round}) of ${p.label}. You did not write it; do not edit ${wt}; probes under ${SP}/review/${p.key}/r${round}/; review the branch WITH its hooks (bash ${SP}/mkscratch.sh rev-${p.key} ${br} ${hooks}). Run every gate and the package test; try to break it (every case the scope names, mounted, in combat, pets of several species, several wild animals close together, resize between phone and desktop, touch and mouse, the HUD crowding at 844x390); check scope and that the test fails on the old code. Take matched BEFORE/AFTER shots (same scene, size, renderer: 1600x900 gl_compatibility and 844x390) as pairs and look at them. pass=true only with zero blockers and zero majors.`, { label: `review:${p.key}:r${round}`, phase: 'Review', schema: REVIEW, effort: 'high' })
+    if (!rv) return { key: p.key, ready: false, stopped: 'cut at review', final }
+    const findings = (rv.findings || []).slice()
+    if (!rv.pass) (rv.acceptance || []).filter(a => !a.met).forEach(a => findings.push({ severity: 'major', where: 'acceptance', problem: `Unmet: ${a.item} - ${a.evidence}`, fix: 'Meet it.' }))
+    let pass = rv.pass, ab = null
+    if (pass && rv.pairs && rv.pairs.length) {
+      ab = await agent(`You are a blind art director for a dinosaur survival game with Durango: Wild Lands-grade UI. Two screenshots of the same moment from two builds per scene; you are NOT told which is newer; ignore file names. Open both and judge which is the better shipped game screen (clarity of what you can do with this animal, readability, hierarchy, polish). first/second/tie with reasons.\n${rv.pairs.map((pr, i) => `Scene ${i + 1} "${pr.scene}": first = ${i % 2 ? pr.after : pr.before} ; second = ${i % 2 ? pr.before : pr.after}`).join('\n')}`, { label: `judge:${p.key}:r${round}`, phase: 'Review', schema: JUDGE })
+      if (ab) { let aw = 0, bw = 0; ab.verdicts.forEach((v, i) => { if (v.better === 'tie') return; ((v.better === 'second') !== (i % 2 === 1)) ? aw++ : bw++ }); ab.afterWins = aw; ab.beforeWins = bw; if (aw <= bw) { pass = false; findings.push({ severity: 'major', where: 'blind A/B judge', problem: `Judge did not prefer the new build (new ${aw}, old ${bw}). ${ab.overall}`, fix: "Address the judge's reasons." }) } }
+    } else if (pass) { pass = false; findings.push({ severity: 'major', where: 'review evidence', problem: 'no matched pairs', fix: 'take them' }) }
+    final = { round, pass, summary: rv.summary, findings, ab: ab ? { afterWins: ab.afterWins, beforeWins: ab.beforeWins, overall: ab.overall } : null }
+    log(`${p.label} review r${round}: ${pass ? 'PASS' : 'not yet'}`)
+    if (pass || round === 3) break
+    b = await agent(`${ctx}\n\nROLE: builder, fix round ${round}. Fix every blocker and major and the cheap minors below, add a check for each, rerun the gates and shots, look at them, update the report and hooks, commit. If a finding is wrong, show evidence.\nFindings (JSON): ${JSON.stringify(findings, null, 1)}\nReturn done, head, gates, shots, summary.`, { label: `fix:${p.key}:r${round}`, phase: 'Review', schema: STEP })
+    if (!b) return { key: p.key, ready: false, stopped: 'cut at fix', final }
+  }
+  return { key: p.key, ready: !!(final && final.pass), final }
+}))
+return { scout: { ruling_needed: scout.ruling_needed }, packages: out }

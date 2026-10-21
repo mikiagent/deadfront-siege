@@ -1,7 +1,7 @@
 class_name PlayerActions
 extends RefCounted
 ## The survivor's command layer: every verb that changes the bag, gear, the world or a creature
-## (gather, loot, craft, place, equip, eat, tame, attack) goes through here. Offline each verb
+## (gather, loot, craft, place, equip, eat, tame, attack, drink, wash) goes through here. Offline each verb
 ## applies locally exactly as before. Online (W3-SRVACT) the same call becomes an `act.<verb>`
 ## intent for the server (contracts.md section 0.3) and nothing changes locally until the
 ## server's delta arrives. To add a verb (W2-ACTION: swing, dodge, block, aim): add one method
@@ -186,6 +186,7 @@ func finish_gather() -> void:
 		World.add_xp(2)
 	p.toast(stack.def_id, gained)
 	p.vitals.add_fatigue(GATHER_FATIGUE_PER_UNIT, &"gather")
+	WaterAccess.soil(p, &"gather")
 	if gt.pool_units_left() <= 0:
 		stop_gather_cycle()
 		p.gather_target = null
@@ -404,8 +405,27 @@ func loot(corpse: Corpse, slot: int) -> int:
 		p.skills.add_xp("butchering", 3)
 	else:
 		World.add_xp(3)
+	WaterAccess.soil(p, &"butcher")
 	p.toast(def_id, moved)
 	return moved
+
+# ---------------------------------------------------------------- water (spec 17)
+
+## Drink, wash, or fill an empty bucket at fresh water (PRD :105, :314). The rules are WaterAccess's.
+func drink() -> bool:
+	if online:
+		return _send(&"drink", {})
+	return WaterAccess.drink(p)
+
+func wash() -> bool:
+	if online:
+		return _send(&"wash", {})
+	return WaterAccess.wash(p)
+
+func fill_water() -> bool:
+	if online:
+		return _send(&"fill", {})
+	return WaterAccess.fill(p)
 
 # ---------------------------------------------------------------- craft, eat, equip, place
 

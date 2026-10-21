@@ -400,9 +400,60 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   - A tutorial pointing hand guides the current order step.
   A comparison with our gather radial and Orders tracker is running. GATHERUI follows W2-GATHER's merge; GUIDE (the finger) can start sooner.
 
+- 2026-10-20 (owner) "the cage icon should look like there's a dino inside": CAGEICON (wf_fd47200c-882, `claude/mmo-cageicon` stacked on ICONS2)
+  re-renders captured_animal with a real dinosaur mesh inside the cage. Blind naming judges at 48 px and full size must see a dinosaur and a cage,
+  an A/B judge must prefer it over the old render, and captured vs tamed must be distinct at 48 px. It merges right after ICONS2.
+- 2026-10-20 CHAR-APPEARANCE plan (`char-appearance-plan.md`).
+  - The shipped v2 survivor is male; the missing base is a female v2.
+  - APPEAR-A (wf_c94a70f4-71e, 0 credits): hair split into its own piece (current, buzz, bald, short crop), helmet shells, facial-hair decals plus 2 shell beards, feature decals.
+  - CHARCREATE does the colour masks with the plan's geometry method.
+  - Settled from the docs, so not owner questions: muted palettes per STYLE.md; tied-back hair only until the rig has hair bones; facial features start as free decals; the creation screen keeps the tee-and-shorts base layer.
+  - Needs the owner: concept sheets CA-01..04, 4 Tripo hairstyles (cap 300), a female v2 base (cap 250), occupation outfits later.
+- 2026-10-20 checks (`tree-and-gather-checks.md`).
+  - Tree fade: right strength, not a hole.
+  - Gaps: forest density (about 4 trees per hectare on unstable islands against 24 at home, almost no understory), hard dark shadows, trunks fade with the crown.
+  - Gather hexes: the shown time is static and will be wrong after W2-GATHER; the count means passes left; hexes sit far apart and jump while walking.
+  - No tutorial pointer exists. GUIDE (wf_987c83ae-267) builds the walkthrough finger.
+  - Backlog, in order: GATHERUI (after W2-GATHER merges), FOREST (density scaled to area, understory under tree clumps), OCCLUDE2 (solid trunks, per-object dither), LIGHT2 (soft sun edges, ambient 0.3 -> ~0.45, Forward+/compat colour match), MAPUI, ISLANDSHAPE (after the owner's island-size answer).
+- 2026-10-20 22:45 the disk filled up: review agents made about 80 uniquely named 1.6 GB scratch trees. Cleaned to 122 GB free. mkscratch.sh now keeps at most 12 trees and refuses below 15 GB.
+
+- 2026-10-20 (owner) more references and requests, each filed as a spec with its own run:
+  - Target select and pet radial (spec 23): TARGET-PET wf_12d62955-8bb.
+    - Ruling, from the owner's newer description: tapping a wild animal selects it, the red swords hex starts combat,
+      an animal already fighting you stays engaged, and the action mode stays.
+  - Crit numbers that balloon out (spec 24): COMBATFX wf_1c0f1639-5fc.
+  - "UI glitching on resource nodes, WASD + a joystick on the left that only appears when you hold and drag, better
+    pathfinding, movement and interactions": CONTROLS wf_1178f1fd-3e0.
+  - "Stegosaurus model is wrong": the merged v2 was hidden behind a stale override. STEGO wf_56306bba-f17.
+  - "Should be a triceratops too" (from the DeepSeek bake-off) and "a newer deinonychus": CREATURE-ART wf_3a741584-856.
+    - Triceratops: the better bake-off build goes into the game.
+    - Deinonychus: a Tripo rebuild from the approved sheet v01, capped at 100 credits.
+  - "The cage icon should look like there's a dino inside": CAGEICON round 3 wf_9cde60cc-597, with an inside-the-cage judge.
+  - In-game bag panel reference (spec 13 addendum 2): fed into INVUI B4.
+  - "Resting should sit you down and heal you and lower exhaustion. It didn't work on Vercel": REST wf_3af39880-3bb.
+    It reproduces on production first; there is no standalone rest action today.
+- Side integrator (`handoff/workflows/side-int.js`): merges finished side packages one at a time with every gate, and waits while
+  finish-6's integrator runs. WATER merged (4cd47f42). Queued: HUD-DAYNIGHT, then DOMAIN, each with a pre-merge polish fix.
+- Backlog: a one-bug Codex job for the Godot exit-time SIGABRT (std::system_error from a mutex lock 0.7-10 s after launch; about 10
+  .ips reports; it shows the owner "Godot quit unexpectedly").
+- 2026-10-21 (owner) "as a rule of thumb: make it flashy. Level ups should have light effect animations." Standing art direction:
+  feedback moments (level-ups, crits, rare finds, rewards, unlocks) get light, motion and punch, readable in the web renderer and on
+  phones. Package LEVELFX (light-effect level-up animations).
+- 2026-10-21 (owner) "Also watch out for glitchy movement of UI and player." Standing quality gate: every UI or movement review and every
+  merge checks motion over frame sequences (HUD elements, labels, radials and the player must not jump, snap, stutter or swap sides
+  between frames); a measured glitch is a failure. The side integrator and new package reviews carry the gate.
+- 2026-10-21 (owner) corrections to the 2026-10-20 requests:
+  - Damage numbers, not crit balloons: "Just add damage numbers, make them small and informative but make them bigger if you hit a crit
+    or did a lot of damage", "you want them to kind of expand out and dissipate", "you can make it float up too". COMBATFX is
+    rescoped (wf_1c0f1639-5fc): small numbers that expand outward while fading and float up; crits and big hits are larger;
+    white for damage dealt, red for damage taken; no outline.
+  - "That white triceratops is not acceptable, neither is the blocky stegosaurus." The Triceratops bake-off build is rejected:
+    CREATURE-ART makes a concept sheet first, and the owner approves it before any Tripo spend. The blocky Stegosaurus is the
+    placeholder that STEGO removes, so the shipped Tripo v2 shows.
+
 ## Owner questions (open)
 
-- Male survivor model (PRD: 8 occupations x 2 genders): start a concept sheet for approval, then a Tripo mesh from existing credits? (asked 2026-10-20; unanswered)
+- Female v2 survivor base (PRD: 8 occupations x 2 genders; the shipped v2 is a MAN; an earlier version of this question wrongly asked for a male base): a concept sheet for approval, then a Tripo mesh plus refitting the 3 armour kits, about 250 credits? Before or after extra hairstyles (4 Tripo styles, cap 300)? (2026-10-20; unanswered)
 - Painted portrait set like Durango's (15+ faces): new art; which source, if any? Until then portraits are rendered from the player's model.
 - Island size target (asked 2026-10-20; unanswered): match Durango (~300 x 375 m, recommended), the design doc (160 home / 240 unstable), or keep ours (134 home / 406 unstable) with ragged shapes only? ISLANDSHAPE waits for it.
 
@@ -423,3 +474,4 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - 2026-10-20 DSC-QUADS2 not merged: review r1 failed (left/right legs in exact lockstep in all four clips, megaloceros run skates and tears). Tripo trial on the megaloceros (35 credits, branch claude/mmo-tripo-megaloceros, not pushed): quadruped walk only, scissoring hind legs, no run/idle presets; not adopted.
 - 2026-10-20 merged W2-DATA (9c4226c8): Stone-to-Steel ladder (tin, forge, anvil, 28 named tools), nets I-V, armour bands 1-60, raid kit from steel, recipe node gates (hook 6), t_data validator; hooks applied clean (be970c8c). Merged tree: all 20 t_*.gd PASS incl. "[t_data] PASS items=223 recipes=155" (t_save 5 deliberate SCRIPT ERRORs); [tests] PASS; SMOKE PASS; island_lab "nodes=397 creatures=24" (base 378; intended: corn on home grassland, wheat/tin nodes), build_lab [build] PASS, craft_lab and equip_mount_lab PASS, 0 SCRIPT ERROR, 0 "couldn't resolve track"; home_lab 1600x900 Forward+/gl_compat and 844x390 match base; no new Godot .ips; review r4 pass; pending: repairs rows have no consumer yet, W2-SKILLS rebases H1 onto hook 6
 - 2026-10-20 merged W2-SKILLS (dfcf833e, hooks 6f65f615, base docs merge 846dd6d9): Durango 1-60 trees from Lv. 1, Lv1 AUTO nodes, Animal Handling I-IV bonded cap 3-7 via Data.bonded_cap, recipe node gates via SkillRules.recipe_block (H1 replaces W2-DATA's requires_node check), save rev 2 with rev-1 migration (owner-approved); 15-file hooks applied clean. Merged tree: all 21 t_*.gd PASS incl. "[t_w2_skills] PASS", "[t_data] PASS items=223 recipes=155" (t_save 5 deliberate SCRIPT ERRORs); [tests] PASS; SMOKE PASS (both rerun after the spec 20-22 docs base merge); island_lab "nodes=397 creatures=24" (unchanged); build/craft/equip_mount labs PASS; skills_lab "[skill] PASS level-up pays 10 SP, small_field bought", capture_lab "[capture] PASS bonded+=2", ui_family_lab active_cap=3; 0 SCRIPT ERROR, 0 "couldn't resolve track"; ui_real_capture_lab [uireal] PASS 1600x900 and 844x390 gl_compat; home_lab 1600x900 Forward+/gl_compat and 844x390 match base; no new Godot .ips (34); review r8 pass + sync delta; blind A/B pass; pending: ui_real_capture_lab radial-vs-vitals check flaky at 844x390 (spawn varies; failed once, passed on rerun), --shot names containing "skills"/"tree" auto-open the skills sheet (hunt_hud.gd:92 debug hook), open owner decisions 4-7 in the W2-SKILLS report (cured-hide pacing, occupation Lv. 20 vs cap, island/capture pacing, rev-1 sp_extra), W3-SRVACT server-side gates
+- 2026-10-20 merged WATER (229719b0, merge c5f1db63, hooks 3abc6503): Drink/Wash (and Fill with an empty bucket) hexes within 2 m of fresh river water, none at the sea; Dirty/Very dirty/Thirsty/Quenched/Clean statuses; in_water from the heightmap (straight river box removed). Merge fix: t_data STATUS_ACTIONS accepts wash/drink (W2-DATA's check failed "status dirty cleared_by wash is an item or a listed action" x3). import exit 0; all 23 t_*.gd exit 0 incl. "[t_water] PASS", "[t_data] PASS items=223 recipes=155", "[t_w2_skills] PASS", t_uiicons "PASS ids=177 files=116" (t_save 5 deliberate SCRIPT ERRORs); run_all "[tests] PASS"; "SMOKE PASS"; island_lab exit 0, 0 SCRIPT ERROR, "nodes=397 creatures=24" (unchanged); build_lab "[build] PASS"; water_lab headless matches the report's after table (river_bank_1m ctx drink/wash, sea_bank_1m claim only, bank_after quenched+clean, water_bucket=1); creature_anim_lab 0 "couldn't resolve track"; home_lab 1600x900 Forward+/gl_compat and 844x390 match base (first Forward+ run showed the bag sheet open and the first phone run a passing herd; reruns match), water_lab windowed 4 configs looked at; one new Godot .ips (23:26:13) is another agent's charcreate_lab shot (cc2 b2_world_glc.log, same recursive_mutex abort), not this merge; review pass; blind A/B pass; side integrator. Pending: W3-SRVACT handlers for act.drink/act.wash/act.fill
